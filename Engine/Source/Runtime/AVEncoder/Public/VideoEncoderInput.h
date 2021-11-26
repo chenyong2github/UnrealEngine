@@ -210,11 +210,21 @@ namespace AVEncoder
 
 #endif // PLATFORM_WINDOWS
 
+		enum class EUnderlyingRHI
+		{
+			Undefined,
+			D3D11,
+			D3D12,
+			Vulkan
+		};
+
 		// --- CUDA
 		struct FCUDA
 		{
-			CUarray		EncoderTexture = nullptr;
-			CUcontext   EncoderDevice = nullptr;
+			CUarray			EncoderTexture = nullptr;
+			CUcontext   	EncoderDevice = nullptr;
+			EUnderlyingRHI	UnderlyingRHI = EUnderlyingRHI::Undefined;
+			void*			SharedHandle = nullptr;
 		};
 
 		const FCUDA& GetCUDA() const { return CUDA; }
@@ -223,7 +233,7 @@ namespace AVEncoder
 		// the callback type used to create a registered encoder
 		using FReleaseCUDATextureCallback = TFunction<void(CUarray)>;
 
-		void SetTexture(CUarray InTexture, FReleaseCUDATextureCallback InOnReleaseTexture);
+		void SetTexture(CUarray InTexture, EUnderlyingRHI UnderlyingRHI, void* SharedHandle, FReleaseCUDATextureCallback InOnReleaseTexture);
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		// --- Vulkan

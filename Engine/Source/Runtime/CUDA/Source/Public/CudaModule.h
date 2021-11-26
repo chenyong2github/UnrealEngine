@@ -39,6 +39,7 @@ private:
 	void UnloadCuda();
 	
 	void InitCuda();
+	bool IsRHISelectedDevice(CUdevice cuDevice);
 	
 	void* DriverLibrary;
 	CUDA_DRIVER_API_FUNCTION_LIST DriverApiPtrs;

@@ -5,6 +5,17 @@
 #include "CudaModule.h"
 #include "VulkanRHIPrivate.h"
 #include "PixelStreamingSettings.h"
+#include "VideoEncoderInput.h"
+
+#if PLATFORM_WINDOWS
+    #include "VideoCommon.h"
+    #include "D3D11State.h"
+    #include "D3D11Resources.h"
+    #include "D3D12RHICommon.h"
+    #include "D3D12RHIPrivate.h"
+    #include "D3D12Resources.h"
+    #include "D3D12Texture.h"
+#endif
 
 FPixelStreamingEncoderFrameFactory::FPixelStreamingEncoderFrameFactory()
 {
@@ -116,11 +127,25 @@ TSharedPtr<AVEncoder::FVideoEncoderInput> FPixelStreamingEncoderFrameFactory::Cr
 #if PLATFORM_WINDOWS
     else if(RHIName == TEXT("D3D11"))
     {
-        return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, IsRHIDeviceAMD());
+        if(IsRHIDeviceAMD())
+        {
+            return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, true);
+        }
+        else if(IsRHIDeviceNVIDIA())
+        {
+            return AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, false);
+        }
     }
     else if(RHIName == TEXT("D3D12"))
     {
-        return AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, IsRHIDeviceNVIDIA());
+        if(IsRHIDeviceAMD())
+        {
+            return AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), InWidth, InHeight, bIsResizable, false);
+        }
+        else if(IsRHIDeviceNVIDIA())
+        {
+            return AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), InWidth, InHeight, bIsResizable);
+        }
     }
 #endif
 
@@ -138,7 +163,7 @@ void FPixelStreamingEncoderFrameFactory::SetTexture(AVEncoder::FVideoEncoderInpu
         if(IsRHIDeviceAMD())
         {
             FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
-            InputFrame->SetTexture(VulkanTexture->Surface.Image, [this, InputFrame](VkImage NativeTexture) { /* Do something with released texture if needed */ });
+            InputFrame->SetTexture(VulkanTexture->Surface.Image, [](VkImage NativeTexture) { /* Do something with released texture if needed */ });
         }
         else if(IsRHIDeviceNVIDIA())
         {
@@ -149,16 +174,28 @@ void FPixelStreamingEncoderFrameFactory::SetTexture(AVEncoder::FVideoEncoderInpu
             UE_LOG(PixelStreamer, Error, TEXT("Pixel Streaming only supports AMD and NVIDIA devices, this device is neither of those."));
         }
     }
-#if PLATFORM_WINDOWS	
+#if PLATFORM_WINDOWS
+    // TODO: Fix CUDA DX11 (Using CUDA as a bridge between DX11 and NVENC currently produces garbled results)	
     // DX11
     else if(RHIName == TEXT("D3D11"))
     {
-        InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [this, InputFrame](ID3D11Texture2D* NativeTexture) { /* Do something with released texture if needed */ });
+        InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [](ID3D11Texture2D* NativeTexture) { /* Do something with released texture if needed */ });
     }
     // DX12
     else if(RHIName == TEXT("D3D12"))
     {
-        InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [this, InputFrame](ID3D12Resource* NativeTexture) { /* Do something with released texture if needed */ });
+        if(IsRHIDeviceAMD())
+        {
+            InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [](ID3D12Resource* NativeTexture) { /* Do something with released texture if needed */ });
+        }
+        else if(IsRHIDeviceNVIDIA())
+        {
+            this->SetTextureCUDAD3D12(InputFrame, Texture);
+        }
+        else
+        {
+            UE_LOG(PixelStreamer, Error, TEXT("Pixel Streaming only supports AMD and NVIDIA devices, this device is neither of those."));
+        }
     }
 #endif // PLATFORM_WINDOWS
     else
@@ -241,7 +278,7 @@ void FPixelStreamingEncoderFrameFactory::SetTextureCUDAVulkan(AVEncoder::FVideoE
 
     FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
 
-    InputFrame->SetTexture(mappedArray, [this, mappedArray, mappedMipArray, mappedExternalMemory, InputFrame](CUarray NativeTexture)
+    InputFrame->SetTexture(mappedArray, AVEncoder::FVideoEncoderInputFrame::EUnderlyingRHI::Vulkan, nullptr, [mappedArray, mappedMipArray, mappedExternalMemory](CUarray NativeTexture)
     {
         // free the cuda types
         FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
@@ -276,3 +313,226 @@ void FPixelStreamingEncoderFrameFactory::SetTextureCUDAVulkan(AVEncoder::FVideoE
         FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
     });
 }
+
+#if PLATFORM_WINDOWS
+void FPixelStreamingEncoderFrameFactory::SetTextureCUDAD3D11(AVEncoder::FVideoEncoderInputFrame* InputFrame, const FTexture2DRHIRef& Texture)
+{
+    FD3D11TextureBase* D3D11Texture = GetD3D11TextureFromRHITexture(Texture);
+    unsigned long long TextureMemorySize = D3D11Texture->GetMemorySize();
+
+    ID3D11Texture2D* D3D11NativeTexture = static_cast<ID3D11Texture2D*>(D3D11Texture->GetResource());
+
+    TRefCountPtr<IDXGIResource> DXGIResource;
+    HRESULT Result = D3D11NativeTexture->QueryInterface(IID_PPV_ARGS(DXGIResource.GetInitReference()));
+	if(Result != S_OK) {
+        UE_LOG(PixelStreamer, Error, TEXT("Failed to get DX texture handle for importing memory to CUDA: %d"), Result);
+	}
+
+    HANDLE D3D11TextureHandle;
+	DXGIResource->GetSharedHandle(&D3D11TextureHandle); 
+	DXGIResource->Release();
+
+    FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
+
+    CUexternalMemory mappedExternalMemory = nullptr;
+
+    {
+        // generate a cudaExternalMemoryHandleDesc
+        CUDA_EXTERNAL_MEMORY_HANDLE_DESC cudaExtMemHandleDesc = {};
+        cudaExtMemHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_RESOURCE_KMT;
+        cudaExtMemHandleDesc.handle.win32.name = NULL;
+        cudaExtMemHandleDesc.handle.win32.handle = D3D11TextureHandle;
+        cudaExtMemHandleDesc.size = TextureMemorySize;
+        // Necessary for committed resources (DX11 and committed DX12 resources)
+		cudaExtMemHandleDesc.flags |= CUDA_EXTERNAL_MEMORY_DEDICATED;
+
+        // import external memory
+        auto result = FCUDAModule::CUDA().cuImportExternalMemory(&mappedExternalMemory, &cudaExtMemHandleDesc);
+        if(result != CUDA_SUCCESS)
+        {
+            UE_LOG(PixelStreamer, Error, TEXT("Failed to import external memory from vulkan error: %d"), result);
+        }
+    }
+
+    CUmipmappedArray mappedMipArray = nullptr;
+    CUarray mappedArray = nullptr;
+
+    {
+        CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC mipmapDesc = {};
+        mipmapDesc.numLevels = 1;
+        mipmapDesc.offset = 0;
+        mipmapDesc.arrayDesc.Width = Texture->GetSizeX();
+        mipmapDesc.arrayDesc.Height = Texture->GetSizeY();
+        mipmapDesc.arrayDesc.Depth = 1;
+        mipmapDesc.arrayDesc.NumChannels = 4;
+        mipmapDesc.arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT8;
+        mipmapDesc.arrayDesc.Flags = CUDA_ARRAY3D_SURFACE_LDST | CUDA_ARRAY3D_COLOR_ATTACHMENT;
+
+        // get the CUarray from the external memory
+		CUresult result = FCUDAModule::CUDA().cuExternalMemoryGetMappedMipmappedArray(&mappedMipArray, mappedExternalMemory, &mipmapDesc);
+        if(result != CUDA_SUCCESS)
+        {
+            UE_LOG(PixelStreamer, Error, TEXT("Failed to bind mipmappedArray error: %d"), result);
+        }
+    }
+
+    // get the CUarray from the external memory
+    CUresult mipMapArrGetLevelErr = FCUDAModule::CUDA().cuMipmappedArrayGetLevel(&mappedArray, mappedMipArray, 0);
+    if(mipMapArrGetLevelErr != CUDA_SUCCESS)
+    {
+        UE_LOG(PixelStreamer, Error, TEXT("Failed to bind to mip 0."));
+    }
+
+    FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
+
+    InputFrame->SetTexture(mappedArray, AVEncoder::FVideoEncoderInputFrame::EUnderlyingRHI::D3D11, nullptr, [mappedArray, mappedMipArray, mappedExternalMemory](CUarray NativeTexture)
+    {
+        // free the cuda types
+        FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
+
+        if(mappedArray)
+        {
+            auto result = FCUDAModule::CUDA().cuArrayDestroy(mappedArray);
+            if(result != CUDA_SUCCESS)
+            {
+                UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedArray: %d"), result);
+            }
+        }
+
+        if(mappedMipArray)
+        {
+            auto result = FCUDAModule::CUDA().cuMipmappedArrayDestroy(mappedMipArray);
+            if(result != CUDA_SUCCESS)
+            {
+                UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedMipArray: %d"), result);
+            }
+        }
+
+        if(mappedExternalMemory)
+        {
+            auto result = FCUDAModule::CUDA().cuDestroyExternalMemory(mappedExternalMemory);
+            if(result != CUDA_SUCCESS)
+            {
+                UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedExternalMemoryArray: %d"), result);
+            }
+        }
+
+        FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
+    });
+}
+
+void FPixelStreamingEncoderFrameFactory::SetTextureCUDAD3D12(AVEncoder::FVideoEncoderInputFrame* InputFrame, const FTexture2DRHIRef& Texture)
+{
+    FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(Texture);
+    ID3D12Resource* NativeD3D12Resource = (ID3D12Resource*)Texture->GetNativeResource();
+    unsigned long long TextureMemorySize = D3D12Texture->GetMemorySize();
+
+    // Because we create our texture as RenderTargetable, it is created as a committed resource, which is what our current implementation here supports.
+    // To prevent a mystery crash in future, check that our resource is a committed resource
+    check(!D3D12Texture->GetResource()->IsPlacedResource());
+
+    TRefCountPtr<ID3D12Device> OwnerDevice;
+    HRESULT Result;
+    if((Result = NativeD3D12Resource->GetDevice(IID_PPV_ARGS(OwnerDevice.GetInitReference()))) != S_OK)
+    {
+        UE_LOG(PixelStreamer, Error, TEXT("Failed to get DX texture handle for importing memory to CUDA: %d (Get Device)"), Result);
+    }
+
+    //
+    // ID3D12Device::CreateSharedHandle gives as an NT Handle, and so we need to call CloseHandle on it
+    //
+    HANDLE D3D12TextureHandle;
+    if ((Result = OwnerDevice->CreateSharedHandle(NativeD3D12Resource, NULL, GENERIC_ALL, NULL, &D3D12TextureHandle)) != S_OK)
+    {
+        UE_LOG(PixelStreamer, Error, TEXT("Failed to get DX texture handle for importing memory to CUDA: %d"), Result);
+    }
+
+    FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
+
+    CUexternalMemory mappedExternalMemory = nullptr;
+
+    {
+        // generate a cudaExternalMemoryHandleDesc
+        CUDA_EXTERNAL_MEMORY_HANDLE_DESC cudaExtMemHandleDesc = {};
+        cudaExtMemHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE;
+        cudaExtMemHandleDesc.handle.win32.name = NULL;
+        cudaExtMemHandleDesc.handle.win32.handle = D3D12TextureHandle;
+        cudaExtMemHandleDesc.size = TextureMemorySize;
+        // Necessary for committed resources (DX11 and committed DX12 resources)
+		cudaExtMemHandleDesc.flags |= CUDA_EXTERNAL_MEMORY_DEDICATED;
+
+        // import external memory
+        auto result = FCUDAModule::CUDA().cuImportExternalMemory(&mappedExternalMemory, &cudaExtMemHandleDesc);
+        if(result != CUDA_SUCCESS)
+        {
+            UE_LOG(PixelStreamer, Error, TEXT("Failed to import external memory from vulkan error: %d"), result);
+        }
+    }
+
+    CUmipmappedArray mappedMipArray = nullptr;
+    CUarray mappedArray = nullptr;
+
+    {
+        CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC mipmapDesc = {};
+        mipmapDesc.numLevels = 1;
+        mipmapDesc.offset = 0;
+        mipmapDesc.arrayDesc.Width = Texture->GetSizeX();
+        mipmapDesc.arrayDesc.Height = Texture->GetSizeY();
+        mipmapDesc.arrayDesc.Depth = 1;
+        mipmapDesc.arrayDesc.NumChannels = 4;
+        mipmapDesc.arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT8;
+        mipmapDesc.arrayDesc.Flags = CUDA_ARRAY3D_SURFACE_LDST | CUDA_ARRAY3D_COLOR_ATTACHMENT;
+
+        // get the CUarray from the external memory
+		CUresult result = FCUDAModule::CUDA().cuExternalMemoryGetMappedMipmappedArray(&mappedMipArray, mappedExternalMemory, &mipmapDesc);
+        if(result != CUDA_SUCCESS)
+        {
+            UE_LOG(PixelStreamer, Error, TEXT("Failed to bind mipmappedArray error: %d"), result);
+        }
+    }
+
+    // get the CUarray from the external memory
+    CUresult mipMapArrGetLevelErr = FCUDAModule::CUDA().cuMipmappedArrayGetLevel(&mappedArray, mappedMipArray, 0);
+    if(mipMapArrGetLevelErr != CUDA_SUCCESS)
+    {
+        UE_LOG(PixelStreamer, Error, TEXT("Failed to bind to mip 0."));
+    }
+
+    FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
+
+    InputFrame->SetTexture(mappedArray, AVEncoder::FVideoEncoderInputFrame::EUnderlyingRHI::D3D12, D3D12TextureHandle, [mappedArray, mappedMipArray, mappedExternalMemory](CUarray NativeTexture)
+    {
+        // free the cuda types
+        FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
+
+        if(mappedArray)
+        {
+            auto result = FCUDAModule::CUDA().cuArrayDestroy(mappedArray);
+            if(result != CUDA_SUCCESS)
+            {
+                UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedArray: %d"), result);
+            }
+        }
+
+        if(mappedMipArray)
+        {
+            auto result = FCUDAModule::CUDA().cuMipmappedArrayDestroy(mappedMipArray);
+            if(result != CUDA_SUCCESS)
+            {
+                UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedMipArray: %d"), result);
+            }
+        }
+
+        if(mappedExternalMemory)
+        {
+            auto result = FCUDAModule::CUDA().cuDestroyExternalMemory(mappedExternalMemory);
+            if(result != CUDA_SUCCESS)
+            {
+                UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedExternalMemoryArray: %d"), result);
+            }
+        }
+
+        FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
+    });
+}
+#endif //PLATFORM_WINDOWS

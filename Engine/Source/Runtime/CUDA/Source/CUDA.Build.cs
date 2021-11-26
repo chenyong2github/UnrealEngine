@@ -19,7 +19,8 @@ public class CUDA : ModuleRules
 		PublicDependencyModuleNames.Add("CUDAHeader");
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-		{		
+		{
+			PublicDefinitions.Add("PLATFORM_SUPPORTS_CUDA=1");
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
@@ -30,13 +31,22 @@ public class CUDA : ModuleRules
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
 				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));	
-			} 
-			else if (Target.Platform == UnrealTargetPlatform.Win64)
+			} else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
-				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));	
+				PublicSystemLibraries.AddRange(new string[] {
+					"DXGI.lib",
+					"d3d11.lib",
+					"d3d12.lib"
+				});
+
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
 			}
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+		}
+		else
+		{
+			PublicDefinitions.Add("PLATFORM_SUPPORTS_CUDA=0");
 		}
 	}
 }

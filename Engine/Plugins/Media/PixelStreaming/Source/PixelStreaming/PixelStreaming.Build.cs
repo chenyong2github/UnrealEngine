@@ -68,6 +68,12 @@ namespace UnrealBuildTool.Rules
 
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
+			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
+			PublicDependencyModuleNames.AddRange(new string[]
+			{
+				"InputDevice"
+			});
+
 			// NOTE: General rule is not to access the private folder of another module
 			PrivateIncludePaths.AddRange(new string[]
 				{
@@ -96,12 +102,6 @@ namespace UnrealBuildTool.Rules
 				"AVEncoder"
 			});
 
-			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
-			PublicDependencyModuleNames.AddRange(new string[]
-			{
-				"InputDevice"
-			});
-
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
 			// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
@@ -115,6 +115,20 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
+				PublicDependencyModuleNames.Add("D3D11RHI");
+				PublicDependencyModuleNames.Add("D3D12RHI");
+				PrivateIncludePaths.AddRange(
+					new string[]{
+						Path.Combine(EngineDir, "Source/Runtime/D3D12RHI/Private"),
+						Path.Combine(EngineDir, "Source/Runtime/D3D12RHI/Private/Windows")
+					});
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+				PublicSystemLibraries.AddRange(new string[] {
+					"DXGI.lib",
+					"d3d11.lib",
+				});
+
 				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))

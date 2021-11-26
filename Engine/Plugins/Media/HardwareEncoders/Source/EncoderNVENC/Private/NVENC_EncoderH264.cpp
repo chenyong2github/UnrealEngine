@@ -156,6 +156,12 @@ namespace AVEncoder
 			NVENCCommandLineParseOption(TEXT("-NVENCKeyFrameQPUseLastQP"), CVarNVENCKeyframeQPUseLastQP);
 			NVENCCommandLineParseOption(TEXT("-NVENCEnableStats"), CVarNVENCEnableStats);
 
+			// When NVENC stats CVar changes, change the output to screen flag.
+            CVarNVENCEnableStats.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* ChangedCVar)
+            {
+                FNVENCStats::Get().SetOutputToScreen(CVarNVENCEnableStats.GetValueOnAnyThread());
+            }));
+
 			if(CVarNVENCEnableStats.GetValueOnAnyThread())
 			{
 				FNVENCStats::Get().SetOutputToScreen(true);
@@ -913,9 +919,20 @@ namespace AVEncoder
 			return;
 		}
 
+		switch(InBuffer->SourceFrame->GetCUDA().UnderlyingRHI) {
+			case FVideoEncoderInputFrame::EUnderlyingRHI::Vulkan:
+				InBuffer->Pitch = TextureSize.X * GPixelFormats[EPixelFormat::PF_A8R8G8B8].BlockBytes;
+				break;
+			case FVideoEncoderInputFrame::EUnderlyingRHI::D3D11:
+			case FVideoEncoderInputFrame::EUnderlyingRHI::D3D12:
+				InBuffer->Pitch = 0;
+				break;
+			default:
+				break;
+		}
+
 		InBuffer->Width = TextureSize.X;
 		InBuffer->Height = TextureSize.Y;
-		InBuffer->Pitch = TextureSize.X * 4;
 		InBuffer->BufferFormat = NV_ENC_BUFFER_FORMAT_ARGB;
 
 		RegisterParam.resourceType = NV_ENC_INPUT_RESOURCE_TYPE_CUDAARRAY;
