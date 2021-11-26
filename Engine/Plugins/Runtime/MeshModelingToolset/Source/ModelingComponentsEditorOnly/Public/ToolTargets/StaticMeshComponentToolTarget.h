@@ -10,6 +10,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "TargetInterfaces/PhysicsDataSource.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 #include "ComponentSourceInterfaces.h"  // for EStaticMeshEditingLOD
 
@@ -24,7 +25,7 @@ class UStaticMesh;
 UCLASS(Transient)
 class MODELINGCOMPONENTSEDITORONLY_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
 	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider, public IStaticMeshBackedTarget,
-	public IDynamicMeshProvider, public IDynamicMeshCommitter
+	public IDynamicMeshProvider, public IDynamicMeshCommitter, public IPhysicsDataSource
 {
 	GENERATED_BODY()
 
@@ -66,6 +67,10 @@ public:
 
 	// IStaticMeshBackedTarget
 	UStaticMesh* GetStaticMesh() const override;
+
+	// IPhysicsDataSource
+	virtual UBodySetup* GetBodySetup() const override;
+	virtual IInterface_CollisionDataProvider* GetComplexCollisionProvider() const override;
 
 	// Rest provided by parent class
 

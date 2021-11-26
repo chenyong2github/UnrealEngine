@@ -10,6 +10,8 @@
 class UToolTarget;
 class UPrimitiveComponent;
 class AActor;
+class UBodySetup;
+class IInterface_CollisionDataProvider;
 struct FMeshDescription;
 struct FCreateMeshObjectParams;
 class IPersistentDynamicMeshSource;
@@ -171,6 +173,17 @@ namespace Internal
 		IPersistentDynamicMeshSource& DynamicMeshSource,
 		const UE::Geometry::FDynamicMesh3& UpdatedMesh, bool bHaveModifiedTopology);
 }
+
+/**
+ * @return the Physics UBodySetup for the given ToolTarget, or nullptr if it does not exist
+ */
+MODELINGCOMPONENTS_API UBodySetup* GetPhysicsBodySetup(UToolTarget* Target);
+
+/**
+* @return the Physics CollisionDataProvider (ie Complex Collision source) for the given ToolTarget, or nullptr if it does not exist
+*/
+MODELINGCOMPONENTS_API IInterface_CollisionDataProvider* GetPhysicsCollisionDataProvider(UToolTarget* Target);
+
 
 
 }  // end namespace ToolTarget

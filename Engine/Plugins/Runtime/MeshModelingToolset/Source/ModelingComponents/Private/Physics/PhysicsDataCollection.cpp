@@ -5,30 +5,40 @@
 
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/BrushComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
 
 using namespace UE::Geometry;
 
 void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Component, bool bInitializeAggGeom)
 {
-	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-	if (ensure(StaticMeshComponent))
+	BodySetup = nullptr;
+
+	if ( const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component) )
 	{
-		const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-		if (ensure(StaticMesh))
+		if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
 		{
 			SourceComponent = StaticMeshComponent;
 			SourceStaticMesh = StaticMesh;
 			BodySetup = StaticMesh->GetBodySetup();
-
-			ExternalScale3D = FVector(1.f, 1.f, 1.f);
-
-			if (bInitializeAggGeom)
-			{
-				AggGeom = BodySetup->AggGeom;
-				UE::Geometry::GetShapeSet(AggGeom, Geometry);
-			}
 		}
+	}
+	else if (const UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component))
+	{
+		BodySetup = BrushComponent->BrushBodySetup;
+	}
+	else if (const UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		BodySetup = DynamicMeshComponent->GetBodySetup();
+	}
+
+	ExternalScale3D = FVector(1.f, 1.f, 1.f);
+
+	if (bInitializeAggGeom && BodySetup != nullptr)
+	{
+		AggGeom = BodySetup->AggGeom;
+		UE::Geometry::GetShapeSet(AggGeom, Geometry);
 	}
 }
 

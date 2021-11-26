@@ -482,7 +482,11 @@ public:
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	virtual bool WantsNegXTriMesh() override;
 
+	/** @return current BodySetup for this Component, or nullptr if it does not exist */
+	virtual const UBodySetup* GetBodySetup() const { return MeshBodySetup; }
+	/** @return BodySetup for this Component. A new BodySetup will be created if one does not exist. */
 	virtual UBodySetup* GetBodySetup() override;
+	/** @return Set new BodySetup for this Component. */
 	virtual void SetBodySetup(UBodySetup* NewSetup);
 
 	/**

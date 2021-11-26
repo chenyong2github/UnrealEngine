@@ -23,14 +23,11 @@
 #include "Physics/CollisionGeometryVisualization.h"
 
 // physics data
-#include "Engine/Classes/Engine/StaticMesh.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
-#include "Engine/Classes/PhysicsEngine/BodySetup.h"
-#include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/AggregateGeom.h"
 
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "TargetInterfaces/PhysicsDataSource.h"
 #include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
@@ -40,9 +37,8 @@ using namespace UE::Geometry;
 const FToolTargetTypeRequirements& UExtractCollisionGeometryToolBuilder::GetTargetRequirements() const
 {
 	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass(),
-		UStaticMeshBackedTarget::StaticClass()
+		UPhysicsDataSource::StaticClass()
 		});
 	return TypeRequirements;
 }
@@ -94,15 +90,11 @@ void UExtractCollisionGeometryTool::Setup()
 	VizSettings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
 	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
 
-
-	UPrimitiveComponent* TargetComponent = UE::ToolTarget::GetTargetComponent(Target);
-	UStaticMeshComponent* StaticMeshComponent = (TargetComponent) ? Cast<UStaticMeshComponent>(TargetComponent) : nullptr;
-	TObjectPtr<UStaticMesh> StaticMesh = (StaticMeshComponent) ? StaticMeshComponent->GetStaticMesh() : nullptr;
-	UBodySetup* BodySetup = (StaticMesh) ? StaticMesh->GetBodySetup() : nullptr;
-	if (ensure(BodySetup))
+	UBodySetup* BodySetup = UE::ToolTarget::GetPhysicsBodySetup(Target);
+	if (BodySetup)
 	{
 		PhysicsInfo = MakeShared<FPhysicsDataCollection>();
-		PhysicsInfo->InitializeFromComponent(StaticMeshComponent, true);
+		PhysicsInfo->InitializeFromComponent( UE::ToolTarget::GetTargetComponent(Target), true);
 
 		PreviewElements = NewObject<UPreviewGeometry>(this);
 		FTransform TargetTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
@@ -172,7 +164,7 @@ void UExtractCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			for ( int32 k = 0; k < NumParts; ++k)
 			{
-				FDynamicMesh3& MeshPart = CurrentMeshParts[k];
+				FDynamicMesh3& MeshPart = *CurrentMeshParts[k];
 				FAxisAlignedBox3d Bounds = MeshPart.GetBounds();
 				MeshTransforms::Translate(MeshPart, -Bounds.Center());
 				FTransform3d CenterTransform = ActorTransform;
@@ -269,7 +261,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Simple()
 
 		FMeshIndexMappings Mappings;
 		Editor.AppendMesh(&SphereMesh, Mappings);
-		CurrentMeshParts.Add(MoveTemp(SphereMesh));
+		CurrentMeshParts.Add(MakeShared<FDynamicMesh3>(MoveTemp(SphereMesh)));
 	}
 
 
@@ -286,7 +278,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Simple()
 
 		FMeshIndexMappings Mappings;
 		Editor.AppendMesh(&BoxMesh, Mappings);
-		CurrentMeshParts.Add(MoveTemp(BoxMesh));
+		CurrentMeshParts.Add(MakeShared<FDynamicMesh3>(MoveTemp(BoxMesh)));
 	}
 
 
@@ -308,7 +300,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Simple()
 
 		FMeshIndexMappings Mappings;
 		Editor.AppendMesh(&CapsuleMesh, Mappings);
-		CurrentMeshParts.Add(MoveTemp(CapsuleMesh));
+		CurrentMeshParts.Add(MakeShared<FDynamicMesh3>(MoveTemp(CapsuleMesh)));
 	}
 
 
@@ -334,11 +326,12 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Simple()
 		UVEditor.SetPerTriangleUVs();
 		FMeshIndexMappings Mappings;
 		Editor.AppendMesh(&ConvexMesh, Mappings);
-		CurrentMeshParts.Add(MoveTemp(ConvexMesh));
+		CurrentMeshParts.Add(MakeShared<FDynamicMesh3>(MoveTemp(ConvexMesh)));
 	}
 
-	for (FDynamicMesh3& MeshPart : CurrentMeshParts)
+	for ( int32 k = 0; k < CurrentMeshParts.Num(); ++k)
 	{
+		FDynamicMesh3& MeshPart = *CurrentMeshParts[k];
 		FMeshNormals::InitializeMeshToPerTriangleNormals(&MeshPart);
 	}
 	FMeshNormals::InitializeMeshToPerTriangleNormals(&CurrentMesh);
@@ -361,9 +354,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Complex()
 
 	bool bMeshErrors = false;
 
-	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Target));
-	TObjectPtr<UStaticMesh> StaticMesh = (StaticMeshComponent) ? StaticMeshComponent->GetStaticMesh() : nullptr;
-	IInterface_CollisionDataProvider* CollisionProvider = (StaticMesh) ? Cast<IInterface_CollisionDataProvider>(StaticMesh) : nullptr;
+	IInterface_CollisionDataProvider* CollisionProvider = UE::ToolTarget::GetPhysicsCollisionDataProvider(Target);
 	if (CollisionProvider && CollisionProvider->ContainsPhysicsTriMeshData(true))
 	{
 		FTriMeshCollisionData CollisionData;
