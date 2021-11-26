@@ -31,6 +31,17 @@ int GetComponentLinearIndex()
 #endif
 }
 
+float GetViewLODData(uint ComponentIndex)
+{
+#if FIXED_GRID
+	// Fixed grid doesn't use LandscapeContinuousLODParameters buffers
+	return 0;
+#else
+	const int AbsoluteSectionLODIndex = View.LandscapeIndirection[LandscapeContinuousLODParameters.LandscapeIndex] + ComponentIndex;
+	return View.LandscapePerComponentData[AbsoluteSectionLODIndex];
+#endif
+}
+
 /* Get current Lod for this section instance. */
 float GetSectionLod(uint ComponentIndex)
 {
@@ -38,7 +49,7 @@ float GetSectionLod(uint ComponentIndex)
 	// Fixed grid has fixed Lod
 	return LandscapeFixedGrid.LodValues.x;
 #else
-	return min(LandscapeContinuousLODParameters.SectionLOD[ComponentIndex] + View.FarShadowStaticMeshLODBias, LandscapeParameters.LastLOD);
+	return min(GetViewLODData(ComponentIndex) + View.FarShadowStaticMeshLODBias, LandscapeParameters.LastLOD);
 #endif
 }
 
@@ -106,7 +117,11 @@ float4 GetNeighborSectionLod(uint ComponentIndex)
 		int2 NeighborPos = NeighborOffset[i] + int2(LandscapeParameters.ComponentBaseX, LandscapeParameters.ComponentBaseY);
 		NeighborPos = max(LandscapeContinuousLODParameters.Min                                                     , NeighborPos);
 		NeighborPos = min(LandscapeContinuousLODParameters.Min + LandscapeContinuousLODParameters.Size - int2(1, 1), NeighborPos);
-		NeighborLod[i] = max(LandscapeContinuousLODParameters.SectionLOD[(NeighborPos.y - LandscapeContinuousLODParameters.Min.y) * LandscapeContinuousLODParameters.Size.x + (NeighborPos.x - LandscapeContinuousLODParameters.Min.x)], GetSectionLod(ComponentIndex));
+
+		uint NeighborComponentIndex = (NeighborPos.y - LandscapeContinuousLODParameters.Min.y) * LandscapeContinuousLODParameters.Size.x + (NeighborPos.x - LandscapeContinuousLODParameters.Min.x);
+		float SectionLOD = GetViewLODData(NeighborComponentIndex);
+
+		NeighborLod[i] = max(SectionLOD, GetSectionLod(ComponentIndex));
 		NeighborLod[i] = min(NeighborLod[i] + View.FarShadowStaticMeshLODBias, LandscapeParameters.LastLOD);
 	}
 	return float4(NeighborLod[0], NeighborLod[1], NeighborLod[2], NeighborLod[3]);
