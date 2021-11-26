@@ -1,4 +1,4 @@
-//  Copyright Epic Games. Inc. All rights reserved.
+//  Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifndef ObjCUtility_h
 #define ObjCUtility_h
