@@ -146,7 +146,6 @@ void FDMXProtocolArtNet::UnregisterInputPort(const FDMXInputPortSharedRef& Input
 	}
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
 TArray<TSharedPtr<IDMXSender>> FDMXProtocolArtNet::RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort)
 {
 	check(!OutputPort->IsRegistered());
@@ -209,7 +208,6 @@ TArray<TSharedPtr<IDMXSender>> FDMXProtocolArtNet::RegisterOutputPort(const FDMX
 
 	return NewSenders;
 }
-PRAGMA_ENABLE_OPTIMIZATION
 
 void FDMXProtocolArtNet::UnregisterOutputPort(const FDMXOutputPortSharedRef& OutputPort)
 {

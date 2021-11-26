@@ -60,34 +60,28 @@ private:
 };
 
 
-/** Helper to access a Map of Signals per Universe in a thread-safe way */
-class FDMXThreadSafeUniverseToSignalMap
+/** Structs that holds the fragmented values to be sent along with a timestamp when to send it */
+struct DMXPROTOCOL_API FDMXSignalFragment
+	: TSharedFromThis<FDMXSignalFragment, ESPMode::ThreadSafe>
 {
-public:
-	using TUniverseSignalPredicate = TFunctionRef<void(int32, const FDMXSignalSharedPtr&)>;
-	
-	/** Gets a signal, returns an invalid shared pointer if there is no signal at given Universe ID */
-	FDMXSignalSharedPtr GetSignal(int32 UniverseID) const;
+	FDMXSignalFragment() = delete;
 
-	/** Gets or creates a signal */
-	FDMXSignalSharedRef GetOrCreateSignal(int32 UniverseID);
+	FDMXSignalFragment(int32 InExternUniverseID, const TMap<int32, uint8>& InChannelToValueMap, double InSendTime)
+		: ExternUniverseID(InExternUniverseID)
+		, ChannelToValueMap(InChannelToValueMap)
+		, SendTime(InSendTime)
+	{}
 
-	/** Adds a signal to the map */
-	void AddSignal(const FDMXSignalSharedRef& Signal);
+	/** The universe the fragment needs to be written to */
+	int32 ExternUniverseID;
 
-	/** Loops through all signals by given Predicate  */
-	void ForEachSignal(TUniverseSignalPredicate Predicate);
+	/** The map of channels and values to send */
+	TMap<int32, uint8> ChannelToValueMap;
 
-	/** Resets the Map */
-	void Reset();
-
-private:
-	/** Buffer of all the latest DMX Signals that were sent */
-	TMap<int32, FDMXSignalSharedPtr> UniverseToSignalMap;
-
-	/** Critical sequestion required to be used when the Map is accessed */
-	FCriticalSection CriticalSection;
+	/** The time when the Fragment needs be sent */
+	double SendTime;
 };
+
 
 /**
  * Higher level abstraction of a DMX input hiding networking specific and protocol specific complexity.
@@ -194,10 +188,10 @@ private:
 	TArray<TSharedPtr<IDMXSender>> DMXSenderArray;
 
 	/** Buffer of the signals that are to be sent in the next frame */
-	TQueue<FDMXSignalSharedPtr> NewDMXSignalsToSend;
+	TQueue<TSharedPtr<FDMXSignalFragment, ESPMode::ThreadSafe>> SignalFragments;
 
 	/** Map that holds the latest Signal per Universe */
-	FDMXThreadSafeUniverseToSignalMap LatestDMXSignals;
+	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap;
 
 	/** The Destination Address to send to, can be irrelevant, e.g. for art-net broadcast */
 	TArray<FDMXOutputPortDestinationAddress> DestinationAddresses;
@@ -219,6 +213,12 @@ private:
 
 	/** Delay to apply on packets being sent */
 	double DelaySeconds = 0.0;
+
+	/** Critical section required to be used when the SignalFragments are accessed across threads */
+	FCriticalSection AccessExternUniverseToLatestSignalMapCriticalSection;
+
+	/** Critical section required to be used when clearing buffers */
+	FCriticalSection ClearBuffersCriticalSection;
 
 	/** Holds the thread object. */
 	FRunnableThread* Thread = nullptr;

@@ -58,9 +58,6 @@ public:
 	FORCEINLINE const TSet<TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>>& GetAssignedInputPorts() const { return AssignedInputPorts; }
 
 private:
-	/** Helper to Create an internet address from an IP address string. Returns the InternetAddr or nullptr if unsuccessful */
-	static TSharedPtr<FInternetAddr> CreateEndpointInternetAddr(const FString& IPAddress);
-
 	/** The input ports the receiver uses */
 	TSet<TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>> AssignedInputPorts;
 
