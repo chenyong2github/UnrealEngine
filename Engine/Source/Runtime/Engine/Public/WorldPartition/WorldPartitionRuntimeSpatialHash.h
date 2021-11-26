@@ -228,13 +228,11 @@ public:
 
 #if WITH_EDITOR
 	virtual void SetDefaultValues() override;
-	virtual void ImportFromWorldComposition(class UWorldComposition* WorldComposition) override;
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath) override;
 	virtual bool FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages) override;
 	virtual void FlushStreaming() override;
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, FActorClusterContext& ActorClusterContext, bool bCreateActorsOnly) override;
 	virtual bool GenerateNavigationData(const FBox& LoadedBounds) override;
-	virtual FName GetActorRuntimeGrid(const AActor* Actor) const override;
 	virtual void DrawPreview() const override;
 
 	FName GetCellName(FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID) const;
@@ -257,9 +255,6 @@ protected:
 #if WITH_EDITOR
 	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const FActorClusterContext& ActorClusterContext, TArray<FString>* OutPackagesToGenerate = nullptr) override;
 #endif
-
-	// Used to convert from a world using World Composition
-	TMap<class ULevelStreaming*, FName> WorldCompositionStreamingLevelToRuntimeGrid;
 
 private:
 	/** Console command used to change loading range for a given streaming grid */
