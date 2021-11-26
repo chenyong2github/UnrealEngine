@@ -78,7 +78,7 @@ void SSplitter::Construct( const SSplitter::FArguments& InArgs )
 	HitDetectionSplitterHandleSize = InArgs._HitDetectionSplitterHandleSize;
 	Orientation = InArgs._Orientation;
 	HoveredHandleIndex = INDEX_NONE;
-	HighlightedHandleIndex = InArgs._HighlightedHandleIndex;
+	HighlightedHandleIndex.Assign(*this, InArgs._HighlightedHandleIndex);
 	bIsResizing = false;
 	Style = InArgs._Style;
 	OnGetMaxSlotSize = InArgs._OnGetMaxSlotSize;
@@ -271,7 +271,7 @@ int32 SSplitter::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	};
 
 	int32 ArrangedHoveredHandleIndex = FindArrangedHandleIndex(HoveredHandleIndex);
-	int32 ArrangedHighlightedHandleIndex = FindArrangedHandleIndex(HighlightedHandleIndex.Get(INDEX_NONE));
+	int32 ArrangedHighlightedHandleIndex = FindArrangedHandleIndex(HighlightedHandleIndex.Get());
 
 	for (int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num() - 1; ++ChildIndex)
 	{
@@ -569,7 +569,8 @@ EOrientation SSplitter::GetOrientation() const
 
 SSplitter::SSplitter()
 	: Children(this)
-	, HoveredHandleIndex( INDEX_NONE )
+	, HoveredHandleIndex(INDEX_NONE)
+	, HighlightedHandleIndex(*this, INDEX_NONE)
 	, bIsResizing( false )
 	, Orientation( Orient_Horizontal )
 	, Style( nullptr )
@@ -854,7 +855,7 @@ void SSplitter2x2::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&&
 }
 
 SSplitter2x2::SSplitter2x2()
-: Children(this)
+	: Children(this)
 {
 }
 

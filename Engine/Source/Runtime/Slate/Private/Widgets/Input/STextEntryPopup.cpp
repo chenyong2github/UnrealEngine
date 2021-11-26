@@ -39,7 +39,7 @@ void STextEntryPopup::Construct( const FArguments& InArgs )
 					.OnTextCommitted( InArgs._OnTextCommitted )
 					.OnTextChanged( InArgs._OnTextChanged )
 					.HintText( InArgs._HintText )
-					.SelectAllTextWhenFocused( InArgs._SelectAllTextWhenFocused.Get() )
+					.SelectAllTextWhenFocused( InArgs._SelectAllTextWhenFocused )
 					.ClearKeyboardFocusOnCommit( InArgs._ClearKeyboardFocusOnCommit )
 				]
 			]
