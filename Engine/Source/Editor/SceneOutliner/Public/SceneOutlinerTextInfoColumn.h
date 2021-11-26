@@ -30,12 +30,12 @@ class SCENEOUTLINER_API FTextInfoColumn : public ISceneOutlinerColumn
 		/**
 		 *	Constructor
 		 */
-		FTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem& InGetTextForItem);
+		FTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem& InGetTextForItem, const FText InColumnToolTip);
 
 		virtual ~FTextInfoColumn() {}
 
 		// Factory function to create a TextInfoColumn (This column is not registered by default because of it's requirements and therefore requires a factory!)
-		static TSharedRef<ISceneOutlinerColumn> CreateTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem InGetTextForItem);
+		static TSharedRef<ISceneOutlinerColumn> CreateTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem InGetTextForItem, const FText InColumnToolTip);
 
 		//////////////////////////////////////////////////////////////////////////
 		// Begin ISceneOutlinerColumn Implementation
@@ -60,6 +60,8 @@ class SCENEOUTLINER_API FTextInfoColumn : public ISceneOutlinerColumn
 		FText GetInfoForItem(TWeakPtr<ISceneOutlinerTreeItem> TreeItem) const;
 
 		FName ColumnName;
+
+		FText ColumnToolTip;
 
 		/** Weak reference to the outliner widget that owns our list */
 		TWeakPtr< ISceneOutliner > SceneOutlinerWeak;
