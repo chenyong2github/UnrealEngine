@@ -6,7 +6,6 @@
 #include "Templates/SubclassOf.h"
 #include "SmartObjectOctree.h"
 #include "SmartObjectTypes.h"
-#include "SmartObjectConfig.h"
 #include "SmartObjectRuntime.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "SmartObjectSubsystem.generated.h"
@@ -39,8 +38,8 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 		: ActivityRequirements(InRequirements)
 	{}
 
-	explicit FSmartObjectRequestFilter(const TSubclassOf<USmartObjectBehaviorConfigBase> ConfigurationClass)
-		: BehaviorConfigurationClass(ConfigurationClass)
+	explicit FSmartObjectRequestFilter(const TSubclassOf<USmartObjectBehaviorDefinition> DefinitionClass)
+		: BehaviorDefinitionClass(DefinitionClass)
 	{}
 
 	FSmartObjectRequestFilter() = default;
@@ -52,7 +51,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 	FGameplayTagQuery ActivityRequirements;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
-	TSubclassOf<USmartObjectBehaviorConfigBase> BehaviorConfigurationClass;
+	TSubclassOf<USmartObjectBehaviorDefinition> BehaviorDefinitionClass;
 
 	TFunction<bool(FSmartObjectID)> Predicate;
 };
@@ -187,22 +186,22 @@ public:
 	/**
 	 *	Start using a claimed smart object slot.
 	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
-	 *	@param ConfigurationClass The type of behavior configuration the user wants to use.
-	 *	@return The base class pointer of the requested behavior configuration class associated to the slot
+	 *	@param DefinitionClass The type of behavior definition the user wants to use.
+	 *	@return The base class pointer of the requested behavior definition class associated to the slot
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	const USmartObjectBehaviorConfigBase* Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass);
+	const USmartObjectBehaviorDefinition* Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	/**
 	 *	Start using a claimed smart object slot.
 	 *	@param ClaimHandle Handle for given pair of user and smart object. Error will be reported if the handle is invalid.
-	 *	@return The requested behavior configuration class pointer associated to the slot
+	 *	@return The requested behavior definition class pointer associated to the slot
 	 */
-	template <typename ConfigType>
-	const ConfigType* Use(const FSmartObjectClaimHandle& ClaimHandle)
+	template <typename DefinitionType>
+	const DefinitionType* Use(const FSmartObjectClaimHandle& ClaimHandle)
 	{
-		static_assert(TIsDerivedFrom<ConfigType, USmartObjectBehaviorConfigBase>::IsDerived, "ConfigType must derive from USmartObjectBehaviorConfigBase");
-		return Cast<const ConfigType>(Use(ClaimHandle, ConfigType::StaticClass()));
+		static_assert(TIsDerivedFrom<DefinitionType, USmartObjectBehaviorDefinition>::IsDerived, "DefinitionType must derive from USmartObjectBehaviorDefinition");
+		return Cast<const DefinitionType>(Use(ClaimHandle, DefinitionType::StaticClass()));
 	}
 
 	/**
@@ -324,7 +323,7 @@ protected:
 	 */
 	FSmartObjectSlotIndex FindSlot(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter) const;
 
-	const USmartObjectBehaviorConfigBase* Use(FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass);
+	const USmartObjectBehaviorDefinition* Use(FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	void AbortAll(FSmartObjectRuntime& SmartObjectRuntime);
 

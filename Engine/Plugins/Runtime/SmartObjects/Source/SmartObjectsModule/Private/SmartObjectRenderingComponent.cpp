@@ -34,6 +34,12 @@ public:
 			return;
 		}
 
+		const USmartObjectDefinition* Definition = SOComp->GetDefinition();
+		if (Definition == nullptr)
+		{
+			return;
+		}
+
 		// For loaded instances, we draw slots only when selected but 
 		// for other cases (e.g. instances newly added to world, preview actors, etc.) we
 		// want to draw all the time to improve authoring.
@@ -43,17 +49,16 @@ public:
 		constexpr float DebugCylinderHalfHeight = 100.f;
 		FColor DebugColor = FColor::Yellow;
 
-		const FSmartObjectConfig& Config = SOComp->GetDefinition()->Config;
 		const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
-		for (int32 i = 0; i < Config.GetSlots().Num(); ++i)
+		for (int32 i = 0; i < Definition->GetSlots().Num(); ++i)
 		{
-			TOptional<FTransform> Transform = Config.GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(i));
+			TOptional<FTransform> Transform = Definition->GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(i));
 			if (!Transform.IsSet())
 			{
 				continue;
 			}
 #if WITH_EDITORONLY_DATA
-			DebugColor = Config.GetSlots()[i].DEBUG_DrawColor;
+			DebugColor = Definition->GetSlots()[i].DEBUG_DrawColor;
 #endif
 			const FVector DebugPosition = Transform.GetValue().GetLocation();
 			const FVector Direction = Transform.GetValue().GetRotation().GetForwardVector();

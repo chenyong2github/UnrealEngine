@@ -4,7 +4,7 @@
 
 #include "Components/SceneComponent.h"
 #include "SmartObjectTypes.h"
-#include "SmartObjectConfig.h"
+#include "SmartObjectDefinition.h"
 #include "SmartObjectComponent.generated.h"
 
 UCLASS(Blueprintable, ClassGroup = Gameplay, meta = (BlueprintSpawnableComponent), config = Game, HideCategories = (Activation, AssetUserData, Collision, Cooking, HLOD, Lighting, LOD, Mobile, Mobility, Navigation, Physics, RayTracing, Rendering, Tags, TextureStreaming))

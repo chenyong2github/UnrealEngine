@@ -91,7 +91,7 @@ struct MASSSMARTOBJECTS_API FMassSmartObjectHandler
 	UE_NODISCARD EMassSmartObjectClaimResult ClaimCandidate(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FMassSmartObjectRequestResult& SearchRequestResult) const;
 
 	/**
-	 * Claims the first available slot holding any type of USmartObjectMassBehaviorConfig in the smart object
+	 * Claims the first available slot holding any type of USmartObjectMassBehaviorDefinition in the smart object
 	 * associated to the provided identifier.
 	 * @param Entity LW Entity associated to the user fragment
 	 * @param User Fragment of the user claiming

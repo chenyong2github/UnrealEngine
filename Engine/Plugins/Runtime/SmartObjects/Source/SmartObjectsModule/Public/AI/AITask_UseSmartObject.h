@@ -10,6 +10,7 @@
 class AAIController;
 class UAITask_MoveTo;
 class UGameplayBehavior;
+class USmartObjectComponent;
 
 UCLASS()
 class SMARTOBJECTSMODULE_API UAITask_UseSmartObject : public UAITask

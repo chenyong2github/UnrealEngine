@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "SmartObjectConfig.h"
+#include "SmartObjectDefinition.h"
 #include "SmartObjectTestTypes.generated.h"
 
 /**
- * Concrete configuration class for testing purposes
+ * Concrete definition class for testing purposes
  */
 UCLASS(HideDropdown)
-class SMARTOBJECTSTESTSUITE_API USmartObjectTestConfig : public USmartObjectBehaviorConfigBase
+class SMARTOBJECTSTESTSUITE_API USmartObjectTestDefinition : public USmartObjectBehaviorDefinition
 {
 	GENERATED_BODY()
 };

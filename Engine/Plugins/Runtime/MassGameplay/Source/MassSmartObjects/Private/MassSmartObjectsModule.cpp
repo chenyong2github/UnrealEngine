@@ -22,6 +22,7 @@ void FMassSmartObjectsModule::StartupModule()
 
 	TArray<FCoreRedirect> Redirects;
 	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("DataFragment_SmartObjectUser"), TEXT("MassSmartObjectUserFragment"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("SmartObjectMassBehaviorConfig"), TEXT("SmartObjectMassBehaviorDefinition"));
 
 	FCoreRedirects::AddRedirectList(Redirects, TEXT("MassSmartObject"));
 }

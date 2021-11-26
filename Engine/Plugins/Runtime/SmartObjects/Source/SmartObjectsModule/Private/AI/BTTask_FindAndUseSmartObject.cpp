@@ -5,7 +5,7 @@
 #include "AIController.h"
 #include "GameplayTagAssetInterface.h"
 #include "SmartObjectSubsystem.h"
-#include "SmartObjectConfig.h"
+#include "SmartObjectDefinition.h"
 #include "VisualLogger/VisualLogger.h"
 
 
@@ -37,7 +37,7 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 
 	// Create filter
 	FSmartObjectRequestFilter Filter(ActivityRequirements);
-	Filter.BehaviorConfigurationClass = USmartObjectGameplayBehaviorConfig::StaticClass();
+	Filter.BehaviorDefinitionClass = USmartObjectGameplayBehaviorDefinition::StaticClass();
 	const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(&Avatar);
 	if (TagsSource != nullptr)
 	{

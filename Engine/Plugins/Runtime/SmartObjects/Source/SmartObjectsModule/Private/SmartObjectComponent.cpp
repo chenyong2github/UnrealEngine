@@ -105,7 +105,7 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 
 	const FTransform LocalToWorld = Owner->GetTransform();
 
-	for (const FSmartObjectSlot& Slot : DefinitionAsset->Config.GetSlots())
+	for (const FSmartObjectSlot& Slot : DefinitionAsset->GetSlots())
 	{
 		const FVector SlotWorldLocation = LocalToWorld.TransformPositionNoScale(Slot.Offset);
 		BoundingBox += SlotWorldLocation + FSmartObject::DefaultSlotSize;

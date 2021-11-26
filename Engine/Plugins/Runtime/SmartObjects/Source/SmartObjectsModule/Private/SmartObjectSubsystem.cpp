@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectSubsystem.h"
+#include "SmartObjectDefinition.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectCollection.h"
 #include "EngineUtils.h"
@@ -333,7 +334,7 @@ FSmartObjectClaimHandle USmartObjectSubsystem::Claim(const FSmartObjectRequestRe
 	return (SORuntime->ClaimSlot(ClaimHandle)) ? ClaimHandle : FSmartObjectClaimHandle::InvalidHandle;
 }
 
-const USmartObjectBehaviorConfigBase* USmartObjectSubsystem::Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass)
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
 	if (!ClaimHandle.IsValid())
 	{
@@ -347,25 +348,25 @@ const USmartObjectBehaviorConfigBase* USmartObjectSubsystem::Use(const FSmartObj
 		return nullptr;
 	}
 
-	return Use(*SmartObjectRuntime, ClaimHandle, ConfigurationClass);
+	return Use(*SmartObjectRuntime, ClaimHandle, DefinitionClass);
 }
 
-const USmartObjectBehaviorConfigBase* USmartObjectSubsystem::Use(FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass)
+const USmartObjectBehaviorDefinition* USmartObjectSubsystem::Use(FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass)
 {
-	const FSmartObjectConfig& Config = SmartObjectRuntime.GetDefinition().Config;
+	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
 
-	const USmartObjectBehaviorConfigBase* SOBehaviorConfig = Config.GetBehaviorConfig(ClaimHandle.SlotIndex, ConfigurationClass);
-	if (SOBehaviorConfig == nullptr)
+	const USmartObjectBehaviorDefinition* BehaviorDefinition = Definition.GetBehaviorDefinition(ClaimHandle.SlotIndex, DefinitionClass);
+	if (BehaviorDefinition == nullptr)
 	{
-		const UClass* ClassPtr = ConfigurationClass.Get();
-		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Unable to find a behavior config of type %s in %s"), ClassPtr != nullptr ? *ClassPtr->GetName(): TEXT("Null"), *Config.Describe());
+		const UClass* ClassPtr = DefinitionClass.Get();
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Unable to find a behavior definition of type %s in %s"), ClassPtr != nullptr ? *ClassPtr->GetName(): TEXT("Null"), *Definition.Describe());
 		return nullptr;
 	}
 
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Start using handle %s"), *ClaimHandle.Describe());
 	UE_VLOG_LOCATION(this, LogSmartObject, Display, SmartObjectRuntime.GetTransform().GetLocation(), 50.f, FColor::Green, TEXT("Use"));
 	SmartObjectRuntime.UseSlot(ClaimHandle);
-	return SOBehaviorConfig;
+	return BehaviorDefinition;
 }
 
 bool USmartObjectSubsystem::Release(const FSmartObjectClaimHandle& ClaimHandle)
@@ -435,7 +436,7 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 		return Transform;
 	}
 
-	Transform = SmartObjectRuntime->GetDefinition().Config.GetSlotTransform(SmartObjectRuntime->GetTransform(), SlotIndex);
+	Transform = SmartObjectRuntime->GetDefinition().GetSlotTransform(SmartObjectRuntime->GetTransform(), SlotIndex);
 
 	return Transform;
 }
@@ -503,15 +504,15 @@ FSmartObjectSlotIndex USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime&
 {
 	const FSmartObjectSlotIndex InvalidIndex;
 
-	const FSmartObjectConfig& Config = SmartObjectRuntime.GetDefinition().Config;
-	const int32 NumSlotDefinitions = Config.GetSlots().Num();
-	if (!ensureMsgf(NumSlotDefinitions > 0, TEXT("SmartObjectConfig should contain slot definitions at this point")))
+	const USmartObjectDefinition& Definition = SmartObjectRuntime.GetDefinition();
+	const int32 NumSlotDefinitions = Definition.GetSlots().Num();
+	if (!ensureMsgf(NumSlotDefinitions > 0, TEXT("Definition should contain slot definitions at this point")))
 	{
 		return InvalidIndex;
 	}
 
-	const UClass* RequiredConfigurationClass = *Filter.BehaviorConfigurationClass;
-	if (!ensureMsgf(RequiredConfigurationClass != nullptr, TEXT("Filter needs to provide required behavior configuration type")))
+	const UClass* RequiredDefinitionClass = *Filter.BehaviorDefinitionClass;
+	if (!ensureMsgf(RequiredDefinitionClass != nullptr, TEXT("Filter needs to provide required behavior definition type")))
 	{
 		return InvalidIndex;
 	}
@@ -542,14 +543,14 @@ FSmartObjectSlotIndex USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime&
 		return Requirements.IsEmpty() || Requirements.Matches(Tags);
 	};
 
-	if (MatchesTagQueryFunc(Filter.ActivityRequirements, Config.GetActivityTags())
-		&& MatchesTagQueryFunc(Config.GetObjectTagFilter(), ObjectTags)
-		&& MatchesTagQueryFunc(Config.GetUserTagFilter(), Filter.UserTags))
+	if (MatchesTagQueryFunc(Filter.ActivityRequirements, Definition.GetActivityTags())
+		&& MatchesTagQueryFunc(Definition.GetObjectTagFilter(), ObjectTags)
+		&& MatchesTagQueryFunc(Definition.GetUserTagFilter(), Filter.UserTags))
 	{
 		TBitArray<> FreeSlots;
 		SmartObjectRuntime.FindFreeSlots(FreeSlots);
 
-		const TConstArrayView<FSmartObjectSlot> Slots = Config.GetSlots();
+		const TConstArrayView<FSmartObjectSlot> Slots = Definition.GetSlots();
 		for (int i = 0; i < Slots.Num(); ++i)
 		{
 			const FSmartObjectSlot& Slot = Slots[i];
@@ -558,7 +559,7 @@ FSmartObjectSlotIndex USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime&
 				continue;
 			}
 
-			if (Config.GetBehaviorConfig(FSmartObjectSlotIndex(i), Filter.BehaviorConfigurationClass) == nullptr)
+			if (Definition.GetBehaviorDefinition(FSmartObjectSlotIndex(i), Filter.BehaviorDefinitionClass) == nullptr)
 			{
 				continue;
 			}
@@ -591,7 +592,7 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
 			}
 		case ESmartObjectSlotState::Free: // falling through on purpose
 		default:
-			UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"), *SmartObjectRuntime.GetDefinition().Config.Describe(), *SlotRuntimeData.User.Describe());
+			UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"), *SmartObjectRuntime.GetDefinition().Describe(), *SlotRuntimeData.User.Describe());
 			break;
 		}
 	}
@@ -755,7 +756,7 @@ void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 	MainCollection->GetBounds().GetCenterAndExtents(Center, Extents);
 	new(&SmartObjectOctree) FSmartObjectOctree(Center, Extents.Size2D());
 
-	// Perform configuration validation at once since multiple entries can share the same config
+	// Perform all validations at once since multiple entries can share the same definition
 	MainCollection->ValidateDefinitions();
 
 	// Build all runtime from collection
@@ -764,14 +765,14 @@ void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 		const USmartObjectDefinition* Definition = MainCollection->GetDefinitionForEntry(Entry);
 		USmartObjectComponent* Component = Entry.GetComponent();
 
-		if (Definition == nullptr || Definition->Config.IsValid() == false)
+		if (Definition == nullptr || Definition->IsValid() == false)
 		{
 			UE_CVLOG_UELOG(Component != nullptr, Component->GetOwner(), LogSmartObject, Error,
-				TEXT("Skipped runtime data creation for SmartObject %s: Invalid configuration"), *GetNameSafe(Component->GetOwner()));
+				TEXT("Skipped runtime data creation for SmartObject %s: Invalid definition"), *GetNameSafe(Component->GetOwner()));
 			continue;
 		}
 
-		// Create a runtime instance of that config using that ID
+		// Create a runtime instance of that definition using that ID
 		if (Component != nullptr)
 		{
 			Component->SetRegisteredID(Entry.GetID());

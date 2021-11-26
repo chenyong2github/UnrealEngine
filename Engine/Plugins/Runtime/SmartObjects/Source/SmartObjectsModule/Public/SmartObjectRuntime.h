@@ -4,7 +4,7 @@
 
 #include "Delegates/DelegateCombinations.h"
 #include "SmartObjectTypes.h"
-#include "SmartObjectConfig.h"
+#include "SmartObjectDefinition.h"
 #include "SmartObjectOctree.h"
 #include "SmartObjectRuntime.generated.h"
 
@@ -76,7 +76,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 DECLARE_DELEGATE_TwoParams(FOnSlotInvalidated, const FSmartObjectClaimHandle&, ESmartObjectSlotState /* Current State */);
 
 /**
- * Struct to store and manage state of a runtime instance associated to a given slot configuration
+ * Struct to store and manage state of a runtime instance associated to a given slot definition
  */
 USTRUCT()
 struct FSmartObjectSlotRuntimeData
@@ -107,7 +107,7 @@ protected:
 	/** Id of the user that reserves or uses the slot */
 	FSmartObjectUserID User;
 
-	/** Index of the slot in the smart object config to which this runtime data is associated to */
+	/** Index of the slot in the smart object definition to which this runtime data is associated to */
 	FSmartObjectSlotIndex SlotIndex;
 
 	/** Delegate used to notify when a slot gets invalidated. See RegisterSlotInvalidationCallback */
@@ -149,7 +149,7 @@ private:
 	const FBoxCenterAndExtent& GetBounds() const { return Bounds; }
 	void SetBounds(const FBox& Value) { Bounds = Value; }
 
-	FString Describe() const { return FString::Printf(TEXT("Instance using defintion \'%s\' Reg: %s"), *GetDefinition().Config.Describe(), *LexToString(SharedOctreeID->ID.IsValidId())); }
+	FString Describe() const { return FString::Printf(TEXT("Instance using defintion \'%s\' Reg: %s"), *GetDefinition().Describe(), *LexToString(SharedOctreeID->ID.IsValidId())); }
 
 	/**
 	 * @param OutFreeSlots function will set 'false' at taken slots' indices

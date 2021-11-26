@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "SmartObjectConfig.h"
 #include "GameFramework/Actor.h"
 #include "SmartObjectTypes.h"
 #include "SmartObjectCollection.generated.h"
 
+class USmartObjectDefinition;
 class USmartObjectComponent;
 
 /** Struct representing a unique registered component in the collection actor */
@@ -48,7 +48,7 @@ protected:
 };
 
 /** Actor holding smart object persistent data */
-UCLASS(NotBlueprintable, hidecategories = (Rendering, Replication, Collision, Input, HLOD, Actor, LOD, Cooking, WorldPartition))
+UCLASS(NotBlueprintable, hidecategories = (Rendering, Replication, Collision, Input, HLOD, Actor, LOD, Cooking, WorldPartition), notplaceable)
 class SMARTOBJECTSMODULE_API ASmartObjectCollection : public AActor
 {
 	GENERATED_BODY()

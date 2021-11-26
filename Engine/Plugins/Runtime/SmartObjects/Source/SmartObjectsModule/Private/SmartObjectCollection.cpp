@@ -35,6 +35,11 @@ FString FSmartObjectCollectionEntry::Describe() const
 ASmartObjectCollection::ASmartObjectCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
+	bLockLocation = true;
+	bActorLabelEditable = false;
+#endif
+
 	PrimaryActorTick.bCanEverTick = false;
 	bNetLoadOnClient = false;
 	SetCanBeDamaged(false);
@@ -253,7 +258,7 @@ void ASmartObjectCollection::ValidateDefinitions()
 	{
 		if (ensureMsgf(Definition != nullptr, TEXT("Collection is expected to contain only valid definition entries")))
 		{
-			Definition->Config.Validate();
+			Definition->Validate();
 		}
 	}
 }

@@ -16,7 +16,7 @@ FSmartObjectRuntime::FSmartObjectRuntime(const USmartObjectDefinition& InDefinit
 
 uint32 FSmartObjectRuntime::FindFreeSlots(TBitArray<>& OutFreeSlots) const
 {
-	const int32 NumSlotDefinitions = GetDefinition().Config.GetSlots().Num();
+	const int32 NumSlotDefinitions = GetDefinition().GetSlots().Num();
 
 	// slots are considered free unless they are marked as being used in runtime slots
 	OutFreeSlots.Init(/*Value=*/true, NumSlotDefinitions);

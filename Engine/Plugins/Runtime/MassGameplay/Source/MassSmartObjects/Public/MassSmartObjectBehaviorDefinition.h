@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "SmartObjectConfig.h"
 #include "MassEntityTypes.h"
-#include "MassSmartObjectBehaviorConfig.generated.h"
+#include "SmartObjectDefinition.h"
+#include "MassSmartObjectBehaviorDefinition.generated.h"
 
 class UMassEntitySubsystem;
 class USmartObjectSubsystem;
@@ -13,7 +13,7 @@ struct FDataFragment_Transform;
 struct FMassSmartObjectUserFragment;
 
 /**
- * Struct to pass around the required set of information to activate a mass behavior configuration on a given entity.
+ * Struct to pass around the required set of information to activate a mass behavior definition on a given entity.
  */
 struct MASSSMARTOBJECTS_API FMassBehaviorEntityContext
 {
@@ -30,11 +30,11 @@ struct MASSSMARTOBJECTS_API FMassBehaviorEntityContext
 };
 
 /**
- * Base class for MassAIBehavior configurations. This is the type of configuration that LW Entities queries will look for.
- * Configuration subclass can parameterized its associated behavior by overriding method Activate.
+ * Base class for MassAIBehavior definitions. This is the type of definitions that LW Entities queries will look for.
+ * Definition subclass can parameterized its associated behavior by overriding method Activate.
  */
 UCLASS(EditInlineNew)
-class MASSSMARTOBJECTS_API USmartObjectMassBehaviorConfig : public USmartObjectBehaviorConfigBase
+class MASSSMARTOBJECTS_API USmartObjectMassBehaviorDefinition : public USmartObjectBehaviorDefinition
 {
 	GENERATED_BODY()
 

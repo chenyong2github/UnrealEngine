@@ -2,6 +2,7 @@
 
 #include "AI/AITask_UseSmartObject.h"
 #include "AIController.h"
+#include "SmartObjectDefinition.h"
 #include "SmartObjectComponent.h"
 #include "Tasks/AITask_MoveTo.h"
 #include "SmartObjectSubsystem.h"
@@ -52,7 +53,7 @@ UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObjectComponent(AAIContr
 	}
 
 	FSmartObjectRequestFilter Filter;
-	Filter.BehaviorConfigurationClass = USmartObjectGameplayBehaviorConfig::StaticClass();
+	Filter.BehaviorDefinitionClass = USmartObjectGameplayBehaviorDefinition::StaticClass();
 	const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(Pawn);
 	if (TagsSource != nullptr)
 	{
@@ -182,12 +183,12 @@ void UAITask_UseSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 			USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(World);
 			if (ensure(SmartObjectSubsystem))
 			{
-				const USmartObjectGameplayBehaviorConfig* SOBehaviorConfig = SmartObjectSubsystem->Use<USmartObjectGameplayBehaviorConfig>(ClaimedHandle);
-				const UGameplayBehaviorConfig* BehaviorConfig = SOBehaviorConfig != nullptr ? SOBehaviorConfig->GameplayBehaviorConfig : nullptr;
-				GameplayBehavior = BehaviorConfig != nullptr ? BehaviorConfig->GetBehavior(*World) : nullptr;
+				const USmartObjectGameplayBehaviorDefinition* SmartObjectGameplayBehaviorDefinition = SmartObjectSubsystem->Use<USmartObjectGameplayBehaviorDefinition>(ClaimedHandle);
+				const UGameplayBehaviorConfig* GameplayBehaviorConfig = SmartObjectGameplayBehaviorDefinition != nullptr ? SmartObjectGameplayBehaviorDefinition->GameplayBehaviorConfig : nullptr;
+				GameplayBehavior = GameplayBehaviorConfig != nullptr ? GameplayBehaviorConfig->GetBehavior(*World) : nullptr;
 				if (GameplayBehavior != nullptr)
 				{
-					bBehaviorActive = UGameplayBehaviorManager::TriggerBehavior(*GameplayBehavior, *OwnerController->GetPawn(), BehaviorConfig);
+					bBehaviorActive = UGameplayBehaviorManager::TriggerBehavior(*GameplayBehavior, *OwnerController->GetPawn(), GameplayBehaviorConfig);
 					// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
 					if (bBehaviorActive)
 					{
