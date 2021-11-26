@@ -144,7 +144,11 @@ bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 		else
 		{
 			OutResult = FMath::Max<uint64>(Query->Result, OutResult);
-			bSuccess = true;
+
+			// Make sure the query is still valid (not to old and query data already reused for a new frame)
+			int32 FramesToKeepResults = Adapter.GetDevice(GPUIndex)->GetOcclusionQueryHeap(ED3D12CommandQueueType::Direct)->GetNumFramesToKeepResults();
+			int32 LastValidFrameFenceValue = FMath::Max(0, (int32)Adapter.GetFrameFence().GetCurrentFence() - FramesToKeepResults);
+			bSuccess = (int32)Query->FrameSubmitted >= LastValidFrameFenceValue;
 		}
 	}
 	return bSuccess;
@@ -231,10 +235,11 @@ void FD3D12CommandContext::RHIEndOcclusionQueryBatch()
 * class FD3D12QueryHeap
 *=============================================================================*/
 
-FD3D12QueryHeap::FD3D12QueryHeap(FD3D12Device* InParent, const D3D12_QUERY_TYPE InQueryType, uint32 InQueryHeapCount, uint32 InMaxActiveBatches)
+FD3D12QueryHeap::FD3D12QueryHeap(FD3D12Device* InParent, const D3D12_QUERY_TYPE InQueryType, uint32 InQueryHeapCount, uint32 InNumFramesToKeepResults, uint32 InBatchPerFrame)
 	: FD3D12DeviceChild(InParent)
 	, FD3D12SingleNodeGPUObject(InParent->GetGPUMask())
-	, LastBatch(InMaxActiveBatches - 1)
+	, NumFramesToKeepResults(InNumFramesToKeepResults)
+	, BatchesPerFrame(InBatchPerFrame)
 	, ActiveAllocatedElementCount(0)
 	, LastAllocatedElement(InQueryHeapCount - 1)
 	, QueryType(InQueryType)
@@ -246,8 +251,11 @@ FD3D12QueryHeap::FD3D12QueryHeap(FD3D12Device* InParent, const D3D12_QUERY_TYPE 
 
 	CurrentQueryBatch.Clear();
 
-	ActiveQueryBatches.Reserve(InMaxActiveBatches);
-	ActiveQueryBatches.AddZeroed(InMaxActiveBatches);
+	uint32 MaxActiveBatches = NumFramesToKeepResults * BatchesPerFrame;
+	LastBatch = MaxActiveBatches - 1;
+
+	ActiveQueryBatches.Reserve(MaxActiveBatches);
+	ActiveQueryBatches.AddZeroed(MaxActiveBatches);
 
 	// Don't Init() until the RHI has created the device
 }
@@ -463,6 +471,10 @@ void FD3D12QueryHeap::EndQuery(FD3D12CommandContext& CmdContext, FD3D12RenderQue
 	if (QueryType == D3D12_QUERY_TYPE_OCCLUSION)
 	{
 		check(CurrentQueryBatch.bOpen);
+		if (GetParentDevice())
+		{
+			RenderQuery->FrameSubmitted = GetParentDevice()->GetParentAdapter()->GetFrameFence().GetCurrentFence();
+		}
 	}
 	else
 	{
