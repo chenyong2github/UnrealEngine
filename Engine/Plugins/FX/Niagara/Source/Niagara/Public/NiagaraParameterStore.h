@@ -1328,7 +1328,7 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	}
 
 	template<class TObjectType>
-	FORCEINLINE TObjectType* GetValue() const
+	FORCEINLINE TObjectType* GetValueOrDefault(TObjectType* DefaultValue) const
 	{
 		if (UObjectOffset != INDEX_NONE)
 		{
@@ -1337,6 +1337,12 @@ struct FNiagaraParameterDirectBinding<UObject*>
 
 			return Cast<TObjectType>(BoundStore->GetUObject(UObjectOffset));
 		}
-		return nullptr;
+		return DefaultValue;
+	}
+
+	template<class TObjectType>
+	FORCEINLINE TObjectType* GetValue() const
+	{
+		return GetValueOrDefault<TObjectType>(nullptr);
 	}
 };

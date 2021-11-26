@@ -460,9 +460,6 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		}
 
 		TextureDI->SetTexture(Texture);
-#if WITH_EDITOR
-		NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
-#endif
 	}
 	else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
 	{
@@ -482,9 +479,6 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		}
 
 		TextureDI->SetTexture(Texture2DArray);
-#if WITH_EDITOR
-		NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
-#endif
 	}
 	else if (UVolumeTexture* TextureVolume = Cast<UVolumeTexture>(Texture))
 	{
@@ -504,9 +498,6 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		}
 
 		TextureDI->SetTexture(TextureVolume);
-#if WITH_EDITOR
-		NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
-#endif
 	}
 	else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
 	{
@@ -526,9 +517,6 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 		}
 
 		TextureDI->SetTexture(TextureCube);
-#if WITH_EDITOR
-		NiagaraSystem->SetParameterOverride(Variable, FNiagaraVariant(TextureDI));
-#endif
 	}
 	else
 	{

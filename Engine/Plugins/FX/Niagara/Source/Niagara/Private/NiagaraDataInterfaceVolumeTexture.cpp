@@ -5,7 +5,9 @@
 #include "ShaderParameterUtils.h"
 #include "NiagaraCustomVersion.h"
 #include "Engine/VolumeTexture.h"
-
+#include "Engine/TextureRenderTargetVolume.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraComputeExecutionContext.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceVolumeTexture"
 
@@ -15,12 +17,61 @@ const FString UNiagaraDataInterfaceVolumeTexture::TextureName(TEXT("Texture_"));
 const FString UNiagaraDataInterfaceVolumeTexture::SamplerName(TEXT("Sampler_"));
 const FString UNiagaraDataInterfaceVolumeTexture::DimensionsBaseName(TEXT("Dimensions_"));
 
+struct FNDIVolumeTextureInstanceData_GameThread
+{
+	TWeakObjectPtr<UTexture> CurrentTexture = nullptr;
+	FIntVector CurrentTextureSize = FIntVector::ZeroValue;
+	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
+};
+
+struct FNDIVolumeTextureInstanceData_RenderThread
+{
+	FSamplerStateRHIRef		SamplerStateRHI;
+	FTextureReferenceRHIRef	TextureReferenceRHI;
+	FTextureRHIRef			ResolvedTextureRHI;
+	FVector3f				TextureSize;
+};
+
+struct FNiagaraDataInterfaceProxyVolumeTexture : public FNiagaraDataInterfaceProxy
+{
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
+
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	{
+		if (FNDIVolumeTextureInstanceData_RenderThread* InstanceData = InstanceData_RT.Find(Context.SystemInstanceID))
+		{
+			// Because the underlying reference can have a switch in flight on the RHI we get the referenced texture
+			// here, ensure it's valid (as it could be queued for delete) and cache until next round.  If we were
+			// to release the reference in PostStage / PostSimulate we still stand a chance the the transition we
+			// queue will be invalid by the time it is processed on the RHI thread.
+			if (Context.SimStageData->bFirstStage && InstanceData->TextureReferenceRHI.IsValid())
+			{
+				InstanceData->ResolvedTextureRHI = InstanceData->TextureReferenceRHI->GetReferencedTexture();
+				if (InstanceData->ResolvedTextureRHI && !InstanceData->ResolvedTextureRHI->IsValid())
+				{
+					InstanceData->ResolvedTextureRHI = nullptr;
+				}
+			}
+			if (InstanceData->TextureReferenceRHI.IsValid())
+			{
+				// Make sure the texture is readable, we don't know where it's coming from.
+				RHICmdList.Transition(FRHITransitionInfo(InstanceData->TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			}
+		}
+	}
+
+	TMap<FNiagaraSystemInstanceID, FNDIVolumeTextureInstanceData_RenderThread> InstanceData_RT;
+};
+
 UNiagaraDataInterfaceVolumeTexture::UNiagaraDataInterfaceVolumeTexture(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Texture(nullptr)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyVolumeTexture());
-	MarkRenderDataDirty();
+
+	FNiagaraTypeDefinition Def(UTexture::StaticClass());
+	TextureUserParameter.Parameter.SetType(Def);
 }
 
 void UNiagaraDataInterfaceVolumeTexture::PostInitProperties()
@@ -32,28 +83,7 @@ void UNiagaraDataInterfaceVolumeTexture::PostInitProperties()
 		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), Flags);
 	}
-
-	MarkRenderDataDirty();
 }
-
-void UNiagaraDataInterfaceVolumeTexture::PostLoad()
-{
-	Super::PostLoad();
-
-	// Not safe since the UTexture might not have yet PostLoad() called and so UpdateResource() called.
-	// This will affect whether the SamplerStateRHI will be available or not.
-	MarkRenderDataDirty();
-}
-
-#if WITH_EDITOR
-
-void UNiagaraDataInterfaceVolumeTexture::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-	MarkRenderDataDirty();
-}
-
-#endif
 
 bool UNiagaraDataInterfaceVolumeTexture::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
@@ -63,7 +93,7 @@ bool UNiagaraDataInterfaceVolumeTexture::CopyToInternal(UNiagaraDataInterface* D
 	}
 	UNiagaraDataInterfaceVolumeTexture* DestinationTexture = CastChecked<UNiagaraDataInterfaceVolumeTexture>(Destination);
 	DestinationTexture->Texture = Texture;
-	DestinationTexture->MarkRenderDataDirty();
+	DestinationTexture->TextureUserParameter = TextureUserParameter;
 
 	return true;
 }
@@ -75,7 +105,9 @@ bool UNiagaraDataInterfaceVolumeTexture::Equals(const UNiagaraDataInterface* Oth
 		return false;
 	}
 	const UNiagaraDataInterfaceVolumeTexture* OtherTexture = CastChecked<const UNiagaraDataInterfaceVolumeTexture>(Other);
-	return OtherTexture->Texture == Texture;
+	return	
+		OtherTexture->Texture == Texture &&
+		OtherTexture->TextureUserParameter == TextureUserParameter;
 }
 
 void UNiagaraDataInterfaceVolumeTexture::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
@@ -116,34 +148,91 @@ void UNiagaraDataInterfaceVolumeTexture::GetVMExternalFunction(const FVMExternal
 {
 	if (BindingInfo.Name == SampleVolumeTextureName)
 	{
-		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 4);
+		check(BindingInfo.GetNumInputs() == 5 && BindingInfo.GetNumOutputs() == 4);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceVolumeTexture, SampleVolumeTexture)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == TextureDimsName)
 	{
-		check(BindingInfo.GetNumInputs() == 0 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 3);
 		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions);
 	}
 }
 
+int32 UNiagaraDataInterfaceVolumeTexture::PerInstanceDataSize() const
+{
+	return sizeof(FNDIVolumeTextureInstanceData_GameThread);
+}
+
+bool UNiagaraDataInterfaceVolumeTexture::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
+{
+	FNDIVolumeTextureInstanceData_GameThread* InstanceData = new (PerInstanceData) FNDIVolumeTextureInstanceData_GameThread();
+	InstanceData->UserParamBinding.Init(SystemInstance->GetInstanceParameters(), TextureUserParameter.Parameter);
+	return true;
+}
+
+void UNiagaraDataInterfaceVolumeTexture::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
+{
+	FNDIVolumeTextureInstanceData_GameThread* InstanceData = static_cast<FNDIVolumeTextureInstanceData_GameThread*>(PerInstanceData);
+	InstanceData->~FNDIVolumeTextureInstanceData_GameThread();
+
+	ENQUEUE_RENDER_COMMAND(NDITexture_RemoveInstance)
+	(
+		[RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVolumeTexture>(), RT_InstanceID = SystemInstance->GetId()](FRHICommandListImmediate&)
+		{
+			RT_Proxy->InstanceData_RT.Remove(RT_InstanceID);
+		}
+	);
+}
+
 bool UNiagaraDataInterfaceVolumeTexture::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
-	const FIntVector CurrentTextureSize = Texture != nullptr ? FIntVector(Texture->GetSizeX(), Texture->GetSizeY(), Texture->GetSizeZ()) : FIntVector::ZeroValue;
-	if ( CurrentTextureSize !=  TextureSize )
+	FNDIVolumeTextureInstanceData_GameThread* InstanceData = static_cast<FNDIVolumeTextureInstanceData_GameThread*>(PerInstanceData);
+
+	UTexture* CurrentTexture = InstanceData->UserParamBinding.GetValueOrDefault<UTexture>(Texture);
+	if ( InstanceData->CurrentTexture != CurrentTexture )
 	{
-		TextureSize = CurrentTextureSize;
-		MarkRenderDataDirty();
+		UVolumeTexture* CurrentTextureVolume = Cast<UVolumeTexture>(CurrentTexture);
+		UTextureRenderTargetVolume* CurrentTextureRT = Cast<UTextureRenderTargetVolume>(CurrentTexture);
+		if (CurrentTextureVolume || CurrentTextureRT)
+		{
+			const FIntVector CurrentTextureSize = CurrentTextureVolume != nullptr ?
+				FIntVector(CurrentTextureVolume->GetSizeX(), CurrentTextureVolume->GetSizeY(), CurrentTextureVolume->GetSizeZ()) :
+				FIntVector(CurrentTextureRT->SizeX, CurrentTextureRT->SizeY, CurrentTextureRT->SizeZ);
+
+			InstanceData->CurrentTexture = CurrentTexture;
+			InstanceData->CurrentTextureSize = CurrentTextureSize;
+
+			ENQUEUE_RENDER_COMMAND(NDITexture_UpdateInstance)
+			(
+				[RT_Proxy=GetProxyAs<FNiagaraDataInterfaceProxyVolumeTexture>(), RT_InstanceID=SystemInstance->GetId(), RT_Texture=CurrentTexture, RT_TextureSize=CurrentTextureSize](FRHICommandListImmediate&)
+				{
+					FNDIVolumeTextureInstanceData_RenderThread& InstanceData = RT_Proxy->InstanceData_RT.FindOrAdd(RT_InstanceID);
+					if (RT_Texture)
+					{
+						InstanceData.TextureReferenceRHI = RT_Texture->TextureReference.TextureReferenceRHI;
+						InstanceData.SamplerStateRHI = RT_Texture->GetResource() ? RT_Texture->GetResource()->SamplerStateRHI : nullptr;
+					}
+					else
+					{
+						InstanceData.TextureReferenceRHI = nullptr;
+						InstanceData.SamplerStateRHI = nullptr;
+					}
+					InstanceData.TextureSize = FVector(RT_TextureSize.X, RT_TextureSize.Y, RT_TextureSize.Z);
+				}
+			);
+		}
 	}
 	return false;
 }
 
 void UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions(FVectorVMExternalFunctionContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIVolumeTextureInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<float> OutWidth(Context);
 	FNDIOutputParam<float> OutHeight(Context);
 	FNDIOutputParam<float> OutDepth(Context);
 
-	FVector FloatTextureSize(TextureSize.X, TextureSize.Y, TextureSize.Z);
+	FVector3f FloatTextureSize(InstData->CurrentTextureSize.X, InstData->CurrentTextureSize.Y, InstData->CurrentTextureSize.Z);
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutWidth.SetAndAdvance(FloatTextureSize.X);
@@ -154,6 +243,7 @@ void UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions(FVectorVMExternalF
 
 void UNiagaraDataInterfaceVolumeTexture::SampleVolumeTexture(FVectorVMExternalFunctionContext& Context)
 {
+	VectorVM::FUserPtrHandler<FNDIVolumeTextureInstanceData_GameThread> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> YParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> ZParam(Context);
@@ -232,25 +322,20 @@ public:
 
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyVolumeTexture* TextureDI = static_cast<FNiagaraDataInterfaceProxyVolumeTexture*>(Context.DataInterface);
+		FNDIVolumeTextureInstanceData_RenderThread* InstanceData = TextureDI->InstanceData_RT.Find(Context.SystemInstanceID);
 
-		if (TextureDI && TextureDI->TextureRHI)
+		if (InstanceData && InstanceData->ResolvedTextureRHI.IsValid())
 		{
-			FRHISamplerState* SamplerStateRHI = TextureDI->SamplerStateRHI;
-			if (!SamplerStateRHI)
-			{
-				// Fallback required because PostLoad() order affects whether RHI resources 
-				// are initalized in UNiagaraDataInterfaceVolumeTexture::PushToRenderThreadImpl().
-				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			}
+			FRHISamplerState* SamplerStateRHI = InstanceData->SamplerStateRHI ? InstanceData->SamplerStateRHI : GBlackTexture->SamplerStateRHI;
 			SetTextureParameter(
 				RHICmdList,
 				ComputeShaderRHI,
 				TextureParam,
 				SamplerParam,
 				SamplerStateRHI,
-				TextureDI->TextureRHI
+				InstanceData->ResolvedTextureRHI
 			);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, (FVector3f)TextureDI->TexDims);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, InstanceData->TextureSize);
 		}
 		else
 		{
@@ -274,35 +359,11 @@ private:
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_VolumeTexture);
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceVolumeTexture, FNiagaraDataInterfaceParametersCS_VolumeTexture);
 
-void UNiagaraDataInterfaceVolumeTexture::PushToRenderThreadImpl()
-{
-	FNiagaraDataInterfaceProxyVolumeTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyVolumeTexture>();
-
-	TextureSize = FIntVector::ZeroValue;
-	if (Texture)
-	{
-		TextureSize.X = Texture->GetSizeX();
-		TextureSize.Y = Texture->GetSizeY();
-		TextureSize.Z = Texture->GetSizeZ();
-	}
-
-	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)
-	(
-		[RT_Proxy, RT_Resource=Texture ? Texture->GetResource() : nullptr, RT_TexDims=TextureSize](FRHICommandListImmediate& RHICmdList)
-		{
-			RT_Proxy->TextureRHI = RT_Resource ? RT_Resource->TextureRHI : nullptr;
-			RT_Proxy->SamplerStateRHI = RT_Resource ? RT_Resource->SamplerStateRHI : nullptr;
-			RT_Proxy->TexDims = FVector(RT_TexDims.X, RT_TexDims.Y, RT_TexDims.Z);
-		}
-	);
-}
-
 void UNiagaraDataInterfaceVolumeTexture::SetTexture(UVolumeTexture* InTexture)
 {
 	if (InTexture)
 	{
 		Texture = InTexture;
-		MarkRenderDataDirty();
 	}
 }
 
