@@ -921,7 +921,6 @@ struct FStrataPixelHeader
 #endif
 
 	float MaterialAO;
-	float4 PrecomputedShadowMask;
 
 	uint State;
 };
@@ -951,7 +950,6 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.SharedLocalBasesTypes = 0;
 #endif
 	Out.MaterialAO = 1.0f;
-	Out.PrecomputedShadowMask = 1.0f;
 	Out.State = 0;
 	return Out;
 }
@@ -2238,23 +2236,17 @@ void PackStrataOut(
 // Pack only strata header
 uint2 PackStrataHeader(uint InBSDFCount, FStrataPixelHeader InHeader)
 {
-	uint2 Out = 0;
-	HEADER_SETBSDFCOUNT(Out.x, InBSDFCount);
+	uint Out = 0;
+	HEADER_SETBSDFCOUNT(Out, InBSDFCount);
 
 #if STRATA_INLINE_SHADING
-	HEADER_SETSHAREDLOCALBASESCOUNT(Out.x, InHeader.SharedLocalBases.Count);
-	HEADER_SETSHAREDLOCALBASESTYPE(Out.x, InHeader.SharedLocalBases.Types);
+	HEADER_SETSHAREDLOCALBASESCOUNT(Out, InHeader.SharedLocalBases.Count);
+	HEADER_SETSHAREDLOCALBASESTYPE(Out, InHeader.SharedLocalBases.Types);
 #endif
 
-	HEADER_SETAO(Out.x, PackR8(InHeader.MaterialAO));
-	HEADER_SETSTATE(Out.x, InHeader.State);
+	HEADER_SETAO(Out, PackR8(InHeader.MaterialAO));
+	HEADER_SETSTATE(Out, InHeader.State);
 
-#if ALLOW_STATIC_LIGHTING
-	if (HasPrecShadowMask(InHeader))
-	{
-		Out.y = PackRGBA8(InHeader.PrecomputedShadowMask);
-	}
-#endif
 	return Out;
 }
 
@@ -2271,15 +2263,6 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 
 	Out.MaterialAO = UnpackR8(HEADER_GETAO(PackedHeader));
 	Out.State = HEADER_GETSTATE(PackedHeader);
-
-	// Pre-shadow mask
-#if ALLOW_STATIC_LIGHTING
-	Out.PrecomputedShadowMask = HasZeroPrecShadowMask(Out) ? 0.f : 1.f;
-	if (HasPrecShadowMask(Out))
-	{
-		Out.PrecomputedShadowMask = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
-	}
-#endif
 
 #if STRATA_INLINE_SHADING==0
 

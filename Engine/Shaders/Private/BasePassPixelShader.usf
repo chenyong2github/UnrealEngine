@@ -1095,7 +1095,6 @@ void FPixelShaderInOut_MainPS(
 		if (!bAllZero && !bAllOne)
 		{
 			SetHasPrecShadowMask(StrataPixelHeader, true);
-			StrataPixelHeader.PrecomputedShadowMask = GBuffer.PrecomputedShadowFactors;
 		}
 		else if (bAllZero)
 		{
@@ -1611,8 +1610,12 @@ void FPixelShaderInOut_MainPS(
 	// STRATA_TODO GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION and ALLOW_STATIC_LIGHTING cases
 	StrataPixelHeader.MaterialAO = GBuffer.GBufferAO;
 
-	// Clear only what should be and keep the rest
-	GBuffer = (FGBufferData)0;						// We should not rely on gbuffer for anything else to make any pass work.
+	// We only rely on this GBuffer structure for the write out to legacy render target such as velocity or precomputed shadow factors
+	const float4 PrecomputedShadowFactors = GBuffer.PrecomputedShadowFactors;
+	const float4 EncodedVelocity = GBuffer.Velocity;
+	GBuffer = (FGBufferData)0;
+	GBuffer.PrecomputedShadowFactors = PrecomputedShadowFactors;
+	GBuffer.Velocity = EncodedVelocity;
 
 	uint2 PixelPos = uint2(In.SvPosition.xy);
 
@@ -1801,7 +1804,7 @@ void FPixelShaderInOut_MainPS(
 
 			EncodeGBufferToMRT(Out, GBuffer, QuantizationBias);
 
-			if (GBuffer.ShadingModelID == SHADINGMODELID_UNLIT)
+			if (GBuffer.ShadingModelID == SHADINGMODELID_UNLIT && !STRATA_ENABLED) // Do not touch what strata outputs
 			{
 				Out.MRT[1] = 0;
 				SetGBufferForUnlit(Out.MRT[2]);
