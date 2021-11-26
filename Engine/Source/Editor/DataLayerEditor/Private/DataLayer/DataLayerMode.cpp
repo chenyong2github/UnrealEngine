@@ -1088,13 +1088,19 @@ void FDataLayerMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 		FUIAction(
 			FExecuteAction::CreateLambda([this]()
 			{
-				UWorldPartitionEditorPerProjectUserSettings* Settings = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>();
-				Settings->bAllowRuntimeDataLayerEditing = !Settings->bAllowRuntimeDataLayerEditing;
-				Settings->PostEditChange();
+				if (AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr)
+				{
+					const FScopedDataLayerTransaction Transaction(LOCTEXT("ToggleAllowRuntimeDataLayerEditingTransaction", "Toggle Allow Runtime Data Layer Editing"), RepresentingWorld.Get());
+					WorldDataLayers->SetAllowRuntimeDataLayerEditing(!WorldDataLayers->GetAllowRuntimeDataLayerEditing());
+				}
 				SceneOutliner->FullRefresh();
 			}),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([]() { return !!GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->bAllowRuntimeDataLayerEditing; })
+			FIsActionChecked::CreateLambda([this]()
+			{
+				const AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr;
+				return WorldDataLayers ? WorldDataLayers->GetAllowRuntimeDataLayerEditing() : true;
+			})
 		),
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton

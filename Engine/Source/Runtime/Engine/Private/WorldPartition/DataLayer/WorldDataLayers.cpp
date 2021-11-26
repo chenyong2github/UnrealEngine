@@ -35,6 +35,9 @@ FString JoinDataLayerLabelsFromNames(AWorldDataLayers* InWorldDataLayers, const 
 
 AWorldDataLayers::AWorldDataLayers(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
+	, bAllowRuntimeDataLayerEditing(true)
+#endif
 {
 	bAlwaysRelevant = true;
 	bReplicates = true;
@@ -601,6 +604,14 @@ bool AWorldDataLayers::RemoveDataLayer(UDataLayer* InDataLayer)
 	return false;
 }
 
+void AWorldDataLayers::SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing)
+{
+	if (bAllowRuntimeDataLayerEditing != bInAllowRuntimeDataLayerEditing)
+	{
+		Modify();
+		bAllowRuntimeDataLayerEditing = bInAllowRuntimeDataLayerEditing;
+	}
+}
 #endif
 
 bool AWorldDataLayers::ContainsDataLayer(const UDataLayer* InDataLayer) const

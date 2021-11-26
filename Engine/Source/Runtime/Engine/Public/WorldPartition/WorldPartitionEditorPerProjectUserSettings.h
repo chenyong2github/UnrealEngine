@@ -59,7 +59,6 @@ public:
 		, bHideRuntimeDataLayers(false)
 		, bHideDataLayerActors(true)
 		, bHideUnloadedActors(false)
-		, bAllowRuntimeDataLayerEditing(false)
 		, bShowOnlySelectedActors(false)
 		, bHighlightSelectedDataLayers(true)
 		, bDisableLoadingOfLastLoadedCells(false)
@@ -101,10 +100,6 @@ public:
 	/** True when the Data Layer Outliner is not displaying unloaded actors */
 	UPROPERTY(config)
 	uint32 bHideUnloadedActors : 1;
-
-	/** True when Runtime Data Layer editing is allowed. */
-	UPROPERTY(config)
-	uint32 bAllowRuntimeDataLayerEditing : 1;
 
 	/** True when the Data Layer Outliner is only displaying actors and datalayers for selected actors */
 	UPROPERTY(config)
