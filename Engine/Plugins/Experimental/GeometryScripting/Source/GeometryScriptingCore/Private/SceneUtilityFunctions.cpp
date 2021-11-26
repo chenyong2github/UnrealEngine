@@ -6,9 +6,12 @@
 #include "UDynamicMesh.h"
 #include "GeometryScript/MeshAssetFunctions.h"
 #include "DynamicMesh/MeshTransforms.h"
+#include "DynamicMesh/MeshNormals.h"
 
 #include "Components/StaticMeshComponent.h"
+#include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "ConversionUtils/VolumeToDynamicMesh.h"
 
 using namespace UE::Geometry;
 
@@ -31,9 +34,8 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
 
-	if (Cast<UStaticMeshComponent>(Component) != nullptr)
+	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 	{
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 		LocalToWorld = StaticMeshComponent->GetComponentTransform();
 		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 		if (StaticMesh)
@@ -49,9 +51,8 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshFromComponent_MissingStaticMesh", "CopyMeshFromComponent: StaticMeshComponent has a null StaticMesh"));
 		}
 	}
-	else if (Cast<UDynamicMeshComponent>(Component) != nullptr)
+	else if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
 	{
-		UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component);
 		LocalToWorld = DynamicMeshComponent->GetComponentTransform();
 		UDynamicMesh* CopyDynamicMesh = DynamicMeshComponent->GetDynamicMesh();
 		if (CopyDynamicMesh)
@@ -65,6 +66,38 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 		else
 		{
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshFromComponent_MissingDynamicMesh", "CopyMeshFromComponent: DynamicMeshComponent has a null DynamicMesh"));
+		}
+	}
+	else if (UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component))
+	{
+		LocalToWorld = BrushComponent->GetComponentTransform();
+
+		UE::Conversion::FVolumeToMeshOptions VolOptions;
+		VolOptions.bMergeVertices = true;
+		VolOptions.bAutoRepairMesh = true;
+		VolOptions.bOptimizeMesh = true;
+		VolOptions.bSetGroups = true;
+
+		FDynamicMesh3 ConvertedMesh(EMeshComponents::FaceGroups);
+		UE::Conversion::BrushComponentToDynamicMesh(BrushComponent, ConvertedMesh, VolOptions);
+
+		// compute normals for current polygroup topology
+		ConvertedMesh.EnableAttributes();
+		if (Options.bWantNormals)
+		{
+			FDynamicMeshNormalOverlay* Normals = ConvertedMesh.Attributes()->PrimaryNormals();
+			FMeshNormals::InitializeOverlayTopologyFromFaceGroups(&ConvertedMesh, Normals);
+			FMeshNormals::QuickRecomputeOverlayNormals(ConvertedMesh);
+		}
+
+		if (ConvertedMesh.TriangleCount() > 0)
+		{
+			ToDynamicMesh->SetMesh(MoveTemp(ConvertedMesh));
+			Outcome = EGeometryScriptOutcomePins::Success;
+		}
+		else
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshFromComponent_InvalidBrushConversion", "CopyMeshFromComponent: BrushComponent conversion produced 0 triangles"));
 		}
 	}
 

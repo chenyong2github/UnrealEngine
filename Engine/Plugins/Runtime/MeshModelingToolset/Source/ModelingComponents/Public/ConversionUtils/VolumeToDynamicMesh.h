@@ -6,6 +6,8 @@
 #include "FrameTypes.h"
 
 class AVolume;
+class UBrushComponent;
+class UModel;
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 namespace UE {
@@ -21,8 +23,19 @@ struct FVolumeToMeshOptions
 };
 
 /**
- * Converts a volume to a dynamic mesh. Does not initialize normals and does not delete the volume.
+ * Converts an AVolume to a FDynamicMesh3. Does not initialize normals and does not delete the volume.
  */
 void MODELINGCOMPONENTS_API VolumeToDynamicMesh(AVolume* Volume, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
+
+/**
+* Converts a UBrushComponent to a FDynamicMesh3. Does not initialize normals and does not delete the volume.
+*/
+void MODELINGCOMPONENTS_API BrushComponentToDynamicMesh(UBrushComponent* Component, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
+
+/**
+* Converts a UModel to a FDynamicMesh3. Does not initialize normals.
+*/
+void MODELINGCOMPONENTS_API BrushToDynamicMesh(UModel& BrushModel, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
+
 
 }}//end namespace UE::Conversion
