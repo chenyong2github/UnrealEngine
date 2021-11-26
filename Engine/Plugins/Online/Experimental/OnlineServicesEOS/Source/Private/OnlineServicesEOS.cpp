@@ -88,7 +88,7 @@ void FOnlineServicesEOS::Initialize()
 	FOnlineServicesCommon::Initialize();
 }
 
-FString FOnlineServicesEOS::ToDebugString(const FOnlineAccountIdHandle& Handle)
+FString FOnlineServicesEOS::ToLogString(const FOnlineAccountIdHandle& Handle)
 {
 	FString Result;
 	if (Handle.IsValid())
