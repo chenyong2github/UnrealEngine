@@ -94,9 +94,9 @@ void FCUDAModule::UnloadCuda()
 }
 
 bool FCUDAModule::IsRHISelectedDevice(CUdevice cuDevice) {
+#if PLATFORM_SUPPORTS_CUDA
 	FString RHIName = GDynamicRHI->GetName();
 
-#if PLATFORM_SUPPORTS_CUDA
     // VULKAN
     if(RHIName == TEXT("Vulkan"))
     {

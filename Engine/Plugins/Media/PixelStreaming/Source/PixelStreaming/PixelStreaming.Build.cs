@@ -91,6 +91,7 @@ namespace UnrealBuildTool.Rules
 				"Json",
 				"RenderCore",
 				"RHI",
+				"RHICore",
 				"Slate",
 				"SlateCore",
 				"AudioMixer",
