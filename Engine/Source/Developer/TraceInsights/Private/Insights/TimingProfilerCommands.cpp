@@ -89,6 +89,12 @@ void FTimingViewCommands::RegisterCommands()
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord(EKeys::V));
 
+	UI_COMMAND(PanningOnScreenEdges,
+		"Allow Panning on Screen Edges",
+		"If enabled, the panning is allowed to continue when mouse cursor reaches the edges of the screen.\nThis option is persistent to UnrealInsightsSettings.ini file.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord());
+
 	UI_COMMAND(ToggleCompactMode,
 		"Compact Mode",
 		"Toggle compact mode for supporting tracks.\n(ex.: the timing tracks will be displayed with reduced height)",

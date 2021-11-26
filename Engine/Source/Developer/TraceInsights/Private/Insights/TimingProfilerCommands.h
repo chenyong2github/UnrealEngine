@@ -69,6 +69,9 @@ public:
 	/** Toggles visibility of empty tracks. */
 	TSharedPtr<FUICommandInfo> AutoHideEmptyTracks;
 
+	/** Toggles "panning on screen edges". */
+	TSharedPtr<FUICommandInfo> PanningOnScreenEdges;
+
 	/** Toggles 'compact mode' for timing tracks. */
 	TSharedPtr<FUICommandInfo> ToggleCompactMode;
 
