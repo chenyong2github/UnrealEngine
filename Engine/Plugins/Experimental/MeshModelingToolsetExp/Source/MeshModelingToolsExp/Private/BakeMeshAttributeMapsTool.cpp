@@ -334,7 +334,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	TextureSettings->RestoreProperties(this);
 	AddToolPropertySource(TextureSettings);
 	SetToolPropertySourceEnabled(TextureSettings, false);
-	TextureSettings->WatchProperty(TextureSettings->UVLayer, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	TextureSettings->WatchProperty(TextureSettings->UVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
 	TextureSettings->WatchProperty(TextureSettings->SourceTexture, [this](UTexture2D*) { OpState |= EBakeOpState::Evaluate; });
 
 	MultiTextureSettings = NewObject<UBakeMultiTexture2DProperties>(this);
@@ -345,7 +345,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	auto SetDirtyCallback = [this](decltype(MultiTextureSettings->MaterialIDSourceTextures)) { OpState |= EBakeOpState::Evaluate; };
 	auto NotEqualsCallback = [](const decltype(MultiTextureSettings->MaterialIDSourceTextures)& A, const decltype(MultiTextureSettings->MaterialIDSourceTextures)& B) -> bool { return A != B; };
 	MultiTextureSettings->WatchProperty(MultiTextureSettings->MaterialIDSourceTextures, SetDirtyCallback, NotEqualsCallback);
-	MultiTextureSettings->WatchProperty(MultiTextureSettings->UVLayer, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	MultiTextureSettings->WatchProperty(MultiTextureSettings->UVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
 	UpdateMultiTextureMaterialIDs(DetailTarget, MultiTextureSettings->AllSourceTextures, MultiTextureSettings->MaterialIDSourceTextures);
 
 	UpdateOnModeChange();
@@ -433,7 +433,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 
 	if ((bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::MultiTexture))
 	{
-		Op->TextureSettings = CachedMultiTexture2DSettings;
+		Op->MultiTextureSettings = CachedMultiTexture2DSettings;
 		Op->MaterialIDTextures = CachedMultiTextures;
 	}
 
@@ -506,6 +506,8 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 	}
 
 	UpdateUVLayerNames(InputMeshSettings->SourceNormalMapUVLayer, InputMeshSettings->SourceUVLayerNamesList, *DetailMesh);
+	UpdateUVLayerNames(TextureSettings->UVLayer, TextureSettings->UVLayerNamesList, *DetailMesh);
+	UpdateUVLayerNames(MultiTextureSettings->UVLayer, MultiTextureSettings->UVLayerNamesList, *DetailMesh);
 
 	// Clear detail mesh evaluation flag and mark evaluation.
 	OpState &= ~EBakeOpState::EvaluateDetailMesh;

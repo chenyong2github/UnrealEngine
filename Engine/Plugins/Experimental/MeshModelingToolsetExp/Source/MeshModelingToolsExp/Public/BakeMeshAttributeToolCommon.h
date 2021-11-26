@@ -220,8 +220,18 @@ public:
 	TObjectPtr<UTexture2D> SourceTexture;
 
 	/** UV channel to use for the source mesh texture */
-	UPROPERTY(EditAnywhere, Category = TextureOutput, meta = (DisplayName = "Source Texture UV Channel"))
-	int32 UVLayer = 0;
+	UPROPERTY(EditAnywhere, Category = TextureOutput, meta = (DisplayName = "Source Texture UV Channel",
+		GetOptions = GetUVLayerNamesFunc, NoResetToDefault))
+	FString UVLayer;
+
+	UFUNCTION()
+	const TArray<FString>& GetUVLayerNamesFunc() const
+	{
+		return UVLayerNamesList;
+	}
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> UVLayerNamesList;
 };
 
 
@@ -232,16 +242,26 @@ class MESHMODELINGTOOLSEXP_API UBakeMultiTexture2DProperties : public UInteracti
 public:
 
 	/** For each material ID, the source texture that will be resampled in that material's region*/
-	UPROPERTY(EditAnywhere, EditFixedSize, Category = MultiTexture, meta = (DisplayName = "Material IDs",
+	UPROPERTY(EditAnywhere, EditFixedSize, Category = MultiTextureOutput, meta = (DisplayName = "Material IDs",
 		TransientToolProperty, EditFixedOrder))
 	TArray<TObjectPtr<UTexture2D>> MaterialIDSourceTextures;
 
-	/** UV channel to use for the source mesh textures */
-	UPROPERTY(EditAnywhere, Category = MultiTexture, meta = (DisplayName = "Source Texture UV Channel"))
-	int32 UVLayer = 0;
+	/** UV channel to use for the source mesh texture */
+	UPROPERTY(EditAnywhere, Category = MultiTextureOutput, meta = (DisplayName = "Source Texture UV Channel",
+		GetOptions = GetUVLayerNamesFunc, NoResetToDefault))
+	FString UVLayer;
+
+	UFUNCTION()
+	const TArray<FString>& GetUVLayerNamesFunc() const
+	{
+		return UVLayerNamesList;
+	}
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> UVLayerNamesList;
 
 	/** The set of all source textures from all input materials */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = MultiTexture, meta = (DisplayName = "Source Textures",
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = MultiTextureOutput, meta = (DisplayName = "Source Textures",
 		TransientToolProperty))
 	TArray<TObjectPtr<UTexture2D>> AllSourceTextures;
 

@@ -91,7 +91,7 @@ struct MESHMODELINGTOOLSEXP_API FBakeMultiMeshDetailProperties
 
 	/** UV channel to use for the source mesh color texture */
 	UPROPERTY(EditAnywhere, Category = BakeSources, meta = (TransientToolProperty, DisplayName = "Source Texture UV Channel",
-		EditCondition="SourceTexture != nullptr"))
+		EditCondition="SourceTexture != nullptr", ClampMin=0, ClampMax=7))
 	int32 SourceTextureUVLayer = 0;
 };
 
@@ -112,7 +112,7 @@ public:
 	FString TargetUVLayer;
 
 	/** Source meshes and textures to sample from */
-	UPROPERTY(EditAnywhere, EditFixedSize, Category = BakeInput, meta = (TransientToolProperty, EditFixedOrder))
+	UPROPERTY(EditAnywhere, EditFixedSize, Category = BakeInput, meta = (TransientToolProperty, EditFixedOrder, NoResetToDefault))
 	TArray<FBakeMultiMeshDetailProperties> SourceMeshes;
 
 	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
