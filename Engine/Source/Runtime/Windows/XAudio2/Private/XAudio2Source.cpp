@@ -1717,7 +1717,7 @@ void FSpatializationHelper::Init()
 	Emitter.pCone->InnerReverb = 0.0f;
 	Emitter.pCone->OuterReverb = 1.0f;
 
-	Emitter.ChannelCount = UE4_XAUDIO3D_INPUTCHANNELS;
+	Emitter.ChannelCount = UE_XAUDIO3D_INPUTCHANNELS;
 	Emitter.ChannelRadius = 0.0f;
 	// we aren't using the helper to spatialize multichannel files so we can set this nullptr
 	Emitter.pChannelAzimuths = nullptr;
@@ -1748,7 +1748,7 @@ void FSpatializationHelper::Init()
 	// Zero the matrix coefficients
 	FMemory::Memzero(MatrixCoefficients, sizeof(float)*UE_ARRAY_COUNT(MatrixCoefficients));
 
-	DSPSettings.SrcChannelCount = UE4_XAUDIO3D_INPUTCHANNELS;
+	DSPSettings.SrcChannelCount = UE_XAUDIO3D_INPUTCHANNELS;
 	DSPSettings.DstChannelCount = SPEAKER_COUNT;
 	DSPSettings.pMatrixCoefficients = MatrixCoefficients;
 	DSPSettings.pDelayTimes = nullptr;
@@ -1901,7 +1901,7 @@ void FSpatializationHelper::DumpSpatializationState() const
 	FLocal::DumpDistanceCurve(TEXT("  "), TEXT("ReverbVolumeCurve"), &ReverbVolumeCurve);
 
 	// EmitterAzimuths
-	FLocal::DumpChannelArray(TEXT("  "), TEXT("EmitterAzimuths"), UE4_XAUDIO3D_INPUTCHANNELS, EmitterAzimuths);
+	FLocal::DumpChannelArray(TEXT("  "), TEXT("EmitterAzimuths"), UE_XAUDIO3D_INPUTCHANNELS, EmitterAzimuths);
 
 	// MatrixCoefficients
 	FLocal::DumpChannelArray(TEXT("  "), TEXT("MatrixCoefficients"), UE_ARRAY_COUNT(MatrixCoefficients), MatrixCoefficients);
