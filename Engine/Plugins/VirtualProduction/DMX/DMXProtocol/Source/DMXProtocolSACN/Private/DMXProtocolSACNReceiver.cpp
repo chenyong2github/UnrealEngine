@@ -6,6 +6,7 @@
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolSACNConstants.h"
 #include "DMXProtocolSACNUtils.h"
+#include "DMXProtocolUtils.h"
 #include "DMXStats.h"
 #include "IO/DMXInputPort.h"
 #include "Packets/DMXProtocolE131PDUPacket.h"
@@ -18,26 +19,6 @@
 
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("sACN Packages Recieved Total"), STAT_SACNPackagesReceived, STATGROUP_DMX);
 
-
-namespace
-{
-	static TSharedPtr<FInternetAddr> CreateEndpointInternetAddr(const FString& IPAddress)
-	{
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-
-		TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
-
-		bool bIsValidIP = false;
-		InternetAddr->SetIp(*IPAddress, bIsValidIP);
-		if (!bIsValidIP)
-		{
-			return nullptr;
-		}
-
-		InternetAddr->SetPort(ACN_PORT);
-		return InternetAddr;
-	}
-}
 
 FDMXProtocolSACNReceiver::FDMXProtocolSACNReceiver(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& InSACNProtocol, FSocket& InSocket, TSharedRef<FInternetAddr> InEndpointInternetAddr)
 	: Protocol(InSACNProtocol)
@@ -73,7 +54,7 @@ FDMXProtocolSACNReceiver::~FDMXProtocolSACNReceiver()
 
 TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACNReceiver::TryCreate(const TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe>& SACNProtocol, const FString& IPAddress)
 {
-	TSharedPtr<FInternetAddr> EndpointInternetAddr = CreateEndpointInternetAddr(IPAddress);
+	TSharedPtr<FInternetAddr> EndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ACN_PORT);
 	if (!EndpointInternetAddr.IsValid())
 	{
 		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create sACN receiver: Invalid IP address: %s"), *IPAddress);
@@ -112,7 +93,7 @@ TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACNReceiver::TryCreate(const T
 
 bool FDMXProtocolSACNReceiver::EqualsEndpoint(const FString& IPAddress) const
 {
-	TSharedPtr<FInternetAddr> OtherEndpointInternetAddr = CreateEndpointInternetAddr(IPAddress);
+	TSharedPtr<FInternetAddr> OtherEndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ACN_PORT);
 	if (OtherEndpointInternetAddr.IsValid() && OtherEndpointInternetAddr->CompareEndpoints(*EndpointInternetAddr))
 	{
 		return true;

@@ -78,9 +78,6 @@ public:
 	FORCEINLINE const TSet<TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>>& GetAssignedOutputPorts() const { return AssignedOutputPorts; }
 
 private:
-	/** Helper to create an internet address from an IP address string. Returns the InternetAddr or nullptr if unsuccessful */
-	static TSharedPtr<FInternetAddr> CreateInternetAddr(const FString& IPAddress, int32 Port);
-
 	/** Helper to create a broadcast internet address. */
 	static TSharedRef<FInternetAddr> CreateBroadcastInternetAddr(int32 Port);
 

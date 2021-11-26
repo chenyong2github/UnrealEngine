@@ -5,6 +5,7 @@
 #include "DMXProtocolLog.h"
 #include "DMXProtocolArtNet.h"
 #include "DMXProtocolArtNetConstants.h"
+#include "DMXProtocolUtils.h"
 #include "DMXStats.h"
 #include "IO/DMXInputPort.h"
 #include "Packets/DMXProtocolArtNetPackets.h"
@@ -52,7 +53,7 @@ FDMXProtocolArtNetReceiver::~FDMXProtocolArtNetReceiver()
 
 TSharedPtr<FDMXProtocolArtNetReceiver> FDMXProtocolArtNetReceiver::TryCreate(const TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe>& ArtNetProtocol, const FString& IPAddress)
 {
-	TSharedPtr<FInternetAddr> EndpointInternetAddr = CreateEndpointInternetAddr(IPAddress);
+	TSharedPtr<FInternetAddr> EndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ARTNET_PORT);
 	if (!EndpointInternetAddr.IsValid())
 	{
 		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create Art-Net receiver: Invalid IP address: %s"), *IPAddress);
@@ -79,7 +80,7 @@ TSharedPtr<FDMXProtocolArtNetReceiver> FDMXProtocolArtNetReceiver::TryCreate(con
 
 bool FDMXProtocolArtNetReceiver::EqualsEndpoint(const FString& IPAddress) const
 {
-	TSharedPtr<FInternetAddr> OtherEndpointInternetAddr = CreateEndpointInternetAddr(IPAddress);
+	TSharedPtr<FInternetAddr> OtherEndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ARTNET_PORT);
 	if (OtherEndpointInternetAddr.IsValid() && OtherEndpointInternetAddr->CompareEndpoints(*EndpointInternetAddr))
 	{
 		return true;
@@ -99,24 +100,6 @@ void FDMXProtocolArtNetReceiver::UnassignInputPort(const TSharedPtr<FDMXInputPor
 	check(AssignedInputPorts.Contains(InputPort));
 	AssignedInputPorts.Remove(InputPort);
 }
-
-TSharedPtr<FInternetAddr> FDMXProtocolArtNetReceiver::CreateEndpointInternetAddr(const FString& IPAddress)
-{
-	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-
-	TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
-
-	bool bIsValidIP = false;
-	InternetAddr->SetIp(*IPAddress, bIsValidIP);
-	if (!bIsValidIP)
-	{
-		return nullptr;
-	}
-
-	InternetAddr->SetPort(ARTNET_PORT);
-	return InternetAddr;
-}
-
 
 bool FDMXProtocolArtNetReceiver::Init()
 {
@@ -162,7 +145,7 @@ void FDMXProtocolArtNetReceiver::Update(const FTimespan& SocketWaitTime)
 	}
 
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	TSharedPtr<FInternetAddr> Sender = SocketSubsystem->CreateInternetAddr();
+	TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
 
 	uint32 Size = 0;
 	int32 Read = 0;
@@ -174,7 +157,7 @@ void FDMXProtocolArtNetReceiver::Update(const FTimespan& SocketWaitTime)
 		constexpr uint32 ArtNetMaxReaderSize = 1024u;
 		Reader->SetNumUninitialized(FMath::Min(Size, ArtNetMaxReaderSize));
 		
-        if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *Sender))
+        if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *InternetAddr))
 		{
             Reader->RemoveAt(Read, Reader->Num() - Read, false);
 			

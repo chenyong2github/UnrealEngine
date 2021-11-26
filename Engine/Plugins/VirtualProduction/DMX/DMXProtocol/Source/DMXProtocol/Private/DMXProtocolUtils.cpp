@@ -5,6 +5,7 @@
 #include "IPAddress.h"
 #include "SocketSubsystem.h" 
 
+
 #define LOCTEXT_NAMESPACE "FDMXProtocolUtils"
 
 TArray<TSharedPtr<FString>> FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs()
@@ -29,6 +30,27 @@ TArray<TSharedPtr<FString>> FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs()
 	}
 
 	return LocalNetworkInterfaceCardIPs;
+}
+
+TSharedPtr<FInternetAddr> FDMXProtocolUtils::CreateInternetAddr(const FString& IPAddress, int32 Port)
+{
+	if (IPAddress.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
+
+	bool bIsValidIP = false;
+	InternetAddr->SetIp(*IPAddress, bIsValidIP);
+	if (!bIsValidIP)
+	{
+		return nullptr;
+	}
+
+	InternetAddr->SetPort(Port);
+	return InternetAddr;
 }
 
 FString FDMXProtocolUtils::GenerateUniqueNameFromExisting(const TSet<FString>& InExistingNames, const FString& InBaseName)

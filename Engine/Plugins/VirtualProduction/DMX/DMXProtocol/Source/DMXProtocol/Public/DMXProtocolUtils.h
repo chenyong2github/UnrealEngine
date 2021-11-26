@@ -4,12 +4,24 @@
 
 #include "CoreMinimal.h"
 
+class FInternetAddr;
+
 
 class DMXPROTOCOL_API FDMXProtocolUtils
 {
 public:
 	/** Returns an array of local network interfaces */
 	static TArray<TSharedPtr<FString>> GetLocalNetworkInterfaceCardIPs();
+
+	/** 
+	 * Creates an Internet Address 
+	 * 
+	 * @param IPAddress	The IP Address to use
+	 * @param Port		The Port to use
+	 * 
+	 * @return			The Internet Address or nullptr if IPAddress and Port don't yield a valid Internet Address
+	 */
+	static TSharedPtr<FInternetAddr> CreateInternetAddr(const FString& IPAddress, int32 Port);
 
 	/**
 	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
