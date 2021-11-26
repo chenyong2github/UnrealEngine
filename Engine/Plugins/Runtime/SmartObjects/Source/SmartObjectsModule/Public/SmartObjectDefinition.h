@@ -3,25 +3,26 @@
 #pragma once
 
 #include "GameplayTagContainer.h"
-#include "SmartObjectConfig.generated.h"
+#include "Engine/DataAsset.h"
+#include "SmartObjectDefinition.generated.h"
 
 class UGameplayBehaviorConfig;
 
 /**
  * Abstract class that can be extended to bind a new type of behavior framework
- * to the smart objects by defining the required configuration.
+ * to the smart objects by defining the required definition.
  */
 UCLASS(Abstract, NotBlueprintable, EditInlineNew, CollapseCategories, HideDropdown)
-class SMARTOBJECTSMODULE_API USmartObjectBehaviorConfigBase : public UObject
+class SMARTOBJECTSMODULE_API USmartObjectBehaviorDefinition : public UObject
 {
 	GENERATED_BODY()
 };
 
 /**
- * SmartObject behavior configuration for the GameplayBehavior framework
+ * SmartObject behavior definition for the GameplayBehavior framework
  */
 UCLASS()
-class SMARTOBJECTSMODULE_API USmartObjectGameplayBehaviorConfig : public USmartObjectBehaviorConfigBase
+class SMARTOBJECTSMODULE_API USmartObjectGameplayBehaviorDefinition : public USmartObjectBehaviorDefinition
 {
 	GENERATED_BODY()
 
@@ -31,7 +32,7 @@ public:
 };
 
 /**
- * Persistent and sharable configuration of a smart object slot.
+ * Persistent and sharable definition of a smart object slot.
  */
 USTRUCT()
 struct SMARTOBJECTSMODULE_API FSmartObjectSlot
@@ -51,12 +52,12 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlot
 	FVector Direction;
 
 	/**
-	 * All available configurations associated to this slot.
-	 * This allows multiple frameworks to provide their specific behavior configuration to the slot.
-	 * Note that there should be only one configuration of each type since the first one will be selected.
+	 * All available definitions associated to this slot.
+	 * This allows multiple frameworks to provide their specific behavior definition to the slot.
+	 * Note that there should be only one definition of each type since the first one will be selected.
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
-	TArray<USmartObjectBehaviorConfigBase*> BehaviorConfigurations;
+	TArray<USmartObjectBehaviorDefinition*> BehaviorDefinitions;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = SmartObject)
@@ -72,9 +73,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlot
 };
 
 /**
- * Helper struct to wrap basic functionalities to store the index of a slot in FSmartObjectConfig
+ * Helper struct to wrap basic functionalities to store the index of a slot in a SmartObject definition
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotIndex
 {
 	GENERATED_BODY()
@@ -95,26 +96,26 @@ private:
 };
 
 /**
- * Persistent and sharable configuration of a smart object.
+ * Asset to create sharable SmartObject definitions that can be used by different templates.
  */
-USTRUCT(BlueprintType)
-struct SMARTOBJECTSMODULE_API FSmartObjectConfig
+UCLASS(BlueprintType, Blueprintable, CollapseCategories)
+class SMARTOBJECTSMODULE_API USmartObjectDefinition : public UDataAsset
 {
 	GENERATED_BODY()
+
 public:
-
 	/**
-	 * Retrieves a specific type of behavior configuration for a given slot.
+	 * Retrieves a specific type of behavior definition for a given slot.
 	 * When the slot doesn't provide one or if the provided index is not valid
-	 * the search will look in the object default configurations.
-	 * 
-	 * @param SlotIndex				Index of the slot for which the config is requested
-	 * @param ConfigurationClass	Type of the requested behavior configuration
-	 * @return The behavior configuration found or null if none are available for the requested type.
+	 * the search will look in the object default definitions.
+	 *
+	 * @param SlotIndex			Index of the slot for which the definition is requested
+	 * @param DefinitionClass	Type of the requested behavior definition
+	 * @return The behavior definition found or null if none are available for the requested type.
 	 */
-	const USmartObjectBehaviorConfigBase* GetBehaviorConfig(const FSmartObjectSlotIndex& SlotIndex, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass) const;
+	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const;
 
-	/** Returns a view on all the slot configurations */
+	/** Returns a view on all the slot definitions */
 	TConstArrayView<FSmartObjectSlot> GetSlots() const { return Slots; }
 
 	/** Adds and returns a reference to a defaulted slot (used for testing purposes) */
@@ -129,38 +130,32 @@ public:
 	 */
 	TOptional<FTransform> GetSlotTransform(const FTransform& OwnerTransform, const FSmartObjectSlotIndex SlotIndex) const;
 
-	/** Returns the tag query to run on the user tags to accept this configuration */
+	/** Returns the tag query to run on the user tags to accept this definition */
 	const FGameplayTagQuery& GetUserTagFilter() const { return UserTagFilter; }
 
-	/** Returns the tag query to run on the owner tags to accept this configuration */
+	/** Returns the tag query to run on the owner tags to accept this definition */
 	const FGameplayTagQuery& GetObjectTagFilter() const { return ObjectTagFilter; }
 
-	/** Returns the list of tags describing the activity associated to this configuration */
+	/** Returns the list of tags describing the activity associated to this definition */
 	const FGameplayTagContainer& GetActivityTags() const { return ActivityTags; }
 
 	/**
-	 *	Performs validation and logs errors if any. An object using an invalid configuration
+	 *	Performs validation and logs errors if any. An object using an invalid definition
 	 *	will not be registered in the simulation.
 	 *	The result of the validation is stored until next validation and can be retrieved using `IsValid`.
-	 *	@return true if the configuration is valid
+	 *	@return true if the definition is valid
 	 */
 	bool Validate() const;
 
-	/** Provides a description of the config */
+	/** Provides a description of the definition */
 	FString Describe() const;
 
 	/** Returns result of the last validation if `Validate` was called; unset otherwise. */
 	TOptional<bool> IsValid() const { return bValid; }
 
 private:
-	/**
-	 * FSmartObjectConfig is a SparseData type of USmartObjectComponent and its generated code 
-	 * requires directed access to the members.
-	 */
-	friend class USmartObjectComponent;	
-
-	/** Finds first behavior configuration of a given class in the provided list of configurations. */
-	static const USmartObjectBehaviorConfigBase* GetBehaviorConfigByType(const TArray<USmartObjectBehaviorConfigBase*>& Configurations, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass);
+	/** Finds first behavior definition of a given class in the provided list of definitions. */
+	static const USmartObjectBehaviorDefinition* GetBehaviorDefinitionByType(const TArray<USmartObjectBehaviorDefinition*>& BehaviorDefinitions, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
 	/**
 	 * Where SmartObject's user needs to stay to be able to activate it. These
@@ -169,9 +164,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
 	TArray<FSmartObjectSlot> Slots;
 
-	/** List of behavior configurations of different types provided to SO's user if the slot does not provide one. */
+	/** List of behavior definitions of different types provided to SO's user if the slot does not provide one. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
-	TArray<USmartObjectBehaviorConfigBase*> DefaultBehaviorConfigurations;
+	TArray<USmartObjectBehaviorDefinition*> DefaultBehaviorDefinitions;
 
 	/** This object is available only for users matching this query. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)

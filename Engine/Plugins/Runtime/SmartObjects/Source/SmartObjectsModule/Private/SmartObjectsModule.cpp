@@ -4,6 +4,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "SmartObjectTypes.h"
+#include "UObject/CoreRedirects.h"
 
 #if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
 #include "GameplayDebugger.h"
@@ -22,6 +23,16 @@ IMPLEMENT_MODULE(FSmartObjectsModule, SmartObjectsModule)
 
 void FSmartObjectsModule::StartupModule()
 {
+	TArray<FCoreRedirect> Redirects;
+	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/SmartObjectsModule.SmartObjectBehaviorConfigBase"), TEXT("/Script/SmartObjectsModule.SmartObjectBehaviorDefinition"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/SmartObjectsModule.SmartObjectGameplayBehaviorConfig"), TEXT("/Script/SmartObjectsModule.SmartObjectGameplayBehaviorDefinition"));
+
+	Redirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("/Script/SmartObjectsModule.SmartObjectDefinition.DefaultBehaviorConfigurations"), TEXT("/Script/SmartObjectsModule.SmartObjectDefinition.DefaultBehaviorDefinitions"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("/Script/SmartObjectsModule.SmartObjectRequestFilter.BehaviorConfigurationClass"), TEXT("/Script/SmartObjectsModule.SmartObjectRequestFilter.BehaviorDefinitionClass"));
+	Redirects.Emplace(ECoreRedirectFlags::Type_Property, TEXT("/Script/SmartObjectsModule.SmartObjectSlot.BehaviorConfigurations"), TEXT("/Script/SmartObjectsModule.SmartObjectSlot.BehaviorDefinitions"));
+
+	FCoreRedirects::AddRedirectList(Redirects, TEXT("SmartObjectsModule"));
+
 #if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
 	IGameplayDebugger& GameplayDebuggerModule = IGameplayDebugger::Get();
 	GameplayDebuggerModule.RegisterCategory("SmartObject",

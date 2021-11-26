@@ -10,12 +10,12 @@
 //----------------------------------------------------------------------//
 // FSmartObjectCollectionEntry 
 //----------------------------------------------------------------------//
-FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 ConfigIndex)
+FSmartObjectCollectionEntry::FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex)
 	: ID(SmartObjectID)
 	, Path(&SmartObjectComponent)
 	, Transform(SmartObjectComponent.GetComponentTransform())
 	, Bounds(SmartObjectComponent.GetSmartObjectBounds())
-	, ConfigIdx(ConfigIndex)
+	, DefinitionIdx(DefinitionIndex)
 {
 }
 
@@ -35,6 +35,11 @@ FString FSmartObjectCollectionEntry::Describe() const
 ASmartObjectCollection::ASmartObjectCollection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
+	bLockLocation = true;
+	bActorLabelEditable = false;
+#endif
+
 	PrimaryActorTick.bCanEverTick = false;
 	bNetLoadOnClient = false;
 	SetCanBeDamaged(false);
@@ -166,7 +171,7 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 #endif // WITH_EDITOR
 
 	// Compute hash manually from strings since GetTypeHash(FSoftObjectPath) relies on a FName which implements run-dependent hash computations.
-	FSmartObjectID ID = HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString()));
+	FSmartObjectID ID = FSmartObjectID(HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString())));
 	SOComponent.SetRegisteredID(ID);
 
 	const FSmartObjectCollectionEntry* ExistingEntry = CollectionEntries.FindByPredicate([ID](const FSmartObjectCollectionEntry& Entry)
@@ -181,37 +186,12 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 		return false;
 	}
 
-	const AActor* ComponentOwner = SOComponent.GetOwner();
-	const TSubclassOf<UObject> OwnerClass = ComponentOwner != nullptr ? ComponentOwner->GetClass() : SOComponent.GetClass();
-
-	uint32 ConfigIndex = INDEX_NONE;
-	if (const uint32* const ExistingConfigIndex = ConfigLookup.Find(OwnerClass))
-	{
-		ConfigIndex = *ExistingConfigIndex;
-	}
-	else
-	{
-		FObjectDuplicationParameters DuplicationParameters(&SOComponent, this);
-		DuplicationParameters.DestName = *FString::Printf(TEXT("ConfigPool_%d_%s"), Configurations.Num(), *OwnerClass->GetName());
-
-		// Ideally we would clone only the configuration but some inner instanced UObjects require a UObject parent in the chain.
-		USmartObjectComponent* TemplateComponent = Cast<USmartObjectComponent>(StaticDuplicateObjectEx(DuplicationParameters));
-		check(TemplateComponent != nullptr);
-
-		// make sure the duplicated component is not considered blueprint since it can't be reconstructed
-		TemplateComponent->CreationMethod = EComponentCreationMethod::Native;
-
-		// break any link to another component
-		TemplateComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-
-		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding config '%s' to the shared pool"), *TemplateComponent->GetName());
-
-		ConfigIndex = Configurations.Add(TemplateComponent);
-		ConfigLookup.Add(OwnerClass, ConfigIndex);
-	}
+	const USmartObjectDefinition* Definition = SOComponent.GetDefinition();
+	ensureMsgf(Definition != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
+	uint32 DefinitionIndex = Definitions.AddUnique(Definition);
 
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding '%s[ID=%s]' to collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetName());
-	CollectionEntries.Emplace(ID, SOComponent, ConfigIndex);
+	CollectionEntries.Emplace(ID, SOComponent, DefinitionIndex);
 	RegisteredIdToObjectMap.Add(ID, ObjectPath);
 	return true;
 }
@@ -248,18 +228,18 @@ USmartObjectComponent* ASmartObjectCollection::GetSmartObjectComponent(const FSm
 	return Path != nullptr ? CastChecked<USmartObjectComponent>(Path->ResolveObject(), ECastCheckedType::NullAllowed) : nullptr;
 }
 
-const FSmartObjectConfig* ASmartObjectCollection::GetConfigForEntry(const FSmartObjectCollectionEntry& Entry) const
+const USmartObjectDefinition* ASmartObjectCollection::GetDefinitionForEntry(const FSmartObjectCollectionEntry& Entry) const
 {
-	const bool bIsValidIndex = Configurations.IsValidIndex(Entry.GetConfigIndex());
+	const bool bIsValidIndex = Definitions.IsValidIndex(Entry.GetDefinitionIndex());
 	if (!bIsValidIndex)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Using invalid index (%d) to retrieve configuration from collection '%s'"), Entry.GetConfigIndex(), *GetName());	
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Using invalid index (%d) to retrieve definition from collection '%s'"), Entry.GetDefinitionIndex(), *GetName());
 		return nullptr;
 	}
 
-	const USmartObjectComponent* Component = Configurations[Entry.GetConfigIndex()];
-	ensureMsgf(Component != nullptr, TEXT("Collection is expected to contain only valid configuration entries"));
-	return Component != nullptr ? &(Component->GetConfig()) : nullptr;
+	const USmartObjectDefinition* Definition = Definitions[Entry.GetDefinitionIndex()];
+	ensureMsgf(Definition != nullptr, TEXT("Collection is expected to contain only valid definition entries"));
+	return Definition;
 }
 
 void ASmartObjectCollection::OnRegistered()
@@ -272,13 +252,13 @@ void ASmartObjectCollection::OnUnregistered()
 	bRegistered = false;
 }
 
-void ASmartObjectCollection::ValidateConfigs()
+void ASmartObjectCollection::ValidateDefinitions()
 {
-	for (const USmartObjectComponent* Component : Configurations)
+	for (const USmartObjectDefinition* Definition : Definitions)
 	{
-		if (ensureMsgf(Component != nullptr, TEXT("Collection is expected to contain only valid configuration entries")))
+		if (ensureMsgf(Definition != nullptr, TEXT("Collection is expected to contain only valid definition entries")))
 		{
-			Component->GetConfig().Validate();
+			Definition->Validate();
 		}
 	}
 }
@@ -329,11 +309,8 @@ void ASmartObjectCollection::RebuildCollection()
 void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjectComponent*> Components)
 {
 	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Rebuilding collection '%s' from component list"), *GetName());
-	CollectionEntries.Reset(Components.Num());
-	RegisteredIdToObjectMap.Empty(Components.Num());
 
-	ConfigLookup.Reset();
-	Configurations.Reset();
+	ResetCollection(Components.Num());
 
 	for (USmartObjectComponent* const Component : Components)
 	{
@@ -345,17 +322,15 @@ void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjec
 
 	CollectionEntries.Shrink();
 	RegisteredIdToObjectMap.Shrink();
-	ConfigLookup.Shrink();
-	Configurations.Shrink();
+	Definitions.Shrink();
 }
 
-void ASmartObjectCollection::ResetCollection()
+void ASmartObjectCollection::ResetCollection(const int32 ExpectedNumElements)
 {
 	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Reseting collection '%s'"), *GetName());
 
-	CollectionEntries.Reset();
-	RegisteredIdToObjectMap.Reset();
-	ConfigLookup.Reset();
-	Configurations.Reset();
+	CollectionEntries.Reset(ExpectedNumElements);
+	RegisteredIdToObjectMap.Empty(ExpectedNumElements);
+	Definitions.Reset();
 }
 #endif // WITH_EDITOR

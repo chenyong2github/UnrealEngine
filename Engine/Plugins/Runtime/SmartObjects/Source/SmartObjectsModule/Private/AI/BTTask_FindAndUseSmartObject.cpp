@@ -5,7 +5,7 @@
 #include "AIController.h"
 #include "GameplayTagAssetInterface.h"
 #include "SmartObjectSubsystem.h"
-#include "SmartObjectConfig.h"
+#include "SmartObjectDefinition.h"
 #include "VisualLogger/VisualLogger.h"
 
 
@@ -37,7 +37,7 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 
 	// Create filter
 	FSmartObjectRequestFilter Filter(ActivityRequirements);
-	Filter.BehaviorConfigurationClass = USmartObjectGameplayBehaviorConfig::StaticClass();
+	Filter.BehaviorDefinitionClass = USmartObjectGameplayBehaviorDefinition::StaticClass();
 	const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(&Avatar);
 	if (TagsSource != nullptr)
 	{
@@ -46,30 +46,31 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 
 	// Create request
 	FSmartObjectRequest Request(FBox(UserLocation, UserLocation).ExpandBy(FVector(Radius), FVector(Radius)), Filter);
-	FSmartObjectRequestResult Result = Subsystem->FindSmartObject(Request);
+	TArray<FSmartObjectRequestResult> Results; 
 	
-	if (Result.IsValid())
+	if (Subsystem->FindSmartObjects(Request, Results))
 	{
-		FSmartObjectClaimHandle ClaimHandle = Subsystem->Claim(Result);
-		if (ClaimHandle.IsValid())
+		for (const FSmartObjectRequestResult& Result : Results)
 		{
-			UAITask_UseSmartObject* UseSOTask = NewBTAITask<UAITask_UseSmartObject>(OwnerComp);
-			UseSOTask->SetClaimHandle(ClaimHandle);
-			UseSOTask->ReadyForActivation();
+			FSmartObjectClaimHandle ClaimHandle = Subsystem->Claim(Result);
+			if (ClaimHandle.IsValid())
+			{
+				UAITask_UseSmartObject* UseSOTask = NewBTAITask<UAITask_UseSmartObject>(OwnerComp);
+				UseSOTask->SetClaimHandle(ClaimHandle);
+				UseSOTask->ReadyForActivation();
 
-			NodeResult = EBTNodeResult::InProgress;
+				NodeResult = EBTNodeResult::InProgress;
+				UE_VLOG_UELOG(MyController, LogSmartObject, Verbose, TEXT("%s claimed smart object: %s"), *GetNodeName(), *ClaimHandle.Describe());
+				break;
+			}
 		}
-		else
-		{
-			UE_VLOG_UELOG(MyController, LogSmartObject
-				, Warning, TEXT("%s failed to claim smart object for: %s")
-				, *GetNodeName(), *Result.Describe());
-		}
+
+		UE_CVLOG_UELOG(NodeResult == EBTNodeResult::Failed, MyController, LogSmartObject, Warning, TEXT("%s failed to claim smart object"), *GetNodeName());
 	}
 	else
 	{
 		UE_VLOG_UELOG(MyController, LogSmartObject
-			, Verbose, TEXT("%s failed to find smart object for request: %s")
+			, Verbose, TEXT("%s failed to find smart objects for request: %s")
 			, *GetNodeName(), *Avatar.GetName());
 	}
 

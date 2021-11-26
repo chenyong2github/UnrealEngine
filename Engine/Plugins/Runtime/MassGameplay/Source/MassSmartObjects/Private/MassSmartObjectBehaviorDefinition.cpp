@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassSmartObjectBehaviorConfig.h"
+#include "MassSmartObjectBehaviorDefinition.h"
 #include "MassSmartObjectProcessor.h"
 
-void USmartObjectMassBehaviorConfig::Activate(UMassEntitySubsystem& EntitySubsystem,
+void USmartObjectMassBehaviorDefinition::Activate(UMassEntitySubsystem& EntitySubsystem,
                                               FMassExecutionContext& Context,
                                               const FMassBehaviorEntityContext& EntityContext) const
 {

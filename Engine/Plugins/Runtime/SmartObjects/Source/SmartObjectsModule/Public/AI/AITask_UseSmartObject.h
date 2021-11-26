@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Tasks/AITask.h"
 #include "SmartObjectRuntime.h"
 #include "AITask_UseSmartObject.generated.h"
@@ -12,6 +10,7 @@
 class AAIController;
 class UAITask_MoveTo;
 class UGameplayBehavior;
+class USmartObjectComponent;
 
 UCLASS()
 class SMARTOBJECTSMODULE_API UAITask_UseSmartObject : public UAITask
@@ -24,10 +23,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller" , BlueprintInternalUseOnly = "true"))
 	static UAITask_UseSmartObject* UseSmartObject(AAIController* Controller, AActor* SmartObjectActor, USmartObjectComponent* SmartObjectComponent, bool bLockAILogic = true);
 
-	/*void SetQueryTemplate(UEnvQuery& InQueryTemplate) { EQSRequest.QueryTemplate = &InQueryTemplate; }
-	void SetNotificationDelegate(const FQueryFinishedSignature& InNotificationDelegate) { NotificationDelegate = InNotificationDelegate; }*/
-
-	static UAITask_UseSmartObject* UseSmartObjectComponent(AAIController& Controller, USmartObjectComponent& SmartObjectComponent, bool bLockAILogic = true);
+	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller" , BlueprintInternalUseOnly = "true"))
+	static UAITask_UseSmartObject* UseClaimedSmartObject(AAIController* Controller, FSmartObjectClaimHandle ClaimHandle, bool bLockAILogic = true);
 
 	void SetClaimHandle(const FSmartObjectClaimHandle& Handle);
 
@@ -45,6 +42,9 @@ protected:
 	void OnSmartObjectBehaviorFinished(UGameplayBehavior& Behavior, AActor& Avatar, const bool bInterrupted);
 
 	void OnSlotInvalidated(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState State);
+
+	static UAITask_UseSmartObject* UseSmartObjectComponent(AAIController& Controller, const USmartObjectComponent& SmartObjectComponent, bool bLockAILogic);
+	static UAITask_UseSmartObject* UseClaimedSmartObject(AAIController& Controller, FSmartObjectClaimHandle ClaimHandle, bool bLockAILogic);
 
 protected:
 	UPROPERTY(BlueprintAssignable)

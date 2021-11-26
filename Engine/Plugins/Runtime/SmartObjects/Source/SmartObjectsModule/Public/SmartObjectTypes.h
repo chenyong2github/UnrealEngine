@@ -12,7 +12,7 @@ SMARTOBJECTSMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogSmartObject, Warning, All)
 namespace UE { namespace SmartObject {
 
 typedef uint32 ID;
-static const ID InvalidID = 0;
+static constexpr ID InvalidID = 0;
 
 }} // UE::SmartObject
 
@@ -57,7 +57,7 @@ typedef FSmartObjectSequentialID FSmartObjectUserID;
  * Helper struct to wrap basic functionalities to store and use smartobject unique IDs.
  * Those IDs are assigned in editor by the collection and then serialized for runtime.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectID
 {
 	GENERATED_BODY()
@@ -82,7 +82,7 @@ private:
 	/** Valid Id must be created by the collection */
  	friend class ASmartObjectCollection;
 
-	FSmartObjectID(const uint32 InID) : ID(InID) {}
+	explicit FSmartObjectID(const uint32 InID) : ID(InID) {}
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	uint32 ID = INDEX_NONE;

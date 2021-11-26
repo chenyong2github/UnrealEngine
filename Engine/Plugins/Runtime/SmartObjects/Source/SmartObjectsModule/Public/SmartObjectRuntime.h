@@ -4,7 +4,7 @@
 
 #include "Delegates/DelegateCombinations.h"
 #include "SmartObjectTypes.h"
-#include "SmartObjectConfig.h"
+#include "SmartObjectDefinition.h"
 #include "SmartObjectOctree.h"
 #include "SmartObjectRuntime.generated.h"
 
@@ -23,7 +23,7 @@ enum class ESmartObjectSlotState : uint8
 /**
  * Struct describing a reservation between a user and a smart object slot.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 {
 	GENERATED_BODY()
@@ -41,6 +41,11 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 			&& SmartObjectID == Other.SmartObjectID
 			&& SlotIndex == Other.SlotIndex
 			&& UserID == Other.UserID;
+	}
+
+	bool operator!=(const FSmartObjectClaimHandle& Other) const
+	{
+		return !(*this == Other);
 	}
 
 	FString Describe() const
@@ -71,7 +76,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 DECLARE_DELEGATE_TwoParams(FOnSlotInvalidated, const FSmartObjectClaimHandle&, ESmartObjectSlotState /* Current State */);
 
 /**
- * Struct to store and manage state of a runtime instance associated to a given slot configuration
+ * Struct to store and manage state of a runtime instance associated to a given slot definition
  */
 USTRUCT()
 struct FSmartObjectSlotRuntimeData
@@ -102,7 +107,7 @@ protected:
 	/** Id of the user that reserves or uses the slot */
 	FSmartObjectUserID User;
 
-	/** Index of the slot in the smart object config to which this runtime data is associated to */
+	/** Index of the slot in the smart object definition to which this runtime data is associated to */
 	FSmartObjectSlotIndex SlotIndex;
 
 	/** Delegate used to notify when a slot gets invalidated. See RegisterSlotInvalidationCallback */
@@ -110,7 +115,7 @@ protected:
 };
 
 /**
- * Struct to store and manage state of a runtime instance associated to a given smart object configuration
+ * Struct to store and manage state of a runtime instance associated to a given smart object definition
  */
 USTRUCT()
 struct FSmartObjectRuntime
@@ -120,7 +125,7 @@ struct FSmartObjectRuntime
 public:
 	const FSmartObjectID& GetRegisteredID() const { return RegisteredID; }
 	const FTransform& GetTransform() const { return Transform; }
-	const FSmartObjectConfig& GetConfig() const { checkf(Config != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Config; }
+	const USmartObjectDefinition& GetDefinition() const { checkf(Definition != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Definition; }
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
@@ -130,7 +135,7 @@ private:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
 
-	explicit FSmartObjectRuntime(const FSmartObjectConfig& Config);
+	explicit FSmartObjectRuntime(const USmartObjectDefinition& Definition);
 
 	const FGameplayTagContainer& GetTags() const { return Tags; }
 
@@ -144,7 +149,7 @@ private:
 	const FBoxCenterAndExtent& GetBounds() const { return Bounds; }
 	void SetBounds(const FBox& Value) { Bounds = Value; }
 
-	FString Describe() const { return FString::Printf(TEXT("Instance using config \'%s\' Reg: %s"), *GetConfig().Describe(), *LexToString(SharedOctreeID->ID.IsValidId())); }
+	FString Describe() const { return FString::Printf(TEXT("Instance using defintion \'%s\' Reg: %s"), *GetDefinition().Describe(), *LexToString(SharedOctreeID->ID.IsValidId())); }
 
 	/**
 	 * @param OutFreeSlots function will set 'false' at taken slots' indices
@@ -179,8 +184,9 @@ private:
 	UPROPERTY()
 	TArray<FSmartObjectSlotRuntimeData> SlotsRuntimeData;
 
-	/** Associated smart object configuration */
-	const FSmartObjectConfig* Config = nullptr;
+	/** Associated smart object definition */
+	UPROPERTY()
+	const USmartObjectDefinition* Definition = nullptr;
 
 	/** Instance specific transform */
 	FTransform Transform;

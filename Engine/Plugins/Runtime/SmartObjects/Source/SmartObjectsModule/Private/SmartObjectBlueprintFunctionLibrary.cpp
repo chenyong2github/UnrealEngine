@@ -2,29 +2,34 @@
 
 #include "SmartObjectBlueprintFunctionLibrary.h"
 #include "SmartObjectSubsystem.h"
+#include "BlackboardKeyType_SOClaimHandle.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "AI/AITask_UseSmartObject.h"
-#include "AbilitySystemInterface.h"
-#include "AbilitySystemComponent.h"
 #include "AbilitySystemBlueprintLibrary.h"
-
-namespace
-{
-	UAbilitySystemComponent* GetAbilitySystemComponent(AActor* Actor)
-	{
-		IAbilitySystemInterface* AbilitySysAgent = Cast<IAbilitySystemInterface>(Actor);
-		if (AbilitySysAgent)
-		{
-			return AbilitySysAgent->GetAbilitySystemComponent();
-		}
-
-		return Actor ? Actor->FindComponentByClass<UAbilitySystemComponent>() : nullptr;
-	}
-}
+#include "BehaviorTree/BlackboardComponent.h"
 
 //----------------------------------------------------------------------//
 // USmartObjectBlueprintFunctionLibrary 
 //----------------------------------------------------------------------//
+FSmartObjectClaimHandle USmartObjectBlueprintFunctionLibrary::GetValueAsSOClaimHandle(UBlackboardComponent* BlackboardComponent, const FName& KeyName)
+{
+	if (BlackboardComponent == nullptr)
+	{
+		return {};
+	}
+	return BlackboardComponent->GetValue<UBlackboardKeyType_SOClaimHandle>(KeyName);
+}
+
+void USmartObjectBlueprintFunctionLibrary::SetValueAsSOClaimHandle(UBlackboardComponent* BlackboardComponent, const FName& KeyName, const FSmartObjectClaimHandle Value)
+{
+	if (BlackboardComponent == nullptr)
+	{
+		return;
+	}
+	const FBlackboard::FKey KeyID = BlackboardComponent->GetKeyID(KeyName);
+	BlackboardComponent->SetValue<UBlackboardKeyType_SOClaimHandle>(KeyID, Value);
+}
+
 bool USmartObjectBlueprintFunctionLibrary::K2_UseSmartObject(AActor* Avatar, AActor* SmartObject)
 {
 	if (Avatar == nullptr || SmartObject == nullptr)

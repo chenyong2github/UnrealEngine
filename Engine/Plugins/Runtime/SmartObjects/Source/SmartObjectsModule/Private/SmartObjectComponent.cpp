@@ -43,8 +43,8 @@ void USmartObjectComponent::OnRegister()
 		return;
 	}
 
-	/** Skip components that were duplicated to hold template configuration in the Collection */
-	if (IsTemplateFromCollection())
+	/** Do not register components that don't have a valid definition */
+	if (!IsValid(DefinitionAsset))
 	{
 		return;
 	}
@@ -80,8 +80,8 @@ void USmartObjectComponent::OnUnregister()
 		return;
 	}
 
-	/** Skip components that were duplicated to hold template configuration in the Collection */
-	if (IsTemplateFromCollection())
+	/** Do not register components that don't have a valid definition */
+	if (!IsValid(DefinitionAsset))
 	{
 		return;
 	}
@@ -98,14 +98,14 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 {
 	FBox BoundingBox(ForceInitToZero);
 	const AActor* Owner = GetOwner();
-	if (Owner == nullptr)
+	if (Owner == nullptr || DefinitionAsset == nullptr)
 	{
 		return BoundingBox;
 	}
 
 	const FTransform LocalToWorld = Owner->GetTransform();
 
-	for (const FSmartObjectSlot& Slot : GetConfig().GetSlots())
+	for (const FSmartObjectSlot& Slot : DefinitionAsset->GetSlots())
 	{
 		const FVector SlotWorldLocation = LocalToWorld.TransformPositionNoScale(Slot.Offset);
 		BoundingBox += SlotWorldLocation + FSmartObject::DefaultSlotSize;
@@ -113,9 +113,4 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 	}
 
 	return BoundingBox;
-}
-
-bool USmartObjectComponent::IsTemplateFromCollection() const
-{
-	return Cast<ASmartObjectCollection>(GetOwner()) != nullptr;
 }

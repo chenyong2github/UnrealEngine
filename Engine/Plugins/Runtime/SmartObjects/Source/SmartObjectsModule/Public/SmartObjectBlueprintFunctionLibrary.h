@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "GameplayTagContainer.h"
+#include "SmartObjectRuntime.h"
 #include "SmartObjectBlueprintFunctionLibrary.generated.h"
 
-
+struct FGameplayTagContainer;
+class UBlackboardComponent;
 class AAIController;
 
 UCLASS(meta = (ScriptName = "SmartObjectLibrary"))
@@ -17,17 +15,26 @@ class SMARTOBJECTSMODULE_API USmartObjectBlueprintFunctionLibrary : public UBlue
 {
 	GENERATED_BODY()
 public:
-	UFUNCTION(BlueprintCallable, Category = "SmartObjects", meta = (DisplayName = "UseSmartObject"))
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	static FSmartObjectClaimHandle GetValueAsSOClaimHandle(UBlackboardComponent* BlackboardComponent, const FName& KeyName);
+	
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	static void SetValueAsSOClaimHandle(UBlackboardComponent* BlackboardComponent, const FName& KeyName, FSmartObjectClaimHandle Value);
+	
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	static bool IsValidSmartObjectClaimHandle(const FSmartObjectClaimHandle Handle)	{ return Handle.IsValid(); }
+
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DisplayName = "UseSmartObject"))
 	static bool K2_UseSmartObject(AActor* Avatar, AActor* SmartObject);
 
-	UFUNCTION(BlueprintCallable, Category = "SmartObjects", meta = (DisplayName = "SetSmartObjectEnabled"))
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DisplayName = "SetSmartObjectEnabled"))
 	static bool K2_SetSmartObjectEnabled(AActor* SmartObject, const bool bEnabled);
 
 	UE_DEPRECATED(5.0, "K2_AddLooseGameplayTags has been deprecated and will be removed soon. Use UAbilitySystemBlueprintLibrary::AddLooseGameplayTags instead")
-	UFUNCTION(BlueprintCallable, Category = "SmartObjects", meta = (DisplayName = "DEPRECATED_AddLooseGameplayTags", DeprecatedFunction, DeprecationMessage = "Use AbilitySystemBlueprintLibrary::AddLooseGameplayTags instead"))
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DisplayName = "DEPRECATED_AddLooseGameplayTags", DeprecatedFunction, DeprecationMessage = "Use AbilitySystemBlueprintLibrary::AddLooseGameplayTags instead"))
 	static bool K2_AddLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags);
 
 	UE_DEPRECATED(5.0, "K2_AddLooseGameplayTags has been deprecated and will be removed soon. Use UAbilitySystemBlueprintLibrary::RemoveLooseGameplayTags instead")
-	UFUNCTION(BlueprintCallable, Category = "SmartObjects", meta = (DisplayName = "DEPRECATED_RemoveLooseGameplayTags", DeprecatedFunction, DeprecationMessage = "Use AbilitySystemBlueprintLibrary::RemoveLooseGameplayTags instead"))
+	UFUNCTION(BlueprintCallable, Category = "SmartObject", meta = (DisplayName = "DEPRECATED_RemoveLooseGameplayTags", DeprecatedFunction, DeprecationMessage = "Use AbilitySystemBlueprintLibrary::RemoveLooseGameplayTags instead"))
 	static bool K2_RemoveLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags);
 };

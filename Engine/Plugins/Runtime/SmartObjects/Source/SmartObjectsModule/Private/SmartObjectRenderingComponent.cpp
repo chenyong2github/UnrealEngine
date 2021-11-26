@@ -29,7 +29,13 @@ public:
 		}
 
 		USmartObjectComponent* SOComp = Owner->FindComponentByClass<USmartObjectComponent>();
-		if (SOComp == nullptr)
+		if (SOComp == nullptr || SOComp->GetDefinition() == nullptr)
+		{
+			return;
+		}
+
+		const USmartObjectDefinition* Definition = SOComp->GetDefinition();
+		if (Definition == nullptr)
 		{
 			return;
 		}
@@ -44,15 +50,15 @@ public:
 		FColor DebugColor = FColor::Yellow;
 
 		const FTransform OwnerLocalToWorld = SOComp->GetComponentTransform();
-		for (int32 i = 0; i < SOComp->GetConfig().GetSlots().Num(); ++i)
+		for (int32 i = 0; i < Definition->GetSlots().Num(); ++i)
 		{
-			TOptional<FTransform> Transform = SOComp->GetConfig().GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(i));
+			TOptional<FTransform> Transform = Definition->GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(i));
 			if (!Transform.IsSet())
 			{
 				continue;
 			}
 #if WITH_EDITORONLY_DATA
-			DebugColor = SOComp->GetConfig().GetSlots()[i].DEBUG_DrawColor;
+			DebugColor = Definition->GetSlots()[i].DEBUG_DrawColor;
 #endif
 			const FVector DebugPosition = Transform.GetValue().GetLocation();
 			const FVector Direction = Transform.GetValue().GetRotation().GetForwardVector();

@@ -8,21 +8,21 @@ const FSmartObjectSlotRuntimeData FSmartObjectSlotRuntimeData::InvalidSlot = {};
 //----------------------------------------------------------------------//
 // FSmartObjectRuntime
 //----------------------------------------------------------------------//
-FSmartObjectRuntime::FSmartObjectRuntime(const FSmartObjectConfig& InConfig)
-	: Config(&InConfig)
+FSmartObjectRuntime::FSmartObjectRuntime(const USmartObjectDefinition& InDefinition)
+	: Definition(&InDefinition)
 	, SharedOctreeID(MakeShareable(new FSmartObjectOctreeID()))
 {
 }
 
 uint32 FSmartObjectRuntime::FindFreeSlots(TBitArray<>& OutFreeSlots) const
 {
-	const int32 NumSlotDefinitions = GetConfig().GetSlots().Num();
+	const int32 NumSlotDefinitions = GetDefinition().GetSlots().Num();
 
 	// slots are considered free unless they are marked as being used in runtime slots
 	OutFreeSlots.Init(/*Value=*/true, NumSlotDefinitions);
 	uint32 TakenSlots = 0;
 
-	// We may have less runtime slots than we have in the configuration so we need to fetch the actual index from them.
+	// We may have less runtime slots than we have in the definition so we need to fetch the actual index from them.
 	for (const FSmartObjectSlotRuntimeData& SlotRuntimeData : SlotsRuntimeData)
 	{
 		if (OutFreeSlots.IsValidIndex(SlotRuntimeData.SlotIndex) && SlotRuntimeData.State != ESmartObjectSlotState::Free)
@@ -55,7 +55,7 @@ bool FSmartObjectRuntime::ReleaseSlot(const FSmartObjectClaimHandle& ClaimHandle
 {
 	bool bRemoved = false;
 
-	// The slot index in the handle refers to the index in the configuration so we need to fetch it from the runtime data.
+	// The slot index in the handle refers to the index in the definition so we need to fetch it from the runtime data.
 	for (int32 EntryIndex = 0; EntryIndex < SlotsRuntimeData.Num(); ++EntryIndex)
 	{
 		FSmartObjectSlotRuntimeData& SlotRuntimeData = SlotsRuntimeData[EntryIndex];
@@ -100,7 +100,7 @@ bool FSmartObjectRuntime::UseSlot(const FSmartObjectClaimHandle& ClaimHandle)
 		return false;
 	}
 
-	// The slot index in the handle refers to the index in the configuration so we need to fetch it from the runtime data.
+	// The slot index in the handle refers to the index in the definition so we need to fetch it from the runtime data.
 	for (FSmartObjectSlotRuntimeData& SlotRuntimeData : SlotsRuntimeData)
 	{
 		if (SlotRuntimeData.SlotIndex == ClaimHandle.SlotIndex)

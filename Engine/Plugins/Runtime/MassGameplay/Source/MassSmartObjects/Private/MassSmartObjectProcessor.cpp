@@ -4,7 +4,7 @@
 #include "MassCommandBuffer.h"
 #include "MassCommonTypes.h"
 #include "MassSignalSubsystem.h"
-#include "MassSmartObjectBehaviorConfig.h"
+#include "MassSmartObjectBehaviorDefinition.h"
 #include "MassSmartObjectSettings.h"
 #include "SmartObjectZoneAnnotations.h"
 #include "Misc/ScopeExit.h"
@@ -65,7 +65,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 
 	// Create filter
 	FSmartObjectRequestFilter Filter;
-	Filter.BehaviorConfigurationClass = USmartObjectMassBehaviorConfig::StaticClass();
+	Filter.BehaviorDefinitionClass = USmartObjectMassBehaviorDefinition::StaticClass();
 
 	// Build list of request owner entities to send a completion signal
 	TArray<FMassEntityHandle> EntitiesToSignal;
@@ -127,7 +127,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 				{
 					const FSmartObjectID ID = Element.SmartObjectID;
 
-					// Make sure that we can use a slot in that object (availability with supported config, etc.)
+					// Make sure that we can use a slot in that object (availability with supported definitions, etc.)
 					if (SmartObjectSubsystem->FindSlot(ID, Filter).IsValid())
 					{
 						const FVector ObjectLocation = Element.Bounds.Center;
@@ -237,7 +237,7 @@ void UMassProcessor_SmartObjectCandidatesFinder::Execute(UMassEntitySubsystem& E
 						Cost = DistAhead;
 					}
 
-					// Make sure that we can use a slot in that object (availability with supported config, etc.)
+					// Make sure that we can use a slot in that object (availability with supported definitions, etc.)
 					if (!SmartObjectSubsystem->FindSlot(ID, Filter).IsValid())
 					{
 						continue;

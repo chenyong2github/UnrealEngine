@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GameplayBehavior.h"
+#include "Engine/EngineTypes.h"
 #include "GameplayBehavior_BehaviorTree.generated.h"
 
 class UBehaviorTree;
@@ -16,16 +17,22 @@ class GAMEPLAYBEHAVIORSMODULE_API UGameplayBehavior_BehaviorTree : public UGamep
 public:
 	UGameplayBehavior_BehaviorTree(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+protected:
 	virtual bool Trigger(AActor& InAvatar, const UGameplayBehaviorConfig* Config = nullptr, AActor* SmartObjectOwner = nullptr) override;
 	virtual void EndBehavior(AActor& InAvatar, const bool bInterrupted) override;
-
-protected:
 	virtual bool NeedsInstance(const UGameplayBehaviorConfig* Config) const override;
 
-protected:
+	void OnTimerTick();
+
 	UPROPERTY()
 	UBehaviorTree* PreviousBT;
 
 	UPROPERTY()
 	AAIController* AIController;
+
+	/** Indicates if BehaviorTree should run only once or in loop. */
+	UPROPERTY(EditAnywhere, Category = SmartObject)
+	bool bSingleRun = true;
+	
+	FTimerHandle TimerHandle;
 };

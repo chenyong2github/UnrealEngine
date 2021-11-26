@@ -2,6 +2,7 @@
 
 #include "AI/AITask_UseSmartObject.h"
 #include "AIController.h"
+#include "SmartObjectDefinition.h"
 #include "SmartObjectComponent.h"
 #include "Tasks/AITask_MoveTo.h"
 #include "SmartObjectSubsystem.h"
@@ -23,7 +24,7 @@ UAITask_UseSmartObject::UAITask_UseSmartObject(const FObjectInitializer& ObjectI
 	// bTickingTask = true;
 }
 
-UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObject(AAIController* Controller, AActor* SmartObjectActor, USmartObjectComponent* SmartObjectComponent, bool bLockAILogic)
+UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObject(AAIController* Controller, AActor* SmartObjectActor, USmartObjectComponent* SmartObjectComponent, const bool bLockAILogic)
 {
 	if (SmartObjectComponent == nullptr && SmartObjectActor != nullptr)
 	{
@@ -31,11 +32,11 @@ UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObject(AAIController* Co
 	}
 
 	return (SmartObjectComponent && Controller)
-		? UseSmartObjectComponent(*Controller, *SmartObjectComponent)
+		? UseSmartObjectComponent(*Controller, *SmartObjectComponent, bLockAILogic)
 		: nullptr;
 }
 
-UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObjectComponent(AAIController& Controller, USmartObjectComponent& SmartObjectComponent, bool bLockAILogic)
+UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObjectComponent(AAIController& Controller, const USmartObjectComponent& SmartObjectComponent, const bool bLockAILogic)
 {
 	AActor* Pawn = Controller.GetPawn();
 	if (Pawn == nullptr)
@@ -51,21 +52,44 @@ UAITask_UseSmartObject* UAITask_UseSmartObject::UseSmartObjectComponent(AAIContr
 		return nullptr;
 	}
 
-	UAITask_UseSmartObject* MyTask = UAITask::NewAITask<UAITask_UseSmartObject>(Controller, EAITaskPriority::High);
-	if (MyTask == nullptr)
-	{
-		return nullptr;
-	}
-
 	FSmartObjectRequestFilter Filter;
-	Filter.BehaviorConfigurationClass = USmartObjectGameplayBehaviorConfig::StaticClass();
+	Filter.BehaviorDefinitionClass = USmartObjectGameplayBehaviorDefinition::StaticClass();
 	const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(Pawn);
 	if (TagsSource != nullptr)
 	{
 		TagsSource->GetOwnedGameplayTags(Filter.UserTags);
 	}
 
-	FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(SmartObjectComponent.GetRegisteredID(), Filter);
+	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem->Claim(SmartObjectComponent.GetRegisteredID(), Filter);
+	return UseClaimedSmartObject(Controller, ClaimHandle, bLockAILogic);
+}
+
+UAITask_UseSmartObject* UAITask_UseSmartObject::UseClaimedSmartObject(AAIController* Controller, const FSmartObjectClaimHandle ClaimHandle, const bool bLockAILogic)
+{
+	if (Controller == nullptr)
+	{
+		UE_LOG(LogSmartObject, Error, TEXT("AI Controller required to use smart object."));
+		return nullptr;
+	}
+	
+	AActor* Pawn = Controller->GetPawn();
+	if (Pawn == nullptr)
+	{
+		UE_LOG(LogSmartObject, Error, TEXT("Pawn required on controller: %s."), *Controller->GetName());
+		return nullptr;
+	}
+
+	return UseClaimedSmartObject(*Controller, ClaimHandle, bLockAILogic);
+}
+
+UAITask_UseSmartObject* UAITask_UseSmartObject::UseClaimedSmartObject(AAIController& Controller, const FSmartObjectClaimHandle ClaimHandle, const bool bLockAILogic)
+{
+	UAITask_UseSmartObject* MyTask = UAITask::NewAITask<UAITask_UseSmartObject>(Controller, EAITaskPriority::High);
+	if (MyTask == nullptr)
+	{
+		return nullptr;
+	}
+
 	MyTask->SetClaimHandle(ClaimHandle);
 
 	if (bLockAILogic)
@@ -81,7 +105,7 @@ void UAITask_UseSmartObject::SetClaimHandle(const FSmartObjectClaimHandle& Handl
 	ClaimedHandle = Handle;
 }
 
-void UAITask_UseSmartObject::TickTask(float DeltaTime)
+void UAITask_UseSmartObject::TickTask(const float DeltaTime)
 {
 	Super::TickTask(DeltaTime);
 
@@ -145,12 +169,13 @@ void UAITask_UseSmartObject::Activate()
 void UAITask_UseSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 {
 	UAITask::NewAITask<UAITask_MoveTo>(*OwnerController, *this, EAITaskPriority::High, TEXT("SmartObject"));
-	bool bBehaviorActive = false;
 	check(OwnerController);
 	check(OwnerController->GetPawn());
 
 	if (MoveToTask == &Task)
 	{
+		bool bBehaviorActive = false;
+
 		if (Task.IsFinished())
 		{
 			UWorld* World = OwnerController->GetWorld();
@@ -158,17 +183,17 @@ void UAITask_UseSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 			USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(World);
 			if (ensure(SmartObjectSubsystem))
 			{
-				const USmartObjectGameplayBehaviorConfig* SOBehaviorConfig = SmartObjectSubsystem->Use<USmartObjectGameplayBehaviorConfig>(ClaimedHandle);
-				const UGameplayBehaviorConfig* BehaviorConfig = SOBehaviorConfig != nullptr ? SOBehaviorConfig->GameplayBehaviorConfig : nullptr;
-				GameplayBehavior = BehaviorConfig != nullptr ? BehaviorConfig->GetBehavior(*World) : nullptr;
+				const USmartObjectGameplayBehaviorDefinition* SmartObjectGameplayBehaviorDefinition = SmartObjectSubsystem->Use<USmartObjectGameplayBehaviorDefinition>(ClaimedHandle);
+				const UGameplayBehaviorConfig* GameplayBehaviorConfig = SmartObjectGameplayBehaviorDefinition != nullptr ? SmartObjectGameplayBehaviorDefinition->GameplayBehaviorConfig : nullptr;
+				GameplayBehavior = GameplayBehaviorConfig != nullptr ? GameplayBehaviorConfig->GetBehavior(*World) : nullptr;
 				if (GameplayBehavior != nullptr)
 				{
-					bool bShouldWaitBehaviorCompletion = UGameplayBehaviorManager::TriggerBehavior(*GameplayBehavior, *OwnerController->GetPawn(), BehaviorConfig);
-
+					bBehaviorActive = UGameplayBehaviorManager::TriggerBehavior(*GameplayBehavior, *OwnerController->GetPawn(), GameplayBehaviorConfig);
 					// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
-					OnBehaviorFinishedNotifyHandle = GameplayBehavior->GetOnBehaviorFinishedDelegate().AddUObject(this, &UAITask_UseSmartObject::OnSmartObjectBehaviorFinished);
-
-					bBehaviorActive = true;
+					if (bBehaviorActive)
+					{
+						OnBehaviorFinishedNotifyHandle = GameplayBehavior->GetOnBehaviorFinishedDelegate().AddUObject(this, &UAITask_UseSmartObject::OnSmartObjectBehaviorFinished);
+					}
 				}
 			}
 		}
@@ -183,7 +208,7 @@ void UAITask_UseSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 	Super::OnGameplayTaskDeactivated(Task);
 }
 
-void UAITask_UseSmartObject::OnDestroy(bool bInOwnerFinished)
+void UAITask_UseSmartObject::OnDestroy(const bool bInOwnerFinished)
 {
 	Abort();
 

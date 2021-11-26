@@ -44,20 +44,20 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	{
 		const FSmartObjectRuntime& Entry = LookupEntry.Value;
 		const FTransform LocalToWorld = Entry.GetTransform();
-		const FSmartObjectConfig& Config = Entry.GetConfig();
+		const USmartObjectDefinition& Definition = Entry.GetDefinition();
 
-		for (int32 i = 0; i < Config.GetSlots().Num(); ++i)
+		for (int32 i = 0; i < Definition.GetSlots().Num(); ++i)
 		{
 			constexpr float DebugArrowThickness = 2.f;
 			constexpr float DebugCircleRadius = 40.f;
 			constexpr float DebugArrowHeadSize = 10.f;
-			TOptional<FTransform> Transform = Config.GetSlotTransform(LocalToWorld, FSmartObjectSlotIndex(i));
+			TOptional<FTransform> Transform = Definition.GetSlotTransform(LocalToWorld, FSmartObjectSlotIndex(i));
 			if (!Transform.IsSet())
 			{
 				continue;
 			}
 #if WITH_EDITORONLY_DATA
-			DebugColor = Config.GetSlots()[i].DEBUG_DrawColor;
+			DebugColor = Definition.GetSlots()[i].DEBUG_DrawColor;
 #endif
 			const FVector Pos = Transform.GetValue().GetLocation() + FVector(0.0f ,0.0f ,25.0f );
 			const FVector Dir = Transform.GetValue().GetRotation().GetForwardVector();

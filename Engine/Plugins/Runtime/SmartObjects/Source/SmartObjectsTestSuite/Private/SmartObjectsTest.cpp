@@ -18,7 +18,6 @@ namespace FSmartObjectTest
 struct FSmartObjectTestBase : FAITestBase
 {
 	FSmartObjectRequestFilter TestFilter;
-	FSmartObjectConfig TestConfig;
 	USmartObjectSubsystem* Subsystem = nullptr;
 	TArray<USmartObjectComponent*> SOList;
 
@@ -31,12 +30,13 @@ struct FSmartObjectTestBase : FAITestBase
 			return false;
 		}
 
-		// Setup config
-		FSmartObjectSlot& Slot = TestConfig.DebugAddSlot();
-		Slot.BehaviorConfigurations.Add(NewAutoDestroyObject<USmartObjectTestConfig>());
+		// Setup definition
+		USmartObjectDefinition* Definition = NewAutoDestroyObject<USmartObjectDefinition>();
+		FSmartObjectSlot& Slot = Definition->DebugAddSlot();
+		Slot.BehaviorDefinitions.Add(NewAutoDestroyObject<USmartObjectTestDefinition>());
 
 		// Setup filter
-		TestFilter.BehaviorConfigurationClass = USmartObjectTestConfig::StaticClass();
+		TestFilter.BehaviorDefinitionClass = USmartObjectTestDefinition::StaticClass();
 
 		// Create some smart objects
 		SOList =
@@ -50,7 +50,7 @@ struct FSmartObjectTestBase : FAITestBase
 		{
 			if (SO != nullptr)
 			{
-				SO->DebugSetConfig(TestConfig);
+				SO->SetDefinition(Definition);
 				Subsystem->RegisterSmartObject(*SO);
 			}
 		}
@@ -207,8 +207,8 @@ struct FUseAndReleaseSmartObject : FSmartObjectTestBase
 		const FSmartObjectClaimHandle Hdl = Subsystem->Claim(PreClaimResult);
 		AITEST_TRUE("Claim Handle is expected to be valid", Hdl.IsValid());
 
-		const USmartObjectBehaviorConfigBase* Config = Subsystem->Use<USmartObjectBehaviorConfigBase>(Hdl);
-		AITEST_NOT_NULL("Config is expected to be valid", Config);
+		const USmartObjectBehaviorDefinition* BehaviorDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(Hdl);
+		AITEST_NOT_NULL("Bahavior definition is expected to be valid", BehaviorDefinition);
 
 		// Release object
 		const bool bSuccess = Subsystem->Release(Hdl);
@@ -237,8 +237,8 @@ struct FFindAfterUseSmartObject : FSmartObjectTestBase
 		const FSmartObjectClaimHandle FirstClaimHandle = Subsystem->Claim(FirstFindResult);
 		AITEST_TRUE("Claim Handle is expected to be valid for the first claim", FirstClaimHandle.IsValid());
 
-		const USmartObjectBehaviorConfigBase* FirstConfig = Subsystem->Use<USmartObjectBehaviorConfigBase>(FirstClaimHandle);
-		AITEST_NOT_NULL("Config is expected to be valid", FirstConfig);
+		const USmartObjectBehaviorDefinition* FirstDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(FirstClaimHandle);
+		AITEST_NOT_NULL("Behavior definition is expected to be valid", FirstDefinition);
 
 		// Find second object
 		const FSmartObjectRequestResult SecondFindResult = Subsystem->FindSmartObject(Request);
@@ -249,8 +249,8 @@ struct FFindAfterUseSmartObject : FSmartObjectTestBase
 		// Claim & use second object
 		const FSmartObjectClaimHandle SecondClaimHandle = Subsystem->Claim(SecondFindResult);
 		AITEST_TRUE("Claim Handle is expected to be valid for the second claim", SecondClaimHandle.IsValid());
-		const USmartObjectBehaviorConfigBase* SecondConfig = Subsystem->Use<USmartObjectBehaviorConfigBase>(SecondClaimHandle);
-		AITEST_NOT_NULL("Config is expected to be valid", SecondConfig);
+		const USmartObjectBehaviorDefinition* SecondDefinition = Subsystem->Use<USmartObjectBehaviorDefinition>(SecondClaimHandle);
+		AITEST_NOT_NULL("Behavior definition is expected to be valid", SecondDefinition);
 
 		// Try to find a third one
 		const FSmartObjectRequestResult ThirdFindResult = Subsystem->FindSmartObject(Request);

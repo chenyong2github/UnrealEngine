@@ -2,7 +2,7 @@
 
 #include "MassSmartObjectHandler.h"
 #include "MassSmartObjectProcessor.h"
-#include "MassSmartObjectBehaviorConfig.h"
+#include "MassSmartObjectBehaviorDefinition.h"
 #include "SmartObjectSubsystem.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassCommandBuffer.h"
@@ -146,7 +146,7 @@ EMassSmartObjectClaimResult FMassSmartObjectHandler::ClaimCandidate(const FMassE
 bool FMassSmartObjectHandler::ClaimSmartObject(const FMassEntityHandle Entity, FMassSmartObjectUserFragment& User, const FSmartObjectID& ObjectID) const
 {
 	FSmartObjectRequestFilter Filter;
-	Filter.BehaviorConfigurationClass = USmartObjectMassBehaviorConfig::StaticClass();
+	Filter.BehaviorDefinitionClass = USmartObjectMassBehaviorDefinition::StaticClass();
 
 	const FSmartObjectClaimHandle ClaimHandle = SmartObjectSubsystem.Claim(ObjectID, Filter);
 	const bool bSuccess = ClaimHandle.IsValid();
@@ -193,13 +193,13 @@ bool FMassSmartObjectHandler::UseSmartObject(
 		*User.ClaimHandle.Describe());
 #endif // WITH_MASSGAMEPLAY_DEBUG
 
-	const USmartObjectMassBehaviorConfig* Config = SmartObjectSubsystem.Use<USmartObjectMassBehaviorConfig>(User.ClaimHandle);
-	if (Config == nullptr)
+	const USmartObjectMassBehaviorDefinition* BehaviorDefinition = SmartObjectSubsystem.Use<USmartObjectMassBehaviorDefinition>(User.ClaimHandle);
+	if (BehaviorDefinition == nullptr)
 	{
 		return false;
 	}
 
-	Config->Activate(EntitySubsystem, ExecutionContext, FMassBehaviorEntityContext(Entity, Transform, User, SmartObjectSubsystem));
+	BehaviorDefinition->Activate(EntitySubsystem, ExecutionContext, FMassBehaviorEntityContext(Entity, Transform, User, SmartObjectSubsystem));
 
 	User.InteractionStatus = EMassSmartObjectInteractionStatus::InProgress;
 	ExecutionContext.Defer().AddTag<FMassSmartObjectTimedBehaviorTag>(Entity);
