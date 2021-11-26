@@ -7,6 +7,8 @@
 #include "Animation/AnimSequence.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
+#include "Rendering/SkeletalMeshLODModel.h"
+#include "Rendering/SkeletalMeshModel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODSettings, Warning, All)
 
@@ -76,6 +78,33 @@ bool USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh, int32
 			if (RefSkeleton.FindBoneIndex(Bone) != INDEX_NONE)
 			{
 				LODInfo->BonesToPrioritize.Add(FBoneReference(Bone));
+			}
+		}
+
+#if WITH_EDITOR
+		// copy the shared setting to mesh setting
+		// make sure we have the section in the mesh 
+		const FSkeletalMeshLODModel& LodModel = InMesh->GetImportedModel()->LODModels[LODIndex];
+#endif
+		LODInfo->SectionsToPrioritize.Reset();
+		for (const int32 SettingSectionIndex : Setting.SectionsToPrioritize)
+		{
+			int32 FinalSettingSectionIndex = SettingSectionIndex;
+#if WITH_EDITOR
+			FinalSettingSectionIndex = INDEX_NONE;
+			for (int32 SectionIndex = 0; SectionIndex < LodModel.Sections.Num(); ++SectionIndex)
+			{
+				const FSkelMeshSection& Section = LodModel.Sections[SectionIndex];
+				if (Section.ChunkedParentSectionIndex == INDEX_NONE && SettingSectionIndex == Section.OriginalDataSectionIndex)
+				{
+					FinalSettingSectionIndex = Section.OriginalDataSectionIndex;
+					break;
+				}
+			}
+#endif
+			if (FinalSettingSectionIndex != INDEX_NONE)
+			{
+				LODInfo->SectionsToPrioritize.AddUnique(FSectionReference(FinalSettingSectionIndex));
 			}
 		}
 
@@ -216,6 +245,28 @@ int32 USkeletalMeshLODSettings::SetLODSettingsFromMesh(USkeletalMesh* InMesh)
 			for (auto& Bone : LODInfo->BonesToPrioritize)
 			{
 				Setting.BonesToPrioritize.Add(Bone.BoneName);
+			}
+
+#if WITH_EDITOR
+			// copy the shared setting to mesh setting
+			// make sure we have the section in the mesh 
+			const FSkeletalMeshLODModel& LodModel = InMesh->GetImportedModel()->LODModels[Index];
+#endif
+			Setting.SectionsToPrioritize.Reset();
+			for (const FSectionReference& SectionReference : LODInfo->SectionsToPrioritize)
+			{
+				int32 FinalSettingSectionIndex = SectionReference.SectionIndex;
+#if WITH_EDITOR
+				//In editor we can validate the prioritized sections
+				if (!SectionReference.IsValidToEvaluate(LodModel))
+				{
+					FinalSettingSectionIndex = INDEX_NONE;
+				}
+#endif
+				if (FinalSettingSectionIndex != INDEX_NONE)
+				{
+					Setting.SectionsToPrioritize.AddUnique(FinalSettingSectionIndex);
+				}
 			}
 
 			Setting.WeightOfPrioritization = LODInfo->WeightOfPrioritization;
