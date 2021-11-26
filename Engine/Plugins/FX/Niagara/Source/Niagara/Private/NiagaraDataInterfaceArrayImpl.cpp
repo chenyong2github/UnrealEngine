@@ -56,6 +56,11 @@ bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionS
 		}
 
 		FunctionSignature.bExperimental = false;
+
+		if (FunctionSignature.Name == FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName)
+		{
+			FunctionSignature.Inputs.EmplaceAt(1, FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipSet"));
+		}
 	}
 
 	FunctionSignature.FunctionVersion = FFunctionVersion::LatestVersion;
