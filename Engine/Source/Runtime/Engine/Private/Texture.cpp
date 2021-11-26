@@ -93,6 +93,11 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PrivateResource(nullptr)
 	, PrivateResourceRenderThread(nullptr)
+#if WITH_TEXTURE_RESOURCE_DEPRECATIONS
+	, Resource(
+		[this]()-> FTextureResource* { return GetResource(); },
+		[this](FTextureResource* InTextureResource) { SetResource(InTextureResource); })
+#endif
 {
 	SRGB = true;
 	Filter = TF_Default;
