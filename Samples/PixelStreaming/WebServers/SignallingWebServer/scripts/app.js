@@ -229,13 +229,13 @@ function setupHtmlEvents() {
             let fillerData = document.getElementById('encoder-filler-data-tgl').checked ? 1 : 0;
             let multipass = document.getElementById('encoder-multipass').value;
 
-            emitUIInteraction({ Console: 'PixelStreaming.Encoder.RateControl ' + rateControl });
-            emitUIInteraction({ Console: 'PixelStreaming.Encoder.TargetBitrate ' + targetBitrate > 0 ? targetBitrate : -1 });
-            emitUIInteraction({ Console: 'PixelStreaming.Encoder.MaxBitrateVBR ' + maxBitrate > 0 ? maxBitrate : -1 });
-            emitUIInteraction({ Console: 'PixelStreaming.Encoder.MinQP ' + minQP });
-            emitUIInteraction({ Console: 'PixelStreaming.Encoder.MaxQP ' + maxQP });
-            emitUIInteraction({ Console: 'PixelStreaming.Encoder.EnableFillerData ' + fillerData });
-            emitUIInteraction({ Console: 'PixelStreaming.Encoder.Multipass ' + multipass });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.RateControl ' + rateControl });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.TargetBitrate ' + targetBitrate > 0 ? targetBitrate : -1 });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.MaxBitrateVBR ' + maxBitrate > 0 ? maxBitrate : -1 });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.MinQP ' + minQP });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.MaxQP ' + maxQP });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.EnableFillerData ' + fillerData });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.Encoder.Multipass ' + multipass });
         };
     }
 
@@ -249,12 +249,12 @@ function setupHtmlEvents() {
             let lowQP = document.getElementById('webrtc-low-qp-text').value;
             let highQP = document.getElementById('webrtc-high-qp-text').value;
 
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.DegradationPreference ' + degradationPref });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MaxFps ' + maxFPS });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MinBitrate ' + minBitrate });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MaxBitrate ' + maxBitrate });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.LowQpThreshold ' + lowQP });
-            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.HighQpThreshold ' + highQP });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.DegradationPreference ' + degradationPref });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MaxFps ' + maxFPS });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MinBitrate ' + minBitrate });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MaxBitrate ' + maxBitrate });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.LowQpThreshold ' + lowQP });
+            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.HighQpThreshold ' + highQP });
         };
     }
 
@@ -262,9 +262,9 @@ function setupHtmlEvents() {
     if (showFPSButton !== null) {
         showFPSButton.onclick = function (event) {
             let consoleDescriptor = {
-                Console: 'stat fps'
+                ConsoleCommand: 'Stat FPS'
             };
-            emitUIInteraction(consoleDescriptor);
+            emitCommand(consoleDescriptor);
         };
     }
 
@@ -370,7 +370,13 @@ function showTextOverlay(text) {
 
 function playVideoStream() {
     if (webRtcPlayerObj && webRtcPlayerObj.video) {
-        webRtcPlayerObj.video.play();
+
+        webRtcPlayerObj.video.play().catch(function(onRejectedReason){
+            console.error(onRejectedReason);
+            console.log("Browser does not support autoplaying video without interaction - to resolve this we are going to show the play button overlay.")
+            showPlayOverlay();
+        });
+
         requestInitialSettings();
         requestQualityControl();
         showFreezeFrameOverlay();
@@ -522,7 +528,11 @@ function setupWebRtcPlayer(htmlElement, config) {
             if (shouldShowPlayOverlay) {
                 showPlayOverlay();
                 resizePlayerStyle();
-            } 
+            }
+            else {
+                resizePlayerStyle();
+                playVideoStream();
+            }
         }
     };
 
@@ -803,33 +813,30 @@ function onWebRtcAnswer(webRTCData) {
         }
 
         let latencyExcludingDecode = timings.BrowserReceiptTimeMs - timings.TestStartTimeMs;
-        let uePixelStreamLatency = timings.UEPreEncodeTimeMs == 0 || timings.UEPreCaptureTimeMs == 0 ? "???" : timings.UEPostEncodeTimeMs - timings.UEPreCaptureTimeMs;
         let captureLatency = timings.UEPostCaptureTimeMs - timings.UEPreCaptureTimeMs;
         let encodeLatency = timings.UEPostEncodeTimeMs - timings.UEPreEncodeTimeMs;
-        let ueLatency = timings.UETransmissionTimeMs - timings.UEReceiptTimeMs;
-        let networkLatency = latencyExcludingDecode - ueLatency;
-        let browserSendLatency = latencyExcludingDecode - networkLatency - ueLatency;
+        let uePixelStreamLatency = captureLatency + encodeLatency + (timings.UETransmissionTimeMs - timings.UEPostEncodeTimeMs);
+        let ueTestDuration = timings.UETransmissionTimeMs - timings.UEReceiptTimeMs;
+        let networkLatency = latencyExcludingDecode - ueTestDuration;
 
         //these ones depend on FrameDisplayDeltaTimeMs
         let endToEndLatency = null;
         let browserSideLatency = null;
 
         if (timings.FrameDisplayDeltaTimeMs && timings.BrowserReceiptTimeMs) {
-            endToEndLatency = timings.FrameDisplayDeltaTimeMs + latencyExcludingDecode;
-            browserSideLatency = endToEndLatency - networkLatency - ueLatency;
+            endToEndLatency = timings.FrameDisplayDeltaTimeMs + networkLatency + uePixelStreamLatency;
+            browserSideLatency = timings.FrameDisplayDeltaTimeMs + (latencyExcludingDecode - networkLatency - ueTestDuration);
         }
 
         let latencyStatsInnerHTML = '';
-        latencyStatsInnerHTML += `<div>Net latency RTT (ms): ${networkLatency}</div>`;
-        latencyStatsInnerHTML += `<div>UE Capture+Encode (ms): ${uePixelStreamLatency}</div>`;
-        latencyStatsInnerHTML += `<div>UE Capture (ms): ${captureLatency}</div>`;
-        latencyStatsInnerHTML += `<div>UE Encode (ms): ${encodeLatency}</div>`;
-        latencyStatsInnerHTML += `<div>Total UE latency (ms): ${ueLatency}</div>`;
-        latencyStatsInnerHTML += `<div>Browser send latency (ms): ${browserSendLatency}</div>`
-        latencyStatsInnerHTML += timings.FrameDisplayDeltaTimeMs && timings.BrowserReceiptTimeMs ? `<div>Browser receive latency (ms): ${timings.FrameDisplayDeltaTimeMs}</div>` : "";
-        latencyStatsInnerHTML += browserSideLatency ? `<div>Total browser latency (ms): ${browserSideLatency}</div>` : "";
-        latencyStatsInnerHTML += `<div>Total latency (excluding browser) (ms): ${latencyExcludingDecode}</div>`;
-        latencyStatsInnerHTML += endToEndLatency ? `<div>Total latency (ms): ${endToEndLatency}</div>` : "";
+        latencyStatsInnerHTML += `<div>Net latency RTT (ms): ${networkLatency.toFixed(2)}</div>`;
+        latencyStatsInnerHTML += `<div>UE Capture+Encode+Transmit (ms): ${uePixelStreamLatency.toFixed(2)}</div>`;
+        latencyStatsInnerHTML += `<div>UE Capture (ms): ${captureLatency.toFixed(2)}</div>`;
+        latencyStatsInnerHTML += `<div>UE Encode (ms): ${encodeLatency.toFixed(2)}</div>`;
+        latencyStatsInnerHTML += `<div>UE probe duration (ms): ${ueTestDuration.toFixed(2)}</div>`;
+        latencyStatsInnerHTML += timings.FrameDisplayDeltaTimeMs && timings.BrowserReceiptTimeMs ? `<div>Browser composite latency (ms): ${timings.FrameDisplayDeltaTimeMs.toFixed(2)}</div>` : "";
+        latencyStatsInnerHTML += browserSideLatency ? `<div>Total browser latency (ms): ${browserSideLatency.toFixed(2)}</div>` : "";
+        latencyStatsInnerHTML += endToEndLatency ? `<div>Total latency (ms): ${endToEndLatency.toFixed(2)}</div>` : "";
         document.getElementById("LatencyStats").innerHTML = latencyStatsInnerHTML;
     }
 }
@@ -1061,9 +1068,9 @@ function updateVideoStreamSize() {
             return;
 
         let descriptor = {
-            Console: 'setres ' + playerElement.clientWidth + 'x' + playerElement.clientHeight
+            ConsoleCommand: 'setres ' + playerElement.clientWidth + 'x' + playerElement.clientHeight
         };
-        emitUIInteraction(descriptor);
+        emitCommand(descriptor);
         console.log(descriptor);
         lastTimeResized = new Date().getTime();
     } else {
@@ -1613,7 +1620,7 @@ function registerTouchEvents(playerElement) {
     }
 
     function emitTouchData(type, touches) {
-        let data = new DataView(new ArrayBuffer(2 + 6 * touches.length));
+        let data = new DataView(new ArrayBuffer(2 + 7 * touches.length));
         data.setUint8(0, type);
         data.setUint8(1, touches.length);
         let byte = 2;
@@ -1633,7 +1640,10 @@ function registerTouchEvents(playerElement) {
             byte += 1;
             data.setUint8(byte, 255 * touch.force, true); // force is between 0.0 and 1.0 so quantize into byte.
             byte += 1;
+            data.setUint8(byte, coord.inRange ? 1 : 0, true); // mark the touch as in the player or not
+            byte += 1;
         }
+        
         sendInputData(data.buffer);
     }
 
