@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/Texture.h"
+#include "Misc/FieldAccessor.h"
 #include "TextureCube.generated.h"
 
 class FTextureResource;
@@ -20,8 +21,8 @@ class UTextureCube : public UTexture
 
 public:
 #if WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
-	UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead. This value cannot be relied upon anymore.")
-	FTexturePlatformData* PlatformData {nullptr};
+	UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead.")
+	TFieldPtrAccessor<FTexturePlatformData> PlatformData;
 #endif
 
 	/** Set the derived data for this texture on this platform. */
@@ -36,7 +37,9 @@ public:
 #endif
 
 	/** Destructor */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ENGINE_API virtual ~UTextureCube() {};
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	//~ Begin UObject Interface.
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;

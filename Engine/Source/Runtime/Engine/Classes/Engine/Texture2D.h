@@ -8,6 +8,7 @@
 #include "UObject/ScriptMacros.h"
 #include "Engine/Texture.h"
 #include "TextureResource.h"
+#include "Misc/FieldAccessor.h"
 #include "Serialization/BulkData2.h"
 #include "Texture2D.generated.h"
 
@@ -72,8 +73,8 @@ private:
 
 public:
 #if WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
-	UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead. This value cannot be relied upon anymore.")
-	FTexturePlatformData* PlatformData {nullptr};
+	UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead.")
+	TFieldPtrAccessor<FTexturePlatformData> PlatformData;
 #endif
 
 	/** Set the derived data for this texture on this platform. */

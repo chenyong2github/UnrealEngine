@@ -18,6 +18,7 @@
 #include "TextureResource.h"
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
+#include "Misc/FieldAccessor.h"
 #if WITH_EDITORONLY_DATA
 #include "Misc/TVariant.h"
 #include "DerivedDataCacheKeyProxy.h"
@@ -1222,8 +1223,8 @@ private:
 
 public:
 #if WITH_TEXTURE_RESOURCE_DEPRECATIONS
-	UE_DEPRECATED(5.00, "Use GetResource() / SetResource() accessors instead. This value cannot be relied upon anymore.")
-	class FTextureResource* Resource {nullptr};
+	UE_DEPRECATED(5.00, "Use GetResource() / SetResource() accessors instead.")
+	TFieldPtrAccessor<FTextureResource> Resource;
 #endif
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
