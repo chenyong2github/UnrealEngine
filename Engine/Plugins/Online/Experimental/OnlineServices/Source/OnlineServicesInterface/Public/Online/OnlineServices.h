@@ -51,7 +51,7 @@ public:
 	/**
 	 * 
 	 */
-	virtual FString ToDebugString(const FOnlineAccountIdHandle& Handle) = 0;
+	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) = 0;
 };
 
 /**
@@ -89,7 +89,7 @@ inline FString ToLogString(const TOnlineIdHandle<IdType>& Id)
 	FString Result;
 	if (TSharedPtr<IOnlineServices> Services = GetServices(Id.GetType()))
 	{
-		Result = Services->ToDebugString(Id);
+		Result = Services->ToLogString(Id);
 	}
 	return Result;
 }

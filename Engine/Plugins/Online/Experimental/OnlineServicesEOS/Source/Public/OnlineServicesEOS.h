@@ -26,7 +26,7 @@ public:
 
 	EOS_HPlatform GetEOSPlatformHandle() const;
 
-	virtual FString ToDebugString(const FOnlineAccountIdHandle& Handle) override;
+	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) override;
 protected:
 	IEOSPlatformHandlePtr EOSPlatformHandle;
 };
