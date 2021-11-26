@@ -128,7 +128,15 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 		BufferUsageFlags |= bCPUReadable ? (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT) : 0;
 
 #if VULKAN_RHI_RAYTRACING
-		BufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+		if (InDevice->GetOptionalExtensions().HasRaytracingExtensions())
+		{
+			BufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
+			if (!EnumHasAnyFlags(InUEUsage, BUF_AccelerationStructure))
+			{
+				BufferUsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+			}
+		}
 #endif
 
 		if (bVolatile)
