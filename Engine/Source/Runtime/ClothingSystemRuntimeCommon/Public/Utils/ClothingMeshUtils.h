@@ -81,6 +81,7 @@ namespace ClothingMeshUtils
 			, bHasValidMaxEdgeLengths(false)
 		{
 			ComputeAveragedNormals();
+			Normals = AveragedNormals;
 		}
 
 		bool HasValidMesh() const
