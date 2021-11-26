@@ -35,6 +35,8 @@ public:
 	bool RemoveDataLayer(UDataLayer* InDataLayer);
 	bool RemoveDataLayers(const TArray<UDataLayer*>& InDataLayers);
 	FName GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const;
+	void SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing);
+	bool GetAllowRuntimeDataLayerEditing() const { return bAllowRuntimeDataLayerEditing; }
 
 	//~ Begin Helper Functions
 	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FActorDataLayer>& DataLayers) const;
@@ -108,6 +110,12 @@ private:
 #if !WITH_EDITOR
 	TMap<FName, const UDataLayer*> LabelToDataLayer;
 	TMap<FName, const UDataLayer*> NameToDataLayer;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	// True when Runtime Data Layer editing is allowed.
+	UPROPERTY()
+	bool bAllowRuntimeDataLayerEditing;
 #endif
 
 	UPROPERTY()

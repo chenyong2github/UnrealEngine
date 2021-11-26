@@ -6,7 +6,6 @@
 
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 
@@ -133,7 +132,7 @@ bool UDataLayer::IsLocked() const
 		return true;
 	}
 
-	return IsRuntime() && !GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->bAllowRuntimeDataLayerEditing;
+	return IsRuntime() && !GetOuterAWorldDataLayers()->GetAllowRuntimeDataLayerEditing();
 }
 
 bool UDataLayer::CanEditChange(const FProperty* InProperty) const
@@ -151,7 +150,7 @@ bool UDataLayer::CanEditChange(const FProperty* InProperty) const
 				return false;
 			}
 		}
-		return GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->bAllowRuntimeDataLayerEditing;
+		return GetOuterAWorldDataLayers()->GetAllowRuntimeDataLayerEditing();
 	}
 
 	return Super::CanEditChange(InProperty);
