@@ -116,10 +116,12 @@ private:
 	};
 
 public:
-	FD3D12QueryHeap(class FD3D12Device* InParent, const D3D12_QUERY_TYPE InQueryType, uint32 InQueryHeapCount, uint32 InMaxActiveBatches);
+	FD3D12QueryHeap(class FD3D12Device* InParent, const D3D12_QUERY_TYPE InQueryType, uint32 InQueryHeapCount, uint32 InNumFramesToKeepResults, uint32 InBatchPerFrame);
 
 	void Init();
 	void Destroy();
+
+	uint32 GetNumFramesToKeepResults() const { return NumFramesToKeepResults; }
 
 	// Start tracking a new batch of begin/end query calls that will be resolved together
 	void StartQueryBatch(FD3D12CommandContext& CmdContext, uint32 NumQueriesInBatch);
@@ -142,6 +144,9 @@ private:
 
 private:
 	QueryBatch CurrentQueryBatch;                       // The current recording batch.
+
+	uint32 NumFramesToKeepResults;						// Amount of frames which have valid results
+	uint32 BatchesPerFrame;								// Amount of batches per frame expected
 
 	TArray<QueryBatch> ActiveQueryBatches;              // List of active query batches. The data for these is in use.
 	uint32 LastBatch;                                   // The index of the newest batch.
