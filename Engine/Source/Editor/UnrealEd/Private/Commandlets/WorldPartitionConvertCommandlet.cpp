@@ -213,7 +213,7 @@ ULevel* UWorldPartitionConvertCommandlet::InitWorld(UWorld* World)
 	return World->PersistentLevel;
 }
 
-UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSettings* MainWorldSettings, UWorldComposition* WorldComposition) const
+UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSettings* MainWorldSettings) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::CreateWorldPartition);
 
@@ -229,8 +229,6 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 
 	WorldPartition->EditorHash->Initialize();
 	
-	WorldPartition->RuntimeHash->ImportFromWorldComposition(WorldComposition);
-
 	return WorldPartition;
 }
 
@@ -307,22 +305,7 @@ bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(const 
 			}
 		}
 	}
-	else
-	{
-		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting dynamic streaming level %s"), *StreamingLevel->GetWorldAssetPackageName());
-
-		const UWorldPartitionRuntimeHash* RuntimeHash = WorldPartition->RuntimeHash;
-		check(RuntimeHash);
-
-		for (AActor* Actor : SubLevel->Actors)
-		{
-			if (Actor)
-			{
-				Actor->SetRuntimeGrid(RuntimeHash->GetActorRuntimeGrid(Actor));
-			}
-		}
-	}
-
+	
 	return true;
 }
 
@@ -839,7 +822,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	}
 
 	// Setup the world partition object
-	UWorldPartition* WorldPartition = CreateWorldPartition(MainWorldSettings, MainWorld->WorldComposition);
+	UWorldPartition* WorldPartition = CreateWorldPartition(MainWorldSettings);
 	if (!WorldPartition)
 	{
 		return 1;

@@ -16,7 +16,6 @@ UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionConvertCommandlet, Log
 
 class ULevelStreaming;
 class UWorldPartition;
-class UWorldComposition;
 class ULevelStreaming;
 
 USTRUCT()
@@ -58,7 +57,7 @@ protected:
 	virtual void OnWorldLoaded(UWorld* World);
 	virtual void ReadAdditionalTokensAndSwitches(const TArray<FString>& Tokens, const TArray<FString>& Switches) {}
 
-	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings, UWorldComposition* WorldComposition) const;
+	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings) const;
 	UWorld* LoadWorld(const FString& LevelToLoad);
 	ULevel* InitWorld(UWorld* World);
 
