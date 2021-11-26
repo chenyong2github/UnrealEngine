@@ -153,7 +153,7 @@ EBakeOpState UBakeMeshAttributeTool::UpdateResult_Texture2DImage(const FImageDim
 
 	FTexture2DSettings NewSettings;
 	NewSettings.Dimensions = Dimensions;
-	NewSettings.UVLayer = TextureSettings->UVLayer;
+	NewSettings.UVLayer = TextureSettings->UVLayerNamesList.IndexOfByKey(TextureSettings->UVLayer);
 
 	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(NewSettings.UVLayer);
 	if (UVOverlay == nullptr)
@@ -196,7 +196,7 @@ EBakeOpState UBakeMeshAttributeTool::UpdateResult_MultiTexture(const FImageDimen
 
 	FTexture2DSettings NewSettings;
 	NewSettings.Dimensions = Dimensions;
-	NewSettings.UVLayer = MultiTextureSettings->UVLayer;
+	NewSettings.UVLayer = MultiTextureSettings->UVLayerNamesList.IndexOfByKey(MultiTextureSettings->UVLayer);
 
 	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(NewSettings.UVLayer);
 	if (UVOverlay == nullptr)

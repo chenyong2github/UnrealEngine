@@ -693,7 +693,7 @@ public:
 
 	virtual bool HasUVs(const int UVLayer = 0) const override
 	{
-		return SourceMesh ? Adapter->HasUVs() : false;
+		return SourceMesh ? Adapter->HasUVs(UVLayer) : false;
 	}
 
 	virtual FVector3d TriBaryInterpolatePoint(int32 TriId, const FVector3d& BaryCoords) const override
@@ -723,7 +723,7 @@ public:
 
 	virtual bool TriBaryInterpolateUV(const int32 TriId, const FVector3d& BaryCoords, const int UVLayer, FVector2f& UVOut) const override
 	{
-		if (SourceMesh && Adapter->HasUVs())
+		if (SourceMesh && Adapter->HasUVs(UVLayer))
 		{
 			FVector2f UV0, UV1, UV2;
 			Adapter->GetTriUVs(TriId, UVLayer, UV0, UV1, UV2);

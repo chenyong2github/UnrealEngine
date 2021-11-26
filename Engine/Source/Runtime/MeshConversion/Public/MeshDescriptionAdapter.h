@@ -147,9 +147,9 @@ public:
 		N2 = GetNormal(TriangleVertexInstanceIndices[TriId*3+2]);
 	}
 
-	inline bool HasUVs() const
+	inline bool HasUVs(const int32 UVLayer=0) const
 	{
-		return VertexInstanceUVs.IsValid();
+		return VertexInstanceUVs.IsValid() && Mesh && UVLayer >= 0 && UVLayer < Mesh->GetNumUVElementChannels();
 	}
 	inline bool IsUV(const int32 UVId) const
 	{
