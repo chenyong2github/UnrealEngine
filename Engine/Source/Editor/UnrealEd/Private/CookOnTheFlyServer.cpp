@@ -8285,11 +8285,11 @@ TArray<FName> UCookOnTheFlyServer::GetNeverCookPackageFileNames(TArrayView<const
 	// with IoStore the state of files will hopefully be good
 	if (FIoDispatcher::IsInitialized())
 	{
-		static bool bShownWarning = false;
-		if (!bShownWarning)
+		static bool bShownMessage = false;
+		if (!bShownMessage)
 		{
-			UE_LOG(LogCook, Warning, TEXT("Unable to search for packages to not cook when running with IO Dispatcher active"));
-			bShownWarning = true;
+			UE_LOG(LogCook, Log, TEXT("Unable to search for packages to not cook when running with IO Dispatcher active"));
+			bShownMessage = true;
 		}
 		return TArray<FName>();
 	}
