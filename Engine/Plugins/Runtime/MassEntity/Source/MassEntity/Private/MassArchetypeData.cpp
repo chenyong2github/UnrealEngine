@@ -25,7 +25,7 @@ bool FMassArchetypeData::HasFragmentType(const UScriptStruct* FragmentType) cons
 	return (FragmentType && CompositionDescriptor.Fragments.Contains(*FragmentType));
 }
 
-void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeFragmentsInitialValues& InInitialValues)
+void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeSharedFragmentValues& InSharedFragmentValues)
 {
 	TArray<const UScriptStruct*, TInlineAllocator<16>> SortedFragmentList;
 	InCompositionDescriptor.Fragments.ExportTypes(SortedFragmentList);
@@ -58,8 +58,6 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 			CompositionDescriptor.Fragments.Add(*FragmentType);
 		}
 	}
-	// @todo, remove this from the Initial values and rename this structure differently
-	InitialValues.SetFragments(InInitialValues.GetFragments());
 
 	// Tags
 	CompositionDescriptor.Tags = InCompositionDescriptor.Tags;
@@ -72,20 +70,12 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 	for (const UScriptStruct* ChunkFragmentType : ChunkFragmentList)
 	{
 		check(ChunkFragmentType);
-		if (const FInstancedStruct* Struct = InInitialValues.GetChunkFragments().FindByPredicate(FStructTypeEqualOperator(ChunkFragmentType)))
-		{
-			InitialValues.AddChunkFragment(FConstStructView(*Struct));
-		}
-		else
-		{
-			InitialValues.AddChunkFragment(FConstStructView(ChunkFragmentType));
-		}
+		ChunkFragmentsTemplate.Add(FConstStructView(ChunkFragmentType));
 	}
 
 	// Share fragments
 	CompositionDescriptor.SharedFragments = InCompositionDescriptor.SharedFragments;
-	InitialValues.SetConstSharedFragments(InInitialValues.GetConstSharedFragments());
-	InitialValues.SetSharedFragments(InInitialValues.GetSharedFragments());
+	SharedFragmentValues = InSharedFragmentValues;
 
 	TotalBytesPerEntity = FragmentSizeTallyBytes;
 	int32 ChunkAvailableSize = GetChunkAllocSize() - AlignmentPadding;
@@ -115,11 +105,8 @@ void FMassArchetypeData::InitializeWithSibling(const FMassArchetypeData& Sibling
 	CompositionDescriptor.Tags = OverrideTags;
 	CompositionDescriptor.ChunkFragments = SiblingArchetype.CompositionDescriptor.ChunkFragments;
 	CompositionDescriptor.SharedFragments = SiblingArchetype.CompositionDescriptor.SharedFragments;
-	// @todo maybe we should implement a copy operator in the FMassArchetypeInitialValues struct
-	InitialValues.SetFragments(SiblingArchetype.InitialValues.GetFragments());
-	InitialValues.SetChunkFragments(SiblingArchetype.InitialValues.GetChunkFragments());
-	InitialValues.SetConstSharedFragments(SiblingArchetype.InitialValues.GetConstSharedFragments());
-	InitialValues.SetSharedFragments(SiblingArchetype.InitialValues.GetSharedFragments());
+	ChunkFragmentsTemplate = SiblingArchetype.ChunkFragmentsTemplate;
+	SharedFragmentValues = SiblingArchetype.GetSharedFragmentValues();
 
 	TotalBytesPerEntity = SiblingArchetype.TotalBytesPerEntity;
 	NumEntitiesPerChunk = SiblingArchetype.NumEntitiesPerChunk;
@@ -175,12 +162,12 @@ int32 FMassArchetypeData::AddEntityInternal(FMassEntityHandle Entity, const bool
 		if (EmptyChunkIndex != INDEX_NONE)
 		{
 			DestinationChunk = &Chunks[EmptyChunkIndex];
-			DestinationChunk->Recycle(InitialValues.GetChunkFragments());
+			DestinationChunk->Recycle(ChunkFragmentsTemplate);
 			AbsoluteIndex = EmptyAbsoluteIndex;
 		}
 		else
 		{
-			DestinationChunk = &Chunks.Emplace_GetRef(GetChunkAllocSize(), InitialValues.GetChunkFragments());
+			DestinationChunk = &Chunks.Emplace_GetRef(GetChunkAllocSize(), ChunkFragmentsTemplate);
 		}
 
 		check(DestinationChunk);
@@ -674,9 +661,9 @@ void FMassArchetypeData::GetRequirementsChunkFragmentMapping(TConstArrayView<FMa
 		{
 			int32 FragmentIndex = INDEX_NONE;
 			// mz@todo Add comment here as this code seems to be assuming a certain order for chunk fragments, please explain
-			for (int32 i = LastFoundFragmentIndex + 1; i < InitialValues.GetChunkFragments().Num(); ++i)
+			for (int32 i = LastFoundFragmentIndex + 1; i < ChunkFragmentsTemplate.Num(); ++i)
 			{
-				if (InitialValues.GetChunkFragments()[i].GetScriptStruct()->IsChildOf(Requirement.StructType))
+				if (ChunkFragmentsTemplate[i].GetScriptStruct()->IsChildOf(Requirement.StructType))
 				{
 					FragmentIndex = i;
 					break;
@@ -697,7 +684,7 @@ void FMassArchetypeData::GetRequirementsConstSharedFragmentMapping(TConstArrayVi
 	{
 		if (Requirement.RequiresBinding())
 		{
-			const int32 FragmentIndex = InitialValues.GetConstSharedFragments().IndexOfByPredicate(FStructTypeEqualOperator(Requirement.StructType));
+			const int32 FragmentIndex = SharedFragmentValues.GetConstSharedFragments().IndexOfByPredicate(FStructTypeEqualOperator(Requirement.StructType));
 			check(FragmentIndex != INDEX_NONE || Requirement.IsOptional());
 			OutFragmentIndices.Add(FragmentIndex);
 		}
@@ -711,7 +698,7 @@ void FMassArchetypeData::GetRequirementsSharedFragmentMapping(TConstArrayView<FM
 	{
 		if (Requirement.RequiresBinding())
 		{
-			const int32 FragmentIndex = InitialValues.GetSharedFragments().IndexOfByPredicate(FStructTypeEqualOperator(Requirement.StructType));
+			const int32 FragmentIndex = SharedFragmentValues.GetSharedFragments().IndexOfByPredicate(FStructTypeEqualOperator(Requirement.StructType));
 			check(FragmentIndex != INDEX_NONE || Requirement.IsOptional());
 			OutFragmentIndices.Add(FragmentIndex);
 		}
@@ -804,14 +791,14 @@ void FMassArchetypeData::BindConstSharedFragmentRequirements(FMassExecutionConte
 			const int32 FragmentIndex = FragmentsMapping[i];
 
 			check(FragmentIndex != INDEX_NONE || Requirement.Requirement.IsOptional());
-			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? InitialValues.GetConstSharedFragments()[FragmentIndex] : FConstSharedStruct();
+			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? SharedFragmentValues.GetConstSharedFragments()[FragmentIndex] : FConstSharedStruct();
 		}
 	}
 	else
 	{
 		for (FMassExecutionContext::FConstSharedFragmentView& Requirement : RunContext.GetMutableConstSharedRequirements())
 		{
-			const FConstSharedStruct* SharedFragment = InitialValues.GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(Requirement.Requirement.StructType) );
+			const FConstSharedStruct* SharedFragment = SharedFragmentValues.GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(Requirement.Requirement.StructType) );
 			check(SharedFragment != nullptr || Requirement.Requirement.IsOptional());
 			Requirement.FragmentView = SharedFragment ? *SharedFragment : FConstSharedStruct();
 		}
@@ -830,14 +817,14 @@ void FMassArchetypeData::BindSharedFragmentRequirements(FMassExecutionContext& R
 			const int32 FragmentIndex = FragmentsMapping[i];
 
 			check(FragmentIndex != INDEX_NONE || Requirement.Requirement.IsOptional());
-			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? InitialValues.GetSharedFragments()[FragmentIndex] : FSharedStruct();
+			Requirement.FragmentView = FragmentIndex != INDEX_NONE ? SharedFragmentValues.GetSharedFragments()[FragmentIndex] : FSharedStruct();
 		}
 	}
 	else
 	{
 		for (FMassExecutionContext::FSharedFragmentView& Requirement : RunContext.GetMutableSharedRequirements())
 		{
-			const FSharedStruct* SharedFragment = InitialValues.GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(Requirement.Requirement.StructType));
+			const FSharedStruct* SharedFragment = SharedFragmentValues.GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(Requirement.Requirement.StructType));
 			check(SharedFragment != nullptr || Requirement.Requirement.IsOptional());
 			Requirement.FragmentView = SharedFragment ? *SharedFragment : FSharedStruct();
 		}
@@ -856,7 +843,8 @@ SIZE_T FMassArchetypeData::GetAllocatedSize() const
 	}
 
 	return sizeof(FMassArchetypeData) +
-		InitialValues.GetAllocatedSize() +
+		SharedFragmentValues.GetAllocatedSize() +
+		ChunkFragmentsTemplate.GetAllocatedSize() +
 		FragmentConfigs.GetAllocatedSize() +
 		Chunks.GetAllocatedSize() +
 		(NumAllocatedChunkBuffers * GetChunkAllocSize()) +

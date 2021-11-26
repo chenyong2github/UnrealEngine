@@ -87,10 +87,10 @@ public:
 	 * CreateArchetype from a composition descriptor and initial values
 	 *
 	 * @param Composition of fragment, tag and chunk fragment types
-	 * @param InitialValues like default chunk fragment values
+	 * @param SharedFragmentValues are the actual pointer to shared fragments
 	 * @return a handle of a new archetype 
 	 */
-	FArchetypeHandle CreateArchetype(const FMassArchetypeCompositionDescriptor& Composition, const FMassArchetypeFragmentsInitialValues& InitialValues);
+	FArchetypeHandle CreateArchetype(const FMassArchetypeCompositionDescriptor& Composition, const FMassArchetypeSharedFragmentValues& SharedFragmentValues);
 
 	/** 
 	 *  Creates an archetype like SourceArchetype + NewFragmentList. 

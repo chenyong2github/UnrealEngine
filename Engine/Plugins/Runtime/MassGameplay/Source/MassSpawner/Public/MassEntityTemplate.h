@@ -106,7 +106,8 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	FMassEntityTemplateID GetTemplateID() const { return TemplateID; }
 
 	const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return Composition; }
-	const FMassArchetypeFragmentsInitialValues& GetArchetypeFragmentsInitialValues() const { return InitialValues; }
+	const FMassArchetypeSharedFragmentValues& GetSharedFragmentValues() const { return SharedFragmentValues; }
+	TConstArrayView<FInstancedStruct> GetInitialFragmentValues() const { return InitialFragmentValues; }
 
 	template<typename T>
 	void AddFragment()
@@ -128,11 +129,11 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		if (!Composition.Fragments.Contains(*FragmentType))
 		{
 			Composition.Fragments.Add(*FragmentType);
-			InitialValues.AddFragment(Fragment);
+			InitialFragmentValues.Add(Fragment);
 		}
-		else if (!InitialValues.GetFragments().ContainsByPredicate(FStructTypeEqualOperator(FragmentType)))
+		else if (!InitialFragmentValues.ContainsByPredicate(FStructTypeEqualOperator(FragmentType)))
 		{
-			InitialValues.AddFragment(Fragment);
+			InitialFragmentValues.Add(Fragment);
 		}
 	}
 
@@ -144,13 +145,13 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		{
 			Composition.Fragments.Add<T>();
 		}
-		else if (const FInstancedStruct* Fragment = InitialValues.GetFragments().FindByPredicate(FStructTypeEqualOperator(T::StaticStruct())))
+		else if (const FInstancedStruct* Fragment = InitialFragmentValues.FindByPredicate(FStructTypeEqualOperator(T::StaticStruct())))
 		{
 			return Fragment->template GetMutable<T>();
 		}
 
 		// Add a default initial fragment value
-		return InitialValues.AddFragment(T());
+		return InitialFragmentValues.Emplace_GetRef(T::StaticStruct()).template GetMutable<T>();
 	}
 
 	template<typename T>
@@ -174,23 +175,6 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		Composition.ChunkFragments.Add<T>();
 	}
 
-	template<typename T>
-	T& AddChunkFragment_GetRef()
-	{
-		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
-		if( !Composition.ChunkFragments.Contains<T>() )
-		{
-			Composition.ChunkFragments.Add<T>();
-		}
-		else if (const FInstancedStruct* ChunkFragment = InitialValues.GetChunkFragments().FindByPredicate(FStructTypeEqualOperator(T::StaticStruct())))
-		{
-			return ChunkFragment->template GetMutable<T>();
-		}
-
-		// Add a default initial chunk fragment value
-		return InitialValues.AddChunkFragment(T());
-	}
-
 	void AddConstSharedFragment(const FConstSharedStruct& SharedFragment)
 	{
 		const UScriptStruct* FragmentType = SharedFragment.GetScriptStruct();
@@ -199,12 +183,12 @@ struct MASSSPAWNER_API FMassEntityTemplate
 			if (!Composition.SharedFragments.Contains(*FragmentType))
 			{
 				Composition.SharedFragments.Add(*FragmentType);
-				InitialValues.AddConstSharedFragment(SharedFragment);
+				SharedFragmentValues.AddConstSharedFragment(SharedFragment);
 			}
 #if DO_ENSURE
 			else
 			{
-				const FConstSharedStruct* Struct = InitialValues.GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(SharedFragment));
+				const FConstSharedStruct* Struct = SharedFragmentValues.GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(SharedFragment));
 				ensureMsgf(Struct && *Struct == SharedFragment, TEXT("Adding 2 different const shared fragment of the same type is not allowed"));
 
 			}
@@ -220,12 +204,12 @@ struct MASSSPAWNER_API FMassEntityTemplate
 			if (!Composition.SharedFragments.Contains(*FragmentType))
 			{
 				Composition.SharedFragments.Add(*FragmentType);
-				InitialValues.AddSharedFragment(SharedFragment);
+				SharedFragmentValues.AddSharedFragment(SharedFragment);
 			}
 	#if DO_ENSURE
 			else
 			{
-				const FSharedStruct* Struct = InitialValues.GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(SharedFragment));
+				const FSharedStruct* Struct = SharedFragmentValues.GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(SharedFragment));
 				ensureMsgf(Struct && *Struct == SharedFragment, TEXT("Adding 2 different shared fragment of the same type is not allowed"));
 
 			}
@@ -265,12 +249,20 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		return Composition.SharedFragments.Contains<T>();
 	}
 
+	void Sort()
+	{
+		SharedFragmentValues.Sort();
+	}
+
 private:
 	FArchetypeHandle Archetype;
 
 	FMassArchetypeCompositionDescriptor Composition;
-	FMassArchetypeFragmentsInitialValues InitialValues;
+	FMassArchetypeSharedFragmentValues SharedFragmentValues;
 	
+	// Initial fragment values, this is not part of the archetype as it is the spawner job to set them.
+	TArray<FInstancedStruct> InitialFragmentValues;
+
 	UPROPERTY()
 	FMassRuntimePipeline InitializationPipeline;
 	

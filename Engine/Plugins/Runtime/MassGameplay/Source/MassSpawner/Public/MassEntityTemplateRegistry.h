@@ -107,12 +107,6 @@ struct FMassEntityTemplateBuildContext
 		Template.AddChunkFragment<T>();
 	}
 
-	template<typename T>
-	T& AddChunkFragment_GetRef()
-	{
-		return Template.AddChunkFragment_GetRef<T>();
-	}
-
 	void AddConstSharedFragment(const FConstSharedStruct& InSharedFragment)
 	{
 		Template.AddConstSharedFragment(InSharedFragment);
