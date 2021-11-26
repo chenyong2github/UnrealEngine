@@ -102,42 +102,50 @@ struct FStrataBSDF
 #define READ_BITS(X, BitCount, BitOffset)				uint((X>>(BitOffset)) & TO_BITMASK(BitCount))
 #define WRITE_BITS(X, BitCount, BitOffset, NewValue)	X = (X & (~TO_OFFSET_BITMASK(BitCount, BitOffset))) | (((NewValue) & TO_BITMASK(BitCount)) << (BitOffset))
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Material Header
 // 
 // Bit count for each component stored in a Strata header
-// For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDLOCALBASES_X, please refer to values in StrataDefinitions.h
-#define HEADER_BIT_COUNT_BSDF_COUNT				4
-#define HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT	3
-#define HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE	4
-#define HEADER_BIT_COUNT_AO						8
-#define HEADER_BIT_COUNT_STATE					5
-#define HEADER_BIT_COUNT___UNUSED___			8
-
-#define HEADER_BIT_OFFSET_BSDF_COUNT			0
-#define HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT (HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
-#define HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE	(HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT)
-#define HEADER_BIT_OFFSET_AO					(HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE)
-#define HEADER_BIT_OFFSET_STATE					(HEADER_BIT_OFFSET_AO						+ HEADER_BIT_COUNT_AO)
-
-// Sanity check
-#if (HEADER_BIT_COUNT_STATE + HEADER_BIT_OFFSET_STATE) > 32
-#error Strata Header is larger than 32 bits
-#endif
-
+// 
 // State bit masks
-#define HEADER_MASK_HASPRECSHADOWMASK			(1u << 0)
-#define HEADER_MASK_ZEROPRECSHADOWMASK			(1u << 1)
-#define HEADER_MASK_ISSINGLELAYERWATER			(1u << 2)	// Used to avoid loading BSDF or Categorisation data when generating tiles containing SLW material. Avoid running another categorisation.
+#define HEADER_MASK_ISSIMPLEMATERIAL			(1u << 0)
+#define HEADER_MASK_HASPRECSHADOWMASK			(1u << 1)
+#define HEADER_MASK_ZEROPRECSHADOWMASK			(1u << 2)
 #define HEADER_MASK_CASTCONTACTSHADOW			(1u << 3)
 #define HEADER_MASK_HASDYNINDIRECTSHADOWCASTER	(1u << 4)
+#define HEADER_MASK_ISSINGLELAYERWATER			(1u << 5)	// Used to avoid loading BSDF or Categorisation data when generating tiles containing SLW material. Avoid running another categorisation.
+#define HEADER_MASK_HASSUBSURFACE				(1u << 6)
+#define HEADER_MASK_HASSUBSURFACEPROFILE		(1u << 7)
+#define HEADER_MASK_BIT_COUNT					8
+
+// For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDLOCALBASES_X, please refer to values in StrataDefinitions.h
+#define HEADER_BIT_COUNT_STATE						HEADER_MASK_BIT_COUNT
+#define HEADER_BIT_COUNT_AO							8
+#define HEADER_BIT_COUNT_BSDF_COUNT					4
+#define HEADER_BIT_COUNT_SHADINGMODELS				4
+#define HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT		3
+#define HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE		4
+#define HEADER_BIT_COUNT___UNUSED___				1
+
+#define HEADER_BIT_OFFSET_STATE						0
+#define HEADER_BIT_OFFSET_AO						(HEADER_BIT_OFFSET_STATE					+ HEADER_BIT_COUNT_STATE)
+#define HEADER_BIT_OFFSET_BSDF_COUNT				(HEADER_BIT_OFFSET_AO						+ HEADER_BIT_COUNT_AO)
+#define HEADER_BIT_OFFSET_SHADINGMODELS				(HEADER_BIT_OFFSET_BSDF_COUNT				+ HEADER_BIT_COUNT_BSDF_COUNT)
+#define HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	(HEADER_BIT_OFFSET_SHADINGMODELS			+ HEADER_BIT_COUNT_SHADINGMODELS)
+#define HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE		(HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT)
+
+#define HEADER_MASK_SHADINGMODELS					(((1u<<HEADER_BIT_COUNT_SHADINGMODELS)-1) << HEADER_BIT_OFFSET_SHADINGMODELS)
+
+// Sanity check
+#if (HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE + HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE) > 32
+#error Strata Header is larger than 32 bits
+#endif
 
 #define HEADER_GETBSDFCOUNT(X)						READ_BITS( X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT)
 #define HEADER_SETBSDFCOUNT(X, NewValue)			WRITE_BITS(X, HEADER_BIT_COUNT_BSDF_COUNT, HEADER_BIT_OFFSET_BSDF_COUNT, NewValue)
 
 #define HEADER_GETSHAREDLOCALBASESCOUNT(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT, HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT)
-#define HEADER_SETSHAREDLOCALBASESCOUNT(X, NewValue)WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT, HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT, NewValue)
+#define HEADER_SETSHAREDLOCALBASESCOUNT(X, NewValue) WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT, HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT, NewValue)
 
 #define HEADER_GETSHAREDLOCALBASESTYPE(X)			READ_BITS( X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE)
 #define HEADER_SETSHAREDLOCALBASESTYPE(X, NewValue)	WRITE_BITS(X, HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE, HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE, NewValue)
@@ -148,11 +156,14 @@ struct FStrataBSDF
 #define HEADER_GETSTATE(X)							READ_BITS( X, HEADER_BIT_COUNT_STATE, HEADER_BIT_OFFSET_STATE)
 #define HEADER_SETSTATE(X, NewValue)				WRITE_BITS(X, HEADER_BIT_COUNT_STATE, HEADER_BIT_OFFSET_STATE, NewValue)
 
+#define HEADER_GETSHADINGMODELS(X)					READ_BITS( X, HEADER_BIT_COUNT_SHADINGMODELS, HEADER_BIT_OFFSET_SHADINGMODELS)
+#define HEADER_SETSHADINGMODELS(X, NewValue)		WRITE_BITS(X, HEADER_BIT_COUNT_SHADINGMODELS, HEADER_BIT_OFFSET_SHADINGMODELS, NewValue)
+
 ///////////////////////////////////////////////////////////////////////////////
 // BSDF State
  
 // Bit count for each component stored in a Strata BSDF state
-#define STATE_BIT_COUNT_BSDF					3
+#define STATE_BIT_COUNT_BSDF_TYPE				3
 #define STATE_BIT_COUNT_SHAREDLOCALBASESID		2
 #define STATE_BIT_COUNT_ANISOTROPY				1
 #define STATE_BIT_COUNT_TOPLAYER				1
@@ -170,21 +181,21 @@ struct FStrataBSDF
 #define STATE_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
-#define STATE_BIT_OFFSET_BSDF			0
-#define STATE_BIT_OFFSET_SHAREDLOCALBASESID (STATE_BIT_OFFSET_BSDF			+ STATE_BIT_COUNT_BSDF)
-#define STATE_BIT_OFFSET_ANISOTROPY		(STATE_BIT_OFFSET_SHAREDLOCALBASESID+ STATE_BIT_COUNT_SHAREDLOCALBASESID)
-#define STATE_BIT_OFFSET_TOPLAYER		(STATE_BIT_OFFSET_ANISOTROPY		+ STATE_BIT_COUNT_ANISOTROPY)
-#define STATE_BIT_OFFSET_HASSSS			(STATE_BIT_OFFSET_TOPLAYER			+ STATE_BIT_COUNT_TOPLAYER)
-#define STATE_BIT_OFFSET_HASSSSPROFILE	(STATE_BIT_OFFSET_HASSSS			+ STATE_BIT_COUNT_HASSSS)
-#define STATE_BIT_OFFSET_GREYWEIGHT		(STATE_BIT_OFFSET_HASSSSPROFILE		+ STATE_BIT_COUNT_HASSSSPROFILE)
-#define STATE_BIT_OFFSET_HAZINESS		(STATE_BIT_OFFSET_GREYWEIGHT		+ STATE_BIT_COUNT_GREYWEIGHT)
-#define STATE_BIT_OFFSET_F90			(STATE_BIT_OFFSET_HAZINESS			+ STATE_BIT_COUNT_HAZINESS)
-#define STATE_BIT_OFFSET_THINFILM		(STATE_BIT_OFFSET_F90				+ STATE_BIT_COUNT_F90)
-#define STATE_BIT_OFFSET_SIMPLEVOLUME	(STATE_BIT_OFFSET_THINFILM			+ STATE_BIT_COUNT_THINFILM)
-#define STATE_BIT_OFFSET_DMFPPLUGGED	(STATE_BIT_OFFSET_SIMPLEVOLUME		+ STATE_BIT_COUNT_SIMPLEVOLUME)
-#define STATE_BIT_OFFSET_HASFUZZ		(STATE_BIT_OFFSET_DMFPPLUGGED		+ STATE_BIT_COUNT_DMFPPLUGGED)
-#define STATE_BIT_OFFSET_ISTHIN			(STATE_BIT_OFFSET_HASFUZZ			+ STATE_BIT_COUNT_HASFUZZ)
-#define STATE_BIT_OFFSET_WEIGHT10F		22
+#define STATE_BIT_OFFSET_BSDF_TYPE				0
+#define STATE_BIT_OFFSET_SHAREDLOCALBASESID		(STATE_BIT_OFFSET_BSDF_TYPE			+ STATE_BIT_COUNT_BSDF_TYPE)
+#define STATE_BIT_OFFSET_ANISOTROPY				(STATE_BIT_OFFSET_SHAREDLOCALBASESID+ STATE_BIT_COUNT_SHAREDLOCALBASESID)
+#define STATE_BIT_OFFSET_TOPLAYER				(STATE_BIT_OFFSET_ANISOTROPY		+ STATE_BIT_COUNT_ANISOTROPY)
+#define STATE_BIT_OFFSET_HASSSS					(STATE_BIT_OFFSET_TOPLAYER			+ STATE_BIT_COUNT_TOPLAYER)
+#define STATE_BIT_OFFSET_HASSSSPROFILE			(STATE_BIT_OFFSET_HASSSS			+ STATE_BIT_COUNT_HASSSS)
+#define STATE_BIT_OFFSET_GREYWEIGHT				(STATE_BIT_OFFSET_HASSSSPROFILE		+ STATE_BIT_COUNT_HASSSSPROFILE)
+#define STATE_BIT_OFFSET_HAZINESS				(STATE_BIT_OFFSET_GREYWEIGHT		+ STATE_BIT_COUNT_GREYWEIGHT)
+#define STATE_BIT_OFFSET_F90					(STATE_BIT_OFFSET_HAZINESS			+ STATE_BIT_COUNT_HAZINESS)
+#define STATE_BIT_OFFSET_THINFILM				(STATE_BIT_OFFSET_F90				+ STATE_BIT_COUNT_F90)
+#define STATE_BIT_OFFSET_SIMPLEVOLUME			(STATE_BIT_OFFSET_THINFILM			+ STATE_BIT_COUNT_THINFILM)
+#define STATE_BIT_OFFSET_DMFPPLUGGED			(STATE_BIT_OFFSET_SIMPLEVOLUME		+ STATE_BIT_COUNT_SIMPLEVOLUME)
+#define STATE_BIT_OFFSET_HASFUZZ				(STATE_BIT_OFFSET_DMFPPLUGGED		+ STATE_BIT_COUNT_DMFPPLUGGED)
+#define STATE_BIT_OFFSET_ISTHIN					(STATE_BIT_OFFSET_HASFUZZ			+ STATE_BIT_COUNT_HASFUZZ)
+#define STATE_BIT_OFFSET_WEIGHT10F				22
 
 // Sanity check
 #if (STATE_BIT_OFFSET_WEIGHT10F + STATE_BIT_COUNT_WEIGHT10F) > 32
@@ -192,8 +203,8 @@ struct FStrataBSDF
 #endif
 
 // Accessors for the BSDF type
-#define BSDF_GETTYPE(X)					READ_BITS(X.State,  STATE_BIT_COUNT_BSDF, STATE_BIT_OFFSET_BSDF)
-#define BSDF_SETTYPE(X, NewType)		WRITE_BITS(X.State, STATE_BIT_COUNT_BSDF, STATE_BIT_OFFSET_BSDF, NewType)
+#define BSDF_GETTYPE(X)					READ_BITS(X.State,  STATE_BIT_COUNT_BSDF_TYPE, STATE_BIT_OFFSET_BSDF_TYPE)
+#define BSDF_SETTYPE(X, NewType)		WRITE_BITS(X.State, STATE_BIT_COUNT_BSDF_TYPE, STATE_BIT_OFFSET_BSDF_TYPE, NewType)
 
 // Accessors for shared local bases
 // This assumes Normals[STRATA_MAX_SHAREDLOCALBASES_REGISTERS]
@@ -239,7 +250,7 @@ struct FStrataBSDF
 
 // Indicates if the BSDF is part of the top layer
 #define BSDF_GETISSIMPLEVOLUME(X)		READ_BITS(X.State,  STATE_BIT_COUNT_SIMPLEVOLUME, STATE_BIT_OFFSET_SIMPLEVOLUME)
-#define BSDF_SETISSIMPLEVOLUME(X, Value)WRITE_BITS(X.State, STATE_BIT_COUNT_SIMPLEVOLUME, STATE_BIT_OFFSET_SIMPLEVOLUME, Value)
+#define BSDF_SETISSIMPLEVOLUME(X, Value) WRITE_BITS(X.State, STATE_BIT_COUNT_SIMPLEVOLUME, STATE_BIT_OFFSET_SIMPLEVOLUME, Value)
 
 // Indicates if the BSDF is part of the top layer
 #define BSDF_GETHASDMFP(X)				READ_BITS(X.State,  STATE_BIT_COUNT_DMFPPLUGGED, STATE_BIT_OFFSET_DMFPPLUGGED)
@@ -337,6 +348,8 @@ void   EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF);
 void   StrataRequestSharedLocalBasisTangent(inout uint Types, uint Index);
 float3 StrataUnpackNormal(uint PackedNormal);
 void   StrataUnpackNormalAndTangent(inout float3 Normal, inout float3 Tangent, in uint InPacked);
+uint   PackR8(float Value);
+float  UnpackR8(uint Value);
 uint   PackRGBA8(float4 rgba);
 float4 UnpackRGBA8(uint rgba);
 uint   PackR11G11B10F(float3 rgb);
@@ -345,69 +358,37 @@ uint   PackColorLinearToGamma2AlphaLinear(float4 rgba);
 float4 UnpackColorGamma2ToLinearAlphaLinear(uint rgba);
 uint   StrataPackNormal(in float3 Normal);
 float3 StrataUnpackNormal(uint PackedNormal);
+uint   StrataPackNormal24(in float3 Normal);
+float3 StrataUnpackNormal24(uint PackedNormal);
 bool   IsStrataSlabFastPathCompatible(in FStrataBSDF BSDF);
-
-///////////////////////////////////////////////////////////////////////////////
-// Classification 
-
-struct FStrataClassification
-{
-	uint State;
-	float TopLayerRoughness;
-};
-
-#define CLAS_MASK_STATE					(0xFF)
-#define CLAS_MASK_SHADINGMODELS			(0x1F)
-#define CLAS_MASK_HASSUBSURFACE			(1u << 5)
-#define CLAS_MASK_HASSUBSURFACEPROFILE	(1u << 6)
-#define CLAS_MASK_ISSIMPLE				(1u << 7)
-
-uint GetShadingModels(const FStrataClassification In)		{ return (In.State & CLAS_MASK_SHADINGMODELS); }
-bool IsStrataMaterial(const FStrataClassification In)		{ return (In.State & CLAS_MASK_SHADINGMODELS) > 0; }
-bool HasSubsurface(const FStrataClassification In)			{ return (In.State & CLAS_MASK_HASSUBSURFACE) != 0; }
-bool HasSubsurfaceProfile(const FStrataClassification In)	{ return (In.State & CLAS_MASK_HASSUBSURFACEPROFILE) != 0; }
-bool IsSimpleMaterial(const FStrataClassification In)		{ return (In.State & CLAS_MASK_ISSIMPLE) != 0; }
-
-void AddShadingModels(inout FStrataClassification Out, uint bIn)		{ Out.State |= (bIn & CLAS_MASK_SHADINGMODELS); }
-void SetHasSubsurface(inout FStrataClassification Out, bool bIn)		{ Out.State |= (bIn ? CLAS_MASK_HASSUBSURFACE : 0u); }
-void SetHasSubsurfaceProfile(inout FStrataClassification Out, bool bIn)	{ Out.State |= (bIn ? CLAS_MASK_HASSUBSURFACEPROFILE : 0u); }
-void SetIsSimpleMaterial(inout FStrataClassification Out, bool bIn)		{ Out.State |= (bIn ? CLAS_MASK_ISSIMPLE : 0u); }
-void AndIsSimpleMaterial(inout FStrataClassification Out, bool bIn)		{ Out.State  = (Out.State & ~CLAS_MASK_ISSIMPLE) | ((Out.State & CLAS_MASK_ISSIMPLE) & (bIn ? CLAS_MASK_ISSIMPLE : 0u)); }
-
-uint StrataPackClassificationData(FStrataClassification In)
-{
-	const uint TopLayerRoughness8Bits = uint(In.TopLayerRoughness * 255.0f);
-	return
-		(In.State & CLAS_MASK_STATE) |
-		((TopLayerRoughness8Bits & 0xFF) << 8);
-}
-
-FStrataClassification StrataUnpackClassificationData(uint In)
-{
-	FStrataClassification Out;
-	Out.State = In & CLAS_MASK_STATE;
-	Out.TopLayerRoughness = float((In >> 8) & 0xFF) * (1.0f / 255.0f);
-	return Out;
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Top layer
 struct FStrataTopLayerData
 {
 	float3 WorldNormal;
+	float  Roughness;
+	bool   bIsValid;
 };
 
 uint StrataPackTopLayerData(FStrataTopLayerData In)
 {
-	uint Out = StrataPackNormal(In.WorldNormal);
-	return Out;
+	// Output is min. by 1 to flag data has valid. This creates a small bias for one particular orientation with a mirror roughness.
+	return max((StrataPackNormal24(In.WorldNormal)<<8) | PackR8(In.Roughness), 1u);
 }
 
 FStrataTopLayerData StrataUnpackTopLayerData(uint In)
 {
 	FStrataTopLayerData Out = (FStrataTopLayerData)0;
-	Out.WorldNormal = StrataUnpackNormal(In);
+	Out.bIsValid = In > 0;
+	Out.WorldNormal = StrataUnpackNormal24(In>>8);
+	Out.Roughness = UnpackR8(In);
 	return Out;
+}
+
+bool IsStrataMaterial(FStrataTopLayerData In)
+{
+	return In.bIsValid;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -476,11 +457,6 @@ uint StrataShadingModelBit(uint ShadingModel)
 bool StrataHasShadingModel(uint ShadingModels, uint ShadingModel)
 {
 	return (ShadingModels & (1u << ShadingModel)) > 0;
-}
-
-bool StrataHasShadingModel(FStrataClassification In, uint ShadingModel)
-{
-	return StrataHasShadingModel(GetShadingModels(In), ShadingModel);
 }
 
 // Return true if a BSDF has a custom area light integrator
@@ -925,17 +901,30 @@ struct FStrataPixelHeader
 	uint State;
 };
 
+bool IsSimpleMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_ISSIMPLEMATERIAL) != 0; }
 bool HasPrecShadowMask(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_HASPRECSHADOWMASK) != 0; }
 bool HasZeroPrecShadowMask(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_ZEROPRECSHADOWMASK) != 0; }
 bool IsSingleLayerWater(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_ISSINGLELAYERWATER) != 0; }
 bool DoesCastContactShadow(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_CASTCONTACTSHADOW) != 0; }
+uint GetShadingModels(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS)>>HEADER_BIT_OFFSET_SHADINGMODELS; }
+bool IsStrataMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS) > 0; }
+bool HasSubsurface(const FStrataPixelHeader In)												{ return (In.State & HEADER_MASK_HASSUBSURFACE) != 0; }
+bool HasSubsurfaceProfile(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_HASSUBSURFACEPROFILE) != 0; }
 bool HasDynamicIndirectShadowCasterRepresentation(const FStrataPixelHeader In)				{ return (In.State & HEADER_MASK_HASDYNINDIRECTSHADOWCASTER) != 0; }
 
+bool StrataHasShadingModel(const FStrataPixelHeader In, uint ShadingModel)					{ return StrataHasShadingModel(GetShadingModels(In), ShadingModel); }
+
+void SetIsSimpleMaterial(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ISSIMPLEMATERIAL : 0u); }
 void SetHasPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_HASPRECSHADOWMASK : 0u); }
 void SetZeroPrecShadowMask(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ZEROPRECSHADOWMASK : 0u); }
 void SetIsSingleLayerWater(inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_ISSINGLELAYERWATER : 0u); }
 void SetCastContactShadow (inout FStrataPixelHeader Out, bool bIn)							{ Out.State |= (bIn ? HEADER_MASK_CASTCONTACTSHADOW : 0u); }
 void SetDynamicIndirectShadowCasterRepresentation(inout FStrataPixelHeader Out, bool bIn)	{ Out.State |= (bIn ? HEADER_MASK_HASDYNINDIRECTSHADOWCASTER : 0u); }
+void SetHasSubsurface(inout FStrataPixelHeader Out, bool bIn)								{ Out.State |= (bIn ? HEADER_MASK_HASSUBSURFACE : 0u); }
+void SetHasSubsurfaceProfile(inout FStrataPixelHeader Out, bool bIn)						{ Out.State |= (bIn ? HEADER_MASK_HASSUBSURFACEPROFILE : 0u); }
+
+void AddShadingModels(inout FStrataPixelHeader Out, uint bIn)								{ Out.State |= ((bIn<<HEADER_BIT_OFFSET_SHADINGMODELS) & HEADER_MASK_SHADINGMODELS); }
+void AndIsSimpleMaterial(inout FStrataPixelHeader Out, bool bIn)								{ Out.State = (Out.State & ~HEADER_MASK_ISSIMPLEMATERIAL) | ((Out.State & HEADER_MASK_ISSIMPLEMATERIAL) & (bIn ? HEADER_MASK_ISSIMPLEMATERIAL : 0u)); }
 
 FStrataPixelHeader InitialiseStrataPixelHeader()
 {
@@ -1731,6 +1720,36 @@ float3 StrataUnpackNormal(uint PackedNormal)
 	return normalize(Normal);
 }
 
+uint StrataPackNormal24(in float3 Normal)
+{
+	float l1norm = abs(Normal.x) + abs(Normal.y) + abs(Normal.z);
+	float2 result = Normal.xy * (1.0 / l1norm);
+	if (Normal.z < 0.0)
+	{
+		result = (1.0 - abs(result.yx)) * SignNotZero(result.xy);
+	}
+
+	uint PackedX = uint(clamp(result.x * 2047.0f + 2048.0f, 0.0f, 4095.0f));
+	uint PackedY = uint(clamp(result.y * 2047.0f + 2048.0f, 0.0f, 4095.0f));
+	return PackedX | (PackedY << 12);
+}
+
+float3 StrataUnpackNormal24(uint PackedNormal)
+{	
+	int X12Bits = 0xFFF & PackedNormal;
+	int Y12Bits = 0xFFF & (PackedNormal >> 12);
+
+	float x = float(X12Bits - 2048) / 2047.0f;
+	float y = float(Y12Bits - 2048) / 2047.0f;
+
+	float3 Normal = float3(x, y, 1.0f - abs(x) - abs(y));
+	if (Normal.z < 0.0f)
+	{
+		Normal.xy = (1.0f - abs(Normal.yx)) * SignNotZero(Normal.xy);
+	}
+	return normalize(Normal);
+}
+
 #define STRATA_TANGENT_SYMMETRY 1
 uint StrataPackNormalAndTangent(in float3 Normal, in float3 Tangent)
 {
@@ -1860,7 +1879,6 @@ void PackStrataOut(
 	float3 V,
 	inout bool bStrataSubsurfaceEnable,
 	inout float3 EmissiveColor,
-	inout FStrataClassification ClassificationData,
 	inout FStrataSubsurfaceData SSSData,
 	inout FStrataTopLayerData TopLayerData)
 {
@@ -1873,11 +1891,10 @@ void PackStrataOut(
 
 	// While packing Strata layer data, Classification/SSS/TopLayer data are extracted & stored for dedicated passes
 	// This avoid to run a post-basepass which would re-read all the material data
-	ClassificationData = (FStrataClassification)0;
 	SSSData = (FStrataSubsurfaceData)0;
 	TopLayerData = (FStrataTopLayerData)0;
 
-	SetIsSimpleMaterial(ClassificationData, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
+	SetIsSimpleMaterial(StrataPixelHeader, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
 
 	uint BSDFCount = 0;
 	uint BSDFVisibleCount = 0;
@@ -1925,16 +1942,13 @@ void PackStrataOut(
 			const float3 FakeL = float3(0, 0, 1);
 			Init(ContextNoLight, N, V, FakeL);
 
-			if (bTopLayer)
-			{
-				// together with a threshold to avoid 0-length normal after normalization in case influence is fadeout using the Weight node.
-				TopLayerData.WorldNormal += N * max(1e-5, BSDFCoverage);
-			}
-
+			bool bIsSimpleMaterial = true;
 			switch (BSDF_GETTYPE(BSDF))
 			{
 			case STRATA_BSDF_TYPE_SLAB:
 			{
+				bIsSimpleMaterial = IsStrataSlabFastPathCompatible(BSDF);
+
 				EmissiveColor += BSDF_GETEMISSIVE(BSDF) * Throughput;
 
 				// Two sided lighting can only be evalauted on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
@@ -1997,7 +2011,7 @@ void PackStrataOut(
 
 				if (bTopLayer)
 				{
-					ClassificationData.TopLayerRoughness += BSDFCoverage * SLAB_ROUGHNESS(BSDF);
+					TopLayerData.Roughness += BSDFCoverage * SLAB_ROUGHNESS(BSDF);
 				}
 
 				// STRATA_TODO	Should we have the Fuzz influence the next layter visibility accoding to fuzz amount? Should it also occlude diffuse?
@@ -2010,9 +2024,11 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_HAIR:
 			{
+				bIsSimpleMaterial = false;
+
 				if (bTopLayer)
 				{
-					ClassificationData.TopLayerRoughness += BSDFCoverage * FullyRough;
+					TopLayerData.Roughness += BSDFCoverage * FullyRough;
 				}
 
 				// Hair are considered opaque
@@ -2023,11 +2039,13 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 			{
+				bIsSimpleMaterial = false;
+
 				EmissiveColor += BSDF_GETEMISSIVE(BSDF) * Throughput;
 
 				if (bTopLayer)
 				{
-					ClassificationData.TopLayerRoughness += BSDFCoverage * SLW_ROUGHNESS(BSDF);
+					TopLayerData.Roughness += BSDFCoverage * SLW_ROUGHNESS(BSDF);
 				}
 
 				// Water is considered opaque, it has a custom process to simulate translucency
@@ -2038,7 +2056,6 @@ void PackStrataOut(
 
 			} // switch
 
-
 		#if STRATA_INLINE_SHADING
 			// Update the BSDF final weight with throughput towards the view from layers above and coverage if it has not been baked into the parameters.
 			Strata.Layers[l].BSDFs[i].FinalWeight = Throughput * (Strata.Layers[l].BSDFs[i].bPremultipliedCoverage ? 1.0 : Strata.Layers[l].BSDFs[i].Coverage);
@@ -2047,9 +2064,19 @@ void PackStrataOut(
 		#endif
 			
 			// Cull non visible BSDF
-			if (any(Strata.Layers[l].BSDFs[i].FinalWeight > 0))
+			const bool bIsVisible = any(Strata.Layers[l].BSDFs[i].FinalWeight > 0);
+			if (bIsVisible)
 			{
 				++BSDFVisibleCount;
+
+				AddShadingModels(StrataPixelHeader, StrataShadingModelBit(BSDF_GETTYPE(BSDF)));
+				AndIsSimpleMaterial(StrataPixelHeader, bIsSimpleMaterial);
+
+				if (bTopLayer)
+				{
+					// together with a threshold to avoid 0-length normal after normalization in case influence is fadeout using the Weight node.
+					TopLayerData.WorldNormal += N * max(1e-5, BSDFCoverage);
+				}
 			}
 
 			// Notify that the BSDF is at the top for SSR to only affect reflection there and not on the lower layers
@@ -2063,7 +2090,7 @@ void PackStrataOut(
 			const float BSDFWeightAvg = dot(LayerCoverage, 1.0f / 3.0f);
 
 			TopLayerData.WorldNormal = normalize(TopLayerData.WorldNormal);
-			ClassificationData.TopLayerRoughness = BSDFWeightAvg > 0.0f ? ClassificationData.TopLayerRoughness / BSDFWeightAvg : 0.0f;
+			TopLayerData.Roughness = BSDFWeightAvg > 0.0f ? TopLayerData.Roughness / BSDFWeightAvg : 0.0f;
 		}
 
 		// Take into account the non covered part for this layer and update throughput accordingly
@@ -2076,7 +2103,7 @@ void PackStrataOut(
 	// Now write out Strata data
 
 	// 1. the header
-	AndIsSimpleMaterial(ClassificationData, BSDFVisibleCount == 1);
+	AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
 	const uint2 PackedHeader = PackStrataHeader(BSDFVisibleCount, StrataPixelHeader);
 	STRATA_STORE_UINT1(PackedHeader.x);
 #if ALLOW_STATIC_LIGHTING
@@ -2132,14 +2159,11 @@ void PackStrataOut(
 				}
 
 				const uint BSDFType = BSDF_GETTYPE(BSDF);
-				AddShadingModels(ClassificationData, StrataShadingModelBit(BSDFType));
 
 				switch (BSDF_GETTYPE(BSDF))
 				{
 				case STRATA_BSDF_TYPE_SLAB:
 				{
-					AndIsSimpleMaterial(ClassificationData, IsStrataSlabFastPathCompatible(BSDF));
-
 					// Now we pack diffuse and F0 in a special way: both encoded as R7G7B6 with gamma 2.0. The low bit cound will be hidden by dithering and TAA.
 					// We pack 32 bits in the first uint and the remaining bits are pack is the lowest significant bit of the second uint.
 					const uint PackedDiffuse20Bits	= PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF));
@@ -2166,8 +2190,8 @@ void PackStrataOut(
 					const bool bIsThin = BSDF_GETISTHIN(BSDF);
 					if (BSDF_GETHASSSS(BSDF) || bIsSimpleVolume || bIsThin)
 					{
-						SetHasSubsurface(ClassificationData, !bIsThin && BSDF_GETHASSSS(BSDF));
-						SetHasSubsurfaceProfile(ClassificationData, !bIsThin && BSDF_GETHASSSSPROFILE(BSDF));
+						SetHasSubsurface(StrataPixelHeader, !bIsThin && BSDF_GETHASSSS(BSDF));
+						SetHasSubsurfaceProfile(StrataPixelHeader, !bIsThin && BSDF_GETHASSSSPROFILE(BSDF));
 
 						if (!bIsThin && BSDF_GETHASSSS(BSDF))
 						{
@@ -2207,7 +2231,6 @@ void PackStrataOut(
 				break;
 				case STRATA_BSDF_TYPE_HAIR:
 				{
-					AndIsSimpleMaterial(ClassificationData, false);
 					STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(HAIR_BASECOLOR(BSDF), HAIR_ROUGHNESS(BSDF))));
 					STRATA_STORE_UINT1(PackRGBA8(float4(HAIR_SCATTER(BSDF), HAIR_SPECULAR(BSDF), HAIR_BACKLIT(BSDF), HAIR_COMPLEXTRANSMITTANCE(BSDF))));
 					// 8 bytes
@@ -2215,7 +2238,6 @@ void PackStrataOut(
 				break;
 				case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 				{
-					AndIsSimpleMaterial(ClassificationData, false);
 					STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLW_BASECOLOR(BSDF), 0.0f)));
 					STRATA_STORE_UINT1(PackRGBA8(float4(SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF), SLW_ROUGHNESS(BSDF), SLW_TOPMATERIALOPACITY(BSDF))));
 				}

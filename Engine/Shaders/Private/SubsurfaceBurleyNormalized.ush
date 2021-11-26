@@ -391,7 +391,7 @@ FStrataSubsurfaceData LoadStrataSSSData(float2 UV)
 FStrataTopLayerData LoadStrataTopLayerData(float2 UV)
 {
 	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy;
-	return StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(PixelPos, 0)));
+	return StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelPos, 0)));
 }
 #endif
 
@@ -781,7 +781,7 @@ float3 GetBilateralNormal(float2 ClampedUV, float2 Extent)
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
 	#if STRATA_ENABLED
 	const uint2 BufferPos = ClampedUV * Extent;
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(BufferPos, 0)));
 	return TopLayerData.WorldNormal;
 	#else
 	return GetScreenSpaceData(ClampedUV).GBuffer.WorldNormal;
