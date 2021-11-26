@@ -21,6 +21,7 @@
 
 #if WITH_ENGINE
 #include "Engine/Engine.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 #endif
 
 
@@ -118,7 +119,10 @@ void FNetworkPredictionInsightsModule::StartupModule()
 				UE::Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
 #else
 				UnrealInsightsModule.ConnectToStore(TEXT("127.0.0.1"));
-				UE::Trace::SendTo(TEXT("127.0.0.1"));
+				const bool bConnected = FTraceAuxiliary::Start(
+					FTraceAuxiliary::EConnectionType::Network,
+					TEXT("127.0.0.1"),
+					nullptr);
 #endif // WITH_TRACE_STORE
 
 				UnrealInsightsModule.CreateSessionViewer(false);
