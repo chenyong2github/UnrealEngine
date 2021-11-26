@@ -129,7 +129,6 @@ void STraceDataFilterWidget::Construct(const FArguments& InArgs)
 			[
 				SNew(SBorder)
 				.BorderImage(FEventFilterStyle::GetBrush("FilterPresets.SessionWarningBorder"))
-				.BorderBackgroundColor(FLinearColor(0.5f, 0.25f, 0.0f, 1.0f))
 				[
 					SNew(SHorizontalBox)
 					.Visibility_Lambda([this]() -> EVisibility 
