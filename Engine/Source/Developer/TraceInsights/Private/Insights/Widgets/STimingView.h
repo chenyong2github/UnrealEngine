@@ -78,6 +78,9 @@ public:
 	bool IsAutoHideEmptyTracksEnabled() const;
 	void ToggleAutoHideEmptyTracks();
 
+	bool IsPanningOnScreenEdgesEnabled() const;
+	void TogglePanningOnScreenEdges();
+
 	bool QuickFind_CanExecute() const;
 	void QuickFind_Execute();
 
@@ -555,7 +558,6 @@ protected:
 
 	/** The current mouse position. */
 	FVector2D MousePosition;
-	float DPIScaleFactor;
 
 	/** Mouse position during the call on mouse button down. */
 	FVector2D MousePositionOnButtonDown;
@@ -603,6 +605,14 @@ protected:
 
 	/** True, if the user is currently interactively panning the view (horizontally and/or vertically). */
 	bool bIsPanning;
+
+	/** If enabled, the panning is allowed to continue when mouse cursor reaches the edges of the screen. */
+	bool bAllowPanningOnScreenEdges;
+
+	float DPIScaleFactor;
+
+	uint32 EdgeFrameCountX;
+	uint32 EdgeFrameCountY;
 
 	/** How to pan. */
 	enum class EPanningMode : uint8

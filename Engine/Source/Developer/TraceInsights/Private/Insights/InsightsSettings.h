@@ -17,6 +17,7 @@ public:
 		, bIsDefault(bInIsDefault)
 		, DefaultZoomLevel(5.0) // 5 seconds between major tick marks
 		, bAutoHideEmptyTracks(true)
+		, bAllowPanningOnScreenEdges(false)
 		, bAutoZoomOnFrameSelection(false)
 		, AutoScrollFrameAlignment((int32)TraceFrameType_Game) // -1 = none, 0 = game, 1 = rendering
 		, AutoScrollViewportOffsetPercent(0.1) // scrolls forward 10% of viewport's width
@@ -41,6 +42,7 @@ public:
 
 		GConfig->GetDouble(TEXT("Insights.TimingProfiler"), TEXT("DefaultZoomLevel"), DefaultZoomLevel, SettingsIni);
 		GConfig->GetBool(TEXT("Insights.TimingProfiler"), TEXT("bAutoHideEmptyTracks"), bAutoHideEmptyTracks, SettingsIni);
+		GConfig->GetBool(TEXT("Insights.TimingProfiler"), TEXT("bAllowPanningOnScreenEdges"), bAllowPanningOnScreenEdges, SettingsIni);
 		GConfig->GetBool(TEXT("Insights.TimingProfiler"), TEXT("bAutoZoomOnFrameSelection"), bAutoZoomOnFrameSelection, SettingsIni);
 
 		// Auto-scroll options
@@ -73,6 +75,7 @@ public:
 	{
 		GConfig->SetDouble(TEXT("Insights.TimingProfiler"), TEXT("DefaultZoomLevel"), DefaultZoomLevel, SettingsIni);
 		GConfig->SetBool(TEXT("Insights.TimingProfiler"), TEXT("bAutoHideEmptyTracks"), bAutoHideEmptyTracks, SettingsIni);
+		GConfig->SetBool(TEXT("Insights.TimingProfiler"), TEXT("bAllowPanningOnScreenEdges"), bAllowPanningOnScreenEdges, SettingsIni);
 		GConfig->SetBool(TEXT("Insights.TimingProfiler"), TEXT("bAutoZoomOnFrameSelection"), bAutoZoomOnFrameSelection, SettingsIni);
 
 		// Auto-scroll options
@@ -110,6 +113,7 @@ public:
 	{
 		DefaultZoomLevel = Defaults.DefaultZoomLevel;
 		bAutoHideEmptyTracks = Defaults.bAutoHideEmptyTracks;
+		bAllowPanningOnScreenEdges = Defaults.bAllowPanningOnScreenEdges;
 		bAutoZoomOnFrameSelection = Defaults.bAutoZoomOnFrameSelection;
 		AutoScrollFrameAlignment = Defaults.AutoScrollFrameAlignment;
 		AutoScrollViewportOffsetPercent = Defaults.AutoScrollViewportOffsetPercent;
@@ -125,6 +129,10 @@ public:
 	bool IsAutoHideEmptyTracksEnabled() const { return bAutoHideEmptyTracks; }
 	void SetAutoHideEmptyTracks(bool bOnOff) { bAutoHideEmptyTracks = bOnOff; }
 	void SetAndSaveAutoHideEmptyTracks(bool bOnOff) { SET_AND_SAVE(bAutoHideEmptyTracks, bOnOff); }
+
+	bool IsPanningOnScreenEdgesEnabled() const { return bAllowPanningOnScreenEdges; }
+	void SetPanningOnScreenEdges(bool bOnOff) { bAllowPanningOnScreenEdges = bOnOff; }
+	void SetAndSavePanningOnScreenEdges(bool bOnOff) { SET_AND_SAVE(bAllowPanningOnScreenEdges, bOnOff); }
 
 	bool IsAutoZoomOnFrameSelectionEnabled() const { return bAutoZoomOnFrameSelection; }
 	void SetAutoZoomOnFrameSelection(bool bOnOff) { bAutoZoomOnFrameSelection = bOnOff; }
@@ -169,6 +177,9 @@ private:
 
 	/** Auto hide empty tracks (ex.: ones without timing events in the current viewport). */
 	bool bAutoHideEmptyTracks;
+
+	/** If enabled, the panning is allowed to continue when mouse cursor reaches the edges of the screen. */
+	bool bAllowPanningOnScreenEdges;
 
 	/** If enabled, the Timing View will also be zoomed when a new frame is selected in the Frames track. */
 	bool bAutoZoomOnFrameSelection;

@@ -102,6 +102,10 @@ STimingView::STimingView()
 	, DefaultTimeMarker(MakeShared<Insights::FTimeMarker>())
 	, MarkersTrack(MakeShared<FMarkersTimingTrack>())
 	, GraphTrack(MakeShared<FTimingGraphTrack>())
+	, bAllowPanningOnScreenEdges(false)
+	, DPIScaleFactor(1.0f)
+	, EdgeFrameCountX(0)
+	, EdgeFrameCountY(0)
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FAppStyle::Get().GetFontStyle("SmallFont"))
 	, QuickFindTabId(TEXT("QuickFind"), TimingViewId++)
@@ -408,6 +412,10 @@ void STimingView::Reset(bool bIsFirstReset)
 	LastAutoScrollTime = 0;
 
 	bIsPanning = false;
+	bAllowPanningOnScreenEdges = Settings.IsPanningOnScreenEdgesEnabled();
+	DPIScaleFactor = 1.0f;
+	EdgeFrameCountX = 0;
+	EdgeFrameCountY = 0;
 	PanningMode = EPanningMode::None;
 
 	OverscrollLeft = 0.0f;
@@ -1886,6 +1894,15 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 	MousePosition = MousePositionOnButtonDown;
 
+	if (bAllowPanningOnScreenEdges)
+	{
+		const FVector2D ScreenSpacePosition = MouseEvent.GetScreenSpacePosition();
+		DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(ScreenSpacePosition.X, ScreenSpacePosition.Y);
+
+		EdgeFrameCountX = 0;
+		EdgeFrameCountY = 0;
+	}
+
 	bool bStartPanningSelectingOrScrubbing = false;
 	bool bStartPanning = false;
 	bool bStartSelecting = false;
@@ -1950,7 +1967,14 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 		}
 
 		// Capture mouse, so we can drag outside this widget.
-		Reply = FReply::Handled().CaptureMouse(SharedThis(this));
+		if (bAllowPanningOnScreenEdges)
+		{
+			Reply = FReply::Handled().CaptureMouse(SharedThis(this)).UseHighPrecisionMouseMovement(SharedThis(this)).SetUserFocus(SharedThis(this), EFocusCause::Mouse);
+		}
+		else
+		{
+			Reply = FReply::Handled().CaptureMouse(SharedThis(this));
+		}
 	}
 
 	if (bPreventThrottling)
@@ -2259,7 +2283,40 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
-	if (!MouseEvent.GetCursorDelta().IsZero())
+	const FVector2D& CursorDelta = MouseEvent.GetCursorDelta();
+
+	if (bIsPanning && bAllowPanningOnScreenEdges)
+	{
+		if (MouseEvent.GetScreenSpacePosition().X == MouseEvent.GetLastScreenSpacePosition().X)
+		{
+			++EdgeFrameCountX;
+		}
+		else
+		{
+			EdgeFrameCountX = 0;
+		}
+
+		if (EdgeFrameCountX > 10) // handle delay between high precision mouse movement and update of the actual cursor position
+		{
+			MousePositionOnButtonDown.X -= CursorDelta.X / DPIScaleFactor;
+		}
+
+		if (MouseEvent.GetScreenSpacePosition().Y == MouseEvent.GetLastScreenSpacePosition().Y)
+		{
+			++EdgeFrameCountY;
+		}
+		else
+		{
+			EdgeFrameCountY = 0;
+		}
+
+		if (EdgeFrameCountY > 10) // handle delay between high precision mouse movement and update of the actual cursor position
+		{
+			MousePositionOnButtonDown.Y -= CursorDelta.Y / DPIScaleFactor;
+		}
+	}
+
+	if (!CursorDelta.IsZero())
 	{
 		if (bIsPanning)
 		{
@@ -2371,7 +2428,6 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 {
 	if (MouseEvent.GetModifierKeys().IsShiftDown())
 	{
-		//MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 		if (GraphTrack->IsVisible() &&
 			MousePosition.Y >= GraphTrack->GetPosY() &&
 			MousePosition.Y < GraphTrack->GetPosY() + GraphTrack->GetHeight())
@@ -2428,7 +2484,6 @@ FReply STimingView::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 	{
 		// Zoom in/out horizontally.
 		const double Delta = MouseEvent.GetWheelDelta();
-		//MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 		if (Viewport.RelativeZoomWithFixedX(Delta, MousePosition.X))
 		{
 			UpdateHorizontalScrollBar();
@@ -2765,11 +2820,6 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::Zero)
-	{
-		ChooseNextCpuThreadTrackColoringMode();
-		return FReply::Handled();
-	}
 	else if (InKeyEvent.GetKey() == EKeys::X)
 	{
 		ChooseNextEventDepthLimit();
@@ -3044,6 +3094,12 @@ void STimingView::BindCommands()
 		FExecuteAction::CreateSP(this, &STimingView::ToggleAutoHideEmptyTracks),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &STimingView::IsAutoHideEmptyTracksEnabled));
+
+	CommandList->MapAction(
+		Commands.PanningOnScreenEdges,
+		FExecuteAction::CreateSP(this, &STimingView::TogglePanningOnScreenEdges),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &STimingView::IsPanningOnScreenEdgesEnabled));
 
 	CommandList->MapAction(
 		Commands.ToggleCompactMode,
@@ -4465,6 +4521,12 @@ TSharedRef<SWidget> STimingView::MakeViewModeMenu()
 
 	CreateCpuThreadTrackColoringModeMenu(MenuBuilder);
 
+	MenuBuilder.BeginSection("Misc", LOCTEXT("MiscHeading", "Misc Settings"));
+	{
+		MenuBuilder.AddMenuEntry(Commands.PanningOnScreenEdges);
+	}
+	MenuBuilder.EndSection();
+
 	return MenuBuilder.MakeWidget();
 }
 
@@ -4507,6 +4569,24 @@ void STimingView::ToggleAutoHideEmptyTracks()
 	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
 	const bool bIsEnabled = IsAutoHideEmptyTracksEnabled();
 	Settings.SetAndSaveAutoHideEmptyTracks(bIsEnabled);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::IsPanningOnScreenEdgesEnabled() const
+{
+	return bAllowPanningOnScreenEdges;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::TogglePanningOnScreenEdges()
+{
+	bAllowPanningOnScreenEdges = !bAllowPanningOnScreenEdges;
+
+	// Persistent option. Save it to the config file.
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+	Settings.SetAndSavePanningOnScreenEdges(bAllowPanningOnScreenEdges);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
