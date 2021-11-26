@@ -7,6 +7,7 @@
 #include "SourceUri.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
+#include "Containers/Queue.h"
 #include "Delegates/DelegateCombinations.h"
 #include "DirectLinkEndpoint.h"
 #include "HAL/CriticalSection.h"
