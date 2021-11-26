@@ -1620,7 +1620,6 @@ void FPixelShaderInOut_MainPS(
 	uint2 PixelPos = uint2(In.SvPosition.xy);
 
 	// classificaiton & pre-preprocessed data
-	FStrataClassification ClassificationData = (FStrataClassification)0;
 	FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
 
@@ -1630,11 +1629,10 @@ void FPixelShaderInOut_MainPS(
 		Dither,
 		GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel),
 		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance,
-		ClassificationData, SSSData, TopLayerData);
+		SSSData, TopLayerData);
 
 	// Write out classificaiton & pre-preprocessed data
-	OpaqueBasePass.Strata.ClassificationTextureUAV[PixelPos] = StrataPackClassificationData(ClassificationData);
-	OpaqueBasePass.Strata.TopLayerNormalTextureUAV[PixelPos] = StrataPackTopLayerData(TopLayerData);
+	OpaqueBasePass.Strata.TopLayerTextureUAV[PixelPos] = StrataPackTopLayerData(TopLayerData);
 
 	// Only write SSS datta if needed
 	BRANCH

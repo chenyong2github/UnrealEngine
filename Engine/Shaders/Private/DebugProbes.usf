@@ -273,7 +273,6 @@ void MainPS(
 		StrataPixelHeader.MaterialAO = 1.0f - IndirectIrradianceAndAO;
 		StrataPixelHeader.BSDFCount = 1;
 
-		FStrataClassification ClassificationData = (FStrataClassification)0;
 		FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 		FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
 
@@ -284,7 +283,7 @@ void MainPS(
 			MaterialLobesBufferUAV, Dither,
 			GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel),
 			StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance,
-			ClassificationData, SSSData, TopLayerData);
+			SSSData, TopLayerData);
 	}
 	
 #else // PROJECT_STRATA

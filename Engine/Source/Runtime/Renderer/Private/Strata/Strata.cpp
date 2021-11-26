@@ -73,12 +73,10 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata
 
 void FStrataSceneData::Reset()
 {
-	ClassificationTexture = nullptr;
-	TopLayerNormalTexture = nullptr;
+	TopLayerTexture = nullptr;
 	SSSTexture = nullptr;
 
-	ClassificationTextureUAV = nullptr;
-	TopLayerNormalTextureUAV = nullptr;
+	TopLayerTextureUAV = nullptr;
 	SSSTextureUAV = nullptr;
 
 	MaterialLobesBuffer = nullptr;
@@ -117,7 +115,7 @@ namespace Strata
 static void AddStrataClearMaterialBufferPass(
 	FRDGBuilder& GraphBuilder, 
 	FRDGBufferUAVRef MaterialLobesBufferUAV,
-	FRDGTextureUAVRef ClassificationTextureUAV,
+	FRDGTextureUAVRef TopLayerTextureUAV,
 	FRDGTextureUAVRef SSSTextureUAV,
 	uint32 MaxBytesPerPixel, 
 	FIntPoint TiledViewBufferResolution);
@@ -168,12 +166,6 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		const uint32 RoundToValue = 4u;
 		StrataSceneData.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaterialConservativeByteCountPerPixel, RoundToValue) * RoundToValue;
 
-		// Classification texture
-		{
-			StrataSceneData.ClassificationTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.ClassificationTexture"));
-			StrataSceneData.ClassificationTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTexture);
-		}
-
 		// Tile classification buffers
 		{
 			const int32 TileInPixel = GetStrataBufferTileSize();
@@ -197,8 +189,8 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// Top layer texture
 		{
-			StrataSceneData.TopLayerNormalTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.TopLayerNormalTexture"));
-			StrataSceneData.TopLayerNormalTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.TopLayerNormalTexture);
+			StrataSceneData.TopLayerTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.TopLayerTexture"));
+			StrataSceneData.TopLayerTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.TopLayerTexture);
 		}
 
 		// SSS texture
@@ -233,7 +225,7 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		AddStrataClearMaterialBufferPass(
 			GraphBuilder, 
 			StrataSceneData.MaterialLobesBufferUAV,
-			StrataSceneData.ClassificationTextureUAV,
+			StrataSceneData.TopLayerTextureUAV,
 			StrataSceneData.SSSTextureUAV,
 			StrataSceneData.MaxBytesPerPixel, 
 			MaterialBufferSizeXY);
@@ -256,8 +248,7 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = StrataSceneData->MaterialLobesBufferUAV;
 
-		OutStrataUniformParameters.ClassificationTextureUAV = StrataSceneData->ClassificationTextureUAV;
-		OutStrataUniformParameters.TopLayerNormalTextureUAV = StrataSceneData->TopLayerNormalTextureUAV;
+		OutStrataUniformParameters.TopLayerTextureUAV = StrataSceneData->TopLayerTextureUAV;
 		OutStrataUniformParameters.SSSTextureUAV = StrataSceneData->SSSTextureUAV;
 	}
 	else
@@ -268,8 +259,7 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 		OutStrataUniformParameters.bRoughDiffuse = 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
-		OutStrataUniformParameters.ClassificationTextureUAV = DummyWritableUAV;
-		OutStrataUniformParameters.TopLayerNormalTextureUAV = DummyWritableUAV;
+		OutStrataUniformParameters.TopLayerTextureUAV = DummyWritableUAV;
 		OutStrataUniformParameters.SSSTextureUAV = DummyWritableUAV;
 	}
 }
@@ -281,8 +271,7 @@ void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataSceneDa
 		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 		OutStrataUniformParameters.MaterialLobesBuffer = StrataSceneData->MaterialLobesBufferSRV;
-		OutStrataUniformParameters.ClassificationTexture = StrataSceneData->ClassificationTexture;
-		OutStrataUniformParameters.TopLayerNormalTexture = StrataSceneData->TopLayerNormalTexture;
+		OutStrataUniformParameters.TopLayerTexture = StrataSceneData->TopLayerTexture;
 		OutStrataUniformParameters.SSSTexture = StrataSceneData->SSSTexture;
 	}
 	else
@@ -291,8 +280,7 @@ void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataSceneDa
 		OutStrataUniformParameters.bRoughDiffuse = 0;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.MaterialLobesBuffer = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
-		OutStrataUniformParameters.ClassificationTexture = SystemTextures.Black;
-		OutStrataUniformParameters.TopLayerNormalTexture = SystemTextures.DefaultNormal8Bit;
+		OutStrataUniformParameters.TopLayerTexture = SystemTextures.DefaultNormal8Bit;
 		OutStrataUniformParameters.SSSTexture = SystemTextures.Black;
 	}
 }
@@ -393,7 +381,7 @@ class FStrataClearMaterialBufferCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, MaterialLobesBufferUAV)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, ClassificationTextureUAV)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, TopLayerTextureUAV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
 		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 		SHADER_PARAMETER(FIntPoint, TiledViewBufferResolution)
@@ -427,7 +415,8 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER(int32, TileSize)
 		SHADER_PARAMETER(int32, bRectPrimitive)
 		SHADER_PARAMETER(FIntPoint, ViewResolution)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ClassificationTexture)
+		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, MaterialBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileListDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileIndirectDataBuffer)
@@ -657,10 +646,12 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			PermutationVector.Set< FStrataMaterialTileClassificationPassCS::FWaveOps >(bWaveOps);
 			TShaderMapRef<FStrataMaterialTileClassificationPassCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FStrataMaterialTileClassificationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataMaterialTileClassificationPassCS::FParameters>();
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->TileSize = GetStrataBufferTileSize();	// STRATA_TODO not sure we want to tie the buffer tile optimisation for cache and the Categotisation tile size?
 			PassParameters->bRectPrimitive = GRHISupportsRectTopology ? 1 : 0;
 			PassParameters->ViewResolution = View.ViewRect.Size();
-			PassParameters->ClassificationTexture = View.StrataSceneData->ClassificationTexture;
+			PassParameters->MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
+			PassParameters->MaterialBuffer = View.StrataSceneData->MaterialLobesBufferSRV;
 			PassParameters->SimpleTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::ESimple];
 			PassParameters->SimpleTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ESimple];
 			PassParameters->ComplexTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::EComplex];
@@ -672,7 +663,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 				RDG_EVENT_NAME("Strata::MaterialTileClassification(%s)", bWaveOps ? TEXT("Wave") : TEXT("SharedMemory")),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(View.StrataSceneData->ClassificationTexture->Desc.Extent, GroupSize));
+				FComputeShaderUtils::GetGroupCount(PassParameters->ViewResolution, GroupSize));
 		}
 	}
 }
@@ -680,7 +671,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 static void AddStrataClearMaterialBufferPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGBufferUAVRef MaterialLobesBufferUAV,
-	FRDGTextureUAVRef ClassificationTextureUAV,
+	FRDGTextureUAVRef TopLayerTextureUAV,
 	FRDGTextureUAVRef SSSTextureUAV,
 	uint32 MaxBytesPerPixel,
 	FIntPoint TiledViewBufferResolution)
@@ -688,7 +679,7 @@ static void AddStrataClearMaterialBufferPass(
 	TShaderMapRef<FStrataClearMaterialBufferCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 	FStrataClearMaterialBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataClearMaterialBufferCS::FParameters>();
 	PassParameters->MaterialLobesBufferUAV = MaterialLobesBufferUAV;
-	PassParameters->ClassificationTextureUAV = ClassificationTextureUAV;
+	PassParameters->TopLayerTextureUAV = TopLayerTextureUAV;
 	PassParameters->SSSTextureUAV = SSSTextureUAV;
 	PassParameters->MaxBytesPerPixel = MaxBytesPerPixel;
 	PassParameters->TiledViewBufferResolution = TiledViewBufferResolution;
@@ -737,5 +728,3 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 }
 
 } // namespace Strata
-
-

@@ -128,7 +128,7 @@ void MainPS(
 	FStrataSubsurfaceData SSSData				= (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData			= (FStrataTopLayerData)0;
 
-	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(PrimaryView.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(MaterialLobesBuffer, StrataAddressing);
 
 	SetIsSimpleMaterial(ClassificationData, true); // non strata material or sky pixels are considered as simple.
@@ -179,7 +179,8 @@ uint2 DecodeTile(uint In)
 int TileSize;
 int bRectPrimitive;
 int2 ViewResolution;
-Texture2D<uint> ClassificationTexture;
+uint MaxBytesPerPixel;
+ByteAddressBuffer MaterialBuffer;
 RWBuffer<uint> SimpleTileIndirectDataBuffer;
 RWBuffer<uint> SimpleTileListDataBuffer;
 RWBuffer<uint> ComplexTileIndirectDataBuffer;
@@ -206,10 +207,11 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	bool bContainsStrataMaterial = false;
 	if (all(PixelCoord < uint2(ViewResolution)))
 	{
-		const uint PackClassification = ClassificationTexture.Load(uint3(PixelCoord, 0));
-		FStrataClassification Data = StrataUnpackClassificationData(PackClassification);
-		bContainsComplexMaterial = !IsSimpleMaterial(Data);
-		bContainsStrataMaterial = IsStrataMaterial(Data);
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialBuffer, StrataAddressing);
+
+		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
+		bContainsComplexMaterial = !IsSimpleMaterial(StrataPixelHeader);
 	}
 
 #if PERMUTATION_WAVE_OPS
@@ -347,7 +349,7 @@ void StencilMainPS(
 #if SHADER_CLEAR_MATERIAL_BUFFER
 
 RWByteAddressBuffer MaterialLobesBufferUAV;
-RWTexture2D<uint> ClassificationTextureUAV;
+RWTexture2D<uint> TopLayerTextureUAV;
 RWTexture2D<uint2> SSSTextureUAV;
 uint MaxBytesPerPixel;
 int2 TiledViewBufferResolution;
@@ -364,15 +366,14 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// The first layer of tiled uints contains the header that we need to clear so we only write a single uint per pixel instead of clearing the entire buffer which would be too slow.
 
 	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
+	StrataHeader.State |= HEADER_MASK_ISSIMPLEMATERIAL;
 	uint BSDFCount = 0;
 	uint PackedStrataHeader = PackStrataHeader(BSDFCount, StrataHeader);
 
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(DispatchThreadId.xy, TiledViewBufferResolution, MaxBytesPerPixel);
 	MaterialLobesBufferUAV.Store(StrataAddressing.CurrentAddr, PackedStrataHeader);
 
-	FStrataClassification ClassificationData = (FStrataClassification)0;
-	SetIsSimpleMaterial(ClassificationData, true);
-	ClassificationTextureUAV[DispatchThreadId.xy] = StrataPackClassificationData(ClassificationData);
+	TopLayerTextureUAV[DispatchThreadId.xy] = 0;
 
 	FStrataSubsurfaceData StrataSubsurfaceData = (FStrataSubsurfaceData)0;
 	SSSTextureUAV[DispatchThreadId.xy] = StrataPackSSSData(StrataSubsurfaceData);
