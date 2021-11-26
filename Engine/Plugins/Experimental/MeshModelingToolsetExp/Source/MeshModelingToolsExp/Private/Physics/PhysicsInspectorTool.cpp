@@ -11,13 +11,11 @@
 #include "Physics/CollisionGeometryVisualization.h"
 
 // physics data
-#include "Engine/Classes/Engine/StaticMesh.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "TargetInterfaces/PhysicsDataSource.h"
 #include "ToolTargetManager.h"
 
 using namespace UE::Geometry;
@@ -29,7 +27,7 @@ const FToolTargetTypeRequirements& UPhysicsInspectorToolBuilder::GetTargetRequir
 {
 	static FToolTargetTypeRequirements TypeRequirements({
 		UPrimitiveComponentBackedTarget::StaticClass(),
-		UStaticMeshBackedTarget::StaticClass()
+		UPhysicsDataSource::StaticClass()
 		});
 	return TypeRequirements;
 }
@@ -54,14 +52,11 @@ void UPhysicsInspectorTool::Setup()
 
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
-		const UStaticMesh* StaticMesh = Component->GetStaticMesh();
-		if (ensure(StaticMesh && StaticMesh->GetBodySetup()))
+		UBodySetup* BodySetup = UE::ToolTarget::GetPhysicsBodySetup(Targets[ComponentIdx]);
+		if (BodySetup)
 		{
 			TSharedPtr<FPhysicsDataCollection> PhysicsData = MakeShared<FPhysicsDataCollection>();
-			PhysicsData->SourceComponent = Component;
-			PhysicsData->BodySetup = StaticMesh->GetBodySetup();
-			PhysicsData->AggGeom = StaticMesh->GetBodySetup()->AggGeom;
+			PhysicsData->InitializeFromComponent( UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]), true);
 
 			PhysicsInfos.Add(PhysicsData);
 
@@ -82,7 +77,7 @@ void UPhysicsInspectorTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Physics Inspector"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "Inspect Physics data for the seleced Static Meshes"),
+		LOCTEXT("OnStartTool", "Inspect Physics data for the selected Objects"),
 		EToolMessageLevel::UserNotification);
 }
 

@@ -192,6 +192,28 @@ UStaticMesh* UStaticMeshComponentToolTarget::GetStaticMesh() const
 }
 
 
+UBodySetup* UStaticMeshComponentToolTarget::GetBodySetup() const
+{
+	UStaticMesh* StaticMesh = GetStaticMesh();
+	if (StaticMesh)
+	{
+		return StaticMesh->GetBodySetup();
+	}
+	return nullptr;
+}
+
+
+IInterface_CollisionDataProvider* UStaticMeshComponentToolTarget::GetComplexCollisionProvider() const
+{
+	UStaticMesh* StaticMesh = GetStaticMesh();
+	if (StaticMesh)
+	{
+		return Cast<IInterface_CollisionDataProvider>(StaticMesh);
+	}
+	return nullptr;
+}
+
+
 // Factory
 
 bool UStaticMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const

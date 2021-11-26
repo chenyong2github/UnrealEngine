@@ -11,6 +11,7 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
 #include "TargetInterfaces/DynamicMeshSource.h"
+#include "TargetInterfaces/PhysicsDataSource.h"
 
 #include "ModelingObjectsCreationAPI.h"
 
@@ -419,6 +420,27 @@ bool UE::ToolTarget::ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, 
 	}
 	return false;
 }
+
+
+UBodySetup* UE::ToolTarget::GetPhysicsBodySetup(UToolTarget* Target)
+{
+	if (IPhysicsDataSource* PhysicsSource = Cast<IPhysicsDataSource>(Target))
+	{
+		return PhysicsSource->GetBodySetup();
+	}
+	return nullptr;
+}
+
+IInterface_CollisionDataProvider* UE::ToolTarget::GetPhysicsCollisionDataProvider(UToolTarget* Target)
+{
+	if (IPhysicsDataSource* PhysicsSource = Cast<IPhysicsDataSource>(Target))
+	{
+		return PhysicsSource->GetComplexCollisionProvider();
+	}
+	return nullptr;
+}
+
+
 
 
 

@@ -105,7 +105,7 @@ protected:
 	// these are TSharedPtr because TPimplPtr cannot currently be added to a TArray?
 	TSharedPtr<FPhysicsDataCollection> PhysicsInfo;
 
-	TArray<UE::Geometry::FDynamicMesh3> CurrentMeshParts;
+	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3>> CurrentMeshParts;
 	UE::Geometry::FDynamicMesh3 CurrentMesh;
 	bool bResultValid = false;
 	void RecalculateMesh_Simple();
