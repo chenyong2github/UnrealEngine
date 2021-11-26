@@ -92,7 +92,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 		// Data Layer Outliner
 		SNew(SSplitter)
 		.Orientation(Orient_Vertical)
-		.Style(FEditorStyle::Get(), "FoliageEditMode.Splitter")
+		.Style(FEditorStyle::Get(), "DetailsView.Splitter")
 		+ SSplitter::Slot()
 		[
 			SNew(SVerticalBox)
