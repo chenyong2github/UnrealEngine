@@ -81,6 +81,7 @@ public:
 
 		const FLandscapeComponentSceneProxyMobile* SceneProxy = (const FLandscapeComponentSceneProxyMobile*)BatchElementParams->SceneProxy;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeUniformShaderParameters>(),*BatchElementParams->LandscapeUniformShaderParametersResource);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), *BatchElementParams->LandscapeSectionLODUniformParameters);
 
 		if (TexCoordOffsetParameter.IsBound())
 		{
@@ -92,16 +93,7 @@ public:
 			);
 			ShaderBindings.Add(TexCoordOffsetParameter, FVector2f(TexCoordOffset));
 		}
-
-		if (SceneProxy->bRegistered)
-		{
-			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), LandscapeRenderSystems.FindChecked(SceneProxy->LandscapeKey)->UniformBuffer);
-		}
-		else
-		{
-			ShaderBindings.Add(Shader->GetUniformBufferParameter<FLandscapeSectionLODUniformParameters>(), GNullLandscapeRenderSystemResources.UniformBuffer);
-		}
-			}
+	}
 
 protected:
 	LAYOUT_FIELD(FShaderParameter, TexCoordOffsetParameter);
