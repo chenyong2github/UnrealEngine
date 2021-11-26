@@ -193,17 +193,6 @@ void UDataLayer::SetParent(UDataLayer* InParent)
 	}
 }
 
-void UDataLayer::ForEachChild(TFunctionRef<bool(const UDataLayer*)> Operation) const
-{
-	for (UDataLayer* Child : Children)
-	{
-		if (!Operation(Child))
-		{
-			break;
-		}
-	}
-}
-
 void UDataLayer::SetChildParent(UDataLayer* InParent)
 {
 	if (this == InParent)
@@ -298,5 +287,16 @@ FText UDataLayer::GetDataLayerText(const UDataLayer* InDataLayer)
 }
 
 #endif
+
+void UDataLayer::ForEachChild(TFunctionRef<bool(const UDataLayer*)> Operation) const
+{
+	for (UDataLayer* Child : Children)
+	{
+		if (!Operation(Child))
+		{
+			break;
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
