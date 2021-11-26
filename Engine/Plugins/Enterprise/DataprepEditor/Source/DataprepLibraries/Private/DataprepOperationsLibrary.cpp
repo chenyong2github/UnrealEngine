@@ -69,6 +69,13 @@ void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects
 
 void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& SelectedObjects, const EScriptingCollisionShapeType_Deprecated ShapeType, TArray<UObject*>& ModifiedObjects)
 {
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	if (!StaticMeshEditorSubsystem)
+	{
+		return;
+	}
+
 	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
 
 	// Make sure all static meshes to be processed have render data for NDOP types
@@ -98,13 +105,6 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 		if (StaticMesh)
 		{
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
-
-			UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
-
-			if (!StaticMeshEditorSubsystem)
-			{
-				return;
-			}
 
 			// Remove existing simple collisions
 			StaticMeshEditorSubsystem->RemoveCollisionsWithNotification( StaticMesh, false );
@@ -138,10 +138,7 @@ void UDataprepOperationsLibrary::SetConvexDecompositionCollision(const TArray<UO
 
 	StaticMeshEditorSubsystem->BulkSetConvexDecompositionCollisionsWithNotification(StaticMeshes, HullCount, MaxHullVerts, HullPrecision, false);
 
-	for (UStaticMesh* StaticMesh : StaticMeshes)
-	{
-		ModifiedObjects.Add( StaticMesh );
-	}
+	ModifiedObjects.Append(StaticMeshes);
 }
 
 void UDataprepOperationsLibrary::SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, UMaterialInterface* MaterialSubstitute)
@@ -773,6 +770,33 @@ void UDataprepOperationsLibrary::ResizeTextures(const TArray<UTexture2D*>& InTex
 		Texture->MaxTextureSize = InMaxSize;
 		Texture->PostEditChangeProperty(PropertyChangedEvent);
 	}
+}
+
+void UDataprepOperationsLibrary::SetNaniteSettings(const TArray<UObject*>& SelectedObjects, bool bEnabled, int32 PositionPrecision, float PercentTriangles, TArray<UObject*>& ModifiedObjects)
+{
+#if WITH_EDITORONLY_DATA
+	TSet<UStaticMesh*> SelectedMeshes = DataprepOperationsLibraryUtil::GetSelectedMeshes(SelectedObjects);
+
+	FMeshNaniteSettings NewSettings;
+	NewSettings.bEnabled = bEnabled;
+	NewSettings.PositionPrecision = PositionPrecision;
+	NewSettings.PercentTriangles = FMath::Clamp(PercentTriangles, 0.f, 1.f);
+
+	// Apply Nanite settings but do not commit changes
+	TArray<UStaticMesh*> ModifiedMeshes;
+	ModifiedMeshes.Reserve(SelectedMeshes.Num());
+
+	for (UStaticMesh* StaticMesh : SelectedMeshes)
+	{
+		if (StaticMesh && StaticMesh->NaniteSettings != NewSettings)
+		{
+			StaticMesh->NaniteSettings = NewSettings;
+			ModifiedMeshes.Add(StaticMesh);
+		}
+	}
+
+	ModifiedObjects.Append(ModifiedMeshes);
+#endif // #if WITH_EDITORONLY_DATA
 }
 
 #undef LOCTEXT_NAMESPACE
