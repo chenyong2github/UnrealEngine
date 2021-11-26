@@ -4,7 +4,6 @@
 #include "IMassSmartObjectsModule.h"
 #include "UObject/CoreRedirects.h"
 
-
 class FMassSmartObjectsModule : public IMassSmartObjectsModule
 {
 	/** IModuleInterface implementation */
