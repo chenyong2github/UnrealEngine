@@ -131,6 +131,11 @@ void CopyDataSrcWindowToLocal(inout Complex LocalBuffer[2][RADIX], bool bIsHoriz
 				LocalBuffer[0][ i ] = SrcValue.xy;
 				LocalBuffer[1][ i ] = SrcValue.zw;
 			}
+			else
+			{
+				LocalBuffer[0][ i ] = 0.0;
+				LocalBuffer[1][ i ] = 0.0;
+			}
 
 		}
 	}
@@ -147,6 +152,11 @@ void CopyDataSrcWindowToLocal(inout Complex LocalBuffer[2][RADIX], bool bIsHoriz
 				float4 SrcValue = SrcTexture[Pixel];
 				LocalBuffer[0][ i ] = SrcValue.xy;
 				LocalBuffer[1][ i ] = SrcValue.zw;
+			}
+			else
+			{
+				LocalBuffer[0][ i ] = 0.0;
+				LocalBuffer[1][ i ] = 0.0;
 			}
 		}
 	}
@@ -173,7 +183,12 @@ void CopyDataSrcWindowToLocal(inout Complex LocalBuffer[2][RADIX], bool bIsHoriz
 				float4 SrcValue = SrcTexture[Pixel];
 				LocalBuffer[0][ i ] = SrcValue.xy;
 				LocalBuffer[1][ i ] = SrcValue.zw;
-			}		
+			}	
+			else
+			{
+				LocalBuffer[0][ i ] = 0.0;
+				LocalBuffer[1][ i ] = 0.0;
+			}	
 		}
 	}
 	else 
@@ -188,6 +203,11 @@ void CopyDataSrcWindowToLocal(inout Complex LocalBuffer[2][RADIX], bool bIsHoriz
 				float4 SrcValue = SrcTexture[Pixel];
 				LocalBuffer[0][ i ] = SrcValue.xy;
 				LocalBuffer[1][ i ] = SrcValue.zw;
+			}
+			else
+			{
+				LocalBuffer[0][ i ] = 0.0;
+				LocalBuffer[1][ i ] = 0.0;
 			}
 		}
 	}

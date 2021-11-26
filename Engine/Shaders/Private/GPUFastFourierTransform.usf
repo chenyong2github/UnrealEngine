@@ -1382,7 +1382,7 @@ void ComplexMultiplyImagesCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : S
 		// redSum = Norm[0].x;  greenSum = Norm[0].y; blueSum = Norm[1].x; alphaSum = Norm[1].y
 
 		// We normalize each RGBA channel independently.
-		InvNorm = float4(((bIsGAGroup) ? Norm[0].y : Norm[0].x).xx, ((bIsGAGroup) ? Norm[1].y : Norm[1].x).xx);
+		InvNorm = float4(rcp((bIsGAGroup) ? Norm[0].y : Norm[0].x).xx, rcp((bIsGAGroup) ? Norm[1].y : Norm[1].x).xx);
 	}
 
 
