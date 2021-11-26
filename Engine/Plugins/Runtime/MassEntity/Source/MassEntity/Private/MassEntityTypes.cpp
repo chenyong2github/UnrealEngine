@@ -3,29 +3,21 @@
 #include "MassEntityTypes.h"
 #include "StructUtilsTypes.h"
 
-uint32 FMassArchetypeFragmentsInitialValues::CalculateHash() const
+uint32 FMassArchetypeSharedFragmentValues::CalculateHash() const
 {
-	TArray<uint32, TInlineAllocator<16>> FragmentHashes;
-	FragmentHashes.Reserve(Fragments.Num() + ChunkFragments.Num() + ConstSharedFragments.Num() + SharedFragments.Num());
+	checkf(bSorted, TEXT("Expecting the containers to be sorted for the hash caluclation to be correct"));
 
-	// max@todo: Fragments and chunk fragments are not part of the uniqueness and should be removed from the initial values, also should think of a better name for this struct.
+	// Fragments are not part of the uniqueness 
+	uint32 Hash = 0;
 	for (const FConstSharedStruct& Fragment : ConstSharedFragments)
 	{
-		FragmentHashes.Add(PointerHash(Fragment.GetMemory()));
+		PointerHash(Fragment.GetMemory(), Hash);
 	}
 
 	for (const FSharedStruct& Fragment : SharedFragments)
 	{
-		FragmentHashes.Add(PointerHash(Fragment.GetMemory()));
+		PointerHash(Fragment.GetMemory(), Hash);
 	}
 
-	FragmentHashes.Sort();
-
-	uint32 CalculatedHash = 0;
-	for (const uint32 FragmentHash : FragmentHashes)
-	{
-		CalculatedHash = HashCombine(CalculatedHash, FragmentHash);
-	}
-
-	return CalculatedHash;
+	return Hash;
 }

@@ -200,39 +200,47 @@ struct FMassArchetypeCompositionDescriptor
 	FMassSharedFragmentBitSet SharedFragments;
 };
 
-struct FMassArchetypeFragmentsInitialValues
+struct FMassArchetypeSharedFragmentValues
 {
-	FMassArchetypeFragmentsInitialValues() = default;
+	FMassArchetypeSharedFragmentValues() = default;
 
-	FORCEINLINE bool IsEquivalent(const FMassArchetypeFragmentsInitialValues& OtherInitialValues) const
+	FMassArchetypeSharedFragmentValues(const FMassArchetypeSharedFragmentValues& OtherFragmentValues)
 	{
-		return GetTypeHash(*this) == GetTypeHash(OtherInitialValues);
+		ConstSharedFragments = OtherFragmentValues.ConstSharedFragments;
+		SharedFragments = OtherFragmentValues.SharedFragments;
+		HashCache = OtherFragmentValues.HashCache;
+		bSorted = OtherFragmentValues.bSorted;
 	}
 
-	template<typename T>
-	FORCEINLINE T& AddFragment(const T& Fragment)
+	FMassArchetypeSharedFragmentValues(FMassArchetypeSharedFragmentValues&& OtherFragmentValues)
 	{
-		DirtyHashCache();
-		return Fragments.Add_GetRef(FConstStructView::Make(Fragment)).template GetMutable<T>();
+		ConstSharedFragments = MoveTemp(OtherFragmentValues.ConstSharedFragments);
+		SharedFragments = MoveTemp(OtherFragmentValues.SharedFragments);
+		HashCache = OtherFragmentValues.HashCache;
+		bSorted = OtherFragmentValues.bSorted;
 	}
 
-	FORCEINLINE void AddFragment(FConstStructView Fragment)
+	FMassArchetypeSharedFragmentValues& operator=(const FMassArchetypeSharedFragmentValues& OtherFragmentValues)
 	{
-		DirtyHashCache();
-		Fragments.Add(Fragment);
+		ConstSharedFragments = OtherFragmentValues.ConstSharedFragments;
+		SharedFragments = OtherFragmentValues.SharedFragments;
+		HashCache = OtherFragmentValues.HashCache;
+		bSorted = OtherFragmentValues.bSorted;
+		return *this;
 	}
 
-	template<typename T>
-	FORCEINLINE T& AddChunkFragment(const T& Fragment)
+	FMassArchetypeSharedFragmentValues& operator=(FMassArchetypeSharedFragmentValues&& OtherFragmentValues)
 	{
-		DirtyHashCache();
-		return ChunkFragments.Add_GetRef(FConstStructView::Make(Fragment)).template GetMutable<T>();
+		ConstSharedFragments = MoveTemp(OtherFragmentValues.ConstSharedFragments);
+		SharedFragments = MoveTemp(OtherFragmentValues.SharedFragments);
+		HashCache = OtherFragmentValues.HashCache;
+		bSorted = OtherFragmentValues.bSorted;
+		return *this;
 	}
 
-	FORCEINLINE void AddChunkFragment(FConstStructView Fragment)
+	FORCEINLINE bool IsEquivalent(const FMassArchetypeSharedFragmentValues& OtherSharedFragmentValues) const
 	{
-		DirtyHashCache();
-		ChunkFragments.Add(Fragment);
+		return GetTypeHash(*this) == GetTypeHash(OtherSharedFragmentValues);
 	}
 
 	FORCEINLINE FConstSharedStruct& AddConstSharedFragment(const FConstSharedStruct& Fragment)
@@ -247,16 +255,6 @@ struct FMassArchetypeFragmentsInitialValues
 		return SharedFragments.Add_GetRef(Fragment);
 	}
 
-	FORCEINLINE const TArray<FInstancedStruct>& GetFragments() const
-	{
-		return Fragments;
-	}
-
-	FORCEINLINE const TArray<FInstancedStruct>& GetChunkFragments() const
-	{
-		return ChunkFragments;
-	}
-
 	FORCEINLINE const TArray<FConstSharedStruct>& GetConstSharedFragments() const
 	{
 		return ConstSharedFragments;
@@ -267,33 +265,10 @@ struct FMassArchetypeFragmentsInitialValues
 		return SharedFragments;
 	}
 
-	FORCEINLINE void SetFragments(const TArray<FInstancedStruct>& InFragments)
-	{
-		DirtyHashCache();
-		Fragments = InFragments;
-	}
-
-	FORCEINLINE void SetChunkFragments(const TArray<FInstancedStruct>& InChunkFragments)
-	{
-		DirtyHashCache();
-		ChunkFragments = InChunkFragments;
-	}
-
-	FORCEINLINE void SetConstSharedFragments(const TArray<FConstSharedStruct>& InConstSharedFragments)
-	{
-		DirtyHashCache();
-		ConstSharedFragments = InConstSharedFragments;
-	}
-
-	FORCEINLINE void SetSharedFragments(const TArray<FSharedStruct>& InSharedFragments)
-	{
-		DirtyHashCache();
-		SharedFragments = InSharedFragments;
-	}
-
 	FORCEINLINE void DirtyHashCache()
 	{
 		HashCache = UINT32_MAX;
+		bSorted = false;
 	}
 
 	FORCEINLINE void CacheHash() const
@@ -304,24 +279,33 @@ struct FMassArchetypeFragmentsInitialValues
 		}
 	}
 
-	friend FORCEINLINE uint32 GetTypeHash(const FMassArchetypeFragmentsInitialValues& InitialValues)
+	friend FORCEINLINE uint32 GetTypeHash(const FMassArchetypeSharedFragmentValues& SharedFragmentValues)
 	{
-		InitialValues.CacheHash();
-		return InitialValues.HashCache;
+		SharedFragmentValues.CacheHash();
+		return SharedFragmentValues.HashCache;
 	}
 
 	uint32 CalculateHash() const;
 
 	SIZE_T GetAllocatedSize() const
 	{
-		return Fragments.GetAllocatedSize() + ChunkFragments.GetAllocatedSize() + ConstSharedFragments.GetAllocatedSize() + SharedFragments.GetAllocatedSize();
+		return ConstSharedFragments.GetAllocatedSize() + SharedFragments.GetAllocatedSize();
+	}
+
+	void Sort()
+	{
+		if(!bSorted)
+		{
+			ConstSharedFragments.Sort(FStructTypeSortOperator());
+			SharedFragments.Sort(FStructTypeSortOperator());
+			bSorted = true;
+		}
 	}
 
 protected:
 	mutable uint32 HashCache = UINT32_MAX;
-	// Atodo remove the fragments and ChunkFragments as they are not used and it creating inconsistency in the uniqueness of the Archetypes.
-	TArray<FInstancedStruct> Fragments;
-	TArray<FInstancedStruct> ChunkFragments;
+	mutable bool bSorted = true; // When no element in the array, consider already sorted
+	
 	TArray<FConstSharedStruct> ConstSharedFragments;
 	TArray<FSharedStruct> SharedFragments;
 };

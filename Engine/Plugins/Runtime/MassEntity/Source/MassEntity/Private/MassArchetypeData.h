@@ -137,7 +137,10 @@ struct FMassArchetypeData
 private:
 	// One-stop-shop variable describing the archetype's fragment and tag composition 
 	FMassArchetypeCompositionDescriptor CompositionDescriptor;
-	FMassArchetypeFragmentsInitialValues InitialValues;
+	FMassArchetypeSharedFragmentValues SharedFragmentValues;
+
+	// Pre-created default chunk fragment templates
+	TArray<FInstancedStruct> ChunkFragmentsTemplate;
 
 	TArray<FMassArchetypeFragmentConfig, TInlineAllocator<16>> FragmentConfigs;
 	
@@ -165,19 +168,19 @@ public:
 	const FMassSharedFragmentBitSet& GetSharedFragmentBitSet() const { return CompositionDescriptor.SharedFragments; }
 
 	const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return CompositionDescriptor; }
-	const FMassArchetypeFragmentsInitialValues& GetInitialValues() const { return InitialValues; }
+	const FMassArchetypeSharedFragmentValues& GetSharedFragmentValues() const { return SharedFragmentValues; }
 
 	/** Method to iterate on all the fragment types */
 	void ForEachFragmentType(TFunction< void(const UScriptStruct* /*FragmentType*/)> Function) const;
 	bool HasFragmentType(const UScriptStruct* FragmentType) const;
 	bool HasTagType(const UScriptStruct* FragmentType) const { check(FragmentType); return CompositionDescriptor.Tags.Contains(*FragmentType); }
 
-	bool IsEquivalent(const FMassArchetypeCompositionDescriptor& OtherCompositionDescriptor, const FMassArchetypeFragmentsInitialValues& OtherInitialValues) const
+	bool IsEquivalent(const FMassArchetypeCompositionDescriptor& OtherCompositionDescriptor, const FMassArchetypeSharedFragmentValues& OtherSharedFragmentValues) const
 	{
-		return CompositionDescriptor.IsEquivalent(OtherCompositionDescriptor) && InitialValues.IsEquivalent(OtherInitialValues);
+		return CompositionDescriptor.IsEquivalent(OtherCompositionDescriptor) && SharedFragmentValues.IsEquivalent(OtherSharedFragmentValues);
 	}
 
-	void Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeFragmentsInitialValues& InInitialValues);
+	void Initialize(const FMassArchetypeCompositionDescriptor& InCompositionDescriptor, const FMassArchetypeSharedFragmentValues& InSharedFragmentValues);
 
 	/** 
 	 * A special way of initializing an archetype resulting in a copy of SiblingArchetype's setup with OverrideTags
