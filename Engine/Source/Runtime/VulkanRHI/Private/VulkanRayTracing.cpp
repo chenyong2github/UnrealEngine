@@ -65,6 +65,7 @@ void FVulkanRayTracingPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCr
 		
 		ZeroVulkanStruct(Features.RayTracingPipelineFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR);
 		Features.RayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+		Features.RayTracingPipelineFeatures.rayTraversalPrimitiveCulling = VK_TRUE;
 		Features.RayTracingPipelineFeatures.pNext = &Features.AccelerationStructureFeatures;
 
 		ZeroVulkanStruct(Features.RayQueryFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);
@@ -310,7 +311,7 @@ FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(FRayTracingGeometryInitiali
 	AccelerationStructureBuffer = static_cast<FVulkanAccelerationStructureBuffer*>(RHICreateBuffer(BuildData.SizesInfo.accelerationStructureSize, BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, BlasBufferCreateInfo).GetReference());
 
 	FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("BuildScratchBLAS"));
-	ScratchBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.buildScratchSize, BUF_UnorderedAccess, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
+	ScratchBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.buildScratchSize, BUF_UnorderedAccess | BUF_StructuredBuffer, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
 
 	VkDevice NativeDevice = Device->GetInstanceHandle();
 
@@ -479,7 +480,7 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 	if (!bExternalScratchBuffer)
 	{
 		FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("BuildScratchTLAS"));
-		ScratchBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.buildScratchSize, BUF_UnorderedAccess, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
+		ScratchBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.buildScratchSize, BUF_UnorderedAccess | BUF_StructuredBuffer, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
 		InScratchBuffer = ScratchBuffer.GetReference();
 	}
 
