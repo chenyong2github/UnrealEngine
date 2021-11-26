@@ -17,7 +17,6 @@ struct FBoneContainer;
 struct FSkeletonRemapping;
 struct FBlendedCurve;
 
-
 /** Struct used to store per-component ref pose override */
 struct FSkelMeshRefPoseOverride
 {
@@ -240,12 +239,6 @@ private:
 	/** Number of valid entries in UIDToArrayIndexLUT. I.e. a count of entries whose value does not equal to  MAX_uint16. */
 	int32 UIDToArrayIndexLUTValidCount;
 
-	/** Look up table of UID to Name UIDToNameLUT[InUID] = Name of curve. If NAME_None, it is invalid.*/	
-	TArray<FName> UIDToNameLUT;
-
-	/** Look up table of UID to FAnimCurveType UIDToNameLUT[InUID] = FAnimCurveType of curve. */	
-	TArray<FAnimCurveType> UIDToCurveTypeLUT;
-	
 	TSharedPtr<FSkelMeshRefPoseOverride> RefPoseOverride;
 	
 	// The serial number of this bone container. This is incremented each time the container is regenerated and can
@@ -264,7 +257,7 @@ private:
 	bool bUseRAWData;
 	/** Use Source Data that is imported that are not compressed. */
 	bool bUseSourceData;
-
+	
 public:
 
 	FBoneContainer();
@@ -378,7 +371,7 @@ public:
 			return RefSkeleton->GetRefBonePose()[BoneIndicesArray[BoneIndex.GetInt()]];
 		}
 	}
-	
+
 	/** Override skeleton ref pose. */
 	void SetRefPoseOverride(const TSharedPtr<FSkelMeshRefPoseOverride>& InRefPoseOverride)
 	{
@@ -434,20 +427,24 @@ public:
 	{
 		return UIDToArrayIndexLUTValidCount;
 	}
-	
 
-	/** Get UID To Name look up table */
+	/** DEPRECATED: Get UID To Name look up table */
+	UE_DEPRECATED(5.0, "GetUIDToNameLookupTable is deprecated, please access from the SmartNameMapping directly via GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName)")
 	TArray<FName> const& GetUIDToNameLookupTable() const
 	{
-		return UIDToNameLUT;
+		static TArray<FName> Dummy;
+		return Dummy;
 	}
 
-	/** Get UID To curve type look up table */
+	/** DEPRECATED: Get UID To curve type look up table */
+	UE_DEPRECATED(5.0, "GetUIDToCurveTypeLookupTable is deprecated, please access from the SmartNameMapping directly via GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName)")
 	TArray<FAnimCurveType> const& GetUIDToCurveTypeLookupTable() const
 	{
-		return UIDToCurveTypeLUT;
+		static TArray<FAnimCurveType> Dummy;
+		return Dummy;
 	}
 
+	
 	/** Get the array that maps UIDs to array indexes. */
 	TArray<SmartName::UID_Type> const& GetUIDToArrayLookupTableBackup() const
 	{

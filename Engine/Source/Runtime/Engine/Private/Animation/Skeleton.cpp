@@ -513,11 +513,11 @@ void USkeleton::PostLoad()
 
 	// catch any case if guid isn't valid
 	check(Guid.IsValid());
+
+	SmartNames.PostLoad();
 	
 	// Cache smart name uids for animation curve names
 	IncreaseAnimCurveUidVersion();
-
-	SmartNames.PostLoad();
 
 	// refresh linked bone indices
 	FSmartNameMapping* CurveMappingTable = SmartNames.GetContainerInternal(USkeleton::AnimCurveMappingName);

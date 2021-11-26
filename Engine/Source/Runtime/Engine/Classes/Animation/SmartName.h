@@ -12,6 +12,7 @@
 
 struct FSmartName;
 
+
 /** Curve Meta Data for each name
  * Unfortunately this should be linked to FName, but no GUID because we don't have GUID in run-time
  * We only add this if anything changed, by default, it is attribute curve
@@ -61,6 +62,9 @@ struct ENGINE_API FSmartNameMapping
 	GENERATED_USTRUCT_BODY();
 
 	FSmartNameMapping();
+	FSmartNameMapping(FRWLock *Lock);
+	
+	void SetLock(FRWLock *Lock) { RWLock = Lock; }
 
 	// Add a name to the mapping, fails if it already exists
 	// @param InName - The name to add
@@ -130,23 +134,11 @@ struct ENGINE_API FSmartNameMapping
 	bool FindSmartNameByUID(SmartName::UID_Type UID, FSmartName& OutName) const;
 
 	// Curve Meta Data Accessors
-	FCurveMetaData* GetCurveMetaData(FName CurveName)
-	{
-		checkSlow(Exists(CurveName));
-		return &CurveMetaDataMap.FindOrAdd(CurveName);
-	}
-
-	const FCurveMetaData* GetCurveMetaData(FName CurveName) const
-	{
-		checkSlow(Exists(CurveName));
-		return CurveMetaDataMap.Find(CurveName);
-	}
-
+	FCurveMetaData* GetCurveMetaData(FName CurveName);
+	const FCurveMetaData* GetCurveMetaData(FName CurveName) const;
+	
 #if !WITH_EDITOR
-	const FCurveMetaData& GetCurveMetaData(SmartName::UID_Type CurveUID) const
-	{
-		return CurveMetaDataList[CurveUID];
-	}
+	const FCurveMetaData& GetCurveMetaData(SmartName::UID_Type CurveUID) const;
 #endif
 
 	// Serialize this to the provided archive; required for TMap serialization
@@ -160,6 +152,9 @@ struct ENGINE_API FSmartNameMapping
 	/** Get the maximum in use UID */
 	SmartName::UID_Type GetMaxUID() const { return (SmartName::UID_Type)(CurveNameList.Num() - 1); }
 
+	/** Iterate over all Names in this Mapping */
+	void Iterate(TFunction<void(const FSmartNameMapping* Mapping, SmartName::UID_Type ID)> Callback) const;
+
 private:
 	// List of curve names, indexed by UID
 	TArray<FName> CurveNameList;
@@ -170,6 +165,8 @@ private:
 #endif
 
 	TMap<FName, FCurveMetaData> CurveMetaDataMap;
+
+	FRWLock* RWLock;
 };
 
 USTRUCT()
@@ -204,6 +201,17 @@ private:
 	// Editor copy of the data we loaded, used to preserve determinism during cooking
 	TMap<FName, FSmartNameMapping> LoadedNameMappings;
 #endif
+	
+	mutable FRWLock RWLock;
+};
+
+template<>
+struct TStructOpsTypeTraits<FSmartNameContainer> : public TStructOpsTypeTraitsBase2<FSmartNameContainer>
+{
+	enum
+	{
+		WithCopy = false,
+	};
 };
 
 USTRUCT()
