@@ -1019,7 +1019,11 @@ void UMeshSelectionTool::ApplyAction(EMeshSelectionToolActions ActionType)
 			break;
 
 		case EMeshSelectionToolActions::SeparateSelected:
-			SeparateSelectedTriangles();
+			SeparateSelectedTriangles(true);
+			break;
+
+		case EMeshSelectionToolActions::DuplicateSelected:
+			SeparateSelectedTriangles(false);
 			break;
 
 		case EMeshSelectionToolActions::FlipSelected:
@@ -1450,7 +1454,7 @@ void UMeshSelectionTool::DisconnectSelectedTriangles()
 
 
 
-void UMeshSelectionTool::SeparateSelectedTriangles()
+void UMeshSelectionTool::SeparateSelectedTriangles(bool bDeleteSelected)
 {
 	check(SelectionType == EMeshSelectionElementType::Face);
 	TArray<int32> SelectedFaces = Selection->GetElements(EMeshSelectionElementType::Face);
@@ -1465,7 +1469,6 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 		return;		// don't separate entire mesh
 	}
 
-
 	// extract copy of triangles
 	FDynamicMesh3 SeparatedMesh;
 	SeparatedMesh.EnableAttributes();
@@ -1476,16 +1479,20 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 
 	// emit new asset
 	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolSeparate", "Separate"));
+	GetToolManager()->BeginUndoTransaction(
+		(bDeleteSelected) ? LOCTEXT("MeshSelectionToolSeparate", "Separate") : LOCTEXT("MeshSelectionToolDuplicate", "Duplicate") );
 
 	// build array of materials from the original
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	TArray<UMaterialInterface*> Materials = MaterialSet.Materials;
 
+	AActor* TargetActor = UE::ToolTarget::GetTargetActor(Target);
+	FString AssetName = TargetActor->GetActorNameOrLabel();
+
 	FCreateMeshObjectParams NewMeshObjectParams;
 	NewMeshObjectParams.TargetWorld = TargetWorld;
 	NewMeshObjectParams.Transform = (FTransform)Transform;
-	NewMeshObjectParams.BaseName = TEXT("Submesh");
+	NewMeshObjectParams.BaseName = (AssetName.IsEmpty()) ? TEXT("Submesh") : (AssetName + TEXT("_Submesh"));
 	NewMeshObjectParams.Materials = Materials;
 	NewMeshObjectParams.SetMesh(&SeparatedMesh);
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
@@ -1497,7 +1504,14 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	GetToolManager()->EndUndoTransaction();
 
 	// delete selected triangles from this mesh
-	DeleteSelectedTriangles();
+	if (bDeleteSelected)
+	{
+		DeleteSelectedTriangles();
+	}
+
+	// Currently have to mark the mesh as 'modified' so we can Accept, because if we Cancel,
+	// Actor created by duplicate operation will be rolled back
+	bHaveModifiedMesh = true;		
 }
 
 

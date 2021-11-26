@@ -52,6 +52,7 @@ enum class EMeshSelectionToolActions
 	DeleteSelected,
 	DisconnectSelected,
 	SeparateSelected,
+	DuplicateSelected,
 	FlipSelected,
 	CreateGroup,
 
@@ -185,11 +186,18 @@ public:
 		PostAction(EMeshSelectionToolActions::CreateGroup);
 	}
 
-	/** Delete the selected triangles from the active Mesh Object and create a new Mesh containing those triangles */
+	/** Delete the selected triangles from the active Mesh Object and create a new Mesh Object containing those triangles */
 	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Separate", DisplayPriority = 10))
 	void Separate() 
 	{
 		PostAction(EMeshSelectionToolActions::SeparateSelected);
+	}
+
+	/** Create a new Mesh Object containing the selected triangles */
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Duplicate", DisplayPriority = 11))
+	void Duplicate() 
+	{
+		PostAction(EMeshSelectionToolActions::DuplicateSelected);
 	}
 
 };
@@ -418,7 +426,7 @@ protected:
 
 	void DeleteSelectedTriangles();
 	void DisconnectSelectedTriangles(); // disconnects edges between selected and not-selected triangles; keeps all triangles in the same mesh
-	void SeparateSelectedTriangles(); // separates out selected triangles to a new mesh, removing them from the current mesh
+	void SeparateSelectedTriangles(bool bDeleteSelected); // separates out selected triangles to a new mesh, optionally removing them from the current mesh
 	void FlipSelectedTriangles();
 	void AssignNewGroupToSelectedTriangles();
 
