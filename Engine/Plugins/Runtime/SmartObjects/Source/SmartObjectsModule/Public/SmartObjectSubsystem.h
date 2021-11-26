@@ -333,8 +333,8 @@ protected:
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
 
-	void AddToSimulation(const FSmartObjectID ID, const FSmartObjectConfig& Config, const FTransform& Transform, const FBox& Bounds);
-	void AddToSimulation(const FSmartObjectCollectionEntry& Entry, const FSmartObjectConfig& Config);
+	void AddToSimulation(const FSmartObjectID ID, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds);
+	void AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition);
 	void AddToSimulation(const USmartObjectComponent&);
 	void RemoveFromSimulation(const FSmartObjectID ID);
 	void RemoveFromSimulation(const FSmartObjectCollectionEntry& Entry);

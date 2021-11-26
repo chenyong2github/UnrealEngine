@@ -18,7 +18,6 @@ namespace FSmartObjectTest
 struct FSmartObjectTestBase : FAITestBase
 {
 	FSmartObjectRequestFilter TestFilter;
-	FSmartObjectConfig TestConfig;
 	USmartObjectSubsystem* Subsystem = nullptr;
 	TArray<USmartObjectComponent*> SOList;
 
@@ -32,7 +31,8 @@ struct FSmartObjectTestBase : FAITestBase
 		}
 
 		// Setup config
-		FSmartObjectSlot& Slot = TestConfig.DebugAddSlot();
+		USmartObjectDefinition* Definition = NewAutoDestroyObject<USmartObjectDefinition>();
+		FSmartObjectSlot& Slot = Definition->Config.DebugAddSlot();
 		Slot.BehaviorConfigurations.Add(NewAutoDestroyObject<USmartObjectTestConfig>());
 
 		// Setup filter
@@ -50,7 +50,7 @@ struct FSmartObjectTestBase : FAITestBase
 		{
 			if (SO != nullptr)
 			{
-				SO->DebugSetConfig(TestConfig);
+				SO->SetDefinition(Definition);
 				Subsystem->RegisterSmartObject(*SO);
 			}
 		}

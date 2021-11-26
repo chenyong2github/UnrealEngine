@@ -115,7 +115,7 @@ protected:
 };
 
 /**
- * Struct to store and manage state of a runtime instance associated to a given smart object configuration
+ * Struct to store and manage state of a runtime instance associated to a given smart object definition
  */
 USTRUCT()
 struct FSmartObjectRuntime
@@ -125,7 +125,7 @@ struct FSmartObjectRuntime
 public:
 	const FSmartObjectID& GetRegisteredID() const { return RegisteredID; }
 	const FTransform& GetTransform() const { return Transform; }
-	const FSmartObjectConfig& GetConfig() const { checkf(Config != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Config; }
+	const USmartObjectDefinition& GetDefinition() const { checkf(Definition != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Definition; }
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
@@ -135,7 +135,7 @@ private:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
 
-	explicit FSmartObjectRuntime(const FSmartObjectConfig& Config);
+	explicit FSmartObjectRuntime(const USmartObjectDefinition& Definition);
 
 	const FGameplayTagContainer& GetTags() const { return Tags; }
 
@@ -149,7 +149,7 @@ private:
 	const FBoxCenterAndExtent& GetBounds() const { return Bounds; }
 	void SetBounds(const FBox& Value) { Bounds = Value; }
 
-	FString Describe() const { return FString::Printf(TEXT("Instance using config \'%s\' Reg: %s"), *GetConfig().Describe(), *LexToString(SharedOctreeID->ID.IsValidId())); }
+	FString Describe() const { return FString::Printf(TEXT("Instance using defintion \'%s\' Reg: %s"), *GetDefinition().Config.Describe(), *LexToString(SharedOctreeID->ID.IsValidId())); }
 
 	/**
 	 * @param OutFreeSlots function will set 'false' at taken slots' indices
@@ -184,8 +184,9 @@ private:
 	UPROPERTY()
 	TArray<FSmartObjectSlotRuntimeData> SlotsRuntimeData;
 
-	/** Associated smart object configuration */
-	const FSmartObjectConfig* Config = nullptr;
+	/** Associated smart object definition */
+	UPROPERTY()
+	const USmartObjectDefinition* Definition = nullptr;
 
 	/** Instance specific transform */
 	FTransform Transform;

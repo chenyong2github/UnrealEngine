@@ -86,7 +86,7 @@ USmartObjectSubsystem* USmartObjectSubsystem::GetCurrent(const UWorld* World)
 	return UWorld::GetSubsystem<USmartObjectSubsystem>(World);
 }
 
-void USmartObjectSubsystem::AddToSimulation(const FSmartObjectID ID, const FSmartObjectConfig& Config, const FTransform& Transform, const FBox& Bounds)
+void USmartObjectSubsystem::AddToSimulation(const FSmartObjectID ID, const USmartObjectDefinition& Definition, const FTransform& Transform, const FBox& Bounds)
 {
 	if (!ensureMsgf(ID.IsValid(), TEXT("SmartObject needs a valid ID to be added to the simulation")))
 	{
@@ -100,7 +100,7 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectID ID, const FSmar
 
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding SmartObject '%s' to runtime simulation."), *ID.Describe());
 
-	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(ID, FSmartObjectRuntime(Config));
+	FSmartObjectRuntime& Runtime = RuntimeSmartObjects.Emplace(ID, FSmartObjectRuntime(Definition));
 	Runtime.SetRegisteredID(ID);
 
 	// Transfer spatial information to the runtime instance
@@ -113,14 +113,17 @@ void USmartObjectSubsystem::AddToSimulation(const FSmartObjectID ID, const FSmar
 	SmartObjectOctree.AddNode(Runtime.GetBounds(), ID, SharedOctreeID);
 }
 
-void USmartObjectSubsystem::AddToSimulation(const FSmartObjectCollectionEntry& Entry, const FSmartObjectConfig& Config)
+void USmartObjectSubsystem::AddToSimulation(const FSmartObjectCollectionEntry& Entry, const USmartObjectDefinition& Definition)
 {
-	AddToSimulation(Entry.GetID(), Config, Entry.GetTransform(), Entry.GetBounds());
+	AddToSimulation(Entry.GetID(), Definition, Entry.GetTransform(), Entry.GetBounds());
 }
 
 void USmartObjectSubsystem::AddToSimulation(const USmartObjectComponent& Component)
 {
-	AddToSimulation(Component.GetRegisteredID(), Component.GetConfig(), Component.GetComponentTransform(), Component.GetSmartObjectBounds());
+	if (ensureMsgf(Component.GetDefinition() != nullptr, TEXT("Component must have a valid definition asset to register to the simulation")))
+	{
+		AddToSimulation(Component.GetRegisteredID(), *Component.GetDefinition(), Component.GetComponentTransform(), Component.GetSmartObjectBounds());
+	}
 }
 
 void USmartObjectSubsystem::RemoveFromSimulation(const FSmartObjectID ID)
@@ -349,7 +352,7 @@ const USmartObjectBehaviorConfigBase* USmartObjectSubsystem::Use(const FSmartObj
 
 const USmartObjectBehaviorConfigBase* USmartObjectSubsystem::Use(FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass)
 {
-	const FSmartObjectConfig& Config = SmartObjectRuntime.GetConfig();
+	const FSmartObjectConfig& Config = SmartObjectRuntime.GetDefinition().Config;
 
 	const USmartObjectBehaviorConfigBase* SOBehaviorConfig = Config.GetBehaviorConfig(ClaimHandle.SlotIndex, ConfigurationClass);
 	if (SOBehaviorConfig == nullptr)
@@ -432,7 +435,7 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 		return Transform;
 	}
 
-	Transform = SmartObjectRuntime->GetConfig().GetSlotTransform(SmartObjectRuntime->GetTransform(), SlotIndex);
+	Transform = SmartObjectRuntime->GetDefinition().Config.GetSlotTransform(SmartObjectRuntime->GetTransform(), SlotIndex);
 
 	return Transform;
 }
@@ -500,7 +503,7 @@ FSmartObjectSlotIndex USmartObjectSubsystem::FindSlot(const FSmartObjectRuntime&
 {
 	const FSmartObjectSlotIndex InvalidIndex;
 
-	const FSmartObjectConfig& Config = SmartObjectRuntime.GetConfig();
+	const FSmartObjectConfig& Config = SmartObjectRuntime.GetDefinition().Config;
 	const int32 NumSlotDefinitions = Config.GetSlots().Num();
 	if (!ensureMsgf(NumSlotDefinitions > 0, TEXT("SmartObjectConfig should contain slot definitions at this point")))
 	{
@@ -588,7 +591,7 @@ void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime)
 			}
 		case ESmartObjectSlotState::Free: // falling through on purpose
 		default:
-			UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"), *SmartObjectRuntime.GetConfig().Describe(), *SlotRuntimeData.User.Describe());
+			UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Smart object %s used by %s while the slot it's assigned to is not marked Claimed nor Occupied"), *SmartObjectRuntime.GetDefinition().Config.Describe(), *SlotRuntimeData.User.Describe());
 			break;
 		}
 	}
@@ -753,15 +756,15 @@ void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 	new(&SmartObjectOctree) FSmartObjectOctree(Center, Extents.Size2D());
 
 	// Perform configuration validation at once since multiple entries can share the same config
-	MainCollection->ValidateConfigs();
+	MainCollection->ValidateDefinitions();
 
 	// Build all runtime from collection
 	for (const FSmartObjectCollectionEntry& Entry : MainCollection->GetEntries())
 	{
-		const FSmartObjectConfig* Config = MainCollection->GetConfigForEntry(Entry);
+		const USmartObjectDefinition* Definition = MainCollection->GetDefinitionForEntry(Entry);
 		USmartObjectComponent* Component = Entry.GetComponent();
 
-		if (Config == nullptr || Config->IsValid() == false)
+		if (Definition == nullptr || Definition->Config.IsValid() == false)
 		{
 			UE_CVLOG_UELOG(Component != nullptr, Component->GetOwner(), LogSmartObject, Error,
 				TEXT("Skipped runtime data creation for SmartObject %s: Invalid configuration"), *GetNameSafe(Component->GetOwner()));
@@ -774,7 +777,7 @@ void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 			Component->SetRegisteredID(Entry.GetID());
 		}
 
-		AddToSimulation(Entry, *Config);
+		AddToSimulation(Entry, *Definition);
 	}
 
 	// Until this point all runtime entries were created from the collection, start tracking newly created

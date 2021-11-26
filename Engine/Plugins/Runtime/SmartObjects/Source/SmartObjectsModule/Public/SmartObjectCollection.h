@@ -16,14 +16,14 @@ struct SMARTOBJECTSMODULE_API FSmartObjectCollectionEntry
 	GENERATED_BODY()
 public:
 	FSmartObjectCollectionEntry() = default;
-	explicit FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 ConfigIndex);
+	explicit FSmartObjectCollectionEntry(const FSmartObjectID& SmartObjectID, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex);
 
 	const FSmartObjectID& GetID() const { return ID; }
 	const FSoftObjectPath& GetPath() const	{ return Path; }
 	USmartObjectComponent* GetComponent() const;
 	FTransform GetTransform() const { return Transform; }
 	const FBox& GetBounds() const { return Bounds; }
-	uint32 GetConfigIndex() const { return ConfigIdx; }
+	uint32 GetDefinitionIndex() const { return DefinitionIdx; }
 	FString Describe() const;
 
 protected:
@@ -44,7 +44,7 @@ protected:
 	FBox Bounds = FBox(ForceInitToZero);
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	uint32 ConfigIdx = INDEX_NONE;
+	uint32 DefinitionIdx = INDEX_NONE;
 };
 
 /** Actor holding smart object persistent data */
@@ -56,15 +56,15 @@ class SMARTOBJECTSMODULE_API ASmartObjectCollection : public AActor
 public:
 	const TArray<FSmartObjectCollectionEntry>& GetEntries() const { return CollectionEntries; }
 	const FBox& GetBounds() const { return Bounds;	}
-	const FSmartObjectConfig* GetConfigForEntry(const FSmartObjectCollectionEntry& Entry) const;
+	const USmartObjectDefinition* GetDefinitionForEntry(const FSmartObjectCollectionEntry& Entry) const;
 
 #if WITH_EDITOR
 	bool IsBuildingForWorldPartition() const { return bBuildingForWorldPartition;	}
 	void SetBuildingForWorldPartition(const bool bValue) { bBuildingForWorldPartition = bValue;	}
-	void ResetCollection();
+	void ResetCollection(const int32 ExpectedNumElements = 0);
 #endif
 
-	void ValidateConfigs();
+	void ValidateDefinitions();
 
 protected:
 	friend class USmartObjectSubsystem;
@@ -110,10 +110,7 @@ protected:
 	TMap<FSmartObjectID, FSoftObjectPath> RegisteredIdToObjectMap;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TMap<TSubclassOf<UObject>, uint32> ConfigLookup;
-
-	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TArray<TObjectPtr<USmartObjectComponent>> Configurations;
+	TArray<TObjectPtr<const USmartObjectDefinition>> Definitions;
 
 	bool bRegistered = false;
 

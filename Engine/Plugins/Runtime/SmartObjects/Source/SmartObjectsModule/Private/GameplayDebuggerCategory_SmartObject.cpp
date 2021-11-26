@@ -44,7 +44,7 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	{
 		const FSmartObjectRuntime& Entry = LookupEntry.Value;
 		const FTransform LocalToWorld = Entry.GetTransform();
-		const FSmartObjectConfig& Config = Entry.GetConfig();
+		const FSmartObjectConfig& Config = Entry.GetDefinition().Config;
 
 		for (int32 i = 0; i < Config.GetSlots().Num(); ++i)
 		{

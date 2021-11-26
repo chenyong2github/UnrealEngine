@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GameplayTagContainer.h"
+#include "Engine/DataAsset.h"
 #include "SmartObjectConfig.generated.h"
 
 class UGameplayBehaviorConfig;
@@ -153,12 +154,6 @@ public:
 	TOptional<bool> IsValid() const { return bValid; }
 
 private:
-	/**
-	 * FSmartObjectConfig is a SparseData type of USmartObjectComponent and its generated code 
-	 * requires directed access to the members.
-	 */
-	friend class USmartObjectComponent;	
-
 	/** Finds first behavior configuration of a given class in the provided list of configurations. */
 	static const USmartObjectBehaviorConfigBase* GetBehaviorConfigByType(const TArray<USmartObjectBehaviorConfigBase*>& Configurations, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass);
 
@@ -186,4 +181,17 @@ private:
 	FGameplayTagContainer ActivityTags;
 
 	mutable TOptional<bool> bValid;
+};
+
+/**
+ * Asset to create sharable SmartObject definitions that can be used by different templates.
+ */
+UCLASS(BlueprintType, Blueprintable, CollapseCategories)
+class SMARTOBJECTSMODULE_API USmartObjectDefinition : public UDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(Category = "SmartObject", EditAnywhere)
+	FSmartObjectConfig Config;
 };
