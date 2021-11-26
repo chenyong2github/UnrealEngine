@@ -26,6 +26,10 @@ class FPixelStreamingEncoderFrameFactory
         TSharedPtr<AVEncoder::FVideoEncoderInput> CreateVideoEncoderInput(int InWidth, int InHeight) const;
         void SetTexture(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
         void SetTextureCUDAVulkan(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
+#if PLATFORM_WINDOWS        
+		void SetTextureCUDAD3D11(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
+		void SetTextureCUDAD3D12(AVEncoder::FVideoEncoderInputFrame* Frame, const FTexture2DRHIRef& Texture);
+#endif // PLATFORM_WINDOWS
 
     private:
 

@@ -789,6 +789,7 @@ namespace AVEncoder
 			{
 				UE_LOG(LogVideoEncoder, Warning, TEXT("VideoEncoderFame - D3D11 input texture still holds %d references."), NumRef);
 			}
+			// Need to call release twice as we have added an extra reference just above (only way to count how many references we have)
 			D3D11.EncoderTexture->Release();
 			D3D11.EncoderTexture->Release();
 			D3D11.EncoderTexture = nullptr;
@@ -810,6 +811,7 @@ namespace AVEncoder
 			{
 				UE_LOG(LogVideoEncoder, Warning, TEXT("VideoEncoderFame - D3D12 input texture still holds %d references."), NumRef);
 			}
+			// Need to call release twice as we have added an extra reference just above (only way to count how many references we have)
 			D3D12.EncoderTexture->Release();
 			D3D12.EncoderTexture->Release();
 			D3D12.EncoderTexture = nullptr;
@@ -818,6 +820,13 @@ namespace AVEncoder
 		{
 			OnReleaseD3D12Texture(D3D12.Texture);
 			D3D12.Texture = nullptr;
+		}
+
+		// D3D12 specific handle atm
+		if (CUDA.SharedHandle)
+		{
+			CloseHandle(CUDA.SharedHandle);
+			CUDA.SharedHandle = nullptr;
 		}
 #endif 
 
@@ -970,10 +979,12 @@ namespace AVEncoder
 	}
 #endif
 
-	void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureCallback InOnReleaseTexture)
+	void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, EUnderlyingRHI UnderlyingRHI, void* SharedHandle, FReleaseCUDATextureCallback InOnReleaseTexture)
 	{
 		if (Format == EVideoFrameFormat::CUDA_R8G8B8A8_UNORM)
 		{
+			CUDA.UnderlyingRHI = UnderlyingRHI;
+			CUDA.SharedHandle = SharedHandle;
 			CUDA.EncoderTexture = InTexture;
 			OnReleaseCUDATexture = InOnReleaseTexture;
 			if (!CUDA.EncoderTexture)
