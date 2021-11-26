@@ -10,7 +10,7 @@ struct FNDICameraContext
 void DICamera_GetCameraProperties(in FNDICameraContext DIContext, out float3 Out_CameraPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector)
 {
 	FLWCVector3 CameraPos = PrimaryView.WorldCameraOrigin;
-	CameraPos.Tile -= DIContext.SystemLWCTile; // convert to simulation space
+	LWCSetTile(CameraPos, LWCGetTile(CameraPos) - DIContext.SystemLWCTile); // convert to simulation space
 	Out_CameraPositionWorld = LWCToFloat(CameraPos);
 	Out_ViewForwardVector = View.ViewForward;
 	Out_ViewUpVector = View.ViewUp;
@@ -21,7 +21,7 @@ void DICamera_GetViewProperties(in FNDICameraContext DIContext, out float3 Out_V
 	out float4 Out_ScreenToViewSpace, out float2 Out_Current_TAAJitter, out float2 Out_Previous_TAAJitter, out float3 Out_PreViewTranslation, out float4 Out_BufferSizeAndInverseSize, out float2 Out_ViewportOffset)
 {
 	FLWCVector3 ViewPos = PrimaryView.WorldViewOrigin;
-	ViewPos.Tile -= DIContext.SystemLWCTile; // convert to simulation space
+	LWCSetTile(ViewPos, LWCGetTile(ViewPos) - DIContext.SystemLWCTile); // convert to simulation space
 	Out_ViewPositionWorld.xyz = LWCToFloat(ViewPos);
 	Out_ViewForwardVector = View.ViewForward;
 	Out_ViewUpVector = View.ViewUp;
