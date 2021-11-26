@@ -35,6 +35,13 @@ public:
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
 };
 
+struct FVkRtAllocation
+{
+	VkDevice Device = VK_NULL_HANDLE;
+	VkDeviceMemory Memory = VK_NULL_HANDLE;
+	VkBuffer Buffer = VK_NULL_HANDLE;
+};
+
 class FVulkanRayTracingAllocator
 {
 public:
@@ -85,11 +92,10 @@ private:
 	FVulkanDevice* const Device = nullptr;
 
 	const FRayTracingGeometryInitializer Initializer;
-	uint32 IndexStrideInBytes  = 0;
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
 	VkDeviceAddress Address = 0;
-	TRefCountPtr<FVulkanAccelerationStructureBuffer> AccelerationStructureBuffer;
+	TRefCountPtr<FVulkanResourceMultiBuffer> AccelerationStructureBuffer;
 	TRefCountPtr<FVulkanResourceMultiBuffer> ScratchBuffer;
 };
 
@@ -125,7 +131,7 @@ private:
 	// Many VkAccelerationStructureKHR-s may be created, pointing at the same buffer.
 	TRefCountPtr<FVulkanShaderResourceView> AccelerationStructureView;
 	
-	TRefCountPtr<FVulkanAccelerationStructureBuffer> AccelerationStructureBuffer;
+	TRefCountPtr<FVulkanResourceMultiBuffer> AccelerationStructureBuffer;
 };
 
 class FVulkanRayTracingPipelineState : public FRHIRayTracingPipelineState

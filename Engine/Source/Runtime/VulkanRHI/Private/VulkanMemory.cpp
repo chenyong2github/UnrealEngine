@@ -2736,10 +2736,15 @@ namespace VulkanRHI
 		else
 		{
 			bool bIsVertexOrIndexBuffer = (BufferUsageFlags & (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)) != 0;
+			bool bIsAccelerationStructureBuffer = (BufferUsageFlags & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR) != 0;
 			if (bIsVertexOrIndexBuffer)
 			{
 				// No alignment restrictions on Vertex or Index buffers, can live on CPU mem
 				Priority = VULKAN_MEMORY_LOW_PRIORITY;
+			}
+			else if (bIsAccelerationStructureBuffer)
+			{
+				Alignment = FMath::Max(Alignment, GRHIRayTracingAccelerationStructureAlignment);
 			}
 			else
 			{

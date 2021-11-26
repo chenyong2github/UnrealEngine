@@ -59,7 +59,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 		RayTracingSceneSRV = nullptr;
 		RayTracingSceneBuffer = nullptr;
 
-		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneBuffer"));
+		FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingScene::SceneBuffer"));
 		RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, CreateInfo);
 		RayTracingSceneSRV = RHICreateShaderResourceView(RayTracingSceneBuffer);
 	}
@@ -72,7 +72,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 		ScratchBufferDesc.BytesPerElement = uint32(ScratchAlignment);
 		ScratchBufferDesc.NumElements = uint32(FMath::DivideAndRoundUp(SizeInfo.BuildScratchSize, ScratchAlignment));
 
-		BuildScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("RayTracingScratchBuffer"));
+		BuildScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("FRayTracingScene::ScratchBuffer"));
 	}
 
 	{
@@ -92,7 +92,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 
 		if (AccelerationStructureAddressesBuffer.NumBytes < AccelerationStructureAddressesBufferSize)
 		{
-			AccelerationStructureAddressesBuffer.Initialize(TEXT("RayTracingAccelerationStructureAddressesBuffer"), AccelerationStructureAddressesBufferSize, BUF_Volatile);
+			AccelerationStructureAddressesBuffer.Initialize(TEXT("FRayTracingScene::AccelerationStructureAddressesBuffer"), AccelerationStructureAddressesBufferSize, BUF_Volatile);
 		}
 	}
 
@@ -104,7 +104,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 			|| UploadBufferSize > InstanceUploadBuffer->GetSize()
 			|| UploadBufferSize < InstanceUploadBuffer->GetSize() / 2)
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneInstanceUploadBuffer"));
+			FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingScene::InstanceUploadBuffer"));
 			InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), UploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 			InstanceUploadSRV = RHICreateShaderResourceView(InstanceUploadBuffer);
 		}
@@ -118,7 +118,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 			|| UploadBufferSize > TransformUploadBuffer->GetSize()
 			|| UploadBufferSize < TransformUploadBuffer->GetSize() / 2)
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingSceneTransformUploadBuffer"));
+			FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingScene::TransformUploadBuffer"));
 			TransformUploadBuffer = RHICreateStructuredBuffer(sizeof(FVector4f), UploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 			TransformUploadSRV = RHICreateShaderResourceView(TransformUploadBuffer);
 		}

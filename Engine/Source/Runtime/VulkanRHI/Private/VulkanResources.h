@@ -1073,30 +1073,6 @@ protected:
 	friend class FVulkanCommandListContext;
 };
 
-#if VULKAN_RHI_RAYTRACING
-struct FVkRtAllocation
-{
-	VkDevice Device = VK_NULL_HANDLE;
-	VkDeviceMemory Memory = VK_NULL_HANDLE;
-	VkBuffer Buffer = VK_NULL_HANDLE;
-};
-
-class FVulkanAccelerationStructureBuffer : public FRHIBuffer
-{
-public:
-	FVulkanAccelerationStructureBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo);
-	virtual ~FVulkanAccelerationStructureBuffer();
-
-	inline VkBuffer GetBuffer() const
-	{
-		return Allocation.Buffer;
-	}
-
-private:
-	FVkRtAllocation Allocation;
-};
-#endif
-
 class FVulkanResourceMultiBuffer : public FRHIBuffer, public FVulkanEvictable, public VulkanRHI::FDeviceChild
 {
 	virtual void Evict(FVulkanDevice& Device);
@@ -1286,11 +1262,7 @@ class FVulkanShaderResourceView : public FRHIShaderResourceView, public VulkanRH
 public:
 	FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat, uint32 InOffset = 0);
 	FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, const FRHITextureSRVCreateInfo& InCreateInfo);
-	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* InStructuredBuffer, uint32 InOffset = 0);
-
-#if VULKAN_RHI_RAYTRACING
-	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanAccelerationStructureBuffer* InSourceBuffer, uint32 InOffset = 0);
-#endif // VULKAN_RHI_RAYTRACING
+	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InOffset = 0);
 
 	void Clear();
 
