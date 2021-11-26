@@ -2229,6 +2229,18 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 	uint SharedLocalBasesCount = HEADER_GETSHAREDLOCALBASESCOUNT(PackedHeader);
 	uint SharedLocalBasesTypes = HEADER_GETSHAREDLOCALBASESTYPE(PackedHeader);
 
+	Out.MaterialAO = float(HEADER_GETAO(PackedHeader)) * (1.0f / 255.0f);
+	Out.State = HEADER_GETSTATE(PackedHeader);
+
+	// Pre-shadow mask
+#if ALLOW_STATIC_LIGHTING
+	Out.PrecomputedShadowMask = HasZeroPrecShadowMask(Out) ? 0.f : 1.f;
+	if (HasPrecShadowMask(Out))
+	{
+		Out.PrecomputedShadowMask = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
+	}
+#endif
+
 #if STRATA_INLINE_SHADING==0
 
 	Out.StrataBuffer = StrataBuffer;
@@ -2252,17 +2264,6 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 	StrataAddressing.ReadBytes += SharedLocalBasesCount * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
 #endif
 
-	Out.MaterialAO = float(HEADER_GETAO(PackedHeader)) * (1.0f / 255.0f);
-	Out.State = HEADER_GETSTATE(PackedHeader);
-
-	// Pre-shadow mask
-#if ALLOW_STATIC_LIGHTING
-	Out.PrecomputedShadowMask = HasZeroPrecShadowMask(Out) ? 0.f : 1.f;
-	if (HasPrecShadowMask(Out))
-	{
-		Out.PrecomputedShadowMask = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
-	}
-#endif
 	return Out;
 }
 
