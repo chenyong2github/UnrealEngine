@@ -3,7 +3,7 @@
 #include "NavigationDirtyAreasController.h"
 #include "NavigationData.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogNavigationDirtyArea, Warning, All);
+DEFINE_LOG_CATEGORY(LogNavigationDirtyArea);
 
 //----------------------------------------------------------------------//
 // FNavigationDirtyAreasController

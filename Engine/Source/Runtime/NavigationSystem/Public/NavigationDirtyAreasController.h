@@ -4,6 +4,8 @@
 #include "AI/Navigation/NavigationTypes.h"
 
 
+NAVIGATIONSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogNavigationDirtyArea, Warning, All);
+
 class ANavigationData;
 
 struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
