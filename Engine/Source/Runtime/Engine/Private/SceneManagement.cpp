@@ -786,9 +786,6 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	WaterIndirection = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 	WaterData = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
-	LandscapeIndirection = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
-	LandscapePerComponentData = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
-
 	HairScatteringLUTTexture = BlackVolume;
 	HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 

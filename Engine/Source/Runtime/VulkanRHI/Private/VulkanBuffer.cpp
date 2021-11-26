@@ -136,17 +136,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 
 			// Get a dummy buffer as sometimes the high-level misbehaves and tries to use SRVs off volatile buffers before filling them in...
 			void* Data = Lock(bRenderThread, RLM_WriteOnly, InSize, 0);
-
-			if (CreateInfo.ResourceArray)
-			{
-				uint32 CopyDataSize = FMath::Min(InSize, CreateInfo.ResourceArray->GetResourceDataSize());
-				FMemory::Memcpy(Data, CreateInfo.ResourceArray->GetResourceData(), CopyDataSize);
-			}
-			else
-			{
-				FMemory::Memzero(Data, InSize);
-			}
-
+			FMemory::Memzero(Data, InSize);
 			Unlock(bRenderThread);
 		}
 		else

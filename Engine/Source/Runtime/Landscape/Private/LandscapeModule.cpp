@@ -14,7 +14,6 @@
 
 #include "LandscapeProxy.h"
 #include "Landscape.h"
-#include "LandscapeRender.h"
 #include "LandscapeSplineActor.h"
 #include "Engine/Texture2D.h"
 #include "EngineUtils.h"
@@ -29,13 +28,6 @@ public:
 	/** IModuleInterface implementation */
 	void StartupModule() override;
 	void ShutdownModule() override;
-
-private:
-	void OnPostEngineInit();
-	void OnEnginePreExit();
-
-private:
-	TSharedPtr<FLandscapeSceneViewExtension, ESPMode::ThreadSafe> SceneViewExtension;
 };
 
 /**
@@ -204,27 +196,12 @@ void FLandscapeModule::StartupModule()
 	FWorldDelegates::OnPostDuplicate.AddStatic(
 		&WorldDuplicateEventFunction
 	);
-
-	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FLandscapeModule::OnPostEngineInit);
-	FCoreDelegates::OnEnginePreExit.AddRaw(this, &FLandscapeModule::OnEnginePreExit);
-}
-
-void FLandscapeModule::OnPostEngineInit()
-{
-	check(!SceneViewExtension.IsValid());
-	SceneViewExtension = FSceneViewExtensions::NewExtension<FLandscapeSceneViewExtension>();
-}
-
-void FLandscapeModule::OnEnginePreExit()
-{
-	check(SceneViewExtension.IsValid());
-	SceneViewExtension.Reset();
 }
 
 void FLandscapeModule::ShutdownModule()
 {
-	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
-	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
+	// we call this function before unloading the module.
 }
 
 IMPLEMENT_MODULE(FLandscapeModule, Landscape);
