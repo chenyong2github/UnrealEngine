@@ -94,13 +94,13 @@ UDataLayer* UDataLayerSubsystem::GetDataLayerFromName(FName InDataLayerName) con
 	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromName(InDataLayerName)) : nullptr;
 }
 
-void UDataLayerSubsystem::SetDataLayerRuntimeState(const UDataLayer* InDataLayer, EDataLayerRuntimeState InState)
+void UDataLayerSubsystem::SetDataLayerRuntimeState(const UDataLayer* InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive)
 {
 	if (InDataLayer)
 	{
 		if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 		{
-			WorldDataLayers->SetDataLayerRuntimeState(FActorDataLayer(InDataLayer->GetFName()), InState);
+			WorldDataLayers->SetDataLayerRuntimeState(FActorDataLayer(InDataLayer->GetFName()), InState, bInIsRecursive);
 		}
 	}
 	else
@@ -109,11 +109,11 @@ void UDataLayerSubsystem::SetDataLayerRuntimeState(const UDataLayer* InDataLayer
 	}
 }
 
-void UDataLayerSubsystem::SetDataLayerRuntimeStateByName(const FName& InDataLayerName, EDataLayerRuntimeState InState)
+void UDataLayerSubsystem::SetDataLayerRuntimeStateByName(const FName& InDataLayerName, EDataLayerRuntimeState InState, bool bInIsRecursive)
 {
 	if (UDataLayer* DataLayer = GetDataLayerFromName(InDataLayerName))
 	{
-		SetDataLayerRuntimeState(DataLayer, InState);
+		SetDataLayerRuntimeState(DataLayer, InState, bInIsRecursive);
 	}
 	else
 	{
@@ -121,11 +121,11 @@ void UDataLayerSubsystem::SetDataLayerRuntimeStateByName(const FName& InDataLaye
 	}
 }
 
-void UDataLayerSubsystem::SetDataLayerRuntimeState(const FActorDataLayer& InDataLayer, EDataLayerRuntimeState InState)
+void UDataLayerSubsystem::SetDataLayerRuntimeState(const FActorDataLayer& InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive)
 {
 	if (UDataLayer* DataLayer = GetDataLayerFromName(InDataLayer.Name))
 	{
-		SetDataLayerRuntimeState(DataLayer, InState);
+		SetDataLayerRuntimeState(DataLayer, InState, bInIsRecursive);
 	}
 	else
 	{
@@ -133,11 +133,11 @@ void UDataLayerSubsystem::SetDataLayerRuntimeState(const FActorDataLayer& InData
 	}
 }
 
-void UDataLayerSubsystem::SetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel, EDataLayerRuntimeState InState)
+void UDataLayerSubsystem::SetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel, EDataLayerRuntimeState InState, bool bInIsRecursive)
 {
 	if (UDataLayer* DataLayer = GetDataLayerFromLabel(InDataLayerLabel))
 	{
-		SetDataLayerRuntimeState(DataLayer, InState);
+		SetDataLayerRuntimeState(DataLayer, InState, bInIsRecursive);
 	}
 	else
 	{

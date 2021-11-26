@@ -128,7 +128,7 @@ void AWorldDataLayers::ResetDataLayerRuntimeStates()
 	RepEffectiveLoadedDataLayerNames.Reset();
 }
 
-void AWorldDataLayers::SetDataLayerRuntimeState(FActorDataLayer InDataLayer, EDataLayerRuntimeState InState)
+void AWorldDataLayers::SetDataLayerRuntimeState(FActorDataLayer InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive)
 {
 	if (ensure(GetLocalRole() == ROLE_Authority))
 	{
@@ -165,6 +165,15 @@ void AWorldDataLayers::SetDataLayerRuntimeState(FActorDataLayer InDataLayer, EDa
 				*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)InState).ToString());
 
 			ResolveEffectiveRuntimeState(DataLayer);
+		}
+
+		if (bInIsRecursive)
+		{
+			DataLayer->ForEachChild([this, InState, bInIsRecursive](const UDataLayer* Child)
+			{
+				SetDataLayerRuntimeState(Child->GetFName(), InState, bInIsRecursive);
+				return true;
+			});
 		}
 	}
 }
