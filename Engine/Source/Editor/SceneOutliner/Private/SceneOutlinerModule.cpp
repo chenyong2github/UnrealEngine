@@ -372,7 +372,8 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 				FCreateSceneOutlinerColumn::CreateStatic(
 					&FTextInfoColumn::CreateTextInfoColumn,
 					ColumnID,
-					ColumnInfo),
+					ColumnInfo,
+					FText::GetEmpty()),
 				true,
 				TOptional<float>(),
 				ColumnName));

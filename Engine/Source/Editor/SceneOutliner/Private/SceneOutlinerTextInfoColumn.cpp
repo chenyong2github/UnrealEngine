@@ -9,13 +9,14 @@
 #define LOCTEXT_NAMESPACE "SceneOutlinerTextInfoColumn"
 
 
-TSharedRef<ISceneOutlinerColumn> FTextInfoColumn::CreateTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem InGetTextForItem)
+TSharedRef<ISceneOutlinerColumn> FTextInfoColumn::CreateTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem InGetTextForItem, const FText InColumnToolTip)
 {
-	return TSharedRef<ISceneOutlinerColumn>(MakeShareable(new FTextInfoColumn(Outliner, InColumnName, InGetTextForItem)));
+	return TSharedRef<ISceneOutlinerColumn>(MakeShareable(new FTextInfoColumn(Outliner, InColumnName, InGetTextForItem, InColumnToolTip)));
 }
 
-FTextInfoColumn::FTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem& InGetTextForItem):
+FTextInfoColumn::FTextInfoColumn(ISceneOutliner& Outliner, const FName InColumnName, const FGetTextForItem& InGetTextForItem, const FText InColumnToolTip):
 	ColumnName(InColumnName),
+	ColumnToolTip(InColumnToolTip),
 	SceneOutlinerWeak(StaticCastSharedRef<ISceneOutliner>(Outliner.AsShared())),
 	GetTextForItem(InGetTextForItem)
 {
@@ -30,6 +31,7 @@ FName FTextInfoColumn::GetColumnID()
 SHeaderRow::FColumn::FArguments FTextInfoColumn::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(ColumnName)
+		.DefaultTooltip(!ColumnToolTip.IsEmptyOrWhitespace() ? ColumnToolTip : TAttribute<FText>())
 		.FillWidth(2)
 		.HeaderComboVisibility(EHeaderComboVisibility::OnHover);
 }
