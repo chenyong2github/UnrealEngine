@@ -19,6 +19,7 @@ static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlag
 	const bool bUniformBuffer = !!(Usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 	const bool bIndexBuffer = !!(Usage & VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 	const bool bVertexBuffer = !!(Usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+	const bool bAccelerationStructure = !!(Usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR);
 
 	if (Allocating)
 	{
@@ -33,6 +34,10 @@ static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlag
 		else if (bVertexBuffer)
 		{
 			INC_MEMORY_STAT_BY(STAT_VertexBufferMemory, Size);
+		}
+		else if (bAccelerationStructure)
+		{
+			INC_MEMORY_STAT_BY(STAT_RTAccelerationStructureMemory, Size);
 		}
 		else
 		{
@@ -53,36 +58,16 @@ static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlag
 		{
 			DEC_MEMORY_STAT_BY(STAT_VertexBufferMemory, Size);
 		}
+		else if (bAccelerationStructure)
+		{
+			INC_MEMORY_STAT_BY(STAT_RTAccelerationStructureMemory, Size);
+		}
 		else
 		{
 			DEC_MEMORY_STAT_BY(STAT_StructuredBufferMemory, Size);
 		}
 	}
 }
-
-#if VULKAN_RHI_RAYTRACING
-FVulkanAccelerationStructureBuffer::FVulkanAccelerationStructureBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo)
-	: FRHIBuffer(InSize, InUEUsage, InStride)
-{
-	check(EnumHasAnyFlags(InUEUsage, BUF_AccelerationStructure));
-	if (InSize == 0)
-	{
-		return;
-	}
-	
-	FVulkanRayTracingAllocator::Allocate(
-		InDevice,
-		InSize,
-		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		Allocation);
-}
-
-FVulkanAccelerationStructureBuffer::~FVulkanAccelerationStructureBuffer()
-{
-	FVulkanRayTracingAllocator::Free(Allocation);
-}
-#endif // VULKAN_RHI_RAYTRACING
 
 FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList)
 	: FRHIBuffer(InSize, InUEUsage, InStride)
@@ -109,6 +94,12 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 	{
 		BufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	}
+#if VULKAN_RHI_RAYTRACING
+	if (EnumHasAnyFlags(InUEUsage, BUF_AccelerationStructure))
+	{
+		BufferUsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+	}
+#endif
 
 	if (InSize > 0)
 	{
@@ -473,13 +464,6 @@ void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
 FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
-
-#if VULKAN_RHI_RAYTRACING
-	if (EnumHasAnyFlags(Usage, BUF_AccelerationStructure))
-	{
-		return new FVulkanAccelerationStructureBuffer(Device, Size, Usage, Stride, CreateInfo);
-	}
-#endif
 
 	if (CreateInfo.bWithoutNativeResource)
 	{

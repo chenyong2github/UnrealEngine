@@ -46,36 +46,34 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHI
 
 }
 
-FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* InStructuredBuffer, uint32 InOffset)
-	: VulkanRHI::FVulkanViewBase(Device)
-	, BufferViewFormat(PF_Unknown)
-	, SourceTexture(nullptr)
-	, SourceStructuredBuffer(InStructuredBuffer)
-	, NumMips(0)
-	, Size(InStructuredBuffer->GetSize() - InOffset)
-	, Offset(InOffset)
-	, SourceBuffer(nullptr)
+FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* InDevice, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InOffset)
+	: VulkanRHI::FVulkanViewBase(InDevice)
 {
-}
+	check(InDevice && InSourceBuffer);
 
 #if VULKAN_RHI_RAYTRACING
-FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* InDevice, FVulkanAccelerationStructureBuffer* InSourceBuffer, uint32 InOffset)
-	: VulkanRHI::FVulkanViewBase(InDevice)
-	, SourceRHIBuffer(InSourceBuffer)
-{
-	check(InDevice);
+	if (EnumHasAnyFlags(InSourceBuffer->GetUsage(), BUF_AccelerationStructure))
+	{
+		SourceRHIBuffer = InSourceBuffer;
 
-	VkAccelerationStructureCreateInfoKHR CreateInfo;
-	ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR);
-	CreateInfo.buffer = InSourceBuffer->GetBuffer();
-	CreateInfo.offset = InOffset;
-	CreateInfo.size = InSourceBuffer->GetSize() - InOffset;
-	CreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+		VkAccelerationStructureCreateInfoKHR CreateInfo;
+		ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR);
+		CreateInfo.buffer = InSourceBuffer->GetHandle();
+		CreateInfo.offset = InOffset;
+		CreateInfo.size = InSourceBuffer->GetSize() - InOffset;
+		CreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 
-	VkDevice NativeDevice = InDevice->GetInstanceHandle();
-	VERIFYVULKANRESULT(VulkanDynamicAPI::vkCreateAccelerationStructureKHR(NativeDevice, &CreateInfo, VULKAN_CPU_ALLOCATOR, &AccelerationStructureHandle));
+		VkDevice NativeDevice = InDevice->GetInstanceHandle();
+		VERIFYVULKANRESULT(VulkanDynamicAPI::vkCreateAccelerationStructureKHR(NativeDevice, &CreateInfo, VULKAN_CPU_ALLOCATOR, &AccelerationStructureHandle));
+	}
+	else
+#endif
+	{
+		SourceStructuredBuffer = InSourceBuffer;
+		Size = InSourceBuffer->GetSize() - InOffset;
+		Offset = InOffset;
+	}
 }
-#endif // VULKAN_RHI_RAYTRACING
 
 FVulkanShaderResourceView::~FVulkanShaderResourceView()
 {
@@ -400,6 +398,9 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(const F
 			}
 		}
 		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
+#if VULKAN_RHI_RAYTRACING
+		case FShaderResourceViewInitializer::EType::AccelerationStructureSRV:
+#endif
 		{
 			check(Desc.Buffer);
 			return new FVulkanShaderResourceView(Device, Buffer, Desc.StartOffsetBytes);
@@ -413,14 +414,6 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(const F
 			uint32 Size = FMath::Min(Buffer->GetSize() - Desc.StartOffsetBytes, Desc.NumElements * Stride);
 			return new FVulkanShaderResourceView(Device, Desc.Buffer, Buffer, Size, Format, Desc.StartOffsetBytes);
 		}
-#if VULKAN_RHI_RAYTRACING
-		case FShaderResourceViewInitializer::EType::AccelerationStructureSRV:
-		{
-			check(Desc.Buffer);
-			FVulkanAccelerationStructureBuffer* ASBuffer = static_cast<FVulkanAccelerationStructureBuffer*>(Desc.Buffer);
-			return new FVulkanShaderResourceView(Device, ASBuffer, Desc.StartOffsetBytes);
-		}
-#endif // D3D12_RHI_RAYTRACING
 	}
 	checkNoEntry();
 	return nullptr;
@@ -434,19 +427,12 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHITex
 
 FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHIBuffer* BufferRHI)
 {
-	if (BufferRHI && EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_VertexBuffer | BUF_StructuredBuffer))
+	if (BufferRHI && EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_VertexBuffer | BUF_StructuredBuffer | BUF_AccelerationStructure))
 	{
 		FVulkanResourceMultiBuffer* Buffer = ResourceCast(BufferRHI);
 		FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Buffer);
 		return SRV;
 	}
-#if VULKAN_RHI_RAYTRACING
-	else if (BufferRHI && EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_AccelerationStructure))
-	{
-		FVulkanAccelerationStructureBuffer* ASBuffer = static_cast<FVulkanAccelerationStructureBuffer*>(BufferRHI);
-		return new FVulkanShaderResourceView(Device, ASBuffer, 0);
-	}
-#endif
 	else
 	{
 		if (!BufferRHI)
