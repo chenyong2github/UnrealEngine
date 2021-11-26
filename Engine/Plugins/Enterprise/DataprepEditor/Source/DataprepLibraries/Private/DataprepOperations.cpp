@@ -568,4 +568,150 @@ void UDataprepSetMaxTextureSizeOperation::PostEditChangeProperty(FPropertyChange
 	}
 }
 
+void UDataprepSetNaniteSettingsOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("SetNaniteSettings"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	// Execute operation
+	TArray<UObject*> ModifiedStaticMeshes;
+	UDataprepOperationsLibrary::SetNaniteSettings(InContext.Objects, bNaniteEnabled, PositionPrecision, PercentTriangles * 0.01f, ModifiedStaticMeshes);
+
+	if (ModifiedStaticMeshes.Num() > 0)
+	{
+		AssetsModified(MoveTemp(ModifiedStaticMeshes));
+	}
+}
+
+// Helper functions to replicate setting of PositionPrecision for Nanite settings
+// in StaticMesh editor.
+// Borrowed from FNaniteSettingsLayoutin StaticMeshEditorTool.cpp
+namespace NaniteSettingsUtils
+{
+	static const int32 DisplayPositionPrecisionMin = -6;
+	static const int32 DisplayPositionPrecisionMax = 13;
+	/** Strings representing valid PositionPrecision. */
+	static TArray< TSharedPtr< FString > > PositionPrecisionNames;
+
+	int32 PositionPrecisionIndexToValue(int32 Index)
+	{
+		check(Index >= 0);
+
+		if (Index == 0)
+		{
+			return MIN_int32;
+		}
+		else
+		{
+			int32 Value = DisplayPositionPrecisionMin + (Index - 1);
+			Value = FMath::Min(Value, DisplayPositionPrecisionMax);
+			return Value;
+		}
+	}
+
+	int32 PositionPrecisionValueToIndex(int32 Value)
+	{
+		if (Value == MIN_int32)
+		{
+			return 0;
+		}
+		else
+		{
+			Value = FMath::Clamp(Value, DisplayPositionPrecisionMin, DisplayPositionPrecisionMax);
+			return Value - DisplayPositionPrecisionMin + 1;
+		}
+	}
+
+	FString PositionPrecisionValueToDisplayString(int32 Value)
+	{
+		check(Value != MIN_int32);
+
+		if (Value <= 0)
+		{
+			return FString::Printf(TEXT("%dcm"), 1 << (-Value));
+		}
+		else
+		{
+			const float fValue = FMath::Exp2((double)-Value);
+			return FString::Printf(TEXT("1/%dcm (%.3gcm)"), 1 << Value, fValue);
+		}
+	}
+}
+
+void FDataprepSetNaniteSettingsDetails::OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type /*SelectInfo*/)
+{
+	using namespace NaniteSettingsUtils;
+
+	int32 Index = PositionPrecisionNames.Find(NewValue);
+	if (Index != INDEX_NONE && PositionPrecisionPropertyHandle.IsValid())
+	{
+		PositionPrecisionPropertyHandle->SetValue(PositionPrecisionIndexToValue(Index));
+	}
+}
+
+TSharedRef< SWidget > FDataprepSetNaniteSettingsDetails::CreateWidget()
+{
+	using namespace NaniteSettingsUtils;
+
+	// Build list of PositionPrecision names the user will choose from
+	if (PositionPrecisionNames.Num() == 0)
+	{
+		PositionPrecisionNames.Reserve(20);
+
+		PositionPrecisionNames.Add(MakeShareable(new FString(TEXT("Auto"))));
+
+		for (int32 Value = DisplayPositionPrecisionMin; Value <= DisplayPositionPrecisionMax; ++Value)
+		{
+			PositionPrecisionNames.Add(MakeShareable(new FString(PositionPrecisionValueToDisplayString(Value))));
+		}
+	}
+
+	// Set displayed value to what is used in this operator's PositionPrecision
+	int32 SelectedIndex = PositionPrecisionValueToIndex(DataprepOperation->PositionPrecision);
+
+
+	// Create widget
+	return	SNew(STextComboBox)
+		.OptionsSource(&PositionPrecisionNames)
+		.InitiallySelectedItem(PositionPrecisionNames[SelectedIndex])
+		.OnSelectionChanged(this, &FDataprepSetNaniteSettingsDetails::OnPositionPrecisionChanged);
+}
+
+void FDataprepSetNaniteSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray< TWeakObjectPtr< UObject > > Objects;
+	DetailBuilder.GetObjectsBeingCustomized(Objects);
+	check(Objects.Num() > 0);
+
+	DataprepOperation = Cast< UDataprepSetNaniteSettingsOperation >(Objects[0].Get());
+	check(DataprepOperation);
+
+	TArray<FName> CategoryNames;
+	DetailBuilder.GetCategoryNames(CategoryNames);
+
+	FName CategoryName = CategoryNames.Num() > 0 ? CategoryNames[0] : FName(TEXT("MeshOperation_Internal"));
+	IDetailCategoryBuilder& ImportSettingsCategoryBuilder = DetailBuilder.EditCategory(CategoryName, FText::GetEmpty(), ECategoryPriority::Important);
+
+	PositionPrecisionPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDataprepSetNaniteSettingsOperation, PositionPrecision));
+
+	// Hide PositionPrecision property as it is replaced with custom widget
+	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDataprepSetNaniteSettingsOperation, PositionPrecision));
+
+	FDetailWidgetRow& CustomAssetImportRow = ImportSettingsCategoryBuilder.AddCustomRow(FText::FromString(TEXT("Position Precision")));
+
+	CustomAssetImportRow.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("DatasmithNaniteOperationsLabel", "PositionPrecision"))
+			.ToolTipText(LOCTEXT("DatasmithNaniteOperationsTooltip", "List of predefined position precision"))
+			.Font(DetailBuilder.GetDetailFont())
+		];
+
+	CustomAssetImportRow.ValueContent()
+		[
+			CreateWidget()
+		];
+}
+
 #undef LOCTEXT_NAMESPACE

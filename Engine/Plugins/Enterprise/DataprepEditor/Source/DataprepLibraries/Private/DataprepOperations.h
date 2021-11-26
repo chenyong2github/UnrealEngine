@@ -569,3 +569,55 @@ protected:
 	// Track changes of MaxTextureSize and force values to be power of two
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 };
+
+UCLASS(Category = MeshOperation, Meta = (DisplayName = "Set Nanite Settings", ToolTip = "For each static mesh to process, enables/disables Nanite build and if enabled update settings."))
+class UDataprepSetNaniteSettingsOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+public:
+	/** If true, Nanite data will be generated */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (ToolTip = "If checked, Nanite data will be generated"))
+	bool bNaniteEnabled = false;
+
+	/** Position Precision. Step size is 2^(-PositionPrecision) cm. MIN_int32 is auto. */
+	// #ueent_todo: Same display as static mesh editor. See FNaniteSettingsLayout in StaticMeshEditorTool.h
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation_Internal, meta = (/*EditConditionHides, EditCondition = "bNaniteEnabled",*/ ToolTip = "Step size is 2^(-PositionPrecision) cm. MIN_int32 is auto"))
+	int32 PositionPrecision = MIN_int32;
+
+	/** Percentage of triangles to keep from LOD0. 100.0 = no reduction, 0.0 = no triangles. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshOperation, meta = (/*EditConditionHides, EditCondition = "bNaniteEnabled",*/ ClampMin = 0, ClampMax = 100, UIMin = "0.0", UIMax = "100.0", ToolTip = "Percentage of triangles to keep from LOD0. 100.0 = no reduction, 0.0 = no triangles"))
+	float PercentTriangles = 100.f;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::MeshOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+
+// Customization of the details of the DataprepSetNaniteSettingsOperation for the Dataprep editor.
+class FDataprepSetNaniteSettingsDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDataprepSetNaniteSettingsDetails>(); };
+
+	FDataprepSetNaniteSettingsDetails() : DataprepOperation(nullptr) {}
+
+	/** Called when details should be customized */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+private:
+	TSharedRef< SWidget > CreateWidget();
+	void OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
+
+private:
+	UDataprepSetNaniteSettingsOperation* DataprepOperation;
+
+	TSharedPtr<IPropertyHandle> PositionPrecisionPropertyHandle;
+};
