@@ -163,7 +163,8 @@ bool ASkeletalMeshActor::GetReferencedContentObjects(TArray<UObject*>& Objects) 
 		Objects.Add(SkeletalMeshComponent->SkeletalMesh);
 	}
 
-	if (SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationSingleNode)
+	if (SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationSingleNode &&
+		SkeletalMeshComponent->AnimationData.AnimToPlay)
 	{
 		Objects.Add(SkeletalMeshComponent->AnimationData.AnimToPlay);
 	}

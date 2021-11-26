@@ -2937,11 +2937,11 @@ void UEditorEngine::GetReferencedAssetsForEditorSelection(TArray<UObject*>& Obje
 
 		// If Blueprint assets should take precedence over any other referenced asset, check if there are any blueprints in this actor's list
 		// and if so, add only those.
-		if (bIgnoreOtherAssetsIfBPReferenced && ActorObjects.ContainsByPredicate([](UObject* Obj) { return Obj->IsA(UBlueprint::StaticClass()); }))
+		if (bIgnoreOtherAssetsIfBPReferenced && ActorObjects.ContainsByPredicate([](UObject* Obj) { return Obj && Obj->IsA(UBlueprint::StaticClass()); }))
 		{
 			for (UObject* Object : ActorObjects)
 			{
-				if (Object->IsA(UBlueprint::StaticClass()))
+				if (Object && Object->IsA(UBlueprint::StaticClass()))
 				{
 					Objects.Add(Object);
 				}
