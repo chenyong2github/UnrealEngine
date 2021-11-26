@@ -364,7 +364,7 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
 	uint BSDFCount = 0;
-	uint PackedStrataHeader = PackStrataHeaderIn(BSDFCount, StrataHeader);
+	uint PackedStrataHeader = PackStrataHeader(BSDFCount, StrataHeader);
 
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(DispatchThreadId.xy, TiledViewBufferResolution, MaxBytesPerPixel);
 	MaterialLobesBufferUAV.Store(StrataAddressing.CurrentAddr, PackedStrataHeader);
