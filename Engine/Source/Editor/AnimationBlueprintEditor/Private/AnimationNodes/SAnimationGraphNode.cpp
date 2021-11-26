@@ -27,110 +27,9 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SGraphPanel.h"
+#include "SPoseWatchOverlay.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphNode"
-
-class SPoseViewColourPickerPopup : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(SPoseViewColourPickerPopup)
-	{}
-	SLATE_ARGUMENT(TWeakObjectPtr< UPoseWatch >, PoseWatch)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs)
-	{
-		PoseWatch = InArgs._PoseWatch;
-
-		static const FSlateColorBrush WhiteBrush(FLinearColor::White);
-
-		TArrayView<const FColor> PoseWatchColors = AnimationEditorUtils::GetPoseWatchColorPalette();
-		const int32 NumColors = PoseWatchColors.Num();
-
-		const int32 Rows = 2;
-		const int32 Columns = NumColors / Rows;
-
-		TSharedPtr<SVerticalBox> Layout = SNew(SVerticalBox);
-
-		for (int32 RowIndex = 0; RowIndex < Rows; ++RowIndex)
-		{
-			TSharedPtr<SHorizontalBox> Row = SNew(SHorizontalBox);
-
-			for (int32 RowItem = 0; RowItem < Columns; ++RowItem)
-			{
-				int32 ColorIndex = RowItem + (RowIndex * Columns);
-				FColor Color = PoseWatchColors[ColorIndex];
-				if (ColorIndex >= NumColors)
-				{
-					break;
-				}
-
-				Row->AddSlot()
-				.Padding(5.f, 2.f)
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "NoBorder")
-					.HAlign(HAlign_Center)
-					.OnClicked(this, &SPoseViewColourPickerPopup::NewPoseWatchColourPicked, Color)
-					[
-						SNew(SImage)
-						.Image(&WhiteBrush)
-						.DesiredSizeOverride(FVector2D(24, 24))
-						.ColorAndOpacity(Color)
-					]
-				];
-
-			}
-
-			Layout->AddSlot()
-			[
-				Row.ToSharedRef()
-			];
-		}
-
-		Layout->AddSlot()
-			.AutoHeight()
-			.Padding(5.f, 2.f)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("RemovePoseWatch", "Remove Pose Watch"))
-				.OnClicked(this, &SPoseViewColourPickerPopup::RemovePoseWatch)
-			];
-
-		this->ChildSlot
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
-				.Padding(10)
-				[
-					Layout->AsShared()
-				]
-			];
-	}
-
-private:
-	FReply NewPoseWatchColourPicked(FColor NewColour)
-	{
-		if (UPoseWatch* CurPoseWatch = PoseWatch.Get())
-		{
-			AnimationEditorUtils::UpdatePoseWatchColour(CurPoseWatch, NewColour);
-		}
-		FSlateApplication::Get().DismissAllMenus();
-		return FReply::Handled();
-	}
-
-	FReply RemovePoseWatch()
-	{
-		if (UPoseWatch* CurPoseWatch = PoseWatch.Get())
-		{
-			AnimationEditorUtils::RemovePoseWatch(CurPoseWatch);
-		}
-		FSlateApplication::Get().DismissAllMenus();
-		return FReply::Handled();
-	}
-
-	TWeakObjectPtr<UPoseWatch> PoseWatch;
-};
 
 void SAnimationGraphNode::Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 {
@@ -150,28 +49,10 @@ void SAnimationGraphNode::Construct(const FArguments& InArgs, UAnimGraphNode_Bas
 		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("AnimGraphNodeIndicatorTooltip", "Fast path enabled: This node is not using any Blueprint calls to update its data."), NULL, TEXT("Shared/GraphNodes/Animation"), TEXT("GraphNode_FastPathInfo")))
 		.Visibility(EVisibility::Visible);
 
-	PoseViewWidget =
-		SNew(SButton)
-		.ToolTipText(LOCTEXT("TogglePoseWatchVisibility", "Click to toggle visibility"))
-		.OnClicked(this, &SAnimationGraphNode::TogglePoseWatchVisibility)
-		.ButtonColorAndOpacity(this, &SAnimationGraphNode::GetPoseViewColour)
-		[
-			SNew(SImage).Image(this, &SAnimationGraphNode::GetPoseViewIcon)
-		];
 
-	// Search for an enabled or disabled pose watch on this node
-	PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode);
-
-	// Register for pose watch changes
-	AnimationEditorUtils::OnPoseWatchesChanged().AddSP(this, &SAnimationGraphNode::HandlePoseWatchesChanged);
+	PoseViewWidget = SNew(SPoseWatchOverlay, InNode);
 
 	LastHighDetailSize = FVector2D::ZeroVector;
-}
-
-void SAnimationGraphNode::HandlePoseWatchesChanged(UAnimBlueprint* InAnimBlueprint, UEdGraphNode* InNode)
-{
-	// Search for an enabled or disabled pose watch on this node
-	PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode);
 }
 
 void SAnimationGraphNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -201,14 +82,11 @@ TArray<FOverlayWidgetInfo> SAnimationGraphNode::GetOverlayWidgets(bool bSelected
 			Widgets.Add(Info);
 		}
 
-		if (PoseWatch.IsValid())
+		if (PoseViewWidget->IsPoseWatchValid())
 		{
-			const FSlateBrush* ImageBrush = FEditorStyle::GetBrush("Level.VisibleIcon16x");
-
 			FOverlayWidgetInfo Info;
-			Info.OverlayOffset = FVector2D(0 - (ImageBrush->ImageSize.X * 0.5f), -(ImageBrush->ImageSize.Y * 0.5f));
+			Info.OverlayOffset = PoseViewWidget->GetOverlayOffset();
 			Info.Widget = PoseViewWidget;
-			
 			Widgets.Add(Info);
 		}
 	}
@@ -216,41 +94,6 @@ TArray<FOverlayWidgetInfo> SAnimationGraphNode::GetOverlayWidgets(bool bSelected
 	return Widgets;
 }
 
-const FSlateBrush* SAnimationGraphNode::GetPoseViewIcon() const
-{
-	return FEditorStyle::GetBrush(PoseWatch->GetIsVisible() ? "Level.VisibleIcon16x" : "Level.NotVisibleIcon16x");
-}
-
-FSlateColor SAnimationGraphNode::GetPoseViewColour() const
-{
-	UPoseWatch* CurPoseWatch = PoseWatch.Get();
-	if (CurPoseWatch)
-	{
-		FLinearColor OutColor = CurPoseWatch->GetColor();
-		OutColor.A = CurPoseWatch->GetShouldDeleteOnDeselect() ? 0.5 : 0.9;
-		return FSlateColor(OutColor);
-	}
-	return FSlateColor(FColor::White); //Need a return value but should never actually get here
-}
-
-FReply SAnimationGraphNode::TogglePoseWatchVisibility()
-{
-	PoseWatch->ToggleIsVisible();
-	return FReply::Handled();
-}
-
-FReply SAnimationGraphNode::SpawnColourPicker()
-{
-	FSlateApplication::Get().PushMenu(
-		SharedThis(this),
-		FWidgetPath(),
-		SNew(SPoseViewColourPickerPopup).PoseWatch(PoseWatch),
-		FSlateApplication::Get().GetCursorPos(),
-		FPopupTransitionEffect(FPopupTransitionEffect::TypeInPopup)
-		);
-
-	return FReply::Handled();
-}
 
 TSharedRef<SWidget> SAnimationGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle)
 {

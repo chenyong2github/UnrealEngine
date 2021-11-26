@@ -8,6 +8,7 @@
 
 class UEdGraph;
 class UAnimGraphNode_BlendSpaceGraphBase;
+class SPoseWatchOverlay;
 
 class SGraphNodeBlendSpaceGraph : public SGraphNodeK2Composite
 {
@@ -20,8 +21,12 @@ public:
 protected:
 	// SGraphNodeK2Composite interface
 	virtual UEdGraph* GetInnerGraph() const override;
+	virtual TArray<FOverlayWidgetInfo> GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const override;
 	virtual TSharedRef<SWidget> CreateNodeBody() override;
 	
 	// SGraphNode interface
 	TSharedPtr<SToolTip> GetComplexTooltip() override;
+
+private:
+	TSharedPtr<SPoseWatchOverlay> PoseWatchWidget;
 };

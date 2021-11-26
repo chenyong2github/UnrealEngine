@@ -14,6 +14,7 @@ class UAnimGraphNode_Base;
 class IDetailTreeNode;
 class IPropertyRowGenerator;
 class UAnimBlueprint;
+class SPoseWatchOverlay;
 
 class ANIMATIONBLUEPRINTEDITOR_API SAnimationGraphNode : public SGraphNodeK2Base
 {
@@ -53,13 +54,6 @@ protected:
 	// End of SGraphNode interface
 
 private:
-	// Return Pose View Colour for slate indicator
-	FSlateColor GetPoseViewColour() const;
-	const FSlateBrush* GetPoseViewIcon() const;
-
-	FReply SpawnColourPicker();
-	FReply TogglePoseWatchVisibility();
-
 	// Handle the node informing us that the title has changed
 	void HandleNodeTitleChanged();
 
@@ -74,12 +68,10 @@ private:
 	TSharedPtr<SWidget> IndicatorWidget;
 
 	/** Keep a reference to the pose view indicator widget handing around */
-	TSharedPtr<SWidget> PoseViewWidget;
+	TSharedPtr<SPoseWatchOverlay> PoseViewWidget;
 
 	/** Cache the node title so we can invalidate it */
 	TSharedPtr<SNodeTitle> NodeTitle;
-
-	TWeakObjectPtr<class UPoseWatch> PoseWatch;
 
 	/** Cached size from when we last drew at high detail */
 	FVector2D LastHighDetailSize;
