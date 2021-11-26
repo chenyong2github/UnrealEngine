@@ -1439,10 +1439,12 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 		if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
 		{
-			UNiagaraSystem* EmitterOwner = Emitter->GetTypedOuter<UNiagaraSystem>();
-			if (EmitterOwner->bBakeOutRapidIteration)
+			if ( UNiagaraSystem* System = Emitter->GetTypedOuter<UNiagaraSystem>() )
 			{
-				bUsesRapidIterationParams = false;
+				if (System->bBakeOutRapidIteration)
+				{
+					bUsesRapidIterationParams = false;
+				}
 			}
 		}
 		else if (UNiagaraSystem* System = GetTypedOuter<UNiagaraSystem>())
