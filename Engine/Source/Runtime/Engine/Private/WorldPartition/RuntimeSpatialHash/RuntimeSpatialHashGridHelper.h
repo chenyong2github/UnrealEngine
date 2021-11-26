@@ -282,22 +282,19 @@ struct FSquare2DGridHelper
 				: Coords(InCoords)
 			{}
 
-			void AddActor(FActorInstance ActorInstance, const TArray<const UDataLayer*>& InDataLayers)
-			{
-				FDataLayersID DataLayersID = FDataLayersID(InDataLayers);
-				FGridCellDataChunk* ActorDataChunk = Algo::FindByPredicate(DataChunks, [&](FGridCellDataChunk& InDataChunk) { return InDataChunk.GetDataLayersID() == DataLayersID; });
-				if (!ActorDataChunk)
-				{
-					ActorDataChunk = &DataChunks.Emplace_GetRef(InDataLayers);
-				}
-				ActorDataChunk->AddActor(MoveTemp(ActorInstance));
-			}
-
 			void AddActors(const TSet<FGuid>& InActors, const FActorContainerInstance* ContainerInstance, const TArray<const UDataLayer*>& InDataLayers)
 			{
 				for (const FGuid& Actor : InActors)
 				{
-					AddActor(FActorInstance(Actor, ContainerInstance), InDataLayers);
+					FActorInstance ActorInstance(Actor, ContainerInstance);
+
+					FDataLayersID DataLayersID = FDataLayersID(InDataLayers);
+					FGridCellDataChunk* ActorDataChunk = Algo::FindByPredicate(DataChunks, [&](FGridCellDataChunk& InDataChunk) { return InDataChunk.GetDataLayersID() == DataLayersID; });
+					if (!ActorDataChunk)
+					{
+						ActorDataChunk = &DataChunks.Emplace_GetRef(InDataLayers);
+					}
+					ActorDataChunk->AddActor(MoveTemp(ActorInstance));
 				}
 			}
 
