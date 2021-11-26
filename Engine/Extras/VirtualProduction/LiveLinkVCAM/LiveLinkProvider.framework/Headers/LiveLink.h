@@ -1,3 +1,4 @@
+//  Copyright Epic Games. Inc. All rights reserved.
 
 #import <Foundation/Foundation.h>
 

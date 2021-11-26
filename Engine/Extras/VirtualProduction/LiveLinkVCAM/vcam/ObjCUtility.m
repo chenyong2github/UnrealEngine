@@ -1,10 +1,4 @@
-//
-//  ObjCUtility.m
-//  Live Link VCAM
-//
-//  Created by Brian Smith on 1/27/20.
-//  Copyright © 2020 Epic Games, Inc. All rights reserved.
-//
+//  Copyright Epic Games. Inc. All rights reserved.
 
 #import <CoreVideo/CoreVideo.h>
 #import <CoreServices/CoreServices.h>
