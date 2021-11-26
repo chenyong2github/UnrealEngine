@@ -49,7 +49,7 @@ void FFriendsEOS::Initialize()
 		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalUserId, Data->TargetUserId)
 		.Next([This, LocalUserId, PreviousStatus = Data->PreviousStatus, CurrentStatus = Data->CurrentStatus](const FOnlineAccountIdHandle& FriendUserId)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("OnEOSPresenceUpdate: [%s] [%s]"), *ToLogString(LocalUserId), *ToLogString(FriendUserId));
+			UE_LOG(LogTemp, Warning, TEXT("OnEOSFriendsUpdate: LocalUserId=[%s] FriendUserId=[%s]"), *ToLogString(LocalUserId), *ToLogString(FriendUserId));
 			This->OnEOSFriendsUpdate(LocalUserId, FriendUserId, PreviousStatus, CurrentStatus);
 		});
 	});

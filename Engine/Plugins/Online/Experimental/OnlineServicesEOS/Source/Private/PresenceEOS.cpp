@@ -82,7 +82,7 @@ void FPresenceEOS::Initialize()
 		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalUserId, Data->PresenceUserId)
 		.Next([This, LocalUserId](const FOnlineAccountIdHandle& PresenceUserId)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("OnEOSPresenceUpdate: [%s] [%s]"), *ToLogString(LocalUserId), *ToLogString(PresenceUserId));
+			UE_LOG(LogTemp, Warning, TEXT("OnEOSPresenceUpdate: LocalUserId=[%s] PresenceUserId=[%s]"), *ToLogString(LocalUserId), *ToLogString(PresenceUserId));
 			This->UpdateUserPresence(LocalUserId, PresenceUserId);
 		});
 	});
