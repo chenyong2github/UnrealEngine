@@ -11,6 +11,7 @@
 #include "AnimationNodes/SAnimationGraphNode.h"
 #include "SLevelOfDetailBranchNode.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "SPoseWatchOverlay.h"
 
 #define LOCTEXT_NAMESPACE "SGraphNodeBlendSpaceGraph"
 
@@ -19,6 +20,8 @@ void SGraphNodeBlendSpaceGraph::Construct(const FArguments& InArgs, UAnimGraphNo
 	GraphNode = InNode;
 
 	SetCursor(EMouseCursor::CardinalCross);
+
+	PoseWatchWidget = SNew(SPoseWatchOverlay, InNode);
 
 	UpdateGraphNode();
 
@@ -30,6 +33,24 @@ UEdGraph* SGraphNodeBlendSpaceGraph::GetInnerGraph() const
 	UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(GraphNode);
 
 	return BlendSpaceNode->GetBlendSpaceGraph();
+}
+
+TArray<FOverlayWidgetInfo> SGraphNodeBlendSpaceGraph::GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const
+{
+	TArray<FOverlayWidgetInfo> Widgets;
+
+	if (UAnimGraphNode_Base* AnimNode = CastChecked<UAnimGraphNode_Base>(GraphNode, ECastCheckedType::NullAllowed))
+	{
+		if (PoseWatchWidget->IsPoseWatchValid())
+		{
+			FOverlayWidgetInfo Info;
+			Info.OverlayOffset = PoseWatchWidget->GetOverlayOffset();
+			Info.Widget = PoseWatchWidget;
+			Widgets.Add(Info);
+		}
+	}
+
+	return Widgets;
 }
 
 TSharedPtr<SToolTip> SGraphNodeBlendSpaceGraph::GetComplexTooltip()
