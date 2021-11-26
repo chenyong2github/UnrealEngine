@@ -9,6 +9,19 @@
 
 //////////////////////////////////////////////////////////////////////////
 // SExpandableButton
+SLATE_IMPLEMENT_WIDGET(SExpandableButton)
+void SExpandableButton::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IsExpanded, EInvalidateWidgetReason::Paint)
+		.OnValueChanged(FSlateAttributeDescriptor::FAttributeValueChangedDelegate::CreateLambda([](SWidget& Widget)
+			{
+				static_cast<SExpandableButton&>(Widget).UpdateVisibility();
+			}));
+}
+
+SExpandableButton::SExpandableButton()
+	: IsExpanded(*this, false)
+{}
 
 EVisibility SExpandableButton::GetCollapsedVisibility() const
 {
@@ -22,7 +35,8 @@ EVisibility SExpandableButton::GetExpandedVisibility() const
 
 void SExpandableButton::Construct(const FArguments& InArgs)
 {
-	IsExpanded = InArgs._IsExpanded;
+	IsExpanded.Assign(*this, InArgs._IsExpanded);
+	ExpandedChildContent = InArgs._ExpandedChildContent.Widget;
 
 	// Set up the collapsed button content
 	TSharedRef<SWidget> CollapsedButtonContent = (InArgs._CollapsedButtonContent.Widget == SNullWidget::NullWidget)
@@ -33,9 +47,6 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 	TSharedRef<SWidget> ExpandedButtonContent = (InArgs._ExpandedButtonContent.Widget == SNullWidget::NullWidget)
 		? StaticCastSharedRef<SWidget>( SNew(STextBlock) .Text( InArgs._ExpandedText ) )
 		: InArgs._ExpandedButtonContent.Widget;
-		
-	// The child content will be optionally visible depending on the state of the expandable button.
-	InArgs._ExpandedChildContent.Widget->SetVisibility( TAttribute<EVisibility>(this, &SExpandableButton::GetExpandedVisibility) );
 
 	SBorder::Construct(SBorder::FArguments()
 		.BorderImage( FCoreStyle::Get().GetBrush( "ExpandableButton.Background" ) )
@@ -48,9 +59,8 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
-				SNew(SButton)
+				SAssignNew(ToggleButtonClosed, SButton)
 				.VAlign(VAlign_Center)
-				.Visibility( this, &SExpandableButton::GetCollapsedVisibility )
 				.OnClicked( InArgs._OnExpansionClicked )
 				.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
 				.ContentPadding( 0.f )
@@ -63,8 +73,7 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SNew(SButton)
-				.Visibility( this, &SExpandableButton::GetExpandedVisibility )
+				SAssignNew(ToggleButtonExpanded, SButton)
 				.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
 				.ContentPadding( 0.f )
 				.VAlign(VAlign_Center)
@@ -88,10 +97,9 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 			.HAlign(HAlign_Right)
 			[
 				// Close expansion button
-				SNew(SButton)
+				SAssignNew(CloseExpansionButton, SButton)
 				.ButtonStyle( FCoreStyle::Get(), "NoBorder" )
 				.ContentPadding( 0.f )
-				.Visibility( this, &SExpandableButton::GetExpandedVisibility )
 				.OnClicked(InArgs._OnCloseClicked)
 				[
 					SNew(SImage)
@@ -100,4 +108,18 @@ void SExpandableButton::Construct(const FArguments& InArgs)
 			]
 		]
 	);
+
+	UpdateVisibility();
+}
+
+void SExpandableButton::UpdateVisibility()
+{
+	// The child content will be optionally visible depending on the state of the expandable button.
+	if (ExpandedChildContent)
+	{
+		ExpandedChildContent->SetVisibility(GetExpandedVisibility());
+	}
+	ToggleButtonClosed->SetVisibility(GetCollapsedVisibility());
+	ToggleButtonExpanded->SetVisibility(GetExpandedVisibility());
+	CloseExpansionButton->SetVisibility(GetExpandedVisibility());
 }

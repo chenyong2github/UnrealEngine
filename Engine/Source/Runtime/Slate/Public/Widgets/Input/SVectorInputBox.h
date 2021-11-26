@@ -140,12 +140,12 @@ public:
 		/** Should the axis labels be colored */
 		SLATE_ARGUMENT( bool, bColorAxisLabels )		
 
-			/** Allow responsive layout to crush the label and margins when there is not a lot of room */
-			UE_DEPRECATED(5.0, "AllowResponsiveLayout unused as it is no longer necessary.")
-			FArguments& AllowResponsiveLayout(bool bAllow)
-			{
-				return TSlateBaseNamedArgs<ThisClass>::Me();
-			}
+		/** Allow responsive layout to crush the label and margins when there is not a lot of room */
+		UE_DEPRECATED(5.0, "AllowResponsiveLayout unused as it is no longer necessary.")
+		FArguments& AllowResponsiveLayout(bool bAllow)
+		{
+			return TSlateBaseNamedArgs<ThisClass>::Me();
+		}
 
 		/** Called right before the slider begins to move for any of the vector components */
 		SLATE_EVENT( FSimpleDelegate, OnBeginSliderMovement )
@@ -169,7 +169,7 @@ public:
 
 		ChildSlot
 		[
-				HorizontalBox
+			HorizontalBox
 		];
 
 		if constexpr (NumberOfComponents >= 1)

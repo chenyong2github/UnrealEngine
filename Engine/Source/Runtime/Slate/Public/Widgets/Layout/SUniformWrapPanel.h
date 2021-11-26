@@ -17,6 +17,8 @@ class FArrangedChildren;
 /** A panel that evenly divides up available space between all of its children. */
 class SLATE_API SUniformWrapPanel : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SUniformWrapPanel, SPanel)
+
 public:
 	/** Stores the per-child info for this panel type */
 	struct FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
@@ -137,19 +139,19 @@ protected:
 
 private:
 	TPanelChildren<FSlot> Children;
-	TAttribute<FMargin> SlotPadding;
+	TSlateAttribute<FMargin> SlotPadding;
 	
 	/** These values are recomputed and cached during compute desired size, as they may have changed since the previous frame. */
 	mutable int32 NumColumns;
 	mutable int32 NumRows;
 	mutable int32 NumVisibleChildren;
 
-	TAttribute<float> MinDesiredSlotWidth;
-	TAttribute<float> MinDesiredSlotHeight;
+	TSlateAttribute<float> MinDesiredSlotWidth;
+	TSlateAttribute<float> MinDesiredSlotHeight;
 
-	TAttribute<float> MaxDesiredSlotWidth;
-	TAttribute<float> MaxDesiredSlotHeight;
+	TSlateAttribute<float> MaxDesiredSlotWidth;
+	TSlateAttribute<float> MaxDesiredSlotHeight;
 
-	TAttribute< EHorizontalAlignment > HAlign;
-	TAttribute<bool> EvenRowDistribution;
+	TSlateAttribute<EHorizontalAlignment> HAlign;
+	TSlateAttribute<bool> EvenRowDistribution;
 };

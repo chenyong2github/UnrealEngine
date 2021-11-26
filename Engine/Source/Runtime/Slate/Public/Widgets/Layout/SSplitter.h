@@ -366,7 +366,7 @@ protected:
 	TPanelChildren< FSlot > Children;
 
 	int32 HoveredHandleIndex;
-	TAttribute<int32> HighlightedHandleIndex;
+	TSlateAttribute<int32, EInvalidateWidgetReason::Paint> HighlightedHandleIndex;
 	bool bIsResizing;
 	EOrientation Orientation;
 	ESplitterResizeMode::Type ResizeMode;

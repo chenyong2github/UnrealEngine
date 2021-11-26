@@ -4,7 +4,10 @@
 #include "Layout/LayoutUtils.h"
 
 SUniformGridPanel::SUniformGridPanel()
-: Children(this)
+	: Children(this)
+	, SlotPadding(*this, FMargin(0.0f))
+	, MinDesiredSlotWidth(*this, 0.f)
+	, MinDesiredSlotHeight(*this, 0.f)
 {
 }
 
@@ -15,11 +18,11 @@ SUniformGridPanel::FSlot::FSlotArguments SUniformGridPanel::Slot(int32 Column, i
 
 void SUniformGridPanel::Construct( const FArguments& InArgs )
 {
-	SlotPadding = InArgs._SlotPadding;
+	SlotPadding.Assign(*this, InArgs._SlotPadding);
 	NumColumns = 0;
 	NumRows = 0;
-	MinDesiredSlotWidth = InArgs._MinDesiredSlotWidth.Get();
-	MinDesiredSlotHeight = InArgs._MinDesiredSlotHeight.Get();
+	MinDesiredSlotWidth.Assign(*this, InArgs._MinDesiredSlotWidth);
+	MinDesiredSlotHeight.Assign(*this, InArgs._MinDesiredSlotHeight);
 
 	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 }
@@ -93,17 +96,17 @@ FChildren* SUniformGridPanel::GetChildren()
 
 void SUniformGridPanel::SetSlotPadding(TAttribute<FMargin> InSlotPadding)
 {
-	SlotPadding = InSlotPadding;
+	SlotPadding.Assign(*this, MoveTemp(InSlotPadding));
 }
 
 void SUniformGridPanel::SetMinDesiredSlotWidth(TAttribute<float> InMinDesiredSlotWidth)
 {
-	MinDesiredSlotWidth = InMinDesiredSlotWidth;
+	MinDesiredSlotWidth.Assign(*this, MoveTemp(InMinDesiredSlotWidth));
 }
 
 void SUniformGridPanel::SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight)
 {
-	MinDesiredSlotHeight = InMinDesiredSlotHeight;
+	MinDesiredSlotHeight.Assign(*this, MoveTemp(InMinDesiredSlotHeight));
 }
 
 SUniformGridPanel::FScopedWidgetSlotArguments SUniformGridPanel::AddSlot( int32 Column, int32 Row )

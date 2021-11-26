@@ -5,13 +5,22 @@
 #include "Layout/ArrangedChildren.h"
 
 
+SFxWidget::SFxWidget()
+	: RenderScale(*this, 1.f)
+	, RenderScaleOrigin(*this, FVector2D::ZeroVector)
+	, LayoutScale(*this, 1.f)
+	, VisualOffset(*this, FVector2D::ZeroVector)
+	, bIgnoreClipping(*this, true)
+{
+}
+
 void SFxWidget::Construct( const FArguments& InArgs )
 {
-	RenderScale = InArgs._RenderScale;
-	RenderScaleOrigin = InArgs._RenderScaleOrigin;
-	LayoutScale = InArgs._LayoutScale;
-	VisualOffset = InArgs._VisualOffset;
-	bIgnoreClipping = InArgs._IgnoreClipping;
+	RenderScale.Assign(*this, InArgs._RenderScale);
+	RenderScaleOrigin.Assign(*this, InArgs._RenderScaleOrigin);
+	LayoutScale.Assign(*this, InArgs._LayoutScale);
+	VisualOffset.Assign(*this, InArgs._VisualOffset);
+	bIgnoreClipping.Assign(*this, InArgs._IgnoreClipping);
 	SetColorAndOpacity(InArgs._ColorAndOpacity);
 	
 	this->ChildSlot
@@ -22,24 +31,24 @@ void SFxWidget::Construct( const FArguments& InArgs )
 	];
 }
 
-void SFxWidget::SetVisualOffset( const TAttribute<FVector2D>& InOffset )
+void SFxWidget::SetVisualOffset( TAttribute<FVector2D> InOffset )
 {
-	VisualOffset = InOffset;
+	VisualOffset.Assign(*this, MoveTemp(InOffset));
 }
 
 void SFxWidget::SetVisualOffset( FVector InOffset )
 {
-	VisualOffset = FVector2D(InOffset.X, InOffset.Y);
+	VisualOffset.Set(*this, FVector2D(InOffset.X, InOffset.Y));
 }
 
-void SFxWidget::SetRenderScale( const TAttribute<float>& InScale )
+void SFxWidget::SetRenderScale( TAttribute<float> InScale )
 {
-	RenderScale = InScale;
+	RenderScale.Assign(*this, InScale);
 }
 
 void SFxWidget::SetRenderScale( float InScale )
 {
-	RenderScale = InScale;
+	RenderScale.Set(*this, InScale);
 }
 
 /**

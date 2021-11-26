@@ -4,7 +4,8 @@
 #include "Layout/LayoutUtils.h"
 
 SRadialBox::SRadialBox()
-: Slots(this)
+	: Slots(this)
+	, PreferredWidth(*this, 100.f)
 {
 }
 
@@ -25,7 +26,7 @@ int32 SRadialBox::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 
 void SRadialBox::Construct( const FArguments& InArgs )
 {
-	PreferredWidth = InArgs._PreferredWidth;
+	PreferredWidth.Assign(*this, InArgs._PreferredWidth);
 	bUseAllottedWidth = InArgs._UseAllottedWidth;
 	StartingAngle = InArgs._StartingAngle;
 	bDistributeItemsEvenly = InArgs._bDistributeItemsEvenly;
@@ -39,7 +40,7 @@ void SRadialBox::Tick( const FGeometry& AllottedGeometry, const double InCurrent
 {
 	if (bUseAllottedWidth)
 	{
-		PreferredWidth = AllottedGeometry.GetLocalSize().X;
+		PreferredWidth.Set(*this, AllottedGeometry.GetLocalSize().X);
 	}
 }
 

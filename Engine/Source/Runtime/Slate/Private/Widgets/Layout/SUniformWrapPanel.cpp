@@ -3,24 +3,42 @@
 #include "Widgets/Layout/SUniformWrapPanel.h"
 #include "Layout/LayoutUtils.h"
 
+SLATE_IMPLEMENT_WIDGET(SUniformWrapPanel)
+void SUniformWrapPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, SlotPadding, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MinDesiredSlotWidth, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MinDesiredSlotHeight, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MaxDesiredSlotWidth, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MaxDesiredSlotHeight, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, HAlign, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, EvenRowDistribution, EInvalidateWidgetReason::Paint);
+}
+
 SUniformWrapPanel::SUniformWrapPanel()
-: Children(this)
-, HAlign(EHorizontalAlignment::HAlign_Left)
-, EvenRowDistribution(false)
+	: Children(this)
+	, SlotPadding(*this, FMargin(0.0f))
+	, MinDesiredSlotWidth(*this, 0.f)
+	, MinDesiredSlotHeight(*this, 0.f)
+	, MaxDesiredSlotWidth(*this, FLT_MAX)
+	, MaxDesiredSlotHeight(*this, FLT_MAX)
+	, HAlign(*this, EHorizontalAlignment::HAlign_Left)
+	, EvenRowDistribution(*this, false)
 {
 }
 
 void SUniformWrapPanel::Construct( const FArguments& InArgs )
 {
-	SlotPadding = InArgs._SlotPadding;
+	SlotPadding.Assign(*this, InArgs._SlotPadding);
 	NumColumns = 0;
 	NumRows = 0;
-	MinDesiredSlotWidth = InArgs._MinDesiredSlotWidth.Get();
-	MinDesiredSlotHeight = InArgs._MinDesiredSlotHeight.Get();
-	MaxDesiredSlotWidth = InArgs._MaxDesiredSlotWidth.Get();
-	MaxDesiredSlotHeight = InArgs._MaxDesiredSlotHeight.Get();
-	EvenRowDistribution =  InArgs._EvenRowDistribution.Get();
-	HAlign = InArgs._HAlign.Get();
+	NumVisibleChildren = 0;
+	MinDesiredSlotWidth.Assign(*this, InArgs._MinDesiredSlotWidth);
+	MinDesiredSlotHeight.Assign(*this, InArgs._MinDesiredSlotHeight);
+	MaxDesiredSlotWidth.Assign(*this, InArgs._MaxDesiredSlotWidth);
+	MaxDesiredSlotHeight.Assign(*this, InArgs._MaxDesiredSlotHeight);
+	HAlign.Assign(*this, InArgs._HAlign);
+	EvenRowDistribution.Assign(*this, InArgs._EvenRowDistribution);
 
 	Children.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
 }
@@ -178,37 +196,37 @@ FChildren* SUniformWrapPanel::GetChildren()
 
 void SUniformWrapPanel::SetSlotPadding(TAttribute<FMargin> InSlotPadding)
 {
-	SlotPadding = InSlotPadding;
+	SlotPadding.Assign(*this, MoveTemp(InSlotPadding));
 }
 
 void SUniformWrapPanel::SetMinDesiredSlotWidth(TAttribute<float> InMinDesiredSlotWidth)
 {
-	MinDesiredSlotWidth = InMinDesiredSlotWidth;
+	MinDesiredSlotWidth.Assign(*this, MoveTemp(InMinDesiredSlotWidth));
 }
 
 void SUniformWrapPanel::SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight)
 {
-	MinDesiredSlotHeight = InMinDesiredSlotHeight;
+	MinDesiredSlotHeight.Assign(*this, MoveTemp(InMinDesiredSlotHeight));
 }
 
 void SUniformWrapPanel::SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlotWidth)
 {
-	MaxDesiredSlotWidth = InMaxDesiredSlotWidth;
+	MaxDesiredSlotWidth.Assign(*this, MoveTemp(InMaxDesiredSlotWidth));
 }
 
 void SUniformWrapPanel::SetMaxDesiredSlotHeight(TAttribute<float> InMaxDesiredSlotHeight)
 {
-	MaxDesiredSlotHeight = InMaxDesiredSlotHeight;
+	MaxDesiredSlotHeight.Assign(*this, MoveTemp(InMaxDesiredSlotHeight));
 }
 
 void SUniformWrapPanel::SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment)
 {
-	HAlign = InHAlignment;	
+	HAlign.Assign(*this, MoveTemp(InHAlignment));
 }
 
 void SUniformWrapPanel::SetEvenRowDistribution(TAttribute<bool> InEvenRowDistribution)
 {
-	EvenRowDistribution = InEvenRowDistribution;
+	EvenRowDistribution.Assign(*this, MoveTemp(InEvenRowDistribution));
 }
 
 SUniformWrapPanel::FScopedWidgetSlotArguments SUniformWrapPanel::AddSlot()

@@ -146,12 +146,12 @@ protected:
 
 private:
 	TPanelChildren<FSlot> Children;
-	TAttribute<FMargin> SlotPadding;
+	TSlateAttribute<FMargin, EInvalidateWidgetReason::Layout> SlotPadding;
 	
 	/** These values are recomputed and cached during compute desired size, as they may have changed since the previous frame. */
 	mutable int32 NumColumns;
 	mutable int32 NumRows;
 
-	TAttribute<float> MinDesiredSlotWidth;
-	TAttribute<float> MinDesiredSlotHeight;
+	TSlateAttribute<float, EInvalidateWidgetReason::Layout> MinDesiredSlotWidth;
+	TSlateAttribute<float, EInvalidateWidgetReason::Layout> MinDesiredSlotHeight;
 };

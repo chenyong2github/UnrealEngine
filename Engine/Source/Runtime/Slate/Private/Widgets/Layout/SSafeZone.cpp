@@ -22,6 +22,12 @@ static FAutoConsoleVariableRef CVarEnableSafeZoneScale(
 	ECVF_Default
 );
 
+SSafeZone::SSafeZone()
+	: Padding(*this, 0.f)
+{
+	SetCanTick(false);
+	bCanSupportFocus = false;
+}
 
 void SSafeZone::SetGlobalSafeZoneScale(TOptional<float> InScale)
 {
@@ -55,7 +61,7 @@ void SSafeZone::Construct( const FArguments& InArgs )
 		]
 	);
 
-	Padding = InArgs._Padding;
+	Padding.Assign(*this, InArgs._Padding);
 	SafeAreaScale = InArgs._SafeAreaScale;
 	bIsTitleSafe = InArgs._IsTitleSafe;
 	bPadLeft = InArgs._PadLeft;

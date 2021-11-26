@@ -15,6 +15,8 @@
 class SLATE_API SExpandableButton
 	: public SBorder
 {
+	SLATE_DECLARE_WIDGET(SExpandableButton, SBorder)
+
 public:
 
 	SLATE_BEGIN_ARGS( SExpandableButton )
@@ -47,6 +49,7 @@ public:
 
 	SLATE_END_ARGS()
 
+	SExpandableButton();
 	/**
 	 * Construct this widget
 	 *
@@ -60,8 +63,15 @@ protected:
 	EVisibility GetCollapsedVisibility() const;
 	EVisibility GetExpandedVisibility() const;
 
-protected:
+	void UpdateVisibility();
+
+private:
 
 	/** The attribute of the current expansion state */
-	TAttribute<bool> IsExpanded;
+	TSlateAttribute<bool> IsExpanded;
+
+	TSharedPtr<SWidget> ExpandedChildContent;
+	TSharedPtr<SWidget> ToggleButtonClosed;
+	TSharedPtr<SWidget> ToggleButtonExpanded;
+	TSharedPtr<SWidget> CloseExpansionButton;
 };
