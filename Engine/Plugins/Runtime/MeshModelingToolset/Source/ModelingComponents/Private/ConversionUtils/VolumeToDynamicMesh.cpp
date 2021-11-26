@@ -5,6 +5,7 @@
 #include "ConstrainedDelaunay2.h"
 #include "Polygon2.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/MeshTransforms.h"
 #include "GameFramework/Volume.h"
 #include "MeshBoundaryLoops.h"
 #include "MeshQueries.h"
@@ -13,6 +14,7 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "Operations/MinimalHoleFiller.h"
 #include "Operations/PlanarFlipsOptimization.h"
+#include "Components/BrushComponent.h"
 
 #if WITH_EDITOR
 #include "Engine/Classes/Engine/Polys.h"
@@ -26,15 +28,48 @@ namespace Conversion {
 void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh, 
 	const FVolumeToMeshOptions& Options)
 {
+	UModel* Model = Volume->Brush;
+	if (Model == nullptr)		// model is null in some cases, eg default physics volume
+	{
+		return;
+	}
+
+	BrushToDynamicMesh(*Model, Mesh, Options);
+
+	if (Options.bInWorldSpace)
+	{
+		UE::Geometry::FTransform3d XForm(Volume->GetTransform());
+		MeshTransforms::ApplyTransform(Mesh, XForm);
+	}
+}
+
+
+void BrushComponentToDynamicMesh(UBrushComponent* Component, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options)
+{
+	UModel* Model = Component->Brush;
+	if (Model == nullptr)		// model is null in some cases, eg default physics volume
+	{
+		return;
+	}
+
+	BrushToDynamicMesh(*Model, Mesh, Options);
+
+	if (Options.bInWorldSpace)
+	{
+		UE::Geometry::FTransform3d XForm(Component->GetComponentTransform());
+		MeshTransforms::ApplyTransform(Mesh, XForm);
+	}
+}
+
+
+
+void BrushToDynamicMesh(UModel& BrushModel, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options)
+{
 	Mesh.Clear();
 	if (Options.bSetGroups)
 	{
 		Mesh.EnableTriangleGroups();
 	}
-
-	UModel* Model = Volume->Brush;
-	UE::Geometry::FTransform3d XForm = (Options.bInWorldSpace) ? 
-		UE::Geometry::FTransform3d(Volume->GetTransform()) : UE::Geometry::FTransform3d::Identity();
 
 #if WITH_EDITOR
 	// In the editor, the preferred source of geometry for a volume is the Polys array,
@@ -44,7 +79,7 @@ void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh,
 
 	// We do not try to merge any vertices yet.
 
-	const TArray<FPoly>& Polygons = Model->Polys->Element;
+	const TArray<FPoly>& Polygons = BrushModel.Polys->Element;
 	for (FPoly Poly : Polygons)
 	{
 		int32 NumVerts = Poly.Vertices.Num();
@@ -62,7 +97,7 @@ void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh,
 		Vids.SetNum(NumVerts);
 		for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
 		{
-			FVector3d Point = XForm.TransformPosition((FVector3d)Poly.Vertices[VertexIndex]);
+			FVector3d Point = (FVector3d)Poly.Vertices[VertexIndex];
 			Vids[VertexIndex] = Mesh.AppendVertex(Point);
 			ToTriangulate.AppendVertex(Plane.ToPlaneUV(Point, 2));
 		}
@@ -88,7 +123,7 @@ void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh,
 #else
 	// Each "BspNode" is a planar polygon, triangulate each polygon and accumulate in a mesh.
 	// Note that this does not make any attempt to weld vertices/edges
-	for (const FBspNode& Node : Model->Nodes)
+	for (const FBspNode& Node : BrushModel.Nodes)
 	{
 		FVector3d Normal = (FVector3d)Node.Plane;
 		FFrame3d Plane(Node.Plane.W * Normal, Normal);
@@ -101,9 +136,8 @@ void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh,
 			Vids.SetNum(NumVerts);
 			for (int32 VertexIndex = 0; VertexIndex < NumVerts; ++VertexIndex)
 			{
-				const FVert& Vert = Model->Verts[Node.iVertPool + VertexIndex];
-				FVector3d Point = (FVector3d)Model->Points[Vert.pVertex];
-				Point = XForm.TransformPosition(Point);
+				const FVert& Vert = BrushModel.Verts[Node.iVertPool + VertexIndex];
+				FVector3d Point = (FVector3d)BrushModel.Points[Vert.pVertex];
 				Vids[VertexIndex] = Mesh.AppendVertex(Point);
 				ToTriangulate.AppendVertex(Plane.ToPlaneUV(Point, 2));
 			}
@@ -124,8 +158,8 @@ void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh,
 			{
 				Mesh.AppendTriangle(Vids[Tri.A], Vids[Tri.B], Vids[Tri.C], GroupID);
 			}
-		}
 	}
+}
 #endif
 
 	if (Options.bMergeVertices)
@@ -157,5 +191,9 @@ void VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh,
 		}
 	}
 }
+
+
+
+
 
 }}//end namespace UE::Conversion
