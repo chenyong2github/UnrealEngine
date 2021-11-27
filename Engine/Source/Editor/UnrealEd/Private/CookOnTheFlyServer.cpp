@@ -111,8 +111,6 @@
 #include "UObject/Class.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/GarbageCollection.h"
-#include "UObject/LinkerDiff.h"
-#include "UObject/LinkerSave.h"
 #include "UObject/MetaData.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
@@ -4011,41 +4009,10 @@ bool UCookOnTheFlyServer::HasRecompileShaderRequests() const
 class FDiffModeCookServerUtils
 {
 public:
-	/**
-	 *  Mode for the linker diff test
-	 */
-	enum ELinkerDiffMode
-	{
-		LDM_None = 0,
-		LDM_Algo = 1,
-		LDM_Consistent = 2,
-	};
-
-private:
-	/** Misc / common settings */
-	bool bInitialized = false;
-	bool bDiffEnabled = false;
-	ELinkerDiffMode LinkerDiffMode = LDM_None;
-	FString PackageFilter;
-
-	/** DumpObjList settings */
-	bool bDumpObjList = false;
-	FString DumpObjListParams;
-
-	/** DumpObjects settings */
-	bool bDumpObjects = false;
-	bool bDumpObjectsSorted = false;
-
-	/* LinkerDiff settings */
-	IConsoleVariable* EnableNewSave = nullptr;
-	int32 CurrentEnableNewSaveValue = 0;
-
-public:
-
 	void InitializePackageWriter(ICookedPackageWriter*& CookedPackageWriter)
 	{
 		Initialize();
-		if (!IsRunningCookDiff() && !IsRunningCookLinkerDiff())
+		if (!bDiffEnabled && !bLinkerDiffEnabled)
 		{
 			return;
 		}
@@ -4053,76 +4020,24 @@ public:
 		ICookedPackageWriter::FCookCapabilities Capabilities = CookedPackageWriter->GetCookCapabilities();
 		if (!Capabilities.bDiffModeSupported)
 		{
-			const TCHAR* CommandLineArg = IsRunningCookDiff() ? TEXT("-DIFFONLY") : TEXT("-LINKERDIFF");
+			const TCHAR* CommandLineArg = bDiffEnabled ? TEXT("-DIFFONLY") : TEXT("-LINKERDIFF");
 			UE_LOG(LogCook, Fatal, TEXT("%s was enabled, but -iostore is also enabled and iostore PackageWriters do not support %s."),
 				CommandLineArg, CommandLineArg);
 		}
 
-		if (IsRunningCookDiff())
+		if (bDiffEnabled)
 		{
 			// Wrap the incoming writer inside a FDiffPackageWriter
 			CookedPackageWriter = new FDiffPackageWriter(TUniquePtr<ICookedPackageWriter>(CookedPackageWriter));
 		}
-	}
-
-	bool IsRunningCookDiff() const
-	{
-		return bDiffEnabled;
-	}
-
-	bool IsRunningCookLinkerDiff() const
-	{
-		return LinkerDiffMode != LDM_None;
-	}
-
-	ELinkerDiffMode GetLinkerDiffMode() const
-	{
-		return LinkerDiffMode;
-	}
-
-	void ProcessPackage(UPackage* InPackage)
-	{
-		ConditionallyDumpObjList(InPackage);
-		ConditionallyDumpObjects(InPackage);
-	}
-
-	void LinkerDiffSetupOther()
-	{
-		// If the linker diff is comparing the two save algo, switch the cvar to the other algo before saving again,
-		// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
-		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
+		else
 		{
-			// see CVarEnablePackageNewSave definition in SavePackageUtilities.cpp for value meaning
-			EnableNewSave->Set(CurrentEnableNewSaveValue & 1 ? 0 : 1);
+			check(bLinkerDiffEnabled);
+			CookedPackageWriter = new FLinkerDiffPackageWriter(TUniquePtr<ICookedPackageWriter>(CookedPackageWriter));
 		}
-	}
-
-	void LinkerDiffSetupCurrent()
-	{
-		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
-		{
-			EnableNewSave->Set(CurrentEnableNewSaveValue);
-		}
-	}
-
-	void LinkerDiffFinish(FSavePackageResultStruct& OtherResult, FSavePackageResultStruct& CurrentResult)
-	{
-		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
-		{
-			EnableNewSave->Set(CurrentEnableNewSaveValue);
-		}
-
-		if (OtherResult.LinkerSave && CurrentResult.LinkerSave)
-		{
-			FLinkerDiff LinkerDiff = FLinkerDiff::CompareLinkers(OtherResult.LinkerSave.Get(), CurrentResult.LinkerSave.Get());
-			LinkerDiff.PrintDiff(*GWarn);
-		}
-		OtherResult.LinkerSave.Reset();
-		CurrentResult.LinkerSave.Reset();
 	}
 
 private:
-
 	void Initialize()
 	{
 		if (bInitialized)
@@ -4131,150 +4046,19 @@ private:
 		}
 
 		bDiffEnabled = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
-
-		FString DiffMode;
-		if (FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), DiffMode))
+		FString Value;
+		bLinkerDiffEnabled = FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), Value);
+		if (bDiffEnabled && bLinkerDiffEnabled)
 		{
-			if (DiffMode == TEXT("1") || DiffMode == TEXT("algo"))
-			{
-				LinkerDiffMode = LDM_Algo;
-			}
-			else if (DiffMode == TEXT("2") || DiffMode == TEXT("consistent"))
-			{
-				LinkerDiffMode = LDM_Consistent;
-			}
-
-			EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
-			CurrentEnableNewSaveValue = EnableNewSave->GetInt();
+			UE_LOG(LogCook, Fatal, TEXT("-DiffOnly and -LinkerDiff are mutually exclusive."));
 		}
 
-		ParseCmds();
 		bInitialized = true;
 	}
 
-	void RemoveParam(FString& InOutParams, const TCHAR* InParamToRemove)
-	{
-		int32 ParamIndex = InOutParams.Find(InParamToRemove);
-		if (ParamIndex >= 0)
-		{
-			int32 NextParamIndex = InOutParams.Find(TEXT(" -"), ESearchCase::CaseSensitive, ESearchDir::FromStart, ParamIndex + 1);
-			if (NextParamIndex < ParamIndex)
-			{
-				NextParamIndex = InOutParams.Len();
-			}
-			InOutParams = InOutParams.Mid(0, ParamIndex) + InOutParams.Mid(NextParamIndex);
-		}
-	}
-	void ParseDumpObjList(FString InParams)
-	{
-		const TCHAR* PackageFilterParam = TEXT("-packagefilter=");
-		FParse::Value(*InParams, PackageFilterParam, PackageFilter);
-		RemoveParam(InParams, PackageFilterParam);
-
-		// Add support for more parameters here
-		// After all parameters have been parsed and removed, pass the remaining string as objlist params
-		DumpObjListParams = InParams;
-	}
-	void ParseDumpObjects(FString InParams)
-	{
-		const TCHAR* PackageFilterParam = TEXT("-packagefilter=");
-		FParse::Value(*InParams, PackageFilterParam, PackageFilter);
-		RemoveParam(InParams, PackageFilterParam);
-
-		const TCHAR* SortParam = TEXT("sort");
-		bDumpObjectsSorted = FParse::Param(*InParams, SortParam);
-		RemoveParam(InParams, SortParam);
-	}
-
-	void ParseCmds()
-	{
-		const TCHAR* DumpObjListParam = TEXT("dumpobjlist");
-		const TCHAR* DumpObjectsParam = TEXT("dumpobjects");
-
-		FString CmdsText;
-		if (FParse::Value(FCommandLine::Get(), TEXT("-diffcmds="), CmdsText, false))
-		{
-			CmdsText = CmdsText.TrimQuotes();
-			TArray<FString> CmdsList;
-			CmdsText.ParseIntoArray(CmdsList, TEXT(","));
-			for (FString Cmd : CmdsList)
-			{
-				if (Cmd.StartsWith(DumpObjListParam))
-				{
-					bDumpObjList = true;
-					ParseDumpObjList(*Cmd + FCString::Strlen(DumpObjListParam));
-				}
-				else if (Cmd.StartsWith(DumpObjectsParam))
-				{
-					bDumpObjects = true;
-					ParseDumpObjects(*Cmd + FCString::Strlen(DumpObjectsParam));
-				}
-			}
-		}
-	}
-	bool FilterPackageName(UPackage* InPackage, const FString& InWildcard)
-	{
-		bool bInclude = false;
-		FString PackageName = InPackage->GetName();
-		if (PackageName.MatchesWildcard(InWildcard))
-		{
-			bInclude = true;
-		}
-		else if (FPackageName::GetShortName(PackageName).MatchesWildcard(InWildcard))
-		{
-			bInclude = true;
-		}
-		else if (InPackage->LinkerLoad)
-		{
-			FString Filename(InPackage->LinkerLoad->GetPackagePath().GetLocalFullPath());
-			bInclude = Filename.MatchesWildcard(InWildcard);
-		}
-		return bInclude;
-	}
-	void ConditionallyDumpObjList(UPackage* InPackage)
-	{
-		if (bDumpObjList)
-		{
-			if (FilterPackageName(InPackage, PackageFilter))
-			{
-				FString ObjListExec = TEXT("OBJ LIST ");
-				ObjListExec += DumpObjListParams;
-
-				TGuardValue<ELogTimes::Type> GuardLogTimes(GPrintLogTimes, ELogTimes::None);
-				TGuardValue<bool> GuardLogCategory(GPrintLogCategory, false);
-				TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
-
-				GEngine->Exec(nullptr, *ObjListExec);
-			}
-		}
-	}
-	void ConditionallyDumpObjects(UPackage* InPackage)
-	{
-		if (bDumpObjects)
-		{
-			if (FilterPackageName(InPackage, PackageFilter))
-			{
-				TArray<FString> AllObjects;
-				for (FThreadSafeObjectIterator It; It; ++It)
-				{
-					AllObjects.Add(*It->GetFullName());
-				}
-				if (bDumpObjectsSorted)
-				{
-					AllObjects.Sort();
-				}
-
-				TGuardValue<ELogTimes::Type> GuardLogTimes(GPrintLogTimes, ELogTimes::None);
-				TGuardValue<bool> GuardLogCategory(GPrintLogCategory, false);
-				TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
-
-				for (const FString& Obj : AllObjects)
-				{
-					UE_LOG(LogCook, Display, TEXT("%s"), *Obj);
-				}
-			}
-		}
-	}
+	bool bInitialized = false;
+	bool bDiffEnabled = false;
+	bool bLinkerDiffEnabled = false;
 };
 
 UE_TRACE_EVENT_BEGIN(UE_CUSTOM_COOKTIMER_LOG, SaveCookedPackage, NoSync)
@@ -4319,62 +4103,21 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 			SaveArgs.TargetPlatform = TargetPlatform;
 			SaveArgs.bSlowTask = false;
 			SaveArgs.SavePackageContext = Context.SavePackageContext;
-			try
+
+			Context.PackageWriter->UpdateSaveArguments(SaveArgs);
+			do
 			{
-				if (DiffModeHelper->IsRunningCookDiff())
-				{
-					DiffModeHelper->ProcessPackage(Package);
-
-					// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
-					FDiffPackageWriter* DiffPackageWriter = static_cast<FDiffPackageWriter*>(Context.PackageWriter);
-					Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
-					if (Context.SavePackageResult == ESavePackageResult::Success && DiffPackageWriter->IsDifferenceFound())
-					{
-						// If the simple memory diff was not identical, collect callstacks for all Serialize calls and dump differences to log
-						DiffPackageWriter->BeginDiffCallstack();
-
-						Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename,
-							SaveArgs);
-					}
-				}
-				else if (DiffModeHelper->IsRunningCookLinkerDiff())
-				{
-					// Save the package with the other save algorithm. Discard the result but keep the linker.
-					DiffModeHelper->LinkerDiffSetupOther();
-					FSavePackageResultStruct OtherResult;
-					OtherResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
-
-					// The contract with the PackageWriter is that every Begin is paired with a single commit.
-					// Send the old commit and the new begin.
-					IPackageWriter::FCommitPackageInfo CommitInfo;
-					CommitInfo.bSucceeded = OtherResult == ESavePackageResult::Success;
-					CommitInfo.PackageName = Package->GetFName();
-					CommitInfo.WriteOptions = IPackageWriter::EWriteOptions::None;
-					Context.PackageWriter->CommitPackage(MoveTemp(CommitInfo));
-					IPackageWriter::FBeginPackageInfo BeginInfo;
-					BeginInfo.PackageName = Package->GetFName();
-					BeginInfo.LooseFilePath = Context.PlatFilename;
-					Context.PackageWriter->BeginPackage(BeginInfo);
-
-					// Resave the package with the current save algorithm.
-					// Commit the result in FinishPlatform later, and compare the linkers now.
-					DiffModeHelper->LinkerDiffSetupCurrent();
-					FSavePackageResultStruct NewResult;
-					Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
-
-					DiffModeHelper->LinkerDiffFinish(OtherResult, Context.SavePackageResult);
-				}
-				else
+				try
 				{
 					Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
 				}
-			}
-			catch (std::exception&)
-			{
-				UE_LOG(LogCook, Warning, TEXT("Tried to save package %s for target platform %s but threw an exception"),
-					*Package->GetName(), *TargetPlatform->PlatformName());
-				Context.SavePackageResult = ESavePackageResult::Error;
-			}
+				catch (std::exception&)
+				{
+					UE_LOG(LogCook, Warning, TEXT("Tried to save package %s for target platform %s but threw an exception"),
+						*Package->GetName(), *TargetPlatform->PlatformName());
+					Context.SavePackageResult = ESavePackageResult::Error;
+				}
+			} while (Context.PackageWriter->IsAnotherSaveNeeded(Context.SavePackageResult, SaveArgs));
 
 			// If package was actually saved check with asset manager to make sure it wasn't excluded for being a
 			// development or never cook package. But skip sending the warnings from this check if it was editor-only.
@@ -4432,10 +4175,6 @@ void FSaveCookedPackageContext::SetupPackage()
 	bKeepEditorOnlyPackages |= COTFS.IsCookFlagSet(ECookInitializationFlags::Iterative);
 	SaveFlags |= bKeepEditorOnlyPackages ? SAVE_KeepEditorOnlyCookedPackages : SAVE_None;
 	SaveFlags |= COTFS.CookByTheBookOptions ? SAVE_ComputeHash : SAVE_None;
-	if (COTFS.DiffModeHelper->IsRunningCookLinkerDiff())
-	{
-		SaveFlags |= SAVE_CompareLinker;
-	}
 
 	// Use SandboxFile to do path conversion to properly handle sandbox paths (outside of standard paths in particular).
 	Filename = COTFS.ConvertToFullSandboxPath(*Filename, true);
