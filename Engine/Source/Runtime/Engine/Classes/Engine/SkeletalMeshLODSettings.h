@@ -93,16 +93,12 @@ struct FSkeletalMeshLODGroupSettings
 	UPROPERTY(EditAnywhere, Category = Reduction)
 	TArray<FBoneFilter> BoneList;
 
-	/** Bones which should be prioritized for the quality, this will be weighted toward keeping source data. Use WeightOfPrioritization to control the value. */
+	/** Bones which should be prioritized for the quality, this will be weighted toward keeping source data. */
 	UPROPERTY(EditAnywhere, Category = Reduction)
 	TArray<FName> BonesToPrioritize;
 
-	/** Sections which should be prioritized for the quality, this will be weighted toward keeping source data. Use WeightOfPrioritization to control the value. */
-	UPROPERTY(EditAnywhere, Category = Reduction)
-	TArray<int32> SectionsToPrioritize;
-
-	/** How much to consideration to give BonesToPrioritize and SectionsToPrioritize.  The weight is an additional vertex simplification penalty where 0 means nothing. */
-	UPROPERTY(EditAnywhere, Category = Reduction, meta = (UIMin = "0.0", ClampMin = "0.0"))
+	/** Weight of how much consider for BonesToPrioritize. 0 means nothing, and 1 means take all source */
+	UPROPERTY(EditAnywhere, Category = Reduction, meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float WeightOfPrioritization;
 
 	/** Pose which should be used to reskin vertex influences for which the bones will be removed in this LOD level, uses ref-pose by default */

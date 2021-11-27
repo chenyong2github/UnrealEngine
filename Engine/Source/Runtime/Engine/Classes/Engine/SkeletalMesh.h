@@ -359,51 +359,6 @@ struct ENGINE_API FSkeletalMeshClothBuildParams
 	TSoftObjectPtr<UPhysicsAsset> PhysicsAsset;
 };
 
-USTRUCT()
-struct FSectionReference
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Index of the section we reference. **/
-	UPROPERTY(EditAnywhere, Category = SectionReference)
-	int32 SectionIndex;
-
-	FSectionReference()
-		: SectionIndex(INDEX_NONE)
-	{
-	}
-
-	FSectionReference(const int32& InSectionIndex)
-		: SectionIndex(InSectionIndex)
-	{
-	}
-
-	bool operator==(const FSectionReference& Other) const
-	{
-		return SectionIndex == Other.SectionIndex;
-	}
-
-#if WITH_EDITOR
-	/** return true if it has a valid section index for LodModel parameter **/
-	ENGINE_API bool IsValidToEvaluate(const FSkeletalMeshLODModel& LodModel) const;
-
-	const struct FSkelMeshSection* GetMeshLodSection(const FSkeletalMeshLODModel& LodModel) const;
-	int32 GetMeshLodSectionIndex(const FSkeletalMeshLODModel& LodModel) const;
-#endif
-
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << SectionIndex;
-		return true;
-	}
-
-	friend FArchive& operator<<(FArchive& Ar, FSectionReference& B)
-	{
-		B.Serialize(Ar);
-		return Ar;
-	}
-};
-
 /** Struct containing information for a particular LOD level, such as materials and info for when to use it. */
 USTRUCT()
 struct FSkeletalMeshLODInfo
@@ -451,15 +406,11 @@ struct FSkeletalMeshLODInfo
 	UPROPERTY(EditAnywhere, Category = ReductionSettings)
 	TArray<FBoneReference> BonesToRemove;
 
-	/** Bones which should be prioritized for the quality, this will be weighted toward keeping source data. Use WeightOfPrioritization to control the value. */
+	/** Bones which should be prioritized for the quality, this will be weighted toward keeping source data. */
 	UPROPERTY(EditAnywhere, Category = ReductionSettings)
 	TArray<FBoneReference> BonesToPrioritize;
 
-	/** Sections which should be prioritized for the quality, this will be weighted toward keeping source data. Use WeightOfPrioritization to control the value. */
-	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	TArray<FSectionReference> SectionsToPrioritize;
-
-	/** How much to consideration to give BonesToPrioritize and SectionsToPrioritize.  The weight is an additional vertex simplification penalty where 0 means nothing. */
+	/** How much to consideration to give BonesToPrioritize.  The weight is an additional vertex simplification penalty where 0 means nothing. */
 	UPROPERTY(EditAnywhere, Category = ReductionSettings, meta = (UIMin = "0.0", ClampMin = "0.0"))
 	float WeightOfPrioritization;
 
