@@ -461,7 +461,6 @@ void SkeletalMesUtilsImpl::RestoreLODInfo(const TSharedPtr<const FExistingSkelMe
 	}
 	ImportedLODInfo.BonesToRemove = ExistingLODInfo.BonesToRemove;
 	ImportedLODInfo.BonesToPrioritize = ExistingLODInfo.BonesToPrioritize;
-	ImportedLODInfo.SectionsToPrioritize = ExistingLODInfo.SectionsToPrioritize;
 	ImportedLODInfo.WeightOfPrioritization = ExistingLODInfo.WeightOfPrioritization;
 	ImportedLODInfo.BakePose = ExistingLODInfo.BakePose;
 	ImportedLODInfo.BakePoseOverride = ExistingLODInfo.BakePoseOverride;
