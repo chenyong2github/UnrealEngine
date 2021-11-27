@@ -7,9 +7,9 @@
 
 FSimpleMulticastDelegate URemoteControlProtocolDMXSettings::OnRemoteControlProtocolDMXSettingsChangedDelegate;
 
-void URemoteControlProtocolDMXSettings::PostInitProperties()
+void URemoteControlProtocolDMXSettings::PostLoad()
 {
-	Super::PostInitProperties();
+	Super::PostLoad();
 
 	if (!DefaultInputPortId.IsValid() || !FDMXPortManager::Get().FindInputPortByGuid(DefaultInputPortId))
 	{

@@ -28,6 +28,9 @@ FDMXProtocolArtNetReceiver::FDMXProtocolArtNetReceiver(const TSharedPtr<FDMXProt
 {
 	check(Socket->GetSocketType() == SOCKTYPE_Datagram);
 
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	ReceivedSenderInternetAddr = SocketSubsystem->CreateInternetAddr();
+
 	FString ReceiverThreadName = FString(TEXT("ArtNetReceiver_")) + InEndpointInternetAddr->ToString(true);
 	Thread = FRunnableThread::Create(this, *ReceiverThreadName, 0, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
@@ -144,20 +147,17 @@ void FDMXProtocolArtNetReceiver::Update(const FTimespan& SocketWaitTime)
 		return;
 	}
 
-	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
-
 	uint32 Size = 0;
 	int32 Read = 0;
 	while (Socket->HasPendingData(Size))
 	{
-		TSharedRef<FArrayReader> Reader = MakeShared<FArrayReader>(true);
+		const TSharedRef<FArrayReader> Reader = MakeShared<FArrayReader>(true);
 
 		// Use an aligned size instead of ART_NET_PACKAGE_SIZE
 		constexpr uint32 ArtNetMaxReaderSize = 1024u;
 		Reader->SetNumUninitialized(FMath::Min(Size, ArtNetMaxReaderSize));
 		
-        if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *InternetAddr))
+        if (Socket->RecvFrom(Reader->GetData(), Reader->Num(), Read, *ReceivedSenderInternetAddr))
 		{
             Reader->RemoveAt(Read, Reader->Num() - Read, false);
 			

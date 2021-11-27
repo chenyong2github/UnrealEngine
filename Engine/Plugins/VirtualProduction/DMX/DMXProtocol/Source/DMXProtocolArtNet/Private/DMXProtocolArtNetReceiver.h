@@ -106,8 +106,11 @@ private:
 	/** The network socket. */
 	FSocket* Socket = nullptr;
 
-	/** The endpoint internet addr */
+	/** The endpoint internet addr (usually the network interface card IP Address) */
 	TSharedPtr<FInternetAddr> EndpointInternetAddr;
+
+	/** The sender when packets were received */
+	TSharedPtr<FInternetAddr> ReceivedSenderInternetAddr;
 
 	/** Flag indicating that the thread is stopping. */
 	TAtomic<bool> bStopping;

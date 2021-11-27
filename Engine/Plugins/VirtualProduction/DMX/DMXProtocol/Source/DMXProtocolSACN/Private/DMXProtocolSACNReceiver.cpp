@@ -29,6 +29,10 @@ FDMXProtocolSACNReceiver::FDMXProtocolSACNReceiver(const TSharedPtr<FDMXProtocol
 {
 	check(Socket->GetSocketType() == SOCKTYPE_Datagram);
 
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	ReceivedSenderInternetAddr = SocketSubsystem->CreateInternetAddr();
+	ReceivedDestinationInternetAddr = SocketSubsystem->CreateInternetAddr();
+
 	FString ReceiverThreadName = FString(TEXT("SACNReceiver_")) + InEndpointInternetAddr->ToString(true);
 	Thread = FRunnableThread::Create(this, *ReceiverThreadName, 0, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
@@ -211,10 +215,6 @@ void FDMXProtocolSACNReceiver::Update(const FTimespan& SocketWaitTime)
 		return;
 	}
 
-	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-	TSharedPtr<FInternetAddr> Sender = SocketSubsystem->CreateInternetAddr();
-	TSharedPtr<FInternetAddr> Destination = SocketSubsystem->CreateInternetAddr();
-
 	uint32 Size = 0;
 	int32 NumBytesRead = 0;
 	while (Socket->HasPendingData(Size))
@@ -225,11 +225,11 @@ void FDMXProtocolSACNReceiver::Update(const FTimespan& SocketWaitTime)
 		constexpr uint32 SACNMaxReaderSize = 1024u;
 		Reader->SetNumUninitialized(FMath::Min(Size, SACNMaxReaderSize));
 
-		if (Socket->RecvFromWithPktInfo(Reader->GetData(), Reader->Num(), NumBytesRead, *Sender, *Destination))
+		if (Socket->RecvFromWithPktInfo(Reader->GetData(), Reader->Num(), NumBytesRead, *ReceivedSenderInternetAddr, *ReceivedDestinationInternetAddr))
 		{
 			Reader->RemoveAt(NumBytesRead, Reader->Num() - NumBytesRead, false);
 			uint32 MulticastIp = 0;
-			Destination->GetIp(MulticastIp);
+			ReceivedDestinationInternetAddr->GetIp(MulticastIp);
 
 			if (const uint16* UniverseIDPtr = MulticastGroupAddrToUniverseIDMap.Find(MulticastIp))
 			{
