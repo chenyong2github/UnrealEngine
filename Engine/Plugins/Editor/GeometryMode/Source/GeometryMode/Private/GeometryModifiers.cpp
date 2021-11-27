@@ -1352,7 +1352,7 @@ void UGeomModifier_Pen::Apply()
 		}
 		else
 		{
-			ResultingBrush = FBSPOps::csgAddOperation( BuilderBrush, PF_DefaultFlags, Brush_Add, true );
+			ResultingBrush = FBSPOps::csgAddOperation( BuilderBrush, PF_DefaultFlags, Brush_Add );
 			if (ResultingBrush == nullptr)
 			{
 				return;
