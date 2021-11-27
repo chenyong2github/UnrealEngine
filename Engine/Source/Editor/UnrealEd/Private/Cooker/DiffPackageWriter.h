@@ -6,7 +6,7 @@
 #include "Serialization/PackageWriter.h"
 #include "AssetRegistry/AssetRegistryState.h"
 
-/** A CookedPackageWriter that diffs the output from the current cook with the file that was saved in the previous cook. */
+/** A CookedPackageWriter that diffs output from the current cook with the file that was saved in the previous cook. */
 class FDiffPackageWriter : public ICookedPackageWriter
 {
 public:
@@ -21,8 +21,10 @@ public:
 	}
 	virtual void BeginPackage(const FBeginPackageInfo& Info) override;
 	virtual TFuture<FMD5Hash> CommitPackage(FCommitPackageInfo&& Info) override;
-	virtual void WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions) override;
-	virtual void WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override
+	virtual void WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive,
+		const TArray<FFileRegion>& FileRegions) override;
+	virtual void WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& BulkData,
+		const TArray<FFileRegion>& FileRegions) override
 	{
 		Inner->WriteBulkData(Info, BulkData, FileRegions);
 	}
@@ -30,7 +32,8 @@ public:
 	{
 		Inner->WriteAdditionalFile(Info, FileData);
 	}
-	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) override
+	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data,
+		const TArray<FFileRegion>& FileRegions) override
 	{
 		Inner->WriteLinkerAdditionalData(Info, Data, FileRegions);
 	}
@@ -91,25 +94,151 @@ public:
 	{
 		Inner->MarkPackagesUpToDate(UpToDatePackages);
 	}
-
-	// FDiffPackageWriter
-	/** Return whether a difference was found in the first save */
-	bool IsDifferenceFound() const
+	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override
 	{
-		return bIsDifferent;
+		Inner->UpdateSaveArguments(SaveArgs);
 	}
-
-	/** Prepare the Inner PackageWriter for a second save, and set settings for callstack diffing. */
-	void BeginDiffCallstack();
+	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
 
 private:
+	void ParseCmds();
+	void ParseDumpObjList(FString InParams);
+	void ParseDumpObjects(FString InParams);
+	void RemoveParam(FString& InOutParams, const TCHAR* InParamToRemove);
+	bool FilterPackageName(const FString& InWildcard);
+	void ConditionallyDumpObjList();
+	void ConditionallyDumpObjects();
+
 	FArchiveDiffMap DiffMap;
 	FBeginPackageInfo BeginInfo;
 	TUniquePtr<ICookedPackageWriter> Inner;
+	FString DumpObjListParams;
+	FString PackageFilter;
 	int32 MaxDiffsToLog = 5;
 	bool bSaveForDiff = false;
 	bool bIgnoreHeaderDiffs = false;
 	bool bIsDifferent = false;
 	bool bDiffCallstack = false;
+	bool bHasStartedSecondSave = false;
+	bool bDumpObjList = false;
+	bool bDumpObjects = false;
+	bool bDumpObjectsSorted = false;
 };
 
+/** A CookedPackageWriter that runs the save twice with different methods (Save1 vs Save2). */
+class FLinkerDiffPackageWriter : public ICookedPackageWriter
+{
+public:
+	FLinkerDiffPackageWriter(TUniquePtr<ICookedPackageWriter>&& InInner);
+
+	// IPackageWriter
+	virtual FCapabilities GetCapabilities() const override
+	{
+		return Inner->GetCapabilities();
+	}
+	virtual void BeginPackage(const FBeginPackageInfo& Info) override;
+	virtual TFuture<FMD5Hash> CommitPackage(FCommitPackageInfo&& Info) override
+	{
+		return Inner->CommitPackage(MoveTemp(Info));
+	}
+	virtual void WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive,
+		const TArray<FFileRegion>& FileRegions) override
+	{
+		Inner->WritePackageData(Info, ExportsArchive, FileRegions);
+	}
+	virtual void WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& BulkData,
+		const TArray<FFileRegion>& FileRegions) override
+	{
+		Inner->WriteBulkData(Info, BulkData, FileRegions);
+	}
+	virtual void WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override
+	{
+		Inner->WriteAdditionalFile(Info, FileData);
+	}
+	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data,
+		const TArray<FFileRegion>& FileRegions) override
+	{
+		Inner->WriteLinkerAdditionalData(Info, Data, FileRegions);
+	}
+	virtual void AddToExportsSize(int64& ExportsSize) override
+	{
+		Inner->AddToExportsSize(ExportsSize);
+	}
+	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset) override
+	{
+		return Inner->CreateLinkerArchive(PackageName, Asset);
+	}
+	virtual bool IsPreSaveCompleted() const override
+	{
+		return Inner->IsPreSaveCompleted();
+	}
+
+	// ICookedPackageWriter
+	virtual FCookCapabilities GetCookCapabilities() const override
+	{
+		FCookCapabilities Result = Inner->GetCookCapabilities();
+		Result.bDiffModeSupported = false; // LinkerDiffPackageWriter can not be an inner of DiffPackageWriter
+		return Result;
+	}
+	virtual FDateTime GetPreviousCookTime() const
+	{
+		return Inner->GetPreviousCookTime();
+	}
+	virtual void Initialize(const FCookInfo& Info) override
+	{
+		Inner->Initialize(Info);
+	}
+	virtual void BeginCook() override
+	{
+		Inner->BeginCook();
+	}
+	virtual void EndCook() override
+	{
+		Inner->EndCook();
+	}
+	virtual void Flush() override
+	{
+		Inner->Flush();
+	}
+	virtual TUniquePtr<FAssetRegistryState> LoadPreviousAssetRegistry() override
+	{
+		return Inner->LoadPreviousAssetRegistry();
+	}
+	virtual FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override
+	{
+		return Inner->GetOplogAttachment(PackageName, AttachmentKey);
+	}
+	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override
+	{
+		Inner->RemoveCookedPackages(PackageNamesToRemove);
+	}
+	virtual void RemoveCookedPackages() override
+	{
+		Inner->RemoveCookedPackages();
+	}
+	virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override
+	{
+		Inner->MarkPackagesUpToDate(UpToDatePackages);
+	}
+	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override;
+	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
+
+private:
+	enum class EDiffMode : uint8
+	{
+		LDM_Algo,
+		LDM_Consistent,
+	};
+
+	void SetupOtherAlgorithm();
+	void SetupCurrentAlgorithm();
+	void CompareResults(FSavePackageResultStruct& CurrentResult);
+
+	FSavePackageResultStruct OtherResult;
+	FBeginPackageInfo BeginInfo;
+	TUniquePtr<ICookedPackageWriter> Inner;
+	IConsoleVariable* EnableNewSave = nullptr;
+	int32 CurrentEnableNewSaveValue = 0;
+	EDiffMode DiffMode = EDiffMode::LDM_Algo;
+	bool bHasStartedSecondSave = false;
+};

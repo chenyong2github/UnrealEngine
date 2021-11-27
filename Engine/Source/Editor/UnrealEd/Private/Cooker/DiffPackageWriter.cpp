@@ -2,15 +2,27 @@
 
 #include "Cooker/DiffPackageWriter.h"
 
+#include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "CookOnTheSide/CookLog.h"
+#include "CoreGlobals.h"
+#include "Engine/Engine.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CString.h"
+#include "Misc/FeedbackContext.h"
 #include "Misc/Parse.h"
+#include "Misc/OutputDevice.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/LinkerDiff.h"
+#include "UObject/LinkerSave.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectIterator.h"
 
 FDiffPackageWriter::FDiffPackageWriter(TUniquePtr<ICookedPackageWriter>&& InInner)
 	: Inner(MoveTemp(InInner))
@@ -31,6 +43,72 @@ FDiffPackageWriter::FDiffPackageWriter(TUniquePtr<ICookedPackageWriter>&& InInne
 	{
 		bIgnoreHeaderDiffs = FParse::Param(FCommandLine::Get(), TEXT("IgnoreHeaderDiffs"));
 	}
+
+	ParseCmds();
+}
+
+void FDiffPackageWriter::ParseCmds()
+{
+	const TCHAR* DumpObjListParam = TEXT("dumpobjlist");
+	const TCHAR* DumpObjectsParam = TEXT("dumpobjects");
+
+	FString CmdsText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-diffcmds="), CmdsText, false))
+	{
+		CmdsText = CmdsText.TrimQuotes();
+		TArray<FString> CmdsList;
+		CmdsText.ParseIntoArray(CmdsList, TEXT(","));
+		for (const FString& Cmd : CmdsList)
+		{
+			if (Cmd.StartsWith(DumpObjListParam))
+			{
+				bDumpObjList = true;
+				ParseDumpObjList(*Cmd + FCString::Strlen(DumpObjListParam));
+			}
+			else if (Cmd.StartsWith(DumpObjectsParam))
+			{
+				bDumpObjects = true;
+				ParseDumpObjects(*Cmd + FCString::Strlen(DumpObjectsParam));
+			}
+		}
+	}
+}
+
+void FDiffPackageWriter::ParseDumpObjList(FString InParams)
+{
+	const TCHAR* PackageFilterParam = TEXT("-packagefilter=");
+	FParse::Value(*InParams, PackageFilterParam, PackageFilter);
+	RemoveParam(InParams, PackageFilterParam);
+
+	// Add support for more parameters here
+	// After all parameters have been parsed and removed, pass the remaining string as objlist params
+	DumpObjListParams = InParams;
+}
+
+void FDiffPackageWriter::ParseDumpObjects(FString InParams)
+{
+	const TCHAR* PackageFilterParam = TEXT("-packagefilter=");
+	FParse::Value(*InParams, PackageFilterParam, PackageFilter);
+	RemoveParam(InParams, PackageFilterParam);
+
+	const TCHAR* SortParam = TEXT("sort");
+	bDumpObjectsSorted = FParse::Param(*InParams, SortParam);
+	RemoveParam(InParams, SortParam);
+}
+
+void FDiffPackageWriter::RemoveParam(FString& InOutParams, const TCHAR* InParamToRemove)
+{
+	int32 ParamIndex = InOutParams.Find(InParamToRemove);
+	if (ParamIndex >= 0)
+	{
+		int32 NextParamIndex = InOutParams.Find(TEXT(" -"),
+			ESearchCase::CaseSensitive, ESearchDir::FromStart, ParamIndex + 1);
+		if (NextParamIndex < ParamIndex)
+		{
+			NextParamIndex = InOutParams.Len();
+		}
+		InOutParams = InOutParams.Mid(0, ParamIndex) + InOutParams.Mid(NextParamIndex);
+	}
 }
 
 void FDiffPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
@@ -40,20 +118,9 @@ void FDiffPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
 	DiffMap.Reset();
 
 	BeginInfo = Info;
+	ConditionallyDumpObjList();
+	ConditionallyDumpObjects();
 	Inner->BeginPackage(Info);
-}
-
-void FDiffPackageWriter::BeginDiffCallstack()
-{
-	bDiffCallstack = true;
-
-	// The contract with the Inner is that Begin is paired with a single commit; send the old commit and the new begin
-	FCommitPackageInfo CommitInfo;
-	CommitInfo.bSucceeded = true;
-	CommitInfo.PackageName = BeginInfo.PackageName;
-	CommitInfo.WriteOptions = EWriteOptions::None;
-	Inner->CommitPackage(MoveTemp(CommitInfo));
-	Inner->BeginPackage(BeginInfo);
 }
 
 TFuture<FMD5Hash> FDiffPackageWriter::CommitPackage(FCommitPackageInfo&& Info)
@@ -117,5 +184,206 @@ TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerArchive(FName Pac
 	{
 		return TUniquePtr<FLargeMemoryWriter>(new FArchiveStackTrace(Asset, *PackageName.ToString(),
 			false /* bInCollectCallstacks */));
+	}
+}
+
+bool FDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs)
+{
+	checkf(!Inner->IsAnotherSaveNeeded(PreviousResult, SaveArgs),
+		TEXT("DiffPackageWriter does not support an Inner that needs multiple saves."));
+	// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the
+	// existing package. If the simple memory diff was not identical, collect callstacks for all Serialize calls and
+	// dump differences to log
+	if (!bHasStartedSecondSave)
+	{
+		bHasStartedSecondSave = true;
+		if (PreviousResult.Result == ESavePackageResult::Success && bIsDifferent)
+		{
+			bDiffCallstack = true;
+
+			// The contract with the Inner is that Begin is paired with a single commit;
+			// send the old commit and the new begin
+			FCommitPackageInfo CommitInfo;
+			CommitInfo.bSucceeded = true;
+			CommitInfo.PackageName = BeginInfo.PackageName;
+			CommitInfo.WriteOptions = EWriteOptions::None;
+			Inner->CommitPackage(MoveTemp(CommitInfo));
+			Inner->BeginPackage(BeginInfo);
+
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool FDiffPackageWriter::FilterPackageName(const FString& InWildcard)
+{
+	bool bInclude = false;
+	FString PackageName = BeginInfo.PackageName.ToString();
+	if (PackageName.MatchesWildcard(InWildcard))
+	{
+		bInclude = true;
+	}
+	else if (FPackageName::GetShortName(PackageName).MatchesWildcard(InWildcard))
+	{
+		bInclude = true;
+	}
+	else
+	{
+		const FString& Filename = BeginInfo.LooseFilePath;
+		bInclude = Filename.MatchesWildcard(InWildcard);
+	}
+	return bInclude;
+}
+
+void FDiffPackageWriter::ConditionallyDumpObjList()
+{
+	if (bDumpObjList)
+	{
+		if (FilterPackageName(PackageFilter))
+		{
+			FString ObjListExec = TEXT("OBJ LIST ");
+			ObjListExec += DumpObjListParams;
+
+			TGuardValue<ELogTimes::Type> GuardLogTimes(GPrintLogTimes, ELogTimes::None);
+			TGuardValue<bool> GuardLogCategory(GPrintLogCategory, false);
+			TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
+
+			GEngine->Exec(nullptr, *ObjListExec);
+		}
+	}
+}
+
+void FDiffPackageWriter::ConditionallyDumpObjects()
+{
+	if (bDumpObjects)
+	{
+		if (FilterPackageName(PackageFilter))
+		{
+			TArray<FString> AllObjects;
+			for (FThreadSafeObjectIterator It; It; ++It)
+			{
+				AllObjects.Add(*It->GetFullName());
+			}
+			if (bDumpObjectsSorted)
+			{
+				AllObjects.Sort();
+			}
+
+			TGuardValue<ELogTimes::Type> GuardLogTimes(GPrintLogTimes, ELogTimes::None);
+			TGuardValue<bool> GuardLogCategory(GPrintLogCategory, false);
+			TGuardValue<bool> GuardPrintLogVerbosity(GPrintLogVerbosity, false);
+
+			for (const FString& Obj : AllObjects)
+			{
+				UE_LOG(LogCook, Display, TEXT("%s"), *Obj);
+			}
+		}
+	}
+}
+
+FLinkerDiffPackageWriter::FLinkerDiffPackageWriter(TUniquePtr<ICookedPackageWriter>&& InInner)
+	: Inner(MoveTemp(InInner))
+{
+	FString DiffModeText;
+	FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), DiffModeText);
+	DiffMode = EDiffMode::LDM_Algo;
+	if (DiffModeText == TEXT("1") || DiffModeText == TEXT("algo"))
+	{
+		DiffMode = EDiffMode::LDM_Algo;
+	}
+	else if (DiffModeText == TEXT("2") || DiffModeText == TEXT("consistent"))
+	{
+		DiffMode = EDiffMode::LDM_Consistent;
+	}
+
+	EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
+	CurrentEnableNewSaveValue = EnableNewSave->GetInt();
+}
+
+void FLinkerDiffPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
+{
+	BeginInfo = Info;
+	Inner->BeginPackage(Info);
+	SetupOtherAlgorithm();
+}
+
+void FLinkerDiffPackageWriter::UpdateSaveArguments(FSavePackageArgs& SaveArgs)
+{
+	SaveArgs.SaveFlags |= SAVE_CompareLinker;
+	Inner->UpdateSaveArguments(SaveArgs);
+}
+
+bool FLinkerDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult,
+	FSavePackageArgs& SaveArgs)
+{
+	checkf(!Inner->IsAnotherSaveNeeded(PreviousResult, SaveArgs),
+		TEXT("LinkerDiffPackageWriter does not support an Inner that needs multiple saves."));
+	if (!bHasStartedSecondSave)
+	{
+		bHasStartedSecondSave = true;
+		OtherResult = MoveTemp(PreviousResult);
+
+		// Resave the package with the current save algorithm.
+		SetupCurrentAlgorithm();
+
+		// The contract with the Inner is that every Begin is paired with a single commit.
+		// Send the old commit and the new begin.
+		IPackageWriter::FCommitPackageInfo CommitInfo;
+		CommitInfo.bSucceeded = OtherResult == ESavePackageResult::Success;
+		CommitInfo.PackageName = BeginInfo.PackageName;
+		CommitInfo.WriteOptions = IPackageWriter::EWriteOptions::None;
+		Inner->CommitPackage(MoveTemp(CommitInfo));
+		Inner->BeginPackage(BeginInfo);
+		return true;
+	}
+	else
+	{
+		CompareResults(PreviousResult);
+
+		if (DiffMode == EDiffMode::LDM_Algo)
+		{
+			EnableNewSave->Set(CurrentEnableNewSaveValue);
+		}
+		OtherResult.LinkerSave.Reset();
+		PreviousResult.LinkerSave.Reset();
+
+		return false;
+	}
+}
+
+void FLinkerDiffPackageWriter::SetupOtherAlgorithm()
+{
+	// If mode is comparing the two save algorithms, switch the cvar to the other algo before saving again,
+	// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
+	if (DiffMode == EDiffMode::LDM_Algo)
+	{
+		// see CVarEnablePackageNewSave definition in SavePackageUtilities.cpp for value meaning
+		EnableNewSave->Set(CurrentEnableNewSaveValue & 1 ? 0 : 1);
+	}
+}
+
+void FLinkerDiffPackageWriter::SetupCurrentAlgorithm()
+{
+	if (DiffMode == EDiffMode::LDM_Algo)
+	{
+		EnableNewSave->Set(CurrentEnableNewSaveValue);
+	}
+}
+
+void FLinkerDiffPackageWriter::CompareResults(FSavePackageResultStruct& CurrentResult)
+{
+	if (OtherResult.LinkerSave && CurrentResult.LinkerSave)
+	{
+		FLinkerDiff LinkerDiff =
+			FLinkerDiff::CompareLinkers(OtherResult.LinkerSave.Get(), CurrentResult.LinkerSave.Get());
+		LinkerDiff.PrintDiff(*GWarn);
 	}
 }

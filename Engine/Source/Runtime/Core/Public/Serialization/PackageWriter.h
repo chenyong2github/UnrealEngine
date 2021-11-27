@@ -17,6 +17,8 @@ class FLargeMemoryWriter;
 class ICookedPackageWriter;
 class IPackageStoreWriter;
 struct FPackageStoreEntryResource;
+struct FSavePackageArgs;
+struct FSavePackageResultStruct;
 
 /** Interface for SavePackage to write packages to storage. */
 class IPackageWriter
@@ -279,7 +281,15 @@ public:
 		// The subclass must override this method if it returns bDiffModeSupported=true in GetCookCapabilities
 		unimplemented();
 	}
-
+	/** Modify the SaveArgs if required before the first Save. Used for diffing. */
+	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs)
+	{
+	}
+	/** Report whether an additional save is needed and set up for it if so. Used for diffing. */
+	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs)
+	{
+		return false;
+	}
 	/** Downcast function for ICookedPackageWriters that implement the IPackageStoreWriter inherited interface. */
 	virtual IPackageStoreWriter* AsPackageStoreWriter()
 	{
