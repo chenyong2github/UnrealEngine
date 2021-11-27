@@ -5,11 +5,9 @@
 #include "CoreMinimal.h"
 #include "Engine/Classes/Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "MultiSelectionTool.h"
 #include "InteractiveToolManager.h"
 #include "AssetUtils/Texture2DBuilder.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Image/ImageDimensions.h"
 #include "Sampling/MeshMapBaker.h"
 #include "ModelingOperators.h"
@@ -317,20 +315,9 @@ void UBakeMeshAttributeMapsToolBase::OnMapTypesUpdated(PropertySet& Properties)
 	// Use the processed bitfield which may contain additional targets
 	// (ex. AO if BentNormal was requested).
 	CachedMaps.Empty();
-	for (EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
+	for (EBakeMapType MapType : ENUM_EBAKEMAPTYPE_ALL)
 	{
-		if (MapType == EBakeMapType::Occlusion)
-		{
-			if ((bool)(BakeMapTypes & EBakeMapType::AmbientOcclusion))
-			{
-				CachedMaps.Add(EBakeMapType::AmbientOcclusion, nullptr);
-			}
-			if ((bool)(BakeMapTypes & EBakeMapType::BentNormal))
-			{
-				CachedMaps.Add(EBakeMapType::BentNormal, nullptr);
-			}
-		}
-		else if( (bool)(BakeMapTypes & MapType) )
+		if( (bool)(BakeMapTypes & MapType) )
 		{
 			CachedMaps.Add(MapType, nullptr);
 		}

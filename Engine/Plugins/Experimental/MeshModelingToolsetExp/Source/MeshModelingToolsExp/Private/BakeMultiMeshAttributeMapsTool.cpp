@@ -341,7 +341,7 @@ public:
 		FMeshBakerMeshSceneSampler DetailSampler(DetailMeshScene);
 		Baker->SetDetailSampler(&DetailSampler);
 
-		for (const EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
+		for (const EBakeMapType MapType : ENUM_EBAKEMAPTYPE_ALL)
 		{
 			switch (BakeSettings.BakeMapTypes & MapType)
 			{

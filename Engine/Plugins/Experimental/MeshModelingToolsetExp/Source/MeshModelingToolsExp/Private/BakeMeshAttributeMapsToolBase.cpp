@@ -24,7 +24,6 @@
 #include "EngineAnalytics.h"
 
 #include "Sampling/MeshCurvatureMapEvaluator.h"
-#include "Sampling/MeshResampleImageEvaluator.h"
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsToolBase"
@@ -409,10 +408,10 @@ void UBakeMeshAttributeMapsToolBase::GetTextureName(const EBakeMapType MapType, 
 		checkNoEntry();
 		break;
 	case EBakeMapType::TangentSpaceNormal:
-		TexName = FString::Printf(TEXT("%s_Normals"), *BaseName);
+		TexName = FString::Printf(TEXT("%s_TangentNormal"), *BaseName);
 		break;
 	case EBakeMapType::AmbientOcclusion:
-		TexName = FString::Printf(TEXT("%s_Occlusion"), *BaseName);
+		TexName = FString::Printf(TEXT("%s_AmbientOcclusion"), *BaseName);
 		break;
 	case EBakeMapType::BentNormal:
 		TexName = FString::Printf(TEXT("%s_BentNormal"), *BaseName);
@@ -421,7 +420,7 @@ void UBakeMeshAttributeMapsToolBase::GetTextureName(const EBakeMapType MapType, 
 		TexName = FString::Printf(TEXT("%s_Curvature"), *BaseName);
 		break;
 	case EBakeMapType::ObjectSpaceNormal:
-		TexName = FString::Printf(TEXT("%s_NormalsObject"), *BaseName);
+		TexName = FString::Printf(TEXT("%s_ObjectNormal"), *BaseName);
 		break;
 	case EBakeMapType::FaceNormal:
 		TexName = FString::Printf(TEXT("%s_FaceNormal"), *BaseName);
@@ -430,7 +429,7 @@ void UBakeMeshAttributeMapsToolBase::GetTextureName(const EBakeMapType MapType, 
 		TexName = FString::Printf(TEXT("%s_MaterialID"), *BaseName);
 		break;
 	case EBakeMapType::VertexColor:
-		TexName = FString::Printf(TEXT("%s_VertexColorID"), *BaseName);
+		TexName = FString::Printf(TEXT("%s_VertexColor"), *BaseName);
 		break;
 	case EBakeMapType::Position:
 		TexName = FString::Printf(TEXT("%s_Position"), *BaseName);

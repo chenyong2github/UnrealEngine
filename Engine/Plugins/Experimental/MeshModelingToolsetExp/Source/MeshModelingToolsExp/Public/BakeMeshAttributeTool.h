@@ -26,52 +26,51 @@ enum class EBakeMapType
 
 	/* Normals in tangent space */
 	TangentSpaceNormal     = 1 << 0 UMETA(DisplayName = "Tangent Normal"),
-	/* Ambient occlusion sampled across the hemisphere */
-	AmbientOcclusion       = 1 << 1,
-	/* Normals skewed towards the least occluded direction */
-	BentNormal             = 1 << 2,
-	/* Local curvature of the mesh surface */
-	Curvature              = 1 << 3,
-	/* Transfer a given texture */
-	Texture                = 1 << 4,
 	/* Interpolated normals in object space */
-	ObjectSpaceNormal      = 1 << 5 UMETA(DisplayName = "Object Normal"),
+	ObjectSpaceNormal      = 1 << 1 UMETA(DisplayName = "Object Normal"),
 	/* Geometric face normals in object space */
-	FaceNormal             = 1 << 6,
+	FaceNormal             = 1 << 2,
+	/* Normals skewed towards the least occluded direction */
+	BentNormal             = 1 << 3,
 	/* Positions in object space */
-	Position               = 1 << 7,
-	/* Material IDs as unique colors */
-	MaterialID             = 1 << 8 UMETA(DisplayName = "Material ID"),
+	Position               = 1 << 4,
+	/* Local curvature of the mesh surface */
+	Curvature              = 1 << 5,
+	/* Ambient occlusion sampled across the hemisphere */
+	AmbientOcclusion       = 1 << 6,
+	/* Transfer a given texture */
+	Texture                = 1 << 7,
 	/* Transfer a texture per material ID */
-	MultiTexture           = 1 << 9,
+	MultiTexture           = 1 << 8,
 	/* Interpolated vertex colors */
-	VertexColor            = 1 << 10,
+	VertexColor            = 1 << 9,
+	/* Material IDs as unique colors */
+	MaterialID             = 1 << 10 UMETA(DisplayName = "Material ID"),
 
-	Occlusion              = (AmbientOcclusion | BentNormal) UMETA(Hidden),
 	All                    = 0x7FF UMETA(Hidden)
 };
 ENUM_CLASS_FLAGS(EBakeMapType);
 
-
-// Only include the Occlusion bitmask rather than its components
-// (AmbientOcclusion | BentNormal). Since the Occlusion evaluator can
-// evaluate both types in a single pass, only iterating over the Occlusion
-// bitmask gives direct access to both types without the need to
-// externally track if we've handled the Occlusion evaluator in a prior
-// iteration loop.
-static constexpr EBakeMapType ALL_BAKE_MAP_TYPES[] =
+/**
+ * Array of all bake map types. This defines the order in which
+ * the bake map types are iterated in the bake tools. Consequently this
+ * ordering is reflected in the order of the bake Results property.
+ */
+static constexpr EBakeMapType ENUM_EBAKEMAPTYPE_ALL[] =
 {
 	EBakeMapType::TangentSpaceNormal,
-	EBakeMapType::Occlusion, // (AmbientOcclusion | BentNormal)
-	EBakeMapType::Curvature,
-	EBakeMapType::Texture,
 	EBakeMapType::ObjectSpaceNormal,
 	EBakeMapType::FaceNormal,
+	EBakeMapType::BentNormal,
 	EBakeMapType::Position,
-	EBakeMapType::MaterialID,
+	EBakeMapType::Curvature,
+	EBakeMapType::AmbientOcclusion,
+	EBakeMapType::Texture,
 	EBakeMapType::MultiTexture,
-	EBakeMapType::VertexColor
+	EBakeMapType::VertexColor,
+	EBakeMapType::MaterialID
 };
+
 
 /**
  * Base Mesh Bake tool
