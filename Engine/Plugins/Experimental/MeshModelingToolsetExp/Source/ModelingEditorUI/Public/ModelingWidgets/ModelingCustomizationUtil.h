@@ -84,6 +84,18 @@ MODELINGEDITORUI_API TSharedRef<SCheckBox> MakeBoolToggleButton(
 
 
 /**
+ * Run ProcessFunc over each child widget of WidgetType under RootWidget.
+ * @param RootWidget the root widget to search from.
+ * @param WidgetType the type of widgets to consider
+ * @param ProcessFunc the function to run on each instance of the widget. If return value is false, stop further processing.
+ */
+MODELINGEDITORUI_API void ProcessChildWidgetsByType(
+	const TSharedRef<SWidget>& RootWidget,
+	const FString& WidgetType,
+	TFunction<bool(TSharedRef<SWidget>&)> ProcessFunc);
+
+
+/**
  * Create an error-string widget and add it to the Slot argument, to give the (developer) feedback about slate programming errors
  * @param ErrorString error message
  * @param Slot Object that supports bracket[SWidget] operator, such as any Box Slot object (eg can be called w/ SCompoundWidget::ChildSlot as the Slot argument)

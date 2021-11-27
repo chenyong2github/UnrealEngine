@@ -25,7 +25,7 @@ enum class EBakeMapType
 	None                   = 0,
 
 	/* Normals in tangent space */
-	TangentSpaceNormal     = 1 << 0,
+	TangentSpaceNormal     = 1 << 0 UMETA(DisplayName = "Tangent Normal"),
 	/* Ambient occlusion sampled across the hemisphere */
 	AmbientOcclusion       = 1 << 1,
 	/* Normals skewed towards the least occluded direction */
@@ -35,7 +35,7 @@ enum class EBakeMapType
 	/* Transfer a given texture */
 	Texture                = 1 << 4,
 	/* Interpolated normals in object space */
-	ObjectSpaceNormal      = 1 << 5 UMETA(DisplayName = "Normal"),
+	ObjectSpaceNormal      = 1 << 5 UMETA(DisplayName = "Object Normal"),
 	/* Geometric face normals in object space */
 	FaceNormal             = 1 << 6,
 	/* Positions in object space */

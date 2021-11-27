@@ -24,6 +24,7 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Framework/MultiBox/SToolBarButtonBlock.h"
 #include "Internationalization/Text.h"
+#include "ModelingWidgets/ModelingCustomizationUtil.h"
 
 // for Tool Extensions
 #include "Features/IModularFeatures.h"
@@ -831,36 +832,14 @@ void FModelingToolsEditorModeToolkit::InvokeUI()
 			{
 				auto FindFirstChildWidget = [](const TSharedPtr<SWidget>& Widget, const FString& WidgetType)
 				{
-					auto FindFirstChildWidgetImpl = [](const TSharedPtr<SWidget>& Widget, const FString& WidgetType, auto& FindRef) -> TSharedPtr<SWidget>
+					TSharedPtr<SWidget> Result;
+					UE::ModelingUI::ProcessChildWidgetsByType(Widget->AsShared(), WidgetType,[&Result](TSharedRef<SWidget> Widget)
 					{
-						TSharedPtr<SWidget> Result;
-						if (Widget.IsValid())
-						{
-							FChildren* Children = Widget->GetChildren();
-							const int32 NumChild = Children ? Children->NumSlot() : 0;
-							for (int32 ChildIdx = 0; ChildIdx < NumChild; ++ChildIdx)
-							{
-								const TSharedRef<SWidget> ChildWidgetRef = Children->GetChildAt(ChildIdx);
-								TSharedPtr<SWidget> ChildWidgetPtr(ChildWidgetRef);
-								if (ChildWidgetPtr.IsValid())
-								{
-									if (ChildWidgetPtr->GetTypeAsString().Compare(WidgetType) == 0)
-									{
-										Result = ChildWidgetPtr;
-										break;
-									}
-
-									Result = FindRef(ChildWidgetPtr, WidgetType, FindRef);
-									if (Result.IsValid())
-									{
-										break;
-									}
-								}
-							}
-						}
-						return Result;
-					};
-					return FindFirstChildWidgetImpl(Widget, WidgetType, FindFirstChildWidgetImpl);
+						Result = TSharedPtr<SWidget>(Widget);
+						// Stop processing after first occurrence
+						return false;
+					});
+					return Result;
 				};
 
 				TSharedPtr<SWidget> PanelWidget = FindFirstChildWidget(ToolbarRow.ToolbarWidget, TEXT("SUniformWrapPanel"));
