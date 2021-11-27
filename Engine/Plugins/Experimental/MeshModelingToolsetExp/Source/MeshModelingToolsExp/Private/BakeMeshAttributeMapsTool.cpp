@@ -138,7 +138,25 @@ public:
 		FMeshBakerDynamicMeshSampler DetailSampler(DetailMesh.Get(), DetailSpatial.Get(), DetailMeshTangents.Get());
 		Baker->SetDetailSampler(&DetailSampler);
 
-		for (const EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
+		// Occlusion evaluator is shared by both AmbientOcclusion and BentNormal.
+		// Only initialize it once. OcclusionType is initialized to None. Callers
+		// must manually update the OcclusionType.
+		auto InitOcclusionEval = [this](TSharedPtr<FMeshOcclusionMapEvaluator>& Eval)
+		{
+			if (!Eval)
+			{
+				Eval = MakeShared<FMeshOcclusionMapEvaluator>();
+				Eval->OcclusionType = EMeshOcclusionMapType::None;
+				Eval->NumOcclusionRays = OcclusionSettings.OcclusionRays;
+				Eval->MaxDistance = OcclusionSettings.MaxDistance;
+				Eval->SpreadAngle = OcclusionSettings.SpreadAngle;
+				Eval->BiasAngleDeg = OcclusionSettings.BiasAngle;
+				Baker->AddEvaluator(Eval);
+			}
+		};
+
+		TSharedPtr<FMeshOcclusionMapEvaluator> OcclusionEval; 
+		for (const EBakeMapType MapType : ENUM_EBAKEMAPTYPE_ALL)
 		{
 			switch (BakeSettings.BakeMapTypes & MapType)
 			{
@@ -150,26 +168,14 @@ public:
 				break;
 			}
 			case EBakeMapType::AmbientOcclusion:
-			case EBakeMapType::BentNormal:
-			case EBakeMapType::Occlusion:
 			{
-				TSharedPtr<FMeshOcclusionMapEvaluator> OcclusionEval = MakeShared<FMeshOcclusionMapEvaluator>();
-				OcclusionEval->OcclusionType = EMeshOcclusionMapType::None;
-				if ((bool)(BakeSettings.BakeMapTypes & EBakeMapType::AmbientOcclusion))
-				{
-					OcclusionEval->OcclusionType |= EMeshOcclusionMapType::AmbientOcclusion;
-				}
-				if ((bool)(BakeSettings.BakeMapTypes & EBakeMapType::BentNormal))
-				{
-					OcclusionEval->OcclusionType |= EMeshOcclusionMapType::BentNormal;
-				}
-				OcclusionEval->NumOcclusionRays = OcclusionSettings.OcclusionRays;
-				OcclusionEval->MaxDistance = OcclusionSettings.MaxDistance;
-				OcclusionEval->SpreadAngle = OcclusionSettings.SpreadAngle;
-				OcclusionEval->BiasAngleDeg = OcclusionSettings.BiasAngle;
-
-				Baker->AddEvaluator(OcclusionEval);
-				break;
+				InitOcclusionEval(OcclusionEval);
+				OcclusionEval->OcclusionType |= EMeshOcclusionMapType::AmbientOcclusion; 
+			}
+			case EBakeMapType::BentNormal:
+			{
+				InitOcclusionEval(OcclusionEval);
+				OcclusionEval->OcclusionType |= EMeshOcclusionMapType::BentNormal;
 			}
 			case EBakeMapType::Curvature:
 			{
@@ -677,7 +683,7 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 	SetToolPropertySourceEnabled(TextureSettings, false);
 	SetToolPropertySourceEnabled(MultiTextureSettings, false);
 
-	for (const EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
+	for (const EBakeMapType MapType : ENUM_EBAKEMAPTYPE_ALL)
 	{
 		switch ((EBakeMapType)Settings->MapTypes & MapType)
 		{
@@ -685,7 +691,6 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 			break;
 		case EBakeMapType::AmbientOcclusion:
 		case EBakeMapType::BentNormal:
-		case EBakeMapType::Occlusion:
 			SetToolPropertySourceEnabled(OcclusionSettings, true);
 			break;
 		case EBakeMapType::Curvature:
