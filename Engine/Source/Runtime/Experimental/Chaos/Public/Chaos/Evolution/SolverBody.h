@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Math/Quat.h"
 
 namespace Chaos
 {
@@ -11,6 +12,81 @@ namespace Chaos
 	// A pair of pointers so solver bodies
 	// @note Pointers are only valid for the Constraint Solving phase of the tick
 	using FSolverBodyPtrPair = TVector<FSolverBody*, 2>;
+
+	/**
+	 * @brief An approximate quaternion normalize for use in the solver
+	 * 
+	 * @note we need to correctly normalize the final quaternion before pushing it back to the
+	 * particle otherwise some tolerance checks elsewhere will fail (Integrate)
+	 * 
+	 * This avoids the sqrt which is a massively dominating cost especially with doubles
+	 * when we do not have a fast reciproical sqrt (AVX2)
+	 *
+	 * This uses the first order Pade apprimant instead of a Taylor expansion
+	 * to get more accurate results for small quaternion deltas (i.e., where
+	 * Q.SizeSquared() is already near 1). 
+	 *
+	 * Q.Normalized ~= Q * (2 / (1 + Q.SizeSquared)))
+	 * 
+	 * In practice we can use this for almost any delta generated in collision detection
+	 * but we have an accurate fallback just in case. The fallback adds a branch but this 
+	 * does not seem to cost much.
+	 * 
+	*/
+	FORCEINLINE void SolverQuaternionNormalizeApprox(FRotation3& InOutQ)
+	{
+		//constexpr FReal Tolerance = FReal(2.107342e-08);	// For full double-precision accuracy
+		constexpr FReal ToleranceF = FReal(0.001);
+
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+		using QuatVectorRegister = FRotation3::QuatVectorRegister;
+
+		constexpr VectorRegister Tolerance = MakeVectorRegisterConstant(ToleranceF, ToleranceF, ToleranceF, ToleranceF);
+		constexpr VectorRegister One = MakeVectorRegisterConstant(FReal(1), FReal(1), FReal(1), FReal(1));
+		constexpr VectorRegister Two = MakeVectorRegisterConstant(FReal(2), FReal(2), FReal(2), FReal(2));
+
+		//const FReal QSq = SizeSquared();
+		const QuatVectorRegister Q = VectorLoadAligned(&InOutQ);
+		const QuatVectorRegister QSq = VectorDot4(Q, Q);
+
+		// if (FMath::Abs(FReal(1) - QSq) < Tolerance)
+		const QuatVectorRegister ToleranceCheck = VectorAbs(VectorSubtract(One, QSq));
+		if (VectorMaskBits(VectorCompareLE(ToleranceCheck, Tolerance)) != 0)
+		{
+			// Q * (FReal(2) / (FReal(1) + QSq))
+			const QuatVectorRegister Denom = VectorAdd(One, QSq);
+			const QuatVectorRegister Mult = VectorDivide(Two, Denom);
+			const QuatVectorRegister Result = VectorMultiply(Q, Mult);
+			VectorStoreAligned(Result, &InOutQ);
+		}
+		else
+		{
+			// Q / QLen
+			// @todo(chaos): with doubles VectorReciprocalSqrt does twice as many sqrts as we need and also has a divide
+			const QuatVectorRegister Result = VectorNormalize(Q);
+			VectorStoreAligned(Result, &InOutQ);
+		}
+
+#else
+		const FReal QSq = InOutQ.SizeSquared();
+		if (FMath::Abs(FReal(1) - QSq) < ToleranceF)
+		{
+			InOutQ *= (FReal(2) / (FReal(1) + QSq));
+		}
+		else
+		{
+			InOutQ *= FMath::InvSqrt(QSq);
+		}
+#endif
+	}
+
+	FORCEINLINE FRotation3 SolverQuaternionApplyAngularDeltaApprox(const FRotation3& InQ0, const FVec3& InDR)
+	{
+		FRotation3 Q1 = InQ0 + (FRotation3::FromElements(InDR, FReal(0)) * InQ0) * FReal(0.5);
+		SolverQuaternionNormalizeApprox(Q1);
+		return Q1;
+	}
+
 
 	/**
 	 * Used by the constraint solver loop to cache all state for a particle and accumulate solver results.
@@ -27,6 +103,7 @@ namespace Chaos
 	 * impulses and position corrections relative to the center of mass.
 	 * 
 	 * @todo(chaos): layout for cache
+	 * 
 	 */
 	class FSolverBody
 	{
@@ -41,7 +118,7 @@ namespace Chaos
 		/**
 		 * @brief Calculate and set the velocity and angular velocity from the net transform delta
 		*/
-		void SetImplicitVelocity(FReal Dt)
+		inline void SetImplicitVelocity(FReal Dt)
 		{
 			if (IsDynamic())
 			{
@@ -53,32 +130,32 @@ namespace Chaos
 		/**
 		 * @brief Get the inverse mass
 		*/
-		FReal InvM() const { return State.InvM; }
+		inline FReal InvM() const { return State.InvM; }
 
 		/**
 		 * @brief Set the inverse mass
 		*/
-		void SetInvM(FReal InInvM) { State.InvM = InInvM; }
+		inline void SetInvM(FReal InInvM) { State.InvM = InInvM; }
 
 		/**
 		 * @brief Get the world-space inverse inertia
 		*/
-		const FMatrix33& InvI() const { return State.InvI; }
+		inline const FMatrix33& InvI() const { return State.InvI; }
 
 		/**
 		 * @brief Set the world-space inverse inertia
 		*/
-		void SetInvI(const FMatrix33& InInvI) { State.InvI = InInvI; }
+		inline void SetInvI(const FMatrix33& InInvI) { State.InvI = InInvI; }
 
 		/**
 		 * @brief Get the local-space inverse inertia (diagonal elements)
 		*/
-		const FVec3& InvILocal() const { return State.InvILocal; }
+		inline const FVec3& InvILocal() const { return State.InvILocal; }
 
 		/**
 		 * @brief Set the local-space inverse inertia (diagonal elements)
 		*/
-		void SetInvILocal(const FVec3& InInvILocal)
+		inline void SetInvILocal(const FVec3& InInvILocal)
 		{ 
 			State.InvILocal = InInvILocal; 
 			UpdateRotationDependentState();
@@ -87,84 +164,84 @@ namespace Chaos
 		/**
 		 * @brief The current CoM transform
 		*/
-		FRigidTransform3 CoMTransform() const { return FRigidTransform3(P(), Q()); }
+		inline FRigidTransform3 CoMTransform() const { return FRigidTransform3(P(), Q()); }
 
 		/**
 		 * @brief Pre-integration world-space center of mass position
 		*/
-		const FVec3& X() const { return State.X; }
-		void SetX(const FVec3& InX) { State.X = InX; }
+		inline const FVec3& X() const { return State.X; }
+		inline void SetX(const FVec3& InX) { State.X = InX; }
 
 		/**
 		 * @brief Pre-integration world-space center of mass rotation
 		*/
-		const FRotation3& R() const { return State.R; }
-		void SetR(const FRotation3& InR) { State.R = InR; }
+		inline const FRotation3& R() const { return State.R; }
+		inline void SetR(const FRotation3& InR) { State.R = InR; }
 
 		/**
 		 * @brief World-space center of mass position
 		*/
-		const FVec3& P() const { return State.P; }
-		void SetP(const FVec3& InP) { State.P = InP; }
+		inline const FVec3& P() const { return State.P; }
+		inline void SetP(const FVec3& InP) { State.P = InP; }
 
 		/**
 		 * @brief World-space center of mass rotation
 		*/
-		const FRotation3& Q() const { return State.Q; }
-		void SetQ(const FRotation3& InQ) { State.Q = InQ; }
+		inline const FRotation3& Q() const { return State.Q; }
+		inline void SetQ(const FRotation3& InQ) { State.Q = InQ; }
 
 		/**
 		 * @brief World-space center of mass velocity
 		*/
-		const FVec3& V() const { return State.V; }
-		void SetV(const FVec3& InV) { State.V = InV; }
+		inline const FVec3& V() const { return State.V; }
+		inline void SetV(const FVec3& InV) { State.V = InV; }
 
 		/**
 		 * @brief World-space center of mass angular velocity
 		*/
-		const FVec3& W() const { return State.W; }
-		void SetW(const FVec3& InW) { State.W = InW; }
+		inline const FVec3& W() const { return State.W; }
+		inline void SetW(const FVec3& InW) { State.W = InW; }
 
-		const FVec3& CoM() const { return State.CoM; }
-		void SetCoM(const FVec3& InCoM) { State.CoM = InCoM; }
+		inline const FVec3& CoM() const { return State.CoM; }
+		inline void SetCoM(const FVec3& InCoM) { State.CoM = InCoM; }
 
-		const FRotation3& RoM() const { return State.RoM; }
-		void SetRoM(const FRotation3& InRoM) { State.RoM = InRoM; }
+		inline const FRotation3& RoM() const { return State.RoM; }
+		inline void SetRoM(const FRotation3& InRoM) { State.RoM = InRoM; }
 
 		/**
 		 * @brief Get the current world-space Actor position 
 		 * @note This is recalculated from the current CoM transform.
 		*/
-		FVec3 ActorP() const { return P() - ActorQ().RotateVector(CoM()); }
+		inline FVec3 ActorP() const { return P() - ActorQ().RotateVector(CoM()); }
 
 		/**
 		 * @brief Get the current world-space Actor rotation
 		 * @note This is recalculated from the current CoM transform.
 		*/
-		FRotation3 ActorQ() const { return Q() * RoM().Inverse(); }
+		inline FRotation3 ActorQ() const { return Q() * RoM().Inverse(); }
 
 		/**
 		 * @brief Contact graph level. This is used in shock propagation to determine which of two bodies should have its inverse mass scaled
 		*/
-		int32 Level() const { return State.Level; }
-		void SetLevel(int32 InLevel) { State.Level = InLevel; }
+		inline int32 Level() const { return State.Level; }
+		inline void SetLevel(int32 InLevel) { State.Level = InLevel; }
 
 		/**
 		 * @brief Whether there were any active collision constraints on this body
 		*/
-		bool HasActiveCollision() const { return State.bHasActiveCollision; }
-		void SetHasActiveCollision(bool bInHasCollision) { State.bHasActiveCollision = bInHasCollision; }
+		inline bool HasActiveCollision() const { return State.bHasActiveCollision; }
+		inline void SetHasActiveCollision(bool bInHasCollision) { State.bHasActiveCollision = bInHasCollision; }
 
 		/**
 		 * @brief Whether the body has a finite mass
 		 * @note This is based on the current inverse mass, so a "dynamic" particle with 0 inverse mass will return true here.
 		*/
-		bool IsDynamic() const { return (State.InvM > SMALL_NUMBER); }
+		inline bool IsDynamic() const { return (State.InvM > SMALL_NUMBER); }
 
 		/**
 		 * @brief Apply a world-space position and rotation delta to the body center of mass, and update inverse mass
 		*/
-		void ApplyTransformDelta(const FVec3 DP, const FVec3 DR)
+		inline void ApplyTransformDelta(const FVec3 DP, const FVec3 DR)
 		{
 			ApplyPositionDelta(DP);
 			ApplyRotationDelta(DR);
@@ -173,7 +250,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space position delta to the solver body center of mass
 		*/
-		void ApplyPositionDelta(const FVec3 DP)
+		inline void ApplyPositionDelta(const FVec3 DP)
 		{
 			State.P += DP;
 			++State.LastChangeEpoch;
@@ -182,22 +259,16 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space rotation delta to the solver body and update the inverse mass
 		*/
-		void ApplyRotationDelta(const FVec3 DR)
+		inline void ApplyRotationDelta(const FVec3 DR)
 		{
-			State.Q += FRotation3::FromElements(DR, 0.f) * State.Q * FReal(0.5);
-			State.Q.Normalize();
+			State.Q = SolverQuaternionApplyAngularDeltaApprox(State.Q, DR);
 			++State.LastChangeEpoch;
-
-			//if (bUpdateRotationDependentState)
-			//{
-			//	UpdateRotationDependentState();
-			//}
 		}
 
 		/**
 		 * @brief Apply a world-space velocity delta to the solver body
 		*/
-		void ApplyVelocityDelta(const FVec3& DV, const FVec3& DW)
+		inline void ApplyVelocityDelta(const FVec3& DV, const FVec3& DW)
 		{
 			ApplyLinearVelocityDelta(DV);
 			ApplyAngularVelocityDelta(DW);
@@ -206,7 +277,7 @@ namespace Chaos
 		/**
 		 * @brief Apply a world-space linear velocity delta to the solver body
 		*/
-		void ApplyLinearVelocityDelta(const FVec3& DV)
+		inline void ApplyLinearVelocityDelta(const FVec3& DV)
 		{
 			State.V += DV;
 			++State.LastChangeEpoch;
@@ -215,7 +286,7 @@ namespace Chaos
 		/**
 		 * @brief Apply an world-space angular velocity delta to the solver body
 		*/
-		void ApplyAngularVelocityDelta(const FVec3& DW)
+		inline void ApplyAngularVelocityDelta(const FVec3& DW)
 		{
 			State.W += DW;
 			++State.LastChangeEpoch;
@@ -225,12 +296,12 @@ namespace Chaos
 		 * @brief Update the rotation to be in the same hemisphere as the provided quaternion.
 		 * This is used by joints with angular constraint/drives
 		*/
-		void EnforceShortestRotationTo(const FRotation3& InQ)
+		inline void EnforceShortestRotationTo(const FRotation3& InQ)
 		{
 			State.Q.EnforceShortestArcWith(InQ);
 		}
 
-		int32 LastChangeEpoch() const
+		inline int32 LastChangeEpoch() const
 		{
 			return State.LastChangeEpoch;
 		}
@@ -313,6 +384,7 @@ namespace Chaos
 		FState State;
 	};
 
+
 	/**
 	 * An FSolverBody decorator for adding mass modifiers to a SolverBody. This will scale the
 	 * inverse mass and inverse inertia using the supplied scale. It also updates IsDynamic() to
@@ -340,30 +412,30 @@ namespace Chaos
 		FConstraintSolverBody(FSolverBody& InBody, FReal InInvMassScale)
 			: Body(&InBody)
 		{
-			SetInvMassScale(InInvMassScale);
+			SetInvMScale(InInvMassScale);
 		}
 
 		/**
 		 * @brief True if we have been set up to decorate a SolverBody
 		*/
-		bool IsValid() const { return Body != nullptr; }
+		inline bool IsValid() const { return Body != nullptr; }
 
 		/**
 		 * @brief Invalidate the solver body reference
 		*/
-		void Reset() { Body = nullptr; }
+		inline void Reset() { Body = nullptr; }
 
 		/**
 		 * @brief The decorated SolverBody
 		*/
-		FSolverBody& SolverBody() { check(IsValid()); return *Body; }
-		const FSolverBody& SolverBody() const { check(IsValid()); return *Body; }
+		inline FSolverBody& SolverBody() { check(IsValid()); return *Body; }
+		inline const FSolverBody& SolverBody() const { check(IsValid()); return *Body; }
 
 		/**
 		 * @brief A scale applied to both inverse mass and inverse inertia
 		*/
-		FReal InvMassScale() const { return State.InvMassScale; }
-		void SetInvMassScale(FReal InInvMassScale) { State.InvMassScale = InInvMassScale; }
+		inline FReal InvMScale() const { return State.InvMassScale; }
+		inline void SetInvMScale(FReal InInvMassScale) { State.InvMassScale = InInvMassScale; }
 
 		/**
 		 * @brief The scaled inverse mass
@@ -378,34 +450,34 @@ namespace Chaos
 		/**
 		 * @brief Whether the body is dynamic (i.e., has a finite mass) after InvMassScale is applied
 		*/
-		bool IsDynamic() const { return (InvM() > SMALL_NUMBER); }
+		inline bool IsDynamic() const { return (Body->InvM() != 0) && (InvMScale() != 0); }
 
 		//
 		// From here all methods just forward to the FSolverBody
 		//
 
-		void SetImplicitVelocity(FReal Dt) { Body->SetImplicitVelocity(Dt); }
-		FRigidTransform3 CoMTransform() const { return Body->CoMTransform(); }
-		const FVec3& X() const { return Body->X(); }
-		const FRotation3& R() const { return Body->R(); }
-		const FVec3& P() const { return Body->P(); }
-		const FRotation3& Q() const { return Body->Q(); }
-		const FVec3 ActorP() const { return Body->ActorP(); }
-		const FRotation3 ActorQ() const { return Body->ActorQ(); }
-		const FVec3& V() const { return Body->V(); }
-		const FVec3& W() const { return Body->W(); }
-		int32 Level() const { return Body->Level(); }
+		inline void SetImplicitVelocity(FReal Dt) { Body->SetImplicitVelocity(Dt); }
+		inline FRigidTransform3 CoMTransform() const { return Body->CoMTransform(); }
+		inline const FVec3& X() const { return Body->X(); }
+		inline const FRotation3& R() const { return Body->R(); }
+		inline const FVec3& P() const { return Body->P(); }
+		inline const FRotation3& Q() const { return Body->Q(); }
+		inline const FVec3 ActorP() const { return Body->ActorP(); }
+		inline const FRotation3 ActorQ() const { return Body->ActorQ(); }
+		inline const FVec3& V() const { return Body->V(); }
+		inline const FVec3& W() const { return Body->W(); }
+		inline int32 Level() const { return Body->Level(); }
 
-		void ApplyTransformDelta(const FVec3 DP, const FVec3 DR) { Body->ApplyTransformDelta(DP, DR); }
-		void ApplyPositionDelta(const FVec3 DP) { Body->ApplyPositionDelta(DP); }
-		void ApplyRotationDelta(const FVec3 DR) { Body->ApplyRotationDelta(DR); }
-		void ApplyVelocityDelta(const FVec3& DV, const FVec3& DW) { Body->ApplyVelocityDelta(DV, DW); }
-		void ApplyLinearVelocityDelta(const FVec3& DV) { Body->ApplyLinearVelocityDelta(DV); }
-		void ApplyAngularVelocityDelta(const FVec3& DW) { Body->ApplyAngularVelocityDelta(DW); }
-		void EnforceShortestRotationTo(const FRotation3& InQ) { Body->EnforceShortestRotationTo(InQ); }
-		void UpdateRotationDependentState() { Body->UpdateRotationDependentState(); }
+		inline void ApplyTransformDelta(const FVec3 DP, const FVec3 DR) { Body->ApplyTransformDelta(DP, DR); }
+		inline void ApplyPositionDelta(const FVec3 DP) { Body->ApplyPositionDelta(DP); }
+		inline void ApplyRotationDelta(const FVec3 DR) { Body->ApplyRotationDelta(DR); }
+		inline void ApplyVelocityDelta(const FVec3& DV, const FVec3& DW) { Body->ApplyVelocityDelta(DV, DW); }
+		inline void ApplyLinearVelocityDelta(const FVec3& DV) { Body->ApplyLinearVelocityDelta(DV); }
+		inline void ApplyAngularVelocityDelta(const FVec3& DW) { Body->ApplyAngularVelocityDelta(DW); }
+		inline void EnforceShortestRotationTo(const FRotation3& InQ) { Body->EnforceShortestRotationTo(InQ); }
+		inline void UpdateRotationDependentState() { Body->UpdateRotationDependentState(); }
 
-		int32 LastChangeEpoch() const { return Body->LastChangeEpoch(); }
+		inline int32 LastChangeEpoch() const { return Body->LastChangeEpoch(); }
 
 	private:
 		// Struct is only so that we can use the same var names as function names

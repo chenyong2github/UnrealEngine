@@ -25,14 +25,14 @@ namespace Chaos
 
 		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
 		int32 Chaos_PBDCollisionSolver_Position_ShockPropagationIterations = 3;
-		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.5f;
+		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.3f;
 		int32 Chaos_PBDCollisionSolver_Position_ZeroFrictionIterations = 4;
 		float Chaos_PBDCollisionSolver_Position_NormalTolerance = 0.1f;
 		bool bChaos_PBDCollisionSolver_Position_NegativePushOutEnabled = true;
 		float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness = 0.5f;
 		float Chaos_PBDCollisionSolver_Position_StaticFrictionLerpRate = 0.1f;
-		float Chaos_PBDCollisionSolver_Position_PositionSolverTolerance = 0.0001f;		// cms
-		float Chaos_PBDCollisionSolver_Position_RotationSolverTolerance = 0.0001f;		// rads
+		float Chaos_PBDCollisionSolver_Position_PositionSolverTolerance = 0.001f;		// cms
+		float Chaos_PBDCollisionSolver_Position_RotationSolverTolerance = 0.001f;		// rads
 
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_SolveEnabled(TEXT("p.Chaos.PBDCollisionSolver.Position.SolveEnabled"), bChaos_PBDCollisionSolver_Position_SolveEnabled, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Position_UseShockPropagation(TEXT("p.Chaos.PBDCollisionSolver.Position.ShockPropagationIterations"), Chaos_PBDCollisionSolver_Position_ShockPropagationIterations, TEXT(""));
@@ -46,10 +46,11 @@ namespace Chaos
 
 		bool bChaos_PBDCollisionSolver_Velocity_SolveEnabled = true;
 		int32 Chaos_PBDCollisionSolver_Velocity_ShockPropagationIterations = 1;
-		float Chaos_PBDCollisionSolver_Velocity_MinInvMassScale = 0.1f;
+		// If this is the same as Chaos_PBDCollisionSolver_Position_MinInvMassScale and all velocity iterations have shockpropagation, we avoid recalculating constraiunt-space mass
+		float Chaos_PBDCollisionSolver_Velocity_MinInvMassScale = Chaos_PBDCollisionSolver_Position_MinInvMassScale;
 		bool bChaos_PBDCollisionSolver_Velocity_DynamicFrictionEnabled = true;
 		bool bChaos_PBDCollisionSolver_Velocity_NegativeImpulseEnabled = true;
-		bool bChaos_PBDCollisionSolver_Velocity_ImpulseClampEnabled = false;
+		bool bChaos_PBDCollisionSolver_Velocity_ImpulseClampEnabled = true;
 
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Velocity_SolveEnabled(TEXT("p.Chaos.PBDCollisionSolver.Velocity.SolveEnabled"), bChaos_PBDCollisionSolver_Velocity_SolveEnabled, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_PBDCollisionSolver_Velocity_UseShockPropagation(TEXT("p.Chaos.PBDCollisionSolver.Velocity.ShockPropagationIterations"), Chaos_PBDCollisionSolver_Velocity_ShockPropagationIterations, TEXT(""));
@@ -220,18 +221,19 @@ namespace Chaos
 				PushOut);									// Out
 		}
 
-		//UE_LOG(LogChaosCollision, VeryVerbose, TEXT("    PushOut %f"), PushOut.Size());
-
 		// Update the particle state based on the pushout
 		if (Body0.IsDynamic())
 		{
 			const FVec3 AngularPushOut = FVec3::CrossProduct(ManifoldPoint.WorldRelativeImpulsePoint0, PushOut);
 			const FVec3 DX0 = Body0.InvM() * PushOut;
 			const FVec3 DR0 = Body0.InvI() * AngularPushOut;
-			//if (!DX0.IsNearlyZero(Chaos_PBDCollisionSolver_Position_PositionSolverTolerance) || !DR0.IsNearlyZero(Chaos_PBDCollisionSolver_Position_RotationSolverTolerance))
+			//if (!DX0.IsNearlyZero(Chaos_PBDCollisionSolver_Position_PositionSolverTolerance))
 			{
-				Body0.ApplyTransformDelta(DX0, DR0);
-				//Body0.UpdateRotationDependentState();
+				Body0.ApplyPositionDelta(DX0);
+			}
+			//if (!DR0.IsNearlyZero(Chaos_PBDCollisionSolver_Position_RotationSolverTolerance))
+			{
+				Body0.ApplyRotationDelta(DR0);
 			}
 		}
 		if (Body1.IsDynamic())
@@ -239,10 +241,13 @@ namespace Chaos
 			const FVec3 AngularPushOut = FVec3::CrossProduct(ManifoldPoint.WorldRelativeImpulsePoint1, PushOut);
 			const FVec3 DX1 = -(Body1.InvM() * PushOut);
 			const FVec3 DR1 = -(Body1.InvI() * AngularPushOut);
-			//if (!DX1.IsNearlyZero(Chaos_PBDCollisionSolver_Position_PositionSolverTolerance) || !DR1.IsNearlyZero(Chaos_PBDCollisionSolver_Position_RotationSolverTolerance))
+			//if (!DX1.IsNearlyZero(Chaos_PBDCollisionSolver_Position_PositionSolverTolerance))
 			{
-				Body1.ApplyTransformDelta(DX1, DR1);
-				//Body1.UpdateRotationDependentState();
+				Body1.ApplyPositionDelta(DX1);
+			}
+			//if (!DR1.IsNearlyZero(Chaos_PBDCollisionSolver_Position_RotationSolverTolerance))
+			{
+				Body1.ApplyRotationDelta(DR1);
 			}
 		}
 	}
@@ -282,11 +287,19 @@ namespace Chaos
 		// but only to correct the velocity that was added by pushout, or in this velocity solve step.
 		if (bChaos_PBDCollisionSolver_Velocity_ImpulseClampEnabled && (Dt > 0))
 		{
+			// @todo(chaos): cache max negative impulse
 			const FVec3 NetImpulse = InOutNetImpulse + Impulse;
-			const FReal PushOutVelocityNormal = FMath::Max(0.0f, FVec3::DotProduct(NetPushOut, ContactNormal) / Dt);
-			if (FVec3::DotProduct(NetImpulse, ContactNormal) < -PushOutVelocityNormal)
+			const FReal PushOutImpulseNormal = FMath::Max(0.0f, FVec3::DotProduct(NetPushOut, ContactNormal) / Dt);
+			const FReal NetImpulseNormal = FVec3::DotProduct(NetImpulse, ContactNormal);
+			if (NetImpulseNormal < -PushOutImpulseNormal)
 			{
-				Impulse = -InOutNetImpulse;
+				// We are trying to apply a negative impulse larger than one to counteract the effective pushout impulse
+				// so clamp the net impulse to be equal to minus the pushout impulse along the normal.
+				// NOTE: NetImpulseNormal is negative here
+				//const FVec3 NewNetImpulse = NetImpulse - NetImpulseNormal * ContactNormal - PushOutImpulseNormal * ContactNormal;
+				//const FVec3 NewImpulse = NewNetImpulse - InOutNetImpulse;
+				//Impulse = InOutNetImpulse + Impulse - NetImpulseNormal * ContactNormal - PushOutImpulseNormal * ContactNormal - InOutNetImpulse;
+				Impulse = Impulse - (NetImpulseNormal + PushOutImpulseNormal) * ContactNormal;
 			}
 		}
 
@@ -318,8 +331,6 @@ namespace Chaos
 			ManifoldPoint.NetPushOut,	// Out
 			ManifoldPoint.NetImpulse,	// Out
 			Impulse);					// Out
-
-		//UE_LOG(LogChaosCollision, VeryVerbose, TEXT("    Impulse %f"), Impulse.Size());
 
 		// Calculate the velocity deltas from the impulse
 		if (Body0.IsDynamic())
@@ -485,25 +496,27 @@ namespace Chaos
 		FConstraintSolverBody& Body0 = SolverBody0();
 		FConstraintSolverBody& Body1 = SolverBody1();
 
-		// No need to set an inverse mass scale if ther other body is kinematic (with inv mass of 0)
-		// Also, bodies at the same level do not take part in shock propagation
+		// Shock propagation decreases the inverse mass of bodies that are lower in the pile
+		// of objects. This significantly improves stability of heaps and stacks. Height in the pile is indictaed by the "level". 
+		// No need to set an inverse mass scale if the other body is kinematic (with inv mass of 0).
+		// Bodies at the same level do not take part in shock propagation.
 		if (Body0.IsDynamic() && Body1.IsDynamic() && (Body0.Level() != Body1.Level()))
 		{
 			// Set the inv mass scale of the "lower" body to make it heavier
 			bool bInvMassUpdated = false;
 			if (Body0.Level() < Body1.Level())
 			{
-				if (Body0.InvMassScale() != InvMassScale)
+				if (Body0.InvMScale() != InvMassScale)
 				{
-					Body0.SetInvMassScale(InvMassScale);
+					Body0.SetInvMScale(InvMassScale);
 					bInvMassUpdated = true;
 				}
 			}
 			else
 			{
-				if (Body1.InvMassScale() != InvMassScale)
+				if (Body1.InvMScale() != InvMassScale)
 				{
-					Body1.SetInvMassScale(InvMassScale);
+					Body1.SetInvMScale(InvMassScale);
 					bInvMassUpdated = true;
 				}
 			}

@@ -48,6 +48,26 @@ namespace Chaos
 			return SolverBodies[BodyIndex];
 		}
 
+		inline FConstraintSolverBody& Body0()
+		{
+			return SolverBodies[0];
+		}
+
+		inline const FConstraintSolverBody& Body0() const
+		{
+			return SolverBodies[0];
+		}
+
+		inline FConstraintSolverBody& Body1()
+		{
+			return SolverBodies[1];
+		}
+
+		inline const FConstraintSolverBody& Body1() const
+		{
+			return SolverBodies[1];
+		}
+
 		inline const FVec3& X(int BodyIndex) const
 		{
 			return Body(BodyIndex).X();

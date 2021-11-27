@@ -71,7 +71,7 @@ namespace Chaos
 		 * @note EpsilonSq is approximately the square of the angle below which we cannot calculate the axis. It needs to be "much greater" than square of the error in the
 		 * quaternion values which is usually ~1e-4, so values around 1e-3^2 = 1e-6 or greater are about right.
 		 */
-		bool ToAxisAndAngleSafe(TVector<FReal, 3>& OutAxis, FReal& OutAngle, const TVector<FReal, 3>& DefaultAxis, FReal EpsilionSq = 1e-6f) const
+		inline bool ToAxisAndAngleSafe(TVector<FReal, 3>& OutAxis, FReal& OutAngle, const TVector<FReal, 3>& DefaultAxis, FReal EpsilionSq = 1e-6f) const
 		{
 			OutAngle = GetAngle();
 			return GetRotationAxisSafe(OutAxis, DefaultAxis, EpsilionSq);
@@ -87,7 +87,7 @@ namespace Chaos
 		 * @note EpsilonSq is approximately the square of the angle below which we cannot calculate the axis. It needs to be "much greater" than square of the error in the
 		 * quaternion values which is usually ~1e-4, so values around 1e-3^2 = 1e-6 or greater are about right.
 		 */
-		bool GetRotationAxisSafe(TVector<FReal, 3>& OutAxis, const TVector<FReal, 3>& DefaultAxis, FReal EpsilionSq = 1e-6f) const
+		inline bool GetRotationAxisSafe(TVector<FReal, 3>& OutAxis, const TVector<FReal, 3>& DefaultAxis, FReal EpsilionSq = 1e-6f) const
 		{
 			// Tolerance must be much larger than error in normalized vector (usually ~1e-4) for the 
 			// axis calculation to succeed for small angles. For small angles, W ~= 1, and
@@ -108,7 +108,7 @@ namespace Chaos
 		 * Extract the Swing and Twist rotations, assuming that the Twist Axis is (1,0,0).
 		 * /see ToSwingTwist
 		 */
-		void ToSwingTwistX(BaseQuat& OutSwing, BaseQuat& OutTwist) const
+		inline void ToSwingTwistX(BaseQuat& OutSwing, BaseQuat& OutTwist) const
 		{
 			OutTwist = (X != 0.0f)? BaseQuat(X, 0, 0, W).GetNormalized() : BaseQuat::Identity;
 			OutSwing = *this * OutTwist.Inverse();
@@ -117,7 +117,7 @@ namespace Chaos
 		/**
 		 * @brief Return the dot product of two quaternions
 		*/
-		static FReal DotProduct(const TRotation<FReal, 3>& L, const TRotation<FReal, 3>& R)
+		static inline FReal DotProduct(const TRotation<FReal, 3>& L, const TRotation<FReal, 3>& R)
 		{
 			return (L | R);
 		}
@@ -125,7 +125,7 @@ namespace Chaos
 		/**
 		 * Return the complex conjugate of the rotation
 		 */
-		static TRotation<FReal, 3> Conjugate(const ::Chaos::TRotation<FReal, 3>& InR)
+		static inline TRotation<FReal, 3> Conjugate(const ::Chaos::TRotation<FReal, 3>& InR)
 		{
 			TRotation<FReal, 3> R;
 			R.X = -InR.X;
@@ -138,7 +138,7 @@ namespace Chaos
 		/**
 		 * Negate all values of the quaternion (note: not the inverse rotation. See Conjugate)
 		 */
-		static TRotation<FReal, 3> Negate(const ::Chaos::TRotation<FReal, 3>& InR)
+		static inline TRotation<FReal, 3> Negate(const ::Chaos::TRotation<FReal, 3>& InR)
 		{
 			TRotation<FReal, 3> R;
 			R.X = -InR.X;
@@ -151,7 +151,7 @@ namespace Chaos
 		/**
 		 * Create an identity rotation
 		 */
-		static TRotation<FReal, 3> FromIdentity()
+		static inline TRotation<FReal, 3> FromIdentity()
 		{
 			return BaseQuat(0, 0, 0, 1);
 		}
@@ -159,7 +159,7 @@ namespace Chaos
 		/**
 		 * Create a rotation by explicitly specifying all elements
 		 */
-		static TRotation<FReal, 3> FromElements(const FReal X, const FReal Y, const FReal Z, const FReal W)
+		static inline TRotation<FReal, 3> FromElements(const FReal X, const FReal Y, const FReal Z, const FReal W)
 		{
 			using FQuatReal = BaseQuat::FReal;
 			return BaseQuat((FQuatReal)X, (FQuatReal)Y, (FQuatReal)Z, (FQuatReal)W);
@@ -168,7 +168,7 @@ namespace Chaos
 		/**
 		 * Create a rotation by explicitly specifying all elements
 		 */
-		static TRotation<FReal, 3> FromElements(const ::Chaos::TVector<FReal, 3>& V, const FReal W)
+		static inline TRotation<FReal, 3> FromElements(const ::Chaos::TVector<FReal, 3>& V, const FReal W)
 		{
 			return FromElements(V.X, V.Y, V.Z, W);
 		}
@@ -176,7 +176,7 @@ namespace Chaos
 		/**
 		 * Create a rotation about an axis by an angle specified in radians
 		 */
-		static TRotation<FReal, 3> FromAxisAngle(const ::Chaos::TVector<FReal, 3>& Axis, const FReal AngleRad)
+		static inline TRotation<FReal, 3> FromAxisAngle(const ::Chaos::TVector<FReal, 3>& Axis, const FReal AngleRad)
 		{
 			return BaseQuat(UE::Math::TVector<FReal>(Axis.X, Axis.Y, Axis.Z), (BaseQuat::FReal)AngleRad);
 		}
@@ -184,7 +184,7 @@ namespace Chaos
 		/**
 		 * Create a rotation about an axis V/|V| by angle |V| in radians
 		 */
-		static TRotation<FReal, 3> FromVector(const ::Chaos::TVector<FReal, 3>& V)
+		static inline TRotation<FReal, 3> FromVector(const ::Chaos::TVector<FReal, 3>& V)
 		{
 			using FQuatReal = BaseQuat::FReal;
 			TRotation<FReal, 3> Rot;
@@ -230,7 +230,7 @@ namespace Chaos
 		 *
 		 * Uses the relation: DQ/DT = (W * Q)/2
 		 */
-		static TVector<FReal, 3> CalculateAngularVelocity1(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)
+		static inline TVector<FReal, 3> CalculateAngularVelocity1(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)
 		{
 			if (!ensure(InDt > SMALL_NUMBER))
 			{
@@ -254,7 +254,7 @@ namespace Chaos
 		 *
 		 * Uses the Quaternion to Axis/Angle method.
 		 */
-		static TVector<FReal, 3> CalculateAngularVelocity2(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)
+		static inline TVector<FReal, 3> CalculateAngularVelocity2(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)
 		{
 			// @todo(ccaulfield): ToAxisAndAngle starts to return increasingly random, non-normalized axes for very small angles. This 
 			// underestimates the angular velocity magnitude and randomizes direction.
@@ -278,7 +278,7 @@ namespace Chaos
 		 *
 		 * This should match the algorithm used in PerParticleUpdateFromDeltaPosition rule.
 		 */
-		static TVector<FReal, 3> CalculateAngularVelocity(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)
+		static inline TVector<FReal, 3> CalculateAngularVelocity(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1, const FReal InDt)
 		{
 			return CalculateAngularVelocity1(InR0, InR1, InDt);
 		}
@@ -288,7 +288,7 @@ namespace Chaos
 		 *
 		 * This should match the algorithm used in PerParticleUpdateFromDeltaPosition rule.
 		 */
-		static TVector<FReal, 3> CalculateAngularDelta(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1)
+		static inline TVector<FReal, 3> CalculateAngularDelta(const TRotation<FReal, 3>& InR0, const TRotation<FReal, 3>& InR1)
 		{
 			return CalculateAngularVelocity(InR0, InR1, 1.0f);
 		}
@@ -298,18 +298,19 @@ namespace Chaos
 		 *
 		 * Uses the relation: DQ/DT = (W * Q)/2
 		 */
-		static TRotation<FReal, 3> IntegrateRotationWithAngularVelocity(const TRotation<FReal, 3>& InR0, const TVector<FReal, 3>& InW, const FReal InDt)
+		static inline TRotation<FReal, 3> IntegrateRotationWithAngularVelocity(const TRotation<FReal, 3>& InR0, const TVector<FReal, 3>& InW, const FReal InDt)
 		{
 			TRotation<FReal, 3> R1 = InR0 + (TRotation<FReal, 3>::FromElements(InW.X, InW.Y, InW.Z, 0.f) * InR0) * decltype(InR0.X)(InDt * 0.5f);
 			return R1.GetNormalized();
 		}
+
 
 		/**
 		 * Check that two rotations are approximately equal. Assumes the quaternions are normalized and in the same hemisphere.
 		 * For small values of Epsilon, this is approximately equivalent to checking that the rotations are within 2*Epsilon
 		 * radians of each other.
 		 */
-		static bool IsNearlyEqual(const TRotation<FReal, 3>& A, const TRotation<FReal, 3>& B, const FReal Epsilon)
+		static inline bool IsNearlyEqual(const TRotation<FReal, 3>& A, const TRotation<FReal, 3>& B, const FReal Epsilon)
 		{
 			// Only check imaginary part. This is comparing Epsilon to 2*AngleDelta for small angle deltas
 			return FMath::IsNearlyEqual((FReal)A.X, (FReal)B.X, Epsilon)

@@ -106,7 +106,7 @@ namespace Chaos
 					WorldContactNormal);
 
 				// Calculate the target normal velocity based on restitution
-				FReal WorldContactVelocityTargetNormal = FReal(0); // If two particles are already separating, this can zero out their normal velocity and cause loss of momentum. 
+				FReal WorldContactVelocityTargetNormal = FReal(0);
 				if (Restitution > FReal(0))
 				{
 					const FVec3 ContactVelocity = Solver.GetManifoldPoint(ManifoldPointIndex).CalculateContactVelocity(Solver.SolverBody0(), Solver.SolverBody1());
@@ -114,10 +114,6 @@ namespace Chaos
 					if (ContactVelocityNormal < -RestitutionVelocityThreshold)
 					{
 						WorldContactVelocityTargetNormal = -Restitution * ContactVelocityNormal;
-					}
-					else if (ContactVelocityNormal > RestitutionVelocityThreshold)
-					{
-						WorldContactVelocityTargetNormal = ContactVelocityNormal; // @todo(zhenglin): Ideally we should not apply impulse in this case.
 					}
 				}
 
