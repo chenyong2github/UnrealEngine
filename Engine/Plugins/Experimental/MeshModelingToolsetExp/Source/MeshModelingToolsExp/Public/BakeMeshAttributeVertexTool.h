@@ -63,34 +63,34 @@ public:
 	EBakeVertexOutput OutputMode = EBakeVertexOutput::RGBA;
 
 	/** The bake output type to generate */
-	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(Bitmask, BitmaskEnum = EBakeMapType,
 		ValidEnumValues="TangentSpaceNormal, AmbientOcclusion, BentNormal, Curvature, Texture, ObjectSpaceNormal, FaceNormal, Position, MaterialID, MultiTexture",
 		EditCondition="OutputMode == EBakeVertexOutput::RGBA", EditConditionHides))
-	EBakeMapType OutputType = EBakeMapType::TangentSpaceNormal;
+	int32 OutputType = static_cast<int32>(EBakeMapType::TangentSpaceNormal);
 
 	/** The bake output type to generate in the Red channel */
-	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(Bitmask, BitmaskEnum = EBakeMapType,
 		ValidEnumValues="None, AmbientOcclusion, Curvature",
 		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
-	EBakeMapType OutputTypeR = EBakeMapType::None;
+	int32 OutputTypeR = static_cast<int32>(EBakeMapType::None);
 
 	/** The bake output type to generate in the Green channel */
-	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(Bitmask, BitmaskEnum = EBakeMapType,
 		ValidEnumValues="None, AmbientOcclusion, Curvature",
 		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
-	EBakeMapType OutputTypeG = EBakeMapType::None;
+	int32 OutputTypeG = static_cast<int32>(EBakeMapType::None);
 
 	/** The bake output type to generate in the Blue channel */
-	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(Bitmask, BitmaskEnum = EBakeMapType,
 		ValidEnumValues="None, AmbientOcclusion, Curvature",
 		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
-	EBakeMapType OutputTypeB = EBakeMapType::None;
+	int32 OutputTypeB = static_cast<int32>(EBakeMapType::None);
 
 	/** The bake output type to generate in the Alpha channel */
-	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(Bitmask, BitmaskEnum = EBakeMapType,
 		ValidEnumValues="None, AmbientOcclusion, Curvature",
 		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
-	EBakeMapType OutputTypeA = EBakeMapType::None;
+	int32 OutputTypeA = static_cast<int32>(EBakeMapType::None);
 
 	/** The vertex color channel to preview */
 	UPROPERTY(EditAnywhere, Category = BakeOutput, meta = (TransientToolProperty))

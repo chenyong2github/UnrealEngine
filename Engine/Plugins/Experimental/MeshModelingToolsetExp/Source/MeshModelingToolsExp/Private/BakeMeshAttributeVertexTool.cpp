@@ -295,11 +295,11 @@ void UBakeMeshAttributeVertexTool::Setup()
 	AddToolPropertySource(Settings);
 
 	Settings->WatchProperty(Settings->OutputMode, [this](EBakeVertexOutput) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputType, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeR, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeG, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeB, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->OutputTypeA, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputType, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeR, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeG, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeB, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeA, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
 	Settings->WatchProperty(Settings->PreviewMode, [this](EBakeVertexChannel) { UpdateVisualization(); });
 	Settings->WatchProperty(Settings->bSplitAtNormalSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->bSplitAtUVSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
@@ -487,7 +487,7 @@ void UBakeMeshAttributeVertexTool::UpdateOnModeChange()
 
 	if (Settings->OutputMode == EBakeVertexOutput::RGBA)
 	{
-		switch (Settings->OutputType)
+		switch (static_cast<EBakeMapType>(Settings->OutputType))
 		{
 			case EBakeMapType::AmbientOcclusion:
 			case EBakeMapType::BentNormal:
@@ -509,11 +509,11 @@ void UBakeMeshAttributeVertexTool::UpdateOnModeChange()
 	}
 	else // Settings->VertexMode == EBakeVertexOutput::PerChannel
 	{
-		EBakeMapType PerChannelTypes[4] = {
-			Settings->OutputTypeR,
-			Settings->OutputTypeG,
-			Settings->OutputTypeB,
-			Settings->OutputTypeA
+		const EBakeMapType PerChannelTypes[4] = {
+			static_cast<EBakeMapType>(Settings->OutputTypeR),
+			static_cast<EBakeMapType>(Settings->OutputTypeG),
+			static_cast<EBakeMapType>(Settings->OutputTypeB),
+			static_cast<EBakeMapType>(Settings->OutputTypeA)
 		};
 		for(int Idx = 0; Idx < 4; ++Idx)
 		{
@@ -630,11 +630,11 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 
 	FBakeSettings BakeSettings;
 	BakeSettings.OutputMode = Settings->OutputMode;
-	BakeSettings.OutputType = Settings->OutputType;
-	BakeSettings.OutputTypePerChannel[0] = Settings->OutputTypeR;
-	BakeSettings.OutputTypePerChannel[1] = Settings->OutputTypeG;
-	BakeSettings.OutputTypePerChannel[2] = Settings->OutputTypeB;
-	BakeSettings.OutputTypePerChannel[3] = Settings->OutputTypeA;
+	BakeSettings.OutputType = static_cast<EBakeMapType>(Settings->OutputType);
+	BakeSettings.OutputTypePerChannel[0] = static_cast<EBakeMapType>(Settings->OutputTypeR);
+	BakeSettings.OutputTypePerChannel[1] = static_cast<EBakeMapType>(Settings->OutputTypeG);
+	BakeSettings.OutputTypePerChannel[2] = static_cast<EBakeMapType>(Settings->OutputTypeB);
+	BakeSettings.OutputTypePerChannel[3] = static_cast<EBakeMapType>(Settings->OutputTypeA);
 	BakeSettings.bSplitAtNormalSeams = Settings->bSplitAtNormalSeams;
 	BakeSettings.bSplitAtUVSeams = Settings->bSplitAtUVSeams;
 	BakeSettings.bProjectionInWorldSpace = InputMeshSettings->bProjectionInWorldSpace;

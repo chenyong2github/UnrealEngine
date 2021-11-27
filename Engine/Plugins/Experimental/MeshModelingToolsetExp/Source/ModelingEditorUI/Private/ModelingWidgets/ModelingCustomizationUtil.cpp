@@ -144,3 +144,27 @@ TSharedRef<SCheckBox> UE::ModelingUI::MakeBoolToggleButton(
 		];
 }
 
+
+void UE::ModelingUI::ProcessChildWidgetsByType(
+	const TSharedRef<SWidget>& RootWidget,
+	const FString& WidgetType,
+	TFunction<bool(TSharedRef<SWidget>&)> ProcessFunc)
+{
+	auto ProcessChildWidgets = [ProcessFunc](const TSharedRef<SWidget>& Widget, const FString& WidgetType, auto& FindRef) -> void
+	{
+		FChildren* Children = Widget->GetChildren();
+		const int32 NumChild = Children ? Children->NumSlot() : 0;
+		for (int32 ChildIdx = 0; ChildIdx < NumChild; ++ChildIdx)
+		{
+			TSharedRef<SWidget> ChildWidget = Children->GetChildAt(ChildIdx);
+			if (ChildWidget->GetTypeAsString().Compare(WidgetType) == 0 && !ProcessFunc(ChildWidget))
+			{
+				break;
+			}
+			FindRef(ChildWidget, WidgetType, FindRef);
+		}
+	};
+	ProcessChildWidgets(RootWidget, WidgetType, ProcessChildWidgets);
+}
+
+
