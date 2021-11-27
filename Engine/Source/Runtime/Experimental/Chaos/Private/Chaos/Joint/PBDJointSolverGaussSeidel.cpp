@@ -56,13 +56,13 @@ namespace Chaos
 		{
 			ConnectorXs[0] = P(0) + Q(0) * LocalConnectorXs[0].GetTranslation();
 			ConnectorRs[0] = Q(0) * LocalConnectorXs[0].GetRotation();
-			SolverBodies[0].UpdateRotationDependentState();
+			//SolverBodies[0].UpdateRotationDependentState();
 		}
 		if (InvM(1) > SMALL_NUMBER)
 		{
 			ConnectorXs[1] = P(1) + Q(1) * LocalConnectorXs[1].GetTranslation();
 			ConnectorRs[1] = Q(1) * LocalConnectorXs[1].GetRotation();
-			SolverBodies[1].UpdateRotationDependentState();
+			//SolverBodies[1].UpdateRotationDependentState();
 		}
 		ConnectorRs[1].EnforceShortestArcWith(ConnectorRs[0]);
 	}
@@ -74,7 +74,7 @@ namespace Chaos
 		ConnectorRs[BodyIndex] = Q(BodyIndex) * LocalConnectorXs[BodyIndex].GetRotation();
 		ConnectorRs[1].EnforceShortestArcWith(ConnectorRs[0]);
 		
-		SolverBodies[BodyIndex].UpdateRotationDependentState();
+		//SolverBodies[BodyIndex].UpdateRotationDependentState();
 	}
 
 	bool FPBDJointSolver::UpdateIsActive(
@@ -118,8 +118,8 @@ namespace Chaos
 		LocalConnectorXs[1] = XL1;
 
 		// \todo(chaos): joint should support parent/child in either order
-		SolverBodies[0].SetInvMassScale(JointSettings.ParentInvMassScale);
-		SolverBodies[1].SetInvMassScale(FReal(1));
+		SolverBodies[0].SetInvMScale(JointSettings.ParentInvMassScale);
+		SolverBodies[1].SetInvMScale(FReal(1));
 
 		// \chaos(todo): Add support for mass conditioning in ConstraintSolverBody
 		//FPBDJointUtilities::ConditionInverseMassAndInertia(InvM(0), InvM(1), InvILs[0], InvILs[1], SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio);
@@ -233,7 +233,7 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings)
 	{
 		// @todo(chaos): We need to handle parent/child being the other way round
-		if (InvM(1) < SMALL_NUMBER)
+		if (!Body1().IsDynamic())
 		{
 			// If child is kinematic, return. 
 			return;
@@ -541,11 +541,11 @@ namespace Chaos
 		if (bLinearLocked[0] && bLinearLocked[1] && bLinearLocked[2])
 		{
 			// Hard point constraint (most common case)
-			if (InvM(0) < SMALL_NUMBER)
+			if (!Body0().IsDynamic())
 			{
 				ApplyPointPositionConstraintKD(0, 1, Dt, SolverSettings, JointSettings);
 			}
-			else if (InvM(1) < SMALL_NUMBER)
+			else if (!Body1().IsDynamic())
 			{
 				ApplyPointPositionConstraintKD(1, 0, Dt, SolverSettings, JointSettings);
 			}
@@ -1088,11 +1088,11 @@ namespace Chaos
 		}
 		else
 		{
-			if (InvM(0) > SMALL_NUMBER)
+			if (Body0().IsDynamic())
 			{
 				Body(0).ApplyRotationDelta(DR0);
 			}
-			if (InvM(1) > SMALL_NUMBER)
+			if (Body1().IsDynamic())
 			{
 				Body(1).ApplyRotationDelta(DR1);
 			}
@@ -1304,11 +1304,11 @@ namespace Chaos
 		const FReal Angle,
 		const int32 AngularHardLambdaIndex)
 	{
-		if (InvM(0) < SMALL_NUMBER)
+		if (!Body0().IsDynamic())
 		{
 			ApplyRotationConstraintKD(0, 1, JointStiffness, Axis, Angle, AngularHardLambdaIndex);
 		}
-		else if (InvM(1) < SMALL_NUMBER)
+		else if (!Body1().IsDynamic())
 		{
 			ApplyRotationConstraintKD(1, 0, JointStiffness, Axis, -Angle, AngularHardLambdaIndex);
 		}
@@ -1334,7 +1334,8 @@ namespace Chaos
 		const FReal AngVelTarget,
 		FReal& Lambda)
 	{
-		check(InvM(DIndex) > SMALL_NUMBER);
+		check(!Body(KIndex).IsDynamic());
+		check(Body(DIndex).IsDynamic());
 
 		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
@@ -1389,8 +1390,8 @@ namespace Chaos
 		const FReal AngVelTarget,
 		FReal& Lambda)
 	{
-		check(InvM(0) > SMALL_NUMBER);
-		check(InvM(1) > SMALL_NUMBER);
+		check(Body(0).IsDynamic());
+		check(Body(1).IsDynamic());
 
 		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
@@ -1448,11 +1449,11 @@ namespace Chaos
 		const FReal AngVelTarget,
 		FReal& Lambda)
 	{
-		if (InvM(0) < SMALL_NUMBER)
+		if (!Body0().IsDynamic())
 		{
 			ApplyRotationConstraintSoftKD(0, 1, Dt, JointStiffness, JointDamping, bAccelerationMode, Axis, Angle, AngVelTarget, Lambda);
 		}
-		else if (InvM(1) < SMALL_NUMBER)
+		else if (!Body1().IsDynamic())
 		{
 			ApplyRotationConstraintSoftKD(1, 0, Dt, JointStiffness, JointDamping, bAccelerationMode, Axis, -Angle, -AngVelTarget, Lambda);
 		}
@@ -1926,7 +1927,8 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		check(InvM(DIndex) > SMALL_NUMBER);
+		check(!Body(KIndex).IsDynamic());
+		check(Body(DIndex).IsDynamic());
 
 		FReal Stiffness = SolverStiffness * FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 		const FVec3 CX = ConnectorXs[DIndex] - ConnectorXs[KIndex];
@@ -1968,8 +1970,8 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		check(InvM(0) > SMALL_NUMBER);
-		check(InvM(1) > SMALL_NUMBER);
+		check(Body(0).IsDynamic());
+		check(Body(1).IsDynamic());
 
 		FReal Stiffness = SolverStiffness * FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 		const FVec3 CX = ConnectorXs[1] - ConnectorXs[0];
