@@ -1476,6 +1476,11 @@ private:
 	void RepairChaosActors();
 #endif
 
+#if WITH_EDITOR
+	/** Utility function to make sure there is a valid default builder brush */
+	void RepairDefaultBrush();
+#endif
+
 	/** Gameplay timers. */
 	class FTimerManager* TimerManager;
 
