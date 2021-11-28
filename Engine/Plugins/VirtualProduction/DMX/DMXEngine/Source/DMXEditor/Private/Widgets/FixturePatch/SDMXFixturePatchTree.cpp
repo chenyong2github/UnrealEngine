@@ -47,6 +47,7 @@ void SDMXFixturePatchTree::Construct(const FArguments& InArgs)
 
 		// Bind to selection changes
 		FixturePatchSharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixturePatchTree::OnFixturePatchesSelected);
+		FixturePatchSharedData->OnUniverseSelectionChanged.AddSP(this, &SDMXFixturePatchTree::OnUniverseSelected);
 
 		// Bind to library changes
 		PinnedDMXEditor->GetDMXLibrary()->GetOnEntitiesAdded().AddSP(this, &SDMXFixturePatchTree::OnEntitiesAddedOrRemoved);
@@ -56,68 +57,12 @@ void SDMXFixturePatchTree::Construct(const FArguments& InArgs)
 		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXFixturePatchTree::OnFixturePatchChanged);
 
 		// Make an initial selection
-		TArray<UDMXEntityFixturePatch*> FixturePatches = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+		const TArray<UDMXEntityFixturePatch*> FixturePatches = GetDMXLibrary()->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 		if (FixturePatches.Num() > 0)
 		{
-			TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> InitialSelection = { FixturePatches[0] };
+			const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> InitialSelection = { FixturePatches[0] };
 			FixturePatchSharedData->SelectFixturePatches(InitialSelection);
 		}
-	}
-}
-
-TSharedPtr<FDMXEntityTreeEntityNode> SDMXFixturePatchTree::CreateEntityNode(UDMXEntity* Entity)
-{
-	check(Entity && Entity->GetClass() == UDMXEntityFixturePatch::StaticClass());
-
-	TSharedPtr<FDMXEntityTreeEntityNode> NewNode = MakeShared<FDMXEntityTreeEntityNode>(Entity);
-	RefreshFilteredState(NewNode, false);
-
-	// Error status
-	FText InvalidReason;
-	if (!Entity->IsValidEntity(InvalidReason))
-	{
-		NewNode->SetErrorStatus(InvalidReason);
-	}
-
-	return NewNode;
-}
-
-void SDMXFixturePatchTree::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
-{
-	if (DMXLibrary && AddButtonDropdownList.IsValid())
-	{
-		AddButtonDropdownList->RefreshEntitiesList();
-		UpdateTree();
-	}
-}
-
-void SDMXFixturePatchTree::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
-{
-	if (TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
-	{
-		if (PinnedDMXEditor->GetDMXLibrary() == FixturePatch->GetParentLibrary())
-		{
-			UpdateTree();
-		}
-	}
-}
-
-void SDMXFixturePatchTree::OnFixturePatchesSelected()
-{
-	if (!bChangingSelection)
-	{
-		TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
-
-		TArray<UDMXEntity*> NewSelection;
-		for (TWeakObjectPtr<UDMXEntityFixturePatch> SelectedFixturePatch : SelectedFixturePatches)
-		{
-			if (UDMXEntityFixturePatch* SelectedEntity = SelectedFixturePatch.Get())
-			{
-				NewSelection.Add(SelectedEntity);
-			}
-		}
-
-		SelectItemsByEntities(NewSelection);
 	}
 }
 
@@ -194,7 +139,7 @@ void SDMXFixturePatchTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>
 					{
 						constexpr FDMXEntityTreeCategoryNode::ECategoryType CategoryType = FDMXEntityTreeCategoryNode::ECategoryType::UniverseID;
 
-						TSharedPtr<FDMXEntityTreeCategoryNode> UniverseCategoryNode = FixturePatchTree->GetOrCreateCategoryNode(
+						TSharedRef<FDMXEntityTreeCategoryNode> UniverseCategoryNode = FixturePatchTree->GetOrCreateCategoryNode(
 							CategoryType,
 							FText::Format(LOCTEXT("UniverseSubcategoryLabel", "Universe {0}"),	FText::AsNumber(FixturePatch->GetUniverseID())),
 							FixturePatch->GetUniverseID(),
@@ -202,6 +147,28 @@ void SDMXFixturePatchTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>
 						);
 
 						UniverseCategoryNode->AddChild(FixturePatchNode);
+
+						// Retain expansion states
+						const int32 UserExpandedCategoryIndex = FixturePatchTree->UserExpandedUniverseCategoryNodes.IndexOfByPredicate([UniverseCategoryNode](const TSharedPtr<FDMXEntityTreeCategoryNode>& OtherUniverseCategoryNode)
+							{
+								return UniverseCategoryNode->GetIntValue() == OtherUniverseCategoryNode->GetIntValue();
+							});
+
+						if (UserExpandedCategoryIndex != INDEX_NONE)
+						{
+							FixturePatchTree->UserExpandedUniverseCategoryNodes[UserExpandedCategoryIndex] = UniverseCategoryNode;
+							FixturePatchTree->SetNodeExpansion(FixturePatchTree->UserExpandedUniverseCategoryNodes[UserExpandedCategoryIndex], true);
+						}
+						else if (!FixturePatchTree->AutoExpandedUniverseCategoryNode.IsValid() ||
+							FixturePatchTree->AutoExpandedUniverseCategoryNode->GetIntValue() == UniverseCategoryNode->GetIntValue())
+						{
+							FixturePatchTree->SetNodeExpansion(UniverseCategoryNode, true);
+							FixturePatchTree->AutoExpandedUniverseCategoryNode = UniverseCategoryNode;
+						}
+						else
+						{
+							FixturePatchTree->SetNodeExpansion(UniverseCategoryNode, false);
+						}
 					}
 					else
 					{
@@ -303,8 +270,8 @@ void SDMXFixturePatchTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>
 	
 	InRootNode->AddChild(AssignedFixturesCategoryNode);
 	InRootNode->AddChild(UnassignedFixturesCategoryNode);
-	EntitiesTreeWidget->SetItemExpansion(AssignedFixturesCategoryNode, true);
-	EntitiesTreeWidget->SetItemExpansion(UnassignedFixturesCategoryNode, true);
+	SetNodeExpansion(AssignedFixturesCategoryNode, true);
+	SetNodeExpansion(UnassignedFixturesCategoryNode, true);
 	
 	RefreshFilteredState(AssignedFixturesCategoryNode, false);
 	RefreshFilteredState(UnassignedFixturesCategoryNode, false);
@@ -329,12 +296,12 @@ void SDMXFixturePatchTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>
 	SelectItemsByEntities(SelectedEntities);
 }
 
-TSharedRef<ITableRow> SDMXFixturePatchTree::OnGenerateRow(TSharedPtr<FDMXEntityTreeNodeBase> InNodePtr, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SDMXFixturePatchTree::OnGenerateRow(TSharedPtr<FDMXEntityTreeNodeBase> InNode, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	// Create the node of the appropriate type
-	if (InNodePtr->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::CategoryNode)
+	if (InNode->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::CategoryNode)
 	{
-		TSharedPtr<FDMXEntityTreeCategoryNode> CategoryNode = StaticCastSharedPtr<FDMXEntityTreeCategoryNode>(InNodePtr);
+		TSharedPtr<FDMXEntityTreeCategoryNode> CategoryNode = StaticCastSharedPtr<FDMXEntityTreeCategoryNode>(InNode);
 		const bool bIsRootCategory = CategoryNode->GetCategoryType() != FDMXEntityTreeCategoryNode::ECategoryType::UniverseID;
 
 		return 
@@ -342,13 +309,13 @@ TSharedRef<ITableRow> SDMXFixturePatchTree::OnGenerateRow(TSharedPtr<FDMXEntityT
 			.OnFixturePatchOrderChanged(OnEntityOrderChangedDelegate)
 			[
 				SNew(STextBlock)
-				.Text(InNodePtr->GetDisplayNameText())
+				.Text(InNode->GetDisplayNameText())
 				.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
 			];
 	}
 	else
 	{
-		TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = StaticCastSharedPtr<FDMXEntityTreeEntityNode>(InNodePtr);
+		TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = StaticCastSharedPtr<FDMXEntityTreeEntityNode>(InNode);
 
 		TSharedRef<SDMXFixturePatchTreeFixturePatchRow> FixturePatchRow = SNew(SDMXFixturePatchTreeFixturePatchRow, EntityNode, OwnerTable, SharedThis(this))
 			.OnGetFilterText(this, &SDMXEntityTreeViewBase::GetFilterText)
@@ -359,6 +326,39 @@ TSharedRef<ITableRow> SDMXFixturePatchTree::OnGenerateRow(TSharedPtr<FDMXEntityT
 		EntityNodeToEntityRowMap.Add(EntityNode.ToSharedRef(), FixturePatchRow);
 
 		return FixturePatchRow;
+	}
+}
+
+void SDMXFixturePatchTree::OnExpansionChanged(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bInExpansionState)
+{
+	SDMXEntityTreeViewBase::OnExpansionChanged(Node, bInExpansionState);
+
+	if (Node.IsValid())
+	{
+		if (bInExpansionState &&
+			Node->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::CategoryNode &&
+			Node != AutoExpandedUniverseCategoryNode)
+		{
+			TSharedRef<FDMXEntityTreeCategoryNode> CategoryNode = StaticCastSharedRef<FDMXEntityTreeCategoryNode>(Node.ToSharedRef());
+			if (CategoryNode->GetCategoryType() == FDMXEntityTreeCategoryNode::ECategoryType::UniverseID)
+			{
+				UserExpandedUniverseCategoryNodes.AddUnique(CategoryNode);
+			}
+		}
+		else if (!bInExpansionState &&
+			Node->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::CategoryNode)
+		{
+			TSharedRef<FDMXEntityTreeCategoryNode> CategoryNode = StaticCastSharedRef<FDMXEntityTreeCategoryNode>(Node.ToSharedRef());
+			if (CategoryNode->GetCategoryType() == FDMXEntityTreeCategoryNode::ECategoryType::UniverseID)
+			{
+				UserExpandedUniverseCategoryNodes.RemoveSingle(CategoryNode);
+
+				if (AutoExpandedUniverseCategoryNode == CategoryNode)
+				{
+					AutoExpandedUniverseCategoryNode.Reset();
+				}
+			}
+		}
 	}
 }
 
@@ -390,11 +390,11 @@ TSharedPtr<SWidget> SDMXFixturePatchTree::OnContextMenuOpen()
 	return MenuBuilder.MakeWidget();
 }
 
-void SDMXFixturePatchTree::OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase> InSelectedNodePtr, ESelectInfo::Type SelectInfo)
+void SDMXFixturePatchTree::OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase> InSelectedNode, ESelectInfo::Type SelectInfo)
 {
 	const TArray<UDMXEntity*> NewSelection = GetSelectedEntities();
 
-	TGuardValue<bool> RecursionGuard(bChangingSelection, true);
+	TGuardValue<bool> RecursionGuard(bChangingFixturePatchSelection, true);
 
 	// Never clear the selection
 	if (GetSelectedEntities().Num() == 0)
@@ -417,17 +417,40 @@ void SDMXFixturePatchTree::OnSelectionChanged(TSharedPtr<FDMXEntityTreeNodeBase>
 	else
 	{
 		// Select selected Fixture Types in Fixture Type Shared Data
-		TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixtureTypes;
+		TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches;
 
 		for (UDMXEntity* Entity : NewSelection)
 		{
 			if (UDMXEntityFixturePatch* FixtureType = Cast<UDMXEntityFixturePatch>(Entity))
 			{
-				SelectedFixtureTypes.Add(FixtureType);
+				SelectedFixturePatches.Add(FixtureType);
 			}
 		}
 
-		FixturePatchSharedData->SelectFixturePatches(SelectedFixtureTypes);
+		// Scroll into view
+		if (SelectedFixturePatches.Num() > 0)
+		{
+			// The weak ptrs are known to be valid here, as they were created from the strong pointers of NewSelection above
+			SelectedFixturePatches.Sort([](const TWeakObjectPtr<UDMXEntityFixturePatch>& WeakFixturePatchA, const TWeakObjectPtr<UDMXEntityFixturePatch>& WeakFixturePatchB)
+				{
+					const UDMXEntityFixturePatch* FixturePatchA = WeakFixturePatchA.Get();
+					const UDMXEntityFixturePatch* FixturePatchB = WeakFixturePatchB.Get();
+
+					const bool bUniverseIsLower = FixturePatchA->GetUniverseID() < FixturePatchB->GetUniverseID();
+					const bool bChannelIsLower =
+						FixturePatchA->GetUniverseID() == FixturePatchB->GetUniverseID() &&
+						FixturePatchA->GetStartingChannel() <= FixturePatchB->GetStartingChannel();
+
+					return bUniverseIsLower || bChannelIsLower;
+				});
+
+			if (const TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = FindNodeByEntity(SelectedFixturePatches[0].Get())) 
+			{
+				RequestScrollIntoView(EntityNode);
+			}
+		}
+
+		FixturePatchSharedData->SelectFixturePatches(SelectedFixturePatches);
 	}
 }
 
@@ -600,7 +623,7 @@ bool SDMXFixturePatchTree::CanDeleteNodes() const
 
 void SDMXFixturePatchTree::OnRenameNode()
 {
-	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedItems = EntitiesTreeWidget->GetSelectedItems();
+	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedItems = GetSelectedNodes();
 
 	if (SelectedItems.Num() == 1 && SelectedItems[0]->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::EntityNode)
 	{
@@ -616,10 +639,27 @@ void SDMXFixturePatchTree::OnRenameNode()
 
 bool SDMXFixturePatchTree::CanRenameNode() const
 {
-	return EntitiesTreeWidget->GetSelectedItems().Num() == 1 && EntitiesTreeWidget->GetSelectedItems()[0]->CanRename();
+	return GetSelectedNodes().Num() == 1 && GetSelectedNodes()[0]->CanRename();
 }
 
-TSharedPtr<SDMXFixturePatchTreeFixturePatchRow> SDMXFixturePatchTree::FindEntityRowByNode(const TSharedRef<FDMXEntityTreeEntityNode>& EntityNode)
+TSharedPtr<FDMXEntityTreeEntityNode> SDMXFixturePatchTree::CreateEntityNode(UDMXEntity* Entity)
+{
+	check(Entity && Entity->GetClass() == UDMXEntityFixturePatch::StaticClass());
+
+	TSharedPtr<FDMXEntityTreeEntityNode> NewNode = MakeShared<FDMXEntityTreeEntityNode>(Entity);
+	RefreshFilteredState(NewNode, false);
+
+	// Error status
+	FText InvalidReason;
+	if (!Entity->IsValidEntity(InvalidReason))
+	{
+		NewNode->SetErrorStatus(InvalidReason);
+	}
+
+	return NewNode;
+}
+
+TSharedPtr<SDMXFixturePatchTreeFixturePatchRow> SDMXFixturePatchTree::FindEntityRowByNode(const TSharedRef<FDMXEntityTreeEntityNode>& EntityNode) const
 {
 	if (const TSharedRef<SDMXFixturePatchTreeFixturePatchRow>* RowPtr = EntityNodeToEntityRowMap.Find(EntityNode))
 	{
@@ -627,6 +667,105 @@ TSharedPtr<SDMXFixturePatchTreeFixturePatchRow> SDMXFixturePatchTree::FindEntity
 	}
 
 	return nullptr;
+}
+
+TSharedPtr<FDMXEntityTreeCategoryNode> SDMXFixturePatchTree::FindCategoryNodeByUniverseID(int32 UniverseID, TSharedPtr<FDMXEntityTreeNodeBase> StartNode) const
+{
+	// Start at root node if none was provided
+	if (!StartNode.IsValid())
+	{
+		StartNode = GetRootNode();
+	}
+
+	// Test the StartNode
+	if (StartNode.IsValid() && StartNode->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::CategoryNode)
+	{
+		TSharedPtr<FDMXEntityTreeCategoryNode> CategoryNode = StaticCastSharedPtr<FDMXEntityTreeCategoryNode>(StartNode);
+		if (CategoryNode->GetCategoryType() == FDMXEntityTreeCategoryNode::ECategoryType::UniverseID &&
+			CategoryNode->GetIntValue() == UniverseID)
+		{
+			return CategoryNode;
+		}
+	}
+
+	// Test children recursively 
+	for (const TSharedPtr<FDMXEntityTreeNodeBase>& ChildNode : StartNode->GetChildren())
+	{
+		TSharedPtr<FDMXEntityTreeCategoryNode> CategoryNode = FindCategoryNodeByUniverseID(UniverseID, ChildNode);
+		if (CategoryNode.IsValid())
+		{
+			return CategoryNode;
+		}
+	}
+
+	return nullptr;
+}
+
+void SDMXFixturePatchTree::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
+{
+	if (DMXLibrary && AddButtonDropdownList.IsValid())
+	{
+		AddButtonDropdownList->RefreshEntitiesList();
+		UpdateTree();
+	}
+}
+
+void SDMXFixturePatchTree::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
+{
+	if (TSharedPtr<FDMXEditor> PinnedDMXEditor = DMXEditor.Pin())
+	{
+		if (PinnedDMXEditor->GetDMXLibrary() == FixturePatch->GetParentLibrary())
+		{
+			UpdateTree();
+		}
+	}
+}
+
+void SDMXFixturePatchTree::OnFixturePatchesSelected()
+{
+	if (!bChangingFixturePatchSelection)
+	{
+		// Apply selection
+		TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
+
+		TArray<UDMXEntity*> NewSelection;
+		for (TWeakObjectPtr<UDMXEntityFixturePatch> SelectedFixturePatch : SelectedFixturePatches)
+		{
+			if (UDMXEntityFixturePatch* SelectedEntity = SelectedFixturePatch.Get())
+			{
+				NewSelection.Add(SelectedEntity);
+			}
+		}
+
+		SelectItemsByEntities(NewSelection);
+
+		// Scroll into view
+		if (NewSelection.Num() > 0)
+		{
+			if (const TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = FindNodeByEntity(NewSelection[0]))
+			{
+				RequestScrollIntoView(EntityNode);
+			}
+		}
+	}
+}
+
+void SDMXFixturePatchTree::OnUniverseSelected()
+{
+	const int32 SelectedUniverse = FixturePatchSharedData->GetSelectedUniverse();
+
+	if (AutoExpandedUniverseCategoryNode.IsValid() &&
+		UserExpandedUniverseCategoryNodes.Contains(AutoExpandedUniverseCategoryNode))
+	{
+		SetNodeExpansion(AutoExpandedUniverseCategoryNode, false);
+	}
+
+	AutoExpandedUniverseCategoryNode = FindCategoryNodeByUniverseID(SelectedUniverse);
+	if (AutoExpandedUniverseCategoryNode.IsValid())
+	{
+		SetNodeExpansion(AutoExpandedUniverseCategoryNode, true);
+		RequestScrollIntoView(AutoExpandedUniverseCategoryNode);
+	}
 }
 
 void SDMXFixturePatchTree::AutoAssignCopiedPatch(UDMXEntityFixturePatch* Patch) const
@@ -753,14 +892,14 @@ void SDMXFixturePatchTree::OnAddNewFixturePatchClicked(UDMXEntity* InSelectedFix
 	}
 }
 
-void SDMXFixturePatchTree::OnAutoAssignChannelStateChanged(bool NewState, TSharedPtr<FDMXEntityTreeEntityNode> InNodePtr)
+void SDMXFixturePatchTree::OnAutoAssignChannelStateChanged(bool NewState, TSharedPtr<FDMXEntityTreeEntityNode> InNode)
 {
 	const FScopedTransaction Transaction(LOCTEXT("SetAutoAssignChannelTransaction", "Set Auto Assign Channel"));
 
 	TArray<UDMXEntityFixturePatch*> ChangedPatches;
 
 	// Was the changed entity one of the selected ones?
-	if (EntitiesTreeWidget->IsItemSelected(InNodePtr))
+	if (IsNodeSelected(InNode))
 	{
 		for (UDMXEntity* Entity : GetSelectedEntities())
 		{
@@ -782,7 +921,7 @@ void SDMXFixturePatchTree::OnAutoAssignChannelStateChanged(bool NewState, TShare
 	}
 	else
 	{
-		if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(InNodePtr->GetEntity()))
+		if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(InNode->GetEntity()))
 		{
 			FixturePatch->Modify();
 			FixturePatch->PreEditChange(UDMXEntityFixturePatch::StaticClass()->FindPropertyByName(UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked()));

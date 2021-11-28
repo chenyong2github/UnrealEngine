@@ -70,7 +70,6 @@ public:
 				TSharedPtr<FDMXEntityTreeCategoryNode> ExistingCategoryNode = StaticCastSharedPtr<FDMXEntityTreeCategoryNode>(Node);
 				if (ExistingCategoryNode->GetCategoryType() == InCategoryType && ExistingCategoryNode->GetDisplayNameText().CompareTo(InCategoryName) == 0)
 				{
-					EntitiesTreeWidget->SetItemExpansion(Node, true);
 					return ExistingCategoryNode.ToSharedRef();
 				}
 			}
@@ -90,7 +89,7 @@ public:
 		constexpr bool bRefreshFilteredStateRecursive = false;
 		RefreshFilteredState(NewNode, bRefreshFilteredStateRecursive);
 
-		constexpr bool bExpandItem = true;
+		constexpr bool bExpandItem = false;
 		EntitiesTreeWidget->SetItemExpansion(NewNode, bExpandItem);
 		NewNode->SetExpansionState(bExpandItem);
 
@@ -118,17 +117,32 @@ public:
 	/** Selects an item by name */
 	void SelectItemByName(const FString& ItemName, ESelectInfo::Type SelectInfo = ESelectInfo::Direct);
 
-	/** Gets selected nodes */
-	TArray<TSharedPtr<FDMXEntityTreeEntityNode>> GetSelectedNodes() const;
-
 	/** Get only the valid selected entities */
 	TArray<UDMXEntity*> GetSelectedEntities() const;
+
+	/** Returns true if the node is selected */
+	bool IsNodeSelected(const TSharedPtr<FDMXEntityTreeNodeBase>& Node) const;
+
+	/** Returns the selcted nodes */
+	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> GetSelectedNodes() const;
+
+	/** Returns the number of expanded nodes */
+	int32 GetNumExpandedNodes() const;
+
+	/** Sets the node to be expaned or collapsed */
+	void SetNodeExpansion(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bExpandItem);
+
+	/** Requests to scroll the node into view */
+	void RequestScrollIntoView(TSharedPtr<FDMXEntityTreeNodeBase> Node);
 
 	/** Gets current filter from the FilterBox */
 	FText GetFilterText() const;
 
 	/** Gets the DMX Library object being edited */
 	UDMXLibrary* GetDMXLibrary() const;
+
+	/** Returns the root node of the tree */
+	FORCEINLINE const TSharedPtr<FDMXEntityTreeRootNode>& GetRootNode() const { return RootNode; }
 
 	/** Handler for when an entity from the list is dragged */
 	virtual FReply OnEntitiesDragged(TSharedPtr<FDMXEntityTreeNodeBase> InNodePtr, const FPointerEvent& MouseEvent);
@@ -195,9 +209,6 @@ protected:
 	 */
 	bool RefreshFilteredState(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bRecursive);
 
-	/** The actual Tree widget */
-	TSharedPtr<STreeView<TSharedPtr<FDMXEntityTreeNodeBase>>> EntitiesTreeWidget;
-
 	/** Broadcast whent he selection updated. */
 	FDMXOnSelectionChanged OnSelectionChangedDelegate;
 
@@ -223,17 +234,6 @@ private:
 	/** Returns the set of expandable nodes that are currently collapsed in the UI */
 	void GetCollapsedNodes(TSet<TSharedPtr<FDMXEntityTreeNodeBase>>& OutCollapsedNodes, TSharedPtr<FDMXEntityTreeNodeBase> InParentNode = nullptr) const;
 
-	/**
-	 * Set the expansion state of a node
-	 *
-	 * @param InNodeToChange	The node to be expanded/collapsed
-	 * @param bIsExpanded		True to expand the node, false to collapse it
-	 */
-	void SetNodeExpansionState(TSharedPtr<FDMXEntityTreeNodeBase> InNodeToChange, const bool bIsExpanded);
-
-	/** Expand all categories during filtering and resets nodes expansion state after filtering is cleared */
-	void UpdateNodesExpansion(TSharedRef<FDMXEntityTreeNodeBase> InRootNode, bool bFilterIsEmpty);
-
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 
@@ -249,6 +249,9 @@ private:
 
 	/** The filter box that handles filtering entities */
 	TSharedPtr<SSearchBox> FilterBox;
+
+	/** Map of items that should be expanded or collapsed next tick */
+	TMap<TSharedRef<FDMXEntityTreeNodeBase>, bool> PendingExpandItemMap;
 
 	/** Gate to prevent changing the selection while selection change is being broadcast. */
 	bool bUpdatingSelection = false;
@@ -269,4 +272,7 @@ private:
 
 	/** Delegate handle bound to the FGlobalTabmanager::OnActiveTabChanged delegate */
 	FDelegateHandle OnActiveTabChangedDelegateHandle;
+
+	/** The actual Tree widget */
+	TSharedPtr<STreeView<TSharedPtr<FDMXEntityTreeNodeBase>>> EntitiesTreeWidget;
 };

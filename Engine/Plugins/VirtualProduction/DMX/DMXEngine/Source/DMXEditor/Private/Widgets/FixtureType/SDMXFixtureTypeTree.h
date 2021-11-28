@@ -72,8 +72,6 @@ private:
 	/** Called when a Fixture Type changed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
 
-	/** Called when the selection changed */
-
 	/** Called when the Add button was clicked */
 	FReply OnAddNewFixtureTypeClicked();
 

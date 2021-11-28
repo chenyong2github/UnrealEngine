@@ -149,9 +149,11 @@ void SDMXFixtureTypeTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>&
 
 TSharedRef<ITableRow> SDMXFixtureTypeTree::OnGenerateRow(TSharedPtr<FDMXEntityTreeNodeBase> Node, const TSharedRef<STableViewBase>& OwnerTable)
 {
-		// Create the node of the appropriate type
+	// Create the node of the appropriate type
 	if (Node->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::CategoryNode)
 	{
+		SetNodeExpansion(Node, true);
+
 		const TSharedPtr<FDMXEntityTreeCategoryNode> CategoryNode = StaticCastSharedPtr<FDMXEntityTreeCategoryNode>(Node);
 		constexpr bool bIsRootCategory = true;
 
@@ -400,11 +402,11 @@ bool SDMXFixtureTypeTree::CanDeleteNodes() const
 
 void SDMXFixtureTypeTree::OnRenameNode()
 {
-	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedItems = EntitiesTreeWidget->GetSelectedItems();
+	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedItems = GetSelectedNodes();
 
 	if (SelectedItems.Num() == 1 && SelectedItems[0].IsValid() && SelectedItems[0]->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::EntityNode)
 	{
-		EntitiesTreeWidget->RequestScrollIntoView(SelectedItems[0].ToSharedRef());
+		RequestScrollIntoView(SelectedItems[0].ToSharedRef());
 
 		const TSharedPtr<FDMXEntityTreeEntityNode> EntityNode = StaticCastSharedPtr<FDMXEntityTreeEntityNode>(SelectedItems[0]);
 		const TSharedPtr<SDMXFixtureTypeTreeFixtureTypeRow> FixtureTypeRow = FindEntityRowByNode(EntityNode.ToSharedRef());
@@ -418,7 +420,7 @@ void SDMXFixtureTypeTree::OnRenameNode()
 
 bool SDMXFixtureTypeTree::CanRenameNode() const
 {
-	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedItems = EntitiesTreeWidget->GetSelectedItems();
+	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedItems = GetSelectedNodes();
 
 	return 
 		SelectedItems.Num() == 1 && 

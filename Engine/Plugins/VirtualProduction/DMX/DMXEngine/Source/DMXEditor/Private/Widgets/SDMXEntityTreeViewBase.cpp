@@ -145,20 +145,20 @@ void SDMXEntityTreeViewBase::Tick(const FGeometry& AllottedGeometry, const doubl
 		// Clear search filter
 		FilterBox->SetText(FText::GetEmpty());
 
-		// Expand the parent nodes
-		for (const TSharedPtr<FDMXEntityTreeNodeBase>& SelectedNode : PendingSelection)
-		{
-			for (TSharedPtr<FDMXEntityTreeNodeBase> ParentNode = SelectedNode->GetParent().Pin(); ParentNode.IsValid(); ParentNode = ParentNode->GetParent().Pin())
-			{
-				EntitiesTreeWidget->SetItemExpansion(ParentNode, true);
-			}
-		}
-
 		EntitiesTreeWidget->ClearSelection();
 		EntitiesTreeWidget->SetItemSelection(PendingSelection, true, ESelectInfo::OnMouseClick);
-		EntitiesTreeWidget->RequestScrollIntoView(PendingSelection[0]);
 
 		PendingSelection.Reset();
+	}
+	
+	if (PendingExpandItemMap.Num() > 0)
+	{
+		for (const TTuple<TSharedRef<FDMXEntityTreeNodeBase>, bool>& NodeToExpansionStatePair : PendingExpandItemMap)
+		{
+			EntitiesTreeWidget->SetItemExpansion(NodeToExpansionStatePair.Key, NodeToExpansionStatePair.Value);
+		}
+
+		PendingExpandItemMap.Reset();
 	}
 }
 
@@ -358,21 +358,6 @@ void SDMXEntityTreeViewBase::SelectItemByName(const FString& ItemName, ESelectIn
 	}
 }
 
-TArray<TSharedPtr<FDMXEntityTreeEntityNode>> SDMXEntityTreeViewBase::GetSelectedNodes() const
-{
-	TArray<TSharedPtr<FDMXEntityTreeEntityNode>> Result;
-	TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SelectedItems = EntitiesTreeWidget->GetSelectedItems();
-	for (TSharedPtr<FDMXEntityTreeNodeBase> SelectedItem : SelectedItems)
-	{
-		if (SelectedItem->GetNodeType() == FDMXEntityTreeNodeBase::ENodeType::EntityNode)
-		{
-			Result.Add(StaticCastSharedPtr<FDMXEntityTreeEntityNode>(SelectedItem));
-		}
-	}
-
-	return Result;
-}
-
 TArray<UDMXEntity*> SDMXEntityTreeViewBase::GetSelectedEntities() const
 {
 	TArray<UDMXEntity*> SelectedEntities;
@@ -392,6 +377,39 @@ TArray<UDMXEntity*> SDMXEntityTreeViewBase::GetSelectedEntities() const
 
 	return SelectedEntities;
 }
+
+
+bool SDMXEntityTreeViewBase::IsNodeSelected(const TSharedPtr<FDMXEntityTreeNodeBase>& Node) const
+{
+	return EntitiesTreeWidget->IsItemSelected(Node);
+}
+
+TArray<TSharedPtr<FDMXEntityTreeNodeBase>> SDMXEntityTreeViewBase::GetSelectedNodes() const
+{
+	return EntitiesTreeWidget->GetSelectedItems();
+}
+
+int32 SDMXEntityTreeViewBase::GetNumExpandedNodes() const
+{
+	TSet<TSharedPtr<FDMXEntityTreeNodeBase>> ExpandedTreeNodes;
+	EntitiesTreeWidget->GetExpandedItems(ExpandedTreeNodes);
+
+	return ExpandedTreeNodes.Num();
+}
+
+void SDMXEntityTreeViewBase::SetNodeExpansion(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bExpandItem)
+{
+	if (Node.IsValid())
+	{
+		PendingExpandItemMap.Add(Node.ToSharedRef(), bExpandItem);
+	}
+}
+
+void SDMXEntityTreeViewBase::RequestScrollIntoView(TSharedPtr<FDMXEntityTreeNodeBase> Node)
+{
+	EntitiesTreeWidget->RequestScrollIntoView(Node);
+}
+
 
 FText SDMXEntityTreeViewBase::GetFilterText() const
 {
@@ -507,7 +525,7 @@ void SDMXEntityTreeViewBase::OnExpansionChanged(TSharedPtr<FDMXEntityTreeNodeBas
 	{
 		Node->SetExpansionState(bInExpansionState);
 	}
-}
+}	
 
 bool SDMXEntityTreeViewBase::RefreshFilteredState(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bRecursive)
 {
@@ -557,10 +575,8 @@ void SDMXEntityTreeViewBase::OnFilterTextChanged(const FText& InFilterText)
 	// Clears selection to make UpdateTree automatically select the first visible node
 	EntitiesTreeWidget->ClearSelection();
 
-	UpdateTree(/*bRegenerateTreeNodes =*/false);
-
-	// If we reset the filter, recover nodes expansion states
-	UpdateNodesExpansion(RootNode.ToSharedRef(), GetFilterText().IsEmpty());
+	constexpr bool bRegenerateTreeNodes = false;
+	UpdateTree(bRegenerateTreeNodes);
 }
 
 void SDMXEntityTreeViewBase::GetCollapsedNodes(TSet<TSharedPtr<FDMXEntityTreeNodeBase>>& OutCollapsedNodes, TSharedPtr<FDMXEntityTreeNodeBase> InParentNodePtr /*= nullptr*/) const
@@ -581,33 +597,6 @@ void SDMXEntityTreeViewBase::GetCollapsedNodes(TSet<TSharedPtr<FDMXEntityTreeNod
 			else // not collapsed. Check children
 			{
 				GetCollapsedNodes(OutCollapsedNodes, Node);
-			}
-		}
-	}
-}
-
-void SDMXEntityTreeViewBase::SetNodeExpansionState(TSharedPtr<FDMXEntityTreeNodeBase> InNodeToChange, const bool bIsExpanded)
-{
-	if (EntitiesTreeWidget.IsValid() && InNodeToChange.IsValid())
-	{
-		EntitiesTreeWidget->SetItemExpansion(InNodeToChange, bIsExpanded);
-	}
-}
-
-void SDMXEntityTreeViewBase::UpdateNodesExpansion(TSharedRef<FDMXEntityTreeNodeBase> InRootNode, bool bFilterIsEmpty)
-{
-	// Only category nodes have children and need expansion
-	if (InRootNode->GetNodeType() != FDMXEntityTreeNodeBase::ENodeType::EntityNode)
-	{
-		// If the filter is not empty, all nodes should be expanded
-		const bool bExpandNodes = !bFilterIsEmpty || InRootNode->GetExpansionState();
-		EntitiesTreeWidget->SetItemExpansion(InRootNode, bExpandNodes);
-
-		for (const TSharedPtr<FDMXEntityTreeNodeBase>& Child : InRootNode->GetChildren())
-		{
-			if (Child.IsValid() && Child->GetNodeType() != FDMXEntityTreeNodeBase::ENodeType::EntityNode)
-			{
-				UpdateNodesExpansion(Child.ToSharedRef(), bFilterIsEmpty);
 			}
 		}
 	}
