@@ -9,11 +9,13 @@
 FWorldPartitionActorDescView::FWorldPartitionActorDescView()
 	: ActorDesc(nullptr)
 	, GridPlacement(EActorGridPlacement::None)
+	, bInvalidDataLayers(false)
 {}
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc)
 	: ActorDesc(InActorDesc)
 	, GridPlacement(InActorDesc->GetGridPlacement())
+	, bInvalidDataLayers(false)
 {}
 
 const FGuid& FWorldPartitionActorDescView::GetGuid() const
@@ -68,7 +70,8 @@ UHLODLayer* FWorldPartitionActorDescView::GetHLODLayer() const
 
 const TArray<FName>& FWorldPartitionActorDescView::GetDataLayers() const
 {
-	return ActorDesc->GetDataLayers();
+	static TArray<FName> EmptyDataLayers;
+	return bInvalidDataLayers ? EmptyDataLayers : ActorDesc->GetDataLayers();
 }
 
 FName FWorldPartitionActorDescView::GetActorPackage() const
@@ -112,6 +115,15 @@ void FWorldPartitionActorDescView::SetGridPlacement(EActorGridPlacement InGridPl
 	{
 		GridPlacement = InGridPlacement;
 		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' grid placement changed to %s"), *GetActorLabel().ToString(), *StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)InGridPlacement));
+	}
+}
+
+void FWorldPartitionActorDescView::SetInvalidDataLayers()
+{
+	if (!bInvalidDataLayers)
+	{
+		bInvalidDataLayers = true;
+		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' data layers invalidated"), *GetActorLabel().ToString());
 	}
 }
 #endif

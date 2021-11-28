@@ -45,89 +45,21 @@ FActorCluster::FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView
 
 void FActorCluster::Add(const FActorCluster& InActorCluster, const TMap<FGuid, FWorldPartitionActorDescView>& InActorDescViewMap)
 {
-	// Merge RuntimeGrid
-	if (RuntimeGrid != InActorCluster.RuntimeGrid)
-	{
-		RuntimeGrid = NAME_None;
-	}
+	check(RuntimeGrid == InActorCluster.RuntimeGrid);
+	check(DataLayersID == InActorCluster.DataLayersID);
+	check((GridPlacement == EActorGridPlacement::AlwaysLoaded) == (InActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded));
 
-	// Merge Bounds
+	// Merge bounds
 	Bounds += InActorCluster.Bounds;
-
-	// Merge GridPlacement
-	if (GridPlacement != EActorGridPlacement::AlwaysLoaded)
-	{
-		GridPlacement = (InActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded) ? EActorGridPlacement::AlwaysLoaded : EActorGridPlacement::Bounds;
-	}
-
-	if (DataLayersID != InActorCluster.DataLayersID)
-	{
-		auto LogActorGuid = [&InActorDescViewMap](const FGuid& ActorGuid)
-		{
-			const FWorldPartitionActorDescView* ActorDescView = InActorDescViewMap.Find(ActorGuid);
-			UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: %s (%s)"), ActorDescView ? *ActorDescView->GetActorPath().ToString() : TEXT("None"), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
-		};
-
-		auto LogDataLayers = [](const TSet<const UDataLayer*>& InDataLayers)
-		{
-			TArray<FString> DataLayerLabels;
-			Algo::Transform(InDataLayers, DataLayerLabels, [](const UDataLayer* DataLayer) { return DataLayer->GetDataLayerLabel().ToString(); });
-			UE_LOG(LogWorldPartition, Verbose, TEXT("   - DataLayers: %s"), *FString::Join(DataLayerLabels, TEXT(", ")));
-		};
-
-		if (DataLayers.Num() && InActorCluster.DataLayers.Num())
-		{
-			UE_SUPPRESS(LogWorldPartition, Verbose,
-			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Merging Data Layers for clustered actors with different sets of Data Layers."));
-				UE_LOG(LogWorldPartition, Verbose, TEXT("1st cluster :"));
-				LogDataLayers(DataLayers);
-				for (const FGuid& ActorGuid : Actors)
-				{
-					LogActorGuid(ActorGuid);
-				}
-				UE_LOG(LogWorldPartition, Verbose, TEXT("2nd cluster :"));
-				LogDataLayers(InActorCluster.DataLayers);
-				for (const FGuid& ActorGuid : InActorCluster.Actors)
-				{
-					LogActorGuid(ActorGuid);
-				}
-			});
-
-			// Merge Data Layers
-			for (const UDataLayer* DataLayer : InActorCluster.DataLayers)
-			{
-				check(DataLayer->IsRuntime());
-				DataLayers.Add(DataLayer);
-			}
-		}
-		else
-		{
-			// In the case where one of the actor cluster has no Data Layer and the other does, 
-			// the merged actor cluster removes all Data Layers
-			UE_SUPPRESS(LogWorldPartition, Verbose,
-			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Removing Data Layers for clustered actors because they are referenced by or are referencing other actors with no Data Layer."));
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered actors with Data Layers :"));
-				const FActorCluster * ActorClusterWithDataLayer = DataLayers.Num() ? this : &InActorCluster;
-				for (const FGuid& ActorGuid : ActorClusterWithDataLayer->Actors)
-				{
-					LogActorGuid(ActorGuid);
-				}
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered actors without Data Layer :"));
-				const FActorCluster * ActorClusterWithoutDataLayer = DataLayers.Num() ? &InActorCluster : this;
-				for (const FGuid& ActorGuid : ActorClusterWithoutDataLayer->Actors)
-				{
-					LogActorGuid(ActorGuid);
-				}
-			});
-			DataLayers.Empty();
-		}
-		DataLayersID = FDataLayersID(DataLayers.Array());
-	}
 
 	// Merge Actors
 	Actors.Append(InActorCluster.Actors);
+
+	// Set grid placement
+	if (GridPlacement != EActorGridPlacement::AlwaysLoaded)
+	{
+		GridPlacement = EActorGridPlacement::Bounds;
+	}
 }
 
 FActorClusterInstance::FActorClusterInstance(const FActorCluster* InCluster, const FActorContainerInstance* InContainerInstance)
@@ -138,26 +70,16 @@ FActorClusterInstance::FActorClusterInstance(const FActorCluster* InCluster, con
 	
 	TSet<const UDataLayer*> DataLayerSet;
 	DataLayerSet.Reserve(Cluster->DataLayers.Num() + ContainerInstance->DataLayers.Num());
-	// If the ContainerInstance is a WorldPartition we want the Cluster DataLayers to be propagated to the ClusterInstance
-	if (InContainerInstance->Container->IsA<UWorldPartition>())
-	{
-		DataLayerSet.Append(Cluster->DataLayers);
-	}
-	// We also want to propagate the ContainerInstance DataLayers to the ClusterInstance always
-	if (ContainerInstance->DataLayers.Num())
-	{
-		DataLayerSet.Append(ContainerInstance->DataLayers);	
-	}
-	DataLayers.Reserve(DataLayerSet.Num());
-	DataLayers.Append(DataLayerSet.Array());
+	DataLayerSet.Append(Cluster->DataLayers);
+	DataLayerSet.Append(ContainerInstance->DataLayers);
+
+	DataLayers = DataLayerSet.Array();
 }
 
 FActorClusterContext::FActorClusterContext(TArray<FActorContainerInstance>&& InContainerInstances, FFilterActorDescViewFunc InFilterActorDescViewFunc)
 	: FilterActorDescViewFunc(InFilterActorDescViewFunc)
 	, ContainerInstances(MoveTemp(InContainerInstances))
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(CreateActorClusters);
-
 	for (const FActorContainerInstance& ContainerInstance : ContainerInstances)
 	{
 		const TArray<FActorCluster>& NewClusters = CreateActorClusters(ContainerInstance);
@@ -193,11 +115,6 @@ FActorInstance::FActorInstance(const FGuid& InActor, const FActorContainerInstan
 	, ContainerInstance(InContainerInstance)
 {
 	check(ContainerInstance);
-}
-
-FVector FActorInstance::GetOrigin() const
-{
-	return ContainerInstance->Transform.TransformPosition(GetActorDescView().GetOrigin());
 }
 
 const FWorldPartitionActorDescView& FActorInstance::GetActorDescView() const

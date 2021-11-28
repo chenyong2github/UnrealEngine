@@ -90,7 +90,7 @@ struct FActorContainerInstance
 {
 	FActorContainerInstance(const FActorContainerID& InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap);
 	
-	FActorContainerID				ID;
+	FActorContainerID			ID;
 	FTransform					Transform;
 	FBox						Bounds;
 	EContainerClusterMode		ClusterMode;
@@ -124,8 +124,6 @@ struct ENGINE_API FActorInstance
 
 	FActorInstance();
 	FActorInstance(const FGuid& InActor, const FActorContainerInstance* InContainerInstance);
-
-	FVector GetOrigin() const;
 
 	friend uint32 GetTypeHash(const FActorInstance& InActorInstance)
 	{
