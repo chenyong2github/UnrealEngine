@@ -66,7 +66,7 @@ public:
 			StyleSet = InArgs._StyleSet;
 			IndentAmount = InArgs._IndentAmount;
 			BaseIndentLevel = InArgs._BaseIndentLevel;
-			ShouldDrawWires = InArgs._ShouldDrawWires;
+			ShouldDrawWires.Assign(*this, InArgs._ShouldDrawWires);
 
 			ChildSlot
 			.Padding( FMargin( 3.0f, 12.0f, 4.0f, 9.0f ) )
