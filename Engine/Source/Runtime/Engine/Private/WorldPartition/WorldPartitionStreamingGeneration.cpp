@@ -83,7 +83,7 @@ class FWorldPartitionStreamingGenerator
 		TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
 		
 		// Gather actor descriptor views for this container
-		CreateActorDescViewMap(InContainer, ActorDescViewMap, InContainerID);		
+		CreateActorDescViewMap(InContainer, ActorDescViewMap, InContainerID);
 
 		// Parse actor descriptors
 		for (auto It = ActorDescViewMap.CreateIterator(); It; ++It)
@@ -177,6 +177,45 @@ class FWorldPartitionStreamingGenerator
 
 			// Give the associated runtime hash to adjust the grid placement based on its internal settings, etc.
 			RuntimeHash->UpdateActorDescViewMap(ContainerDescriptor.ActorDescViewMap);
+
+			// Perform various adjustements based on validations and errors
+			for (auto ActorDescIt = ContainerDescriptor.ActorDescViewMap.CreateIterator(); ActorDescIt; ++ActorDescIt)
+			{
+				FWorldPartitionActorDescView& ActorDescView = ActorDescIt.Value();
+
+				// Validate references
+				for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
+				{
+					if (FWorldPartitionActorDescView* ReferenceActorDescView = ContainerDescriptor.ActorDescViewMap.Find(ReferenceGuid))
+					{
+						// Validate grid placement
+						if ((ActorDescView.GetGridPlacement() != ReferenceActorDescView->GetGridPlacement()) &&
+							((ActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded) || (ReferenceActorDescView->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded)))
+						{
+							ActorDescView.SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
+							ReferenceActorDescView->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
+						}
+
+						// Validate data layers
+						if (ActorDescView.GetDataLayers().Num() != ReferenceActorDescView->GetDataLayers().Num())
+						{
+							ActorDescView.SetInvalidDataLayers();
+							ReferenceActorDescView->SetInvalidDataLayers();
+						}
+						else
+						{
+							const TSet<FName> ActorDescDataLayers(ActorDescView.GetDataLayers());
+							const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView->GetDataLayers());
+
+							if (!ActorDescDataLayers.Includes(ReferenceActorDescDataLayers))
+							{
+								ActorDescView.SetInvalidDataLayers();
+								ReferenceActorDescView->SetInvalidDataLayers();
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 

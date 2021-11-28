@@ -45,6 +45,8 @@ public:
 
 	void SetGridPlacement(EActorGridPlacement InGridPlacement);
 
+	void SetInvalidDataLayers();
+
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
 		return GetGuid() == Other.GetGuid();
@@ -58,5 +60,6 @@ public:
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;
 	EActorGridPlacement GridPlacement;
+	bool bInvalidDataLayers;
 };
 #endif
