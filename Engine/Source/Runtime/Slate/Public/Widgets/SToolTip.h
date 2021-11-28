@@ -27,7 +27,6 @@ public:
 		: _Text()
 		, _Content()
 		, _Font(FCoreStyle::Get().GetFontStyle("ToolTip.Font"))
-		, _ColorAndOpacity( FSlateColor::UseForeground())
 		, _TextMargin(FMargin(8.0f))
 		, _BorderImage(FCoreStyle::Get().GetBrush("ToolTip.Background"))
 		, _IsInteractive(false)
@@ -42,9 +41,6 @@ public:
 
 		/** The font to use for this tool tip */
 		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
-		
-		/** Font color and opacity */
-		SLATE_ATTRIBUTE(FSlateColor, ColorAndOpacity)
 		
 		/** Margin between the tool tip border and the text content */
 		SLATE_ATTRIBUTE(FMargin, TextMargin)
@@ -112,9 +108,6 @@ private:
 
 	// Font used for the text displayed (where applicable)
 	TAttribute<FSlateFontInfo> Font;
-	
-	// Color and opacity used for the text displayed (where applicable)
-	TAttribute<FSlateColor> ColorAndOpacity;
 
 	// Margin between the tool tip border and the text content
 	TAttribute<FMargin> TextMargin;

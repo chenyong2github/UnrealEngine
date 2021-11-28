@@ -20,6 +20,7 @@ class SButton;
  */
 class SLATE_API SExpanderArrow : public SCompoundWidget
 {
+	SLATE_DECLARE_WIDGET(SExpanderArrow, SCompoundWidget)
 public:
 
 	SLATE_BEGIN_ARGS( SExpanderArrow )
@@ -37,6 +38,7 @@ public:
 		SLATE_ATTRIBUTE(bool, ShouldDrawWires)
 	SLATE_END_ARGS()
 
+	SExpanderArrow();
 	void Construct( const FArguments& InArgs, const TSharedPtr<class ITableRow>& TableRow );
 
 protected:
@@ -70,5 +72,5 @@ protected:
 	TAttribute<int32> BaseIndentLevel;
 
 	/** Whether to draw the wires that visually reinforce the tree hierarchy. */
-	TAttribute<bool> ShouldDrawWires;
+	TSlateAttribute<bool> ShouldDrawWires;
 };

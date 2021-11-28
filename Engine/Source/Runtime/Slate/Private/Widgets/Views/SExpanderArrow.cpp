@@ -6,6 +6,17 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/STableRow.h"
 
+SLATE_IMPLEMENT_WIDGET(SExpanderArrow)
+void SExpanderArrow::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, ShouldDrawWires, EInvalidateWidgetReason::Paint);
+}
+
+SExpanderArrow::SExpanderArrow()
+	: ShouldDrawWires(*this, false)
+{
+
+}
 
 void SExpanderArrow::Construct( const FArguments& InArgs, const TSharedPtr<class ITableRow>& TableRow  )
 {
@@ -13,7 +24,7 @@ void SExpanderArrow::Construct( const FArguments& InArgs, const TSharedPtr<class
 	StyleSet = InArgs._StyleSet;
 	IndentAmount = InArgs._IndentAmount;
 	BaseIndentLevel = InArgs._BaseIndentLevel;
-	ShouldDrawWires = InArgs._ShouldDrawWires;
+	ShouldDrawWires.Assign(*this, InArgs._ShouldDrawWires);
 
 	this->ChildSlot
 	.Padding( TAttribute<FMargin>( this, &SExpanderArrow::GetExpanderPadding ) )

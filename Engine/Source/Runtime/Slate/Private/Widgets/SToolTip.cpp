@@ -23,7 +23,6 @@ void SToolTip::Construct( const FArguments& InArgs )
 	TextContent = InArgs._Text;
 	bIsInteractive = InArgs._IsInteractive;
 	Font = InArgs._Font;
-	ColorAndOpacity = InArgs._ColorAndOpacity;
 	TextMargin = InArgs._TextMargin;
 	BorderImage = InArgs._BorderImage;
 	OnSetInteractiveWindowLocationDelegate = InArgs._OnSetInteractiveWindowLocation;
