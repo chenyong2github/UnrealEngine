@@ -95,8 +95,6 @@ void UAxisPositionGizmo::OnClickPress(const FInputDeviceRay& PressPos)
 	{
 		StateTarget->BeginUpdate();
 	}
-
-	OnClickDrag(PressPos);
 }
 
 void UAxisPositionGizmo::OnClickDrag(const FInputDeviceRay& DragPos)
