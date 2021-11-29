@@ -35,6 +35,7 @@
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorData"
 
+
 FMLDeformerEditorData::FMLDeformerEditorData()
 {
 	Actors.AddDefaulted(5);
@@ -356,9 +357,23 @@ bool FMLDeformerEditorData::IsReadyForTraining() const
 	}
 
 	// Make sure every skeletal imported mesh has some geometry track.
-	if (!GetSingleFrameCache().GetSampler().GetFailedImportedMeshNames().IsEmpty())
+	const int32 NumGeomCacheTracks = GetDeformerAsset()->GetGeometryCache() ?  GetDeformerAsset()->GetGeometryCache()->Tracks.Num() : 0;
+	int32 NumSkelMeshes = 0;
+	if (GetDeformerAsset()->GetSkeletalMesh())
 	{
-		return false;
+		FSkeletalMeshModel* Model = GetDeformerAsset()->GetSkeletalMesh()->GetImportedModel();
+		if (Model)
+		{
+			NumSkelMeshes = Model->LODModels[0].ImportedMeshInfos.Num();		
+		}
+	}
+
+	if (NumGeomCacheTracks != 1 || NumSkelMeshes != 1)	// Allow the special case where there is just one mesh and track.
+	{
+		if (!GetSingleFrameCache().GetSampler().GetFailedImportedMeshNames().IsEmpty())
+		{
+			return false;
+		}
 	}
 
 	return true;
@@ -379,6 +394,8 @@ bool FMLDeformerEditorData::GenerateDeltas(uint32 LODIndex, uint32 FrameNumber, 
 	// Let's also directly extract the positions of the vertices, since we already calculated them.
 	const FMLDeformerSamplerData& SamplerData = SingleFrameCache.GetSampler().GetSamplerData();
 	LinearSkinnedPositions = SamplerData.GetSkinnedVertexPositions();
+	DebugVectors = SamplerData.GetDebugVectors();
+	DebugVectors2 = SamplerData.GetDebugVectors2();
 
 	return true;
 }
@@ -427,7 +444,7 @@ bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, FMLDef
 
 	// Calculate the number of frames to output.
 	UGeometryCacheComponent* GeometryCacheComponent = GetEditorActor(EMLDeformerEditorActorIndex::Target).GeomCacheComponent;
-	const uint32 AnimNumFrames = static_cast<uint32>(GeometryCacheComponent->GetNumberOfFrames());
+	const uint32 AnimNumFrames = MLDeformerAsset->GetNumFramesForTraining();
 
 	// Show some dialog with progress.
 	const FText Title(LOCTEXT("PreprocessTrainingDataMessage", "Calculating data statistics"));
@@ -439,7 +456,8 @@ bool FMLDeformerEditorData::ComputeVertexDeltaStatistics(uint32 LODIndex, FMLDef
 	FVector3f VertexDeltaScale = FVector3f::OneVector;
 	float Count = 0.0f;
 	USkeletalMeshComponent* SkeletalMeshComponent = GetEditorActor(EMLDeformerEditorActorIndex::Base).SkelMeshComponent;
-	for (uint32 FrameIndex = 0; FrameIndex < AnimNumFrames; FrameIndex++)
+	const int32 FrameCount = MLDeformerAsset->GetNumFramesForTraining();
+	for (int32 FrameIndex = 0; FrameIndex < FrameCount; FrameIndex++)
 	{
 		// Get the deltas updated for this frame, and then update the mean and scale.
 		const FMLDeformerTrainingFrame& TrainingFrame = InFrameCache->GetTrainingFrameForAnimFrame(FrameIndex);
@@ -684,7 +702,7 @@ bool FMLDeformerEditorData::IsPlayingAnim() const
 
 FString FMLDeformerEditorData::GetDefaultDeformerGraphAssetPath()
 {
-	return FString(TEXT("/MLDeformer/Deformers/DefaultMLDeformerGraph.MLDeformerGraph"));
+	return FString(TEXT("/MLDeformer/Deformers/PreSkinningMLDeformerGraph.PreSkinningMLDeformerGraph"));
 }
 
 UComputeGraph* FMLDeformerEditorData::LoadDefaultDeformerGraph()

@@ -4,8 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "HAL/IConsoleManager.h"
 
 class FMLDeformerAssetActions;
+
+namespace MLDeformerCVars
+{
+	extern TAutoConsoleVariable<bool> DebugDraw1;
+	extern TAutoConsoleVariable<bool> DebugDraw2;
+	extern TAutoConsoleVariable<float> DebugDrawPointSize;
+};
 
 class MLDEFORMEREDITOR_API FMLDeformerEditor : public IModuleInterface
 {

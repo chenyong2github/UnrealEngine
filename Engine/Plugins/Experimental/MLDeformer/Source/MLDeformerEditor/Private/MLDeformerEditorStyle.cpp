@@ -40,6 +40,9 @@ FMLDeformerEditorStyle::FMLDeformerEditorStyle() : FSlateStyleSet("MLDeformerEdi
 	Set("MLDeformer.Vertex.Color", FLinearColor(1.0f, 0.0f, 1.0f));
 	Set("MLDeformer.Vertex.Size", 5.0f);
 
+	Set("MLDeformer.DebugVectors.Color", FLinearColor(1.0f, 0.0f, 0.0f));
+	Set("MLDeformer.DebugVectors.Color2", FLinearColor(1.0f, 1.0f, 0.0f));
+
 	Set("MLDeformer.DefaultLabelScale", 0.65f);
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);

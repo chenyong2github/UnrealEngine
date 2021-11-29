@@ -41,7 +41,11 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 	if (TickType != ELevelTick::LEVELTICK_PauseTick)
 	{
 		// Update the deformer, which runs the inference.
-		DeformerInstance.Update();
+		// Only do this when the LOD level is 0.
+		if (SkelMeshComponent && SkelMeshComponent->GetPredictedLODLevel() == 0)
+		{
+			DeformerInstance.Update();
+		}
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

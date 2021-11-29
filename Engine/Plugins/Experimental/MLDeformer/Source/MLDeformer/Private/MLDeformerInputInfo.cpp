@@ -12,6 +12,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 
+
 void FMLDeformerInputInfo::Init(const FMLDeformerInputInfoInitSettings& Settings)
 {
 	// Reset things.
@@ -243,13 +244,23 @@ void FMLDeformerInputInfo::ExtractBoneRotations(USkeletalMeshComponent* SkelMesh
 	{
 		const FName BoneName = GetBoneName(Index);
 		const int32 SkelMeshBoneIndex = SkelMeshComponent->GetBoneIndex(BoneName);
-		check(SkelMeshBoneIndex != INDEX_NONE);
-		const int32 Offset = Index * 4;
-		const FQuat Rotation = BoneTransforms[SkelMeshBoneIndex].GetRotation();
-		OutRotations[Offset] = Rotation.X;
-		OutRotations[Offset+1] = Rotation.Y;
-		OutRotations[Offset+2] = Rotation.Z;
-		OutRotations[Offset+3] = Rotation.W;
+		if (SkelMeshBoneIndex != INDEX_NONE)
+		{
+			const int32 Offset = Index * 4;
+			const FQuat Rotation = BoneTransforms[SkelMeshBoneIndex].GetRotation();
+			OutRotations[Offset] = Rotation.X;
+			OutRotations[Offset+1] = Rotation.Y;
+			OutRotations[Offset+2] = Rotation.Z;
+			OutRotations[Offset+3] = Rotation.W;
+		}
+		else
+		{
+			const int32 Offset = Index * 4;
+			OutRotations[Offset] = 0.0f;	// Set to identity quat.
+			OutRotations[Offset+1] = 0.0f;
+			OutRotations[Offset+2] = 0.0f;
+			OutRotations[Offset+3] = 1.0f;
+		}
 	}
 }
 

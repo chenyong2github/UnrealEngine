@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerFrameCache.h"
+#include "MLDeformerEditor.h"
 
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
 
 #include "GeometryCacheComponent.h"
 #include "GeometryCache.h"
@@ -14,6 +16,7 @@
 #include "GeometryCacheTrack.h"
 
 #include "Math/NumericLimits.h"
+
 
 void FMLDeformerTrainingFrame::Clear()
 {
@@ -80,17 +83,20 @@ void FMLDeformerSamplerData::Update(int32 InAnimFrameIndex)
 	const float SampleTime = GeometryCacheComponent->GetTimeAtFrame(AnimFrameIndex);
 	if (SkeletalMeshComponent && SkeletalMeshComponent->SkeletalMesh)
 	{
-		// Sample the transforms at the frame time and extract the bone rotations.
+		// Sample the transforms at the frame time.
 		SkeletalMeshComponent->SetPosition(SampleTime);
 		SkeletalMeshComponent->bPauseAnims = true;
 		SkeletalMeshComponent->RefreshBoneTransforms();
+		SkeletalMeshComponent->CacheRefToLocalMatrices(BoneMatrices);
+
+		// Extract bone rotations to feed to the neural net.
 		const FMLDeformerInputInfo& InputInfo = DeformerAsset.GetInputInfo();
 		InputInfo.ExtractBoneRotations(SkeletalMeshComponent, BoneRotations);
 
-		// Get the bone transform matrices used during skinning, then extract the skinned positions.
-		SkeletalMeshComponent->CacheRefToLocalMatrices(BoneMatrices);
+		// Calculate skinned positions.
 		ExtractSkinnedPositions(LODIndex, BoneMatrices, TempVertexPositions, SkinnedVertexPositions);
 
+		// Calculate curve values.
 		InputInfo.ExtractCurveValues(SkeletalMeshComponent, CurveValues);
 	}
 
@@ -104,14 +110,30 @@ void FMLDeformerSamplerData::Update(int32 InAnimFrameIndex)
 
 	// Calculate the vertex deltas.
 	const float DeltaCutoffLength = DeformerAsset.GetDeltaCutoffLength();
-	CalculateVertexDeltas(SkinnedVertexPositions, DeltaCutoffLength, VertexDeltas);
+	CalculateVertexDeltas(SkinnedVertexPositions, DeltaCutoffLength, VertexDeltas, DebugVectors, DebugVectors2);
 }
 
-void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas) const
+void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas, TArray<FVector3f>& OutDebugVectors, TArray<FVector3f>& OutDebugVectors2) const
 {
+	const int32 LODIndex = 0;
 	const int32 NumVerts = SkinnedPositions.Num();
 	OutVertexDeltas.Reset(NumVerts * 3);
 	OutVertexDeltas.AddUninitialized(NumVerts * 3);
+
+	// Debug vectors.
+	OutDebugVectors.Reset();
+	OutDebugVectors2.Reset();
+	const bool bDebugDraw = (MLDeformerCVars::DebugDraw1.GetValueOnAnyThread() || MLDeformerCVars::DebugDraw2.GetValueOnAnyThread());
+	if (bDebugDraw)
+	{
+		OutDebugVectors.AddUninitialized(NumVerts);
+		OutDebugVectors2.AddUninitialized(NumVerts);
+		for (int32 Index = 0; Index < NumVerts; ++Index)
+		{
+			OutDebugVectors[Index] = FVector3f::ZeroVector;
+			OutDebugVectors2[Index] = FVector3f::ZeroVector;
+		}
+	}
 
 	UMLDeformerAsset* DeformerAsset = Sampler->GetInitSettings().DeformerAsset;
 	USkeletalMesh* SkelMesh = DeformerAsset->GetSkeletalMesh();
@@ -132,7 +154,8 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 
 	// For all mesh mappings we found.
 	const float SampleTime = GeometryCacheComponent->GetTimeAtFrame(AnimFrameIndex);
-	const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = ImportedModel->LODModels[0].ImportedMeshInfos;
+	const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
+	const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = LODModel.ImportedMeshInfos;
 	for (int32 MeshMappingIndex = 0; MeshMappingIndex < Sampler->GetNumMeshMappings(); ++MeshMappingIndex)
 	{
 		const FMLDeformerMeshMapping& MeshMapping = Sampler->GetMeshMapping(MeshMappingIndex);
@@ -147,18 +170,47 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 		}
 
 		// Calculate the vertex deltas.
+		const FSkeletalMeshLODRenderData& SkelMeshLODData = SkelMesh->GetResourceForRendering()->LODRenderData[LODIndex];
+		const FSkinWeightVertexBuffer& SkinWeightBuffer = *SkeletalMeshComponent->GetSkinWeightBuffer(LODIndex);
 		for (int32 VertexIndex = 0; VertexIndex < MeshInfo.NumVertices; ++VertexIndex)
 		{
 			const int32 SkinnedVertexIndex = MeshInfo.StartImportedVertex + VertexIndex;
 			const int32 GeomCacheVertexIndex = MeshMapping.SkelMeshToTrackVertexMap[VertexIndex];
-			if (GeomCacheVertexIndex != INDEX_NONE)
+			if (GeomCacheVertexIndex != INDEX_NONE && GeomCacheMeshData.Positions.IsValidIndex(GeomCacheVertexIndex))
 			{
-				const FVector3f SkinnedVertexPos = SkinnedPositions[SkinnedVertexIndex];
-				const FVector3f GeomCacheVertexPos = AlignmentTransform.TransformPosition(GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
-				const FVector3f Delta = GeomCacheVertexPos - SkinnedVertexPos;
+				FVector3f Delta = FVector3f::ZeroVector;
+
+				const int32 ArrayIndex = 3 * SkinnedVertexIndex;
+				if (DeformerAsset->GetDeltaMode() == EDeltaMode::PreSkinning)
+				{
+					// Calculate the inverse skinning transform for this vertex.
+					const int32 RenderVertexIndex = MeshMapping.ImportedVertexToRenderVertexMap[VertexIndex];
+					const FMatrix44f InvSkinningTransform = CalcInverseSkinningTransform(RenderVertexIndex, SkelMeshLODData, SkinWeightBuffer);
+
+					// Calculate the pre-skinning data.
+					const FSkeletalMeshLODRenderData& LODData = SkelMesh->GetResourceForRendering()->LODRenderData[0];
+					const FVector3f UnskinnedPosition = LODData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(RenderVertexIndex);
+					const FVector3f GeomCacheVertexPos = AlignmentTransform.TransformPosition(GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
+					const FVector3f PreSkinningTargetPos = InvSkinningTransform.TransformPosition(GeomCacheVertexPos);
+					Delta = PreSkinningTargetPos - UnskinnedPosition;
+
+					if (bDebugDraw)
+					{
+						OutDebugVectors[SkinnedVertexIndex] = UnskinnedPosition;
+						OutDebugVectors2[SkinnedVertexIndex] = UnskinnedPosition + Delta;
+					}
+				}
+				else // We're post skinning.
+				{
+					check(DeformerAsset->GetDeltaMode() == EDeltaMode::PostSkinning);
+					const FVector3f SkinnedVertexPos = SkinnedPositions[SkinnedVertexIndex];
+					const FVector3f GeomCacheVertexPos = AlignmentTransform.TransformPosition(GeomCacheMeshData.Positions[GeomCacheVertexIndex]);
+					Delta = GeomCacheVertexPos - SkinnedVertexPos;
+				}
+
+				// Set the delta.
 				if (Delta.Length() < DeltaCutoffLength)
 				{
-					const int32 ArrayIndex = 3 * SkinnedVertexIndex;
 					OutVertexDeltas[ArrayIndex] = Delta.X;
 					OutVertexDeltas[ArrayIndex + 1] = Delta.Y;
 					OutVertexDeltas[ArrayIndex + 2] = Delta.Z;
@@ -166,6 +218,42 @@ void FMLDeformerSamplerData::CalculateVertexDeltas(const TArray<FVector3f>& Skin
 			}
 		}
 	}
+}
+
+// Calculate the inverse skinning transform. This is basically inv(sum(BoneTransform_i * inv(BoneRestTransform_i) * Weight_i)), where i is for each skinning influence for the given vertex.
+FMatrix44f FMLDeformerSamplerData::CalcInverseSkinningTransform(int32 VertexIndex, const FSkeletalMeshLODRenderData& SkelMeshLODData, const FSkinWeightVertexBuffer& SkinWeightBuffer) const
+{
+	check(SkeletalMeshComponent);
+	const USkeletalMesh* Mesh = SkeletalMeshComponent->SkeletalMesh;
+	check(Mesh);
+
+	// Find the render section, which we need to find the right bone index.
+	int32 SectionIndex = INDEX_NONE;
+	int32 SectionVertexIndex = INDEX_NONE;
+	const FSkeletalMeshLODRenderData& LODData = Mesh->GetResourceForRendering()->LODRenderData[0];
+	LODData.GetSectionFromVertexIndex(VertexIndex, SectionIndex, SectionVertexIndex);
+
+	// Init the matrix at full zeros.
+	FMatrix44f InvSkinningTransform = FMatrix(FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector);
+	InvSkinningTransform.M[3][3] = 0.0f;
+
+	// For each influence, sum up the weighted skinning matrices.
+	const int32 NumInfluences = SkinWeightBuffer.GetMaxBoneInfluences();
+	for (int32 InfluenceIndex = 0; InfluenceIndex < NumInfluences; ++InfluenceIndex)
+	{
+		const int32 BoneIndex = SkinWeightBuffer.GetBoneIndex(VertexIndex, InfluenceIndex);
+		const uint8 WeightByte = SkinWeightBuffer.GetBoneWeight(VertexIndex, InfluenceIndex);
+		if (WeightByte > 0)
+		{
+			const int32 RealBoneIndex = LODData.RenderSections[SectionIndex].BoneMap[BoneIndex];
+			const float	Weight = static_cast<float>(WeightByte) / 255.0f;
+			const FMatrix44f& SkinningTransform = BoneMatrices[RealBoneIndex];
+			InvSkinningTransform += SkinningTransform * Weight;
+		}
+	}
+
+	// Return the inverse skinning transform matrix.
+	return InvSkinningTransform.Inverse();
 }
 
 void FMLDeformerSamplerData::ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const
@@ -215,6 +303,8 @@ SIZE_T FMLDeformerSamplerData::CalcMemUsageInBytes() const
 	SIZE_T NumBytes = 0;
 	NumBytes += SkinnedVertexPositions.GetAllocatedSize();
 	NumBytes += TempVertexPositions.GetAllocatedSize();
+	NumBytes += DebugVectors.GetAllocatedSize();
+	NumBytes += DebugVectors2.GetAllocatedSize();
 	NumBytes += BoneMatrices.GetAllocatedSize();
 	NumBytes += VertexDeltas.GetAllocatedSize();
 	NumBytes += BoneRotations.GetAllocatedSize();
@@ -335,7 +425,7 @@ int32 FMLDeformerSampler::GetNumCurves() const
 
 int32 FMLDeformerSampler::GetNumFrames() const
 {
-	return InitSettings.DeformerAsset->GetNumFrames();
+	return InitSettings.DeformerAsset->GetNumFramesForTraining();
 }
 
 SIZE_T FMLDeformerSampler::CalcMemUsageInBytes() const

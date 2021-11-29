@@ -52,6 +52,13 @@ enum class EDeviceType : uint8
 	GPU		/** Train using GPU.*/
 };
 
+UENUM()
+enum class EDeltaMode : uint8
+{
+	PreSkinning,	/** Apply the deltas before skinning. */
+	PostSkinning	/** Apply the deltas after skinning. */
+};
+
 /** The training inputs. Specifies what data to include in training. */
 UENUM()
 enum class ETrainingInputs : uint8
@@ -81,6 +88,7 @@ struct MLDEFORMER_API FMLDeformerMeshMapping
 	int32 MeshIndex = INDEX_NONE;	// The imported model's mesh info index.
 	int32 TrackIndex = INDEX_NONE;	// The geom cache track that this mesh is mapped to.
 	TArray<int32> SkelMeshToTrackVertexMap;	// This maps imported model individual meshes to the geomcache track's mesh data.
+	TArray<int32> ImportedVertexToRenderVertexMap; // Map the imported dcc vertex number to a render vertex. This is just one of the duplicates, which shares the same position.
 };
 #endif
 
@@ -143,6 +151,8 @@ public:
 	void SetInputInfo(const FMLDeformerInputInfo& Input) { InputInfo = Input; }
 
 #if WITH_EDITORONLY_DATA
+	EDeltaMode GetDeltaMode() const { return DeltaMode; }
+
 	const FTransform& GetAlignmentTransform() const { return AlignmentTransform; }
 
 	const USkeletalMesh* GetSkeletalMesh() const { return SkeletalMesh;  }
@@ -158,6 +168,8 @@ public:
 	UMLDeformerVizSettings* GetVizSettings() { return VizSettings; }
 
 	int32 GetNumFrames() const;
+	int32 GetTrainingFrameLimit() const { return MaxTrainingFrames; }
+	int32 GetNumFramesForTraining() const;
 	int32 GetCacheSizeInMegabytes() const { return CacheSizeInMegabytes; }
 	float GetDeltaCutoffLength() const { return DeltaCutoffLength; }
 #endif
@@ -235,7 +247,7 @@ public:
 
 	/** The number of frames per batch when training the model. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1"))
-	int32 BatchSize = 32;
+	int32 BatchSize = 128;
 
 	/** The number of epochs to process without any decay. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1"))
@@ -243,19 +255,23 @@ public:
 
 	/** The number of epochs to process that include a decay. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1"))
-	int32 EpochsWithDecay = 10;
+	int32 EpochsWithDecay = 15;
+
+	/** The maximum numer of training frames (samples) to train on. Use this to train on a sub-section of your full training data. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1"))
+	int32 MaxTrainingFrames = 1000000;
 
 	/** The maximum allowed size of the training cache in memory, in megabytes. So a value of 1024 would be one gigabyte. The larger the cache size the faster the training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = 0))
-	int32 CacheSizeInMegabytes = 2048;
+	int32 CacheSizeInMegabytes = 4096;	// 4 Gigabyte
 
 	/** The learning rate used during the model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.000001", ClampMax = "1.0"))
-	float LearningRate = 0.0005f;
+	float LearningRate = 0.00175f;
 
 	/** The decay function to adapt the learning rate. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")
-	EDecayFunction DecayFunction = EDecayFunction::Linear;
+	EDecayFunction DecayFunction = EDecayFunction::Multiplicative;
 
 	/** The decay rate to apply to the learning rate once non-decay epochs have been reached. Higher values give less decay. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.1", ClampMax = "1.0"))
@@ -263,7 +279,7 @@ public:
 
 	/** The activation function to use in the neural network. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")
-	EActivationFunction ActivationFunction = EActivationFunction::Relu;
+	EActivationFunction ActivationFunction = EActivationFunction::LRelu;
 
 	/** The loss function to use during model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")
@@ -280,6 +296,10 @@ public:
 	/** The percentage of noise to add. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "100.0")) // A percentage.
 	float NoiseAmount = 0.5;
+
+	/** The delta mode, which describes in what space the calculated deltas are. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")
+	EDeltaMode DeltaMode = EDeltaMode::PreSkinning;
 
 	/** The loss function to use during model training. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings")
