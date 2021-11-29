@@ -55,9 +55,14 @@ namespace Internal
 	}
 };
 
+bool GLevelEditorModeToolsIsValid()
+{
+	return Internal::GetGlobalModeManager().IsValid();
+}
+
 FEditorModeTools& GLevelEditorModeTools()
 {
-	check(Internal::GetGlobalModeManager().IsValid());
+	check(GLevelEditorModeToolsIsValid());
 	return *Internal::GetGlobalModeManager().Get();
 }
 
