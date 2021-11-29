@@ -10,6 +10,7 @@
 
 #include "AnimationBlueprintLibrary.generated.h"
 
+struct FQualifiedFrameTime;
 struct FRawAnimSequenceTrack;
 class UAnimCompress;
 class USkeleton;
@@ -468,6 +469,18 @@ public:
 	static void IsValidTime(const UAnimSequenceBase* AnimationSequenceBase, const float Time, bool& IsValid);
 
 	static bool IsValidTimeInternal(const UAnimSequenceBase* AnimationSequenceBase, const float Time);
+
+	/** Evaluates timecode attributes (e.g. "TCFrame", "TCSecond", etc.) of the root bone and returns the resulting qualified frame time.
+	 *
+	 *  @param AnimationSequenceBase: Anim sequence for which to evaluate the root bone attributes.
+	 *  @param EvalTime: Time (in seconds) at which to evaluate the timecode bone attributes.
+	 *  @param OutQualifiedFrameTime: Resulting qualified frame time from evaluation. If the anim sequence has an import file frame rate
+	 *      set, then that will be used as the frame rate of the qualified frame time. Otherwise, the sampling frame rate of the anim
+	 *      sequence is used. If no timecode attributes are present on the bone or if none can be evaluated, the passed object will not be modified.
+	 *  @return: true if the root bone had timecode attributes that could be evaluated and a qualified frame time was set, or false otherwise.
+	 */
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Helpers")
+	static bool EvaluateRootBoneTimecodeAttributesAtTime(const UAnimSequenceBase* AnimationSequenceBase, const float EvalTime, FQualifiedFrameTime& OutQualifiedFrameTime);
 
 	/** Finds the Bone Path from the given Bone to the Root Bone */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Helpers")

@@ -8,11 +8,17 @@
 #include "Animation/AnimCurveCompressionSettings.h"
 #include "Animation/AnimMetaData.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "Animation/BuiltInAttributeTypes.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/AnimationSettings.h"
 #include "BonePose.h" 
 #include "Algo/Transform.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/QualifiedFrameTime.h"
+#include "Misc/Timecode.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 
@@ -2162,6 +2168,145 @@ void UAnimationBlueprintLibrary::IsValidTime(const UAnimSequenceBase* AnimationS
 bool UAnimationBlueprintLibrary::IsValidTimeInternal(const UAnimSequenceBase* AnimationSequenceBase, const float Time)
 {
 	return FMath::IsWithinInclusive(Time, 0.0f, AnimationSequenceBase->GetPlayLength());
+}
+
+bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const UAnimSequenceBase* AnimationSequenceBase, const float EvalTime, FQualifiedFrameTime& OutQualifiedFrameTime)
+{
+	if (!AnimationSequenceBase)
+	{
+		return false;
+	}
+
+	const UAnimDataModel* AnimDataModel = AnimationSequenceBase->GetDataModel();
+	if (!AnimDataModel)
+	{
+		return false;
+	}
+
+	const int32 RootBoneTrackIndex = 0;
+	const FBoneAnimationTrack* RootBoneTrack = AnimDataModel->FindBoneTrackByIndex(RootBoneTrackIndex);
+	if (!RootBoneTrack)
+	{
+		return false;
+	}
+
+	const FName& RootBoneName = RootBoneTrack->Name;
+
+	TArray<const FAnimatedBoneAttribute*> RootBoneAttributes;
+	AnimDataModel->GetAttributesForBone(RootBoneName, RootBoneAttributes);
+
+	FName TCHourAttrName(TEXT("TCHour"));
+	FName TCMinuteAttrName(TEXT("TCMinute"));
+	FName TCSecondAttrName(TEXT("TCSecond"));
+	FName TCFrameAttrName(TEXT("TCFrame"));
+	FName TCSubframeAttrName(TEXT("TCSubframe"));
+
+	if (const UAnimationSettings* AnimationSettings = UAnimationSettings::Get())
+	{
+		TCHourAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.HourAttributeName;
+		TCMinuteAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.MinuteAttributeName;
+		TCSecondAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.SecondAttributeName;
+		TCFrameAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.FrameAttributeName;
+		TCSubframeAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.SubframeAttributeName;
+	}
+
+	const TArray<FName> TimecodeBoneAttributeNames = { TCHourAttrName, TCMinuteAttrName, TCSecondAttrName, TCFrameAttrName, TCSubframeAttrName };
+
+	bool bHasTimecodeBoneAttributes = false;
+
+	FTimecode Timecode;
+	float SubFrame = 0.0f;
+
+	for (const FAnimatedBoneAttribute* RootBoneAttribute : RootBoneAttributes)
+	{
+		if (!RootBoneAttribute)
+		{
+			continue;
+		}
+
+		const FName& BoneAttributeName = RootBoneAttribute->Identifier.GetName();
+
+		// Avoid evaluating non-timecode bone attributes.
+		if (!TimecodeBoneAttributeNames.Contains(BoneAttributeName))
+		{
+			continue;
+		}
+
+		if (!RootBoneAttribute->Curve.CanEvaluate())
+		{
+			continue;
+		}
+
+		float FloatValue = 0.0f;
+		int32 IntValue = 0;
+
+		// Support timecode attribute curves that are either float-typed or integer-typed.
+		if (RootBoneAttribute->Curve.GetScriptStruct() == FFloatAnimationAttribute::StaticStruct())
+		{
+			const FFloatAnimationAttribute EvaluatedAttribute = RootBoneAttribute->Curve.Evaluate<FFloatAnimationAttribute>(EvalTime);
+			FloatValue = EvaluatedAttribute.Value;
+			IntValue = static_cast<int32>(FloatValue);
+		}
+		else if (RootBoneAttribute->Curve.GetScriptStruct() == FIntegerAnimationAttribute::StaticStruct())
+		{
+			const FIntegerAnimationAttribute EvaluatedAttribute = RootBoneAttribute->Curve.Evaluate<FIntegerAnimationAttribute>(EvalTime);
+			IntValue = EvaluatedAttribute.Value;
+			FloatValue = static_cast<float>(IntValue);
+		}
+		else
+		{
+			continue;
+		}
+
+		if (BoneAttributeName.IsEqual(TCHourAttrName))
+		{
+			Timecode.Hours = IntValue;
+			bHasTimecodeBoneAttributes = true;
+		}
+		else if (BoneAttributeName.IsEqual(TCMinuteAttrName))
+		{
+			Timecode.Minutes = IntValue;
+			bHasTimecodeBoneAttributes = true;
+		}
+		else if (BoneAttributeName.IsEqual(TCSecondAttrName))
+		{
+			Timecode.Seconds = IntValue;
+			bHasTimecodeBoneAttributes = true;
+		}
+		else if (BoneAttributeName.IsEqual(TCFrameAttrName))
+		{
+			Timecode.Frames = IntValue;
+			bHasTimecodeBoneAttributes = true;
+		}
+		else if (BoneAttributeName.IsEqual(TCSubframeAttrName))
+		{
+			SubFrame = FloatValue;
+			bHasTimecodeBoneAttributes = true;
+		}
+	}
+
+	if (!bHasTimecodeBoneAttributes)
+	{
+		return false;
+	}
+
+	// We'll fall back on the sampling frame rate if we can't determine the
+	// original source frame rate.
+	FFrameRate FrameRate = AnimationSequenceBase->GetSamplingFrameRate();
+
+	if (const UAnimSequence* AnimSequence = AnimDataModel->GetAnimationSequence())
+	{
+		if (AnimSequence->ImportFileFramerate > 0.0f)
+		{
+			FrameRate = FFrameRate(static_cast<int32>(AnimSequence->ImportFileFramerate), 1);
+		}
+	}
+
+	OutQualifiedFrameTime = FQualifiedFrameTime(
+		FFrameTime(Timecode.ToFrameNumber(FrameRate), SubFrame),
+		FrameRate);
+
+	return true;
 }
 
 void UAnimationBlueprintLibrary::FindBonePathToRoot(const UAnimSequenceBase* AnimationSequenceBase, FName BoneName, TArray<FName>& BonePath)
