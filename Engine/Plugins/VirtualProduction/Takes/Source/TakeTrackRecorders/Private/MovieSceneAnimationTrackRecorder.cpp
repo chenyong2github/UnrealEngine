@@ -224,7 +224,11 @@ void UMovieSceneAnimationTrackRecorder::CancelTrackImpl()
 {
 	TArray<UObject*> AssetsToCleanUp;
 	AssetsToCleanUp.Add(GetAnimSequence());
-	ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
+	
+	if (GEditor && AssetsToCleanUp.Num() > 0)
+	{
+		ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
+	}
 }
 
 void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTime& CurrentTime)
