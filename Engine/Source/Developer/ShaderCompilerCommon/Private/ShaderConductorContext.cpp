@@ -404,6 +404,7 @@ namespace CrossCompiler
 		OutOptions.enableDebugInfo = InOptions.bEnableDebugInfo;
 		OutOptions.disableOptimizations = InOptions.bDisableOptimizations;
 		OutOptions.enableFMAPass = InOptions.bEnableFMAPass;
+		OutOptions.forceSubpassImageDepthFalse = InOptions.bForceSubpassImageDepthFalse;
 		OutOptions.enableSeparateSamplers = InOptions.bEnableSeparateSamplersInGlsl;
 		OutOptions.shaderModel = ShaderConductor::Compiler::ShaderModel
 		{
