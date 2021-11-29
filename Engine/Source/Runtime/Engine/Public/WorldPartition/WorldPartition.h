@@ -26,6 +26,7 @@ class UWorldPartitionEditorHash;
 class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
+class IStreamingGenerationErrorHandler;
 class FHLODActorDesc;
 class UCanvas;
 
@@ -141,7 +142,7 @@ public:
 	void DrawRuntimeHashPreview();
 	void DumpActorDescs(const FString& Path);
 
-	void CheckForErrors() const;
+	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
 	uint32 GetWantedEditorCellSize() const;
 	void SetEditorWantedCellSize(uint32 InCellSize);

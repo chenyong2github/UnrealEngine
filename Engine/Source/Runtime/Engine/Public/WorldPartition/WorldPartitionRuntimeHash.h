@@ -40,8 +40,6 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool GenerateNavigationData(const FBox& LoadedBounds) { return false; }
 	virtual void DrawPreview() const {}
 
-	void CheckForErrors() const;
-
 	// PIE/Game methods
 	void OnBeginPlay();
 	void OnEndPlay();
@@ -74,8 +72,6 @@ protected:
 	virtual EWorldPartitionStreamingPerformance GetStreamingPerformanceForCell(const UWorldPartitionRuntimeCell* Cell) const { return EWorldPartitionStreamingPerformance::Good; }
 
 #if WITH_EDITOR
-	virtual void CheckForErrorsInternal(const TMap<FGuid, FWorldPartitionActorViewProxy>& ActorDescList) const;
-
 public:
 	virtual void UpdateActorDescViewMap(TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap) const {}
 #endif

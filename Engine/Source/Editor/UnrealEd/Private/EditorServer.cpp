@@ -120,7 +120,9 @@
 #include "InstancedFoliageActor.h"
 #include "IMovieSceneCapture.h"
 #include "MovieSceneCaptureModule.h"
+
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "PropertyEditorModule.h"
@@ -4031,7 +4033,8 @@ bool UEditorEngine::Map_Check( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 
 	if (const UWorldPartition* WorldPartition = InWorld->GetWorldPartition())
 	{
-		WorldPartition->CheckForErrors();
+		FStreamingGenerationMapCheckErrorHandler MapCheckErrorHandler;
+		WorldPartition->CheckForErrors(&MapCheckErrorHandler);
 	}
 
 	GWarn->StatusUpdate( 0, ProgressDenominator, CheckMapLocText );

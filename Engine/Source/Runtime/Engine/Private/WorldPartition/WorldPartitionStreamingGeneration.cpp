@@ -9,12 +9,11 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionActorCluster.h"
+#include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationLogErrorHandler.h"
+#include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
 #include "WorldPartition/HLOD/HLODActor.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
-
-#if WITH_EDITOR
 
 /*
 	Preparation Phase
@@ -36,7 +35,7 @@ class FWorldPartitionStreamingGenerator
 {
 	void CreateActorDescViewMap(const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap, const FActorContainerID& InContainerID)
 	{
-		const bool bIncludeUnsavedActors = (bIsPIE && InContainerID.IsMainContainer());
+		const bool bHandleUnsavedActors = bIncludeUnsavedActors && InContainerID.IsMainContainer();
 
 		// Consider all actors of a /Temp/ container package as Unsaved because loading them from disk will fail (Outer world name mismatch)
 		const bool bIsTempContainerPackage = FPackageName::IsTempPackage(InContainer->GetPackage()->GetName());
@@ -48,7 +47,7 @@ class FWorldPartitionStreamingGenerator
 			{
 				AActor* Actor = ActorDescIt->GetActor();
 
-				if (bIncludeUnsavedActors && IsValid(Actor) && (bIsTempContainerPackage || Actor->GetPackage()->IsDirty()))
+				if (bHandleUnsavedActors && IsValid(Actor) && (bIsTempContainerPackage || Actor->GetPackage()->IsDirty()))
 				{
 					// Dirty, unsaved actor for PIE
 					FWorldPartitionActorDesc* ActorDesc = RuntimeHash->ModifiedActorDescListForPIE.AddActor(Actor);
@@ -64,7 +63,7 @@ class FWorldPartitionStreamingGenerator
 		}
 
 		// Append new unsaved actors for the persistent level
-		if (bIncludeUnsavedActors)
+		if (bHandleUnsavedActors)
 		{
 			for (AActor* Actor : InContainer->GetWorld()->PersistentLevel->Actors)
 			{
@@ -167,15 +166,32 @@ class FWorldPartitionStreamingGenerator
 
 					for (AActor* Actor : LevelScriptExternalActorReferences)
 					{
-						if (FWorldPartitionActorDescView* ActorDescView = ContainerDescriptor.ActorDescViewMap.Find(Actor->GetActorGuid()))
+						FWorldPartitionActorDescView& ActorDescView = ContainerDescriptor.ActorDescViewMap.FindChecked(Actor->GetActorGuid());
+
+						if (ActorDescView.GetGridPlacement() != EActorGridPlacement::AlwaysLoaded)
+						{						
+							ActorDescView.SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
+
+							if (ErrorHandler)
+							{
+								ErrorHandler->OnInvalidReferenceLevelScriptStreamed(ActorDescView);
+							}
+						}
+
+						if (ActorDescView.GetDataLayers().Num())
 						{
-							ActorDescView->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
+							ActorDescView.SetInvalidDataLayers();
+
+							if (ErrorHandler)
+							{
+								ErrorHandler->OnInvalidReferenceLevelScriptDataLayers(ActorDescView);
+							}
 						}
 					}
 				}
 			}
 
-			// Give the associated runtime hash to adjust the grid placement based on its internal settings, etc.
+			// Give the associated runtime hash the possibility to adjust actor descriptor views based on its internal settings, etc.
 			RuntimeHash->UpdateActorDescViewMap(ContainerDescriptor.ActorDescViewMap);
 
 			// Perform various adjustements based on validations and errors
@@ -189,30 +205,48 @@ class FWorldPartitionStreamingGenerator
 					if (FWorldPartitionActorDescView* ReferenceActorDescView = ContainerDescriptor.ActorDescViewMap.Find(ReferenceGuid))
 					{
 						// Validate grid placement
-						if ((ActorDescView.GetGridPlacement() != ReferenceActorDescView->GetGridPlacement()) &&
-							((ActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded) || (ReferenceActorDescView->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded)))
+						const bool bIsActorDescAlwaysLoaded = ActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
+						const bool bIsActorDescRefAlwaysLoaded = ReferenceActorDescView->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
+
+						if (bIsActorDescAlwaysLoaded != bIsActorDescRefAlwaysLoaded)
 						{
 							ActorDescView.SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
 							ReferenceActorDescView->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
+
+							if (ErrorHandler)
+							{
+								ErrorHandler->OnInvalidReferenceGridPlacement(ActorDescView, *ReferenceActorDescView);
+							}
 						}
 
 						// Validate data layers
-						if (ActorDescView.GetDataLayers().Num() != ReferenceActorDescView->GetDataLayers().Num())
+						auto IsReferenceDataLayersValid = [](const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
+						{
+							if (ActorDescView.GetDataLayers().Num() == ReferenceActorDescView.GetDataLayers().Num())
+							{
+								const TSet<FName> ActorDescDataLayers(ActorDescView.GetDataLayers());
+								const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView.GetDataLayers());
+
+								return ActorDescDataLayers.Includes(ReferenceActorDescDataLayers);
+							}
+
+							return false;
+						};
+
+						if (!IsReferenceDataLayersValid(ActorDescView, *ReferenceActorDescView))
 						{
 							ActorDescView.SetInvalidDataLayers();
 							ReferenceActorDescView->SetInvalidDataLayers();
-						}
-						else
-						{
-							const TSet<FName> ActorDescDataLayers(ActorDescView.GetDataLayers());
-							const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView->GetDataLayers());
 
-							if (!ActorDescDataLayers.Includes(ReferenceActorDescDataLayers))
+							if (ErrorHandler)
 							{
-								ActorDescView.SetInvalidDataLayers();
-								ReferenceActorDescView->SetInvalidDataLayers();
+								ErrorHandler->OnInvalidReferenceDataLayers(ActorDescView, *ReferenceActorDescView);
 							}
 						}
+					}
+					else if (ErrorHandler)
+					{
+						ErrorHandler->OnInvalidReference(ActorDescView, ReferenceGuid);
 					}
 				}
 			}
@@ -252,12 +286,13 @@ class FWorldPartitionStreamingGenerator
 	}
 
 public:
-	FWorldPartitionStreamingGenerator(bool bInIsPIE, UWorldPartitionRuntimeHash* InRuntimeHash)
-	: bIsPIE(bInIsPIE)
+	FWorldPartitionStreamingGenerator(bool bInIncludeUnsavedActors, UWorldPartitionRuntimeHash* InRuntimeHash, IStreamingGenerationErrorHandler* InErrorHandler = nullptr)
+	: bIncludeUnsavedActors(bInIncludeUnsavedActors)
 	, RuntimeHash(InRuntimeHash)
+	, ErrorHandler(InErrorHandler)
 	{}
 
-	void PreparationPhase(UWorldPartition* WorldPartition)
+	void PreparationPhase(const UWorldPartition* WorldPartition)
 	{
 		// Preparation Phase :: Actor Descriptor Views Creation
 		CreateActorDescriptorViews(WorldPartition);
@@ -286,8 +321,9 @@ public:
 	}
 
 private:
-	bool bIsPIE;
+	bool bIncludeUnsavedActors;
 	UWorldPartitionRuntimeHash* RuntimeHash;
+	IStreamingGenerationErrorHandler* ErrorHandler;
 
 	struct FContainerDescriptor
 	{
@@ -316,9 +352,19 @@ private:
 
 bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 {
+	FStreamingGenerationLogErrorHandler LogErrorHandler;
+	FStreamingGenerationMapCheckErrorHandler MapCheckErrorHandler;	
+	IStreamingGenerationErrorHandler* ErrorHandler = &LogErrorHandler;
+
+	if (bIsPIE)
+	{
+		// In PIE, we always want to populate the map check dialog
+		ErrorHandler = &MapCheckErrorHandler;
+	}
+
 	FActorClusterContext ActorClusterContext;
 	{
-		FWorldPartitionStreamingGenerator StreamingGenerator(bIsPIE, RuntimeHash);
+		FWorldPartitionStreamingGenerator StreamingGenerator(bIsPIE, RuntimeHash, ErrorHandler);
 
 		// Preparation Phase
 		StreamingGenerator.PreparationPhase(this);
@@ -343,7 +389,8 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
 {
-	FWorldPartitionStreamingGenerator StreamingGenerator(bIsPIE, RuntimeHash);
+	FStreamingGenerationLogErrorHandler LogErrorHandler;
+	FWorldPartitionStreamingGenerator StreamingGenerator(bIsPIE, RuntimeHash, &LogErrorHandler);
 	StreamingGenerator.PreparationPhase(this);
 
 	// Preparation Phase :: Actor Clusters Creation
@@ -355,6 +402,14 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 	RuntimeHash->GenerateHLOD(SourceControlHelper, ActorClusterContext, bCreateActorsOnly);
 }
 
+void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const
+{
+	FActorClusterContext ActorClusterContext;
+	{		
+		FWorldPartitionStreamingGenerator StreamingGenerator(true, RuntimeHash, ErrorHandler);
+		StreamingGenerator.PreparationPhase(this);
+	}
+}
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
