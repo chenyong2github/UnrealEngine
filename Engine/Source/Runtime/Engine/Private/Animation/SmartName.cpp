@@ -51,15 +51,15 @@ FSmartName FSmartNameMapping::AddName(FName Name)
 
 FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName)
 {
-	FWriteScopeLock Lock(*RWLock);
 	checkSlow(Exists(CurveName));
+	FWriteScopeLock Lock(*RWLock);
 	return &CurveMetaDataMap.FindOrAdd(CurveName);
 }
 
 const FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName) const
 {
-	FReadScopeLock Lock(*RWLock);
 	checkSlow(Exists(CurveName));
+	FReadScopeLock Lock(*RWLock);
 	return CurveMetaDataMap.Find(CurveName);
 }
 
