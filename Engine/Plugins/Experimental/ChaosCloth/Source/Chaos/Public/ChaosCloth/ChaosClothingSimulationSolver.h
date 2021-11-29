@@ -232,7 +232,7 @@ namespace Chaos
 } // namespace Chaos
 
 // Support ISPC enable/disable in non-shipping builds
-constexpr bool bChaos_CalculateBounds_ISPC_Enable = false;  // Disabled by default
+constexpr bool bChaos_CalculateBounds_ISPC_Enable = true;
 #if !INTEL_ISPC
 const bool bChaos_PreSimulationTransforms_ISPC_Enabled = false;
 const bool bChaos_CalculateBounds_ISPC_Enabled = false;

@@ -16,39 +16,28 @@ struct FClothVertBoneData
 	float BoneWeights[MaxTotalInfluences];
 };
 
-// Helper function since we only need 3x3
-static inline FMatrix LoadMatrixHelper(const uniform FMatrix *varying M)
+static inline void AddInfluence(uniform FVector& OutPosition, uniform FVector& OutNormal, const uniform FVector& RefParticle, const uniform FVector& RefNormal, const uniform FMatrix *uniform BoneMatrix, const uniform float Weight)
 {
-	#pragma ignore warning(perf)
-	const varying float M0 = M->M[0];
-	#pragma ignore warning(perf)
-	const varying float M1 = M->M[1];
-	#pragma ignore warning(perf)
-	const varying float M2 = M->M[2];
-	#pragma ignore warning(perf)
-	const varying float M4 = M->M[4];
-	#pragma ignore warning(perf)
-	const varying float M5 = M->M[5];
-	#pragma ignore warning(perf)
-	const varying float M6 = M->M[6];
-	#pragma ignore warning(perf)
-	const varying float M8 = M->M[8];
-	#pragma ignore warning(perf)
-	const varying float M9 = M->M[9];
-	#pragma ignore warning(perf)
-	const varying float M10 = M->M[10];
-	#pragma ignore warning(perf)
-	const varying float M12 = M->M[12];
-	#pragma ignore warning(perf)
-	const varying float M13 = M->M[13];
-	#pragma ignore warning(perf)
-	const varying float M14 = M->M[14];
+	const uniform FVector4 M0M1M2 = *((uniform FVector4 *uniform)&BoneMatrix->M[0]);
 
-	return SetMatrix(
-		SetVector4(M0 , M1 , M2 , 0.f),
-		SetVector4(M4 , M5 , M6 , 0.f),
-		SetVector4(M8 , M9 , M10, 0.f),
-		SetVector4(M12, M13, M14, 1.f));
+	const uniform FVector4 VTempXP = RefParticle.V[0] * M0M1M2;
+	const uniform FVector4 VTempXN = RefNormal.V[0] * M0M1M2;
+
+	const uniform FVector4 M4M5M6 = *((uniform FVector4 *uniform)&BoneMatrix->M[4]);
+
+	const uniform FVector4 VTempYP = RefParticle.V[1] * M4M5M6 + VTempXP;
+	const uniform FVector4 VTempYN = RefNormal.V[1] * M4M5M6 + VTempXN;
+
+	const uniform FVector4 M8M9M10 = *((uniform FVector4 *uniform)&BoneMatrix->M[8]);
+
+	const uniform FVector4 VTempZP = RefParticle.V[2] * M8M9M10 + VTempYP;
+	const uniform FVector4 Norm = RefNormal.V[2] * M8M9M10 + VTempYN;
+
+	const uniform FVector4 VTempWP = *((uniform FVector4 *uniform)&BoneMatrix->M[12]);
+	const uniform FVector4 Pos = VTempZP + VTempWP;
+
+	OutPosition = OutPosition + SetVector(Pos.V[0], Pos.V[1], Pos.V[2]) * Weight;
+	OutNormal = OutNormal + SetVector(Norm.V[0], Norm.V[1], Norm.V[2]) * Weight;
 }
 
 export void SkinPhysicsMesh(uniform FVector OutPositions[],
@@ -61,38 +50,29 @@ export void SkinPhysicsMesh(uniform FVector OutPositions[],
 							const uniform FTransform &ComponentToLocalSpace,
 							const uniform int32 NumPoints)
 {
-	foreach(i = 0 ... NumPoints)
+	for(uniform int i = 0; i < NumPoints; ++i)
 	{
-		const uniform int VertIndex = extract(i, 0);
-		const FVector RefParticle = VectorLoad(&Vertices[VertIndex]);
-		const FVector RefNormal = VectorLoad(&Normals[VertIndex]);
+		const uniform FVector RefParticle = Vertices[i];
+		const uniform FVector RefNormal = Normals[i];
 
-		FVector OutPosition = VectorLoad(&OutPositions[VertIndex]);
-		FVector OutNormal = VectorLoad(&OutNormals[VertIndex]);
+		uniform FVector OutPosition = OutPositions[i];
+		uniform FVector OutNormal = OutNormals[i];
 
-		#pragma ignore warning(perf)
-		const varying int NumInfluences = BoneData[i].NumInfluences;
+		OutPosition = SetVector(0.0f, 0.0f, 0.0f);
+		OutNormal = SetVector(0.0f, 0.0f, 0.0f);
+
+		const uniform int NumInfluences = BoneData[i].NumInfluences;
 
 		for(uniform int j = 0; j < NumInfluences; ++j)
 		{
-			#pragma ignore warning(perf)
-			const varying int BoneMatrixIndex = BoneMap[BoneData[i].BoneIndices[j]];
-			#pragma ignore warning(perf)
-			const varying float Weight = BoneData[i].BoneWeights[j];
+			const uniform int BoneMatrixIndex = BoneMap[BoneData[i].BoneIndices[j]];
+			const uniform float Weight = BoneData[i].BoneWeights[j];
 
-			const varying FMatrix BoneMatrix = LoadMatrixHelper(&BoneMatrices[BoneMatrixIndex]);
-			const FVector Pos = MatrixTransformPosition(RefParticle, BoneMatrix);
-			const FVector Norm = MatrixTransformVector(RefNormal, BoneMatrix);
-
-			// AddInfluence
-			OutPosition = OutPosition + Pos * Weight;
-			OutNormal = OutNormal + Norm * Weight;
+			const uniform FMatrix *uniform BoneMatrix = &BoneMatrices[BoneMatrixIndex];
+			AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrix, Weight);
 		}
 
-		OutPosition = TransformPosition(ComponentToLocalSpace, OutPosition);
-		OutNormal = VectorNormalize(TransformVector(ComponentToLocalSpace, OutNormal));
-
-		VectorStore(&OutPositions[VertIndex], OutPosition);
-		VectorStore(&OutNormals[VertIndex], OutNormal);
+		OutPositions[i] = TransformPosition(ComponentToLocalSpace, OutPosition);
+		OutNormals[i] = VectorNormalize(TransformVector(ComponentToLocalSpace, OutNormal));
 	}
 }
