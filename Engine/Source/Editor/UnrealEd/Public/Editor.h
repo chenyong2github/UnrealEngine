@@ -655,6 +655,11 @@ UNREALED_API bool IsUniqueObjectName( const FName& InName, UObject* Outer, FText
  */
 UNREALED_API class FEditorModeTools& GLevelEditorModeTools();
 
+/**
+ * Checks if FEditorModeTools is valid
+ */
+UNREALED_API bool GLevelEditorModeToolsIsValid();
+
 namespace EditorUtilities
 {
 	/**
