@@ -39,7 +39,7 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 		UAnimBlueprint* AnimBlueprint = AnimBlueprints[0].Get();
 
 		// Accept (non-interface) template anim BPs or anim BPs with compatible skeletons
-		if(AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface && ((AnimBlueprint->TargetSkeleton == nullptr && AnimBlueprint->bIsTemplate) || AnimBlueprint->TargetSkeleton->GetCompatibleSkeletons().Num() > 0))
+		if(AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface && ((AnimBlueprint->TargetSkeleton == nullptr && AnimBlueprint->bIsTemplate) || (AnimBlueprint->TargetSkeleton != nullptr && AnimBlueprint->TargetSkeleton->GetCompatibleSkeletons().Num() > 0)))
 		{
 			Section.AddSubMenu(
 				"AnimBlueprint_NewSkeletonChildBlueprint",
@@ -324,6 +324,11 @@ void FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton(TArray<TWeakObjectPtr<
 	if ( ObjectsToSync.Num() > 0 )
 	{
 		FAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
+	}
+	else
+	{
+		FText ShouldRetargetMessage = LOCTEXT("NoSkeletonFound", "Could not find the skeleton");
+		FMessageDialog::Open(EAppMsgType::Ok, ShouldRetargetMessage);
 	}
 }
 
