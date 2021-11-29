@@ -10,6 +10,7 @@
 #include "USDErrorUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
+#include "USDPrimConversion.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
 
@@ -498,6 +499,77 @@ namespace UE
 
 				return true;
 			}
+
+			bool RecursivelyCollapseChildMeshes(
+				const pxr::UsdPrim& Prim,
+				const FTransform& CurrentTransform,
+				const pxr::UsdTimeCode& TimeCode,
+				const EUsdPurpose PurposesToLoad,
+				const pxr::TfToken& RenderContext,
+				const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
+				FMeshDescription& OutMeshDescription,
+				UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
+				bool bParseTransform
+			)
+			{
+				// Ignore meshes from disabled purposes
+				if ( !EnumHasAllFlags( PurposesToLoad, IUsdPrim::GetPurpose( Prim ) ) )
+				{
+					return true;
+				}
+
+				// Ignore invisible prims
+				if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( Prim ) )
+				{
+					if ( UsdGeomImageable.ComputeVisibility() == pxr::UsdGeomTokens->invisible )
+					{
+						return true;
+					}
+				}
+
+				FTransform ChildTransform = CurrentTransform;
+
+				if ( bParseTransform )
+				{
+					if ( pxr::UsdGeomXformable Xformable = pxr::UsdGeomXformable( Prim ) )
+					{
+						FTransform LocalChildTransform;
+						UsdToUnreal::ConvertXformable( Prim.GetStage(), Xformable, LocalChildTransform, TimeCode.GetValue() );
+
+						ChildTransform = LocalChildTransform * CurrentTransform;
+					}
+				}
+
+				bool bSuccess = true;
+				if ( pxr::UsdGeomMesh Mesh = pxr::UsdGeomMesh( Prim ) )
+				{
+					bSuccess = UsdToUnreal::ConvertGeomMesh( Mesh, OutMeshDescription, OutMaterialAssignments, ChildTransform, MaterialToPrimvarToUVIndex, TimeCode, RenderContext );
+				}
+
+				for ( const pxr::UsdPrim& ChildPrim : Prim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ) )
+				{
+					if ( !bSuccess )
+					{
+						break;
+					}
+
+					const bool bChildParseTransform = true;
+
+					bSuccess &= RecursivelyCollapseChildMeshes(
+						ChildPrim,
+						ChildTransform,
+						TimeCode,
+						PurposesToLoad,
+						RenderContext,
+						MaterialToPrimvarToUVIndex,
+						OutMeshDescription,
+						OutMaterialAssignments,
+						bChildParseTransform
+					);
+				}
+
+				return bSuccess;
+			}
 		}
 	}
 }
@@ -884,6 +956,36 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 	}
 
 	return true;
+}
+
+bool UsdToUnreal::ConvertGeomMeshHierarchy(
+	const pxr::UsdPrim& Prim,
+	const pxr::UsdTimeCode& TimeCode,
+	const EUsdPurpose PurposesToLoad,
+	const pxr::TfToken& RenderContext,
+	const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
+	FMeshDescription& OutMeshDescription,
+	UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments
+)
+{
+	FStaticMeshAttributes StaticMeshAttributes( OutMeshDescription );
+	StaticMeshAttributes.Register();
+
+	// Skip the first transform, because if we're parsing Prim's mesh we don't want to bake its own transform into the vertices,
+	// as that transform will be used on components instead
+	const bool bParseTransform = false;
+
+	return UE::UsdGeomMeshConversion::Private::RecursivelyCollapseChildMeshes(
+		Prim,
+		FTransform::Identity,
+		TimeCode,
+		PurposesToLoad,
+		RenderContext,
+		MaterialToPrimvarToUVIndex,
+		OutMeshDescription,
+		OutMaterialAssignments,
+		bParseTransform
+	);
 }
 
 bool UsdToUnreal::ConvertDisplayColor( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription, UMaterialInstanceConstant& Material )

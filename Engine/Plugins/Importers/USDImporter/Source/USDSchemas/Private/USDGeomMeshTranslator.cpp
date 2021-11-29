@@ -504,7 +504,7 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	void LoadMeshDescriptions( const pxr::UsdTyped& UsdMesh, TArray<FMeshDescription>& OutLODIndexToMeshDescription, TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo,
-		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs, const FName& RenderContext )
+		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarToUVIndex, const pxr::UsdTimeCode TimeCode, bool bInterpretLODs, const FName& RenderContext, const EUsdPurpose PurposesToLoad )
 	{
 		if ( !UsdMesh )
 		{
@@ -528,10 +528,15 @@ namespace UsdGeomMeshTranslatorImpl
 			FMeshDescription TempMeshDescription;
 			UsdUtils::FUsdPrimMaterialAssignmentInfo TempMaterialInfo;
 
-			FStaticMeshAttributes StaticMeshAttributes( TempMeshDescription );
-			StaticMeshAttributes.Register();
-
-			bool bSuccess = UsdToUnreal::ConvertGeomMesh( UsdMesh, TempMeshDescription, TempMaterialInfo, FTransform::Identity, MaterialToPrimvarToUVIndex, TimeCode, RenderContextToken );
+			bool bSuccess = UsdToUnreal::ConvertGeomMeshHierarchy(
+				UsdMesh.GetPrim(),
+				TimeCode,
+				PurposesToLoad,
+				RenderContextToken,
+				MaterialToPrimvarToUVIndex,
+				TempMeshDescription,
+				TempMaterialInfo
+			);
 
 			if ( bSuccess )
 			{
@@ -792,6 +797,8 @@ namespace UsdGeomMeshTranslatorImpl
 			TMap< FString, TMap< FString, int32 > > Unused;
 			TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex : &Unused;
 
+			const EUsdPurpose PurposesToLoad = Context->PurposesToLoad;
+
 			// Fetch the animated mesh start/end frame as they may be different from just the stage's start and end time codes
 			int32 StartFrame = FMath::FloorToInt( Stage.GetStartTimeCode() );
 			int32 EndFrame = FMath::CeilToInt( Stage.GetEndTimeCode() );
@@ -806,7 +813,7 @@ namespace UsdGeomMeshTranslatorImpl
 				*MaterialToPrimvarToUVIndex,
 				StartFrame,
 				EndFrame,
-				[InPrimPath]( const TWeakObjectPtr<UGeometryCacheTrackUsd> TrackPtr, float Time, FGeometryCacheMeshData& OutMeshData )
+				[InPrimPath, PurposesToLoad]( const TWeakObjectPtr<UGeometryCacheTrackUsd> TrackPtr, float Time, FGeometryCacheMeshData& OutMeshData )
 				{
 					UGeometryCacheTrackUsd* Track = TrackPtr.Get();
 					if ( !Track )
@@ -847,7 +854,8 @@ namespace UsdGeomMeshTranslatorImpl
 						Track->MaterialToPrimvarToUVIndex,
 						pxr::UsdTimeCode( Time ),
 						bAllowInterpretingLODs,
-						Track->RenderContext
+						Track->RenderContext,
+						PurposesToLoad
 					);
 
 					// Convert the MeshDescription to MeshData
@@ -1177,7 +1185,8 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 				*MaterialToPrimvarToUVIndex,
 				pxr::UsdTimeCode( Context->Time ),
 				Context->bAllowInterpretingLODs,
-				Context->RenderContext
+				Context->RenderContext,
+				Context->PurposesToLoad
 			);
 
 			// If we have at least one valid LOD, we should keep going
@@ -1231,7 +1240,8 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				*MaterialToPrimvarToUVIndex,
 				pxr::UsdTimeCode( TimeCode ),
 				bAllowInterpretingLODs,
-				Context->RenderContext
+				Context->RenderContext,
+				Context->PurposesToLoad
 			);
 
 			// If we have at least one valid LOD, we should keep going

@@ -40,59 +40,6 @@
 	#include "pxr/usd/usdShade/materialBindingAPI.h"
 #include "USDIncludesEnd.h"
 
-namespace UsdGeomXformableTranslatorImpl
-{
-	void LoadMeshDescription( const pxr::UsdGeomXformable& UsdGeomXformable, const EUsdPurpose PurposesToLoad, const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex, const pxr::UsdTimeCode TimeCode, FMeshDescription& OutMeshdescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments )
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomXformableTranslatorImpl::LoadMeshDescription );
-
-		FStaticMeshAttributes StaticMeshAttributes( OutMeshdescription );
-		StaticMeshAttributes.Register();
-
-		TFunction< void( FMeshDescription&, UsdUtils::FUsdPrimMaterialAssignmentInfo&, const pxr::UsdPrim&, const FTransform, const pxr::UsdTimeCode& ) > RecursiveChildCollapsing;
-		RecursiveChildCollapsing = [ &RecursiveChildCollapsing, &MaterialToPrimvarToUVIndex, PurposesToLoad ]( FMeshDescription& MeshDescription, UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments, const pxr::UsdPrim& ParentPrim, const FTransform CurrentTransform, const pxr::UsdTimeCode& TimeCode )
-		{
-			for ( const pxr::UsdPrim& ChildPrim : ParentPrim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies() ) )
-			{
-				// Ignore meshes from disabled purposes
-				if ( !EnumHasAllFlags( PurposesToLoad, IUsdPrim::GetPurpose( ChildPrim ) ) )
-				{
-					continue;
-				}
-
-				// Ignore invisible prims
-				if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( ChildPrim ) )
-				{
-					if ( UsdGeomImageable.ComputeVisibility() == pxr::UsdGeomTokens->invisible )
-					{
-						continue;
-					}
-				}
-
-				FTransform ChildTransform = CurrentTransform;
-
-				if ( pxr::UsdGeomXformable ChildXformable = pxr::UsdGeomXformable( ChildPrim ) )
-				{
-					FTransform LocalChildTransform;
-					UsdToUnreal::ConvertXformable( ChildPrim.GetStage(), ChildXformable, LocalChildTransform, TimeCode.GetValue() );
-
-					ChildTransform = LocalChildTransform * CurrentTransform;
-				}
-
-				if ( pxr::UsdGeomMesh ChildMesh = pxr::UsdGeomMesh( ChildPrim ) )
-				{
-					UsdToUnreal::ConvertGeomMesh( ChildMesh, MeshDescription, MaterialAssignments, ChildTransform, MaterialToPrimvarToUVIndex, TimeCode );
-				}
-
-				RecursiveChildCollapsing( MeshDescription, MaterialAssignments, ChildPrim, ChildTransform, TimeCode );
-			}
-		};
-
-		// Collapse the children
-		RecursiveChildCollapsing( OutMeshdescription, OutMaterialAssignments, UsdGeomXformable.GetPrim(), FTransform::Identity, TimeCode );
-	}
-}
-
 class FUsdGeomXformableCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
 public:
@@ -124,11 +71,18 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 			TMap< FString, TMap< FString, int32 > > Unused;
 			TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? Context->MaterialToPrimvarToUVIndex : &Unused;
 
-			UsdGeomXformableTranslatorImpl::LoadMeshDescription(
-				pxr::UsdGeomXformable( GetPrim() ),
-				Context->PurposesToLoad,
-				*MaterialToPrimvarToUVIndex,
+			pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+			if ( !Context->RenderContext.IsNone() )
+			{
+				RenderContextToken = UnrealToUsd::ConvertToken( *Context->RenderContext.ToString() ).Get();
+			}
+
+			UsdToUnreal::ConvertGeomMeshHierarchy(
+				GetPrim(),
 				pxr::UsdTimeCode( Context->Time ),
+				Context->PurposesToLoad,
+				RenderContextToken,
+				*MaterialToPrimvarToUVIndex,
 				AddedMeshDescription,
 				AssignmentInfo
 			);
