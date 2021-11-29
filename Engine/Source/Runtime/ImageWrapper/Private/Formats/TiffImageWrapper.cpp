@@ -325,7 +325,7 @@ namespace UE::ImageWrapper::Private
 			int64 RemaningBytes = TiffImageWrapper->CompressedData.Num() - TiffImageWrapper->CurrentPosition;
 			if (RemaningBytes > 0)
 			{
-				int64 NumBytesReaded = FMath::Min(RemaningBytes, Size);
+				int64 NumBytesReaded = FMath::Min<int64>(RemaningBytes, Size);
 				FMemory::Memcpy(Buffer, TiffImageWrapper->CompressedData.GetData() + TiffImageWrapper->CurrentPosition, NumBytesReaded);
 				TiffImageWrapper->CurrentPosition += NumBytesReaded;
 
@@ -415,7 +415,6 @@ namespace UE::ImageWrapper::Private
 		{
 
 			// Read using RGBA
-		
 			if (Format == ERGBFormat::BGRA && BitDepth == 8)
 			{
 				const int64 BufferSize = int64(Width) * int64(Height) * sizeof(uint32);
@@ -424,43 +423,48 @@ namespace UE::ImageWrapper::Private
 				RawData.Empty(BufferSize);
 				RawData.AddUninitialized(BufferSize);
 
-				TIFFReadRGBAImageOriented(Tiff, Width, Height, static_cast<uint32*>(static_cast<void*>(RawData.GetData())), 0, ORIENTATION_LEFTTOP);
-
-				EParallelForFlags ParallelForFlags = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
-				ParallelFor(Height, [this](int32 HeightIndex)
-					{
-						const int64 HeightOffset = HeightIndex * Width;
-						for (int32 WidthIndex = 0; WidthIndex < Width; WidthIndex++)
+				if (TIFFReadRGBAImageOriented(Tiff, Width, Height, static_cast<uint32*>(static_cast<void*>(RawData.GetData())), 0, ORIENTATION_LEFTTOP) != 0)
+				{
+					EParallelForFlags ParallelForFlags = IsInGameThread() ? EParallelForFlags::None : EParallelForFlags::BackgroundPriority;
+					ParallelFor(Height, [this](int32 HeightIndex)
 						{
-							// Swap from RGBA to BGRA
-							const int64 CurrentPixelIndex = (WidthIndex + HeightOffset)* sizeof(uint32);
-							uint8 Red = RawData[CurrentPixelIndex];
-							RawData[CurrentPixelIndex] = RawData[CurrentPixelIndex + 2];
-							RawData[CurrentPixelIndex + 2] = Red;
+							const int64 HeightOffset = HeightIndex * Width;
+							for (int32 WidthIndex = 0; WidthIndex < Width; WidthIndex++)
+							{
+								// Swap from RGBA to BGRA
+								const int64 CurrentPixelIndex = (WidthIndex + HeightOffset)* sizeof(uint32);
+								uint8 Red = RawData[CurrentPixelIndex];
+								RawData[CurrentPixelIndex] = RawData[CurrentPixelIndex + 2];
+								RawData[CurrentPixelIndex + 2] = Red;
+							}
 						}
-					}
-					, ParallelForFlags);
+						, ParallelForFlags);
 				}
-				else if (Format == ERGBFormat::RGBA && BitDepth == 16 )
+				else 
 				{
-					UnpackIntoRawBuffer<uint16>(4);
-				}
-				else if (Format == ERGBFormat::RGBAF && BitDepth == 16)
-				{
-					UnpackIntoRawBuffer<FFloat16>(4);
-				}
-				else if (Format == ERGBFormat::Gray)
-				{
-					if (BitDepth == 8)
-					{
-						UnpackIntoRawBuffer<uint8>(1);
-					}
-					else if (BitDepth == 16)
-					{
-						UnpackIntoRawBuffer<uint16>(1);
-					}
+					UnpackIntoRawBuffer<uint8>(4);
 				}
 			}
+			else if (Format == ERGBFormat::RGBA && BitDepth == 16 )
+			{
+				UnpackIntoRawBuffer<uint16>(4);
+			}
+			else if (Format == ERGBFormat::RGBAF && BitDepth == 16)
+			{
+				UnpackIntoRawBuffer<FFloat16>(4);
+			}
+			else if (Format == ERGBFormat::Gray)
+			{
+				if (BitDepth == 8)
+				{
+					UnpackIntoRawBuffer<uint8>(1);
+				}
+				else if (BitDepth == 16)
+				{
+					UnpackIntoRawBuffer<uint16>(1);
+				}
+			}
+		}
 		else
 		{
 			SetError(TEXT("Unsupported requested format for the input image. Can't uncompress the tiff image."));
