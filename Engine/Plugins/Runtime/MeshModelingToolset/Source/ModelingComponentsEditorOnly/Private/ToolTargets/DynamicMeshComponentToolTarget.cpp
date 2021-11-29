@@ -191,6 +191,16 @@ void UDynamicMeshComponentToolTarget::CommitDynamicMesh(const FDynamicMesh3& Upd
 		*this, UpdatedMesh, CommitInfo.bTopologyChanged);
 }
 
+UBodySetup* UDynamicMeshComponentToolTarget::GetBodySetup() const
+{
+	return IsValid() ? Cast<UDynamicMeshComponent>(Component)->GetBodySetup() : nullptr;
+}
+
+
+IInterface_CollisionDataProvider* UDynamicMeshComponentToolTarget::GetComplexCollisionProvider() const
+{
+	return IsValid() ? Cast<UDynamicMeshComponent>(Component) : nullptr;
+}
 
 
 // Factory
