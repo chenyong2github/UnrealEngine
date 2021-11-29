@@ -282,6 +282,13 @@ public:
 		}
 	}
 
+	inline void AddElement(const TPayloadBoundsElement<TPayloadType, T>& Payload)
+	{
+		// Not implemented 
+		check(false);
+	}
+
+	
 	// Begin ISpatialAcceleration interface
 	virtual TArray<TPayloadType> FindAllIntersections(const FAABB3& Box) const override { return FindAllIntersectionsImp(Box); }
 
