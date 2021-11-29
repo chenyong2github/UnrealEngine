@@ -780,7 +780,7 @@ void FMenuStack::OnWindowDestroyed(TSharedRef<SWindow> InWindow)
 
 void FMenuStack::OnWindowActivated( TSharedRef<SWindow> ActivatedWindow )
 {
-	if (ActivatedWindow != PendingNewWindow && HasMenus())
+	if (ActivatedWindow != PendingNewWindow && HasMenus() && !FSlateApplication::Get().IsWindowHousingInteractiveTooltip(ActivatedWindow))
 	{
 		TWeakPtr<IMenu> ActivatedMenu = FindMenuFromWindow(ActivatedWindow);
 
