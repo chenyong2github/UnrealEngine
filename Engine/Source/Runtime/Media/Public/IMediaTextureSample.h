@@ -72,6 +72,18 @@ enum class EMediaTextureSampleFormat
 
 	/** 4:4:4:4 AY'CbCr 16-bit little endian full range alpha, video range Y'CbCr. */
 	Y416,
+
+	/** DXT1. */
+	DXT1,
+
+	/** DXT5. */
+	DXT5,
+
+	/** YCoCg colour space encoded in DXT5. */
+	YCoCg_DXT5,
+
+	/** YCoCg colour space encoded in DXT5, with a separate alpha texture encoded in BC4. */
+	YCoCg_DXT5_Alpha_BC4,
 };
 
 namespace MediaTextureSampleFormat

@@ -27,6 +27,8 @@ static const float2 kQuadUVs[6] =
 	float2(0.0, 0.0),
 };
 
+static const float4 kYCoCgOffsets = float4(-0.50196078431373, -0.50196078431373, 0, 0);
+
 Texture2D TextureY;
 Texture2D TextureUV;
 SamplerState PointClampedSamplerY;
@@ -74,3 +76,41 @@ void Y416ConvertPS(in noperspective float2 InUV : TEXCOORD0
 	OutColor.rgb = YuvToRgb(AVYU.yzw, ColorTransform, SrgbToLinear);
 	OutColor.a = AVYU.x;
 }
+
+void YCoCgConvertPS(in noperspective float2 InUV : TEXCOORD0
+		  , in float4 SvPosition : SV_POSITION
+		  , out float4 OutColor : SV_Target0)
+{
+	float4 CoCgSY = TextureY.Sample(BilinearClampedSamplerUV, InUV);
+
+	CoCgSY += kYCoCgOffsets;
+	
+	float Scale = (CoCgSY.z * (255.0 / 8.0)) + 1.0;
+	
+	float Co = CoCgSY.x / Scale;
+	float Cg = CoCgSY.y / Scale;
+	float Y = CoCgSY.w;
+	
+	OutColor = float4(Y + Co - Cg, Y + Cg, Y - Co - Cg, 1.0);
+	OutColor.xyz = sRGBToLinear(OutColor.xyz);
+}
+
+void YCoCgAlphaConvertPS(in noperspective float2 InUV : TEXCOORD0
+		  , in float4 SvPosition : SV_POSITION
+		  , out float4 OutColor : SV_Target0)
+{
+	float4 CoCgSY = TextureY.Sample(BilinearClampedSamplerUV, InUV);
+	float Alpha = TextureUV.Sample(BilinearClampedSamplerUV, InUV);
+
+	CoCgSY += kYCoCgOffsets;
+	
+	float Scale = (CoCgSY.z * (255.0 / 8.0)) + 1.0;
+	
+	float Co = CoCgSY.x / Scale;
+	float Cg = CoCgSY.y / Scale;
+	float Y = CoCgSY.w;
+	
+	OutColor = float4(Y + Co - Cg, Y + Cg, Y - Co - Cg, Alpha);
+	OutColor.xyz = sRGBToLinear(OutColor.xyz);
+}
+

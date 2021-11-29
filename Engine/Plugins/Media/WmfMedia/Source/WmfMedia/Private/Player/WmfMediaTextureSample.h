@@ -115,11 +115,6 @@ public:
 			return false;
 		}
 
-		if ((InStride * InDim.Y) > InSize)
-		{
-			return false;
-		}
-
 		Buffer = MoveTemp(*InBuffer);
 
 		Duration = InDuration;
@@ -131,6 +126,13 @@ public:
 		bIsBufferExternal = true;
 		return true;
 	}
+
+	/**
+	 * See if we are using external buffers.
+	 * 
+	 * @return True if so.
+	 */
+	bool IsBufferExternal() const { return bIsBufferExternal; }
 
 public:
 

@@ -126,13 +126,35 @@ HRESULT WmfMediaHAPDecoder::GetOutputAvailableType(DWORD dwOutputStreamID, DWORD
 
 	if (SUCCEEDED(hr))
 	{
-		if (InputSubType == DecoderGUID_HAP_ALPHA || InputSubType == DecoderGUID_HAP_Q_ALPHA)
+		if (bIsExternalBufferEnabled)
 		{
-			hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_ARGB32);
+			if (InputSubType == DecoderGUID_HAP)
+			{
+				hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_L8);
+			}
+			else if (InputSubType == DecoderGUID_HAP_ALPHA)
+			{
+				hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_L16);
+			}
+			else if (InputSubType == DecoderGUID_HAP_Q)
+			{
+				hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_RGB8);
+			}
+			else
+			{
+				hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_D16);
+			}
 		}
 		else
 		{
-			hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12);
+			if (InputSubType == DecoderGUID_HAP_ALPHA || InputSubType == DecoderGUID_HAP_Q_ALPHA)
+			{
+				hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_ARGB32);
+			}
+			else
+			{
+				hr = TempOutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12);
+			}
 		}
 	}
 
@@ -425,6 +447,12 @@ HRESULT WmfMediaHAPDecoder::ProcessOutput(DWORD dwFlags, DWORD cOutputBufferCoun
 }
 
 
+bool WmfMediaHAPDecoder::IsExternalBufferSupported() const
+{
+	return true;
+}
+
+
 HRESULT WmfMediaHAPDecoder::InternalProcessOutput(IMFSample* InSample)
 {
 	if (OutputQueue.IsEmpty())
@@ -480,89 +508,128 @@ HRESULT WmfMediaHAPDecoder::InternalProcessOutput(IMFSample* InSample)
 	DataBuffer OuputDataBuffer;
 	OutputQueue.Dequeue(OuputDataBuffer);
 
-	D3D11_MAPPED_SUBRESOURCE MappedResourceColor;
-	Result = D3DImmediateContext->Map(WorkTextures->InputTextureColor, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResourceColor);
-	memcpy(MappedResourceColor.pData, OuputDataBuffer.Color.GetData(), MappedResourceColor.DepthPitch);
-	D3DImmediateContext->Unmap(WorkTextures->InputTextureColor, 0);
+	LONGLONG TimeStamp = OuputDataBuffer.TimeStamp;
 
-	if (InputSubType == DecoderGUID_HAP_Q_ALPHA)
+	// Are we using external buffers?
+	if (bIsExternalBufferEnabled == false)
 	{
-		D3D11_MAPPED_SUBRESOURCE MappedResourceAlpha;
-		Result = D3DImmediateContext->Map(WorkTextures->InputTextureAlpha, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResourceAlpha);
-		memcpy(MappedResourceAlpha.pData, OuputDataBuffer.Alpha.GetData(), MappedResourceAlpha.DepthPitch);
-		D3DImmediateContext->Unmap(WorkTextures->InputTextureAlpha, 0);
-	}
+		D3D11_MAPPED_SUBRESOURCE MappedResourceColor;
+		Result = D3DImmediateContext->Map(WorkTextures->InputTextureColor, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResourceColor);
+		memcpy(MappedResourceColor.pData, OuputDataBuffer.Color.GetData(), MappedResourceColor.DepthPitch);
+		D3DImmediateContext->Unmap(WorkTextures->InputTextureColor, 0);
 
-
-	if (InputSubType == DecoderGUID_HAP_Q_ALPHA)
-	{
-		BindSRV(WorkTextures->SRV_InputColor, WorkTextures->SRV_InputAlpha);
-	}
-	else
-	{
-		BindSRV(WorkTextures->SRV_InputColor);
-	}
-
-	UINT stride = sizeof(VertexDescription);
-	UINT offset = 0;
-
-	if (InputSubType == DecoderGUID_HAP)
-	{
-		FrameData.Mode = 0;
-	}
-	else if (InputSubType == DecoderGUID_HAP_ALPHA)
-	{
-		FrameData.Mode = 1;
-	}
-	else if (InputSubType == DecoderGUID_HAP_Q)
-	{
-		FrameData.Mode = 2;
-	}
-	else // if (InputSubType == DecoderGUID_HAP_Q_ALPHA)
-	{
-		FrameData.Mode = 3;
-	}
-
-	D3D11_VIEWPORT viewport;
-	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
-	viewport.TopLeftX = 0;
-	viewport.TopLeftY = 0;
-
-	ID3D11RenderTargetView* m_pRenderViews[1];
-
-	int StartPass = 0;
-
-	if (InputSubType == DecoderGUID_HAP_ALPHA || InputSubType == DecoderGUID_HAP_Q_ALPHA)
-	{
-		StartPass = 1;
-	}
-
-	for (int PassIndex = StartPass; PassIndex < 2; PassIndex++)
-	{
-		if (PassIndex == 0)
+		if (InputSubType == DecoderGUID_HAP_Q_ALPHA)
 		{
-			m_pRenderViews[0] = OutputTexture->RTV_B;
-			FrameData.WriteY = 0;
-			viewport.Width = float(ImageWidthInPixels / 2);
-			viewport.Height = float(ImageHeightInPixels / 2);
+			D3D11_MAPPED_SUBRESOURCE MappedResourceAlpha;
+			Result = D3DImmediateContext->Map(WorkTextures->InputTextureAlpha, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResourceAlpha);
+			memcpy(MappedResourceAlpha.pData, OuputDataBuffer.Alpha.GetData(), MappedResourceAlpha.DepthPitch);
+			D3DImmediateContext->Unmap(WorkTextures->InputTextureAlpha, 0);
+		}
+
+
+		if (InputSubType == DecoderGUID_HAP_Q_ALPHA)
+		{
+			BindSRV(WorkTextures->SRV_InputColor, WorkTextures->SRV_InputAlpha);
 		}
 		else
 		{
-			m_pRenderViews[0] = OutputTexture->RTV_A;
-			FrameData.WriteY = 1;
-			viewport.Width = float(ImageWidthInPixels);
-			viewport.Height = float(ImageHeightInPixels);
+			BindSRV(WorkTextures->SRV_InputColor);
 		}
 
-		D3DImmediateContext->RSSetViewports(1, &viewport);
-		D3DImmediateContext->UpdateSubresource(PixelBuffer, 0, nullptr, &FrameData, 0, 0);
-		D3DImmediateContext->OMSetRenderTargets(1, &m_pRenderViews[0], NULL);
-		D3DImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
-		D3DImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		D3DImmediateContext->Draw(4, 0);
-	}
+		UINT stride = sizeof(VertexDescription);
+		UINT offset = 0;
 
-	LONGLONG TimeStamp = OuputDataBuffer.TimeStamp;
+		if (InputSubType == DecoderGUID_HAP)
+		{
+			FrameData.Mode = 0;
+		}
+		else if (InputSubType == DecoderGUID_HAP_ALPHA)
+		{
+			FrameData.Mode = 1;
+		}
+		else if (InputSubType == DecoderGUID_HAP_Q)
+		{
+			FrameData.Mode = 2;
+		}
+		else // if (InputSubType == DecoderGUID_HAP_Q_ALPHA)
+		{
+			FrameData.Mode = 3;
+		}
+
+		D3D11_VIEWPORT viewport;
+		ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+
+		ID3D11RenderTargetView* m_pRenderViews[1];
+
+		int StartPass = 0;
+
+		if (InputSubType == DecoderGUID_HAP_ALPHA || InputSubType == DecoderGUID_HAP_Q_ALPHA)
+		{
+			StartPass = 1;
+		}
+
+		for (int PassIndex = StartPass; PassIndex < 2; PassIndex++)
+		{
+			if (PassIndex == 0)
+			{
+				m_pRenderViews[0] = OutputTexture->RTV_B;
+				FrameData.WriteY = 0;
+				viewport.Width = float(ImageWidthInPixels / 2);
+				viewport.Height = float(ImageHeightInPixels / 2);
+			}
+			else
+			{
+				m_pRenderViews[0] = OutputTexture->RTV_A;
+				FrameData.WriteY = 1;
+				viewport.Width = float(ImageWidthInPixels);
+				viewport.Height = float(ImageHeightInPixels);
+			}
+
+			D3DImmediateContext->RSSetViewports(1, &viewport);
+			D3DImmediateContext->UpdateSubresource(PixelBuffer, 0, nullptr, &FrameData, 0, 0);
+			D3DImmediateContext->OMSetRenderTargets(1, &m_pRenderViews[0], NULL);
+			D3DImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer, &stride, &offset);
+			D3DImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			D3DImmediateContext->Draw(4, 0);
+		}
+	}
+	else
+	{
+		// Get buffer.
+		int32 BufferSize = ImageWidthInPixels * ImageHeightInPixels;
+		int32 AlphaBufferSize = 0;
+
+		// HapQ Alpha has a separate alpha buffer.
+		if (InputSubType == DecoderGUID_HAP_Q_ALPHA)
+		{
+			AlphaBufferSize = BufferSize / 2;
+		}
+
+		// Hap is 4 bits per pixel.
+		if (InputSubType == DecoderGUID_HAP)
+		{
+			BufferSize = BufferSize / 2;
+		}
+
+		// Get external buffer.
+		TArray<uint8>* pExternalBuffer = AllocateExternalBuffer(TimeStamp, BufferSize + AlphaBufferSize);
+		if (pExternalBuffer == nullptr)
+		{
+			return 0;
+		}
+
+		// Copy to buffer.
+		pExternalBuffer->SetNum(BufferSize + AlphaBufferSize);
+		FMemory::Memcpy(pExternalBuffer->GetData(), OuputDataBuffer.Color.GetData(), BufferSize);
+
+		if (AlphaBufferSize > 0)
+		{
+			FMemory::Memcpy(pExternalBuffer->GetData() + BufferSize, OuputDataBuffer.Alpha.GetData(), AlphaBufferSize);
+		}
+	}
+	
 
 	InputQueue.Enqueue(MoveTemp(OuputDataBuffer));
 
@@ -672,7 +739,14 @@ HRESULT WmfMediaHAPDecoder::OnSetInputType(IMFMediaType* InMediaType)
 	if (SUCCEEDED(hr))
 	{
 		InputImageSize = ImageWidthInPixels * ImageHeightInPixels * 4;
-		OutputImageSize = ImageWidthInPixels * ImageHeightInPixels * 3 / 2;
+		if (bIsExternalBufferEnabled)
+		{
+			OutputImageSize = ImageWidthInPixels * ImageHeightInPixels / 2;
+		}
+		else
+		{
+			OutputImageSize = ImageWidthInPixels * ImageHeightInPixels * 3 / 2;
+		}
 
 		InputType = InMediaType;
 		InputType->AddRef();

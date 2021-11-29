@@ -92,6 +92,9 @@ void FWmfMediaHardwareVideoDecodingTextureSample::ShutdownPoolable()
 			}
 		}
 	}
+
+	AlphaFormat = PF_Unknown;
+	bIsDestinationTextureSRGB = false;
 }
 #endif
 

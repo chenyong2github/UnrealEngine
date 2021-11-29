@@ -29,8 +29,10 @@ public:
 
 	/** Default constructor. */
 	FWmfMediaHardwareVideoDecodingTextureSample()
-		: FWmfMediaTextureSample(),
-		Format(PF_Unknown)
+		: FWmfMediaTextureSample()
+		, Format(PF_Unknown)
+		, AlphaFormat(PF_Unknown)
+		, bIsDestinationTextureSRGB(false)
 	{ }
 
 public:
@@ -50,6 +52,30 @@ public:
 	ID3D11Texture2D* InitializeSourceTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, FTimespan InTime, FTimespan InDuration, const FIntPoint& InDim, EPixelFormat InFormat, EMediaTextureSampleFormat InMediaTextureSampleFormat);
 
 	/**
+	 * Call this to set the pixel format.
+	 * 
+	 * InitializeSourceTexture does this so you only need to call this function if
+	 * you don't call InitializeSourceTexture.
+	 * 
+	 * @param InFormat Pixel format for texture.
+	 */
+	void SetPixelFormat(EPixelFormat InFormat) { Format = InFormat; }
+
+	/**
+	 * Call this to set whether DestinationTexture should be sRGB or not.
+	 * 
+	 * @param bIsSRGB True if so.
+	 */
+	void SetIsDestinationTextureSRGB(bool bIsSRGB) { bIsDestinationTextureSRGB = bIsSRGB; }
+
+	/**
+	 * Call this to set what the alpha texture should be.
+	 * 
+	 * @param InFormat Pixel format of alpha texture.
+	 */
+	void SetAlphaTexture(EPixelFormat InFormat) { AlphaFormat = InFormat; }
+
+	/**
 	 * Get media texture sample converter if sample implements it
 	 *
 	 * @return texture sample converter
@@ -59,12 +85,7 @@ public:
 		// Only use sample converter for Win8+
 		if (FPlatformMisc::VerifyWindowsVersion(6, 2))
 		{
-			// Are we using an external buffer?
-			// D3D12 will use a CPU buffer and has no use for this convertor.
-			if (bIsBufferExternal == false)
-			{
-				return this;
-			}
+			return this;
 		}
 		return nullptr;
 	}
@@ -97,11 +118,17 @@ public:
 	{
 		if (DestinationTexture.IsValid() && DestinationTexture->GetSizeX() == Dim.X && DestinationTexture->GetSizeY() == Dim.Y)
 		{
-			return DestinationTexture;
+			ETextureCreateFlags CurrentFlags = DestinationTexture->GetFlags();
+			bool bIsCurrentSRGB = EnumHasAnyFlags(CurrentFlags, TexCreate_SRGB);
+			if (bIsCurrentSRGB == bIsDestinationTextureSRGB)
+			{
+				return DestinationTexture;
+			}
 		}
-
+		
 		FRHIResourceCreateInfo CreateInfo(TEXT("FWmfMediaHardwareVideoDecodingTextureSample_DestinationTexture"));
-		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
+		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation |
+			(bIsDestinationTextureSRGB ? TexCreate_SRGB : TexCreate_None);
 		DestinationTexture = RHICreateTexture2D(
 			Dim.X,
 			Dim.Y,
@@ -113,6 +140,33 @@ public:
 
 		return DestinationTexture;
 	}
+
+	/**
+	 * Get Destination Texture of render thread device
+	 *
+	 * @return Destination texture
+	 */
+	FTexture2DRHIRef GetOrCreateDestinationAlphaTexture()
+	{
+		if (DestinationAlphaTexture.IsValid() && DestinationAlphaTexture->GetSizeX() == Dim.X && DestinationAlphaTexture->GetSizeY() == Dim.Y)
+		{
+			return DestinationAlphaTexture;
+		}
+		
+		FRHIResourceCreateInfo CreateInfo(TEXT("FWmfMediaHardwareVideoDecodingTextureSample_DestinationAlphaTexture"));
+		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
+		DestinationAlphaTexture = RHICreateTexture2D(
+			Dim.X,
+			Dim.Y,
+			AlphaFormat,
+			1,
+			1,
+			CreateFlags,
+			CreateInfo);
+
+		return DestinationAlphaTexture;
+	}
+
 
 	/**
 	 * Called the the sample is returned to the pool for cleanup purposes
@@ -132,8 +186,17 @@ private:
 	/** Destination Texture resource (from Rendering device) */
 	FTexture2DRHIRef DestinationTexture;
 
+	/** Destination Texture resource (from Rendering device) */
+	FTexture2DRHIRef DestinationAlphaTexture;
+
 	/** Texture format */
 	EPixelFormat Format;
+
+	/** Texture format */
+	EPixelFormat AlphaFormat;
+
+	/** Whether DestinationTexture should be an sRGB texture or not. */
+	bool bIsDestinationTextureSRGB;
 };
 
 /** Implements a pool for WMF texture samples. */
