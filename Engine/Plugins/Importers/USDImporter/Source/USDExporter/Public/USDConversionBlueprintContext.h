@@ -152,4 +152,15 @@ public:
 	 */
 	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
 	void ReplaceUnrealMaterialsWithBaked( const FFilePath& LayerToAuthorIn, const TMap<FString, FString>& BakedMaterials, bool bIsAssetLayer, bool bUsePayload, bool bRemoveUnrealMaterials );
+
+	/**
+	 * Clears any opinions for the 'unreal' render context surface output of MaterialPrim within LayerToAuthorIn.
+	 * If LayerToAuthorIn is empty it will clear opinions from all layers of the stage's layer stack.
+	 *
+	 * @param Primpath - Path to the prim pxr::UsdShadeMaterial schema to update the 'unreal' surface output of (e.g. "/Root/MyCube/Red")
+	 * @param LayerToAuthorIn - Layer to clear the opinions in. Can be the empty string to clear opinions from all layers in the layer stack
+	 * @return Whether we successfully cleared the opinions or not
+	 */
+	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
+	bool RemoveUnrealSurfaceOutput( const FString& PrimPath, const FFilePath& LayerToAuthorIn );
 };

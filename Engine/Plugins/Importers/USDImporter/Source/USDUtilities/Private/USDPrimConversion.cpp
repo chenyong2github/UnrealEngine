@@ -7,8 +7,8 @@
 #include "USDLayerUtils.h"
 #include "USDLightConversion.h"
 #include "USDLog.h"
+#include "USDShadeConversion.h"
 #include "USDSkeletalDataConversion.h"
-#include "USDLog.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/UsdAttribute.h"
@@ -63,6 +63,7 @@
 #include "pxr/usd/usdGeom/imageable.h"
 #include "pxr/usd/usdGeom/mesh.h"
 #include "pxr/usd/usdGeom/pointInstancer.h"
+#include "pxr/usd/usdGeom/scope.h"
 #include "pxr/usd/usdGeom/tokens.h"
 #include "pxr/usd/usdGeom/xform.h"
 #include "pxr/usd/usdGeom/xformable.h"
@@ -76,8 +77,8 @@
 #include "pxr/usd/usdLux/tokens.h"
 #include "pxr/usd/usdShade/connectableAPI.h"
 #include "pxr/usd/usdShade/material.h"
-#include "pxr/usd/usdShade/shader.h"
 #include "pxr/usd/usdShade/materialBindingAPI.h"
+#include "pxr/usd/usdShade/shader.h"
 #include "pxr/usd/usdShade/tokens.h"
 #include "pxr/usd/usdSkel/animation.h"
 #include "pxr/usd/usdSkel/root.h"
@@ -94,12 +95,14 @@ namespace UE
 			// it already has an 'unreal' render context output and the expected structure, or by creating a new Material prim
 			// that fulfills those requirements.
 			// Doesn't write to 'unrealMaterial' at all, as we intend on deprecating it in the future.
-			void AuthorMaterialOverride( pxr::UsdPrim& MeshPrim, const pxr::SdfAssetPath& UEMaterialAssetPath )
+			void AuthorMaterialOverride( pxr::UsdPrim& MeshPrim, const FString& UEMaterialAssetPath )
 			{
 				if ( !MeshPrim )
 				{
 					return;
 				}
+
+				FScopedUsdAllocs UsdAllocs;
 
 				pxr::UsdShadeMaterialBindingAPI BindingAPI = pxr::UsdShadeMaterialBindingAPI::Apply( MeshPrim );
 
@@ -107,23 +110,35 @@ namespace UE
 				// just write our material there and early out
 				if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial() )
 				{
-					// We need to try reusing these materials or else we'd write a new material prim every time we change
-					// the override in UE, but we also run the risk of modifying a material that is used by multiple prims
-					// (and here we just want to set the override for this Mesh prim). The compromise is to only reuse the
-					// material if it is a child of MeshPrim already, and always to author our material prims as children
-					std::string MaterialPath = ShadeMaterial.GetPrim().GetPath().GetString();
-					std::string MeshPrimPath = MeshPrim.GetPath().GetString();
-					if ( MaterialPath.rfind( MeshPrimPath, 0 ) == 0 )
+					// Only consider this material reusable if its within the same layer as the edit target, otherwise we'll
+					// prefer to author something else that can be fully defined on the edit target. This is handy when we're
+					// exporting a level, as we'll ensure we're making these prims on the MaterialOverrides layer
+					pxr::SdfLayerRefPtr EditTarget = MeshPrim.GetStage()->GetEditTarget().GetLayer();
+					pxr::SdfLayerRefPtr MaterialPrimLayer = static_cast< pxr::SdfLayerRefPtr >( UsdUtils::FindLayerForPrim( ShadeMaterial.GetPrim() ) );
+					if ( EditTarget == MaterialPrimLayer )
 					{
-						if ( pxr::UsdShadeShader ExistingShader = ShadeMaterial.ComputeSurfaceSource( UnrealIdentifiers::Unreal ) )
+						// We need to try reusing these materials or else we'd write a new material prim every time we change
+						// the override in UE, but we also run the risk of modifying a material that is used by multiple prims
+						// (and here we just want to set the override for this Mesh prim). The compromise is to only reuse the
+						// material if it is a child of MeshPrim already, and always to author our material prims as children
+						std::string MaterialPath = ShadeMaterial.GetPrim().GetPath().GetString();
+						std::string MeshPrimPath = MeshPrim.GetPath().GetString();
+						if ( MaterialPath.rfind( MeshPrimPath, 0 ) == 0 )
 						{
-							ExistingShader.SetSourceAsset( UEMaterialAssetPath, UnrealIdentifiers::Unreal );
-							return;
+							if ( pxr::UsdPrim MaterialPrim = ShadeMaterial.GetPrim() )
+							{
+								UsdUtils::SetUnrealSurfaceOutput( MaterialPrim, UEMaterialAssetPath );
+								return;
+							}
 						}
 					}
 				}
 
 				// Find a unique name for our child material prim
+				// Note how we'll always author these materials as children of the meshes themselves instead of emitting a common
+				// Material prim to use for multiple overrides: This because in the future we'll want to have a separate material
+				// bake for each mesh (to make sure we get vertex color effects, etc.), and so we'd have multiple baked .usda material
+				// asset layers for each UE material, and we'd want each mesh/section/LOD to refer to its own anyway
 				FString ChildMaterialName = TEXT( "UnrealMaterial" );
 				if ( pxr::UsdPrim ExistingPrim = MeshPrim.GetChild( UnrealToUsd::ConvertToken( *ChildMaterialName ).Get() ) )
 				{
@@ -142,38 +157,24 @@ namespace UE
 				pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
 				pxr::SdfPath MeshPath = MeshPrim.GetPath();
 				pxr::SdfPath MaterialPath = MeshPath.AppendChild( UnrealToUsd::ConvertToken( *ChildMaterialName ).Get() );
-				pxr::SdfPath ShaderPath = MaterialPath.AppendChild( UnrealToUsd::ConvertToken( TEXT( "UnrealShader" ) ).Get() );
 
 				pxr::UsdShadeMaterial ChildMaterial = pxr::UsdShadeMaterial::Define( Stage, MaterialPath );
 				if ( !ChildMaterial )
 				{
-					UE_LOG(LogUsd, Warning, TEXT("Failed to author material prim '%s' when trying to write '%s's material override '%s' to USD"),
+					UE_LOG( LogUsd, Warning, TEXT( "Failed to author material prim '%s' when trying to write '%s's material override '%s' to USD" ),
 						*UsdToUnreal::ConvertPath( MaterialPath ),
 						*UsdToUnreal::ConvertPath( MeshPrim.GetPath() ),
-						*UsdToUnreal::ConvertString( UEMaterialAssetPath.GetAssetPath() )
+						*UEMaterialAssetPath
 					);
 					return;
 				}
 
-				pxr::UsdShadeShader UnrealShader = pxr::UsdShadeShader::Define( Stage, ShaderPath );
-				if ( !UnrealShader )
+				if ( pxr::UsdPrim MaterialPrim = ChildMaterial.GetPrim() )
 				{
-					UE_LOG( LogUsd, Warning, TEXT( "Failed to author shader prim '%s' when trying to write '%s's material override '%s' to USD" ),
-						*UsdToUnreal::ConvertPath( ShaderPath ),
-						*UsdToUnreal::ConvertPath( MeshPrim.GetPath() ),
-						*UsdToUnreal::ConvertString( UEMaterialAssetPath.GetAssetPath() )
-					);
-					return;
+					UsdUtils::SetUnrealSurfaceOutput( MaterialPrim, UEMaterialAssetPath );
+
+					BindingAPI.Bind( ChildMaterial );
 				}
-
-				UnrealShader.CreateImplementationSourceAttr( pxr::VtValue{ pxr::UsdShadeTokens->sourceAsset } );
-				UnrealShader.SetSourceAsset( UEMaterialAssetPath, UnrealIdentifiers::Unreal );
-				pxr::UsdShadeOutput ShaderOutput = UnrealShader.CreateOutput( UnrealToUsd::ConvertToken( TEXT( "out" ) ).Get(), pxr::SdfValueTypeNames->Token );
-
-				pxr::UsdShadeOutput MaterialOutput = ChildMaterial.CreateSurfaceOutput( UnrealIdentifiers::Unreal );
-				pxr::UsdShadeConnectableAPI::ConnectToSource( MaterialOutput, ShaderOutput );
-
-				BindingAPI.Bind( ChildMaterial );
 			}
 		}
 	}
@@ -1950,8 +1951,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 			pxr::SdfPath OverridePrimPath = UsdPrim.GetPath();
 
 			pxr::UsdPrim MeshPrim = Stage->OverridePrim( OverridePrimPath );
-			std::string UEMaterialOverridePath = UnrealToUsd::ConvertString( *Override->GetPathName() ).Get();
-			UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, pxr::SdfAssetPath{ UEMaterialOverridePath } );
+			UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, Override->GetPathName() );
 		}
 	}
 	else if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( MeshComponent ) )
@@ -1970,8 +1970,6 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 				{
 					continue;
 				}
-
-				std::string UEMaterialOverridePath = UnrealToUsd::ConvertString( *Override->GetPathName() ).Get();
 
 				for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 				{
@@ -2014,7 +2012,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 						}
 
 						pxr::UsdPrim MeshPrim = Stage->OverridePrim( OverridePrimPath );
-						UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, pxr::SdfAssetPath{ UEMaterialOverridePath } );
+						UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, Override->GetPathName() );
 					}
 				}
 			}
@@ -2066,8 +2064,6 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 				{
 					continue;
 				}
-
-				std::string UEMaterialOverridePath = UnrealToUsd::ConvertString( *Override->GetPathName() ).Get();
 
 				for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 				{
@@ -2129,7 +2125,7 @@ bool UnrealToUsd::ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const 
 						}
 
 						pxr::UsdPrim MeshPrim = Stage->OverridePrim( OverridePrimPath );
-						UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, pxr::SdfAssetPath{ UEMaterialOverridePath } );
+						UE::USDPrimConversionImpl::Private::AuthorMaterialOverride( MeshPrim, Override->GetPathName() );
 					}
 				}
 			}
