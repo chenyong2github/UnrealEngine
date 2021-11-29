@@ -14,6 +14,11 @@ namespace TraceServices
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Id type for tags
+typedef uint32 TagIdType;
+	
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class IAllocationsProvider : public IProvider
 {
 public:
@@ -94,7 +99,7 @@ public:
 		uint64 GetSize() const;
 		uint32 GetAlignment() const;
 		const struct FCallstack* GetCallstack() const;
-		uint32 GetTag() const;
+		TagIdType GetTag() const;
 		HeapId GetRootHeap() const;
 		bool IsHeap() const;
 	};
@@ -179,7 +184,7 @@ public:
 
 	// Returns the display name of the specified LLM tag.
 	// Lifetime of returned string matches the session lifetime.
-	virtual const TCHAR* GetTagName(int32 Tag) const = 0;
+	virtual const TCHAR* GetTagName(TagIdType Tag) const = 0;
 };
 
 TRACESERVICES_API FName GetAllocationsProviderName();

@@ -41,26 +41,27 @@ class FTagTracker
 private:
 	static constexpr uint32 TrackerIdShift = 24;
 	static constexpr uint32 TrackerIdMask = 0xFF000000;
-
+	static constexpr uint32 PtrTagMask = 0x80000000;
+	
 	struct ThreadState
 	{
-		TArray<uint32> TagStack;
+		TArray<TagIdType> TagStack;
 	};
 
 	struct TagEntry
 	{
 		const TCHAR* Display;
-		uint32 ParentTag;
+		TagIdType ParentTag;
 	};
 
 public:
-	void AddTagSpec(uint32 Tag, uint32 ParentTag, const TCHAR* Display);
-	void PushTag(uint32 ThreadId, uint8 Tracker, uint32 Tag);
+	void AddTagSpec(TagIdType Tag, TagIdType ParentTag, const TCHAR* Display);
+	void PushTag(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void PopTag(uint32 ThreadId, uint8 Tracker);
-	uint32 GetCurrentTag(uint32 ThreadId, uint8 Tracker) const;
-	const TCHAR* GetTagString(uint32 Tag) const;
+	TagIdType GetCurrentTag(uint32 ThreadId, uint8 Tracker) const;
+	const TCHAR* GetTagString(TagIdType Tag) const;
 
-	void PushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint32 Tag);
+	void PushTagFromPtr(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void PopTagFromPtr(uint32 ThreadId, uint8 Tracker);
 	bool HasTagFromPtrScope(uint32 ThreadId, uint8 Tracker) const;
 
@@ -71,7 +72,7 @@ private:
 	}
 
 	TMap<uint32, ThreadState> TrackerThreadStates;
-	TMap<uint32, TagEntry> TagMap;
+	TMap<TagIdType, TagEntry> TagMap;
 	uint32 NumErrors = 0;
 };
 
@@ -100,7 +101,7 @@ struct FAllocationItem
 	uint64 Address;
 	uint64 SizeAndAlignment; // (Alignment << AlignmentShift) | Size
 	mutable const FCallstack* Callstack;
-	uint32 Tag;
+	TagIdType Tag;
 	uint8 RootHeap;
 	EMemoryTraceHeapAllocationFlags Flags;
 };
@@ -311,7 +312,7 @@ public:
 	void EnumerateLiveAllocs(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
 	uint32 GetNumLiveAllocs() const;
 
-	virtual const TCHAR* GetTagName(int32 Tag) const { ReadAccessCheck(); return TagTracker.GetTagString(Tag); }
+	virtual const TCHAR* GetTagName(TagIdType Tag) const { ReadAccessCheck(); return TagTracker.GetTagString(Tag); }
 	bool HasTagFromPtrScope(uint32 ThreadId, uint8 Tracker) const { ReadAccessCheck(); return TagTracker.HasTagFromPtrScope(ThreadId, Tracker); }
 
 	void DebugPrint() const;
@@ -328,8 +329,8 @@ public:
 	void EditMarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags);
 	void EditUnmarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap);
 	
-	void EditAddTagSpec(int32 Tag, uint32 ParentTag, const TCHAR* Display) { EditAccessCheck(); TagTracker.AddTagSpec(Tag, ParentTag, Display); }
-	void EditPushTag(uint32 ThreadId, uint8 Tracker, uint32 Tag);
+	void EditAddTagSpec(TagIdType Tag, TagIdType ParentTag, const TCHAR* Display) { EditAccessCheck(); TagTracker.AddTagSpec(Tag, ParentTag, Display); }
+	void EditPushTag(uint32 ThreadId, uint8 Tracker, TagIdType Tag);
 	void EditPopTag(uint32 ThreadId, uint8 Tracker);
 	void EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint64 Ptr);
 	void EditPopTagFromPtr(uint32 ThreadId, uint8 Tracker);
