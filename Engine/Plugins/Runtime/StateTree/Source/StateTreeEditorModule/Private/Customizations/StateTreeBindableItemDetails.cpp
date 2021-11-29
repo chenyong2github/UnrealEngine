@@ -244,19 +244,19 @@ public:
 			return false;
 		}
 
-		const UClass* Class = InUnloadedClassData->GetClassWithin();
-		
-		if (!Schema->IsClassAllowed(Class))
+		if (InUnloadedClassData->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract))
+		{
+			return false;
+		}
+
+		const UClass* NativeParentClass = InUnloadedClassData->GetNativeParent();
+
+		if (!Schema->IsClassAllowed(NativeParentClass))
 		{
 			return false;
 		}
 		
-		if (Class == BaseClass)
-		{
-			return bAllowBaseClass;
-		}
-
-		return !BaseClass || Class->IsChildOf(BaseClass);
+		return NativeParentClass->IsChildOf(BaseClass);
 	}
 };
 
