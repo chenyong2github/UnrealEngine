@@ -6,6 +6,7 @@
 #include "ComputeFramework/ComputeKernelDerivedDataVersion.h"
 #include "ComputeFramework/ComputeKernelShaderCompilationManager.h"
 #include "DerivedDataCacheInterface.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Serialization/MemoryWriter.h"
