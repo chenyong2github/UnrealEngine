@@ -246,13 +246,13 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 		TargetGBufferC = -1;
 
 		Info.NumTargets = 1;
-		if (Params.bHasPrecShadowFactor)
-		{
-			TargetGBufferE = Info.NumTargets++;
-		}
 		if (Params.bHasVelocity)
 		{
 			TargetVelocity = Info.NumTargets++;
+		}
+		if (Params.bHasPrecShadowFactor)
+		{
+			TargetGBufferE = Info.NumTargets++;
 		}
 
 		// this value isn't correct, becuase it doesn't resepect the scene color format cvar, but it's ignored anyways

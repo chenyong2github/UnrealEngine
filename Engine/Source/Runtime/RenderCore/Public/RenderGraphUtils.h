@@ -69,6 +69,34 @@ inline FRenderTargetBindingSlots GetRenderTargetBindings(ERenderTargetLoadAction
 	return BindingSlots;
 }
 
+struct FTextureRenderTargetBinding
+{
+	FRDGTextureRef Texture;
+	int16 ArraySlice;
+
+	FTextureRenderTargetBinding()
+		: Texture(nullptr)
+		, ArraySlice(-1)
+	{}
+
+	FTextureRenderTargetBinding(FRDGTextureRef InTexture, int16 InArraySlice = -1)
+		: Texture(InTexture)
+		, ArraySlice(InArraySlice)
+	{}
+};
+inline FRenderTargetBindingSlots GetRenderTargetBindings(ERenderTargetLoadAction ColorLoadAction, TArrayView<FTextureRenderTargetBinding> ColorTextures)
+{
+	check(ColorTextures.Num() <= MaxSimultaneousRenderTargets);
+
+	FRenderTargetBindingSlots BindingSlots;
+	for (int32 Index = 0, Count = ColorTextures.Num(); Index < Count; ++Index)
+	{
+		check(ColorTextures[Index].Texture);
+		BindingSlots[Index] = FRenderTargetBinding(ColorTextures[Index].Texture, ColorLoadAction, 0, ColorTextures[Index].ArraySlice);
+	}
+	return BindingSlots;
+}
+
 /**
  * Clears all render graph tracked resources that are not bound by a shader.
  * Excludes any resources on the ExcludeList from being cleared regardless of whether the 

@@ -180,7 +180,7 @@ int TileSize;
 int bRectPrimitive;
 int2 ViewResolution;
 uint MaxBytesPerPixel;
-ByteAddressBuffer MaterialBuffer;
+Texture2DArray<uint> MaterialTextureArray;
 RWBuffer<uint> SimpleTileIndirectDataBuffer;
 RWBuffer<uint> SimpleTileListDataBuffer;
 RWBuffer<uint> ComplexTileIndirectDataBuffer;
@@ -208,7 +208,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (all(PixelCoord < uint2(ViewResolution)))
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
-		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialBuffer, StrataAddressing);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing);
 
 		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
 		bContainsComplexMaterial = !IsSimpleMaterial(StrataPixelHeader);
@@ -348,7 +348,7 @@ void StencilMainPS(
 
 #if SHADER_CLEAR_MATERIAL_BUFFER
 
-RWByteAddressBuffer MaterialLobesBufferUAV;
+RWTexture2DArray<uint> MaterialTextureArrayUAV;
 RWTexture2D<uint> TopLayerTextureUAV;
 RWTexture2D<uint2> SSSTextureUAV;
 uint MaxBytesPerPixel;
@@ -357,7 +357,7 @@ int2 TiledViewBufferResolution;
 [numthreads(8, 8, 1)]
 void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	if (any(int2(DispatchThreadId.xy) > TiledViewBufferResolution))
+	if (any(int2(DispatchThreadId.xy) >= TiledViewBufferResolution))
 	{
 		return;
 	}
@@ -370,8 +370,8 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	uint BSDFCount = 0;
 	uint PackedStrataHeader = PackStrataHeader(BSDFCount, StrataHeader);
 
-	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(DispatchThreadId.xy, TiledViewBufferResolution, MaxBytesPerPixel);
-	MaterialLobesBufferUAV.Store(StrataAddressing.CurrentAddr, PackedStrataHeader);
+	const uint FirstSlice = 0;
+	MaterialTextureArrayUAV[uint3(DispatchThreadId.xy, FirstSlice)] = PackedStrataHeader;
 
 	TopLayerTextureUAV[DispatchThreadId.xy] = 0;
 
@@ -380,3 +380,28 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 }
 
 #endif // SHADER_CLEAR_MATERIAL_BUFFER
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_POST_BASEPASS
+
+Texture2DArray<uint> MaterialTextureArrayMRTs;
+RWTexture2DArray<uint> MaterialTextureArrayUAV;
+
+[numthreads(8, 8, 1)]
+void PostBasePassCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (any(int2(DispatchThreadId.xy) >= View.ViewSizeAndInvSize.xy))
+	{
+		return;
+	}
+
+	int3 CoordData0 = int3(View.ViewRectMin.xy + DispatchThreadId.xy, 0);
+	int3 CoordData1 = int3(View.ViewRectMin.xy + DispatchThreadId.xy, 1);
+
+	MaterialTextureArrayUAV[CoordData0] = MaterialTextureArrayMRTs[CoordData0];
+	MaterialTextureArrayUAV[CoordData1] = MaterialTextureArrayMRTs[CoordData1];
+}
+
+#endif // SHADER_POST_BASEPASS
+

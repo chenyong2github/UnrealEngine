@@ -18,7 +18,7 @@ float4 StrataEnvironmentLighting(
 	float3 V,
 	float AmbientOcclusion,
 	float TopLayerSpecularContributionFactor,
-	ByteAddressBuffer StrataDataBuffer,
+	FStrataMaterialContainer MaterialBuffer,
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader,
 	inout float SSRReductionFactor,
@@ -53,9 +53,9 @@ float4 StrataEnvironmentLighting(
 #endif
 	{
 	#if STRATA_FASTPATH
-		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(StrataDataBuffer, StrataAddressing);
+		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(MaterialBuffer, StrataAddressing);
 	#else
-		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, StrataAddressing);
+		FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialBuffer, StrataAddressing);
 	#endif
 		const float3 BSDFThroughput = BSDF.FinalWeight;
 
