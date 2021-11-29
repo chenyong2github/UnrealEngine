@@ -33,7 +33,6 @@ struct FVector
 #endif
 };
 
-
 #ifndef EXPLICIT_VECTOR4
 #define EXPLICIT_VECTOR4 0
 #endif
@@ -2674,6 +2673,14 @@ inline FVector VectorNormalize(const varying FVector& Vector)
 	const varying float SquareSum = VectorDot(Vector, Vector);
 	const varying bool bNonZeroMask = SquareSum > SMALL_NUMBER;
 	const varying float Scale = ReciprocalSqrtAccurate(SquareSum);
+	return VectorSelect(bNonZeroMask, Vector * Scale, Vector);
+}
+
+inline uniform FVector VectorNormalize(const uniform FVector& Vector)
+{
+	const uniform float SquareSum = VectorDot(Vector, Vector);
+	const uniform bool bNonZeroMask = SquareSum > SMALL_NUMBER;
+	const uniform float Scale = ReciprocalSqrtAccurate(SquareSum);
 	return VectorSelect(bNonZeroMask, Vector * Scale, Vector);
 }
 

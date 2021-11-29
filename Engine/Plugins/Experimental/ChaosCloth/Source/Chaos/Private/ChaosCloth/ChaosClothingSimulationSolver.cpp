@@ -946,9 +946,9 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 		// Calculate bounding box
 		FAABB3 BoundingBox = FAABB3::EmptyAABB();
 
-		if (bChaos_CalculateBounds_ISPC_Enabled)
-		{
 #if INTEL_ISPC
+		if (bChaos_CalculateBounds_ISPC_Enabled && bRealTypeCompatibleWithISPC)
+		{
 			ParticlesActiveView.RangeFor(
 				[&BoundingBox](FPBDParticles& Particles, int32 Offset, int32 Range)
 				{
@@ -965,9 +965,9 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 					TAABB<float, 3> NewAABB(NewMin, NewMax);
 					BoundingBox = NewAABB;
 				});
-#endif
 		}
 		else
+#endif
 		{
 		ParticlesActiveView.SequentialFor(
 			[&BoundingBox](FPBDParticles& Particles, int32 Index)

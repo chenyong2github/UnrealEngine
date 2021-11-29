@@ -74,7 +74,7 @@ namespace Chaos
 } // namespace Chaos
 
 // Support ISPC enable/disable in non-shipping builds
-constexpr bool bChaos_SkinPhysicsMesh_ISPC_Enable = false;  // Disabled by default
+constexpr bool bChaos_SkinPhysicsMesh_ISPC_Enable = true;
 #if !INTEL_ISPC
 const bool bChaos_SkinPhysicsMesh_ISPC_Enabled = false;
 #elif UE_BUILD_SHIPPING

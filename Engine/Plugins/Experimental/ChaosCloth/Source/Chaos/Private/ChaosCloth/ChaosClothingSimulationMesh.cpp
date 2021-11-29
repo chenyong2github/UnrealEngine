@@ -252,9 +252,9 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	const int32* const RESTRICT BoneMap = Asset->UsedBoneIndices.GetData();
 	const FMatrix44f* const RESTRICT BoneMatrices = Context->RefToLocals.GetData();
 		
-	if (bChaos_SkinPhysicsMesh_ISPC_Enabled)
-	{
 #if INTEL_ISPC
+	if (bChaos_SkinPhysicsMesh_ISPC_Enabled && bRealTypeCompatibleWithISPC)
+	{
 		ispc::SkinPhysicsMesh(
 			(ispc::FVector*)OutPositions,
 			(ispc::FVector*)OutNormals,
@@ -265,9 +265,9 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 			(ispc::FMatrix*)BoneMatrices,
 			(ispc::FTransform&)ComponentToLocalSpace,
 			NumPoints);
-#endif
 	}
 	else
+#endif
 	{
 		static const uint32 MinParallelVertices = 500;  // 500 seems to be the lowest threshold still giving gains even on profiled assets that are only using a small number of influences
 
