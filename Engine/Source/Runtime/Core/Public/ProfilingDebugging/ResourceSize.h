@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/Map.h"
+#include "UObject/NameTypes.h"
 
 class FName;
 
