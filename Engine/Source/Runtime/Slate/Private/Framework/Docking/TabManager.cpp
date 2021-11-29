@@ -1615,6 +1615,7 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(const TSharedRef<FLayou
 			NewStackWidget = SNew(SDockingTabStack, NodeAsStack.ToSharedRef());
 			NewStackWidget->SetSizeCoefficient(LayoutNode->GetSizeCoefficient());
 		}
+
 		// Open Tabs
 		for (const FTab& SomeTab : NodeAsStack->Tabs)
 		{
@@ -1707,20 +1708,8 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(const TSharedRef<FLayou
 			TArray<TSharedRef<SDockingNode>> DockingNodes;
 			if (CanRestoreSplitterContent(DockingNodes, NodeAsArea.ToSharedRef(), NewWindow, OutSidebarTabs, OutputCanBeNullptr))
 			{
-				// Create SplitterWidget only if it will be filled with at least 1 DockingNodes
-				// Any windows that were "pulled out" of a dock area should be children of the window in which the parent dock area resides.
-				if (bIsChildWindow)
-				{
-					FSlateApplication::Get().AddWindowAsNativeChild(NewWindow, ParentWindow.ToSharedRef())->SetContent(
-						SAssignNew(NewDockAreaWidget, SDockingArea, SharedThis(this), NodeAsArea.ToSharedRef()).ParentWindow(NewWindow)
-					);
-				}
-				else
-				{
-					FSlateApplication::Get().AddWindow(NewWindow)->SetContent(
-						SAssignNew(NewDockAreaWidget, SDockingArea, SharedThis(this), NodeAsArea.ToSharedRef()).ParentWindow(NewWindow)
-					);
-				}
+				NewWindow->SetContent(SAssignNew(NewDockAreaWidget, SDockingArea, SharedThis(this), NodeAsArea.ToSharedRef()).ParentWindow(NewWindow));
+
 				// Restore content
 				if (!bCanOutputBeNullptr)
 				{
@@ -1729,6 +1718,21 @@ TSharedPtr<SDockingNode> FTabManager::RestoreArea_Helper(const TSharedRef<FLayou
 				else
 				{
 					RestoreSplitterContent(DockingNodes, NewDockAreaWidget.ToSharedRef());
+				}
+
+				if (bIsChildWindow)
+				{
+					// Recursively check to see how many actually spawned tabs there are in this dock area. If there are none we will not spawn a useless window
+					const int32 TotalNumTabs = NewDockAreaWidget->GetNumTabs();
+
+					if (TotalNumTabs > 0)
+					{
+						FSlateApplication::Get().AddWindowAsNativeChild(NewWindow, ParentWindow.ToSharedRef());
+					}
+				}
+				else
+				{
+					FSlateApplication::Get().AddWindow(NewWindow);
 				}
 			}
 		}
