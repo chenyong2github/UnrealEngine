@@ -15,15 +15,17 @@
 namespace Chaos
 {
 	
-	/** Determines if two convex geometries overlap.
-	 @A The first geometry
-	 @B The second geometry
-	 @BToATM The transform of B in A's local space
-	 @ThicknessA The amount of geometry inflation for Geometry A(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
-	 @InitialDir The first direction we use to search the CSO
-	 @ThicknessB The amount of geometry inflation for Geometry B(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
-	 @return True if the geometries overlap, False otherwise */
-
+	/** 
+		Determines if two convex geometries overlap.
+		
+		@param A The first geometry
+		@param B The second geometry
+		@param BToATM The transform of B in A's local space
+		@param ThicknessA The amount of geometry inflation for Geometry A(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
+		@param InitialDir The first direction we use to search the CSO
+		@param ThicknessB The amount of geometry inflation for Geometry B(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
+		@return True if the geometries overlap, False otherwise 
+	 */
 	template <typename T, typename TGeometryA, typename TGeometryB>
 	bool GJKIntersection(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0)
 	{
@@ -87,7 +89,80 @@ namespace Chaos
 		} while (!bTerminate);
 
 		return bNearZero;
-		
+	}
+
+	/** 
+		Determines if two convex geometries in the same space overlap
+		IMPORTANT: the two convex geometries must be in the same space!
+
+		@param A The first geometry
+		@param B The second geometry
+		@param ThicknessA The amount of geometry inflation for Geometry A(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
+		@param InitialDir The first direction we use to search the CSO
+		@param ThicknessB The amount of geometry inflation for Geometry B(for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
+		@return True if the geometries overlap, False otherwise 
+	*/
+	template <typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKIntersectionSameSpace(const TGeometryA& A, const TGeometryB& B, const T InThicknessA = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T InThicknessB = 0)
+	{
+		TVector<T, 3> V = -InitialDir;
+		if (V.SafeNormalize() == 0)
+		{
+			V = TVec3<T>(-1, 0, 0);
+		}
+
+		FSimplex SimplexIDs;
+		TVector<T, 3> Simplex[4];
+		T Barycentric[4] = { -1,-1,-1,-1 };	//not needed, but compiler warns
+		bool bTerminate;
+		bool bNearZero = false;
+		int NumIterations = 0;
+		T PrevDist2 = FLT_MAX;
+		const T ThicknessA = A.GetMargin() + InThicknessA;
+		const T ThicknessB = B.GetMargin() + InThicknessB;
+		const T Inflation = ThicknessA + ThicknessB + static_cast<T>(1e-3);
+		const T Inflation2 = Inflation * Inflation;
+		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
+		do
+		{
+			if (!ensure(NumIterations++ < 32))	//todo: take this out
+			{
+				break;	//if taking too long just stop. This should never happen
+			}
+			const TVector<T, 3> NegV = -V;
+			const TVector<T, 3> SupportA = A.SupportCore(NegV, A.GetMargin(), nullptr, VertexIndexA);
+			const TVector<T, 3> VInB = V; // same space
+			const TVector<T, 3> SupportB = B.SupportCore(VInB, B.GetMargin(), nullptr, VertexIndexB);
+			const TVector<T, 3> W = SupportA - SupportB;
+
+			if (TVector<T, 3>::DotProduct(V, W) > Inflation)
+			{
+				return false;
+			}
+
+			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;
+			Simplex[SimplexIDs.NumVerts++] = W;
+
+			V = SimplexFindClosestToOrigin(Simplex, SimplexIDs, Barycentric);
+
+			T NewDist2 = V.SizeSquared();
+			bNearZero = NewDist2 < Inflation2;
+
+			//as simplices become degenerate we will stop making progress. This is a side-effect of precision, in that case take V as the current best approximation
+			//question: should we take previous v in case it's better?
+			const bool bMadeProgress = NewDist2 < PrevDist2;
+			bTerminate = bNearZero || !bMadeProgress;
+
+			PrevDist2 = NewDist2;
+
+			if (!bTerminate)
+			{
+				V /= FMath::Sqrt(NewDist2);
+			}
+
+		} while (!bTerminate);
+
+		return bNearZero;
 	}
 
 	/**

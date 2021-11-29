@@ -1311,7 +1311,9 @@ namespace Chaos
 		{
 			for(int32 CurrY = 0; CurrY < NumY; ++CurrY)
 			{
-				OutIntersections.Add(FlatGrid.ClampIndex(TVec2<int32>(MinCell[0] + CurrX, MinCell[1] + CurrY)));
+				const TVec2<int32> Cell(MinCell[0] + CurrX, MinCell[1] + CurrY);
+				check(FlatGrid.IsValid(Cell));
+				OutIntersections.Add(Cell);
 			}
 		}
 
@@ -1731,7 +1733,7 @@ namespace Chaos
 			OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
 		}
 
-		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C, FMTDInfo* InnerMTD) -> bool
+		auto OverlapTriangleMTD = [&](const FVec3& A, const FVec3& B, const FVec3& C, FMTDInfo* InnerMTD) -> bool
 		{
 			const FVec3 AB = B - A;
 			const FVec3 AC = C - A;
@@ -1741,30 +1743,37 @@ namespace Chaos
 			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
 			FTriangle TriangleConvex(A, B, C);
-			if (InnerMTD)
+			FVec3 TriangleNormal(0);
+			FReal Penetration = 0;
+			FVec3 ClosestA(0);
+			FVec3 ClosestB(0);
+			int32 ClosestVertexIndexA, ClosestVertexIndexB;
+			if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
 			{
-				FVec3 TriangleNormal(0);
-				FReal Penetration = 0;
-				FVec3 ClosestA(0);
-				FVec3 ClosestB(0);
-				int32 ClosestVertexIndexA, ClosestVertexIndexB;
-				if (GJKPenetration(TriangleConvex, QueryGeom, QueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
+				// Use Deepest MTD.
+				if (Penetration > InnerMTD->Penetration)
 				{
-					// Use Deepest MTD.
-					if (Penetration > InnerMTD->Penetration)
-					{
-						InnerMTD->Penetration = Penetration;
-						InnerMTD->Normal = TriangleNormal;
-					}
-					return true;
+					InnerMTD->Penetration = Penetration;
+					InnerMTD->Normal = TriangleNormal;
 				}
+				return true;
+			}
 
-				return false;
-			}
-			else
-			{
-				return GJKIntersection(TriangleConvex, QueryGeom, QueryTM, Thickness, Offset);
-			}
+			return false;
+		};
+
+		auto OverlapTriangleNoMTD = [&](const FVec3& A, const FVec3& B, const FVec3& C) -> bool
+		{
+			// points are assumed to be in the same space as the overlap geometry
+			const FVec3 AB = B - A;
+			const FVec3 AC = C - A;
+
+			//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
+			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
+			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
+
+			FTriangle TriangleConvex(A, B, C);
+			return GJKIntersectionSameSpace(TriangleConvex, QueryGeom, Thickness, Offset);
 		};
 
 		bool bResult = false;
@@ -1782,31 +1791,46 @@ namespace Chaos
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
 		bool bOverlaps = false;
-		for(const TVec2<int32>& Cell : Intersections)
+		if (OutMTD)
 		{
-			const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
-			GeomData.GetPointsScaled(SingleIndex, Points);
-
-			if(OverlapTriangle(Points[0], Points[1], Points[3], OutMTD))
+			for (const TVec2<int32>& Cell : Intersections)
 			{
-				bOverlaps = true;
-				if (!OutMTD)
-				{
-					return true;
-				}
-			}
+				const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
+				GeomData.GetPointsScaled(SingleIndex, Points);
 
-			if(OverlapTriangle(Points[0], Points[3], Points[2], OutMTD))
-			{
-				bOverlaps = true;
-				if (!OutMTD)
-				{
-					return true;
-				}
+				bOverlaps |= OverlapTriangleMTD(Points[0], Points[1], Points[3], OutMTD);
+				bOverlaps |= OverlapTriangleMTD(Points[0], Points[3], Points[2], OutMTD);
 			}
+			return bOverlaps;
 		}
+		else
+		{
+			FAABB3 CellBounds;
+			for (const TVec2<int32>& Cell : Intersections)
+			{
+				const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
+				GeomData.GetPointsAndBoundsScaled(SingleIndex, Points, CellBounds);
 
-		return bOverlaps;
+				if (CellBounds.Intersects(QueryBounds))
+				{
+					// pre-transform the triangle in overlap geometry space
+					Points[0] = QueryTM.InverseTransformPositionNoScale(Points[0]);
+					Points[1] = QueryTM.InverseTransformPositionNoScale(Points[1]);
+					Points[2] = QueryTM.InverseTransformPositionNoScale(Points[2]);
+					Points[3] = QueryTM.InverseTransformPositionNoScale(Points[3]);
+
+					if (OverlapTriangleNoMTD(Points[0], Points[1], Points[3]))
+					{
+						return true;
+					}
+					if (OverlapTriangleNoMTD(Points[0], Points[3], Points[2]))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
 	}
 
 	bool FHeightField::OverlapGeom(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
