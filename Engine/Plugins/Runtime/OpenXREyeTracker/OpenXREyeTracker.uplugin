@@ -36,13 +36,7 @@
 	"Plugins": [
 		{
 			"Name": "OpenXR",
-			"Enabled": true,
-			"PlatformAllowList": [
-				"Win64",
-				"Linux",
-				"HoloLens",
-				"Android"
-			]
+			"Enabled": true
 		}
 	]
 }
