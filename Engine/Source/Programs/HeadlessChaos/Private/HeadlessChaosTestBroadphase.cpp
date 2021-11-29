@@ -226,8 +226,8 @@ namespace ChaosTest
 	{
 		Box = MakeUnique<TBox<FReal, 3>>(FVec3(0, 0, 0), FVec3(BoxSize, BoxSize, BoxSize));
 		auto Boxes = MakeUnique<FGeometryParticles>();
-		const int32 NumRows = BoxGridDimensions.X;
-		const int32 NumCols = BoxGridDimensions.Y;
+		const int32 NumCols = BoxGridDimensions.X;
+		const int32 NumRows = BoxGridDimensions.Y;
 		const int32 NumHeight = BoxGridDimensions.Z;
 
 		Boxes->AddParticles(NumRows * NumCols * NumHeight);
@@ -297,6 +297,10 @@ namespace ChaosTest
 				Boxes->X(MoveIdx) -= FVec3(1000, 0, 0);
 				NewBounds = Boxes->Geometry(MoveIdx)->template GetObject<TBox<FReal, 3>>()->BoundingBox().TransformedAABB(FRigidTransform3(Boxes->X(MoveIdx), Boxes->R(MoveIdx)));
 				Spatial2->UpdateElementIn(MoveIdx, NewBounds, true, SpatialIdx);
+
+				FVisitor Visitor4(FVec3(10, 0, 0), FVec3(0, 1, 0), 0, *Boxes);
+				Spatial2->Raycast(Visitor4.Start, Visitor4.Dir, 1000, Visitor4);
+				EXPECT_EQ(Visitor4.Instances.Num(), 9);
 			}
 
 			//move other instance into view
@@ -550,6 +554,20 @@ namespace ChaosTest
 		}
 	}
 
+
+	void AABBTreeTestDynamic()
+	{
+		using TreeType = TAABBTree<int32, TAABBTreeLeafArray<int32>, true>;
+		{
+			TUniquePtr<TBox<FReal, 3>> Box;
+			auto Boxes = BuildBoxes(Box, 100, FVec3(10,10,10));
+			TreeType Spatial(MakeParticleView(Boxes.Get()), TreeType::DefaultMaxChildrenInLeaf, TreeType::DefaultMaxTreeDepth, TreeType::DefaultMaxPayloadBounds, TreeType::DefaultMaxNumToProcess, true);
+			EXPECT_EQ(Spatial.NumDirtyElements(), 0);
+			SpatialTestHelper(Spatial, Boxes.Get(), Box);
+			EXPECT_EQ(Spatial.NumDirtyElements(), 0);
+		}
+		
+	}
 
 	void AABBTreeDirtyGridTest()
 	{

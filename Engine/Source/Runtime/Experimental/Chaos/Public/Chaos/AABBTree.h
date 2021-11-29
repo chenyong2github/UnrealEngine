@@ -28,6 +28,9 @@ struct CHAOS_API FAABBTreeCVars
 
 	static float MaxNonGlobalElementBoundsExtrema; 
 	static FAutoConsoleVariableRef CVarMaxNonGlobalElementBoundsExtrema;
+
+	static float DynamicTreeBoundingBoxPadding;
+	static FAutoConsoleVariableRef CVarDynamicTreeBoundingBoxPadding;
 };
 
 struct CHAOS_API FAABBTreeDirtyGridCVars
@@ -336,6 +339,16 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		}
 	}
 
+	void AddElement(const TPayloadBoundsElement<TPayloadType, T>& Element)
+	{
+		Elems.Add(Element);
+		this->ComputeBounds(Elems);
+	}
+
+	void Reset()
+	{
+		Elems.Reset();
+	}
 
 #if !UE_BUILD_SHIPPING
 	void DebugDrawLeaf(ISpacialDebugDrawInterface<T>& InInterface, const FLinearColor& InLinearColor, float InThickness) const
@@ -379,7 +392,8 @@ struct TAABBTreeNode
 		ChildrenBounds[1] = TAABB<T, 3>();
 	}
 	TAABB<T, 3> ChildrenBounds[2];
-	int32 ChildrenNodes[2] = { 0, 0 };
+	int32 ChildrenNodes[2] = { INDEX_NONE, INDEX_NONE };
+	int32 ParentNode = INDEX_NONE;
 	bool bLeaf = false;
 
 #if !UE_BUILD_SHIPPING
@@ -419,6 +433,12 @@ struct TAABBTreeNode
 		}
 
 		Ar << bLeaf;
+
+		// Dynamic trees are not serialized
+		if (Ar.IsLoading())
+		{
+			ParentNode = INDEX_NONE;
+		}
 	}
 };
 
@@ -435,12 +455,14 @@ struct FAABBTreePayloadInfo
 	int32 DirtyPayloadIdx;
 	int32 LeafIdx;
 	int32 DirtyGridOverflowIdx;
+	int32 NodeIdx;
 
-	FAABBTreePayloadInfo(int32 InGlobalPayloadIdx = INDEX_NONE, int32 InDirtyIdx = INDEX_NONE, int32 InLeafIdx = INDEX_NONE, int32 InDirtyGridOverflowIdx = INDEX_NONE)
+	FAABBTreePayloadInfo(int32 InGlobalPayloadIdx = INDEX_NONE, int32 InDirtyIdx = INDEX_NONE, int32 InLeafIdx = INDEX_NONE, int32 InDirtyGridOverflowIdx = INDEX_NONE, int32 InNodeIdx = INDEX_NONE)
 		: GlobalPayloadIdx(InGlobalPayloadIdx)
 		, DirtyPayloadIdx(InDirtyIdx)
 		, LeafIdx(InLeafIdx)
 		, DirtyGridOverflowIdx(InDirtyGridOverflowIdx)
+		, NodeIdx(InNodeIdx)
 	{}
 
 	void Serialize(FArchive& Ar)
@@ -449,6 +471,11 @@ struct FAABBTreePayloadInfo
 		Ar << DirtyPayloadIdx;
 		Ar << LeafIdx;
 		Ar << DirtyGridOverflowIdx;
+		// Dynamic trees are not serialized
+		if (Ar.IsLoading())
+		{
+			NodeIdx = INDEX_NONE;
+		}
 	}
 };
 
@@ -493,6 +520,10 @@ public:
 		(TIsSame<TBoundingVolume<TPayloadType>, TLeafType>::Value ? ESpatialAcceleration::AABBTreeBV : ESpatialAcceleration::Unknown);
 	TAABBTree()
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
+		, bDynamicTree(false)
+		, RootNode(INDEX_NONE)
+		, FirstFreeInternalNode(INDEX_NONE)
+		, FirstFreeLeafNode(INDEX_NONE)
 		, MaxChildrenInLeaf(DefaultMaxChildrenInLeaf)
 		, MaxTreeDepth(DefaultMaxTreeDepth)
 		, MaxPayloadBounds(DefaultMaxPayloadBounds)
@@ -521,12 +552,25 @@ public:
 		WorkPool.Reset();
 
 		bShouldRebuild = true;
+
+		RootNode = INDEX_NONE;
+		FirstFreeInternalNode = INDEX_NONE;
+		FirstFreeLeafNode = INDEX_NONE;
+
 		this->SetAsyncTimeSlicingComplete(true);
 	}
 
 	virtual void ProgressAsyncTimeSlicing(bool ForceBuildCompletion) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AABBTreeProgressTimeSlice);
+
+		if (bDynamicTree)
+		{
+			// Nothing to do
+			this->SetAsyncTimeSlicingComplete(true);
+			return;
+		}
+
 		// force is to stop time slicing and complete the rest of the build now
 		if (ForceBuildCompletion)
 		{
@@ -542,8 +586,9 @@ public:
 	}
 
 	template <typename TParticles>
-	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess )
+	TAABBTree(const TParticles& Particles, int32 InMaxChildrenInLeaf = DefaultMaxChildrenInLeaf, int32 InMaxTreeDepth = DefaultMaxTreeDepth, T InMaxPayloadBounds = DefaultMaxPayloadBounds, int32 InMaxNumToProcess = DefaultMaxNumToProcess, bool bInDynamicTree = false)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
+		, bDynamicTree(bInDynamicTree)
 		, MaxChildrenInLeaf(InMaxChildrenInLeaf)
 		, MaxTreeDepth(InMaxTreeDepth)
 		, MaxPayloadBounds(InMaxPayloadBounds)
@@ -851,6 +896,397 @@ public:
 		return DirtyGridOverflowIdx;
 	}
 
+	// Expensive function: Don't call unless debugging
+	void DynamicTreeDebugStats()
+	{
+		TArray<FElement> AllElements;
+		for (auto& Leaf : Leaves)
+		{
+			Leaf.GatherElements(AllElements);
+		}
+
+		int32 MaxDepth = 0;
+		int32 DepthTotal = 0;
+		for (const FElement& Element : AllElements)
+		{
+			FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Element.Payload);
+			int32 Depth = 0;
+			int32 Node = PayloadInfo->NodeIdx;
+			check(Node != INDEX_NONE);
+			while (Node != INDEX_NONE)
+			{
+				Node = Nodes[Node].ParentNode;
+				if (Node != INDEX_NONE)
+				{
+					Depth++;
+				}
+			}
+			if (Depth > MaxDepth)
+			{
+				MaxDepth = Depth;
+			}
+			DepthTotal += Depth;
+		}
+#if !WITH_EDITOR
+		CSV_CUSTOM_STAT(ChaosPhysicsTimers, MaximumTreeDepth, MaxDepth, ECsvCustomStatOp::Max);
+		CSV_CUSTOM_STAT(ChaosPhysicsTimers, AvgTreeDepth, DepthTotal / AllElements.Num(), ECsvCustomStatOp::Max);
+		CSV_CUSTOM_STAT(ChaosPhysicsTimers, Dirty,DirtyElements.Num(), ECsvCustomStatOp::Max);
+#endif
+
+	}
+
+	int32 AllocateInternalNode()
+	{
+		int32 AllocatedNodeIdx = FirstFreeInternalNode;
+		if (FirstFreeInternalNode != INDEX_NONE)
+		{
+			// Unlink from free list
+			FirstFreeInternalNode = Nodes[FirstFreeInternalNode].ChildrenNodes[1];
+		}
+		else
+		{
+			// create the actual node space
+			AllocatedNodeIdx = Nodes.AddUninitialized(1);;
+			Nodes[AllocatedNodeIdx].bLeaf = false;
+		}
+
+		return AllocatedNodeIdx;
+	}
+
+	int32 AllocateLeafNodeAndLeaf(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds)
+	{
+		int32 AllocatedNodeIdx = FirstFreeLeafNode;
+		int32 LeafIndex;
+		if (FirstFreeLeafNode != INDEX_NONE)
+		{
+			FirstFreeLeafNode = Nodes[FirstFreeLeafNode].ChildrenNodes[1];
+			LeafIndex = Nodes[AllocatedNodeIdx].ChildrenNodes[0]; // This is already set when it was allocated for the first time
+			FElement NewElement{ Payload, NewBounds };
+			Leaves[LeafIndex].AddElement(NewElement);
+		}
+		else
+		{
+			LeafIndex = Leaves.Num();
+
+			// create the actual node space
+			AllocatedNodeIdx = Nodes.AddUninitialized(1);
+			Nodes[AllocatedNodeIdx].ChildrenNodes[0] = LeafIndex;
+			Nodes[AllocatedNodeIdx].bLeaf = true;
+
+			FElement NewElement{ Payload, NewBounds };
+			TArray<FElement> SingleElementArray;
+			SingleElementArray.Add(NewElement);
+			Leaves.Add(TLeafType{ SingleElementArray }); // Extra copy
+		}
+
+		// Expand the leaf node bounding box to reduce the number of updates
+		TAABB<T, 3> ExpandedBounds = NewBounds;
+		ExpandedBounds.Thicken(FAABBTreeCVars::DynamicTreeBoundingBoxPadding);
+		Nodes[AllocatedNodeIdx].ChildrenBounds[0] = ExpandedBounds;
+
+		Nodes[AllocatedNodeIdx].ParentNode = INDEX_NONE;
+		FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
+		check(PayloadInfo);
+		*PayloadInfo = FAABBTreePayloadInfo{ INDEX_NONE, INDEX_NONE, LeafIndex, INDEX_NONE, AllocatedNodeIdx };
+
+		return AllocatedNodeIdx;
+	}
+
+	void DeAllocateInternalNode(int32 NodeIdx)
+	{
+		Nodes[NodeIdx].ChildrenNodes[1] = FirstFreeInternalNode;
+		FirstFreeInternalNode = NodeIdx;
+	}
+
+	void  DeAllocateLeafNode(int32 NodeIdx)
+	{
+		
+		Leaves[Nodes[NodeIdx].ChildrenNodes[0]].Reset();
+
+		Nodes[NodeIdx].ChildrenNodes[1] = FirstFreeLeafNode;
+		FirstFreeLeafNode = NodeIdx;
+	}
+
+	// Is the input node Child 0 or Child 1?
+	int32 WhichChildAmI(int32 NodeIdx)
+	{
+		check(NodeIdx != INDEX_NONE);
+		int32 ParentIdx = Nodes[NodeIdx].ParentNode;
+		check(ParentIdx != INDEX_NONE);
+		if (Nodes[ParentIdx].ChildrenNodes[0] == NodeIdx)
+		{
+			return  0;
+		}
+		else
+		{
+			return 1;
+		}
+
+		check(false);
+		return 0;
+	}
+
+	// Is the input node Child 0 or Child 1?
+	int32 GetSiblingIndex(int32 NodeIdx)
+	{
+		return(WhichChildAmI(NodeIdx) ^ 1);
+	}
+
+	int32 FindBestSibling(const TAABB<T, 3>& NewBounds)
+	{
+		
+		//Priority Q of indices to explore
+		TArray<int32> PriorityQ;
+		PriorityQ.Reserve(10);
+
+		TArray<FReal> SumDeltaCostQ;
+		SumDeltaCostQ.Reserve(10);
+
+		int32 QIndex = 0;
+		
+		// Initializing
+		
+		TAABB<T, 3> WorkingAABB{ NewBounds };
+		WorkingAABB.GrowToInclude(Nodes[RootNode].ChildrenBounds[0]);
+		if (!Nodes[RootNode].bLeaf)
+		{
+			WorkingAABB.GrowToInclude(Nodes[RootNode].ChildrenBounds[1]);
+		}
+
+		int32 BestSiblingIdx = RootNode;
+		FReal BestCost = WorkingAABB.GetArea();
+		PriorityQ.Add(RootNode);
+		SumDeltaCostQ.Add(0.0f);
+
+		while (PriorityQ.Num() - QIndex)
+		{
+			// Pop from queue
+			uint32 TestSibling = PriorityQ[QIndex];
+			FReal SumDeltaCost = SumDeltaCostQ[QIndex];
+			QIndex++;
+
+			// Alternative is a stack (this is not very optimal so don't use it)
+			//uint32 TestSibling = PriorityQ[PriorityQ.Num() - 1];
+			//FReal SumDeltaCost = SumDeltaCostQ[SumDeltaCostQ.Num() - 1];
+			//PriorityQ.SetNumUninitialized(PriorityQ.Num() - 1);
+			//SumDeltaCostQ.SetNumUninitialized(SumDeltaCostQ.Num() - 1);
+
+			// TestSibling bounds union with new bounds
+			WorkingAABB = Nodes[TestSibling].ChildrenBounds[0];
+			if (!Nodes[TestSibling].bLeaf)
+			{
+				WorkingAABB.GrowToInclude(Nodes[TestSibling].ChildrenBounds[1]);
+			}
+			FReal TestSiblingArea = WorkingAABB.GetArea();
+			WorkingAABB.GrowToInclude(NewBounds);
+
+			FReal NewPotentialNodeArea = WorkingAABB.GetArea();
+			FReal CostForChoosingNode = NewPotentialNodeArea + SumDeltaCost;
+			FReal NewDeltaCost = NewPotentialNodeArea - TestSiblingArea;
+			// Did we get a better cost?
+			if (CostForChoosingNode < BestCost)
+			{
+				BestCost = CostForChoosingNode;
+				BestSiblingIdx = TestSibling;
+			}
+
+			// Lower bound of Children costs
+			FReal ChildCostLowerBound = NewBounds.GetArea() + NewDeltaCost + SumDeltaCost;
+
+			if (!Nodes[TestSibling].bLeaf && ChildCostLowerBound < BestCost)
+			{
+				// Now we will push the children
+				PriorityQ.Add(Nodes[TestSibling].ChildrenNodes[0]);
+				PriorityQ.Add(Nodes[TestSibling].ChildrenNodes[1]);
+				SumDeltaCostQ.Add(NewDeltaCost + SumDeltaCost);
+				SumDeltaCostQ.Add(NewDeltaCost + SumDeltaCost);
+			}
+
+		}
+
+		return BestSiblingIdx;
+	}
+
+	// Rotate nodes to decrease tree cost
+	// Grandchildren can swap with their aunts
+	void RotateNode(uint32 NodeIdx, bool debugAssert = false)
+	{
+		int32 BestGrandChildToSwap = INDEX_NONE; // GrandChild of NodeIdx
+		int32 BestAuntToSwap = INDEX_NONE; // Aunt of BestGrandChildToSwap
+		FReal BestDeltaCost = 0.0f; // Negative values are cost reductions, doing nothing changes the cost with 0
+
+		check(!Nodes[NodeIdx].bLeaf);
+		// Check both children of NodeIdx
+		for (uint32 AuntLocalIdx = 0; AuntLocalIdx < 2; AuntLocalIdx++)
+		{
+			int32 Aunt = Nodes[NodeIdx].ChildrenNodes[AuntLocalIdx];
+			int32 Mother = Nodes[NodeIdx].ChildrenNodes[AuntLocalIdx ^ 1];
+			if (Nodes[Mother].bLeaf)
+			{
+				continue;
+			}
+			for (int32 GrandChild : Nodes[Mother].ChildrenNodes)
+			{
+				// Only the Mother's cost will change
+				TAABB<T, 3> NewMotherAABB{ Nodes[NodeIdx].ChildrenBounds[AuntLocalIdx]}; // Aunt will be under mother now
+				NewMotherAABB.GrowToInclude(Nodes[Mother].ChildrenBounds[GetSiblingIndex(GrandChild)]); // Add the Grandchild's sibling cost
+				FReal MotherCostWithoutRotation = Nodes[NodeIdx].ChildrenBounds[AuntLocalIdx ^ 1].GetArea();
+				FReal MotherCostWithRotation = NewMotherAABB.GetArea();
+				FReal DeltaCost = MotherCostWithRotation - MotherCostWithoutRotation;
+
+				if (DeltaCost < BestDeltaCost)
+				{
+					BestDeltaCost = DeltaCost;
+					BestAuntToSwap = Aunt;
+					BestGrandChildToSwap = GrandChild;
+				}
+
+			}
+		}
+
+		// Now do the rotation if required
+		if (BestGrandChildToSwap != INDEX_NONE)
+		{
+			if (debugAssert)
+			{
+				check(false);
+			}
+
+			int32 AuntLocalChildIdx = WhichChildAmI(BestAuntToSwap);
+			int32 GrandChildLocalChildIdx = WhichChildAmI(BestGrandChildToSwap);
+
+			int32 MotherOfBestGrandChild = Nodes[BestGrandChildToSwap].ParentNode;
+
+			// Modify NodeIdx 
+			Nodes[NodeIdx].ChildrenNodes[AuntLocalChildIdx] = BestGrandChildToSwap;
+			// Modify BestGrandChildToSwap
+			Nodes[BestGrandChildToSwap].ParentNode = NodeIdx;
+			// Modify BestAuntToSwap
+			Nodes[BestAuntToSwap].ParentNode = MotherOfBestGrandChild;
+			// Modify MotherOfBestGrandChild
+			Nodes[MotherOfBestGrandChild].ChildrenNodes[GrandChildLocalChildIdx] = BestAuntToSwap;
+			// Swap the bounds
+			TAABB<T, 3> AuntAABB = Nodes[NodeIdx].ChildrenBounds[AuntLocalChildIdx];
+			Nodes[NodeIdx].ChildrenBounds[AuntLocalChildIdx] = Nodes[MotherOfBestGrandChild].ChildrenBounds[GrandChildLocalChildIdx];
+			Nodes[MotherOfBestGrandChild].ChildrenBounds[GrandChildLocalChildIdx] = AuntAABB;
+			// Update the other child bound of NodeIdx
+			Nodes[NodeIdx].ChildrenBounds[AuntLocalChildIdx ^ 1] = Nodes[MotherOfBestGrandChild].ChildrenBounds[0];
+			Nodes[NodeIdx].ChildrenBounds[AuntLocalChildIdx ^ 1].GrowToInclude(Nodes[MotherOfBestGrandChild].ChildrenBounds[1]);
+		}
+	}
+
+	void InsertLeaf(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds)
+	{
+
+		// Slow Debug Code
+		//if (GetUniqueIdx(Payload).Idx == 5)
+		//{
+		//	DynamicTreeDebugStats();
+		//}
+
+		int32 NewLeafNode = AllocateLeafNodeAndLeaf(Payload, NewBounds);
+
+		// New tree?
+		if (RootNode == INDEX_NONE)
+		{
+			RootNode = NewLeafNode;
+			return;
+		}
+
+		// Find the best sibling
+		int32 BestSibling = FindBestSibling(NewBounds);
+
+		// New internal parent node
+		int32 oldParent = Nodes[BestSibling].ParentNode;
+		int32 newParent = AllocateInternalNode();
+		Nodes[newParent].ParentNode = oldParent;
+		Nodes[newParent].ChildrenNodes[0] = BestSibling;
+		Nodes[newParent].ChildrenNodes[1] = NewLeafNode;
+		Nodes[newParent].ChildrenBounds[0] = Nodes[BestSibling].ChildrenBounds[0];
+		if (!Nodes[BestSibling].bLeaf)
+		{
+			Nodes[newParent].ChildrenBounds[0].GrowToInclude(Nodes[BestSibling].ChildrenBounds[1]);
+		}
+		Nodes[newParent].ChildrenBounds[1] = Nodes[NewLeafNode].ChildrenBounds[0];
+
+		if (oldParent != INDEX_NONE)
+		{
+			int32 ChildIdx = WhichChildAmI(BestSibling);
+			Nodes[oldParent].ChildrenNodes[ChildIdx] = newParent;
+		}
+		else
+		{
+			RootNode = newParent;
+		}
+
+		Nodes[BestSibling].ParentNode = newParent;
+		Nodes[NewLeafNode].ParentNode = newParent;
+
+		UpdateAncestorBounds(newParent, true);
+
+	}	
+
+	void  UpdateAncestorBounds(int32 NodeIdx, bool bDoRotation = false)
+	{
+		int32 CurrentNodeIdx = NodeIdx;
+		int32 ParentNodeIdx = Nodes[NodeIdx].ParentNode;
+
+
+		// This should not be required
+		/*if (bDoRotation && NodeIdx != INDEX_NONE)
+		{
+			RotateNode(NodeIdx,true); 
+		}*/
+		
+		while (ParentNodeIdx != INDEX_NONE)
+		{
+			int32 ChildIndex = WhichChildAmI(CurrentNodeIdx);
+			Nodes[ParentNodeIdx].ChildrenBounds[ChildIndex] = Nodes[CurrentNodeIdx].ChildrenBounds[0];
+			if (!Nodes[CurrentNodeIdx].bLeaf)
+			{
+				Nodes[ParentNodeIdx].ChildrenBounds[ChildIndex].GrowToInclude(Nodes[CurrentNodeIdx].ChildrenBounds[1]);
+			}
+
+			if (bDoRotation)
+			{
+				RotateNode(ParentNodeIdx);
+			}
+
+			CurrentNodeIdx = ParentNodeIdx;
+			ParentNodeIdx = Nodes[CurrentNodeIdx].ParentNode;
+		}
+	}
+
+	void RemoveLeafNode(int32 LeafNodeIdx)
+	{
+		int32 ParentNodeIdx = Nodes[LeafNodeIdx].ParentNode;
+
+		if (ParentNodeIdx != INDEX_NONE)
+		{
+			int32 GrandParentNodeIdx = Nodes[ParentNodeIdx].ParentNode;
+			int32 SiblingNodeLocalIdx = GetSiblingIndex(LeafNodeIdx);
+			int32 SiblingNodeIdx = Nodes[ParentNodeIdx].ChildrenNodes[SiblingNodeLocalIdx];
+
+			if (GrandParentNodeIdx != INDEX_NONE)
+			{
+				int32 ChildLocalIdx = WhichChildAmI(ParentNodeIdx);
+				Nodes[GrandParentNodeIdx].ChildrenNodes[ChildLocalIdx] = SiblingNodeIdx;
+			}
+			else
+			{
+				RootNode = SiblingNodeIdx;
+			}
+			Nodes[SiblingNodeIdx].ParentNode = GrandParentNodeIdx;
+			UpdateAncestorBounds(SiblingNodeIdx);
+			DeAllocateInternalNode(ParentNodeIdx);
+		}
+		else
+		{
+			RootNode = INDEX_NONE;
+		}
+		DeAllocateLeafNode(LeafNodeIdx);
+	}
+
 	virtual void RemoveElement(const TPayloadType& Payload)
 	{
 		if (ensure(bMutable))
@@ -887,7 +1323,14 @@ public:
 				}
 				else if (ensure(PayloadInfo->LeafIdx != INDEX_NONE))
 				{
-					Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
+					if (bDynamicTree)
+					{
+						RemoveLeafNode(PayloadInfo->NodeIdx);
+					}
+					else
+					{
+						Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
+					}
 				}
 
 				PayloadToInfo.Remove(Payload);
@@ -896,9 +1339,23 @@ public:
 		}
 	}
 
-	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bHasBounds) override
+	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bInHasBounds) override
 	{
+#if !WITH_EDITOR
 		//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBTreeUpdateElement)
+		//CSV_CUSTOM_STAT(ChaosPhysicsTimers, 1, 1, ECsvCustomStatOp::Accumulate);
+		//CSV_CUSTOM_STAT(PhysicsCounters, NumIntoNP, 1, ECsvCustomStatOp::Accumulate);
+#endif
+
+		bool bHasBounds = bInHasBounds;
+		// If bounds are bad, use global
+		if (bDynamicTree && bHasBounds && ValidateBounds(NewBounds) == false)
+		{
+			bHasBounds = false;
+			ensureMsgf(false, TEXT("AABBTree encountered invalid bounds input. Forcing element to global payload. Min: %s Max: %s. If Bounds are valid but large, increase FAABBTreeCVars::MaxNonGlobalElementBoundsExtrema."),
+				*NewBounds.Min().ToString(), *NewBounds.Max().ToString());
+		}
+
 		if (ensure(bMutable))
 		{
 			FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
@@ -909,17 +1366,42 @@ public:
 					//If we are still within the same leaf bounds, do nothing, don't detect a change either
 					if (bHasBounds) 
 					{
-						const TAABB<T, 3>& LeafBounds = Leaves[PayloadInfo->LeafIdx].GetBounds();
-						if (LeafBounds.Contains(NewBounds.Min()) && LeafBounds.Contains(NewBounds.Max()))
+						if (bDynamicTree)
 						{
-							// We still need to update the constituent bounds
-							Leaves[PayloadInfo->LeafIdx].UpdateElement(Payload, NewBounds, bHasBounds);
-							return;
+							// The leaf node bounds can be larger than the actual leave bound
+							const TAABB<T, 3>& LeafNodeBounds = Nodes[PayloadInfo->NodeIdx].ChildrenBounds[0];
+							if (LeafNodeBounds.Contains(NewBounds.Min()) && LeafNodeBounds.Contains(NewBounds.Max()))
+							{
+								// We still need to update the constituent bounds
+								Leaves[PayloadInfo->LeafIdx].UpdateElement(Payload, NewBounds, bHasBounds);
+								return;
+							}
+						}
+						else
+						{
+							const TAABB<T, 3>& LeafBounds = Leaves[PayloadInfo->LeafIdx].GetBounds();
+							if (LeafBounds.Contains(NewBounds.Min()) && LeafBounds.Contains(NewBounds.Max()))
+							{
+								// We still need to update the constituent bounds
+								Leaves[PayloadInfo->LeafIdx].UpdateElement(Payload, NewBounds, bHasBounds);
+								return;
+							}
 						}
 					}
 
-					Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
-					PayloadInfo->LeafIdx = INDEX_NONE;
+					// DBVH remove from tree
+
+					if (bDynamicTree)
+					{
+						RemoveLeafNode(PayloadInfo->NodeIdx);
+						PayloadInfo->LeafIdx = INDEX_NONE;
+						PayloadInfo->NodeIdx = INDEX_NONE;
+					}
+					else
+					{
+						Leaves[PayloadInfo->LeafIdx].RemoveElement(Payload);
+						PayloadInfo->LeafIdx = INDEX_NONE;
+					}
 				}
 			}
 			else
@@ -943,11 +1425,18 @@ public:
 			{
 				if (PayloadInfo->DirtyPayloadIdx == INDEX_NONE)
 				{
-					PayloadInfo->DirtyPayloadIdx = DirtyElements.Add(FElement{ Payload, NewBounds });
-					if (DirtyElementGridEnabled())
+					if (bDynamicTree)
 					{
-						//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBAddElement)
-						PayloadInfo->DirtyGridOverflowIdx = AddDirtyElementToGrid(NewBounds, PayloadInfo->DirtyPayloadIdx);
+						InsertLeaf(Payload, NewBounds);
+					}
+					else
+					{
+						PayloadInfo->DirtyPayloadIdx = DirtyElements.Add(FElement{ Payload, NewBounds });
+						if (DirtyElementGridEnabled())
+						{
+							//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBAddElement)
+							PayloadInfo->DirtyGridOverflowIdx = AddDirtyElementToGrid(NewBounds, PayloadInfo->DirtyPayloadIdx);
+						}
 					}
 				}
 				else
@@ -1011,7 +1500,7 @@ public:
 			}
 		}
 
-		if(DirtyElements.Num() > MaxDirtyElements)
+		if(!bDynamicTree && DirtyElements.Num() > MaxDirtyElements)
 		{
 			UE_LOG(LogChaos, Verbose, TEXT("Bounding volume exceeded maximum dirty elements (%d dirty of max %d) and is forcing a tree rebuild."), DirtyElements.Num(), MaxDirtyElements);
 			ReoptimizeTree();
@@ -1067,9 +1556,12 @@ public:
 	}
 
 
-	virtual bool ShouldRebuild() override { return bShouldRebuild; }  // Used to find out if something changed since last reset for optimizations
+	virtual bool ShouldRebuild() override { return bDynamicTree ? false : bShouldRebuild; }  // Used to find out if something changed since last reset for optimizations
 	// Contract: bShouldRebuild can only ever be cleared by calling the ClearShouldRebuild method, it can be set at will though
 	virtual void ClearShouldRebuild() override { bShouldRebuild = false; }
+
+	virtual bool IsTreeDynamic() const override { return bDynamicTree; }
+	bool SetTreeToDynamic() { bDynamicTree = true; } // Tree cannot be changed back to static for now
 
 	virtual void PrepareCopyTimeSliced(const  ISpatialAcceleration<TPayloadType, T, 3>& InFrom) override
 	{
@@ -1096,6 +1588,10 @@ public:
 		MaxNumToProcess = From.MaxNumToProcess;
 		NumProcessedThisSlice = From.NumProcessedThisSlice;
 		bShouldRebuild = From.bShouldRebuild;
+
+		RootNode = From.RootNode;
+		FirstFreeInternalNode = From.FirstFreeInternalNode;
+		FirstFreeLeafNode = From.FirstFreeLeafNode;
 
 		// Reserve sizes for arrays etc
 
@@ -1232,6 +1728,19 @@ public:
 			DirtyElementGridCellSizeInv = 1.0f;
 			bShouldRebuild = true;
 		}
+
+		// Dynamic trees are not serialized/deserialized for now
+		if (Ar.IsLoading())
+		{
+			bDynamicTree = false;
+			RootNode = INDEX_NONE;
+			FirstFreeInternalNode = INDEX_NONE;
+			FirstFreeLeafNode = INDEX_NONE;
+		}
+		else
+		{
+			ensure(bDynamicTree == false);
+		}
 	}
 
 private:
@@ -1260,7 +1769,7 @@ private:
 			Leaf.GatherElements(AllElements);
 		}
 
-		TAABBTree<TPayloadType,TLeafType,bMutable,T> NewTree(AllElements);
+		TAABBTree<TPayloadType,TLeafType,bMutable, T> NewTree(AllElements);
 		*this = NewTree;
 		bShouldRebuild = true; // No changes since last time tree was built
 	}
@@ -1351,6 +1860,9 @@ private:
 		PHYSICS_CSV_CUSTOM_VERY_EXPENSIVE(PhysicsCounters, MaxNumLeaves, Leaves.Num(), ECsvCustomStatOp::Max);
 		PHYSICS_CSV_SCOPED_VERY_EXPENSIVE(PhysicsVerbose, QueryImp);
 		//QUICK_SCOPE_CYCLE_COUNTER(AABBTreeQueryImp);
+#if !WITH_EDITOR
+		//CSV_SCOPED_TIMING_STAT(ChaosPhysicsTimers, AABBTreeQuery)
+#endif
 		FVec3 TmpPosition;
 		FReal TOI = 0;
 		{
@@ -1500,14 +2012,38 @@ private:
 		};
 
 		TArray<FNodeQueueEntry> NodeStack;
-		if (Nodes.Num())
+		if (bDynamicTree)
+		{
+
+			if (RootNode != INDEX_NONE)
+			{
+				NodeStack.Add(FNodeQueueEntry{ RootNode, 0 });
+			}
+		}
+		else if (Nodes.Num())
 		{
 			NodeStack.Add(FNodeQueueEntry{ 0, 0 });
 		}
 
+// Slow debug code
+//#if !WITH_EDITOR
+//		if (Query == EAABBQueryType::Overlap)
+//		{
+//			CSV_CUSTOM_STAT(ChaosPhysicsTimers, OverlapCount, 1, ECsvCustomStatOp::Accumulate);
+//			CSV_CUSTOM_STAT(ChaosPhysicsTimers, DirtyCount, DirtyElements.Num(), ECsvCustomStatOp::Max);
+//		}
+//#endif
+
 		while (NodeStack.Num())
 		{
 			PHYSICS_CSV_SCOPED_VERY_EXPENSIVE(PhysicsVerbose, QueryImp_NodeTraverse);
+
+//#if !WITH_EDITOR
+//			if (Query == EAABBQueryType::Overlap)
+//			{
+//				CSV_CUSTOM_STAT(ChaosPhysicsTimers, AABBCheckCount, 1, ECsvCustomStatOp::Accumulate);
+//			}
+//#endif
 
 			const FNodeQueueEntry NodeEntry = NodeStack.Pop(false);
 			if (Query != EAABBQueryType::Overlap)
@@ -1601,6 +2137,9 @@ private:
 		GlobalPayloads.Reset();
 		Leaves.Reset();
 		Nodes.Reset();
+		RootNode = INDEX_NONE;
+		FirstFreeInternalNode = INDEX_NONE;
+		FirstFreeLeafNode = INDEX_NONE;
 		DirtyElements.Reset();
 		CellHashToFlatArray.Reset(); 
 		FlattenedCellArrayOfDirtyIndices.Reset();
@@ -1610,6 +2149,23 @@ private:
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
 		GetCVars();  // Safe to copy CVARS here
+
+		if (bDynamicTree)
+		{
+			// Todo for now, don't ever return async task
+			int32 Idx = 0;
+			for (auto& Particle : Particles)
+			{
+				bool bHasBoundingBox = HasBoundingBox(Particle);
+				auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
+				TAABB<T, 3> ElemBounds = ComputeWorldSpaceBoundingBox(Particle, false, (T)0);
+				
+				UpdateElement(Payload, ElemBounds, bHasBoundingBox);
+				++Idx;
+			}
+			this->SetAsyncTimeSlicingComplete(true);
+			return;
+		}
 
 		WorkSnapshot.Bounds = TAABB<T, 3>::EmptyAABB();
 
@@ -2067,6 +2623,10 @@ private:
 		, Nodes(Other.Nodes)
 		, Leaves(Other.Leaves)
 		, DirtyElements(Other.DirtyElements)
+		, bDynamicTree(Other.bDynamicTree)
+		, RootNode(Other.RootNode)
+		, FirstFreeInternalNode(Other.FirstFreeInternalNode)
+		, FirstFreeLeafNode(Other.FirstFreeLeafNode)
 		, CellHashToFlatArray(Other.CellHashToFlatArray)
 		, FlattenedCellArrayOfDirtyIndices(Other.FlattenedCellArrayOfDirtyIndices)
 		, DirtyElementsGridOverflow(Other.DirtyElementsGridOverflow)
@@ -2086,6 +2646,8 @@ private:
 		, NumProcessedThisSlice(Other.NumProcessedThisSlice)
 		, bShouldRebuild(Other.bShouldRebuild)
 	{
+
+		ensure(bDynamicTree == Other.IsTreeDynamic());
 
 	}
 
@@ -2110,6 +2672,10 @@ private:
 			Nodes = Rhs.Nodes;
 			Leaves = Rhs.Leaves;
 			DirtyElements = Rhs.DirtyElements;
+			bDynamicTree = Rhs.bDynamicTree;
+			RootNode = Rhs.RootNode;
+			FirstFreeInternalNode = Rhs.FirstFreeInternalNode;
+			FirstFreeLeafNode = Rhs.FirstFreeLeafNode;
 			
 			CellHashToFlatArray = Rhs.CellHashToFlatArray;
 			FlattenedCellArrayOfDirtyIndices = Rhs.FlattenedCellArrayOfDirtyIndices;
@@ -2139,6 +2705,13 @@ private:
 	TArray<FNode> Nodes;
 	TArray<TLeafType> Leaves;
 	TArray<FElement> DirtyElements;
+
+	// DynamicTree members
+	bool bDynamicTree = false;
+	int32 RootNode = INDEX_NONE;
+	// Free lists (indices are in Nodes array)
+	int32 FirstFreeInternalNode = INDEX_NONE;
+	int32 FirstFreeLeafNode = INDEX_NONE;
 
 	// Data needed for DirtyElement2DAccelerationGrid
 	TMap<int32, DirtyGridHashEntry> CellHashToFlatArray; // Index, size into flat grid structure (FlattenedCellArrayOfDirtyIndices)
