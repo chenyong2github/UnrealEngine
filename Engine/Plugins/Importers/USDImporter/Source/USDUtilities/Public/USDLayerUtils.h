@@ -52,7 +52,7 @@ namespace UsdUtils
 	USDUTILITIES_API bool InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCHAR* SubLayerFile, int32 Index = -1, double OffsetTimeCodes = 0.0, double TimeCodesScale = 1.0 );
 
 #if WITH_EDITOR
-	/** Opens a file dialog to open or save a USD file */
+	/** Opens a file dialog to open or save a USD file. The returned file path will always be absolute */
 	USDUTILITIES_API TOptional< FString > BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< const SWidget > OriginatingWidget );
 #endif // #if WITH_EDITOR
 

@@ -1397,7 +1397,7 @@ void AUsdStageActor::OpenUsdStage()
 	FString AbsPath;
 	if ( !RootLayer.FilePath.StartsWith( UnrealIdentifiers::IdentifierPrefix ) && FPaths::IsRelative( RootLayer.FilePath ) )
 	{
-		// The RootLayer property is marked as RelativeToGameDir, and UsdUtils::BrowseUsdFile will also emit paths relative to the project's directory
+		// The RootLayer property is marked as RelativeToGameDir, and FUsdStageViewModel::OpenStage will also give us paths relative to the project's directory
 		FString ProjectDir = FPaths::ConvertRelativePathToFull( FPaths::ProjectDir() );
 		AbsPath = FPaths::ConvertRelativePathToFull( FPaths::Combine( ProjectDir, RootLayer.FilePath ) );
 	}

@@ -146,7 +146,8 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 
 	if ( OutFiles.Num() > 0 )
 	{
-		return MakePathRelativeToProjectDir( OutFiles[0] );
+		// Always make this an absolute path because it may try generating a relative path to the engine binary if it can
+		return FPaths::ConvertRelativePathToFull( OutFiles[ 0 ] );
 	}
 
 	return {};
