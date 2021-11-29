@@ -296,7 +296,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 							{
 								UEdGraphNode* EdNode = FindNodeForModelNodeName(ParentModelNode->GetFName());
 								if (EdNode)
-									{
+								{
 									if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
 									{
 										RigNode->ReconstructNode_Internal(true);

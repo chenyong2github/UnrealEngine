@@ -447,6 +447,7 @@ void UControlRigBlueprint::PostLoad()
 		PatchFunctionReferencesOnLoad();
 		PatchVariableNodesOnLoad();
 		PatchRigElementKeyCacheOnLoad();
+		PatchBoundVariables();
 
 #if WITH_EDITOR
 
@@ -2067,7 +2068,7 @@ TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 
 FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
 {
-	FRigVMExternalVariable Variable = RigVMTypeUtils::ExternalVariableFromCPPType(InName, InCPPType, bIsPublic, bIsReadOnly);
+	FRigVMExternalVariable Variable = RigVMTypeUtils::ExternalVariableFromCPPTypePath(InName, InCPPType, bIsPublic, bIsReadOnly);
 	FName Result = AddCRMemberVariableFromExternal(Variable, InDefaultValue);
 	if (!Result.IsNone())
 	{
@@ -3506,6 +3507,39 @@ void UControlRigBlueprint::PatchRigElementKeyCacheOnLoad()
 				}
 			}
 			Controller->SuspendNotifications(false);
+		}
+	}
+}
+
+void UControlRigBlueprint::PatchBoundVariables()
+{
+	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::BoundVariableWithInjectionNode)
+	{
+		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
+		
+		for (URigVMGraph* Graph : GetAllModels())
+		{
+			URigVMController* Controller = GetOrCreateController(Graph);
+			TArray<URigVMNode*> Nodes = Graph->GetNodes();
+			for (URigVMNode* Node : Nodes)
+			{
+				for (URigVMPin* Pin : Node->GetPins())
+				{
+					for (URigVMInjectionInfo* Info : Pin->GetInjectedNodes())
+					{
+						Info->Node = Info->UnitNode_DEPRECATED;
+						Info->UnitNode_DEPRECATED = nullptr;
+						bDirtyDuringLoad = true;						
+					}
+					
+					if (!Pin->BoundVariablePath_DEPRECATED.IsEmpty())
+					{
+						Controller->BindPinToVariable(Pin->GetPinPath(), Pin->BoundVariablePath_DEPRECATED, false);
+						Pin->BoundVariablePath_DEPRECATED = FString();
+						bDirtyDuringLoad = true;
+					}
+				}
+			}
 		}
 	}
 }

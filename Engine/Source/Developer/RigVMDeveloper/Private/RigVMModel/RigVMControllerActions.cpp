@@ -83,6 +83,8 @@ bool URigVMActionStack::Undo(URigVMController* InController)
 		RedoActions.Add(KeyToUndo);
 		return true;
 	}
+
+	InController->ReportAndNotifyErrorf(TEXT("Error while undoing action %s."), *Wrapper.GetAction()->Title);
 	return false;
 }
 
@@ -105,6 +107,8 @@ bool URigVMActionStack::Redo(URigVMController* InController)
 		ActionIndex = UndoActions.Num();
 		return true;
 	}
+
+	InController->ReportAndNotifyErrorf(TEXT("Error while undoing action %s."), *Wrapper.GetAction()->Title);
 	return false;
 }
 
@@ -175,6 +179,7 @@ bool FRigVMBaseAction::Undo(URigVMController* InController)
 		FRigVMActionWrapper Wrapper(SubActions[KeyIndex]);
 		if(!Wrapper.GetAction()->Undo(InController))
 		{
+			InController->ReportAndNotifyErrorf(TEXT("Error while undoing action '%s'."), *Wrapper.GetAction()->Title);
 			Result = false;
 		}
 	}
@@ -189,6 +194,7 @@ bool FRigVMBaseAction::Redo(URigVMController* InController)
 		FRigVMActionWrapper Wrapper(SubActions[KeyIndex]);
 		if (!Wrapper.GetAction()->Redo(InController))
 		{
+			InController->ReportAndNotifyErrorf(TEXT("Error while redoing action '%s'."), *Wrapper.GetAction()->Title);
 			Result = false;
 		}
 	}
@@ -622,12 +628,25 @@ FRigVMAddInjectedNodeAction::FRigVMAddInjectedNodeAction()
 FRigVMAddInjectedNodeAction::FRigVMAddInjectedNodeAction(URigVMInjectionInfo* InInjectionInfo)
 	: PinPath(InInjectionInfo->GetPin()->GetPinPath())
 	, bAsInput(InInjectionInfo->bInjectedAsInput)
-	, ScriptStructPath(InInjectionInfo->UnitNode->GetScriptStruct()->GetPathName())
-	, MethodName(InInjectionInfo->UnitNode->GetMethodName())
-	, InputPinName(InInjectionInfo->InputPin->GetFName())
-	, OutputPinName(InInjectionInfo->OutputPin->GetFName())
-	, NodePath(InInjectionInfo->UnitNode->GetName())
+	, NodePath(InInjectionInfo->Node->GetName())
 {
+	if (InInjectionInfo->InputPin)
+	{
+		InputPinName = InInjectionInfo->InputPin->GetFName();
+	}
+	if (InInjectionInfo->OutputPin)
+	{
+		OutputPinName = InInjectionInfo->OutputPin->GetFName();
+	}
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InInjectionInfo->Node))
+	{
+		ScriptStructPath = UnitNode->GetScriptStruct()->GetPathName();
+		MethodName = UnitNode->GetMethodName();
+	}
+	else
+	{
+		checkNoEntry();
+	}
 }
 
 bool FRigVMAddInjectedNodeAction::Undo(URigVMController* InController)
@@ -642,9 +661,12 @@ bool FRigVMAddInjectedNodeAction::Undo(URigVMController* InController)
 bool FRigVMAddInjectedNodeAction::Redo(URigVMController* InController)
 {
 #if WITH_EDITOR
-	if (URigVMInjectionInfo* InjectionInfo = InController->AddInjectedNodeFromStructPath(PinPath, bAsInput, ScriptStructPath, MethodName, InputPinName, OutputPinName, NodePath, false))
+	if (!ScriptStructPath.IsEmpty())
 	{
-		return FRigVMBaseAction::Redo(InController);
+		if (URigVMInjectionInfo* InjectionInfo = InController->AddInjectedNodeFromStructPath(PinPath, bAsInput, ScriptStructPath, MethodName, InputPinName, OutputPinName, NodePath, false))
+		{
+			return FRigVMBaseAction::Redo(InController);
+		}
 	}
 #endif
 	return false;
@@ -656,7 +678,15 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 
 	if (URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo())
 	{
-		InverseAction.AddAction(FRigVMAddInjectedNodeAction(InjectionInfo));
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InjectionInfo->Node))
+		{
+			InverseAction.AddAction(FRigVMAddInjectedNodeAction(InjectionInfo));
+		}
+		else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InjectionInfo->Node))
+		{
+			InverseAction.AddAction(FRigVMSetPinBoundVariableAction(InjectionInfo->GetPin(), InjectionInfo->GetPin()->GetBoundVariablePath()));
+		}
+
 		for (URigVMPin* Pin : InNode->GetPins())
 		{
 			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
@@ -1430,6 +1460,7 @@ FRigVMSetPinBoundVariableAction::FRigVMSetPinBoundVariableAction(URigVMPin* InPi
 	, OldBoundVariablePath(InPin->GetBoundVariablePath())
 	, NewBoundVariablePath(InNewBoundVariablePath)
 {
+	
 }
 
 bool FRigVMSetPinBoundVariableAction::Merge(const FRigVMBaseAction* Other)
@@ -1861,7 +1892,7 @@ bool FRigVMRemoveLocalVariableAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue, false).Name.IsNone() != false;
+	return !InController->AddLocalVariable(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, LocalVariable.DefaultValue, false).Name.IsNone();
 }
 
 bool FRigVMRemoveLocalVariableAction::Redo(URigVMController* InController)

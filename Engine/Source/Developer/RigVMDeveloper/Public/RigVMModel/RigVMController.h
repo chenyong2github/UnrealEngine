@@ -807,6 +807,7 @@ private:
 	bool RemovePin(URigVMPin* InPinToRemove, bool bSetupUndoRedo, bool bNotify);
 	FProperty* FindPropertyForPin(const FString& InPinPath);
 	bool BindPinToVariable(URigVMPin* InPin, const FString& InNewBoundVariablePath, bool bSetupUndoRedo);
+	bool UnbindPinFromVariable(URigVMPin* InPin, bool bSetupUndoRedo);
 	bool MakeBindingsFromVariableNode(URigVMVariableNode* InNode, bool bSetupUndoRedo);
 	bool PromotePinToVariable(URigVMPin* InPin, bool bCreateVariableNode, const FVector2D& InNodePosition, bool bSetupUndoRedo);
 
@@ -842,7 +843,6 @@ private:
 		FString CPPType;
 		UObject* CPPTypeObject;
 		FString DefaultValue;
-		FString BoundVariable;
 		bool bIsExpanded;
 		TArray<URigVMInjectionInfo*> InjectionInfos;
 	};
@@ -872,6 +872,8 @@ private:
 	void RewireLinks(URigVMPin* OldPin, URigVMPin* NewPin, bool bAsInput, bool bSetupUndoRedo, TArray<URigVMLink*> InLinks = TArray<URigVMLink*>());
 #endif
 
+
+	bool RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter = nullptr);
 	void DestroyObject(UObject* InObjectToDestroy);
 	static void AddNodePin(URigVMNode* InNode, URigVMPin* InPin);
 	static void AddSubPin(URigVMPin* InParentPin, URigVMPin* InPin);

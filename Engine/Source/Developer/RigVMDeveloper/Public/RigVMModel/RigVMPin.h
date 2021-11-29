@@ -15,6 +15,7 @@ class URigVMNode;
 class URigVMUnitNode;
 class URigVMPin;
 class URigVMLink;
+class URigVMVariableNode;
 
 /**
  * The Injected Info is used for injecting a node on a pin.
@@ -34,7 +35,10 @@ public:
 	}
 
 	UPROPERTY()
-	TObjectPtr<URigVMUnitNode> UnitNode;
+	TObjectPtr<URigVMUnitNode> UnitNode_DEPRECATED;
+
+	UPROPERTY()
+	TObjectPtr<URigVMNode> Node;
 
 	UPROPERTY()
 	bool bInjectedAsInput;
@@ -333,20 +337,22 @@ public:
 	// Returns true if this pin has injected nodes
 	bool HasInjectedNodes() const { return InjectionInfos.Num() > 0; }
 
+	// Returns true if this pin has injected nodes
+	bool HasInjectedUnitNodes() const;
+
 	// Returns the injected nodes this pin contains.
 	const TArray<URigVMInjectionInfo*> GetInjectedNodes() const { return InjectionInfos; }
 
-	// Returns the variable bound to this pin (or NAME_None)
-	const FString& GetBoundVariablePath() const;
+	URigVMVariableNode* GetBoundVariableNode() const;
 
 	// Returns the variable bound to this pin (or NAME_None)
-	const FString& GetBoundVariablePath(const FPinOverride& InOverride) const;
+	const FString GetBoundVariablePath() const;
+
+	// Returns the variable bound to this pin (or NAME_None)
+	const FString GetBoundVariablePath(const FPinOverride& InOverride) const;
 
 	// Returns the variable bound to this pin (or NAME_None)
 	FString GetBoundVariableName() const;
-
-	// Returns the variable bound to this pin (or NAME_None)
-	FString GetBoundVariableName(const FPinOverride& InOverride) const;
 
 	// Returns true if this pin is bound to a variable
 	bool IsBoundToVariable() const;
@@ -357,20 +363,11 @@ public:
 	// Returns true if this pin is bound to an external variable
 	bool IsBoundToExternalVariable() const;
 
-	// Returns true if this pin is bound to an external variable
-	bool IsBoundToExternalVariable(const FPinOverride& InOverride) const;
-
 	// Returns true if this pin is bound to a local variable
 	bool IsBoundToLocalVariable() const;
 
-	// Returns true if this pin is bound to a local variable
-	bool IsBoundToLocalVariable(const FPinOverride& InOverride) const;
-
 	// Returns true if this pin is bound to an input argument
 	bool IsBoundToInputArgument() const;
-
-	// Returns true if this pin is bound to an input argument
-	bool IsBoundToInputArgument(const FPinOverride& InOverride) const;
 
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	// Returns true if the pin can be bound to a given variable
@@ -457,7 +454,7 @@ private:
 	TArray<TObjectPtr<URigVMInjectionInfo>> InjectionInfos;
 
 	UPROPERTY()
-	FString BoundVariablePath;
+	FString BoundVariablePath_DEPRECATED;
 
 	static const FString OrphanPinPrefix;
 

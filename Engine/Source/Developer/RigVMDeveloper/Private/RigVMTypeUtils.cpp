@@ -5,6 +5,7 @@
 
 #if WITH_EDITOR
 
+#include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 
 FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromBPVariableDescription(
@@ -117,8 +118,76 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& 
 	return ExternalVariable;
 }
 
-FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& InName, const FString& InCPPType,
-	bool bInPublic, bool bInReadonly)
+FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPTypePath(const FName& InName, const FString& InCPPTypePath, bool bInPublic, bool bInReadonly)
+{
+	FRigVMExternalVariable Variable;
+	if (InCPPTypePath.StartsWith(TEXT("TMap<")))
+	{
+		return Variable;
+	}
+	
+	Variable.Name = InName;
+	Variable.bIsPublic = bInPublic;
+	Variable.bIsReadOnly = bInReadonly;
+
+	FString CPPTypePath = InCPPTypePath;
+	Variable.bIsArray = RigVMTypeUtils::IsArrayType(CPPTypePath);
+	if (Variable.bIsArray)
+	{
+		CPPTypePath = BaseTypeFromArrayType(CPPTypePath);
+	}
+
+	if (CPPTypePath == TEXT("bool"))
+	{
+		Variable.TypeName = *CPPTypePath;
+		Variable.Size = sizeof(bool);
+	}
+	else if (CPPTypePath == TEXT("float"))
+	{
+		Variable.TypeName = *CPPTypePath;
+		Variable.Size = sizeof(float);
+	}
+	else if (CPPTypePath == TEXT("double"))
+	{
+		Variable.TypeName = *CPPTypePath;
+		Variable.Size = sizeof(double);
+	}
+	else if (CPPTypePath == TEXT("int32"))
+	{
+		Variable.TypeName = *CPPTypePath;
+		Variable.Size = sizeof(int32);
+	}
+	else if (CPPTypePath == TEXT("FString"))
+	{
+		Variable.TypeName = *CPPTypePath;
+		Variable.Size = sizeof(FString);
+	}
+	else if (CPPTypePath == TEXT("FName"))
+	{
+		Variable.TypeName = *CPPTypePath;
+		Variable.Size = sizeof(FName);
+	}
+	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPTypePath))
+	{
+		Variable.TypeName = *ScriptStruct->GetStructCPPName();
+		Variable.TypeObject = ScriptStruct;
+		Variable.Size = ScriptStruct->GetStructureSize();
+	}
+	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPTypePath))
+	{
+		Variable.TypeName = *Enum->CppType;
+		Variable.TypeObject = Enum;
+		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
+	}
+	else
+	{
+		check(false);
+	}
+
+	return Variable;
+}
+
+FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, bool bInPublic, bool bInReadonly)
 {
 	FRigVMExternalVariable Variable;
 	if (InCPPType.StartsWith(TEXT("TMap<")))
@@ -134,7 +203,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	Variable.bIsArray = RigVMTypeUtils::IsArrayType(CPPType);
 	if (Variable.bIsArray)
 	{
-		CPPType = CPPType.RightChop(7).LeftChop(1);
+		CPPType = BaseTypeFromArrayType(CPPType);
 	}
 
 	if (CPPType == TEXT("bool"))
@@ -181,7 +250,9 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	}
 	else
 	{
-		check(false);
+		Variable.TypeName = *CPPType;
+		Variable.TypeObject = InCPPTypeObject;
+		Variable.Size = InCPPTypeObject->StaticClass()->GetStructureSize();
 	}
 
 	return Variable;
@@ -300,6 +371,55 @@ FEdGraphPinType RigVMTypeUtils::PinTypeFromRigVMVariableDescription(
 	}
 
 	return PinType;
+}
+
+FEdGraphPinType RigVMTypeUtils::SubPinType(const FEdGraphPinType& InPinType, const FString& InSegmentPath)
+{
+	FEdGraphPinType Result;
+	if (InSegmentPath.IsEmpty())
+	{
+		return InPinType;
+	}
+
+	if (InPinType.PinSubCategoryObject.IsValid())
+	{
+		if (UStruct* Struct = Cast<UStruct>(InPinType.PinSubCategoryObject))
+		{
+			int32 PartIndex = 0; 
+			TArray<FString> Parts;
+			if (!URigVMPin::SplitPinPath(InSegmentPath, Parts))
+			{
+				Parts.Add(InSegmentPath);
+			}
+			
+			FProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
+			while (PartIndex < Parts.Num() && Property != nullptr)
+			{
+				if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+				{
+					Property = ArrayProperty->Inner;
+					PartIndex++;
+					continue;
+				}
+
+				if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+				{
+					Struct = StructProperty->Struct;
+					Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
+					continue;
+				}
+
+				break;
+			}
+
+			if (PartIndex == Parts.Num() && Property)
+			{
+				UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ConvertPropertyToPinType(Property, Result);
+			}
+		}
+	}
+
+	return Result;
 }
 
 bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FString& OutCPPType, UObject** OutCPPTypeObject)
@@ -428,5 +548,18 @@ bool RigVMTypeUtils::CPPTypeFromExternalVariable(const FRigVMExternalVariable& I
 	}
 		
 	return true;
+}
+
+bool RigVMTypeUtils::AreCompatible(const FRigVMExternalVariable& InTypeA, const FRigVMExternalVariable& InTypeB, const FString& InSegmentPathA, const FString& InSegmentPathB)
+{
+	return AreCompatible(PinTypeFromExternalVariable(InTypeA), PinTypeFromExternalVariable(InTypeB), InSegmentPathA, InSegmentPathB);
+}
+
+bool RigVMTypeUtils::AreCompatible(const FEdGraphPinType& InTypeA, const FEdGraphPinType& InTypeB, const FString& InSegmentPathA, const FString& InSegmentPathB)
+{
+	FEdGraphPinType SubPinTypeA = SubPinType(InTypeA, InSegmentPathA);
+	FEdGraphPinType SubPinTypeB = SubPinType(InTypeB, InSegmentPathB);
+	
+	return UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ArePinTypesCompatible(SubPinTypeA, SubPinTypeB);	
 }
 #endif

@@ -384,26 +384,6 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 						}
 					}
 				}
-				else
-				{
-					bool bAdded = false;
-					for (URigVMPin* Pin : Node->GetPins())
-					{
-						if (Pin->IsBoundToLocalVariable())
-						{
-							if (Pin->GetBoundVariableName() == LocalVariable.Name.ToString())
-							{
-								AddDefaultValueOperand(Pin);
-								bAdded = true;
-								break;
-							}
-						}
-					}
-					if (bAdded)
-					{
-						break;
-					}
-				}
 			}
 		}
 	}	
@@ -1060,12 +1040,6 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				{
 					URigVMPin* RootPin = Pin->GetRootPin();
 					if (Pin == RootPin)
-					{
-						return;
-					}
-
-					URigVMPin::FPinOverride PinOverride(VarExpr->GetProxy(), VarExpr->GetParser()->GetPinOverrides());
-					if (bSource && Pin->IsBoundToVariable(PinOverride))
 					{
 						return;
 					}
@@ -1948,24 +1922,6 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariablePath, *Suffix);
 		}
 
-		if (InPin->IsBoundToLocalVariable())
-		{
-			URigVMPin::FPinOverride PinOverride(InVarExpr->GetProxy(), InVarExpr->GetParser()->GetPinOverrides());
-			FString VariablePath = InPin->GetBoundVariablePath(PinOverride);
-
-			FRigVMASTProxy ParentProxy = InVarExpr->GetProxy();
-			while(ParentProxy.GetCallstack().Num() > 1)
-			{
-				ParentProxy = ParentProxy.GetParent();
-
-				if(URigVMLibraryNode* LibraryNode = ParentProxy.GetSubject<URigVMLibraryNode>())
-				{
-					// Local variables are in the format "LocalVariable::PathToGraph|VariableName"
-					return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *LibraryNode->GetNodePath(true), *VariablePath, *Suffix);
-				}
-			}
-		}
-
 		// for IO array pins we'll walk left and use that pin hash instead
 		if(const FRigVMVarExprAST* SourceVarExpr = GetSourceVarExpr(InVarExpr))
 		{
@@ -2492,49 +2448,6 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 				WorkData.ExprToOperand.Add(InVarExpr, *ExistingOperand);
 			}
 			return *ExistingOperand;
-		}
-	}
-
-	// check if this is a variable with a segment path
-	if (!Operand.IsValid())
-	{
-		if (Pin->IsBoundToVariable(PinOverride) && !bIsDebugValue)
-		{
-			FString VariablePath = Pin->GetBoundVariablePath(PinOverride);
-			FString VariableName = VariablePath, SegmentPath;
-			VariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
-
-			ExistingOperand = WorkData.PinPathToOperand->Find(FString::Printf(TEXT("LocalVariable::%s"), *VariableName));
-			if (ExistingOperand)
-			{
-				Operand = *ExistingOperand;
-				Operand.RegisterOffset = INDEX_NONE;
-				check(SegmentPath.IsEmpty());
-			}
-			else
-			{
-				ExistingOperand = WorkData.PinPathToOperand->Find(FString::Printf(TEXT("Variable::%s"), *VariableName));
-				if (ExistingOperand)
-				{
-					Operand = *ExistingOperand;
-					Operand.RegisterOffset = INDEX_NONE;
-					if (!SegmentPath.IsEmpty())
-					{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-						
-						const FRigVMExternalVariable& ExternalVariable = WorkData.VM->GetExternalVariables()[Operand.GetRegisterIndex()];
-						UScriptStruct* ScriptStruct = CastChecked<UScriptStruct>(ExternalVariable.TypeObject);
-						Operand.RegisterOffset = WorkData.VM->GetWorkMemory().GetOrAddRegisterOffset(Operand.GetRegisterIndex(), ScriptStruct, SegmentPath, 0 /*ArrayIndex */);
-
-#else
-
-						const int32 PropertyPathIndex = WorkData.FindOrAddPropertyPath(Operand, Pin->GetCPPType(), SegmentPath);
-						Operand.RegisterOffset = (uint16)PropertyPathIndex;
-						
-#endif
-					}
-				}
-			}
 		}
 	}
 

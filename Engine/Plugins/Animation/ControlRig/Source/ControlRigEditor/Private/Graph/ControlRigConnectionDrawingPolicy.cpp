@@ -286,11 +286,14 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 			if (InputModelPin)
 			{
 				InputModelPin = InputModelPin->GetPinForLink();
-				if (URigVMInjectionInfo* InputInjection = InputModelPin->GetNode()->GetInjectionInfo())
+				if (InputModelPin)
 				{
-					if (InputModelPin->GetNode()->IsSelected())
+					if (URigVMInjectionInfo* InputInjection = InputModelPin->GetNode()->GetInjectionInfo())
 					{
-						bInjectionIsSelected = true;
+						if (InputModelPin->GetNode()->IsSelected())
+						{
+							bInjectionIsSelected = true;
+						}
 					}
 				}
 			}

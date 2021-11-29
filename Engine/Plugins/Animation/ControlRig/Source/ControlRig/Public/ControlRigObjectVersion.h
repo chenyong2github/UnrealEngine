@@ -45,6 +45,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// RenameGizmoToShape 
 		RenameGizmoToShape,
 
+		// BoundVariableWithInjectionNode 
+		BoundVariableWithInjectionNode,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -531,8 +531,8 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 		{
 			const URigVMPin* InjectionInfoPin = InjectionInfo->GetPin();
 			const FString InjectionInfoPinPath = GetSanitizedPinPath(InjectionInfoPin->GetPinPath());
-			const FString InjectionInfoInputPinName = GetSanitizedPinName(InjectionInfo->InputPin->GetName());
-			const FString InjectionInfoOutputPinName = GetSanitizedPinName(InjectionInfo->OutputPin->GetName());
+			const FString InjectionInfoInputPinName = InjectionInfo->InputPin ? GetSanitizedPinName(InjectionInfo->InputPin->GetName()) : FString();
+			const FString InjectionInfoOutputPinName = InjectionInfo->OutputPin ? GetSanitizedPinName(InjectionInfo->OutputPin->GetName()) : FString();
 
 			//URigVMInjectionInfo* AddInjectedNodeFromStructPath(const FString& InPinPath, bool bAsInput, const FString& InScriptStructPath, const FName& InMethodName, const FName& InInputPinName, const FName& InOutputPinName, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
 			Commands.Add(FString::Printf(TEXT("%s_info = blueprint.get_controller_by_name('%s').add_injected_node_from_struct_path('%s', %s, '%s', '%s', '%s', '%s', '%s')"),
@@ -1285,15 +1285,6 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 				}
 			}
 		}
-
-		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
-		for (URigVMPin* Pin : AllPins)
-		{
-			if (Pin->GetBoundVariableName() == InVarName.ToString())
-			{
-				BindPinToVariable(Pin, FString(), bSetupUndoRedo);
-			}
-		}
 	}
 
 	if (bSetupUndoRedo)
@@ -1380,17 +1371,6 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 				{
 					SetRemappedVariable(FunctionReferenceNode, VariablePair.Key, InNewVarName, bSetupUndoRedo);
 				}
-			}
-		}
-
-		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
-		for (URigVMPin* Pin : AllPins)
-		{
-			if (Pin->GetBoundVariableName() == InOldVarName.ToString())
-			{
-				FString OldVariablePath = Pin->GetBoundVariablePath();
-				FString NewVariablePath = OldVariablePath.Replace(*InOldVarName.ToString(), *InNewVarName.ToString());
-				BindPinToVariable(Pin, NewVariablePath, bSetupUndoRedo);
 			}
 		}
 	}
@@ -1485,7 +1465,7 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 			if (Pin->GetBoundVariableName() == InVarName.ToString())
 			{
 				FString BoundVariablePath = Pin->GetBoundVariablePath();
-				BindPinToVariable(Pin, FString(), bSetupUndoRedo);
+				UnbindPinFromVariable(Pin, bSetupUndoRedo);
 				// try to bind it again - maybe it can be bound (due to cast rules etc)
 				BindPinToVariable(Pin, BoundVariablePath, bSetupUndoRedo);
 			}
@@ -2135,9 +2115,9 @@ URigVMInjectionInfo* URigVMController::AddInjectedNode(const FString& InPinPath,
 	URigVMInjectionInfo* InjectionInfo = NewObject<URigVMInjectionInfo>(Pin);
 
 	// re-parent the unit node to be under the injection info
-	UnitNode->Rename(nullptr, InjectionInfo);
+	RenameObject(UnitNode, nullptr, InjectionInfo);
 
-	InjectionInfo->UnitNode = UnitNode;
+	InjectionInfo->Node = UnitNode;
 	InjectionInfo->bInjectedAsInput = bAsInput;
 	InjectionInfo->InputPin = InputPin;
 	InjectionInfo->OutputPin = OutputPin;
@@ -2258,14 +2238,10 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 
 	URigVMInjectionInfo* Injection = Pin->InjectionInfos.Last();
 
-	UScriptStruct* ScriptStruct = Injection->UnitNode->GetScriptStruct();
-	FName UnitNodeName = Injection->UnitNode->GetFName();
-	FName MethodName = Injection->UnitNode->GetMethodName();
-	FName InputPinName = Injection->InputPin->GetFName();
-	FName OutputPinName = Injection->OutputPin->GetFName();
-
+	FName NodeName = Injection->Node->GetFName();
+	
 	TMap<FName, FString> DefaultValues;
-	for (URigVMPin* PinOnNode : Injection->UnitNode->GetPins())
+	for (URigVMPin* PinOnNode : Injection->Node->GetPins())
 	{
 		if (PinOnNode->GetDirection() == ERigVMPinDirection::Input ||
 			PinOnNode->GetDirection() == ERigVMPinDirection::Visible ||
@@ -2295,7 +2271,15 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		Position -= FVector2D(250.f, 0.f);
 	}
 
-	URigVMNode* EjectedNode = AddUnitNode(ScriptStruct, MethodName, Position, FString(), bSetupUndoRedo);
+	URigVMNode* EjectedNode = nullptr;
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Injection->Node))
+	{
+		EjectedNode = AddUnitNode(UnitNode->GetScriptStruct(), UnitNode->GetMethodName(), Position, FString(), bSetupUndoRedo);
+	}
+	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Injection->Node))
+	{
+		EjectedNode = AddVariableNode(VariableNode->GetVariableName(), VariableNode->GetCPPType(), VariableNode->GetCPPTypeObject(), true, VariableNode->GetDefaultValue(), Position, FString(), bSetupUndoRedo);
+	}
 
 	for (const TPair<FName, FString>& Pair : DefaultValues)
 	{
@@ -2309,17 +2293,24 @@ URigVMNode* URigVMController::EjectNodeFromPin(const FString& InPinPath, bool bS
 		}
 	}
 
-	TArray<URigVMLink*> PreviousLinks = Injection->InputPin->GetSourceLinks(true);
-	PreviousLinks.Append(Injection->OutputPin->GetTargetLinks(true));
+	TArray<URigVMLink*> PreviousLinks;
+	if (Injection->InputPin)
+	{
+		Injection->InputPin->GetSourceLinks(true);
+	}
+	if (Injection->OutputPin)
+	{
+		PreviousLinks.Append(Injection->OutputPin->GetTargetLinks(true));
+	}
 	for (URigVMLink* PreviousLink : PreviousLinks)
 	{
 		PreviousLink->PrepareForCopy();
 		PreviousLink->SourcePin = PreviousLink->TargetPin = nullptr;
 	}
 
-	RemoveNode(Injection->UnitNode, bSetupUndoRedo);
+	RemoveNode(Injection->Node, bSetupUndoRedo);
 
-	FString OldNodeNamePrefix = UnitNodeName.ToString() + TEXT(".");
+	FString OldNodeNamePrefix = NodeName.ToString() + TEXT(".");
 	FString NewNodeNamePrefix = EjectedNode->GetName() + TEXT(".");
 
 	for (URigVMLink* PreviousLink : PreviousLinks)
@@ -2436,7 +2427,7 @@ FString URigVMController::ExportNodesToText(const TArray<FName>& InNodeNames)
 			{
 				for (URigVMInjectionInfo* Injection : Pin->GetInjectedNodes())
 				{
-					AllNodeNames.AddUnique(Injection->UnitNode->GetFName());
+					AllNodeNames.AddUnique(Injection->Node->GetFName());
 				}
 			}
 		}
@@ -2536,13 +2527,13 @@ protected:
 			{
 				for (URigVMInjectionInfo* Injection : Pin->GetInjectedNodes())
 				{
-					ProcessConstructedObject(Injection->UnitNode);
+					ProcessConstructedObject(Injection->Node);
 
-					FName NewName = Injection->UnitNode->GetFName();
+					FName NewName = Injection->Node->GetFName();
 					UpdateObjectName(URigVMNode::StaticClass(), NewName);
-					Injection->UnitNode->Rename(*NewName.ToString(), nullptr);
-					Injection->InputPin = Injection->UnitNode->FindPin(Injection->InputPin->GetName());
-					Injection->OutputPin = Injection->UnitNode->FindPin(Injection->OutputPin->GetName());
+					Controller->RenameObject(Injection->Node, *NewName.ToString(), nullptr);
+					Injection->InputPin = Injection->InputPin ? Injection->Node->FindPin(Injection->InputPin->GetName()) : nullptr;
+					Injection->OutputPin = Injection->OutputPin ? Injection->Node->FindPin(Injection->OutputPin->GetName()) : nullptr;
 				}
 			}
 		}
@@ -4818,13 +4809,19 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 
 		if (InjectionInfo->bInjectedAsInput)
 		{
-			URigVMPin* LastInputPin = Pin;
-			RewireLinks(InjectionInfo->InputPin, LastInputPin, true, false);
+			if (InjectionInfo->InputPin)
+			{
+				URigVMPin* LastInputPin = Pin;
+				RewireLinks(InjectionInfo->InputPin, LastInputPin, true, false);
+			}
 		}
 		else
 		{
-			URigVMPin* LastOutputPin = Pin;
-			RewireLinks(InjectionInfo->OutputPin, LastOutputPin, false, false);
+			if (InjectionInfo->OutputPin)
+			{
+				URigVMPin* LastOutputPin = Pin;
+				RewireLinks(InjectionInfo->OutputPin, LastOutputPin, false, false);
+			}
 		}
 	}
 
@@ -4911,7 +4908,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 			TArray<URigVMInjectionInfo*> InjectedNodes = Pin->GetInjectedNodes();
 			for (URigVMInjectionInfo* InjectedNode : InjectedNodes)
 			{
-				RemoveNode(InjectedNode->UnitNode, bSetupUndoRedo, bRecursive);
+				RemoveNode(InjectedNode->Node, bSetupUndoRedo, bRecursive);
 			}
 
 			BreakAllLinks(Pin, true, bSetupUndoRedo);
@@ -5044,7 +5041,7 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 	}
 
 	InNode->PreviousName = InNode->GetFName();
-	if (!InNode->Rename(*ValidNewName.ToString()))
+	if (!RenameObject(InNode, *ValidNewName.ToString()))
 	{
 		ActionStack->CancelAction(Action);
 		return false;
@@ -6538,7 +6535,7 @@ URigVMPin* URigVMController::InsertArrayPin(URigVMPin* ArrayPin, int32 InIndex, 
 	for (int32 ExistingIndex = ArrayPin->GetSubPins().Num() - 1; ExistingIndex >= InIndex; ExistingIndex--)
 	{
 		URigVMPin* ExistingPin = ArrayPin->GetSubPins()[ExistingIndex];
-		ExistingPin->Rename(*FString::FormatAsNumber(ExistingIndex + 1));
+		RenameObject(ExistingPin, *FString::FormatAsNumber(ExistingIndex + 1));
 	}
 
 	URigVMPin* Pin = NewObject<URigVMPin>(ArrayPin, *FString::FormatAsNumber(InIndex));
@@ -6805,7 +6802,16 @@ bool URigVMController::BindPinToVariable(const FString& InPinPath, const FString
 		return false;
 	}
 
-	const bool bSuccess = BindPinToVariable(Pin, InNewBoundVariablePath, bSetupUndoRedo);
+	bool bSuccess = false;
+	if (InNewBoundVariablePath.IsEmpty())
+	{
+		bSuccess = UnbindPinFromVariable(Pin, bSetupUndoRedo);
+	}
+	else
+	{
+		bSuccess = BindPinToVariable(Pin, InNewBoundVariablePath, bSetupUndoRedo);
+	}
+	
 	if (bSuccess && bPrintPythonCommand)
 	{
 		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
@@ -6820,19 +6826,9 @@ bool URigVMController::BindPinToVariable(const FString& InPinPath, const FString
 	return bSuccess;
 }
 
-bool URigVMController::UnbindPinFromVariable(const FString& InPinPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
-{
-	return BindPinToVariable(InPinPath, FString(), bSetupUndoRedo, bPrintPythonCommand);
-}
-
 bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewBoundVariablePath, bool bSetupUndoRedo)
 {
 	if (!IsValidPinForGraph(InPin))
-	{
-		return false;
-	}
-
-	if (InPin->GetBoundVariablePath() == InNewBoundVariablePath)
 	{
 		return false;
 	}
@@ -6843,68 +6839,201 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		return false;
 	}
 
-	// check that the variable is compatible
-	if (!InNewBoundVariablePath.IsEmpty())
+	if (InPin->GetBoundVariablePath() == InNewBoundVariablePath)
 	{
-		FString VariableName = InNewBoundVariablePath, SegmentPath;
-		InNewBoundVariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
+		return false;
+	}
 
-		FRigVMExternalVariable Variable = GetVariableByName(*VariableName, true);
-		if (Variable.IsValid(true))
+	if (InPin->GetDirection() != ERigVMPinDirection::Input)
+	{
+		return false;
+	}
+
+	FString VariableName = InNewBoundVariablePath, SegmentPath;
+	InNewBoundVariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
+
+	FRigVMExternalVariable Variable;
+	for (const FRigVMExternalVariable& VariableDescription : GetAllVariables(true))
+	{
+		if (VariableDescription.Name.ToString() == VariableName)
 		{
-#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
-			FRigVMRegisterOffset RegisterOffset;
-			if (!SegmentPath.IsEmpty())
-			{
-				RegisterOffset = FRigVMRegisterOffset(Cast<UScriptStruct>(ExternalVariable.TypeObject), SegmentPath);
-			}
-			if (!InPin->CanBeBoundToVariable(ExternalVariable, RegisterOffset))
-			{
-				return false;
-			}
-#else
-			if (!InPin->CanBeBoundToVariable(Variable, SegmentPath))
-			{
-				return false;
-			}
-#endif
+			Variable = VariableDescription;
+			break;
 		}
-		else
+	}
+
+	if (!Variable.Name.IsValid())
+	{
+		ReportError(TEXT("Cannot find variable in this graph."));
+		return false;
+	}
+
+	
+	if (!RigVMTypeUtils::AreCompatible(Variable, InPin->ToExternalVariable(), SegmentPath))
+	{
+		ReportError(TEXT("Cannot find variable in this graph."));
+		return false;
+	}
+	
+	FRigVMControllerCompileBracketScope CompileScope(this);
+	FRigVMBaseAction Action;
+	if (bSetupUndoRedo)
+	{
+		Action.Title = TEXT("Bind pin to variable");
+		ActionStack->BeginAction(Action);
+	}
+
+	{
+		if (InPin->IsBoundToVariable())
 		{
+			UnbindPinFromVariable(InPin, bSetupUndoRedo);
+		}
+		TArray<URigVMInjectionInfo*> Infos = InPin->GetInjectedNodes();
+		for (URigVMInjectionInfo* Info : Infos)
+		{
+			RemoveNode(Info->Node, bSetupUndoRedo);
+		}
+		BreakAllLinks(InPin, true, bSetupUndoRedo);
+	}
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->AddAction(FRigVMSetPinBoundVariableAction(InPin, InNewBoundVariablePath));
+	}		
+	
+	// Create variable node
+	URigVMVariableNode* VariableNode = nullptr;
+	{
+		{
+			TGuardValue<bool> GuardNotifications(bSuspendNotifications, true);
+			FString CPPType;
+			UObject* CPPTypeObject;
+			RigVMTypeUtils::CPPTypeFromExternalVariable(Variable, CPPType, &CPPTypeObject);
+			VariableNode = AddVariableNode(*VariableName, CPPType, CPPTypeObject, true, FString(), FVector2D::ZeroVector, FString(), false);
+		}
+		if (VariableNode == nullptr)
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
 			return false;
 		}
+	}
+	
+	URigVMPin* ValuePin = VariableNode->FindPin(URigVMVariableNode::ValueName);
+	if (!SegmentPath.IsEmpty())
+	{
+		ValuePin = ValuePin->FindSubPin(SegmentPath);
+	}
+
+	// Add injection 
+	URigVMInjectionInfo* InjectionInfo = NewObject<URigVMInjectionInfo>(InPin);
+	{
+		// re-parent the unit node to be under the injection info
+		RenameObject(VariableNode, nullptr, InjectionInfo);
+		
+		InjectionInfo->Node = VariableNode;
+		InjectionInfo->bInjectedAsInput = true;
+		InjectionInfo->InputPin = nullptr;
+		InjectionInfo->OutputPin = ValuePin;
+	
+		InPin->InjectionInfos.Add(InjectionInfo);
+		Notify(ERigVMGraphNotifType::NodeAdded, VariableNode);
+	}
+
+	{		
+		if (!AddLink(ValuePin, InPin, false))
+		{
+			if (bSetupUndoRedo)
+			{
+				ActionStack->CancelAction(Action);
+			}
+			return false;
+		}
+	}
+	
+	if (bSetupUndoRedo)
+	{
+		ActionStack->EndAction(Action);
+	}
+
+	return true;
+}
+
+bool URigVMController::UnbindPinFromVariable(const FString& InPinPath, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMPin* Pin = Graph->FindPin(InPinPath);
+	if (Pin == nullptr)
+	{
+		ReportErrorf(TEXT("Cannot find pin '%s'."), *InPinPath);
+		return false;
+	}
+
+	const bool bSuccess = UnbindPinFromVariable(Pin, bSetupUndoRedo);
+	if (bSuccess && bPrintPythonCommand)
+	{
+		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+		
+		RigVMPythonUtils::Print(GetGraphOuterName(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').unbind_pin_from_variable('%s')"),
+			*GraphName,
+			*GetSanitizedPinPath(InPinPath)));
+	}
+	
+	return bSuccess;
+}
+
+bool URigVMController::UnbindPinFromVariable(URigVMPin* InPin, bool bSetupUndoRedo)
+{
+	if (!IsValidPinForGraph(InPin))
+	{
+		return false;
+	}
+
+
+	if (GetGraph()->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot unbind pins from variables in function library graphs."));
+		return false;
+	}
+
+	if (!InPin->IsBoundToVariable())
+	{
+		ReportError(TEXT("Pin is not bound to any variable."));
+		return false;
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
 	{
-		if (InNewBoundVariablePath.IsEmpty())
-		{
-			Action.Title = TEXT("Unbind pin from variable");
-		}
-		else
-		{
-			Action.Title = TEXT("Bind pin to variable");
-		}
+		Action.Title = TEXT("Unbind pin from variable");
 		ActionStack->BeginAction(Action);
-	}
-
-	if (!InPin->IsBoundToVariable() && bSetupUndoRedo)
-	{
-		// break all links on pin towards parent + children
-		BreakAllLinks(InPin, true, bSetupUndoRedo);
-		BreakAllLinksRecursive(InPin, true, true, bSetupUndoRedo);
-		BreakAllLinksRecursive(InPin, true, false, bSetupUndoRedo);
 	}
 
 	if (bSetupUndoRedo)
 	{
-		ActionStack->AddAction(FRigVMSetPinBoundVariableAction(InPin, InNewBoundVariablePath));
+		ActionStack->AddAction(FRigVMSetPinBoundVariableAction(InPin, FString()));
 	}
 
-	InPin->BoundVariablePath = InNewBoundVariablePath;
-	Notify(ERigVMGraphNotifType::PinBoundVariableChanged, InPin);
+	URigVMInjectionInfo* Info = nullptr;
+	for (URigVMInjectionInfo* InjectionInfo : InPin->GetInjectedNodes())
+	{
+		if (InjectionInfo->Node->IsA<URigVMVariableNode>())
+		{
+			BreakAllLinks(InPin, true, false);
+			RemoveNode(InjectionInfo->Node, false);
+		}
+	}	
 
 	if (bSetupUndoRedo)
 	{
@@ -7217,12 +7346,6 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	}
 
 	{
-		// Temporarily remove the bound variable from the pin
-		// if it exists, so that link validation can work.
-		// BreakAllPins will remove the bound variable for real later.
-		TGuardValue<FString> OutputBoundVariableGuard(OutputPin->BoundVariablePath, FString());
-		TGuardValue<FString> InputBoundVariableGuard(InputPin->BoundVariablePath, FString());
-
 		FString FailureReason;
 		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason, GetCurrentByteCode()))
 		{
@@ -7235,10 +7358,9 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	ensure(!InputPin->IsLinkedTo(OutputPin));
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMAddLinkAction Action;
+	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action = FRigVMAddLinkAction(OutputPin, InputPin);
 		Action.Title = FString::Printf(TEXT("Add Link"));
 		ActionStack->BeginAction(Action);
 	}
@@ -7274,8 +7396,13 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 
 	if (bSetupUndoRedo)
 	{
-		ExpandPinRecursively(OutputPin->GetParentPin(), true);
-		ExpandPinRecursively(InputPin->GetParentPin(), true);
+		ExpandPinRecursively(OutputPin->GetParentPin(), bSetupUndoRedo);
+		ExpandPinRecursively(InputPin->GetParentPin(), bSetupUndoRedo);
+	}
+
+	if (bSetupUndoRedo)
+	{
+		ActionStack->AddAction(FRigVMAddLinkAction(OutputPin, InputPin));
 	}
 
 	URigVMLink* Link = NewObject<URigVMLink>(Graph);
@@ -7518,7 +7645,7 @@ bool URigVMController::BreakAllLinks(URigVMPin* Pin, bool bAsInput, bool bSetupU
 	int32 LinksBroken = 0;
 	if (Pin->IsBoundToVariable() && bAsInput && bSetupUndoRedo)
 	{
-		BindPinToVariable(Pin, FString(), bSetupUndoRedo);
+		UnbindPinFromVariable(Pin, bSetupUndoRedo);
 		LinksBroken++;
 	}
 
@@ -7923,7 +8050,7 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 				InController->Notify(ERigVMGraphNotifType::LinkRemoved, Link);
 			}
 
-			if (!InPin->Rename(*InNewName.ToString()))
+			if (!InController->RenameObject(InPin, *InNewName.ToString()))
 			{
 				return false;
 			}
@@ -8743,15 +8870,6 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 						}
 					}
 				}
-
-				TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
-				for (URigVMPin* Pin : AllPins)
-				{
-					if (Pin->GetBoundVariableName() == InVariableName.ToString())
-					{
-						BindPinToVariable(Pin, FString(), bSetupUndoRedo);
-					}
-				}
 			}
 		}
 		else
@@ -8778,7 +8896,7 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 					{
 						if (Pin->GetCPPType() != ExternalVariableToSwitch.TypeName.ToString() || Pin->GetCPPTypeObject() == ExternalVariableToSwitch.TypeObject)
 						{
-							BindPinToVariable(Pin, FString(), bSetupUndoRedo);
+							UnbindPinFromVariable(Pin, bSetupUndoRedo);
 						}
 					}
 				}
@@ -8877,17 +8995,6 @@ bool URigVMController::RenameLocalVariable(const FName& InVariableName, const FN
 			{
 				VariableNode->FindPin(URigVMVariableNode::VariableName)->DefaultValue = InNewVariableName.ToString();
 				RenamedNodes.Add(Node);
-			}
-		}
-		
-		const TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
-		for (URigVMPin* Pin : AllPins)
-		{
-			if (Pin->GetBoundVariableName() == InVariableName.ToString())
-			{
-				FString OldVariablePath = Pin->GetBoundVariablePath();
-				FString NewVariablePath = OldVariablePath.Replace(*InVariableName.ToString(), *InNewVariableName.ToString());
-				BindPinToVariable(Pin, NewVariablePath, bSetupUndoRedo);
 			}
 		}
 	}
@@ -8992,7 +9099,7 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 		{
 			if (Pin->GetBoundVariableName() == InVariableName.ToString())
 			{
-				BindPinToVariable(Pin, FString(), bSetupUndoRedo);
+				UnbindPinFromVariable(Pin, bSetupUndoRedo);
 			}
 		}
 	}
@@ -11416,8 +11523,8 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	FName InjectionOutputPinName = NAME_None;
 	if (URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo())
 	{
-		InjectionInputPinName = InjectionInfo->InputPin->GetFName();
-		InjectionOutputPinName = InjectionInfo->OutputPin->GetFName();
+		InjectionInputPinName = InjectionInfo->InputPin ? InjectionInfo->InputPin->GetFName() : NAME_None;
+		InjectionOutputPinName = InjectionInfo->OutputPin ? InjectionInfo->OutputPin->GetFName() : NAME_None;
 	}
 
 	// step 2/3: clear pins on the node and repopulate the node with new pins
@@ -11645,7 +11752,7 @@ void URigVMController::RemovePinsDuringRepopulate(URigVMNode* InNode, TArray<URi
 				if(Pin->IsRootPin()) // if we are passing root pins we can reparent them directly
 				{
 					RootPin->DisplayName = RootPin->GetFName();
-					RootPin->Rename(*OrphanedName, nullptr, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+					RenameObject(RootPin, *OrphanedName, nullptr);
 					InNode->Pins.Remove(RootPin);
 
 					if(bNotify)
@@ -11677,7 +11784,7 @@ void URigVMController::RemovePinsDuringRepopulate(URigVMNode* InNode, TArray<URi
 
 			if(!Pin->IsRootPin() && (OrphanedRootPin != nullptr))
 			{
-				Pin->Rename(nullptr, OrphanedRootPin, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+				RenameObject(Pin, nullptr, OrphanedRootPin);
 				RootPin->SubPins.Remove(Pin);
 				EnsurePinValidity(Pin, false);
 				AddSubPin(OrphanedRootPin, Pin);
@@ -11845,7 +11952,6 @@ URigVMController::FPinState URigVMController::GetPinState(URigVMPin* InPin) cons
 	State.CPPType = InPin->GetCPPType();
 	State.CPPTypeObject = InPin->GetCPPTypeObject();
 	State.DefaultValue = InPin->GetDefaultValue();
-	State.BoundVariable = InPin->GetBoundVariablePath();
 	State.bIsExpanded = InPin->IsExpanded();
 	State.InjectionInfos = InPin->GetInjectedNodes();
 	return State;
@@ -11872,9 +11978,9 @@ void URigVMController::ApplyPinState(URigVMPin* InPin, const FPinState& InPinSta
 {
 	for (URigVMInjectionInfo* InjectionInfo : InPinState.InjectionInfos)
 	{
-		InjectionInfo->Rename(nullptr, InPin, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-		InjectionInfo->InputPin = InjectionInfo->UnitNode->FindPin(InjectionInfo->InputPin->GetName());
-		InjectionInfo->OutputPin = InjectionInfo->UnitNode->FindPin(InjectionInfo->OutputPin->GetName());
+		RenameObject(InjectionInfo, nullptr, InPin);
+		InjectionInfo->InputPin = InjectionInfo->InputPin ? InjectionInfo->Node->FindPin(InjectionInfo->InputPin->GetName()) : nullptr;
+		InjectionInfo->OutputPin = InjectionInfo->OutputPin ? InjectionInfo->Node->FindPin(InjectionInfo->OutputPin->GetName()) : nullptr;
 		InPin->InjectionInfos.Add(InjectionInfo);
 	}
 
@@ -11884,7 +11990,6 @@ void URigVMController::ApplyPinState(URigVMPin* InPin, const FPinState& InPinSta
 	}
 
 	SetPinExpansion(InPin, InPinState.bIsExpanded, false);
-	BindPinToVariable(InPin, InPinState.BoundVariable, false);
 }
 
 void URigVMController::ApplyPinStates(URigVMNode* InNode, const TMap<FString, URigVMController::FPinState>& InPinStates, const TMap<FString, FString>& InRedirectedPinPaths)
@@ -11908,7 +12013,7 @@ void URigVMController::ApplyPinStates(URigVMNode* InNode, const TMap<FString, UR
 		{
 			for (URigVMInjectionInfo* InjectionInfo : PinState.InjectionInfos)
 			{
-				InjectionInfo->UnitNode->Rename(nullptr, InNode->GetGraph(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+				RenameObject(InjectionInfo->Node, nullptr, InNode->GetGraph());
 				DestroyObject(InjectionInfo);
 			}
 		}
@@ -12456,9 +12561,14 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 
 #endif
 
+bool URigVMController::RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter)
+{
+	return InObjectToRename->Rename(InNewName, InNewOuter, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+}
+
 void URigVMController::DestroyObject(UObject* InObjectToDestroy)
 {
-	InObjectToDestroy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+	RenameObject(InObjectToDestroy, nullptr, GetTransientPackage());
 	InObjectToDestroy->RemoveFromRoot();
 }
 
