@@ -1619,20 +1619,24 @@ void FPixelShaderInOut_MainPS(
 
 	uint2 PixelPos = uint2(In.SvPosition.xy);
 
-	// classificaiton & pre-preprocessed data
+	float3 EmissiveLuminance = 0.0f;
 	FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 	FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
 
-	float3 EmissiveLuminance = 0.0f;
+	// Generate the strata material data to write out
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel);
+	FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(OpaqueBasePass.Strata.MaterialTextureArrayUAV);
 	PackStrataOut(
-		OpaqueBasePass.Strata.MaterialLobesBufferUAV,
+		RWStrataMaterialContainer,
 		Dither,
-		GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel),
+		StrataAddressing,
 		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance,
 		SSSData, TopLayerData);
 
-	// Write out classificaiton & pre-preprocessed data
-	OpaqueBasePass.Strata.TopLayerTextureUAV[PixelPos] = StrataPackTopLayerData(TopLayerData);
+	// Write out MRT data
+	Out.StrataOutput[0] = RWStrataMaterialContainer.MaterialRenderTargets[0];
+	Out.StrataOutput[1] = RWStrataMaterialContainer.MaterialRenderTargets[1];
+	Out.StrataOutput[2] = StrataPackTopLayerData(TopLayerData);
 
 	// Only write SSS datta if needed
 	BRANCH

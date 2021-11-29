@@ -77,6 +77,25 @@ void MainPS
 		, out float4 OutTarget2 : SV_Target2
 #endif
 
+#if STRATA_OPAQUE_DEFERRED
+#if PIXELSHADEROUTPUT_MRT3
+#error Strata cannot map to such a case
+#endif
+#if PIXELSHADEROUTPUT_MRT2
+		, out uint StrataOutput3 : SV_Target3
+		, out uint StrataOutput4 : SV_Target4
+		, out uint StrataOutput5 : SV_Target5
+#elif PIXELSHADEROUTPUT_MRT1
+		, out uint StrataOutput2 : SV_Target2
+		, out uint StrataOutput3 : SV_Target3
+		, out uint StrataOutput4 : SV_Target4
+#else
+		, out uint StrataOutput1 : SV_Target1
+		, out uint StrataOutput2 : SV_Target2
+		, out uint StrataOutput3 : SV_Target3
+#endif
+#else // STRATA_OPAQUE_DEFERRED
+
 #if PIXELSHADEROUTPUT_MRT3
 		, out float4 OutTarget3 : SV_Target3
 #endif
@@ -96,6 +115,8 @@ void MainPS
 #if PIXELSHADEROUTPUT_MRT7
 		, out float4 OutTarget7 : SV_Target7
 #endif
+
+#endif // STRATA_OPAQUE_DEFERRED
 
 		// todo: if we are not inside a volumetric decal we could use OPTIONAL_OutDepthConservative for better performance, this would require a shader permutation
 		OPTIONAL_OutDepthConservative
@@ -147,6 +168,30 @@ void MainPS
 	OutTarget2 = PixelShaderOut.MRT[2];
 #endif
 
+#if STRATA_OPAQUE_DEFERRED
+
+	// In this case, here is the gbuffer pattern
+	// MRT0 is pixel color
+	// MRT1 is velocity if enabled or precomputed shadow if velocity if disabled and precomputed shadow enabled
+	// MRT2 is precomputed shadow if both velocity and prec shadow are enabled.
+	// After, Strata output are appended (3 uint output)
+
+#if PIXELSHADEROUTPUT_MRT2
+	StrataOutput3 = PixelShaderOut.StrataOutput[0];
+	StrataOutput4 = PixelShaderOut.StrataOutput[1];
+	StrataOutput5 = PixelShaderOut.StrataOutput[2];
+#elif PIXELSHADEROUTPUT_MRT1
+	StrataOutput2 = PixelShaderOut.StrataOutput[0];
+	StrataOutput3 = PixelShaderOut.StrataOutput[1];
+	StrataOutput4 = PixelShaderOut.StrataOutput[2];
+#else
+	StrataOutput1 = PixelShaderOut.StrataOutput[0];
+	StrataOutput2 = PixelShaderOut.StrataOutput[1];
+	StrataOutput3 = PixelShaderOut.StrataOutput[2];
+#endif
+
+#else // STRATA_OPAQUE_DEFERRED
+
 #if PIXELSHADEROUTPUT_MRT3
 	OutTarget3 = PixelShaderOut.MRT[3];
 #endif
@@ -166,6 +211,8 @@ void MainPS
 #if PIXELSHADEROUTPUT_MRT7
 	OutTarget7 = PixelShaderOut.MRT[7];
 #endif
+
+#endif // STRATA_OPAQUE_DEFERRED
 
 #if PIXELSHADEROUTPUT_COVERAGE || PIXELSHADEROUTPUT_A2C
 	OutCoverage = PixelShaderOut.Coverage;

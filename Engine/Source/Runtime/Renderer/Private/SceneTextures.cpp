@@ -19,6 +19,7 @@
 #include "PostProcess/PostProcessAmbientOcclusionMobile.h"
 #include "PostProcess/PostProcessPixelProjectedReflectionMobile.h"
 #include "IHeadMountedDisplayModule.h"
+#include "Strata/Strata.h"
 
 static TAutoConsoleVariable<int32> CVarSceneTargetsResizeMethod(
 	TEXT("r.SceneRenderTargetResizeMethod"),
@@ -852,12 +853,12 @@ const FSceneTextures& FSceneTextures::Get(FRDGBuilder& GraphBuilder)
 	return *SceneTextures;
 }
 
-uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& RenderTargets) const
+uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& RenderTargets) const
 {
 	uint32 RenderTargetCount = 0;
 
 	// All configurations use scene color in the first slot.
-	RenderTargets[RenderTargetCount++] = Color.Target;
+	RenderTargets[RenderTargetCount++] = FTextureRenderTargetBinding(Color.Target);
 
 	if (Config.bIsUsingGBuffers)
 	{
@@ -889,7 +890,7 @@ uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FRDGTextureRef, MaxS
 			checkf(Entry.Index <= 0 || Entry.Texture != nullptr, TEXT("Texture '%s' was requested by FGBufferInfo, but it is null."), Entry.Name);
 			if (Entry.Index > 0)
 			{
-				RenderTargets[Entry.Index] = Entry.Texture;
+				RenderTargets[Entry.Index] = FTextureRenderTargetBinding(Entry.Texture);
 				RenderTargetCount = FMath::Max(RenderTargetCount, uint32(Entry.Index + 1));
 			}
 		}
@@ -897,7 +898,7 @@ uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FRDGTextureRef, MaxS
 	// Forward shading path. Simple forward shading does not use velocity.
 	else if (IsUsingBasePassVelocity(Config.ShaderPlatform) && !IsSimpleForwardShadingEnabled(Config.ShaderPlatform))
 	{
-		RenderTargets[RenderTargetCount++] = Velocity;
+		RenderTargets[RenderTargetCount++] = FTextureRenderTargetBinding(Velocity);
 	}
 
 	return RenderTargetCount;
@@ -905,11 +906,11 @@ uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FRDGTextureRef, MaxS
 
 uint32 FSceneTextures::GetGBufferRenderTargets(ERenderTargetLoadAction LoadAction, FRenderTargetBindingSlots& RenderTargetBindingSlots) const
 {
-	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> RenderTargets;
+	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> RenderTargets;
 	const uint32 RenderTargetCount = GetGBufferRenderTargets(RenderTargets);
 	for (uint32 Index = 0; Index < RenderTargetCount; ++Index)
 	{
-		RenderTargetBindingSlots[Index] = FRenderTargetBinding(RenderTargets[Index], LoadAction);
+		RenderTargetBindingSlots[Index] = FRenderTargetBinding(RenderTargets[Index].Texture, LoadAction);
 	}
 	return RenderTargetCount;
 }

@@ -18,7 +18,7 @@ float4 StrataDeferredLighting(
 	float LightMask,
 	FShadowTerms ShadowTerms,
 	FRectTexture RectTexture,
-	ByteAddressBuffer StrataDataBuffer,
+	FStrataMaterialContainer MaterialBuffer,
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader)
 {
@@ -32,9 +32,9 @@ float4 StrataDeferredLighting(
 	{
 		// Unpack BSDF data
 #if STRATA_FASTPATH
-		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(StrataDataBuffer, StrataAddressing);
+		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(MaterialBuffer, StrataAddressing);
 #else
-		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, StrataAddressing);
+		FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialBuffer, StrataAddressing);
 #endif
 		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V, L);
 

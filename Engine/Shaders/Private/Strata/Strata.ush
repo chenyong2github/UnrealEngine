@@ -24,9 +24,35 @@
 #define STRATA_UNROLL_N(X) UNROLL_N(X)
 #endif
 
-#define STRATA_MEMACCESS_UINT  0
-#define STRATA_MEMACCESS_UINT4 1
-#define STRATA_MEMACCESS STRATA_MEMACCESS_UINT
+// Strata Rendertarget / UAV setup
+// RT0: Color
+// [insert here potential velocity rendertarget and prec shadow]
+// RT2: Strata uint
+// RT3: Strata uint
+// RT4: Top normal
+//
+// UAV SSS data written out if needed
+// UAV if strata data overrun the MRT output size
+
+#define STARTA_MATERIAL_RENDERTARGET_COUNT 2
+struct FRWStrataMaterialContainerStruct
+{
+	uint MaterialRenderTargets[STARTA_MATERIAL_RENDERTARGET_COUNT];
+	RWTexture2DArray<uint> ExtraMaterialDataUAV;
+};
+#define FRWStrataMaterialContainer	FRWStrataMaterialContainerStruct
+#define FStrataMaterialContainer	Texture2DArray<uint>
+
+FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<uint> ExtraMaterialDataUAV)
+{
+	FRWStrataMaterialContainer RWStrataMaterialContainer;
+	for (int i = 0; i < STARTA_MATERIAL_RENDERTARGET_COUNT; ++i)
+	{
+		RWStrataMaterialContainer.MaterialRenderTargets[i] = 0;
+	}
+	RWStrataMaterialContainer.ExtraMaterialDataUAV = ExtraMaterialDataUAV;
+	return RWStrataMaterialContainer;
+}
 
 // During the base pass or forward rendering, shared local bases are simply available from registers.
 // If a BSDF is loaded for processing from the strata buffer, normals are unpacked on demand to reduce VGPR pressure and increase occupancy.
@@ -707,62 +733,16 @@ uint DivideAndRoundUp(uint Dividend, uint Divisor, uint DivisorAsBitShift)
 
 struct FStrataAddressing
 {
-	uint  CurrentAddr;
+	uint  CurrentIndex;
 
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	uint  ByteOffsetToNextUint4;
-	uint4 Uint4Cache;
-	int   UintProcessed;	// uints remaining to read, or uint appended before write
-
-	// Packedlocal basis in a uint4 available for unpacking later.
-	uint4 PackedLocalBasis;
-#if STRATA_MAX_SHAREDLOCALBASES_REGISTERS!=4
-#error We do not support more than 4 PackedLocalBasis as of today.
-#endif
-
-#else
-	uint  ByteOffsetToNextUint;
-#endif
-
-	// This is to apply checkboard pattern when needed
 	uint2 PixelCoords;
 
-	// This should be compiled out as not used in most cases expect for debug and visualization.
 	uint  ReadBytes;
 };
 FStrataAddressing GetStrataPixelDataByteOffset(uint2 PixelPos, uint2 ViewBufferSize, uint StrataMaxBytesPerPixel)
 {
 	FStrataAddressing StrataAddressing = (FStrataAddressing)0;
-
-	// A tile of pixels has each uint that can be read packed in contiguous memory to be cache efficient. Then, the next set of uint to be read is in another "plane", after all uint from all the pixel/tile.
-	// Without that, L2 is rarely hit and GCN TA FIFO command buffer is getting full in no time because memory fetches are not served in time (GPU cost then increase by at least x2)
-
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	uint TilePixelSizeBytes			= 4*4;	// 4*sizeof(uint)
-#else
-	uint TilePixelSizeBytes			= 4;
-#endif
-	uint TileSizeBytes				= STRATA_DATA_TILE_SIZE * STRATA_DATA_TILE_SIZE * TilePixelSizeBytes;
-	uint2 TileCount					= uint2(DivideAndRoundUp(ViewBufferSize.x, STRATA_DATA_TILE_SIZE, STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT), DivideAndRoundUp(ViewBufferSize.y, STRATA_DATA_TILE_SIZE, STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT));
-	uint2 TileCoord					= uint2(PixelPos.x >> STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT, PixelPos.y >> STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT);
-	uint2 PixelCoordInTile			= PixelPos - TileCoord * STRATA_DATA_TILE_SIZE;
-
-	uint PreviousTilesBytes			= (TileCoord.y * TileCount.x + TileCoord.x) * TileSizeBytes;
-#if 0
-	uint PreviousPixelsInTileBytes	= (PixelCoordInTile.y * STRATA_DATA_TILE_SIZE + PixelCoordInTile.x) * TilePixelSizeBytes;
-#else
-	uint PreviousPixelsInTileBytes	= MortonEncode(PixelCoordInTile) * TilePixelSizeBytes; // Z pattern
-#endif
-	StrataAddressing.CurrentAddr	= PreviousTilesBytes + PreviousPixelsInTileBytes;
-
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	StrataAddressing.ByteOffsetToNextUint4 = TileCount.x * TileCount.y * TileSizeBytes;
-	StrataAddressing.Uint4Cache = 0;
-	StrataAddressing.UintProcessed = 0;
-#else
-	StrataAddressing.ByteOffsetToNextUint = TileCount.x * TileCount.y * TileSizeBytes;
-#endif
-
+	StrataAddressing.CurrentIndex = 0;
 	StrataAddressing.PixelCoords = PixelPos;
 	StrataAddressing.ReadBytes = 0;
 	return StrataAddressing;
@@ -770,79 +750,40 @@ FStrataAddressing GetStrataPixelDataByteOffset(uint2 PixelPos, uint2 ViewBufferS
 
 #if COMPILER_SWITCH // These platforms are complaining so simply disabling Strata there for now.
 
-void StrataStoreUint1(RWByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing, uint Data) {}
+void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, uint Data) {}
 #define STRATA_STORE_UINT1(x) 
 
-void FinalizeWrites(RWByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing) {}
+void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing) {}
 
-uint StrataLoadUint1(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing) { return 0; }
+uint StrataLoadUint1(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing) { return 0; }
 
 #else
 
-void StrataStoreUint1(RWByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing, uint Data)
+void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, uint Data)
 {
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	BRANCH
-	if(StrataAddressing.UintProcessed == 4)
+	// We heavily rely on the compiler to optimize out the if code
+	if (StrataAddressing.CurrentIndex < STARTA_MATERIAL_RENDERTARGET_COUNT)
 	{
-		StrataBuffer.Store4(StrataAddressing.CurrentAddr, StrataAddressing.Uint4Cache);
-		StrataAddressing.CurrentAddr += StrataAddressing.ByteOffsetToNextUint4;
-		StrataAddressing.UintProcessed = 0;
-		StrataAddressing.ReadBytes += 16;
+		StrataBuffer.MaterialRenderTargets[0] = StrataAddressing.CurrentIndex == 0 ? Data : StrataBuffer.MaterialRenderTargets[0];
+		StrataBuffer.MaterialRenderTargets[1] = StrataAddressing.CurrentIndex == 1 ? Data : StrataBuffer.MaterialRenderTargets[1];
 	}
-
-	// TODO check what is done during this addressing... It should be a simple bit select
-	StrataAddressing.Uint4Cache[0] = StrataAddressing.UintProcessed == 0 ? Data : StrataAddressing.Uint4Cache[0];
-	StrataAddressing.Uint4Cache[1] = StrataAddressing.UintProcessed == 1 ? Data : StrataAddressing.Uint4Cache[1];
-	StrataAddressing.Uint4Cache[2] = StrataAddressing.UintProcessed == 2 ? Data : StrataAddressing.Uint4Cache[2];
-	StrataAddressing.Uint4Cache[3] = StrataAddressing.UintProcessed == 3 ? Data : StrataAddressing.Uint4Cache[3];
-	StrataAddressing.UintProcessed++;
-#else
-	StrataBuffer.Store(StrataAddressing.CurrentAddr, Data);
-	StrataAddressing.CurrentAddr += StrataAddressing.ByteOffsetToNextUint;
-	StrataAddressing.ReadBytes += 4;
-#endif
+	else
+	{
+		StrataBuffer.ExtraMaterialDataUAV[uint3(StrataAddressing.PixelCoords, StrataAddressing.CurrentIndex)] = Data;
+	}
+	StrataAddressing.CurrentIndex++;
 }
 #define STRATA_STORE_UINT1(x)	StrataStoreUint1(StrataBuffer, StrataAddressing, x)
 
-void FinalizeWrites(RWByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing)
+void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	BRANCH
-	if(StrataAddressing.UintProcessed > 0)
-	{
-		StrataBuffer.Store4(StrataAddressing.CurrentAddr, StrataAddressing.Uint4Cache);
-		StrataAddressing.CurrentAddr += StrataAddressing.ByteOffsetToNextUint4;
-		StrataAddressing.UintProcessed = 0;
-		StrataAddressing.ReadBytes += 16;
-	}
-#endif
+	// NOP
 }
 
-uint StrataLoadUint1(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing)
+uint StrataLoadUint1(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	BRANCH
-	if(StrataAddressing.UintProcessed == 0)
-	{
-		StrataAddressing.Uint4Cache = StrataBuffer.Load4(StrataAddressing.CurrentAddr);
-		StrataAddressing.CurrentAddr += StrataAddressing.ByteOffsetToNextUint4;
-		StrataAddressing.UintProcessed = 4;
-		StrataAddressing.ReadBytes += 16;
-	}
-
-	// TODO check what is done during this addressing... It should be a simple bit select
-	uint Data = StrataAddressing.Uint4Cache[0];
-	Data = StrataAddressing.UintProcessed == 3 ? StrataAddressing.Uint4Cache[1] : Data;
-	Data = StrataAddressing.UintProcessed == 2 ? StrataAddressing.Uint4Cache[2] : Data;
-	Data = StrataAddressing.UintProcessed == 1 ? StrataAddressing.Uint4Cache[3] : Data;
-	StrataAddressing.UintProcessed--;
-#else
-	uint Data = StrataBuffer.Load(StrataAddressing.CurrentAddr);
-	StrataAddressing.CurrentAddr += StrataAddressing.ByteOffsetToNextUint;
-	StrataAddressing.ReadBytes += 4;
-#endif
-
+	uint Data = StrataBuffer[uint3(StrataAddressing.PixelCoords, StrataAddressing.CurrentIndex)];
+	StrataAddressing.CurrentIndex++;
 	return Data;
 }
 
@@ -889,10 +830,8 @@ struct FStrataPixelHeader
 	// All the shared local bases in VGPRS. This is only used in basepass and during forward rendering.
 	FSharedLocalBases SharedLocalBases;
 #else
-	ByteAddressBuffer StrataBuffer;
-	#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT
-	uint SharedLocalBasesByteOffset;
-	#endif
+	FStrataMaterialContainer StrataBuffer;
+	uint SharedLocalBasesIndexOffset;
 	uint SharedLocalBasesTypes;
 #endif
 
@@ -933,9 +872,7 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 #if STRATA_INLINE_SHADING
 	Out.SharedLocalBases = (FSharedLocalBases)0;
 #else
-	#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT
-	Out.SharedLocalBasesByteOffset = 0;
-	#endif
+	Out.SharedLocalBasesIndexOffset = 0;
 	Out.SharedLocalBasesTypes = 0;
 #endif
 	Out.MaterialAO = 1.0f;
@@ -953,11 +890,8 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 	return float3x3(Tangent, Bitangent, Normal);
 #else
 
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	uint PackedBasis = StrataAddressing.PackedLocalBasis[BSDF_GETSHAREDLOCALBASISID(BSDF)];
-#else
-	uint PackedBasis = StrataPixelHeader.StrataBuffer.Load(StrataPixelHeader.SharedLocalBasesByteOffset + BSDF_GETSHAREDLOCALBASISID(BSDF) * StrataAddressing.ByteOffsetToNextUint);
-#endif
+	uint PackedBasis = StrataPixelHeader.StrataBuffer[uint3(StrataAddressing.PixelCoords, StrataPixelHeader.SharedLocalBasesIndexOffset + BSDF_GETSHAREDLOCALBASISID(BSDF))];
+
 	uint BasisType   = StrataGetSharedLocalBasisType(StrataPixelHeader.SharedLocalBasesTypes, BSDF_GETSHAREDLOCALBASISID(BSDF));
 	float3x3 OutTangentBasis;
 	if (BasisType == STRATA_BASIS_TYPE_NORMAL)
@@ -1842,12 +1776,12 @@ void StrataUnpackNormalAndTangent(inout float3 Normal, inout float3 Tangent, in 
 	}
 }
 
-void StrataLoad_R11G11B10F(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float3 A)
+void StrataLoad_R11G11B10F(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float3 A)
 {
 	A = UnpackR11G11B10F(StrataLoadUint1(StrataBuffer, StrataAddressing));
 }
 
-void StrataLoad_R11_G11_B10F(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float A, inout float B, inout float C)
+void StrataLoad_R11_G11_B10F(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float A, inout float B, inout float C)
 {
 	float3 temp = UnpackR11G11B10F(StrataLoadUint1(StrataBuffer, StrataAddressing));
 	A = temp.x;
@@ -1855,25 +1789,28 @@ void StrataLoad_R11_G11_B10F(ByteAddressBuffer StrataBuffer, inout FStrataAddres
 	C = temp.z;
 }
 
-void StrataLoad_ColorGamma2ToLinear(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float3 A)
+void StrataLoad_ColorGamma2ToLinear(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float3 A)
 {
 	A = UnpackColorGamma2ToLinear(StrataLoadUint1(StrataBuffer, StrataAddressing));
 }
 
-void StrataLoad_ColorGamma2ToLinearAlphaLinear(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float3 RGB, inout float A)
+void StrataLoad_ColorGamma2ToLinearAlphaLinear(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, inout float3 RGB, inout float A)
 {
 	float4 Data = UnpackColorGamma2ToLinearAlphaLinear(StrataLoadUint1(StrataBuffer, StrataAddressing));
 	RGB = Data.rgb;
 	A = Data.a;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Strata deferred base-pass output
+
 uint2 PackStrataHeader(uint BSDFCount, FStrataPixelHeader In);
 
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 void PackStrataOut(
-	RWByteAddressBuffer StrataBuffer, 
+	inout FRWStrataMaterialContainer StrataBuffer,
 	float Dither,
-	FStrataAddressing StrataAddressing,
+	inout FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader,
 	FStrataData Strata,
 	float3 V,
@@ -2274,7 +2211,7 @@ uint2 PackStrataHeader(uint InBSDFCount, FStrataPixelHeader InHeader)
 
 // Unpack only strata header
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
-FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing)
+FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
 	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
 
@@ -2291,19 +2228,11 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 	Out.StrataBuffer = StrataBuffer;
 	Out.SharedLocalBasesTypes = SharedLocalBasesTypes;
 
-#if STRATA_MEMACCESS == STRATA_MEMACCESS_UINT4
-	// Now load the packed local bases (stocked on the addressin part because it is only available while loading strata data)
-	for (uint i = 0; i < SharedLocalBasesCount; ++i)
-	{
-		StrataAddressing.PackedLocalBasis[i] = StrataLoadUint1(Out.StrataBuffer, StrataAddressing);
-	}
-#else
 	// Only keep the offset to the shared local bases memory. We are going to load them on demand.
-	Out.SharedLocalBasesByteOffset = StrataAddressing.CurrentAddr;
+	Out.SharedLocalBasesIndexOffset = StrataAddressing.CurrentIndex;
 
 	// Now skip over the shared local basis memory to be able to load the BSDF content
-	StrataAddressing.CurrentAddr += SharedLocalBasesCount * StrataAddressing.ByteOffsetToNextUint;
-#endif
+	StrataAddressing.CurrentIndex += SharedLocalBasesCount;
 
 	// And account for the space used by normal for the debug information
 	StrataAddressing.ReadBytes += SharedLocalBasesCount * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
@@ -2332,7 +2261,7 @@ void UnpackFastPathSlabBSDF(inout FStrataBSDF OutBSDF, uint2 PackedData01)
 	SLAB_ANISOTROPY(OutBSDF)	= Data1.z * 2.f - 1.f;
 }
 
-FStrataBSDF UnpackFastPathStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing)
+FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
 	FStrataBSDF OutBSDF = (FStrataBSDF)0; 
 
@@ -2368,7 +2297,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FSt
 // Unpack a single BSDF
 // Note: All BSDF lobes needs to be unpack in a sequential manner since each BSDF has a variable footprint.
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
-FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddressing StrataAddressing)
+FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
 	FStrataBSDF OutBSDF = (FStrataBSDF)0;
 

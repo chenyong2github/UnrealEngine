@@ -147,7 +147,7 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 	static const FSceneTextures& Get(FRDGBuilder& GraphBuilder);
 
 	// Configures an array of render targets for the GBuffer pass.
-	uint32 GetGBufferRenderTargets(TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& RenderTargets) const;
+	uint32 GetGBufferRenderTargets(TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& RenderTargets) const;
 	uint32 GetGBufferRenderTargets(ERenderTargetLoadAction LoadAction, FRenderTargetBindingSlots& RenderTargets) const;
 
 	// (Deferred) Texture containing conservative downsampled depth for occlusion.

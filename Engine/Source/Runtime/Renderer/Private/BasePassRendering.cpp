@@ -748,9 +748,10 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 	const FExclusiveDepthStencil ExclusiveDepthStencil(BasePassDepthStencilAccess);
 
-	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> BasePassTextures;
+	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
 	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures);
-	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
+	Strata::ApprendStrataMRTs(*this, BasePassTextureCount, BasePassTextures);
+	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
 	FRDGTextureRef BasePassDepthTexture = SceneTextures.Depth.Target;
 	FLinearColor SceneColorClearValue;
 
@@ -901,6 +902,8 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		StampDeferredDebugProbeMaterialPS(GraphBuilder, Views, BasePassRenderTargets, SceneTextures);
 	}
 #endif
+
+	Strata::PostBasePass(GraphBuilder, Views);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FOpaqueBasePassParameters, )

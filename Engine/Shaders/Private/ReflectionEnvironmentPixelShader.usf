@@ -369,7 +369,7 @@ void ReflectionEnvironmentSkyLighting(
 #if STRATA_ENABLED
 
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing);
 	BRANCH
 	if (StrataPixelHeader.BSDFCount > 0) // This test is also enough to exclude sky pixels
 	{
@@ -404,7 +404,7 @@ void ReflectionEnvironmentSkyLighting(
 			V,
 			AmbientOcclusion,
 			TopLayerSpecularContributionFactor,
-			Strata.MaterialLobesBuffer,
+			Strata.MaterialTextureArray,
 			StrataAddressing,
 			StrataPixelHeader,
 			SSRReductionFactor,

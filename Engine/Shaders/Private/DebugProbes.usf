@@ -6,7 +6,7 @@
 #if PROJECT_STRATA
 #include "SceneTexturesCommon.ush"
 #include "Strata/Strata.ush"
-RWByteAddressBuffer MaterialLobesBufferUAV;
+RWTexture2DArray<uint> MaterialTextureArrayUAV;
 uint MaxBytesPerPixel;
 #endif
 int DebugProbesMode;
@@ -279,11 +279,15 @@ void MainPS(
 		float3 EmissiveLuminance = 0.0f;
 		bool bStrataSubsurfaceEnable = false;
 		const float Dither = 0.0f;
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
+		FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(MaterialTextureArrayUAV);
 		PackStrataOut(
-			MaterialLobesBufferUAV, Dither,
-			GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel),
+			RWStrataMaterialContainer, 
+			Dither,
+			StrataAddressing,
 			StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance,
 			SSSData, TopLayerData);
+		// TODO write out the two MRT uint?
 	}
 	
 #else // PROJECT_STRATA
