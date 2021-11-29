@@ -187,6 +187,19 @@ const TCHAR* FConcertSandboxPlatformFile::GetName() const
 	return GetTypeName();
 }
 
+bool FConcertSandboxPlatformFile::DeletedPackageExistsInNonSandbox(FString InFilename) const
+{
+	const FConcertSandboxPlatformFilePath ResolvedPath = ToSandboxPath(MoveTemp(InFilename));
+	if (ResolvedPath.HasSandboxPath())
+	{
+		if (IsPathDeleted(ResolvedPath))
+		{
+			return LowerLevel->FileExists(*ResolvedPath.GetNonSandboxPath());
+		}
+	}
+	return false;
+}
+
 bool FConcertSandboxPlatformFile::FileExists(const TCHAR* Filename)
 {
 	const FConcertSandboxPlatformFilePath ResolvedPath = ToSandboxPath(Filename);
@@ -1131,7 +1144,7 @@ void FConcertSandboxPlatformFile::UnregisterContentMountPath(const FString& InCo
 
 FConcertSandboxPlatformFilePath FConcertSandboxPlatformFile::ToSandboxPath(FString InFilename, const bool bEvenIfDisabled) const
 {
-	return ToSandboxPath_Absolute(FPaths::ConvertRelativePathToFull(InFilename), bEvenIfDisabled);
+	return ToSandboxPath_Absolute(FPaths::ConvertRelativePathToFull(MoveTemp(InFilename)), bEvenIfDisabled);
 }
 
 FConcertSandboxPlatformFilePath FConcertSandboxPlatformFile::ToSandboxPath_Absolute(FString InFilename, const bool bEvenIfDisabled) const
@@ -1157,7 +1170,7 @@ FConcertSandboxPlatformFilePath FConcertSandboxPlatformFile::ToSandboxPath_Absol
 
 FConcertSandboxPlatformFilePath FConcertSandboxPlatformFile::FromSandboxPath(FString InFilename) const
 {
-	return FromSandboxPath_Absolute(FPaths::ConvertRelativePathToFull(InFilename));
+	return FromSandboxPath_Absolute(FPaths::ConvertRelativePathToFull(MoveTemp(InFilename)));
 }
 
 FConcertSandboxPlatformFilePath FConcertSandboxPlatformFile::FromSandboxPath_Absolute(FString InFilename) const

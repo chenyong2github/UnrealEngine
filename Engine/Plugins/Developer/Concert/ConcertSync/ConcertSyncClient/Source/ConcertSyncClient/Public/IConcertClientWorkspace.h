@@ -107,6 +107,13 @@ public:
 	 */
 	virtual TArray<FName> GatherSessionChanges(bool IgnorePersisted = true) = 0;
 
+	/**
+	 * Returns the full path to the package if it is a valid package session change.
+	 * @param PackageName the package to check.
+	 * @return the full path to the package if it is valid.
+	 */
+	virtual TOptional<FString> GetValidPackageSessionPath(FName PackageName) const = 0;
+
 	/** Persist the session changes from the package list and prepare it for source control submission */
 	virtual bool PersistSessionChanges(TArrayView<const FName> InPackageToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasonMap = nullptr) = 0;
 

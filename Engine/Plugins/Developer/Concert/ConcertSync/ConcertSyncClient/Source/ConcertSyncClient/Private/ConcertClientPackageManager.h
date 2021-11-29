@@ -90,6 +90,11 @@ public:
 	 */
 	bool HasSessionChanges() const;
 
+	/** 
+	 * Returns the full path to the package if it is valid.
+	 */
+	TOptional<FString> GetValidPackageSessionPath(FName PackageName) const;
+
 	/**
 	 * Persist the session changes from the package name list and prepare it for source control submission.
 	 */
@@ -100,13 +105,17 @@ public:
 	 */
 	FOnConcertClientPackageTooLargeError& OnConcertClientPackageTooLargeError() { return OnPackageTooLargeErrorDelegate; }
 
-
 	/**
 	 * Returns true if the named package is participating in a package reload.
 	 */
 	bool IsReloadingPackage(FName PackageName) const;
 
 private:
+
+	/**
+	 * Returns a full path for given package name if it was deleted and exists on the non-sandbox area.
+	 */
+	TOptional<FString> GetDeletedPackagePath(FName PackageName) const;
 
 	/**
 	 * Apply the package filters on the package info
