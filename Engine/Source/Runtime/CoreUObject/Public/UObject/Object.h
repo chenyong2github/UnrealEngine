@@ -69,7 +69,11 @@ class COREUOBJECT_API UObject : public UObjectBaseUtility
 	/** Default constructor */
 	UObject();
 
-	/** Deprecated constructor, ObjectInitializer is no longer needed but is supported for older classes. */
+	/** 
+	 *  Constructor that takes an ObjectInitializer. 
+	 *  Typically not needed, but can be useful for class hierarchies that support
+	 *  optional subobjects or subobject class overriding
+	 */
 	UObject(const FObjectInitializer& ObjectInitializer);
 
 	/** DO NOT USE. This constructor is for internal usage only for statically-created objects. */

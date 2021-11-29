@@ -825,7 +825,7 @@ public:
 	 */
 	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, EObjectInitializerOptions InOptions, struct FObjectInstancingGraph* InInstanceGraph = nullptr);
 
-	UE_DEPRECATED(5.01, "Use version that takes EObjectInitializerOptions")
+	UE_DEPRECATED(5.0, "Use version that takes EObjectInitializerOptions")
 	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph = nullptr)
 		: FObjectInitializer(InObj, InObjectArchetype, 
 			(bInCopyTransientsFromClassDefaults ? EObjectInitializerOptions::CopyTransientsFromClassDefaults : EObjectInitializerOptions::None) |
