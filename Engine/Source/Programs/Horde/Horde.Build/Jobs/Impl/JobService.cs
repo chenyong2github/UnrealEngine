@@ -605,6 +605,28 @@ namespace HordeServer.Services
 				return Results;
 			}
 		}
+		
+		/// <summary>
+		/// Searches for jobs matching a stream with given templates
+		/// </summary>
+		/// <param name="StreamId">The stream containing the job</param>
+		/// <param name="Templates">Templates to look for</param>
+		/// <param name="PreflightStartedByUser">User for which to include preflight jobs</param>		
+		/// <param name="Index">Index of the first result to return</param>
+		/// <param name="Count">Number of results to return</param>
+		/// <param name="ConsistentRead">If the database read should be made to the replica server</param>
+		/// <returns>List of jobs matching the given criteria</returns>
+		public async Task<List<IJob>> FindJobsByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser = null, int? Index = null, int? Count = null, bool ConsistentRead = true)
+		{
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("JobService.FindJobsByStreamWithTemplatesAsync").StartActive();
+			Scope.Span.SetTag("StreamId", StreamId);
+			Scope.Span.SetTag("Templates", Templates);
+			Scope.Span.SetTag("PreflightStartedByUser", PreflightStartedByUser);
+			Scope.Span.SetTag("Index", Index);
+			Scope.Span.SetTag("Count", Count);
+			
+			return await Jobs.FindLatestByStreamWithTemplatesAsync(StreamId, Templates, PreflightStartedByUser, Index, Count, ConsistentRead);
+		}
 
 		/// <summary>
 		/// Attempts to update the node groups to be executed for a job. Fails if another write happens in the meantime.

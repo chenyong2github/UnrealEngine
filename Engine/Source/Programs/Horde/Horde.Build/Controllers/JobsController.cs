@@ -700,6 +700,78 @@ namespace HordeServer.Controllers
 			}
 			return Responses;
 		}
+		
+		/// <summary>
+		/// Find jobs for a stream with given templates, sorted by creation date
+		/// </summary>
+		/// <param name="StreamId">The stream to search for</param>
+		/// <param name="Templates">List of templates to find</param>
+		/// <param name="PreflightStartedByUserId">User id for which to include preflight jobs</param>
+		/// <param name="Filter">Filter for properties to return</param>
+		/// <param name="Index">Index of the first result to be returned</param>
+		/// <param name="Count">Number of results to return</param>
+		/// <param name="ConsistentRead">If a read to the primary database is required, for read consistency. Usually not required.</param>
+		/// <returns>List of jobs</returns>
+		[HttpGet]
+		[Route("/api/v1/jobs/streams/{StreamId}")]
+		[ProducesResponseType(typeof(List<GetJobResponse>), 200)]
+		public async Task<ActionResult<List<object>>> FindJobsByStreamWithTemplatesAsync(
+			string StreamId,
+			[FromQuery(Name = "template")] string[] Templates,
+			[FromQuery] string? PreflightStartedByUserId = null,
+			[FromQuery] PropertyFilter? Filter = null,
+			[FromQuery] int Index = 0,
+			[FromQuery] int Count = 100,
+			[FromQuery] bool ConsistentRead = true)
+		{
+			StreamId StreamIdValue = new StreamId(StreamId);
+			TemplateRefId[] TemplateRefIds = Templates.Select(x => new TemplateRefId(x)).ToArray();
+			UserId? PreflightStartedByUserIdValue = PreflightStartedByUserId != null ? new UserId(PreflightStartedByUserId) : null;
+			Count = Math.Min(1000, Count);
+
+			List<IJob> Jobs = await JobService.FindJobsByStreamWithTemplatesAsync(StreamIdValue, TemplateRefIds, PreflightStartedByUserIdValue, Index, Count, ConsistentRead);
+			return await CreateAuthorizedJobResponses(Jobs, Filter);
+		}
+
+		private async Task<List<object>> CreateAuthorizedJobResponses(List<IJob> Jobs, PropertyFilter? Filter = null)
+		{
+			StreamPermissionsCache PermissionsCache = new ();
+			List<object> Responses = new ();
+			foreach (IJob Job in Jobs)
+			{
+				using IScope JobScope = GlobalTracer.Instance.BuildSpan("JobIteration").StartActive();
+				JobScope.Span.SetTag("jobId", Job.Id.ToString());
+				
+				bool ViewJobAuthorized;
+				using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewJob").StartActive())
+				{
+					ViewJobAuthorized = await JobService.AuthorizeAsync(Job, AclAction.ViewJob, User, PermissionsCache);
+				}
+				
+				if (ViewJobAuthorized)
+				{
+					IGraph Graph;
+					using (IScope _ = GlobalTracer.Instance.BuildSpan("GetGraph").StartActive())
+					{
+						Graph = await JobService.GetGraphAsync(Job);
+					}
+
+					bool bIncludeAcl;
+					using (IScope _ = GlobalTracer.Instance.BuildSpan("AuthorizeViewPermissions").StartActive())
+					{
+						bIncludeAcl = await JobService.AuthorizeAsync(Job, AclAction.ViewPermissions, User, PermissionsCache);
+					}
+
+					using (IScope _ = GlobalTracer.Instance.BuildSpan("CreateResponse").StartActive())
+					{
+						Responses.Add(await CreateJobResponseAsync(Job, Graph, bIncludeAcl, Filter));
+					}
+				}
+			}
+
+			
+			return Responses;
+		}
 
 		/// <summary>
 		/// Adds an array of nodes to be executed for a job

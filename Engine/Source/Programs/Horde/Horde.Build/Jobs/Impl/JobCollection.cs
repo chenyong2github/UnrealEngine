@@ -312,6 +312,51 @@ namespace HordeServer.Collections.Impl
 			}
 		}
 
+		class DatabaseIndexes
+		{
+			public readonly string StreamId;
+			public readonly string Change;
+			public readonly string PreflightChange;
+			public readonly string CreateTimeUtc;
+			public readonly string UpdateTimeUtc;
+			public readonly string Name;
+			public readonly string StartedByUserId;
+			public readonly string TemplateId;
+			public readonly string SchedulePriority;
+			private bool DatabaseReadOnlyMode;
+
+			public DatabaseIndexes(IMongoCollection<JobDocument> Jobs, bool DatabaseReadOnlyMode)
+			{
+				this.DatabaseReadOnlyMode = DatabaseReadOnlyMode;
+				
+				StreamId = CreateOrGetIndex(Jobs, "StreamId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.StreamId));
+				Change = CreateOrGetIndex(Jobs, "Change_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.Change));
+				PreflightChange = CreateOrGetIndex(Jobs, "PreflightChange_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.PreflightChange));
+				CreateTimeUtc = CreateOrGetIndex(Jobs, "CreateTimeUtc_-1", Builders<JobDocument>.IndexKeys.Descending(x => x.CreateTimeUtc));
+				UpdateTimeUtc = CreateOrGetIndex(Jobs, "UpdateTimeUtc_-1", Builders<JobDocument>.IndexKeys.Descending(x => x.UpdateTimeUtc));
+				Name = CreateOrGetIndex(Jobs, "Name_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.Name));
+				StartedByUserId = CreateOrGetIndex(Jobs, "StartedByUserId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.StartedByUserId));
+				TemplateId = CreateOrGetIndex(Jobs, "TemplateId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.TemplateId));
+				SchedulePriority = CreateOrGetIndex(Jobs, "SchedulePriority_-1", Builders<JobDocument>.IndexKeys.Descending(x => x.SchedulePriority));
+			}
+
+			private string CreateOrGetIndex<T>(IMongoCollection<T> Collection, string Name, IndexKeysDefinition<T> IndexDef)
+			{
+				if (DatabaseReadOnlyMode)
+				{
+					if (Collection.Indexes.List().ToList().Find(x => x.TryGetString("name", out string? n) && n == Name) == null)
+					{
+						throw new ArgumentException("Index with name {Name} not found (running in database read-only mode)");
+					}
+					return Name;
+				}
+
+				CreateIndexOptions IndexOptions = new() { Name = Name, Background = true };
+				Collection.Indexes.CreateOne(new CreateIndexModel<T>(IndexDef, IndexOptions));
+				return Name;
+			}
+		}
+
 		/// <summary>
 		/// Projection of a job definition to just include permissions info
 		/// </summary>
@@ -345,6 +390,11 @@ namespace HordeServer.Collections.Impl
 		ILogger<JobCollection> Logger;
 
 		/// <summary>
+		/// Creation and lookup of indexes
+		/// </summary>
+		DatabaseIndexes Indexes;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService">The database service singleton</param>
@@ -356,19 +406,7 @@ namespace HordeServer.Collections.Impl
 			this.Logger = Logger;
 
 			Jobs = DatabaseService.GetCollection<JobDocument>("Jobs");
-
-			if (!DatabaseService.ReadOnlyMode)
-			{
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.StreamId)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.Change)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.PreflightChange)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Descending(x => x.CreateTimeUtc)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Descending(x => x.UpdateTimeUtc)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.Name)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.StartedByUserId)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Ascending(x => x.TemplateId)));
-				Jobs.Indexes.CreateOne(new CreateIndexModel<JobDocument>(Builders<JobDocument>.IndexKeys.Descending(x => x.SchedulePriority)));
-			}
+			Indexes = new DatabaseIndexes(Jobs, DatabaseService.ReadOnlyMode);
 		}
 
 		async Task PostLoadAsync(JobDocument Job)
@@ -496,7 +534,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IJob>> FindAsync(JobId[]? JobIds, StreamId? StreamId, string? Name, TemplateRefId[]? Templates, int? MinChange, int? MaxChange, int? PreflightChange, UserId? PreflightStartedByUser, UserId? StartedByUser, DateTimeOffset? MinCreateTime, DateTimeOffset? MaxCreateTime, DateTimeOffset? ModifiedBefore, DateTimeOffset? ModifiedAfter, int? Index, int? Count, bool ConsistentRead)
+		public async Task<List<IJob>> FindAsync(JobId[]? JobIds, StreamId? StreamId, string? Name, TemplateRefId[]? Templates, int? MinChange, int? MaxChange, int? PreflightChange, UserId? PreflightStartedByUser, UserId? StartedByUser, DateTimeOffset? MinCreateTime, DateTimeOffset? MaxCreateTime, DateTimeOffset? ModifiedBefore, DateTimeOffset? ModifiedAfter, int? Index, int? Count, bool ConsistentRead, string? IndexHint)
 		{
 			FilterDefinitionBuilder<JobDocument> FilterBuilder = Builders<JobDocument>.Filter;
 
@@ -558,7 +596,14 @@ namespace HordeServer.Collections.Impl
 			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Jobs.Find").StartActive())
 			{
 				IMongoCollection<JobDocument> Collection = ConsistentRead ? Jobs : Jobs.WithReadPreference(ReadPreference.SecondaryPreferred);
-				IFindFluent<JobDocument, JobDocument> Query = Collection.Find<JobDocument>(Filter).SortByDescending(x => x.CreateTimeUtc!);
+
+				FindOptions? FindOptions = null;
+				if (IndexHint != null)
+				{
+					FindOptions = new FindOptions { Hint = new BsonString(IndexHint) };
+				}
+				
+				IFindFluent<JobDocument, JobDocument> Query = Collection.Find<JobDocument>(Filter, FindOptions).SortByDescending(x => x.CreateTimeUtc!);
 				
 				if (Index != null)
 				{
@@ -575,6 +620,16 @@ namespace HordeServer.Collections.Impl
 				await PostLoadAsync(Result);
 			}
 			return Results.ConvertAll<JobDocument, IJob>(x => x);
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser, int? Index, int? Count, bool ConsistentRead)
+		{
+			// This find call uses an index hint. Modifying the parameter passed to FindAsync can affect execution time a lot as the query planner is forced to use the specified index.
+			// Casting to interface to benefit from default parameter values
+			return await (this as IJobCollection).FindAsync(
+				StreamId: StreamId, Templates: Templates, PreflightStartedByUser: PreflightStartedByUser,
+				Index: Index, Count: Count, IndexHint: Indexes.CreateTimeUtc, ConsistentRead: ConsistentRead);
 		}
 
 		/// <inheritdoc/>
