@@ -131,10 +131,7 @@ FLinkerLoad* GetLinkerLoadFromOwner(UObject* Owner)
 		UPackage* Package = Owner->GetOutermost();
 		checkf(Package != nullptr, TEXT("Owner was not a valid UPackage!"));
 
-		FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
-		checkf(Linker != nullptr, TEXT("UPackage did not have a valid FLinkerLoad!"));
-
-		return Linker;
+		return FLinkerLoad::FindExistingLinkerForPackage(Package);
 	}
 	else
 	{
