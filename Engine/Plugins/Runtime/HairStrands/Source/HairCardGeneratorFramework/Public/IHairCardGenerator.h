@@ -21,12 +21,12 @@ public:
 
 namespace HairCardGenerator_Utils
 {
-	void RegisterModularHairCardGenerator(IHairCardGenerator* Generator)
+	FORCEINLINE void RegisterModularHairCardGenerator(IHairCardGenerator* Generator)
 	{
 		IModularFeatures::Get().RegisterModularFeature(IHairCardGenerator::ModularFeatureName, Generator);
 	}
 
-	void UnregisterModularHairCardGenerator(IHairCardGenerator* Generator)
+	FORCEINLINE void UnregisterModularHairCardGenerator(IHairCardGenerator* Generator)
 	{
 		IModularFeatures::Get().UnregisterModularFeature(IHairCardGenerator::ModularFeatureName, Generator);
 	}
