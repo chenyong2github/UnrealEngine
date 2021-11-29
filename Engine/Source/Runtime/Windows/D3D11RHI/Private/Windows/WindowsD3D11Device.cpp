@@ -1069,6 +1069,8 @@ void FD3D11DynamicRHIModule::FindAdapter()
 	{
 		UE_LOG(LogD3D11RHI, Error, TEXT("Failed to choose a D3D11 Adapter."));
 	}
+
+	GRHIDeviceIsIntegrated = ChosenAdapter.bIsIntegrated;
 }
 
 FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
@@ -1751,7 +1753,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		TRefCountPtr<IDXGIAdapter3> DxgiAdapter3;
 		DXGI_QUERY_VIDEO_MEMORY_INFO LocalVideoMemoryInfo;
 		FD3D11GlobalStats::GTotalGraphicsMemory = 0;
-		if ( IsRHIDeviceIntel() )
+		if (Adapter.bIsIntegrated)
 		{
 			// It's all system memory.
 			FD3D11GlobalStats::GTotalGraphicsMemory = FD3D11GlobalStats::GDedicatedVideoMemory;
@@ -2122,7 +2124,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 #endif // INTEL_METRICSDISCOVERY
 
 		// Disable the RHI thread by default for devices that will likely suffer in performance
-		if (IsRHIDeviceIntel() || FPlatformMisc::NumberOfCores() < 4)
+		if (Adapter.bIsIntegrated || FPlatformMisc::NumberOfCores() < 4)
 		{
 			GRHISupportsRHIThread = false;
 		}

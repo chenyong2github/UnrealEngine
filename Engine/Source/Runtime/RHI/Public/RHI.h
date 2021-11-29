@@ -637,6 +637,9 @@ extern RHI_API uint32 GRHIRayTracingInstanceDescriptorSize;
 /** Whether or not the RHI supports shader wave operations (shader model 6.0). */
 extern RHI_API bool GRHISupportsWaveOperations;
 
+/** Whether or not the current GPU is integrated into to CPU */
+extern RHI_API bool GRHIDeviceIsIntegrated;
+
 /** 
 * Specifies the minimum and maximum number of lanes in the SIMD wave that this GPU can support. I.e. 32 on NVIDIA, 64 on AMD.
 * Valid values are in range [4..128] (as per SM 6.0 specification) or 0 if unknown.

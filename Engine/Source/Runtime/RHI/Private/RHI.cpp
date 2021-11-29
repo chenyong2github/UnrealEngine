@@ -1450,6 +1450,8 @@ bool GRHISupportsConservativeRasterization = false;
 
 bool GRHISupportsPipelineFileCache = false;
 
+bool GRHIDeviceIsIntegrated = false;
+
 /** Whether we are profiling GPU hitches. */
 bool GTriggerGPUHitchProfile = false;
 
@@ -1731,7 +1733,6 @@ RHI_API bool IsRHIDeviceAMD()
 RHI_API bool IsRHIDeviceIntel()
 {
 	check(GRHIVendorId != 0);
-	// Intel GPUs are integrated and use both DedicatedVideoMemory and SharedSystemMemory.
 	return GRHIVendorId == 0x8086;
 }
 

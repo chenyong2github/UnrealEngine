@@ -123,11 +123,7 @@ enum EHairVisibilityRenderMode
 
 inline bool DoesSupportRasterCompute()
 {
-#if PLATFORM_WINDOWS
-	return (IsRHIDeviceNVIDIA() || IsRHIDeviceAMD()) && GRHISupportsAtomicUInt64;
-#else
 	return GRHISupportsAtomicUInt64;
-#endif
 }
 
 inline EHairVisibilityRenderMode GetHairVisibilityRenderMode()
