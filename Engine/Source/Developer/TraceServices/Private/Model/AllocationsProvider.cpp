@@ -113,7 +113,7 @@ void FAllocationsProviderLock::EndWrite()
 // FTagTracker
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTagTracker::AddTagSpec(uint32 InTag, uint32 InParentTag, const TCHAR* InDisplay)
+void FTagTracker::AddTagSpec(TagIdType InTag, TagIdType InParentTag, const TCHAR* InDisplay)
 {
 	if (ensure(!TagMap.Contains(InTag)))
 	{
@@ -131,7 +131,7 @@ void FTagTracker::AddTagSpec(uint32 InTag, uint32 InParentTag, const TCHAR* InDi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTagTracker::PushTag(uint32 InThreadId, uint8 InTracker, uint32 InTag)
+void FTagTracker::PushTag(uint32 InThreadId, uint8 InTracker, TagIdType InTag)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	ThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
@@ -161,7 +161,7 @@ void FTagTracker::PopTag(uint32 InThreadId, uint8 InTracker)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint32 FTagTracker::GetCurrentTag(uint32 InThreadId, uint8 InTracker) const
+TagIdType FTagTracker::GetCurrentTag(uint32 InThreadId, uint8 InTracker) const
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
@@ -169,24 +169,24 @@ uint32 FTagTracker::GetCurrentTag(uint32 InThreadId, uint8 InTracker) const
 	{
 		return 0; // Untagged
 	}
-	return State->TagStack.Top() & ~0x80000000;
+	return State->TagStack.Top() & ~PtrTagMask;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TCHAR* FTagTracker::GetTagString(uint32 InTag) const
+const TCHAR* FTagTracker::GetTagString(TagIdType InTag) const
 {
 	const TagEntry* Entry = TagMap.Find(InTag);
-	return Entry ? Entry->Display : TEXT("");
+	return Entry ? Entry->Display : TEXT("Unknown");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTagTracker::PushTagFromPtr(uint32 InThreadId, uint8 InTracker, uint32 InTag)
+void FTagTracker::PushTagFromPtr(uint32 InThreadId, uint8 InTracker, TagIdType InTag)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	ThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
-	State.TagStack.Push(InTag | 0x80000000);
+	State.TagStack.Push(InTag | PtrTagMask);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,7 +197,7 @@ void FTagTracker::PopTagFromPtr(uint32 InThreadId, uint8 InTracker)
 	ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
 	if (State && !State->TagStack.IsEmpty())
 	{
-		INSIGHTS_SLOW_CHECK((State->TagStack.Top() & 0x80000000) != 0);
+		INSIGHTS_SLOW_CHECK((State->TagStack.Top() & PtrTagMask) != 0);
 		State->TagStack.Pop();
 	}
 	else
@@ -216,7 +216,7 @@ bool FTagTracker::HasTagFromPtrScope(uint32 InThreadId, uint8 InTracker) const
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
-	return State && State->TagStack.Num() > 0 && ((State->TagStack.Top() & 0x80000000) != 0);
+	return State && State->TagStack.Num() > 0 && ((State->TagStack.Top() & PtrTagMask) != 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -286,7 +286,7 @@ const FCallstack* IAllocationsProvider::FAllocation::GetCallstack() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint32 IAllocationsProvider::FAllocation::GetTag() const
+TagIdType IAllocationsProvider::FAllocation::GetTag() const
 {
 	const auto* Inner = (const FAllocationItem*)this;
 	return Inner->Tag;
@@ -1107,7 +1107,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 
 	AdvanceTimelines(Time);
 
-	const uint32 Tag = TagTracker.GetCurrentTag(ThreadId, Tracker);
+	const TagIdType Tag = TagTracker.GetCurrentTag(ThreadId, Tracker);
 
 #if INSIGHTS_DEBUG_WATCH
 	for (int32 AddrIndex = 0; AddrIndex < UE_ARRAY_COUNT(GWatchAddresses); ++AddrIndex)
@@ -1450,7 +1450,7 @@ HeapId FAllocationsProvider::FindRootHeap(HeapId Heap) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditPushTag(uint32 ThreadId, uint8 Tracker, uint32 Tag)
+void FAllocationsProvider::EditPushTag(uint32 ThreadId, uint8 Tracker, TagIdType Tag)
 {
 	EditAccessCheck();
 
@@ -1477,7 +1477,7 @@ void FAllocationsProvider::EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, ui
 	if (ensure(Allocs))
 	{
 		FAllocationItem* Alloc = Allocs->FindRef(Ptr);
-		const int32 Tag = Alloc ? Alloc->Tag : 0; // If ptr is not found use "Untagged"
+		const TagIdType Tag = Alloc ? Alloc->Tag : 0; // If ptr is not found use "Untagged"
 		TagTracker.PushTagFromPtr(ThreadId, Tracker, Tag);
 	}
 	else

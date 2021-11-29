@@ -238,8 +238,8 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		}
 		case RouteId_TagSpec:
 		{
-			const int32 Tag = Context.EventData.GetValue<int32>("Tag");
-			const int32 Parent = Context.EventData.GetValue<int32>("Parent");
+			const TagIdType Tag = Context.EventData.GetValue<TagIdType>("Tag");
+			const TagIdType Parent = Context.EventData.GetValue<TagIdType>("Parent");
 
 			FString Display;
 			Context.EventData.GetString("Display", Display);
@@ -258,7 +258,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			{
 				if (FCStringAnsi::Strlen(Context.EventData.GetTypeInfo().GetName()) == 11) // "MemoryScope"
 				{
-					const int32 Tag = Context.EventData.GetValue<int32>("Tag");
+					const TagIdType Tag = Context.EventData.GetValue<TagIdType>("Tag");
 					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
 					AllocationsProvider.EditPushTag(ThreadId, Tracker, Tag);
 				}
