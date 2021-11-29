@@ -230,6 +230,10 @@ public:
 
 	virtual uint32 GetWantedEditorCellSize() const override;
 	virtual void SetEditorWantedCellSize(uint32 InCellSize) override;
+
+	virtual void AddBackReference(FWorldPartitionHandle& ReferenceHandle,  UWorldPartitionEditorCell* Cell, const FGuid& Source) override;
+	virtual void RemoveBackReference(FWorldPartitionHandle& ReferenceHandle,  UWorldPartitionEditorCell* Cell, const FGuid& Source) override;
+		
 	// UWorldPartitionEditorHash interface end
 #endif
 
@@ -250,6 +254,8 @@ private:
 
 	TMap<FCellCoord, FCellNode> HashNodes;
 	TMap<FCellCoord, UWorldPartitionEditorCell*> HashCells;
+	
+	TMultiMap<FWorldPartitionHandle, TTuple<UWorldPartitionEditorCell*, FGuid>>	BackReferences;
 
 	UPROPERTY(Transient)
 	TSet<TObjectPtr<UWorldPartitionEditorCell>> Cells;
