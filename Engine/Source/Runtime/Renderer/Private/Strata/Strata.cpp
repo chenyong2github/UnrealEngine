@@ -11,6 +11,7 @@
 #include "SceneTextureParameters.h"
 #include "StrataDefinitions.h"
 #include "ScreenPass.h"
+#include "ShaderCompiler.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -632,6 +633,8 @@ void ApprendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount,
 {
 	if (Strata::IsStrataEnabled() && SceneRenderer.Scene)
 	{
+		// If this function changes, update Strata::SetBasePassRenderTargetOutputFormat()
+		 
 		// Add 2 uint for Strata fast path
 		auto AddStrataOutputTarget = [&](int16 StrataMaterialArraySlice)
 		{
@@ -646,6 +649,22 @@ void ApprendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount,
 			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.TopLayerTexture, ERenderTargetLoadAction::ELoad);
 			RenderTargetCount++;
 		};
+	}
+}
+
+void SetBasePassRenderTargetOutputFormat(const EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
+{
+	if (Strata::IsStrataEnabled())
+	{
+		const FGBufferParams GBufferParams = FShaderCompileUtilities::FetchGBufferParamsRuntime(Platform);
+		const FGBufferInfo BufferInfo = FetchFullGBufferInfo(GBufferParams);
+
+		// Add 2 uint for Strata fast path
+		OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + 0, PF_R32_UINT);
+		OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + 1, PF_R32_UINT);
+
+		// Add another MRT for Strata top layer information
+		OutEnvironment.SetRenderTargetOutputFormat(BufferInfo.NumTargets + 2, PF_R32_UINT);
 	}
 }
 
