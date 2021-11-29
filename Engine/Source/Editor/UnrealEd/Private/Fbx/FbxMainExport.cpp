@@ -1990,7 +1990,7 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 
 	// If this actor has attached actors, and the bound component isn't the root component, skip the 3d transform track because we don't want the 
 	// component transform to be assigned to the actor, which would subsequently apply to the attached children 
-	if (Actor && Actor->GetRootComponent() != BoundComponent)
+	if (Actor && BoundComponent && Actor->GetRootComponent() != BoundComponent)
 	{
 		TArray<AActor*> AttachedActors;
 		Actor->GetAttachedActors(AttachedActors);
