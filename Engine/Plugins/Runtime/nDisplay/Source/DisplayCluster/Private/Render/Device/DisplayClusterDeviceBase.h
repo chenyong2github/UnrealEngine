@@ -65,6 +65,8 @@ public:
 		return FMath::Max(1, DesiredNumberOfViews);
 	}
 
+	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const override;
+
 	virtual IStereoRenderTargetManager* GetRenderTargetManager() override
 	{ return this; }
 
