@@ -320,6 +320,8 @@ public:
 			OutEnvironment.SetRenderTargetOutputFormat(VelocityIndex, PF_G16R16);
 		}
 
+		Strata::SetBasePassRenderTargetOutputFormat(Parameters.Platform, OutEnvironment);
+
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 	}
 
