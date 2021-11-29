@@ -65,11 +65,6 @@ TArray<FTransform> UUsdExporterBlueprintLibrary::GetInstanceTransforms( AInstanc
 		return Result;
 	}
 
-	if ( InstancesLevel == nullptr )
-	{
-		InstancesLevel = Actor->GetLevel();
-	}
-
 	// Modified from AInstancedFoliageActor::GetInstancesForComponent to limit traversal only to our FoliageType
 
 	if ( const TUniqueObj<FFoliageInfo>* FoundInfo = Actor->GetFoliageInfos().Find( FoliageType ) )
@@ -81,7 +76,7 @@ TArray<FTransform> UUsdExporterBlueprintLibrary::GetInstanceTransforms( AInstanc
 		for ( const TPair<FFoliageInstanceBaseId, FFoliageInstanceBaseInfo>& FoliageInstancePair : Actor->InstanceBaseCache.InstanceBaseMap )
 		{
 			UActorComponent* Comp = FoliageInstancePair.Value.BasePtr.Get();
-			if ( !Comp || Comp->GetComponentLevel() != InstancesLevel )
+			if ( !Comp || ( InstancesLevel && ( Comp->GetComponentLevel() != InstancesLevel ) ) )
 			{
 				continue;
 			}
