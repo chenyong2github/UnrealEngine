@@ -756,13 +756,11 @@ void SUsdStageTreeView::OnAddReference()
 		FText::FromString( PickedFile.GetValue() )
 	) );
 
-	const FString AbsoluteFilePath = FPaths::ConvertRelativePathToFull( PickedFile.GetValue() );
-
 	TArray< FUsdPrimViewModelRef > MySelectedItems = GetSelectedItems();
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		SelectedItem->AddReference( *AbsoluteFilePath );
+		SelectedItem->AddReference( *PickedFile.GetValue() );
 	}
 }
 
