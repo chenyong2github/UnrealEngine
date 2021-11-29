@@ -31,7 +31,10 @@ USceneComponent* FUsdGeomCameraTranslator::CreateComponents()
 
 		if ( pxr::UsdPrim UsdPrim{ GetPrim() } )
 		{
-			if ( pxr::UsdPrim UsdParentPrim = UsdPrim.GetParent() )
+			pxr::UsdPrim UsdParentPrim = UsdPrim.GetParent();
+
+			// Check if we're a child of the pseudoroot here because if we are USD will emit a warning if we try getting attributes from it...
+			if ( UsdParentPrim && !UsdParentPrim.IsPseudoRoot() )
 			{
 				bool bIsCineCameraActorMainComponent = false;
 				if ( pxr::UsdAttribute Attr = UsdParentPrim.GetAttribute( UnrealToUsd::ConvertToken( TEXT( "unrealCameraPrimName" ) ).Get() ) )
