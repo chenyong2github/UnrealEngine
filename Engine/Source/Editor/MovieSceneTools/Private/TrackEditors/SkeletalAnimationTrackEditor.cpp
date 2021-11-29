@@ -37,6 +37,7 @@
 #include "SequencerTimeSliderController.h"
 #include "FrameNumberDisplayFormat.h"
 #include "FrameNumberNumericInterface.h"
+#include "AnimationBlueprintLibrary.h"
 #include "AnimationEditorUtils.h"
 #include "Factories/PoseAssetFactory.h"
 #include "Misc/MessageDialog.h"
@@ -619,7 +620,13 @@ int32 FSkeletalAnimationSection::OnPaintSection( FSequencerSectionPainter& Paint
 			// Draw the current time next to the scrub handle
 			const double AnimTime = Section.MapTimeToAnimation(CurrentTime, TickResolution);
 			const FFrameRate SamplingFrameRate = Section.Params.Animation->GetSamplingFrameRate();
-			const FFrameTime FrameTime = SamplingFrameRate.AsFrameTime(AnimTime);
+
+			FQualifiedFrameTime HintFrameTime;
+			if (!UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(Section.Params.Animation, static_cast<float>(AnimTime), HintFrameTime))
+			{
+				const FFrameTime FrameTime = SamplingFrameRate.AsFrameTime(AnimTime);
+				HintFrameTime = FQualifiedFrameTime(FrameTime, SamplingFrameRate);
+			}
 
 			// Get the desired frame display format and zero padding from
 			// the sequencer settings, if possible.
@@ -633,12 +640,12 @@ int32 FSkeletalAnimationSection::OnPaintSection( FSequencerSectionPainter& Paint
 
 			// No frame rate conversion necessary since we're displaying
 			// the source frame time/rate.
-			const TAttribute<FFrameRate> TickResolutionAttr(SamplingFrameRate);
-			const TAttribute<FFrameRate> DisplayRateAttr(SamplingFrameRate);
+			const TAttribute<FFrameRate> TickResolutionAttr(HintFrameTime.Rate);
+			const TAttribute<FFrameRate> DisplayRateAttr(HintFrameTime.Rate);
 
 			const FFrameNumberInterface FrameNumberInterface(DisplayFormatAttr, ZeroPadFrameNumbersAttr, TickResolutionAttr, DisplayRateAttr);
 
-			DrawFrameTimeHint(Painter, CurrentTime, FrameTime, &FrameNumberInterface);
+			DrawFrameTimeHint(Painter, CurrentTime, HintFrameTime.Time, &FrameNumberInterface);
 		}
 	}
 	

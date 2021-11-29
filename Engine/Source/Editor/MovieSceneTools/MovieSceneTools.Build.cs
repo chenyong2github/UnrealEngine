@@ -36,6 +36,7 @@ public class MovieSceneTools : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
                 "ActorPickerMode",
+				"AnimationBlueprintLibrary",
 				"AppFramework",
 				"CinematicCamera",
 				"DataLayerEditor",
