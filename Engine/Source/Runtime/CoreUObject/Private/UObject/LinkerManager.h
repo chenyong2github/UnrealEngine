@@ -150,7 +150,7 @@ private:
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	/** List of all the existing linker loaders **/
 	FCriticalSection LiveLinkersCritical;
-	TArray<FLinkerLoad*> LiveLinkers;
+	TSet<FLinkerLoad*> LiveLinkers;
 #endif
 	
 	/** List of loaders that have new imports **/
