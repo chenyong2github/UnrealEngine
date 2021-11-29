@@ -49,6 +49,7 @@ UNeuralNetwork::UNeuralNetwork()
 	, InputDeviceType(ENeuralDeviceType::CPU)
 	, OutputDeviceType(ENeuralDeviceType::CPU)
 	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
+	, DelegateThreadMode(ENeuralNetworkDelegateThreadMode::GameThread)
 	, BackEnd(ENeuralBackEnd::Auto)
 	, bIsLoaded(false)
 	, BackEndForCurrentPlatform(FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd))
@@ -173,6 +174,17 @@ UNeuralNetwork::FOnAsyncRunCompleted& UNeuralNetwork::GetOnAsyncRunCompletedDele
 {
 	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	return OnAsyncRunCompletedDelegate;
+}
+
+ENeuralNetworkDelegateThreadMode UNeuralNetwork::GetOnAsyncRunCompletedDelegateMode() const
+{
+	return DelegateThreadMode;
+}
+
+void UNeuralNetwork::SetOnAsyncRunCompletedDelegateMode(const ENeuralNetworkDelegateThreadMode InDelegateThreadMode)
+{
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
+	DelegateThreadMode = InDelegateThreadMode;
 }
 
 ENeuralBackEnd UNeuralNetwork::GetBackEnd() const
@@ -554,7 +566,7 @@ bool UNeuralNetwork::Load()
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
 		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType, /*bShouldOpenMessageLog*/true);
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, OnAsyncRunCompletedDelegate, ResoucesCriticalSection, AreInputTensorSizesVariable,
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, OnAsyncRunCompletedDelegate, DelegateThreadMode, ResoucesCriticalSection, AreInputTensorSizesVariable,
 			ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
 	}
 	// UEOnly
