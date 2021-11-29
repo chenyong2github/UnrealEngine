@@ -14,6 +14,19 @@ FSmartObjectRuntime::FSmartObjectRuntime(const USmartObjectDefinition& InDefinit
 {
 }
 
+ESmartObjectSlotState FSmartObjectRuntime::GetSlotState(const uint32 SlotIndex) const
+{
+	for (const FSmartObjectSlotRuntimeData& SlotRuntimeData : SlotsRuntimeData)
+	{
+		if (SlotRuntimeData.SlotIndex == SlotIndex)
+		{
+			return SlotRuntimeData.State;
+		}
+	}
+
+	return ESmartObjectSlotState::Free;
+}
+
 uint32 FSmartObjectRuntime::FindFreeSlots(TBitArray<>& OutFreeSlots) const
 {
 	const int32 NumSlotDefinitions = GetDefinition().GetSlots().Num();

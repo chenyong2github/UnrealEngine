@@ -28,17 +28,19 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		return;
 	}
 
-	TOptional<uint32> NumRuntimeObjects = Subsystem->DebugGetNumRuntimeObjects();
-	TOptional<uint32> NumRegisteredComponents = Subsystem->DebugGetNumRegisteredComponents();
+	const uint32 NumRuntimeObjects = Subsystem->DebugGetNumRuntimeObjects();
+	const uint32 NumRegisteredComponents = Subsystem->DebugGetNumRegisteredComponents();
 
 	ASmartObjectCollection* MainCollection = Subsystem->GetMainCollection();
 	const uint32 NumCollectionEntries = MainCollection != nullptr ? MainCollection->GetEntries().Num() : 0;
 	AddTextLine(FString::Printf(TEXT("{White}Collection entries = {Green}%d\n{White}Runtime objects = {Green}%s\n{White}Registered components = {Green}%s"),
-		NumCollectionEntries,
-		NumRuntimeObjects.IsSet() ? *LexToString(NumRuntimeObjects.GetValue()) : TEXT("unknown"),
-		NumRegisteredComponents.IsSet() ? *LexToString(NumRegisteredComponents.GetValue()) : TEXT("unknown")));
+		NumCollectionEntries, *LexToString(NumRuntimeObjects), *LexToString(NumRegisteredComponents)));
 
 	FColor DebugColor = FColor::Yellow;
+	const FColor FreeColor = FColor::Cyan;
+	const FColor ClaimedColor = FColor::Yellow;
+	const FColor OccupiedColor = FColor::Red;
+
 	const TMap<FSmartObjectID, FSmartObjectRuntime>& Entries = Subsystem->DebugGetRuntimeObjects();
 	for (auto& LookupEntry : Entries)
 	{
@@ -61,7 +63,20 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 #endif
 			const FVector Pos = Transform.GetValue().GetLocation() + FVector(0.0f ,0.0f ,25.0f );
 			const FVector Dir = Transform.GetValue().GetRotation().GetForwardVector();
+
+			const ESmartObjectSlotState State = Entry.GetSlotState(i);
+			FColor StateColor = FColor::Silver;
+			switch (State)
+			{
+			case ESmartObjectSlotState::Free:		StateColor = FreeColor;		break;
+			case ESmartObjectSlotState::Claimed:	StateColor = ClaimedColor;	break;
+			case ESmartObjectSlotState::Occupied:	StateColor = OccupiedColor;	break;
+			default:
+				ensureMsgf(false, TEXT("Unsupported value: %s"), *UEnum::GetValueAsString(State));
+			}
+
 			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, DebugCircleRadius, DebugColor));
+			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, 0.75f*DebugCircleRadius, /* Thickness */5.f, StateColor));
 			AddShape(FGameplayDebuggerShape::MakeArrow(Pos, Pos + Dir * 2.0f * DebugCircleRadius, DebugArrowHeadSize, DebugArrowThickness, DebugColor));
 		}
 	}
