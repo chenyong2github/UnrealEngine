@@ -319,7 +319,17 @@ namespace BakeCustomizationLocals
 			]
 			.ValueContent()
 			[
-				ValueWidget->AsShared()
+				// Fix the size of the SComboButton by setting a MaxWidth HBox.
+				// This addresses the pop-up menu flickering when the parent SComboWidget
+				// is resized while the menu remains visible after selection.
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(0))
+				.MaxWidth(125.0f)
+				[
+					ValueWidget->AsShared()
+				]
 			];
 	}
 };
