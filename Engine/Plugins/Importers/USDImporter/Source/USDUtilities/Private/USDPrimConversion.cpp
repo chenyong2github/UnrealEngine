@@ -2270,7 +2270,7 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 	return true;
 }
 
-bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode )
+bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode, ULevel* InstancesLevel )
 {
 #if WITH_EDITOR
 	using namespace pxr;
@@ -2294,42 +2294,48 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 	int PrototypeIndex = 0;
 	for ( const TPair<UFoliageType*, TUniqueObj<FFoliageInfo>>& FoliagePair : Actor.GetFoliageInfos() )
 	{
-		const UFoliageType* FoliageType = FoliagePair.Key;
 		const FFoliageInfo& Info = FoliagePair.Value.Get();
 
-		for ( const TPair<FFoliageInstanceBaseId, TSet<int32>>& Pair : Info.ComponentHash )
+		for ( const TPair<FFoliageInstanceBaseId, FFoliageInstanceBaseInfo>& FoliageInstancePair : Actor.InstanceBaseCache.InstanceBaseMap )
 		{
-			const TSet<int32>& InstanceSet = Pair.Value;
-
-			const int32 NumInstances = InstanceSet.Num();
-			ProtoIndices.reserve( ProtoIndices.size() + NumInstances );
-			Positions.reserve( Positions.size() + NumInstances );
-			Orientations.reserve( Orientations.size() + NumInstances );
-			Scales.reserve( Scales.size() + NumInstances );
-
-			for ( int32 InstanceIndex : InstanceSet )
+			UActorComponent* Comp = FoliageInstancePair.Value.BasePtr.Get();
+			if ( !Comp || ( InstancesLevel && ( Comp->GetComponentLevel() != InstancesLevel ) ) )
 			{
-				const FFoliageInstancePlacementInfo* Instance = &Info.Instances[ InstanceIndex ];
+				continue;
+			}
 
-				// Convert axes
-				FTransform UETransform{ Instance->Rotation, Instance->Location, Instance->DrawScale3D };
-				FTransform USDTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, UETransform );
+			if ( const TSet<int32>* InstanceSet = Info.ComponentHash.Find( FoliageInstancePair.Key ) )
+			{
+				const int32 NumInstances = InstanceSet->Num();
+				ProtoIndices.reserve( ProtoIndices.size() + NumInstances );
+				Positions.reserve( Positions.size() + NumInstances );
+				Orientations.reserve( Orientations.size() + NumInstances );
+				Scales.reserve( Scales.size() + NumInstances );
 
-				FVector Translation = USDTransform.GetTranslation();
-				FQuat Rotation = USDTransform.GetRotation();
-				FVector Scale = USDTransform.GetScale3D();
-
-				// Compensate metersPerUnit
-				const float UEMetersPerUnit = 0.01f;
-				if ( !FMath::IsNearlyEqual( UEMetersPerUnit, StageInfo.MetersPerUnit ) )
+				for ( int32 InstanceIndex : (*InstanceSet) )
 				{
-					Translation *= ( UEMetersPerUnit / StageInfo.MetersPerUnit );
-				}
+					const FFoliageInstancePlacementInfo* Instance = &Info.Instances[ InstanceIndex ];
 
-				ProtoIndices.push_back( PrototypeIndex );
-				Positions.push_back( GfVec3f( Translation.X, Translation.Y, Translation.Z ) );
-				Orientations.push_back( GfQuath( Rotation.W, Rotation.X, Rotation.Y, Rotation.Z ) );
-				Scales.push_back( GfVec3f( Scale.X, Scale.Y, Scale.Z ) );
+					// Convert axes
+					FTransform UETransform{ Instance->Rotation, Instance->Location, Instance->DrawScale3D };
+					FTransform USDTransform = UsdUtils::ConvertAxes( StageInfo.UpAxis == EUsdUpAxis::ZAxis, UETransform );
+
+					FVector Translation = USDTransform.GetTranslation();
+					FQuat Rotation = USDTransform.GetRotation();
+					FVector Scale = USDTransform.GetScale3D();
+
+					// Compensate metersPerUnit
+					const float UEMetersPerUnit = 0.01f;
+					if ( !FMath::IsNearlyEqual( UEMetersPerUnit, StageInfo.MetersPerUnit ) )
+					{
+						Translation *= ( UEMetersPerUnit / StageInfo.MetersPerUnit );
+					}
+
+					ProtoIndices.push_back( PrototypeIndex );
+					Positions.push_back( GfVec3f( Translation.X, Translation.Y, Translation.Z ) );
+					Orientations.push_back( GfQuath( Rotation.W, Rotation.X, Rotation.Y, Rotation.Z ) );
+					Scales.push_back( GfVec3f( Scale.X, Scale.Y, Scale.Z ) );
+				}
 			}
 		}
 

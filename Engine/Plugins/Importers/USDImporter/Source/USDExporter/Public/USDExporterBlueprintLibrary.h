@@ -47,11 +47,11 @@ public:
 	static UObject* GetSource( UFoliageType* FoliageType );
 
 	/**
-	 * Returns the transforms of all instances of a particular UFoliageType on a given level (which defaults to the Actor's level if left nullptr).
+	 * Returns the transforms of all instances of a particular UFoliageType on a given level. If no level is provided all instances will be returned.
 	 * Use GetUsedFoliageTypes() to retrieve all foliage types managed by a particular actor.
 	 */
 	UFUNCTION( BlueprintCallable, meta = ( ScriptMethod ), Category = "USD Foliage Exporter" )
-	static TArray<FTransform> GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel = nullptr);
+	static TArray<FTransform> GetInstanceTransforms( AInstancedFoliageActor* Actor, UFoliageType* FoliageType, ULevel* InstancesLevel = nullptr );
 
 	/** Defer to the USDClasses module to actually send analytics information */
 	UFUNCTION( BlueprintCallable, Category = "Analytics" )

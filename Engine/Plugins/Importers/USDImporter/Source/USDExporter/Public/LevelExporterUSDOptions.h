@@ -29,6 +29,14 @@ struct USDEXPORTER_API FLevelExporterUSDOptionsInner
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export options" )
 	bool bIgnoreSequencerAnimations = false;
 
+	/**
+	 * By default foliage instances will be exported to the same layer as the component they were placed on in the editor.
+	 * Enable this to instead export the foliage instances to the same layer as the foliage actor they belong to.
+	 * This is useful if those foliage instances were placed with the "Place In Current Level" option.
+	 */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export options" )
+	bool bExportFoliageOnActorsLayer = false;
+
 	/** Where to place all the generated asset files */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Asset options" )
 	FDirectoryPath AssetFolder;

@@ -137,8 +137,9 @@ namespace UnrealToUsd
 	 * @param Actor				   The actor to convert data from
 	 * @param Prim                 The pxr::UsdGeomPointInstancer to write to
 	 * @param TimeCode			   TimeCode to write the attribute values at. Use UsdUtils::GetDefaultTimeCode() for the Default value.
+	 * @param InstancesLevel	   If this is not nullptr, only foliage instances placed on components that belong to this level will be exported
 	 */
-	USDUTILITIES_API bool ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode );
+	USDUTILITIES_API bool ConvertInstancedFoliageActor( const AInstancedFoliageActor& Actor, pxr::UsdPrim& UsdPrim, double TimeCode, ULevel* InstancesLevel = nullptr );
 
 	// We will defer to the common UnrealToUsd::ConvertXComponent functions when baking level sequences, which will already bake
 	// all of the properties of a component out at the same time.
