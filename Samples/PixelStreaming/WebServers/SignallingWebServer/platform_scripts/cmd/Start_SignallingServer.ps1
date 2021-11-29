@@ -13,7 +13,7 @@ $Arguments = @("cirrus", "--peerConnectionOptions=""$peerConnectionOptions""", "
 # Add arguments passed to script to Arguments for executable
 $Arguments += $global:CirrusCmd
 
-Push-Location ..\..
+Push-Location $PSScriptRoot\..\..\
 Write-Output "Running: $ProcessExe $Arguments"
 Start-Process -FilePath $ProcessExe -ArgumentList "$Arguments" -Wait -NoNewWindow
 Pop-Location

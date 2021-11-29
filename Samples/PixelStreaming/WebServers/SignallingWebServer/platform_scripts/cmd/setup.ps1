@@ -1,25 +1,19 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-Set-ExecutionPolicy Bypass -Scope Process -Force
+
+# Unclear if we need this?
+# Set-ExecutionPolicy Bypass -Scope Process -Force
 
 # Versions are from current working release versions
-# No version for turnserver at the moment, see below why:
-#  https://github.com/coturn/coturn/issues/680
-#  https://github.com/coturn/coturn/issues/843
 #
 # Structure for installation preparation; please note | in "how to install" -> installer will split the command
 #       Need install Package name   Version   min/any      how to get version  how to install           path to be added
 $Packages = @(@("y", "chocolatey",  "0.11.3", "min",       "choco --version",  "[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072 | Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')) | choco upgrade chocolatey"),
-              @("y", "TURN server", "",       "any",       "turnserver",       "choco install coturn --version 4.5.2 -y -x -f"),
 			  @("y", "node",        "v17.0.1","min",       "node --version",   "choco install nodejs -y -x -f"),
-			  @("y", "npm",         "8.1.2",  "min",       "npm --version",    "npm install -g npm -f"),
-			  @("y", "express fw",  "4.17.1", "min",       "npm show express version",
-                                                                               "npm install express -f"),
-			  @("y", "STUN server", "0.0.1",  "min",       "npm show cirrus-webserver version",
-			                                                                   "npm install cirrus-webserver -f")
+			  @("y", "npm",         "8.1.2",  "min",       "npm --version",    "npm install -g npm -f")
 			  )
 
 # Install npm packages at the correct place
-Push-Location ..\..
+Push-Location $PSScriptRoot\..\..\
 
 # Check what to install
 foreach ($Item in $Packages) {
@@ -77,5 +71,27 @@ foreach ($Item in $Packages) {
  }
 }
 
+# Install Cirrus
+npm install
+
 # Reverse ..\.. location
+Pop-Location
+
+# Put us in the cmd scripts folder
+Push-Location $PSScriptRoot
+
+# Install CoTURN
+Write-Host "Checking for  Coturn..." -NoNewLine
+if (-not(Test-Path -Path coturn/turnserver.exe -PathType Leaf)) {
+    Write-Host " ...installing... " -NoNewLine
+    curl -o ./turnserver.zip https://github.com/mcottontensor/coturn/releases/download/v4.5.2-windows/turnserver.zip
+    Expand-Archive -Path ./turnserver.zip -DestinationPath ./coturn
+    Remove-Item -Path ./turnserver.zip
+    Write-Host " ...done. "
+}
+else {
+    Write-Host " ...found."
+}
+
+# Reverse location
 Pop-Location

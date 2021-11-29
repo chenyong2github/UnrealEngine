@@ -1,5 +1,8 @@
 # Copyright 1998-2021 Epic Games, Inc. All Rights Reserved.
 
+# Do setup as a common task, it is smart and will not reinstall if not required.
+. "$PSScriptRoot\setup.ps1"
+
 $global:ScriptName = $MyInvocation.MyCommand.Name
 $global:PublicIP = $null
 $global:StunServer = $null

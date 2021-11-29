@@ -28,7 +28,7 @@ $Arguments = "-p $TurnPort -r $Realm -X $PublicIP -E $LocalIP -L $LocalIP --no-c
 # Add arguments passed to script to Arguments for executable
 $Arguments += $args
 
-Push-Location ..\..
+Push-Location $PSScriptRoot\coturn\
 Write-Output "Running: $ProcessExe $Arguments"
 # pause
 Start-Process -FilePath $ProcessExe -ArgumentList $Arguments -NoNewWindow
