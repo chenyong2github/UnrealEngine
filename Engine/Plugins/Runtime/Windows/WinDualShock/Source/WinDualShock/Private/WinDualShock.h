@@ -20,7 +20,8 @@ namespace Audio
 enum EWinDualShockPortType
 {
 	PadSpeakers,
-	Vibration	// ignored on DualShock controllers
+	Vibration,	// ignored on DualShock controllers
+	WinDualShockPortType_Count
 };
 
 /**
@@ -73,18 +74,21 @@ public:
 
 	/**
 	 * Endpoint reference counting to know when device is no longer needed
+	 * Returns true only for the first endpoint of a port type, to avoid multiple audio sends interleaving
 	 */
-	void AddEndpoint()
+	bool AddEndpoint(EWinDualShockPortType PortType)
 	{
-		EndpointCount++;
+		int PreviousCount = EndpointCount[PortType]++;
+		return PreviousCount == 0;
 	}
-	void RemoveEndpoint()
+	void RemoveEndpoint(EWinDualShockPortType PortType)
 	{
-		EndpointCount--;
+		EndpointCount[PortType]--;
 	}
 	int GetEndpointCount() const
 	{
-		return EndpointCount;
+		static_assert(WinDualShockPortType_Count == 2);
+		return EndpointCount[0] + EndpointCount[1];
 	}
 
 	FDeviceKey GetDeviceKey() const
@@ -94,7 +98,7 @@ public:
 
 protected:
 	FDeviceKey			DeviceKey;
-	std::atomic<int>	EndpointCount{ 0 };
+	std::atomic<int>	EndpointCount[WinDualShockPortType_Count]{ 0 };
 };
 
 
