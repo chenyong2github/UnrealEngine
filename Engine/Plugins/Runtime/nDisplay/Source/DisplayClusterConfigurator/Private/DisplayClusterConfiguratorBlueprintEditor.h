@@ -145,7 +145,7 @@ protected:
 	void CreateDCSCSEditors();
 	void ShutdownDCSCSEditors();
 
-	TSharedRef<SWidget> CreateSCSEditorExtensionWidget(FWeakObjectPtr ExtensionContext);
+	static TSharedRef<SWidget> CreateSCSEditorExtensionWidget(FWeakObjectPtr ExtensionContext);
 
 	void CreateSCSEditorWrapper();
 
