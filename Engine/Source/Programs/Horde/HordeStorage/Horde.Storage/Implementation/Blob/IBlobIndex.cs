@@ -1,7 +1,7 @@
-using System;
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AutoMapper;
 using Jupiter.Implementation;
 
 namespace Horde.Storage.Implementation.Blob
