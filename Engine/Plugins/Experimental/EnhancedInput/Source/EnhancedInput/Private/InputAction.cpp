@@ -34,6 +34,70 @@ FInputActionInstance::FInputActionInstance(const UInputAction* InSourceAction)
 	}
 }
 
+// Calculate a collective representation of trigger state from evaluations of all triggers in one or more trigger groups.
+ETriggerState FTriggerStateTracker::EvaluateTriggers(const UEnhancedPlayerInput* PlayerInput, const TArray<UInputTrigger*>& Triggers, FInputActionValue ModifiedValue, float DeltaTime)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_Triggers);
+
+	// Note: No early outs permitted (e.g. whilst bBlocking)! All triggers must be evaluated to update their internal state/delta time.
+
+	for (UInputTrigger* Trigger : Triggers)
+	{
+		if (!Trigger)
+		{
+			continue;
+		}
+
+		bEvaluatedTriggers = true;
+
+		ETriggerState CurrentState = Trigger->UpdateState(PlayerInput, ModifiedValue, DeltaTime);
+
+		// Automatically update the last value, avoiding the trigger having to track it.
+		Trigger->LastValue = ModifiedValue;
+
+		switch (Trigger->GetTriggerType())
+		{
+		case ETriggerType::Explicit:
+			bFoundExplicit = true;
+			bAnyExplictTriggered |= (CurrentState == ETriggerState::Triggered);
+			bFoundActiveTrigger |= (CurrentState != ETriggerState::None);
+			break;
+		case ETriggerType::Implicit:
+			bAllImplicitsTriggered &= (CurrentState == ETriggerState::Triggered);
+			bFoundActiveTrigger |= (CurrentState != ETriggerState::None);
+			break;
+		case ETriggerType::Blocker:
+			bBlocking |= (CurrentState == ETriggerState::Triggered);
+			// Ongoing blockers don't count as active triggers
+			break;
+		}
+	}
+
+	return GetState();
+}
+
+ETriggerState FTriggerStateTracker::GetState() const
+{
+	if(!bEvaluatedTriggers)
+	{
+		return NoTriggerState;
+	}
+
+	if (bBlocking)
+	{
+		return ETriggerState::None;
+	}
+
+	bool bTriggered = ((!bFoundExplicit || bAnyExplictTriggered) && bAllImplicitsTriggered);
+	return bTriggered ? ETriggerState::Triggered : (bFoundActiveTrigger ? ETriggerState::Ongoing : ETriggerState::None);
+}
+
+// TODO: Hacky. This is the state we should return if we have evaluated no valid triggers. Set during action evaluation based on final ModifiedValue.
+void FTriggerStateTracker::SetStateForNoTriggers(ETriggerState State)
+{
+	NoTriggerState = State;
+}
+
 #if WITH_EDITOR
 // Record input action property changes for later processing
 

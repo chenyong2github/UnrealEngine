@@ -65,6 +65,43 @@ public:
 	TArray<UInputModifier*> Modifiers;
 };
 
+// Calculate a collective representation of trigger state from evaluations of all triggers in one or more trigger groups.
+struct FTriggerStateTracker
+{
+	// Trigger rules by evaluated trigger count:
+	// Implicits == 0, Explicits == 0	- Always fire, unless value is 0.
+	// Implicits == 0, Explicits  > 0	- At least one explict has fired.
+	// Implicits  > 0, Explicits == 0	- All implicits have fired.
+	// Implicits  > 0, Explicits  > 0	- All implicits and at least one explicit have fired.
+	// Blockers   > 0					- Override all other triggers to force trigger failure.
+
+	// Add a group of triggers to the evaluated state, returning the new trigger state.
+	ETriggerState EvaluateTriggers(const UEnhancedPlayerInput* PlayerInput, const TArray<UInputTrigger*>& Triggers, FInputActionValue ModifiedValue, float DeltaTime);
+
+	ETriggerState GetState() const;
+
+	void SetMappingTriggerApplied(bool bNewVal) { bMappingTriggerApplied = bNewVal; }
+	bool GetMappingTriggerApplied() const { return bMappingTriggerApplied; }
+
+	bool operator>=(const FTriggerStateTracker& Other) const { return GetState() >= Other.GetState(); }
+
+	// TODO: Hacky. This is the state we should return if we have evaluated no valid triggers. Set during action evaluation based on final ModifiedValue.
+	void SetStateForNoTriggers(ETriggerState State);
+
+private:
+	ETriggerState NoTriggerState = ETriggerState::None;
+
+	bool bEvaluatedInput = false;		// Non-zero input value was provided at some point in the evaluation
+	bool bEvaluatedTriggers = false;	// At least one valid trigger was evaluated
+	bool bFoundActiveTrigger = false;	// If any trigger is in an ongoing or triggered state the final state must be at least ongoing (with the exception of blocking triggers!)
+	bool bAnyExplictTriggered = false;
+	bool bFoundExplicit = false;		// If no explicits are found the trigger may fire through implicit testing only. If explicits exist at least one must be met.
+	bool bAllImplicitsTriggered = true;
+	bool bBlocking = false;				// If any trigger is blocking, we can't fire.
+	bool bMappingTriggerApplied = false; // Set to true when an actionmapping is processed and triggers were found
+};
+
+
 // Run time queryable action instance
 // Generated from UInputAction templates above
 USTRUCT(BlueprintType)
@@ -83,9 +120,8 @@ private:
 
 	// Internal trigger states
 	ETriggerState LastTriggerState = ETriggerState::None;
-	ETriggerState MappingTriggerState = ETriggerState::None;
+	FTriggerStateTracker TriggerStateTracker;
 	ETriggerEventInternal TriggerEventInternal = ETriggerEventInternal(0);	// TODO: Expose access to ETriggerEventInternal?
-	bool bMappingTriggerApplied = false;
 
 protected:
 	// TODO: Just hold a duplicate of the UInputAction in here?

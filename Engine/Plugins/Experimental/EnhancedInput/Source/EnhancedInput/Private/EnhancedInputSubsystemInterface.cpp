@@ -94,11 +94,12 @@ void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(bool bForce
 	RequestRebuildControlMappings(Options);
 }
 
-void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(const FModifyContextOptions& Options)
+void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(const FModifyContextOptions& Options, EInputMappingRebuildType MappingRebuildType)
 {
 	bMappingRebuildPending = true;
 	bIgnoreAllPressedKeysUntilReleaseOnRebuild &= Options.bIgnoreAllPressedKeysUntilRelease;
-
+	MappingRebuildPending = MappingRebuildType;
+	
 	if (Options.bForceImmediately)
 	{
 		RebuildControlMappings();
@@ -468,7 +469,7 @@ TArray<FEnhancedActionKeyMapping> ReorderMappings(const TArray<FEnhancedActionKe
 
 void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 {
-	if(!bMappingRebuildPending)
+	if(MappingRebuildPending == EInputMappingRebuildType::None)
 	{
 		return;
 	}
@@ -476,7 +477,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	UEnhancedPlayerInput* PlayerInput = GetPlayerInput();
 	if (!PlayerInput)
 	{
-		// TODO: Prefer to reset bMappingRebuildPending here?
+		// TODO: Prefer to reset MappingRebuildPending here?
 		return;
 	}
 
@@ -523,9 +524,6 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 
 				ApplyAxisPropertyModifiers(PlayerInput, NewMapping);
 
-				// Perform a modifier calculation pass on the default data to initialize values correctly.
-				PlayerInput->InitializeMappingActionModifiers(NewMapping);
-
 				// Re-instance triggers
 				DeepCopyPtrArray<UInputTrigger>(Mapping.Triggers, NewMapping.Triggers);
 
@@ -558,51 +556,67 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 
 	PlayerInput->ForceRebuildingKeyMaps(false);
 
-	// Remove action instance data for actions that are not referenced in the new action mappings
-	TSet<const UInputAction*> RemovedActions;
-	for (TPair<const UInputAction*, FInputActionInstance>& ActionInstance : PlayerInput->ActionInstanceData)
+	// Clean out invalidated actions
+	if (MappingRebuildPending == EInputMappingRebuildType::RebuildWithFlush)
 	{
-		RemovedActions.Add(ActionInstance.Key);
+		PlayerInput->ActionInstanceData.Empty();
 	}
-
-	// Return true if the given FKey was in the old Player Input mappings
-	auto WasInOldMapping = [&OldMappings](const FKey& InKey) -> bool
+	else
 	{
-		return OldMappings.ContainsByPredicate(
-			[&InKey](const FEnhancedActionKeyMapping& OldMapping){ return OldMapping.Key == InKey; }
-			);
-	};
+		
+		// Remove action instance data for actions that are not referenced in the new action mappings
+		TSet<const UInputAction*> RemovedActions;
+		for (TPair<const UInputAction*, FInputActionInstance>& ActionInstance : PlayerInput->ActionInstanceData)
+		{
+			RemovedActions.Add(ActionInstance.Key);
+		}
+
+		// Return true if the given FKey was in the old Player Input mappings
+		auto WasInOldMapping = [&OldMappings](const FKey& InKey) -> bool
+		{
+			return OldMappings.ContainsByPredicate(
+				[&InKey](const FEnhancedActionKeyMapping& OldMapping){ return OldMapping.Key == InKey; }
+				);
+		};
 	
-	for (FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
-	{
-		RemovedActions.Remove(Mapping.Action);
+		for (FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
+		{
+			RemovedActions.Remove(Mapping.Action);
 
-		// Was this key pressed last frame? If so, then we need to mark it to be ignored by the PlayerInput
-		// until it is released to avoid re-processing a triggered event when it. This is only a problem if
-		// the key was in the old mapping and the new one
-		if(bIgnoreAllPressedKeysUntilReleaseOnRebuild && Mapping.Key.IsDigital() && WasInOldMapping(Mapping.Key))
-		{				
-			const FKeyState* KeyState = PlayerInput->GetKeyState(Mapping.Key);
-			if(KeyState && KeyState->bDown)
+			// Was this key pressed last frame? If so, then we need to mark it to be ignored by the PlayerInput
+			// until it is released to avoid re-processing a triggered event when it. This is only a problem if
+			// the key was in the old mapping and the new one
+			if(bIgnoreAllPressedKeysUntilReleaseOnRebuild && Mapping.Key.IsDigital() && WasInOldMapping(Mapping.Key))
+			{				
+				const FKeyState* KeyState = PlayerInput->GetKeyState(Mapping.Key);
+				if(KeyState && KeyState->bDown)
+				{
+					Mapping.bShouldBeIgnored = true;
+				}
+			}
+
+			// Retain old mapping trigger/modifier state for identical key -> action mappings.
+			TArray<FEnhancedActionKeyMapping>::SizeType Idx = OldMappings.IndexOfByPredicate([&Mapping](const FEnhancedActionKeyMapping& Other) {return Mapping == Other; });
+			if (Idx != INDEX_NONE)
 			{
-				Mapping.bShouldBeIgnored = true;
+				Mapping = MoveTemp(OldMappings[Idx]);
+				OldMappings.RemoveAtSwap(Idx);
 			}
 		}
-
-		// Retain old mapping trigger/modifier state for identical key -> action mappings.
-		TArray<FEnhancedActionKeyMapping>::SizeType Idx = OldMappings.IndexOfByPredicate([&Mapping](const FEnhancedActionKeyMapping& Other) {return Mapping == Other; });
-		if (Idx != INDEX_NONE)
+		for (const UInputAction* Action : RemovedActions)
 		{
-			Mapping = MoveTemp(OldMappings[Idx]);
-			OldMappings.RemoveAtSwap(Idx);
-		}
-	}
-	for (const UInputAction* Action : RemovedActions)
-	{
-		PlayerInput->ActionInstanceData.Remove(Action);
+			PlayerInput->ActionInstanceData.Remove(Action);
+		}	
 	}
 
-	bMappingRebuildPending = false;
+	// Perform a modifier calculation pass on the default data to initialize values correctly.
+	// We do this at the end to ensure ActionInstanceData is accessible without requiring a tick for new/flushed actions.
+	for (FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
+	{
+		PlayerInput->InitializeMappingActionModifiers(Mapping);
+	}
+	
+	MappingRebuildPending = EInputMappingRebuildType::None;
 	bIgnoreAllPressedKeysUntilReleaseOnRebuild = true;
 }
 
