@@ -10,9 +10,6 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "Logging/MessageLog.h"
-#include "Misc/UObjectToken.h"
-#include "Misc/MapErrors.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
@@ -54,124 +51,6 @@ void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExt
 			if (AActor* Actor = AlwaysLoadedActor.Actor)
 			{
 				Actor->SetForceExternalActorLevelReferenceForPIE(bForceExternalActorLevelReferenceForPIE);
-			}
-		}
-	}
-}
-
-void UWorldPartitionRuntimeHash::CheckForErrors() const
-{
-	TMap<FGuid, FWorldPartitionActorViewProxy> ActorDescList;
-	for (UActorDescContainer::TConstIterator<> ActorDescIt(GetOuterUWorldPartition()); ActorDescIt; ++ActorDescIt)
-	{
-		ActorDescList.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
-	}
-
-	CheckForErrorsInternal(ActorDescList);
-}
-
-void UWorldPartitionRuntimeHash::CheckForErrorsInternal(const TMap<FGuid, FWorldPartitionActorViewProxy>& ActorDescList) const
-{
-	AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
-	auto GetActorLabel = [](const FWorldPartitionActorDescView& ActorDescView) -> FString
-	{
-		const FName ActorLabel = ActorDescView.GetActorLabel();
-		if (!ActorLabel.IsNone())
-		{
-			return ActorLabel.ToString();
-		}
-
-		const FString ActorPath = ActorDescView.GetActorPath().ToString();
-
-		FString SubObjectName;
-		FString SubObjectContext;
-		if (FString(ActorPath).Split(TEXT("."), &SubObjectContext, &SubObjectName))
-		{
-			return SubObjectName;
-		}
-
-		return ActorPath;
-	};
-
-	for (auto& ActorDescListPair: ActorDescList)
-	{
-		const FWorldPartitionActorViewProxy& ActorDescView = ActorDescListPair.Value;
-
-		if (!ActorDescView.GetActorIsEditorOnly())
-		{
-			for (const FGuid ActorDescRefGuid : ActorDescView.GetReferences())
-			{
-				if (const FWorldPartitionActorViewProxy* ActorDescRefView = ActorDescList.Find(ActorDescRefGuid))
-				{
-					const bool bIsActorDescAlwaysLoaded = ActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
-					const bool bIsActorDescRefAlwaysLoaded = ActorDescRefView->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
-
-					if (bIsActorDescAlwaysLoaded != bIsActorDescRefAlwaysLoaded)
-					{
-						const FText StreamedActor(LOCTEXT("MapCheck_WorldPartition_StreamedActor", "Streamed actor"));
-						const FText AlwaysLoadedActor(LOCTEXT("MapCheck_WorldPartition_AlwaysLoadedActor", "Always loaded actor"));
-
-						TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Warning()
-							->AddToken(FTextToken::Create(bIsActorDescAlwaysLoaded ? AlwaysLoadedActor : StreamedActor))
-							->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
-							->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_References", "references")))
-							->AddToken(FTextToken::Create(bIsActorDescRefAlwaysLoaded ? AlwaysLoadedActor : StreamedActor)								)
-							->AddToken(FAssetNameToken::Create(GetActorLabel(*ActorDescRefView)))
-							->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_StreamedActorReferenceAlwaysLoadedActor_CheckForErrors"))));
-					}
-
-					if (ensure(WorldDataLayers != nullptr))
-					{
-						TArray<FName> ActorDescLayerNames = ActorDescView.GetDataLayers();
-						ActorDescLayerNames.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
-						TArray<const UDataLayer*> ActorDescLayers = WorldDataLayers->GetDataLayerObjects(ActorDescLayerNames);
-
-						TArray<FName> ActorDescRefLayerNames = ActorDescRefView->GetDataLayers();
-						ActorDescRefLayerNames.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
-						TArray<const UDataLayer*> ActorDescRefLayers = WorldDataLayers->GetDataLayerObjects(ActorDescRefLayerNames);
-
-						if (ActorDescLayers != ActorDescRefLayers)
-						{
-							TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
-								->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_Actor", "Actor")))
-								->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
-								->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_ReferenceActorInOtherDataLayers", "references an actor in a different set of data layers")))
-								->AddToken(FAssetNameToken::Create(GetActorLabel(*ActorDescRefView)))
-								->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_ActorReferenceActorInAnotherDataLayer_CheckForErrors"))));
-						}
-					}
-				}
-				else
-				{
-					TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Warning()
-						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_Actor", "Actor")))
-						->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
-						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_HaveMissingRefsTo", "have missing references to")))
-						->AddToken(FTextToken::Create(FText::FromString(ActorDescRefGuid.ToString())))
-						->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_MissingActorReference_CheckForErrors"))));
-				}
-			}
-		}
-	}
-
-	// Check Level Script Blueprint
-	if (ULevelScriptBlueprint* LevelScriptBlueprint = GetOuterUWorldPartition()->GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
-	{
-		TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint);
-
-		for (AActor* Actor : LevelScriptExternalActorReferences)
-		{
-			if (const FWorldPartitionActorDescView* ActorDescView = ActorDescList.Find(Actor->GetActorGuid()))
-			{
-				TArray<FName> ActorDescLayers = ActorDescView->GetDataLayers();
-				if (ActorDescLayers.Num())
-				{
-					TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
-						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_LevelScriptBlueprintActorReference", "Level Script Blueprint references actor")))
-						->AddToken(FAssetNameToken::Create(GetActorLabel(*ActorDescView)))
-						->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_LevelScriptBlueprintDataLayerReference", "with a non empty set of data layers")))
-						->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_LevelScriptBlueprintRefefenceDataLayer_CheckForErrors"))));
-				}
 			}
 		}
 	}

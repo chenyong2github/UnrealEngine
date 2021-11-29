@@ -1314,14 +1314,6 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 	}
 }
 
-void UWorldPartition::CheckForErrors() const
-{
-	if (RuntimeHash)
-	{
-		RuntimeHash->CheckForErrors();
-	}
-}
-
 uint32 UWorldPartition::GetWantedEditorCellSize() const
 {
 	return EditorHash->GetWantedEditorCellSize();
