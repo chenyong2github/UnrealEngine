@@ -2302,6 +2302,102 @@ bool UsdUtils::MarkMaterialPrimWithWorldSpaceNormals( const UE::FUsdPrim& Materi
 	return true;
 }
 
+TOptional<FString> UsdUtils::GetUnrealSurfaceOutput( const pxr::UsdPrim& MaterialPrim )
+{
+	if ( !MaterialPrim )
+	{
+		return {};
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdShadeMaterial ShadeMaterial{ MaterialPrim };
+	if ( !ShadeMaterial )
+	{
+		return {};
+	}
+
+	pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource( UnrealIdentifiers::Unreal );
+	if ( !SurfaceShader )
+	{
+		return {};
+	}
+
+	pxr::SdfAssetPath AssetPath;
+	if ( SurfaceShader.GetSourceAsset( &AssetPath, UnrealIdentifiers::Unreal ) )
+	{
+		return UsdToUnreal::ConvertString( AssetPath.GetAssetPath() );
+	}
+
+	return {};
+}
+
+bool UsdUtils::SetUnrealSurfaceOutput( pxr::UsdPrim& MaterialPrim, const FString& UnrealMaterialPathName )
+{
+	if ( !MaterialPrim )
+	{
+		return false;
+	}
+
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdShadeMaterial Material{ MaterialPrim };
+	if ( !Material )
+	{
+		return false;
+	}
+
+	pxr::UsdStageRefPtr Stage = MaterialPrim.GetStage();
+	pxr::SdfPath ShaderPath = MaterialPrim.GetPath().AppendChild( UnrealToUsd::ConvertToken( TEXT( "UnrealShader" ) ).Get() );
+
+	pxr::UsdShadeShader UnrealShader = pxr::UsdShadeShader::Define( Stage, ShaderPath );
+	if ( !UnrealShader )
+	{
+		return false;
+	}
+
+	UnrealShader.CreateImplementationSourceAttr( pxr::VtValue{ pxr::UsdShadeTokens->sourceAsset } );
+	UnrealShader.SetSourceAsset(
+		UnrealMaterialPathName.IsEmpty() ? pxr::SdfAssetPath{} : pxr::SdfAssetPath{ UnrealToUsd::ConvertString( *UnrealMaterialPathName ).Get() },
+		UnrealIdentifiers::Unreal
+	);
+	pxr::UsdShadeOutput ShaderOutput = UnrealShader.CreateOutput( UnrealToUsd::ConvertToken( TEXT( "out" ) ).Get(), pxr::SdfValueTypeNames->Token );
+
+	pxr::UsdShadeOutput MaterialOutput = Material.CreateSurfaceOutput( UnrealIdentifiers::Unreal );
+	pxr::UsdShadeConnectableAPI::ConnectToSource( MaterialOutput, ShaderOutput );
+
+	return true;
+}
+
+bool UsdUtils::RemoveUnrealSurfaceOutput( pxr::UsdPrim& MaterialPrim, const UE::FSdfLayer& LayerToAuthorIn )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdShadeMaterial ShadeMaterial{ MaterialPrim };
+	pxr::UsdShadeConnectableAPI Connectable{ MaterialPrim };
+	if ( !ShadeMaterial || !Connectable )
+	{
+		return false;
+	}
+
+	if ( pxr::UsdShadeOutput MaterialOutput = ShadeMaterial.GetSurfaceOutput( UnrealIdentifiers::Unreal ) )
+	{
+		if ( pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource( UnrealIdentifiers::Unreal ) )
+		{
+			// Fully remove the UnrealShader
+			UsdUtils::RemoveAllPrimSpecs( UE::FUsdPrim{ SurfaceShader.GetPrim() }, LayerToAuthorIn );
+		}
+
+		// Disconnect would author something like `token outputs:unreal:surface.connect = None`, which is not quite what we want:
+		// That would be an opinion to have it connected to nothing, but instead we just want to remove any opinion whatsoever,
+		// which is what ClearSource does. Note that these will still leave behind `token outputs:unreal:surface` lines,
+		// but those don't actually count as opinions apparently
+		pxr::UsdShadeConnectableAPI::ClearSource( MaterialOutput );
+	}
+
+	return true;
+}
+
 bool UsdUtils::IsMaterialTranslucent( const pxr::UsdShadeMaterial& UsdShadeMaterial )
 {
 	FScopedUsdAllocs UsdAllocs;

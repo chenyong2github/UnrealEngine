@@ -9,6 +9,8 @@
 #include "Materials/MaterialInterface.h"
 #include "UObject/WeakObjectPtr.h"
 
+#include "UsdWrappers/SdfLayer.h"
+
 #include "USDIncludesStart.h"
 	#include "pxr/usd/usd/timeCode.h"
 #include "USDIncludesEnd.h"
@@ -93,6 +95,29 @@ namespace UnrealToUsd
 
 namespace UsdUtils
 {
+	/** Returns a path to an UE asset (e.g. "/Game/Assets/Red.Red") if MaterialPrim has an 'unreal' render context surface output that points at one */
+	USDUTILITIES_API TOptional<FString> GetUnrealSurfaceOutput( const pxr::UsdPrim& MaterialPrim );
+
+	/**
+	 * Sets which UE material asset the 'unreal' render context surface output of MaterialPrim is pointing at (creating the surface output
+	 * on-demand if needed)
+	 *
+	 * @param MaterialPrim - pxr::UsdPrim with the pxr::UsdShadeMaterial schema to update the 'unreal' surface output of
+	 * @param UnrealMaterialPathName - Path to an UE UMaterialInterface asset (e.g. "/Game/Assets/Red.Red")
+	 * @return Whether we successfully set the surface output or not
+	 */
+	USDUTILITIES_API bool SetUnrealSurfaceOutput( pxr::UsdPrim& MaterialPrim, const FString& UnrealMaterialPathName );
+
+	/**
+	 * Clears any opinions for the 'unreal' render context surface output of MaterialPrim within LayerToAuthorIn.
+	 * If LayerToAuthorIn is an invalid layer (the default) it will clear opinions from all layers of the stage's layer stack.
+	 *
+	 * @param MaterialPrim - pxr::UsdPrim with the pxr::UsdShadeMaterial schema to update the 'unreal' surface output of
+	 * @param LayerToAuthorIn - Layer to clear the opinions in, or an invalid layer (e.g. UE::FSdfLayer{}, which is the default)
+	 * @return Whether we successfully cleared the opinions or not
+	 */
+	USDUTILITIES_API bool RemoveUnrealSurfaceOutput( pxr::UsdPrim& MaterialPrim, const UE::FSdfLayer& LayerToAuthorIn = UE::FSdfLayer{} );
+
 	/**
 	 * Returns whether the material needs to be rendered with the Translucent rendering mode.
 	 * This function exists because we need this information *before* we pick the right parent for a material instance and properly convert it.

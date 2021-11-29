@@ -10,6 +10,7 @@
 #include "USDErrorUtils.h"
 #include "USDLog.h"
 #include "USDMemory.h"
+#include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
@@ -1061,31 +1062,6 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 		return {};
 	};
 
-	auto FetchMaterialFromUnrealRenderContextPrim = [ &RenderContext ]( const pxr::UsdPrim& UsdPrim )->TOptional<FString>
-	{
-		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
-		pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial();
-		if ( !ShadeMaterial )
-		{
-			return {};
-		}
-
-		// Ignore this material if UsdToUnreal::ConvertMaterial would as well
-		pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource( RenderContext );
-		if ( !SurfaceShader )
-		{
-			return {};
-		}
-
-		pxr::SdfAssetPath AssetPath;
-		if ( SurfaceShader.GetSourceAsset( &AssetPath, RenderContext ) )
-		{
-			return UsdToUnreal::ConvertString( AssetPath.GetAssetPath() );
-		}
-
-		return {};
-	};
-
 	auto FetchMaterialByComputingBoundMaterial = [ &RenderContext ]( const pxr::UsdPrim& UsdPrim ) -> TOptional<FString>
 	{
 		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
@@ -1203,13 +1179,20 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	if ( RenderContext == UnrealIdentifiers::Unreal )
 	{
 		// Priority 1.1: unreal rendercontext material prim
-		if ( TOptional<FString> UnrealMaterial = FetchMaterialFromUnrealRenderContextPrim( UsdPrim ) )
+		pxr::UsdShadeMaterialBindingAPI BindingAPI( UsdPrim );
+		if ( BindingAPI )
 		{
-			FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
-			Slot.MaterialSource = UnrealMaterial.GetValue();
-			Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+			if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial() )
+			{
+				if ( TOptional<FString> UnrealMaterial = UsdUtils::GetUnrealSurfaceOutput( ShadeMaterial.GetPrim() ) )
+				{
+					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+					Slot.MaterialSource = UnrealMaterial.GetValue();
+					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
 
-			return Result;
+					return Result;
+				}
+			}
 		}
 
 		// Priority 1.2: unrealMaterial attribute directly on the prim
@@ -1271,12 +1254,19 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 				// Priority 4.1.1: Partition has an unreal rendercontext material prim binding
 				if ( !bHasAssignment )
 				{
-					if ( TOptional<FString> UnrealMaterial = FetchMaterialFromUnrealRenderContextPrim( GeomSubset.GetPrim() ) )
+					pxr::UsdShadeMaterialBindingAPI BindingAPI( GeomSubset.GetPrim() );
+					if ( BindingAPI )
 					{
-						FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
-						Slot.MaterialSource = UnrealMaterial.GetValue();
-						Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
-						bHasAssignment = true;
+						if ( pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial() )
+						{
+							if ( TOptional<FString> UnrealMaterial = UsdUtils::GetUnrealSurfaceOutput( ShadeMaterial.GetPrim() ) )
+							{
+								FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+								Slot.MaterialSource = UnrealMaterial.GetValue();
+								Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+								bHasAssignment = true;
+							}
+						}
 					}
 				}
 
@@ -1882,6 +1872,15 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 		{
 			pxr::SdfPath Path = ParentPrim.GetPrimPath().AppendPath( pxr::SdfPath{ "Materials" } );
 			Prim = ScopeStage->DefinePrim( Path, UnrealToUsd::ConvertToken( TEXT( "Scope" ) ).Get() );
+
+			// Initialize our UsedPrimNames correctly, so we can guarantee we'll never have name collisions
+			if ( Prim )
+			{
+				for ( pxr::UsdPrim Child : Prim.GetFilteredChildren( pxr::UsdTraverseInstanceProxies( pxr::UsdPrimAllPrimsPredicate ) ) )
+				{
+					UsedPrimNames.Add( UsdToUnreal::ConvertToken( Child.GetName() ) );
+				}
+			}
 		}
 
 		pxr::UsdPrim Prim;
@@ -1968,22 +1967,49 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 				}
 			}
 
-			std::string MaterialPathName;
-			pxr::UsdAttribute Attr = Prim.GetAttribute( UnrealIdentifiers::MaterialAssignment );
-			if ( !Attr || !Attr.Get<std::string>( &MaterialPathName ) )
+			std::string UnrealMaterialAttrAssetPath;
+			FString UnrealMaterialPrimAssetPath;
+
+			pxr::UsdAttribute UnrealMaterialAttr = Prim.GetAttribute( UnrealIdentifiers::MaterialAssignment );
+			pxr::UsdShadeMaterial UnrealMaterial;
+
+			pxr::UsdShadeMaterialBindingAPI MaterialBindingAPI{ Prim };
+			if ( MaterialBindingAPI )
+			{
+				if ( pxr::UsdShadeMaterial BoundMaterial = MaterialBindingAPI.ComputeBoundMaterial() )
+				{
+					UnrealMaterial = BoundMaterial;
+
+					TOptional<FString> ExistingUEAssetReference = UsdUtils::GetUnrealSurfaceOutput( UnrealMaterial.GetPrim() );
+					if ( ExistingUEAssetReference.IsSet() )
+					{
+						UnrealMaterialPrimAssetPath = MoveTemp( ExistingUEAssetReference.GetValue() );
+					}
+				}
+			}
+
+			if ( !UnrealMaterial && ( !UnrealMaterialAttr || !UnrealMaterialAttr.Get<std::string>( &UnrealMaterialAttrAssetPath ) ) )
 			{
 				return;
 			}
 
-			FString BakedFilename = BakedMaterials.FindRef( UsdToUnreal::ConvertString( MaterialPathName ) );
+			pxr::UsdPrim UnrealMaterialPrim = UnrealMaterial.GetPrim();
 
-			// If we have a valid unrealMaterial but just haven't baked it, leave unrealMaterials alone and abort
-			if ( MaterialPathName.size() > 0 && BakedFilename.IsEmpty() )
+			// Prioritize the Unreal material since import will do so too
+			FString UnrealMaterialAssetPath = UnrealMaterialPrimAssetPath.IsEmpty()
+				? UsdToUnreal::ConvertString( UnrealMaterialAttrAssetPath )
+				: UnrealMaterialPrimAssetPath;
+
+			FString BakedFilename = BakedMaterials.FindRef( UnrealMaterialAssetPath );
+
+			// If we have a valid UE asset but just haven't baked it, something went wrong: Just leave everything alone and abort
+			if ( !UnrealMaterialAssetPath.IsEmpty() && BakedFilename.IsEmpty() )
 			{
 				return;
 			}
 
-			pxr::SdfPath AttrPath = Attr.GetPath();
+			pxr::SdfPath UnrealMaterialAttrPath = UnrealMaterialAttr ? UnrealMaterialAttr.GetPath() : pxr::SdfPath{};
+			pxr::SdfPath UnrealMaterialPrimPath = UnrealMaterial ? UnrealMaterialPrim.GetPrimPath() : pxr::SdfPath{};
 
 			// Find out if we need to remove / author material bindings within an actual variant or outside of it, as an over.
 			// We don't do this when using payloads because our override prims aren't inside the actual LOD variants : They just
@@ -1994,25 +2020,31 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 			if ( bAuthorInsideVariants )
 			{
 				pxr::UsdVariantSet& OuterVariantSetValue = OuterVariantSet.GetValue();
-
 				pxr::SdfPath VarPrimPath = OuterVariantSetValue.GetPrim().GetPath();
-				if ( AttrPath.HasPrefix( VarPrimPath ) )
+				pxr::SdfPath VarPrimPathWithVar = VarPrimPath.AppendVariantSelection( OuterVariantSetValue.GetName(), OuterVariantSetValue.GetVariantSelection() );
+
+				if ( UnrealMaterialAttrPath.HasPrefix( VarPrimPath ) )
 				{
 					// This builds a path like '/MyMesh{LOD=LOD0}LOD0.unrealMaterial',
 					// or '/MyMesh{LOD=LOD0}LOD0/Section1.unrealMaterial'.This is required because we'll query the layer
 					// for a spec path below, and this path must contain the variant selection in it, which the path returned
 					// from attr.GetPath() doesn't contain
-					pxr::SdfPath VarPrimPathWithVar = VarPrimPath.AppendVariantSelection( OuterVariantSetValue.GetName(), OuterVariantSetValue.GetVariantSelection() );
-					AttrPath = AttrPath.ReplacePrefix( VarPrimPath, VarPrimPathWithVar );
+					UnrealMaterialAttrPath = UnrealMaterialAttrPath.ReplacePrefix( VarPrimPath, VarPrimPathWithVar );
+				}
+
+				if ( UnrealMaterialPrimPath.HasPrefix( VarPrimPath ) )
+				{
+					UnrealMaterialPrimPath = UnrealMaterialPrimPath.ReplacePrefix( VarPrimPath, VarPrimPathWithVar );
 				}
 			}
 
-			// We always want to replace the actual attribute in whatever layer it was authored, and not just override with
-			// a stronger opinion.So search through all sublayers to find the ones with unrealMaterial attribute specs
+			// We always want to replace things in whatever layer they were authored, and not just override with
+			// a stronger opinion, so search through all sublayers to find the ones with the specs we are targeting
 			for ( pxr::SdfLayerHandle Layer : LayersToTraverse )
 			{
-				pxr::SdfAttributeSpecHandle AttrSpec = Layer->GetAttributeAtPath( AttrPath );
-				if ( !AttrSpec )
+				pxr::SdfAttributeSpecHandle UnrealMaterialAttrSpec = Layer->GetAttributeAtPath( UnrealMaterialAttrPath );
+				pxr::SdfPrimSpecHandle UnrealMaterialPrimSpec = Layer->GetPrimAtPath( UnrealMaterialPrimPath );
+				if ( !UnrealMaterialAttrSpec && !UnrealMaterialPrimSpec )
 				{
 					continue;
 				}
@@ -2026,12 +2058,20 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 					{
 						VarContext.Emplace( OuterVariantSet.GetValue().GetVariantEditContext() );
 					}
-					Prim.RemoveProperty( UnrealIdentifiers::MaterialAssignment );
+
+					if ( UnrealMaterialAttrSpec )
+					{
+						Prim.RemoveProperty( UnrealIdentifiers::MaterialAssignment );
+					}
+
+					if ( UnrealMaterialPrimSpec )
+					{
+						UsdUtils::RemoveUnrealSurfaceOutput( UnrealMaterialPrim, UE::FSdfLayer{ Layer } );
+					}
 				}
 
-				// It was just an empty unrealMaterial attribute, so just cancel now as our baked_filename
-				// can't possibly be useful
-				if ( MaterialPathName.size() == 0 )
+				// It was just an empty UE asset path, so just cancel now as our BakedFilename can't possibly be useful
+				if ( UnrealMaterialAssetPath.IsEmpty() )
 				{
 					continue;
 				}
@@ -2042,67 +2082,117 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 				{
 					pxr::UsdEditContext MatContext( StageToTraverse, pxr::SdfLayerRefPtr{ LayerToAuthorIn } );
 
-					FMaterialScopePrim* MatPrimScopePtr = nullptr;
+					// We are already referencing an unreal material prim: Let's just augment it with a reference to the baked
+					// material usd asset layer.
+					// Note how this will likely not be within MatPrimScope but instead will be a child of the Mesh/GeomSubset.
+					// This is fine, and in the future we'll likely exclusively do this since it will handle mesh-specific
+					// material baking much better, as it will allow even having separate bakes for each LOD
+					if ( UnrealMaterial && UnrealMaterialPrimSpec )
+					{
+						MatPrim = UnrealMaterialPrim;
 
-					if ( MatPrimScope.IsSet() )
-					{
-						MatPrimScopePtr = &MatPrimScope.GetValue();
-					}
-					else
-					{
-						// On-demand create a *single* material scope prim for the stage, if we're not inside a variant set
-						if ( !StageMatScope.IsSet() )
+						bool bAlreadyHasReference = false;
+
+						// Make sure we don't reference it more than once. This shouldn't be needed since we'll only ever run into
+						// these unreal material prims once per Mesh/GeomSubset, but when creating MatScopePrims we can guarantee we
+						// add a reference only once by adding it along with the Material prim creation, so it would be nice to be able to
+						// guarantee it here as well
+						pxr::SdfReferencesProxy ReferencesProxy = UnrealMaterialPrimSpec->GetReferenceList();
+						for ( const pxr::SdfReference& UsdReference : ReferencesProxy.GetAddedOrExplicitItems() )
 						{
-							// If a prim from a stage references another layer, USD's composition will effectively
-							// paste the default prim of the referenced layer over the referencing prim. Because of
-							// this, the subprims within the hierarchy of that default prim can't ever have
-							// relationships to other prims outside that of that same hierarchy, as those prims
-							// will not be present on the referencing stage at all. This is why we author our stage
-							// materials scope under the default prim, and not the pseudoroot
-							StageMatScope = FMaterialScopePrim{ StageToTraverse, StageToTraverse->GetDefaultPrim() };
+							FString ReferencedFilePath = UsdToUnreal::ConvertString( UsdReference.GetAssetPath() );
+							FString LayerPath = UsdToUnreal::ConvertString( Layer->GetRealPath() );
+
+							if ( !LayerPath.IsEmpty() )
+							{
+								ReferencedFilePath = FPaths::ConvertRelativePathToFull( LayerPath, ReferencedFilePath );
+							}
+
+							if ( FPaths::IsSamePath( ReferencedFilePath, BakedFilename ) )
+							{
+								bAlreadyHasReference = true;
+								break;
+							}
 						}
-						MatPrimScopePtr = &StageMatScope.GetValue();
-					}
 
-					// This should never happen
-					if ( !ensure(MatPrimScopePtr) )
-					{
-						continue;
+						if ( !bAlreadyHasReference )
+						{
+							UE::FUsdPrim UEMatPrim{ MatPrim };
+							UsdUtils::AddReference( UEMatPrim, *BakedFilename );
+						}
 					}
-
-					// Fetch (or create) a material proxy prim for this material
-					if ( pxr::UsdPrim* FoundPrim = MatPrimScopePtr->BakedFileNameToMatPrim.Find( BakedFilename ) )
-					{
-						MatPrim = *FoundPrim;
-					}
+					// Need a MatScopePrim authored somewhere within this layer
 					else
 					{
-						std::string MaterialName = MaterialPathName.substr( MaterialPathName.find_last_of( "\\/" ) + 1 );
-						MaterialName = MaterialName.substr( 0, MaterialName.find_last_of( "." ) );
-						FString MatName = UsdToUnreal::ConvertString( pxr::TfMakeValidIdentifier( MaterialName ) );
-						FString MatPrimName = UsdUtils::GetUniqueName( MatName, MatPrimScopePtr->UsedPrimNames );
-						MatPrimScopePtr->UsedPrimNames.Add( MatPrimName );
+						FMaterialScopePrim* MatPrimScopePtr = nullptr;
 
-						MatPrim = StageToTraverse->DefinePrim(
-							MatPrimScopePtr->Prim.GetPath().AppendChild( UnrealToUsd::ConvertToken( *MatPrimName ).Get() ),
-							UnrealToUsd::ConvertToken( TEXT( "Material" ) ).Get()
-						);
+						if ( MatPrimScope.IsSet() )
+						{
+							MatPrimScopePtr = &MatPrimScope.GetValue();
+						}
+						else
+						{
+							// On-demand create a *single* material scope prim for the stage, if we're not inside a variant set
+							if ( !StageMatScope.IsSet() )
+							{
+								// If a prim from a stage references another layer, USD's composition will effectively
+								// paste the default prim of the referenced layer over the referencing prim. Because of
+								// this, the subprims within the hierarchy of that default prim can't ever have
+								// relationships to other prims outside that of that same hierarchy, as those prims
+								// will not be present on the referencing stage at all. This is why we author our stage
+								// materials scope under the default prim, and not the pseudoroot
+								StageMatScope = FMaterialScopePrim{ StageToTraverse, StageToTraverse->GetDefaultPrim() };
+							}
+							MatPrimScopePtr = &StageMatScope.GetValue();
+						}
 
-						UE::FUsdPrim UEMatPrim{ MatPrim };
-						UsdUtils::AddReference( UEMatPrim, *BakedFilename );
-						MatPrimScopePtr->BakedFileNameToMatPrim.Add( BakedFilename, MatPrim );
+						// This should never happen
+						if ( !ensure( MatPrimScopePtr ) )
+						{
+							continue;
+						}
+
+						// We already have a material proxy prim for this UE material within MatPrimScope, so just reuse it
+						if ( pxr::UsdPrim* FoundPrim = MatPrimScopePtr->BakedFileNameToMatPrim.Find( BakedFilename ) )
+						{
+							MatPrim = *FoundPrim;
+						}
+						// Create a new material proxy prim for this UE material within MatPrimScope
+						else
+						{
+							FString MatName = FPaths::GetBaseFilename( UnrealMaterialAssetPath );
+							MatName = UsdToUnreal::ConvertString( pxr::TfMakeValidIdentifier( UnrealToUsd::ConvertString( *MatName ).Get() ) );
+							FString MatPrimName = UsdUtils::GetUniqueName( MatName, MatPrimScopePtr->UsedPrimNames );
+							MatPrimScopePtr->UsedPrimNames.Add( MatPrimName );
+
+							MatPrim = StageToTraverse->DefinePrim(
+								MatPrimScopePtr->Prim.GetPath().AppendChild( UnrealToUsd::ConvertToken( *MatPrimName ).Get() ),
+								UnrealToUsd::ConvertToken( TEXT( "Material" ) ).Get()
+							);
+
+							// We should only keep track and reuse the material proxy prims that we create within the MatPrimScope, not
+							// the ones we have appropriated from within Mesh/GeomSubset from being UnrealPrims
+							MatPrimScopePtr->BakedFileNameToMatPrim.Add( BakedFilename, MatPrim );
+
+							UE::FUsdPrim UEMatPrim{ MatPrim };
+							UsdUtils::AddReference( UEMatPrim, *BakedFilename );
+						}
 					}
 				}
 
-				// Reference the mat proxy prim as a material binding
+				// Make sure we have a binding to the material prim and the material binding API
+				if( pxr::UsdShadeMaterial MaterialToBind{ MatPrim } )
 				{
 					TOptional<pxr::UsdEditContext> VarContext;
 					if ( bAuthorInsideVariants )
 					{
 						VarContext.Emplace( OuterVariantSet.GetValue().GetVariantEditContext() );
 					}
-					pxr::UsdShadeMaterialBindingAPI ShadeAPI{ Prim };
-					ShadeAPI.Bind( pxr::UsdShadeMaterial{ MatPrim } );
+
+					if ( pxr::UsdShadeMaterialBindingAPI AppliedMaterialBindingAPI = pxr::UsdShadeMaterialBindingAPI::Apply( Prim ) )
+					{
+						AppliedMaterialBindingAPI.Bind( MaterialToBind );
+					}
 				}
 			}
 		};

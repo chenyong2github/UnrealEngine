@@ -1405,13 +1405,19 @@ USDUTILITIES_API void UsdUtils::RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, co
 
 	for ( const pxr::SdfPrimSpecHandle& Spec : UsdPrim.GetPrimStack() )
 	{
+		// For whatever reason sometimes there are invalid specs in the layer stack, so we need to be careful
+		if ( !Spec )
+		{
+			continue;
+		}
+
 		pxr::SdfPath SpecPath = Spec->GetPath();
 		if ( !SpecPath.IsPrimPath() )
 		{
 			continue;
 		}
 
-		if ( Spec->GetLayer() != UsdLayer )
+		if ( UsdLayer && Spec->GetLayer() != UsdLayer )
 		{
 			continue;
 		}

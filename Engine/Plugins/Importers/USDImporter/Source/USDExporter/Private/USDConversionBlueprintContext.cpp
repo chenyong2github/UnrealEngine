@@ -439,3 +439,29 @@ void UUsdConversionBlueprintContext::ReplaceUnrealMaterialsWithBaked( const FFil
 #endif // USE_USD_SDK
 }
 
+bool UUsdConversionBlueprintContext::RemoveUnrealSurfaceOutput( const FString& PrimPath, const FFilePath& LayerToAuthorIn )
+{
+#if USE_USD_SDK
+	if ( !Stage )
+	{
+		return false;
+	}
+
+	UE::FUsdPrim Prim = UnrealToUsdImpl::GetPrim( Stage, PrimPath );
+	if ( !Prim )
+	{
+		return false;
+	}
+
+	UE::FSdfLayer Layer;
+	if ( !LayerToAuthorIn.FilePath.IsEmpty() )
+	{
+		Layer = UE::FSdfLayer::FindOrOpen( *LayerToAuthorIn.FilePath );
+	}
+
+	return UsdUtils::RemoveUnrealSurfaceOutput( Prim, Layer );
+#else
+	return false;
+#endif // USE_USD_SDK
+}
+

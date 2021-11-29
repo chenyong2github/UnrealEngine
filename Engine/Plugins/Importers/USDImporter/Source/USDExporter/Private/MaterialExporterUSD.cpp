@@ -98,6 +98,8 @@ bool UMaterialExporterUsd::ExportMaterial( const UMaterialInterface& Material, c
 
 	UsdStage.SetDefaultPrim( RootPrim );
 
+	UsdUtils::SetUnrealSurfaceOutput( RootPrim, Material.GetPathName() );
+
 	UnrealToUsd::ConvertMaterialToBakedSurface(
 		Material,
 		Options.Properties,
