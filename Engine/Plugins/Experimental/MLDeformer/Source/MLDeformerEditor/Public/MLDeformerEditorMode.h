@@ -42,6 +42,7 @@ private:
 	void UpdateActors();
 	void UpdateLabels();
 	void EncapsulateBounds(const FMLDeformerEditorActor* Actor, FBox& Box) const;
+	void DrawDebugPoints(FPrimitiveDrawInterface* PDI, const TArray<FVector3f>& Points, int32 DepthGroup, const FLinearColor& Color);
 
 private:
 	TWeakPtr<FMLDeformerEditorData> EditorData;

@@ -183,7 +183,6 @@ void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 						check(!DeformerAsset->GetInputInfo().IsEmpty());
 
 						// Init the frame cache.
-						const int32 NumFrames = (DeformerAsset->GetGeometryCache()->GetEndFrame() - DeformerAsset->GetGeometryCache()->GetStartFrame()) + 1;
 						FMLDeformerFrameCache::FInitSettings FrameCacheInitSettings;
 						FrameCacheInitSettings.DeformerAsset = DeformerAsset;
 						FrameCacheInitSettings.CacheSizeInBytes = 1024ull * 1024 * DeformerAsset->GetCacheSizeInMegabytes();
@@ -715,7 +714,9 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 	}
 	else
 	if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeltaCutoffLength) ||
-	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, AlignmentTransform))
+	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, AlignmentTransform) ||
+	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, DeltaMode) ||
+	    Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerAsset, MaxTrainingFrames))
 	{
 		EditorData->InitAssets();
 	}

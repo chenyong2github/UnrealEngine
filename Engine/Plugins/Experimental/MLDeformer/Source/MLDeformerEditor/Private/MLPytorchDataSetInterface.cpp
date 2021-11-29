@@ -65,7 +65,7 @@ int32 UMLPytorchDataSetInterface::GetNumberSampleDeltas() const
 int32 UMLPytorchDataSetInterface::NumSamples() const
 {
 	check(IsValid());
-	return EditorData->GetDeformerAsset()->GetNumFrames();
+	return EditorData->GetDeformerAsset()->GetNumFramesForTraining();
 }
 
 bool UMLPytorchDataSetInterface::SetCurrentSampleIndex(int32 Index)

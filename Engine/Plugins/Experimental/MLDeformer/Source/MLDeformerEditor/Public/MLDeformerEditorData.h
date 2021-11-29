@@ -128,7 +128,10 @@ public:
 	
 public:
 	TArray<FVector3f> LinearSkinnedPositions;
+	TArray<FVector3f> DebugVectors;
+	TArray<FVector3f> DebugVectors2;
 	TArray<float> VertexDeltas;
+
 	bool bIsVertexDeltaNormalized = false;
 	int32 CurrentFrame = -1;
 

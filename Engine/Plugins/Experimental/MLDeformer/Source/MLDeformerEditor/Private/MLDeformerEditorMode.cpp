@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerEditorMode.h"
+#include "MLDeformerEditor.h"
 #include "MLDeformerEditorData.h"
 #include "MLDeformerAssetDetails.h"
 #include "MLDeformerComponent.h"
@@ -79,6 +80,16 @@ void FMLDeformerEditorMode::GetOnScreenDebugInfo(TArray<FText>& OutDebugInfo) co
 {
 }
 
+void FMLDeformerEditorMode::DrawDebugPoints(FPrimitiveDrawInterface* PDI, const TArray<FVector3f>& Points, int32 DepthGroup, const FLinearColor& Color)
+{
+	const float PointSize = MLDeformerCVars::DebugDrawPointSize.GetValueOnAnyThread();
+	for (int32 Index = 0; Index < Points.Num(); ++Index)
+	{
+		const FVector Position = Points[Index];
+		PDI->DrawPoint(Position, Color, PointSize, DepthGroup);
+	}
+}
+
 void FMLDeformerEditorMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	FEdMode::Render(View, Viewport, PDI);
@@ -97,19 +108,36 @@ void FMLDeformerEditorMode::Render(const FSceneView* View, FViewport* Viewport, 
 		if (VizSettings->GetDrawVertexDeltas() && (Data->VertexDeltas.Num() / 3) == Data->LinearSkinnedPositions.Num())
 		{
 			const FLinearColor DeltasColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.Deltas.Color");
+			const FLinearColor DebugVectorsColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.DebugVectors.Color");
+			const FLinearColor DebugVectorsColor2 = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.DebugVectors.Color2");
 			const uint8 DepthGroup = VizSettings->GetXRayDeltas() ? 100 : 0;
 			const TArray<FVector3f>& SkinnedPositions = Data->LinearSkinnedPositions;
 			for (int32 Index = 0; Index < Data->LinearSkinnedPositions.Num(); ++Index)
 			{
-				const FVector Start = SkinnedPositions[Index];
-				FVector End;
-				int32 ArrayIndex = 3 * Index;
-				End.X = Start.X + Data->VertexDeltas[ArrayIndex];
-				End.Y = Start.Y + Data->VertexDeltas[++ArrayIndex];
-				End.Z = Start.Z + Data->VertexDeltas[++ArrayIndex];
-
-				PDI->DrawLine(Start, End, DeltasColor, DepthGroup);
+				const int32 ArrayIndex = 3 * Index;
+				const FVector Delta(
+					Data->VertexDeltas[ArrayIndex], 
+					Data->VertexDeltas[ArrayIndex + 1], 
+					Data->VertexDeltas[ArrayIndex + 2]);
+				const FVector VertexPos = SkinnedPositions[Index];
+				PDI->DrawLine(VertexPos, VertexPos + Delta, DeltasColor, DepthGroup);
 			}
+		}
+
+		// Draw the first set of debug points.
+		if (MLDeformerCVars::DebugDraw1.GetValueOnAnyThread())
+		{
+			const uint8 DepthGroup = VizSettings->GetXRayDeltas() ? 100 : 0;
+			const FLinearColor Color = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.DebugVectors.Color");
+			DrawDebugPoints(PDI, Data->DebugVectors, DepthGroup, Color);
+		}
+
+		// Draw the second set of debug points.
+		if (MLDeformerCVars::DebugDraw2.GetValueOnAnyThread())
+		{
+			const uint8 DepthGroup = VizSettings->GetXRayDeltas() ? 100 : 0;
+			const FLinearColor Color = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.DebugVectors.Color2");
+			DrawDebugPoints(PDI, Data->DebugVectors2, DepthGroup, Color);
 		}
 	}
 }

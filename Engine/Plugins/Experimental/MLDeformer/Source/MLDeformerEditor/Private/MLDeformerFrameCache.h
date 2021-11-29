@@ -20,6 +20,8 @@ class UWorld;
 class AActor;
 class FMLDeformerSampler;
 class FMLDeformerFrameCache;
+class FSkeletalMeshLODRenderData;
+class FSkinWeightVertexBuffer;
 
 /**
  * A sampler data object, which is basically a set of data that is used to generate training data for a given frame.
@@ -44,6 +46,8 @@ public:
 	UGeometryCacheComponent* GetGeometryCacheComponent() const { return GeometryCacheComponent; }
 
 	const TArray<FVector3f>& GetSkinnedVertexPositions() const { return SkinnedVertexPositions; }
+	const TArray<FVector3f>& GetDebugVectors() const { return DebugVectors; }
+	const TArray<FVector3f>& GetDebugVectors2() const { return DebugVectors2; }
 
 	const TArray<float>& GetVertexDeltas() const { return VertexDeltas; }
 	const TArray<float>& GetBoneRotations() const { return BoneRotations; }
@@ -56,7 +60,8 @@ public:
 
 protected:
 	void ExtractSkinnedPositions(int32 LODIndex, TArray<FMatrix44f>& InBoneMatrices, TArray<FVector3f>& TempPositions, TArray<FVector3f>& OutPositions) const;
-	void CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas) const;
+	void CalculateVertexDeltas(const TArray<FVector3f>& SkinnedPositions, float DeltaCutoffLength, TArray<float>& OutVertexDeltas, TArray<FVector3f>& OutDebugVectors, TArray<FVector3f>& OutDebugVectors2) const;
+	FMatrix44f CalcInverseSkinningTransform(int32 VertexIndex, const FSkeletalMeshLODRenderData& SkelMeshLODData, const FSkinWeightVertexBuffer& SkinWeightBuffer) const;
 
 protected:
 	FMLDeformerSampler* Sampler = nullptr;
@@ -64,6 +69,8 @@ protected:
 	TObjectPtr<UGeometryCacheComponent> GeometryCacheComponent = nullptr;
 	TArray<FVector3f> SkinnedVertexPositions;
 	TArray<FVector3f> TempVertexPositions;
+	TArray<FVector3f> DebugVectors;
+	TArray<FVector3f> DebugVectors2;
 	TArray<FMatrix44f> BoneMatrices;
 	TArray<float> VertexDeltas;	// (NumImportedVerts * 3) -> xyz
 	TArray<float> BoneRotations; // (NumBones * 4) -> quat xyzw

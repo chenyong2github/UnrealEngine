@@ -131,7 +131,9 @@ void UMLDeformerAsset::GenerateMeshMappings(UMLDeformerAsset* DeformerAsset, TAr
 		{
 			// Check if this is a candidate based on the mesh and track name.
 			UGeometryCacheTrack* Track = GeomCache->Tracks[TrackIndex];
-			if (Track && IsPotentialMatch(Track->GetName(), SkelMeshName))
+			const bool bIsSoloMesh = (GeomCache->Tracks.Num() == 1 && SkelMeshInfos.Num() == 1);	// Do we just have one mesh and one track?
+			if (Track && 
+				(IsPotentialMatch(Track->GetName(), SkelMeshName) || bIsSoloMesh))
 			{	
 				// Extract the geom cache mesh data.
 				FGeometryCacheMeshData GeomCacheMeshData;
@@ -167,6 +169,7 @@ void UMLDeformerAsset::GenerateMeshMappings(UMLDeformerAsset* DeformerAsset, TAr
 				Mapping.MeshIndex = SkelMeshIndex;
 				Mapping.TrackIndex = TrackIndex;
 				Mapping.SkelMeshToTrackVertexMap.AddUninitialized(NumSkelMeshVerts);
+				Mapping.ImportedVertexToRenderVertexMap.AddUninitialized(NumSkelMeshVerts);
 
 				// For all vertices (both skel mesh and geom cache mesh have the same number of verts here).
 				for (int32 VertexIndex = 0; VertexIndex < NumSkelMeshVerts; ++VertexIndex)
@@ -176,6 +179,10 @@ void UMLDeformerAsset::GenerateMeshMappings(UMLDeformerAsset* DeformerAsset, TAr
 					// However they all share the same vertex position, so we can just find the first hit, as we only need the position later on.
 					const int32 GeomCacheVertexIndex = GeomCacheMeshData.ImportedVertexNumbers.Find(VertexIndex);
 					Mapping.SkelMeshToTrackVertexMap[VertexIndex] = GeomCacheVertexIndex;
+					
+					// Map the source asset vertex number to a render vertex. This is the first duplicate of that vertex.
+					const int32 RenderVertexIndex = ImportedModel->LODModels[0].MeshToImportVertexMap.Find(MeshInfo.StartImportedVertex + VertexIndex);
+					Mapping.ImportedVertexToRenderVertexMap[VertexIndex] = RenderVertexIndex;
 				}
 
 				// We found a match, no need to iterate over more Tracks.
@@ -302,6 +309,11 @@ void UMLDeformerAsset::InitVertexMap()
 	}
 }
 
+int32 UMLDeformerAsset::GetNumFramesForTraining() const 
+{ 
+	return FMath::Min(GetNumFrames(), GetTrainingFrameLimit()); 
+}
+
 FText UMLDeformerAsset::GetGeomCacheErrorText(UGeometryCache* InGeomCache) const
 {
 	FText Result;
@@ -327,11 +339,24 @@ FText UMLDeformerAsset::GetGeomCacheErrorText(UGeometryCache* InGeomCache) const
 		// Check if we flattened the tracks.
 		if (InGeomCache->Tracks.Num() == 1 && InGeomCache->Tracks[0]->GetName() == TEXT("Flattened_Track"))
 		{
-			if (!ErrorString.IsEmpty())
+			int32 NumSkelMeshes = 0;
+			if (SkeletalMesh)
 			{
-				ErrorString += TEXT("\n\n");
+				FSkeletalMeshModel* Model = SkeletalMesh->GetImportedModel();
+				if (Model)
+				{
+					NumSkelMeshes = Model->LODModels[0].ImportedMeshInfos.Num();		
+				}
 			}
-			ErrorString += FText(LOCTEXT("TargetMeshFlattened", "Please import Geometry Cache with option 'Flatten Tracks' disabled!")).ToString();
+
+			if (NumSkelMeshes > 1)
+			{
+				if (!ErrorString.IsEmpty())
+				{
+					ErrorString += TEXT("\n\n");
+				}
+				ErrorString += FText(LOCTEXT("TargetMeshFlattened", "Please import Geometry Cache with option 'Flatten Tracks' disabled!")).ToString();
+			}
 		}
 
 		Result = FText::FromString(ErrorString);

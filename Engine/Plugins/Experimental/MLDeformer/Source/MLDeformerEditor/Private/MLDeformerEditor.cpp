@@ -16,6 +16,30 @@
 
 IMPLEMENT_MODULE(FMLDeformerEditor, MLDeformerEditor)
 
+namespace MLDeformerCVars
+{
+	// Enable or disable debug drawing of the first debug data.
+	TAutoConsoleVariable<bool> DebugDraw1(
+		TEXT("MLDeformer.DebugDraw1"),
+		false,
+		TEXT("Should debug drawing be enabled for the first debug data? Default: false."),
+		ECVF_Default);
+
+	// Enable or disable debug drawing of the second debug data.
+	TAutoConsoleVariable<bool> DebugDraw2(
+		TEXT("MLDeformer.DebugDraw2"),
+		false,
+		TEXT("Should debug drawing be enabled for the second debug data? Default: false."),
+		ECVF_Default);
+
+	// The debug data point size.
+	TAutoConsoleVariable<float> DebugDrawPointSize(
+		TEXT("MLDeformer.DebugDrawPointSize"),
+		1.5f,
+		TEXT("The size of the points when debug drawing is enabled Default: 1.5."),
+		ECVF_Default);
+}
+
 void FMLDeformerEditor::StartupModule()
 {
 	MLDeformerAssetActions = MakeShareable(new FMLDeformerAssetActions);
