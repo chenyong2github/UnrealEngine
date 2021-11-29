@@ -243,7 +243,7 @@ static bool ShouldCacheLandscapeGrassShaders(const FMeshMaterialShaderPermutatio
 	return (Parameters.MaterialParameters.bIsUsedWithLandscape || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
 		IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
 		Parameters.VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeFixedGridVertexFactory"), FNAME_Find)) && 
-		!IsConsolePlatform(Parameters.Platform);
+		!IsConsolePlatform(Parameters.Platform) && !IsVulkanMobileSM5Platform(Parameters.Platform) && !IsMetalMobileSM5Platform(Parameters.Platform);
 }
 
 class FLandscapeGrassWeightShaderElementData : public FMeshMaterialShaderElementData
