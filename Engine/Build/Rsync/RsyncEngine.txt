@@ -12,7 +12,9 @@
 - /**/Win64/
 - /Plugins/**/Android/
 - /Source/ThirdParty/**/Android/
-+ /Source/Programs/UnrealBuildTool/Platform/Linux/LinuxCommon.cs
+# Linux is a hardcoded platform so UBT needs to know about it
++ /Source/Programs/UnrealBuildTool/Platform/Linux/
++ /Source/Programs/UnrealBuildTool/Platform/Linux/**
 - /**/Linux/**
 - /**/PS4/
 - /**/Switch/
