@@ -37,6 +37,13 @@ public:
 		TSharedRef<FTextureEditorToolkit> NewTextureEditor(new FTextureEditorToolkit());
 		NewTextureEditor->InitTextureEditor(Mode, InitToolkitHost, Texture);
 
+		// OpenAssetEditor should ensure that we never have two toolkits open for the same asset!
+		check(Texture->TextureEditorCustomEncoding.IsValid() == false);
+
+		// We save this as a separate object so that the engine can reference the type
+		// without needing the texture editor module.
+		Texture->TextureEditorCustomEncoding = NewTextureEditor->CustomEncoding;
+
 		return NewTextureEditor;
 	}
 

@@ -160,3 +160,24 @@ class ENGINE_API UTextureEncodingUserSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = EncodeSpeeds, meta = (ConfigRestartRequired = true))
 	ETextureEncodeSpeedOverride ForceEncodeSpeed;
 };
+
+//
+// Separate type so that the engine can check for custom encoding set in the texture
+// editor module without needing to depend on it.
+//
+class FTextureEditorCustomEncode
+{
+public:
+	// If we want to override Oodle specific encoding settings, we set this to true.
+	bool bUseCustomEncode = false;
+
+	// [0,100]
+	uint8 OodleRDOLambda = 0;
+
+	// enum ETextureEncodeEffort
+	uint8 OodleEncodeEffort = 0;
+
+	// enum ETextureUniversalTiling
+	uint8 OodleUniversalTiling = 0;
+
+};

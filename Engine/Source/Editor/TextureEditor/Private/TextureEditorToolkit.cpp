@@ -48,6 +48,8 @@
 #include "Menus/TextureEditorViewOptionsMenu.h"
 #include "MediaTexture.h"
 #include "TextureEncodingSettings.h"
+#include "EditorWidgets/Public/SEnumCombo.h"
+#include "Widgets/Layout/SHeader.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -94,6 +96,18 @@ EPixelFormatChannelFlags GetPixelFormatChannelFlagForButton(ETextureChannelButto
 	return EPixelFormatChannelFlags::None;
 }
 
+static void PostTextureRecode(UTexture* Texture)
+{
+	// Each time we change a custom encode setting we want to re-encode the texture
+	// as though we changed a compression setting on the actual texture, so we just
+	// post a CompressionSettings property changed event to handle all of that for
+	// us.
+	FProperty* Property = FindFProperty<FProperty>(UTexture::StaticClass(), "CompressionSettings");
+	FPropertyChangedEvent PropertyChangedEvent(Property);
+	Texture->PostEditChangeProperty(PropertyChangedEvent);
+}
+
+
 /* FTextureEditorToolkit structors
  *****************************************************************************/
 
@@ -119,6 +133,13 @@ FTextureEditorToolkit::~FTextureEditorToolkit( )
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
 
 	GEditor->UnregisterForUndo(this);
+
+	if (CustomEncoding->bUseCustomEncode)
+	{
+		// reencode the texture with normal settings.
+		CustomEncoding->bUseCustomEncode = false;
+		PostTextureRecode(Texture);
+	}
 }
 
 
@@ -180,6 +201,8 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	// Support undo/redo
 	Texture->SetFlags(RF_Transactional);
 	GEditor->RegisterForUndo(this);
+
+	CustomEncoding = MakeShared<FTextureEditorCustomEncode>(FTextureEditorCustomEncode());
 
 	// initialize view options
 	bIsRedChannel = true;
@@ -544,16 +567,24 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 				OodleEffortLabel->SetVisibility(EVisibility::Visible);
 				OodleTilingLabel->SetVisibility(EVisibility::Visible);
 
-				EncodeSpeedText->SetText(
-					ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ?
-						NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Fast", "Encode Speed: Fast") : 
-						NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Final", "Encode Speed: Final")
-				);
-				OodleEncodeSpeedText->SetText(
-					ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ?
-					FText::AsCultureInvariant("Fast") :
-					FText::AsCultureInvariant("Final")
-				);			
+				if (ResultMetadata.bWasEditorCustomEncoding)
+				{
+					EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Custom", "Encode Speed: Custom"));
+					OodleEncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfoDetails_EncodeSpeed_Custom", "Custom"));
+				}
+				else
+				{
+					EncodeSpeedText->SetText(
+						ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ?
+							NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Fast", "Encode Speed: Fast") : 
+							NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Final", "Encode Speed: Final")
+					);
+					OodleEncodeSpeedText->SetText(
+						ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ?
+						NSLOCTEXT("TextureEditor", "QuickInfoDetails_EncodeSpeed_Fast", "Fast") :
+						NSLOCTEXT("TextureEditor", "QuickInfoDetails_EncodeSpeed_Final", "Final")
+					);
+				}
 
 				if (ResultMetadata.OodleRDO == 0)
 				{
@@ -561,7 +592,11 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 					const bool bDisabledGlobally = ResultMetadata.EncodeSpeed == (uint8)ETextureEncodeSpeed::Fast ? !Settings->bFastUsesRDO : !Settings->bFinalUsesRDO;
 
 					OodleRDOText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDODisable", "Disabled"));
-					if (bDisabledGlobally)
+					if (ResultMetadata.bWasEditorCustomEncoding)
+					{
+						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSource_Custom", "Custom"));
+					}
+					else if (bDisabledGlobally)
 					{
 						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSourceDisableSettings", "Disabled By Project Settings"));
 					}
@@ -585,7 +620,11 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 				{
 					OodleRDOText->SetText(FText::AsNumber(ResultMetadata.OodleRDO));
 
-					if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Default)
+					if (ResultMetadata.bWasEditorCustomEncoding)
+					{
+						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSource_Custom", "Custom"));
+					}
+					else if (ResultMetadata.RDOSource == FTexturePlatformData::FTextureEncodeResultMetadata::OodleRDOSource::Default)
 					{
 						OodleRDOSourceText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_Oodle_RDOSource_Default", "Project (Lambda)"));
 					}
@@ -1113,7 +1152,125 @@ void FTextureEditorToolkit::CreateInternalWidgets( )
 					SAssignNew(OodleTilingText, STextBlock)
 				]
 		]
-	];
+	]
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHeader)
+				.HAlign(EHorizontalAlignment::HAlign_Fill)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("OodleTab_Label_TryHeader", "Try Encodings"))
+			]
+		]
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(4.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				[
+					SNew(SVerticalBox)						
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(6)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_OverrideCompression", "Enabled:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideCompression", "If checked, allows you to experiment with Oodle RDO compression settings to visualize results."))
+
+							]
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(6)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_OverrideRDO", "RDO Lambda:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideRDO", "The RDO lambda to encode with for experimentation. 0 disables RDO entirely. 1 is largest filesize, 100 is smallest."))
+
+							]
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(6)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_OverrideEffort", "Effort:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideEffort", "The encoding effort to try. Effort controls how much CPU time spent on finding better results. See the Oodle Texture documentation for detailed information."))
+
+							]
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(6)
+							[
+								SNew(STextBlock)
+								.Text(LOCTEXT("OodleTab_Label_OverrideTiling", "Universal Tiling:"))
+							.ToolTipText(LOCTEXT("OodleTab_ToolTip_OverrideTiling", "The universal tiling to try. See the Oodle Texture documentation for detailed information."))
+
+							]
+				]
+
+			+ SHorizontalBox::Slot()
+				.FillWidth(0.5f)
+				[
+					SNew(SVerticalBox)
+
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(2)
+							[
+								SAssignNew(OodleOverrideCheck, SCheckBox)
+								.OnCheckStateChanged(this, &FTextureEditorToolkit::OnUseEditorOodleSettingsChanged)
+								.IsChecked(this, &FTextureEditorToolkit::UseEditorOodleSettingsChecked)
+							]
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(2)
+							[
+								SNew(SNumericEntryBox<int32>)
+								.Value(this, &FTextureEditorToolkit::GetEditorOodleSettingsRDO)
+								.OnValueCommitted(this, &FTextureEditorToolkit::EditorOodleSettingsRDOCommitted)
+								.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
+							]
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(2)
+							[
+								SNew(SEnumComboBox, StaticEnum< ETextureEncodeEffort >())
+								.CurrentValue(this, &FTextureEditorToolkit::GetEditorOodleSettingsEffort)
+								.OnEnumSelectionChanged(this, &FTextureEditorToolkit::EditorOodleSettingsEffortChanged)
+								.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
+							]
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.VAlign(VAlign_Center)
+							.Padding(2)
+							[
+								SNew(SEnumComboBox, StaticEnum< ETextureUniversalTiling >())
+								.CurrentValue(this, &FTextureEditorToolkit::GetEditorOodleSettingsTiling)
+								.OnEnumSelectionChanged(this, &FTextureEditorToolkit::EditorOodleSettingsTilingChanged)
+								.IsEnabled(this, &FTextureEditorToolkit::EditorOodleSettingsEnabled)
+							]
+				]
+		];
+
+
+
+
 
 	TextureProperties = SNew(SVerticalBox)
 
@@ -1949,6 +2106,80 @@ void FTextureEditorToolkit::HandleZoomSliderChanged(float NewValue)
 float FTextureEditorToolkit::HandleZoomSliderValue() const
 {
 	return (CalculateDisplayedZoomLevel() / MaxZoom);
+}
+
+int32 FTextureEditorToolkit::GetEditorOodleSettingsEffort() const
+{
+	return CustomEncoding->OodleEncodeEffort;
+}
+
+void FTextureEditorToolkit::EditorOodleSettingsEffortChanged(int32 NewValue, ESelectInfo::Type SelectionType)
+{
+	CustomEncoding->OodleEncodeEffort = NewValue;
+
+	if (CustomEncoding->bUseCustomEncode)
+	{
+		PostTextureRecode(Texture);
+	}
+}
+
+int32 FTextureEditorToolkit::GetEditorOodleSettingsTiling() const
+{
+	return CustomEncoding->OodleUniversalTiling;
+}
+
+void FTextureEditorToolkit::EditorOodleSettingsTilingChanged(int32 NewValue, ESelectInfo::Type SelectionType)
+{
+	CustomEncoding->OodleUniversalTiling = NewValue;
+
+	if (CustomEncoding->bUseCustomEncode)
+	{
+		PostTextureRecode(Texture);
+	}
+}
+
+TOptional<int32> FTextureEditorToolkit::GetEditorOodleSettingsRDO() const
+{
+	return CustomEncoding->OodleRDOLambda;
+}
+
+void FTextureEditorToolkit::EditorOodleSettingsRDOCommitted(int32 NewValue, ETextCommit::Type CommitType)
+{
+	if (NewValue > 100)
+	{
+		NewValue = 100;
+	}
+	if (NewValue < 0)
+	{
+		NewValue = 0;
+	}
+
+	CustomEncoding->OodleRDOLambda = (int8)NewValue;
+
+	if (CustomEncoding->bUseCustomEncode)
+	{
+		PostTextureRecode(Texture);
+	}
+}
+
+
+bool FTextureEditorToolkit::EditorOodleSettingsEnabled() const
+{
+	return CustomEncoding->bUseCustomEncode;
+}
+
+ECheckBoxState FTextureEditorToolkit::UseEditorOodleSettingsChecked() const
+{
+	return CustomEncoding->bUseCustomEncode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FTextureEditorToolkit::OnUseEditorOodleSettingsChanged(ECheckBoxState NewState)
+{
+	// We need to convince the texture to recompress and signal all its users
+	// that they need to update, so we do this by faking a compression method property change.
+	CustomEncoding->bUseCustomEncode = NewState == ECheckBoxState::Checked ? true : false;
+
+	PostTextureRecode(Texture);
 }
 
 TSharedRef<SWidget> FTextureEditorToolkit::MakeChannelControlWidget()
