@@ -14,16 +14,22 @@ class FExternalWinDualShockEndpoint : public IAudioEndpoint
 {
 private:
 	TSharedRef<IWinDualShockAudioDevice> Device;
+	bool bAllowedEndpoint;
 
 public:
-	FExternalWinDualShockEndpoint(TSharedRef<IWinDualShockAudioDevice> InDevice) : Device(InDevice)
+	FExternalWinDualShockEndpoint(TSharedRef<IWinDualShockAudioDevice> InDevice) 
+		: Device(InDevice), bAllowedEndpoint(InDevice->AddEndpoint(PortType))
 	{
-		Device->AddEndpoint();
 	}
 
 	virtual ~FExternalWinDualShockEndpoint()
 	{
-		Device->RemoveEndpoint();
+		Device->RemoveEndpoint(PortType);
+	}
+
+	bool IsEndpointAllowed() const
+	{
+		return bAllowedEndpoint;
 	}
 
 protected:
@@ -63,7 +69,10 @@ protected:
 	{
 		check(NumChannels == GetNumChannels());
 
-		Device->PushAudio(PortType, InAudio, NumChannels);
+		if (bAllowedEndpoint)
+		{
+			Device->PushAudio(PortType, InAudio, NumChannels);
+		}
 		return true;
 	}
 
