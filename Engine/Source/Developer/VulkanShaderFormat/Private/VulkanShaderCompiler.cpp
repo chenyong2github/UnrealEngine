@@ -2001,12 +2001,22 @@ static bool CompileWithShaderConductor(
 	CrossCompiler::FShaderConductorOptions Options;
 	Options.bDisableScalarBlockLayout = !bIsRayTracingShader;
 
+>>>> ORIGINAL //Fortnite/Main/Engine/Source/Developer/VulkanShaderFormat/Private/VulkanShaderCompiler.cpp#36
+==== THEIRS //Fortnite/Main/Engine/Source/Developer/VulkanShaderFormat/Private/VulkanShaderCompiler.cpp#37
+	EShaderPlatform TargetPlatform = Input.Target.GetPlatform();
+	if (IsVulkanMobilePlatform(TargetPlatform) || IsVulkanMobileSM5Platform(TargetPlatform))
+	{
+		Options.bForceSubpassImageDepthFalse = true;
+	}
+
+==== YOURS //carl.lloyd_TR_FN19/Engine/Source/Developer/VulkanShaderFormat/Private/VulkanShaderCompiler.cpp
 	// Ray tracing features require Vulkan 1.2 environment.
 	if (bIsRayTracingShader || Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
 	{
 		Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2;
 	}
 
+<<<<
 	if (bRewriteHlslSource)
 	{
 		// Rewrite HLSL source code to remove unused global resources and variables
