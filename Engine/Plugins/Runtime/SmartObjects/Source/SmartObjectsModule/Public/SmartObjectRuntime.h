@@ -88,6 +88,8 @@ public:
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectSlotRuntimeData>::ConstructForTests(void *)' */
 	FSmartObjectSlotRuntimeData() {}
 
+	ESmartObjectSlotState GetState() const { return State; }
+
 protected:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
@@ -126,6 +128,7 @@ public:
 	const FSmartObjectID& GetRegisteredID() const { return RegisteredID; }
 	const FTransform& GetTransform() const { return Transform; }
 	const USmartObjectDefinition& GetDefinition() const { checkf(Definition != nullptr, TEXT("Initialized from a valid reference from the constructor")); return *Definition; }
+	 ESmartObjectSlotState GetSlotState(const uint32 SlotIndex) const;
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
