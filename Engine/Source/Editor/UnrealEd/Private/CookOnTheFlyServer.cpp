@@ -3005,12 +3005,12 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscovere
 	{
 		UE_SCOPED_HIERARCHICAL_COOKTIMER(PostLoadPackageFixup);
 
-		TArray<UE::Cook::FPackageWithInstigator> NewPackages = PackageTracker->GetNewPackages();
+		TMap<UPackage*, UE::Cook::FInstigator> NewPackages = PackageTracker->GetNewPackages();
 
-		for (FPackageWithInstigator& PackageWithInstigator : NewPackages)
+		for (auto& PackageWithInstigator : NewPackages)
 		{
-			UPackage* Package = PackageWithInstigator.Package;
-			FInstigator& Instigator = PackageWithInstigator.Instigator;
+			UPackage* Package = PackageWithInstigator.Key;
+			FInstigator& Instigator = PackageWithInstigator.Value;
 			if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 			{
 				PostLoadPackageFixup(Package, OutDiscoveredPackageNames, OutInstigators);
@@ -4272,6 +4272,8 @@ void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPla
 
 void FSaveCookedPackageContext::FinishPlatform()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSaveCookedPackageContext::FinishPlatform);
+
 	bool bSuccessful = SavePackageResult.IsSuccessful();
 	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
 
