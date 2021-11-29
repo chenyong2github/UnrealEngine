@@ -43,7 +43,7 @@ public:
 	TArray<FNeuralTensor> InputTensors;
 	TArray<FNeuralTensor> OutputTensors;
 
-	FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, FCriticalSection& InResoucesCriticalSection);
+	FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InDelegateThreadMode, FCriticalSection& InResoucesCriticalSection);
 
 	~FImplBackEndUEAndORT();
 
@@ -52,8 +52,9 @@ public:
 	static bool IsGPUSupported();
 
 	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate,
-		FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes,
-		const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+		ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable,
+		const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
+		const ENeuralDeviceType InOutputDeviceType);
 
 	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
 		const ENeuralDeviceType InOutputDeviceType);
@@ -62,6 +63,7 @@ public:
 private:
 	/** Async support */
 	FOnAsyncRunCompleted& OnAsyncRunCompletedDelegate;
+	ENeuralNetworkDelegateThreadMode& DelegateThreadMode;
 	FCriticalSection& ResoucesCriticalSection;
 	/** Network-related variables */
 	TUniquePtr<Ort::Env> Environment;
@@ -108,7 +110,7 @@ private:
 	void EnsureAsyncTaskCompletion() const;
 
 	static bool InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate,
-		FCriticalSection& InOutResoucesCriticalSection, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
+		ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 
 	bool ConfigureMembers(const ENeuralDeviceType InDeviceType);
 

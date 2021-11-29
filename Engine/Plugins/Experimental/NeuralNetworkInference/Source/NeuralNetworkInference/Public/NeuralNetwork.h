@@ -26,6 +26,19 @@ enum class ENeuralNetworkSynchronousMode : uint8
 	Asynchronous
 };
 
+UENUM()
+enum class ENeuralNetworkDelegateThreadMode : uint8
+{
+	GameThread, /* Recommended and default value. The UNeuralNetwork delegate will be called from the game thread. */
+	/**
+	 * Not recommended, use at your own risk.
+	 * The UNeuralNetwork delegate could be called from any thread.
+	 * Running UClass functions from background threads is not safe (e.g., it might crash if the editor is closed while accessing UNeuralNetwork information).
+	 * Thus "AnyThread" is only safe if you have guarantees that the program will not be terminated while calling UNeuralNetwork functions.
+	 */
+	AnyThread
+};
+
 /**
  * UNeuralNetwork is UE's representation for deep learning and neural network models. It supports the industry standard ONNX model format.
  * All major frameworks (PyTorch, TensorFlow, MXNet, Caffe2, etc.) provide converters to ONNX.
@@ -116,7 +129,6 @@ public:
 	ENeuralNetworkSynchronousMode GetSynchronousMode() const;
 	void SetSynchronousMode(const ENeuralNetworkSynchronousMode InSynchronousMode);
 
-
 	/**
 	 * GetOnAsyncRunCompletedDelegate() returns a FOnAsyncRunCompleted delegate that will be called when async UNeuralNetwork::Run() is completed.
 	 * This FOnAsyncRunCompleted delegate could be triggered from any thread but will only be triggered if SynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous.
@@ -124,6 +136,8 @@ public:
 	 */
 	DECLARE_DELEGATE(FOnAsyncRunCompleted);
 	FOnAsyncRunCompleted& GetOnAsyncRunCompletedDelegate();
+	ENeuralNetworkDelegateThreadMode GetOnAsyncRunCompletedDelegateMode() const;
+	void SetOnAsyncRunCompletedDelegateMode(const ENeuralNetworkDelegateThreadMode InDelegateThreadMode);
 
 	/**
 	 * Getter and setter functions for BackEnd.
@@ -218,11 +232,15 @@ protected:
 	ENeuralDeviceType OutputDeviceType;
 	
 	/**
-	 * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not blocking the calling thread (Asynchronous).
-	 * @see ENeuralNetworkSynchronousMode for more details.
+	 * SynchronousMode defines whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not
+	 * blocking the calling thread (Asynchronous).
+	 * If asynchronous, DelegateThreadMode will define whether the callback delegate is called from the game thread (highly recommended) or from any available thread (not fully thread safe).
+	 * @see ENeuralNetworkSynchronousMode, ENeuralNetworkDelegateThreadMode for more details.
 	 */
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
 	ENeuralNetworkSynchronousMode SynchronousMode;
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
+	ENeuralNetworkDelegateThreadMode DelegateThreadMode;
 	
 	/**
 	 * @see ENeuralBackEnd for more details.
@@ -237,6 +255,7 @@ protected:
 	FString ModelFullFilePath;
 
 private:
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
 	bool bIsLoaded;
 
 	/**
@@ -249,6 +268,7 @@ private:
 	TArray<uint8> ModelReadFromFileInBytes;
 
 	/** Whether some of the FNeuralTensor of InputTensor have flexible/variable dimensions. */
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
 	TArray<bool> AreInputTensorSizesVariable;
 
 	/**
@@ -256,6 +276,7 @@ private:
 	 * Otherwise, BackEndForCurrentPlatform will be set to the optimal BackEnd given the current platform.
 	 * @see ENeuralBackEnd for more details.
 	 */
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
 	ENeuralBackEnd BackEndForCurrentPlatform;
 
 	/**

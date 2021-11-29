@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetworkImplBackEndUEAndORT.h"
-
+#include "Async/Async.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 #include "RedirectCoutAndCerrToUeLog.h"
@@ -264,9 +264,11 @@ void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::DoWork()
 /* FImplBackEndUEAndORT 'structors
  *****************************************************************************/
 
-UNeuralNetwork::FImplBackEndUEAndORT::FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, FCriticalSection& InResoucesCriticalSection)
+UNeuralNetwork::FImplBackEndUEAndORT::FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InDelegateThreadMode,
+	FCriticalSection& InResoucesCriticalSection)
 #ifdef WITH_UE_AND_ORT_SUPPORT
 	: OnAsyncRunCompletedDelegate(InOutOnAsyncRunCompletedDelegate)
+	, DelegateThreadMode(InDelegateThreadMode)
 	, ResoucesCriticalSection(InResoucesCriticalSection)
 #endif
 {
@@ -332,7 +334,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUSupported()
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT,
-	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, FCriticalSection& InOutResoucesCriticalSection,
+	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection,
 	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath,
 	const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
@@ -350,8 +352,8 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 		}
 
 		// Initialize and configure InOutImplBackEndUEAndORT
-		if (!UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(InOutImplBackEndUEAndORT, InOutOnAsyncRunCompletedDelegate,
-				InOutResoucesCriticalSection, InModelFullFilePath, InDeviceType))
+		if (!UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(InOutImplBackEndUEAndORT, InOutOnAsyncRunCompletedDelegate, InOutDelegateThreadMode,
+			InOutResoucesCriticalSection, InModelFullFilePath, InDeviceType))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Load(): InitializedAndConfigureMembers failed."));
 			return false;
@@ -472,12 +474,13 @@ void UNeuralNetwork::FImplBackEndUEAndORT::EnsureAsyncTaskCompletion() const
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT,
-	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, FCriticalSection& InOutResoucesCriticalSection, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
+	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection,
+	const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 {
 	// Initialize InOutImplBackEndUEAndORT
 	if (!InOutImplBackEndUEAndORT.IsValid())
 	{
-		InOutImplBackEndUEAndORT = MakeShared<FImplBackEndUEAndORT>(InOutOnAsyncRunCompletedDelegate, InOutResoucesCriticalSection);
+		InOutImplBackEndUEAndORT = MakeShared<FImplBackEndUEAndORT>(InOutOnAsyncRunCompletedDelegate, InOutDelegateThreadMode, InOutResoucesCriticalSection);
 
 		// Set up ORT and create an environment
 		const char* const ModelFullFilePathCharPtr = TCHAR_TO_ANSI(*InModelFullFilePath);
@@ -528,25 +531,19 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 		FD3D12Adapter&				RhiAdapter = Rhi->GetAdapter(0);
 		const FD3D12AdapterDesc&	RhiAdapterDesc = RhiAdapter.GetDesc();
 
-		UE_LOG(LogNeuralNetworkInference, Display, TEXT("FImplBackEndUEAndORT::ConfigureMembers(): NNI available adapters %d"), Rhi->GetNumAdapters());
+		UE_LOG(LogNeuralNetworkInference, Display, TEXT("%d available RHI adapters. NNI using RHI adapter %s with LUID:%0x%0x."),
+			Rhi->GetNumAdapters(), RhiAdapterDesc.Desc.Description, RhiAdapterDesc.Desc.AdapterLuid.HighPart, RhiAdapterDesc.Desc.AdapterLuid.LowPart);
 
-		for (int32 ic = 0; ic < Rhi->GetNumAdapters(); ++ic)
+		if (Rhi->GetNumAdapters() > 1)
 		{
-			const FD3D12AdapterDesc& CurrAdapterDesc = Rhi->GetAdapter(ic).GetDesc();
-
-			UE_LOG(LogNeuralNetworkInference, Display,
-				TEXT("   Adapter [%d] Name:%s with LUID:%0x%0x"),
-				ic,
-				CurrAdapterDesc.Desc.Description,
-				CurrAdapterDesc.Desc.AdapterLuid.HighPart,
-				CurrAdapterDesc.Desc.AdapterLuid.LowPart);
+			UE_LOG(LogNeuralNetworkInference, Display, TEXT("All available RHI adapters:"));
+			for (int32 AdapterIndex = 0; AdapterIndex < Rhi->GetNumAdapters(); ++AdapterIndex)
+			{
+				const FD3D12AdapterDesc& CurrAdapterDesc = Rhi->GetAdapter(AdapterIndex).GetDesc();
+				UE_LOG(LogNeuralNetworkInference, Display, TEXT("  - Adapter [%d] Name:%s with LUID:%0x%0x."),
+					AdapterIndex, CurrAdapterDesc.Desc.Description, CurrAdapterDesc.Desc.AdapterLuid.HighPart, CurrAdapterDesc.Desc.AdapterLuid.LowPart);
+			}
 		}
-
-		UE_LOG(LogNeuralNetworkInference, Display,
-			TEXT("FImplBackEndUEAndORT::ConfigureMembers(): NNI using adapter %s with LUID:%0x%0x"),
-			RhiAdapterDesc.Desc.Description,
-			RhiAdapterDesc.Desc.AdapterLuid.HighPart,
-			RhiAdapterDesc.Desc.AdapterLuid.LowPart);
 
 		if (Rhi->GetNumAdapters() > 1 || RhiAdapterDesc.NumDeviceNodes > 1)
 		{
@@ -945,7 +942,31 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionAsync(const ENeuralDeviceTy
 
 	RunSessionImpl(InDeviceType, InInputDeviceType, InOutputDeviceType);
 
-	OnAsyncRunCompletedDelegate.ExecuteIfBound();
+	// Execute OnAsyncRunCompletedDelegate on main thread
+	if (DelegateThreadMode == ENeuralNetworkDelegateThreadMode::GameThread)
+	{
+		if (OnAsyncRunCompletedDelegate.IsBound())
+		{
+			std::atomic<bool> IsComputeFinished(false);
+			AsyncTask(ENamedThreads::GameThread, [this, &IsComputeFinished]
+			{
+				OnAsyncRunCompletedDelegate.ExecuteIfBound();
+				IsComputeFinished = true;
+			});
+			while (!IsComputeFinished)
+			{
+				FPlatformProcess::Sleep(0.1e-3);
+			}
+		}
+	}
+	else if (DelegateThreadMode == ENeuralNetworkDelegateThreadMode::AnyThread)
+	{
+		OnAsyncRunCompletedDelegate.ExecuteIfBound();
+	}
+	else
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::RunSessionAsync(): Unknown DelegateThreadMode = %d."), (int32)DelegateThreadMode);
+	}
 }
 
 void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionSync(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
