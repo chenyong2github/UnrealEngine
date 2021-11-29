@@ -674,6 +674,66 @@ namespace HordeAgent.Execution
 			return IgnorePatterns.ToList();
 		}
 
+		FileReference GetCleanupScript(DirectoryReference WorkspaceDir)
+		{
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				return FileReference.Combine(WorkspaceDir, "Cleanup.bat");
+			}
+			else
+			{
+				return FileReference.Combine(WorkspaceDir, "Cleanup.sh");
+			}
+		}
+
+		async Task ExecuteCleanupScriptAsync(FileReference CleanupScript, LogParser Filter)
+		{
+			if (FileReference.Exists(CleanupScript))
+			{
+				Filter.WriteLine($"Executing cleanup script: {CleanupScript}");
+
+				string FileName;
+				string Arguments;
+				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+				{
+					FileName = "C:\\Windows\\System32\\Cmd.exe";
+					Arguments = $"/C \"{CleanupScript}\"";
+				}
+				else
+				{
+					FileName = "/bin/sh";
+					Arguments = $"\"{CleanupScript}\"";
+				}
+
+				try
+				{
+					using (CancellationTokenSource CancellationSource = new CancellationTokenSource())
+					{
+						CancellationSource.CancelAfter(TimeSpan.FromSeconds(30.0));
+						await ExecuteProcessAsync(FileName, Arguments, null, Filter, CancellationSource.Token);
+					}
+					FileUtils.ForceDeleteFile(CleanupScript);
+				}
+				catch (OperationCanceledException)
+				{
+					Filter.WriteLine("Cleanup script did not complete within allotted time. Aborting.");
+				}
+			}
+		}
+
+		async Task<int> ExecuteProcessAsync(string FileName, string Arguments, IReadOnlyDictionary<string, string>? NewEnvironment, LogParser Filter, CancellationToken CancellationToken)
+		{
+			using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
+			{
+				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, FileName, Arguments, null, NewEnvironment, null, ProcessPriorityClass.Normal))
+				{
+					await Process.CopyToAsync((Buffer, Offset, Length) => Filter.WriteData(Buffer.AsMemory(Offset, Length)), 4096, CancellationToken);
+					Process.WaitForExit();
+					return Process.ExitCode;
+				}
+			}
+		}
+
 		async Task<int> ExecuteCommandAsync(BeginStepResponse Step, DirectoryReference WorkspaceDir, string FileName, string Arguments, IReadOnlyDictionary<string, string> EnvVars, IReadOnlyDictionary<string, string> Credentials, ILogger Logger, CancellationToken CancellationToken)
 		{
 			Dictionary<string, string> NewEnvironment = new Dictionary<string, string>(EnvVars);
@@ -717,9 +777,13 @@ namespace HordeAgent.Execution
 			// Enable structured logging output
 			NewEnvironment["UE_LOG_JSON"] = "1";
 
+			// Pass the location of the cleanup script to the job
+			FileReference CleanupScript = GetCleanupScript(WorkspaceDir);
+			NewEnvironment["UE_HORDE_CLEANUP"] = CleanupScript.FullName;
+
 			// Disable the S3DDC. This is technically a Fortnite-specific setting, but affects a large number of branches and is hard to retrofit. 
 			// Setting here for now, since it's likely to be temporary.
-			if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				NewEnvironment["UE-S3DataCachePath"] = "None";
 			}
@@ -730,180 +794,183 @@ namespace HordeAgent.Execution
 				FileUtils.ForceDeleteDirectoryContents(TelemetryDir);
 			}
 			
-			using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
+			LogParserContext Context = new LogParserContext();
+			Context.WorkspaceDir = WorkspaceDir;
+			Context.PerforceStream = Stream.Name;
+			Context.PerforceChange = Job.Change;
+
+			List<string> IgnorePatterns = await ReadIgnorePatternsAsync(WorkspaceDir, Logger);
+
+			int ExitCode;
+			using (LogParser Filter = new LogParser(Logger, Context, IgnorePatterns))
 			{
-				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, FileName, Arguments, null, NewEnvironment, null, ProcessPriorityClass.Normal))
+				await ExecuteCleanupScriptAsync(CleanupScript, Filter);
+				try
 				{
-					LogParserContext Context = new LogParserContext();
-					Context.WorkspaceDir = WorkspaceDir;
-					Context.PerforceStream = Stream.Name;
-					Context.PerforceChange = Job.Change;
+					ExitCode = await ExecuteProcessAsync(FileName, Arguments, NewEnvironment, Filter, CancellationToken);
+				}
+				finally
+				{
+					await ExecuteCleanupScriptAsync(CleanupScript, Filter);
+				}
+				Filter.Flush();
+			}
 
-					List<string> IgnorePatterns = await ReadIgnorePatternsAsync(WorkspaceDir, Logger);
-					using (LogParser Filter = new LogParser(Logger, Context, IgnorePatterns))
+			if (DirectoryReference.Exists(TelemetryDir))
+			{
+				List<TraceEventList> TelemetryList = new List<TraceEventList>();
+				foreach (FileReference TelemetryFile in DirectoryReference.EnumerateFiles(TelemetryDir, "*.json"))
+				{
+					Logger.LogInformation("Reading telemetry from {File}", TelemetryFile);
+					byte[] Data = await FileReference.ReadAllBytesAsync(TelemetryFile);
+
+					TraceEventList Telemetry = JsonSerializer.Deserialize<TraceEventList>(Data.AsSpan());
+					if (Telemetry.Spans.Count > 0)
 					{
-						await Process.CopyToAsync((Buffer, Offset, Length) => Filter.WriteData(Buffer.AsMemory(Offset, Length)), 4096, CancellationToken);
-						Filter.Flush();
-					}
-					
-					Process.WaitForExit();
-					if (DirectoryReference.Exists(TelemetryDir))
-					{
-						List<TraceEventList> TelemetryList = new List<TraceEventList>();
-						foreach (FileReference TelemetryFile in DirectoryReference.EnumerateFiles(TelemetryDir, "*.json"))
+						string DefaultServiceName = TelemetryFile.GetFileNameWithoutAnyExtensions();
+						foreach (TraceEvent Span in Telemetry.Spans)
 						{
-							Logger.LogInformation("Reading telemetry from {File}", TelemetryFile);
-							byte[] Data = await FileReference.ReadAllBytesAsync(TelemetryFile);
-
-							TraceEventList Telemetry = JsonSerializer.Deserialize<TraceEventList>(Data.AsSpan());
-							if (Telemetry.Spans.Count > 0)
-							{
-								string DefaultServiceName = TelemetryFile.GetFileNameWithoutAnyExtensions();
-								foreach (TraceEvent Span in Telemetry.Spans)
-								{
-									Span.Service = Span.Service ?? DefaultServiceName;
-								}
-								TelemetryList.Add(Telemetry);
-							}
-
-							await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, $"Telemetry/{TelemetryFile.GetFileName()}", TelemetryFile, Logger, CancellationToken.None);
-							FileUtils.ForceDeleteFile(TelemetryFile);
+							Span.Service = Span.Service ?? DefaultServiceName;
 						}
-
-						List<TraceEvent> TelemetrySpans = new List<TraceEvent>();
-						foreach (TraceEventList Telemetry in TelemetryList.OrderBy(x => x.Spans.First().StartTime).ThenBy(x => x.Spans.Last().FinishTime))
-						{
-							foreach (TraceEvent Span in Telemetry.Spans)
-							{
-								if (Span.FinishTime - Span.StartTime > TimeSpan.FromMilliseconds(1.0))
-								{
-									Span.Index = TelemetrySpans.Count;
-									TelemetrySpans.Add(Span);
-								}
-							}
-						}
-
-						if (TelemetrySpans.Count > 0)
-						{
-							TraceSpan RootSpan = new TraceSpan();
-							RootSpan.Name = Step.Name;
-
-							Stack<TraceSpan> Stack = new Stack<TraceSpan>();
-							Stack.Push(RootSpan);
-
-							foreach (TraceEvent Event in TelemetrySpans.OrderBy(x => x.StartTime).ThenByDescending(x => x.FinishTime).ThenBy(x => x.Index))
-							{
-								TraceSpan NewSpan = new TraceSpan();
-								NewSpan.Name = Event.Name;
-								NewSpan.Service = Event.Service;
-								NewSpan.Resource = Event.Resource;
-								NewSpan.Start = Event.StartTime.UtcTicks;
-								NewSpan.Finish = Event.FinishTime.UtcTicks;
-								if (Event.Metadata != null && Event.Metadata.Count > 0)
-								{
-									NewSpan.Properties = Event.Metadata;
-								}
-
-								TraceSpan StackTop = Stack.Peek();
-								while (Stack.Count > 1 && NewSpan.Start >= StackTop.Finish)
-								{
-									Stack.Pop();
-									StackTop = Stack.Peek();
-								}
-
-								if (Stack.Count > 1 && NewSpan.Finish > StackTop.Finish)
-								{
-									Logger.LogInformation("Trace event name='{Name}', service'{Service}', resource='{Resource}' has invalid finish time ({SpanFinish} < {StackFinish})", NewSpan.Name, NewSpan.Service, NewSpan.Resource, NewSpan.Finish, StackTop.Finish);
-									NewSpan.Finish = StackTop.Finish;
-								}
-
-								if (StackTop.Children == null)
-								{
-									StackTop.Children = new List<TraceSpan>();
-								}
-
-								StackTop.Children.Add(NewSpan);
-								Stack.Push(NewSpan);
-							}
-
-							RootSpan.Start = RootSpan.Children.First().Start;
-							RootSpan.Finish = RootSpan.Children.Last().Finish;
-
-							FileReference TraceFile = FileReference.Combine(TelemetryDir, "Trace.json");
-							using (FileStream Stream = FileReference.Open(TraceFile, FileMode.Create))
-							{
-								JsonSerializerOptions Options = new JsonSerializerOptions { IgnoreNullValues = true };
-								await JsonSerializer.SerializeAsync(Stream, RootSpan, Options);
-							}
-							await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, "Trace.json", TraceFile, Logger, CancellationToken.None);
-
-							CreateTracingData(GlobalTracer.Instance.ActiveSpan, RootSpan);
-						}
-					}
-					
-					if (DirectoryReference.Exists(TestDataDir))
-					{
-						Dictionary<string, object> CombinedTestData = new Dictionary<string, object>();
-						foreach (FileReference TestDataFile in DirectoryReference.EnumerateFiles(TestDataDir, "*.json", SearchOption.AllDirectories))
-						{
-							Logger.LogInformation("Reading test data {TestDataFile}", TestDataFile);
-							await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, $"TestData/{TestDataFile.MakeRelativeTo(TestDataDir)}", TestDataFile, Logger, CancellationToken.None);
-
-							TestData TestData;
-							using (FileStream Stream = FileReference.Open(TestDataFile, FileMode.Open))
-							{
-								JsonSerializerOptions Options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-								TestData = await JsonSerializer.DeserializeAsync<TestData>(Stream, Options);
-							}
-
-							foreach (TestDataItem Item in TestData.Items)
-							{
-								if (CombinedTestData.ContainsKey(Item.Key))
-								{
-									Logger.LogWarning("Key '{Key}' already exists - ignoring", Item.Key);
-								}
-								else
-								{
-									Logger.LogDebug("Adding data with key '{Key}'", Item.Key);
-									CombinedTestData.Add(Item.Key, Item.Data);
-								}
-							}
-						}
-
-						Logger.LogInformation("Found {NumResults} test results", CombinedTestData.Count);
-						await UploadTestDataAsync(Step.StepId, CombinedTestData);
-					}
-					
-					if (DirectoryReference.Exists(LogDir))
-					{
-						Dictionary<FileReference, string> ArtifactFileToId = new Dictionary<FileReference, string>();
-						foreach (FileReference ArtifactFile in DirectoryReference.EnumerateFiles(LogDir, "*", SearchOption.AllDirectories))
-						{
-							string ArtifactName = ArtifactFile.MakeRelativeTo(LogDir);
-
-							string? ArtifactId = await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, ArtifactName, ArtifactFile, Logger, CancellationToken);
-							if (ArtifactId != null)
-							{
-								ArtifactFileToId[ArtifactFile] = ArtifactId;
-							}
-						}
-
-						foreach (FileReference ReportFile in ArtifactFileToId.Keys.Where(x => x.HasExtension(".report.json")))
-						{
-							try
-							{
-								await CreateReportAsync(Step.StepId, ReportFile, ArtifactFileToId, Logger);
-							}
-							catch(Exception Ex)
-							{
-								Logger.LogWarning("Unable to upload report: {Message}", Ex.Message);
-							}
-						}
+						TelemetryList.Add(Telemetry);
 					}
 
-					return Process.ExitCode;
+					await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, $"Telemetry/{TelemetryFile.GetFileName()}", TelemetryFile, Logger, CancellationToken.None);
+					FileUtils.ForceDeleteFile(TelemetryFile);
+				}
+
+				List<TraceEvent> TelemetrySpans = new List<TraceEvent>();
+				foreach (TraceEventList Telemetry in TelemetryList.OrderBy(x => x.Spans.First().StartTime).ThenBy(x => x.Spans.Last().FinishTime))
+				{
+					foreach (TraceEvent Span in Telemetry.Spans)
+					{
+						if (Span.FinishTime - Span.StartTime > TimeSpan.FromMilliseconds(1.0))
+						{
+							Span.Index = TelemetrySpans.Count;
+							TelemetrySpans.Add(Span);
+						}
+					}
+				}
+
+				if (TelemetrySpans.Count > 0)
+				{
+					TraceSpan RootSpan = new TraceSpan();
+					RootSpan.Name = Step.Name;
+
+					Stack<TraceSpan> Stack = new Stack<TraceSpan>();
+					Stack.Push(RootSpan);
+
+					foreach (TraceEvent Event in TelemetrySpans.OrderBy(x => x.StartTime).ThenByDescending(x => x.FinishTime).ThenBy(x => x.Index))
+					{
+						TraceSpan NewSpan = new TraceSpan();
+						NewSpan.Name = Event.Name;
+						NewSpan.Service = Event.Service;
+						NewSpan.Resource = Event.Resource;
+						NewSpan.Start = Event.StartTime.UtcTicks;
+						NewSpan.Finish = Event.FinishTime.UtcTicks;
+						if (Event.Metadata != null && Event.Metadata.Count > 0)
+						{
+							NewSpan.Properties = Event.Metadata;
+						}
+
+						TraceSpan StackTop = Stack.Peek();
+						while (Stack.Count > 1 && NewSpan.Start >= StackTop.Finish)
+						{
+							Stack.Pop();
+							StackTop = Stack.Peek();
+						}
+
+						if (Stack.Count > 1 && NewSpan.Finish > StackTop.Finish)
+						{
+							Logger.LogInformation("Trace event name='{Name}', service'{Service}', resource='{Resource}' has invalid finish time ({SpanFinish} < {StackFinish})", NewSpan.Name, NewSpan.Service, NewSpan.Resource, NewSpan.Finish, StackTop.Finish);
+							NewSpan.Finish = StackTop.Finish;
+						}
+
+						if (StackTop.Children == null)
+						{
+							StackTop.Children = new List<TraceSpan>();
+						}
+
+						StackTop.Children.Add(NewSpan);
+						Stack.Push(NewSpan);
+					}
+
+					RootSpan.Start = RootSpan.Children.First().Start;
+					RootSpan.Finish = RootSpan.Children.Last().Finish;
+
+					FileReference TraceFile = FileReference.Combine(TelemetryDir, "Trace.json");
+					using (FileStream Stream = FileReference.Open(TraceFile, FileMode.Create))
+					{
+						JsonSerializerOptions Options = new JsonSerializerOptions { IgnoreNullValues = true };
+						await JsonSerializer.SerializeAsync(Stream, RootSpan, Options);
+					}
+					await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, "Trace.json", TraceFile, Logger, CancellationToken.None);
+
+					CreateTracingData(GlobalTracer.Instance.ActiveSpan, RootSpan);
 				}
 			}
+					
+			if (DirectoryReference.Exists(TestDataDir))
+			{
+				Dictionary<string, object> CombinedTestData = new Dictionary<string, object>();
+				foreach (FileReference TestDataFile in DirectoryReference.EnumerateFiles(TestDataDir, "*.json", SearchOption.AllDirectories))
+				{
+					Logger.LogInformation("Reading test data {TestDataFile}", TestDataFile);
+					await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, $"TestData/{TestDataFile.MakeRelativeTo(TestDataDir)}", TestDataFile, Logger, CancellationToken.None);
+
+					TestData TestData;
+					using (FileStream Stream = FileReference.Open(TestDataFile, FileMode.Open))
+					{
+						JsonSerializerOptions Options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+						TestData = await JsonSerializer.DeserializeAsync<TestData>(Stream, Options);
+					}
+
+					foreach (TestDataItem Item in TestData.Items)
+					{
+						if (CombinedTestData.ContainsKey(Item.Key))
+						{
+							Logger.LogWarning("Key '{Key}' already exists - ignoring", Item.Key);
+						}
+						else
+						{
+							Logger.LogDebug("Adding data with key '{Key}'", Item.Key);
+							CombinedTestData.Add(Item.Key, Item.Data);
+						}
+					}
+				}
+
+				Logger.LogInformation("Found {NumResults} test results", CombinedTestData.Count);
+				await UploadTestDataAsync(Step.StepId, CombinedTestData);
+			}
+					
+			if (DirectoryReference.Exists(LogDir))
+			{
+				Dictionary<FileReference, string> ArtifactFileToId = new Dictionary<FileReference, string>();
+				foreach (FileReference ArtifactFile in DirectoryReference.EnumerateFiles(LogDir, "*", SearchOption.AllDirectories))
+				{
+					string ArtifactName = ArtifactFile.MakeRelativeTo(LogDir);
+
+					string? ArtifactId = await ArtifactUploader.UploadAsync(RpcConnection, JobId, BatchId, Step.StepId, ArtifactName, ArtifactFile, Logger, CancellationToken);
+					if (ArtifactId != null)
+					{
+						ArtifactFileToId[ArtifactFile] = ArtifactId;
+					}
+				}
+
+				foreach (FileReference ReportFile in ArtifactFileToId.Keys.Where(x => x.HasExtension(".report.json")))
+				{
+					try
+					{
+						await CreateReportAsync(Step.StepId, ReportFile, ArtifactFileToId, Logger);
+					}
+					catch(Exception Ex)
+					{
+						Logger.LogWarning("Unable to upload report: {Message}", Ex.Message);
+					}
+				}
+			}
+
+			return ExitCode;
 		}
 
 		private async Task CreateReportAsync(string StepId, FileReference ReportFile, Dictionary<FileReference, string> ArtifactFileToId, ILogger Logger)
