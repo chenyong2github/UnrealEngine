@@ -17,6 +17,7 @@ public class LibJpegTurbo : ModuleRules
 		{
 			string LibPath = Path.Combine(ModuleDirectory, "lib/Win64");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "turbojpeg-static.lib"));
+			PublicSystemIncludePaths.Add(Path.Combine(IncPath, Target.Platform.ToString()));
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -30,6 +31,8 @@ public class LibJpegTurbo : ModuleRules
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libturbojpeg.a"));
 			}
+
+			PublicSystemIncludePaths.Add(Path.Combine(IncPath, "Unix", Target.Architecture));
 		}
 
 		// **** NOTE - Only Win64/Linux has been tested - other platforms are usable at your own risk, but have not been tested
