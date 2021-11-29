@@ -428,6 +428,9 @@ private:
 	/** The number of frames to load behind the play head. */
 	int32 NumLoadBehind;
 
+	/** Total number of frames to load. */
+	int32 NumFramesToLoad;
+
 	/** The image sequence reader to use. */
 	TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> Reader;
 
