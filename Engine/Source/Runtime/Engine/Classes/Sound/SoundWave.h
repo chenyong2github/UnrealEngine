@@ -1118,8 +1118,7 @@ public:
 
 	// UObject Interface cached data getters
 	const FName& GetFName() const { return NameCached; }
-	const FString& GetFullName() const { return FullNameCached; }
-	const FString& GetPathName() const { return PathNameCached; }
+	const FName& GetPackageName() const { return PackageNameCached; }
 	const FName& GetRuntimeFormat() const { return RuntimeFormat; }
 	const FObjectKey& GetFObjectKey() const { return SoundWaveKeyCached; };
 
@@ -1170,8 +1169,7 @@ public:
 
 private:
 	FName NameCached;
-	FString FullNameCached;
-	FString PathNameCached;
+	FName PackageNameCached;
 	FObjectKey SoundWaveKeyCached;
 	FName RuntimeFormat{ "FSoundWaveProxy_InvalidFormat" };
 
