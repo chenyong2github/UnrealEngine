@@ -10,6 +10,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/DynamicMeshSource.h"
+#include "TargetInterfaces/PhysicsDataSource.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 
 #include "DynamicMeshComponentToolTarget.generated.h"
@@ -27,7 +28,8 @@ class MODELINGCOMPONENTSEDITORONLY_API UDynamicMeshComponentToolTarget :
 	public IDynamicMeshProvider,
 	public IDynamicMeshCommitter,
 	public IMaterialProvider,
-	public IPersistentDynamicMeshSource
+	public IPersistentDynamicMeshSource,
+	public IPhysicsDataSource
 {
 	GENERATED_BODY()
 
@@ -61,6 +63,10 @@ public:
 	virtual void CommitDynamicMeshChange(TUniquePtr<FToolCommandChange> Change, const FText& ChangeMessage) override;
 	virtual bool HasDynamicMeshComponent() const override;
 	virtual UDynamicMeshComponent* GetDynamicMeshComponent() override;
+
+	// IPhysicsDataSource implementation
+	virtual UBodySetup* GetBodySetup() const override;
+	virtual IInterface_CollisionDataProvider* GetComplexCollisionProvider() const override;
 
 	// Rest provided by parent class
 
