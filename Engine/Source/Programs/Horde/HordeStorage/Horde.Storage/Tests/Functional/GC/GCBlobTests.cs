@@ -36,7 +36,7 @@ namespace Horde.Storage.FunctionalTests.GC
         private readonly BlobIdentifier object5id = new BlobIdentifier("5555555555555555555555555555555555555555");
         private readonly BlobIdentifier object6id = new BlobIdentifier("6666666666666666666666666666666666666666");
         private Mock<IRestClient> _callistoBlobMock = null!;
-        private IBlobStore? _blobStore;
+        private IBlobService? _blobService;
 
         private readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
 
@@ -47,6 +47,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 // we are not reading the base appSettings here as we want exact control over what runs in the tests
                 .AddJsonFile("appsettings.Testing.json", false)
                 .AddEnvironmentVariables()
+                .AddInMemoryCollection(new List<KeyValuePair<string, string>>() { new KeyValuePair<string, string>("Horde.Storage:StorageImplementations:0", "MemoryBlobStore")})
                 .Build();
 
             Logger logger = new LoggerConfiguration()
@@ -72,21 +73,19 @@ namespace Horde.Storage.FunctionalTests.GC
                 {
                     collection.AddSingleton<IBlobCleanup>(provider =>
                     {
-                        IBlobStore blobStore = provider.GetService<IBlobStore>()!;
-                        return new OrphanBlobCleanup(blobStore, new LeaderElectionStub(true), _callistoBlobMock.Object);
+                        IBlobService blobService = provider.GetService<IBlobService>()!;
+                        return new OrphanBlobCleanup(blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object);
                     });
 
-                    // make sure we have a memory blob store as we do some funky calling to it below
-                    collection.AddSingleton<IBlobStore>(provider => ActivatorUtilities.CreateInstance<MemoryBlobStore>(provider));
                 })
             );
 
             _httpClient = server.CreateClient();
             _server = server;
 
-            _blobStore = server.Services.GetService<IBlobStore>()!;
+            _blobService = server.Services.GetService<IBlobService>()!;
 
-            MemoryBlobStore memoryBlobStore = (MemoryBlobStore) _blobStore;
+            MemoryBlobStore memoryBlobStore = (MemoryBlobStore) ((BlobService)_blobService).BlobStore.First();
             byte[] emptyContents = new byte[0];
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object0id);
             await memoryBlobStore.PutObject(TestNamespace, emptyContents, object1id);// this is not in callisto
@@ -157,7 +156,7 @@ namespace Horde.Storage.FunctionalTests.GC
         [TestMethod]
         public async Task RunBlobCleanup()
         {
-            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobStore!, new LeaderElectionStub(true), _callistoBlobMock.Object);
+            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object);
             List<NamespaceId> namespaces = await cleanup.ListNamespaces().ToListAsync();
             Assert.AreEqual(1, namespaces.Count);
 

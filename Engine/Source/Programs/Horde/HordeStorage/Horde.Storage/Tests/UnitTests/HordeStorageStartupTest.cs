@@ -27,29 +27,31 @@ namespace Horde.Storage.UnitTests
         public void StorageBackendImplConfiguration()
         {
             // No configuration set
-            IBlobStore blobStore = GetBlobStoreForConfig(new Dictionary<string, string>());
-            Assert.IsTrue(blobStore is MemoryCacheBlobStore);
+            BlobService blobService = GetBlobServiceForConfig(new Dictionary<string, string>());
+            Assert.IsTrue(blobService.BlobStore.Single() is MemoryCacheBlobStore);
             
             // A single blob store configuration should yield the store itself without a hierarchical wrapper store
-            blobStore = GetBlobStoreForConfig(new Dictionary<string, string> {{"Horde.Storage:StorageImplementations:0", "FileSystem"}});
-            Assert.IsTrue(blobStore is FileSystemStore);
+            blobService = GetBlobServiceForConfig(new Dictionary<string, string> {{"Horde.Storage:StorageImplementations:0", "FileSystem"}});
+            Assert.IsTrue(blobService.BlobStore.Single() is FileSystemStore);
             
             // Should not be case-sensitive
-            blobStore = GetBlobStoreForConfig(new Dictionary<string, string> {{"Horde.Storage:StorageImplementations:0", "FiLeSYsTEm"}});
-            Assert.IsTrue(blobStore is FileSystemStore);
+            blobService = GetBlobServiceForConfig(new Dictionary<string, string> {{"Horde.Storage:StorageImplementations:0", "FiLeSYsTEm"}});
+            Assert.IsTrue(blobService.BlobStore.Single() is FileSystemStore);
             
             // Two or more blob stores returns a hierarchical store
-            blobStore = GetBlobStoreForConfig(new Dictionary<string, string>
+            blobService = GetBlobServiceForConfig(new Dictionary<string, string>
             {
                 {"Horde.Storage:StorageImplementations:0", "FileSystem"},
                 {"Horde.Storage:StorageImplementations:1", "Memory"},
             });
-            Assert.IsTrue(blobStore is HierarchicalBlobStore);
-            Assert.IsTrue((blobStore as HierarchicalBlobStore)!.BlobStores.ToList()[0] is FileSystemStore);
-            Assert.IsTrue((blobStore as HierarchicalBlobStore)!.BlobStores.ToList()[1] is MemoryCacheBlobStore);
+
+
+            List<IBlobStore> blobStores = blobService.BlobStore.ToList();
+            Assert.IsTrue(blobStores[0] is FileSystemStore);
+            Assert.IsTrue(blobStores[1] is MemoryCacheBlobStore);
         }
 
-        private IBlobStore GetBlobStoreForConfig(Dictionary<string, string> configDict)
+        private BlobService GetBlobServiceForConfig(Dictionary<string, string> configDict)
         {
             IConfigurationRoot configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.Testing.json", true)
@@ -63,7 +65,7 @@ namespace Horde.Storage.UnitTests
                 .UseStartup<HordeStorageStartup>()
             );
 
-            return server.Services.GetService<IBlobStore>()!;
+            return (BlobService)server.Services.GetService<IBlobService>()!;
         }
     }
 }

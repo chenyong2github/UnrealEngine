@@ -163,5 +163,22 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
                 Assert.AreEqual(HttpStatusCode.NotFound, result.StatusCode);
             }
         }
+
+        [TestMethod]
+        public async Task PutWrongIdentifier()
+        {
+            byte[] texturePayload = await File.ReadAllBytesAsync("ContentId/Payloads/UncompressedTexture_CAS_dea81b6c3b565bb5089695377c98ce0f1c13b0c3.udd");
+            BlobIdentifier compressedPayloadIdentifier = BlobIdentifier.FromBlob(texturePayload);
+            BlobIdentifier uncompressedPayloadIdentifier = new BlobIdentifier("DEA81B6C3B565BB5089695377C98CE0F1C13B0C3");
+
+            {
+                ByteArrayContent content = new ByteArrayContent(texturePayload);
+                content.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompressedBuffer);
+                // we purposefully use the compressed identifier here which is not what is expected
+                HttpResponseMessage result = await _httpClient!.PutAsync($"api/v1/compressed-blobs/{TestNamespace}/{compressedPayloadIdentifier}", content);
+
+                Assert.AreEqual(HttpStatusCode.BadRequest, result.StatusCode);
+            }
+        }
     }
 }

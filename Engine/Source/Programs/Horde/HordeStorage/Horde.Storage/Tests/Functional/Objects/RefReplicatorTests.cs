@@ -34,7 +34,7 @@ namespace Horde.Storage.FunctionalTests.Replication
     {
         private static TestServer? _server;
         private static HttpClient? _httpClient;
-        protected IBlobStore _blobStore = null!;
+        protected IBlobService _blobStore = null!;
         protected IReferencesStore _referencesStore = null!;
         private IReplicationLog _replicationLog = null!;
 
@@ -65,7 +65,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             _httpClient = server.CreateClient();
             _server = server;
 
-            _blobStore = _server.Services.GetService<IBlobStore>()!;
+            _blobStore = _server.Services.GetService<IBlobService>()!;
             _referencesStore = _server.Services.GetService<IReferencesStore>()!;
             _replicationLog = _server.Services.GetService<IReplicationLog>()!;
 

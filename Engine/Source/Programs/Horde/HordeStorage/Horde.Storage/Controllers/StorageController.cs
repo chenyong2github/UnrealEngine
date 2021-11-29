@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Datadog.Trace;
 using Horde.Storage.Implementation;
 using Jupiter;
+using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -25,18 +26,20 @@ namespace Horde.Storage.Controllers
     [Route("api/v1/blobs", Order = 0)]
     public class StorageController : ControllerBase
     {
-        private readonly IBlobStore _storage;
+        private readonly IBlobService _storage;
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
+        private readonly BufferedPayloadFactory _bufferedPayloadFactory;
         private readonly HordeStorageSettings _settings;
 
         private readonly ILogger _logger = Log.ForContext<StorageController>();
 
-        public StorageController(IBlobStore storage, IOptions<HordeStorageSettings> settings, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService)
+        public StorageController(IBlobService storage, IOptions<HordeStorageSettings> settings, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
+            _bufferedPayloadFactory = bufferedPayloadFactory;
             _settings = settings.Value;
         }
 
@@ -162,100 +165,15 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            BlobIdentifier identifier;
-            // blob is small enough to fit into memory so we just stream it into memory
-            if (Request.ContentLength is < Int32.MaxValue)
-            {
-                byte[] blob;
-                try
-                {
-                    blob = await RequestUtil.ReadRawBody(Request);
-                }
-                catch (BadHttpRequestException e)
-                {
-                    const string msg = "Partial content transfer when reading request body.";
-                    _logger.Warning(e, msg);
-                    return BadRequest(msg);
-                }
-
-                identifier = await PutImpl(ns, id, blob);
-            }
-            else
-            {
-                FileInfo? tempFile = null;
-
-                Stream s = Request.Body;
-                try
-                {
-                    // stream to a temporary file on disk if the stream is not seekable
-                    if (!Request.Body.CanSeek)
-                    {
-                        tempFile = new FileInfo(Path.GetTempFileName());
-
-                        {
-                            await using FileStream fs = tempFile.OpenWrite();
-                            await Request.Body.CopyToAsync(fs);
-                        }
-
-                        s = tempFile.OpenRead();
-                    }
-                    identifier = await PutImpl(ns, id, s);
-                }
-                finally
-                {
-                    s.Close();
-                    if (tempFile != null && tempFile.Exists)
-                        tempFile.Delete();
-                }
-            }
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+
+            BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
 
             return Ok(new
             {
                 Identifier = identifier.ToString()
             });
-        }
-
-        private async Task<BlobIdentifier> PutImpl(NamespaceId ns, BlobIdentifier id, byte[] content)
-        {
-            BlobIdentifier identifier;
-            {
-                using Scope _ = Tracer.Instance.StartActive("web.hash");
-                identifier = BlobIdentifier.FromBlob(content);
-            }
-
-            if (!id.Equals(identifier))
-            {
-                _logger.Debug("ID {@Id} was not the same as identifier {@Identifier} {Content}", id, identifier,
-                    content);
-
-                throw new ArgumentException("ID was not a hash of the content uploaded.", paramName: nameof(id));
-            }
-
-            await _storage.PutObject(ns, content, identifier);
-            return identifier;
-        }
-
-        private async Task<BlobIdentifier> PutImpl(NamespaceId ns, BlobIdentifier id, Stream content)
-        {
-            BlobIdentifier identifier;
-            {
-                using Scope _ = Tracer.Instance.StartActive("web.hash");
-                identifier = await BlobIdentifier.FromStream(content);
-            }
-
-            if (!id.Equals(identifier))
-            {
-                _logger.Debug("ID {@Id} was not the same as identifier {@Identifier} {Content}", id, identifier,
-                    content);
-
-                throw new ArgumentException("ID was not a hash of the content uploaded.", paramName: nameof(id));
-            }
-
-            // seek back to the beginning
-            content.Position = 0;
-            await _storage.PutObject(ns, content, identifier);
-            return identifier;
         }
 
         [HttpDelete("{ns}/{id}")]
@@ -413,7 +331,8 @@ namespace Horde.Storage.Controllers
                             return BadRequest();
                         }
 
-                        tasks[index] = PutImpl(op.Namespace.Value, op.Id, op.Content).ContinueWith(t => (object?) t.Result);
+                        using MemoryBufferedPayload payload = new MemoryBufferedPayload(op.Content);
+                        tasks[index] = _storage.PutObject(op.Namespace.Value, payload, op.Id).ContinueWith(t => (object?) t.Result);
                         break;
                     }
                     case BatchOp.Operation.DELETE:

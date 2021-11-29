@@ -92,9 +92,6 @@ namespace Callisto
 
         [Required] public TransactionLogImplementations TransactionLogImplementation { get; set; }
 
-        // Name of the current site, has to be globally unique across all deployments, used to avoid replication loops
-        [Required] public string CurrentSite { get; set; } = "";
-
         [Required]
         public string TransactionLogRoot
         {

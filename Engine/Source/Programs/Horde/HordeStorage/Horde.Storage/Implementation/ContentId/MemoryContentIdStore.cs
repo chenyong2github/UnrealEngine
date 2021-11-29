@@ -13,10 +13,10 @@ namespace Horde.Storage.Implementation
 {
     public class MemoryContentIdStore : IContentIdStore
     {
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobStore;
         private readonly ConcurrentDictionary<NamespaceId, ConcurrentDictionary<BlobIdentifier, SortedList<int, BlobIdentifier[]>>> _contentIds = new ConcurrentDictionary<NamespaceId, ConcurrentDictionary<BlobIdentifier, SortedList<int, BlobIdentifier[]>>>();
         
-        public MemoryContentIdStore(IBlobStore blobStore)
+        public MemoryContentIdStore(IBlobService blobStore)
         {
             _blobStore = blobStore;
         }

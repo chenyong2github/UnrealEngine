@@ -26,13 +26,6 @@ namespace Horde.Storage
         public string OldStateRoot { get; set; } = "";
 
         /// <summary>
-        ///  Name of the current site, has to be globally unique across all deployments, used to avoid replication loops
-        /// </summary>
-        [Required]
-        [Key]
-        public string CurrentSite { get; set; } = "";
-
-        /// <summary>
         /// The frequency at which to poll for new replication events
         /// </summary>
         [Required]

@@ -60,7 +60,7 @@ namespace Horde.Storage.FunctionalTests.Ref
             Assert.IsTrue(RefStoreIs(refStore, typeof(MongoRefsStore)));
 
             _refsStore = new MongoRefsStore(provider.GetService<IOptionsMonitor<MongoSettings>>()!);
-            IBlobStore blobStore = (IBlobStore)provider.GetService(typeof(IBlobStore))!;
+            IBlobService blobStore = (IBlobService)provider.GetService(typeof(IBlobService))!;
 
             await SeedRefTestData(_refsStore, blobStore);
 
@@ -107,9 +107,9 @@ namespace Horde.Storage.FunctionalTests.Ref
             Assert.IsTrue(RefStoreIs(cacheStore, typeof(DynamoDbRefsStore)));
 
             _refStore = new DynamoDbRefsStore(dynamoSettings, provider.GetService<IAmazonDynamoDB>()!, provider.GetService<DynamoNamespaceStore>()!);
-            IBlobStore blobStore = (IBlobStore)provider.GetService(typeof(IBlobStore))!;
+            IBlobService blobService = provider.GetService<IBlobService>()!;
 
-            await SeedRefTestData(_refStore, blobStore);
+            await SeedRefTestData(_refStore, blobService);
         }
 
         protected override async Task TeardownDb(IServiceProvider provider)
@@ -186,7 +186,7 @@ namespace Horde.Storage.FunctionalTests.Ref
             await SeedDb(server.Services);
         }
 
-        protected async Task SeedRefTestData(IRefsStore refsStore, IBlobStore blobStore)
+        protected async Task SeedRefTestData(IRefsStore refsStore, IBlobService blobStore)
         {
             // add the objects as if they were last accessed a day ago
             DateTime lastAccessTime = DateTime.Now.AddDays(-1);
@@ -609,7 +609,7 @@ namespace Horde.Storage.FunctionalTests.Ref
             };
             foreach(OldRecord record in oldRecords)
             {
-                Assert.IsTrue(validRefs.Contains(record.RefName));
+                Assert.IsTrue(validRefs.Contains(record.RefName), $"ValidRefs did not contain ref {record.RefName}");
             }
 
             // we should have our 4 pre-seeded objects

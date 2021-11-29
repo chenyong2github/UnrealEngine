@@ -14,6 +14,7 @@ using Dasync.Collections;
 using Datadog.Trace;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation.TransactionLog;
+using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -31,18 +32,18 @@ namespace Horde.Storage.Implementation
         private readonly AsyncManualResetEvent _replicationFinishedEvent = new AsyncManualResetEvent(true);
         private readonly CancellationTokenSource _replicationTokenSource = new CancellationTokenSource();
         private readonly ReplicatorSettings _replicatorSettings;
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobService;
         private readonly IReplicationLog _replicationLog;
         private readonly IServiceCredentials _serviceCredentials;
         private readonly HttpClient _httpClient;
         private RefsState _refsState;
         private bool _replicationRunning;
 
-        public RefsReplicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobStore blobStore, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials)
+        public RefsReplicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials)
         {
             _name = replicatorSettings.ReplicatorName;
             _replicatorSettings = replicatorSettings;
-            _blobStore = blobStore;
+            _blobService = blobService;
             _replicationLog = replicationLog;
             _serviceCredentials = serviceCredentials;
 
@@ -372,7 +373,7 @@ namespace Horde.Storage.Implementation
         {
             // We could potentially do this, but that could be dangerous if missing child references
             // check if this blob exists locally before replicating, if it does we assume we have all of its references already
-            //if (await _blobStore.Exists(ns, blob))
+            //if (await _blobService.Exists(ns, blob))
             //    return currentOffset;
 
             HttpRequestMessage referencesRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/objects/{ns}/{blob}/references");
@@ -388,27 +389,18 @@ namespace Horde.Storage.Implementation
             Array.Copy(refs.References, potentialBlobs, refs.References.Length);
             potentialBlobs[^1] = blob;
 
-            BlobIdentifier[] missingBlobs = await _blobStore.FilterOutKnownBlobs(ns, potentialBlobs);
+            BlobIdentifier[] missingBlobs = await _blobService.FilterOutKnownBlobs(ns, potentialBlobs);
             Task[] blobReplicationTasks = new Task[missingBlobs.Length];
             for (int i = 0; i < missingBlobs.Length; i++)
             {
                 BlobIdentifier blobToReplicate = missingBlobs[i];
                 blobReplicationTasks[i] = Task.Run(async () =>
                 {
-                    
                     HttpRequestMessage blobRequest = BuildHttpRequest(HttpMethod.Get, $"api/v1/blobs/{ns}/{blobToReplicate}");
                     HttpResponseMessage blobResponse = await _httpClient.SendAsync(blobRequest, cancellationToken);
-                    byte[] blobContents = await blobResponse.Content.ReadAsByteArrayAsync(cancellationToken);
-
-                    BlobIdentifier calculatedBlob = BlobIdentifier.FromBlob(blobContents);
-                    if (!blobToReplicate.Equals(calculatedBlob))
-                    {
-                        _logger.Warning("Mismatching blob when replicating {Blob}. Determined Hash was {Hash} size was {Size}", blobToReplicate, calculatedBlob, blobContents.LongLength);
-                        // TODO: attempt to replicate again
-                        return;
-                    }
-
-                    await _blobStore.PutObject(ns, blobContents, calculatedBlob);
+                    
+                    using FilesystemBufferedPayload payload = await FilesystemBufferedPayload.Create(await blobResponse.Content.ReadAsStreamAsync(cancellationToken));
+                    await _blobService.PutObject(ns, payload, blobToReplicate);
                 });
             }
 

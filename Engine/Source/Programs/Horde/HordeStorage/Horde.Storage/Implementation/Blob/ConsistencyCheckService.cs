@@ -82,11 +82,10 @@ namespace Horde.Storage.Implementation
             }
 
             long countOfBlobsChecked = 0;
-            DateTime objectCutoff = DateTime.Now;
             // technically this does not need to be run per namespace but per s3 bucket
             await foreach (NamespaceId ns in _refsStore.GetNamespaces())
             {
-                await foreach (BlobIdentifier blob in s3Store.ListOldObjects(ns, objectCutoff))
+                await foreach ((BlobIdentifier blob, DateTime lastModified) in s3Store.ListObjects(ns))
                 {
                     if (countOfBlobsChecked % 100 == 0)
                         _logger.Information("Consistency check running on S3 blob store, count of blobs processed so far: {CountOfBlobs}", countOfBlobsChecked);

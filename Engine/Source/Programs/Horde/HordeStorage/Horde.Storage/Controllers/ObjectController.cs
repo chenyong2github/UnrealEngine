@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using async_enumerable_dotnet;
 using Datadog.Trace;
 using Horde.Storage.Implementation;
 using Jupiter;
+using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -25,19 +27,21 @@ namespace Horde.Storage.Controllers
     [Produces(CustomMediaTypeNames.UnrealCompactBinary, MediaTypeNames.Application.Json)]
     public class ObjectController : ControllerBase
     {
-        private readonly IBlobStore _storage;
+        private readonly IBlobService _storage;
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
         private readonly IReferenceResolver _referenceResolver;
+        private readonly BufferedPayloadFactory _bufferedPayloadFactory;
 
         private readonly ILogger _logger = Log.ForContext<ObjectController>();
 
-        public ObjectController(IBlobStore storage, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, IReferenceResolver referenceResolver)
+        public ObjectController(IBlobService storage, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, IReferenceResolver referenceResolver, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
             _referenceResolver = referenceResolver;
+            _bufferedPayloadFactory = bufferedPayloadFactory;
         }
 
 
@@ -131,36 +135,10 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            byte[] blob;
-            try
-            {
-                blob = await RequestUtil.ReadRawBody(Request);
-            }
-            catch (BadHttpRequestException e)
-            {
-                const string msg = "Partial content transfer when reading request body.";
-                _logger.Warning(e, msg);
-                return BadRequest(msg);
-            }
-
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
-            BlobIdentifier blobHash;
-            {
-                using Scope _ = Tracer.Instance.StartActive("web.hash");
-                blobHash = BlobIdentifier.FromBlob(blob);
-            }
-
-            if (!id.Equals(blobHash))
-            {
-                _logger.Debug("ID {@Id} was not the same as identifier {@Identifier} {Content}", id, blobHash,
-                    blob);
-
-                throw new ArgumentException("ID was not a hash of the content uploaded.", paramName: nameof(id));
-            }
-
-            await _storage.PutObject(ns, blob, blobHash);
-            BlobIdentifier identifier = blobHash;
+            BlobIdentifier identifier = await _storage.PutObject(ns, payload, id);
             return Ok(new
             {
                 Identifier = identifier

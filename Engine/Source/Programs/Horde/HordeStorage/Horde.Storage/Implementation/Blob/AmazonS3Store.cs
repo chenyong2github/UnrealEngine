@@ -7,6 +7,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Horde.Storage.Implementation.Blob;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
@@ -18,13 +19,15 @@ namespace Horde.Storage.Implementation
     {
         private readonly ILogger _logger = Log.ForContext<AmazonS3Store>();
         private readonly IAmazonS3 _amazonS3;
+        private readonly IBlobIndex _blobIndex;
         private readonly S3Settings _settings;
         private readonly HashSet<string> _bucketAccessPolicyApplied = new HashSet<string>();
         private readonly HashSet<string> _bucketExistenceChecked = new HashSet<string>();
 
-        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings)
+        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex)
         {
             _amazonS3 = amazonS3;
+            _blobIndex = blobIndex;
             _settings = settings.CurrentValue;
         }
 
@@ -147,6 +150,11 @@ namespace Horde.Storage.Implementation
 
         public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier)
         {
+            if (_settings.UseBlobIndexForExistsCheck)
+            {
+                return await _blobIndex.BlobExistsInRegion(ns, blobIdentifier);
+            }
+
             string bucketName = GetBucketName(ns);
             try
             {
@@ -186,7 +194,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async IAsyncEnumerable<BlobIdentifier> ListOldObjects(NamespaceId ns, DateTime cutoff)
+        public async IAsyncEnumerable<(BlobIdentifier, DateTime)> ListObjects(NamespaceId ns)
         {
             ListObjectsV2Request request = new ListObjectsV2Request
             {
@@ -202,13 +210,7 @@ namespace Horde.Storage.Implementation
                     string key = obj.Key;
                     string identifierString = key.Substring(key.LastIndexOf("/", StringComparison.Ordinal)+1);
 
-                    // if the object was updated after the cutoff time we do not consider it old
-                    if (obj.LastModified > cutoff)
-                    {
-                        continue;
-                    }
-
-                    yield return new BlobIdentifier(identifierString);
+                    yield return (new BlobIdentifier(identifierString), obj.LastModified);
                 }
 
                 request.ContinuationToken = response.NextContinuationToken;

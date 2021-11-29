@@ -14,10 +14,10 @@ namespace Horde.Storage.Implementation
     public class ScyllaContentIdStore : IContentIdStore
     {
         private readonly ISession _session;
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobStore;
         private Mapper _mapper;
 
-        public ScyllaContentIdStore(IScyllaSessionManager scyllaSessionManager, IBlobStore blobStore)
+        public ScyllaContentIdStore(IScyllaSessionManager scyllaSessionManager, IBlobService blobStore)
         {
             _session = scyllaSessionManager.GetSessionForReplicatedKeyspace();
             _blobStore = blobStore;

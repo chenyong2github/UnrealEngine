@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,9 +17,12 @@ namespace Horde.Storage.UnitTests
         [TestMethod]
         public async Task CleanupOnPoll()
         {
-            GCSettings gcSettings = new GCSettings();
+            GCSettings gcSettings = new GCSettings()
+            {
+                CleanOldBlobs = false
+            };
             TestOptionsMonitor<GCSettings> gcSettingsMon = new TestOptionsMonitor<GCSettings>(gcSettings);
-            BlobCleanupService blobCleanupService = new BlobCleanupService(gcSettingsMon);
+            BlobCleanupService blobCleanupService = new BlobCleanupService(Mock.Of<IServiceProvider>(), gcSettingsMon);
 
             Mock<IBlobCleanup> store1 = new Mock<IBlobCleanup>();
             Mock<IBlobCleanup> store2 = new Mock<IBlobCleanup>();

@@ -126,7 +126,7 @@ namespace Horde.Storage.FunctionalTests.References
     {
         private static TestServer? _server;
         private static HttpClient? _httpClient;
-        protected IBlobStore _blobStore = null!;
+        protected IBlobService _blobService = null!;
         protected IReferencesStore ReferencesStore = null!;
 
         protected readonly NamespaceId TestNamespace = new NamespaceId("test-namespace");
@@ -155,7 +155,7 @@ namespace Horde.Storage.FunctionalTests.References
             _httpClient = server.CreateClient();
             _server = server;
 
-            _blobStore = _server.Services.GetService<IBlobStore>()!;
+            _blobService = _server.Services.GetService<IBlobService>()!;
             ReferencesStore = _server.Services.GetService<IReferencesStore>()!;
             await SeedDb(server.Services);
         }
@@ -568,11 +568,11 @@ namespace Horde.Storage.FunctionalTests.References
             BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
 
             HttpContent requestContent = new ByteArrayContent(data);
-            requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue(MediaTypeNames.Application.Octet);
             requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
 
             {
-                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/newObject.raw", requestContent);
+                HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespace}/bucket/newObject", requestContent);
                 result.EnsureSuccessStatusCode();
             }
 
@@ -594,12 +594,12 @@ namespace Horde.Storage.FunctionalTests.References
             string blobContents = "This is a string that is referenced as a blob";
             byte[] blobData = Encoding.ASCII.GetBytes(blobContents);
             BlobIdentifier blobHash = BlobIdentifier.FromBlob(blobData);
-            await _blobStore.PutObject(TestNamespace, blobData, blobHash);
+            await _blobService.PutObject(TestNamespace, blobData, blobHash);
 
             string blobContentsChild = "This string is also referenced as a blob but from a child object";
             byte[] dataChild = Encoding.ASCII.GetBytes(blobContentsChild);
             BlobIdentifier blobHashChild = BlobIdentifier.FromBlob(dataChild);
-            await _blobStore.PutObject(TestNamespace, dataChild, blobHashChild);
+            await _blobService.PutObject(TestNamespace, dataChild, blobHashChild);
 
             CompactBinaryWriter writerChild = new CompactBinaryWriter();
             writerChild.BeginObject();
@@ -608,7 +608,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             byte[] childDataObject = writerChild.Save();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
-            await _blobStore.PutObject(TestNamespace, childDataObject, childDataObjectHash);
+            await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
             CompactBinaryWriter writerParent = new CompactBinaryWriter();
             writerParent.BeginObject();
@@ -776,7 +776,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             byte[] childDataObject = writerChild.Save();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
-            await _blobStore.PutObject(TestNamespace, childDataObject, childDataObjectHash);
+            await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
             CompactBinaryWriter writerParent = new CompactBinaryWriter();
             writerParent.BeginObject();
@@ -860,7 +860,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             byte[] childDataObject = writerChild.Save();
             BlobIdentifier childDataObjectHash = BlobIdentifier.FromBlob(childDataObject);
-            await _blobStore.PutObject(TestNamespace, childDataObject, childDataObjectHash);
+            await _blobService.PutObject(TestNamespace, childDataObject, childDataObjectHash);
 
             CompactBinaryWriter writerParent = new CompactBinaryWriter();
             writerParent.BeginObject();
@@ -908,8 +908,8 @@ namespace Horde.Storage.FunctionalTests.References
 
             // upload missing pieces
             {
-                await _blobStore.PutObject(TestNamespace, blobData, blobHash);
-                await _blobStore.PutObject(TestNamespace, dataChild, blobHashChild);
+                await _blobService.PutObject(TestNamespace, blobData, blobHash);
+                await _blobService.PutObject(TestNamespace, dataChild, blobHashChild);
             }
 
             // finalize the object as no pieces is now missing
@@ -986,7 +986,7 @@ namespace Horde.Storage.FunctionalTests.References
 
             {
                 // delete the blob 
-                await _blobStore.DeleteObject(TestNamespace, blobHash);
+                await _blobService.DeleteObject(TestNamespace, blobHash);
             }
 
             {

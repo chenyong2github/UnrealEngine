@@ -437,6 +437,11 @@ namespace Jupiter
 
     public class JupiterSettings
     {
+        /// <summary>
+        /// If the request is smaller then MemoryBufferSize we buffer it in memory rather then as a file
+        /// </summary>
+        public long MemoryBufferSize { get; set; } = Int32.MaxValue;
+
         // enable to unhide potentially personal information, see https://aka.ms/IdentityModel/PII
         public bool ShowPII = false;
         public bool DisableHealthChecks { get; set; } = false;
@@ -446,6 +451,13 @@ namespace Jupiter
 
         // Enable to echo every request to the log file, usually this is more efficiently done on the load balancer
         public bool UseRequestLogging { get; set; } = false;
+
+        /// <summary>
+        ///  Name of the current site, has to be globally unique across all deployments
+        /// </summary>
+        [Required]
+        [Key]
+        public string CurrentSite { get; set; } = "";
 
         //public Dictionary<string, int> DisableAuthOnPorts { get; set; } = new ();
     }

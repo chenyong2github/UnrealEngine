@@ -200,13 +200,14 @@ namespace Horde.Storage.FunctionalTests.Storage
         [TestMethod]
         public async Task ListOldBlobs()
         {
-            IBlobStore blobStore = _server!.Services.GetService<IBlobStore>()!;
+            FileSystemStore? fsStore = _server!.Services.GetService<FileSystemStore>();
+            Assert.IsNotNull(fsStore);
 
             // we fetch all objects that are more then a day old
             // as the old blob is set to be a week old this should be the only object returned
             DateTime cutoff = DateTime.Now.AddDays(-1);
             {
-                BlobIdentifier[] blobs = await blobStore.ListOldObjects(TestNamespaceName, cutoff).ToArrayAsync();
+                BlobIdentifier[] blobs = await fsStore.ListObjects(TestNamespaceName).Where(tuple => tuple.Item2 < cutoff).Select(tuple => tuple.Item1).ToArrayAsync();
                 Assert.AreEqual(_oldBlobFileHash, blobs[0]);
             }
         }
@@ -214,8 +215,8 @@ namespace Horde.Storage.FunctionalTests.Storage
         [TestMethod]
         public async Task ListNamespaces()
         {
-            IBlobStore blobStore = _server!.Services.GetService<IBlobStore>()!;
-            FileSystemStore fsStore = (blobStore as FileSystemStore)!;
+            FileSystemStore? fsStore = _server!.Services.GetService<FileSystemStore>();
+            Assert.IsNotNull(fsStore);
 
             List<NamespaceId> namespaces = await fsStore.ListNamespaces().ToListAsync();
             Assert.AreEqual(1, namespaces.Count);
@@ -235,8 +236,8 @@ namespace Horde.Storage.FunctionalTests.Storage
             
             FilesystemSettings fsSettings = _server!.Services.GetService<IOptionsMonitor<FilesystemSettings>>()!.CurrentValue;
             fsSettings.MaxSizeBytes = 600;
-            IBlobStore blobStore = _server!.Services.GetService<IBlobStore>()!;
-            FileSystemStore fsStore = (blobStore as FileSystemStore)!;
+            FileSystemStore? fsStore = _server!.Services.GetService<FileSystemStore>();
+            Assert.IsNotNull(fsStore);
 
             CancellationTokenSource cts = new CancellationTokenSource();
             Assert.IsTrue((await fsStore.CleanupInternal(cts.Token, batchSize: 2)).Count == 0); // No garbage to collect, should return false
@@ -263,17 +264,17 @@ namespace Horde.Storage.FunctionalTests.Storage
         }
         
         [TestMethod]
-        public async Task GetLeastRecentlyAccessedObjects()
+        public void GetLeastRecentlyAccessedObjects()
         {
             FileInfo[] fooFiles = CreateFilesInNamespace(FooNamespace, 10);
             CreateFilesInNamespace(new NamespaceId("bar"), 10);
 
-            IBlobStore blobStore = _server!.Services.GetService<IBlobStore>()!;
-            FileSystemStore fsStore = (blobStore as FileSystemStore)!;
+            FileSystemStore? fsStore = _server!.Services.GetService<FileSystemStore>();
+            Assert.IsNotNull(fsStore);
 
-            Assert.AreEqual(10, (await fsStore.GetLeastRecentlyAccessedObjects(FooNamespace)).Length);
+            Assert.AreEqual(10, (fsStore.GetLeastRecentlyAccessedObjects(FooNamespace)).ToArray().Length);
 
-            FileInfo[] results = await fsStore.GetLeastRecentlyAccessedObjects(FooNamespace, 3);
+            FileInfo[] results = fsStore.GetLeastRecentlyAccessedObjects(FooNamespace, 3).ToArray();
             Assert.AreEqual(3, results.Length);
             Assert.AreEqual(fooFiles[7].LastAccessTime, results[2].LastAccessTime);
             Assert.AreEqual(fooFiles[8].LastAccessTime, results[1].LastAccessTime);
@@ -283,8 +284,8 @@ namespace Horde.Storage.FunctionalTests.Storage
         [TestMethod]
         public async Task CalculateUsedDiskSpace()
         {
-            IBlobStore blobStore = _server!.Services.GetService<IBlobStore>()!;
-            FileSystemStore fsStore = (blobStore as FileSystemStore)!;
+            FileSystemStore? fsStore = _server!.Services.GetService<FileSystemStore>();
+            Assert.IsNotNull(fsStore);
             await fsStore.PutObject(FooNamespace, Encoding.ASCII.GetBytes(SmallFileContents), _smallFileHash);
             await fsStore.PutObject(FooNamespace, Encoding.ASCII.GetBytes(AnotherFileContents), _anotherFileHash);
             
@@ -435,11 +436,9 @@ namespace Horde.Storage.FunctionalTests.Storage
                 _oldBlobFileHash
             };
 
-            IBlobStore blobStore = _server!.Services.GetService<IBlobStore>()!;
-            // fetch all objects so set cutoff to a time in the future
-            DateTime cutoff = DateTime.Now.AddMinutes(5);
+            IBlobService blobService = _server!.Services.GetService<IBlobService>()!;
 
-            BlobIdentifier[] oldObjects = await blobStore.ListOldObjects(TestNamespaceName, cutoff).ToArrayAsync();
+            BlobIdentifier[] oldObjects = await blobService.ListObjects(TestNamespaceName).Select(tuple => tuple.Item1).ToArrayAsync();
 
             Assert.AreEqual(4, oldObjects.Length);
             Assert.IsTrue(validBlobHashes.Contains(oldObjects[0]));
@@ -792,6 +791,58 @@ namespace Horde.Storage.FunctionalTests.Storage
                     tempOutputFile.Delete();
             }
         }
+
+        /// <summary>
+        /// Uploads a compact binary with a lot of attachments that are missing
+        /// </summary>
+        /// <returns></returns>
+        /*[TestMethod]
+        public async Task LargeCBUpload()
+        {
+            // we submit a blob so large that it can not fit using the memory blob store
+            IBlobStore? blobStore = _server?.Services.GetService<IBlobStore>();
+            Assert.IsFalse(blobStore is MemoryBlobStore);
+
+            if (blobStore is AzureBlobStore)
+                Assert.Inconclusive("Azure blob store gets internal server errors when receiving large blobs");
+            CompactBinaryWriter writer = new CompactBinaryWriter();
+            writer.BeginObject();
+            const int countOfFields = 100_000;
+            for (int i = 0; i < countOfFields; i++)
+            {
+                string s = i.ToString("x40");
+                writer.AddBinaryAttachment(new BlobIdentifier(s));
+            }
+            writer.EndObject();
+
+            byte[] objectData = writer.Save();
+            string path = Path.GetTempFileName();
+            File.WriteAllBytes(path, objectData);
+
+            Console.WriteLine("CB Object output to: " + path);
+            BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
+
+            HttpContent requestContent = new ByteArrayContent(objectData);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+            requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
+
+            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespaceName}/bucket/newLargeRef.uecb", requestContent);
+            result.EnsureSuccessStatusCode();
+
+            {
+                Assert.AreEqual(CustomMediaTypeNames.UnrealCompactBinary, result!.Content.Headers.ContentType!.MediaType);
+                // check that no blobs are missing
+                await using MemoryStream ms = new MemoryStream();
+                await result.Content.CopyToAsync(ms);
+                byte[] roundTrippedBuffer = ms.ToArray();
+                ReadOnlyMemory<byte> localMemory = new ReadOnlyMemory<byte>(roundTrippedBuffer);
+                CompactBinaryObject cb = CompactBinaryObject.Load(ref localMemory);
+                CompactBinaryField? needsField = cb["needs"];
+                Assert.IsNotNull(needsField);
+                List<BlobIdentifier?> missingBlobs = needsField!.AsArray().Select(field => field.AsHash()).ToList();
+                Assert.AreEqual(countOfFields, missingBlobs.Count);
+            }
+        }*/
     }
 
 

@@ -57,7 +57,7 @@ namespace Horde.Storage.Implementation
 
     public class DDCRefService : IDDCRefService
     {
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobStore;
         private readonly IRefsStore _refsStore;
         private readonly ITransactionLogWriter _transactionLog;
         private readonly ILastAccessTracker<RefRecord> _lastAccessTracker;
@@ -65,7 +65,7 @@ namespace Horde.Storage.Implementation
         private readonly HordeStorageSettings _settings;
         private readonly ILogger _logger = Log.ForContext<DDCRefService>();
 
-        public DDCRefService(IBlobStore blobStore, IRefsStore refsStore, ITransactionLogWriter transactionLog, ILastAccessTracker<RefRecord> lastAccessTracker,
+        public DDCRefService(IBlobService blobStore, IRefsStore refsStore, ITransactionLogWriter transactionLog, ILastAccessTracker<RefRecord> lastAccessTracker,
             IDiagnosticContext diagnosticContext, IOptionsMonitor<HordeStorageSettings> settings)
         {
             _blobStore = blobStore;
@@ -237,7 +237,7 @@ namespace Horde.Storage.Implementation
                 Task[] insertTasks = new Task[countOfBlobs];
                 for (int i = 0; i < countOfBlobs; i++)
                 {
-                    insertTasks[i] = _blobStore.PutObject(ns, slices[i], blobReferences[i]);
+                    insertTasks[i] = _blobStore.PutObject(ns, slices[i].ToArray(), blobReferences[i]);
                 }
 
                 blobInsertTask = Task.WhenAll(insertTasks);

@@ -8,6 +8,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
@@ -23,12 +24,12 @@ namespace Horde.Storage.Implementation
     {
         private readonly ITransactionLogWriter _transactionLogWriter;
 
-        public ReplicatorV1(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobStore blobStore, ITransactionLogWriter transactionLogWriter, IServiceCredentials serviceCredentials) : base(replicatorSettings, replicationSettings, blobStore, CreateRemoteClient(replicatorSettings, serviceCredentials))
+        public ReplicatorV1(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IOptionsMonitor<JupiterSettings> jupiterSettings, IBlobService blobService, ITransactionLogWriter transactionLogWriter, IServiceCredentials serviceCredentials) : base(replicatorSettings, replicationSettings, jupiterSettings, blobService, CreateRemoteClient(replicatorSettings, serviceCredentials))
         {
             _transactionLogWriter = transactionLogWriter;
         }
 
-        internal ReplicatorV1(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobStore blobStore, ITransactionLogWriter transactionLogWriter, IRestClient remoteClient) : base(replicatorSettings, replicationSettings, blobStore, remoteClient)
+        internal ReplicatorV1(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IOptionsMonitor<JupiterSettings> jupiterSettings, IBlobService blobService, ITransactionLogWriter transactionLogWriter, IRestClient remoteClient) : base(replicatorSettings, replicationSettings, jupiterSettings, blobService, remoteClient)
         {
             _transactionLogWriter = transactionLogWriter;
         }
@@ -86,7 +87,7 @@ namespace Horde.Storage.Implementation
     public abstract class Replicator<T> : IReplicator
         where T: IReplicationEvent
     {
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobService;
         protected readonly string _name;
         private readonly string _currentSite;
         protected readonly ReplicatorSettings _replicatorSettings;
@@ -114,11 +115,11 @@ namespace Horde.Storage.Implementation
             return remoteClient;
         }
 
-        protected Replicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobStore blobStore, IRestClient remoteClient)
+        protected Replicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IOptionsMonitor<JupiterSettings> jupiterSettings, IBlobService blobService, IRestClient remoteClient)
         {
             _name = replicatorSettings.ReplicatorName;
-            _blobStore = blobStore;
-            _currentSite = replicationSettings.CurrentValue.CurrentSite;
+            _blobService = blobService;
+            _currentSite = jupiterSettings.CurrentValue.CurrentSite;
             _replicatorSettings = replicatorSettings;
 
             string stateFileName = $"{_name}.json";
@@ -332,7 +333,7 @@ namespace Horde.Storage.Implementation
                 blobReplicateTasks[index] = Task.Run(async () =>
                 {
                     // check if this blob exists locally before replicating
-                    if (await _blobStore.Exists(ns, blob))
+                    if (await _blobService.Exists(ns, blob))
                         return;
 
                     // attempt to replicate for a few tries with some delay in between
@@ -360,6 +361,12 @@ namespace Horde.Storage.Implementation
                         if (response.StatusCode == HttpStatusCode.GatewayTimeout)
                         {
                             _logger.Information("GatewayTimeout while replicating {Blob}, retrying. Retry attempt {Attempts}", blob, attempts);
+                            continue;
+                        }
+
+                        if (response.StatusCode == HttpStatusCode.BadGateway)
+                        {
+                            _logger.Information("BadGateway while replicating {Blob}, retrying. Retry attempt {Attempts}", blob, attempts);
                             continue;
                         }
 
@@ -408,8 +415,7 @@ namespace Horde.Storage.Implementation
                         _logger.Warning("Mismatching blob when replicating {Blob}. Determined Hash was {Hash} size was {Size}. Multiple attempts failed, giving up.", blob, calculatedBlob, rawContent.LongLength);
                         return; 
                     }
-
-                    await _blobStore.PutObject(ns, rawContent, calculatedBlob);
+                    await _blobService.PutObject(ns, rawContent, calculatedBlob);
                 }, replicationToken);
             }
 

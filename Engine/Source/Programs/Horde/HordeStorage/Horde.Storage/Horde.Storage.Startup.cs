@@ -13,6 +13,7 @@ using Amazon.SecretsManager;
 using Cassandra;
 using Horde.Storage.Controllers;
 using Horde.Storage.Implementation;
+using Horde.Storage.Implementation.Blob;
 using Horde.Storage.Implementation.LeaderElection;
 using Jupiter;
 using Jupiter.Common.Implementation;
@@ -189,7 +190,9 @@ namespace Horde.Storage
                 return AWSCredentialsHelper.GetCredentials(awsSettings, "Horde.Storage");
             });
             services.AddSingleton(typeof(IAmazonDynamoDB), AddDynamo);
-            
+
+            services.AddSingleton<BufferedPayloadFactory>();
+
             services.AddSingleton<BlobCleanupService>();
             services.AddHostedService<BlobCleanupService>(p => p.GetService<BlobCleanupService>()!);
 
@@ -202,13 +205,19 @@ namespace Horde.Storage
             services.AddSingleton(serviceType: typeof(IContentIdStore), ContentIdStoreFactory);
 
             services.AddSingleton(serviceType: typeof(ITransactionLogWriter), TransactionLogWriterFactory);
+
+            services.AddSingleton(serviceType: typeof(IBlobIndex), BlobIndexFactory);
             services.AddSingleton(serviceType: typeof(IAmazonS3), CreateS3);
-            services.AddSingleton(serviceType: typeof(IBlobStore), StorageBackendFactory);
 
             services.AddSingleton<AmazonS3Store>();
             services.AddSingleton<FileSystemStore>();
             services.AddSingleton<AzureBlobStore>();
             services.AddSingleton<MemoryCacheBlobStore>();
+            services.AddSingleton<MemoryBlobStore>();
+
+            services.AddSingleton<OrphanBlobCleanup>();
+
+            services.AddSingleton(typeof(IBlobService), typeof(BlobService));
 
             services.AddSingleton(serviceType: typeof(IScyllaSessionManager), ScyllaFactory);
 
@@ -258,6 +267,20 @@ namespace Horde.Storage
                 // add the kubernetes leader instance under its actual type as well to make it easier to find
                 services.AddSingleton<KubernetesLeaderElection>(p => (KubernetesLeaderElection)p.GetService<ILeaderElection>()!);
                 services.AddHostedService<KubernetesLeaderElection>(p => p.GetService<KubernetesLeaderElection>()!);
+            }
+        }
+
+        private IBlobIndex BlobIndexFactory(IServiceProvider provider)
+        {
+            HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue!;
+            switch (settings.BlobIndexImplementation)
+            {
+                case HordeStorageSettings.BlobIndexImplementations.Memory:
+                    return ActivatorUtilities.CreateInstance<MemoryBlobIndex>(provider);
+                case HordeStorageSettings.BlobIndexImplementations.Scylla:
+                    return ActivatorUtilities.CreateInstance<ScyllaBlobIndex>(provider);
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
         }
 
@@ -498,56 +521,6 @@ namespace Horde.Storage
             }
         }
 
-        private HordeStorageSettings.StorageBackendImplementations[] GetStorageImplementationEnums(string[]? storageImpls)
-        {
-            storageImpls ??= new[] {HordeStorageSettings.StorageBackendImplementations.Memory.ToString()};
-            return storageImpls.Select(x =>
-            {
-                if (Enum.TryParse(typeof(HordeStorageSettings.StorageBackendImplementations), x, true, out var backendType) && backendType is HordeStorageSettings.StorageBackendImplementations type)
-                {
-                    return type;
-                }
-
-                throw new ArgumentException($"Unable to find storage implementation for specified value '{x}'");
-            }).ToArray();
-        }
-        
-        private IBlobStore StorageBackendFactory(IServiceProvider provider)
-        {
-            IOptionsMonitor<HordeStorageSettings> settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!;
-            IOptionsMonitor<GCSettings> gcSettings = provider.GetService<IOptionsMonitor<GCSettings>>()!;
-            BlobCleanupService blobCleanupService = provider.GetService<BlobCleanupService>()!;
-
-            List<IBlobStore> storageBackends = GetStorageImplementationEnums(settings.CurrentValue.StorageImplementations)
-                    .Select<HordeStorageSettings.StorageBackendImplementations, IBlobStore?>(impl =>
-                    {
-                        switch (impl)
-                        {
-                            case HordeStorageSettings.StorageBackendImplementations.S3: return provider.GetService<AmazonS3Store>();
-                            case HordeStorageSettings.StorageBackendImplementations.Azure: return provider.GetService<AzureBlobStore>();
-                            case HordeStorageSettings.StorageBackendImplementations.Memory: return provider.GetService<MemoryCacheBlobStore>();
-                            case HordeStorageSettings.StorageBackendImplementations.FileSystem:
-                                FileSystemStore store = ActivatorUtilities.CreateInstance<FileSystemStore>(provider)!;
-                                blobCleanupService.RegisterCleanup(store);
-                                return store;
-                            default: throw new NotImplementedException();
-                        }
-                    })
-                    .Select(x => x ?? throw new ArgumentException("Unable to resolve all stores!"))
-                    .ToList();
-
-            // Only use the hierarchical backend if more than one backend is specified 
-            IBlobStore blobStore = storageBackends.Count == 1 ? storageBackends[0] : new HierarchicalBlobStore(storageBackends);
-            
-            if (gcSettings.CurrentValue.CleanOldBlobs)
-            {
-                OrphanBlobCleanup orphanBlobCleanup = ActivatorUtilities.CreateInstance<OrphanBlobCleanup>(provider, blobStore);
-                blobCleanupService.RegisterCleanup(orphanBlobCleanup);    
-            }
-
-            return blobStore;
-        }
-
         private static IRefsStore RefStoreFactory(IServiceProvider provider)
         {
             HordeStorageSettings settings = provider.GetService<IOptionsMonitor<HordeStorageSettings>>()!.CurrentValue;
@@ -605,7 +578,7 @@ namespace Horde.Storage
                     throw new ArgumentOutOfRangeException();
             }
 
-            foreach (HordeStorageSettings.StorageBackendImplementations impl in GetStorageImplementationEnums(settings.StorageImplementations))
+            foreach (HordeStorageSettings.StorageBackendImplementations impl in settings.GetStorageImplementations())
             {
                 switch (impl)
                 {
@@ -635,6 +608,7 @@ namespace Horde.Storage
                         });
                         break;
                     case HordeStorageSettings.StorageBackendImplementations.Memory:
+                    case HordeStorageSettings.StorageBackendImplementations.MemoryBlobStore:
                         break;
                     default:
                         throw new ArgumentOutOfRangeException("Unhandled storage impl " + impl);

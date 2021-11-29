@@ -29,7 +29,7 @@ namespace Horde.Storage.Implementation
         // delete the whole namespace
         Task DeleteNamespace(NamespaceId ns);
 
-        IAsyncEnumerable<BlobIdentifier> ListOldObjects(NamespaceId ns, DateTime cutoff);
+        IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns);
     }
 
     public class BlobNotFoundException : Exception
@@ -64,67 +64,6 @@ namespace Horde.Storage.Implementation
             Blob = blob;
         }
 
-    }
-
-    public static class BlobStoreUtils
-    {
-        public static async Task<BlobIdentifier[]> FilterOutKnownBlobs(this IBlobStore blobStore, NamespaceId ns, BlobIdentifier[] blobs)
-        {
-            var tasks = blobs.Select(async blobIdentifier => new { BlobIdentifier = blobIdentifier, Exists = await blobStore.Exists(ns, blobIdentifier) });
-            var blobResults = await Task.WhenAll(tasks);
-            var filteredBlobs = blobResults.Where(ac => !ac.Exists).Select(ac => ac.BlobIdentifier);
-            return filteredBlobs.ToArray();
-        }
-
-        public static async Task<BlobIdentifier[]> FilterOutKnownBlobs(this IBlobStore blobStore, NamespaceId ns, IAsyncEnumerable<BlobIdentifier> blobs)
-        {
-            ConcurrentBag<BlobIdentifier> missingBlobs = new ConcurrentBag<BlobIdentifier>();
-
-            try
-            {
-                await blobs.ParallelForEachAsync(async identifier =>
-                {
-                    bool exists = await blobStore.Exists(ns, identifier);
-
-                    if (!exists)
-                    {
-                        missingBlobs.Add(identifier);
-                    }
-                });
-            }
-            catch (ParallelForEachException e)
-            {
-                if (e.InnerException is PartialReferenceResolveException)
-                    throw e.InnerException;
-
-                throw;
-            }
-
-            return missingBlobs.ToArray();
-        }
-
-
-        public static async Task<BlobContents> GetObjects(this IBlobStore blobStore, NamespaceId ns, BlobIdentifier[] blobs)
-        {
-            using Scope _ = Tracer.Instance.StartActive("blob.combine");
-            Task<BlobContents>[] tasks = new Task<BlobContents>[blobs.Length];
-            for (int i = 0; i < blobs.Length; i++)
-            {
-                tasks[i] = blobStore.GetObject(ns, blobs[i]);
-            }
-
-            MemoryStream ms = new MemoryStream();
-            foreach (Task<BlobContents> task in tasks)
-            {
-                BlobContents blob = await task;
-                await using Stream s = blob.Stream;
-                await s.CopyToAsync(ms);
-            }
-
-            ms.Seek(0, SeekOrigin.Begin);
-
-            return new BlobContents(ms, ms.Length);
-        }
     }
 
 }

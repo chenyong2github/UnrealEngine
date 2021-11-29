@@ -11,13 +11,13 @@ namespace Horde.Storage.Implementation.TransactionLog
     public class ReplicationLogSnapshotBuilder
     {
         private readonly IReplicationLog _replicationLog;
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobService;
         private readonly IReferencesStore _referencesStore;
 
-        public ReplicationLogSnapshotBuilder(IReplicationLog replicationLog, IBlobStore blobStore, IReferencesStore referencesStore)
+        public ReplicationLogSnapshotBuilder(IReplicationLog replicationLog, IBlobService blobService, IReferencesStore referencesStore)
         {
             _replicationLog = replicationLog;
-            _blobStore = blobStore;
+            _blobService = blobService;
             _referencesStore = referencesStore;
         }
 
@@ -36,7 +36,7 @@ namespace Horde.Storage.Implementation.TransactionLog
             if (snapshotInfo != null)
             {
                 // append to the previous snapshot if one is available
-                await using BlobContents blobContents = await _blobStore.GetObject(snapshotInfo.BlobNamespace, snapshotInfo.SnapshotBlob);
+                await using BlobContents blobContents = await _blobService.GetObject(snapshotInfo.BlobNamespace, snapshotInfo.SnapshotBlob);
                 if (cancellationToken.IsCancellationRequested)
                     throw new TaskCanceledException();
                 snapshot = await ReplicationLogSnapshot.DeserializeSnapshot(blobContents.Stream);
@@ -78,7 +78,7 @@ namespace Horde.Storage.Implementation.TransactionLog
                 byte[] cbObjectBytes = writer.Save();
                 BlobIdentifier cbBlobId = BlobIdentifier.FromBlob(cbObjectBytes);
                 await _referencesStore.Put(storeInNamespace, new BucketId("snapshot"), new KeyId(blobIdentifier.ToString()), cbBlobId, cbObjectBytes, true);
-                await _blobStore.PutObject(storeInNamespace, buf, blobIdentifier);
+                await _blobService.PutObject(storeInNamespace, buf, blobIdentifier);
 
                 if (cancellationToken.IsCancellationRequested)
                     throw new TaskCanceledException();

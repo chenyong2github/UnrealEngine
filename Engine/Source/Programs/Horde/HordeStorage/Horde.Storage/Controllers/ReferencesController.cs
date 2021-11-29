@@ -4,6 +4,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Text;
@@ -12,6 +13,7 @@ using Dasync.Collections;
 using Datadog.Trace;
 using Horde.Storage.Implementation;
 using Jupiter;
+using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
@@ -33,12 +35,13 @@ namespace Horde.Storage.Controllers
         private readonly IAuthorizationService _authorizationService;
         private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
         private readonly FormatResolver _formatResolver;
+        private readonly BufferedPayloadFactory _bufferedPayloadFactory;
 
         private readonly ILogger _logger = Log.ForContext<ReferencesController>();
         private readonly IObjectService _objectService;
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobStore;
 
-        public ReferencesController(IObjectService objectService, IBlobStore blobStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, IOptionsMonitor<JupiterSettings> jupiterSettings, FormatResolver formatResolver)
+        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, IOptionsMonitor<JupiterSettings> jupiterSettings, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _objectService = objectService;
             _blobStore = blobStore;
@@ -46,6 +49,7 @@ namespace Horde.Storage.Controllers
             _authorizationService = authorizationService;
             _jupiterSettings = jupiterSettings;
             _formatResolver = formatResolver;
+            _bufferedPayloadFactory = bufferedPayloadFactory;
         }
 
         /// <summary>
@@ -306,21 +310,11 @@ namespace Horde.Storage.Controllers
                 }
             }
 
-            byte[] blob;
-            try
-            {
-                blob = await RequestUtil.ReadRawBody(Request);
-            }
-            catch (BadHttpRequestException e)
-            {
-                const string msg = "Partial content transfer when reading request body.";
-                _logger.Warning(e, msg);
-                return BadRequest(msg);
-            }
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
+            
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
 
             BlobIdentifier headerHash;
-            BlobIdentifier blobHeader = BlobIdentifier.FromBlob(blob);
             if (Request.Headers.ContainsKey(CommonHeaders.HashHeaderName))
             {
                 headerHash = new BlobIdentifier(Request.Headers[CommonHeaders.HashHeaderName]);
@@ -333,56 +327,63 @@ namespace Horde.Storage.Controllers
                 });
             }
 
-            if (!blobHeader.Equals(headerHash))
+            CompactBinaryObject payloadObject;
+            BlobIdentifier blobHeader = headerHash;
+            try
+            {
+                switch (Request.ContentType)
+                {
+                    case MediaTypeNames.Application.Json:
+                    {
+                        // TODO: define a scheme for how a json object specifies references
+
+                        blobHeader = await _blobStore.PutObject(ns, payload, headerHash);
+
+                        // TODO: convert the json object into a compact binary instead
+                        CompactBinaryWriter compactBinaryWriter = new CompactBinaryWriter();
+                        compactBinaryWriter.BeginObject();
+                        compactBinaryWriter.AddBinaryAttachment(blobHeader);
+                        compactBinaryWriter.EndObject();
+
+                        byte[] blob = compactBinaryWriter.Save();
+                        payloadObject = CompactBinaryObject.Load(blob);
+                        blobHeader = BlobIdentifier.FromBlob(blob);
+                        break;
+                    }
+                    case CustomMediaTypeNames.UnrealCompactBinary:
+                    {
+                        MemoryStream ms = new MemoryStream();
+                        await using Stream payloadStream = payload.GetStream();
+                        await payloadStream.CopyToAsync(ms);
+                        payloadObject = CompactBinaryObject.Load(ms.ToArray());
+                        break;
+                    }
+                    case MediaTypeNames.Application.Octet:
+                    {
+                        blobHeader = await _blobStore.PutObject(ns, payload, headerHash);
+
+                        CompactBinaryWriter compactBinaryWriter = new CompactBinaryWriter();
+                        compactBinaryWriter.BeginObject();
+                        compactBinaryWriter.AddBinaryAttachment(blobHeader);
+                        compactBinaryWriter.EndObject();
+
+                        byte[] blob = compactBinaryWriter.Save();
+                        payloadObject = CompactBinaryObject.Load(blob);
+                        blobHeader = BlobIdentifier.FromBlob(blob);
+                        break;
+                    }
+                    default:
+                        throw new Exception($"Unknown request type {Request.ContentType}, if submitting a blob please use {MediaTypeNames.Application.Octet}");
+                }
+            }
+            catch (HashMismatchException e)
             {
                 return BadRequest(new ProblemDetails
                 {
-                    Title = $"Incorrect hash, got hash \"{headerHash}\" but hash of content was determined to be \"{blobHeader}\""
+                    Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
                 });
             }
 
-            CompactBinaryObject payloadObject;
-            switch (Request.ContentType)
-            {
-                case MediaTypeNames.Application.Json:
-                {
-                    // TODO: define a scheme for how a json object specifies references
-
-                    await _blobStore.PutObject(ns, blob, blobHeader);
-
-                    // TODO: convert the json object into a compact binary instead
-                    CompactBinaryWriter compactBinaryWriter = new CompactBinaryWriter();
-                    compactBinaryWriter.BeginObject();
-                    compactBinaryWriter.AddBinaryAttachment(blobHeader);
-                    compactBinaryWriter.EndObject();
-
-                    blob = compactBinaryWriter.Save();
-                    payloadObject = CompactBinaryObject.Load(blob);
-                    blobHeader = BlobIdentifier.FromBlob(blob);
-                    break;
-                }
-                case CustomMediaTypeNames.UnrealCompactBinary:
-                {
-                    payloadObject = CompactBinaryObject.Load(blob);
-                    break;
-                }
-                case MediaTypeNames.Application.Octet:
-                {
-                    await _blobStore.PutObject(ns, blob, blobHeader);
-
-                    CompactBinaryWriter compactBinaryWriter = new CompactBinaryWriter();
-                    compactBinaryWriter.BeginObject();
-                    compactBinaryWriter.AddBinaryAttachment(blobHeader);
-                    compactBinaryWriter.EndObject();
-
-                    blob = compactBinaryWriter.Save();
-                    payloadObject = CompactBinaryObject.Load(blob);
-                    blobHeader = BlobIdentifier.FromBlob(blob);
-                    break;
-                }
-                default:
-                    throw new Exception($"Unknown request type {Request.ContentType}, if submitting a blob please use {MediaTypeNames.Application.Octet}");
-            }
 
             PutObjectResult result = await _objectService.Put(ns, bucket, key, blobHeader, payloadObject);
             return Ok(new PutObjectResponse(result.MissingReferences));

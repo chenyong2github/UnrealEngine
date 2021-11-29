@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace.DuckTyping;
 using Horde.Storage.Implementation;
+using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,12 +24,12 @@ namespace Horde.Storage.Controllers
     public class StatusController : Controller
     {
         private readonly VersionFile _versionFile;
-        private readonly IOptionsMonitor<ReplicationSettings> _replicationSettings;
+        private readonly IOptionsMonitor<JupiterSettings> _jupiterSettings;
 
-        public StatusController(VersionFile versionFile, IOptionsMonitor<ReplicationSettings> replicationSettings)
+        public StatusController(VersionFile versionFile, IOptionsMonitor<JupiterSettings> jupiterSettings)
         {
             _versionFile = versionFile;
-            _replicationSettings = replicationSettings;
+            _jupiterSettings = jupiterSettings;
         }
 
         /// <summary>
@@ -53,7 +54,7 @@ namespace Horde.Storage.Controllers
             AssemblyMetadataAttribute? p4ChangeAttribute = attrs.FirstOrDefault(attr => attr.Key == "PerforceChangelist");
             if (p4ChangeAttribute?.Value != null && !string.IsNullOrEmpty(p4ChangeAttribute.Value))
                 srcControlIdentifier = p4ChangeAttribute.Value;
-            return Ok(new StatusResponse(_versionFile.VersionString ?? "Unknown", srcControlIdentifier, GetCapabilities(), _replicationSettings.CurrentValue.CurrentSite));
+            return Ok(new StatusResponse(_versionFile.VersionString ?? "Unknown", srcControlIdentifier, GetCapabilities(), _jupiterSettings.CurrentValue.CurrentSite));
         }
 
         private string[] GetCapabilities()

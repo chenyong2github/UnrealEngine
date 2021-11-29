@@ -24,16 +24,16 @@ namespace Callisto.Controllers
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
 
-        private readonly CallistoSettings _settings;
+        private readonly IOptionsMonitor<JupiterSettings> _settings;
         private readonly ILogger _logger = Log.ForContext<TransactionLogController>();
 
-        public TransactionLogController(ITransactionLogs transactionLogs, IOptionsMonitor<CallistoSettings> options, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService)
+        public TransactionLogController(ITransactionLogs transactionLogs, IOptionsMonitor<JupiterSettings> options, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService)
         {
             _transactionLogs = transactionLogs;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
 
-            _settings = options.CurrentValue;
+            _settings = options;
         }
 
 
@@ -162,14 +162,14 @@ namespace Callisto.Controllers
                 return Forbid();
             }
 
-            if (string.IsNullOrEmpty(_settings.CurrentSite))
+            if (string.IsNullOrEmpty(_settings.CurrentValue.CurrentSite))
             {
                 throw new Exception(
                     "Current site setting is missing, this has to be part of the deployment and has to be globally unique");
             }
 
             // add the current site to the list of sites that have seen this event
-            request.Locations.Add(_settings.CurrentSite);
+            request.Locations.Add(_settings.CurrentValue.CurrentSite);
             long id;
             switch (request)
             {

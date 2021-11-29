@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Jupiter;
 using Microsoft.Extensions.Options;
 using Datadog.Trace;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
 namespace Horde.Storage.Implementation
@@ -27,11 +28,17 @@ namespace Horde.Storage.Implementation
             public List<IBlobCleanup> BlobCleanups { get; } = new List<IBlobCleanup>();
         }
 
-        public BlobCleanupService(IOptionsMonitor<GCSettings> settings) :
-            base(serviceName: nameof(RefCleanupService), settings.CurrentValue.BlobCleanupPollFrequency,
+        public BlobCleanupService(IServiceProvider provider, IOptionsMonitor<GCSettings> settings) :
+            base(serviceName: nameof(BlobCleanupService), settings.CurrentValue.BlobCleanupPollFrequency,
                 new BlobCleanupState())
         {
             _settings = settings;
+
+            if (settings.CurrentValue.CleanOldBlobs)
+            {
+                OrphanBlobCleanup orphanBlobCleanup = provider.GetService<OrphanBlobCleanup>()!;
+                RegisterCleanup(orphanBlobCleanup);
+            }
         }
 
         public void RegisterCleanup(IBlobCleanup cleanup)

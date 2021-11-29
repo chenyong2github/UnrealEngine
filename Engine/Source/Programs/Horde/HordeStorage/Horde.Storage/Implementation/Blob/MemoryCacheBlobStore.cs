@@ -102,10 +102,10 @@ namespace Horde.Storage.Implementation
             return Task.CompletedTask;
         }
 
-        public IAsyncEnumerable<BlobIdentifier> ListOldObjects(NamespaceId ns, DateTime cutoff)
+        public IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns)
         {
             // Silently ignore this request as we cannot implement this using MemoryCache
-            return Array.Empty<BlobIdentifier>().ToAsyncEnumerable();
+            return Array.Empty<(BlobIdentifier, DateTime)>().ToAsyncEnumerable();
         }
         
         private string BuildKey(NamespaceId ns, BlobIdentifier blob)

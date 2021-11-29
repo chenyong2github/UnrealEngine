@@ -11,9 +11,10 @@ using System.Threading.Tasks;
 using Datadog.Trace;
 using Horde.Storage.Implementation;
 using Jupiter;
+using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
+using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
@@ -23,21 +24,23 @@ namespace Horde.Storage.Controllers
     [Route("api/v1/compressed-blobs")]
     public class CompressedBlobController : ControllerBase
     {
-        private readonly IBlobStore _storage;
+        private readonly IBlobService _storage;
         private readonly IContentIdStore _contentIdStore;
         private readonly IDiagnosticContext _diagnosticContext;
         private readonly IAuthorizationService _authorizationService;
         private readonly CompressedBufferUtils _compressedBufferUtils;
+        private readonly BufferedPayloadFactory _bufferedPayloadFactory;
 
         private readonly ILogger _logger = Log.ForContext<CompressedBlobController>();
 
-        public CompressedBlobController(IBlobStore storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, CompressedBufferUtils compressedBufferUtils)
+        public CompressedBlobController(IBlobService storage, IContentIdStore contentIdStore, IDiagnosticContext diagnosticContext, IAuthorizationService authorizationService, CompressedBufferUtils compressedBufferUtils, BufferedPayloadFactory bufferedPayloadFactory)
         {
             _storage = storage;
             _contentIdStore = contentIdStore;
             _diagnosticContext = diagnosticContext;
             _authorizationService = authorizationService;
             _compressedBufferUtils = compressedBufferUtils;
+            _bufferedPayloadFactory = bufferedPayloadFactory;
         }
 
 
@@ -197,56 +200,54 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            byte[] blob;
-            try
-            {
-                blob = await RequestUtil.ReadRawBody(Request);
-            }
-            catch (BadHttpRequestException e)
-            {
-                const string msg = "Partial content transfer when reading request body.";
-                _logger.Warning(e, msg);
-                return BadRequest(msg);
-            }
             _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
 
-            BlobIdentifier identifier = await PutImpl(ns, id, blob);
-            return Ok(new
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+
+            try
             {
-                Identifier = identifier.ToString()
-            });
+                BlobIdentifier identifier = await PutImpl(ns, id, payload);
+
+                return Ok(new
+                {
+                    Identifier = identifier.ToString()
+                });
+            }
+            catch (HashMismatchException e)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
+                });
+            }
         }
 
-        private async Task<BlobIdentifier> PutImpl(NamespaceId ns, BlobIdentifier? id, byte[] content)
+        private async Task<BlobIdentifier> PutImpl(NamespaceId ns, BlobIdentifier id, IBufferedPayload payload)
         {
-            BlobIdentifier identifier;
-            {
-                using Scope _ = Tracer.Instance.StartActive("web.hash");
-                identifier = BlobIdentifier.FromBlob(content);
-            }
             // decompress the content and generate a identifier from it to verify the identifier we got
-            byte[] decompressedContent = _compressedBufferUtils.DecompressContent(content);
+            await using Stream decompressStream = payload.GetStream();
+            // TODO: we should add a overload for decompress content that can work on streams, otherwise we are still limited to 2GB compressed blobs
+            byte[] decompressedContent = _compressedBufferUtils.DecompressContent(await decompressStream.ToByteArray());
 
-            BlobIdentifier identifierDecompressedPayload;
+            MemoryStream decompressedStream = new MemoryStream(decompressedContent);
+            BlobIdentifier identifierDecompressedPayload = await _storage.VerifyContentMatchesHash(decompressedStream, id);
+
+            BlobIdentifier identifierCompressedPayload;
             {
                 using Scope _ = Tracer.Instance.StartActive("web.hash");
-                identifierDecompressedPayload = BlobIdentifier.FromBlob(decompressedContent);
-            }
-
-            if (id != null && !id.Equals(identifierDecompressedPayload))
-            {
-                _logger.Debug("ID {@Id} was not the same as identifier {@Identifier} {Content}", id, identifierDecompressedPayload,
-                    content);
-
-                throw new ArgumentException("ID was not a hash of the content uploaded.", paramName: nameof(id));
+                await using Stream hashStream = payload.GetStream();
+                identifierCompressedPayload = await BlobIdentifier.FromStream(hashStream);
             }
 
             // commit the mapping from the decompressed hash to the compressed hash, we run this in parallel with the blob store submit
             // TODO: let users specify weight of the blob compared to previously submitted content ids
-            Task contentIdStoreTask = _contentIdStore.Put(ns, identifierDecompressedPayload, identifier, content.Length);
+            int contentIdWeight = (int)payload.Length;
+            Task contentIdStoreTask = _contentIdStore.Put(ns, identifierDecompressedPayload, identifierCompressedPayload, contentIdWeight);
 
-            // we still commit the compressed buffer to the object store
-            await _storage.PutObject(ns, content, identifier);
+            // we still commit the compressed buffer to the object store using the hash of the compressed content
+            {
+                await _storage.PutObjectKnownHash(ns, payload, identifierCompressedPayload);
+            }
 
             await contentIdStoreTask;
 

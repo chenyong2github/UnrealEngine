@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
@@ -27,14 +28,14 @@ namespace Horde.Storage.Implementation
     public class ObjectService : IObjectService
     {
         private readonly IReferencesStore _referencesStore;
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobService;
         private readonly IReferenceResolver _referenceResolver;
         private readonly IReplicationLog _replicationLog;
 
-        public ObjectService(IReferencesStore referencesStore, IBlobStore blobStore, IReferenceResolver referenceResolver, IReplicationLog replicationLog)
+        public ObjectService(IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog)
         {
             _referencesStore = referencesStore;
-            _blobStore = blobStore;
+            _blobService = blobService;
             _referenceResolver = referenceResolver;
             _replicationLog = replicationLog;
         }
@@ -50,7 +51,7 @@ namespace Horde.Storage.Implementation
             }
             else
             {
-                blobContents = await _blobStore.GetObject(ns, o.BlobIdentifier);
+                blobContents = await _blobService.GetObject(ns, o.BlobIdentifier);
             }
             return (o, blobContents);
         }
@@ -64,7 +65,7 @@ namespace Horde.Storage.Implementation
 
             Task objectStorePut = _referencesStore.Put(ns, bucket, key, blobHash, payload.Data, isFinalized);
 
-            Task<BlobIdentifier> blobStorePut = _blobStore.PutObject(ns, payload.Data, blobHash);
+            Task<BlobIdentifier> blobStorePut = _blobService.PutObject(ns, payload.Data, blobHash);
 
             BlobIdentifier[] missingReferences = Array.Empty<BlobIdentifier>();
             if (hasReferences)
@@ -73,7 +74,7 @@ namespace Horde.Storage.Implementation
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, payload);
-                    missingReferences = await _blobStore.FilterOutKnownBlobs(ns, references);
+                    missingReferences = await _blobService.FilterOutKnownBlobs(ns, references);
                 }
                 catch (PartialReferenceResolveException e)
                 {
@@ -107,7 +108,7 @@ namespace Horde.Storage.Implementation
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, payload);
-                    missingReferences = await _blobStore.FilterOutKnownBlobs(ns, references);
+                    missingReferences = await _blobService.FilterOutKnownBlobs(ns, references);
                 }
                 catch (PartialReferenceResolveException e)
                 {

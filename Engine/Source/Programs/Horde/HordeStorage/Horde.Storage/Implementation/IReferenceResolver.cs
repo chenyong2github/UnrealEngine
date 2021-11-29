@@ -18,10 +18,10 @@ namespace Horde.Storage.Implementation
 
     public class ReferenceResolver : IReferenceResolver
     {
-        private readonly IBlobStore _blobStore;
+        private readonly IBlobService _blobStore;
         private readonly IContentIdStore _contentIdStore;
 
-        public ReferenceResolver(IBlobStore blobStore, IContentIdStore contentIdStore)
+        public ReferenceResolver(IBlobService blobStore, IContentIdStore contentIdStore)
         {
             _blobStore = blobStore;
             _contentIdStore = contentIdStore;

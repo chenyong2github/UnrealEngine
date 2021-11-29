@@ -21,9 +21,10 @@ namespace Horde.Storage.Implementation
 
         internal const int DefaultBufferSize = 4096;
 
-        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings)
+        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, BlobCleanupService cleanupService)
         {
             _settings = settings;
+            cleanupService.RegisterCleanup(this);
         }
 
         public static FileInfo GetFilesystemPath(string rootDir, NamespaceId ns, BlobIdentifier blob)
@@ -160,12 +161,12 @@ namespace Horde.Storage.Implementation
             return Task.CompletedTask;
         }
 
-        public IAsyncEnumerable<BlobIdentifier> ListOldObjects(NamespaceId ns, DateTime cutoff)
+        public IAsyncEnumerable<(BlobIdentifier,DateTime)> ListObjects(NamespaceId ns)
         {
-            return DoListOldObjects(ns, cutoff).ToAsyncEnumerable();
+            return DoListOldObjects(ns).ToAsyncEnumerable();
         }
 
-        private IEnumerable<BlobIdentifier> DoListOldObjects(NamespaceId ns, DateTime cutoff)
+        private IEnumerable<(BlobIdentifier, DateTime)> DoListOldObjects(NamespaceId ns)
         {
             DirectoryInfo di = new DirectoryInfo(Path.Combine(_settings.CurrentValue.RootDir, ns.ToString()));
             if (!di.Exists)
@@ -180,14 +181,7 @@ namespace Horde.Storage.Implementation
                     continue;
                 }
 
-                if (file.LastWriteTime > cutoff)
-                {
-                    _logger.Information("Ignoring {Blob} as it is new. Last modified: {LastModified} Cutoff: {CutOff}", file.Name, file.LastWriteTime, cutoff);
-                    continue;
-                }
-                _logger.Information("Old {Blob} found. Last modified: {LastModified} Cutoff: {CutOff}", file.Name, file.LastWriteTime, cutoff);
-
-                yield return new BlobIdentifier(file.Name);
+                yield return (new BlobIdentifier(file.Name), file.LastWriteTime);
             }
         }
         
@@ -226,15 +220,13 @@ namespace Horde.Storage.Implementation
                     return blobsRemoved;
                 }
                 
-                FileInfo[] fileInfos = await GetLeastRecentlyAccessedObjects(maxResults: batchSize);
-                if (fileInfos.Length == 0)
-                {
-                    return blobsRemoved;
-                }
-                
+                IEnumerable<FileInfo> fileInfos = GetLeastRecentlyAccessedObjects(maxResults: batchSize);
+
+                bool hadFiles = false;
                 long totalBytesDeleted = 0;
                 foreach (FileInfo fi in fileInfos)
                 {
+                    hadFiles = true;
                     try
                     {
                         totalBytesDeleted += fi.Length;
@@ -252,6 +244,11 @@ namespace Horde.Storage.Implementation
                         // if the file was gced while running we can just ignore it
                     }
                 }
+
+                if (!hadFiles)
+                {
+                    return blobsRemoved;
+                }
             }
             
             return blobsRemoved;
@@ -264,7 +261,7 @@ namespace Horde.Storage.Implementation
         /// <param name="ns">Namespace, if set to null all namespaces will be scanned</param>
         /// <param name="maxResults">Max results to return. Note that the entire namespace will be scanned no matter what.</param>
         /// <returns>Enumerable of least recently accessed objects as FileInfos</returns>
-        public async Task<FileInfo[]> GetLeastRecentlyAccessedObjects(NamespaceId? ns = null, int maxResults = 10000)
+        public IEnumerable<FileInfo> GetLeastRecentlyAccessedObjects(NamespaceId? ns = null, int maxResults = 10000)
         {
             string path = ns != null ? Path.Combine(_settings.CurrentValue.RootDir, ns.ToString()!) : _settings.CurrentValue.RootDir;
             DirectoryInfo di = new DirectoryInfo(path);
@@ -272,8 +269,8 @@ namespace Horde.Storage.Implementation
             {
                 return Array.Empty<FileInfo>();
             }
-            
-            return await Task.Run(() => di.EnumerateFiles("*", SearchOption.AllDirectories).OrderBy(x => x.LastWriteTime).Take(maxResults).ToArray());
+
+            return di.EnumerateFiles("*", SearchOption.AllDirectories).OrderBy(x => x.LastWriteTime).Take(maxResults);
         }
         
         /// <summary>

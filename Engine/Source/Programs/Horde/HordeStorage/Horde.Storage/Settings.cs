@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using Horde.Storage.Implementation;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Storage
@@ -47,7 +48,8 @@ namespace Horde.Storage
             S3,
             Azure,
             FileSystem,
-            Memory
+            Memory,
+            MemoryBlobStore
         }
 
         public enum ReferencesDbImplementations
@@ -57,6 +59,12 @@ namespace Horde.Storage
         }
 
         public enum ContentIdStoreImplementations
+        {
+            Memory,
+            Scylla
+        }
+
+        public enum BlobIndexImplementations
         {
             Memory,
             Scylla
@@ -86,6 +94,16 @@ namespace Horde.Storage
         [ValidStorageBackend]
         public string[]? StorageImplementations { get; set; }
 
+        public IEnumerable<StorageBackendImplementations> GetStorageImplementations()
+        {
+            foreach (string s in StorageImplementations ?? new [] {HordeStorageSettings.StorageBackendImplementations.Memory.ToString()})
+            {
+                HordeStorageSettings.StorageBackendImplementations impl = (HordeStorageSettings.StorageBackendImplementations)Enum.Parse(typeof(HordeStorageSettings.StorageBackendImplementations), s, ignoreCase: true);
+
+                yield return impl;
+            }
+        }
+
         [Required]
         public TransactionLogWriterImplementations TransactionLogWriterImplementation { get; set; } = TransactionLogWriterImplementations.Memory;
 
@@ -104,6 +122,7 @@ namespace Horde.Storage
 
         public LeaderElectionImplementations LeaderElectionImplementation { get; set; } = LeaderElectionImplementations.Static;
         public ContentIdStoreImplementations ContentIdStoreImplementation { get; set; } = ContentIdStoreImplementations.Memory;
+        public BlobIndexImplementations BlobIndexImplementation { get; set; } = BlobIndexImplementations.Memory;
 
         public int? MaxSingleBlobSize { get; set; } = null; // disable blob partitioning
 
@@ -211,6 +230,9 @@ namespace Horde.Storage
 
         // Options to disable setting of bucket access policies, useful for local testing as minio does not support them.
         public bool SetBucketPolicies { get; set; } = true;
+
+        public bool UseBlobIndexForExistsCheck { get; set; } = false;
+
     }
 
     public class GCSettings

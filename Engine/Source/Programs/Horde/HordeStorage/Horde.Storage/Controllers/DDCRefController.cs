@@ -474,7 +474,7 @@ namespace Horde.Storage.Controllers
             {
                 return BadRequest(new ProblemDetails
                 {
-                    Title = $"Incorrect hash, got hash \"{e.NewHash}\" but hash of content was determined to be \"{e.ExpectedHash}\""
+                    Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
                 });
             }
             catch (MissingBlobsException e)
@@ -790,7 +790,7 @@ namespace Horde.Storage.Controllers
                     ContentHash blobHash = ContentHash.FromBlob(op.Content);
                     if (!blobHash.Equals(op.ContentHash))
                     {
-                        throw new HashMismatchException(blobHash, op.ContentHash);
+                        throw new HashMismatchException(op.ContentHash, blobHash);
                     }
                     return _ddcRefService.Put(op.Namespace.Value, op.Bucket.Value, op.Id.Value, blobHash, op.Content).ContinueWith(t => (object?)t.Result);
                 }
@@ -910,13 +910,13 @@ namespace Horde.Storage.Controllers
 
     public class HashMismatchException : Exception
     {
-        public ContentHash NewHash { get; }
-        public ContentHash ExpectedHash { get; }
+        public ContentHash SuppliedHash { get; }
+        public ContentHash ContentHash { get; }
 
-        public HashMismatchException(ContentHash newHash, ContentHash expectedHash)
+        public HashMismatchException(ContentHash suppliedHash, ContentHash contentHash) : base($"ID was not a hash of the content uploaded. Supplied hash was: {suppliedHash} but hash of content was {contentHash}")
         {
-            NewHash = newHash;
-            ExpectedHash = expectedHash;
+            SuppliedHash = suppliedHash;
+            ContentHash = contentHash;
         }
     }
 
