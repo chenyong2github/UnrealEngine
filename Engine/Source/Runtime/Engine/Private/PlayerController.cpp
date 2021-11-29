@@ -431,7 +431,9 @@ void APlayerController::CleanUpAudioComponents()
 
 AActor* APlayerController::GetViewTarget() const
 {
-	return PlayerCameraManager ? PlayerCameraManager->GetViewTarget() : NULL;
+	AActor* CameraManagerViewTarget = PlayerCameraManager ? PlayerCameraManager->GetViewTarget() : NULL;
+
+	return CameraManagerViewTarget ? CameraManagerViewTarget : const_cast<APlayerController*>(this);
 }
 
 void APlayerController::SetViewTarget(class AActor* NewViewTarget, struct FViewTargetTransitionParams TransitionParams)
