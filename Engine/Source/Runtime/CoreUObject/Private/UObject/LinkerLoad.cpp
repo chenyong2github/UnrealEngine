@@ -14,6 +14,7 @@
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
+#include "UObject/PackageTrailer.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/PackageName.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -720,6 +721,13 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::Tick( float InTimeLimit, bool bInUseTime
 				Status = SerializePackageFileSummary();
 			}
 
+			// Serialize the header for the package trailer
+			if (Status == LINKER_Loaded)
+			{
+				SCOPED_LOADTIMER(LinkerLoad_SerializePackageTrailer);
+				Status = SerializePackageTrailer();
+			}
+
 			// Serialize the name map and register the names.
 			if( Status == LINKER_Loaded )
 			{
@@ -857,6 +865,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 , PackagePath(InPackagePath)
 , Loader(nullptr)
 , InstancingContext(MoveTemp(InInstancingContext))
+, PackageTrailer(nullptr)
 , AsyncRoot(nullptr)
 , GatherableTextDataMapIndex(0)
 , ImportMapIndex(0)
@@ -864,6 +873,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 , DependsMapIndex(0)
 , ExportHashIndex(0)
 , bHasSerializedPackageFileSummary(false)
+, bHasSerializedPackageTrailer(false)
 , bHasReconstructedImportAndExportMap(false)
 , bHasSerializedPreloadDependencies(false)
 , bHasFixedUpImportMap(false)
@@ -1498,6 +1508,34 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 		LinkerRootPackage->bIsCookedForEditor = !!(Summary.GetPackageFlags() & PKG_FilterEditorOnly);
 #endif
 	}
+
+	return LINKER_Loaded;
+}
+
+FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageTrailer()
+{
+	if (bHasSerializedPackageTrailer)
+	{
+		return LINKER_Loaded;
+	}
+
+	check(PackageTrailer == nullptr);
+
+	if (UE::FPackageTrailer::IsEnabled() && Summary.PayloadTocOffset != INDEX_NONE)
+	{
+		int64 CurPos = Tell();
+		Seek(Summary.PayloadTocOffset);
+		
+		PackageTrailer = MakeUnique<UE::FPackageTrailer>();
+		if (!PackageTrailer->TryLoad(*this))
+		{
+			PackageTrailer.Reset();
+		}
+
+		Seek(CurPos);
+	}
+
+	bHasSerializedPackageTrailer = true;
 
 	return LINKER_Loaded;
 }

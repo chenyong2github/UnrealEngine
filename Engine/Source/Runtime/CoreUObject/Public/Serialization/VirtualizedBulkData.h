@@ -343,6 +343,7 @@ private:
 
 	FCompressedBuffer LoadFromDisk() const;
 	FCompressedBuffer LoadFromPackageFile() const;
+	FCompressedBuffer LoadFromPackageTrailer() const;
 	FCompressedBuffer LoadFromSidecarFile() const;
 	FCompressedBuffer LoadFromSidecarFileInternal(ErrorVerbosity Verbosity) const;
 
@@ -480,7 +481,10 @@ struct COREUOBJECT_API FTocEntry
 	int64 UncompressedSize = INDEX_NONE;
 };
 
-/** A table of contents showing the location of all virtualized bulkdata payloads in a file. */
+/** 
+ * A table of contents showing the location of all virtualized bulkdata payloads in a file. 
+ * NOTE: This is currently only used by the sidecar functionality.
+ */
 class COREUOBJECT_API FPayloadToc
 {
 public:
@@ -506,30 +510,6 @@ private:
 
 	TArray<UE::Virtualization::FTocEntry> Contents;
 };
-
-/** Used to filter a request to a specific type of payload */
-enum class EPayloadType
-{
-	/** All payload types. */
-	All,
-	/** All payloads stored locally on disk. */
-	Local,
-	/** All payloads stored in a virtualized backend. */
-	Virtualized
-};
-
-/**
- * Used to find the identifiers of the payload in a given package. Note that this will return the payloads included in the
- * package on disk and will not take into account any edits to the package if they are in memory and unsaved.
- *
- * @param PackagePath	The package to look in.
- * @param Filter		What sort of payloads should be returned. @see EPayloadType
- * @param OutPayloadIds	This array will be filled with the FPayloadId values found in the package that passed the filter.
- *						Note that existing content in the array will be preserved. It is up to the caller to empty it.
- *
- * @return 				True if the package was parsed successfully (although it might not have contained any payloads) and false if opening or parsing the package file failed.
- */
-COREUOBJECT_API bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadType Filter, TArray<FPayloadId>& OutPayloadIds);
 
 } // namespace UE::Virtualization
 

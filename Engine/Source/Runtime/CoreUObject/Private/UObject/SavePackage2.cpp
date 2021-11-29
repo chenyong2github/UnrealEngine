@@ -1650,76 +1650,22 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 	return Linker->IsError() ? ESavePackageResult::Error : ReturnSuccessOrCancel();
 }
 
-/** 
- * Writes out the initial state of the payload table of contents.
- * 
- * However because we store the table of contents before the payloads in the package
- * format the data will not be correct as we cannot know the correct payload offsets.
- * The correct data will be written out by a subsequent call to 'UpdatePayloadToC'.
- * 
- * Because of this we only write out the table of contents if we are currently writing
- * to a binary format package. This will reserve the space in the file that we need 
- * to later write the correct data too.
- * If the package is in text format then we do not need to write anything as we can
- * simple write out the correct data later when we know it.
- */
-ESavePackageResult WritePayloadToC(FSaveContext& SaveContext)
+[[nodiscard]] ESavePackageResult BuildAndWriteTrailer(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
-	if (!SaveContext.IsTextFormat())
-	{
-		SaveContext.Linker->Summary.PayloadTocOffset = SaveContext.Linker->Tell();
-
-		UE::Virtualization::FPayloadToc PayloadTableOfContents;
-		for (const UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : SaveContext.Linker->BulkDataInPackage)
-		{
-			if (BulkData != nullptr)
-			{
-				PayloadTableOfContents.AddEntry(*BulkData);
-			}
-		}
-
-		*SaveContext.Linker << PayloadTableOfContents;
-
-		SaveContext.OffsetAfterPayloadToc = SaveContext.Linker->Tell();
-	}
-	
-	return ESavePackageResult::Success;
-}
-
-/** 
- * Either update the existing table of contents (if writing out in binary format) or write the table
- * of contents (if writing out in text format).
- * 
- * @see WritePayloadToC
- */
-ESavePackageResult UpdatePayloadToC(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
-{
-	UE::Virtualization::FPayloadToc PayloadTableOfContents;
-	for (const UE::Virtualization::FVirtualizedUntypedBulkData* BulkData : SaveContext.Linker->BulkDataInPackage)
-	{
-		if (BulkData != nullptr)
-		{
-			PayloadTableOfContents.AddEntry(*BulkData);
-		}
-	}
-
 	if (SaveContext.IsTextFormat())
 	{
-		FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("PayloadTableOfContents")));
-		Stream.EnterElement() << PayloadTableOfContents;
+		// We shouldn't have any data in the trailer as text based assets should store 
+		// all payloads inline at the moment.
+		checkf(SaveContext.Linker->PackageTrailerBuilder.IsEmpty(), TEXT("Attempting to build a package trailer for text based asset '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
+		SaveContext.Linker->Summary.PayloadTocOffset = INDEX_NONE;
 	}
 	else
 	{
-		check(SaveContext.Linker->Summary.PayloadTocOffset != INDEX_NONE);
-
-		int64 CurrentPos = SaveContext.Linker->Tell();
-		SaveContext.Linker->Seek(SaveContext.Linker->Summary.PayloadTocOffset);
-
-		*SaveContext.Linker << PayloadTableOfContents;
-
-		checkf(SaveContext.OffsetAfterPayloadToc == SaveContext.Linker->Tell(), TEXT("Mismatch between ::WritePayloadToC and ::UpdatePayloadToC, the package will be corrupt"));
-
-		SaveContext.Linker->Seek(CurrentPos);
+		SaveContext.Linker->Summary.PayloadTocOffset = SaveContext.Linker->Tell();
+		if (!SaveContext.Linker->PackageTrailerBuilder.BuildAndAppendTrailer(SaveContext.Linker.Get(), *SaveContext.Linker.Get()))
+		{
+			return ESavePackageResult::Error;
+		}
 	}
 
 	return ESavePackageResult::Success;
@@ -2052,7 +1998,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	SaveContext.SetEDLCookChecker(&FEDLCookChecker::Get());
 
 	// Create slow task dialog if needed
-	const int32 TotalSaveSteps = 14;
+	const int32 TotalSaveSteps = 13;
 	FScopedSlowTask SlowTask(TotalSaveSteps, FText(), SaveContext.IsUsingSlowTask());
 	SlowTask.MakeDialogDelayed(3.0f, SaveContext.IsFromAutoSave());
 
@@ -2144,13 +2090,6 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		}
 	}
 
-	SlowTask.EnterProgressFrame();
-	SaveContext.Result = WritePayloadToC(SaveContext);
-	if (SaveContext.Result != ESavePackageResult::Success)
-	{
-		return SaveContext.Result;
-	}
-
 	IPackageWriter* PackageWriter = SaveContext.GetPackageWriter();
 	if (PackageWriter)
 	{
@@ -2170,19 +2109,25 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		{
 			return SaveContext.Result;
 		}
-
-		if (!SaveContext.IsTextFormat())
-		{
-			uint32 Tag = PACKAGE_FILE_TAG;
-			StructuredArchiveRoot.GetUnderlyingArchive() << Tag;
-		}
 	}
 
-	SlowTask.EnterProgressFrame();
-	SaveContext.Result = UpdatePayloadToC(StructuredArchiveRoot, SaveContext);
-	if (SaveContext.Result != ESavePackageResult::Success)
+	// Write out a tag to the end of the package
+	if (PackageWriter == nullptr && !SaveContext.IsTextFormat())
 	{
-		return SaveContext.Result;
+		uint32 Tag = PACKAGE_FILE_TAG;
+		StructuredArchiveRoot.GetUnderlyingArchive() << Tag;
+	}
+
+	// Now that the package is written out we can write the package trailer that is appended
+	// to the file. This should be the last thing written to the file!
+	SlowTask.EnterProgressFrame();
+	if (UE::FPackageTrailer::IsEnabled() && PackageWriter == nullptr)
+	{
+		SaveContext.Result = BuildAndWriteTrailer(StructuredArchiveRoot, SaveContext);
+		if (SaveContext.Result != ESavePackageResult::Success)
+		{
+			return SaveContext.Result;
+		}	
 	}
 
 	int64 ExportsSize = SaveContext.Linker->Tell();

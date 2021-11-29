@@ -3,11 +3,9 @@
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/PackagePath.h"
-#include "Serialization/VirtualizedBulkData.h"
+#include "UObject/PackageTrailer.h"
 
 namespace UE
-{
-namespace Virtualization
 {
 
 #if WITH_EDITORONLY_DATA
@@ -33,16 +31,16 @@ void DumpPayloadToc(const TArray<FString>& Args)
 
 		if (FPackagePath::TryFromMountedName(Arg, Path))
 		{
-			TArray<FPayloadId> LocalPayloadIds;
-			TArray<FPayloadId> VirtualizedPayloadIds;
+			TArray<Virtualization::FPayloadId> LocalPayloadIds;
+			TArray<Virtualization::FPayloadId> VirtualizedPayloadIds;
 
-			if (!UE::Virtualization::FindPayloadsInPackageFile(Path, UE::Virtualization::EPayloadType::Local, LocalPayloadIds))
+			if (!UE::FindPayloadsInPackageFile(Path, UE::EPayloadFilter::Local, LocalPayloadIds))
 			{
 				UE_LOG(LogVirtualization, Error, TEXT("Failed to find local payload information from package: '%s'"), *Path.GetDebugName());
 				continue;
 			}
 
-			if (!UE::Virtualization::FindPayloadsInPackageFile(Path, UE::Virtualization::EPayloadType::Virtualized, VirtualizedPayloadIds))
+			if (!UE::FindPayloadsInPackageFile(Path, UE::EPayloadFilter::Virtualized, VirtualizedPayloadIds))
 			{
 				UE_LOG(LogVirtualization, Error, TEXT("Failed to find virtualized payload information from package: '%s'"), *Path.GetDebugName());
 				continue;
@@ -86,5 +84,4 @@ static FAutoConsoleCommand CCmdDumpPayloadToc = FAutoConsoleCommand(
 
 #endif //WITH_EDITORONLY_DATA
 
-} // namespace Virtualization
 } // namespace UE
