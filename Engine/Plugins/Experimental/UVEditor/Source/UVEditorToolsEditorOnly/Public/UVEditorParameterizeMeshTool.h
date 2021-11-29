@@ -86,9 +86,6 @@ protected:
 	TObjectPtr<UParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
-
-	UPROPERTY()
 	TArray<TObjectPtr<UParameterizeMeshOperatorFactory>> Factories;
 
 	void OnMethodTypeChanged();
