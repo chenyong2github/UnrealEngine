@@ -8,8 +8,7 @@
 #include "ToolTargetManager.h"
 #include "ContextObjectStore.h"
 #include "ToolTargets/StaticMeshComponentToolTarget.h"
-#include "ToolTargets/VolumeDynamicMeshToolTarget.h"
-#include "ToolTargets/VolumeMeshDescriptionToolTarget.h"
+#include "ToolTargets/VolumeComponentToolTarget.h"
 #include "ToolTargets/DynamicMeshComponentToolTarget.h"
 #include "ToolTargets/SkeletalMeshComponentToolTarget.h"
 #include "Framework/Commands/UICommandList.h"
@@ -316,8 +315,7 @@ void UModelingToolsEditorMode::Enter()
 
 	// Register builders for tool targets that the mode uses.
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(GetToolManager()));
-	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeDynamicMeshToolTargetFactory>(GetToolManager()));
-	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeMeshDescriptionToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeComponentToolTargetFactory>(GetToolManager()));
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UDynamicMeshComponentToolTargetFactory>(GetToolManager()));
 
 	// Register read-only skeletal mesh tool targets. Currently tools that write to meshes risk breaking
