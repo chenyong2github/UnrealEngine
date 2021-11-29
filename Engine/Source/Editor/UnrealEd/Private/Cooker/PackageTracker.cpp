@@ -74,7 +74,7 @@ namespace UE::Cook
 		NewPackages.Reserve(LoadedPackages.Num());
 		for (UPackage* Package : LoadedPackages)
 		{
-			NewPackages.Add(FPackageWithInstigator{ FInstigator(EInstigator::StartupPackage), Package });
+			NewPackages.Add(Package, FInstigator(EInstigator::StartupPackage));
 		}
 
 		GUObjectArray.AddUObjectDeleteListener(this);
@@ -87,7 +87,7 @@ namespace UE::Cook
 		GUObjectArray.RemoveUObjectCreateListener(this);
 	}
 
-	TArray<FPackageWithInstigator> FPackageTracker::GetNewPackages()
+	TMap<UPackage*, FInstigator> FPackageTracker::GetNewPackages()
 	{
 		return MoveTemp(NewPackages);
 	}
@@ -106,12 +106,10 @@ namespace UE::Cook
 				}
 
 				LoadedPackages.Add(Package);
-				NewPackages.Add(FPackageWithInstigator
-					{
+				NewPackages.Add(Package,
 						FInstigator(EInstigator::Unsolicited,
 							LoadingPackageData ? LoadingPackageData->GetPackageName() : NAME_None)
-						, Package
-					});
+					);
 			}
 		}
 	}
@@ -123,10 +121,7 @@ namespace UE::Cook
 			UPackage* Package = const_cast<UPackage*>(static_cast<const UPackage*>(Object));
 
 			LoadedPackages.Remove(Package);
-			NewPackages.RemoveAll([Package](const FPackageWithInstigator& Existing)
-				{
-					return Existing.Package == Package;
-				});
+			NewPackages.Remove(Package);
 			PostLoadFixupPackages.Remove(Package);
 		}
 	}

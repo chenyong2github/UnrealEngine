@@ -24,12 +24,6 @@ namespace Cook
 {
 	struct FPackageDatas;
 
-	struct FPackageWithInstigator
-	{
-		FInstigator Instigator;
-		UPackage* Package;
-	};
-
 	template<typename Type>
 	struct FThreadSafeQueue
 	{
@@ -181,7 +175,7 @@ namespace Cook
 		~FPackageTracker();
 
 		/* Returns all packages that have been loaded since the last time GetNewPackages was called */
-		TArray<FPackageWithInstigator> GetNewPackages();
+		TMap<UPackage*, FInstigator> GetNewPackages();
 
 		virtual void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override;
 		virtual void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override;
@@ -197,7 +191,7 @@ namespace Cook
 		TFastPointerSet<UPackage*> LoadedPackages;
 
 		// This list contains the UPackages loaded since last call to GetNewPackages
-		TArray<FPackageWithInstigator> NewPackages;
+		TMap<UPackage*, FInstigator> NewPackages;
 
 		/** The package currently being loaded at CookOnTheFlyServer's direct request. Used to determine which load dependencies were not preloaded. */
 		FPackageData* LoadingPackageData = nullptr;
