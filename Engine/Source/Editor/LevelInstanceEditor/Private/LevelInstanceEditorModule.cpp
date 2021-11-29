@@ -9,6 +9,10 @@
 #include "LevelInstanceEditorSettings.h"
 #include "ToolMenus.h"
 #include "Editor.h"
+#include "EditorModeManager.h"
+#include "EditorModeRegistry.h"
+#include "LevelInstanceEditorMode.h"
+#include "LevelInstanceEditorModeCommands.h"
 #include "LevelEditorMenuContext.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ContentBrowserModule.h"
@@ -616,15 +620,19 @@ void FLevelInstanceEditorModule::StartupModule()
 	
 	EditorLevelUtils::CanMoveActorToLevelDelegate.AddRaw(this, &FLevelInstanceEditorModule::CanMoveActorToLevel);
 
-	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditorModule.OnMapChanged().AddRaw(this, &FLevelInstanceEditorModule::OnMapChanged);
-
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	FMessageLogInitializationOptions InitOptions;
 	InitOptions.bShowFilters = true;
 	InitOptions.bShowPages = false;
 	InitOptions.bAllowClear = true;
 	MessageLogModule.RegisterLogListing("LevelInstance", LOCTEXT("LevelInstanceLog", "Level Instance Log"), InitOptions);
+		
+	FLevelInstanceEditorModeCommands::Register();
+
+	if (!IsRunningCommandlet())
+	{
+		GLevelEditorModeTools().OnEditorModeIDChanged().AddRaw(this, &FLevelInstanceEditorModule::OnEditorModeIDChanged);
+	}
 }
 
 void FLevelInstanceEditorModule::ShutdownModule()
@@ -636,9 +644,32 @@ void FLevelInstanceEditorModule::ShutdownModule()
 
 	EditorLevelUtils::CanMoveActorToLevelDelegate.RemoveAll(this);
 
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
+	if (!IsRunningCommandlet() && GLevelEditorModeToolsIsValid())
 	{
-		LevelEditorModule->OnMapChanged().RemoveAll(this);
+		GLevelEditorModeTools().OnEditorModeIDChanged().RemoveAll(this);
+	}
+}
+
+void FLevelInstanceEditorModule::OnEditorModeIDChanged(const FEditorModeID& InModeID, bool bIsEnteringMode)
+{
+	if (InModeID == ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId && !bIsEnteringMode)
+	{
+		ExitEditorModeEvent.Broadcast();
+	}
+}
+
+void FLevelInstanceEditorModule::ActivateEditorMode()
+{
+	if (!GLevelEditorModeTools().IsModeActive(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId))
+	{
+		GLevelEditorModeTools().ActivateMode(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId);
+	}
+}
+void FLevelInstanceEditorModule::DeactivateEditorMode()
+{
+	if (GLevelEditorModeTools().IsModeActive(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId))
+	{
+		GLevelEditorModeTools().DeactivateMode(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId);
 	}
 }
 
@@ -647,19 +678,6 @@ void FLevelInstanceEditorModule::OnLevelActorDeleted(AActor* Actor)
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = Actor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 	{
 		LevelInstanceSubsystem->OnActorDeleted(Actor);
-	}
-}
-
-void FLevelInstanceEditorModule::OnMapChanged(UWorld* World, EMapChangeType MapChangeType)
-{
-	// On Map Changed, Users will be asked to save unchanged maps. Once we hit the teardown we need to force
-	// LevelInstance Edits to be cancelled. If they are still dirty it means the user decided not to save changes.
-	if (World && MapChangeType == EMapChangeType::TearDownWorld)
-	{
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
-		{
-			LevelInstanceSubsystem->DiscardEdits();
-		}
 	}
 }
 

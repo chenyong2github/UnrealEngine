@@ -11,4 +11,11 @@ class ILevelInstanceEditorModule : public IModuleInterface
 {
 public:
 	virtual ~ILevelInstanceEditorModule() {}
+
+	virtual void ActivateEditorMode() = 0;
+	virtual void DeactivateEditorMode() = 0;
+
+	/** Broadcasts before exiting mode */
+	DECLARE_EVENT(ILevelInstanceEditorModule, FExitEditorModeEvent);
+	virtual FExitEditorModeEvent& OnExitEditorMode() = 0;
 };

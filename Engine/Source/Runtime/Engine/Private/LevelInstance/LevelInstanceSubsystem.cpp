@@ -31,7 +31,6 @@
 #include "Engine/Selection.h"
 #include "Engine/LevelBounds.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
-#include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/Blueprint.h"
 #include "LevelInstance/Packed/PackedLevelInstanceActor.h"
@@ -41,6 +40,7 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectGlobals.h"
 #include "EditorActorFolders.h"
+#include "Misc/MessageDialog.h"
 #endif
 
 #include "HAL/IConsoleManager.h"
@@ -67,7 +67,8 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #if WITH_EDITOR
 	if (GEditor)
 	{
-		FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+		ILevelInstanceEditorModule& EditorModule = FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+		EditorModule.OnExitEditorMode().AddUObject(this, &ULevelInstanceSubsystem::OnExitEditorMode);
 
 		if (!GetWorld()->IsGameWorld())
 		{
@@ -83,6 +84,9 @@ void ULevelInstanceSubsystem::Deinitialize()
 	Super::Deinitialize();
 
 #if WITH_EDITOR
+	ILevelInstanceEditorModule& EditorModule = FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+	EditorModule.OnExitEditorMode().RemoveAll(this);
+
 	if (!GetWorld()->IsGameWorld())
 	{
 		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
@@ -461,6 +465,22 @@ void ULevelInstanceSubsystem::OnPackageDeleted(UPackage* Package)
 	OnPackageChanged(Package);
 }
 
+void ULevelInstanceSubsystem::OnExitEditorMode()
+{
+	if (LevelInstanceEdit && !bCreatingLevelInstance)
+	{
+		bool bDiscard = true;
+		bool bIsDirty = IsLevelInstanceEditDirty(LevelInstanceEdit.Get());
+		if (bIsDirty)
+		{
+			FText Title = LOCTEXT("CommitOrDiscardChangesTitle", "Save changes?");
+			bDiscard = (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("CommitOrDiscardChangesMsg", "Unsaved Level changes will get discarded. Do you want to save them now?"), &Title) == EAppReturnType::No);
+		}
+
+		CommitLevelInstanceInternal(LevelInstanceEdit, bDiscard, /*bPromptForSave=*/false);
+	}
+}
+
 bool ULevelInstanceSubsystem::CanPackLevelInstances() const
 {
 	return !LevelInstanceEdit;
@@ -779,6 +799,7 @@ bool ULevelInstanceSubsystem::MoveActorsTo(ALevelInstance* LevelInstanceActor, c
 
 ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams)
 {
+	TGuardValue<bool> CreateLevelInstanceGuard(bCreatingLevelInstance, true);
 	ULevel* CurrentLevel = GetWorld()->GetCurrentLevel();
 		
 	if (ActorsToMove.Num() == 0)
@@ -961,6 +982,13 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 			
 	ALevelInstance* CommittedLevelInstance = CommitLevelInstanceInternal(TempLevelInstanceEdit, /*bDiscardEdits*/false, CreationParams.bPromptForSave, &DirtyPackages);
 	check(!TempLevelInstanceEdit);
+
+	// EditorLevelUtils::CreateNewStreamingLevelForWorld deactivates all modes. Re-activate if needed
+	if (LevelInstanceEdit)
+	{
+		ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+		EditorModule.ActivateEditorMode();
+	}
 
 	return CommittedLevelInstance;
 }
@@ -1169,17 +1197,6 @@ bool ULevelInstanceSubsystem::LevelInstanceHasLevelScriptBlueprint(const ALevelI
 	}
 
 	return false;
-}
-
-void ULevelInstanceSubsystem::UpdateEngineShowFlags()
-{
-	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
-	{
-		if (LevelVC && LevelVC->GetWorld() == GetWorld())
-		{
-			LevelVC->EngineShowFlags.EditingLevelInstance = !!LevelInstanceEdit;
-		}
-	}
 }
 
 void ULevelInstanceSubsystem::RemoveLevelsFromWorld(const TArray<ULevel*>& InLevels, bool bResetTrans)
@@ -1545,10 +1562,14 @@ bool ULevelInstanceSubsystem::CanCommitLevelInstance(const ALevelInstance* Level
 
 void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr)
 {
-	EditLevelInstanceInternal(LevelInstanceActor, ContextActorPtr, false);
+	if (EditLevelInstanceInternal(LevelInstanceActor, ContextActorPtr, false))
+	{
+		ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+		EditorModule.ActivateEditorMode();
+	}
 }
 
-void ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive)
+bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive)
 {
 	check(CanEditLevelInstance(LevelInstanceActor));
 		
@@ -1597,16 +1618,14 @@ void ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 		// Only support one level of recursion to commit current edit
 		check(!bRecursive);
 		FLevelInstanceID PendingEditId = LevelInstanceActor->GetLevelInstanceID();
-		ALevelInstance* LevelInstanceToCommit = GetLevelInstance(LevelInstanceEdit->GetLevelInstanceID());
-		CommitLevelInstance(LevelInstanceToCommit);
+		
+		check(!IsLevelInstanceEditDirty(LevelInstanceEdit.Get()));
+		CommitLevelInstanceInternal(LevelInstanceEdit);
 
 		ALevelInstance* LevelInstanceToEdit = GetLevelInstance(PendingEditId);
 		check(LevelInstanceToEdit);
 
-		EditLevelInstanceInternal(LevelInstanceToEdit, nullptr, /*bRecursive=*/true);
-
-		// Stop here. The LevelInstance will be open for editing after an async reload.
-		return;
+		return EditLevelInstanceInternal(LevelInstanceToEdit, nullptr, /*bRecursive=*/true);
 	}
 
 	// Cleanup async requests in case
@@ -1620,7 +1639,7 @@ void ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 	if (!LevelStreaming)
 	{
 		LevelInstanceActor->LoadLevelInstance();
-		return;
+		return false;
 	}
 
 	LevelInstanceEdit = MakeUnique<FLevelInstanceEdit>(LevelStreaming, LevelInstanceActor->GetLevelInstanceID());
@@ -1652,18 +1671,23 @@ void ULevelInstanceSubsystem::EditLevelInstanceInternal(ALevelInstance* LevelIns
 			Actor->PushLevelInstanceEditingStateToProxies(bEditing);
 		}
 	}
-
-	UpdateEngineShowFlags();
 	
 	// Edit can't be undone
 	GEditor->ResetTransaction(LOCTEXT("LevelInstanceEditResetTrans", "Edit Level Instance"));
+
+	return true;
 }
 
 ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, bool bPromptForSave, TSet<FName>* DirtyPackages)
 {
 	check(LevelInstanceEdit.Get() == GetLevelInstanceEdit(LevelInstanceActor));
 	check(CanCommitLevelInstance(LevelInstanceActor));
-	return CommitLevelInstanceInternal(LevelInstanceEdit, bDiscardEdits, bPromptForSave, DirtyPackages);
+	ALevelInstance* CommittedLevelInstance = CommitLevelInstanceInternal(LevelInstanceEdit, bDiscardEdits, bPromptForSave, DirtyPackages);
+
+	ILevelInstanceEditorModule& EditorModule = FModuleManager::GetModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+	EditorModule.DeactivateEditorMode();
+
+	return CommittedLevelInstance;
 }
 
 ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, bool bPromptForSave, TSet<FName>* DirtyPackages)
@@ -1776,8 +1800,6 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 	BlockOnLoading();
 
 	GEngine->BroadcastLevelActorListChanged();
-
-	UpdateEngineShowFlags();
 
 	return GetLevelInstance(LevelInstanceID);
 }
