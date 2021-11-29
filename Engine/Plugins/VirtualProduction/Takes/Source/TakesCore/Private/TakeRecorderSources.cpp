@@ -516,7 +516,11 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, const
 	CreatedManifestSerializers.Empty();
 	CachedManifestSerializer = nullptr;
 	CachedLevelSequence = nullptr;
-	ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
+
+	if (GEditor && AssetsToCleanUp.Num() > 0)
+	{
+		ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
+	}
 }
 
 ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName)

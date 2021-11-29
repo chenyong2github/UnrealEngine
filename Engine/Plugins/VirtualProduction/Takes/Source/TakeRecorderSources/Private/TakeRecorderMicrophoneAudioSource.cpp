@@ -252,8 +252,11 @@ TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(U
 	CachedAudioTrack = nullptr;
 	RecordedSoundWaves.Empty();
 	
-	ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
-	
+	if (GEditor && AssetsToCleanUp.Num() > 0)
+	{
+		ObjectTools::ForceDeleteObjects(AssetsToCleanUp, false);
+	}
+
 	return TArray<UTakeRecorderSource*>();
 }
 
