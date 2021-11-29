@@ -13,6 +13,7 @@
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 class FEditorViewportClient;
+class FAssetEditorModeManager;
 class FToolCommandChange;
 class IUVUnwrapDynamicMesh;
 class UMeshElementsVisualizer;
