@@ -16,6 +16,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Images/SImage.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
 #include "UVEditorModeUILayer.h"
