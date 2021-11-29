@@ -2224,6 +2224,38 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 				GetBuildSettingsForRunningPlatform(*this, ETextureEncodeSpeed::Final, BuildSettingsFetchOrBuild, &ResultMetadataFetchOrBuild);
 			}
 
+			// If we're open in a texture editor, then we might have custom build settings.
+			if (TextureEditorCustomEncoding.IsValid())
+			{
+				TSharedPtr<FTextureEditorCustomEncode> CustomEncoding = TextureEditorCustomEncoding.Pin();
+				if (CustomEncoding.IsValid() && // (threading) could have been destroyed between weak ptr IsValid and Pin
+					CustomEncoding->bUseCustomEncode)
+				{
+					// If we are overriding, we don't want to have a fetch first, so just set our encode
+					// speed to whatever we already have staged, then set those settings to the custom
+					// ones.
+					EncodeSpeed = (ETextureEncodeSpeed)BuildSettingsFetchOrBuild[0].RepresentsEncodeSpeedNoSend;
+
+					for (int32 i = 0; i < BuildSettingsFetchOrBuild.Num(); i++)
+					{
+						FTextureBuildSettings& BuildSettings = BuildSettingsFetchOrBuild[i];
+						FTexturePlatformData::FTextureEncodeResultMetadata& ResultMetadata = ResultMetadataFetchOrBuild[i];
+
+						BuildSettings.OodleRDO = CustomEncoding->OodleRDOLambda;
+						BuildSettings.bOodleUsesRDO = CustomEncoding->OodleRDOLambda ? true : false;
+						BuildSettings.OodleEncodeEffort = CustomEncoding->OodleEncodeEffort;
+						BuildSettings.OodleUniversalTiling = CustomEncoding->OodleUniversalTiling;
+
+						ResultMetadata.OodleRDO = CustomEncoding->OodleRDOLambda;
+						ResultMetadata.OodleEncodeEffort = CustomEncoding->OodleEncodeEffort;
+						ResultMetadata.OodleUniversalTiling = CustomEncoding->OodleUniversalTiling;
+						ResultMetadata.EncodeSpeed = (uint8)EncodeSpeed;
+
+						ResultMetadata.bWasEditorCustomEncoding = true;
+					}
+				}
+			}
+
 			check(BuildSettingsFetchOrBuild.Num() == Source.GetNumLayers());
 
 			// The only time we don't cache is if we a) have existing data and b) it matches what we want.

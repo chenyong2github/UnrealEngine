@@ -680,6 +680,11 @@ struct FTexturePlatformData
 		// the various Oodle specific values right now.)
 		bool bSupportsEncodeSpeed = false;
 
+		// If true, then the encoding settings were overridden in the texture editor
+		// for encoding experimentation, and thus RDOSource and EncodeSpeed should 
+		// be ignored.
+		bool bWasEditorCustomEncoding = false;
+
 		enum class OodleRDOSource : uint8
 		{
 			Default,	// We defaulted back to the project settings
@@ -1178,6 +1183,9 @@ public:
 	/** Indicates ImportCustomProperties has been called (set in ImportCustomProperties, unset in the subsequent PostEditChange) */
 	uint8 bCustomPropertiesImported : 1;
 
+	// When we are open in an asset editor, we have a pointer to a custom encoding
+	// object which can optionally cause us to do something other than Fast/Final encode settings.
+	TWeakPtr<class FTextureEditorCustomEncode> TextureEditorCustomEncoding;
 #endif // WITH_EDITORONLY_DATA
 
 	/** If true, the RHI texture will be created using TexCreate_NoTiling */

@@ -46,6 +46,7 @@ public class TextureEditor : ModuleRules
 				"UnrealEd",
                 "PropertyEditor",
 				"MediaUtils",
+				"EditorWidgets",
 				"MediaAssets"
 			}
 		);

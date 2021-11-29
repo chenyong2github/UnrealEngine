@@ -403,6 +403,28 @@ private:
 	FRotator VolumeOrientation;
 
 	bool bIsVolumeTexture;
+
+	// Objects and callbacks for the custom encoding settings checkbox
+	TSharedPtr<class SCheckBox> OodleOverrideCheck;
+	void OnUseEditorOodleSettingsChanged(ECheckBoxState NewState);
+	ECheckBoxState UseEditorOodleSettingsChecked() const;
+
+	// callback for enabling custom encoding sub-controls
+	bool EditorOodleSettingsEnabled() const;
+
+	// accessor callbacks for custom encoding sub controls
+	int32 GetEditorOodleSettingsEffort() const;
+	void EditorOodleSettingsEffortChanged(int32 NewValue, ESelectInfo::Type SelectionType);
+	TOptional<int32> GetEditorOodleSettingsRDO() const;
+	void EditorOodleSettingsRDOCommitted(int32 NewValue, ETextCommit::Type CommitType);
+	int32 GetEditorOodleSettingsTiling() const;
+	void EditorOodleSettingsTilingChanged(int32 NewValue, ESelectInfo::Type SelectionType);
+
+public:
+	// These are on a separate object so then engine can share the type without needing
+	// our module.
+	TSharedPtr<class FTextureEditorCustomEncode> CustomEncoding;
+
 private:
 
 	// Tab names
