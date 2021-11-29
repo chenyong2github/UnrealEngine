@@ -19,7 +19,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
 
 class FAssetPackageData;
-class FCbWriter;
+class FBlake3;
 class FPackagePath;
 class FSharedBuffer;
 class IAssetRegistry;
@@ -51,7 +51,7 @@ struct FClassDigestData
 {
 public:
 	FBlake3Hash SchemaHash;
-	TArray<FGuid> CustomVersionGuids;
+	TArray<int32> CustomVersionHandles;
 	bool bNative = false;
 	/** EditorDomainEnabled allows everything and uses only a blocklist, so DomainUse by default is enabled. */
 	EDomainUse EditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
@@ -79,7 +79,7 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 	TArray<FGuid>* OutCustomVersions = nullptr);
 /** Appends the fields to calculate the packagedigest; call Builder.Save().GetRangeHash() to get digest. */
 EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FCbWriter& Builder, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage,
+	FBlake3& Builder, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage,
 	TArray<FGuid>* OutCustomVersions = nullptr);
 
 /** For any ClassNames not already in ClassDigests, look up their UStruct and add them. */
