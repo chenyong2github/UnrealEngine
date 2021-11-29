@@ -200,6 +200,11 @@ public:
 	 */
 	TArray<FString> GatherSandboxChangedFilenames() const;
 
+	/**
+	 * Returns true if the given package file exists on non sandbox path.
+	 */
+	bool DeletedPackageExistsInNonSandbox(FString InFilename) const;
+
 private:
 	struct FDirectoryItem
 	{

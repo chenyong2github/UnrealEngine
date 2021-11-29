@@ -606,23 +606,19 @@ bool FConcertWorkspaceUI::PromptPersistSessionChanges()
 	if (ClientWorkspacePin.IsValid())
 	{
 		// Get source control status of packages 
-		TArray<FName> PackageNames;
 		TArray<FString> PackageFilenames;
+		TArray<FName> PackageNames;
 		TArray<FSourceControlStateRef> States;
-		PackageNames = ClientWorkspacePin->GatherSessionChanges();
-		FString Filename;
-		for (auto It = PackageNames.CreateIterator(); It; ++It)
+		TArray<FName> CandidatePackages = ClientWorkspacePin->GatherSessionChanges();
+		for (FName PackageName : CandidatePackages)
 		{
-			if (FPackageName::DoesPackageExist(It->ToString(), &Filename))
+			if (TOptional<FString> PackagePath = ClientWorkspacePin->GetValidPackageSessionPath(PackageName))
 			{
-				PackageFilenames.Add(FPaths::ConvertRelativePathToFull(MoveTemp(Filename)));
-			}
-			// if the package file does not exist locally, remove it from the persist list, the db contains transaction data on file not propagated through Multi-User.
-			else
-			{
-				It.RemoveCurrent();
+				PackageFilenames.Add(PackagePath.GetValue());
+				PackageNames.Add(PackageName);
 			}
 		}
+
 		ECommandResult::Type Result = ISourceControlModule::Get().GetProvider().GetState(PackageFilenames, States, EStateCacheUsage::ForceUpdate);
 		// The dummy Multi-User source control provider always succeed and always return proxy states.
 		ensure(Result == ECommandResult::Succeeded);
@@ -633,7 +629,7 @@ bool FConcertWorkspaceUI::PromptPersistSessionChanges()
 			PersistItems.Add(MakeShared<FConcertPersistItem>(PackageNames[Index], States[Index]));
 		}
 	}
-	
+
 	TSharedRef<SWindow> NewWindow = SNew(SWindow)
 		.Title(LOCTEXT("PersistSubmitWindowTitle", "Persist & Submit Files"))
 		.SizingRule(ESizingRule::UserSized)

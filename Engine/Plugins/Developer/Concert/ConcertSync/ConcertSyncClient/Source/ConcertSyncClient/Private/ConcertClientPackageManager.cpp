@@ -288,6 +288,50 @@ bool FConcertClientPackageManager::HasSessionChanges() const
 	return bHasSessionChanges;
 }
 
+TOptional<FString> FConcertClientPackageManager::GetValidPackageSessionPath(FName PackageName) const
+{
+#if WITH_EDITOR
+	FString Filename;
+	if (FPackageName::DoesPackageExist(PackageName.ToString(), &Filename))
+	{
+		return Filename;
+	}
+	return GetDeletedPackagePath(PackageName);
+#else
+	return {};
+#endif
+}
+
+TOptional<FString> FConcertClientPackageManager::GetDeletedPackagePath(FName PackageName) const
+{
+#if WITH_EDITOR
+	check(SandboxPlatformFile.IsValid());
+	FConcertSandboxPlatformFile* PlatformFile = SandboxPlatformFile.Get();
+	auto ShouldPersistPackageWithExtension = [PlatformFile](const FString& PackageName, const FString& Extension) -> TOptional<FString>
+	{
+		FString FullPath;
+		if (FPackageName::TryConvertLongPackageNameToFilename(PackageName, FullPath, Extension))
+		{
+			if (PlatformFile->DeletedPackageExistsInNonSandbox(FullPath))
+			{
+				return MoveTemp(FullPath);
+			}
+		}
+		return {};
+	};
+	FString PackageNameAsString = PackageName.ToString();
+	if (TOptional<FString> AsMap = ShouldPersistPackageWithExtension(PackageNameAsString, FPackageName::GetMapPackageExtension()))
+	{
+		return AsMap;
+	}
+	if (TOptional<FString> AsAsset = ShouldPersistPackageWithExtension(PackageNameAsString, FPackageName::GetAssetPackageExtension()))
+	{
+		return AsAsset;
+	}
+#endif
+	return {};
+}
+
 bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
 {
 #if WITH_EDITOR
@@ -295,12 +339,11 @@ bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FName>
 	{
 		// Transform all the package names into actual filenames
 		TArray<FString, TInlineAllocator<8>> FilesToPersist;
-		FString Filename;
 		for (const FName& PackageName : InPackagesToPersist)
 		{
-			if (FPackageName::DoesPackageExist(PackageName.ToString(), &Filename))
+			if (TOptional<FString> ValidPath = GetValidPackageSessionPath(PackageName))
 			{
-				FilesToPersist.Add(MoveTemp(Filename));
+				FilesToPersist.Add(MoveTemp(ValidPath.GetValue()));
 			}
 		}
 		return SandboxPlatformFile->PersistSandbox(FilesToPersist, SourceControlProvider, OutFailureReasons);

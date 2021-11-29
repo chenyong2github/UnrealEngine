@@ -39,6 +39,7 @@ public:
 	virtual TFuture<FConcertResourceLockResponse> UnlockResources(TArray<FName> InResourceNames) override;
 	virtual bool HasSessionChanges() const override;
 	virtual TArray<FName> GatherSessionChanges(bool IgnorePersisted = true) override;
+	virtual TOptional<FString> GetValidPackageSessionPath(FName PackageName) const override;
 	virtual bool PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr) override;
 	virtual bool HasLiveTransactionSupport(UPackage* InPackage) const override;
 	virtual bool ShouldIgnorePackageDirtyEvent(class UPackage* InPackage) const override;

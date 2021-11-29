@@ -276,6 +276,17 @@ TArray<FName> FConcertClientWorkspace::GatherSessionChanges(bool IgnorePersisted
 	return SessionChangedPackageNames.Array();
 }
 
+TOptional<FString> FConcertClientWorkspace::GetValidPackageSessionPath(FName PackageName) const
+{
+#if WITH_EDITOR
+	if (PackageManager)
+	{
+		return PackageManager->GetValidPackageSessionPath(MoveTemp(PackageName));
+	}
+#endif
+	return {};
+}
+
 bool FConcertClientWorkspace::PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
 {
 	bool bSuccess = false;
