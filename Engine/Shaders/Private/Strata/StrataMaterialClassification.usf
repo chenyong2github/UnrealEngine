@@ -26,6 +26,7 @@ int TileSize;
 int bRectPrimitive;
 int2 ViewResolution;
 uint MaxBytesPerPixel;
+Texture2D<uint> TopLayerTexture;
 Texture2DArray<uint> MaterialTextureArray;
 RWBuffer<uint> SimpleTileIndirectDataBuffer;
 RWBuffer<uint> SimpleTileListDataBuffer;
@@ -54,10 +55,11 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	if (all(PixelCoord < uint2(ViewResolution)))
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
-		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(MaterialTextureArray, StrataAddressing, TopLayerTexture);
 
+		const bool bIsSimple = IsSimpleMaterial(StrataPixelHeader) || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
 		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
-		bContainsComplexMaterial = !IsSimpleMaterial(StrataPixelHeader);
+		bContainsComplexMaterial = !bIsSimple;
 	}
 
 #if PERMUTATION_WAVE_OPS
@@ -212,7 +214,6 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// The first layer of tiled uints contains the header that we need to clear so we only write a single uint per pixel instead of clearing the entire buffer which would be too slow.
 
 	FStrataPixelHeader StrataHeader = InitialiseStrataPixelHeader();
-	StrataHeader.State |= HEADER_MASK_ISSIMPLEMATERIAL;
 	uint BSDFCount = 0;
 	uint PackedStrataHeader = PackStrataHeader(BSDFCount, StrataHeader);
 

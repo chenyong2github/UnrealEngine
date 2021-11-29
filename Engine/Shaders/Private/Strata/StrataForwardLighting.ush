@@ -66,8 +66,7 @@ float3 StrataForwardLightingCommon(
 		GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
 			LightData, AbsoluteWorldPosition, ToLight, LightAttenuation, Dither, ShadowTerms);
 
-		float Roughness = 0;
-		StrataGetBSDFRoughness(StrataBSDFContext.BSDF, Roughness);
+		float Roughness = StrataGetBSDFRoughness(StrataBSDFContext.BSDF);
 		FAreaLightIntegrateContext AreaLightContext = InitAreaLightIntegrateContext();
 		BRANCH
 		if (ShadowTerms.SurfaceShadow + ShadowTerms.TransmissionShadow > 0)
@@ -302,8 +301,7 @@ float3 StrataForwardLighting(
 				float DiffOcclusion = MaterialAO;
 				float SpecOcclusion = MaterialAO;
 				float3 BentNormal = StrataBSDFContext.N;
-				float Roughness = 0;
-				StrataGetBSDFRoughness(BSDF, Roughness);
+				float Roughness = StrataGetBSDFRoughness(BSDF);
 				ApplyBentNormal(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness, BentNormal, DiffOcclusion, SpecOcclusion);
 
 				// Update a context specific for environment lighting

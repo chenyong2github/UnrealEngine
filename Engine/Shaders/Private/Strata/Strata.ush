@@ -120,6 +120,45 @@ struct FStrataBSDF
 	float4 VGPRs[5];
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Storage layouts
+// ---------------
+// 2 types of storages layout:
+// * Complex: store many (mixed) BSDFs
+// * Fast   : store a single Slab BSDF with no extra feature
+// 
+// Header State (8bits):
+// * ISSIMPLEMATERIAL			
+// * HASPRECSHADOWMASK			
+// * ZEROPRECSHADOWMASK			
+// * CASTCONTACTSHADOW			
+// * HASDYNINDIRECTSHADOWCASTER	
+// * ISSINGLELAYERWATER			
+// * HASSUBSURFACE				
+// * HASSUBSURFACEPROFILE
+// 
+// * Complex: -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+//            HEADER        31 |  State | AO | BSDF Count | BSDF Types | Basis count | Basis type |
+//                             |  8       8    4            4            3             4           
+//            BASIS(0)      32 |  Normal: Oct 16/16 | Tangent: 11/11/10
+//            BASIS(1)      32 |  Normal: Oct 16/16 | Tangent: 11/11/10
+//			  ...			   |
+//            STATE(0)      17 |  BSDF Type | Normal Id | Aniso | TopLayer | SSS | SSSProfile | GreyWeigh | Haze | F90 | ThinFilm | Simple vol. | MFP Plugged | Fuzz | Thin
+//                             |  3           2           1       1          1     1            1           1      1     1          1             1             1      1 
+//            BSDF(0)       ?? |  Adaptive
+//            STATE(1)      17 |  BSDF Type | Normal Id | Aniso | TopLayer | SSS | SSSProfile | GreyWeigh | Haze | F90 | ThinFilm | Simple vol. | MFP Plugged | Fuzz | Thin
+//                             |  3           2           1       1          1     1            1           1      1     1          1             1             1      1 
+//            BSDF(1)       ?? |  Adaptive
+//			  ...			   |
+// * Fast   : -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
+//            HEADER	    29 | State | A0 | Roughness | DiffuseAbedo(8/20)
+//                             | 8       8    8           8
+//            BASIS(0)       0 | (Use top layer normal)
+//            STATE(0)	     0 | 
+//            BSDF(0)       32 | F0_RGB | DiffuseAbedo(12/20)
+//                             | 20       12
+//            -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Bit utils functions
@@ -161,6 +200,9 @@ struct FStrataBSDF
 #define HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE		(HEADER_BIT_OFFSET_SHAREDLOCALBASES_COUNT	+ HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT)
 
 #define HEADER_MASK_SHADINGMODELS					(((1u<<HEADER_BIT_COUNT_SHADINGMODELS)-1) << HEADER_BIT_OFFSET_SHADINGMODELS)
+
+#define HEADER_FASTENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_AO)
+#define HEADER_FASTENCODING_MASK					((1u<<HEADER_FASTENCODING_BIT_COUNT)-1u)
 
 // Sanity check
 #if (HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE + HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE) > 32
@@ -832,7 +874,8 @@ struct FStrataPixelHeader
 #else
 	FStrataMaterialContainer StrataBuffer;
 	uint SharedLocalBasesIndexOffset;
-	uint SharedLocalBasesTypes;
+	uint SharedLocalBasesTypes_PackedHeader; // Stores SharedLocalBasesTypes for non-simple material, and PackedHeader data for simple material
+	uint PackedTopLayerData;
 #endif
 
 	float MaterialAO;
@@ -846,7 +889,7 @@ bool HasZeroPrecShadowMask(const FStrataPixelHeader In)										{ return (In.St
 bool IsSingleLayerWater(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_ISSINGLELAYERWATER) != 0; }
 bool DoesCastContactShadow(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_CASTCONTACTSHADOW) != 0; }
 uint GetShadingModels(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS)>>HEADER_BIT_OFFSET_SHADINGMODELS; }
-bool IsStrataMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS) > 0; }
+bool IsStrataMaterial(const FStrataPixelHeader In)											{ return (In.State & HEADER_MASK_SHADINGMODELS) > 0 || IsSimpleMaterial(In); }
 bool HasSubsurface(const FStrataPixelHeader In)												{ return (In.State & HEADER_MASK_HASSUBSURFACE) != 0; }
 bool HasSubsurfaceProfile(const FStrataPixelHeader In)										{ return (In.State & HEADER_MASK_HASSUBSURFACEPROFILE) != 0; }
 bool HasDynamicIndirectShadowCasterRepresentation(const FStrataPixelHeader In)				{ return (In.State & HEADER_MASK_HASDYNINDIRECTSHADOWCASTER) != 0; }
@@ -863,7 +906,7 @@ void SetHasSubsurface(inout FStrataPixelHeader Out, bool bIn)								{ Out.State
 void SetHasSubsurfaceProfile(inout FStrataPixelHeader Out, bool bIn)						{ Out.State |= (bIn ? HEADER_MASK_HASSUBSURFACEPROFILE : 0u); }
 
 void AddShadingModels(inout FStrataPixelHeader Out, uint bIn)								{ Out.State |= ((bIn<<HEADER_BIT_OFFSET_SHADINGMODELS) & HEADER_MASK_SHADINGMODELS); }
-void AndIsSimpleMaterial(inout FStrataPixelHeader Out, bool bIn)								{ Out.State = (Out.State & ~HEADER_MASK_ISSIMPLEMATERIAL) | ((Out.State & HEADER_MASK_ISSIMPLEMATERIAL) & (bIn ? HEADER_MASK_ISSIMPLEMATERIAL : 0u)); }
+void AndIsSimpleMaterial(inout FStrataPixelHeader Out, bool bIn)							{ Out.State = (Out.State & ~HEADER_MASK_ISSIMPLEMATERIAL) | ((Out.State & HEADER_MASK_ISSIMPLEMATERIAL) & (bIn ? HEADER_MASK_ISSIMPLEMATERIAL : 0u)); }
 
 FStrataPixelHeader InitialiseStrataPixelHeader()
 {
@@ -873,7 +916,8 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.SharedLocalBases = (FSharedLocalBases)0;
 #else
 	Out.SharedLocalBasesIndexOffset = 0;
-	Out.SharedLocalBasesTypes = 0;
+	Out.SharedLocalBasesTypes_PackedHeader = 0;
+	Out.PackedTopLayerData = 0;
 #endif
 	Out.MaterialAO = 1.0f;
 	Out.State = 0;
@@ -889,10 +933,14 @@ float3x3 StrataGetBSDFSharedBasis(in FStrataPixelHeader StrataPixelHeader, in FS
 	float3 Bitangent = cross(Normal, Tangent);
 	return float3x3(Tangent, Bitangent, Normal);
 #else
+	if (IsSimpleMaterial(StrataPixelHeader))
+	{		
+		return GetTangentBasis(StrataUnpackTopLayerData(StrataPixelHeader.PackedTopLayerData).WorldNormal);
+	}
 
 	uint PackedBasis = StrataPixelHeader.StrataBuffer[uint3(StrataAddressing.PixelCoords, StrataPixelHeader.SharedLocalBasesIndexOffset + BSDF_GETSHAREDLOCALBASISID(BSDF))];
 
-	uint BasisType   = StrataGetSharedLocalBasisType(StrataPixelHeader.SharedLocalBasesTypes, BSDF_GETSHAREDLOCALBASISID(BSDF));
+	uint BasisType   = StrataGetSharedLocalBasisType(StrataPixelHeader.SharedLocalBasesTypes_PackedHeader, BSDF_GETSHAREDLOCALBASISID(BSDF));
 	float3x3 OutTangentBasis;
 	if (BasisType == STRATA_BASIS_TYPE_NORMAL)
 	{
@@ -1833,6 +1881,8 @@ void PackStrataOut(
 
 	SetIsSimpleMaterial(StrataPixelHeader, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
 
+	uint SimpleMaterial_LayerIndex = 0;
+	uint SimpleMaterial_BSDFIndex = 0;
 	uint BSDFCount = 0;
 	uint BSDFVisibleCount = 0;
 	float3 Throughput = 1.0f;
@@ -2014,6 +2064,12 @@ void PackStrataOut(
 					// together with a threshold to avoid 0-length normal after normalization in case influence is fadeout using the Weight node.
 					TopLayerData.WorldNormal += N * max(1e-5, BSDFCoverage);
 				}
+
+				if (bIsSimpleMaterial)
+				{
+					SimpleMaterial_LayerIndex = l;
+					SimpleMaterial_BSDFIndex = i;
+				}
 			}
 
 			// Notify that the BSDF is at the top for SSR to only affect reflection there and not on the lower layers
@@ -2036,11 +2092,51 @@ void PackStrataOut(
 		// And combine this layer throughtput with he material throughput
 		Throughput *= LayerThroughput;
 	}
+	AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
 
 	// Now write out Strata data
 
+	///////////////////////////////////////////////////////////////////////////
+	// A. Fast encoding
+	const bool bHasFastEncoding = IsSimpleMaterial(StrataPixelHeader);
+	if (bHasFastEncoding)
+	{		
+		FStrataBSDF BSDF = Strata.Layers[SimpleMaterial_LayerIndex].BSDFs[SimpleMaterial_BSDFIndex];
+
+		// Now we pack diffuse and F0 in a special way: both encoded as R7G7B6 with gamma 2.0. The low bit cound will be hidden by dithering and TAA.
+		// We pack 32 bits in the first uint and the remaining bits are pack is the lowest significant bit of the second uint.
+		const uint PackedDiffuse20Bits	= PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF));
+		const uint PackedDiffuse12Bits	= PackedDiffuse20Bits & 0xFFF;
+		const uint PackedDiffuse8Bits	= (PackedDiffuse20Bits>>12) & 0xFF;
+		const uint PackedF020Bits		= PackR7G7B6Gamma2(SLAB_F0(BSDF));
+		const uint PackedRoughness8bits = PackR8(SLAB_ROUGHNESS(BSDF));
+
+		// Data0 (State|AO|Roughness|Diffuse8bits)
+		{
+			uint Out = 0;
+			HEADER_SETSTATE(Out, StrataPixelHeader.State);
+			HEADER_SETAO(Out, PackR8(StrataPixelHeader.MaterialAO));
+
+			uint Packed16 = (PackedDiffuse8Bits << 8) | PackedRoughness8bits;
+			Out = (Out & HEADER_FASTENCODING_MASK) | (Packed16 << HEADER_FASTENCODING_BIT_COUNT);
+			STRATA_STORE_UINT1(Out);
+
+			#if (HEADER_FASTENCODING_BIT_COUNT + 16) > 32
+			#error Strata fast path header is > 32bits
+			#endif
+		}
+		// Data1 (F0|Diffuse12bits)
+		{
+			uint Out = PackedF020Bits | (PackedDiffuse12Bits << 20);
+			STRATA_STORE_UINT1(Out);
+		}
+	}
+	///////////////////////////////////////////////////////////////////////////
+	// B. Regular/Complex encoding
+	else // (!bHasFastEncoding)
+	{
+
 	// 1. the header
-	AndIsSimpleMaterial(StrataPixelHeader, BSDFVisibleCount == 1);
 	const uint PackedHeader = PackStrataHeader(BSDFVisibleCount, StrataPixelHeader);
 	STRATA_STORE_UINT1(PackedHeader);
 
@@ -2180,6 +2276,7 @@ void PackStrataOut(
 			}
 		}
 	}
+	} // if (bHasFastEncoding)
 
 	FinalizeWrites(StrataBuffer, StrataAddressing);
 
@@ -2205,32 +2302,54 @@ uint PackStrataHeader(uint InBSDFCount, FStrataPixelHeader InHeader)
 
 // Unpack only strata header
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
-FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
+FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, Texture2D<uint> InStrataTopLayerTexture)
 {
 	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
 
 	uint PackedHeader = StrataLoadUint1(StrataBuffer, StrataAddressing);
-	Out.BSDFCount    = HEADER_GETBSDFCOUNT(PackedHeader);
-	uint SharedLocalBasesCount = HEADER_GETSHAREDLOCALBASESCOUNT(PackedHeader);
-	uint SharedLocalBasesTypes = HEADER_GETSHAREDLOCALBASESTYPE(PackedHeader);
+	Out.State		= HEADER_GETSTATE(PackedHeader);
+	Out.MaterialAO	= UnpackR8(HEADER_GETAO(PackedHeader));
+	Out.BSDFCount   = HEADER_GETBSDFCOUNT(PackedHeader);
 
-	Out.MaterialAO = UnpackR8(HEADER_GETAO(PackedHeader));
-	Out.State = HEADER_GETSTATE(PackedHeader);
+	const bool bIsSimpleMaterial = (PackedHeader & HEADER_MASK_ISSIMPLEMATERIAL) > 0;
 
-#if STRATA_INLINE_SHADING==0
+	// Use fast path for decoding data
+	BRANCH
+	if (bIsSimpleMaterial)
+	{
+		Out.BSDFCount	= 1;
 
-	Out.StrataBuffer = StrataBuffer;
-	Out.SharedLocalBasesTypes = SharedLocalBasesTypes;
+		// Clear shading model, and ensurewe have only STRATA_BSDF_TYPE_SLAB
+		Out.State = Out.State & (~HEADER_MASK_SHADINGMODELS);
+		HEADER_SETSHADINGMODELS(Out.State, StrataShadingModelBit(STRATA_BSDF_TYPE_SLAB));
 
-	// Only keep the offset to the shared local bases memory. We are going to load them on demand.
-	Out.SharedLocalBasesIndexOffset = StrataAddressing.CurrentIndex;
+	#if STRATA_INLINE_SHADING==0
+		Out.StrataBuffer = StrataBuffer;
+		Out.SharedLocalBasesTypes_PackedHeader = PackedHeader;
+		Out.PackedTopLayerData = InStrataTopLayerTexture.Load(uint3(StrataAddressing.PixelCoords, 0));
+		Out.SharedLocalBasesIndexOffset = 0; // Unused
+	  #endif
+	}
+	else
+	{
+		uint SharedLocalBasesCount = HEADER_GETSHAREDLOCALBASESCOUNT(PackedHeader);
+		uint SharedLocalBasesTypes = HEADER_GETSHAREDLOCALBASESTYPE(PackedHeader);
 
-	// Now skip over the shared local basis memory to be able to load the BSDF content
-	StrataAddressing.CurrentIndex += SharedLocalBasesCount;
+	#if STRATA_INLINE_SHADING==0
+		Out.StrataBuffer = StrataBuffer;
+		Out.SharedLocalBasesTypes_PackedHeader = SharedLocalBasesTypes;
+		Out.PackedTopLayerData = 0;
 
-	// And account for the space used by normal for the debug information
-	StrataAddressing.ReadBytes += SharedLocalBasesCount * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
-#endif
+		// Only keep the offset to the shared local bases memory. We are going to load them on demand.
+		Out.SharedLocalBasesIndexOffset = StrataAddressing.CurrentIndex;
+
+		// Now skip over the shared local basis memory to be able to load the BSDF content
+		StrataAddressing.CurrentIndex += SharedLocalBasesCount;
+
+		// And account for the space used by normal for the debug information
+		StrataAddressing.ReadBytes += SharedLocalBasesCount * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
+	#endif
+	}
 
 	return Out;
 }
@@ -2255,19 +2374,27 @@ void UnpackFastPathSlabBSDF(inout FStrataBSDF OutBSDF, uint2 PackedData01)
 	SLAB_ANISOTROPY(OutBSDF)	= Data1.z * 2.f - 1.f;
 }
 
-FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
+FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, FStrataPixelHeader StrataPixelHeader)
 {
-	FStrataBSDF OutBSDF = (FStrataBSDF)0; 
+	FStrataBSDF OutBSDF = (FStrataBSDF)0;
 
-	OutBSDF.State = StrataLoadUint1(StrataBuffer, StrataAddressing);
+#if STRATA_INLINE_SHADING==0
+	uint Data0 = StrataPixelHeader.SharedLocalBasesTypes_PackedHeader;
+	uint Data1 = StrataLoadUint1(StrataBuffer, StrataAddressing);
+	OutBSDF.State = 0;
+	OutBSDF.FinalWeight = 1.0f;
 
-	// In the fast path the single slab BSDF is always on top so the weight must be grey scale.
-	OutBSDF.FinalWeight = Unpack10F(BSDF_GETWEIGHT10F(OutBSDF));
+	const uint PackedRoughness8bits = 0xFF    & (Data0 >>  HEADER_FASTENCODING_BIT_COUNT);
+	const uint PackedData8Bits		= 0xFF    & (Data0 >> (HEADER_FASTENCODING_BIT_COUNT + 8));
+	const uint PackedData12Bits		= 0xFFF   & (Data1 >> 20);
+	const uint PackedF020Bits		= 0xFFFFF & (Data1);
+	const uint PackedDiffuse20Bits	= PackedData12Bits | (PackedData8Bits<<12);
 
-	// Now unpack the simple Slab BSDF
-	uint DataX = StrataLoadUint1(StrataBuffer, StrataAddressing);
-	uint DataY = StrataLoadUint1(StrataBuffer, StrataAddressing);
-	UnpackFastPathSlabBSDF(OutBSDF, uint2(DataX, DataY));
+	SLAB_DIFFUSEALBEDO(OutBSDF)	= UnpackR7G7B6Gamma2(PackedDiffuse20Bits);
+	SLAB_F0(OutBSDF)			= UnpackR7G7B6Gamma2(PackedF020Bits);
+	SLAB_ROUGHNESS(OutBSDF)		= UnpackR8(PackedRoughness8bits);
+	SLAB_ANISOTROPY(OutBSDF)	= 0.0f;
+#endif
 
 	// This is convenient to not have to test BSDF_GETHASF90 all over the place in the code using the BSDF for such a core value.
 	SLAB_F90(OutBSDF) = 1.0f;
@@ -2275,6 +2402,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 	// Force a BSDF state to a single slab with isotropic specular, no subsurface scattering or any other options.
 	// This is to help the compiler understand disabled path.
 	BSDF_SETTYPE(OutBSDF, STRATA_BSDF_TYPE_SLAB);
+	BSDF_SETHASGREYWEIGHT(OutBSDF, 1);
 	BSDF_SETHASF90(OutBSDF, 0);
 	BSDF_SETHASANISOTROPY(OutBSDF, 0);
 	BSDF_SETISTOPLAYER(OutBSDF, 1);
@@ -2291,8 +2419,14 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 // Unpack a single BSDF
 // Note: All BSDF lobes needs to be unpack in a sequential manner since each BSDF has a variable footprint.
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
-FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
+FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, in FStrataPixelHeader StrataHeader)
 {
+	BRANCH
+	if (IsSimpleMaterial(StrataHeader))
+	{
+		return UnpackFastPathStrataBSDFIn(StrataBuffer, StrataAddressing, StrataHeader);
+	}
+
 	FStrataBSDF OutBSDF = (FStrataBSDF)0;
 
 	float DummyFloat = 0.0f;
