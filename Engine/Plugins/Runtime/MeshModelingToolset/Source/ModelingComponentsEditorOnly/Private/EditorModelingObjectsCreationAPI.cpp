@@ -16,7 +16,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Materials/Material.h"
 
-#include "ToolTargets/VolumeDynamicMeshToolTarget.h"  // for CVarModelingMaxVolumeTriangleCount
+#include "ToolTargets/VolumeComponentToolTarget.h"  // for CVarModelingMaxVolumeTriangleCount
 #include "Engine/BlockingVolume.h"
 #include "Components/BrushComponent.h"
 #include "Engine/Polys.h"

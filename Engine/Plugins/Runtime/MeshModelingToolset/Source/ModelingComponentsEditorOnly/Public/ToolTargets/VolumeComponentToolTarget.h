@@ -8,9 +8,12 @@
 #include "TargetInterfaces/DynamicMeshCommitter.h"
 #include "TargetInterfaces/DynamicMeshProvider.h"
 #include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PhysicsDataSource.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 
-#include "VolumeDynamicMeshToolTarget.generated.h"
+#include "VolumeComponentToolTarget.generated.h"
 
 /**
  * The CVar "modeling.VolumeMaxTriCount" is used as a cap on triangles that the various Modeling Mode
@@ -21,20 +24,20 @@
  */
 extern MODELINGCOMPONENTSEDITORONLY_API TAutoConsoleVariable<int32> CVarModelingMaxVolumeTriangleCount;
 
-
-struct FMeshDescription;
-
 /**
  * A tool target backed by AVolume
  */
 UCLASS(Transient)
-class MODELINGCOMPONENTSEDITORONLY_API UVolumeDynamicMeshToolTarget : public UPrimitiveComponentToolTarget,
-	public IDynamicMeshCommitter, public IDynamicMeshProvider, public IMaterialProvider
+class MODELINGCOMPONENTSEDITORONLY_API UVolumeComponentToolTarget : public UPrimitiveComponentToolTarget,
+	public IMaterialProvider, public IPhysicsDataSource,
+	public IDynamicMeshCommitter, public IDynamicMeshProvider,
+	public IMeshDescriptionCommitter, public IMeshDescriptionProvider
 {
 	GENERATED_BODY()
 
 public:
-	UVolumeDynamicMeshToolTarget();
+
+	UVolumeComponentToolTarget();
 
 	const UE::Conversion::FVolumeToMeshOptions& GetVolumeToMeshOptions() { return VolumeToMeshOptions; }
 
@@ -54,18 +57,33 @@ public:
 	// Doesn't actually do anything for a volume
 	virtual bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override { return false; }
 
+	// IMeshDescriptionProvider implementation
+	const FMeshDescription* GetMeshDescription() override;
+
+	// IMeshDescritpionCommitter implementation
+	virtual void CommitMeshDescription(const FCommitter& Committer) override;
+	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
+
+	// IPhysicsDataSource implementation
+	virtual UBodySetup* GetBodySetup() const override;
+	// always returns null because volumes do not support IInterface_CollisionDataProvider
+	virtual IInterface_CollisionDataProvider* GetComplexCollisionProvider() const override { return nullptr; }
+
 	// Rest provided by parent class
 
 protected:
-	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> ConvertedMeshDescription;
 	UE::Conversion::FVolumeToMeshOptions VolumeToMeshOptions;
 
-	friend class UVolumeDynamicMeshToolTargetFactory;
+	// This isn't for caching- we have to take ownership of the mesh description because it is
+	// expected for things like a static mesh.
+	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> ConvertedMeshDescription;
+
+	friend class UVolumeComponentToolTargetFactory;
 };
 
-/** Factory for UVolumeDynamicMeshToolTarget to be used by the target manager. */
+/** Factory for UVolumeComponentToolTarget to be used by the target manager. */
 UCLASS(Transient)
-class MODELINGCOMPONENTSEDITORONLY_API UVolumeDynamicMeshToolTargetFactory : public UToolTargetFactory
+class MODELINGCOMPONENTSEDITORONLY_API UVolumeComponentToolTargetFactory : public UToolTargetFactory
 {
 	GENERATED_BODY()
 

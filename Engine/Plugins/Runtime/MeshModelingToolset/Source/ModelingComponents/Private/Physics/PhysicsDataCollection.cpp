@@ -13,13 +13,13 @@ using namespace UE::Geometry;
 
 void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Component, bool bInitializeAggGeom)
 {
+	SourceComponent = Component;
 	BodySetup = nullptr;
 
 	if ( const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component) )
 	{
 		if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
 		{
-			SourceComponent = StaticMeshComponent;
 			SourceStaticMesh = StaticMesh;
 			BodySetup = StaticMesh->GetBodySetup();
 		}
