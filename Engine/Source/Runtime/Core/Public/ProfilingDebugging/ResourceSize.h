@@ -4,6 +4,9 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Containers/Map.h"
+
+class FName;
 
 /** Indicate what types of resources should be included for calculating used memory */
 namespace EResourceSizeMode
