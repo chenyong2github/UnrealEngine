@@ -50,6 +50,7 @@ public:
 	void Tick();
 	void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
 	void OnPackageDeleted(UPackage* Package);
+	void OnExitEditorMode();
 	void PackLevelInstances();
 	bool CanPackLevelInstances() const;
 
@@ -127,8 +128,9 @@ private:
 		FLevelInstanceID GetLevelInstanceID() const;
 	};
 
-	void EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive);
-	ALevelInstance* CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, bool bPromptForSave, TSet<FName>* DirtyPackages);
+	bool EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive);
+	ALevelInstance* CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits = false, bool bPromptForSave = true, TSet<FName>* DirtyPackages = nullptr);
+	
 	const FLevelInstanceEdit* GetLevelInstanceEdit(const ALevelInstance* LevelInstanceActor) const;
 	bool IsLevelInstanceEditDirty(const FLevelInstanceEdit* LevelInstanceEdit) const;
 	
@@ -147,15 +149,6 @@ private:
 	friend ULevelStreamingLevelInstance;
 	friend ULevelStreamingLevelInstanceEditor;
 	void RemoveLevelsFromWorld(const TArray<ULevel*>& Levels, bool bResetTrans = true);
-	void UpdateEngineShowFlags();
-#endif
-
-
-#if WITH_EDITORONLY_DATA
-	// Optional scope to accelerate level unload by batching them
-	TUniquePtr<FLevelsToRemoveScope> LevelsToRemoveScope;
-	
-	TUniquePtr<FLevelInstanceEdit> LevelInstanceEdit;
 #endif
 
 	struct FLevelInstance
@@ -167,7 +160,16 @@ private:
 	TSet<FLevelInstanceID> LevelInstancesToUnload;
 	TMap<FLevelInstanceID, FLevelInstance> LevelInstances;
 	TMap<FLevelInstanceID, ALevelInstance*> RegisteredLevelInstances;
+
+#if WITH_EDITORONLY_DATA
+	// Optional scope to accelerate level unload by batching them
+	TUniquePtr<FLevelsToRemoveScope> LevelsToRemoveScope;
+
+	TUniquePtr<FLevelInstanceEdit> LevelInstanceEdit;
+	bool bCreatingLevelInstance = false;
+
 	TMap<FObjectKey, FFolder::FRootObject> UnregisteringLevelInstanceLevels;
 	TMap<FFolder::FRootObject, FObjectKey > UnregisteringLevelInstances;
 	TMap<FLevelInstanceID, int32> ChildEdits;
+#endif
 };

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "LevelInstance/ILevelInstanceEditorModule.h"
+#include "Tools/Modes.h"
 
 class AActor;
 class ULevel;
@@ -26,10 +27,18 @@ public:
 	 */
 	virtual void ShutdownModule();
 
+	virtual void ActivateEditorMode() override;
+	virtual void DeactivateEditorMode() override;
+		
+	DECLARE_DERIVED_EVENT(FLevelInstanceEditorModule, ILevelInstanceEditorModule::FExitEditorModeEvent, FExitEditorModeEvent);
+	virtual FExitEditorModeEvent& OnExitEditorMode() override { return ExitEditorModeEvent; }
+
 private:
+	void OnEditorModeIDChanged(const FEditorModeID& InModeID, bool bIsEnteringMode);
 	void OnLevelActorDeleted(AActor* Actor);
-	void OnMapChanged(UWorld* World, EMapChangeType MapChangeType);
 	void CanMoveActorToLevel(const AActor* ActorToMove, const ULevel* DestLevel, bool& bOutCanMove);
 
 	void ExtendContextMenu();
+
+	FExitEditorModeEvent ExitEditorModeEvent;
 };

@@ -1,0 +1,44 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Tools/UEdMode.h"
+#include "Framework/Commands/UICommandList.h"
+#include "LevelInstanceEditorMode.generated.h"
+
+UCLASS()
+class ULevelInstanceEditorMode : public UEdMode
+{
+	GENERATED_BODY()
+public:
+	static FEditorModeID EM_LevelInstanceEditorModeId;
+
+	/** Constructor */
+	ULevelInstanceEditorMode();
+
+	/** Destructor */
+	virtual ~ULevelInstanceEditorMode();
+
+	// Begin UEdMode
+	virtual void Enter() override;
+	virtual void Exit() override;
+	virtual void CreateToolkit() override;
+	
+	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override { return true; }
+
+	/** Check to see if an actor can be selected in this mode - no side effects */
+	virtual bool IsSelectionDisallowed(AActor* InActor, bool bInSelection) const override;
+	
+	// End UEdMode
+
+private:
+	void UpdateEngineShowFlags();
+	virtual void BindCommands() override;
+
+	void ExitModeCommand();
+	void ToggleContextRestrictionCommand();
+	bool IsContextRestrictionCommandEnabled() const;
+
+	bool bContextRestriction;
+};
+
