@@ -100,6 +100,9 @@ namespace UsdUtils
 
 	/** Uses FindOrOpen to return the layer with the given identifier if possible. If the identifier is for an anonymous layer, it will search via display name instead */
 	USDUTILITIES_API UE::FSdfLayer FindLayerForIdentifier( const TCHAR* Identifier, const UE::FUsdStage& Stage );
+
+	/** Returns true if Layer is a session layer within Stage's layer stack */
+	USDUTILITIES_API bool IsSessionLayerWithinStage( const pxr::SdfLayerRefPtr& Layer, const pxr::UsdStageRefPtr& Stage );
 }
 
 #endif // #if USE_USD_SDK

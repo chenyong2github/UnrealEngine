@@ -636,6 +636,34 @@ UE::FSdfLayer UsdUtils::FindLayerForIdentifier( const TCHAR* Identifier, const U
 	return UE::FSdfLayer{};
 }
 
+bool UsdUtils::IsSessionLayerWithinStage( const pxr::SdfLayerRefPtr& Layer, const pxr::UsdStageRefPtr& Stage )
+{
+	if ( !Layer || !Stage )
+	{
+		return false;
+	}
+
+	pxr::SdfLayerRefPtr RootLayer = Stage->GetRootLayer();
+
+	const bool bIncludeSessionLayers = true;
+	for ( const pxr::SdfLayerHandle& ExistingLayer : Stage->GetLayerStack( bIncludeSessionLayers ) )
+	{
+		// All session layers come before the root layer within the layer stack
+		// Break before we compare with Layer because if Layer is the actual stage's RootLayer we want to return false
+		if ( ExistingLayer == RootLayer )
+		{
+			break;
+		}
+
+		if ( ExistingLayer == Layer )
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 #undef LOCTEXT_NAMESPACE
 
 #endif // #if USE_USD_SDK

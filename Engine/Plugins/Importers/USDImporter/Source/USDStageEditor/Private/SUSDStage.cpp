@@ -465,7 +465,18 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStage::OnSave ),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateLambda( [this]()
+				{
+					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						if ( UE::FUsdStage Stage = StageActor->GetUsdStage() )
+						{
+							return true;
+						}
+					}
+
+					return false;
+				})
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -479,7 +490,21 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStage::OnReloadStage ),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateLambda( [this]()
+				{
+					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						if ( UE::FUsdStage Stage = StageActor->GetUsdStage() )
+						{
+							if ( !Stage.GetRootLayer().IsAnonymous() )
+							{
+								return true;
+							}
+						}
+					}
+
+					return false;
+				})
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -491,7 +516,18 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStage::OnResetStage ),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateLambda( [this]()
+				{
+					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						if ( UE::FUsdStage Stage = StageActor->GetUsdStage() )
+						{
+							return true;
+						}
+					}
+
+					return false;
+				})
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -505,7 +541,18 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStage::OnClose ),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateLambda( [this]()
+				{
+					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						if ( UE::FUsdStage Stage = StageActor->GetUsdStage() )
+						{
+							return true;
+						}
+					}
+
+					return false;
+				})
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -524,7 +571,18 @@ void SUsdStage::FillActionsMenu( FMenuBuilder& MenuBuilder )
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStage::OnImport ),
-				FCanExecuteAction()
+				FCanExecuteAction::CreateLambda( [this]()
+				{
+					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+					{
+						if ( UE::FUsdStage Stage = StageActor->GetUsdStage() )
+						{
+							return true;
+						}
+					}
+
+					return false;
+				})
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
