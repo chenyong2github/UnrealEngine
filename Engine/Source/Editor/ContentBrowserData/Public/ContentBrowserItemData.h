@@ -612,7 +612,7 @@ public:
 	bool operator==(const FContentBrowserItemDataKey& InOther) const
 	{
 		return ItemType == InOther.ItemType
-			&& VirtualPath == InOther.VirtualPath;
+			&& VirtualPath.IsEqual(InOther.VirtualPath, ENameCase::CaseSensitive);
 	}
 
 	/**

@@ -3690,48 +3690,60 @@ namespace ObjectTools
 				{
 					// We can rename on top of an object redirection (basically destroy the redirection and put us in its place).
 					UPackage* NewPackage = CreatePackage( *FullPackageName );
-					NewPackage->GetOutermost()->FullyLoad();
 
-					// Make sure we copy all the cooked package flags if the asset was already cooked.
-					if (Object->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
-					{
-						NewPackage->SetPackageFlags(PKG_FilterEditorOnly);
-					}
-					NewPackage->bIsCookedForEditor = Object->GetOutermost()->bIsCookedForEditor;
-
-					// Renaming an asset should respect the export controls of the original.
-					if (Object->GetOutermost()->HasAnyPackageFlags(PKG_DisallowExport))
-					{
-						NewPackage->SetPackageFlags(PKG_DisallowExport);
-					}
-
-					// When renaming a World Composition map, make sure to properly initialize WorldTileInfo
-					if (Object->GetOutermost()->WorldTileInfo.IsValid())
-					{
-						NewPackage->WorldTileInfo = MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->WorldTileInfo);
-					}
-
-					UObjectRedirector* Redirector = Cast<UObjectRedirector>( StaticFindObject(UObjectRedirector::StaticClass(), NewPackage, *NewObjectName) );
 					bool bFoundCompatibleRedirector = false;
-					// If we found a redirector, check that the object it points to is of the same class.
-					if ( Redirector
-						&& Redirector->DestinationObject
-						&& Redirector->DestinationObject->GetClass() == Object->GetClass() )
-					{
-						// Test renaming the redirector into a dummy package.
-						if ( Redirector->Rename(*Redirector->GetName(), CreatePackage( TEXT("/Temp/TempRedirectors")), REN_Test) )
-						{
-							// Actually rename the redirector here so it doesn't get in the way of the rename below.
-							Redirector->Rename(*Redirector->GetName(), CreatePackage( TEXT("/Temp/TempRedirectors")), REN_DontCreateRedirectors);
+					UObjectRedirector* Redirector = nullptr;
 
-							bFoundCompatibleRedirector = true;
-						}
-						else
+					if (NewPackage != Object->GetPackage())
+					{
+						NewPackage->GetOutermost()->FullyLoad();
+
+						// Make sure we copy all the cooked package flags if the asset was already cooked.
+						if (Object->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
 						{
-							bMoveFailed = true;
-							bMoveRedirectorFailed = true;
+							NewPackage->SetPackageFlags(PKG_FilterEditorOnly);
+						}
+						NewPackage->bIsCookedForEditor = Object->GetOutermost()->bIsCookedForEditor;
+
+						// Renaming an asset should respect the export controls of the original.
+						if (Object->GetOutermost()->HasAnyPackageFlags(PKG_DisallowExport))
+						{
+							NewPackage->SetPackageFlags(PKG_DisallowExport);
+						}
+
+						// When renaming a World Composition map, make sure to properly initialize WorldTileInfo
+						if (Object->GetOutermost()->WorldTileInfo.IsValid())
+						{
+							NewPackage->WorldTileInfo = MakeUnique<FWorldTileInfo>(*Object->GetOutermost()->WorldTileInfo);
+						}
+
+						Redirector = Cast<UObjectRedirector>(StaticFindObject(UObjectRedirector::StaticClass(), NewPackage, *NewObjectName));
+						// If we found a redirector, check that the object it points to is of the same class.
+						if (Redirector
+							&& Redirector->DestinationObject
+							&& Redirector->DestinationObject->GetClass() == Object->GetClass())
+						{
+							// Test renaming the redirector into a dummy package.
+							if (Redirector->Rename(*Redirector->GetName(), CreatePackage(TEXT("/Temp/TempRedirectors")), REN_Test))
+							{
+								// Actually rename the redirector here so it doesn't get in the way of the rename below.
+								Redirector->Rename(*Redirector->GetName(), CreatePackage(TEXT("/Temp/TempRedirectors")), REN_DontCreateRedirectors);
+
+								bFoundCompatibleRedirector = true;
+							}
+							else
+							{
+								bMoveFailed = true;
+								bMoveRedirectorFailed = true;
+							}
 						}
 					}
+					else
+					{
+						bMoveFailed = true;
+						ErrorMessage += (NSLOCTEXT("UnrealEd", "Error_ObjectNameCaseChange", "Cannot change the case of an object name.\n")).ToString();
+					}
+
 
 					if ( !bMoveFailed )
 					{
