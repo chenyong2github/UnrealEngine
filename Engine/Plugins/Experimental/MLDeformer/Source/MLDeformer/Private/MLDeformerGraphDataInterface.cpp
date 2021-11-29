@@ -89,7 +89,9 @@ bool UMLDeformerDataProvider::IsValid() const
 	return
 		DeformerComponent != nullptr &&
 		DeformerComponent->GetDeformerAsset() != nullptr &&
-		DeformerComponent->GetDeformerAsset()->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr;
+		DeformerComponent->GetDeformerAsset()->GetVertexMapBuffer().ShaderResourceViewRHI != nullptr &&
+		DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork() != nullptr &&
+		DeformerComponent->GetDeformerAsset()->GetInferenceNeuralNetwork()->IsLoaded();
 }
 
 FComputeDataProviderRenderProxy* UMLDeformerDataProvider::GetRenderProxy()
