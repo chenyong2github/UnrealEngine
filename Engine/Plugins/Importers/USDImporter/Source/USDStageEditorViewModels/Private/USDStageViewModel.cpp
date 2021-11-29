@@ -274,7 +274,13 @@ void FUsdStageViewModel::ImportStage()
 		ImportContext.bReadFromStageCache = true; // So that we import whatever the user has open right now, even if the file has changes
 
 		const FString RootPath = UsdStage.GetRootLayer().GetRealPath();
-		const FString StageName = FPaths::GetBaseFilename( RootPath );
+		FString StageName = FPaths::GetBaseFilename( RootPath );
+
+		// Provide a StageName when importing transient stages as this is used for the content folder name and actor label
+		if ( UsdStage.GetRootLayer().IsAnonymous() && RootPath.IsEmpty() )
+		{
+			StageName = TEXT("TransientStage");
+		}
 
 		const bool bIsAutomated = false;
 		if ( ImportContext.Init( StageName, RootPath, TEXT("/Game/"), RF_Public | RF_Transactional, bIsAutomated ) )
@@ -289,6 +295,9 @@ void FUsdStageViewModel::ImportStage()
 
 			ImportContext.TargetSceneActorAttachParent = StageActor->GetRootComponent()->GetAttachParent();
 			ImportContext.TargetSceneActorTargetTransform = StageActor->GetActorTransform();
+
+			// Pass the stage directly too in case we're importing a transient stage with no filepath
+			ImportContext.Stage = UsdStage;
 
 			UUsdStageImporter* USDImporter = IUsdStageImporterModule::Get().GetImporter();
 			USDImporter->ImportFromFile(ImportContext);

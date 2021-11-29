@@ -52,7 +52,7 @@
 
 namespace UsdStageImporterImpl
 {
-	UE::FUsdStage ReadUsdFile(FUsdStageImportContext& ImportContext)
+	void LoadStageFromFilePath(FUsdStageImportContext& ImportContext)
 	{
 		const FString FilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ImportContext.FilePath);
 
@@ -64,7 +64,7 @@ namespace UsdStageImporterImpl
 			FPaths::NormalizeFilename( RootPath );
 			if ( ImportContext.FilePath == RootPath )
 			{
-				ImportContext.bStageWasOriginallyOpen = true;
+				ImportContext.bStageWasOriginallyOpenInCache = true;
 				break;
 			}
 		}
@@ -74,11 +74,15 @@ namespace UsdStageImporterImpl
 		TArray<FString> ErrorStrings = UsdUtils::GetErrorsAndStopMonitoring();
 		FString Error = FString::Join(ErrorStrings, TEXT("\n"));
 
-		if (!Error.IsEmpty())
+		if (Error.IsEmpty())
 		{
+			ImportContext.Stage = Stage;
+		}
+		else
+		{
+			ImportContext.Stage = UE::FUsdStage();
 			FUsdLogManager::LogMessage( EMessageSeverity::Error, FText::Format( LOCTEXT( "CouldNotImportUSDFile", "Could not import USD file {0}\n {1}" ), FText::FromString( FilePath ), FText::FromString( Error ) ) );
 		}
-		return Stage;
 	}
 
 	FString FindValidPackagePath(const FString& InPackagePath)
@@ -221,7 +225,7 @@ namespace UsdStageImporterImpl
 	void SetupStageForImport( FUsdStageImportContext& ImportContext )
 	{
 #if USE_USD_SDK
-		if ( ImportContext.ImportOptions->bOverrideStageOptions && ImportContext.bStageWasOriginallyOpen )
+		if ( ImportContext.ImportOptions->bOverrideStageOptions )
 		{
 			ImportContext.OriginalMetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( ImportContext.Stage );
 			ImportContext.OriginalUpAxis = UsdUtils::GetUsdStageUpAxisAsEnum( ImportContext.Stage );
@@ -1030,17 +1034,20 @@ namespace UsdStageImporterImpl
 	{
 #if USE_USD_SDK
 		// Remove our imported stage from the stage cache if it wasn't in there to begin with
-		if (!ImportContext.bStageWasOriginallyOpen && ImportContext.bReadFromStageCache)
+		if (!ImportContext.bStageWasOriginallyOpenInCache && ImportContext.bReadFromStageCache)
 		{
 			UnrealUSDWrapper::EraseStageFromCache(ImportContext.Stage);
 		}
 
-		// Restore original meters per unit if the stage was already loaded
-		if ( ImportContext.ImportOptions->bOverrideStageOptions && ImportContext.bStageWasOriginallyOpen )
+		if ( ImportContext.ImportOptions->bOverrideStageOptions )
 		{
 			UsdUtils::SetUsdStageMetersPerUnit( ImportContext.Stage, ImportContext.OriginalMetersPerUnit );
 			UsdUtils::SetUsdStageUpAxis( ImportContext.Stage, ImportContext.OriginalUpAxis );
 		}
+
+		// Always discard the context's reference to the stage because it may be a persistent import context (like
+		// the non-static data member of UUsdStageImportFactory
+		ImportContext.Stage = UE::FUsdStage();
 #endif // #if USE_USD_SDK
 	}
 
@@ -1317,7 +1324,18 @@ namespace UsdStageImporterImpl
 			EventAttributes.Emplace( TEXT( "NumTextures" ), LexToString( NumTextures ) );
 			EventAttributes.Emplace( TEXT( "NumGeometryCaches" ), LexToString( NumGeometryCaches ) );
 
-			double NumberOfFrames = ImportContext.Stage.GetEndTimeCode() - ImportContext.Stage.GetStartTimeCode();
+			FString RootLayerIdentifier = ImportContext.FilePath;
+			double NumberOfFrames = 0;
+
+			if ( ImportContext.Stage )
+			{
+				NumberOfFrames = ImportContext.Stage.GetEndTimeCode() - ImportContext.Stage.GetStartTimeCode();
+
+				if ( RootLayerIdentifier.IsEmpty() )
+				{
+					RootLayerIdentifier = ImportContext.Stage.GetRootLayer().GetIdentifier();
+				}
+			}
 
 			IUsdClassesModule::SendAnalytics(
 				MoveTemp( EventAttributes ),
@@ -1325,7 +1343,7 @@ namespace UsdStageImporterImpl
 				ImportContext.bIsAutomated,
 				ElapsedSeconds,
 				NumberOfFrames,
-				FPaths::GetExtension( ImportContext.FilePath )
+				FPaths::GetExtension( RootLayerIdentifier )
 			);
 		}
 	}
@@ -1342,8 +1360,12 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 
 	double StartTime = FPlatformTime::Cycles64();
 
-	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
-	if (!ImportContext.Stage)
+	if ( !ImportContext.Stage && !ImportContext.FilePath.IsEmpty() )
+	{
+		UsdStageImporterImpl::LoadStageFromFilePath( ImportContext );
+	}
+
+	if ( !ImportContext.Stage )
 	{
 		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoStageError", "Failed to open the USD Stage!" ) );
 		return;
@@ -1407,7 +1429,6 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdStageImporterImpl::RemapSoftReferences( ImportContext, UsedAssetsAndDependencies, SoftObjectsToRemap );
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, ExistingSceneActor, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::NotifyAssetRegistry( UsedAssetsAndDependencies );
-	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast( ImportContext.FilePath );
 
@@ -1416,6 +1437,8 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		UsdStageImporterImpl::SendAnalytics( ImportContext, nullptr, TEXT("Import"), UsedAssetsAndDependencies, ElapsedSeconds);
 	}
+
+	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
 
 #endif // #if USE_USD_SDK
 }
@@ -1428,13 +1451,16 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 #if USE_USD_SDK
 	double StartTime = FPlatformTime::Cycles64();
 
-	ImportContext.Stage = UsdStageImporterImpl::ReadUsdFile(ImportContext);
-	if (!ImportContext.Stage)
+	if ( !ImportContext.Stage && !ImportContext.FilePath.IsEmpty() )
+	{
+		UsdStageImporterImpl::LoadStageFromFilePath( ImportContext );
+	}
+
+	if ( !ImportContext.Stage )
 	{
 		FUsdLogManager::LogMessage( EMessageSeverity::Error, LOCTEXT( "NoStageError", "Failed to open the USD Stage!" ) );
 		return bSuccess;
 	}
-
 
 	FUsdDelegates::OnPreUsdImport.Broadcast(ImportContext.FilePath);
 
@@ -1512,7 +1538,6 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, nullptr, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::NotifyAssetRegistry( { ReimportedObject } );
-	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast(ImportContext.FilePath);
 
@@ -1521,6 +1546,8 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
 		UsdStageImporterImpl::SendAnalytics( ImportContext, ReimportedObject, TEXT( "Reimport" ), { ReimportedObject }, ElapsedSeconds );
 	}
+
+	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
 
 #endif // #if USE_USD_SDK
 	return bSuccess;
