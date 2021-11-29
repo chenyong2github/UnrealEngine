@@ -448,4 +448,7 @@ namespace UEPushModelPrivate
 #define IS_PUSH_MODEL_ENABLED() false
 #define PUSH_MAKE_BP_PROPERTIES_PUSH_MODEL() false
 
+#define COMPARE_ASSIGN_AND_MARK_PROPERTY_DIRTY(ClassName, PropertyName, NewValue, Object) \
+	if (NewValue != PropertyName) { PropertyName = NewValue; }
+
 #endif
