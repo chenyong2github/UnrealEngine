@@ -156,6 +156,9 @@ public:
 	/** Check to see if an actor can be selected in this mode - no side effects */
 	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const { return true; }
 
+	/** Check to see if an actor selection is exclusively dissallowed by a mode -- no side effects */
+	virtual bool IsSelectionDisallowed(AActor* InActor, bool bInSelection) const { return false; }
+
 	/** Returns the editor mode identifier. */
 	FEditorModeID GetID() const { return Info.ID; }
 
