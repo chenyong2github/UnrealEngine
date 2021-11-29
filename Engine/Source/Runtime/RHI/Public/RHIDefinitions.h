@@ -1933,7 +1933,7 @@ inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 /** Whether the shader platform corresponds to the ES3.1/Metal/Vulkan feature level. */
 inline bool IsMobilePlatform(const FStaticShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetIsMobile(Platform);
+	return FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1;
 }
 
 inline bool IsOpenGLPlatform(const FStaticShaderPlatform Platform)
