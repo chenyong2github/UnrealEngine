@@ -130,6 +130,13 @@ void FUsdStageViewModel::ReloadStage()
 	UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
 	pxr::UsdStageRefPtr UsdStage = pxr::UsdStageRefPtr( Stage );
 
+	// Can't reload from disk something that doesn't exist on disk yet
+	// (actually USD will let us do this but it seems to just clear the anonymous layers instead)
+	if ( Stage.GetRootLayer().IsAnonymous() )
+	{
+		return;
+	}
+
 	if ( UsdStage )
 	{
 		UsdUtils::StartMonitoringErrors();
