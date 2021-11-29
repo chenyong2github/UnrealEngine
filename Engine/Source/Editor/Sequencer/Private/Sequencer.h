@@ -526,7 +526,6 @@ public:
 
 	/** Called when a user executes the assign actor to track menu item */
 	void AssignActor(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
-	FGuid DoAssignActor(AActor*const* InActors, int32 NumActors, FGuid ObjectBinding);
 
 	/** Called when a user executes the assign selected to track menu item */
 	void AddActorsToBinding(FGuid ObjectBinding, const TArray<AActor*>& InActors);
@@ -662,9 +661,6 @@ public:
 	/** Called when a new camera is added. Locks the viewport to the NewCamera. */
 	void NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid);
 
-	/** Attempts to automatically fix up broken actor references in the current scene. */
-	void FixActorReferences();
-
 	/** Rebinds all possessable references in the current sequence to update them to the latest referencing mechanism. */
 	void RebindPossessableReferences();
 
@@ -677,9 +673,6 @@ public:
 
 	/** Exports the animation to a camera anim asset. */
 	void ExportToCameraAnim();
-
-	/** */
-	void ShowReadOnlyError() const;
 
 public:
 	
@@ -1092,8 +1085,6 @@ private:
 
 	/** Internal conversion function that doesn't perform expensive reset/update tasks */
 	FMovieScenePossessable* ConvertToPossessableInternal(FGuid SpawnableGuid);
-	
-	void UpdateBindingIDs(FGuid OldGuid, FGuid NewGuid);
 
 	/** Recurses through a folder to replace converted GUID with new GUID */
 	bool ReplaceFolderBindingGUID(UMovieSceneFolder *Folder, FGuid Original, FGuid Converted);

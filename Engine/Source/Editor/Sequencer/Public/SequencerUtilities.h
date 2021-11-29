@@ -12,6 +12,7 @@ class UMovieSceneSection;
 class ISequencer;
 class FMenuBuilder;
 class ULevelSequence;
+class UMovieSceneCompiledDataManager;
 
 struct SEQUENCER_API FSequencerUtilities
 {
@@ -30,4 +31,10 @@ struct SEQUENCER_API FSequencerUtilities
 	 * The name is made unique by appending a number to the end.
 	 */
 	static FName GetUniqueName(FName CandidateName, const TArray<FName>& ExistingNames);
+
+	static FGuid DoAssignActor(ISequencer* InSequencerPtr, AActor* const* InActors, int32 NumActors, FGuid InObjectBinding);
+
+	static void UpdateBindingIDs(ISequencer* InSequencerPtr, UMovieSceneCompiledDataManager* InCompiledDataManagerPtr, FGuid OldGuid, FGuid NewGuid);
+
+	static void ShowReadOnlyError();
 };
