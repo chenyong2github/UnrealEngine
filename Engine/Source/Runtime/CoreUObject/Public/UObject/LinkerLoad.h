@@ -17,6 +17,12 @@ class IPakFile;
 class ULinkerPlaceholderExportObject;
 struct FScopedSlowTask;
 struct FUntypedBulkData;
+
+namespace UE
+{
+class FPackageTrailer;
+}
+
 namespace UE::Virtualization
 {
 class FVirtualizedUntypedBulkData;
@@ -161,6 +167,11 @@ public:
 		return InstancingContext;
 	}
 
+	UE::FPackageTrailer* GetPackageTrailer() const
+	{
+		return PackageTrailer.Get();
+	}
+
 private:
 
 	/** True if the linker is currently deleting loader */
@@ -184,6 +195,9 @@ private:
 
 	/** The linker instancing context. */
 	FLinkerInstancingContext InstancingContext;
+
+	/** The trailer for the package */
+	TUniquePtr<UE::FPackageTrailer> PackageTrailer;
 
 	// Helper function to access the InstancingContext IsInstanced, 
 	// returns false if WITH_EDITOR isn't defined.
@@ -340,6 +354,8 @@ private:
 
 	/** Whether we already serialized the package file summary.																*/
 	bool					bHasSerializedPackageFileSummary:1;
+	/** Whether we already serialized the package trailer.																	*/
+	bool					bHasSerializedPackageTrailer : 1;
 	/** Whether we have already reconstructed the import/export tables for a text asset */
 	bool					bHasReconstructedImportAndExportMap:1;
 	/** Whether we already serialized preload dependencies.																	*/
@@ -1010,6 +1026,11 @@ private:
 	 * Updates the linker, loader and root package with data from the package file summary.
 	 * */
 	ELinkerStatus UpdateFromPackageFileSummary();
+	
+	/** 
+	 * Serializes the header for the package trailer, allowing us to identify the payloads of the package 
+	 */
+	ELinkerStatus SerializePackageTrailer();
 
 	/**
 	 * Serializes the name map.

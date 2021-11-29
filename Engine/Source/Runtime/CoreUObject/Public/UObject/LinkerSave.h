@@ -9,6 +9,7 @@
 #include "Templates/RefCounting.h"
 #include "UObject/Linker.h"
 #include "UObject/ObjectResource.h"
+#include "UObject/PackageTrailer.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Virtualization/PayloadId.h"
 
@@ -113,9 +114,9 @@ public:
 
 	/** Used by FVirtualizedUntypedBulkData to add payloads to be added to the payload sidecar file (currently an experimental feature) */
 	TArray<FSidecarStorageInfo> SidecarDataToAppend;
-
-	/** A list of all virtualized bulkdata objects that serialized while saving the package. Note that we do not expect nullptr values to be added! */
-	TArray<UE::Virtualization::FVirtualizedUntypedBulkData*> BulkDataInPackage;
+	
+	/** Gathers all payloads while save the package, so that they can be stored ina  single data structure @see FPackageTrailer */
+	UE::FPackageTrailerBuilder PackageTrailerBuilder;
 
 	/** 
 	 * Array of callbacks that will be invoked when the package has successfully saved to disk.

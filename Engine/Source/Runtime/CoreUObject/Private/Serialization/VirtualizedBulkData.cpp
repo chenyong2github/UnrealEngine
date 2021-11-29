@@ -45,6 +45,15 @@ static TAutoConsoleVariable<bool> CVarShouldLoadFromSidecar(
 	false,
 	TEXT("When true FVirtualizedUntypedBulkData will load from the sidecar file"));
 
+/** 
+ * Prefer loading from the package trailer (load the trailer, parse the look up, then load the payload) over 
+ * using the in built OffsetInFile member to load from the package file directly.
+ */
+static TAutoConsoleVariable<bool> CVarShouldLoadFromTrailer(
+	TEXT("Serialization.LoadFromTrailer"),
+	false,
+	TEXT("When true FVirtualizedUntypedBulkData will load payloads via the package trailer rather than the package itself"));
+
 static TAutoConsoleVariable<bool> CVarShouldValidatePayload(
 	TEXT("Serialization.ValidatePayloads"),
 	false,
@@ -54,6 +63,9 @@ static TAutoConsoleVariable<bool> CVarShouldAllowSidecarSyncing(
 	TEXT("Serialization.AllowSidecarSyncing"),
 	false,
 	TEXT("When true FVirtualizedUntypedBulkData will attempt to sync it's .upayload file via sourcecontrol if the first attempt to load from it fails"));
+
+/** Might expose this as an option but for now set to false only */
+static constexpr bool bAllowVirtualizationOnSave = false;
 
 /** Wrapper around the config file option [Core.System.Experimental]EnablePackageSidecarSaving */
 bool ShouldSaveToPackageSidecar()
@@ -109,6 +121,38 @@ bool IsValid(const FVirtualizedUntypedBulkData& BulkData, const FCompressedBuffe
 	}
 
 	return true;
+}
+
+/** Utility for finding the FLinkerLoad associated with a given UObject */
+FLinkerLoad* GetLinkerLoadFromOwner(UObject* Owner)
+{
+	if (Owner != nullptr)
+	{
+		UPackage* Package = Owner->GetOutermost();
+		checkf(Package != nullptr, TEXT("Owner was not a valid UPackage!"));
+
+		FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
+		checkf(Linker != nullptr, TEXT("UPackage did not have a valid FLinkerLoad!"));
+
+		return Linker;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+FPackageTrailer* GetTrailerFromOwner(UObject* Owner)
+{
+	FLinkerLoad* Linker = GetLinkerLoadFromOwner(Owner);
+	if (Linker != nullptr)
+	{
+		return Linker->GetPackageTrailer();
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 /** Utility for accessing IVirtualizationSourceControlUtilities from the modular feature system. */
@@ -418,6 +462,18 @@ void FVirtualizedUntypedBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
 	}
 }
 
+/** Utility for updating an existing entry in an Archive before returning the archive to it's original seek position */
+template<typename DataType>
+void UpdateArchiveData(FArchive& Ar, int64 DataPosition, DataType& Data)
+{
+	int64 OriginalPosition = Ar.Tell();
+
+	Ar.Seek(DataPosition);
+	Ar << Data;
+
+	Ar.Seek(OriginalPosition);
+}
+
 void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegister)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::Serialize);
@@ -492,13 +548,16 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 				UpdateKeyIfNeeded();
 			}
 
-			const bool bCanAttemptVirtualization = LinkerSave != nullptr;
-			if (bCanAttemptVirtualization)
+			if (bAllowVirtualizationOnSave)
 			{
-				FPackagePath LinkerPackagePath;
-				FPackagePath::TryFromPackageName(LinkerSave->LinkerRoot->GetName(), LinkerPackagePath);
+				const bool bCanAttemptVirtualization = LinkerSave != nullptr;
+				if (bCanAttemptVirtualization)
+				{
+					FPackagePath LinkerPackagePath;
+					FPackagePath::TryFromPackageName(LinkerSave->LinkerRoot->GetName(), LinkerPackagePath);
 
-				PushData(LinkerPackagePath); // Note this can change various members if we are going from non-virtualized to virtualized
+					PushData(LinkerPackagePath); // Note this can change various members if we are going from non-virtualized to virtualized
+				}
 			}
 		}
 		else
@@ -554,7 +613,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			}
 			else
 			{
-				bWriteOutPayload = !IsDataVirtualized();
+				bWriteOutPayload = !bAllowVirtualizationOnSave || !IsDataVirtualized();
 			}
 
 			if (bWriteOutPayload)
@@ -596,86 +655,143 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 				const int64 OffsetPos = Ar.Tell();
 				Ar << PlaceholderValue; // OffsetInFile
 
-				// The lambda is mutable so that PayloadToSerialize is not const (due to FArchive api not
-				// accepting const values)
-				auto SerializePayload = [this, OffsetPos, PayloadToSerialize, UpdatedFlags, Owner](FLinkerSave* LinkerSave, FArchive& ExportsArchive, FArchive& DataArchive, int64 DataStartOffset) mutable
-				{
-					checkf(ExportsArchive.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
-
-					SerializeData(DataArchive, PayloadToSerialize, UpdatedFlags);
-
-					// Record the current archive offset (probably EOF but we cannot be sure)
-					const int64 ReturnPos = ExportsArchive.Tell();
-
-					// Update the offset/size entries that we set up during ::Serialize
-					ExportsArchive.Seek(OffsetPos);
-					ExportsArchive << DataStartOffset;
-					// Restore the archive's offset
-					ExportsArchive.Seek(ReturnPos);
-
-					// If we are saving the package to disk (we have access to FLinkerSave and its filepath is valid) 
-					// then we should register a callback to be received once the package has actually been saved to 
-					// disk so that we can update the object's members to be redirected to the saved file.
-					if (LinkerSave != nullptr && !LinkerSave->GetFilename().IsEmpty())
-					{	
-						// At some point saving to the sidecar file will be mutually exclusive with saving to the asset file, at that point
-						// we can split these code paths entirely for clarity. (might need to update ::BuildFlagsForSerialization at that point too!)
-						if (ShouldSaveToPackageSidecar())
-						{
-							FLinkerSave::FSidecarStorageInfo& SidecarData = LinkerSave->SidecarDataToAppend.AddZeroed_GetRef();
-							SidecarData.Identifier = PayloadContentId;
-							SidecarData.Payload = PayloadToSerialize;
-						}
-
-						auto OnSavePackage = [this, DataStartOffset, UpdatedFlags, Owner](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
-						{
-							if (!ObjectSaveContext.IsUpdatingLoadedPath())
-							{
-								return;
-							}
-
-							this->PackagePath = InPackagePath;
-							check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
-							this->OffsetInFile = DataStartOffset;
-							this->Flags = UpdatedFlags;
-
-							if (CanUnloadData())
-							{
-								this->CompressionSettings.Reset();
-								this->Payload.Reset();
-							}
-
-							// Update our information in the registry
-							// TODO: Pass Owner into Register once the AssetRegistry has been fixed to use the updated PackageGuid from the save
-							Register(nullptr);
-						};
-
-						LinkerSave->PostSaveCallbacks.Add(MoveTemp(OnSavePackage));
-					}
-				};
-
 				// If we have a valid linker then we will defer serialization of the payload so that it will
 				// be placed at the end of the output file so we don't have to seek past the payload on load.
 				// If we do not have a linker OR the linker is in text format then we should just serialize
 				// the payload directly to the archive.
-				if(LinkerSave != nullptr && !LinkerSave->IsTextFormat())
-				{
-					auto AdditionalDataCallback = [SerializePayload = MoveTemp(SerializePayload)](FLinkerSave& ExportsArchive, FArchive& DataArchive, int64 DataStartOffset) mutable
+				if (LinkerSave != nullptr && !LinkerSave->IsTextFormat())
+				{	
+					if (FPackageTrailer::IsEnabled() == false) // Legacy path, will save the payload data to the package
 					{
-						SerializePayload(&ExportsArchive, ExportsArchive, DataArchive, DataStartOffset);
-					};
-					LinkerSave->AdditionalDataToAppend.Add(MoveTemp(AdditionalDataCallback));	// -V595 PVS believes that LinkerSave can potentially be nullptr at 
-																								// this point however we test LinkerSave != nullptr to enter this branch.
+						// The lambda is mutable so that PayloadToSerialize is not const (due to FArchive api not accepting const values)
+						auto SerializePayload = [this, OffsetPos, PayloadToSerialize, UpdatedFlags, Owner](FLinkerSave& LinkerSave, FArchive& ExportsArchive, FArchive& DataArchive, int64 DataStartOffset) mutable
+						{
+							checkf(ExportsArchive.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
+
+							SerializeData(DataArchive, PayloadToSerialize, UpdatedFlags);
+
+							// Record the current archive offset (probably EOF but we cannot be sure)
+							const int64 ReturnPos = ExportsArchive.Tell();
+
+							// Update the offset/size entries that we set up during ::Serialize
+							ExportsArchive.Seek(OffsetPos);
+							ExportsArchive << DataStartOffset;
+							// Restore the archive's offset
+							ExportsArchive.Seek(ReturnPos);
+
+							// If we are saving the package to disk (we have access to FLinkerSave and its filepath is valid) 
+							// then we should register a callback to be received once the package has actually been saved to 
+							// disk so that we can update the object's members to be redirected to the saved file.
+							if (!LinkerSave.GetFilename().IsEmpty())
+							{
+								// At some point saving to the sidecar file will be mutually exclusive with saving to the asset file, at that point
+								// we can split these code paths entirely for clarity. (might need to update ::BuildFlagsForSerialization at that point too!)
+								if (ShouldSaveToPackageSidecar())
+								{
+									FLinkerSave::FSidecarStorageInfo& SidecarData = LinkerSave.SidecarDataToAppend.AddZeroed_GetRef();
+									SidecarData.Identifier = PayloadContentId;
+									SidecarData.Payload = PayloadToSerialize;
+								}
+
+								auto OnSavePackage = [this, DataStartOffset, UpdatedFlags, Owner](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
+								{
+									if (!ObjectSaveContext.IsUpdatingLoadedPath())
+									{
+										return;
+									}
+
+									this->PackagePath = InPackagePath;
+									check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
+									this->OffsetInFile = DataStartOffset;
+									this->Flags = UpdatedFlags;
+
+									if (CanUnloadData())
+									{
+										this->CompressionSettings.Reset();
+										this->Payload.Reset();
+									}
+
+									// Update our information in the registry
+									// TODO: Pass Owner into Register once the AssetRegistry has been fixed to use the updated PackageGuid from the save
+									Register(nullptr);
+								};
+
+								LinkerSave.PostSaveCallbacks.Add(MoveTemp(OnSavePackage));
+							}
+						};
+
+						auto AdditionalDataCallback = [SerializePayload = MoveTemp(SerializePayload)](FLinkerSave& ExportsArchive, FArchive& DataArchive, int64 DataStartOffset) mutable
+						{
+							SerializePayload(ExportsArchive, ExportsArchive, DataArchive, DataStartOffset);
+						};
+
+						LinkerSave->AdditionalDataToAppend.Add(MoveTemp(AdditionalDataCallback));	// -V595 PVS believes that LinkerSave can potentially be nullptr at 
+																									// this point however we test LinkerSave != nullptr to enter this branch.
+
+					}
+					else // New path that will save the payload to the package trailer
+					{
+						auto OnPayloadWritten = [this, OffsetPos, UpdatedFlags](FLinkerSave& LinkerSave) mutable
+						{
+							checkf(LinkerSave.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
+
+							int64 PayloadOffset = LinkerSave.PackageTrailerBuilder.FindPayloadOffset(PayloadContentId);
+
+							UpdateArchiveData(LinkerSave, OffsetPos, PayloadOffset);
+
+							// If we are saving the package to disk (we have access to FLinkerSave and its filepath is valid) 
+							// then we should register a callback to be received once the package has actually been saved to 
+							// disk so that we can update the object's members to be redirected to the saved file.
+							if (!LinkerSave.GetFilename().IsEmpty())
+							{
+								auto OnSavePackage = [this, PayloadOffset, UpdatedFlags](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
+								{
+									if (!ObjectSaveContext.IsUpdatingLoadedPath())
+									{
+										return;
+									}
+
+									this->PackagePath = InPackagePath;
+									check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
+									this->OffsetInFile = PayloadOffset;
+									this->Flags = UpdatedFlags;
+
+									if (CanUnloadData())
+									{
+										this->CompressionSettings.Reset();
+										this->Payload.Reset();
+									}
+
+									// Update our information in the registry
+									// TODO: Pass Owner into Register once the AssetRegistry has been fixed to use the updated PackageGuid from the save
+									Register(nullptr);
+								};
+
+								LinkerSave.PostSaveCallbacks.Add(MoveTemp(OnSavePackage));
+							}
+						};
+
+						LinkerSave->PackageTrailerBuilder.AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), MoveTemp(OnPayloadWritten));
+					}	
 				}
 				else
 				{
-					SerializePayload(nullptr, Ar, Ar, Ar.Tell());
-				}
-			}
+					checkf(Ar.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
+					
+					int64 DataStartOffset = Ar.Tell();
 
-			if (LinkerSave != nullptr)
-			{
-				LinkerSave->BulkDataInPackage.Add(this);
+					SerializeData(Ar, PayloadToSerialize, UpdatedFlags);
+					
+					// Record the current archive offset to return to (probably EOF but we cannot be sure)
+					const int64 ReturnPos = Ar.Tell();
+
+					// Update the offset entry that we set up earlier
+					Ar.Seek(OffsetPos);
+					Ar << DataStartOffset;
+
+					// Restore the archive's offset
+					Ar.Seek(ReturnPos);
+				}
 			}
 
 			if (CanUnloadData())
@@ -686,7 +802,19 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 		}
 		else if (Ar.IsLoading())
 		{
-			if (IsReferencingOldBulkData())
+			FPackageTrailer* Trailer = GetTrailerFromOwner(Owner);
+
+			// TODO: Error on not EPayloadStatus::NotFound
+			if (Trailer != nullptr && Trailer->FindPayloadStatus(PayloadContentId) == EPayloadStatus::StoredVirtualized)
+			{
+				check(!IsReferencingOldBulkData()); // This should not be possible
+
+				EnumAddFlags(Flags, EFlags::IsVirtualized);
+
+				Ar << OffsetInFile;
+				OffsetInFile = INDEX_NONE;
+			}
+			else if (IsReferencingOldBulkData())
 			{
 				FString PackageNameStr;
 				Ar << PackageNameStr;
@@ -696,6 +824,9 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			}
 			else if (IsDataVirtualized())
 			{
+				// TODO: Remove once safe to do so
+				// Legacy path for packages that were saved as virtualized
+			
 				// We aren't going to use these members so reset them
 				OffsetInFile = INDEX_NONE;
 
@@ -749,6 +880,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 					}
 				}
 			}
+
 			if (bAllowRegister)
 			{
 				Register(Owner);
@@ -844,7 +976,14 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromDisk() const
 	}
 	else
 	{
-		return LoadFromPackageFile();	 
+		if (CVarShouldLoadFromTrailer.GetValueOnAnyThread())
+		{
+			return LoadFromPackageTrailer();
+		}
+		else
+		{
+			return LoadFromPackageFile();
+		}
 	}
 }
 
@@ -853,8 +992,6 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageFile() const
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromPackageFile);
 
 	UE_LOG(LogVirtualization, Verbose, TEXT("Attempting to load payload from the package file: '%s'"), *PackagePath.GetLocalFullPath(PackageSegment));
-
-	FCompressedBuffer PayloadFromDisk;
 
 	// Open a reader to the file
 	TUniquePtr<FArchive> BulkArchive;
@@ -875,21 +1012,68 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageFile() const
 		BulkArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile,
 			PackagePath.GetPackageName());
 	}
-	if (BulkArchive.IsValid())
-	{
-		checkf(OffsetInFile != INDEX_NONE, TEXT("Attempting to load '%s' from disk with an invalid OffsetInFile!"), *PackagePath.GetDebugNameWithExtension(PackageSegment));
-		// Move the correct location of the data in the file
-		BulkArchive->Seek(OffsetInFile);
 
-		// Now we can actually serialize it
-		SerializeData(*BulkArchive, PayloadFromDisk, Flags);
+	if (!BulkArchive.IsValid())
+	{
+		LogPackageOpenFailureMessage(PackagePath, PackageSegment);
+		return FCompressedBuffer();
+	}
+
+	checkf(OffsetInFile != INDEX_NONE, TEXT("Attempting to load '%s' from disk with an invalid OffsetInFile!"), *PackagePath.GetDebugNameWithExtension(PackageSegment));
+	// Move the correct location of the data in the file
+	BulkArchive->Seek(OffsetInFile);
+
+	// Now we can actually serialize it
+	FCompressedBuffer PayloadFromDisk;
+	SerializeData(*BulkArchive, PayloadFromDisk, Flags);
+
+	return PayloadFromDisk;
+}
+
+FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromPackageTrailer() const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::LoadFromPackageTrailer);
+
+	UE_LOG(LogVirtualization, Verbose, TEXT("Attempting to load payload from the package trailer: '%s'"), *PackagePath.GetLocalFullPath(PackageSegment));
+
+	// Open a reader to the file
+	TUniquePtr<FArchive> BulkArchive;
+	if (!IsReferencingOldBulkData() || PackageSegment != EPackageSegment::Header)
+	{
+		FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+		if (Result.Format == EPackageFormat::Binary)
+		{
+			BulkArchive = MoveTemp(Result.Archive);
+		}
 	}
 	else
 	{
-		LogPackageOpenFailureMessage(PackagePath, PackageSegment);
+		// *this may have been loaded from the EditorDomain, but saved with a reference to the bulk data in the
+		// Workspace Domain file. This was only possible if PackageSegment == Header; we checked that when serializing to the EditorDomain
+		// In that case, we need to use OpenReadExternalResource to access the Workspace Domain file
+		// In the cases where *this was loaded from the WorkspaceDomain, OpenReadExternalResource and OpenReadPackage are identical.
+		BulkArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile,
+			PackagePath.GetPackageName());
 	}
 
-	return PayloadFromDisk;
+	if (!BulkArchive.IsValid())
+	{
+		LogPackageOpenFailureMessage(PackagePath, PackageSegment);
+		return FCompressedBuffer();
+	}
+
+	BulkArchive->Seek(BulkArchive->TotalSize());
+
+	FPackageTrailer Trailer;
+	
+	if (Trailer.TryLoadBackwards(*BulkArchive))
+	{
+		return Trailer.LoadPayload(PayloadContentId, *BulkArchive);
+	}
+	else
+	{
+		return FCompressedBuffer();
+	}	
 }
 
 FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromSidecarFileInternal(ErrorVerbosity Verbosity) const
@@ -1091,14 +1275,11 @@ FCompressedBuffer FVirtualizedUntypedBulkData::PullData() const
 FPackagePath FVirtualizedUntypedBulkData::GetPackagePathFromOwner(UObject* Owner, EPackageSegment& OutPackageSegment) const
 {
 	OutPackageSegment = EPackageSegment::Header;
-	if (Owner != nullptr)
+
+	FLinkerLoad* Linker = GetLinkerLoadFromOwner(Owner);
+
+	if (Linker != nullptr)
 	{
-		UPackage* Package = Owner->GetOutermost();
-		checkf(Package != nullptr, TEXT("Owner was not a valid UPackage!"));
-
-		FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
-		checkf(Linker != nullptr, TEXT("UPackage did not have a valid FLinkerLoad!"));
-
 		return Linker->GetPackagePath();
 	}
 	else
@@ -1457,6 +1638,12 @@ FVirtualizedUntypedBulkData::EFlags FVirtualizedUntypedBulkData::BuildFlagsForSe
 			EnumRemoveFlags(UpdatedFlags, EFlags::ReferencesLegacyFile | EFlags::LegacyFileIsCompressed | EFlags::LegacyKeyWasGuidDerived);
 		}
 
+		// If we are re-hydrating packages on save then we need to remove the virtualization flag
+		if (bAllowVirtualizationOnSave == false && LinkerSave != nullptr)
+		{
+			EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
+		}
+
 		return UpdatedFlags;
 	}
 	else
@@ -1571,73 +1758,6 @@ void operator<<(FStructuredArchive::FSlot Slot, FPayloadToc& TableOfContents)
 
 	Record << SA_VALUE(TEXT("Version"), Version);
 	Record << SA_VALUE(TEXT("Entries"), TableOfContents.Contents);
-}
-
-bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadType Filter, TArray<FPayloadId>& OutPayloadIds)
-{
-	if (FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension()))
-	{
-		UE_LOG(LogVirtualization, Warning, TEXT("Attempting to call 'FindPayloadsInPackageFile' on a text based asset '%s' this is not currently supported"), *PackagePath.GetDebugName());
-		return false;
-	}
-
-	TUniquePtr<FArchive> Ar = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
-
-	if (Ar.IsValid())
-	{
-		FPackageFileSummary PackageFileSummary;
-		*Ar << PackageFileSummary;
-
-		if (Ar->IsError())
-		{
-			UE_LOG(LogVirtualization, Warning, TEXT("Failed to parse the FPackageFileSummary for '%s'"), *PackagePath.GetDebugName());
-			return false;
-		}
-
-		if (PackageFileSummary.Tag == PACKAGE_FILE_TAG)
-		{
-			if (PackageFileSummary.PayloadTocOffset != INDEX_NONE)
-			{
-				Ar->Seek(PackageFileSummary.PayloadTocOffset);
-
-				FPayloadToc PayloadToC;
-				*Ar << PayloadToC;
-
-				for (const UE::Virtualization::FTocEntry& Entry : PayloadToC.GetContents())
-				{
-					switch (Filter)
-					{
-					case EPayloadType::Local:
-						if (Entry.OffsetInFile != INDEX_NONE)
-						{
-							OutPayloadIds.Add(Entry.Identifier);
-						}
-						break;
-					case EPayloadType::Virtualized:
-						if (Entry.OffsetInFile == INDEX_NONE)
-						{
-							OutPayloadIds.Add(Entry.Identifier);
-						}
-						break;
-					case EPayloadType::All:
-						OutPayloadIds.Add(Entry.Identifier);
-						break;
-					}
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogVirtualization, Warning, TEXT("Failed to find PACKAGE_FILE_TAG in '%s', not a valid package!"), *PackagePath.GetDebugName());
-		}
-
-		return true;
-	}
-	else
-	{
-		UE_LOG(LogVirtualization, Warning, TEXT("Unable to open '%s' for reading"), *PackagePath.GetDebugName());
-		return false;
-	}
 }
 
 } // namespace UE::Virtualization
