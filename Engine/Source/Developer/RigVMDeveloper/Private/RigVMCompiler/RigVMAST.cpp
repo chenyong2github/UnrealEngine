@@ -384,12 +384,6 @@ bool FRigVMNodeExprAST::IsConstant() const
 			{
 				return false;
 			}
-
-			URigVMPin::FPinOverride PinOverride(GetProxy(), GetParser()->GetPinOverrides());
-			if (Pin->IsBoundToVariable(PinOverride))
-			{
-				return false;
-			}
 		}
 	}
 	return FRigVMExprAST::IsConstant();
@@ -1014,25 +1008,6 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 		);
 	}
 
-	struct Local
-	{
-		static void LookForPinsBoundToVariables(const FRigVMASTProxy& InPinProxy, URigVMPin* InPin, TArray<URigVMPin*>& SubPinsBoundToVariables, const URigVMPin::FPinOverrideMap& InPinOverrides)
-		{
-			for (URigVMPin* SubPin : InPin->GetSubPins())
-			{
-				URigVMPin::FPinOverride PinOverride(InPinProxy, InPinOverrides);
-				if (SubPin->IsBoundToVariable(PinOverride))
-				{
-					SubPinsBoundToVariables.Add(SubPin);
-				}
-				LookForPinsBoundToVariables(InPinProxy, SubPin, SubPinsBoundToVariables, InPinOverrides);
-			}
-		}
-	};
-
-	TArray<URigVMPin*> SubPinsBoundToVariables;
-	Local::LookForPinsBoundToVariables(InPinProxy, Pin, SubPinsBoundToVariables, PinOverrides);
-
 	FRigVMExprAST* PinExpr = nullptr;
 
 	if (Cast<URigVMVariableNode>(Pin->GetNode()))
@@ -1053,18 +1028,9 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 
 	if ((Pin->GetDirection() == ERigVMPinDirection::Input ||
 		Pin->GetDirection() == ERigVMPinDirection::Visible) &&
-		Links.Num() == 0 &&
-		SubPinsBoundToVariables.Num() == 0)
+		Links.Num() == 0)
 	{
-		if (Pin->IsBoundToExternalVariable(PinOverride))
-		{
-			PinExpr = MakeExpr<FRigVMExternalVarExprAST>(InPinProxy);
-		}
-		else if (Pin->IsBoundToLocalVariable(PinOverride))
-		{
-			PinExpr = MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Var, InPinProxy);
-		}
-		else if (Cast<URigVMParameterNode>(Pin->GetNode()) ||
+		if (Cast<URigVMParameterNode>(Pin->GetNode()) ||
 				 Cast<URigVMVariableNode>(Pin->GetNode()))
 		{
 			PinExpr = MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Var, InPinProxy);
@@ -1119,7 +1085,7 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 
 		if (!bHasSourceLinkToRoot && 
 			GetSourcePins(InPinProxy).Num() == 0 &&
-			(Pin->GetDirection() == ERigVMPinDirection::IO || Links.Num() > 0 || SubPinsBoundToVariables.Num() > 0))
+			(Pin->GetDirection() == ERigVMPinDirection::IO || Links.Num() > 0))
 		{
 			FRigVMLiteralExprAST* LiteralExpr = MakeExpr<FRigVMLiteralExprAST>(InPinProxy);
 			FRigVMCopyExprAST* LiteralCopyExpr = MakeExpr<FRigVMCopyExprAST>(InPinProxy, InPinProxy);
@@ -1130,14 +1096,6 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 
 			SubjectToExpression[InPinProxy] = LiteralExpr;
 		}
-		else
-		{
-			SubPinsBoundToVariables.Reset();
-		}
-	}
-	else
-	{
-		SubPinsBoundToVariables.Reset();
 	}
 
 	FRigVMExprAST* ParentExprForLinks = PinExpr;
@@ -1155,17 +1113,6 @@ FRigVMExprAST* FRigVMParserAST::TraversePin(const FRigVMASTProxy& InPinProxy, FR
 	for (const FRigVMPinProxyPair& SourceLink : Links)
 	{
 		TraverseLink(SourceLink, ParentExprForLinks);
-	}
-
-	for (URigVMPin* SubPinBoundToVariable : SubPinsBoundToVariables)
-	{
-		FRigVMASTProxy SubPinBoundToVariableProxy = InPinProxy.GetSibling(SubPinBoundToVariable);
-		FRigVMExternalVarExprAST* ExternalVarExpr = MakeExpr<FRigVMExternalVarExprAST>(SubPinBoundToVariableProxy);
-		FRigVMCopyExprAST* ExternalVarExprCopyExpr = MakeExpr<FRigVMCopyExprAST>(SubPinBoundToVariableProxy, SubPinBoundToVariableProxy);
-		ExternalVarExprCopyExpr->Name = *FString::Printf(TEXT("%s -> %s"), *SubPinBoundToVariable->GetPinPath(), *SubPinBoundToVariable->GetPinPath());
-		ExternalVarExprCopyExpr->AddParent(PinExpr);
-		ExternalVarExpr->AddParent(ExternalVarExprCopyExpr);
-		ExternalVarExpr->Name = *SubPinBoundToVariable->GetPinPath();
 	}
 
 	return PinExpr;
@@ -3017,7 +2964,7 @@ void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>&
 				}
 
 				TArray<URigVMLink*> SourceLinks = ChildPin->GetSourceLinks(false /* recursive */);
-				if (SourceLinks.Num() > 0 || ChildPin->IsBoundToInputArgument())
+				if (SourceLinks.Num() > 0)
 				{
 					URigVMPin* SourcePin = nullptr;
 					if (SourceLinks.Num() > 0)

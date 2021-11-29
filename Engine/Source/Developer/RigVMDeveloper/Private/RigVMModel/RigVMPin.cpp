@@ -192,7 +192,7 @@ URigVMPin::URigVMPin()
 	, CPPTypeObject(nullptr)
 	, CPPTypeObjectPath(NAME_None)
 	, DefaultValue(FString())
-	, BoundVariablePath()
+	, BoundVariablePath_DEPRECATED()
 {
 #if UE_BUILD_DEBUG
 	CachedPinPath = GetPinPath();
@@ -376,10 +376,13 @@ FName URigVMPin::GetDisplayName() const
 
 		for (URigVMInjectionInfo* Injection : InjectionInfos)
 		{
-			if (TSharedPtr<FStructOnScope> DefaultStructScope = Injection->UnitNode->ConstructStructInstance())
+			if (URigVMUnitNode* InjectedUnitNode = Cast<URigVMUnitNode>(Injection->Node))
 			{
-				FRigVMStruct* DefaultStruct = (FRigVMStruct*)DefaultStructScope->GetStructMemory();
-				ProcessedDisplayName = DefaultStruct->ProcessPinLabelForInjection(ProcessedDisplayName);
+				if (TSharedPtr<FStructOnScope> DefaultStructScope = InjectedUnitNode->ConstructStructInstance())
+				{
+					FRigVMStruct* DefaultStruct = (FRigVMStruct*)DefaultStructScope->GetStructMemory();
+					ProcessedDisplayName = DefaultStruct->ProcessPinLabelForInjection(ProcessedDisplayName);
+				}
 			}
 		}
 
@@ -914,34 +917,59 @@ UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
 	return FindObject<UObject>(ANY_PACKAGE, *InObjectPath);
 }
 
+URigVMVariableNode* URigVMPin::GetBoundVariableNode() const
+{
+	for (TObjectPtr<URigVMInjectionInfo> InjectionInfo : InjectionInfos)
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InjectionInfo->Node))
+		{
+			return VariableNode;
+		}
+	}
+	
+	return nullptr;
+}
+
 // Returns the variable bound to this pin (or NAME_None)
-const FString& URigVMPin::GetBoundVariablePath() const
+const FString URigVMPin::GetBoundVariablePath() const
 {
 	return GetBoundVariablePath(EmptyPinOverride);
 }
 
 // Returns the variable bound to this pin (or NAME_None)
-const FString& URigVMPin::GetBoundVariablePath(const URigVMPin::FPinOverride& InOverride) const
+const FString URigVMPin::GetBoundVariablePath(const URigVMPin::FPinOverride& InOverride) const
 {
 	if (FPinOverrideValue const* OverrideValuePtr = InOverride.Value.Find(InOverride.Key.GetSibling((URigVMPin*)this)))
 	{
 		return OverrideValuePtr->BoundVariablePath;
 	}
-	return BoundVariablePath;
+
+	for (TObjectPtr<URigVMInjectionInfo> InjectionInfo : InjectionInfos)
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InjectionInfo->Node))
+		{
+			FString SegmentPath = InjectionInfo->OutputPin->GetSegmentPath(false);
+			if (SegmentPath.IsEmpty())
+			{
+				return VariableNode->GetVariableName().ToString();
+			}
+			
+			return VariableNode->GetVariableName().ToString() + TEXT(".") + SegmentPath;
+		}
+	}
+	
+	return FString();
 }
 
 // Returns the variable bound to this pin (or NAME_None)
 FString URigVMPin::GetBoundVariableName() const
 {
-	return GetBoundVariableName(EmptyPinOverride);
-}
+	if (URigVMVariableNode* VariableNode = GetBoundVariableNode())
+	{
+		return VariableNode->GetVariableName().ToString();
+	}
 
-// Returns the variable bound to this pin (or NAME_None)
-FString URigVMPin::GetBoundVariableName(const URigVMPin::FPinOverride& InOverride) const
-{
-	FString VariableName = GetBoundVariablePath(InOverride);
-	BoundVariablePath.Split(TEXT("."), &VariableName, nullptr);
-	return VariableName;
+	return FString();
 }
 
 // Returns true if this pin is bound to a variable
@@ -958,12 +986,7 @@ bool URigVMPin::IsBoundToVariable(const URigVMPin::FPinOverride& InOverride) con
 
 bool URigVMPin::IsBoundToExternalVariable() const
 {
-	return IsBoundToExternalVariable(EmptyPinOverride);
-}
-
-bool URigVMPin::IsBoundToExternalVariable(const FPinOverride& InOverride) const
-{
-	FString VariableName = GetBoundVariableName(InOverride);
+	FString VariableName = GetBoundVariableName();
 	if (VariableName.IsEmpty())
 	{
 		return false;
@@ -983,12 +1006,7 @@ bool URigVMPin::IsBoundToExternalVariable(const FPinOverride& InOverride) const
 
 bool URigVMPin::IsBoundToLocalVariable() const
 {
-	return IsBoundToLocalVariable(EmptyPinOverride);
-}
-
-bool URigVMPin::IsBoundToLocalVariable(const FPinOverride& InOverride) const
-{
-	FString VariableName = GetBoundVariableName(InOverride);
+	FString VariableName = GetBoundVariableName();
 	if (VariableName.IsEmpty())
 	{
 		return false;
@@ -1008,12 +1026,7 @@ bool URigVMPin::IsBoundToLocalVariable(const FPinOverride& InOverride) const
 
 bool URigVMPin::IsBoundToInputArgument() const
 {
-	return IsBoundToInputArgument(EmptyPinOverride);
-}
-
-bool URigVMPin::IsBoundToInputArgument(const FPinOverride& InOverride) const
-{
-	FString VariableName = GetBoundVariableName(InOverride);
+	FString VariableName = GetBoundVariableName();
 	if (VariableName.IsEmpty())
 	{
 		return false;
@@ -1147,25 +1160,9 @@ FRigVMExternalVariable URigVMPin::ToExternalVariable() const
 
 		VariableName = VariableName.Replace(TEXT("."), TEXT("_"));
 	}
-	ExternalVariable.Name = *VariableName;
 
-	if (RigVMTypeUtils::IsArrayType(CPPType))
-	{
-		ExternalVariable.bIsArray = true;
-		ExternalVariable.TypeName = *CPPType.Mid(7, CPPType.Len() - 8);
-		ExternalVariable.TypeObject = CPPTypeObject;
-	}
-	else
-	{
-		ExternalVariable.bIsArray = false;
-		ExternalVariable.TypeName = *CPPType;
-		ExternalVariable.TypeObject = CPPTypeObject;
-	}
-
-	ExternalVariable.bIsPublic = false;
-	ExternalVariable.bIsReadOnly = false;
-	ExternalVariable.Memory = nullptr;
-
+	ExternalVariable = RigVMTypeUtils::ExternalVariableFromCPPType(*VariableName, CPPType, GetCPPTypeObject(), false, false);
+	
 	return ExternalVariable;
 }
 
@@ -1237,7 +1234,7 @@ URigVMPin* URigVMPin::GetPinForLink() const
 {
 	URigVMPin* RootPin = GetRootPin();
 
-	if (RootPin->InjectionInfos.Num() == 0)
+	if (!RootPin->HasInjectedUnitNodes())
 	{
 		return const_cast<URigVMPin*>(this);
 	}
@@ -1262,7 +1259,7 @@ URigVMPin* URigVMPin::GetOriginalPinFromInjectedNode() const
 	{
 		URigVMPin* RootPin = GetRootPin();
 		URigVMPin* OriginalPin = nullptr;
-		if (Injection->bInjectedAsInput && Injection->InputPin == RootPin)
+		if (Injection->bInjectedAsInput && Injection->InputPin == RootPin && Injection->OutputPin)
 		{
 			TArray<URigVMPin*> LinkedPins = Injection->OutputPin->GetLinkedTargetPins();
 			if (LinkedPins.Num() == 1)
@@ -1270,7 +1267,7 @@ URigVMPin* URigVMPin::GetOriginalPinFromInjectedNode() const
 				OriginalPin = LinkedPins[0]->GetOriginalPinFromInjectedNode();
 			}
 		}
-		else if (!Injection->bInjectedAsInput && Injection->OutputPin == RootPin)
+		else if (!Injection->bInjectedAsInput && Injection->OutputPin == RootPin && Injection->InputPin)
 		{
 			TArray<URigVMPin*> LinkedPins = Injection->InputPin->GetLinkedSourcePins();
 			if (LinkedPins.Num() == 1)
@@ -1709,4 +1706,17 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 	}
 
 	return true;
+}
+
+bool URigVMPin::HasInjectedUnitNodes() const
+{
+	for (URigVMInjectionInfo* Info : InjectionInfos)
+	{
+		if (Info->Node.IsA<URigVMUnitNode>())
+		{
+			return true;
+		}
+	}
+	
+	return false;
 }

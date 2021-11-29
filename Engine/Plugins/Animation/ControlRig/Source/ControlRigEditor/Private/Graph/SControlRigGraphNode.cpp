@@ -624,7 +624,7 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 		{
 			if (URigVMPin* ModelPin = ModelNode->FindPin(PinPath))
 			{
-				if (ModelPin->HasInjectedNodes())
+				if (ModelPin->HasInjectedUnitNodes())
 				{
 					PinToAdd->SetCustomPinIcon(CachedImg_CR_Pin_Connected, CachedImg_CR_Pin_Disconnected);
 				}
@@ -1012,46 +1012,47 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 
 		for (URigVMPin* ModelPin : ModelNode->GetPins())
 		{
-			if (ModelPin->HasInjectedNodes())
+			if (ModelPin->HasInjectedUnitNodes())
 			{
 				for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 				{
-					URigVMUnitNode* VisualDebugNode = Injection->UnitNode;
-
-					FString PrototypeName;
-					if (VisualDebugNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+					if (URigVMUnitNode* VisualDebugNode = Cast<URigVMUnitNode>(Injection->Node))
 					{
-						if (PrototypeName == TEXT("VisualDebug"))
-						{
-							if (!bSetColor)
-							{
-								if (VisualDebugNode->FindPin(TEXT("bEnabled"))->GetDefaultValue() == TEXT("True"))
-								{
-									if (URigVMPin* ColorPin = VisualDebugNode->FindPin(TEXT("Color")))
-									{
-										TBaseStructure<FLinearColor>::Get()->ImportText(*ColorPin->GetDefaultValue(), &Color, nullptr, PPF_None, nullptr, TBaseStructure<FLinearColor>::Get()->GetName());
-									}
-									else
-									{
-										Color = FLinearColor::White;
-									}
+						FString PrototypeName;
+					   if (VisualDebugNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+					   {
+						   if (PrototypeName == TEXT("VisualDebug"))
+						   {
+							   if (!bSetColor)
+							   {
+								   if (VisualDebugNode->FindPin(TEXT("bEnabled"))->GetDefaultValue() == TEXT("True"))
+								   {
+									   if (URigVMPin* ColorPin = VisualDebugNode->FindPin(TEXT("Color")))
+									   {
+										   TBaseStructure<FLinearColor>::Get()->ImportText(*ColorPin->GetDefaultValue(), &Color, nullptr, PPF_None, nullptr, TBaseStructure<FLinearColor>::Get()->GetName());
+									   }
+									   else
+									   {
+										   Color = FLinearColor::White;
+									   }
 
-									VisualDebugIndicatorWidget->SetColorAndOpacity(Color);
-									bSetColor = true;
-								}
-							}
+									   VisualDebugIndicatorWidget->SetColorAndOpacity(Color);
+									   bSetColor = true;
+								   }
+							   }
 
-							if (Widgets.Num() == PreviousNumWidgets)
-							{
-								const FVector2D ImageSize = VisualDebugIndicatorWidget->GetDesiredSize();
+							   if (Widgets.Num() == PreviousNumWidgets)
+							   {
+								   const FVector2D ImageSize = VisualDebugIndicatorWidget->GetDesiredSize();
 
-								FOverlayWidgetInfo Info;
-								Info.OverlayOffset = FVector2D(WidgetSize.X - ImageSize.X - 6.f, 6.f);
-								Info.Widget = VisualDebugIndicatorWidget;
+								   FOverlayWidgetInfo Info;
+								   Info.OverlayOffset = FVector2D(WidgetSize.X - ImageSize.X - 6.f, 6.f);
+								   Info.Widget = VisualDebugIndicatorWidget;
 
-								Widgets.Add(Info);
-							}
-						}
+								   Widgets.Add(Info);
+							   }
+						   }
+					   }
 					}
 				}
 			}

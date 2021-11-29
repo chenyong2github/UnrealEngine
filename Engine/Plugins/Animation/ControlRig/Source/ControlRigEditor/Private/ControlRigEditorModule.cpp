@@ -1383,74 +1383,86 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						{
 							FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeInjectionInterp", LOCTEXT("NodeInjectionInterp", "Interpolate"));
 							URigVMNode* InterpNode = nullptr;
+							bool bBoundToVariable = false;
 							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 							{
 								FString PrototypeName;
-								if (Injection->UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+								if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Injection->Node))
 								{
-									if (PrototypeName == TEXT("AlphaInterp"))
+									if (UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
 									{
-										InterpNode = Injection->UnitNode;
-										break;
+										if (PrototypeName == TEXT("AlphaInterp"))
+										{
+											InterpNode = Injection->Node;
+											break;
+										}
 									}
+								}
+								else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Injection->Node))
+								{
+									bBoundToVariable = true;
+									break;
 								}
 							}
 
-							if (InterpNode == nullptr)
+							if(!bBoundToVariable)
 							{
-								UScriptStruct* ScriptStruct = nullptr;
+								if (InterpNode == nullptr)
+								{
+									UScriptStruct* ScriptStruct = nullptr;
 
-								if ((ModelPin->GetCPPType() == TEXT("float")) || (ModelPin->GetCPPType() == TEXT("double")))
-								{
-									ScriptStruct = FRigUnit_AlphaInterp::StaticStruct();
-								}
-								else if (ModelPin->GetCPPType() == TEXT("FVector"))
-								{
-									ScriptStruct = FRigUnit_AlphaInterpVector::StaticStruct();
+									if ((ModelPin->GetCPPType() == TEXT("float")) || (ModelPin->GetCPPType() == TEXT("double")))
+									{
+										ScriptStruct = FRigUnit_AlphaInterp::StaticStruct();
+									}
+									else if (ModelPin->GetCPPType() == TEXT("FVector"))
+									{
+										ScriptStruct = FRigUnit_AlphaInterpVector::StaticStruct();
+									}
+									else
+									{
+										checkNoEntry();
+									}
+
+									Section.AddMenuEntry(
+										"AddAlphaInterp",
+										LOCTEXT("AddAlphaInterp", "Add Interpolate"),
+										LOCTEXT("AddAlphaInterp_Tooltip", "Injects an interpolate node"),
+										FSlateIcon(),
+										FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, ScriptStruct]() {
+											URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Result"), FString(), true, true);
+											if (Injection)
+											{
+												TArray<FName> NodeNames;
+												NodeNames.Add(Injection->Node->GetFName());
+												Controller->SetNodeSelection(NodeNames);
+											}
+										})
+									));
 								}
 								else
 								{
-									checkNoEntry();
-								}
-
-								Section.AddMenuEntry(
-									"AddAlphaInterp",
-									LOCTEXT("AddAlphaInterp", "Add Interpolate"),
-									LOCTEXT("AddAlphaInterp_Tooltip", "Injects an interpolate node"),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, ScriptStruct]() {
-										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Result"), FString(), true, true);
-										if (Injection)
-										{
-											TArray<FName> NodeNames;
-											NodeNames.Add(Injection->UnitNode->GetFName());
-											Controller->SetNodeSelection(NodeNames);
-										}
+									Section.AddMenuEntry(
+										"EditAlphaInterp",
+										LOCTEXT("EditAlphaInterp", "Edit Interpolate"),
+										LOCTEXT("EditAlphaInterp_Tooltip", "Edit the interpolate node"),
+										FSlateIcon(),
+										FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InterpNode]() {
+										TArray<FName> NodeNames;
+										NodeNames.Add(InterpNode->GetFName());
+										RigBlueprint->GetController(InterpNode->GetGraph())->SetNodeSelection(NodeNames);
 									})
-								));
-							}
-							else
-							{
-								Section.AddMenuEntry(
-									"EditAlphaInterp",
-									LOCTEXT("EditAlphaInterp", "Edit Interpolate"),
-									LOCTEXT("EditAlphaInterp_Tooltip", "Edit the interpolate node"),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, InterpNode]() {
-									TArray<FName> NodeNames;
-									NodeNames.Add(InterpNode->GetFName());
-									RigBlueprint->GetController(InterpNode->GetGraph())->SetNodeSelection(NodeNames);
-								})
+										));
+									Section.AddMenuEntry(
+										"RemoveAlphaInterp",
+										LOCTEXT("RemoveAlphaInterp", "Remove Interpolate"),
+										LOCTEXT("RemoveAlphaInterp_Tooltip", "Removes the interpolate node"),
+										FSlateIcon(),
+										FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, InterpNode]() {
+											Controller->RemoveNodeByName(InterpNode->GetFName(), true, false, true);
+										})
 									));
-								Section.AddMenuEntry(
-									"RemoveAlphaInterp",
-									LOCTEXT("RemoveAlphaInterp", "Remove Interpolate"),
-									LOCTEXT("RemoveAlphaInterp_Tooltip", "Removes the interpolate node"),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, InterpNode]() {
-										Controller->RemoveNodeByName(InterpNode->GetFName(), true, false, true);
-									})
-								));
+								}
 							}
 						}
 
@@ -1461,122 +1473,134 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeInjectionVisualDebug", LOCTEXT("NodeInjectionVisualDebug", "Visual Debug"));
 
 							URigVMNode* VisualDebugNode = nullptr;
+							bool bBoundToVariable = false;
 							for (URigVMInjectionInfo* Injection : ModelPin->GetInjectedNodes())
 							{
 								FString PrototypeName;
-								if (Injection->UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
+								if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Injection->Node))
 								{
-									if (PrototypeName == TEXT("VisualDebug"))
+									if (UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(TEXT("PrototypeName"), &PrototypeName))
 									{
-										VisualDebugNode = Injection->UnitNode;
-										break;
+										if (PrototypeName == TEXT("VisualDebug"))
+										{
+											VisualDebugNode = Injection->Node;
+											break;
+										}
 									}
+								}
+								else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Injection->Node))
+								{
+									bBoundToVariable = true;
+									break;
 								}
 							}
 
-							if (VisualDebugNode == nullptr)
+							if (!bBoundToVariable)
 							{
-								UScriptStruct* ScriptStruct = nullptr;
+								if (VisualDebugNode == nullptr)
+								{
+									UScriptStruct* ScriptStruct = nullptr;
 
-								if (ModelPin->GetCPPType() == TEXT("FVector"))
-								{
-									ScriptStruct = FRigUnit_VisualDebugVectorItemSpace::StaticStruct();
-								}
-								else if (ModelPin->GetCPPType() == TEXT("FQuat"))
-								{
-									ScriptStruct = FRigUnit_VisualDebugQuatItemSpace::StaticStruct();
-								}
-								else if (ModelPin->GetCPPType() == TEXT("FTransform"))
-								{
-									ScriptStruct = FRigUnit_VisualDebugTransformItemSpace::StaticStruct();
-								}
-								else
-								{
-									checkNoEntry();
-								}
+									if (ModelPin->GetCPPType() == TEXT("FVector"))
+									{
+										ScriptStruct = FRigUnit_VisualDebugVectorItemSpace::StaticStruct();
+									}
+									else if (ModelPin->GetCPPType() == TEXT("FQuat"))
+									{
+										ScriptStruct = FRigUnit_VisualDebugQuatItemSpace::StaticStruct();
+									}
+									else if (ModelPin->GetCPPType() == TEXT("FTransform"))
+									{
+										ScriptStruct = FRigUnit_VisualDebugTransformItemSpace::StaticStruct();
+									}
+									else
+									{
+										checkNoEntry();
+									}
 
-								Section.AddMenuEntry(
-									"AddVisualDebug",
-									LOCTEXT("AddVisualDebug", "Add Visual Debug"),
-									LOCTEXT("AddVisualDebug_Tooltip", "Injects a visual debugging node"),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, Controller, InGraphPin, ModelPin, ScriptStruct]() {
-										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Value"), FString(), true, true);
-										if (Injection)
-										{
-											TArray<FName> NodeNames;
-											NodeNames.Add(Injection->UnitNode->GetFName());
-											Controller->SetNodeSelection(NodeNames);
-
-											if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelPin->GetNode()))
+									Section.AddMenuEntry(
+										"AddVisualDebug",
+										LOCTEXT("AddVisualDebug", "Add Visual Debug"),
+										LOCTEXT("AddVisualDebug_Tooltip", "Injects a visual debugging node"),
+										FSlateIcon(),
+										FUIAction(FExecuteAction::CreateLambda([RigBlueprint, Controller, InGraphPin, ModelPin, ScriptStruct]() {
+											URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Value"), FString(), true, true);
+											if (Injection)
 											{
-												if (TSharedPtr<FStructOnScope> DefaultStructScope = UnitNode->ConstructStructInstance())
+												TArray<FName> NodeNames;
+												NodeNames.Add(Injection->Node->GetFName());
+												Controller->SetNodeSelection(NodeNames);
+
+												if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelPin->GetNode()))
 												{
-													FRigUnit* DefaultStruct = (FRigUnit*)DefaultStructScope->GetStructMemory();
-
-													FString PinPath = ModelPin->GetPinPath();
-													FString Left, Right;
-
-													FRigElementKey SpaceKey;
-													if (URigVMPin::SplitPinPathAtStart(PinPath, Left, Right))
+													if (TSharedPtr<FStructOnScope> DefaultStructScope = UnitNode->ConstructStructInstance())
 													{
-														SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, RigBlueprint->Hierarchy);
-													}
+														FRigUnit* DefaultStruct = (FRigUnit*)DefaultStructScope->GetStructMemory();
 
-													if (SpaceKey.IsValid())
-													{
-														if (URigVMPin* SpacePin = Injection->UnitNode->FindPin(TEXT("Space")))
+														FString PinPath = ModelPin->GetPinPath();
+														FString Left, Right;
+
+														FRigElementKey SpaceKey;
+														if (URigVMPin::SplitPinPathAtStart(PinPath, Left, Right))
 														{
-															if(URigVMPin* SpaceTypePin = SpacePin->FindSubPin(TEXT("Type")))
+															SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, RigBlueprint->Hierarchy);
+														}
+
+														if (SpaceKey.IsValid())
+														{
+															if (URigVMPin* SpacePin = Injection->Node->FindPin(TEXT("Space")))
 															{
-																FString SpaceTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)SpaceKey.Type).ToString();
-																Controller->SetPinDefaultValue(SpaceTypePin->GetPinPath(), SpaceTypeStr, true, true, false, true);
-															}
-															if(URigVMPin* SpaceNamePin = SpacePin->FindSubPin(TEXT("Name")))
-															{
-																Controller->SetPinDefaultValue(SpaceNamePin->GetPinPath(), SpaceKey.Name.ToString(), true, true, false, true);
+																if(URigVMPin* SpaceTypePin = SpacePin->FindSubPin(TEXT("Type")))
+																{
+																	FString SpaceTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)SpaceKey.Type).ToString();
+																	Controller->SetPinDefaultValue(SpaceTypePin->GetPinPath(), SpaceTypeStr, true, true, false, true);
+																}
+																if(URigVMPin* SpaceNamePin = SpacePin->FindSubPin(TEXT("Name")))
+																{
+																	Controller->SetPinDefaultValue(SpaceNamePin->GetPinPath(), SpaceKey.Name.ToString(), true, true, false, true);
+																}
 															}
 														}
 													}
 												}
 											}
-										}
-									})
-								));
-							}
-							else
-							{
-								Section.AddMenuEntry(
-									"EditVisualDebug",
-									LOCTEXT("EditVisualDebug", "Edit Visual Debug"),
-									LOCTEXT("EditVisualDebug_Tooltip", "Edit the visual debugging node"),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([Controller, VisualDebugNode]() {
-										TArray<FName> NodeNames;
-										NodeNames.Add(VisualDebugNode->GetFName());
-										Controller->SetNodeSelection(NodeNames);
-									})
-								));
-								Section.AddMenuEntry(
-									"ToggleVisualDebug",
-									LOCTEXT("ToggleVisualDebug", "Toggle Visual Debug"),
-									LOCTEXT("ToggleVisualDebug_Tooltip", "Toggle the visibility the visual debugging"),
-									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([Controller, VisualDebugNode]() {
-										URigVMPin* EnabledPin = VisualDebugNode->FindPin(TEXT("bEnabled"));
-										check(EnabledPin);
-										Controller->SetPinDefaultValue(EnabledPin->GetPinPath(), EnabledPin->GetDefaultValue() == TEXT("True") ? TEXT("False") : TEXT("True"), false, true, false, true);
-									})
-								));
-								Section.AddMenuEntry(
-									"RemoveVisualDebug",
-									LOCTEXT("RemoveVisualDebug", "Remove Visual Debug"),
-									LOCTEXT("RemoveVisualDebug_Tooltip", "Removes the visual debugging node"),
-									FSlateIcon(),
-										FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, VisualDebugNode]() {
-										Controller->RemoveNodeByName(VisualDebugNode->GetFName(), true, false, true);
-									})
-								));
+										})
+									));
+								}
+								else
+								{
+									Section.AddMenuEntry(
+										"EditVisualDebug",
+										LOCTEXT("EditVisualDebug", "Edit Visual Debug"),
+										LOCTEXT("EditVisualDebug_Tooltip", "Edit the visual debugging node"),
+										FSlateIcon(),
+										FUIAction(FExecuteAction::CreateLambda([Controller, VisualDebugNode]() {
+											TArray<FName> NodeNames;
+											NodeNames.Add(VisualDebugNode->GetFName());
+											Controller->SetNodeSelection(NodeNames);
+										})
+									));
+									Section.AddMenuEntry(
+										"ToggleVisualDebug",
+										LOCTEXT("ToggleVisualDebug", "Toggle Visual Debug"),
+										LOCTEXT("ToggleVisualDebug_Tooltip", "Toggle the visibility the visual debugging"),
+										FSlateIcon(),
+										FUIAction(FExecuteAction::CreateLambda([Controller, VisualDebugNode]() {
+											URigVMPin* EnabledPin = VisualDebugNode->FindPin(TEXT("bEnabled"));
+											check(EnabledPin);
+											Controller->SetPinDefaultValue(EnabledPin->GetPinPath(), EnabledPin->GetDefaultValue() == TEXT("True") ? TEXT("False") : TEXT("True"), false, true, false, true);
+										})
+									));
+									Section.AddMenuEntry(
+										"RemoveVisualDebug",
+										LOCTEXT("RemoveVisualDebug", "Remove Visual Debug"),
+										LOCTEXT("RemoveVisualDebug_Tooltip", "Removes the visual debugging node"),
+										FSlateIcon(),
+											FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, VisualDebugNode]() {
+											Controller->RemoveNodeByName(VisualDebugNode->GetFName(), true, false, true);
+										})
+									));
+								}
 							}
 						}
 					}
