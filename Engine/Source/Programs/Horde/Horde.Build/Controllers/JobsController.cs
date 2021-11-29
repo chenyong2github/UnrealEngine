@@ -724,7 +724,7 @@ namespace HordeServer.Controllers
 			[FromQuery] PropertyFilter? Filter = null,
 			[FromQuery] int Index = 0,
 			[FromQuery] int Count = 100,
-			[FromQuery] bool ConsistentRead = true)
+			[FromQuery] bool ConsistentRead = false)
 		{
 			StreamId StreamIdValue = new StreamId(StreamId);
 			TemplateRefId[] TemplateRefIds = Templates.Select(x => new TemplateRefId(x)).ToArray();
