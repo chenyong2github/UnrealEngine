@@ -206,5 +206,5 @@ ETriggerState UInputTriggerChordAction::UpdateState_Implementation(const UEnhanc
 {
 	// Inherit state from the chorded action
 	const FInputActionInstance* EventData = PlayerInput->FindActionInstanceData(ChordAction);
-	return EventData ? EventData->MappingTriggerState : ETriggerState::None;
+	return EventData ? EventData->TriggerStateTracker.GetState() : ETriggerState::None;
 };

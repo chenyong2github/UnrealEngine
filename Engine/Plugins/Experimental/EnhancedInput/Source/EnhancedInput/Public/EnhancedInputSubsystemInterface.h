@@ -23,6 +23,17 @@ class UEnhancedInputSubsystemInterface : public UInterface
 	GENERATED_BODY()
 };
 
+UENUM()
+enum class EInputMappingRebuildType : uint8
+{
+	// No rebuild required.
+	None,
+	// Standard mapping rebuild. Retains existing triggers and modifiers for actions that were previously mapped.
+	Rebuild,
+	// If you have made changes to the triggers/modifiers associated with a UInputAction that was previously mapped a flush is required to reset the tracked data for that action.
+	RebuildWithFlush,
+};
+
 /** Passed in as params for Adding/Remove input contexts */
 USTRUCT(BlueprintType)
 struct FModifyContextOptions
@@ -124,7 +135,7 @@ public:
 	* @param Options		Options to consider when removing this input mapping context
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AutoCreateRefTerm = "Options"))
-	virtual void RequestRebuildControlMappings(const FModifyContextOptions& Options = FModifyContextOptions());
+	virtual void RequestRebuildControlMappings(const FModifyContextOptions& Options = FModifyContextOptions(), EInputMappingRebuildType RebuildType = EInputMappingRebuildType::Rebuild);
 
 	/**
 	 * Check if a key mapping is safe to add to a given mapping context within the set of active contexts currently applied to the player controller.
@@ -187,6 +198,8 @@ private:
 
 	TMap<TWeakObjectPtr<const UInputAction>, FInputActionValue> ForcedActions;
 	TMap<FKey, FInputActionValue> ForcedKeys;
+
+	EInputMappingRebuildType MappingRebuildPending = EInputMappingRebuildType::None;
 
 	/**
 	 * A flag that will be set when adding/removing a mapping context.
