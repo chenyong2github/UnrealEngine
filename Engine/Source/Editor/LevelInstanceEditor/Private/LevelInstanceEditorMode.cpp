@@ -24,10 +24,20 @@ ULevelInstanceEditorMode::ULevelInstanceEditorMode()
 		false);
 
 	bContextRestriction = true;
+
+	FEditorDelegates::PreBeginPIE.AddUObject(this, &ULevelInstanceEditorMode::OnPreBeginPIE);
 }
 
 ULevelInstanceEditorMode::~ULevelInstanceEditorMode()
 {
+}
+
+void ULevelInstanceEditorMode::OnPreBeginPIE(bool bSimulate)
+{
+	if (GLevelEditorModeTools().IsModeActive(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId))
+	{
+		GLevelEditorModeTools().DeactivateMode(ULevelInstanceEditorMode::EM_LevelInstanceEditorModeId);
+	}
 }
 
 void ULevelInstanceEditorMode::UpdateEngineShowFlags()

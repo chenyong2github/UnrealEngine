@@ -32,6 +32,7 @@ public:
 	// End UEdMode
 
 private:
+	void OnPreBeginPIE(bool bSimulate);
 	void UpdateEngineShowFlags();
 	virtual void BindCommands() override;
 
