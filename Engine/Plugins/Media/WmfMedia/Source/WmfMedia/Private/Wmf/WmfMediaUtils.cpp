@@ -102,7 +102,7 @@ namespace WmfMedia
 //		&MFVideoFormat_RGB24,
 //		&MFVideoFormat_RGB555,
 //		&MFVideoFormat_RGB565,
-//		&MFVideoFormat_RGB8,
+		&MFVideoFormat_RGB8,
 
 		// 8-bit YUV (packed)
 //		&MFVideoFormat_AYUV,
@@ -134,6 +134,11 @@ namespace WmfMedia
 		// 16-bit YUV (planar)
 //		&MFVideoFormat_P016,
 //		&MFVideoFormat_P216,
+
+		&MFVideoFormat_L8,
+		&MFVideoFormat_L16,
+		&MFVideoFormat_D16,
+
 	};
 
 

@@ -891,7 +891,9 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 		const TSharedRef<FWmfMediaHardwareVideoDecodingTextureSample, ESPMode::ThreadSafe> TextureSample = VideoSamplePool->AcquireShared();
 
 		EPixelFormat PixelFormat = PF_Unknown;
+		EPixelFormat AlphaPixelFormat = PF_Unknown;
 		EMediaTextureSampleFormat MediaTextureSampleFormat = EMediaTextureSampleFormat::Undefined;
+		bool bIsDestinationTextureSRGB = false;
 
 		if (Guid == MFVideoFormat_NV12)
 		{
@@ -902,6 +904,33 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 		{
 			PixelFormat = PF_B8G8R8A8;
 			MediaTextureSampleFormat = EMediaTextureSampleFormat::CharBGRA;
+		}
+		else if (Guid == MFVideoFormat_L8)
+		{
+			// We misuse this for DXT1 as there is no GUID for it.
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::DXT1;
+			PixelFormat = PF_DXT1;
+			bIsDestinationTextureSRGB = true;
+		}
+		else if (Guid == MFVideoFormat_L16)
+		{
+			// We misuse this for DXT5 as there is no GUID for it.
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::DXT5;
+			PixelFormat = PF_DXT5;
+			bIsDestinationTextureSRGB = true;
+		}
+		else if (Guid == MFVideoFormat_RGB8)
+		{
+			// We misuse this for YCoCg_DXT5 as there is no GUID for it.
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::YCoCg_DXT5;
+			PixelFormat = PF_DXT5;
+		}
+		else if (Guid == MFVideoFormat_D16)
+		{
+			// We misuse this for YCoCg_DXT5_Alpha_BC4 as there is no GUID for it.
+			MediaTextureSampleFormat = EMediaTextureSampleFormat::YCoCg_DXT5_Alpha_BC4;
+			PixelFormat = PF_DXT5;
+			AlphaPixelFormat = PF_BC4;
 		}
 		else // if (Guid == MFVideoFormat_Y416)
 		{
@@ -921,7 +950,22 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 				return;
 			}
 
-			LONG Pitch = ExternalBuffer.Num() / DimY;
+			// Set pitch.
+			LONG Pitch = 0;
+			if (MediaTextureSampleFormat == EMediaTextureSampleFormat::DXT1)
+			{
+				Pitch = DimX * 2;
+			}
+			else if ((MediaTextureSampleFormat == EMediaTextureSampleFormat::DXT5) ||
+				(MediaTextureSampleFormat == EMediaTextureSampleFormat::YCoCg_DXT5) ||
+				(MediaTextureSampleFormat == EMediaTextureSampleFormat::YCoCg_DXT5_Alpha_BC4))
+			{
+				Pitch = DimX * 4;
+			}
+			else
+			{
+				Pitch = ExternalBuffer.Num() / DimY;
+			}
 
 			// Set up sample.
 			TextureSample->InitializeExternal(&ExternalBuffer,
@@ -929,6 +973,10 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 				Pitch,
 				FTimespan::FromMicroseconds(SampleTime / 10),
 				FTimespan::FromMicroseconds(SampleDuration / 10));
+
+			TextureSample->SetPixelFormat(PixelFormat);
+			TextureSample->SetIsDestinationTextureSRGB(bIsDestinationTextureSRGB);
+			TextureSample->SetAlphaTexture(AlphaPixelFormat);
 			VideoSampleQueue->Enqueue(TextureSample);
 			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("Enqueued external buffer onto VideoSampleQueue."));
 		}

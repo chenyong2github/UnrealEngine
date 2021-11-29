@@ -149,3 +149,37 @@ public:
 		: FWmfMediaHardwareVideoDecodingShader(Initializer)
 	{ }
 };
+
+
+class FHardwareVideoDecodingYCoCgPS : public FWmfMediaHardwareVideoDecodingShader
+{
+	DECLARE_SHADER_TYPE(FHardwareVideoDecodingYCoCgPS, Global);
+
+public:
+
+	/** Default constructor. */
+	FHardwareVideoDecodingYCoCgPS() {}
+
+	/** Initialization constructor. */
+	FHardwareVideoDecodingYCoCgPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FWmfMediaHardwareVideoDecodingShader(Initializer)
+	{ }
+};
+
+
+class FHardwareVideoDecodingYCoCgAlphaPS : public FWmfMediaHardwareVideoDecodingShader
+{
+	DECLARE_SHADER_TYPE(FHardwareVideoDecodingYCoCgAlphaPS, Global);
+
+public:
+
+	/** Default constructor. */
+	FHardwareVideoDecodingYCoCgAlphaPS() {}
+
+	/** Initialization constructor. */
+	FHardwareVideoDecodingYCoCgAlphaPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FWmfMediaHardwareVideoDecodingShader(Initializer)
+	{ }
+};
+
+
