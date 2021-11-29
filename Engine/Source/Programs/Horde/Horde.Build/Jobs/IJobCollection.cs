@@ -115,10 +115,11 @@ namespace HordeServer.Collections
 		/// <param name="StreamId">The stream containing the job</param>
 		/// <param name="Templates">Templates to look for</param>
 		/// <param name="PreflightStartedByUser">User for which to include preflight jobs</param>
+		/// <param name="ModifiedAfter">Filter the results by modified time</param>
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <param name="ConsistentRead">If the database read should be made to the replica server</param>
-		Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser = null, int? Index = null, int? Count = null, bool ConsistentRead = false);
+		Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser = null, DateTimeOffset? ModifiedAfter = null, int? Index = null, int? Count = null, bool ConsistentRead = false);
 
 		/// <summary>
 		/// Updates a new job

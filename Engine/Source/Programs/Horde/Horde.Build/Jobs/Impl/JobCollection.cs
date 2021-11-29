@@ -623,12 +623,12 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser, int? Index, int? Count, bool ConsistentRead)
+		public async Task<List<IJob>> FindLatestByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser, DateTimeOffset? ModifiedAfter, int? Index, int? Count, bool ConsistentRead)
 		{
 			// This find call uses an index hint. Modifying the parameter passed to FindAsync can affect execution time a lot as the query planner is forced to use the specified index.
 			// Casting to interface to benefit from default parameter values
 			return await (this as IJobCollection).FindAsync(
-				StreamId: StreamId, Templates: Templates, PreflightStartedByUser: PreflightStartedByUser,
+				StreamId: StreamId, Templates: Templates, PreflightStartedByUser: PreflightStartedByUser, ModifiedAfter: ModifiedAfter,
 				Index: Index, Count: Count, IndexHint: Indexes.CreateTimeUtc, ConsistentRead: ConsistentRead);
 		}
 
