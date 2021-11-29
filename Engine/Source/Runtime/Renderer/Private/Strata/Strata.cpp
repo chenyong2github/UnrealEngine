@@ -635,7 +635,7 @@ void ApprendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount,
 		// Add 2 uint for Strata fast path
 		auto AddStrataOutputTarget = [&](int16 StrataMaterialArraySlice)
 		{
-			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.MaterialTextureArrayMRTs, StrataMaterialArraySlice);
+			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.MaterialTextureArrayMRTs, StrataMaterialArraySlice, ERenderTargetLoadAction::ELoad);
 			RenderTargetCount++;
 		};
 		AddStrataOutputTarget(0);
@@ -643,7 +643,7 @@ void ApprendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount,
 
 		// Add another MRT for Strata top layer information
 		{
-			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.TopLayerTexture);
+			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.TopLayerTexture, ERenderTargetLoadAction::ELoad);
 			RenderTargetCount++;
 		};
 	}
