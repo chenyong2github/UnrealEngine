@@ -166,11 +166,16 @@ export class WidgetUtilities {
     const vector = color as VectorProperty;
 
     max = max || 1;
-    return {
+    const rgbColor = {
       R: (vector?.X ?? rgb?.R) * 255 / max,
       G: (vector?.Y ?? rgb?.G) * 255 / max,
       B: (vector?.Z ?? rgb?.B) * 255 / max,
-    };
+    } as ColorProperty;
+
+    if (rgb?.A)
+      rgbColor.A = rgb.A;
+
+    return rgbColor;
   }
 
   static rgbToColor = (rgb: ColorProperty, max: number, vector = true): ColorProperty | VectorProperty => {
@@ -181,7 +186,11 @@ export class WidgetUtilities {
     if (vector)
       return { X: a, Y: b, Z: c };
 
-    return { R: a, G: b, B: c };
+    const color = { R: a, G: b, B: c } as ColorProperty;
+    if (rgb.A)
+      color.A = rgb.A;
+
+    return color;
   }
 
   static rgb2Hsv(color: ColorProperty): IHsvColor {
@@ -214,10 +223,14 @@ export class WidgetUtilities {
       h /= 6;
     }
 
-    return { h, s, v };
+    const hsvColor = { h, s, v } as IHsvColor;
+    if (color?.A)
+      hsvColor.a = color.A;
+
+    return hsvColor;
   }
 
-  static hsv2rgb({ h, s, v }: IHsvColor): ColorProperty {
+  static hsv2rgb({ h, s, v, a }: IHsvColor): ColorProperty {
     let r: number, g: number, b: number;
 
     let i = Math.floor(h * 6);
@@ -244,6 +257,10 @@ export class WidgetUtilities {
     if (i % 6 === 5)
       ([r, g, b] = [v, p, q]);
 
-    return { R: r * 255, G: g * 255, B: b * 255 };
+    const color = { R: r * 255, G: g * 255, B: b * 255 } as ColorProperty;
+    if (a)
+      color.A = a;
+
+    return color;
   }
 }

@@ -29,6 +29,7 @@ export class App extends Server {
       // Trying to kill a zombie process
       await request.get(`http://127.0.0.1:${Program.port}/api/shutdown`)
                     .timeout(100)
+                    .then(() => new Promise(resolve => setTimeout(resolve, 100)))
                     .catch(() => {});
 
       await this.startServer();

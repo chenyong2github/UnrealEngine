@@ -66,7 +66,7 @@ export class Api {
   @Get('shutdown')
   private shutdown(req: Request, res: Response) {
     res.send({ message: 'ok' });
-    setTimeout(() => process.exit(0), 1000);
+    setImmediate(() => process.exit(0));
   }
 
   protected async send(res: Response, promise: Promise<any>, options?: ISendOptions): Promise<any> {
