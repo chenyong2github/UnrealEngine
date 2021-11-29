@@ -19,9 +19,11 @@ class MESHMODELINGTOOLSEXP_API UMeshAnalysisProperties : public UInteractiveTool
 	GENERATED_BODY()
 public:
 
+	/** In meters squared */
 	UPROPERTY(VisibleAnywhere, Category = MeshAnalysis)
 	FString SurfaceArea;
 
+	/** In cubic meters */
 	UPROPERTY(VisibleAnywhere, Category = MeshAnalysis)
 	FString Volume;
 
