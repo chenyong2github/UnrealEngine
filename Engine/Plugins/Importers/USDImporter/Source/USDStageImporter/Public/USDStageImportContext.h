@@ -65,6 +65,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	 */
 	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
 
+	/** USD Stage to import */
 	UE::FUsdStage Stage;
 
 	/** Object flags to apply to newly imported objects */
@@ -80,7 +81,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	bool bReadFromStageCache;
 
 	/** If we're reading from the stage cache and the stage was originally open, it will be left open when the import is completed */
-	bool bStageWasOriginallyOpen;
+	bool bStageWasOriginallyOpenInCache;
 
 	/** We modify the stage with our meters per unit import option on import. If the stage was already open, we use this to undo the changes after import */
 	float OriginalMetersPerUnit;
