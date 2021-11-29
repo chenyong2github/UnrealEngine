@@ -82,7 +82,7 @@ bool TryCreateKey(FName PackageName, TConstArrayView<FName> SortedBuildDependenc
 		if (OutErrorMessage) *OutErrorMessage = TEXT("AssetRegistry is unavailable.");
 		return false;
 	}
-	FCbWriter KeyBuilder;
+	FBlake3 KeyBuilder;
 	UE::EditorDomain::EPackageDigestResult Result;
 	FString ErrorMessage;
 	UE::EditorDomain::EDomainUse EditorDomainUse;
@@ -109,7 +109,7 @@ bool TryCreateKey(FName PackageName, TConstArrayView<FName> SortedBuildDependenc
 
 	if (OutHash)
 	{
-		*OutHash = KeyBuilder.Save().GetRangeHash();
+		*OutHash = KeyBuilder.Finalize();
 	}
 	return true;
 }
