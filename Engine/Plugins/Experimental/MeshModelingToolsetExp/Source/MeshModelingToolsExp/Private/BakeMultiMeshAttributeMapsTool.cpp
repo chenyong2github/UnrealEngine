@@ -409,15 +409,7 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	UToolTarget* Target = Targets[0];
 
 	// Setup tool property sets
-	
-	InputMeshSettings = NewObject<UBakeMultiMeshInputToolProperties>(this);
-	InputMeshSettings->RestoreProperties(this);
-	AddToolPropertySource(InputMeshSettings);
-	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
-	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
-	InputMeshSettings->WatchProperty(InputMeshSettings->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
-	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
-	
+
 	Settings = NewObject<UBakeMultiMeshAttributeMapsToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
@@ -427,6 +419,19 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->BitDepth, [this](EBakeTextureBitDepth) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->SamplesPerPixel, [this](EBakeTextureSamplesPerPixel) { OpState |= EBakeOpState::Evaluate; });
+	
+	InputMeshSettings = NewObject<UBakeMultiMeshInputToolProperties>(this);
+	InputMeshSettings->RestoreProperties(this);
+	AddToolPropertySource(InputMeshSettings);
+	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
+	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
+	InputMeshSettings->WatchProperty(InputMeshSettings->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
+	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
+
+	ResultSettings = NewObject<UBakeMeshAttributeMapsResultToolProperties>(this);
+	ResultSettings->RestoreProperties(this);
+	AddToolPropertySource(ResultSettings);
+	SetToolPropertySourceEnabled(ResultSettings, true);
 
 
 	// Pre-populate detail mesh data
@@ -484,7 +489,7 @@ bool UBakeMultiMeshAttributeMapsTool::CanAccept() const
 	if (bCanAccept)
 	{
 		// Allow Accept if all non-None types have valid results.
-		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
+		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : ResultSettings->Result)
 		{
 			bCanAccept = bCanAccept && Result.Get<1>();
 		}
@@ -541,7 +546,7 @@ void UBakeMultiMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 		IStaticMeshBackedTarget* StaticMeshTarget = Cast<IStaticMeshBackedTarget>(Targets[0]);
 		UObject* SourceAsset = StaticMeshTarget ? StaticMeshTarget->GetStaticMesh() : nullptr;
 		const UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
-		CreateTextureAssets(Settings->Result, SourceComponent->GetWorld(), SourceAsset);
+		CreateTextureAssets(ResultSettings->Result, SourceComponent->GetWorld(), SourceAsset);
 	}
 }
 
@@ -670,25 +675,30 @@ void UBakeMultiMeshAttributeMapsTool::UpdateVisualization()
 	// Populate Settings->Result from CachedMaps
 	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
 	{
-		if (Settings->Result.Contains(Map.Get<0>()))
+		if (ResultSettings->Result.Contains(Map.Get<0>()))
 		{
-			Settings->Result[Map.Get<0>()] = Map.Get<1>();
+			ResultSettings->Result[Map.Get<0>()] = Map.Get<1>();
 		}
 	}
 
-	UpdatePreview(Settings);
+	UpdatePreview(Settings->MapPreview, Settings->MapPreviewNamesMap);
 }
 
 
 void UBakeMultiMeshAttributeMapsTool::UpdateOnModeChange()
 {
-	OnMapTypesUpdated(Settings);
+	OnMapTypesUpdated(
+		static_cast<EBakeMapType>(Settings->MapTypes),
+		ResultSettings->Result,
+		Settings->MapPreview,
+		Settings->MapPreviewNamesList,
+		Settings->MapPreviewNamesMap);
 }
 
 
 void UBakeMultiMeshAttributeMapsTool::InvalidateResults()
 {
-	for (TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
+	for (TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : ResultSettings->Result)
 	{
 		Result.Get<1>() = nullptr;
 	}

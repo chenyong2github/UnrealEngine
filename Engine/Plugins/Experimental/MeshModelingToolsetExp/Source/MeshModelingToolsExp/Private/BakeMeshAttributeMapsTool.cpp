@@ -275,6 +275,17 @@ void UBakeMeshAttributeMapsTool::Setup()
 	
 	// Setup tool property sets
 
+	Settings = NewObject<UBakeMeshAttributeMapsToolProperties>(this);
+	Settings->RestoreProperties(this);
+	AddToolPropertySource(Settings);
+
+	Settings->WatchProperty(Settings->MapTypes, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
+	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->BitDepth, [this](EBakeTextureBitDepth) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->SamplesPerPixel, [this](EBakeTextureSamplesPerPixel) { OpState |= EBakeOpState::Evaluate; });
+	
+
 	InputMeshSettings = NewObject<UBakeInputMeshProperties>(this);
 	InputMeshSettings->RestoreProperties(this);
 	AddToolPropertySource(InputMeshSettings);
@@ -302,17 +313,12 @@ void UBakeMeshAttributeMapsTool::Setup()
 		}
 		OpState |= EBakeOpState::Evaluate;
 	});
-
 	
-	Settings = NewObject<UBakeMeshAttributeMapsToolProperties>(this);
-	Settings->RestoreProperties(this);
-	AddToolPropertySource(Settings);
 
-	Settings->WatchProperty(Settings->MapTypes, [this](int32) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
-	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
-	Settings->WatchProperty(Settings->BitDepth, [this](EBakeTextureBitDepth) { OpState |= EBakeOpState::Evaluate; });
-	Settings->WatchProperty(Settings->SamplesPerPixel, [this](EBakeTextureSamplesPerPixel) { OpState |= EBakeOpState::Evaluate; });
+	ResultSettings = NewObject<UBakeMeshAttributeMapsResultToolProperties>(this);
+	ResultSettings->RestoreProperties(this);
+	AddToolPropertySource(ResultSettings);
+	SetToolPropertySourceEnabled(ResultSettings, true);
 	
 
 	OcclusionSettings = NewObject<UBakeOcclusionMapToolProperties>(this);
@@ -376,7 +382,7 @@ bool UBakeMeshAttributeMapsTool::CanAccept() const
 	if (bCanAccept)
 	{
 		// Allow Accept if all non-None types have valid results.
-		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
+		for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : ResultSettings->Result)
 		{
 			bCanAccept = bCanAccept && Result.Get<1>();
 		}
@@ -476,7 +482,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 			SourceAsset = SkeletalMeshTarget ? SkeletalMeshTarget->GetSkeletalMesh() : nullptr;
 		}
 		const UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
-		CreateTextureAssets(Settings->Result, SourceComponent->GetWorld(), SourceAsset);
+		CreateTextureAssets(ResultSettings->Result, SourceComponent->GetWorld(), SourceAsset);
 	}
 }
 
@@ -663,19 +669,24 @@ void UBakeMeshAttributeMapsTool::UpdateVisualization()
 	// Populate Settings->Result from CachedMaps
 	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
 	{
-		if (Settings->Result.Contains(Map.Get<0>()))
+		if (ResultSettings->Result.Contains(Map.Get<0>()))
 		{
-			Settings->Result[Map.Get<0>()] = Map.Get<1>();
+			ResultSettings->Result[Map.Get<0>()] = Map.Get<1>();
 		}
 	}
 
-	UpdatePreview(Settings);
+	UpdatePreview(Settings->MapPreview, Settings->MapPreviewNamesMap);
 }
 
 
 void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 {
-	OnMapTypesUpdated(Settings);
+	OnMapTypesUpdated(
+		static_cast<EBakeMapType>(Settings->MapTypes),
+		ResultSettings->Result,
+		Settings->MapPreview,
+		Settings->MapPreviewNamesList,
+		Settings->MapPreviewNamesMap);
 
 	// Update tool property sets.
 	SetToolPropertySourceEnabled(OcclusionSettings, false);
@@ -717,7 +728,7 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 
 void UBakeMeshAttributeMapsTool::InvalidateResults()
 {
-	for (TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : Settings->Result)
+	for (TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Result : ResultSettings->Result)
 	{
 		Result.Get<1>() = nullptr;
 	}
