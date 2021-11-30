@@ -9,20 +9,20 @@
 
 namespace UE::Online {
 
-/** Enum used as template argument to TOnlineIdHandle to make it a compile error to assign between id's of different types */
-enum class EOnlineIdType
+/** Tags used as template argument to TOnlineIdHandle to make it a compile error to assign between id's of different types */
+namespace OnlineIdHandleTags
 {
-	AccountId,
-	SessionId,
-	PartyId
-};
+	struct FAccount {};
+	struct FSession {};
+	struct FParty {};
+}
 
 /**
  * A handle to an id which uniquely identifies a persistent or transient online resource, i.e. account/session/party etc, within a given Online Services provider.
  * At most one id, and therefore one handle, exists for any given resource. The id and handle persist until the OnlineServices module is unloaded.
  * Passed to and returned from OnlineServices APIs.
  */ 
-template<EOnlineIdType IdType>
+template<typename IdType>
 class TOnlineIdHandle
 {
 public:
@@ -45,16 +45,16 @@ private:
 	uint32 Value = uint32(EOnlineServices::Null) << 24;
 };
 
-using FOnlineAccountIdHandle = TOnlineIdHandle<EOnlineIdType::AccountId>;
+using FOnlineAccountIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
 
-template<EOnlineIdType IdType>
+template<typename IdType>
 inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)
 {
 	using ::GetTypeHash;
 	return HashCombine(GetTypeHash(Handle.GetOnlineServicesType()), GetTypeHash(Handle.GetHandle()));
 }
 
-template<EOnlineIdType IdType>
+template<typename IdType>
 inline void LexFromString(const TOnlineIdHandle<IdType>& Id, const TCHAR* String)
 {
 	// TODO: should instead just implement ParseOnlineExecParams
