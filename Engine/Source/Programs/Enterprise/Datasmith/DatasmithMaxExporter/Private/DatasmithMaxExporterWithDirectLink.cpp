@@ -727,7 +727,7 @@ public:
 		return NodeTracker;
 	}
 
-	void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial)
+	virtual void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) override
 	{
 		ExportedScene.DatasmithSceneRef->RemoveMaterial(DatasmithMaterial);		
 	}
@@ -785,7 +785,7 @@ public:
 	}
 
 	// Called when mesh element is not needed anymore and should be removed from the scene
-	void ReleaseMeshElement(TSharedPtr<IDatasmithMeshElement> Mesh)
+	virtual void ReleaseMeshElement(TSharedPtr<IDatasmithMeshElement> Mesh) override
 	{
 		ExportedScene.GetDatasmithScene()->RemoveMesh(Mesh);
 	}
@@ -1269,7 +1269,7 @@ public:
 		}
 	}
 
-	void AddMeshElement(TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, FDatasmithMesh& DatasmithMesh, FDatasmithMesh* CollisionMesh)
+	virtual void AddMeshElement(TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, FDatasmithMesh& DatasmithMesh, FDatasmithMesh* CollisionMesh) override
 	{
 		ExportedScene.GetDatasmithScene()->AddMesh(DatasmithMeshElement);
 
@@ -1306,7 +1306,7 @@ public:
 		return false;
 	}
 
-	void SetupActor(FNodeTracker& NodeTracker)
+	virtual void SetupActor(FNodeTracker& NodeTracker) override
 	{
 		NodeTracker.DatasmithActorElement->SetLabel(NodeTracker.Node->GetName());
 
@@ -1417,8 +1417,8 @@ public:
 
 		return true;
 	}
-	
-	void SetupDatasmithHISMForNode(FNodeTracker& NodeTracker, INode* GeometryNode, const FRenderMeshForConversion& RenderMesh, Mtl* Material, int32 MeshIndex, const TArray<Matrix3>& Transforms)
+
+	virtual void SetupDatasmithHISMForNode(FNodeTracker& NodeTracker, INode* GeometryNode, const FRenderMeshForConversion& RenderMesh, Mtl* Material, int32 MeshIndex, const TArray<Matrix3>& Transforms) override
 	{
 		FString MeshName = FString::FromInt(NodeTracker.Node->GetHandle()) + TEXT("_") + FString::FromInt(MeshIndex);
 
@@ -1522,7 +1522,7 @@ public:
 
 	/******************* Events *****************************/
 
-	void NodeAdded(INode* Node)
+	virtual void NodeAdded(INode* Node) override
 	{
 		// Node sometimes is null. 'Added' NodeEvent might come after node was actually deleted(immediately after creation)
 		// e.g.[mxs]: b = box(); delete b 
@@ -1537,7 +1537,7 @@ public:
 		ParseNode(Node);
 	}
 
-	void NodeDeleted(INode* Node)
+	virtual void NodeDeleted(INode* Node) override
 	{
 		// todo: check for null
 
@@ -1570,7 +1570,7 @@ public:
 		}
 	}
 
-	void NodeTransformChanged(FNodeKey NodeKey)
+	virtual void NodeTransformChanged(FNodeKey NodeKey) override
 	{
 		// todo: invalidate transform only
 
@@ -1590,13 +1590,13 @@ public:
 		}
 	}
 
-	void NodeMaterialAssignmentChanged(FNodeKey NodeKey)
+	virtual void NodeMaterialAssignmentChanged(FNodeKey NodeKey) override
 	{
 		//todo: handle more precisely
 		InvalidateNode(NodeKey);
 	}
 
-	void NodeMaterialGraphModified(FNodeKey NodeKey)
+	virtual void NodeMaterialGraphModified(FNodeKey NodeKey) override
 	{
 		//identify material tree and update all materials
 		//todo: possible to handle this more precisely(only refresh changed materials) - see FMaterialObserver
@@ -1619,7 +1619,7 @@ public:
 		InvalidateNode(NodeKey); // Invalidate node that has this material assigned. This is needed to trigger rebuild - exported geometry might change(e.g. multimaterial changed to slots will change on static mesh)
 	}
 
-	void NodeGeometryChanged(FNodeKey NodeKey)
+	virtual void NodeGeometryChanged(FNodeKey NodeKey) override
 	{
 		// GeometryChanged is executed to handle:
 		// - actual geometry modification(in any way)
@@ -1628,7 +1628,7 @@ public:
 		InvalidateNode(NodeKey);
 	}
 
-	void NodeHideChanged(FNodeKey NodeKey)
+	virtual void NodeHideChanged(FNodeKey NodeKey) override
 	{
 		// todo: invalidate visibility only - note to handle this not enought add/remove 
 		// actor. make sure to invalidate instances(in case geometry usage changed - like hidden node with multimat), materials
@@ -1636,7 +1636,7 @@ public:
 		InvalidateNode(NodeKey);
 	}
 
-	void NodePropertiesChanged(FNodeKey NodeKey)
+	virtual void NodePropertiesChanged(FNodeKey NodeKey) override
 	{
 		// todo: invalidate visibility only - note to handle this not enought add/remove 
 		// actor. make sure to invalidate instances(in case geometry usage changed - like hidden node with multimat), materials
@@ -1690,7 +1690,7 @@ class FExporter: public IExporter
 public:
 	FExporter(): NotificationsHandler(*this), SceneTracker(ExportedScene, NotificationsHandler) {}
 
-	virtual void Shutdown();
+	virtual void Shutdown() override;
 
 	virtual void SetOutputPath(const TCHAR* Path) override
 	{
@@ -1703,7 +1703,7 @@ public:
 		ExportedScene.SetName(Name);
 	}
 
-	virtual void ParseScene() 
+	virtual void ParseScene() override
 	{
 		SceneTracker.ParseScene();
 	}
@@ -1717,13 +1717,13 @@ public:
 		return true;
 	}
 
-	void InitializeDirectLinkForScene()
+	virtual void InitializeDirectLinkForScene() override
 	{
 		DirectLinkImpl.Reset(new FDatasmithDirectLink);
 		DirectLinkImpl->InitializeForScene(ExportedScene.GetDatasmithScene());
 	}
 
-	void UpdateDirectLinkScene()
+	virtual void UpdateDirectLinkScene() override
 	{
 		DirectLinkImpl->UpdateScene(ExportedScene.GetDatasmithScene());
 		StartSceneChangeTracking(); // Always track scene changes if it's synced with DirectLink
@@ -1756,9 +1756,12 @@ public:
 		}
 	}
 
-	bool bAutoSyncEnabled = false;
+	virtual bool IsAutoSyncEnabled() override
+	{
+		return bAutoSyncEnabled;
+	}
 
-	bool ToggleAutoSync()
+	virtual bool ToggleAutoSync() override
 	{
 		if (bAutoSyncEnabled)
 		{
@@ -1774,22 +1777,20 @@ public:
 		return bAutoSyncEnabled;
 	}
 
-	FNotifications NotificationsHandler;
-
 	// Install change notification systems
-	void StartSceneChangeTracking()
+	virtual void StartSceneChangeTracking() override
 	{
 		NotificationsHandler.RegisterForNotifications();
 	}
 
-	bool UpdateScene(bool bQuiet)
+	virtual bool UpdateScene(bool bQuiet) override
 	{
 		SceneTracker.Update(bQuiet);
 
 		return true;
 	}
 
-	void Reset()
+	virtual void Reset() override
 	{
 		ExportedScene.Reset();
 
@@ -1814,7 +1815,7 @@ public:
 		NotificationsHandler.Reset();
 	}
 
-	ISceneTracker& GetSceneTracker()
+	virtual ISceneTracker& GetSceneTracker() override
 	{
 		return SceneTracker;
 	}
@@ -1824,6 +1825,9 @@ public:
 	FString OutputPath;
 
 	FSceneTracker SceneTracker;
+	FNotifications NotificationsHandler;
+
+	bool bAutoSyncEnabled = false;
 };
 
 static TUniquePtr<IExporter> Exporter;
@@ -1862,7 +1866,7 @@ IExporter* GetExporter()
 	return Exporter.Get();	
 }
 
-void FExporter::Shutdown()
+void FExporter::Shutdown() 
 {
 	Exporter.Reset();
 	FDatasmithDirectLink::Shutdown();
