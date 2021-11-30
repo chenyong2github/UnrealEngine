@@ -12,7 +12,8 @@
 #include "LevelEditor.h"
 #include "ScopedTransaction.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
-
+#include "Modules/ModuleManager.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 DEFINE_LOG_CATEGORY(LogLevelSequenceEditor);
 
