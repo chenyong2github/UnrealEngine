@@ -9,6 +9,9 @@
 #include "EditorModeManager.h"
 #include "InteractiveToolManager.h"
 #include "BaseSequencerAnimTool.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
+#include "MotionTrailTool.h"
+#include "SequencerAnimEditPivotTool.h"
 
 #define LOCTEXT_NAMESPACE "SequencerAnimTools"
 
@@ -29,6 +32,42 @@ USequencerToolsEditMode::USequencerToolsEditMode()
 USequencerToolsEditMode::~USequencerToolsEditMode()
 {
 
+}
+
+void USequencerToolsEditMode::Enter()
+{
+	FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
+	
+	if (LevelEditorModule)
+	{
+		TWeakPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule->GetLevelEditorInstance();
+		
+		if (LevelEditorPtr.IsValid())
+		{
+			LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->RegisterToolType(TEXT("SequencerMotionTrail"), NewObject<UMotionTrailToolBuilder>(this));
+			LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->RegisterToolType(TEXT("SequencerPivotTool"), NewObject<USequencerPivotToolBuilder>(this));
+
+			UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext());
+		}
+	}
+}
+
+void USequencerToolsEditMode::Exit()
+{
+	FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
+	
+	if (LevelEditorModule)
+	{
+		TWeakPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule->GetLevelEditorInstance();
+		
+		if (LevelEditorPtr.IsValid())
+		{
+			LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->UnregisterToolType(TEXT("SequencerMotionTrail"));
+			LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->UnregisterToolType(TEXT("SequencerPivotTool"));
+
+			UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext());
+		}
+	}
 }
 
 bool USequencerToolsEditMode::IsCompatibleWith(FEditorModeID OtherModeID) const
