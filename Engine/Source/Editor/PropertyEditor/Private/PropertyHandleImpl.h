@@ -15,25 +15,19 @@ class FPropertyRestriction;
 class FObjectBaseAddress
 {
 public:
-	FObjectBaseAddress()
-		:	ObjectOrStruct(nullptr)
-		,	BaseAddress(nullptr)
-		,	bIsStruct(false)
-	{}
-	FObjectBaseAddress(uint8* InObjectOrStruct, uint8* InBaseAddress, bool InIsStruct)
-		:	ObjectOrStruct(InObjectOrStruct)
-		,	BaseAddress(InBaseAddress)
-		,	bIsStruct(InIsStruct)
+	FObjectBaseAddress() = default;
+	FObjectBaseAddress(UObject* InObject, uint8* InStructAddress, uint8* InBaseAddress)
+		: Object(InObject)
+		, StructAddress(InStructAddress)
+		, BaseAddress(InBaseAddress)
 	{}
 
-	FORCEINLINE UObject* GetUObject() const
-	{
-		return bIsStruct ? nullptr : (UObject*) ObjectOrStruct;
-	}
-
-	uint8*		ObjectOrStruct;
-	uint8*		BaseAddress;
-	bool		bIsStruct;
+	/** Object associated with the value, or null when editing a struct. */
+	UObject* Object = nullptr;
+	/** Pointer to the object/struct instance that actually owns the value (may be pointing to sidecar data). */
+	uint8* StructAddress = nullptr;
+	/** Pointer to the base address of the value within StructAddress. */
+	uint8* BaseAddress = nullptr;
 };
 
 /**
