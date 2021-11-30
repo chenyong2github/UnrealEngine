@@ -40,6 +40,10 @@ bool FMovieScenePropertyTrackRecorderFactory::CanRecordProperty(UObject* InObjec
 		{
 			return true;
 		}
+		else if (StructProperty->Struct->GetFName() == NAME_LinearColor)
+		{
+			return true;
+		}
 	}
 
 	// We only know how to make generic tracks for the types above
@@ -90,6 +94,9 @@ UMovieSceneTrackRecorder* FMovieScenePropertyTrackRecorderFactory::CreateTrackRe
 		break;
 	case ESerializedPropertyType::ColorType:
 		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FColor>(Binding));
+		break;
+	case ESerializedPropertyType::LinearColorType:
+		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FLinearColor>(Binding));
 		break;
 
 	}
@@ -148,6 +155,10 @@ void UMovieScenePropertyTrackRecorder::CreateTrackImpl()
 			else if (StructProperty->Struct->GetFName() == NAME_Color)
  			{
 				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FColor>(Binding));
+ 			}
+ 			else if (StructProperty->Struct->GetFName() == NAME_LinearColor)
+ 			{
+				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FLinearColor>(Binding));
  			}
  		} 
 		ensure(PropertyRecorder);

@@ -96,6 +96,11 @@ FMovieSceneSerializerRunnable<FPropertyFileHeader, FSerializedProperty<FString>>
 template<> SERIALIZEDRECORDERINTERFACE_API
 FRunnableThread* TMovieSceneSerializer<FPropertyFileHeader, FSerializedProperty<FString>>::Thread = nullptr;
 
+template<> SERIALIZEDRECORDERINTERFACE_API
+FMovieSceneSerializerRunnable<FPropertyFileHeader, FSerializedProperty<FLinearColor>>* TMovieSceneSerializer<FPropertyFileHeader, FSerializedProperty<FLinearColor>>::Runnable = nullptr;
+template<> SERIALIZEDRECORDERINTERFACE_API
+FRunnableThread* TMovieSceneSerializer<FPropertyFileHeader, FSerializedProperty<FLinearColor>>::Thread = nullptr;
+
 /** External Tempplate statics.  Need to define here due to linkage issues*/
 
 /* From TakeRecorderActorSource */
