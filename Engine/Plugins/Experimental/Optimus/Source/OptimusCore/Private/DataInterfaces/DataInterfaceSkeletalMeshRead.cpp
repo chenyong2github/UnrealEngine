@@ -334,13 +334,13 @@ int32 FSkeletalMeshReadDataProviderProxy::GetInvocationCount() const
 FIntVector FSkeletalMeshReadDataProviderProxy::GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const
 {
 	// todo[CF]: Need to know which parameter drives the dispatch size. There's quite some complexity here as this relies on much more info from the kernel.
-	// Just assume one thread per vertex will drive this for now.
+	// Just assume one thread per vertex or triangle (whichever is greater) will drive this for now.
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
 	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
-	const int32 NumVertices = RenderSection.GetNumVertices();
+	const int32 NumThreads = FMath::Max(RenderSection.NumVertices, RenderSection.NumTriangles);
 	const int32 NumGroupThreads = GroupDim.X * GroupDim.Y * GroupDim.Z;
-	const int32 NumGroups = FMath::DivideAndRoundUp(NumVertices, NumGroupThreads);
+	const int32 NumGroups = FMath::DivideAndRoundUp(NumThreads, NumGroupThreads);
 	return FIntVector(NumGroups, 1, 1);
 }
 
