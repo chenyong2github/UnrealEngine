@@ -40,13 +40,17 @@
 #include "AlTrimRegion.h"
 #include "AlTM.h"
 
+using namespace CADKernel;
+
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
 namespace AliasToCADKernelUtils
 {
-	template<typename Surface_T>
-	TSharedPtr<CADKernel::FSurface> AddNURBSSurface(double GeometricTolerance, Surface_T& AliasSurface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
-	{
-		using namespace CADKernel;
 
+	template<typename Surface_T>
+	TSharedPtr<FSurface> AddNURBSSurface(double GeometricTolerance, Surface_T& AliasSurface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
+	{
 		FNurbsSurfaceHomogeneousData NURBSData;
 		NURBSData.bSwapUV= true;
 		NURBSData.bIsRational = true;
@@ -92,10 +96,8 @@ namespace AliasToCADKernelUtils
 	}
 }
 
-TSharedPtr<CADKernel::FTopologicalEdge> FAliasModelToCADKernelConverter::AddEdge(const AlTrimCurve& AliasTrimCurve, TSharedPtr<CADKernel::FSurface>& CarrierSurface)
+TSharedPtr<FTopologicalEdge> FAliasModelToCADKernelConverter::AddEdge(const AlTrimCurve& AliasTrimCurve, TSharedPtr<CADKernel::FSurface>& CarrierSurface)
 {
-	using namespace CADKernel;
-
 	FNurbsCurveData NurbsCurveData;
 
 	NurbsCurveData.Degree = AliasTrimCurve.degree();
@@ -144,10 +146,8 @@ TSharedPtr<CADKernel::FTopologicalEdge> FAliasModelToCADKernelConverter::AddEdge
 	return Edge;
 }
 
-TSharedPtr<CADKernel::FTopologicalLoop> FAliasModelToCADKernelConverter::AddLoop(const AlTrimBoundary& TrimBoundary, TSharedPtr<CADKernel::FSurface>& CarrierSurface)
+TSharedPtr<FTopologicalLoop> FAliasModelToCADKernelConverter::AddLoop(const AlTrimBoundary& TrimBoundary, TSharedPtr<CADKernel::FSurface>& CarrierSurface)
 {
-	using namespace CADKernel;
-
 	TArray<TSharedPtr<FTopologicalEdge>> Edges;
 	TArray<CADKernel::EOrientation> Directions;
 
@@ -172,8 +172,6 @@ TSharedPtr<CADKernel::FTopologicalLoop> FAliasModelToCADKernelConverter::AddLoop
 
 void FAliasModelToCADKernelConverter::LinkEdgesLoop(const AlTrimBoundary& TrimBoundary, CADKernel::FTopologicalLoop& Loop)
 {
-	using namespace CADKernel;
-
 	for (TUniquePtr<AlTrimCurve> TrimCurve(TrimBoundary.firstCurve()); TrimCurve.IsValid(); TrimCurve = TUniquePtr<AlTrimCurve>(TrimCurve->nextCurve()))
 	{
 		TSharedPtr<FTopologicalEdge>* Edge = AlEdge2CADKernelEdge.Find(TrimCurve->fSpline);
@@ -201,8 +199,6 @@ void FAliasModelToCADKernelConverter::LinkEdgesLoop(const AlTrimBoundary& TrimBo
 
 TSharedPtr<CADKernel::FTopologicalFace> FAliasModelToCADKernelConverter::AddTrimRegion(const AlTrimRegion& TrimRegion, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation)
 {
-	using namespace CADKernel;
-
 	TSharedPtr<FSurface> Surface = AliasToCADKernelUtils::AddNURBSSurface(GeometricTolerance, TrimRegion, InObjectReference, InAlMatrix);
 	if (!Surface.IsValid())
 	{
@@ -235,8 +231,6 @@ TSharedPtr<CADKernel::FTopologicalFace> FAliasModelToCADKernelConverter::AddTrim
 
 void FAliasModelToCADKernelConverter::AddFace(const AlSurface& Surface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation, TSharedRef<CADKernel::FShell>& Shell)
 {
-	using namespace CADKernel;
-
 	TUniquePtr<AlTrimRegion> TrimRegion(Surface.firstTrimRegion());
 	if (TrimRegion.IsValid())
 	{
@@ -262,8 +256,6 @@ void FAliasModelToCADKernelConverter::AddFace(const AlSurface& Surface, EAliasOb
 
 void FAliasModelToCADKernelConverter::AddShell(const AlShell& InShell, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation, TSharedRef<CADKernel::FShell>& CADKernelShell)
 {
-	using namespace CADKernel;
-
 	for(TUniquePtr<AlTrimRegion> TrimRegion(InShell.firstTrimRegion()); TrimRegion.IsValid(); TrimRegion = TUniquePtr<AlTrimRegion>(TrimRegion->nextRegion()))
 	{
 		TSharedPtr<FTopologicalFace> Face = AddTrimRegion(*TrimRegion, InObjectReference, InAlMatrix, bInOrientation);
@@ -276,8 +268,6 @@ void FAliasModelToCADKernelConverter::AddShell(const AlShell& InShell, EAliasObj
 
 bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, EAliasObjectReference InObjectReference)
 {
-	using namespace CADKernel;
-
 	AlEdge2CADKernelEdge.Empty();
 
 	TSharedRef<FBody> CADKernelBody = FEntity::MakeShared<FBody>();
@@ -339,5 +329,6 @@ bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRe
 	return true;
 }
 
+}
 
 #endif

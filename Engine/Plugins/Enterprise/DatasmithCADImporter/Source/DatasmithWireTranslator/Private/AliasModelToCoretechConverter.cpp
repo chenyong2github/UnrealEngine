@@ -27,6 +27,9 @@
 
 using namespace CADLibrary;
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
 namespace AliasToCoreTechUtils
 {
 	template<typename Surface_T>
@@ -262,4 +265,5 @@ bool FAliasModelToCoretechConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRef
 	return false;
 }
 
+}
 #endif

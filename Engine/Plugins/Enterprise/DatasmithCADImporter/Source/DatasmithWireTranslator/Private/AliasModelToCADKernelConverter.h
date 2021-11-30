@@ -28,6 +28,9 @@ namespace CADKernel
 	class FTopologicalLoop;
 }
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
 class FAliasModelToCADKernelConverter : public FCADModelToCADKernelConverterBase, public IAliasBRepConverter
 {
 
@@ -59,3 +62,4 @@ protected:
 	TMap<void*, TSharedPtr<CADKernel::FTopologicalEdge>>  AlEdge2CADKernelEdge;
 };
 
+}

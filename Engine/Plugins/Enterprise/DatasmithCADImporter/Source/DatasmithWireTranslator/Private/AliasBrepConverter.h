@@ -4,6 +4,9 @@
 
 class AlDagNode;
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
 // Defined the reference in which the object has to be defined
 enum class EAliasObjectReference
 {
@@ -18,3 +21,4 @@ public:
 	virtual bool AddBRep(AlDagNode& DagNode, EAliasObjectReference ObjectReference) = 0;
 };
 
+}

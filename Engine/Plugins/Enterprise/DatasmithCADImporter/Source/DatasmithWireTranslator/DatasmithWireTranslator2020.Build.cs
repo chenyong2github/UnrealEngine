@@ -46,6 +46,8 @@ public abstract class DatasmithWireTranslatorBase : ModuleRules
 		}
 
 		PublicDefinitions.Add(GetAliasDefinition());
+		PublicDefinitions.Add($"UE_DATASMITHWIRETRANSLATOR_NAMESPACE={GetAliasDefinition()}Namespace");
+		PublicDefinitions.Add($"UE_DATASMITHWIRETRANSLATOR_MODULE_NAME={GetType().Name}");
 
 		if (System.Type.GetType(GetAliasVersion()) != null)
 		{
