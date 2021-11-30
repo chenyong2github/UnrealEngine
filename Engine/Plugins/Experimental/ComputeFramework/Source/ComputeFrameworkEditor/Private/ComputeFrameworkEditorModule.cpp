@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ComputeFramework/ComputeFrameworkEditorModule.h"
+#include "ComputeFramework/ComputeFrameworkCompilationTick.h"
 
 #include "ComputeFramework/ComputeKernelAssetActions.h"
 #include "ComputeFramework/ComputeKernelFromTextAssetActions.h"

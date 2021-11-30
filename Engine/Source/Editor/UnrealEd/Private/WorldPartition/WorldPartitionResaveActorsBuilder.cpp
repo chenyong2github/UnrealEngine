@@ -11,6 +11,8 @@
 #include "Commandlets/Commandlet.h"
 #include "UObject/MetaData.h"
 #include "UObject/SavePackage.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionResaveActorsBuilder, All, All);
 
