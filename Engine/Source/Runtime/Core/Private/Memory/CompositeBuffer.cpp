@@ -68,10 +68,14 @@ FCompositeBuffer FCompositeBuffer::Mid(uint64 Offset, uint64 Size) const
 	return Buffer;
 }
 
-FMemoryView FCompositeBuffer::ViewOrCopyRange(uint64 Offset, uint64 Size, FUniqueBuffer& CopyBuffer) const
+FMemoryView FCompositeBuffer::ViewOrCopyRange(
+	const uint64 Offset,
+	const uint64 Size,
+	FUniqueBuffer& CopyBuffer,
+	TFunctionRef<FUniqueBuffer (uint64 Size)> Allocator) const
 {
 	FMemoryView View;
-	IterateRange(Offset, Size, [Size, &View, &CopyBuffer, WriteView = FMutableMemoryView()](FMemoryView Segment) mutable
+	IterateRange(Offset, Size, [Size, &View, &CopyBuffer, &Allocator, WriteView = FMutableMemoryView()](FMemoryView Segment) mutable
 		{
 			if (Size == Segment.GetSize())
 			{
@@ -83,7 +87,7 @@ FMemoryView FCompositeBuffer::ViewOrCopyRange(uint64 Offset, uint64 Size, FUniqu
 				{
 					if (CopyBuffer.GetSize() < Size)
 					{
-						CopyBuffer = FUniqueBuffer::Alloc(Size);
+						CopyBuffer = Allocator(Size);
 					}
 					View = WriteView = CopyBuffer.GetView().Left(Size);
 				}

@@ -5,6 +5,7 @@
 #include "Compression/OodleDataCompression.h"
 #include "Hash/Blake3.h"
 #include "Misc/AutomationTest.h"
+#include "Serialization/BufferReader.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -29,8 +30,9 @@ bool FCompressedBufferTest::RunTest(const FString& Parameters)
 
 	// Test Method None
 	{
-		ECompressedBufferCompressor Compressor;
-		ECompressedBufferCompressionLevel CompressionLevel;
+		ECompressedBufferCompressor Compressor = ECompressedBufferCompressor::Kraken;
+		ECompressedBufferCompressionLevel CompressionLevel = ECompressedBufferCompressionLevel::Normal;
+		uint64 BlockSize = MAX_uint64;
 
 		const FCompressedBuffer Buffer = FCompressedBuffer::Compress(FSharedBuffer::MakeView(MakeMemoryView(ZeroBuffer)),
 			ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
@@ -42,8 +44,12 @@ bool FCompressedBufferTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCompressedBuffer::Compress(None).GetRawHash()"), Buffer.GetRawHash(), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(None).Decompress()"), FBlake3::HashBuffer(Buffer.Decompress()), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(None).DecompressToComposite()"), FBlake3::HashBuffer(Buffer.DecompressToComposite()), Buffer.GetRawHash());
-		TestTrue(TEXT("FCompressedBuffer::Compress(None).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel) &&
-			Compressor == ECompressedBufferCompressor::NotSet && CompressionLevel == ECompressedBufferCompressionLevel::None);
+		TestTrue(TEXT("FCompressedBuffer::Compress(None).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize) &&
+			Compressor == ECompressedBufferCompressor::NotSet && CompressionLevel == ECompressedBufferCompressionLevel::None && BlockSize == 0);
+
+		Compressor = ECompressedBufferCompressor::Kraken;
+		CompressionLevel = ECompressedBufferCompressionLevel::Normal;
+		BlockSize = MAX_uint64;
 
 		const FCompressedBuffer BufferCopy = FCompressedBuffer::FromCompressed(Buffer.GetCompressed());
 		TestTrue(TEXT("FCompressedBuffer::Compress(None, Copy)"), (bool)Buffer);
@@ -54,15 +60,15 @@ bool FCompressedBufferTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCompressedBuffer::Compress(None, Copy).GetRawHash()"), Buffer.GetRawHash(), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(None, Copy).Decompress()"), FBlake3::HashBuffer(Buffer.Decompress()), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(None, Copy).DecompressToComposite()"), FBlake3::HashBuffer(Buffer.DecompressToComposite()), Buffer.GetRawHash());
-		TestTrue(TEXT("FCompressedBuffer::Compress(None, Copy).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel) &&
-			Compressor == ECompressedBufferCompressor::NotSet && CompressionLevel == ECompressedBufferCompressionLevel::None);
+		TestTrue(TEXT("FCompressedBuffer::Compress(None, Copy).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize) &&
+			Compressor == ECompressedBufferCompressor::NotSet && CompressionLevel == ECompressedBufferCompressionLevel::None && BlockSize == 0);
 	}
 
 	// Test Method Oodle
 	{
-		
-		ECompressedBufferCompressor Compressor;
-		ECompressedBufferCompressionLevel CompressionLevel;
+		ECompressedBufferCompressor Compressor = ECompressedBufferCompressor::Kraken;
+		ECompressedBufferCompressionLevel CompressionLevel = ECompressedBufferCompressionLevel::Normal;
+		uint64 BlockSize = MAX_uint64;
 
 		const FCompressedBuffer Buffer = FCompressedBuffer::Compress(FSharedBuffer::MakeView(MakeMemoryView(ZeroBuffer)),
 			ECompressedBufferCompressor::Mermaid, ECompressedBufferCompressionLevel::VeryFast);
@@ -74,8 +80,12 @@ bool FCompressedBufferTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCompressedBuffer::Compress(Oodle).GetRawHash()"), Buffer.GetRawHash(), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(Oodle).Decompress()"), FBlake3::HashBuffer(Buffer.Decompress()), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(Oodle).DecompressToComposite()"), FBlake3::HashBuffer(Buffer.DecompressToComposite()), Buffer.GetRawHash());
-		TestTrue(TEXT("FCompressedBuffer::Compress(Oodle).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel) &&
-			Compressor == ECompressedBufferCompressor::Mermaid && CompressionLevel == ECompressedBufferCompressionLevel::VeryFast);
+		TestTrue(TEXT("FCompressedBuffer::Compress(Oodle).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize) &&
+			Compressor == ECompressedBufferCompressor::Mermaid && CompressionLevel == ECompressedBufferCompressionLevel::VeryFast && FMath::IsPowerOfTwo(BlockSize));
+
+		Compressor = ECompressedBufferCompressor::Kraken;
+		CompressionLevel = ECompressedBufferCompressionLevel::Normal;
+		BlockSize = MAX_uint64;
 
 		const FCompressedBuffer BufferCopy = FCompressedBuffer::FromCompressed(Buffer.GetCompressed());
 		TestTrue(TEXT("FCompressedBuffer::Compress(Oodle, Copy)"), (bool)Buffer);
@@ -86,8 +96,8 @@ bool FCompressedBufferTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCompressedBuffer::Compress(Oodle, Copy).GetRawHash()"), Buffer.GetRawHash(), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(Oodle, Copy).Decompress()"), FBlake3::HashBuffer(Buffer.Decompress()), ZeroBufferHash);
 		TestEqual(TEXT("FCompressedBuffer::Compress(Oodle, Copy).DecompressToComposite()"), FBlake3::HashBuffer(Buffer.DecompressToComposite()), Buffer.GetRawHash());
-		TestTrue(TEXT("FCompressedBuffer::Compress(Oodle, Copy).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel) &&
-			Compressor == ECompressedBufferCompressor::Mermaid && CompressionLevel == ECompressedBufferCompressionLevel::VeryFast);
+		TestTrue(TEXT("FCompressedBuffer::Compress(Oodle, Copy).TryGetCompressParameters()"), Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize) &&
+			Compressor == ECompressedBufferCompressor::Mermaid && CompressionLevel == ECompressedBufferCompressionLevel::VeryFast && FMath::IsPowerOfTwo(BlockSize));
 	}
 
 	return true;
@@ -123,18 +133,36 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 		return MakeArrayView(static_cast<const uint64*>(View.GetData()), static_cast<int32>(View.GetSize() / sizeof(uint64)));
 	};
 
+	FCompressedBufferReader Reader;
+
 	// Test decompress with offset and size
 	{
-		const auto UncompressAndValidate = [this, &ValidateData, &CastToArrayView](
+		const auto UncompressAndValidate = [this, &Reader, &ValidateData, &CastToArrayView](
 			const FCompressedBuffer& Compressed,
 			const int32 OffsetCount,
 			const int32 Count,
 			const TConstArrayView<uint64> ExpectedValues)
 		{
-			const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			TestEqual("UncompressedCount", Values.Num(), Count);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			Reader.SetSource(Compressed);
+			{
+				const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+				TestEqual("UncompressedCount", Values.Num(), Count);
+				ValidateData(Values, ExpectedValues, OffsetCount);
+			}
+			{
+				FUniqueBuffer Uncompressed = FUniqueBuffer::Alloc(Count * sizeof(uint64));
+				const bool bOk = Reader.TryDecompressTo(Uncompressed, OffsetCount * sizeof(uint64));
+				TestTrue("UncompressedOk", bOk);
+				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+				ValidateData(Values, ExpectedValues, OffsetCount);
+			}
+			{
+				const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+				TestEqual("UncompressedCount", Values.Num(), Count);
+				ValidateData(Values, ExpectedValues, OffsetCount);
+			}
 		};
 
 		constexpr uint64 BlockSize = 64 * sizeof(uint64);
@@ -173,9 +201,25 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 			BlockSize);
 		
 		constexpr uint64 OffsetCount = 150;
-		const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64));
-		const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-		ValidateData(Values, ExpectedValues, OffsetCount);
+		{
+			FSharedBuffer Buffer = Compressed.GetCompressed().ToShared();
+			FBufferReader Ar(const_cast<void*>(Buffer.GetData()), int64(Buffer.GetSize()), /*bFreeOnClose*/ false, /*bIsPersistent*/ true);
+			Reader.SetSource(Ar);
+			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
+		}
+		{
+			Reader.SetSource(Compressed);
+			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
+		}
+		{
+			const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
+		}
 	}
 
 	// Only one block
@@ -192,9 +236,25 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 
 		constexpr uint64 OffsetCount = 2;
 		constexpr uint64 Count = 50;
-		const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-		const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-		ValidateData(Values, ExpectedValues, OffsetCount);
+		{
+			FSharedBuffer Buffer = Compressed.GetCompressed().ToShared();
+			FBufferReader Ar(const_cast<void*>(Buffer.GetData()), int64(Buffer.GetSize()), /*bFreeOnClose*/ false, /*bIsPersistent*/ true);
+			Reader.SetSource(Ar);
+			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
+		}
+		{
+			Reader.SetSource(Compressed);
+			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
+		}
+		{
+			const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
+		}
 	}
 
 	// Uncompressed
@@ -210,17 +270,33 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 		{
 			constexpr uint64 OffsetCount = 0;
 			constexpr uint64 Count = N;
-			const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			{
+				Reader.SetSource(Compressed);
+				const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+				ValidateData(Values, ExpectedValues, OffsetCount);
+			}
+			{
+				const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+				ValidateData(Values, ExpectedValues, OffsetCount);
+			}
 		}
 
 		{
 			constexpr uint64 OffsetCount = 21;
 			constexpr uint64 Count = 999;
-			const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
+			{
+				Reader.SetSource(Compressed);
+				const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+				ValidateData(Values, ExpectedValues, OffsetCount);
+			}
+			{
+				const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+				ValidateData(Values, ExpectedValues, OffsetCount);
+			}
 		}
 	}
 
