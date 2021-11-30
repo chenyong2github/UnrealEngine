@@ -40,6 +40,13 @@ struct ANIMATIONCORE_API FEulerTransform
 	{
 	}
 
+	FORCEINLINE FEulerTransform(const FRotator& InRotation, const FVector& InLocation, const FVector& InScale)
+		: Location(InLocation)
+		, Rotation(InRotation)
+		, Scale(InScale)
+	{
+	}
+
 	FORCEINLINE FEulerTransform(const FTransform& InTransform)
 		: Location(InTransform.GetLocation())
 		, Rotation(InTransform.GetRotation().Rotator())
@@ -84,4 +91,14 @@ struct ANIMATIONCORE_API FEulerTransform
 		Rotation = InTransform.GetRotation().Rotator();
 		Scale = InTransform.GetScale3D();
 	}
+
+	FORCEINLINE const FVector& GetLocation() const { return Location; }
+	FORCEINLINE FQuat GetRotation() const { return Rotation.Quaternion(); }
+	FORCEINLINE const FRotator& Rotator() const { return Rotation; }
+	FORCEINLINE const FVector& GetScale3D() const { return Scale; }
+	FORCEINLINE void SetLocation(const FVector& InValue) { Location = InValue; }
+	FORCEINLINE void SetRotation(const FQuat& InValue) { Rotation = InValue.Rotator(); }
+	FORCEINLINE void SetRotator(const FRotator& InValue) { Rotation = InValue; }
+	FORCEINLINE void SetScale3D(const FVector& InValue) { Scale = InValue; }
+	FORCEINLINE void NormalizeRotation() {}
 };
