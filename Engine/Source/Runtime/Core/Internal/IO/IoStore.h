@@ -229,6 +229,8 @@ struct FIoStoreTocResource
 
 	TArray<FName> CompressionMethods;
 
+	FSHAHash SignatureHash;
+	
 	TArray<FSHAHash> ChunkBlockSignatures;
 
 	TArray<FIoStoreTocEntryMeta> ChunkMetas;

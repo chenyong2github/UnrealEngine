@@ -751,6 +751,8 @@ FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InTocFilePath, int32 InOrd
 
 	Stats.OnTocMounted(GetTocAllocatedSize());
 
+	UE_LOG(LogIoDispatcher, Display, TEXT("Toc signature hash: %s"), *TocResource.SignatureHash.ToString());
+	
 	ContainerId = TocResource.Header.ContainerId;
 	Order = InOrder;
 	return FIoStatus::Ok;
