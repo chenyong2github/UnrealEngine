@@ -18,6 +18,10 @@ public:
 	USequencerToolsEditMode();
 	virtual ~USequencerToolsEditMode();
 
+	// UEdMode interface
+	virtual void Enter();
+	virtual void Exit();
+
 	// UBaseLegacyWidgetEdMode interface
 	
 	virtual bool UsesToolkits() const  override { return false; }

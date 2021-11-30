@@ -9,9 +9,7 @@
 #include "UnrealEdGlobals.h"
 #include "LevelEditorSequencerIntegration.h"
 
-#include "BaseGizmos/TransformGizmoUtil.h"
 #include "MotionTrailTool.h"
-#include "SequencerAnimEditPivotTool.h"
 #include "Tools/MotionTrailOptions.h"
 
 #define LOCTEXT_NAMESPACE "FSequencerAnimToolsModule"
@@ -23,8 +21,6 @@ namespace SequencerAnimTools
 
 void FSequencerAnimToolsModule::StartupModule()
 {
-	FLevelEditorModule& LevelEditor = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditor.OnLevelEditorCreated().AddRaw(this, &FSequencerAnimToolsModule::OnLevelEditorCreated);
 	UMotionTrailToolOptions* MotionTrailOptions = GetMutableDefault<UMotionTrailToolOptions>();
 	if (MotionTrailOptions)
 	{
@@ -34,8 +30,6 @@ void FSequencerAnimToolsModule::StartupModule()
 
 void FSequencerAnimToolsModule::ShutdownModule()
 {
-	FLevelEditorModule& LevelEditor = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditor.OnLevelEditorCreated().RemoveAll(this);
 	/* can't do this for some reason the object is already dead (but not nullptr so can't check)
 	UMotionTrailToolOptions* MotionTrailOptions = GetMutableDefault<UMotionTrailToolOptions>();
 	if (MotionTrailOptions)
@@ -45,39 +39,13 @@ void FSequencerAnimToolsModule::ShutdownModule()
 	*/
 }
 
-void FSequencerAnimToolsModule::OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor)
-{
-	LevelEditorPtr = InLevelEditor;
-	InLevelEditor->GetEditorModeManager().OnEditorModeIDChanged().AddLambda([this](const FEditorModeID& InModeID, bool IsEnteringMode)
-		{
-			FEditorModeID ModeID = TEXT("EM_SequencerMode");
-			if (ModeID == InModeID && LevelEditorPtr.IsValid())
-			{
-				//don't re-register, will hit an ensure
-				if (AlreadyRegisteredTools.Contains(LevelEditorPtr.Pin().Get()) == false)
-				{
-					UEdMode* EdMode = LevelEditorPtr.Pin()->GetEditorModeManager().GetActiveScriptableMode(ModeID);
-
-					// Register the factories and gizmos if we are entering the new Gizmo Mode
-					if (IsEnteringMode && EdMode)
-					{
-						LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->RegisterToolType(TEXT("SequencerMotionTrail"), NewObject<UMotionTrailToolBuilder>(EdMode));
-						LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->RegisterToolType(TEXT("SequencerPivotTool"), NewObject<USequencerPivotToolBuilder>(EdMode));
-
-						UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext());
-
-					}
-					AlreadyRegisteredTools.Add(LevelEditorPtr.Pin().Get());
-				}
-			}
-		});
-}
-
 void FSequencerAnimToolsModule::OnMotionTralOptionChanged(FName PropertyName)
 {
+	FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"));
 	UMotionTrailToolOptions* MotionTrailOptions = GetMutableDefault<UMotionTrailToolOptions>();
-	if (MotionTrailOptions)
+	if (MotionTrailOptions && LevelEditorModule)
 	{
+		TWeakPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule->GetLevelEditorInstance();
 		if (PropertyName == FName("bShowTrails") && LevelEditorPtr.IsValid())
 		{
 			static bool bIsChangingTrail = false;
@@ -87,7 +55,6 @@ void FSequencerAnimToolsModule::OnMotionTralOptionChanged(FName PropertyName)
 				bIsChangingTrail = true;
 				if (FLevelEditorSequencerIntegration::Get().GetSequencers().Num() > 0)
 				{
-
 					if (MotionTrailOptions->bShowTrails)
 					{
 						LevelEditorPtr.Pin()->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("SequencerMotionTrail"));
@@ -111,10 +78,6 @@ void FSequencerAnimToolsModule::OnMotionTralOptionChanged(FName PropertyName)
 		}
 	}
 }
-
-
-
-
 
 } // namespace SequencerAnimTools
 } // namespace UE

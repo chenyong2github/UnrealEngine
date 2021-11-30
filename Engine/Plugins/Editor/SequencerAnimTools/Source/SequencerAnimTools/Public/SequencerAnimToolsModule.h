@@ -6,8 +6,6 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Modules/ModuleManager.h"
 
-class ILevelEditor;
-
 namespace UE
 {
 namespace SequencerAnimTools
@@ -23,15 +21,10 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	TWeakPtr<ILevelEditor> LevelEditorPtr;
 	TSharedPtr<FUICommandList> CommandBindings;
 
 	//delegates
-	void OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor);
-	void OnMotionTralOptionChanged(FName PropretyName);
-
-	//need to keep track of which levels we registered the tools for otherwise we can hit an ensure
-	TSet<ILevelEditor*>  AlreadyRegisteredTools;
+	void OnMotionTralOptionChanged(FName PropertyName);
 };
 
 } // namespace SequencerAnimTools
