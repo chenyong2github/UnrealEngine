@@ -125,6 +125,11 @@ FString FDatasmithSceneXmlWriterImpl::GetLabelAndLayer(const TSharedPtr<IDatasmi
 		LabelAndLayer += TEXT(" visible=\"0\"");
 	}
 
+	if (ActorElement->IsAComponent())
+	{
+		LabelAndLayer += TEXT(" component=\"true\"");
+	}
+
 	return LabelAndLayer;
 }
 
@@ -665,13 +670,6 @@ void FDatasmithSceneXmlWriterImpl::WriteBeginOfMeshActorElement(const TSharedPtr
 	FString XmlString = TEXT("<") + ElementTypeString + TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(MeshActorElement->GetName())) + TEXT("\"");
 
 	XmlString += GetLabelAndLayer(MeshActorElement);
-
-	if (MeshActorElement->IsAComponent())
-	{
-		FString ComponentText = MeshActorElement->IsAComponent() ? TEXT("true") : TEXT("false");
-
-		XmlString += TEXT(" component=\"") + ComponentText + TEXT("\"");
-	}
 
 	XmlString += FString(TEXT(">")) + LINE_TERMINATOR;
 
