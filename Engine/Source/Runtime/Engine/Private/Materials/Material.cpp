@@ -2234,24 +2234,35 @@ void UMaterial::CacheShadersForResources(EShaderPlatform ShaderPlatform, const T
 
 		if (!bSuccess)
 		{
-			if (IsDefaultMaterial())
+			const bool bIsDefaultMaterial = IsDefaultMaterial();
+			FString ErrorString;
+			if (bIsDefaultMaterial)
 			{
-				UE_ASSET_LOG(LogMaterial, Fatal, this,
-					TEXT("Failed to compile Default Material for platform %s!"),
+				ErrorString += FString::Printf(TEXT("Failed to compile Default Material for platform %s!\n"),
 					*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
 			}
-
-			UE_ASSET_LOG(LogMaterial, Warning, this, TEXT("Failed to compile Material for platform %s, Default Material will be used in game."), 
-				*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
+			else
+			{
+				ErrorString += FString::Printf(TEXT("Failed to compile Material for platform %s, Default Material will be used in game.\n"),
+					*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
+			}
 
 #if WITH_EDITOR
 			const TArray<FString>& CompileErrors = CurrentResource->GetCompileErrors();
 			for (int32 ErrorIndex = 0; ErrorIndex < CompileErrors.Num(); ErrorIndex++)
 			{
-				// Always log material errors in an unsuppressed category
-				UE_LOG(LogMaterial, Display, TEXT("	%s"), *CompileErrors[ErrorIndex]);
+				ErrorString += FString::Printf(TEXT("	%s\n"), *CompileErrors[ErrorIndex]);
 			}
 #endif
+			
+			if (bIsDefaultMaterial)
+			{
+				UE_ASSET_LOG(LogMaterial, Fatal, this, TEXT("%s"), *ErrorString);
+			}
+			else
+			{
+				UE_ASSET_LOG(LogMaterial, Warning, this, TEXT("%s"), *ErrorString);
+			}
 		}
 	}
 }
