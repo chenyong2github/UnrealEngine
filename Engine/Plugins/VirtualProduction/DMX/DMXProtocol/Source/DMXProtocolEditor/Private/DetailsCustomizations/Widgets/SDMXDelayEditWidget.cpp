@@ -38,6 +38,7 @@ void SDMXDelayEditWidget::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SAssignNew(ValueEditBox, SEditableTextBox)
+			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text(InitialDelayText)
 			.OnVerifyTextChanged(this, &SDMXDelayEditWidget::OnVerifyValueTextChanged)
 			.OnTextCommitted(this, &SDMXDelayEditWidget::OnValueTextCommitted)
@@ -50,6 +51,7 @@ void SDMXDelayEditWidget::Construct(const FArguments& InArgs)
 		.AutoWidth()
 		[
 			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 			.Text_Lambda([this]
 				{
 					if (Delay == 1.0)
@@ -74,6 +76,7 @@ void SDMXDelayEditWidget::Construct(const FArguments& InArgs)
 			.ButtonContent()
 			[
 				SNew(STextBlock)
+				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.Text_Lambda([this]()
 					{
 						const double DelayFrameRateDecimal = DelayFrameRate.AsDecimal();

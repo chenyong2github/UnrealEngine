@@ -40,7 +40,7 @@ void SDMXChannel::Construct(const FArguments& InArgs)
 		SNew(STextBlock)
 		.Text(GetChannelIDText())
 		.ColorAndOpacity(FSlateColor(IDColor))
-		.MinDesiredWidth(23.0f)
+		.MinDesiredWidth(24.0f)
 		.Justification(ETextJustify::Center)
 		.Font(FDMXEditorStyle::Get().GetFontStyle("DMXEditor.Font.InputChannelID"));
 
@@ -48,7 +48,7 @@ void SDMXChannel::Construct(const FArguments& InArgs)
 		SNew(STextBlock)
 		.Text(GetValueText())
 		.ColorAndOpacity(FSlateColor(ValueColor))
-		.MinDesiredWidth(23.0f)
+		.MinDesiredWidth(24.0f)
 		.Justification(ETextJustify::Center)
 		.Font(FDMXEditorStyle::Get().GetFontStyle("DMXEditor.Font.InputChannelValue"));
 
