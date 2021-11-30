@@ -1071,6 +1071,11 @@ void AddSitePackagesPath(const FString& InPath)
 
 void AddSystemPath(const FString& InPath)
 {
+	if (!IFileManager::Get().DirectoryExists(*InPath))
+	{
+		return;
+	}
+
 	if (PyObject* PyPathList = PySys_GetObject(PyCStrCast("path")))
 	{
 		FPyObjectPtr PyPath;
