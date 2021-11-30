@@ -1558,14 +1558,7 @@ bool UPrimitiveComponent::ShouldRenderSelected() const
 	{
 		if (const AActor* Owner = GetOwner())
 		{
-			if (Owner->IsSelected())
-			{
-				return true;
-			}
-			else if (const AActor* RootSelection = Owner->GetRootSelectionParent())
-			{
-				return RootSelection->IsSelected();
-			}
+			return Owner->IsActorOrSelectionParentSelected();
 		}
 	}
 	return false;

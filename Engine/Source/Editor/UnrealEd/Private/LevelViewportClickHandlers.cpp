@@ -235,8 +235,7 @@ namespace LevelViewportClickHandlers
 				if( bAllowSelectionChange && GEditor->CanSelectActor(Actor, true, true) )
 				{
 					// If the actor the user clicked on was already selected, then we won't bother clearing the selection
-					const AActor* RootSelectionParent = Actor->GetRootSelectionParent();
-					if( !Actor->IsSelected() && (RootSelectionParent == nullptr || !RootSelectionParent->IsSelected()))
+					if(!Actor->IsActorOrSelectionParentSelected())
 					{
 						GEditor->SelectNone( false, true );
 						bNeedViewportRefresh = true;
