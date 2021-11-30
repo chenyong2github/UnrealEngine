@@ -36,7 +36,7 @@ public:
 		return false;
 	}
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
-	~FControlRigEditModeToolkit();
+
 	/** Mode Toolbar Palettes **/
 	virtual void GetToolPaletteNames(TArray<FName>& InPaletteName) const override;
 	virtual FText GetToolPaletteDisplayName(FName PaletteName) const override;
@@ -68,6 +68,8 @@ protected:
 	/* FModeToolkit Interface */
 	virtual void RequestModeUITabs() override;
 	virtual void InvokeUI() override;
+
+	void UnregisterAndRemoveFloatingTabs();
 
 private:
 	void TryInvokeSnapperTab();

@@ -57,6 +57,10 @@ public:
 	{
 		return OnToolkitHostReadyForUI;
 	};
+	virtual FSimpleDelegate& ToolkitHostShutdownUI()
+	{
+		return OnToolkitHostShutdownUI;
+	}
 	virtual const FName GetStatusBarName() const
 	{
 		return ToolkitHost->GetStatusBarName();
@@ -80,4 +84,5 @@ protected:
 	TMap<FName, FMinorTabConfig> RequestedTabInfo;
 	TMap<FName, TWeakPtr<SDockTab>> SpawnedTabs;
 	FSimpleDelegate OnToolkitHostReadyForUI;
+	FSimpleDelegate OnToolkitHostShutdownUI;
 };
