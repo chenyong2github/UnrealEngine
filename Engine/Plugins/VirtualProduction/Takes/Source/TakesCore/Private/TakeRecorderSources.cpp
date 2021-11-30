@@ -18,6 +18,7 @@
 #include "ObjectTools.h"
 #include "Engine/TimecodeProvider.h"
 #include "Misc/App.h"
+#include "Editor.h"
 
 DEFINE_LOG_CATEGORY(SubSequenceSerialization);
 
