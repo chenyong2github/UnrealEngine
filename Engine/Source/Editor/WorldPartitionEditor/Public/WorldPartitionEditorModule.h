@@ -56,6 +56,8 @@ private:
 
 	/** Spawns the world partition tab */
 	TSharedRef<SDockTab> SpawnWorldPartitionTab(const FSpawnTabArgs& Args);
+
+	void UpdateTabPermissions(TSharedPtr<FTabManager> InTabManager);
 private:
 	void OnConvertMap();
 
