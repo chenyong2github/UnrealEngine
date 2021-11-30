@@ -104,7 +104,7 @@ inline FRenderTargetBindingSlots GetRenderTargetBindings(ERenderTargetLoadAction
 		BindingSlots[Index] = FRenderTargetBinding(ColorTextures[Index].Texture, ColorLoadAction, 0, ColorTextures[Index].ArraySlice);
 		if (ColorTextures[Index].OverrideLoadAction != ERenderTargetLoadAction::Num)
 		{
-			BindingSlots[Index].SetLoadAction(ERenderTargetLoadAction::ELoad);
+			BindingSlots[Index].SetLoadAction(ColorTextures[Index].OverrideLoadAction);
 		}
 	}
 	return BindingSlots;
