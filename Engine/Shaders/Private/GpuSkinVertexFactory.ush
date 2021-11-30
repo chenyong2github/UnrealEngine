@@ -15,6 +15,9 @@
 #ifndef GPUSKIN_APEX_CLOTH
 #define GPUSKIN_APEX_CLOTH 0
 #endif
+#ifndef GPUSKIN_APEX_CLOTH_PREVIOUS
+#define GPUSKIN_APEX_CLOTH_PREVIOUS 0
+#endif
 
 #ifndef GPUSKIN_LIMIT_2BONE_INFLUENCES
 #define GPUSKIN_LIMIT_2BONE_INFLUENCES	0 // default is 4 bones 
@@ -43,15 +46,15 @@ uint NumBoneInfluencesParam;
 
 #if GPUSKIN_APEX_CLOTH
 /** Vertex buffer from which to read simulated positions of clothing. */
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 Buffer<float2> ClothSimulVertsPositionsNormals;
-Buffer<float2> PreviousClothSimulVertsPositionsNormals;
 /** Transform to apply when positions/normals are loaded */
 float4x4 ClothLocalToWorld;
-float4x4 PreviousClothLocalToWorld;
-#endif // #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 /** blend weight between simulated positions and original key-framed animation */
 float ClothBlendWeight;
+#if GPUSKIN_APEX_CLOTH_PREVIOUS
+Buffer<float2> PreviousClothSimulVertsPositionsNormals;
+float4x4 PreviousClothLocalToWorld;
+#endif //GPUSKIN_APEX_CLOTH_PREVIOUS
 #endif// #if GPUSKIN_APEX_CLOTH
 
 #if GPUSKIN_UNLIMITED_BONE_INFLUENCE
@@ -368,38 +371,36 @@ float GetClothSimulWeight(uint StaticAlpha)
 
 float3 GetClothSimulPosition(int Index, bool bPrevious)
 {
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	float3 Position;
+#if GPUSKIN_APEX_CLOTH_PREVIOUS
 	if(bPrevious)
 	{
 		Position = float3(PreviousClothSimulVertsPositionsNormals[Index * 3], PreviousClothSimulVertsPositionsNormals[Index * 3 + 1].x);
 		return float3(mul(float4(Position, 1), PreviousClothLocalToWorld).xyz);
 	}
 	else
+#endif
 	{
 		Position = float3(ClothSimulVertsPositionsNormals[Index * 3], ClothSimulVertsPositionsNormals[Index * 3 + 1].x);
 		return float3(mul(float4(Position, 1), ClothLocalToWorld).xyz);
 	}
-	
-#endif //FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 }
 
 float3 GetClothSimulNormal(int Index, bool bPrevious)
 {
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	float3 Normal;
+#if GPUSKIN_APEX_CLOTH_PREVIOUS
 	if(bPrevious)
 	{
 		Normal = float3(PreviousClothSimulVertsPositionsNormals[Index * 3 + 1].y, PreviousClothSimulVertsPositionsNormals[Index * 3 + 2]);
 		return float3(mul(float4(Normal, 0), PreviousClothLocalToWorld).xyz);
 	}
 	else
+#endif
 	{
 		Normal = float3(ClothSimulVertsPositionsNormals[Index * 3 + 1].y, ClothSimulVertsPositionsNormals[Index * 3 + 2]);
 		return float3(mul(float4(Normal, 0), ClothLocalToWorld).xyz);
 	}
-	
-#endif //FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 }
 
 float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VERTEX], bool bPrevious)
@@ -804,8 +805,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	SetupClothVertex(Input.VertexID, Intermediates.ClothVertexInfluences);
 	if( IsSimulatedVertex(Intermediates.ClothVertexInfluences[0]) )
 	{
-		Intermediates.PreviousSimulatedPosition = ClothingPosition(Intermediates.ClothVertexInfluences, true);
 		Intermediates.SimulatedPosition = ClothingPosition(Intermediates.ClothVertexInfluences, false);
+#if GPUSKIN_APEX_CLOTH_PREVIOUS
+		Intermediates.PreviousSimulatedPosition = ClothingPosition(Intermediates.ClothVertexInfluences, true);
+#else
+		Intermediates.PreviousSimulatedPosition = Intermediates.SimulatedPosition;
+#endif
 	}
 	else
 	{
