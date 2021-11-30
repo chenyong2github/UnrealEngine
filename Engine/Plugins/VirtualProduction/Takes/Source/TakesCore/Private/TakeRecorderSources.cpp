@@ -418,6 +418,11 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, const
 		++SourcesSerialNumber;
 	}
 
+	for (UTakeRecorderSource* Source : Sources)
+	{
+		Source->FinalizeRecording();
+	}
+
 	// Re-enable transactional after recording
 	InSequence->GetMovieScene()->SetFlags(RF_Transactional);
 	for (UMovieSceneSection* Section : InSequence->GetMovieScene()->GetAllSections())

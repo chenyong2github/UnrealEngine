@@ -816,12 +816,15 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 	CachedObjectTemplate = nullptr;
 	CachedComponentList.Empty();
 
-	//DON"T null these out they can be used for doing cross sequence object binding via GetLevelSequenceID
-	//TargetLevelSequence = nullptr;
-	//MasterLevelSequence = nullptr;
-
 	// We may have generated some temporary recording sources
 	return AddedActorSources;
+}
+
+void UTakeRecorderActorSource::FinalizeRecording()
+{
+	// Null these out there and NOT in PostRecording because they are used for cross sequence object binding via GetLevelSequenceID in PostRecording
+	TargetLevelSequence = nullptr;
+	MasterLevelSequence = nullptr;
 }
 
 void UTakeRecorderActorSource::PostProcessTrackRecorders(ULevelSequence* InSequence)
