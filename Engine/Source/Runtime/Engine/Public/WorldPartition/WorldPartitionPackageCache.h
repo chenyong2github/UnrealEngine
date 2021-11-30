@@ -18,15 +18,14 @@ public:
 	FWorldPartitionPackageCache();
 	~FWorldPartitionPackageCache();
 
-	void LoadWorldPackageAsync(FName InPackageName, const TCHAR* InPackageToLoadFrom = nullptr, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, int32 InPackagePriority = 0, const FLinkerInstancingContext* InInstancingContext = nullptr);
-	void LoadPackageAsync(FName InPackageName, const TCHAR* InPackageToLoadFrom = nullptr, FLoadPackageAsyncDelegate InCompletionDelegate = FLoadPackageAsyncDelegate(), EPackageFlags InPackageFlags = PKG_None, int32 InPIEInstanceID = INDEX_NONE, int32 InPackagePriority = 0, const FLinkerInstancingContext* InInstancingContext = nullptr);
+	void LoadPackage(FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, bool bLoadAsync, bool bInWorldPackage);
 	UPackage* FindPackage(FName InPackageName);
 	UPackage* DuplicateWorldPackage(UPackage* InPackage, FName InPackageName);
 	void UnloadPackages();
 	void TrashPackage(UPackage* InPackage);
 	
 private:
-	void LoadPackageAsyncInternal(FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InInstancingContext, bool bInWorldPackage);
+
 	void UnloadPackage(UPackage* InPackage);
 
 	TMap<FName, TWeakObjectPtr<UPackage>> CachedPackages;
