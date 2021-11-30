@@ -132,6 +132,14 @@ void FLandscapeEditorStructCustomization_FLandscapeImportLayer::CustomizeChildre
 			.ToolTipText_Static(&FLandscapeEditorStructCustomization_FLandscapeImportLayer::GetImportLayerSelectedToolTip, PropertyHandle_Selected, PropertyHandle_LayerInfo)
 		]
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2))
+		[
+			SNew(SLandscapeAssetThumbnail, ThumbnailMIC, StructCustomizationUtils.GetThumbnailPool().ToSharedRef())
+			.ThumbnailSize(FIntPoint(48, 48))
+		]
+		+ SHorizontalBox::Slot()
 		.FillWidth(1)
 		.VAlign(VAlign_Center)
 		.Padding(FMargin(2))
@@ -139,14 +147,6 @@ void FLandscapeEditorStructCustomization_FLandscapeImportLayer::CustomizeChildre
 			SNew(STextBlock)
 			.Font(StructCustomizationUtils.GetRegularFont())
 			.Text(LayerNameText)
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.Padding(FMargin(2))
-		[
-			SNew(SLandscapeAssetThumbnail, ThumbnailMIC, StructCustomizationUtils.GetThumbnailPool().ToSharedRef())
-			.ThumbnailSize(FIntPoint(48, 48))
 		]
 	]
 	.ValueContent()
