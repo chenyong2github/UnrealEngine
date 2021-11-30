@@ -169,13 +169,13 @@ bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		const bool bShouldRunUEAndORTBackEnd = (InCPURepetitionsForUEAndORTBackEnd[ModelIndex] + InGPURepetitionsForUEAndORTBackEnd[ModelIndex] > 0);
 		if (bShouldRunUEAndORTBackEnd)
 		{
-			bDidGlobalTestPassed &= ModelAccuracyTest(Network, ENeuralNetworkSynchronousMode::Synchronous, ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
-			bDidGlobalTestPassed &= ModelAccuracyTest(Network, ENeuralNetworkSynchronousMode::Asynchronous, ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+			bDidGlobalTestPassed &= ModelAccuracyTest(Network, ENeuralNetworkSynchronousMode::Synchronous, UNeuralNetwork::ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+			bDidGlobalTestPassed &= ModelAccuracyTest(Network, ENeuralNetworkSynchronousMode::Asynchronous, UNeuralNetwork::ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 		}
 		const bool bShouldRunUEOnlyBackEnd = false; // (InCPURepetitionsForUEOnlyBackEnd[ModelIndex] * InCPURepetitionsForUEOnlyBackEnd[ModelIndex] > 0);
 		if (bShouldRunUEOnlyBackEnd)
 		{
-			bDidGlobalTestPassed &= ModelAccuracyTest(Network, ENeuralNetworkSynchronousMode::Synchronous, ENeuralBackEnd::UEOnly, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+			bDidGlobalTestPassed &= ModelAccuracyTest(Network, ENeuralNetworkSynchronousMode::Synchronous, UNeuralNetwork::ENeuralBackEnd::UEOnly, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 		}
 
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
@@ -189,12 +189,12 @@ bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- %s - Network %s Load and Run - %s"), *ModelName, *ModelType, *ModelFilePath);
 			if (bShouldRunUEAndORTBackEnd)
 			{
-				bDidGlobalTestPassed &= ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), ENeuralNetworkSynchronousMode::Synchronous, ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
-				bDidGlobalTestPassed &= ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), ENeuralNetworkSynchronousMode::Asynchronous, ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+				bDidGlobalTestPassed &= ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), ENeuralNetworkSynchronousMode::Synchronous, UNeuralNetwork::ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+				bDidGlobalTestPassed &= ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), ENeuralNetworkSynchronousMode::Asynchronous, UNeuralNetwork::ENeuralBackEnd::UEAndORT, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 			}
 			if (bShouldRunUEOnlyBackEnd)
 			{
-				bDidGlobalTestPassed &= ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), ENeuralNetworkSynchronousMode::Synchronous, ENeuralBackEnd::UEOnly, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+				bDidGlobalTestPassed &= ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), ENeuralNetworkSynchronousMode::Synchronous, UNeuralNetwork::ENeuralBackEnd::UEOnly, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 			}
 		}
 #else //WITH_EDITOR
@@ -211,16 +211,16 @@ bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 
 		// UEAndORT (if WITH_UE_AND_ORT_SUPPORT)
 #ifdef WITH_UE_AND_ORT_SUPPORT
-		bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::CPU, ENeuralBackEnd::UEAndORT, InCPURepetitionsForUEAndORTBackEnd[ModelIndex]);
+		bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::CPU, UNeuralNetwork::ENeuralBackEnd::UEAndORT, InCPURepetitionsForUEAndORTBackEnd[ModelIndex]);
 		UNeuralNetwork* Network = NetworkUassetLoadTest(UAssetModelFilePath);
-		if (Network->GetBackEndForCurrentPlatform() != ENeuralBackEnd::UEAndORT)
+		if (Network->GetBackEndForCurrentPlatform() != UNeuralNetwork::ENeuralBackEnd::UEAndORT)
 		{
 			UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("-------------------- Default UAsset BackEnd should be UEAndORT."));
 			return false;
 		}
 		else if (InGPURepetitionsForUEAndORTBackEnd[ModelIndex] > 0 && Network->IsGPUSupported())
 		{
-			bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::GPU, ENeuralBackEnd::UEAndORT, InGPURepetitionsForUEAndORTBackEnd[ModelIndex]);
+			bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::GPU, UNeuralNetwork::ENeuralBackEnd::UEAndORT, InGPURepetitionsForUEAndORTBackEnd[ModelIndex]);
 		}
 		else
 		{
@@ -233,8 +233,8 @@ bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		const bool bShouldRunUEOnlyBackEnd = false;
 		if (bShouldRunUEOnlyBackEnd)
 		{
-			bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::CPU, ENeuralBackEnd::UEOnly, InCPURepetitionsForUEOnlyBackEnd[ModelIndex]);
-			bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::GPU, ENeuralBackEnd::UEOnly, InGPURepetitionsForUEOnlyBackEnd[ModelIndex]);
+			bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::CPU, UNeuralNetwork::ENeuralBackEnd::UEOnly, InCPURepetitionsForUEOnlyBackEnd[ModelIndex]);
+			bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::GPU, UNeuralNetwork::ENeuralBackEnd::UEOnly, InGPURepetitionsForUEOnlyBackEnd[ModelIndex]);
 		}
 	}
 
@@ -289,7 +289,7 @@ UNeuralNetwork* FModelUnitTester::NetworkONNXOrORTLoadTest(const FString& InMode
 	return Network;
 }
 
-bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralBackEnd InBackEnd, const TArray<float>& InInputArrayValues,
+bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENeuralNetworkSynchronousMode InSynchronousMode, const UNeuralNetwork::ENeuralBackEnd InBackEnd, const TArray<float>& InInputArrayValues,
 	const TArray<double>& InCPUGroundTruths, const TArray<double>& InGPUGroundTruths)
 {
 	// Sanity check
@@ -322,7 +322,7 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	const ENeuralDeviceType OriginalOutputDeviceType = InOutNetwork->GetOutputDeviceType();
 	const ENeuralNetworkSynchronousMode OriginalSynchronousMode = InOutNetwork->GetSynchronousMode();
 	const ENeuralNetworkDelegateThreadMode OriginalDelegateThreadMode = InOutNetwork->GetOnAsyncRunCompletedDelegateMode();
-	const ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
+	const UNeuralNetwork::ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
 	
 	// Set (a)synchronous Mode
 	InOutNetwork->SetSynchronousMode(InSynchronousMode);
@@ -462,7 +462,7 @@ void FModelUnitTester::ModelAccuracyTestRun(TArray<TArray<float>>& OutOutputs, U
 	}
 }
 
-bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeuralDeviceType InDeviceType, const ENeuralBackEnd InBackEnd, const int32 InRepetitions)
+bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeuralDeviceType InDeviceType, const UNeuralNetwork::ENeuralBackEnd InBackEnd, const int32 InRepetitions)
 {
 	// Get debug strings
 	const FString DeviceTypeString = GetDeviceTypeString(InDeviceType);
@@ -483,7 +483,7 @@ bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const ENeural
 	}
 	// Save original network state
 	const ENeuralDeviceType OriginalDeviceType = InOutNetwork->GetDeviceType();
-	const ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
+	const UNeuralNetwork::ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
 	// Set desired back end
 	if (!InOutNetwork->SetBackEnd(InBackEnd))
 	{
@@ -564,13 +564,13 @@ FString FModelUnitTester::GetDeviceTypeString(const ENeuralDeviceType InDeviceTy
 	}
 }
 
-FString FModelUnitTester::GetBackEndString(const ENeuralBackEnd InBackEnd)
+FString FModelUnitTester::GetBackEndString(const UNeuralNetwork::ENeuralBackEnd InBackEnd)
 {
-	if (InBackEnd == ENeuralBackEnd::UEAndORT)
+	if (InBackEnd == UNeuralNetwork::ENeuralBackEnd::UEAndORT)
 	{
 		return TEXT("UEAndORT");
 	}
-	else if (InBackEnd == ENeuralBackEnd::UEOnly)
+	else if (InBackEnd == UNeuralNetwork::ENeuralBackEnd::UEOnly)
 	{
 		return TEXT("UEOnly");
 	}

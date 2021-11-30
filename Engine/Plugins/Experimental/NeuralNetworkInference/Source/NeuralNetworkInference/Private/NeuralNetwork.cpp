@@ -21,18 +21,18 @@
 struct FPrivateNeuralNetwork
 {
 public:
-	static ENeuralBackEnd SetBackEndForCurrentPlatform(const ENeuralBackEnd InBackEnd);
+	static UNeuralNetwork::ENeuralBackEnd SetBackEndForCurrentPlatform(const UNeuralNetwork::ENeuralBackEnd InBackEnd);
 };
 
-ENeuralBackEnd FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(const ENeuralBackEnd InBackEnd)
+UNeuralNetwork::ENeuralBackEnd FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(const UNeuralNetwork::ENeuralBackEnd InBackEnd)
 {
 	// Auto
-	if (InBackEnd == ENeuralBackEnd::Auto)
+	if (InBackEnd == UNeuralNetwork::ENeuralBackEnd::Auto)
 	{
 #ifdef WITH_UE_AND_ORT_SUPPORT
-		return ENeuralBackEnd::UEAndORT;
+		return UNeuralNetwork::ENeuralBackEnd::UEAndORT;
 #else //WITH_UE_AND_ORT_SUPPORT
-		return ENeuralBackEnd::UEOnly;
+		return UNeuralNetwork::ENeuralBackEnd::UEOnly;
 #endif //WITH_UE_AND_ORT_SUPPORT
 	}
 	// Otherwise
@@ -50,8 +50,8 @@ UNeuralNetwork::UNeuralNetwork()
 	, OutputDeviceType(ENeuralDeviceType::CPU)
 	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
 	, DelegateThreadMode(ENeuralNetworkDelegateThreadMode::GameThread)
-	, BackEnd(ENeuralBackEnd::Auto)
 	, bIsLoaded(false)
+	, BackEnd(ENeuralBackEnd::Auto)
 	, BackEndForCurrentPlatform(FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd))
 {
 }
@@ -185,33 +185,6 @@ void UNeuralNetwork::SetOnAsyncRunCompletedDelegateMode(const ENeuralNetworkDele
 {
 	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	DelegateThreadMode = InDelegateThreadMode;
-}
-
-ENeuralBackEnd UNeuralNetwork::GetBackEnd() const
-{
-	return BackEnd;
-}
-
-ENeuralBackEnd UNeuralNetwork::GetBackEndForCurrentPlatform() const
-{
-	return BackEndForCurrentPlatform;
-}
-
-bool UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
-{
-	BackEnd = InBackEnd;
-	const ENeuralBackEnd NewBackEndForCurrentPlatform = FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd);
-	// Reload only required if BackEndForCurrentPlatform changes (regardless of whether BackEnd changed).
-	// BackEndForCurrentPlatform does not necessarily change if BackEnd changes. E.g., changing from UEAndORT into Auto in Windows will result in BackEndForCurrentPlatform = UEAndORT in both cases.
-	if (BackEndForCurrentPlatform != NewBackEndForCurrentPlatform)
-	{
-		BackEndForCurrentPlatform = NewBackEndForCurrentPlatform;
-		if (bIsLoaded) // No need to re-load if not bIsLoaded
-		{
-			Load();
-		}
-	}
-	return IsLoaded();
 }
 
 void UNeuralNetwork::ResetStats()
@@ -613,6 +586,33 @@ bool UNeuralNetwork::Load(TArray<FNeuralTensor>& InTensors, const TArray<FNeural
 	}
 	// Load network
 	bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, TensorManager, InOperators);
+	return IsLoaded();
+}
+
+UNeuralNetwork::ENeuralBackEnd UNeuralNetwork::GetBackEnd() const
+{
+	return BackEnd;
+}
+
+UNeuralNetwork::ENeuralBackEnd UNeuralNetwork::GetBackEndForCurrentPlatform() const
+{
+	return BackEndForCurrentPlatform;
+}
+
+bool UNeuralNetwork::SetBackEnd(const UNeuralNetwork::ENeuralBackEnd InBackEnd)
+{
+	BackEnd = InBackEnd;
+	const ENeuralBackEnd NewBackEndForCurrentPlatform = FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd);
+	// Reload only required if BackEndForCurrentPlatform changes (regardless of whether BackEnd changed).
+	// BackEndForCurrentPlatform does not necessarily change if BackEnd changes. E.g., changing from UEAndORT into Auto in Windows will result in BackEndForCurrentPlatform = UEAndORT in both cases.
+	if (BackEndForCurrentPlatform != NewBackEndForCurrentPlatform)
+	{
+		BackEndForCurrentPlatform = NewBackEndForCurrentPlatform;
+		if (bIsLoaded) // No need to re-load if not bIsLoaded
+		{
+			Load();
+		}
+	}
 	return IsLoaded();
 }
 
