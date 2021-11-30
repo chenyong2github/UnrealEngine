@@ -283,6 +283,7 @@ void MainPS(
 		FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(MaterialTextureArrayUAV);
 		PackStrataOut(
 			RWStrataMaterialContainer, 
+			MaterialTextureArrayUAV,
 			Dither,
 			StrataAddressing,
 			StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance,

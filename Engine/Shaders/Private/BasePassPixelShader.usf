@@ -1628,6 +1628,7 @@ void FPixelShaderInOut_MainPS(
 	FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(OpaqueBasePass.Strata.MaterialTextureArrayUAV);
 	PackStrataOut(
 		RWStrataMaterialContainer,
+		OpaqueBasePass.Strata.MaterialTextureArrayUAV,
 		Dither,
 		StrataAddressing,
 		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance,
