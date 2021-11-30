@@ -129,6 +129,7 @@ public:
 	void AddPose()
 	{
 		BlendWeights.Add(1.f);
+		BlendMasks.Add(nullptr);
 		new (BlendPoses) FPoseLink();
 		new (LayerSetup) FInputBlendPose();
 	}
@@ -136,6 +137,7 @@ public:
 	void RemovePose(int32 PoseIndex)
 	{
 		BlendWeights.RemoveAt(PoseIndex);
+		BlendMasks.RemoveAt(PoseIndex);
 		BlendPoses.RemoveAt(PoseIndex);
 		LayerSetup.RemoveAt(PoseIndex);
 	}
