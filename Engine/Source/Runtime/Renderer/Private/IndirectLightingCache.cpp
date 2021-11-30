@@ -153,6 +153,10 @@ FIndirectLightingCache::FIndirectLightingCache(ERHIFeatureLevel::Type InFeatureL
 {
 	NextPointId = GLightingCacheDimension + 1;
 	CacheSize = GLightingCacheDimension;
+
+#if WITH_EDITOR
+	GCacheUpdateEveryFrame = true;
+#endif
 }
 
 void FIndirectLightingCache::InitDynamicRHI()
