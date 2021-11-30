@@ -193,6 +193,20 @@ Value* ToggleAutoSync_cf(Value** arg_list, int count)
 }
 Primitive ToggleAutoSync_pf(_M("Datasmith_ToggleAutoSync"), ToggleAutoSync_cf);
 
+Value* SetAutoSyncDelay_cf(Value** arg_list, int count) 
+{
+	check_arg_count(ToggleAutoSync, 1, count);
+
+	if (GetExporter())
+	{
+		GetExporter()->SetAutoSyncDelay(arg_list[0]->to_float());
+		return &true_value;
+	}
+
+	return &false_value;
+}
+Primitive SetAutoSyncDelay_pf(_M("Datasmith_SetAutoSyncDelay"), SetAutoSyncDelay_cf);
+
 Value* OpenDirectlinkUi_cf(Value** arg_list, int count) 
 {
 	check_arg_count(OpenDirectlinkUi, 0, count);
