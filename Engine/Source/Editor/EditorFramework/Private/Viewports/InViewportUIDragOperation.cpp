@@ -4,6 +4,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SWindow.h"
 #include "Styling/AppStyle.h"
+#include "Framework/Application/SlateApplication.h"
 
 const FVector2D FInViewportUIDragOperation::GetDecoratorOffsetFromCursor()
 {

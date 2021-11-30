@@ -5,6 +5,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
+#include "GameFramework/Actor.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
