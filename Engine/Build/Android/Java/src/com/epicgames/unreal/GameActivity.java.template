@@ -45,6 +45,8 @@ import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.lang.Runnable;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -908,7 +910,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Field keyField = this.getClass().getDeclaredField("CONFIGRULES_KEY");
 			String key = (String)keyField.get(this);
 
-			Cipher cipher = Cipher.getInstance("AES");
+			Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
 			cipher.init(Cipher.DECRYPT_MODE, generateAESKey(key));
 			byte[] decrypted = cipher.doFinal(bytesToDecompress, headerSize, sizeCompressed);
 			sizeCompressed = decrypted.length;
@@ -969,6 +971,13 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		byte[] configBytesAssets = getByteArrayFromAssets("configrules.bin.png");
 		byte[] configBytesInternal = getByteArrayFromFile(InternalFilesDir + "configrules.bin.png");
 		byte[] configBytesExternal = getByteArrayFromFile(android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/UnrealGame/" + ProjectName + "/configrules.bin.png");
+
+		if (configBytesInternal != null)
+		{
+			CRC32 crc = new CRC32();
+			crc.update(configBytesInternal);
+			Log.debug(String.format("CRC32: %08X", crc.getValue()));
+		}
 
 		int assetsVersion = getConfigRulesVersion(configBytesAssets);
 		int internalVersion = getConfigRulesVersion(configBytesInternal);

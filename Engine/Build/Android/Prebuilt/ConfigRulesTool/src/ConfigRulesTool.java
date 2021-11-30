@@ -17,6 +17,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class ConfigRulesTool
 {
+	public static String CipherTransform = "AES/ECB/PKCS5Padding";
+	
 	public static void writeInt(FileOutputStream outStream, int value)
 	{
 		try
@@ -135,7 +137,7 @@ public class ConfigRulesTool
 			{
 				try
 				{
-					Cipher cipher = Cipher.getInstance("AES");
+					Cipher cipher = Cipher.getInstance(CipherTransform);
 					cipher.init(Cipher.ENCRYPT_MODE, generateKey(key));
 					byte[] encrypted = cipher.doFinal(bytesCompressed, 0, sizeCompressed);
 					bytesCompressed = encrypted;
@@ -148,7 +150,7 @@ public class ConfigRulesTool
 					System.exit(-1);
 				}
 			}
-			
+
 			File outFile = new File(outFilename);
 			FileOutputStream fileOutStream = null;
 			try
@@ -182,6 +184,22 @@ public class ConfigRulesTool
 
 			System.out.println("Version: " + Integer.toString(version) + ", Compressed from " + Integer.toString(sizeUncompressed) +
 				" bytes to " + Integer.toString(sizeCompressed + headerSize) + " bytes" + (key.equals("") ? "." : " and encrypted."));
+
+			CRC32 crc = new CRC32();
+			path = Paths.get(outFilename);
+			byte[] bytesToCRC = null;
+			try
+			{
+				bytesToCRC = Files.readAllBytes(path);
+			}
+			catch (IOException e)
+			{
+				System.out.println("Unable to read file: " + outFilename);
+				System.exit(-1);
+			}
+			crc.update(bytesToCRC);
+			System.out.println(String.format("CRC32: %08X", crc.getValue()));
+
 			System.exit(0);
 		}
 	
@@ -221,7 +239,7 @@ public class ConfigRulesTool
 			{
 				try
 				{
-					Cipher cipher = Cipher.getInstance("AES");
+					Cipher cipher = Cipher.getInstance(CipherTransform);
 					cipher.init(Cipher.DECRYPT_MODE, generateKey(key));
 					byte[] decrypted = cipher.doFinal(bytesToDecompress, headerSize, sizeCompressed);
 					sizeCompressed = decrypted.length;
