@@ -81,8 +81,13 @@ public:
 	 * @param Offset       The byte offset in this buffer that the range starts at.
 	 * @param Size         The number of bytes in the range to view or copy.
 	 * @param CopyBuffer   The buffer to write the copy into if a copy is required.
+	 * @param Allocator    The optional allocator to use when the copy buffer is required.
 	 */
-	[[nodiscard]] CORE_API FMemoryView ViewOrCopyRange(uint64 Offset, uint64 Size, FUniqueBuffer& CopyBuffer) const;
+	[[nodiscard]] CORE_API FMemoryView ViewOrCopyRange(
+		uint64 Offset,
+		uint64 Size,
+		FUniqueBuffer& CopyBuffer,
+		TFunctionRef<FUniqueBuffer (uint64 Size)> Allocator = FUniqueBuffer::Alloc) const;
 
 	/**
 	 * Copies a range of the buffer to a contiguous region of memory.
