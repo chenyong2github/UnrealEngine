@@ -119,6 +119,10 @@ public:
 	*/
 	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, const bool bCancelled) { return TArray<UTakeRecorderSource*>(); }
 
+	/*
+	 * This is called on all sources after post recording. There should not be any dependencies between sources at this point.
+	 */
+	virtual void FinalizeRecording() {}
 
 	/**
 	* This allows a Source to return an array of dynamically spawned settings objects for that source.
