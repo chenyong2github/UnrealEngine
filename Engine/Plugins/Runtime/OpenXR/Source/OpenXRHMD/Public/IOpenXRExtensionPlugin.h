@@ -225,6 +225,15 @@ public:
 	}
 
 	/**
+	* Add any action sets provided by the plugin to be attached as active to the session
+	* This allows a plugin to manage a custom actionset that will be active in xrSyncActions
+	*/
+	virtual void AddActionSets(TArray<XrActiveActionSet>& OutActionSets)
+	{
+	}
+
+
+	/**
 	* Use this callback to handle events that the OpenXR plugin doesn't handle itself
 	*/
 	virtual void OnEvent(XrSession InSession, const XrEventDataBaseHeader* InHeader)
