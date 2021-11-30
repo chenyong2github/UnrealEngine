@@ -50,8 +50,11 @@ public:
 
 	void Construct(const FArguments& InArgs, USequencerPlaylistPlayer* InPlayer);
 
+	bool InTriggerMode() const { return bTriggerMode; }
+
 private:
-	TSharedRef<SWidget> Construct_Toolbar();
+	TSharedRef<SWidget> Construct_LeftToolbar();
+	TSharedRef<SWidget> Construct_RightToolbar();
 	TSharedRef<SWidget> Construct_Transport();
 	TSharedRef<SWidget> Construct_AddSearchRow();
 	TSharedRef<SWidget> Construct_ItemListView();
@@ -85,6 +88,8 @@ private:
 
 private:
 	TWeakObjectPtr<USequencerPlaylistPlayer> WeakPlayer;
+
+	bool bTriggerMode = false;
 
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<TTextFilter<const FSequencerPlaylistRowData&>> SearchTextFilter;
@@ -120,7 +125,13 @@ DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnClickedSequencerPlaylistItem, TShare
 
 class SSequencerPlaylistItemWidget : public SMultiColumnTableRow<TSharedPtr<FSequencerPlaylistRowData>>
 {
+	static const FText PlayItemTooltipText;
+	static const FText StopItemTooltipText;
+	static const FText ResetItemTooltipText;
+
 	SLATE_BEGIN_ARGS(SSequencerPlaylistItemWidget) {}
+		SLATE_ATTRIBUTE(bool, TriggerMode)
+
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnPlayClicked)
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnStopClicked)
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnResetClicked)
@@ -137,6 +148,10 @@ public:
 	const TSharedPtr<FSequencerPlaylistRowData>& GetRowData() { return RowData; }
 	USequencerPlaylistItem* GetItem() { return GetRowData() ? GetRowData()->WeakItem.Get() : nullptr; }
 
+	//~ Begin STableRow
+	void ConstructChildren(ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent) override;
+	//~ End STableRow
+
 	//~ Begin SMultiColumnTableRow
 	TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override;
 	//~ End SMultiColumnTableRow
@@ -148,12 +163,19 @@ public:
 private:
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
+	bool InTriggerMode() const { return TriggerMode.Get(); }
+	bool IsRowContentEnabled() const;
+	EVisibility GetTriggerModeTransportVisibility() const;
+	EVisibility GetHoverTransportCellVisibility() const;
+
 	TSharedRef<SWidget> EnsureSelectedAndBuildContextMenu();
 	TSharedRef<SWidget> BuildContextMenu(const TArray<UObject*>& SelectedItems);
 
 private:
 	TSharedPtr<FSequencerPlaylistRowData> RowData;
 	TSharedPtr<SMenuAnchor> DetailsAnchor;
+
+	TAttribute<bool> TriggerMode;
 
 	FOnClickedSequencerPlaylistItem PlayClickedDelegate;
 	FOnClickedSequencerPlaylistItem StopClickedDelegate;

@@ -21,6 +21,14 @@ public:
 	static FName GetStyleSetName();
 
 private:
+	enum class EColorVariation
+	{
+		Desaturated,
+		Dimmed
+	};
+
+	static FLinearColor MakeColorVariation(FLinearColor InColor, EColorVariation Variation);
+
 	static TSharedRef< class FSlateStyleSet > Create();
 
 private:

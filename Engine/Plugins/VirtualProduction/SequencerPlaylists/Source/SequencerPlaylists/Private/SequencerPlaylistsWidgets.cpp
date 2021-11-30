@@ -72,8 +72,23 @@ void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, USequencerPlay
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.AutoHeight()
+			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
 			[
-				Construct_Toolbar()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					Construct_LeftToolbar()
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					Construct_RightToolbar()
+				]
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
@@ -156,7 +171,7 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Toolbar()
+TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_LeftToolbar()
 {
 	FSequencerPlaylistsModule& Module = static_cast<FSequencerPlaylistsModule&>(ISequencerPlaylistsModule::Get());
 	FSlimHorizontalToolBarBuilder ToolBarBuilder(Module.GetCommandList(), FMultiBoxCustomization::None, nullptr, true);
@@ -183,6 +198,37 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Toolbar()
 			LOCTEXT("NewPlaylistOptions", "Open Playlist"),
 			LOCTEXT("NewPlaylistOptionsToolTip", "Open Playlist"),
 			FSlateIcon(FSequencerPlaylistsStyle::Get().GetStyleSetName(), "SequencerPlaylists.OpenPlaylist"));
+	}
+	ToolBarBuilder.EndSection();
+
+	return ToolBarBuilder.MakeWidget();
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_RightToolbar()
+{
+	TSharedRef<SSequencerPlaylistPanel> This = SharedThis(this);
+
+	FSequencerPlaylistsModule& Module = static_cast<FSequencerPlaylistsModule&>(ISequencerPlaylistsModule::Get());
+	FSlimHorizontalToolBarBuilder ToolBarBuilder(Module.GetCommandList(), FMultiBoxCustomization::None, nullptr, true);
+
+	ToolBarBuilder.BeginSection("TriggerMode");
+	{
+		TSharedRef<SWidget> TriggerToggle = SNew(SCheckBox)
+			.Padding(FMargin(10.0f, 4.0f))
+			.ToolTipText(LOCTEXT("ToggleTriggerToolTip", "Enables and disables Trigger Mode"))
+			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.IsChecked_Lambda([This]() { return This->InTriggerMode() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+			.OnCheckStateChanged_Lambda([This](ECheckBoxState InState) { This->bTriggerMode = (InState == ECheckBoxState::Checked); })
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
+				.Text(FText::FromString(FString(TEXT("\xf0e7"))))
+			];
+
+		ToolBarBuilder.AddWidget(TriggerToggle);
 	}
 	ToolBarBuilder.EndSection();
 
@@ -281,10 +327,11 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 		.OnGenerateRow_Lambda([This = SharedThis(this)](TSharedPtr<FSequencerPlaylistRowData> InData, const TSharedRef<STableViewBase>& OwnerTableView)
 			{
 				return SNew(SSequencerPlaylistItemWidget, InData, OwnerTableView)
+					.TriggerMode(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(This, &SSequencerPlaylistPanel::InTriggerMode)))
 					.OnPlayClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Play)
 					.OnStopClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Stop)
 					.OnResetClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Reset)
-					.OnRemoveClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Remove )
+					.OnRemoveClicked(This, &SSequencerPlaylistPanel::HandleClicked_Item_Remove)
 					.OnIsPropertyVisible(This, &SSequencerPlaylistPanel::HandleItemDetailsIsPropertyVisible)
 					.OnCanAcceptDrop(This, &SSequencerPlaylistPanel::HandleCanAcceptDrop)
 					.OnAcceptDrop(This, &SSequencerPlaylistPanel::HandleAcceptDrop);
@@ -809,15 +856,23 @@ FSequencerPlaylistItemDragDropOp::~FSequencerPlaylistItemDragDropOp()
 }
 
 
+const FText SSequencerPlaylistItemWidget::PlayItemTooltipText(LOCTEXT("PlayItemButtonToolTip", "Play this item"));
+const FText SSequencerPlaylistItemWidget::StopItemTooltipText(LOCTEXT("StopItemButtonToolTip", "Stop playback of this item"));
+const FText SSequencerPlaylistItemWidget::ResetItemTooltipText(LOCTEXT("ResetItemButtonToolTip", "Reset this item"));
+
+
 void SSequencerPlaylistItemWidget::Construct(const FArguments& InArgs, TSharedPtr<FSequencerPlaylistRowData> InRowData, const TSharedRef<STableViewBase>& OwnerTableView)
 {
 	check(InRowData && InRowData->WeakItem.IsValid());
 	RowData = InRowData;
 
+	TriggerMode = InArgs._TriggerMode;
+
 	PlayClickedDelegate = InArgs._OnPlayClicked;
 	StopClickedDelegate = InArgs._OnStopClicked;
 	ResetClickedDelegate = InArgs._OnResetClicked;
 	RemoveClickedDelegate = InArgs._OnRemoveClicked;
+
 	IsPropertyVisibleDelegate = InArgs._OnIsPropertyVisible;
 
 	FSuperRowType::Construct(
@@ -826,6 +881,90 @@ void SSequencerPlaylistItemWidget::Construct(const FArguments& InArgs, TSharedPt
 			.OnAcceptDrop(InArgs._OnAcceptDrop)
 			.OnDragDetected(this, &SSequencerPlaylistItemWidget::HandleDragDetected)
 		, OwnerTableView);
+}
+
+
+void SSequencerPlaylistItemWidget::ConstructChildren(ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent)
+{
+	// We wrap InContent with an overlay which facilitates dimming the row, obstructing hit test of
+	// the controls behind, and centering Trigger Mode transport controls over the row on hover.
+
+	TSharedRef<SSequencerPlaylistItemWidget> This = SharedThis(this);
+
+	Content = InContent;
+
+	ChildSlot
+	.Padding(InPadding)
+	[
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		[
+			InContent
+		]
+		+ SOverlay::Slot()
+		[
+			SNew(SImage)
+			.Visibility(this, &SSequencerPlaylistItemWidget::GetTriggerModeTransportVisibility)
+			.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Item.Dim"))
+		]
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.Visibility(this, &SSequencerPlaylistItemWidget::GetTriggerModeTransportVisibility)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.TransportButton.Play")
+				.ContentPadding(0)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([This]() { return This->PlayClickedDelegate.Execute(This); })
+				.ToolTipText(PlayItemTooltipText)
+				[
+					SNew(SImage)
+					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Play"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.TransportButton.Stop")
+				.ContentPadding(0)
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([This]() { return This->StopClickedDelegate.Execute(This); })
+				.ToolTipText(StopItemTooltipText)
+				[
+					SNew(SImage)
+					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Stop"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.TransportButton.Reset")
+				.ContentPadding(FMargin(0.0f, 1.0f, 0.0f, 0.0f))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([This]() { return This->ResetClickedDelegate.Execute(This); })
+				.ToolTipText(ResetItemTooltipText)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text(FEditorFontGlyphs::Undo)
+				]
+			]
+		]
+	];
+
+	InnerContentSlot = &ChildSlot.AsSlot();
 }
 
 
@@ -839,10 +978,63 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 		return SNullWidget::NullWidget;
 	}
 
+	TSharedRef<SSequencerPlaylistItemWidget> This = SharedThis(this);
+
 	static const FName PropertyEditorModuleName("PropertyEditor");
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditorModuleName);
 	FSinglePropertyParams SinglePropParams;
 	SinglePropParams.NamePlacement = EPropertyNamePlacement::Hidden;
+
+	if (ColumnName == SSequencerPlaylistPanel::ColumnName_HoverTransport)
+	{
+		return SNew(SVerticalBox)
+			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(SharedThis(this), &SSequencerPlaylistItemWidget::GetHoverTransportCellVisibility)))
+			+ SVerticalBox::Slot()
+			[
+				SNew(SButton)
+				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Play")
+				.ContentPadding(FMargin(1.0f, 3.0f, 0.0f, 0.0f))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([This]() { return This->PlayClickedDelegate.Execute(This); })
+				.ToolTipText(PlayItemTooltipText)
+				[
+					SNew(SImage)
+					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Play.Small"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SButton)
+				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Stop")
+				.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 1.0f))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([This]() { return This->StopClickedDelegate.Execute(This); })
+				.ToolTipText(StopItemTooltipText)
+				[
+					SNew(SImage)
+					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Stop.Small"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SButton)
+				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Reset")
+				.ContentPadding(FMargin(1.0f, 0.0f, 0.0f, 3.0f))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([This]() { return This->ResetClickedDelegate.Execute(This); })
+				.ToolTipText(ResetItemTooltipText)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+					.Text(FEditorFontGlyphs::Undo)
+				]
+			];
+	}
 
 	if (ColumnName == SSequencerPlaylistPanel::ColumnName_Items)
 	{
@@ -901,7 +1093,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 	{
 		return SAssignNew(DetailsAnchor, SMenuAnchor)
 			.Placement(MenuPlacement_MenuLeft)
-			.OnGetMenuContent(this, &SSequencerPlaylistItemWidget::EnsureSelectedAndBuildContextMenu)
+			.OnGetMenuContent(This, &SSequencerPlaylistItemWidget::EnsureSelectedAndBuildContextMenu)
 			[
 				SNew(SBox)
 				.HeightOverride(24.0f)
@@ -910,10 +1102,10 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 					.ContentPadding(0)
-					.OnClicked_Lambda([this]() { DetailsAnchor->SetIsOpen(!DetailsAnchor->IsOpen()); return FReply::Handled(); })
+					.OnClicked_Lambda([This]() { This->DetailsAnchor->SetIsOpen(!This->DetailsAnchor->IsOpen()); return FReply::Handled(); })
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Center)
-					.Visibility_Lambda([this]() { return this->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; })
+					.Visibility_Lambda([This]() { return This->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; })
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
@@ -954,6 +1146,34 @@ FReply SSequencerPlaylistItemWidget::HandleDragDetected(const FGeometry& MyGeome
 }
 
 
+bool SSequencerPlaylistItemWidget::IsRowContentEnabled() const
+{
+	return GetTriggerModeTransportVisibility() == EVisibility::Hidden;
+}
+
+
+EVisibility SSequencerPlaylistItemWidget::GetTriggerModeTransportVisibility() const
+{
+	if (IsHovered() && InTriggerMode())
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Hidden;
+}
+
+
+EVisibility SSequencerPlaylistItemWidget::GetHoverTransportCellVisibility() const
+{
+	if (IsHovered() && !InTriggerMode())
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Hidden;
+}
+
+
 TSharedRef<SWidget> SSequencerPlaylistItemWidget::EnsureSelectedAndBuildContextMenu()
 {
 	TArray<UObject*> SelectedItems;
@@ -973,6 +1193,8 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::EnsureSelectedAndBuildContextM
 			OwnerTable->Private_ClearSelection();
 			OwnerTable->Private_SetItemSelection(RowData, true, true);
 			OwnerTable->Private_SignalSelectionChanged(ESelectInfo::OnMouseClick);
+			SelectedItems.Empty(1);
+			SelectedItems.Add(GetItem());
 		}
 	}
 	else
