@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Guid.h"
 #include "StateTreeTypes.h"
 #include "StateTreeTaskBase.generated.h"
 
@@ -22,10 +21,8 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 
 	virtual ~FStateTreeTaskBase() {}
 
-	/**
-	* @return Struct that represents the runtime data of the evaluator.
-	*/
-	virtual const UStruct* GetInstanceDataType() const PURE_VIRTUAL(FStateTreeTaskBase::GetInstanceDataType(), return nullptr;);
+	/** @return Struct that represents the runtime data of the evaluator. */
+	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
 
 	/**
 	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
@@ -65,11 +62,11 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	virtual void StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeHandle CompletedState) const {}
 
 	/**
-	* Called during state tree tick when the task is on active state.
-	* @param Context Reference to current execution context.
-	* @param DeltaTime Time since last StateTree tick.
-	* @return Running status of the state: Running if still in progress, Succeeded if execution is done and succeeded, Failed if execution is done and failed.
-	*/
+	 * Called during state tree tick when the task is on active state.
+	 * @param Context Reference to current execution context.
+	 * @param DeltaTime Time since last StateTree tick.
+	 * @return Running status of the state: Running if still in progress, Succeeded if execution is done and succeeded, Failed if execution is done and failed.
+	 */
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const { return EStateTreeRunStatus::Running; };
 
 #if WITH_GAMEPLAY_DEBUGGER
@@ -93,5 +90,3 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	UPROPERTY()
 	uint8 bInstanceIsObject : 1;
 };
-
-template<> struct TStructOpsTypeTraits<FStateTreeTaskBase> : public TStructOpsTypeTraitsBase2<FStateTreeTaskBase> { enum { WithPureVirtual = true, }; };

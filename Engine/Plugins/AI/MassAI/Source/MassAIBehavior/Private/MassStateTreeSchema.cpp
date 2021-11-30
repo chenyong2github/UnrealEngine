@@ -14,7 +14,7 @@ UScriptStruct* UMassStateTreeSchema::GetStorageSuperStruct() const
 
 bool UMassStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
 {
-	// Only allow Mass evals and tasks.
+	// Only allow Mass evals and tasks,and common conditions.
 	return InScriptStruct->IsChildOf(FMassStateTreeEvaluatorBase::StaticStruct())
 			|| InScriptStruct->IsChildOf(FMassStateTreeTaskBase::StaticStruct())
 			|| InScriptStruct->IsChildOf(FStateTreeConditionBase::StaticStruct());

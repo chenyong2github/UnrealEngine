@@ -3,13 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EngineDefines.h"
 #include "StateTreeTypes.h"
+#if WITH_EDITOR
 #include "InstancedStruct.h"
+#endif
 #include "StateTreeConditionBase.generated.h"
 
+#if WITH_EDITOR
 struct IStateTreeBindingLookup;
 struct FStateTreeEditorPropertyPath;
+#endif
 struct FStateTreeExecutionContext;
 
 /**
@@ -22,11 +25,9 @@ struct STATETREEMODULE_API FStateTreeConditionBase
 
 	virtual ~FStateTreeConditionBase() {}
 
-	/**
-	* @return Struct that represents the runtime data of the condition.
-	*/
-	virtual const UStruct* GetInstanceDataType() const PURE_VIRTUAL(FStateTreeConditionBase::GetInstanceDataType(), return nullptr;);
-	
+	/** @return Struct that represents the runtime data of the evaluator. */
+	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
+
 	/**
 	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
 	 * @see TStateTreeExternalDataHandle
@@ -63,13 +64,4 @@ struct STATETREEMODULE_API FStateTreeConditionBase
 
 	UPROPERTY()
 	uint8 bInstanceIsObject : 1;
-};
-
-template<>
-struct TStructOpsTypeTraits<FStateTreeConditionBase> : public TStructOpsTypeTraitsBase2<FStateTreeConditionBase>
-{
-	enum
-	{
-		WithPureVirtual = true,
-	};
 };

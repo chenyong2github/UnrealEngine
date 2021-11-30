@@ -22,11 +22,7 @@ USTRUCT()
 struct STATETREEMODULE_API FStateTreeConditionCommonBase : public FStateTreeConditionBase
 {
 	GENERATED_BODY()
-
-	FStateTreeConditionCommonBase() {}
-	virtual ~FStateTreeConditionCommonBase() override {}
 };
-template<> struct TStructOpsTypeTraits<FStateTreeConditionCommonBase> : public TStructOpsTypeTraitsBase2<FStateTreeConditionCommonBase> { enum { WithPureVirtual = true, }; };
 
 /**
  * Condition comparing two integers.
