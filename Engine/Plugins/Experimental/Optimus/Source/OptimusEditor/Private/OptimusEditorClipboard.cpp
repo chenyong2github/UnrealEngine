@@ -36,19 +36,22 @@ UOptimusClipboardContent* UOptimusClipboardContent::Create(
 	// Make a copy of all the links that connect the nodes that are being copied.
 	for (const UOptimusNodeLink* Link: InGraph->GetAllLinks())
 	{
-		const UOptimusNode *OutputNode = Link->GetNodeOutputPin()->GetNode();
-		const UOptimusNode *InputNode = Link->GetNodeInputPin()->GetNode();
-
-		if (NodeIndexMap.Contains(OutputNode) && NodeIndexMap.Contains(InputNode))
+		if (ensure(Link->GetNodeOutputPin() != nullptr))
 		{
-			FOptimusClipboardNodeLink ClipboardLink;
-			ClipboardLink.NodeOutputIndex = NodeIndexMap[OutputNode];
-			ClipboardLink.NodeOutputPinName = Link->GetNodeOutputPin()->GetUniqueName().ToString();
-			
-			ClipboardLink.NodeInputIndex = NodeIndexMap[InputNode];
-			ClipboardLink.NodeInputPinName = Link->GetNodeOutputPin()->GetUniqueName().ToString();
+			const UOptimusNode *OutputNode = Link->GetNodeOutputPin()->GetNode();
+			const UOptimusNode *InputNode = Link->GetNodeInputPin()->GetNode();
 
-			Content->NodeLinks.Add(ClipboardLink);
+			if (NodeIndexMap.Contains(OutputNode) && NodeIndexMap.Contains(InputNode))
+			{
+				FOptimusClipboardNodeLink ClipboardLink;
+				ClipboardLink.NodeOutputIndex = NodeIndexMap[OutputNode];
+				ClipboardLink.NodeOutputPinName = Link->GetNodeOutputPin()->GetUniqueName().ToString();
+			
+				ClipboardLink.NodeInputIndex = NodeIndexMap[InputNode];
+				ClipboardLink.NodeInputPinName = Link->GetNodeOutputPin()->GetUniqueName().ToString();
+
+				Content->NodeLinks.Add(ClipboardLink);
+			}
 		}
 	}
 
