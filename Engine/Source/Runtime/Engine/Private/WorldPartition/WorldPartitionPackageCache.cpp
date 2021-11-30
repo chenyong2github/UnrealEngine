@@ -72,17 +72,7 @@ void FWorldPartitionPackageCache::UnloadPackage(UPackage* InPackage)
 	}
 }
 
-void FWorldPartitionPackageCache::LoadWorldPackageAsync(FName InPackageName, const TCHAR* InPackageToLoadFrom /*= nullptr*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InInstancingContext /*=nullptr*/)
-{
-	LoadPackageAsyncInternal(InPackageName, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InInstancingContext, /* bInWorldPackage=*/true);
-}
-
-void FWorldPartitionPackageCache::LoadPackageAsync(FName InPackageName, const TCHAR* InPackageToLoadFrom /*= nullptr*/, FLoadPackageAsyncDelegate InCompletionDelegate /*= FLoadPackageAsyncDelegate()*/, EPackageFlags InPackageFlags /*= PKG_None*/, int32 InPIEInstanceID /*= INDEX_NONE*/, int32 InPackagePriority /*= 0*/, const FLinkerInstancingContext* InInstancingContext /*=nullptr*/)
-{
-	LoadPackageAsyncInternal(InPackageName, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InInstancingContext, /* bInWorldPackage=*/false);
-}
-
-void FWorldPartitionPackageCache::LoadPackageAsyncInternal(FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext* InInstancingContext, bool bInWorldPackage)
+void FWorldPartitionPackageCache::LoadPackage(FName InPackageName, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, bool bLoadAsync, bool bInWorldPackage)
 {
 	if (UPackage* CachedPackage = FindPackage(InPackageName))
 	{
@@ -119,7 +109,17 @@ void FWorldPartitionPackageCache::LoadPackageAsyncInternal(FName InPackageName, 
 	{
 		UWorld::WorldTypePreLoadMap.FindOrAdd(InPackageName) = EWorldType::Editor;
 	}
-	::LoadPackageAsync(FPackagePath::FromPackageNameChecked(InPackageToLoadFrom), InPackageName, CompletionCallback, InPackageFlags, InPIEInstanceID, InPackagePriority, InInstancingContext);
+
+	if (bLoadAsync)
+	{
+		::LoadPackageAsync(FPackagePath::FromPackageNameChecked(InPackageToLoadFrom), InPackageName, CompletionCallback);
+	}
+	else
+	{
+		UPackage* Package = CreatePackage(*InPackageName.ToString());
+		Package = ::LoadPackage(Package, InPackageToLoadFrom, LOAD_None);
+		CompletionCallback.Execute(InPackageName, Package, Package ? EAsyncLoadingResult::Succeeded : EAsyncLoadingResult::Failed);
+	}
 }
 
 UPackage* FWorldPartitionPackageCache::FindPackage(FName InPackageName)

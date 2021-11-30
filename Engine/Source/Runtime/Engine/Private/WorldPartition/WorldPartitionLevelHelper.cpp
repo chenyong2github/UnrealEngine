@@ -214,7 +214,7 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	return NewLevel;
 }
 
-bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionPackageCache& InPackageCache, TFunction<void(bool)> InCompletionCallback, bool bLoadForPlay, bool bLoadAsync /*=true*/, FLinkerInstancingContext* InOutInstancingContext /*=nullptr*/)
+bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionPackageCache& InPackageCache, TFunction<void(bool)> InCompletionCallback, bool bLoadForPlay, FLinkerInstancingContext* InOutInstancingContext /*=nullptr*/)
 {
 	UPackage* DestPackage = InDestLevel ? InDestLevel->GetPackage() : nullptr;
 	FString ShortLevelPackageName = DestPackage? FPackageName::GetShortName(DestPackage->GetFName()) : FString();
@@ -297,17 +297,17 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 			}
 		});
 
-
-		FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(*ActorPackageName);
 		if (bLoadForPlay)
 		{
+			FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(*ActorPackageName);
 			check(DestPackage);
 			const EPackageFlags PackageFlags = DestPackage->HasAnyPackageFlags(PKG_PlayInEditor) ? PKG_PlayInEditor : PKG_None;
 			::LoadPackageAsync(PackagePath, FName(*ActorPackageInstanceNames[ChildIndex]), CompletionCallback, PackageFlags, DestPackage->PIEInstanceID, 0, InOutInstancingContext);
 		}
 		else
 		{
-			::LoadPackageAsync(PackagePath, NAME_None, CompletionCallback, PKG_None, INDEX_NONE, 0, InOutInstancingContext);
+			UPackage* Package = LoadPackage(nullptr, *ActorPackageName, LOAD_None, nullptr, InOutInstancingContext);
+			CompletionCallback.Execute(*ActorPackageName, Package, Package ? EAsyncLoadingResult::Succeeded : EAsyncLoadingResult::Failed);
 		}
 	}
 
@@ -408,14 +408,8 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 		// PostFix the Package so that we don't load over the original package
 		FName PackageDuplicateSeedName(*FString::Printf(TEXT("%s_DUP"), *PackageToLoadFrom));
 		
-		// Use Package Cache here because Level Instances can load the same levels across cells we want to avoid Loading the same package multiple times...
-		InPackageCache.LoadWorldPackageAsync(PackageDuplicateSeedName, *PackageToLoadFrom, CompletionCallback);
-	}
-
-	if (!bLoadAsync)
-	{
-		// Finish all async loading.
-		FlushAsyncLoading();
+		// Use package cache here because level instances can load the same levels across cells we want to avoid Loading the same package multiple times...
+		InPackageCache.LoadPackage(PackageDuplicateSeedName, *PackageToLoadFrom, CompletionCallback, /*bLoadAsync*/bLoadForPlay, /*bInWorldPackage*/true);
 	}
 
 	return (LoadProgress->NumPendingLoadRequests == 0);

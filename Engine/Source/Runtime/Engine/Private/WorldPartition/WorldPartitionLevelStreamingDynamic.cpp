@@ -297,7 +297,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 			}
 
 			FinalizeLoading();
-		},/*bLoadForPlay=*/true, /*bLoadAsync=*/true, &InstancingContext);
+		},/*bLoadForPlay=*/true, &InstancingContext);
 	}
 	else
 	{
