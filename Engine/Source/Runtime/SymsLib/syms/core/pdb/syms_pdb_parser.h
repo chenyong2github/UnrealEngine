@@ -152,6 +152,10 @@ typedef struct SYMS_PdbUnitAccel{
   SYMS_U64 proc_count;
   SYMS_PdbStub **var_stubs;
   SYMS_U64 var_count;
+  SYMS_PdbStub **thunk_stubs;
+  SYMS_U64 thunk_count;
+  SYMS_PdbStub **pub_stubs;
+  SYMS_U64 pub_count;
   SYMS_PdbStub **udt_stubs;
   SYMS_U64 udt_count;
 } SYMS_PdbUnitAccel;
@@ -527,6 +531,11 @@ SYMS_API SYMS_U64RangeArray syms_pdb_proc_vranges_from_sid(SYMS_Arena *arena, SY
 SYMS_API SYMS_SymbolIDArray syms_pdb_scope_children_from_sid(SYMS_Arena *arena, SYMS_String8 data,
                                                              SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit,
                                                              SYMS_SymbolID id);
+
+SYMS_API void                   syms_pdb_stripped_sort_in_place(SYMS_StrippedInfo *info, SYMS_U64 count);
+
+SYMS_API SYMS_StrippedInfoArray syms_pdb_stripped_from_unit(SYMS_Arena *arena, SYMS_String8 data,
+                                                            SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit);
 
 ////////////////////////////////
 //~ NOTE(allen): PDB Signature Info

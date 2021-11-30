@@ -200,12 +200,14 @@ typedef struct SYMS_Group{
   SYMS_TypeContentBuckets type_content_buckets;
   
   //- one-time fills/builds
-  SYMS_B32 unit_ranges_is_filled;
-  SYMS_B32 type_map_unit_is_filled;
-  SYMS_B32 sec_map_v_is_built;
-  SYMS_B32 sec_map_f_is_built;
-  SYMS_B32 unit_map_is_built;
-  SYMS_B32 name_2_file_id_map_is_built;
+  SYMS_B8 unit_ranges_is_filled;
+  SYMS_B8 type_map_unit_is_filled;
+  SYMS_B8 sec_map_v_is_built;
+  SYMS_B8 sec_map_f_is_built;
+  SYMS_B8 unit_map_is_built;
+  SYMS_B8 name_2_file_id_map_is_built;
+  SYMS_B8 stripped_info_is_filled;
+  SYMS_B8 stripped_info_map_is_built;
   
   SYMS_UnitRangeArray unit_ranges;
   SYMS_UnitAccel *type_map_unit;
@@ -213,6 +215,8 @@ typedef struct SYMS_Group{
   SYMS_SpatialMap1D sec_map_f;
   SYMS_SpatialMap1D unit_map;
   SYMS_Name2FileIDMap name_2_file_id_map;
+  SYMS_StrippedInfoArray stripped_info;
+  SYMS_SpatialMap1D stripped_info_map;
 } SYMS_Group;
 
 ////////////////////////////////
@@ -296,6 +300,8 @@ SYMS_API SYMS_String8       syms_group_file_name_from_id(SYMS_Group *group, SYMS
 
 SYMS_API SYMS_MapAndUnit    syms_group_type_map(SYMS_Group *group);
 
+SYMS_API SYMS_StrippedInfoArray syms_group_stripped_info(SYMS_Group *group);
+
 
 ////////////////////////////////
 // NOTE(allen): Syms Group Address Mapping Functions
@@ -334,6 +340,8 @@ SYMS_API SYMS_SpatialMap1D* syms_group_var_map_from_uid(SYMS_Group *group, SYMS_
 SYMS_API void                syms_group_fetch_line_to_addr_maps_from_uid(SYMS_Group *group, SYMS_UnitID uid);
 SYMS_API SYMS_LineToAddrMap* syms_group_line_to_addr_map_from_uid_file_id(SYMS_Group *group, SYMS_UnitID uid,
                                                                           SYMS_FileID file_id);
+
+SYMS_API SYMS_SpatialMap1D* syms_group_stripped_info_map(SYMS_Group *group);
 
 //- accelerated versions
 SYMS_API SYMS_U64      syms_group_sec_number_from_voff__accelerated(SYMS_Group *group, SYMS_U64 voff);

@@ -6,14 +6,14 @@
 ////////////////////////////////
 #if defined(SYMS_ENABLE_BASE_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:892
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
 // syms_enum_index_from_arch - skipped identity mapping
 // syms_enum_index_from_operating_system - skipped identity mapping
 // syms_enum_index_from_language - skipped identity mapping
 // syms_enum_index_from_fileformat - skipped identity mapping
 // syms_enum_index_from_checksum_algorithm - skipped identity mapping
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1123
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
 SYMS_SerialValue _syms_serial_members_for_SYMS_Arch[] = {
 { { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_Arch_Null },
 { { (SYMS_U8*)"X64", 3 }, (SYMS_U64)SYMS_Arch_X64 },
@@ -101,7 +101,7 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_ChecksumAlgorithm[] = {
 { { (SYMS_U8*)"CRC32_IEEE_802_3", 16 }, (SYMS_U64)SYMS_ChecksumAlgorithm_CRC32_IEEE_802_3 },
 };
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1259
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
 SYMS_SerialType _syms_serial_type_SYMS_S8 = {
 {(SYMS_U8*)"SYMS_S8", 7}, SYMS_SerialTypeKind_Integer, 0, 0, 1, 0
 };
@@ -170,69 +170,485 @@ SYMS_SerialType _syms_serial_type_SYMS_ChecksumAlgorithm = {
 
 
 ////////////////////////////////
-#if defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+#if defined(SYMS_ENABLE_COFF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:892
-// syms_enum_index_from_symbol_kind - skipped identity mapping
-// syms_enum_index_from_mem_visibility - skipped identity mapping
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
+SYMS_API SYMS_U64
+syms_enum_index_from_coffmachinetype(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U16)v){
+default: break;
+case SYMS_CoffMachineType_UNKNOWN: result = 0; break;
+case SYMS_CoffMachineType_X86: result = 1; break;
+case SYMS_CoffMachineType_X64: result = 2; break;
+case SYMS_CoffMachineType_ARM33: result = 3; break;
+case SYMS_CoffMachineType_ARM: result = 4; break;
+case SYMS_CoffMachineType_ARM64: result = 5; break;
+case SYMS_CoffMachineType_ARMNT: result = 6; break;
+case SYMS_CoffMachineType_EBC: result = 7; break;
+case SYMS_CoffMachineType_IA64: result = 8; break;
+case SYMS_CoffMachineType_M32R: result = 9; break;
+case SYMS_CoffMachineType_MIPS16: result = 10; break;
+case SYMS_CoffMachineType_MIPSFPU: result = 11; break;
+case SYMS_CoffMachineType_MIPSFPU16: result = 12; break;
+case SYMS_CoffMachineType_POWERPC: result = 13; break;
+case SYMS_CoffMachineType_POWERPCFP: result = 14; break;
+case SYMS_CoffMachineType_R4000: result = 15; break;
+case SYMS_CoffMachineType_RISCV32: result = 16; break;
+case SYMS_CoffMachineType_RISCV64: result = 17; break;
+case SYMS_CoffMachineType_RISCV128: result = 18; break;
+case SYMS_CoffMachineType_SH3: result = 19; break;
+case SYMS_CoffMachineType_SH3DSP: result = 20; break;
+case SYMS_CoffMachineType_SH4: result = 21; break;
+case SYMS_CoffMachineType_SH5: result = 22; break;
+case SYMS_CoffMachineType_THUMB: result = 23; break;
+case SYMS_CoffMachineType_WCEMIPSV2: result = 24; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_coffsectionalign(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_CoffSectionAlign_1BYTES: result = 0; break;
+case SYMS_CoffSectionAlign_2BYTES: result = 1; break;
+case SYMS_CoffSectionAlign_4BYTES: result = 2; break;
+case SYMS_CoffSectionAlign_8BYTES: result = 3; break;
+case SYMS_CoffSectionAlign_16BYTES: result = 4; break;
+case SYMS_CoffSectionAlign_32BYTES: result = 5; break;
+case SYMS_CoffSectionAlign_64BYTES: result = 6; break;
+case SYMS_CoffSectionAlign_128BYTES: result = 7; break;
+case SYMS_CoffSectionAlign_256BYTES: result = 8; break;
+case SYMS_CoffSectionAlign_512BYTES: result = 9; break;
+case SYMS_CoffSectionAlign_1024BYTES: result = 10; break;
+case SYMS_CoffSectionAlign_2048BYTES: result = 11; break;
+case SYMS_CoffSectionAlign_4096BYTES: result = 12; break;
+case SYMS_CoffSectionAlign_8192BYTES: result = 13; break;
+}
+return(result);
+}
+// syms_enum_index_from_coffreloctypex64 - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_coffreloctypex86(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U16)v){
+default: break;
+case SYMS_CoffRelocTypeX86_ABS: result = 0; break;
+case SYMS_CoffRelocTypeX86_DIR16: result = 1; break;
+case SYMS_CoffRelocTypeX86_REL16: result = 2; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN0: result = 3; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN2: result = 4; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN3: result = 5; break;
+case SYMS_CoffRelocTypeX86_DIR32: result = 6; break;
+case SYMS_CoffRelocTypeX86_DIR32NB: result = 7; break;
+case SYMS_CoffRelocTypeX86_SEG12: result = 8; break;
+case SYMS_CoffRelocTypeX86_SECTION: result = 9; break;
+case SYMS_CoffRelocTypeX86_SECREL: result = 10; break;
+case SYMS_CoffRelocTypeX86_TOKEN: result = 11; break;
+case SYMS_CoffRelocTypeX86_SECREL7: result = 12; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN4: result = 13; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN5: result = 14; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN6: result = 15; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN7: result = 16; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN8: result = 17; break;
+case SYMS_CoffRelocTypeX86_UNKNOWN9: result = 18; break;
+case SYMS_CoffRelocTypeX86_REL32: result = 19; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_coffreloctypearm(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U16)v){
+default: break;
+case SYMS_CoffRelocTypeARM_ABS: result = 0; break;
+case SYMS_CoffRelocTypeARM_ADDR32: result = 1; break;
+case SYMS_CoffRelocTypeARM_ADDR32NB: result = 2; break;
+case SYMS_CoffRelocTypeARM_BRANCH24: result = 3; break;
+case SYMS_CoffRelocTypeARM_BRANCH11: result = 4; break;
+case SYMS_CoffRelocTypeARM_UNKNOWN1: result = 5; break;
+case SYMS_CoffRelocTypeARM_UNKNOWN2: result = 6; break;
+case SYMS_CoffRelocTypeARM_UNKNOWN3: result = 7; break;
+case SYMS_CoffRelocTypeARM_UNKNOWN4: result = 8; break;
+case SYMS_CoffRelocTypeARM_UNKNOWN5: result = 9; break;
+case SYMS_CoffRelocTypeARM_REL32: result = 10; break;
+case SYMS_CoffRelocTypeARM_SECTION: result = 11; break;
+case SYMS_CoffRelocTypeARM_SECREL: result = 12; break;
+case SYMS_CoffRelocTypeARM_MOV32: result = 13; break;
+case SYMS_CoffRelocTypeARM_THUMB_MOV32: result = 14; break;
+case SYMS_CoffRelocTypeARM_THUMB_BRANCH20: result = 15; break;
+case SYMS_CoffRelocTypeARM_UNUSED: result = 16; break;
+case SYMS_CoffRelocTypeARM_THUMB_BRANCH24: result = 17; break;
+case SYMS_CoffRelocTypeARM_THUMB_BLX23: result = 18; break;
+case SYMS_CoffRelocTypeARM_PAIR: result = 19; break;
+}
+return(result);
+}
+// syms_enum_index_from_coffreloctypearm64 - skipped identity mapping
+// syms_enum_index_from_coffsymtype - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_coffsymstorageclass(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_CoffSymStorageClass_END_OF_FUNCTION: result = 0; break;
+case SYMS_CoffSymStorageClass_NULL: result = 1; break;
+case SYMS_CoffSymStorageClass_AUTOMATIC: result = 2; break;
+case SYMS_CoffSymStorageClass_EXTERNAL: result = 3; break;
+case SYMS_CoffSymStorageClass_STATIC: result = 4; break;
+case SYMS_CoffSymStorageClass_REGISTER: result = 5; break;
+case SYMS_CoffSymStorageClass_EXTERNAL_DEF: result = 6; break;
+case SYMS_CoffSymStorageClass_LABEL: result = 7; break;
+case SYMS_CoffSymStorageClass_UNDEFINED_LABEL: result = 8; break;
+case SYMS_CoffSymStorageClass_MEMBER_OF_STRUCT: result = 9; break;
+case SYMS_CoffSymStorageClass_ARGUMENT: result = 10; break;
+case SYMS_CoffSymStorageClass_STRUCT_TAG: result = 11; break;
+case SYMS_CoffSymStorageClass_MEMBER_OF_UNION: result = 12; break;
+case SYMS_CoffSymStorageClass_UNION_TAG: result = 13; break;
+case SYMS_CoffSymStorageClass_TYPE_DEFINITION: result = 14; break;
+case SYMS_CoffSymStorageClass_UNDEFINED_STATIC: result = 15; break;
+case SYMS_CoffSymStorageClass_ENUM_TAG: result = 16; break;
+case SYMS_CoffSymStorageClass_MEMBER_OF_ENUM: result = 17; break;
+case SYMS_CoffSymStorageClass_REGISTER_PARAM: result = 18; break;
+case SYMS_CoffSymStorageClass_BIT_FIELD: result = 19; break;
+case SYMS_CoffSymStorageClass_BLOCK: result = 20; break;
+case SYMS_CoffSymStorageClass_FUNCTION: result = 21; break;
+case SYMS_CoffSymStorageClass_END_OF_STRUCT: result = 22; break;
+case SYMS_CoffSymStorageClass_FILE: result = 23; break;
+case SYMS_CoffSymStorageClass_SECTION: result = 24; break;
+case SYMS_CoffSymStorageClass_WEAK_EXTERNAL: result = 25; break;
+case SYMS_CoffSymStorageClass_CLR_TOKEN: result = 26; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_coffsymsecnumber(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U16)v){
+default: break;
+case SYMS_CoffSymSecNumber_NUMBER_UNDEFINED: result = 0; break;
+case SYMS_CoffSymSecNumber_ABSOLUTE: result = 1; break;
+case SYMS_CoffSymSecNumber_DEBUG: result = 2; break;
+}
+return(result);
+}
+// syms_enum_index_from_coffsymdtype - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_coff_weak_ext_type(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_CoffWeakExtType_NOLIBRARY: result = 0; break;
+case SYMS_CoffWeakExtType_SEARCH_LIBRARY: result = 1; break;
+case SYMS_CoffWeakExtType_SEARCH_ALIAS: result = 2; break;
+}
+return(result);
+}
+// syms_enum_index_from_coff_import_header_type - skipped identity mapping
+// syms_enum_index_from_coff_import_header_name_type - skipped identity mapping
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1123
-SYMS_SerialFlag _syms_serial_members_for_SYMS_UnitFeatures[] = {
-{ { (SYMS_U8*)"CompilationUnit", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
-{ { (SYMS_U8*)"Types", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
-{ { (SYMS_U8*)"StaticVariables", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
-{ { (SYMS_U8*)"ExternVariables", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
-{ { (SYMS_U8*)"Functions", 9 }, &_syms_serial_type_SYMS_U32, 0x1, 4 },
-{ { (SYMS_U8*)"FunctionStubs", 13 }, &_syms_serial_type_SYMS_U32, 0x1, 5 },
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
+SYMS_SerialFlag _syms_serial_members_for_SYMS_CoffFlags[] = {
+{ { (SYMS_U8*)"RELOC_STRIPPED", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 0 },
+{ { (SYMS_U8*)"EXECUTABLE_IMAGE", 16 }, &_syms_serial_type_SYMS_U16, 0x1, 1 },
+{ { (SYMS_U8*)"LINE_NUMS_STRIPPED", 18 }, &_syms_serial_type_SYMS_U16, 0x1, 2 },
+{ { (SYMS_U8*)"SYM_STRIPPED", 12 }, &_syms_serial_type_SYMS_U16, 0x1, 3 },
+{ { (SYMS_U8*)"RESERVED_0", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 4 },
+{ { (SYMS_U8*)"LARGE_ADDRESS_AWARE", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 5 },
+{ { (SYMS_U8*)"RESERVED_1", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 6 },
+{ { (SYMS_U8*)"RESERVED_2", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 7 },
+{ { (SYMS_U8*)"32BIT_MACHINE", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 8 },
+{ { (SYMS_U8*)"DEBUG_STRIPPED", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 9 },
+{ { (SYMS_U8*)"REMOVABLE_RUN_FROM_SWAP", 23 }, &_syms_serial_type_SYMS_U16, 0x1, 10 },
+{ { (SYMS_U8*)"NET_RUN_FROM_SWAP", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 11 },
+{ { (SYMS_U8*)"SYSTEM", 6 }, &_syms_serial_type_SYMS_U16, 0x1, 12 },
+{ { (SYMS_U8*)"DLL", 3 }, &_syms_serial_type_SYMS_U16, 0x1, 13 },
+{ { (SYMS_U8*)"UP_SYSTEM_ONLY", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 14 },
+{ { (SYMS_U8*)"BYTES_RESERVED_HI", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 15 },
 };
-SYMS_SerialValue _syms_serial_members_for_SYMS_SymbolKind[] = {
-{ { (SYMS_U8*)"Null", 4 }, (SYMS_U64)SYMS_SymbolKind_Null },
-{ { (SYMS_U8*)"Type", 4 }, (SYMS_U64)SYMS_SymbolKind_Type },
-{ { (SYMS_U8*)"Procedure", 9 }, (SYMS_U64)SYMS_SymbolKind_Procedure },
-{ { (SYMS_U8*)"ImageRelativeVariable", 21 }, (SYMS_U64)SYMS_SymbolKind_ImageRelativeVariable },
-{ { (SYMS_U8*)"LocalVariable", 13 }, (SYMS_U64)SYMS_SymbolKind_LocalVariable },
-{ { (SYMS_U8*)"Const", 5 }, (SYMS_U64)SYMS_SymbolKind_Const },
-{ { (SYMS_U8*)"Scope", 5 }, (SYMS_U64)SYMS_SymbolKind_Scope },
-{ { (SYMS_U8*)"Inline", 6 }, (SYMS_U64)SYMS_SymbolKind_Inline },
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffMachineType[] = {
+{ { (SYMS_U8*)"UNKNOWN", 7 }, (SYMS_U64)SYMS_CoffMachineType_UNKNOWN },
+{ { (SYMS_U8*)"X86", 3 }, (SYMS_U64)SYMS_CoffMachineType_X86 },
+{ { (SYMS_U8*)"X64", 3 }, (SYMS_U64)SYMS_CoffMachineType_X64 },
+{ { (SYMS_U8*)"ARM33", 5 }, (SYMS_U64)SYMS_CoffMachineType_ARM33 },
+{ { (SYMS_U8*)"ARM", 3 }, (SYMS_U64)SYMS_CoffMachineType_ARM },
+{ { (SYMS_U8*)"ARM64", 5 }, (SYMS_U64)SYMS_CoffMachineType_ARM64 },
+{ { (SYMS_U8*)"ARMNT", 5 }, (SYMS_U64)SYMS_CoffMachineType_ARMNT },
+{ { (SYMS_U8*)"EBC", 3 }, (SYMS_U64)SYMS_CoffMachineType_EBC },
+{ { (SYMS_U8*)"IA64", 4 }, (SYMS_U64)SYMS_CoffMachineType_IA64 },
+{ { (SYMS_U8*)"M32R", 4 }, (SYMS_U64)SYMS_CoffMachineType_M32R },
+{ { (SYMS_U8*)"MIPS16", 6 }, (SYMS_U64)SYMS_CoffMachineType_MIPS16 },
+{ { (SYMS_U8*)"MIPSFPU", 7 }, (SYMS_U64)SYMS_CoffMachineType_MIPSFPU },
+{ { (SYMS_U8*)"MIPSFPU16", 9 }, (SYMS_U64)SYMS_CoffMachineType_MIPSFPU16 },
+{ { (SYMS_U8*)"POWERPC", 7 }, (SYMS_U64)SYMS_CoffMachineType_POWERPC },
+{ { (SYMS_U8*)"POWERPCFP", 9 }, (SYMS_U64)SYMS_CoffMachineType_POWERPCFP },
+{ { (SYMS_U8*)"R4000", 5 }, (SYMS_U64)SYMS_CoffMachineType_R4000 },
+{ { (SYMS_U8*)"RISCV32", 7 }, (SYMS_U64)SYMS_CoffMachineType_RISCV32 },
+{ { (SYMS_U8*)"RISCV64", 7 }, (SYMS_U64)SYMS_CoffMachineType_RISCV64 },
+{ { (SYMS_U8*)"RISCV128", 8 }, (SYMS_U64)SYMS_CoffMachineType_RISCV128 },
+{ { (SYMS_U8*)"SH3", 3 }, (SYMS_U64)SYMS_CoffMachineType_SH3 },
+{ { (SYMS_U8*)"SH3DSP", 6 }, (SYMS_U64)SYMS_CoffMachineType_SH3DSP },
+{ { (SYMS_U8*)"SH4", 3 }, (SYMS_U64)SYMS_CoffMachineType_SH4 },
+{ { (SYMS_U8*)"SH5", 3 }, (SYMS_U64)SYMS_CoffMachineType_SH5 },
+{ { (SYMS_U8*)"THUMB", 5 }, (SYMS_U64)SYMS_CoffMachineType_THUMB },
+{ { (SYMS_U8*)"WCEMIPSV2", 9 }, (SYMS_U64)SYMS_CoffMachineType_WCEMIPSV2 },
 };
-SYMS_SerialFlag _syms_serial_members_for_SYMS_TypeModifiers[] = {
-{ { (SYMS_U8*)"Const", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
-{ { (SYMS_U8*)"Packed", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
-{ { (SYMS_U8*)"Restrict", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
-{ { (SYMS_U8*)"Shared", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
-{ { (SYMS_U8*)"Volatile", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 4 },
-{ { (SYMS_U8*)"Char", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 5 },
-{ { (SYMS_U8*)"Reference", 9 }, &_syms_serial_type_SYMS_U32, 0x1, 6 },
-{ { (SYMS_U8*)"RValueReference", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 7 },
+static SYMS_SerialField _syms_serial_members_for_SYMS_CoffHeader[] = {
+{ {(SYMS_U8*)"machine", 7}, &_syms_serial_type_SYMS_CoffMachineType, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"section_count", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"time_date_stamp", 15}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"pointer_to_symbol_table", 23}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"number_of_symbols", 17}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"size_of_optional_header", 23}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_CoffFlags, SYMS_SerialWidthKind_Null, 0 },
 };
-SYMS_SerialValue _syms_serial_members_for_SYMS_MemVisibility[] = {
-{ { (SYMS_U8*)"Null", 4 }, (SYMS_U64)SYMS_MemVisibility_Null },
-{ { (SYMS_U8*)"Private", 7 }, (SYMS_U64)SYMS_MemVisibility_Private },
-{ { (SYMS_U8*)"Public", 6 }, (SYMS_U64)SYMS_MemVisibility_Public },
-{ { (SYMS_U8*)"Protected", 9 }, (SYMS_U64)SYMS_MemVisibility_Protected },
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSectionAlign[] = {
+{ { (SYMS_U8*)"1BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_1BYTES },
+{ { (SYMS_U8*)"2BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_2BYTES },
+{ { (SYMS_U8*)"4BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_4BYTES },
+{ { (SYMS_U8*)"8BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_8BYTES },
+{ { (SYMS_U8*)"16BYTES", 7 }, (SYMS_U64)SYMS_CoffSectionAlign_16BYTES },
+{ { (SYMS_U8*)"32BYTES", 7 }, (SYMS_U64)SYMS_CoffSectionAlign_32BYTES },
+{ { (SYMS_U8*)"64BYTES", 7 }, (SYMS_U64)SYMS_CoffSectionAlign_64BYTES },
+{ { (SYMS_U8*)"128BYTES", 8 }, (SYMS_U64)SYMS_CoffSectionAlign_128BYTES },
+{ { (SYMS_U8*)"256BYTES", 8 }, (SYMS_U64)SYMS_CoffSectionAlign_256BYTES },
+{ { (SYMS_U8*)"512BYTES", 8 }, (SYMS_U64)SYMS_CoffSectionAlign_512BYTES },
+{ { (SYMS_U8*)"1024BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_1024BYTES },
+{ { (SYMS_U8*)"2048BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_2048BYTES },
+{ { (SYMS_U8*)"4096BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_4096BYTES },
+{ { (SYMS_U8*)"8192BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_8192BYTES },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_CoffSectionFlags[] = {
+{ { (SYMS_U8*)"TYPE_NO_PAD", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
+{ { (SYMS_U8*)"Contains Code", 13 }, &_syms_serial_type_SYMS_U32, 0x1, 5 },
+{ { (SYMS_U8*)"Initialized Data", 16 }, &_syms_serial_type_SYMS_U32, 0x1, 6 },
+{ { (SYMS_U8*)"Uninitialized Data", 18 }, &_syms_serial_type_SYMS_U32, 0x1, 7 },
+{ { (SYMS_U8*)"LNK_OTHER", 9 }, &_syms_serial_type_SYMS_U32, 0x1, 8 },
+{ { (SYMS_U8*)"LNK_INFO", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 9 },
+{ { (SYMS_U8*)"LNK_REMOVE", 10 }, &_syms_serial_type_SYMS_U32, 0x1, 11 },
+{ { (SYMS_U8*)"COMDAT", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 12 },
+{ { (SYMS_U8*)"GPREL", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 15 },
+{ { (SYMS_U8*)"ALIGN", 5 }, &_syms_serial_type_SYMS_CoffSectionAlign, 0xf, 20 },
+{ { (SYMS_U8*)"NRELOC OVFL", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 24 },
+{ { (SYMS_U8*)"Discardable", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 25 },
+{ { (SYMS_U8*)"Cannot be Cached", 16 }, &_syms_serial_type_SYMS_U32, 0x1, 26 },
+{ { (SYMS_U8*)"Not Pageable", 12 }, &_syms_serial_type_SYMS_U32, 0x1, 27 },
+{ { (SYMS_U8*)"Shared", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 28 },
+{ { (SYMS_U8*)"Execute", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 29 },
+{ { (SYMS_U8*)"Read", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 30 },
+{ { (SYMS_U8*)"Write", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 31 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_CoffSection[] = {
+{ {(SYMS_U8*)"name", 4}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 8 },
+{ {(SYMS_U8*)"virt_size", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"virt_off", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"file_size", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"file_off", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"relocs_file_offset", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"line_nums_file_offset", 21}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"relocs_count", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"line_nums_count", 15}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_CoffSectionFlags, SYMS_SerialWidthKind_Null, 0 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffRelocTypeX64[] = {
+{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ABS },
+{ { (SYMS_U8*)"ADDR64", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ADDR64 },
+{ { (SYMS_U8*)"ADDR32", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ADDR32 },
+{ { (SYMS_U8*)"ADDR32NB", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ADDR32NB },
+{ { (SYMS_U8*)"REL32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32 },
+{ { (SYMS_U8*)"REL32_1", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_1 },
+{ { (SYMS_U8*)"REL32_2", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_2 },
+{ { (SYMS_U8*)"REL32_3", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_3 },
+{ { (SYMS_U8*)"REL32_4", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_4 },
+{ { (SYMS_U8*)"REL32_5", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_5 },
+{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SECTION },
+{ { (SYMS_U8*)"SECREL", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SECREL },
+{ { (SYMS_U8*)"SECREL7", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SECREL7 },
+{ { (SYMS_U8*)"TOKEN", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX64_TOKEN },
+{ { (SYMS_U8*)"SREL32", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SREL32 },
+{ { (SYMS_U8*)"PAIR", 4 }, (SYMS_U64)SYMS_CoffRelocTypeX64_PAIR },
+{ { (SYMS_U8*)"SSPAN32", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SSPAN32 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffRelocTypeX86[] = {
+{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_CoffRelocTypeX86_ABS },
+{ { (SYMS_U8*)"DIR16", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_DIR16 },
+{ { (SYMS_U8*)"REL16", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_REL16 },
+{ { (SYMS_U8*)"UNKNOWN0", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN0 },
+{ { (SYMS_U8*)"UNKNOWN2", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN2 },
+{ { (SYMS_U8*)"UNKNOWN3", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN3 },
+{ { (SYMS_U8*)"DIR32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_DIR32 },
+{ { (SYMS_U8*)"DIR32NB", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX86_DIR32NB },
+{ { (SYMS_U8*)"SEG12", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SEG12 },
+{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SECTION },
+{ { (SYMS_U8*)"SECREL", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SECREL },
+{ { (SYMS_U8*)"TOKEN", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_TOKEN },
+{ { (SYMS_U8*)"SECREL7", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SECREL7 },
+{ { (SYMS_U8*)"UNKNOWN4", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN4 },
+{ { (SYMS_U8*)"UNKNOWN5", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN5 },
+{ { (SYMS_U8*)"UNKNOWN6", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN6 },
+{ { (SYMS_U8*)"UNKNOWN7", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN7 },
+{ { (SYMS_U8*)"UNKNOWN8", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN8 },
+{ { (SYMS_U8*)"UNKNOWN9", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN9 },
+{ { (SYMS_U8*)"REL32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_REL32 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffRelocTypeARM[] = {
+{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_CoffRelocTypeARM_ABS },
+{ { (SYMS_U8*)"ADDR32", 6 }, (SYMS_U64)SYMS_CoffRelocTypeARM_ADDR32 },
+{ { (SYMS_U8*)"ADDR32NB", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_ADDR32NB },
+{ { (SYMS_U8*)"BRANCH24", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_BRANCH24 },
+{ { (SYMS_U8*)"BRANCH11", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_BRANCH11 },
+{ { (SYMS_U8*)"UNKNOWN1", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN1 },
+{ { (SYMS_U8*)"UNKNOWN2", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN2 },
+{ { (SYMS_U8*)"UNKNOWN3", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN3 },
+{ { (SYMS_U8*)"UNKNOWN4", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN4 },
+{ { (SYMS_U8*)"UNKNOWN5", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN5 },
+{ { (SYMS_U8*)"REL32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeARM_REL32 },
+{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffRelocTypeARM_SECTION },
+{ { (SYMS_U8*)"SECREL", 6 }, (SYMS_U64)SYMS_CoffRelocTypeARM_SECREL },
+{ { (SYMS_U8*)"MOV32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeARM_MOV32 },
+{ { (SYMS_U8*)"THUMB_MOV32", 11 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_MOV32 },
+{ { (SYMS_U8*)"THUMB_BRANCH20", 14 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_BRANCH20 },
+{ { (SYMS_U8*)"UNUSED", 6 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNUSED },
+{ { (SYMS_U8*)"THUMB_BRANCH24", 14 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_BRANCH24 },
+{ { (SYMS_U8*)"THUMB_BLX23", 11 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_BLX23 },
+{ { (SYMS_U8*)"PAIR", 4 }, (SYMS_U64)SYMS_CoffRelocTypeARM_PAIR },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymType[] = {
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_CoffSymType_NULL },
+{ { (SYMS_U8*)"VOID", 4 }, (SYMS_U64)SYMS_CoffSymType_VOID },
+{ { (SYMS_U8*)"CHAR", 4 }, (SYMS_U64)SYMS_CoffSymType_CHAR },
+{ { (SYMS_U8*)"SHORT", 5 }, (SYMS_U64)SYMS_CoffSymType_SHORT },
+{ { (SYMS_U8*)"INT", 3 }, (SYMS_U64)SYMS_CoffSymType_INT },
+{ { (SYMS_U8*)"LONG", 4 }, (SYMS_U64)SYMS_CoffSymType_LONG },
+{ { (SYMS_U8*)"FLOAT", 5 }, (SYMS_U64)SYMS_CoffSymType_FLOAT },
+{ { (SYMS_U8*)"DOUBLE", 6 }, (SYMS_U64)SYMS_CoffSymType_DOUBLE },
+{ { (SYMS_U8*)"STRUCT", 6 }, (SYMS_U64)SYMS_CoffSymType_STRUCT },
+{ { (SYMS_U8*)"UNION", 5 }, (SYMS_U64)SYMS_CoffSymType_UNION },
+{ { (SYMS_U8*)"ENUM", 4 }, (SYMS_U64)SYMS_CoffSymType_ENUM },
+{ { (SYMS_U8*)"MOE", 3 }, (SYMS_U64)SYMS_CoffSymType_MOE },
+{ { (SYMS_U8*)"BYTE", 4 }, (SYMS_U64)SYMS_CoffSymType_BYTE },
+{ { (SYMS_U8*)"WORD", 4 }, (SYMS_U64)SYMS_CoffSymType_WORD },
+{ { (SYMS_U8*)"UINT", 4 }, (SYMS_U64)SYMS_CoffSymType_UINT },
+{ { (SYMS_U8*)"DWORD", 5 }, (SYMS_U64)SYMS_CoffSymType_DWORD },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymStorageClass[] = {
+{ { (SYMS_U8*)"END_OF_FUNCTION", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_END_OF_FUNCTION },
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_CoffSymStorageClass_NULL },
+{ { (SYMS_U8*)"AUTOMATIC", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_AUTOMATIC },
+{ { (SYMS_U8*)"EXTERNAL", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_EXTERNAL },
+{ { (SYMS_U8*)"STATIC", 6 }, (SYMS_U64)SYMS_CoffSymStorageClass_STATIC },
+{ { (SYMS_U8*)"REGISTER", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_REGISTER },
+{ { (SYMS_U8*)"EXTERNAL_DEF", 12 }, (SYMS_U64)SYMS_CoffSymStorageClass_EXTERNAL_DEF },
+{ { (SYMS_U8*)"LABEL", 5 }, (SYMS_U64)SYMS_CoffSymStorageClass_LABEL },
+{ { (SYMS_U8*)"UNDEFINED_LABEL", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_UNDEFINED_LABEL },
+{ { (SYMS_U8*)"MEMBER_OF_STRUCT", 16 }, (SYMS_U64)SYMS_CoffSymStorageClass_MEMBER_OF_STRUCT },
+{ { (SYMS_U8*)"ARGUMENT", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_ARGUMENT },
+{ { (SYMS_U8*)"STRUCT_TAG", 10 }, (SYMS_U64)SYMS_CoffSymStorageClass_STRUCT_TAG },
+{ { (SYMS_U8*)"MEMBER_OF_UNION", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_MEMBER_OF_UNION },
+{ { (SYMS_U8*)"UNION_TAG", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_UNION_TAG },
+{ { (SYMS_U8*)"TYPE_DEFINITION", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_TYPE_DEFINITION },
+{ { (SYMS_U8*)"UNDEFINED_STATIC", 16 }, (SYMS_U64)SYMS_CoffSymStorageClass_UNDEFINED_STATIC },
+{ { (SYMS_U8*)"ENUM_TAG", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_ENUM_TAG },
+{ { (SYMS_U8*)"MEMBER_OF_ENUM", 14 }, (SYMS_U64)SYMS_CoffSymStorageClass_MEMBER_OF_ENUM },
+{ { (SYMS_U8*)"REGISTER_PARAM", 14 }, (SYMS_U64)SYMS_CoffSymStorageClass_REGISTER_PARAM },
+{ { (SYMS_U8*)"BIT_FIELD", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_BIT_FIELD },
+{ { (SYMS_U8*)"BLOCK", 5 }, (SYMS_U64)SYMS_CoffSymStorageClass_BLOCK },
+{ { (SYMS_U8*)"FUNCTION", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_FUNCTION },
+{ { (SYMS_U8*)"END_OF_STRUCT", 13 }, (SYMS_U64)SYMS_CoffSymStorageClass_END_OF_STRUCT },
+{ { (SYMS_U8*)"FILE", 4 }, (SYMS_U64)SYMS_CoffSymStorageClass_FILE },
+{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffSymStorageClass_SECTION },
+{ { (SYMS_U8*)"WEAK_EXTERNAL", 13 }, (SYMS_U64)SYMS_CoffSymStorageClass_WEAK_EXTERNAL },
+{ { (SYMS_U8*)"CLR_TOKEN", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_CLR_TOKEN },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymSecNumber[] = {
+{ { (SYMS_U8*)"NUMBER_UNDEFINED", 16 }, (SYMS_U64)SYMS_CoffSymSecNumber_NUMBER_UNDEFINED },
+{ { (SYMS_U8*)"ABSOLUTE", 8 }, (SYMS_U64)SYMS_CoffSymSecNumber_ABSOLUTE },
+{ { (SYMS_U8*)"DEBUG", 5 }, (SYMS_U64)SYMS_CoffSymSecNumber_DEBUG },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymDType[] = {
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_CoffSymDType_NULL },
+{ { (SYMS_U8*)"POINTER", 7 }, (SYMS_U64)SYMS_CoffSymDType_POINTER },
+{ { (SYMS_U8*)"FUNCTION", 8 }, (SYMS_U64)SYMS_CoffSymDType_FUNCTION },
+{ { (SYMS_U8*)"ARRAY", 5 }, (SYMS_U64)SYMS_CoffSymDType_ARRAY },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffWeakExtType[] = {
+{ { (SYMS_U8*)"NOLIBRARY", 9 }, (SYMS_U64)SYMS_CoffWeakExtType_NOLIBRARY },
+{ { (SYMS_U8*)"SEARCH_LIBRARY", 14 }, (SYMS_U64)SYMS_CoffWeakExtType_SEARCH_LIBRARY },
+{ { (SYMS_U8*)"SEARCH_ALIAS", 12 }, (SYMS_U64)SYMS_CoffWeakExtType_SEARCH_ALIAS },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffImportHeaderType[] = {
+{ { (SYMS_U8*)"CODE", 4 }, (SYMS_U64)SYMS_CoffImportHeaderType_CODE },
+{ { (SYMS_U8*)"DATA", 4 }, (SYMS_U64)SYMS_CoffImportHeaderType_DATA },
+{ { (SYMS_U8*)"CONST", 5 }, (SYMS_U64)SYMS_CoffImportHeaderType_CONST },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_CoffImportHeaderNameType[] = {
+{ { (SYMS_U8*)"ORDINAL", 7 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_ORDINAL },
+{ { (SYMS_U8*)"NAME", 4 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_NAME },
+{ { (SYMS_U8*)"NAME_NOPREFIX", 13 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_NAME_NOPREFIX },
+{ { (SYMS_U8*)"UNDECORATE", 10 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_UNDECORATE },
 };
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1259
-SYMS_SerialType _syms_serial_type_SYMS_UnitFeatures = {
-{(SYMS_U8*)"SYMS_UnitFeatures", 17}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_UnitFeatures), _syms_serial_members_for_SYMS_UnitFeatures, sizeof(SYMS_UnitFeatures), 0
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
+SYMS_SerialType _syms_serial_type_SYMS_CoffFlags = {
+{(SYMS_U8*)"SYMS_CoffFlags", 14}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffFlags), _syms_serial_members_for_SYMS_CoffFlags, sizeof(SYMS_CoffFlags), 0
 };
-SYMS_SerialType _syms_serial_type_SYMS_SymbolKind = {
-{(SYMS_U8*)"SYMS_SymbolKind", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_SymbolKind), _syms_serial_members_for_SYMS_SymbolKind, sizeof(SYMS_SymbolKind), syms_enum_index_from_value_identity
+SYMS_SerialType _syms_serial_type_SYMS_CoffMachineType = {
+{(SYMS_U8*)"SYMS_CoffMachineType", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffMachineType), _syms_serial_members_for_SYMS_CoffMachineType, sizeof(SYMS_CoffMachineType), syms_enum_index_from_coffmachinetype
 };
-SYMS_SerialType _syms_serial_type_SYMS_TypeModifiers = {
-{(SYMS_U8*)"SYMS_TypeModifiers", 18}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_TypeModifiers), _syms_serial_members_for_SYMS_TypeModifiers, sizeof(SYMS_TypeModifiers), 0
+SYMS_SerialType _syms_serial_type_SYMS_CoffHeader = {
+{(SYMS_U8*)"CoffHeader", 10}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffHeader), _syms_serial_members_for_SYMS_CoffHeader, sizeof(SYMS_CoffHeader), 0
 };
-SYMS_SerialType _syms_serial_type_SYMS_MemVisibility = {
-{(SYMS_U8*)"SYMS_MemVisibility", 18}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MemVisibility), _syms_serial_members_for_SYMS_MemVisibility, sizeof(SYMS_MemVisibility), syms_enum_index_from_value_identity
+SYMS_SerialType _syms_serial_type_SYMS_CoffSectionAlign = {
+{(SYMS_U8*)"SYMS_CoffSectionAlign", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSectionAlign), _syms_serial_members_for_SYMS_CoffSectionAlign, sizeof(SYMS_CoffSectionAlign), syms_enum_index_from_coffsectionalign
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffSectionFlags = {
+{(SYMS_U8*)"SYMS_CoffSectionFlags", 21}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSectionFlags), _syms_serial_members_for_SYMS_CoffSectionFlags, sizeof(SYMS_CoffSectionFlags), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffSection = {
+{(SYMS_U8*)"CoffSection", 11}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSection), _syms_serial_members_for_SYMS_CoffSection, sizeof(SYMS_CoffSection), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX64 = {
+{(SYMS_U8*)"SYMS_CoffRelocTypeX64", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffRelocTypeX64), _syms_serial_members_for_SYMS_CoffRelocTypeX64, sizeof(SYMS_CoffRelocTypeX64), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX86 = {
+{(SYMS_U8*)"SYMS_CoffRelocTypeX86", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffRelocTypeX86), _syms_serial_members_for_SYMS_CoffRelocTypeX86, sizeof(SYMS_CoffRelocTypeX86), syms_enum_index_from_coffreloctypex86
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM = {
+{(SYMS_U8*)"SYMS_CoffRelocTypeARM", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffRelocTypeARM), _syms_serial_members_for_SYMS_CoffRelocTypeARM, sizeof(SYMS_CoffRelocTypeARM), syms_enum_index_from_coffreloctypearm
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM64 = {
+{(SYMS_U8*)"SYMS_CoffRelocTypeARM64", 23}, SYMS_SerialTypeKind_Enum, 0, 0, sizeof(SYMS_CoffRelocTypeARM64), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffSymType = {
+{(SYMS_U8*)"SYMS_CoffSymType", 16}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymType), _syms_serial_members_for_SYMS_CoffSymType, sizeof(SYMS_CoffSymType), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffSymStorageClass = {
+{(SYMS_U8*)"SYMS_CoffSymStorageClass", 24}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymStorageClass), _syms_serial_members_for_SYMS_CoffSymStorageClass, sizeof(SYMS_CoffSymStorageClass), syms_enum_index_from_coffsymstorageclass
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffSymSecNumber = {
+{(SYMS_U8*)"SYMS_CoffSymSecNumber", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymSecNumber), _syms_serial_members_for_SYMS_CoffSymSecNumber, sizeof(SYMS_CoffSymSecNumber), syms_enum_index_from_coffsymsecnumber
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffSymDType = {
+{(SYMS_U8*)"SYMS_CoffSymDType", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymDType), _syms_serial_members_for_SYMS_CoffSymDType, sizeof(SYMS_CoffSymDType), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffWeakExtType = {
+{(SYMS_U8*)"SYMS_CoffWeakExtType", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffWeakExtType), _syms_serial_members_for_SYMS_CoffWeakExtType, sizeof(SYMS_CoffWeakExtType), syms_enum_index_from_coff_weak_ext_type
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderType = {
+{(SYMS_U8*)"SYMS_CoffImportHeaderType", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffImportHeaderType), _syms_serial_members_for_SYMS_CoffImportHeaderType, sizeof(SYMS_CoffImportHeaderType), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderNameType = {
+{(SYMS_U8*)"SYMS_CoffImportHeaderNameType", 29}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffImportHeaderNameType), _syms_serial_members_for_SYMS_CoffImportHeaderNameType, sizeof(SYMS_CoffImportHeaderNameType), syms_enum_index_from_value_identity
 };
 
-#endif // defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+#endif // defined(SYMS_ENABLE_COFF_SERIAL_INFO)
 
 
 ////////////////////////////////
 #if defined(SYMS_ENABLE_CV_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:892
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
 // syms_enum_index_from_cvbasicpointerkind - skipped identity mapping
 SYMS_API SYMS_U64
 syms_enum_index_from_cvarch(SYMS_U64 v){
@@ -1656,7 +2072,7 @@ return(result);
 // syms_enum_index_from_cv_checksum_kind - skipped identity mapping
 // syms_enum_index_from_cv_inlinee_source_line_sig - skipped identity mapping
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:951
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1039
 SYMS_API SYMS_SerialType*
 syms_reg_type_from_arch(SYMS_CvArch v){
 SYMS_SerialType* result = 0;
@@ -1675,7 +2091,8 @@ syms_type_info_from_sym_kind(SYMS_CvSymKind v){
 SYMS_SerialType* result = 0;
 switch (v){
 default: break;
-case SYMS_CvSymKind_GTHREAD32: result = &_syms_serial_type_SYMS_CvThread32; break;
+case SYMS_CvSymKind_LTHREAD32:case SYMS_CvSymKind_GTHREAD32:
+result = &_syms_serial_type_SYMS_CvThread32; break;
 case SYMS_CvSymKind_COMPILE: result = &_syms_serial_type_SYMS_CvCompile; break;
 case SYMS_CvSymKind_END: result = &_syms_serial_type_SYMS_CvEnd; break;
 case SYMS_CvSymKind_COMPILE2: result = &_syms_serial_type_SYMS_CvCompile2; break;
@@ -1782,7 +2199,7 @@ result = &_syms_serial_type_SYMS_CvLeafClassPtr; break;
 return(result);
 }
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1123
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
 static SYMS_SerialField _syms_serial_members_for_SYMS_CvGuid[] = {
 { {(SYMS_U8*)"data1", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
 { {(SYMS_U8*)"data2", 5}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
@@ -3373,7 +3790,7 @@ SYMS_SerialFlag _syms_serial_members_for_SYMS_CvPubsymFlags[] = {
 static SYMS_SerialField _syms_serial_members_for_SYMS_CvPubsym32[] = {
 { {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_CvPubsymFlags, SYMS_SerialWidthKind_Null, 0 },
 { {(SYMS_U8*)"off", 3}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"seg", 3}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sec", 3}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
 { {(SYMS_U8*)"name", 4}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_NullTerminated, 0 },
 };
 static SYMS_SerialField _syms_serial_members_for_SYMS_CvProc32[] = {
@@ -4114,7 +4531,7 @@ static SYMS_SerialField _syms_serial_members_for_SYMS_CvInlineeSourceLineEx[] = 
 { {(SYMS_U8*)"extra_file_id", 13}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Array, 3 },
 };
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1259
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
 SYMS_SerialType _syms_serial_type_SYMS_CvGuid = {
 {(SYMS_U8*)"CvGuid", 6}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CvGuid), _syms_serial_members_for_SYMS_CvGuid, sizeof(SYMS_CvGuid), 0
 };
@@ -4597,274 +5014,72 @@ SYMS_SerialType _syms_serial_type_SYMS_CvInlineeSourceLineEx = {
 
 
 ////////////////////////////////
+#if defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
+// syms_enum_index_from_symbol_kind - skipped identity mapping
+// syms_enum_index_from_mem_visibility - skipped identity mapping
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
+SYMS_SerialFlag _syms_serial_members_for_SYMS_UnitFeatures[] = {
+{ { (SYMS_U8*)"CompilationUnit", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"Types", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
+{ { (SYMS_U8*)"StaticVariables", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
+{ { (SYMS_U8*)"ExternVariables", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
+{ { (SYMS_U8*)"Functions", 9 }, &_syms_serial_type_SYMS_U32, 0x1, 4 },
+{ { (SYMS_U8*)"FunctionStubs", 13 }, &_syms_serial_type_SYMS_U32, 0x1, 5 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_SymbolKind[] = {
+{ { (SYMS_U8*)"Null", 4 }, (SYMS_U64)SYMS_SymbolKind_Null },
+{ { (SYMS_U8*)"Type", 4 }, (SYMS_U64)SYMS_SymbolKind_Type },
+{ { (SYMS_U8*)"Procedure", 9 }, (SYMS_U64)SYMS_SymbolKind_Procedure },
+{ { (SYMS_U8*)"ImageRelativeVariable", 21 }, (SYMS_U64)SYMS_SymbolKind_ImageRelativeVariable },
+{ { (SYMS_U8*)"LocalVariable", 13 }, (SYMS_U64)SYMS_SymbolKind_LocalVariable },
+{ { (SYMS_U8*)"Const", 5 }, (SYMS_U64)SYMS_SymbolKind_Const },
+{ { (SYMS_U8*)"Scope", 5 }, (SYMS_U64)SYMS_SymbolKind_Scope },
+{ { (SYMS_U8*)"Inline", 6 }, (SYMS_U64)SYMS_SymbolKind_Inline },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_TypeModifiers[] = {
+{ { (SYMS_U8*)"Const", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"Packed", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
+{ { (SYMS_U8*)"Restrict", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
+{ { (SYMS_U8*)"Shared", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
+{ { (SYMS_U8*)"Volatile", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 4 },
+{ { (SYMS_U8*)"Char", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 5 },
+{ { (SYMS_U8*)"Reference", 9 }, &_syms_serial_type_SYMS_U32, 0x1, 6 },
+{ { (SYMS_U8*)"RValueReference", 15 }, &_syms_serial_type_SYMS_U32, 0x1, 7 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_MemVisibility[] = {
+{ { (SYMS_U8*)"Null", 4 }, (SYMS_U64)SYMS_MemVisibility_Null },
+{ { (SYMS_U8*)"Private", 7 }, (SYMS_U64)SYMS_MemVisibility_Private },
+{ { (SYMS_U8*)"Public", 6 }, (SYMS_U64)SYMS_MemVisibility_Public },
+{ { (SYMS_U8*)"Protected", 9 }, (SYMS_U64)SYMS_MemVisibility_Protected },
+};
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
+SYMS_SerialType _syms_serial_type_SYMS_UnitFeatures = {
+{(SYMS_U8*)"SYMS_UnitFeatures", 17}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_UnitFeatures), _syms_serial_members_for_SYMS_UnitFeatures, sizeof(SYMS_UnitFeatures), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_SymbolKind = {
+{(SYMS_U8*)"SYMS_SymbolKind", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_SymbolKind), _syms_serial_members_for_SYMS_SymbolKind, sizeof(SYMS_SymbolKind), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_TypeModifiers = {
+{(SYMS_U8*)"SYMS_TypeModifiers", 18}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_TypeModifiers), _syms_serial_members_for_SYMS_TypeModifiers, sizeof(SYMS_TypeModifiers), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MemVisibility = {
+{(SYMS_U8*)"SYMS_MemVisibility", 18}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MemVisibility), _syms_serial_members_for_SYMS_MemVisibility, sizeof(SYMS_MemVisibility), syms_enum_index_from_value_identity
+};
+
+#endif // defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+
+
+////////////////////////////////
 #if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:892
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
 // syms_enum_index_from_dw_mode - skipped identity mapping
 // syms_enum_index_from_dw_version - skipped identity mapping
 // syms_enum_index_from_dw_section_kind - skipped identity mapping
-SYMS_API SYMS_U64
-syms_enum_index_from_dwregx86(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U64)v){
-default: break;
-case SYMS_DwRegX86_EAX: result = 0; break;
-case SYMS_DwRegX86_ECX: result = 1; break;
-case SYMS_DwRegX86_EDX: result = 2; break;
-case SYMS_DwRegX86_EBX: result = 3; break;
-case SYMS_DwRegX86_ESP: result = 4; break;
-case SYMS_DwRegX86_EBP: result = 5; break;
-case SYMS_DwRegX86_ESI: result = 6; break;
-case SYMS_DwRegX86_EDI: result = 7; break;
-case SYMS_DwRegX86_EIP: result = 8; break;
-case SYMS_DwRegX86_EFLAGS: result = 9; break;
-case SYMS_DwRegX86_TRAPNO: result = 10; break;
-case SYMS_DwRegX86_ST0: result = 11; break;
-case SYMS_DwRegX86_ST1: result = 12; break;
-case SYMS_DwRegX86_ST2: result = 13; break;
-case SYMS_DwRegX86_ST3: result = 14; break;
-case SYMS_DwRegX86_ST4: result = 15; break;
-case SYMS_DwRegX86_ST5: result = 16; break;
-case SYMS_DwRegX86_ST6: result = 17; break;
-case SYMS_DwRegX86_ST7: result = 18; break;
-case SYMS_DwRegX86_XMM0: result = 19; break;
-case SYMS_DwRegX86_XMM1: result = 20; break;
-case SYMS_DwRegX86_XMM2: result = 21; break;
-case SYMS_DwRegX86_XMM3: result = 22; break;
-case SYMS_DwRegX86_XMM4: result = 23; break;
-case SYMS_DwRegX86_XMM5: result = 24; break;
-case SYMS_DwRegX86_XMM6: result = 25; break;
-case SYMS_DwRegX86_XMM7: result = 26; break;
-case SYMS_DwRegX86_MM0: result = 27; break;
-case SYMS_DwRegX86_MM1: result = 28; break;
-case SYMS_DwRegX86_MM2: result = 29; break;
-case SYMS_DwRegX86_MM3: result = 30; break;
-case SYMS_DwRegX86_MM4: result = 31; break;
-case SYMS_DwRegX86_MM5: result = 32; break;
-case SYMS_DwRegX86_MM6: result = 33; break;
-case SYMS_DwRegX86_MM7: result = 34; break;
-case SYMS_DwRegX86_FCW: result = 35; break;
-case SYMS_DwRegX86_FSW: result = 36; break;
-case SYMS_DwRegX86_MXCSR: result = 37; break;
-case SYMS_DwRegX86_ES: result = 38; break;
-case SYMS_DwRegX86_CS: result = 39; break;
-case SYMS_DwRegX86_SS: result = 40; break;
-case SYMS_DwRegX86_DS: result = 41; break;
-case SYMS_DwRegX86_FS: result = 42; break;
-case SYMS_DwRegX86_GS: result = 43; break;
-case SYMS_DwRegX86_TR: result = 44; break;
-case SYMS_DwRegX86_LDTR: result = 45; break;
-}
-return(result);
-}
-SYMS_API SYMS_U64
-syms_enum_index_from_dwregx64(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U64)v){
-default: break;
-case SYMS_DwRegX64_RAX: result = 0; break;
-case SYMS_DwRegX64_RDX: result = 1; break;
-case SYMS_DwRegX64_RCX: result = 2; break;
-case SYMS_DwRegX64_RBX: result = 3; break;
-case SYMS_DwRegX64_RSI: result = 4; break;
-case SYMS_DwRegX64_RDI: result = 5; break;
-case SYMS_DwRegX64_RBP: result = 6; break;
-case SYMS_DwRegX64_RSP: result = 7; break;
-case SYMS_DwRegX64_R8: result = 8; break;
-case SYMS_DwRegX64_R9: result = 9; break;
-case SYMS_DwRegX64_R10: result = 10; break;
-case SYMS_DwRegX64_R11: result = 11; break;
-case SYMS_DwRegX64_R12: result = 12; break;
-case SYMS_DwRegX64_R13: result = 13; break;
-case SYMS_DwRegX64_R14: result = 14; break;
-case SYMS_DwRegX64_R15: result = 15; break;
-case SYMS_DwRegX64_RIP: result = 16; break;
-case SYMS_DwRegX64_XMM0: result = 17; break;
-case SYMS_DwRegX64_XMM1: result = 18; break;
-case SYMS_DwRegX64_XMM2: result = 19; break;
-case SYMS_DwRegX64_XMM3: result = 20; break;
-case SYMS_DwRegX64_XMM4: result = 21; break;
-case SYMS_DwRegX64_XMM5: result = 22; break;
-case SYMS_DwRegX64_XMM6: result = 23; break;
-case SYMS_DwRegX64_XMM7: result = 24; break;
-case SYMS_DwRegX64_XMM8: result = 25; break;
-case SYMS_DwRegX64_XMM9: result = 26; break;
-case SYMS_DwRegX64_XMM10: result = 27; break;
-case SYMS_DwRegX64_XMM11: result = 28; break;
-case SYMS_DwRegX64_XMM12: result = 29; break;
-case SYMS_DwRegX64_XMM13: result = 30; break;
-case SYMS_DwRegX64_XMM14: result = 31; break;
-case SYMS_DwRegX64_XMM15: result = 32; break;
-case SYMS_DwRegX64_ST0: result = 33; break;
-case SYMS_DwRegX64_ST1: result = 34; break;
-case SYMS_DwRegX64_ST2: result = 35; break;
-case SYMS_DwRegX64_ST3: result = 36; break;
-case SYMS_DwRegX64_ST4: result = 37; break;
-case SYMS_DwRegX64_ST5: result = 38; break;
-case SYMS_DwRegX64_ST6: result = 39; break;
-case SYMS_DwRegX64_ST7: result = 40; break;
-case SYMS_DwRegX64_MM0: result = 41; break;
-case SYMS_DwRegX64_MM1: result = 42; break;
-case SYMS_DwRegX64_MM2: result = 43; break;
-case SYMS_DwRegX64_MM3: result = 44; break;
-case SYMS_DwRegX64_MM4: result = 45; break;
-case SYMS_DwRegX64_MM5: result = 46; break;
-case SYMS_DwRegX64_MM6: result = 47; break;
-case SYMS_DwRegX64_MM7: result = 48; break;
-case SYMS_DwRegX64_RFLAGS: result = 49; break;
-case SYMS_DwRegX64_ES: result = 50; break;
-case SYMS_DwRegX64_CS: result = 51; break;
-case SYMS_DwRegX64_SS: result = 52; break;
-case SYMS_DwRegX64_DS: result = 53; break;
-case SYMS_DwRegX64_FS: result = 54; break;
-case SYMS_DwRegX64_GS: result = 55; break;
-case SYMS_DwRegX64_FS_BASE: result = 56; break;
-case SYMS_DwRegX64_GS_BASE: result = 57; break;
-case SYMS_DwRegX64_TR: result = 58; break;
-case SYMS_DwRegX64_LDTR: result = 59; break;
-}
-return(result);
-}
-SYMS_API SYMS_U64
-syms_enum_index_from_dwregarm(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U64)v){
-default: break;
-case SYMS_DwRegARM_S0: result = 0; break;
-case SYMS_DwRegARM_S1: result = 1; break;
-case SYMS_DwRegARM_S2: result = 2; break;
-case SYMS_DwRegARM_S3: result = 3; break;
-case SYMS_DwRegARM_S4: result = 4; break;
-case SYMS_DwRegARM_S5: result = 5; break;
-case SYMS_DwRegARM_S6: result = 6; break;
-case SYMS_DwRegARM_S7: result = 7; break;
-case SYMS_DwRegARM_S8: result = 8; break;
-case SYMS_DwRegARM_S9: result = 9; break;
-case SYMS_DwRegARM_S10: result = 10; break;
-case SYMS_DwRegARM_S11: result = 11; break;
-case SYMS_DwRegARM_S12: result = 12; break;
-case SYMS_DwRegARM_S13: result = 13; break;
-case SYMS_DwRegARM_S14: result = 14; break;
-case SYMS_DwRegARM_S15: result = 15; break;
-case SYMS_DwRegARM_S16: result = 16; break;
-case SYMS_DwRegARM_S17: result = 17; break;
-case SYMS_DwRegARM_S18: result = 18; break;
-case SYMS_DwRegARM_S19: result = 19; break;
-case SYMS_DwRegARM_S20: result = 20; break;
-case SYMS_DwRegARM_S21: result = 21; break;
-case SYMS_DwRegARM_S22: result = 22; break;
-case SYMS_DwRegARM_S23: result = 23; break;
-case SYMS_DwRegARM_S24: result = 24; break;
-case SYMS_DwRegARM_S25: result = 25; break;
-case SYMS_DwRegARM_S26: result = 26; break;
-case SYMS_DwRegARM_S27: result = 27; break;
-case SYMS_DwRegARM_S28: result = 28; break;
-case SYMS_DwRegARM_S29: result = 29; break;
-case SYMS_DwRegARM_S30: result = 30; break;
-case SYMS_DwRegARM_S31: result = 31; break;
-case SYMS_DwRegARM_F0: result = 32; break;
-case SYMS_DwRegARM_F1: result = 33; break;
-case SYMS_DwRegARM_F2: result = 34; break;
-case SYMS_DwRegARM_F3: result = 35; break;
-case SYMS_DwRegARM_F4: result = 36; break;
-case SYMS_DwRegARM_F5: result = 37; break;
-case SYMS_DwRegARM_F6: result = 38; break;
-case SYMS_DwRegARM_F7: result = 39; break;
-case SYMS_DwRegARM_WCGR0: result = 40; break;
-case SYMS_DwRegARM_WCGR1: result = 41; break;
-case SYMS_DwRegARM_WCGR2: result = 42; break;
-case SYMS_DwRegARM_WCGR3: result = 43; break;
-case SYMS_DwRegARM_WCGR4: result = 44; break;
-case SYMS_DwRegARM_WCGR5: result = 45; break;
-case SYMS_DwRegARM_WCGR6: result = 46; break;
-case SYMS_DwRegARM_WCGR7: result = 47; break;
-case SYMS_DwRegARM_WR0: result = 48; break;
-case SYMS_DwRegARM_WR1: result = 49; break;
-case SYMS_DwRegARM_WR2: result = 50; break;
-case SYMS_DwRegARM_WR3: result = 51; break;
-case SYMS_DwRegARM_WR4: result = 52; break;
-case SYMS_DwRegARM_WR5: result = 53; break;
-case SYMS_DwRegARM_WR6: result = 54; break;
-case SYMS_DwRegARM_WR7: result = 55; break;
-case SYMS_DwRegARM_WR8: result = 56; break;
-case SYMS_DwRegARM_WR9: result = 57; break;
-case SYMS_DwRegARM_WR10: result = 58; break;
-case SYMS_DwRegARM_WR11: result = 59; break;
-case SYMS_DwRegARM_WR12: result = 60; break;
-case SYMS_DwRegARM_WR13: result = 61; break;
-case SYMS_DwRegARM_WR14: result = 62; break;
-case SYMS_DwRegARM_WR15: result = 63; break;
-case SYMS_DwRegARM_SPSR: result = 64; break;
-case SYMS_DwRegARM_SPSR_FIQ: result = 65; break;
-case SYMS_DwRegARM_SPSR_IRQ: result = 66; break;
-case SYMS_DwRegARM_SPSR_ABT: result = 67; break;
-case SYMS_DwRegARM_SPSR_UND: result = 68; break;
-case SYMS_DwRegARM_SPSR_SVC: result = 69; break;
-case SYMS_DwRegARM_R8_USR: result = 70; break;
-case SYMS_DwRegARM_R9_USR: result = 71; break;
-case SYMS_DwRegARM_R10_USR: result = 72; break;
-case SYMS_DwRegARM_R11_USR: result = 73; break;
-case SYMS_DwRegARM_R12_USR: result = 74; break;
-case SYMS_DwRegARM_R13_USR: result = 75; break;
-case SYMS_DwRegARM_R14_USR: result = 76; break;
-case SYMS_DwRegARM_R8_FIQ: result = 77; break;
-case SYMS_DwRegARM_R9_FIQ: result = 78; break;
-case SYMS_DwRegARM_R10_FIQ: result = 79; break;
-case SYMS_DwRegARM_R11_FIQ: result = 80; break;
-case SYMS_DwRegARM_R12_FIQ: result = 81; break;
-case SYMS_DwRegARM_R13_FIQ: result = 82; break;
-case SYMS_DwRegARM_R14_FIQ: result = 83; break;
-case SYMS_DwRegARM_R13_RIQ: result = 84; break;
-case SYMS_DwRegARM_R14_RIQ: result = 85; break;
-case SYMS_DwRegARM_R14_ABT: result = 86; break;
-case SYMS_DwRegARM_R13_ABT: result = 87; break;
-case SYMS_DwRegARM_R14_UND: result = 88; break;
-case SYMS_DwRegARM_R13_UND: result = 89; break;
-case SYMS_DwRegARM_R14_SVC: result = 90; break;
-case SYMS_DwRegARM_R13_SVC: result = 91; break;
-case SYMS_DwRegARM_WC0: result = 92; break;
-case SYMS_DwRegARM_WC1: result = 93; break;
-case SYMS_DwRegARM_WC2: result = 94; break;
-case SYMS_DwRegARM_WC3: result = 95; break;
-case SYMS_DwRegARM_WC4: result = 96; break;
-case SYMS_DwRegARM_WC5: result = 97; break;
-case SYMS_DwRegARM_WC6: result = 98; break;
-case SYMS_DwRegARM_WC7: result = 99; break;
-case SYMS_DwRegARM_D0: result = 100; break;
-case SYMS_DwRegARM_D1: result = 101; break;
-case SYMS_DwRegARM_D2: result = 102; break;
-case SYMS_DwRegARM_D3: result = 103; break;
-case SYMS_DwRegARM_D4: result = 104; break;
-case SYMS_DwRegARM_D5: result = 105; break;
-case SYMS_DwRegARM_D6: result = 106; break;
-case SYMS_DwRegARM_D7: result = 107; break;
-case SYMS_DwRegARM_D8: result = 108; break;
-case SYMS_DwRegARM_D9: result = 109; break;
-case SYMS_DwRegARM_D10: result = 110; break;
-case SYMS_DwRegARM_D11: result = 111; break;
-case SYMS_DwRegARM_D12: result = 112; break;
-case SYMS_DwRegARM_D13: result = 113; break;
-case SYMS_DwRegARM_D14: result = 114; break;
-case SYMS_DwRegARM_D15: result = 115; break;
-case SYMS_DwRegARM_D16: result = 116; break;
-case SYMS_DwRegARM_D17: result = 117; break;
-case SYMS_DwRegARM_D18: result = 118; break;
-case SYMS_DwRegARM_D19: result = 119; break;
-case SYMS_DwRegARM_D20: result = 120; break;
-case SYMS_DwRegARM_D21: result = 121; break;
-case SYMS_DwRegARM_D22: result = 122; break;
-case SYMS_DwRegARM_D23: result = 123; break;
-case SYMS_DwRegARM_D24: result = 124; break;
-case SYMS_DwRegARM_D25: result = 125; break;
-case SYMS_DwRegARM_D26: result = 126; break;
-case SYMS_DwRegARM_D27: result = 127; break;
-case SYMS_DwRegARM_D28: result = 128; break;
-case SYMS_DwRegARM_D29: result = 129; break;
-case SYMS_DwRegARM_D30: result = 130; break;
-case SYMS_DwRegARM_D31: result = 131; break;
-}
-return(result);
-}
 SYMS_API SYMS_U64
 syms_enum_index_from_dwlanguage(SYMS_U64 v){
 SYMS_U64 result = 0;
@@ -5274,186 +5489,11 @@ case SYMS_DwAttribTypeEncoding_ASCII: result = 18; break;
 return(result);
 }
 // syms_enum_index_from_dw_calling_convention - skipped identity mapping
-SYMS_API SYMS_U64
-syms_enum_index_from_dw_op_code(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U64)v){
-default: break;
-case SYMS_DwOpCode_NULL: result = 0; break;
-case SYMS_DwOpCode_ADDR: result = 1; break;
-case SYMS_DwOpCode_DEREF: result = 2; break;
-case SYMS_DwOpCode_CONST1U: result = 3; break;
-case SYMS_DwOpCode_CONST1S: result = 4; break;
-case SYMS_DwOpCode_CONST2U: result = 5; break;
-case SYMS_DwOpCode_CONST2S: result = 6; break;
-case SYMS_DwOpCode_CONST4U: result = 7; break;
-case SYMS_DwOpCode_CONST4S: result = 8; break;
-case SYMS_DwOpCode_CONST8U: result = 9; break;
-case SYMS_DwOpCode_CONST8S: result = 10; break;
-case SYMS_DwOpCode_CONSTU: result = 11; break;
-case SYMS_DwOpCode_CONSTS: result = 12; break;
-case SYMS_DwOpCode_DUP: result = 13; break;
-case SYMS_DwOpCode_DROP: result = 14; break;
-case SYMS_DwOpCode_OVER: result = 15; break;
-case SYMS_DwOpCode_PICK: result = 16; break;
-case SYMS_DwOpCode_SWAP: result = 17; break;
-case SYMS_DwOpCode_ROT: result = 18; break;
-case SYMS_DwOpCode_XDEREF: result = 19; break;
-case SYMS_DwOpCode_ABS: result = 20; break;
-case SYMS_DwOpCode_AND: result = 21; break;
-case SYMS_DwOpCode_DIV: result = 22; break;
-case SYMS_DwOpCode_MINUS: result = 23; break;
-case SYMS_DwOpCode_MOD: result = 24; break;
-case SYMS_DwOpCode_MUL: result = 25; break;
-case SYMS_DwOpCode_NEG: result = 26; break;
-case SYMS_DwOpCode_NOT: result = 27; break;
-case SYMS_DwOpCode_OR: result = 28; break;
-case SYMS_DwOpCode_PLUS: result = 29; break;
-case SYMS_DwOpCode_PLUS_UCONST: result = 30; break;
-case SYMS_DwOpCode_SHL: result = 31; break;
-case SYMS_DwOpCode_SHR: result = 32; break;
-case SYMS_DwOpCode_SHRA: result = 33; break;
-case SYMS_DwOpCode_XOR: result = 34; break;
-case SYMS_DwOpCode_SKIP: result = 35; break;
-case SYMS_DwOpCode_BRA: result = 36; break;
-case SYMS_DwOpCode_EQ: result = 37; break;
-case SYMS_DwOpCode_GE: result = 38; break;
-case SYMS_DwOpCode_GT: result = 39; break;
-case SYMS_DwOpCode_LE: result = 40; break;
-case SYMS_DwOpCode_LT: result = 41; break;
-case SYMS_DwOpCode_NE: result = 42; break;
-case SYMS_DwOpCode_LIT0: result = 43; break;
-case SYMS_DwOpCode_LIT1: result = 44; break;
-case SYMS_DwOpCode_LIT2: result = 45; break;
-case SYMS_DwOpCode_LIT3: result = 46; break;
-case SYMS_DwOpCode_LIT4: result = 47; break;
-case SYMS_DwOpCode_LIT5: result = 48; break;
-case SYMS_DwOpCode_LIT6: result = 49; break;
-case SYMS_DwOpCode_LIT7: result = 50; break;
-case SYMS_DwOpCode_LIT8: result = 51; break;
-case SYMS_DwOpCode_LIT9: result = 52; break;
-case SYMS_DwOpCode_LIT10: result = 53; break;
-case SYMS_DwOpCode_LIT11: result = 54; break;
-case SYMS_DwOpCode_LIT12: result = 55; break;
-case SYMS_DwOpCode_LIT13: result = 56; break;
-case SYMS_DwOpCode_LIT14: result = 57; break;
-case SYMS_DwOpCode_LIT15: result = 58; break;
-case SYMS_DwOpCode_LIT16: result = 59; break;
-case SYMS_DwOpCode_LIT17: result = 60; break;
-case SYMS_DwOpCode_LIT18: result = 61; break;
-case SYMS_DwOpCode_LIT19: result = 62; break;
-case SYMS_DwOpCode_LIT20: result = 63; break;
-case SYMS_DwOpCode_LIT21: result = 64; break;
-case SYMS_DwOpCode_LIT22: result = 65; break;
-case SYMS_DwOpCode_LIT23: result = 66; break;
-case SYMS_DwOpCode_LIT24: result = 67; break;
-case SYMS_DwOpCode_LIT25: result = 68; break;
-case SYMS_DwOpCode_LIT26: result = 69; break;
-case SYMS_DwOpCode_LIT27: result = 70; break;
-case SYMS_DwOpCode_LIT28: result = 71; break;
-case SYMS_DwOpCode_LIT29: result = 72; break;
-case SYMS_DwOpCode_LIT30: result = 73; break;
-case SYMS_DwOpCode_LIT31: result = 74; break;
-case SYMS_DwOpCode_REG0: result = 75; break;
-case SYMS_DwOpCode_REG1: result = 76; break;
-case SYMS_DwOpCode_REG2: result = 77; break;
-case SYMS_DwOpCode_REG3: result = 78; break;
-case SYMS_DwOpCode_REG4: result = 79; break;
-case SYMS_DwOpCode_REG5: result = 80; break;
-case SYMS_DwOpCode_REG6: result = 81; break;
-case SYMS_DwOpCode_REG7: result = 82; break;
-case SYMS_DwOpCode_REG8: result = 83; break;
-case SYMS_DwOpCode_REG9: result = 84; break;
-case SYMS_DwOpCode_REG10: result = 85; break;
-case SYMS_DwOpCode_REG11: result = 86; break;
-case SYMS_DwOpCode_REG12: result = 87; break;
-case SYMS_DwOpCode_REG13: result = 88; break;
-case SYMS_DwOpCode_REG14: result = 89; break;
-case SYMS_DwOpCode_REG15: result = 90; break;
-case SYMS_DwOpCode_REG16: result = 91; break;
-case SYMS_DwOpCode_REG17: result = 92; break;
-case SYMS_DwOpCode_REG18: result = 93; break;
-case SYMS_DwOpCode_REG19: result = 94; break;
-case SYMS_DwOpCode_REG20: result = 95; break;
-case SYMS_DwOpCode_REG21: result = 96; break;
-case SYMS_DwOpCode_REG22: result = 97; break;
-case SYMS_DwOpCode_REG23: result = 98; break;
-case SYMS_DwOpCode_REG24: result = 99; break;
-case SYMS_DwOpCode_REG25: result = 100; break;
-case SYMS_DwOpCode_REG26: result = 101; break;
-case SYMS_DwOpCode_REG27: result = 102; break;
-case SYMS_DwOpCode_REG28: result = 103; break;
-case SYMS_DwOpCode_REG29: result = 104; break;
-case SYMS_DwOpCode_REG30: result = 105; break;
-case SYMS_DwOpCode_REG31: result = 106; break;
-case SYMS_DwOpCode_BREG0: result = 107; break;
-case SYMS_DwOpCode_BREG1: result = 108; break;
-case SYMS_DwOpCode_BREG2: result = 109; break;
-case SYMS_DwOpCode_BREG3: result = 110; break;
-case SYMS_DwOpCode_BREG4: result = 111; break;
-case SYMS_DwOpCode_BREG5: result = 112; break;
-case SYMS_DwOpCode_BREG6: result = 113; break;
-case SYMS_DwOpCode_BREG7: result = 114; break;
-case SYMS_DwOpCode_BREG8: result = 115; break;
-case SYMS_DwOpCode_BREG9: result = 116; break;
-case SYMS_DwOpCode_BREG10: result = 117; break;
-case SYMS_DwOpCode_BREG11: result = 118; break;
-case SYMS_DwOpCode_BREG12: result = 119; break;
-case SYMS_DwOpCode_BREG13: result = 120; break;
-case SYMS_DwOpCode_BREG14: result = 121; break;
-case SYMS_DwOpCode_BREG15: result = 122; break;
-case SYMS_DwOpCode_BREG16: result = 123; break;
-case SYMS_DwOpCode_BREG17: result = 124; break;
-case SYMS_DwOpCode_BREG18: result = 125; break;
-case SYMS_DwOpCode_BREG19: result = 126; break;
-case SYMS_DwOpCode_BREG20: result = 127; break;
-case SYMS_DwOpCode_BREG21: result = 128; break;
-case SYMS_DwOpCode_BREG22: result = 129; break;
-case SYMS_DwOpCode_BREG23: result = 130; break;
-case SYMS_DwOpCode_BREG24: result = 131; break;
-case SYMS_DwOpCode_BREG25: result = 132; break;
-case SYMS_DwOpCode_BREG26: result = 133; break;
-case SYMS_DwOpCode_BREG27: result = 134; break;
-case SYMS_DwOpCode_BREG28: result = 135; break;
-case SYMS_DwOpCode_BREG29: result = 136; break;
-case SYMS_DwOpCode_BREG30: result = 137; break;
-case SYMS_DwOpCode_BREG31: result = 138; break;
-case SYMS_DwOpCode_REGX: result = 139; break;
-case SYMS_DwOpCode_FBREG: result = 140; break;
-case SYMS_DwOpCode_BREGX: result = 141; break;
-case SYMS_DwOpCode_PIECE: result = 142; break;
-case SYMS_DwOpCode_DEREF_SIZE: result = 143; break;
-case SYMS_DwOpCode_XDEREF_SIZE: result = 144; break;
-case SYMS_DwOpCode_NOP: result = 145; break;
-case SYMS_DwOpCode_PUSH_OBJECT_ADDRESS: result = 146; break;
-case SYMS_DwOpCode_CALL2: result = 147; break;
-case SYMS_DwOpCode_CALL4: result = 148; break;
-case SYMS_DwOpCode_CALL_REF: result = 149; break;
-case SYMS_DwOpCode_FORM_TLS_ADDRESS: result = 150; break;
-case SYMS_DwOpCode_CALL_FRAME_CFA: result = 151; break;
-case SYMS_DwOpCode_BIT_PIECE: result = 152; break;
-case SYMS_DwOpCode_IMPLICIT_VALUE: result = 153; break;
-case SYMS_DwOpCode_STACK_VALUE: result = 154; break;
-case SYMS_DwOpCode_IMPLICIT_POINTER: result = 155; break;
-case SYMS_DwOpCode_ADDRX: result = 156; break;
-case SYMS_DwOpCode_CONSTX: result = 157; break;
-case SYMS_DwOpCode_ENTRY_VALUE: result = 158; break;
-case SYMS_DwOpCode_CONST_TYPE: result = 159; break;
-case SYMS_DwOpCode_REGVAL_TYPE: result = 160; break;
-case SYMS_DwOpCode_DEREF_TYPE: result = 161; break;
-case SYMS_DwOpCode_XDEREF_TYPE: result = 162; break;
-case SYMS_DwOpCode_CONVERT: result = 163; break;
-case SYMS_DwOpCode_REINTERPRET: result = 164; break;
-case SYMS_DwOpCode_LO_USER: result = 165; break;
-case SYMS_DwOpCode_HI_USER: result = 166; break;
-}
-return(result);
-}
 // syms_enum_index_from_dw_access - skipped identity mapping
 // syms_enum_index_from_dw_virtuality - skipped identity mapping
 // syms_enum_index_from_dw_rng_list_entry_kind - skipped identity mapping
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1123
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
 SYMS_SerialValue _syms_serial_members_for_SYMS_DwMode[] = {
 { { (SYMS_U8*)"Null", 4 }, (SYMS_U64)SYMS_DwMode_Null },
 { { (SYMS_U8*)"32Bit", 5 }, (SYMS_U64)SYMS_DwMode_32Bit },
@@ -5486,250 +5526,6 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_DwSectionKind[] = {
 { { (SYMS_U8*)"RngLists", 8 }, (SYMS_U64)SYMS_DwSectionKind_RngLists },
 { { (SYMS_U8*)"StrOffsets", 10 }, (SYMS_U64)SYMS_DwSectionKind_StrOffsets },
 { { (SYMS_U8*)"LineStr", 7 }, (SYMS_U64)SYMS_DwSectionKind_LineStr },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_DwRegX86[] = {
-{ { (SYMS_U8*)"EAX", 3 }, (SYMS_U64)SYMS_DwRegX86_EAX },
-{ { (SYMS_U8*)"ECX", 3 }, (SYMS_U64)SYMS_DwRegX86_ECX },
-{ { (SYMS_U8*)"EDX", 3 }, (SYMS_U64)SYMS_DwRegX86_EDX },
-{ { (SYMS_U8*)"EBX", 3 }, (SYMS_U64)SYMS_DwRegX86_EBX },
-{ { (SYMS_U8*)"ESP", 3 }, (SYMS_U64)SYMS_DwRegX86_ESP },
-{ { (SYMS_U8*)"EBP", 3 }, (SYMS_U64)SYMS_DwRegX86_EBP },
-{ { (SYMS_U8*)"ESI", 3 }, (SYMS_U64)SYMS_DwRegX86_ESI },
-{ { (SYMS_U8*)"EDI", 3 }, (SYMS_U64)SYMS_DwRegX86_EDI },
-{ { (SYMS_U8*)"EIP", 3 }, (SYMS_U64)SYMS_DwRegX86_EIP },
-{ { (SYMS_U8*)"EFLAGS", 6 }, (SYMS_U64)SYMS_DwRegX86_EFLAGS },
-{ { (SYMS_U8*)"TRAPNO", 6 }, (SYMS_U64)SYMS_DwRegX86_TRAPNO },
-{ { (SYMS_U8*)"ST0", 3 }, (SYMS_U64)SYMS_DwRegX86_ST0 },
-{ { (SYMS_U8*)"ST1", 3 }, (SYMS_U64)SYMS_DwRegX86_ST1 },
-{ { (SYMS_U8*)"ST2", 3 }, (SYMS_U64)SYMS_DwRegX86_ST2 },
-{ { (SYMS_U8*)"ST3", 3 }, (SYMS_U64)SYMS_DwRegX86_ST3 },
-{ { (SYMS_U8*)"ST4", 3 }, (SYMS_U64)SYMS_DwRegX86_ST4 },
-{ { (SYMS_U8*)"ST5", 3 }, (SYMS_U64)SYMS_DwRegX86_ST5 },
-{ { (SYMS_U8*)"ST6", 3 }, (SYMS_U64)SYMS_DwRegX86_ST6 },
-{ { (SYMS_U8*)"ST7", 3 }, (SYMS_U64)SYMS_DwRegX86_ST7 },
-{ { (SYMS_U8*)"XMM0", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM0 },
-{ { (SYMS_U8*)"XMM1", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM1 },
-{ { (SYMS_U8*)"XMM2", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM2 },
-{ { (SYMS_U8*)"XMM3", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM3 },
-{ { (SYMS_U8*)"XMM4", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM4 },
-{ { (SYMS_U8*)"XMM5", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM5 },
-{ { (SYMS_U8*)"XMM6", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM6 },
-{ { (SYMS_U8*)"XMM7", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM7 },
-{ { (SYMS_U8*)"MM0", 3 }, (SYMS_U64)SYMS_DwRegX86_MM0 },
-{ { (SYMS_U8*)"MM1", 3 }, (SYMS_U64)SYMS_DwRegX86_MM1 },
-{ { (SYMS_U8*)"MM2", 3 }, (SYMS_U64)SYMS_DwRegX86_MM2 },
-{ { (SYMS_U8*)"MM3", 3 }, (SYMS_U64)SYMS_DwRegX86_MM3 },
-{ { (SYMS_U8*)"MM4", 3 }, (SYMS_U64)SYMS_DwRegX86_MM4 },
-{ { (SYMS_U8*)"MM5", 3 }, (SYMS_U64)SYMS_DwRegX86_MM5 },
-{ { (SYMS_U8*)"MM6", 3 }, (SYMS_U64)SYMS_DwRegX86_MM6 },
-{ { (SYMS_U8*)"MM7", 3 }, (SYMS_U64)SYMS_DwRegX86_MM7 },
-{ { (SYMS_U8*)"FCW", 3 }, (SYMS_U64)SYMS_DwRegX86_FCW },
-{ { (SYMS_U8*)"FSW", 3 }, (SYMS_U64)SYMS_DwRegX86_FSW },
-{ { (SYMS_U8*)"MXCSR", 5 }, (SYMS_U64)SYMS_DwRegX86_MXCSR },
-{ { (SYMS_U8*)"ES", 2 }, (SYMS_U64)SYMS_DwRegX86_ES },
-{ { (SYMS_U8*)"CS", 2 }, (SYMS_U64)SYMS_DwRegX86_CS },
-{ { (SYMS_U8*)"SS", 2 }, (SYMS_U64)SYMS_DwRegX86_SS },
-{ { (SYMS_U8*)"DS", 2 }, (SYMS_U64)SYMS_DwRegX86_DS },
-{ { (SYMS_U8*)"FS", 2 }, (SYMS_U64)SYMS_DwRegX86_FS },
-{ { (SYMS_U8*)"GS", 2 }, (SYMS_U64)SYMS_DwRegX86_GS },
-{ { (SYMS_U8*)"TR", 2 }, (SYMS_U64)SYMS_DwRegX86_TR },
-{ { (SYMS_U8*)"LDTR", 4 }, (SYMS_U64)SYMS_DwRegX86_LDTR },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_DwRegX64[] = {
-{ { (SYMS_U8*)"RAX", 3 }, (SYMS_U64)SYMS_DwRegX64_RAX },
-{ { (SYMS_U8*)"RDX", 3 }, (SYMS_U64)SYMS_DwRegX64_RDX },
-{ { (SYMS_U8*)"RCX", 3 }, (SYMS_U64)SYMS_DwRegX64_RCX },
-{ { (SYMS_U8*)"RBX", 3 }, (SYMS_U64)SYMS_DwRegX64_RBX },
-{ { (SYMS_U8*)"RSI", 3 }, (SYMS_U64)SYMS_DwRegX64_RSI },
-{ { (SYMS_U8*)"RDI", 3 }, (SYMS_U64)SYMS_DwRegX64_RDI },
-{ { (SYMS_U8*)"RBP", 3 }, (SYMS_U64)SYMS_DwRegX64_RBP },
-{ { (SYMS_U8*)"RSP", 3 }, (SYMS_U64)SYMS_DwRegX64_RSP },
-{ { (SYMS_U8*)"R8", 2 }, (SYMS_U64)SYMS_DwRegX64_R8 },
-{ { (SYMS_U8*)"R9", 2 }, (SYMS_U64)SYMS_DwRegX64_R9 },
-{ { (SYMS_U8*)"R10", 3 }, (SYMS_U64)SYMS_DwRegX64_R10 },
-{ { (SYMS_U8*)"R11", 3 }, (SYMS_U64)SYMS_DwRegX64_R11 },
-{ { (SYMS_U8*)"R12", 3 }, (SYMS_U64)SYMS_DwRegX64_R12 },
-{ { (SYMS_U8*)"R13", 3 }, (SYMS_U64)SYMS_DwRegX64_R13 },
-{ { (SYMS_U8*)"R14", 3 }, (SYMS_U64)SYMS_DwRegX64_R14 },
-{ { (SYMS_U8*)"R15", 3 }, (SYMS_U64)SYMS_DwRegX64_R15 },
-{ { (SYMS_U8*)"RIP", 3 }, (SYMS_U64)SYMS_DwRegX64_RIP },
-{ { (SYMS_U8*)"XMM0", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM0 },
-{ { (SYMS_U8*)"XMM1", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM1 },
-{ { (SYMS_U8*)"XMM2", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM2 },
-{ { (SYMS_U8*)"XMM3", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM3 },
-{ { (SYMS_U8*)"XMM4", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM4 },
-{ { (SYMS_U8*)"XMM5", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM5 },
-{ { (SYMS_U8*)"XMM6", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM6 },
-{ { (SYMS_U8*)"XMM7", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM7 },
-{ { (SYMS_U8*)"XMM8", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM8 },
-{ { (SYMS_U8*)"XMM9", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM9 },
-{ { (SYMS_U8*)"XMM10", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM10 },
-{ { (SYMS_U8*)"XMM11", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM11 },
-{ { (SYMS_U8*)"XMM12", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM12 },
-{ { (SYMS_U8*)"XMM13", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM13 },
-{ { (SYMS_U8*)"XMM14", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM14 },
-{ { (SYMS_U8*)"XMM15", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM15 },
-{ { (SYMS_U8*)"ST0", 3 }, (SYMS_U64)SYMS_DwRegX64_ST0 },
-{ { (SYMS_U8*)"ST1", 3 }, (SYMS_U64)SYMS_DwRegX64_ST1 },
-{ { (SYMS_U8*)"ST2", 3 }, (SYMS_U64)SYMS_DwRegX64_ST2 },
-{ { (SYMS_U8*)"ST3", 3 }, (SYMS_U64)SYMS_DwRegX64_ST3 },
-{ { (SYMS_U8*)"ST4", 3 }, (SYMS_U64)SYMS_DwRegX64_ST4 },
-{ { (SYMS_U8*)"ST5", 3 }, (SYMS_U64)SYMS_DwRegX64_ST5 },
-{ { (SYMS_U8*)"ST6", 3 }, (SYMS_U64)SYMS_DwRegX64_ST6 },
-{ { (SYMS_U8*)"ST7", 3 }, (SYMS_U64)SYMS_DwRegX64_ST7 },
-{ { (SYMS_U8*)"MM0", 3 }, (SYMS_U64)SYMS_DwRegX64_MM0 },
-{ { (SYMS_U8*)"MM1", 3 }, (SYMS_U64)SYMS_DwRegX64_MM1 },
-{ { (SYMS_U8*)"MM2", 3 }, (SYMS_U64)SYMS_DwRegX64_MM2 },
-{ { (SYMS_U8*)"MM3", 3 }, (SYMS_U64)SYMS_DwRegX64_MM3 },
-{ { (SYMS_U8*)"MM4", 3 }, (SYMS_U64)SYMS_DwRegX64_MM4 },
-{ { (SYMS_U8*)"MM5", 3 }, (SYMS_U64)SYMS_DwRegX64_MM5 },
-{ { (SYMS_U8*)"MM6", 3 }, (SYMS_U64)SYMS_DwRegX64_MM6 },
-{ { (SYMS_U8*)"MM7", 3 }, (SYMS_U64)SYMS_DwRegX64_MM7 },
-{ { (SYMS_U8*)"RFLAGS", 6 }, (SYMS_U64)SYMS_DwRegX64_RFLAGS },
-{ { (SYMS_U8*)"ES", 2 }, (SYMS_U64)SYMS_DwRegX64_ES },
-{ { (SYMS_U8*)"CS", 2 }, (SYMS_U64)SYMS_DwRegX64_CS },
-{ { (SYMS_U8*)"SS", 2 }, (SYMS_U64)SYMS_DwRegX64_SS },
-{ { (SYMS_U8*)"DS", 2 }, (SYMS_U64)SYMS_DwRegX64_DS },
-{ { (SYMS_U8*)"FS", 2 }, (SYMS_U64)SYMS_DwRegX64_FS },
-{ { (SYMS_U8*)"GS", 2 }, (SYMS_U64)SYMS_DwRegX64_GS },
-{ { (SYMS_U8*)"FS_BASE", 7 }, (SYMS_U64)SYMS_DwRegX64_FS_BASE },
-{ { (SYMS_U8*)"GS_BASE", 7 }, (SYMS_U64)SYMS_DwRegX64_GS_BASE },
-{ { (SYMS_U8*)"TR", 2 }, (SYMS_U64)SYMS_DwRegX64_TR },
-{ { (SYMS_U8*)"LDTR", 4 }, (SYMS_U64)SYMS_DwRegX64_LDTR },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_DwRegARM[] = {
-{ { (SYMS_U8*)"S0", 2 }, (SYMS_U64)SYMS_DwRegARM_S0 },
-{ { (SYMS_U8*)"S1", 2 }, (SYMS_U64)SYMS_DwRegARM_S1 },
-{ { (SYMS_U8*)"S2", 2 }, (SYMS_U64)SYMS_DwRegARM_S2 },
-{ { (SYMS_U8*)"S3", 2 }, (SYMS_U64)SYMS_DwRegARM_S3 },
-{ { (SYMS_U8*)"S4", 2 }, (SYMS_U64)SYMS_DwRegARM_S4 },
-{ { (SYMS_U8*)"S5", 2 }, (SYMS_U64)SYMS_DwRegARM_S5 },
-{ { (SYMS_U8*)"S6", 2 }, (SYMS_U64)SYMS_DwRegARM_S6 },
-{ { (SYMS_U8*)"S7", 2 }, (SYMS_U64)SYMS_DwRegARM_S7 },
-{ { (SYMS_U8*)"S8", 2 }, (SYMS_U64)SYMS_DwRegARM_S8 },
-{ { (SYMS_U8*)"S9", 2 }, (SYMS_U64)SYMS_DwRegARM_S9 },
-{ { (SYMS_U8*)"S10", 3 }, (SYMS_U64)SYMS_DwRegARM_S10 },
-{ { (SYMS_U8*)"S11", 3 }, (SYMS_U64)SYMS_DwRegARM_S11 },
-{ { (SYMS_U8*)"S12", 3 }, (SYMS_U64)SYMS_DwRegARM_S12 },
-{ { (SYMS_U8*)"S13", 3 }, (SYMS_U64)SYMS_DwRegARM_S13 },
-{ { (SYMS_U8*)"S14", 3 }, (SYMS_U64)SYMS_DwRegARM_S14 },
-{ { (SYMS_U8*)"S15", 3 }, (SYMS_U64)SYMS_DwRegARM_S15 },
-{ { (SYMS_U8*)"S16", 3 }, (SYMS_U64)SYMS_DwRegARM_S16 },
-{ { (SYMS_U8*)"S17", 3 }, (SYMS_U64)SYMS_DwRegARM_S17 },
-{ { (SYMS_U8*)"S18", 3 }, (SYMS_U64)SYMS_DwRegARM_S18 },
-{ { (SYMS_U8*)"S19", 3 }, (SYMS_U64)SYMS_DwRegARM_S19 },
-{ { (SYMS_U8*)"S20", 3 }, (SYMS_U64)SYMS_DwRegARM_S20 },
-{ { (SYMS_U8*)"S21", 3 }, (SYMS_U64)SYMS_DwRegARM_S21 },
-{ { (SYMS_U8*)"S22", 3 }, (SYMS_U64)SYMS_DwRegARM_S22 },
-{ { (SYMS_U8*)"S23", 3 }, (SYMS_U64)SYMS_DwRegARM_S23 },
-{ { (SYMS_U8*)"S24", 3 }, (SYMS_U64)SYMS_DwRegARM_S24 },
-{ { (SYMS_U8*)"S25", 3 }, (SYMS_U64)SYMS_DwRegARM_S25 },
-{ { (SYMS_U8*)"S26", 3 }, (SYMS_U64)SYMS_DwRegARM_S26 },
-{ { (SYMS_U8*)"S27", 3 }, (SYMS_U64)SYMS_DwRegARM_S27 },
-{ { (SYMS_U8*)"S28", 3 }, (SYMS_U64)SYMS_DwRegARM_S28 },
-{ { (SYMS_U8*)"S29", 3 }, (SYMS_U64)SYMS_DwRegARM_S29 },
-{ { (SYMS_U8*)"S30", 3 }, (SYMS_U64)SYMS_DwRegARM_S30 },
-{ { (SYMS_U8*)"S31", 3 }, (SYMS_U64)SYMS_DwRegARM_S31 },
-{ { (SYMS_U8*)"F0", 2 }, (SYMS_U64)SYMS_DwRegARM_F0 },
-{ { (SYMS_U8*)"F1", 2 }, (SYMS_U64)SYMS_DwRegARM_F1 },
-{ { (SYMS_U8*)"F2", 2 }, (SYMS_U64)SYMS_DwRegARM_F2 },
-{ { (SYMS_U8*)"F3", 2 }, (SYMS_U64)SYMS_DwRegARM_F3 },
-{ { (SYMS_U8*)"F4", 2 }, (SYMS_U64)SYMS_DwRegARM_F4 },
-{ { (SYMS_U8*)"F5", 2 }, (SYMS_U64)SYMS_DwRegARM_F5 },
-{ { (SYMS_U8*)"F6", 2 }, (SYMS_U64)SYMS_DwRegARM_F6 },
-{ { (SYMS_U8*)"F7", 2 }, (SYMS_U64)SYMS_DwRegARM_F7 },
-{ { (SYMS_U8*)"WCGR0", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR0 },
-{ { (SYMS_U8*)"WCGR1", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR1 },
-{ { (SYMS_U8*)"WCGR2", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR2 },
-{ { (SYMS_U8*)"WCGR3", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR3 },
-{ { (SYMS_U8*)"WCGR4", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR4 },
-{ { (SYMS_U8*)"WCGR5", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR5 },
-{ { (SYMS_U8*)"WCGR6", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR6 },
-{ { (SYMS_U8*)"WCGR7", 5 }, (SYMS_U64)SYMS_DwRegARM_WCGR7 },
-{ { (SYMS_U8*)"WR0", 3 }, (SYMS_U64)SYMS_DwRegARM_WR0 },
-{ { (SYMS_U8*)"WR1", 3 }, (SYMS_U64)SYMS_DwRegARM_WR1 },
-{ { (SYMS_U8*)"WR2", 3 }, (SYMS_U64)SYMS_DwRegARM_WR2 },
-{ { (SYMS_U8*)"WR3", 3 }, (SYMS_U64)SYMS_DwRegARM_WR3 },
-{ { (SYMS_U8*)"WR4", 3 }, (SYMS_U64)SYMS_DwRegARM_WR4 },
-{ { (SYMS_U8*)"WR5", 3 }, (SYMS_U64)SYMS_DwRegARM_WR5 },
-{ { (SYMS_U8*)"WR6", 3 }, (SYMS_U64)SYMS_DwRegARM_WR6 },
-{ { (SYMS_U8*)"WR7", 3 }, (SYMS_U64)SYMS_DwRegARM_WR7 },
-{ { (SYMS_U8*)"WR8", 3 }, (SYMS_U64)SYMS_DwRegARM_WR8 },
-{ { (SYMS_U8*)"WR9", 3 }, (SYMS_U64)SYMS_DwRegARM_WR9 },
-{ { (SYMS_U8*)"WR10", 4 }, (SYMS_U64)SYMS_DwRegARM_WR10 },
-{ { (SYMS_U8*)"WR11", 4 }, (SYMS_U64)SYMS_DwRegARM_WR11 },
-{ { (SYMS_U8*)"WR12", 4 }, (SYMS_U64)SYMS_DwRegARM_WR12 },
-{ { (SYMS_U8*)"WR13", 4 }, (SYMS_U64)SYMS_DwRegARM_WR13 },
-{ { (SYMS_U8*)"WR14", 4 }, (SYMS_U64)SYMS_DwRegARM_WR14 },
-{ { (SYMS_U8*)"WR15", 4 }, (SYMS_U64)SYMS_DwRegARM_WR15 },
-{ { (SYMS_U8*)"SPSR", 4 }, (SYMS_U64)SYMS_DwRegARM_SPSR },
-{ { (SYMS_U8*)"SPSR_FIQ", 8 }, (SYMS_U64)SYMS_DwRegARM_SPSR_FIQ },
-{ { (SYMS_U8*)"SPSR_IRQ", 8 }, (SYMS_U64)SYMS_DwRegARM_SPSR_IRQ },
-{ { (SYMS_U8*)"SPSR_ABT", 8 }, (SYMS_U64)SYMS_DwRegARM_SPSR_ABT },
-{ { (SYMS_U8*)"SPSR_UND", 8 }, (SYMS_U64)SYMS_DwRegARM_SPSR_UND },
-{ { (SYMS_U8*)"SPSR_SVC", 8 }, (SYMS_U64)SYMS_DwRegARM_SPSR_SVC },
-{ { (SYMS_U8*)"R8_USR", 6 }, (SYMS_U64)SYMS_DwRegARM_R8_USR },
-{ { (SYMS_U8*)"R9_USR", 6 }, (SYMS_U64)SYMS_DwRegARM_R9_USR },
-{ { (SYMS_U8*)"R10_USR", 7 }, (SYMS_U64)SYMS_DwRegARM_R10_USR },
-{ { (SYMS_U8*)"R11_USR", 7 }, (SYMS_U64)SYMS_DwRegARM_R11_USR },
-{ { (SYMS_U8*)"R12_USR", 7 }, (SYMS_U64)SYMS_DwRegARM_R12_USR },
-{ { (SYMS_U8*)"R13_USR", 7 }, (SYMS_U64)SYMS_DwRegARM_R13_USR },
-{ { (SYMS_U8*)"R14_USR", 7 }, (SYMS_U64)SYMS_DwRegARM_R14_USR },
-{ { (SYMS_U8*)"R8_FIQ", 6 }, (SYMS_U64)SYMS_DwRegARM_R8_FIQ },
-{ { (SYMS_U8*)"R9_FIQ", 6 }, (SYMS_U64)SYMS_DwRegARM_R9_FIQ },
-{ { (SYMS_U8*)"R10_FIQ", 7 }, (SYMS_U64)SYMS_DwRegARM_R10_FIQ },
-{ { (SYMS_U8*)"R11_FIQ", 7 }, (SYMS_U64)SYMS_DwRegARM_R11_FIQ },
-{ { (SYMS_U8*)"R12_FIQ", 7 }, (SYMS_U64)SYMS_DwRegARM_R12_FIQ },
-{ { (SYMS_U8*)"R13_FIQ", 7 }, (SYMS_U64)SYMS_DwRegARM_R13_FIQ },
-{ { (SYMS_U8*)"R14_FIQ", 7 }, (SYMS_U64)SYMS_DwRegARM_R14_FIQ },
-{ { (SYMS_U8*)"R13_RIQ", 7 }, (SYMS_U64)SYMS_DwRegARM_R13_RIQ },
-{ { (SYMS_U8*)"R14_RIQ", 7 }, (SYMS_U64)SYMS_DwRegARM_R14_RIQ },
-{ { (SYMS_U8*)"R14_ABT", 7 }, (SYMS_U64)SYMS_DwRegARM_R14_ABT },
-{ { (SYMS_U8*)"R13_ABT", 7 }, (SYMS_U64)SYMS_DwRegARM_R13_ABT },
-{ { (SYMS_U8*)"R14_UND", 7 }, (SYMS_U64)SYMS_DwRegARM_R14_UND },
-{ { (SYMS_U8*)"R13_UND", 7 }, (SYMS_U64)SYMS_DwRegARM_R13_UND },
-{ { (SYMS_U8*)"R14_SVC", 7 }, (SYMS_U64)SYMS_DwRegARM_R14_SVC },
-{ { (SYMS_U8*)"R13_SVC", 7 }, (SYMS_U64)SYMS_DwRegARM_R13_SVC },
-{ { (SYMS_U8*)"WC0", 3 }, (SYMS_U64)SYMS_DwRegARM_WC0 },
-{ { (SYMS_U8*)"WC1", 3 }, (SYMS_U64)SYMS_DwRegARM_WC1 },
-{ { (SYMS_U8*)"WC2", 3 }, (SYMS_U64)SYMS_DwRegARM_WC2 },
-{ { (SYMS_U8*)"WC3", 3 }, (SYMS_U64)SYMS_DwRegARM_WC3 },
-{ { (SYMS_U8*)"WC4", 3 }, (SYMS_U64)SYMS_DwRegARM_WC4 },
-{ { (SYMS_U8*)"WC5", 3 }, (SYMS_U64)SYMS_DwRegARM_WC5 },
-{ { (SYMS_U8*)"WC6", 3 }, (SYMS_U64)SYMS_DwRegARM_WC6 },
-{ { (SYMS_U8*)"WC7", 3 }, (SYMS_U64)SYMS_DwRegARM_WC7 },
-{ { (SYMS_U8*)"D0", 2 }, (SYMS_U64)SYMS_DwRegARM_D0 },
-{ { (SYMS_U8*)"D1", 2 }, (SYMS_U64)SYMS_DwRegARM_D1 },
-{ { (SYMS_U8*)"D2", 2 }, (SYMS_U64)SYMS_DwRegARM_D2 },
-{ { (SYMS_U8*)"D3", 2 }, (SYMS_U64)SYMS_DwRegARM_D3 },
-{ { (SYMS_U8*)"D4", 2 }, (SYMS_U64)SYMS_DwRegARM_D4 },
-{ { (SYMS_U8*)"D5", 2 }, (SYMS_U64)SYMS_DwRegARM_D5 },
-{ { (SYMS_U8*)"D6", 2 }, (SYMS_U64)SYMS_DwRegARM_D6 },
-{ { (SYMS_U8*)"D7", 2 }, (SYMS_U64)SYMS_DwRegARM_D7 },
-{ { (SYMS_U8*)"D8", 2 }, (SYMS_U64)SYMS_DwRegARM_D8 },
-{ { (SYMS_U8*)"D9", 2 }, (SYMS_U64)SYMS_DwRegARM_D9 },
-{ { (SYMS_U8*)"D10", 3 }, (SYMS_U64)SYMS_DwRegARM_D10 },
-{ { (SYMS_U8*)"D11", 3 }, (SYMS_U64)SYMS_DwRegARM_D11 },
-{ { (SYMS_U8*)"D12", 3 }, (SYMS_U64)SYMS_DwRegARM_D12 },
-{ { (SYMS_U8*)"D13", 3 }, (SYMS_U64)SYMS_DwRegARM_D13 },
-{ { (SYMS_U8*)"D14", 3 }, (SYMS_U64)SYMS_DwRegARM_D14 },
-{ { (SYMS_U8*)"D15", 3 }, (SYMS_U64)SYMS_DwRegARM_D15 },
-{ { (SYMS_U8*)"D16", 3 }, (SYMS_U64)SYMS_DwRegARM_D16 },
-{ { (SYMS_U8*)"D17", 3 }, (SYMS_U64)SYMS_DwRegARM_D17 },
-{ { (SYMS_U8*)"D18", 3 }, (SYMS_U64)SYMS_DwRegARM_D18 },
-{ { (SYMS_U8*)"D19", 3 }, (SYMS_U64)SYMS_DwRegARM_D19 },
-{ { (SYMS_U8*)"D20", 3 }, (SYMS_U64)SYMS_DwRegARM_D20 },
-{ { (SYMS_U8*)"D21", 3 }, (SYMS_U64)SYMS_DwRegARM_D21 },
-{ { (SYMS_U8*)"D22", 3 }, (SYMS_U64)SYMS_DwRegARM_D22 },
-{ { (SYMS_U8*)"D23", 3 }, (SYMS_U64)SYMS_DwRegARM_D23 },
-{ { (SYMS_U8*)"D24", 3 }, (SYMS_U64)SYMS_DwRegARM_D24 },
-{ { (SYMS_U8*)"D25", 3 }, (SYMS_U64)SYMS_DwRegARM_D25 },
-{ { (SYMS_U8*)"D26", 3 }, (SYMS_U64)SYMS_DwRegARM_D26 },
-{ { (SYMS_U8*)"D27", 3 }, (SYMS_U64)SYMS_DwRegARM_D27 },
-{ { (SYMS_U8*)"D28", 3 }, (SYMS_U64)SYMS_DwRegARM_D28 },
-{ { (SYMS_U8*)"D29", 3 }, (SYMS_U64)SYMS_DwRegARM_D29 },
-{ { (SYMS_U8*)"D30", 3 }, (SYMS_U64)SYMS_DwRegARM_D30 },
-{ { (SYMS_U8*)"D31", 3 }, (SYMS_U64)SYMS_DwRegARM_D31 },
 };
 SYMS_SerialValue _syms_serial_members_for_SYMS_DwLanguage[] = {
 { { (SYMS_U8*)"INVALID", 7 }, (SYMS_U64)SYMS_DwLanguage_INVALID },
@@ -6147,175 +5943,6 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_DwCallingConvention[] = {
 { { (SYMS_U8*)"PassByValue", 11 }, (SYMS_U64)SYMS_DwCallingConvention_PassByValue },
 { { (SYMS_U8*)"PassByReference", 15 }, (SYMS_U64)SYMS_DwCallingConvention_PassByReference },
 };
-SYMS_SerialValue _syms_serial_members_for_SYMS_DwOpCode[] = {
-{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_DwOpCode_NULL },
-{ { (SYMS_U8*)"ADDR", 4 }, (SYMS_U64)SYMS_DwOpCode_ADDR },
-{ { (SYMS_U8*)"DEREF", 5 }, (SYMS_U64)SYMS_DwOpCode_DEREF },
-{ { (SYMS_U8*)"CONST1U", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST1U },
-{ { (SYMS_U8*)"CONST1S", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST1S },
-{ { (SYMS_U8*)"CONST2U", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST2U },
-{ { (SYMS_U8*)"CONST2S", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST2S },
-{ { (SYMS_U8*)"CONST4U", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST4U },
-{ { (SYMS_U8*)"CONST4S", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST4S },
-{ { (SYMS_U8*)"CONST8U", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST8U },
-{ { (SYMS_U8*)"CONST8S", 7 }, (SYMS_U64)SYMS_DwOpCode_CONST8S },
-{ { (SYMS_U8*)"CONSTU", 6 }, (SYMS_U64)SYMS_DwOpCode_CONSTU },
-{ { (SYMS_U8*)"CONSTS", 6 }, (SYMS_U64)SYMS_DwOpCode_CONSTS },
-{ { (SYMS_U8*)"DUP", 3 }, (SYMS_U64)SYMS_DwOpCode_DUP },
-{ { (SYMS_U8*)"DROP", 4 }, (SYMS_U64)SYMS_DwOpCode_DROP },
-{ { (SYMS_U8*)"OVER", 4 }, (SYMS_U64)SYMS_DwOpCode_OVER },
-{ { (SYMS_U8*)"PICK", 4 }, (SYMS_U64)SYMS_DwOpCode_PICK },
-{ { (SYMS_U8*)"SWAP", 4 }, (SYMS_U64)SYMS_DwOpCode_SWAP },
-{ { (SYMS_U8*)"ROT", 3 }, (SYMS_U64)SYMS_DwOpCode_ROT },
-{ { (SYMS_U8*)"XDEREF", 6 }, (SYMS_U64)SYMS_DwOpCode_XDEREF },
-{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_DwOpCode_ABS },
-{ { (SYMS_U8*)"AND", 3 }, (SYMS_U64)SYMS_DwOpCode_AND },
-{ { (SYMS_U8*)"DIV", 3 }, (SYMS_U64)SYMS_DwOpCode_DIV },
-{ { (SYMS_U8*)"MINUS", 5 }, (SYMS_U64)SYMS_DwOpCode_MINUS },
-{ { (SYMS_U8*)"MOD", 3 }, (SYMS_U64)SYMS_DwOpCode_MOD },
-{ { (SYMS_U8*)"MUL", 3 }, (SYMS_U64)SYMS_DwOpCode_MUL },
-{ { (SYMS_U8*)"NEG", 3 }, (SYMS_U64)SYMS_DwOpCode_NEG },
-{ { (SYMS_U8*)"NOT", 3 }, (SYMS_U64)SYMS_DwOpCode_NOT },
-{ { (SYMS_U8*)"OR", 2 }, (SYMS_U64)SYMS_DwOpCode_OR },
-{ { (SYMS_U8*)"PLUS", 4 }, (SYMS_U64)SYMS_DwOpCode_PLUS },
-{ { (SYMS_U8*)"PLUS_UCONST", 11 }, (SYMS_U64)SYMS_DwOpCode_PLUS_UCONST },
-{ { (SYMS_U8*)"SHL", 3 }, (SYMS_U64)SYMS_DwOpCode_SHL },
-{ { (SYMS_U8*)"SHR", 3 }, (SYMS_U64)SYMS_DwOpCode_SHR },
-{ { (SYMS_U8*)"SHRA", 4 }, (SYMS_U64)SYMS_DwOpCode_SHRA },
-{ { (SYMS_U8*)"XOR", 3 }, (SYMS_U64)SYMS_DwOpCode_XOR },
-{ { (SYMS_U8*)"SKIP", 4 }, (SYMS_U64)SYMS_DwOpCode_SKIP },
-{ { (SYMS_U8*)"BRA", 3 }, (SYMS_U64)SYMS_DwOpCode_BRA },
-{ { (SYMS_U8*)"EQ", 2 }, (SYMS_U64)SYMS_DwOpCode_EQ },
-{ { (SYMS_U8*)"GE", 2 }, (SYMS_U64)SYMS_DwOpCode_GE },
-{ { (SYMS_U8*)"GT", 2 }, (SYMS_U64)SYMS_DwOpCode_GT },
-{ { (SYMS_U8*)"LE", 2 }, (SYMS_U64)SYMS_DwOpCode_LE },
-{ { (SYMS_U8*)"LT", 2 }, (SYMS_U64)SYMS_DwOpCode_LT },
-{ { (SYMS_U8*)"NE", 2 }, (SYMS_U64)SYMS_DwOpCode_NE },
-{ { (SYMS_U8*)"LIT0", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT0 },
-{ { (SYMS_U8*)"LIT1", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT1 },
-{ { (SYMS_U8*)"LIT2", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT2 },
-{ { (SYMS_U8*)"LIT3", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT3 },
-{ { (SYMS_U8*)"LIT4", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT4 },
-{ { (SYMS_U8*)"LIT5", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT5 },
-{ { (SYMS_U8*)"LIT6", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT6 },
-{ { (SYMS_U8*)"LIT7", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT7 },
-{ { (SYMS_U8*)"LIT8", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT8 },
-{ { (SYMS_U8*)"LIT9", 4 }, (SYMS_U64)SYMS_DwOpCode_LIT9 },
-{ { (SYMS_U8*)"LIT10", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT10 },
-{ { (SYMS_U8*)"LIT11", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT11 },
-{ { (SYMS_U8*)"LIT12", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT12 },
-{ { (SYMS_U8*)"LIT13", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT13 },
-{ { (SYMS_U8*)"LIT14", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT14 },
-{ { (SYMS_U8*)"LIT15", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT15 },
-{ { (SYMS_U8*)"LIT16", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT16 },
-{ { (SYMS_U8*)"LIT17", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT17 },
-{ { (SYMS_U8*)"LIT18", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT18 },
-{ { (SYMS_U8*)"LIT19", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT19 },
-{ { (SYMS_U8*)"LIT20", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT20 },
-{ { (SYMS_U8*)"LIT21", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT21 },
-{ { (SYMS_U8*)"LIT22", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT22 },
-{ { (SYMS_U8*)"LIT23", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT23 },
-{ { (SYMS_U8*)"LIT24", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT24 },
-{ { (SYMS_U8*)"LIT25", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT25 },
-{ { (SYMS_U8*)"LIT26", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT26 },
-{ { (SYMS_U8*)"LIT27", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT27 },
-{ { (SYMS_U8*)"LIT28", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT28 },
-{ { (SYMS_U8*)"LIT29", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT29 },
-{ { (SYMS_U8*)"LIT30", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT30 },
-{ { (SYMS_U8*)"LIT31", 5 }, (SYMS_U64)SYMS_DwOpCode_LIT31 },
-{ { (SYMS_U8*)"REG0", 4 }, (SYMS_U64)SYMS_DwOpCode_REG0 },
-{ { (SYMS_U8*)"REG1", 4 }, (SYMS_U64)SYMS_DwOpCode_REG1 },
-{ { (SYMS_U8*)"REG2", 4 }, (SYMS_U64)SYMS_DwOpCode_REG2 },
-{ { (SYMS_U8*)"REG3", 4 }, (SYMS_U64)SYMS_DwOpCode_REG3 },
-{ { (SYMS_U8*)"REG4", 4 }, (SYMS_U64)SYMS_DwOpCode_REG4 },
-{ { (SYMS_U8*)"REG5", 4 }, (SYMS_U64)SYMS_DwOpCode_REG5 },
-{ { (SYMS_U8*)"REG6", 4 }, (SYMS_U64)SYMS_DwOpCode_REG6 },
-{ { (SYMS_U8*)"REG7", 4 }, (SYMS_U64)SYMS_DwOpCode_REG7 },
-{ { (SYMS_U8*)"REG8", 4 }, (SYMS_U64)SYMS_DwOpCode_REG8 },
-{ { (SYMS_U8*)"REG9", 4 }, (SYMS_U64)SYMS_DwOpCode_REG9 },
-{ { (SYMS_U8*)"REG10", 5 }, (SYMS_U64)SYMS_DwOpCode_REG10 },
-{ { (SYMS_U8*)"REG11", 5 }, (SYMS_U64)SYMS_DwOpCode_REG11 },
-{ { (SYMS_U8*)"REG12", 5 }, (SYMS_U64)SYMS_DwOpCode_REG12 },
-{ { (SYMS_U8*)"REG13", 5 }, (SYMS_U64)SYMS_DwOpCode_REG13 },
-{ { (SYMS_U8*)"REG14", 5 }, (SYMS_U64)SYMS_DwOpCode_REG14 },
-{ { (SYMS_U8*)"REG15", 5 }, (SYMS_U64)SYMS_DwOpCode_REG15 },
-{ { (SYMS_U8*)"REG16", 5 }, (SYMS_U64)SYMS_DwOpCode_REG16 },
-{ { (SYMS_U8*)"REG17", 5 }, (SYMS_U64)SYMS_DwOpCode_REG17 },
-{ { (SYMS_U8*)"REG18", 5 }, (SYMS_U64)SYMS_DwOpCode_REG18 },
-{ { (SYMS_U8*)"REG19", 5 }, (SYMS_U64)SYMS_DwOpCode_REG19 },
-{ { (SYMS_U8*)"REG20", 5 }, (SYMS_U64)SYMS_DwOpCode_REG20 },
-{ { (SYMS_U8*)"REG21", 5 }, (SYMS_U64)SYMS_DwOpCode_REG21 },
-{ { (SYMS_U8*)"REG22", 5 }, (SYMS_U64)SYMS_DwOpCode_REG22 },
-{ { (SYMS_U8*)"REG23", 5 }, (SYMS_U64)SYMS_DwOpCode_REG23 },
-{ { (SYMS_U8*)"REG24", 5 }, (SYMS_U64)SYMS_DwOpCode_REG24 },
-{ { (SYMS_U8*)"REG25", 5 }, (SYMS_U64)SYMS_DwOpCode_REG25 },
-{ { (SYMS_U8*)"REG26", 5 }, (SYMS_U64)SYMS_DwOpCode_REG26 },
-{ { (SYMS_U8*)"REG27", 5 }, (SYMS_U64)SYMS_DwOpCode_REG27 },
-{ { (SYMS_U8*)"REG28", 5 }, (SYMS_U64)SYMS_DwOpCode_REG28 },
-{ { (SYMS_U8*)"REG29", 5 }, (SYMS_U64)SYMS_DwOpCode_REG29 },
-{ { (SYMS_U8*)"REG30", 5 }, (SYMS_U64)SYMS_DwOpCode_REG30 },
-{ { (SYMS_U8*)"REG31", 5 }, (SYMS_U64)SYMS_DwOpCode_REG31 },
-{ { (SYMS_U8*)"BREG0", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG0 },
-{ { (SYMS_U8*)"BREG1", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG1 },
-{ { (SYMS_U8*)"BREG2", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG2 },
-{ { (SYMS_U8*)"BREG3", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG3 },
-{ { (SYMS_U8*)"BREG4", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG4 },
-{ { (SYMS_U8*)"BREG5", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG5 },
-{ { (SYMS_U8*)"BREG6", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG6 },
-{ { (SYMS_U8*)"BREG7", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG7 },
-{ { (SYMS_U8*)"BREG8", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG8 },
-{ { (SYMS_U8*)"BREG9", 5 }, (SYMS_U64)SYMS_DwOpCode_BREG9 },
-{ { (SYMS_U8*)"BREG10", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG10 },
-{ { (SYMS_U8*)"BREG11", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG11 },
-{ { (SYMS_U8*)"BREG12", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG12 },
-{ { (SYMS_U8*)"BREG13", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG13 },
-{ { (SYMS_U8*)"BREG14", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG14 },
-{ { (SYMS_U8*)"BREG15", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG15 },
-{ { (SYMS_U8*)"BREG16", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG16 },
-{ { (SYMS_U8*)"BREG17", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG17 },
-{ { (SYMS_U8*)"BREG18", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG18 },
-{ { (SYMS_U8*)"BREG19", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG19 },
-{ { (SYMS_U8*)"BREG20", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG20 },
-{ { (SYMS_U8*)"BREG21", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG21 },
-{ { (SYMS_U8*)"BREG22", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG22 },
-{ { (SYMS_U8*)"BREG23", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG23 },
-{ { (SYMS_U8*)"BREG24", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG24 },
-{ { (SYMS_U8*)"BREG25", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG25 },
-{ { (SYMS_U8*)"BREG26", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG26 },
-{ { (SYMS_U8*)"BREG27", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG27 },
-{ { (SYMS_U8*)"BREG28", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG28 },
-{ { (SYMS_U8*)"BREG29", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG29 },
-{ { (SYMS_U8*)"BREG30", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG30 },
-{ { (SYMS_U8*)"BREG31", 6 }, (SYMS_U64)SYMS_DwOpCode_BREG31 },
-{ { (SYMS_U8*)"REGX", 4 }, (SYMS_U64)SYMS_DwOpCode_REGX },
-{ { (SYMS_U8*)"FBREG", 5 }, (SYMS_U64)SYMS_DwOpCode_FBREG },
-{ { (SYMS_U8*)"BREGX", 5 }, (SYMS_U64)SYMS_DwOpCode_BREGX },
-{ { (SYMS_U8*)"PIECE", 5 }, (SYMS_U64)SYMS_DwOpCode_PIECE },
-{ { (SYMS_U8*)"DEREF_SIZE", 10 }, (SYMS_U64)SYMS_DwOpCode_DEREF_SIZE },
-{ { (SYMS_U8*)"XDEREF_SIZE", 11 }, (SYMS_U64)SYMS_DwOpCode_XDEREF_SIZE },
-{ { (SYMS_U8*)"NOP", 3 }, (SYMS_U64)SYMS_DwOpCode_NOP },
-{ { (SYMS_U8*)"PUSH_OBJECT_ADDRESS", 19 }, (SYMS_U64)SYMS_DwOpCode_PUSH_OBJECT_ADDRESS },
-{ { (SYMS_U8*)"CALL2", 5 }, (SYMS_U64)SYMS_DwOpCode_CALL2 },
-{ { (SYMS_U8*)"CALL4", 5 }, (SYMS_U64)SYMS_DwOpCode_CALL4 },
-{ { (SYMS_U8*)"CALL_REF", 8 }, (SYMS_U64)SYMS_DwOpCode_CALL_REF },
-{ { (SYMS_U8*)"FORM_TLS_ADDRESS", 16 }, (SYMS_U64)SYMS_DwOpCode_FORM_TLS_ADDRESS },
-{ { (SYMS_U8*)"CALL_FRAME_CFA", 14 }, (SYMS_U64)SYMS_DwOpCode_CALL_FRAME_CFA },
-{ { (SYMS_U8*)"BIT_PIECE", 9 }, (SYMS_U64)SYMS_DwOpCode_BIT_PIECE },
-{ { (SYMS_U8*)"IMPLICIT_VALUE", 14 }, (SYMS_U64)SYMS_DwOpCode_IMPLICIT_VALUE },
-{ { (SYMS_U8*)"STACK_VALUE", 11 }, (SYMS_U64)SYMS_DwOpCode_STACK_VALUE },
-{ { (SYMS_U8*)"IMPLICIT_POINTER", 16 }, (SYMS_U64)SYMS_DwOpCode_IMPLICIT_POINTER },
-{ { (SYMS_U8*)"ADDRX", 5 }, (SYMS_U64)SYMS_DwOpCode_ADDRX },
-{ { (SYMS_U8*)"CONSTX", 6 }, (SYMS_U64)SYMS_DwOpCode_CONSTX },
-{ { (SYMS_U8*)"ENTRY_VALUE", 11 }, (SYMS_U64)SYMS_DwOpCode_ENTRY_VALUE },
-{ { (SYMS_U8*)"CONST_TYPE", 10 }, (SYMS_U64)SYMS_DwOpCode_CONST_TYPE },
-{ { (SYMS_U8*)"REGVAL_TYPE", 11 }, (SYMS_U64)SYMS_DwOpCode_REGVAL_TYPE },
-{ { (SYMS_U8*)"DEREF_TYPE", 10 }, (SYMS_U64)SYMS_DwOpCode_DEREF_TYPE },
-{ { (SYMS_U8*)"XDEREF_TYPE", 11 }, (SYMS_U64)SYMS_DwOpCode_XDEREF_TYPE },
-{ { (SYMS_U8*)"CONVERT", 7 }, (SYMS_U64)SYMS_DwOpCode_CONVERT },
-{ { (SYMS_U8*)"REINTERPRET", 11 }, (SYMS_U64)SYMS_DwOpCode_REINTERPRET },
-{ { (SYMS_U8*)"LO_USER", 7 }, (SYMS_U64)SYMS_DwOpCode_LO_USER },
-{ { (SYMS_U8*)"HI_USER", 7 }, (SYMS_U64)SYMS_DwOpCode_HI_USER },
-};
 SYMS_SerialValue _syms_serial_members_for_SYMS_DwAccess[] = {
 { { (SYMS_U8*)"Public", 6 }, (SYMS_U64)SYMS_DwAccess_Public },
 { { (SYMS_U8*)"Private", 7 }, (SYMS_U64)SYMS_DwAccess_Private },
@@ -6337,7 +5964,7 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_DwRngListEntryKind[] = {
 { { (SYMS_U8*)"StartLength", 11 }, (SYMS_U64)SYMS_DwRngListEntryKind_StartLength },
 };
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1259
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
 SYMS_SerialType _syms_serial_type_SYMS_DwMode = {
 {(SYMS_U8*)"SYMS_DwMode", 11}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwMode), _syms_serial_members_for_SYMS_DwMode, sizeof(SYMS_DwMode), syms_enum_index_from_value_identity
 };
@@ -6346,15 +5973,6 @@ SYMS_SerialType _syms_serial_type_SYMS_DwVersion = {
 };
 SYMS_SerialType _syms_serial_type_SYMS_DwSectionKind = {
 {(SYMS_U8*)"SYMS_DwSectionKind", 18}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwSectionKind), _syms_serial_members_for_SYMS_DwSectionKind, sizeof(SYMS_DwSectionKind), syms_enum_index_from_value_identity
-};
-SYMS_SerialType _syms_serial_type_SYMS_DwRegX86 = {
-{(SYMS_U8*)"SYMS_DwRegX86", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwRegX86), _syms_serial_members_for_SYMS_DwRegX86, sizeof(SYMS_DwRegX86), syms_enum_index_from_dwregx86
-};
-SYMS_SerialType _syms_serial_type_SYMS_DwRegX64 = {
-{(SYMS_U8*)"SYMS_DwRegX64", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwRegX64), _syms_serial_members_for_SYMS_DwRegX64, sizeof(SYMS_DwRegX64), syms_enum_index_from_dwregx64
-};
-SYMS_SerialType _syms_serial_type_SYMS_DwRegARM = {
-{(SYMS_U8*)"SYMS_DwRegARM", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwRegARM), _syms_serial_members_for_SYMS_DwRegARM, sizeof(SYMS_DwRegARM), syms_enum_index_from_dwregarm
 };
 SYMS_SerialType _syms_serial_type_SYMS_DwLanguage = {
 {(SYMS_U8*)"SYMS_DwLanguage", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwLanguage), _syms_serial_members_for_SYMS_DwLanguage, sizeof(SYMS_DwLanguage), syms_enum_index_from_dwlanguage
@@ -6386,9 +6004,6 @@ SYMS_SerialType _syms_serial_type_SYMS_DwAttribTypeEncoding = {
 SYMS_SerialType _syms_serial_type_SYMS_DwCallingConvention = {
 {(SYMS_U8*)"SYMS_DwCallingConvention", 24}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwCallingConvention), _syms_serial_members_for_SYMS_DwCallingConvention, sizeof(SYMS_DwCallingConvention), syms_enum_index_from_value_identity
 };
-SYMS_SerialType _syms_serial_type_SYMS_DwOpCode = {
-{(SYMS_U8*)"SYMS_DwOpCode", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwOpCode), _syms_serial_members_for_SYMS_DwOpCode, sizeof(SYMS_DwOpCode), syms_enum_index_from_dw_op_code
-};
 SYMS_SerialType _syms_serial_type_SYMS_DwAccess = {
 {(SYMS_U8*)"SYMS_DwAccess", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwAccess), _syms_serial_members_for_SYMS_DwAccess, sizeof(SYMS_DwAccess), syms_enum_index_from_value_identity
 };
@@ -6403,749 +6018,1458 @@ SYMS_SerialType _syms_serial_type_SYMS_DwRngListEntryKind = {
 
 
 ////////////////////////////////
-#if defined(SYMS_ENABLE_COFF_SERIAL_INFO)
+#if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:892
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
 SYMS_API SYMS_U64
-syms_enum_index_from_coffmachinetype(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U16)v){
-default: break;
-case SYMS_CoffMachineType_UNKNOWN: result = 0; break;
-case SYMS_CoffMachineType_X86: result = 1; break;
-case SYMS_CoffMachineType_X64: result = 2; break;
-case SYMS_CoffMachineType_ARM33: result = 3; break;
-case SYMS_CoffMachineType_ARM: result = 4; break;
-case SYMS_CoffMachineType_ARM64: result = 5; break;
-case SYMS_CoffMachineType_ARMNT: result = 6; break;
-case SYMS_CoffMachineType_EBC: result = 7; break;
-case SYMS_CoffMachineType_IA64: result = 8; break;
-case SYMS_CoffMachineType_M32R: result = 9; break;
-case SYMS_CoffMachineType_MIPS16: result = 10; break;
-case SYMS_CoffMachineType_MIPSFPU: result = 11; break;
-case SYMS_CoffMachineType_MIPSFPU16: result = 12; break;
-case SYMS_CoffMachineType_POWERPC: result = 13; break;
-case SYMS_CoffMachineType_POWERPCFP: result = 14; break;
-case SYMS_CoffMachineType_R4000: result = 15; break;
-case SYMS_CoffMachineType_RISCV32: result = 16; break;
-case SYMS_CoffMachineType_RISCV64: result = 17; break;
-case SYMS_CoffMachineType_RISCV128: result = 18; break;
-case SYMS_CoffMachineType_SH3: result = 19; break;
-case SYMS_CoffMachineType_SH3DSP: result = 20; break;
-case SYMS_CoffMachineType_SH4: result = 21; break;
-case SYMS_CoffMachineType_SH5: result = 22; break;
-case SYMS_CoffMachineType_THUMB: result = 23; break;
-case SYMS_CoffMachineType_WCEMIPSV2: result = 24; break;
-}
-return(result);
-}
-SYMS_API SYMS_U64
-syms_enum_index_from_coffsectionalign(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U32)v){
-default: break;
-case SYMS_CoffSectionAlign_1BYTES: result = 0; break;
-case SYMS_CoffSectionAlign_2BYTES: result = 1; break;
-case SYMS_CoffSectionAlign_4BYTES: result = 2; break;
-case SYMS_CoffSectionAlign_8BYTES: result = 3; break;
-case SYMS_CoffSectionAlign_16BYTES: result = 4; break;
-case SYMS_CoffSectionAlign_32BYTES: result = 5; break;
-case SYMS_CoffSectionAlign_64BYTES: result = 6; break;
-case SYMS_CoffSectionAlign_128BYTES: result = 7; break;
-case SYMS_CoffSectionAlign_256BYTES: result = 8; break;
-case SYMS_CoffSectionAlign_512BYTES: result = 9; break;
-case SYMS_CoffSectionAlign_1024BYTES: result = 10; break;
-case SYMS_CoffSectionAlign_2048BYTES: result = 11; break;
-case SYMS_CoffSectionAlign_4096BYTES: result = 12; break;
-case SYMS_CoffSectionAlign_8192BYTES: result = 13; break;
-}
-return(result);
-}
-// syms_enum_index_from_coffreloctypex64 - skipped identity mapping
-SYMS_API SYMS_U64
-syms_enum_index_from_coffreloctypex86(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U16)v){
-default: break;
-case SYMS_CoffRelocTypeX86_ABS: result = 0; break;
-case SYMS_CoffRelocTypeX86_DIR16: result = 1; break;
-case SYMS_CoffRelocTypeX86_REL16: result = 2; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN0: result = 3; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN2: result = 4; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN3: result = 5; break;
-case SYMS_CoffRelocTypeX86_DIR32: result = 6; break;
-case SYMS_CoffRelocTypeX86_DIR32NB: result = 7; break;
-case SYMS_CoffRelocTypeX86_SEG12: result = 8; break;
-case SYMS_CoffRelocTypeX86_SECTION: result = 9; break;
-case SYMS_CoffRelocTypeX86_SECREL: result = 10; break;
-case SYMS_CoffRelocTypeX86_TOKEN: result = 11; break;
-case SYMS_CoffRelocTypeX86_SECREL7: result = 12; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN4: result = 13; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN5: result = 14; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN6: result = 15; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN7: result = 16; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN8: result = 17; break;
-case SYMS_CoffRelocTypeX86_UNKNOWN9: result = 18; break;
-case SYMS_CoffRelocTypeX86_REL32: result = 19; break;
-}
-return(result);
-}
-SYMS_API SYMS_U64
-syms_enum_index_from_coffreloctypearm(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U16)v){
-default: break;
-case SYMS_CoffRelocTypeARM_ABS: result = 0; break;
-case SYMS_CoffRelocTypeARM_ADDR32: result = 1; break;
-case SYMS_CoffRelocTypeARM_ADDR32NB: result = 2; break;
-case SYMS_CoffRelocTypeARM_BRANCH24: result = 3; break;
-case SYMS_CoffRelocTypeARM_BRANCH11: result = 4; break;
-case SYMS_CoffRelocTypeARM_UNKNOWN1: result = 5; break;
-case SYMS_CoffRelocTypeARM_UNKNOWN2: result = 6; break;
-case SYMS_CoffRelocTypeARM_UNKNOWN3: result = 7; break;
-case SYMS_CoffRelocTypeARM_UNKNOWN4: result = 8; break;
-case SYMS_CoffRelocTypeARM_UNKNOWN5: result = 9; break;
-case SYMS_CoffRelocTypeARM_REL32: result = 10; break;
-case SYMS_CoffRelocTypeARM_SECTION: result = 11; break;
-case SYMS_CoffRelocTypeARM_SECREL: result = 12; break;
-case SYMS_CoffRelocTypeARM_MOV32: result = 13; break;
-case SYMS_CoffRelocTypeARM_THUMB_MOV32: result = 14; break;
-case SYMS_CoffRelocTypeARM_THUMB_BRANCH20: result = 15; break;
-case SYMS_CoffRelocTypeARM_UNUSED: result = 16; break;
-case SYMS_CoffRelocTypeARM_THUMB_BRANCH24: result = 17; break;
-case SYMS_CoffRelocTypeARM_THUMB_BLX23: result = 18; break;
-case SYMS_CoffRelocTypeARM_PAIR: result = 19; break;
-}
-return(result);
-}
-// syms_enum_index_from_coffreloctypearm64 - skipped identity mapping
-// syms_enum_index_from_coffsymtype - skipped identity mapping
-SYMS_API SYMS_U64
-syms_enum_index_from_coffsymstorageclass(SYMS_U64 v){
+syms_enum_index_from_dw_c_f_a_detail(SYMS_U64 v){
 SYMS_U64 result = 0;
 switch ((SYMS_U8)v){
 default: break;
-case SYMS_CoffSymStorageClass_END_OF_FUNCTION: result = 0; break;
-case SYMS_CoffSymStorageClass_NULL: result = 1; break;
-case SYMS_CoffSymStorageClass_AUTOMATIC: result = 2; break;
-case SYMS_CoffSymStorageClass_EXTERNAL: result = 3; break;
-case SYMS_CoffSymStorageClass_STATIC: result = 4; break;
-case SYMS_CoffSymStorageClass_REGISTER: result = 5; break;
-case SYMS_CoffSymStorageClass_EXTERNAL_DEF: result = 6; break;
-case SYMS_CoffSymStorageClass_LABEL: result = 7; break;
-case SYMS_CoffSymStorageClass_UNDEFINED_LABEL: result = 8; break;
-case SYMS_CoffSymStorageClass_MEMBER_OF_STRUCT: result = 9; break;
-case SYMS_CoffSymStorageClass_ARGUMENT: result = 10; break;
-case SYMS_CoffSymStorageClass_STRUCT_TAG: result = 11; break;
-case SYMS_CoffSymStorageClass_MEMBER_OF_UNION: result = 12; break;
-case SYMS_CoffSymStorageClass_UNION_TAG: result = 13; break;
-case SYMS_CoffSymStorageClass_TYPE_DEFINITION: result = 14; break;
-case SYMS_CoffSymStorageClass_UNDEFINED_STATIC: result = 15; break;
-case SYMS_CoffSymStorageClass_ENUM_TAG: result = 16; break;
-case SYMS_CoffSymStorageClass_MEMBER_OF_ENUM: result = 17; break;
-case SYMS_CoffSymStorageClass_REGISTER_PARAM: result = 18; break;
-case SYMS_CoffSymStorageClass_BIT_FIELD: result = 19; break;
-case SYMS_CoffSymStorageClass_BLOCK: result = 20; break;
-case SYMS_CoffSymStorageClass_FUNCTION: result = 21; break;
-case SYMS_CoffSymStorageClass_END_OF_STRUCT: result = 22; break;
-case SYMS_CoffSymStorageClass_FILE: result = 23; break;
-case SYMS_CoffSymStorageClass_SECTION: result = 24; break;
-case SYMS_CoffSymStorageClass_WEAK_EXTERNAL: result = 25; break;
-case SYMS_CoffSymStorageClass_CLR_TOKEN: result = 26; break;
+case SYMS_DwCFADetail_OPL_KIND1: result = 0; break;
+case SYMS_DwCFADetail_OPL_KIND2: result = 1; break;
 }
 return(result);
 }
 SYMS_API SYMS_U64
-syms_enum_index_from_coffsymsecnumber(SYMS_U64 v){
+syms_enum_index_from_dw_c_f_a_mask(SYMS_U64 v){
 SYMS_U64 result = 0;
-switch ((SYMS_U16)v){
+switch ((SYMS_U8)v){
 default: break;
-case SYMS_CoffSymSecNumber_NUMBER_UNDEFINED: result = 0; break;
-case SYMS_CoffSymSecNumber_ABSOLUTE: result = 1; break;
-case SYMS_CoffSymSecNumber_DEBUG: result = 2; break;
+case SYMS_DwCFAMask_HI_OPCODE: result = 0; break;
+case SYMS_DwCFAMask_OPERAND: result = 1; break;
 }
 return(result);
 }
-// syms_enum_index_from_coffsymdtype - skipped identity mapping
-SYMS_API SYMS_U64
-syms_enum_index_from_coffweakextflags(SYMS_U64 v){
-SYMS_U64 result = 0;
-switch ((SYMS_U32)v){
-default: break;
-case SYMS_CoffWeakExtFlags_SYMS_CoffSymbolWeakExt_SEARCH_LIBRARY: result = 0; break;
-case SYMS_CoffWeakExtFlags_SYMS_CoffSymbolWeakExt_SEARCH_ALIAS: result = 1; break;
-}
-return(result);
-}
-// syms_enum_index_from_coff_import_header_type - skipped identity mapping
-// syms_enum_index_from_coff_import_header_name_type - skipped identity mapping
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1123
-SYMS_SerialFlag _syms_serial_members_for_SYMS_CoffFlags[] = {
-{ { (SYMS_U8*)"RELOC_STRIPPED", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 0 },
-{ { (SYMS_U8*)"EXECUTABLE_IMAGE", 16 }, &_syms_serial_type_SYMS_U16, 0x1, 1 },
-{ { (SYMS_U8*)"LINE_NUMS_STRIPPED", 18 }, &_syms_serial_type_SYMS_U16, 0x1, 2 },
-{ { (SYMS_U8*)"SYM_STRIPPED", 12 }, &_syms_serial_type_SYMS_U16, 0x1, 3 },
-{ { (SYMS_U8*)"RESERVED_0", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 4 },
-{ { (SYMS_U8*)"LARGE_ADDRESS_AWARE", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 5 },
-{ { (SYMS_U8*)"RESERVED_1", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 6 },
-{ { (SYMS_U8*)"RESERVED_2", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 7 },
-{ { (SYMS_U8*)"32BIT_MACHINE", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 8 },
-{ { (SYMS_U8*)"DEBUG_STRIPPED", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 9 },
-{ { (SYMS_U8*)"REMOVABLE_RUN_FROM_SWAP", 23 }, &_syms_serial_type_SYMS_U16, 0x1, 10 },
-{ { (SYMS_U8*)"NET_RUN_FROM_SWAP", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 11 },
-{ { (SYMS_U8*)"SYSTEM", 6 }, &_syms_serial_type_SYMS_U16, 0x1, 12 },
-{ { (SYMS_U8*)"DLL", 3 }, &_syms_serial_type_SYMS_U16, 0x1, 13 },
-{ { (SYMS_U8*)"UP_SYSTEM_ONLY", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 14 },
-{ { (SYMS_U8*)"BYTES_RESERVED_HI", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 15 },
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
+SYMS_SerialValue _syms_serial_members_for_SYMS_DwCFADetail[] = {
+{ { (SYMS_U8*)"OPL_KIND1", 9 }, (SYMS_U64)SYMS_DwCFADetail_OPL_KIND1 },
+{ { (SYMS_U8*)"OPL_KIND2", 9 }, (SYMS_U64)SYMS_DwCFADetail_OPL_KIND2 },
 };
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffMachineType[] = {
-{ { (SYMS_U8*)"UNKNOWN", 7 }, (SYMS_U64)SYMS_CoffMachineType_UNKNOWN },
-{ { (SYMS_U8*)"X86", 3 }, (SYMS_U64)SYMS_CoffMachineType_X86 },
-{ { (SYMS_U8*)"X64", 3 }, (SYMS_U64)SYMS_CoffMachineType_X64 },
-{ { (SYMS_U8*)"ARM33", 5 }, (SYMS_U64)SYMS_CoffMachineType_ARM33 },
-{ { (SYMS_U8*)"ARM", 3 }, (SYMS_U64)SYMS_CoffMachineType_ARM },
-{ { (SYMS_U8*)"ARM64", 5 }, (SYMS_U64)SYMS_CoffMachineType_ARM64 },
-{ { (SYMS_U8*)"ARMNT", 5 }, (SYMS_U64)SYMS_CoffMachineType_ARMNT },
-{ { (SYMS_U8*)"EBC", 3 }, (SYMS_U64)SYMS_CoffMachineType_EBC },
-{ { (SYMS_U8*)"IA64", 4 }, (SYMS_U64)SYMS_CoffMachineType_IA64 },
-{ { (SYMS_U8*)"M32R", 4 }, (SYMS_U64)SYMS_CoffMachineType_M32R },
-{ { (SYMS_U8*)"MIPS16", 6 }, (SYMS_U64)SYMS_CoffMachineType_MIPS16 },
-{ { (SYMS_U8*)"MIPSFPU", 7 }, (SYMS_U64)SYMS_CoffMachineType_MIPSFPU },
-{ { (SYMS_U8*)"MIPSFPU16", 9 }, (SYMS_U64)SYMS_CoffMachineType_MIPSFPU16 },
-{ { (SYMS_U8*)"POWERPC", 7 }, (SYMS_U64)SYMS_CoffMachineType_POWERPC },
-{ { (SYMS_U8*)"POWERPCFP", 9 }, (SYMS_U64)SYMS_CoffMachineType_POWERPCFP },
-{ { (SYMS_U8*)"R4000", 5 }, (SYMS_U64)SYMS_CoffMachineType_R4000 },
-{ { (SYMS_U8*)"RISCV32", 7 }, (SYMS_U64)SYMS_CoffMachineType_RISCV32 },
-{ { (SYMS_U8*)"RISCV64", 7 }, (SYMS_U64)SYMS_CoffMachineType_RISCV64 },
-{ { (SYMS_U8*)"RISCV128", 8 }, (SYMS_U64)SYMS_CoffMachineType_RISCV128 },
-{ { (SYMS_U8*)"SH3", 3 }, (SYMS_U64)SYMS_CoffMachineType_SH3 },
-{ { (SYMS_U8*)"SH3DSP", 6 }, (SYMS_U64)SYMS_CoffMachineType_SH3DSP },
-{ { (SYMS_U8*)"SH4", 3 }, (SYMS_U64)SYMS_CoffMachineType_SH4 },
-{ { (SYMS_U8*)"SH5", 3 }, (SYMS_U64)SYMS_CoffMachineType_SH5 },
-{ { (SYMS_U8*)"THUMB", 5 }, (SYMS_U64)SYMS_CoffMachineType_THUMB },
-{ { (SYMS_U8*)"WCEMIPSV2", 9 }, (SYMS_U64)SYMS_CoffMachineType_WCEMIPSV2 },
-};
-static SYMS_SerialField _syms_serial_members_for_SYMS_CoffHeader[] = {
-{ {(SYMS_U8*)"machine", 7}, &_syms_serial_type_SYMS_CoffMachineType, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"section_count", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"time_date_stamp", 15}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"pointer_to_symbol_table", 23}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"number_of_symbols", 17}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"size_of_optional_header", 23}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_CoffFlags, SYMS_SerialWidthKind_Null, 0 },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSectionAlign[] = {
-{ { (SYMS_U8*)"1BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_1BYTES },
-{ { (SYMS_U8*)"2BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_2BYTES },
-{ { (SYMS_U8*)"4BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_4BYTES },
-{ { (SYMS_U8*)"8BYTES", 6 }, (SYMS_U64)SYMS_CoffSectionAlign_8BYTES },
-{ { (SYMS_U8*)"16BYTES", 7 }, (SYMS_U64)SYMS_CoffSectionAlign_16BYTES },
-{ { (SYMS_U8*)"32BYTES", 7 }, (SYMS_U64)SYMS_CoffSectionAlign_32BYTES },
-{ { (SYMS_U8*)"64BYTES", 7 }, (SYMS_U64)SYMS_CoffSectionAlign_64BYTES },
-{ { (SYMS_U8*)"128BYTES", 8 }, (SYMS_U64)SYMS_CoffSectionAlign_128BYTES },
-{ { (SYMS_U8*)"256BYTES", 8 }, (SYMS_U64)SYMS_CoffSectionAlign_256BYTES },
-{ { (SYMS_U8*)"512BYTES", 8 }, (SYMS_U64)SYMS_CoffSectionAlign_512BYTES },
-{ { (SYMS_U8*)"1024BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_1024BYTES },
-{ { (SYMS_U8*)"2048BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_2048BYTES },
-{ { (SYMS_U8*)"4096BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_4096BYTES },
-{ { (SYMS_U8*)"8192BYTES", 9 }, (SYMS_U64)SYMS_CoffSectionAlign_8192BYTES },
-};
-SYMS_SerialFlag _syms_serial_members_for_SYMS_CoffSectionFlags[] = {
-{ { (SYMS_U8*)"TYPE_NO_PAD", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
-{ { (SYMS_U8*)"Contains Code", 13 }, &_syms_serial_type_SYMS_U32, 0x1, 5 },
-{ { (SYMS_U8*)"Initialized Data", 16 }, &_syms_serial_type_SYMS_U32, 0x1, 6 },
-{ { (SYMS_U8*)"Uninitialized Data", 18 }, &_syms_serial_type_SYMS_U32, 0x1, 7 },
-{ { (SYMS_U8*)"LNK_OTHER", 9 }, &_syms_serial_type_SYMS_U32, 0x1, 8 },
-{ { (SYMS_U8*)"LNK_INFO", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 9 },
-{ { (SYMS_U8*)"LNK_REMOVE", 10 }, &_syms_serial_type_SYMS_U32, 0x1, 11 },
-{ { (SYMS_U8*)"COMDAT", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 12 },
-{ { (SYMS_U8*)"GPREL", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 15 },
-{ { (SYMS_U8*)"ALIGN", 5 }, &_syms_serial_type_SYMS_CoffSectionAlign, 0xf, 20 },
-{ { (SYMS_U8*)"NRELOC OVFL", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 24 },
-{ { (SYMS_U8*)"Discardable", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 25 },
-{ { (SYMS_U8*)"Cannot be Cached", 16 }, &_syms_serial_type_SYMS_U32, 0x1, 26 },
-{ { (SYMS_U8*)"Not Pageable", 12 }, &_syms_serial_type_SYMS_U32, 0x1, 27 },
-{ { (SYMS_U8*)"Shared", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 28 },
-{ { (SYMS_U8*)"Execute", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 29 },
-{ { (SYMS_U8*)"Read", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 30 },
-{ { (SYMS_U8*)"Write", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 31 },
-};
-static SYMS_SerialField _syms_serial_members_for_SYMS_CoffSection[] = {
-{ {(SYMS_U8*)"name", 4}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 8 },
-{ {(SYMS_U8*)"virt_size", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"virt_off", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"file_size", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"file_off", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"relocs_file_offset", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"line_nums_file_offset", 21}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"relocs_count", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"line_nums_count", 15}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_CoffSectionFlags, SYMS_SerialWidthKind_Null, 0 },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffRelocTypeX64[] = {
-{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ABS },
-{ { (SYMS_U8*)"ADDR64", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ADDR64 },
-{ { (SYMS_U8*)"ADDR32", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ADDR32 },
-{ { (SYMS_U8*)"ADDR32NB", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX64_ADDR32NB },
-{ { (SYMS_U8*)"REL32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32 },
-{ { (SYMS_U8*)"REL32_1", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_1 },
-{ { (SYMS_U8*)"REL32_2", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_2 },
-{ { (SYMS_U8*)"REL32_3", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_3 },
-{ { (SYMS_U8*)"REL32_4", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_4 },
-{ { (SYMS_U8*)"REL32_5", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_REL32_5 },
-{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SECTION },
-{ { (SYMS_U8*)"SECREL", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SECREL },
-{ { (SYMS_U8*)"SECREL7", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SECREL7 },
-{ { (SYMS_U8*)"TOKEN", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX64_TOKEN },
-{ { (SYMS_U8*)"SREL32", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SREL32 },
-{ { (SYMS_U8*)"PAIR", 4 }, (SYMS_U64)SYMS_CoffRelocTypeX64_PAIR },
-{ { (SYMS_U8*)"SSPAN32", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX64_SSPAN32 },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffRelocTypeX86[] = {
-{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_CoffRelocTypeX86_ABS },
-{ { (SYMS_U8*)"DIR16", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_DIR16 },
-{ { (SYMS_U8*)"REL16", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_REL16 },
-{ { (SYMS_U8*)"UNKNOWN0", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN0 },
-{ { (SYMS_U8*)"UNKNOWN2", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN2 },
-{ { (SYMS_U8*)"UNKNOWN3", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN3 },
-{ { (SYMS_U8*)"DIR32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_DIR32 },
-{ { (SYMS_U8*)"DIR32NB", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX86_DIR32NB },
-{ { (SYMS_U8*)"SEG12", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SEG12 },
-{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SECTION },
-{ { (SYMS_U8*)"SECREL", 6 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SECREL },
-{ { (SYMS_U8*)"TOKEN", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_TOKEN },
-{ { (SYMS_U8*)"SECREL7", 7 }, (SYMS_U64)SYMS_CoffRelocTypeX86_SECREL7 },
-{ { (SYMS_U8*)"UNKNOWN4", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN4 },
-{ { (SYMS_U8*)"UNKNOWN5", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN5 },
-{ { (SYMS_U8*)"UNKNOWN6", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN6 },
-{ { (SYMS_U8*)"UNKNOWN7", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN7 },
-{ { (SYMS_U8*)"UNKNOWN8", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN8 },
-{ { (SYMS_U8*)"UNKNOWN9", 8 }, (SYMS_U64)SYMS_CoffRelocTypeX86_UNKNOWN9 },
-{ { (SYMS_U8*)"REL32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeX86_REL32 },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffRelocTypeARM[] = {
-{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_CoffRelocTypeARM_ABS },
-{ { (SYMS_U8*)"ADDR32", 6 }, (SYMS_U64)SYMS_CoffRelocTypeARM_ADDR32 },
-{ { (SYMS_U8*)"ADDR32NB", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_ADDR32NB },
-{ { (SYMS_U8*)"BRANCH24", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_BRANCH24 },
-{ { (SYMS_U8*)"BRANCH11", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_BRANCH11 },
-{ { (SYMS_U8*)"UNKNOWN1", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN1 },
-{ { (SYMS_U8*)"UNKNOWN2", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN2 },
-{ { (SYMS_U8*)"UNKNOWN3", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN3 },
-{ { (SYMS_U8*)"UNKNOWN4", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN4 },
-{ { (SYMS_U8*)"UNKNOWN5", 8 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNKNOWN5 },
-{ { (SYMS_U8*)"REL32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeARM_REL32 },
-{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffRelocTypeARM_SECTION },
-{ { (SYMS_U8*)"SECREL", 6 }, (SYMS_U64)SYMS_CoffRelocTypeARM_SECREL },
-{ { (SYMS_U8*)"MOV32", 5 }, (SYMS_U64)SYMS_CoffRelocTypeARM_MOV32 },
-{ { (SYMS_U8*)"THUMB_MOV32", 11 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_MOV32 },
-{ { (SYMS_U8*)"THUMB_BRANCH20", 14 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_BRANCH20 },
-{ { (SYMS_U8*)"UNUSED", 6 }, (SYMS_U64)SYMS_CoffRelocTypeARM_UNUSED },
-{ { (SYMS_U8*)"THUMB_BRANCH24", 14 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_BRANCH24 },
-{ { (SYMS_U8*)"THUMB_BLX23", 11 }, (SYMS_U64)SYMS_CoffRelocTypeARM_THUMB_BLX23 },
-{ { (SYMS_U8*)"PAIR", 4 }, (SYMS_U64)SYMS_CoffRelocTypeARM_PAIR },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymType[] = {
-{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_CoffSymType_NULL },
-{ { (SYMS_U8*)"VOID", 4 }, (SYMS_U64)SYMS_CoffSymType_VOID },
-{ { (SYMS_U8*)"CHAR", 4 }, (SYMS_U64)SYMS_CoffSymType_CHAR },
-{ { (SYMS_U8*)"SHORT", 5 }, (SYMS_U64)SYMS_CoffSymType_SHORT },
-{ { (SYMS_U8*)"INT", 3 }, (SYMS_U64)SYMS_CoffSymType_INT },
-{ { (SYMS_U8*)"LONG", 4 }, (SYMS_U64)SYMS_CoffSymType_LONG },
-{ { (SYMS_U8*)"FLOAT", 5 }, (SYMS_U64)SYMS_CoffSymType_FLOAT },
-{ { (SYMS_U8*)"DOUBLE", 6 }, (SYMS_U64)SYMS_CoffSymType_DOUBLE },
-{ { (SYMS_U8*)"STRUCT", 6 }, (SYMS_U64)SYMS_CoffSymType_STRUCT },
-{ { (SYMS_U8*)"UNION", 5 }, (SYMS_U64)SYMS_CoffSymType_UNION },
-{ { (SYMS_U8*)"ENUM", 4 }, (SYMS_U64)SYMS_CoffSymType_ENUM },
-{ { (SYMS_U8*)"MOE", 3 }, (SYMS_U64)SYMS_CoffSymType_MOE },
-{ { (SYMS_U8*)"BYTE", 4 }, (SYMS_U64)SYMS_CoffSymType_BYTE },
-{ { (SYMS_U8*)"WORD", 4 }, (SYMS_U64)SYMS_CoffSymType_WORD },
-{ { (SYMS_U8*)"UINT", 4 }, (SYMS_U64)SYMS_CoffSymType_UINT },
-{ { (SYMS_U8*)"DWORD", 5 }, (SYMS_U64)SYMS_CoffSymType_DWORD },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymStorageClass[] = {
-{ { (SYMS_U8*)"END_OF_FUNCTION", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_END_OF_FUNCTION },
-{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_CoffSymStorageClass_NULL },
-{ { (SYMS_U8*)"AUTOMATIC", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_AUTOMATIC },
-{ { (SYMS_U8*)"EXTERNAL", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_EXTERNAL },
-{ { (SYMS_U8*)"STATIC", 6 }, (SYMS_U64)SYMS_CoffSymStorageClass_STATIC },
-{ { (SYMS_U8*)"REGISTER", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_REGISTER },
-{ { (SYMS_U8*)"EXTERNAL_DEF", 12 }, (SYMS_U64)SYMS_CoffSymStorageClass_EXTERNAL_DEF },
-{ { (SYMS_U8*)"LABEL", 5 }, (SYMS_U64)SYMS_CoffSymStorageClass_LABEL },
-{ { (SYMS_U8*)"UNDEFINED_LABEL", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_UNDEFINED_LABEL },
-{ { (SYMS_U8*)"MEMBER_OF_STRUCT", 16 }, (SYMS_U64)SYMS_CoffSymStorageClass_MEMBER_OF_STRUCT },
-{ { (SYMS_U8*)"ARGUMENT", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_ARGUMENT },
-{ { (SYMS_U8*)"STRUCT_TAG", 10 }, (SYMS_U64)SYMS_CoffSymStorageClass_STRUCT_TAG },
-{ { (SYMS_U8*)"MEMBER_OF_UNION", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_MEMBER_OF_UNION },
-{ { (SYMS_U8*)"UNION_TAG", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_UNION_TAG },
-{ { (SYMS_U8*)"TYPE_DEFINITION", 15 }, (SYMS_U64)SYMS_CoffSymStorageClass_TYPE_DEFINITION },
-{ { (SYMS_U8*)"UNDEFINED_STATIC", 16 }, (SYMS_U64)SYMS_CoffSymStorageClass_UNDEFINED_STATIC },
-{ { (SYMS_U8*)"ENUM_TAG", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_ENUM_TAG },
-{ { (SYMS_U8*)"MEMBER_OF_ENUM", 14 }, (SYMS_U64)SYMS_CoffSymStorageClass_MEMBER_OF_ENUM },
-{ { (SYMS_U8*)"REGISTER_PARAM", 14 }, (SYMS_U64)SYMS_CoffSymStorageClass_REGISTER_PARAM },
-{ { (SYMS_U8*)"BIT_FIELD", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_BIT_FIELD },
-{ { (SYMS_U8*)"BLOCK", 5 }, (SYMS_U64)SYMS_CoffSymStorageClass_BLOCK },
-{ { (SYMS_U8*)"FUNCTION", 8 }, (SYMS_U64)SYMS_CoffSymStorageClass_FUNCTION },
-{ { (SYMS_U8*)"END_OF_STRUCT", 13 }, (SYMS_U64)SYMS_CoffSymStorageClass_END_OF_STRUCT },
-{ { (SYMS_U8*)"FILE", 4 }, (SYMS_U64)SYMS_CoffSymStorageClass_FILE },
-{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_CoffSymStorageClass_SECTION },
-{ { (SYMS_U8*)"WEAK_EXTERNAL", 13 }, (SYMS_U64)SYMS_CoffSymStorageClass_WEAK_EXTERNAL },
-{ { (SYMS_U8*)"CLR_TOKEN", 9 }, (SYMS_U64)SYMS_CoffSymStorageClass_CLR_TOKEN },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymSecNumber[] = {
-{ { (SYMS_U8*)"NUMBER_UNDEFINED", 16 }, (SYMS_U64)SYMS_CoffSymSecNumber_NUMBER_UNDEFINED },
-{ { (SYMS_U8*)"ABSOLUTE", 8 }, (SYMS_U64)SYMS_CoffSymSecNumber_ABSOLUTE },
-{ { (SYMS_U8*)"DEBUG", 5 }, (SYMS_U64)SYMS_CoffSymSecNumber_DEBUG },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffSymDType[] = {
-{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_CoffSymDType_NULL },
-{ { (SYMS_U8*)"POINTER", 7 }, (SYMS_U64)SYMS_CoffSymDType_POINTER },
-{ { (SYMS_U8*)"FUNCTION", 8 }, (SYMS_U64)SYMS_CoffSymDType_FUNCTION },
-{ { (SYMS_U8*)"ARRAY", 5 }, (SYMS_U64)SYMS_CoffSymDType_ARRAY },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffWeakExtFlags[] = {
-{ { (SYMS_U8*)"SYMS_COFFSYMBOLWEAKEXT_SEARCH_LIBRARY", 37 }, (SYMS_U64)SYMS_CoffWeakExtFlags_SYMS_CoffSymbolWeakExt_SEARCH_LIBRARY },
-{ { (SYMS_U8*)"SYMS_COFFSYMBOLWEAKEXT_SEARCH_ALIAS", 35 }, (SYMS_U64)SYMS_CoffWeakExtFlags_SYMS_CoffSymbolWeakExt_SEARCH_ALIAS },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffImportHeaderType[] = {
-{ { (SYMS_U8*)"CODE", 4 }, (SYMS_U64)SYMS_CoffImportHeaderType_CODE },
-{ { (SYMS_U8*)"DATA", 4 }, (SYMS_U64)SYMS_CoffImportHeaderType_DATA },
-{ { (SYMS_U8*)"CONST", 5 }, (SYMS_U64)SYMS_CoffImportHeaderType_CONST },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_CoffImportHeaderNameType[] = {
-{ { (SYMS_U8*)"ORDINAL", 7 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_ORDINAL },
-{ { (SYMS_U8*)"NAME", 4 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_NAME },
-{ { (SYMS_U8*)"NAME_NOPREFIX", 13 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_NAME_NOPREFIX },
-{ { (SYMS_U8*)"UNDECORATE", 10 }, (SYMS_U64)SYMS_CoffImportHeaderNameType_UNDECORATE },
+SYMS_SerialValue _syms_serial_members_for_SYMS_DwCFAMask[] = {
+{ { (SYMS_U8*)"HI_OPCODE", 9 }, (SYMS_U64)SYMS_DwCFAMask_HI_OPCODE },
+{ { (SYMS_U8*)"OPERAND", 7 }, (SYMS_U64)SYMS_DwCFAMask_OPERAND },
 };
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1259
-SYMS_SerialType _syms_serial_type_SYMS_CoffFlags = {
-{(SYMS_U8*)"SYMS_CoffFlags", 14}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffFlags), _syms_serial_members_for_SYMS_CoffFlags, sizeof(SYMS_CoffFlags), 0
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
+SYMS_SerialType _syms_serial_type_SYMS_DwCFADetail = {
+{(SYMS_U8*)"SYMS_DwCFADetail", 16}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwCFADetail), _syms_serial_members_for_SYMS_DwCFADetail, sizeof(SYMS_DwCFADetail), syms_enum_index_from_dw_c_f_a_detail
 };
-SYMS_SerialType _syms_serial_type_SYMS_CoffMachineType = {
-{(SYMS_U8*)"SYMS_CoffMachineType", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffMachineType), _syms_serial_members_for_SYMS_CoffMachineType, sizeof(SYMS_CoffMachineType), syms_enum_index_from_coffmachinetype
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffHeader = {
-{(SYMS_U8*)"CoffHeader", 10}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffHeader), _syms_serial_members_for_SYMS_CoffHeader, sizeof(SYMS_CoffHeader), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffSectionAlign = {
-{(SYMS_U8*)"SYMS_CoffSectionAlign", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSectionAlign), _syms_serial_members_for_SYMS_CoffSectionAlign, sizeof(SYMS_CoffSectionAlign), syms_enum_index_from_coffsectionalign
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffSectionFlags = {
-{(SYMS_U8*)"SYMS_CoffSectionFlags", 21}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSectionFlags), _syms_serial_members_for_SYMS_CoffSectionFlags, sizeof(SYMS_CoffSectionFlags), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffSection = {
-{(SYMS_U8*)"CoffSection", 11}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSection), _syms_serial_members_for_SYMS_CoffSection, sizeof(SYMS_CoffSection), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX64 = {
-{(SYMS_U8*)"SYMS_CoffRelocTypeX64", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffRelocTypeX64), _syms_serial_members_for_SYMS_CoffRelocTypeX64, sizeof(SYMS_CoffRelocTypeX64), syms_enum_index_from_value_identity
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX86 = {
-{(SYMS_U8*)"SYMS_CoffRelocTypeX86", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffRelocTypeX86), _syms_serial_members_for_SYMS_CoffRelocTypeX86, sizeof(SYMS_CoffRelocTypeX86), syms_enum_index_from_coffreloctypex86
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM = {
-{(SYMS_U8*)"SYMS_CoffRelocTypeARM", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffRelocTypeARM), _syms_serial_members_for_SYMS_CoffRelocTypeARM, sizeof(SYMS_CoffRelocTypeARM), syms_enum_index_from_coffreloctypearm
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM64 = {
-{(SYMS_U8*)"SYMS_CoffRelocTypeARM64", 23}, SYMS_SerialTypeKind_Enum, 0, 0, sizeof(SYMS_CoffRelocTypeARM64), syms_enum_index_from_value_identity
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffSymType = {
-{(SYMS_U8*)"SYMS_CoffSymType", 16}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymType), _syms_serial_members_for_SYMS_CoffSymType, sizeof(SYMS_CoffSymType), syms_enum_index_from_value_identity
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffSymStorageClass = {
-{(SYMS_U8*)"SYMS_CoffSymStorageClass", 24}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymStorageClass), _syms_serial_members_for_SYMS_CoffSymStorageClass, sizeof(SYMS_CoffSymStorageClass), syms_enum_index_from_coffsymstorageclass
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffSymSecNumber = {
-{(SYMS_U8*)"SYMS_CoffSymSecNumber", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymSecNumber), _syms_serial_members_for_SYMS_CoffSymSecNumber, sizeof(SYMS_CoffSymSecNumber), syms_enum_index_from_coffsymsecnumber
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffSymDType = {
-{(SYMS_U8*)"SYMS_CoffSymDType", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffSymDType), _syms_serial_members_for_SYMS_CoffSymDType, sizeof(SYMS_CoffSymDType), syms_enum_index_from_value_identity
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffWeakExtFlags = {
-{(SYMS_U8*)"SYMS_CoffWeakExtFlags", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffWeakExtFlags), _syms_serial_members_for_SYMS_CoffWeakExtFlags, sizeof(SYMS_CoffWeakExtFlags), syms_enum_index_from_coffweakextflags
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderType = {
-{(SYMS_U8*)"SYMS_CoffImportHeaderType", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffImportHeaderType), _syms_serial_members_for_SYMS_CoffImportHeaderType, sizeof(SYMS_CoffImportHeaderType), syms_enum_index_from_value_identity
-};
-SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderNameType = {
-{(SYMS_U8*)"SYMS_CoffImportHeaderNameType", 29}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CoffImportHeaderNameType), _syms_serial_members_for_SYMS_CoffImportHeaderNameType, sizeof(SYMS_CoffImportHeaderNameType), syms_enum_index_from_value_identity
+SYMS_SerialType _syms_serial_type_SYMS_DwCFAMask = {
+{(SYMS_U8*)"SYMS_DwCFAMask", 14}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwCFAMask), _syms_serial_members_for_SYMS_DwCFAMask, sizeof(SYMS_DwCFAMask), syms_enum_index_from_dw_c_f_a_mask
 };
 
-#endif // defined(SYMS_ENABLE_COFF_SERIAL_INFO)
+#endif // defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
 
 ////////////////////////////////
-#if defined(SYMS_ENABLE_PE_SERIAL_INFO)
+#if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:892
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
 SYMS_API SYMS_U64
-syms_enum_index_from_pe_windows_subsystem(SYMS_U64 v){
+syms_enum_index_from_dwregx86(SYMS_U64 v){
 SYMS_U64 result = 0;
-switch ((SYMS_U16)v){
+switch ((SYMS_U64)v){
 default: break;
-case SYMS_PeWindowsSubsystem_UNKNOWN: result = 0; break;
-case SYMS_PeWindowsSubsystem_NATIVE: result = 1; break;
-case SYMS_PeWindowsSubsystem_WINDOWS_GUI: result = 2; break;
-case SYMS_PeWindowsSubsystem_WINDOWS_CUI: result = 3; break;
-case SYMS_PeWindowsSubsystem_OS2_CUI: result = 4; break;
-case SYMS_PeWindowsSubsystem_POSIX_CUI: result = 5; break;
-case SYMS_PeWindowsSubsystem_NATIVE_WINDOWS: result = 6; break;
-case SYMS_PeWindowsSubsystem_WINDOWS_CE_GUI: result = 7; break;
-case SYMS_PeWindowsSubsystem_EFI_APPLICATION: result = 8; break;
-case SYMS_PeWindowsSubsystem_EFI_BOOT_SERVICE_DRIVER: result = 9; break;
-case SYMS_PeWindowsSubsystem_EFI_RUNTIME_DRIVER: result = 10; break;
-case SYMS_PeWindowsSubsystem_EFI_ROM: result = 11; break;
-case SYMS_PeWindowsSubsystem_XBOX: result = 12; break;
-case SYMS_PeWindowsSubsystem_WINDOWS_BOOT_APPLICATION: result = 13; break;
+case SYMS_DwRegX86_EAX: result = 0; break;
+case SYMS_DwRegX86_ECX: result = 1; break;
+case SYMS_DwRegX86_EDX: result = 2; break;
+case SYMS_DwRegX86_EBX: result = 3; break;
+case SYMS_DwRegX86_ESP: result = 4; break;
+case SYMS_DwRegX86_EBP: result = 5; break;
+case SYMS_DwRegX86_ESI: result = 6; break;
+case SYMS_DwRegX86_EDI: result = 7; break;
+case SYMS_DwRegX86_EIP: result = 8; break;
+case SYMS_DwRegX86_EFLAGS: result = 9; break;
+case SYMS_DwRegX86_TRAPNO: result = 10; break;
+case SYMS_DwRegX86_ST0: result = 11; break;
+case SYMS_DwRegX86_ST1: result = 12; break;
+case SYMS_DwRegX86_ST2: result = 13; break;
+case SYMS_DwRegX86_ST3: result = 14; break;
+case SYMS_DwRegX86_ST4: result = 15; break;
+case SYMS_DwRegX86_ST5: result = 16; break;
+case SYMS_DwRegX86_ST6: result = 17; break;
+case SYMS_DwRegX86_ST7: result = 18; break;
+case SYMS_DwRegX86_XMM0: result = 19; break;
+case SYMS_DwRegX86_XMM1: result = 20; break;
+case SYMS_DwRegX86_XMM2: result = 21; break;
+case SYMS_DwRegX86_XMM3: result = 22; break;
+case SYMS_DwRegX86_XMM4: result = 23; break;
+case SYMS_DwRegX86_XMM5: result = 24; break;
+case SYMS_DwRegX86_XMM6: result = 25; break;
+case SYMS_DwRegX86_XMM7: result = 26; break;
+case SYMS_DwRegX86_MM0: result = 27; break;
+case SYMS_DwRegX86_MM1: result = 28; break;
+case SYMS_DwRegX86_MM2: result = 29; break;
+case SYMS_DwRegX86_MM3: result = 30; break;
+case SYMS_DwRegX86_MM4: result = 31; break;
+case SYMS_DwRegX86_MM5: result = 32; break;
+case SYMS_DwRegX86_MM6: result = 33; break;
+case SYMS_DwRegX86_MM7: result = 34; break;
+case SYMS_DwRegX86_FCW: result = 35; break;
+case SYMS_DwRegX86_FSW: result = 36; break;
+case SYMS_DwRegX86_MXCSR: result = 37; break;
+case SYMS_DwRegX86_ES: result = 38; break;
+case SYMS_DwRegX86_CS: result = 39; break;
+case SYMS_DwRegX86_SS: result = 40; break;
+case SYMS_DwRegX86_DS: result = 41; break;
+case SYMS_DwRegX86_FS: result = 42; break;
+case SYMS_DwRegX86_GS: result = 43; break;
+case SYMS_DwRegX86_TR: result = 44; break;
+case SYMS_DwRegX86_LDTR: result = 45; break;
 }
 return(result);
 }
-// syms_enum_index_from_pe_data_directory_index - skipped identity mapping
 SYMS_API SYMS_U64
-syms_enum_index_from_pe_debug_directory_type(SYMS_U64 v){
+syms_enum_index_from_dwregx64(SYMS_U64 v){
 SYMS_U64 result = 0;
 switch ((SYMS_U32)v){
 default: break;
-case SYMS_PeDebugDirectoryType_UNKNOWN: result = 0; break;
-case SYMS_PeDebugDirectoryType_COFF: result = 1; break;
-case SYMS_PeDebugDirectoryType_CODEVIEW: result = 2; break;
-case SYMS_PeDebugDirectoryType_FPO: result = 3; break;
-case SYMS_PeDebugDirectoryType_MISC: result = 4; break;
-case SYMS_PeDebugDirectoryType_EXCEPTION: result = 5; break;
-case SYMS_PeDebugDirectoryType_FIXUP: result = 6; break;
-case SYMS_PeDebugDirectoryType_OMAP_TO_SRC: result = 7; break;
-case SYMS_PeDebugDirectoryType_OMAP_FROM_SRC: result = 8; break;
-case SYMS_PeDebugDirectoryType_BORLAND: result = 9; break;
-case SYMS_PeDebugDirectoryType_RESERVED10: result = 10; break;
-case SYMS_PeDebugDirectoryType_CLSID: result = 11; break;
-case SYMS_PeDebugDirectoryType_REPRO: result = 12; break;
-case SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS: result = 13; break;
+case SYMS_DwRegX64_RAX: result = 0; break;
+case SYMS_DwRegX64_RDX: result = 1; break;
+case SYMS_DwRegX64_RCX: result = 2; break;
+case SYMS_DwRegX64_RBX: result = 3; break;
+case SYMS_DwRegX64_RSI: result = 4; break;
+case SYMS_DwRegX64_RDI: result = 5; break;
+case SYMS_DwRegX64_RBP: result = 6; break;
+case SYMS_DwRegX64_RSP: result = 7; break;
+case SYMS_DwRegX64_R8: result = 8; break;
+case SYMS_DwRegX64_R9: result = 9; break;
+case SYMS_DwRegX64_R10: result = 10; break;
+case SYMS_DwRegX64_R11: result = 11; break;
+case SYMS_DwRegX64_R12: result = 12; break;
+case SYMS_DwRegX64_R13: result = 13; break;
+case SYMS_DwRegX64_R14: result = 14; break;
+case SYMS_DwRegX64_R15: result = 15; break;
+case SYMS_DwRegX64_RIP: result = 16; break;
+case SYMS_DwRegX64_XMM0: result = 17; break;
+case SYMS_DwRegX64_XMM1: result = 18; break;
+case SYMS_DwRegX64_XMM2: result = 19; break;
+case SYMS_DwRegX64_XMM3: result = 20; break;
+case SYMS_DwRegX64_XMM4: result = 21; break;
+case SYMS_DwRegX64_XMM5: result = 22; break;
+case SYMS_DwRegX64_XMM6: result = 23; break;
+case SYMS_DwRegX64_XMM7: result = 24; break;
+case SYMS_DwRegX64_XMM8: result = 25; break;
+case SYMS_DwRegX64_XMM9: result = 26; break;
+case SYMS_DwRegX64_XMM10: result = 27; break;
+case SYMS_DwRegX64_XMM11: result = 28; break;
+case SYMS_DwRegX64_XMM12: result = 29; break;
+case SYMS_DwRegX64_XMM13: result = 30; break;
+case SYMS_DwRegX64_XMM14: result = 31; break;
+case SYMS_DwRegX64_XMM15: result = 32; break;
+case SYMS_DwRegX64_ST0: result = 33; break;
+case SYMS_DwRegX64_ST1: result = 34; break;
+case SYMS_DwRegX64_ST2: result = 35; break;
+case SYMS_DwRegX64_ST3: result = 36; break;
+case SYMS_DwRegX64_ST4: result = 37; break;
+case SYMS_DwRegX64_ST5: result = 38; break;
+case SYMS_DwRegX64_ST6: result = 39; break;
+case SYMS_DwRegX64_ST7: result = 40; break;
+case SYMS_DwRegX64_MM0: result = 41; break;
+case SYMS_DwRegX64_MM1: result = 42; break;
+case SYMS_DwRegX64_MM2: result = 43; break;
+case SYMS_DwRegX64_MM3: result = 44; break;
+case SYMS_DwRegX64_MM4: result = 45; break;
+case SYMS_DwRegX64_MM5: result = 46; break;
+case SYMS_DwRegX64_MM6: result = 47; break;
+case SYMS_DwRegX64_MM7: result = 48; break;
+case SYMS_DwRegX64_RFLAGS: result = 49; break;
+case SYMS_DwRegX64_ES: result = 50; break;
+case SYMS_DwRegX64_CS: result = 51; break;
+case SYMS_DwRegX64_SS: result = 52; break;
+case SYMS_DwRegX64_DS: result = 53; break;
+case SYMS_DwRegX64_FS: result = 54; break;
+case SYMS_DwRegX64_GS: result = 55; break;
+case SYMS_DwRegX64_FS_BASE: result = 56; break;
+case SYMS_DwRegX64_GS_BASE: result = 57; break;
+case SYMS_DwRegX64_TR: result = 58; break;
+case SYMS_DwRegX64_LDTR: result = 59; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_dw_op(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U64)v){
+default: break;
+case SYMS_DwOp_NULL: result = 0; break;
+case SYMS_DwOp_ADDR: result = 1; break;
+case SYMS_DwOp_DEREF: result = 2; break;
+case SYMS_DwOp_CONST1U: result = 3; break;
+case SYMS_DwOp_CONST1S: result = 4; break;
+case SYMS_DwOp_CONST2U: result = 5; break;
+case SYMS_DwOp_CONST2S: result = 6; break;
+case SYMS_DwOp_CONST4U: result = 7; break;
+case SYMS_DwOp_CONST4S: result = 8; break;
+case SYMS_DwOp_CONST8U: result = 9; break;
+case SYMS_DwOp_CONST8S: result = 10; break;
+case SYMS_DwOp_CONSTU: result = 11; break;
+case SYMS_DwOp_CONSTS: result = 12; break;
+case SYMS_DwOp_DUP: result = 13; break;
+case SYMS_DwOp_DROP: result = 14; break;
+case SYMS_DwOp_OVER: result = 15; break;
+case SYMS_DwOp_PICK: result = 16; break;
+case SYMS_DwOp_SWAP: result = 17; break;
+case SYMS_DwOp_ROT: result = 18; break;
+case SYMS_DwOp_XDEREF: result = 19; break;
+case SYMS_DwOp_ABS: result = 20; break;
+case SYMS_DwOp_AND: result = 21; break;
+case SYMS_DwOp_DIV: result = 22; break;
+case SYMS_DwOp_MINUS: result = 23; break;
+case SYMS_DwOp_MOD: result = 24; break;
+case SYMS_DwOp_MUL: result = 25; break;
+case SYMS_DwOp_NEG: result = 26; break;
+case SYMS_DwOp_NOT: result = 27; break;
+case SYMS_DwOp_OR: result = 28; break;
+case SYMS_DwOp_PLUS: result = 29; break;
+case SYMS_DwOp_PLUS_UCONST: result = 30; break;
+case SYMS_DwOp_SHL: result = 31; break;
+case SYMS_DwOp_SHR: result = 32; break;
+case SYMS_DwOp_SHRA: result = 33; break;
+case SYMS_DwOp_XOR: result = 34; break;
+case SYMS_DwOp_SKIP: result = 35; break;
+case SYMS_DwOp_BRA: result = 36; break;
+case SYMS_DwOp_EQ: result = 37; break;
+case SYMS_DwOp_GE: result = 38; break;
+case SYMS_DwOp_GT: result = 39; break;
+case SYMS_DwOp_LE: result = 40; break;
+case SYMS_DwOp_LT: result = 41; break;
+case SYMS_DwOp_NE: result = 42; break;
+case SYMS_DwOp_LIT0: result = 43; break;
+case SYMS_DwOp_LIT1: result = 44; break;
+case SYMS_DwOp_LIT2: result = 45; break;
+case SYMS_DwOp_LIT3: result = 46; break;
+case SYMS_DwOp_LIT4: result = 47; break;
+case SYMS_DwOp_LIT5: result = 48; break;
+case SYMS_DwOp_LIT6: result = 49; break;
+case SYMS_DwOp_LIT7: result = 50; break;
+case SYMS_DwOp_LIT8: result = 51; break;
+case SYMS_DwOp_LIT9: result = 52; break;
+case SYMS_DwOp_LIT10: result = 53; break;
+case SYMS_DwOp_LIT11: result = 54; break;
+case SYMS_DwOp_LIT12: result = 55; break;
+case SYMS_DwOp_LIT13: result = 56; break;
+case SYMS_DwOp_LIT14: result = 57; break;
+case SYMS_DwOp_LIT15: result = 58; break;
+case SYMS_DwOp_LIT16: result = 59; break;
+case SYMS_DwOp_LIT17: result = 60; break;
+case SYMS_DwOp_LIT18: result = 61; break;
+case SYMS_DwOp_LIT19: result = 62; break;
+case SYMS_DwOp_LIT20: result = 63; break;
+case SYMS_DwOp_LIT21: result = 64; break;
+case SYMS_DwOp_LIT22: result = 65; break;
+case SYMS_DwOp_LIT23: result = 66; break;
+case SYMS_DwOp_LIT24: result = 67; break;
+case SYMS_DwOp_LIT25: result = 68; break;
+case SYMS_DwOp_LIT26: result = 69; break;
+case SYMS_DwOp_LIT27: result = 70; break;
+case SYMS_DwOp_LIT28: result = 71; break;
+case SYMS_DwOp_LIT29: result = 72; break;
+case SYMS_DwOp_LIT30: result = 73; break;
+case SYMS_DwOp_LIT31: result = 74; break;
+case SYMS_DwOp_REG0: result = 75; break;
+case SYMS_DwOp_REG1: result = 76; break;
+case SYMS_DwOp_REG2: result = 77; break;
+case SYMS_DwOp_REG3: result = 78; break;
+case SYMS_DwOp_REG4: result = 79; break;
+case SYMS_DwOp_REG5: result = 80; break;
+case SYMS_DwOp_REG6: result = 81; break;
+case SYMS_DwOp_REG7: result = 82; break;
+case SYMS_DwOp_REG8: result = 83; break;
+case SYMS_DwOp_REG9: result = 84; break;
+case SYMS_DwOp_REG10: result = 85; break;
+case SYMS_DwOp_REG11: result = 86; break;
+case SYMS_DwOp_REG12: result = 87; break;
+case SYMS_DwOp_REG13: result = 88; break;
+case SYMS_DwOp_REG14: result = 89; break;
+case SYMS_DwOp_REG15: result = 90; break;
+case SYMS_DwOp_REG16: result = 91; break;
+case SYMS_DwOp_REG17: result = 92; break;
+case SYMS_DwOp_REG18: result = 93; break;
+case SYMS_DwOp_REG19: result = 94; break;
+case SYMS_DwOp_REG20: result = 95; break;
+case SYMS_DwOp_REG21: result = 96; break;
+case SYMS_DwOp_REG22: result = 97; break;
+case SYMS_DwOp_REG23: result = 98; break;
+case SYMS_DwOp_REG24: result = 99; break;
+case SYMS_DwOp_REG25: result = 100; break;
+case SYMS_DwOp_REG26: result = 101; break;
+case SYMS_DwOp_REG27: result = 102; break;
+case SYMS_DwOp_REG28: result = 103; break;
+case SYMS_DwOp_REG29: result = 104; break;
+case SYMS_DwOp_REG30: result = 105; break;
+case SYMS_DwOp_REG31: result = 106; break;
+case SYMS_DwOp_BREG0: result = 107; break;
+case SYMS_DwOp_BREG1: result = 108; break;
+case SYMS_DwOp_BREG2: result = 109; break;
+case SYMS_DwOp_BREG3: result = 110; break;
+case SYMS_DwOp_BREG4: result = 111; break;
+case SYMS_DwOp_BREG5: result = 112; break;
+case SYMS_DwOp_BREG6: result = 113; break;
+case SYMS_DwOp_BREG7: result = 114; break;
+case SYMS_DwOp_BREG8: result = 115; break;
+case SYMS_DwOp_BREG9: result = 116; break;
+case SYMS_DwOp_BREG10: result = 117; break;
+case SYMS_DwOp_BREG11: result = 118; break;
+case SYMS_DwOp_BREG12: result = 119; break;
+case SYMS_DwOp_BREG13: result = 120; break;
+case SYMS_DwOp_BREG14: result = 121; break;
+case SYMS_DwOp_BREG15: result = 122; break;
+case SYMS_DwOp_BREG16: result = 123; break;
+case SYMS_DwOp_BREG17: result = 124; break;
+case SYMS_DwOp_BREG18: result = 125; break;
+case SYMS_DwOp_BREG19: result = 126; break;
+case SYMS_DwOp_BREG20: result = 127; break;
+case SYMS_DwOp_BREG21: result = 128; break;
+case SYMS_DwOp_BREG22: result = 129; break;
+case SYMS_DwOp_BREG23: result = 130; break;
+case SYMS_DwOp_BREG24: result = 131; break;
+case SYMS_DwOp_BREG25: result = 132; break;
+case SYMS_DwOp_BREG26: result = 133; break;
+case SYMS_DwOp_BREG27: result = 134; break;
+case SYMS_DwOp_BREG28: result = 135; break;
+case SYMS_DwOp_BREG29: result = 136; break;
+case SYMS_DwOp_BREG30: result = 137; break;
+case SYMS_DwOp_BREG31: result = 138; break;
+case SYMS_DwOp_REGX: result = 139; break;
+case SYMS_DwOp_FBREG: result = 140; break;
+case SYMS_DwOp_BREGX: result = 141; break;
+case SYMS_DwOp_PIECE: result = 142; break;
+case SYMS_DwOp_DEREF_SIZE: result = 143; break;
+case SYMS_DwOp_XDEREF_SIZE: result = 144; break;
+case SYMS_DwOp_NOP: result = 145; break;
+case SYMS_DwOp_PUSH_OBJECT_ADDRESS: result = 146; break;
+case SYMS_DwOp_CALL2: result = 147; break;
+case SYMS_DwOp_CALL4: result = 148; break;
+case SYMS_DwOp_CALL_REF: result = 149; break;
+case SYMS_DwOp_FORM_TLS_ADDRESS: result = 150; break;
+case SYMS_DwOp_CALL_FRAME_CFA: result = 151; break;
+case SYMS_DwOp_BIT_PIECE: result = 152; break;
+case SYMS_DwOp_IMPLICIT_VALUE: result = 153; break;
+case SYMS_DwOp_STACK_VALUE: result = 154; break;
+case SYMS_DwOp_IMPLICIT_POINTER: result = 155; break;
+case SYMS_DwOp_ADDRX: result = 156; break;
+case SYMS_DwOp_CONSTX: result = 157; break;
+case SYMS_DwOp_ENTRY_VALUE: result = 158; break;
+case SYMS_DwOp_CONST_TYPE: result = 159; break;
+case SYMS_DwOp_REGVAL_TYPE: result = 160; break;
+case SYMS_DwOp_DEREF_TYPE: result = 161; break;
+case SYMS_DwOp_XDEREF_TYPE: result = 162; break;
+case SYMS_DwOp_CONVERT: result = 163; break;
+case SYMS_DwOp_REINTERPRET: result = 164; break;
+case SYMS_DwOp_LO_USER: result = 165; break;
+case SYMS_DwOp_HI_USER: result = 166; break;
 }
 return(result);
 }
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1123
-static SYMS_SerialField _syms_serial_members_for_SYMS_DosHeader[] = {
-{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"last_page_size", 14}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"page_count", 10}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"reloc_count", 11}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"paragraph_header_size", 21}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"min_paragraph", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"max_paragraph", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"init_ss", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"init_sp", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"checksum", 8}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"init_ip", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"init_cs", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"reloc_table_file_off", 20}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"overlay_number", 14}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"reserved", 8}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Fixed, 4 },
-{ {(SYMS_U8*)"oem_id", 6}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"oem_info", 8}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"reserved2", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Fixed, 10 },
-{ {(SYMS_U8*)"coff_file_offset", 16}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
+SYMS_SerialValue _syms_serial_members_for_SYMS_DwRegX86[] = {
+{ { (SYMS_U8*)"EAX", 3 }, (SYMS_U64)SYMS_DwRegX86_EAX },
+{ { (SYMS_U8*)"ECX", 3 }, (SYMS_U64)SYMS_DwRegX86_ECX },
+{ { (SYMS_U8*)"EDX", 3 }, (SYMS_U64)SYMS_DwRegX86_EDX },
+{ { (SYMS_U8*)"EBX", 3 }, (SYMS_U64)SYMS_DwRegX86_EBX },
+{ { (SYMS_U8*)"ESP", 3 }, (SYMS_U64)SYMS_DwRegX86_ESP },
+{ { (SYMS_U8*)"EBP", 3 }, (SYMS_U64)SYMS_DwRegX86_EBP },
+{ { (SYMS_U8*)"ESI", 3 }, (SYMS_U64)SYMS_DwRegX86_ESI },
+{ { (SYMS_U8*)"EDI", 3 }, (SYMS_U64)SYMS_DwRegX86_EDI },
+{ { (SYMS_U8*)"EIP", 3 }, (SYMS_U64)SYMS_DwRegX86_EIP },
+{ { (SYMS_U8*)"EFLAGS", 6 }, (SYMS_U64)SYMS_DwRegX86_EFLAGS },
+{ { (SYMS_U8*)"TRAPNO", 6 }, (SYMS_U64)SYMS_DwRegX86_TRAPNO },
+{ { (SYMS_U8*)"ST0", 3 }, (SYMS_U64)SYMS_DwRegX86_ST0 },
+{ { (SYMS_U8*)"ST1", 3 }, (SYMS_U64)SYMS_DwRegX86_ST1 },
+{ { (SYMS_U8*)"ST2", 3 }, (SYMS_U64)SYMS_DwRegX86_ST2 },
+{ { (SYMS_U8*)"ST3", 3 }, (SYMS_U64)SYMS_DwRegX86_ST3 },
+{ { (SYMS_U8*)"ST4", 3 }, (SYMS_U64)SYMS_DwRegX86_ST4 },
+{ { (SYMS_U8*)"ST5", 3 }, (SYMS_U64)SYMS_DwRegX86_ST5 },
+{ { (SYMS_U8*)"ST6", 3 }, (SYMS_U64)SYMS_DwRegX86_ST6 },
+{ { (SYMS_U8*)"ST7", 3 }, (SYMS_U64)SYMS_DwRegX86_ST7 },
+{ { (SYMS_U8*)"XMM0", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM0 },
+{ { (SYMS_U8*)"XMM1", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM1 },
+{ { (SYMS_U8*)"XMM2", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM2 },
+{ { (SYMS_U8*)"XMM3", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM3 },
+{ { (SYMS_U8*)"XMM4", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM4 },
+{ { (SYMS_U8*)"XMM5", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM5 },
+{ { (SYMS_U8*)"XMM6", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM6 },
+{ { (SYMS_U8*)"XMM7", 4 }, (SYMS_U64)SYMS_DwRegX86_XMM7 },
+{ { (SYMS_U8*)"MM0", 3 }, (SYMS_U64)SYMS_DwRegX86_MM0 },
+{ { (SYMS_U8*)"MM1", 3 }, (SYMS_U64)SYMS_DwRegX86_MM1 },
+{ { (SYMS_U8*)"MM2", 3 }, (SYMS_U64)SYMS_DwRegX86_MM2 },
+{ { (SYMS_U8*)"MM3", 3 }, (SYMS_U64)SYMS_DwRegX86_MM3 },
+{ { (SYMS_U8*)"MM4", 3 }, (SYMS_U64)SYMS_DwRegX86_MM4 },
+{ { (SYMS_U8*)"MM5", 3 }, (SYMS_U64)SYMS_DwRegX86_MM5 },
+{ { (SYMS_U8*)"MM6", 3 }, (SYMS_U64)SYMS_DwRegX86_MM6 },
+{ { (SYMS_U8*)"MM7", 3 }, (SYMS_U64)SYMS_DwRegX86_MM7 },
+{ { (SYMS_U8*)"FCW", 3 }, (SYMS_U64)SYMS_DwRegX86_FCW },
+{ { (SYMS_U8*)"FSW", 3 }, (SYMS_U64)SYMS_DwRegX86_FSW },
+{ { (SYMS_U8*)"MXCSR", 5 }, (SYMS_U64)SYMS_DwRegX86_MXCSR },
+{ { (SYMS_U8*)"ES", 2 }, (SYMS_U64)SYMS_DwRegX86_ES },
+{ { (SYMS_U8*)"CS", 2 }, (SYMS_U64)SYMS_DwRegX86_CS },
+{ { (SYMS_U8*)"SS", 2 }, (SYMS_U64)SYMS_DwRegX86_SS },
+{ { (SYMS_U8*)"DS", 2 }, (SYMS_U64)SYMS_DwRegX86_DS },
+{ { (SYMS_U8*)"FS", 2 }, (SYMS_U64)SYMS_DwRegX86_FS },
+{ { (SYMS_U8*)"GS", 2 }, (SYMS_U64)SYMS_DwRegX86_GS },
+{ { (SYMS_U8*)"TR", 2 }, (SYMS_U64)SYMS_DwRegX86_TR },
+{ { (SYMS_U8*)"LDTR", 4 }, (SYMS_U64)SYMS_DwRegX86_LDTR },
 };
-SYMS_SerialValue _syms_serial_members_for_SYMS_PeWindowsSubsystem[] = {
-{ { (SYMS_U8*)"Unknown", 7 }, (SYMS_U64)SYMS_PeWindowsSubsystem_UNKNOWN },
-{ { (SYMS_U8*)"Native", 6 }, (SYMS_U64)SYMS_PeWindowsSubsystem_NATIVE },
-{ { (SYMS_U8*)"Windows GUI", 11 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_GUI },
-{ { (SYMS_U8*)"Windows CUI", 11 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_CUI },
-{ { (SYMS_U8*)"OS/2 CUI", 8 }, (SYMS_U64)SYMS_PeWindowsSubsystem_OS2_CUI },
-{ { (SYMS_U8*)"Posix CUI", 9 }, (SYMS_U64)SYMS_PeWindowsSubsystem_POSIX_CUI },
-{ { (SYMS_U8*)"Native Win9x driver", 19 }, (SYMS_U64)SYMS_PeWindowsSubsystem_NATIVE_WINDOWS },
-{ { (SYMS_U8*)"Windows CE", 10 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_CE_GUI },
-{ { (SYMS_U8*)"EFI Application", 15 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_APPLICATION },
-{ { (SYMS_U8*)"EFI Boot Service Driver", 23 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_BOOT_SERVICE_DRIVER },
-{ { (SYMS_U8*)"EFI Runtime Driver", 18 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_RUNTIME_DRIVER },
-{ { (SYMS_U8*)"EFI Rom Image", 13 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_ROM },
-{ { (SYMS_U8*)"XBOX", 4 }, (SYMS_U64)SYMS_PeWindowsSubsystem_XBOX },
-{ { (SYMS_U8*)"Windows Boot Application", 24 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_BOOT_APPLICATION },
+SYMS_SerialValue _syms_serial_members_for_SYMS_DwRegX64[] = {
+{ { (SYMS_U8*)"RAX", 3 }, (SYMS_U64)SYMS_DwRegX64_RAX },
+{ { (SYMS_U8*)"RDX", 3 }, (SYMS_U64)SYMS_DwRegX64_RDX },
+{ { (SYMS_U8*)"RCX", 3 }, (SYMS_U64)SYMS_DwRegX64_RCX },
+{ { (SYMS_U8*)"RBX", 3 }, (SYMS_U64)SYMS_DwRegX64_RBX },
+{ { (SYMS_U8*)"RSI", 3 }, (SYMS_U64)SYMS_DwRegX64_RSI },
+{ { (SYMS_U8*)"RDI", 3 }, (SYMS_U64)SYMS_DwRegX64_RDI },
+{ { (SYMS_U8*)"RBP", 3 }, (SYMS_U64)SYMS_DwRegX64_RBP },
+{ { (SYMS_U8*)"RSP", 3 }, (SYMS_U64)SYMS_DwRegX64_RSP },
+{ { (SYMS_U8*)"R8", 2 }, (SYMS_U64)SYMS_DwRegX64_R8 },
+{ { (SYMS_U8*)"R9", 2 }, (SYMS_U64)SYMS_DwRegX64_R9 },
+{ { (SYMS_U8*)"R10", 3 }, (SYMS_U64)SYMS_DwRegX64_R10 },
+{ { (SYMS_U8*)"R11", 3 }, (SYMS_U64)SYMS_DwRegX64_R11 },
+{ { (SYMS_U8*)"R12", 3 }, (SYMS_U64)SYMS_DwRegX64_R12 },
+{ { (SYMS_U8*)"R13", 3 }, (SYMS_U64)SYMS_DwRegX64_R13 },
+{ { (SYMS_U8*)"R14", 3 }, (SYMS_U64)SYMS_DwRegX64_R14 },
+{ { (SYMS_U8*)"R15", 3 }, (SYMS_U64)SYMS_DwRegX64_R15 },
+{ { (SYMS_U8*)"RIP", 3 }, (SYMS_U64)SYMS_DwRegX64_RIP },
+{ { (SYMS_U8*)"XMM0", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM0 },
+{ { (SYMS_U8*)"XMM1", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM1 },
+{ { (SYMS_U8*)"XMM2", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM2 },
+{ { (SYMS_U8*)"XMM3", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM3 },
+{ { (SYMS_U8*)"XMM4", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM4 },
+{ { (SYMS_U8*)"XMM5", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM5 },
+{ { (SYMS_U8*)"XMM6", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM6 },
+{ { (SYMS_U8*)"XMM7", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM7 },
+{ { (SYMS_U8*)"XMM8", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM8 },
+{ { (SYMS_U8*)"XMM9", 4 }, (SYMS_U64)SYMS_DwRegX64_XMM9 },
+{ { (SYMS_U8*)"XMM10", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM10 },
+{ { (SYMS_U8*)"XMM11", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM11 },
+{ { (SYMS_U8*)"XMM12", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM12 },
+{ { (SYMS_U8*)"XMM13", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM13 },
+{ { (SYMS_U8*)"XMM14", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM14 },
+{ { (SYMS_U8*)"XMM15", 5 }, (SYMS_U64)SYMS_DwRegX64_XMM15 },
+{ { (SYMS_U8*)"ST0", 3 }, (SYMS_U64)SYMS_DwRegX64_ST0 },
+{ { (SYMS_U8*)"ST1", 3 }, (SYMS_U64)SYMS_DwRegX64_ST1 },
+{ { (SYMS_U8*)"ST2", 3 }, (SYMS_U64)SYMS_DwRegX64_ST2 },
+{ { (SYMS_U8*)"ST3", 3 }, (SYMS_U64)SYMS_DwRegX64_ST3 },
+{ { (SYMS_U8*)"ST4", 3 }, (SYMS_U64)SYMS_DwRegX64_ST4 },
+{ { (SYMS_U8*)"ST5", 3 }, (SYMS_U64)SYMS_DwRegX64_ST5 },
+{ { (SYMS_U8*)"ST6", 3 }, (SYMS_U64)SYMS_DwRegX64_ST6 },
+{ { (SYMS_U8*)"ST7", 3 }, (SYMS_U64)SYMS_DwRegX64_ST7 },
+{ { (SYMS_U8*)"MM0", 3 }, (SYMS_U64)SYMS_DwRegX64_MM0 },
+{ { (SYMS_U8*)"MM1", 3 }, (SYMS_U64)SYMS_DwRegX64_MM1 },
+{ { (SYMS_U8*)"MM2", 3 }, (SYMS_U64)SYMS_DwRegX64_MM2 },
+{ { (SYMS_U8*)"MM3", 3 }, (SYMS_U64)SYMS_DwRegX64_MM3 },
+{ { (SYMS_U8*)"MM4", 3 }, (SYMS_U64)SYMS_DwRegX64_MM4 },
+{ { (SYMS_U8*)"MM5", 3 }, (SYMS_U64)SYMS_DwRegX64_MM5 },
+{ { (SYMS_U8*)"MM6", 3 }, (SYMS_U64)SYMS_DwRegX64_MM6 },
+{ { (SYMS_U8*)"MM7", 3 }, (SYMS_U64)SYMS_DwRegX64_MM7 },
+{ { (SYMS_U8*)"RFLAGS", 6 }, (SYMS_U64)SYMS_DwRegX64_RFLAGS },
+{ { (SYMS_U8*)"ES", 2 }, (SYMS_U64)SYMS_DwRegX64_ES },
+{ { (SYMS_U8*)"CS", 2 }, (SYMS_U64)SYMS_DwRegX64_CS },
+{ { (SYMS_U8*)"SS", 2 }, (SYMS_U64)SYMS_DwRegX64_SS },
+{ { (SYMS_U8*)"DS", 2 }, (SYMS_U64)SYMS_DwRegX64_DS },
+{ { (SYMS_U8*)"FS", 2 }, (SYMS_U64)SYMS_DwRegX64_FS },
+{ { (SYMS_U8*)"GS", 2 }, (SYMS_U64)SYMS_DwRegX64_GS },
+{ { (SYMS_U8*)"FS_BASE", 7 }, (SYMS_U64)SYMS_DwRegX64_FS_BASE },
+{ { (SYMS_U8*)"GS_BASE", 7 }, (SYMS_U64)SYMS_DwRegX64_GS_BASE },
+{ { (SYMS_U8*)"TR", 2 }, (SYMS_U64)SYMS_DwRegX64_TR },
+{ { (SYMS_U8*)"LDTR", 4 }, (SYMS_U64)SYMS_DwRegX64_LDTR },
 };
-SYMS_SerialFlag _syms_serial_members_for_SYMS_ImageFileCharacteristics[] = {
-{ { (SYMS_U8*)"Stripped", 8 }, &_syms_serial_type_SYMS_U16, 0x1, 0 },
-{ { (SYMS_U8*)"Executable", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 1 },
-{ { (SYMS_U8*)"Line Numbers Stripped", 21 }, &_syms_serial_type_SYMS_U16, 0x1, 2 },
-{ { (SYMS_U8*)"Symbols Stripped", 16 }, &_syms_serial_type_SYMS_U16, 0x1, 3 },
-{ { (SYMS_U8*)"Aggressive Trim", 15 }, &_syms_serial_type_SYMS_U16, 0x1, 4 },
-{ { (SYMS_U8*)"Large Address Aware", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 5 },
-{ { (SYMS_U8*)"UNUSED1", 7 }, &_syms_serial_type_SYMS_U16, 0x1, 6 },
-{ { (SYMS_U8*)"BYTES_RESERVED_LO", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 7 },
-{ { (SYMS_U8*)"32-Bit Machine", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 8 },
-{ { (SYMS_U8*)"Debug Info Stripped", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 9 },
-{ { (SYMS_U8*)"Run From Swap", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 10 },
-{ { (SYMS_U8*)"Net Run From Swap", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 11 },
-{ { (SYMS_U8*)"System File", 11 }, &_syms_serial_type_SYMS_U16, 0x1, 12 },
-{ { (SYMS_U8*)"DLL", 3 }, &_syms_serial_type_SYMS_U16, 0x1, 13 },
-{ { (SYMS_U8*)"File Up System Only", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 14 },
-{ { (SYMS_U8*)"BYTES_RESERVED_HI", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 15 },
-};
-SYMS_SerialFlag _syms_serial_members_for_SYMS_DllCharacteristics[] = {
-{ { (SYMS_U8*)"High Entropy VA", 15 }, &_syms_serial_type_SYMS_U16, 0x1, 5 },
-{ { (SYMS_U8*)"Dynamic Base", 12 }, &_syms_serial_type_SYMS_U16, 0x1, 6 },
-{ { (SYMS_U8*)"Force Integrity", 15 }, &_syms_serial_type_SYMS_U16, 0x1, 7 },
-{ { (SYMS_U8*)"NX Compatible", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 8 },
-{ { (SYMS_U8*)"No Isolation", 12 }, &_syms_serial_type_SYMS_U16, 0x1, 9 },
-{ { (SYMS_U8*)"No SEH", 6 }, &_syms_serial_type_SYMS_U16, 0x1, 10 },
-{ { (SYMS_U8*)"No Bind", 7 }, &_syms_serial_type_SYMS_U16, 0x1, 11 },
-{ { (SYMS_U8*)"App Container", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 12 },
-{ { (SYMS_U8*)"WDM Driver", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 13 },
-{ { (SYMS_U8*)"Guard CF", 8 }, &_syms_serial_type_SYMS_U16, 0x1, 14 },
-{ { (SYMS_U8*)"Terminal Server Aware", 21 }, &_syms_serial_type_SYMS_U16, 0x1, 15 },
-};
-static SYMS_SerialField _syms_serial_members_for_SYMS_PeOptionalPe32[] = {
-{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_code", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_inited_data", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_uninited_data", 20}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"entry_point_va", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"code_base", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"data_base", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"image_base", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"section_alignment", 17}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"file_alignment", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"win32_version_value", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_image", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_headers", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"check_sum", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"subsystem", 9}, &_syms_serial_type_SYMS_PeWindowsSubsystem, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"dll_characteristics", 19}, &_syms_serial_type_SYMS_DllCharacteristics, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_stack_reserve", 20}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_stack_commit", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_heap_reserve", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_heap_commit", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"loader_flags", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"data_dir_count", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-};
-static SYMS_SerialField _syms_serial_members_for_SYMS_PeOptionalPe32Plus[] = {
-{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_code", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_inited_data", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_uninited_data", 20}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"entry_point_va", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"code_base", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"image_base", 10}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"section_alignment", 17}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"file_alignment", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"win32_version_value", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_image", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_headers", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"check_sum", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"subsystem", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"dll_characteristics", 19}, &_syms_serial_type_SYMS_DllCharacteristics, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_stack_reserve", 20}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_stack_commit", 19}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_heap_reserve", 19}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"sizeof_heap_commit", 18}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"loader_flags", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"data_dir_count", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_PeDataDirectoryIndex[] = {
-{ { (SYMS_U8*)"Export", 6 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_EXPORT },
-{ { (SYMS_U8*)"Import", 6 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_IMPORT },
-{ { (SYMS_U8*)"Resources", 9 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_RESOURCES },
-{ { (SYMS_U8*)"Exceptions", 10 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_EXCEPTIONS },
-{ { (SYMS_U8*)"Certificate", 11 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_CERT },
-{ { (SYMS_U8*)"Base Relocs", 11 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_BASE_RELOC },
-{ { (SYMS_U8*)"Debug", 5 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_DEBUG },
-{ { (SYMS_U8*)"Arch", 4 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_ARCH },
-{ { (SYMS_U8*)"Global PTR", 10 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_GLOBAL_PTR },
-{ { (SYMS_U8*)"TLS", 3 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_TLS },
-{ { (SYMS_U8*)"Load Config", 11 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_LOAD_CONFIG },
-{ { (SYMS_U8*)"Bound Imports", 13 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_BOUND_IMPORT },
-{ { (SYMS_U8*)"IAT", 3 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_IMPORT_ADDR },
-{ { (SYMS_U8*)"Delay Import", 12 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_DELAY_IMPORT },
-{ { (SYMS_U8*)"COM Descriptor", 14 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_COM_DESCRIPTOR },
-{ { (SYMS_U8*)"RESERVED", 8 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_RESERVED },
-};
-static SYMS_SerialField _syms_serial_members_for_SYMS_PeDataDirectory[] = {
-{ {(SYMS_U8*)"virt_off", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"virt_size", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-};
-SYMS_SerialValue _syms_serial_members_for_SYMS_PeDebugDirectoryType[] = {
-{ { (SYMS_U8*)"UNKNOWN", 7 }, (SYMS_U64)SYMS_PeDebugDirectoryType_UNKNOWN },
-{ { (SYMS_U8*)"COFF", 4 }, (SYMS_U64)SYMS_PeDebugDirectoryType_COFF },
-{ { (SYMS_U8*)"CODEVIEW", 8 }, (SYMS_U64)SYMS_PeDebugDirectoryType_CODEVIEW },
-{ { (SYMS_U8*)"FPO", 3 }, (SYMS_U64)SYMS_PeDebugDirectoryType_FPO },
-{ { (SYMS_U8*)"MISC", 4 }, (SYMS_U64)SYMS_PeDebugDirectoryType_MISC },
-{ { (SYMS_U8*)"EXCEPTION", 9 }, (SYMS_U64)SYMS_PeDebugDirectoryType_EXCEPTION },
-{ { (SYMS_U8*)"FIXUP", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_FIXUP },
-{ { (SYMS_U8*)"OMAP_TO_SRC", 11 }, (SYMS_U64)SYMS_PeDebugDirectoryType_OMAP_TO_SRC },
-{ { (SYMS_U8*)"OMAP_FROM_SRC", 13 }, (SYMS_U64)SYMS_PeDebugDirectoryType_OMAP_FROM_SRC },
-{ { (SYMS_U8*)"BORLAND", 7 }, (SYMS_U64)SYMS_PeDebugDirectoryType_BORLAND },
-{ { (SYMS_U8*)"RESERVED10", 10 }, (SYMS_U64)SYMS_PeDebugDirectoryType_RESERVED10 },
-{ { (SYMS_U8*)"CLSID", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_CLSID },
-{ { (SYMS_U8*)"REPRO", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_REPRO },
-{ { (SYMS_U8*)"EX_DLLCHARACTERISTICS", 21 }, (SYMS_U64)SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS },
-};
-static SYMS_SerialField _syms_serial_members_for_SYMS_PeDebugDirectory[] = {
-{ {(SYMS_U8*)"characteristics", 15}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"time_stamp", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"major_ver", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"minor_ver", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"type", 4}, &_syms_serial_type_SYMS_PeDebugDirectoryType, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"size", 4}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"virtual_offset", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
-{ {(SYMS_U8*)"file_offset", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+SYMS_SerialValue _syms_serial_members_for_SYMS_DwOp[] = {
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_DwOp_NULL },
+{ { (SYMS_U8*)"ADDR", 4 }, (SYMS_U64)SYMS_DwOp_ADDR },
+{ { (SYMS_U8*)"DEREF", 5 }, (SYMS_U64)SYMS_DwOp_DEREF },
+{ { (SYMS_U8*)"CONST1U", 7 }, (SYMS_U64)SYMS_DwOp_CONST1U },
+{ { (SYMS_U8*)"CONST1S", 7 }, (SYMS_U64)SYMS_DwOp_CONST1S },
+{ { (SYMS_U8*)"CONST2U", 7 }, (SYMS_U64)SYMS_DwOp_CONST2U },
+{ { (SYMS_U8*)"CONST2S", 7 }, (SYMS_U64)SYMS_DwOp_CONST2S },
+{ { (SYMS_U8*)"CONST4U", 7 }, (SYMS_U64)SYMS_DwOp_CONST4U },
+{ { (SYMS_U8*)"CONST4S", 7 }, (SYMS_U64)SYMS_DwOp_CONST4S },
+{ { (SYMS_U8*)"CONST8U", 7 }, (SYMS_U64)SYMS_DwOp_CONST8U },
+{ { (SYMS_U8*)"CONST8S", 7 }, (SYMS_U64)SYMS_DwOp_CONST8S },
+{ { (SYMS_U8*)"CONSTU", 6 }, (SYMS_U64)SYMS_DwOp_CONSTU },
+{ { (SYMS_U8*)"CONSTS", 6 }, (SYMS_U64)SYMS_DwOp_CONSTS },
+{ { (SYMS_U8*)"DUP", 3 }, (SYMS_U64)SYMS_DwOp_DUP },
+{ { (SYMS_U8*)"DROP", 4 }, (SYMS_U64)SYMS_DwOp_DROP },
+{ { (SYMS_U8*)"OVER", 4 }, (SYMS_U64)SYMS_DwOp_OVER },
+{ { (SYMS_U8*)"PICK", 4 }, (SYMS_U64)SYMS_DwOp_PICK },
+{ { (SYMS_U8*)"SWAP", 4 }, (SYMS_U64)SYMS_DwOp_SWAP },
+{ { (SYMS_U8*)"ROT", 3 }, (SYMS_U64)SYMS_DwOp_ROT },
+{ { (SYMS_U8*)"XDEREF", 6 }, (SYMS_U64)SYMS_DwOp_XDEREF },
+{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_DwOp_ABS },
+{ { (SYMS_U8*)"AND", 3 }, (SYMS_U64)SYMS_DwOp_AND },
+{ { (SYMS_U8*)"DIV", 3 }, (SYMS_U64)SYMS_DwOp_DIV },
+{ { (SYMS_U8*)"MINUS", 5 }, (SYMS_U64)SYMS_DwOp_MINUS },
+{ { (SYMS_U8*)"MOD", 3 }, (SYMS_U64)SYMS_DwOp_MOD },
+{ { (SYMS_U8*)"MUL", 3 }, (SYMS_U64)SYMS_DwOp_MUL },
+{ { (SYMS_U8*)"NEG", 3 }, (SYMS_U64)SYMS_DwOp_NEG },
+{ { (SYMS_U8*)"NOT", 3 }, (SYMS_U64)SYMS_DwOp_NOT },
+{ { (SYMS_U8*)"OR", 2 }, (SYMS_U64)SYMS_DwOp_OR },
+{ { (SYMS_U8*)"PLUS", 4 }, (SYMS_U64)SYMS_DwOp_PLUS },
+{ { (SYMS_U8*)"PLUS_UCONST", 11 }, (SYMS_U64)SYMS_DwOp_PLUS_UCONST },
+{ { (SYMS_U8*)"SHL", 3 }, (SYMS_U64)SYMS_DwOp_SHL },
+{ { (SYMS_U8*)"SHR", 3 }, (SYMS_U64)SYMS_DwOp_SHR },
+{ { (SYMS_U8*)"SHRA", 4 }, (SYMS_U64)SYMS_DwOp_SHRA },
+{ { (SYMS_U8*)"XOR", 3 }, (SYMS_U64)SYMS_DwOp_XOR },
+{ { (SYMS_U8*)"SKIP", 4 }, (SYMS_U64)SYMS_DwOp_SKIP },
+{ { (SYMS_U8*)"BRA", 3 }, (SYMS_U64)SYMS_DwOp_BRA },
+{ { (SYMS_U8*)"EQ", 2 }, (SYMS_U64)SYMS_DwOp_EQ },
+{ { (SYMS_U8*)"GE", 2 }, (SYMS_U64)SYMS_DwOp_GE },
+{ { (SYMS_U8*)"GT", 2 }, (SYMS_U64)SYMS_DwOp_GT },
+{ { (SYMS_U8*)"LE", 2 }, (SYMS_U64)SYMS_DwOp_LE },
+{ { (SYMS_U8*)"LT", 2 }, (SYMS_U64)SYMS_DwOp_LT },
+{ { (SYMS_U8*)"NE", 2 }, (SYMS_U64)SYMS_DwOp_NE },
+{ { (SYMS_U8*)"LIT0", 4 }, (SYMS_U64)SYMS_DwOp_LIT0 },
+{ { (SYMS_U8*)"LIT1", 4 }, (SYMS_U64)SYMS_DwOp_LIT1 },
+{ { (SYMS_U8*)"LIT2", 4 }, (SYMS_U64)SYMS_DwOp_LIT2 },
+{ { (SYMS_U8*)"LIT3", 4 }, (SYMS_U64)SYMS_DwOp_LIT3 },
+{ { (SYMS_U8*)"LIT4", 4 }, (SYMS_U64)SYMS_DwOp_LIT4 },
+{ { (SYMS_U8*)"LIT5", 4 }, (SYMS_U64)SYMS_DwOp_LIT5 },
+{ { (SYMS_U8*)"LIT6", 4 }, (SYMS_U64)SYMS_DwOp_LIT6 },
+{ { (SYMS_U8*)"LIT7", 4 }, (SYMS_U64)SYMS_DwOp_LIT7 },
+{ { (SYMS_U8*)"LIT8", 4 }, (SYMS_U64)SYMS_DwOp_LIT8 },
+{ { (SYMS_U8*)"LIT9", 4 }, (SYMS_U64)SYMS_DwOp_LIT9 },
+{ { (SYMS_U8*)"LIT10", 5 }, (SYMS_U64)SYMS_DwOp_LIT10 },
+{ { (SYMS_U8*)"LIT11", 5 }, (SYMS_U64)SYMS_DwOp_LIT11 },
+{ { (SYMS_U8*)"LIT12", 5 }, (SYMS_U64)SYMS_DwOp_LIT12 },
+{ { (SYMS_U8*)"LIT13", 5 }, (SYMS_U64)SYMS_DwOp_LIT13 },
+{ { (SYMS_U8*)"LIT14", 5 }, (SYMS_U64)SYMS_DwOp_LIT14 },
+{ { (SYMS_U8*)"LIT15", 5 }, (SYMS_U64)SYMS_DwOp_LIT15 },
+{ { (SYMS_U8*)"LIT16", 5 }, (SYMS_U64)SYMS_DwOp_LIT16 },
+{ { (SYMS_U8*)"LIT17", 5 }, (SYMS_U64)SYMS_DwOp_LIT17 },
+{ { (SYMS_U8*)"LIT18", 5 }, (SYMS_U64)SYMS_DwOp_LIT18 },
+{ { (SYMS_U8*)"LIT19", 5 }, (SYMS_U64)SYMS_DwOp_LIT19 },
+{ { (SYMS_U8*)"LIT20", 5 }, (SYMS_U64)SYMS_DwOp_LIT20 },
+{ { (SYMS_U8*)"LIT21", 5 }, (SYMS_U64)SYMS_DwOp_LIT21 },
+{ { (SYMS_U8*)"LIT22", 5 }, (SYMS_U64)SYMS_DwOp_LIT22 },
+{ { (SYMS_U8*)"LIT23", 5 }, (SYMS_U64)SYMS_DwOp_LIT23 },
+{ { (SYMS_U8*)"LIT24", 5 }, (SYMS_U64)SYMS_DwOp_LIT24 },
+{ { (SYMS_U8*)"LIT25", 5 }, (SYMS_U64)SYMS_DwOp_LIT25 },
+{ { (SYMS_U8*)"LIT26", 5 }, (SYMS_U64)SYMS_DwOp_LIT26 },
+{ { (SYMS_U8*)"LIT27", 5 }, (SYMS_U64)SYMS_DwOp_LIT27 },
+{ { (SYMS_U8*)"LIT28", 5 }, (SYMS_U64)SYMS_DwOp_LIT28 },
+{ { (SYMS_U8*)"LIT29", 5 }, (SYMS_U64)SYMS_DwOp_LIT29 },
+{ { (SYMS_U8*)"LIT30", 5 }, (SYMS_U64)SYMS_DwOp_LIT30 },
+{ { (SYMS_U8*)"LIT31", 5 }, (SYMS_U64)SYMS_DwOp_LIT31 },
+{ { (SYMS_U8*)"REG0", 4 }, (SYMS_U64)SYMS_DwOp_REG0 },
+{ { (SYMS_U8*)"REG1", 4 }, (SYMS_U64)SYMS_DwOp_REG1 },
+{ { (SYMS_U8*)"REG2", 4 }, (SYMS_U64)SYMS_DwOp_REG2 },
+{ { (SYMS_U8*)"REG3", 4 }, (SYMS_U64)SYMS_DwOp_REG3 },
+{ { (SYMS_U8*)"REG4", 4 }, (SYMS_U64)SYMS_DwOp_REG4 },
+{ { (SYMS_U8*)"REG5", 4 }, (SYMS_U64)SYMS_DwOp_REG5 },
+{ { (SYMS_U8*)"REG6", 4 }, (SYMS_U64)SYMS_DwOp_REG6 },
+{ { (SYMS_U8*)"REG7", 4 }, (SYMS_U64)SYMS_DwOp_REG7 },
+{ { (SYMS_U8*)"REG8", 4 }, (SYMS_U64)SYMS_DwOp_REG8 },
+{ { (SYMS_U8*)"REG9", 4 }, (SYMS_U64)SYMS_DwOp_REG9 },
+{ { (SYMS_U8*)"REG10", 5 }, (SYMS_U64)SYMS_DwOp_REG10 },
+{ { (SYMS_U8*)"REG11", 5 }, (SYMS_U64)SYMS_DwOp_REG11 },
+{ { (SYMS_U8*)"REG12", 5 }, (SYMS_U64)SYMS_DwOp_REG12 },
+{ { (SYMS_U8*)"REG13", 5 }, (SYMS_U64)SYMS_DwOp_REG13 },
+{ { (SYMS_U8*)"REG14", 5 }, (SYMS_U64)SYMS_DwOp_REG14 },
+{ { (SYMS_U8*)"REG15", 5 }, (SYMS_U64)SYMS_DwOp_REG15 },
+{ { (SYMS_U8*)"REG16", 5 }, (SYMS_U64)SYMS_DwOp_REG16 },
+{ { (SYMS_U8*)"REG17", 5 }, (SYMS_U64)SYMS_DwOp_REG17 },
+{ { (SYMS_U8*)"REG18", 5 }, (SYMS_U64)SYMS_DwOp_REG18 },
+{ { (SYMS_U8*)"REG19", 5 }, (SYMS_U64)SYMS_DwOp_REG19 },
+{ { (SYMS_U8*)"REG20", 5 }, (SYMS_U64)SYMS_DwOp_REG20 },
+{ { (SYMS_U8*)"REG21", 5 }, (SYMS_U64)SYMS_DwOp_REG21 },
+{ { (SYMS_U8*)"REG22", 5 }, (SYMS_U64)SYMS_DwOp_REG22 },
+{ { (SYMS_U8*)"REG23", 5 }, (SYMS_U64)SYMS_DwOp_REG23 },
+{ { (SYMS_U8*)"REG24", 5 }, (SYMS_U64)SYMS_DwOp_REG24 },
+{ { (SYMS_U8*)"REG25", 5 }, (SYMS_U64)SYMS_DwOp_REG25 },
+{ { (SYMS_U8*)"REG26", 5 }, (SYMS_U64)SYMS_DwOp_REG26 },
+{ { (SYMS_U8*)"REG27", 5 }, (SYMS_U64)SYMS_DwOp_REG27 },
+{ { (SYMS_U8*)"REG28", 5 }, (SYMS_U64)SYMS_DwOp_REG28 },
+{ { (SYMS_U8*)"REG29", 5 }, (SYMS_U64)SYMS_DwOp_REG29 },
+{ { (SYMS_U8*)"REG30", 5 }, (SYMS_U64)SYMS_DwOp_REG30 },
+{ { (SYMS_U8*)"REG31", 5 }, (SYMS_U64)SYMS_DwOp_REG31 },
+{ { (SYMS_U8*)"BREG0", 5 }, (SYMS_U64)SYMS_DwOp_BREG0 },
+{ { (SYMS_U8*)"BREG1", 5 }, (SYMS_U64)SYMS_DwOp_BREG1 },
+{ { (SYMS_U8*)"BREG2", 5 }, (SYMS_U64)SYMS_DwOp_BREG2 },
+{ { (SYMS_U8*)"BREG3", 5 }, (SYMS_U64)SYMS_DwOp_BREG3 },
+{ { (SYMS_U8*)"BREG4", 5 }, (SYMS_U64)SYMS_DwOp_BREG4 },
+{ { (SYMS_U8*)"BREG5", 5 }, (SYMS_U64)SYMS_DwOp_BREG5 },
+{ { (SYMS_U8*)"BREG6", 5 }, (SYMS_U64)SYMS_DwOp_BREG6 },
+{ { (SYMS_U8*)"BREG7", 5 }, (SYMS_U64)SYMS_DwOp_BREG7 },
+{ { (SYMS_U8*)"BREG8", 5 }, (SYMS_U64)SYMS_DwOp_BREG8 },
+{ { (SYMS_U8*)"BREG9", 5 }, (SYMS_U64)SYMS_DwOp_BREG9 },
+{ { (SYMS_U8*)"BREG10", 6 }, (SYMS_U64)SYMS_DwOp_BREG10 },
+{ { (SYMS_U8*)"BREG11", 6 }, (SYMS_U64)SYMS_DwOp_BREG11 },
+{ { (SYMS_U8*)"BREG12", 6 }, (SYMS_U64)SYMS_DwOp_BREG12 },
+{ { (SYMS_U8*)"BREG13", 6 }, (SYMS_U64)SYMS_DwOp_BREG13 },
+{ { (SYMS_U8*)"BREG14", 6 }, (SYMS_U64)SYMS_DwOp_BREG14 },
+{ { (SYMS_U8*)"BREG15", 6 }, (SYMS_U64)SYMS_DwOp_BREG15 },
+{ { (SYMS_U8*)"BREG16", 6 }, (SYMS_U64)SYMS_DwOp_BREG16 },
+{ { (SYMS_U8*)"BREG17", 6 }, (SYMS_U64)SYMS_DwOp_BREG17 },
+{ { (SYMS_U8*)"BREG18", 6 }, (SYMS_U64)SYMS_DwOp_BREG18 },
+{ { (SYMS_U8*)"BREG19", 6 }, (SYMS_U64)SYMS_DwOp_BREG19 },
+{ { (SYMS_U8*)"BREG20", 6 }, (SYMS_U64)SYMS_DwOp_BREG20 },
+{ { (SYMS_U8*)"BREG21", 6 }, (SYMS_U64)SYMS_DwOp_BREG21 },
+{ { (SYMS_U8*)"BREG22", 6 }, (SYMS_U64)SYMS_DwOp_BREG22 },
+{ { (SYMS_U8*)"BREG23", 6 }, (SYMS_U64)SYMS_DwOp_BREG23 },
+{ { (SYMS_U8*)"BREG24", 6 }, (SYMS_U64)SYMS_DwOp_BREG24 },
+{ { (SYMS_U8*)"BREG25", 6 }, (SYMS_U64)SYMS_DwOp_BREG25 },
+{ { (SYMS_U8*)"BREG26", 6 }, (SYMS_U64)SYMS_DwOp_BREG26 },
+{ { (SYMS_U8*)"BREG27", 6 }, (SYMS_U64)SYMS_DwOp_BREG27 },
+{ { (SYMS_U8*)"BREG28", 6 }, (SYMS_U64)SYMS_DwOp_BREG28 },
+{ { (SYMS_U8*)"BREG29", 6 }, (SYMS_U64)SYMS_DwOp_BREG29 },
+{ { (SYMS_U8*)"BREG30", 6 }, (SYMS_U64)SYMS_DwOp_BREG30 },
+{ { (SYMS_U8*)"BREG31", 6 }, (SYMS_U64)SYMS_DwOp_BREG31 },
+{ { (SYMS_U8*)"REGX", 4 }, (SYMS_U64)SYMS_DwOp_REGX },
+{ { (SYMS_U8*)"FBREG", 5 }, (SYMS_U64)SYMS_DwOp_FBREG },
+{ { (SYMS_U8*)"BREGX", 5 }, (SYMS_U64)SYMS_DwOp_BREGX },
+{ { (SYMS_U8*)"PIECE", 5 }, (SYMS_U64)SYMS_DwOp_PIECE },
+{ { (SYMS_U8*)"DEREF_SIZE", 10 }, (SYMS_U64)SYMS_DwOp_DEREF_SIZE },
+{ { (SYMS_U8*)"XDEREF_SIZE", 11 }, (SYMS_U64)SYMS_DwOp_XDEREF_SIZE },
+{ { (SYMS_U8*)"NOP", 3 }, (SYMS_U64)SYMS_DwOp_NOP },
+{ { (SYMS_U8*)"PUSH_OBJECT_ADDRESS", 19 }, (SYMS_U64)SYMS_DwOp_PUSH_OBJECT_ADDRESS },
+{ { (SYMS_U8*)"CALL2", 5 }, (SYMS_U64)SYMS_DwOp_CALL2 },
+{ { (SYMS_U8*)"CALL4", 5 }, (SYMS_U64)SYMS_DwOp_CALL4 },
+{ { (SYMS_U8*)"CALL_REF", 8 }, (SYMS_U64)SYMS_DwOp_CALL_REF },
+{ { (SYMS_U8*)"FORM_TLS_ADDRESS", 16 }, (SYMS_U64)SYMS_DwOp_FORM_TLS_ADDRESS },
+{ { (SYMS_U8*)"CALL_FRAME_CFA", 14 }, (SYMS_U64)SYMS_DwOp_CALL_FRAME_CFA },
+{ { (SYMS_U8*)"BIT_PIECE", 9 }, (SYMS_U64)SYMS_DwOp_BIT_PIECE },
+{ { (SYMS_U8*)"IMPLICIT_VALUE", 14 }, (SYMS_U64)SYMS_DwOp_IMPLICIT_VALUE },
+{ { (SYMS_U8*)"STACK_VALUE", 11 }, (SYMS_U64)SYMS_DwOp_STACK_VALUE },
+{ { (SYMS_U8*)"IMPLICIT_POINTER", 16 }, (SYMS_U64)SYMS_DwOp_IMPLICIT_POINTER },
+{ { (SYMS_U8*)"ADDRX", 5 }, (SYMS_U64)SYMS_DwOp_ADDRX },
+{ { (SYMS_U8*)"CONSTX", 6 }, (SYMS_U64)SYMS_DwOp_CONSTX },
+{ { (SYMS_U8*)"ENTRY_VALUE", 11 }, (SYMS_U64)SYMS_DwOp_ENTRY_VALUE },
+{ { (SYMS_U8*)"CONST_TYPE", 10 }, (SYMS_U64)SYMS_DwOp_CONST_TYPE },
+{ { (SYMS_U8*)"REGVAL_TYPE", 11 }, (SYMS_U64)SYMS_DwOp_REGVAL_TYPE },
+{ { (SYMS_U8*)"DEREF_TYPE", 10 }, (SYMS_U64)SYMS_DwOp_DEREF_TYPE },
+{ { (SYMS_U8*)"XDEREF_TYPE", 11 }, (SYMS_U64)SYMS_DwOp_XDEREF_TYPE },
+{ { (SYMS_U8*)"CONVERT", 7 }, (SYMS_U64)SYMS_DwOp_CONVERT },
+{ { (SYMS_U8*)"REINTERPRET", 11 }, (SYMS_U64)SYMS_DwOp_REINTERPRET },
+{ { (SYMS_U8*)"LO_USER", 7 }, (SYMS_U64)SYMS_DwOp_LO_USER },
+{ { (SYMS_U8*)"HI_USER", 7 }, (SYMS_U64)SYMS_DwOp_HI_USER },
 };
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1259
-SYMS_SerialType _syms_serial_type_SYMS_DosHeader = {
-{(SYMS_U8*)"DosHeader", 9}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DosHeader), _syms_serial_members_for_SYMS_DosHeader, sizeof(SYMS_DosHeader), 0
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
+SYMS_SerialType _syms_serial_type_SYMS_DwRegX86 = {
+{(SYMS_U8*)"SYMS_DwRegX86", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwRegX86), _syms_serial_members_for_SYMS_DwRegX86, sizeof(SYMS_DwRegX86), syms_enum_index_from_dwregx86
 };
-SYMS_SerialType _syms_serial_type_SYMS_PeWindowsSubsystem = {
-{(SYMS_U8*)"SYMS_PeWindowsSubsystem", 23}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeWindowsSubsystem), _syms_serial_members_for_SYMS_PeWindowsSubsystem, sizeof(SYMS_PeWindowsSubsystem), syms_enum_index_from_pe_windows_subsystem
+SYMS_SerialType _syms_serial_type_SYMS_DwRegX64 = {
+{(SYMS_U8*)"SYMS_DwRegX64", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwRegX64), _syms_serial_members_for_SYMS_DwRegX64, sizeof(SYMS_DwRegX64), syms_enum_index_from_dwregx64
 };
-SYMS_SerialType _syms_serial_type_SYMS_ImageFileCharacteristics = {
-{(SYMS_U8*)"SYMS_ImageFileCharacteristics", 29}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ImageFileCharacteristics), _syms_serial_members_for_SYMS_ImageFileCharacteristics, sizeof(SYMS_ImageFileCharacteristics), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_DllCharacteristics = {
-{(SYMS_U8*)"SYMS_DllCharacteristics", 23}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DllCharacteristics), _syms_serial_members_for_SYMS_DllCharacteristics, sizeof(SYMS_DllCharacteristics), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_PeOptionalPe32 = {
-{(SYMS_U8*)"PeOptionalPe32", 14}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeOptionalPe32), _syms_serial_members_for_SYMS_PeOptionalPe32, sizeof(SYMS_PeOptionalPe32), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_PeOptionalPe32Plus = {
-{(SYMS_U8*)"PeOptionalPe32Plus", 18}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeOptionalPe32Plus), _syms_serial_members_for_SYMS_PeOptionalPe32Plus, sizeof(SYMS_PeOptionalPe32Plus), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectoryIndex = {
-{(SYMS_U8*)"SYMS_PeDataDirectoryIndex", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDataDirectoryIndex), _syms_serial_members_for_SYMS_PeDataDirectoryIndex, sizeof(SYMS_PeDataDirectoryIndex), syms_enum_index_from_value_identity
-};
-SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectory = {
-{(SYMS_U8*)"PeDataDirectory", 15}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDataDirectory), _syms_serial_members_for_SYMS_PeDataDirectory, sizeof(SYMS_PeDataDirectory), 0
-};
-SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectoryType = {
-{(SYMS_U8*)"SYMS_PeDebugDirectoryType", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDebugDirectoryType), _syms_serial_members_for_SYMS_PeDebugDirectoryType, sizeof(SYMS_PeDebugDirectoryType), syms_enum_index_from_pe_debug_directory_type
-};
-SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectory = {
-{(SYMS_U8*)"PeDebugDirectory", 16}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDebugDirectory), _syms_serial_members_for_SYMS_PeDebugDirectory, sizeof(SYMS_PeDebugDirectory), 0
+SYMS_SerialType _syms_serial_type_SYMS_DwOp = {
+{(SYMS_U8*)"SYMS_DwOp", 9}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwOp), _syms_serial_members_for_SYMS_DwOp, sizeof(SYMS_DwOp), syms_enum_index_from_dw_op
 };
 
-#endif // defined(SYMS_ENABLE_PE_SERIAL_INFO)
+#endif // defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_ELF_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
+// syms_enum_index_from_elf_class - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_os_abi(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_ElfOsAbi_NONE: result = 0; break;
+case SYMS_ElfOsAbi_SYSV: result = 1; break;
+case SYMS_ElfOsAbi_HPUX: result = 2; break;
+case SYMS_ElfOsAbi_NETBSD: result = 3; break;
+case SYMS_ElfOsAbi_GNU: result = 4; break;
+case SYMS_ElfOsAbi_LINUX: result = 5; break;
+case SYMS_ElfOsAbi_SOLARIS: result = 6; break;
+case SYMS_ElfOsAbi_IRIX: result = 7; break;
+case SYMS_ElfOsAbi_FREEBSD: result = 8; break;
+case SYMS_ElfOsAbi_TRU64: result = 9; break;
+case SYMS_ElfOsAbi_ARM: result = 10; break;
+case SYMS_ElfOsAbi_STANDALONE: result = 11; break;
+}
+return(result);
+}
+// syms_enum_index_from_elf_version - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_machine_kind(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U16)v){
+default: break;
+case SYMS_ElfMachineKind_NONE: result = 0; break;
+case SYMS_ElfMachineKind_M32: result = 1; break;
+case SYMS_ElfMachineKind_SPARC: result = 2; break;
+case SYMS_ElfMachineKind_386: result = 3; break;
+case SYMS_ElfMachineKind_68K: result = 4; break;
+case SYMS_ElfMachineKind_88K: result = 5; break;
+case SYMS_ElfMachineKind_IAMCU: result = 6; break;
+case SYMS_ElfMachineKind_860: result = 7; break;
+case SYMS_ElfMachineKind_MIPS: result = 8; break;
+case SYMS_ElfMachineKind_S370: result = 9; break;
+case SYMS_ElfMachineKind_MIPS_RS3_LE: result = 10; break;
+case SYMS_ElfMachineKind_PARISC: result = 11; break;
+case SYMS_ElfMachineKind_VPP500: result = 12; break;
+case SYMS_ElfMachineKind_SPARC32PLUS: result = 13; break;
+case SYMS_ElfMachineKind_INTEL960: result = 14; break;
+case SYMS_ElfMachineKind_PPC: result = 15; break;
+case SYMS_ElfMachineKind_PPC64: result = 16; break;
+case SYMS_ElfMachineKind_S390: result = 17; break;
+case SYMS_ElfMachineKind_SPU: result = 18; break;
+case SYMS_ElfMachineKind_V800: result = 19; break;
+case SYMS_ElfMachineKind_FR20: result = 20; break;
+case SYMS_ElfMachineKind_RH32: result = 21; break;
+case SYMS_ElfMachineKind_MCORE: result = 22; break;
+case SYMS_ElfMachineKind_ARM: result = 23; break;
+case SYMS_ElfMachineKind_SH: result = 24; break;
+case SYMS_ElfMachineKind_SPARCV9: result = 25; break;
+case SYMS_ElfMachineKind_TRICORE: result = 26; break;
+case SYMS_ElfMachineKind_ARC: result = 27; break;
+case SYMS_ElfMachineKind_H8_300: result = 28; break;
+case SYMS_ElfMachineKind_H8_300H: result = 29; break;
+case SYMS_ElfMachineKind_H8S: result = 30; break;
+case SYMS_ElfMachineKind_H8_500: result = 31; break;
+case SYMS_ElfMachineKind_IA_64: result = 32; break;
+case SYMS_ElfMachineKind_MIPS_X: result = 33; break;
+case SYMS_ElfMachineKind_COLDFILE: result = 34; break;
+case SYMS_ElfMachineKind_68HC12: result = 35; break;
+case SYMS_ElfMachineKind_MMA: result = 36; break;
+case SYMS_ElfMachineKind_PCP: result = 37; break;
+case SYMS_ElfMachineKind_NCPU: result = 38; break;
+case SYMS_ElfMachineKind_NDR1: result = 39; break;
+case SYMS_ElfMachineKind_STARCORE: result = 40; break;
+case SYMS_ElfMachineKind_ME16: result = 41; break;
+case SYMS_ElfMachineKind_ST100: result = 42; break;
+case SYMS_ElfMachineKind_TINYJ: result = 43; break;
+case SYMS_ElfMachineKind_X86_64: result = 44; break;
+case SYMS_ElfMachineKind_AARCH64: result = 45; break;
+case SYMS_ElfMachineKind_TI_C6000: result = 46; break;
+case SYMS_ElfMachineKind_L1OM: result = 47; break;
+case SYMS_ElfMachineKind_K1OM: result = 48; break;
+case SYMS_ElfMachineKind_RISCV: result = 49; break;
+}
+return(result);
+}
+// syms_enum_index_from_elf_type - skipped identity mapping
+// syms_enum_index_from_elf_data - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_p_kind(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_ElfPKind_Null: result = 0; break;
+case SYMS_ElfPKind_Load: result = 1; break;
+case SYMS_ElfPKind_Dynamic: result = 2; break;
+case SYMS_ElfPKind_Interp: result = 3; break;
+case SYMS_ElfPKind_Note: result = 4; break;
+case SYMS_ElfPKind_SHLib: result = 5; break;
+case SYMS_ElfPKind_PHDR: result = 6; break;
+case SYMS_ElfPKind_LOOS: result = 7; break;
+case SYMS_ElfPKind_HIOS: result = 8; break;
+case SYMS_ElfPKind_LowProc: result = 9; break;
+case SYMS_ElfPKind_HighProc: result = 10; break;
+case SYMS_ElfPKind_LowSunW: result = 11; break;
+case SYMS_ElfPKind_SunWBSS: result = 12; break;
+case SYMS_ElfPKind_GnuEHFrame: result = 13; break;
+case SYMS_ElfPKind_GnuStack: result = 14; break;
+case SYMS_ElfPKind_GnuRelro: result = 15; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_elfsectioncode(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_ElfSectionCode_NULL: result = 0; break;
+case SYMS_ElfSectionCode_PROGBITS: result = 1; break;
+case SYMS_ElfSectionCode_SYMTAB: result = 2; break;
+case SYMS_ElfSectionCode_STRTAB: result = 3; break;
+case SYMS_ElfSectionCode_RELA: result = 4; break;
+case SYMS_ElfSectionCode_HASH: result = 5; break;
+case SYMS_ElfSectionCode_DYNAMIC: result = 6; break;
+case SYMS_ElfSectionCode_NOTE: result = 7; break;
+case SYMS_ElfSectionCode_NOBITS: result = 8; break;
+case SYMS_ElfSectionCode_REL: result = 9; break;
+case SYMS_ElfSectionCode_SHLIB: result = 10; break;
+case SYMS_ElfSectionCode_DYNSYM: result = 11; break;
+case SYMS_ElfSectionCode_INIT_ARRAY: result = 12; break;
+case SYMS_ElfSectionCode_FINI_ARRAY: result = 13; break;
+case SYMS_ElfSectionCode_PREINIT_ARRAY: result = 14; break;
+case SYMS_ElfSectionCode_GROUP: result = 15; break;
+case SYMS_ElfSectionCode_SYMTAB_SHNDX: result = 16; break;
+case SYMS_ElfSectionCode_GNU_INCREMENTAL_INPUTS: result = 17; break;
+case SYMS_ElfSectionCode_GNU_ATTRIBUTES: result = 18; break;
+case SYMS_ElfSectionCode_GNU_HASH: result = 19; break;
+case SYMS_ElfSectionCode_GNU_LIBLIST: result = 20; break;
+case SYMS_ElfSectionCode_SUNW_verdef: result = 21; break;
+case SYMS_ElfSectionCode_SUNW_verneed: result = 22; break;
+case SYMS_ElfSectionCode_SUNW_versym: result = 23; break;
+case SYMS_ElfSectionCode_PROC: result = 27; break;
+case SYMS_ElfSectionCode_USER: result = 28; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_section_index(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_ElfSectionIndex_UNDEF: result = 0; break;
+case SYMS_ElfSectionIndex_ABS: result = 1; break;
+case SYMS_ElfSectionIndex_COMMON: result = 2; break;
+case SYMS_ElfSectionIndex_LO_RESERVE: result = 3; break;
+case SYMS_ElfSectionIndex_HI_RESERVE: result = 4; break;
+case SYMS_ElfSectionIndex_HI_PROC: result = 6; break;
+case SYMS_ElfSectionIndex_LO_OS: result = 7; break;
+case SYMS_ElfSectionIndex_HI_OS: result = 8; break;
+case SYMS_ElfSectionIndex_X86_64_LCOMMON: result = 10; break;
+case SYMS_ElfSectionIndex_MIPS_SCOMMON: result = 11; break;
+case SYMS_ElfSectionIndex_MIPS_SUNDEFINED: result = 13; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_aux_type(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_ElfAuxType_NULL: result = 0; break;
+case SYMS_ElfAuxType_PHDR: result = 1; break;
+case SYMS_ElfAuxType_PHENT: result = 2; break;
+case SYMS_ElfAuxType_PHNUM: result = 3; break;
+case SYMS_ElfAuxType_PAGESZ: result = 4; break;
+case SYMS_ElfAuxType_BASE: result = 5; break;
+case SYMS_ElfAuxType_FLAGS: result = 6; break;
+case SYMS_ElfAuxType_ENTRY: result = 7; break;
+case SYMS_ElfAuxType_UID: result = 8; break;
+case SYMS_ElfAuxType_EUID: result = 9; break;
+case SYMS_ElfAuxType_GID: result = 10; break;
+case SYMS_ElfAuxType_EGID: result = 11; break;
+case SYMS_ElfAuxType_PLATFORM: result = 12; break;
+case SYMS_ElfAuxType_HWCAP: result = 13; break;
+case SYMS_ElfAuxType_CLKTCK: result = 14; break;
+case SYMS_ElfAuxType_DCACHEBSIZE: result = 15; break;
+case SYMS_ElfAuxType_ICACHEBSIZE: result = 16; break;
+case SYMS_ElfAuxType_UCACHEBSIZE: result = 17; break;
+case SYMS_ElfAuxType_IGNOREPPC: result = 18; break;
+case SYMS_ElfAuxType_SECURE: result = 19; break;
+case SYMS_ElfAuxType_BASE_PLATFORM: result = 20; break;
+case SYMS_ElfAuxType_RANDOM: result = 21; break;
+case SYMS_ElfAuxType_HWCAP2: result = 22; break;
+case SYMS_ElfAuxType_EXECFN: result = 23; break;
+case SYMS_ElfAuxType_SYSINFO: result = 24; break;
+case SYMS_ElfAuxType_SYSINFO_EHDR: result = 25; break;
+case SYMS_ElfAuxType_L1I_CACHESIZE: result = 26; break;
+case SYMS_ElfAuxType_L1I_CACHEGEOMETRY: result = 27; break;
+case SYMS_ElfAuxType_L1D_CACHESIZE: result = 28; break;
+case SYMS_ElfAuxType_L1D_CACHEGEOMETRY: result = 29; break;
+case SYMS_ElfAuxType_L2_CACHESIZE: result = 30; break;
+case SYMS_ElfAuxType_L2_CACHEGEOMETRY: result = 31; break;
+case SYMS_ElfAuxType_L3_CACHESIZE: result = 32; break;
+case SYMS_ElfAuxType_L3_CACHEGEOMETRY: result = 33; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_elfdyntag(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_ElfDynTag_NULL: result = 0; break;
+case SYMS_ElfDynTag_NEEDED: result = 1; break;
+case SYMS_ElfDynTag_PLTRELSZ: result = 2; break;
+case SYMS_ElfDynTag_PLTGOT: result = 3; break;
+case SYMS_ElfDynTag_HASH: result = 4; break;
+case SYMS_ElfDynTag_STRTAB: result = 5; break;
+case SYMS_ElfDynTag_SYMTAB: result = 6; break;
+case SYMS_ElfDynTag_RELA: result = 7; break;
+case SYMS_ElfDynTag_RELASZ: result = 8; break;
+case SYMS_ElfDynTag_RELAENT: result = 9; break;
+case SYMS_ElfDynTag_STRSZ: result = 10; break;
+case SYMS_ElfDynTag_SYMENT: result = 11; break;
+case SYMS_ElfDynTag_INIT: result = 12; break;
+case SYMS_ElfDynTag_FINI: result = 13; break;
+case SYMS_ElfDynTag_SONAME: result = 14; break;
+case SYMS_ElfDynTag_RPATH: result = 15; break;
+case SYMS_ElfDynTag_SYMBOLIC: result = 16; break;
+case SYMS_ElfDynTag_REL: result = 17; break;
+case SYMS_ElfDynTag_RELSZ: result = 18; break;
+case SYMS_ElfDynTag_RELENT: result = 19; break;
+case SYMS_ElfDynTag_PLTREL: result = 20; break;
+case SYMS_ElfDynTag_DEBUG: result = 21; break;
+case SYMS_ElfDynTag_TEXTREL: result = 22; break;
+case SYMS_ElfDynTag_JMPREL: result = 23; break;
+case SYMS_ElfDynTag_BIND_NOW: result = 24; break;
+case SYMS_ElfDynTag_INIT_ARRAY: result = 25; break;
+case SYMS_ElfDynTag_FINI_ARRAY: result = 26; break;
+case SYMS_ElfDynTag_INIT_ARRAYSZ: result = 27; break;
+case SYMS_ElfDynTag_FINI_ARRAYSZ: result = 28; break;
+case SYMS_ElfDynTag_RUNPATH: result = 29; break;
+case SYMS_ElfDynTag_FLAGS: result = 30; break;
+case SYMS_ElfDynTag_PREINIT_ARRAY: result = 31; break;
+case SYMS_ElfDynTag_PREINIT_ARRAYSZ: result = 32; break;
+case SYMS_ElfDynTag_SYMTAB_SHNDX: result = 33; break;
+case SYMS_ElfDynTag_LOOS: result = 34; break;
+case SYMS_ElfDynTag_HIOS: result = 35; break;
+case SYMS_ElfDynTag_VALRNGLO: result = 36; break;
+case SYMS_ElfDynTag_GNU_PRELINKED: result = 37; break;
+case SYMS_ElfDynTag_GNU_CONFLICTSZ: result = 38; break;
+case SYMS_ElfDynTag_GNU_LIBLISTSZ: result = 39; break;
+case SYMS_ElfDynTag_CHECKSUM: result = 40; break;
+case SYMS_ElfDynTag_PLTPADSZ: result = 41; break;
+case SYMS_ElfDynTag_MOVEENT: result = 42; break;
+case SYMS_ElfDynTag_MOVESZ: result = 43; break;
+case SYMS_ElfDynTag_FEATURE: result = 44; break;
+case SYMS_ElfDynTag_POSFLAG_1: result = 45; break;
+case SYMS_ElfDynTag_SYMINSZ: result = 46; break;
+case SYMS_ElfDynTag_SYMINENT: result = 47; break;
+case SYMS_ElfDynTag_ADDRRNGLO: result = 49; break;
+case SYMS_ElfDynTag_GNU_HASH: result = 50; break;
+case SYMS_ElfDynTag_TLSDESC_PLT: result = 51; break;
+case SYMS_ElfDynTag_TLSDESC_GOT: result = 52; break;
+case SYMS_ElfDynTag_GNU_CONFLICT: result = 53; break;
+case SYMS_ElfDynTag_GNU_LIBLIST: result = 54; break;
+case SYMS_ElfDynTag_CONFIG: result = 55; break;
+case SYMS_ElfDynTag_DEPAUDIT: result = 56; break;
+case SYMS_ElfDynTag_AUDIT: result = 57; break;
+case SYMS_ElfDynTag_PLTPAD: result = 58; break;
+case SYMS_ElfDynTag_MOVETAB: result = 59; break;
+case SYMS_ElfDynTag_SYMINFO: result = 60; break;
+case SYMS_ElfDynTag_RELACOUNT: result = 62; break;
+case SYMS_ElfDynTag_RELCOUNT: result = 63; break;
+case SYMS_ElfDynTag_FLAGS_1: result = 64; break;
+case SYMS_ElfDynTag_VERDEF: result = 65; break;
+case SYMS_ElfDynTag_VERDEFNUM: result = 66; break;
+case SYMS_ElfDynTag_VERNEED: result = 67; break;
+case SYMS_ElfDynTag_VERNEEDNUM: result = 68; break;
+case SYMS_ElfDynTag_VERSYM: result = 69; break;
+case SYMS_ElfDynTag_LOPROC: result = 70; break;
+case SYMS_ElfDynTag_AUXILIARY: result = 71; break;
+case SYMS_ElfDynTag_USED: result = 72; break;
+case SYMS_ElfDynTag_FILTER: result = 73; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_sym_bind(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_ElfSymBind_LOCAL: result = 0; break;
+case SYMS_ElfSymBind_GLOBAL: result = 1; break;
+case SYMS_ElfSymBind_WEAK: result = 2; break;
+case SYMS_ElfSymBind_LOPROC: result = 3; break;
+case SYMS_ElfSymBind_HIPROC: result = 4; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_sym_type(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_ElfSymType_NOTYPE: result = 0; break;
+case SYMS_ElfSymType_OBJECT: result = 1; break;
+case SYMS_ElfSymType_FUNC: result = 2; break;
+case SYMS_ElfSymType_SECTION: result = 3; break;
+case SYMS_ElfSymType_FILE: result = 4; break;
+case SYMS_ElfSymType_LOPROC: result = 5; break;
+case SYMS_ElfSymType_HIPROC: result = 6; break;
+}
+return(result);
+}
+// syms_enum_index_from_elf_sym_visibility - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_elf_reloc_i386(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_ElfRelocI386_NONE: result = 0; break;
+case SYMS_ElfRelocI386_32: result = 1; break;
+case SYMS_ElfRelocI386_PC32: result = 2; break;
+case SYMS_ElfRelocI386_GOT32: result = 3; break;
+case SYMS_ElfRelocI386_PLT32: result = 4; break;
+case SYMS_ElfRelocI386_COPY: result = 5; break;
+case SYMS_ElfRelocI386_GLOB_DAT: result = 6; break;
+case SYMS_ElfRelocI386_JUMP_SLOT: result = 7; break;
+case SYMS_ElfRelocI386_RELATIVE: result = 8; break;
+case SYMS_ElfRelocI386_GOTOFF: result = 9; break;
+case SYMS_ElfRelocI386_GOTPC: result = 10; break;
+case SYMS_ElfRelocI386_32PLT: result = 11; break;
+case SYMS_ElfRelocI386_TLS_TPOFF: result = 12; break;
+case SYMS_ElfRelocI386_TLS_IE: result = 13; break;
+case SYMS_ElfRelocI386_TLS_GOTIE: result = 14; break;
+case SYMS_ElfRelocI386_TLS_LE: result = 15; break;
+case SYMS_ElfRelocI386_TLS_GD: result = 16; break;
+case SYMS_ElfRelocI386_TLS_LDM: result = 17; break;
+case SYMS_ElfRelocI386_16: result = 18; break;
+case SYMS_ElfRelocI386_PC16: result = 19; break;
+case SYMS_ElfRelocI386_8: result = 20; break;
+case SYMS_ElfRelocI386_PC8: result = 21; break;
+case SYMS_ElfRelocI386_TLS_GD_32: result = 22; break;
+case SYMS_ElfRelocI386_TLS_GD_PUSH: result = 23; break;
+case SYMS_ElfRelocI386_TLS_GD_CALL: result = 24; break;
+case SYMS_ElfRelocI386_TLS_GD_POP: result = 25; break;
+case SYMS_ElfRelocI386_TLS_LDM_32: result = 26; break;
+case SYMS_ElfRelocI386_TLS_LDM_PUSH: result = 27; break;
+case SYMS_ElfRelocI386_TLS_LDM_CALL: result = 28; break;
+case SYMS_ElfRelocI386_TLS_LDM_POP: result = 29; break;
+case SYMS_ElfRelocI386_TLS_LDO_32: result = 30; break;
+case SYMS_ElfRelocI386_TLS_IE_32: result = 31; break;
+case SYMS_ElfRelocI386_TLS_LE_32: result = 32; break;
+case SYMS_ElfRelocI386_TLS_DTPMOD32: result = 33; break;
+case SYMS_ElfRelocI386_TLS_DTPOFF32: result = 34; break;
+case SYMS_ElfRelocI386_TLS_TPOFF32: result = 35; break;
+case SYMS_ElfRelocI386_TLS_GOTDESC: result = 36; break;
+case SYMS_ElfRelocI386_TLS_DESC_CALL: result = 37; break;
+case SYMS_ElfRelocI386_TLS_DESC: result = 38; break;
+case SYMS_ElfRelocI386_IRELATIVE: result = 39; break;
+case SYMS_ElfRelocI386_GOTX32X: result = 40; break;
+case SYMS_ElfRelocI386_USED_BY_INTEL_200: result = 41; break;
+case SYMS_ElfRelocI386_GNU_VTINHERIT: result = 42; break;
+case SYMS_ElfRelocI386_GNU_VTENTRY: result = 43; break;
+}
+return(result);
+}
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfClass[] = {
+{ { (SYMS_U8*)"None", 4 }, (SYMS_U64)SYMS_ElfClass_None },
+{ { (SYMS_U8*)"ELF 32-bit", 10 }, (SYMS_U64)SYMS_ElfClass_32 },
+{ { (SYMS_U8*)"ELF 64-bit", 10 }, (SYMS_U64)SYMS_ElfClass_64 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfOsAbi[] = {
+{ { (SYMS_U8*)"NONE", 4 }, (SYMS_U64)SYMS_ElfOsAbi_NONE },
+{ { (SYMS_U8*)"UNIX System-V", 13 }, (SYMS_U64)SYMS_ElfOsAbi_SYSV },
+{ { (SYMS_U8*)"HP-UX", 5 }, (SYMS_U64)SYMS_ElfOsAbi_HPUX },
+{ { (SYMS_U8*)"NetBSD", 6 }, (SYMS_U64)SYMS_ElfOsAbi_NETBSD },
+{ { (SYMS_U8*)"GNU", 3 }, (SYMS_U64)SYMS_ElfOsAbi_GNU },
+{ { (SYMS_U8*)"Linux", 5 }, (SYMS_U64)SYMS_ElfOsAbi_LINUX },
+{ { (SYMS_U8*)"Solaris", 7 }, (SYMS_U64)SYMS_ElfOsAbi_SOLARIS },
+{ { (SYMS_U8*)"IRIX", 4 }, (SYMS_U64)SYMS_ElfOsAbi_IRIX },
+{ { (SYMS_U8*)"FreeBSD", 7 }, (SYMS_U64)SYMS_ElfOsAbi_FREEBSD },
+{ { (SYMS_U8*)"TRU64 UNIX", 10 }, (SYMS_U64)SYMS_ElfOsAbi_TRU64 },
+{ { (SYMS_U8*)"ARM", 3 }, (SYMS_U64)SYMS_ElfOsAbi_ARM },
+{ { (SYMS_U8*)"Standalone", 10 }, (SYMS_U64)SYMS_ElfOsAbi_STANDALONE },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfVersion[] = {
+{ { (SYMS_U8*)"0 (Invalid)", 11 }, (SYMS_U64)SYMS_ElfVersion_NONE },
+{ { (SYMS_U8*)"1 (Current)", 11 }, (SYMS_U64)SYMS_ElfVersion_CURRENT },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfMachineKind[] = {
+{ { (SYMS_U8*)"None", 4 }, (SYMS_U64)SYMS_ElfMachineKind_NONE },
+{ { (SYMS_U8*)"AT&T WE 32100", 13 }, (SYMS_U64)SYMS_ElfMachineKind_M32 },
+{ { (SYMS_U8*)"Sun Microsystems SPARC", 22 }, (SYMS_U64)SYMS_ElfMachineKind_SPARC },
+{ { (SYMS_U8*)"Intel 80386", 11 }, (SYMS_U64)SYMS_ElfMachineKind_386 },
+{ { (SYMS_U8*)"Motorola 68000", 14 }, (SYMS_U64)SYMS_ElfMachineKind_68K },
+{ { (SYMS_U8*)"Motorola 88000", 14 }, (SYMS_U64)SYMS_ElfMachineKind_88K },
+{ { (SYMS_U8*)"Intel 80860", 11 }, (SYMS_U64)SYMS_ElfMachineKind_IAMCU },
+{ { (SYMS_U8*)"Intel MCU", 9 }, (SYMS_U64)SYMS_ElfMachineKind_860 },
+{ { (SYMS_U8*)"MIPS RS3000", 11 }, (SYMS_U64)SYMS_ElfMachineKind_MIPS },
+{ { (SYMS_U8*)"IBM System/370", 14 }, (SYMS_U64)SYMS_ElfMachineKind_S370 },
+{ { (SYMS_U8*)"MIPS RS3000 LE", 14 }, (SYMS_U64)SYMS_ElfMachineKind_MIPS_RS3_LE },
+{ { (SYMS_U8*)"HPPA", 4 }, (SYMS_U64)SYMS_ElfMachineKind_PARISC },
+{ { (SYMS_U8*)"Fujistsu VPP500", 15 }, (SYMS_U64)SYMS_ElfMachineKind_VPP500 },
+{ { (SYMS_U8*)"SPARC-32 V8+", 12 }, (SYMS_U64)SYMS_ElfMachineKind_SPARC32PLUS },
+{ { (SYMS_U8*)"Intel 80980", 11 }, (SYMS_U64)SYMS_ElfMachineKind_INTEL960 },
+{ { (SYMS_U8*)"PowerPC", 7 }, (SYMS_U64)SYMS_ElfMachineKind_PPC },
+{ { (SYMS_U8*)"PowerPC 64bit", 13 }, (SYMS_U64)SYMS_ElfMachineKind_PPC64 },
+{ { (SYMS_U8*)"IBM S/390", 9 }, (SYMS_U64)SYMS_ElfMachineKind_S390 },
+{ { (SYMS_U8*)"Sony/Toshiba/IBM SPU", 20 }, (SYMS_U64)SYMS_ElfMachineKind_SPU },
+{ { (SYMS_U8*)"NEC V800 series", 15 }, (SYMS_U64)SYMS_ElfMachineKind_V800 },
+{ { (SYMS_U8*)"Fujitsu FR20", 12 }, (SYMS_U64)SYMS_ElfMachineKind_FR20 },
+{ { (SYMS_U8*)"TRW RH32", 8 }, (SYMS_U64)SYMS_ElfMachineKind_RH32 },
+{ { (SYMS_U8*)"Motorola M*Core", 15 }, (SYMS_U64)SYMS_ElfMachineKind_MCORE },
+{ { (SYMS_U8*)"ARM", 3 }, (SYMS_U64)SYMS_ElfMachineKind_ARM },
+{ { (SYMS_U8*)"Renesas / SuperH SH", 19 }, (SYMS_U64)SYMS_ElfMachineKind_SH },
+{ { (SYMS_U8*)"SPARC V9 64-bit", 15 }, (SYMS_U64)SYMS_ElfMachineKind_SPARCV9 },
+{ { (SYMS_U8*)"Siemens Tricore", 15 }, (SYMS_U64)SYMS_ElfMachineKind_TRICORE },
+{ { (SYMS_U8*)"ARC Cores", 9 }, (SYMS_U64)SYMS_ElfMachineKind_ARC },
+{ { (SYMS_U8*)"H8/300", 6 }, (SYMS_U64)SYMS_ElfMachineKind_H8_300 },
+{ { (SYMS_U8*)"H8/300H", 7 }, (SYMS_U64)SYMS_ElfMachineKind_H8_300H },
+{ { (SYMS_U8*)"H8S", 3 }, (SYMS_U64)SYMS_ElfMachineKind_H8S },
+{ { (SYMS_U8*)"H8/500", 6 }, (SYMS_U64)SYMS_ElfMachineKind_H8_500 },
+{ { (SYMS_U8*)"Intel IA-64", 11 }, (SYMS_U64)SYMS_ElfMachineKind_IA_64 },
+{ { (SYMS_U8*)"Stanford MIPS-X", 15 }, (SYMS_U64)SYMS_ElfMachineKind_MIPS_X },
+{ { (SYMS_U8*)"Motorola Coldfire", 17 }, (SYMS_U64)SYMS_ElfMachineKind_COLDFILE },
+{ { (SYMS_U8*)"Motorola M68HC12", 16 }, (SYMS_U64)SYMS_ElfMachineKind_68HC12 },
+{ { (SYMS_U8*)"Fujistu Multimidea Accelerator", 30 }, (SYMS_U64)SYMS_ElfMachineKind_MMA },
+{ { (SYMS_U8*)"Siemens PCP", 11 }, (SYMS_U64)SYMS_ElfMachineKind_PCP },
+{ { (SYMS_U8*)"Sony nCPU Embedded RISC Processor", 33 }, (SYMS_U64)SYMS_ElfMachineKind_NCPU },
+{ { (SYMS_U8*)"Denso NDR1", 10 }, (SYMS_U64)SYMS_ElfMachineKind_NDR1 },
+{ { (SYMS_U8*)"Motorola Star*Core", 18 }, (SYMS_U64)SYMS_ElfMachineKind_STARCORE },
+{ { (SYMS_U8*)"Toyota ME16", 11 }, (SYMS_U64)SYMS_ElfMachineKind_ME16 },
+{ { (SYMS_U8*)"STMicroelectronics ST100", 24 }, (SYMS_U64)SYMS_ElfMachineKind_ST100 },
+{ { (SYMS_U8*)"TinyJ", 5 }, (SYMS_U64)SYMS_ElfMachineKind_TINYJ },
+{ { (SYMS_U8*)"X86-64", 6 }, (SYMS_U64)SYMS_ElfMachineKind_X86_64 },
+{ { (SYMS_U8*)"ARM 64-bit", 10 }, (SYMS_U64)SYMS_ElfMachineKind_AARCH64 },
+{ { (SYMS_U8*)"Texas Instruments TMS320C6000 DSP Family", 40 }, (SYMS_U64)SYMS_ElfMachineKind_TI_C6000 },
+{ { (SYMS_U8*)"Intel L1OM", 10 }, (SYMS_U64)SYMS_ElfMachineKind_L1OM },
+{ { (SYMS_U8*)"Intel K10M", 10 }, (SYMS_U64)SYMS_ElfMachineKind_K1OM },
+{ { (SYMS_U8*)"RISC-V", 6 }, (SYMS_U64)SYMS_ElfMachineKind_RISCV },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfType[] = {
+{ { (SYMS_U8*)"None", 4 }, (SYMS_U64)SYMS_ElfType_NONE },
+{ { (SYMS_U8*)"REL (Relocatable File)", 22 }, (SYMS_U64)SYMS_ElfType_REL },
+{ { (SYMS_U8*)"EXEC (Executable File)", 22 }, (SYMS_U64)SYMS_ElfType_EXEC },
+{ { (SYMS_U8*)"DYN (Shared Object)", 19 }, (SYMS_U64)SYMS_ElfType_DYN },
+{ { (SYMS_U8*)"CORE (Core File)", 16 }, (SYMS_U64)SYMS_ElfType_CORE },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfData[] = {
+{ { (SYMS_U8*)"invalid data encoding", 21 }, (SYMS_U64)SYMS_ElfData_None },
+{ { (SYMS_U8*)"2's complement, little endian", 29 }, (SYMS_U64)SYMS_ElfData_2LSB },
+{ { (SYMS_U8*)"2's complement, big endian", 26 }, (SYMS_U64)SYMS_ElfData_2MSB },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfPKind[] = {
+{ { (SYMS_U8*)"NONE", 4 }, (SYMS_U64)SYMS_ElfPKind_Null },
+{ { (SYMS_U8*)"LOAD", 4 }, (SYMS_U64)SYMS_ElfPKind_Load },
+{ { (SYMS_U8*)"DYNAMIC", 7 }, (SYMS_U64)SYMS_ElfPKind_Dynamic },
+{ { (SYMS_U8*)"INTERP", 6 }, (SYMS_U64)SYMS_ElfPKind_Interp },
+{ { (SYMS_U8*)"NOTE", 4 }, (SYMS_U64)SYMS_ElfPKind_Note },
+{ { (SYMS_U8*)"SHLIB", 5 }, (SYMS_U64)SYMS_ElfPKind_SHLib },
+{ { (SYMS_U8*)"PHDR", 4 }, (SYMS_U64)SYMS_ElfPKind_PHDR },
+{ { (SYMS_U8*)"LOOS", 4 }, (SYMS_U64)SYMS_ElfPKind_LOOS },
+{ { (SYMS_U8*)"HIOS", 4 }, (SYMS_U64)SYMS_ElfPKind_HIOS },
+{ { (SYMS_U8*)"LowProc", 7 }, (SYMS_U64)SYMS_ElfPKind_LowProc },
+{ { (SYMS_U8*)"HighProc", 8 }, (SYMS_U64)SYMS_ElfPKind_HighProc },
+{ { (SYMS_U8*)"LowSunW", 7 }, (SYMS_U64)SYMS_ElfPKind_LowSunW },
+{ { (SYMS_U8*)"SunWBSS", 7 }, (SYMS_U64)SYMS_ElfPKind_SunWBSS },
+{ { (SYMS_U8*)"GNU_EH_FRAME", 12 }, (SYMS_U64)SYMS_ElfPKind_GnuEHFrame },
+{ { (SYMS_U8*)"GNU_STACK", 9 }, (SYMS_U64)SYMS_ElfPKind_GnuStack },
+{ { (SYMS_U8*)"GNU_RELRO", 9 }, (SYMS_U64)SYMS_ElfPKind_GnuRelro },
+{ { (SYMS_U8*)"SunEHFrame", 10 }, (SYMS_U64)SYMS_ElfPKind_SunEHFrame },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_ElfPFlag[] = {
+{ { (SYMS_U8*)"Execute", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"Write", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
+{ { (SYMS_U8*)"Read", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfSectionCode[] = {
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_ElfSectionCode_NULL },
+{ { (SYMS_U8*)"PROGBITS", 8 }, (SYMS_U64)SYMS_ElfSectionCode_PROGBITS },
+{ { (SYMS_U8*)"SYMTAB", 6 }, (SYMS_U64)SYMS_ElfSectionCode_SYMTAB },
+{ { (SYMS_U8*)"STRTAB", 6 }, (SYMS_U64)SYMS_ElfSectionCode_STRTAB },
+{ { (SYMS_U8*)"RELA", 4 }, (SYMS_U64)SYMS_ElfSectionCode_RELA },
+{ { (SYMS_U8*)"HASH", 4 }, (SYMS_U64)SYMS_ElfSectionCode_HASH },
+{ { (SYMS_U8*)"DYNAMIC", 7 }, (SYMS_U64)SYMS_ElfSectionCode_DYNAMIC },
+{ { (SYMS_U8*)"NOTE", 4 }, (SYMS_U64)SYMS_ElfSectionCode_NOTE },
+{ { (SYMS_U8*)"NOBITS", 6 }, (SYMS_U64)SYMS_ElfSectionCode_NOBITS },
+{ { (SYMS_U8*)"REL", 3 }, (SYMS_U64)SYMS_ElfSectionCode_REL },
+{ { (SYMS_U8*)"SHLIB", 5 }, (SYMS_U64)SYMS_ElfSectionCode_SHLIB },
+{ { (SYMS_U8*)"DYNSYM", 6 }, (SYMS_U64)SYMS_ElfSectionCode_DYNSYM },
+{ { (SYMS_U8*)"INIT_ARRAY", 10 }, (SYMS_U64)SYMS_ElfSectionCode_INIT_ARRAY },
+{ { (SYMS_U8*)"FINI_ARRAY", 10 }, (SYMS_U64)SYMS_ElfSectionCode_FINI_ARRAY },
+{ { (SYMS_U8*)"PREINIT_ARRAY", 13 }, (SYMS_U64)SYMS_ElfSectionCode_PREINIT_ARRAY },
+{ { (SYMS_U8*)"GROUP", 5 }, (SYMS_U64)SYMS_ElfSectionCode_GROUP },
+{ { (SYMS_U8*)"SYMTAB_SHNDX", 12 }, (SYMS_U64)SYMS_ElfSectionCode_SYMTAB_SHNDX },
+{ { (SYMS_U8*)"GNU_INCREMENTAL_INPUTS", 22 }, (SYMS_U64)SYMS_ElfSectionCode_GNU_INCREMENTAL_INPUTS },
+{ { (SYMS_U8*)"GNU_ATTRIBUTES", 14 }, (SYMS_U64)SYMS_ElfSectionCode_GNU_ATTRIBUTES },
+{ { (SYMS_U8*)"GNU_HASH", 8 }, (SYMS_U64)SYMS_ElfSectionCode_GNU_HASH },
+{ { (SYMS_U8*)"GNU_LIBLIST", 11 }, (SYMS_U64)SYMS_ElfSectionCode_GNU_LIBLIST },
+{ { (SYMS_U8*)"VERDEF", 6 }, (SYMS_U64)SYMS_ElfSectionCode_SUNW_verdef },
+{ { (SYMS_U8*)"VERNEED", 7 }, (SYMS_U64)SYMS_ElfSectionCode_SUNW_verneed },
+{ { (SYMS_U8*)"VERSYM", 6 }, (SYMS_U64)SYMS_ElfSectionCode_SUNW_versym },
+{ { (SYMS_U8*)"GNU_VERDEF", 10 }, (SYMS_U64)SYMS_ElfSectionCode_GNU_verdef },
+{ { (SYMS_U8*)"GNU_VERNEED", 11 }, (SYMS_U64)SYMS_ElfSectionCode_GNU_verneed },
+{ { (SYMS_U8*)"GNU_VERSYM", 10 }, (SYMS_U64)SYMS_ElfSectionCode_GNU_versym },
+{ { (SYMS_U8*)"PROC", 4 }, (SYMS_U64)SYMS_ElfSectionCode_PROC },
+{ { (SYMS_U8*)"USER", 4 }, (SYMS_U64)SYMS_ElfSectionCode_USER },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfSectionIndex[] = {
+{ { (SYMS_U8*)"UND", 3 }, (SYMS_U64)SYMS_ElfSectionIndex_UNDEF },
+{ { (SYMS_U8*)"ABS", 3 }, (SYMS_U64)SYMS_ElfSectionIndex_ABS },
+{ { (SYMS_U8*)"COM", 3 }, (SYMS_U64)SYMS_ElfSectionIndex_COMMON },
+{ { (SYMS_U8*)"LO_RESERVE", 10 }, (SYMS_U64)SYMS_ElfSectionIndex_LO_RESERVE },
+{ { (SYMS_U8*)"HI_RESERVE", 10 }, (SYMS_U64)SYMS_ElfSectionIndex_HI_RESERVE },
+{ { (SYMS_U8*)"LO_PROC", 7 }, (SYMS_U64)SYMS_ElfSectionIndex_LO_PROC },
+{ { (SYMS_U8*)"HI_PROC", 7 }, (SYMS_U64)SYMS_ElfSectionIndex_HI_PROC },
+{ { (SYMS_U8*)"LO_OS", 5 }, (SYMS_U64)SYMS_ElfSectionIndex_LO_OS },
+{ { (SYMS_U8*)"HI_OS", 5 }, (SYMS_U64)SYMS_ElfSectionIndex_HI_OS },
+{ { (SYMS_U8*)"ANSI_COM", 8 }, (SYMS_U64)SYMS_ElfSectionIndex_IA_64_ASNI_COMMON },
+{ { (SYMS_U8*)"LARGE_COM", 9 }, (SYMS_U64)SYMS_ElfSectionIndex_X86_64_LCOMMON },
+{ { (SYMS_U8*)"SCOM", 4 }, (SYMS_U64)SYMS_ElfSectionIndex_MIPS_SCOMMON },
+{ { (SYMS_U8*)"SCOM", 4 }, (SYMS_U64)SYMS_ElfSectionIndex_TIC6X_COMMON },
+{ { (SYMS_U8*)"SUND", 4 }, (SYMS_U64)SYMS_ElfSectionIndex_MIPS_SUNDEFINED },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_ElfSectionFlag[] = {
+{ { (SYMS_U8*)"Write", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"Alloc", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
+{ { (SYMS_U8*)"Exec", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
+{ { (SYMS_U8*)"Merge", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 4 },
+{ { (SYMS_U8*)"Strings", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 5 },
+{ { (SYMS_U8*)"Link Info", 9 }, &_syms_serial_type_SYMS_U32, 0x1, 6 },
+{ { (SYMS_U8*)"Lnik Order", 10 }, &_syms_serial_type_SYMS_U32, 0x1, 7 },
+{ { (SYMS_U8*)"OS nonconforming", 16 }, &_syms_serial_type_SYMS_U32, 0x1, 8 },
+{ { (SYMS_U8*)"Group", 5 }, &_syms_serial_type_SYMS_U32, 0x1, 9 },
+{ { (SYMS_U8*)"TLS", 3 }, &_syms_serial_type_SYMS_U32, 0x1, 10 },
+{ { (SYMS_U8*)"MASKOS", 6 }, &_syms_serial_type_SYMS_U8, 0xff, 16 },
+{ { (SYMS_U8*)"AMD64 Large", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 28 },
+{ { (SYMS_U8*)"Ordered", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 30 },
+{ { (SYMS_U8*)"Exclude", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 31 },
+{ { (SYMS_U8*)"MASKPROC", 8 }, &_syms_serial_type_SYMS_U8, 0xf, 28 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfAuxType[] = {
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_ElfAuxType_NULL },
+{ { (SYMS_U8*)"PHDR", 4 }, (SYMS_U64)SYMS_ElfAuxType_PHDR },
+{ { (SYMS_U8*)"PHENT", 5 }, (SYMS_U64)SYMS_ElfAuxType_PHENT },
+{ { (SYMS_U8*)"PHNUM", 5 }, (SYMS_U64)SYMS_ElfAuxType_PHNUM },
+{ { (SYMS_U8*)"PAGESZ", 6 }, (SYMS_U64)SYMS_ElfAuxType_PAGESZ },
+{ { (SYMS_U8*)"BASE", 4 }, (SYMS_U64)SYMS_ElfAuxType_BASE },
+{ { (SYMS_U8*)"FLAGS", 5 }, (SYMS_U64)SYMS_ElfAuxType_FLAGS },
+{ { (SYMS_U8*)"ENTRY", 5 }, (SYMS_U64)SYMS_ElfAuxType_ENTRY },
+{ { (SYMS_U8*)"UID", 3 }, (SYMS_U64)SYMS_ElfAuxType_UID },
+{ { (SYMS_U8*)"EUID", 4 }, (SYMS_U64)SYMS_ElfAuxType_EUID },
+{ { (SYMS_U8*)"GID", 3 }, (SYMS_U64)SYMS_ElfAuxType_GID },
+{ { (SYMS_U8*)"EGID", 4 }, (SYMS_U64)SYMS_ElfAuxType_EGID },
+{ { (SYMS_U8*)"PLATFORM", 8 }, (SYMS_U64)SYMS_ElfAuxType_PLATFORM },
+{ { (SYMS_U8*)"HWCAP", 5 }, (SYMS_U64)SYMS_ElfAuxType_HWCAP },
+{ { (SYMS_U8*)"CLKTCK", 6 }, (SYMS_U64)SYMS_ElfAuxType_CLKTCK },
+{ { (SYMS_U8*)"DCACHEBSIZE", 11 }, (SYMS_U64)SYMS_ElfAuxType_DCACHEBSIZE },
+{ { (SYMS_U8*)"ICACHEBSIZE", 11 }, (SYMS_U64)SYMS_ElfAuxType_ICACHEBSIZE },
+{ { (SYMS_U8*)"UCACHEBSIZE", 11 }, (SYMS_U64)SYMS_ElfAuxType_UCACHEBSIZE },
+{ { (SYMS_U8*)"IGNOREPPC", 9 }, (SYMS_U64)SYMS_ElfAuxType_IGNOREPPC },
+{ { (SYMS_U8*)"SECURE", 6 }, (SYMS_U64)SYMS_ElfAuxType_SECURE },
+{ { (SYMS_U8*)"BASE_PLATFORM", 13 }, (SYMS_U64)SYMS_ElfAuxType_BASE_PLATFORM },
+{ { (SYMS_U8*)"RANDOM", 6 }, (SYMS_U64)SYMS_ElfAuxType_RANDOM },
+{ { (SYMS_U8*)"HWCAP2", 6 }, (SYMS_U64)SYMS_ElfAuxType_HWCAP2 },
+{ { (SYMS_U8*)"EXECFN", 6 }, (SYMS_U64)SYMS_ElfAuxType_EXECFN },
+{ { (SYMS_U8*)"SYSINFO", 7 }, (SYMS_U64)SYMS_ElfAuxType_SYSINFO },
+{ { (SYMS_U8*)"SYSINFO_EHDR", 12 }, (SYMS_U64)SYMS_ElfAuxType_SYSINFO_EHDR },
+{ { (SYMS_U8*)"L1I_CACHESIZE", 13 }, (SYMS_U64)SYMS_ElfAuxType_L1I_CACHESIZE },
+{ { (SYMS_U8*)"L1I_CACHEGEOMETRY", 17 }, (SYMS_U64)SYMS_ElfAuxType_L1I_CACHEGEOMETRY },
+{ { (SYMS_U8*)"L1D_CACHESIZE", 13 }, (SYMS_U64)SYMS_ElfAuxType_L1D_CACHESIZE },
+{ { (SYMS_U8*)"L1D_CACHEGEOMETRY", 17 }, (SYMS_U64)SYMS_ElfAuxType_L1D_CACHEGEOMETRY },
+{ { (SYMS_U8*)"L2_CACHESIZE", 12 }, (SYMS_U64)SYMS_ElfAuxType_L2_CACHESIZE },
+{ { (SYMS_U8*)"L2_CACHEGEOMETRY", 16 }, (SYMS_U64)SYMS_ElfAuxType_L2_CACHEGEOMETRY },
+{ { (SYMS_U8*)"L3_CACHESIZE", 12 }, (SYMS_U64)SYMS_ElfAuxType_L3_CACHESIZE },
+{ { (SYMS_U8*)"L3_CACHEGEOMETRY", 16 }, (SYMS_U64)SYMS_ElfAuxType_L3_CACHEGEOMETRY },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfDynTag[] = {
+{ { (SYMS_U8*)"NULL", 4 }, (SYMS_U64)SYMS_ElfDynTag_NULL },
+{ { (SYMS_U8*)"NEEDED", 6 }, (SYMS_U64)SYMS_ElfDynTag_NEEDED },
+{ { (SYMS_U8*)"PLTRELSZ", 8 }, (SYMS_U64)SYMS_ElfDynTag_PLTRELSZ },
+{ { (SYMS_U8*)"PLTGOT", 6 }, (SYMS_U64)SYMS_ElfDynTag_PLTGOT },
+{ { (SYMS_U8*)"HASH", 4 }, (SYMS_U64)SYMS_ElfDynTag_HASH },
+{ { (SYMS_U8*)"STRTAB", 6 }, (SYMS_U64)SYMS_ElfDynTag_STRTAB },
+{ { (SYMS_U8*)"SYMTAB", 6 }, (SYMS_U64)SYMS_ElfDynTag_SYMTAB },
+{ { (SYMS_U8*)"RELA", 4 }, (SYMS_U64)SYMS_ElfDynTag_RELA },
+{ { (SYMS_U8*)"RELASZ", 6 }, (SYMS_U64)SYMS_ElfDynTag_RELASZ },
+{ { (SYMS_U8*)"RELAENT", 7 }, (SYMS_U64)SYMS_ElfDynTag_RELAENT },
+{ { (SYMS_U8*)"STRSZ", 5 }, (SYMS_U64)SYMS_ElfDynTag_STRSZ },
+{ { (SYMS_U8*)"SYMENT", 6 }, (SYMS_U64)SYMS_ElfDynTag_SYMENT },
+{ { (SYMS_U8*)"INIT", 4 }, (SYMS_U64)SYMS_ElfDynTag_INIT },
+{ { (SYMS_U8*)"FINI", 4 }, (SYMS_U64)SYMS_ElfDynTag_FINI },
+{ { (SYMS_U8*)"SONAME", 6 }, (SYMS_U64)SYMS_ElfDynTag_SONAME },
+{ { (SYMS_U8*)"RPATH", 5 }, (SYMS_U64)SYMS_ElfDynTag_RPATH },
+{ { (SYMS_U8*)"SYMBOLIC", 8 }, (SYMS_U64)SYMS_ElfDynTag_SYMBOLIC },
+{ { (SYMS_U8*)"REL", 3 }, (SYMS_U64)SYMS_ElfDynTag_REL },
+{ { (SYMS_U8*)"RELSZ", 5 }, (SYMS_U64)SYMS_ElfDynTag_RELSZ },
+{ { (SYMS_U8*)"RELENT", 6 }, (SYMS_U64)SYMS_ElfDynTag_RELENT },
+{ { (SYMS_U8*)"PLTREL", 6 }, (SYMS_U64)SYMS_ElfDynTag_PLTREL },
+{ { (SYMS_U8*)"DEBUG", 5 }, (SYMS_U64)SYMS_ElfDynTag_DEBUG },
+{ { (SYMS_U8*)"TEXTREL", 7 }, (SYMS_U64)SYMS_ElfDynTag_TEXTREL },
+{ { (SYMS_U8*)"JMPREL", 6 }, (SYMS_U64)SYMS_ElfDynTag_JMPREL },
+{ { (SYMS_U8*)"BIND_NOW", 8 }, (SYMS_U64)SYMS_ElfDynTag_BIND_NOW },
+{ { (SYMS_U8*)"INIT_ARRAY", 10 }, (SYMS_U64)SYMS_ElfDynTag_INIT_ARRAY },
+{ { (SYMS_U8*)"FINI_ARRAY", 10 }, (SYMS_U64)SYMS_ElfDynTag_FINI_ARRAY },
+{ { (SYMS_U8*)"INIT_ARRAYSZ", 12 }, (SYMS_U64)SYMS_ElfDynTag_INIT_ARRAYSZ },
+{ { (SYMS_U8*)"FINI_ARRAYSZ", 12 }, (SYMS_U64)SYMS_ElfDynTag_FINI_ARRAYSZ },
+{ { (SYMS_U8*)"RUNPATH", 7 }, (SYMS_U64)SYMS_ElfDynTag_RUNPATH },
+{ { (SYMS_U8*)"FLAGS", 5 }, (SYMS_U64)SYMS_ElfDynTag_FLAGS },
+{ { (SYMS_U8*)"PREINIT_ARRAY", 13 }, (SYMS_U64)SYMS_ElfDynTag_PREINIT_ARRAY },
+{ { (SYMS_U8*)"PREINIT_ARRAYSZ", 15 }, (SYMS_U64)SYMS_ElfDynTag_PREINIT_ARRAYSZ },
+{ { (SYMS_U8*)"SYMTAB_SHNDX", 12 }, (SYMS_U64)SYMS_ElfDynTag_SYMTAB_SHNDX },
+{ { (SYMS_U8*)"LOOS", 4 }, (SYMS_U64)SYMS_ElfDynTag_LOOS },
+{ { (SYMS_U8*)"HIOS", 4 }, (SYMS_U64)SYMS_ElfDynTag_HIOS },
+{ { (SYMS_U8*)"VALRNGLO", 8 }, (SYMS_U64)SYMS_ElfDynTag_VALRNGLO },
+{ { (SYMS_U8*)"GNU_PRELINKED", 13 }, (SYMS_U64)SYMS_ElfDynTag_GNU_PRELINKED },
+{ { (SYMS_U8*)"GNU_CONFLICTSZ", 14 }, (SYMS_U64)SYMS_ElfDynTag_GNU_CONFLICTSZ },
+{ { (SYMS_U8*)"GNU_LIBLISTSZ", 13 }, (SYMS_U64)SYMS_ElfDynTag_GNU_LIBLISTSZ },
+{ { (SYMS_U8*)"CHECKSUM", 8 }, (SYMS_U64)SYMS_ElfDynTag_CHECKSUM },
+{ { (SYMS_U8*)"PLTPADSZ", 8 }, (SYMS_U64)SYMS_ElfDynTag_PLTPADSZ },
+{ { (SYMS_U8*)"MOVEENT", 7 }, (SYMS_U64)SYMS_ElfDynTag_MOVEENT },
+{ { (SYMS_U8*)"MOVESZ", 6 }, (SYMS_U64)SYMS_ElfDynTag_MOVESZ },
+{ { (SYMS_U8*)"FEATURE", 7 }, (SYMS_U64)SYMS_ElfDynTag_FEATURE },
+{ { (SYMS_U8*)"POSFLAG_1", 9 }, (SYMS_U64)SYMS_ElfDynTag_POSFLAG_1 },
+{ { (SYMS_U8*)"SYMINSZ", 7 }, (SYMS_U64)SYMS_ElfDynTag_SYMINSZ },
+{ { (SYMS_U8*)"SYMINENT", 8 }, (SYMS_U64)SYMS_ElfDynTag_SYMINENT },
+{ { (SYMS_U8*)"VALRNGHI", 8 }, (SYMS_U64)SYMS_ElfDynTag_VALRNGHI },
+{ { (SYMS_U8*)"ADDRRNGLO", 9 }, (SYMS_U64)SYMS_ElfDynTag_ADDRRNGLO },
+{ { (SYMS_U8*)"GNU_HASH", 8 }, (SYMS_U64)SYMS_ElfDynTag_GNU_HASH },
+{ { (SYMS_U8*)"TLSDESC_PLT", 11 }, (SYMS_U64)SYMS_ElfDynTag_TLSDESC_PLT },
+{ { (SYMS_U8*)"TLSDESC_GOT", 11 }, (SYMS_U64)SYMS_ElfDynTag_TLSDESC_GOT },
+{ { (SYMS_U8*)"GNU_CONFLICT", 12 }, (SYMS_U64)SYMS_ElfDynTag_GNU_CONFLICT },
+{ { (SYMS_U8*)"GNU_LIBLIST", 11 }, (SYMS_U64)SYMS_ElfDynTag_GNU_LIBLIST },
+{ { (SYMS_U8*)"CONFIG", 6 }, (SYMS_U64)SYMS_ElfDynTag_CONFIG },
+{ { (SYMS_U8*)"DEPAUDIT", 8 }, (SYMS_U64)SYMS_ElfDynTag_DEPAUDIT },
+{ { (SYMS_U8*)"AUDIT", 5 }, (SYMS_U64)SYMS_ElfDynTag_AUDIT },
+{ { (SYMS_U8*)"PLTPAD", 6 }, (SYMS_U64)SYMS_ElfDynTag_PLTPAD },
+{ { (SYMS_U8*)"MOVETAB", 7 }, (SYMS_U64)SYMS_ElfDynTag_MOVETAB },
+{ { (SYMS_U8*)"SYMINFO", 7 }, (SYMS_U64)SYMS_ElfDynTag_SYMINFO },
+{ { (SYMS_U8*)"ADDRRNGHI", 9 }, (SYMS_U64)SYMS_ElfDynTag_ADDRRNGHI },
+{ { (SYMS_U8*)"RELACOUNT", 9 }, (SYMS_U64)SYMS_ElfDynTag_RELACOUNT },
+{ { (SYMS_U8*)"RELCOUNT", 8 }, (SYMS_U64)SYMS_ElfDynTag_RELCOUNT },
+{ { (SYMS_U8*)"FLAGS_1", 7 }, (SYMS_U64)SYMS_ElfDynTag_FLAGS_1 },
+{ { (SYMS_U8*)"VERDEF", 6 }, (SYMS_U64)SYMS_ElfDynTag_VERDEF },
+{ { (SYMS_U8*)"VERDEFNUM", 9 }, (SYMS_U64)SYMS_ElfDynTag_VERDEFNUM },
+{ { (SYMS_U8*)"VERNEED", 7 }, (SYMS_U64)SYMS_ElfDynTag_VERNEED },
+{ { (SYMS_U8*)"VERNEEDNUM", 10 }, (SYMS_U64)SYMS_ElfDynTag_VERNEEDNUM },
+{ { (SYMS_U8*)"VERSYM", 6 }, (SYMS_U64)SYMS_ElfDynTag_VERSYM },
+{ { (SYMS_U8*)"LOPROC", 6 }, (SYMS_U64)SYMS_ElfDynTag_LOPROC },
+{ { (SYMS_U8*)"AUXILIARY", 9 }, (SYMS_U64)SYMS_ElfDynTag_AUXILIARY },
+{ { (SYMS_U8*)"USED", 4 }, (SYMS_U64)SYMS_ElfDynTag_USED },
+{ { (SYMS_U8*)"FILTER", 6 }, (SYMS_U64)SYMS_ElfDynTag_FILTER },
+{ { (SYMS_U8*)"HIPROC", 6 }, (SYMS_U64)SYMS_ElfDynTag_HIPROC },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_ElfDynFlag[] = {
+{ { (SYMS_U8*)"ORIGIN", 6 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"SYMBOLIC", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
+{ { (SYMS_U8*)"TEXTREL", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
+{ { (SYMS_U8*)"BIND_NOW", 8 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
+{ { (SYMS_U8*)"STATIC_TLS", 10 }, &_syms_serial_type_SYMS_U32, 0x1, 4 },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_ElfDynFeatureFlag[] = {
+{ { (SYMS_U8*)"PARINIT", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"CONFEXP", 7 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfSymBind[] = {
+{ { (SYMS_U8*)"LOCAL", 5 }, (SYMS_U64)SYMS_ElfSymBind_LOCAL },
+{ { (SYMS_U8*)"GLOBAL", 6 }, (SYMS_U64)SYMS_ElfSymBind_GLOBAL },
+{ { (SYMS_U8*)"WEAK", 4 }, (SYMS_U64)SYMS_ElfSymBind_WEAK },
+{ { (SYMS_U8*)"LOPROC", 6 }, (SYMS_U64)SYMS_ElfSymBind_LOPROC },
+{ { (SYMS_U8*)"HIPROC", 6 }, (SYMS_U64)SYMS_ElfSymBind_HIPROC },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfSymType[] = {
+{ { (SYMS_U8*)"NOTYPE", 6 }, (SYMS_U64)SYMS_ElfSymType_NOTYPE },
+{ { (SYMS_U8*)"OBJECT", 6 }, (SYMS_U64)SYMS_ElfSymType_OBJECT },
+{ { (SYMS_U8*)"FUNC", 4 }, (SYMS_U64)SYMS_ElfSymType_FUNC },
+{ { (SYMS_U8*)"SECTION", 7 }, (SYMS_U64)SYMS_ElfSymType_SECTION },
+{ { (SYMS_U8*)"FILE", 4 }, (SYMS_U64)SYMS_ElfSymType_FILE },
+{ { (SYMS_U8*)"LOPROC", 6 }, (SYMS_U64)SYMS_ElfSymType_LOPROC },
+{ { (SYMS_U8*)"HIPROC", 6 }, (SYMS_U64)SYMS_ElfSymType_HIPROC },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfSymVisibility[] = {
+{ { (SYMS_U8*)"DEFAULT", 7 }, (SYMS_U64)SYMS_ElfSymVisibility_DEFAULT },
+{ { (SYMS_U8*)"INTERNAL", 8 }, (SYMS_U64)SYMS_ElfSymVisibility_INTERNAL },
+{ { (SYMS_U8*)"HIDDEN", 6 }, (SYMS_U64)SYMS_ElfSymVisibility_HIDDEN },
+{ { (SYMS_U8*)"PROTECTED", 9 }, (SYMS_U64)SYMS_ElfSymVisibility_PROTECTED },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_ElfRelocI386[] = {
+{ { (SYMS_U8*)"NONE", 4 }, (SYMS_U64)SYMS_ElfRelocI386_NONE },
+{ { (SYMS_U8*)"32", 2 }, (SYMS_U64)SYMS_ElfRelocI386_32 },
+{ { (SYMS_U8*)"PC32", 4 }, (SYMS_U64)SYMS_ElfRelocI386_PC32 },
+{ { (SYMS_U8*)"GOT32", 5 }, (SYMS_U64)SYMS_ElfRelocI386_GOT32 },
+{ { (SYMS_U8*)"PLT32", 5 }, (SYMS_U64)SYMS_ElfRelocI386_PLT32 },
+{ { (SYMS_U8*)"COPY", 4 }, (SYMS_U64)SYMS_ElfRelocI386_COPY },
+{ { (SYMS_U8*)"GLOB_DAT", 8 }, (SYMS_U64)SYMS_ElfRelocI386_GLOB_DAT },
+{ { (SYMS_U8*)"JUMP_SLOT", 9 }, (SYMS_U64)SYMS_ElfRelocI386_JUMP_SLOT },
+{ { (SYMS_U8*)"RELATIVE", 8 }, (SYMS_U64)SYMS_ElfRelocI386_RELATIVE },
+{ { (SYMS_U8*)"GOTOFF", 6 }, (SYMS_U64)SYMS_ElfRelocI386_GOTOFF },
+{ { (SYMS_U8*)"GOTPC", 5 }, (SYMS_U64)SYMS_ElfRelocI386_GOTPC },
+{ { (SYMS_U8*)"32PLT", 5 }, (SYMS_U64)SYMS_ElfRelocI386_32PLT },
+{ { (SYMS_U8*)"TLS_TPOFF", 9 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_TPOFF },
+{ { (SYMS_U8*)"TLS_IE", 6 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_IE },
+{ { (SYMS_U8*)"TLS_GOTIE", 9 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_GOTIE },
+{ { (SYMS_U8*)"TLS_LE", 6 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LE },
+{ { (SYMS_U8*)"TLS_GD", 6 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_GD },
+{ { (SYMS_U8*)"TLS_LDM", 7 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LDM },
+{ { (SYMS_U8*)"16", 2 }, (SYMS_U64)SYMS_ElfRelocI386_16 },
+{ { (SYMS_U8*)"PC16", 4 }, (SYMS_U64)SYMS_ElfRelocI386_PC16 },
+{ { (SYMS_U8*)"8", 1 }, (SYMS_U64)SYMS_ElfRelocI386_8 },
+{ { (SYMS_U8*)"PC8", 3 }, (SYMS_U64)SYMS_ElfRelocI386_PC8 },
+{ { (SYMS_U8*)"TLS_GD_32", 9 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_GD_32 },
+{ { (SYMS_U8*)"TLS_GD_PUSH", 11 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_GD_PUSH },
+{ { (SYMS_U8*)"TLS_GD_CALL", 11 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_GD_CALL },
+{ { (SYMS_U8*)"TLS_GD_POP", 10 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_GD_POP },
+{ { (SYMS_U8*)"TLS_LDM_32", 10 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LDM_32 },
+{ { (SYMS_U8*)"TLS_LDM_PUSH", 12 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LDM_PUSH },
+{ { (SYMS_U8*)"TLS_LDM_CALL", 12 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LDM_CALL },
+{ { (SYMS_U8*)"TLS_LDM_POP", 11 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LDM_POP },
+{ { (SYMS_U8*)"TLS_LDO_32", 10 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LDO_32 },
+{ { (SYMS_U8*)"TLS_IE_32", 9 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_IE_32 },
+{ { (SYMS_U8*)"TLS_LE_32", 9 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_LE_32 },
+{ { (SYMS_U8*)"TLS_DTPMOD32", 12 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_DTPMOD32 },
+{ { (SYMS_U8*)"TLS_DTPOFF32", 12 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_DTPOFF32 },
+{ { (SYMS_U8*)"TLS_TPOFF32", 11 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_TPOFF32 },
+{ { (SYMS_U8*)"TLS_GOTDESC", 11 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_GOTDESC },
+{ { (SYMS_U8*)"TLS_DESC_CALL", 13 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_DESC_CALL },
+{ { (SYMS_U8*)"TLS_DESC", 8 }, (SYMS_U64)SYMS_ElfRelocI386_TLS_DESC },
+{ { (SYMS_U8*)"IRELATIVE", 9 }, (SYMS_U64)SYMS_ElfRelocI386_IRELATIVE },
+{ { (SYMS_U8*)"GOTX32X", 7 }, (SYMS_U64)SYMS_ElfRelocI386_GOTX32X },
+{ { (SYMS_U8*)"USED_BY_INTEL_200", 17 }, (SYMS_U64)SYMS_ElfRelocI386_USED_BY_INTEL_200 },
+{ { (SYMS_U8*)"GNU_VTINHERIT", 13 }, (SYMS_U64)SYMS_ElfRelocI386_GNU_VTINHERIT },
+{ { (SYMS_U8*)"GNU_VTENTRY", 11 }, (SYMS_U64)SYMS_ElfRelocI386_GNU_VTENTRY },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_ElfExternalVerFlag[] = {
+{ { (SYMS_U8*)"BASE", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"WEAK", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 1 },
+{ { (SYMS_U8*)"INFO", 4 }, &_syms_serial_type_SYMS_U32, 0x1, 2 },
+};
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
+SYMS_SerialType _syms_serial_type_SYMS_ElfClass = {
+{(SYMS_U8*)"SYMS_ElfClass", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfClass), _syms_serial_members_for_SYMS_ElfClass, sizeof(SYMS_ElfClass), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfOsAbi = {
+{(SYMS_U8*)"SYMS_ElfOsAbi", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfOsAbi), _syms_serial_members_for_SYMS_ElfOsAbi, sizeof(SYMS_ElfOsAbi), syms_enum_index_from_elf_os_abi
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfVersion = {
+{(SYMS_U8*)"SYMS_ElfVersion", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfVersion), _syms_serial_members_for_SYMS_ElfVersion, sizeof(SYMS_ElfVersion), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfMachineKind = {
+{(SYMS_U8*)"SYMS_ElfMachineKind", 19}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfMachineKind), _syms_serial_members_for_SYMS_ElfMachineKind, sizeof(SYMS_ElfMachineKind), syms_enum_index_from_elf_machine_kind
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfType = {
+{(SYMS_U8*)"SYMS_ElfType", 12}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfType), _syms_serial_members_for_SYMS_ElfType, sizeof(SYMS_ElfType), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfData = {
+{(SYMS_U8*)"SYMS_ElfData", 12}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfData), _syms_serial_members_for_SYMS_ElfData, sizeof(SYMS_ElfData), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfPKind = {
+{(SYMS_U8*)"SYMS_ElfPKind", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfPKind), _syms_serial_members_for_SYMS_ElfPKind, sizeof(SYMS_ElfPKind), syms_enum_index_from_elf_p_kind
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfPFlag = {
+{(SYMS_U8*)"SYMS_ElfPFlag", 13}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfPFlag), _syms_serial_members_for_SYMS_ElfPFlag, sizeof(SYMS_ElfPFlag), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfSectionCode = {
+{(SYMS_U8*)"SYMS_ElfSectionCode", 19}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfSectionCode), _syms_serial_members_for_SYMS_ElfSectionCode, sizeof(SYMS_ElfSectionCode), syms_enum_index_from_elfsectioncode
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfSectionIndex = {
+{(SYMS_U8*)"SYMS_ElfSectionIndex", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfSectionIndex), _syms_serial_members_for_SYMS_ElfSectionIndex, sizeof(SYMS_ElfSectionIndex), syms_enum_index_from_elf_section_index
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfSectionFlag = {
+{(SYMS_U8*)"SYMS_ElfSectionFlag", 19}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfSectionFlag), _syms_serial_members_for_SYMS_ElfSectionFlag, sizeof(SYMS_ElfSectionFlag), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfAuxType = {
+{(SYMS_U8*)"SYMS_ElfAuxType", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfAuxType), _syms_serial_members_for_SYMS_ElfAuxType, sizeof(SYMS_ElfAuxType), syms_enum_index_from_elf_aux_type
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfDynTag = {
+{(SYMS_U8*)"SYMS_ElfDynTag", 14}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfDynTag), _syms_serial_members_for_SYMS_ElfDynTag, sizeof(SYMS_ElfDynTag), syms_enum_index_from_elfdyntag
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfDynFlag = {
+{(SYMS_U8*)"SYMS_ElfDynFlag", 15}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfDynFlag), _syms_serial_members_for_SYMS_ElfDynFlag, sizeof(SYMS_ElfDynFlag), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfDynFeatureFlag = {
+{(SYMS_U8*)"SYMS_ElfDynFeatureFlag", 22}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfDynFeatureFlag), _syms_serial_members_for_SYMS_ElfDynFeatureFlag, sizeof(SYMS_ElfDynFeatureFlag), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfSymBind = {
+{(SYMS_U8*)"SYMS_ElfSymBind", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfSymBind), _syms_serial_members_for_SYMS_ElfSymBind, sizeof(SYMS_ElfSymBind), syms_enum_index_from_elf_sym_bind
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfSymType = {
+{(SYMS_U8*)"SYMS_ElfSymType", 15}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfSymType), _syms_serial_members_for_SYMS_ElfSymType, sizeof(SYMS_ElfSymType), syms_enum_index_from_elf_sym_type
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfSymVisibility = {
+{(SYMS_U8*)"SYMS_ElfSymVisibility", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfSymVisibility), _syms_serial_members_for_SYMS_ElfSymVisibility, sizeof(SYMS_ElfSymVisibility), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfRelocI386 = {
+{(SYMS_U8*)"SYMS_ElfRelocI386", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfRelocI386), _syms_serial_members_for_SYMS_ElfRelocI386, sizeof(SYMS_ElfRelocI386), syms_enum_index_from_elf_reloc_i386
+};
+SYMS_SerialType _syms_serial_type_SYMS_ElfExternalVerFlag = {
+{(SYMS_U8*)"SYMS_ElfExternalVerFlag", 23}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ElfExternalVerFlag), _syms_serial_members_for_SYMS_ElfExternalVerFlag, sizeof(SYMS_ElfExternalVerFlag), 0
+};
+
+#endif // defined(SYMS_ENABLE_ELF_SERIAL_INFO)
 
 
 ////////////////////////////////
 #if defined(SYMS_ENABLE_MACH_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:892
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
 SYMS_API SYMS_U64
 syms_enum_index_from_mach_cpu_type(SYMS_U64 v){
 SYMS_U64 result = 0;
@@ -7385,22 +7709,22 @@ return(result);
 }
 // syms_enum_index_from_mach_section_type - skipped identity mapping
 SYMS_API SYMS_U64
-syms_enum_index_from_m_ach_section_attr(SYMS_U64 v){
+syms_enum_index_from_mach_section_attr(SYMS_U64 v){
 SYMS_U64 result = 0;
 switch ((SYMS_S32)v){
 default: break;
-case SYMS_MAchSectionAttr_USR: result = 0; break;
-case SYMS_MAchSectionAttr_SYSTEM: result = 1; break;
-case SYMS_MAchSectionAttr_PURE_INSTRUCTIONS: result = 2; break;
-case SYMS_MAchSectionAttr_NO_TOC: result = 3; break;
-case SYMS_MAchSectionAttr_STRIP_STATIC_SYMS: result = 4; break;
-case SYMS_MAchSectionAttr_NO_DEAD_STRIP: result = 5; break;
-case SYMS_MAchSectionAttr_LIVE_SUPPORT: result = 6; break;
-case SYMS_MAchSectionAttr_SELF_MODIFYING_CODE: result = 7; break;
-case SYMS_MAchSectionAttr_DEBUG: result = 8; break;
-case SYMS_MAchSectionAttr_SOME_INSTRUCTIONS: result = 9; break;
-case SYMS_MAchSectionAttr_SECTION_RELOC: result = 10; break;
-case SYMS_MAchSectionAttr_LOC_RELOC: result = 11; break;
+case SYMS_MachSectionAttr_USR: result = 0; break;
+case SYMS_MachSectionAttr_SYSTEM: result = 1; break;
+case SYMS_MachSectionAttr_PURE_INSTRUCTIONS: result = 2; break;
+case SYMS_MachSectionAttr_NO_TOC: result = 3; break;
+case SYMS_MachSectionAttr_STRIP_STATIC_SYMS: result = 4; break;
+case SYMS_MachSectionAttr_NO_DEAD_STRIP: result = 5; break;
+case SYMS_MachSectionAttr_LIVE_SUPPORT: result = 6; break;
+case SYMS_MachSectionAttr_SELF_MODIFYING_CODE: result = 7; break;
+case SYMS_MachSectionAttr_DEBUG: result = 8; break;
+case SYMS_MachSectionAttr_SOME_INSTRUCTIONS: result = 9; break;
+case SYMS_MachSectionAttr_SECTION_RELOC: result = 10; break;
+case SYMS_MachSectionAttr_LOC_RELOC: result = 11; break;
 }
 return(result);
 }
@@ -7424,6 +7748,51 @@ default: break;
 case SYMS_MachToolType_CLANG: result = 0; break;
 case SYMS_MachToolType_SWITFT: result = 1; break;
 case SYMS_MachToolType_LD: result = 2; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_mach_bind_type(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_MachBindType_POINTER: result = 0; break;
+case SYMS_MachBindType_TEXT_ABSOLUTE32: result = 1; break;
+case SYMS_MachBindType_PCREL32: result = 2; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_mach_bind_opcode(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U8)v){
+default: break;
+case SYMS_MachBindOpcode_DONE: result = 0; break;
+case SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_IMM: result = 1; break;
+case SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_ULEB: result = 2; break;
+case SYMS_MachBindOpcode_SET_DYLIB_SPECIAL_IMM: result = 3; break;
+case SYMS_MachBindOpcode_SET_SYMBOL_TRAILING_FLAGS_IMM: result = 4; break;
+case SYMS_MachBindOpcode_SET_TYPE_IMM: result = 5; break;
+case SYMS_MachBindOpcode_SET_ADDEND_SLEB: result = 6; break;
+case SYMS_MachBindOpcode_SET_SEGMENT_AND_OFFSET_ULEB: result = 7; break;
+case SYMS_MachBindOpcode_ADD_ADDR_ULEB: result = 8; break;
+case SYMS_MachBindOpcode_DO_BIND: result = 9; break;
+case SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_ULEB: result = 10; break;
+case SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_IMM_SCALED: result = 11; break;
+case SYMS_MachBindOpcode_DO_BIND_ULEB_TIMES_SKIPPING_ULEB: result = 12; break;
+case SYMS_MachBindOpcode_MASK: result = 13; break;
+case SYMS_MachBindOpcode_IMM_MASK: result = 14; break;
+}
+return(result);
+}
+SYMS_API SYMS_U64
+syms_enum_index_from_mach_bind_special_dylib(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_S8)v){
+default: break;
+case SYMS_MachBindSpecialDylib_SELF: result = 0; break;
+case SYMS_MachBindSpecialDylib_MAIN_EXECUTABLE: result = 1; break;
+case SYMS_MachBindSpecialDylib_FLAT_LOOKUP: result = 2; break;
 }
 return(result);
 }
@@ -7478,8 +7847,9 @@ case SYMS_MachStabType_LENG: result = 29; break;
 }
 return(result);
 }
+// syms_enum_index_from_mach_export_symbol_kind - skipped identity mapping
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1123
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
 SYMS_SerialValue _syms_serial_members_for_SYMS_MachCpuType[] = {
 { { (SYMS_U8*)"ANY", 3 }, (SYMS_U64)SYMS_MachCpuType_ANY },
 { { (SYMS_U8*)"VAX", 3 }, (SYMS_U64)SYMS_MachCpuType_VAX },
@@ -7718,19 +8088,19 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_MachSectionType[] = {
 { { (SYMS_U8*)"THREAD_LOCAL_VARIABLES_POINTERS", 31 }, (SYMS_U64)SYMS_MachSectionType_THREAD_LOCAL_VARIABLES_POINTERS },
 { { (SYMS_U8*)"LOCAL_INIT_FUNCTION_POINTERS", 28 }, (SYMS_U64)SYMS_MachSectionType_LOCAL_INIT_FUNCTION_POINTERS },
 };
-SYMS_SerialValue _syms_serial_members_for_SYMS_MAchSectionAttr[] = {
-{ { (SYMS_U8*)"USR", 3 }, (SYMS_U64)SYMS_MAchSectionAttr_USR },
-{ { (SYMS_U8*)"SYSTEM", 6 }, (SYMS_U64)SYMS_MAchSectionAttr_SYSTEM },
-{ { (SYMS_U8*)"PURE_INSTRUCTIONS", 17 }, (SYMS_U64)SYMS_MAchSectionAttr_PURE_INSTRUCTIONS },
-{ { (SYMS_U8*)"NO_TOC", 6 }, (SYMS_U64)SYMS_MAchSectionAttr_NO_TOC },
-{ { (SYMS_U8*)"STRIP_STATIC_SYMS", 17 }, (SYMS_U64)SYMS_MAchSectionAttr_STRIP_STATIC_SYMS },
-{ { (SYMS_U8*)"NO_DEAD_STRIP", 13 }, (SYMS_U64)SYMS_MAchSectionAttr_NO_DEAD_STRIP },
-{ { (SYMS_U8*)"LIVE_SUPPORT", 12 }, (SYMS_U64)SYMS_MAchSectionAttr_LIVE_SUPPORT },
-{ { (SYMS_U8*)"SELF_MODIFYING_CODE", 19 }, (SYMS_U64)SYMS_MAchSectionAttr_SELF_MODIFYING_CODE },
-{ { (SYMS_U8*)"DEBUG", 5 }, (SYMS_U64)SYMS_MAchSectionAttr_DEBUG },
-{ { (SYMS_U8*)"SOME_INSTRUCTIONS", 17 }, (SYMS_U64)SYMS_MAchSectionAttr_SOME_INSTRUCTIONS },
-{ { (SYMS_U8*)"SECTION_RELOC", 13 }, (SYMS_U64)SYMS_MAchSectionAttr_SECTION_RELOC },
-{ { (SYMS_U8*)"LOC_RELOC", 9 }, (SYMS_U64)SYMS_MAchSectionAttr_LOC_RELOC },
+SYMS_SerialValue _syms_serial_members_for_SYMS_MachSectionAttr[] = {
+{ { (SYMS_U8*)"USR", 3 }, (SYMS_U64)SYMS_MachSectionAttr_USR },
+{ { (SYMS_U8*)"SYSTEM", 6 }, (SYMS_U64)SYMS_MachSectionAttr_SYSTEM },
+{ { (SYMS_U8*)"PURE_INSTRUCTIONS", 17 }, (SYMS_U64)SYMS_MachSectionAttr_PURE_INSTRUCTIONS },
+{ { (SYMS_U8*)"NO_TOC", 6 }, (SYMS_U64)SYMS_MachSectionAttr_NO_TOC },
+{ { (SYMS_U8*)"STRIP_STATIC_SYMS", 17 }, (SYMS_U64)SYMS_MachSectionAttr_STRIP_STATIC_SYMS },
+{ { (SYMS_U8*)"NO_DEAD_STRIP", 13 }, (SYMS_U64)SYMS_MachSectionAttr_NO_DEAD_STRIP },
+{ { (SYMS_U8*)"LIVE_SUPPORT", 12 }, (SYMS_U64)SYMS_MachSectionAttr_LIVE_SUPPORT },
+{ { (SYMS_U8*)"SELF_MODIFYING_CODE", 19 }, (SYMS_U64)SYMS_MachSectionAttr_SELF_MODIFYING_CODE },
+{ { (SYMS_U8*)"DEBUG", 5 }, (SYMS_U64)SYMS_MachSectionAttr_DEBUG },
+{ { (SYMS_U8*)"SOME_INSTRUCTIONS", 17 }, (SYMS_U64)SYMS_MachSectionAttr_SOME_INSTRUCTIONS },
+{ { (SYMS_U8*)"SECTION_RELOC", 13 }, (SYMS_U64)SYMS_MachSectionAttr_SECTION_RELOC },
+{ { (SYMS_U8*)"LOC_RELOC", 9 }, (SYMS_U64)SYMS_MachSectionAttr_LOC_RELOC },
 };
 SYMS_SerialValue _syms_serial_members_for_SYMS_MachPlatformType[] = {
 { { (SYMS_U8*)"MACOS", 5 }, (SYMS_U64)SYMS_MachPlatformType_MACOS },
@@ -7742,6 +8112,37 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_MachToolType[] = {
 { { (SYMS_U8*)"CLANG", 5 }, (SYMS_U64)SYMS_MachToolType_CLANG },
 { { (SYMS_U8*)"SWITFT", 6 }, (SYMS_U64)SYMS_MachToolType_SWITFT },
 { { (SYMS_U8*)"LD", 2 }, (SYMS_U64)SYMS_MachToolType_LD },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_MachBindType[] = {
+{ { (SYMS_U8*)"POINTER", 7 }, (SYMS_U64)SYMS_MachBindType_POINTER },
+{ { (SYMS_U8*)"TEXT_ABSOLUTE32", 15 }, (SYMS_U64)SYMS_MachBindType_TEXT_ABSOLUTE32 },
+{ { (SYMS_U8*)"PCREL32", 7 }, (SYMS_U64)SYMS_MachBindType_PCREL32 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_MachBindOpcode[] = {
+{ { (SYMS_U8*)"DONE", 4 }, (SYMS_U64)SYMS_MachBindOpcode_DONE },
+{ { (SYMS_U8*)"SET_DYLIB_ORDINAL_IMM", 21 }, (SYMS_U64)SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_IMM },
+{ { (SYMS_U8*)"SET_DYLIB_ORDINAL_ULEB", 22 }, (SYMS_U64)SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_ULEB },
+{ { (SYMS_U8*)"SET_DYLIB_SPECIAL_IMM", 21 }, (SYMS_U64)SYMS_MachBindOpcode_SET_DYLIB_SPECIAL_IMM },
+{ { (SYMS_U8*)"SET_SYMBOL_TRAILING_FLAGS_IMM", 29 }, (SYMS_U64)SYMS_MachBindOpcode_SET_SYMBOL_TRAILING_FLAGS_IMM },
+{ { (SYMS_U8*)"SET_TYPE_IMM", 12 }, (SYMS_U64)SYMS_MachBindOpcode_SET_TYPE_IMM },
+{ { (SYMS_U8*)"SET_ADDEND_SLEB", 15 }, (SYMS_U64)SYMS_MachBindOpcode_SET_ADDEND_SLEB },
+{ { (SYMS_U8*)"SET_SEGMENT_AND_OFFSET_ULEB", 27 }, (SYMS_U64)SYMS_MachBindOpcode_SET_SEGMENT_AND_OFFSET_ULEB },
+{ { (SYMS_U8*)"ADD_ADDR_ULEB", 13 }, (SYMS_U64)SYMS_MachBindOpcode_ADD_ADDR_ULEB },
+{ { (SYMS_U8*)"DO_BIND", 7 }, (SYMS_U64)SYMS_MachBindOpcode_DO_BIND },
+{ { (SYMS_U8*)"DO_BIND_ADD_ADDR_ULEB", 21 }, (SYMS_U64)SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_ULEB },
+{ { (SYMS_U8*)"DO_BIND_ADD_ADDR_IMM_SCALED", 27 }, (SYMS_U64)SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_IMM_SCALED },
+{ { (SYMS_U8*)"DO_BIND_ULEB_TIMES_SKIPPING_ULEB", 32 }, (SYMS_U64)SYMS_MachBindOpcode_DO_BIND_ULEB_TIMES_SKIPPING_ULEB },
+{ { (SYMS_U8*)"MASK", 4 }, (SYMS_U64)SYMS_MachBindOpcode_MASK },
+{ { (SYMS_U8*)"IMM_MASK", 8 }, (SYMS_U64)SYMS_MachBindOpcode_IMM_MASK },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_MachBindSymbolFlags[] = {
+{ { (SYMS_U8*)"WEAK_IMPORT", 11 }, &_syms_serial_type_SYMS_U32, 0x1, 0 },
+{ { (SYMS_U8*)"NON_WEAK_DEFINITION", 19 }, &_syms_serial_type_SYMS_U32, 0x1, 3 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_MachBindSpecialDylib[] = {
+{ { (SYMS_U8*)"SELF", 4 }, (SYMS_U64)SYMS_MachBindSpecialDylib_SELF },
+{ { (SYMS_U8*)"MAIN_EXECUTABLE", 15 }, (SYMS_U64)SYMS_MachBindSpecialDylib_MAIN_EXECUTABLE },
+{ { (SYMS_U8*)"FLAT_LOOKUP", 11 }, (SYMS_U64)SYMS_MachBindSpecialDylib_FLAT_LOOKUP },
 };
 SYMS_SerialValue _syms_serial_members_for_SYMS_MachNListType[] = {
 { { (SYMS_U8*)"UNDF", 4 }, (SYMS_U64)SYMS_MachNListType_UNDF },
@@ -7782,8 +8183,180 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_MachStabType[] = {
 { { (SYMS_U8*)"ECOML", 5 }, (SYMS_U64)SYMS_MachStabType_ECOML },
 { { (SYMS_U8*)"LENG", 4 }, (SYMS_U64)SYMS_MachStabType_LENG },
 };
+SYMS_SerialValue _syms_serial_members_for_SYMS_MachExportSymbolKind[] = {
+{ { (SYMS_U8*)"REGULAR", 7 }, (SYMS_U64)SYMS_MachExportSymbolKind_REGULAR },
+{ { (SYMS_U8*)"THREAD_LOCAL", 12 }, (SYMS_U64)SYMS_MachExportSymbolKind_THREAD_LOCAL },
+{ { (SYMS_U8*)"ABSOLUTE", 8 }, (SYMS_U64)SYMS_MachExportSymbolKind_ABSOLUTE },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_MachExportSymbolFlags[] = {
+{ { (SYMS_U8*)"KIND_MASK", 9 }, &_syms_serial_type_SYMS_MachExportSymbolKind, 0x1, 2 },
+{ { (SYMS_U8*)"WEAK_DEFINITION", 15 }, &_syms_serial_type_SYMS_U64, 0x1, 2 },
+{ { (SYMS_U8*)"REEXPORT", 8 }, &_syms_serial_type_SYMS_U64, 0x1, 3 },
+{ { (SYMS_U8*)"STUB_AND_RESOLVED", 17 }, &_syms_serial_type_SYMS_U64, 0x1, 4 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachLCStr[] = {
+{ {(SYMS_U8*)"offset", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachUUID[] = {
+{ {(SYMS_U8*)"cmd", 3}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cmdsize", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"uuid", 4}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 16 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachDylib[] = {
+{ {(SYMS_U8*)"name", 4}, &_syms_serial_type_SYMS_MachLCStr, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"timestamp", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"current_version", 15}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"compatability_version", 21}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachDylibCommand[] = {
+{ {(SYMS_U8*)"cmd", 3}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cmdsize", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"dylib", 5}, &_syms_serial_type_SYMS_MachDylib, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachDyldInfoCommand[] = {
+{ {(SYMS_U8*)"cmd", 3}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cmdsize", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"rebase_off", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"rebase_size", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"bind_off", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"bind_size", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"weak_bind_off", 13}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"weak_bind_size", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"lazy_bind_off", 13}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"lazy_bind_size", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"export_off", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"export_size", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachLoadCommand[] = {
+{ {(SYMS_U8*)"type", 4}, &_syms_serial_type_SYMS_MachLoadCommandType, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"size", 4}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachFatHeader[] = {
+{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nfat_arch", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachFatArch[] = {
+{ {(SYMS_U8*)"cputype", 7}, &_syms_serial_type_SYMS_MachCpuType, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cpusubtype", 10}, &_syms_serial_type_SYMS_MachCpuSubtype, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"offset", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"size", 4}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"align", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachHeader32[] = {
+{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cputype", 7}, &_syms_serial_type_SYMS_MachCpuType, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cpusubtype", 10}, &_syms_serial_type_SYMS_MachCpuSubtype, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"filetype", 8}, &_syms_serial_type_SYMS_MachFiletype, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"ncmds", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeofcmds", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_MachFlags, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachHeader64[] = {
+{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cputype", 7}, &_syms_serial_type_SYMS_MachCpuType, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cpusubtype", 10}, &_syms_serial_type_SYMS_MachCpuSubtype, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"filetype", 8}, &_syms_serial_type_SYMS_MachFiletype, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"ncmds", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeofcmds", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_MachFlags, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reserved", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachSegmentCommand32[] = {
+{ {(SYMS_U8*)"cmd", 3}, &_syms_serial_type_SYMS_MachLoadCommand, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"segname", 7}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 16 },
+{ {(SYMS_U8*)"vmaddr", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"vmsize", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"fileoff", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"filesize", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"maxprot", 7}, &_syms_serial_type_SYMS_MachVMProt, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"initprot", 8}, &_syms_serial_type_SYMS_MachVMProt, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nsects", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachSegmentCommand64[] = {
+{ {(SYMS_U8*)"cmd", 3}, &_syms_serial_type_SYMS_MachLoadCommand, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"segname", 7}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 16 },
+{ {(SYMS_U8*)"vmaddr", 6}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"vmsize", 6}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"fileoff", 7}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"filesize", 8}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"maxprot", 7}, &_syms_serial_type_SYMS_MachVMProt, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"initprot", 8}, &_syms_serial_type_SYMS_MachVMProt, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nsects", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachSection32[] = {
+{ {(SYMS_U8*)"sectname", 8}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 16 },
+{ {(SYMS_U8*)"segname", 7}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 16 },
+{ {(SYMS_U8*)"addr", 4}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"size", 4}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"offset", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"align", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"relocoff", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nreloc", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reserved1", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reserved2", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachSection64[] = {
+{ {(SYMS_U8*)"sectname", 8}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 16 },
+{ {(SYMS_U8*)"segname", 7}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Fixed, 16 },
+{ {(SYMS_U8*)"addr", 4}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"size", 4}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"offset", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"align", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"relocoff", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nreloc", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"flags", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reserved1", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reserved2", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachSymtabCommand[] = {
+{ {(SYMS_U8*)"cmd", 3}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cmdsize", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"symoff", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nsyms", 5}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"stroff", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"strsize", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachDySymtabCommand[] = {
+{ {(SYMS_U8*)"cmd", 3}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"cmdsize", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"ilocalsym", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nlocalsym", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"iextdefsym", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nextdefsym", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"iundefsym", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nundefsym", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"tocoff", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"ntoc", 4}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"modtaboff", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nmodtab", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"extrefsymoff", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nextrefsyms", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"indirectsymoff", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nindirectsyms", 13}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"extreloff", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nextrel", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"locreloff", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"nlocrel", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachNList32[] = {
+{ {(SYMS_U8*)"n_strx", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_type", 6}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_sect", 6}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_desc", 6}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_value", 7}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_MachNList64[] = {
+{ {(SYMS_U8*)"n_strx", 6}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_type", 6}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_sect", 6}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_desc", 6}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"n_value", 7}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+};
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1259
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
 SYMS_SerialType _syms_serial_type_SYMS_MachCpuType = {
 {(SYMS_U8*)"SYMS_MachCpuType", 16}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachCpuType), _syms_serial_members_for_SYMS_MachCpuType, sizeof(SYMS_MachCpuType), syms_enum_index_from_mach_cpu_type
 };
@@ -7808,6 +8381,9 @@ SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM = {
 SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM64 = {
 {(SYMS_U8*)"SYMS_MachCpuSubtypeARM64", 24}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachCpuSubtypeARM64), _syms_serial_members_for_SYMS_MachCpuSubtypeARM64, sizeof(SYMS_MachCpuSubtypeARM64), syms_enum_index_from_value_identity
 };
+SYMS_SerialType _syms_serial_type_SYMS_MachVMProt = {
+{(SYMS_U8*)"SYMS_MachVMProt", 15}, SYMS_SerialTypeKind_Integer, 0, 0, 4, 0
+};
 SYMS_SerialType _syms_serial_type_SYMS_MachFiletype = {
 {(SYMS_U8*)"SYMS_MachFiletype", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachFiletype), _syms_serial_members_for_SYMS_MachFiletype, sizeof(SYMS_MachFiletype), syms_enum_index_from_mach_filetype
 };
@@ -7820,8 +8396,8 @@ SYMS_SerialType _syms_serial_type_SYMS_MachLoadCommandType = {
 SYMS_SerialType _syms_serial_type_SYMS_MachSectionType = {
 {(SYMS_U8*)"SYMS_MachSectionType", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachSectionType), _syms_serial_members_for_SYMS_MachSectionType, sizeof(SYMS_MachSectionType), syms_enum_index_from_value_identity
 };
-SYMS_SerialType _syms_serial_type_SYMS_MAchSectionAttr = {
-{(SYMS_U8*)"SYMS_MAchSectionAttr", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MAchSectionAttr), _syms_serial_members_for_SYMS_MAchSectionAttr, sizeof(SYMS_MAchSectionAttr), syms_enum_index_from_m_ach_section_attr
+SYMS_SerialType _syms_serial_type_SYMS_MachSectionAttr = {
+{(SYMS_U8*)"SYMS_MachSectionAttr", 20}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachSectionAttr), _syms_serial_members_for_SYMS_MachSectionAttr, sizeof(SYMS_MachSectionAttr), syms_enum_index_from_mach_section_attr
 };
 SYMS_SerialType _syms_serial_type_SYMS_MachPlatformType = {
 {(SYMS_U8*)"SYMS_MachPlatformType", 21}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachPlatformType), _syms_serial_members_for_SYMS_MachPlatformType, sizeof(SYMS_MachPlatformType), syms_enum_index_from_mach_platform_type
@@ -7829,15 +8405,359 @@ SYMS_SerialType _syms_serial_type_SYMS_MachPlatformType = {
 SYMS_SerialType _syms_serial_type_SYMS_MachToolType = {
 {(SYMS_U8*)"SYMS_MachToolType", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachToolType), _syms_serial_members_for_SYMS_MachToolType, sizeof(SYMS_MachToolType), syms_enum_index_from_mach_tool_type
 };
+SYMS_SerialType _syms_serial_type_SYMS_MachBindType = {
+{(SYMS_U8*)"SYMS_MachBindType", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachBindType), _syms_serial_members_for_SYMS_MachBindType, sizeof(SYMS_MachBindType), syms_enum_index_from_mach_bind_type
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachBindOpcode = {
+{(SYMS_U8*)"SYMS_MachBindOpcode", 19}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachBindOpcode), _syms_serial_members_for_SYMS_MachBindOpcode, sizeof(SYMS_MachBindOpcode), syms_enum_index_from_mach_bind_opcode
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachBindSymbolFlags = {
+{(SYMS_U8*)"SYMS_MachBindSymbolFlags", 24}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachBindSymbolFlags), _syms_serial_members_for_SYMS_MachBindSymbolFlags, sizeof(SYMS_MachBindSymbolFlags), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachBindSpecialDylib = {
+{(SYMS_U8*)"SYMS_MachBindSpecialDylib", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachBindSpecialDylib), _syms_serial_members_for_SYMS_MachBindSpecialDylib, sizeof(SYMS_MachBindSpecialDylib), syms_enum_index_from_mach_bind_special_dylib
+};
 SYMS_SerialType _syms_serial_type_SYMS_MachNListType = {
 {(SYMS_U8*)"SYMS_MachNListType", 18}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachNListType), _syms_serial_members_for_SYMS_MachNListType, sizeof(SYMS_MachNListType), syms_enum_index_from_mach_n_list_type
 };
 SYMS_SerialType _syms_serial_type_SYMS_MachStabType = {
 {(SYMS_U8*)"SYMS_MachStabType", 17}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachStabType), _syms_serial_members_for_SYMS_MachStabType, sizeof(SYMS_MachStabType), syms_enum_index_from_mach_stab_type
 };
+SYMS_SerialType _syms_serial_type_SYMS_MachExportSymbolKind = {
+{(SYMS_U8*)"SYMS_MachExportSymbolKind", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachExportSymbolKind), _syms_serial_members_for_SYMS_MachExportSymbolKind, sizeof(SYMS_MachExportSymbolKind), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachExportSymbolFlags = {
+{(SYMS_U8*)"SYMS_MachExportSymbolFlags", 26}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachExportSymbolFlags), _syms_serial_members_for_SYMS_MachExportSymbolFlags, sizeof(SYMS_MachExportSymbolFlags), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachLCStr = {
+{(SYMS_U8*)"MachLCStr", 9}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachLCStr), _syms_serial_members_for_SYMS_MachLCStr, sizeof(SYMS_MachLCStr), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachUUID = {
+{(SYMS_U8*)"MachUUID", 8}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachUUID), _syms_serial_members_for_SYMS_MachUUID, sizeof(SYMS_MachUUID), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachDylib = {
+{(SYMS_U8*)"MachDylib", 9}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachDylib), _syms_serial_members_for_SYMS_MachDylib, sizeof(SYMS_MachDylib), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachDylibCommand = {
+{(SYMS_U8*)"MachDylibCommand", 16}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachDylibCommand), _syms_serial_members_for_SYMS_MachDylibCommand, sizeof(SYMS_MachDylibCommand), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachDyldInfoCommand = {
+{(SYMS_U8*)"MachDyldInfoCommand", 19}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachDyldInfoCommand), _syms_serial_members_for_SYMS_MachDyldInfoCommand, sizeof(SYMS_MachDyldInfoCommand), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachLoadCommand = {
+{(SYMS_U8*)"MachLoadCommand", 15}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachLoadCommand), _syms_serial_members_for_SYMS_MachLoadCommand, sizeof(SYMS_MachLoadCommand), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachFatHeader = {
+{(SYMS_U8*)"MachFatHeader", 13}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachFatHeader), _syms_serial_members_for_SYMS_MachFatHeader, sizeof(SYMS_MachFatHeader), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachFatArch = {
+{(SYMS_U8*)"MachFatArch", 11}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachFatArch), _syms_serial_members_for_SYMS_MachFatArch, sizeof(SYMS_MachFatArch), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachHeader32 = {
+{(SYMS_U8*)"MachHeader32", 12}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachHeader32), _syms_serial_members_for_SYMS_MachHeader32, sizeof(SYMS_MachHeader32), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachHeader64 = {
+{(SYMS_U8*)"MachHeader64", 12}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachHeader64), _syms_serial_members_for_SYMS_MachHeader64, sizeof(SYMS_MachHeader64), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachSegmentCommand32 = {
+{(SYMS_U8*)"MachSegmentCommand32", 20}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachSegmentCommand32), _syms_serial_members_for_SYMS_MachSegmentCommand32, sizeof(SYMS_MachSegmentCommand32), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachSegmentCommand64 = {
+{(SYMS_U8*)"MachSegmentCommand64", 20}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachSegmentCommand64), _syms_serial_members_for_SYMS_MachSegmentCommand64, sizeof(SYMS_MachSegmentCommand64), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachSection32 = {
+{(SYMS_U8*)"MachSection32", 13}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachSection32), _syms_serial_members_for_SYMS_MachSection32, sizeof(SYMS_MachSection32), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachSection64 = {
+{(SYMS_U8*)"MachSection64", 13}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachSection64), _syms_serial_members_for_SYMS_MachSection64, sizeof(SYMS_MachSection64), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachSymtabCommand = {
+{(SYMS_U8*)"MachSymtabCommand", 17}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachSymtabCommand), _syms_serial_members_for_SYMS_MachSymtabCommand, sizeof(SYMS_MachSymtabCommand), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachDySymtabCommand = {
+{(SYMS_U8*)"MachDySymtabCommand", 19}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachDySymtabCommand), _syms_serial_members_for_SYMS_MachDySymtabCommand, sizeof(SYMS_MachDySymtabCommand), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachNList32 = {
+{(SYMS_U8*)"MachNList32", 11}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachNList32), _syms_serial_members_for_SYMS_MachNList32, sizeof(SYMS_MachNList32), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_MachNList64 = {
+{(SYMS_U8*)"MachNList64", 11}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_MachNList64), _syms_serial_members_for_SYMS_MachNList64, sizeof(SYMS_MachNList64), 0
+};
 
 #endif // defined(SYMS_ENABLE_MACH_SERIAL_INFO)
 
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_PE_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:980
+SYMS_API SYMS_U64
+syms_enum_index_from_pe_windows_subsystem(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U16)v){
+default: break;
+case SYMS_PeWindowsSubsystem_UNKNOWN: result = 0; break;
+case SYMS_PeWindowsSubsystem_NATIVE: result = 1; break;
+case SYMS_PeWindowsSubsystem_WINDOWS_GUI: result = 2; break;
+case SYMS_PeWindowsSubsystem_WINDOWS_CUI: result = 3; break;
+case SYMS_PeWindowsSubsystem_OS2_CUI: result = 4; break;
+case SYMS_PeWindowsSubsystem_POSIX_CUI: result = 5; break;
+case SYMS_PeWindowsSubsystem_NATIVE_WINDOWS: result = 6; break;
+case SYMS_PeWindowsSubsystem_WINDOWS_CE_GUI: result = 7; break;
+case SYMS_PeWindowsSubsystem_EFI_APPLICATION: result = 8; break;
+case SYMS_PeWindowsSubsystem_EFI_BOOT_SERVICE_DRIVER: result = 9; break;
+case SYMS_PeWindowsSubsystem_EFI_RUNTIME_DRIVER: result = 10; break;
+case SYMS_PeWindowsSubsystem_EFI_ROM: result = 11; break;
+case SYMS_PeWindowsSubsystem_XBOX: result = 12; break;
+case SYMS_PeWindowsSubsystem_WINDOWS_BOOT_APPLICATION: result = 13; break;
+}
+return(result);
+}
+// syms_enum_index_from_pe_data_directory_index - skipped identity mapping
+SYMS_API SYMS_U64
+syms_enum_index_from_pe_debug_directory_type(SYMS_U64 v){
+SYMS_U64 result = 0;
+switch ((SYMS_U32)v){
+default: break;
+case SYMS_PeDebugDirectoryType_UNKNOWN: result = 0; break;
+case SYMS_PeDebugDirectoryType_COFF: result = 1; break;
+case SYMS_PeDebugDirectoryType_CODEVIEW: result = 2; break;
+case SYMS_PeDebugDirectoryType_FPO: result = 3; break;
+case SYMS_PeDebugDirectoryType_MISC: result = 4; break;
+case SYMS_PeDebugDirectoryType_EXCEPTION: result = 5; break;
+case SYMS_PeDebugDirectoryType_FIXUP: result = 6; break;
+case SYMS_PeDebugDirectoryType_OMAP_TO_SRC: result = 7; break;
+case SYMS_PeDebugDirectoryType_OMAP_FROM_SRC: result = 8; break;
+case SYMS_PeDebugDirectoryType_BORLAND: result = 9; break;
+case SYMS_PeDebugDirectoryType_RESERVED10: result = 10; break;
+case SYMS_PeDebugDirectoryType_CLSID: result = 11; break;
+case SYMS_PeDebugDirectoryType_VC_FEATURE: result = 12; break;
+case SYMS_PeDebugDirectoryType_POGO: result = 13; break;
+case SYMS_PeDebugDirectoryType_ILTCG: result = 14; break;
+case SYMS_PeDebugDirectoryType_MPX: result = 15; break;
+case SYMS_PeDebugDirectoryType_REPRO: result = 16; break;
+case SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS: result = 17; break;
+}
+return(result);
+}
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1211
+static SYMS_SerialField _syms_serial_members_for_SYMS_DosHeader[] = {
+{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"last_page_size", 14}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"page_count", 10}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reloc_count", 11}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"paragraph_header_size", 21}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"min_paragraph", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"max_paragraph", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"init_ss", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"init_sp", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"checksum", 8}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"init_ip", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"init_cs", 7}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reloc_table_file_off", 20}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"overlay_number", 14}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reserved", 8}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Fixed, 4 },
+{ {(SYMS_U8*)"oem_id", 6}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"oem_info", 8}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"reserved2", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Fixed, 10 },
+{ {(SYMS_U8*)"coff_file_offset", 16}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_PeWindowsSubsystem[] = {
+{ { (SYMS_U8*)"Unknown", 7 }, (SYMS_U64)SYMS_PeWindowsSubsystem_UNKNOWN },
+{ { (SYMS_U8*)"Native", 6 }, (SYMS_U64)SYMS_PeWindowsSubsystem_NATIVE },
+{ { (SYMS_U8*)"Windows GUI", 11 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_GUI },
+{ { (SYMS_U8*)"Windows CUI", 11 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_CUI },
+{ { (SYMS_U8*)"OS/2 CUI", 8 }, (SYMS_U64)SYMS_PeWindowsSubsystem_OS2_CUI },
+{ { (SYMS_U8*)"Posix CUI", 9 }, (SYMS_U64)SYMS_PeWindowsSubsystem_POSIX_CUI },
+{ { (SYMS_U8*)"Native Win9x driver", 19 }, (SYMS_U64)SYMS_PeWindowsSubsystem_NATIVE_WINDOWS },
+{ { (SYMS_U8*)"Windows CE", 10 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_CE_GUI },
+{ { (SYMS_U8*)"EFI Application", 15 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_APPLICATION },
+{ { (SYMS_U8*)"EFI Boot Service Driver", 23 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_BOOT_SERVICE_DRIVER },
+{ { (SYMS_U8*)"EFI Runtime Driver", 18 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_RUNTIME_DRIVER },
+{ { (SYMS_U8*)"EFI Rom Image", 13 }, (SYMS_U64)SYMS_PeWindowsSubsystem_EFI_ROM },
+{ { (SYMS_U8*)"XBOX", 4 }, (SYMS_U64)SYMS_PeWindowsSubsystem_XBOX },
+{ { (SYMS_U8*)"Windows Boot Application", 24 }, (SYMS_U64)SYMS_PeWindowsSubsystem_WINDOWS_BOOT_APPLICATION },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_ImageFileCharacteristics[] = {
+{ { (SYMS_U8*)"Stripped", 8 }, &_syms_serial_type_SYMS_U16, 0x1, 0 },
+{ { (SYMS_U8*)"Executable", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 1 },
+{ { (SYMS_U8*)"Line Numbers Stripped", 21 }, &_syms_serial_type_SYMS_U16, 0x1, 2 },
+{ { (SYMS_U8*)"Symbols Stripped", 16 }, &_syms_serial_type_SYMS_U16, 0x1, 3 },
+{ { (SYMS_U8*)"Aggressive Trim", 15 }, &_syms_serial_type_SYMS_U16, 0x1, 4 },
+{ { (SYMS_U8*)"Large Address Aware", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 5 },
+{ { (SYMS_U8*)"UNUSED1", 7 }, &_syms_serial_type_SYMS_U16, 0x1, 6 },
+{ { (SYMS_U8*)"BYTES_RESERVED_LO", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 7 },
+{ { (SYMS_U8*)"32-Bit Machine", 14 }, &_syms_serial_type_SYMS_U16, 0x1, 8 },
+{ { (SYMS_U8*)"Debug Info Stripped", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 9 },
+{ { (SYMS_U8*)"Run From Swap", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 10 },
+{ { (SYMS_U8*)"Net Run From Swap", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 11 },
+{ { (SYMS_U8*)"System File", 11 }, &_syms_serial_type_SYMS_U16, 0x1, 12 },
+{ { (SYMS_U8*)"DLL", 3 }, &_syms_serial_type_SYMS_U16, 0x1, 13 },
+{ { (SYMS_U8*)"File Up System Only", 19 }, &_syms_serial_type_SYMS_U16, 0x1, 14 },
+{ { (SYMS_U8*)"BYTES_RESERVED_HI", 17 }, &_syms_serial_type_SYMS_U16, 0x1, 15 },
+};
+SYMS_SerialFlag _syms_serial_members_for_SYMS_DllCharacteristics[] = {
+{ { (SYMS_U8*)"High Entropy VA", 15 }, &_syms_serial_type_SYMS_U16, 0x1, 5 },
+{ { (SYMS_U8*)"Dynamic Base", 12 }, &_syms_serial_type_SYMS_U16, 0x1, 6 },
+{ { (SYMS_U8*)"Force Integrity", 15 }, &_syms_serial_type_SYMS_U16, 0x1, 7 },
+{ { (SYMS_U8*)"NX Compatible", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 8 },
+{ { (SYMS_U8*)"No Isolation", 12 }, &_syms_serial_type_SYMS_U16, 0x1, 9 },
+{ { (SYMS_U8*)"No SEH", 6 }, &_syms_serial_type_SYMS_U16, 0x1, 10 },
+{ { (SYMS_U8*)"No Bind", 7 }, &_syms_serial_type_SYMS_U16, 0x1, 11 },
+{ { (SYMS_U8*)"App Container", 13 }, &_syms_serial_type_SYMS_U16, 0x1, 12 },
+{ { (SYMS_U8*)"WDM Driver", 10 }, &_syms_serial_type_SYMS_U16, 0x1, 13 },
+{ { (SYMS_U8*)"Guard CF", 8 }, &_syms_serial_type_SYMS_U16, 0x1, 14 },
+{ { (SYMS_U8*)"Terminal Server Aware", 21 }, &_syms_serial_type_SYMS_U16, 0x1, 15 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_PeOptionalPe32[] = {
+{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_code", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_inited_data", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_uninited_data", 20}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"entry_point_va", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"code_base", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"data_base", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"image_base", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"section_alignment", 17}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"file_alignment", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"win32_version_value", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_image", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_headers", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"check_sum", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"subsystem", 9}, &_syms_serial_type_SYMS_PeWindowsSubsystem, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"dll_characteristics", 19}, &_syms_serial_type_SYMS_DllCharacteristics, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_stack_reserve", 20}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_stack_commit", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_heap_reserve", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_heap_commit", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"loader_flags", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"data_dir_count", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_PeOptionalPe32Plus[] = {
+{ {(SYMS_U8*)"magic", 5}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_linker_version", 20}, &_syms_serial_type_SYMS_U8, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_code", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_inited_data", 18}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_uninited_data", 20}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"entry_point_va", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"code_base", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"image_base", 10}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"section_alignment", 17}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"file_alignment", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_os_ver", 12}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_img_ver", 13}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_subsystem_ver", 19}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"win32_version_value", 19}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_image", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_headers", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"check_sum", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"subsystem", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"dll_characteristics", 19}, &_syms_serial_type_SYMS_DllCharacteristics, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_stack_reserve", 20}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_stack_commit", 19}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_heap_reserve", 19}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"sizeof_heap_commit", 18}, &_syms_serial_type_SYMS_U64, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"loader_flags", 12}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"data_dir_count", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_PeDataDirectoryIndex[] = {
+{ { (SYMS_U8*)"Export", 6 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_EXPORT },
+{ { (SYMS_U8*)"Import", 6 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_IMPORT },
+{ { (SYMS_U8*)"Resources", 9 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_RESOURCES },
+{ { (SYMS_U8*)"Exceptions", 10 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_EXCEPTIONS },
+{ { (SYMS_U8*)"Certificate", 11 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_CERT },
+{ { (SYMS_U8*)"Base Relocs", 11 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_BASE_RELOC },
+{ { (SYMS_U8*)"Debug", 5 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_DEBUG },
+{ { (SYMS_U8*)"Arch", 4 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_ARCH },
+{ { (SYMS_U8*)"Global PTR", 10 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_GLOBAL_PTR },
+{ { (SYMS_U8*)"TLS", 3 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_TLS },
+{ { (SYMS_U8*)"Load Config", 11 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_LOAD_CONFIG },
+{ { (SYMS_U8*)"Bound Imports", 13 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_BOUND_IMPORT },
+{ { (SYMS_U8*)"IAT", 3 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_IMPORT_ADDR },
+{ { (SYMS_U8*)"Delay Import", 12 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_DELAY_IMPORT },
+{ { (SYMS_U8*)"COM Descriptor", 14 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_COM_DESCRIPTOR },
+{ { (SYMS_U8*)"RESERVED", 8 }, (SYMS_U64)SYMS_PeDataDirectoryIndex_RESERVED },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_PeDataDirectory[] = {
+{ {(SYMS_U8*)"virt_off", 8}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"virt_size", 9}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+SYMS_SerialValue _syms_serial_members_for_SYMS_PeDebugDirectoryType[] = {
+{ { (SYMS_U8*)"UNKNOWN", 7 }, (SYMS_U64)SYMS_PeDebugDirectoryType_UNKNOWN },
+{ { (SYMS_U8*)"COFF", 4 }, (SYMS_U64)SYMS_PeDebugDirectoryType_COFF },
+{ { (SYMS_U8*)"CODEVIEW", 8 }, (SYMS_U64)SYMS_PeDebugDirectoryType_CODEVIEW },
+{ { (SYMS_U8*)"FPO", 3 }, (SYMS_U64)SYMS_PeDebugDirectoryType_FPO },
+{ { (SYMS_U8*)"MISC", 4 }, (SYMS_U64)SYMS_PeDebugDirectoryType_MISC },
+{ { (SYMS_U8*)"EXCEPTION", 9 }, (SYMS_U64)SYMS_PeDebugDirectoryType_EXCEPTION },
+{ { (SYMS_U8*)"FIXUP", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_FIXUP },
+{ { (SYMS_U8*)"OMAP_TO_SRC", 11 }, (SYMS_U64)SYMS_PeDebugDirectoryType_OMAP_TO_SRC },
+{ { (SYMS_U8*)"OMAP_FROM_SRC", 13 }, (SYMS_U64)SYMS_PeDebugDirectoryType_OMAP_FROM_SRC },
+{ { (SYMS_U8*)"BORLAND", 7 }, (SYMS_U64)SYMS_PeDebugDirectoryType_BORLAND },
+{ { (SYMS_U8*)"RESERVED10", 10 }, (SYMS_U64)SYMS_PeDebugDirectoryType_RESERVED10 },
+{ { (SYMS_U8*)"CLSID", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_CLSID },
+{ { (SYMS_U8*)"VC_FEATURE", 10 }, (SYMS_U64)SYMS_PeDebugDirectoryType_VC_FEATURE },
+{ { (SYMS_U8*)"POGO", 4 }, (SYMS_U64)SYMS_PeDebugDirectoryType_POGO },
+{ { (SYMS_U8*)"ILTCG", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_ILTCG },
+{ { (SYMS_U8*)"MPX", 3 }, (SYMS_U64)SYMS_PeDebugDirectoryType_MPX },
+{ { (SYMS_U8*)"REPRO", 5 }, (SYMS_U64)SYMS_PeDebugDirectoryType_REPRO },
+{ { (SYMS_U8*)"EX_DLLCHARACTERISTICS", 21 }, (SYMS_U64)SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS },
+};
+static SYMS_SerialField _syms_serial_members_for_SYMS_PeDebugDirectory[] = {
+{ {(SYMS_U8*)"characteristics", 15}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"time_stamp", 10}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"major_ver", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"minor_ver", 9}, &_syms_serial_type_SYMS_U16, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"type", 4}, &_syms_serial_type_SYMS_PeDebugDirectoryType, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"size", 4}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"virtual_offset", 14}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+{ {(SYMS_U8*)"file_offset", 11}, &_syms_serial_type_SYMS_U32, SYMS_SerialWidthKind_Null, 0 },
+};
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1347
+SYMS_SerialType _syms_serial_type_SYMS_DosHeader = {
+{(SYMS_U8*)"DosHeader", 9}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DosHeader), _syms_serial_members_for_SYMS_DosHeader, sizeof(SYMS_DosHeader), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeWindowsSubsystem = {
+{(SYMS_U8*)"SYMS_PeWindowsSubsystem", 23}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeWindowsSubsystem), _syms_serial_members_for_SYMS_PeWindowsSubsystem, sizeof(SYMS_PeWindowsSubsystem), syms_enum_index_from_pe_windows_subsystem
+};
+SYMS_SerialType _syms_serial_type_SYMS_ImageFileCharacteristics = {
+{(SYMS_U8*)"SYMS_ImageFileCharacteristics", 29}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_ImageFileCharacteristics), _syms_serial_members_for_SYMS_ImageFileCharacteristics, sizeof(SYMS_ImageFileCharacteristics), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_DllCharacteristics = {
+{(SYMS_U8*)"SYMS_DllCharacteristics", 23}, SYMS_SerialTypeKind_Flags, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DllCharacteristics), _syms_serial_members_for_SYMS_DllCharacteristics, sizeof(SYMS_DllCharacteristics), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeOptionalPe32 = {
+{(SYMS_U8*)"PeOptionalPe32", 14}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeOptionalPe32), _syms_serial_members_for_SYMS_PeOptionalPe32, sizeof(SYMS_PeOptionalPe32), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeOptionalPe32Plus = {
+{(SYMS_U8*)"PeOptionalPe32Plus", 18}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeOptionalPe32Plus), _syms_serial_members_for_SYMS_PeOptionalPe32Plus, sizeof(SYMS_PeOptionalPe32Plus), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectoryIndex = {
+{(SYMS_U8*)"SYMS_PeDataDirectoryIndex", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDataDirectoryIndex), _syms_serial_members_for_SYMS_PeDataDirectoryIndex, sizeof(SYMS_PeDataDirectoryIndex), syms_enum_index_from_value_identity
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectory = {
+{(SYMS_U8*)"PeDataDirectory", 15}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDataDirectory), _syms_serial_members_for_SYMS_PeDataDirectory, sizeof(SYMS_PeDataDirectory), 0
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectoryType = {
+{(SYMS_U8*)"SYMS_PeDebugDirectoryType", 25}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDebugDirectoryType), _syms_serial_members_for_SYMS_PeDebugDirectoryType, sizeof(SYMS_PeDebugDirectoryType), syms_enum_index_from_pe_debug_directory_type
+};
+SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectory = {
+{(SYMS_U8*)"PeDebugDirectory", 16}, SYMS_SerialTypeKind_Struct, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_PeDebugDirectory), _syms_serial_members_for_SYMS_PeDebugDirectory, sizeof(SYMS_PeDebugDirectory), 0
+};
+
+#endif // defined(SYMS_ENABLE_PE_SERIAL_INFO)
+
 #endif
-
-

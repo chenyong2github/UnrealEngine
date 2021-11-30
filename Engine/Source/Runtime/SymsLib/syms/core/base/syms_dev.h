@@ -15,17 +15,21 @@
 ////////////////////////////////
 // NOTE(allen): Dev Logging Types
 
-// TODO(allen): move to mc
 typedef SYMS_U32 SYMS_LogFeatures;
 enum{
   SYMS_LogFeature_LineTable       = (1 << 0),
   SYMS_LogFeature_DwarfUnitRanges = (1 << 1),
   SYMS_LogFeature_DwarfTags       = (1 << 2),
+  SYMS_LogFeature_DwarfUnwind     = (1 << 3),
+  SYMS_LogFeature_DwarfCFILookup  = (1 << 4),
+  SYMS_LogFeature_DwarfCFIDecode  = (1 << 5),
+  SYMS_LogFeature_DwarfCFIApply   = (1 << 6),
+  SYMS_LogFeature_PEEpilog        = (1 << 7),
   
   
   // Dummy flag shouldn't be associated to anything.
   // This gives us a way to disable all logging.
-  SYMS_LogFeature_Dummy     = (1 << 31),
+  SYMS_LogFeature_Dummy = (1 << 31),
 };
 
 ////////////////////////////////
@@ -119,6 +123,7 @@ SYMS_API void     syms_log_set_filter__dev(SYMS_LogFeatures features, SYMS_U64 u
 
 SYMS_API SYMS_U32 syms_log_open__dev(SYMS_B32 enabled);
 SYMS_API void     syms_log_close__dev(SYMS_U32 prev_state);
+SYMS_API SYMS_B32 syms_log_is_enabled__dev(void);
 SYMS_API SYMS_U32 syms_log_open_annotated__dev(SYMS_LogFeatures features, SYMS_U64 uid);
 
 SYMS_API void syms_logfv__dev(char *fmt, va_list args);
@@ -130,10 +135,12 @@ SYMS_API void syms_logf__dev(char *fmt, ...);
 # define SYMS_LogOpen(ftr,uid,block) SYMS_U32 syms_log_state__##block = syms_log_open_annotated__dev((ftr),(uid))
 # define SYMS_LogClose(block) syms_log_close__dev(syms_log_state__##block)
 # define SYMS_Log(...) syms_logf__dev(__VA_ARGS__)
+# define SYMS_LogIsEnabled() syms_log_is_enabled__dev()
 #else
 # define SYMS_LogOpen(ftr,uid,block) ((void)0)
 # define SYMS_LogClose(block) ((void)0)
 # define SYMS_Log(fmt,...) ((void)0)
+# define SYMS_LogIsEnabled() (0)
 #endif
 
 ////////////////////////////////

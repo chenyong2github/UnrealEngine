@@ -20,6 +20,14 @@ syms_make_u64_range(SYMS_U64 min, SYMS_U64 max){
   return(result);
 }
 
+SYMS_API SYMS_U64Range
+syms_make_u64_inrange(SYMS_U64Range range, SYMS_U64 offset, SYMS_U64 size)
+{
+  SYMS_ASSERT(range.min + offset + size <= range.max);
+  SYMS_U64Range result = syms_make_u64_range(range.min + offset, range.min + offset + size);
+  return result;
+}
+
 SYMS_API SYMS_U64
 syms_u64_range_size(SYMS_U64Range range){
   SYMS_U64 result = range.max - range.min;
@@ -378,6 +386,35 @@ syms_string_trunc_symbol_heuristic(SYMS_String8 string){
   return(result);
 }
 
+SYMS_API SYMS_String8List
+syms_string_split(SYMS_Arena *arena, SYMS_String8 input, SYMS_U32 delimiter)
+{
+  SYMS_String8List result;
+  syms_memzero_struct(&result);
+  
+  SYMS_U8 *ptr = input.str;
+  SYMS_U8 *end = input.str + input.size;
+  SYMS_U64 size = 0;
+  for (;;) {
+    SYMS_U32 cp = 0;
+    SYMS_U8 *pn = syms_decode_utf8(ptr, &cp);
+    if (cp == delimiter) {
+      SYMS_String8 split = syms_str8(ptr - size, size);
+      syms_string_list_push(arena, &result, split);
+      size = 0;
+    } else if (pn >= end || cp == 0) {
+      SYMS_ASSERT(pn == end);
+      SYMS_String8 last = syms_str8(pn - size, size);
+      syms_string_list_push(arena, &result, last);
+      break;
+    }
+    size += 1;
+    ptr = pn;
+  }
+  
+  return result;
+}
+
 ////////////////////////////////
 //~ NOTE(allen): String -> Int
 
@@ -621,7 +658,7 @@ syms_get_lane(void){
 }
 
 ////////////////////////////////
-//~ rjf: Based Ranges
+//~ NOTE(rjf): Based Ranges
 
 SYMS_API void*
 syms_based_range_ptr(void *base, SYMS_U64Range range, SYMS_U64 offset){
@@ -717,15 +754,54 @@ syms_based_range_read_string(void *base, SYMS_U64Range range, SYMS_U64 offset){
 }
 
 ////////////////////////////////
+//~ NOTE(allen): Memory Views
+
+SYMS_API SYMS_MemoryView
+syms_memory_view_make(SYMS_String8 data, SYMS_U64 base){
+  SYMS_MemoryView result = {0};
+  result.data = data.str;
+  result.addr_first = base;
+  result.addr_opl = base + data.size;
+  return(result);
+}
+
+SYMS_API SYMS_B32
+syms_memory_view_read(SYMS_MemoryView *memview, SYMS_U64 addr, SYMS_U64 size, void *ptr){
+  SYMS_B32 result = syms_false;
+  if (memview->addr_first <= addr &&
+      addr <= addr + size &&
+      addr + size <= memview->addr_opl){
+    result = syms_true;
+    syms_memmove(ptr, (SYMS_U8*)memview->data + addr - memview->addr_first, size);
+  }
+  return(result);
+}
+
+SYMS_API void
+syms_unwind_result_missed_read(SYMS_UnwindResult *unwind_result, SYMS_U64 addr){
+  unwind_result->dead = syms_true;
+  unwind_result->missed_read = syms_true;
+  unwind_result->missed_read_addr = addr;
+}
+
+////////////////////////////////
 //~ NOTE(nick): Bit manipulations
+
+SYMS_API SYMS_U16
+syms_bswap_u16(SYMS_U16 x)
+{
+  SYMS_U16 result = (((x & 0xFF00) >> 8) |
+                     ((x & 0x00FF) << 8));
+  return result;
+}
 
 SYMS_API SYMS_U32
 syms_bswap_u32(SYMS_U32 x)
 {
-  SYMS_U32 result = ((x & 0xFF000000) >> 24) |
-  ((x & 0x00FF0000) >> 8)  |
-  ((x & 0x0000FF00) << 8)  |
-  ((x & 0x000000FF) << 24);
+  SYMS_U32 result = (((x & 0xFF000000) >> 24) |
+                     ((x & 0x00FF0000) >> 8)  |
+                     ((x & 0x0000FF00) << 8)  |
+                     ((x & 0x000000FF) << 24));
   return result;
 }
 
@@ -733,15 +809,24 @@ SYMS_API SYMS_U64
 syms_bswap_u64(SYMS_U64 x)
 {
   // TODO(nick): naive bswap, replace with something that is faster like an intrinsic
-  SYMS_U64 result = ((x & 0xFF00000000000000ULL) >> 56) |
-  ((x & 0x00FF000000000000ULL) >> 40) |
-  ((x & 0x0000FF0000000000ULL) >> 24) |
-  ((x & 0x000000FF00000000ULL) >> 8)  |
-  ((x & 0x00000000FF000000ULL) << 8)  |
-  ((x & 0x0000000000FF0000ULL) << 24) |
-  ((x & 0x000000000000FF00ULL) << 40) |
-  ((x & 0x00000000000000FFULL) << 56);
+  SYMS_U64 result = (((x & 0xFF00000000000000ULL) >> 56) |
+                     ((x & 0x00FF000000000000ULL) >> 40) |
+                     ((x & 0x0000FF0000000000ULL) >> 24) |
+                     ((x & 0x000000FF00000000ULL) >> 8)  |
+                     ((x & 0x00000000FF000000ULL) << 8)  |
+                     ((x & 0x0000000000FF0000ULL) << 24) |
+                     ((x & 0x000000000000FF00ULL) << 40) |
+                     ((x & 0x00000000000000FFULL) << 56));
   return result;
+}
+
+SYMS_API void
+syms_bswap_bytes(void *p, SYMS_U64 size)
+{
+  for(SYMS_U32 i = 0, k = size - 1; i < size / 2; ++i, --k)
+  {
+    SYMS_Swap(SYMS_U8, ((SYMS_U8*)p)[k], ((SYMS_U8*)p)[i]);
+  }
 }
 
 ////////////////////////////////

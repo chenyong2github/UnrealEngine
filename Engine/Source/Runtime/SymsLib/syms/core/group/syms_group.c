@@ -24,7 +24,7 @@ syms_group_release(SYMS_Group *group){
 SYMS_API void
 syms_group_init(SYMS_Group *group, SYMS_ParseBundle *params){
   SYMS_ProfBegin("syms_group_init");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   
   //- fill in bin
   SYMS_String8 bin_data = params->bin_data;
@@ -166,7 +166,7 @@ syms_group_parse_all_top_level(SYMS_Group *group){
 
 SYMS_API void
 syms_group_begin_multilane(SYMS_Group *group, SYMS_U64 lane_count){
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   SYMS_ASSERT(group->lane_count == 1);
   if (lane_count > 1){
     // allocate the group's lane arenas array
@@ -455,7 +455,7 @@ syms_group_file_table_from_uid_with_fallbacks(SYMS_Group *group, SYMS_UnitID uid
 SYMS_API SYMS_UnitRangeArray
 syms_group_unit_ranges(SYMS_Group *group){
   if (!group->unit_ranges_is_filled){
-    SYMS_ASSERT(syms_thread_lane == 0);
+    SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
     group->unit_ranges = syms_unit_ranges_from_set(group->arena, group->dbg_data, group->dbg, group->unit_set);
     group->unit_ranges_is_filled = syms_true;
   }
@@ -490,7 +490,7 @@ syms_group_default_vbase(SYMS_Group *group){
 SYMS_API SYMS_String8
 syms_group_file_name_from_id(SYMS_Group *group, SYMS_UnitID uid, SYMS_FileID file_id){
   SYMS_ProfBegin("syms_group_file_name_from_id");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   SYMS_String8 from_map = syms_file_id_2_name_map_name_from_id(&group->file_id_2_name_map, uid, file_id);
   SYMS_String8 result = {0};
   if (from_map.size != 0){
@@ -521,6 +521,18 @@ syms_group_type_map(SYMS_Group *group){
   SYMS_MapAndUnit result = {0};
   result.map = group->type_map;
   result.unit = group->type_map_unit;
+  return(result);
+}
+
+SYMS_API SYMS_StrippedInfoArray
+syms_group_stripped_info(SYMS_Group *group){
+  if (!group->stripped_info_is_filled){
+    SYMS_UnitID pub_uid = syms_uid_collated_public_symbols_from_set(group->unit_set);
+    SYMS_UnitAccel *pub = syms_group_unit_from_uid(group, pub_uid);
+    group->stripped_info = syms_stripped_from_unit(group->arena, group->dbg_data, group->dbg, pub);
+    group->stripped_info_is_filled = syms_true;
+  }
+  SYMS_StrippedInfoArray result = group->stripped_info;
   return(result);
 }
 
@@ -744,11 +756,12 @@ syms_group_vranges_from_uid_line__linear_scan(SYMS_Arena *arena, SYMS_Group *gro
   return(result);
 }
 
+//- map getters
 SYMS_API SYMS_SpatialMap1D*
 syms_group_sec_map_v(SYMS_Group *group){
   SYMS_ProfBegin("syms_group_sec_map_v");
   if (!group->sec_map_v_is_built){
-    SYMS_ASSERT(syms_thread_lane == 0);
+    SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
     
     //- fill spatial map array
     SYMS_SecInfoArray sec_array = syms_group_sec_info_array(group);
@@ -790,7 +803,7 @@ SYMS_API SYMS_SpatialMap1D*
 syms_group_sec_map_f(SYMS_Group *group){
   SYMS_ProfBegin("syms_group_sec_map_f");
   if (!group->sec_map_f_is_built){
-    SYMS_ASSERT(syms_thread_lane == 0);
+    SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
     
     //- fill spatial map array
     SYMS_SecInfoArray sec_array = syms_group_sec_info_array(group);
@@ -832,7 +845,7 @@ SYMS_API SYMS_SpatialMap1D*
 syms_group_unit_map(SYMS_Group *group){
   SYMS_ProfBegin("syms_group_unit_map");
   if (!group->unit_map_is_built){
-    SYMS_ASSERT(syms_thread_lane == 0);
+    SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
     
     //- fill spatial map array
     SYMS_UnitRangeArray unit_ranges = syms_group_unit_ranges(group);
@@ -929,7 +942,7 @@ syms_group_line_sequence_map_from_uid(SYMS_Group *group, SYMS_UnitID uid){
     SYMS_Arena *arena = syms_group_get_lane_arena(group);
     SYMS_LineTable *line_table = syms_group_line_table_from_uid(group, uid);
     SYMS_U64 count = line_table->sequence_count;
-    SYMS_SpatialMap1DRange *ranges = syms_push_array_zero(arena, SYMS_SpatialMap1DRange, count);
+    SYMS_SpatialMap1DRange *ranges = syms_push_array(arena, SYMS_SpatialMap1DRange, count);
     SYMS_SpatialMap1DRange *range_ptr = ranges;
     SYMS_U64 *seq_index_ptr = line_table->sequence_index_array;
     SYMS_Line *line_array = line_table->line_array;
@@ -977,7 +990,7 @@ syms_group_line_sequence_map_from_uid(SYMS_Group *group, SYMS_UnitID uid){
 SYMS_API SYMS_SpatialMap1D*
 syms_group_var_map_from_uid(SYMS_Group *group, SYMS_UnitID uid){
   SYMS_ProfBegin("syms_group_var_map_from_uid");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   SYMS_U64 index = uid - 1;
   if (index < group->unit_count &&
       (group->unit_cache_flags[index] & SYMS_GroupUnitCacheFlag_HasVarMap) == 0){
@@ -1228,6 +1241,54 @@ syms_group_line_to_addr_map_from_uid_file_id(SYMS_Group *group, SYMS_UnitID uid,
   return(result);
 }
 
+SYMS_API SYMS_SpatialMap1D*
+syms_group_stripped_info_map(SYMS_Group *group){
+  SYMS_ProfBegin("syms_group_stripped_info_map");
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
+  if (!group->stripped_info_map_is_built){
+    SYMS_Arena *arena = group->arena;
+    
+    //- fill spatial map array
+    SYMS_StrippedInfoArray stripped_info = syms_group_stripped_info(group);
+    SYMS_U64 guess_count = stripped_info.count;
+    SYMS_SpatialMap1DRange *ranges = syms_push_array(arena, SYMS_SpatialMap1DRange, guess_count);
+    SYMS_SpatialMap1DRange *range_ptr = ranges;
+    SYMS_StrippedInfo *stripped_ptr = stripped_info.info;
+    for (SYMS_U64 i = 0; i < guess_count; i += 1, stripped_ptr += 1){
+      SYMS_U64 min = stripped_ptr->voff;
+      SYMS_U64 max = SYMS_U64_MAX;
+      if (i + 1 < guess_count){
+        max = (stripped_ptr + 1)->voff;
+      }
+      SYMS_ASSERT(min <= max);
+      if (min < max){
+        range_ptr->range.min = min;
+        range_ptr->range.max = max;
+        range_ptr->val = i + 1;
+        range_ptr += 1;
+      }
+    }
+    
+    //- shrink the allocated array
+    SYMS_U64 actual_count = (SYMS_U64)(range_ptr - ranges);
+    syms_arena_put_back(arena, sizeof(SYMS_SpatialMap1D)*(guess_count - actual_count));
+    
+    //- assemble map
+    SYMS_SpatialMap1D map = {ranges, actual_count};
+    
+    //- save to group
+    group->stripped_info_map_is_built = syms_true;
+    group->stripped_info_map = map;
+    
+    SYMS_ASSERT_PARANOID(syms_spatial_map_1d_invariants(&map));
+  }
+  
+  SYMS_SpatialMap1D *result = &group->stripped_info_map;
+  SYMS_ProfEnd();
+  return(result);
+}
+
+//- accelerated versions
 SYMS_API SYMS_U64
 syms_group_sec_number_from_voff__accelerated(SYMS_Group *group, SYMS_U64 voff){
   SYMS_ProfBegin("syms_group_sec_number_from_voff__accelerated");
@@ -1454,7 +1515,7 @@ SYMS_GLOBAL SYMS_TypeNode syms_type_graph_nil = {
 SYMS_API SYMS_TypeNode*
 syms_group_type_from_usid(SYMS_Group *group, SYMS_USID usid){
   SYMS_ProfBegin("syms_group_type_from_usid");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   SYMS_TypeNode *result = syms_group_type_from_usid__rec(group, usid);
   SYMS_ProfEnd();
   return(result);
@@ -1542,98 +1603,6 @@ syms_group_type_from_usid__rec(SYMS_Group *group, SYMS_USID usid){
             
             // resolve direct type
             SYMS_TypeNode *direct = syms_group_type_from_usid__rec(group, type_info.direct_type);
-            
-            // read members
-            SYMS_U64 mem_count = 0;
-            SYMS_TypeMember *mems = 0;
-            if (type_info.kind == SYMS_TypeKind_Class ||
-                type_info.kind == SYMS_TypeKind_Struct ||
-                type_info.kind == SYMS_TypeKind_Union){
-              SYMS_MemsAccel *mems_accel = syms_mems_accel_from_sid(scratch.arena, dbg_data, dbg, unit,
-                                                                    usid.sid);
-              mem_count = syms_mem_count_from_mems(mems_accel);
-              mems = syms_push_array(group->arena, SYMS_TypeMember, mem_count);
-              
-              SYMS_TypeMember *mem_ptr = mems;
-              for (SYMS_U64 n = 1; n <= mem_count; n += 1, mem_ptr += 1){
-                SYMS_ArenaTemp temp = syms_arena_temp_begin(scratch.arena);
-                
-                SYMS_MemInfo mem_info = syms_mem_info_from_number(group->arena, dbg_data, dbg, unit, mems_accel, n);
-                
-                SYMS_TypeNode *type = &syms_type_graph_nil;
-                switch (mem_info.kind){
-                  case SYMS_MemKind_VTablePtr: /*no type*/ break;
-                  
-                  case SYMS_MemKind_DataField:
-                  case SYMS_MemKind_StaticData:
-                  {
-                    // TODO(allen): here we lose access to the fast path from StaticData to a virtual offset.
-                    // This path is only available from the DWARF backend, but there are a few ways we could
-                    // preserve it.
-                    SYMS_USID type_usid = syms_type_from_mem_number(dbg_data, dbg, unit, mems_accel, n);
-                    type = syms_group_type_from_usid__rec(group, type_usid);
-                  }break;
-                  
-                  case SYMS_MemKind_BaseClass:
-                  case SYMS_MemKind_VBaseClassPtr:
-                  case SYMS_MemKind_NestedType:
-                  {
-                    // directly get type from member id
-                    SYMS_USID type_usid = syms_type_from_mem_number(dbg_data, dbg, unit, mems_accel, n);
-                    type = syms_group_type_from_usid__rec(group, type_usid);
-                  }break;
-                  
-                  case SYMS_MemKind_Method:
-                  case SYMS_MemKind_StaticMethod:
-                  {
-                    // TODO(allen): here we lose access to the fast path a procedure symbol.
-                    // This path is only available from the DWARF backend, but there are a few ways we could
-                    // preserve it.
-                    SYMS_SigInfo sig = syms_sig_info_from_mem_number(scratch.arena, dbg_data, dbg, unit, mems_accel, n);
-                    
-                    SYMS_USID return_usid = syms_make_usid(sig.uid, sig.return_type_id);
-                    SYMS_USID this_usid = syms_make_usid(sig.uid, sig.this_type_id);
-                    
-                    SYMS_TypeNode *ret_type  = syms_group_type_from_usid__rec(group, return_usid);
-                    SYMS_TypeNode *this_type = syms_group_type_from_usid__rec(group, this_usid);
-                    SYMS_U64 param_count = sig.param_type_ids.count;
-                    SYMS_TypeNode **params = syms_push_array(group->arena, SYMS_TypeNode*, param_count);
-                    
-                    {
-                      SYMS_TypeNode **param_ptr = params;
-                      SYMS_TypeNode **param_opl = params + sig.param_type_ids.count;
-                      SYMS_SymbolID *param_id_ptr = sig.param_type_ids.ids;
-                      for (; param_ptr < param_opl; param_id_ptr += 1, param_ptr += 1){
-                        *param_ptr = syms_group_type_from_usid__rec(group, syms_make_usid(sig.uid, *param_id_ptr));
-                      }
-                    }
-                    
-                    type = syms_group_type_proc_from_type(group, ret_type, this_type, params, param_count);
-                  }break;
-                }
-                
-                mem_ptr->kind = mem_info.kind;
-                mem_ptr->visibility = mem_info.visibility;
-                mem_ptr->flags = mem_info.flags;
-                mem_ptr->name = syms_string_cons(group->arena, &group->string_cons, mem_info.name);
-                mem_ptr->off = mem_info.off;
-                mem_ptr->virtual_off = mem_info.virtual_off;
-                mem_ptr->type = type;
-                
-                syms_arena_temp_end(temp);
-              }
-            }
-            
-            // read constants
-            SYMS_EnumInfoArray enum_info_array = {0};
-            if (type_info.kind == SYMS_TypeKind_Enum){
-              enum_info_array = syms_enum_info_array_from_sid(group->arena, dbg_data, dbg, unit, usid.sid);
-              
-              SYMS_EnumInfo *enum_info = enum_info_array.enum_info;
-              for (SYMS_U64 i = 0; i < enum_info_array.count; i += 1, enum_info += 1){
-                enum_info->name = syms_string_cons(group->arena, &group->string_cons, enum_info->name);
-              }
-            }
             
             // compute size info
             SYMS_U64 byte_size = 0;
@@ -1916,7 +1885,7 @@ syms_group_enum_members_from_type(SYMS_Group *group, SYMS_TypeNode *type){
 SYMS_API SYMS_U64
 syms_group_type_size_from_usid(SYMS_Group *group, SYMS_USID usid){
   SYMS_ProfBegin("syms_group_type_size_from_usid");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   SYMS_UnitAccel *unit = syms_group_unit_from_uid(group, usid.uid);
   SYMS_TypeInfo type_info = syms_type_info_from_sid(group->dbg_data, group->dbg, unit, usid.sid);
   SYMS_U64 result = 0;
@@ -1943,7 +1912,7 @@ syms_group_type_size_from_usid(SYMS_Group *group, SYMS_USID usid){
 SYMS_API SYMS_TypeNode*
 syms_group_type_basic(SYMS_Group *group, SYMS_TypeKind basic_kind, SYMS_U64 size, SYMS_String8 name){
   SYMS_ProfBegin("syms_group_type_basic");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   
   SYMS_TypeNode *result = &syms_type_graph_nil;
   
@@ -1974,7 +1943,7 @@ syms_group_type_basic(SYMS_Group *group, SYMS_TypeKind basic_kind, SYMS_U64 size
 SYMS_API SYMS_TypeNode*
 syms_group_type_mod_from_type(SYMS_Group *group, SYMS_TypeNode *type, SYMS_TypeModifiers mods){
   SYMS_ProfBegin("syms_group_type_mod_from_type");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   
   SYMS_TypeNode *result = &syms_type_graph_nil;
   
@@ -2003,7 +1972,7 @@ syms_group_type_mod_from_type(SYMS_Group *group, SYMS_TypeNode *type, SYMS_TypeM
 SYMS_API SYMS_TypeNode*
 syms_group_type_ptr_from_type(SYMS_Group *group, SYMS_TypeKind ptr_kind, SYMS_TypeNode *type){
   SYMS_ProfBegin("syms_group_type_ptr_from_type");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   
   SYMS_TypeNode *result = &syms_type_graph_nil;
   
@@ -2030,7 +1999,7 @@ syms_group_type_ptr_from_type(SYMS_Group *group, SYMS_TypeKind ptr_kind, SYMS_Ty
 SYMS_API SYMS_TypeNode*
 syms_group_type_array_from_type(SYMS_Group *group, SYMS_TypeNode *type, SYMS_U64 count){
   SYMS_ProfBegin("syms_group_type_array_from_type");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   
   SYMS_TypeNode *result = &syms_type_graph_nil;
   
@@ -2060,7 +2029,7 @@ SYMS_API SYMS_TypeNode*
 syms_group_type_proc_from_type(SYMS_Group *group, SYMS_TypeNode *ret_type, SYMS_TypeNode *this_type,
                                SYMS_TypeNode **param_types, SYMS_U64 param_count){
   SYMS_ProfBegin("syms_group_type_proc_from_type");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   
   SYMS_TypeNode *result = &syms_type_graph_nil;
   
@@ -2094,7 +2063,7 @@ syms_group_type_proc_from_type(SYMS_Group *group, SYMS_TypeNode *ret_type, SYMS_
 SYMS_API SYMS_TypeNode*
 syms_group_type_member_ptr_from_type(SYMS_Group *group, SYMS_TypeNode *container, SYMS_TypeNode *type){
   SYMS_ProfBegin("syms_group_type_member_ptr_from_type");
-  SYMS_ASSERT(syms_thread_lane == 0);
+  SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
   
   SYMS_TypeNode *result = &syms_type_graph_nil;
   
@@ -2429,7 +2398,7 @@ SYMS_API SYMS_Name2FileIDMap*
 syms_group_file_map(SYMS_Group *group){
   SYMS_ProfBegin("syms_group_file_map");
   if (!group->name_2_file_id_map_is_built){
-    SYMS_ASSERT(syms_thread_lane == 0);
+    SYMS_ASSERT_PARANOID(syms_thread_lane == 0);
     SYMS_ArenaTemp scratch = syms_get_scratch(0, 0);
     
     //- build loose file map

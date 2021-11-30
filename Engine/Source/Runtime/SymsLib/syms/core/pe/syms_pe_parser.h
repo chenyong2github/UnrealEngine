@@ -19,12 +19,41 @@ typedef struct SYMS_PeBinAccel{
   SYMS_U64 dbg_path_off;
   SYMS_U64 dbg_path_size;
   SYMS_PeGuid dbg_guid;
+  SYMS_U32 dbg_age;
   SYMS_Arch arch;
-  
-  // TODO(allen): refine this part
-  SYMS_U64 pdata_off;
-  SYMS_U64 pdata_count;
+  SYMS_U32 data_dir_count;
+  SYMS_U64Range *data_dirs_virt;
+  SYMS_U64Range *data_dirs_file;
 } SYMS_PeBinAccel;
+
+////////////////////////////////
+// Imports
+
+enum
+{
+  SYMS_PeLookupBy_Ordinal,
+  SYMS_PeLookupBy_NameHint
+};
+typedef SYMS_U32 SYMS_PeImportLookupBy;
+
+typedef struct SYMS_PeImportNode
+{
+  struct SYMS_PeImportNode *next;
+  SYMS_PeImportLookupBy lookup_by;
+  SYMS_U16 ordinal;
+  SYMS_String8 name;
+  SYMS_U16 hint;
+} SYMS_PeImportNode;
+
+typedef struct SYMS_PeImportDllNode
+{
+  struct SYMS_PeImportDllNode *next;
+  SYMS_String8 name;
+  SYMS_PeImportDirectoryEntry import_entry;
+  SYMS_PeImportNode *first_import;
+  SYMS_PeImportNode *last_import;
+  SYMS_U32 import_count;
+} SYMS_PeImportDllNode;
 
 ////////////////////////////////
 // NOTE(allen): PE Parser Functions
@@ -59,5 +88,13 @@ SYMS_API SYMS_U64 syms_pe_sec_number_from_voff(SYMS_String8 data, SYMS_PeBinAcce
 SYMS_API void*    syms_pe_ptr_from_sec_number(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 n);
 SYMS_API void*    syms_pe_ptr_from_foff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 foff);
 SYMS_API void*    syms_pe_ptr_from_voff(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 voff);
+
+SYMS_API SYMS_U64 syms_pe_virt_off_to_file_off(SYMS_CoffSection *sections, SYMS_U32 section_count, SYMS_U64 virt_off);
+SYMS_API SYMS_U64 syms_pe_bin_virt_off_to_file_off(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_U64 virt_off);
+
+////////////////////////////////
+
+SYMS_API SYMS_ImportArray syms_pe_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *bin);
+SYMS_API SYMS_ExportArray syms_pe_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *bin);
 
 #endif //SYMS_PE_PARSER_H

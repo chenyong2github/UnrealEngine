@@ -80,6 +80,12 @@ syms_log_close__dev(SYMS_U32 prev_state){
   syms_log_state__dev = prev_state;
 }
 
+SYMS_API SYMS_B32
+syms_log_is_enabled__dev(void){
+  SYMS_B32 result = (syms_log_state__dev == 2);
+  return(result);
+}
+
 SYMS_API SYMS_U32
 syms_log_open_annotated__dev(SYMS_LogFeatures features, SYMS_U64 uid){
   SYMS_LogFeatures filter_features = syms_log_filter_features__dev;
@@ -96,12 +102,18 @@ syms_log_open_annotated__dev(SYMS_LogFeatures features, SYMS_U64 uid){
     for (SYMS_U32 i = 0; i < 1; i += 1){
       SYMS_U32 bit = (1 << i);
       if ((features & bit) != 0){
+        SYMS_String8 feature_str = {0};
         switch (bit){
-          case SYMS_LogFeature_LineTable:
-          {
-            syms_string_list_push(scratch.arena, &features_list, syms_str8_lit("line_table"));
-          }break;
+          case SYMS_LogFeature_LineTable:       feature_str = syms_str8_lit("line_table");        break;
+          case SYMS_LogFeature_DwarfUnitRanges: feature_str = syms_str8_lit("dwarf_unit_ranges"); break;
+          case SYMS_LogFeature_DwarfTags:       feature_str = syms_str8_lit("dwarf_tags");        break;
+          case SYMS_LogFeature_DwarfUnwind:     feature_str = syms_str8_lit("dwarf_unwind");      break;
+          case SYMS_LogFeature_DwarfCFILookup:  feature_str = syms_str8_lit("dwarf_cfi_lookup");  break;
+          case SYMS_LogFeature_DwarfCFIDecode:  feature_str = syms_str8_lit("dwarf_cfi_decode");  break;
+          case SYMS_LogFeature_DwarfCFIApply:   feature_str = syms_str8_lit("dwarf_cfi_apply");   break;
+          case SYMS_LogFeature_PEEpilog:        feature_str = syms_str8_lit("pe_epilog");         break;
         }
+        syms_string_list_push(scratch.arena, &features_list, feature_str);
       }
     }
     SYMS_String8 features = syms_str8_lit("misc");

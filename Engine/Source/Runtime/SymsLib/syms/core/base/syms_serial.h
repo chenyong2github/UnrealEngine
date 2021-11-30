@@ -26,6 +26,12 @@
 # if defined(_SYMS_META_PE_H)
 #  define SYMS_ENABLE_PE_SERIAL_INFO
 # endif
+# if defined(_SYMS_META_MACH_H)
+#  define SYMS_ENABLE_MACH_SERIAL_INFO
+# endif
+# if defined(_SYMS_META_ELF_H)
+#  define SYMS_ENABLE_ELF_SERIAL_INFO
+# endif
 #endif
 
 ////////////////////////////////

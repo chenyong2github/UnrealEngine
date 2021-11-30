@@ -160,12 +160,7 @@ typedef enum SYMS_PdbDbiRange{
   SYMS_PdbDbiRange_FileInfo,
   SYMS_PdbDbiRange_TSM,
   SYMS_PdbDbiRange_EcInfo,
-  
-  // TODO(allen): this name is weird; look into it. It really refers to a range
-  // of DBI that contains an array of section numbers (the PdbDbiDbgStream array).
-  // Correlate with the name dbg_header_size in SYMS_PdbDbiHeader.
   SYMS_PdbDbiRange_DbgHeader,
-  
   SYMS_PdbDbiRange_COUNT
 } SYMS_PdbDbiRange;
 

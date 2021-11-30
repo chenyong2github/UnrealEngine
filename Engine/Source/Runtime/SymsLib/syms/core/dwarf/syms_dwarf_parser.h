@@ -105,17 +105,6 @@ struct SYMS_DwDbgAccel
 };
 
 ////////////////////////////////
-//~ rjf: Parser Helpers
-
-typedef struct SYMS_DwSegOffArray{
-  SYMS_U32 segoff_size;
-  SYMS_U32 segsel_size;
-  SYMS_U32 num;
-  SYMS_DwSectionKind section;
-  SYMS_U64 section_off;
-} SYMS_DwSegOffArray;
-
-////////////////////////////////
 //~ rjf: Basic Line Info
 
 typedef struct SYMS_DwLineFile SYMS_DwLineFile;
@@ -362,56 +351,6 @@ struct SYMS_DwTagStubList
   SYMS_DwTagStubNode *last;
   SYMS_U64 count;
 };
-
-////////////////////////////////
-//~ rjf: DWARF Expressions
-
-typedef struct SYMS_DwExprNode SYMS_DwExprNode;
-struct SYMS_DwExprNode
-{
-  SYMS_DwExprNode *first;
-  SYMS_DwExprNode *last;
-  SYMS_DwExprNode *next;
-  SYMS_DwOpCode opcode;
-  SYMS_U64 value;
-};
-
-typedef struct SYMS_DwExprEvalState SYMS_DwExprEvalState;
-struct SYMS_DwExprEvalState
-{
-  SYMS_DwExprNode *stack_top;
-};
-
-////////////////////////////////
-//~ rjf: Locations
-
-typedef struct SYMS_DwLocationDesc SYMS_DwLocationDesc;
-struct SYMS_DwLocationDesc
-{
-  SYMS_U64 va;
-  SYMS_DwExprNode *expr_root;
-};
-
-typedef struct SYMS_DwLocation SYMS_DwLocation;
-struct SYMS_DwLocation
-{
-  SYMS_U64 va;
-  SYMS_U64 implicit_value_size;
-  void *implicit_value;
-};
-
-// NOTE(nick): This callback is used during decoding of the addresses(e.g. locals, globals, lines).
-// If user chose to omit this callback (i.e. passes a NULL) library won't be able to resolve addresses.
-#define DW_REGREAD_SIG(name) SYMS_U32 name(void *context, SYMS_Arch arch, SYMS_U32 reg_index, void *read_buffer, SYMS_U32 read_buffer_max)
-typedef DW_REGREAD_SIG(dw_regread_sig);
-
-#define DW_REGWRITE_SIG(name) SYMS_U32 name(void *context, SYMS_Arch arch, SYMS_U32 reg_index, void *value, SYMS_U32 value_size)
-typedef DW_REGWRITE_SIG(dw_regwrite_sig);
-
-// NOTE(nick): This callback is primarily used for decoding variables' addresses. 
-// If user chose to omit this callback (i.e. passes a NULL) library won't be able to resolve addresses.
-#define DW_MEMREAD_SIG(name) SYMS_B32 name(void *context, SYMS_U64 va, void *read_buffer, SYMS_U32 num_read)
-typedef DW_MEMREAD_SIG(dw_memread_sig);
 
 ////////////////////////////////
 //~ rjf: Line Info VM Types
@@ -708,47 +647,8 @@ SYMS_API SYMS_DwTag *syms_dw_tag_from_info_offset(SYMS_Arena *arena,
                                                   SYMS_DwAbbrevTable abbrev_table,
                                                   SYMS_U64 address_size,
                                                   SYMS_U64 info_offset);
-SYMS_API SYMS_U64 syms_dw_parse_tag_children(SYMS_Arena *arena,
-                                             SYMS_String8 data,
-                                             SYMS_DwDbgAccel *dbg,
-                                             SYMS_DwAbbrevTable abbrev_table,
-                                             SYMS_U64 address_size,
-                                             SYMS_U64 start_info_offset,
-                                             SYMS_DwTag *parent);
 SYMS_API SYMS_DwTagStub syms_dw_stub_from_tag(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwAttribValueResolveParams resolve_params,
                                               SYMS_DwTag *tag);
-
-////////////////////////////////
-//~ rjf: DWARF Expressions
-
-SYMS_API SYMS_DwExprNode *syms_dw_expr_push(SYMS_Arena *arena, SYMS_DwExprEvalState *state);
-SYMS_API SYMS_DwExprNode *syms_dw_expr_push_literal(SYMS_Arena *arena, SYMS_DwExprEvalState *state,
-                                                    SYMS_U64 value);
-SYMS_API SYMS_DwExprNode *syms_dw_expr_push_operator(SYMS_Arena *arena, SYMS_DwExprEvalState *state,
-                                                     SYMS_DwOpCode opcode, SYMS_DwExprNode *left,
-                                                     SYMS_DwExprNode *right);
-SYMS_API SYMS_DwExprNode *syms_dw_expr_push_copy(SYMS_Arena *arena, SYMS_DwExprEvalState *state,
-                                                 SYMS_DwExprNode *to_copy);
-SYMS_API SYMS_DwExprNode *syms_dw_expr_pop(SYMS_DwExprEvalState *state);
-SYMS_API SYMS_DwExprNode *syms_dw_expr_node_from_stack_index(SYMS_DwExprEvalState *state, SYMS_U64 idx);
-SYMS_API SYMS_DwLocationDesc syms_dw_location_desc_from_based_range(SYMS_Arena *arena, void *base,
-                                                                    SYMS_U64Range range, SYMS_U64 offset,
-                                                                    SYMS_U64 addr_size);
-
-////////////////////////////////
-//~ rjf: Location Evaluation VM
-
-SYMS_API SYMS_U64 syms_dw_based_range_read_and_eval_location_expr(void *base,
-                                                                  SYMS_U64Range range,
-                                                                  SYMS_U64 offset,
-                                                                  SYMS_DwLocation *location_out,
-                                                                  SYMS_U64 frame_base,
-                                                                  SYMS_U64 member_loc,
-                                                                  SYMS_U64 cfa,
-                                                                  SYMS_DwMode dw_mode,
-                                                                  SYMS_Arch arch,
-                                                                  void *memread_ctx, dw_memread_sig *memread,
-                                                                  void *regread_ctx, dw_regread_sig *regread);
 
 ////////////////////////////////
 //~ rjf: Unit Set Accelerator
@@ -769,6 +669,8 @@ SYMS_API SYMS_U64            syms_dw_unit_number_from_uid(SYMS_DwUnitSetAccel *u
 SYMS_API SYMS_UnitInfo       syms_dw_unit_info_from_uid(SYMS_DwUnitSetAccel *unit_set, SYMS_UnitID uid);
 SYMS_API SYMS_UnitNames      syms_dw_unit_names_from_uid(SYMS_Arena *arena, SYMS_DwUnitSetAccel *unit_set,
                                                          SYMS_UnitID uid);
+SYMS_API void                syms_dw_sort_unit_range_point_array_in_place__merge(SYMS_DwUnitRangePoint *a, SYMS_U64 left, SYMS_U64 right, SYMS_U64 end, SYMS_DwUnitRangePoint *b);
+SYMS_API void                syms_dw_sort_unit_range_point_array_in_place(SYMS_DwUnitRangePoint *a, SYMS_U64 count);
 SYMS_API SYMS_UnitRangeArray syms_dw_unit_ranges_from_set(SYMS_Arena *arena,
                                                           SYMS_String8 data, SYMS_DwDbgAccel *dbg,
                                                           SYMS_DwUnitSetAccel *unit_set);
@@ -864,11 +766,6 @@ SYMS_API SYMS_UnitIDAndSig syms_dw_proc_sig_handle_from_sid(SYMS_String8 data, S
                                                             SYMS_DwUnitAccel *unit, SYMS_SymbolID sid);
 SYMS_API SYMS_SigInfo      syms_dw_sig_info_from_handle(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SigHandle handle);
 SYMS_API SYMS_SymbolIDArray syms_dw_scope_children_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID id);
-
-//- rjf: location descriptions
-SYMS_API SYMS_DwLocationDesc syms_dw_location_desc_from_sid(SYMS_Arena *arena, SYMS_String8 data,
-                                                            SYMS_DwDbgAccel *dbg, SYMS_DwUnitSetAccel *unit_set,
-                                                            SYMS_DwUnitAccel *unit, SYMS_SymbolID sid);
 
 //- rjf: line info
 SYMS_API void              syms_dw_line_vm_reset(SYMS_DwLineVMState *state, SYMS_B32 default_is_stmt);

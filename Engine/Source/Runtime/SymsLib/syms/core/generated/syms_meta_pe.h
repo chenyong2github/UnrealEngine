@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_PE_H
 #define _SYMS_META_PE_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:686
+//~ generated from code at src/metaprogram/metaprogram_syms.c:774
 #pragma pack(push,1)
 typedef struct SYMS_DosHeader{
 SYMS_U16 magic;
@@ -176,9 +176,13 @@ SYMS_PeDebugDirectoryType_OMAP_FROM_SRC = 8,
 SYMS_PeDebugDirectoryType_BORLAND = 9,
 SYMS_PeDebugDirectoryType_RESERVED10 = 10,
 SYMS_PeDebugDirectoryType_CLSID = 11,
+SYMS_PeDebugDirectoryType_VC_FEATURE = 12,
+SYMS_PeDebugDirectoryType_POGO = 13,
+SYMS_PeDebugDirectoryType_ILTCG = 14,
+SYMS_PeDebugDirectoryType_MPX = 15,
 SYMS_PeDebugDirectoryType_REPRO = 16,
 SYMS_PeDebugDirectoryType_EX_DLLCHARACTERISTICS = 20,
-SYMS_PeDebugDirectoryType_COUNT = 14
+SYMS_PeDebugDirectoryType_COUNT = 18
 };
 typedef struct SYMS_PeDebugDirectory{
 SYMS_U32 characteristics;
@@ -192,6 +196,8 @@ SYMS_U32 file_offset;
 } SYMS_PeDebugDirectory;
 #pragma pack(pop)
 
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+SYMS_C_LINKAGE_BEGIN
+SYMS_C_LINKAGE_END
+
 #endif
-
-

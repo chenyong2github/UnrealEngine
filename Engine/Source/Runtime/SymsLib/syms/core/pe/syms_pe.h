@@ -97,5 +97,34 @@ typedef struct SYMS_PeCvHeaderPDB70{
 } SYMS_PeCvHeaderPDB70;
 #pragma pack(pop)
 
+////////////////////////////////
+// Import
+
+typedef struct
+{
+  SYMS_U32 lookup_table_virt_off;
+  SYMS_U32 timestamp;
+  SYMS_U32 forwarder_chain;
+  SYMS_U32 name_virt_off;
+  SYMS_U32 import_addr_table_virt_off;
+} SYMS_PeImportDirectoryEntry;
+
+////////////////////////////////
+// Export
+
+typedef struct
+{
+  SYMS_U32 flags;                       // must be zero
+  SYMS_U32 timestamp;                   // time and date when export table was created
+  SYMS_U16 major_ver;                   // table version, user can change major and minor version
+  SYMS_U16 minor_ver; 
+  SYMS_U32 name_virt_off;               // ASCII name of the dll
+  SYMS_U32 ordinal_base;                // Starting oridnal number
+  SYMS_U32 export_address_table_count;
+  SYMS_U32 name_pointer_table_count;
+  SYMS_U32 export_address_table_virt_off;
+  SYMS_U32 name_pointer_table_virt_off;
+  SYMS_U32 ordinal_table_virt_off;
+} SYMS_PeExportTable;
 
 #endif //SYMS_PE_H
