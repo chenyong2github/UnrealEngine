@@ -57,7 +57,7 @@ FStaticMeshEditorViewportClient::FStaticMeshEditorViewportClient(TWeakPtr<IStati
 	DrawHelper.bDrawPivot = false;
 	DrawHelper.bDrawWorldBox = false;
 	DrawHelper.bDrawKillZ = false;
-	DrawHelper.bDrawGrid = false;
+	DrawHelper.bDrawGrid = true;
 	DrawHelper.GridColorAxis = FColor(160,160,160);
 	DrawHelper.GridColorMajor = FColor(144,144,144);
 	DrawHelper.GridColorMinor = FColor(128,128,128);
