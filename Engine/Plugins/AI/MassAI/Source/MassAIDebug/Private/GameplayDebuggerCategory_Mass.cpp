@@ -214,7 +214,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		{
 			FStringOutputDevice Ar;
 			Ar.SetAutoEmitLineTerminator(true);
-			EntitySystem->DebugPrintArchetypes(Ar);
+			EntitySystem->DebugPrintArchetypes(Ar, /*bIncludeEmpty*/false);
 
 			AddTextLine(Ar);
 		}

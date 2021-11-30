@@ -890,7 +890,7 @@ FMassExecutionContext UMassEntitySubsystem::CreateExecutionContext(const float D
 }
 
 #if WITH_MASSENTITY_DEBUG
-void UMassEntitySubsystem::DebugPrintArchetypes(FOutputDevice& Ar) const
+void UMassEntitySubsystem::DebugPrintArchetypes(FOutputDevice& Ar, const bool bIncludeEmpty) const
 {
 	Ar.Logf(ELogVerbosity::Log, TEXT("Listing archetypes contained in %s"), *GetPathNameSafe(this));
 
@@ -901,7 +901,10 @@ void UMassEntitySubsystem::DebugPrintArchetypes(FOutputDevice& Ar) const
 	{
 		for (const TSharedPtr<FMassArchetypeData>& ArchetypePtr : KVP.Value)
 		{
-			ArchetypePtr->DebugPrintArchetype(Ar);
+			if (ArchetypePtr.IsValid() && (bIncludeEmpty == true || ArchetypePtr->GetChunkCount() > 0))
+			{
+				ArchetypePtr->DebugPrintArchetype(Ar);
+			}
 		}
 
 		const int32 NumArchetypesInBucket = KVP.Value.Num();
