@@ -6,15 +6,13 @@
 UBTDecorator_TagCooldown::UBTDecorator_TagCooldown(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Tag Cooldown";
+	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
 	CooldownDuration = 5.0f;
 	bAddToExistingDuration = false;
 	bActivatesCooldown = true;
 	
 	// aborting child nodes doesn't makes sense, cooldown starts after leaving this branch
 	bAllowAbortChildNodes = false;
-
-	bNotifyTick = false;
-	bNotifyDeactivation = true;
 }
 
 void UBTDecorator_TagCooldown::PostLoad()
@@ -43,8 +41,7 @@ bool UBTDecorator_TagCooldown::CalculateRawConditionValue(UBehaviorTreeComponent
 
 void UBTDecorator_TagCooldown::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const
 {
-	FBTTagCooldownDecoratorMemory* DecoratorMemory = (FBTTagCooldownDecoratorMemory*)NodeMemory;
-
+	FBTTagCooldownDecoratorMemory* DecoratorMemory = CastInstanceNodeMemory<FBTTagCooldownDecoratorMemory>(NodeMemory);
 	DecoratorMemory->bRequestedRestart = false;
 }
 
@@ -61,7 +58,7 @@ void UBTDecorator_TagCooldown::OnNodeDeactivation(FBehaviorTreeSearchData& Searc
 
 void UBTDecorator_TagCooldown::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FBTTagCooldownDecoratorMemory* DecoratorMemory = (FBTTagCooldownDecoratorMemory*)NodeMemory;
+	FBTTagCooldownDecoratorMemory* DecoratorMemory = CastInstanceNodeMemory<FBTTagCooldownDecoratorMemory>(NodeMemory);
 	if (!DecoratorMemory->bRequestedRestart)
 	{
 		if (HasCooldownFinished(OwnerComp))

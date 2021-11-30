@@ -6,13 +6,11 @@
 UBTDecorator_Cooldown::UBTDecorator_Cooldown(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Cooldown";
+	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
 	CoolDownTime = 5.0f;
 	
 	// aborting child nodes doesn't makes sense, cooldown starts after leaving this branch
 	bAllowAbortChildNodes = false;
-
-	bNotifyTick = false;
-	bNotifyDeactivation = true;
 }
 
 void UBTDecorator_Cooldown::PostLoad()

@@ -7,8 +7,7 @@ UBTDecorator_BlackboardBase::UBTDecorator_BlackboardBase(const FObjectInitialize
 {
 	NodeName = "BlackboardBase";
 
-	bNotifyBecomeRelevant = true;
-	bNotifyCeaseRelevant = true;
+	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
 
 	// empty KeySelector = allow everything
 }

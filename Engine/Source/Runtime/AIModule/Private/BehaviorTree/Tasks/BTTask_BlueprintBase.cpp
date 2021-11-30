@@ -8,13 +8,13 @@
 
 UBTTask_BlueprintBase::UBTTask_BlueprintBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	UClass* StopAtClass = UBTTask_BlueprintBase::StaticClass();
+	const UClass* StopAtClass = UBTTask_BlueprintBase::StaticClass();
 	ReceiveTickImplementations = FBTNodeBPImplementationHelper::CheckEventImplementationVersion(TEXT("ReceiveTick"), TEXT("ReceiveTickAI"), *this, *StopAtClass);
 	ReceiveExecuteImplementations = FBTNodeBPImplementationHelper::CheckEventImplementationVersion(TEXT("ReceiveExecute"), TEXT("ReceiveExecuteAI"), *this, *StopAtClass);
 	ReceiveAbortImplementations = FBTNodeBPImplementationHelper::CheckEventImplementationVersion(TEXT("ReceiveAbort"), TEXT("ReceiveAbortAI"), *this, *StopAtClass);
 
+	INIT_TASK_NODE_NOTIFY_FLAGS();
 	bNotifyTick = ReceiveTickImplementations != FBTNodeBPImplementationHelper::NoImplementation;
-	bNotifyTaskFinished = true;
 	bShowPropertyDetails = true;
 	bIsAborting = false;
 
@@ -129,7 +129,7 @@ void UBTTask_BlueprintBase::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, ui
 void UBTTask_BlueprintBase::FinishExecute(bool bSuccess)
 {
 	UBehaviorTreeComponent* OwnerComp = Cast<UBehaviorTreeComponent>(GetOuter());
-	EBTNodeResult::Type NodeResult(bSuccess ? EBTNodeResult::Succeeded : EBTNodeResult::Failed);
+	const EBTNodeResult::Type NodeResult(bSuccess ? EBTNodeResult::Succeeded : EBTNodeResult::Failed);
 
 	if (bStoreFinishResult)
 	{
@@ -144,10 +144,10 @@ void UBTTask_BlueprintBase::FinishExecute(bool bSuccess)
 void UBTTask_BlueprintBase::FinishAbort()
 {
 	UBehaviorTreeComponent* OwnerComp = Cast<UBehaviorTreeComponent>(GetOuter());
-	EBTNodeResult::Type NodeResult(EBTNodeResult::Aborted);
 
 	if (bStoreFinishResult)
 	{
+		constexpr EBTNodeResult::Type NodeResult(EBTNodeResult::Aborted);
 		CurrentCallResult = NodeResult;
 	}
 	else if (OwnerComp && bIsAborting)
@@ -158,8 +158,8 @@ void UBTTask_BlueprintBase::FinishAbort()
 
 bool UBTTask_BlueprintBase::IsTaskExecuting() const
 {
-	UBehaviorTreeComponent* OwnerComp = Cast<UBehaviorTreeComponent>(GetOuter());
-	EBTTaskStatus::Type TaskStatus = OwnerComp->GetTaskStatus(this);
+	const UBehaviorTreeComponent* OwnerComp = Cast<UBehaviorTreeComponent>(GetOuter());
+	const EBTTaskStatus::Type TaskStatus = OwnerComp->GetTaskStatus(this);
 
 	return (TaskStatus == EBTTaskStatus::Active);
 }
@@ -196,10 +196,10 @@ FString UBTTask_BlueprintBase::GetStaticDescription() const
 #endif // WITH_EDITORONLY_DATA
 		Super::GetStaticDescription();
 
-	UBTTask_BlueprintBase* CDO = (UBTTask_BlueprintBase*)(GetClass()->GetDefaultObject());
+	UBTTask_BlueprintBase* CDO = static_cast<UBTTask_BlueprintBase*>(GetClass()->GetDefaultObject());
 	if (bShowPropertyDetails && CDO)
 	{
-		UClass* StopAtClass = UBTTask_BlueprintBase::StaticClass();
+		const UClass* StopAtClass = UBTTask_BlueprintBase::StaticClass();
 		FString PropertyDesc = BlueprintNodeHelpers::CollectPropertyDescription(this, StopAtClass, CDO->PropertyData);
 		if (PropertyDesc.Len())
 		{
@@ -213,7 +213,7 @@ FString UBTTask_BlueprintBase::GetStaticDescription() const
 
 void UBTTask_BlueprintBase::DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const
 {
-	UBTTask_BlueprintBase* CDO = (UBTTask_BlueprintBase*)(GetClass()->GetDefaultObject());
+	UBTTask_BlueprintBase* CDO = static_cast<UBTTask_BlueprintBase*>(GetClass()->GetDefaultObject());
 	if (CDO && CDO->PropertyData.Num())
 	{
 		BlueprintNodeHelpers::DescribeRuntimeValues(this, CDO->PropertyData, Values);
