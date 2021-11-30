@@ -59,21 +59,20 @@ void FPropertyValueImpl::EnumerateObjectsToModify( FPropertyNode* InPropertyNode
 		const int32 NumInstances = ComplexNode->GetInstancesNum();
 		for (int32 Index = 0; Index < NumInstances; ++Index)
 		{
-			uint8* ObjectOrStruct = nullptr;
-			uint8* BaseAddress = nullptr;
+			UObject* Object = nullptr;
+			uint8* StructAddress = nullptr;
 			if (bIsStruct)
 			{
-				ObjectOrStruct = ComplexNode->GetMemoryOfInstance(Index);
-				BaseAddress = InPropertyNode->GetValueBaseAddress(ObjectOrStruct, false);
+				StructAddress = ComplexNode->GetMemoryOfInstance(Index);
 			}
 			else
 			{
-				const UObject* Obj = ComplexNode->GetInstanceAsUObject(Index).Get();
-				ObjectOrStruct = (uint8*)Obj;
-				BaseAddress = InPropertyNode->GetValueBaseAddressFromObject(Obj);
+				Object = ComplexNode->GetInstanceAsUObject(Index).Get();
+				StructAddress = InPropertyNode->GetStartAddressFromObject(Object);
 			}
+			uint8* BaseAddress = InPropertyNode->GetValueBaseAddress(StructAddress, InPropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
 
-			if (!InObjectsToModifyCallback(FObjectBaseAddress(ObjectOrStruct, BaseAddress, bIsStruct), Index, NumInstances))
+			if (!InObjectsToModifyCallback(FObjectBaseAddress(Object, StructAddress, BaseAddress), Index, NumInstances))
 			{
 				break;
 			}
@@ -214,7 +213,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const FString& InValue, 
 	TArray<FString> Values;
 	for (const FObjectBaseAddress& BaseAddress : ObjectsToModify)
 	{
-		if (BaseAddress.ObjectOrStruct)
+		if (BaseAddress.BaseAddress)
 		{
 			Values.Add(InValue);
 		}
@@ -261,7 +260,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 		bool bIsGameWorld = false;
 		// If the object we are modifying is in the PIE world, than make the PIE world the active
 		// GWorld.  Assumes all objects managed by this property window belong to the same world.
-		UObject* FirstObject = InObjects[0].GetUObject();
+		UObject* FirstObject = InObjects[0].Object;
 		if (UPackage* ObjectPackage = (FirstObject ? FirstObject->GetOutermost() : nullptr))
 		{
 			const bool bIsPIEPackage = ObjectPackage->HasAnyPackageFlags(PKG_PlayInEditor);
@@ -295,7 +294,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 				break;
 			}
 
-			UObject* CurObject = Cur.GetUObject();
+			UObject* CurObject = Cur.Object;
 
 			const FString& NewValue = InValues[ObjectIndex];
 
@@ -324,7 +323,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 				if (bIsInContainer)
 				{
-					uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(Cur.ObjectOrStruct, bIsSparseClassData);
+					uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(Cur.StructAddress, bIsSparseClassData);
 					
 					FScriptSetHelper SetHelper(SetProperty, ValueBaseAddress);
 					if (SetHelper.HasElement(Cur.BaseAddress, NewValue) &&
@@ -343,7 +342,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 				if (bIsInContainer)
 				{
-					uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(Cur.ObjectOrStruct, bIsSparseClassData);
+					uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(Cur.StructAddress, bIsSparseClassData);
 					
 					FScriptMapHelper MapHelper(MapProperty, ValueBaseAddress);
 					if (MapHelper.HasKey(Cur.BaseAddress, NewValue) && 
@@ -363,7 +362,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 
 			if (bIsInContainer)
 			{
-				uint8* Addr = ParentNode->GetValueBaseAddress(Cur.ObjectOrStruct, bIsSparseClassData);
+				uint8* Addr = ParentNode->GetValueBaseAddress(Cur.StructAddress, bIsSparseClassData);
 				Property->ExportText_Direct(PreviousContainerValue, Addr, Addr, nullptr, 0);
 			}
 
@@ -429,13 +428,13 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 				// For TMap and TSet, we need to rehash it in case a key was modified
 				if (NodeProperty->GetOwner<FMapProperty>())
 				{
-					uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddress(Cur.ObjectOrStruct, bIsSparseClassData);
+					uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddress(Cur.StructAddress, bIsSparseClassData);
 					FScriptMapHelper MapHelper(NodeProperty->GetOwner<FMapProperty>(), Addr);
 					MapHelper.Rehash();
 				}
 				else if (NodeProperty->GetOwner<FSetProperty>())
 				{
-					uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddress(Cur.ObjectOrStruct, bIsSparseClassData);
+					uint8* Addr = InPropertyNode->GetParentNode()->GetValueBaseAddress(Cur.StructAddress, bIsSparseClassData);
 					FScriptSetHelper SetHelper(NodeProperty->GetOwner<FSetProperty>(), Addr);
 					SetHelper.Rehash();
 				}
@@ -4736,7 +4735,7 @@ bool FPropertyHandleSet::HasDefaultElement()
 		{
 			const bool IsSparseClassData = PropNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0;
 			FSetProperty* SetProperty = CastFieldChecked<FSetProperty>(PropNode->GetProperty());
-			FScriptSetHelper SetHelper(SetProperty, PropNode->GetValueBaseAddress(Addresses[0].ObjectOrStruct, IsSparseClassData));
+			FScriptSetHelper SetHelper(SetProperty, PropNode->GetValueBaseAddress(Addresses[0].StructAddress, IsSparseClassData));
 
 			FDefaultConstructedPropertyElement DefaultElement(SetHelper.ElementProp);
 			return SetHelper.FindElementIndex(DefaultElement.GetObjAddress()) != INDEX_NONE;
@@ -4834,7 +4833,7 @@ bool FPropertyHandleMap::HasDefaultKey()
 		{
 			const bool IsSparseClassData = PropNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0;
 			FMapProperty* MapProperty = CastFieldChecked<FMapProperty>(PropNode->GetProperty());
-			FScriptMapHelper MapHelper(MapProperty, PropNode->GetValueBaseAddress(Addresses[0].ObjectOrStruct, IsSparseClassData));
+			FScriptMapHelper MapHelper(MapProperty, PropNode->GetValueBaseAddress(Addresses[0].StructAddress, IsSparseClassData));
 
 			FDefaultConstructedPropertyElement DefaultKey(MapHelper.KeyProp);
 			return MapHelper.FindMapIndexWithKey(DefaultKey.GetObjAddress()) != INDEX_NONE;

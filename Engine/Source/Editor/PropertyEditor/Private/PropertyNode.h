@@ -505,6 +505,12 @@ public:
 	virtual uint8* GetValueAddress(uint8* StartAddress, bool bIsSparseData) const;
 
 	/**
+	 * Caclulates the memory address for the starting point of the structure that contains the property this node uses.
+	 * This will often be Obj but may also point to a sidecar data structure.
+	 */
+	uint8* GetStartAddressFromObject(const UObject* Obj) const;
+
+	/**
 	 * Calculates the memory address for the data associated with this item's property.  This is typically the value of a FProperty or a UObject address.
 	 *
 	 * @param	Obj	The object that contains this property; used as the starting point for the calculation
@@ -937,10 +943,6 @@ public:
 	void SetExpandedChildPropertyNodes(const TSet<FString>& InNodesToExpand);
 
 protected:
-
-	// Returns a pointer to the starting point of the structure that contains the property this node uses.
-	// This will often be Obj but may also point to a sidecar data structure
-	uint8* GetStartAddress(const UObject* Obj) const;
 
 	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange );
 	TSharedRef<FEditPropertyChain> BuildPropertyChain( FProperty* PropertyAboutToChange, const TSet<UObject*>& InAffectedArchetypeInstances );
