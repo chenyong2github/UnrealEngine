@@ -455,8 +455,6 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SceneLightCount)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -523,8 +521,6 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 
 		// Shading data
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
 
 		SHADER_PARAMETER(FIntPoint, GatherPointsResolution)
 		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
@@ -590,8 +586,6 @@ class FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS : public FGlobalSh
 
 		// Shading data
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
 
 		SHADER_PARAMETER(FIntPoint, GatherPointsResolution)
 		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
@@ -645,8 +639,6 @@ class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 
 		// Shading data
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
 
 		// Gather points
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<GatherPoints>, GatherPointsBuffer)
@@ -845,8 +837,6 @@ void CopyGatherPassParameters(
 	NewParameters->SkylightParameters = PassParameters.SkylightParameters;
 
 	NewParameters->SceneTextures = PassParameters.SceneTextures;
-	NewParameters->SSProfilesTexture = PassParameters.SSProfilesTexture;
-	NewParameters->TransmissionProfilesLinearSampler = PassParameters.TransmissionProfilesLinearSampler;
 
 	NewParameters->GatherPointsResolution = PassParameters.GatherPointsResolution;
 	NewParameters->TileAlignedResolution = PassParameters.TileAlignedResolution;
@@ -886,8 +876,6 @@ void CopyGatherPassParameters(
 	NewParameters->SkylightParameters = PassParameters.SkylightParameters;
 
 	NewParameters->SceneTextures = PassParameters.SceneTextures;
-	NewParameters->SSProfilesTexture = PassParameters.SSProfilesTexture;
-	NewParameters->TransmissionProfilesLinearSampler = PassParameters.TransmissionProfilesLinearSampler;
 
 	NewParameters->GatherPointsResolution = PassParameters.GatherPointsResolution;
 	NewParameters->TileAlignedResolution = PassParameters.TileAlignedResolution;
@@ -956,10 +944,6 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	// Light data
 	SetupLightParameters(Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount, &PassParameters->SkylightParameters);
 	PassParameters->SceneTextures = SceneTextures;
-
-	// Shading data
-	PassParameters->SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
-	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Output
 	FIntPoint DispatchResolution = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), UpscaleFactor);
@@ -1177,8 +1161,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationFinalGathe
 
 	// Shading data
 	PassParameters->SceneTextures = SceneTextures;
-	PassParameters->SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
-	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Gather points
 	PassParameters->GatherPointsResolution = FIntPoint(SceneViewState->GatherPointsResolution.X, SceneViewState->GatherPointsResolution.Y);
@@ -1265,8 +1247,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	SetupLightParameters(Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount, &PassParameters->SkylightParameters);
 	PassParameters->SceneTextures = SceneTextures;
-	PassParameters->SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
-	PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->RWGlobalIlluminationUAV = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
 	PassParameters->RWGlobalIlluminationRayDistanceUAV = GraphBuilder.CreateUAV(OutDenoiserInputs->RayHitDistance);
 	PassParameters->RenderTileOffsetX = 0;

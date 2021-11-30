@@ -798,6 +798,16 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	ShadingEnergyClothSpecTexture = GBlackTextureWithSRV->TextureRHI;
 	ShadingEnergyDiffuseTexture = GBlackTextureWithSRV->TextureRHI;
 
+	// Subsurface profiles/pre-intregrated
+	SSProfilesTextureSizeAndInvSize = FVector4f(1.f,1.f,1.f,1.f);
+	SSProfilesTexture = GBlackTextureWithSRV->TextureRHI;
+	SSProfilesSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
+	SSProfilesTransmissionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	SSProfilesPreIntegratedTextureSizeAndInvSize = FVector4f(1.f,1.f,1.f,1.f);
+	SSProfilesPreIntegratedTexture = GBlackTextureWithSRV->TextureRHI;
+	SSProfilesPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	//this can be deleted once sm4 support is removed.
 	if (!PrimitiveSceneData)
 	{

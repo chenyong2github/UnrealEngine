@@ -246,8 +246,6 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightVisibilityRaysData, SkyLightVisibilityRaysData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -421,8 +419,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	// Fill Scene Texture parameters
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
-	FRHITexture* SubsurfaceProfileTexture = GetSubsurfaceProfileTextureWithFallback();
-
 	int32 ViewIndex = 0;
 	for (FViewInfo& View : Views)
 	{
@@ -440,8 +436,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		{
 			PassParameters->SkyLightVisibilityRaysData.SkyLightVisibilityRays = GraphBuilder.CreateSRV(SkyLightVisibilityRaysBuffer, EPixelFormat::PF_R32_UINT);
 		}
-		PassParameters->SSProfilesTexture = SubsurfaceProfileTexture;
-		PassParameters->TransmissionProfilesLinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->UpscaleFactor = UpscaleFactor;
 

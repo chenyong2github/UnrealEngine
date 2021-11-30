@@ -232,7 +232,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSubsurfaceParameters, )
 	SHADER_PARAMETER(FVector4f, SubsurfaceParams)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-	SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 END_SHADER_PARAMETER_STRUCT()
 
 FSubsurfaceParameters GetSubsurfaceCommonParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures)
@@ -248,7 +247,6 @@ FSubsurfaceParameters GetSubsurfaceCommonParameters(FRDGBuilder& GraphBuilder, c
 	Parameters.SubsurfaceParams = FVector4f(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, MinGenerateMipsTileCount);
 	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters.SceneTextures = SceneTextures;
-	Parameters.SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
 	return Parameters;
 }
 

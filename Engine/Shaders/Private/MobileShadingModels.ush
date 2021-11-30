@@ -140,7 +140,7 @@ half4 GetSSProfilePreIntegratedValue(uint SubsurfaceProfileInt, half NoL, half C
 {
 	float3 UV = float3((NoL * .5 + .5), Curvature, SubsurfaceProfileInt);
 
-	return Texture2DArraySampleLevel(SSProfilesPreIntegratedTexture, SSProfilesPreIntegratedSampler, UV, 0);
+	return Texture2DArraySampleLevel(View.SSProfilesPreIntegratedTexture, View.SSProfilesPreIntegratedSampler, UV, 0);
 }
 #endif
 

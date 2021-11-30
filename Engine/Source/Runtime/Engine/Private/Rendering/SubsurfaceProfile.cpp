@@ -141,11 +141,11 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FSSProfilePreIntegratedPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SSProfilesSampler)
-		SHADER_PARAMETER(FVector4f, SSProfilesTextureSizeAndInvSize)
-		SHADER_PARAMETER(FVector4f, SSProfilesPreIntegratedTextureSizeAndInvSize)
-		SHADER_PARAMETER(int32, SubsurfaceProfileInt)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SourceSSProfilesTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SourceSSProfilesSampler)
+		SHADER_PARAMETER(FVector4f, SourceSSProfilesTextureSizeAndInvSize)
+		SHADER_PARAMETER(FVector4f, TargetSSProfilesPreIntegratedTextureSizeAndInvSize)
+		SHADER_PARAMETER(int32, SourceSubsurfaceProfileInt)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -193,23 +193,23 @@ IPooledRenderTarget* FSubsurfaceProfileTexture::GetSSProfilesPreIntegratedTextur
 			FSSProfilePreIntegratedPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSProfilePreIntegratedPS::FParameters>();
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(GSSProfilesPreIntegratedTexture), ERenderTargetLoadAction::EClear, 0, i);
 
-			PassParameters->SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
-			PassParameters->SSProfilesSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->SourceSSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
+			PassParameters->SourceSSProfilesSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-			FIntVector SSProfilesTextureSize = PassParameters->SSProfilesTexture->GetSizeXYZ();
+			FIntVector SourceSSProfilesTextureSize = PassParameters->SourceSSProfilesTexture->GetSizeXYZ();
 
-			PassParameters->SSProfilesTextureSizeAndInvSize = FVector4(SSProfilesTextureSize.X, SSProfilesTextureSize.Y, 1.0f / SSProfilesTextureSize.X, 1.0f / SSProfilesTextureSize.Y);
+			PassParameters->SourceSSProfilesTextureSizeAndInvSize = FVector4(SourceSSProfilesTextureSize.X, SourceSSProfilesTextureSize.Y, 1.0f / SourceSSProfilesTextureSize.X, 1.0f / SourceSSProfilesTextureSize.Y);
 
-			PassParameters->SSProfilesPreIntegratedTextureSizeAndInvSize = FVector4(SSProfilesPreIntegratedTextureResolution, SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution);
+			PassParameters->TargetSSProfilesPreIntegratedTextureSizeAndInvSize = FVector4(SSProfilesPreIntegratedTextureResolution, SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution, 1.0f / SSProfilesPreIntegratedTextureResolution);
 
-			PassParameters->SubsurfaceProfileInt = i;
+			PassParameters->SourceSubsurfaceProfileInt = i;
 
 			FIntRect ViewRect = FIntRect(FIntPoint(0, 0), SSProfilesPreIntegratedTextureResolution);
 
 			const auto GlobalShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::ES3_1);
 			TShaderMapRef<FSSProfilePreIntegratedPS> PixelShader(GlobalShaderMap);
 
-			FPixelShaderUtils::AddFullscreenPass(GraphBuilder, GlobalShaderMap, RDG_EVENT_NAME("SSProfilePreIntegrated"), PixelShader, PassParameters, ViewRect);
+			FPixelShaderUtils::AddFullscreenPass(GraphBuilder, GlobalShaderMap, RDG_EVENT_NAME("SSS::SSProfilePreIntegrated"), PixelShader, PassParameters, ViewRect);
 		}
 	}
 
@@ -642,6 +642,28 @@ void FSubsurfaceProfileTexture::Dump()
 
 	UE_LOG(LogSubsurfaceProfile, Log, TEXT(""));
 #endif
+}
+
+FName GetSubsurfaceProfileParameterName()
+{
+	static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
+	return NameSubsurfaceProfile;
+}
+
+float GetSubsurfaceProfileId(const USubsurfaceProfile* In)
+{
+	int32 AllocationId = 0;
+	if (In)
+	{
+		// can be optimized (cached)
+		AllocationId = GSubsurfaceProfileTextureObject.FindAllocationId(In);
+	}
+	else
+	{
+		// no profile specified means we use the default one stored at [0] which is human skin
+		AllocationId = 0;
+	}
+	return AllocationId / 255.0f;
 }
 
 FRHITexture* GetSubsurfaceProfileTexture()

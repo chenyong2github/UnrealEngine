@@ -1629,7 +1629,29 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.DepthOfFieldScale = FinalPostProcessSettings.DepthOfFieldScale;
 	ViewUniformShaderParameters.DepthOfFieldFocalLength = 50.0f;
 
-	ViewUniformShaderParameters.bSubsurfacePostprocessEnabled = IsSubsurfaceEnabled() ? 1.0f : 0.0f;
+	// Subsurface
+	{
+		ViewUniformShaderParameters.bSubsurfacePostprocessEnabled = IsSubsurfaceEnabled() ? 1.0f : 0.0f;
+
+		// Profiles
+		{
+			FRHITexture* Texture = GetSubsurfaceProfileTextureWithFallback();
+			FIntVector TextureSize = Texture->GetSizeXYZ();
+			ViewUniformShaderParameters.SSProfilesTextureSizeAndInvSize = FVector4f(TextureSize.X, TextureSize.Y, 1.0f / TextureSize.X, 1.0f / TextureSize.Y);
+			ViewUniformShaderParameters.SSProfilesTexture = Texture;
+			ViewUniformShaderParameters.SSProfilesSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			ViewUniformShaderParameters.SSProfilesTransmissionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		}
+
+		// Pre-integrated profiles
+		{
+			FRHITexture* Texture = GetSSProfilesPreIntegratedTextureWithFallback();
+			FIntVector TextureSize = Texture->GetSizeXYZ();
+			ViewUniformShaderParameters.SSProfilesPreIntegratedTextureSizeAndInvSize = FVector4f(TextureSize.X, TextureSize.Y, 1.0f / TextureSize.X, 1.0f / TextureSize.Y);
+			ViewUniformShaderParameters.SSProfilesPreIntegratedTexture = Texture;
+			ViewUniformShaderParameters.SSProfilesPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		}
+	}
 
 	{
 		// This is the CVar default

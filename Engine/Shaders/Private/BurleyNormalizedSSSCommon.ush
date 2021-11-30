@@ -43,7 +43,7 @@ float4 DecodeDiffuseMeanFreePath(float4 EncodedDiffuseMeanFreePath)
 bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)
 {
 	// 0..255, which SubSurface profile to pick
-	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
+	float Type = View.SSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
 }
@@ -51,7 +51,7 @@ bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)
 bool GetSubsurfaceProfileUseBurley(uint SubsurfaceProfileInt)
 {
 	// 0..255, which SubSurface profile to pick
-	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
+	float Type = View.SSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
 }
@@ -59,7 +59,7 @@ bool GetSubsurfaceProfileUseBurley(uint SubsurfaceProfileInt)
 bool GetSubsurfaceProfileUseSeparable(uint SubsurfaceProfileInt)
 {
 	// 0..255, which SubSurface profile to pick
-	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
+	float Type = View.SSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_SSSS) < 0.01f;
 }
@@ -185,9 +185,9 @@ float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
 	// 0..255, which SubSurface profile to pick
 
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-	float WorldUnitScale = DecodeWorldUnitScale(ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt,0)).a)*10.0f; //in cm. we do not multiply by 100.0f as we did in the subsurface shader.
-	float4 MeanFreePath = DecodeDiffuseMeanFreePath(ActualSSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0)));
-	float3 SurfaceAlbedo = ActualSSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0)).rgb;
+	float WorldUnitScale = DecodeWorldUnitScale(View.SSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt,0)).a)*10.0f; //in cm. we do not multiply by 100.0f as we did in the subsurface shader.
+	float4 MeanFreePath = DecodeDiffuseMeanFreePath(View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0)));
+	float3 SurfaceAlbedo = View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0)).rgb;
 	float3 ScalingFactor = GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo);//assuming that the volume albedo is the same to the surface albedo for transmission;
 	float4 Output=float4(0,0,0,1);
 	

@@ -109,8 +109,6 @@ public:
 		LTCMatSampler.Bind(Initializer.ParameterMap, TEXT("LTCMatSampler"));
 		LTCAmpTexture.Bind(Initializer.ParameterMap, TEXT("LTCAmpTexture"));
 		LTCAmpSampler.Bind(Initializer.ParameterMap, TEXT("LTCAmpSampler"));
-		TransmissionProfilesTexture.Bind(Initializer.ParameterMap, TEXT("SSProfilesTexture"));
-		TransmissionProfilesLinearSampler.Bind(Initializer.ParameterMap, TEXT("TransmissionProfilesLinearSampler"));
 	}
 
 	FTiledDeferredLightingCS()
@@ -160,15 +158,6 @@ public:
 
 		const int32 NumLightsToRenderInSortedLights = TiledDeferredLightsEnd - TiledDeferredLightsStart;
 
-		if (TransmissionProfilesTexture.IsBound())
-		{
-			SetTextureParameter(RHICmdList,
-				ShaderRHI,
-				TransmissionProfilesTexture,
-				TransmissionProfilesLinearSampler,
-				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-				GetSubsurfaceProfileTextureWithFallback());
-		}
 
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
@@ -268,8 +257,6 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, LTCMatSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesLinearSampler);
 };
 
 // #define avoids a lot of code duplication

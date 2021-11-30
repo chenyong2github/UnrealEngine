@@ -7,24 +7,21 @@
 #include "Common.ush"
 #include "BurleyNormalizedSSSCommon.ush"
 
-float4 SSProfilesPreIntegratedTextureSizeAndInvSize;
-uint SubsurfaceProfileInt;
+uint		 SourceSubsurfaceProfileInt;
+float4		 TargetSSProfilesPreIntegratedTextureSizeAndInvSize;
+float4		 SourceSSProfilesTextureSizeAndInvSize;
+Texture2D	 SourceSSProfilesTexture;
+SamplerState SourceSSProfilesSampler;
 
-Texture2DArray InTextureArray;
-SamplerState InTextureSampler;
-
-void MainPSCopy(
-	FScreenVertexOutput Input,
-	out float4 OutColor : SV_Target0
-)
+float4 GetSourceSubsurfaceProfileTexture(uint InSampleIndex, uint InSubsurfaceProfileInt)
 {
-	OutColor = Texture2DArraySample(InTextureArray, InTextureSampler, float3(Input.UV, SubsurfaceProfileInt));
+	return GetSubsurfaceProfileTexture(SourceSSProfilesTexture, SourceSSProfilesSampler, SourceSSProfilesTextureSizeAndInvSize, InSampleIndex, InSubsurfaceProfileInt);
 }
 
 bool IsSubsurfaceProfileUseBurley()
 {
 	// 0..255, which SubSurface profile to pick
-	float Type = GetSubsurfaceProfileTexture(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt).a;
+	float Type = GetSourceSubsurfaceProfileTexture(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SourceSubsurfaceProfileInt).a;
 
 	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
 }
@@ -121,7 +118,7 @@ void SSProfilePreIntegratedPS(
 {
 	OutColor = HALF4_TYPE(1.0f, 1.0f, 1.0f, 0.0f);
 
-	float2 UVPos = SvPosition.xy * SSProfilesPreIntegratedTextureSizeAndInvSize.zw;
+	float2 UVPos = SvPosition.xy * TargetSSProfilesPreIntegratedTextureSizeAndInvSize.zw;
 
 	float UnClampedNoL = UVPos.x * 2.0f - 1.0f;
 	float Curvature = UVPos.y;
@@ -137,11 +134,11 @@ void SSProfilePreIntegratedPS(
 		DiffuseMeanFreePathSampleIndex = SSSS_APPROXIMATE_DMFP_OFFSET;
 	}
 
-	float4 SurfaceAlbedo = GetSubsurfaceProfileTexture(SurfaceAlbedoSampleIndex, SubsurfaceProfileInt);
+	float4 SurfaceAlbedo = GetSourceSubsurfaceProfileTexture(SurfaceAlbedoSampleIndex, SourceSubsurfaceProfileInt);
 
-	float WorldUnitScale = DecodeWorldUnitScale(GetSubsurfaceProfileTexture(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt).a) * BURLEY_CM_2_MM;
+	float WorldUnitScale = DecodeWorldUnitScale(GetSourceSubsurfaceProfileTexture(SSSS_SUBSURFACE_COLOR_OFFSET, SourceSubsurfaceProfileInt).a) * BURLEY_CM_2_MM;
 
-	float4 DiffuseMeanFreePath = max(DecodeDiffuseMeanFreePath(GetSubsurfaceProfileTexture(DiffuseMeanFreePathSampleIndex, SubsurfaceProfileInt)) * WorldUnitScale, 0.01f);;
+	float4 DiffuseMeanFreePath = max(DecodeDiffuseMeanFreePath(GetSourceSubsurfaceProfileTexture(DiffuseMeanFreePathSampleIndex, SourceSubsurfaceProfileInt)) * WorldUnitScale, 0.01f);;
 
 	float CosTheta = UnClampedNoL;
 	float Theta = acos(CosTheta);

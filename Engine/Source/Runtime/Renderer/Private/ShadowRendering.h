@@ -1126,7 +1126,6 @@ public:
 		ProjectionParameters.Bind(Initializer);
 		ShadowFadeFraction.Bind(Initializer.ParameterMap,TEXT("ShadowFadeFraction"));
 		ShadowSharpen.Bind(Initializer.ParameterMap,TEXT("ShadowSharpen"));
-		TransmissionProfilesTexture.Bind(Initializer.ParameterMap, TEXT("SSProfilesTexture"));
 		LightPosition.Bind(Initializer.ParameterMap, TEXT("LightPositionAndInvRadius"));
 
 	}
@@ -1188,8 +1187,6 @@ public:
 		{
 			Scene = View.Family->Scene->GetRenderScene();
 		}
-
-		SetTextureParameter(RHICmdList, ShaderRHI, TransmissionProfilesTexture, GetSubsurfaceProfileTextureWithFallback());
 	}
 
 protected:
@@ -1197,7 +1194,6 @@ protected:
 	LAYOUT_FIELD(FShaderParameter, ShadowFadeFraction);
 	LAYOUT_FIELD(FShaderParameter, ShadowSharpen);
 	LAYOUT_FIELD(FShaderParameter, LightPosition);
-	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
 };
 
 /** Pixel shader to project modulated shadows onto the scene. */
@@ -1465,7 +1461,6 @@ public:
 		ShadowSharpen.Bind(Initializer.ParameterMap,TEXT("ShadowSharpen"));
 		PointLightDepthBias.Bind(Initializer.ParameterMap,TEXT("PointLightDepthBias"));
 		PointLightProjParameters.Bind(Initializer.ParameterMap, TEXT("PointLightProjParameters"));
-		TransmissionProfilesTexture.Bind(Initializer.ParameterMap, TEXT("SSProfilesTexture"));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1519,8 +1514,6 @@ public:
 			SetUniformBufferParameter(RHICmdList, ShaderRHI, StrataGlobalParameters, StrataUniformBuffer->GetRHIRef());
 		}
 
-		SetTextureParameter(RHICmdList, ShaderRHI, TransmissionProfilesTexture, GetSubsurfaceProfileTextureWithFallback());
-
 		FScene* Scene = nullptr;
 
 		if (View.Family->Scene)
@@ -1546,7 +1539,6 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ShadowSharpen);
 	LAYOUT_FIELD(FShaderParameter, PointLightDepthBias);
 	LAYOUT_FIELD(FShaderParameter, PointLightProjParameters);
-	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
 	LAYOUT_FIELD(FShaderUniformBufferParameter, HairStrandsParameters);
 	LAYOUT_FIELD(FShaderUniformBufferParameter, StrataGlobalParameters);
 };
