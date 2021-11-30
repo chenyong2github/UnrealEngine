@@ -32,6 +32,11 @@ public:
 		: _bColorAxisLabels(false)
 		, _Font(FAppStyle::Get().GetFontStyle("NormalFont"))
 		, _AllowSpin(true)
+		, _DisplayToggle( false )
+		, _TogglePitchChecked( ECheckBoxState::Checked )
+		, _ToggleYawChecked( ECheckBoxState::Checked )
+		, _ToggleRollChecked( ECheckBoxState::Checked )
+		, _TogglePadding( FMargin( 1.f,0.f,1.f,0.f ) )
 		{}
 
 		/** Roll component of the rotator */
@@ -85,6 +90,30 @@ public:
 		/** Provide custom type functionality for the rotator */
 		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface )
 
+		/** Whether or not to include a toggle checkbox to the left of the widget */
+		SLATE_ARGUMENT( bool, DisplayToggle )
+			
+		/** The value of the toggle Pitch checkbox */
+		SLATE_ATTRIBUTE( ECheckBoxState, TogglePitchChecked )
+
+		/** The value of the toggle Yaw checkbox */
+		SLATE_ATTRIBUTE( ECheckBoxState, ToggleYawChecked )
+
+		/** The value of the toggle Roll checkbox */
+		SLATE_ATTRIBUTE( ECheckBoxState, ToggleRollChecked )
+
+		/** Called whenever the toggle Pitch changes state */
+		SLATE_EVENT( FOnCheckStateChanged, OnTogglePitchChanged )
+
+		/** Called whenever the toggle Yaw changes state */
+		SLATE_EVENT( FOnCheckStateChanged, OnToggleYawChanged )
+
+		/** Called whenever the toggle Roll changes state */
+		SLATE_EVENT( FOnCheckStateChanged, OnToggleRollChanged )
+
+		/** Padding around the toggle checkbox */
+		SLATE_ARGUMENT( FMargin, TogglePadding )
+
 	SLATE_END_ARGS()
 
 	/**
@@ -124,6 +153,10 @@ public:
 						: NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values");
 				})
 				.TypeInterface(InArgs._TypeInterface)
+				.DisplayToggle(InArgs._DisplayToggle)
+				.ToggleChecked(InArgs._ToggleRollChecked)
+				.OnToggleChanged(InArgs._OnToggleRollChanged)
+				.TogglePadding(InArgs._TogglePadding)
 			]
 			+SHorizontalBox::Slot()
 			[
@@ -152,6 +185,10 @@ public:
 						: NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values");
 				})
 				.TypeInterface(InArgs._TypeInterface)
+				.DisplayToggle(InArgs._DisplayToggle)
+				.ToggleChecked(InArgs._TogglePitchChecked)
+				.OnToggleChanged(InArgs._OnTogglePitchChanged)
+				.TogglePadding(InArgs._TogglePadding)
 			]
 			+SHorizontalBox::Slot()
 			[
@@ -180,6 +217,10 @@ public:
 						: NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values");
 				})
 				.TypeInterface(InArgs._TypeInterface)
+				.DisplayToggle(InArgs._DisplayToggle)
+				.ToggleChecked(InArgs._ToggleYawChecked)
+				.OnToggleChanged(InArgs._OnToggleYawChanged)
+				.TogglePadding(InArgs._TogglePadding)
 			]
 		];
 

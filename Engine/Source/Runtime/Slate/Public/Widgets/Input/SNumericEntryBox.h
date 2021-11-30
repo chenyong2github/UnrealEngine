@@ -23,6 +23,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Containers/UnrealString.h"
 
@@ -39,6 +40,7 @@ public:
 	static const FLinearColor RedLabelBackgroundColor;
 	static const FLinearColor GreenLabelBackgroundColor;
 	static const FLinearColor BlueLabelBackgroundColor;
+	static const FLinearColor LilacLabelBackgroundColor;
 	static const FText DefaultUndeterminedString;
 
 	/** Notification for numeric value change */
@@ -88,6 +90,9 @@ public:
 		, _MaxSliderValue(NumericType(100))
 		, _SliderExponent(1.f)
 		, _MinDesiredValueWidth(0.f)
+		, _DisplayToggle(false)
+		, _ToggleChecked(ECheckBoxState::Checked)
+		, _TogglePadding(FMargin(1.f,0.f,1.f,0.f) )
 	{}		
 
 		/** Style to use for the editable text box within this widget */
@@ -164,6 +169,14 @@ public:
 		SLATE_EVENT( FMenuExtensionDelegate, ContextMenuExtender )
 		/** Provide custom type conversion functionality to this spin box */
 		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface )
+		/** Whether or not to include a toggle checkbox to the left of the widget */
+		SLATE_ARGUMENT( bool, DisplayToggle )
+		/** The value of the toggle checkbox */
+		SLATE_ATTRIBUTE( ECheckBoxState, ToggleChecked )
+		/** Called whenever the toggle changes state */
+		SLATE_EVENT( FOnCheckStateChanged, OnToggleChanged )
+		/** Padding around the toggle checkbox */
+		SLATE_ARGUMENT( FMargin, TogglePadding )
 
 	SLATE_END_ARGS()
 	SNumericEntryBox()
@@ -192,6 +205,14 @@ public:
 			CachedValueString = Interface->ToString(CachedExternalValue.GetValue());
 		}
 
+		const bool bDisplayToggle = InArgs._DisplayToggle;
+		if(bDisplayToggle)
+		{
+			SAssignNew(ToggleCheckBox, SCheckBox)
+			.Padding(FMargin(0.f, 0.f, 2.f, 0.f))
+			.IsChecked(InArgs._ToggleChecked)
+			.OnCheckStateChanged(this, &SNumericEntryBox::HandleToggleCheckBoxChanged, InArgs._OnToggleChanged);
+		}
 
 		const bool bAllowSpin = InArgs._AllowSpin;
 		TSharedPtr<SWidget> FinalWidget;
@@ -299,29 +320,72 @@ public:
 
 		if(!bHasLabel || bHasInsideLabel)
 		{
-			ChildSlot
-			[
-				MainContents.ToSharedRef()
-			];
+			if(bDisplayToggle)
+			{
+				ChildSlot
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Fill) 
+					.VAlign(VAlign_Center) 
+					.Padding(InArgs._TogglePadding)
+					[
+						ToggleCheckBox.ToSharedRef()
+					]
+					+ SHorizontalBox::Slot()
+					[
+						MainContents.ToSharedRef()
+					]
+				];
+			}
+			else
+			{
+				ChildSlot
+				[
+					MainContents.ToSharedRef()
+				];
+			}
 		}
 		else
 		{
+			TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
+
+			HorizontalBox->AddSlot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(InArgs._LabelVAlign)
+			.Padding(InArgs._LabelPadding)
+			[
+				InArgs._Label.Widget
+			];
+
+			if(bDisplayToggle)
+			{
+				HorizontalBox->AddSlot()
+				.AutoWidth()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				.Padding(InArgs._TogglePadding)
+				[
+					ToggleCheckBox.ToSharedRef()
+				];
+			}
+			
+			HorizontalBox->AddSlot()
+			[
+				MainContents.ToSharedRef()
+			];
+
 			ChildSlot
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.VAlign(InArgs._LabelVAlign)
-				.Padding(InArgs._LabelPadding)
-				[
-					InArgs._Label.Widget
-				]
-				+ SHorizontalBox::Slot()
-				[
-					MainContents.ToSharedRef()
-				]
+				HorizontalBox
 			];
+		}
+
+		if (bDisplayToggle)
+		{
+			HandleToggleCheckBoxChanged(InArgs._ToggleChecked.Get(), InArgs._OnToggleChanged);
 		}
 	}
 
@@ -610,12 +674,39 @@ private:
 		}
 	}
 
+	bool IsToggleEnabled() const
+	{
+		if(!IsEnabled())
+		{
+			return false;
+		}
+		return ToggleCheckBox->IsChecked();
+	}
+	
+	void HandleToggleCheckBoxChanged(ECheckBoxState InCheckState, FOnCheckStateChanged OnToggleChanged) const
+	{
+		if(SpinBox.IsValid())
+		{
+			SpinBox->SetEnabled(InCheckState == ECheckBoxState::Checked);
+		}
+		if(EditableText.IsValid())
+		{
+			EditableText->SetEnabled(InCheckState == ECheckBoxState::Checked);
+		}
+		if(OnToggleChanged.IsBound())
+		{
+			OnToggleChanged.Execute(InCheckState);
+		}
+	}
+
 private:
 
 	/** Attribute for getting the label */
 	TAttribute< TOptional<FString > > LabelAttribute;
 	/** Attribute for getting the value.  If the value is not set we display the undetermined string */
 	TAttribute< TOptional<NumericType> > ValueAttribute;
+	/** Toggle checkbox */
+	TSharedPtr<SCheckBox> ToggleCheckBox;
 	/** Spinbox widget */
 	TSharedPtr<SWidget> SpinBox;
 	/** Editable widget */
@@ -655,6 +746,9 @@ const FLinearColor SNumericEntryBox<NumericType>::GreenLabelBackgroundColor(0.13
 
 template <typename NumericType>
 const FLinearColor SNumericEntryBox<NumericType>::BlueLabelBackgroundColor(0.0251f,0.207f,0.85f);
+
+template <typename NumericType>
+const FLinearColor SNumericEntryBox<NumericType>::LilacLabelBackgroundColor(0.8f,0.121f,0.8f);
 
 template <typename NumericType>
 const FText SNumericEntryBox<NumericType>::DefaultUndeterminedString = FText::FromString(TEXT("---"));
