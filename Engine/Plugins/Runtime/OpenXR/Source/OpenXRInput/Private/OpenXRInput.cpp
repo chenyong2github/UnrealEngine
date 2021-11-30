@@ -109,6 +109,7 @@ FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InActionSet, XrActi
 	Info.countSubactionPaths = SubactionPaths.Num();
 	Info.subactionPaths = SubactionPaths.GetData();
 	FCStringAnsi::Strcpy(Info.localizedActionName, XR_MAX_LOCALIZED_ACTION_NAME_SIZE, ActionName);
+
 	XR_ENSURE(xrCreateAction(Set, &Info, &Handle));
 }
 
@@ -393,6 +394,7 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 			InteractionProfile.interactionProfile = Profile.Path;
 			InteractionProfile.countSuggestedBindings = Profile.Bindings.Num();
 			InteractionProfile.suggestedBindings = Profile.Bindings.GetData();
+
 			XR_ENSURE(xrSuggestInteractionProfileBindings(Instance, &InteractionProfile));
 		}
 	}
@@ -528,8 +530,16 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 	{
 		if (!bActionsBound)
 		{
+			// Bind engine action sets
 			TArray<XrActionSet> BindActionSets;
 			for (auto && BindActionSet : ActionSets)
+				BindActionSets.Add(BindActionSet.actionSet);
+
+			// Bind plugin action sets
+			PluginActionSets.Empty();
+			for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
+				Plugin->AddActionSets(PluginActionSets);
+			for (auto&& BindActionSet : PluginActionSets)
 				BindActionSets.Add(BindActionSet.actionSet);
 
 			XrSessionActionSetsAttachInfo SessionActionSetsAttachInfo;
@@ -553,12 +563,18 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 		XrActionsSyncInfo SyncInfo;
 		SyncInfo.type = XR_TYPE_ACTIONS_SYNC_INFO;
 		SyncInfo.next = nullptr;
+
+		PluginActionSets.Empty();
 		for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
 		{
+			Plugin->AddActionSets(PluginActionSets);
 			SyncInfo.next = Plugin->OnSyncActions(Session, SyncInfo.next);
 		}
-		SyncInfo.countActiveActionSets = ActionSets.Num();
-		SyncInfo.activeActionSets = ActionSets.GetData();
+
+		PluginActionSets.Append(ActionSets);
+		SyncInfo.countActiveActionSets = PluginActionSets.Num();
+		SyncInfo.activeActionSets = PluginActionSets.GetData();
+
 		XR_ENSURE(xrSyncActions(Session, &SyncInfo));
 	
 		for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
