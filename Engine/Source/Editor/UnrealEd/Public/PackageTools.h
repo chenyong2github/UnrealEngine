@@ -85,12 +85,13 @@ public:
 	/**
 	 * Helper function that attempts to unload the specified top-level packages.
 	 *
-	 * @param	PackagesToUnload	the list of packages that should be unloaded
-	 * @param	OutErrorMessage		An error message specifying any problems with unloading packages
+	 * @param	PackagesToUnload		the list of packages that should be unloaded
+	 * @param	OutErrorMessage			An error message specifying any problems with unloading packages
+	 * @param	bUnloadDirtyPackages	Whether to unload packages that are dirty (that need to be saved)
 	 *
 	 * @return	true if the set of loaded packages was changed
 	 */
-	static bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload, FText& OutErrorMessage );
+	static bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload, FText& OutErrorMessage, bool bUnloadDirtyPackages = false);
 
 	/**
 	 * Helper function that attempts to reload the specified top-level packages.
@@ -194,7 +195,7 @@ private:
 
 	static void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
-	static TArray<UPackage*>* PackagesBeingUnloaded;
+	static TSet<UPackage*>* PackagesBeingUnloaded;
 	static TSet<UObject*> ObjectsThatHadFlagsCleared;
 	static FDelegateHandle ReachabilityCallbackHandle;
 };

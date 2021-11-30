@@ -64,7 +64,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogPackageTools, Log, All);
 
 /** State passed to RestoreStandaloneOnReachableObjects. */
-TArray<UPackage*>* UPackageTools::PackagesBeingUnloaded = nullptr;
+TSet<UPackage*>* UPackageTools::PackagesBeingUnloaded = nullptr;
 TSet<UObject*> UPackageTools::ObjectsThatHadFlagsCleared;
 FDelegateHandle UPackageTools::ReachabilityCallbackHandle;
 
@@ -270,8 +270,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		return bResult;
 	}
 
-
-	bool UPackageTools::UnloadPackages( const TArray<UPackage*>& TopLevelPackages, FText& OutErrorMessage )
+	bool UPackageTools::UnloadPackages(const TArray<UPackage*>& TopLevelPackages, FText& OutErrorMessage, bool bUnloadDirtyPackages)
 	{
 		// Early out if no package is provided
 		if (TopLevelPackages.IsEmpty())
@@ -282,23 +281,27 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		bool bResult = false;
 
 		// Get outermost packages, in case groups were selected.
-		TArray<UPackage*> PackagesToUnload;
+		TSet<UPackage*> PackagesToUnload;
 
 		// Split the set of selected top level packages into packages which are dirty (and thus cannot be unloaded)
 		// and packages that are not dirty (and thus can be unloaded).
 		TArray<UPackage*> DirtyPackages;
-		for ( int32 PackageIndex = 0 ; PackageIndex < TopLevelPackages.Num() ; ++PackageIndex )
+		for (UPackage* TopLevelPackage : TopLevelPackages)
 		{
-			UPackage* Package = TopLevelPackages[PackageIndex];
-			if( Package != NULL )
+			if (TopLevelPackage)
 			{
-				if ( Package->IsDirty() )
+				if (!bUnloadDirtyPackages && TopLevelPackage->IsDirty())
 				{
-					DirtyPackages.Add( Package );
+					DirtyPackages.Add(TopLevelPackage);
 				}
 				else
 				{
-					PackagesToUnload.AddUnique( Package->GetOutermost() ? Package->GetOutermost() : Package );
+					UPackage* PackageToUnload = TopLevelPackage->GetOutermost();
+					if (!PackageToUnload)
+					{
+						PackageToUnload = TopLevelPackage;
+					}
+					PackagesToUnload.Add(PackageToUnload);
 				}
 			}
 		}
@@ -307,13 +310,13 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		if ( DirtyPackages.Num() > 0 )
 		{
 			FString DirtyPackagesList;
-			for ( int32 PackageIndex = 0 ; PackageIndex < DirtyPackages.Num() ; ++PackageIndex )
+			for (UPackage* DirtyPackage : DirtyPackages)
 			{
-				DirtyPackagesList += FString::Printf( TEXT("\n    %s"), *DirtyPackages[PackageIndex]->GetName() );
+				DirtyPackagesList += FString::Printf(TEXT("\n    %s"), *(DirtyPackage->GetName()));
 			}
 
 			FFormatNamedArguments Args;
-			Args.Add( TEXT("DirtyPackages"),FText::FromString( DirtyPackagesList ) );
+			Args.Add(TEXT("DirtyPackages"), FText::FromString(DirtyPackagesList));
 
 			OutErrorMessage = FText::Format( NSLOCTEXT("UnrealEd", "UnloadDirtyPackagesList", "The following assets have been modified and cannot be unloaded:{DirtyPackages}\nSaving these assets will allow them to be unloaded."), Args );
 		}
@@ -352,7 +355,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			}
 		}
 
-		if ( PackagesToUnload.Num() > 0 )
+		if (PackagesToUnload.Num() > 0)
 		{
 			const FScopedBusyCursor BusyCursor;
 
@@ -369,21 +372,20 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 
 			// First add all packages to unload to the root set so they don't get garbage collected while we are operating on them
 			TArray<UPackage*> PackagesAddedToRoot;
-			for ( int32 PackageIndex = 0 ; PackageIndex < PackagesToUnload.Num() ; ++PackageIndex )
+			for (UPackage* PackageToUnload : PackagesToUnload)
 			{
-				UPackage* Pkg = PackagesToUnload[PackageIndex];
-				if ( !Pkg->IsRooted() )
+				if (!PackageToUnload->IsRooted())
 				{
-					Pkg->AddToRoot();
-					PackagesAddedToRoot.Add(Pkg);
+					PackageToUnload->AddToRoot();
+					PackagesAddedToRoot.Add(PackageToUnload);
 				}
 			}
 
 			// Now try to clean up assets in all packages to unload.
-			for ( int32 PackageIndex = 0 ; PackageIndex < PackagesToUnload.Num() ; ++PackageIndex )
+			int32 PackageIndex = 0;
+			for (UPackage* PackageBeingUnloaded : PackagesToUnload)
 			{
-				UPackage* PackageBeingUnloaded = PackagesToUnload[PackageIndex];
-				GWarn->StatusUpdate( PackageIndex, PackagesToUnload.Num(), FText::Format(NSLOCTEXT("UnrealEd", "Unloadingf", "Unloading {0}..."), FText::FromString(PackageBeingUnloaded->GetName()) ) );
+				GWarn->StatusUpdate(PackageIndex++, PackagesToUnload.Num(), FText::Format(NSLOCTEXT("UnrealEd", "Unloadingf", "Unloading {0}..."), FText::FromString(PackageBeingUnloaded->GetName()) ) );
 
 				// Flush all pending render commands, as unloading the package may invalidate render resources.
 				FlushRenderingCommands();
@@ -464,9 +466,9 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			PackagesBeingUnloaded = nullptr;
 			
 			// Now remove from root all the packages we added earlier so they may be GCed if possible
-			for ( int32 PackageIndex = 0 ; PackageIndex < PackagesAddedToRoot.Num() ; ++PackageIndex )
+			for (UPackage* PackageAddedToRoot : PackagesAddedToRoot)
 			{
-				PackagesAddedToRoot[PackageIndex]->RemoveFromRoot();
+				PackageAddedToRoot->RemoveFromRoot();
 			}
 			PackagesAddedToRoot.Empty();
 
@@ -478,7 +480,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			// Clear the standalone flag on metadata objects that are going to be GC'd below.
 			// This resolves the circular dependency between metadata and packages.
 			TArray<TWeakObjectPtr<UMetaData>> PackageMetaDataWithClearedStandaloneFlag;
-			for ( UPackage* PackageToUnload : PackagesToUnload )
+			for (UPackage* PackageToUnload : PackagesToUnload)
 			{
 				UMetaData* PackageMetaData = PackageToUnload ? PackageToUnload->MetaData : nullptr;
 				if ( PackageMetaData && PackageMetaData->HasAnyFlags(RF_Standalone) )
