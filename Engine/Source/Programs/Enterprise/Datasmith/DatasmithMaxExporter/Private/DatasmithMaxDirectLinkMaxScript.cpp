@@ -23,6 +23,8 @@ MAX_INCLUDES_START
 	#include "maxscript/foundation/arrays.h"
 	#include "maxscript\macros\define_instantiation_functions.h"
 
+	#include <maxicon.h>
+
 MAX_INCLUDES_END
 
 extern HINSTANCE HInstanceMax;
@@ -250,8 +252,8 @@ Primitive LogInfo_pf(_M("Datasmith_LogInfo"), LogInfo_cf);
 class FDatasmithActions
 {
 public:
-	const ActionTableId ActionTableId = 0x291356d8;
-	const ActionContextId ActionContextId = 0x291356d9;
+	static const ActionTableId ActionTableId = 0x291356d8;
+	static const ActionContextId ActionContextId = 0x291356d9;
 
 	enum EActionIds
 	{
@@ -262,15 +264,75 @@ public:
 		ID_SHOWLOG_ACTION_ID,
 	};
 
+	class FDatasmithActionTable : public ActionTable
+	{
+	public:
+		explicit FDatasmithActionTable(MSTR& Name): ActionTable(ActionTableId, ActionContextId, Name)
+		{
+			
+		}
+
+		BOOL IsChecked(int ActionId)
+		{
+			switch (ActionId)
+			{
+			case ID_AUTOSYNC_ACTION_ID: return GetExporter() && GetExporter()->IsAutoSyncEnabled(); // Can't change AutoSync icon but able to set its state to Checked when it's on
+			};
+			return false;
+		}
+
+		TMap<int, TUniquePtr<MaxBmpFileIcon>> IconForAction;
+
+		MaxIcon* GetIcon(int ActionId) override
+		{
+			TUniquePtr<MaxBmpFileIcon>& Icon = IconForAction.FindOrAdd(ActionId);
+
+			if (Icon)
+			{
+				return Icon.Get();
+			}
+
+			switch (ActionId)
+			{
+			case ID_SYNC_ACTION_ID:
+			{
+				Icon.Reset(new MaxBmpFileIcon(_T(":/Datasmith/Icons/DatasmithSyncIcon")));
+				break;
+			}
+			case ID_AUTOSYNC_ACTION_ID:
+			{
+				Icon.Reset(new MaxBmpFileIcon(_T(":/Datasmith/Icons/DatasmithAutoSyncIconOn")));
+				break;
+			}
+			case ID_CONNECTIONS_ACTION_ID:
+			{
+				Icon.Reset(new MaxBmpFileIcon(_T(":/Datasmith/Icons/DatasmithManageConnectionsIcon")));
+				break;
+			}
+			case ID_EXPORT_ACTION_ID:
+			{
+				Icon.Reset(new MaxBmpFileIcon(_T(":/Datasmith/Icons/DatasmithIcon")));
+				break;
+			}
+			case ID_SHOWLOG_ACTION_ID:
+			{
+				Icon.Reset(new MaxBmpFileIcon(_T(":/Datasmith/Icons/DatasmithLogIcon")));
+				break;
+			}
+			}
+			return Icon.Get();
+		}
+	};
+
+
 	class FDatasmithActionCallback : public ActionCallback
 	{
-
 	public:
 
-		BOOL ExecuteAction (int id) {
-			LogDebug(FString::Printf(TEXT("Action: %d"), id));
+		BOOL ExecuteAction (int ActionId) {
+			LogDebug(FString::Printf(TEXT("Action: %d"), ActionId));
 
-			switch (id)
+			switch (ActionId)
 			{
 			case ID_SYNC_ACTION_ID:
 			{
@@ -318,7 +380,7 @@ public:
 
 	FDatasmithActions()
 		: Name(TEXT("Datasmith"))
-		, Table(ActionTableId, ActionContextId, Name)
+		, Table(Name)
 	{
 		// todo: localization of Name
 
@@ -360,7 +422,7 @@ public:
 
 private:
 	TSTR Name;
-	ActionTable Table;
+	FDatasmithActionTable Table;
 	FDatasmithActionCallback ActionCallback;
 };
 
