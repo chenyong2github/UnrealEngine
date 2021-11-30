@@ -10,13 +10,6 @@
 #define MobileSceneTextures MobileBasePass.SceneTextures
 #define EyeAdaptationStruct MobileBasePass
 
-#define ActualSSProfilesTexture MobileBasePass.SSProfilesTexture
-#define SSProfilesSampler MobileBasePass.SSProfilesSampler
-
-#define SSProfilesPreIntegratedTexture MobileBasePass.SSProfilesPreIntegratedTexture
-#define SSProfilesPreIntegratedSampler MobileBasePass.SSProfilesPreIntegratedSampler
-#define SSProfilesTextureSizeAndInvSize MobileBasePass.SSProfilesTextureSizeAndInvSize
-
 #ifndef MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF
 #define MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF 0
 #endif

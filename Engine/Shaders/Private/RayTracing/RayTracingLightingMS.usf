@@ -12,7 +12,6 @@
 #define LTCAmpSampler				RaytracingLightsDataPacked.LTCAmpSampler
 #define PreIntegratedGF				ReflectionStruct.PreIntegratedGF			
 #define PreIntegratedGFSampler		ReflectionStruct.PreIntegratedGFSampler	
-#define SSProfilesTexture			RaytracingLightsDataPacked.SSProfilesTexture
 
 #include "../SceneTextureParameters.ush"
 #include "RayTracingCommon.ush"

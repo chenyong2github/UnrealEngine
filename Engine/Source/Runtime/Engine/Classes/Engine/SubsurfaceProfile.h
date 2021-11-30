@@ -257,3 +257,9 @@ ENGINE_API FRHITexture* GetSubsurfaceProfileTextureWithFallback();
 
 // Returns the Preintegrated texture if it exists, or black.
 ENGINE_API FRHITexture* GetSSProfilesPreIntegratedTextureWithFallback();
+
+// Returns the subsurface profile ID shader parameter name
+ENGINE_API FName GetSubsurfaceProfileParameterName();
+
+// Returns the subsurface profile ID for a given Sub-surface Profile object
+ENGINE_API float GetSubsurfaceProfileId(const USubsurfaceProfile* In);

@@ -228,27 +228,14 @@ bool FMaterialInstanceResource::GetParameterValue(EMaterialParameterType Type, c
 {
 	checkSlow(IsInParallelRenderingThread());
 
-	static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
 	bool bResult = false;
 
 	// Check for hard-coded parameters
-	if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == NameSubsurfaceProfile)
+	if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == GetSubsurfaceProfileParameterName())
 	{
 		check(ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter);
 		const USubsurfaceProfile* MySubsurfaceProfileRT = GetSubsurfaceProfileRT();
-
-		int32 AllocationId = 0;
-		if (MySubsurfaceProfileRT)
-		{
-			// can be optimized (cached)
-			AllocationId = GSubsurfaceProfileTextureObject.FindAllocationId(MySubsurfaceProfileRT);
-		}
-		else
-		{
-			// no profile specified means we use the default one stored at [0] which is human skin
-			AllocationId = 0;
-		}
-		OutValue = AllocationId / 255.0f;
+		OutValue = GetSubsurfaceProfileId(MySubsurfaceProfileRT);
 		bResult = true;
 	}
 

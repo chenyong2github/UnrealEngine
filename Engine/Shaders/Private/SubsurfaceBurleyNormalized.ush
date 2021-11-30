@@ -152,17 +152,17 @@ struct FBurleyParameter
 //Surface albedo and mean free path length
 float4 GetSubsurfaceProfileSurfaceAlbedo(uint SubsurfaceProfileInt)
 {
-	return ActualSSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0));
+	return View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0));
 }
 
 float4 GetSubsurfaceProfileDiffuseMeanFreePath(uint SubsurfaceProfileInt)
 {
-	return ActualSSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0));
+	return View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0));
 }
 
 float GetSubsurfaceProfileWorldUnitScale(uint SubsurfaceProfileInt)
 {
-	return ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt, 0)).a;
+	return View.SSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt, 0)).a;
 }
 
 float SampleDepthTexture(float2 ScreenUV)

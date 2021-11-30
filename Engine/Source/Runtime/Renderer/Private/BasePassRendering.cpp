@@ -526,8 +526,6 @@ void SetupSharedBasePassParameters(
 	SetupReflectionUniformParameters(View, SharedParameters.Reflection);
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, SharedParameters.PlanarReflection);
 
-	SharedParameters.SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
-
 	// Skip base pass skylight if Lumen GI is enabled, as Lumen handles the skylight.
 	// Ideally we would choose a different shader permutation to skip skylight, but Lumen GI is only known per-view
 	SharedParameters.UseBasePassSkylight = View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen ? 0 : 1;

@@ -416,24 +416,9 @@ public:
 		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
 		if (MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
 		{
-			static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
-			if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == NameSubsurfaceProfile)
+			if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == GetSubsurfaceProfileParameterName())
 			{
-				const USubsurfaceProfile* MySubsurfaceProfileRT = GetSubsurfaceProfileRT();
-
-				int32 AllocationId = 0;
-				if (MySubsurfaceProfileRT)
-				{
-					// can be optimized (cached)
-					AllocationId = GSubsurfaceProfileTextureObject.FindAllocationId(MySubsurfaceProfileRT);
-				}
-				else
-				{
-					// no profile specified means we use the default one stored at [0] which is human skin
-					AllocationId = 0;
-				}
-
-				OutValue = AllocationId / 255.0f;
+				OutValue = GetSubsurfaceProfileId(GetSubsurfaceProfileRT());
 				return true;
 			}
 

@@ -988,10 +988,9 @@ void UMaterialInterface::UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy)
 	// for better performance we only update SubsurfaceProfileRT if the feature is used
 	if (UseSubsurfaceProfile(MaterialShadingModels))
 	{
-		FSubsurfaceProfileStruct Settings;
-
 		USubsurfaceProfile* LocalSubsurfaceProfile = GetSubsurfaceProfile_Internal();
 		
+		FSubsurfaceProfileStruct Settings;
 		if (LocalSubsurfaceProfile)
 		{
 			Settings = LocalSubsurfaceProfile->Settings;
@@ -1001,12 +1000,9 @@ void UMaterialInterface::UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy)
 		ENQUEUE_RENDER_COMMAND(UpdateMaterialRenderProxySubsurface)(
 			[Settings, LocalSubsurfaceProfile, InProxy](FRHICommandListImmediate& RHICmdList)
 			{
-				uint32 AllocationId = 0;
-
 				if (LocalSubsurfaceProfile)
 				{
-					AllocationId = GSubsurfaceProfileTextureObject.AddOrUpdateProfile(Settings, LocalSubsurfaceProfile);
-
+					const uint32 AllocationId = GSubsurfaceProfileTextureObject.AddOrUpdateProfile(Settings, LocalSubsurfaceProfile);
 					check(AllocationId >= 0 && AllocationId <= 255);
 				}
 				InProxy->SetSubsurfaceProfileRT(LocalSubsurfaceProfile);

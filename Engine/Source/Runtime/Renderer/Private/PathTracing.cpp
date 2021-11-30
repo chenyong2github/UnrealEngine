@@ -528,8 +528,6 @@ class FPathTracingRG : public FGlobalShader
 		// Rect lights
 		SHADER_PARAMETER_TEXTURE_ARRAY(Texture2D, RectLightTexture, [PATHTRACER_MAX_RECT_TEXTURES])
 		SHADER_PARAMETER_SAMPLER(SamplerState, RectLightSampler) // Shared sampler for all rectlights
-		// Subsurface data
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 		// Used by multi-GPU rendering
 		SHADER_PARAMETER(FIntVector, TileOffset)
 
@@ -1538,8 +1536,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
 			PassParameters->AlbedoTexture   = GraphBuilder.CreateUAV(AlbedoTexture);
 			PassParameters->NormalTexture   = GraphBuilder.CreateUAV(NormalTexture);
-
-			PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
 
 			// TODO: in multi-gpu case, split image into tiles
 			PassParameters->TileOffset.X = 0;

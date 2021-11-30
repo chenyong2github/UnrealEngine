@@ -148,7 +148,7 @@ float4 GetSubsurfaceProfileKernel(uint SampleIndex, uint SubsurfaceProfileInt)
 #endif
 	const float4 TableMax = float4(1, 1, 1, SUBSURFACE_KERNEL_SIZE);
 
-	return ActualSSProfilesTexture.Load(int3(SampleIndex, SubsurfaceProfileInt, 0)) * TableMax;
+	return View.SSProfilesTexture.Load(int3(SampleIndex, SubsurfaceProfileInt, 0)) * TableMax;
 }
 
 float3 GetSubsurfaceProfileNormal(float2 BufferUV)

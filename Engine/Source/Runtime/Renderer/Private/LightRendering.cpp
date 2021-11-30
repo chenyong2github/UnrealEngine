@@ -537,8 +537,6 @@ class FDeferredLightPS : public FGlobalShader
 		IESTextureSampler.Bind(Initializer.ParameterMap, TEXT("IESTextureSampler"));
 		LightingChannelsTexture.Bind(Initializer.ParameterMap, TEXT("LightingChannelsTexture"));
 		LightingChannelsSampler.Bind(Initializer.ParameterMap, TEXT("LightingChannelsSampler"));
-		TransmissionProfilesTexture.Bind(Initializer.ParameterMap, TEXT("SSProfilesTexture"));
-		TransmissionProfilesLinearSampler.Bind(Initializer.ParameterMap, TEXT("TransmissionProfilesLinearSampler"));
 
 		HairTransmittanceBuffer.Bind(Initializer.ParameterMap, TEXT("HairTransmittanceBuffer"));
 		HairTransmittanceBufferMaxCount.Bind(Initializer.ParameterMap, TEXT("HairTransmittanceBufferMaxCount"));
@@ -661,18 +659,6 @@ private:
 				);
 		}
 
-		if( TransmissionProfilesTexture.IsBound() )
-		{
-			FRHITexture* SubsurfaceTextureRHI = GetSubsurfaceProfileTextureWithFallback();
-
-			SetTextureParameter(RHICmdList,
-				ShaderRHI,
-				TransmissionProfilesTexture,
-				TransmissionProfilesLinearSampler,
-				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-				SubsurfaceTextureRHI);
-		}
-
 		if (HairTransmittanceBuffer.IsBound())
 		{
 			const uint32 TransmittanceBufferMaxCount = RenderLightParams ? RenderLightParams->DeepShadow_TransmittanceMaskBufferMaxCount : 0;
@@ -763,8 +749,6 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, IESTextureSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, LightingChannelsTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, LightingChannelsSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesLinearSampler);
 
 	LAYOUT_FIELD(FShaderParameter, HairTransmittanceBufferMaxCount);
 	LAYOUT_FIELD(FShaderResourceParameter, HairTransmittanceBuffer);
