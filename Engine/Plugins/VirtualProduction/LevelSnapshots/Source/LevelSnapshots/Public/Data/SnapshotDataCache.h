@@ -37,11 +37,11 @@ struct FSubobjectSnapshotCache
 	
 	/** Allocated in snapshot world */
 	UPROPERTY()
-	TObjectPtr<UObject> SnapshotObject;
+	TObjectPtr<UObject> SnapshotObject = nullptr;
 
 	/** Allocated in editor world */
 	UPROPERTY()
-	TWeakObjectPtr<UObject> EditorObject;
+	TWeakObjectPtr<UObject> EditorObject = nullptr;
 };
 
 USTRUCT()
