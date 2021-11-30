@@ -874,6 +874,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SRV(Buffer<float4>, WaterIndirection)
 	SHADER_PARAMETER_SRV(Buffer<float4>, WaterData)
 
+	SHADER_PARAMETER_SRV(Buffer<uint>, LandscapeIndirection)
+	SHADER_PARAMETER_SRV(Buffer<float>, LandscapePerComponentData)
+
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, EditorVisualizeLevelInstanceIds)
 	SHADER_PARAMETER_SRV(Buffer<uint>, EditorSelectedHitProxyIds)
@@ -1203,6 +1206,10 @@ public:
 	/** Water rendering related data */
 	FShaderResourceViewRHIRef WaterIndirectionBuffer;
 	FShaderResourceViewRHIRef WaterDataBuffer;
+
+	/** Landscape rendering related data */
+	FShaderResourceViewRHIRef LandscapeIndirectionBuffer;
+	FShaderResourceViewRHIRef LandscapePerComponentDataBuffer;
 
 	/** Feature level for this scene */
 	const ERHIFeatureLevel::Type FeatureLevel;

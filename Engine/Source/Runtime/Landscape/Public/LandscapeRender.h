@@ -26,6 +26,7 @@ LandscapeRender.h: New terrain rendering
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
+#include "SceneViewExtension.h"
 
 // This defines the number of border blocks to surround terrain by when generating lightmaps
 #define TERRAIN_PATCH_EXPAND_SCALAR	1
@@ -116,9 +117,9 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 typedef TUniformBufferRef<FLandscapeVertexFactoryMVFParameters> FLandscapeVertexFactoryMVFUniformBufferRef;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeSectionLODUniformParameters, LANDSCAPE_API)
+	SHADER_PARAMETER(int32, LandscapeIndex)
 	SHADER_PARAMETER(FIntPoint, Min)
 	SHADER_PARAMETER(FIntPoint, Size)
-	SHADER_PARAMETER_SRV(Buffer<float>, SectionLOD)
 	SHADER_PARAMETER_SRV(Buffer<float>, SectionLODBias)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -134,6 +135,7 @@ struct FLandscapeBatchElementParams
 #endif
 	const TUniformBuffer<FLandscapeUniformShaderParameters>* LandscapeUniformShaderParametersResource;
 	const TArray<TUniformBuffer<FLandscapeFixedGridUniformShaderParameters>>* FixedGridUniformShaderParameters;
+	const TUniformBufferRef<FLandscapeSectionLODUniformParameters>* LandscapeSectionLODUniformParameters;
 	const FLandscapeComponentSceneProxy* SceneProxy;
 	int32 CurrentLOD;
 };
@@ -433,44 +435,23 @@ public:
 	void UnregisterNeighbors(FLandscapeComponentSceneProxy* SceneProxy = nullptr);
 };
 
-
-class FNullLandscapeRenderSystemResources : public FRenderResource
-{
-public:
-
-	FBufferRHIRef SectionLODBuffer;
-	FShaderResourceViewRHIRef SectionLODSRV;
-	TUniformBufferRef<FLandscapeSectionLODUniformParameters> UniformBuffer;
-
-	virtual void InitRHI() override
-{
-		TResourceArray<float> ResourceBuffer;
-		ResourceBuffer.Add(0.0f);
-		FRHIResourceCreateInfo CreateInfo(TEXT("SectionLODBuffer"), &ResourceBuffer);
-		SectionLODBuffer = RHICreateVertexBuffer(ResourceBuffer.GetResourceDataSize(), BUF_ShaderResource | BUF_Static, CreateInfo);
-		SectionLODSRV = RHICreateShaderResourceView(SectionLODBuffer, sizeof(float), PF_R32_FLOAT);
-
-		FLandscapeSectionLODUniformParameters Parameters;
-		Parameters.Size = FIntPoint(1, 1);
-		Parameters.SectionLOD = SectionLODSRV;
-		Parameters.SectionLODBias = SectionLODSRV;
-		UniformBuffer = TUniformBufferRef<FLandscapeSectionLODUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame);
-	}
-
-	virtual void ReleaseRHI() override
-	{
-		SectionLODBuffer.SafeRelease();
-		SectionLODSRV.SafeRelease();
-		UniformBuffer.SafeRelease();
-	}
-	};
-
-extern TGlobalResource<FNullLandscapeRenderSystemResources> GNullLandscapeRenderSystemResources;
-
 extern RENDERER_API TAutoConsoleVariable<float> CVarStaticMeshLODDistanceScale;
 
 struct FLandscapeRenderSystem
 {
+	typedef uint32 FViewKey;
+
+	struct FViewParams
+	{
+		FViewKey ViewKey;
+		int32 ViewLODOverride;
+		float ViewLODDistanceFactor;
+		bool ViewEngineShowFlagCollisionPawn;
+		bool ViewEngineShowFlagCollisionVisibility;
+		FVector ViewOrigin;
+		FMatrix ViewProjectionMatrix;
+	};
+
 	struct LODSettingsComponent
 	{
 		float LOD0ScreenSizeSquared;
@@ -505,126 +486,37 @@ struct FLandscapeRenderSystem
 		}
 	}
 
+	static TBitArray<> LandscapeIndexAllocator;
+
+	int32 LandscapeIndex;
 	int32 NumRegisteredEntities;
 
 	FIntPoint Min;
 	FIntPoint Size;
 
 	TArray<LODSettingsComponent> SectionLODSettings;
-	TResourceArray<float> SectionLODValues;
 	TResourceArray<float> SectionLODBiases;
 	TArray<FVector4> SectionOriginAndRadius;
 	TArray<FLandscapeComponentSceneProxy*> SceneProxies;
-	TArray<uint8> SectionCurrentFirstLODIndices;
 
-	FBufferRHIRef SectionLODBuffer;
-	FShaderResourceViewRHIRef SectionLODSRV;
 	FBufferRHIRef SectionLODBiasBuffer;
 	FShaderResourceViewRHIRef SectionLODBiasSRV;
 
 	TUniformBufferRef<FLandscapeSectionLODUniformParameters> UniformBuffer;
 
 	FCriticalSection CachedValuesCS;
-	TMap<const FSceneView*, TResourceArray<float>> CachedSectionLODValues;
-	const FSceneView* CachedView;
+	TMap<FViewKey, TResourceArray<float>> CachedSectionLODValues;
 
-	TMap<const FSceneView*, FGraphEventRef> PerViewParametersTasks;
+	TMap<FViewKey, FGraphEventRef> PerViewParametersTasks;
 	FGraphEventRef FetchHeightmapLODBiasesEventRef;
 	
-	struct FComputeSectionPerViewParametersTask
-	{
-		FLandscapeRenderSystem& RenderSystem;
-		const FSceneView* ViewPtrAsIdentifier;
-		int32 ViewLODOverride;
-		float ViewLODDistanceFactor;
-		bool ViewEngineShowFlagCollisionPawn;
-		bool ViewEngineShowFlagCollisionVisibility;
-		FVector ViewOrigin;
-		FMatrix ViewProjectionMatrix;
-
-		FComputeSectionPerViewParametersTask(FLandscapeRenderSystem& InRenderSystem, const FSceneView* InView);
-
-		FORCEINLINE TStatId GetStatId() const
-		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FComputeSectionPerViewParametersTask, STATGROUP_TaskGraphTasks);
-		}
-
-		ENamedThreads::Type GetDesiredThread()
-		{
-			return ENamedThreads::AnyNormalThreadNormalTask;
-		}
-
-		static ESubsequentsMode::Type GetSubsequentsMode()
-		{
-			return ESubsequentsMode::TrackSubsequents;
-		}
-
-		void AnyThreadTask()
-		{
-			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-			RenderSystem.ComputeSectionPerViewParameters(
-				ViewPtrAsIdentifier, ViewLODOverride, ViewLODDistanceFactor, 
-				ViewEngineShowFlagCollisionPawn, ViewEngineShowFlagCollisionVisibility, 
-				ViewOrigin, ViewProjectionMatrix);
-		}
-
-		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-		{
-			AnyThreadTask();
-		}
-	};
-
-	struct FGetSectionLODBiasesTask
-	{
-		FLandscapeRenderSystem& RenderSystem;
-
-		FGetSectionLODBiasesTask(FLandscapeRenderSystem& InRenderSystem)
-			: RenderSystem(InRenderSystem)
-		{
-		}
-
-		FORCEINLINE TStatId GetStatId() const
-		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FGetSectionLODBiasesTask, STATGROUP_TaskGraphTasks);
-		}
-
-		ENamedThreads::Type GetDesiredThread()
-		{
-			return ENamedThreads::AnyNormalThreadNormalTask;
-		}
-
-		static ESubsequentsMode::Type GetSubsequentsMode()
-		{
-			return ESubsequentsMode::TrackSubsequents;
-		}
-
-		void AnyThreadTask()
-		{
-			FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-			RenderSystem.FetchHeightmapLODBiases();
-		}
-
-		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-		{
-			AnyThreadTask();
-		}
-	};
-
-	FLandscapeRenderSystem()
-		: NumRegisteredEntities(0)
-		, Min(MAX_int32, MAX_int32)
-		, Size(EForceInit::ForceInitToZero)
-		, CachedView(nullptr)
-	{
-		SectionLODValues.SetAllowCPUAccess(true);
-		SectionLODBiases.SetAllowCPUAccess(true);
-	}
+	FLandscapeRenderSystem();
+	~FLandscapeRenderSystem();
 
 	void RegisterEntity(FLandscapeComponentSceneProxy* SceneProxy);
-
 	void UnregisterEntity(FLandscapeComponentSceneProxy* SceneProxy);
 
-	int32 GetComponentLinearIndex(FIntPoint ComponentBase)
+	int32 GetComponentLinearIndex(FIntPoint ComponentBase) const
 	{
 		return (ComponentBase.Y - Min.Y) * Size.X + ComponentBase.X - Min.X;
 	}
@@ -645,40 +537,66 @@ struct FLandscapeRenderSystem
 		SceneProxies[GetComponentLinearIndex(ComponentBase)] = SceneProxy;
 	}
 
-	float GetSectionLODValue(FIntPoint ComponentBase)
+	float GetSectionLODValue(const FSceneView& SceneView, FIntPoint ComponentBase) const
 	{
-		return SectionLODValues[GetComponentLinearIndex(ComponentBase)];
+		return CachedSectionLODValues[SceneView.GetViewKey()][GetComponentLinearIndex(ComponentBase)];
 	}
 
-	float GetSectionLODBias(FIntPoint ComponentBase)
+	float GetSectionLODBias(FIntPoint ComponentBase) const
 	{
 		return SectionLODBiases[GetComponentLinearIndex(ComponentBase)];
 	}
 
 	void ComputeSectionPerViewParameters(
-		const FSceneView* ViewPtrAsIdentifier,
+		FViewKey ViewKey,
 		int32 ViewLODOverride,
 		float ViewLODDistanceFactor,
 		bool bDrawCollisionPawn,
 		bool bDrawCollisionCollision,
-		FVector ViewOrigin,
-		FMatrix ViewProjectionMarix);
+		const FVector& ViewOrigin,
+		const FMatrix& ViewProjectionMarix,
+		const TArray<uint8>& SectionCurrentFirstLODIndices);
 
-	void PrepareView(const FSceneView* View);
+	void PrepareView(const FViewParams& InViewParams);
 
-	void BeginRenderView(const FSceneView* View);
+	void BeginRender();
 
 	void BeginFrame();
 
 	void FetchHeightmapLODBiases();
 
-	void RecreateBuffers(const FSceneView* InView = nullptr);
+	void UpdateBuffers();
 
 	void EndFrame();
 };
 
 LANDSCAPE_API extern TMap<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*> LandscapeRenderSystems;
 
+
+//
+// FLandscapeSceneViewExtension
+//
+class FLandscapeSceneViewExtension : public FSceneViewExtensionBase
+{
+public:
+	FLandscapeSceneViewExtension(const FAutoRegister& AutoReg);
+	virtual ~FLandscapeSceneViewExtension();
+
+	void BeginFrame();
+	void EndFrame();
+
+	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}
+
+	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
+	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
+};
+
+
+//
+// FLandscapeVisibilityHelper
+//
 class FLandscapeVisibilityHelper
 {
 public:
