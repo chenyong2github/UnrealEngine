@@ -665,15 +665,15 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 	}
 
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+	const bool bIsMobile = IsMobilePlatform(ShaderPlatform);
+	const bool bClothEnabled = FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(ShaderPlatform);
 	if (bDataPresent)
 	{
 		bool bSkinCacheResult = true;
 		for (int32 SectionIdx = 0; SectionIdx < Sections.Num(); SectionIdx++)
 		{
 			const FSkelMeshRenderSection& Section = Sections[SectionIdx];
-
-			bool bClothFactory = RHISupportsManualVertexFetch(ShaderPlatform) && (FeatureLevel >= ERHIFeatureLevel::SM5) &&
-								 (DynamicData->ClothingSimData.Num() > 0) && Section.HasClothingData();
+			const bool bClothFactory = bClothEnabled && (DynamicData->ClothingSimData.Num() > 0) && Section.HasClothingData();
 
 			FGPUBaseSkinVertexFactory* VertexFactory;
 			{
@@ -783,6 +783,14 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 				}
 			}
 
+			// Mobile doesn't support motion blur so no need to double buffer cloth data.
+			// Skin cache doesn't need double buffering, if failed to enter skin cache then the fall back GPU skinned VF needs double buffering.
+			if (bClothFactory && !bIsMobile && !SkinCacheEntry && Mode == EGPUSkinCacheEntryMode::Raster)
+			{
+				FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType& ClothShaderData = VertexFactoryData.ClothVertexFactories[SectionIdx]->GetClothShaderData();
+				ClothShaderData.EnableDoubleBuffer();
+			}
+
 			if (bNeedFence)
 			{
 				RHIThreadFenceForDynamicData = RHICmdList.RHIThreadFence(true);
@@ -791,7 +799,6 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 	}
 
 	// Mobile doesn't support motion blur so no need to double buffer morph deltas
-	const bool bIsMobile = IsMobilePlatform(ShaderPlatform) || ShaderPlatform == SP_PCD3D_ES3_1;
 	if (bMorph && !bIsMobile && !SkinCacheEntry && Mode == EGPUSkinCacheEntryMode::Raster && !LOD.MorphVertexBufferPool.IsDoubleBuffered())
 	{
 		// Going through GPU skinned vertex factory, turn on double buffering for motion blur
@@ -1738,14 +1745,15 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitAPEXClothVertexFactorie
 	const TArray<FSkelMeshRenderSection>& Sections,
 	ERHIFeatureLevel::Type InFeatureLevel)
 {
-	bool bSupportsManualFetch = InFeatureLevel >= ERHIFeatureLevel::SM5 && RHISupportsManualVertexFetch(GetFeatureLevelShaderPlatform(InFeatureLevel));
+	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
+	const bool bClothEnabled = FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(ShaderPlatform);
 
 	// clear existing factories (resources assumed to have been released already)
 	ClothVertexFactories.Empty(Sections.Num());
 
 	for (const FSkelMeshRenderSection& Section : Sections)
 	{
-		if (Section.HasClothingData() && bSupportsManualFetch)
+		if (Section.HasClothingData() && bClothEnabled)
 		{
 			constexpr int32 ClothLODBias = 0;
 			const uint32 NumClothWeights = Section.ClothMappingDataLODs.Num() ? Section.ClothMappingDataLODs[ClothLODBias].Num(): 0;

@@ -60,6 +60,11 @@ static FAutoConsoleVariableRef CVarUnlimitedBoneInfluencesThreshold(
 	TEXT("Unlimited Bone Influences Threshold to use unlimited bone influences buffer if r.GPUSkin.UnlimitedBoneInfluences is enabled. Should be unsigned int. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<bool> CVarMobileEnableCloth(
+	TEXT("r.Mobile.EnableCloth"),
+	true,
+	TEXT("If enabled, compile cloth shader permutations and render simulated cloth on mobile platforms and Windows ES3.1. Cannot be changed at runtime"),
+	ECVF_ReadOnly);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAPEXClothUniformShaderParameters,"APEXClothParam");
 
@@ -1055,6 +1060,18 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinMorphVertexFactory, "/Engine/P
 
 
 /*-----------------------------------------------------------------------------
+	FGPUBaseSkinAPEXClothVertexFactory
+-----------------------------------------------------------------------------*/
+bool FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(EShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<bool> MobileEnableClothIniValue(TEXT("r.Mobile.EnableCloth"));
+	const bool bEnableClothOnMobile = (MobileEnableClothIniValue.Get(Platform) != 0);
+	const bool bIsMobile = IsMobilePlatform(Platform);
+	return !bIsMobile || bEnableClothOnMobile;
+}
+
+
+/*-----------------------------------------------------------------------------
 	TGPUSkinAPEXClothVertexFactoryShaderParameters
 -----------------------------------------------------------------------------*/
 /** Shader parameters for use with TGPUSkinAPEXClothVertexFactory */
@@ -1104,10 +1121,17 @@ public:
 		uint32 FrameNumber = View->Family->FrameNumber;
 
 		ShaderBindings.Add(ClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(false, FrameNumber).VertexBufferSRV);
-		ShaderBindings.Add(PreviousClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(true, FrameNumber).VertexBufferSRV);
 		ShaderBindings.Add(ClothLocalToWorldParameter, ClothShaderData.GetClothLocalToWorldForReading(false, FrameNumber));
-		ShaderBindings.Add(PreviousClothLocalToWorldParameter, ClothShaderData.GetClothLocalToWorldForReading(true, FrameNumber));
 		ShaderBindings.Add(ClothBlendWeightParameter,ClothShaderData.ClothBlendWeight);
+
+		// Mobile doesn't support motion blur, no need to feed the previous frame cloth data
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+		const bool bIsMobile = IsMobilePlatform(ShaderPlatform);
+		if (!bIsMobile)
+		{
+			ShaderBindings.Add(PreviousClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(true, FrameNumber).VertexBufferSRV);
+			ShaderBindings.Add(PreviousClothLocalToWorldParameter, ClothShaderData.GetClothLocalToWorldForReading(true, FrameNumber));
+		}
 
 		ShaderBindings.Add(GPUSkinApexClothParameter,
 			 GPUSkinVertexFactory->GetBoneInfluenceType() == DefaultBoneInfluence ? ((const TGPUSkinAPEXClothVertexFactory<DefaultBoneInfluence>*)GPUSkinVertexFactory)->GetClothBuffer() :
@@ -1146,65 +1170,38 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 
 	uint32 NumSimulVerts = InSimulPositions.Num();
 
-	FVertexBufferAndSRV* CurrentClothBuffer = 0;
+	check(IsInRenderingThread());
+	
+	FVertexBufferAndSRV* CurrentClothBuffer = &GetClothBufferForWriting(FrameNumberToPrepare);
 
-	if (FeatureLevel >= ERHIFeatureLevel::SM5)
+	NumSimulVerts = FMath::Min(NumSimulVerts, (uint32)MAX_APEXCLOTH_VERTICES_FOR_VB);
+
+	uint32 VectorArraySize = NumSimulVerts * sizeof(float) * 6;
+	uint32 PooledArraySize = ClothSimulDataBufferPool.PooledSizeForCreationArguments(VectorArraySize);
+	if(!IsValidRef(*CurrentClothBuffer) || PooledArraySize != CurrentClothBuffer->VertexBufferRHI->GetSize())
 	{
-		check(IsInRenderingThread());
-		
-		CurrentClothBuffer = &GetClothBufferForWriting(FrameNumberToPrepare);
-
-		NumSimulVerts = FMath::Min(NumSimulVerts, (uint32)MAX_APEXCLOTH_VERTICES_FOR_VB);
-
-		uint32 VectorArraySize = NumSimulVerts * sizeof(float) * 6;
-		uint32 PooledArraySize = ClothSimulDataBufferPool.PooledSizeForCreationArguments(VectorArraySize);
-		if(!IsValidRef(*CurrentClothBuffer) || PooledArraySize != CurrentClothBuffer->VertexBufferRHI->GetSize())
+		if(IsValidRef(*CurrentClothBuffer))
 		{
-			if(IsValidRef(*CurrentClothBuffer))
-			{
-				ClothSimulDataBufferPool.ReleasePooledResource(*CurrentClothBuffer);
-			}
-			*CurrentClothBuffer = ClothSimulDataBufferPool.CreatePooledResource(VectorArraySize);
-			check(IsValidRef(*CurrentClothBuffer));
+			ClothSimulDataBufferPool.ReleasePooledResource(*CurrentClothBuffer);
 		}
+		*CurrentClothBuffer = ClothSimulDataBufferPool.CreatePooledResource(VectorArraySize);
+		check(IsValidRef(*CurrentClothBuffer));
+	}
 
-		if(NumSimulVerts)
+	if(NumSimulVerts)
+	{
+		if (DeferSkeletalLockAndFillToRHIThread())
 		{
-			if (DeferSkeletalLockAndFillToRHIThread())
+			FRHIBuffer* VertexBuffer = CurrentClothBuffer->VertexBufferRHI;
+			RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &InSimulPositions, &InSimulNormals](FRHICommandListImmediate& InRHICmdList)
 			{
-				FRHIBuffer* VertexBuffer = CurrentClothBuffer->VertexBufferRHI;
-				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &InSimulPositions, &InSimulNormals](FRHICommandListImmediate& InRHICmdList)
-				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
-					float* RESTRICT Data = (float* RESTRICT)InRHICmdList.LockBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
-					uint32 LambdaNumSimulVerts = InSimulPositions.Num();
-					check(LambdaNumSimulVerts > 0 && LambdaNumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
-					float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
-					float* RESTRICT Normal = (float* RESTRICT) &InSimulNormals[0].X;
-					for (uint32 Index = 0; Index < LambdaNumSimulVerts; Index++)
-					{
-						FPlatformMisc::Prefetch(Pos + PLATFORM_CACHE_LINE_SIZE);
-						FPlatformMisc::Prefetch(Normal + PLATFORM_CACHE_LINE_SIZE);
-
-						FMemory::Memcpy(Data, Pos, sizeof(float) * 3);
-						FMemory::Memcpy(Data + 3, Normal, sizeof(float) * 3);
-						Data += 6;
-						Pos += 3;
-						Normal += 3;
-					}
-					InRHICmdList.UnlockBuffer(VertexBuffer);
-				});
-
-				RHICmdList.RHIThreadFence(true);
-
-				return true;
-			}
-			float* RESTRICT Data = (float* RESTRICT)RHILockBuffer(CurrentClothBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FGPUBaseSkinAPEXClothVertexFactory_UpdateClothSimulData_CopyData);
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
+				float* RESTRICT Data = (float* RESTRICT)InRHICmdList.LockBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
+				uint32 LambdaNumSimulVerts = InSimulPositions.Num();
+				check(LambdaNumSimulVerts > 0 && LambdaNumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
 				float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
 				float* RESTRICT Normal = (float* RESTRICT) &InSimulNormals[0].X;
-				for (uint32 Index = 0; Index < NumSimulVerts; Index++)
+				for (uint32 Index = 0; Index < LambdaNumSimulVerts; Index++)
 				{
 					FPlatformMisc::Prefetch(Pos + PLATFORM_CACHE_LINE_SIZE);
 					FPlatformMisc::Prefetch(Normal + PLATFORM_CACHE_LINE_SIZE);
@@ -1215,10 +1212,33 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 					Pos += 3;
 					Normal += 3;
 				}
-			}
-			RHIUnlockBuffer(CurrentClothBuffer->VertexBufferRHI);
+				InRHICmdList.UnlockBuffer(VertexBuffer);
+			});
+
+			RHICmdList.RHIThreadFence(true);
+
+			return true;
 		}
+		float* RESTRICT Data = (float* RESTRICT)RHILockBuffer(CurrentClothBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FGPUBaseSkinAPEXClothVertexFactory_UpdateClothSimulData_CopyData);
+			float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
+			float* RESTRICT Normal = (float* RESTRICT) &InSimulNormals[0].X;
+			for (uint32 Index = 0; Index < NumSimulVerts; Index++)
+			{
+				FPlatformMisc::Prefetch(Pos + PLATFORM_CACHE_LINE_SIZE);
+				FPlatformMisc::Prefetch(Normal + PLATFORM_CACHE_LINE_SIZE);
+
+				FMemory::Memcpy(Data, Pos, sizeof(float) * 3);
+				FMemory::Memcpy(Data + 3, Normal, sizeof(float) * 3);
+				Data += 6;
+				Pos += 3;
+				Normal += 3;
+			}
+		}
+		RHIUnlockBuffer(CurrentClothBuffer->VertexBufferRHI);
 	}
+	
 	return false;
 }
 
@@ -1237,12 +1257,16 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnviron
 	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH"),TEXT("1"));
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_MULTIPLE_CLOTH_INFLUENCES"), TEXT("0"));
+	
+	// Mobile doesn't support motion blur, don't use previous frame data.
+	const bool bIsMobile = IsMobilePlatform(Parameters.Platform);
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_APEX_CLOTH_PREVIOUS"), !bIsMobile);
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 bool TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
+	return IsClothEnabled(Parameters.Platform)
 		&& (Parameters.MaterialParameters.bIsUsedWithAPEXCloth || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
 		&& Super::ShouldCompilePermutation(Parameters);
 }

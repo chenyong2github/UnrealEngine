@@ -595,6 +595,8 @@ public:
 			Reset();
 		}
 
+		void EnableDoubleBuffer()	{ bDoubleBuffer = true; }
+
 		TUniformBufferRef<FAPEXClothUniformShaderParameters> GetClothUniformBuffer() const
 		{
 			return APEXClothUniformBuffer;
@@ -675,9 +677,17 @@ public:
 		 */
 		FMatrix44f ClothLocalToWorld[2];
 
+		/** Whether to double buffer. */
+		bool bDoubleBuffer = false;
+
 		// @return 0 / 1, index into ClothSimulPositionNormalBuffer[]
 		uint32 GetMostRecentIndex(uint32 FrameNumber) const
 		{
+			if (!bDoubleBuffer)
+			{
+				return 0;
+			}
+
 			if(BufferFrameNumber[0] == -1)
 			{
 				//ensure(BufferFrameNumber[1] != -1);
@@ -700,6 +710,11 @@ public:
 		// @return 0/1, index into ClothSimulPositionNormalBuffer[]
 		uint32 GetOldestIndex(uint32 FrameNumber) const
 		{
+			if (!bDoubleBuffer)
+			{
+				return 0;
+			}
+
 			if(BufferFrameNumber[0] == -1)
 			{
 				return 0;
@@ -740,6 +755,8 @@ public:
 
 			ClothLocalToWorld[0] = FMatrix44f::Identity;
 			ClothLocalToWorld[1] = FMatrix44f::Identity;
+
+			bDoubleBuffer = false;
 		}
 	};
 
@@ -758,6 +775,8 @@ public:
 
 	virtual FGPUBaseSkinVertexFactory* GetVertexFactory() = 0;
 	virtual const FGPUBaseSkinVertexFactory* GetVertexFactory() const = 0;
+
+	static bool IsClothEnabled(EShaderPlatform Platform);
 
 protected:
 	ClothShaderType ClothShaderData;
