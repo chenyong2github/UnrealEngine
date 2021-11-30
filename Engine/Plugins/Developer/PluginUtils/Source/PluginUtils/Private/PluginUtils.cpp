@@ -278,9 +278,19 @@ namespace PluginUtils
 	{
 		ensure(!PluginLocation.IsEmpty());
 
-		FPluginUtils::AddToPluginSearchPathIfNeeded(PluginLocation, /*bRefreshPlugins*/ false, MountParams.bUpdateProjectPluginSearchPath);
+		const FString PluginFilePath = FPluginUtils::GetPluginFilePath(PluginLocation, PluginName, /*bFullPath*/ true);
 
-		IPluginManager::Get().RefreshPluginsList();
+		if (MountParams.bUpdateProjectPluginSearchPath)
+		{
+			FPluginUtils::AddToPluginSearchPathIfNeeded(PluginLocation, /*bRefreshPlugins=*/true, /*bUpdateProjectFile=*/true);
+		}
+		else
+		{
+			if (!IPluginManager::Get().AddToPluginsList(PluginFilePath, &FailReason))
+			{
+				return nullptr;
+			}
+		}
 
 		// Find the plugin in the manager.
 		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName);
@@ -291,7 +301,6 @@ namespace PluginUtils
 		}
 
 		// Double check the path matches
-		const FString PluginFilePath = FPluginUtils::GetPluginFilePath(PluginLocation, PluginName, /*bFullPath*/ true);
 		if (!FPaths::IsSamePath(Plugin->GetDescriptorFileName(), PluginFilePath))
 		{
 			const FString PluginFilePathFull = FPaths::ConvertRelativePathToFull(Plugin->GetDescriptorFileName());
