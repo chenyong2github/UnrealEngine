@@ -391,7 +391,7 @@ struct NamedSlotProperty
 
 #define SLATE_DEFAULT_SLOT( DeclarationType, SlotName ) \
 		SLATE_NAMED_SLOT(DeclarationType, SlotName) ; \
-		DeclarationType & operator[]( const TSharedRef<SWidget> InChild ) \
+		DeclarationType & operator[]( const TSharedRef<SWidget>& InChild ) \
 		{ \
 			_##SlotName.Widget = InChild; \
 			return static_cast<WidgetArgsType*>(this)->Me(); \
