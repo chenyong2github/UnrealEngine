@@ -2174,7 +2174,6 @@ float FAnimInstanceProxy::GetInstanceTransitionCrossfadeDuration(int32 MachineIn
 
 float FAnimInstanceProxy::GetInstanceTransitionTimeElapsed(int32 MachineIndex, int32 TransitionIndex) const
 {
-	// Just an alias for readability in the anim graph
 	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		if(MachineInstance->IsValidTransitionIndex(TransitionIndex))
