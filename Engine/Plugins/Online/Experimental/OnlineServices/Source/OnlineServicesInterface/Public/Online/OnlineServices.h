@@ -87,7 +87,7 @@ template<EOnlineIdType IdType>
 inline FString ToLogString(const TOnlineIdHandle<IdType>& Id)
 {
 	FString Result;
-	if (TSharedPtr<IOnlineServices> Services = GetServices(Id.GetType()))
+	if (TSharedPtr<IOnlineServices> Services = GetServices(Id.GetOnlineServicesType()))
 	{
 		Result = Services->ToLogString(Id);
 	}

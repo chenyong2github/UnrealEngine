@@ -61,7 +61,7 @@ FOnlineAccountIdHandle CreateAccountId(const EOS_EpicAccountId EpicAccountId, co
 template<EOnlineIdType IdType>
 inline bool ValidateOnlineId(const TOnlineIdHandle<IdType>& Handle)
 {
-	return Handle.GetType() == EOnlineServices::Epic && Handle.IsValid();
+	return Handle.GetOnlineServicesType() == EOnlineServices::Epic && Handle.IsValid();
 }
 
 } /* namespace UE::Online */

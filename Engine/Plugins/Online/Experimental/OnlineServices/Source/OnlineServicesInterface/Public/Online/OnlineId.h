@@ -35,7 +35,7 @@ public:
 
 	inline bool IsValid() const { return GetHandle() != 0; }
 
-	EOnlineServices GetType() const { return EOnlineServices(Value >> 24); }
+	EOnlineServices GetOnlineServicesType() const { return EOnlineServices(Value >> 24); }
 	uint32 GetHandle() const { return Value & 0x00FFFFFF; }
 
 	bool operator==(const TOnlineIdHandle& Other) const { return Value == Other.Value; }
@@ -51,7 +51,7 @@ template<EOnlineIdType IdType>
 inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)
 {
 	using ::GetTypeHash;
-	return HashCombine(GetTypeHash(Handle.GetType()), GetTypeHash(Handle.GetHandle()));
+	return HashCombine(GetTypeHash(Handle.GetOnlineServicesType()), GetTypeHash(Handle.GetHandle()));
 }
 
 template<EOnlineIdType IdType>
