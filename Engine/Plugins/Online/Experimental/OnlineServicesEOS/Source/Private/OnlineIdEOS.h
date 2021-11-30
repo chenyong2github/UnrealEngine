@@ -58,7 +58,7 @@ FOnlineAccountIdHandle FindAccountIdChecked(const EOS_ProductUserId EpicAccountI
 
 FOnlineAccountIdHandle CreateAccountId(const EOS_EpicAccountId EpicAccountId, const EOS_ProductUserId ProductUserId);
 
-template<EOnlineIdType IdType>
+template<typename IdType>
 inline bool ValidateOnlineId(const TOnlineIdHandle<IdType>& Handle)
 {
 	return Handle.GetOnlineServicesType() == EOnlineServices::Epic && Handle.IsValid();

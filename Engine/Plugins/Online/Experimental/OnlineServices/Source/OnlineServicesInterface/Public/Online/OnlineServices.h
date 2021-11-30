@@ -83,7 +83,7 @@ TSharedPtr<ServicesClass> GetServices(FName InstanceName = NAME_None)
  */
 ONLINESERVICESINTERFACE_API void DestroyServices(EOnlineServices OnlineServices = EOnlineServices::Default, FName InstanceName = NAME_None);
 
-template<EOnlineIdType IdType>
+template<typename IdType>
 inline FString ToLogString(const TOnlineIdHandle<IdType>& Id)
 {
 	FString Result;

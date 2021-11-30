@@ -9,7 +9,7 @@ namespace UE::Online {
 /**
  * A net id registry suitable for use with trivial immutable keys
  */
-template<EOnlineIdType IdType, typename IdValueType, EOnlineServices SubsystemType>
+template<typename IdType, typename IdValueType, EOnlineServices SubsystemType>
 class TOnlineBasicIdRegistry
 {
 public:
