@@ -69,6 +69,9 @@ public:
 			ClientConfig->bRetryAutoConnectOnError |= FParse::Param(CommandLine, TEXT("CONCERTRETRYAUTOCONNECTONERROR"));
 			FParse::Bool(CommandLine, TEXT("-CONCERTRETRYAUTOCONNECTONERROR="), ClientConfig->bRetryAutoConnectOnError);
 
+			ClientConfig->ClientSettings.bReflectLevelEditorInGame |= FParse::Param(CommandLine, TEXT("CONCERTREFLECTVISIBILITY"));
+			FParse::Bool(CommandLine, TEXT("-CONCERTREFLECTVISIBILITY="), ClientConfig->ClientSettings.bReflectLevelEditorInGame);
+
 			ClientConfig->bIsHeadless |= FParse::Param(CommandLine, TEXT("CONCERTISHEADLESS"));
 			FParse::Bool(CommandLine, TEXT("-CONCERTISHEADLESS="), ClientConfig->bIsHeadless);
 			ClientConfig->bIsHeadless |= !FSlateNotificationManager::Get().AreNotificationsAllowed();
