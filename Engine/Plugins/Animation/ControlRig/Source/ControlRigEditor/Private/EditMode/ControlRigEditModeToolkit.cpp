@@ -56,16 +56,6 @@ void FControlRigEditModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 	FModeToolkit::Init(InitToolkitHost);
 }
 
-FControlRigEditModeToolkit::~FControlRigEditModeToolkit()
-{
-	if (FSlateApplication::IsInitialized())
-	{
-		RemoveAndDestroyTweenOverlay();
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner("ControlRigProfiler");
-	}
-}
-
-
 void FControlRigEditModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
 {
 	InPaletteName = AnimationPaletteNames;
@@ -98,7 +88,11 @@ void FControlRigEditModeToolkit::TryInvokeToolkitUI(const FName InName)
 	if (InName == MotionTrailTabName)
 	{
 		FTabId MotionTrailTabID(MotionTrailTabName);
-		FGlobalTabmanager::Get()->TryInvokeTab(MotionTrailTabID);
+		if (ModeUILayer.IsValid())
+		{
+			TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+			ModeUILayerPtr->GetTabManager()->TryInvokeTab(MotionTrailTabID);
+		}
 	}
 	if (InName == PoseTabName)
 	{
@@ -266,17 +260,19 @@ void FControlRigEditModeToolkit::RequestModeUITabs()
 		SnapperTabInfo.TabTooltip = LOCTEXT("ControlRigSnapperTabTooltip", "Snap child objects to a parent object over a set of frames.");
 		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::TopRightTabID, SnapperTabInfo);
 
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(MotionTrailTabName, FOnSpawnTab::CreateStatic(&SpawnMotionTrailTab))
+		ModeUILayerPtr->GetTabManager()->RegisterTabSpawner(MotionTrailTabName, FOnSpawnTab::CreateStatic(&SpawnMotionTrailTab))
 			.SetDisplayName(LOCTEXT("MotionTrailTab", "Motion Trail"))
 			.SetTooltipText(LOCTEXT("MotionTrailTabTooltip", "Display motion trails for animated objects."))
 			.SetGroup(MenuGroup)
 			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("HierarchicalProfiler.TabIcon")));
 
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner("HierarchicalProfiler", FOnSpawnTab::CreateStatic(&SpawnRigProfiler))
+		ModeUILayerPtr->GetTabManager()->RegisterTabSpawner("HierarchicalProfiler", FOnSpawnTab::CreateStatic(&SpawnRigProfiler))
 			.SetDisplayName(LOCTEXT("HierarchicalProfilerTab", "Hierarchical Profiler"))
 			.SetTooltipText(LOCTEXT("HierarchicalProfilerTooltip", "Open the Hierarchical Profiler tab."))
 			.SetGroup(MenuGroup)
 			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("HierarchicalProfiler.TabIcon")));
+
+		ModeUILayer.Pin()->ToolkitHostShutdownUI().BindSP(this, &FControlRigEditModeToolkit::UnregisterAndRemoveFloatingTabs);
 	}
 };
 
@@ -285,6 +281,30 @@ void FControlRigEditModeToolkit::InvokeUI()
 	FModeToolkit::InvokeUI();
 
 // TODO: any future default tabs will go here
+}
+
+void FControlRigEditModeToolkit::UnregisterAndRemoveFloatingTabs()
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		RemoveAndDestroyTweenOverlay();
+		if (ModeUILayer.IsValid())
+		{
+			TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+			TSharedPtr<SDockTab> ProfilerTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId("HierarchicalProfiler"));
+			if(ProfilerTab)
+			{ 
+				ProfilerTab->RequestCloseTab();
+			}
+			ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner("HierarchicalProfiler");
+			TSharedPtr<SDockTab> MotionTrailTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId(MotionTrailTabName));
+			if (MotionTrailTab)
+			{
+				MotionTrailTab->RequestCloseTab();
+			}
+			ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner(MotionTrailTabName);
+		}
+	}
 }
 
 void FControlRigEditModeToolkit::TryInvokeSnapperTab()

@@ -55,12 +55,9 @@ void FAssetEditorModeUILayer::OnToolkitHostingStarted(const TSharedRef<IToolkit>
 
 void FAssetEditorModeUILayer::OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit)
 {
+	OnToolkitHostShutdownUI.ExecuteIfBound();
 	if (HostedToolkit.IsValid() && HostedToolkit.Pin() == Toolkit)
 	{
-		for (TPair<FName, FMinorTabConfig>& TabSpawnerInfo : RequestedTabInfo)
-		{
-			TabSpawnerInfo.Value = FMinorTabConfig(TabSpawnerInfo.Key);
-		}
 		for (TPair<FName, TWeakPtr<SDockTab>>& SpawnedTab : SpawnedTabs)
 		{
 			if (SpawnedTab.Value.IsValid())
@@ -69,7 +66,11 @@ void FAssetEditorModeUILayer::OnToolkitHostingFinished(const TSharedRef<IToolkit
 				SpawnedTab.Value.Pin()->RequestCloseTab();
 			}
 		}
-
+		for (TPair<FName, FMinorTabConfig>& TabSpawnerInfo : RequestedTabInfo)
+		{
+			TabSpawnerInfo.Value = FMinorTabConfig(TabSpawnerInfo.Key);
+			GetTabManager()->UnregisterTabSpawner(TabSpawnerInfo.Key);
+		}
 		SpawnedTabs.Empty();
 	}
 }
