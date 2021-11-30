@@ -277,6 +277,7 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 	FEntityTaskBuilder()
 	.Read(BuiltInComponents->BoundObject)
 	.Read(BuiltInComponents->ParentEntity)
+	.FilterNone({ BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->Tags.Ignored, BuiltInComponents->Tags.Finished })
 	.Iterate_PerEntity(&EntityManager, [&UnresolvedEntities](UObject* Object, FMovieSceneEntityID ParentEntityID)
 	{
 		if (!Object)
