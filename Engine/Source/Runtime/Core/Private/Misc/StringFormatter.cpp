@@ -13,7 +13,10 @@ FStringFormatArg::FStringFormatArg( const uint64 Value ) : Type(UInt), UIntValue
 FStringFormatArg::FStringFormatArg( const float Value ) : Type(Double), DoubleValue(Value) {}
 FStringFormatArg::FStringFormatArg( const double Value ) : Type(Double), DoubleValue(Value) {}
 FStringFormatArg::FStringFormatArg( FString Value ) : Type(String), StringValue(MoveTemp(Value)) {}
-FStringFormatArg::FStringFormatArg( const TCHAR* Value ) : Type(StringLiteral), StringLiteralValue(Value) {}
+FStringFormatArg::FStringFormatArg( const ANSICHAR* Value ) : Type(StringLiteralANSI), StringLiteralANSIValue(Value) {}
+FStringFormatArg::FStringFormatArg( const WIDECHAR* Value ) : Type(StringLiteralWIDE), StringLiteralWIDEValue(Value) {}
+FStringFormatArg::FStringFormatArg( const UCS2CHAR* Value ) : Type(StringLiteralUCS2), StringLiteralUCS2Value(Value) {}
+FStringFormatArg::FStringFormatArg( const UTF8CHAR* Value ) : Type(StringLiteralUTF8), StringLiteralUTF8Value(Value) {}
 FStringFormatArg::FStringFormatArg( const FStringFormatArg& RHS )
 {
 	Type = RHS.Type;
@@ -23,7 +26,10 @@ FStringFormatArg::FStringFormatArg( const FStringFormatArg& RHS )
 		case UInt: 				UIntValue = RHS.UIntValue; break;
 		case Double: 			IntValue = RHS.IntValue; break;
 		case String: 			StringValue = RHS.StringValue; break;
-		case StringLiteral: 	StringLiteralValue = RHS.StringLiteralValue; break;
+		case StringLiteralANSI: StringLiteralANSIValue = RHS.StringLiteralANSIValue; break;
+		case StringLiteralWIDE: StringLiteralWIDEValue = RHS.StringLiteralWIDEValue; break;
+		case StringLiteralUCS2: StringLiteralUCS2Value = RHS.StringLiteralUCS2Value; break;
+		case StringLiteralUTF8: StringLiteralUTF8Value = RHS.StringLiteralUTF8Value; break;
 	}
 }
 
@@ -31,11 +37,14 @@ void AppendToString(const FStringFormatArg& Arg, FString& StringToAppendTo)
 {
 	switch(Arg.Type)
 	{
-		case FStringFormatArg::Int: 			StringToAppendTo.Append(LexToString(Arg.IntValue)); break;
-		case FStringFormatArg::UInt: 			StringToAppendTo.Append(LexToString(Arg.UIntValue)); break;
-		case FStringFormatArg::Double: 			StringToAppendTo.Append(LexToString(Arg.DoubleValue)); break;
-		case FStringFormatArg::String: 			StringToAppendTo.AppendChars(*Arg.StringValue, Arg.StringValue.Len()); break;
-		case FStringFormatArg::StringLiteral: 	StringToAppendTo += Arg.StringLiteralValue; break;
+		case FStringFormatArg::Int: 				StringToAppendTo.Append(LexToString(Arg.IntValue)); break;
+		case FStringFormatArg::UInt: 				StringToAppendTo.Append(LexToString(Arg.UIntValue)); break;
+		case FStringFormatArg::Double: 				StringToAppendTo.Append(LexToString(Arg.DoubleValue)); break;
+		case FStringFormatArg::String: 				StringToAppendTo.AppendChars(*Arg.StringValue, Arg.StringValue.Len()); break;
+		case FStringFormatArg::StringLiteralANSI: 	StringToAppendTo.Append(Arg.StringLiteralANSIValue); break;
+		case FStringFormatArg::StringLiteralWIDE: 	StringToAppendTo.Append(Arg.StringLiteralWIDEValue); break;
+		case FStringFormatArg::StringLiteralUCS2: 	StringToAppendTo.Append(Arg.StringLiteralUCS2Value); break;
+		case FStringFormatArg::StringLiteralUTF8: 	StringToAppendTo.Append(Arg.StringLiteralUTF8Value); break;
 	}
 }
 
