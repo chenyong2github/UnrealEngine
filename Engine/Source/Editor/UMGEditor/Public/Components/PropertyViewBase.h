@@ -53,8 +53,6 @@ protected:
 	TSharedPtr<SBorder> GetDisplayWidget() const { return DisplayedWidget; }
 	void OnPropertyChangedBroadcast(FName PropertyName);
 
-private:
-
 	//~ UWidget interface
 public:
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
