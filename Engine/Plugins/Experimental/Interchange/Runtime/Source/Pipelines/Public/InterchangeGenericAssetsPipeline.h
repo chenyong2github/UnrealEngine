@@ -151,6 +151,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
 	bool bUpdateSkeletonReferencePose = false;
 
+	/** If checked, meshes nested in bone hierarchies will be imported instead of being converted to bones. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	bool bImportMeshesInBoneHierarchy = true;
+
 	/** If checked, create new PhysicsAsset if it doesn't have it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
 	bool bCreatePhysicsAsset;
