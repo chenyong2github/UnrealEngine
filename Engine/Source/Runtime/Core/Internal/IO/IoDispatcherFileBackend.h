@@ -28,7 +28,7 @@ class FFileIoStoreReader
 public:
 	FFileIoStoreReader(IPlatformFileIoStore& InPlatformImpl, FFileIoStoreStats& InStats);
 	~FFileIoStoreReader();
-	FIoStatus Initialize(const TCHAR* ContainerPath, int32 Order);
+	FIoStatus Initialize(const TCHAR* InTocFilePath, int32 Order);
 	uint32 GetContainerInstanceId() const
 	{
 		return ContainerFile.ContainerInstanceId;
@@ -106,8 +106,8 @@ public:
 	FFileIoStore(TUniquePtr<IPlatformFileIoStore>&& PlatformImpl);
 	~FFileIoStore();
 	void Initialize(TSharedRef<const FIoDispatcherBackendContext> Context) override;
-	TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) override;
-	bool Unmount(const TCHAR* ContainerPath) override;
+	TIoStatusOr<FIoContainerHeader> Mount(const TCHAR* InTocPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey) override;
+	bool Unmount(const TCHAR* InTocPath) override;
 	bool Resolve(FIoRequestImpl* Request) override;
 	void CancelIoRequest(FIoRequestImpl* Request) override;
 	void UpdatePriorityForIoRequest(FIoRequestImpl* Request) override;

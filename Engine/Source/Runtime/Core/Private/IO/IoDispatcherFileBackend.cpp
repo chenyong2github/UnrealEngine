@@ -678,20 +678,22 @@ uint64 FFileIoStoreReader::GetTocAllocatedSize() const
 		ContainerFile.BlockSignatureHashes.GetAllocatedSize();
 }
 
-FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InOrder)
+FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InTocFilePath, int32 InOrder)
 {
+	FStringView ContainerPathView(InTocFilePath);
+	if (!ContainerPathView.EndsWith(TEXT(".utoc")))
+	{
+		return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Expected .utoc extension on container path '") << InTocFilePath << TEXT("'");
+	}
+	FStringView BasePathView = ContainerPathView.LeftChop(5);
+
 	IPlatformFile& Ipf = FPlatformFileManager::Get().GetPlatformFile();
 
-	TStringBuilder<256> TocFilePath;
-	TocFilePath.Append(InContainerPath);
-	TocFilePath.Append(TEXT(".utoc"));
-	ContainerFile.FilePath = TocFilePath;
-
-	UE_LOG(LogIoDispatcher, Display, TEXT("Reading toc: %s"), *TocFilePath);
+	UE_LOG(LogIoDispatcher, Display, TEXT("Reading toc: %s"), InTocFilePath);
 
 	TUniquePtr<FIoStoreTocResource> TocResourcePtr = MakeUnique<FIoStoreTocResource>();
 	FIoStoreTocResource& TocResource = *TocResourcePtr;
-	FIoStatus Status = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::Default, TocResource);
+	FIoStatus Status = FIoStoreTocResource::Read(InTocFilePath, EIoStoreTocReadOptions::Default, TocResource);
 	if (!Status.IsOk())
 	{
 		return Status;
@@ -703,7 +705,7 @@ FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InO
 	{
 		FFileIoStoreContainerFilePartition& Partition = ContainerFile.Partitions[PartitionIndex];
 		TStringBuilder<256> ContainerFilePath;
-		ContainerFilePath.Append(InContainerPath);
+		ContainerFilePath.Append(BasePathView);
 		if (PartitionIndex > 0)
 		{
 			ContainerFilePath.Appendf(TEXT("_s%d"), PartitionIndex);
@@ -731,7 +733,7 @@ FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InO
 	}
 	else
 	{
-		UE_LOG(LogIoDispatcher, Warning, TEXT("Falling back to imperfect hashmap for container '%s'"), *TocFilePath);
+		UE_LOG(LogIoDispatcher, Warning, TEXT("Falling back to imperfect hashmap for container '%s'"), InTocFilePath);
 		for (uint32 ChunkIndex = 0; ChunkIndex < TocResource.Header.TocEntryCount; ++ChunkIndex)
 		{
 			TocImperfectHashMapFallback.Add(TocResource.ChunkIds[ChunkIndex], TocResource.ChunkOffsetLengths[ChunkIndex]);
@@ -1250,10 +1252,10 @@ void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InCo
 	Thread = FRunnableThread::Create(this, TEXT("IoService"), 0, TPri_AboveNormal);
 }
 
-TIoStatusOr<FIoContainerHeader> FFileIoStore::Mount(const TCHAR* ContainerPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
+TIoStatusOr<FIoContainerHeader> FFileIoStore::Mount(const TCHAR* InTocPath, int32 Order, const FGuid& EncryptionKeyGuid, const FAES::FAESKey& EncryptionKey)
 {
 	TUniquePtr<FFileIoStoreReader> Reader(new FFileIoStoreReader(*PlatformImpl, Stats));
-	FIoStatus IoStatus = Reader->Initialize(ContainerPath, Order);
+	FIoStatus IoStatus = Reader->Initialize(InTocPath, Order);
 	if (!IoStatus.IsOk())
 	{
 		return IoStatus;
@@ -1268,7 +1270,7 @@ TIoStatusOr<FIoContainerHeader> FFileIoStore::Mount(const TCHAR* ContainerPath, 
 		else
 		{
 			return FIoStatus(EIoErrorCode::InvalidEncryptionKey, *FString::Printf(TEXT("Invalid encryption key '%s' (container '%s', encryption key '%s')"),
-				*EncryptionKeyGuid.ToString(), *FPaths::GetBaseFilename(ContainerPath), *Reader->GetEncryptionKeyGuid().ToString()));
+				*EncryptionKeyGuid.ToString(), InTocPath, *Reader->GetEncryptionKeyGuid().ToString()));
 		}
 	}
 
@@ -1295,23 +1297,21 @@ TIoStatusOr<FIoContainerHeader> FFileIoStore::Mount(const TCHAR* ContainerPath, 
 			return A->GetContainerInstanceId() > B->GetContainerInstanceId();
 		});
 		IoStoreReaders.Insert(MoveTemp(Reader), InsertionIndex);
-		UE_LOG(LogIoDispatcher, Display, TEXT("Mounting container '%s' in location slot %d"), ContainerPath, InsertionIndex);
+		UE_LOG(LogIoDispatcher, Display, TEXT("Mounting container '%s' in location slot %d"), InTocPath, InsertionIndex);
 	}
 
 	return ContainerHeader;
 }
 
-bool FFileIoStore::Unmount(const TCHAR* ContainerPath)
+bool FFileIoStore::Unmount(const TCHAR* InTocPath)
 {
 	FWriteScopeLock _(IoStoreReadersLock);
 	
-	FString FilePathToUnmount = FPaths::SetExtension(ContainerPath, FString(".utoc"));
-
 	for (int32 Idx = 0; Idx < IoStoreReaders.Num(); ++Idx)
 	{
-		if (IoStoreReaders[Idx]->GetContainerFile().FilePath == FilePathToUnmount)
+		if (IoStoreReaders[Idx]->GetContainerFile().FilePath == InTocPath)
 		{
-			UE_LOG(LogIoDispatcher, Display, TEXT("Unmounting container '%s'"), *FPaths::GetBaseFilename(ContainerPath));
+			UE_LOG(LogIoDispatcher, Display, TEXT("Unmounting container '%s'"), InTocPath);
 
 			// Cancel pending I/O requests trying to read from the container
 			for (const FFileIoStoreContainerFilePartition& Partition : IoStoreReaders[Idx]->GetContainerFile().Partitions)
@@ -1326,7 +1326,7 @@ bool FFileIoStore::Unmount(const TCHAR* ContainerPath)
 		}
 	}
 
-	UE_LOG(LogIoDispatcher, Display, TEXT("Failed to unmount container '%s'"), *FPaths::GetBaseFilename(ContainerPath));
+	UE_LOG(LogIoDispatcher, Display, TEXT("Failed to unmount container '%s'"), InTocPath);
 	
 	return false;
 }
