@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "CoreMinimal.h"
-
 #pragma once
+
+#include "CoreMinimal.h"
 
 class UVEDITORTOOLS_API FUVEditorUXSettings
 {
