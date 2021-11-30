@@ -56,6 +56,17 @@ enum class EBakeTextureSamplesPerPixel
 };
 
 
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeMapsResultToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Bake */
+	UPROPERTY(VisibleAnywhere, Category = Results, meta = (DisplayName = "Results", TransientToolProperty))
+	TMap<EBakeMapType, TObjectPtr<UTexture2D>> Result;
+};
+
+
 /**
  * Base Bake Maps tool
  */
@@ -167,9 +178,18 @@ protected:
 
 	/**
 	 * To be invoked by client when bake map types change.
+	 * @param ResultMapTypes the requested map types to compute
+	 * @param Result the output map of bake result textures
+	 * @param MapPreview the map preview string property
+	 * @param MapPreviewNamesList the stored list of map preview display names.
+	 * @param MapPreviewNamesMap the stored map of map preview display names to enum string values.
 	 */
-	template <typename PropertySet>
-	void OnMapTypesUpdated(PropertySet& Properties);
+	void OnMapTypesUpdated(
+		EBakeMapType ResultMapTypes,
+		TMap<EBakeMapType, TObjectPtr<UTexture2D>>& Result,
+		FString& MapPreview,
+		TArray<FString>& MapPreviewNamesList,
+		TMap<FString, FString>& MapPreviewNamesMap);
 
 	//
 	// Background compute
@@ -193,10 +213,10 @@ protected:
 	/**
 	 * Update the preview material parameters for a given Bake type
 	 * display name.
-	 * @param Properties Properties containing the display name of a Bake type to preview.
+	 * @param PreviewDisplayName Displayed UI preview name to preview
+	 * @param MapPreviewNamesMap Map containing the list of displayed preview name to enum string value.
 	 */
-	template <typename PropertySet>
-	void UpdatePreview(PropertySet& Properties);
+	void UpdatePreview(const FString& PreviewDisplayName, const TMap<FString, FString>& MapPreviewNamesMap);
 
 
 	/**
@@ -210,11 +230,17 @@ protected:
 	 * Updates a tool property set's MapPreviewNamesList from the list of
 	 * active map types. Also updates the MapPreview property if the current
 	 * preview option is no longer available.
-	 *
-	 * @param Properties the UInteractiveToolPropertySet to update.
+	 * 
+	 * @param MapTypes the requested map types to compute
+	 * @param MapPreview the map preview string property
+	 * @param MapPreviewNamesList the stored list of map preview display names.
+	 * @param MapPreviewNamesMap the stored map of map preview display names to enum string values.
 	 */
-	template <typename PropertySet>
-	void UpdatePreviewNames(PropertySet& Properties);
+	void UpdatePreviewNames(
+		const EBakeMapType MapTypes,
+		FString& MapPreview,
+		TArray<FString>& MapPreviewNamesList,
+		TMap<FString, FString>& MapPreviewNamesMap);
 
 
 	//
@@ -283,14 +309,6 @@ protected:
 
 	/** @return the texture name given a base name and map type */
 	static void GetTextureName(EBakeMapType MapType, const FString& BaseName, FString& TexName);
-
-	/**
-	 * @param Properties the tool property set to validate the map type against.
-	 * @param MapType the map type to validate.
-	 * @return true if MapType was requested from the given PropertySet
-	 */
-	template <typename PropertySet>
-	static bool IsRequestedMapType(PropertySet& Properties, EBakeMapType MapType);
 	
 
 	// empty maps are shown when nothing is computed
@@ -305,96 +323,6 @@ protected:
 
 	void InitializeEmptyMaps();
 };
-
-
-template <typename PropertySet>
-void UBakeMeshAttributeMapsToolBase::OnMapTypesUpdated(PropertySet& Properties)
-{
-	const EBakeMapType BakeMapTypes = GetMapTypes(Properties->MapTypes);
-	
-	// Use the processed bitfield which may contain additional targets
-	// (ex. AO if BentNormal was requested).
-	CachedMaps.Empty();
-	for (EBakeMapType MapType : ENUM_EBAKEMAPTYPE_ALL)
-	{
-		if( (bool)(BakeMapTypes & MapType) )
-		{
-			CachedMaps.Add(MapType, nullptr);
-		}
-	}
-
-	// Initialize Properties->Result with requested MapTypes
-	Properties->Result.Empty();
-	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
-	{
-		// Only populate map types that were requested. Some map types like
-		// AO may have only been added for preview of other types (ex. BentNormal)
-		if (IsRequestedMapType(Properties, Map.Get<0>()))
-		{
-			Properties->Result.Add(Map.Get<0>(), nullptr);
-		}
-	}
-
-	UpdatePreviewNames(Properties);
-}
-
-
-template <typename PropertySet>
-void UBakeMeshAttributeMapsToolBase::UpdatePreview(PropertySet& Properties)
-{
-	const FString& PreviewDisplayName = Properties->MapPreview;
-	if (const FString* PreviewNameString = Properties->MapPreviewNamesMap.Find(PreviewDisplayName))
-	{
-		const int64 PreviewValue = StaticEnum<EBakeMapType>()->GetValueByNameString(*PreviewNameString);
-		if (PreviewValue != INDEX_NONE)
-		{
-			UpdatePreview(static_cast<EBakeMapType>(PreviewValue));
-		}
-	}
-}
-
-
-template <typename PropertySet>
-void UBakeMeshAttributeMapsToolBase::UpdatePreviewNames(PropertySet& Properties)
-{
-	// Update our preview names list.
-	Properties->MapPreviewNamesList.Reset();
-	Properties->MapPreviewNamesMap.Reset();
-	bool bFoundMapType = false;
-	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
-	{
-		// Only populate map types that were requested. Some map types like
-		// AO may have only been added for preview of other types (ex. BentNormal)
-		if (IsRequestedMapType(Properties, Map.Get<0>()))
-		{
-			const UEnum* BakeTypeEnum = StaticEnum<EBakeMapType>();
-			const int64 BakeEnumValue = static_cast<int64>(Map.Get<0>());
-			const FString BakeTypeDisplayName = BakeTypeEnum->GetDisplayNameTextByValue(BakeEnumValue).ToString();
-			const FString BakeTypeNameString = BakeTypeEnum->GetNameStringByValue(BakeEnumValue);
-			Properties->MapPreviewNamesList.Add(BakeTypeDisplayName);
-			Properties->MapPreviewNamesMap.Emplace(BakeTypeDisplayName, BakeTypeNameString);
-			if (Properties->MapPreview == Properties->MapPreviewNamesList.Last())
-			{
-				bFoundMapType = true;
-			}
-		}
-	}
-	if (!bFoundMapType)
-	{
-		Properties->MapPreview = Properties->MapPreviewNamesList.Num() > 0 ? Properties->MapPreviewNamesList[0] : TEXT("");
-	}
-}
-
-
-template <typename PropertySet>
-bool UBakeMeshAttributeMapsToolBase::IsRequestedMapType(PropertySet& Properties, EBakeMapType MapType)
-{
-	EBakeMapType SourceMapTypes = static_cast<EBakeMapType>(Properties->MapTypes);
-	return static_cast<bool>(SourceMapTypes & MapType);
-}
-
-
-
 
 
 

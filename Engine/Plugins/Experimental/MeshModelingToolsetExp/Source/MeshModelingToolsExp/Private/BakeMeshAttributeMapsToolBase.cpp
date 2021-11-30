@@ -171,6 +171,19 @@ void UBakeMeshAttributeMapsToolBase::CreateTextureAssets(const TMap<EBakeMapType
 }
 
 
+void UBakeMeshAttributeMapsToolBase::UpdatePreview(const FString& PreviewDisplayName, const TMap<FString, FString>& MapPreviewNamesMap)
+{
+	if (const FString* PreviewNameString = MapPreviewNamesMap.Find(PreviewDisplayName))
+	{
+		const int64 PreviewValue = StaticEnum<EBakeMapType>()->GetValueByNameString(*PreviewNameString);
+		if (PreviewValue != INDEX_NONE)
+		{
+			UpdatePreview(static_cast<EBakeMapType>(PreviewValue));
+		}
+	}
+}
+
+
 void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMapType)
 {
 	if (PreviewMapType == EBakeMapType::None)
@@ -226,6 +239,69 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMap
 	}
 	PreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeSettings.TargetUVLayer);
 	BentNormalPreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeSettings.TargetUVLayer);
+}
+
+
+void UBakeMeshAttributeMapsToolBase::UpdatePreviewNames(
+	const EBakeMapType MapTypes,
+	FString& MapPreview,
+	TArray<FString>& MapPreviewNamesList,
+	TMap<FString, FString>& MapPreviewNamesMap)
+{
+	// Update our preview names list.
+	MapPreviewNamesList.Reset();
+	MapPreviewNamesMap.Reset();
+	bool bFoundMapType = false;
+	for (const TTuple<EBakeMapType, TObjectPtr<UTexture2D>>& Map : CachedMaps)
+	{
+		// Only populate map types that were requested. Some map types like
+		// AO may have only been added for preview of other types (ex. BentNormal)
+		if (static_cast<bool>(MapTypes & Map.Get<0>()))
+		{
+			const UEnum* BakeTypeEnum = StaticEnum<EBakeMapType>();
+			const int64 BakeEnumValue = static_cast<int64>(Map.Get<0>());
+			const FString BakeTypeDisplayName = BakeTypeEnum->GetDisplayNameTextByValue(BakeEnumValue).ToString();
+			const FString BakeTypeNameString = BakeTypeEnum->GetNameStringByValue(BakeEnumValue);
+			MapPreviewNamesList.Add(BakeTypeDisplayName);
+			MapPreviewNamesMap.Emplace(BakeTypeDisplayName, BakeTypeNameString);
+			if (MapPreview == MapPreviewNamesList.Last())
+			{
+				bFoundMapType = true;
+			}
+		}
+	}
+	if (!bFoundMapType)
+	{
+		MapPreview = MapPreviewNamesList.Num() > 0 ? MapPreviewNamesList[0] : TEXT("");
+	}
+}
+
+
+void UBakeMeshAttributeMapsToolBase::OnMapTypesUpdated(
+	const EBakeMapType ResultMapTypes,
+	TMap<EBakeMapType, TObjectPtr<UTexture2D>>& Result,
+	FString& MapPreview,
+	TArray<FString>& MapPreviewNamesList,
+	TMap<FString, FString>& MapPreviewNamesMap)
+{
+	// Use the processed bitfield which may contain additional targets
+	// (ex. AO if BentNormal was requested) to preallocate cached map storage.
+	EBakeMapType CachedMapTypes = GetMapTypes(static_cast<int32>(ResultMapTypes));
+	CachedMaps.Empty();
+	Result.Empty();
+	for (EBakeMapType MapType : ENUM_EBAKEMAPTYPE_ALL)
+	{
+		if (static_cast<bool>(CachedMapTypes & MapType))
+		{
+			CachedMaps.Add(MapType, nullptr);
+		}
+		
+		if (static_cast<bool>(ResultMapTypes & MapType))
+		{
+			Result.Add(MapType, nullptr);
+		}
+	}
+	UpdatePreviewNames(ResultMapTypes, MapPreview, MapPreviewNamesList, MapPreviewNamesMap);
 }
 
 

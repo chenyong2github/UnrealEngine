@@ -62,20 +62,16 @@ public:
 	FString MapPreview;
 
 	/** The pixel resolution of the generated textures */
-	UPROPERTY(EditAnywhere, Category = Textures, meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = Textures)
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
 
 	/** The bit depth for each channel of the generated textures */
-	UPROPERTY(EditAnywhere, Category = Textures, meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = Textures)
 	EBakeTextureBitDepth BitDepth = EBakeTextureBitDepth::ChannelBits8;
 
 	/** Number of samples per pixel */
 	UPROPERTY(EditAnywhere, Category = Textures)
 	EBakeTextureSamplesPerPixel SamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
-
-	/** Bake */
-	UPROPERTY(VisibleAnywhere, Category = Textures, meta = (DisplayName = "Results", TransientToolProperty))
-	TMap<EBakeMapType, TObjectPtr<UTexture2D>> Result;
 
 	UFUNCTION()
 	const TArray<FString>& GetMapPreviewNamesFunc();
@@ -118,6 +114,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UBakeMeshAttributeMapsToolProperties> Settings;
+
+	UPROPERTY()
+	TObjectPtr<UBakeMeshAttributeMapsResultToolProperties> ResultSettings;
 
 
 	// Begin UBakeMeshAttributeMapsToolBase interface
