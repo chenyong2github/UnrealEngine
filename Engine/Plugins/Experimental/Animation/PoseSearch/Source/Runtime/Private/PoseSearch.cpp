@@ -42,6 +42,9 @@ constexpr float DrawDebugVelocityScale = 0.08f;
 constexpr float DrawDebugArrowSize = 30.0f;
 constexpr float DrawDebugSphereSize = 3.0f;
 constexpr int32 DrawDebugSphereSegments = 10;
+constexpr float DrawDebugGradientStrength = 0.8f;
+constexpr float DrawDebugSampleLabelFontScale = 1.0f;
+static const FVector DrawDebugSampleLabelOffset = FVector(0.0f, 0.0f, -10.0f);
 
 static bool IsSamplingRangeValid(FFloatInterval Range)
 {
@@ -2603,6 +2606,17 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 		return;
 	}
 
+	auto GetGradientColor = [](const FLinearColor& OriginalColor, int SampleIdx, int NumSamples, EDebugDrawFlags Flags)
+	{
+		int Denominator = NumSamples - 1;
+		if (Denominator <= 0 || !EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawSamplesWithColorGradient))
+		{
+			return OriginalColor;
+		}
+
+		return OriginalColor * (1.0f - DrawDebugGradientStrength * (SampleIdx / (float)Denominator));
+	};
+
 	for (int32 SchemaSubsampleIdx = 0; SchemaSubsampleIdx != NumSubsamples; ++SchemaSubsampleIdx)
 	{
 		Feature.SubsampleIdx = SchemaSubsampleIdx;
@@ -2613,7 +2627,8 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			Feature.Type = EPoseSearchFeatureType::Position;
 
 			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
-			FColor Color = LinearColor.ToFColor(true);
+			FLinearColor GradientColor = GetGradientColor(LinearColor, SchemaSubsampleIdx, NumSubsamples, DrawParams.Flags);
+			FColor Color = GradientColor.ToFColor(true);
 
 			TrajectoryPos = DrawParams.RootTransform.TransformPosition(TrajectoryPos);
 			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
@@ -2636,7 +2651,8 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			Feature.Type = EPoseSearchFeatureType::LinearVelocity;
 			
 			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
-			FColor Color = LinearColor.ToFColor(true);
+			FLinearColor GradientColor = GetGradientColor(LinearColor, SchemaSubsampleIdx, NumSubsamples, DrawParams.Flags);
+			FColor Color = GradientColor.ToFColor(true);
 
 			TrajectoryVel *= DrawDebugVelocityScale;
 			TrajectoryVel = DrawParams.RootTransform.TransformVector(TrajectoryVel);
@@ -2667,7 +2683,8 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			Feature.Type = EPoseSearchFeatureType::ForwardVector;
 
 			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
-			FColor Color = LinearColor.ToFColor(true);
+			FLinearColor GradientColor = GetGradientColor(LinearColor, SchemaSubsampleIdx, NumSubsamples, DrawParams.Flags);
+			FColor Color = GradientColor.ToFColor(true);
 
 			TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
 			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
@@ -2688,6 +2705,24 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 					DrawDebugLineThickness
 				);
 			}
+		}
+
+		if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSampleLabels))
+		{
+			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
+			FLinearColor GradientColor = GetGradientColor(LinearColor, SchemaSubsampleIdx, NumSubsamples, DrawParams.Flags);
+			FColor Color = GradientColor.ToFColor(true);
+
+			FString SampleLabel = FString::Format(TEXT("{0}"), { SchemaSubsampleIdx });
+			DrawDebugString(
+				DrawParams.World,
+				TrajectoryPos + DrawDebugSampleLabelOffset,
+				SampleLabel,
+				nullptr,
+				Color,
+				LifeTime,
+				false,
+				DrawDebugSampleLabelFontScale);
 		}
 	}
 }

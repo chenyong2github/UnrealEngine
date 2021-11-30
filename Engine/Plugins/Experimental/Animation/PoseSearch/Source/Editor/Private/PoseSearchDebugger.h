@@ -20,6 +20,7 @@ class SVerticalBox;
 class SHorizontalBox;
 class SScrollBox;
 class SWidgetSwitcher;
+class SSearchBox;
 template <typename ItemType> class SListView;
 
 /**
@@ -61,6 +62,12 @@ struct FPoseSearchDebuggerFeatureDrawOptions
 
 	UPROPERTY(EditAnywhere, Category="Draw Options", Meta=(EditCondition="!bDisable"))
     bool bDrawTrajectoryFeatures = true;
+
+	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
+	bool bDrawSampleLabels = true;
+
+	UPROPERTY(EditAnywhere, Category = "Draw Options", Meta = (EditCondition = "!bDisable"))
+	bool bDrawSamplesWithColorGradient = true;
 };
 
 /**
@@ -122,7 +129,7 @@ class SDebuggerDatabaseView : public SCompoundWidget
 	void Update(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database);
 
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetActiveRow() const { return ActiveView.ListView; }
-	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetDatabaseRows() const { return DatabaseView.ListView; }
+	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetDatabaseRows() const { return FilteredDatabaseView.ListView; }
 
 	/** Used by database rows to acquire column-specific information */
 	using FColumnMap = TMap<FName, TSharedRef<DebuggerDatabaseColumns::IColumn>>;
@@ -143,6 +150,8 @@ private:
 	/** Sorts the database by the current sort predicate, updating the view order */
 	void SortDatabaseRows();
 
+	void FilterDatabaseRows();
+
 	/** Sets dynamic data for each row, such as score at the current time */
 	void UpdateRows(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database);
 
@@ -158,6 +167,9 @@ private:
 
 	/** Aligns the active and database views */
 	void OnColumnWidthChanged(const float NewWidth, FName ColumnId) const;
+
+	/** Called when the text in the filter box is modified to update the filtering */
+	void OnFilterTextChanged(const FText& SearchText);
 
 	/** Generates a database row widget for the given data */
 	TSharedRef<ITableRow> HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
@@ -197,8 +209,18 @@ private:
 
 	/** Active row at the top of the view */
 	FTable ActiveView;
-	/** Database listings for all poses */
-	FTable DatabaseView;
+
+	/** All database poses */
+	TArray<TSharedRef<FDebuggerDatabaseRowData>> UnfilteredDatabaseRows;
+
+	/** Database listing for filtered poses */
+	FTable FilteredDatabaseView;
+
+	/** Search box widget */
+	TSharedPtr<SSearchBox> FilterBox;
+
+	/** Text used to filter DatabaseView */
+	FText FilterText;
 };
 
 /**

@@ -708,6 +708,10 @@ enum class EDebugDrawFlags : uint32
 	IncludeAllFeatures  = IncludePose | IncludeTrajectory,
 
 	Persistent = 1 << 3,
+	
+	DrawSampleLabels = 1 << 4,
+
+	DrawSamplesWithColorGradient = 1 << 5,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
 

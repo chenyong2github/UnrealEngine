@@ -13,9 +13,11 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"
 #include "TraceServices/Model/Frames.h"
+#include "Algo/AllOf.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDebugger"
 
@@ -389,7 +391,7 @@ void SDebuggerDatabaseView::RefreshColumns()
 	using namespace DebuggerDatabaseColumns;
 	
 	ActiveView.HeaderRow->ClearColumns();
-	DatabaseView.HeaderRow->ClearColumns();
+	FilteredDatabaseView.HeaderRow->ClearColumns();
 	
 	// Sort columns by index
 	Columns.ValueSort([](const TSharedRef<IColumn> Column0, const TSharedRef<IColumn> Column1)
@@ -415,7 +417,7 @@ void SDebuggerDatabaseView::RefreshColumns()
 				.HAlignHeader(HAlign_Center)
 				.HAlignCell(HAlign_Fill);
 
-			DatabaseView.HeaderRow->AddColumn(ColumnArgs);
+			FilteredDatabaseView.HeaderRow->AddColumn(ColumnArgs);
 			
 			// Every time the active column is changed, update the database column
 			ActiveView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, ColumnName));
@@ -452,6 +454,7 @@ void SDebuggerDatabaseView::OnColumnSortModeChanged(const EColumnSortPriority::T
 	SortColumn = ColumnId;
 	SortMode = InSortMode;
 	SortDatabaseRows();
+	FilterDatabaseRows();
 }
 
 void SDebuggerDatabaseView::OnColumnWidthChanged(const float NewWidth, FName ColumnId) const
@@ -461,25 +464,65 @@ void SDebuggerDatabaseView::OnColumnWidthChanged(const float NewWidth, FName Col
 	Columns[ColumnId]->Width = NewWidth;
 }
 
+void SDebuggerDatabaseView::OnFilterTextChanged(const FText& SearchText)
+{
+	FilterText = SearchText;
+	FilterDatabaseRows();
+}
+
 
 void SDebuggerDatabaseView::SortDatabaseRows()
 {
 	if (SortMode == EColumnSortMode::Ascending)
 	{
-		DatabaseView.Rows.Sort(Columns[SortColumn]->GetSortPredicateAscending());
+		UnfilteredDatabaseRows.Sort(Columns[SortColumn]->GetSortPredicateAscending());
 	}
 	else if (SortMode == EColumnSortMode::Descending)
 	{
-		DatabaseView.Rows.Sort(Columns[SortColumn]->GetSortPredicateDescending());
+		UnfilteredDatabaseRows.Sort(Columns[SortColumn]->GetSortPredicateDescending());
+	}
+}
+
+void SDebuggerDatabaseView::FilterDatabaseRows()
+{
+	FilteredDatabaseView.Rows.Empty();
+
+	FString FilterString = FilterText.ToString();
+	TArray<FString> Tokens;
+	FilterString.ParseIntoArrayWS(Tokens);
+
+	if (Tokens.Num() == 0)
+	{
+		for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
+		{
+			FilteredDatabaseView.Rows.Add(UnfilteredRow);
+		}
+	}
+	else
+	{
+		for (const auto& UnfilteredRow : UnfilteredDatabaseRows)
+		{
+			bool bMatchesAllTokens = Algo::AllOf(
+				Tokens,
+				[&](FString Token)
+			{
+				return UnfilteredRow->AnimSequenceName.Contains(Token);
+			});
+
+			if (bMatchesAllTokens)
+			{
+				FilteredDatabaseView.Rows.Add(UnfilteredRow);
+			}
+		}
 	}
 
-	DatabaseView.ListView->RequestListRefresh();
+	FilteredDatabaseView.ListView->RequestListRefresh();
 }
 
 void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 {
 	const int32 NumPoses = Database.SearchIndex.NumPoses;
-	DatabaseView.Rows.Reserve(NumPoses);
+	UnfilteredDatabaseRows.Reserve(NumPoses);
 
 	// Build database rows
 	for(const FPoseSearchDatabaseSequence& DbSequence : Database.Sequences)
@@ -487,7 +530,7 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 		const int32 LastPoseIdx = DbSequence.FirstPoseIdx + DbSequence.NumPoses;
 		for (int32 PoseIdx = DbSequence.FirstPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
 		{
-			TSharedRef<FDebuggerDatabaseRowData> Row = DatabaseView.Rows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
+			TSharedRef<FDebuggerDatabaseRowData> Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
 			Row->PoseIdx = PoseIdx;
 
 			const FString SequenceName = DbSequence.Sequence->GetName();
@@ -513,7 +556,7 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 
 void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database)
 {
-	if (DatabaseView.Rows.IsEmpty())
+	if (UnfilteredDatabaseRows.IsEmpty())
 	{
 		check(ActiveView.Rows.IsEmpty());
 		CreateRows(Database);
@@ -539,7 +582,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	
 	const FPoseSearchIndex& SearchIndex = Database.SearchIndex;
 
-	for(const TSharedRef<FDebuggerDatabaseRowData>& Row : DatabaseView.Rows)
+	for(const TSharedRef<FDebuggerDatabaseRowData>& Row : UnfilteredDatabaseRows)
 	{
 		const int32 PoseIdx = Row->PoseIdx;
 		
@@ -555,12 +598,13 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	}
 
 	SortDatabaseRows();
+	FilterDatabaseRows();
 }
 
 TSharedRef<ITableRow> SDebuggerDatabaseView::HandleGenerateDatabaseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const
 {
 	return
-		SNew(SDebuggerDatabaseRow, OwnerTable, Item, DatabaseView.RowStyle, &DatabaseView.RowBrush, FMargin(0.0f, 2.0f, 6.0f, 2.0f))
+		SNew(SDebuggerDatabaseRow, OwnerTable, Item, FilteredDatabaseView.RowStyle, &FilteredDatabaseView.RowBrush, FMargin(0.0f, 2.0f, 6.0f, 2.0f))
 		.ColumnMap(this, &SDebuggerDatabaseView::GetColumnMap);
 	
 }
@@ -608,28 +652,29 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	ActiveView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	ActiveView.RowBrush = *FEditorStyle::GetBrush("DetailsView.CategoryTop");
 
-	// Database 
-	DatabaseView.ScrollBar =
+
+	// Filtered Database
+	FilteredDatabaseView.ScrollBar =
 		SNew(SScrollBar)
 		.Orientation(Orient_Vertical)
 		.HideWhenNotInUse(false)
 		.AlwaysShowScrollbar(true)
 		.AlwaysShowScrollbarTrack(true);
-	DatabaseView.HeaderRow = SNew(SHeaderRow).Visibility(EVisibility::Collapsed);
-	
-	DatabaseView.ListView = SNew(SListView<TSharedRef<FDebuggerDatabaseRowData>>)
-			.ListItemsSource(&DatabaseView.Rows)
-			.HeaderRow(DatabaseView.HeaderRow.ToSharedRef())
-			.OnGenerateRow(this, &SDebuggerDatabaseView::HandleGenerateDatabaseRow)
-			.ExternalScrollbar(DatabaseView.ScrollBar)
-			.SelectionMode(ESelectionMode::SingleToggle)
-			.ConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
+	FilteredDatabaseView.HeaderRow = SNew(SHeaderRow).Visibility(EVisibility::Collapsed);
 
-	DatabaseView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	FilteredDatabaseView.ListView = SNew(SListView<TSharedRef<FDebuggerDatabaseRowData>>)
+		.ListItemsSource(&FilteredDatabaseView.Rows)
+		.HeaderRow(FilteredDatabaseView.HeaderRow.ToSharedRef())
+		.OnGenerateRow(this, &SDebuggerDatabaseView::HandleGenerateDatabaseRow)
+		.ExternalScrollbar(FilteredDatabaseView.ScrollBar)
+		.SelectionMode(ESelectionMode::SingleToggle)
+		.ConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible);
+
+	FilteredDatabaseView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	// Set selected color to white to retain visibility when multi-selecting
-	DatabaseView.RowStyle.SetSelectedTextColor(FLinearColor(FVector3f(0.8f)));
-	DatabaseView.RowBrush = *FEditorStyle::GetBrush("ToolPanel.GroupBorder");
-	
+	FilteredDatabaseView.RowStyle.SetSelectedTextColor(FLinearColor(FVector3f(0.8f)));
+	FilteredDatabaseView.RowBrush = *FEditorStyle::GetBrush("ToolPanel.GroupBorder");
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -721,7 +766,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Fill)
 				[
 					SNew(SBorder)
-					.BorderImage(&DatabaseView.RowStyle.EvenRowBackgroundBrush)
+					.BorderImage(&FilteredDatabaseView.RowStyle.EvenRowBackgroundBrush)
 				]
 			]
 			.AutoHeight()
@@ -737,7 +782,14 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Fill)
 			]
-			
+
+			+ SVerticalBox::Slot()
+			.Padding(0.0f, 0.0f, 0.0f, 5.0f)
+			.AutoHeight()
+			[
+				SAssignNew(FilterBox, SSearchBox)
+				.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
+			]
 		
 			+ SVerticalBox::Slot()
 			[
@@ -749,14 +801,14 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 					.Padding(0.0f)
 					[
-						DatabaseView.ListView.ToSharedRef()
+						FilteredDatabaseView.ListView.ToSharedRef()
 					]
 				]
 				
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				[
-					DatabaseView.ScrollBar.ToSharedRef()
+					FilteredDatabaseView.ScrollBar.ToSharedRef()
 				]
 			]
 		]
@@ -1130,6 +1182,16 @@ void SDebuggerView::DrawFeatures(
 		if (Options.bDrawTrajectoryFeatures)
 		{
 			InDrawParams.Flags |= EDebugDrawFlags::IncludeTrajectory;
+		}
+
+		if (Options.bDrawSampleLabels)
+		{
+			InDrawParams.Flags |= EDebugDrawFlags::DrawSampleLabels;
+		}
+
+		if (Options.bDrawSamplesWithColorGradient)
+		{
+			InDrawParams.Flags |= EDebugDrawFlags::DrawSamplesWithColorGradient;
 		}
 	};
 
