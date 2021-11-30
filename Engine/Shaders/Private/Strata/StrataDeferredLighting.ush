@@ -32,14 +32,13 @@ float4 StrataDeferredLighting(
 	{
 		// Unpack BSDF data
 #if STRATA_FASTPATH
-		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(MaterialBuffer, StrataAddressing);
+		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(MaterialBuffer, StrataAddressing, StrataPixelHeader);
 #else
-		FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialBuffer, StrataAddressing);
+		FStrataBSDF BSDF = UnpackStrataBSDFIn(MaterialBuffer, StrataAddressing, StrataPixelHeader);
 #endif
 		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V, L);
 
-		float Roughness = 0;
-		StrataGetBSDFRoughness(BSDFContext.BSDF, Roughness);
+		float Roughness = StrataGetBSDFRoughness(BSDFContext.BSDF);
 
 		FAreaLightIntegrateContext AreaLightContext = InitAreaLightIntegrateContext();
 		FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;

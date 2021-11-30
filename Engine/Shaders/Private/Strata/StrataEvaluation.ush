@@ -77,9 +77,9 @@ struct FStrataBSDFContext
 	float3 TangentH;
 };
 
-void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
+float StrataGetBSDFRoughness(in FStrataBSDF BSDF)
 {
-	R = 0;
+	float R = 0;
 	const uint BSDFType = BSDF_GETTYPE(BSDF);
 	switch (BSDFType)
 	{
@@ -99,6 +99,7 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 		break;
 	}
 	}
+	return R;
 }
 
 FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BSDF, float3 V, float3 L, bool bHasValidL=true)

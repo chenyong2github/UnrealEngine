@@ -56,18 +56,18 @@ void MainPS(
 	{
 		// Fetch the first layer of roughness & normal only. This fine for simple material but will not work for clear coat.
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 		bIsValid = StrataPixelHeader.BSDFCount > 0;
 		if (bIsValid)
 		{
 			const float3 DummyV = float3(0, 0, 1);
 			const float3 DummyL = float3(0, 0, 1);
-			FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing);
+			FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
 			FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, DummyV, DummyL);
 
 			SceneDepth = CalcSceneDepth(ScreenUV);
 			N = BSDFContext.N;
-			StrataGetBSDFRoughness(BSDFContext.BSDF, Roughness);
+			Roughness = StrataGetBSDFRoughness(BSDFContext.BSDF);
 			ClearCoatRoughness = Roughness;
 		}
 	}
@@ -227,7 +227,7 @@ void MainPS(
 			#elif 0
 				{
 					FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-					FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing);
+					FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 					const float LightMask = 1;
 
 					BRANCH

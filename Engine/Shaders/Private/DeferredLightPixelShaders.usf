@@ -218,7 +218,7 @@ void DeferredLightPixelMain(
 #if STRATA_ENABLED
 
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 
 	BRANCH
 	if (StrataPixelHeader.BSDFCount > 0	// This test is also enough to exclude sky pixels
