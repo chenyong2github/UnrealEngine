@@ -4734,6 +4734,11 @@ AActor* AActor::GetRootSelectionParent() const
 	return Parent;
 }
 
+bool AActor::IsActorOrSelectionParentSelected() const
+{
+	return IsSelected() || (GetSelectionParent() && GetSelectionParent()->IsActorOrSelectionParentSelected());
+}
+
 void AActor::PushSelectionToProxies()
 {
 	TInlineComponentArray<UActorComponent*> Components;

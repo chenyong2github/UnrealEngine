@@ -2683,6 +2683,9 @@ public:
 	/** Returns top most selection parent */
 	virtual AActor* GetRootSelectionParent() const;
 
+	/** Returns if actor or selection parent is selected */
+	bool IsActorOrSelectionParentSelected() const;
+
 	/** Push Selection to actor */
 	virtual void PushSelectionToProxies();
 

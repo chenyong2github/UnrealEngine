@@ -1497,7 +1497,7 @@ void UUnrealEdEngine::edactHideUnselected( UWorld* InWorld )
 	for( FActorIterator It(InWorld); It; ++It )
 	{
 		AActor* Actor = *It;
-		if( !FActorEditorUtils::IsABuilderBrush(Actor) && !Actor->IsSelected() && !Actor->IsHiddenEd() )
+		if( !FActorEditorUtils::IsABuilderBrush(Actor) && !Actor->IsActorOrSelectionParentSelected() && !Actor->IsHiddenEd() )
 		{
 			// Save the actor to the transaction buffer to support undo/redo, but do
 			// not call Modify, as we do not want to dirty the actor's package and
@@ -1598,7 +1598,7 @@ void UUnrealEdEngine::edactHideSelectedStartup( UWorld* InWorld )
 				FBspSurf& CurSurface = *SurfaceIterator;
 				
 				// Set the BSP surface to hide at editor startup, if it's not already set that way
-				const bool bSelected = CurSurface.Actor->IsSelected() || (CurSurface.PolyFlags & PF_Selected);
+				const bool bSelected = CurSurface.Actor->IsActorOrSelectionParentSelected() || (CurSurface.PolyFlags & PF_Selected);
 				if (bSelected && !CurSurface.IsHiddenEdAtStartup() && !CurSurface.IsHiddenEd())
 				{
 					CurLevelModel.Modify();
@@ -1689,7 +1689,7 @@ void UUnrealEdEngine::edactUnHideSelectedStartup( UWorld* InWorld )
 				FBspSurf& CurSurface = *SurfaceIterator;
 
 				// Mark the selected BSP surface as showing at editor startup if it was currently set to be hidden
-				const bool bSelected = CurSurface.Actor->IsSelected() || (CurSurface.PolyFlags & PF_Selected);
+				const bool bSelected = CurSurface.Actor->IsActorOrSelectionParentSelected() || (CurSurface.PolyFlags & PF_Selected);
 				if (bSelected && CurSurface.IsHiddenEdAtStartup())
 				{
 					CurLevelModel.Modify();
@@ -1714,7 +1714,7 @@ void UUnrealEdEngine::edactUnhideSelected( UWorld* InWorld )
 		checkSlow( Actor->IsA(AActor::StaticClass()) );
 		
 		// Don't consider already visible actors or the builder brush
-		if ( !FActorEditorUtils::IsABuilderBrush(Actor) && Actor->IsHiddenEd() )
+		if ( !FActorEditorUtils::IsABuilderBrush(Actor) && Actor->IsActorOrSelectionParentSelected() && Actor->IsHiddenEd() )
 		{
 			ActorsToShow.Add( Actor );
 		}
