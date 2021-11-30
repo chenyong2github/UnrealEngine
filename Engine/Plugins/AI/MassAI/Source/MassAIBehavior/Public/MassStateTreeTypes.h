@@ -28,11 +28,7 @@ USTRUCT(meta = (DisplayName = "Mass Evaluator Base"))
 struct MASSAIBEHAVIOR_API FMassStateTreeEvaluatorBase : public FStateTreeEvaluatorBase
 {
 	GENERATED_BODY()
-
-	FMassStateTreeEvaluatorBase() {}
-	virtual ~FMassStateTreeEvaluatorBase() {}
 };
-template<> struct TStructOpsTypeTraits<FMassStateTreeEvaluatorBase> : public TStructOpsTypeTraitsBase2<FMassStateTreeEvaluatorBase> { enum { WithPureVirtual = true, }; };
 
 /**
  * Base struct for all Mass StateTree Tasks.
@@ -41,11 +37,7 @@ USTRUCT(meta = (DisplayName = "Mass Task Base"))
 struct MASSAIBEHAVIOR_API FMassStateTreeTaskBase : public FStateTreeTaskBase
 {
 	GENERATED_BODY()
-
-	FMassStateTreeTaskBase() {}
-	virtual ~FMassStateTreeTaskBase() {}
 };
-template<> struct TStructOpsTypeTraits<FMassStateTreeTaskBase> : public TStructOpsTypeTraitsBase2<FMassStateTreeTaskBase> { enum { WithPureVirtual = true, }; };
 
 /**
 * A handle pointing to a registered StateTree asset in UMassStateTreeSubsystem.

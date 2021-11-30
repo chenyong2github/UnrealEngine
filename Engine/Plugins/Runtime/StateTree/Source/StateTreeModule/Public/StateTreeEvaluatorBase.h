@@ -3,9 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Guid.h"
 #include "StateTreeTypes.h"
-#include "StateTreePropertyBindings.h"
 #include "StateTreeEvaluatorBase.generated.h"
 
 struct FStateTreeExecutionContext;
@@ -23,10 +21,8 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase
 
 	virtual ~FStateTreeEvaluatorBase() {}
 
-	/**
-	* @return Struct that represents the runtime data of the evaluator.
-	*/
-	virtual const UStruct* GetInstanceDataType() const PURE_VIRTUAL(FStateTreeEvaluatorBase::GetInstanceDataType(), return nullptr;);
+	/** @return Struct that represents the runtime data of the evaluator. */
+	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
 
 	/**
 	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
@@ -95,5 +91,3 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase
 	UPROPERTY()
 	uint8 bInstanceIsObject : 1;
 };
-
-template<> struct TStructOpsTypeTraits<FStateTreeEvaluatorBase> : public TStructOpsTypeTraitsBase2<FStateTreeEvaluatorBase> { enum { WithPureVirtual = true, }; };
