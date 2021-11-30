@@ -13,7 +13,6 @@ static constexpr int32 DebugTrajectorySampleTime = 2;
 static constexpr int32 DebugTrajectorySampleDistance = 3;
 static constexpr int32 DebugTrajectorySamplePosition = 4;
 static constexpr int32 DebugTrajectorySampleVelocity = 5;
-static constexpr int32 DebugTrajectorySampleAccel = 6;
 static const FVector DebugSampleTypeOffset(0.f, 0.f, 50.f);
 static const FVector DebugSampleOffset(0.f, 0.f, 10.f);
 
@@ -58,7 +57,6 @@ bool FTrajectorySample::IsZeroSample() const
 {
 	// AccumulatedTime is specifically omitted here to allow for the zero sample semantic across an entire trajectory range
 	return LinearVelocity.IsNearlyZero()
-		&& LinearAcceleration.IsNearlyZero()
 		&& Transform.GetTranslation().IsNearlyZero()
 		&& FMath::IsNearlyZero(AccumulatedDistance)
 		&& Transform.GetRotation().IsIdentity();
@@ -70,7 +68,6 @@ FTrajectorySample FTrajectorySample::Lerp(const FTrajectorySample& Sample, float
 	Interp.AccumulatedSeconds = FMath::Lerp(AccumulatedSeconds, Sample.AccumulatedSeconds, Alpha);
 	Interp.AccumulatedDistance = FMath::Lerp(AccumulatedDistance, Sample.AccumulatedDistance, Alpha);
 	Interp.LinearVelocity = FMath::Lerp(LinearVelocity, Sample.LinearVelocity, Alpha);
-	Interp.LinearAcceleration = FMath::Lerp(LinearAcceleration, Sample.LinearAcceleration, Alpha);
 
 	Interp.Transform.Blend(Transform, Sample.Transform, Alpha);
 	
@@ -86,7 +83,6 @@ FTrajectorySample FTrajectorySample::SmoothInterp(const FTrajectorySample& PrevS
 	Interp.AccumulatedDistance = CubicCRSplineInterpSafe(PrevSample.AccumulatedDistance, AccumulatedDistance, Sample.AccumulatedDistance, NextSample.AccumulatedDistance, Alpha);
 	Interp.AccumulatedSeconds = CubicCRSplineInterpSafe(PrevSample.AccumulatedSeconds, AccumulatedSeconds, Sample.AccumulatedSeconds, NextSample.AccumulatedSeconds, Alpha);
 	Interp.LinearVelocity = CubicCRSplineInterpSafe(PrevSample.LinearVelocity, LinearVelocity, Sample.LinearVelocity, NextSample.LinearVelocity, Alpha);
-	Interp.LinearAcceleration = CubicCRSplineInterpSafe(PrevSample.LinearAcceleration, LinearAcceleration, Sample.LinearAcceleration, NextSample.LinearAcceleration, Alpha);
 
 	Interp.Transform.SetLocation(CubicCRSplineInterpSafe(
 		PrevSample.Transform.GetLocation(),
@@ -130,17 +126,13 @@ void FTrajectorySample::PrependOffset(const FTransform DeltaTransform, float Del
 	}
 
 	Transform *= DeltaTransform;
-
 	LinearVelocity = DeltaTransform.TransformVectorNoScale(LinearVelocity);
-	LinearAcceleration = DeltaTransform.TransformVectorNoScale(LinearAcceleration);
 }
 
 void FTrajectorySample::TransformReferenceFrame(const FTransform DeltaTransform)
 {
 	Transform = DeltaTransform.Inverse() * Transform * DeltaTransform;
-
 	LinearVelocity = DeltaTransform.TransformVectorNoScale(LinearVelocity);
-	LinearAcceleration = DeltaTransform.TransformVectorNoScale(LinearAcceleration);
 }
 
 bool FTrajectorySampleRange::HasSamples() const
@@ -228,7 +220,7 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 						World, SampleTransformWS.GetLocation(), SampleTransformWS.Rotator(),
 						TransformScale, false, 0.f, 0, TransformThickness);
 
-					if (VelArrowThickness == 0.0f)
+					if (VelArrowScale == 0.0f)
 					{
 						DrawDebugSphere(
 							World, SamplePositionWS,										
@@ -260,10 +252,6 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 				case DebugTrajectorySampleVelocity: // Sample Velocity
 					DebugString = "Sample Velocity:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LinearVelocity.ToCompactString() });
-					break;
-				case DebugTrajectorySampleAccel: // Sample Acceleration
-					DebugString = "Sample Acceleration:";
-					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LinearAcceleration.ToCompactString() });
 					break;
 				default:
 					break;

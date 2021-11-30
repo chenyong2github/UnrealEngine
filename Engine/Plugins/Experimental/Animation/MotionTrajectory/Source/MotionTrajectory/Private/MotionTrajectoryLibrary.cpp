@@ -66,13 +66,6 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FT
 			const float VelMagnitude = bPreserveSpeed ? Sample.LinearVelocity.Size() : Sample.LinearVelocity.Size2D();
 			Sample.LinearVelocity = VelMagnitude * Sample.LinearVelocity.GetSafeNormal2D();
 		}
-
-		// Align linear acceleration via projection onto velocity
-		if (!Sample.LinearVelocity.IsZero() && !Sample.LinearAcceleration.IsZero())
-		{
-			const float AccelMagnitude = bPreserveSpeed ? Sample.LinearAcceleration.Size() : Sample.LinearAcceleration.Size2D();
-			Sample.LinearAcceleration = AccelMagnitude * Sample.LinearAcceleration.ProjectOnTo(Sample.LinearVelocity).GetSafeNormal();
-		}
 	}
 
 	// The present position sample is used as the basis for recomputing the future and history Accumulated Distance
@@ -180,12 +173,6 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::ClampTrajectoryDirecti
 			if (!Sample.LinearVelocity.IsZero())
 			{
 				Sample.LinearVelocity = Sample.LinearVelocity.Size() * Sample.LinearVelocity.ProjectOnTo(VelocityBasis).GetSafeNormal();
-			}
-
-			// Align linear acceleration through projection onto the modified velocity
-			if (!Sample.LinearVelocity.IsZero() && !Sample.LinearAcceleration.IsZero())
-			{
-				Sample.LinearAcceleration = Sample.LinearAcceleration.Size() * Sample.LinearAcceleration.ProjectOnTo(Sample.LinearVelocity).GetSafeNormal();
 			}
 
 			// Align the position path through projection onto the modified velocity

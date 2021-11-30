@@ -40,10 +40,6 @@ struct ENGINE_API FTrajectorySample
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
 	FVector LinearVelocity = FVector::ZeroVector;
 
-	// Linear acceleration relative to the sampled in-motion object
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
-	FVector LinearAcceleration = FVector::ZeroVector;
-
 	// Linear interpolation of all parameters of two trajectory samples
 	FTrajectorySample Lerp(const FTrajectorySample& Sample, float Alpha) const;
 

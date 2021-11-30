@@ -6,6 +6,8 @@
 
 #include "MotionTrajectoryCharacterMovement.generated.h"
 
+class UCharacterMovementComponent;
+
 // Example motion trajectory component implementation for encapsulating: Character Movement ground locomotion
 UCLASS(meta=(BlueprintSpawnableComponent), Category="Motion Trajectory")
 class MOTIONTRAJECTORY_API UCharacterMovementTrajectoryComponent : public UMotionTrajectoryComponent
@@ -42,4 +44,50 @@ public:
 	virtual FTrajectorySampleRange GetTrajectory() const override;
 	virtual FTrajectorySampleRange GetTrajectoryWithSettings(const FMotionTrajectorySettings& Settings, bool bIncludeHistory) const override;
 	// End UMotionTrajectoryComponent Interface
+
+
+protected:
+	// Predicts future trajectory and writes prediction to ReturnValue
+	virtual void PredictTrajectory(
+		int32 SampleRate,
+		int32 MaxSamples,
+		const FMotionTrajectorySettings& Settings,
+		const FTrajectorySample& PresentTrajectory,
+		const FRotator& DesiredControlRotationVelocity,
+		FTrajectorySampleRange& OutTrajectoryRange) const;
+
+	// Updates InOutSample predicting IntegrationDelta forward
+	virtual void StepPrediction(
+		float IntegrationDelta,
+		const FRotator& ControlRotationVelocity,
+		FRotator& InOutControlRotationTotalDelta,
+		FTrajectorySample& InOutSample) const;
+
+	// The methods below allow tweaking movement model values per prediction sample
+
+	// Returns the friction to be used when updating Sample
+	virtual float GetFriction(
+		const UCharacterMovementComponent* MoveComponent, 
+		const FTrajectorySample& Sample, 
+		float DeltaSeconds) const;
+
+	// Returns maximum deceleration of Sample when the character is braking
+	virtual float GetMaxBrakingDeceleration(
+		const UCharacterMovementComponent* MoveComponent, 
+		const FTrajectorySample& Sample, 
+		float DeltaSeconds) const;
+
+	// Returns input acceleration in world space when predicting how Sample will change DeltaSeconds in the future
+	virtual FVector GetAccelerationWS(
+		const UCharacterMovementComponent* MoveComponent, 
+		const FTrajectorySample& Sample, 
+		float DeltaSeconds) const;
+
+	// This function returns the desired rotation for Sample without taking control rotation velocity into consideration.
+	// Control rotation velocity integration will be added to the result of this function when appropriate.
+	virtual FRotator GetBaseRotationWS(
+		const UCharacterMovementComponent* MoveComponent,
+		const FTrajectorySample& Sample,
+		const FRotator& SampleBaseRotationWS,
+		float DeltaSeconds) const;
 };
