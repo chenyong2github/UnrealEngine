@@ -6,12 +6,12 @@
 
 UTestBTTask_LatentWithFlags::UTestBTTask_LatentWithFlags()
 {
-	bNotifyTick = true;
+	INIT_TASK_NODE_NOTIFY_FLAGS();
 }
 
 EBTNodeResult::Type UTestBTTask_LatentWithFlags::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FBTLatentTaskMemory* MyMemory = (FBTLatentTaskMemory*)NodeMemory;
+	FBTLatentTaskMemory* MyMemory = CastInstanceNodeMemory<FBTLatentTaskMemory>(NodeMemory);
 	MyMemory->FlagFrameIdx = ExecuteHalfTicks + FAITestHelpers::FramesCounter();
 	MyMemory->EndFrameIdx = MyMemory->FlagFrameIdx + ExecuteHalfTicks;
 	MyMemory->bFlagSet = false;
@@ -32,7 +32,7 @@ EBTNodeResult::Type UTestBTTask_LatentWithFlags::ExecuteTask(UBehaviorTreeCompon
 
 EBTNodeResult::Type UTestBTTask_LatentWithFlags::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FBTLatentTaskMemory* MyMemory = (FBTLatentTaskMemory*)NodeMemory;
+	FBTLatentTaskMemory* MyMemory = CastInstanceNodeMemory<FBTLatentTaskMemory>(NodeMemory);
 	MyMemory->FlagFrameIdx = AbortHalfTicks + FAITestHelpers::FramesCounter();
 	MyMemory->EndFrameIdx = MyMemory->FlagFrameIdx + AbortHalfTicks;
 	MyMemory->bFlagSet = false;
@@ -53,7 +53,7 @@ EBTNodeResult::Type UTestBTTask_LatentWithFlags::AbortTask(UBehaviorTreeComponen
 
 void UTestBTTask_LatentWithFlags::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FBTLatentTaskMemory* MyMemory = (FBTLatentTaskMemory*)NodeMemory;
+	FBTLatentTaskMemory* MyMemory = CastInstanceNodeMemory<FBTLatentTaskMemory>(NodeMemory);
 
 	LogExecution(OwnerComp, MyMemory->bIsAborting ? LogIndexAborting : LogIndexExecuting);
 

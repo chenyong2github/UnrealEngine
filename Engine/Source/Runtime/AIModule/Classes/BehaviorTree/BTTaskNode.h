@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BehaviorTree/BTNode.h"
 #include "BTTaskNode.generated.h"
 
@@ -90,9 +89,10 @@ protected:
 
 	/** if set, OnTaskFinished will be called */
 	uint32 bNotifyTaskFinished : 1;
-	
+
 	/** ticks this task 
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
+	* bNotifyTick must be set to true when this function must be called */
 	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds);
 
 	/** message handler, default implementation will finish latent execution/abortion
@@ -100,7 +100,8 @@ protected:
 	virtual void OnMessage(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, FName Message, int32 RequestID, bool bSuccess);
 
 	/** called when task execution is finished
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	* this function should be considered as const (don't modify state of object) if node is not instanced! 
+	* bNotifyTaskFinished must be set to true when this function must be called */
 	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult);
 
 	/** register message observer */
@@ -109,7 +110,20 @@ protected:
 	
 	/** unregister message observers */
 	void StopWaitingForMessages(UBehaviorTreeComponent& OwnerComp) const;
+	
+	template<typename T,
+		typename TickTaskFunc = decltype(&T::TickTask),
+		typename OnTaskFinishedFunc = decltype(&T::OnTaskFinished)>
+	void InitNotifyFlags(const T* Node, TickTaskFunc TickFunction, OnTaskFinishedFunc OnTaskFinishedFunction)
+	{
+		bNotifyTick |= &UBTTaskNode::TickTask != TickFunction;
+		bNotifyTaskFinished |= &UBTTaskNode::OnTaskFinished != OnTaskFinishedFunction;
+	}
 };
+
+#define INIT_TASK_NODE_NOTIFY_FLAGS() \
+	using NodeType = TRemovePointer<decltype(this)>::Type; \
+	InitNotifyFlags(this, &NodeType::TickTask, &NodeType::OnTaskFinished)
 
 FORCEINLINE bool UBTTaskNode::ShouldIgnoreRestartSelf() const
 {

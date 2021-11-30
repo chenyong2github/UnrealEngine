@@ -8,9 +8,8 @@ UTestBTDecorator_DelayedAbort::UTestBTDecorator_DelayedAbort(const FObjectInitia
 	NodeName = "Delayed Abort";
 	DelayTicks = 5;
 	bOnlyOnce = true;
-	
-	bNotifyTick = true;
-	bNotifyBecomeRelevant = true;
+
+	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
 
 	bAllowAbortNone = false;
 	bAllowAbortLowerPri = false;
