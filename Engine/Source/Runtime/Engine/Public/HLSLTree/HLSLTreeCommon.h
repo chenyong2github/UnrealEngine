@@ -47,7 +47,7 @@ public:
 
 	FConstantValue Value;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
 };
@@ -63,7 +63,7 @@ public:
 	Shader::FValue DefaultValue;
 	EMaterialParameterType ParameterType;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
 };
 
@@ -95,7 +95,7 @@ public:
 
 	EExternalInputType InputType;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override { SetType(Context, EExpressionEvaluationType::Shader, GetInputExpressionType(InputType)); }
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override { OutResult.SetType(Context, EExpressionEvaluationType::Shader, GetInputExpressionType(InputType)); }
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 };
 
@@ -114,18 +114,7 @@ public:
 	ESamplerSourceMode SamplerSource;
 	ETextureMipValueMode MipValueMode;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Declaration);
-			Visitor.VisitNode(TexCoordExpression);
-		}
-		return Result;
-	}
-
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 };
 
@@ -138,17 +127,7 @@ public:
 	const TCHAR* FieldName;
 	FExpression* StructExpression;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(StructExpression);
-		}
-		return Result;
-	}
-
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 };
 
@@ -161,19 +140,8 @@ public:
 	const TCHAR* FieldName;
 	FExpression* StructExpression;
 	FExpression* FieldExpression;
-	
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(StructExpression);
-			Visitor.VisitNode(FieldExpression);
-		}
-		return Result;
-	}
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 };
 
@@ -190,19 +158,7 @@ public:
 	FExpression* TrueExpression;
 	FExpression* FalseExpression;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(ConditionExpression);
-			Visitor.VisitNode(TrueExpression);
-			Visitor.VisitNode(FalseExpression);
-		}
-		return Result;
-	}
-
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
 };
@@ -220,18 +176,7 @@ public:
 	FExpression* Lhs;
 	FExpression* Rhs;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Lhs);
-			Visitor.VisitNode(Rhs);
-		}
-		return Result;
-	}
-
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
 };
@@ -257,17 +202,7 @@ public:
 	FSwizzleParameters Parameters;
 	FExpression* Input;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Input);
-		}
-		return Result;
-	}
-
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
 };
@@ -283,18 +218,7 @@ public:
 	FExpression* Lhs;
 	FExpression* Rhs;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Lhs);
-			Visitor.VisitNode(Rhs);
-		}
-		return Result;
-	}
-
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
 };
@@ -302,7 +226,7 @@ public:
 class FExpressionReflectionVector : public FExpression
 {
 public:
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 };
 
@@ -311,16 +235,6 @@ class FStatementReturn : public FStatement
 public:
 	//static constexpr bool MarkScopeLiveRecursive = true;
 	FExpression* Expression;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FStatement::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Expression);
-		}
-		return Result;
-	}
 
 	virtual void Prepare(FEmitContext& Context) const override;
 	virtual void EmitShader(FEmitContext& Context) const override;
@@ -343,19 +257,6 @@ public:
 	FScope* ElseScope;
 	FScope* NextScope;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FStatement::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(ConditionExpression);
-			Visitor.VisitNode(ThenScope);
-			Visitor.VisitNode(ElseScope);
-			Visitor.VisitNode(NextScope);
-		}
-		return Result;
-	}
-
 	virtual void Prepare(FEmitContext& Context) const override;
 	virtual void EmitShader(FEmitContext& Context) const override;
 };
@@ -365,17 +266,6 @@ class FStatementLoop : public FStatement
 public:
 	FScope* LoopScope;
 	FScope* NextScope;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FStatement::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(LoopScope);
-			Visitor.VisitNode(NextScope);
-		}
-		return Result;
-	}
 
 	virtual void Prepare(FEmitContext& Context) const override;
 	virtual void EmitShader(FEmitContext& Context) const override;

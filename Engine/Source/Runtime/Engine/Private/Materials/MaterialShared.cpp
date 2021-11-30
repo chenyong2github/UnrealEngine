@@ -281,7 +281,7 @@ UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSL
 		if (Mask && Result)
 		{
 			const UE::HLSLTree::FSwizzleParameters SwizzleParams = UE::HLSLTree::MakeSwizzleMask(!!MaskR, !!MaskG, !!MaskB, !!MaskA);
-			Result = Generator.NewSwizzle(Scope, SwizzleParams, Result);
+			Result = Generator.NewSwizzle(SwizzleParams, Result);
 		}
 	}
 	

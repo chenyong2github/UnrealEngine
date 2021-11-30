@@ -33,6 +33,7 @@ namespace HLSLTree
 
 class FNode;
 class FScope;
+struct FEmitShaderValue;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
 
@@ -122,6 +123,13 @@ enum class ECastFlags : uint32
 };
 ENUM_CLASS_FLAGS(ECastFlags);
 
+using FEmitShaderValueDependencies = TArray<FEmitShaderValue*, TInlineAllocator<8>>;
+
+struct FEmitShaderValueContext
+{
+	FEmitShaderValueDependencies Dependencies;
+};
+
 /** Tracks shared state while emitting HLSL code */
 class FEmitContext
 {
@@ -139,6 +147,7 @@ public:
 	const TCHAR* AcquirePreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader);
 
 	FMemStackBase* Allocator = nullptr;
+	TMap<FSHAHash, FEmitShaderValue*> ShaderValueMap;
 	FErrors Errors;
 
 	// TODO - remove preshader material dependency
@@ -147,6 +156,8 @@ public:
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
 	TMap<FSHAHash, const TCHAR*> Preshaders;
+	TArray<FScope*, TInlineAllocator<16>> ScopeStack;
+	TArray<FEmitShaderValueContext, TInlineAllocator<16>> ShaderValueStack;
 	uint32 UniformPreshaderOffset = 0u;
 	bool bReadMaterialNormal = false;
 
@@ -155,38 +166,12 @@ public:
 	int32 NumTexCoords = 0;
 };
 
-enum class ENodeVisitResult
-{
-	VisitDependentNodes,
-	SkipDependentNodes,
-};
-
-/** Should be overriden to inspect the nodes of an HLSLTree */
-class FNodeVisitor
-{
-public:
-	virtual ~FNodeVisitor() {}
-
-	void VisitNode(FNode* Node);
-
-	virtual ENodeVisitResult OnScope(FScope& Scope) { return ENodeVisitResult::VisitDependentNodes; }
-	virtual ENodeVisitResult OnStatement(FStatement& Statement) { return ENodeVisitResult::VisitDependentNodes; }
-	virtual ENodeVisitResult OnExpression(FExpression& Expression) { return ENodeVisitResult::VisitDependentNodes; }
-	virtual ENodeVisitResult OnTextureParameterDeclaration(FTextureParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
-};
-
 /** Root class of the HLSL AST */
 class FNode
 {
 public:
 	virtual ~FNode() {}
-
-	static bool ShouldVisitDependentNodes(ENodeVisitResult Result) { return Result == ENodeVisitResult::VisitDependentNodes; }
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) = 0;
-
 	virtual void Reset() {}
-
 	FNode* NextNode = nullptr;
 };
 
@@ -223,8 +208,6 @@ public:
 	 */
 	TArrayView<const Shader::EValueComponentType> ComponentTypes;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override { return ENodeVisitResult::VisitDependentNodes; }
-
 	FStructFieldRef FindFieldByName(const TCHAR* InName) const;
 
 	void WriteHLSL(FStringBuilderBase& OutWriter) const;
@@ -257,8 +240,6 @@ public:
 	//static constexpr bool MarkScopeLiveRecursive = false;
 
 	virtual void Reset() override;
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-
 	virtual void Prepare(FEmitContext& Context) const = 0;
 	virtual void EmitShader(FEmitContext& Context) const = 0;
 
@@ -330,18 +311,35 @@ struct FShaderValue
 
 struct FPrepareValueResult
 {
+	FExpression* ForwardValue = nullptr;
 	FType Type;
 	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
 	Shader::FValue ConstantValue;
 
-	inline operator bool() const { return EvaluationType != EExpressionEvaluationType::None; }
-	inline bool operator!() const { return EvaluationType == EExpressionEvaluationType::None; }
+	void SetConstant(FEmitContext& Context, const Shader::FValue& InValue);
+	void SetType(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, const FType& InType);
+	void SetForwardValue(FEmitContext& Context, FExpression* InValue, const FRequestedType& RequestedType);
+
+	inline bool IsValid() const { return EvaluationType != EExpressionEvaluationType::None; }
+};
+
+struct FEmitShaderValue
+{
+	FEmitShaderValue(FExpression* InExpression, FScope* InScope) : Expression(InExpression), Scope(InScope) {}
+
+	inline bool IsInline() const { return Value == nullptr; }
+
+	FExpression* Expression = nullptr;
+	FScope* Scope = nullptr;
+	const TCHAR* Reference = nullptr;
+	const TCHAR* Value = nullptr;
+	TArrayView<FEmitShaderValue*> Dependencies;
+	FSHAHash Hash;
 };
 
 /**
  * Represents an HLSL expression.  This is a piece of code that evaluates to a value, but has no side effects.
  * Unlike statements, expressions are not expected to execute in any particular order.  They may be cached (or not) in generated code, without the underlying implementation needing to care.
- * Expressions track the outer-most scope in which they're accessed. The generated HLSL code will ensure they are defined in that scope.
  * Examples include constant literals, variable accessors, and various types of math operations
  * This is an abstract base class, with derived classes representing various types of expression
  */
@@ -352,33 +350,27 @@ public:
 	EExpressionEvaluationType GetEvaluationType() const { return PrepareValueResult.EvaluationType; }
 
 	virtual void Reset() override;
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
-	friend FPrepareValueResult PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
+	friend const FPrepareValueResult& PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
 
 	const TCHAR* GetValueShader(FEmitContext& Context);
 	const TCHAR* GetValueShader(FEmitContext& Context, const FType& InType);
 	void GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader);
 	Shader::FValue GetValueConstant(FEmitContext& Context);
 
-	FScope* ParentScope = nullptr;
-
 protected:
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) = 0;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) = 0;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const;
 	virtual void EmitShaderDependencies(FEmitContext& Context, const FShaderValue& Shader) const;
 	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const;
 
-	void SetType(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, const FType& InType);
-	void SetForwardValue(FEmitContext& Context, FExpression* InForwardValue, const FRequestedType& RequestedType);
-
 private:
-	const TCHAR* LocalVariableName = nullptr;
-	const TCHAR* Code = nullptr;
+	FEmitShaderValue* ShaderValue = nullptr;
 	FRequestedType CurrentRequestedType;
 	FPrepareValueResult PrepareValueResult;
-	FExpression* ForwardedValue = nullptr;
 	bool bReentryFlag = false;
+
+	friend class FEmitContext;
 };
 
 
@@ -390,7 +382,7 @@ private:
 class FExpressionLocalPHI final : public FExpression
 {
 public:
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
 	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
 	virtual void EmitShaderDependencies(FEmitContext& Context, const FShaderValue& Shader) const override;
 
@@ -407,8 +399,6 @@ class FTextureParameterDeclaration final : public FNode
 {
 public:
 	FTextureParameterDeclaration(const FName& InName, const FTextureDescription& InDescription) : Name(InName), Description(InDescription) {}
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	FName Name;
 	FTextureDescription Description;
@@ -443,11 +433,7 @@ public:
 
 	bool HasParentScope(const FScope& ParentScope) const;
 
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-
 	void AddPreviousScope(FScope& Scope);
-
-	void UseExpression(FExpression* Expression);
 
 	friend bool PrepareScope(FEmitContext& Context, FScope* InScope);
 
@@ -483,7 +469,6 @@ public:
 private:
 	friend class FTree;
 	friend class FExpression;
-	friend class FNodeVisitor_MoveToScope;
 
 	enum class ENextScopeFormat : uint8
 	{
@@ -522,7 +507,6 @@ private:
 	FScope* ParentScope = nullptr;
 	FStatement* ContainedStatement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
-	TMap<FSHAHash, const TCHAR*> ExpressionCodeMap;
 	FCodeList Declarations;
 	FCodeList Statements;
 	int32 NumPreviousScopes = 0;
@@ -571,10 +555,10 @@ public:
 	FScope& GetRootScope() const { return *RootScope; }
 
 	template<typename T, typename... ArgTypes>
-	inline T* NewExpression(FScope& Scope, ArgTypes&&... Args)
+	inline T* NewExpression(ArgTypes&&... Args)
 	{
 		T* Expression = NewNode<T>(Forward<ArgTypes>(Args)...);
-		RegisterExpression(Scope, Expression);
+		RegisterExpression(Expression);
 		return Expression;
 	}
 
@@ -603,11 +587,12 @@ private:
 		return Node;
 	}
 
-	void RegisterExpression(FScope& Scope, FExpression* Expression);
+	void RegisterExpression(FExpression* Expression);
 	void RegisterStatement(FScope& Scope, FStatement* Statement);
 
 	FMemStackBase* Allocator = nullptr;
 	FNode* Nodes = nullptr;
+	FExpression* ExpressionsToDeclare = nullptr;
 	FStructType* StructTypes = nullptr;
 	FScope* RootScope = nullptr;
 };
