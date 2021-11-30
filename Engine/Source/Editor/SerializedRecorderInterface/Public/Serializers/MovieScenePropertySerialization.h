@@ -18,7 +18,8 @@ enum class ESerializedPropertyType : uint8 {
 	Vector3dType,
 	ColorType,
 	IntegerType,
-	StringType
+	StringType,
+	LinearColorType
 };
 
 struct FPropertyFileHeader
@@ -103,6 +104,10 @@ struct FPropertyFileHeader
 				{
 					PropertyType = (ESerializedPropertyType::ColorType);
 				}
+				else if (StructProperty->Struct->GetFName() == NAME_LinearColor)
+				{
+					PropertyType = (ESerializedPropertyType::LinearColorType);
+				}
 			}
 			else if (Property->IsA<FIntProperty>())
 			{
@@ -176,4 +181,5 @@ using FPropertySerializedIntegerFrame = TMovieSceneSerializedFrame<FSerializedPr
 using FPropertySerializedString = FSerializedProperty<FString>;
 using FPropertySerializedStringFrame = TMovieSceneSerializedFrame<FSerializedProperty<FString>>;
 
-
+using FPropertySerializedLinearColor = FSerializedProperty<FLinearColor>;
+using FPropertySerializedLinearColorFrame = TMovieSceneSerializedFrame<FSerializedProperty<FLinearColor>>;
