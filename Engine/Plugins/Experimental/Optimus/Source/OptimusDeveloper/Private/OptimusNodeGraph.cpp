@@ -281,7 +281,10 @@ bool UOptimusNodeGraph::DuplicateNodes(
 	TSet<FName> ExistingObjects;
 	for (const UOptimusNode* Node: Nodes)
 	{
-		ExistingObjects.Add(Node->GetFName());
+		if (ensure(Node != nullptr))
+		{
+			ExistingObjects.Add(Node->GetFName());
+		}
 	}
 
 	auto MakeUniqueNodeName = [&ExistingObjects](FName InName)
@@ -672,16 +675,14 @@ bool UOptimusNodeGraph::RemoveNodeDirect(
 
 bool UOptimusNodeGraph::AddLinkDirect(UOptimusNodePin* NodeOutputPin, UOptimusNodePin* NodeInputPin)
 {
-	if (!NodeOutputPin || !NodeInputPin)
+	if (!ensure(NodeOutputPin != nullptr && NodeInputPin != nullptr))
 	{
 		return false;
 	}
 
-	check(NodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output);
-	check(NodeInputPin->GetDirection() == EOptimusNodePinDirection::Input);
-
-	if (NodeOutputPin->GetDirection() != EOptimusNodePinDirection::Output ||
-		NodeInputPin->GetDirection() != EOptimusNodePinDirection::Input)
+	if (!ensure(
+		NodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output &&
+		NodeInputPin->GetDirection() == EOptimusNodePinDirection::Input))
 	{
 		return false;
 	}
@@ -926,11 +927,13 @@ TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToNode(
 	for (int32 LinkIndex = 0; LinkIndex < Links.Num(); LinkIndex++)
 	{
 		const UOptimusNodeLink* Link = Links[LinkIndex];
-
-		if ((Link->GetNodeOutputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Input) ||
-			(Link->GetNodeInputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Output))
+		if (ensure(Link != nullptr && Link->GetNodeOutputPin() != nullptr))
 		{
-			LinkIndexes.Add(LinkIndex);
+			if ((Link->GetNodeOutputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Input) ||
+				(Link->GetNodeInputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Output))
+			{
+				LinkIndexes.Add(LinkIndex);
+			}
 		}
 	}
 

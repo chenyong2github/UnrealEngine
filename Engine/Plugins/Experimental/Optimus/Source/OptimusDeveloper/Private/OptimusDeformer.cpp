@@ -524,17 +524,20 @@ static void CollectNodes(
 			{
 				for (const UOptimusNodePin* ConnectedPin: InGraph->GetConnectedPins(Pin))
 				{
-					const UOptimusNode *NextNode = ConnectedPin->GetNode();
-					WorkingSet.Enqueue(NextNode);
-					if (!VisitedNodes.Contains(NextNode))
+					if (ensure(ConnectedPin != nullptr))
 					{
-						VisitedNodes.Add(NextNode);
-						OutCollectedNodes.Add(NextNode);
-					}
-					else
-					{
-						OutCollectedNodes.RemoveSingle(NextNode);
-						OutCollectedNodes.Add(NextNode);
+						const UOptimusNode *NextNode = ConnectedPin->GetNode();
+						WorkingSet.Enqueue(NextNode);
+						if (!VisitedNodes.Contains(NextNode))
+						{
+							VisitedNodes.Add(NextNode);
+							OutCollectedNodes.Add(NextNode);
+						}
+						else
+						{
+							OutCollectedNodes.RemoveSingle(NextNode);
+							OutCollectedNodes.Add(NextNode);
+						}
 					}
 				}
 			}
@@ -950,7 +953,7 @@ UOptimusNode* UOptimusDeformer::ResolveNodePath(
 
 	for (UOptimusNode* Node : Graph->GetAllNodes())
 	{
-		if (Node->GetName().Equals(NodeName, ESearchCase::IgnoreCase))
+		if (Node != nullptr && Node->GetName().Equals(NodeName, ESearchCase::IgnoreCase))
 		{
 			return Node;
 		}

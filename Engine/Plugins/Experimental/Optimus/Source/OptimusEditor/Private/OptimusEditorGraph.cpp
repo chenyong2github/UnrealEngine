@@ -27,13 +27,21 @@ void UOptimusEditorGraph::InitFromNodeGraph(UOptimusNodeGraph* InNodeGraph)
 	TMap<UOptimusNode*, UOptimusEditorGraphNode*> NodeMap;
 	for (UOptimusNode* ModelNode : InNodeGraph->GetAllNodes())
 	{
-		UOptimusEditorGraphNode* GraphNode = AddGraphNodeFromModelNode(ModelNode);
-		NodeMap.Add(ModelNode, GraphNode);
+		if (ensure(ModelNode != nullptr))
+		{
+			UOptimusEditorGraphNode* GraphNode = AddGraphNodeFromModelNode(ModelNode);
+			NodeMap.Add(ModelNode, GraphNode);
+		}
 	}
 
 	// Add all the graph links
 	for (const UOptimusNodeLink* Link : InNodeGraph->GetAllLinks())
 	{
+		if (!ensure(Link->GetNodeOutputPin() != nullptr && Link->GetNodeInputPin() != nullptr))
+		{
+			continue;
+		}
+
 		UOptimusEditorGraphNode* OutputGraphNode = NodeMap.FindRef(Link->GetNodeOutputPin()->GetNode());
 		UOptimusEditorGraphNode* InputGraphNode = NodeMap.FindRef(Link->GetNodeInputPin()->GetNode());
 
