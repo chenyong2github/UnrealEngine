@@ -105,7 +105,7 @@ public:
 
 	/** IPluginManager interface */
 	virtual void RefreshPluginsList() override;
-	virtual bool AddToPluginsList( const FString& PluginFilename ) override;
+	virtual bool AddToPluginsList(const FString& PluginFilename, FText* OutFailReason = nullptr) override;
 	virtual bool LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase ) override;
 	virtual FLoadingModulesForPhaseEvent& OnLoadingPhaseComplete() override;
 	virtual ELoadingPhase::Type GetLastCompletedLoadingPhase() const override;

@@ -199,7 +199,7 @@ public:
 	 * 
 	 * @return True if the plugin was added or already in the list. False if it failed to load.
 	 */
-	virtual bool AddToPluginsList( const FString& PluginFilename ) = 0;
+	virtual bool AddToPluginsList(const FString& PluginFilename, FText* OutFailReason = nullptr) = 0;
 
 	/**
 	 * Loads all plug-ins

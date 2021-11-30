@@ -125,7 +125,6 @@ public:
 		/**
 		 * Whether to update the project additional plugin directories (persistently saved in uproject file)
 		 * if the plugin location is not under the engine or project plugin folder.
-		 * Otherwise the plugin search path gets updated for the process lifetime only.
 		 */
 		bool bUpdateProjectPluginSearchPath = true;
 

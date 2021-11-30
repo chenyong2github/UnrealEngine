@@ -219,7 +219,7 @@ void FPluginManager::RefreshPluginsList()
 	}
 }
 
-bool FPluginManager::AddToPluginsList(const FString& PluginFilename)
+bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutFailReason /*= nullptr*/)
 {
 #if (WITH_ENGINE && !IS_PROGRAM) || WITH_PLUGIN_SUPPORT
 	// No need to readd if it already exists
@@ -231,8 +231,8 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename)
 
 	// Read the plugin and load it
 	FPluginDescriptor Descriptor;
-	FText FailureReason;
-	if (Descriptor.Load(PluginFilename, FailureReason))
+	FText FailReason;
+	if (Descriptor.Load(PluginFilename, FailReason))
 	{
 		// Determine the plugin type
 		EPluginType PluginType = EPluginType::External;
@@ -271,7 +271,12 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename)
 	}
 	else
 	{
-		UE_LOG(LogPluginManager, Warning, TEXT("AddToPluginsList failed to load plugin %s. Reason: %s"), *PluginFilename, *FailureReason.ToString());
+		FailReason = FText::Format(LOCTEXT("AddToPluginsListFailed", "Failed to load plugin '{0}'\n{1}"), FText::FromString(PluginFilename), FailReason);
+		UE_LOG(LogPluginManager, Error, TEXT("%s"), *FailReason.ToString());
+		if (OutFailReason)
+		{
+			*OutFailReason = MoveTemp(FailReason);
+		}
 	}
 #endif
 
