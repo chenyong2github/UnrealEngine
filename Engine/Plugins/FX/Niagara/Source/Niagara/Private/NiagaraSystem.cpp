@@ -3651,6 +3651,7 @@ void UNiagaraSystem::FixupPositionUserParameters()
 	TSet<FNiagaraVariable> LinkedPositionInputs;
 	ForEachScript([&UserParameters, &LinkedPositionInputs](UNiagaraScript* Script)
 	{
+		Script->ConditionalPostLoad();
 		Script->GetLatestSource()->GetLinkedPositionTypeInputs(UserParameters, LinkedPositionInputs);
 	});
 
