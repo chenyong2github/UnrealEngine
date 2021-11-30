@@ -1,21 +1,27 @@
 # README
 
-All changes in ORT have been labeled in the code with `WITH_UE` in some way (e.g., `#ifdef WITH_UE`, `#ifndef WITH_UE`, etc). Search for `WITH_UE` to (hopefully) find all the custom changes we made. When adding new changes to ORT, please, make sure to keep adding this `WITH_UE` flag to help locate changes in the future.
-
-NOTE: Updating from master commit X to master commit Y is relatively "easy" and is detailed below. However, updating from a specific version or branch of ONNX Runtime into its master or another branch will be trickier because the changes from that branch will have to be reverted first. For this case, I highly recommend the following steps:
-1. Downgrade from that version (e.g. 1.7.1) into the last common commit between that version and master (e.g. the last commit before v1.7.1 was created).
-2. Fix merge conflicts (caused by ONNX Runtime, not by NNI).
-3. Update from this master commit to the desired master commit by following the document below.
-
 More ONNX Runtime compiling info in [onnxruntime.ai/docs/how-to/build/inferencing.html](https://www.onnxruntime.ai/docs/how-to/build/inferencing.html).
-
 For questions, ask Gines.Hidalgo.
 
 
 
-## Step 0: Compiling Third Parties
-Francisco.Vicente understands this step better, in case of questions, ping him.
-- MLAS (manually remove the old ORT_MLAS folder first):
+## Table of Contents
+1. [Prerequisites](#prerequisites)
+2. [Upgrading ONNX Runtime](#upgrading-onnx-runtime)
+3. [Test and Debug ONNX Runtime on GitHub](#test-and-debug-onnx-runtime-on-github)
+4. [Updating from an ORT version to Another One](#updating-from-an-ort-version-to-another-one)
+
+
+
+## Prerequisites
+All changes in ORT have been (and should be!) labeled in the code with `WITH_UE` in some way (e.g., `#ifdef WITH_UE`, `// WITH_UE`, etc). Search for `WITH_UE` to (hopefully) find all the custom changes we made. When adding new changes to ORT, please, make sure to keep adding this `WITH_UE` flag to help locate changes in the future.
+
+
+
+## Upgrading ONNX Runtime
+### Step 0: Compiling Third Parties
+Francisco Vicente understands this step better, in case of questions, ping him.
+- MLAS (manually remove the old ORT_MLAS folder first, and repeate process for every platform):
 ```
 ################################################## PARAMETERS ##################################################
 $ORT_MLAS_PARENT_PATH = "D:/Users/gines.hidalgo/Downloads/" # In Epic machine, otherwise: D:/Users/gineshidalgo99/Desktop/ONNXRuntime
@@ -33,7 +39,7 @@ cd onnxruntime
 git reset --hard $FINAL_COMMIT_HASH
 .\build.bat --config Release --parallel --use_dml --use_full_protobuf
 ```
-Copy the new MLAS into `{NNI}/Source/ThirdParty/Deps/MLAS_1_9_1/`:
+Copy the new MLAS into `{NNI}/Source/ThirdParty/Deps/MLAS_YYYY_MM_DD/`:
 ```
 ################################################## AUTOMATIC SCRIPT ##################################################
 $NNI_ORT_MLAS_FINAL_PATH = "$NNI_ORT_MLAS_LOCATION/$NNI_ORT_MLAS_FINAL_NAME"
@@ -53,7 +59,7 @@ cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime${NNI_ORT_MLAS_OLD_NAME}.Build.cs $N
 
 
 
-## Step 1: Prerequisites
+### Step 1: Prerequisites
 1. Create and open the following folders on your explorer:
 	- A wrapper folder `$ORT_TEMP`, e.g., `D:/Users/gineshidalgo99/Desktop/ONNXRuntime`
 	- `${$ORT_TEMP}/ONNXRuntime_code_from_NNI`
@@ -63,7 +69,7 @@ cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime${NNI_ORT_MLAS_OLD_NAME}.Build.cs $N
 
 
 
-## Step 2: Create Local ONNX Runtime Fork
+### Step 2: Create Local ONNX Runtime Fork
 (First time only, not needed if you already have your fork of ORT locally) Clone your fork of ORT locally:
 ```
 ################################################## PARAMETERS ##################################################
@@ -79,28 +85,27 @@ cd onnxruntime
 
 
 
-## Step 3: Add NNI's Changes Locally
-Idea (what the commands below will automatically do):
+### Step 3: Add NNI's Changes Locally
+Before running the commands below:
 1. Copy NNI's ONNXRuntime locally:
-	- From `D:/P4/ue5_main_pitt64/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/ONNXRuntime/`.
-	- Into `D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ONNXRuntime_code_from_NNI/`.
+	- From `{UE5}/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/ONNXRuntime/`.
+	- Into `${$ORT_TEMP}/ONNXRuntime_code_from_NNI/`.
 2. To allow changes, right-click on `ONNXRuntime_code_from_NNI`, "Properties", uncheck "Read-only", and "OK".
-3. Bump version in `[...]/ONNXRuntime_code_from_NNI/Internal/onnxruntime_config.h` accordingly: `#define ORT_VERSION "1.9.0"` (otherwise minor compiler error on NNI).
-	- Additional info: In the original ORT, `onnxruntime_config.h` is created by `{onnxruntime_path}/cmake/CMakeLists.txt` in line 1151.
-		- `configure_file(onnxruntime_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/onnxruntime_config.h)`
-4. `ONNXRuntime/Internal/`:
-	- Copy subset of `{onnxruntime_path}/include/onnxruntime/core/` into `ONNXRuntime/Internal/core/`.
-5. `ONNXRuntime/Private/`:
-	- Copy subset of `{onnxruntime_path}/onnxruntime/contrib_ops/cpu/` into `ONNXRuntime/Private/contrib_ops/cpu/`.
-	- Copy subset of `{onnxruntime_path}/onnxruntime/core/` into `ONNXRuntime/Private/core/`.
-	- Copy subset of `{onnxruntime_path}/onnxruntime/test/testdata/custom_op_library/` into `ONNXRuntime/Private/test/testdata/custom_op_library/`.
+
+You can now run the following commands (idea of what the commands below will automatically do):
+	1. `ONNXRuntime/Internal/`:
+		- Copy subset of `{onnxruntime_path}/include/onnxruntime/core/` into `ONNXRuntime/Internal/core/`.
+	2. `ONNXRuntime/Private/`:
+		- Copy subset of `{onnxruntime_path}/onnxruntime/contrib_ops/cpu/` into `ONNXRuntime/Private/contrib_ops/cpu/`.
+		- Copy subset of `{onnxruntime_path}/onnxruntime/core/` into `ONNXRuntime/Private/core/`.
+		- Copy subset of `{onnxruntime_path}/onnxruntime/test/testdata/custom_op_library/` into `ONNXRuntime/Private/test/testdata/custom_op_library/`.
 
 With commands:
 - Part 1: Reverting your ORT fork (locally) to the right commit:
 ```
 ################################################## PARAMETERS ##################################################
 $ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # D:/Users/gines.hidalgo/Desktop/ONNXRuntime
-$CURRENT_NNI_ORT_COMMIT_HASH = "53afaefe3b82731a01c945b96e7a88862b91f54b" # The one NNI's ORT is using on UE5/Main
+$CURRENT_NNI_ORT_COMMIT_HASH = "1aa21df149fe7be5ac39b3d23f80234a6f4d7890" # The one NNI's ORT is using on UE5/Main
 
 ################################################## AUTOMATIC SCRIPT ##################################################
 ########## RESETING TO CURRENT_NNI_ORT_COMMIT_HASH ##########
@@ -200,10 +205,10 @@ git clean -f -d   # https://koukia.ca/how-to-remove-local-untracked-files-from-t
 
 
 
-## Step 4: Merge ORT Master with NNI's Canges and Create Zip to Copy to NNI
+### Step 4: Merge ORT Master with NNI's Canges and Create Zip to Copy to NNI
 ```
 ################################################## PARAMETERS ##################################################
-$FINAL_COMMIT_HASH = "6e09fc5152a109e46f22063ac9f8a1b82b482fda" # The one NNI's ORT will be using after this merge
+$FINAL_COMMIT_HASH = "1aa21df149fe7be5ac39b3d23f80234a6f4d7890" # The one NNI's ORT will be using after this merge
 $ORT_PARENT_PATH = "D:/Users/gineshidalgo99/Desktop/ONNXRuntime" # "D:/Users/gines.hidalgo/Desktop/ONNXRuntime"
 $FINAL_ZIP_FILE_PATH = "${ORT_PARENT_PATH}/ort_compressed.zip"
 ```
@@ -285,7 +290,7 @@ rm $FINAL_ZIP_FILE_PATH
 Compress-Archive -LiteralPath ${ORT_CODE_TO_PUSH_TO_NNI} -DestinationPath $FINAL_ZIP_FILE_PATH
 ```
 
-This new code zipped as `D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ort_compressed.zip` can be copied into NNI and tested in there. To test it properly, do the following tests (in this order):
+This new code zipped as `${$ORT_TEMP}/ort_compressed.zip` can be copied into NNI and tested in there. To test it properly, do the following tests (in this order):
 1. Compile UE and run QA tests to make sure they are successful.
 2. Package game for Windows and run tests on the Windows game to make sure they are successful. Trick: If your game is saved on `D:/Users/gines.hidalgo/Desktop/GameTest/`, the logging of the application will be saved on `D:/Users/gines.hidalgo/Desktop/GameTest/Windows/NNIExample/Saved/Logs/NNIExample.log`.
 3. Package game for Linux from Windows to make sure it compiles on Linux.
@@ -319,13 +324,18 @@ This new code zipped as `D:/Users/gineshidalgo99/Desktop/ONNXRuntime/ort_compres
 	Engine\Build\BatchFiles\RunUAT.bat BuildGraph -Script="Engine/Restricted/NotForLicensees/Build/DevStreams.xml" -Target="Compile ClangEditor Win64" -P4 -SkipTargetsWithoutTokens
 	```
 	6. Log generated in: `Engine/Programs/AutomationTool/Saved/Logs/Log.txt`
+	7. Optionally run NonUnity Compile UnrealEditor Win64:
+	```
+	cd D:/P4/ue5_main_pitt64_2/
+	Engine\Build\BatchFiles\RunUAT.bat BuildGraph -Script="Engine/Restricted/NotForLicensees/Build/DevStreams.xml" -Target="NonUnity Compile UnrealEditor Win64" -P4 -SkipTargetsWithoutTokens *> D:/Users/gines.hidalgo/Desktop/NonUnityTest.txt
+	```
 5. Do extensive pre-flights for all targeted platforms by running a `Editor, Tools & Monolithics` and a `Full Build` test.
 
 Once fully working on NNI, pushed code on P4 and you are done!
 
 
 
-## Optional Step: Making Pull Request to ORT
+### Optional Step: Making Pull Request to ORT
 ```
 git checkout -b SOME_BRANCH_NAME # Eg ClangOnWindowsCompiling, AlwaysReturn
 git push origin SOME_BRANCH_NAME
@@ -336,50 +346,60 @@ git push origin SOME_BRANCH_NAME
 
 
 
-## Final Architecture of ONNXRuntime in NNI/Source/ThirdParty/:
-- `ONNXRuntime/`
-	- `Internal/`
-		- `core/`
-			- `common/`
-			- `framework/`
-			- `graph/`
-			- `optimizer/`
-			- `platform/`
-			- `providers/`
-			- `session/`
-		- `onnxruntime_config.h`
-	- `Private/`
-		- `contrib_ops/cpu/`
-		- `core/`
-			- `common/`
-			- `contrib_ops/`
-			- `custom_ops/`
-			- `flatbuffers/`
-			- `framework/`
-			- `graph/`
-			- `optimizer/`
-			- `platform/`
-				- `UE/`
-			- `profile/`
-			- `providers/` (removed non-used providers, dml one moved into `Private_DML/`)
-				- `cpu/`
-				- `nni_cpu/` (eventually)
-				- `nni_hlsl/` (eventually)
-				- `shared/`
-				- `shared_library/`
-			- `quantization/`
-			- `session/`
-			- `util/`
-		- `test/testdata/custom_op_library/`
-	- `Private_DML/`
-		- `Windows/`
+### Final Architecture of ONNXRuntime in NNI
+- `NNI/Source/ThirdParty/`
+	- `ONNXRuntime/`
+		- `Internal/`
 			- `core/`
+				- `common/`
+				- `framework/`
+				- `graph/`
+				- `optimizer/`
+				- `platform/`
 				- `providers/`
-					- `dml/`
+				- `session/`
+			- `onnxruntime_config.h`
+		- `Private/`
+			- `contrib_ops/cpu/`
+			- `core/`
+				- `common/`
+				- `contrib_ops/`
+				- `custom_ops/`
+				- `flatbuffers/`
+				- `framework/`
+				- `graph/`
+				- `optimizer/`
+				- `platform/`
+					- `UE/`
+				- `profile/`
+				- `providers/` (removed non-used providers, dml one moved into `Private_DML/`)
+					- `cpu/`
+					- `nni_cpu/` (eventually)
+					- `nni_hlsl/` (eventually)
+					- `shared/`
+					- `shared_library/`
+				- `quantization/`
+				- `session/`
+				- `util/`
+			- `test/testdata/custom_op_library/`
+		- `Private_DML/`
+			- `Windows/`
+				- `core/`
+					- `providers/`
+						- `dml/`
+
+
+
+### FAQ
+If minor compiler error on NNI about version missmatch:
+- Bump version in `[...]/ONNXRuntime_code_from_NNI/Internal/onnxruntime_config.h` accordingly: `#define ORT_VERSION "1.9.0"` (otherwise minor compiler error on NNI).
+	- Additional info: In the original ORT, `onnxruntime_config.h` is created by `{onnxruntime_path}/cmake/CMakeLists.txt` in line 1151.
+		- `configure_file(onnxruntime_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/onnxruntime_config.h)`
+
 
 
 ## Test and Debug ONNX Runtime on GitHub
-# ORT CI (Test/Fix some PR)
+- ORT CI (Test/Fix some PR)
 ```
 git clone https://github.com/gineshidalgo99/onnxruntime
 git checkout REPO_NAME
@@ -390,17 +410,25 @@ git checkout REPO_NAME
 # python.exe tools\ci_build\build.py --config RelWithDebInfo --build_dir b --skip_submodule_sync --build_shared_lib --cmake_generator "Visual Studio 16 2019" --build_wheel --use_winml --build_shared_lib --enable_wcos --use_dnnl --build_java --build_nodejs
 ```
 
-# Paco's 1.9.1
+- Paco's 1.9.1
 ```
 .\build.bat --config Release --parallel --use_dml --use_full_protobuf
 ```
 
-# Me 1.7.1
+- Me 1.7.1
 ```
 .\build.bat --config Release --use_dml --build_shared_lib --parallel --cmake_generator "Visual Studio 16 2019" --build_wheel
 ```
 
-# Paco's 1.7.1
+- Paco's 1.7.1
 ```
 .\build.bat --config Release --use_dml --build_shared_lib --parallel --skip_tests --cmake_generator "Visual Studio 16 2019" --build_wheel
 ```
+
+
+
+## Updating from an ORT version to Another One
+Updating from master commit `X` to master commit `Y` is relatively "easy" and is detailed below. However, updating from a specific version or branch of ONNX Runtime into another version/master/branch will be trickier because the changes from that branch will have to be reverted first. For this special case, these would be the steps:
+1. Similarly to the documentation above, downgrade from your current version (e.g. 1.7.1) into the last common commit between that version and master (e.g. the last shared commit between 1.7.1 and master, which would be before v1.7.1 was created).
+2. Fix merge conflicts (caused by ONNX Runtime, not by NNI).
+3. Update from this master commit to the desired master commit by following the document below.
