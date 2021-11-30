@@ -4,7 +4,6 @@
 
 #include "Spatial/MeshAABBTree3.h"
 
-
 namespace UE
 {
 namespace Geometry
