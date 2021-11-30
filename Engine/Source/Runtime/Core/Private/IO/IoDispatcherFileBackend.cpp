@@ -2031,7 +2031,17 @@ uint32 FFileIoStore::Run()
 
 TSharedRef<IIoDispatcherFileBackend> CreateIoDispatcherFileBackend()
 {
-	const bool bCheckForPlatformImplementation = UE_BUILD_SHIPPING || !FParse::Param(FCommandLine::Get(), TEXT("forcegenericio"));
+	bool bCheckForPlatformImplementation = true;
+	if (!FGenericPlatformProcess::SupportsMultithreading())
+	{
+		bCheckForPlatformImplementation = false;
+	}
+#if !UE_BUILD_SHIPPING
+	if (FParse::Param(FCommandLine::Get(), TEXT("forcegenericio")))
+	{
+		bCheckForPlatformImplementation = false;
+	}
+#endif
 
 	if (bCheckForPlatformImplementation)
 	{
