@@ -7,18 +7,6 @@
 #include <type_traits>
 #include "NeuralEnumClasses.generated.h"
 
-/**
- * Whether UNeuralNetwork will use the highly optimized UnrealEngine-and-ONNXRuntime-based back end (UEAndORT) or the less optimized but fully cross platform only-UE one (UEOnly).
- * We recommend using Auto, which will find and use the optimal back end for each platform.
- */
-UENUM()
-enum class ENeuralBackEnd : uint8
-{
-	UEAndORT, /* UnrealEngine-and-ONNXRuntime-accelerated back end, ideal for those platforms that support it. WITH_UE_AND_ORT_SUPPORT is the C++ define macro that checks whether UEAndORT support exists for the current platform.*/
-	UEOnly, /* It might be slower than the UEAndORT back end, but it will compile in all platforms and OSs compatible with Unreal Engine. */
-	Auto /* Recommended setting. It will use UEAndORT if possible, and fall back to UEOnly only for those platforms that do not support UEAndORT yet. */
-};
-
 UENUM()
 enum class ENeuralDataType : uint8
 {
@@ -40,6 +28,55 @@ enum class ENeuralDeviceType : uint8
 	CPU,
 	GPU,
 	None
+};
+
+/**
+ * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread,
+ * not blocking the calling thread (Asynchronous).
+ */
+UENUM()
+enum class ENeuralNetworkSynchronousMode : uint8
+{
+	Synchronous, /* UNeuralNetwork::Run() will block the thread until the network evaluation (i.e., forward pass) has finished. */
+	/**
+	 * UNeuralNetwork::Run() will initialize a forward pass request on a background thread, not blocking the thread that called it.
+	 * The user should register to UNeuralNetwork's delegate to know when the forward pass has finished.
+	 *
+	 * Very important: It takes ~1 millisecond to start the background thread. If your network runs synchronously faster than 1 msec,
+	 * using asynchronous running will make the game (main) thread slower than running it synchronously.
+	 */
+	Asynchronous
+};
+
+UENUM()
+enum class ENeuralNetworkDelegateThreadMode : uint8
+{
+	GameThread, /* Recommended and default value. The UNeuralNetwork delegate will be called from the game thread. */
+	/**
+	 * Not recommended, use at your own risk.
+	 * The UNeuralNetwork delegate could be called from any thread.
+	 * Running UClass functions from background threads is not safe (e.g., it might crash if the editor is closed while accessing UNeuralNetwork information).
+	 * Thus "AnyThread" is only safe if you have guarantees that the program will not be terminated while calling UNeuralNetwork functions.
+	 */
+	AnyThread
+};
+
+
+/**
+ * Although conceptually this could apply to both the CPU and GPU versions, in practice only the GPU performance is affected by this setting.
+ * Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor fed into a ReLU, which simply modifies
+ * the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory from CPU to GPU but rather simply allocates it.
+ * Output might also become Intermediate(Not)Initialized (e.g., if Output -> ReLU -> Output), so it is kept as ReadWrite rather than written once to account for this.
+ */
+UENUM()
+enum class ENeuralTensorTypeGPU : uint8
+{
+	Generic,					/** Generic tensor that works in every situation (ReadWrite), although it might not be the most efficient one. */
+	Input,						/** Input tensor of the UNeuralNetworkLegacy. Copied from CPU and ReadWrite (but usually ReadOnly). */
+	IntermediateNotInitialized,	/** Intermediate tensor of the UNeuralNetworkLegacy (output of at least a layer and input of at least some other layer). Not copied from CPU, ReadWrite, and transient. */
+	IntermediateInitialized,	/** Intermediate tensor that is initialized with CPU data (e.g., XWithZeros in FConvTranpose). Copied from CPU. */
+	Output,						/** Output tensor of the UNeuralNetworkLegacy. Not copied from CPU and ReadWrite. */
+	Weight						/** Weights of a particular operator/layer. Copied from CPU, ReadOnly, and initialized from CPU memory. */
 };
 
 

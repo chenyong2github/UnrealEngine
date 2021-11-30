@@ -14,26 +14,6 @@ template<typename T> class TRefCountPtr;
 enum class EBufferUsageFlags : uint32;
 struct FTensorProto;
 
-
-/**
- * Although conceptually this could apply to both the CPU and GPU versions, in practice only the GPU performance is affected by this setting.
- * Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor fed into a ReLU, which simply modifies
- * the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory from CPU to GPU but rather simply allocates it.
- * Output might also become Intermediate(Not)Initialized (e.g., if Output -> ReLU -> Output), so it is kept as ReadWrite rather than written once to account for this.
- */
-UENUM()
-enum class ENeuralTensorTypeGPU : uint8
-{
-	Generic,					/** Generic tensor that works in every situation (ReadWrite), although it might not be the most efficient one. */
-	Input,						/** Input tensor of the UNeuralNetworkLegacy. Copied from CPU and ReadWrite (but usually ReadOnly). */
-	IntermediateNotInitialized,	/** Intermediate tensor of the UNeuralNetworkLegacy (output of at least a layer and input of at least some other layer). Not copied from CPU, ReadWrite, and transient. */
-	IntermediateInitialized,	/** Intermediate tensor that is initialized with CPU data (e.g., XWithZeros in FConvTranpose). Copied from CPU. */
-	Output,						/** Output tensor of the UNeuralNetworkLegacy. Not copied from CPU and ReadWrite. */
-	Weight						/** Weights of a particular operator/layer. Copied from CPU, ReadOnly, and initialized from CPU memory. */
-};
-
-
-
 /**
  * This is an auxiliary class. See UNeuralNetworkLegacy for a high-level wrapper of the whole NeuralNetworkInference plugin. The UNeuralNetworkLegacy header
  * documentation also includes some code examples.
