@@ -571,6 +571,191 @@ namespace HordeServer.Api
 	}
 
 	/// <summary>
+	/// Information about a span within an issue
+	/// </summary>
+	public class FindIssueSpanResponse
+	{
+		/// <summary>
+		/// Unique id of this span
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// The template containing this step
+		/// </summary>
+		public string TemplateId { get; set; }
+
+		/// <summary>
+		/// Name of the step
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// The previous build 
+		/// </summary>
+		public GetIssueStepResponse? LastSuccess { get; set; }
+
+		/// <summary>
+		/// The following successful build
+		/// </summary>
+		public GetIssueStepResponse? NextSuccess { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Span"></param>
+		public FindIssueSpanResponse(IIssueSpan Span)
+		{
+			this.Id = Span.Id.ToString();
+			this.TemplateId = Span.TemplateRefId.ToString();
+			this.Name = Span.NodeName;
+			if (Span.LastSuccess != null)
+			{
+				this.LastSuccess = new GetIssueStepResponse(Span.LastSuccess);
+			}
+			if (Span.NextSuccess != null)
+			{
+				this.NextSuccess = new GetIssueStepResponse(Span.NextSuccess);
+			}
+		}
+	}
+
+	/// <summary>
+	/// Stores information about a build health issue
+	/// </summary>
+	public class FindIssueResponse
+	{
+		/// <summary>
+		/// The unique object id
+		/// </summary>
+		public int Id { get; set; }
+
+		/// <summary>
+		/// Time at which the issue was created
+		/// </summary>
+		public DateTime CreatedAt { get; set; }
+
+		/// <summary>
+		/// Time at which the issue was retrieved
+		/// </summary>
+		public DateTime RetrievedAt { get; set; }
+
+		/// <summary>
+		/// The associated project for the issue
+		/// </summary>
+		public string? Project { get; set; }
+
+		/// <summary>
+		/// The summary text for this issue
+		/// </summary>
+		public string Summary { get; set; }
+
+		/// <summary>
+		/// Detailed description text
+		/// </summary>
+		public string? Description { get; set; }
+
+		/// <summary>
+		/// Severity of this issue
+		/// </summary>
+		public IssueSeverity Severity { get; set; }
+
+		/// <summary>
+		/// Severity of this issue in the stream
+		/// </summary>
+		public IssueSeverity? StreamSeverity { get; set; }
+
+		/// <summary>
+		/// Whether the issue is promoted
+		/// </summary>
+		public bool Promoted { get; set; }
+
+		/// <summary>
+		/// Owner of the issue
+		/// </summary>
+		public GetThinUserInfoResponse? Owner { get; set; }
+
+		/// <summary>
+		/// Owner of the issue
+		/// </summary>
+		public GetThinUserInfoResponse? NominatedBy { get; set; }
+
+		/// <summary>
+		/// Time that the issue was acknowledged
+		/// </summary>
+		public DateTime? AcknowledgedAt { get; set; }
+
+		/// <summary>
+		/// Changelist that fixed this issue
+		/// </summary>
+		public int? FixChange { get; set; }
+
+		/// <summary>
+		/// Time at which the issue was resolved
+		/// </summary>
+		public DateTime? ResolvedAt { get; set; }
+
+		/// <summary>
+		/// User that resolved the issue
+		/// </summary>
+		public GetThinUserInfoResponse? ResolvedBy { get; set; }
+
+		/// <summary>
+		/// Time at which the issue was verified
+		/// </summary>
+		public DateTime? VerifiedAt { get; set; }
+
+		/// <summary>
+		/// Time that the issue was last seen
+		/// </summary>
+		public DateTime LastSeenAt { get; set; }
+
+		/// <summary>
+		/// Spans for this issue
+		/// </summary>
+		public List<FindIssueSpanResponse> Spans { get; set; }
+
+		/// <summary>
+		/// Constructs a new issue
+		/// </summary>
+		/// <param name="Issue">The isseu information</param>
+		/// <param name="Owner">Owner of the issue</param>
+		/// <param name="NominatedBy">User that nominated the current fixer</param>
+		/// <param name="ResolvedBy">User that resolved the issue</param>
+		/// <param name="StreamSeverity">The current severity in the stream</param>
+		/// <param name="Spans">Spans for this issue</param>
+		public FindIssueResponse(IIssue Issue, IUser? Owner, IUser? NominatedBy, IUser? ResolvedBy, IssueSeverity? StreamSeverity, List<FindIssueSpanResponse> Spans)
+		{
+			this.Id = Issue.Id;
+			this.CreatedAt = Issue.CreatedAt;
+			this.RetrievedAt = DateTime.UtcNow;
+			this.Summary = String.IsNullOrEmpty(Issue.UserSummary) ? Issue.Summary : Issue.UserSummary;
+			this.Description = Issue.Description;
+			this.Severity = Issue.Severity;
+			this.StreamSeverity = StreamSeverity;
+			this.Promoted = Issue.Promoted;
+			if (Owner != null)
+			{
+				this.Owner = new GetThinUserInfoResponse(Owner);
+			}
+			if (NominatedBy != null)
+			{
+				this.NominatedBy = new GetThinUserInfoResponse(NominatedBy);
+			}
+			this.AcknowledgedAt = Issue.AcknowledgedAt;
+			this.FixChange = Issue.FixChange;
+			this.ResolvedAt = Issue.ResolvedAt;
+			if (ResolvedBy != null)
+			{
+				this.ResolvedBy = new GetThinUserInfoResponse(ResolvedBy);
+			}
+			this.VerifiedAt = Issue.VerifiedAt;
+			this.LastSeenAt = Issue.LastSeenAt;
+			this.Spans = Spans;
+		}
+	}
+
+	/// <summary>
 	/// Request an issue to be updated
 	/// </summary>
 	public class UpdateIssueRequest

@@ -61,6 +61,115 @@ namespace HordeServer.Controllers
 		/// </summary>
 		/// <param name="Ids">Set of issue ids to find</param>
 		/// <param name="StreamId">The stream to query for</param>
+		/// <param name="MinChange">The minimum changelist range to query, inclusive</param>
+		/// <param name="MaxChange">The minimum changelist range to query, inclusive</param>
+		/// <param name="Resolved">Whether to include resolved issues</param>
+		/// <param name="Index">Starting offset of the window of results to return</param>
+		/// <param name="Count">Number of results to return</param>
+		/// <param name="Filter">Filter for the properties to return</param>
+		/// <returns>List of matching agents</returns>
+		[HttpGet]
+		[Route("/api/v2/issues")]
+		[ProducesResponseType(typeof(List<GetIssueResponse>), 200)]
+		public async Task<ActionResult<object>> FindIssuesV2Async([FromQuery(Name = "Id")] int[]? Ids = null, [FromQuery] StreamId? StreamId = null, [FromQuery] int? MinChange = null, [FromQuery] int? MaxChange = null, [FromQuery] bool? Resolved = null, [FromQuery] int Index = 0, [FromQuery] int Count = 10, [FromQuery] PropertyFilter? Filter = null)
+		{
+			if (Ids != null && Ids.Length == 0)
+			{
+				Ids = null;
+			}
+
+			List<object> Responses = new List<object>();
+			if (StreamId != null)
+			{
+				if (!await StreamService.AuthorizeAsync(StreamId.Value, AclAction.ViewStream, User, new StreamPermissionsCache()))
+				{
+					return Forbid();
+				}
+
+				List<IIssueSpan> Spans = await IssueCollection.FindSpansAsync(null, Ids, StreamId.Value, MinChange, MaxChange, Resolved);
+				if(Spans.Count > 0)
+				{
+					// Group all the spans by their issue id
+					Dictionary<int, List<IIssueSpan>> IssueIdToSpans = new Dictionary<int, List<IIssueSpan>>();
+					foreach (IIssueSpan Span in Spans)
+					{
+						List<IIssueSpan>? SpansForIssue;
+						if (!IssueIdToSpans.TryGetValue(Span.IssueId, out SpansForIssue))
+						{
+							SpansForIssue = new List<IIssueSpan>();
+							IssueIdToSpans.Add(Span.IssueId, SpansForIssue);
+						}
+						SpansForIssue.Add(Span);
+					}
+
+					// Find the matching issues
+					List<IIssue> Issues = await IssueCollection.FindIssuesAsync(IssueIdToSpans.Keys, Index: Index, Count: Count);
+
+					// Create the corresponding responses
+					foreach (IIssue Issue in Issues.OrderByDescending(x => x.Id))
+					{
+						IssueSeverity StreamSeverity = IssueSeverity.Unspecified;
+
+						List<FindIssueSpanResponse> SpanResponses = new List<FindIssueSpanResponse>();
+						if (IssueIdToSpans.TryGetValue(Issue.Id, out List<IIssueSpan>? SpansForIssue))
+						{
+							// Filter issues on resolved state
+							if (Resolved != null && (Resolved.Value != SpansForIssue.All(x => x.NextSuccess != null)))
+							{
+								continue;
+							}
+
+							// Find the current severity in the stream
+							DateTime LastStepTime = DateTime.MinValue;
+							foreach (IIssueSpan Span in SpansForIssue)
+							{
+								if (Span.LastFailure != null && Span.LastFailure.StepTime > LastStepTime)
+								{
+									LastStepTime = Span.LastFailure.StepTime;
+									StreamSeverity = Span.LastFailure.Severity;
+								}
+							}
+
+							SpanResponses.AddRange(SpansForIssue.Select(x => new FindIssueSpanResponse(x)));
+						}
+					
+						IUser? Owner = null;
+						IUser? NominatedBy = null;
+						IUser? ResolvedBy = null;
+
+						if (Issue.OwnerId != null)
+						{
+							Owner = await UserCollection.GetCachedUserAsync(Issue.OwnerId.Value);
+						}
+						
+						if (Issue.NominatedById != null)
+						{
+							NominatedBy = await UserCollection.GetCachedUserAsync(Issue.NominatedById.Value);
+						}
+						
+						if (Issue.ResolvedById != null)
+						{
+							ResolvedBy = await UserCollection.GetCachedUserAsync(Issue.ResolvedById.Value);
+						}						
+
+						FindIssueResponse Response = new FindIssueResponse(Issue, Owner, NominatedBy, ResolvedBy, StreamSeverity, SpanResponses);
+						Responses.Add(PropertyFilter.Apply(Response, Filter));
+					}
+				}
+			}
+			else
+			{
+				return BadRequest("Missing StreamId on request");
+			}
+
+			return Responses;
+		}
+
+		/// <summary>
+		/// Retrieve information about a specific issue
+		/// </summary>
+		/// <param name="Ids">Set of issue ids to find</param>
+		/// <param name="StreamId">The stream to query for</param>
 		/// <param name="Change">The changelist to query</param>
 		/// <param name="MinChange">The minimum changelist range to query, inclusive</param>
 		/// <param name="MaxChange">The minimum changelist range to query, inclusive</param>

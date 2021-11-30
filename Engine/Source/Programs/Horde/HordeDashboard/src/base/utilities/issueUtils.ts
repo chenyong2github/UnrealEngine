@@ -13,15 +13,15 @@ export type IssueJira = {
 // eslint-disable-next-line
 const urlRegex = /([\w+]+\:\/\/)?([\w\d-]+\.)*[\w-]+[\.\:]\w+([\/\?\=\&\#\.]?[\w-]+)*\/?/gm
 
-export function getIssueJiras(issue: GetIssueResponse): IssueJira[] {
+export function getIssueJiras(description?: string): IssueJira[] {
 
-	if (!issue.description) {
+	if (!description) {
 		return [];
 	}
 
 	const jiras: IssueJira[] = [];
 
-	const matches = Array.from(issue.description.matchAll(urlRegex));
+	const matches = Array.from(description.matchAll(urlRegex));
 
 	matches.forEach(m => {
 		m.forEach(match => {

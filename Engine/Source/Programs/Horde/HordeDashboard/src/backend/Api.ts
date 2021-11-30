@@ -251,6 +251,19 @@ export type LogLineData = {
 	lines?: LogLine[];
 };
 
+export type JobStreamQuery = {
+	filter?: string;
+	template?: string[];
+	preflightStartedByUserId?: string,
+	includePreflight?: boolean,
+	maxCreateTime?: string;
+	modifiedAfter?: string;
+	index?: number;
+	count?: number;
+	consistentRead?: boolean;
+
+};
+
 export type JobQuery = {
 	filter?: string;
 	streamId?: string;
@@ -271,6 +284,7 @@ export type JobQuery = {
 	count?: number;
 };
 
+
 export type IssueQuery = {
 	jobId?: string;
 	batchId?: string;
@@ -286,6 +300,18 @@ export type IssueQuery = {
 	resolved?: boolean;
 	promoted?: boolean;
 }
+
+export type IssueQueryV2 = {
+	id?: string[]; 
+	streamId?: string;
+	minChange?: number;
+	maxChange?: number;
+	resolved?: boolean;
+	index?: number;
+	count?: number;
+	filter?: string;
+}
+
 
 export type UsersQuery = {
 	ids?: string[];
@@ -3413,7 +3439,7 @@ export type NamespaceConfig = {
 	buckets: BucketConfig[];
 
 	/// Access control for this namespace
-	//UpdateAclRequest? Acl { get; set; }
+	//UpdateAclRequest? Acl;
 }
 
 /// Configuration for a bucket
@@ -3444,7 +3470,7 @@ export type GlobalConfig = {
 	storage?: StorageConfig;
 
 	/// Access control list
-	// public UpdateAclRequest ? Acl { get; set; }
+	// public UpdateAclRequest ? Acl;
 }
 
 
@@ -3495,7 +3521,7 @@ export type ProjectConfig = {
 	streams: StreamConfigRef[];
 
 	/// Acl entries
-	// public UpdateAclRequest? Acl { get; set; }
+	// public UpdateAclRequest? Acl;
 }
 
 
@@ -3645,17 +3671,17 @@ export type StreamConfig = {
 	/// <summary>
 	/// Custom permissions for this object
 	/// </summary>
-	// public UpdateAclRequest ? Acl { get; set; }
+	// public UpdateAclRequest ? Acl;
 
 	/// <summary>
 	/// Pause stream builds until specified date
 	/// </summary>
-	/// public DateTime ? PausedUntil { get; set; }
+	/// public DateTime ? PausedUntil;
 
 	/// <summary>
 	/// Reason for pausing builds of the stream
 	/// </summary>
-	// public string ? PauseComment { get; set; }
+	// public string ? PauseComment;
 }
 
 /// Parameters to update server settings
@@ -3693,3 +3719,79 @@ export type GetServerInfoResponse = {
 	singleInstance: boolean;
 }
 
+/// Information about a span within an issue
+export type FindIssueSpanResponse = {
+
+	/// Unique id of this span
+	id: string;
+
+	/// The template containing this step
+	templateId: string;
+
+	/// Name of the step
+	name: string;
+
+	/// The previous build 
+	lastSuccess?: GetIssueStepResponse;
+
+	/// The following successful build
+	nextSuccess?: GetIssueStepResponse;
+
+}
+
+/// Stores information about a build health issue
+export type FindIssueResponse = {
+	/// The unique object id
+	id: number;
+
+	/// Time at which the issue was created
+	createdAt: Date | string;
+
+	/// Time at which the issue was retrieved
+	RetrievedAt: Date | string;
+
+	/// The associated project for the issue
+	project?: string;
+
+	/// The summary text for this issue
+	summary: string;
+
+	/// Detailed description text
+	description?: string;
+
+	/// Severity of this issue
+	severity: IssueSeverity;
+
+	/// Current severity in the queried stream
+	streamSeverity?: IssueSeverity;
+
+	/// Whether the issue is promoted
+	promoted: boolean;
+
+	/// Owner of the issue
+	owner?: GetThinUserInfoResponse;
+
+	/// Owner of the issue
+	mominatedBy?: GetThinUserInfoResponse;
+
+	/// Time that the issue was acknowledged
+	acknowledgedAt?: Date | string;
+
+	/// Changelist that fixed this issue
+	fixChange?: number;
+
+	/// Time at which the issue was resolved
+	resolvedAt?: Date | string;
+
+	/// User that resolved the issue
+	resolvedBy?: GetThinUserInfoResponse;
+
+	/// Time at which the issue was verified
+	verifiedAt?: Date | string;
+
+	/// Time that the issue was last seen
+	lastSeenAt: Date | string;
+
+	/// Spans for this issue
+	spans: FindIssueSpanResponse[];
+}

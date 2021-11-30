@@ -3,7 +3,7 @@
 import { configure } from "mobx";
 import { isNumber } from 'util';
 import templateCache from '../backend/TemplateCache';
-import { AgentData, ArtifactData, AuditLogEntry, AuditLogQuery, BatchUpdatePoolRequest, ChangeSummaryData, CreateDeviceRequest, CreateDeviceResponse, CreateJobRequest, CreateJobResponse, CreatePoolRequest, CreateSoftwareResponse, CreateSubscriptionRequest, CreateSubscriptionResponse, DashboardPreference, EventData, GetArtifactZipRequest, GetDevicePlatformResponse, GetDevicePoolResponse, GetDeviceReservationResponse, GetDeviceResponse, GetGraphResponse, GetIssueStreamResponse, GetJobsTabResponse, GetJobStepRefResponse, GetJobStepTraceResponse, GetJobTimingResponse, GetLogEventResponse, GetNotificationResponse, GetPerforceServerStatusResponse, GetServerInfoResponse, GetServerSettingsResponse, GetSoftwareResponse, GetSubscriptionResponse, GetUserResponse, GetUtilizationTelemetryResponse, GlobalConfig, IssueData, IssueQuery, JobData, JobQuery, JobsTabColumnType, LeaseData, LogData, LogLineData, PoolData, ProjectData, ScheduleData, ScheduleQuery, SearchLogFileResponse, ServerUpdateResponse, SessionData, StreamData, TabType, TemplateData, TestData, UpdateAgentRequest, UpdateDeviceRequest, UpdateGlobalConfigRequest, UpdateIssueRequest, UpdateJobRequest, UpdateLeaseRequest, UpdateNotificationsRequest, UpdatePoolRequest, UpdateServerSettingsRequest, UpdateStepRequest, UpdateStepResponse, UpdateUserRequest, UsersQuery } from './Api';
+import { AgentData, ArtifactData, AuditLogEntry, AuditLogQuery, BatchUpdatePoolRequest, ChangeSummaryData, CreateDeviceRequest, CreateDeviceResponse, CreateJobRequest, CreateJobResponse, CreatePoolRequest, CreateSoftwareResponse, CreateSubscriptionRequest, CreateSubscriptionResponse, DashboardPreference, EventData, FindIssueResponse, GetArtifactZipRequest, GetDevicePlatformResponse, GetDevicePoolResponse, GetDeviceReservationResponse, GetDeviceResponse, GetGraphResponse, GetIssueStreamResponse, GetJobsTabResponse, GetJobStepRefResponse, GetJobStepTraceResponse, GetJobTimingResponse, GetLogEventResponse, GetNotificationResponse, GetPerforceServerStatusResponse, GetServerInfoResponse, GetServerSettingsResponse, GetSoftwareResponse, GetSubscriptionResponse, GetUserResponse, GetUtilizationTelemetryResponse, GlobalConfig, IssueData, IssueQuery, IssueQueryV2, JobData, JobQuery, JobsTabColumnType, JobStreamQuery, LeaseData, LogData, LogLineData, PoolData, ProjectData, ScheduleData, ScheduleQuery, SearchLogFileResponse, ServerUpdateResponse, SessionData, StreamData, TabType, TemplateData, TestData, UpdateAgentRequest, UpdateDeviceRequest, UpdateGlobalConfigRequest, UpdateIssueRequest, UpdateJobRequest, UpdateLeaseRequest, UpdateNotificationsRequest, UpdatePoolRequest, UpdateServerSettingsRequest, UpdateStepRequest, UpdateStepResponse, UpdateUserRequest, UsersQuery } from './Api';
 import dashboard from './Dashboard';
 import { ChallengeStatus, Fetch } from './Fetch';
 import graphCache, { GraphQuery } from './GraphCache';
@@ -324,6 +324,55 @@ export class Backend {
         });
 
     }
+
+    getStreamJobs(streamId: string, query: JobStreamQuery, queryGraph: boolean = false): Promise<JobData[]> {
+
+        if (typeof query.index === 'number') {
+            query.index = 0;
+        }
+
+        if (typeof query.count !== 'number') {
+            query.count = 100;
+        }
+
+        return new Promise<JobData[]>((resolve, reject) => {
+
+            this.backend.get(`/api/v1/jobs/streams/${streamId}`, {
+                params: query
+            }).then((value) => {
+                const jobs = value.data as JobData[];
+
+                if (!queryGraph) {
+                    resolve(jobs);
+                    return;
+                }
+
+                const query: GraphQuery[] = [];
+                jobs.forEach(j => {
+                    if (!j.graphHash) {
+                        console.error(`Job ${j.id} has no graph hash`);
+                        return;
+                    }
+
+                    if (!query.find(q => q.graphHash === j.graphHash)) {
+                        query.push({ graphHash: j.graphHash!, jobId: j.id });
+                    }
+                });
+
+                graphCache.getGraphs(query).then(graphs => {
+                    jobs.forEach(j => {
+                        j.graphRef = graphs.find(g => g.hash === j.graphHash);
+                    });
+                    resolve(jobs);
+                }).catch(reason => reject(reason));
+
+            }).catch((reason) => {
+                reject(reason);
+            });
+        });
+
+    }
+
 
     getJobs(query: JobQuery, queryGraph: boolean = false): Promise<JobData[]> {
 
@@ -866,6 +915,23 @@ export class Backend {
         });
     }
 
+
+    getIssuesV2(queryIn?: IssueQueryV2): Promise<FindIssueResponse[]> {
+        
+        const query = queryIn ?? {};
+
+        return new Promise<FindIssueResponse[]>((resolve, reject) => {
+
+            this.backend.get("/api/v2/issues", {
+                params: query
+            }).then((value) => {
+                resolve(value.data as FindIssueResponse[]);
+            }).catch((reason) => {
+                reject(reason);
+            });
+        });
+
+    }
 
     getIssues(queryIn?: IssueQuery): Promise<IssueData[]> {
 

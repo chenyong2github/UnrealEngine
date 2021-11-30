@@ -512,6 +512,20 @@ namespace HordeServer.Collections
 		/// <returns>List of open issues</returns>
 		Task<List<IIssueSpan>> FindOpenSpansAsync(StreamId StreamId, TemplateRefId TemplateId, string Name, int Change);
 
+		/// <summary>
+		/// Searches for open issues
+		/// </summary>
+		/// <param name="Ids">Set of issue ids to find</param>
+		/// <param name="IssueIds">The issue ids to retrieve spans for</param>
+		/// <param name="StreamId">The stream affected by the issue</param>
+		/// <param name="MinChange">Minimum changelist affected by the issue</param>
+		/// <param name="MaxChange">Maximum changelist affected by the issue</param>
+		/// <param name="Resolved">Include issues that are now resolved</param>
+		/// <param name="Index">Index within the results to return</param>
+		/// <param name="Count">Number of results</param>
+		/// <returns>List of streams open in the given stream at the given changelist</returns>
+		Task<List<IIssueSpan>> FindSpansAsync(IEnumerable<ObjectId>? Ids = null, IEnumerable<int>? IssueIds = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null);
+
 		#endregion
 
 		#region Steps

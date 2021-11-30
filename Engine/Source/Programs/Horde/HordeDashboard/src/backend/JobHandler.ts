@@ -3,14 +3,14 @@
 import { action, observable } from 'mobx';
 import moment from 'moment-timezone';
 import backend from '../backend';
-import { JobData, JobQuery, JobState, JobStepOutcome, StreamData } from '../backend/Api';
+import { JobData, JobState, JobStepOutcome, JobStreamQuery, StreamData } from '../backend/Api';
 import graphCache, { GraphQuery } from '../backend/GraphCache';
 
 
 export type FilterStatus = "Running" | "Complete" | "Succeeded" | "Failed" | "Waiting";
 
 const jobPageSize = 50;
-const jobsRefreshTime = 3000;
+const jobsRefreshTime = 10000;
 
 export class JobHandler {
 
@@ -85,10 +85,9 @@ export class JobHandler {
             }
 
             // needs modified time
-            const query: JobQuery = {
+            const query: JobStreamQuery = {
                 filter: filter,
                 count: this.count,
-                streamId: this.stream?.id,
                 template: this.templateNames,
                 includePreflight: this.includePreflights,
                 preflightStartedByUserId: this.preflightStartedByUserId
@@ -119,21 +118,13 @@ export class JobHandler {
 
                 query.modifiedAfter = this.modifiedAfter;
 
-            }
-
-            // Set a min time as a TEMPORARY hint which greatly speeds up *all* job query requests
-            // @todo https://jira.it.epicgames.com/browse/UE-135429
-
-            if (!query.minCreateTime) {
-                query.minCreateTime = new Date('2010-1-1').toISOString();
-            }
-            
+            }            
 
             const cancelId = this.cancelId++;
 
             const queryTime = moment.utc().toISOString();
 
-            const mjobs = await backend.getJobs(query, false);
+            const mjobs = await backend.getStreamJobs(this.stream!.id, query, false);
 
             // check for canceled after modified test
             if (this.canceled.has(cancelId)) {

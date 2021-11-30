@@ -1143,6 +1143,48 @@ namespace HordeServer.Collections.Impl
 			return Spans.ConvertAll<IIssueSpan>(x => x);
 		}
 
+		/// <inheritdoc/>
+		public Task<List<IIssueSpan>> FindSpansAsync(IEnumerable<ObjectId>? SpanIds, IEnumerable<int>? IssueIds, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, int? Index, int? Count)
+		{
+			FilterDefinition<IssueSpan> Filter = FilterDefinition<IssueSpan>.Empty;
+
+			if(SpanIds != null)
+			{
+				Filter &= Builders<IssueSpan>.Filter.In(x => x.Id, SpanIds);
+			}
+
+			if (StreamId != null)
+			{
+				Filter &= Builders<IssueSpan>.Filter.Eq(x => x.StreamId, StreamId);
+			}
+
+			if (IssueIds != null)
+			{
+				Filter &= Builders<IssueSpan>.Filter.In(x => x.IssueId, IssueIds.Select<int, int?>(x => x));
+			}
+			if (MinChange != null)
+			{
+				Filter &= Builders<IssueSpan>.Filter.Not(Builders<IssueSpan>.Filter.Lt(x => x.MaxChange, MinChange.Value));
+			}
+			if (MaxChange != null)
+			{
+				Filter &= Builders<IssueSpan>.Filter.Not(Builders<IssueSpan>.Filter.Gt(x => x.MinChange, MaxChange.Value));
+			}
+			if (Resolved != null)
+			{
+				if (Resolved.Value)
+				{
+					Filter &= Builders<IssueSpan>.Filter.Ne(x => x.ResolvedAt, null);
+				}
+				else
+				{
+					Filter &= Builders<IssueSpan>.Filter.Eq(x => x.ResolvedAt, null);
+				}
+			}
+
+			return IssueSpans.Find(Filter).Range(Index, Count).ToListAsync<IssueSpan, IIssueSpan>();
+		}
+
 		#endregion
 
 		#region Steps
