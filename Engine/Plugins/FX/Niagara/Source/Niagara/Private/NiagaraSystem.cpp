@@ -3651,8 +3651,11 @@ void UNiagaraSystem::FixupPositionUserParameters()
 	TSet<FNiagaraVariable> LinkedPositionInputs;
 	ForEachScript([&UserParameters, &LinkedPositionInputs](UNiagaraScript* Script)
 	{
-		Script->ConditionalPostLoad();
-		Script->GetLatestSource()->GetLinkedPositionTypeInputs(UserParameters, LinkedPositionInputs);
+		if (Script)
+		{
+			Script->ConditionalPostLoad();
+			Script->GetLatestSource()->GetLinkedPositionTypeInputs(UserParameters, LinkedPositionInputs);
+		}
 	});
 
 	// looks like we have a few FVector3f user parameters that are linked to position inputs in the stack.
