@@ -60,6 +60,7 @@ class IExporter
 	virtual void UpdateDirectLinkScene() = 0;
 	virtual bool ToggleAutoSync() = 0;
 	virtual bool IsAutoSyncEnabled() = 0;
+	virtual void SetAutoSyncDelay(float Seconds) = 0;
 };
 
 
