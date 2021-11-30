@@ -33,14 +33,10 @@ void FDMXInputPortConfigCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 {
 	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
 
-	const bool bDisplayResetToDefault = false;
-	const FText DisplayNameOverride = FText::GetEmpty();
-	const FText DisplayToolTipOverride = FText::GetEmpty();
-
 	HeaderRow
 	.NameContent()
 	[
-		StructPropertyHandle->CreatePropertyNameWidget(DisplayNameOverride, DisplayToolTipOverride, bDisplayResetToDefault)
+		StructPropertyHandle->CreatePropertyNameWidget()
 	];
 }
 

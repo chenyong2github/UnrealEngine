@@ -445,8 +445,6 @@ public:
 	{
 		if (bGenerateHeader)
 		{
-			const bool bDisplayResetToDefaultInNameContent = false;
-
 			TSharedPtr<SHorizontalBox> ContentHorizontalBox;
 			SAssignNew(ContentHorizontalBox, SHorizontalBox);
 			if (bDisplayElementNum)
@@ -465,7 +463,7 @@ public:
 			.FilterString(!DisplayName.IsEmpty() ? DisplayName : BaseProperty->GetPropertyDisplayName())
 			.NameContent()
 			[
-				BaseProperty->CreatePropertyNameWidget(DisplayName, FText::GetEmpty(), bDisplayResetToDefaultInNameContent)
+				BaseProperty->CreatePropertyNameWidget(DisplayName, FText::GetEmpty())
 			]
 			.ValueContent()
 			[

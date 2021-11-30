@@ -2120,16 +2120,21 @@ FString FPropertyHandleBase::GeneratePathToProperty() const
 
 }
 
-TSharedRef<SWidget> FPropertyHandleBase::CreatePropertyNameWidget( const FText& NameOverride, const FText& ToolTipOverride, bool bDisplayResetToDefault, bool bDisplayText, bool bDisplayThumbnail ) const
+TSharedRef<SWidget> FPropertyHandleBase::CreatePropertyNameWidget(const FText& NameOverride, const FText& ToolTipOverride, bool bDisplayResetToDefault, bool bDisplayText, bool bDisplayThumbnail) const
+{
+	return CreatePropertyNameWidget(NameOverride, ToolTipOverride);
+}
+
+TSharedRef<SWidget> FPropertyHandleBase::CreatePropertyNameWidget(const FText& NameOverride, const FText& ToolTipOverride) const
 {
 	if( Implementation.IsValid() && Implementation->GetPropertyNode().IsValid() )
 	{
 		struct FPropertyNodeDisplayNameOverrideHelper
 		{
 			FPropertyNodeDisplayNameOverrideHelper(TSharedPtr<FPropertyValueImpl> InImplementation, const FText& InNameOverride, const FText& InToolTipOverride)
-				:Implementation(InImplementation)
-				,bResetDisplayName(false)
-				,bResetToolTipText(false)
+				: Implementation(InImplementation)
+				, bResetDisplayName(false)
+				, bResetToolTipText(false)
 			{
 				if (!InNameOverride.IsEmpty())
 				{
@@ -3535,7 +3540,7 @@ FPropertyAccess::Result FPropertyHandleDouble::SetValue( const double& NewValue,
 	// Clamp the value from any meta data ranges stored on the property value
 	double FinalValue = ClampValueFromMetaData<double>( NewValue, *Implementation->GetPropertyNode() );
 
-	const FString ValueStr = FString::Printf( TEXT("%f"), FinalValue );
+	const FString ValueStr = FString::Printf( TEXT("%.12f"), FinalValue );
 	Res = Implementation->ImportText( ValueStr, Flags );
 
 	return Res;

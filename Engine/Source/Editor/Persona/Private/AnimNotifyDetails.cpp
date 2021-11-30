@@ -249,7 +249,7 @@ void FAnimNotifyDetails::ClearInstancedSelectionDropDown(IDetailCategoryBuilder&
 	.CustomWidget(bShowChildren)
 	.NameContent()
 	[
-		PropHandle->CreatePropertyNameWidget(FText::GetEmpty(), FText::GetEmpty(), false)
+		PropHandle->CreatePropertyNameWidget()
 	]
 	.ValueContent()
 	[

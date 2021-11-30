@@ -551,8 +551,15 @@ public:
 	 * @param bDisplayThumbnail			Whether or not to display the thumbnail for the property (if any)
 	 * @return the name widget for this property
 	 */
-	virtual TSharedRef<SWidget> CreatePropertyNameWidget( const FText& NameOverride = FText::GetEmpty(), const FText& ToolTipOverride = FText::GetEmpty(), bool bDisplayResetToDefault = false, bool bDisplayText = true, bool bDisplayThumbnail = true ) const = 0;
+	UE_DEPRECATED(5.0, "CreatePropertyNameWidget no longer supports bDisplayResetToDefault, bDisplayText or bDisplayThumbnail.")
+	virtual TSharedRef<SWidget> CreatePropertyNameWidget( const FText& NameOverride, const FText& ToolTipOverride, bool bDisplayResetToDefault, bool bDisplayText = true, bool bDisplayThumbnail = true ) const = 0;
 
+	/**
+	 * Creates a name widget for this property
+	 * @param NameOverride				The name override to use instead of the property name
+	 * @param ToolTipOverride			The tooltip override to use instead of the property name
+	 */
+	virtual TSharedRef<SWidget> CreatePropertyNameWidget(const FText& NameOverride = FText::GetEmpty(), const FText& ToolTipOverride = FText::GetEmpty()) const = 0;
 	/**
 	 * Creates a value widget for this property
 

@@ -20,7 +20,6 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h" 
 
-
 #define LOCTEXT_NAMESPACE "DMXPortConfigCustomizationBase"
 
 FDMXPortReferenceCustomizationBase::FDMXPortReferenceCustomizationBase()
@@ -28,14 +27,10 @@ FDMXPortReferenceCustomizationBase::FDMXPortReferenceCustomizationBase()
 
 void FDMXPortReferenceCustomizationBase::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	const bool bDisplayResetToDefault = false;
-	const FText DisplayNameOverride = FText::GetEmpty();
-	const FText DisplayToolTipOverride = FText::GetEmpty();
-
 	HeaderRow
 	.NameContent()
 	[
-		StructPropertyHandle->CreatePropertyNameWidget(DisplayNameOverride, DisplayToolTipOverride, bDisplayResetToDefault)
+		StructPropertyHandle->CreatePropertyNameWidget()
 	];
 }
 

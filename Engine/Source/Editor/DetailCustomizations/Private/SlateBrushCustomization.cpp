@@ -1402,7 +1402,7 @@ void FSlateBrushStructCustomization::CustomizeChildren( TSharedRef<IPropertyHand
 				.HeaderRow()
 				.NameContent()
 				[
-					StructPropertyHandle->CreatePropertyNameWidget(NSLOCTEXT("UnrealEd", "Preview", "Preview"), FText::GetEmpty(), false)
+					StructPropertyHandle->CreatePropertyNameWidget(NSLOCTEXT("UnrealEd", "Preview", "Preview"))
 				]
 			.ValueContent()
 				.MinDesiredWidth(1)

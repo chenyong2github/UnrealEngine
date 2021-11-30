@@ -244,7 +244,7 @@ void FDataRegistryIdCustomization::CustomizeHeader(TSharedRef<class IPropertyHan
 	HeaderRow
 	.NameContent()
 	[
-		InStructPropertyHandle->CreatePropertyNameWidget(FText::GetEmpty(), FText::GetEmpty(), false)
+		InStructPropertyHandle->CreatePropertyNameWidget()
 	];
 
 	FDataTableEditorUtils::AddSearchForReferencesContextMenu(HeaderRow, FExecuteAction::CreateSP(this, &FDataRegistryIdCustomization::OnSearchForReferences));

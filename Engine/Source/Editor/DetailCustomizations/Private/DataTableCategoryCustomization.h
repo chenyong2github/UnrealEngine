@@ -33,7 +33,7 @@ public:
 		HeaderRow
 			.NameContent()
 			[
-				InStructPropertyHandle->CreatePropertyNameWidget(FText::GetEmpty(), FText::GetEmpty(), false)
+				InStructPropertyHandle->CreatePropertyNameWidget()
 			];
 	}
 
