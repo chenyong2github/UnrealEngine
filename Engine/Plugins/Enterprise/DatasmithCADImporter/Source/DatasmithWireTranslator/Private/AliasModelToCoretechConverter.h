@@ -16,6 +16,9 @@ class AlTrimCurve;
 class AlTrimRegion;
 class AlCurve;
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
 typedef double AlMatrix4x4[4][4];
 
 class FAliasModelToCoretechConverter : public FCADModelToCoretechConverterBase, public IAliasBRepConverter
@@ -46,3 +49,4 @@ protected:
 	TMap<void*, uint64>  AlEdge2CTEdge;
 };
 
+}

@@ -17,6 +17,9 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
 using namespace OpenModelUtils;
 
 const TCHAR* OpenModelUtils::AlObjectTypeToString(AlObjectType type)
@@ -1831,6 +1834,8 @@ TSharedPtr<AlDagNode> OpenModelUtils::TesselateDagLeaf(const AlDagNode& DagLeaf,
 	{
 		return TSharedPtr<AlDagNode>();
 	}
+}
+
 }
 
 #endif

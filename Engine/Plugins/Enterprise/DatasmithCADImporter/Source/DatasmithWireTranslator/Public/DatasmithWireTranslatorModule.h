@@ -6,17 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-#if defined(OPEN_MODEL_2020)
-#define DATASMITHWIRETRANSLATOR_MODULE_NAME TEXT("DatasmithWireTranslator2020")
-#elif defined(OPEN_MODEL_2021_3)
-#define DATASMITHWIRETRANSLATOR_MODULE_NAME TEXT("DatasmithWireTranslator2021_3")
-#elif defined(OPEN_MODEL_2022)
-#define DATASMITHWIRETRANSLATOR_MODULE_NAME TEXT("DatasmithWireTranslator2022")
-#elif defined(OPEN_MODEL_2022_1)
-#define DATASMITHWIRETRANSLATOR_MODULE_NAME TEXT("DatasmithWireTranslator2022_1")
-#elif defined(OPEN_MODEL_2022_2)
-#define DATASMITHWIRETRANSLATOR_MODULE_NAME TEXT("DatasmithWireTranslator2022_2")
-#endif
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
 
 /**
  * Datasmith Translator for .wire files.
@@ -27,12 +18,12 @@ public:
 
     static FDatasmithWireTranslatorModule& Get()
     {
-        return FModuleManager::LoadModuleChecked< FDatasmithWireTranslatorModule >(DATASMITHWIRETRANSLATOR_MODULE_NAME);
+        return FModuleManager::LoadModuleChecked< FDatasmithWireTranslatorModule >(PREPROCESSOR_TO_STRING(UE_DATASMITHWIRETRANSLATOR_MODULE_NAME));
 	}
 
     static bool IsAvailable()
     {
-        return FModuleManager::Get().IsModuleLoaded(DATASMITHWIRETRANSLATOR_MODULE_NAME);
+        return FModuleManager::Get().IsModuleLoaded(PREPROCESSOR_TO_STRING(UE_DATASMITHWIRETRANSLATOR_MODULE_NAME));
     }
 
 	virtual void StartupModule() override;
@@ -44,3 +35,5 @@ public:
 private:
 	FString TempDir;
 };
+
+}

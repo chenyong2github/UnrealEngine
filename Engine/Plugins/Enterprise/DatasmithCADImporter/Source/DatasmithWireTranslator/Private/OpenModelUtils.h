@@ -22,6 +22,8 @@ struct FMeshDescription;
 
 typedef double AlMatrix4x4[4][4];
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
 
 enum class ETesselatorType : uint8
 {
@@ -76,6 +78,7 @@ namespace OpenModelUtils
 	TSharedPtr<AlDagNode> TesselateDagLeaf(const AlDagNode& DagLeaf, ETesselatorType TessType, double Tolerance);
 }
 
+}
 
 #endif
 

@@ -63,6 +63,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
 #define WRONG_VERSION_TEXT "Unsupported version of Alias detected. Please upgrade to Alias 2021.3 (or later version)."
 #define CAD_INTERFACE_UNAVAILABLE "CAD Interface module is unavailable. Meshing will be done by Alias."
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
 #ifdef USE_OPENMODEL
 
 const uint64 LibAliasNext_Version = 17881307937833405;
@@ -2215,6 +2218,8 @@ void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDa
 	}
 #endif
 }
+
+} // namespace
 
 #undef LOCTEXT_NAMESPACE // "DatasmithWireTranslator"
 

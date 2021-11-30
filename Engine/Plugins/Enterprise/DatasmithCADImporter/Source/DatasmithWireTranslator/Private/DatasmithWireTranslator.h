@@ -7,8 +7,11 @@
 #include "ParametricSurfaceTranslator.h"
 #include "UObject/ObjectMacros.h"
 
-class FWireTranslatorImpl;
 
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
+
+class FWireTranslatorImpl;
 
 class FDatasmithWireTranslator : public FParametricSurfaceTranslator
 {
@@ -41,3 +44,5 @@ protected:
 private:
 	TSharedPtr<FWireTranslatorImpl> Translator;
 };
+
+}

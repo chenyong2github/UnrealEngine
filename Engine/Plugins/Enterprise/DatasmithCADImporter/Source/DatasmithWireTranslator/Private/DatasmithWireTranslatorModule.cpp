@@ -9,7 +9,12 @@
 
 #include "DatasmithWireTranslator.h"
 
-IMPLEMENT_MODULE(FDatasmithWireTranslatorModule, DatasmithWireTranslator);
+// need this macro wrapper to expand the UE_DATASMITHWIRETRANSLATOR_MODULE_NAME macro and not create symbols with "UE_DATASMITHWIRETRANSLATOR_MODULE_NAME" in the token
+#define IMPLEMENT_MODULE_WRAPPER(ModuleName) IMPLEMENT_MODULE(UE_DATASMITHWIRETRANSLATOR_NAMESPACE::FDatasmithWireTranslatorModule, ModuleName);
+IMPLEMENT_MODULE_WRAPPER(UE_DATASMITHWIRETRANSLATOR_MODULE_NAME)
+
+namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
+{
 
 void FDatasmithWireTranslatorModule::StartupModule()
 {
@@ -28,4 +33,6 @@ void FDatasmithWireTranslatorModule::ShutdownModule()
 FString FDatasmithWireTranslatorModule::GetTempDir() const
 {
 	return TempDir;
+}
+
 }
