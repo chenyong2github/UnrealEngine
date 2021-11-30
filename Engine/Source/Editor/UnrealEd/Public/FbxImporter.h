@@ -1101,7 +1101,7 @@ public:
 	/**
 	 * Import FbxCurve to Curve
 	 */
-	static bool ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const float ValueScale = 1.f, const bool bAutoSetTangents = true);
+	static bool ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const bool bNegative = false, const float ValueScale = 1.f, const bool bAutoSetTangents = true);
 
 	/**
 	 * Merge all layers of one AnimStack to one layer.
