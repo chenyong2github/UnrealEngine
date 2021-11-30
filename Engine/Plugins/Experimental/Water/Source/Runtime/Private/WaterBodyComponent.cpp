@@ -1016,6 +1016,10 @@ void UWaterBodyComponent::ApplyNavigationSettings()
 		for (UActorComponent* ActorComp : Components)
 		{
 			UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ActorComp);
+			if (PrimComp == this)
+			{
+				continue;
+			}
 			if (!PrimComp || LocalCollisionComponents.Find(PrimComp) == INDEX_NONE)
 			{
 				ActorComp->SetCanEverAffectNavigation(false);
