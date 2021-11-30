@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_MACH_H
 #define _SYMS_META_MACH_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:686
+//~ generated from code at src/metaprogram/metaprogram_syms.c:774
 typedef SYMS_S32 SYMS_MachCpuType;
 enum{
 SYMS_MachCpuType_ANY = 0xFFFFFFFF,
@@ -58,6 +58,7 @@ SYMS_MachCpuFamily_ARM_CYCLONE = 0x37A09642,
 SYMS_MachCpuFamily_ARM_TYPHOON = 0x2C91A47E,
 SYMS_MachCpuFamily_ARM_TWISTER = 0x92FB37C8,
 SYMS_MachCpuFamily_ARM_HURRICANE = 0x67CEEE93,
+//  deprecated
 SYMS_MachCpuFamily_INTEL_6_23 = SYMS_MachCpuFamily_INTEL_PENRYN,
 SYMS_MachCpuFamily_INTEL_6_26 = SYMS_MachCpuFamily_INTEL_NEHALEM,
 SYMS_MachCpuFamily_COUNT = 28
@@ -142,27 +143,40 @@ SYMS_MachCpuSubtypeARM64_COUNT = 2
 };
 typedef SYMS_U32 SYMS_MachFiletype;
 enum{
-SYMS_MachFiletype_OBJECT = 0x1,//  object file
-SYMS_MachFiletype_EXECUTE = 0x2,//  executable file
-SYMS_MachFiletype_FVMLIB = 0x3,//  fixed vm shared library file
+SYMS_MachFiletype_OBJECT = 0x1,
+//  object file
+SYMS_MachFiletype_EXECUTE = 0x2,
+//  executable file
+SYMS_MachFiletype_FVMLIB = 0x3,
+//  fixed vm shared library file
 SYMS_MachFiletype_CORE = 0x4,
-SYMS_MachFiletype_PRELOAD = 0x5,//  preloaded executable
-SYMS_MachFiletype_DYLIB = 0x6,//  dynamic library
-SYMS_MachFiletype_DYLINKER = 0x7,//  dynamic link editor
-SYMS_MachFiletype_BUNDLE = 0x8,//  executable file that program can load at runtime through dynamic linker
-SYMS_MachFiletype_DYLIB_STUB = 0x9,//  stub for linking with dynamic lib, contains info for linking only, no section data
-SYMS_MachFiletype_DSYM = 0xA,//  External debug symbols
+SYMS_MachFiletype_PRELOAD = 0x5,
+//  preloaded executable
+SYMS_MachFiletype_DYLIB = 0x6,
+//  dynamic library
+SYMS_MachFiletype_DYLINKER = 0x7,
+//  dynamic link editor
+SYMS_MachFiletype_BUNDLE = 0x8,
+//  executable file that program can load at runtime through dynamic linker
+SYMS_MachFiletype_DYLIB_STUB = 0x9,
+//  stub for linking with dynamic lib, contains info for linking only, no section data
+SYMS_MachFiletype_DSYM = 0xA,
+//  External debug symbols
 SYMS_MachFiletype_KEXT_BUNDLE = 0xB,
 SYMS_MachFiletype_COUNT = 11
 };
 typedef SYMS_U32 SYMS_MachFlags;
 enum{
 SYMS_MachFlags_NOUNDEFS = 0x1,
-SYMS_MachFlags_INCRLINK = 0x2,//  object was processed by linker and cannot be linked again
-SYMS_MachFlags_DYLDLINK = 0x4,//  object is input for dynamic linker and cannot be statically linked
-SYMS_MachFlags_BINDATLOAD = 0x8,//  undefined references are resolved at load
+SYMS_MachFlags_INCRLINK = 0x2,
+//  object was processed by linker and cannot be linked again
+SYMS_MachFlags_DYLDLINK = 0x4,
+//  object is input for dynamic linker and cannot be statically linked
+SYMS_MachFlags_BINDATLOAD = 0x8,
+//  undefined references are resolved at load
 SYMS_MachFlags_PREBOUND = 0x10,
-SYMS_MachFlags_SPLIT_SEGS = 0x20,//  read-only and write-only segment is split
+SYMS_MachFlags_SPLIT_SEGS = 0x20,
+//  read-only and write-only segment is split
 SYMS_MachFlags_LAZY_INIT = 0x40,
 SYMS_MachFlags_TWOLEVEL = 0x80,
 SYMS_MachFlags_FORCE_FLAT = 0x100,
@@ -188,12 +202,14 @@ typedef SYMS_S32 SYMS_MachLoadCommandType;
 enum{
 SYMS_MachLoadCommandType_SEGMENT = 0x1,
 SYMS_MachLoadCommandType_SYMTAB = 0x2,
-SYMS_MachLoadCommandType_SYMSEG = 0x3,//  gdb symbol table (obsolete)
+SYMS_MachLoadCommandType_SYMSEG = 0x3,
+//  gdb symbol table (obsolete)
 SYMS_MachLoadCommandType_THREAD = 0x4,
 SYMS_MachLoadCommandType_UNIXTHREAD = 0x5,
 SYMS_MachLoadCommandType_LOADFVMLIB = 0x6,
 SYMS_MachLoadCommandType_IDFVMLIB = 0x7,
-SYMS_MachLoadCommandType_IDENT = 0x8,//  object identification info (obsolete)
+SYMS_MachLoadCommandType_IDENT = 0x8,
+//  object identification info (obsolete)
 SYMS_MachLoadCommandType_FVMFILE = 0x9,
 SYMS_MachLoadCommandType_PREPAGE = 0xA,
 SYMS_MachLoadCommandType_DYSYMTAB = 0xB,
@@ -244,8 +260,10 @@ enum{
 SYMS_MachSectionType_REGULAR = 0x0,
 SYMS_MachSectionType_ZEROFILL = 0x1,
 SYMS_MachSectionType_CSTRING_LITERAL = 0x2,
-SYMS_MachSectionType_FOUR_BYTE_LITERALS = 0x3,//  TODO: number prefix
-SYMS_MachSectionType_EIGHT_BYTE_LITERALS = 0x4,//  TODO: number prefix
+SYMS_MachSectionType_FOUR_BYTE_LITERALS = 0x3,
+//  TODO: number prefix
+SYMS_MachSectionType_EIGHT_BYTE_LITERALS = 0x4,
+//  TODO: number prefix
 SYMS_MachSectionType_LITERAL_POINTERS = 0x5,
 SYMS_MachSectionType_NON_LAZY_SYMBOL_POINTERS = 0x6,
 SYMS_MachSectionType_LAZY_SYMBOL_POINTERS = 0x7,
@@ -255,7 +273,8 @@ SYMS_MachSectionType_MOD_TERM_FUNC_POINTERS = 0xA,
 SYMS_MachSectionType_COALESCED = 0xB,
 SYMS_MachSectionType_GB_ZERO_FILL = 0xC,
 SYMS_MachSectionType_INTERPOSING = 0xD,
-SYMS_MachSectionType_SIXTEENBYTE_LITERALS = 0xE,//  TODO: number prefix 
+SYMS_MachSectionType_SIXTEENBYTE_LITERALS = 0xE,
+//  TODO: number prefix 
 SYMS_MachSectionType_DTRACE_DOF = 0xF,
 SYMS_MachSectionType_LAZY_DLIB_SYMBOL_POINTERS = 0x10,
 SYMS_MachSectionType_THREAD_LOCAL_REGULAR = 0x11,
@@ -265,21 +284,21 @@ SYMS_MachSectionType_THREAD_LOCAL_VARIABLES_POINTERS = 0x14,
 SYMS_MachSectionType_LOCAL_INIT_FUNCTION_POINTERS = 0x15,
 SYMS_MachSectionType_COUNT = 22
 };
-typedef SYMS_S32 SYMS_MAchSectionAttr;
+typedef SYMS_S32 SYMS_MachSectionAttr;
 enum{
-SYMS_MAchSectionAttr_USR = 0xff000000,
-SYMS_MAchSectionAttr_SYSTEM = 0x00ffff00,
-SYMS_MAchSectionAttr_PURE_INSTRUCTIONS = 0x80000000,
-SYMS_MAchSectionAttr_NO_TOC = 0x40000000,
-SYMS_MAchSectionAttr_STRIP_STATIC_SYMS = 0x20000000,
-SYMS_MAchSectionAttr_NO_DEAD_STRIP = 0x10000000,
-SYMS_MAchSectionAttr_LIVE_SUPPORT = 0x08000000,
-SYMS_MAchSectionAttr_SELF_MODIFYING_CODE = 0x04000000,
-SYMS_MAchSectionAttr_DEBUG = 0x02000000,
-SYMS_MAchSectionAttr_SOME_INSTRUCTIONS = 0x00000400,
-SYMS_MAchSectionAttr_SECTION_RELOC = 0x00000200,
-SYMS_MAchSectionAttr_LOC_RELOC = 0x00000100,
-SYMS_MAchSectionAttr_COUNT = 12
+SYMS_MachSectionAttr_USR = 0xff000000,
+SYMS_MachSectionAttr_SYSTEM = 0x00ffff00,
+SYMS_MachSectionAttr_PURE_INSTRUCTIONS = 0x80000000,
+SYMS_MachSectionAttr_NO_TOC = 0x40000000,
+SYMS_MachSectionAttr_STRIP_STATIC_SYMS = 0x20000000,
+SYMS_MachSectionAttr_NO_DEAD_STRIP = 0x10000000,
+SYMS_MachSectionAttr_LIVE_SUPPORT = 0x08000000,
+SYMS_MachSectionAttr_SELF_MODIFYING_CODE = 0x04000000,
+SYMS_MachSectionAttr_DEBUG = 0x02000000,
+SYMS_MachSectionAttr_SOME_INSTRUCTIONS = 0x00000400,
+SYMS_MachSectionAttr_SECTION_RELOC = 0x00000200,
+SYMS_MachSectionAttr_LOC_RELOC = 0x00000100,
+SYMS_MachSectionAttr_COUNT = 12
 };
 typedef SYMS_U32 SYMS_MachPlatformType;
 enum{
@@ -295,6 +314,44 @@ SYMS_MachToolType_CLANG = 0x1,
 SYMS_MachToolType_SWITFT = 0x2,
 SYMS_MachToolType_LD = 0x3,
 SYMS_MachToolType_COUNT = 3
+};
+typedef SYMS_U8 SYMS_MachBindType;
+enum{
+SYMS_MachBindType_POINTER = 0x1,
+SYMS_MachBindType_TEXT_ABSOLUTE32 = 0x2,
+SYMS_MachBindType_PCREL32 = 0x3,
+SYMS_MachBindType_COUNT = 3
+};
+typedef SYMS_U8 SYMS_MachBindOpcode;
+enum{
+SYMS_MachBindOpcode_DONE = 0x00,
+SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_IMM = 0x10,
+SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_ULEB = 0x20,
+SYMS_MachBindOpcode_SET_DYLIB_SPECIAL_IMM = 0x30,
+SYMS_MachBindOpcode_SET_SYMBOL_TRAILING_FLAGS_IMM = 0x40,
+SYMS_MachBindOpcode_SET_TYPE_IMM = 0x50,
+SYMS_MachBindOpcode_SET_ADDEND_SLEB = 0x60,
+SYMS_MachBindOpcode_SET_SEGMENT_AND_OFFSET_ULEB = 0x70,
+SYMS_MachBindOpcode_ADD_ADDR_ULEB = 0x80,
+SYMS_MachBindOpcode_DO_BIND = 0x90,
+SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_ULEB = 0xA0,
+SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_IMM_SCALED = 0xB0,
+SYMS_MachBindOpcode_DO_BIND_ULEB_TIMES_SKIPPING_ULEB = 0xC0,
+SYMS_MachBindOpcode_MASK = 0xF0,
+SYMS_MachBindOpcode_IMM_MASK = 0xF,
+SYMS_MachBindOpcode_COUNT = 15
+};
+typedef SYMS_U32 SYMS_MachBindSymbolFlags;
+enum{
+SYMS_MachBindSymbolFlags_WEAK_IMPORT = (1 << 0),
+SYMS_MachBindSymbolFlags_NON_WEAK_DEFINITION = (1 << 3),
+};
+typedef SYMS_S8 SYMS_MachBindSpecialDylib;
+enum{
+SYMS_MachBindSpecialDylib_SELF = 0,
+SYMS_MachBindSpecialDylib_MAIN_EXECUTABLE = 0xff,
+SYMS_MachBindSpecialDylib_FLAT_LOOKUP = 0xfe,
+SYMS_MachBindSpecialDylib_COUNT = 3
 };
 typedef SYMS_U32 SYMS_MachNListType;
 enum{
@@ -339,7 +396,212 @@ SYMS_MachStabType_ECOML = 0xE8,
 SYMS_MachStabType_LENG = 0xFE,
 SYMS_MachStabType_COUNT = 30
 };
+typedef SYMS_U64 SYMS_MachExportSymbolKind;
+enum{
+SYMS_MachExportSymbolKind_REGULAR = 0,
+SYMS_MachExportSymbolKind_THREAD_LOCAL = 1,
+SYMS_MachExportSymbolKind_ABSOLUTE = 2,
+SYMS_MachExportSymbolKind_COUNT = 3
+};
+typedef SYMS_U64 SYMS_MachExportSymbolFlags;
+enum{
+SYMS_MachExportSymbolFlags_KIND_MASK = (1 << 2),
+SYMS_MachExportSymbolFlags_WEAK_DEFINITION = (1 << 2),
+SYMS_MachExportSymbolFlags_REEXPORT = (1 << 3),
+SYMS_MachExportSymbolFlags_STUB_AND_RESOLVED = (1 << 4),
+};
+#pragma pack(push,1)
+typedef struct SYMS_MachLCStr{
+SYMS_U32 offset;
+} SYMS_MachLCStr;
+typedef struct SYMS_MachUUID{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U8 uuid[16];
+} SYMS_MachUUID;
+typedef struct SYMS_MachDylib{
+SYMS_MachLCStr name;
+SYMS_U32 timestamp;
+SYMS_U32 current_version;
+SYMS_U32 compatability_version;
+} SYMS_MachDylib;
+typedef struct SYMS_MachDylibCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachDylib dylib;
+} SYMS_MachDylibCommand;
+typedef struct SYMS_MachDyldInfoCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 rebase_off;
+SYMS_U32 rebase_size;
+SYMS_U32 bind_off;
+SYMS_U32 bind_size;
+SYMS_U32 weak_bind_off;
+SYMS_U32 weak_bind_size;
+SYMS_U32 lazy_bind_off;
+SYMS_U32 lazy_bind_size;
+SYMS_U32 export_off;
+SYMS_U32 export_size;
+} SYMS_MachDyldInfoCommand;
+typedef struct SYMS_MachLoadCommand{
+SYMS_MachLoadCommandType type;
+SYMS_U32 size;
+} SYMS_MachLoadCommand;
+typedef struct SYMS_MachFatHeader{
+SYMS_U32 magic;
+SYMS_U32 nfat_arch;
+} SYMS_MachFatHeader;
+typedef struct SYMS_MachFatArch{
+SYMS_MachCpuType cputype;
+SYMS_MachCpuSubtype cpusubtype;
+SYMS_U32 offset;
+SYMS_U32 size;
+SYMS_U32 align;
+} SYMS_MachFatArch;
+typedef struct SYMS_MachHeader32{
+SYMS_U32 magic;
+SYMS_MachCpuType cputype;
+SYMS_MachCpuSubtype cpusubtype;
+SYMS_MachFiletype filetype;
+SYMS_U32 ncmds;
+SYMS_U32 sizeofcmds;
+SYMS_MachFlags flags;
+} SYMS_MachHeader32;
+typedef struct SYMS_MachHeader64{
+SYMS_U32 magic;
+SYMS_MachCpuType cputype;
+SYMS_MachCpuSubtype cpusubtype;
+SYMS_MachFiletype filetype;
+SYMS_U32 ncmds;
+SYMS_U32 sizeofcmds;
+SYMS_MachFlags flags;
+SYMS_U32 reserved;
+} SYMS_MachHeader64;
+typedef struct SYMS_MachSegmentCommand32{
+SYMS_MachLoadCommand cmd;
+SYMS_U8 segname[16];
+SYMS_U32 vmaddr;
+SYMS_U32 vmsize;
+SYMS_U32 fileoff;
+SYMS_U32 filesize;
+SYMS_MachVMProt maxprot;
+SYMS_MachVMProt initprot;
+SYMS_U32 nsects;
+SYMS_U32 flags;
+} SYMS_MachSegmentCommand32;
+typedef struct SYMS_MachSegmentCommand64{
+SYMS_MachLoadCommand cmd;
+SYMS_U8 segname[16];
+SYMS_U64 vmaddr;
+SYMS_U64 vmsize;
+SYMS_U64 fileoff;
+SYMS_U64 filesize;
+SYMS_MachVMProt maxprot;
+SYMS_MachVMProt initprot;
+SYMS_U32 nsects;
+SYMS_U32 flags;
+} SYMS_MachSegmentCommand64;
+typedef struct SYMS_MachSection32{
+SYMS_U8 sectname[16];
+SYMS_U8 segname[16];
+SYMS_U32 addr;
+SYMS_U32 size;
+SYMS_U32 offset;
+SYMS_U32 align;
+SYMS_U32 relocoff;
+SYMS_U32 nreloc;
+SYMS_U32 flags;
+SYMS_U32 reserved1;
+SYMS_U32 reserved2;
+} SYMS_MachSection32;
+typedef struct SYMS_MachSection64{
+SYMS_U8 sectname[16];
+SYMS_U8 segname[16];
+SYMS_U64 addr;
+SYMS_U64 size;
+SYMS_U32 offset;
+SYMS_U32 align;
+SYMS_U32 relocoff;
+SYMS_U32 nreloc;
+SYMS_U32 flags;
+SYMS_U32 reserved1;
+SYMS_U32 reserved2;
+} SYMS_MachSection64;
+typedef struct SYMS_MachSymtabCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 symoff;
+//  offset from the image base to array of SYMS_MachNList32
+SYMS_U32 nsyms;
+//  symbol count
+SYMS_U32 stroff;
+//  offset from the image base to string table
+SYMS_U32 strsize;
+} SYMS_MachSymtabCommand;
+typedef struct SYMS_MachDySymtabCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 ilocalsym;
+SYMS_U32 nlocalsym;
+SYMS_U32 iextdefsym;
+SYMS_U32 nextdefsym;
+SYMS_U32 iundefsym;
+SYMS_U32 nundefsym;
+SYMS_U32 tocoff;
+SYMS_U32 ntoc;
+SYMS_U32 modtaboff;
+SYMS_U32 nmodtab;
+SYMS_U32 extrefsymoff;
+SYMS_U32 nextrefsyms;
+SYMS_U32 indirectsymoff;
+SYMS_U32 nindirectsyms;
+SYMS_U32 extreloff;
+SYMS_U32 nextrel;
+SYMS_U32 locreloff;
+SYMS_U32 nlocrel;
+} SYMS_MachDySymtabCommand;
+typedef struct SYMS_MachNList32{
+SYMS_U32 n_strx;
+SYMS_U8 n_type;
+SYMS_U8 n_sect;
+SYMS_U16 n_desc;
+SYMS_U32 n_value;
+} SYMS_MachNList32;
+typedef struct SYMS_MachNList64{
+SYMS_U32 n_strx;
+SYMS_U8 n_type;
+SYMS_U8 n_sect;
+SYMS_U16 n_desc;
+SYMS_U64 n_value;
+} SYMS_MachNList64;
+#pragma pack(pop)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
+SYMS_C_LINKAGE_BEGIN
+SYMS_API SYMS_Arch syms_mach_arch_from_cputype(SYMS_MachCpuType v);
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+SYMS_C_LINKAGE_BEGIN
+SYMS_API void syms_mach_lcstr_endian_swap_in_place(SYMS_MachLCStr *v);
+SYMS_API void syms_mach_uuid_endian_swap_in_place(SYMS_MachUUID *v);
+SYMS_API void syms_mach_dylib_endian_swap_in_place(SYMS_MachDylib *v);
+SYMS_API void syms_mach_dylib_command_endian_swap_in_place(SYMS_MachDylibCommand *v);
+SYMS_API void syms_mach_dyld_info_command_endian_swap_in_place(SYMS_MachDyldInfoCommand *v);
+SYMS_API void syms_mach_load_command_endian_swap_in_place(SYMS_MachLoadCommand *v);
+SYMS_API void syms_mach_fat_header_endian_swap_in_place(SYMS_MachFatHeader *v);
+SYMS_API void syms_mach_fat_arch_endian_swap_in_place(SYMS_MachFatArch *v);
+SYMS_API void syms_mach_header32_endian_swap_in_place(SYMS_MachHeader32 *v);
+SYMS_API void syms_mach_header64_endian_swap_in_place(SYMS_MachHeader64 *v);
+SYMS_API void syms_mach_segment_command32_endian_swap_in_place(SYMS_MachSegmentCommand32 *v);
+SYMS_API void syms_mach_segment_command64_endian_swap_in_place(SYMS_MachSegmentCommand64 *v);
+SYMS_API void syms_mach_section32_endian_swap_in_place(SYMS_MachSection32 *v);
+SYMS_API void syms_mach_section64_endian_swap_in_place(SYMS_MachSection64 *v);
+SYMS_API void syms_mach_symtab_command_endian_swap_in_place(SYMS_MachSymtabCommand *v);
+SYMS_API void syms_mach_dy_symtab_command_endian_swap_in_place(SYMS_MachDySymtabCommand *v);
+SYMS_API void syms_mach_nlist32_endian_swap_in_place(SYMS_MachNList32 *v);
+SYMS_API void syms_mach_nlist64_endian_swap_in_place(SYMS_MachNList64 *v);
+SYMS_C_LINKAGE_END
 
 #endif
-
-

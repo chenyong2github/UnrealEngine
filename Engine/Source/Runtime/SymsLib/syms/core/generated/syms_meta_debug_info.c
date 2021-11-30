@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DEBUG_INFO_C
 #define _SYMS_META_DEBUG_INFO_C
-//~ generated from code at src/metaprogram/metaprogram_syms.c:951
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1039
 SYMS_API SYMS_U32
 syms_bit_size_from_type_kind(SYMS_TypeKind v){
 SYMS_U32 result = 0;
@@ -39,6 +39,5 @@ case SYMS_TypeKind_Bool: result = 8; break;
 return(result);
 }
 
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1489
 #endif
-
-

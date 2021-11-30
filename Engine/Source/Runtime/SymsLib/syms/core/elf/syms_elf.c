@@ -3,7 +3,12 @@
 #define SYMS_ELF_C
 
 ////////////////////////////////
-// NOTE(allen): ELF Format Functions
+//~ NOTE(nick): Generated
+
+#include "syms/core/generated/syms_meta_elf.c"
+
+////////////////////////////////
+//~ rjf: 32 => 64 bit conversions
 
 SYMS_API SYMS_ElfEhdr64
 syms_elf_ehdr64_from_ehdr32(SYMS_ElfEhdr32 h32){
@@ -57,6 +62,53 @@ syms_elf_phdr64_from_phdr32(SYMS_ElfPhdr32 h32){
   h64.p_align  = (SYMS_U64)h32.p_align;
   return(h64);
 }
+
+SYMS_API SYMS_ElfDyn64
+syms_elf_dyn64_from_dyn32(SYMS_ElfDyn32 h32){
+  SYMS_ElfDyn64 h64;
+  h64.tag = (SYMS_U64)h32.tag;
+  h64.val = (SYMS_U64)h32.val;
+  return h64;
+}
+
+SYMS_API SYMS_ElfSym64
+syms_elf_sym64_from_sym32(SYMS_ElfSym32 sym32)
+{
+  SYMS_ElfSym64 sym64;
+  sym64.st_name  = sym32.st_name;
+  sym64.st_value = sym32.st_value;
+  sym64.st_size  = sym32.st_size;
+  sym64.st_info  = sym32.st_info;
+  sym64.st_other = sym32.st_other;
+  sym64.st_shndx = sym32.st_shndx;
+  return sym64;
+}
+
+SYMS_API SYMS_ElfRel64
+syms_elf_rel64_from_rel32(SYMS_ElfRel32 rel32)
+{
+  SYMS_U32 sym = SYMS_ELF32_R_SYM(rel32.r_info);
+  SYMS_U32 type = SYMS_ELF32_R_TYPE(rel32.r_info);
+  SYMS_ElfRel64 rel64;
+  rel64.r_info = SYMS_ELF64_R_INFO(sym, type);
+  rel64.r_offset = rel32.r_offset;
+  return rel64;
+}
+
+SYMS_API SYMS_ElfRela64
+syms_elf_rela64_from_rela32(SYMS_ElfRela32 rela32)
+{
+  SYMS_U32 sym = SYMS_ELF32_R_SYM(rela32.r_info);
+  SYMS_U32 type = SYMS_ELF32_R_TYPE(rela32.r_info);
+  SYMS_ElfRela64 rela64;
+  rela64.r_offset = rela32.r_info;
+  rela64.r_info = SYMS_ELF64_R_INFO(sym, type);
+  rela64.r_addend = rela32.r_addend;
+  return rela64;
+}
+
+////////////////////////////////
+//~ rjf: .gnu_debuglink section 32-bit CRC
 
 // NOTE(rjf): see: https://sourceware.org/gdb/current/onlinedocs/gdb/Separate-Debug-Files.html
 SYMS_API SYMS_U32

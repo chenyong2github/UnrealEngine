@@ -226,10 +226,16 @@ syms_spatial_map_1d_array_sort__rec(SYMS_SpatialMap1DRange *ranges, SYMS_U64 cou
     SYMS_Swap(SYMS_SpatialMap1DRange, ranges[mid], ranges[last]);
     
     // partition
+    SYMS_B32 equal_send_left = 0;
     SYMS_U64 key = ranges[last].range.min;
     SYMS_U64 j = 0;
     for (SYMS_U64 i = 0; i < last; i += 1){
-      if (ranges[i].range.min < key){
+      SYMS_B32 send_left = (ranges[i].range.min < key);
+      if (!send_left && ranges[i].range.min == key){
+        send_left = equal_send_left;
+        equal_send_left = !equal_send_left;
+      }
+      if (send_left){
         if (j != i){
           SYMS_Swap(SYMS_SpatialMap1DRange, ranges[i], ranges[j]);
         }
@@ -796,6 +802,24 @@ syms_string_array_copy(SYMS_Arena *arena, SYMS_StringCons *cons, SYMS_String8Arr
   
   SYMS_ProfEnd();
   
+  return(result);
+}
+
+SYMS_API SYMS_StrippedInfoArray
+syms_stripped_info_copy(SYMS_Arena *arena, SYMS_StrippedInfoArray *stripped){
+  SYMS_ProfBegin("syms_stripped_info_copy");
+  SYMS_StrippedInfoArray result = {0};
+  result.count = stripped->count;
+  result.info = syms_push_array(arena, SYMS_StrippedInfo, result.count);
+  
+  SYMS_StrippedInfo *src = stripped->info;
+  SYMS_StrippedInfo *dst = result.info;
+  for (SYMS_U64 i = 0; i < result.count; i += 1, src += 1, dst += 1){
+    dst->name = syms_push_string_copy(arena, src->name);
+    dst->voff = src->voff;
+  }
+  
+  SYMS_ProfEnd();
   return(result);
 }
 

@@ -70,6 +70,13 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
     SYMS_MachSectionNode *section_last = 0;
     SYMS_U32 section_count = 0;
     
+    SYMS_U64Range regular_bind_range = syms_make_u64_range(0,0);
+    SYMS_U64Range lazy_bind_range    = syms_make_u64_range(0,0);
+    SYMS_U64Range weak_bind_range    = syms_make_u64_range(0,0);
+    SYMS_U64Range export_range       = syms_make_u64_range(0,0);
+    
+    SYMS_MachDylibList dylib_list; syms_memzero_struct(&dylib_list);
+    
     SYMS_U64 next_cmd_off = after_header_off;
     for (SYMS_U32 i = 0; i < header.ncmds; i += 1){
       //- align read offset
@@ -123,6 +130,35 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
             section_count += 1;
           }
         }break;
+        
+        case SYMS_MachLoadCommandType_DYLD_INFO_ONLY: 
+        {
+          SYMS_MachDyldInfoCommand dyld;
+          syms_based_range_read_struct(base, range, cmd_off, &dyld);
+          if (is_swapped){
+            syms_mach_dyld_info_command_endian_swap_in_place(&dyld);
+          }
+          
+          regular_bind_range = syms_make_u64_inrange(range, dyld.bind_off, dyld.bind_size);
+          lazy_bind_range    = syms_make_u64_inrange(range, dyld.lazy_bind_off, dyld.lazy_bind_size);
+          weak_bind_range    = syms_make_u64_inrange(range, dyld.weak_bind_off, dyld.weak_bind_size);
+          export_range       = syms_make_u64_inrange(range, dyld.export_off, dyld.export_size);
+        }break;
+        
+        case SYMS_MachLoadCommandType_ID_DYLIB:
+        case SYMS_MachLoadCommandType_LOAD_DYLIB: 
+        {
+          SYMS_MachDylibCommand cmd; syms_memzero_struct(&cmd);
+          syms_based_range_read_struct(base, range, cmd_off, &cmd);
+          SYMS_MachDylib *dylib = &cmd.dylib;
+          if (is_swapped){
+            syms_mach_dylib_endian_swap_in_place(dylib);
+          }
+          
+          SYMS_U64 name_offset = cmd_off + dylib->name.offset;
+          SYMS_U64Range name = syms_make_u64_inrange(range, name_offset, (cmd_off + lc.size) - name_offset);
+          syms_mach_dylib_list_push(scratch.arena, &dylib_list, dylib, name);
+        }break;
       }
       
       next_cmd_off = cmd_off + lc.size;
@@ -151,13 +187,24 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
     }
     
     //- fill result
-    result = syms_push_array(arena, SYMS_MachBinAccel, 1);
-    result->format = SYMS_FileFormat_MACH;
-    result->arch = syms_mach_arch_from_cputype(header.cputype);
-    result->segment_count = segment_count;
-    result->segments = segments;
-    result->section_count = section_count;
-    result->sections = sections;
+    result                     = syms_push_array(arena, SYMS_MachBinAccel, 1);
+    result->format             = SYMS_FileFormat_MACH;
+    result->arch               = syms_mach_arch_from_cputype(header.cputype);
+    result->segment_count      = segment_count;
+    result->segments           = segments;
+    result->section_count      = section_count;
+    result->sections           = sections;
+    result->regular_bind_range = regular_bind_range;
+    result->lazy_bind_range    = lazy_bind_range;
+    result->weak_bind_range    = weak_bind_range;
+    result->export_range       = export_range;
+    { // convert dylib list to array
+      result->dylib_count = 0;
+      result->dylibs = syms_push_array(arena, SYMS_MachParsedDylib, dylib_list.count);
+      for (SYMS_MachDylibNode *n = dylib_list.first; n != 0; n = n->next){
+        result->dylibs[result->dylib_count++] = n->data;
+      }
+    }
     
     syms_release_scratch(scratch);
   }
@@ -346,10 +393,8 @@ syms_mach_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_Mac
   }
   return array;
 }
-
 SYMS_API SYMS_U64
-syms_mach_default_vbase_from_bin(SYMS_MachBinAccel *bin)
-{
+syms_mach_default_vbase_from_bin(SYMS_MachBinAccel *bin){
   // TODO(rjf): @nick verify
   SYMS_U64 min_vbase = 0;
   for(SYMS_U64 segment_idx = 0; segment_idx < bin->segment_count; segment_idx += 1)
@@ -361,6 +406,301 @@ syms_mach_default_vbase_from_bin(SYMS_MachBinAccel *bin)
     }
   }
   return min_vbase;
+}
+
+////////////////////////////////
+
+SYMS_API void
+syms_mach_dylib_list_push(SYMS_Arena *arena, SYMS_MachDylibList *list, SYMS_MachDylib *dylib, SYMS_U64Range name){
+  SYMS_MachDylibNode *node = syms_push_array(arena, SYMS_MachDylibNode, 1);
+  node->data.header = *dylib;
+  node->data.name = name;
+  node->next = 0;
+  SYMS_QueuePush(list->first, list->last, node);
+  list->count += 1;
+}
+
+////////////////////////////////
+
+SYMS_API SYMS_MachBindList
+syms_mach_binds_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range, SYMS_U32 address_size, SYMS_MachBindTable bind_type){
+  SYMS_U64 read_offset = 0;
+  SYMS_MachBindList list; syms_memzero_struct(&list);
+  SYMS_MachBind state;    syms_memzero_struct(&state);
+  for (;;){
+    SYMS_U8 encoded_byte = 0;
+    read_offset += syms_based_range_read_struct(base, range, read_offset, &encoded_byte);
+    
+    SYMS_U8 opcode = encoded_byte & SYMS_MachBindOpcode_MASK;
+    SYMS_U8 imm    = encoded_byte & SYMS_MachBindOpcode_IMM_MASK;
+    
+    switch (opcode){
+      case SYMS_MachBindOpcode_DONE: goto exit;
+      
+      case SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_IMM:
+      {
+        state.dylib = imm;
+      } break;
+      case SYMS_MachBindOpcode_SET_DYLIB_ORDINAL_ULEB:
+      {
+        read_offset += syms_based_range_read_uleb128(base, range, read_offset, &state.dylib);
+      } break;
+      case SYMS_MachBindOpcode_SET_DYLIB_SPECIAL_IMM:
+      {
+        SYMS_ASSERT_PARANOID("TODO: SET_DYLIB_SPECIAL_IMM");
+      } break;
+      case SYMS_MachBindOpcode_SET_SYMBOL_TRAILING_FLAGS_IMM:
+      {
+        state.flags = imm;
+        state.symbol_name = syms_based_range_read_string(base, range, read_offset);
+        read_offset += (state.symbol_name.size + 1);
+      } break;
+      case SYMS_MachBindOpcode_SET_TYPE_IMM:
+      {
+        state.type = imm;
+      } break;
+      case SYMS_MachBindOpcode_SET_ADDEND_SLEB:
+      {
+        read_offset += syms_based_range_read_sleb128(base, range, read_offset, &state.addend);
+      } break;
+      case SYMS_MachBindOpcode_SET_SEGMENT_AND_OFFSET_ULEB:
+      {
+        state.segment = imm;
+        read_offset += syms_based_range_read_uleb128(base, range, read_offset, &state.segment_offset);
+      } break;
+      case SYMS_MachBindOpcode_ADD_ADDR_ULEB:
+      {
+        SYMS_U64 addend = 0;
+        read_offset += syms_based_range_read_uleb128(base, range, read_offset, &addend);
+        state.segment_offset += addend;
+      } break;
+      case SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_ULEB:
+      {
+        SYMS_ASSERT_PARANOID(!"TODO: DO_BIND_ADD_ADDR_ULEB");
+      } goto do_bind;
+      case SYMS_MachBindOpcode_DO_BIND_ADD_ADDR_IMM_SCALED:
+      {
+        SYMS_ASSERT_PARANOID(!"TODO: DO_BIND_ADD_ADDR_IMM_SCALED");
+      } goto do_bind;
+      case SYMS_MachBindOpcode_DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
+      {
+        SYMS_ASSERT_PARANOID(!"TODO: DO_BIND_ULEB_TIMES_SKIPPING_ULEB");
+      } goto do_bind;
+      case SYMS_MachBindOpcode_DO_BIND:
+      {
+      } goto do_bind;
+      do_bind:
+      {
+        if (bind_type == SYMS_MachBindTable_LAZY){
+          for (;read_offset < syms_u64_range_size(range);){
+            SYMS_U8 value = 0;
+            SYMS_U64 read_size = syms_based_range_read_struct(base, range, read_offset, &value);
+            if (value != 0){
+              break;
+            }
+            read_offset += read_size;
+          }
+        }
+        SYMS_MachBindNode *node = syms_push_array(arena, SYMS_MachBindNode, 1);
+        node->data = state;
+        node->next = 0;
+        SYMS_QueuePush(list.first, list.last, node);
+        list.count += 1;
+      } break;
+    }
+  }
+  exit:;
+  
+  return list;
+}
+
+SYMS_API SYMS_ImportArray
+syms_mach_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAccel *bin){
+  SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
+
+  // read and copy library names
+  SYMS_String8 *dylib_names = syms_push_array(scratch.arena, SYMS_String8, bin->dylib_count);
+  for (SYMS_U32 i = 0; i < bin->dylib_count; ++i){
+    SYMS_String8 name = syms_based_range_read_string((void*)data.str, bin->dylibs[i].name, 0);
+    dylib_names[i] = syms_push_string_copy(arena, name);
+  }
+  
+  SYMS_U64 address_size = syms_address_size_from_arch(bin->arch);
+  SYMS_MachBindList binds[3];
+  binds[SYMS_MachBindTable_REGULAR] = syms_mach_binds_from_base_range(scratch.arena, (void*)data.str, bin->regular_bind_range, address_size, SYMS_MachBindTable_REGULAR);
+  binds[SYMS_MachBindTable_LAZY]    = syms_mach_binds_from_base_range(scratch.arena, (void*)data.str, bin->lazy_bind_range, address_size, SYMS_MachBindTable_LAZY);
+  binds[SYMS_MachBindTable_WEAK]    = syms_mach_binds_from_base_range(scratch.arena, (void*)data.str, bin->weak_bind_range, address_size, SYMS_MachBindTable_WEAK);
+  
+  SYMS_U64 total_bind_count = 0;
+  for (SYMS_U32 i = 0; i < SYMS_ARRAY_SIZE(binds); ++i){
+    total_bind_count += binds[i].count;
+  }
+
+  SYMS_ImportArray import_array; 
+  import_array.count = 0;
+  import_array.imports = syms_push_array(arena, SYMS_Import, total_bind_count);
+  for (SYMS_U32 i = 0; i < SYMS_ARRAY_SIZE(binds); ++i){
+    for (SYMS_MachBindNode *node = binds[i].first; node != 0; node = node->next){
+      SYMS_MachBind *bind = &node->data;
+      SYMS_Import *import = &import_array.imports[import_array.count++];
+      import->name = syms_push_string_copy(arena, bind->symbol_name);
+      if (bind->dylib < bin->dylib_count){
+        import->library_name = dylib_names[bind->dylib];
+      } else{
+        import->library_name = syms_str8(0,0);
+      }
+      import->ordinal = 0;
+    }
+  }
+  
+  syms_release_scratch(scratch);
+  return import_array;
+}
+
+static SYMS_MachExport *
+syms_mach_parse_export_node(SYMS_Arena *arena, void *base, SYMS_U64Range range, SYMS_String8 name, SYMS_U64 read_offset){
+  SYMS_MachExport *node = 0;
+  
+  SYMS_U64 export_size = 0;
+  SYMS_U64 read_size = syms_based_range_read_uleb128(base, range, read_offset, &export_size);
+  read_offset += read_size;
+  
+  if (read_size > 0){
+    node = syms_push_array_zero(arena, SYMS_MachExport, 1);
+    node->name = name;
+    
+    SYMS_B32 is_export_info = export_size != 0;
+    if (is_export_info){
+      SYMS_U64Range export_range = syms_make_u64_inrange(range, read_offset, export_size);
+      SYMS_U64 export_read_offset = 0;
+      export_read_offset += syms_based_range_read_uleb128(base, export_range, export_read_offset, &node->flags);
+      if (node->flags & SYMS_MachExportSymbolFlags_REEXPORT){
+        export_read_offset += syms_based_range_read_uleb128(base, export_range, export_read_offset, &node->dylib_ordinal);
+        node->import_name = syms_based_range_read_string(base, export_range, export_read_offset);
+        export_read_offset += (node->import_name.size + 1);
+      } else{
+        export_read_offset += syms_based_range_read_uleb128(base, export_range, export_read_offset, &node->address);
+        if (node->flags & SYMS_MachExportSymbolFlags_STUB_AND_RESOLVED){
+          export_read_offset += syms_based_range_read_uleb128(base, export_range, export_read_offset, &node->resolver);
+        }
+      }
+    }
+    
+    read_offset += syms_based_range_read_struct(base, range, read_offset, &node->child_count);
+    if (node->child_count > 0){
+      node->children = syms_push_array(arena, SYMS_MachExport *, node->child_count);
+      for (SYMS_U8 child_idx = 0; child_idx < node->child_count; child_idx += 1){
+        SYMS_String8 name = syms_based_range_read_string(base, range, read_offset);
+        read_offset += (name.size + 1);
+        SYMS_U64 child_offset = 0;
+        read_offset += syms_based_range_read_uleb128(base, range, read_offset, &child_offset);
+        node->children[child_idx] = syms_mach_parse_export_node(arena, base, range, name, child_offset);
+      }
+    }
+  }
+  
+  return node;
+}
+
+SYMS_API SYMS_MachExport *
+syms_build_mach_export_trie(SYMS_Arena *arena, void *base, SYMS_U64Range range){
+  // TODO(nick): rewrite function to use arena for recursion.
+  return syms_mach_parse_export_node(arena, base, range, syms_str8_lit(""), 0);
+}
+
+SYMS_API SYMS_ExportArray
+syms_mach_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAccel *bin){
+  SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
+
+  // read and copy library names
+  SYMS_String8 *dylib_names = syms_push_array(scratch.arena, SYMS_String8, bin->dylib_count);
+  for (SYMS_U32 i = 0; i < bin->dylib_count; ++i){
+    SYMS_String8 name = syms_based_range_read_string((void*)data.str, bin->dylibs[i].name, 0);
+    dylib_names[i] = syms_push_string_copy(arena, name);
+  }
+  
+  SYMS_MachExport *root_export = syms_build_mach_export_trie(scratch.arena, (void*)data.str, bin->export_range);
+  SYMS_ExportNode *first_export = 0;
+  SYMS_ExportNode *last_export = 0;
+  SYMS_U32 export_count = 0;
+  if (root_export){
+    SYMS_MachExportFrame *stack = 0;
+    SYMS_MachExportFrame *free_frames = 0;
+    
+    SYMS_MachExportFrame *frame = syms_push_array_zero(arena, SYMS_MachExportFrame, 1);
+    frame->node = root_export;
+    SYMS_StackPush(stack, frame);
+    
+    for (;;){
+      if (frame->child_idx >= frame->node->child_count){
+        if (frame->node->child_count == 0){ // leaf
+          SYMS_ArenaTemp temp = syms_arena_temp_begin(scratch.arena);
+          SYMS_String8List name_parts; syms_memzero_struct(&name_parts);
+          for (SYMS_MachExportFrame *f = frame; f != 0; f = f->next){
+            syms_string_list_push_front(temp.arena, &name_parts, f->node->name);
+          }
+          SYMS_StringJoin join; syms_memzero_struct(&join);
+          SYMS_String8 name = syms_string_list_join(arena, &name_parts, &join);
+          syms_arena_temp_end(temp);
+          
+          SYMS_ExportNode *export_node = syms_push_array(scratch.arena, SYMS_ExportNode, 1); 
+          SYMS_QueuePush(first_export, last_export, export_node);
+          export_count += 1;
+          SYMS_Export *exp = &export_node->data;
+          if (frame->node->flags & SYMS_MachExportSymbolFlags_REEXPORT){
+            // TODO(nick): need dylib with reexports to test this code path
+            if (frame->node->dylib_ordinal > 0 && frame->node->dylib_ordinal < bin->dylib_count){
+              exp->name = name;
+              exp->address = 0;
+              exp->ordinal = 0;
+              exp->forwarder_library_name = dylib_names[frame->node->dylib_ordinal-1];
+              exp->forwarder_import_name = syms_push_string_copy(arena, frame->node->import_name);
+            } else{
+              SYMS_ASSERT_PARANOID(!"invalid dylib ordinal");
+            }
+          } else{
+            exp->name = name;
+            exp->address = frame->node->address;
+            exp->ordinal = 0;
+            exp->forwarder_library_name = syms_str8(0,0);
+            exp->forwarder_import_name = syms_str8(0,0);
+          }
+        }
+        // pop current frame 
+        SYMS_MachExportFrame *to_free = frame;
+        frame = SYMS_StackPop(stack);
+        // push frame to free list for later reuse
+        to_free->next = 0;
+        SYMS_StackPush(free_frames, to_free);
+        if (frame == 0){
+          break; // we traversed entire trie, leave
+        }
+      }
+      if (frame->child_idx < frame->node->child_count){
+        // push frame with child node
+        SYMS_MachExportFrame *new_frame = free_frames;
+        if (new_frame){
+          SYMS_StackPop(free_frames);
+        } else{
+          new_frame = syms_push_array_zero(arena, SYMS_MachExportFrame, 1);
+        }
+        new_frame->next = 0;
+        new_frame->child_idx = 0;
+        new_frame->node = frame->node->children[frame->child_idx++];
+        frame = SYMS_StackPush(stack, new_frame);
+      }
+    }
+  }
+  
+  SYMS_ExportArray export_array;
+  export_array.count = 0;
+  export_array.exports = syms_push_array(arena, SYMS_Export, export_count);
+  for (SYMS_ExportNode *n = first_export; n != 0; n = n->next){
+    export_array.exports[export_array.count++] = n->data;
+  }
+  
+  syms_release_scratch(scratch);
+  return export_array;
 }
 
 #endif // SYMS_MACH_PARSER_C

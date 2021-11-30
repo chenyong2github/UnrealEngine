@@ -104,14 +104,19 @@ SYMS_API SYMS_SecInfoArray syms_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_
 // default vbase
 SYMS_API SYMS_U64          syms_default_vbase_from_bin(SYMS_BinAccel *bin);
 
+// imports & exports
+SYMS_API SYMS_ImportArray  syms_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_BinAccel *bin);
+SYMS_API SYMS_ExportArray  syms_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_BinAccel *bin);
+
 ////////////////////////////////
 //~ NOTE(nick): Bin List
 
-SYMS_API SYMS_B32           syms_file_is_bin_list(SYMS_FileAccel *file);
-SYMS_API SYMS_BinListAccel* syms_bin_list_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_FileAccel *file);
-SYMS_API SYMS_BinInfoArray  syms_bin_info_array_from_bin_list(SYMS_Arena *arena, SYMS_BinListAccel *list);
-SYMS_API SYMS_BinAccel*     syms_bin_accel_from_bin_list_number(SYMS_Arena *arena, SYMS_String8 data,
-                                                                SYMS_BinListAccel *list, SYMS_U64 n);
+SYMS_API SYMS_B32          syms_file_is_bin_list(SYMS_FileAccel *file);
+SYMS_API SYMS_BinListAccel*syms_bin_list_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_FileAccel *file);
+SYMS_API SYMS_BinInfoArray syms_bin_info_array_from_bin_list(SYMS_Arena *arena, SYMS_BinListAccel *list);
+SYMS_API SYMS_BinAccel*    syms_bin_accel_from_bin_list_number(SYMS_Arena *arena, SYMS_String8 data,
+                                                               SYMS_BinListAccel *list, SYMS_U64 n);
+
 ////////////////////////////////
 //~ NOTE(rjf): Dbg File
 
@@ -193,7 +198,8 @@ SYMS_API SYMS_SigInfo      syms_sig_info_from_mem_number(SYMS_Arena *arena, SYMS
                                                          SYMS_UnitAccel *unit, SYMS_MemsAccel *mems, SYMS_U64 n);
 
 SYMS_API SYMS_USID         syms_symbol_from_mem_number(SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit, SYMS_MemsAccel *mems, SYMS_U64 n);
-SYMS_API SYMS_USID         syms_containing_type_from_sid(SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit, SYMS_SymbolID sid);
+SYMS_API SYMS_USID         syms_containing_type_from_sid(SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                         SYMS_UnitAccel *unit, SYMS_SymbolID sid);
 // TODO(rjf): linkage name
 
 SYMS_API SYMS_EnumInfoArray syms_enum_info_array_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
@@ -210,6 +216,9 @@ SYMS_API SYMS_U64RangeArray syms_proc_vranges_from_sid(SYMS_Arena *arena, SYMS_S
 SYMS_API SYMS_SymbolIDArray syms_scope_children_from_sid(SYMS_Arena *arena, SYMS_String8 data,
                                                          SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit,
                                                          SYMS_SymbolID sid);
+
+SYMS_API SYMS_StrippedInfoArray syms_stripped_from_unit(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                        SYMS_UnitAccel *unit);
 
 // signature info
 SYMS_API SYMS_SigInfo      syms_sig_info_from_type_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,

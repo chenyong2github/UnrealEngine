@@ -172,6 +172,57 @@ syms_default_vbase_from_bin(SYMS_BinAccel *bin){
   return(result);
 }
 
+// imports & exports
+SYMS_API SYMS_ImportArray
+syms_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_BinAccel *bin){
+  SYMS_ProfBegin("syms_imports_from_bin");
+  SYMS_ImportArray result = {0};
+  switch (bin->format){
+    case SYMS_FileFormat_PE:
+    {
+      result = syms_pe_imports_from_bin(arena, data, &bin->pe_accel);
+    }break;
+    
+    case SYMS_FileFormat_ELF:
+    {
+      result = syms_elf_imports_from_bin(arena, data, &bin->elf_accel);
+    }break;
+    
+    case SYMS_FileFormat_MACH:
+    {
+      result = syms_mach_imports_from_bin(arena, data, &bin->mach_accel);
+    }break;
+  }
+  SYMS_ASSERT_PARANOID(syms_parser_api_invariants());
+  SYMS_ProfEnd();
+  return(result);
+}
+
+SYMS_API SYMS_ExportArray
+syms_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_BinAccel *bin){
+  SYMS_ProfBegin("syms_exports_from_bin");
+  SYMS_ExportArray result = {0};
+  switch (bin->format){
+    case SYMS_FileFormat_PE:
+    {
+      result = syms_pe_exports_from_bin(arena, data, &bin->pe_accel);
+    }break;
+    
+    case SYMS_FileFormat_ELF:
+    {
+      result = syms_elf_exports_from_bin(arena, data, &bin->elf_accel);
+    }break;
+    
+    case SYMS_FileFormat_MACH:
+    {
+      result = syms_mach_exports_from_bin(arena, data, &bin->mach_accel);
+    }break;
+  }
+  SYMS_ASSERT_PARANOID(syms_parser_api_invariants());
+  SYMS_ProfEnd();
+  return(result);
+}
+
 
 ////////////////////////////////
 //~ NOTE(nick): Bin List
@@ -1057,6 +1108,28 @@ syms_scope_children_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel
       case SYMS_FileFormat_DWARF:
       {
         result = syms_dw_scope_children_from_sid(arena, data, &dbg->dw_accel, &unit->dw_accel, sid);
+      }break;
+    }
+  }
+  SYMS_ASSERT_PARANOID(syms_parser_api_invariants());
+  SYMS_ProfEnd();
+  return(result);
+}
+
+SYMS_API SYMS_StrippedInfoArray
+syms_stripped_from_unit(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit){
+  SYMS_ProfBegin("syms_stripped_from_unit");
+  SYMS_StrippedInfoArray result = {0};
+  if (unit->format == dbg->format){
+    switch (unit->format){
+      case SYMS_FileFormat_PDB:
+      {
+        result = syms_pdb_stripped_from_unit(arena, data, &dbg->pdb_accel, &unit->pdb_accel);
+      }break;
+      
+      case SYMS_FileFormat_DWARF:
+      {
+        // do nothing
       }break;
     }
   }

@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_COFF_H
 #define _SYMS_META_COFF_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:686
+//~ generated from code at src/metaprogram/metaprogram_syms.c:774
 typedef SYMS_U16 SYMS_CoffFlags;
 enum{
 SYMS_CoffFlag_RELOC_STRIPPED = (1 << 0),
@@ -55,10 +55,13 @@ SYMS_CoffMachineType_COUNT = 25
 typedef struct SYMS_CoffHeader{
 SYMS_CoffMachineType machine;
 SYMS_U16 section_count;
-SYMS_U32 time_date_stamp;//  TODO: rename to "unix_timestamp"
+SYMS_U32 time_date_stamp;
+//  TODO: rename to "unix_timestamp"
 SYMS_U32 pointer_to_symbol_table;
-SYMS_U32 number_of_symbols;//  TODO: rename to "symbol_count"
-SYMS_U16 size_of_optional_header;//  TODO: rename to "optional_header_size"
+SYMS_U32 number_of_symbols;
+//  TODO: rename to "symbol_count"
+SYMS_U16 size_of_optional_header;
+//  TODO: rename to "optional_header_size"
 SYMS_CoffFlags flags;
 } SYMS_CoffHeader;
 typedef SYMS_U32 SYMS_CoffSectionAlign;
@@ -118,7 +121,8 @@ enum{
 SYMS_CoffRelocTypeX64_ABS = 0x0,
 SYMS_CoffRelocTypeX64_ADDR64 = 0x1,
 SYMS_CoffRelocTypeX64_ADDR32 = 0x2,
-SYMS_CoffRelocTypeX64_ADDR32NB = 0x3,//  NB => No Base
+SYMS_CoffRelocTypeX64_ADDR32NB = 0x3,
+//  NB => No Base
 SYMS_CoffRelocTypeX64_REL32 = 0x4,
 SYMS_CoffRelocTypeX64_REL32_1 = 0x5,
 SYMS_CoffRelocTypeX64_REL32_2 = 0x6,
@@ -128,8 +132,10 @@ SYMS_CoffRelocTypeX64_REL32_5 = 0x9,
 SYMS_CoffRelocTypeX64_SECTION = 0xA,
 SYMS_CoffRelocTypeX64_SECREL = 0xB,
 SYMS_CoffRelocTypeX64_SECREL7 = 0xC,
+//  TODO(nick): MSDN doesn't specify size for CLR token
 SYMS_CoffRelocTypeX64_TOKEN = 0xD,
 SYMS_CoffRelocTypeX64_SREL32 = 0xE,
+//  TODO(nick): MSDN doesn't specify size for PAIR
 SYMS_CoffRelocTypeX64_PAIR = 0xF,
 SYMS_CoffRelocTypeX64_SSPAN32 = 0x10,
 SYMS_CoffRelocTypeX64_COUNT = 17
@@ -253,11 +259,12 @@ SYMS_CoffSymDType_FUNCTION = 2,
 SYMS_CoffSymDType_ARRAY = 3,
 SYMS_CoffSymDType_COUNT = 4
 };
-typedef SYMS_U32 SYMS_CoffWeakExtFlags;
+typedef SYMS_U32 SYMS_CoffWeakExtType;
 enum{
-SYMS_CoffWeakExtFlags_SYMS_CoffSymbolWeakExt_SEARCH_LIBRARY = 2,
-SYMS_CoffWeakExtFlags_SYMS_CoffSymbolWeakExt_SEARCH_ALIAS = 3,
-SYMS_CoffWeakExtFlags_COUNT = 2
+SYMS_CoffWeakExtType_NOLIBRARY = 1,
+SYMS_CoffWeakExtType_SEARCH_LIBRARY = 2,
+SYMS_CoffWeakExtType_SEARCH_ALIAS = 3,
+SYMS_CoffWeakExtType_COUNT = 3
 };
 typedef SYMS_U32 SYMS_CoffImportHeaderType;
 enum{
@@ -276,12 +283,14 @@ SYMS_CoffImportHeaderNameType_COUNT = 4
 };
 #pragma pack(pop)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:934
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Arch syms_arch_from_coff_machine_type(SYMS_CoffMachineType v);
 SYMS_API SYMS_U32 syms_coff_reloc_size_for_x64(SYMS_CoffRelocTypeX64 v);
 SYMS_C_LINKAGE_END
 
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+SYMS_C_LINKAGE_BEGIN
+SYMS_C_LINKAGE_END
+
 #endif
-
-

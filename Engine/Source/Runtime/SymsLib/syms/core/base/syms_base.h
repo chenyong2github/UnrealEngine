@@ -87,7 +87,6 @@ typedef double   SYMS_F64;
 #define syms_false 0
 #define syms_true 1
 
-// TODO(allen): eliminate
 typedef SYMS_U32 SYMS_RegID;
 
 ////////////////////////////////
@@ -346,6 +345,27 @@ typedef struct SYMS_ArenaTemp{
 } SYMS_ArenaTemp;
 
 ////////////////////////////////
+//~ NOTE(allen): Memory Views
+
+typedef struct SYMS_MemoryView{
+  // NOTE(allen): Upgrade path:
+  //  1. A list of ranges like this one
+  //  2. After building the list put into a binary-searchable format
+  //  3. Equip with the ability to request missing memory in-line.
+  void *data;
+  SYMS_U64 addr_first;
+  SYMS_U64 addr_opl;
+} SYMS_MemoryView;
+
+typedef struct SYMS_UnwindResult{
+  SYMS_B32 dead;
+  SYMS_B32 missed_read;
+  SYMS_U64 missed_read_addr;
+  SYMS_U64 stack_pointer;
+} SYMS_UnwindResult;
+
+
+////////////////////////////////
 //~ NOTE(allen): Generated Serial Info
 
 #include "syms/core/generated/syms_meta_serial_base.h"
@@ -362,6 +382,7 @@ SYMS_API SYMS_String8 syms_version_string(void);
 //~ NOTE(rjf): Basic Type Functions
 
 SYMS_API SYMS_U64Range syms_make_u64_range(SYMS_U64 min, SYMS_U64 max);
+SYMS_API SYMS_U64Range syms_make_u64_inrange(SYMS_U64Range range, SYMS_U64 offset, SYMS_U64 size);
 SYMS_API SYMS_U64 syms_u64_range_size(SYMS_U64Range range);
 
 ////////////////////////////////
@@ -375,8 +396,6 @@ SYMS_API SYMS_U64 syms_hash_u64(SYMS_U64 x);
 
 ////////////////////////////////
 //~ NOTE(rjf): Serial Information Functions
-
-// TODO(allen): another pass over these ideas
 
 #define syms_serial_type(name) (_syms_serial_type_##name)
 #define syms_string_from_enum_value(enum_type, value) \
@@ -425,6 +444,8 @@ SYMS_API SYMS_String8 syms_string_list_join(SYMS_Arena *arena, SYMS_String8List 
 SYMS_API SYMS_String8 syms_push_string_copy(SYMS_Arena *arena, SYMS_String8 string);
 
 SYMS_API SYMS_String8 syms_string_trunc_symbol_heuristic(SYMS_String8 string);
+
+SYMS_API SYMS_String8List syms_string_split(SYMS_Arena *arena, SYMS_String8 input, SYMS_U32 delimiter);
 
 ////////////////////////////////
 //~ NOTE(allen): String <-> Integer
@@ -492,10 +513,23 @@ SYMS_API SYMS_String8 syms_based_range_read_string(void *base, SYMS_U64Range ran
 #define syms_based_range_read_struct(b,r,o,p) syms_based_range_read((b), (r), (o), sizeof(*(p)), p)
 
 ////////////////////////////////
+//~ NOTE(allen): Memory Views
+
+SYMS_API SYMS_MemoryView syms_memory_view_make(SYMS_String8 data, SYMS_U64 base);
+SYMS_API SYMS_B32        syms_memory_view_read(SYMS_MemoryView *memview, SYMS_U64 addr,
+                                               SYMS_U64 size, void *ptr);
+
+#define syms_memory_view_read_struct(s,a,p) syms_memory_view_read((s),(a),sizeof(*(p)),(p))
+
+SYMS_API void syms_unwind_result_missed_read(SYMS_UnwindResult *unwind_result, SYMS_U64 addr);
+
+////////////////////////////////
 //~ NOTE(nick): Bit manipulations
 
+SYMS_API SYMS_U16 syms_bswap_u16(SYMS_U16 x);
 SYMS_API SYMS_U32 syms_bswap_u32(SYMS_U32 x);
 SYMS_API SYMS_U64 syms_bswap_u64(SYMS_U64 x);
+SYMS_API void syms_bswap_bytes(void *p, SYMS_U64 size);
 
 ////////////////////////////////
 //~ NOTE(allen): Dev Features

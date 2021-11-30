@@ -6,7 +6,7 @@
 ////////////////////////////////
 #if defined(SYMS_ENABLE_BASE_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_arch - skipped identity mapping
 // syms_enum_index_from_operating_system - skipped identity mapping
@@ -15,7 +15,7 @@ SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_checksum_algorithm - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S8;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S16;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_S32;
@@ -42,27 +42,76 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ChecksumAlgorithm;
 
 
 ////////////////////////////////
-#if defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+#if defined(SYMS_ENABLE_COFF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+//~ generated from code at src/metaprogram/metaprogram_syms.c:937
+typedef enum SYMS_CoffHeaderMember{
+SYMS_CoffHeaderMember_machine,
+SYMS_CoffHeaderMember_section_count,
+SYMS_CoffHeaderMember_time_date_stamp,
+SYMS_CoffHeaderMember_pointer_to_symbol_table,
+SYMS_CoffHeaderMember_number_of_symbols,
+SYMS_CoffHeaderMember_size_of_optional_header,
+SYMS_CoffHeaderMember_flags,
+SYMS_CoffHeaderMember_COUNT
+} SYMS_CoffHeaderMember;
+typedef enum SYMS_CoffSectionMember{
+SYMS_CoffSectionMember_name,
+SYMS_CoffSectionMember_virt_size,
+SYMS_CoffSectionMember_virt_off,
+SYMS_CoffSectionMember_file_size,
+SYMS_CoffSectionMember_file_off,
+SYMS_CoffSectionMember_relocs_file_offset,
+SYMS_CoffSectionMember_line_nums_file_offset,
+SYMS_CoffSectionMember_relocs_count,
+SYMS_CoffSectionMember_line_nums_count,
+SYMS_CoffSectionMember_flags,
+SYMS_CoffSectionMember_COUNT
+} SYMS_CoffSectionMember;
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
 SYMS_C_LINKAGE_BEGIN
-// syms_enum_index_from_symbol_kind - skipped identity mapping
-// syms_enum_index_from_mem_visibility - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coffmachinetype(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_coffsectionalign(SYMS_U64 v);
+// syms_enum_index_from_coffreloctypex64 - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coffreloctypex86(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_coffreloctypearm(SYMS_U64 v);
+// syms_enum_index_from_coffreloctypearm64 - skipped identity mapping
+// syms_enum_index_from_coffsymtype - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coffsymstorageclass(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_coffsymsecnumber(SYMS_U64 v);
+// syms_enum_index_from_coffsymdtype - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_coff_weak_ext_type(SYMS_U64 v);
+// syms_enum_index_from_coff_import_header_type - skipped identity mapping
+// syms_enum_index_from_coff_import_header_name_type - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_UnitFeatures;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_SymbolKind;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_TypeModifiers;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MemVisibility;
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffMachineType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffHeader;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSectionAlign;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSectionFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSection;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX86;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymStorageClass;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymSecNumber;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymDType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffWeakExtType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderNameType;
 
-#endif // defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+#endif // defined(SYMS_ENABLE_COFF_SERIAL_INFO)
 
 
 ////////////////////////////////
 #if defined(SYMS_ENABLE_CV_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:849
+//~ generated from code at src/metaprogram/metaprogram_syms.c:937
 typedef enum SYMS_CvGuidMember{
 SYMS_CvGuidMember_data1,
 SYMS_CvGuidMember_data2,
@@ -385,7 +434,7 @@ SYMS_CvData32Member_COUNT
 typedef enum SYMS_CvPubsym32Member{
 SYMS_CvPubsym32Member_flags,
 SYMS_CvPubsym32Member_off,
-SYMS_CvPubsym32Member_seg,
+SYMS_CvPubsym32Member_sec,
 SYMS_CvPubsym32Member_name,
 SYMS_CvPubsym32Member_COUNT
 } SYMS_CvPubsym32Member;
@@ -773,7 +822,7 @@ SYMS_CvInlineeSourceLineExMember_extra_file_id,
 SYMS_CvInlineeSourceLineExMember_COUNT
 } SYMS_CvInlineeSourceLineExMember;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_cvbasicpointerkind - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_cvarch(SYMS_U64 v);
@@ -806,14 +855,14 @@ SYMS_API SYMS_U64 syms_enum_index_from_cvsubsectionkind(SYMS_U64 v);
 // syms_enum_index_from_cv_inlinee_source_line_sig - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:934
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_SerialType* syms_reg_type_from_arch(SYMS_CvArch v);
 SYMS_API SYMS_SerialType* syms_type_info_from_sym_kind(SYMS_CvSymKind v);
 SYMS_API SYMS_SerialType* syms_type_info_from_cv_leaf(SYMS_CvLeaf v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvGuid;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvBasicPointerKind;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvArch;
@@ -978,16 +1027,31 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CvInlineeSourceLineEx;
 
 
 ////////////////////////////////
+#if defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+SYMS_C_LINKAGE_BEGIN
+// syms_enum_index_from_symbol_kind - skipped identity mapping
+// syms_enum_index_from_mem_visibility - skipped identity mapping
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_UnitFeatures;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_SymbolKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_TypeModifiers;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MemVisibility;
+
+#endif // defined(SYMS_ENABLE_DEBUG_INFO_SERIAL_INFO)
+
+
+////////////////////////////////
 #if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
 SYMS_C_LINKAGE_BEGIN
 // syms_enum_index_from_dw_mode - skipped identity mapping
 // syms_enum_index_from_dw_version - skipped identity mapping
 // syms_enum_index_from_dw_section_kind - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_dwregx86(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_dwregx64(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_dwregarm(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_dwlanguage(SYMS_U64 v);
 // syms_enum_index_from_dwstdopcode - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_dwextopcode(SYMS_U64 v);
@@ -997,19 +1061,15 @@ SYMS_API SYMS_U64 syms_enum_index_from_dwformkind(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_dwattribkind(SYMS_U64 v);
 SYMS_API SYMS_U64 syms_enum_index_from_dw_attrib_type_encoding(SYMS_U64 v);
 // syms_enum_index_from_dw_calling_convention - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_dw_op_code(SYMS_U64 v);
 // syms_enum_index_from_dw_access - skipped identity mapping
 // syms_enum_index_from_dw_virtuality - skipped identity mapping
 // syms_enum_index_from_dw_rng_list_entry_kind - skipped identity mapping
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwMode;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwVersion;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwSectionKind;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX86;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX64;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegARM;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwLanguage;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwStdOpcode;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwExtOpcode;
@@ -1020,7 +1080,6 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwFormKind;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwAttribKind;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwAttribTypeEncoding;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwCallingConvention;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwOpCode;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwAccess;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwVirtuality;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRngListEntryKind;
@@ -1029,76 +1088,346 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRngListEntryKind;
 
 
 ////////////////////////////////
-#if defined(SYMS_ENABLE_COFF_SERIAL_INFO)
+#if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:849
-typedef enum SYMS_CoffHeaderMember{
-SYMS_CoffHeaderMember_machine,
-SYMS_CoffHeaderMember_section_count,
-SYMS_CoffHeaderMember_time_date_stamp,
-SYMS_CoffHeaderMember_pointer_to_symbol_table,
-SYMS_CoffHeaderMember_number_of_symbols,
-SYMS_CoffHeaderMember_size_of_optional_header,
-SYMS_CoffHeaderMember_flags,
-SYMS_CoffHeaderMember_COUNT
-} SYMS_CoffHeaderMember;
-typedef enum SYMS_CoffSectionMember{
-SYMS_CoffSectionMember_name,
-SYMS_CoffSectionMember_virt_size,
-SYMS_CoffSectionMember_virt_off,
-SYMS_CoffSectionMember_file_size,
-SYMS_CoffSectionMember_file_off,
-SYMS_CoffSectionMember_relocs_file_offset,
-SYMS_CoffSectionMember_line_nums_file_offset,
-SYMS_CoffSectionMember_relocs_count,
-SYMS_CoffSectionMember_line_nums_count,
-SYMS_CoffSectionMember_flags,
-SYMS_CoffSectionMember_COUNT
-} SYMS_CoffSectionMember;
-
-//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
 SYMS_C_LINKAGE_BEGIN
-SYMS_API SYMS_U64 syms_enum_index_from_coffmachinetype(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_coffsectionalign(SYMS_U64 v);
-// syms_enum_index_from_coffreloctypex64 - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_coffreloctypex86(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_coffreloctypearm(SYMS_U64 v);
-// syms_enum_index_from_coffreloctypearm64 - skipped identity mapping
-// syms_enum_index_from_coffsymtype - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_coffsymstorageclass(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_coffsymsecnumber(SYMS_U64 v);
-// syms_enum_index_from_coffsymdtype - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_coffweakextflags(SYMS_U64 v);
-// syms_enum_index_from_coff_import_header_type - skipped identity mapping
-// syms_enum_index_from_coff_import_header_name_type - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_dw_c_f_a_detail(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dw_c_f_a_mask(SYMS_U64 v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffFlags;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffMachineType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffHeader;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSectionAlign;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSectionFlags;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSection;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX64;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeX86;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffRelocTypeARM64;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymStorageClass;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymSecNumber;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffSymDType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffWeakExtFlags;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderNameType;
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwCFADetail;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwCFAMask;
 
-#endif // defined(SYMS_ENABLE_COFF_SERIAL_INFO)
+#endif // defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+SYMS_C_LINKAGE_BEGIN
+SYMS_API SYMS_U64 syms_enum_index_from_dwregx86(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dwregx64(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_dw_op(SYMS_U64 v);
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX86;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwRegX64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DwOp;
+
+#endif // defined(SYMS_ENABLE_DWARF_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_ELF_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+SYMS_C_LINKAGE_BEGIN
+// syms_enum_index_from_elf_class - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_elf_os_abi(SYMS_U64 v);
+// syms_enum_index_from_elf_version - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_elf_machine_kind(SYMS_U64 v);
+// syms_enum_index_from_elf_type - skipped identity mapping
+// syms_enum_index_from_elf_data - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_elf_p_kind(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_elfsectioncode(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_elf_section_index(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_elf_aux_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_elfdyntag(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_elf_sym_bind(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_elf_sym_type(SYMS_U64 v);
+// syms_enum_index_from_elf_sym_visibility - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_elf_reloc_i386(SYMS_U64 v);
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfClass;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfOsAbi;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfVersion;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfMachineKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfData;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfPKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfPFlag;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfSectionCode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfSectionIndex;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfSectionFlag;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfAuxType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfDynTag;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfDynFlag;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfDynFeatureFlag;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfSymBind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfSymType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfSymVisibility;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfRelocI386;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ElfExternalVerFlag;
+
+#endif // defined(SYMS_ENABLE_ELF_SERIAL_INFO)
+
+
+////////////////////////////////
+#if defined(SYMS_ENABLE_MACH_SERIAL_INFO)
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:937
+typedef enum SYMS_MachLCStrMember{
+SYMS_MachLCStrMember_offset,
+SYMS_MachLCStrMember_COUNT
+} SYMS_MachLCStrMember;
+typedef enum SYMS_MachUUIDMember{
+SYMS_MachUUIDMember_cmd,
+SYMS_MachUUIDMember_cmdsize,
+SYMS_MachUUIDMember_uuid,
+SYMS_MachUUIDMember_COUNT
+} SYMS_MachUUIDMember;
+typedef enum SYMS_MachDylibMember{
+SYMS_MachDylibMember_name,
+SYMS_MachDylibMember_timestamp,
+SYMS_MachDylibMember_current_version,
+SYMS_MachDylibMember_compatability_version,
+SYMS_MachDylibMember_COUNT
+} SYMS_MachDylibMember;
+typedef enum SYMS_MachDylibCommandMember{
+SYMS_MachDylibCommandMember_cmd,
+SYMS_MachDylibCommandMember_cmdsize,
+SYMS_MachDylibCommandMember_dylib,
+SYMS_MachDylibCommandMember_COUNT
+} SYMS_MachDylibCommandMember;
+typedef enum SYMS_MachDyldInfoCommandMember{
+SYMS_MachDyldInfoCommandMember_cmd,
+SYMS_MachDyldInfoCommandMember_cmdsize,
+SYMS_MachDyldInfoCommandMember_rebase_off,
+SYMS_MachDyldInfoCommandMember_rebase_size,
+SYMS_MachDyldInfoCommandMember_bind_off,
+SYMS_MachDyldInfoCommandMember_bind_size,
+SYMS_MachDyldInfoCommandMember_weak_bind_off,
+SYMS_MachDyldInfoCommandMember_weak_bind_size,
+SYMS_MachDyldInfoCommandMember_lazy_bind_off,
+SYMS_MachDyldInfoCommandMember_lazy_bind_size,
+SYMS_MachDyldInfoCommandMember_export_off,
+SYMS_MachDyldInfoCommandMember_export_size,
+SYMS_MachDyldInfoCommandMember_COUNT
+} SYMS_MachDyldInfoCommandMember;
+typedef enum SYMS_MachLoadCommandMember{
+SYMS_MachLoadCommandMember_type,
+SYMS_MachLoadCommandMember_size,
+SYMS_MachLoadCommandMember_COUNT
+} SYMS_MachLoadCommandMember;
+typedef enum SYMS_MachFatHeaderMember{
+SYMS_MachFatHeaderMember_magic,
+SYMS_MachFatHeaderMember_nfat_arch,
+SYMS_MachFatHeaderMember_COUNT
+} SYMS_MachFatHeaderMember;
+typedef enum SYMS_MachFatArchMember{
+SYMS_MachFatArchMember_cputype,
+SYMS_MachFatArchMember_cpusubtype,
+SYMS_MachFatArchMember_offset,
+SYMS_MachFatArchMember_size,
+SYMS_MachFatArchMember_align,
+SYMS_MachFatArchMember_COUNT
+} SYMS_MachFatArchMember;
+typedef enum SYMS_MachHeader32Member{
+SYMS_MachHeader32Member_magic,
+SYMS_MachHeader32Member_cputype,
+SYMS_MachHeader32Member_cpusubtype,
+SYMS_MachHeader32Member_filetype,
+SYMS_MachHeader32Member_ncmds,
+SYMS_MachHeader32Member_sizeofcmds,
+SYMS_MachHeader32Member_flags,
+SYMS_MachHeader32Member_COUNT
+} SYMS_MachHeader32Member;
+typedef enum SYMS_MachHeader64Member{
+SYMS_MachHeader64Member_magic,
+SYMS_MachHeader64Member_cputype,
+SYMS_MachHeader64Member_cpusubtype,
+SYMS_MachHeader64Member_filetype,
+SYMS_MachHeader64Member_ncmds,
+SYMS_MachHeader64Member_sizeofcmds,
+SYMS_MachHeader64Member_flags,
+SYMS_MachHeader64Member_reserved,
+SYMS_MachHeader64Member_COUNT
+} SYMS_MachHeader64Member;
+typedef enum SYMS_MachSegmentCommand32Member{
+SYMS_MachSegmentCommand32Member_cmd,
+SYMS_MachSegmentCommand32Member_segname,
+SYMS_MachSegmentCommand32Member_vmaddr,
+SYMS_MachSegmentCommand32Member_vmsize,
+SYMS_MachSegmentCommand32Member_fileoff,
+SYMS_MachSegmentCommand32Member_filesize,
+SYMS_MachSegmentCommand32Member_maxprot,
+SYMS_MachSegmentCommand32Member_initprot,
+SYMS_MachSegmentCommand32Member_nsects,
+SYMS_MachSegmentCommand32Member_flags,
+SYMS_MachSegmentCommand32Member_COUNT
+} SYMS_MachSegmentCommand32Member;
+typedef enum SYMS_MachSegmentCommand64Member{
+SYMS_MachSegmentCommand64Member_cmd,
+SYMS_MachSegmentCommand64Member_segname,
+SYMS_MachSegmentCommand64Member_vmaddr,
+SYMS_MachSegmentCommand64Member_vmsize,
+SYMS_MachSegmentCommand64Member_fileoff,
+SYMS_MachSegmentCommand64Member_filesize,
+SYMS_MachSegmentCommand64Member_maxprot,
+SYMS_MachSegmentCommand64Member_initprot,
+SYMS_MachSegmentCommand64Member_nsects,
+SYMS_MachSegmentCommand64Member_flags,
+SYMS_MachSegmentCommand64Member_COUNT
+} SYMS_MachSegmentCommand64Member;
+typedef enum SYMS_MachSection32Member{
+SYMS_MachSection32Member_sectname,
+SYMS_MachSection32Member_segname,
+SYMS_MachSection32Member_addr,
+SYMS_MachSection32Member_size,
+SYMS_MachSection32Member_offset,
+SYMS_MachSection32Member_align,
+SYMS_MachSection32Member_relocoff,
+SYMS_MachSection32Member_nreloc,
+SYMS_MachSection32Member_flags,
+SYMS_MachSection32Member_reserved1,
+SYMS_MachSection32Member_reserved2,
+SYMS_MachSection32Member_COUNT
+} SYMS_MachSection32Member;
+typedef enum SYMS_MachSection64Member{
+SYMS_MachSection64Member_sectname,
+SYMS_MachSection64Member_segname,
+SYMS_MachSection64Member_addr,
+SYMS_MachSection64Member_size,
+SYMS_MachSection64Member_offset,
+SYMS_MachSection64Member_align,
+SYMS_MachSection64Member_relocoff,
+SYMS_MachSection64Member_nreloc,
+SYMS_MachSection64Member_flags,
+SYMS_MachSection64Member_reserved1,
+SYMS_MachSection64Member_reserved2,
+SYMS_MachSection64Member_COUNT
+} SYMS_MachSection64Member;
+typedef enum SYMS_MachSymtabCommandMember{
+SYMS_MachSymtabCommandMember_cmd,
+SYMS_MachSymtabCommandMember_cmdsize,
+SYMS_MachSymtabCommandMember_symoff,
+SYMS_MachSymtabCommandMember_nsyms,
+SYMS_MachSymtabCommandMember_stroff,
+SYMS_MachSymtabCommandMember_strsize,
+SYMS_MachSymtabCommandMember_COUNT
+} SYMS_MachSymtabCommandMember;
+typedef enum SYMS_MachDySymtabCommandMember{
+SYMS_MachDySymtabCommandMember_cmd,
+SYMS_MachDySymtabCommandMember_cmdsize,
+SYMS_MachDySymtabCommandMember_ilocalsym,
+SYMS_MachDySymtabCommandMember_nlocalsym,
+SYMS_MachDySymtabCommandMember_iextdefsym,
+SYMS_MachDySymtabCommandMember_nextdefsym,
+SYMS_MachDySymtabCommandMember_iundefsym,
+SYMS_MachDySymtabCommandMember_nundefsym,
+SYMS_MachDySymtabCommandMember_tocoff,
+SYMS_MachDySymtabCommandMember_ntoc,
+SYMS_MachDySymtabCommandMember_modtaboff,
+SYMS_MachDySymtabCommandMember_nmodtab,
+SYMS_MachDySymtabCommandMember_extrefsymoff,
+SYMS_MachDySymtabCommandMember_nextrefsyms,
+SYMS_MachDySymtabCommandMember_indirectsymoff,
+SYMS_MachDySymtabCommandMember_nindirectsyms,
+SYMS_MachDySymtabCommandMember_extreloff,
+SYMS_MachDySymtabCommandMember_nextrel,
+SYMS_MachDySymtabCommandMember_locreloff,
+SYMS_MachDySymtabCommandMember_nlocrel,
+SYMS_MachDySymtabCommandMember_COUNT
+} SYMS_MachDySymtabCommandMember;
+typedef enum SYMS_MachNList32Member{
+SYMS_MachNList32Member_n_strx,
+SYMS_MachNList32Member_n_type,
+SYMS_MachNList32Member_n_sect,
+SYMS_MachNList32Member_n_desc,
+SYMS_MachNList32Member_n_value,
+SYMS_MachNList32Member_COUNT
+} SYMS_MachNList32Member;
+typedef enum SYMS_MachNList64Member{
+SYMS_MachNList64Member_n_strx,
+SYMS_MachNList64Member_n_type,
+SYMS_MachNList64Member_n_sect,
+SYMS_MachNList64Member_n_desc,
+SYMS_MachNList64Member_n_value,
+SYMS_MachNList64Member_COUNT
+} SYMS_MachNList64Member;
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
+SYMS_C_LINKAGE_BEGIN
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_family(SYMS_U64 v);
+// syms_enum_index_from_mach_cpu_subtype - skipped identity mapping
+// syms_enum_index_from_mach_cpu_subtype_v_ax - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_x86(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_intel(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_a_rm(SYMS_U64 v);
+// syms_enum_index_from_mach_cpu_subtype_a_r_m64 - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_mach_filetype(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_flags(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_load_command_type(SYMS_U64 v);
+// syms_enum_index_from_mach_section_type - skipped identity mapping
+SYMS_API SYMS_U64 syms_enum_index_from_mach_section_attr(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_platform_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_tool_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_bind_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_bind_opcode(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_bind_special_dylib(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_n_list_type(SYMS_U64 v);
+SYMS_API SYMS_U64 syms_enum_index_from_mach_stab_type(SYMS_U64 v);
+// syms_enum_index_from_mach_export_symbol_kind - skipped identity mapping
+SYMS_C_LINKAGE_END
+
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuFamily;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtype;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeVAX;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeX86;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeIntel;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachVMProt;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFiletype;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachLoadCommandType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSectionType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSectionAttr;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachPlatformType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachToolType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachBindType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachBindOpcode;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachBindSymbolFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachBindSpecialDylib;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachNListType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachStabType;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachExportSymbolKind;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachExportSymbolFlags;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachLCStr;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachUUID;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachDylib;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachDylibCommand;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachDyldInfoCommand;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachLoadCommand;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFatHeader;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFatArch;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachHeader32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachHeader64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSegmentCommand32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSegmentCommand64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSection32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSection64;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSymtabCommand;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachDySymtabCommand;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachNList32;
+SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachNList64;
+
+#endif // defined(SYMS_ENABLE_MACH_SERIAL_INFO)
 
 
 ////////////////////////////////
 #if defined(SYMS_ENABLE_PE_SERIAL_INFO)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:849
+//~ generated from code at src/metaprogram/metaprogram_syms.c:937
 typedef enum SYMS_DosHeaderMember{
 SYMS_DosHeaderMember_magic,
 SYMS_DosHeaderMember_last_page_size,
@@ -1203,14 +1532,14 @@ SYMS_PeDebugDirectoryMember_file_offset,
 SYMS_PeDebugDirectoryMember_COUNT
 } SYMS_PeDebugDirectoryMember;
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:869
+//~ generated from code at src/metaprogram/metaprogram_syms.c:957
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U64 syms_enum_index_from_pe_windows_subsystem(SYMS_U64 v);
 // syms_enum_index_from_pe_data_directory_index - skipped identity mapping
 SYMS_API SYMS_U64 syms_enum_index_from_pe_debug_directory_type(SYMS_U64 v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1197
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_DosHeader;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeWindowsSubsystem;
 SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_ImageFileCharacteristics;
@@ -1224,52 +1553,4 @@ SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectory;
 
 #endif // defined(SYMS_ENABLE_PE_SERIAL_INFO)
 
-
-////////////////////////////////
-#if defined(SYMS_ENABLE_MACH_SERIAL_INFO)
-
-//~ generated from code at src/metaprogram/metaprogram_syms.c:869
-SYMS_C_LINKAGE_BEGIN
-SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_type(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_family(SYMS_U64 v);
-// syms_enum_index_from_mach_cpu_subtype - skipped identity mapping
-// syms_enum_index_from_mach_cpu_subtype_v_ax - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_x86(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_intel(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_cpu_subtype_a_rm(SYMS_U64 v);
-// syms_enum_index_from_mach_cpu_subtype_a_r_m64 - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_mach_filetype(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_flags(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_load_command_type(SYMS_U64 v);
-// syms_enum_index_from_mach_section_type - skipped identity mapping
-SYMS_API SYMS_U64 syms_enum_index_from_m_ach_section_attr(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_platform_type(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_tool_type(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_n_list_type(SYMS_U64 v);
-SYMS_API SYMS_U64 syms_enum_index_from_mach_stab_type(SYMS_U64 v);
-SYMS_C_LINKAGE_END
-
-//~ generated from code at src/metaprogram/metaprogram_syms.c:1109
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuFamily;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtype;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeVAX;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeX86;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeIntel;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtypeARM64;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFiletype;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachFlags;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachLoadCommandType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachSectionType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MAchSectionAttr;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachPlatformType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachToolType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachNListType;
-SYMS_EXTERN SYMS_SerialType _syms_serial_type_SYMS_MachStabType;
-
-#endif // defined(SYMS_ENABLE_MACH_SERIAL_INFO)
-
 #endif
-
-

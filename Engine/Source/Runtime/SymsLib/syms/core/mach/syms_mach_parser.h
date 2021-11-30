@@ -37,7 +37,106 @@ typedef struct SYMS_MachBinAccel{
   
   SYMS_MachSection64 *sections;
   SYMS_U32 section_count;
+
+  SYMS_U64Range regular_bind_range;
+  SYMS_U64Range lazy_bind_range;
+  SYMS_U64Range weak_bind_range;
+  SYMS_U64Range export_range;
+
+  SYMS_U32 dylib_count;
+  struct SYMS_MachParsedDylib *dylibs;
 } SYMS_MachBinAccel;
+
+////////////////////////////////
+// Dylib
+
+typedef struct SYMS_MachParsedDylib
+{
+  SYMS_MachDylib header;
+  SYMS_U64Range name;
+} SYMS_MachParsedDylib;
+
+
+typedef struct SYMS_MachDylibNode
+{
+  struct SYMS_MachDylibNode *next;
+  SYMS_MachParsedDylib data;
+} SYMS_MachDylibNode;
+
+typedef struct
+{
+  SYMS_MachDylibNode *first;
+  SYMS_MachDylibNode *last;
+  SYMS_U32 count;
+} SYMS_MachDylibList;
+
+////////////////////////////////
+// Binds
+
+enum
+{
+  SYMS_MachBindTable_REGULAR,
+  SYMS_MachBindTable_LAZY,
+  SYMS_MachBindTable_WEAK
+};
+typedef SYMS_U32 SYMS_MachBindTable;
+
+typedef struct
+{
+  SYMS_U32 segment;
+  SYMS_U64 segment_offset;
+  SYMS_U64 dylib;
+  SYMS_String8 symbol_name;
+  SYMS_U8 flags;
+  SYMS_MachBindType type;
+  SYMS_S64 addend;
+} SYMS_MachBind;
+
+typedef struct SYMS_MachBindNode
+{
+  SYMS_MachBind data;
+  struct SYMS_MachBindNode *next;
+} SYMS_MachBindNode;
+
+typedef struct
+{
+  SYMS_MachBindNode *first;
+  SYMS_MachBindNode *last;
+  SYMS_U32 count;
+} SYMS_MachBindList;
+
+////////////////////////////////
+// Exports
+
+typedef struct SYMS_MachExport
+{
+  struct SYMS_MachExport **children;
+  SYMS_U8 child_count;
+  
+  SYMS_String8 name;
+  SYMS_U64 flags;
+  SYMS_U64 address;
+  
+  // SYMS_MachExportSymbolFlags_REEXPORT
+  SYMS_U64 dylib_ordinal;
+  SYMS_String8 import_name; 
+  
+  // SYMS_MachExportSymbolFlags_STUB_AND_RESOLVER
+  SYMS_U64 resolver;
+} SYMS_MachExport;
+
+typedef struct SYMS_MachExportNode
+{
+  struct SYMS_MachExportNode *next;
+  SYMS_MachExport data;
+} SYMS_MachExportNode;
+
+typedef struct SYMS_MachExportFrame
+{
+  struct SYMS_MachExportFrame *next;
+  SYMS_U8 child_idx;
+  SYMS_MachExport *node;
+} SYMS_MachExportFrame;
 
 ////////////////////////////////
 //~ NOTE(allen): MACH Parser Functions
@@ -70,5 +169,16 @@ SYMS_API SYMS_SecInfoArray      syms_mach_sec_info_array_from_bin(SYMS_Arena *ar
                                                                   SYMS_MachBinAccel *bin);
 
 SYMS_API SYMS_U64               syms_mach_default_vbase_from_bin(SYMS_MachBinAccel *bin);
+
+// dylib
+SYMS_API void syms_mach_dylib_list_push(SYMS_Arena *arena, SYMS_MachDylibList *list, SYMS_MachDylib *dylib, SYMS_U64Range name);
+
+// binds
+SYMS_API SYMS_MachBindList syms_mach_binds_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range, SYMS_U32 address_size, SYMS_MachBindTable bind_type);
+SYMS_API SYMS_ImportArray  syms_mach_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAccel *bin);
+
+// exports
+SYMS_API SYMS_MachExport * syms_build_mach_export_trie(SYMS_Arena *arena, void *base, SYMS_U64Range range);
+SYMS_API SYMS_ExportArray  syms_mach_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_MachBinAccel *bin);
 
 #endif // SYMS_MACH_PARSER_H

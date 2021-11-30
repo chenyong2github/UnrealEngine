@@ -34,6 +34,44 @@ typedef struct SYMS_BinInfoArray{
 } SYMS_BinInfoArray;
 
 ////////////////////////////////
+//~ NOTE(allen): Binary Imports & Exports
+
+typedef struct SYMS_Import{
+  SYMS_String8 name;
+  SYMS_String8 library_name;
+  SYMS_U16     ordinal;
+} SYMS_Import;
+
+typedef struct SYMS_Export{
+  SYMS_String8 name;
+  SYMS_U64 address;
+  SYMS_U32 ordinal;
+  SYMS_U32 unused_;
+  SYMS_String8 forwarder_library_name;
+  SYMS_String8 forwarder_import_name;
+} SYMS_Export;
+
+typedef struct SYMS_ImportNode{
+  struct SYMS_ImportNode *next;
+  SYMS_Import data;
+} SYMS_ImportNode;
+
+typedef struct SYMS_ExportNode{
+  struct SYMS_ExportNode *next;
+  SYMS_Export data;
+} SYMS_ExportNode;
+
+typedef struct SYMS_ImportArray{
+  SYMS_Import *imports;
+  SYMS_U64 count;
+} SYMS_ImportArray;
+
+typedef struct SYMS_ExportArray{
+  SYMS_Export *exports;
+  SYMS_U64 count;
+} SYMS_ExportArray;
+
+////////////////////////////////
 //~ NOTE(allen): Compilation Unit Types
 
 typedef SYMS_U64 SYMS_UnitID;
@@ -253,6 +291,16 @@ typedef struct SYMS_ConstInfo{
   SYMS_TypeKind kind;
   SYMS_U64 val;
 } SYMS_ConstInfo;
+
+typedef struct SYMS_StrippedInfo{
+  SYMS_String8 name;
+  SYMS_U64 voff;
+} SYMS_StrippedInfo;
+
+typedef struct SYMS_StrippedInfoArray{
+  SYMS_StrippedInfo *info;
+  SYMS_U64 count;
+} SYMS_StrippedInfoArray;
 
 typedef enum SYMS_MemKind{
   SYMS_MemKind_Null,

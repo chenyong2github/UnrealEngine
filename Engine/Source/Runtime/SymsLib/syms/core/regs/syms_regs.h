@@ -58,4 +58,11 @@ typedef struct SYMS_RegMetadata{
   SYMS_U32 alias_to;
 } SYMS_RegMetadata;
 
+////////////////////////////////
+// NOTE(allen): Basic Register Helpers
+
+SYMS_API SYMS_String8 syms_reg_from_metadata_id(SYMS_RegMetadata *metadata, SYMS_U64 count,
+                                                void *reg_file, SYMS_RegID reg_id);
+#define syms_reg_from_arch_id(AR,f,i) syms_reg_from_metadata_id(reg_metadata_##AR,SYMS_Reg##AR##Code_COUNT,(f),(i))
+
 #endif // SYMS_REGS_H

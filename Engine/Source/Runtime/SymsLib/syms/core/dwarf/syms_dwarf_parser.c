@@ -242,27 +242,28 @@ syms_dw_symbol_kind_from_tag_stub(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_
         }
       }
       
-      SYMS_B32 location_is_constant = syms_false;
+      SYMS_B32 location_is_fixed_address = syms_false;
       if(has_location)
       {
         void *info_base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Info);
         SYMS_U64Range loc_rng = syms_make_u64_range(location_value.v[0],
                                                     location_value.v[0] + location_value.v[1]);
-        SYMS_DwLocationDesc loc = syms_dw_location_desc_from_based_range(scratch.arena,
-                                                                         info_base, loc_rng, 0,
-                                                                         resolve_params.addr_size);
-        location_is_constant = (loc.expr_root != 0 && loc.expr_root->first == 0);
+        
+        // TODO(allen): fill this in correctly
+        SYMS_U64 text_base = 0;
+        SYMS_DwSimpleLoc loc = syms_dw_expr__analyze_fast(info_base, loc_rng, text_base);
+        location_is_fixed_address = (loc.kind == SYMS_DwSimpleLocKind_Address);
       }
       
       if(has_const_val)
       {
         symbol_kind = SYMS_SymbolKind_Const;
       }
-      else if(location_is_constant)
+      else if(location_is_fixed_address)
       {
         symbol_kind = SYMS_SymbolKind_ImageRelativeVariable;
       }
-      else if(!has_external && !location_is_constant)
+      else if(!has_external && !location_is_fixed_address)
       {
         symbol_kind = SYMS_SymbolKind_LocalVariable;
       }
@@ -404,7 +405,7 @@ syms_dw_based_range_read_length(void *base, SYMS_U64Range range, SYMS_U64 offset
   if(syms_based_range_read_struct(base, range, offset, &first32))
   {
     // NOTE(rjf): DWARF 32-bit => use the first 32 bits as the size.
-    if(first32 < 0xfffffff0)
+    if(first32 != 0xffffffff)
     {
       value = (SYMS_U64)first32;
       bytes_read = sizeof(SYMS_U32);
@@ -1930,48 +1931,6 @@ syms_dw_tag_from_info_offset(SYMS_Arena *arena,
   return tag;
 }
 
-// TODO(rjf): (2021/06/09) This isn't being used, but I am keeping it around in
-// the short-term in case it becomes useful again soon in the new API
-// implementation.
-SYMS_API SYMS_U64
-syms_dw_parse_tag_children(SYMS_Arena *arena,
-                           SYMS_String8 data,
-                           SYMS_DwDbgAccel *dbg,
-                           SYMS_DwAbbrevTable abbrev_table,
-                           SYMS_U64 address_size,
-                           SYMS_U64 start_info_offset,
-                           SYMS_DwTag *parent)
-{
-  SYMS_U64 bytes_read = 0;
-  if(parent->has_children)
-  {
-    SYMS_DwTag *active_parent = parent;
-    for(SYMS_U64 info_off = start_info_offset;;)
-    {
-      SYMS_DwTag *child = syms_dw_tag_from_info_offset(arena, data, dbg, abbrev_table, address_size, info_off);
-      bytes_read += child->info_range.max - info_off;
-      info_off = child->info_range.max;
-      if(child->abbrev_id == 0)
-      {
-        active_parent = active_parent->parent;
-        if(active_parent == 0)
-        {
-          break;
-        }
-      }
-      SYMS_DwTag *child_store = syms_push_array(arena, SYMS_DwTag, 1);
-      *child_store = *child;
-      child_store->parent = active_parent;
-      SYMS_QueuePush_N(active_parent->first_child, active_parent->last_child, child_store, next_sibling);
-      if(child_store->has_children)
-      {
-        active_parent = child_store;
-      }
-    }
-  }
-  return bytes_read;
-}
-
 SYMS_API SYMS_DwTagStub
 syms_dw_stub_from_tag(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwAttribValueResolveParams resolve_params,
                       SYMS_DwTag *tag)
@@ -1999,879 +1958,6 @@ syms_dw_stub_from_tag(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwAttribValu
     }
   }
   return stub;
-}
-
-////////////////////////////////
-//~ rjf: DWARF Expressions
-
-SYMS_API SYMS_DwExprNode *
-syms_dw_expr_push(SYMS_Arena *arena, SYMS_DwExprEvalState *state)
-{
-  SYMS_DwExprNode *node = syms_push_array(arena, SYMS_DwExprNode, 1);
-  syms_memzero_struct(node);
-  node->next = state->stack_top;
-  state->stack_top = node;
-  return node;
-}
-
-SYMS_API SYMS_DwExprNode *
-syms_dw_expr_push_literal(SYMS_Arena *arena, SYMS_DwExprEvalState *state, SYMS_U64 value)
-{
-  SYMS_DwExprNode *node = syms_dw_expr_push(arena, state);
-  node->value = value;
-  return node;
-}
-
-SYMS_API SYMS_DwExprNode *
-syms_dw_expr_push_operator(SYMS_Arena *arena, SYMS_DwExprEvalState *state, SYMS_DwOpCode opcode, SYMS_DwExprNode *left, SYMS_DwExprNode *right)
-{
-  SYMS_DwExprNode *op = syms_dw_expr_push(arena, state);
-  op->opcode = opcode;
-  if(left != 0)
-  {
-    SYMS_QueuePush(op->first, op->last, left);
-  }
-  if(right != 0)
-  {
-    SYMS_QueuePush(op->first, op->last, right);
-  }
-  return op;
-}
-
-SYMS_API SYMS_DwExprNode *
-syms_dw_expr_push_copy(SYMS_Arena *arena, SYMS_DwExprEvalState *state, SYMS_DwExprNode *to_copy)
-{
-  SYMS_DwExprNode *node = syms_dw_expr_push(arena, state);
-  if(to_copy != 0)
-  {
-    node->value = to_copy->value;
-    node->opcode = to_copy->opcode;
-  }
-  return node;
-}
-
-SYMS_API SYMS_DwExprNode *
-syms_dw_expr_pop(SYMS_DwExprEvalState *state)
-{
-  SYMS_DwExprNode *node = state->stack_top;
-  if(state->stack_top)
-  {
-    state->stack_top = state->stack_top->next;
-  }
-  return node;
-}
-
-SYMS_API SYMS_DwExprNode *
-syms_dw_expr_node_from_stack_index(SYMS_DwExprEvalState *state, SYMS_U64 idx)
-{
-  SYMS_DwExprNode *result = 0;
-  SYMS_U64 i = 0;
-  for(SYMS_DwExprNode *node = state->stack_top; node != 0; node = node->next, i += 1)
-  {
-    if(i == idx)
-    {
-      result = node;
-      break;
-    }
-  }
-  return result;
-}
-
-SYMS_API SYMS_DwLocationDesc
-syms_dw_location_desc_from_based_range(SYMS_Arena *arena,
-                                       void *base,
-                                       SYMS_U64Range range,
-                                       SYMS_U64 offset,
-                                       SYMS_U64 addr_size)
-{
-  SYMS_DwExprEvalState eval_;
-  SYMS_DwExprEvalState *eval = &eval_;
-  syms_memzero_struct(eval);
-  
-  for(;offset < syms_u64_range_size(range);)
-  {
-    SYMS_U8 op8 = 0;
-    offset += syms_based_range_read_struct(base, range, offset, &op8);
-    SYMS_DwOpCode op = (SYMS_DwOpCode)op8;
-    
-    //- rjf: do op
-    switch(op)
-    {
-      case SYMS_DwOpCode_NOP: break;
-      
-      //- rjf: push address onto stack
-      case SYMS_DwOpCode_ADDR:
-      {
-        SYMS_U64 addr = 0;
-        offset += syms_based_range_read(base, range, offset, (SYMS_U64)addr_size, &addr);
-        syms_dw_expr_push_literal(arena, eval, addr);
-      }break;
-      
-      //- rjf: push small literal onto stack
-      case SYMS_DwOpCode_LIT0:  case SYMS_DwOpCode_LIT1:  case SYMS_DwOpCode_LIT2:
-      case SYMS_DwOpCode_LIT3:  case SYMS_DwOpCode_LIT4:  case SYMS_DwOpCode_LIT5:
-      case SYMS_DwOpCode_LIT6:  case SYMS_DwOpCode_LIT7:  case SYMS_DwOpCode_LIT8:
-      case SYMS_DwOpCode_LIT9:  case SYMS_DwOpCode_LIT10: case SYMS_DwOpCode_LIT11:
-      case SYMS_DwOpCode_LIT12: case SYMS_DwOpCode_LIT13: case SYMS_DwOpCode_LIT14:
-      case SYMS_DwOpCode_LIT15: case SYMS_DwOpCode_LIT16: case SYMS_DwOpCode_LIT17:
-      case SYMS_DwOpCode_LIT18: case SYMS_DwOpCode_LIT19: case SYMS_DwOpCode_LIT20:
-      case SYMS_DwOpCode_LIT21: case SYMS_DwOpCode_LIT22: case SYMS_DwOpCode_LIT23:
-      case SYMS_DwOpCode_LIT24: case SYMS_DwOpCode_LIT25: case SYMS_DwOpCode_LIT26:
-      case SYMS_DwOpCode_LIT27: case SYMS_DwOpCode_LIT28: case SYMS_DwOpCode_LIT29:
-      case SYMS_DwOpCode_LIT30: case SYMS_DwOpCode_LIT31:
-      {
-        SYMS_U64 u = (SYMS_U64)(op - SYMS_DwOpCode_LIT0);
-        syms_dw_expr_push_literal(arena, eval, u);
-      }break;
-      
-      //- rjf: push constants onto stack
-      case SYMS_DwOpCode_CONST1U: syms_dw_expr_push_literal(arena, eval, 1); break;
-      case SYMS_DwOpCode_CONST2U: syms_dw_expr_push_literal(arena, eval, 2); break;
-      case SYMS_DwOpCode_CONST4U: syms_dw_expr_push_literal(arena, eval, 4); break;
-      case SYMS_DwOpCode_CONST8U: syms_dw_expr_push_literal(arena, eval, 8); break;
-      case SYMS_DwOpCode_CONST1S: syms_dw_expr_push_literal(arena, eval, 1); break;
-      case SYMS_DwOpCode_CONST2S: syms_dw_expr_push_literal(arena, eval, 2); break;
-      case SYMS_DwOpCode_CONST4S: syms_dw_expr_push_literal(arena, eval, 4); break;
-      case SYMS_DwOpCode_CONST8S: syms_dw_expr_push_literal(arena, eval, 8); break;
-      case SYMS_DwOpCode_CONSTU:
-      {
-        SYMS_U64 v = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &v);
-        syms_dw_expr_push_literal(arena, eval, v);
-      }break;
-      
-      //- rjf: push SLEB-128 constant onto stack
-      case SYMS_DwOpCode_CONSTS:
-      {
-        SYMS_S64 v = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &v);
-        syms_dw_expr_push_literal(arena, eval, *(SYMS_U64 *)&v);
-      }break;
-      
-      //- rjf: push frame based SLEB-128 onto stack
-      case SYMS_DwOpCode_FBREG:
-      {
-        SYMS_S64 v = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &v);
-        SYMS_DwExprNode *v_node = syms_dw_expr_push_literal(arena, eval, *(SYMS_U64 *)&v);
-        syms_dw_expr_pop(eval);
-        syms_dw_expr_push_operator(arena, eval, op, v_node, 0);
-      }break;
-      
-      //- rjf: push register + SLEB-128 onto stack
-      case SYMS_DwOpCode_BREG0:  case SYMS_DwOpCode_BREG1:  case SYMS_DwOpCode_BREG2:
-      case SYMS_DwOpCode_BREG3:  case SYMS_DwOpCode_BREG4:  case SYMS_DwOpCode_BREG5:
-      case SYMS_DwOpCode_BREG6:  case SYMS_DwOpCode_BREG7:  case SYMS_DwOpCode_BREG8:
-      case SYMS_DwOpCode_BREG9:  case SYMS_DwOpCode_BREG10: case SYMS_DwOpCode_BREG11:
-      case SYMS_DwOpCode_BREG12: case SYMS_DwOpCode_BREG13: case SYMS_DwOpCode_BREG14:
-      case SYMS_DwOpCode_BREG15: case SYMS_DwOpCode_BREG16: case SYMS_DwOpCode_BREG17:
-      case SYMS_DwOpCode_BREG18: case SYMS_DwOpCode_BREG19: case SYMS_DwOpCode_BREG20:
-      case SYMS_DwOpCode_BREG21: case SYMS_DwOpCode_BREG22: case SYMS_DwOpCode_BREG23:
-      case SYMS_DwOpCode_BREG24: case SYMS_DwOpCode_BREG25: case SYMS_DwOpCode_BREG26:
-      case SYMS_DwOpCode_BREG27: case SYMS_DwOpCode_BREG28: case SYMS_DwOpCode_BREG29:
-      case SYMS_DwOpCode_BREG30: case SYMS_DwOpCode_BREG31:
-      {
-        SYMS_S64 s = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &s);
-        SYMS_DwExprNode *node = syms_dw_expr_push_literal(arena, eval, *(SYMS_U64 *)&s);
-        (void)node;
-        syms_dw_expr_push_operator(arena, eval, op, syms_dw_expr_pop(eval), 0);
-      }break;
-      
-      //- rjf: push ULEB-128 reg onto stack
-      case SYMS_DwOpCode_BREGX:
-      {
-        SYMS_U64 v = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &v);
-        SYMS_S64 s = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &s);
-        SYMS_DwExprNode *left  = syms_dw_expr_push_literal(arena, eval, v);
-        SYMS_DwExprNode *right = syms_dw_expr_push_literal(arena, eval, *(SYMS_U64 *)&s);
-        syms_dw_expr_pop(eval);
-        syms_dw_expr_pop(eval);
-        syms_dw_expr_push_operator(arena, eval, op, left, right);
-      }break;
-      
-      //- rjf: duplicate + push onto stack
-      case SYMS_DwOpCode_DUP:
-      {
-        SYMS_DwExprNode *top = syms_dw_expr_pop(eval);
-        syms_dw_expr_push_copy(arena, eval, top);
-        syms_dw_expr_push_copy(arena, eval, top);
-      }break;
-      
-      //- rjf: drop top of stack
-      case SYMS_DwOpCode_DROP:    syms_dw_expr_pop(eval); break;
-      
-      //- rjf: stack-picking
-      case SYMS_DwOpCode_OVER:
-      {
-        syms_dw_expr_push_copy(arena, eval, syms_dw_expr_node_from_stack_index(eval, 1));
-      }break;
-      case SYMS_DwOpCode_PICK:
-      {
-        SYMS_U8 index = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &index);
-        syms_dw_expr_push_copy(arena, eval, syms_dw_expr_node_from_stack_index(eval, index));
-      }break;
-      
-      //- rjf: swap
-      case SYMS_DwOpCode_SWAP:
-      {
-        SYMS_DwExprNode *top0 = syms_dw_expr_pop(eval);
-        SYMS_DwExprNode *top1 = syms_dw_expr_pop(eval);
-        syms_dw_expr_push_copy(arena, eval, top0);
-        syms_dw_expr_push_copy(arena, eval, top1);
-      }break;
-      
-      //- rjf: rotate
-      case SYMS_DwOpCode_ROT:
-      {
-        SYMS_DwExprNode *top0 = syms_dw_expr_pop(eval);
-        SYMS_DwExprNode *top1 = syms_dw_expr_pop(eval);
-        SYMS_DwExprNode *top2 = syms_dw_expr_pop(eval);
-        syms_dw_expr_push_copy(arena, eval, top1);
-        syms_dw_expr_push_copy(arena, eval, top0);
-        syms_dw_expr_push_copy(arena, eval, top2);
-      }break;
-      
-      //- rjf: deref size
-      case SYMS_DwOpCode_DEREF_SIZE:
-      {
-        SYMS_U8 read_addr_size = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &read_addr_size);
-        syms_dw_expr_push_operator(arena, eval, op, syms_dw_expr_pop(eval), 0);
-      }break;
-      
-      //- rjf: xderef ???
-      // TODO(nick): This is a very rare case here, maybe later we can figure this out.
-      case SYMS_DwOpCode_XDEREF_SIZE:
-      case SYMS_DwOpCode_XDEREF:
-      {
-        goto exit_fail;
-      }break;
-      
-      //- rjf: pushes of data in the local context, when evaluating
-      case SYMS_DwOpCode_CALL_FRAME_CFA:
-      case SYMS_DwOpCode_PUSH_OBJECT_ADDRESS:
-      {
-        syms_dw_expr_push_operator(arena, eval, op, 0, 0);
-      }break;
-      
-      //- rjf: TLS address
-      case SYMS_DwOpCode_FORM_TLS_ADDRESS:
-      {
-        SYMS_NOT_IMPLEMENTED;
-      }break;
-      
-      //- rjf: unary operators on popped value
-      case SYMS_DwOpCode_ABS:   case SYMS_DwOpCode_NEG: case SYMS_DwOpCode_NOT:
-      case SYMS_DwOpCode_DEREF: 
-      {
-        syms_dw_expr_push_operator(arena, eval, op, syms_dw_expr_pop(eval), 0);
-      }break;
-      
-      //- rjf: binary operators on popped values
-      case SYMS_DwOpCode_PLUS: case SYMS_DwOpCode_DIV: case SYMS_DwOpCode_MINUS:
-      case SYMS_DwOpCode_MOD:  case SYMS_DwOpCode_MUL: case SYMS_DwOpCode_AND:
-      case SYMS_DwOpCode_OR:   case SYMS_DwOpCode_SHL: case SYMS_DwOpCode_SHR:
-      case SYMS_DwOpCode_SHRA: case SYMS_DwOpCode_XOR: case SYMS_DwOpCode_LE:
-      case SYMS_DwOpCode_GE:   case SYMS_DwOpCode_EQ:  case SYMS_DwOpCode_LT:
-      case SYMS_DwOpCode_GT:   case SYMS_DwOpCode_NE:
-      {
-        SYMS_DwExprNode *left = syms_dw_expr_pop(eval);
-        SYMS_DwExprNode *right = syms_dw_expr_pop(eval);
-        syms_dw_expr_push_operator(arena, eval, op, left, right);
-      }break;
-      
-      //- rjf: other operators
-      case SYMS_DwOpCode_PLUS_UCONST:
-      {
-        SYMS_U64 u = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &u);
-        SYMS_DwExprNode *left = syms_dw_expr_pop(eval);
-        SYMS_DwExprNode *right = syms_dw_expr_push_literal(arena, eval, u);
-        syms_dw_expr_pop(eval);
-        syms_dw_expr_push_operator(arena, eval, op, left, right);
-      }break;
-      
-      //- rjf: skip
-      case SYMS_DwOpCode_SKIP:
-      {
-        SYMS_S16 s = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &s);
-        offset += s;
-      }break;
-      
-      //- TODO(rjf): not sure what this is
-      case SYMS_DwOpCode_BRA:
-      {
-        SYMS_S16 s = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &s);
-        SYMS_DwExprNode *v = syms_dw_expr_pop(eval);
-        SYMS_S64 sa = *(SYMS_S64 *)&v->value;
-        offset += sa;
-      }break;
-      
-      //- rjf: function calls (wait, are you kidding me?)
-      case SYMS_DwOpCode_CALL_REF:
-      case SYMS_DwOpCode_CALL4:
-      case SYMS_DwOpCode_CALL2:
-      {
-        goto exit_fail;
-      }break;
-      
-      //- rjf: register values
-      case SYMS_DwOpCode_REG0:  case SYMS_DwOpCode_REG1:  case SYMS_DwOpCode_REG2:
-      case SYMS_DwOpCode_REG3:  case SYMS_DwOpCode_REG4:  case SYMS_DwOpCode_REG5:
-      case SYMS_DwOpCode_REG6:  case SYMS_DwOpCode_REG7:  case SYMS_DwOpCode_REG8:
-      case SYMS_DwOpCode_REG9:  case SYMS_DwOpCode_REG10: case SYMS_DwOpCode_REG11:
-      case SYMS_DwOpCode_REG12: case SYMS_DwOpCode_REG13: case SYMS_DwOpCode_REG14:
-      case SYMS_DwOpCode_REG15: case SYMS_DwOpCode_REG16: case SYMS_DwOpCode_REG17:
-      case SYMS_DwOpCode_REG18: case SYMS_DwOpCode_REG19: case SYMS_DwOpCode_REG20:
-      case SYMS_DwOpCode_REG21: case SYMS_DwOpCode_REG22: case SYMS_DwOpCode_REG23:
-      case SYMS_DwOpCode_REG24: case SYMS_DwOpCode_REG25: case SYMS_DwOpCode_REG26:
-      case SYMS_DwOpCode_REG27: case SYMS_DwOpCode_REG28: case SYMS_DwOpCode_REG29:
-      case SYMS_DwOpCode_REG30: case SYMS_DwOpCode_REG31:
-      {
-        syms_dw_expr_push_operator(arena, eval, op, 0, 0);
-      }break;
-      case SYMS_DwOpCode_REGX:
-      {
-        SYMS_U64 reg_index = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &reg_index);
-        SYMS_DwExprNode *v = syms_dw_expr_push_literal(arena, eval, reg_index);
-        syms_dw_expr_pop(eval);
-        syms_dw_expr_push_operator(arena, eval, op, v, 0);
-      }break;
-      
-      //- rjf: implicit value
-      case SYMS_DwOpCode_IMPLICIT_VALUE:
-      {
-        SYMS_U64 size = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &size);
-        SYMS_DwExprNode *v = syms_dw_expr_push_literal(arena, eval, size);
-        syms_dw_expr_pop(eval);
-        syms_dw_expr_push_operator(arena, eval, op, v, 0);
-        goto exit_good;
-      }break;
-      
-      //- rjf: stack value
-      case SYMS_DwOpCode_STACK_VALUE:
-      {
-        goto exit_fail;
-      }break;
-      
-      //- rjf: pieces ???
-      case SYMS_DwOpCode_PIECE:
-      case SYMS_DwOpCode_BIT_PIECE:
-      {
-        // TODO(rjf): Unimplemented
-        goto exit_fail;
-      }break;
-      
-      //- rjf: catch-all
-      default:
-      {
-        // TODO(rjf): Unexpected opcode
-        goto exit_fail;
-      }break;
-    }
-  }
-  exit_fail:;
-  exit_good:;
-  
-  SYMS_DwLocationDesc result;
-  syms_memzero_struct(&result);
-  result.expr_root = eval->stack_top;
-  return result;
-}
-
-////////////////////////////////
-//~ rjf: Location Evaluation VM
-
-SYMS_API SYMS_U64
-syms_dw_based_range_read_and_eval_location_expr(void *base,
-                                                SYMS_U64Range range,
-                                                SYMS_U64 offset,
-                                                SYMS_DwLocation *location_out,
-                                                SYMS_U64 frame_base,
-                                                SYMS_U64 member_loc,
-                                                SYMS_U64 cfa,
-                                                SYMS_DwMode dw_mode,
-                                                SYMS_Arch arch,
-                                                void *memread_ctx, dw_memread_sig *memread,
-                                                void *regread_ctx, dw_regread_sig *regread)
-{
-  SYMS_U32 addr_size = syms_address_size_from_arch(arch) / 8;
-  SYMS_U64 start_offset = offset;
-  
-  SYMS_DwLocation location;
-  syms_memzero_struct(&location);
-  
-  SYMS_U64 stack[128];
-  SYMS_U64 *end = &stack[SYMS_ARRAY_SIZE(stack) - 1];
-  SYMS_U64 *top = end;
-#define SYMS_DW_PUSH_U64(x)  *top = (SYMS_U64)(x); --top
-#define SYMS_DW_PUSH_S64(x)  *top = (SYMS_S64)(x); --top
-#define SYMS_DW_POP()        (++top)
-#define SYMS_DW_POP_S64()    ((SYMS_S64)*(++top))
-#define SYMS_DW_POP_U64()    (*(++top))
-  
-  for(;offset < syms_u64_range_size(range);)
-  {
-    SYMS_U8 op = 0;
-    offset += syms_based_range_read_struct(base, range, offset, &op);
-    
-    //- rjf: do op
-    switch(op)
-    {
-      case SYMS_DwOpCode_NOP: break;
-      
-      //- rjf: push address
-      case SYMS_DwOpCode_ADDR:
-      {
-        SYMS_U64 addr = 0;
-        offset += syms_based_range_read(base, range, offset, (SYMS_U64)addr_size, &addr);
-        SYMS_DW_PUSH_U64(addr);
-      }break;
-      
-      //- rjf: push small literal
-      case SYMS_DwOpCode_LIT0:  case SYMS_DwOpCode_LIT1:  case SYMS_DwOpCode_LIT2:
-      case SYMS_DwOpCode_LIT3:  case SYMS_DwOpCode_LIT4:  case SYMS_DwOpCode_LIT5:
-      case SYMS_DwOpCode_LIT6:  case SYMS_DwOpCode_LIT7:  case SYMS_DwOpCode_LIT8:
-      case SYMS_DwOpCode_LIT9:  case SYMS_DwOpCode_LIT10: case SYMS_DwOpCode_LIT11:
-      case SYMS_DwOpCode_LIT12: case SYMS_DwOpCode_LIT13: case SYMS_DwOpCode_LIT14:
-      case SYMS_DwOpCode_LIT15: case SYMS_DwOpCode_LIT16: case SYMS_DwOpCode_LIT17:
-      case SYMS_DwOpCode_LIT18: case SYMS_DwOpCode_LIT19: case SYMS_DwOpCode_LIT20:
-      case SYMS_DwOpCode_LIT21: case SYMS_DwOpCode_LIT22: case SYMS_DwOpCode_LIT23:
-      case SYMS_DwOpCode_LIT24: case SYMS_DwOpCode_LIT25: case SYMS_DwOpCode_LIT26:
-      case SYMS_DwOpCode_LIT27: case SYMS_DwOpCode_LIT28: case SYMS_DwOpCode_LIT29:
-      case SYMS_DwOpCode_LIT30: case SYMS_DwOpCode_LIT31:
-      {
-        SYMS_U64 u = (SYMS_U64)(op - SYMS_DwOpCode_LIT0);
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      
-      //- rjf: push constants
-      case SYMS_DwOpCode_CONST1U: SYMS_DW_PUSH_U64(1); break;
-      case SYMS_DwOpCode_CONST2U: SYMS_DW_PUSH_U64(2); break;
-      case SYMS_DwOpCode_CONST4U: SYMS_DW_PUSH_U64(4); break;
-      case SYMS_DwOpCode_CONST8U: SYMS_DW_PUSH_U64(8); break;
-      case SYMS_DwOpCode_CONST1S: SYMS_DW_PUSH_S64(1); break;
-      case SYMS_DwOpCode_CONST2S: SYMS_DW_PUSH_S64(2); break;
-      case SYMS_DwOpCode_CONST4S: SYMS_DW_PUSH_S64(4); break;
-      case SYMS_DwOpCode_CONST8S: SYMS_DW_PUSH_S64(8); break;
-      case SYMS_DwOpCode_CONSTU:
-      {
-        SYMS_U64 v = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &v);
-        SYMS_DW_PUSH_U64(v);
-      }break;
-      
-      //- rjf: push SLEB-128 constant
-      case SYMS_DwOpCode_CONSTS:
-      {
-        SYMS_S64 v = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &v);
-        SYMS_DW_PUSH_S64(v);
-      }break;
-      
-      //- rjf: push frame based SLEB-128
-      case SYMS_DwOpCode_FBREG:
-      {
-        SYMS_S64 v = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &v);
-        v += frame_base;
-        SYMS_DW_PUSH_S64(v);
-      }break;
-      
-      //- rjf: push register + SLEB-128
-      case SYMS_DwOpCode_BREG0:  case SYMS_DwOpCode_BREG1:  case SYMS_DwOpCode_BREG2:
-      case SYMS_DwOpCode_BREG3:  case SYMS_DwOpCode_BREG4:  case SYMS_DwOpCode_BREG5:
-      case SYMS_DwOpCode_BREG6:  case SYMS_DwOpCode_BREG7:  case SYMS_DwOpCode_BREG8:
-      case SYMS_DwOpCode_BREG9:  case SYMS_DwOpCode_BREG10: case SYMS_DwOpCode_BREG11:
-      case SYMS_DwOpCode_BREG12: case SYMS_DwOpCode_BREG13: case SYMS_DwOpCode_BREG14:
-      case SYMS_DwOpCode_BREG15: case SYMS_DwOpCode_BREG16: case SYMS_DwOpCode_BREG17:
-      case SYMS_DwOpCode_BREG18: case SYMS_DwOpCode_BREG19: case SYMS_DwOpCode_BREG20:
-      case SYMS_DwOpCode_BREG21: case SYMS_DwOpCode_BREG22: case SYMS_DwOpCode_BREG23:
-      case SYMS_DwOpCode_BREG24: case SYMS_DwOpCode_BREG25: case SYMS_DwOpCode_BREG26:
-      case SYMS_DwOpCode_BREG27: case SYMS_DwOpCode_BREG28: case SYMS_DwOpCode_BREG29:
-      case SYMS_DwOpCode_BREG30: case SYMS_DwOpCode_BREG31:
-      {
-        SYMS_U64 u = 0;
-        SYMS_U32 reg_index = (SYMS_U32)(op - SYMS_DwOpCode_BREG0);
-        if(!regread(regread_ctx, arch, reg_index, &u, sizeof(u)))
-        {
-          goto exit_fail;
-        }
-        SYMS_S64 s = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &s);
-        s += ((SYMS_S64) u);
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      
-      //- rjf: push ULEB-128 reg
-      case SYMS_DwOpCode_BREGX:
-      {
-        SYMS_U64 v = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &v);
-        SYMS_U32 reg_index = (SYMS_U32)(v);
-        SYMS_U64 u = 0;
-        if(!regread(regread_ctx, arch, reg_index, &u, sizeof(u)))
-        {
-          goto exit_fail;
-        }
-        SYMS_S64 s = 0;
-        offset += syms_based_range_read_sleb128(base, range, offset, &s);
-        u = ((SYMS_U64) ((SYMS_S64) u) + s);
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      
-      //- rjf: ???
-      case SYMS_DwOpCode_DUP:     SYMS_DW_PUSH_U64(*top);   break;
-      case SYMS_DwOpCode_DROP:    SYMS_DW_POP();            break;
-      case SYMS_DwOpCode_OVER:    SYMS_DW_PUSH_U64(top[1]); break;
-      case SYMS_DwOpCode_PICK:
-      {
-        SYMS_U8 index = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &index);
-        SYMS_DW_PUSH_U64(top[index]);
-      }break;
-      
-      //- rjf: swap
-      case SYMS_DwOpCode_SWAP:
-      {
-        SYMS_U64 u = top[0];
-        top[0] = top[1];
-        top[1] = u;
-      }break;
-      
-      //- rjf: rotate
-      case SYMS_DwOpCode_ROT:
-      {
-        SYMS_U64 u = top[0];
-        top[0] = top[2];
-        top[2] = top[1];
-        top[1] = u;
-      }break;
-      
-      //- rjf: deref
-      case SYMS_DwOpCode_DEREF:
-      {
-        SYMS_ASSERT(sizeof(*top) <= addr_size);
-        SYMS_U64 u = SYMS_DW_POP_U64();
-        if(!memread(memread_ctx, u, &u, addr_size))
-        {
-          goto exit_fail;
-        }
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      
-      //- rjf: deref size
-      case SYMS_DwOpCode_DEREF_SIZE:
-      {
-        SYMS_U8 read_addr_size = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &read_addr_size);
-        if (read_addr_size > addr_size)
-        {
-          goto exit_fail;
-        }
-        SYMS_U64 u = SYMS_DW_POP_U64();
-        if (!memread(memread_ctx, u, &u, read_addr_size))
-        {
-          goto exit_fail;
-        }
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      
-      //- rjf: xderef ???
-      // TODO(nick): This is a very rare case here, maybe later we can figure this out.
-      case SYMS_DwOpCode_XDEREF_SIZE:
-      case SYMS_DwOpCode_XDEREF:
-      {
-        goto exit_fail;
-      }break;
-      
-      //- rjf: push member loc
-      case SYMS_DwOpCode_PUSH_OBJECT_ADDRESS:
-      {
-        SYMS_DW_PUSH_U64(member_loc);
-      }break;
-      
-      //- rjf: TLS address
-      case SYMS_DwOpCode_FORM_TLS_ADDRESS:
-      {
-        SYMS_NOT_IMPLEMENTED;
-      }break;
-      
-      case SYMS_DwOpCode_CALL_FRAME_CFA:
-      {
-        SYMS_DW_PUSH_U64(cfa);
-      }break;
-      
-      //- rjf: arithmetic ops
-      case SYMS_DwOpCode_ABS:
-      {
-        SYMS_S64 s = SYMS_DW_POP_S64();
-        SYMS_U64 u = ((SYMS_U64) s < 0 ? -s : s);
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_PLUS:
-      {
-        SYMS_U64 ua = SYMS_DW_POP_U64();
-        SYMS_U64 ub = SYMS_DW_POP_U64();
-        SYMS_U64 u = ub + ua;
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_PLUS_UCONST:
-      {
-        SYMS_U64 u = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &u);
-        u += SYMS_DW_POP_U64();
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_DIV:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        if(sa == 0)
-        {
-          goto exit_fail;
-        }
-        SYMS_S64 s = sb / sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_MINUS:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb - sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_MOD:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb % sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_MUL:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        if(sa == 0)
-        {
-          goto exit_fail;
-        }
-        SYMS_S64 s = sb * sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_NEG:
-      {
-        SYMS_S64 s = SYMS_DW_POP_S64();
-        s = -s;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      
-      //- rjf: boolean/bitwise ops
-      case SYMS_DwOpCode_AND:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb & sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_NOT:
-      {
-        SYMS_U64 u = SYMS_DW_POP_U64();
-        u = ((SYMS_U64) !u);
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_OR:
-      {
-        SYMS_U64 ua = SYMS_DW_POP_U64();
-        SYMS_U64 ub = SYMS_DW_POP_U64();
-        SYMS_U64 u = ub | ua;
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_SHL:
-      {
-        SYMS_U64 ua = SYMS_DW_POP_U64();
-        SYMS_U64 ub = SYMS_DW_POP_U64();
-        SYMS_U64 u = ub << ua;
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_SHR:
-      {
-        SYMS_U64 ua = SYMS_DW_POP_U64();
-        SYMS_U64 ub = SYMS_DW_POP_U64();
-        SYMS_U64 u = ub >> ua;
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_SHRA:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb >> sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_XOR:
-      {
-        SYMS_U64 ua = SYMS_DW_POP_U64();
-        SYMS_U64 ub = SYMS_DW_POP_U64();
-        SYMS_U64 u = ub ^ ua;
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      case SYMS_DwOpCode_LE:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb <= sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_GE:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb >= sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_EQ:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb == sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_LT:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb < sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_GT:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb > sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_NE:
-      {
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        SYMS_S64 sb = SYMS_DW_POP_S64();
-        SYMS_S64 s = sb != sa;
-        SYMS_DW_PUSH_S64(s);
-      }break;
-      case SYMS_DwOpCode_SKIP:
-      {
-        SYMS_S16 s = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &s);
-        offset += s;
-      }break;
-      case SYMS_DwOpCode_BRA:
-      {
-        SYMS_S16 s = 0;
-        offset += syms_based_range_read_struct(base, range, offset, &s);
-        SYMS_S64 sa = SYMS_DW_POP_S64();
-        if(sa != 0)
-        {
-          offset += sa;
-        }
-      }break;
-      
-      //- rjf: function calls (wait, are you kidding me?)
-      case SYMS_DwOpCode_CALL_REF:
-      case SYMS_DwOpCode_CALL4:
-      case SYMS_DwOpCode_CALL2:
-      {
-        goto exit_fail;
-      }break;
-      
-      case SYMS_DwOpCode_REG0:  case SYMS_DwOpCode_REG1:  case SYMS_DwOpCode_REG2:
-      case SYMS_DwOpCode_REG3:  case SYMS_DwOpCode_REG4:  case SYMS_DwOpCode_REG5:
-      case SYMS_DwOpCode_REG6:  case SYMS_DwOpCode_REG7:  case SYMS_DwOpCode_REG8:
-      case SYMS_DwOpCode_REG9:  case SYMS_DwOpCode_REG10: case SYMS_DwOpCode_REG11:
-      case SYMS_DwOpCode_REG12: case SYMS_DwOpCode_REG13: case SYMS_DwOpCode_REG14:
-      case SYMS_DwOpCode_REG15: case SYMS_DwOpCode_REG16: case SYMS_DwOpCode_REG17:
-      case SYMS_DwOpCode_REG18: case SYMS_DwOpCode_REG19: case SYMS_DwOpCode_REG20:
-      case SYMS_DwOpCode_REG21: case SYMS_DwOpCode_REG22: case SYMS_DwOpCode_REG23:
-      case SYMS_DwOpCode_REG24: case SYMS_DwOpCode_REG25: case SYMS_DwOpCode_REG26:
-      case SYMS_DwOpCode_REG27: case SYMS_DwOpCode_REG28: case SYMS_DwOpCode_REG29:
-      case SYMS_DwOpCode_REG30: case SYMS_DwOpCode_REG31:
-      {
-        SYMS_U64 u = 0;
-        SYMS_U32 reg_index = ((SYMS_U32) op - SYMS_DwOpCode_REG0);
-        if(!regread(regread_ctx, arch, reg_index, &u, sizeof(u)))
-        {
-          goto exit_fail;
-        }
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      
-      case SYMS_DwOpCode_REGX:
-      {
-        SYMS_U64 u = 0;
-        SYMS_U64 reg_index = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &reg_index);
-        reg_index = (SYMS_U32)(reg_index);
-        if(!regread(regread_ctx, arch, reg_index, &u, sizeof(u)))
-        {
-          goto exit_fail;
-        }
-        
-        SYMS_DW_PUSH_U64(u);
-      }break;
-      
-      case SYMS_DwOpCode_IMPLICIT_VALUE:
-      {
-        SYMS_U64 len = 0;
-        offset += syms_based_range_read_uleb128(base, range, offset, &len);
-        location.implicit_value = syms_based_range_ptr(base, range, offset);
-        location.implicit_value_size = len;
-        goto exit_good;
-      }break;
-      
-      case SYMS_DwOpCode_STACK_VALUE:
-      {
-        goto exit_fail;
-      }break;
-      
-      case SYMS_DwOpCode_PIECE:
-      case SYMS_DwOpCode_BIT_PIECE:
-      {
-        SYMS_NOT_IMPLEMENTED;
-      }break;
-      
-      default:
-      {
-        SYMS_ASSERT(!"encountered an unimplemented expression opcode");
-      }break;
-    }
-  }
-  
-  exit_good:;
-  if(top != end && offset >= syms_u64_range_size(range))
-  {
-    location.va = SYMS_DW_POP_U64();
-  }
-  exit_fail:;
-  SYMS_U64 result = offset - start_offset;
-  
-#undef SYMS_DW_PUSH_U64
-#undef SYMS_DW_PUSH_S64
-#undef SYMS_DW_POP
-#undef SYMS_DW_POP_S64
-#undef SYMS_DW_POP_U64
-  
-  if(location_out)
-  {
-    *location_out = location;
-  }
-  
-  return result;
 }
 
 ////////////////////////////////
@@ -3104,7 +2190,6 @@ syms_dw_comp_root_from_range(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAcc
   SYMS_B32        high_pc_is_relative = 0;
   SYMS_DwAttribValue ranges_attrib_value = {SYMS_DwSectionKind_Null};
   SYMS_U64        line_base         = 0;
-  SYMS_DwAttrib *high_pc_attrib = 0;
   if(got_comp_unit_tag)
   {
     for(SYMS_DwAttribNode *attrib_n = comp_unit_tag->attribs.first; attrib_n; attrib_n = attrib_n->next)
@@ -3694,8 +2779,6 @@ syms_dw_unit_accel_from_comp_root(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwD
   unit->abbrev_table.count = comp_root->abbrev_table.count;
   unit->abbrev_table.entries = (SYMS_DwAbbrevTableEntry *)syms_push_string_copy(arena, syms_str8((SYMS_U8 *)comp_root->abbrev_table.entries,
                                                                                                  sizeof(SYMS_DwAbbrevTableEntry) * unit->abbrev_table.count)).str;
-  // TODO(rjf): This is an arbitrary choice of size. Can we predict it? Or tune it to
-  // common cases at least?
   unit->stub_table_size = syms_dw_predict_good_stub_table_size_from_range_size(comp_root->tags_info_range.max - comp_root->tags_info_range.min);
   unit->stub_table = syms_push_array_zero(arena, SYMS_DwTagStubCacheNode *, unit->stub_table_size);
   // TODO(rjf): This is an arbitrary choice of size. Can we predict it? Or tune it to
@@ -4329,8 +3412,6 @@ syms_dw_attrib_list_from_stub(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAc
 SYMS_API SYMS_SymbolIDArray
 syms_dw_copy_sid_array_if_needed(SYMS_Arena *arena, SYMS_SymbolIDArray arr)
 {
-  // TODO(rjf): we can check here if `arena` is the same one we've built the cached array on,
-  // in which case we can avoid the copy
   SYMS_SymbolIDArray result = {0};
   result.count = arr.count;
   result.ids = syms_push_array(arena, SYMS_SymbolID, result.count);
@@ -4477,12 +3558,15 @@ syms_dw_mems_accel_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAcce
                 void *debug_info_base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Info);
                 void *exprloc_base = (void *)((SYMS_U8 *)debug_info_base + value.v[0]);
                 SYMS_U64Range exprloc_rng = syms_make_u64_range(0, value.v[1]);
-                SYMS_DwLocationDesc loc = syms_dw_location_desc_from_based_range(scratch.arena, exprloc_base, exprloc_rng, 0, unit->address_size);
-                if(loc.expr_root != 0 && loc.expr_root->first == 0)
+                
+                // TODO(allen): fill this in correctly
+                SYMS_U64 text_base = 0;
+                SYMS_DwSimpleLoc loc = syms_dw_expr__analyze_fast(exprloc_base, exprloc_rng, text_base);
+                if(loc.kind == SYMS_DwSimpleLocKind_Address)
                 {
                   // NOTE(rjf): These are reported in slots, but PDB reports in byte offsets,
                   // so this maps to the same space as PDB.
-                  virtual_offset = loc.expr_root->value * unit->address_size;
+                  virtual_offset = loc.addr * unit->address_size;
                 }
                 syms_release_scratch(scratch);
               }break;
@@ -5152,18 +4236,19 @@ syms_dw_voff_from_var_sid(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAc
         
         default:
         {
-          SYMS_ArenaTemp scratch2 = syms_arena_temp_begin(scratch.arena);
+          SYMS_ArenaTemp temp2 = syms_arena_temp_begin(scratch.arena);
           void *debug_info_base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Info);
           void *exprloc_base = ((SYMS_U8*)debug_info_base + value.v[0]);
           SYMS_U64Range exprloc_range = syms_make_u64_range(0, value.v[1]);
-          SYMS_DwLocationDesc loc = syms_dw_location_desc_from_based_range(scratch.arena,
-                                                                           exprloc_base, exprloc_range,
-                                                                           0, unit->address_size);
-          if (loc.expr_root != 0 && loc.expr_root->first == 0){
-            result = loc.expr_root->value;
+          
+          // TODO(allen): fill this in correctly
+          SYMS_U64 text_base = 0;
+          SYMS_DwSimpleLoc loc = syms_dw_expr__analyze_fast(exprloc_base, exprloc_range, text_base);
+          if (loc.kind == SYMS_DwSimpleLocKind_Address){
+            result = loc.addr;
           }
           
-          syms_arena_temp_end(scratch2);
+          syms_arena_temp_end(temp2);
         }break;
       }
     }
@@ -5432,55 +4517,6 @@ syms_dw_scope_children_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbg
   SYMS_SymbolIDArray array = syms_sid_array_from_list(arena, &list);
   syms_release_scratch(scratch);
   return array;
-}
-
-//- rjf: location descriptions
-
-SYMS_API SYMS_DwLocationDesc
-syms_dw_location_desc_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
-                               SYMS_DwUnitSetAccel *unit_set, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid)
-{
-  SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
-  SYMS_DwLocationDesc desc = {0};
-  SYMS_DwTagStub stub = syms_dw_cached_tag_stub_from_sid__parse_fallback(data, dbg, unit, sid);
-  
-  if(stub.sid != 0)
-  {
-    //- rjf: get attribs
-    SYMS_DwAttribList attribs = syms_dw_attrib_list_from_stub(scratch.arena, data, dbg, unit->address_size, &stub);
-    
-    //- rjf: get comp unit
-    SYMS_DwCompRoot *root = syms_dw_comp_root_from_uid(unit_set, unit->uid);
-    
-    //- rjf: check attribs, see if we have a location
-    for(SYMS_DwAttribNode *attrib_n = attribs.first;
-        attrib_n != 0;
-        attrib_n = attrib_n->next)
-    {
-      SYMS_DwAttrib *attrib = &attrib_n->attrib;
-      if(attrib->attrib_kind == SYMS_DwAttribKind_LOCATION)
-      {
-        SYMS_DwAttribValue value = syms_dw_attrib_value_from_form_value(data, dbg, unit->resolve_params, attrib->form_kind, attrib->value_class, attrib->form_value);
-        
-        if(attrib->form_kind == SYMS_DwFormKind_EXPRLOC)
-        {
-          SYMS_U64 offset = value.v[0];
-          void *base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Info);
-          SYMS_U64Range range = syms_make_u64_range(value.v[0], value.v[0]+ value.v[1]);
-          desc = syms_dw_location_desc_from_based_range(arena, base, range, offset, root->address_size);
-        }
-        else if(attrib->form_kind == SYMS_DwFormKind_LOCLISTX)
-        {
-          desc.va = value.v[0];
-        }
-        
-        break;
-      }
-    }
-  }
-  
-  syms_release_scratch(scratch);
-  return desc;
 }
 
 //- rjf: line info

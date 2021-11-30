@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_CV_H
 #define _SYMS_META_CV_H
-//~ generated from code at src/metaprogram/metaprogram_syms.c:686
+//~ generated from code at src/metaprogram/metaprogram_syms.c:774
 #pragma pack(push,1)
 typedef struct SYMS_CvGuid{
 SYMS_U32 data1;
@@ -168,6 +168,7 @@ SYMS_CvAllReg_COUNT = 13
 typedef SYMS_U16 SYMS_CvRegx86;
 enum{
 SYMS_CvRegx86_NONE = 0,
+//  NOTE(allen): 80x86 and ix86 registers
 SYMS_CvRegx86_AL = 1,
 SYMS_CvRegx86_CL = 2,
 SYMS_CvRegx86_DL = 3,
@@ -266,6 +267,7 @@ SYMS_CvRegx86_XMM4H = 206,
 SYMS_CvRegx86_XMM5H = 207,
 SYMS_CvRegx86_XMM6H = 208,
 SYMS_CvRegx86_XMM7H = 209,
+//  AVX registers
 SYMS_CvRegx86_YMM0 = 252,
 SYMS_CvRegx86_YMM1 = 253,
 SYMS_CvRegx86_YMM2 = 254,
@@ -282,6 +284,7 @@ SYMS_CvRegx86_YMM4H = 264,
 SYMS_CvRegx86_YMM5H = 265,
 SYMS_CvRegx86_YMM6H = 266,
 SYMS_CvRegx86_YMM7H = 267,
+//  AVX integer registers
 SYMS_CvRegx86_YMM0I0 = 268,
 SYMS_CvRegx86_YMM0I1 = 269,
 SYMS_CvRegx86_YMM0I2 = 270,
@@ -314,6 +317,7 @@ SYMS_CvRegx86_YMM7I0 = 296,
 SYMS_CvRegx86_YMM7I1 = 297,
 SYMS_CvRegx86_YMM7I2 = 298,
 SYMS_CvRegx86_YMM7I3 = 299,
+//  AVX floating-point single precise registers
 SYMS_CvRegx86_YMM0F0 = 300,
 SYMS_CvRegx86_YMM0F1 = 301,
 SYMS_CvRegx86_YMM0F2 = 302,
@@ -378,6 +382,7 @@ SYMS_CvRegx86_YMM7F4 = 360,
 SYMS_CvRegx86_YMM7F5 = 361,
 SYMS_CvRegx86_YMM7F6 = 362,
 SYMS_CvRegx86_YMM7F7 = 363,
+//  AVX floating-point double precise registers
 SYMS_CvRegx86_YMM0D0 = 364,
 SYMS_CvRegx86_YMM0D1 = 365,
 SYMS_CvRegx86_YMM0D2 = 366,
@@ -448,12 +453,14 @@ SYMS_CvRegx64_GS = 30,
 SYMS_CvRegx64_FLAGS = 32,
 SYMS_CvRegx64_RIP = 33,
 SYMS_CvRegx64_EFLAGS = 34,
+//  Control registers
 SYMS_CvRegx64_CR0 = 80,
 SYMS_CvRegx64_CR1 = 81,
 SYMS_CvRegx64_CR2 = 82,
 SYMS_CvRegx64_CR3 = 83,
 SYMS_CvRegx64_CR4 = 84,
 SYMS_CvRegx64_CR8 = 88,
+//  Debug registers
 SYMS_CvRegx64_DR0 = 90,
 SYMS_CvRegx64_DR1 = 91,
 SYMS_CvRegx64_DR2 = 92,
@@ -558,7 +565,9 @@ SYMS_CvRegx64_XMM4H = 206,
 SYMS_CvRegx64_XMM5H = 207,
 SYMS_CvRegx64_XMM6H = 208,
 SYMS_CvRegx64_XMM7H = 209,
+//  XMM status register
 SYMS_CvRegx64_MXCSR = 211,
+//  XMM sub-registers (WNI integer)
 SYMS_CvRegx64_EMM0L = 220,
 SYMS_CvRegx64_EMM1L = 221,
 SYMS_CvRegx64_EMM2L = 222,
@@ -575,6 +584,7 @@ SYMS_CvRegx64_EMM4H = 232,
 SYMS_CvRegx64_EMM5H = 233,
 SYMS_CvRegx64_EMM6H = 234,
 SYMS_CvRegx64_EMM7H = 235,
+//  do not change the order of these regs, first one must be even too
 SYMS_CvRegx64_MM00 = 236,
 SYMS_CvRegx64_MM01 = 237,
 SYMS_CvRegx64_MM10 = 238,
@@ -647,6 +657,7 @@ SYMS_CvRegx64_XMM12H = 304,
 SYMS_CvRegx64_XMM13H = 305,
 SYMS_CvRegx64_XMM14H = 306,
 SYMS_CvRegx64_XMM15H = 307,
+//  XMM sub-registers (WNI integer)
 SYMS_CvRegx64_EMM8L = 308,
 SYMS_CvRegx64_EMM9L = 309,
 SYMS_CvRegx64_EMM10L = 310,
@@ -663,10 +674,12 @@ SYMS_CvRegx64_EMM12H = 320,
 SYMS_CvRegx64_EMM13H = 321,
 SYMS_CvRegx64_EMM14H = 322,
 SYMS_CvRegx64_EMM15H = 323,
+//  Low byte forms of some standard registers
 SYMS_CvRegx64_SIL = 324,
 SYMS_CvRegx64_DIL = 325,
 SYMS_CvRegx64_BPL = 326,
 SYMS_CvRegx64_SPL = 327,
+//  64-bit regular registers
 SYMS_CvRegx64_RAX = 328,
 SYMS_CvRegx64_RBX = 329,
 SYMS_CvRegx64_RCX = 330,
@@ -675,6 +688,7 @@ SYMS_CvRegx64_RSI = 332,
 SYMS_CvRegx64_RDI = 333,
 SYMS_CvRegx64_RBP = 334,
 SYMS_CvRegx64_RSP = 335,
+//  64-bit integer registers with 8-, 16-, and 32-bit forms (B, W, and D)
 SYMS_CvRegx64_R8 = 336,
 SYMS_CvRegx64_R9 = 337,
 SYMS_CvRegx64_R10 = 338,
@@ -707,6 +721,7 @@ SYMS_CvRegx64_R12D = 364,
 SYMS_CvRegx64_R13D = 365,
 SYMS_CvRegx64_R14D = 366,
 SYMS_CvRegx64_R15D = 367,
+//  AVX registers 256 bits
 SYMS_CvRegx64_YMM0 = 368,
 SYMS_CvRegx64_YMM1 = 369,
 SYMS_CvRegx64_YMM2 = 370,
@@ -723,6 +738,7 @@ SYMS_CvRegx64_YMM12 = 380,
 SYMS_CvRegx64_YMM13 = 381,
 SYMS_CvRegx64_YMM14 = 382,
 SYMS_CvRegx64_YMM15 = 383,
+//  AVX registers upper 128 bits
 SYMS_CvRegx64_YMM0H = 384,
 SYMS_CvRegx64_YMM1H = 385,
 SYMS_CvRegx64_YMM2H = 386,
@@ -739,6 +755,9 @@ SYMS_CvRegx64_YMM12H = 396,
 SYMS_CvRegx64_YMM13H = 397,
 SYMS_CvRegx64_YMM14H = 398,
 SYMS_CvRegx64_YMM15H = 399,
+//  Lower/upper 8 bytes of XMM registers.  Unlike CV_AMD64_XMM<regnum><H/L>, these
+//    * values reprsesent the bit patterns of the registers as 64-bit integers, not
+//    * the representation of these registers as a double. 
 SYMS_CvRegx64_XMM0IL = 400,
 SYMS_CvRegx64_XMM1IL = 401,
 SYMS_CvRegx64_XMM2IL = 402,
@@ -771,6 +790,7 @@ SYMS_CvRegx64_XMM12IH = 428,
 SYMS_CvRegx64_XMM13IH = 429,
 SYMS_CvRegx64_XMM14IH = 430,
 SYMS_CvRegx64_XMM15IH = 431,
+//  AVX integer registers
 SYMS_CvRegx64_YMM0I0 = 432,
 SYMS_CvRegx64_YMM0I1 = 433,
 SYMS_CvRegx64_YMM0I2 = 434,
@@ -835,6 +855,7 @@ SYMS_CvRegx64_YMM15I0 = 492,
 SYMS_CvRegx64_YMM15I1 = 493,
 SYMS_CvRegx64_YMM15I2 = 494,
 SYMS_CvRegx64_YMM15I3 = 495,
+//  AVX floating-point single precise registers
 SYMS_CvRegx64_YMM0F0 = 496,
 SYMS_CvRegx64_YMM0F1 = 497,
 SYMS_CvRegx64_YMM0F2 = 498,
@@ -963,6 +984,7 @@ SYMS_CvRegx64_YMM15F4 = 620,
 SYMS_CvRegx64_YMM15F5 = 621,
 SYMS_CvRegx64_YMM15F6 = 622,
 SYMS_CvRegx64_YMM15F7 = 623,
+//  AVX floating-point double precise registers
 SYMS_CvRegx64_YMM0D0 = 624,
 SYMS_CvRegx64_YMM0D1 = 625,
 SYMS_CvRegx64_YMM0D2 = 626,
@@ -1041,87 +1063,168 @@ SYMS_CvSignature_COUNT = 5
 typedef SYMS_U16 SYMS_CvSymKind;
 enum{
 SYMS_CvSymKind_NULL = 0,
-SYMS_CvSymKind_COMPILE = 0x0001,//  Compile flags symbol
-SYMS_CvSymKind_REGISTER_16t = 0x0002,//  Register variable
-SYMS_CvSymKind_CONSTANT_16t = 0x0003,//  constant symbol
-SYMS_CvSymKind_UDT_16t = 0x0004,//  User defined type
-SYMS_CvSymKind_SSEARCH = 0x0005,//  Start Search
-SYMS_CvSymKind_END = 0x0006,//  Block, procedure, "with" or thunk end
-SYMS_CvSymKind_SKIP = 0x0007,//  Reserve symbol space in $$Symbols table
-SYMS_CvSymKind_CVRESERVE = 0x0008,//  Reserved symbol for CV internal use
-SYMS_CvSymKind_OBJNAME_ST = 0x0009,//  path to object file name
-SYMS_CvSymKind_ENDARG = 0x000a,//  end of argument/return list
-SYMS_CvSymKind_COBOLUDT_16t = 0x000b,//  special UDT for cobol that does not symbol pack
-SYMS_CvSymKind_MANYREG_16t = 0x000c,//  multiple register variable
-SYMS_CvSymKind_RETURN = 0x000d,//  return description symbol
-SYMS_CvSymKind_ENTRYTHIS = 0x000e,//  description of this pointer on entry
-SYMS_CvSymKind_BPREL16 = 0x0100,//  BP-relative
-SYMS_CvSymKind_LDATA16 = 0x0101,//  Module-static symbol
-SYMS_CvSymKind_GDATA16 = 0x0102,//  Global data symbol
-SYMS_CvSymKind_PUB16 = 0x0103,//  a public symbol
-SYMS_CvSymKind_LPROC16 = 0x0104,//  Local procedure start
-SYMS_CvSymKind_GPROC16 = 0x0105,//  Global procedure start
-SYMS_CvSymKind_THUNK16 = 0x0106,//  Thunk Start
-SYMS_CvSymKind_BLOCK16 = 0x0107,//  block start
-SYMS_CvSymKind_WITH16 = 0x0108,//  with start
-SYMS_CvSymKind_LABEL16 = 0x0109,//  code label
-SYMS_CvSymKind_CEXMODEL16 = 0x010a,//  change execution model
-SYMS_CvSymKind_VFTABLE16 = 0x010b,//  address of virtual function table
-SYMS_CvSymKind_REGREL16 = 0x010c,//  register relative address
-SYMS_CvSymKind_BPREL32_16t = 0x0200,//  BP-relative
-SYMS_CvSymKind_LDATA32_16t = 0x0201,//  Module-static symbol
-SYMS_CvSymKind_GDATA32_16t = 0x0202,//  Global data symbol
-SYMS_CvSymKind_PUB32_16t = 0x0203,//  a public symbol (CV internal reserved)
-SYMS_CvSymKind_LPROC32_16t = 0x0204,//  Local procedure start
-SYMS_CvSymKind_GPROC32_16t = 0x0205,//  Global procedure start
-SYMS_CvSymKind_THUNK32_ST = 0x0206,//  Thunk Start
-SYMS_CvSymKind_BLOCK32_ST = 0x0207,//  block start
-SYMS_CvSymKind_WITH32_ST = 0x0208,//  with start
-SYMS_CvSymKind_LABEL32_ST = 0x0209,//  code label
-SYMS_CvSymKind_CEXMODEL32 = 0x020a,//  change execution model
-SYMS_CvSymKind_VFTABLE32_16t = 0x020b,//  address of virtual function table
-SYMS_CvSymKind_REGREL32_16t = 0x020c,//  register relative address
-SYMS_CvSymKind_LTHREAD32_16t = 0x020d,//  static thread storage
-SYMS_CvSymKind_GTHREAD32_16t = 0x020e,//  static thread storage
-SYMS_CvSymKind_SLINK32 = 0x020f,//  static link for MIPS EH implementation
-SYMS_CvSymKind_LPROCMIPS_16t = 0x0300,//  Local procedure start
-SYMS_CvSymKind_GPROCMIPS_16t = 0x0301,//  Global procedure start
-SYMS_CvSymKind_PROCREF_ST = 0x0400,//  Reference to a procedure
-SYMS_CvSymKind_DATAREF_ST = 0x0401,//  Reference to data
-SYMS_CvSymKind_ALIGN = 0x0402,//  Used for page alignment of symbols
-SYMS_CvSymKind_LPROCREF_ST = 0x0403,//  Local Reference to a procedure
-SYMS_CvSymKind_OEM = 0x0404,//  OEM defined symbol
-SYMS_CvSymKind_TI16_MAX = 0x1000,//  Register variable
-SYMS_CvSymKind_CONSTANT_ST = 0x1002,//  constant symbol
-SYMS_CvSymKind_UDT_ST = 0x1003,//  User defined type
-SYMS_CvSymKind_COBOLUDT_ST = 0x1004,//  special UDT for cobol that does not symbol pack
-SYMS_CvSymKind_MANYREG_ST = 0x1005,//  multiple register variable
-SYMS_CvSymKind_BPREL32_ST = 0x1006,//  BP-relative
-SYMS_CvSymKind_LDATA32_ST = 0x1007,//  Module-static symbol
-SYMS_CvSymKind_GDATA32_ST = 0x1008,//  Global data symbol
-SYMS_CvSymKind_PUB32_ST = 0x1009,//  a public symbol (CV internal reserved)
-SYMS_CvSymKind_LPROC32_ST = 0x100a,//  Local procedure start
-SYMS_CvSymKind_GPROC32_ST = 0x100b,//  Global procedure start
-SYMS_CvSymKind_VFTABLE32 = 0x100c,//  address of virtual function table
-SYMS_CvSymKind_REGREL32_ST = 0x100d,//  register relative address
-SYMS_CvSymKind_LTHREAD32_ST = 0x100e,//  static thread storage
-SYMS_CvSymKind_GTHREAD32_ST = 0x100f,//  static thread storage
-SYMS_CvSymKind_LPROCMIPS_ST = 0x1010,//  Local procedure start
-SYMS_CvSymKind_GPROCMIPS_ST = 0x1011,//  Global procedure start
-SYMS_CvSymKind_FRAMEPROC = 0x1012,//  extra frame and proc information
-SYMS_CvSymKind_COMPILE2_ST = 0x1013,//  extended compile flags and info
-SYMS_CvSymKind_MANYREG2_ST = 0x1014,//  multiple register variable
-SYMS_CvSymKind_LPROCIA64_ST = 0x1015,//  Local procedure start (IA64)
-SYMS_CvSymKind_GPROCIA64_ST = 0x1016,//  Global procedure start (IA64)
-SYMS_CvSymKind_LOCALSLOT_ST = 0x1017,//  static IL sym with field for static slot index
-SYMS_CvSymKind_PARAMSLOT_ST = 0x1018,//  static IL sym with field for parameter slot index
-SYMS_CvSymKind_ANNOTATION = 0x1019,//  Annotation string literals
-SYMS_CvSymKind_GMANPROC_ST = 0x101a,//  Global proc
-SYMS_CvSymKind_LMANPROC_ST = 0x101b,//  Local proc
-SYMS_CvSymKind_RESERVED1 = 0x101c,//  reserved
-SYMS_CvSymKind_RESERVED2 = 0x101d,//  reserved
-SYMS_CvSymKind_RESERVED3 = 0x101e,//  reserved
-SYMS_CvSymKind_RESERVED4 = 0x101f,//  reserved
+SYMS_CvSymKind_COMPILE = 0x0001,
+//  Compile flags symbol
+SYMS_CvSymKind_REGISTER_16t = 0x0002,
+//  Register variable
+SYMS_CvSymKind_CONSTANT_16t = 0x0003,
+//  constant symbol
+SYMS_CvSymKind_UDT_16t = 0x0004,
+//  User defined type
+SYMS_CvSymKind_SSEARCH = 0x0005,
+//  Start Search
+SYMS_CvSymKind_END = 0x0006,
+//  Block, procedure, "with" or thunk end
+SYMS_CvSymKind_SKIP = 0x0007,
+//  Reserve symbol space in $$Symbols table
+SYMS_CvSymKind_CVRESERVE = 0x0008,
+//  Reserved symbol for CV internal use
+SYMS_CvSymKind_OBJNAME_ST = 0x0009,
+//  path to object file name
+SYMS_CvSymKind_ENDARG = 0x000a,
+//  end of argument/return list
+SYMS_CvSymKind_COBOLUDT_16t = 0x000b,
+//  special UDT for cobol that does not symbol pack
+SYMS_CvSymKind_MANYREG_16t = 0x000c,
+//  multiple register variable
+SYMS_CvSymKind_RETURN = 0x000d,
+//  return description symbol
+SYMS_CvSymKind_ENTRYTHIS = 0x000e,
+//  description of this pointer on entry
+SYMS_CvSymKind_BPREL16 = 0x0100,
+//  BP-relative
+SYMS_CvSymKind_LDATA16 = 0x0101,
+//  Module-static symbol
+SYMS_CvSymKind_GDATA16 = 0x0102,
+//  Global data symbol
+SYMS_CvSymKind_PUB16 = 0x0103,
+//  a public symbol
+SYMS_CvSymKind_LPROC16 = 0x0104,
+//  Local procedure start
+SYMS_CvSymKind_GPROC16 = 0x0105,
+//  Global procedure start
+SYMS_CvSymKind_THUNK16 = 0x0106,
+//  Thunk Start
+SYMS_CvSymKind_BLOCK16 = 0x0107,
+//  block start
+SYMS_CvSymKind_WITH16 = 0x0108,
+//  with start
+SYMS_CvSymKind_LABEL16 = 0x0109,
+//  code label
+SYMS_CvSymKind_CEXMODEL16 = 0x010a,
+//  change execution model
+SYMS_CvSymKind_VFTABLE16 = 0x010b,
+//  address of virtual function table
+SYMS_CvSymKind_REGREL16 = 0x010c,
+//  register relative address
+SYMS_CvSymKind_BPREL32_16t = 0x0200,
+//  BP-relative
+SYMS_CvSymKind_LDATA32_16t = 0x0201,
+//  Module-static symbol
+SYMS_CvSymKind_GDATA32_16t = 0x0202,
+//  Global data symbol
+SYMS_CvSymKind_PUB32_16t = 0x0203,
+//  a public symbol (CV internal reserved)
+SYMS_CvSymKind_LPROC32_16t = 0x0204,
+//  Local procedure start
+SYMS_CvSymKind_GPROC32_16t = 0x0205,
+//  Global procedure start
+SYMS_CvSymKind_THUNK32_ST = 0x0206,
+//  Thunk Start
+SYMS_CvSymKind_BLOCK32_ST = 0x0207,
+//  block start
+SYMS_CvSymKind_WITH32_ST = 0x0208,
+//  with start
+SYMS_CvSymKind_LABEL32_ST = 0x0209,
+//  code label
+SYMS_CvSymKind_CEXMODEL32 = 0x020a,
+//  change execution model
+SYMS_CvSymKind_VFTABLE32_16t = 0x020b,
+//  address of virtual function table
+SYMS_CvSymKind_REGREL32_16t = 0x020c,
+//  register relative address
+SYMS_CvSymKind_LTHREAD32_16t = 0x020d,
+//  static thread storage
+SYMS_CvSymKind_GTHREAD32_16t = 0x020e,
+//  static thread storage
+SYMS_CvSymKind_SLINK32 = 0x020f,
+//  static link for MIPS EH implementation
+SYMS_CvSymKind_LPROCMIPS_16t = 0x0300,
+//  Local procedure start
+SYMS_CvSymKind_GPROCMIPS_16t = 0x0301,
+//  Global procedure start
+SYMS_CvSymKind_PROCREF_ST = 0x0400,
+//  Reference to a procedure
+SYMS_CvSymKind_DATAREF_ST = 0x0401,
+//  Reference to data
+SYMS_CvSymKind_ALIGN = 0x0402,
+//  Used for page alignment of symbols
+SYMS_CvSymKind_LPROCREF_ST = 0x0403,
+//  Local Reference to a procedure
+SYMS_CvSymKind_OEM = 0x0404,
+//  OEM defined symbol
+SYMS_CvSymKind_TI16_MAX = 0x1000,
+//  Register variable
+SYMS_CvSymKind_CONSTANT_ST = 0x1002,
+//  constant symbol
+SYMS_CvSymKind_UDT_ST = 0x1003,
+//  User defined type
+SYMS_CvSymKind_COBOLUDT_ST = 0x1004,
+//  special UDT for cobol that does not symbol pack
+SYMS_CvSymKind_MANYREG_ST = 0x1005,
+//  multiple register variable
+SYMS_CvSymKind_BPREL32_ST = 0x1006,
+//  BP-relative
+SYMS_CvSymKind_LDATA32_ST = 0x1007,
+//  Module-static symbol
+SYMS_CvSymKind_GDATA32_ST = 0x1008,
+//  Global data symbol
+SYMS_CvSymKind_PUB32_ST = 0x1009,
+//  a public symbol (CV internal reserved)
+SYMS_CvSymKind_LPROC32_ST = 0x100a,
+//  Local procedure start
+SYMS_CvSymKind_GPROC32_ST = 0x100b,
+//  Global procedure start
+SYMS_CvSymKind_VFTABLE32 = 0x100c,
+//  address of virtual function table
+SYMS_CvSymKind_REGREL32_ST = 0x100d,
+//  register relative address
+SYMS_CvSymKind_LTHREAD32_ST = 0x100e,
+//  static thread storage
+SYMS_CvSymKind_GTHREAD32_ST = 0x100f,
+//  static thread storage
+SYMS_CvSymKind_LPROCMIPS_ST = 0x1010,
+//  Local procedure start
+SYMS_CvSymKind_GPROCMIPS_ST = 0x1011,
+//  Global procedure start
+SYMS_CvSymKind_FRAMEPROC = 0x1012,
+//  extra frame and proc information
+SYMS_CvSymKind_COMPILE2_ST = 0x1013,
+//  extended compile flags and info
+SYMS_CvSymKind_MANYREG2_ST = 0x1014,
+//  multiple register variable
+SYMS_CvSymKind_LPROCIA64_ST = 0x1015,
+//  Local procedure start (IA64)
+SYMS_CvSymKind_GPROCIA64_ST = 0x1016,
+//  Global procedure start (IA64)
+SYMS_CvSymKind_LOCALSLOT_ST = 0x1017,
+//  static IL sym with field for static slot index
+SYMS_CvSymKind_PARAMSLOT_ST = 0x1018,
+//  static IL sym with field for parameter slot index
+SYMS_CvSymKind_ANNOTATION = 0x1019,
+//  Annotation string literals
+SYMS_CvSymKind_GMANPROC_ST = 0x101a,
+//  Global proc
+SYMS_CvSymKind_LMANPROC_ST = 0x101b,
+//  Local proc
+SYMS_CvSymKind_RESERVED1 = 0x101c,
+//  reserved
+SYMS_CvSymKind_RESERVED2 = 0x101d,
+//  reserved
+SYMS_CvSymKind_RESERVED3 = 0x101e,
+//  reserved
+SYMS_CvSymKind_RESERVED4 = 0x101f,
+//  reserved
 SYMS_CvSymKind_LMANDATA_ST = 0x1020,
 SYMS_CvSymKind_GMANDATA_ST = 0x1021,
 SYMS_CvSymKind_MANFRAMEREL_ST = 0x1022,
@@ -1130,36 +1233,66 @@ SYMS_CvSymKind_MANSLOT_ST = 0x1024,
 SYMS_CvSymKind_MANMANYREG_ST = 0x1025,
 SYMS_CvSymKind_MANREGREL_ST = 0x1026,
 SYMS_CvSymKind_MANMANYREG2_ST = 0x1027,
-SYMS_CvSymKind_MANTYPREF = 0x1028,//  Index for type referenced by name from metadata
-SYMS_CvSymKind_UNAMESPACE_ST = 0x1029,//  Using namespace
-SYMS_CvSymKind_ST_MAX = 0x1100,//  starting point for SZ name symbols
-SYMS_CvSymKind_OBJNAME = 0x1101,//  path to object file name
-SYMS_CvSymKind_THUNK32 = 0x1102,//  Thunk Start
-SYMS_CvSymKind_BLOCK32 = 0x1103,//  block start
-SYMS_CvSymKind_WITH32 = 0x1104,//  with start
-SYMS_CvSymKind_LABEL32 = 0x1105,//  code label
-SYMS_CvSymKind_REGISTER = 0x1106,//  Register variable
-SYMS_CvSymKind_CONSTANT = 0x1107,//  constant symbol
-SYMS_CvSymKind_UDT = 0x1108,//  User defined type
-SYMS_CvSymKind_COBOLUDT = 0x1109,//  special UDT for cobol that does not symbol pack
-SYMS_CvSymKind_MANYREG = 0x110a,//  multiple register variable
-SYMS_CvSymKind_BPREL32 = 0x110b,//  BP-relative
-SYMS_CvSymKind_LDATA32 = 0x110c,//  Module-static symbol
-SYMS_CvSymKind_GDATA32 = 0x110d,//  Global data symbol
-SYMS_CvSymKind_PUB32 = 0x110e,//  a public symbol (CV internal reserved)
-SYMS_CvSymKind_LPROC32 = 0x110f,//  Local procedure start
-SYMS_CvSymKind_GPROC32 = 0x1110,//  Global procedure start
-SYMS_CvSymKind_REGREL32 = 0x1111,//  register relative address
-SYMS_CvSymKind_LTHREAD32 = 0x1112,//  static thread storage
-SYMS_CvSymKind_GTHREAD32 = 0x1113,//  static thread storage
-SYMS_CvSymKind_LPROCMIPS = 0x1114,//  Local procedure start
-SYMS_CvSymKind_GPROCMIPS = 0x1115,//  Global procedure start
-SYMS_CvSymKind_COMPILE2 = 0x1116,//  extended compile flags and info
-SYMS_CvSymKind_MANYREG2 = 0x1117,//  multiple register variable
-SYMS_CvSymKind_LPROCIA64 = 0x1118,//  Local procedure start (IA64)
-SYMS_CvSymKind_GPROCIA64 = 0x1119,//  Global procedure start (IA64)
-SYMS_CvSymKind_LOCALSLOT = 0x111a,//  static IL sym with field for static slot index
-SYMS_CvSymKind_PARAMSLOT = 0x111b,//  static IL sym with field for parameter slot index
+SYMS_CvSymKind_MANTYPREF = 0x1028,
+//  Index for type referenced by name from metadata
+SYMS_CvSymKind_UNAMESPACE_ST = 0x1029,
+//  Using namespace
+SYMS_CvSymKind_ST_MAX = 0x1100,
+//  starting point for SZ name symbols
+SYMS_CvSymKind_OBJNAME = 0x1101,
+//  path to object file name
+SYMS_CvSymKind_THUNK32 = 0x1102,
+//  Thunk Start
+SYMS_CvSymKind_BLOCK32 = 0x1103,
+//  block start
+SYMS_CvSymKind_WITH32 = 0x1104,
+//  with start
+SYMS_CvSymKind_LABEL32 = 0x1105,
+//  code label
+SYMS_CvSymKind_REGISTER = 0x1106,
+//  Register variable
+SYMS_CvSymKind_CONSTANT = 0x1107,
+//  constant symbol
+SYMS_CvSymKind_UDT = 0x1108,
+//  User defined type
+SYMS_CvSymKind_COBOLUDT = 0x1109,
+//  special UDT for cobol that does not symbol pack
+SYMS_CvSymKind_MANYREG = 0x110a,
+//  multiple register variable
+SYMS_CvSymKind_BPREL32 = 0x110b,
+//  BP-relative
+SYMS_CvSymKind_LDATA32 = 0x110c,
+//  Module-static symbol
+SYMS_CvSymKind_GDATA32 = 0x110d,
+//  Global data symbol
+SYMS_CvSymKind_PUB32 = 0x110e,
+//  a public symbol (CV internal reserved)
+SYMS_CvSymKind_LPROC32 = 0x110f,
+//  Local procedure start
+SYMS_CvSymKind_GPROC32 = 0x1110,
+//  Global procedure start
+SYMS_CvSymKind_REGREL32 = 0x1111,
+//  register relative address
+SYMS_CvSymKind_LTHREAD32 = 0x1112,
+//  static thread storage
+SYMS_CvSymKind_GTHREAD32 = 0x1113,
+//  static thread storage
+SYMS_CvSymKind_LPROCMIPS = 0x1114,
+//  Local procedure start
+SYMS_CvSymKind_GPROCMIPS = 0x1115,
+//  Global procedure start
+SYMS_CvSymKind_COMPILE2 = 0x1116,
+//  extended compile flags and info
+SYMS_CvSymKind_MANYREG2 = 0x1117,
+//  multiple register variable
+SYMS_CvSymKind_LPROCIA64 = 0x1118,
+//  Local procedure start (IA64)
+SYMS_CvSymKind_GPROCIA64 = 0x1119,
+//  Global procedure start (IA64)
+SYMS_CvSymKind_LOCALSLOT = 0x111a,
+//  static IL sym with field for static slot index
+SYMS_CvSymKind_PARAMSLOT = 0x111b,
+//  static IL sym with field for parameter slot index
 SYMS_CvSymKind_LMANDATA = 0x111c,
 SYMS_CvSymKind_GMANDATA = 0x111d,
 SYMS_CvSymKind_MANFRAMEREL = 0x111e,
@@ -1168,66 +1301,110 @@ SYMS_CvSymKind_MANSLOT = 0x1120,
 SYMS_CvSymKind_MANMANYREG = 0x1121,
 SYMS_CvSymKind_MANREGREL = 0x1122,
 SYMS_CvSymKind_MANMANYREG2 = 0x1123,
-SYMS_CvSymKind_UNAMESPACE = 0x1124,//  Using namespace
-SYMS_CvSymKind_PROCREF = 0x1125,//  Reference to a procedure
-SYMS_CvSymKind_DATAREF = 0x1126,//  Reference to data
-SYMS_CvSymKind_LPROCREF = 0x1127,//  Local Reference to a procedure
-SYMS_CvSymKind_ANNOTATIONREF = 0x1128,//  Reference to an S_ANNOTATION symbol
-SYMS_CvSymKind_TOKENREF = 0x1129,//  Reference to one of the many MANPROCSYM's
-SYMS_CvSymKind_GMANPROC = 0x112a,//  Global proc
-SYMS_CvSymKind_LMANPROC = 0x112b,//  Local proc
-SYMS_CvSymKind_TRAMPOLINE = 0x112c,//  trampoline thunks
-SYMS_CvSymKind_MANCONSTANT = 0x112d,//  constants with metadata type info
-SYMS_CvSymKind_ATTR_FRAMEREL = 0x112e,//  relative to virtual frame ptr
-SYMS_CvSymKind_ATTR_REGISTER = 0x112f,//  stored in a register
-SYMS_CvSymKind_ATTR_REGREL = 0x1130,//  relative to register (alternate frame ptr)
-SYMS_CvSymKind_ATTR_MANYREG = 0x1131,//  stored in >1 register
-SYMS_CvSymKind_SEPCODE = 0x1132,//  defines a static symbol in optimized code
-SYMS_CvSymKind_DEFRANGE_2005 = 0x1134,//  defines a single range of addresses in which symbol can be evaluated
-SYMS_CvSymKind_DEFRANGE2_2005 = 0x1135,//  defines ranges of addresses in which symbol can be evaluated
-SYMS_CvSymKind_SECTION = 0x1136,//  A COFF section in a PE executable
-SYMS_CvSymKind_COFFGROUP = 0x1137,//  A COFF group
-SYMS_CvSymKind_EXPORT = 0x1138,//  A export
-SYMS_CvSymKind_CALLSITEINFO = 0x1139,//  Indirect call site information
-SYMS_CvSymKind_FRAMECOOKIE = 0x113a,//  Security cookie information
-SYMS_CvSymKind_DISCARDED = 0x113b,//  Discarded by LINK /OPT:REF (experimental, see richards)
-SYMS_CvSymKind_COMPILE3 = 0x113c,//  Replacement for S_COMPILE2
-SYMS_CvSymKind_ENVBLOCK = 0x113d,//  Environment block split off from S_COMPILE2
-SYMS_CvSymKind_LOCAL = 0x113e,//  defines a local symbol in optimized code
-SYMS_CvSymKind_DEFRANGE = 0x113f,//  defines a single range of addresses in which symbol can be evaluated
-SYMS_CvSymKind_DEFRANGE_SUBFIELD = 0x1140,//  ranges for a subfield
-SYMS_CvSymKind_DEFRANGE_REGISTER = 0x1141,//  ranges for en-registered symbol
-SYMS_CvSymKind_DEFRANGE_FRAMEPOINTER_REL = 0x1142,//  range for stack symbol.
-SYMS_CvSymKind_DEFRANGE_SUBFIELD_REGISTER = 0x1143,//  ranges for en-registered field of symbol
-SYMS_CvSymKind_DEFRANGE_FRAMEPOINTER_REL_FULL_SCOPE = 0x1144,//  range for stack symbol span valid full scope of function body, gap might apply.
-SYMS_CvSymKind_DEFRANGE_REGISTER_REL = 0x1145,//  range for symbol address as register + offset.
+SYMS_CvSymKind_UNAMESPACE = 0x1124,
+//  Using namespace
+SYMS_CvSymKind_PROCREF = 0x1125,
+//  Reference to a procedure
+SYMS_CvSymKind_DATAREF = 0x1126,
+//  Reference to data
+SYMS_CvSymKind_LPROCREF = 0x1127,
+//  Local Reference to a procedure
+SYMS_CvSymKind_ANNOTATIONREF = 0x1128,
+//  Reference to an S_ANNOTATION symbol
+SYMS_CvSymKind_TOKENREF = 0x1129,
+//  Reference to one of the many MANPROCSYM's
+SYMS_CvSymKind_GMANPROC = 0x112a,
+//  Global proc
+SYMS_CvSymKind_LMANPROC = 0x112b,
+//  Local proc
+SYMS_CvSymKind_TRAMPOLINE = 0x112c,
+//  trampoline thunks
+SYMS_CvSymKind_MANCONSTANT = 0x112d,
+//  constants with metadata type info
+SYMS_CvSymKind_ATTR_FRAMEREL = 0x112e,
+//  relative to virtual frame ptr
+SYMS_CvSymKind_ATTR_REGISTER = 0x112f,
+//  stored in a register
+SYMS_CvSymKind_ATTR_REGREL = 0x1130,
+//  relative to register (alternate frame ptr)
+SYMS_CvSymKind_ATTR_MANYREG = 0x1131,
+//  stored in >1 register
+SYMS_CvSymKind_SEPCODE = 0x1132,
+//  defines a static symbol in optimized code
+SYMS_CvSymKind_DEFRANGE_2005 = 0x1134,
+//  defines a single range of addresses in which symbol can be evaluated
+SYMS_CvSymKind_DEFRANGE2_2005 = 0x1135,
+//  defines ranges of addresses in which symbol can be evaluated
+SYMS_CvSymKind_SECTION = 0x1136,
+//  A COFF section in a PE executable
+SYMS_CvSymKind_COFFGROUP = 0x1137,
+//  A COFF group
+SYMS_CvSymKind_EXPORT = 0x1138,
+//  A export
+SYMS_CvSymKind_CALLSITEINFO = 0x1139,
+//  Indirect call site information
+SYMS_CvSymKind_FRAMECOOKIE = 0x113a,
+//  Security cookie information
+SYMS_CvSymKind_DISCARDED = 0x113b,
+//  Discarded by LINK /OPT:REF (experimental, see richards)
+SYMS_CvSymKind_COMPILE3 = 0x113c,
+//  Replacement for S_COMPILE2
+SYMS_CvSymKind_ENVBLOCK = 0x113d,
+//  Environment block split off from S_COMPILE2
+SYMS_CvSymKind_LOCAL = 0x113e,
+//  defines a local symbol in optimized code
+SYMS_CvSymKind_DEFRANGE = 0x113f,
+//  defines a single range of addresses in which symbol can be evaluated
+SYMS_CvSymKind_DEFRANGE_SUBFIELD = 0x1140,
+//  ranges for a subfield
+SYMS_CvSymKind_DEFRANGE_REGISTER = 0x1141,
+//  ranges for en-registered symbol
+SYMS_CvSymKind_DEFRANGE_FRAMEPOINTER_REL = 0x1142,
+//  range for stack symbol.
+SYMS_CvSymKind_DEFRANGE_SUBFIELD_REGISTER = 0x1143,
+//  ranges for en-registered field of symbol
+SYMS_CvSymKind_DEFRANGE_FRAMEPOINTER_REL_FULL_SCOPE = 0x1144,
+//  range for stack symbol span valid full scope of function body, gap might apply.
+SYMS_CvSymKind_DEFRANGE_REGISTER_REL = 0x1145,
+//  range for symbol address as register + offset.
 SYMS_CvSymKind_LPROC32_ID = 0x1146,
 SYMS_CvSymKind_GPROC32_ID = 0x1147,
 SYMS_CvSymKind_LPROCMIPS_ID = 0x1148,
 SYMS_CvSymKind_GPROCMIPS_ID = 0x1149,
 SYMS_CvSymKind_LPROCIA64_ID = 0x114a,
 SYMS_CvSymKind_GPROCIA64_ID = 0x114b,
-SYMS_CvSymKind_BUILDINFO = 0x114c,//  build information.
-SYMS_CvSymKind_INLINESITE = 0x114d,//  inlined function callsite.
+SYMS_CvSymKind_BUILDINFO = 0x114c,
+//  build information.
+SYMS_CvSymKind_INLINESITE = 0x114d,
+//  inlined function callsite.
 SYMS_CvSymKind_INLINESITE_END = 0x114e,
 SYMS_CvSymKind_PROC_ID_END = 0x114f,
 SYMS_CvSymKind_DEFRANGE_HLSL = 0x1150,
 SYMS_CvSymKind_GDATA_HLSL = 0x1151,
 SYMS_CvSymKind_LDATA_HLSL = 0x1152,
-SYMS_CvSymKind_FILESTATIC = 0x1153,//  DPC groupshared variable
-SYMS_CvSymKind_LPROC32_DPC = 0x1155,//  DPC static procedure start
+SYMS_CvSymKind_FILESTATIC = 0x1153,
+//  DPC groupshared variable
+SYMS_CvSymKind_LPROC32_DPC = 0x1155,
+//  DPC static procedure start
 SYMS_CvSymKind_LPROC32_DPC_ID = 0x1156,
-SYMS_CvSymKind_DEFRANGE_DPC_PTR_TAG = 0x1157,//  DPC pointer tag definition range
-SYMS_CvSymKind_DPC_SYM_TAG_MAP = 0x1158,//  DPC pointer tag value to symbol record map
+SYMS_CvSymKind_DEFRANGE_DPC_PTR_TAG = 0x1157,
+//  DPC pointer tag definition range
+SYMS_CvSymKind_DPC_SYM_TAG_MAP = 0x1158,
+//  DPC pointer tag value to symbol record map
 SYMS_CvSymKind_ARMSWITCHTABLE = 0x1159,
 SYMS_CvSymKind_CALLEES = 0x115a,
 SYMS_CvSymKind_CALLERS = 0x115b,
 SYMS_CvSymKind_POGODATA = 0x115c,
-SYMS_CvSymKind_INLINESITE2 = 0x115d,//  extended inline site information
-SYMS_CvSymKind_HEAPALLOCSITE = 0x115e,//  heap allocation site
-SYMS_CvSymKind_MOD_TYPEREF = 0x115f,//  only generated at link time
-SYMS_CvSymKind_REF_MINIPDB = 0x1160,//  only generated at link time for mini PDB
-SYMS_CvSymKind_PDBMAP = 0x1161,//  only generated at link time for mini PDB
+SYMS_CvSymKind_INLINESITE2 = 0x115d,
+//  extended inline site information
+SYMS_CvSymKind_HEAPALLOCSITE = 0x115e,
+//  heap allocation site
+SYMS_CvSymKind_MOD_TYPEREF = 0x115f,
+//  only generated at link time
+SYMS_CvSymKind_REF_MINIPDB = 0x1160,
+//  only generated at link time for mini PDB
+SYMS_CvSymKind_PDBMAP = 0x1161,
+//  only generated at link time for mini PDB
 SYMS_CvSymKind_GDATA_HLSL32 = 0x1162,
 SYMS_CvSymKind_LDATA_HLSL32 = 0x1163,
 SYMS_CvSymKind_GDATA_HLSL32_EX = 0x1164,
@@ -1250,9 +1427,12 @@ SYMS_U32 off;
 SYMS_CvTypeId itype;
 } SYMS_CvBPRelSym32;
 typedef struct SYMS_CvVPathSym32{
-SYMS_CvTypeId root;//  "type index of the root path"
-SYMS_CvTypeId path;//  "type nidex of the path record"
-SYMS_U32 off;//  "offset of virtual function table"
+SYMS_CvTypeId root;
+//  "type index of the root path"
+SYMS_CvTypeId path;
+//  "type nidex of the path record"
+SYMS_U32 off;
+//  "offset of virtual function table"
 SYMS_U16 seg;
 } SYMS_CvVPathSym32;
 typedef struct SYMS_CvOEM{
@@ -1291,7 +1471,8 @@ SYMS_CvGenericFlags flags;
 SYMS_CvGenericStyle style;
 } SYMS_CvReturn;
 typedef struct SYMS_CvStartSearch{
-SYMS_U32 start_symbol;//  offset where to start search (procedure)
+SYMS_U32 start_symbol;
+//  offset where to start search (procedure)
 SYMS_U16 segment;
 } SYMS_CvStartSearch;
 typedef SYMS_U8 SYMS_CvLanguage;
@@ -1406,9 +1587,12 @@ SYMS_U32 sig;
 } SYMS_CvObjname;
 // struct SYMS_CvUNamespace{} skipped - no fixed width members
 typedef struct SYMS_CvRef2{
-SYMS_U32 sum_name;//  SUC of the name
-SYMS_U32 sym_off;//  Offset of actual symbol in $$Symbols
-SYMS_CvModIndex imod;//  Module containing the actual symbol
+SYMS_U32 sum_name;
+//  SUC of the name
+SYMS_U32 sym_off;
+//  Offset of actual symbol in $$Symbols
+SYMS_CvModIndex imod;
+//  Module containing the actual symbol
 // variable-width: SYMS_U8 name;
 } SYMS_CvRef2;
 typedef SYMS_U32 SYMS_CvSepcodeFlags;
@@ -1422,7 +1606,8 @@ SYMS_U32 end;
 SYMS_U32 len;
 SYMS_CvSepcodeFlags flags;
 SYMS_U32 sec_off;
-SYMS_U32 sec_parent_off;//  parent relative offset to enclosing scope.
+SYMS_U32 sec_parent_off;
+//  parent relative offset to enclosing scope.
 SYMS_U16 sec;
 SYMS_U16 sec_parent;
 } SYMS_CvSepcode;
@@ -1473,9 +1658,11 @@ SYMS_CvFrameprocFlag_HasCFW = (1 << 22),
 typedef struct SYMS_CvFrameproc{
 SYMS_U32 frame_size;
 SYMS_U32 pad_size;
-SYMS_U32 pad_off;//  frame pointer relative offset to where padding begins
+SYMS_U32 pad_off;
+//  frame pointer relative offset to where padding begins
 SYMS_U32 save_reg_size;
-SYMS_U32 eh_off;//  offset of exception handler
+SYMS_U32 eh_off;
+//  offset of exception handler
 SYMS_CvSectionIndex eh_sec;
 SYMS_CvFrameprocFlags flags;
 } SYMS_CvFrameproc;
@@ -1582,10 +1769,13 @@ SYMS_CvExportFlags flags;
 // variable-width: SYMS_U8 name;
 } SYMS_CvExport;
 typedef struct SYMS_CvCallSiteInfo{
-SYMS_U32 off;//  call site section offset
-SYMS_U16 sec;//  call site section index
-SYMS_U16 pad;//  padding
-SYMS_CvTypeId itype;//  function signature
+SYMS_U32 off;
+//  call site section offset
+SYMS_U16 sec;
+//  call site section index
+SYMS_U16 pad;
+//  padding
+SYMS_CvTypeId itype;
 } SYMS_CvCallSiteInfo;
 typedef SYMS_U32 SYMS_CvFrameCookieKind;
 enum{
@@ -1603,7 +1793,7 @@ SYMS_U8 flags;
 } SYMS_CvFrameCookie;
 typedef struct SYMS_CvEnvblock{
 SYMS_U8 flags;
-// variable-width: SYMS_U8 rgsz;//  sequence null-terminated strings
+// variable-width: SYMS_U8 rgsz;
 } SYMS_CvEnvblock;
 typedef SYMS_U16 SYMS_CvLocalFlags;
 enum{
@@ -1627,6 +1817,7 @@ SYMS_CvLocalFlags flags;
 typedef struct SYMS_CvLocal{
 SYMS_CvTypeId itype;
 SYMS_CvLocalFlags flags;
+//  Name of this symbol, a null terminated array of UTF8 characters.
 // variable-width: SYMS_U8 name;
 } SYMS_CvLocal;
 typedef struct SYMS_CvLvarAddrRange{
@@ -1706,7 +1897,8 @@ SYMS_CvPubsymFlags_MSIL = (1 << 3),//  "set if managed IL code"
 typedef struct SYMS_CvPubsym32{
 SYMS_CvPubsymFlags flags;
 SYMS_U32 off;
-SYMS_U16 seg;
+SYMS_U16 sec;
+//  "seg" in the reference code - but it's just a section number
 // variable-width: SYMS_U8 name;
 } SYMS_CvPubsym32;
 // struct SYMS_CvGProc16{} skipped - no fixed width members
@@ -1736,6 +1928,7 @@ SYMS_CvItemId id;
 typedef struct SYMS_CvFunctionList{
 SYMS_U32 count;
 // variable-width: SYMS_CvTypeId func;
+//  this should be like "array_clamped_to_stream" or something.
 // variable-width: SYMS_U32 invocations;
 } SYMS_CvFunctionList;
 typedef enum SYMS_CvBAOpcode{
@@ -1780,10 +1973,13 @@ SYMS_CvLocalFlags flags;
 // variable-width: SYMS_U8 name;
 } SYMS_CvFileStatic;
 typedef struct SYMS_CvHeapAllocSite{
-SYMS_U32 off;//  call site offset
-SYMS_U16 sec;//  call site section
-SYMS_U16 call_inst_len;//  length of heap allocation call instruction (in bytes)
-SYMS_CvTypeId itype;//  function signature
+SYMS_U32 off;
+//  call site offset
+SYMS_U16 sec;
+//  call site section
+SYMS_U16 call_inst_len;
+//  length of heap allocation call instruction (in bytes)
+SYMS_CvTypeId itype;
 } SYMS_CvHeapAllocSite;
 typedef struct SYMS_CvFramerel{
 SYMS_U32 off;
@@ -1840,11 +2036,15 @@ SYMS_CvArmSwitchType_TBH = SYMS_CvArmSwitchType_UINT2SHL1,
 SYMS_CvArmSwitchType_COUNT = 13
 };
 typedef struct SYMS_CvArmSwitchTable{
-SYMS_U32 off_base;//  "Section-relative offset to the base for switch offsets"
-SYMS_U16 sec_base;//  "Section index of the base for switch offsets"
+SYMS_U32 off_base;
+//  "Section-relative offset to the base for switch offsets"
+SYMS_U16 sec_base;
+//  "Section index of the base for switch offsets"
 SYMS_CvArmSwitchType switch_type;
-SYMS_U32 off_branch;//  "Section-relative offset to the table branch instruction"
-SYMS_U32 off_table;//  "Section-relative offset to the start of the table"
+SYMS_U32 off_branch;
+//  "Section-relative offset to the table branch instruction"
+SYMS_U32 off_table;
+//  "Section-relative offset to the start of the table"
 SYMS_U16 sec_branch;
 SYMS_U16 sec_table;
 SYMS_U32 entry_count;
@@ -1858,7 +2058,8 @@ SYMS_CvRefMiniPdbFlags_LABEL = (1 << 3),
 SYMS_CvRefMiniPdbFlags_CONST = (1 << 4),
 };
 typedef struct SYMS_CvRefMiniPdb{
-SYMS_U32 data;//  If UDT flag is set then this is SYMS_CvTypeId, otherwise coff section index 
+SYMS_U32 data;
+//  If UDT flag is set then this is SYMS_CvTypeId, otherwise coff section index 
 SYMS_U16 imod;
 SYMS_CvRefMiniPdbFlags flags;
 } SYMS_CvRefMiniPdb;
@@ -1873,6 +2074,7 @@ SYMS_CvModTypeRefFlags_REF_TM = (1 << 5),
 };
 typedef struct SYMS_CvModTypeRef{
 SYMS_CvModTypeRefFlags flags;
+//  "these two words contain SN or module index depending on above flags"
 SYMS_U16 word0;
 SYMS_U16 word1;
 } SYMS_CvModTypeRef;
@@ -1890,8 +2092,9 @@ SYMS_CvDiscardedFlags_TYPE_SHIFT = 0, SYMS_CvDiscardedFlags_TYPE_MASK = 0xff,
 #define SYMS_CvDiscardedFlags_Extract_TYPE(f) (SYMS_CvDiscardedType)(((f) >> SYMS_CvDiscardedFlags_TYPE_SHIFT) & SYMS_CvDiscardedFlags_TYPE_MASK)
 typedef struct SYMS_CvDiscarded{
 SYMS_CvDiscardedFlags flags;
-SYMS_U32 file_id;//  "First FILEID if line number info present"
-SYMS_U32 file_ln;//  "First line number"
+SYMS_U32 file_id;
+//  "First FILEID if line number info present"
+SYMS_U32 file_ln;
 } SYMS_CvDiscarded;
 typedef SYMS_U16 SYMS_CvLeaf;
 enum{
@@ -1914,10 +2117,14 @@ SYMS_CvLeaf_NULL = 0x000f,
 SYMS_CvLeaf_NOTTRAN = 0x0010,
 SYMS_CvLeaf_DIMARRAY_16t = 0x0011,
 SYMS_CvLeaf_VFTPATH_16t = 0x0012,
-SYMS_CvLeaf_PRECOMP_16t = 0x0013,//  not referenced from symbol
-SYMS_CvLeaf_ENDPRECOMP = 0x0014,//  not referenced from symbol
-SYMS_CvLeaf_OEM_16t = 0x0015,//  oem definable type string
-SYMS_CvLeaf_TYPESERVER_ST = 0x0016,//  not referenced from symbol
+SYMS_CvLeaf_PRECOMP_16t = 0x0013,
+//  not referenced from symbol
+SYMS_CvLeaf_ENDPRECOMP = 0x0014,
+//  not referenced from symbol
+SYMS_CvLeaf_OEM_16t = 0x0015,
+//  oem definable type string
+SYMS_CvLeaf_TYPESERVER_ST = 0x0016,
+//  leaf indices starting records but referenced only from type records
 SYMS_CvLeaf_SKIP_16t = 0x0200,
 SYMS_CvLeaf_ARGLIST_16t = 0x0201,
 SYMS_CvLeaf_DEFARG_16t = 0x0202,
@@ -1946,6 +2153,7 @@ SYMS_CvLeaf_FRIENDCLS_16t = 0x040b,
 SYMS_CvLeaf_ONEMETHOD_16t = 0x040c,
 SYMS_CvLeaf_VFUNCOFF_16t = 0x040d,
 SYMS_CvLeaf_TI16_MAX = 0x1000,
+//  32-bit type index versions of leaves, all have the 0x1000 bit set
 SYMS_CvLeaf_MODIFIER = 0x1001,
 SYMS_CvLeaf_POINTER = 0x1002,
 SYMS_CvLeaf_ARRAY_ST = 0x1003,
@@ -1959,10 +2167,14 @@ SYMS_CvLeaf_COBOL0 = 0x100a,
 SYMS_CvLeaf_BARRAY = 0x100b,
 SYMS_CvLeaf_DIMARRAY_ST = 0x100c,
 SYMS_CvLeaf_VFTPATH = 0x100d,
-SYMS_CvLeaf_PRECOMP_ST = 0x100e,//  not referenced from symbol
-SYMS_CvLeaf_OEM = 0x100f,//  oem definable type string
-SYMS_CvLeaf_ALIAS_ST = 0x1010,//  alias (typedef) type
-SYMS_CvLeaf_OEM2 = 0x1011,//  oem definable type string
+SYMS_CvLeaf_PRECOMP_ST = 0x100e,
+//  not referenced from symbol
+SYMS_CvLeaf_OEM = 0x100f,
+//  oem definable type string
+SYMS_CvLeaf_ALIAS_ST = 0x1010,
+//  alias (typedef) type
+SYMS_CvLeaf_OEM2 = 0x1011,
+//  leaf indices starting records but referenced only from type records
 SYMS_CvLeaf_SKIP = 0x1200,
 SYMS_CvLeaf_ARGLIST = 0x1201,
 SYMS_CvLeaf_DEFARG_ST = 0x1202,
@@ -1991,7 +2203,9 @@ SYMS_CvLeaf_NESTTYPEEX_ST = 0x140d,
 SYMS_CvLeaf_MEMBERMODIFY_ST = 0x140e,
 SYMS_CvLeaf_MANAGED_ST = 0x140f,
 SYMS_CvLeaf_ST_MAX = 0x1500,
-SYMS_CvLeaf_TYPESERVER = 0x1501,//  not referenced from symbol
+//  Types w/ SZ names
+SYMS_CvLeaf_TYPESERVER = 0x1501,
+//  not referenced from symbol
 SYMS_CvLeaf_ENUMERATE = 0x1502,
 SYMS_CvLeaf_ARRAY = 0x1503,
 SYMS_CvLeaf_CLASS = 0x1504,
@@ -1999,8 +2213,10 @@ SYMS_CvLeaf_STRUCTURE = 0x1505,
 SYMS_CvLeaf_UNION = 0x1506,
 SYMS_CvLeaf_ENUM = 0x1507,
 SYMS_CvLeaf_DIMARRAY = 0x1508,
-SYMS_CvLeaf_PRECOMP = 0x1509,//  not referenced from symbol
-SYMS_CvLeaf_ALIAS = 0x150a,//  alias (typedef) type
+SYMS_CvLeaf_PRECOMP = 0x1509,
+//  not referenced from symbol
+SYMS_CvLeaf_ALIAS = 0x150a,
+//  alias (typedef) type
 SYMS_CvLeaf_DEFARG = 0x150b,
 SYMS_CvLeaf_FRIENDFCN = 0x150c,
 SYMS_CvLeaf_MEMBER = 0x150d,
@@ -2012,25 +2228,34 @@ SYMS_CvLeaf_NESTTYPEEX = 0x1512,
 SYMS_CvLeaf_MEMBERMODIFY = 0x1513,
 SYMS_CvLeaf_MANAGED = 0x1514,
 SYMS_CvLeaf_TYPESERVER2 = 0x1515,
-SYMS_CvLeaf_STRIDED_ARRAY = 0x1516,//  same as LF_ARRAY, but with stride between adjacent elements
+SYMS_CvLeaf_STRIDED_ARRAY = 0x1516,
+//  same as LF_ARRAY, but with stride between adjacent elements
 SYMS_CvLeaf_HLSL = 0x1517,
 SYMS_CvLeaf_MODIFIER_EX = 0x1518,
 SYMS_CvLeaf_INTERFACE = 0x1519,
 SYMS_CvLeaf_BINTERFACE = 0x151a,
 SYMS_CvLeaf_VECTOR = 0x151b,
 SYMS_CvLeaf_MATRIX = 0x151c,
-SYMS_CvLeaf_VFTABLE = 0x151d,//  a virtual function table
+SYMS_CvLeaf_VFTABLE = 0x151d,
+//  a virtual function table
 SYMS_CvLeaf_ENDOFLEAFRECORD = SYMS_CvLeaf_VFTABLE,
 SYMS_CvLeaf_TYPE_LAST,
 //  one greater than the last type record
 SYMS_CvLeaf_TYPE_MAX = SYMS_CvLeaf_TYPE_LAST,
-SYMS_CvLeaf_FUNC_ID = 0x1601,//  static func ID
-SYMS_CvLeaf_MFUNC_ID = 0x1602,//  member func ID
-SYMS_CvLeaf_BUILDINFO = 0x1603,//  build info: tool, version, command line, src/pdb file
-SYMS_CvLeaf_SUBSTR_LIST = 0x1604,//  similar to LF_ARGLIST, for list of sub strings
-SYMS_CvLeaf_STRING_ID = 0x1605,//  string ID
-SYMS_CvLeaf_UDT_SRC_LINE = 0x1606,//  source and line on where an UDT is defined
-SYMS_CvLeaf_UDT_MOD_SRC_LINE = 0x1607,//  module, source and line on where an UDT is defined
+SYMS_CvLeaf_FUNC_ID = 0x1601,
+//  static func ID
+SYMS_CvLeaf_MFUNC_ID = 0x1602,
+//  member func ID
+SYMS_CvLeaf_BUILDINFO = 0x1603,
+//  build info: tool, version, command line, src/pdb file
+SYMS_CvLeaf_SUBSTR_LIST = 0x1604,
+//  similar to LF_ARGLIST, for list of sub strings
+SYMS_CvLeaf_STRING_ID = 0x1605,
+//  string ID
+SYMS_CvLeaf_UDT_SRC_LINE = 0x1606,
+//  only generated by compiler
+SYMS_CvLeaf_UDT_MOD_SRC_LINE = 0x1607,
+//  only generated by linker
 SYMS_CvLeaf_CLASSPTR = 0x1608,
 SYMS_CvLeaf_CLASSPTR2 = 0x1609,
 SYMS_CvLeaf_ID_LAST,
@@ -2121,31 +2346,50 @@ SYMS_CvTypeProp_MOCOM_SHIFT = 14, SYMS_CvTypeProp_MOCOM_MASK = 0x3,
 #define SYMS_CvTypeProps_Extract_MOCOM(f) (SYMS_CvMoComUDTKind)(((f) >> SYMS_CvTypeProp_MOCOM_SHIFT) & SYMS_CvTypeProp_MOCOM_MASK)
 typedef SYMS_U8 SYMS_CvPointerKind;
 enum{
-SYMS_CvPointerKind_NEAR = 0x00,//  16 bit pointer
-SYMS_CvPointerKind_FAR = 0x01,//  16:16 far pointer
-SYMS_CvPointerKind_HUGE = 0x02,//  16:16 huge pointer
-SYMS_CvPointerKind_BASE_SEG = 0x03,//  based on segment
-SYMS_CvPointerKind_BASE_VAL = 0x04,//  based on value of base
-SYMS_CvPointerKind_BASE_SEGVAL = 0x05,//  based on segment value of base
-SYMS_CvPointerKind_BASE_ADDR = 0x06,//  based on address of base
-SYMS_CvPointerKind_BASE_SEGADDR = 0x07,//  based on segment address of base
-SYMS_CvPointerKind_BASE_TYPE = 0x08,//  based on type
-SYMS_CvPointerKind_BASE_SELF = 0x09,//  based on self
-SYMS_CvPointerKind_NEAR32 = 0x0a,//  32 bit pointer
-SYMS_CvPointerKind_FAR32 = 0x0b,//  16:32 pointer
-SYMS_CvPointerKind_64 = 0x0c,//  64 bit pointer
-SYMS_CvPointerKind_UNUSEDPTR = 0x0d,//  first unused pointer type
+SYMS_CvPointerKind_NEAR = 0x00,
+//  16 bit pointer
+SYMS_CvPointerKind_FAR = 0x01,
+//  16:16 far pointer
+SYMS_CvPointerKind_HUGE = 0x02,
+//  16:16 huge pointer
+SYMS_CvPointerKind_BASE_SEG = 0x03,
+//  based on segment
+SYMS_CvPointerKind_BASE_VAL = 0x04,
+//  based on value of base
+SYMS_CvPointerKind_BASE_SEGVAL = 0x05,
+//  based on segment value of base
+SYMS_CvPointerKind_BASE_ADDR = 0x06,
+//  based on address of base
+SYMS_CvPointerKind_BASE_SEGADDR = 0x07,
+//  based on segment address of base
+SYMS_CvPointerKind_BASE_TYPE = 0x08,
+//  based on type
+SYMS_CvPointerKind_BASE_SELF = 0x09,
+//  based on self
+SYMS_CvPointerKind_NEAR32 = 0x0a,
+//  32 bit pointer
+SYMS_CvPointerKind_FAR32 = 0x0b,
+//  16:32 pointer
+SYMS_CvPointerKind_64 = 0x0c,
+//  64 bit pointer
+SYMS_CvPointerKind_UNUSEDPTR = 0x0d,
 SYMS_CvPointerKind_COUNT = 14
 };
 typedef SYMS_U8 SYMS_CvPointerMode;
 enum{
-SYMS_CvPointerMode_PTR = 0x00,//  "normal" pointer
-SYMS_CvPointerMode_REF = 0x01,//  "old" reference
-SYMS_CvPointerMode_LVREF = 0x01,//  l-value reference
-SYMS_CvPointerMode_PMEM = 0x02,//  pointer to data member
-SYMS_CvPointerMode_PMFUNC = 0x03,//  pointer to member function
-SYMS_CvPointerMode_RVREF = 0x04,//  r-value reference
-SYMS_CvPointerMode_RESERVED = 0x05,//  first unused pointer mode
+SYMS_CvPointerMode_PTR = 0x00,
+//  "normal" pointer
+SYMS_CvPointerMode_REF = 0x01,
+//  "old" reference
+SYMS_CvPointerMode_LVREF = 0x01,
+//  l-value reference
+SYMS_CvPointerMode_PMEM = 0x02,
+//  pointer to data member
+SYMS_CvPointerMode_PMFUNC = 0x03,
+//  pointer to member function
+SYMS_CvPointerMode_RVREF = 0x04,
+//  r-value reference
+SYMS_CvPointerMode_RESERVED = 0x05,
 SYMS_CvPointerMode_COUNT = 7
 };
 typedef SYMS_U32 SYMS_CvPointerAttribs;
@@ -2167,15 +2411,23 @@ SYMS_CvPointerAttrib_IS_RREF = (1 << 21),
 #define SYMS_CvPointerAttribs_Extract_SIZE(f) (SYMS_U32)(((f) >> SYMS_CvPointerAttrib_SIZE_SHIFT) & SYMS_CvPointerAttrib_SIZE_MASK)
 typedef SYMS_U16 SYMS_CvMemberPointerKind;
 enum{
-SYMS_CvMemberPointerKind_Undef = 0x00,//  not specified (pre VC8)
-SYMS_CvMemberPointerKind_D_Single = 0x01,//  member data, single inheritance
-SYMS_CvMemberPointerKind_D_Multiple = 0x02,//  member data, multiple inheritance
-SYMS_CvMemberPointerKind_D_Virtual = 0x03,//  member data, virtual inheritance
-SYMS_CvMemberPointerKind_D_General = 0x04,//  member data, most general
-SYMS_CvMemberPointerKind_F_Single = 0x05,//  member function, single inheritance
-SYMS_CvMemberPointerKind_F_Multiple = 0x06,//  member function, multiple inheritance
-SYMS_CvMemberPointerKind_F_Virtual = 0x07,//  member function, virtual inheritance
-SYMS_CvMemberPointerKind_F_General = 0x08,//  member function, most general
+SYMS_CvMemberPointerKind_Undef = 0x00,
+//  not specified (pre VC8)
+SYMS_CvMemberPointerKind_D_Single = 0x01,
+//  member data, single inheritance
+SYMS_CvMemberPointerKind_D_Multiple = 0x02,
+//  member data, multiple inheritance
+SYMS_CvMemberPointerKind_D_Virtual = 0x03,
+//  member data, virtual inheritance
+SYMS_CvMemberPointerKind_D_General = 0x04,
+//  member data, most general
+SYMS_CvMemberPointerKind_F_Single = 0x05,
+//  member function, single inheritance
+SYMS_CvMemberPointerKind_F_Multiple = 0x06,
+//  member function, multiple inheritance
+SYMS_CvMemberPointerKind_F_Virtual = 0x07,
+//  member function, virtual inheritance
+SYMS_CvMemberPointerKind_F_General = 0x08,
 SYMS_CvMemberPointerKind_COUNT = 9
 };
 typedef SYMS_U32 SYMS_CvVirtualTableShape;
@@ -2242,32 +2494,57 @@ SYMS_CvFunctionAttrib_CTORVBASE = (1 << 2),
 };
 typedef SYMS_U8 SYMS_CvCallKind;
 enum{
-SYMS_CvCallKind_NEAR_C = 0x00,//  near right to left push, caller pops stack
-SYMS_CvCallKind_FAR_C = 0x01,//  far right to left push, caller pops stack
-SYMS_CvCallKind_NEAR_PASCAL = 0x02,//  near left to right push, callee pops stack
-SYMS_CvCallKind_FAR_PASCAL = 0x03,//  far left to right push, callee pops stack
-SYMS_CvCallKind_NEAR_FAST = 0x04,//  near left to right push with regs, callee pops stack
-SYMS_CvCallKind_FAR_FAST = 0x05,//  far left to right push with regs, callee pops stack
-SYMS_CvCallKind_SKIPPED = 0x06,//  skipped (unused) call index
-SYMS_CvCallKind_NEAR_STD = 0x07,//  near standard call
-SYMS_CvCallKind_FAR_STD = 0x08,//  far standard call
-SYMS_CvCallKind_NEAR_SYS = 0x09,//  near sys call
-SYMS_CvCallKind_FAR_SYS = 0x0a,//  far sys call
-SYMS_CvCallKind_THISCALL = 0x0b,//  this call (this passed in register)
-SYMS_CvCallKind_MIPSCALL = 0x0c,//  Mips call
-SYMS_CvCallKind_GENERIC = 0x0d,//  Generic call sequence
-SYMS_CvCallKind_ALPHACALL = 0x0e,//  Alpha call
-SYMS_CvCallKind_PPCCALL = 0x0f,//  PPC call
-SYMS_CvCallKind_SHCALL = 0x10,//  Hitachi SuperH call
-SYMS_CvCallKind_ARMCALL = 0x11,//  ARM call
-SYMS_CvCallKind_AM33CALL = 0x12,//  AM33 call
-SYMS_CvCallKind_TRICALL = 0x13,//  TriCore Call
-SYMS_CvCallKind_SH5CALL = 0x14,//  Hitachi SuperH-5 call
-SYMS_CvCallKind_M32RCALL = 0x15,//  M32R Call
-SYMS_CvCallKind_CLRCALL = 0x16,//  clr call
-SYMS_CvCallKind_INLINE = 0x17,//  Marker for routines always inlined and thus lacking a convention
-SYMS_CvCallKind_NEAR_VECTOR = 0x18,//  near left to right push with regs, callee pops stack
-SYMS_CvCallKind_RESERVED = 0x19,//  first unused call enumeration
+SYMS_CvCallKind_NEAR_C = 0x00,
+//  near right to left push, caller pops stack
+SYMS_CvCallKind_FAR_C = 0x01,
+//  far right to left push, caller pops stack
+SYMS_CvCallKind_NEAR_PASCAL = 0x02,
+//  near left to right push, callee pops stack
+SYMS_CvCallKind_FAR_PASCAL = 0x03,
+//  far left to right push, callee pops stack
+SYMS_CvCallKind_NEAR_FAST = 0x04,
+//  near left to right push with regs, callee pops stack
+SYMS_CvCallKind_FAR_FAST = 0x05,
+//  far left to right push with regs, callee pops stack
+SYMS_CvCallKind_SKIPPED = 0x06,
+//  skipped (unused) call index
+SYMS_CvCallKind_NEAR_STD = 0x07,
+//  near standard call
+SYMS_CvCallKind_FAR_STD = 0x08,
+//  far standard call
+SYMS_CvCallKind_NEAR_SYS = 0x09,
+//  near sys call
+SYMS_CvCallKind_FAR_SYS = 0x0a,
+//  far sys call
+SYMS_CvCallKind_THISCALL = 0x0b,
+//  this call (this passed in register)
+SYMS_CvCallKind_MIPSCALL = 0x0c,
+//  Mips call
+SYMS_CvCallKind_GENERIC = 0x0d,
+//  Generic call sequence
+SYMS_CvCallKind_ALPHACALL = 0x0e,
+//  Alpha call
+SYMS_CvCallKind_PPCCALL = 0x0f,
+//  PPC call
+SYMS_CvCallKind_SHCALL = 0x10,
+//  Hitachi SuperH call
+SYMS_CvCallKind_ARMCALL = 0x11,
+//  ARM call
+SYMS_CvCallKind_AM33CALL = 0x12,
+//  AM33 call
+SYMS_CvCallKind_TRICALL = 0x13,
+//  TriCore Call
+SYMS_CvCallKind_SH5CALL = 0x14,
+//  Hitachi SuperH-5 call
+SYMS_CvCallKind_M32RCALL = 0x15,
+//  M32R Call
+SYMS_CvCallKind_CLRCALL = 0x16,
+//  clr call
+SYMS_CvCallKind_INLINE = 0x17,
+//  Marker for routines always inlined and thus lacking a convention
+SYMS_CvCallKind_NEAR_VECTOR = 0x18,
+//  near left to right push with regs, callee pops stack
+SYMS_CvCallKind_RESERVED = 0x19,
 SYMS_CvCallKind_COUNT = 26
 };
 typedef struct SYMS_CvLeafPreComp{
@@ -2430,8 +2707,10 @@ SYMS_U32 names_len;
 // variable-width: SYMS_U8 name;
 } SYMS_CvLeafVFTable;
 typedef struct SYMS_CvLeafFuncId{
-SYMS_CvItemId scope_id;//  parent scope of the ID, 0 if global
-SYMS_CvTypeId itype;//  function type
+SYMS_CvItemId scope_id;
+//  parent scope of the ID, 0 if global
+SYMS_CvTypeId itype;
+//  function type
 // variable-width: SYMS_U8 name;
 } SYMS_CvLeafFuncId;
 typedef struct SYMS_CvLeafMFuncId{
@@ -2445,8 +2724,10 @@ SYMS_CvItemId id;
 // variable-width: SYMS_U8 name;
 } SYMS_CvLeafStringId;
 typedef struct SYMS_CvLeafUDTSrcLine{
-SYMS_CvTypeId udt_itype;//  itype which this source line references.
-SYMS_CvItemId src;//  cvinfo.h: "index to LF_STRING_ID record where file name is saved"
+SYMS_CvTypeId udt_itype;
+//  itype which this source line references.
+SYMS_CvItemId src;
+//  cvinfo.h: "index to LF_STRING_ID record where file name is saved"
 SYMS_U32 ln;
 } SYMS_CvLeafUDTSrcLine;
 typedef struct SYMS_CvLeafModSrcLine{
@@ -2493,13 +2774,16 @@ SYMS_CvChecksumKind_SHA256,
 SYMS_CvChecksumKind_COUNT = 4
 };
 typedef enum SYMS_CvInlineeSourceLineSig{
-SYMS_CvInlineeSourceLineSig_REGULAR = 0,//  SYMS_CvInlineeSourceLine
+SYMS_CvInlineeSourceLineSig_REGULAR = 0,
+//  SYMS_CvInlineeSourceLine
 SYMS_CvInlineeSourceLineSig_EXTENDED = 1,
 SYMS_CvInlineeSourceLineSig_COUNT = 2
 } SYMS_CvInlineeSourceLineSig;
 typedef struct SYMS_CvInlineeSourceLine{
-SYMS_CvItemId inlinee;//  function id
-SYMS_U32 file_id;//  offset into FILECHKSMS subsection
+SYMS_CvItemId inlinee;
+//  function id
+SYMS_U32 file_id;
+//  offset into FILECHKSMS subsection
 SYMS_U32 base_line_number;
 } SYMS_CvInlineeSourceLine;
 typedef struct SYMS_CvInlineeSourceLineEx{
@@ -2511,7 +2795,7 @@ SYMS_U32 extra_file_count;
 } SYMS_CvInlineeSourceLineEx;
 #pragma pack(pop)
 
-//~ generated from code at src/metaprogram/metaprogram_syms.c:934
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1022
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_RegID syms_reg_from_pdb_reg_x86(SYMS_CvRegx86 v);
 SYMS_API SYMS_RegID syms_reg_from_pdb_reg_x64(SYMS_CvRegx64 v);
@@ -2519,6 +2803,8 @@ SYMS_API SYMS_Language syms_cv_base_language_from_cv_language(SYMS_CvLanguage v)
 SYMS_API SYMS_MemVisibility syms_mem_visibility_from_member_access(SYMS_CvMemberAccess v);
 SYMS_C_LINKAGE_END
 
+//~ generated from code at src/metaprogram/metaprogram_syms.c:1470
+SYMS_C_LINKAGE_BEGIN
+SYMS_C_LINKAGE_END
+
 #endif
-
-
