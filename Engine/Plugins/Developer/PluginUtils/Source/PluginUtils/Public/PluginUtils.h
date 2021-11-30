@@ -170,33 +170,41 @@ public:
 
 	/**
 	 * Unload assets from the specified plugin and unmount it
+	 * @note Only works on content-only plugins; plugins with code modules cannot be safely unloaded
+	 * @warning Dirty assets that need to be saved will be unloaded anyway
 	 * @param Plugin Plugin to unload
 	 * @param OutFailReason Outputs the reason of the failure if any
-	 * @return true on success
+	 * @return Whether the plugin was successfully unloaded
 	 */
 	static bool UnloadPlugin(const TSharedRef<IPlugin>& Plugin, FText* OutFailReason = nullptr);
 
 	/**
 	 * Unload assets from the specified plugin and unmount it
+	 * @note Only works on content-only plugins; plugins with code modules cannot be safely unloaded
+	 * @warning Dirty assets that need to be saved will be unloaded anyway
 	 * @param PluginName Name of the plugin to unload
 	 * @param OutFailReason Outputs the reason of the failure if any
-	 * @return true on success
+	 * @return Whether the plugin was successfully unloaded
 	 */
 	static bool UnloadPlugin(const FString& PluginName, FText* OutFailReason = nullptr);
 
 	/**
 	 * Unload assets from the specified plugins and unmount them
+	 * @note Only works on content-only plugins; plugins with code modules cannot be safely unloaded
+	 * @warning Dirty assets that need to be saved will be unloaded anyway
 	 * @param Plugins Plugins to unload
 	 * @param OutFailReason Outputs the reason of the failure if any
-	 * @return true on success
+	 * @return Whether all plugins were successfully unloaded
 	 */
 	static bool UnloadPlugins(const TConstArrayView<TSharedRef<IPlugin>> Plugins, FText* OutFailReason = nullptr);
 
 	/**
 	 * Unload assets from the specified plugins and unmount them
+	 * @note Only works on content-only plugins; plugins with code modules cannot be safely unloaded
+	 * @warning Dirty assets that need to be saved will be unloaded anyway
 	 * @param PluginNames Names of the plugins to unload
 	 * @param OutFailReason Outputs the reason of the failure if any
-	 * @return true on success
+	 * @return Whether all plugins were successfully unloaded
 	 */
 	static bool UnloadPlugins(const TConstArrayView<FString> PluginNames, FText* OutFailReason = nullptr);
 

@@ -656,16 +656,15 @@ bool FPluginUtils::UnloadPlugins(const TConstArrayView<TSharedRef<IPlugin>> Plug
 
 			if (PackagesToUnload.Num() > 0)
 			{
-				FText FailReason;
-				if (!UPackageTools::UnloadPackages(PackagesToUnload.Array(), FailReason))
+				FText ErrorMsg;
+				UPackageTools::UnloadPackages(PackagesToUnload.Array(), ErrorMsg, /*bUnloadDirtyPackages=*/true);
+
+				// Log an error if some packages fail to unload, but unmount the plugins anyway.
+				// @note UnloadPackages returned bool indicates whether some packages were unloaded
+				// To tell whether all packages were successfully unloaded we must check the ErrorMsg output param
+				if (!ErrorMsg.IsEmpty())
 				{
-					// If some packages fail to unload, bail out
-					UE_LOG(LogPluginUtils, Error, TEXT("Plugins cannot be unloaded because some packages cannot be unloaded: %s"), *FailReason.ToString());
-					if (OutFailReason)
-					{
-						*OutFailReason = MoveTemp(FailReason);
-					}
-					return false;
+					UE_LOG(LogPluginUtils, Error, TEXT("%s"), *ErrorMsg.ToString());
 				}
 			}
 		}
