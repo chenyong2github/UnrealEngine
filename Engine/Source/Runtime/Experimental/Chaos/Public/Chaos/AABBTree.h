@@ -1021,9 +1021,6 @@ public:
 		{
 			return 1;
 		}
-
-		check(false);
-		return 0;
 	}
 
 	// Is the input node Child 0 or Child 1?
