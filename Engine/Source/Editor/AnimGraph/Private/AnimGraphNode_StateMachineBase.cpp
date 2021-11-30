@@ -454,6 +454,8 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 				{
 					InCompilationContext.ValidateGraphIsWellFormed(StateNode->BoundGraph);
 
+					AnimGraphResultNode->Node.SetStateIndex(StateIndex);
+
 					BakedState.StateRootNodeIndex = Extension->ExpandGraphAndProcessNodes(StateNode->BoundGraph, AnimGraphResultNode, InCompilationContext, OutCompiledData);
 
 					// See if the state consists of a single sequence player node, and remember the index if so
