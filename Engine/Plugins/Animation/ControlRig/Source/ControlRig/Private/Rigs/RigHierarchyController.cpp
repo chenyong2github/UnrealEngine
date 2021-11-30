@@ -1445,11 +1445,11 @@ TArray<FString> URigHierarchyController::GetAddControlPythonCommands(FRigControl
 		*SettingsStr,
 		*ValueStr));
 
-	Commands.Append(GetSetControlValuePythonCommands(Control, Value, ERigControlValueType::Initial));
+	Commands.Append(GetSetControlShapeTransformPythonCommands(Control, Control->Shape.Initial.Local.Transform, true));
 	Commands.Append(GetSetControlValuePythonCommands(Control, Settings.MinimumValue, ERigControlValueType::Minimum));
 	Commands.Append(GetSetControlValuePythonCommands(Control, Settings.MaximumValue, ERigControlValueType::Maximum));
 	Commands.Append(GetSetControlOffsetTransformPythonCommands(Control, Control->Offset.Initial.Local.Transform, true, true));
-	Commands.Append(GetSetControlShapeTransformPythonCommands(Control, Control->Shape.Initial.Local.Transform, true));
+	Commands.Append(GetSetControlValuePythonCommands(Control, Value, ERigControlValueType::Current));
 
 	return Commands;
 }

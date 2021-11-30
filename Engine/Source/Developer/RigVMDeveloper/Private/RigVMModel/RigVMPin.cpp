@@ -517,7 +517,7 @@ FString URigVMPin::GetArrayElementCppType() const
 	}
 
 	const FString ResolvedType = GetCPPType();
-	return ResolvedType.Mid(7, ResolvedType.Len() - 8);
+	return RigVMTypeUtils::BaseTypeFromArrayType(ResolvedType);
 }
 
 bool URigVMPin::IsStringType() const
