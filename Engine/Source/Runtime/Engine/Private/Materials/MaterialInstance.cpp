@@ -2084,8 +2084,10 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 
 		if (!bSuccess)
 		{
-			UE_ASSET_LOG(LogMaterial, Warning, this,
-				TEXT("Failed to compile Material Instance with Base %s for platform %s, Default Material will be used in game."), 
+			FString ErrorString;
+
+			ErrorString += FString::Printf(
+				TEXT("Failed to compile Material Instance with Base %s for platform %s, Default Material will be used in game.\n"), 
 				BaseMaterial ? *BaseMaterial->GetName() : TEXT("Null"), 
 				*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString()
 				);
@@ -2094,9 +2096,11 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 			const TArray<FString>& CompileErrors = CurrentResource->GetCompileErrors();
 			for (int32 ErrorIndex = 0; ErrorIndex < CompileErrors.Num(); ErrorIndex++)
 			{
-				UE_LOG(LogMaterial, Display, TEXT("	%s"), *CompileErrors[ErrorIndex]);
+				ErrorString += FString::Printf(TEXT("	%s\n"), *CompileErrors[ErrorIndex]);
 			}
 #endif // WITH_EDITOR
+
+			UE_ASSET_LOG(LogMaterial, Warning, this, TEXT("%s"), *ErrorString);
 		}
 	}
 }

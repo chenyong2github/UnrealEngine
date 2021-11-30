@@ -4358,17 +4358,22 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 					if (Material->IsDefaultMaterial())
 					{
+						FString ErrorString;
+
 						// Log the errors unsuppressed before the fatal error, so it's always obvious from the log what the compile error was
 						for (int32 ErrorIndex = 0; ErrorIndex < Errors.Num(); ErrorIndex++)
 						{
-							UE_LOG(LogShaderCompilers, Warning, TEXT("	%s"), *Errors[ErrorIndex]);
+							ErrorString += FString::Printf(TEXT("	%s\n"), *Errors[ErrorIndex]);
 						}
 
+						ErrorString += FString::Printf(TEXT("Failed to compile default material %s!"), *Material->GetBaseMaterialPathName());
 						// Assert if a default material could not be compiled, since there will be nothing for other failed materials to fall back on.
-						UE_LOG(LogShaderCompilers, Fatal, TEXT("Failed to compile default material %s!"), *Material->GetBaseMaterialPathName());
+						UE_LOG(LogShaderCompilers, Fatal, TEXT("%s"), *ErrorString);
 					}
+					
+					FString ErrorString;
 
-					UE_LOG(LogShaderCompilers, Warning, TEXT("Failed to compile Material %s for platform %s, Default Material will be used in game."),
+					ErrorString += FString::Printf(TEXT("Failed to compile Material %s for platform %s, Default Material will be used in game.\n"),
 						*Material->GetDebugName(), *LegacyShaderPlatformToShaderFormat(CompilingShaderMap->GetShaderPlatform()).ToString());
 
 					for (int32 ErrorIndex = 0; ErrorIndex < Errors.Num(); ErrorIndex++)
@@ -4376,8 +4381,10 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 						FString ErrorMessage = Errors[ErrorIndex];
 						// Work around build machine string matching heuristics that will cause a cook to fail
 						ErrorMessage.ReplaceInline(TEXT("error "), TEXT("err0r "), ESearchCase::CaseSensitive);
-						UE_LOG(LogShaderCompilers, Display, TEXT("%s"), *ErrorMessage);
+						ErrorString += FString::Printf(TEXT("%s\n"), *ErrorMessage);
 					}
+
+					UE_LOG(LogShaderCompilers, Warning, TEXT("%s"), *ErrorString);
 				}
 
 				if (bReleaseCompilingId)
