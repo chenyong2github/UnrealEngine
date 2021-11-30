@@ -116,10 +116,14 @@ public:
 	}
 
 	DECLARE_DELEGATE_OneParam( FOnValueChanged, OptionType );
+	DECLARE_DELEGATE_OneParam( FOnValuesChanged, TArray<OptionType> );
+	DECLARE_DELEGATE_TwoParams( FOnValueChecked, OptionType, ECheckBoxState );
 
 	SLATE_BEGIN_ARGS( SSegmentedControl<OptionType> )
 		: _Style(&FAppStyle::Get().GetWidgetStyle<FSegmentedControlStyle>("SegmentedControl"))
 		, _TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallButtonText"))
+		, _SupportsMultiSelection(false)
+		, _SupportsEmptySelection(false)
 		, _MaxSegmentsPerLine(0)
 	{}
 		/** Slot type supported by this panel */
@@ -131,22 +135,44 @@ public:
 		/** Styling for the text in each slot. If a custom widget is supplied for a slot this argument is not used */
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 
-		/** The current control value */
+		/**
+		 * If enabled the widget will support multi selection.
+		 * For single selection the widget relies on the Value attribute,
+		 * for multi selection the widget relies on the MultiValue attribute.
+		 */
+		SLATE_ARGUMENT(bool, SupportsMultiSelection)
+
+		/**
+		 * If enabled the widget will support an empty selection.
+		 * This is only enabled if SupportsMultiSelection is also enabled.
+		 */
+		SLATE_ARGUMENT(bool, SupportsEmptySelection)
+
+		/** The current control value. */
 		SLATE_ATTRIBUTE(OptionType, Value)
 
+		/** The current (multiple) control values (if SupportsMultiSelection is enabled) */ 
+		SLATE_ATTRIBUTE(TArray<OptionType>, Values)
+	
 		/** Padding to apply to each slot */
 		SLATE_ATTRIBUTE(FMargin, UniformPadding)
 
-		/** Called when the value is changed */
+		/** Called when the (primary) value is changed */
 		SLATE_EVENT(FOnValueChanged, OnValueChanged)
-		
+
+		/** Called when the any value is changed */
+		SLATE_EVENT(FOnValuesChanged, OnValuesChanged)
+
+		/** Called when the value is changed (useful for multi selection) */
+		SLATE_EVENT(FOnValueChecked, OnValueChecked)
+
 		/** Optional maximum number of segments per line before the control wraps vertically to the next line. If this value is <= 0 no wrapping happens */
 		SLATE_ARGUMENT(int32, MaxSegmentsPerLine)
 	SLATE_END_ARGS()
 
 	SSegmentedControl()
 		: Children(this)
-		, CurrentValue(*this)
+		, CurrentValues(*this)
 	{}
 
 	void Construct( const FArguments& InArgs )
@@ -156,9 +182,22 @@ public:
 		Style = InArgs._Style;
 		TextStyle = InArgs._TextStyle;
 
-		CurrentValueIsBound = InArgs._Value.IsBound();
-		CurrentValue.Assign(*this, InArgs._Value);
+		SupportsMultiSelection = InArgs._SupportsMultiSelection;
+		SupportsEmptySelection = InArgs._SupportsEmptySelection;
+		CurrentValuesIsBound = false; // will be set by SetValue or SetValues
+
+		if(InArgs._Value.IsBound() || InArgs._Value.IsSet())
+		{
+			SetValue(InArgs._Value, false);
+		}
+		else if(InArgs._Values.IsBound() || InArgs._Values.IsSet())
+		{
+			SetValues(InArgs._Values, false);
+		}
+
 		OnValueChanged = InArgs._OnValueChanged;
+		OnValuesChanged = InArgs._OnValuesChanged;
+		OnValueChecked = InArgs._OnValueChecked;
 
 		UniformPadding = InArgs._UniformPadding;
 
@@ -263,6 +302,7 @@ public:
 			]
 		];
 
+		UpdateCheckboxValuesIfNeeded();
 	}
 
 	// Slot Management
@@ -293,37 +333,83 @@ public:
 
 	OptionType GetValue() const
 	{
-		return CurrentValue.Get();
+		const TArray<OptionType> Values = GetValues();
+		if(Values.IsEmpty())
+		{
+			return OptionType();
+		}
+		return Values[0];
+	}
+
+	TArray<OptionType> GetValues() const
+	{
+		return CurrentValues.Get();
+	}
+
+	bool HasValue(OptionType InValue)
+	{
+		const TArray<OptionType> Values = GetValues();
+		return Values.Contains(InValue);
 	}
 
 	/** See the Value attribute */
-	void SetValue(TAttribute<OptionType> InValue) 
+	void SetValue(TAttribute<OptionType> InValue, bool bUpdateChildren = true)
 	{
-		CurrentValueIsBound = InValue.IsBound();
-		CurrentValue.Assign(*this, MoveTemp(InValue));
-
-		if (!CurrentValueIsBound)
+		if(InValue.IsBound())
 		{
-			for (int32 Index = 0; Index < Children.Num(); ++Index)
+			SetValues(TAttribute<TArray<OptionType>>::CreateLambda([InValue]() -> TArray<OptionType>
 			{
-				const FSlot& Slot = Children[Index];
-				if (TSharedPtr<SCheckBox> CheckBox = Slot._CheckBox.Pin())
-				{
-					CheckBox->SetIsChecked(Slot._Value == CurrentValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
-				}
-			}
+				TArray<OptionType> Values;
+				Values.Add(InValue.Get());
+				return Values;
+			}), bUpdateChildren); 
+		}
+		else if(InValue.IsSet())
+		{
+			TArray<OptionType> Values = {InValue.Get()};
+			SetValues(TAttribute<TArray<OptionType>>(Values), bUpdateChildren); 
+		}
+		else
+		{
+			SetValues(TAttribute<TArray<OptionType>>(), bUpdateChildren);
+		}
+	}
+
+	/** See the Values attribute */
+	void SetValues(TAttribute<TArray<OptionType>> InValues, bool bUpdateChildren = true) 
+	{
+		CurrentValuesIsBound = InValues.IsBound();
+
+		if(CurrentValuesIsBound)
+		{
+			CurrentValues.Assign(*this, InValues);
+		}
+		else if(InValues.IsSet())
+		{
+			CurrentValues.Set(*this, InValues.Get());
+		}
+		else
+		{
+			CurrentValues.Unbind(*this);
+		};
+
+		if(bUpdateChildren)
+		{
+			UpdateCheckboxValuesIfNeeded();
 		}
 	}
 
 private:
+	
 	TAttribute<ECheckBoxState> GetCheckBoxStateAttribute(OptionType InValue) const
 	{
 		auto Lambda = [this, InValue]()
 		{
-			return InValue == CurrentValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			const TArray<OptionType> Values = GetValues();
+			return Values.Contains(InValue) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 		};
 
-		if (CurrentValueIsBound)
+		if (CurrentValuesIsBound)
 		{
 			return MakeAttributeLambda(Lambda);
 		}
@@ -331,34 +417,106 @@ private:
 		return Lambda();
 	}
 
+	void UpdateCheckboxValuesIfNeeded()
+	{
+		if (!CurrentValuesIsBound)
+		{
+			const TArray<OptionType> Values = GetValues();
+			
+			for (int32 Index = 0; Index < Children.Num(); ++Index)
+			{
+				const FSlot& Slot = Children[Index];
+				if (const TSharedPtr<SCheckBox> CheckBox = Slot._CheckBox.Pin())
+				{
+					CheckBox->SetIsChecked(Values.Contains(Slot._Value) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
+				}
+			}
+		}
+	}
+
 	void CommitValue(const ECheckBoxState InCheckState, OptionType InValue)
 	{
-		if (InCheckState == ECheckBoxState::Checked)
+		const TArray<OptionType> PreviousValues = CurrentValues.Get();
+		TArray<OptionType> Values = PreviousValues;
+
+		// don't allow to deselect the last checkbox
+		if(InCheckState != ECheckBoxState::Checked && Values.Num() == 1)
 		{
-			// don't overwrite the bound attribute, but still notify that the value was committed.
-			if (!CurrentValueIsBound)
+			if(!SupportsEmptySelection)
 			{
-				CurrentValue.Set(*this, InValue);
-				for (int32 Index = 0; Index < Children.Num(); ++Index)
+				UpdateCheckboxValuesIfNeeded();
+				return;
+			}
+		}
+
+		bool bModifierIsDown = false;
+		if(SupportsMultiSelection)
+		{
+			bModifierIsDown =
+				FSlateApplication::Get().GetModifierKeys().IsShiftDown() ||
+				FSlateApplication::Get().GetModifierKeys().IsControlDown();
+		}
+
+		// if the attribute is not bound update our internal state
+		if (!CurrentValuesIsBound)
+		{
+			if(bModifierIsDown)
+			{
+				if (InCheckState == ECheckBoxState::Checked)
 				{
-					const FSlot& Slot = Children[Index];
-					if (TSharedPtr<SCheckBox> CheckBox = Slot._CheckBox.Pin())
-					{
-						CheckBox->SetIsChecked(Slot._Value == CurrentValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
-					}
-			    }
+					Values.AddUnique(InValue);
+				}
+				else
+				{
+					Values.Remove(InValue);
+				}
+			}
+			else
+			{
+				if(InCheckState == ECheckBoxState::Checked)
+				{
+					Values.Reset();
+					Values.Add(InValue);
+				}
 			}
 
-			OnValueChanged.ExecuteIfBound( InValue );
+			CurrentValues.Set(*this, Values);
+
+			UpdateCheckboxValuesIfNeeded();
 		}
+
+		if(OnValueChecked.IsBound())
+		{
+			if(!bModifierIsDown && InCheckState == ECheckBoxState::Checked)
+			{
+				for(const OptionType PreviousValue : PreviousValues)
+				{
+					if(!Values.Contains(PreviousValue))
+					{
+						OnValueChecked.Execute(PreviousValue, ECheckBoxState::Unchecked);
+					}
+				}
+			}
+
+			OnValueChecked.Execute(InValue, InCheckState);
+		}
+
+		if (InCheckState == ECheckBoxState::Checked)
+		{
+			OnValueChanged.ExecuteIfBound(InValue);
+		}
+
+		OnValuesChanged.ExecuteIfBound(Values);
 	}
 
 private:
 	TPanelChildren<FSlot> Children;
 
 	FOnValueChanged OnValueChanged;
+	FOnValuesChanged OnValuesChanged;
+	FOnValueChecked OnValueChecked;
 
-	TSlateAttribute<OptionType, EInvalidateWidgetReason::Paint> CurrentValue;
+	TSlateAttribute<TArray<OptionType>, EInvalidateWidgetReason::Paint> CurrentValues;
 
 	TAttribute<FMargin> UniformPadding;
 
@@ -368,5 +526,7 @@ private:
 
 	int32 MaxSegmentsPerLine = 0;
 
-	bool CurrentValueIsBound = false;
+	bool CurrentValuesIsBound = false;
+	bool SupportsMultiSelection = false;
+	bool SupportsEmptySelection = false;
 };
