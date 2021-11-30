@@ -1824,8 +1824,8 @@ public:
 	TUniquePtr<FDatasmithDirectLink> DirectLinkImpl;
 	FString OutputPath;
 
-	FSceneTracker SceneTracker;
 	FNotifications NotificationsHandler;
+	FSceneTracker SceneTracker;
 
 	bool bAutoSyncEnabled = false;
 };
