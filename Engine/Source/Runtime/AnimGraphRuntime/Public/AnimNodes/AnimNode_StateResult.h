@@ -16,6 +16,21 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_StateResult : public FAnimNode_Root
 
 	/** Used to upgrade old FAnimNode_Roots to FAnimNode_StateResult */
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+
+#if WITH_EDITORONLY_DATA
+protected:
+
+	/** The index of the state this node belongs to. Filled in during the owning state machine's compilation. */
+	UPROPERTY(meta = (FoldProperty))
+	int32 StateIndex = -1;
+#endif
+
+public:
+#if WITH_EDITORONLY_DATA
+	void SetStateIndex(int32 InStateIndex) { StateIndex = InStateIndex; }
+#endif
+
+	int32 GetStateIndex() const;
 };
 
 template<>

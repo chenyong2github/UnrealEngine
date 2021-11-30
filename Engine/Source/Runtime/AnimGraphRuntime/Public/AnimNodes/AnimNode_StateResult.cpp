@@ -15,3 +15,8 @@ bool FAnimNode_StateResult::SerializeFromMismatchedTag(const FPropertyTag& Tag, 
 
 	return false;
 }
+
+int32 FAnimNode_StateResult::GetStateIndex() const
+{
+	return GET_ANIM_NODE_DATA(int32, StateIndex);
+}

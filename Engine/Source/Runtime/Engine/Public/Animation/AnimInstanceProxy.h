@@ -522,6 +522,9 @@ public:
 	/** Gets the runtime instance of the specified state machine by Name */
 	const FAnimNode_StateMachine* GetStateMachineInstanceFromName(FName MachineName) const;
 
+	/** Gets the runtime instance of the specified state machine */
+	const FAnimNode_StateMachine* GetStateMachineInstance(int32 MachineIndex) const;
+
 	/** Get the machine description for the specified instance. Does not rely on PRIVATE_MachineDescription being initialized */
 	static const FBakedAnimationStateMachine* GetMachineDescription(IAnimClassInterface* AnimBlueprintClass, const FAnimNode_StateMachine* MachineInstance);
 
@@ -806,9 +809,6 @@ protected:
 	/** Check whether we have active morph target curves */
 	/** Gets the most relevant asset player in a specified state */
 	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const;
-
-	/** Gets the runtime instance of the specified state machine */
-	const FAnimNode_StateMachine* GetStateMachineInstance(int32 MachineIndex) const;
 
 	/** Gets an unchecked (can return nullptr) node given a property of the anim instance */
 	template<class NodeType>
