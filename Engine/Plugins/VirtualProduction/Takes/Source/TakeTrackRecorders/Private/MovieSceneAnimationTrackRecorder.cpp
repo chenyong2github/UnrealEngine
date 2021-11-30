@@ -17,6 +17,7 @@
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectBaseUtility.h"
 #include "ObjectTools.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneAnimationTrackRecorder"
 
