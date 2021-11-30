@@ -31,8 +31,17 @@ public:
 			case FStringFormatArg::EType::String:
 				Attribute = new OPENEXR_IMF_INTERNAL_NAMESPACE::StringAttribute(std::string(TCHAR_TO_ANSI(*KVP.Value.StringValue)));
 				break;
-			case FStringFormatArg::EType::StringLiteral:
-				Attribute = new OPENEXR_IMF_INTERNAL_NAMESPACE::StringAttribute(std::string(TCHAR_TO_ANSI(KVP.Value.StringLiteralValue)));
+			case FStringFormatArg::EType::StringLiteralANSI:
+				Attribute = new OPENEXR_IMF_INTERNAL_NAMESPACE::StringAttribute(std::string(KVP.Value.StringLiteralANSIValue));
+				break;
+			case FStringFormatArg::EType::StringLiteralWIDE:
+				Attribute = new OPENEXR_IMF_INTERNAL_NAMESPACE::StringAttribute(std::string(StringCast<ANSICHAR>(KVP.Value.StringLiteralWIDEValue).Get()));
+				break;
+			case FStringFormatArg::EType::StringLiteralUCS2:
+				Attribute = new OPENEXR_IMF_INTERNAL_NAMESPACE::StringAttribute(std::string(StringCast<ANSICHAR>(KVP.Value.StringLiteralUCS2Value).Get()));
+				break;
+			case FStringFormatArg::EType::StringLiteralUTF8:
+				Attribute = new OPENEXR_IMF_INTERNAL_NAMESPACE::StringAttribute(std::string(StringCast<ANSICHAR>(KVP.Value.StringLiteralUTF8Value).Get()));
 				break;
 
 			case FStringFormatArg::EType::UInt:

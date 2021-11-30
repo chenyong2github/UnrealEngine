@@ -7,7 +7,7 @@
 /** An argument supplied to FString::Format */
 struct CORE_API FStringFormatArg
 {
-	enum EType { Int, UInt, Double, String, StringLiteral };
+	enum EType { Int, UInt, Double, String, StringLiteralANSI, StringLiteralWIDE, StringLiteralUCS2, StringLiteralUTF8 };
 
 	/** The type of this arg */
 	EType Type;
@@ -21,8 +21,14 @@ struct CORE_API FStringFormatArg
 		uint64 UIntValue;
 		/** Value as double */
 		double DoubleValue;
-		/** Value as a string literal */
-		const TCHAR* StringLiteralValue;
+		/** Value as an ANSI string literal */
+		const ANSICHAR* StringLiteralANSIValue;
+		/** Value as a WIDE string literal */
+		const WIDECHAR* StringLiteralWIDEValue;
+		/** Value as a UCS2 string literal */
+		const UCS2CHAR* StringLiteralUCS2Value;
+		/** Value as a UTF8 string literal */
+		const UTF8CHAR* StringLiteralUTF8Value;
 	};
 
 	/** Value as an FString */
@@ -35,7 +41,10 @@ struct CORE_API FStringFormatArg
 	FStringFormatArg( const float Value );
 	FStringFormatArg( const double Value );
 	FStringFormatArg( FString Value );
-	FStringFormatArg( const TCHAR* Value );
+	FStringFormatArg( const ANSICHAR* Value );
+	FStringFormatArg( const WIDECHAR* Value );
+	FStringFormatArg( const UCS2CHAR* Value );
+	FStringFormatArg( const UTF8CHAR* Value );
 
 	/** Copyable */
 	FStringFormatArg( const FStringFormatArg& RHS );
