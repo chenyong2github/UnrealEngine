@@ -23,6 +23,8 @@ void FGameplayTagContainerCustomization::CustomizeHeader(TSharedRef<class IPrope
 	FSimpleDelegate OnTagContainerChanged = FSimpleDelegate::CreateSP(this, &FGameplayTagContainerCustomization::RefreshTagList);
 	StructPropertyHandle->SetOnPropertyValueChanged(OnTagContainerChanged);
 
+	OnObjectPostEditChangeHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &FGameplayTagContainerCustomization::OnObjectPostEditChange);
+
 	BuildEditableContainerList();
 
 	FUIAction SearchForReferencesAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnWholeContainerSearchForReferences));
@@ -270,6 +272,14 @@ FReply FGameplayTagContainerCustomization::OnRemoveTagClicked(FGameplayTag Tag)
 	return FReply::Handled();
 }
 
+void FGameplayTagContainerCustomization::OnObjectPostEditChange(class UObject* Object, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (StructPropertyHandle.IsValid() && StructPropertyHandle->GetProperty() && StructPropertyHandle->GetProperty()->GetFName() == PropertyChangedEvent.GetPropertyName())
+	{
+		RefreshTagList();
+	}
+}
+
 TSharedRef<SWidget> FGameplayTagContainerCustomization::GetListContent()
 {
 	if (!StructPropertyHandle.IsValid() || StructPropertyHandle->GetProperty() == nullptr)
@@ -352,6 +362,9 @@ void FGameplayTagContainerCustomization::PostRedo( bool bSuccess )
 FGameplayTagContainerCustomization::~FGameplayTagContainerCustomization()
 {
 	GEditor->UnregisterForUndo(this);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnObjectPostEditChangeHandle);
+	OnObjectPostEditChangeHandle.Reset();
+
 }
 
 void FGameplayTagContainerCustomization::BuildEditableContainerList()
