@@ -164,21 +164,8 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 		FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXFixturePatcher::OnActiveTabChanged));
 
 		// Bind to entity changes
-		Library->GetOnEntitiesAdded().AddLambda([this](UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
-			{
-				if (DMXLibrary == GetDMXLibrary())
-				{
-					RefreshFromLibrary();
-				}
-			});
-
-		Library->GetOnEntitiesRemoved().AddLambda([this](UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
-			{
-				if (DMXLibrary == GetDMXLibrary())
-				{
-					RefreshFromLibrary();
-				}
-			});
+		Library->GetOnEntitiesAdded().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
+		Library->GetOnEntitiesRemoved().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
 
 		GEditor->RegisterForUndo(this);
 
@@ -535,6 +522,14 @@ TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::FindPatchNodeOfType(UDMXEnt
 		}
 	}
 	return nullptr;
+}
+
+void SDMXFixturePatcher::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities)
+{
+	if (DMXLibrary == GetDMXLibrary())
+	{
+		RefreshFromLibrary();
+	}
 }
 
 void SDMXFixturePatcher::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
