@@ -361,34 +361,34 @@ public:
 		{
 			DispatcherEvent->Trigger();
 		}
-		else
-		{
-			ProcessIncomingRequests();
-			while (PendingIoRequestsCount > 0)
-			{
-				ProcessCompletedRequests();
-			}
-		}
 	}
 
 	void Cancel(FIoRequestImpl* Request)
 	{
+		if (!BackendContext->bIsMultiThreaded)
+		{
+			return;
+		}
 		Request->AddRef();
 		{
 			FScopeLock _(&UpdateLock);
 			RequestsToCancel.Add(Request);
 		}
-		WakeUpDispatcherThread();
+		DispatcherEvent->Trigger();
 	}
 
 	void Reprioritize(FIoRequestImpl* Request)
 	{
+		if (!BackendContext->bIsMultiThreaded)
+		{
+			return;
+		}
 		Request->AddRef();
 		{
 			FScopeLock _(&UpdateLock);
 			RequestsToReprioritize.Add(Request);
 		}
-		WakeUpDispatcherThread();
+		DispatcherEvent->Trigger();
 	}
 
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
@@ -497,7 +497,18 @@ public:
 			WaitingRequestsTail = Batch.TailRequest;
 		}
 		Batch.HeadRequest = Batch.TailRequest = nullptr;
-		WakeUpDispatcherThread();
+		if (BackendContext->bIsMultiThreaded)
+		{
+			DispatcherEvent->Trigger();
+		}
+		else
+		{
+			ProcessIncomingRequests();
+			while (PendingIoRequestsCount > 0)
+			{
+				ProcessCompletedRequests();
+			}
+		}
 	}
 
 	void IssueBatch(FIoBatch& Batch)
@@ -727,7 +738,6 @@ private:
 			}
 			
 			++PendingIoRequestsCount;
-			ProcessCompletedRequests();
 		}
 	}
 
