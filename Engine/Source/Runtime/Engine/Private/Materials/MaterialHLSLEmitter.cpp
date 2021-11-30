@@ -759,10 +759,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	// Prepare all fields *except* normal
 	FRequestedType RequestedMaterialAttributesType(Generator.GetMaterialAttributesType());
 	RequestedMaterialAttributesType.ClearFieldRequested(NormalFieldRef);
-	if (!PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType))
-	{
-		return false;
-	}
+	PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType);
 
 	const bool bReadMaterialNormal = EmitContext.bReadMaterialNormal;
 	FStringBuilderMemstack CodePhase0(Allocator, 1024 * 1024);
@@ -771,10 +768,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	{
 		// No access to material normal, can execute everything in phase0
 		RequestedMaterialAttributesType.SetFieldRequested(NormalFieldRef);
-		if (!PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType))
-		{
-			return false;
-		}
+		PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType);
 		HLSLTree->EmitShader(EmitContext, CodePhase0);
 	}
 	else
@@ -792,10 +786,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		// Prepare code for just the normal
 		FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
 		RequestedMaterialNormal.SetFieldRequested(NormalFieldRef);
-		if (!PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialNormal))
-		{
-			return false;
-		}
+		PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialNormal);
 
 		// Execute the normal in phase0
 		HLSLTree->EmitShader(EmitContext, CodePhase0);
