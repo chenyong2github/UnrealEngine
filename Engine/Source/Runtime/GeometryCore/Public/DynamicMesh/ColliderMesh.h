@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Spatial/MeshAABBTree3.h"
-
 #pragma once
 
+#include "Spatial/MeshAABBTree3.h"
 
 
 namespace UE
