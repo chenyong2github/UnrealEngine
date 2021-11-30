@@ -124,6 +124,12 @@ FExrImgMediaReaderGpu::~FExrImgMediaReaderGpu()
 
 bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
+	// Fall back to cpu?
+	if (bFallBackToCPU)
+	{
+		return FExrImgMediaReader::ReadFrame(FrameId, MipLevel, InTileSelection, OutFrame);
+	}
+
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
 	if (Loader.IsValid() == false)
 	{
@@ -200,7 +206,10 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 							UE_LOG(LogImgMedia, Error, TEXT("Compressed and uncompressed files should not be mixed in a single sequence."));
 						}
 					}
-					return false;
+
+					// Fall back to CPU.
+					bFallBackToCPU = true;
+					return FExrImgMediaReader::ReadFrame(FrameId, MipLevel, InTileSelection, OutFrame);
 				}
 			}
 

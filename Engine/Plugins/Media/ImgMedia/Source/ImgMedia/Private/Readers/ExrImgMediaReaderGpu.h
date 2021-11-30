@@ -49,7 +49,7 @@ public:
 
 	/** Default constructor. */
 	FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader):FExrImgMediaReader(InLoader),
-		LastTickedFrameCounter((uint64)-1), bIsShuttingDown(false) {};
+		LastTickedFrameCounter((uint64)-1), bIsShuttingDown(false), bFallBackToCPU(false) {};
 	virtual ~FExrImgMediaReaderGpu();
 
 public:
@@ -109,6 +109,9 @@ private:
 
 	/** A flag indicating this reader is being destroyed, therefore memory should not be returned. */
 	bool bIsShuttingDown;
+
+	/** If true, then just use the CPU to read the file. */
+	bool bFallBackToCPU;
 };
 
 FUNC_DECLARE_DELEGATE(FExrConvertBufferCallback, bool, FRHICommandListImmediate& /*RHICmdList*/, FTexture2DRHIRef /*RenderTargetTextureRHI*/)
