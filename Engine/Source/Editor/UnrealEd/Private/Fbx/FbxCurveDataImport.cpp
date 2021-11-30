@@ -241,7 +241,7 @@ namespace UnFbx {
 			FbxTimeSpan AnimTimeSpan(FBXSDK_TIME_ZERO, FBXSDK_TIME_INFINITE);
 			//Sequencer use auto set tangents
 			const bool bAutoSetTangents = true;
-			UnFbx::FFbxImporter::ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, (bNegative ? -Scale : Scale), bAutoSetTangents);
+			UnFbx::FFbxImporter::ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, bNegative, Scale, bAutoSetTangents);
 		}
 	}
 
@@ -254,7 +254,7 @@ namespace UnFbx {
 			//Send a neutral timespan 0 to infinite, the ImportCurve, offset the keytime by doing: (KeyTime - TimeSpan.start), setting TimeSpan.start at zero will not affect the keys time value.
 			FbxTimeSpan AnimTimeSpan(FBXSDK_TIME_ZERO, FBXSDK_TIME_INFINITE);
 			const bool bAutoSetTangents = false;
-			UnFbx::FFbxImporter::ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, (bNegative ? -Scale : Scale), bAutoSetTangents);
+			UnFbx::FFbxImporter::ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, bNegative, Scale, bAutoSetTangents);
 		}
 	}
 

@@ -1223,21 +1223,7 @@ void ImportTransformChannelToBezierChannel(const FRichCurve& Source, ChannelType
 	{
 		const FRichCurveKey Key = Source.GetKey(*SourceIt);
 		float ArriveTangent = Key.ArriveTangent;
-		FKeyHandle PrevKeyHandle = Source.GetPreviousKey(*SourceIt);
-		if (Source.IsKeyHandleValid(PrevKeyHandle))
-		{
-			const FRichCurveKey PrevKey = Source.GetKey(PrevKeyHandle);
-			ArriveTangent = ArriveTangent / (Key.Time - PrevKey.Time);
-
-		}
 		float LeaveTangent = Key.LeaveTangent;
-		FKeyHandle NextKeyHandle = Source.GetNextKey(*SourceIt);
-		if (Source.IsKeyHandleValid(NextKeyHandle))
-		{
-			const FRichCurveKey NextKey = Source.GetKey(NextKeyHandle);
-			LeaveTangent = LeaveTangent / (NextKey.Time - Key.Time);
-		}
-
 		if (bNegateTangents)
 		{
 			ArriveTangent = -ArriveTangent;
@@ -2062,12 +2048,12 @@ static bool ImportFBXTransformToChannels(FString NodeName, const UMovieSceneUser
 		}
 
 		ImportTransformChannelToDouble(Translation[0], DoubleChannels[0], FrameRate, false, false, StartFrame);
-		ImportTransformChannelToDouble(Translation[1], DoubleChannels[1], FrameRate, true, false, StartFrame);
+		ImportTransformChannelToDouble(Translation[1], DoubleChannels[1], FrameRate, false, false, StartFrame);
 		ImportTransformChannelToDouble(Translation[2], DoubleChannels[2], FrameRate, false, false, StartFrame);
 
 		ImportTransformChannelToDouble(EulerRotation[0], DoubleChannels[3], FrameRate, false,false, StartFrame);
-		ImportTransformChannelToDouble(EulerRotation[1], DoubleChannels[4], FrameRate, true, false, StartFrame);
-		ImportTransformChannelToDouble(EulerRotation[2], DoubleChannels[5], FrameRate, true, false, StartFrame);
+		ImportTransformChannelToDouble(EulerRotation[1], DoubleChannels[4], FrameRate, false, false, StartFrame);
+		ImportTransformChannelToDouble(EulerRotation[2], DoubleChannels[5], FrameRate, false, false, StartFrame);
 
 		if (DoubleChannels.Num() > 6) //noscale
 		{
@@ -2749,12 +2735,12 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	Channels[8]->SetDefault(Scale3D.Z);
 
 	ImportTransformChannelToDouble(Translation[0],   Channels[0], FrameRate, false, true);
-	ImportTransformChannelToDouble(Translation[1],   Channels[1], FrameRate, true, true);
+	ImportTransformChannelToDouble(Translation[1],   Channels[1], FrameRate, false, true);
 	ImportTransformChannelToDouble(Translation[2],   Channels[2], FrameRate, false, true);
 
 	ImportTransformChannelToDouble(EulerRotation[0], Channels[3], FrameRate, false, true);
-	ImportTransformChannelToDouble(EulerRotation[1], Channels[4], FrameRate, true, true);
-	ImportTransformChannelToDouble(EulerRotation[2], Channels[5], FrameRate, true, true);
+	ImportTransformChannelToDouble(EulerRotation[1], Channels[4], FrameRate, false, true);
+	ImportTransformChannelToDouble(EulerRotation[2], Channels[5], FrameRate, false, true);
 
 	ImportTransformChannelToDouble(Scale[0],         Channels[6], FrameRate, false, true);
 	ImportTransformChannelToDouble(Scale[1],         Channels[7], FrameRate, false, true);

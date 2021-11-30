@@ -162,8 +162,8 @@ namespace FbxAnimUtils
 										{
 											FRichCurve& RichCurve = InOutCurveTable->AddRichCurve(*ChannelName);
 											RichCurve.Reset();
-
-											FbxImporter->ImportCurve(Curve, RichCurve, AnimTimeSpan, 0.01f);
+											constexpr bool bNegative = false;
+											FbxImporter->ImportCurve(Curve, RichCurve, AnimTimeSpan, bNegative, 0.01f);
 										}
 									}
 								}
@@ -180,8 +180,8 @@ namespace FbxAnimUtils
 							{
 								FRichCurve& RichCurve = InOutCurveTable->AddRichCurve(*InCurveName);
 								RichCurve.Reset();
-
-								FbxImporter->ImportCurve(InCurve, RichCurve, AnimTimeSpan, 1.0f);
+								constexpr bool bNegative = false;
+								FbxImporter->ImportCurve(InCurve, RichCurve, AnimTimeSpan, bNegative, 1.0f);
 							});
 							return true;
 						}

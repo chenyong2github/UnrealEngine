@@ -961,20 +961,22 @@ bool UnFbx::FFbxImporter::ValidateAnimStack(TArray<FbxNode*>& SortedLinks, TArra
 	return bValidAnimStack;
 }
 
-bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const float ValueScale/*=1.f*/, const bool bAutoSetTangents /*= true*/)
+bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& RichCurve, const FbxTimeSpan &AnimTimeSpan, const bool bNegative/*=false*/, const float ValueScale/*=1.f*/, const bool bAutoSetTangents /*= true*/)
 {
 	const float DefaultCurveWeight = FbxAnimCurveDef::sDEFAULT_WEIGHT;
 
 	if ( FbxCurve )
 	{
+		//We use the non const to query the left and right derivative of the key, for whatever reason those FBX API functions are not const
+		FbxAnimCurve* NonConstFbxCurve = const_cast<FbxAnimCurve*>(FbxCurve);
 		int32 KeyCount = FbxCurve->KeyGetCount();
-		
+		const float AdjustedValueScale = (bNegative ? -ValueScale : ValueScale);
 		for ( int32 KeyIndex=0; KeyIndex < KeyCount; ++KeyIndex )
 		{
 			FbxAnimCurveKey Key = FbxCurve->KeyGet(KeyIndex);
 			FbxTime KeyTime = Key.GetTime() - AnimTimeSpan.GetStart();
 			const float KeyTimeValue = static_cast<float>(KeyTime.GetSecondDouble());
-			float Value = Key.GetValue() * ValueScale;
+			float Value = Key.GetValue() * AdjustedValueScale;
 			FKeyHandle NewKeyHandle = RichCurve.AddKey(KeyTimeValue, Value, false);
 
 			const bool bIncludeOverrides = true;
@@ -986,17 +988,17 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 			ERichCurveTangentMode NewTangentMode = RCTM_Auto;
 			ERichCurveTangentWeightMode NewTangentWeightMode = RCTWM_WeightedNone;
 
-			float RightTangent = 0.f; 
-			float LeftTangent = 0.f;
+			float RightTangent = NonConstFbxCurve->KeyGetRightDerivative(KeyIndex) * AdjustedValueScale;
+			float LeftTangent = NonConstFbxCurve->KeyGetLeftDerivative(KeyIndex) * AdjustedValueScale;
 			float RightTangentWeight = 0.0f;
 			float LeftTangentWeight = 0.0f; //This one is dependent on the previous key.
+			bool bLeftWeightActive = false;
+			bool bRightWeightActive = false;
 
 			const bool bPreviousKeyValid = KeyIndex > 0;
 			const bool bNextKeyValid = KeyIndex < KeyCount - 1;
 			float PreviousValue = 0.0f;
 			float PreviousKeyTimeValue = 0.0f;
-			bool bLeftWeightActive = false;
-			bool bRightWeightActive = false;
 			float NextValue = 0.0f;
 			float NextKeyTimeValue = 0.0f;
 			if (bPreviousKeyValid)
@@ -1004,7 +1006,7 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 				FbxAnimCurveKey PreviousKey = FbxCurve->KeyGet(KeyIndex - 1);
 				FbxTime PreviousKeyTime = PreviousKey.GetTime() - AnimTimeSpan.GetStart();
 				PreviousKeyTimeValue = static_cast<float>(PreviousKeyTime.GetSecondDouble());
-				PreviousValue = PreviousKey.GetValue() * ValueScale;
+				PreviousValue = PreviousKey.GetValue() * AdjustedValueScale;
 				//The left tangent is driven by the previous key. If the previous key have a the NextLeftweight or both flag weighted mode, it mean the next key is weighted on the left side
 				bLeftWeightActive = (PreviousKey.GetTangentWeightMode() & FbxAnimCurveDef::eWeightedNextLeft) > 0;
 				if (bLeftWeightActive)
@@ -1017,7 +1019,7 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 				FbxAnimCurveKey NextKey = FbxCurve->KeyGet(KeyIndex + 1);
 				FbxTime NextKeyTime = NextKey.GetTime() - AnimTimeSpan.GetStart();
 				NextKeyTimeValue = static_cast<float>(NextKeyTime.GetSecondDouble());
-				NextValue = NextKey.GetValue() * ValueScale;
+				NextValue = NextKey.GetValue() * AdjustedValueScale;
 
 				bRightWeightActive = (KeyTangentWeightMode & FbxAnimCurveDef::eWeightedRight) > 0;
 				if (bRightWeightActive)
@@ -1096,28 +1098,8 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 						}
 						else
 						{
-							//Spline mode is the tangent are equal to the slope between previous and next control point
-							if (bPreviousKeyValid && bNextKeyValid)
-							{
-								bIsComputedTangent = true;
-								LeftTangent = (NextValue - PreviousValue) / FMath::Max<float>(KINDA_SMALL_NUMBER, NextKeyTimeValue - PreviousKeyTimeValue);
-								RightTangent = LeftTangent;
-							}
-							else
-							{
-								//Last key left tangent is the slope between last key and the previous key
-								if (bPreviousKeyValid)
-								{
-									bIsComputedTangent = true;
-									LeftTangent = (Value - PreviousValue) / FMath::Max<float>(KINDA_SMALL_NUMBER, KeyTimeValue - PreviousKeyTimeValue);
-								}
-								//First key right tangent is the slope between first key and the next key
-								if (bNextKeyValid)
-								{
-									bIsComputedTangent = true;
-									RightTangent = (NextValue - Value) / FMath::Max<float>(KINDA_SMALL_NUMBER, NextKeyTimeValue - KeyTimeValue);
-								}
-							}
+							//Spline tangent key must be User mode since we want to keep the tangents provide by the fbx key left and right derivatives
+							NewTangentMode = RCTM_User;
 						}
 					}
 					
@@ -1127,23 +1109,6 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 						LeftTangent = 0;
 						//To force flat tangent we need to set the tangent mode to user
 						NewTangentMode = RCTM_User;
-					}
-					else if (bIsComputedTangent)
-					{
-						NewTangentMode = RCTM_User;
-					}
-					else
-					{
-						RightTangent = Key.GetDataFloat(FbxAnimCurveDef::eRightSlope) * ValueScale;
-						if (bPreviousKeyValid)
-						{
-							FbxAnimCurveKey PrevKey = FbxCurve->KeyGet(KeyIndex-1);
-							LeftTangent = PrevKey.GetDataFloat(FbxAnimCurveDef::eNextLeftSlope) * ValueScale;
-						}
-						else
-						{
-							LeftTangent = 0.f;
-						}
 					}
 
 				}
@@ -1162,7 +1127,7 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 			if (NewTangentMode != RCTM_Auto)
 			{
 				const bool bEqualTangents = FMath::IsNearlyEqual(LeftTangent, RightTangent);
-				//instead we manually check to see if the tangents are the same or different, if different then broken.
+				//If tangents are different then broken.
 				if (bEqualTangents)
 				{
 					NewTangentMode = RCTM_User;
@@ -1385,7 +1350,8 @@ bool UnFbx::FFbxImporter::ImportCurveToAnimSequence(class UAnimSequence * Target
 		Controller.UpdateCurveNamesFromSkeleton(Skeleton, ERawCurveTrackTypes::RCT_Float);
 
 		FRichCurve RichCurve;
-		if (ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, ValueScale))
+		constexpr bool bNegative = false;
+		if (ImportCurve(FbxCurve, RichCurve, AnimTimeSpan, bNegative, ValueScale))
 		{
 			if (ImportOptions->bRemoveRedundantKeys)
 			{
