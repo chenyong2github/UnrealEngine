@@ -50,12 +50,6 @@ protected:
 	UInputBehaviorSet* BehaviorSet;
 	UUVToolViewportButtonsAPI* ViewportButtonsAPI;
 
-	// Position to place the camera far plane relative to world z
-	float CameraFarPlaneWorldZ = -10.0;
-	// The near plane gets positioned some proportion to z = 0. We don't use a constant value because our depth offset values are percentage-based
-	// Lower proportions move the plane nearer to world z
-	float CameraNearPlaneProportionZ = 0.8;
-
 	// Note that it's generally less hassle if the unique ptr types are complete here,
 	// not forward declared, else we get compile errors if their destruction shows up
 	// anywhere in the header.

@@ -11,6 +11,8 @@
 #include "PreviewMesh.h"
 #include "ToolSetupUtil.h"
 #include "UVToolContextObjects.h"
+#include "UVEditorUXSettings.h"
+
 
 #define LOCTEXT_NAMESPACE "UUVSeamSewAction"
 
@@ -140,14 +142,14 @@ void UUVSeamSewAction::UpdateSewEdgePreviewLines()
 			SewEdgePairingLineSet->AddLine(
 				MeshTransform.TransformPosition(Vert1),
 				MeshTransform.TransformPosition(Vert2),
-				FColor::Red, 5, 3);
+				FUVEditorUXSettings::SewSideLeftColor, FUVEditorUXSettings::SewLineHighlightThickness, FUVEditorUXSettings::SewLineDepthOffset);
 
 			Vert1 = UnwrapMesh->GetVertex(SewPair.B[0]);
 			Vert2 = UnwrapMesh->GetVertex(SewPair.B[1]);
 			SewEdgePairingLineSet->AddLine(
 				MeshTransform.TransformPosition(Vert1),
 				MeshTransform.TransformPosition(Vert2),
-				FColor::Green, 5, 3);
+				FUVEditorUXSettings::SewSideRightColor, FUVEditorUXSettings::SewLineHighlightThickness, FUVEditorUXSettings::SewLineDepthOffset);
 
 		}
 	}

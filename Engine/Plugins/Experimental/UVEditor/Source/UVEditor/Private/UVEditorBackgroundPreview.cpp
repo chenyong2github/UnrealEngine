@@ -7,6 +7,7 @@
 #include "Drawing/MeshWireframeComponent.h"
 #include "ToolSetupUtil.h"
 #include "Async/Async.h"
+#include "UVEditorUXSettings.h"
 
 using namespace UE::Geometry;
 
@@ -99,7 +100,7 @@ void UUVEditorBackgroundPreview::UpdateBackground()
 			ensure(false);
 	}
 
-	BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundPixelDepthOffset"), 0);
+	BackgroundMaterial->SetScalarParameterValue(TEXT("BackgroundPixelDepthOffset"), FUVEditorUXSettings::BackgroundQuadDepthOffset);
 	OnBackgroundMaterialChange.Broadcast(BackgroundMaterial);
 	BackgroundComponent->Clear();
 

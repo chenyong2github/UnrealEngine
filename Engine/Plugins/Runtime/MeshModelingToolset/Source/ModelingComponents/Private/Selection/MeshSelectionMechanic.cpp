@@ -296,7 +296,8 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ClearCurrentSelection();
 
 	TriangleSet = NewObject<UTriangleSetComponent>();
-	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(), TriangleColor, DepthBias, TriangleOpacity);
+	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(),
+		VisualizationStyle.TriangleColor, VisualizationStyle.TriangleDepthBias, VisualizationStyle.TriangleOpacity);
 	
 	LineSet = NewObject<ULineSetComponent>();
 	LineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
@@ -387,16 +388,14 @@ const FDynamicMeshSelection& UMeshSelectionMechanic::GetCurrentSelection() const
 	return CurrentSelection;
 }
 
-void UMeshSelectionMechanic::ChangeSelectionColor(const FColor& TriangleColorIn, float TriangleOpacityIn, const FColor& LineColorIn, const FColor& PointColorIn)
+void UMeshSelectionMechanic::SetVisualizationStyle(const FMeshSelectionMechanicStyle& StyleIn)
 {
-	TriangleColor = TriangleColorIn;
-	TriangleOpacity = TriangleOpacityIn;
-	LineColor = LineColorIn;
-	PointColor = PointColorIn;
+	VisualizationStyle = StyleIn;
 
 	if (TriangleSetMaterial) {
-		TriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), TriangleColorIn);
-		TriangleSetMaterial->SetScalarParameterValue(TEXT("Opacity"), TriangleOpacityIn);
+		TriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), VisualizationStyle.TriangleColor);
+		TriangleSetMaterial->SetScalarParameterValue(TEXT("Opacity"), VisualizationStyle.TriangleOpacity);
+		TriangleSetMaterial->SetScalarParameterValue(TEXT("PercentDepthOffset"), VisualizationStyle.TriangleDepthBias);
 	}
 }
 
@@ -481,12 +480,12 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 			{
 				Points[i] = TransformToApply(CurrentSelection.Mesh->GetVertex(Vids[i]));
 			}
-			TriangleSet->AddTriangle(Points[0], Points[1], Points[2], FVector(0, 0, 1), TriangleColor, TriangleSetMaterial);
+			TriangleSet->AddTriangle(Points[0], Points[1], Points[2], FVector(0, 0, 1), VisualizationStyle.TriangleColor, TriangleSetMaterial);
 			for (int i = 0; i < 3; ++i)
 			{
 				int NextIndex = (i + 1) % 3;
 				LineSet->AddLine(Points[i], Points[NextIndex],
-					LineColor, LineThickness, DepthBias);
+					VisualizationStyle.LineColor, VisualizationStyle.LineThickness, VisualizationStyle.LineAndPointDepthBias);
 			}
 		}
 	}
@@ -501,7 +500,7 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 			LineSet->AddLine(
 				TransformToApply(CurrentSelection.Mesh->GetVertex(EdgeVids.A)),
 				TransformToApply(CurrentSelection.Mesh->GetVertex(EdgeVids.B)),
-					LineColor, LineThickness, DepthBias);
+				VisualizationStyle.LineColor, VisualizationStyle.LineThickness, VisualizationStyle.LineAndPointDepthBias);
 		}
 	}
 	else if (CurrentSelection.Type == FDynamicMeshSelection::EType::Vertex)
@@ -512,8 +511,8 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 		for (int32 Vid : CurrentSelection.SelectedIDs)
 		{
 			FRenderablePoint PointToRender(TransformToApply(CurrentSelection.Mesh->GetVertex(Vid)),
-				                           PointColor,
-				                           PointThickness);
+				VisualizationStyle.PointColor,
+				VisualizationStyle.PointThickness);
 			PointSet->AddPoint(PointToRender);
 		}
 	}

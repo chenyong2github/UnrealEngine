@@ -10,6 +10,7 @@
 #include "Drawing/MeshDebugDrawing.h"
 #include "FrameTypes.h"
 #include "UVEditorMode.h"
+#include "UVEditorUXSettings.h"
 
 FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget,
@@ -41,8 +42,8 @@ FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeToo
 	BehaviorSet->Add(ScrollBehavior);
 
 	ZoomBehaviorTarget = MakeUnique<FUVEditor2DMouseWheelZoomBehaviorTarget>(this);
-	ZoomBehaviorTarget->SetCameraFarPlaneWorldZ(CameraFarPlaneWorldZ);
-	ZoomBehaviorTarget->SetCameraNearPlaneProportionZ(CameraNearPlaneProportionZ);
+	ZoomBehaviorTarget->SetCameraFarPlaneWorldZ(FUVEditorUXSettings::CameraFarPlaneWorldZ);
+	ZoomBehaviorTarget->SetCameraNearPlaneProportionZ(FUVEditorUXSettings::CameraNearPlaneProportionZ);
 	UMouseWheelInputBehavior* ZoomBehavior = NewObject<UMouseWheelInputBehavior>();
 	ZoomBehavior->Initialize(ZoomBehaviorTarget.Get());
 	ZoomBehavior->SetDefaultPriority(DEFAULT_VIEWPORT_BEHAVIOR_PRIORITY);	
@@ -85,16 +86,6 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 	// Basic scaling amount
 	const float UVScale = UUVEditorMode::GetUVMeshScalingFactor();
 	
-	// Line thickness parameters
-	const float AxisThickness = 2;
-	const float GridMajorThickness = 1.0;
-
-    // Line color scheme parameters
-	const FLinearColor XAxisColor = FLinearColor::Red;
-	const FLinearColor YAxisColor = FLinearColor::Green;
-	const FLinearColor GridMajorColor = FLinearColor::Gray;
-	const FLinearColor GridMinorColor = FLinearColor::Gray;
-
 	// Determine important geometry of the viewport for creating grid lines
 	FVector WorldCenterPoint( 0,0,0 );
 	FVector4 WorldToScreenCenter = View->WorldToScreen(WorldCenterPoint);	
@@ -114,23 +105,23 @@ void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInter
 		UE::Geometry::FFrame3f LocalFrame((FVector3f)ViewLoc);
 		FTransform Transform;
 		TArray<FColor> Colors;
-		Colors.Push(GridMajorColor.ToRGBE());
-		Colors.Push(GridMinorColor.ToRGBE());
+		Colors.Push(FUVEditorUXSettings::GridMajorColor);
+		Colors.Push(FUVEditorUXSettings::GridMinorColor);
 		MeshDebugDraw::DrawHierarchicalGrid(UVScale, ZoomFactor / UVScale,
 			500, // Maximum density of lines to draw per level before skipping the level
 			WorldBoundsMax, WorldBoundsMin,
-			3, // Number of levels to draw
-			4, // Number of subdivisions per level
+			FUVEditorUXSettings::GridLevels, // Number of levels to draw
+			FUVEditorUXSettings::GridSubdivisionsPerLevel, // Number of subdivisions per level
 			Colors,
-			LocalFrame, GridMajorThickness, true,
+			LocalFrame, FUVEditorUXSettings::GridMajorThickness, true,
 			PDI, Transform);
 	}
 
-	float AxisExtent = FMathf::Max(UVScale, FMathf::Min(WorldBoundsMax.Y, WorldBoundsMax.X));
+	float AxisExtent = UVScale;
 
 	// Draw colored axis lines
-	PDI->DrawLine(FVector(0, 0, 0), FVector(AxisExtent, 0, 0), FLinearColor::Red, SDPG_World, AxisThickness, 0, true);
-	PDI->DrawLine(FVector(0, 0, 0), FVector(0, AxisExtent, 0), FLinearColor::Green, SDPG_World, AxisThickness, 0, true);
+	PDI->DrawLine(FVector(0, 0, 0), FVector(AxisExtent, 0, 0), FUVEditorUXSettings::XAxisColor, SDPG_World, FUVEditorUXSettings::AxisThickness, 0, true);
+	PDI->DrawLine(FVector(0, 0, 0), FVector(0, AxisExtent, 0), FUVEditorUXSettings::YAxisColor, SDPG_World, FUVEditorUXSettings::AxisThickness, 0, true);
 
 	// TODO: Draw a little UV axis thing in the lower left, like the XYZ things that normal viewports have.
 
