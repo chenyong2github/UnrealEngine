@@ -380,6 +380,16 @@ class DeviceUnreal(Device):
                 'Directory in which to store logs transferred from devices. '
                 'If unset, defaults to $(ProjectDir)/Saved/Logs/Switchboard/'),
         ),
+        'reflect_visibility_to_game': BoolSetting(
+            attr_name='reflect_visibility_to_game',
+            nice_name='Reflect Editor Visibility to Game',
+            value=True,
+            tool_tip=(
+                'Sets the value for `Reflect Level Visibilty to Game` for Multi-user editing. \n'
+                'Editor visibilty state will be applied to the game equivalent visibility properties. \n'
+                'This is useful for ICVFX workflows where the editor visibilty state directly \n'
+                'corresponds to the state on the render nodes.')
+        ),
         'rsync_port': IntSetting(
             attr_name='rsync_port',
             nice_name='Rsync Server Port',
@@ -1209,6 +1219,10 @@ class DeviceUnreal(Device):
         return vproles, missing_roles
 
     @property
+    def reflect_editor_vis_in_game(self) -> str:
+        return DeviceUnreal.csettings['reflect_visibility_to_game'].get_value()
+
+    @property
     def udpmessaging_multicast_endpoint(self) -> str:
         device_multicast = DeviceUnreal.csettings[
             'udpmessaging_multicast_endpoint'].get_value().strip()
@@ -1318,6 +1332,9 @@ class DeviceUnreal(Device):
         if DeviceUnreal.csettings['auto_decline_package_recovery'].get_value(
                 self.name):
             command_line_args += ' -AutoDeclinePackageRecovery'
+
+        concert_vis_reflect = 1 if self.reflect_editor_vis_in_game else 0
+        command_line_args += f' -ConcertReflectVisibility={concert_vis_reflect}'
 
         # UdpMessaging endpoints
         if self.udpmessaging_multicast_endpoint:

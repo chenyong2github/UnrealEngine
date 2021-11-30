@@ -243,9 +243,12 @@ struct FConcertClientSettings
 	UPROPERTY(config, EditAnywhere, DisplayName="Latency Compensation", AdvancedDisplay, Category="Client Settings", meta=(ForceUnits=ms))
 	float LatencyCompensationMs;
 
-	/** When level editor changes are made, reflect those changes to the game equivalent property */
+	/**
+	 * When level editor changes are made, reflect those changes to the game equivalent property.
+	 * This settings can be specified on the editor cmd with `-CONCERTREFLECTVISIBILITY=`.
+	 */
 	UPROPERTY(config, EditAnywhere, DisplayName="Reflect Level Visibility to Game", AdvancedDisplay, Category="Client Settings")
-	bool bReflectLevelEditorInGame = true;
+	bool bReflectLevelEditorInGame = false;
 
 	/** Array of tags that can be used for grouping and categorizing. */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Client Settings")

@@ -125,7 +125,10 @@ void SetReflectEditorLevelVisibilityWithGame(bool InValue)
 	// Detail mode was modified, so store in the CVar
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.ReflectEditorLevelVisibilityWithGame"));
 	int32 ValAsInt = !!InValue;
-	CVar->Set(ValAsInt);
+	if (CVar->GetInt() != ValAsInt)
+	{
+		CVar->Set(ValAsInt);
+	}
 #endif
 }
 
@@ -193,11 +196,17 @@ struct FConcertWorkspaceConsoleCommands
 	FAutoConsoleCommand DisableRemoteVerboseLogging;
 };
 
-FConcertClientWorkspace::FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService)
-	: FileSharingService(MoveTemp(InFileSharingService))
+FConcertClientWorkspace::FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession,
+												 IConcertClientPackageBridge* InPackageBridge,
+												 IConcertClientTransactionBridge* InTransactionBridge,
+												 TSharedPtr<IConcertFileSharingService> InFileSharingService,
+												 IConcertSyncClient* InOwnerSyncClient)
+	: OwnerSyncClient(InOwnerSyncClient),
+	  FileSharingService(MoveTemp(InFileSharingService))
 {
 	static FConcertWorkspaceConsoleCommands ConsoleCommands;
 
+	check(OwnerSyncClient);
 	BindSession(InLiveSession, InPackageBridge, InTransactionBridge);
 }
 
@@ -845,8 +854,8 @@ void FConcertClientWorkspace::OnEndFrame()
 		}
 	}
 	LiveSession->GetSessionDatabase().UpdateAsynchronousTasks();
-	const UConcertClientConfig *Config = GetDefault<UConcertClientConfig>();
-	SetReflectEditorLevelVisibilityWithGame(Config->ClientSettings.bReflectLevelEditorInGame);
+	IConcertClientRef ConcertClient = OwnerSyncClient->GetConcertClient();
+	SetReflectEditorLevelVisibilityWithGame(ConcertClient->GetConfiguration()->ClientSettings.bReflectLevelEditorInGame);
 }
 
 void FConcertClientWorkspace::HandleWorkspaceSyncEndpointEvent(const FConcertSessionContext& Context, const FConcertWorkspaceSyncEndpointEvent& Event)

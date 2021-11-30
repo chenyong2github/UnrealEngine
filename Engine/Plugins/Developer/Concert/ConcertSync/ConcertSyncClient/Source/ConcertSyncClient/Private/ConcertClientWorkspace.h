@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IConcertSyncClient.h"
 #include "Misc/ITransaction.h"
 #include "IConcertClientWorkspace.h"
 #include "IConcertSessionHandler.h"
@@ -27,7 +28,7 @@ struct FScopedSlowTask;
 class FConcertClientWorkspace : public IConcertClientWorkspace
 {
 public:
-	FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService);
+	FConcertClientWorkspace(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge, TSharedPtr<IConcertFileSharingService> InFileSharingService, IConcertSyncClient* InOwnerSyncClient);
 	virtual ~FConcertClientWorkspace();
 
 	// IConcertClientWorkspace interface
@@ -207,6 +208,9 @@ private:
 
 	/** */
 	IConcertClientPackageBridge* PackageBridge;
+
+	/** The sync client that owns the workspace. */
+	IConcertSyncClient *OwnerSyncClient;
 
 	/** */
 	TSharedPtr<FConcertSyncClientLiveSession> LiveSession;
