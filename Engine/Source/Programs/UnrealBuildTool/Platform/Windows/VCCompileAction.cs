@@ -133,6 +133,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bShowIncludes { get; set; }
 
+		/// <summary>
+		/// Whether to override the normal logic for UsingClFilter and force it on.
+		/// </summary>
+		public bool ForceClFilter = false;
+
 		#region Public IAction implementation
 
 		/// <summary>
@@ -220,7 +225,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to use cl-filter
 		/// </summary>
-		bool UsingClFilter => DependencyListFile != null && !DependencyListFile.HasExtension(".json") && !DependencyListFile.HasExtension(".d");
+		bool UsingClFilter => ForceClFilter || (DependencyListFile != null && !DependencyListFile.HasExtension(".json") && !DependencyListFile.HasExtension(".d"));
 
 		/// <inheritdoc/>
 		FileReference IExternalAction.CommandPath
