@@ -612,22 +612,24 @@ namespace HordeServer.Services
 		/// <param name="StreamId">The stream containing the job</param>
 		/// <param name="Templates">Templates to look for</param>
 		/// <param name="PreflightStartedByUser">User for which to include preflight jobs</param>
+		/// <param name="MaxCreateTime">The maximum creation time</param>
 		/// <param name="ModifiedAfter">Filter the results by last modified time</param>	
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <param name="ConsistentRead">If the database read should be made to the replica server</param>
 		/// <returns>List of jobs matching the given criteria</returns>
-		public async Task<List<IJob>> FindJobsByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser = null, DateTimeOffset? ModifiedAfter = null, int? Index = null, int? Count = null, bool ConsistentRead = true)
+		public async Task<List<IJob>> FindJobsByStreamWithTemplatesAsync(StreamId StreamId, TemplateRefId[] Templates, UserId? PreflightStartedByUser = null, DateTimeOffset? MaxCreateTime = null, DateTimeOffset? ModifiedAfter = null, int? Index = null, int? Count = null, bool ConsistentRead = true)
 		{
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("JobService.FindJobsByStreamWithTemplatesAsync").StartActive();
 			Scope.Span.SetTag("StreamId", StreamId);
 			Scope.Span.SetTag("Templates", Templates);
 			Scope.Span.SetTag("PreflightStartedByUser", PreflightStartedByUser);
+			Scope.Span.SetTag("MaxCreateTime", MaxCreateTime);
 			Scope.Span.SetTag("ModifiedAfter", ModifiedAfter);
 			Scope.Span.SetTag("Index", Index);
 			Scope.Span.SetTag("Count", Count);
 			
-			return await Jobs.FindLatestByStreamWithTemplatesAsync(StreamId, Templates, PreflightStartedByUser, ModifiedAfter, Index, Count, ConsistentRead);
+			return await Jobs.FindLatestByStreamWithTemplatesAsync(StreamId, Templates, PreflightStartedByUser, MaxCreateTime, ModifiedAfter, Index, Count, ConsistentRead);
 		}
 
 		/// <summary>

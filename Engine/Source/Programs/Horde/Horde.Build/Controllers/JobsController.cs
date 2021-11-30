@@ -707,6 +707,7 @@ namespace HordeServer.Controllers
 		/// <param name="StreamId">The stream to search for</param>
 		/// <param name="Templates">List of templates to find</param>
 		/// <param name="PreflightStartedByUserId">User id for which to include preflight jobs</param>
+		/// <param name="MaxCreateTime">Maximum creation time</param>
 		/// <param name="ModifiedAfter">If specified, only jobs updated after the given time will be returned</param>
 		/// <param name="Filter">Filter for properties to return</param>
 		/// <param name="Index">Index of the first result to be returned</param>
@@ -720,6 +721,7 @@ namespace HordeServer.Controllers
 			string StreamId,
 			[FromQuery(Name = "template")] string[] Templates,
 			[FromQuery] string? PreflightStartedByUserId = null,
+			[FromQuery] DateTimeOffset? MaxCreateTime = null,
 			[FromQuery] DateTimeOffset? ModifiedAfter = null,
 			[FromQuery] PropertyFilter? Filter = null,
 			[FromQuery] int Index = 0,
@@ -731,7 +733,7 @@ namespace HordeServer.Controllers
 			UserId? PreflightStartedByUserIdValue = PreflightStartedByUserId != null ? new UserId(PreflightStartedByUserId) : null;
 			Count = Math.Min(1000, Count);
 
-			List<IJob> Jobs = await JobService.FindJobsByStreamWithTemplatesAsync(StreamIdValue, TemplateRefIds, PreflightStartedByUserIdValue, ModifiedAfter, Index, Count, ConsistentRead);
+			List<IJob> Jobs = await JobService.FindJobsByStreamWithTemplatesAsync(StreamIdValue, TemplateRefIds, PreflightStartedByUserIdValue, MaxCreateTime, ModifiedAfter, Index, Count, ConsistentRead);
 			return await CreateAuthorizedJobResponses(Jobs, Filter);
 		}
 
