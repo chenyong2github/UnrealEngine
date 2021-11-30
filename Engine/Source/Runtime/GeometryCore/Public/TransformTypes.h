@@ -233,6 +233,20 @@ public:
 	}
 
 
+	UE::Math::TRay<RealType> TransformRay(const UE::Math::TRay<RealType> &Ray) const
+	{
+		TVector<RealType> Origin = TransformPosition(Ray.Origin);
+		TVector<RealType> Direction = Normalized(TransformVector(Ray.Direction));
+		return UE::Math::TRay<RealType>(Origin, Direction);
+	}
+
+
+	UE::Math::TRay<RealType> InverseTransformRay(const UE::Math::TRay<RealType> &Ray) const
+	{
+		TVector<RealType> InvOrigin = InverseTransformPosition(Ray.Origin);
+		TVector<RealType> InvDirection = Normalized(InverseTransformVector(Ray.Direction));
+		return UE::Math::TRay<RealType>(InvOrigin, InvDirection);
+	}
 
 	/**
 	 * Clamp all scale components to a minimum value. Sign of scale components is preserved.
