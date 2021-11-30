@@ -9,6 +9,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeRWLock.h"
 #include "Async/ParallelFor.h"
+#include "Misc/CommandLine.h"
 
 #define LOCTEXT_NAMESPACE "CollectionManager"
 
@@ -267,6 +268,8 @@ FCollectionManager::FCollectionManager()
 	CollectionFolders[ECollectionShareType::CST_Shared] = FPaths::ProjectContentDir() / TEXT("Collections");
 
 	CollectionExtension = TEXT("collection");
+
+	bNoFixupRedirectors = FParse::Param(FCommandLine::Get(), TEXT("NoFixupRedirectorsInCollections"));
 
 	LoadCollections();
 
@@ -1543,6 +1546,11 @@ bool FCollectionManager::IsValidParentCollection(FName CollectionName, ECollecti
 
 void FCollectionManager::HandleFixupRedirectors(ICollectionRedirectorFollower& InRedirectorFollower)
 {
+	if (bNoFixupRedirectors)
+	{
+		return;
+	}
+
 	const double LoadStartTime = FPlatformTime::Seconds();
 
 	TArray<TPair<FName, FName>> ObjectsToRename;

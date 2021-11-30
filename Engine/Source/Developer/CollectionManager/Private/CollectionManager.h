@@ -266,4 +266,7 @@ private:
 
 	/** When a collection checkin happens, use this event to add additional text to the changelist description */
 	FAddToCollectionCheckinDescriptionEvent AddToCollectionCheckinDescriptionEvent;
+
+	/** When true, redirectors will not be automatically followed in collections during startup */
+	bool bNoFixupRedirectors;
 };
