@@ -43,6 +43,21 @@ void UAnimGraphNode_LayeredBoneBlend::PostEditChangeProperty(struct FPropertyCha
 	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_LayeredBoneBlend, BlendMode))
 	{
 		// If we  change blend modes, we need to resize our containers
+		FScopedTransaction Transaction(LOCTEXT("ChangeBlendMode", "Change Blend Mode"));
+		Modify();
+
+		const int32 NumPoses = Node.BlendPoses.Num();
+		if (Node.BlendMode == ELayeredBoneBlendMode::BlendMask)
+		{
+			Node.LayerSetup.Reset();
+			Node.BlendMasks.SetNum(NumPoses);
+		}
+		else
+		{
+			Node.BlendMasks.Reset();
+			Node.LayerSetup.SetNum(NumPoses);
+		}
+
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
 	}
 
