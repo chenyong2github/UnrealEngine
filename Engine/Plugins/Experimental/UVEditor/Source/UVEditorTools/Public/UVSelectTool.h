@@ -198,8 +198,7 @@ protected:
 	void ApplyAction(ESelectToolAction ActionType);
 	void ApplySplit();
 
-	const float LivePreviewHighlightThickness = 2.0;
-	const float LivePreviewHighlightDepthOffset = 0.5;
+
 };
 
 /**

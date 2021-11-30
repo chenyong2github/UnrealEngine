@@ -36,6 +36,7 @@
 #include "UVToolContextObjects.h"
 #include "UVEditorBackgroundPreview.h"
 #include "Editor.h"
+#include "UVEditorUXSettings.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorMode"
 
@@ -397,12 +398,6 @@ void UUVEditorMode::InitializeContexts(FEditorViewportClient& LivePreviewViewpor
 	};
 	ContextStore->AddContextObject(AssetAndLayerAPI);
 
-	UUVVisualStyleAPI* VisualStyleAPI = NewObject<UUVVisualStyleAPI>();
-	VisualStyleAPI->GetSelectionColorForAssetFunc = [this](int32 AssetID) {
-		return GetSelectionColorByTargetIndex(AssetID);
-	};
-	ContextStore->AddContextObject(VisualStyleAPI);
-
 	ContextStore->AddContextObject(&ViewportButtonsAPI);
 }
 
@@ -486,20 +481,20 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 		ToolInputObject->UnwrapPreview->PreviewMesh->SetMaterial(
 			0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
 				GetToolManager(),
-				(FLinearColor)GetTriangleColorByTargetIndex(AssetID),
-				TriangleDepthOffset,
-				TriangleOpacity));
+				FUVEditorUXSettings::GetTriangleColorByTargetIndex(AssetID),
+				FUVEditorUXSettings::UnwrapTriangleDepthOffset,
+				FUVEditorUXSettings::UnwrapTriangleOpacity));
 
 		// Set up the wireframe display of the unwrapped mesh.
 		UMeshElementsVisualizer* WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
 		WireframeDisplay->CreateInWorld(GetWorld(), FTransform::Identity);
 
-		WireframeDisplay->Settings->DepthBias = WireframeDepthOffset;
+		WireframeDisplay->Settings->DepthBias = FUVEditorUXSettings::WireframeDepthOffset;
 		WireframeDisplay->Settings->bAdjustDepthBiasUsingMeshSize = false;
 		WireframeDisplay->Settings->bShowWireframe = true;
 		WireframeDisplay->Settings->bShowBorders = true;
-		WireframeDisplay->Settings->WireframeColor = GetWireframeColorByTargetIndex(AssetID).ToFColorSRGB();
-		WireframeDisplay->Settings->BoundaryEdgeColor = GetBoundaryColorByTargetIndex(AssetID).ToFColorSRGB(); ;
+		WireframeDisplay->Settings->WireframeColor = FUVEditorUXSettings::GetWireframeColorByTargetIndex(AssetID).ToFColorSRGB();
+		WireframeDisplay->Settings->BoundaryEdgeColor = FUVEditorUXSettings::GetBoundaryColorByTargetIndex(AssetID).ToFColorSRGB(); ;
 		WireframeDisplay->Settings->bShowUVSeams = false;
 		WireframeDisplay->Settings->bShowNormalSeams = false;
 		// These are not exposed at the visualizer level yet
@@ -531,42 +526,6 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 	// Prep things for layer/channel selection
 	InitializeAssetNames(ToolTargets, AssetNames);
 	PendingUVLayerIndex.SetNumZeroed(ToolTargets.Num());
-}
-
-FLinearColor UUVEditorMode::GetTriangleColorByTargetIndex(int32 TargetIndex) const
-{
-	double GoldenAngle = 137.50776405;
-
-	FLinearColor BaseColorHSV;
-	BaseColorHSV.R = FMath::Fmod(UnwrapBaseColorHueStart + (GoldenAngle / 2.0 * TargetIndex), 360);;
-	BaseColorHSV.G = UnwrapBaseColorSaturation;
-	BaseColorHSV.B = UnwrapBaseColorValue;
-	return BaseColorHSV.HSVToLinearRGB();
-}
-
-FLinearColor UUVEditorMode::GetWireframeColorByTargetIndex(int32 TargetIndex) const
-{
-	FLinearColor BaseColorHSV = GetTriangleColorByTargetIndex(TargetIndex).LinearRGBToHSV();
-	FLinearColor WireframeColorHSV = BaseColorHSV;
-	WireframeColorHSV.R = FMath::Fmod((WireframeColorHSV.R + UnwrapWireframeHueShift), 360);
-	WireframeColorHSV.G = UnwrapWireframeSaturation;
-	WireframeColorHSV.B = UnwrapWireframeValue;
-	return WireframeColorHSV.HSVToLinearRGB();
-}
-
-FLinearColor UUVEditorMode::GetBoundaryColorByTargetIndex(int32 TargetIndex) const
-{
-	FLinearColor BaseColorHSV = GetTriangleColorByTargetIndex(TargetIndex).LinearRGBToHSV();
-	FLinearColor BoundaryColorHSV = BaseColorHSV;
-	BoundaryColorHSV.R = FMath::Fmod( (BoundaryColorHSV.R + UnwrapBoundaryHueShift), 360);
-	BoundaryColorHSV.G = UnwrapBoundarySaturation;
-	BoundaryColorHSV.B = UnwrapBoundaryValue;
-	return BoundaryColorHSV.HSVToLinearRGB();
-}
-
-FLinearColor UUVEditorMode::GetSelectionColorByTargetIndex(int32 TargetIndex) const
-{
-	return FColor::FromHex("EBA30DFF");	
 }
 
 void UUVEditorMode::EmitToolIndependentObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description)
@@ -607,16 +566,15 @@ void UUVEditorMode::ApplyChanges()
 
 void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible)
 {
+	float TriangleOpacity;
 	// We adjust the mesh opacity depending on whether we're layered over the background or not.
 	if (IsBackgroundVisible)
 	{
-		TriangleOpacity = 0.25;
-		TriangleDepthOffset = .5;
+		TriangleOpacity = FUVEditorUXSettings::UnwrapTriangleOpacityWithBackground;
 	}
 	else
 	{
-		TriangleOpacity = 1.0;
-		TriangleDepthOffset = -.1;
+		TriangleOpacity = FUVEditorUXSettings::UnwrapTriangleOpacity;
 	}
 
 	// Modify the material of the unwrapped mesh to account for the presence/absence of the background, 
@@ -625,8 +583,8 @@ void UUVEditorMode::UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVis
 		ToolInputObjects[AssetID]->UnwrapPreview->PreviewMesh->SetMaterial(
 			0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
 				GetToolManager(),
-				(FLinearColor)GetTriangleColorByTargetIndex(AssetID),
-				TriangleDepthOffset, 
+				FUVEditorUXSettings::GetTriangleColorByTargetIndex(AssetID),
+				FUVEditorUXSettings::UnwrapTriangleDepthOffset,
 				TriangleOpacity));
 	}
 }

@@ -44,6 +44,18 @@ class MODELINGCOMPONENTS_API UMeshSelectionMechanicProperties : public UInteract
 public:
 };
 
+struct MODELINGCOMPONENTS_API FMeshSelectionMechanicStyle
+{
+	FColor TriangleColor = FColor::Yellow;
+	FColor LineColor = FColor::Yellow;
+	FColor PointColor = FColor::Yellow;
+	float TriangleOpacity = 0.3;
+	float LineThickness = 1.5;
+	float PointThickness = 6;
+	float LineAndPointDepthBias = 0.7;
+	float TriangleDepthBias = 0.65;
+};
+
 /**
  * Mechanic for selecting elements of a dynamic mesh.
  * 
@@ -80,7 +92,7 @@ public:
 
 	virtual const FDynamicMeshSelection& GetCurrentSelection() const;
 	void ChangeSelectionMode(const EMeshSelectionMechanicMode& TargetMode);
-	void ChangeSelectionColor(const FColor& TriangleColorIn, float TriangleOpacityIn, const FColor& LineColorIn, const FColor& PointColorIn);
+	void SetVisualizationStyle(const FMeshSelectionMechanicStyle& StyleIn);
 	virtual void SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast = false, bool bEmitChange = false);
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -146,19 +158,12 @@ protected:
 	int32 CurrentSelectionIndex = IndexConstants::InvalidID;
 	FViewCameraState CameraState;
 
-	FColor TriangleColor = FColor::Yellow;
-	FColor LineColor = FColor::Yellow;
-	FColor PointColor = FColor::Yellow;
-	float TriangleOpacity = 0.3;
+	FMeshSelectionMechanicStyle VisualizationStyle;
 
 	bool bShiftToggle = false;
 	bool bCtrlToggle = false;
 	static const int32 ShiftModifierID = 1;
 	static const int32 CtrlModifierID = 2;
-
-	float LineThickness = 3;
-	float PointThickness = 6;
-	float DepthBias = 0.7;
 
 	FVector3d CurrentSelectionCentroid;
 	int32 CentroidTimestamp = -1;
