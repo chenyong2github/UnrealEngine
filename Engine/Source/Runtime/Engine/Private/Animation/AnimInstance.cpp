@@ -3484,8 +3484,7 @@ float UAnimInstance::GetInstanceTransitionCrossfadeDuration(int32 MachineIndex, 
 
 float UAnimInstance::GetInstanceTransitionTimeElapsed(int32 MachineIndex, int32 TransitionIndex)
 {
-	// Just an alias for readability in the anim graph
-	return GetInstanceCurrentStateElapsedTime(MachineIndex);
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetInstanceTransitionTimeElapsed(MachineIndex, TransitionIndex);
 }
 
 float UAnimInstance::GetInstanceTransitionTimeElapsedFraction(int32 MachineIndex, int32 TransitionIndex)
