@@ -40,7 +40,7 @@ void UDistanceCurveModifier::OnApply_Implementation(UAnimSequence* Animation)
 
 		const bool bAllowLooping = false;
 		const FVector RootMotionTranslation = Animation->ExtractRootMotion(Time, SampleInterval, bAllowLooping).GetTranslation();
-		const float RootMotionSpeedSq = RootMotionTranslation.SizeSquared2D() / SampleInterval;
+		const float RootMotionSpeedSq = CalculateMagnitudeSq(RootMotionTranslation, Axis) / SampleInterval;
 
 		if (RootMotionSpeedSq < MinSpeedSq)
 		{
@@ -61,7 +61,7 @@ void UDistanceCurveModifier::OnApply_Implementation(UAnimSequence* Animation)
 		const float ValueSign = (Time < TimeOfMinSpeed) ? -1.0f : 1.0f;
 
 		const FVector RootMotionTranslation = Animation->ExtractRootMotionFromRange(TimeOfMinSpeed, Time).GetTranslation();
-		UAnimationBlueprintLibrary::AddFloatCurveKey(Animation, CurveName, Time, ValueSign * RootMotionTranslation.Size2D());
+		UAnimationBlueprintLibrary::AddFloatCurveKey(Animation, CurveName, Time, ValueSign * CalculateMagnitude(RootMotionTranslation, Axis));
 	}
 }
 
@@ -69,4 +69,32 @@ void UDistanceCurveModifier::OnRevert_Implementation(UAnimSequence* Animation)
 {
 	const bool bRemoveNameFromSkeleton = false;
 	UAnimationBlueprintLibrary::RemoveCurve(Animation, CurveName, bRemoveNameFromSkeleton);
+}
+
+float UDistanceCurveModifier::CalculateMagnitude(const FVector& Vector, EDistanceCurve_Axis Axis)
+{
+	switch (Axis)
+	{
+	case EDistanceCurve_Axis::X:		return FMath::Abs(Vector.X); break;
+	case EDistanceCurve_Axis::Y:		return FMath::Abs(Vector.Y); break;
+	case EDistanceCurve_Axis::Z:		return FMath::Abs(Vector.Z); break;
+	default: return FMath::Sqrt(CalculateMagnitudeSq(Vector, Axis)); break;
+	}
+}
+
+float UDistanceCurveModifier::CalculateMagnitudeSq(const FVector& Vector, EDistanceCurve_Axis Axis)
+{
+	switch (Axis)
+	{
+	case EDistanceCurve_Axis::X:		return FMath::Square(FMath::Abs(Vector.X)); break;
+	case EDistanceCurve_Axis::Y:		return FMath::Square(FMath::Abs(Vector.Y)); break;
+	case EDistanceCurve_Axis::Z:		return FMath::Square(FMath::Abs(Vector.Z)); break;
+	case EDistanceCurve_Axis::XY:		return Vector.X * Vector.X + Vector.Y * Vector.Y; break;
+	case EDistanceCurve_Axis::XZ:		return Vector.X * Vector.X + Vector.Z * Vector.Z; break;
+	case EDistanceCurve_Axis::YZ:		return Vector.Y * Vector.Y + Vector.Z * Vector.Z; break;
+	case EDistanceCurve_Axis::XYZ:		return Vector.X * Vector.X + Vector.Y * Vector.Y + Vector.Z * Vector.Z; break;
+	default: check(false); break;
+	}
+
+	return 0.f;
 }

@@ -6,6 +6,20 @@
 #include "AnimationModifier.h"
 #include "DistanceCurveModifier.generated.h"
 
+// @todo: Consolidate with EMotionExtractor_Axis
+/** Axes to calculate the distance value from */
+UENUM(BlueprintType)
+enum class EDistanceCurve_Axis : uint8
+{
+	X,
+	Y,
+	Z,
+	XY,
+	XZ,
+	YZ,
+	XYZ
+};
+
 /** Extracts traveling distance information from root motion and bakes it to a curve.
  * A negative value indicates distance remaining to a stop or pivot point.
  * A positive value indicates distance traveled from a start point or from the beginning of the clip.
@@ -29,6 +43,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	float StopSpeedThreshold = 5.0f;
 
+	/** Axes to calculate the distance value from. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	EDistanceCurve_Axis Axis = EDistanceCurve_Axis::XY;
+
 	virtual void OnApply_Implementation(UAnimSequence* Animation) override;
 	virtual void OnRevert_Implementation(UAnimSequence* Animation) override;
+
+private:
+
+	/** Helper functions to calculate the magnitude of a vector only considering a specific axis or axes */
+	static float CalculateMagnitude(const FVector& Vector, EDistanceCurve_Axis Axis);
+	static float CalculateMagnitudeSq(const FVector& Vector, EDistanceCurve_Axis Axis);
 };
