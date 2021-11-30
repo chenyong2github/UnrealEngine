@@ -69,10 +69,7 @@ private:
 
 	/** The current transaction or nullptr if there's no transaction ongoing */
 	TUniquePtr<FScopedTransaction> Transaction;
-
-	/** Details view to display the Mode struct */
-	TSharedPtr<IStructureDetailsView> StructDetailsView;
-
+	
 	/** Border that holds the content of the editor */
 	TSharedPtr<SBorder> ContentBorder;
 

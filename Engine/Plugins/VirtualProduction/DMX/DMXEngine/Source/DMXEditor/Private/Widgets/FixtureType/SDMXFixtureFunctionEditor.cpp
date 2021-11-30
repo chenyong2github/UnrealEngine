@@ -172,7 +172,8 @@ void SDMXFixtureFunctionEditor::SetFunction(UDMXEntityFixtureType* InFixtureType
 			FStructureDetailsViewArgs StructureDetailsViewArgs;
 
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			StructDetailsView = PropertyModule.CreateStructureDetailView(DetailsViewArgs, StructureDetailsViewArgs, FunctionStructOnScope);
+			
+			const TSharedRef<IStructureDetailsView> StructDetailsView = PropertyModule.CreateStructureDetailView(DetailsViewArgs, StructureDetailsViewArgs, FunctionStructOnScope);
 
 			StructDetailsView->GetDetailsView()->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SDMXFixtureFunctionEditor::IsPropertyVisible));
 			StructDetailsView->GetDetailsView()->ForceRefresh();

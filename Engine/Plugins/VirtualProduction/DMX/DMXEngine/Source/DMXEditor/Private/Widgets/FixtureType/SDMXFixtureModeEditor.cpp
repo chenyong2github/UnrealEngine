@@ -196,7 +196,7 @@ void SDMXFixtureModeEditor::SetMode(UDMXEntityFixtureType* InFixtureType, int32 
 		FStructureDetailsViewArgs StructureDetailsViewArgs;
 
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		StructDetailsView = PropertyModule.CreateStructureDetailView(DetailsViewArgs, StructureDetailsViewArgs, ModeStructOnScope);
+		const TSharedRef<IStructureDetailsView> StructDetailsView = PropertyModule.CreateStructureDetailView(DetailsViewArgs, StructureDetailsViewArgs, ModeStructOnScope);
 		StructDetailsView->GetDetailsView()->SetCustomFilterLabel(LOCTEXT("SearchModePropertiesLabel", "Search Mode Properties"));
 
 		StructDetailsView->GetDetailsView()->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SDMXFixtureModeEditor::IsPropertyVisible));
