@@ -21,7 +21,7 @@ void UStaticMeshEditorUISubsystem::Deinitialize()
 
 void UStaticMeshEditorUISubsystem::RegisterLayoutExtensions(FLayoutExtender& Extender)
 {
-	FTabManager::FTab NewTab(FTabId(UAssetEditorUISubsystem::TopLeftTabID, ETabIdFlags::SaveLayout), ETabState::ClosedTab);
+	FTabManager::FTab NewTab(FTabId(UAssetEditorUISubsystem::TopLeftTabID), ETabState::ClosedTab);
 	Extender.ExtendLayout(FStaticMeshEditor::SocketManagerTabId, ELayoutExtensionPosition::After, NewTab);
 }
 
