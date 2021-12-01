@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "PixelStreamingRealEncoder.h"
 #include "Utils.h"
 #include "VulkanRHIPrivate.h"
