@@ -1506,6 +1506,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 			{
 				*OutReason = LOCTEXT("CanEditLevelInstanceAlreadyBeingEdited", "Level Instance already being edited");
 			}
+			return false;
 		}
 
 		if (IsLevelInstanceEditDirty(LevelInstanceEdit.Get()))
