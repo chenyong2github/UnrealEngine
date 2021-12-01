@@ -81,6 +81,14 @@ public:
 		return TEXT("CL_");
 	}
 
+	enum class ECreationFlags
+	{
+		None = 0,
+		SkipAssetRegistryTagsGathering = 1 << 0, // Do not perform expensive step of gathering asset registry tags at construction.
+		AllowBlueprintClass            = 1 << 1, // Unless specified, the default when trying to create one for a blueprint class 
+												 // will create one for the UBlueprint instead, but this can be overridden
+	};
+
 public:
 	/** The object path for the asset in the form PackageName.ObjectName, or PackageName.ObjectName:SubObjectName. */
 	FName ObjectPath;
@@ -117,7 +125,13 @@ public:
 	COREUOBJECT_API FAssetData(const FString& InLongPackageName, const FString& InObjectPath, FName InAssetClass, FAssetDataTagMap InTags = FAssetDataTagMap(), TArrayView<const int32> InChunkIDs = TArrayView<const int32>(), uint32 InPackageFlags = 0);
 
 	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
-	COREUOBJECT_API FAssetData(const UObject* InAsset, bool bAllowBlueprintClass = false);
+	COREUOBJECT_API FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCreationFlags = ECreationFlags::None);
+
+	/** Constructor taking a UObject. By default trying to create one for a blueprint class will create one for the UBlueprint instead, but this can be overridden */
+	inline FAssetData(const UObject* InAsset, bool bAllowBlueprintClass)
+		: FAssetData(InAsset, bAllowBlueprintClass ? ECreationFlags::AllowBlueprintClass : ECreationFlags::None)
+	{
+	}
 
 	/** FAssetDatas are equal if their object paths match */
 	bool operator==(const FAssetData& Other) const
@@ -499,6 +513,8 @@ private:
 		return ClassName == ObjectRedirectorClassName;
 	}
 };
+
+ENUM_CLASS_FLAGS(FAssetData::ECreationFlags);
 
 FORCEINLINE uint32 GetTypeHash(const FAssetData& AssetData)
 {
