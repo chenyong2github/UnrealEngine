@@ -555,7 +555,7 @@ void InitScalabilitySystem()
 	CVarShadingQuality.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeShadingQuality));
 
 	// Set defaults
-	SetQualityLevels(FQualityLevels());
+	SetQualityLevels(FQualityLevels(), true);
 	GScalabilityBackupQualityLevels = FQualityLevels();
 	GScalabilityQualityLevelsOverride = FQualityLevels();
 	GScalabilityUsingTemporaryQualityLevels = false;
