@@ -682,7 +682,10 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 
 			GraphicsInitializer.SubpassHint = (ESubpassHint)PSO.GraphicsDesc.SubpassHint;
 			GraphicsInitializer.SubpassIndex = PSO.GraphicsDesc.SubpassIndex;
-			
+
+			GraphicsInitializer.MultiViewCount = PSO.GraphicsDesc.MultiViewCount;
+			GraphicsInitializer.bHasFragmentDensityAttachment = PSO.GraphicsDesc.bHasFragmentDensityAttachment;
+
 			GraphicsInitializer.DepthStencilTargetFormat = PSO.GraphicsDesc.DepthStencilFormat;
 			GraphicsInitializer.DepthStencilTargetFlag = PSO.GraphicsDesc.DepthStencilFlags;
 			GraphicsInitializer.DepthTargetLoadAction = PSO.GraphicsDesc.DepthLoad;
