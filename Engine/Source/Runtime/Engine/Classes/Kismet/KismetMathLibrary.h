@@ -3722,8 +3722,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 	
 	/** Make a transform from location, rotation and scale */
-	UFUNCTION(BlueprintPure, meta = (Scale = "1,1,1", Keywords = "construct build", NativeMakeFunc), Category = "Math|Transform")
-	static FTransform MakeTransform(FVector Location, FRotator Rotation, FVector Scale);
+	UFUNCTION(BlueprintPure, meta = (Keywords = "construct build", NativeMakeFunc), Category = "Math|Transform")
+	static FTransform MakeTransform(FVector Location, FRotator Rotation, FVector Scale = FVector(1,1,1));
 
 	/** Breaks apart a transform into location, rotation and scale */
 	UFUNCTION(BlueprintPure, Category = "Math|Transform", meta = (NativeBreakFunc))

@@ -1516,7 +1516,7 @@ struct FTransform
 	FVector Translation;
 
 	/** 3D scale (always applied in local space) as a vector. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Transform, SaveGame, meta=(MakeStructureDefaultValue = "1,1,1"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Transform, SaveGame)
 	FVector Scale3D;
 };
 
