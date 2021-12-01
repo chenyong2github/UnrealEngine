@@ -578,6 +578,11 @@ public:
 	static bool IsActorBased(const UBlueprint* Blueprint);
 
 	/**
+	 * @return Whether or not this is a component-based blueprint
+	 */
+	static bool IsComponentBased(const UBlueprint* Blueprint);
+
+	/**
 	 * Whether or not this blueprint is an interface, used only for defining functions to implement
 	 *
 	 * @return	Whether or not this is an interface blueprint

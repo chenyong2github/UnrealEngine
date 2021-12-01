@@ -3288,6 +3288,11 @@ bool FBlueprintEditorUtils::IsActorBased(const UBlueprint* Blueprint)
 	return Blueprint && Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(AActor::StaticClass());
 }
 
+bool FBlueprintEditorUtils::IsComponentBased(const UBlueprint* Blueprint)
+{
+	return Blueprint && Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(UActorComponent::StaticClass());
+}
+
 bool FBlueprintEditorUtils::IsDelegateSignatureGraph(const UEdGraph* Graph)
 {
 	if(Graph)
