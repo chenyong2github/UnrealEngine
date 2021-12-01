@@ -149,7 +149,10 @@ enum class EMovieSceneDataChangeType
 	/** Rebuild and evaluate everything immediately. */
 	RefreshAllImmediately,
 	/** It's not known what data has changed. */
-	Unknown
+	Unknown,
+	/** Refresh Tree on Next Tick */
+	RefreshTree
+
 };
 
 /**
@@ -513,7 +516,6 @@ public:
 
 	/** Refresh the sequencer tree view */
 	virtual void RefreshTree() = 0;
-
 protected:
 	virtual void NotifyMovieSceneDataChangedInternal() = 0;
 
