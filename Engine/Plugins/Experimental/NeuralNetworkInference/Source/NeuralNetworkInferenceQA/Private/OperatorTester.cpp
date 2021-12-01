@@ -63,7 +63,7 @@ void FOperatorTester::TestOperator(UNeuralNetworkInferenceQAAsset* InOutNetworkI
 			for (int64 AuxiliaryTensorIndex = 0; AuxiliaryTensorIndex < Operator->GetNumberAuxiliaryTensors(); ++AuxiliaryTensorIndex)
 			{
 				const FString AuxiliaryTensorName = Operator->GetName() + TEXT("-Aux") + FString::FromInt(AuxiliaryTensorIndex);
-				InOutTensors[Index].Push(FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), AuxiliaryTensorName, ENeuralTensorTypeGPU::Generic)); // ENeuralTensorTypeGPU can be modify by FNeuralOperator::Configure()
+				InOutTensors[Index].Push(FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), AuxiliaryTensorName, ENeuralTensorType::Generic)); // ENeuralTensorType can be modify by FNeuralOperator::Configure()
 				AuxiliaryOperatorTensors.Push(&InOutTensors[Index].Last());
 			}
 			Operator->SetAuxiliaryTensors(AuxiliaryOperatorTensors);

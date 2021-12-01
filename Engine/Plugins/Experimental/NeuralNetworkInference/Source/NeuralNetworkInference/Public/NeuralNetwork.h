@@ -97,19 +97,19 @@ public:
 	 * Getter and setter functions for SynchronousMode.
 	 * @see SynchronousMode and GetOnAsyncRunCompletedDelegate() for more details.
 	 */
-	ENeuralNetworkSynchronousMode GetSynchronousMode() const;
-	void SetSynchronousMode(const ENeuralNetworkSynchronousMode InSynchronousMode);
+	ENeuralSynchronousMode GetSynchronousMode() const;
+	void SetSynchronousMode(const ENeuralSynchronousMode InSynchronousMode);
 
 	/**
 	 * GetOnAsyncRunCompletedDelegate() returns a FOnAsyncRunCompleted delegate that will be called when async UNeuralNetwork::Run() is completed.
-	 * - If SynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous, the FOnAsyncRunCompleted delegate could be triggered from any thread.
-	 * - If SynchronousMode == ENeuralNetworkSynchronousMode::Synchronous, UNeuralNetwork::Run() will block the calling thread until completed, so a
+	 * - If SynchronousMode == ENeuralSynchronousMode::Asynchronous, the FOnAsyncRunCompleted delegate could be triggered from any thread.
+	 * - If SynchronousMode == ENeuralSynchronousMode::Synchronous, UNeuralNetwork::Run() will block the calling thread until completed, so a
 	 *   callback delegate is not required.
 	 */
 	DECLARE_DELEGATE(FOnAsyncRunCompleted);
 	FOnAsyncRunCompleted& GetOnAsyncRunCompletedDelegate();
-	ENeuralNetworkDelegateThreadMode GetOnAsyncRunCompletedDelegateMode() const;
-	void SetOnAsyncRunCompletedDelegateMode(const ENeuralNetworkDelegateThreadMode InDelegateThreadMode);
+	ENeuralThreadMode GetOnAsyncRunCompletedDelegateMode() const;
+	void SetOnAsyncRunCompletedDelegateMode(const ENeuralThreadMode InDelegateThreadMode);
 	
 	/**
 	 * Whether GPU execution is supported for this platform. It will return:
@@ -201,12 +201,12 @@ protected:
 	 * background thread, not blocking the calling thread (Asynchronous).
 	 * If asynchronous, DelegateThreadMode will define whether the callback delegate is called from the game thread (highly recommended) or from
 	 * any available thread (not fully thread safe).
-	 * @see ENeuralNetworkSynchronousMode, ENeuralNetworkDelegateThreadMode for more details.
+	 * @see ENeuralSynchronousMode, ENeuralThreadMode for more details.
 	 */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
-	ENeuralNetworkSynchronousMode SynchronousMode;
+	ENeuralSynchronousMode SynchronousMode;
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
-	ENeuralNetworkDelegateThreadMode DelegateThreadMode;
+	ENeuralThreadMode DelegateThreadMode;
 
 	/**
 	 * Original model file path from which this UNeuralNetwork was loaded from.

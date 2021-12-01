@@ -43,7 +43,7 @@ public:
 	TArray<FNeuralTensor> InputTensors;
 	TArray<FNeuralTensor> OutputTensors;
 
-	FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InDelegateThreadMode, FCriticalSection& InResoucesCriticalSection);
+	FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralThreadMode& InDelegateThreadMode, FCriticalSection& InResoucesCriticalSection);
 
 	~FImplBackEndUEAndORT();
 
@@ -52,18 +52,18 @@ public:
 	static bool IsGPUSupported();
 
 	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate,
-		ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable,
+		ENeuralThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable,
 		const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
 		const ENeuralDeviceType InOutputDeviceType);
 
-	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
+	void Run(const ENeuralSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
 		const ENeuralDeviceType InOutputDeviceType);
 
 #ifdef WITH_UE_AND_ORT_SUPPORT
 private:
 	/** Async support */
 	FOnAsyncRunCompleted& OnAsyncRunCompletedDelegate;
-	ENeuralNetworkDelegateThreadMode& DelegateThreadMode;
+	ENeuralThreadMode& DelegateThreadMode;
 	FCriticalSection& ResoucesCriticalSection;
 	/** Network-related variables */
 	TUniquePtr<Ort::Env> Environment;
@@ -88,7 +88,7 @@ private:
 		friend class FAsyncTask<FNeuralNetworkAsyncTask>;
 	public:
 		FNeuralNetworkAsyncTask(UNeuralNetwork::FImplBackEndUEAndORT* InBackEnd);
-		void SetRunSessionArgs(const ENeuralNetworkSynchronousMode InSyncMode, const ENeuralDeviceType InDeviceType,
+		void SetRunSessionArgs(const ENeuralSynchronousMode InSyncMode, const ENeuralDeviceType InDeviceType,
 			const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 	protected:
 		void DoWork();
@@ -100,7 +100,7 @@ private:
 	private:
 		UNeuralNetwork::FImplBackEndUEAndORT* BackEnd;
 		// Variables that could change on each inference run
-		ENeuralNetworkSynchronousMode SyncMode;
+		ENeuralSynchronousMode SyncMode;
 		ENeuralDeviceType DeviceType;
 		ENeuralDeviceType InputDeviceType;
 		ENeuralDeviceType OutputDeviceType;
@@ -110,7 +110,7 @@ private:
 	void EnsureAsyncTaskCompletion() const;
 
 	static bool InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate,
-		ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
+		ENeuralThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 
 	bool ConfigureMembers(const ENeuralDeviceType InDeviceType);
 
@@ -118,7 +118,7 @@ private:
 		const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
 	bool SetTensorsFromNetwork(TArray<FNeuralTensor>& OutTensors, TArray<const char*>& InTensorNames, TArray<ENeuralDataType>& InTensorDataTypes,
-		TArray<TArray<int64>>& InSizes, TArray<ENeuralTensorTypeGPU>& InTensorGPUTypes, const bool bIsInput);
+		TArray<TArray<int64>>& InSizes, TArray<ENeuralTensorType>& InTensorGPUTypes, const bool bIsInput);
 
 	static void LinkTensorToONNXRuntime(TArray<FNeuralTensor>& InOutTensors, TArray<Ort::Value>& InOutOrtTensors, Ort::MemoryInfo& InOutAllocatorInfo,
 		const int32 InTensorIndex);

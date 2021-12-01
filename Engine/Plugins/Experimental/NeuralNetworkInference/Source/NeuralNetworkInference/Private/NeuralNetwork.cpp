@@ -48,8 +48,8 @@ UNeuralNetwork::UNeuralNetwork()
 	: DeviceType(ENeuralDeviceType::GPU)
 	, InputDeviceType(ENeuralDeviceType::CPU)
 	, OutputDeviceType(ENeuralDeviceType::CPU)
-	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
-	, DelegateThreadMode(ENeuralNetworkDelegateThreadMode::GameThread)
+	, SynchronousMode(ENeuralSynchronousMode::Synchronous)
+	, DelegateThreadMode(ENeuralThreadMode::GameThread)
 	, bIsLoaded(false)
 	, BackEnd(ENeuralBackEnd::Auto)
 	, BackEndForCurrentPlatform(FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd))
@@ -159,12 +159,12 @@ void UNeuralNetwork::SetDeviceType(const ENeuralDeviceType InDeviceType, const E
 	}
 }
 
-ENeuralNetworkSynchronousMode UNeuralNetwork::GetSynchronousMode() const
+ENeuralSynchronousMode UNeuralNetwork::GetSynchronousMode() const
 {
 	return SynchronousMode;
 }
 
-void UNeuralNetwork::SetSynchronousMode(const ENeuralNetworkSynchronousMode InSynchronousMode)
+void UNeuralNetwork::SetSynchronousMode(const ENeuralSynchronousMode InSynchronousMode)
 {
 	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	SynchronousMode = InSynchronousMode;
@@ -176,12 +176,12 @@ UNeuralNetwork::FOnAsyncRunCompleted& UNeuralNetwork::GetOnAsyncRunCompletedDele
 	return OnAsyncRunCompletedDelegate;
 }
 
-ENeuralNetworkDelegateThreadMode UNeuralNetwork::GetOnAsyncRunCompletedDelegateMode() const
+ENeuralThreadMode UNeuralNetwork::GetOnAsyncRunCompletedDelegateMode() const
 {
 	return DelegateThreadMode;
 }
 
-void UNeuralNetwork::SetOnAsyncRunCompletedDelegateMode(const ENeuralNetworkDelegateThreadMode InDelegateThreadMode)
+void UNeuralNetwork::SetOnAsyncRunCompletedDelegateMode(const ENeuralThreadMode InDelegateThreadMode)
 {
 	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
 	DelegateThreadMode = InDelegateThreadMode;
