@@ -1348,6 +1348,8 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabStatistics(const FSpawnTabArgs & A
 	StatsWidget->AddStat(StatNameDrawCalls, CategoryScene, FDataprepStat(LOCTEXT("DataprepEditor_Stats_DrawCalls", "Draw Calls")));
 	StatsWidget->AddStat(FDataprepStats::StatNameTriangles, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Triangles", "Triangles")));
 	StatsWidget->AddStat(FDataprepStats::StatNameVertices, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Vertices", "Vertices")));
+	StatsWidget->AddStat(FDataprepStats::StatNameNaniteTriangles, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_NaniteTriangles", "Nanite Triangles")));
+	StatsWidget->AddStat(FDataprepStats::StatNameNaniteVertices, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_NaniteVertices", "Nanite Vertices")));
 	StatsWidget->AddStat(FDataprepStats::StatNameTextures, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Textures", "Textures")));
 	StatsWidget->AddStat(FDataprepStats::StatNameTextureSize, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_TextureSize", "Max Texture Size")));
 	StatsWidget->AddStat(FDataprepStats::StatNameMeshes, CategoryAssets, FDataprepStat(LOCTEXT("DataprepEditor_Stats_Meshes", "Meshes")));

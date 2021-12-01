@@ -19,6 +19,8 @@
 
 const FName FDataprepStats::StatNameTriangles(TEXT("Triangles"));
 const FName FDataprepStats::StatNameVertices(TEXT("Vertices"));
+const FName FDataprepStats::StatNameNaniteTriangles(TEXT("NaniteTriangles"));
+const FName FDataprepStats::StatNameNaniteVertices(TEXT("NaniteVertices"));
 const FName FDataprepStats::StatNameTextures(TEXT("Textures"));
 const FName FDataprepStats::StatNameTextureSize(TEXT("TextureSize"));
 const FName FDataprepStats::StatNameMeshes(TEXT("Meshes"));
@@ -279,6 +281,16 @@ private:
 						const FStaticMeshSection& StaticMeshSection = RenderData->LODResources[0].Sections[SectionIndex];
 						Stats.AddCount(FDataprepStats::StatNameTriangles, StaticMeshSection.NumTriangles);
 						Stats.AddCount(FDataprepStats::StatNameVertices, RenderData->LODResources[0].GetNumVertices());
+					}
+
+					if (StaticMesh->NaniteSettings.bEnabled && StaticMesh->HasValidNaniteData())
+					{
+						const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+						if (Resources.RootClusterPage.Num() > 0)
+						{
+							Stats.AddCount(FDataprepStats::StatNameNaniteTriangles, Resources.NumInputTriangles);
+							Stats.AddCount(FDataprepStats::StatNameNaniteVertices, Resources.NumInputVertices);
+						}
 					}
 				}
 			}
