@@ -760,7 +760,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 
 	SetupSharedBasePassParameters(GraphBuilder, View, BasePassParameters.Shared);
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, SceneTextureSetupMode, BasePassParameters.SceneTextures);
-	Strata::BindStrataGlobalUniformParameters(GraphBuilder, View.StrataSceneData, BasePassParameters.Strata);
+	Strata::BindStrataForwardPasslUniformParameters(GraphBuilder, View.StrataSceneData, BasePassParameters.Strata);
 
 	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources ? View.ForwardLightingResources->SelectedForwardDirectionalLightProxy : nullptr;
 	SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, SelectedForwardDirectionalLightProxy ? SelectedForwardDirectionalLightProxy->GetLightSceneInfo() : nullptr, BasePassParameters.ForwardDirLightCloudShadow);

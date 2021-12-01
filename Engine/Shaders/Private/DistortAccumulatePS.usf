@@ -153,7 +153,7 @@ void Main(
 			const float3 FakeL = float3(0, 0, 1);
 			FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, NullStrataAddressing, V, FakeL);
 
-			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext); // Works to call because FakeL is nto used when computing StrataEvaluate.Throughput
+			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext, true); // Works to call because FakeL is nto used when computing StrataEvaluate.Throughput
 
 			// We only support rough refraction from Slab material type for now.
 			if (BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)

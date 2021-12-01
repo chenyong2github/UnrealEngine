@@ -10,7 +10,7 @@
 #include "../ParticipatingMediaCommon.ush"
 #include "../ThinFilmBSDF.ush"
 #include "../MortonCode.ush"
-#include "/Engine/Shared/StrataDefinitions.h"   
+#include "/Engine/Shared/StrataDefinitions.h"     
 
 
 // DXC has issue with unrolling certain part of the code. To address temporarly the warning-as-error issues, 
