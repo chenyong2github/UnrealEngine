@@ -20,7 +20,9 @@
 #include "Toolkits/AssetEditorModeUILayer.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "ControlRigEditModeSettings.h"
-
+#include "SControlRigDetails.h"
+#include "SControlRigOutliner.h"
+#include "SControlRigSpacePicker.h"
 #define LOCTEXT_NAMESPACE "FControlRigEditModeToolkit"
 
 namespace 
@@ -33,6 +35,9 @@ const FName FControlRigEditModeToolkit::PoseTabName = FName(TEXT("PoseTab"));
 const FName FControlRigEditModeToolkit::MotionTrailTabName = FName(TEXT("MotionTrailTab"));
 const FName FControlRigEditModeToolkit::SnapperTabName = FName(TEXT("SnapperTab"));
 const FName FControlRigEditModeToolkit::TweenOverlayName = FName(TEXT("TweenOverlay"));
+const FName FControlRigEditModeToolkit::OutlinerTabName = FName(TEXT("ControlRigOutlinerTab"));
+const FName FControlRigEditModeToolkit::DetailsTabName = FName(TEXT("ControlRigDetailsTab"));
+const FName FControlRigEditModeToolkit::SpacePickerTabName = FName(TEXT("ControlRigSpacePicker"));
 
 void FControlRigEditModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
 {
@@ -85,22 +90,34 @@ void FControlRigEditModeToolkit::OnToolPaletteChanged(FName PaletteName)
 
 void FControlRigEditModeToolkit::TryInvokeToolkitUI(const FName InName)
 {
+	TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+
 	if (InName == MotionTrailTabName)
 	{
-		FTabId MotionTrailTabID(MotionTrailTabName);
-		if (ModeUILayer.IsValid())
-		{
-			TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-			ModeUILayerPtr->GetTabManager()->TryInvokeTab(MotionTrailTabID);
-		}
+		FTabId TabID(MotionTrailTabName);
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(TabID);
 	}
-	if (InName == PoseTabName)
+	else if (InName == PoseTabName)
 	{
-		TryInvokePoseTab();
+		FTabId TabID(PoseTabName);
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(TabID);
 	}
-	if (InName == SnapperTabName)
+	else if (InName == SnapperTabName)
 	{
-		TryInvokeSnapperTab();
+		FTabId TabID(SnapperTabName);
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(TabID);
+	}
+	else if (InName == OutlinerTabName)
+	{
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::TopRightTabID);
+	}
+	else if (InName == SpacePickerTabName)
+	{
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomLeftTabID);
+	}
+	else if (InName == DetailsTabName)
+	{
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomRightTabID);
 	}
 	else if (InName == TweenOverlayName)
 	{
@@ -158,6 +175,32 @@ TSharedRef<SDockTab> SpawnRigProfiler(const FSpawnTabArgs& Args)
 			SNew(SControlRigProfilingView)
 		];
 }
+
+
+TSharedRef<SDockTab> SpawnOutlinerTab(const FSpawnTabArgs& Args, FControlRigEditMode* InEditorMode)
+{
+	return SNew(SDockTab)
+		[
+			SNew(SControlRigOutliner, *InEditorMode)
+		];
+}
+
+TSharedRef<SDockTab> SpawnSpacePickerTab(const FSpawnTabArgs& Args, FControlRigEditMode* InEditorMode)
+{
+	return SNew(SDockTab)
+		[
+			SNew(SControlRigSpacePicker, *InEditorMode)
+		];
+}
+
+TSharedRef<SDockTab> SpawnDetailsTab(const FSpawnTabArgs& Args, FControlRigEditMode* InEditorMode)
+{
+	return SNew(SDockTab)
+		[
+			SNew(SControlRigDetails, *InEditorMode)
+		];
+}
+
 
 void FControlRigEditModeToolkit::CreateAndShowTweenOverlay()
 {
@@ -247,25 +290,51 @@ void FControlRigEditModeToolkit::RequestModeUITabs()
 	{
 		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
 		TSharedRef<FWorkspaceItem> MenuGroup = ModeUILayerPtr->GetModeMenuCategory().ToSharedRef();
-	
-		FMinorTabConfig PoseTabInfo;
-		PoseTabInfo.OnSpawnTab = FOnSpawnTab::CreateStatic(&SpawnPoseTab);
-		PoseTabInfo.TabLabel = LOCTEXT("ControlRigPoseTab", "Control Rig Pose");
-		PoseTabInfo.TabTooltip = LOCTEXT("ControlRigPoseTabTooltip", "Show Poses.");
-		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::BottomRightTabID, PoseTabInfo);
 
-		FMinorTabConfig SnapperTabInfo;
-		SnapperTabInfo.OnSpawnTab = FOnSpawnTab::CreateStatic(&SpawnSnapperTab);
-		SnapperTabInfo.TabLabel = LOCTEXT("ControlRigSnapperTab", "Control Rig Snapper");
-		SnapperTabInfo.TabTooltip = LOCTEXT("ControlRigSnapperTabTooltip", "Snap child objects to a parent object over a set of frames.");
-		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::TopRightTabID, SnapperTabInfo);
+		FMinorTabConfig DetailTabInfo;
+		DetailTabInfo.OnSpawnTab = FOnSpawnTab::CreateStatic(&SpawnDetailsTab, &EditMode);
+		DetailTabInfo.TabLabel = LOCTEXT("ControlRigDetailTab", "Anim Details");
+		DetailTabInfo.TabTooltip = LOCTEXT("ControlRigDetailTabTooltip", "Show Details For Selected Controls.");
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::BottomRightTabID, DetailTabInfo);
 
+		FMinorTabConfig OutlinerTabInfo;
+		OutlinerTabInfo.OnSpawnTab = FOnSpawnTab::CreateStatic(&SpawnOutlinerTab, &EditMode);
+		OutlinerTabInfo.TabLabel = LOCTEXT("AnimationOutlinerTab", "Anim Outliner");
+		OutlinerTabInfo.TabTooltip = LOCTEXT("AnimationOutlinerTabTooltip", "Control Rig Controls");
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::TopRightTabID, OutlinerTabInfo);
+		/* doesn't work as expected
+		FMinorTabConfig SpawnSpacePickerTabInfo;
+		SpawnSpacePickerTabInfo.OnSpawnTab = FOnSpawnTab::CreateStatic(&SpawnSpacePickerTab, &EditMode);
+		SpawnSpacePickerTabInfo.TabLabel = LOCTEXT("ControlRigSpacePickerTab", "Control Rig Space Picker");
+		SpawnSpacePickerTabInfo.TabTooltip = LOCTEXT("ControlRigSpacePickerTabTooltip", "Control Rig Space Picker");
+		ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::TopLeftTabID, SpawnSpacePickerTabInfo);
+		*/
+
+		ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner(SnapperTabName);
+		ModeUILayerPtr->GetTabManager()->RegisterTabSpawner(SnapperTabName, FOnSpawnTab::CreateStatic(&SpawnSnapperTab))
+			.SetDisplayName(LOCTEXT("ControlRigSnapperTab", "Control Rig Snapper"))
+			.SetTooltipText(LOCTEXT("ControlRigSnapperTabTooltip", "Snap child objects to a parent object over a set of frames."))
+			.SetGroup(MenuGroup)
+			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.SnapperTool")));
+		ModeUILayerPtr->GetTabManager()->RegisterDefaultTabWindowSize(SnapperTabName, FVector2D(300, 325));
+
+		ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner(PoseTabName);
+		ModeUILayerPtr->GetTabManager()->RegisterTabSpawner(PoseTabName, FOnSpawnTab::CreateStatic(&SpawnPoseTab))
+			.SetDisplayName(LOCTEXT("ControlRigPoseTab", "Control Rig Pose"))
+			.SetTooltipText(LOCTEXT("ControlRigPoseTabTooltip", "Show Poses."))
+			.SetGroup(MenuGroup)
+			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.PoseTool")));
+		ModeUILayerPtr->GetTabManager()->RegisterDefaultTabWindowSize(PoseTabName, FVector2D(675, 625));
+
+		ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner(MotionTrailTabName);
 		ModeUILayerPtr->GetTabManager()->RegisterTabSpawner(MotionTrailTabName, FOnSpawnTab::CreateStatic(&SpawnMotionTrailTab))
 			.SetDisplayName(LOCTEXT("MotionTrailTab", "Motion Trail"))
 			.SetTooltipText(LOCTEXT("MotionTrailTabTooltip", "Display motion trails for animated objects."))
 			.SetGroup(MenuGroup)
-			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("HierarchicalProfiler.TabIcon")));
+			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.EditableMotionTrails")));
+		ModeUILayerPtr->GetTabManager()->RegisterDefaultTabWindowSize(MotionTrailTabName, FVector2D(425, 575));
 
+		ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner("HierarchicalProfiler");
 		ModeUILayerPtr->GetTabManager()->RegisterTabSpawner("HierarchicalProfiler", FOnSpawnTab::CreateStatic(&SpawnRigProfiler))
 			.SetDisplayName(LOCTEXT("HierarchicalProfilerTab", "Hierarchical Profiler"))
 			.SetTooltipText(LOCTEXT("HierarchicalProfilerTooltip", "Open the Hierarchical Profiler tab."))
@@ -273,6 +342,8 @@ void FControlRigEditModeToolkit::RequestModeUITabs()
 			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("HierarchicalProfiler.TabIcon")));
 
 		ModeUILayer.Pin()->ToolkitHostShutdownUI().BindSP(this, &FControlRigEditModeToolkit::UnregisterAndRemoveFloatingTabs);
+
+
 	}
 };
 
@@ -280,7 +351,13 @@ void FControlRigEditModeToolkit::InvokeUI()
 {
 	FModeToolkit::InvokeUI();
 
-// TODO: any future default tabs will go here
+	if (ModeUILayer.IsValid())
+	{
+		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::TopRightTabID);
+		// doesn't work as expected todo ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::TopLeftTabID);
+		ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomRightTabID);
+	}	
 }
 
 void FControlRigEditModeToolkit::UnregisterAndRemoveFloatingTabs()
@@ -292,32 +369,34 @@ void FControlRigEditModeToolkit::UnregisterAndRemoveFloatingTabs()
 		{
 			TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
 			TSharedPtr<SDockTab> ProfilerTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId("HierarchicalProfiler"));
-			if(ProfilerTab)
-			{ 
+			if (ProfilerTab)
+			{
 				ProfilerTab->RequestCloseTab();
 			}
 			ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner("HierarchicalProfiler");
+
 			TSharedPtr<SDockTab> MotionTrailTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId(MotionTrailTabName));
 			if (MotionTrailTab)
 			{
 				MotionTrailTab->RequestCloseTab();
 			}
 			ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner(MotionTrailTabName);
+
+			TSharedPtr<SDockTab> SnapperTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId(SnapperTabName));
+			if (SnapperTab)
+			{
+				SnapperTab->RequestCloseTab();
+			}
+			ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner(SnapperTabName);
+		
+			TSharedPtr<SDockTab> PoseTab = ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId(PoseTabName));
+			if (PoseTab)
+			{
+				PoseTab->RequestCloseTab();
+			}
+			ModeUILayerPtr->GetTabManager()->UnregisterTabSpawner(PoseTabName);
 		}
 	}
 }
-
-void FControlRigEditModeToolkit::TryInvokeSnapperTab()
-{
-	TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-	ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::TopRightTabID);
-}
-
-void FControlRigEditModeToolkit::TryInvokePoseTab()
-{
-	TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
-	ModeUILayerPtr->GetTabManager()->TryInvokeTab(UAssetEditorUISubsystem::BottomRightTabID);
-}
-
 
 #undef LOCTEXT_NAMESPACE

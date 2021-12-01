@@ -303,8 +303,17 @@ public:
 	/** Get the number of selected RigElements */
 	int32 GetNumSelectedRigElements(uint32 InTypes) const;
 
+	/** Get the control rig*/
 	UControlRig* GetControlRig(bool bInteractionRig, int32 InIndex = 0) const;
 
+	/** Get the detail proxiescontrol rig*/
+	UControlRigDetailPanelControlProxies* GetDetailProxies() { return ControlProxy; }
+
+	/** Get Sequencer Driving This*/
+	TWeakPtr<ISequencer> GetWeakSequencer() { return WeakSequencer; }
+
+	/** Suspend Rig Hierarchy Notifies*/
+	void SuspendHierarchyNotifs(bool bVal) { bSuspendHierarchyNotifs = bVal; }
 private:
 	/** Set a RigElement's selection state */
 	void SetRigElementSelectionInternal(ERigElementType Type, const FName& InRigElementName, bool bSelected);

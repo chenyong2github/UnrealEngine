@@ -54,8 +54,12 @@ public:
 	static const FName MotionTrailTabName;
 	static const FName TweenOverlayName;
 	static const FName SnapperTabName;
+	static const FName DetailsTabName;
+	static const FName OutlinerTabName;
+	static const FName SpacePickerTabName;
 
 protected:
+
 	void CreateAndShowTweenOverlay();
 	void TryShowTweenOverlay();
 	void RemoveAndDestroyTweenOverlay();
@@ -72,8 +76,7 @@ protected:
 	void UnregisterAndRemoveFloatingTabs();
 
 private:
-	void TryInvokeSnapperTab();
-	void TryInvokePoseTab();
+
 
 private:
 	/** The edit mode we are bound to */

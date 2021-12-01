@@ -22,6 +22,8 @@ class FToolBarBuilder;
 class FEditorModeTools;
 class FControlRigEditModeToolkit;
 
+#define USE_LOCAL_DETAILS 0
+
 class SControlRigEditModeTools : public SCompoundWidget, public IDetailKeyframeHandler
 {
 public:
@@ -29,9 +31,9 @@ public:
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditModeToolkit> InOwningToolkit, FControlRigEditMode& InEditMode, UWorld* InWorld);
-
 	/** Set the objects to be displayed in the details panel */
 	void SetSettingsDetailsObject(const TWeakObjectPtr<>& InObject);
+#if USE_LOCAL_DETAILS
 	void SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
 	void SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
 	void SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
@@ -41,7 +43,7 @@ public:
 	void SetEnumDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
 	void SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
 	void SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
-
+#endif
 
 	/** Set the sequencer we are bound to */
 	void SetSequencer(TWeakPtr<ISequencer> InSequencer);
@@ -51,7 +53,6 @@ public:
 
 	/** Returns the hierarchy currently being used */
 	const URigHierarchy* GetHierarchy() const;
-
 	// IDetailKeyframeHandler interface
 	virtual bool IsPropertyKeyable(const UClass* InObjectClass, const class IPropertyHandle& PropertyHandle) const override;
 	virtual bool IsPropertyKeyingEnabled() const override;
@@ -59,10 +60,12 @@ public:
 	virtual bool IsPropertyAnimated(const class IPropertyHandle& PropertyHandle, UObject *ParentObject) const override;
 private:
 	/** Sequencer we are currently bound to */
-	TWeakPtr<ISequencer> WeakSequencer;
 
-	/** The details views we do most of our work within */
+	TWeakPtr<ISequencer> WeakSequencer;
 	TSharedPtr<IDetailsView> SettingsDetailsView;
+
+#if USE_LOCAL_DETAILS
+	/** The details views we do most of our work within */
 	TSharedPtr<IDetailsView> ControlEulerTransformDetailsView;
 	TSharedPtr<IDetailsView> ControlTransformDetailsView;
 	TSharedPtr<IDetailsView> ControlTransformNoScaleDetailsView;
@@ -72,20 +75,18 @@ private:
 	TSharedPtr<IDetailsView> ControlEnumDetailsView;
 	TSharedPtr<IDetailsView> ControlVector2DDetailsView;
 	TSharedPtr<IDetailsView> ControlVectorDetailsView;
-
+#endif
 	/** Expander to interact with the options of the rig  */
 	TSharedPtr<SExpandableArea> RigOptionExpander;
 	TSharedPtr<IDetailsView> RigOptionsDetailsView;
-
+#if USE_LOCAL_DETAILS
 	/** Hierarchy picker for controls*/
 	TSharedPtr<SRigHierarchyTreeView> HierarchyTreeView;
+#endif
 
-	/** Hierarchy picker for controls*/
-	TSharedPtr<SRigSpacePickerWidget> SpacePickerWidget;
-
-	/** Special picker for controls, no longer used */
-	TSharedPtr<SControlPicker> ControlPicker;
+	/** Space Picker controls*/
 	TSharedPtr<SExpandableArea> PickerExpander;
+	TSharedPtr<SRigSpacePickerWidget> SpacePickerWidget;
 
 	/** Storage for both sequencer and viewport rigs */
 	TWeakObjectPtr<UControlRig> SequencerRig;
@@ -122,7 +123,7 @@ private:
 	FEditorModeTools* ModeTools = nullptr;
 	FRigTreeDisplaySettings DisplaySettings;
 	const FRigTreeDisplaySettings& GetDisplaySettings() const { return DisplaySettings; }
-	bool bIsChangingRigHierarchy;
+	bool bIsChangingRigHierarchy = false;
 
 	// The toolkit that created this UI
 	TWeakPtr<FControlRigEditModeToolkit> OwningToolkit;

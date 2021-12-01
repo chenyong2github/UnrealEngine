@@ -17,7 +17,6 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
-#include "SControlPicker.h"
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -38,211 +37,10 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "ScopedTransaction.h"
 #include "ControlRigEditModeToolkit.h"
+#include "SControlRigDetails.h"
+#define LOCTEXT_NAMESPACE "ControlRigEditModeTools"
 
-#define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
-class FControlRigEditModeGenericDetails : public IDetailCustomization
-{
-public:
-	FControlRigEditModeGenericDetails() = delete;
-	FControlRigEditModeGenericDetails(FEditorModeTools* InModeTools) : ModeTools(InModeTools) {}
-
-	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<IDetailCustomization> MakeInstance(FEditorModeTools* InModeTools)
-	{
-		return MakeShareable(new FControlRigEditModeGenericDetails(InModeTools));
-	}
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailLayout) override
-	{
-		TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
-		DetailLayout.GetObjectsBeingCustomized(ObjectsBeingCustomized);
-
-		TArray<UControlRigControlsProxy*> ProxiesBeingCustomized;
-		for (TWeakObjectPtr<UObject> ObjectBeingCustomized : ObjectsBeingCustomized)
-		{
-			if (UControlRigControlsProxy* Proxy = Cast< UControlRigControlsProxy>(ObjectBeingCustomized.Get()))
-			{
-				ProxiesBeingCustomized.Add(Proxy);
-			}
-		}
-
-		if (ProxiesBeingCustomized.Num() == 0 || ProxiesBeingCustomized[0]->GetControlElement() == nullptr)
-		{
-			return;
-		}
-		FText ControlText = LOCTEXT("Channels", "Channels");
-		
-		if(ProxiesBeingCustomized[0]->GetClass() == UControlRigEditModeSettings::StaticClass())
-		{
-			ControlText = LOCTEXT("Animation", "Animation");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigTransformControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("TransformChannels", "Transform Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigTransformNoScaleControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("TransformNoScaleChannels", "TransformNoScale Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigEulerTransformControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("EulerTransformChannels", "Euler Transform Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigFloatControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("FloatChannels", "Float Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigVectorControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("VectorChannels", "Vector Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigVector2DControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("Vector2DChannels", "Vector2D Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigBoolControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("BoolChannels", "Bool Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigEnumControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("EnumChannels", "Enum Channels");
-		}
-		else if (ProxiesBeingCustomized[0]->GetClass() == UControlRigIntegerControlProxy::StaticClass())
-		{
-			ControlText = LOCTEXT("IntegerChannels", "Integer Channels");
-		}
-
-		IDetailCategoryBuilder& Category = DetailLayout.EditCategory(TEXT("Control"), ControlText);
-		for (UControlRigControlsProxy* Proxy : ProxiesBeingCustomized)
-		{
-			FRigControlElement* ControlElement = Proxy->GetControlElement();
-			if(ControlElement == nullptr)
-			{
-				continue;
-			}
-			
-			FName ValuePropertyName = TEXT("Transform");
-			if (ControlElement->Settings.ControlType == ERigControlType::Float)
-			{
-				ValuePropertyName = TEXT("Float");
-			}
-			else if (ControlElement->Settings.ControlType == ERigControlType::Integer)
-			{
-				if (ControlElement->Settings.ControlEnum == nullptr)
-				{
-					ValuePropertyName = TEXT("Integer");
-				}
-				else
-				{
-					ValuePropertyName = TEXT("Enum");
-				}
-			}
-			else if (ControlElement->Settings.ControlType == ERigControlType::Bool)
-			{
-				ValuePropertyName = TEXT("Bool");
-			}
-			else if (ControlElement->Settings.ControlType == ERigControlType::Position ||
-				ControlElement->Settings.ControlType == ERigControlType::Scale)
-			{
-				ValuePropertyName = TEXT("Vector");
-			}
-			else if (ControlElement->Settings.ControlType == ERigControlType::Vector2D)
-			{
-				ValuePropertyName = TEXT("Vector2D");
-			}
-			else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-			{
-				ValuePropertyName = TEXT("EulerTransform");
-			}
-			else if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
-			{
-				ValuePropertyName = TEXT("TransformNoScale");
-			}
-
-			TSharedPtr<IPropertyHandle> ValuePropertyHandle = DetailLayout.GetProperty(ValuePropertyName, Proxy->GetClass());
-			if (ValuePropertyHandle)
-			{
-				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(Proxy->GetName()));
-			}
-
-			URigHierarchy* Hierarchy = Proxy->ControlRig->GetHierarchy();
-			Hierarchy->ForEach<FRigControlElement>([Hierarchy, Proxy, &Category, this](FRigControlElement* ControlElement) -> bool
-	      	{
-				FName ParentControlName = NAME_None;
-				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement));
-				if(ParentControlElement)
-				{
-					ParentControlName = ParentControlElement->GetName();
-				}
-				
-				if (ParentControlName == ControlElement->GetName())
-				{
-					if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
-					{
-						if (UObject* NestedProxy = EditMode->ControlProxy->FindProxy(ControlElement->GetName()))
-						{
-							FName PropertyName(NAME_None);
-							switch (ControlElement->Settings.ControlType)
-							{
-								case ERigControlType::Bool:
-								{
-									PropertyName = TEXT("Bool");
-									break;
-								}
-								case ERigControlType::Float:
-								{
-									PropertyName = TEXT("Float");
-									break;
-								}
-								case ERigControlType::Integer:
-								{
-									if (ControlElement->Settings.ControlEnum == nullptr)
-									{
-										PropertyName = TEXT("Integer");
-									}
-									else
-									{
-										PropertyName = TEXT("Enum");
-									}
-									break;
-								}
-								default:
-								{
-									break;
-								}
-							}
-
-							if (PropertyName.IsNone())
-							{
-								return true;
-							}
-
-							TArray<UObject*> NestedProxies;
-							NestedProxies.Add(NestedProxy);
-
-							FAddPropertyParams Params;
-							Params.CreateCategoryNodes(false);
-							IDetailPropertyRow* NestedRow = Category.AddExternalObjectProperty(
-								NestedProxies,
-								PropertyName,
-								EPropertyLocation::Advanced,
-								Params);
-							NestedRow->DisplayName(FText::FromName(ControlElement->Settings.DisplayName));
-
-							Category.SetShowAdvanced(true);
-						}
-					}
-				}
-				return true;
-			});
-		}
-	}
-protected:
-	FEditorModeTools* ModeTools = nullptr;
-};
 
 void SControlRigEditModeTools::SetControlRig(UControlRig* ControlRig)
 {
@@ -264,9 +62,9 @@ void SControlRigEditModeTools::SetControlRig(UControlRig* ControlRig)
 	TArray<TWeakObjectPtr<>> Objects;
 	Objects.Add(SequencerRig);
 	RigOptionsDetailsView->SetObjects(Objects);
-
+#if USE_LOCAL_DETAILS
 	HierarchyTreeView->RefreshTreeView(true);
-
+#endif
 	if (ViewportRig.IsValid())
 	{
 		ViewportRig->ControlSelected().AddRaw(this, &SControlRigEditModeTools::OnRigElementSelected);
@@ -314,7 +112,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 	SettingsDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization));
 	SettingsDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization));
 	SettingsDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
+#if USE_LOCAL_DETAILS
 	ControlEulerTransformDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
 	ControlEulerTransformDetailsView->SetKeyframeHandler(SharedThis(this));
 	ControlEulerTransformDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization));
@@ -368,7 +166,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 	ControlVector2DDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization));
 	ControlVector2DDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization));
 	ControlVector2DDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance, ModeTools));
-
+#endif
 
 	RigOptionsDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
 	RigOptionsDetailsView->SetKeyframeHandler(SharedThis(this));
@@ -381,19 +179,19 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 	DisplaySettings.bShowRigidBodies = false;
 	DisplaySettings.bHideParentsOnFilter = true;
 	DisplaySettings.bFlattenHierarchyOnFilter = true;
-
+#if USE_LOCAL_DETAILS
 	FRigTreeDelegates RigTreeDelegates;
 	RigTreeDelegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SControlRigEditModeTools::GetHierarchy);
 	RigTreeDelegates.OnGetDisplaySettings = FOnGetRigTreeDisplaySettings::CreateSP(this, &SControlRigEditModeTools::GetDisplaySettings);
 	RigTreeDelegates.OnSelectionChanged = FOnRigTreeSelectionChanged::CreateSP(this, &SControlRigEditModeTools::HandleSelectionChanged);
-
+#endif
 	ChildSlot
 	[
 		SNew(SScrollBox)
 		+ SScrollBox::Slot()
 		[
 			SNew(SVerticalBox)
-
+#if USE_LOCAL_DETAILS
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -408,12 +206,13 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 					.RigTreeDelegates(RigTreeDelegates)
 				]
 			]
-
+#endif
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
 				SettingsDetailsView.ToSharedRef()
 			]
+#if USE_LOCAL_DETAILS
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -459,6 +258,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 			[
 				ControlFloatDetailsView.ToSharedRef()
 			]
+#endif
 
 			+SVerticalBox::Slot()
 			.AutoHeight()
@@ -539,8 +339,9 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 			]
 		]
 	];
-
+#if USE_LOCAL_DETAILS
 	HierarchyTreeView->RefreshTreeView(true);
+#endif
 }
 
 void SControlRigEditModeTools::SetSettingsDetailsObject(const TWeakObjectPtr<>& InObject)
@@ -553,6 +354,8 @@ void SControlRigEditModeTools::SetSettingsDetailsObject(const TWeakObjectPtr<>& 
 
 	}
 }
+#if USE_LOCAL_DETAILS
+
 void SControlRigEditModeTools::SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
 {
 	if (ControlEulerTransformDetailsView)
@@ -623,8 +426,8 @@ void SControlRigEditModeTools::SetVector2DDetailsObjects(const TArray<TWeakObjec
 		ControlVector2DDetailsView->SetObjects(InObjects);
 	}
 }
-
-void SControlRigEditModeTools::SControlRigEditModeTools::SetSequencer(TWeakPtr<ISequencer> InSequencer)
+#endif
+void SControlRigEditModeTools::SetSequencer(TWeakPtr<ISequencer> InSequencer)
 {
 	WeakSequencer = InSequencer.Pin();
 }
@@ -780,6 +583,7 @@ bool SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization(const FPr
 		(InPropertyAndParent.ParentProperties.Num() > 0 && ShouldPropertyBeEnabled(*InPropertyAndParent.ParentProperties[0])));
 }
 
+#if USE_LOCAL_DETAILS
 static bool bPickerChangingSelection = false;
 
 void SControlRigEditModeTools::OnManipulatorsPicked(const TArray<FName>& Manipulators)
@@ -846,9 +650,11 @@ void SControlRigEditModeTools::HandleSelectionChanged(TSharedPtr<FRigTreeElement
 		}
 	}
 }
+#endif
 
 void SControlRigEditModeTools::OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
+#if USE_LOCAL_DETAILS
 	const FRigElementKey Key = ControlElement->GetKey();
 	for (int32 RootIndex = 0; RootIndex < HierarchyTreeView->GetRootElements().Num(); ++RootIndex)
 	{
@@ -869,7 +675,7 @@ void SControlRigEditModeTools::OnRigElementSelected(UControlRig* Subject, FRigCo
 			}
 		}
 	}
-
+#endif
 	if (UControlRig* ControlRig = SequencerRig.Get())
 	{
 		// get the selected controls
@@ -877,6 +683,7 @@ void SControlRigEditModeTools::OnRigElementSelected(UControlRig* Subject, FRigCo
 		SpacePickerWidget->SetControls(ControlRig->GetHierarchy(), SelectedControls);
 	}
 }
+
 
 const FRigControlElementCustomization* SControlRigEditModeTools::HandleGetControlElementCustomization(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey)
 {
@@ -1066,7 +873,6 @@ FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
 		return BakeWidget->OpenDialog(true);
 	}
 	return FReply::Unhandled();
-
 }
 
 EVisibility SControlRigEditModeTools::GetRigOptionExpanderVisibility() const

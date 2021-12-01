@@ -684,6 +684,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						const bool bSetupUndo = false;
 						if (URigHierarchy* RigHierarchy = ControlRig->GetHierarchy())
 						{
+
 							FRigElementKey ControlKey;
 							ControlKey.Type = ERigElementType::Control;
 							for (FControlSpaceAndValue& SpaceNameAndValue : SpaceValues)
@@ -709,74 +710,77 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 								break;
 								}
 							}
-						}
+							
 
-						for (TNameAndValue<float>& Value : ScalarValues)
-						{
-							if (ControlRig->FindControl(Value.Name))
+							for (TNameAndValue<float>& Value : ScalarValues)
 							{
-								ControlRig->SetControlValue<float>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-							}
-						}
-
-						for (TNameAndValue<bool>& Value : BoolValues)
-						{
-							if (ControlRig->FindControl(Value.Name))
-							{
-								ControlRig->SetControlValue<bool>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-							}
-						}
-
-						for (TNameAndValue<int32>& Value : IntegerValues)
-						{
-							if (ControlRig->FindControl(Value.Name))
-							{
-								ControlRig->SetControlValue<int32>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-							}
-						}
-
-						for (TNameAndValue<FVector2D>& Value : Vector2DValues)
-						{
-							if (ControlRig->FindControl(Value.Name))
-							{
-								const FVector3f Vector3(Value.Value.X, Value.Value.Y, 0.f);
-								//okay to use vector3 for 2d here
-								ControlRig->SetControlValue<FVector3f>(Value.Name, Vector3, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-							}
-						}
-
-						for (TNameAndValue<FVector>& Value : VectorValues)
-						{
-							if (ControlRig->FindControl(Value.Name))
-							{
-								ControlRig->SetControlValue<FVector3f>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-							}
-						}
-
-						for (TNameAndValue<FTransform>& Value : TransformValues)
-						{
-							if (FRigControlElement* ControlElement = ControlRig->FindControl(Value.Name))
-							{
-								switch (ControlElement->Settings.ControlType)
+								if (ControlRig->FindControl(Value.Name))
 								{
-								case ERigControlType::Transform:
-								{
-									ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-									break;
+									ControlRig->SetControlValue<float>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
 								}
-								case ERigControlType::TransformNoScale:
+							}
+
+							for (TNameAndValue<bool>& Value : BoolValues)
+							{
+								if (ControlRig->FindControl(Value.Name))
 								{
-									FTransformNoScale NoScale = Value.Value;
-									ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(Value.Name, NoScale, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-									break;
+									ControlRig->SetControlValue<bool>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
 								}
-								case ERigControlType::EulerTransform:
+							}
+
+							for (TNameAndValue<int32>& Value : IntegerValues)
+							{
+								if (ControlRig->FindControl(Value.Name))
 								{
-									FEulerTransform EulerTransform = Value.Value;
-									ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(Value.Name, EulerTransform, true, FRigControlModifiedContext(EControlRigSetKey::Never),bSetupUndo);
-									break;
+									ControlRig->SetControlValue<int32>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+								}
+							}
+							for (int32 TwiceHack = 0; TwiceHack < 2; ++TwiceHack)
+							{
+								for (TNameAndValue<FVector2D>& Value : Vector2DValues)
+								{
+									if (ControlRig->FindControl(Value.Name))
+									{
+										const FVector3f Vector3(Value.Value.X, Value.Value.Y, 0.f);
+										//okay to use vector3 for 2d here
+										ControlRig->SetControlValue<FVector3f>(Value.Name, Vector3, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+									}
 								}
 
+								for (TNameAndValue<FVector>& Value : VectorValues)
+								{
+									if (ControlRig->FindControl(Value.Name))
+									{
+										ControlRig->SetControlValue<FVector3f>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+									}
+								}
+
+								for (TNameAndValue<FTransform>& Value : TransformValues)
+								{
+									if (FRigControlElement* ControlElement = ControlRig->FindControl(Value.Name))
+									{
+										switch (ControlElement->Settings.ControlType)
+										{
+										case ERigControlType::Transform:
+										{
+											ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+											break;
+										}
+										case ERigControlType::TransformNoScale:
+										{
+											FTransformNoScale NoScale = Value.Value;
+											ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(Value.Name, NoScale, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+											break;
+										}
+										case ERigControlType::EulerTransform:
+										{
+											FEulerTransform EulerTransform = Value.Value;
+											ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(Value.Name, EulerTransform, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+											break;
+										}
+
+										}
+									}
 								}
 							}
 						}
