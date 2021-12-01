@@ -150,6 +150,9 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		
 		uint8 SubpassHint;	
 		uint8 SubpassIndex;
+
+		uint8	MultiViewCount;
+		bool	bHasFragmentDensityAttachment;
 		
 		FString ToString() const;
 		void AddToReadableString(TReadableStringBuilder& OutBuilder) const;
