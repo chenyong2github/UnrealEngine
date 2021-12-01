@@ -12,6 +12,7 @@
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationLogErrorHandler.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationMapCheckErrorHandler.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
@@ -85,7 +86,7 @@ class FWorldPartitionStreamingGenerator
 		}
 	}
 
-	void CreateActorDescriptorViewsRecursive(const UActorDescContainer* InContainer, const FTransform& InTransform, const TSet<FName>& InDataLayers, const FActorContainerID& InContainerID, const FActorContainerID& InParentContainerID, EContainerClusterMode InClusterMode)
+	void CreateActorDescriptorViewsRecursive(const UActorDescContainer* InContainer, const FTransform& InTransform, const TSet<FName>& InDataLayers, const FActorContainerID& InContainerID, const FActorContainerID& InParentContainerID, EContainerClusterMode InClusterMode, const TCHAR* OwnerName)
 	{
 		TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
 		
@@ -117,7 +118,7 @@ class FWorldPartitionStreamingGenerator
 					SubDataLayers = &ParentDataLayers;
 				}
 
-				CreateActorDescriptorViewsRecursive(SubContainer, SubTransform * InTransform, *SubDataLayers, SubContainerID, InContainerID, SubClusterMode);
+				CreateActorDescriptorViewsRecursive(SubContainer, SubTransform * InTransform, *SubDataLayers, SubContainerID, InContainerID, SubClusterMode, *ActorDescView.GetActorLabelOrName().ToString());
 
 				// The container actor can be removed now that its contained actors has been registered
 				It.RemoveCurrent();
@@ -138,6 +139,7 @@ class FWorldPartitionStreamingGenerator
 		ContainerDescriptor.ClusterMode = InClusterMode;
 		ContainerDescriptor.ActorDescViewMap = MoveTemp(ActorDescViewMap);
 		ContainerDescriptor.DataLayers = InDataLayers;
+		ContainerDescriptor.OwnerName = OwnerName;
 
 		// Maintain containers hierarchy, bottom up
 		if (InContainerID != InParentContainerID)
@@ -151,7 +153,7 @@ class FWorldPartitionStreamingGenerator
 	 */
 	void CreateActorDescriptorViews(const UActorDescContainer* InContainer)
 	{
-		CreateActorDescriptorViewsRecursive(InContainer, FTransform::Identity, TSet<FName>(), FActorContainerID(), FActorContainerID(), EContainerClusterMode::Partitioned);
+		CreateActorDescriptorViewsRecursive(InContainer, FTransform::Identity, TSet<FName>(), FActorContainerID(), FActorContainerID(), EContainerClusterMode::Partitioned, TEXT("MainContainer"));
 	}
 
 	/** 
@@ -287,9 +289,9 @@ class FWorldPartitionStreamingGenerator
 		// Update parent containers bounds, this relies on the fact that ContainersHierarchy is built bottom up
 		for (auto ContainerPairIt = ContainersHierarchy.CreateIterator(); ContainerPairIt; ++ContainerPairIt)
 		{
-			const FContainerDescriptor& CurrentContainerID = ContainerDescriptorsMap.FindChecked(ContainerPairIt.Key());
-			FContainerDescriptor& ParentContainerID = ContainerDescriptorsMap.FindChecked(ContainerPairIt.Value());
-			ParentContainerID.Bounds += CurrentContainerID.Bounds;
+			const FContainerDescriptor& CurrentContainer = ContainerDescriptorsMap.FindChecked(ContainerPairIt.Key());
+			FContainerDescriptor& ParentContainer = ContainerDescriptorsMap.FindChecked(ContainerPairIt.Value());
+			ParentContainer.Bounds += CurrentContainer.Bounds;
 		}
 	}
 
@@ -328,6 +330,85 @@ public:
 		return FActorClusterContext(MoveTemp(ContainerInstances), InFilterActorDescViewFunc);
 	}
 
+	void DumpStateLog()
+	{
+		FString StateLogOutputPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Saved"), TEXT("WorldPartition"));
+		FString StateLogOutputFilename = FPaths::Combine(StateLogOutputPath, *FString::Printf(TEXT("StreamingGeneration-%s.log"), *FDateTime::Now().ToString()));
+		
+		if (FArchive* LogFile = IFileManager::Get().CreateFileWriter(*StateLogOutputFilename))
+		{
+			auto SerializeLine = [LogFile](const FString& Line)
+			{
+				LogFile->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
+				LogFile->Serialize(LINE_TERMINATOR_ANSI, sizeof(LINE_TERMINATOR_ANSI));
+			};
+
+			// Build the containers tree representation
+			TMultiMap<FActorContainerID, FActorContainerID> InvertedContainersHierarchy;
+			for (auto ContainerPairIt = ContainersHierarchy.CreateIterator(); ContainerPairIt; ++ContainerPairIt)
+			{
+				const FActorContainerID& ChildContainerID = ContainerPairIt.Key();
+				const FActorContainerID& ParentContainerID = ContainerPairIt.Value();				
+				InvertedContainersHierarchy.Add(ParentContainerID, ChildContainerID);
+			}
+
+			SerializeLine(TEXT("Containers:"));
+
+			auto DumpContainers = [this, &InvertedContainersHierarchy, &SerializeLine](const FActorContainerID& ContainerID)
+			{
+				auto DumpContainersRecursive = [this, &InvertedContainersHierarchy, &SerializeLine](const FActorContainerID& ContainerID, FString Prefix, auto& RecursiveFunc) -> void
+				{
+					const FContainerDescriptor& ContainerDescriptor = ContainerDescriptorsMap.FindChecked(ContainerID);
+					SerializeLine(FString::Printf(TEXT("%s[+] %s:"), *Prefix, *ContainerDescriptor.OwnerName));
+
+					Prefix += TEXT(" | ");
+
+					SerializeLine(FString::Printf(TEXT("%s           ID: 0x%016llx"), *Prefix, ContainerID.ID));
+					SerializeLine(FString::Printf(TEXT("%s       Bounds: %s"), *Prefix, *ContainerDescriptor.Bounds.ToString()));
+					SerializeLine(FString::Printf(TEXT("%s    Transform: %s"), *Prefix, *ContainerDescriptor.Transform.ToString()));
+					SerializeLine(FString::Printf(TEXT("%s    Container: %s"), *Prefix, *ContainerDescriptor.Container->GetContainerPackage().ToString()));
+					SerializeLine(FString::Printf(TEXT("%s  ClusterMode: %s"), *Prefix, *StaticEnum<EContainerClusterMode>()->GetNameStringByValue((uint64)ContainerDescriptor.ClusterMode)));
+
+					if (ContainerDescriptor.ActorDescViewMap.Num())
+					{
+						SerializeLine(FString::Printf(TEXT("%s ActorDescs:"), *Prefix));
+
+						TMap<FGuid, FWorldPartitionActorDescView> SortedActorDescViewMap = ContainerDescriptor.ActorDescViewMap;
+						SortedActorDescViewMap.KeySort([](const FGuid& GuidA, const FGuid& GuidB) { return GuidA < GuidB; });
+
+						for (auto ActorDescIt = SortedActorDescViewMap.CreateConstIterator(); ActorDescIt; ++ActorDescIt)
+						{
+							const FWorldPartitionActorDescView& ActorDescView = ActorDescIt.Value();
+							SerializeLine(FString::Printf(TEXT("%s     - %s"), *Prefix, *ActorDescView.ToString()));
+						}
+					}
+
+					TArray<FActorContainerID> ChildContainersIDs;
+					InvertedContainersHierarchy.MultiFind(ContainerID, ChildContainersIDs);
+					ChildContainersIDs.Sort([](const FActorContainerID& ActorContainerIDA, const FActorContainerID& ActorContainerIDB) { return ActorContainerIDA.ID < ActorContainerIDB.ID; });
+
+					if (ChildContainersIDs.Num())
+					{
+						SerializeLine(FString::Printf(TEXT("%sSubContainers:"), *Prefix));
+						
+						Prefix += TEXT("  ");
+						for (const FActorContainerID& ChildContainerID : ChildContainersIDs)
+						{
+							RecursiveFunc(ChildContainerID, Prefix, RecursiveFunc);
+						}
+					}
+				};
+
+				DumpContainersRecursive(ContainerID, TEXT("  "), DumpContainersRecursive);
+			};
+
+			DumpContainers(FActorContainerID());
+
+			LogFile->Close();
+			delete LogFile;
+		}
+	}
+
 private:
 	UWorldPartitionRuntimeHash* RuntimeHash;
 	FActorDescList* ModifiedActorsDescList;
@@ -341,11 +422,12 @@ private:
 		{}
 
 		FBox Bounds;
-		FTransform Transform;		
+		FTransform Transform;
 		const UActorDescContainer* Container;
 		EContainerClusterMode ClusterMode;
 		TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
 		TSet<FName> DataLayers;
+		FString OwnerName;
 	};
 
 	/** Maps containers IDs to their container descriptor */
@@ -380,6 +462,7 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 
 		// Preparation Phase
 		StreamingGenerator.PreparationPhase(this);
+		StreamingGenerator.DumpStateLog();
 
 		// Preparation Phase :: Actor Clusters Creation
 		ActorClusterContext = StreamingGenerator.CreateActorClusters();

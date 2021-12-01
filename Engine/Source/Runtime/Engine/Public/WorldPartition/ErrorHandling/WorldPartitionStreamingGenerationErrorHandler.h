@@ -7,9 +7,6 @@
 
 class ENGINE_API IStreamingGenerationErrorHandler
 {
-protected:
-	FString GetActorLabel(const FWorldPartitionActorDescView& ActorDescView);
-
 public:
 	virtual ~IStreamingGenerationErrorHandler() {}
 

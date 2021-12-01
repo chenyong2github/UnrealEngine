@@ -21,6 +21,7 @@ struct FWorldPartitionActorDescInitData
 
 class UActorDescContainer;
 
+UENUM()
 enum class EContainerClusterMode : uint8
 {
 	Partitioned, // Per Actor Partitioning
@@ -76,6 +77,8 @@ public:
 	FBox GetBounds() const;
 
 	FName GetActorName() const;
+
+	FName GetActorLabelOrName() const;
 
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 

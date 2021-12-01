@@ -13,7 +13,7 @@ void FStreamingGenerationMapCheckErrorHandler::OnInvalidReference(const FWorldPa
 {
 	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Warning()
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_Actor", "Actor")))
-		->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
+		->AddToken(FAssetNameToken::Create(ActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_HaveMissingRefsTo", "have missing references to")))
 		->AddToken(FTextToken::Create(FText::FromString(ReferenceGuid.ToString())))
 		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_MissingActorReference_CheckForErrors"))));
@@ -29,10 +29,10 @@ void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceGridPlacement(c
 
 	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
 		->AddToken(FTextToken::Create(bIsActorDescAlwaysLoaded ? AlwaysLoadedActor : StreamedActor))
-		->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
+		->AddToken(FAssetNameToken::Create(ActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_References", "references")))
 		->AddToken(FTextToken::Create(bIsActorDescRefAlwaysLoaded ? AlwaysLoadedActor : StreamedActor)								)
-		->AddToken(FAssetNameToken::Create(GetActorLabel(ReferenceActorDescView)))
+		->AddToken(FAssetNameToken::Create(ReferenceActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_StreamedActorReferenceAlwaysLoadedActor_CheckForErrors"))));
 }
 
@@ -40,9 +40,9 @@ void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceDataLayers(cons
 {
 	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_Actor", "Actor")))
-		->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
+		->AddToken(FAssetNameToken::Create(ActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_ReferenceActorInOtherDataLayers", "references an actor in a different set of data layers")))
-		->AddToken(FAssetNameToken::Create(GetActorLabel(ReferenceActorDescView)))
+		->AddToken(FAssetNameToken::Create(ReferenceActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_ActorReferenceActorInAnotherDataLayer_CheckForErrors"))));
 }
 
@@ -50,7 +50,7 @@ void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceLevelScriptStre
 {
 	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_LevelScriptBlueprintStreamedActorReference", "Level Script Blueprint references streamed actor")))
-		->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
+		->AddToken(FAssetNameToken::Create(ActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_LevelScriptBlueprintRefefenceStreamed_CheckForErrors"))));
 }
 
@@ -58,7 +58,7 @@ void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceLevelScriptData
 {
 	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_LevelScriptBlueprintActorReference", "Level Script Blueprint references actor")))
-		->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
+		->AddToken(FAssetNameToken::Create(ActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_LevelScriptBlueprintDataLayerReference", "with a non empty set of data layers")))
 		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_LevelScriptBlueprintRefefenceDataLayer_CheckForErrors"))));
 }
