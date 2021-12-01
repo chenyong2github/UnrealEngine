@@ -2634,7 +2634,11 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 		}
 	}
 
-	if ( DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemRemoved ||
+	if (DataChangeType == EMovieSceneDataChangeType::RefreshTree)
+	{
+		bNeedTreeRefresh = true;
+	}
+	else if ( DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemRemoved ||
 		DataChangeType == EMovieSceneDataChangeType::MovieSceneStructureItemsChanged ||
 		DataChangeType == EMovieSceneDataChangeType::Unknown )
 	{
@@ -7333,15 +7337,27 @@ void FSequencer::GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyArea
 {
 	TSet<TSharedRef<FSequencerDisplayNode>> NodesToKey = Selection.GetSelectedOutlinerNodes();
 	{
+
 		TSet<TSharedRef<FSequencerDisplayNode>> ChildNodes;
+		int32 Index = 0;
 		for (TSharedRef<FSequencerDisplayNode> Node : NodesToKey.Array())
 		{
-			ChildNodes.Reset();
-			SequencerHelpers::GetDescendantNodes(Node, ChildNodes);
-
-			for (TSharedRef<FSequencerDisplayNode> ChildNode : ChildNodes)
+			// No need to gather key areas from binding/tracks because they have no key areas
+			if (Node->GetType()== ESequencerNode::Object || Node->GetType() == ESequencerNode::Track)
 			{
-				NodesToKey.Remove(ChildNode);
+				NodesToKey.Array().RemoveAtSwap(Index);
+				++Index;
+			}
+			else
+			{
+				ChildNodes.Reset();
+				SequencerHelpers::GetDescendantNodes(Node, ChildNodes);
+
+				for (TSharedRef<FSequencerDisplayNode> ChildNode : ChildNodes)
+				{
+					NodesToKey.Remove(ChildNode);
+				}
+				++Index;
 			}
 		}
 	}

@@ -2287,9 +2287,8 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			GetSequencer()->GetSelectedKeyAreas(KeyAreas, UseSelectedKeys);
 			SelectRigsAndControls(Subject, KeyAreas);
 
-			//Force refresh now, not later
-			GetSequencer()->RefreshTree();
-
+			//Force refresh later, not now
+			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);				
 		}
 	}
 }
