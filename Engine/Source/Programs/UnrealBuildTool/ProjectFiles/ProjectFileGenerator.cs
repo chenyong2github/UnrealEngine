@@ -1151,8 +1151,7 @@ namespace UnrealBuildTool
 					Path.Combine("Programs", "UnrealBuildTool")
 				));
 
-			List<XmlConfig.InputFile> InputFiles = XmlConfig.FindInputFiles();
-			foreach (XmlConfig.InputFile InputFile in InputFiles)
+			foreach (XmlConfig.InputFile InputFile in XmlConfig.InputFiles)
 			{
 				EngineProject.AddAliasedFileToProject(
 						new AliasedFile(
