@@ -17,7 +17,7 @@ public:
 
 
 
-/* FCeilOperator inline functions
+/* FCeilOperator inlined and templated functions
  *****************************************************************************/
 
 void FCeilOperator::ForwardCPU()

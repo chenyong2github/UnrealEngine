@@ -19,7 +19,7 @@ public:
 
 
 
-/* FLeakyReluOperator inline functions
+/* FLeakyReluOperator inlined and templated functions
  *****************************************************************************/
 
 void FLeakyReluOperator::ForwardCPU()

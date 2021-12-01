@@ -17,7 +17,7 @@ public:
 
 
 
-/* FSigmoidOperator inline functions
+/* FSigmoidOperator inlined and templated functions
  *****************************************************************************/
 
 void FSigmoidOperator::ForwardCPU()

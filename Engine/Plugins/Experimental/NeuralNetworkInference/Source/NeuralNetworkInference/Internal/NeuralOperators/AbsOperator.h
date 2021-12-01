@@ -17,7 +17,7 @@ public:
 
 
 
-/* FAbsOperator inline functions
+/* FAbsOperator inlined and templated functions
  *****************************************************************************/
 
 void FAbsOperator::ForwardCPU()

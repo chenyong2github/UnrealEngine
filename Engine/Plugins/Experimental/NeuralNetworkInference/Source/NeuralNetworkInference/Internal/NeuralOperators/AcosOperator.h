@@ -17,7 +17,7 @@ public:
 
 
 
-/* FAcosOperator inline functions
+/* FAcosOperator inlined and templated functions
  *****************************************************************************/
 
 void FAcosOperator::ForwardCPU()

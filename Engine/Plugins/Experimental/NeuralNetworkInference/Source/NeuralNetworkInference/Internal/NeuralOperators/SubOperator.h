@@ -17,7 +17,7 @@ public:
 
 
 
-/* FSubOperator inline functions
+/* FSubOperator inlined and templated functions
  *****************************************************************************/
 
 void FSubOperator::ForwardCPU()

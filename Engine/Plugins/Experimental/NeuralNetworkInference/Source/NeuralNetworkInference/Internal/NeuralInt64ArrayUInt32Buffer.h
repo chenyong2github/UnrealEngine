@@ -79,7 +79,7 @@ private:
 
 
 
-/* FNeuralInt64ArrayUInt32Buffer inline functions
+/* FNeuralInt64ArrayUInt32Buffer inlined and templated functions
  *****************************************************************************/
 
 int32 FNeuralInt64ArrayUInt32Buffer::Num() const

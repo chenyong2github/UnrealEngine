@@ -17,7 +17,7 @@ public:
 
 
 
-/* FFloorOperator inline functions
+/* FFloorOperator inlined and templated functions
  *****************************************************************************/
 
 void FFloorOperator::ForwardCPU()

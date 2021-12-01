@@ -17,7 +17,7 @@ public:
 
 
 
-/* FAtanOperator inline functions
+/* FAtanOperator inlined and templated functions
  *****************************************************************************/
 
 void FAtanOperator::ForwardCPU()

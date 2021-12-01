@@ -17,7 +17,7 @@ public:
 
 
 
-/* FReciprocalOperator inline functions
+/* FReciprocalOperator inlined and templated functions
  *****************************************************************************/
 
 void FReciprocalOperator::ForwardCPU()

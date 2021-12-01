@@ -17,7 +17,7 @@ public:
 
 
 
-/* FSinhOperator inline functions
+/* FSinhOperator inlined and templated functions
  *****************************************************************************/
 
 void FSinhOperator::ForwardCPU()

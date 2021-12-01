@@ -55,7 +55,7 @@ private:
 
 
 
-/* FConvBaseOperator inline functions
+/* FConvBaseOperator inlined and templated functions
  *****************************************************************************/
 
 void FConvTransposeOperator::SetWhetherWeightTensorWasFlipped(const bool bInIsWeightTensorFlipped)
