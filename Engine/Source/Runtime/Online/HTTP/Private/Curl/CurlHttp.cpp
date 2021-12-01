@@ -832,7 +832,7 @@ bool FCurlHttpRequest::SetupRequestHttpThread()
 			// In the case of using a streamed file, you must explicitly set the Content-Type, because RequestPayload->IsURLEncoded returns false.
 			check(!GetHeader(TEXT("Content-Type")).IsEmpty() || RequestPayload->IsURLEncoded());
 			curl_easy_setopt(EasyHandle, CURLOPT_POST, 1L);
-			curl_easy_setopt(EasyHandle, CURLOPT_POSTFIELDS, (RequestPayload->GetContentLength() == 0) ? "" : NULL);
+			curl_easy_setopt(EasyHandle, CURLOPT_POSTFIELDS, NULL);
 #if WITH_CURL_XCURL
 			curl_easy_setopt(EasyHandle, CURLOPT_INFILESIZE, RequestPayload->GetContentLength());
 #else

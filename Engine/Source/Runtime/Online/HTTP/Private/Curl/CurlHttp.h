@@ -54,14 +54,7 @@ namespace
 	*/
 	void* CurlMalloc(size_t Size)
 	{
-		void* Return = NULL;
-
-		if (Size)
-		{
-			Return = FMemory::Malloc(Size);
-		}
-		
-		return Return;
+		return FMemory::Malloc(Size);
 	}
 
 	/**
