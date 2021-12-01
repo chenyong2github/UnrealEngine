@@ -9,7 +9,9 @@
 #include "EditorStyleSet.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SSegmentedControl.h"
+
 
 #define LOCTEXT_NAMESPACE "MobilityCustomization" 
 

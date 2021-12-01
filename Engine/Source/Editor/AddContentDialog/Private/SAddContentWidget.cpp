@@ -7,17 +7,16 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SSegmentedControl.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Styling/StyleColors.h"
 #include "Internationalization/BreakIterator.h"
-#include "Framework/Application/SlateApplication.h"
 #include "WidgetCarousel/Public/WidgetCarouselStyle.h"
 #include "WidgetCarousel/Public/SWidgetCarouselWithNavigation.h"
 #include "SPrimaryButton.h"
-
 
 #define LOCTEXT_NAMESPACE "AddContentDialog"
 
