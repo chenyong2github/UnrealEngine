@@ -6,7 +6,7 @@
 
 bool UPrimitiveComponentToolTarget::IsValid() const
 {
-	return Component && IsValidChecked(Component) && !Component->IsUnreachable() && Component->IsValidLowLevel();
+	return Component && ::IsValid(Component) && !Component->IsUnreachable() && Component->IsValidLowLevel();
 }
 
 UPrimitiveComponent* UPrimitiveComponentToolTarget::GetOwnerComponent() const
@@ -49,7 +49,7 @@ bool UPrimitiveComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject,
 {
 	UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(SourceObject);
 	return Component 
-		&& IsValidChecked(Component)
+		&& ::IsValid(Component)
 		&& !Component->IsUnreachable() 
 		&& Component->IsValidLowLevel() 
 		&& Requirements.AreSatisfiedBy(UPrimitiveComponentToolTarget::StaticClass());
