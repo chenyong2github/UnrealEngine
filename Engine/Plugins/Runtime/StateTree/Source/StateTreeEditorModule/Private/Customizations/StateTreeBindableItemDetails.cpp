@@ -18,10 +18,6 @@
 #include "Styling/SlateIconFinder.h"
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
-#include "StructViewerModule.h"
-#include "StructViewerFilter.h"
-#include "ClassViewerModule.h"
-#include "ClassViewerFilter.h"
 #include "InstancedStructDetails.h"
 #include "Engine/UserDefinedStruct.h"
 #include "StateTreeBindingExtension.h"
@@ -36,6 +32,8 @@
 #include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
 #include "Blueprint/StateTreeTaskBlueprintBase.h"
 #include "Blueprint/StateTreeConditionBlueprintBase.h"
+#include "StateTreeEditorModule.h"
+#include "StateTreeNodeClassCache.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -150,114 +148,6 @@ public:
 	UStateTreeEditorData* EditorData;
 	FStateTreeEditorPropertyBindings* EditorPropBindings;
 	FGuid ID;
-};
-
-////////////////////////////////////
-
-class FBindableItemStructFilter : public IStructViewerFilter
-{
-public:
-	/** The base struct for the property that classes must be a child-of. */
-	const UScriptStruct* BaseStruct = nullptr;
-
-	// A flag controlling whether we allow UserDefinedStructs
-	bool bAllowUserDefinedStructs = false;
-
-	// A flag controlling whether we allow to select the BaseStruct
-	bool bAllowBaseStruct = true;
-
-	// Schema to filter which structs are allowed.
-	const UStateTreeSchema* Schema = nullptr;
-
-	virtual bool IsStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const UScriptStruct* InStruct, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
-	{
-		if (!Schema)
-		{
-			return false;
-		}
-
-		if (!Schema->IsStructAllowed(InStruct))
-		{
-			return false;
-		}
-		
-		if (InStruct->IsA<UUserDefinedStruct>())
-		{
-			return bAllowUserDefinedStructs;
-		}
-
-		if (InStruct == BaseStruct)
-		{
-			return bAllowBaseStruct;
-		}
-
-		// Query the native struct to see if it has the correct parent type (if any)
-		return BaseStruct != nullptr && InStruct->IsChildOf(BaseStruct);
-	}
-
-	virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FName InStructPath, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
-	{
-		// User Defined Structs don't support inheritance, so only include them requested
-		return bAllowUserDefinedStructs;
-	}
-};
-
-////////////////////////////////////
-
-class FBindableItemClassFilter : public IClassViewerFilter
-{
-public:
-	/** The base struct for the property that classes must be a child-of. */
-	const UClass* BaseClass = nullptr;
-
-	// A flag controlling whether we allow to select the BaseStruct
-	bool bAllowBaseClass = true;
-
-	// Schema to filter which structs are allowed.
-	const UStateTreeSchema* Schema = nullptr;
-
-	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs ) override
-	{
-		if (!Schema || !InClass)
-		{
-			return false;
-		}
-
-		if (!Schema->IsClassAllowed(InClass))
-		{
-			return false;
-		}
-		
-		if (InClass == BaseClass)
-		{
-			return bAllowBaseClass;
-		}
-
-		// Query the native struct to see if it has the correct parent type (if any)
-		return BaseClass != nullptr && InClass->IsChildOf(BaseClass);
-	}
-
-	virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const IUnloadedBlueprintData> InUnloadedClassData, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
-	{
-		if (!Schema)
-		{
-			return false;
-		}
-
-		if (InUnloadedClassData->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract))
-		{
-			return false;
-		}
-
-		const UClass* NativeParentClass = InUnloadedClassData->GetNativeParent();
-
-		if (!Schema->IsClassAllowed(NativeParentClass))
-		{
-			return false;
-		}
-		
-		return NativeParentClass->IsChildOf(BaseClass);
-	}
 };
 
 ////////////////////////////////////
@@ -521,7 +411,7 @@ void FStateTreeBindableItemDetails::OnBindingChanged(const FStateTreeEditorPrope
 					const FStateTreeBindingLookup BindingLookup(EditorData);
 
 					OuterObject->Modify();
-					Condition->OnBindingChanged(Item->ID, Item->Instance, SourcePath, TargetPath, BindingLookup);
+					Condition->OnBindingChanged(Item->ID, FStateTreeDataView(Item->Instance), SourcePath, TargetPath, BindingLookup);
 				}
 			}
 		}
@@ -564,12 +454,23 @@ FText FStateTreeBindableItemDetails::GetDescription() const
 	}
 
 	FStateTreeItem* Item = static_cast<FStateTreeItem*>(RawItemData[0]);
-	if (Item != nullptr && EditorData != nullptr && Item->Item.IsValid() && Item->Instance.IsValid())
+	if (Item != nullptr && EditorData != nullptr && Item->Item.IsValid())
 	{
 		if (const FStateTreeConditionBase* Condition = Item->Item.GetPtr<const FStateTreeConditionBase>())
 		{
 			const FStateTreeBindingLookup BindingLookup(EditorData);
-			return Condition->GetDescription(Item->ID, Item->Instance, BindingLookup);
+			if (Item->Instance.IsValid())
+			{
+				return Condition->GetDescription(Item->ID, FStateTreeDataView(Item->Instance), BindingLookup);
+			}
+			else if (Item->InstanceObject != nullptr)
+			{
+				return Condition->GetDescription(Item->ID, FStateTreeDataView(Item->InstanceObject), BindingLookup);
+			}
+			else
+			{
+				return Item->Item.GetScriptStruct()->GetDisplayNameText();
+			}
 		}
 	}
 	
@@ -578,7 +479,12 @@ FText FStateTreeBindableItemDetails::GetDescription() const
 
 EVisibility FStateTreeBindableItemDetails::IsDescriptionVisible() const
 {
-	const UScriptStruct* ScriptStruct = GetCommonItemScriptStruct();
+	const UScriptStruct* ScriptStruct = nullptr;
+	if (const FStateTreeItem* Item = GetCommonItem())
+	{
+		ScriptStruct = Item->Item.GetScriptStruct();
+	}
+
 	return ScriptStruct != nullptr && ScriptStruct->IsChildOf(FStateTreeConditionBase::StaticStruct()) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
@@ -616,7 +522,12 @@ FText FStateTreeBindableItemDetails::GetName() const
 
 EVisibility FStateTreeBindableItemDetails::IsNameVisible() const
 {
-	const UScriptStruct* ScriptStruct = GetCommonItemScriptStruct();
+	const UScriptStruct* ScriptStruct = nullptr;
+	if (const FStateTreeItem* Item = GetCommonItem())
+	{
+		ScriptStruct = Item->Item.GetScriptStruct();
+	}
+	
 	return ScriptStruct != nullptr && (ScriptStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()) || ScriptStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct())) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
@@ -677,10 +588,11 @@ void FStateTreeBindableItemDetails::OnNameCommitted(const FText& NewText, ETextC
 bool FStateTreeBindableItemDetails::IsNameEnabled() const
 {
 	// Can only edit if we have valid instantiated type.
-	return GetCommonItemScriptStruct() != nullptr;
+	const FStateTreeItem* Item = GetCommonItem();
+	return Item && Item->Item.IsValid();
 }
 
-const UScriptStruct* FStateTreeBindableItemDetails::GetCommonItemScriptStruct() const
+const FStateTreeItem* FStateTreeBindableItemDetails::GetCommonItem() const
 {
 	check(StructProperty);
 
@@ -689,38 +601,70 @@ const UScriptStruct* FStateTreeBindableItemDetails::GetCommonItemScriptStruct() 
 	TArray<void*> RawItemData;
 	StructProperty->AccessRawData(RawItemData);
 
+	const FStateTreeItem* CommonItem = nullptr;
+	
 	for (void* Data : RawItemData)
 	{
-		if (FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
+		if (const FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
 		{
-			const UScriptStruct* ScriptStruct = Item->Item.GetScriptStruct();
-			if (!bMultipleValues && !CommonScriptStruct)
+			if (!bMultipleValues && !CommonItem)
 			{
-				CommonScriptStruct = ScriptStruct;
+				CommonItem = Item;
 			}
-			else if (ScriptStruct != CommonScriptStruct)
+			else if (CommonItem != Item)
 			{
-				CommonScriptStruct = nullptr;
+				CommonItem = nullptr;
 				bMultipleValues = true;
 			}
 		}
 	}
 
-	return CommonScriptStruct;
+	return CommonItem;
 }
 
 FText FStateTreeBindableItemDetails::GetDisplayValueString() const
 {
-	const UScriptStruct* ScriptStruct = GetCommonItemScriptStruct();
-	if (ScriptStruct)
+	if (const FStateTreeItem* Item = GetCommonItem())
 	{
-		return ScriptStruct->GetDisplayNameText();
+		if (const UScriptStruct* ScriptStruct = Item->Item.GetScriptStruct())
+		{
+			if (ScriptStruct->IsChildOf(FStateTreeBlueprintEvaluatorWrapper::StaticStruct())
+				|| ScriptStruct->IsChildOf(FStateTreeBlueprintTaskWrapper::StaticStruct())
+				|| ScriptStruct->IsChildOf(FStateTreeBlueprintConditionWrapper::StaticStruct()))
+			{
+				if (Item->InstanceObject != nullptr
+					&& Item->InstanceObject->GetClass() != nullptr)
+				{
+					return Item->InstanceObject->GetClass()->GetDisplayNameText();
+				}
+			}
+			else
+			{
+				return ScriptStruct->GetDisplayNameText();
+			}
+		}
 	}
 	return FText();
 }
 
 const FSlateBrush* FStateTreeBindableItemDetails::GetDisplayValueIcon() const
 {
+	if (const FStateTreeItem* Item = GetCommonItem())
+	{
+		if (const UScriptStruct* ScriptStruct = Item->Item.GetScriptStruct())
+		{
+			if (ScriptStruct->IsChildOf(FStateTreeBlueprintEvaluatorWrapper::StaticStruct())
+				|| ScriptStruct->IsChildOf(FStateTreeBlueprintTaskWrapper::StaticStruct())
+				|| ScriptStruct->IsChildOf(FStateTreeBlueprintConditionWrapper::StaticStruct()))
+			{
+				if (Item->InstanceObject != nullptr)
+				{
+					return FSlateIconFinder::FindIconBrushForClass(Item->InstanceObject->GetClass());
+				}
+			}
+		}
+	}
+	
 	return FSlateIconFinder::FindIconBrushForClass(UScriptStruct::StaticClass());
 }
 
@@ -728,61 +672,80 @@ TSharedRef<SWidget> FStateTreeBindableItemDetails::GeneratePicker()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	// @todo: Find a way to combine the menus. Now both are displayed even if one may be empty.
-	
-	MenuBuilder.AddWrapperSubMenu(
-		LOCTEXT("Items", "Items"),
-		LOCTEXT("Items_ToolTip", "Items"),
-		FOnGetContent::CreateSP(this, &FStateTreeBindableItemDetails::GenerateStructPicker),
-		FSlateIcon()
-		);
+	FStateTreeEditorModule& EditorModule = FModuleManager::GetModuleChecked<FStateTreeEditorModule>(TEXT("StateTreeEditorModule"));
+	FStateTreeNodeClassCache* ClassCache = EditorModule.GetNodeClassCache().Get();
+	check(ClassCache);
 
-	MenuBuilder.AddWrapperSubMenu(
-		LOCTEXT("BlueprintItems", "Blueprint Items"),
-		LOCTEXT("BlueprintItems_ToolTip", "Blueprint Items"),
-		FOnGetContent::CreateSP(this, &FStateTreeBindableItemDetails::GenerateClassPicker),
-		FSlateIcon()
-	);
+	FUIAction ClearAction(FExecuteAction::CreateSP(this, &FStateTreeBindableItemDetails::OnStructPicked, (const UScriptStruct*)nullptr));
+	MenuBuilder.AddMenuEntry(LOCTEXT("ClearItem", "Clear"), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "Cross"), ClearAction);
 
 	MenuBuilder.AddMenuSeparator();
 
-	FUIAction ClearAction(FExecuteAction::CreateSP(this, &FStateTreeBindableItemDetails::OnStructPicked, (const UScriptStruct*)nullptr));
-	MenuBuilder.AddMenuEntry(LOCTEXT("ClearItem", "Clear Item"), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "Cross"), ClearAction);
+	TArray<TSharedPtr<FStateTreeNodeClassData>> StructItems;
+	TArray<TSharedPtr<FStateTreeNodeClassData>> ObjectItems;
 	
+	ClassCache->GetScripStructs(BaseScriptStruct, StructItems);
+	ClassCache->GetClasses(BaseClass, ObjectItems);
+
+	const FSlateIcon ScripStructIcon = FSlateIconFinder::FindIconForClass(UScriptStruct::StaticClass());
+	const UStateTreeSchema* Schema = StateTree ? StateTree->GetSchema() : nullptr;
+	
+	for (const TSharedPtr<FStateTreeNodeClassData>& Data : StructItems)
+	{
+		if (Data->GetScriptStruct() != nullptr)
+		{
+			const UScriptStruct* ScriptStruct = Data->GetScriptStruct();
+			if (ScriptStruct == BaseScriptStruct)
+			{
+				continue;
+			}
+			if (ScriptStruct->HasMetaData(TEXT("Hidden")))
+			{
+				continue;				
+			}
+			if (Schema && !Schema->IsStructAllowed(ScriptStruct))
+			{
+				continue;				
+			}
+			
+			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FStateTreeBindableItemDetails::OnStructPicked, ScriptStruct));
+			MenuBuilder.AddMenuEntry(ScriptStruct->GetDisplayNameText(), TAttribute<FText>(), ScripStructIcon, ItemAction);
+		}
+	}
+
+	if (StructItems.Num() > 0 && ObjectItems.Num() > 0)
+	{
+		MenuBuilder.AddMenuSeparator();
+	}
+	
+	for (const TSharedPtr<FStateTreeNodeClassData>& Data : ObjectItems)
+	{
+		if (Data->GetClass() != nullptr)
+		{
+			UClass* Class = Data->GetClass();
+			if (Class == BaseClass)
+			{
+				continue;
+			}
+			if (Class->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown))
+			{
+				continue;				
+			}
+			if (Class->HasMetaData(TEXT("Hidden")))
+			{
+				continue;				
+			}
+			if (Schema && !Schema->IsClassAllowed(Class))
+			{
+				continue;				
+			}
+
+			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FStateTreeBindableItemDetails::OnClassPicked, Class));
+			MenuBuilder.AddMenuEntry(Class->GetDisplayNameText(), TAttribute<FText>(), FSlateIconFinder::FindIconForClass(Data->GetClass()), ItemAction);
+		}
+	}
+
 	return MenuBuilder.MakeWidget();
-}
-
-
-
-TSharedRef<SWidget> FStateTreeBindableItemDetails::GenerateStructPicker()
-{
-	TSharedRef<FBindableItemStructFilter> StructFilter = MakeShared<FBindableItemStructFilter>();
-	StructFilter->BaseStruct = BaseScriptStruct;
-	StructFilter->bAllowUserDefinedStructs = false;
-	StructFilter->bAllowBaseStruct = false;
-	StructFilter->Schema = StateTree ? StateTree->GetSchema() : nullptr;
-
-	FStructViewerInitializationOptions Options;
-	Options.bShowUnloadedStructs = true;
-	Options.bShowNoneOption = true;
-	Options.StructFilter = StructFilter;
-	Options.NameTypeToDisplay = EStructViewerNameTypeToDisplay::DisplayName;
-	Options.DisplayMode = EStructViewerDisplayMode::ListView;
-	Options.bAllowViewOptions = true;
-
-	FOnStructPicked OnPicked(FOnStructPicked::CreateRaw(this, &FStateTreeBindableItemDetails::OnStructPicked));
-	
-	return SNew(SBox)
-		.WidthOverride(280.f)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.MaxHeight(500.f)
-			[
-				FModuleManager::LoadModuleChecked<FStructViewerModule>("StructViewer").CreateStructViewer(Options, OnPicked)
-			]
-		];
 }
 
 void FStateTreeBindableItemDetails::OnStructPicked(const UScriptStruct* InStruct)
@@ -801,7 +764,6 @@ void FStateTreeBindableItemDetails::OnStructPicked(const UScriptStruct* InStruct
 	{
 		if (FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
 		{
-		
 			Item->Reset();
 			
 			if (InStruct)
@@ -869,37 +831,6 @@ void FStateTreeBindableItemDetails::OnStructPicked(const UScriptStruct* InStruct
 	{
 		PropUtils->ForceRefresh();
 	}
-}
-
-
-TSharedRef<SWidget> FStateTreeBindableItemDetails::GenerateClassPicker()
-{
-	TSharedRef<FBindableItemClassFilter> ClassFilter = MakeShared<FBindableItemClassFilter>();
-	ClassFilter->BaseClass = BaseClass;
-	ClassFilter->bAllowBaseClass = false;
-	ClassFilter->Schema = StateTree ? StateTree->GetSchema() : nullptr;
-
-	FClassViewerInitializationOptions Options;
-	Options.bShowUnloadedBlueprints = true;
-	Options.bShowNoneOption = true;
-	Options.ClassFilters.Add(ClassFilter);
-	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
-	Options.DisplayMode = EClassViewerDisplayMode::ListView;
-	Options.bAllowViewOptions = true;
-
-	FOnClassPicked OnPicked(FOnClassPicked::CreateRaw(this, &FStateTreeBindableItemDetails::OnClassPicked));
-
-	return SNew(SBox)
-		.WidthOverride(280.f)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.MaxHeight(500.f)
-			[
-				FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, OnPicked)
-			]
-		];
 }
 
 void FStateTreeBindableItemDetails::OnClassPicked(UClass* InClass)

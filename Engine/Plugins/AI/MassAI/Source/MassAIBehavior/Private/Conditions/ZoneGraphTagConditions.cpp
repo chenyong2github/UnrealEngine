@@ -98,7 +98,7 @@ bool FZoneGraphTagFilterCondition::TestCondition(FStateTreeExecutionContext& Con
 }
 
 #if WITH_EDITOR
-FText FZoneGraphTagFilterCondition::GetDescription(const FGuid& ID, FConstStructView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
+FText FZoneGraphTagFilterCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
 {
 	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagFilterConditionInstanceData, Tags));
 
@@ -164,7 +164,7 @@ bool FZoneGraphTagMaskCondition::TestCondition(FStateTreeExecutionContext& Conte
 }
 
 #if WITH_EDITOR
-FText FZoneGraphTagMaskCondition::GetDescription(const FGuid& ID, FConstStructView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
+FText FZoneGraphTagMaskCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
 {
 	const FZoneGraphTagMaskConditionInstanceData& Instance = InstanceData.Get<FZoneGraphTagMaskConditionInstanceData>();
 	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagMaskConditionInstanceData, Left));
@@ -224,7 +224,7 @@ bool FZoneGraphTagCondition::TestCondition(FStateTreeExecutionContext& Context) 
 }
 
 #if WITH_EDITOR
-FText FZoneGraphTagCondition::GetDescription(const FGuid& ID, FConstStructView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
+FText FZoneGraphTagCondition::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
 {
 	const FZoneGraphTagConditionInstanceData& Instance = InstanceData.Get<FZoneGraphTagConditionInstanceData>();
 	const FStateTreeEditorPropertyPath LeftPath(ID, GET_MEMBER_NAME_STRING_CHECKED(FZoneGraphTagConditionInstanceData, Left));

@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "StateTreeTypes.h"
+#include "StateTreeExecutionContext.h"
 #if WITH_EDITOR
-#include "InstancedStruct.h"
+#include "StateTreePropertyBindings.h"
 #endif
 #include "StateTreeConditionBase.generated.h"
 
@@ -13,7 +14,6 @@
 struct IStateTreeBindingLookup;
 struct FStateTreeEditorPropertyPath;
 #endif
-struct FStateTreeExecutionContext;
 
 /**
  * Base struct for all conditions.
@@ -25,7 +25,7 @@ struct STATETREEMODULE_API FStateTreeConditionBase
 
 	virtual ~FStateTreeConditionBase() {}
 
-	/** @return Struct that represents the runtime data of the evaluator. */
+	/** @return Struct that represents the runtime data of the condition. */
 	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
 
 	/**
@@ -39,14 +39,16 @@ struct STATETREEMODULE_API FStateTreeConditionBase
 
 #if WITH_EDITOR
 	/** @return Rich text description of the condition. */
-	virtual FText GetDescription(const FGuid& ID, FConstStructView LayoutData, const IStateTreeBindingLookup& BindingLookup) const { return FText::GetEmpty(); }
+	virtual FText GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const { return FText::GetEmpty(); }
 	/**
 	 * Called when binding of any of the properties in the condition changes.
+	 * @param ID ID of the item, can be used make property paths to this item.
+	 * @param InstanceData view to the instance data, can be struct or class. 
 	 * @param SourcePath Source path of the new binding.
 	 * @param TargetPath Target path of the new binding (the property in the condition).
 	 * @param BindingLookup Reference to binding lookup which can be used to reason about property paths.
 	 */
-	virtual void OnBindingChanged(const FGuid& ID, FStructView LayoutData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) {}
+	virtual void OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) {}
 #endif
 	/** @return True if the condition passes. */
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const { return false; }
