@@ -21,7 +21,6 @@ struct FWorldPartitionActorDescInitData
 
 class UActorDescContainer;
 
-UENUM()
 enum class EContainerClusterMode : uint8
 {
 	Partitioned, // Per Actor Partitioning
