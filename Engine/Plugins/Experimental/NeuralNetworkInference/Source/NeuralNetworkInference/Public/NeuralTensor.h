@@ -34,9 +34,9 @@ public:
 	 * @param InSizes Set to empty (or omit argument) if memory allocation is not required or the final size is unknown.
 	 * @param InName Used for GPU debugging and the ToString() function.
 	*/
-	explicit FNeuralTensor(const ENeuralDataType InDataType = ENeuralDataType::None, const TArray<int64>& InSizes = TArray<int64>(), const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
-	explicit FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
-	explicit FNeuralTensor(const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
+	explicit FNeuralTensor(const ENeuralDataType InDataType = ENeuralDataType::None, const TArray<int64>& InSizes = TArray<int64>(), const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorType InTensorTypeGPU = ENeuralTensorType::Generic);
+	explicit FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorType InTensorTypeGPU = ENeuralTensorType::Generic);
+	explicit FNeuralTensor(const FString& InName, const ENeuralTensorType InTensorTypeGPU = ENeuralTensorType::Generic);
 
 	/**
 	 * Performance-wise, this constructor makes a deep copy of the data (not optimal). For maximum speed, use the other constructors + GetData()/GetDataCasted().
@@ -47,7 +47,7 @@ public:
 	 * @param InName Used for GPU debugging and the ToString() function.
 	 */
 	template <typename T>
-	explicit FNeuralTensor(const TArray<T>& InArray, const TArray<int64>& InSizes = TArray<int64>(), const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
+	explicit FNeuralTensor(const TArray<T>& InArray, const TArray<int64>& InSizes = TArray<int64>(), const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorType InTensorTypeGPU = ENeuralTensorType::Generic);
 
 	/**
 	 * Copy constructor.
@@ -72,13 +72,13 @@ public:
 
 	/**
 	 * Comparison operator (equal). Returns true if the dimensions, sizes, scalar type, and data match with each other.
-	 * It does not consider other properties of the FNeuralTensor (such as ENeuralTensorTypeGPU).
+	 * It does not consider other properties of the FNeuralTensor (such as ENeuralTensorType).
 	 */
 	bool operator==(const FNeuralTensor& InTensorToCopy) const;
 
 	/**
 	 * Comparison operator (not equal). Returns the opposite than the equal (==) operator.
-	 * It does not consider other properties of the FNeuralTensor (such as ENeuralTensorTypeGPU).
+	 * It does not consider other properties of the FNeuralTensor (such as ENeuralTensorType).
 	 */
 	FORCEINLINE bool operator!=(const FNeuralTensor& InTensorToCopy) const;
 
@@ -157,15 +157,15 @@ public:
 	FORCEINLINE bool IsEmpty() const;
 
 	/**
-	 * It returns the ENeuralTensorTypeGPU (Generic, Input, Intermediate(Not)Initialized, Output, Weight, etc.).
+	 * It returns the ENeuralTensorType (Generic, Input, Intermediate(Not)Initialized, Output, Weight, etc.).
 	 */
-	FORCEINLINE ENeuralTensorTypeGPU GetTensorTypeGPU() const;
+	FORCEINLINE ENeuralTensorType GetTensorTypeGPU() const;
 
 	/**
-	 * It sets the ENeuralTensorTypeGPU (Generic, Input, Intermediate(Not)Initialized, Output, Weight, etc.).
+	 * It sets the ENeuralTensorType (Generic, Input, Intermediate(Not)Initialized, Output, Weight, etc.).
 	 * If the GPU memory was already initialized, it will also UE_LOG a warning.
 	 */
-	void SetTensorTypeGPU(const ENeuralTensorTypeGPU InTensorTypeGPU);
+	void SetTensorTypeGPU(const ENeuralTensorType InTensorTypeGPU);
 
 	FORCEINLINE void SetEnableGPU(const bool bInEnableGPU);
 
@@ -216,7 +216,7 @@ public:
 	 * It will fill the current neural tensor with the input FTensorProto.
 	 * @returns Whether the conversion was successful.
 	 */
-	bool SetFromTensorProto(const FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorTypeGPU InTensorTypeGPU);
+	bool SetFromTensorProto(const FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorType InTensorTypeGPU);
 
 	/**
 	 * It sets all the elements of the FNeuralTensor to InValue.
@@ -269,7 +269,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	TArray<int64> Sizes;
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	ENeuralTensorTypeGPU TensorTypeGPU;
+	ENeuralTensorType TensorTypeGPU;
 
 private:
 	/** CPU-based variables */
@@ -290,7 +290,7 @@ private:
 	 * Auxiliary for the templated constructor FNeuralTensor(const ENeuralDataType InDataType, const TArray<T>& InArray, ...).
 	 * InSizeOfT and sizeof(InDataType) should match, as well as the volume of InValueNum and InSizes.
 	 */
-	explicit FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU);
+	explicit FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorTypeGPU);
 
 	/**
 	 * Auxiliary for the templated SetFromArrayCopy().
@@ -301,7 +301,7 @@ private:
 	 * Checks and warns whether the current data type T is incompatible with DataType.
 	 */
 	template<typename T>
-	bool CheckTAndDataType() const;
+	bool CheckTAndDataTypeEquivalent() const;
 	bool CheckTAndDataTypeResult(const bool bInCheckTAndDataTypeResult, const int64 InSizeOfT) const;
 };
 
@@ -311,7 +311,7 @@ private:
  *****************************************************************************/
 
 template <typename T>
-FNeuralTensor::FNeuralTensor(const TArray<T>& InArray, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+FNeuralTensor::FNeuralTensor(const TArray<T>& InArray, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorTypeGPU)
 	: FNeuralTensor(FNeuralDataTypeUtils::GetDataType<T>(), InArray.GetData(), sizeof(T), InArray.Num(), (InSizes.Num() > 0 ? InSizes : TArray<int64>({ (int64)InArray.Num() })), InName, InTensorTypeGPU)
 {}
 
@@ -323,14 +323,14 @@ bool FNeuralTensor::operator!=(const FNeuralTensor& InTensorToCopy) const
 template <typename T, typename TInput>
 T& FNeuralTensor::At(const TInput InIndex)
 {
-	checkf(CheckTAndDataType<T>(), TEXT("FNeuralTensor::At(): CheckTAndDataType failed."));
+	checkf(CheckTAndDataTypeEquivalent<T>(), TEXT("FNeuralTensor::At(): CheckTAndDataType failed."));
 	return ((T*)ArrayCPU.GetData())[InIndex];
 }
 
 template <typename T, typename TInput>
 const T& FNeuralTensor::At(const TInput InIndex) const
 {
-	checkf(CheckTAndDataType<T>(), TEXT("FNeuralTensor::At(): CheckTAndDataType failed."));
+	checkf(CheckTAndDataTypeEquivalent<T>(), TEXT("FNeuralTensor::At(): CheckTAndDataType failed."));
 	return ((T*)ArrayCPU.GetData())[InIndex];
 }
 
@@ -338,7 +338,7 @@ template <typename T>
 TArray<T> FNeuralTensor::GetArrayCopy() const
 {
 	TArray<T> Array;
-	if (CheckTAndDataType<T>())
+	if (CheckTAndDataTypeEquivalent<T>())
 	{
 		Array.SetNumUninitialized(Num());
 		FMemory::Memcpy(Array.GetData(), ArrayCPU.GetData(), NumInBytes());
@@ -364,14 +364,14 @@ const void* const FNeuralTensor::GetData() const
 template<typename T>
 T* FNeuralTensor::GetDataCasted()
 {
-	checkf(CheckTAndDataType<T>(), TEXT("FNeuralTensor::GetDataCasted(): CheckTAndDataType failed."));
+	checkf(CheckTAndDataTypeEquivalent<T>(), TEXT("FNeuralTensor::GetDataCasted(): CheckTAndDataType failed."));
 	return (T*)ArrayCPU.GetData();
 }
 
 template<typename T>
 const T* const FNeuralTensor::GetDataCasted() const
 {
-	checkf(CheckTAndDataType<T>(), TEXT("FNeuralTensor::GetDataCasted(): CheckTAndDataType failed."));
+	checkf(CheckTAndDataTypeEquivalent<T>(), TEXT("FNeuralTensor::GetDataCasted(): CheckTAndDataType failed."));
 	return (T*)ArrayCPU.GetData();
 }
 
@@ -415,7 +415,7 @@ bool FNeuralTensor::IsEmpty() const
 	return ArrayCPU.IsEmpty();
 }
 
-ENeuralTensorTypeGPU FNeuralTensor::GetTensorTypeGPU() const
+ENeuralTensorType FNeuralTensor::GetTensorTypeGPU() const
 {
 	return TensorTypeGPU;
 }
@@ -433,7 +433,7 @@ void FNeuralTensor::SetNumUninitialized(const int64 InVolume, const ENeuralDataT
 template<typename T>
 void FNeuralTensor::SetFromArrayCopy(const TArray<T>& InArray)
 {
-	if (CheckTAndDataType<T>())
+	if (CheckTAndDataTypeEquivalent<T>())
 	{
 		SetFromPointer(InArray.GetData(), sizeof(T), InArray.Num());
 	}
@@ -442,14 +442,14 @@ void FNeuralTensor::SetFromArrayCopy(const TArray<T>& InArray)
 template<typename T, typename TInput>
 void FNeuralTensor::SetTo(const TInput InValue)
 {
-	if (CheckTAndDataType<T>())
+	if (CheckTAndDataTypeEquivalent<T>())
 	{
 		std::fill(GetDataCasted<T>(), GetDataCasted<T>() + Num(), (T)InValue); // There is no UE equivalent for std::fill
 	}
 }
 
 template<typename T>
-bool FNeuralTensor::CheckTAndDataType() const
+bool FNeuralTensor::CheckTAndDataTypeEquivalent() const
 {
-	return CheckTAndDataTypeResult(FNeuralDataTypeUtils::CheckTAndDataType<T>(DataType), sizeof(T));
+	return CheckTAndDataTypeResult(FNeuralDataTypeUtils::GetDataType<T>() == DataType, sizeof(T));
 }

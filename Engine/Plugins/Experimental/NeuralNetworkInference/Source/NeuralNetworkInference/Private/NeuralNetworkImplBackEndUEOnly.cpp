@@ -87,7 +87,7 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 //	return (InOutImplBackEndUEOnly->Operators.Num() > 0 && InOutImplBackEndUEOnly->TensorManager.IsLoaded());
 //}
 
-void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType,
+void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, const ENeuralSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType,
 	const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 	// Run UNeuralNetwork::UEOnly
@@ -208,7 +208,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 					}
 
 					// Broadcast delegates (from the render thread)
-					if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
+					if (InSynchronousMode == ENeuralSynchronousMode::Asynchronous)
 					{
 						bIsBackgroundThreadRunning = true; // This will be done right away
 						GraphBuilder.AddPass(
@@ -227,7 +227,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 			);
 
 			// Block thread until GPU has finished
-			if (InSynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
+			if (InSynchronousMode == ENeuralSynchronousMode::Synchronous)
 			{
 				FNeuralNetworkInferenceUtils::WaitUntilRHIFinished();
 			}

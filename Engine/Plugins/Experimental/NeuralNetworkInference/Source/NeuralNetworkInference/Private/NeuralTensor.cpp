@@ -134,7 +134,7 @@ ENeuralDataType FPrivateNeuralTensor::GetDataTypeFromTensorProtoDataType(const E
 /* FNeuralTensor costructors
  *****************************************************************************/
 
-FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorTypeGPU)
 	: Name(InName)
 	, DataType(ENeuralDataType::None)
 	, TensorTypeGPU(InTensorTypeGPU)
@@ -144,12 +144,12 @@ FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const TArray<int6
 	SetNumUninitialized(InSizes, InDataType);
 }
 
-FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName, const ENeuralTensorType InTensorTypeGPU)
 	: FNeuralTensor(InDataType, InVolume > 0 ? TArray<int64>({ InVolume }) : TArray<int64>({}), InName, InTensorTypeGPU)
 {
 }
 
-FNeuralTensor::FNeuralTensor(const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+FNeuralTensor::FNeuralTensor(const FString& InName, const ENeuralTensorType InTensorTypeGPU)
 	: FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), InName, InTensorTypeGPU)
 {
 }
@@ -159,7 +159,7 @@ FNeuralTensor::FNeuralTensor(const FString& InName, const ENeuralTensorTypeGPU I
 /* FNeuralTensor private costructor
  *****************************************************************************/
 
-FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorTypeGPU)
 	: FNeuralTensor(InDataType, InSizes, InName, InTensorTypeGPU)
 {
 	// Sanity check
@@ -256,7 +256,7 @@ int64 FNeuralTensor::GetSize(const int32 InDimension) const
 	return (InDimension < GetNumberDimensions() ? Sizes[InDimension] : 1u);
 }
 
-void FNeuralTensor::SetTensorTypeGPU(const ENeuralTensorTypeGPU InTensorTypeGPU)
+void FNeuralTensor::SetTensorTypeGPU(const ENeuralTensorType InTensorTypeGPU)
 {
 	// Sanity check
 	if (PooledBuffer.IsValid() || BufferSRVRef.IsValid() || BufferUAVRef.IsValid())
@@ -281,32 +281,35 @@ void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder)
 	// - BUF_Volatile: Updated multiple times in a frame, but does not imply a lifetime of 1 frame. E.g. a vertex buffer you update every frame with new vertices.
 	// - BUF_Transient: Used during 1 frame. Volatile and transient are not mutually exclusive.
 	// - BUF_KeepCPUAccessible: Not needed, I can just copy the final GPU memory back to RAM at the very end
+	// - Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor fed into a ReLU, which simply modifies
+	//   the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory from CPU to GPU but rather simply allocates it.
+	// - Output might also become Intermediate(Not)Initialized (e.g., if Output -> ReLU -> Output), so it is kept as ReadWrite rather than written once to account for this.
 	// Call ToGPU_RenderThread with the right flags
-	if (TensorTypeGPU == ENeuralTensorTypeGPU::Generic)
+	if (TensorTypeGPU == ENeuralTensorType::Generic)
 	{
 		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, true);
 	}
-	else if (TensorTypeGPU == ENeuralTensorTypeGPU::Input)
+	else if (TensorTypeGPU == ENeuralTensorType::Input)
 	{
 		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, true);
 	}
-	else if (TensorTypeGPU == ENeuralTensorTypeGPU::IntermediateNotInitialized)
+	else if (TensorTypeGPU == ENeuralTensorType::IntermediateNotInitialized)
 	{
 		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess | BUF_Transient, false);
 	}
-	else if (TensorTypeGPU == ENeuralTensorTypeGPU::IntermediateInitialized)
+	else if (TensorTypeGPU == ENeuralTensorType::IntermediateInitialized)
 	{
 		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, true);
 	}
-	else if (TensorTypeGPU == ENeuralTensorTypeGPU::Output)
+	else if (TensorTypeGPU == ENeuralTensorType::Output)
 	{
 		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, false);
 	}
-	else if (TensorTypeGPU == ENeuralTensorTypeGPU::Weight)
+	else if (TensorTypeGPU == ENeuralTensorType::Weight)
 	{
 		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_Static, true);
 	}
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): Unimplemented TensorTypeGPU = %d. Assuming ENeuralTensorTypeGPU::Generic."), *Name, (int32)TensorTypeGPU);
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): Unimplemented TensorTypeGPU = %d. Assuming ENeuralTensorType::Generic."), *Name, (int32)TensorTypeGPU);
 	return ToGPU_RenderThread(InOutGraphBuilder, BUF_UnorderedAccess, true);
 }
 
@@ -335,7 +338,7 @@ void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBu
 	if (!PooledBuffer)
 	{
 		FRDGBufferDesc BufferDesc;
-		BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetSize(DataType);
+		BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetByteSize(DataType);
 		BufferDesc.NumElements = Num();
 		BufferDesc.Usage = InEBufferUsageFlags;
 		BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
@@ -441,7 +444,7 @@ bool FNeuralTensor::InitPooledBuffer(void** NativeResource)
 			FRDGBuilder Builder(RHICmdList);
 
 			FRDGBufferDesc BufferDesc;
-			BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetSize(DataType);
+			BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetByteSize(DataType);
 			BufferDesc.NumElements = Num();
 			BufferDesc.Usage = BUF_UnorderedAccess | BUF_ShaderResource;
 			BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
@@ -527,7 +530,7 @@ void FNeuralTensor::SetNumUninitialized(const TArray<int64>& InSizes, const ENeu
 	if (Sizes.Num() > 0)
 	{
 		Volume = FNeuralNetworkInferenceUtils::Product<int64>(Sizes);
-		const int64 VolumeInBytes = Volume * FNeuralDataTypeUtils::GetSize(DataType);
+		const int64 VolumeInBytes = Volume * FNeuralDataTypeUtils::GetByteSize(DataType);
 		if (VolumeInBytes != ArrayCPU.Num())
 		{
 			ArrayCPU.SetNumUninitialized(VolumeInBytes, bInAllowShrinking); // Pre-allocate TArray
@@ -551,7 +554,7 @@ void FNeuralTensor::SetFromUnderlyingUInt8ArrayCopy(const TArray<uint8>& InArray
 	ArrayCPU = InArray;
 }
 
-bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorType InTensorTypeGPU)
 {
 	if (!InTensorProto)
 	{
@@ -586,7 +589,7 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 		// }
 		// // Read neural tensor from binary data
 		// const FString BinaryWeightFilePath = InExternalDataDirectory / InTensorProto->ExternalData[0].Value;
-		// if (!FModelProtoFileReader::ReadWeightsFromOtxtBinaryFile((char*)GetData(), Num() * FNeuralDataTypeUtils::GetSize(NeuralDataType), BinaryWeightFilePath))
+		// if (!FModelProtoFileReader::ReadWeightsFromOtxtBinaryFile((char*)GetData(), Num() * FNeuralDataTypeUtils::GetByteSize(NeuralDataType), BinaryWeightFilePath))
 		// {
 		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): Could not read binary file: %s."), *BinaryWeightFilePath);
 		// 	return false;
@@ -619,7 +622,7 @@ bool FNeuralTensor::Flip(const int32 InDimension)
 	{
 		DimensionOffset *= Sizes[DimensionIndex];
 	}
-	const int64 BytesPerIndex = FNeuralDataTypeUtils::GetSize(DataType);
+	const int64 BytesPerIndex = FNeuralDataTypeUtils::GetByteSize(DataType);
 	const int64 DimensionOffsetInBytes = DimensionOffset * BytesPerIndex;
 
 	// Fill TensorNDIndexes and TensorNDSizes
@@ -703,7 +706,7 @@ bool FNeuralTensor::Transpose()
 			const uint8* const ArrayOnCPUPtr = ArrayCPU.GetData();
 			const int64 Height = Sizes[0];
 			const int64 Width = Sizes[1];
-			const int64 Bytes = FNeuralDataTypeUtils::GetSize(DataType);
+			const int64 Bytes = FNeuralDataTypeUtils::GetByteSize(DataType);
 			for (int64 Y = 0; Y < Height; ++Y)
 			{
 				for (int64 X = 0; X < Width; ++X)
@@ -753,12 +756,12 @@ FString FNeuralTensor::ToString(const int64 InMaxNumberElementsToDisplay, const 
 		TensorString += (Name.Len() > 0 ? Name : FString(TEXT("Unnamed FNeuralTensor"))) + TEXT(": ")
 			// DataType
 			+ FNeuralDataTypeUtils::ToString(DataType) + TEXT(", ")
-			+ (TensorTypeGPU == ENeuralTensorTypeGPU::Generic ? TEXT("Generic")
-				: TensorTypeGPU == ENeuralTensorTypeGPU::Input ? TEXT("Input")
-				: TensorTypeGPU == ENeuralTensorTypeGPU::IntermediateNotInitialized ? TEXT("IntermediateNotInitialized")
-				: TensorTypeGPU == ENeuralTensorTypeGPU::IntermediateInitialized ? TEXT("IntermediateInitialized")
-				: TensorTypeGPU == ENeuralTensorTypeGPU::Output ? TEXT("Output")
-				: TensorTypeGPU == ENeuralTensorTypeGPU::Weight ? TEXT("Weight")
+			+ (TensorTypeGPU == ENeuralTensorType::Generic ? TEXT("Generic")
+				: TensorTypeGPU == ENeuralTensorType::Input ? TEXT("Input")
+				: TensorTypeGPU == ENeuralTensorType::IntermediateNotInitialized ? TEXT("IntermediateNotInitialized")
+				: TensorTypeGPU == ENeuralTensorType::IntermediateInitialized ? TEXT("IntermediateInitialized")
+				: TensorTypeGPU == ENeuralTensorType::Output ? TEXT("Output")
+				: TensorTypeGPU == ENeuralTensorType::Weight ? TEXT("Weight")
 				: TEXT("Unknown"))
 			// Volume and sizes
 			+ TEXT(", volume=") + FString::FromInt(Num()) + TEXT(", sizes={");
@@ -880,15 +883,15 @@ void FNeuralTensor::SetFromPointer(const void* const InData, const int64 InSizeO
 
 bool FNeuralTensor::CheckTAndDataTypeResult(const bool bInCheckTAndDataTypeResult, const int64 InSizeOfT) const
 {
-	const int64 SizeOfDataType = FNeuralDataTypeUtils::GetSize(DataType);
+	const int64 ByteSizeOfDataType = FNeuralDataTypeUtils::GetByteSize(DataType);
 	if (!bInCheckTAndDataTypeResult)
 	{
 		const FString DataTypeString = FNeuralDataTypeUtils::ToString(DataType);
 		// sizeof(T) and DataType do not match
-		if (SizeOfDataType != InSizeOfT)
+		if (ByteSizeOfDataType != InSizeOfT)
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::CheckTAndDataTypeResult() failed: DataType = %s, but sizeof(%s) = %d != sizeof(T) = %d."),
-				*Name, *DataTypeString, *DataTypeString, SizeOfDataType, InSizeOfT);
+				*Name, *DataTypeString, *DataTypeString, ByteSizeOfDataType, InSizeOfT);
 		}
 		// sizeof(T) matches, but not the expected DataType
 		else

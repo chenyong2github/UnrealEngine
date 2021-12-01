@@ -235,7 +235,7 @@ UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::FNeuralNetworkAsy
 	: BackEnd(InBackEnd)
 {}
 
-void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::SetRunSessionArgs(const ENeuralNetworkSynchronousMode InSyncMode, const ENeuralDeviceType InDeviceType,
+void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::SetRunSessionArgs(const ENeuralSynchronousMode InSyncMode, const ENeuralDeviceType InDeviceType,
 	const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 	const FScopeLock ResourcesLock(&BackEnd->ResoucesCriticalSection);
@@ -248,7 +248,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::SetRunSessio
 void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::DoWork()
 {
 	const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
-	if (SyncMode == ENeuralNetworkSynchronousMode::Asynchronous)
+	if (SyncMode == ENeuralSynchronousMode::Asynchronous)
 	{
 		BackEnd->RunSessionAsync(DeviceType, InputDeviceType, OutputDeviceType);
 	}
@@ -264,7 +264,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::DoWork()
 /* FImplBackEndUEAndORT 'structors
  *****************************************************************************/
 
-UNeuralNetwork::FImplBackEndUEAndORT::FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InDelegateThreadMode,
+UNeuralNetwork::FImplBackEndUEAndORT::FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralThreadMode& InDelegateThreadMode,
 	FCriticalSection& InResoucesCriticalSection)
 #ifdef WITH_UE_AND_ORT_SUPPORT
 	: OnAsyncRunCompletedDelegate(InOutOnAsyncRunCompletedDelegate)
@@ -334,7 +334,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUSupported()
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT,
-	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection,
+	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection,
 	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath,
 	const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
@@ -421,7 +421,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 #endif //WITH_UE_AND_ORT_SUPPORT
 }
 
-void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType,
+void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType,
 	const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
@@ -433,11 +433,11 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMo
 		NeuralNetworkAsyncTask->GetTask().SetRunSessionArgs(InSynchronousMode, InDeviceType, InInputDeviceType, InOutputDeviceType);
 
 		// Run UNeuralNetwork
-		if (InSynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
+		if (InSynchronousMode == ENeuralSynchronousMode::Synchronous)
 		{
 			NeuralNetworkAsyncTask->StartSynchronousTask();
 		}
-		else if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
+		else if (InSynchronousMode == ENeuralSynchronousMode::Asynchronous)
 		{
 			NeuralNetworkAsyncTask->StartBackgroundTask(); // Alternative: (GThreadPool, EQueuedWorkPriority::Highest);
 		}
@@ -474,7 +474,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::EnsureAsyncTaskCompletion() const
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT,
-	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralNetworkDelegateThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection,
+	FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, ENeuralThreadMode& InOutDelegateThreadMode, FCriticalSection& InOutResoucesCriticalSection,
 	const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 {
 	// Initialize InOutImplBackEndUEAndORT
@@ -628,7 +628,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(TArray<FNeuralTensor
 	TArray<const char*> TensorNames;
 	TArray<ENeuralDataType> TensorDataTypes;
 	TArray<TArray<int64>> TensorSizes;
-	TArray<ENeuralTensorTypeGPU> TensorGPUTypes;
+	TArray<ENeuralTensorType> TensorGPUTypes;
 
 	const uint32 NumberTensors = bIsInput ? Session->GetInputCount() : Session->GetOutputCount();
 	if (OutAreInputTensorSizesVariable)
@@ -710,22 +710,22 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(TArray<FNeuralTensor
 		// @todo: Should caller specify tensor GPU type?
 		// Input/Output tensor GPU type means that data should not be copied from CPU
 		// Generic means that data is on the CPU and it will be copied to GPU
-		ENeuralTensorTypeGPU	TensorGPUType;
+		ENeuralTensorType TensorGPUType;
 
 		if (InDeviceType == ENeuralDeviceType::GPU)
 		{
 			if (bIsInput)
 			{
-				TensorGPUType = InInputDeviceType == ENeuralDeviceType::GPU ? ENeuralTensorTypeGPU::Input : ENeuralTensorTypeGPU::Generic;
+				TensorGPUType = InInputDeviceType == ENeuralDeviceType::GPU ? ENeuralTensorType::Input : ENeuralTensorType::Generic;
 			}
 			else
 			{
-				TensorGPUType = InOutputDeviceType == ENeuralDeviceType::GPU ? ENeuralTensorTypeGPU::Output : ENeuralTensorTypeGPU::Generic;
+				TensorGPUType = InOutputDeviceType == ENeuralDeviceType::GPU ? ENeuralTensorType::Output : ENeuralTensorType::Generic;
 			}
 		}
 		else
 		{
-			TensorGPUType = ENeuralTensorTypeGPU::Generic;
+			TensorGPUType = ENeuralTensorType::Generic;
 		}
 
 		TensorGPUTypes.Push(TensorGPUType);
@@ -737,7 +737,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(TArray<FNeuralTensor
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralTensor>& OutTensors, TArray<const char*>& InTensorNames,
-	TArray<ENeuralDataType>& InTensorDataTypes, TArray<TArray<int64>>& InSizes, TArray<ENeuralTensorTypeGPU>& InTensorGPUTypes, const bool bIsInput)
+	TArray<ENeuralDataType>& InTensorDataTypes, TArray<TArray<int64>>& InSizes, TArray<ENeuralTensorType>& InTensorGPUTypes, const bool bIsInput)
 {
 	const int32 TensorNumber = InTensorNames.Num();
 	if (InTensorDataTypes.Num() != TensorNumber || InSizes.Num() != TensorNumber)
@@ -801,14 +801,14 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 		}
 
 #ifdef PLATFORM_WIN64
-		if (InTensorGPUTypes[TensorIndex] == ENeuralTensorTypeGPU::Generic)
+		if (InTensorGPUTypes[TensorIndex] == ENeuralTensorType::Generic)
 		{
 			// Pre-allocate TArray (if size is different)
 			OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);
 			// Link tensor with ORT blob
 			LinkTensorToONNXRuntime(OutTensors, OrtTensors, *AllocatorInfo, TensorIndex);
 		}
-		else if (InTensorGPUTypes[TensorIndex] == ENeuralTensorTypeGPU::Input || InTensorGPUTypes[TensorIndex] == ENeuralTensorTypeGPU::Output)
+		else if (InTensorGPUTypes[TensorIndex] == ENeuralTensorType::Input || InTensorGPUTypes[TensorIndex] == ENeuralTensorType::Output)
 		{
 			// @todo: should we remove this? It's currently used to read memory from GPU to CPU
 			OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);
@@ -943,7 +943,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionAsync(const ENeuralDeviceTy
 	RunSessionImpl(InDeviceType, InInputDeviceType, InOutputDeviceType);
 
 	// Execute OnAsyncRunCompletedDelegate on main thread
-	if (DelegateThreadMode == ENeuralNetworkDelegateThreadMode::GameThread)
+	if (DelegateThreadMode == ENeuralThreadMode::GameThread)
 	{
 		if (OnAsyncRunCompletedDelegate.IsBound())
 		{
@@ -959,7 +959,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionAsync(const ENeuralDeviceTy
 			}
 		}
 	}
-	else if (DelegateThreadMode == ENeuralNetworkDelegateThreadMode::AnyThread)
+	else if (DelegateThreadMode == ENeuralThreadMode::AnyThread)
 	{
 		OnAsyncRunCompletedDelegate.ExecuteIfBound();
 	}
@@ -992,7 +992,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionImpl(const ENeuralDeviceTyp
 
 		for (auto& InputTensor : InputTensors)
 		{
-			if (InputTensor.GetTensorTypeGPU() != ENeuralTensorTypeGPU::Input)
+			if (InputTensor.GetTensorTypeGPU() != ENeuralTensorType::Input)
 				continue;
 
 			bNeedsGPUCopy = true;

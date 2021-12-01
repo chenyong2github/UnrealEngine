@@ -28,7 +28,7 @@ FConstantOperator::FConstantOperator(const FNodeProto* const InNodeProto)
 		if (ValueAttribute->Type == EAttributeProtoAttributeType::TENSOR)
 		{
 			// Get new tensor from TensorProto
-			if (!Tensor.SetFromTensorProto(&ValueAttribute->T, TEXT("FConstantOperator-") + ValueAttribute->Name, ENeuralTensorTypeGPU::Weight))
+			if (!Tensor.SetFromTensorProto(&ValueAttribute->T, TEXT("FConstantOperator-") + ValueAttribute->Name, ENeuralTensorType::Weight))
 			{
 				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FConstantOperator::FConstantOperator(): SetFromTensorProto() failed."));
 			}

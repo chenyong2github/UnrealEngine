@@ -7,108 +7,151 @@
 #include <type_traits>
 #include "NeuralEnumClasses.generated.h"
 
+/**
+ * It defines the data type (float, double, int32, etc.).
+ */
 UENUM()
 enum class ENeuralDataType : uint8
 {
-	Float,
-	//Double,
-	//Int8,
-	//Int16,
-	Int32,
-	Int64,
-	//UInt8,
-	UInt32,
-	UInt64,
-	None
-};
-
-UENUM()
-enum class ENeuralDeviceType : uint8
-{
-	CPU,
-	GPU,
-	None
+	Float, /* 32-bit floating number. */
+	//Double, /* 64-bit floating number. */
+	//Int8, /* 8-bit signed integer. */
+	//Int16, /* 16-bit signed integer. */
+	Int32, /* 32-bit signed integer. */
+	Int64, /* 64-bit signed integer. */
+	//UInt8, /* 8-bit unsigned integer. */
+	UInt32, /* 32-bit unsigned integer. */
+	UInt64, /* 64-bit unsigned integer. */
+	None /* To be used in special cases, e.g., if the data type is unknown yet. */
 };
 
 /**
- * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread,
- * not blocking the calling thread (Asynchronous).
+ * It defines in which device (CPU, GPU) the desired operation (e.g., the neural network inference) is run.
  */
 UENUM()
-enum class ENeuralNetworkSynchronousMode : uint8
+enum class ENeuralDeviceType : uint8
 {
-	Synchronous, /* UNeuralNetwork::Run() will block the thread until the network evaluation (i.e., forward pass) has finished. */
+	CPU, /* The operation will occur on the CPU. */
+	GPU /* The operation will occur on the GPU. */
+};
+
+/**
+ * Whether the operation (e.g., UNeuralNetwork::Run()) will run in the calling thread (Synchronous) or in a background thread (Asynchronous).
+ */
+UENUM()
+enum class ENeuralSynchronousMode : uint8
+{
 	/**
-	 * UNeuralNetwork::Run() will initialize a forward pass request on a background thread, not blocking the thread that called it.
-	 * The user should register to UNeuralNetwork's delegate to know when the forward pass has finished.
+	 * Safer and simpler to use.
+	 * The operation will run in the calling thread thus blocking that thread until completed.
+	 */
+	Synchronous,
+	/**
+	 * More complex but potentially more efficient.
+	 * The operation will initialize a compute request on a background thread and return before its completion, not blocking the calling thread that
+	 * called it.
+	 * The user should register to a delegate which will notify them when the operation has finished asynchronously
+	 * (e.g., UNeuralNetwork::GetOnAsyncRunCompletedDelegate() for asynchronous UNeuralNetwork::Run()).
 	 *
-	 * Very important: It takes ~1 millisecond to start the background thread. If your network runs synchronously faster than 1 msec,
-	 * using asynchronous running will make the game (main) thread slower than running it synchronously.
+	 * Very important: It takes ~1 millisecond to start the background thread. If your operation (e.g., your network inference time) runs
+	 * synchronously faster than 1-2 msec, using asynchronous is not recommended because it will slow down both the main and bakground threads.
 	 */
 	Asynchronous
 };
 
+/**
+ * The type of the neural tensor. E.g., a Weight tensor will be read-only and never modified, an Input tensor will be modified by the user, an
+ * IntermediateNotInitialized tensor will change on each frame, etc.
+ *
+ * Although conceptually this could apply to both the CPU and GPU versions, in practice only the GPU performance is affected by this setting so far.
+ */
 UENUM()
-enum class ENeuralNetworkDelegateThreadMode : uint8
+enum class ENeuralTensorType : uint8
 {
-	GameThread, /* Recommended and default value. The UNeuralNetwork delegate will be called from the game thread. */
 	/**
-	 * Not recommended, use at your own risk.
-	 * The UNeuralNetwork delegate could be called from any thread.
-	 * Running UClass functions from background threads is not safe (e.g., it might crash if the editor is closed while accessing UNeuralNetwork information).
-	 * Thus "AnyThread" is only safe if you have guarantees that the program will not be terminated while calling UNeuralNetwork functions.
+	 * Safe and generic tensor that works in every situation (e.g., ReadWrite, not volatile). However, it might not be the most efficient one for
+	 * most cases.
+	 */
+	Generic,
+	/**
+	 * Input tensor of a neural network, usually copied from the CPU and usually ReadOnly (but might be modified by in-place operators like ReLU).
+	 */
+	Input,
+	/**
+	 * Intermediate tensor of a neural network (output of at least a layer and input of at least some other layer). Not copied from CPU, ReadWrite,
+	 * and transient.
+	 */
+	IntermediateNotInitialized,
+	/**
+	 * Intermediate tensor that is initialized with CPU data (e.g., XWithZeros in FConvTranpose). Copied from CPU.
+	 */
+	IntermediateInitialized,
+	/**
+	 * Output tensor of a neural network. Not copied from CPU and ReadWrite.
+	 */
+	Output,
+	/**
+	 * Weights of a particular operator/layer. Copied from CPU, ReadOnly, and initialized from CPU memory.
+	 */
+	Weight
+};
+
+/**
+ * After an asynchronous operation has finished, whether the callback functions tied to the delegate will be called from the game/main thread (highly
+ * recommended) or from any thread (not fully Unreal safe).
+ * This enum class is only useful for the case of ENeuralSynchronousMode::Asynchronous.
+ */
+UENUM()
+enum class ENeuralThreadMode : uint8
+{
+	/**
+	 * Highly recommended and default value. The callback functions tied to the delegate will be called from the game/main thread.
+	 */
+	GameThread,
+	/**
+	 * Not recommended, use at your own risk (potentially more efficient than GameThread but not UE-safe in all cases).
+	 * The callback functions tied to the delegate will be called from the same thread at which the operation was asynchronously computed, thus this
+	 * could happen from any thread.
+	 *
+	 * Main issue: U-classes (e.g., UNeuralNetwork) should not be used from non-game threads because it is not safe and could lead to issues/crashes
+	 * if not properly handled by the user.
+	 * E.g., the GC does not work from non-game threads so it might crash if the editor/UE is closed while accessing UNeuralNetwork information from
+	 * the callback function.
+	 *
+	 * Thus "AnyThread" is only safe if you have guarantees that your case is fully U-class safe. E.g., the program will not be terminated while
+	 * calling the callback function.
 	 */
 	AnyThread
 };
 
 
-/**
- * Although conceptually this could apply to both the CPU and GPU versions, in practice only the GPU performance is affected by this setting.
- * Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor fed into a ReLU, which simply modifies
- * the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory from CPU to GPU but rather simply allocates it.
- * Output might also become Intermediate(Not)Initialized (e.g., if Output -> ReLU -> Output), so it is kept as ReadWrite rather than written once to account for this.
- */
-UENUM()
-enum class ENeuralTensorTypeGPU : uint8
-{
-	Generic,					/** Generic tensor that works in every situation (ReadWrite), although it might not be the most efficient one. */
-	Input,						/** Input tensor of the UNeuralNetworkLegacy. Copied from CPU and ReadWrite (but usually ReadOnly). */
-	IntermediateNotInitialized,	/** Intermediate tensor of the UNeuralNetworkLegacy (output of at least a layer and input of at least some other layer). Not copied from CPU, ReadWrite, and transient. */
-	IntermediateInitialized,	/** Intermediate tensor that is initialized with CPU data (e.g., XWithZeros in FConvTranpose). Copied from CPU. */
-	Output,						/** Output tensor of the UNeuralNetworkLegacy. Not copied from CPU and ReadWrite. */
-	Weight						/** Weights of a particular operator/layer. Copied from CPU, ReadOnly, and initialized from CPU memory. */
-};
-
-
 
 /**
- * Auxiliary utils class for ENeuralDataType
+ * Auxiliary class consisting of static and auxiliary functions for ENeuralDataType.
  */
-
 class NEURALNETWORKINFERENCE_API FNeuralDataTypeUtils
 {
 public:
-	static FString ToString(const ENeuralDataType InDataType);
-	static int64 GetSize(const ENeuralDataType InDataType);
-	static EPixelFormat GetPixelFormat(const ENeuralDataType InDataType);
-
 	/**
-	 * It checks whether T and InDataType are the same type. E.g.,
-	 * checkf(CheckTAndDataType<float>(), TEXT("Expected a ENeuralDataType::Float type."));
+	 * It returns the byte size of the input ENeuralDataType (e.g., 4 for ENeuralDataType::Float or ENeuralDataType::Int32).
 	 */
-	template <typename T>
-	static bool CheckTAndDataType(const ENeuralDataType InDataType)
-	{
-		return InDataType == GetDataType<T>();
-	}
+	static int64 GetByteSize(const ENeuralDataType InDataType);
 
 	/**
-	 * It gets the data type from the type T. E.g.,
-	 * checkf(InDataType == GetDataType<float>(), TEXT("InDataType == GetDataType<float>() failed!"))
-	 * FNeuralTensor(FNeuralDataTypeUtils::GetDataType<T>(), InArray.GetData(), ...)
+	 * It returns the data type from the type T (e.g., ENeuralDataType::Float for GetDataType<float>()).
 	 */
 	template <typename T>
 	static ENeuralDataType GetDataType();
+
+	/**
+	 * It returns the pixel format of the input ENeuralDataType (e.g., EPixelFormat::PF_R32_FLOAT for ENeuralDataType::Float or "PF_R32_SINT" for Int32).
+	 */
+	static EPixelFormat GetPixelFormat(const ENeuralDataType InDataType);
+
+	/**
+	 * It returns the FString name of the input ENeuralDataType (e.g., "Float" for ENeuralDataType::Float).
+	 */
+	static FString ToString(const ENeuralDataType InDataType);
 };
 
 

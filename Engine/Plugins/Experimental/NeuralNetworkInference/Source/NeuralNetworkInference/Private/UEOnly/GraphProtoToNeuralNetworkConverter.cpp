@@ -80,7 +80,7 @@ bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOpe
 			NameIndexMap.Add(GraphProtoInput.Name, Tensors.Num());
 			InputNameIndexMap.Add(GraphProtoInput.Name, Tensors.Num());
 			// Add tensor to TMap
-			Tensors.Emplace(FNeuralTensor(ENeuralDataType::Float, DimensionsAsTArray, GraphProtoInput.Name, ENeuralTensorTypeGPU::Input));
+			Tensors.Emplace(FNeuralTensor(ENeuralDataType::Float, DimensionsAsTArray, GraphProtoInput.Name, ENeuralTensorType::Input));
 		}
 
 		// Read output tensor names (but do not create them yet, it has to happen simultaneously with the operator creation and tensor inlining)
@@ -176,7 +176,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				// 	FPaths::Split(InModelPath, PathPart, FilenamePart, ExtensionPart);
 				// }
 				// Get NewTensor from TensorProto
-				if (!NewTensor.SetFromTensorProto(&TensorProto, InputTensorName, ENeuralTensorTypeGPU::Weight/*, PathPart*/))
+				if (!NewTensor.SetFromTensorProto(&TensorProto, InputTensorName, ENeuralTensorType::Weight/*, PathPart*/))
 				{
 					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): SetFromTensorProto() failed."));
 					return false;
@@ -224,7 +224,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				}
 				// Create tensor
 				InOutNameIndexMap.Add(OutputTensorName, TensorIndex);
-				InOutTensors.Push(FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), OutputTensorName, ENeuralTensorTypeGPU::Weight));
+				InOutTensors.Push(FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), OutputTensorName, ENeuralTensorType::Weight));
 
 				// Create constant operator layer and get final tensor value
 				FConstantOperator ConstantOperator(&NodeProto);
@@ -253,7 +253,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			{
 				UE_LOG(LogNeuralNetworkInference, Display, TEXT("Flipping FConvTranspose weights. This is a temporary measurement but it will keep the weights flipped for now."));
 				// Sanity check
-				if (OperatorInputTensors.Num() > 1 && OperatorInputTensors[1]->GetTensorTypeGPU() != ENeuralTensorTypeGPU::Weight)
+				if (OperatorInputTensors.Num() > 1 && OperatorInputTensors[1]->GetTensorTypeGPU() != ENeuralTensorType::Weight)
 				{
 					UE_LOG(LogNeuralNetworkInference, Warning,
 						TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): For now, %s operators require a constant InputTensor[0] (i.e., a fixed weight tensor), it cannot change."), *NodeProto.OperatorType);
@@ -314,7 +314,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 						if (InOutputNameDummyIndexMap.Find(OutputTensorName))
 						{
 							OutputNameIndexMap.Add(OutputTensorName, *ExistingTensorIndex);
-							InOutTensors[*ExistingTensorIndex].SetTensorTypeGPU(ENeuralTensorTypeGPU::Output);
+							InOutTensors[*ExistingTensorIndex].SetTensorTypeGPU(ENeuralTensorType::Output);
 						}
 					}
 					// Subcases 2 and 3: FNeuralTensor not found, it must be defined now (i.e., intermediate tensor of the UNeuralNetworkLegacy)
@@ -323,11 +323,11 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 					{
 						// Is it also an absolute output of the network?
 						const int64 TensorIndex = InOutTensors.Num();
-						ENeuralTensorTypeGPU TensorTypeGPU = ENeuralTensorTypeGPU::IntermediateNotInitialized;
+						ENeuralTensorType TensorTypeGPU = ENeuralTensorType::IntermediateNotInitialized;
 						if (InOutputNameDummyIndexMap.Find(OutputTensorName))
 						{
 							OutputNameIndexMap.Add(OutputTensorName, TensorIndex);
-							TensorTypeGPU = ENeuralTensorTypeGPU::Output;
+							TensorTypeGPU = ENeuralTensorType::Output;
 						}
 						// Create tensor
 						InOutNameIndexMap.Add(OutputTensorName, TensorIndex);
@@ -352,7 +352,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 						if (InOutputNameDummyIndexMap.Find(OutputTensorName))
 						{
 							OutputNameIndexMap.Add(OutputTensorName, InlinedTensorGlobalIndex);
-							InOutTensors[InlinedTensorGlobalIndex].SetTensorTypeGPU(ENeuralTensorTypeGPU::Output);
+							InOutTensors[InlinedTensorGlobalIndex].SetTensorTypeGPU(ENeuralTensorType::Output);
 						}
 					}
 				}
@@ -396,7 +396,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 						}
 						// Create and push new auxiliary tensor
 						InOutNameIndexMap.Add(AuxiliaryTensorName, InOutTensors.Num());
-						InOutTensors.Push(FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), AuxiliaryTensorName, ENeuralTensorTypeGPU::Generic)); // ENeuralTensorTypeGPU can be modify by FNeuralOperator::Configure()
+						InOutTensors.Push(FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), AuxiliaryTensorName, ENeuralTensorType::Generic)); // ENeuralTensorType can be modify by FNeuralOperator::Configure()
 						AuxiliaryOperatorTensors.Push(&InOutTensors.Last());
 					}
 				}

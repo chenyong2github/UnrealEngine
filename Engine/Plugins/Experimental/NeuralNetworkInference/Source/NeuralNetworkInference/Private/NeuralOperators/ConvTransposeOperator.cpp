@@ -456,7 +456,7 @@ bool FConvTransposeOperator::SetAndConfigureAuxiliaryTensor()
 		// Initialize XWithZeros
 		XWithZeros.SetNumUninitialized(XWithZerosSizes, X.GetDataType());
 		XWithZeros.SetTo<float>(0.f);
-		XWithZeros.SetTensorTypeGPU(ENeuralTensorTypeGPU::IntermediateInitialized);
+		XWithZeros.SetTensorTypeGPU(ENeuralTensorType::IntermediateInitialized);
 		// Set XSizesForGPU
 		XSizesForGPU.Copy(X.GetSizes());
 	}
