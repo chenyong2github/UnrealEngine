@@ -476,7 +476,13 @@ namespace LLMPrivate
 }
 }
 
-static FName TagName_CustomName(TEXT("CustomName"));
+static FName GetTagName_CustomName()
+{
+	// This FName can be read before c++ global constructors are complete, by LLM_SCOPE_BY_BOOTSTRAP_TAG
+	// so it needs to be a function static rather than a global.
+	static FName TagName_CustomName(TEXT("CustomName"));
+	return TagName_CustomName;
+}
 static FName TagName_Untagged(TEXT("Untagged"));
 
 FName LLMGetTagUniqueName(ELLMTag Tag)
@@ -1455,7 +1461,7 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 		LLMCheck(DisplayName.IsNone());
 		LLMCheck(ParentName.IsNone());
 		DisplayName = Name;
-		ParentName = TagName_CustomName;
+		ParentName = GetTagName_CustomName();
 
 		const TCHAR* Start = FCString::Strstr(NameBuffer.ToString(), TEXT("///"));
 		if (Start)
@@ -1500,7 +1506,7 @@ UE::LLMPrivate::FTagData& FLowLevelMemTracker::RegisterTagData(FName Name, FName
 		}
 		else if (ParentName.IsNone())
 		{
-			ParentName = TagName_CustomName;
+			ParentName = GetTagName_CustomName();
 		}
 
 		// Display name is set to the leaf /Name portion of the unique name, and is overridden if DisplayName is provided
@@ -1623,7 +1629,7 @@ void FLowLevelMemTracker::FinishConstruct(UE::LLMPrivate::FTagData* TagData, UE:
 				TagDataLock.ReadUnlock();
 				UE_LOG(LogHAL, Error, TEXT("LLM Parent tag %s was not available when child tag %s was used in %s"), *ParentName.ToString(), *TagData->GetName().ToString(), ToString(ReferenceSource));
 				TagDataLock.ReadLock();
-				ParentDataPtr = TagDataNameMap->Find(TagName_CustomName);
+				ParentDataPtr = TagDataNameMap->Find(GetTagName_CustomName());
 				LLMCheck(ParentDataPtr);
 			}
 			FTagData* ParentData = *ParentDataPtr;
