@@ -224,6 +224,21 @@ bool UFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 }
 
+
+bool UFractureEditorMode::InputAxis(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime)
+{
+	// Disable the CTRL+drag behavior of the level editor (translate/rotate the selected object along an axis), since it can easily result in 
+	// unintentionally moving objects while CTRL-clicking to select/deselect
+
+	bool bCtrlDown = InViewport->KeyState(EKeys::LeftControl) || InViewport->KeyState(EKeys::RightControl);
+	if (bCtrlDown)
+	{
+		return true;
+	}
+	return UBaseLegacyWidgetEdMode::InputAxis(InViewportClient, InViewport, ControllerId, Key, Delta, DeltaTime);
+}
+
+
 bool UFractureEditorMode::BoxSelect(FBox& InBox, bool InSelect /*= true*/)
 {
 	FConvexVolume BoxVolume(GetVolumeFromBox(InBox));

@@ -46,6 +46,9 @@ public:
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
 	// End of UEdMode interface
 
+	// ILegacyEdModeViewportInterface
+	virtual bool InputAxis(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime) override;
+
 	// ILegacyEdModeSelectInterface
 	virtual bool BoxSelect(FBox& InBox, bool InSelect = true) override;
 	virtual bool FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect) override;
