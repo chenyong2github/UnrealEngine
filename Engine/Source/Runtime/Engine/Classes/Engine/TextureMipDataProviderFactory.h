@@ -33,4 +33,10 @@ public:
 	* @param InAsset - the texture on which the stream in operation will be performed.
 	*/
 	virtual FTextureMipDataProvider* AllocateMipDataProvider(UTexture* Asset) { return nullptr; }
+
+	/**
+	* Returns true if TextureMipDataProviders allocated by this factory can provide MipData by themselves,
+	* even without loading from disk at all, so streaming can be enabled for their textures.
+	*/
+	virtual bool WillProvideMipDataWithoutDisk() const { return false; }
 };
