@@ -4,13 +4,21 @@
 
 #include "InteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
+#include "InteractiveToolObjects.h"
 #include "ContextObjectStore.h"
 
+#include "Scene/SceneGeometrySpatialCache.h"
+
 #include "Engine/World.h"
+#include "GameFramework/Actor.h"
+#include "EngineUtils.h" // for TActorIterator<>
 #include "Engine/StaticMesh.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/DynamicMeshComponent.h"
+#include "UObject/UObjectGlobals.h"
 
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USceneSnappingManager"
 
@@ -71,11 +79,189 @@ void UModelingSceneSnappingManager::Initialize(TObjectPtr<UInteractiveToolsConte
 
 	QueriesAPI = (ParentContext && ParentContext->ToolManager) ?
 		ParentContext->ToolManager->GetContextQueriesAPI() : nullptr;
+
+	SpatialCache = MakeShared<FSceneGeometrySpatialCache>();
+
+#if WITH_EDITOR
+	OnObjectModifiedHandler = FCoreUObjectDelegates::OnObjectModified.AddLambda([this](UObject* Object) { 
+		HandleGlobalObjectModifiedDelegate(Object);
+	});
+
+	if (GEngine)
+	{
+		OnComponentTransformChangedHandle = GEngine->OnComponentTransformChanged().AddLambda([this](USceneComponent* Component, ETeleportType) {
+			HandleGlobalComponentTransformChangedDelegate(Component);
+		});
+	}
+#endif
 }
 
 void UModelingSceneSnappingManager::Shutdown()
 {
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectModified.Remove(OnObjectModifiedHandler);
 
+	if (GEngine)
+	{
+		GEngine->OnComponentTransformChanged().Remove(OnComponentTransformChangedHandle);
+	}
+#endif
+}
+
+
+bool UModelingSceneSnappingManager::IsComponentTypeSupported(const UPrimitiveComponent* Component) const
+{
+	// supported types
+	return ( Cast<UStaticMeshComponent>(Component) != nullptr ||
+			 Cast<UBrushComponent>(Component) != nullptr ||
+			 Cast<UDynamicMeshComponent>(Component) != nullptr );
+}
+
+void UModelingSceneSnappingManager::OnActorAdded(AActor* Actor, TFunctionRef<bool(UPrimitiveComponent*)> PrimitiveFilter)
+{
+	// TODO: additional filtering here?
+
+	// ignore internal tool framework Actors
+	if (Cast<AInternalToolFrameworkActor>(Actor) != nullptr)
+	{
+		return;
+	}
+
+	TArray<AActor*> AllActors;
+	Actor->GetAllChildActors(AllActors, true);
+	AllActors.Add(Actor);
+	for (AActor* ProcessActor : AllActors)
+	{
+		for (UActorComponent* Component : ProcessActor->GetComponents())
+		{
+			UPrimitiveComponent* PrimComponent = Cast<UPrimitiveComponent>(Component);
+			if (PrimComponent && PrimitiveFilter(PrimComponent) )
+			{
+				OnComponentAdded(PrimComponent);
+			}
+		}
+	}
+}
+
+void UModelingSceneSnappingManager::OnActorRemoved(AActor* Actor)
+{
+	// cannot assume actor is still valid...
+	TArray<UPrimitiveComponent*> ToRemove;
+	for (TPair<UPrimitiveComponent*, AActor*> Pair : ComponentToActorMap)
+	{
+		if (Pair.Value == Actor)
+		{
+			ToRemove.Add(Pair.Key);
+		}
+	}
+	for (UPrimitiveComponent* Component : ToRemove)
+	{
+		OnComponentRemoved(Component);
+	}
+}
+
+void UModelingSceneSnappingManager::OnComponentAdded(UPrimitiveComponent* Component)
+{
+	if (Component->GetOwner() == nullptr)
+	{
+		return;
+	}
+	if (IsComponentTypeSupported(Component) == false)
+	{
+		return;
+	}
+
+	UE::Geometry::FSceneGeometryID GeometryID;
+	SpatialCache->EnableComponentTracking(Component, GeometryID);
+
+	ComponentToActorMap.Add(Component, Component->GetOwner());
+
+	// UDynamicMeshComponent gets special treatment because it has an explicit mesh-modified handler
+	// we can rely on to detect geometry changes
+	if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		DynamicMeshComponent->OnMeshChanged.AddUObject(this, &UModelingSceneSnappingManager::HandleDynamicMeshModifiedDelegate, DynamicMeshComponent);
+
+		DynamicMeshComponents.Add(DynamicMeshComponent, TWeakObjectPtr<UDynamicMeshComponent>(DynamicMeshComponent) );
+	}
+
+}
+
+void UModelingSceneSnappingManager::OnComponentRemoved(UPrimitiveComponent* Component)
+{
+	SpatialCache->DisableComponentTracking(Component);
+	ComponentToActorMap.Remove(Component);
+
+	// If this is a DynamicMeshComponent, we want to stop listening to mesh change events, but
+	// we need to make sure it is still alive first.
+	TWeakObjectPtr<UDynamicMeshComponent>* FoundDynamicMesh = DynamicMeshComponents.Find(Component);
+	if (FoundDynamicMesh != nullptr)
+	{
+		if (FoundDynamicMesh->IsValid())
+		{
+			UDynamicMeshComponent* DynamicMeshComponent = FoundDynamicMesh->Get();
+			DynamicMeshComponent->OnMeshChanged.RemoveAll(this);
+		}
+
+		DynamicMeshComponents.Remove(Component);
+	}
+}
+
+
+void UModelingSceneSnappingManager::HandleGlobalObjectModifiedDelegate(UObject* Object)
+{
+	if (Cast<UDynamicMeshComponent>(Object))
+	{
+		return;		// have special-case handling
+	}
+
+	UPrimitiveComponent* PrimComponent = Cast<UPrimitiveComponent>(Object);
+	if (PrimComponent)
+	{
+		OnComponentModified(PrimComponent);
+	}
+}
+
+void UModelingSceneSnappingManager::OnComponentModified(UActorComponent* Component)
+{
+	const bool bDeferRebuild = false;
+	UPrimitiveComponent* PrimComponent = Cast<UPrimitiveComponent>(Component);
+	if (PrimComponent)
+	{
+		SpatialCache->NotifyGeometryUpdate(PrimComponent, bDeferRebuild);
+	}
+}
+
+
+void UModelingSceneSnappingManager::HandleGlobalComponentTransformChangedDelegate(USceneComponent* Component)
+{
+	UPrimitiveComponent* PrimComponent = Cast<UPrimitiveComponent>(Component);
+	if (PrimComponent && ComponentToActorMap.Contains(PrimComponent))
+	{
+		SpatialCache->NotifyTransformUpdate(PrimComponent);
+	}
+}
+
+
+void UModelingSceneSnappingManager::HandleDynamicMeshModifiedDelegate(UDynamicMeshComponent* Component)
+{
+	const bool bDeferRebuild = false;
+	SpatialCache->NotifyGeometryUpdate(Component, bDeferRebuild);
+}
+
+
+void UModelingSceneSnappingManager::BuildSpatialCacheForWorld(
+	UWorld* World,
+	TFunctionRef<bool(AActor*)> ActorFilter,
+	TFunctionRef<bool(UPrimitiveComponent*)> PrimitiveFilter)
+{
+	for ( TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
+	{
+		if (ActorFilter(*ActorItr))
+		{
+			OnActorAdded(*ActorItr, PrimitiveFilter);
+		}
+	}
 }
 
 
@@ -122,51 +308,26 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryRotation(const FSceneSn
 
 
 
-static bool IsHiddenActor(AActor* Actor)
-{
-#if WITH_EDITOR
-	return (Actor != nullptr) && ( Actor->IsHidden() || Actor->IsHiddenEd() );
-#else
-	return (Actor != nullptr) && ( Actor->IsHidden() );
-#endif
-}
-
-static bool IsHiddenComponent(UPrimitiveComponent* Component)
-{
-#if WITH_EDITOR
-	return (Component != nullptr) && ( (Component->IsVisible() == false) || (Component->IsVisibleInEditor() == false) );
-#else
-	return (Component != nullptr) && (Component->IsVisible() == false);
-#endif
-}
 
 
-static bool IsVisibleObjectHit_Internal(const FHitResult& HitResult)
-{
-	AActor* Actor = HitResult.GetActor();
-	if (IsHiddenActor(Actor))
-	{
-		return false;
-	}
-	UPrimitiveComponent* Component = HitResult.GetComponent();
-	if ( IsHiddenComponent(Component) )
-	{
-		return false;
-	}
-	return true;
-}
-
-static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
-	bool bIsSceneGeometrySnapQuery, const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, 
-	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
+static bool FindNearestVisibleObjectHit_Internal(
+	UWorld* World, 
+	FHitResult& HitResultOut, 
+	const FRay3d& Ray,
+	bool bIsSceneGeometrySnapQuery, 
+	const FSceneQueryVisibilityFilter& VisibilityFilter,
+	UE::Geometry::FSceneGeometrySpatialCache* SpatialCache)
 {
 	FCollisionObjectQueryParams ObjectQueryParams(FCollisionObjectQueryParams::AllObjects);
 	FCollisionQueryParams QueryParams = FCollisionQueryParams::DefaultQueryParam;
 	QueryParams.bTraceComplex = true;
 	QueryParams.bReturnFaceIndex = bIsSceneGeometrySnapQuery;
 
+	// TODO: QueryParams.AddIgnoredComponents ?
+
 	TArray<FHitResult> OutHits;
-	if (World->LineTraceMultiByObjectType(OutHits, Start, End, ObjectQueryParams, QueryParams) == false)
+	FVector RayEnd = (FVector)(Ray.PointAt(HALF_WORLD_MAX));
+	if (World->LineTraceMultiByObjectType(OutHits, (FVector)Ray.Origin, RayEnd, ObjectQueryParams, QueryParams) == false)
 	{
 		return false;
 	}
@@ -174,23 +335,122 @@ static bool FindNearestVisibleObjectHit_Internal(UWorld* World, FHitResult& HitR
 	float NearestVisible = TNumericLimits<float>::Max();
 	for (const FHitResult& CurResult : OutHits)
 	{
-		if (CurResult.Distance < NearestVisible)
+		// if we have hit Component in the SpatialCache, prefer to use that
+		if (SpatialCache && SpatialCache->HaveCacheForComponent(CurResult.GetComponent()) )
 		{
-			if (IsVisibleObjectHit_Internal(CurResult) 
-				|| (InvisibleComponentsToInclude && InvisibleComponentsToInclude->Contains(CurResult.GetComponent())))
-			{
-				if (!ComponentsToIgnore || !ComponentsToIgnore->Contains(CurResult.GetComponent()))
-				{
-					HitResultOut = CurResult;
-					NearestVisible = CurResult.Distance;
-				}
-			}
+			continue;
+		}
+
+		if (CurResult.Distance < NearestVisible && VisibilityFilter.IsVisible(CurResult.Component.Get()) )
+		{
+			HitResultOut = CurResult;
+			NearestVisible = CurResult.Distance;
 		}
 	}
 
 	return NearestVisible < TNumericLimits<float>::Max();
 }
 
+
+template<typename VectorType>
+bool GetComponentHitTriangle_Internal(FHitResult HitResult, VectorType* TriVertices)
+{
+	if (HitResult.Component.IsValid() == false || HitResult.FaceIndex < 0)
+	{
+		return false;
+	}
+
+	if (UPrimitiveComponent* Component = HitResult.Component.Get())
+	{
+		// physics collision data is created from StaticMesh RenderData
+		// so use HitResult.FaceIndex to extract triangle from the LOD0 mesh
+		// (note: this may be incorrect if there are multiple sections...in that case I think we have to
+		//  first find section whose accumulated index range would contain .FaceIndexX)
+		UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
+		FStaticMeshLODResources& LOD = StaticMesh->GetRenderData()->LODResources[0];
+		FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
+		int32 TriIdx = 3 * HitResult.FaceIndex;
+		FVector Positions[3];
+		Positions[0] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx]);
+		Positions[1] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx + 1]);
+		Positions[2] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx + 2]);
+
+		// transform to world space
+		FTransform ComponentTransform = Component->GetComponentTransform();
+		Positions[0] = ComponentTransform.TransformPosition(Positions[0]);
+		Positions[1] = ComponentTransform.TransformPosition(Positions[1]);
+		Positions[2] = ComponentTransform.TransformPosition(Positions[2]);
+
+		TriVertices[0] = (VectorType)Positions[0];
+		TriVertices[1] = (VectorType)Positions[1];
+		TriVertices[2] = (VectorType)Positions[2];
+		return true;
+	}
+
+	return false;
+}
+
+
+
+
+bool UModelingSceneSnappingManager::ExecuteSceneHitQuery(const FSceneHitQueryRequest& Request, FSceneHitQueryResult& ResultOut) const
+{
+	if (!QueriesAPI)
+	{
+		return false;
+	}
+
+	FRay3d WorldRay(Request.WorldRay);
+
+	double MinCurrentHitDist = TNumericLimits<double>::Max();
+
+	FViewCameraState ViewState;
+	QueriesAPI->GetCurrentViewState(ViewState);
+
+	FSceneGeometryPoint HitPoint;
+	FSceneGeometryID HitIdentifier;
+	bool bHitSceneCache = SpatialCache->FindNearestHit(WorldRay, HitPoint, HitIdentifier, &Request.VisibilityFilter );
+	if (bHitSceneCache)
+	{
+		FVector3d A, B, C;
+		SpatialCache->GetGeometry(HitIdentifier, HitPoint.GeometryType, HitPoint.GeometryIndex, true, A, B, C);
+		MinCurrentHitDist = HitPoint.RayDistance;
+		ResultOut.TargetActor = HitPoint.Actor;
+		ResultOut.TargetComponent = HitPoint.Component;
+		ResultOut.HitTriIndex = HitPoint.GeometryIndex;
+		ResultOut.Position = HitPoint.WorldPoint;
+		ResultOut.Normal = VectorUtil::Normal(A, B, C);
+		ResultOut.TriVertices[0] = A;
+		ResultOut.TriVertices[1] = B;
+		ResultOut.TriVertices[2] = C;
+
+		ResultOut.InitializeHitResult(Request);
+	}
+
+
+	FHitResult HitResult;
+	bool bHitWorld = FindNearestVisibleObjectHit_Internal(
+		QueriesAPI->GetCurrentEditingWorld(), 
+		HitResult, WorldRay, 
+		true, Request.VisibilityFilter, SpatialCache.Get());
+
+	if (bHitWorld && HitResult.Distance < MinCurrentHitDist )
+	{
+		MinCurrentHitDist =  HitResult.Distance;
+		ResultOut.TargetActor = HitResult.GetActor();
+		ResultOut.TargetComponent = HitResult.GetComponent();
+		ResultOut.HitTriIndex = HitResult.FaceIndex;
+		ResultOut.Position = (FVector3d)HitResult.Location;
+		ResultOut.Normal = (FVector3d)HitResult.Normal;
+		ResultOut.HitResult = HitResult;
+		if (Request.bWantHitGeometryInfo)
+		{ 
+			GetComponentHitTriangle_Internal<FVector3d>(HitResult, ResultOut.TriVertices);
+		}
+	}
+
+	return (MinCurrentHitDist < TNumericLimits<double>::Max());
+}
 
 
 
@@ -232,99 +492,138 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 	// If a hit is found, we look up what triangle was hit, and then test its vertices and edges
 	//
 
+
+	// try snapping to vertices
+	auto TrySnapToVertex = [](const FSceneSnapQueryRequest& RequestIn, const FRay3d& WorldRay, FSceneSnapQueryResult& SnapResult, double& SmallestSnapAngle)
+	{
+		if ((RequestIn.TargetTypes & ESceneSnapQueryTargetType::MeshVertex) != ESceneSnapQueryTargetType::None)
+		{
+			for (int j = 0; j < 3; ++j)
+			{
+				double VisualAngle = OpeningAngleDeg(RequestIn.Position, SnapResult.TriVertices[j], (FVector)WorldRay.Origin);
+				if (VisualAngle < SmallestSnapAngle)
+				{
+					SmallestSnapAngle = VisualAngle;
+					SnapResult.Position = SnapResult.TriVertices[j];
+					SnapResult.TargetType = ESceneSnapQueryTargetType::MeshVertex;
+					SnapResult.TriSnapIndex = j;
+				}
+			}
+		}
+	};
+
+
+	auto TrySnapToEdge = [](const FSceneSnapQueryRequest& RequestIn, const FRay3d& WorldRay, FSceneSnapQueryResult& SnapResult, double& SmallestSnapAngle)
+	{
+		if ( ((RequestIn.TargetTypes & ESceneSnapQueryTargetType::MeshEdge) != ESceneSnapQueryTargetType::None) &&
+			  (SnapResult.TargetType != ESceneSnapQueryTargetType::MeshVertex) )
+		{
+			for (int j = 0; j < 3; ++j)
+			{
+				FVector EdgeNearestPt = NearestSegmentPt(SnapResult.TriVertices[j], SnapResult.TriVertices[(j+1)%3], RequestIn.Position);
+				double VisualAngle = OpeningAngleDeg(RequestIn.Position, EdgeNearestPt, (FVector)WorldRay.Origin);
+				if (VisualAngle < SmallestSnapAngle )
+				{
+					SmallestSnapAngle = VisualAngle;
+					SnapResult.Position = EdgeNearestPt;
+					SnapResult.TargetType = ESceneSnapQueryTargetType::MeshEdge;
+					SnapResult.TriSnapIndex = j;
+				}
+			}
+		}
+	};
+
+
+	FVector3d RayStart = (FVector3d)ViewState.Position;
+	FVector3d RayDirection = (FVector3d)Request.Position - RayStart;
+	FRay3d WorldRay(RayStart, Normalized(RayDirection));
+
+	FSceneQueryVisibilityFilter TmpFilter;
+	TmpFilter.ComponentsToIgnore = Request.ComponentsToIgnore;
+	TmpFilter.InvisibleComponentsToInclude = Request.InvisibleComponentsToInclude;
+
+	// cast ray into scene cache
+	FSceneGeometryPoint HitPoint;
+	FSceneGeometryID HitIdentifier;
+	bool bHitSceneCache = SpatialCache->FindNearestHit(WorldRay, HitPoint, HitIdentifier);
+
 	// cast ray into world
-	FVector RayStart = ViewState.Position;
-	FVector RayDirection = Request.Position - RayStart; RayDirection.Normalize();
-	FVector RayEnd = RayStart + HALF_WORLD_MAX * RayDirection;
 	FHitResult HitResult;
 	bool bHitWorld = FindNearestVisibleObjectHit_Internal(
 		QueriesAPI->GetCurrentEditingWorld(), 
-		HitResult, 
-		RayStart, RayEnd, 
-		true, 
-		Request.ComponentsToIgnore, 
-		Request.InvisibleComponentsToInclude);
+		HitResult, WorldRay, 
+		true, TmpFilter, SpatialCache.Get());
 
-	if (bHitWorld && HitResult.FaceIndex >= 0)
+	// if we hit both, determine which is closer
+	if (bHitSceneCache && bHitWorld)
 	{
-		float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
-		//UE_LOG(LogTemp, Warning, TEXT("[HIT] visualangle %f faceindex %d"), VisualAngle, HitResult.FaceIndex);
+		if (HitPoint.RayDistance < HitResult.Distance)
+		{
+			bHitWorld = false;
+		}
+		else
+		{
+			bHitSceneCache = false;
+		}
+	}
+
+	// Try to snap based on whichever thing was hit.
+	// Might be possible to combine parts of these blocks.
+
+	if (bHitSceneCache)
+	{
+		// is this check necessary? isn't this always going to be zero for a scene hit??
+		float VisualAngle = OpeningAngleDeg(Request.Position, (FVector)HitPoint.WorldPoint, (FVector)RayStart);
 		if (VisualAngle < Request.VisualAngleThresholdDegrees)
 		{
-			UPrimitiveComponent* Component = HitResult.Component.Get();
-			if (Cast<UStaticMeshComponent>(Component) != nullptr)
+			FVector3d A, B, C;
+			SpatialCache->GetGeometry(HitIdentifier, HitPoint.GeometryType, HitPoint.GeometryIndex, true, A, B, C);
+
+			FSceneSnapQueryResult SnapResult;
+			SnapResult.TriVertices[0] = (FVector)A;
+			SnapResult.TriVertices[1] = (FVector)B;
+			SnapResult.TriVertices[2] = (FVector)C;
+
+			double SmallestAngle = Request.VisualAngleThresholdDegrees;
+
+			// try snapping to vertices
+			TrySnapToVertex(Request, WorldRay, SnapResult, SmallestAngle);
+
+			// try snapping to nearest points on edges
+			TrySnapToEdge(Request, WorldRay, SnapResult, SmallestAngle);
+
+			// if we found a valid snap, return it
+			if (SmallestAngle < (double)Request.VisualAngleThresholdDegrees)
 			{
-				// HitResult.FaceIndex is apparently an index into the TriMeshCollisionData, not sure how
-				// to directly access it. Calling GetPhysicsTriMeshData is expensive!
-				//UBodySetup* BodySetup = Cast<UStaticMeshComponent>(Component)->GetBodySetup();
-				//UObject* CDPObj = BodySetup->GetOuter();
-				//IInterface_CollisionDataProvider* CDP = Cast<IInterface_CollisionDataProvider>(CDPObj);
-				//FTriMeshCollisionData TriMesh;
-				//CDP->GetPhysicsTriMeshData(&TriMesh, true);
-				//FTriIndices Triangle = TriMesh.Indices[HitResult.FaceIndex];
-				//FVector Positions[3] = { TriMesh.Vertices[Triangle.v0], TriMesh.Vertices[Triangle.v1], TriMesh.Vertices[Triangle.v2] };
+				SnapResult.TargetActor = HitPoint.Actor;
+				SnapResult.TargetComponent = HitPoint.Component;
+				Results.Add(SnapResult);
+				FoundResultCount++;
+			}
 
-				// physics collision data is created from StaticMesh RenderData
-				// so use HitResult.FaceIndex to extract triangle from the LOD0 mesh
-				// (note: this may be incorrect if there are multiple sections...in that case I think we have to
-				//  first find section whose accumulated index range would contain .FaceIndexX)
-				UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
-				FStaticMeshLODResources& LOD = StaticMesh->GetRenderData()->LODResources[0];
-				FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
-				int32 TriIdx = 3 * HitResult.FaceIndex;
-				FVector Positions[3];
-				Positions[0] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx]);
-				Positions[1] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx+1]);
-				Positions[2] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx+2]);
+		}
+	}
 
-				// transform to world space
-				FTransform ComponentTransform = Component->GetComponentTransform();
-				Positions[0] = ComponentTransform.TransformPosition(Positions[0]);
-				Positions[1] = ComponentTransform.TransformPosition(Positions[1]);
-				Positions[2] = ComponentTransform.TransformPosition(Positions[2]);
 
-				FSceneSnapQueryResult SnapResult;
-				SnapResult.TriVertices[0] = Positions[0];
-				SnapResult.TriVertices[1] = Positions[1];
-				SnapResult.TriVertices[2] = Positions[2];
+	if (bHitWorld)
+	{
+		// is this check necessary? isn't this always going to be zero for a scene hit??
+		float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
+		if (VisualAngle < Request.VisualAngleThresholdDegrees)
+		{
+			FSceneSnapQueryResult SnapResult;
+			if ( GetComponentHitTriangle_Internal<FVector>(HitResult, SnapResult.TriVertices) )
+			{
+				double SmallestAngle = Request.VisualAngleThresholdDegrees;
 
 				// try snapping to vertices
-				float SmallestAngle = Request.VisualAngleThresholdDegrees;
-				if ( (Request.TargetTypes & ESceneSnapQueryTargetType::MeshVertex) != ESceneSnapQueryTargetType::None)
-				{
-					for (int j = 0; j < 3; ++j)
-					{
-						VisualAngle = OpeningAngleDeg(Request.Position, Positions[j], RayStart);
-						if (VisualAngle < SmallestAngle)
-						{
-							SmallestAngle = VisualAngle;
-							SnapResult.Position = Positions[j];
-							SnapResult.TargetType = ESceneSnapQueryTargetType::MeshVertex;
-							SnapResult.TriSnapIndex = j;
-						}
-					}
-				}
+				TrySnapToVertex(Request, WorldRay, SnapResult, SmallestAngle);
 
 				// try snapping to nearest points on edges
-				if ( ((Request.TargetTypes & ESceneSnapQueryTargetType::MeshEdge) != ESceneSnapQueryTargetType::None) &&
-					(SnapResult.TargetType != ESceneSnapQueryTargetType::MeshVertex) )
-				{
-					for (int j = 0; j < 3; ++j)
-					{
-						FVector EdgeNearestPt = NearestSegmentPt(Positions[j], Positions[(j+1)%3], Request.Position);
-						VisualAngle = OpeningAngleDeg(Request.Position, EdgeNearestPt, RayStart);
-						if (VisualAngle < SmallestAngle )
-						{
-							SmallestAngle = VisualAngle;
-							SnapResult.Position = EdgeNearestPt;
-							SnapResult.TargetType = ESceneSnapQueryTargetType::MeshEdge;
-							SnapResult.TriSnapIndex = j;
-						}
-					}
-				}
+				TrySnapToEdge(Request, WorldRay, SnapResult, SmallestAngle);
 
 				// if we found a valid snap, return it
-				if (SmallestAngle < Request.VisualAngleThresholdDegrees)
+				if (SmallestAngle < (double)Request.VisualAngleThresholdDegrees)
 				{
 					SnapResult.TargetActor = HitResult.HitObjectHandle.FetchActor();
 					SnapResult.TargetComponent = HitResult.Component.Get();
@@ -333,7 +632,6 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 				}
 			}
 		}
-
 	}
 
 	return (FoundResultCount > 0);

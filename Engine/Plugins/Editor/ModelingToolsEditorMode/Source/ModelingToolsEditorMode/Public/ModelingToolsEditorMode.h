@@ -15,6 +15,8 @@
 class FEditorComponentSourceFactory;
 class FUICommandList;
 class FStylusStateTracker;		// for stylus events
+class FLevelObjectsObserver;
+class UModelingSceneSnappingManager;
 
 UCLASS(Transient)
 class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode
@@ -72,6 +74,11 @@ protected:
 	FDelegateHandle SelectionModifiedEventHandle;
 
 	TUniquePtr<FStylusStateTracker> StylusStateTracker;
+
+	TSharedPtr<FLevelObjectsObserver> LevelObjectsObserver;
+
+	UPROPERTY()
+	UModelingSceneSnappingManager* SceneSnappingManager;
 
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();

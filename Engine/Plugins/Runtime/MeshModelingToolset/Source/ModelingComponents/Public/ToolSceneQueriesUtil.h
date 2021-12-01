@@ -8,6 +8,8 @@
 #include "InteractiveToolManager.h"
 #include "VectorTypes.h"
 
+class USceneSnappingManager;
+
 /**
  * Utility functions for Tool implementations to use to do scene queries, generally via IToolsContextQueriesAPI
  */
@@ -148,6 +150,7 @@ namespace ToolSceneQueriesUtil
 	 * @param Start start point of line
 	 * @param End end point of line
 	 * @param IgnoreComponents optional list of Components to ignore
+	 * @param InvisibleComponentsToInclude optional list of Components to explicitly include, even if they are not visible
 	 * @return true if a visible hit was found
 	 */
 	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
@@ -161,9 +164,54 @@ namespace ToolSceneQueriesUtil
 	 * @param HitResultOut the resulting hit, if true is returned
 	 * @param Ray hit ray
 	 * @param IgnoreComponents optional list of Components to ignore
+	 * @param InvisibleComponentsToInclude optional list of Components to explicitly include, even if they are not visible
 	 * @return true if a visible hit was found
 	 */
 	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(UWorld* World, FHitResult& HitResultOut, const FRay& Ray,
+		const TArray<const UPrimitiveComponent*>* IgnoreComponents = nullptr, 
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
+
+
+
+	/**
+	* Find the nearest object hit by the LineTrace from Start to End that is currently visible (provides correct result in Editor)
+	* @param HitResultOut the resulting hit, if true is returned
+	* @param Start start point of line
+	* @param End end point of line
+	* @param IgnoreComponents optional list of Components to ignore
+	* @param InvisibleComponentsToInclude optional list of Components to explicitly include, even if they are not visible
+	* @return true if a visible hit was found
+	*/
+	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(USceneSnappingManager* SnappingManager, 
+		FHitResult& HitResultOut, const FRay& Ray,
+		const TArray<const UPrimitiveComponent*>* IgnoreComponents = nullptr, 
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
+
+
+
+	/**
+	* Find the nearest object hit by the LineTrace from Start to End that is currently visible (provides correct result in Editor)
+	* @param HitResultOut the resulting hit, if true is returned
+	* @param Start start point of line
+	* @param End end point of line
+	* @param IgnoreComponents optional list of Components to ignore
+	* @param InvisibleComponentsToInclude optional list of Components to explicitly include, even if they are not visible
+	* @return true if a visible hit was found
+	*/
+	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(const UInteractiveTool* Tool, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
+		const TArray<const UPrimitiveComponent*>* IgnoreComponents = nullptr, 
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
+
+
+	/**
+	* Find the nearest object hit by the LineTrace from Start to End that is currently visible (provides correct result in Editor)
+	* @param HitResultOut the resulting hit, if true is returned
+	* @param Ray hit ray
+	* @param IgnoreComponents optional list of Components to ignore
+	* @param InvisibleComponentsToInclude optional list of Components to explicitly include, even if they are not visible
+	* @return true if a visible hit was found
+	*/
+	MODELINGCOMPONENTS_API bool FindNearestVisibleObjectHit(const UInteractiveTool* Tool, FHitResult& HitResultOut, const FRay& Ray,
 		const TArray<const UPrimitiveComponent*>* IgnoreComponents = nullptr, 
 		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr);
 

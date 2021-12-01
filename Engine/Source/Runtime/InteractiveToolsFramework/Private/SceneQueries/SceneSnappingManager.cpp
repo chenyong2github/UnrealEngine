@@ -4,6 +4,92 @@
 #include "InteractiveToolManager.h"
 #include "InteractiveGizmoManager.h"
 #include "ContextObjectStore.h"
+#include "GameFramework/Actor.h"
+#include "Components/PrimitiveComponent.h"
+
+
+
+namespace UELocal
+{
+
+static bool IsHiddenActor(const AActor* Actor)
+{
+#if WITH_EDITOR
+	return ( Actor->IsHiddenEd() );
+#else
+	return ( Actor->IsHidden() );
+#endif
+}
+
+static bool IsHiddenComponent(const UPrimitiveComponent* Component)
+{
+#if WITH_EDITOR
+	return (Component->IsVisibleInEditor() == false);
+#else
+	return (Component->IsVisible() == false);
+#endif
+}
+
+
+static bool IsVisibleObject( const UPrimitiveComponent* Component )
+{
+	if (Component == nullptr)
+	{
+		return false;
+	}
+	AActor* Actor = Component->GetOwner();
+	if (Actor == nullptr)
+	{
+		return false;
+	}
+
+	if (IsHiddenActor(Actor))
+	{
+		return false;
+	}
+
+	if ( IsHiddenComponent(Component) )
+	{
+		return false;
+	}
+	return true;
+}
+
+}
+
+
+
+bool FSceneQueryVisibilityFilter::IsVisible(const UPrimitiveComponent* Component) const
+{
+	if (Component == nullptr)
+	{
+		return false;
+	}
+
+	bool bIsVisible = UELocal::IsVisibleObject(Component);
+	if (bIsVisible || (InvisibleComponentsToInclude != nullptr && InvisibleComponentsToInclude->Contains(Component)))
+	{
+		return (ComponentsToIgnore == nullptr) || (ComponentsToIgnore->Contains(Component) == false);
+	}
+	return false;
+}
+
+
+
+
+
+
+void FSceneHitQueryResult::InitializeHitResult(const FSceneHitQueryRequest& FromRequest)
+{
+	HitResult = FHitResult(TargetActor, TargetComponent, (FVector)Position, (FVector)Normal);
+
+	HitResult.Distance = FromRequest.WorldRay.GetParameter(Position);
+	HitResult.FaceIndex = HitTriIndex;
+	// initialize .Time? Need start/end for that...
+}
+
+
+
 
 USceneSnappingManager* USceneSnappingManager::Find(UInteractiveToolManager* ToolManager)
 {
