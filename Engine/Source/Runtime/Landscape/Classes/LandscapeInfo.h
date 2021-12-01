@@ -168,6 +168,12 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 
+	FBox GetLoadedBounds() const;
+
+#if WITH_EDITOR
+	FBox GetCompleteBounds() const;
+#endif
+
 #if WITH_EDITOR
 	virtual void BeginDestroy() override;
 

@@ -240,6 +240,14 @@ public:
 	virtual void FinishDestroy() override;
 	//~ End UObject Interface
 
+	/** Computes & returns bounds containing all currently loaded landscape proxies (if any) or this landscape's bounds otherwise */
+	LANDSCAPE_API FBox GetLoadedBounds() const;
+
+#if WITH_EDITOR
+	/** Computes & returns bounds containing all landscape proxies (if any) or this landscape's bounds otherwise. Note that in non-WP worlds this will call GetLoadedBounds(). */
+	LANDSCAPE_API FBox GetCompleteBounds() const;
+#endif
+
 	LANDSCAPE_API bool IsUpToDate() const;
 	LANDSCAPE_API void TickLayers(float DeltaTime);
 	// Layers stuff

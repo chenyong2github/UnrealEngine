@@ -2111,6 +2111,18 @@ void ALandscape::PostLoad()
 	Super::PostLoad();
 }
 
+FBox ALandscape::GetLoadedBounds() const
+{
+	return GetLandscapeInfo()->GetLoadedBounds();
+}
+
+#if WITH_EDITOR
+FBox ALandscape::GetCompleteBounds() const
+{
+	return GetLandscapeInfo()->GetCompleteBounds();
+}
+#endif
+
 #if WITH_EDITOR
 void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLevel)
 {
@@ -3516,6 +3528,84 @@ void ULandscapeInfo::UnregisterActorComponent(ULandscapeComponent* Component)
 		SelectedRegionComponents.Remove(Component);
 	}
 }
+
+FBox ULandscapeInfo::GetLoadedBounds() const
+{
+	FBox Bounds(EForceInit::ForceInit);
+
+	auto UpdateBounds = [&Bounds](ALandscapeProxy* Proxy)
+	{
+		const bool bOnlyCollidingComponents = false;
+		const bool bIncludeChildActors = false;
+		FVector Origin;
+		FVector BoxExtents;
+
+		Proxy->GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtents, bIncludeChildActors);
+
+		// Reject invalid bounds
+		if (BoxExtents != FVector::Zero())
+		{
+			Bounds += FBox::BuildAABB(Origin, BoxExtents);
+		}
+	};
+
+	if (LandscapeActor.IsValid())
+	{
+		UpdateBounds(LandscapeActor.Get());
+	}
+
+	// Since in PIE/in-game the Proxies aren't populated, we must iterate through the loaded components
+	// but this is functionally equivalent to calling ForAllLandscapeProxies
+	TSet<ALandscapeProxy*> LoadedProxies;
+	for (auto It = XYtoComponentMap.CreateConstIterator(); It; ++It)
+	{
+		if (!It.Value())
+		{
+			continue;
+		}
+
+		if (ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(It.Value()->GetOwner()))
+		{
+			LoadedProxies.Add(Proxy);
+		}
+	}
+
+	for (ALandscapeProxy* Proxy : LoadedProxies)
+	{
+		UpdateBounds(Proxy);
+	}
+
+	return Bounds;
+}
+
+#if WITH_EDITOR
+FBox ULandscapeInfo::GetCompleteBounds() const
+{
+	ALandscape* Landscape = LandscapeActor.Get();
+
+	// In a non-WP situation, the current actor's bounds will do.
+	if(!Landscape || !Landscape->GetWorld() || !Landscape->GetWorld()->GetWorldPartition())
+	{
+		return GetLoadedBounds();
+	}
+
+	FBox Bounds(EForceInit::ForceInit);
+
+	for (const FWorldPartitionHandle& ProxyHandle : ProxyHandles)
+	{
+		// Skip owning landscape actor
+		ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(ProxyHandle->GetActor());
+		if (LandscapeProxy == Landscape)
+		{
+			continue;
+		}
+
+		Bounds += ProxyHandle->GetBounds();
+	}
+
+	return Bounds;
+}
+#endif
 
 void ULandscapeComponent::PostInitProperties()
 {
