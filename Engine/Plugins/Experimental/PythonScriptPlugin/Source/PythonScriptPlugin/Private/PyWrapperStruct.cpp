@@ -351,16 +351,16 @@ int FPyWrapperStruct::MakeStruct(FPyWrapperStruct* InSelf, PyObject* InArgs, PyO
 		return -1;
 	}
 
+	// If this struct has a custom make function, use that rather than the generic version
+	if (StructMetaData->MakeFunc.Func)
+	{
+		return CallMakeFunction_Impl(InSelf, InArgs, InKwds, StructMetaData->MakeFunc);
+	}
+
 	// We can early out if we have no data to apply
 	if (PyTuple_Size(InArgs) == 0 && (!InKwds || PyDict_Size(InKwds) == 0))
 	{
 		return 0;
-	}
-
-	// If this struct has a custom make function, use that rather than use the generic version
-	if (StructMetaData->MakeFunc.Func)
-	{
-		return CallMakeFunction_Impl(InSelf, InArgs, InKwds, StructMetaData->MakeFunc);
 	}
 
 	// Generic implementation just tries to assign each property
