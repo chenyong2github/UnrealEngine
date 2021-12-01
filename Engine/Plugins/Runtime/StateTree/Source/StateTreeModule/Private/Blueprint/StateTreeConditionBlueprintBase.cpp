@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Blueprint/StateTreeConditionBlueprintBase.h"
 #include "CoreMinimal.h"
 #include "StateTreeExecutionContext.h"
+#include "Engine/Blueprint.h"
 
 //----------------------------------------------------------------------//
 //  UStateTreeConditionBlueprintBase

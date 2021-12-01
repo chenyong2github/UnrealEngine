@@ -25,6 +25,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "ControlRigControlsProxy.h"
 #include "ControlRigEditModeSettings.h"
+#include "Modules/ModuleManager.h"
 #include "TimerManager.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigDetails"
