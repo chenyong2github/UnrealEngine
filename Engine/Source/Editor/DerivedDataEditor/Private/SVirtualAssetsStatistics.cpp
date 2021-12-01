@@ -41,13 +41,20 @@ void SVirtualAssetsStatisticsDialog::OnNotificationEvent(IVirtualizationSystem::
 	{	
 		case IVirtualizationSystem::ENotification::PullBegunNotification:
 		{
+			IsPulling = true;
 			NumPullRequests++;
+
 			break;
 		}
 
 		case IVirtualizationSystem::ENotification::PullEndedNotification:
 		{	
-			NumPullRequests--;
+			if (IsPulling == true)
+			{
+				NumPullRequests--;
+				IsPulling = NumPullRequests!=0;
+			}
+			
 			break;
 		}
 
