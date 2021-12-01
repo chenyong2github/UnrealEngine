@@ -144,6 +144,7 @@ public:
 	/** selection state queries */
 	static bool IsBoneInSelection(TArray<TSharedPtr<FIKRigTreeElement>>& SelectedBoneItems, const FName& BoneName);
 	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const;
+	void GetSelectedBoneNames(TArray<FName>& OutSelectedBoneNames) const;
 	void GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const;
 	int32 GetNumSelectedGoals();
 	void GetSelectedGoalNames(TArray<FName>& OutSelectedGoalNames) const;

@@ -29,15 +29,36 @@ bool FIKRigEditMode::GetCameraTarget(FSphere& OutTarget) const
 		return false; 
 	}
 	
-	// target union of selected goals
-	TArray<FName> OutGoalNames;
+	// target union of selected goals and bones
+	TArray<FName> OutGoalNames, OutBoneNames;
 	Controller->SkeletonView->GetSelectedGoalNames(OutGoalNames);
-	if (!OutGoalNames.IsEmpty())
+	Controller->SkeletonView->GetSelectedBoneNames(OutBoneNames);
+	
+	if (!OutGoalNames.IsEmpty() || !OutBoneNames.IsEmpty())
 	{
 		TArray<FVector> GoalPoints;
+
+		// get goal locations
 		for (const FName& GoalName : OutGoalNames)
 		{			
 			GoalPoints.Add(Controller->AssetController->GetGoal(GoalName)->CurrentTransform.GetLocation());
+		}
+
+		// get bone locations
+		const FIKRigSkeleton& FIKRigSkeleton = Controller->AssetController->GetIKRigSkeleton();
+		for (const FName& BoneName : OutBoneNames)
+		{
+			const int32 BoneIndex = FIKRigSkeleton.GetBoneIndexFromName(BoneName);
+			if (BoneIndex != INDEX_NONE)
+			{
+				TArray<int32> Children;
+				FIKRigSkeleton.GetChildIndices(BoneIndex, Children);
+				for (int32 ChildIndex: Children)
+				{
+					GoalPoints.Add(FIKRigSkeleton.CurrentPoseGlobal[ChildIndex].GetLocation());
+				}
+				GoalPoints.Add(FIKRigSkeleton.CurrentPoseGlobal[BoneIndex].GetLocation());
+			}
 		}
 
 		// create a sphere that contains all the goal points
