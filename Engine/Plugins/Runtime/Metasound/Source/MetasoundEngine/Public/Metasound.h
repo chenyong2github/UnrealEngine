@@ -230,7 +230,6 @@ public:
 	// Returns Asset Metadata associated with this MetaSound
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
-	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
 
 	virtual bool ConformObjectDataToInterfaces() override { return false; }
 

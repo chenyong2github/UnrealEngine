@@ -1,103 +1,96 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendTransform.h"
 #include "MetasoundVertex.h"
+
+// DEPRECATED: Archetypes that preceded the interface system.  Only remain
+// for purposes of upgrading content generated prior to 5.0 release.
 
 namespace Metasound
 {
 	namespace Engine
 	{
-		// Base metasound without any required inputs or outputs
+		// Base interface without any required inputs or outputs (TODO: Version & Remove)
 		namespace MetasoundV1_0
 		{
-			FMetasoundFrontendVersion GetVersion();
+			const FMetasoundFrontendVersion& GetVersion();
+			FMetasoundFrontendInterface GetInterface();
 		}
 
-		// V1.0 of a Metasound Mono Source. Uses FMonoAudioFormat as output.
-		namespace MetasoundSourceMonoV1_0
+		// V1.0 of a Metasound Mono output format. Uses FMonoAudioFormat as output.
+		namespace MetasoundOutputFormatMonoV1_0
 		{
-			FMetasoundFrontendVersion GetVersion();
-			const FVertexName& GetOnPlayInputName();
+			const FMetasoundFrontendVersion& GetVersion();
 			const FVertexName& GetAudioOutputName();
-			const FVertexName& GetIsFinishedOutputName();
-			const FVertexName& GetAudioDeviceIDVariableName();
-			const FVertexName& GetSoundUniqueIdName();
-			const FVertexName& GetIsPreviewSoundName();
+			FMetasoundFrontendInterface GetInterface();
 		}
 
-		// V1.0 of a Metasound Stereo Source. Uses FStereoAudioFormat as output.
-		namespace MetasoundSourceStereoV1_0
+		// V1.0 of a Metasound Stereo output format. Uses FStereoAudioFormat as output.
+		namespace MetasoundOutputFormatStereoV1_0
 		{
-			FMetasoundFrontendVersion GetVersion();
-			const FVertexName& GetOnPlayInputName();
+			const FMetasoundFrontendVersion& GetVersion();
 			const FVertexName& GetAudioOutputName();
-			const FVertexName& GetIsFinishedOutputName();
-			const FVertexName& GetAudioDeviceIDVariableName();
-			const FVertexName& GetSoundUniqueIdName();
-			const FVertexName& GetIsPreviewSoundName();
-			const FVertexName& GetGraphName();
+			FMetasoundFrontendInterface GetInterface();
 		}
 
-		// V1.1 of a Metasound Mono source. Uses FAudioBuffer as output.
-		namespace MetasoundSourceMonoV1_1
+		// V1.1 of a Metasound Mono output format. Uses FAudioBuffer as output.
+		namespace MetasoundOutputFormatMonoV1_1
 		{
-			FMetasoundFrontendVersion GetVersion();
-			const FVertexName& GetOnPlayInputName();
+			const FMetasoundFrontendVersion& GetVersion();
 			const FVertexName& GetAudioOutputName();
-			const FVertexName& GetIsFinishedOutputName();
-			const FVertexName& GetAudioDeviceIDVariableName();
-			const FVertexName& GetSoundUniqueIdName();
-			const FVertexName& GetIsPreviewSoundName();
-			const FVertexName& GetInstanceIDName();
-			const FVertexName& GetGraphName();
+			FMetasoundFrontendInterface GetInterface();
+
+			class FUpdateInterface : public Frontend::IDocumentTransform
+			{
+			public:
+				virtual bool Transform(Frontend::FDocumentHandle InDocument) const override;
+			};
 		}
 
-		// V1.1 of a Metasound Stereo source. Uses two FAudioBuffers as outputs.
-		namespace MetasoundSourceStereoV1_1
+		// V1.2 of a Metasound Mono output format.
+		// Deprecate path from MetasoundOutputFormatStereoV1_1 to SourceInterface & respective OutputFormatMonoInterface
+		namespace MetasoundOutputFormatMonoV1_2
 		{
-			FMetasoundFrontendVersion GetVersion();
-			const FVertexName& GetOnPlayInputName();
+			const FMetasoundFrontendVersion& GetVersion();
+			FMetasoundFrontendInterface GetInterface();
+
+			class FUpdateInterface : public Frontend::IDocumentTransform
+			{
+			public:
+				virtual bool Transform(Frontend::FDocumentHandle InDocument) const override;
+			};
+		}
+
+		// V1.1 of a Metasound Stereo output format. Uses two FAudioBuffers as outputs.
+		namespace MetasoundOutputFormatStereoV1_1
+		{
+			const FMetasoundFrontendVersion& GetVersion();
 			const FVertexName& GetLeftAudioOutputName();
 			const FVertexName& GetRightAudioOutputName();
-			const FVertexName& GetIsFinishedOutputName();
-			const FVertexName& GetAudioDeviceIDVariableName();
-			const FVertexName& GetSoundUniqueIdName();
-			const FVertexName& GetIsPreviewSoundName();
-			const FVertexName& GetInstanceIDName();
-			const FVertexName& GetGraphName();
+			FMetasoundFrontendInterface GetInterface();
+
+			class FUpdateInterface : public Frontend::IDocumentTransform
+			{
+			public:
+				virtual bool Transform(Frontend::FDocumentHandle InDocument) const override;
+			};
 		}
 
-		// Current version of Metasound Source.
-		namespace MetasoundSource
+		// V1.2 of a Metasound Stereo output format. Uses two FAudioBuffers as outputs.
+		// Deprecate path from MetasoundOutputFormatStereoV1_1 to SourceInterface & respective OutputFormatStereoInterface
+		namespace MetasoundOutputFormatStereoV1_2
 		{
-			const FVertexName& GetOnPlayInputName();
-			const FVertexName& GetIsFinishedOutputName();
-			const FVertexName& GetAudioDeviceIDVariableName();
-			const FVertexName& GetSoundUniqueIdName();
-			const FVertexName& GetIsPreviewSoundName();
-			const FVertexName& GetInstanceIDName();
-			const FVertexName& GetGraphName();
-		}
+			const FMetasoundFrontendVersion& GetVersion();
+			FMetasoundFrontendInterface GetInterface();
 
-		// Current version of MetasoundSourceMono
-		namespace MetasoundSourceMono
-		{
-			FMetasoundFrontendVersion GetVersion();
-			const FVertexName& GetAudioOutputName();
+			// Update from MetasoundOutputFormatStereoV1_0 to MetasoundOutputFormatStereoV1_1
+			class FUpdateInterface : public Frontend::IDocumentTransform
+			{
+			public:
+				virtual bool Transform(Frontend::FDocumentHandle InDocument) const override;
+			};
 		}
-
-		// Current version of MetasoundSourceStereo
-		namespace MetasoundSourceStereo
-		{
-			FMetasoundFrontendVersion GetVersion();
-			const FVertexName& GetLeftAudioOutputName();
-			const FVertexName& GetRightAudioOutputName();
-		}
-
-		// Register all interfaces defined in MetaSoundEngine.
-		void RegisterInternalInterfaces();
 	}
 }

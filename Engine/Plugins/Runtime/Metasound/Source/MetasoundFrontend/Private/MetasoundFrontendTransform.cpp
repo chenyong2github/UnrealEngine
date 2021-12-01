@@ -54,8 +54,21 @@ namespace Metasound
 			bSetDefaultNodeLocations = bInSetDefaultNodeLocations;
 		}
 
-		void FModifyRootGraphInterfaces::Init()
+		void FModifyRootGraphInterfaces::SetNamePairingFunction(const TFunction<bool(FName, FName)>& InNamePairingFunction)
 		{
+			// Reinit required to rebuild list of pairs
+			Init(&InNamePairingFunction);
+		}
+
+		void FModifyRootGraphInterfaces::Init(const TFunction<bool(FName, FName)>* InNamePairingFunction)
+		{
+			InputsToRemove.Reset();
+			InputsToAdd.Reset();
+			OutputsToRemove.Reset();
+			OutputsToAdd.Reset();
+			PairedInputs.Reset();
+			PairedOutputs.Reset();
+
 			for (const FMetasoundFrontendInterface& FromInterface : InterfacesToRemove)
 			{
 				InputsToRemove.Append(FromInterface.Inputs);
@@ -72,9 +85,25 @@ namespace Metasound
 			{
 				const FMetasoundFrontendClassVertex& VertexToAdd = InputsToAdd[AddIndex];
 
-				int32 RemoveIndex = InputsToRemove.IndexOfByPredicate([&](const FMetasoundFrontendClassVertex& VertexToRemove)
+				const int32 RemoveIndex = InputsToRemove.IndexOfByPredicate([&](const FMetasoundFrontendClassVertex& VertexToRemove)
 				{
-					return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(VertexToAdd, VertexToRemove);
+					if (VertexToAdd.TypeName != VertexToRemove.TypeName)
+					{
+						return false;
+					}
+
+					if (InNamePairingFunction && *InNamePairingFunction)
+					{
+						return (*InNamePairingFunction)(VertexToAdd.Name, VertexToRemove.Name);
+					}
+
+					FName ParamA;
+					FName ParamB;
+					FName Namespace;
+					VertexToAdd.SplitName(Namespace, ParamA);
+					VertexToRemove.SplitName(Namespace, ParamB);
+
+					return ParamA == ParamB;
 				});
 
 				if (INDEX_NONE != RemoveIndex)
@@ -90,10 +119,26 @@ namespace Metasound
 			{
 				const FMetasoundFrontendClassVertex& VertexToAdd = OutputsToAdd[AddIndex];
 
-				int32 RemoveIndex = OutputsToRemove.IndexOfByPredicate([&](const FMetasoundFrontendClassVertex& VertexToRemove)
+				const int32 RemoveIndex = OutputsToRemove.IndexOfByPredicate([&](const FMetasoundFrontendClassVertex& VertexToRemove)
+				{
+					if (VertexToAdd.TypeName != VertexToRemove.TypeName)
 					{
-						return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(VertexToAdd, VertexToRemove);
-					});
+						return false;
+					}
+
+					if (InNamePairingFunction && *InNamePairingFunction)
+					{
+						return (*InNamePairingFunction)(VertexToAdd.Name, VertexToRemove.Name);
+					}
+
+					FName ParamA;
+					FName ParamB;
+					FName Namespace;
+					VertexToAdd.SplitName(Namespace, ParamA);
+					VertexToRemove.SplitName(Namespace, ParamB);
+
+					return ParamA == ParamB;
+				});
 
 				if (INDEX_NONE != RemoveIndex)
 				{
@@ -392,7 +437,7 @@ namespace Metasound
 			if (LastVersionUpdated)
 			{
 				UE_LOG(LogMetaSound, Display, TEXT("Asset '%s' interface '%s' updated: '%s' --> '%s'"),
-					*InDocument->GetMetadata().Version.ToString(),
+					*InDocument->GetRootGraphClass().Metadata.GetDisplayName().ToString(),
 					*InterfaceVersion.Name.ToString(),
 					*InterfaceVersion.Number.ToString(),
 					*LastVersionUpdated->ToString());
@@ -528,7 +573,7 @@ namespace Metasound
 			// Ensure preset interfaces match those found in referenced graph.  Referenced graph is assumed to be
 			// well-formed (i.e. all inputs/outputs/environment variables declared by interfaces are present, and
 			// of proper name & data type).
-			const TArray<FMetasoundFrontendVersion>& RefInterfaceVersions = ReferencedDocument->GetInterfaceVersions();
+			const TSet<FMetasoundFrontendVersion>& RefInterfaceVersions = ReferencedDocument->GetInterfaceVersions();
 			for (const FMetasoundFrontendVersion& Version : RefInterfaceVersions)
 			{
 				InDocument->AddInterfaceVersion(Version);
@@ -870,12 +915,12 @@ namespace Metasound
 				check(InDocument->GetMetadata().Version.Number.Major == 1);
 				check(InDocument->GetMetadata().Version.Number.Minor == 3);
 
-				const TArray<FMetasoundFrontendVersion>& InterfaceVersions = InDocument->GetInterfaceVersions();
+				const TSet<FMetasoundFrontendVersion>& Interfaces = InDocument->GetInterfaceVersions();
 
-				// Version 1.3 did not have an "InterfaceVersion" property on the 
+				// Version 1.3 did not have an "InterfaceVersion" property on the
 				// document, so any document that is being updated should start off
 				// with an "Invalid" interface version.
-				if (ensure(InterfaceVersions.IsEmpty()))
+				if (ensure(Interfaces.IsEmpty()))
 				{
 					constexpr bool bIncludeDeprecatedInterfaces = true;
 					TArray<FMetasoundFrontendInterface> AllInterfaces = ISearchEngine::Get().FindAllInterfaces(bIncludeDeprecatedInterfaces);

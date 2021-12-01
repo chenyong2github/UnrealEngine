@@ -25,8 +25,6 @@ namespace Metasound
 		FMetasoundEnvironment Environment;
 		FString MetaSoundName;
 		TArray<FVertexName> AudioOutputNames;
-		FVertexName OnPlayInputName;
-		FVertexName IsFinishedOutputName;
 
 		void Release();
 	};

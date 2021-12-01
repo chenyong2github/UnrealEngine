@@ -135,10 +135,4 @@ const TSet<FSoftObjectPath>& UMetaSound::GetReferencedAssetClassCache() const
 {
 	return ReferenceAssetClassCache;
 }
-
-const FMetasoundFrontendVersion& UMetaSound::GetDefaultArchetypeVersion() const
-{
-	static const FMetasoundFrontendVersion DefaultArchetypeVersion = Metasound::Engine::MetasoundV1_0::GetVersion();
-	return DefaultArchetypeVersion;
-}
 #undef LOCTEXT_NAMESPACE // MetaSound
