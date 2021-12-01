@@ -9,7 +9,7 @@
 #include "Reference/DisplayClusterConfigurationDataSerializer.h"
 #include "Reference/DisplayClusterRootActorSerializer.h"
 
-#define LOCTEXT_NAMESPACE "FnDisplaySupportForLevelSnapshotsModule"
+#define LOCTEXT_NAMESPACE "nDisplaySupport"
 
 void UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule::StartupModule()
 {
@@ -32,4 +32,4 @@ void UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule::ShutdownModu
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule, nDisplaySupportForLevelSnapshots)
+IMPLEMENT_MODULE(UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule, nDisplaySupport)
