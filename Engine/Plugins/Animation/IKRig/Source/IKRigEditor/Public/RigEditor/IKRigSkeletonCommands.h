@@ -20,8 +20,8 @@ public:
 	
 	/** create new goal on selected bone */
 	TSharedPtr< FUICommandInfo > NewGoal;
-	/** delete selected goal */
-	TSharedPtr< FUICommandInfo > DeleteGoal;
+	/** delete selected element */
+	TSharedPtr< FUICommandInfo > DeleteElement;
 	/** add goal to selected solvers */
 	TSharedPtr< FUICommandInfo > ConnectGoalToSolvers;
 	/** remove goal to selected solvers */
@@ -48,6 +48,9 @@ public:
 	/** set the root of the retargeting */
 	TSharedPtr< FUICommandInfo > SetRetargetRoot;
 
+	/** rename selected goal */
+	TSharedPtr< FUICommandInfo > RenameGoal;
+	
 	/** initialize commands */
 	virtual void RegisterCommands() override;
 };

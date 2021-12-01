@@ -172,11 +172,12 @@ private:
 	void ReplaceItemInSelection(const FText& OldName, const FText& NewName);
 
 	/** creating / renaming / deleting goals */
-	void HandleNewGoal();
-	bool CanAddNewGoal();
-	void HandleRenameElement() const;
-	void HandleDeleteGoal();
-	bool CanDeleteGoal() const;
+	void HandleNewGoal() const;
+	bool CanAddNewGoal() const;
+	void HandleRenameGoal() const;
+	bool CanRenameGoal() const;
+	void HandleDeleteElement();
+	bool CanDeleteElement() const;
 	/** END creating / renaming / deleting goals */
 
 	/** connecting/disconnecting goals to solvers */
