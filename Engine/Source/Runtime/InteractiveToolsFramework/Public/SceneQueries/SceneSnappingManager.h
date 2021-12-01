@@ -5,8 +5,8 @@
 #include "UObject/Object.h"
 #include "Misc/Optional.h"
 #include "Math/Vector.h"
-#include "Math/Rotator.h"
-#include "Math/Quat.h"
+#include "Math/Ray.h"
+#include "Engine/EngineTypes.h"
 #include "SceneSnappingManager.generated.h"
 
 class AActor;
@@ -14,6 +14,62 @@ class UActorComponent;
 class UPrimitiveComponent;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
+
+
+
+struct INTERACTIVETOOLSFRAMEWORK_API FSceneQueryVisibilityFilter
+{
+	/** Optional: components to consider invisible even if they aren't. */
+	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr;
+
+	/** Optional: components to consider visible even if they aren't. */
+	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr;
+
+	/** @return true if the Component is currently configured as visible (does not consider ComponentsToIgnore or InvisibleComponentsToInclude lists) */
+	bool IsVisible(const UPrimitiveComponent* Component) const;
+};
+
+
+/**
+* Configuration variables for a USceneSnappingManager hit query request.
+*/
+struct INTERACTIVETOOLSFRAMEWORK_API FSceneHitQueryRequest
+{
+	/** scene query ray */
+	FRay3d WorldRay;
+
+	bool bWantHitGeometryInfo = false;
+
+	FSceneQueryVisibilityFilter VisibilityFilter;
+};
+
+
+/**
+* Computed result of a USceneSnappingManager hit query request
+*/
+struct INTERACTIVETOOLSFRAMEWORK_API FSceneHitQueryResult
+{
+	/** Actor that owns hit target */
+	AActor* TargetActor = nullptr;
+	/** Component that owns hit target */
+	UPrimitiveComponent* TargetComponent = nullptr;
+
+	/** hit position*/
+	FVector3d Position = FVector3d::Zero();
+	/** hit normal */
+	FVector3d Normal = FVector3d::UnitZ();
+
+	/** integer ID of triangle that was hit */
+	int HitTriIndex = -1;
+	/** Vertices of triangle that was hit (for debugging, may not be set) */
+	FVector3d TriVertices[3];
+
+	FHitResult HitResult;
+
+	void InitializeHitResult(const FSceneHitQueryRequest& FromRequest);
+};
+
+
 
 
 /** Types of Snap Queries that a USceneSnappingManager may support */
@@ -115,6 +171,18 @@ class INTERACTIVETOOLSFRAMEWORK_API USceneSnappingManager : public UObject
 {
 	GENERATED_BODY()
 public:
+
+	/**
+	* Try to find a Hit Object in the scene that satisfies the Hit Query
+	* @param Request hit query configuration
+	* @param Results hit query result
+	* @return true if any valid hit target was found
+	* @warning implementations are not required (and may not be able) to support hit testing
+	*/
+	virtual bool ExecuteSceneHitQuery(const FSceneHitQueryRequest& Request, FSceneHitQueryResult& ResultOut) const
+	{
+		return false;
+	}
 
 	/**
 	* Try to find Snap Targets/Results in the scene that satisfy the Snap Query.

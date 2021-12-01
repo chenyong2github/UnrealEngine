@@ -335,3 +335,43 @@ bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(UWorld* World, FHitResult
 {
 	return FindNearestVisibleObjectHit(World, HitResultOut, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX), IgnoreComponents, InvisibleComponentsToInclude);
 }
+
+
+
+
+bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(USceneSnappingManager* SnapManager, FHitResult& HitResultOut, const FRay& Ray,
+	const TArray<const UPrimitiveComponent*>* IgnoreComponents, const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
+{
+	if (!SnapManager)
+	{
+		return false;
+	}
+
+	FSceneHitQueryRequest Request;
+	Request.WorldRay = (FRay3d)Ray;
+	Request.bWantHitGeometryInfo = false;
+
+	FSceneHitQueryResult Result;
+	if ( SnapManager->ExecuteSceneHitQuery(Request, Result) )
+	{
+		HitResultOut = Result.HitResult;
+		return true;
+	};
+	return false;
+}
+
+
+
+bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(const UInteractiveTool* Tool, FHitResult& HitResultOut, const FVector& Start, const FVector& End,
+	const TArray<const UPrimitiveComponent*>* IgnoreComponents, const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
+{
+	FRay WorldRay(Start, (End - Start), false);
+	return FindNearestVisibleObjectHit(USceneSnappingManager::Find(Tool->GetToolManager()), HitResultOut, WorldRay, IgnoreComponents, InvisibleComponentsToInclude);
+}
+
+
+bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(const UInteractiveTool* Tool, FHitResult& HitResultOut, const FRay& Ray,
+	const TArray<const UPrimitiveComponent*>* IgnoreComponents, const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
+{
+	return FindNearestVisibleObjectHit(USceneSnappingManager::Find(Tool->GetToolManager()), HitResultOut, Ray, IgnoreComponents, InvisibleComponentsToInclude);
+}

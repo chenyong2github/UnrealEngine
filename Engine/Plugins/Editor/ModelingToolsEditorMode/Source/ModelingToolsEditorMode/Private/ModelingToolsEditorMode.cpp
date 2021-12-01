@@ -20,13 +20,11 @@
 #include "Selection/PersistentMeshSelectionManager.h"
 #include "Selection/StoredMeshSelectionUtil.h"
 #include "Snapping/ModelingSceneSnappingManager.h"
+#include "Scene/LevelObjectsObserver.h"
 
 #include "Features/IModularFeatures.h"
 #include "ModelingModeToolExtensions.h"
 
-//#include "SingleClickTool.h"
-//#include "MeshSurfacePointTool.h"
-//#include "MeshVertexDragTool.h"
 #include "DynamicMeshSculptTool.h"
 #include "MeshVertexSculptTool.h"
 #include "EditMeshPolygonsTool.h"
@@ -118,8 +116,6 @@
 
 #define LOCTEXT_NAMESPACE "UModelingToolsEditorMode"
 
-
-//#define ENABLE_DEBUG_PRINTING
 
 const FEditorModeID UModelingToolsEditorMode::EM_ModelingToolsEditorModeId = TEXT("EM_ModelingToolsEditorMode");
 
@@ -309,6 +305,12 @@ public:
 
 };
 
+
+
+
+
+
+
 void UModelingToolsEditorMode::Enter()
 {
 	UEdMode::Enter();
@@ -330,6 +332,26 @@ void UModelingToolsEditorMode::Enter()
 
 	// register snapping manager
 	UE::Geometry::RegisterSceneSnappingManager(GetInteractiveToolsContext());
+	SceneSnappingManager = UE::Geometry::FindModelingSceneSnappingManager(GetToolManager());
+
+	// register level objects observer that will update the snapping manager as the scene changes
+	LevelObjectsObserver = MakeShared<FLevelObjectsObserver>();
+	LevelObjectsObserver->OnActorAdded.AddLambda([this](AActor* Actor)
+	{
+		if (SceneSnappingManager)
+		{
+			SceneSnappingManager->OnActorAdded(Actor, [](UPrimitiveComponent*) { return true; });
+		}
+	});
+	LevelObjectsObserver->OnActorRemoved.AddLambda([this](AActor* Actor)
+	{
+		if (SceneSnappingManager)
+		{
+			SceneSnappingManager->OnActorRemoved(Actor);
+		}
+	});
+	// tracker will auto-populate w/ the current level, but must have registered the handlers first!
+	LevelObjectsObserver->Initialize(GetWorld());
 
 	// register selection manager, if this feature is enabled in the mode settings
 	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
@@ -349,7 +371,7 @@ void UModelingToolsEditorMode::Enter()
 		{
 			return UE::Modeling::GetNewAssetPathName(BaseName, TargetWorld, SuggestedFolder);
 		});
-		MeshCreatedEventHandle = ModelCreationAPI->OnModelingMeshCreated.AddLambda([](const FCreateMeshObjectResult& CreatedInfo) 
+		MeshCreatedEventHandle = ModelCreationAPI->OnModelingMeshCreated.AddLambda([this](const FCreateMeshObjectResult& CreatedInfo) 
 		{
 			if (CreatedInfo.NewAsset != nullptr)
 			{
@@ -776,8 +798,11 @@ void UModelingToolsEditorMode::Exit()
 	// will be called before our Exit()
 	//UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(ToolsContext.Get());
 	
-	// deregister snapping manager
+	// deregister snapping manager and shut down level objects tracker
+	LevelObjectsObserver->Shutdown();		// do this first because it is going to fire events on the snapping manager
+	LevelObjectsObserver.Reset();
 	UE::Geometry::DeregisterSceneSnappingManager(GetInteractiveToolsContext());
+	SceneSnappingManager = nullptr;
 
 	// TODO: cannot deregister currently because if another mode is also registering, its Enter()
 	// will be called before our Exit()
