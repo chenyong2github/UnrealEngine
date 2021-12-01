@@ -1105,6 +1105,17 @@ void SIKRigSkeleton::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& Out
 	}
 }
 
+void SIKRigSkeleton::GetSelectedBoneNames(TArray<FName>& OutSelectedBoneNames) const
+{
+	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedBones;
+	GetSelectedBones(OutSelectedBones);
+	OutSelectedBoneNames.Reset();
+	for (TSharedPtr<FIKRigTreeElement> SelectedBoneItem : OutSelectedBones)
+	{
+		OutSelectedBoneNames.Add(SelectedBoneItem->BoneName);
+	}
+}
+
 void SIKRigSkeleton::GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const
 {
 	OutSelectedGoals.Reset();
