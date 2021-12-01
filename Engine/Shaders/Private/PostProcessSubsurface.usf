@@ -187,6 +187,108 @@ float4 GetSceneColor(float2 BufferUV)
 	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV, 0);
 }
 
+#include "BurleyNormalizedSSSCommon.ush"
+
+#if STRATA_ENABLED
+
+// Calculate the Subsurface profile kernel on the fly using integration instead of LUT.
+half4 GetSubsurfaceProfileKernel(int SampleIndex, float3 D, float ScatterRadiusInMM, float WorldUnitScale)
+{
+	// See notes in SubsurfaceProfile.cpp. Scatter radius is in mm instead of cm here.
+	ScatterRadiusInMM = max(ScatterRadiusInMM/2.229f,1.0f);
+	
+	const float Range = ((2 * SSSS_N_KERNELWEIGHTCOUNT - 1) > 20) ? 3.0f : 2.0f;
+
+	const float r = Range * float(SampleIndex) / (SSSS_N_KERNELWEIGHTCOUNT - 1);
+	const float r0 = Range * (float(SampleIndex) - 0.5f) / (SSSS_N_KERNELWEIGHTCOUNT - 1);
+	const float r1 = Range * (float(SampleIndex) + 0.5f) / (SSSS_N_KERNELWEIGHTCOUNT - 1);
+
+	const float x = r * r / (Range );
+	const float x0 = r0 * r0 / (Range );
+	const float x1 = r1 * r1 / (Range );
+	const float3 MaxCDF = GetCDF3D(D, ScatterRadiusInMM * Range * (1.0f + 0.5f / (SSSS_N_KERNELWEIGHTCOUNT - 1)));
+
+	half4 Kernel = (half4)0.0f;
+
+	BRANCH
+		if (SampleIndex == 0)
+		{
+			Kernel.rgb = GetCDF3D(D, ScatterRadiusInMM * x1) / MaxCDF;
+			Kernel.a = 0.0f;
+		}
+		else
+		{
+			// Need to multiply by 0.5f, and modify MaxCDF to match as close as offline LUT. Here favors integration 
+			// instead of discrete approximation.
+			Kernel.rgb = (GetCDF3D(D, ScatterRadiusInMM * x1) - GetCDF3D(D, ScatterRadiusInMM * x0)) / MaxCDF;
+			Kernel.a =  4.0f * x; // 4.0f is consistent to the scale in LUT
+		}
+
+	// Scale to match offline encoding
+	const float TableMaxA = 3.0f;
+	// const FLinearColor TableColorScale = FLinearColor(
+	//		1.0f / TableMaxRGB,
+	//		1.0f / TableMaxRGB,
+	//		1.0f / TableMaxRGB,
+	//		1.0f / TableMaxA);
+	// C *= TableColorScale
+	// C.W *= Data.ScatterRadius / SUBSURFACE_RADIUS_SCALE;     
+	Kernel.a *= (ScatterRadiusInMM * BURLEY_MM_2_CM) * WorldUnitScale * 2.229f * 0.707f / (TableMaxA * SUBSURFACE_RADIUS_SCALE);
+
+	return Kernel;
+}
+#endif
+
+// fetch surface albedo and diffuse mean free path
+// The diffuse mean free path is modulated by world scale and a custom term passed in
+// which is the opacity texture.
+#if STRATA_ENABLED
+FBurleyParameter GetBurleyParameters(FStrataSubsurfaceData SSSData)
+{
+	FBurleyParameter Out = (FBurleyParameter)0;
+	if (SSSData.bIsProfile)
+	{
+		Out.SurfaceAlbedo = GetSubsurfaceProfileSurfaceAlbedo(SSSData.ProfileId);
+		Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SSSData.ProfileId));
+		Out.WorldUnitScale = DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SSSData.ProfileId)) * BURLEY_CM_2_MM;
+
+		Out.SurfaceOpacity = SSSData.ProfileRadiusScale;
+		Out.DiffuseMeanFreePath *= Out.SurfaceOpacity;
+	}
+	else if (SSSData.bIsValid)
+	{
+		// Decode the DMFP stored as Float111110 in a uint over a RGBA8 unorm
+		const float3 DMFP = SSSData.DMFP * BURLEY_CM_2_MM; // Stored DMFP is in cm, converted into mm
+
+		const float MaxDMFP = max3(DMFP.x, DMFP.y, DMFP.z);
+		const uint IndexOfMaxDmfp = (DMFP.r == MaxDMFP) ? 0 : ((DMFP.g == MaxDMFP) ? 1 : 2);
+
+		Out.SurfaceAlbedo = float4(SSSData.BaseColor, SSSData.BaseColor[IndexOfMaxDmfp]);
+		Out.DiffuseMeanFreePath = float4(DMFP, MaxDMFP);
+		Out.WorldUnitScale = BURLEY_CM_2_MM;
+
+		// STRATA_TODO smooth transistion based on pixel footprint w.r.t. MFPRadius and pixel footprint
+		Out.SurfaceOpacity = 1.0f;
+		Out.DiffuseMeanFreePath *= Out.SurfaceOpacity;
+	}
+	return Out;
+}
+#else
+FBurleyParameter GetBurleyParameters(uint SubsurfaceProfileInt, FGBufferData GBuffer)
+{
+	FBurleyParameter Out = (FBurleyParameter)0;
+	Out.SurfaceAlbedo = GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
+	Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SubsurfaceProfileInt));
+	Out.WorldUnitScale = DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt)) * BURLEY_CM_2_MM;
+
+	// Mask should always be true, we can probably ignore it?
+	Out.SurfaceOpacity = UseSubsurfaceProfile(GBuffer.ShadingModelID) ? GBuffer.CustomData.a : 0.0f;
+	Out.DiffuseMeanFreePath *= Out.SurfaceOpacity;
+
+	return Out;
+}
+#endif
+
 // from https://github.com/iryoku/separable-sss/tree/master/Demo
 // Jorge Jimenez http://www.iryoku.com/
 // http://www.iryoku.com/translucency/downloads/Real-Time-Realistic-Skin-Translucency.pdf

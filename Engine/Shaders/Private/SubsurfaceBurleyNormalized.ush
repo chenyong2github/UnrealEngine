@@ -6,7 +6,6 @@
 #pragma once
 
 #include "Random.ush"
-#include "BurleyNormalizedSSSCommon.ush"
 #include "DeferredShadingCommon.ush"
 #include "MonteCarlo.ush"
 
@@ -141,30 +140,6 @@
 #define SUBSURFACE_SAMPLER_TYPE 0
 #endif
 
-struct FBurleyParameter
-{
-	float4 SurfaceAlbedo;
-	float4 DiffuseMeanFreePath;
-	float  WorldUnitScale;
-	float  SurfaceOpacity; // 1.0 means full Burley, 0.0 means full Default Lit
-};
-
-//Surface albedo and mean free path length
-float4 GetSubsurfaceProfileSurfaceAlbedo(uint SubsurfaceProfileInt)
-{
-	return View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0));
-}
-
-float4 GetSubsurfaceProfileDiffuseMeanFreePath(uint SubsurfaceProfileInt)
-{
-	return View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0));
-}
-
-float GetSubsurfaceProfileWorldUnitScale(uint SubsurfaceProfileInt)
-{
-	return View.SSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt, 0)).a;
-}
-
 float SampleDepthTexture(float2 ScreenUV)
 {
 #if SUBSURFACE_HALF_RES && !(SUBSURFACE_SINGLE_PASS)
@@ -175,56 +150,6 @@ float SampleDepthTexture(float2 ScreenUV)
 	
 	return Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r;
 }
-
-// fetch surface albedo and diffuse mean free path
-// The diffuse mean free path is modulated by world scale and a custom term passed in
-// which is the opacity texture.
-#if STRATA_ENABLED
-FBurleyParameter GetBurleyParameters(FStrataSubsurfaceData SSSData)
-{
-	FBurleyParameter Out = (FBurleyParameter)0;
-	if (SSSData.bIsProfile)
-	{
-		Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SSSData.ProfileId);
-		Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SSSData.ProfileId));
-		Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SSSData.ProfileId)) * BURLEY_CM_2_MM;
-
-		Out.SurfaceOpacity		= SSSData.ProfileRadiusScale;
-		Out.DiffuseMeanFreePath*= Out.SurfaceOpacity;
-	}
-	else if(SSSData.bIsValid)
-	{
-		// Decode the DMFP stored as Float111110 in a uint over a RGBA8 unorm
-		const float3 DMFP				= SSSData.DMFP * BURLEY_CM_2_MM; // Stored DMFP is in cm, converted into mm
-
-		const float MaxDMFP				= max3(DMFP.x, DMFP.y, DMFP.z);
-		const uint IndexOfMaxDmfp		= (DMFP.r == MaxDMFP) ? 0 : ((DMFP.g == MaxDMFP) ? 1 : 2);
-
-		Out.SurfaceAlbedo				= float4(SSSData.BaseColor, SSSData.BaseColor[IndexOfMaxDmfp]);
-		Out.DiffuseMeanFreePath			= float4(DMFP, MaxDMFP);
-		Out.WorldUnitScale				= BURLEY_CM_2_MM;
-
-		// STRATA_TODO smooth transistion based on pixel footprint w.r.t. MFPRadius and pixel footprint
-		Out.SurfaceOpacity				= 1.0f;
-		Out.DiffuseMeanFreePath			*= Out.SurfaceOpacity;
-	}
-	return Out;
-}
-#else
-FBurleyParameter GetBurleyParameters(uint SubsurfaceProfileInt, FGBufferData GBuffer)
-{
-	FBurleyParameter Out = (FBurleyParameter)0;
-	Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
-	Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SubsurfaceProfileInt));
-	Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt)) * BURLEY_CM_2_MM;
-
-	// Mask should always be true, we can probably ignore it?
-	Out.SurfaceOpacity = UseSubsurfaceProfile(GBuffer.ShadingModelID) ? GBuffer.CustomData.a : 0.0f;
-	Out.DiffuseMeanFreePath *= Out.SurfaceOpacity;
-
-	return Out;
-}
-#endif
 
 float2 Generate2DRandomNumber(int3 Seed)
 {
