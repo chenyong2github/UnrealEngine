@@ -852,7 +852,7 @@ void USpaceCurveDeformationMechanic::UpdateRenderGeometry()
 			FFrame3d Point = CurveSource->GetPoint(k);
 			bool bSelected = SelectedPointIDs.Contains(k);
 			RenderPoints->AddPoint(FRenderablePoint((FVector)Point.Origin, 
-				(bSelected) ? SelectedColor : CurrentPointsColor, PointsSize));
+				(bSelected) ? SelectedColor : CurrentPointsColor, PointsSize, DepthBias));
 		}
 
 		int32 StopIndex = CurveSource->IsLoop() ? NumPoints : (NumPoints-1);
