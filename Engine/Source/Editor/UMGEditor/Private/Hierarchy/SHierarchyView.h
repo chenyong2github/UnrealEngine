@@ -122,6 +122,8 @@ private:
 
 	/** Handler for recursively expanding/collapsing items */
 	void SetItemExpansionRecursive(TSharedPtr<FHierarchyModel> Model, bool bInExpansionState);
+	
+	void SetItemExpansionRecursive_SelectedItems(const bool bInExpansionState);
 
 private:
 
