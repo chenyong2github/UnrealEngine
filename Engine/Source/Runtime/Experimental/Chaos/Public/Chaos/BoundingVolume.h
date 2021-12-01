@@ -288,6 +288,11 @@ public:
 		check(false);
 	}
 
+	inline void RecomputeBounds()
+	{
+
+	}
+
 	
 	// Begin ISpatialAcceleration interface
 	virtual TArray<TPayloadType> FindAllIntersections(const FAABB3& Box) const override { return FindAllIntersectionsImp(Box); }
