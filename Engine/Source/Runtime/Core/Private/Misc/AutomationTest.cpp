@@ -743,7 +743,7 @@ void FAutomationTestFramework::InternalStartTest( const FString& InTestToRun )
 
 		StartTime = FPlatformTime::Seconds();
 
-		//if non-
+		// If not a smoke test, log the test has started.
 		uint32 NonSmokeTestFlags = (EAutomationTestFlags::FilterMask & (~EAutomationTestFlags::SmokeFilter));
 		if (RequestedTestFilter & NonSmokeTestFlags)
 		{
@@ -751,6 +751,8 @@ void FAutomationTestFramework::InternalStartTest( const FString& InTestToRun )
 		}
 
 		CurrentTest->SetTestContext(Parameters);
+
+		OnTestStartEvent.Broadcast(CurrentTest);
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("AutomationTest %s"), *CurrentTest->GetBeautifiedTestName()));
@@ -765,14 +767,6 @@ bool FAutomationTestFramework::InternalStopTest(FAutomationTestExecutionInfo& Ou
 	check(GIsAutomationTesting);
 	check(LatentCommands.IsEmpty());
 
-	double EndTime = FPlatformTime::Seconds();
-	double TimeForTest = static_cast<float>(EndTime - StartTime);
-	uint32 NonSmokeTestFlags = (EAutomationTestFlags::FilterMask & (~EAutomationTestFlags::SmokeFilter));
-	if (RequestedTestFilter & NonSmokeTestFlags)
-	{
-		UE_LOG(LogAutomationTest, Log, TEXT("%s %s ran in %f"), *CurrentTest->GetBeautifiedTestName(), *Parameters, TimeForTest);
-	}
-
 	// Determine if the test was successful based on three criteria:
 	// 1) Did the test itself report success?
 	// 2) Did any errors occur and were logged by the feedback context during execution?++----
@@ -782,7 +776,17 @@ bool FAutomationTestFramework::InternalStopTest(FAutomationTestExecutionInfo& Ou
 	CurrentTest->ExpectedErrors.Empty();
 
 	// Set the success state of the test based on the above criteria
-	CurrentTest->SetSuccessState( bTestSuccessful );
+	CurrentTest->SetSuccessState(bTestSuccessful);
+
+	OnTestEndEvent.Broadcast(CurrentTest);
+
+	double EndTime = FPlatformTime::Seconds();
+	double TimeForTest = static_cast<float>(EndTime - StartTime);
+	uint32 NonSmokeTestFlags = (EAutomationTestFlags::FilterMask & (~EAutomationTestFlags::SmokeFilter));
+	if (RequestedTestFilter & NonSmokeTestFlags)
+	{
+		UE_LOG(LogAutomationTest, Log, TEXT("%s %s ran in %f"), *CurrentTest->GetBeautifiedTestName(), *Parameters, TimeForTest);
+	}
 
 	// Fill out the provided execution info with the info from the test
 	CurrentTest->GetExecutionInfo( OutExecutionInfo );
@@ -1132,6 +1136,11 @@ bool FAutomationTestBase::HasMetExpectedErrors()
 void FAutomationTestBase::SetSuccessState( bool bSuccessful )
 {
 	ExecutionInfo.bSuccessful = bSuccessful;
+}
+
+bool FAutomationTestBase::GetSuccessState()
+{
+	return ExecutionInfo.bSuccessful;
 }
 
 void FAutomationTestBase::GetExecutionInfo( FAutomationTestExecutionInfo& OutInfo ) const
