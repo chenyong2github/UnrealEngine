@@ -107,12 +107,6 @@ class FClusteredShadingPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairTransmittanceBuffer)
 
-		SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
-
-		SHADER_PARAMETER_TEXTURE(Texture2D, LTCAmpTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, LTCAmpSampler)
-
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -160,11 +154,6 @@ static void InternalAddClusteredDeferredShadingPass(
 	PassParameters->ShadowMaskBits = ShadowMaskBits;
 	PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->HairTransmittanceBuffer = HairTransmittanceBuffer;
-
-	PassParameters->LTCMatTexture = GSystemTextures.LTCMat->GetShaderResourceRHI();
-	PassParameters->LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	PassParameters->LTCAmpTexture = GSystemTextures.LTCAmp->GetShaderResourceRHI();
-	PassParameters->LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
 	ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);

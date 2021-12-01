@@ -1888,6 +1888,18 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 	}
 
+	// Rect area light
+	if (GSystemTextures.LTCMat.IsValid() && GSystemTextures.LTCAmp.IsValid())
+	{
+		ViewUniformShaderParameters.LTCMatTexture = GSystemTextures.LTCMat->GetShaderResourceRHI();
+		ViewUniformShaderParameters.LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.LTCAmpTexture = GSystemTextures.LTCAmp->GetShaderResourceRHI();
+		ViewUniformShaderParameters.LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	}
+	ViewUniformShaderParameters.LTCMatTexture = OrBlack2DIfNull(ViewUniformShaderParameters.LTCMatTexture);
+	ViewUniformShaderParameters.LTCAmpTexture = OrBlack2DIfNull(ViewUniformShaderParameters.LTCAmpTexture);
+
 	// Hair global resources 
 	SetUpViewHairRenderInfo(*this, ViewUniformShaderParameters.HairRenderInfo, ViewUniformShaderParameters.HairRenderInfoBits, ViewUniformShaderParameters.HairComponents);
 	ViewUniformShaderParameters.HairScatteringLUTTexture = nullptr;
