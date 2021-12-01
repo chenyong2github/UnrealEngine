@@ -90,8 +90,8 @@
 								<option value="MAINTAIN_FRAMERATE">MAINTAIN_FRAMERATE</option>
 								<option value="MAINTAIN_RESOLUTION">MAINTAIN_RESOLUTION</option>
 							</select><br>
-							<label for="webrtc-max-fps-text">Max FPS</label>
-							<input type="number" class="form-control" id="webrtc-max-fps-text" value="1" min="1" max="999" /><br>
+							<label for="webrtc-fps-text">FPS</label>
+							<input type="number" class="form-control" id="webrtc-fps-text" value="1" min="1" max="999" /><br>
 							<label for="webrtc-min-bitrate-text">Min Bitrate (kbps)</label>
 							<input type="number" class="form-control" id="webrtc-min-bitrate-text" value="0" min="0" max="100000" /><br>
 							<label for="webrtc-max-bitrate-text">Max Bitrate (kbps)</label>
@@ -119,7 +119,24 @@
 						<div class="tgl-slider"></div>
 					</label>
 				</div>
-
+				<div id="videoStreamSelection">
+					<div class="settings-text">Player Stream</div>
+					<div id="videoStreamContainer" class="collapse">
+						<div class="form-group">
+							<select id="stream-select">
+							</select><br>
+						</div>
+					</div>
+				</div>
+				<div id="videoTrackSelection">
+					<div class="settings-text">Player Track</div>
+					<div id="videoTrackContainer" class="collapse">
+						<div class="form-group">
+							<select id="track-select">
+							</select><br>
+						</div>
+					</div>
+				</div>
 				<div id="statsPanel">
 					<div class="settings-text">Show Stats</div>
 					<label class="tgl-switch">

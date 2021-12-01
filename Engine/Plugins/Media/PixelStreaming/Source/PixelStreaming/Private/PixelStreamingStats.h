@@ -14,47 +14,44 @@ struct FPixelStreamingStats : FTickableGameObject
 		bool GetStatsEnabled();
 		void Tick(float DeltaTime);
 		void Reset();
-		void OnWebRTCDeliverFrameForEncode();
-		void OnEncodingFinished();
-		void OnCaptureFinished();
-		void OnKeyframeEncoded();
-		void OnFrameSubmittedToWebRTC();
-		void SetCaptureToEncodeLatency(double CaptureToEncodeMs);
-		void SetEncoderLatency(double EncoderLatencyMs);
-		void SetEncoderBitrateMbps(double EncoderBitrateMbps);
-		void SetEncoderQP(double QP);
 		void SetCaptureLatency(double CaptureLatencyMs);
-		void SetPostEncodeLatency(double PostEncodeLatencyMs);
-		FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(PixelStreamingStats, STATGROUP_Tickables); }
+		void OnCaptureFinished();
+		void OnKeyframeEncoded(uint64 encoderId);
+		void OnWebRTCDeliverFrameForEncode(uint64 encoderId);
+		void OnEncodingFinished(uint64 encoderId);
+		void SetEncoderLatency(uint64 encoderId, double EncoderLatencyMs);
+		void SetEncoderBitrateMbps(uint64 encoderId, double EncoderBitrateMbps);
+		void SetEncoderQP(uint64 encoderId, double QP);
 
+		FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(PixelStreamingStats, STATGROUP_Tickables); }
+		
 	private:
 		void EmitStat(int UniqueId, FString StringToEmit);
 
 	private:
 
-		static constexpr uint32 SmoothingPeriod = 60; // kinda 3 secs for 60FPS
-		
-		// Note: FSmoothedValue is thread safe.
-		FSmoothedValue<SmoothingPeriod> WebRTCCaptureToEncodeLatencyMs;
-		FSmoothedValue<SmoothingPeriod> EncoderLatencyMs;
-		FSmoothedValue<SmoothingPeriod> CaptureLatencyMs;
-		FSmoothedValue<SmoothingPeriod> EncoderBitrateMbps;
-		FSmoothedValue<SmoothingPeriod> EncoderQP;
-		double PostEncodeLatencyMs;
+		static constexpr uint32 SmoothingPeriod = 3 * 60; // kinda 3 secs for 60FPS
 
-		uint64 LastEncodeTimeCycles = 0;
-		FSmoothedValue<SmoothingPeriod> EncoderFPS;
+		// Note: FSmoothedValue is thread safe.
+
+		struct FEncoderStats
+		{
+			FSmoothedValue<SmoothingPeriod> WebRTCCaptureToEncodeLatencyMs;
+			FSmoothedValue<SmoothingPeriod> EncoderLatencyMs;
+			FSmoothedValue<SmoothingPeriod> EncoderBitrateMbps;
+			FSmoothedValue<SmoothingPeriod> EncoderQP;
+			uint64 LastEncodeTimeCycles = 0;
+			FSmoothedValue<SmoothingPeriod> EncoderFPS;
+			uint64 LastKeyFrameTimeCycles = 0;
+		};
+
+		FSmoothedValue<SmoothingPeriod> CaptureLatencyMs;
 
 		uint64 LastCaptureTimeCycles = 0;
 		FSmoothedValue<SmoothingPeriod> CaptureFPS;
 
-		uint64 LastSubmitTimeCycles = 0;
-		FSmoothedValue<SmoothingPeriod> SubmitToWebRTCFPS;
+		// unique ptr because FSmoothedValue is not trivially copyable 
+		TMap<uint64, TUniquePtr<FEncoderStats>> EncoderStats;
 
-		uint64 LastWebRTCEncodeAttempt = 0;
-		FSmoothedValue<SmoothingPeriod> WebRTCEncodeLoopFPS;
-
-		uint64 LastKeyFrameTimeCycles = 0;
-
-		
+		FEncoderStats& GetEncoderStats(uint64 encoderId);
 };

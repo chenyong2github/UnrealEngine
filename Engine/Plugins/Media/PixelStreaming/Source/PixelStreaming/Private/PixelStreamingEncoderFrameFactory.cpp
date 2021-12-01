@@ -59,14 +59,11 @@ AVEncoder::FVideoEncoderInputFrame* FPixelStreamingEncoderFrameFactory::GetOrCre
     return OutFrame;
 }
 
-AVEncoder::FVideoEncoderInputFrame* FPixelStreamingEncoderFrameFactory::GetFrameAndSetTexture(int InWidth, int InHeight, FTextureObtainer TextureObtainer)
+AVEncoder::FVideoEncoderInputFrame* FPixelStreamingEncoderFrameFactory::GetFrameAndSetTexture(int InWidth, int InHeight, FTexture2DRHIRef InTexture)
 {
     check(EncoderInput.IsValid());
 
-    // Copy texture here into our one encoder frame
-    const FTexture2DRHIRef SourceTexture = TextureObtainer();
-
-    AVEncoder::FVideoEncoderInputFrame* Frame = this->GetOrCreateFrame(InWidth, InHeight, SourceTexture);
+    AVEncoder::FVideoEncoderInputFrame* Frame = this->GetOrCreateFrame(InWidth, InHeight, InTexture);
 
     return Frame;
 }

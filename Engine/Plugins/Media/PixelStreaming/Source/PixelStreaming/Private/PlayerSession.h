@@ -24,6 +24,7 @@ public:
 	
 	FPlayerId GetPlayerId() const;
 
+	void OnAnswer(FString Sdp);
 	void OnRemoteIceCandidate(const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
 	void DisconnectPlayer(const FString& Reason);
 

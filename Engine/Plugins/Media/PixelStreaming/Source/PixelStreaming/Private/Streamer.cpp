@@ -2,7 +2,6 @@
 
 #include "Streamer.h"
 #include "AudioCapturer.h"
-#include "VideoCapturer.h"
 #include "PlayerSession.h"
 #include "VideoEncoderFactory.h"
 #include "PixelStreamerDelegates.h"
@@ -13,8 +12,7 @@
 #include "PixelStreamingAudioDeviceModule.h"
 #include "PixelStreamingAudioSink.h"
 #include "WebRtcObservers.h"
-#include "PixelStreamingVideoSources.h"
-
+#include "PlayerVideoSource.h"
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 
@@ -29,6 +27,7 @@ FStreamer::FStreamer(const FString& InSignallingServerUrl, const FString& InStre
 	, StreamerId(InStreamerId)
 	, WebRtcSignallingThread(MakeUnique<rtc::Thread>(rtc::SocketServer::CreateDefault()))
 	, SignallingServerConnection(MakeUnique<FSignallingServerConnection>(*this, InStreamerId))
+	, FramePump(&FrameSource)
 	, PlayerSessions(WebRtcSignallingThread.Get())
 {
 	RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
@@ -65,8 +64,9 @@ void FStreamer::StartWebRtcSignallingThread()
 
 	PeerConnectionConfig = {};
 
-	std::unique_ptr<FPixelStreamingVideoEncoderFactory> videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>(this);
-	this->VideoEncoderFactory = videoEncoderFactory.get();
+	std::unique_ptr<FPixelStreamingSimulcastEncoderFactory> videoEncoderFactory = std::make_unique<FPixelStreamingSimulcastEncoderFactory>(this);
+	//std::unique_ptr<FPixelStreamingVideoEncoderFactory> videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>(this);
+	VideoEncoderFactory = videoEncoderFactory->GetRealFactory();
 
 	bool bUseLegacyAudioDeviceModule = PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice.GetValueOnAnyThread();
 	rtc::scoped_refptr<webrtc::AudioDeviceModule> AudioDeviceModule;
@@ -130,18 +130,18 @@ void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
 {
 	if (bStreamingStarted)
 	{
-		this->VideoSources.OnFrameReady(FrameBuffer);
+		FrameSource.OnFrameReady(FrameBuffer);
 	}
 }
 
 void FStreamer::OnQualityControllerChanged(FPlayerId PlayerId)
 {
-	this->VideoSources.SetQualityController(PlayerId);
+	FramePump.SetQualityController(PlayerId);
 }
 
 void FStreamer::PostPlayerDeleted(FPlayerId PlayerId)
 {
-	this->VideoSources.DeleteVideoSource(PlayerId);
+	FramePump.RemovePlayerVideoSource(PlayerId);
 }
 
 void FStreamer::OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
@@ -158,25 +158,92 @@ void FStreamer::OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterfa
 	}
 }
 
-void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
+webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, bool SupportsDataChannel)
 {
-
-	webrtc::PeerConnectionInterface* PeerConnection = this->PlayerSessions.CreatePlayerSession(PlayerId, 
-		this->PeerConnectionFactory, 
-		this->PeerConnectionConfig, 
-		this->SignallingServerConnection.Get());
+	webrtc::PeerConnectionInterface* PeerConnection = PlayerSessions.CreatePlayerSession(PlayerId, 
+		PeerConnectionFactory, 
+		PeerConnectionConfig, 
+		SignallingServerConnection.Get());
 	
-	if(PeerConnection != nullptr)
+	if (PeerConnection != nullptr)
 	{
-		// Bind to the OnDataChannelOpen delegate (we use this as the earliest time peer is ready for freeze frame)
-		FPixelStreamingDataChannelObserver* DataChannelObserver = this->PlayerSessions.GetDataChannelObserver(PlayerId);
-		check(DataChannelObserver);
-		DataChannelObserver->OnDataChannelOpen.AddRaw(this, &FStreamer::OnDataChannelOpen );
+		if (SupportsDataChannel)
+		{
+			PeerConnection->CreateDataChannel("datachannel", {});
 
-		this->AddStreams(PlayerId, PeerConnection);
-		this->HandleOffer(PlayerId, PeerConnection, MoveTemp(Sdp));
-		this->ForceKeyFrame();
+			// Bind to the on data channel open delegate (we use this as the earliest time peer is ready for freeze frame)
+			FPixelStreamingDataChannelObserver* DataChannelObserver = PlayerSessions.GetDataChannelObserver(PlayerId);
+			check(DataChannelObserver);
+			DataChannelObserver->OnDataChannelOpen.AddRaw(this, &FStreamer::OnDataChannelOpen);
+		}
+
+		AddStreams(PlayerId, PeerConnection);
 	}
+
+	return PeerConnection;
+}
+
+void FStreamer::OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp)
+{
+	if (Type == webrtc::SdpType::kOffer)
+	{
+		if (webrtc::PeerConnectionInterface* PeerConnection = CreateSession(PlayerId, true))
+		{
+			webrtc::SdpParseError Error;
+			std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(Type, to_string(Sdp), &Error);
+			if (!SessionDesc)
+			{
+				UE_LOG(PixelStreamer, Error, TEXT("Failed to parse offer's SDP: %s\n%s"), Error.description.c_str(), *Sdp);
+				return;
+			}
+
+			HandleOffer(PlayerId, PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface>(SessionDesc.release()));
+			ForceKeyFrame();
+		}
+	}
+	else
+	{
+		PlayerSessions.OnAnswer(PlayerId, Sdp);
+		SetStreamingStarted(true);
+	}
+}
+
+void FStreamer::SetLocalDescription(webrtc::PeerConnectionInterface* PeerConnection, FSetSessionDescriptionObserver* Observer, webrtc::SessionDescriptionInterface* SDP)
+{
+	// Note from Luke about WebRTC: the sink of video capturer will be added as a direct result
+	// of `PeerConnection->SetLocalDescription()` call but video encoder will be created later on
+	// when the first frame is pushed into the WebRTC pipeline (by the capturer calling `OnFrame`).
+
+	// Note from Luke about Pixel Streaming: Internally we associate `FPlayerId` with each `FVideoCapturer` and 
+	// pass an "initialisation frame" that contains `FPlayerId` through `OnFrame` to the encoder. 
+	// This initialization frame establishes the correct association between the player and `FPixelStreamingVideoEncoder`. 
+	// The reason we want this association between encoder<->peer is is so that the quality controlling peer 
+	// can change encoder bitrate etc, while the other peers cannot.
+
+	PeerConnection->SetLocalDescription(Observer, SDP);
+
+	// Once local description has been set we can start setting some encoding information for the video stream rtp sender
+	for (rtc::scoped_refptr<webrtc::RtpSenderInterface> Sender : PeerConnection->GetSenders())
+	{
+		cricket::MediaType MediaType = Sender->media_type();
+		if (MediaType == cricket::MediaType::MEDIA_TYPE_VIDEO)
+		{
+			webrtc::RtpParameters ExistingParams = Sender->GetParameters();
+
+			// Set the degradation preference based on our CVar for it.
+			ExistingParams.degradation_preference = PixelStreamingSettings::GetDegradationPreference();
+
+			webrtc::RTCError Err = Sender->SetParameters(ExistingParams);
+			if (!Err.ok())
+			{
+				const char* ErrMsg = Err.message();
+				FString ErrorStr(ErrMsg);
+				UE_LOG(PixelStreamer, Error, TEXT("Failed to set RTP Sender params: %s"), *ErrorStr);
+			}
+		}
+	}
+
+	// Note: if desired, manually limiting total bitrate for a peer is possible in PeerConnection::SetBitrate(const BitrateSettings& bitrate)
 }
 
 void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
@@ -203,52 +270,7 @@ void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface*
 
 	auto OnCreateAnswerSuccess = [this, PlayerId, PeerConnection, SetLocalDescriptionObserver](webrtc::SessionDescriptionInterface* SDP)
 	{
-		// Note from Luke about WebRTC: the sink of video capturer will be added as a direct result
-		// of `PeerConnection->SetLocalDescription()` call but video encoder will be created later on
-		// when the first frame is pushed into the WebRTC pipeline (by the capturer calling `OnFrame`).
-
-		// Note from Luke about Pixel Streaming: Internally we associate `FPlayerId` with each `FVideoCapturer` and 
-		// pass an "initialisation frame" that contains `FPlayerId` through `OnFrame` to the encoder. 
-		// This initialization frame establishes the correct association between the player and `FPixelStreamingVideoEncoder`. 
-		// The reason we want this association between encoder<->peer is is so that the quality controlling peer 
-		// can change encoder bitrate etc, while the other peers cannot.
-
-		PeerConnection->SetLocalDescription(SetLocalDescriptionObserver, SDP);
-
-		// Once local description has been set we can start setting some encoding information for the video stream rtp sender
-		std::vector<rtc::scoped_refptr<webrtc::RtpSenderInterface>> SendersArr = PeerConnection->GetSenders();
-		for(rtc::scoped_refptr<webrtc::RtpSenderInterface> Sender : SendersArr)
-		{
-			cricket::MediaType MediaType = Sender->media_type();
-			if(MediaType == cricket::MediaType::MEDIA_TYPE_VIDEO)
-			{
-				webrtc::RtpParameters ExistingParams = Sender->GetParameters();
-				
-				// Set the start min/max bitrate and max framerate for the codec.
-				for (webrtc::RtpEncodingParameters& codec_params : ExistingParams.encodings)
-				{
-					codec_params.max_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread();
-					codec_params.min_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate.GetValueOnAnyThread();
-					codec_params.max_framerate = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread();
-					codec_params.network_priority = webrtc::Priority::kHigh;
-				}
-				
-				// Set the degradation preference based on our CVar for it.
-				webrtc::DegradationPreference DegradationPref = PixelStreamingSettings::GetDegradationPreference();
-				ExistingParams.degradation_preference = DegradationPref;
-
-				webrtc::RTCError Err = Sender->SetParameters(ExistingParams);
-				if(!Err.ok())
-				{
-					const char* ErrMsg = Err.message();
-					FString ErrorStr(ErrMsg);
-    				UE_LOG(PixelStreamer, Error, TEXT("Failed to set RTP Sender params: %s"), *ErrorStr);
-				}
-			}
-		}
-
-		// Note: if desired, manually limiting total bitrate for a peer is possible in PeerConnection::SetBitrate(const BitrateSettings& bitrate)
-
+		SetLocalDescription(PeerConnection, SetLocalDescriptionObserver, SDP);
 	};
 
 	FCreateSessionDescriptionObserver* CreateAnswerObserver = FCreateSessionDescriptionObserver::Create
@@ -337,6 +359,47 @@ void FStreamer::OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpM
 	this->PlayerSessions.OnRemoteIceCandidate(PlayerId, SdpMid, SdpMLineIndex, Sdp);
 }
 
+void FStreamer::OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel)
+{
+	// create peer connection
+	if (webrtc::PeerConnectionInterface* PlayerSession = CreateSession(PlayerId, SupportsDataChannel))
+	{
+		// make them send only
+		std::vector<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> Transceivers = PlayerSession->GetTransceivers();
+		for(auto& Transceiver : Transceivers)
+		{
+			Transceiver->SetDirection(webrtc::RtpTransceiverDirection::kSendOnly);
+		}
+
+		// observer for creating offer
+		FCreateSessionDescriptionObserver* CreateOfferObserver = FCreateSessionDescriptionObserver::Create
+		(
+			[this, PlayerId, PlayerSession](webrtc::SessionDescriptionInterface* SDP) // on SDP create success
+			{
+				FSetSessionDescriptionObserver* SetLocalDescriptionObserver = FSetSessionDescriptionObserver::Create
+				(
+					[this, PlayerId, SDP]() // on SDP set success
+					{
+						GetSignallingServerConnection()->SendOffer(PlayerId, *SDP);
+					},
+					[](const FString& Error) // on SDP set failure
+					{
+						UE_LOG(PixelStreamer, Error, TEXT("Failed to set local description: %s"), *Error);
+					}
+				);
+
+				SetLocalDescription(PlayerSession, SetLocalDescriptionObserver, SDP);
+			},
+			[](const FString& Error) // on SDP create failure
+			{
+				UE_LOG(PixelStreamer, Error, TEXT("Failed to create offer: %s"), *Error);
+			}
+		);
+
+		PlayerSession->CreateOffer(CreateOfferObserver, {});
+	}
+}
+
 void FStreamer::OnPlayerDisconnected(FPlayerId PlayerId)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("player %s disconnected"), *PlayerId);
@@ -417,17 +480,12 @@ void FStreamer::DeleteAllPlayerSessions()
 
 void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 {
-	// Note: this is very explicitly the first thing to get called, other ordering is problematic at the time of writing.
-	this->VideoEncoderFactory->UnregisterVideoEncoder(PlayerId);
-
 	int NumRemainingPlayers = this->PlayerSessions.DeletePlayerSession(PlayerId);
 
 	if(NumRemainingPlayers == 0)
 	{
 		this->bStreamingStarted = false;
 	}
-
-	this->VideoSources.DeleteVideoSource(PlayerId);
 }
 
 void FStreamer::AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection)
@@ -451,19 +509,59 @@ void FStreamer::AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* 
 	// As per the WebRTC source: "The same source can be used by multiple VideoTracks."
 	this->SetupVideoTrack(PlayerId, PeerConnection, VideoStreamId, VideoTrackLabel);
 	this->SetupAudioTrack(PeerConnection, AudioStreamId, AudioTrackLabel);
-
 }
 
 void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel)
 {
 	// Create a video source for this player
-	webrtc::VideoTrackSourceInterface* VideoSource = this->VideoSources.CreateVideoSource(PlayerId);
+	FPlayerVideoSource* PlayerVideoSource = FramePump.CreatePlayerVideoSource(PlayerId);
 
 	// Create video track
-	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = PeerConnectionFactory->CreateVideoTrack(TCHAR_TO_UTF8(*VideoTrackLabel), VideoSource);
+	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = PeerConnectionFactory->CreateVideoTrack(TCHAR_TO_UTF8(*VideoTrackLabel), PlayerVideoSource);
 
-	// Add the track
-	webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> Result = PeerConnection->AddTrack(VideoTrack, { TCHAR_TO_UTF8(*VideoStreamId) });
+	// Add tranceiver
+	webrtc::RtpTransceiverInit TransceiverOptions;
+	TransceiverOptions.stream_ids = { TCHAR_TO_UTF8(*VideoStreamId) };
+
+	if (PixelStreamingSettings::SimulcastParameters.Layers.Num() > 0)
+	{
+		// encodings should be lowest res to highest
+		TArray<PixelStreamingSettings::FSimulcastParameters::FLayer*> SortedLayers;
+		for (auto& Layer : PixelStreamingSettings::SimulcastParameters.Layers)
+		{
+			SortedLayers.Add(&Layer);
+		}
+
+		SortedLayers.Sort([](const auto& LayerA, const auto& LayerB)
+		{
+			return LayerA.Scaling > LayerB.Scaling;
+		});
+
+		const int LayerCount = SortedLayers.Num();
+		for (int i = 0; i < LayerCount; ++i)
+		{
+			const auto SimulcastLayer = SortedLayers[i];
+			webrtc::RtpEncodingParameters LayerEncoding{};
+			LayerEncoding.rid = TCHAR_TO_UTF8(*(FString("Layer") + FString::FromInt(LayerCount - i)));
+			LayerEncoding.min_bitrate_bps = SimulcastLayer->MinBitrate;
+			LayerEncoding.max_bitrate_bps = SimulcastLayer->MaxBitrate;
+			LayerEncoding.scale_resolution_down_by = SimulcastLayer->Scaling;
+			LayerEncoding.max_framerate = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
+			TransceiverOptions.send_encodings.push_back(LayerEncoding);
+		}
+	}
+	else
+	{
+		webrtc::RtpEncodingParameters encoding{};
+		encoding.rid = "base";
+		encoding.max_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread();
+		encoding.min_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate.GetValueOnAnyThread();
+		encoding.max_framerate = PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread();
+		encoding.scale_resolution_down_by.reset();
+		TransceiverOptions.send_encodings.push_back(encoding);
+	}
+
+	auto Result = PeerConnection->AddTransceiver(VideoTrack, TransceiverOptions);
 
 	if (Result.ok())
 	{

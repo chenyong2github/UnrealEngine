@@ -11,6 +11,7 @@
 #include "PixelStreamingAudioSink.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "SignallingServerConnection.h"
+#include "WebRtcObservers.h"
 
 FPlayerSession::FPlayerSession(IPixelStreamingSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPlayerId InPlayerId)
     : SignallingServerConnection(InSignallingServerConnection)
@@ -56,29 +57,46 @@ FPlayerId FPlayerSession::GetPlayerId() const
 	return PlayerId;
 }
 
+void FPlayerSession::OnAnswer(FString Sdp)
+{
+	webrtc::SdpParseError Error;
+	std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, to_string(Sdp), &Error);
+	if (!SessionDesc)
+	{
+		UE_LOG(PixelStreamer, Error, TEXT("Failed to parse answer's SDP\n%s"), *Sdp);
+		return;
+	}
+
+	FSetSessionDescriptionObserver* SetRemoteDescriptionObserver = FSetSessionDescriptionObserver::Create
+	(
+		[]() // on success
+		{
+		},
+		[](const FString& Error) // on failure
+		{
+			UE_LOG(PixelStreamer, Error, TEXT("Failed to set remote description: %s"), *Error);
+		}
+	);
+
+	PeerConnection->SetRemoteDescription(SetRemoteDescriptionObserver, SessionDesc.release());
+}
+
 void FPlayerSession::OnRemoteIceCandidate(const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
 {
-
-	bool bFailed = false;
-
 	webrtc::SdpParseError Error;
 	std::unique_ptr<webrtc::IceCandidateInterface> Candidate(webrtc::CreateIceCandidate(SdpMid, SdpMLineIndex, Sdp, &Error));
-	if (!Candidate)
+	if (Candidate)
+	{
+		PeerConnection->AddIceCandidate(std::move(Candidate), [&](webrtc::RTCError error) {
+			if (!error.ok()) {
+				UE_LOG(PixelStreamer, Error, TEXT("AddIceCandidate failed (%s): %S"), *PlayerId, error.message());
+			}
+		});
+	}
+	else
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("Could not create ice candidate for player %s"), *this->PlayerId);
 		UE_LOG(PixelStreamer, Error, TEXT("Bad sdp at line %s | Description: %s"), *FString(Error.line.c_str()), *FString(Error.description.c_str()));
-		bFailed = true;
-	}
-
-	if (!PeerConnection->AddIceCandidate(Candidate.release()))
-	{
-		bFailed = true;
-	}
-
-	if(bFailed)
-	{
-		UE_LOG(PixelStreamer, Error, TEXT("Failed to apply remote ICE Candidate from Player %s"), *PlayerId);
-		DisconnectPlayer(TEXT("Failed to apply remote ICE Candidate"));
 	}
 }
 

@@ -25,6 +25,7 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		void DisconnectPlayer(FPlayerId PlayerId, const FString& Reason);
 		void SendLatestQPAllPlayers(int LatestQP) const;
 		void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
+		void OnAnswer(FPlayerId PlayerId, FString Sdp);
 
 		webrtc::PeerConnectionInterface* CreatePlayerSession(FPlayerId PlayerId, 
 			rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory, 
@@ -59,6 +60,7 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
 		FPlayerSession* GetPlayerSession_SignallingThread(FPlayerId PlayerId) const;
 
 		void OnRemoteIceCandidate_SignallingThread(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp);
+		void OnAnswer_SignallingThread(FPlayerId PlayerId, FString Sdp);
 		IPixelStreamingAudioSink* GetUnlistenedAudioSink_SignallingThread() const;
 		IPixelStreamingAudioSink* GetAudioSink_SignallingThread(FPlayerId PlayerId) const;
 		void SendLatestQP_SignallingThread(FPlayerId PlayerId, int LatestQP) const;
@@ -84,7 +86,7 @@ class FThreadSafePlayerSessions : public IPixelStreamingSessions
     private:
         rtc::Thread* WebRtcSignallingThread;
         TMap<FPlayerId, FPlayerSession*> Players;
-
+		
 		mutable FCriticalSection QualityControllerCS;
 		FPlayerId QualityControllingPlayer = ToPlayerId(FString(TEXT("No quality controlling peer.")));
 

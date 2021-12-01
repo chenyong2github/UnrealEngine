@@ -2,41 +2,32 @@
 
 #pragma once
 
-#include "VideoCommon.h"
-#include <HAL/CriticalSection.h>
-
 namespace AVEncoder
 {
-
-class AVENCODER_API FCodecPacketImpl : public FCodecPacket
-{
-public:
-	~FCodecPacketImpl();
-
-	// clone packet if a longer term copy is needed
-	const FCodecPacket* Clone() const override;
-	// release a cloned copy
-	void ReleaseClone() const override;
-
-	class FClone : public FCodecPacket
+	class AVENCODER_API FCodecPacket
 	{
 	public:
-		~FClone();
+		virtual ~FCodecPacket() = default;
 
-		void Copy(const FCodecPacketImpl& InOriginal);
+		static FCodecPacket Create(const uint8* InData, uint32 InDataSize);
 
-		// clone packet if a longer term copy is needed
-		const FCodecPacket* Clone() const override;
-		// release a cloned copy
-		void ReleaseClone() const override;
+		/**
+		 * Encoding/Decoding latency
+		 */
+		struct FTimings
+		{
+			FTimespan StartTs;
+			FTimespan FinishTs;
+		};
+
+		TSharedPtr<uint8>	Data;					// pointer to encoded data
+		uint32				DataSize = 0;			// number of bytes of encoded data
+		bool				IsKeyFrame = false;		// whether or not packet represents a key frame
+		uint32				VideoQP = 0;
+		uint32 				Framerate;
+ 		FTimings 			Timings;
 
 	private:
-		mutable FThreadSafeCounter		RefCounter = 0;
+		FCodecPacket() = default;
 	};
-private:
-	mutable FCriticalSection			ProtectClone;
-	mutable const FClone*				MyClone = nullptr;
-};
-
-
 } /* namespace AVEncoder */

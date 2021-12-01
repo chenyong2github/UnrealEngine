@@ -177,7 +177,7 @@ private:
 };
 
 
-inline void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture, FGPUFenceRHIRef& CopyFence)
+inline void CopyTexture(FTexture2DRHIRef SourceTexture, FTexture2DRHIRef DestinationTexture, FGPUFenceRHIRef& CopyFence)
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -220,13 +220,13 @@ inline void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef&
 		}
 
 		RendererModule->DrawRectangle(RHICmdList, 0, 0,                // Dest X, Y
-									DestinationTexture->GetSizeX(),  // Dest Width
-									DestinationTexture->GetSizeY(),  // Dest Height
-									0, 0,                            // Source U, V
-									1, 1,                            // Source USize, VSize
-									DestinationTexture->GetSizeXY(), // Target buffer size
-									FIntPoint(1, 1),                 // Source texture size
-									VertexShader, EDRF_Default);
+		                              DestinationTexture->GetSizeX(),  // Dest Width
+		                              DestinationTexture->GetSizeY(),  // Dest Height
+		                              0, 0,                            // Source U, V
+		                              1, 1,                            // Source USize, VSize
+		                              DestinationTexture->GetSizeXY(), // Target buffer size
+		                              FIntPoint(1, 1),                 // Source texture size
+		                              VertexShader, EDRF_Default);
 	}
 
 	RHICmdList.EndRenderPass();
@@ -235,3 +235,4 @@ inline void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef&
 
 	RHICmdList.ImmediateFlush(EImmediateFlushType::WaitForOutstandingTasksOnly);
 }
+

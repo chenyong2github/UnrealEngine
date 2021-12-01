@@ -16,7 +16,7 @@ class FPixelStreamingEncoderFrameFactory
     public:
         FPixelStreamingEncoderFrameFactory();
         ~FPixelStreamingEncoderFrameFactory();
-        AVEncoder::FVideoEncoderInputFrame* GetFrameAndSetTexture(int InWidth, int InHeight, FTextureObtainer TextureObtainer);
+        AVEncoder::FVideoEncoderInputFrame* GetFrameAndSetTexture(int InWidth, int InHeight, FTexture2DRHIRef InTexture);
         TSharedPtr<AVEncoder::FVideoEncoderInput> GetOrCreateVideoEncoderInput(int InWidth, int InHeight);
         void SetResolution(int InWidth, int InHeight);
 

@@ -9,12 +9,15 @@
 #include "HAL/Thread.h"
 #include "IPixelStreamingSessions.h"
 #include "ThreadSafePlayerSessions.h"
-#include "PixelStreamingVideoSources.h"
-
+#include "PixelStreamingFramePump.h"
+#include "PixelStreamingFrameSource.h"
+#include "PixelStreamingFramePump.h"
 
 class FVideoCapturer;
 class FPlayerSession;
 class FPixelStreamingVideoEncoderFactory;
+class FStreamer;
+class FSetSessionDescriptionObserver;
 
 class FStreamer : public FSignallingServerConnectionObserver, public IPixelStreamingSessions
 {
@@ -54,6 +57,7 @@ public:
 
 private:
 
+	webrtc::PeerConnectionInterface* CreateSession(FPlayerId PlayerId, bool SupportsDataChannel);
 	webrtc::AudioProcessing* SetupAudioProcessingModule();
 
 	// Procedure for WebRTC inter-thread communication
@@ -62,11 +66,12 @@ private:
 
 	// ISignallingServerConnectionObserver impl
 	virtual void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override;
-	virtual void OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp) override;
+	virtual void OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override;
 	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp) override;
+	virtual void OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel) override;
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId) override;
 	virtual void OnSignallingServerDisconnected() override;
-
+	
 	// own methods
 	void ModifyAudioTransceiverDirection(webrtc::PeerConnectionInterface* PeerConnection);
 	void DeletePlayerSession(FPlayerId PlayerId);
@@ -78,6 +83,7 @@ private:
 	void OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterface* DataChannel);
 	void OnQualityControllerChanged(FPlayerId PlayerId);
 	void PostPlayerDeleted(FPlayerId PlayerId);
+	void SetLocalDescription(webrtc::PeerConnectionInterface* PeerConnection, FSetSessionDescriptionObserver* Observer, webrtc::SessionDescriptionInterface* SDP);
 
 private:
 	FString SignallingServerUrl;
@@ -92,7 +98,10 @@ private:
 	webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
 
 	FPixelStreamingVideoEncoderFactory* VideoEncoderFactory;
-	FPixelStreamingVideoSources VideoSources;
+
+	FPixelStreamingFrameSource FrameSource;
+	FPixelStreamingFramePump FramePump;
+
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
 	cricket::AudioOptions AudioSourceOptions;
 	
@@ -102,5 +111,8 @@ private:
 	FThreadSafeBool bStreamingStarted = false;
 
 	FThreadSafePlayerSessions PlayerSessions;
+
+	TUniquePtr<webrtc::SessionDescriptionInterface> SFULocalDescription;
+	TUniquePtr<webrtc::SessionDescriptionInterface> SFURemoteDescription;
 };
 

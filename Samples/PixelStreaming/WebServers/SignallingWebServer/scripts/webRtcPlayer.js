@@ -163,6 +163,7 @@
         }
 
         this.video = this.createWebRtcVideo();
+        this.availableVideoStreams = new Map();
 
         onsignalingstatechange = function(state) {
             console.info('signaling state change:', state)
@@ -189,10 +190,20 @@
                 handleOnAudioTrack(e.streams[0]);
                 return;
 			}
-            else(e.track.kind == "video" && self.video.srcObject !== e.streams[0])
+            else(e.track.kind == "video")
             {
+                console.log('handleOnTrack: new video track. e.streams =', self.availableVideoStreams);
+
+                for (const s of e.streams) {
+                    if (!self.availableVideoStreams.has(s.id)) {
+                        self.availableVideoStreams.set(s.id, s);
+                    }
+                }
+                
                 self.video.srcObject = e.streams[0];
-				console.log('Set video source from video track ontrack.');
+
+                if (self.onNewVideoTrack)
+                    self.onNewVideoTrack(e.streams);
                 return;
             }
 			
@@ -479,6 +490,39 @@
                 handleCreateOffer(self.pcClient);
             });
             
+        };
+
+        //Called externaly when an offer is received from the server
+        this.receiveOffer = function(offer) {
+            console.log('Received offer:');
+            console.log(offer);
+            var offerDesc = new RTCSessionDescription(offer);
+
+            if (!self.pcClient){
+                console.log("Opening new PeerConnection")
+                self.pcClient = new RTCPeerConnection(self.cfg);
+                setupTracksToSendAsync(self.pcClient).finally(function()
+                {
+                    setupPeerConnection(self.pcClient);
+                    self.dcClient = setupDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
+                });
+            }
+
+            self.pcClient.setRemoteDescription(offerDesc)
+            .then(() => self.pcClient.createAnswer())
+            .then(answer => this.pcClient.setLocalDescription(answer))
+            .then(() => {
+                if (self.onWebRtcAnswer) {
+                    self.onWebRtcAnswer(this.pcClient.currentLocalDescription);
+                }
+            })
+            .catch((error) => console.error("createAnswer() failed:", error));
+
+            let receivers = self.pcClient.getReceivers();
+            for(let receiver of receivers)
+            {
+                receiver.playoutDelayHint = 0;
+            }
         };
 
         //Called externaly when an answer is received from the server

@@ -17,7 +17,7 @@ namespace PixelStreamingProtocol
 
 		IFrameRequest = 0,
 		RequestQualityControl = 1,
-		MaxFpsRequest = 2,
+		FpsRequest = 2,
 		AverageBitrateRequest = 3,
 		StartStreaming = 4,
 		StopStreaming = 5,
@@ -30,41 +30,41 @@ namespace PixelStreamingProtocol
 		 * Input Messages. Range = 50..89.
 		 */
 
-		 // Generic Input Messages. Range = 50..59.
-		 UIInteraction = 50,
-		 Command = 51,
+		// Generic Input Messages. Range = 50..59.
+		UIInteraction = 50,
+		Command = 51,
 
-		 // Keyboard Input Message. Range = 60..69.
-		 KeyDown = 60,
-		 KeyUp = 61,
-		 KeyPress = 62,
+		// Keyboard Input Message. Range = 60..69.
+		KeyDown = 60,
+		KeyUp = 61,
+		KeyPress = 62,
 
-		 // Mouse Input Messages. Range = 70..79.
-		 MouseEnter = 70,
-		 MouseLeave = 71,
-		 MouseDown = 72,
-		 MouseUp = 73,
-		 MouseMove = 74,
-		 MouseWheel = 75,
+		// Mouse Input Messages. Range = 70..79.
+		MouseEnter = 70,
+		MouseLeave = 71,
+		MouseDown = 72,
+		MouseUp = 73,
+		MouseMove = 74,
+		MouseWheel = 75,
 
-		 // Touch Input Messages. Range = 80..89.
-		 TouchStart = 80,
-		 TouchEnd = 81,
-		 TouchMove = 82,
+		// Touch Input Messages. Range = 80..89.
+		TouchStart = 80,
+		TouchEnd = 81,
+		TouchMove = 82,
 
-		 // Gamepad Input Messages. Range = 90..99
-		 GamepadButtonPressed = 90,
-		 GamepadButtonReleased = 91,
-		 GamepadAnalog = 92,
+		// Gamepad Input Messages. Range = 90..99
+		GamepadButtonPressed = 90,
+		GamepadButtonReleased = 91,
+		GamepadAnalog = 92,
+		
+		/**********************************************************************/
 
-		 /**********************************************************************/
+		/*
+		 * Ensure Count is the final entry.
+		 */
+		Count
 
-		 /*
-		  * Ensure Count is the final entry.
-		  */
-		  Count
-
-		  /**********************************************************************/
+		/**********************************************************************/
 	};
 
 	//! Messages that can be sent to the webrtc players
