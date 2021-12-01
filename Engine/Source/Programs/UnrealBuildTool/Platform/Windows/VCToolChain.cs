@@ -1340,10 +1340,17 @@ namespace UnrealBuildTool
 					CompileAction.AdditionalProducedItems.Add(IfcFile);
 					CompileAction.CompiledModuleInterfaceFile = IfcFile;
 				}
-				
+
+				if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
+				{
+					CompileAction.ForceClFilter = true;
+					CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing", SourceFile.Location.GetFileName())));
+					GenerateParseTimingInfoAction(SourceFile, CompileAction.TimingFile, Graph);
+				}
+
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27") && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
+					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27") && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019 && !CompileAction.ForceClFilter)
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
 					}
@@ -1356,12 +1363,6 @@ namespace UnrealBuildTool
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
 						CompileAction.bShowIncludes = Target.WindowsPlatform.bShowIncludes;
 					}
-				}
-
-				if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
-				{
-					CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.timing", SourceFile.Location.GetFileName())));
-					GenerateParseTimingInfoAction(SourceFile, CompileAction.TimingFile, Graph);
 				}
 
 				if (!ProjectFileGenerator.bGenerateProjectFiles)
