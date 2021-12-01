@@ -252,12 +252,15 @@ void FIKRigEditMode::GetAffectedBones(
 			// record which bones in the skeleton are affected by this solver
 			UIKRigController* AssetController = Controller->AssetController;
 			UIKRigSolver* SelectedSolver = AssetController->GetSolver(SelectedSolvers[0].Get()->IndexInStack);
-			for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
+			if(SelectedSolver)
 			{
-				const FName& BoneName = Skeleton.BoneNames[BoneIndex];
-				if (SelectedSolver->IsBoneAffectedBySolver(BoneName, Skeleton))
+				for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
 				{
-					OutAffectedBones.Add(BoneIndex);
+					const FName& BoneName = Skeleton.BoneNames[BoneIndex];
+					if (SelectedSolver->IsBoneAffectedBySolver(BoneName, Skeleton))
+					{
+						OutAffectedBones.Add(BoneIndex);
+					}
 				}
 			}
 		}

@@ -137,7 +137,7 @@ void SIKRigSolverStackItem::Construct(
 			.Padding(3)
 			[
 				SNew(SButton)
-				.ToolTipText(LOCTEXT("DeleteSolver", "Delect solver and remove from stack."))
+				.ToolTipText(LOCTEXT("DeleteSolver", "Delete solver and remove from stack."))
 				.OnClicked_Lambda([InSolverStack, InStackElement]() -> FReply
 				{
 					InSolverStack.Get()->DeleteSolver(InStackElement);
@@ -381,21 +381,28 @@ void SIKRigSolverStack::RefreshStackView()
 	}
 
 	// generate all list items
+	static const FText UnknownSolverTxt = FText::FromString("Unknown Solver");
+	
 	ListViewItems.Reset();
 	UIKRigController* AssetController = Controller->AssetController;
 	const int32 NumSolvers = AssetController->GetNumSolvers();
 	for (int32 i=0; i<NumSolvers; ++i)
 	{
 		const UIKRigSolver* Solver = AssetController->GetSolver(i);
-		const FText DisplayName = Solver ? FText::FromString(AssetController->GetSolverUniqueName(i)) : FText::FromString("Unknown Solver");
+		const FText DisplayName = Solver ? FText::FromString(AssetController->GetSolverUniqueName(i)) : UnknownSolverTxt;
 		TSharedPtr<FSolverStackElement> SolverItem = FSolverStackElement::Make(DisplayName, i);
 		ListViewItems.Add(SolverItem);
 	}
 
-	// restore selection
-	if (ListViewItems.IsValidIndex(IndexToSelect))
+	if (NumSolvers && ListViewItems.IsValidIndex(IndexToSelect))
 	{
+		// restore selection
 		ListView->SetSelection(ListViewItems[IndexToSelect]);
+	}
+	else
+	{
+		// clear selection otherwise
+		ListView->ClearSelection();
 	}
 
 	ListView->RequestListRefresh();
