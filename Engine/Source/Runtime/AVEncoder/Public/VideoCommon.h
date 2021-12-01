@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CodecPacket.h"
 
 //
 // Windows only include
@@ -67,8 +68,6 @@ THIRD_PARTY_INCLUDES_END
 #if PLATFORM_WINDOWS
 struct ID3D11DeviceChild;
 #endif
-
-#include "CodecPacket.h"
 
 namespace AVEncoder
 {
