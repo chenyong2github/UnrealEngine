@@ -2552,7 +2552,7 @@ FString ULevel::GetExternalActorsPath(const FString& InLevelPackageName, const F
 		return false;
 	};
 
-	// This if exists only to support the Fortnite Foundation level streaming which prefix a valid package with /Temp (/Temp/Game/...)
+	// This exists to support the Fortnite Foundation level streaming and Level Instances which prefix a valid package with /Temp (/Temp/Game/...)
 	// Unsaved worlds also have a /Temp prefix but no other mount point in their paths and they should fallback to not stripping the prefix. (first call to SplitLongPackageName will fail and second will succeed)
 	if (InLevelPackageName.StartsWith(TEXT("/Temp")))
 	{
