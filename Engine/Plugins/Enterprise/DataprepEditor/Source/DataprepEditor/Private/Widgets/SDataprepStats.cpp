@@ -194,6 +194,8 @@ void SDataprepStats::SetStats(const TSharedPtr<FDataprepStats>& InStats, bool bI
 
 	SetSingleStat(FDataprepStats::StatNameTriangles);
 	SetSingleStat(FDataprepStats::StatNameVertices);
+	SetSingleStat(FDataprepStats::StatNameNaniteTriangles);
+	SetSingleStat(FDataprepStats::StatNameNaniteVertices);
 	SetSingleStat(FDataprepStats::StatNameTextures);
 	SetSingleStat(FDataprepStats::StatNameTextureSize);
 	SetSingleStat(FDataprepStats::StatNameMeshes);

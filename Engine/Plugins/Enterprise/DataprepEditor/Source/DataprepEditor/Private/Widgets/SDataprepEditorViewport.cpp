@@ -335,6 +335,8 @@ void SDataprepEditorViewport::UpdateScene()
 	// Gather all static meshes used by actors in PreviewWorld
 	TArray< UStaticMeshComponent* > SceneMeshComponents = DataprepEditor3DPreviewUtils::GetComponentsFromWorld<UStaticMeshComponent>( WorldToPreview );
 
+	bCanShowNaniteProxyMenu = false;
+
 	if(SceneMeshComponents.Num() > 0)
 	{
 		int32 InvalidStaticMeshesCount = 0;
@@ -393,6 +395,8 @@ void SDataprepEditorViewport::UpdateScene()
 					const UStaticMesh* StaticMesh = SceneMeshComponent->GetStaticMesh();
 					const FTransform& ComponentToWorldTransform = SceneMeshComponent->GetComponentTransform();
 					SceneBounds += StaticMesh->GetExtendedBounds().GetBox().TransformBy( ComponentToWorldTransform );
+
+					bCanShowNaniteProxyMenu |= StaticMesh->NaniteSettings.bEnabled;
 				}
 			}
 
@@ -443,6 +447,8 @@ void SDataprepEditorViewport::UpdateScene()
 
 						FComponentReregisterContext ReregisterContext( PreviewMeshComponent );
 						PreviewMeshComponent->SetStaticMesh( StaticMesh );
+
+						PreviewMeshComponent->bDisplayNaniteProxyMesh = bShowNaniteProxyMenuChecked & StaticMesh->NaniteSettings.bEnabled;
 
 						FTransform ComponentToWorldTransform = SceneMeshComponent->GetComponentTransform();
 
@@ -608,6 +614,8 @@ void SDataprepEditorViewport::UpdateOverlayText()
 
 	TSet<UStaticMesh*> StaticMeshes;
 
+	int32 NaniteTrianglesCount = 0;
+	int32 NaniteVerticesCount = 0;
 	int32 TrianglesCount = 0;
 	int32 VerticesCount = 0;
 	for( const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponent : PreviewMeshComponents )
@@ -615,17 +623,57 @@ void SDataprepEditorViewport::UpdateOverlayText()
 		if(UStaticMeshComponent* MeshComponent = PreviewMeshComponent.Get())
 		{
 			UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-			TrianglesCount += StaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
-			VerticesCount += StaticMesh->GetRenderData()->LODResources[0].GetNumVertices();
+
+			FStaticMeshLODResources& LODResource = StaticMesh->GetRenderData()->LODResources[0];
+
+			if (StaticMesh->NaniteSettings.bEnabled && StaticMesh->HasValidNaniteData())
+			{
+				const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+				if (Resources.RootClusterPage.Num() > 0)
+				{
+					NaniteTrianglesCount += bShowNaniteProxyMenuChecked ? LODResource.GetNumTriangles() : Resources.NumInputTriangles;
+					NaniteVerticesCount += bShowNaniteProxyMenuChecked ? LODResource.GetNumVertices() : Resources.NumInputVertices;
+				}
+			}
+			else
+			{
+				TrianglesCount += LODResource.GetNumTriangles();
+				VerticesCount += LODResource.GetNumVertices();
+			}
 			StaticMeshes.Add(StaticMesh);
 		}
 	}
 
-	TextItems.Add(FOverlayTextItem(
-		FText::Format(LOCTEXT( "Triangles_F", "#Triangles:  {0}"), FText::AsNumber(TrianglesCount))));
+	if (NaniteTrianglesCount > 0)
+	{
+		static FText ShowingNaniteProxy = LOCTEXT("ShowingNaniteProxy", "(Showing Proxy)");
+
+		TextItems.Add(FOverlayTextItem(
+			FText::Format(LOCTEXT("NaniteEnabled", "Nanite Enabled {0}"), bShowNaniteProxyMenuChecked ? ShowingNaniteProxy : FText::GetEmpty())));
+
+		if (bShowNaniteProxyMenuChecked)
+		{
+			TextItems.Add(FOverlayTextItem(
+				FText::Format(LOCTEXT("Proxy_Triangles", "#Proxy_Triangles: {0}"), FText::AsNumber(NaniteTrianglesCount))));
+
+			TextItems.Add(FOverlayTextItem(
+				FText::Format(LOCTEXT("Proxy_Vertices", "#Proxy_Vertices: {0}"), FText::AsNumber(NaniteVerticesCount))));
+		}
+		else
+		{
+			TextItems.Add(FOverlayTextItem(
+				FText::Format(LOCTEXT("Nanite_Triangles", "#Nanite_Triangles: {0}"), FText::AsNumber(NaniteTrianglesCount))));
+
+			TextItems.Add(FOverlayTextItem(
+				FText::Format(LOCTEXT("Nanite_Vertices", "#Nanite_Vertices: {0}"), FText::AsNumber(NaniteVerticesCount))));
+		}
+	}
 
 	TextItems.Add(FOverlayTextItem(
-		FText::Format(LOCTEXT( "Vertices_F", "#Vertices:  {0}"), FText::AsNumber(VerticesCount))));
+		FText::Format(LOCTEXT("Triangles_F", "#Triangles: {0}"), FText::AsNumber(TrianglesCount))));
+
+	TextItems.Add(FOverlayTextItem(
+		FText::Format(LOCTEXT("Vertices_F", "#Vertices: {0}"), FText::AsNumber(VerticesCount))));
 
 	FVector SceneExtents = SceneBounds.GetExtent();
 	TextItems.Add(FOverlayTextItem(
@@ -697,7 +745,14 @@ void SDataprepEditorViewport::BindCommands()
 		Commands.SetShowBounds,
 		FExecuteAction::CreateSP( EditorViewportClientRef, &FEditorViewportClient::ToggleShowBounds ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( EditorViewportClientRef, &FEditorViewportClient::IsSetShowBoundsChecked ) );
+		FIsActionChecked::CreateSP(EditorViewportClientRef, &FEditorViewportClient::IsSetShowBoundsChecked ) );
+
+	CommandList->MapAction(
+		Commands.SetShowNaniteProxy,
+		FExecuteAction::CreateSP(this, &SDataprepEditorViewport::ToggleShowNaniteProxy),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SDataprepEditorViewport::IsSetShowNaniteProxyChecked),
+		FIsActionButtonVisible::CreateSP(this, &SDataprepEditorViewport::IsShowNaniteProxyVisible));
 
 	CommandList->MapAction(
 		Commands.ApplyOriginalMaterial,
@@ -1255,6 +1310,26 @@ void SDataprepEditorViewport::LoadDefaultSettings()
 	}
 }
 
+void SDataprepEditorViewport::SetShowNaniteProxy(bool bShow)
+{
+	bShowNaniteProxyMenuChecked = bShow;
+
+	for (const TWeakObjectPtr< UStaticMeshComponent >& PreviewMeshComponentPtr : PreviewMeshComponents)
+	{
+		if (UCustomStaticMeshComponent* PreviewMeshComponent = Cast<UCustomStaticMeshComponent>(PreviewMeshComponentPtr.Get()))
+		{
+			const UStaticMesh* StaticMesh = PreviewMeshComponent->GetStaticMesh();
+			if (StaticMesh && StaticMesh->NaniteSettings.bEnabled)
+			{
+				PreviewMeshComponent->bDisplayNaniteProxyMesh = bShowNaniteProxyMenuChecked & StaticMesh->NaniteSettings.bEnabled;
+				PreviewMeshComponent->MarkRenderStateDirty();
+			}
+		}
+	}
+
+	UpdateOverlayText();
+}
+
 //
 // FDataprepEditorViewportClient Class
 //
@@ -1413,6 +1488,7 @@ TSharedRef<SWidget> SDataprepEditorViewportToolbar::GenerateShowMenu() const
 	{
 		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowGrid);
 		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowBounds);
+		ShowMenuBuilder.AddMenuEntry(FDataprepEditorViewportCommands::Get().SetShowNaniteProxy);
 	}
 
 	// #ueent_remark: Look at SAnimViewportToolBar::GenerateShowMenu in SAnimViewportToolBar.cpp for adding ShowFlagFilter to the Show menu
@@ -1546,8 +1622,9 @@ void SDataprepEditorViewport::ToggleShowOrientedBox()
 void FDataprepEditorViewportCommands::RegisterCommands()
 {
 	// Show menu
-	UI_COMMAND(SetShowGrid, "Grid", "Displays the viewport grid.", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(SetShowBounds, "Bounds", "Toggles display of the bounds of the selected component.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(SetShowGrid, "Grid", "Displays the viewport grid.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::G));
+	UI_COMMAND(SetShowBounds, "Bounds", "Toggles display of the bounds of the selected component.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::B));
+	UI_COMMAND(SetShowNaniteProxy, "Nanite Proxy", "Toggles the display of the Nanite proxy mesh.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::N));
 
 	// Rendering Material
 	UI_COMMAND(ApplyOriginalMaterial, "None", "Display all meshes with original materials.", EUserInterfaceActionType::RadioButton, FInputChord());
@@ -1575,6 +1652,13 @@ FPrimitiveSceneProxy* UCustomStaticMeshComponent::CreateSceneProxy()
 	if (GetStaticMesh() == nullptr || GetStaticMesh()->GetRenderData() == nullptr)
 	{
 		return nullptr;
+	}
+
+	// Do not overwrite proxy if Nanite supported and there is built Nanite data for the static mesh
+	// #ueent_todo: Track changes to Nanite::FSceneProxy code in case wireframe display is supported
+	if (ShouldCreateNaniteProxy() && !bDisplayNaniteProxyMesh)
+	{
+		return UStaticMeshComponent::CreateSceneProxy();
 	}
 
 	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;

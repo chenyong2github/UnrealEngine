@@ -11,6 +11,8 @@ struct FDataprepStats
 	/**	Stat names */
 	static const FName StatNameTriangles;
 	static const FName StatNameVertices;
+	static const FName StatNameNaniteTriangles;
+	static const FName StatNameNaniteVertices;
 	static const FName StatNameTextures;
 	static const FName StatNameTextureSize;
 	static const FName StatNameMeshes;
@@ -26,6 +28,8 @@ struct FDataprepStats
 	{
 		StatsMap.Add(StatNameTriangles, 0);
 		StatsMap.Add(StatNameVertices, 0);
+		StatsMap.Add(StatNameNaniteTriangles, 0);
+		StatsMap.Add(StatNameNaniteVertices, 0);
 		StatsMap.Add(StatNameTextures, 0);
 		StatsMap.Add(StatNameTextureSize, 0);
 		StatsMap.Add(StatNameMeshes, 0);
