@@ -8,8 +8,8 @@
 
 /**
  * Helper struct to calculate LOD for each agent and maximize count per LOD
- *   Requires FMassLODSourceInfo fragment collected by the TMassLODCollector.
- *   Stores information in FMassLODResultInfo fragment.
+ *   Requires TViewerInfoFragment fragment collected by the TMassLODCollector.
+ *   Stores information in TLODFragment fragment.
 */
 template <typename FLODLogic = FLODDefaultLogic >
 struct TMassLODCalculator : public FMassLODBaseLogic
@@ -22,12 +22,16 @@ public:
 	 * @Param InBufferHysteresisOnFOVRatio distance hysteresis used to calculate LOD
 	 * @Param InLODMaxCount the maximum count for each LOD
 	 * @Param InLODMaxCountPerViewer the maximum count for each LOD per viewer (Only when FLODLogic::bMaximizeCountPerViewer is enabled)
+	 * @Param InVisibleDistanceToFrustum is the distance from the frustum to start considering this entity is visible (Only when FLODLogic::bDoVisibilityLogic is enabled)
+	 * @Param InVisibleDistanceToFrustumHysteresis once visible, what extra distance the entity need to be before considered not visible anymore (Only when FLODLogic::bDoVisibilityLogic is enabled)
 	 * @Param InVisibleLODDistance the maximum count for each LOD per viewer (Only when FLODLogic::bDoVisibilityLogic is enabled)
 	 */
 	void Initialize(const float InBaseLODDistance[EMassLOD::Max], 
 					const float InBufferHysteresisOnDistanceRatio, 
 					const int32 InLODMaxCount[EMassLOD::Max], 
 					const int32 InLODMaxCountPerViewer[EMassLOD::Max] = nullptr,
+					const float InVisibleDistanceToFrustum = 0.0f,
+					const float InVisibleDistanceToFrustumHysteresis = 0.0f,
 					const float InVisibleLODDistance[EMassLOD::Max] = nullptr);
 
 	/**
@@ -42,8 +46,8 @@ public:
 	 * @Param LODList is the fragment where calculation are stored
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
 	 */
-	template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-	void CalculateLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList);
+	template <typename TLODFragment, typename TViewerInfoFragment>
+	void CalculateLOD(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList);
 
 	/**
 	 * Adjust LOD distances by clamping them to respect the maximum LOD count
@@ -57,16 +61,16 @@ public:
 	 * @Param LODList is the fragment where calculation are stored
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
 	 */
-	template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-	void AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList);
+	template <typename TLODFragment, typename TViewerInfoFragment>
+	void AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList);
 
 	/**
 	 * Turn Off all LOD, called for each entity chunks
 	 * @Param Context of the chunk execution
 	 * @Param LODList is the fragment where calculation are stored
 	 */
-	template <typename FMassLODResultInfo>
-	void ForceOffLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList);
+	template <typename TLODFragment>
+	void ForceOffLOD(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList);
 
 	/**
 	 * Debug draw the current state of each agent as a color coded square
@@ -75,8 +79,8 @@ public:
 	 * @Param LocationList is the fragment transforms of the entities
 	 * @Param World where the debug display should be drawn
 	 */
-	template< typename FMassLODResultInfo, typename TFragmentLocation >
-	void DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<FMassLODResultInfo> LODList, TConstArrayView<TFragmentLocation> LocationList, UWorld* World);
+	template <typename TLODFragment, typename TTransformFragment>
+	void DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TConstArrayView<TTransformFragment> LocationList, UWorld* World);
 
 protected:
 
@@ -127,6 +131,8 @@ protected:
 
 	EMassLOD::Type ComputeLODFromSettings(const EMassLOD::Type PrevLOD, const float DistanceToViewerSq, const bool bIsVisible, bool* bIsInAVisibleRange, const FMassLODRuntimeData& Data) const;
 
+	bool CalculateVisibility(const bool bWasVisible, const float DistanceToFrustum) const;
+
 	/** LOD distances */
 	TStaticArray<float, EMassLOD::Max> BaseLODDistance;
 	TStaticArray<float, EMassLOD::Max> VisibleLODDistance;
@@ -139,6 +145,12 @@ protected:
 
 	/** Ratio for Buffer Distance Hysteresis */
 	float BufferHysteresisOnDistanceRatio = 0.1f;
+
+	/** How far away from frustum does this entities are considered visible */
+	float VisibleDistanceToFrustum = 0.0f;
+
+	/** Once visible how much further than distance to frustum does the entities need to be before being consider not visible */
+	float VisibleDistanceToFrustumWithHysteresis = 0.0f;
 
 	/** The size of each subdivision per LOD (LOD Size/MaxBucketsPerLOD) */
 	TStaticArray<float, EMassLOD::Max> BaseBucketSize;
@@ -159,8 +171,13 @@ void TMassLODCalculator<FLODLogic>::Initialize(const float InBaseLODDistance[EMa
 											   const float InBufferHysteresisOnDistanceRatio,
 											   const int32 InLODMaxCount[EMassLOD::Max],
 											   const int32 InLODMaxCountPerViewer[EMassLOD::Max] /*= nullptr*/,
-											   const float InVisibleLODDistance[EMassLOD::Max] /*= nullptr*/)
+											   const float InVisibleDistanceToFrustum /*= 0.0f*/,
+											   const float InVisibleDistanceToFrustumHysteresis /*= 0.0f*/,
+											   const float InVisibleLODDistance[EMassLOD::Max] /*= nullptr*/ )
 {
+	static_assert(!FLODLogic::bCalculateLODPerViewer || FLODLogic::bStoreInfoPerViewer, "Need to enable store info per viewer to be able to calculate LOD per viewer");
+	static_assert(!FLODLogic::bMaximizeCountPerViewer || FLODLogic::bCalculateLODPerViewer, "Need to enable CalculatedLODPerviewer in order to maximize count per viewer");
+
 	checkf(FLODLogic::bMaximizeCountPerViewer == (InLODMaxCountPerViewer != nullptr), TEXT("Missmatched between expected parameter InLODMaxCountPerViewer and LOD logic trait bMaximizeCountPerViewer."));
 	checkf(FLODLogic::bDoVisibilityLogic == (InVisibleLODDistance != nullptr), TEXT("Missmatched between expected parameter InVisibleLODDistance and LOD logic trait bDoVisibilityLogic."));
 
@@ -204,6 +221,16 @@ void TMassLODCalculator<FLODLogic>::Initialize(const float InBaseLODDistance[EMa
 
 	// Assuming that off is the farthest distance, calculate the max LOD distance
 	MaxLODDistance = !FLODLogic::bDoVisibilityLogic || BaseLODDistance[EMassLOD::Off] >= VisibleLODDistance[EMassLOD::Off] ? BaseLODDistance[EMassLOD::Off] : VisibleLODDistance[EMassLOD::Off];
+
+	// Distance to frustum settings
+	VisibleDistanceToFrustum = InVisibleDistanceToFrustum;
+	VisibleDistanceToFrustumWithHysteresis = InVisibleDistanceToFrustum + InVisibleDistanceToFrustumHysteresis;
+}
+
+template <typename FLODLogic>
+bool TMassLODCalculator<FLODLogic>::CalculateVisibility(const bool bWasVisible, const float DistanceToFrustum) const
+{
+	return DistanceToFrustum < (bWasVisible ? VisibleDistanceToFrustumWithHysteresis : VisibleDistanceToFrustum);
 }
 
 template <typename FLODLogic>
@@ -265,8 +292,8 @@ float TMassLODCalculator<FLODLogic>::AccumulateCountInRuntimeData(const EMassLOD
 }
 
 template <typename FLODLogic>
-template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
+template <typename TLODFragment, typename TViewerInfoFragment>
+void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList)
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	if (UE::MassLOD::Debug::bLODCalculationsPaused)
@@ -279,63 +306,72 @@ void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context,
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
 		// Calculate the LOD purely upon distances
-		const FMassLODSourceInfo& EntityViewersInfo = ViewersInfoList[EntityIdx];
-		FMassLODResultInfo& EntityLOD = LODList[EntityIdx];
-		EntityLOD.ClosestViewerDistanceSq = FLT_MAX;
-		bool bIsVisibleByAViewer = false;
+		const TViewerInfoFragment& EntityViewersInfo = ViewersInfoList[EntityIdx];
+		TLODFragment& EntityLOD = LODList[EntityIdx];
 		bool bIsInAVisibleRange = false;
+		const float ClosestDistanceToFrustum = GetClosestDistanceToFrustum<FLODLogic::bDoVisibilityLogic>(EntityViewersInfo, FLT_MAX);
+		const bool bWasVisibleByAViewer = GetbIsVisibleByAViewer<FLODLogic::bDoVisibilityLogic>(EntityLOD, false);
+		const bool bIsVisibleByAViewer = CalculateVisibility(bWasVisibleByAViewer, ClosestDistanceToFrustum);
 
-		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
-		{
-			const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
-			if (Viewer.bClearData)
-			{
-				SetLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, EMassLOD::Max);
-				SetPrevLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, EMassLOD::Max);
-			}
-			if (Viewer.Handle.IsValid())
-			{
-				const bool bIsVisibleByViewer = GetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic>(EntityViewersInfo, ViewerIdx, false);
-				bIsVisibleByAViewer |= bIsVisibleByViewer;
-
-				if (EntityLOD.ClosestViewerDistanceSq > EntityViewersInfo.DistanceToViewerSq[ViewerIdx])
-				{
-					EntityLOD.ClosestViewerDistanceSq = EntityViewersInfo.DistanceToViewerSq[ViewerIdx];
-				}
-
-				if (FLODLogic::bStoreLODPerViewer || FLODLogic::bMaximizeCountPerViewer)
-				{
-					const EMassLOD::Type PrevLODPerViewer = GetLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, EntityLOD.LOD);
-
-					// Find new LOD
-					const EMassLOD::Type LODPerViewer = ComputeLODFromSettings(PrevLODPerViewer, EntityViewersInfo.DistanceToViewerSq[ViewerIdx], bIsVisibleByViewer, &bIsInAVisibleRange, RuntimeData);
-
-					// Set Per viewer LOD
-					SetPrevLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, PrevLODPerViewer);
-					SetLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, LODPerViewer);
-
-					if (FLODLogic::bMaximizeCountPerViewer)
-					{
-						// Accumulate in buckets
-						AccumulateCountInRuntimeData<false>(LODPerViewer, EntityViewersInfo.DistanceToViewerSq[ViewerIdx], bIsVisibleByViewer, RuntimeDataPerViewer[ViewerIdx]);
-					}
-				}
-			}
-		}
+		// Set visibility
+		SetbWasVisibleByAViewer<FLODLogic::bDoVisibilityLogic>(EntityLOD, bWasVisibleByAViewer);
+		SetbIsVisibleByAViewer<FLODLogic::bDoVisibilityLogic>(EntityLOD, bIsVisibleByAViewer);
 
 		// Find new LOD
 		EntityLOD.PrevLOD = EntityLOD.LOD;
-		EntityLOD.LOD = ComputeLODFromSettings(EntityLOD.PrevLOD, EntityLOD.ClosestViewerDistanceSq, bIsVisibleByAViewer, &bIsInAVisibleRange, RuntimeData);
+		EntityLOD.LOD = ComputeLODFromSettings(EntityLOD.PrevLOD, EntityViewersInfo.ClosestViewerDistanceSq, bIsVisibleByAViewer, &bIsInAVisibleRange, RuntimeData);
 
-		// Set visibility
-		SetbWasVisibleByAViewer<FLODLogic::bDoVisibilityLogic>(EntityLOD, GetbIsVisibleByAViewer<FLODLogic::bDoVisibilityLogic>(EntityLOD, false));
-		SetbIsVisibleByAViewer<FLODLogic::bDoVisibilityLogic>(EntityLOD, bIsVisibleByAViewer);
 		SetbWasInVisibleRange<FLODLogic::bDoVisibilityLogic>(EntityLOD, GetbIsInVisibleRange<FLODLogic::bDoVisibilityLogic>(EntityLOD, false));
 		SetbIsInVisibleRange<FLODLogic::bDoVisibilityLogic>(EntityLOD, bIsInAVisibleRange);
 
 		// Accumulate in buckets
-		const float LODSignificance = AccumulateCountInRuntimeData<FLODLogic::bCalculateLODSignificance>(EntityLOD.LOD, EntityLOD.ClosestViewerDistanceSq, bIsVisibleByAViewer, RuntimeData);
+		const float LODSignificance = AccumulateCountInRuntimeData<FLODLogic::bCalculateLODSignificance>(EntityLOD.LOD, EntityViewersInfo.ClosestViewerDistanceSq, bIsVisibleByAViewer, RuntimeData);
 		SetLODSignificance<FLODLogic::bCalculateLODSignificance>(EntityLOD, LODSignificance);
+
+		// Do per viewer logic if asked for
+		if (FLODLogic::bStoreInfoPerViewer)
+		{
+			for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
+			{
+				const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
+				if (Viewer.bClearData)
+				{
+					SetLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, EMassLOD::Max);
+					SetPrevLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, EMassLOD::Max);
+					SetbWasVisibleByViewer<FLODLogic::bDoVisibilityLogic&& FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, false);
+					SetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, false);
+				}
+				if (Viewer.Handle.IsValid())
+				{
+					const float DistanceToFrustum = GetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewersInfo, ViewerIdx, FLT_MAX);
+					const bool bWasVisibleByViewer = GetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, false);
+					const bool bIsVisibleByViewer = CalculateVisibility(bWasVisibleByAViewer, DistanceToFrustum);
+
+					// Set visibility
+					SetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, bIsVisibleByViewer);
+					SetbWasVisibleByViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, bWasVisibleByViewer);
+
+					if (FLODLogic::bCalculateLODPerViewer)
+					{
+						const float DistanceToViewerSq = GetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityViewersInfo, ViewerIdx, FLT_MAX);
+						const EMassLOD::Type PrevLODPerViewer = GetLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, EntityLOD.LOD);
+
+						// Find new LOD
+						const EMassLOD::Type LODPerViewer = ComputeLODFromSettings(PrevLODPerViewer, DistanceToViewerSq, bIsVisibleByViewer, &bIsInAVisibleRange, RuntimeData);
+
+						// Set Per viewer LOD
+						SetPrevLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, PrevLODPerViewer);
+						SetLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, LODPerViewer);
+
+						if (FLODLogic::bMaximizeCountPerViewer)
+						{
+							// Accumulate in buckets
+							AccumulateCountInRuntimeData<false>(LODPerViewer, DistanceToViewerSq, bIsVisibleByViewer, RuntimeDataPerViewer[ViewerIdx]);
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -473,15 +509,15 @@ bool TMassLODCalculator<FLODLogic>::AdjustDistancesFromCount()
 }
 
 template <typename FLODLogic>
-template< typename FMassLODResultInfo, typename FMassLODSourceInfo >
-void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList, TConstArrayView<FMassLODSourceInfo> ViewersInfoList)
+template <typename TLODFragment, typename TViewerInfoFragment>
+void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList)
 {
 	const int32 NumEntities = Context.GetNumEntities();
 	// Adjust LOD for each viewer and remember the new highest
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
-		const FMassLODSourceInfo& EntityViewersInfo = ViewersInfoList[EntityIdx];
-		FMassLODResultInfo& EntityLOD = LODList[EntityIdx];
+		const TViewerInfoFragment& EntityViewersInfo = ViewersInfoList[EntityIdx];
+		TLODFragment& EntityLOD = LODList[EntityIdx];
 		EMassLOD::Type HighestViewerLOD = EMassLOD::Off;
 		if (FLODLogic::bMaximizeCountPerViewer)
 		{
@@ -492,22 +528,23 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Co
 					continue;
 				}
 
-				const bool bIsVisibleByViewer = GetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic>(EntityViewersInfo, ViewerIdx, false);
-				EMassLOD::Type LODPerViewer = GetLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, EntityLOD.LOD);
+				const float DistanceToViewerSq = GetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityViewersInfo, ViewerIdx, FLT_MAX);
+				const bool bIsVisibleByViewer = GetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, false);
+				EMassLOD::Type LODPerViewer = GetLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, EntityLOD.LOD);
 
-				LODPerViewer = ComputeLODFromSettings(LODPerViewer, EntityViewersInfo.DistanceToViewerSq[ViewerIdx], bIsVisibleByViewer, nullptr, RuntimeDataPerViewer[ViewerIdx]);
+				LODPerViewer = ComputeLODFromSettings(LODPerViewer, DistanceToViewerSq, bIsVisibleByViewer, nullptr, RuntimeDataPerViewer[ViewerIdx]);
 
 				if (HighestViewerLOD < LODPerViewer)
 				{
 					HighestViewerLOD = LODPerViewer;
 				}
 
-				SetLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, LODPerViewer);
+				SetLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, LODPerViewer);
 			}
 		}
 
 		const bool bIsVisibleByAViewer = GetbIsVisibleByAViewer<FLODLogic::bDoVisibilityLogic>(EntityLOD, false);
-		EMassLOD::Type NewLOD = ComputeLODFromSettings(EntityLOD.PrevLOD, EntityLOD.ClosestViewerDistanceSq, bIsVisibleByAViewer, nullptr, RuntimeData);
+		EMassLOD::Type NewLOD = ComputeLODFromSettings(EntityLOD.PrevLOD, EntityViewersInfo.ClosestViewerDistanceSq, bIsVisibleByAViewer, nullptr, RuntimeData);
 
 		// Maybe the highest of all the viewers is now lower than the global entity LOD, make sure to update the it accordingly
 		if (FLODLogic::bMaximizeCountPerViewer && NewLOD < HighestViewerLOD)
@@ -529,7 +566,7 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Co
 					const TStaticArray<float, EMassLOD::Max>& AdjustedLODDistance = FLODLogic::bDoVisibilityLogic && bIsVisibleByAViewer ? RuntimeData.AdjustedVisibleLODDistance : RuntimeData.AdjustedBaseLODDistance;
 
 					// Need to clamp as the Sqrt is not precise enough and always end up with floating calculation errors
-					const float DistanceBetweenLODThresholdAndEntity = FMath::Max(FMath::Sqrt(EntityLOD.ClosestViewerDistanceSq) - AdjustedLODDistance[NewLOD], 0.f);
+					const float DistanceBetweenLODThresholdAndEntity = FMath::Max(FMath::Sqrt(EntityViewersInfo.ClosestViewerDistanceSq) - AdjustedLODDistance[NewLOD], 0.f);
 
 					// Derive significance from distance between viewer and where the agent stands between both LOD threshold
 					const float AdjustedDistanceBetweenCurrentLODAndNext = AdjustedLODDistance[NewLOD + 1] - AdjustedLODDistance[NewLOD];
@@ -544,13 +581,13 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Co
 }
 
 template <typename FLODLogic>
-template <typename FMassLODResultInfo>
-void TMassLODCalculator<FLODLogic>::ForceOffLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo> LODList)
+template <typename TLODFragment>
+void TMassLODCalculator<FLODLogic>::ForceOffLOD(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList)
 {
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
-		FMassLODResultInfo& EntityLOD = LODList[EntityIdx];
+		TLODFragment& EntityLOD = LODList[EntityIdx];
 
 		// Force off LOD
 		EntityLOD.PrevLOD = EntityLOD.LOD;
@@ -565,14 +602,14 @@ void TMassLODCalculator<FLODLogic>::ForceOffLOD(FMassExecutionContext& Context, 
 }
 
 template <typename FLODLogic>
-template< typename FMassLODResultInfo, typename TFragmentLocation >
-void TMassLODCalculator<FLODLogic>::DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<FMassLODResultInfo> LODList, TConstArrayView<TFragmentLocation> LocationList, UWorld* World)
+template <typename TLODFragment, typename TTransformFragment>
+void TMassLODCalculator<FLODLogic>::DebugDisplayLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TConstArrayView<TTransformFragment> LocationList, UWorld* World)
 {
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
-		const TFragmentLocation& EntityLocation = LocationList[EntityIdx];
-		const FMassLODResultInfo& EntityLOD = LODList[EntityIdx];
+		const TTransformFragment& EntityLocation = LocationList[EntityIdx];
+		const TLODFragment& EntityLOD = LODList[EntityIdx];
 		int32 LODIdx = (int32)EntityLOD.LOD;
 		DrawDebugSolidBox(World, EntityLocation.GetTransform().GetLocation() + FVector(0.0f, 0.0f, 120.0f), FVector(25.0f), UE::MassLOD::LODColors[LODIdx]);
 	}

@@ -26,7 +26,8 @@ struct FLODDefaultLogic
 {
 	enum
 	{
-		bStoreLODPerViewer = false, // Enable to calculate and store the result LOD per viewer in the FMassLODResultInfo::LODPerViewer and FMassLODResultInfo::PrevLODPerViewer.
+		bStoreInfoPerViewer = false, // Enable to store all calculated information per viewer
+		bCalculateLODPerViewer = false, // Enable to calculate and store the result LOD per viewer in the FMassLODResultInfo::LODPerViewer and FMassLODResultInfo::PrevLODPerViewer.
 		bMaximizeCountPerViewer = false, // Enable to maximize count per viewer, requires a valid InLODMaxCountPerViewer parameter during initialization of TMassLODCalculator.
 		bDoVisibilityLogic = false, // Enable to calculate visibility and apply its own LOD distances. Requires a valid InVisibleLODDistance parameter during initialization of TMassLODCalculator.
 		bCalculateLODSignificance = false, // Enable to calculate and set the a more precise LOD floating point significance in member FMassLODResultInfo::LODSignificance.
@@ -65,13 +66,31 @@ struct FMassCombinedLODLogic : public FLODDefaultLogic
 };
 
 /**
- * This is the expected member variables for the TArrayView<FMassLODFragment> when calling the TMassLODCalculator and TMassLODtickRateController methods
- 
-struct FMassLODFragment
+ * TMassLODCollector outputs
+ *
+struct FMassViewerInfoFragment
 {
-	// Saved closest viewer distance
+	// Closest viewer distance  (Always needed)
 	float ClosestViewerDistanceSq;
 
+	// Square distances to each valid viewers (Always needed)
+	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToViewerSq;
+
+	// @Todo optimize by adding a boolean in the FLODLogic to enable the storing store that only when wanted
+	// Closest distance to frustum (Required only when FLODLogic::bDoVisibilityLogic is enabled)
+	float ClosestDistanceToFrustum;
+
+	// @Todo optimize by adding a boolean in the FLODDefaultLogic to enable the storing store that only when wanted
+	// Distances to each valid viewers frustums (Required only when FLODLogic::bDoVisibilityLogic)
+	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToFrustum;
+};
+*/
+
+/**
+ * TMassLODCalculator outputs
+ *
+ struct FMassLODFragment
+{
 	// LOD information
 	TEnumAsByte<EMassLOD::Type> LOD;
 	TEnumAsByte<EMassLOD::Type> PrevLOD;
@@ -80,16 +99,21 @@ struct FMassLODFragment
 	TStaticArray<EMassLOD::Type, UE::MassLOD::MaxNumOfViewers> LODPerViewer;
 	TStaticArray<EMassLOD::Type, UE::MassLOD::MaxNumOfViewers> PrevLODPerViewer;
 
+	// Floating point LOD value, scaling from 0 to 3, 0 highest LOD and 3 being completely off LOD 
+	// (Required only when FLODLogic::bCalculateLODSignificance is enabled)
+	float LODSignificance = 0.0f; // 
+
 	// Visibility information (Required only when FLODLogic::bDoVisibilityLogic is enabled)
 	bool bIsVisibleByAViewer;
 	bool bWasVisibleByAViewer;
 	bool bIsInVisibleRange;
 	bool bWasInVisibleRange;
 
-	// Floating point significance (Required only when FLODLogic::bCalculateLODSignificance is enabled)
-	// scaling from 0 to 3, 0 highest LOD and 3 being completely off LOD
-	float LODSignificance = 0.0f;
+	// Visibility information per viewer (Only when FLODLogic::bDoVisibilityLogic is enabled)
+	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bIsVisibleByViewer;
+	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bWasVisibleByViewer;
 
+	// @Todo move to its own fragment remove the FLODLogic::bDoVariableTickRate
 	// Accumulated DeltaTime (Required only when FLODLogic::bDoVariableTickRate is enalbed)
 	float DeltaTime = 0.0f;
 	float LastTickedTime = 0.0f;
@@ -120,16 +144,32 @@ struct MASSLOD_API FMassLODBaseLogic
 protected:
 	void CacheViewerInformation(TConstArrayView<FViewerInfo> ViewerInfos, const bool bLocalViewersOnly);
 
+	// Per viewer LOD information conditional fragment accessors
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, LODPerViewer);
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, PrevLODPerViewer);
+
+	// LOD Significance conditional fragment accessors
+	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, LODSignificance);
+
+	// Visibility conditional fragment accessors
+	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, ClosestDistanceToFrustum);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bIsVisibleByAViewer);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bWasVisibleByAViewer);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bIsInVisibleRange);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bWasInVisibleRange);
-	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, LODSignificance);
+
+	// Per viewer distance conditional fragment accessors
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, float, DistanceToViewerSq);
+
+	// Per viewer visibility conditional fragment accessors
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, float, DistanceToFrustum);
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, bool, bIsVisibleByViewer);
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, bool, bWasVisibleByViewer);
+
+	// @todo, there should be a fragment dedicated to this and it would remove the need to this
+	// Tick controller conditional fragment accessors,=
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, DeltaTime);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, LastTickedTime);
-	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, bool, bIsVisibleByViewer);
-	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, LODPerViewer);
-	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, PrevLODPerViewer);
 
 	TArray<FViewerLODInfo> Viewers;
 };

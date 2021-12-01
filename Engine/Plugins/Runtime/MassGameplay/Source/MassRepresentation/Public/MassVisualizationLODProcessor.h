@@ -36,7 +36,7 @@ protected:
 
 	void PrepareExecution();
 
-	template <typename TMassViewerLODInfoFragment = FMassLODInfoFragment>
+	template <typename TMassViewerLODInfoFragment = FMassViewerInfoFragment>
 	void ExecuteInternal(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context);
 
 	
@@ -58,6 +58,13 @@ protected:
 	/** Maximum limit for each entity per LOD */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
 	int32 LODMaxCount[EMassLOD::Max];
+
+	/** How far away from frustum does this entities are considered visible */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float DistanceToFrustum = 0.0f;
+	/** Once visible how much further than DistanceToFrustum does the entities need to be before being cull again */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float DistanceToFrustumHysteresis = 0.0f;
 
 	TMassLODCalculator<FMassRepresentationLODLogic> LODCalculator;
 

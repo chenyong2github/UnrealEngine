@@ -98,7 +98,7 @@ void UMassReplicationProcessorBase::CalculateClientReplication(FMassExecutionCon
 	const int32 NumEntities = Context.GetNumEntities();
 
 	TConstArrayView<FMassNetworkIDFragment> NetworkIDList = Context.GetFragmentView<FMassNetworkIDFragment>();
-	TArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationViewerLODFragment>();
+	TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
 	TArrayView<FMassReplicatedAgentFragment> ReplicatedAgentList = Context.GetMutableFragmentView<FMassReplicatedAgentFragment>();
 	TConstArrayView<FDataFragment_ReplicationTemplateID> TemplateIDList = Context.GetFragmentView<FDataFragment_ReplicationTemplateID>();
 

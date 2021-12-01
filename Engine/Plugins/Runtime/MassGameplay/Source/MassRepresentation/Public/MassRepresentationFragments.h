@@ -15,9 +15,6 @@ struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FMassFragm
 {
 	GENERATED_BODY()
 
-	/** Saved closest ViewerDistance */
-	float ClosestViewerDistanceSq = FLT_MAX;
-
 	/** LOD information */
 	TEnumAsByte<EMassLOD::Type> LOD = EMassLOD::Max;
 	TEnumAsByte<EMassLOD::Type> PrevLOD = EMassLOD::Max;
