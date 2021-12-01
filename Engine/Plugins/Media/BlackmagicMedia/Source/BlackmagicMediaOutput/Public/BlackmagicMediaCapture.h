@@ -49,6 +49,7 @@ private:
 	void WaitForSync_RenderingThread();
 	void ApplyViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
 	void RestoreViewportTextureAlpha(TSharedPtr<FSceneViewport> InSceneViewport);
+	void TriggerAudioRender();
 
 private:
 	friend BlackmagicMediaCaptureHelpers::FBlackmagicMediaCaptureEventCallback;
