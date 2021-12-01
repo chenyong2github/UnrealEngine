@@ -974,11 +974,7 @@ FGameplayAbilityActorInfo UGameplayAbility::GetActorInfo() const
 
 AActor* UGameplayAbility::GetOwningActorFromActorInfo() const
 {
-	if (!ensureMsgf(IsInstantiated(), TEXT("%s: GetOwningActorFromActorInfo can not be called on a non-instanced ability"), *GetName()))
-	{
-		ABILITY_LOG(Warning, TEXT("%s: GetOwningActorFromActorInfo can not be called on a non-instanced ability"), *GetName());
-		return nullptr;
-	}
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetOwningActorFromActorInfo, nullptr);
 
 	if (!ensure(CurrentActorInfo))
 	{
@@ -1183,7 +1179,7 @@ void UGameplayAbility::MontageStop(float OverrideBlendOutTime)
 
 void UGameplayAbility::SetCurrentMontage(class UAnimMontage* InCurrentMontage)
 {
-	ensure(IsInstantiated());
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(SetCurrentMontage, );
 	CurrentMontage = InCurrentMontage;
 }
 
@@ -1493,7 +1489,7 @@ int32 UGameplayAbility::GetAbilityLevel_BP(FGameplayAbilitySpecHandle Handle, co
 
 FGameplayAbilitySpec* UGameplayAbility::GetCurrentAbilitySpec() const
 {
-	check(IsInstantiated()); // You should not call this on non instanced abilities.
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetCurrentAbilitySpec, nullptr);
 	check(CurrentActorInfo);
 
 	UAbilitySystemComponent* const AbilitySystemComponent = GetAbilitySystemComponentFromActorInfo_Checked();
@@ -1502,7 +1498,7 @@ FGameplayAbilitySpec* UGameplayAbility::GetCurrentAbilitySpec() const
 
 FGameplayEffectContextHandle UGameplayAbility::GetGrantedByEffectContext() const
 {
-	check(IsInstantiated()); // You should not call this on non instanced abilities.
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(GetGrantedByEffectContext, FGameplayEffectContextHandle());
 	check(CurrentActorInfo);
 	if (CurrentActorInfo)
 	{
@@ -1519,7 +1515,7 @@ FGameplayEffectContextHandle UGameplayAbility::GetGrantedByEffectContext() const
 
 void UGameplayAbility::RemoveGrantedByEffect()
 {
-	check(IsInstantiated()); // You should not call this on non instanced abilities.
+	ENSURE_ABILITY_IS_INSTANTIATED_OR_RETURN(RemoveGrantedByEffect, );
 	check(CurrentActorInfo);
 	if (CurrentActorInfo)
 	{
