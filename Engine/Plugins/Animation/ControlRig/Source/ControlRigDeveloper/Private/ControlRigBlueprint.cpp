@@ -511,15 +511,23 @@ void UControlRigBlueprint::PostLoad()
 					}
 				}
 
-				if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+				
+				// avoid function reference related validation for temp assets, a temp asset may get generated during
+				// certain content validation process. It is usually just a simple file-level copy of the source asset
+				// so these references are usually not fixed-up properly. Thus, it is meaningless to validate them.
+				// They should not be allowed to dirty the source asset either.
+				if (!this->GetPackage()->GetName().StartsWith("/Temp/"))
 				{
-					if(URigVMLibraryNode* DependencyNode = FunctionReferenceNode->GetReferencedNode())
+					if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
 					{
-						if(UControlRigBlueprint* DependencyBlueprint = DependencyNode->GetTypedOuter<UControlRigBlueprint>())
+						if(URigVMLibraryNode* DependencyNode = FunctionReferenceNode->GetReferencedNode())
 						{
-							if(DependencyBlueprint != this)
+							if(UControlRigBlueprint* DependencyBlueprint = DependencyNode->GetTypedOuter<UControlRigBlueprint>())
 							{
-								DependencyBlueprint->GetLocalFunctionLibrary()->UpdateReferencesForReferenceNode(FunctionReferenceNode);
+								if(DependencyBlueprint != this)
+								{
+									DependencyBlueprint->GetLocalFunctionLibrary()->UpdateReferencesForReferenceNode(FunctionReferenceNode);
+								}
 							}
 						}
 					}
@@ -532,6 +540,11 @@ void UControlRigBlueprint::PostLoad()
 #endif
 	}
 
+	if (FunctionLibrary)
+	{
+		FunctionLibrary->ClearInvalidReferences();
+	}
+	
 	// upgrade the gizmo libraries to shape libraries
 	if(GizmoLibrary_DEPRECATED.IsValid() || GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RenameGizmoToShape)
 	{

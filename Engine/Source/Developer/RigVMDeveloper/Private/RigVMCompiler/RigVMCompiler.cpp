@@ -182,13 +182,19 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 				bEncounteredGraphError = true;
 			}
 
-			if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
+			// avoid function reference related validation for temp assets, a temp asset may get generated during
+			// certain content validation process. It is usually just a simple file-level copy of the source asset
+			// so these references are usually not fixed-up properly. Thus, it is meaningless to validate them.
+			if (!ModelNode->GetPackage()->GetName().StartsWith(TEXT("/Temp/")))
 			{
-				if(!FunctionReferenceNode->IsFullyRemapped())
+				if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
 				{
-					static const FString UnmappedMessage = TEXT("Node @@ has unmapped variables. Please adjust the node and re-compile.");
-					Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, UnmappedMessage);
-					bEncounteredGraphError = true;
+					if(!FunctionReferenceNode->IsFullyRemapped())
+					{
+						static const FString UnmappedMessage = TEXT("Node @@ has unmapped variables. Please adjust the node and re-compile.");
+						Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, UnmappedMessage);
+						bEncounteredGraphError = true;
+					}
 				}
 			}
 

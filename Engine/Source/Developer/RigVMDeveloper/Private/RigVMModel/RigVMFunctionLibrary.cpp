@@ -204,3 +204,24 @@ URigVMLibraryNode* URigVMFunctionLibrary::FindPreviouslyLocalizedFunction(URigVM
 	
 	return LocalizedFunction;
 }
+
+void URigVMFunctionLibrary::ClearInvalidReferences()
+{
+	// check each function's each reference
+	for (TTuple<TObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray>& FunctionReferenceInfo : FunctionReferences)
+	{
+		FRigVMFunctionReferenceArray* ReferencesEntry = &FunctionReferenceInfo.Value;
+
+		Modify();
+		int32 NumRemoved = ReferencesEntry->FunctionReferences.RemoveAll([](TSoftObjectPtr<URigVMFunctionReferenceNode> Referencer)
+		{
+			return Referencer.ToString().StartsWith(TEXT("/Temp/"));
+		});
+
+		if (NumRemoved > 0)
+		{
+			MarkPackageDirty();
+		}
+	}
+}
+

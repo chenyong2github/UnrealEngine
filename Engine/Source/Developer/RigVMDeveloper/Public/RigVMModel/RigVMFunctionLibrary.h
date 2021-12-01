@@ -89,6 +89,9 @@ public:
 	// and use this method to avoid redundant localizations.
 	URigVMLibraryNode* FindPreviouslyLocalizedFunction(URigVMLibraryNode* InFunctionToLocalize);
 
+	// Clear references to temp assets
+	void ClearInvalidReferences();
+	
 private:
 
 	UPROPERTY()
