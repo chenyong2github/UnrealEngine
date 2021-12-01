@@ -281,7 +281,7 @@ int32 UCurveControlPointsMechanic::InsertPointAt(int32 SequencePosition, const F
 	// Add the point
 	int32 NewPointID = ControlPoints.InsertPointAt(SequencePosition, NewPointCoordinates, KnownPointID);
 	GeometrySet.AddPoint(NewPointID, NewPointCoordinates);
-	FRenderablePoint RenderablePoint((FVector)NewPointCoordinates, CurrentPointsColor, PointsSize);
+	FRenderablePoint RenderablePoint((FVector)NewPointCoordinates, CurrentPointsColor, PointsSize, DepthBias);
 	DrawnControlPoints->InsertPoint(NewPointID, RenderablePoint);
 
 	// See if we need to add some segments
@@ -920,7 +920,7 @@ bool UCurveControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos
 	if (!bInteractiveInitializationMode && bInsertPointToggle && GeometrySet.FindNearestCurveToRay((FRay3d)DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		ClearHover();
-		FRenderablePoint RenderablePoint((FVector)Nearest.NearestGeoPoint, PreviewColor, PointsSize);
+		FRenderablePoint RenderablePoint((FVector)Nearest.NearestGeoPoint, PreviewColor, PointsSize, DepthBias);
 		PreviewPoint->InsertPoint(0, RenderablePoint);
 	}
 
@@ -970,7 +970,7 @@ bool UCurveControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos
 
 			// Redraw preview
 			ClearHover();
-			FRenderablePoint RenderablePoint((FVector)HitPoint, PreviewColor, PointsSize);
+			FRenderablePoint RenderablePoint((FVector)HitPoint, PreviewColor, PointsSize, DepthBias);
 			PreviewPoint->InsertPoint(0, RenderablePoint);
 
 			if (ControlPoints.Num() > 0)

@@ -521,7 +521,8 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 		{
 			FRenderablePoint PointToRender(TransformToApply(CurrentSelection.Mesh->GetVertex(Vid)),
 				VisualizationStyle.PointColor,
-				VisualizationStyle.PointThickness);
+				VisualizationStyle.PointThickness,
+				VisualizationStyle.LineAndPointDepthBias);
 			PointSet->AddPoint(PointToRender);
 		}
 	}

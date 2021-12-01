@@ -16,17 +16,20 @@ struct FRenderablePoint
 		: Position(ForceInitToZero)
 		, Color(ForceInitToZero)
 		, Size(0.f)
+		, DepthBias(0.f)
 	{}
 
-	FRenderablePoint(const FVector& InPosition, const FColor& InColor, const float InSize)
+	FRenderablePoint(const FVector& InPosition, const FColor& InColor, const float InSize, const float InDepthBias = 0.0f)
 		: Position(InPosition)
 		, Color(InColor)
 		, Size(InSize)
+		, DepthBias(InDepthBias)
 	{}
 
 	FVector Position;
 	FColor Color;
 	float Size;
+	float DepthBias;
 };
 
 
