@@ -10,6 +10,7 @@
 #include "ICurveTableEditor.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SHeaderRow.h"
 #include "Tree/ICurveEditorTreeItem.h"
 #include "CurveTableEditorHandle.h"
 #include "CurveTableEditorUtils.h"
@@ -95,6 +96,15 @@ public:
 	/** Callback for R-Click Menu Rename Selected Curve */
 	void OnRenameCurve();
 
+	/** Callback for R-Click Menu Delete Key Column */
+	void OnDeleteKeyColumn(float KeyTime);
+
+	/** Ensure that whatever time we are reetiming to is not redundant */
+	bool VerifyValidRetime(const FText& InText, FText& OutErrorMessage, float OriginalTime);
+
+	/** Process the retime from the header column text entry */
+	void HandleRetimeCommitted(const FText& InText, ETextCommit::Type CommitInfo, float OriginalKeyTime);
+
 protected:
 
 	/** Handles setting up slate for the curve table editor */
@@ -153,6 +163,8 @@ protected:
 
 	virtual bool ShouldCreateDefaultStandaloneMenu() const { return true; }
 	virtual bool ShouldCreateDefaultToolbar() const { return true ; }
+
+	SHeaderRow::FColumn::FArguments GenerateHeaderColumnForKey(FCurveTableEditorColumnHeaderDataPtr ColumnData);
 
 	/** Array of the columns that are available for editing */
 	TArray<FCurveTableEditorColumnHeaderDataPtr> AvailableColumns;
