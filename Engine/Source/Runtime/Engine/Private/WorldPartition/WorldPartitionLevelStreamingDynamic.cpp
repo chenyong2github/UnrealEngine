@@ -192,9 +192,6 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 	
 			if (IssueLoadRequests())
 			{
-				// Make sure this package isn't discoverable until it is fully loaded
-				CellLevelPackage->SetInternalFlags(EInternalObjectFlags::AsyncLoading);
-
 				// Editor immediately blocks on load and we also block if background level streaming is disabled.
 				if (InBlockPolicy == AlwaysBlock || (ShouldBeAlwaysLoaded() && InBlockPolicy != NeverBlock))
 				{
@@ -347,9 +344,6 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 			FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(RuntimeLevel, OuterWorldPartition.Get());
 		}
 	}
-
-	// Now that the loading is done, clear the async loading flag so this level is discoverable
-	RuntimePackage->ClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 
 	SetLoadedLevel(RuntimeLevel);
 
