@@ -35,10 +35,10 @@ UMassReplicationProcessorBase::UMassReplicationProcessorBase()
 
 void UMassReplicationProcessorBase::ConfigureQueries()
 {
-	EntityQuery.AddRequirement<FDataFragment_MassSimulationLODInfo>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassReplicationLODInfoFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FMassNetworkIDFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddRequirement<FDataFragment_ReplicationTemplateID>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FMassReplicationViewerLODFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassReplicationLODFragment>(EMassFragmentAccess::ReadWrite);
 	EntityQuery.AddRequirement<FMassReplicatedAgentFragment>(EMassFragmentAccess::ReadWrite);
 }
 
@@ -138,8 +138,8 @@ void UMassReplicationProcessorBase::Execute(UMassEntitySubsystem& EntitySubsyste
 
 	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 		{
-			const TConstArrayView<FDataFragment_MassSimulationLODInfo> ViewersInfoList = Context.GetFragmentView<FDataFragment_MassSimulationLODInfo>();
-			const TArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationViewerLODFragment>();
+			const TConstArrayView<FMassReplicationLODInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationLODInfoFragment>();
+			const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
 			LODCalculator.CalculateLOD(Context, ViewerLODList, ViewersInfoList);
 		});
 
@@ -147,8 +147,8 @@ void UMassReplicationProcessorBase::Execute(UMassEntitySubsystem& EntitySubsyste
 	{
 		EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
 			{
-				const TConstArrayView<FDataFragment_MassSimulationLODInfo> ViewersInfoList = Context.GetFragmentView<FDataFragment_MassSimulationLODInfo>();
-				const TArrayView<FMassReplicationViewerLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationViewerLODFragment>();
+				const TConstArrayView<FMassReplicationLODInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassReplicationLODInfoFragment>();
+				const TArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetMutableFragmentView<FMassReplicationLODFragment>();
 				LODCalculator.AdjustLODFromCount(Context, ViewerLODList, ViewersInfoList);
 			});
 	}

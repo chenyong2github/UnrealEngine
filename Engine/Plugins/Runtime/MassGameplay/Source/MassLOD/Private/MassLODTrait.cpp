@@ -9,7 +9,7 @@
 void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, UWorld& World) const
 {
 	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
-	BuildContext.AddFragmentWithDefaultInitializer<FMassLODInfoFragment>();
+	BuildContext.AddFragmentWithDefaultInitializer<FMassViewerInfoFragment>();
 	BuildContext.AddFragmentWithDefaultInitializer<FMassSimulationLODFragment>();
 	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_MassSimulationLODInfo>();
 	BuildContext.AddTag<FMassOffLODTag>();

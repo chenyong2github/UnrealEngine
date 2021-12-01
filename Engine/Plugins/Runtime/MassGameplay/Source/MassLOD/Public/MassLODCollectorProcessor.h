@@ -18,13 +18,6 @@ struct FMassCollectorLODConfig
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "MassTag"))
 	FInstancedStruct TagFilter;
 
-	/** How far away from frustrum does this entities are considered visible */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
-	float DistanceToFrustum = 0.0f;
-	// Once visible how much further than DistanceToFrustum does the entities need to be before being cull again
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
-	float DistanceToFrustumHysteresis = 0.0f;
-
 	/** Runtime data for matching the LOD config */
 	TMassLODCollector<FMassRepresentationLODLogic> RepresentationLODCollector;
 	FMassEntityQuery CloseEntityQuery;
@@ -52,7 +45,6 @@ public:
 	UMassLODCollectorProcessor();
 
 protected:
-	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 

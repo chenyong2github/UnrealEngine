@@ -10,16 +10,6 @@ UMassRepresentationLODCollectorProcessor::UMassRepresentationLODCollectorProcess
 	ExecutionFlags = (int32)EProcessorExecutionFlags::All;
 }
 
-void UMassRepresentationLODCollectorProcessor::Initialize(UObject& InOwner)
-{
-	Super::Initialize(InOwner);
-
-	for (FMassRepresentationLODCollectorConfig& LODConfig : LODConfigs)
-	{
-		LODConfig.RepresentationLODCollector.Initialize(LODConfig.FOVAnglesToDriveVisibility, LODConfig.BufferHysteresisOnFOVPercentage / 100.f);
-	}
-}
-
 void UMassRepresentationLODCollectorProcessor::ConfigureQueries()
 {
 	for (FMassRepresentationLODCollectorConfig& LODConfig : LODConfigs)
@@ -30,7 +20,7 @@ void UMassRepresentationLODCollectorProcessor::ConfigureQueries()
 			BaseQuery.AddTagRequirement(*LODConfig.TagFilter.GetScriptStruct(), EMassFragmentPresence::All);
 		}
 		BaseQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-		BaseQuery.AddRequirement<FMassLODInfoFragment>(EMassFragmentAccess::ReadWrite);
+		BaseQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadWrite);
 		BaseQuery.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 
 		LODConfig.CloseEntityQuery = BaseQuery;
@@ -49,7 +39,7 @@ void CollectLODInfo(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext
 	auto InternalCollectLODInfo = [&Collector](FMassExecutionContext& Context)
 	{
 		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
-		TArrayView<FMassLODInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassLODInfoFragment>();
+		TArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassViewerInfoFragment>();
 
 		Collector.CollectLODInfo(Context, LocationList, ViewerInfoList);
 	};

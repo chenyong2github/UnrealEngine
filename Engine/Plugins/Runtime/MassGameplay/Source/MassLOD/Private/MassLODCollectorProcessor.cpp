@@ -14,18 +14,6 @@ UMassLODCollectorProcessor::UMassLODCollectorProcessor()
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::SyncWorldToMass);
 }
 
-void UMassLODCollectorProcessor::Initialize(UObject& InOwner)
-{
-	Super::Initialize(InOwner);
-
-	for (FMassCollectorLODConfig& LODConfig : LODConfigs)
-	{
-		LODConfig.RepresentationLODCollector.Initialize(LODConfig.DistanceToFrustum, LODConfig.DistanceToFrustumHysteresis, false);
-		LODConfig.SimulationLODCollector.Initialize();
-		LODConfig.CombinedLODCollector.Initialize(LODConfig.DistanceToFrustum, LODConfig.DistanceToFrustumHysteresis, false);
-	}
-}
-
 void UMassLODCollectorProcessor::ConfigureQueries()
 {
 	for (FMassCollectorLODConfig& LODConfig : LODConfigs)
@@ -36,7 +24,7 @@ void UMassLODCollectorProcessor::ConfigureQueries()
 			BaseQuery.AddTagRequirement(*LODConfig.TagFilter.GetScriptStruct(), EMassFragmentPresence::All);
 		}
 		BaseQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-		BaseQuery.AddRequirement<FMassLODInfoFragment>(EMassFragmentAccess::ReadWrite);
+		BaseQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadWrite);
 
 		LODConfig.OnLODEntityQuery = BaseQuery;
 		LODConfig.OnLODEntityQuery.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
@@ -83,7 +71,7 @@ void CollectLOD(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Co
 	auto CollectLODInfo = [&Collector](FMassExecutionContext& Context)
 	{
 		TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
-		TArrayView<FMassLODInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassLODInfoFragment>();
+		TArrayView<FMassViewerInfoFragment> ViewerInfoList = Context.GetMutableFragmentView<FMassViewerInfoFragment>();
 
 		Collector.CollectLODInfo(Context, LocationList, ViewerInfoList);
 	};

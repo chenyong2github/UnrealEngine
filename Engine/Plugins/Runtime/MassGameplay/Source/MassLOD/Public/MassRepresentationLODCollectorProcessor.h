@@ -19,12 +19,6 @@ struct FMassRepresentationLODCollectorConfig
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "MassTag"))
 	FInstancedStruct TagFilter;
 
-	/** Set FOV Angles to define the limits between using Visible or Base LOD Distances */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", ClampMax = "180.0", UIMin = "0.0", UIMax = "180.0"), config)
-	float FOVAnglesToDriveVisibility = 45.0f;
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
-	float BufferHysteresisOnFOVPercentage = 10.0f;
-
 	/** Runtime data for matching the LOD config */
 	TMassLODCollector<FMassRepresentationLODLogic> RepresentationLODCollector;
 	FMassEntityQuery CloseEntityQuery;
@@ -39,11 +33,10 @@ class MASSLOD_API UMassRepresentationLODCollectorProcessor : public UMassProcess
 {
 	GENERATED_BODY()
 
-	public:
+public:
 	UMassRepresentationLODCollectorProcessor();
 
-	protected:
-	virtual void Initialize(UObject& Owner) override;
+protected:
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 

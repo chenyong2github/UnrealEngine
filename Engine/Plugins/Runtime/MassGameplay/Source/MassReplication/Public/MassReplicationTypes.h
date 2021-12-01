@@ -189,26 +189,43 @@ struct FReplicationLODLogic : public FLODDefaultLogic
 {
 	enum
 	{
-		bStoreLODPerViewer = true,
+		bStoreInfoPerViewer = true,
+		bCalculateLODPerViewer = true,
 		bMaximizeCountPerViewer = true,
 	};
 };
 
+/*
+ * Data fragment to store the calculated distances to viewers
+ */
 USTRUCT()
-struct MASSREPLICATION_API FMassReplicationViewerLODFragment : public FMassFragment
+struct MASSREPLICATION_API FMassReplicationLODInfoFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
-	/** Saved closest ViewerDistance */
-	float ClosestViewerDistanceSq = FLT_MAX;
+	/** Closest viewer distance */
+	float ClosestViewerDistanceSq;
+
+	/** Distance between each viewer and entity */
+	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToViewerSq;
+};
+
+USTRUCT()
+struct MASSREPLICATION_API FMassReplicationLODFragment : public FMassFragment
+{
+	GENERATED_BODY()
 
 	/**LOD information */
-	TStaticArray<TEnumAsByte<EMassLOD::Type>, UE::MassLOD::MaxNumOfViewers> LODPerViewer;
 	TEnumAsByte<EMassLOD::Type> LOD = EMassLOD::Max;
 
 	/** Previous LOD information*/
-	TStaticArray<TEnumAsByte<EMassLOD::Type>, UE::MassLOD::MaxNumOfViewers> PrevLODPerViewer;
 	TEnumAsByte<EMassLOD::Type> PrevLOD = EMassLOD::Max;
+
+	/** Per viewer LOD information */
+	TStaticArray<TEnumAsByte<EMassLOD::Type>, UE::MassLOD::MaxNumOfViewers> PrevLODPerViewer;
+
+	/** Per viewer previous LOD information */
+	TStaticArray<TEnumAsByte<EMassLOD::Type>, UE::MassLOD::MaxNumOfViewers> LODPerViewer;
 };
 
 UCLASS()

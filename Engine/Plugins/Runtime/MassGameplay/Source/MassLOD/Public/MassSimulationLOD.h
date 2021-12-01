@@ -20,8 +20,8 @@ struct MASSLOD_API FDataFragment_MassSimulationLODInfo : public FMassFragment
 {
 	GENERATED_BODY()
 
-	// Distance between each viewer and entity
-	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToViewerSq;
+	// Closest viewer distance
+	float ClosestViewerDistanceSq;
 };
 
 struct FSimulationLODLogic : public FLODDefaultLogic
@@ -41,7 +41,6 @@ public:
 	UMassProcessor_MassSimulationLODViewersInfo();
 
 protected:
-	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 

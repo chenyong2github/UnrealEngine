@@ -76,15 +76,15 @@ struct MASSLOD_API FMassOffLODTag : public FMassTag
  * Data fragment to store the calculated distances to viewers
  */
 USTRUCT()
-struct MASSLOD_API FMassLODInfoFragment : public FMassFragment
+struct MASSLOD_API FMassViewerInfoFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
-	// Distance between each viewer and entity
-	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToViewerSq;
+	// Closest viewer distance
+	float ClosestViewerDistanceSq;
 
-	// Whether the entity is visible to each viewer
-	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bIsVisibleByViewer;
+	// Closest distance to frustum
+	float ClosestDistanceToFrustum;
 };
 
 USTRUCT()

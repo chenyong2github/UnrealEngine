@@ -10,7 +10,7 @@
  * Helper struct to control LOD tick rate for each agent, 
  * It will add a fragment tag to group the agent of the same LOD together, that way the user can do tick rate logic per chunk.
  */
-template <typename FVariableTickChunkFragment, typename FLODLogic = FLODDefaultLogic >
+template <typename TVariableTickChunkFragment, typename FLODLogic = FLODDefaultLogic >
 struct TMassLODTickRateController : public FMassLODBaseLogic
 {
 public:
@@ -43,8 +43,8 @@ public:
 	 * @param Time of the simulation to use for this update
 	 * @return bool return if the chunk should be tick this frame
 	 */
-	template <typename FMassLODResultInfo>
-	bool UpdateTickRateFromLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo>& LODList, const float Time);
+	template <typename TLODFragment>
+	bool UpdateTickRateFromLOD(FMassExecutionContext& Context, TArrayView<TLODFragment>& LODList, const float Time);
 
 protected:
 
@@ -55,8 +55,8 @@ protected:
 	bool bShouldSpreadFirstUpdate = false;
 };
 
-template <typename FVariableTickChunkFragment, typename FLODLogic>
-void TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::Initialize(const float InTickRates[EMassLOD::Max], const bool bInShouldSpreadFirstUpdate/* = false*/)
+template <typename TVariableTickChunkFragment, typename FLODLogic>
+void TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::Initialize(const float InTickRates[EMassLOD::Max], const bool bInShouldSpreadFirstUpdate/* = false*/)
 {
 	checkf(InTickRates, TEXT("You need to provide tick rate values to use this class."));
 	checkf(FLODLogic::bDoVariableTickRate, TEXT("You need to enalbe bDoVariableTickRate to use this class."));
@@ -70,25 +70,25 @@ void TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::Initiali
 	bShouldSpreadFirstUpdate = bInShouldSpreadFirstUpdate;
 }
 
-template <typename FVariableTickChunkFragment, typename FLODLogic>
-bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::ShouldCalculateLODForChunk(const FMassExecutionContext& Context) const
+template <typename TVariableTickChunkFragment, typename FLODLogic>
+bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::ShouldCalculateLODForChunk(const FMassExecutionContext& Context) const
 {
 	// EMassLOD::Off does not need to handle max count, so we can use ticking rate for them if available
-	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkFragment<FVariableTickChunkFragment>();
+	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkFragment<TVariableTickChunkFragment>();
 	return ChunkData.GetLOD() != EMassLOD::Off || ChunkData.ShouldTickThisFrame();
 }
 
-template <typename FVariableTickChunkFragment, typename FLODLogic>
-bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::ShouldAdjustLODFromCountForChunk(const FMassExecutionContext& Context) const
+template <typename TVariableTickChunkFragment, typename FLODLogic>
+bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::ShouldAdjustLODFromCountForChunk(const FMassExecutionContext& Context) const
 {
 	// EMassLOD::Off does not need to handle max count, so we can skip it
-	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkFragment<FVariableTickChunkFragment>();
+	const FMassVariableTickChunkFragment& ChunkData = Context.GetChunkFragment<TVariableTickChunkFragment>();
 	return ChunkData.GetLOD() != EMassLOD::Off;
 }
 
-template <typename FVariableTickChunkFragment, typename FLODLogic>
-template <typename FMassLODResultInfo>
-bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTickRateFromLOD(FMassExecutionContext& Context, TArrayView<FMassLODResultInfo>& LODList, const float Time)
+template <typename TVariableTickChunkFragment, typename FLODLogic>
+template <typename TLODFragment>
+bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTickRateFromLOD(FMassExecutionContext& Context, TArrayView<TLODFragment>& LODList, const float Time)
 {
 
 	bool bShouldTickThisFrame = true;
@@ -96,7 +96,7 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 	const float DeltaTime = Context.GetDeltaTimeSeconds();
 	bool bFirstUpdate = false;
 
-	FMassVariableTickChunkFragment& ChunkData = Context.GetMutableChunkFragment<FVariableTickChunkFragment>();
+	FMassVariableTickChunkFragment& ChunkData = Context.GetMutableChunkFragment<TVariableTickChunkFragment>();
 	EMassLOD::Type ChunkLOD = ChunkData.GetLOD();
 	if (ChunkLOD == EMassLOD::Max)
 	{
@@ -148,7 +148,7 @@ bool TMassLODTickRateController<FVariableTickChunkFragment, FLODLogic>::UpdateTi
 		const int32 NumEntities = Context.GetNumEntities();
 		for (int32 Index = 0; Index < NumEntities; ++Index)
 		{
-			FMassLODResultInfo& EntityLOD = LODList[Index];
+			TLODFragment& EntityLOD = LODList[Index];
 			const float LastTickedTime = GetLastTickedTime<FLODLogic::bDoVariableTickRate>(EntityLOD, 0.0f);
 			const float NewDeltaTime = LastTickedTime != 0.0f ? Time - LastTickedTime : DeltaTime;
 			SetDeltaTime<FLODLogic::bDoVariableTickRate>(EntityLOD, NewDeltaTime);
