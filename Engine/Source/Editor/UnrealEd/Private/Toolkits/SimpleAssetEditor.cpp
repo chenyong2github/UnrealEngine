@@ -237,6 +237,7 @@ TSharedRef<SDockTab> FSimpleAssetEditor::SpawnPropertiesTab( const FSpawnTabArgs
 	return SNew(SDockTab)
 		.Label( LOCTEXT("GenericDetailsTitle", "Details") )
 		.TabColorScale( GetTabColorScale() )
+		.OnCanCloseTab_Lambda([]() { return false; })
 		[
 			DetailsView.ToSharedRef()
 		];
