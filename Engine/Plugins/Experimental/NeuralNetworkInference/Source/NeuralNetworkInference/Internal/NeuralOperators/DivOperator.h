@@ -17,7 +17,7 @@ public:
 
 
 
-/* FDivOperator inline functions
+/* FDivOperator inlined and templated functions
  *****************************************************************************/
 
 void FDivOperator::ForwardCPU()

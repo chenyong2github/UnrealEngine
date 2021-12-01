@@ -17,7 +17,7 @@ public:
 
 
 
-/* FExpOperator inline functions
+/* FExpOperator inlined and templated functions
  *****************************************************************************/
 
 void FExpOperator::ForwardCPU()

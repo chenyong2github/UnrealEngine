@@ -17,7 +17,7 @@ public:
 
 
 
-/* FCosOperator inline functions
+/* FCosOperator inlined and templated functions
  *****************************************************************************/
 
 void FCosOperator::ForwardCPU()

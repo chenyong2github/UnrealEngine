@@ -52,7 +52,7 @@ private:
 
 
 
-/* FNeuralOperator inline functions
+/* FNeuralOperator inlined and templated functions
  *****************************************************************************/
 
 bool FReshapeOperator::NeedsPostForward() const

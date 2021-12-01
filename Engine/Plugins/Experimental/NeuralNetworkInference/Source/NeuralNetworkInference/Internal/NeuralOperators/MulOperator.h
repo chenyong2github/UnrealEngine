@@ -17,7 +17,7 @@ public:
 
 
 
-/* FMulOperator inline functions
+/* FMulOperator inlined and templated functions
  *****************************************************************************/
 
 void FMulOperator::ForwardCPU()

@@ -17,7 +17,7 @@ public:
 
 
 
-/* FTanOperator inline functions
+/* FTanOperator inlined and templated functions
  *****************************************************************************/
 
 void FTanOperator::ForwardCPU()

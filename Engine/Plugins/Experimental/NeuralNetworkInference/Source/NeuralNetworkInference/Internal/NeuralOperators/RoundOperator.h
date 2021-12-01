@@ -17,7 +17,7 @@ public:
 
 
 
-/* FRoundOperator inline functions
+/* FRoundOperator inlined and templated functions
  *****************************************************************************/
 
 void FRoundOperator::ForwardCPU()

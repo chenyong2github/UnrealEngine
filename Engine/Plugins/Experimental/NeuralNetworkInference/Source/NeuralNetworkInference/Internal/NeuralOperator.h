@@ -153,7 +153,7 @@ private:
 
 
 
-/* FNeuralOperator inline functions
+/* FNeuralOperator inlined and templated functions
  *****************************************************************************/
 
 FString FNeuralOperator::GetName() const

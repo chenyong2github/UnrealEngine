@@ -17,7 +17,7 @@ public:
 
 
 
-/* FSinOperator inline functions
+/* FSinOperator inlined and templated functions
  *****************************************************************************/
 
 void FSinOperator::ForwardCPU()

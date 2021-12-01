@@ -17,7 +17,7 @@ public:
 
 
 
-/* FSqrtOperator inline functions
+/* FSqrtOperator inlined and templated functions
  *****************************************************************************/
 
 void FSqrtOperator::ForwardCPU()

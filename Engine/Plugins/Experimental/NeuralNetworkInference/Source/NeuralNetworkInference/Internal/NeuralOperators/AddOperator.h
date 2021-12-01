@@ -17,7 +17,7 @@ public:
 
 
 
-/* FAddOperator inline functions
+/* FAddOperator inlined and templated functions
  *****************************************************************************/
 
 void FAddOperator::ForwardCPU()

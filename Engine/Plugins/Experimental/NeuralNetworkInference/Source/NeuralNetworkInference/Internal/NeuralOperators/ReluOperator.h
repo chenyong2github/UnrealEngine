@@ -17,7 +17,7 @@ public:
 
 
 
-/* FReluOperator inline functions
+/* FReluOperator inlined and templated functions
  *****************************************************************************/
 
 void FReluOperator::ForwardCPU()

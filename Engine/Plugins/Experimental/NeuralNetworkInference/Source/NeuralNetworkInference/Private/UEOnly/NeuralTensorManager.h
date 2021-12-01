@@ -173,7 +173,7 @@ protected:
 
 
 
-/* FNeuralTensorManager inline functions
+/* FNeuralTensorManager inlined and templated functions
  *****************************************************************************/
 
 template<typename T>

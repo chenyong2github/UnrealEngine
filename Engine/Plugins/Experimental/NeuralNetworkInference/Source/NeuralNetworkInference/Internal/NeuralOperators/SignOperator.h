@@ -17,7 +17,7 @@ public:
 
 
 
-/* FSignOperator inline functions
+/* FSignOperator inlined and templated functions
  *****************************************************************************/
 
 void FSignOperator::ForwardCPU()

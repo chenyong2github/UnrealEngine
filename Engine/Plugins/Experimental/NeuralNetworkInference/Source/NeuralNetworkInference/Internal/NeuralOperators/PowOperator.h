@@ -17,7 +17,7 @@ public:
 
 
 
-/* FPowOperator inline functions
+/* FPowOperator inlined and templated functions
  *****************************************************************************/
 
 void FPowOperator::ForwardCPU()

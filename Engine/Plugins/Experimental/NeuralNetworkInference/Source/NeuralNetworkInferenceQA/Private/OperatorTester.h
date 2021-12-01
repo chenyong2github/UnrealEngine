@@ -80,7 +80,7 @@ private:
 
 
 
-/* FOperatorTester inline functions
+/* FOperatorTester inlined and templated functions
  *****************************************************************************/
 
 template<typename TNeuralOperatorChild>

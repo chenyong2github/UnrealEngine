@@ -17,7 +17,7 @@ public:
 
 
 
-/* FLogOperator inline functions
+/* FLogOperator inlined and templated functions
  *****************************************************************************/
 
 void FLogOperator::ForwardCPU()

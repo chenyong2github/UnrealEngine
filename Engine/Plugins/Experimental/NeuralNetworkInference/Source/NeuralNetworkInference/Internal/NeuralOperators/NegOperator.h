@@ -17,7 +17,7 @@ public:
 
 
 
-/* FNegOperator inline functions
+/* FNegOperator inlined and templated functions
  *****************************************************************************/
 
 void FNegOperator::ForwardCPU()

@@ -121,7 +121,7 @@ private:
 
 
 
-/* FConvBaseOperator inline functions
+/* FConvBaseOperator inlined and templated functions
  *****************************************************************************/
 
 bool FConvBaseOperator::SetAndConfigureAuxiliaryTensor()
