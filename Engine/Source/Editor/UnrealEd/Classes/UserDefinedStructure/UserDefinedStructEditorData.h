@@ -134,7 +134,7 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
 	virtual void PostLoadSubobjects(struct FObjectInstancingGraph* OuterInstanceGraph) override;
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	// End of UObject interface.
 
 	// FEditorUndoClient interface
