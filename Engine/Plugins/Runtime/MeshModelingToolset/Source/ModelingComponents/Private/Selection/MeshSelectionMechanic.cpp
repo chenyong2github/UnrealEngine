@@ -296,6 +296,9 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ClearCurrentSelection();
 
 	TriangleSet = NewObject<UTriangleSetComponent>();
+	// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
+	// where multiple translucent layers are drawn on top of each other but still need depth sorting.
+	TriangleSet->TranslucencySortPriority = VisualizationStyle.TriangleDepthBias;	
 	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(),
 		VisualizationStyle.TriangleColor, VisualizationStyle.TriangleDepthBias, VisualizationStyle.TriangleOpacity);
 	
@@ -391,6 +394,12 @@ const FDynamicMeshSelection& UMeshSelectionMechanic::GetCurrentSelection() const
 void UMeshSelectionMechanic::SetVisualizationStyle(const FMeshSelectionMechanicStyle& StyleIn)
 {
 	VisualizationStyle = StyleIn;
+
+	if (TriangleSet) {
+		// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
+		// where multiple translucent layers are drawn on top of each other but still need depth sorting.
+		TriangleSet->TranslucencySortPriority = VisualizationStyle.TriangleDepthBias;
+	}
 
 	if (TriangleSetMaterial) {
 		TriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), VisualizationStyle.TriangleColor);
