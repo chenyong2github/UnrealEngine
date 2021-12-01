@@ -3078,7 +3078,9 @@ public:
 	/**
 	 * Add the category meta data
 	 */
-	void MergeCategoryMetaData(TMap<FName, FString>& InMetaData) const;
+	void MergeCategoryMetaData(TMap<FName, FString>& InMetaData);
+
+	void MergeCatagoryMetaData(TMap<FName, FString>& InMetaData, FName InName, const TArray<FString>& InNames);
 
 	void GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const;
 
