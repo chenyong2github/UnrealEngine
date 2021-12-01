@@ -5,16 +5,20 @@
 const float FUVEditorUXSettings::CameraFarPlaneWorldZ(-10.0);
 
 // 2D Viewport Depth Offsets (Organized by "layers" from the camera's perspective, descending order
-const float FUVEditorUXSettings::CameraNearPlaneProportionZ(0.6); // Top layer
-const float FUVEditorUXSettings::SewLineDepthOffset(0.5f);
-const float FUVEditorUXSettings::SelectionWireframeDepthBias(0.4);
-const float FUVEditorUXSettings::SelectionTriangleDepthBias(0.3);
-const float FUVEditorUXSettings::WireframeDepthOffset(0.2);
-const float FUVEditorUXSettings::UnwrapTriangleDepthOffset(0.1);
+// Note: While these are floating point values, they represent percentages and should be separated
+// by at least integer amounts, as they serve double duty in certain cases for translucent primitive
+// sorting order.
+const float FUVEditorUXSettings::CameraNearPlaneProportionZ(8); // Top layer
+const float FUVEditorUXSettings::SewLineDepthOffset(5.0f);
+const float FUVEditorUXSettings::SelectionWireframeDepthBias(4.0);
+const float FUVEditorUXSettings::SelectionTriangleDepthBias(3.0);
+const float FUVEditorUXSettings::WireframeDepthOffset(2.0);
+const float FUVEditorUXSettings::UnwrapTriangleDepthOffset(1.0);
 
-// Note that this offset can only be applied when we use our own background material
+// Note: that this offset can only be applied when we use our own background material
 // for a user-supplied texture, and we can't use it for a user-provided material.
 // So for consistency this should stay at zero.
+
 const float FUVEditorUXSettings::BackgroundQuadDepthOffset(0.0); // Bottom layer
 
 // 3D Viewport Depth Offsets
