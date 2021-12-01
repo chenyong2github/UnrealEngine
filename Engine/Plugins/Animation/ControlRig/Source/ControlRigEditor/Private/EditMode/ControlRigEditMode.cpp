@@ -225,11 +225,12 @@ bool FControlRigEditMode::IsInLevelEditor() const
 {
 	return GetModeManager() == &GLevelEditorModeTools();
 }
-
 void FControlRigEditMode::SetUpDetailPanel()
 {
 	if (IsInLevelEditor())
 	{
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(WeakSequencer.Pin());
+#if USE_LOCAL_DETAILS
 		TArray<TWeakObjectPtr<>> Eulers;
 		TArray<TWeakObjectPtr<>> Transforms;
 		TArray<TWeakObjectPtr<>> TransformNoScales;
@@ -282,7 +283,6 @@ void FControlRigEditMode::SetUpDetailPanel()
 				}
 			}
 		}
-		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(WeakSequencer.Pin());
 		for (TWeakObjectPtr<>& Object : Transforms)
 		{
 			UControlRigControlsProxy* Proxy = Cast<UControlRigControlsProxy>(Object.Get());
@@ -300,9 +300,12 @@ void FControlRigEditMode::SetUpDetailPanel()
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetBoolDetailsObjects(Bools);
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetIntegerDetailsObjects(Integers);
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetEnumDetailsObjects(Enums);
+#else 
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSettingsDetailsObject(GetMutableDefault<UControlRigEditModeSettings>());	
+#endif
 
-		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSettingsDetailsObject(GetMutableDefault<UControlRigEditModeSettings>());
 	}
+
 }
 
 void FControlRigEditMode::SetObjects_Internal()
