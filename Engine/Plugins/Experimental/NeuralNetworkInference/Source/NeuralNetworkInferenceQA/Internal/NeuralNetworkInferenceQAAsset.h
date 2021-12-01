@@ -30,7 +30,8 @@ public:
 	/**
 	 * It will compare new vs. previous tests.
 	 */
-	static bool CompareAverageL1DiffNewVsPreviousTests(const FNeuralNetworkInferenceQAOperatorTestAsset& InNeuralNetworkInferenceQAOperatorTestAsset1, const FNeuralNetworkInferenceQAOperatorTestAsset& InNeuralNetworkInferenceQAOperatorTestAsset2, const FString& InOperatorName);
+	static bool CompareAverageL1DiffNewVsPreviousTests(const FNeuralNetworkInferenceQAOperatorTestAsset& InOperatorTestAsset1,
+		const FNeuralNetworkInferenceQAOperatorTestAsset& InOperatorTestAsset2, const FString& InOperatorName);
 
 private:
 	/**

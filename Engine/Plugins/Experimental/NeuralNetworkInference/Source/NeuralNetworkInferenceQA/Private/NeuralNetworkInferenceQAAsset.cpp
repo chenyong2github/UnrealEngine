@@ -27,11 +27,12 @@ void FNeuralNetworkInferenceQAOperatorTestAsset::AddOutputTensors(const UNeuralN
 	}
 }
 
-bool FNeuralNetworkInferenceQAOperatorTestAsset::CompareAverageL1DiffNewVsPreviousTests(const FNeuralNetworkInferenceQAOperatorTestAsset& InNeuralNetworkInferenceQAOperatorTestAsset1, const FNeuralNetworkInferenceQAOperatorTestAsset& InNeuralNetworkInferenceQAOperatorTestAsset2, const FString& InOperatorName)
+bool FNeuralNetworkInferenceQAOperatorTestAsset::CompareAverageL1DiffNewVsPreviousTests(const FNeuralNetworkInferenceQAOperatorTestAsset& InOperatorTestAsset1,
+	const FNeuralNetworkInferenceQAOperatorTestAsset& InOperatorTestAsset2, const FString& InOperatorName)
 {
 	// Compare each input and output
-	return (CompareAverageL1DiffNewVsPreviousTests(InNeuralNetworkInferenceQAOperatorTestAsset1.InputTensors, InNeuralNetworkInferenceQAOperatorTestAsset2.InputTensors, InOperatorName)
-		&& CompareAverageL1DiffNewVsPreviousTests(InNeuralNetworkInferenceQAOperatorTestAsset1.OutputTensors, InNeuralNetworkInferenceQAOperatorTestAsset2.OutputTensors, InOperatorName));
+	return (CompareAverageL1DiffNewVsPreviousTests(InOperatorTestAsset1.InputTensors, InOperatorTestAsset2.InputTensors, InOperatorName)
+		&& CompareAverageL1DiffNewVsPreviousTests(InOperatorTestAsset1.OutputTensors, InOperatorTestAsset2.OutputTensors, InOperatorName));
 }
 
 bool FNeuralNetworkInferenceQAOperatorTestAsset::CompareAverageL1DiffNewVsPreviousTests(const TArray<FNeuralTensor>& InTensorsA, const TArray<FNeuralTensor>& InTensorsB, const FString& InOperatorName)
