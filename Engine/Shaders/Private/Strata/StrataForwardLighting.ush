@@ -30,6 +30,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 float3 StrataForwardLightingCommon(
 	float Dither,
 	bool bForceFullyRough,
+	bool bRoughDiffuseEnabled, 
 	FDeferredLightData LightData,
 	float3 ToLight,
 	float LightMask,
@@ -87,7 +88,7 @@ float3 StrataForwardLightingCommon(
 
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
 				bEvaluateHasBeenExecuted = true;
 			}
 			else
@@ -96,7 +97,7 @@ float3 StrataForwardLightingCommon(
 				AreaLightContext = CreateCapsuleIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Capsule, LightData.bInverseSquared);
 				Lighting = IntegrateLight(Capsule, LightData.bInverseSquared);
 
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
 				bEvaluateHasBeenExecuted = true;
 			}
 
@@ -119,7 +120,7 @@ float3 StrataForwardLightingCommon(
 
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
 				bEvaluateHasBeenExecuted = true;
 			}
 			else
@@ -127,7 +128,7 @@ float3 StrataForwardLightingCommon(
 				FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
 				AreaLightContext = CreateCapsuleIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Capsule, LightData.bInverseSquared);
 
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
 				bEvaluateHasBeenExecuted = true;
 			}
 
@@ -150,6 +151,7 @@ float3 StrataForwardLightingCommon(
 float3 StrataForwardLighting(
 	uint EyeIndex,
 	float4 SvPosition,
+	bool bRoughDiffuseEnabled,
 	FBasePassInterpolantsVSToPS BasePassInterpolants,
 	FVertexFactoryInterpolantsVSToPS Interpolants,
 	VTPageTableResult LightmapVTPageTableResult,
@@ -390,7 +392,7 @@ float3 StrataForwardLighting(
 			float FinalLerpFactor;
 			ComputeVolumeUVs(AbsoluteWorldPosition, LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
 
-			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
+			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, bRoughDiffuseEnabled);
 			LayerThroughput += BSDFCoverage * BSDFEvaluate.Throughput;
 
 		#if TRANSLUCENCY_PERVERTEX_FORWARD_SHADING
@@ -489,6 +491,7 @@ float3 StrataForwardLighting(
 					Color += StrataForwardLightingCommon(
 						Dither,
 						bForceFullyRough,
+						bRoughDiffuseEnabled,
 						DirLightData,
 						ToDirLight,
 						DirLightMask,
@@ -512,7 +515,7 @@ float3 StrataForwardLighting(
 				if(!bEvaluateHasBeenExecuted)
 				{
 					// Only update the throughput
-					FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
+					FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, bRoughDiffuseEnabled);
 					LayerThroughput += BSDFCoverage * BSDFEvaluate.Throughput;
 				}
 			}
@@ -583,6 +586,7 @@ float3 StrataForwardLighting(
 				Color += StrataForwardLightingCommon(
 					Dither,
 					bForceFullyRough,
+					bRoughDiffuseEnabled,
 					LightData,
 					ToLight,
 					LightMask,
