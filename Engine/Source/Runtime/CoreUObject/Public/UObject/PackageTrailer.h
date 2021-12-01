@@ -239,6 +239,12 @@ public:
 	FPackageTrailer() = default;
 	~FPackageTrailer() = default;
 
+	FPackageTrailer(const FPackageTrailer& Other) = default;
+	FPackageTrailer& operator=(const FPackageTrailer & Other) = default;
+
+	FPackageTrailer(FPackageTrailer&& Other) = default;
+	FPackageTrailer& operator=(FPackageTrailer&& Other) = default;
+
 	/** 
 	 * Serializes the trailer from the given archive assuming that the seek position of the archive is already at the correct position
 	 * for the trailer.
@@ -282,8 +288,11 @@ public:
 	/** Returns the total size of the of the trailer on disk in bytes */
 	[[nodiscard]] int64 GetTrailerLength() const;
 
-	/** Returns an array of the payloads that match the given type. @See EPayloadType */
+	/** Returns an array of the payloads that match the given filter type. @See EPayloadType */
 	[[nodiscard]] TArray<Virtualization::FPayloadId> GetPayloads(EPayloadFilter Type) const;
+
+	/** Returns the number of payloads that the trailer owns that match the given filter type. @See EPayloadType */
+	[[nodiscard]] int32 GetNumPayloads(EPayloadFilter Type) const;
 
 	struct FHeader
 	{

@@ -2,6 +2,7 @@
 
 #include "UObject/PackageTrailer.h"
 
+#include "Algo/Count.h"
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackagePath.h"
@@ -421,6 +422,31 @@ TArray<Virtualization::FPayloadId> FPackageTrailer::GetPayloads(EPayloadFilter T
 	}
 
 	return Identifiers;
+}
+
+int32 FPackageTrailer::GetNumPayloads(EPayloadFilter Type) const
+{
+	int32 Count = 0;
+
+	switch (Type)
+	{
+	case EPayloadFilter::All:
+		Count = Header.PayloadLookupTable.Num();
+		break;
+
+	case EPayloadFilter::Local:
+		Count = Algo::CountIf(Header.PayloadLookupTable, [](const Private::FLookupTableEntry& Entry) { return !Entry.IsVirtualized(); });
+		break;
+
+	case EPayloadFilter::Virtualized:
+		Count = Algo::CountIf(Header.PayloadLookupTable, [](const Private::FLookupTableEntry& Entry) { return Entry.IsVirtualized(); });
+		break;
+
+	default:
+		checkNoEntry();
+	}
+	
+	return Count;
 }
 
 bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<Virtualization::FPayloadId>& OutPayloadIds)

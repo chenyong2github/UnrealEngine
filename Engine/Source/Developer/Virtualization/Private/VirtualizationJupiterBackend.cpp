@@ -1955,7 +1955,7 @@ private:
 		return false;
 	}
 
-	bool DoesPayloadExist(const FPayloadId& Id)
+	virtual bool DoesPayloadExist(const FPayloadId& Id) override
 	{
 		using namespace Utility;
 

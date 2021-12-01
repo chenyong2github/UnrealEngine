@@ -118,12 +118,24 @@ public:
 	 */
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
 
+	/**
+	 * Query if a number of payloads exist or not in the given storage type.
+	 *
+	 * @param	Ids					One or more payload identifiers to test
+	 * @param	StorageType			The type of storage to push the payload to, @See EStorageType for details.
+	 * @param	OutStatuses [out]	An array containing the results for each payload. @See FPayloadStatus
+	 * 								If the operation succeeds the array will be resized to match the size of Ids.
+	 *
+	 * @return	True if the operation succeeded and the contents of OutStatuses is valid. False if errors were
+	 * 			encountered in which case the contents of OutStatuses should be ignored.
+	 */
+	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override;
+
 	/** Access profiling info relating to accumulated payload activity for all backends. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override;
 
 	/** Access profiling info relating to payload activity per backend. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
 	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const override;
-
 
 	/** Get event delegate for system notifications */
 	virtual FOnNotification& GetNotificationEvent() override

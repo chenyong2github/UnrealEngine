@@ -42,7 +42,7 @@ protected:
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
 
-	bool DoesExist(const FPayloadId& Id);
+	virtual bool DoesPayloadExist(const FPayloadId& Id) override;
 	
 	void CreateFilePath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath);
 

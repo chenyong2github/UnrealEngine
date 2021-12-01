@@ -34,6 +34,13 @@ public:
 		return FCompressedBuffer();
 	}
 
+	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) override
+	{
+		OutStatuses.Reset();
+
+		return false;
+	}
+
 	virtual void GetPayloadActivityInfo(GetPayloadActivityInfoFuncRef) const override
 	{
 	}

@@ -31,12 +31,24 @@ struct FPayloadActivityInfo
 };
 
 /** Describes the type of storage to use for a given action */
-enum EStorageType
+enum class EStorageType : int8
 {
 	/** Store in the local cache backends, this can be called from any thread */
 	Local = 0,
 	/** Store in the persistent backends, this can only be called from the game thread due to limitations with ISourceControlModule. */
 	Persistent
+};
+
+enum class FPayloadStatus : int8
+{
+	/** The payload id was not value */
+	Invalid = -1,
+	/** The payload was not found in any backend for the given storage type */
+	NotFound = 0,
+	/** The payload was found in at least one backend but was not found in all backends available for the given storage type */
+	Partial,
+	/** The payload was found in all of the backends available for the given storage type */
+	FoundAll
 };
 
 /**
@@ -76,13 +88,11 @@ public:
 	 * Push a payload to the virtualization backends.
 	 *
 	 * @param	Id				The identifier of the payload being pushed.
-	 * @param	Payload			The payload itself in FCompressedBuffer form, it is
-	 *							assumed that if the buffer is to be compressed that
-	 *							it will have been done by the caller.
-	 * @param	StorageType		The type of storage to push the payload to, see EStorageType
-	 *							for details.
-	 * @param	PackageContext	Name of the owning package, which can be used to provide context
-	 *							about the payload.
+	 * @param	Payload			The payload itself in FCompressedBuffer form, it is assumed that if the buffer is to 
+	 *							be compressed that it will have been done by the caller.
+	 * @param	StorageType		The type of storage to push the payload to, @See EStorageType for details.
+	 * @param	PackageContext	Name of the owning package, which can be used to provide context about the payload.
+	 * 
 	 * @return	True if at least one backend now contains the payload, otherwise false.
 	 */
 	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& PackageContext) = 0;
@@ -91,13 +101,26 @@ public:
 	 * Pull a payload from the virtualization backends.
 	 *
 	 * @param	Id The identifier of the payload being pulled.
-	 * @return	The payload in the form of a FCompressedBuffer. No decompression will
-	 *			be applied to the payload, it is up to the caller if they want to
-	 *			retain the payload in compressed or uncompressed format.
-	 *			If no backend contained the payload then an empty invalid FCompressedBuffer
-	 *			will be returned.
+	 * @return	The payload in the form of a FCompressedBuffer. No decompression will be applied to the payload, it is 
+	 *			up to the caller if they want to retain the payload in compressed or uncompressed format.  If no
+	 *			backend contained the payload then an empty invalid FCompressedBuffer will be returned.
 	 */
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) = 0;
+
+	
+
+	/**
+	 * Query if a number of payloads exist or not in the given storage type. 
+	 * 
+	 * @param	Ids					One or more payload identifiers to test
+	 * @param	StorageType			The type of storage to push the payload to, @See EStorageType for details.
+	 * @param	OutStatuses [out]	An array containing the results for each payload. @See FPayloadStatus
+	 * 								If the operation succeeds the array will be resized to match the size of Ids. 
+	 * 
+	 * @return	True if the operation succeeded and the contents of OutStatuses is valid. False if errors were 
+	 * 			encountered in which case the contents of OutStatuses should be ignored.
+	 */
+	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses) = 0;
 
 	using GetPayloadActivityInfoFuncRef = TFunctionRef<void(const FString& DebugName, const FString& ConfigName, const FPayloadActivityInfo& PayloadInfo)>;
 
