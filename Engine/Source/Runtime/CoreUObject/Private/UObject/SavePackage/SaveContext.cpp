@@ -4,6 +4,26 @@
 
 #include "Serialization/PackageWriter.h"
 
+
+
+TArray<ESaveRealm> FSaveContext::GetHarvestedRealmsToSave()
+{
+	TArray<ESaveRealm> HarvestedContextsToSave;
+	if (IsCooking())
+	{
+		HarvestedContextsToSave.Add(ESaveRealm::Game);
+		if (IsSaveOptional())
+		{
+			HarvestedContextsToSave.Add(ESaveRealm::Optional);
+		}
+	}
+	else
+	{
+		HarvestedContextsToSave.Add(ESaveRealm::Editor);
+	}
+	return HarvestedContextsToSave;
+}
+
 void FSaveContext::MarkUnsaveable(UObject* InObject)
 {
 	if (IsUnsaveable(InObject))

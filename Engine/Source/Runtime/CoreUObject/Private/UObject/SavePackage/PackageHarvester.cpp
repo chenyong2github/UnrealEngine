@@ -63,7 +63,7 @@ EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatfor
 	return Marks;
 }
 
-bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj)
+bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj, ESaveRealm HarvestingContext)
 {
 	if (!Obj || Obj->GetOutermost()->GetFName() == GLongCoreUObjectPackageName)
 	{
@@ -71,12 +71,14 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 		return false;
 	}
 
+	//@note: currently always query excluded content against the default/main save harvesting context
+	// this is because generated excluded marks are not aware of the different harvesting context yet
 	bool bExcluded = false;
 	if (SaveContext.IsExcluded(Obj))
 	{
 		return true;
 	}
-	else if (!SaveContext.IsIncluded(Obj))
+	else if (!SaveContext.IsIncluded(Obj, HarvestingContext))
 	{
 		const EObjectMark ExcludedObjectMarks = SaveContext.GetExcludedObjectMarks();
 		const ITargetPlatform* TargetPlatform = SaveContext.GetTargetPlatform();
@@ -86,12 +88,12 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 			UObject* ObjOuter = Obj->GetOuter();
 			UClass* ObjClass = Obj->GetClass();
 
-			if (ConditionallyExcludeObjectForTarget(SaveContext, ObjClass))
+			if (ConditionallyExcludeObjectForTarget(SaveContext, ObjClass, HarvestingContext))
 			{
 				// If the object class is excluded, the object must be excluded too
 				bExcluded = true;
 			}
-			else if (ConditionallyExcludeObjectForTarget(SaveContext, ObjOuter))
+			else if (ConditionallyExcludeObjectForTarget(SaveContext, ObjOuter, HarvestingContext))
 			{
 				// If the object outer is excluded, the object must be excluded too
 				bExcluded = true;
@@ -102,7 +104,7 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 			if (ThisStruct && ThisStruct->GetSuperStruct())
 			{
 				UObject* SuperStruct = ThisStruct->GetSuperStruct();
-				if (ConditionallyExcludeObjectForTarget(SaveContext, SuperStruct))
+				if (ConditionallyExcludeObjectForTarget(SaveContext, SuperStruct, HarvestingContext))
 				{
 					bExcluded = true;
 				}
@@ -112,7 +114,7 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 			UObject* Archetype = Obj->GetArchetype();
 			if (Archetype)
 			{
-				if (ConditionallyExcludeObjectForTarget(SaveContext, Archetype))
+				if (ConditionallyExcludeObjectForTarget(SaveContext, Archetype, HarvestingContext))
 				{
 					bExcluded = true;
 				}
@@ -149,8 +151,25 @@ bool DoesObjectNeedLoadForEditorGame(UObject* InObject)
 	return bNeedsLoadForEditorGame;
 }
 
+FPackageHarvester::FExportScope::FExportScope(FPackageHarvester& InHarvester, const FExportWithContext& InToProcess, bool bIsEditorOnlyObject)
+	: Harvester(InHarvester)
+	, PreviousContext(InHarvester.CurrentExportHarvestingRealm)
+{
+	check(Harvester.CurrentExportDependencies.CurrentExport == nullptr);
+	Harvester.CurrentExportDependencies = { InToProcess.Export };
+	Harvester.CurrentExportHarvestingRealm = InToProcess.HarvestedFromRealm;
+	Harvester.bIsEditorOnlyExportOnStack = bIsEditorOnlyObject;
+}
+
+FPackageHarvester::FExportScope::~FExportScope()
+{
+	Harvester.AppendCurrentExportDependencies();
+	Harvester.CurrentExportHarvestingRealm = PreviousContext;
+}
+
 FPackageHarvester::FPackageHarvester(FSaveContext& InContext)
 	: SaveContext(InContext)
+	, CurrentExportHarvestingRealm(ESaveRealm::None)
 	, bIsEditorOnlyExportOnStack(false)
 {
 	this->SetIsSaving(true);
@@ -162,29 +181,43 @@ FPackageHarvester::FPackageHarvester(FSaveContext& InContext)
 	this->SetFilterEditorOnly(SaveContext.IsFilterEditorOnly());
 	this->SetCookingTarget(SaveContext.GetTargetPlatform());
 	this->SetSerializeContext(SaveContext.GetSerializeContext());
+	this->SetUseUnversionedPropertySerialization(SaveContext.IsSaveUnversionedProperties());
 }
 
-UObject* FPackageHarvester::PopExportToProcess()
+FPackageHarvester::FExportWithContext FPackageHarvester::PopExportToProcess()
 {
-	UObject* Export = nullptr;
-	ExportsToProcess.Dequeue(Export);
-	return Export;
+	FExportWithContext ExportToProcess;
+	ExportsToProcess.Dequeue(ExportToProcess);
+	return ExportToProcess;
 }
 
-void FPackageHarvester::ProcessExport(UObject* InObject)
-{
-	check(SaveContext.IsExport(InObject));
-	bool bReferencerIsEditorOnly = IsEditorOnlyObject(InObject, true /* bCheckRecursive */, true /* bCheckMarks */) && !InObject->HasNonEditorOnlyReferences();
-	FExportScope HarvesterScope(*this, InObject, bReferencerIsEditorOnly);
+void FPackageHarvester::ProcessExport(const FExportWithContext& InProcessContext)
+{	
+	UObject* Export = InProcessContext.Export;
+
+	// No need to check marks since we do not set them on objects anymore
+	bool bReferencerIsEditorOnly = IsEditorOnlyObject(Export, true /* bCheckRecursive */, false /* bCheckMarks */) && !Export->HasNonEditorOnlyReferences();
+	FExportScope HarvesterScope(*this, InProcessContext, bReferencerIsEditorOnly);
+	
+	// The export scope set the current harvesting context
+	check(SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).IsExport(Export));
 
 	// Harvest its class 
-	UClass* Class = InObject->GetClass();
+	UClass* Class = Export->GetClass();
 	*this << Class;
 
 	// Harvest the export outer
-	if (UObject* Outer = InObject->GetOuter())
+	if (UObject* Outer = Export->GetOuter())
 	{
-		if (!Outer->IsInPackage(SaveContext.GetPackage()))
+		auto ShouldHarvestOuterAsDependencies = [this](UObject* InObject, UObject* InOuter)
+		{
+			// Harvest the outer as dependencies if the outer is not in the package or if the outer is a ref from optional to non optional object in an optional context
+			return !InOuter->IsInPackage(SaveContext.GetPackage()) ||
+				(CurrentExportHarvestingRealm == ESaveRealm::Optional && 
+					InObject->GetClass()->HasAnyClassFlags(CLASS_Optional) && !InOuter->GetClass()->HasAnyClassFlags(CLASS_Optional));
+		};
+
+		if (ShouldHarvestOuterAsDependencies(Export, Outer))
 		{
 			*this << Outer;
 		}
@@ -197,7 +230,7 @@ void FPackageHarvester::ProcessExport(UObject* InObject)
 	}
 
 	// Harvest its template, if any
-	UObject* Template = InObject->GetArchetype();
+	UObject* Template = Export->GetArchetype();
 	if (Template
 		 && (Template != Class->GetDefaultObject() || SaveContext.IsCooking())
 		)
@@ -206,9 +239,9 @@ void FPackageHarvester::ProcessExport(UObject* InObject)
 	}
 
 	// Serialize the object or CDO
-	if (InObject->HasAnyFlags(RF_ClassDefaultObject))
+	if (Export->HasAnyFlags(RF_ClassDefaultObject))
 	{
-		Class->SerializeDefaultObject(InObject, *this);
+		Class->SerializeDefaultObject(Export, *this);
 		//@ todo FH: I don't think recursing into the template subobject is necessary, serializing it should catch the necessary sub objects
 		// GetCDOSubobjects??
 	}
@@ -217,7 +250,7 @@ void FPackageHarvester::ProcessExport(UObject* InObject)
 		// @todo FH: always serialize???
 		// In the CDO case the above would serialize most of the references, including transient properties
 		// but we still want to serialize the object using the normal path to collect all custom versions it might be using.
-		InObject->Serialize(*this);
+		Export->Serialize(*this);
 	}
 
 	// Gather object preload dependencies
@@ -228,7 +261,7 @@ void FPackageHarvester::ProcessExport(UObject* InObject)
 			// We want to tag these as imports, but not as dependencies, here since they are handled separately to the the DependsMap as SerializationBeforeSerializationDependencies instead of CreateBeforeSerializationDependencies 
 			FIgnoreDependenciesScope IgnoreDependencies(*this);
 
-			InObject->GetPreloadDependencies(Deps);
+			Export->GetPreloadDependencies(Deps);
 			for (UObject* Dep : Deps)
 			{
 				// We assume nothing in coreuobject ever loads assets in a constructor
@@ -242,7 +275,7 @@ void FPackageHarvester::ProcessExport(UObject* InObject)
 		if (SaveContext.IsProcessingPrestreamingRequests())
 		{
 			Deps.Reset();
-			InObject->GetPrestreamPackages(Deps);
+			Export->GetPrestreamPackages(Deps);
 			for (UObject* Dep : Deps)
 			{
 				if (Dep)
@@ -262,23 +295,28 @@ void FPackageHarvester::TryHarvestExport(UObject* InObject)
 {
 	// Those should have been already validated
 	check(InObject && InObject->IsInPackage(SaveContext.GetPackage()));
-	if (!SaveContext.IsExport(InObject))
+
+	// Get the realm in which we should harvest this export
+	EIllegalRefReason Reason = EIllegalRefReason::None;
+	ESaveRealm HarvestContext = GetObjectHarvestingRealm(InObject, Reason);
+	if (!SaveContext.GetHarvestedRealm(HarvestContext).IsExport(InObject))
 	{
 		SaveContext.MarkUnsaveable(InObject);
 		bool bExcluded = false;
 		if (!InObject->HasAnyFlags(RF_Transient))
 		{
-			bExcluded = ConditionallyExcludeObjectForTarget(SaveContext, InObject);
+			bExcluded = ConditionallyExcludeObjectForTarget(SaveContext, InObject, HarvestContext);
 		}
 		if (!InObject->HasAnyFlags(RF_Transient) && !bExcluded)
 		{
 			// It passed filtering so mark as export
-			SaveContext.AddExport(InObject, !DoesObjectNeedLoadForEditorGame(InObject));
+			HarvestExport(InObject, HarvestContext);
+		}
 
-			// Harvest the export name
-			HarvestPackageHeaderName(InObject->GetFName());
-
-			ExportsToProcess.Enqueue(InObject);
+		// If we have a illegal ref reason, record it
+		if (Reason != EIllegalRefReason::None)
+		{
+			SaveContext.RecordIllegalReference(CurrentExportDependencies.CurrentExport, InObject, EIllegalRefReason::ReferenceToOptional);
 		}
 	}
 }
@@ -288,7 +326,7 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 	// Those should have been already validated
 	check(InObject);
 	check(!InObject->IsInPackage(SaveContext.GetPackage()));
-	
+
 	auto IsObjNative = [](UObject* InObj)
 	{
 		bool bIsNative = InObj->IsNative();
@@ -301,16 +339,12 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 		return bIsNative;
 	};
 
-	bool bExcluded = ConditionallyExcludeObjectForTarget(SaveContext, InObject);
+	bool bExcluded = ConditionallyExcludeObjectForTarget(SaveContext, InObject, CurrentExportHarvestingRealm);
 	bool bExcludePackageFromCook = InObject && FCoreUObjectDelegates::ShouldCookPackageForPlatform.IsBound() ? !FCoreUObjectDelegates::ShouldCookPackageForPlatform.Execute(InObject->GetOutermost(), CookingTarget()) : false;
 	if (!bExcludePackageFromCook && !bExcluded && !SaveContext.IsUnsaveable(InObject))
 	{
 		bool bIsNative = IsObjNative(InObject);
-		bool bIsEditorOnly = false;
-#if WITH_EDITORONLY_DATA
-		bIsEditorOnly = bIsEditorOnlyExportOnStack || IsEditorOnlyPropertyOnTheStack();
-#endif
-		SaveContext.AddImport(InObject, bIsEditorOnly);
+		HarvestImport(InObject);
 
 		UObject* ObjOuter = InObject->GetOuter();
 		UClass* ObjClass = InObject->GetClass();
@@ -373,6 +407,14 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 			HarvestPackageHeaderName(ObjClass->GetOuter()->GetFName());
 		}
 	}
+
+	// Check for illegal reference
+	EIllegalRefReason Reason = EIllegalRefReason::None;
+	GetObjectHarvestingRealm(InObject, Reason);
+	if (Reason != EIllegalRefReason::None)
+	{
+		SaveContext.RecordIllegalReference(CurrentExportDependencies.CurrentExport, InObject, Reason);
+	}
 }
 
 FString FPackageHarvester::GetArchiveName() const
@@ -432,7 +474,7 @@ FArchive& FPackageHarvester::operator<<(UObject*& Obj)
 		return bIsNative;
 	};
 
-	if (SaveContext.IsIncluded(Obj))
+	if (SaveContext.IsIncluded(Obj, CurrentExportHarvestingRealm))
 	{
 		HarvestDependency(Obj, IsObjNative(Obj));
 	}
@@ -482,12 +524,12 @@ FArchive& FPackageHarvester::operator<<(FSoftObjectPath& Value)
 			FString Path = Value.ToString();
 			FName PackageName = FName(*FPackageName::ObjectPathToPackageName(Path));
 			HarvestPackageHeaderName(PackageName);
-			SaveContext.SoftPackageReferenceList.AddUnique(PackageName);
+			SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetSoftPackageReferenceList().Add(PackageName);
 #if WITH_EDITORONLY_DATA
 			if (CollectType != ESoftObjectPathCollectType::EditorOnlyCollect && !bIsEditorOnlyExportOnStack)
 #endif
 			{
-				SaveContext.SoftPackagesUsedInGame.Add(PackageName);
+				SaveContext.GetHarvestedRealm(ESaveRealm::Game).GetSoftPackageReferenceList().Add(PackageName);
 			}
 		}
 	}
@@ -522,17 +564,17 @@ void FPackageHarvester::HarvestDependency(UObject* InObj, bool bIsNative)
 
 bool FPackageHarvester::CurrentExportHasDependency(UObject* InObj) const
 {
-	return SaveContext.ExportObjectDependencies.Contains(InObj) || SaveContext.ExportNativeObjectDependencies.Contains(InObj);
+	return SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetObjectDependencies().Contains(InObj) || SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetNativeObjectDependencies().Contains(InObj);
 }
 
 void FPackageHarvester::HarvestExportDataName(FName Name)
 {
-	SaveContext.NamesReferencedFromExportData.Add(Name.GetDisplayIndex());
+	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetNamesReferencedFromExportData().Add(Name.GetDisplayIndex());
 }
 
 void FPackageHarvester::HarvestPackageHeaderName(FName Name)
 {
-	SaveContext.NamesReferencedFromPackageHeader.Add(Name.GetDisplayIndex());
+	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetNamesReferencedFromPackageHeader().Add(Name.GetDisplayIndex());
 }
 
 void FPackageHarvester::HarvestSearchableName(UObject* TypeObject, FName Name)
@@ -544,13 +586,70 @@ void FPackageHarvester::HarvestSearchableName(UObject* TypeObject, FName Name)
 	}
 
 	HarvestPackageHeaderName(Name);
-	SaveContext.SearchableNamesObjectMap.FindOrAdd(TypeObject).AddUnique(Name);
+	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetSearchableNamesObjectMap().FindOrAdd(TypeObject).AddUnique(Name);
+}
+
+ESaveRealm FPackageHarvester::GetObjectHarvestingRealm(UObject* InObject, EIllegalRefReason& OutReason) const
+{
+	OutReason = EIllegalRefReason::None;
+	switch (CurrentExportHarvestingRealm)
+	{
+	// We are harvesting InObject from the root (i.e. asset or top level flag)
+	case ESaveRealm::None:
+		// if the object is optional and we are cooking, harvest in the Optional context
+		if (InObject->GetClass()->HasAnyClassFlags(CLASS_Optional) && SaveContext.IsCooking())
+		{
+			return ESaveRealm::Optional;
+		}
+
+		// Otherwise, just return the current default harvesting context (i.e. Game while cooking, Editor otherwise)
+		return SaveContext.CurrentHarvestingRealm;
+
+	// We are harvesting InObject from an optional object
+	case ESaveRealm::Optional:
+		// whatever the type of object we are harvesting, harvest it in the Optional context
+		return ESaveRealm::Optional;
+
+	// We are harvesting InObject from a game or editor only object
+	default:
+		//@todo FH: check CanSkipEditorReferencedPackagesWhenCooking to propagate the editor context when trimming editor reference and potentially skip processing
+
+		// if we are harvesting an optional object while in a different context, record an illegal reference to display on validation
+		if (InObject->GetClass()->HasAnyClassFlags(CLASS_Optional) && SaveContext.IsCooking())
+		{
+			OutReason = EIllegalRefReason::ReferenceToOptional;
+			return ESaveRealm::Optional;
+		}
+		// Otherwise propagate the current context
+		return CurrentExportHarvestingRealm;
+	}
+}
+
+void FPackageHarvester::HarvestExport(UObject* InObject, ESaveRealm InContext)
+{
+	SaveContext.GetHarvestedRealm(InContext).AddExport(InObject, !DoesObjectNeedLoadForEditorGame(InObject));
+	SaveContext.GetHarvestedRealm(InContext).GetNamesReferencedFromPackageHeader().Add(InObject->GetFName().GetDisplayIndex());
+	ExportsToProcess.Enqueue({ InObject, InContext });
+}
+
+void FPackageHarvester::HarvestImport(UObject* InObject)
+{
+	bool bIsEditorOnly = false;
+#if WITH_EDITORONLY_DATA
+	bIsEditorOnly = bIsEditorOnlyExportOnStack || IsEditorOnlyPropertyOnTheStack() || CurrentExportHarvestingRealm == ESaveRealm::Optional;
+#endif
+	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).AddImport(InObject);
+	// No matter the current context, if the import is not editor only also add it to the game context, this is later used in asset registry saving
+	if (!bIsEditorOnly)
+	{
+		SaveContext.GetHarvestedRealm(ESaveRealm::Game).AddImport(InObject);
+	}
 }
 
 void FPackageHarvester::AppendCurrentExportDependencies()
 {
 	check(CurrentExportDependencies.CurrentExport);
-	SaveContext.ExportObjectDependencies.Add(CurrentExportDependencies.CurrentExport, MoveTemp(CurrentExportDependencies.ObjectReferences));
-	SaveContext.ExportNativeObjectDependencies.Add(CurrentExportDependencies.CurrentExport, MoveTemp(CurrentExportDependencies.NativeObjectReferences));
+	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetObjectDependencies().Add(CurrentExportDependencies.CurrentExport, MoveTemp(CurrentExportDependencies.ObjectReferences));
+	SaveContext.GetHarvestedRealm(CurrentExportHarvestingRealm).GetNativeObjectDependencies().Add(CurrentExportDependencies.CurrentExport, MoveTemp(CurrentExportDependencies.NativeObjectReferences));
 	CurrentExportDependencies.CurrentExport = nullptr;
 }
