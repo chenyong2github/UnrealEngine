@@ -77,7 +77,7 @@ EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer&
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);
 
-	if (DoesExist(Id))
+	if (DoesPayloadExist(Id))
 	{
 		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
 		return EPushResult::PayloadAlreadyExisted;
@@ -156,9 +156,9 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 	return ResultData;
 }
 
-bool FDDCBackend::DoesExist(const FPayloadId& Id) const
+bool FDDCBackend::DoesPayloadExist(const FPayloadId& Id)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::DoesExist);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::DoesPayloadExist);
 
 	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
 

@@ -426,6 +426,70 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 	return FCompressedBuffer();
 }
 
+bool FVirtualizationManager::DoPayloadsExist(TArrayView<const FPayloadId> Ids, EStorageType StorageType, TArray<FPayloadStatus>& OutStatuses)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::DoPayloadsExist);
+
+	OutStatuses.SetNum(Ids.Num());
+
+	for (int32 Index = 0; Index < Ids.Num(); ++Index)
+	{
+		OutStatuses[Index] = Ids[Index].IsValid() ? FPayloadStatus::NotFound : FPayloadStatus::Invalid;
+	}
+
+	FBackendArray& Backends = StorageType == EStorageType::Local ? LocalCachableBackends : PersistentStorageBackends;
+
+	TArray<int8> HitCount;
+	TArray<bool> Results;
+
+	HitCount.SetNum(Ids.Num());
+	Results.SetNum(Ids.Num());
+
+	{
+		FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
+
+		for (IVirtualizationBackend* Backend : Backends)
+		{
+			if (!Backend->DoPayloadsExist(Ids, Results))
+			{
+				// If a backend entirely failed we should early out and report the problem
+				OutStatuses.Reset();
+				return false;
+			}
+
+			for (int32 Index = 0; Index < Ids.Num(); ++Index)
+			{
+				if (Ids[Index].IsValid() && Results[Index])
+				{
+					HitCount[Index]++;
+				}
+			}
+		}
+	}
+
+	// Now we total up the hit count for each payload to see if it was found in none, all or some of the backends
+	for (int32 Index = 0; Index < Ids.Num(); ++Index)
+	{
+		if (Ids[Index].IsValid())
+		{
+			if (HitCount[Index] == 0)
+			{
+				OutStatuses[Index] = FPayloadStatus::NotFound;
+			}
+			else if (HitCount[Index] == Backends.Num())
+			{
+				OutStatuses[Index] = FPayloadStatus::FoundAll;
+			}
+			else
+			{
+				OutStatuses[Index] = FPayloadStatus::Partial;;
+			}
+		}
+	}
+
+	return true;
+}
+
 FPayloadActivityInfo FVirtualizationManager::GetAccumualtedPayloadActivityInfo() const
 {
 	FPayloadActivityInfo Info;

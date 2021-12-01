@@ -14,6 +14,7 @@
 #include "VirtualizationSourceControlUtilities.h"
 #include "VirtualizationUtilities.h"
 
+
 // When the SourceControl module (or at least the perforce source control module) is thread safe we
 // can enable this and stop using the hacky work around 'TryToDownloadFileFromBackgroundThread'
 #define IS_SOURCE_CONTROL_THREAD_SAFE 0
@@ -336,6 +337,64 @@ public:
 		Utils::PayloadIdToPath(PayloadId, PayloadPath);
 
 		OutPath << DepotRoot << PayloadPath;
+	}
+
+	virtual bool DoesPayloadExist(const FPayloadId& Id)
+	{
+		TArray<bool> Result;
+
+		if (FSourceControlBackend::DoPayloadsExist(MakeArrayView<const FPayloadId>(&Id, 1), Result))
+		{
+			check(Result.Num() == 1);
+			return Result[0];
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> PayloadIds, TArray<bool>& OutResults) override
+	{
+		ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
+
+		TArray<FString> DepotPaths;
+		DepotPaths.Reserve(PayloadIds.Num());
+
+		TArray<FSourceControlStateRef> PathStates;
+	
+		for (const FPayloadId& PayloadId : PayloadIds)
+		{
+			if (PayloadId.IsValid())
+			{
+				TStringBuilder<52> LocalPayloadPath;
+				Utils::PayloadIdToPath(PayloadId, LocalPayloadPath);
+
+				DepotPaths.Emplace(WriteToString<512>(DepotRoot, LocalPayloadPath));
+			}		
+		}
+	
+		ECommandResult::Type Result = SCCProvider.GetState(DepotPaths, PathStates, EStateCacheUsage::ForceUpdate);
+		if (Result != ECommandResult::Type::Succeeded)
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to query the state of files in the source control depot"), *GetDebugName());
+			return false;
+		}
+
+		check(DepotPaths.Num() == PathStates.Num()); // We expect that all paths return a state
+
+		OutResults.SetNum(PayloadIds.Num());
+
+		int32 StatusIndex = 0;
+		for (int32 Index = 0; Index < PayloadIds.Num(); ++Index)
+		{
+			if (PayloadIds[Index].IsValid())
+			{
+				OutResults[Index] = PathStates[StatusIndex++]->IsSourceControlled();
+			}
+		}
+
+		return true;
 	}
 
 private:

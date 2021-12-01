@@ -37,9 +37,9 @@ protected:
 	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext) override;
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
-
-	bool DoesExist(const FPayloadId& Id) const;
-
+	
+	virtual bool DoesPayloadExist(const FPayloadId& Id) override;
+	
 	/** The bucket being used to group together the virtualized payloads in storage */
 	FString BucketName;
 

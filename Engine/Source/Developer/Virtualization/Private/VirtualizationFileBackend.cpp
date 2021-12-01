@@ -58,7 +58,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PushData);
 
-	if (DoesExist(Id))
+	if (DoesPayloadExist(Id))
 	{
 		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
 		return EPushResult::PayloadAlreadyExisted;
@@ -123,7 +123,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 
 		// Check if another thread or process was writing out the payload at the same time, if so we 
 		// don't need to give an error message.
-		if (DoesExist(Id))
+		if (DoesPayloadExist(Id))
 		{
 			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
 			return EPushResult::PayloadAlreadyExisted;
@@ -176,9 +176,9 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 	return FCompressedBuffer::FromCompressed(*FileAr);
 }
 
-bool FFileSystemBackend::DoesExist(const FPayloadId& Id)
+bool FFileSystemBackend::DoesPayloadExist(const FPayloadId& Id)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::DoesExist);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::DoesPayloadExist);
 
 	TStringBuilder<512> FilePath;
 	CreateFilePath(Id, FilePath);

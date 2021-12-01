@@ -100,7 +100,43 @@ public:
 	 *				if it did not.
 	 */
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) = 0;
+	
+	/**
+	 * Checks if a payload exists in the backends storage.
+	 * 
+	 * @param	Id	The identifier of the payload to check
+	 * 
+	 * @return True if the backend storage already contains the payload, otherwise false
+	 */
+	virtual bool DoesPayloadExist(const FPayloadId& Id) = 0;
+	
+	/**
+	 * Checks if a number of payload exists in the backends storage.
+	 *
+	 * @param[in]	PayloadIds	An array of FPayloadId that should be checked
+	 * @param[out]	OutResults	An array to contain the result, true if the payload
+	 *							exists in the backends storage, false if not.
+	 *							This array will be resized to match the size of PayloadIds.
+	 * 
+	 * @return True if the operation completed without error, otherwise false
+	 */
+	virtual bool DoPayloadsExist(TArrayView<const FPayloadId> PayloadIds, TArray<bool>& OutResults)
+	{
+		// This is the default implementation that just calls ::DoesExist on each FPayloadId in the
+		// array, one at a time. 
+		// Backends may override this with their own implementations if it can be done with less
+		// overhead by performing the check on the entire batch instead.
 
+		OutResults.SetNum(PayloadIds.Num());
+
+		for (int32 Index = 0; Index < PayloadIds.Num(); ++Index)
+		{
+			OutResults[Index] = DoesPayloadExist(PayloadIds[Index]);
+		}
+
+		return true;
+	}
+	
 	/** Used when debugging to disable the pull operation */
 	void DisablePullOperationSupport()
 	{
