@@ -1,5 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "PixelStreamingFrameBuffer.h"
-
 #include "PixelStreamingFrameSource.h"
 
 FPixelStreamingSimulcastFrameBuffer::FPixelStreamingSimulcastFrameBuffer(FPixelStreamingFrameSource* InFrameSource)
