@@ -146,13 +146,30 @@ private:
 	EVisibility IsTooltipEditVisible() const;
 
 	/**
+	 * Callback when changing a variable property
+	 *
+	 * @param InPropertyChangedEvent	Information on the property changed
+	 * @param InModifiedObjectInstance	The object instance for which the value was changed
+	 */
+	void OnFinishedChangingVariable(const FPropertyChangedEvent& InPropertyChangedEvent, UObject* InModifiedObjectInstance);
+
+	/**
 	 * Callback when changing a local variable property
 	 *
 	 * @param InPropertyChangedEvent	Information on the property changed
 	 * @param InStructData				The struct data where the value of the properties are stored
 	 * @param InEntryNode				Entry node where the default values of local variables are stored
 	 */
-	void OnFinishedChangingProperties(const FPropertyChangedEvent& InPropertyChangedEvent, TSharedPtr<FStructOnScope> InStructData, TWeakObjectPtr<UK2Node_EditablePinBase> InEntryNode);
+	void OnFinishedChangingLocalVariable(const FPropertyChangedEvent& InPropertyChangedEvent, TSharedPtr<FStructOnScope> InStructData, TWeakObjectPtr<UK2Node_EditablePinBase> InEntryNode);
+
+	/**
+	 * Auto-import any namespaces associated with a variable's value into the current editor context
+	 *
+	 * @param InStruct					A reference to the container's type
+	 * @param InProperty				A reference to the variable property; owner is expected to match the container's type
+	 * @param InContainer				A pointer to the data container (e.g. struct or object) where the property's value is stored
+	 */
+	void ImportNamespacesForPropertyValue(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer);
 
 	/** Callback to decide if the category drop down menu should be enabled */
 	bool GetVariableCategoryChangeEnabled() const;

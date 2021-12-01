@@ -926,6 +926,12 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		}
 		else 
 		{
+			TSharedPtr<IDetailsView> DetailsView;
+			if (BlueprintEditor.IsValid())
+			{
+				DetailsView = BlueprintEditor.Pin()->GetInspector()->GetPropertyView();
+			}
+
 			if(IsALocalVariable(VariableProperty))
 			{
 				UFunction* StructScope = VariableProperty->GetOwner<UFunction>();
@@ -939,8 +945,6 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 
 				// There should always be an entry node in the function graph
 				check(EntryNodes.Num() > 0);
-
-				const FStructProperty* PotentialUDSProperty = CastField<const FStructProperty>(VariableProperty);
 				
 				UK2Node_FunctionEntry* FuncEntry = EntryNodes[0];
 
@@ -959,15 +963,10 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 					}
 				}
 
-				if(BlueprintEditor.IsValid())
+				if (DetailsView.IsValid())
 				{
-					TSharedPtr< IDetailsView > DetailsView  = BlueprintEditor.Pin()->GetInspector()->GetPropertyView();
-
-					if(DetailsView.IsValid())
-					{
-						TWeakObjectPtr<UK2Node_EditablePinBase> EntryNode = FuncEntry;
-						DetailsView->OnFinishedChangingProperties().AddSP(this, &FBlueprintVarActionDetails::OnFinishedChangingProperties, StructData, EntryNode);
-					}
+					TWeakObjectPtr<UK2Node_EditablePinBase> EntryNode = FuncEntry;
+					DetailsView->OnFinishedChangingProperties().AddSP(this, &FBlueprintVarActionDetails::OnFinishedChangingLocalVariable, StructData, EntryNode);
 				}
 
 				IDetailPropertyRow* Row = DefaultValueCategory.AddExternalStructureProperty(StructData, VariableProperty->GetFName());
@@ -1000,6 +999,11 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 					if (Row != nullptr)
 					{
 						Row->IsEnabled(IsVariableInheritedByBlueprint());
+					}
+
+					if (DetailsView.IsValid())
+					{
+						DetailsView->OnFinishedChangingProperties().AddSP(this, &FBlueprintVarActionDetails::OnFinishedChangingVariable, TargetBlueprintDefaultObject);
 					}
 				}
 			}
@@ -2724,9 +2728,19 @@ EVisibility FBlueprintVarActionDetails::IsTooltipEditVisible() const
 	return EVisibility::Collapsed;
 }
 
-void FBlueprintVarActionDetails::OnFinishedChangingProperties(const FPropertyChangedEvent& InPropertyChangedEvent, TSharedPtr<FStructOnScope> InStructData, TWeakObjectPtr<UK2Node_EditablePinBase> InEntryNode)
+void FBlueprintVarActionDetails::OnFinishedChangingVariable(const FPropertyChangedEvent& InPropertyChangedEvent, UObject* InModifiedObjectInstance)
 {
-	if( !InPropertyChangedEvent.MemberProperty ||
+	if (!InModifiedObjectInstance)
+	{
+		return;
+	}
+
+	ImportNamespacesForPropertyValue(InModifiedObjectInstance->GetClass(), InPropertyChangedEvent.MemberProperty, InModifiedObjectInstance);
+}
+
+void FBlueprintVarActionDetails::OnFinishedChangingLocalVariable(const FPropertyChangedEvent& InPropertyChangedEvent, TSharedPtr<FStructOnScope> InStructData, TWeakObjectPtr<UK2Node_EditablePinBase> InEntryNode)
+{
+	if (!InPropertyChangedEvent.MemberProperty ||
 		!InPropertyChangedEvent.MemberProperty->GetOwnerStruct() ||
 		!InPropertyChangedEvent.MemberProperty->GetOwnerStruct()->IsA<UFunction>())
 	{
@@ -2749,7 +2763,7 @@ void FBlueprintVarActionDetails::OnFinishedChangingProperties(const FPropertyCha
 
 		bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, InStructData->GetStructMemory(), DefaultValueString, FuncEntry);
 
-		if(bDefaultValueSet)
+		if (bDefaultValueSet)
 		{
 			// Search out the correct local variable in the Function Entry Node and set the default value
 			for (FBPVariableDescription& LocalVar : FuncEntry->LocalVariables)
@@ -2764,6 +2778,35 @@ void FBlueprintVarActionDetails::OnFinishedChangingProperties(const FPropertyCha
 					FuncEntry->RefreshFunctionVariableCache();
 					FBlueprintEditorUtils::MarkBlueprintAsModified(GetBlueprintObj());
 					break;
+				}
+			}
+		}
+
+		ImportNamespacesForPropertyValue(InStructData->GetStruct(), DirectProperty, InStructData->GetStructMemory());
+	}
+}
+
+void FBlueprintVarActionDetails::ImportNamespacesForPropertyValue(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer)
+{
+	if (!GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures)
+	{
+		return;
+	}
+
+	// Auto-import any namespace(s) associated with the property's value into the current editor context.
+	TSet<FString> AssociatedNamespaces;
+	FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(InStruct, InProperty, InContainer, AssociatedNamespaces);
+	if (AssociatedNamespaces.Num() > 0)
+	{
+		TSharedPtr<SMyBlueprint> MyBlueprintPtr = MyBlueprint.Pin();
+		if (MyBlueprintPtr.IsValid())
+		{
+			TSharedPtr<FBlueprintEditor> BlueprintEditor = MyBlueprintPtr->GetBlueprintEditor().Pin();
+			if (BlueprintEditor.IsValid())
+			{
+				for (const FString& AssociatedNamespace : AssociatedNamespaces)
+				{
+					BlueprintEditor->ImportNamespace(AssociatedNamespace);
 				}
 			}
 		}

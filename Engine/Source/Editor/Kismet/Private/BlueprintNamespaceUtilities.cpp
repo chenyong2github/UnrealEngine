@@ -2,6 +2,7 @@
 
 #include "BlueprintNamespaceUtilities.h"
 #include "Engine/Blueprint.h"
+#include "AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "EdGraphSchema_K2.h"
 #include "Misc/AssertionMacros.h"
@@ -121,6 +122,100 @@ FString FBlueprintNamespaceUtilities::GetObjectNamespace(const UObject* InObject
 	}
 
 	return Namespace;
+}
+
+FString FBlueprintNamespaceUtilities::GetObjectNamespace(const FSoftObjectPath& InObjectPath)
+{
+	if (const UObject* Object = InObjectPath.ResolveObject())
+	{
+		return GetObjectNamespace(Object);
+	}
+
+	FString ObjectPathAsString = InObjectPath.ToString();
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
+	if (!AssetData.IsValid() && ObjectPathAsString.RemoveFromEnd(TEXT("_C")))
+	{
+		AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
+	}
+
+	return GetAssetNamespace(AssetData);
+}
+
+void FBlueprintNamespaceUtilities::GetPropertyValueNamespaces(const UStruct* InStruct, const FProperty* InProperty, const void* InContainer, TSet<FString>& OutNamespaces)
+{
+	if (!InStruct || !InProperty || !InContainer)
+	{
+		return;
+	}
+
+	const UStruct* PropertyOwner = InProperty->GetOwnerStruct();
+	if (!PropertyOwner)
+	{
+		return;
+	}
+
+	if (!ensureMsgf(InStruct == PropertyOwner, TEXT("Property %s is a member of struct %s which does not match the given struct %s"), *InProperty->GetName(), *PropertyOwner->GetName(), *InStruct->GetName()))
+	{
+		return;
+	}
+
+	for (int32 ArrayIdx = 0; ArrayIdx < InProperty->ArrayDim; ++ArrayIdx)
+	{
+		const uint8* ValuePtr = InProperty->ContainerPtrToValuePtr<uint8>(InContainer, ArrayIdx);
+
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+		{
+			for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
+			{
+				GetPropertyValueNamespaces(StructProperty->Struct, *It, (*It)->ContainerPtrToValuePtr<uint8>(ValuePtr), OutNamespaces);
+			}
+		}
+		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
+		{
+			FScriptArrayHelper ArrayHelper(ArrayProperty, ValuePtr);
+			for (int32 ValueIdx = 0; ValueIdx < ArrayHelper.Num(); ++ValueIdx)
+			{
+				GetPropertyValueNamespaces(InStruct, ArrayProperty->Inner, ArrayHelper.GetRawPtr(ValueIdx), OutNamespaces);
+			}
+		}
+		else if (const FSetProperty* SetProperty = CastField<FSetProperty>(InProperty))
+		{
+			FScriptSetHelper SetHelper(SetProperty, ValuePtr);
+			for (int32 ValueIdx = 0; ValueIdx < SetHelper.Num(); ++ValueIdx)
+			{
+				GetPropertyValueNamespaces(InStruct, SetProperty->ElementProp, SetHelper.GetElementPtr(ValueIdx), OutNamespaces);
+			}
+		}
+		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
+		{
+			FScriptMapHelper MapHelper(MapProperty, ValuePtr);
+			for (int32 ValueIdx = 0; ValueIdx < MapHelper.Num(); ++ValueIdx)
+			{
+				const uint8* MapValuePtr = MapHelper.GetPairPtr(ValueIdx);
+				GetPropertyValueNamespaces(InStruct, MapProperty->KeyProp, MapValuePtr, OutNamespaces);
+				GetPropertyValueNamespaces(InStruct, MapProperty->ValueProp, MapValuePtr, OutNamespaces);
+			}
+		}
+		else if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(InProperty))
+		{
+			const FSoftObjectPath& ObjectPath = SoftObjectProperty->GetPropertyValue(ValuePtr).ToSoftObjectPath();
+			if (ObjectPath.IsValid())
+			{
+				FString Namespace = GetObjectNamespace(ObjectPath);
+				OutNamespaces.Add(Namespace);
+			}
+		}
+		else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty))
+		{
+			const UObject* ObjectValue = ObjectProperty->GetObjectPropertyValue(ValuePtr);
+			if (ObjectValue)
+			{
+				FString Namespace = GetObjectNamespace(ObjectValue);
+				OutNamespaces.Add(Namespace);
+			}
+		}
+	}
 }
 
 void FBlueprintNamespaceUtilities::SetDefaultBlueprintNamespaceType(EDefaultBlueprintNamespaceType InType)
