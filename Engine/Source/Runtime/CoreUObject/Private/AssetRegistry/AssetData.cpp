@@ -85,12 +85,12 @@ FAssetData::FAssetData(const FString& InLongPackageName, const FString& InObject
 	AssetName = FName(*InObjectPath.Mid(CharPos + 1));
 }
 
-FAssetData::FAssetData(const UObject* InAsset, bool bAllowBlueprintClass)
+FAssetData::FAssetData(const UObject* InAsset, FAssetData::ECreationFlags InCreationFlags)
 {
 	if (InAsset != nullptr)
 	{
 		const UClass* InClass = Cast<UClass>(InAsset);
-		if (InClass && InClass->ClassGeneratedBy && !bAllowBlueprintClass)
+		if (InClass && InClass->ClassGeneratedBy && !EnumHasAnyFlags(InCreationFlags, FAssetData::ECreationFlags::AllowBlueprintClass))
 		{
 			// For Blueprints, the AssetData refers to the UBlueprint and not the UBlueprintGeneratedClass
 			InAsset = InClass->ClassGeneratedBy;
@@ -104,7 +104,10 @@ FAssetData::FAssetData(const UObject* InAsset, bool bAllowBlueprintClass)
 		AssetClass = InAsset->GetClass()->GetFName();
 		ObjectPath = FName(*InAsset->GetPathName());
 
-		InAsset->GetAssetRegistryTags(*this);
+		if (!EnumHasAnyFlags(InCreationFlags, FAssetData::ECreationFlags::SkipAssetRegistryTagsGathering))
+		{
+			InAsset->GetAssetRegistryTags(*this);
+		}
 
 		ChunkIDs = Package->GetChunkIDs();
 		PackageFlags = Package->GetPackageFlags();
