@@ -382,7 +382,7 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 
 	// Helper template to pair channel evaluation and parameter application.
 	template<typename ChannelType, typename ValueType>
-	void EvaluateAllAndSetParameters(IAudioParameterInterface& InParamaterInterface, const FFrameTime& InTime) const
+	void EvaluateAllAndSetParameters(IAudioParameterControllerInterface& InParamaterInterface, const FFrameTime& InTime) const
 	{
 		AudioSection->ForEachInput([&InParamaterInterface, &InTime](FName InName, const ChannelType& InChannel)
 		{

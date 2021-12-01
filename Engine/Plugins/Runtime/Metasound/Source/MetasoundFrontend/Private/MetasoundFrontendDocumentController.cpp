@@ -117,22 +117,22 @@ namespace Metasound
 			return false;
 		}
 
-		const TArray<FMetasoundFrontendVersion>& FDocumentController::GetInterfaceVersions() const
+		const TSet<FMetasoundFrontendVersion>& FDocumentController::GetInterfaceVersions() const
 		{
 			if (const FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
-				return Doc->InterfaceVersions;
+				return Doc->Interfaces;
 			}
 
-			static const TArray<FMetasoundFrontendVersion> EmptyArray;
-			return EmptyArray;
+			static const TSet<FMetasoundFrontendVersion> EmptySet;
+			return EmptySet;
 		}
 
 		void FDocumentController::AddInterfaceVersion(const FMetasoundFrontendVersion& InVersion)
 		{
 			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
-				Doc->InterfaceVersions.Add(InVersion);
+				Doc->Interfaces.Add(InVersion);
 			}
 		}
 
@@ -140,8 +140,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
-				constexpr bool bAllowShrinking = false;
-				Doc->InterfaceVersions.RemoveAllSwap([&](const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion == InVersion; }, bAllowShrinking);
+				Doc->Interfaces.Remove(InVersion);
 			}
 		}
 
@@ -149,7 +148,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
-				Doc->InterfaceVersions.Reset();
+				Doc->Interfaces.Reset();
 			}
 		}
 

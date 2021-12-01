@@ -24,14 +24,7 @@ namespace Metasound
 	class FMetasoundUObjectRegistry : public IMetasoundUObjectRegistry
 	{
 		public:
-			FMetasoundUObjectRegistry()
-			{
-				// Set default version to use base UMetaSound class implementation
-				FMetasoundFrontendVersion DefaultVersion;
-
-				using FRegistryEntryType = TMetasoundUObjectRegistryEntry<UMetaSound>;
-				RegisterUClassInterface(MakeUnique<FRegistryEntryType>(DefaultVersion));
-			}
+			FMetasoundUObjectRegistry() = default;
 
 			void RegisterUClassInterface(TUniquePtr<IMetasoundUObjectRegistryEntry>&& InEntry) override
 			{
@@ -79,7 +72,7 @@ namespace Metasound
 			{
 				TArray<const IMetasoundUObjectRegistryEntry*> AllInterfaceEntries;
 
-				for (const FMetasoundFrontendVersion& InterfaceVersion : InDocument.InterfaceVersions)
+				for (const FMetasoundFrontendVersion& InterfaceVersion : InDocument.Interfaces)
 				{
 					TArray<const IMetasoundUObjectRegistryEntry*> EntriesForInterface;
 					EntriesByInterface.MultiFind(Frontend::GetInterfaceRegistryKey(InterfaceVersion), EntriesForInterface);
@@ -120,6 +113,20 @@ namespace Metasound
 					return Entry->Cast(InObject);
 				}
 				return nullptr;
+			}
+
+			void IterateRegisteredUClasses(TFunctionRef<void(UClass&)> InFunc) const override
+			{
+				for (const IMetasoundUObjectRegistryEntry* Entry : Entries)
+				{
+					if (Entry)
+					{
+						if (UClass* Class = Entry->GetUClass())
+						{
+							InFunc(*Class);
+						}
+					}
+				}
 			}
 
 		private:

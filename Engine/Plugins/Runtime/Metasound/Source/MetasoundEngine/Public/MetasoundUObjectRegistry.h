@@ -7,6 +7,7 @@
 #include "MetasoundAssetBase.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "UObject/Object.h"
+#include "Templates/Function.h"
 
 
 // Forward Declarations
@@ -162,6 +163,9 @@ namespace Metasound
 			 * @return A new object. A nullptr on error.
 			 */
 			virtual UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const = 0;
+
+			/** Iterate all registered UClasses that serve as MetaSound assets.*/
+			virtual void IterateRegisteredUClasses(TFunctionRef<void(UClass&)> InFunc) const = 0;
 
 			/** Returns true if the InObject is of a class or child class which is registered. */
 			virtual bool IsRegisteredClass(UObject* InObject) const = 0;

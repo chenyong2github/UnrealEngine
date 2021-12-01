@@ -355,7 +355,7 @@ public:
 /**
  * FGameplayCueNotify_SoundParameterInterfaceInfo
  *
- *	Properties that specify how to interface with the ISoundGeneratorParameterInterface
+ *	Properties that specify how to interface with the ISoundParameterControllerInterface
  */
 USTRUCT(BlueprintType)
 struct FGameplayCueNotify_SoundParameterInterfaceInfo
