@@ -32,15 +32,22 @@ struct FTaggedExport
 {
 	UObject* Obj;
 	uint32 bNotAlwaysLoadedForEditorGame : 1;
+	/**
+	 * Indicate that this export should have a public hash even if it isn't marked as RF_Public
+	 * This will artificially mark the object RF_Public in the linker tables so the iostore generates the public hash 
+	 */
+	uint32 bGeneratePublicHash : 1;
 
 	FTaggedExport()
 		: Obj(nullptr)
 		, bNotAlwaysLoadedForEditorGame(false)
+		, bGeneratePublicHash(false)
 	{}
 
 	FTaggedExport(UObject* InObj, bool bInNotAlwaysLoadedForEditorGame = true)
 		: Obj(InObj)
 		, bNotAlwaysLoadedForEditorGame(bInNotAlwaysLoadedForEditorGame)
+		, bGeneratePublicHash(false)
 	{}
 
 	inline bool operator == (const FTaggedExport& Other) const
@@ -54,12 +61,209 @@ inline uint32 GetTypeHash(const FTaggedExport& Export)
 	return GetTypeHash(Export.Obj);
 }
 
+/** 
+ * Available save realm during save package harvesting 
+ * A realm is the set of objects gathered and referenced for a particular domain/context
+ */
+enum class ESaveRealm : uint32
+{
+	Game		= 0,
+	Optional,
+	Editor,
+	RealmCount,
+	None		= RealmCount
+};
+
+/** Reason for harvested illegal reference */
+enum class EIllegalRefReason : uint8
+{
+	None = 0,
+	ReferenceToOptional,
+	ReferenceFromOptionalToMissingGameExport,
+};
+
+/** Small struct to store illegal references harvested during save */
+struct FIllegalReference
+{
+	UObject* From = nullptr;
+	UObject* To = nullptr;
+	EIllegalRefReason Reason;
+};
+
+/** Hold the harvested exports and imports for a realm */
+struct FHarvestedRealm
+{
+	void AddImport(UObject* InObject)
+	{
+		Imports.Add(InObject);
+	}
+
+	void AddExport(UObject* InObj, bool bNotAlwaysLoadedForEditorGame)
+	{
+		Exports.Add(FTaggedExport(InObj, bNotAlwaysLoadedForEditorGame));
+	}
+
+	void AddExcluded(UObject* InObject)
+	{
+		Excluded.Add(InObject);
+	}
+
+	bool IsImport(UObject* InObject) const
+	{
+		return Imports.Contains(InObject);
+	}
+
+	bool IsExport(UObject* InObject) const
+	{
+		return Exports.Contains(InObject);
+	}
+
+	bool IsIncluded(UObject* InObject) const
+	{
+		return IsImport(InObject) || IsExport(InObject);
+	}
+
+	bool IsExcluded(UObject* InObject) const
+	{
+		return Excluded.Contains(InObject);
+	}
+
+	TSet<FTaggedExport>& GetExports()
+	{
+		return Exports;
+	}
+
+	const TSet<UObject*>& GetImports() const
+	{
+		return Imports;
+	}
+
+	const TSet<FName>& GetSoftPackageReferenceList() const
+	{
+		return SoftPackageReferenceList;
+	}
+
+	TSet<FName>& GetSoftPackageReferenceList()
+	{
+		return SoftPackageReferenceList;
+	}
+
+	const TMap<UObject*, TArray<FName>>& GetSearchableNamesObjectMap() const
+	{
+		return SearchableNamesObjectMap;
+	}
+
+	TMap<UObject*, TArray<FName>>& GetSearchableNamesObjectMap()
+	{
+		return SearchableNamesObjectMap;
+	}
+
+	const TSet<FNameEntryId>& GetNamesReferencedFromExportData() const
+	{
+		return NamesReferencedFromExportData;
+	}
+
+	TSet<FNameEntryId>& GetNamesReferencedFromExportData()
+	{
+		return NamesReferencedFromExportData;
+	}
+
+	const TSet<FNameEntryId>& GetNamesReferencedFromPackageHeader() const
+	{
+		return NamesReferencedFromPackageHeader;
+	}
+
+	TSet<FNameEntryId>& GetNamesReferencedFromPackageHeader()
+	{
+		return NamesReferencedFromPackageHeader;
+	}
+
+	const TMap<UObject*, TSet<UObject*>>& GetObjectDependencies() const
+	{
+		return ExportObjectDependencies;
+	}
+
+	TMap<UObject*, TSet<UObject*>>& GetObjectDependencies()
+	{
+		return ExportObjectDependencies;
+	}
+
+	const TMap<UObject*, TSet<UObject*>>& GetNativeObjectDependencies() const
+	{
+		return ExportNativeObjectDependencies;
+	}
+
+	TMap<UObject*, TSet<UObject*>>& GetNativeObjectDependencies()
+	{
+		return ExportNativeObjectDependencies;
+	}
+
+	bool NameExists(FNameEntryId ComparisonId) const
+	{
+		for (FNameEntryId DisplayId : NamesReferencedFromExportData)
+		{
+			if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
+			{
+				return true;
+			}
+		}
+		for (FNameEntryId DisplayId : NamesReferencedFromPackageHeader)
+		{
+			if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+private:
+	// Set of objects excluded (import or exports) through marks or otherwise (i.e. transient flags, etc)
+	TSet<UObject*> Excluded;
+	// Set of objects marked as export
+	TSet<FTaggedExport> Exports;
+	// Set of objects marked as import
+	TSet<UObject*> Imports;
+	// Set of names referenced from export serialization
+	TSet<FNameEntryId> NamesReferencedFromExportData;
+	// Set of names referenced from the package header (import and export table object names etc)
+	TSet<FNameEntryId> NamesReferencedFromPackageHeader;
+	// List of soft package reference found
+	TSet<FName> SoftPackageReferenceList;
+	// Map of objects to their list of searchable names
+	TMap<UObject*, TArray<FName>> SearchableNamesObjectMap;
+	// Map of objects to their dependencies
+	TMap<UObject*, TSet<UObject*>> ExportObjectDependencies;
+	// Map of objects to their native dependencies
+	TMap<UObject*, TSet<UObject*>> ExportNativeObjectDependencies;
+};
+
 
 /**
  * Helper class that encapsulate the full necessary context and intermediate result to save a package
  */
 class FSaveContext
 {
+public:
+	struct FSetSaveRealmToSaveScope
+	{
+		FSetSaveRealmToSaveScope(FSaveContext& InContext, ESaveRealm InHarvestingRealm)
+			: Context(InContext)
+			, PreviousHarvestingRealm(InContext.CurrentHarvestingRealm)
+		{
+			Context.CurrentHarvestingRealm = InHarvestingRealm;
+		}
+
+		~FSetSaveRealmToSaveScope()
+		{
+			Context.CurrentHarvestingRealm = PreviousHarvestingRealm;
+		}
+
+	private:
+		FSaveContext& Context;
+		ESaveRealm PreviousHarvestingRealm;
+	};
+
 public:
 	FSaveContext(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, const FSavePackageArgs& InSaveArgs, FUObjectSerializeContext* InSerializeContext = nullptr)
 		: Package(InPackage)
@@ -109,7 +313,10 @@ public:
 		}
 
 		ObjectSaveContext.Set(InPackage, GetTargetPlatform(), TargetPackagePath, SaveArgs.SaveFlags);
-	}
+
+		// Setup the harvesting flags and generate the context for harvesting the package
+		CreateHarvestingRealms();
+	} 
 
 	~FSaveContext()
 	{
@@ -265,6 +472,11 @@ public:
 		return !!(SaveArgs.SaveFlags & SAVE_Unversioned_Properties) && bCanUseUnversionedPropertySerialization;
 	}
 
+	bool IsSaveOptional() const
+	{
+		return !!(SaveArgs.SaveFlags & SAVE_Optional);
+	}
+
 	bool IsComputeHash() const
 	{
 		return !!(SaveArgs.SaveFlags & SAVE_ComputeHash);
@@ -345,112 +557,135 @@ public:
 		bGenerateFileStub = true;
 	}
 
-	void AddImport(UObject* InObject, bool bIsEditorOnlyImport = false)
+	ESaveRealm GetCurrentHarvestingRealm() const
 	{
-		Imports.Add(InObject);
-		if (!bIsEditorOnlyImport)
-		{
-			ImportsUsedInGame.Add(InObject);
-		}
+		return CurrentHarvestingRealm;
 	}
 
-	void AddExport(UObject* InObj, bool bNotAlwaysLoadedForEditorGame)
-	{
-		Exports.Add(FTaggedExport(InObj, bNotAlwaysLoadedForEditorGame));
-	}
-
-	void AddExcluded(UObject* InObject)
-	{
-		Excluded.Add(InObject);
-	}
+	TArray<ESaveRealm> GetHarvestedRealmsToSave();
 
 	void MarkUnsaveable(UObject* InObject);
 
 	bool IsUnsaveable(UObject* InObject) const;
 
+	void RecordIllegalReference(UObject* InFrom, UObject* InTo, EIllegalRefReason InReason)
+	{
+		HarvestedIllegalReferences.Add({ InFrom, InTo, InReason });
+	}
+
+	const TArray<FIllegalReference>& GetIllegalReferences() const
+	{
+		return HarvestedIllegalReferences;
+	}
+	
+	void AddImport(UObject* InObject)
+	{
+		GetHarvestedRealm().AddImport(InObject);
+	}
+
+	void AddExport(UObject* InObj, bool bNotAlwaysLoadedForEditorGame)
+	{
+		GetHarvestedRealm().AddExport(InObj, bNotAlwaysLoadedForEditorGame);
+	}
+
+	void AddExcluded(UObject* InObject)
+	{
+		GetHarvestedRealm().AddExcluded(InObject);
+	}
+
 	bool IsImport(UObject* InObject) const
 	{
-		return Imports.Contains(InObject);
+		return GetHarvestedRealm().IsImport(InObject);
 	}
 
 	bool IsExport(UObject* InObject) const
 	{
-		return Exports.Contains(InObject);
+		return GetHarvestedRealm().IsExport(InObject);
 	}
 
-	bool IsIncluded(UObject* InObject) const
+	bool IsIncluded(UObject* InObject, ESaveRealm InContext = ESaveRealm::None) const
 	{
-		return IsImport(InObject) || IsExport(InObject);
+		return GetHarvestedRealm(InContext).IsIncluded(InObject);
 	}
 
 	bool IsExcluded(UObject* InObject) const
 	{
-		return Excluded.Contains(InObject);
+		return GetHarvestedRealm().IsExcluded(InObject);
 	}
 
 	TSet<FTaggedExport>& GetExports()
 	{
-		return Exports;
+		return GetHarvestedRealm().GetExports();
 	}
 
 	const TSet<UObject*>& GetImports() const
 	{
-		return Imports;
+		return GetHarvestedRealm().GetImports();
 	}
 
 	const TSet<UObject*>& GetImportsUsedInGame() const
 	{
-		return ImportsUsedInGame;
+		return GetHarvestedRealm(ESaveRealm::Game).GetImports();
 	}
 
-	const TArray<FName>& GetSoftPackageReferenceList() const
+	const TSet<FName>& GetSoftPackageReferenceList() const
 	{
-		return SoftPackageReferenceList;
+		return GetHarvestedRealm().GetSoftPackageReferenceList();
 	}
 
-	TArray<FName>& GetSoftPackageReferenceList()
+	TSet<FName>& GetSoftPackageReferenceList()
 	{
-		return SoftPackageReferenceList;
+		return GetHarvestedRealm().GetSoftPackageReferenceList();
 	}
 
 	const TSet<FName>& GetSoftPackagesUsedInGame() const
 	{
-		return SoftPackagesUsedInGame;
+		return GetHarvestedRealm(ESaveRealm::Game).GetSoftPackageReferenceList();
+	}
+
+	TSet<FName>& GetSoftPackagesUsedInGame()
+	{
+		return GetHarvestedRealm(ESaveRealm::Game).GetSoftPackageReferenceList();
 	}
 
 	const TMap<UObject*, TArray<FName>>& GetSearchableNamesObjectMap() const
 	{
-		return SearchableNamesObjectMap;
+		return GetHarvestedRealm().GetSearchableNamesObjectMap();
 	}
 
 	TMap<UObject*, TArray<FName>>& GetSearchableNamesObjectMap()
 	{
-		return SearchableNamesObjectMap;
+		return GetHarvestedRealm().GetSearchableNamesObjectMap();
 	}
 
 	const TSet<FNameEntryId>& GetNamesReferencedFromExportData() const
 	{
-		return NamesReferencedFromExportData;
+		return GetHarvestedRealm().GetNamesReferencedFromExportData();
 	}
 
 	const TSet<FNameEntryId>& GetNamesReferencedFromPackageHeader() const
 	{
-		return NamesReferencedFromPackageHeader;
+		return GetHarvestedRealm().GetNamesReferencedFromPackageHeader();
+	}
+
+	const TMap<UObject*, TSet<UObject*>>& GetObjectDependencies() const
+	{
+		return GetHarvestedRealm().GetObjectDependencies();
+	}
+
+	const TMap<UObject*, TSet<UObject*>>& GetNativeObjectDependencies() const
+	{
+		return GetHarvestedRealm().GetNativeObjectDependencies();
+	}
+
+	bool NameExists(FNameEntryId ComparisonId) const
+	{
+		return GetHarvestedRealm().NameExists(ComparisonId);
 	}
 
 	const FCustomVersionContainer& GetCustomVersions() const
 	{
 		return CustomVersions;
-	}
-
-	const TMap<UObject*, TSet<UObject*>>& GetObjectDependencies() const
-	{
-		return ExportObjectDependencies;
-	}
-
-	const TMap<UObject*, TSet<UObject*>>& GetNativeObjectDependencies() const
-	{
-		return ExportNativeObjectDependencies;
 	}
 
 	const TSet<UPackage*>& GetPrestreamPackages() const
@@ -471,25 +706,6 @@ public:
 	void AddPrestreamPackages(UPackage* InPackage)
 	{
 		PrestreamPackages.Add(InPackage);
-	}
-
-	bool NameExists(FNameEntryId ComparisonId) const
-	{
-		for (FNameEntryId DisplayId : NamesReferencedFromExportData)
-		{
-			if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
-			{
-				return true;
-			}
-		}
-		for (FNameEntryId DisplayId : NamesReferencedFromPackageHeader)
-		{
-			if (FName::GetComparisonIdFromDisplayId(DisplayId) == ComparisonId)
-			{
-				return true;
-			}
-		}
-		return false;
 	}
 
 	void SetCustomVersions(FCustomVersionContainer InCustomVersions)
@@ -550,6 +766,15 @@ public:
 		return SaveArgs.SavePackageContext ? SaveArgs.SavePackageContext->GetValidator() : nullptr;
 	}
 
+	const FHarvestedRealm& GetHarvestedRealm(ESaveRealm Realm = ESaveRealm::None) const
+	{
+		return HarvestedRealms[(uint32)(Realm == ESaveRealm::None ? CurrentHarvestingRealm : Realm)];
+	}
+	FHarvestedRealm& GetHarvestedRealm(ESaveRealm Realm = ESaveRealm::None)
+	{
+		return HarvestedRealms[(uint32)(Realm == ESaveRealm::None ? CurrentHarvestingRealm : Realm)];
+	}
+
 public:
 	ESavePackageResult Result;
 
@@ -563,6 +788,7 @@ public:
 
 	EPropertyLocalizationGathererResultFlags GatherableTextResultFlags = EPropertyLocalizationGathererResultFlags::Empty;
 
+	int64 PackageHeaderAndExportSize = 0;
 	int64 TotalPackageSizeUncompressed = 0;
 	int32 OffsetAfterPackageFileSummary = 0;
 	int32 OffsetAfterImportMap = 0;
@@ -573,6 +799,17 @@ public:
 	TArray<FLargeMemoryWriter, TInlineAllocator<4>> AdditionalFilesFromExports;
 	FSavePackageOutputFileArray AdditionalPackageFiles;
 private:
+
+	// Create the needed harvesting context depending on the save context options
+	void CreateHarvestingRealms()
+	{
+		// Create the different harvesting realms
+		HarvestedRealms.AddDefaulted((uint32)ESaveRealm::RealmCount);
+	
+		// if cooking the default harvesting context is Game, otherwise it's the editor context
+		CurrentHarvestingRealm = IsCooking() ? ESaveRealm::Game : ESaveRealm::Editor;
+	}
+		
 	friend class FPackageHarvester;
 
 	// Args
@@ -602,32 +839,18 @@ private:
 
 	// Matching any mark in ExcludedObjectMarks indicates that an object should be excluded from being either an import or an export for this save
 	const EObjectMark ExcludedObjectMarks;
-	// Set of objects excluded (import or exports) through through marks or otherwise (i.e. transient flags, etc)
-	TSet<UObject*> Excluded;
 
-	// Set of objects marked as export
-	TSet<FTaggedExport> Exports;
-	// Set of objects marked as import
-	TSet<UObject*> Imports;
-	// Subset of this->Imports which are referenced from not-editoronly properties
-	TSet<UObject*> ImportsUsedInGame;
-	// Set of names referenced from export serialization
-	TSet<FNameEntryId> NamesReferencedFromExportData;
-	// Set of names referenced from the package header (import and export table object names etc)
-	TSet<FNameEntryId> NamesReferencedFromPackageHeader;
-	// List of soft package reference found
-	TArray<FName> SoftPackageReferenceList;
-	// Subset of this->SoftPackageReferenceList which are referenced from not-editoronly properties
-	TSet<FName> SoftPackagesUsedInGame;
-
-	// Map of objects to their list of searchable names
-	TMap<UObject*, TArray<FName>> SearchableNamesObjectMap;
-	// Map of objects to their dependencies
-	TMap<UObject*, TSet<UObject*>> ExportObjectDependencies;
-	// Map of objects to their native dependencies
-	TMap<UObject*, TSet<UObject*>> ExportNativeObjectDependencies;
-	// Set of harvested prestream packages
-	TSet<UPackage*> PrestreamPackages;
 	// Harvested custom versions
 	FCustomVersionContainer CustomVersions;
+
+	// The current default harvesting context being queried by the save context
+	ESaveRealm CurrentHarvestingRealm = ESaveRealm::None;
+
+	// Set of harvested content split per harvesting context
+	TArray<FHarvestedRealm> HarvestedRealms;
+
+	TArray<FIllegalReference> HarvestedIllegalReferences;
+
+	// Set of harvested prestream packages, should be deprecated
+	TSet<UPackage*> PrestreamPackages;
 };

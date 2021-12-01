@@ -7,6 +7,8 @@
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/NameTypes.h"
 
+enum class ESaveRealm : uint32;
+enum class EIllegalRefReason : uint8;
 class FSaveContext;
 class UObject;
 struct FWeakObjectPtr;
@@ -20,24 +22,27 @@ struct FSoftObjectPath;
 class FPackageHarvester : public FArchiveUObject
 {
 public:
+	struct FExportWithContext
+	{
+		/* Export to process */
+		UObject* Export = nullptr;
+		/* The harvesting context from which this export was harvested. */
+		ESaveRealm HarvestedFromRealm;
+
+		operator bool() const
+		{
+			return Export != nullptr;
+		}
+	};
+
 	class FExportScope
 	{
 	public:
-		FExportScope(FPackageHarvester& InHarvester, UObject* InExport, bool bIsEditorOnlyObject)
-			: Harvester(InHarvester)
-		{
-			check(Harvester.CurrentExportDependencies.CurrentExport == nullptr);
-			Harvester.CurrentExportDependencies = { InExport };
-			Harvester.bIsEditorOnlyExportOnStack = bIsEditorOnlyObject;
-		}
-
-		~FExportScope()
-		{
-			Harvester.AppendCurrentExportDependencies();
-			Harvester.bIsEditorOnlyExportOnStack = false;
-		}
+		FExportScope(FPackageHarvester& InHarvester, const FExportWithContext& InToProcess, bool bIsEditorOnlyObject);
+		~FExportScope();
 	private:
 		FPackageHarvester& Harvester;
+		ESaveRealm PreviousContext;
 	};
 
 	class FIgnoreDependenciesScope
@@ -62,9 +67,9 @@ public:
 public:
 	FPackageHarvester(FSaveContext& InContext);
 
-	UObject* PopExportToProcess();
+	FExportWithContext PopExportToProcess();
 
-	void ProcessExport(UObject* InObject);
+	void ProcessExport(const FExportWithContext& InProcessContext);
 	void TryHarvestExport(UObject* InObject);
 	void TryHarvestImport(UObject* InObject);
 
@@ -85,6 +90,10 @@ public:
 	virtual FArchive& operator<<(FName& Name) override;
 
 private:
+	ESaveRealm GetObjectHarvestingRealm(UObject* InObject, EIllegalRefReason& OutReason) const;
+
+	void HarvestExport(UObject* InObject, ESaveRealm InContext);
+	void HarvestImport(UObject* InObject);
 
 	void AppendCurrentExportDependencies();
 
@@ -97,7 +106,10 @@ private:
 	};
 
 	FSaveContext& SaveContext;
-	TQueue<UObject*> ExportsToProcess;
+
+	TQueue<FExportWithContext> ExportsToProcess;
 	FExportDependencies CurrentExportDependencies;
+	ESaveRealm CurrentExportHarvestingRealm;
+	//@todo: bIsEditorOnlyExportOnStack can be probably be folded in CurrentExportHarvestingContext
 	bool bIsEditorOnlyExportOnStack;
 };

@@ -306,7 +306,6 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	SCOPED_SAVETIMER(UPackage_Save_HarvestPackage);
 
 	FPackageHarvester Harvester(SaveContext);
-	Harvester.SetUseUnversionedPropertySerialization(SaveContext.IsSaveUnversionedProperties());
 	EObjectFlags TopLevelFlags = SaveContext.GetTopLevelFlags();
 	UObject* Asset = SaveContext.GetAsset();
 
@@ -314,9 +313,9 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 	if (TopLevelFlags == RF_NoFlags)
 	{
 		Harvester.TryHarvestExport(Asset);
-		while (UObject* Export = Harvester.PopExportToProcess())
+		while (FPackageHarvester::FExportWithContext ExportContext = Harvester.PopExportToProcess())
 		{
-			Harvester.ProcessExport(Export);
+			Harvester.ProcessExport(ExportContext);
 		}
 	}
 	// Otherwise process all objects which have the relevant flags
@@ -333,10 +332,41 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 				}
 				return true;
 			}, true/*bIncludeNestedObjects */, RF_Transient);
-		while (UObject* Export = Harvester.PopExportToProcess())
+		while (FPackageHarvester::FExportWithContext ExportContext = Harvester.PopExportToProcess())
 		{
-			Harvester.ProcessExport(Export);
+			Harvester.ProcessExport(ExportContext);
 		}
+	}
+
+	// If we have a valid optional context and we are saving it,
+	// transform any harvested non optional export into imports
+	if (SaveContext.IsSaveOptional() &&
+		SaveContext.IsCooking() &&
+		SaveContext.GetHarvestedRealm(ESaveRealm::Optional).GetExports().Num())
+	{
+		FHarvestedRealm& OptionalContext = SaveContext.GetHarvestedRealm(ESaveRealm::Optional);
+		for (auto It = OptionalContext.GetExports().CreateIterator(); It; ++It)
+		{
+			if (!It->Obj->GetClass()->HasAnyClassFlags(CLASS_Optional))
+			{
+				// Make sure the export is found in the game context as well
+				if (FTaggedExport* GameExport = SaveContext.GetHarvestedRealm(ESaveRealm::Game).GetExports().Find(It->Obj))
+				{
+					// Flag the export in the game context to generate it's public hash
+					GameExport->bGeneratePublicHash = true;
+					// Transform the export as an import
+					OptionalContext.AddImport(It->Obj);
+				}
+				// if not found in the game context, record an illegal reference
+				else
+				{
+					SaveContext.RecordIllegalReference(nullptr, It->Obj, EIllegalRefReason::ReferenceFromOptionalToMissingGameExport);
+				}
+				It.RemoveCurrent();
+			}
+		}
+		// Also add the current package itself as an import, if the optional context isn't empty
+		OptionalContext.AddImport(SaveContext.GetPackage());
 	}
 
 	// Trim PrestreamPackage list 
@@ -379,9 +409,59 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 
 static FNameEntryId NAME_UniqueObjectNameForCookingComparisonIndex = FName("UniqueObjectNameForCooking").GetComparisonIndex();
 
+ESavePackageResult ValidateRealms(FSaveContext& SaveContext)
+{
+	SCOPED_SAVETIMER(UPackage_Save_ValidateRealms);
+	if (SaveContext.GetIllegalReferences().Num())
+	{
+		for (const FIllegalReference& Reference : SaveContext.GetIllegalReferences())
+		{
+			FString ErrorMessage;
+			switch (Reference.Reason)
+			{
+			case EIllegalRefReason::ReferenceToOptional:
+				ErrorMessage = FString::Printf(TEXT("Can't save %s: Non-optional object (%s) has a reference to optional object (%s). Only optional objects can refer to other optional objects."),
+					SaveContext.GetFilename(),
+					Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
+					Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"));
+				break;
+			case EIllegalRefReason::ReferenceFromOptionalToMissingGameExport:
+				ErrorMessage = FString::Printf(TEXT("Can't save %s: Optional object (%s) has a reference to cooked object (%s) which is missing. Non optional objects referenced by optional objects needs to be present in cooked data."),
+					SaveContext.GetFilename(),
+					Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
+					Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"));
+				break;
+			default:
+				ErrorMessage = FString::Printf(TEXT("Can't save %s: Unknown Illegal reference from object (%s) to object (%s)"),
+					SaveContext.GetFilename(),
+					Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
+					Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"));
+			}
+
+			if (SaveContext.IsGenerateSaveError())
+			{
+				SaveContext.GetError()->Logf(ELogVerbosity::Warning, TEXT("%s"), *ErrorMessage);
+			}
+			else
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("%s"), *ErrorMessage);
+			}
+
+		}
+		return ESavePackageResult::Error;
+	}
+	return ReturnSuccessOrCancel();
+}
+
 ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 {
 	SCOPED_SAVETIMER(UPackage_Save_ValidateExports);
+
+	//@todo: add validation on optional context
+	if (SaveContext.GetCurrentHarvestingRealm() == ESaveRealm::Optional)
+	{
+		return ReturnSuccessOrCancel();
+	}
 
 	// Check if we gathered any exports
 	if (SaveContext.GetExports().Num() == 0)
@@ -652,7 +732,11 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 		}
 
 		// if an import outer is an export and that import doesn't have a specific package set then, there's an error
-		const bool bWrongImport = Import->GetOuter() && Import->GetOuter()->IsInPackage(SaveContext.GetPackage()) && Import->GetExternalPackage() == nullptr;
+		const bool bWrongImport = Import->GetOuter() 
+			&& Import->GetOuter()->IsInPackage(SaveContext.GetPackage()) 
+			&& Import->GetExternalPackage() == nullptr
+			// The optional context will have import that are actually in the same package, similar to external package
+			&& SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional;
 		if (bWrongImport)
 		{
 			if (!Import->HasAllFlags(RF_Transient) || !Import->IsNative())
@@ -671,7 +755,8 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 		check(!bWrongImport || Import->HasAllFlags(RF_Transient) || Import->IsNative());
 
 		// if this import shares a outer with top level object of this package then the reference is acceptable
-		if (!SaveContext.IsCooking() && (IsInAnyTopLevelObject(Import) || AnyTopLevelObjectIsIn(Import) || AnyTopLevelObjectHasSameOutermostObject(Import)))
+		if ((!SaveContext.IsCooking() || SaveContext.GetCurrentHarvestingRealm() == ESaveRealm::Optional) &&
+			(IsInAnyTopLevelObject(Import) || AnyTopLevelObjectIsIn(Import) || AnyTopLevelObjectHasSameOutermostObject(Import)))
 		{
 			continue;
 		}
@@ -703,7 +788,8 @@ ESavePackageResult ValidateImports(FSaveContext& SaveContext)
 	}
 
 	// Cooking checks
-	if (SaveContext.IsCooking())
+	// Currently do not use the edl checker for the optional context
+	if (SaveContext.IsCooking() && SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional)
 	{
 		// Now that imports are validated add them to the cook checker if available
 		if (FEDLCookChecker* EDLCookChecker = SaveContext.GetEDLCookChecker())
@@ -936,6 +1022,14 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		for (const FTaggedExport& TaggedExport : SaveContext.GetExports())
 		{
 			FObjectExport& Export = Linker->ExportMap.Add_GetRef(FObjectExport(TaggedExport.Obj, TaggedExport.bNotAlwaysLoadedForEditorGame));
+			// @note: Artificially flag export as public if needed
+			// This is temporary for testing the optional realm cooked content with the iostore
+			// It should be changed to a separate member on `FObjectExport`
+			if (TaggedExport.bGeneratePublicHash)
+			{
+				Export.ObjectFlags |= RF_Public;
+			}
+
 			if (UPackage* Package = Cast<UPackage>(Export.Object))
 			{
 				Export.PackageFlags = Package->GetPackageFlags();
@@ -1007,7 +1101,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 
 	// Build Searchable Name Map
 	{
-		Linker->SoftPackageReferenceList = SaveContext.GetSoftPackageReferenceList();
+		Linker->SoftPackageReferenceList = SaveContext.GetSoftPackageReferenceList().Array();
 
 		// Convert the searchable names map from UObject to packageindex
 		for (TPair<UObject*, TArray<FName>>& SearchableNamePair : SaveContext.GetSearchableNamesObjectMap())
@@ -1298,8 +1392,8 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 				IncludeIndexAsDependency(CreateBeforeCreateDependencies, Export.OuterIndex);
 				IncludeIndexAsDependency(CreateBeforeCreateDependencies, Export.SuperIndex);
 			}
-			FEDLCookChecker* EDLCookChecker = SaveContext.GetEDLCookChecker();
-			check(EDLCookChecker);
+			// Currently do not validate the optional context with the edl checker
+			FEDLCookChecker* EDLCookChecker = SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional ? SaveContext.GetEDLCookChecker() : nullptr;
 			auto AddArcForDepChecking = [&Linker, &Export, EDLCookChecker](bool bExportIsSerialize, FPackageIndex Dep, bool bDepIsSerialize)
 			{
 				check(Export.Object);
@@ -1308,7 +1402,10 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 				check(DepObject);
 
 				Linker->DepListForErrorChecking.Add(Dep);
-				EDLCookChecker->AddArc(DepObject, bDepIsSerialize, Export.Object, bExportIsSerialize);
+				if (EDLCookChecker)
+				{
+					EDLCookChecker->AddArc(DepObject, bDepIsSerialize, Export.Object, bExportIsSerialize);
+				}
 			};
 
 			for (FPackageIndex Index : SerializationBeforeSerializationDependencies)
@@ -1987,32 +2084,14 @@ void PostSavePackage(FSaveContext& SaveContext)
 #endif
 }
 
-
-/**
- * InnerSave is the portion of Save that can be safely run concurrently
- */
-ESavePackageResult InnerSave(FSaveContext& SaveContext)
+ESavePackageResult SaveHarvestedRealms(FSaveContext& SaveContext, ESaveRealm HarvestingContextToSave)
 {
-	TRefCountPtr<FUObjectSerializeContext> SerializeContext(FUObjectThreadContext::Get().GetSerializeContext());
-	SaveContext.SetSerializeContext(SerializeContext);
-	SaveContext.SetEDLCookChecker(&FEDLCookChecker::Get());
+	// Set the current harvested context to save
+	FSaveContext::FSetSaveRealmToSaveScope Scope(SaveContext, HarvestingContextToSave);
 
 	// Create slow task dialog if needed
-	const int32 TotalSaveSteps = 13;
+	const int32 TotalSaveSteps = 11;
 	FScopedSlowTask SlowTask(TotalSaveSteps, FText(), SaveContext.IsUsingSlowTask());
-	SlowTask.MakeDialogDelayed(3.0f, SaveContext.IsFromAutoSave());
-
-	// Harvest Package
-	SlowTask.EnterProgressFrame();
-	SaveContext.Result = HarvestPackage(SaveContext);
-	if (SaveContext.Result != ESavePackageResult::Success)
-	{
-		return SaveContext.Result;
-	}
-
-	// @todo: Need to adjust GIsSavingPackage to properly prevent generating reference once, package harvesting is done
-	// GIsSavingPackage is too harsh however, since it should be scope only to the current package
-	FScopedSavingFlag IsSavingFlag(SaveContext.IsConcurrent(), SaveContext.GetPackage());
 
 	// Validate Exports
 	SlowTask.EnterProgressFrame();
@@ -2135,6 +2214,11 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	{
 		PackageWriter->AddToExportsSize(ExportsSize);
 	}
+	// Store the package header and export size of the non optional realm
+	if (SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional)
+	{
+		SaveContext.PackageHeaderAndExportSize = ExportsSize;
+	}
 	SaveContext.TotalPackageSizeUncompressed += ExportsSize;
 	for (const FSavePackageOutputFile& File : SaveContext.AdditionalPackageFiles)
 	{
@@ -2158,9 +2242,6 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	}
 
 	//COOK_STAT(FSavePackageStats::MBWritten += ((double)SaveContext.TotalPackageSizeUncompressed) / 1024.0 / 1024.0);
-
-	// Mark Exports & Package RF_Loaded
-	SlowTask.EnterProgressFrame();
 	{
 		SCOPED_SAVETIMER(UPackage_Save_MarkExportLoaded);
 		FLinkerSave* Linker = SaveContext.Linker.Get();
@@ -2168,7 +2249,7 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		// This is to ensue that newly created packages are properly marked as loaded (since they now exist on disk and 
 		// in memory in the exact same state).
 
- 		// Nobody should be touching those objects beside us while we are saving them here as this can potentially be executed from another thread
+		// Nobody should be touching those objects beside us while we are saving them here as this can potentially be executed from another thread
 		for (auto& Export : Linker->ExportMap)
 		{
 			if (Export.Object)
@@ -2176,11 +2257,70 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 				Export.Object->SetFlags(RF_WasLoaded | RF_LoadCompleted);
 			}
 		}
-		if (Linker->LinkerRoot)
+	}
+	return SaveContext.Result;
+}
+
+/**
+ * InnerSave is the portion of Save that can be safely run concurrently
+ */
+ESavePackageResult InnerSave(FSaveContext& SaveContext)
+{
+	TRefCountPtr<FUObjectSerializeContext> SerializeContext(FUObjectThreadContext::Get().GetSerializeContext());
+	SaveContext.SetSerializeContext(SerializeContext);
+	SaveContext.SetEDLCookChecker(&FEDLCookChecker::Get());
+
+	// Create slow task dialog if needed
+	const int32 TotalSaveSteps = 4;
+	FScopedSlowTask SlowTask(TotalSaveSteps, FText(), SaveContext.IsUsingSlowTask());
+	SlowTask.MakeDialogDelayed(3.0f, SaveContext.IsFromAutoSave());
+
+	// Harvest Package
+	SlowTask.EnterProgressFrame();
+	SaveContext.Result = HarvestPackage(SaveContext);
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
+
+	SlowTask.EnterProgressFrame();
+	SaveContext.Result = ValidateRealms(SaveContext);
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
+
+	// @todo: Need to adjust GIsSavingPackage to properly prevent generating reference once, package harvesting is done
+	// GIsSavingPackage is too harsh however, since it should be scope only to the current package
+	FScopedSavingFlag IsSavingFlag(SaveContext.IsConcurrent(), SaveContext.GetPackage());
+
+	// Split the save context into its harvested contexts,
+	// This essentially mean that a package can produce multiple package output. 
+	// This is different then the multiple file outputs a package can already produce
+	// since each harvested context will produce those multiple file outputs i.e:
+	// Input package -> Main cooked package -> .uasset
+	//										-> .uexp
+	//										-> .ubulk
+	//										-> etc
+	//					Sub cooked package	-> .o.uasset
+	//										-> .o.uexp
+	//										-> .o.ubulk
+	//										-> etc
+	SlowTask.EnterProgressFrame();
+	for (ESaveRealm HarvestingContext : SaveContext.GetHarvestedRealmsToSave())
+	{
+		SaveContext.Result = SaveHarvestedRealms(SaveContext, HarvestingContext);
+		if (SaveContext.Result != ESavePackageResult::Success)
 		{
-			// And finally set the flag on the package itself.
-			Linker->LinkerRoot->SetFlags(RF_WasLoaded | RF_LoadCompleted);
+			return SaveContext.Result;
 		}
+	}
+
+	SlowTask.EnterProgressFrame();
+	{
+		// Mark the Package RF_Loaded after its been serialized. 
+		// This was already done for each object in the package in SaveHarvestedRealms
+		SaveContext.GetPackage()->SetFlags(RF_WasLoaded | RF_LoadCompleted);
 
 		// Clear dirty flag if desired
 		if (!SaveContext.IsKeepDirty())
@@ -2189,7 +2329,10 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		}
 
 		// Update package FileSize value
-		SaveContext.GetPackage()->FileSize = ExportsSize;
+		if (SaveContext.IsUpdatingLoadedPath())
+		{
+			SaveContext.GetPackage()->FileSize = SaveContext.PackageHeaderAndExportSize;
+		}
 	}
 	return SaveContext.Result;
 }
@@ -2288,10 +2431,10 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 	// PreSave Asset
 	SlowTask.EnterProgressFrame();
 	PreSavePackage(SaveContext);
-	if (InAsset && !SaveContext.IsConcurrent())
+	if (SaveContext.GetAsset() && !SaveContext.IsConcurrent())
 	{
 		FObjectSaveContextData& ObjectSaveContext = SaveContext.GetObjectSaveContext();
-		UE::SavePackageUtilities::CallPreSaveRoot(InAsset, ObjectSaveContext);
+		UE::SavePackageUtilities::CallPreSaveRoot(SaveContext.GetAsset(), ObjectSaveContext);
 		SaveContext.SetPreSaveCleanup(ObjectSaveContext.bCleanupRequired);
 	}
 
@@ -2322,9 +2465,9 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 
 	// PostSave Asset
 	SlowTask.EnterProgressFrame();
-	if (InAsset && !SaveContext.IsConcurrent())
+	if (SaveContext.GetAsset() && !SaveContext.IsConcurrent())
 	{
-		UE::SavePackageUtilities::CallPostSaveRoot(InAsset, SaveContext.GetObjectSaveContext(), SaveContext.GetPreSaveCleanup());
+		UE::SavePackageUtilities::CallPostSaveRoot(SaveContext.GetAsset(), SaveContext.GetObjectSaveContext(), SaveContext.GetPreSaveCleanup());
 		SaveContext.SetPreSaveCleanup(false);
 	}
 

@@ -82,23 +82,24 @@ enum ELoadFlags
 /** Flags for saving objects/packages, passed into UPackage::SavePackage() as a uint32 */
 enum ESaveFlags
 {
-	SAVE_None			= 0x00000000,	///< No flags
-	SAVE_NoError		= 0x00000001,	///< Don't generate errors on save
-	SAVE_FromAutosave	= 0x00000002,   ///< Used to indicate this save was initiated automatically
-	SAVE_KeepDirty		= 0x00000004,	///< Do not clear the dirty flag when saving
-	SAVE_KeepGUID		= 0x00000008,	///< Keep the same guid, used to save cooked packages
-	SAVE_Async			= 0x00000010,	///< Save to a memory writer, then actually write to disk async
-	SAVE_Unversioned_Native	= 0x00000020,	///< Save all versions as zero. Upon load this is changed to the current version. This is only reasonable to use with full cooked builds for distribution.
-	SAVE_CutdownPackage	= 0x00000040,	///< Saving cutdown packages in a temp location WITHOUT renaming the package.
+	SAVE_None						= 0x00000000,	///< No flags
+	SAVE_NoError					= 0x00000001,	///< Don't generate errors on save
+	SAVE_FromAutosave				= 0x00000002,   ///< Used to indicate this save was initiated automatically
+	SAVE_KeepDirty					= 0x00000004,	///< Do not clear the dirty flag when saving
+	SAVE_KeepGUID					= 0x00000008,	///< Keep the same guid, used to save cooked packages
+	SAVE_Async						= 0x00000010,	///< Save to a memory writer, then actually write to disk async
+	SAVE_Unversioned_Native			= 0x00000020,	///< Save all versions as zero. Upon load this is changed to the current version. This is only reasonable to use with full cooked builds for distribution.
+	SAVE_CutdownPackage				= 0x00000040,	///< Saving cutdown packages in a temp location WITHOUT renaming the package.
 	SAVE_KeepEditorOnlyCookedPackages = 0x00000080,  ///< Keep packages which are marked as editor only even though we are cooking
-	SAVE_Concurrent		= 0x00000100,	///< We are save packages in multiple threads at once and should not call non-threadsafe functions or rely on globals. GIsSavingPackage should be set and PreSave/Postsave functions should be called before/after the entire concurrent save.
-	SAVE_DiffOnly		UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter.") = 0x00000200,
-	SAVE_DiffCallstack  UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter.") = 0x00000400,
-	SAVE_ComputeHash    = 0x00000800,	///< Compute the MD5 hash of the cooked data
-	SAVE_CompareLinker	= 0x00001000,	///< Return the linker save to compare against another
-	SAVE_BulkDataByReference = 0x00002000, ///< When saving to a different file than the package's LoadedPath, point bulkdata in the new file to be loaded from the original file.
-	SAVE_Unversioned_Properties = 0x00004000, /// Properties are saved without property name information, and are saved/loaded in the order of the current binary.
-											      ///This is only reasonable to use with full cooked builds for distribution, or with a domain that selects the payload matching a given version externally.
+	SAVE_Concurrent					= 0x00000100,	///< We are save packages in multiple threads at once and should not call non-threadsafe functions or rely on globals. GIsSavingPackage should be set and PreSave/Postsave functions should be called before/after the entire concurrent save.
+	SAVE_DiffOnly UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter.") = 0x00000200,	
+	SAVE_DiffCallstack UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter.") = 0x00000400,
+	SAVE_ComputeHash				= 0x00000800,	///< Compute the MD5 hash of the cooked data
+	SAVE_CompareLinker				= 0x00001000,	///< Return the linker save to compare against another
+	SAVE_BulkDataByReference		= 0x00002000,	///< When saving to a different file than the package's LoadedPath, point bulkdata in the new file to be loaded from the original file.
+	SAVE_Unversioned_Properties		= 0x00004000,	///< Properties are saved without property name information, and are saved/loaded in the order of the current binary.
+													///This is only reasonable to use with full cooked builds for distribution, or with a domain that selects the payload matching a given version externally.
+	SAVE_Optional					= 0x00008000,	///< Indicate that we to save optional exports. This flag is only valid while cooking. Optional exports are filtered if not specified during cooking. 
 	SAVE_Unversioned = SAVE_Unversioned_Native | SAVE_Unversioned_Properties,
 };
 
@@ -259,7 +260,7 @@ ENUM_CLASS_FLAGS(EClassFlags);
 #define CLASS_RecompilerClear ((EClassFlags)(CLASS_Inherit | CLASS_Abstract | CLASS_NoExport | CLASS_Native | CLASS_Intrinsic | CLASS_TokenStreamAssembled))
 
 /** These flags will be cleared by the compiler when the class is parsed during script compilation */
-#define CLASS_ShouldNeverBeLoaded ((EClassFlags)(CLASS_Native | CLASS_Intrinsic | CLASS_TokenStreamAssembled))
+#define CLASS_ShouldNeverBeLoaded ((EClassFlags)(CLASS_Native | CLASS_Optional | CLASS_Intrinsic | CLASS_TokenStreamAssembled))
 
 /** These flags will be inherited from the base class only for non-intrinsic classes */
 #define CLASS_ScriptInherit ((EClassFlags)(CLASS_Inherit | CLASS_EditInlineNew | CLASS_CollapseCategories))
@@ -272,6 +273,7 @@ ENUM_CLASS_FLAGS(EClassFlags);
 	CLASS_ProjectUserConfig | \
 	CLASS_Config | \
 	CLASS_Transient | \
+	CLASS_Optional | \
 	CLASS_Native | \
 	CLASS_NotPlaceable | \
 	CLASS_PerObjectConfig | \
@@ -486,20 +488,20 @@ enum EObjectFlags
 {
 	// Do not add new flags unless they truly belong here. There are alternatives.
 	// if you change any the bit of any of the RF_Load flags, then you will need legacy serialization
-	RF_NoFlags						= 0x00000000,	///< No flags, used to avoid a cast
+	RF_NoFlags					= 0x00000000,	///< No flags, used to avoid a cast
 
 	// This first group of flags mostly has to do with what kind of object it is. Other than transient, these are the persistent object flags.
 	// The garbage collector also tends to look at these.
 	RF_Public					=0x00000001,	///< Object is visible outside its package.
 	RF_Standalone				=0x00000002,	///< Keep object around for editing even if unreferenced.
-	RF_MarkAsNative					=0x00000004,	///< Object (UField) will be marked as native on construction (DO NOT USE THIS FLAG in HasAnyFlags() etc)
+	RF_MarkAsNative				=0x00000004,	///< Object (UField) will be marked as native on construction (DO NOT USE THIS FLAG in HasAnyFlags() etc)
 	RF_Transactional			=0x00000008,	///< Object is transactional.
 	RF_ClassDefaultObject		=0x00000010,	///< This object is its class's default object
 	RF_ArchetypeObject			=0x00000020,	///< This object is a template for another object - treat like a class default object
 	RF_Transient				=0x00000040,	///< Don't save object.
 
 	// This group of flags is primarily concerned with garbage collection.
-	RF_MarkAsRootSet					=0x00000080,	///< Object will be marked as root set on construction and not be garbage collected, even if unreferenced (DO NOT USE THIS FLAG in HasAnyFlags() etc)
+	RF_MarkAsRootSet			=0x00000080,	///< Object will be marked as root set on construction and not be garbage collected, even if unreferenced (DO NOT USE THIS FLAG in HasAnyFlags() etc)
 	RF_TagGarbageTemp			=0x00000100,	///< This is a temp user flag for various utilities that need to use the garbage collector. The garbage collector itself does not interpret it.
 
 	// The group of flags tracks the stages of the lifetime of a uobject
