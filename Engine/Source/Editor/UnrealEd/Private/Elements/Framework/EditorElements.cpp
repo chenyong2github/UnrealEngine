@@ -24,6 +24,11 @@
 #include "Elements/SMInstance/SMInstanceElementEditorSelectionInterface.h"
 #include "Elements/SMInstance/SMInstanceElementDetailsProxyObject.h"
 
+#include "Elements/TypedElementEditorLog.h"
+
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformApplicationMisc.h"
+
 #include "Modules/ModuleManager.h"
 #include "EditorWidgetsModule.h"
 #include "ObjectNameEditSinkRegistry.h"
@@ -75,6 +80,19 @@ void RegisterEditorElements()
 	RegisterEditorActorElements();
 	RegisterEditorComponentElements();
 	RegisterEditorSMInstanceElements();
+
+	IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("TypedElements.OutputRegistredTypeElementsToClipboard"),
+		TEXT("Output a debug string to the clipboard and to the log./n\
+			It contains the names of the Typed Elements registred and their Interfaces./n\
+			For each Interface it also provide the path of the class that implements it."),
+			FConsoleCommandDelegate::CreateLambda([]()
+				{
+					FString DebugString = UTypedElementRegistry::GetInstance()->RegistredElementTypesAndInterfacesToString();
+					FPlatformApplicationMisc::ClipboardCopy(*DebugString);
+					UE_LOG(LogTypedElementEditor, Log, TEXT("%s"), *DebugString);
+				})
+		);
 
 	OnRegisterEditorElementsDelegate.Broadcast();
 }

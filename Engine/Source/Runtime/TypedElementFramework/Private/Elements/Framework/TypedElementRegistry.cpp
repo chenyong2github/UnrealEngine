@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Framework/TypedElementRegistry.h"
+
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeLock.h"
-#include "HAL/IConsoleManager.h"
 #include "UObject/StrongObjectPtr.h"
 
 const FTypedElementId FTypedElementId::Unset;
@@ -207,6 +207,62 @@ FTypedElementListRef UTypedElementRegistry::CreateElementList(TArrayView<const F
 	FTypedElementListRef ElementList = CreateElementList();
 	ElementList->Append(InElementHandles);
 	return ElementList;
+}
+
+FString UTypedElementRegistry::RegistredElementTypesAndInterfacesToString() const
+{
+	TArray<FString> Lines;
+
+	{
+		FReadScopeLock RegisteredElementTypesLock(RegisteredElementTypesRW);
+		Lines.Reserve(RegisteredElementTypesNameToId.Num());
+
+		{
+			FStringFormatOrderedArguments FormatArguments;
+			FormatArguments.Add(GetPathName());
+			Lines.Add(FString::Format(TEXT("Registred Type Elements and their Interfaces for the registry: {0}"), FormatArguments));
+		}
+
+		for (const TPair<FName, FTypedHandleTypeId>& TypePair : RegisteredElementTypesNameToId)
+		{
+			if (FRegisteredElementType* RegistredElementType = GetRegisteredElementTypeFromId(TypePair.Value))
+			{
+				Lines.Reserve(RegistredElementType->Interfaces.Num() + 1 + Lines.Num());
+				{
+					FStringFormatOrderedArguments FormatArguments;
+					FormatArguments.Add(TypePair.Key.ToString());
+					Lines.Add(FString::Format(TEXT("	Type: {0}"), FormatArguments));
+				}
+				for (const TPair<FName, UObject*>& InterfacePair : RegistredElementType->Interfaces)
+				{
+					FStringFormatOrderedArguments FormatArguments;
+					FormatArguments.Reserve(2);
+					FormatArguments.Add(InterfacePair.Key.ToString());
+					FormatArguments.Add(InterfacePair.Value->GetClass()->GetPathName());
+					Lines.Add(FString::Format(TEXT("		Interface {0} is implemented by {1}"), FormatArguments));
+				}
+			}
+		}
+
+		FString Output;
+		int32 OutputSize = 0;
+		for (const FString& Line : Lines)
+		{
+			OutputSize += Line.Len();
+			// for the line termination char
+			++OutputSize;
+		}
+
+		Output.Reserve(OutputSize);
+		for (const FString& Line : Lines)
+		{
+			Output += Line;
+			Output.AppendChar(TEXT('\n'));
+		}
+
+		return Output;
+	}
+
 }
 
 void UTypedElementRegistry::NotifyElementListPendingChanges()
