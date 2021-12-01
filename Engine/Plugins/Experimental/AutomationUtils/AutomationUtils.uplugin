@@ -25,12 +25,6 @@
 			"LoadingPhase": "Default"
 		}
 	],
-	"Plugins": [
-		{
-			"Name": "ScreenshotTools",
-			"Enabled": true
-		}
-	],
 	"DocsURL": "",
 	"IsExperimentalVersion": false
 }

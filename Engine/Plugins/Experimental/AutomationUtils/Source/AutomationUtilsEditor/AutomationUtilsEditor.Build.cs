@@ -12,7 +12,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"ScreenshotTools",
+					"ScreenShotComparisonTools",
 					"DesktopPlatform",
 					"AutomationMessages",
 					"Json",
