@@ -405,8 +405,8 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 			}
 		});
 
-		// PostFix the Package so that we don't load over the original package
-		FName PackageDuplicateSeedName(*FString::Printf(TEXT("%s_DUP"), *PackageToLoadFrom));
+		// Prefix with /Temp so package doesn't appear in Content, PostFix the Package so that we don't load over the original package
+		FName PackageDuplicateSeedName(*FString::Printf(TEXT("/Temp%s_DUP"), *PackageToLoadFrom));
 		
 		// Use package cache here because level instances can load the same levels across cells we want to avoid Loading the same package multiple times...
 		InPackageCache.LoadPackage(PackageDuplicateSeedName, *PackageToLoadFrom, CompletionCallback, /*bLoadAsync*/bLoadForPlay, /*bInWorldPackage*/true);
