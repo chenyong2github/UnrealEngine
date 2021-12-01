@@ -364,6 +364,7 @@ namespace UnrealGameSync
 
 			// Spawn the new thread
 			WorkerThread = new Thread(x => UpdateWorkspace(Context));
+			WorkerThread.Name = "Workspace Update";
 			WorkerThread.Start();
 		}
 
@@ -616,7 +617,7 @@ namespace UnrealGameSync
 					}
 
 					// Find all the server changes, and anything that's opened for edit locally. We need to sync files we have open to schedule a resolve.
-					SyncBatchBuilder BatchBuilder = new SyncBatchBuilder(200, 100 * 1024 * 1024);
+					SyncBatchBuilder BatchBuilder = new SyncBatchBuilder(Context.PerforceSyncOptions.MaxCommandsPerBatch, Context.PerforceSyncOptions.MaxSizePerBatch);
 					List<string> SyncDepotPaths = new List<string>();
 					using(RecordCounter Counter = new RecordCounter(Progress, "Filtering files..."))
 					{
@@ -1356,6 +1357,9 @@ namespace UnrealGameSync
 				// Wrapper writer around the log class to prevent multiple threads writing to it at once
 				ThreadSafeTextWriter LogWrapper = new ThreadSafeTextWriter(Log);
 
+				// Initialize Sync Progress
+				UpdateSyncState(Prefix, State, Progress);
+
 				// Delegate for updating the sync state after a file has been synced
 				Action<PerforceFileRecord, LineBasedTextWriter> SyncOutput = (Record, LocalLog) => { UpdateSyncState(Prefix, Record, State, Progress, LocalLog); };
 
@@ -1364,6 +1368,7 @@ namespace UnrealGameSync
 				{
 					int ThreadNumber = ThreadIdx + 2;
 					Thread ChildThread = new Thread(() => StaticSyncWorker(ThreadNumber, Perforce, PendingChangeNumber, Context, State, SyncOutput, LogWrapper));
+					ChildThread.Name = "Sync File Revisions";
 					ChildThreads.Add(ChildThread);
 					ChildThread.Start();
 				}
@@ -1391,6 +1396,16 @@ namespace UnrealGameSync
 				{
 					ChildThread.Join();
 				}
+			}
+		}
+
+		static void UpdateSyncState(string Prefix, SyncState State, ProgressValue Progress)
+		{
+			lock (State)
+			{
+				string Message = String.Format("{0} ({1}/{2})", Prefix, State.TotalDepotPaths - State.RemainingDepotPaths.Count, State.TotalDepotPaths);
+				float Fraction = Math.Min((float)(State.TotalDepotPaths - State.RemainingDepotPaths.Count) / (float)State.TotalDepotPaths, 1.0f);
+				Progress.Set(Message, Fraction);
 			}
 		}
 

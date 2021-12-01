@@ -350,11 +350,22 @@ namespace UnrealGameSync
 
 	public class PerforceSyncOptions
 	{
+		public const int DefaultNumRetries = 0;
 		public const int DefaultNumThreads = 2;
+		public const int DefaultTcpBufferSize = 0;
+		public const int DefaultFileBufferSize = 0;
 
-		public int NumRetries;
+		public const int DefaultMaxCommandsPerBatch = 200;
+		public const int DefaultMaxSizePerBatch = 128 * 1024 * 1024;
+
+		public int NumRetries = DefaultNumRetries;
 		public int NumThreads = DefaultNumThreads;
-		public int TcpBufferSize;
+		public int TcpBufferSize = DefaultTcpBufferSize;
+		public int FileBufferSize = DefaultFileBufferSize;
+
+		public int MaxCommandsPerBatch = DefaultMaxCommandsPerBatch;
+		public int MaxSizePerBatch = DefaultMaxSizePerBatch;
+
 
 		public PerforceSyncOptions Clone()
 		{
@@ -1289,6 +1300,10 @@ namespace UnrealGameSync
 					if(Options != null && Options.TcpBufferSize > 0)
 					{
 						CommandLine.AppendFormat(" -v net.tcpsize={0}", Options.TcpBufferSize);
+					}
+					if (Options != null && Options.FileBufferSize > 0)
+					{
+						CommandLine.AppendFormat(" -v filesys.bufsize={0}", Options.FileBufferSize);
 					}
 					CommandLine.Append(" sync --parallel=0");
 					if(bForce)

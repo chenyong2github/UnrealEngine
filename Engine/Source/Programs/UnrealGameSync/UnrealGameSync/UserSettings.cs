@@ -522,10 +522,10 @@ namespace UnrealGameSync
 				}
 			}
 
-			if(!int.TryParse(ConfigFile.GetValue("Perforce.TcpBufferSize", "0"), out SyncOptions.TcpBufferSize))
-			{
-				SyncOptions.TcpBufferSize = 0;
-			}
+			SyncOptions.TcpBufferSize = ConfigFile.GetValue("Perforce.TcpBufferSize", PerforceSyncOptions.DefaultTcpBufferSize);
+			SyncOptions.FileBufferSize = ConfigFile.GetValue("Perforce.FileBufferSize", PerforceSyncOptions.DefaultFileBufferSize);
+			SyncOptions.MaxCommandsPerBatch = ConfigFile.GetValue("Perforce.MaxCommandsPerBatch", PerforceSyncOptions.DefaultMaxCommandsPerBatch);
+			SyncOptions.MaxSizePerBatch = ConfigFile.GetValue("Perforce.MaxSizePerBatch", PerforceSyncOptions.DefaultMaxSizePerBatch);
 		}
 
 		static Dictionary<Guid, bool> GetCategorySettings(ConfigSection Section, string IncludedKey, string ExcludedKey)
@@ -902,17 +902,29 @@ namespace UnrealGameSync
 			// Perforce settings
 			ConfigSection PerforceSection = ConfigFile.FindOrAddSection("Perforce");
 			PerforceSection.Clear();
-			if(SyncOptions.NumRetries > 0)
+			if(SyncOptions.NumRetries > 0 && SyncOptions.NumRetries != PerforceSyncOptions.DefaultNumRetries)
 			{
 				PerforceSection.SetValue("NumRetries", SyncOptions.NumRetries);
 			}
-			if(SyncOptions.NumThreads != PerforceSyncOptions.DefaultNumThreads)
+			if(SyncOptions.NumThreads > 0 && SyncOptions.NumThreads != PerforceSyncOptions.DefaultNumThreads)
 			{
 				PerforceSection.SetValue("NumThreads", SyncOptions.NumThreads);
 			}
-			if(SyncOptions.TcpBufferSize > 0)
+			if(SyncOptions.TcpBufferSize > 0 && SyncOptions.TcpBufferSize != PerforceSyncOptions.DefaultTcpBufferSize)
 			{
 				PerforceSection.SetValue("TcpBufferSize", SyncOptions.TcpBufferSize);
+			}
+			if (SyncOptions.FileBufferSize > 0 && SyncOptions.FileBufferSize != PerforceSyncOptions.DefaultFileBufferSize)
+			{
+				PerforceSection.SetValue("FileBufferSize", SyncOptions.FileBufferSize);
+			}
+			if (SyncOptions.MaxCommandsPerBatch > 0 && SyncOptions.MaxCommandsPerBatch != PerforceSyncOptions.DefaultMaxCommandsPerBatch)
+			{
+				PerforceSection.SetValue("MaxCommandsPerBatch", SyncOptions.MaxCommandsPerBatch);
+			}
+			if (SyncOptions.MaxSizePerBatch > 0 && SyncOptions.MaxSizePerBatch != PerforceSyncOptions.DefaultMaxSizePerBatch)
+			{
+				PerforceSection.SetValue("MaxSizePerBatch", SyncOptions.MaxSizePerBatch);
 			}
 
 			// Save the file

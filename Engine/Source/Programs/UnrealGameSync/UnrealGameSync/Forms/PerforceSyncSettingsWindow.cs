@@ -1,13 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace UnrealGameSync
@@ -25,28 +18,20 @@ namespace UnrealGameSync
 		private void PerforceSettingsWindow_Load(object sender, EventArgs e)
 		{
 			PerforceSyncOptions SyncOptions = Settings.SyncOptions;
-			NumRetriesTextBox.Text = (SyncOptions.NumRetries > 0)? SyncOptions.NumRetries.ToString() : "";
-			TcpBufferSizeText.Text = (SyncOptions.TcpBufferSize > 0)? SyncOptions.TcpBufferSize.ToString() : "";
+			numericUpDownNumRetries.Value = (SyncOptions.NumRetries > 0) ? SyncOptions.NumRetries : PerforceSyncOptions.DefaultNumRetries;
+			numericUpDownTcpBufferSize.Value = (SyncOptions.TcpBufferSize > 0) ? SyncOptions.TcpBufferSize / 1024 : PerforceSyncOptions.DefaultTcpBufferSize / 1024;
+			numericUpDownFileBufferSize.Value = (SyncOptions.FileBufferSize > 0) ? SyncOptions.FileBufferSize / 1024 : PerforceSyncOptions.DefaultFileBufferSize / 1024;
+			numericUpDownMaxCommandsPerBatch.Value = (SyncOptions.MaxCommandsPerBatch > 0) ? SyncOptions.MaxCommandsPerBatch : PerforceSyncOptions.DefaultMaxCommandsPerBatch;
+			numericUpDownMaxSizePerBatch.Value = (SyncOptions.MaxSizePerBatch > 0) ? SyncOptions.MaxSizePerBatch / 1024 / 1024 : PerforceSyncOptions.DefaultMaxSizePerBatch / 1024 / 1024;
 		}
 
 		private void OkButton_Click(object sender, EventArgs e)
 		{
-			int NewNumRetries = 0;
-			if(NumRetriesTextBox.Text.Length > 0 && !int.TryParse(NumRetriesTextBox.Text, out NewNumRetries))
-			{
-				MessageBox.Show("Invalid value for number of retries");
-				return;
-			}
-
-			int NewTcpBufferSize = 0;
-			if(TcpBufferSizeText.Text.Length > 0 && !int.TryParse(TcpBufferSizeText.Text, out NewTcpBufferSize))
-			{
-				MessageBox.Show("Invalid value for TCP buffer size");
-				return;
-			}
-
-			Settings.SyncOptions.NumRetries = NewNumRetries;
-			Settings.SyncOptions.TcpBufferSize = NewTcpBufferSize;
+			Settings.SyncOptions.NumRetries = (int)numericUpDownNumRetries.Value;
+			Settings.SyncOptions.TcpBufferSize = (int)numericUpDownTcpBufferSize.Value * 1024;
+			Settings.SyncOptions.FileBufferSize = (int)numericUpDownFileBufferSize.Value * 1024;
+			Settings.SyncOptions.MaxCommandsPerBatch = (int)numericUpDownMaxCommandsPerBatch.Value;
+			Settings.SyncOptions.MaxSizePerBatch = (int)numericUpDownMaxSizePerBatch.Value * 1024 * 1024;
 			Settings.Save();
 
 			DialogResult = System.Windows.Forms.DialogResult.OK;
@@ -57,6 +42,16 @@ namespace UnrealGameSync
 		{
 			DialogResult = System.Windows.Forms.DialogResult.Cancel;
 			Close();
+		}
+
+		private void ResetButton_Click(object sender, EventArgs e)
+		{
+			PerforceSyncOptions SyncOptions = Settings.SyncOptions;
+			numericUpDownNumRetries.Value = PerforceSyncOptions.DefaultNumRetries;
+			numericUpDownTcpBufferSize.Value = PerforceSyncOptions.DefaultTcpBufferSize / 1024;
+			numericUpDownFileBufferSize.Value = PerforceSyncOptions.DefaultFileBufferSize / 1024;
+			numericUpDownMaxCommandsPerBatch.Value = PerforceSyncOptions.DefaultMaxCommandsPerBatch;
+			numericUpDownMaxSizePerBatch.Value = PerforceSyncOptions.DefaultMaxSizePerBatch / 1024 / 1024;
 		}
 	}
 }
