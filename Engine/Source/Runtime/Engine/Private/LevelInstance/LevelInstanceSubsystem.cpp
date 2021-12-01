@@ -1492,7 +1492,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 		{
 			if (OutReason)
 			{
-				*OutReason = LOCTEXT("CanEditPartitionedLevelInstance", "Can't edit partitioned Level Instance");
+				*OutReason = FText::Format(LOCTEXT("CanEditPartitionedLevelInstance", "Can't edit partitioned Level Instance ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
 			}
 			return false;
 		}
@@ -1504,7 +1504,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 		{
 			if (OutReason)
 			{
-				*OutReason = LOCTEXT("CanEditLevelInstanceAlreadyBeingEdited", "Level Instance already being edited");
+				*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceAlreadyBeingEdited", "Level Instance already being edited ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
 			}
 			return false;
 		}
@@ -1513,7 +1513,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 		{
 			if (OutReason)
 			{
-				*OutReason = LOCTEXT("CanEditLevelInstanceDirtyEdit", "Current Level Instance has unsaved changes and needs to be committed first.");
+				*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceDirtyEdit", "Current Level Instance has unsaved changes and needs to be committed first ({0})."), FText::FromString(GetEditingLevelInstance()->GetWorldAssetPackage()));
 			}
 			return false;
 		}
@@ -1523,7 +1523,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 	{
 		if (OutReason)
 		{
-			*OutReason = LOCTEXT("CanEditLevelInstanceDirtyInvalid", "Level Instance path is invalid");
+			*OutReason = LOCTEXT("CanEditLevelInstanceDirtyInvalid", "Level Instance path is invalid.");
 		}
 		return false;
 	}
@@ -1532,7 +1532,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 	{
 		if (OutReason)
 		{
-			*OutReason = LOCTEXT("CanEditLevelInstancePersistentLevel", "The Persistent level and the Level Instance are the same");
+			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstancePersistentLevel", "The Persistent level and the Level Instance are the same ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
 		}
 		return false;
 	}
@@ -1541,7 +1541,7 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 	{
 		if (OutReason)
 		{
-			*OutReason = LOCTEXT("CanEditLevelInstanceAlreadyExists", "The same level was added to world outside of Level Instances");
+			*OutReason = FText::Format(LOCTEXT("CanEditLevelInstanceAlreadyExists", "The same level was added to world outside of Level Instances ({0})."), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
 		}
 		return false;
 	}

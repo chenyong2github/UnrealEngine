@@ -58,26 +58,35 @@ namespace LevelInstanceMenuUtils
 		return Section;
 	}
 
+	void CreateEditMenuEntry(FToolMenuSection& Section, ALevelInstance* LevelInstance, AActor* ContextActor, bool bSingleEntry)
+	{
+		FToolUIAction LevelInstanceEditAction;
+		FText EntryDesc;
+		const bool bCanEdit = LevelInstance->CanEdit(&EntryDesc);
+
+		LevelInstanceEditAction.ExecuteAction.BindLambda([LevelInstance, ContextActor](const FToolMenuContext&)
+		{
+			LevelInstance->Edit(ContextActor);
+		});
+		LevelInstanceEditAction.CanExecuteAction.BindLambda([bCanEdit](const FToolMenuContext&)
+		{
+			return bCanEdit;
+		});
+
+		FText EntryLabel = bSingleEntry ? LOCTEXT("EditLevelInstances", "Edit") : FText::FromString(LevelInstance->GetWorldAsset().GetAssetName());
+		if (bCanEdit)
+		{
+			EntryDesc = FText::Format(LOCTEXT("LevelInstanceName", "{0}:{1}"), FText::FromString(LevelInstance->GetActorLabel()), FText::FromString(LevelInstance->GetWorldAssetPackage()));
+		}
+		Section.AddMenuEntry(NAME_None, EntryLabel, EntryDesc, FSlateIcon(), LevelInstanceEditAction);
+	}
+
 	void CreateEditSubMenu(UToolMenu* Menu, TArray<ALevelInstance*> LevelInstanceHierarchy, AActor* ContextActor)
 	{
 		FToolMenuSection& Section = Menu->AddSection(NAME_None, LOCTEXT("LevelInstanceContextEditSection", "Context"));
-		for (ALevelInstance* LevelInstanceActor : LevelInstanceHierarchy)
+		for (ALevelInstance* LevelInstance : LevelInstanceHierarchy)
 		{
-			FToolUIAction LevelInstanceEditAction;
-			FText EntryDesc = LOCTEXT("LevelInstanceEditSubMenuEntry","");
-			const bool bCanEdit = LevelInstanceActor->CanEdit(&EntryDesc);
-
-			LevelInstanceEditAction.ExecuteAction.BindLambda([LevelInstanceActor, ContextActor](const FToolMenuContext&)
-			{
-				LevelInstanceActor->Edit(ContextActor);
-			});
-			LevelInstanceEditAction.CanExecuteAction.BindLambda([bCanEdit](const FToolMenuContext&)
-			{ 
-				return bCanEdit;
-			});
-
-			const FText EntryLabel = FText::Format(LOCTEXT("LevelInstanceName", "{0}:{1}"), FText::FromString(LevelInstanceActor->GetActorLabel()), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
-			Section.AddMenuEntry(NAME_None, EntryLabel, EntryDesc, FSlateIcon(), LevelInstanceEditAction);
+			CreateEditMenuEntry(Section, LevelInstance, ContextActor, false);
 		}
 	}
 		
@@ -110,7 +119,13 @@ namespace LevelInstanceMenuUtils
 				return true;
 			});
 
-			if (LevelInstanceHierarchy.Num() > 0)
+			// Don't create sub menu if only one Level Instance is available to edit
+			if (LevelInstanceHierarchy.Num() == 1)
+			{
+				FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
+				CreateEditMenuEntry(Section, LevelInstanceHierarchy[0], ContextActor, true);
+			}
+			else if(LevelInstanceHierarchy.Num() > 1)
 			{
 				FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
 				Section.AddSubMenu(
