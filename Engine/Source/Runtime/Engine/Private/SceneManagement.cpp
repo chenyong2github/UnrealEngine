@@ -783,14 +783,22 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	PhysicsFieldClipmapBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
+	// Water
 	WaterIndirection = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 	WaterData = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
 	LandscapeIndirection = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 	LandscapePerComponentData = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
+	// Hair
 	HairScatteringLUTTexture = BlackVolume;
 	HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+
+	// Rect area light
+	LTCMatTexture = GBlackTextureWithSRV->TextureRHI;
+	LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	LTCAmpTexture = GBlackTextureWithSRV->TextureRHI;
+	LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Shading energy conservation
 	bShadingEnergyConservation = 0u;

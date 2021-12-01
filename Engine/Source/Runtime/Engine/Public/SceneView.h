@@ -856,6 +856,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	// Hair
 	SHADER_PARAMETER_TEXTURE(Texture3D, HairScatteringLUTTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HairScatteringLUTSampler)
+	// Rect area light	
+	SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, LTCAmpTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, LTCAmpSampler)
 	// Energy conservation
 	SHADER_PARAMETER(uint32, bShadingEnergyConservation)
 	SHADER_PARAMETER(uint32, bShadingEnergyPreservation)

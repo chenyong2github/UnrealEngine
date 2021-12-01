@@ -529,10 +529,6 @@ class FDeferredLightPS : public FGlobalShader
 	{
 		LightAttenuationTexture.Bind(Initializer.ParameterMap, TEXT("LightAttenuationTexture"));
 		LightAttenuationTextureSampler.Bind(Initializer.ParameterMap, TEXT("LightAttenuationTextureSampler"));
-		LTCMatTexture.Bind(Initializer.ParameterMap, TEXT("LTCMatTexture"));
-		LTCMatSampler.Bind(Initializer.ParameterMap, TEXT("LTCMatSampler"));
-		LTCAmpTexture.Bind(Initializer.ParameterMap, TEXT("LTCAmpTexture"));
-		LTCAmpSampler.Bind(Initializer.ParameterMap, TEXT("LTCAmpSampler"));
 		IESTexture.Bind(Initializer.ParameterMap, TEXT("IESTexture"));
 		IESTextureSampler.Bind(Initializer.ParameterMap, TEXT("IESTextureSampler"));
 		LightingChannelsTexture.Bind(Initializer.ParameterMap, TEXT("LightingChannelsTexture"));
@@ -546,6 +542,7 @@ class FDeferredLightPS : public FGlobalShader
 		HairStrandsParameters.Bind(Initializer.ParameterMap, FHairStrandsViewUniformParameters::StaticStructMetadata.GetShaderVariableName());
 
 		DummyRectLightTextureForCapsuleCompilerWarning.Bind(Initializer.ParameterMap, TEXT("DummyRectLightTextureForCapsuleCompilerWarning"));
+		DummyRectLightSamplerForCapsuleCompilerWarning.Bind(Initializer.ParameterMap, TEXT("DummyRectLightSamplerForCapsuleCompilerWarning"));
 
 		CloudShadowmapTexture.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapTexture"));
 		CloudShadowmapSampler.Bind(Initializer.ParameterMap, TEXT("CloudShadowmapSampler"));
@@ -616,24 +613,6 @@ private:
 				ScreenShadowMaskTexture);
 		}
 
-		SetTextureParameter(
-			RHICmdList,
-			ShaderRHI,
-			LTCMatTexture,
-			LTCMatSampler,
-			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSystemTextures.LTCMat->GetShaderResourceRHI()
-			);
-
-		SetTextureParameter(
-			RHICmdList,
-			ShaderRHI,
-			LTCAmpTexture,
-			LTCAmpSampler,
-			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSystemTextures.LTCAmp->GetShaderResourceRHI()
-			);
-
 		{
 			FRHITexture* TextureRHI = IESTextureResource ? IESTextureResource->TextureRHI : GWhiteTexture->TextureRHI;
 
@@ -700,7 +679,7 @@ private:
 				RHICmdList,
 				ShaderRHI,
 				DummyRectLightTextureForCapsuleCompilerWarning,
-				LTCMatSampler,
+				DummyRectLightSamplerForCapsuleCompilerWarning,
 				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 				GSystemTextures.DepthDummy->GetShaderResourceRHI()
 			);
@@ -741,10 +720,6 @@ private:
 
 	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, LightAttenuationTextureSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCMatTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCMatSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, IESTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, IESTextureSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, LightingChannelsTexture);
@@ -757,6 +732,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, HairShadowMaskValid);
 
 	LAYOUT_FIELD(FShaderResourceParameter, DummyRectLightTextureForCapsuleCompilerWarning);
+	LAYOUT_FIELD(FShaderResourceParameter, DummyRectLightSamplerForCapsuleCompilerWarning);
 
 	LAYOUT_FIELD(FShaderResourceParameter, CloudShadowmapTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, CloudShadowmapSampler);

@@ -191,10 +191,6 @@ static void SetupRaytracingLightDataPacked(
 	TMap<FRHITexture*, uint32> RectTextureMap;
 
 	LightData->Count = 0;
-	LightData->LTCMatTexture = GSystemTextures.LTCMat->GetRenderTargetItem().ShaderResourceTexture;
-	LightData->LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	LightData->LTCAmpTexture = GSystemTextures.LTCAmp->GetRenderTargetItem().ShaderResourceTexture;
-	LightData->LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	FTextureRHIRef DymmyWhiteTexture = GWhiteTexture->TextureRHI;
 	LightData->RectLightTexture0 = DymmyWhiteTexture;

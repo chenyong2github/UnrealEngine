@@ -431,13 +431,6 @@ float3 PolygonIrradiance( float3 Poly[4] )
 	return L;
 }
 
-#ifndef LTCMatTexture
-Texture2D		LTCMatTexture;
-SamplerState	LTCMatSampler;
-Texture2D		LTCAmpTexture;
-SamplerState	LTCAmpSampler;
-#endif
-
 // [ Heitz et al. 2016, "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines" ]
 float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 V, FRect Rect, FRectTexture RectTexture )
 {
@@ -449,8 +442,8 @@ float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 
 	float2 UV = float2( Roughness, sqrt( 1 - NoV ) );
 	UV = UV * (63.0 / 64.0) + (0.5 / 64.0);
    
-	float4 LTCMat = LTCMatTexture.SampleLevel( LTCMatSampler, UV, 0 );
-	float4 LTCAmp = LTCAmpTexture.SampleLevel( LTCAmpSampler, UV, 0 );
+	float4 LTCMat = View.LTCMatTexture.SampleLevel( View.LTCMatSampler, UV, 0 );
+	float4 LTCAmp = View.LTCAmpTexture.SampleLevel( View.LTCAmpSampler, UV, 0 );
 
 	float3x3 LTC = {
 		float3( LTCMat.x, 0, LTCMat.z ),

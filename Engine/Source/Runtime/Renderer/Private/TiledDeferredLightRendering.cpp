@@ -105,10 +105,6 @@ public:
 		OutTexture.Bind(Initializer.ParameterMap, TEXT("OutTexture"));
 		NumLights.Bind(Initializer.ParameterMap, TEXT("NumLights"));
 		ViewDimensions.Bind(Initializer.ParameterMap, TEXT("ViewDimensions"));
-		LTCMatTexture.Bind(Initializer.ParameterMap, TEXT("LTCMatTexture"));
-		LTCMatSampler.Bind(Initializer.ParameterMap, TEXT("LTCMatSampler"));
-		LTCAmpTexture.Bind(Initializer.ParameterMap, TEXT("LTCAmpTexture"));
-		LTCAmpSampler.Bind(Initializer.ParameterMap, TEXT("LTCAmpSampler"));
 	}
 
 	FTiledDeferredLightingCS()
@@ -137,24 +133,6 @@ public:
 		OutTexture.SetTexture(RHICmdList, ShaderRHI, 0, OutTextureValue);
 
 		SetShaderValue(RHICmdList, ShaderRHI, ViewDimensions, View.ViewRect);
-
-		SetTextureParameter(
-			RHICmdList, 
-			ShaderRHI,
-			LTCMatTexture,
-			LTCMatSampler,
-			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSystemTextures.LTCMat->GetShaderResourceRHI()
-			);
-
-		SetTextureParameter(
-			RHICmdList, 
-			ShaderRHI,
-			LTCAmpTexture,
-			LTCAmpSampler,
-			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSystemTextures.LTCAmp->GetShaderResourceRHI()
-			);
 
 		const int32 NumLightsToRenderInSortedLights = TiledDeferredLightsEnd - TiledDeferredLightsStart;
 
@@ -253,10 +231,6 @@ private:
 	LAYOUT_FIELD(FRWShaderParameter, OutTexture);
 	LAYOUT_FIELD(FShaderParameter, NumLights);
 	LAYOUT_FIELD(FShaderParameter, ViewDimensions);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCMatTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCMatSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, LTCAmpSampler);
 };
 
 // #define avoids a lot of code duplication
