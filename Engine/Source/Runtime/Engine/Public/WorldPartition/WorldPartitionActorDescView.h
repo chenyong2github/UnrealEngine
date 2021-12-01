@@ -39,9 +39,12 @@ public:
 	FName GetActorLabel() const;
 	FBox GetBounds() const;
 	const TArray<FGuid>& GetReferences() const;
+	FString ToString() const;
 	uint32 GetTag() const;
 
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
+
+	FName GetActorLabelOrName() const;
 
 	void SetGridPlacement(EActorGridPlacement InGridPlacement);
 

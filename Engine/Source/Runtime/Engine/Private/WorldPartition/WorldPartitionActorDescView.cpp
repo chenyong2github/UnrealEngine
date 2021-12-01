@@ -99,6 +99,11 @@ const TArray<FGuid>& FWorldPartitionActorDescView::GetReferences() const
 	return ActorDesc->GetReferences();
 }
 
+FString FWorldPartitionActorDescView::ToString() const
+{
+	return ActorDesc->ToString();
+}
+
 uint32 FWorldPartitionActorDescView::GetTag() const
 {
 	return ActorDesc->Tag;
@@ -107,6 +112,11 @@ uint32 FWorldPartitionActorDescView::GetTag() const
 bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
 	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);
+}
+
+FName FWorldPartitionActorDescView::GetActorLabelOrName() const
+{
+	return ActorDesc->GetActorLabelOrName();
 }
 
 void FWorldPartitionActorDescView::SetGridPlacement(EActorGridPlacement InGridPlacement)

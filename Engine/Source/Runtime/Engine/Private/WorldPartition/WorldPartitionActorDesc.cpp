@@ -180,7 +180,7 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 
 FString FWorldPartitionActorDesc::ToString() const
 {
-	return FString::Printf(TEXT("Guid:%s Class:%s Name:%s"), *Guid.ToString(), *Class.ToString(), *FPaths::GetExtension(ActorPath.ToString()));
+	return FString::Printf(TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s"), *Guid.ToString(), *Class.ToString(), *FPaths::GetExtension(ActorPath.ToString()), (GridPlacement != EActorGridPlacement::AlwaysLoaded) ? TEXT("True") : TEXT("False"));
 }
 
 void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
@@ -245,6 +245,12 @@ FName FWorldPartitionActorDesc::GetActorName() const
 	verify(GetActorPath().ToString().Split(TEXT("."), &ActorContext, &ActorName, ESearchCase::CaseSensitive, ESearchDir::FromEnd));
 	return *ActorName;
 }
+
+FName FWorldPartitionActorDesc::GetActorLabelOrName() const
+{
+	return GetActorLabel().IsNone() ? GetActorName() : GetActorLabel();
+};
+
 
 TArray<const UDataLayer*> FWorldPartitionActorDesc::GetDataLayerObjects() const
 {
