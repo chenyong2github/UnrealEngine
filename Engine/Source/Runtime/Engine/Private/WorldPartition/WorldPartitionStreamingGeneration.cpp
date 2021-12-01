@@ -339,8 +339,9 @@ public:
 		{
 			auto SerializeLine = [LogFile](const FString& Line)
 			{
-				LogFile->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
-				LogFile->Serialize(LINE_TERMINATOR_ANSI, sizeof(LINE_TERMINATOR_ANSI));
+				FString LineEntry(Line);
+				LineEntry += LINE_TERMINATOR;
+				LogFile->Serialize(TCHAR_TO_ANSI(*LineEntry), LineEntry.Len());
 			};
 
 			// Build the containers tree representation
@@ -367,7 +368,6 @@ public:
 					SerializeLine(FString::Printf(TEXT("%s       Bounds: %s"), *Prefix, *ContainerDescriptor.Bounds.ToString()));
 					SerializeLine(FString::Printf(TEXT("%s    Transform: %s"), *Prefix, *ContainerDescriptor.Transform.ToString()));
 					SerializeLine(FString::Printf(TEXT("%s    Container: %s"), *Prefix, *ContainerDescriptor.Container->GetContainerPackage().ToString()));
-					SerializeLine(FString::Printf(TEXT("%s  ClusterMode: %s"), *Prefix, *StaticEnum<EContainerClusterMode>()->GetNameStringByValue((uint64)ContainerDescriptor.ClusterMode)));
 
 					if (ContainerDescriptor.ActorDescViewMap.Num())
 					{
