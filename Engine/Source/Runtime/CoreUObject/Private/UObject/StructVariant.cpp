@@ -2,6 +2,7 @@
 
 
 #include "UObject/StructVariant.h"
+#include "UObject/UnrealType.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
@@ -89,6 +90,66 @@ bool FStructVariant::Identical(const FStructVariant* InOther, uint32 PortFlags) 
 	}
 
 	return true;
+}
+
+bool FStructVariant::ExportTextItem(FString& ValueStr, const FStructVariant& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const
+{
+	if (const UScriptStruct* StructTypePtr = GetStructType())
+	{
+		ValueStr += StructTypePtr->GetPathName();
+		StructTypePtr->ExportText(ValueStr, StructInstance, StructTypePtr == DefaultValue.GetStructType() ? DefaultValue.StructInstance : nullptr, Parent, PortFlags, ExportRootScope);
+	}
+	else
+	{
+		ValueStr += TEXT("None");
+	}
+	return true;
+}
+
+bool FStructVariant::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
+{
+	FNameBuilder StructPathName;
+	if (const TCHAR* Result = FPropertyHelpers::ReadToken(Buffer, StructPathName, /*bDottedNames*/true))
+	{
+		Buffer = Result;
+	}
+	else
+	{
+		return false;
+	}
+
+	if (StructPathName.Len() == 0 || FCString::Stricmp(StructPathName.ToString(), TEXT("None")) == 0)
+	{
+		SetStructType(nullptr);
+	}
+	else
+	{
+		UScriptStruct* StructTypePtr = LoadObject<UScriptStruct>(nullptr, StructPathName.ToString());
+		if (!StructTypePtr)
+		{
+			return false;
+		}
+
+		SetStructType(StructTypePtr);
+		if (const TCHAR* Result = StructTypePtr->ImportText(Buffer, StructInstance, Parent, PortFlags, ErrorText, [StructTypePtr]() { return StructTypePtr->GetName(); }))
+		{
+			Buffer = Result;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void FStructVariant::AddStructReferencedObjects(FReferenceCollector& Collector)
+{
+	if (const UScriptStruct* StructTypePtr = GetStructType())
+	{
+		Collector.AddReferencedObjects(StructTypePtr, StructInstance);
+	}
 }
 
 const UScriptStruct* FStructVariant::GetStructType() const
