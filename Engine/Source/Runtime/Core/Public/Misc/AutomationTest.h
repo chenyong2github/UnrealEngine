@@ -753,15 +753,23 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTestDataRetrieved, bool /*bWasNew*/, con
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPerformanceDataRetrieved, bool /*bSuccess*/, const FString& /*ErrorMessage*/);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTestEvent, FAutomationTestBase*);
+
 /** Class representing the main framework for running automation tests */
 class CORE_API FAutomationTestFramework
 {
 public:
-	/** Called right before unit testing is about to begin */
+	/** Called right before automated test is about to begin */
 	FSimpleMulticastDelegate PreTestingEvent;
-	
-	/** Called after all unit tests have completed */
+
+	/** Called after all automated tests have completed */
 	FSimpleMulticastDelegate PostTestingEvent;
+
+	/** Called when each automated test is starting */
+	FOnTestEvent OnTestStartEvent;
+
+	/** Called when each automated test is ending */
+	FOnTestEvent OnTestEndEvent;
 
 	/** Called when a screenshot comparison completes. */
 	FOnTestScreenshotComparisonComplete OnScreenshotCompared;
@@ -1308,6 +1316,11 @@ public:
 	 * @param	bSuccessful	true to mark the test successful, false to mark the test as failed
 	 */
 	void SetSuccessState( bool bSuccessful );
+
+	/**
+	 * Return the test success state
+	 */
+	bool GetSuccessState();
 
 	/**
 	 * Populate the provided execution info object with the execution info contained within the test. Not particularly efficient,
