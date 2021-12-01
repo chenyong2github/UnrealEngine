@@ -336,14 +336,18 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 			if (ReferenceInfo.Type == EReferenceType::Property)
 			{
 				FString ReferencingPropertyName;
-				FProperty* ReferencingProperty = ReferencerObject->GetClass()->FindPropertyByName(ReferenceInfo.ReferencerName);
-				if (ReferencingProperty)
+				TArray<FProperty*> ReferencingProperties;
+
+				if (FGCStackSizeHelper::ConvertPathToProperties(ReferencerObject->GetClass(), ReferenceInfo.ReferencerName, ReferencingProperties))
 				{
+					FProperty* InnermostProperty = ReferencingProperties.Last();
+					FProperty* OutermostProperty = ReferencingProperties[0];
+
 					ReferencingPropertyName = FString::Printf(TEXT("%s %s%s::%s"),
-						*ReferencingProperty->GetCPPType(),
-						ReferencingProperty->GetOwnerClass()->GetPrefixCPP(),
-						*ReferencingProperty->GetOwnerClass()->GetName(),
-						*ReferencingProperty->GetName());
+						*InnermostProperty->GetCPPType(),
+						OutermostProperty->GetOwnerClass()->GetPrefixCPP(),
+						*OutermostProperty->GetOwnerClass()->GetName(),
+						*ReferenceInfo.ReferencerName.ToString());
 				}
 				else
 				{
