@@ -90,9 +90,9 @@ void FPixelStreamingDataChannelObserver::SendInitialSettings() const
 		return;
 	}
 
-	const FString WebRTCPayload = FString::Printf(TEXT("{ \"DegradationPref\": \"%s\", \"MaxFPS\": %d, \"MinBitrate\": %d, \"MaxBitrate\": %d, \"LowQP\": %d, \"HighQP\": %d }"),
+	const FString WebRTCPayload = FString::Printf(TEXT("{ \"DegradationPref\": \"%s\", \"FPS\": %d, \"MinBitrate\": %d, \"MaxBitrate\": %d, \"LowQP\": %d, \"HighQP\": %d }"),
 		*PixelStreamingSettings::CVarPixelStreamingDegradationPreference.GetValueOnAnyThread(),
-		PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread(),
+		PixelStreamingSettings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread(),
 		PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate.GetValueOnAnyThread(),
 		PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread(),
 		PixelStreamingSettings::CVarPixelStreamingWebRTCLowQpThreshold.GetValueOnAnyThread(),

@@ -2,8 +2,7 @@
 
 #include "PixelStreamingSettings.h"
 #include "PixelStreamingPrivate.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Async/Async.h"
+#include "Misc/DefaultValueHelper.h"
 
 template<typename T>
 void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
@@ -62,14 +61,14 @@ namespace PixelStreamingSettings
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMinQP(
 		TEXT("PixelStreaming.Encoder.MinQP"),
-		1,
-		TEXT("0-51, lower values result in better quality but higher bitrate. Default: 1. -1 will disable any hard limit on a minimum QP and also disable NVENC.KeyFrameQPUseLastQP."),
+		-1,
+		TEXT("0-51, lower values result in better quality but higher bitrate. Default -1. -1 will disable any hard limit on a minimum QP."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxQP(
 		TEXT("PixelStreaming.Encoder.MaxQP"),
-		51,
-		TEXT("0-51, lower values result in better quality but higher bitrate. Default: 51. -1 will disable any hard limit on a maximum QP and also disable NVENC.KeyFrameQPUseLastQP."),
+		-1,
+		TEXT("0-51, lower values result in better quality but higher bitrate. Default -1. -1 will disable any hard limit on a maximum QP."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<FString> CVarPixelStreamingEncoderRateControl(
@@ -101,7 +100,6 @@ namespace PixelStreamingSettings
 		300,
 		TEXT("How many frames before a key frame is sent. Default: 300. Values <=0 will disable sending of periodic key frames. Note: NVENC does not support changing this after encoding has started."),
 		ECVF_Default);
-
 // End Encoder CVars
 
 // Begin Capturer CVars
@@ -131,10 +129,10 @@ namespace PixelStreamingSettings
 		TEXT("PixelStreaming degradation preference. Supported modes are `BALANCED`, `MAINTAIN_FRAMERATE`, `MAINTAIN_RESOLUTION`"),
 		ECVF_Default);
 
-	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMaxFps(
-		TEXT("PixelStreaming.WebRTC.MaxFps"),
+	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCFps(
+		TEXT("PixelStreaming.WebRTC.Fps"),
 		60,
-		TEXT("Maximum fps WebRTC will try to request. Default: 60"),
+		TEXT("Framerate for WebRTC encoding. Default: 60"),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCStartBitrate(
@@ -271,7 +269,6 @@ namespace PixelStreamingSettings
 		});
 		
 	}
-
 // Ends Pixel Streaming Plugin CVars
 
 // Begin utility functions etc.
@@ -342,9 +339,40 @@ namespace PixelStreamingSettings
 	}
 // End utility functions etc.
 
+	FSimulcastParameters SimulcastParameters;
+
+	void ReadSimulcastParameters()
+	{
+		SimulcastParameters.Layers.Empty();
+
+		FString StringOptions;
+		if (FParse::Value(FCommandLine::Get(), TEXT("SimulcastParameters="), StringOptions, false))
+		{
+			TArray<FString> ParameterArray;
+			StringOptions.ParseIntoArray(ParameterArray, TEXT(","), true);
+			const int OptionCount = ParameterArray.Num();
+			bool success = OptionCount % 3 == 0;
+			int NextOption = 0;
+			while (success && ((OptionCount - NextOption) >= 3))
+			{
+				FSimulcastParameters::FLayer Layer;
+				success = FDefaultValueHelper::ParseFloat(ParameterArray[NextOption++], Layer.Scaling);
+				success = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MinBitrate);
+				success = FDefaultValueHelper::ParseInt(ParameterArray[NextOption++], Layer.MaxBitrate);
+				SimulcastParameters.Layers.Add(Layer);
+			}
+
+			if (!success)
+			{
+				// failed parsing the parameters. just ignore the parameters.
+				UE_LOG(PixelStreamer, Log, TEXT("Simulcast parameters malformed. Expected (float, int, int [, float, int, int] etc.)."));
+				SimulcastParameters.Layers.Empty();
+			}
+		}
+	}
+
 	void InitialiseSettings()
 	{
-
 		UE_LOG(PixelStreamer, Log, TEXT("Initialising Pixel Streaming settings."));
 
 		PixelStreamingSettings::CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnFilteredKeysChanged));
@@ -363,7 +391,7 @@ namespace PixelStreamingSettings
 		CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers);
 		CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
-		CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps);
+		CommandLineParseValue(TEXT("PixelStreamingWebRTCFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCFps);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCStartBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCMinBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate);
 		CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate);
@@ -388,6 +416,6 @@ namespace PixelStreamingSettings
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice);
 		CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester);
 
+		ReadSimulcastParameters();
 	}
-
 }

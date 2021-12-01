@@ -701,7 +701,6 @@ namespace AVEncoder
 	{
 		uint64 StartProcessFramesFuncCycles;
 		uint64 FinishedEncodingCycles;
-		FCodecPacketImpl Packet;
 
 		StartProcessFramesFuncCycles = FPlatformTime::Cycles64();
 
@@ -710,8 +709,7 @@ namespace AVEncoder
 		{
 			if(Encoder.OnEncodedPacket)
 			{
-				Packet.Data = static_cast<const uint8*>(Buffer->BitstreamData);
-				Packet.DataSize = Buffer->BitstreamDataSize;
+				FCodecPacket Packet = FCodecPacket::Create(static_cast<const uint8*>(Buffer->BitstreamData), Buffer->BitstreamDataSize);
 
 				if(Buffer->PictureType & NV_ENC_PIC_TYPE_IDR)
 				{

@@ -1,17 +1,67 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingEncoderFactory.h"
-#include "Misc/ScopeLock.h"
-#include "PixelStreamingSettings.h"
 #include "PixelStreamingVideoEncoder.h"
+#include "PixelStreamingSettings.h"
 #include "Utils.h"
 #include "absl/strings/match.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "Misc/ScopeLock.h"
+#include "PixelStreamingRealEncoder.h"
+
+#if PLATFORM_WINDOWS
+// some code in the simulcast adaptor has trouble finding the windows versions of these
+// functions. these are here to redirect them properly
+template<class T>
+T InterlockedIncrement(volatile T* i) {
+	return ::_InterlockedIncrement(i);
+}
+template<class T>
+T InterlockedDecrement(volatile T* i) {
+	return ::_InterlockedDecrement(i);
+}
+template<class T, class U>
+T InterlockedCompareExchange(volatile T* i, U old_value, U new_value) {
+	return ::_InterlockedCompareExchange(i, new_value, old_value);
+}
+#endif
+
+#include "PixelStreamingSimulcastEncoderAdapter.h"
+
+FPixelStreamingSimulcastEncoderFactory::FPixelStreamingSimulcastEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions)
+	:RealFactory(new FPixelStreamingVideoEncoderFactory(InPixelStreamingSessions))
+{
+}
+
+FPixelStreamingSimulcastEncoderFactory::~FPixelStreamingSimulcastEncoderFactory()
+{
+}
+
+std::vector<webrtc::SdpVideoFormat> FPixelStreamingSimulcastEncoderFactory::GetSupportedFormats() const
+{
+	return RealFactory->GetSupportedFormats();
+}
+
+FPixelStreamingSimulcastEncoderFactory::CodecInfo FPixelStreamingSimulcastEncoderFactory::QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const
+{
+	return RealFactory->QueryVideoEncoder(format);
+}
+
+std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingSimulcastEncoderFactory::CreateVideoEncoder(const webrtc::SdpVideoFormat& format)
+{
+	return std::make_unique<PixelStreamingSimulcastEncoderAdapter>(RealFactory.Get(), nullptr, format);
+}
+
+FPixelStreamingVideoEncoderFactory* FPixelStreamingSimulcastEncoderFactory::GetRealFactory() const
+{
+	return RealFactory.Get();
+}
+
+
 
 FPixelStreamingVideoEncoderFactory::FPixelStreamingVideoEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions)
 	: PixelStreamingSessions(InPixelStreamingSessions)
 {
-	EncoderContext.Factory = this;
 }
 
 FPixelStreamingVideoEncoderFactory::~FPixelStreamingVideoEncoderFactory()
@@ -37,7 +87,7 @@ std::vector<webrtc::SdpVideoFormat> FPixelStreamingVideoEncoderFactory::GetSuppo
 
 FPixelStreamingVideoEncoderFactory::CodecInfo FPixelStreamingVideoEncoderFactory::QueryVideoEncoder(const webrtc::SdpVideoFormat& format) const
 {
-	CodecInfo codec_info = {false, false};
+	CodecInfo codec_info = { false, false };
 	codec_info.is_hardware_accelerated = true;
 	codec_info.has_internal_source = false;
 	return codec_info;
@@ -49,8 +99,10 @@ std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::Create
 		return webrtc::VP8Encoder::Create();
 	else
 	{
-		auto VideoEncoder = std::make_unique<FPixelStreamingVideoEncoder>(this->PixelStreamingSessions, &EncoderContext);
-		UE_LOG(PixelStreamer, Log, TEXT("Encoder factory addded new encoder - soon to be associated with a player."));
+		// Lock during encoder creation
+		FScopeLock Lock(&ActiveEncodersGuard);
+		auto VideoEncoder = std::make_unique<FPixelStreamingVideoEncoder>(PixelStreamingSessions, *this);
+		ActiveEncoders.Add(VideoEncoder.get());
 		return VideoEncoder;
 	}
 }
@@ -58,108 +110,51 @@ std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::Create
 void FPixelStreamingVideoEncoderFactory::RemoveStaleEncoders()
 {
 	// Lock during removing stale encoders
-	FScopeLock FactoryLock(&this->FactoryCS);
+	FScopeLock Lock(&ActiveEncodersGuard);
 
-	TArray<FPlayerId> ToRemove;
-
-	for (auto& Entry : ActiveEncoders)
+	// Iterate backwards so we can remove invalid encoders along the way
+	for (int32 Index = ActiveEncoders.Num()-1; Index >= 0; --Index)
 	{
-		FPlayerId PlayerId = Entry.Key;
-		FPixelStreamingVideoEncoder* Encoder = Entry.Value;
-
-		// If WebRTC callback is no longer registered with the encoder it is considered stale and to be removed.
-		if (!Encoder->IsRegisteredWithWebRTC())
+		FPixelStreamingVideoEncoder* Encoder = ActiveEncoders[Index];
+		if(!Encoder->IsRegisteredWithWebRTC())
 		{
-			ToRemove.Add(PlayerId);
-		}
-	}
-
-	if (ToRemove.Num() > 0)
-	{
-		for (FPlayerId& PlayerId : ToRemove)
-		{
-			ActiveEncoders.Remove(PlayerId);
-			UE_LOG(PixelStreamer, Log, TEXT("Encoder factory cleaned up stale encoder associated with PlayerId=%s"), *PlayerId);
+			ActiveEncoders.RemoveAt(Index);
 		}
 	}
 }
 
-void FPixelStreamingVideoEncoderFactory::OnPostEncode()
-{
-	FScopeLock FactoryLock(&this->FactoryCS);
-
-	// If we have zero encoders now then shutdown the real hardware encoder too
-	if (ActiveEncoders.Num() == 0 && EncoderContext.Encoder != nullptr)
-	{
-		UE_LOG(PixelStreamer, Log, TEXT("Encoder factory shutting down hardware encoder"));
-		EncoderContext.Encoder->ClearOnEncodedPacket();
-		EncoderContext.Encoder->Shutdown();
-		EncoderContext.Encoder = nullptr;
-	}
-}
-
-void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation)
+void FPixelStreamingVideoEncoderFactory::OnEncodedImage(FHardwareEncoderId SourceEncoderId, const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation)
 {
 	// Before sending encoded image to each encoder's callback, check if all encoders we have are still relevant.
-	this->RemoveStaleEncoders();
+	RemoveStaleEncoders();
 
 	// Lock as we send encoded image to each encoder.
-	FScopeLock FactoryLock(&this->FactoryCS);
+	FScopeLock Lock(&ActiveEncodersGuard);
 
 	// Go through each encoder and send our encoded image to its callback
-	for (auto& Entry : ActiveEncoders)
+	for (FPixelStreamingVideoEncoder* Encoder : ActiveEncoders)
 	{
-		FPixelStreamingVideoEncoder* Encoder = Entry.Value;
 		if (Encoder->IsRegisteredWithWebRTC())
 		{
-			Encoder->SendEncodedImage(encoded_image, codec_specific_info, fragmentation);
+			Encoder->SendEncodedImage(SourceEncoderId, encoded_image, codec_specific_info, fragmentation);
 		}
 	}
-
-	// Store the QP of this encoded image as we send the smoothed value to the peers as a proxy for encoding quality
-	EncoderContext.SmoothedAvgQP.Update(encoded_image.qp_);
 }
 
-void FPixelStreamingVideoEncoderFactory::RegisterVideoEncoder(FPlayerId PlayerId, FPixelStreamingVideoEncoder* Encoder)
-{
-	// Lock during adding an encoder
-	FScopeLock FactoryLock(&this->FactoryCS);
-	ActiveEncoders.Add(PlayerId, Encoder);
-}
-
-void FPixelStreamingVideoEncoderFactory::UnregisterVideoEncoder(FPlayerId PlayerId)
+void FPixelStreamingVideoEncoderFactory::ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder)
 {
 	// Lock during deleting an encoder
-	FScopeLock FactoryLock(&this->FactoryCS);
-
-	if (ActiveEncoders.Contains(PlayerId))
-	{
-		FPixelStreamingVideoEncoder* PixelStreamingEncoder = this->ActiveEncoders[PlayerId];
-
-		if(!PixelStreamingEncoder)
-		{
-			UE_LOG(PixelStreamer, Error, TEXT("Encoder factory tried to remove any already nullptr PixelStreamingVideoEncoder PlayerId=%s"), *PlayerId);
-			return;
-		}
-
-		// This will signal this encoder is stale and it will get removed next time we finish encoding
-		PixelStreamingEncoder->Release();
-
-		// This will ensure we don't try to send another encoded frame to this encoder.
-		ActiveEncoders.Remove(PlayerId);
-		UE_LOG(PixelStreamer, Log, TEXT("Encoder factory asked to remove encoder for PlayerId=%s"), *PlayerId);
-
-	}
+	FScopeLock Lock(&ActiveEncodersGuard);
+	ActiveEncoders.Remove(encoder);
 }
 
 void FPixelStreamingVideoEncoderFactory::ForceKeyFrame()
 {
-	FScopeLock FactoryLock(&this->FactoryCS);
+	FScopeLock Lock(&ActiveEncodersGuard);
 	// Go through each encoder and send our encoded image to its callback
-	for (auto& Entry : ActiveEncoders)
+	for(FPixelStreamingVideoEncoder* Encoder : ActiveEncoders)
 	{
-		FPixelStreamingVideoEncoder* Encoder = Entry.Value;
-		if (Encoder->IsRegisteredWithWebRTC())
+		if(Encoder->IsRegisteredWithWebRTC())
 		{
 			Encoder->ForceKeyFrame();
 		}
@@ -168,5 +163,42 @@ void FPixelStreamingVideoEncoderFactory::ForceKeyFrame()
 
 double FPixelStreamingVideoEncoderFactory::GetLatestQP()
 {
-	return this->EncoderContext.SmoothedAvgQP.Get();
+	return 0;
+	//return this->EncoderContext.SmoothedAvgQP.Get();
+}
+
+namespace
+{
+	uint64 HashResolution(uint32 Width, uint32 Height)
+	{
+		return static_cast<uint64>(Width) << 32 | static_cast<uint64>(Height);
+	}
+}
+
+FPixelStreamingVideoEncoderFactory::FHardwareEncoderId FPixelStreamingVideoEncoderFactory::GetOrCreateHardwareEncoder(int Width, int Height, int MaxBitrate, int TargetBitrate, int MaxFramerate)
+{
+	FHardwareEncoderId EncoderId = HashResolution(Width, Height);
+	FPixelStreamingRealEncoder* Existing = GetHardwareEncoder(EncoderId);
+
+	if (Existing == nullptr)
+	{
+		TUniquePtr<FPixelStreamingRealEncoder> Encoder = MakeUnique<FPixelStreamingRealEncoder>(EncoderId, Width, Height, MaxBitrate, TargetBitrate, MaxFramerate, this);
+		FPixelStreamingRealEncoder* ReturnValue = Encoder.Get();
+		{
+			FScopeLock Lock(&HardwareEncodersGuard);
+			HardwareEncoders.Add(EncoderId, MoveTemp(Encoder));
+		}
+	}
+
+	return EncoderId;
+}
+
+FPixelStreamingRealEncoder* FPixelStreamingVideoEncoderFactory::GetHardwareEncoder(FHardwareEncoderId Id)
+{
+	FScopeLock Lock(&HardwareEncodersGuard);
+	if (auto&& Existing = HardwareEncoders.Find(Id))
+	{
+		return Existing->Get();
+	}
+	return nullptr;
 }

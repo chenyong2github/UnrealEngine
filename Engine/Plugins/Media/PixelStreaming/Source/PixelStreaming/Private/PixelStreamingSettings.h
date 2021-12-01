@@ -13,7 +13,6 @@
 // Console variables (CVars)
 namespace PixelStreamingSettings
 {
-
 	extern void InitialiseSettings();
 
 // Begin Encoder CVars
@@ -37,7 +36,7 @@ namespace PixelStreamingSettings
 
 // Begin WebRTC CVars
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference;
-	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMaxFps;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCFps;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCStartBitrate;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMinBitrate;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMaxBitrate;
@@ -66,6 +65,20 @@ namespace PixelStreamingSettings
 	webrtc::DegradationPreference GetDegradationPreference();
 	AVEncoder::FVideoEncoder::H264Profile GetH264Profile();
 // End utility functions etc.
+
+	struct FSimulcastParameters
+	{
+		struct FLayer
+		{
+			float Scaling;
+			int MinBitrate;
+			int MaxBitrate;
+		};
+
+		TArray<FLayer> Layers;
+	};
+
+	extern FSimulcastParameters SimulcastParameters;
 
 // Begin Command line args
 

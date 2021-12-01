@@ -68,6 +68,8 @@ THIRD_PARTY_INCLUDES_END
 struct ID3D11DeviceChild;
 #endif
 
+#include "CodecPacket.h"
+
 namespace AVEncoder
 {
 	const int64 TimeStampNone = 0x7fffffffll;
@@ -126,37 +128,6 @@ namespace AVEncoder
 	const uint32 H264Profile_Main = 1 << 2;
 	const uint32 H264Profile_ConstrainedHigh = 1 << 3;
 	const uint32 H264Profile_High = 1 << 4;
-
-	class FCodecPacket
-	{
-	public:
-		// clone packet if a longer term copy is needed
-		virtual const FCodecPacket* Clone() const = 0;
-		// release a cloned copy
-		virtual void ReleaseClone() const = 0;
-
-		const uint8*	Data = nullptr;			// pointer to encoded data
-		uint32			DataSize = 0;			// number of bytes of encoded data
-		bool			IsKeyFrame = false;		// whether or not packet represents a key frame
-		uint32			VideoQP = 0;
-
-		/**
-		 * Encoding/Decoding latency
-		 */
-		struct
-		{
-			FTimespan StartTs;
-			FTimespan FinishTs;
-		} Timings;
-
-		uint32 Framerate;
-
-	protected:
-		FCodecPacket() = default;
-		virtual ~FCodecPacket() = default;
-		FCodecPacket(const FCodecPacket&) = delete;
-		FCodecPacket& operator=(const FCodecPacket&) = delete;
-	};
 
 	struct FVideoEncoderInfo
 	{

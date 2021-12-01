@@ -1,0 +1,13 @@
+{
+  "name": "pixelstreaming-sfu",
+  "version": "1.0.0",
+  "description": "Reference implementation for a Pixelstreaming SFU",
+  "scripts": {
+    "start": "npm install && node sfu_server.js"
+  },
+  "dependencies": {
+    "mediasoup-sdp-bridge": "file:mediasoup-sdp-bridge",
+    "ws": "^7.1.2",
+    "mediasoup_prebuilt": "^3.8.4"
+  }
+}

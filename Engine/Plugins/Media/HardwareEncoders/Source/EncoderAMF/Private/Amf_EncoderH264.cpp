@@ -492,10 +492,8 @@ namespace AVEncoder
 			AMFBufferPtr OutBuffer(data);
 
 			// Create packet with buffer contents
-			FCodecPacketImpl Packet;
+			FCodecPacket Packet = FCodecPacket::Create(static_cast<const uint8*>(OutBuffer->GetNative()), OutBuffer->GetSize());
 
-			Packet.Data = static_cast<const uint8*>(OutBuffer->GetNative());
-			Packet.DataSize = OutBuffer->GetSize();
 			uint32 PictureType = AMF_VIDEO_ENCODER_PICTURE_TYPE_NONE;
 			if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE, &PictureType) != AMF_OK)
 			{

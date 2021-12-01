@@ -32,7 +32,7 @@ let freezeFrameOverlay = null;
 let shouldShowPlayOverlay = true;
 // A freeze frame is a still JPEG image shown instead of the video.
 let freezeFrame = {
-	receiving: false,
+    receiving: false,
     size: 0,
     jpeg: undefined,
     height: 0,
@@ -42,7 +42,7 @@ let freezeFrame = {
 
 // Optionally detect if the user is not interacting (AFK) and disconnect them.
 let afk = {
-	enabled: false,   // Set to true to enable the AFK system.
+    enabled: false,   // Set to true to enable the AFK system.
     warnTimeout: 120,   // The time to elapse before warning the user they are inactive.
     closeTimeout: 10,   // The time after the warning when we disconnect the user.
 
@@ -85,7 +85,7 @@ function updateStatus() {
         let controller = controllers[j];
         let currentState = controller.currentState;
         let prevState = controller.prevState;
-		// Iterate over buttons
+        // Iterate over buttons
         for (let i = 0; i < currentState.buttons.length; i++) {
             let currButton = currentState.buttons[i];
             let prevButton = prevState.buttons[i];
@@ -173,7 +173,7 @@ function emitControllerAxisMove(controllerIndex, axisIndex, analogValue) {
 function gamepadConnectHandler(e) {
     console.log("Gamepad connect handler");
     gamepad = e.gamepad;
-	controllers[gamepad.index] = {};
+    controllers[gamepad.index] = {};
     controllers[gamepad.index].currentState = gamepad;
     controllers[gamepad.index].prevState = gamepad;
     console.log("gamepad: " + gamepad.id + " connected");
@@ -243,18 +243,18 @@ function setupHtmlEvents() {
     if (webrtcParamsSubmit !== null) {
         webrtcParamsSubmit.onclick = function(event) {
             let degradationPref = document.getElementById('webrtc-degradation-pref').value;
-            let maxFPS = document.getElementById('webrtc-max-fps-text').value;
+            let FPS = document.getElementById('webrtc-fps-text').value;
             let minBitrate = document.getElementById('webrtc-min-bitrate-text').value * 1000;
             let maxBitrate = document.getElementById('webrtc-max-bitrate-text').value * 1000;
             let lowQP = document.getElementById('webrtc-low-qp-text').value;
             let highQP = document.getElementById('webrtc-high-qp-text').value;
 
-            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.DegradationPreference ' + degradationPref });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MaxFps ' + maxFPS });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MinBitrate ' + minBitrate });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.MaxBitrate ' + maxBitrate });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.LowQpThreshold ' + lowQP });
-            emitCommand({ ConsoleCommand: 'PixelStreaming.WebRTC.HighQpThreshold ' + highQP });
+            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.DegradationPreference ' + degradationPref });
+            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.Fps ' + FPS });
+            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MinBitrate ' + minBitrate });
+            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.MaxBitrate ' + maxBitrate });
+            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.LowQpThreshold ' + lowQP });
+            emitUIInteraction({ Console: 'PixelStreaming.WebRTC.HighQpThreshold ' + highQP });
         };
     }
 
@@ -298,6 +298,76 @@ function setupHtmlEvents() {
         latencyButton.onclick = () => {
             sendStartLatencyTest();
         };
+    }
+ 
+    var streamSelector = document.getElementById('stream-select');
+    var trackSelector = document.getElementById('track-select');
+    if (streamSelector) {
+        streamSelector.onchange = function(event) {
+            const stream = webRtcPlayerObj.availableVideoStreams.get(streamSelector.value);
+            webRtcPlayerObj.video.srcObject = stream;
+            streamTrackSource = stream;
+            webRtcPlayerObj.video.play();
+            updateTrackList();
+        }
+
+        if (trackSelector) {
+            trackSelector.onchange = function(event) {
+                if (!streamTrackSource) {
+                    streamTrackSource = webRtcPlayerObj.availableVideoStreams.get(streamSelector.value);
+                }
+                if (streamTrackSource) {
+                    for (const track of streamTrackSource.getVideoTracks()) {
+                        if (track.id == trackSelector.value) {
+                            webRtcPlayerObj.video.srcObject = new MediaStream([track]);
+                            webRtcPlayerObj.video.play();
+                            streamSelector.value = "";
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+var streamTrackSource = null;
+
+function updateStreamList() {
+    const streamSelector = document.getElementById('stream-select');
+    for (i = streamSelector.options.length - 1; i >= 0; i--) {
+        streamSelector.remove(i);
+    }
+    streamSelector.value = null;
+    for (const [streamId, stream] of webRtcPlayerObj.availableVideoStreams) {
+        var opt = document.createElement('option');
+        opt.value = streamId;
+        opt.innerHTML = streamId;
+        streamSelector.appendChild(opt);
+        if (streamSelector.value == null) {
+            streamSelector.value = streamId;
+        }
+    }
+
+    updateTrackList();
+}
+
+function updateTrackList() {
+    const streamSelector = document.getElementById('stream-select');
+    const trackSelector = document.getElementById('track-select');
+    const stream = webRtcPlayerObj.availableVideoStreams.get(streamSelector.value);
+    for (i = trackSelector.options.length - 1; i >= 0; i--) {
+        trackSelector.remove(i);
+    }
+    trackSelector.value = null;
+    for (const track of stream.getVideoTracks()) {
+        var opt = document.createElement('option');
+        opt.value = track.id;
+        opt.innerHTML = track.label;
+        trackSelector.appendChild(opt);
+        if (track.selected) {
+            trackSelector.value = track.id;
+        }
     }
 }
 
@@ -522,6 +592,14 @@ function setupWebRtcPlayer(htmlElement, config) {
             }));
         }
     };
+    
+    webRtcPlayerObj.onWebRtcAnswer = function (answer) {
+        if (ws && ws.readyState === WS_OPEN_STATE) {
+            let answerStr = JSON.stringify(answer);
+            console.log(`-> SS: answer:\n${answerStr}`);
+            ws.send(answerStr);
+        }
+    };
 
     webRtcPlayerObj.onVideoInitialised = function() {
         if (ws && ws.readyState === WS_OPEN_STATE) {
@@ -611,6 +689,10 @@ function setupWebRtcPlayer(htmlElement, config) {
         }
     }
 
+    webRtcPlayerObj.onNewVideoTrack = function(streams) {
+        updateStreamList();
+    }
+
     webRtcPlayerObj.onDataChannelMessage = function(data) {
         let view = new Uint8Array(data);
 
@@ -685,9 +767,13 @@ function setupWebRtcPlayer(htmlElement, config) {
         createOnScreenKeyboardHelpers(htmlElement);
     }
 
-    createWebRtcOffer();
+    //createWebRtcOffer();
 
     return webRtcPlayerObj.video;
+}
+
+function onWebRtcOffer(webRTCData) {
+    webRtcPlayerObj.receiveOffer(webRTCData);
 }
 
 function onWebRtcAnswer(webRTCData) {
@@ -772,9 +858,9 @@ function onWebRtcAnswer(webRTCData) {
 
         statsText += `<div>Duration: ${timeFormat.format(runTimeHours)}:${timeFormat.format(runTimeMinutes)}:${timeFormat.format(runTimeSeconds)}</div>`;
         statsText += `<div>Video Resolution: ${
-			aggregatedStats.hasOwnProperty('frameWidth') && aggregatedStats.frameWidth && aggregatedStats.hasOwnProperty('frameHeight') && aggregatedStats.frameHeight ?
-				aggregatedStats.frameWidth + 'x' + aggregatedStats.frameHeight : 'Chrome only'
-			}</div>`;
+            aggregatedStats.hasOwnProperty('frameWidth') && aggregatedStats.frameWidth && aggregatedStats.hasOwnProperty('frameHeight') && aggregatedStats.frameHeight ?
+                aggregatedStats.frameWidth + 'x' + aggregatedStats.frameHeight : 'Chrome only'
+            }</div>`;
         statsText += `<div>Received (${receivedBytesMeasurement}): ${numberFormat.format(receivedBytes)}</div>`;
         statsText += `<div>Frames Decoded: ${aggregatedStats.hasOwnProperty('framesDecoded') ? numberFormat.format(aggregatedStats.framesDecoded) : 'Chrome only'}</div>`;
         statsText += `<div>Packets Lost: ${aggregatedStats.hasOwnProperty('packetsLost') ? numberFormat.format(aggregatedStats.packetsLost) : 'Chrome only'}</div>`;
@@ -1101,7 +1187,7 @@ const MessageType = {
      */
     IFrameRequest: 0,
     RequestQualityControl: 1,
-    MaxFpsRequest: 2,
+    FpsRequest: 2,
     AverageBitrateRequest: 3,
     StartStreaming: 4,
     StopStreaming: 5,
@@ -1856,6 +1942,8 @@ function connect() {
             onConfig(msg);
         } else if (msg.type === 'playerCount') {
             updateKickButton(msg.count - 1);
+        } else if (msg.type === 'offer') {
+            onWebRtcOffer(msg);
         } else if (msg.type === 'answer') {
             onWebRtcAnswer(msg);
         } else if (msg.type === 'iceCandidate') {

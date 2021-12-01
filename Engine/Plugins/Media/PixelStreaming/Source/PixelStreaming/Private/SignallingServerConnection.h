@@ -24,18 +24,18 @@ public:
 
 	virtual void OnSignallingServerDisconnected() = 0;
 	virtual void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) = 0;
+	virtual void OnSessionDescription(FPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp)
+	{ unimplemented(); }
 
 	// Streamer-only
-	virtual void OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
-	{ unimplemented(); }
 	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
+	{ unimplemented(); }
+	virtual void OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel)
 	{ unimplemented(); }
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId)
 	{ unimplemented(); }
 
 	// Player-only
-	virtual void OnAnswer(TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
-	{ unimplemented(); }
 	virtual void OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterface> Candidate)
 	{ unimplemented(); }
 	virtual void OnPlayerCount(uint32 Count)
@@ -50,7 +50,7 @@ public:
 	void Connect(const FString& Url);
 	void Disconnect();
 
-	void SendOffer(const webrtc::SessionDescriptionInterface& SDP);
+	void SendOffer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
 	void SendAnswer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
 	void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate);
 	void SendIceCandidate(FPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate);
@@ -72,6 +72,7 @@ private:
 	void OnStreamerIceCandidate(const FJsonObjectPtr& Json);
 	void OnPlayerIceCandidate(const FJsonObjectPtr& Json);
 	void OnPlayerCount(const FJsonObjectPtr& Json);
+	void OnPlayerConnected(const FJsonObjectPtr& Json);
 	void OnPlayerDisconnected(const FJsonObjectPtr& Json);
 	void SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPlayerId PlayerId);
 	bool GetPlayerIdJson(const FJsonObjectPtr& Json, FPlayerId& OutPlayerId);

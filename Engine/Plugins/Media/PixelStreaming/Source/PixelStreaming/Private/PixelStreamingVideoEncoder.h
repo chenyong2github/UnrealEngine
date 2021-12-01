@@ -11,12 +11,13 @@
 class IPixelStreamingSessions;
 class FPlayerSession;
 struct FEncoderContext;
+class FPixelStreamingVideoEncoderFactory;
 
 // Implementation that is a WebRTC video encoder that allows us tie to our actually underlying non-WebRTC video encoder.
 class FPixelStreamingVideoEncoder : public webrtc::VideoEncoder
 {
 public:
-	FPixelStreamingVideoEncoder(const IPixelStreamingSessions* InPixelStreamingSessions, FEncoderContext* InContext);
+	FPixelStreamingVideoEncoder(IPixelStreamingSessions* InPixelStreamingSessions, FPixelStreamingVideoEncoderFactory& InFactory);
 	virtual ~FPixelStreamingVideoEncoder() override;
 
 	// WebRTC Interface
@@ -34,40 +35,30 @@ public:
 	// virtual void OnLossNotification(const LossNotification& loss_notification) override;
 	// End WebRTC Interface.
 
-	AVEncoder::FVideoEncoder::FLayerConfig GetConfig() const { return EncoderConfig; }
-
-	void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
-	FPlayerId GetPlayerId() const;
-	bool IsInitialized() const;
+	void SendEncodedImage(uint64 SourceEncoderId, webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
 	bool IsRegisteredWithWebRTC();
 
 	void ForceKeyFrame() { ForceNextKeyframe = true; }
 	int32_t GetSmoothedAverageQP() const;
+	
 
 private:
-	void UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& Config);
-	void HandlePendingRateChange();
-	void CreateAVEncoder(int Width, int Height);
+	void UpdateConfig();
 	AVEncoder::FVideoEncoder::FLayerConfig CreateEncoderConfigFromCVars(AVEncoder::FVideoEncoder::FLayerConfig BaseEncoderConfig) const;
+
+	// USed for checks such as whether a given player id is associated with the quality controlling player.
+	const IPixelStreamingSessions* PixelStreamingSessions = nullptr;
+
+	FPixelStreamingVideoEncoderFactory& Factory;
+
+	uint64 HardwareEncoderId;
 
 	// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
 	int32 WebRtcProposedTargetBitrate = 5000000; 
-	FEncoderContext* Context;
-
-	AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig;
 
 	webrtc::EncodedImageCallback* OnEncodedImageCallback = nullptr;
-	
-	// Note: Each encoder is associated with a player/peer.
-	// However, only one encoder controls the quality of the stream, all the others just get this peer's quality.
-	// The alternative is encoding separate streams for each peer, which is not tenable while NVENC sessions are limited.
-	FPlayerId OwnerPlayerId;
 
-	// This flag lets us force a keyframe through manually, it also lets us ensure the first encoded frame is a keyframe.
 	bool ForceNextKeyframe = true;
-
-	// USed for checks such as whether a given player id is associated with the quality controlling player.
-	const IPixelStreamingSessions* PixelStreamingSessions;
 
 	// WebRTC may request a bitrate/framerate change using SetRates(), we only respect this if this encoder is actually encoding
 	// so we use this optional object to store a rate change and act upon it when this encoder does its next call to Encode().

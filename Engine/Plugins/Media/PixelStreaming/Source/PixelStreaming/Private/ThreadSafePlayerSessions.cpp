@@ -94,7 +94,7 @@ void FThreadSafePlayerSessions::SetQualityController(FPlayerId PlayerId)
         FScopeLock Lock(&QualityControllerCS);
         this->QualityControllingPlayer = PlayerId;
     }
-
+    
     SUBMIT_TASK_WITH_PARAMS(SetQualityController_SignallingThread, PlayerId)
 }
 
@@ -166,6 +166,18 @@ void FThreadSafePlayerSessions::OnRemoteIceCandidate(FPlayerId PlayerId, const s
     SUBMIT_TASK_WITH_PARAMS(OnRemoteIceCandidate_SignallingThread, PlayerId, SdpMid, SdpMLineIndex, Sdp)
 }
 
+void FThreadSafePlayerSessions::OnAnswer(FPlayerId PlayerId, FString Sdp)
+{
+    if (this->IsInSignallingThread())
+    {
+        this->OnAnswer_SignallingThread(PlayerId, Sdp);
+    }
+    else
+    {
+        this->WebRtcSignallingThread->PostTask(RTC_FROM_HERE, [this, PlayerId, Sdp]() { this->OnAnswer_SignallingThread(PlayerId, Sdp); } );
+    }
+}
+
 /////////////////////////
 // Internal methods
 /////////////////////////
@@ -183,6 +195,21 @@ void FThreadSafePlayerSessions::OnRemoteIceCandidate_SignallingThread(FPlayerId 
 	{
 		UE_LOG(PixelStreamer, Log, TEXT("Could not pass remote ice candidate to player because Player %s no available."), *PlayerId);
 	}
+}
+
+void FThreadSafePlayerSessions::OnAnswer_SignallingThread(FPlayerId PlayerId, FString Sdp)
+{
+    checkf(this->IsInSignallingThread(), TEXT("This method must be called on the signalling thread."));
+
+    FPlayerSession* Player = this->GetPlayerSession_SignallingThread(PlayerId);
+    if(Player)
+    {
+        Player->OnAnswer(Sdp);
+    }
+    else
+    {
+        UE_LOG(PixelStreamer, Log, TEXT("Could not pass answer to player because Player %s no available."), *PlayerId);
+    }
 }
 
 IPixelStreamingAudioSink* FThreadSafePlayerSessions::GetUnlistenedAudioSink_SignallingThread() const
@@ -413,14 +440,14 @@ int FThreadSafePlayerSessions::DeletePlayerSession_SignallingThread(FPlayerId Pl
     Players.Remove(PlayerId);
 	delete Player;
 
-    // Player deleted, tell all our C++ listeners.
-    this->OnPlayerDeleted.Broadcast(PlayerId);
-
 	UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates();
 	if (Delegates)
 	{
 		Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
 	}
+
+    // Player deleted, tell all our C++ listeners.
+    this->OnPlayerDeleted.Broadcast(PlayerId);
 
 	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	if (Players.Num() == 0)

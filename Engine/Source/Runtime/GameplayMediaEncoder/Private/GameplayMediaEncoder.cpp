@@ -636,7 +636,7 @@ void FGameplayMediaEncoder::OnEncodedVideoFrame(uint32 LayerIndex, const AVEncod
 
 	packet.Timestamp = InputFrame->GetTimestampUs();
 	packet.Duration = 0; // This should probably be 1.0f / fps in ms
-	packet.Data = TArray<uint8>(Packet.Data, Packet.DataSize);
+	packet.Data = TArray<uint8>(Packet.Data.Get(), Packet.DataSize);
 	packet.Video.bKeyFrame = Packet.IsKeyFrame;
 	packet.Video.Width = InputFrame->GetWidth();
 	packet.Video.Height = InputFrame->GetHeight();

@@ -23,6 +23,7 @@ DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 	do\
 	{\
 		UE_LOG(LogPixelStreamingSS, Error, ErrorMsg, ##__VA_ARGS__);\
+		WS->Close(4000, FString::Printf(ErrorMsg, ##__VA_ARGS__));\
 		return;\
 	}\
 	while(false);
@@ -87,10 +88,11 @@ FSignallingServerConnection::~FSignallingServerConnection()
 	this->Disconnect();
 }
 
-void FSignallingServerConnection::SendOffer(const webrtc::SessionDescriptionInterface& SDP)
+void FSignallingServerConnection::SendOffer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP)
 {
 	FJsonObjectPtr OfferJson = MakeShared<FJsonObject>();
 	OfferJson->SetStringField(TEXT("type"), TEXT("offer"));
+	SetPlayerIdJson(OfferJson, PlayerId);
 
 	std::string SdpAnsi;
 	SDP.ToString(&SdpAnsi);
@@ -100,6 +102,22 @@ void FSignallingServerConnection::SendOffer(const webrtc::SessionDescriptionInte
 	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: offer\n%s"), *SdpStr);
 
 	WS->Send(ToString(OfferJson, false));
+}
+
+void FSignallingServerConnection::SendAnswer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP)
+{
+	FJsonObjectPtr AnswerJson = MakeShared<FJsonObject>();
+	AnswerJson->SetStringField(TEXT("type"), TEXT("answer"));
+	SetPlayerIdJson(AnswerJson, PlayerId);
+
+	std::string SdpAnsi;
+	verifyf(SDP.ToString(&SdpAnsi), TEXT("Failed to serialise local SDP"));
+	FString SdpStr = ToString(SdpAnsi);
+	AnswerJson->SetStringField(TEXT("sdp"), SdpStr);
+
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: answer\n%s"), *SdpStr);
+
+	WS->Send(ToString(AnswerJson, false));
 }
 
 void FSignallingServerConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPlayerId PlayerId)
@@ -136,22 +154,6 @@ bool FSignallingServerConnection::GetPlayerIdJson(const FJsonObjectPtr& Json, FP
 
 	UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to extracted player id offer json: %s"), *ToString(Json));
 	return false;
-}
-
-void FSignallingServerConnection::SendAnswer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP)
-{
-	FJsonObjectPtr AnswerJson = MakeShared<FJsonObject>();
-	AnswerJson->SetStringField(TEXT("type"), TEXT("answer"));
-	this->SetPlayerIdJson(AnswerJson, PlayerId);
-
-	std::string SdpAnsi;
-	verifyf(SDP.ToString(&SdpAnsi), TEXT("Failed to serialise local SDP"));
-	FString SdpStr = ToString(SdpAnsi);
-	AnswerJson->SetStringField(TEXT("sdp"), SdpStr);
-
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: answer\n%s"), *SdpStr);
-
-	WS->Send(ToString(AnswerJson, false));
 }
 
 void FSignallingServerConnection::SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate)
@@ -307,6 +309,10 @@ void FSignallingServerConnection::OnMessage(const FString& Msg)
 	{
 		OnPlayerCount(JsonMsg);
 	}
+	else if (MsgType == TEXT("playerConnected"))
+	{
+		OnPlayerConnected(JsonMsg);
+	}
 	else if (MsgType == TEXT("playerDisconnected"))
 	{
 		OnPlayerDisconnected(JsonMsg);
@@ -414,29 +420,14 @@ void FSignallingServerConnection::OnSessionDescription(const FJsonObjectPtr& Jso
 		HANDLE_SS_ERROR(TEXT("Cannot find `sdp` in Streamer's answer\n%s"), *ToString(Json));
 	}
 
-	webrtc::SdpParseError Error;
-	std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc =
-		webrtc::CreateSessionDescription(Type, to_string(Sdp), &Error);
-	if (!SessionDesc)
+	FPlayerId PlayerId;
+	bool bGotPlayerId = this->GetPlayerIdJson(Json, PlayerId);
+	if (!bGotPlayerId)
 	{
-		HANDLE_SS_ERROR(TEXT("Failed to parse answer's SDP\n%s"), *Sdp);
+		HANDLE_SS_ERROR(TEXT("Failed to get `playerId` from `offer/answer` message\n%s"), *ToString(Json));
 	}
 
-	if (Type == webrtc::SdpType::kOffer)
-	{
-		FPlayerId PlayerId;
-		bool bGotPlayerId = this->GetPlayerIdJson(Json, PlayerId);
-		if (!bGotPlayerId)
-		{
-			HANDLE_SS_ERROR(TEXT("Failed to get `playerId` from `offer` message\n%s"), *ToString(Json));
-		}
-
-		Observer.OnOffer(PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface>{SessionDesc.release()});
-	}
-	else
-	{
-		Observer.OnAnswer(TUniquePtr<webrtc::SessionDescriptionInterface>{SessionDesc.release()});
-	}
+	Observer.OnSessionDescription(PlayerId, Type, Sdp);
 }
 
 void FSignallingServerConnection::OnStreamerIceCandidate(const FJsonObjectPtr& Json)
@@ -520,6 +511,18 @@ void FSignallingServerConnection::OnPlayerCount(const FJsonObjectPtr& Json)
 	}
 
 	Observer.OnPlayerCount(Count);
+}
+
+void FSignallingServerConnection::OnPlayerConnected(const FJsonObjectPtr& Json)
+{
+	FPlayerId PlayerId;
+	bool bGotPlayerId = this->GetPlayerIdJson(Json, PlayerId);
+	if (!bGotPlayerId)
+	{
+		HANDLE_SS_ERROR(TEXT("Failed to get `playerId` from `join` message\n%s"), *ToString(Json));
+	}
+	const bool SupportsDataChannel = Json->GetBoolField(TEXT("dataChannel"));
+	Observer.OnPlayerConnected(PlayerId, SupportsDataChannel);
 }
 
 void FSignallingServerConnection::OnPlayerDisconnected(const FJsonObjectPtr& Json)
