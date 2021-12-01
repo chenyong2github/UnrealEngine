@@ -4,21 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
+#include "RenderGraphBuilder.h" // FRDGBuilder
+#include "RenderGraphDefinitions.h" // FRDGBufferSRVRef, FRDGBufferUAVRef
+#include "RenderGraphResources.h" // FRDGPooledBuffer
+#include "RHIDefinitions.h" // EBufferUsageFlags
+#include "Templates/RefCounting.h" // TRefCountPtr
 #include <algorithm>
 #include "NeuralTensor.generated.h"
 
-class FRDGBuilder;
-using FRDGBufferSRVRef = class FRDGBufferSRV*;
-using FRDGBufferUAVRef = class FRDGBufferUAV*;
-template<typename T> class TRefCountPtr;
-enum class EBufferUsageFlags : uint32;
-struct FTensorProto;
-
 /**
- * This is an auxiliary class. See UNeuralNetworkLegacy for a high-level wrapper of the whole NeuralNetworkInference plugin. The UNeuralNetworkLegacy header
+ * This is an auxiliary class. See UNeuralNetwork for a high-level wrapper of the whole NeuralNetworkInference plugin. The UNeuralNetwork header
  * documentation also includes some code examples.
  *
- * FNeuralTensor represents a tensor of the UNeuralNetworkLegacy model.
+ * FNeuralTensor represents a tensor of the UNeuralNetwork model.
  * Its CPU operations are very similar to those of TArray<T>. Most of its operations run on CPU, so `ToGPU_RenderThread()` must be called before running on
  * GPU and after running any FNeuralTensor function that modified the CPU memory.
  */
@@ -184,7 +182,7 @@ public:
 	 */
 	bool InitPooledBuffer(void** NativeResource = nullptr);
 
-	TRefCountPtr<class FRDGPooledBuffer>& GetPooledBuffer() const;
+	TRefCountPtr<FRDGPooledBuffer>& GetPooledBuffer() const;
 	const FRDGBufferSRVRef GetBufferSRVRef() const;
 	FRDGBufferUAVRef GetBufferUAVRef();
 
@@ -216,7 +214,7 @@ public:
 	 * It will fill the current neural tensor with the input FTensorProto.
 	 * @returns Whether the conversion was successful.
 	 */
-	bool SetFromTensorProto(const FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorType InTensorTypeGPU);
+	bool SetFromTensorProto(const struct FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorType InTensorTypeGPU);
 
 	/**
 	 * It sets all the elements of the FNeuralTensor to InValue.
@@ -281,7 +279,7 @@ private:
 	 * - ArrayCPUForGPUAs32Data: If ArrayCPU is meant for 64-byte data (i.e., int64, uint64, double).
 	 */
 	bool bEnableGPU;
-	TSharedPtr<TRefCountPtr<class FRDGPooledBuffer>> PooledBuffer;
+	TSharedPtr<TRefCountPtr<FRDGPooledBuffer>> PooledBuffer;
 	TSharedPtr<FRDGBufferSRVRef> BufferSRVRef;
 	TSharedPtr<FRDGBufferUAVRef> BufferUAVRef;
 	TArray<uint8> ArrayCPUForGPUAs32Data;

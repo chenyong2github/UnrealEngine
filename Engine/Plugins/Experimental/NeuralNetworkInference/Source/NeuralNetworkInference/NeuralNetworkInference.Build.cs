@@ -30,6 +30,7 @@ public class NeuralNetworkInference : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"NeuralNetworkInferenceProfiling",
+				"RenderCore",
 				// Internal (Backend-related)
 				"ModelProto"
 			}
@@ -41,7 +42,6 @@ public class NeuralNetworkInference : ModuleRules
 				// Backend-related
 				"ModelProtoFileReader",
 				"NeuralNetworkInferenceShaders",
-				"RenderCore",
 				"RHI",
 				"RHICore",
 				// ORT-related

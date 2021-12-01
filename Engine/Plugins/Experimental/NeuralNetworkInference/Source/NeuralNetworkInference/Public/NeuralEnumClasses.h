@@ -8,7 +8,7 @@
 #include "NeuralEnumClasses.generated.h"
 
 /**
- * It defines the data type (float, double, int32, etc.).
+ * It defines the data type (e.g., float, double, int32).
  */
 UENUM()
 enum class ENeuralDataType : uint8
