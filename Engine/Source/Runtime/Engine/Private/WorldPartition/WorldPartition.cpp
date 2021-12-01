@@ -1354,7 +1354,9 @@ FBox UWorldPartition::GetWorldBounds() const
 
 FBox UWorldPartition::GetEditorWorldBounds() const
 {
-	return EditorHash->GetEditorWorldBounds();
+	// This is not a valid call in PIE
+	check(EditorHash);
+	return EditorHash ? EditorHash->GetEditorWorldBounds() : FBox(EForceInit::ForceInit);
 }
 #endif
 
