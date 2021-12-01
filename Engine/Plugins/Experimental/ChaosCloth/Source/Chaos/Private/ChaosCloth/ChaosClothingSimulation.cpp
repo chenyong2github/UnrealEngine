@@ -616,10 +616,10 @@ void FClothingSimulation::GetSimulationData(
 	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 	{
 		const int32 AssetIndex = Cloth->GetGroupId();
-		FClothSimulData& Data = OutData.FindOrAdd(AssetIndex);
 
 		if (!Cloth->GetMesh())
 		{
+			OutData.Remove(AssetIndex);  // Ensures that the cloth vertex factory won't run unnecessarily
 			continue;  // Invalid or empty cloth
 		}
 
@@ -633,6 +633,7 @@ void FClothingSimulation::GetSimulationData(
 
 		if (Cloth->GetOffset(Solver.Get()) == INDEX_NONE || Cloth->GetLODIndex(Solver.Get()) == INDEX_NONE)
 		{
+			OutData.Remove(AssetIndex);  // Ensures that the cloth vertex factory won't run unnecessarily
 			continue;  // No valid LOD, there's nothing to write out
 		}
 
@@ -652,6 +653,7 @@ void FClothingSimulation::GetSimulationData(
 		ReferenceBoneTransform.SetScale3D(FVector(1.0f));  // Scale is already baked in the cloth mesh
 
 		// Set the world space transform to be this cloth's reference bone
+		FClothSimulData& Data = OutData.FindOrAdd(AssetIndex);
 		Data.Transform = ReferenceBoneTransform;
 		Data.ComponentRelativeTransform = ReferenceBoneTransform.GetRelativeTransform(OwnerTransform);
 

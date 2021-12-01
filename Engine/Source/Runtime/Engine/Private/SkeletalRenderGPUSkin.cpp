@@ -673,7 +673,8 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 		for (int32 SectionIdx = 0; SectionIdx < Sections.Num(); SectionIdx++)
 		{
 			const FSkelMeshRenderSection& Section = Sections[SectionIdx];
-			const bool bClothFactory = bClothEnabled && (DynamicData->ClothingSimData.Num() > 0) && Section.HasClothingData();
+			const FClothSimulData* const SimData = DynamicData->ClothingSimData.Find(Section.CorrespondClothAssetIndex);
+			const bool bClothFactory = bClothEnabled && SimData && Section.HasClothingData();
 
 			FGPUBaseSkinVertexFactory* VertexFactory;
 			{
@@ -743,12 +744,9 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 			{				
 				FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType& ClothShaderData = VertexFactoryData.ClothVertexFactories[SectionIdx]->GetClothShaderData();
 				ClothShaderData.ClothBlendWeight = DynamicData->ClothBlendWeight;
-				int16 ActorIdx = Section.CorrespondClothAssetIndex;
-				if(FClothSimulData* SimData = DynamicData->ClothingSimData.Find(ActorIdx))
-				{
-					bNeedFence = ClothShaderData.UpdateClothSimulData(RHICmdList, DynamicData->ClothingSimData[ActorIdx].Positions, DynamicData->ClothingSimData[ActorIdx].Normals, FrameNumberToPrepare, FeatureLevel) || bNeedFence;
-					ClothShaderData.GetClothLocalToWorldForWriting(FrameNumberToPrepare) = DynamicData->ClothingSimData[ActorIdx].ComponentRelativeTransform.ToMatrixWithScale() * DynamicData->ClothObjectLocalToWorld;
-				}
+
+				bNeedFence = ClothShaderData.UpdateClothSimulData(RHICmdList, SimData->Positions, SimData->Normals, FrameNumberToPrepare, FeatureLevel) || bNeedFence;
+				ClothShaderData.GetClothLocalToWorldForWriting(FrameNumberToPrepare) = SimData->ComponentRelativeTransform.ToMatrixWithScale() * DynamicData->ClothObjectLocalToWorld;
 			}
 #endif // WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
