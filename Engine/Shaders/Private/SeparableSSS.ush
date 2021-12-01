@@ -177,6 +177,53 @@ float3 SSSSTransmittance(float translucency, float sssWidth, float3 worldPositio
 }
 
 //-----------------------------------------------------------------------------
+// Query the kernel for both strata and the SSS profile
+struct FSeparableFilterParameters
+{
+#if STRATA_ENABLED
+	float3 D3D;
+	float ScatterRadius;
+	float WorldUnitScale;
+#endif
+	uint SubsurfaceProfileInt;
+};
+
+#if STRATA_ENABLED
+void FillBurleyParameters(FStrataSubsurfaceData SSSData,
+	inout FSeparableFilterParameters Parameters)
+{
+	const FBurleyParameter BurleyParameter = GetBurleyParameters(SSSData);
+	const float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo.xyz);
+
+	Parameters.D3D = BurleyParameter.DiffuseMeanFreePath.xyz / S3D.xyz;
+	Parameters.ScatterRadius = BurleyParameter.DiffuseMeanFreePath.w;
+	Parameters.WorldUnitScale = BurleyParameter.WorldUnitScale;
+}
+#endif
+
+half4 GetSubsurfaceProfileKernel(uint index, FSeparableFilterParameters Parameters)
+{
+	half4 Kernel = (half4)0.0f;
+#if STRATA_ENABLED
+	if (Parameters.SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL)
+	{
+		Kernel = GetSubsurfaceProfileKernel(index, Parameters.D3D, 
+											Parameters.ScatterRadius, 
+											Parameters.WorldUnitScale);
+	}
+	else
+	{
+		Kernel = GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + index,
+											Parameters.SubsurfaceProfileInt);
+	}
+#else
+	Kernel = GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + index, 
+										Parameters.SubsurfaceProfileInt);
+#endif
+	return Kernel;
+}
+
+//-----------------------------------------------------------------------------
 // Separable SSS Reflectance Pixel Shader
 
 // @param texcoord The usual quad texture coordinates.
@@ -218,17 +265,21 @@ float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil
 	// ideally this comes from a half res buffer as well - there are some minor artifacts
 	finalStep *= SSSStrength; // Modulate it using the opacity (0..1 range)
     
+	FSeparableFilterParameters SeparableFilterParameters;
+
 #if STRATA_ENABLED
 	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
 	// For SSS_PROFILE_ID_PERPIXEL is managed throught the burley passes
-	const uint SubsurfaceProfileInt = SSSData.bIsProfile ? SSSData.ProfileId : SSS_PROFILE_ID_INVALID;
+	const uint SubsurfaceProfileInt = SSSData.bIsProfile ? SSSData.ProfileId : SSS_PROFILE_ID_PERPIXEL;
+	SeparableFilterParameters.SubsurfaceProfileInt = SubsurfaceProfileInt;
+	FillBurleyParameters(SSSData, SeparableFilterParameters);
 #else
 	const FGBufferData GBufferData = GetGBufferData(BufferUV);
 	// 0..255, which SubSurface profile to pick
 	// ideally this comes from a half res buffer as well - there are some minor artifacts
 	const uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
+	SeparableFilterParameters.SubsurfaceProfileInt = SubsurfaceProfileInt;
 #endif
-
 
     // Accumulate the center sample:
     float3 colorAccum = 0;
@@ -236,9 +287,10 @@ float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil
 	float3 colorInvDiv = 0.00001f;
 
 	// center sample
-	colorInvDiv += GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
-	colorAccum = colorM.rgb * GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
+	half3  CentralKernelWeight = GetSubsurfaceProfileKernel(0, SeparableFilterParameters).rgb;
 
+	colorInvDiv += CentralKernelWeight;
+	colorAccum = colorM.rgb * CentralKernelWeight;
 	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(SubsurfaceProfileInt);
 
 	// Accumulate the other samples:
@@ -246,7 +298,7 @@ float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil
 	for (int i = 1; i < SSSS_N_KERNELWEIGHTCOUNT; i++) 
 	{
 		// Kernel.a = 0..SUBSURFACE_KERNEL_SIZE (radius)
-		half4 Kernel = GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + i, SubsurfaceProfileInt);
+		half4 Kernel = GetSubsurfaceProfileKernel(i, SeparableFilterParameters);
 
 		float4 LocalAccum = 0;
 

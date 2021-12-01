@@ -69,7 +69,8 @@ void MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(float FalloffColor, flo
 // Average relative error: 5.5% (reference to MC)
 float GetPerpendicularScalingFactor(float SurfaceAlbedo)
 {
-	return 1.85 - SurfaceAlbedo + 7 * FMath::Pow(SurfaceAlbedo - 0.8, 3);
+	// add abs() to match the formula in the original paper. 
+	return 1.85 - SurfaceAlbedo + 7 * FMath::Pow(FMath::Abs(SurfaceAlbedo - 0.8), 3);
 }
 
 FVector GetPerpendicularScalingFactor(FLinearColor SurfaceAlbedo)

@@ -175,6 +175,11 @@ float3 GetScalingFactor3D(float3 SurfaceAlbedo)
 	return S3D;
 }
 
+float3 GetCDF3D(float3 D, float X)
+{
+	return 1 - 0.25 * exp(-X / D) - 0.75 * exp(-X / (3 * D));
+}
+
 //@TODO Revisit here after offline comparison.
 //call this function in TransmissionCommon.ush for Debug. No transmission tint is applied.
 
@@ -235,4 +240,28 @@ float3 GetBurleyTransmissionProfile(
 	const float FadeDistance = 1.0f - saturate(ThicknessInCm * SSSS_TRANSMISSION_PROFILE_SIZE - SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (SSSS_TRANSMISSION_PROFILE_SIZE - 0.5f));
 
 	return TransmissionThroughput * FadeDistance;
+}
+
+struct FBurleyParameter
+{
+	float4 SurfaceAlbedo;
+	float4 DiffuseMeanFreePath;
+	float  WorldUnitScale;
+	float  SurfaceOpacity; // 1.0 means full Burley, 0.0 means full Default Lit
+};
+
+//Surface albedo and mean free path length
+float4 GetSubsurfaceProfileSurfaceAlbedo(uint SubsurfaceProfileInt)
+{
+	return View.SSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0));
+}
+
+float4 GetSubsurfaceProfileDiffuseMeanFreePath(uint SubsurfaceProfileInt)
+{
+	return View.SSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0));
+}
+
+float GetSubsurfaceProfileWorldUnitScale(uint SubsurfaceProfileInt)
+{
+	return View.SSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt, 0)).a;
 }
