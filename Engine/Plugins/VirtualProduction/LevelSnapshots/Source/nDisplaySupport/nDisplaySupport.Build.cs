@@ -7,7 +7,6 @@ public class nDisplaySupport : ModuleRules
 	public nDisplaySupport(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		ShortName = "nDisplaySnapshots";
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
