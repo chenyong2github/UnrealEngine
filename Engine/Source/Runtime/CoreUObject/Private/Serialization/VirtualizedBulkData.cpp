@@ -1636,7 +1636,7 @@ FVirtualizedUntypedBulkData::EFlags FVirtualizedUntypedBulkData::BuildFlagsForSe
 		}
 
 		// If we are re-hydrating packages on save then we need to remove the virtualization flag
-		if (bAllowVirtualizationOnSave == false && LinkerSave != nullptr)
+		if (LinkerSave != nullptr && bAllowVirtualizationOnSave == false)
 		{
 			EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
 		}
