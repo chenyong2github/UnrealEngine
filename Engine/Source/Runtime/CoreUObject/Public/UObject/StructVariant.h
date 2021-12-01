@@ -42,6 +42,17 @@ public:
 	bool Identical(const FStructVariant* InOther, uint32 PortFlags) const;
 
 	/**
+	 * Import/ExportText.
+	 */
+	bool ExportTextItem(FString& ValueStr, const FStructVariant& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+
+	/**
+	 * Reference collection.
+	 */
+	void AddStructReferencedObjects(class FReferenceCollector& Collector);
+
+	/**
 	 * Get the struct type of this variant.
 	 */
 	const UScriptStruct* GetStructType() const;
@@ -160,6 +171,9 @@ struct TStructOpsTypeTraits<FStructVariant> : public TStructOpsTypeTraitsBase2<F
 	enum
 	{
 		WithIdentical = true,
+		WithExportTextItem = true,
+		WithImportTextItem = true,
+		WithAddStructReferencedObjects = true,
 		WithStructuredSerializer = true,
 		WithGetPreloadDependencies = true,
 	};
