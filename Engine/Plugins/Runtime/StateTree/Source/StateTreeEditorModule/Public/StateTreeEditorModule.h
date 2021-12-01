@@ -9,6 +9,7 @@
 class UStateTree;
 class IStateTreeEditor;
 class FAssetTypeActions_Base;
+struct FStateTreeNodeClassCache;
 
 /**
 * The public interface to this module
@@ -26,9 +27,13 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
 
+	TSharedPtr<FStateTreeNodeClassCache> GetNodeClassCache() const { return NodeClassCache; }
+	
 protected:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 
 	TArray<TSharedPtr<FAssetTypeActions_Base>> ItemDataAssetTypeActions;
+
+	TSharedPtr<FStateTreeNodeClassCache> NodeClassCache;
 };

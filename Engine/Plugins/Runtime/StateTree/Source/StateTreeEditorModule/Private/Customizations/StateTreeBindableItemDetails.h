@@ -41,16 +41,13 @@ private:
 	void OnNameCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	bool IsNameEnabled() const;
 
-	const UScriptStruct* GetCommonItemScriptStruct() const;
+	const struct FStateTreeItem* GetCommonItem() const;
 	FText GetDisplayValueString() const;
 	const FSlateBrush* GetDisplayValueIcon() const;
 
 	TSharedRef<SWidget> GeneratePicker();
 
-	TSharedRef<SWidget> GenerateStructPicker();
 	void OnStructPicked(const UScriptStruct* InStruct);
-
-	TSharedRef<SWidget> GenerateClassPicker();
 	void OnClassPicked(UClass* InClass);
 
 	void OnIdentifierChanged(const UStateTree& StateTree);

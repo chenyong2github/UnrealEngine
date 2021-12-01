@@ -21,7 +21,7 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 
 	virtual ~FStateTreeTaskBase() {}
 
-	/** @return Struct that represents the runtime data of the evaluator. */
+	/** @return Struct that represents the runtime data of the task. */
 	virtual const UStruct* GetInstanceDataType() const { return nullptr; };
 
 	/**
