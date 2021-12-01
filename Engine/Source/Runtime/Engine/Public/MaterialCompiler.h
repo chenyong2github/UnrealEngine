@@ -455,6 +455,7 @@ public:
 		int32 Thickness,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro) = 0;
 	virtual int32 StrataConversionFromLegacy(
+		bool bHasDynamicShadingModels,
 		int32 BaseColor, int32 Specular, int32 Metallic,
 		int32 Roughness, int32 Anisotropy,
 		int32 SubSurfaceColor, int32 SubSurfaceProfileId,
@@ -994,6 +995,7 @@ public:
 	}
 
 	virtual int32 StrataConversionFromLegacy(
+		bool bHasDynamicShadingModels,
 		int32 BaseColor, int32 Specular, int32 Metallic,
 		int32 Roughness, int32 Anisotropy,
 		int32 SubSurfaceColor, int32 SubSurfaceProfileId,
@@ -1007,6 +1009,7 @@ public:
 		int32 ClearCoat_Normal, int32 ClearCoat_Tangent, const FString& ClearCoat_SharedLocalBasisIndexMacro) override
 	{
 		return Compiler->StrataConversionFromLegacy(
+			bHasDynamicShadingModels,
 			BaseColor, Specular, Metallic,
 			Roughness, Anisotropy,
 			SubSurfaceColor, SubSurfaceProfileId,
