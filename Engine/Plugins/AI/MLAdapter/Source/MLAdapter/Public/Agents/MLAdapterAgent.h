@@ -23,7 +23,7 @@ struct FMLAdapterParameterMap
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = MLAdapter)
 	TMap<FName, FString> Params;
 };
 

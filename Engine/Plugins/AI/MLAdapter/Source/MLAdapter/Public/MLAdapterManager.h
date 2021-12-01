@@ -119,6 +119,8 @@ protected:
 
 	void AddCommonFunctions(FRPCServer& Server);
 
+	virtual bool ShouldInitForWorld(const UWorld& World) const;
+
 protected:	
 	friend struct FMLAdapterConsoleCommands::FHelper;
 
