@@ -9525,6 +9525,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 }
 
 int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
+	bool bHasDynamicShadingModels,
 	int32 BaseColor, int32 Specular, int32 Metallic,
 	int32 Roughness, int32 Anisotropy,
 	int32 SubSurfaceColor, int32 SubSurfaceProfileId,
@@ -9544,7 +9545,8 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 	const FString ClearCoat_TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(ClearCoat_Tangent) : TEXT("NONE");
 
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataConvertLegacyMaterial(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),
+		MCT_Strata, TEXT("StrataConvertLegacyMaterial%s(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),
+		bHasDynamicShadingModels ? TEXT("Dynamic") : TEXT("Static"),
 		*GetParameterCode(BaseColor), *GetParameterCode(Specular), *GetParameterCode(Metallic),
 		*GetParameterCode(Roughness), *GetParameterCode(Anisotropy),
 		*GetParameterCode(SubSurfaceColor), *GetParameterCode(SubSurfaceProfileId),

@@ -42,6 +42,7 @@
 #include "Engine/TextureCubeArray.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/VolumeTexture.h"
+#include "Engine/SubsurfaceProfile.h"
 #include "Styling/CoreStyle.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -20235,12 +20236,13 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 	const bool bHasSSS = HasSSS();
 	if (bHasSSS)
 	{
-		FName NameSubsurfaceProfile(FString(TEXT("__SubsurfaceProfile")));
-		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(NameSubsurfaceProfile, 1.0f), MCT_Float1);
+		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(GetSubsurfaceProfileParameterName(), 1.0f), MCT_Float1);
 	}
 
+	const bool bHasDynamicShadingModels = ConvertedStrataMaterialInfo.CountShadingModels() > 1;
 	// We probably need to do something along these line as well :::
 	int32 OutputCodeChunk = Compiler->StrataConversionFromLegacy(
+		bHasDynamicShadingModels,
 		// Metalness workflow
 		CompileWithDefaultFloat3(Compiler, BaseColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Specular, 0.5f),
@@ -20549,8 +20551,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	const bool bHasSSS = HasSSS();
 	if (bHasSSS)
 	{
-		FName NameSubsurfaceProfile(FString(TEXT("__SubsurfaceProfile")));
-		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(NameSubsurfaceProfile, 1.0f), MCT_Float1);
+		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(GetSubsurfaceProfileParameterName(), 1.0f), MCT_Float1);
 	}
 
 	auto DielectricSpecularToF0 = [](float SpecularIn)

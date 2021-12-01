@@ -1014,6 +1014,7 @@ protected:
 		int32 Thickness,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro) override;
 	virtual int32 StrataConversionFromLegacy(
+		bool bHasDynamicShadingModel,
 		int32 BaseColor, int32 Specular, int32 Metallic,
 		int32 Roughness, int32 Anisotropy,
 		int32 SubSurfaceColor, int32 SubSurfaceProfileId,
