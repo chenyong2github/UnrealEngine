@@ -107,7 +107,7 @@ void FixSubObjectReferencesPostUndoRedo(UObject* InObject)
 		}
 	}
 
-	FArchiveReplaceObjectRef<UObject> Replacer(InObject, OldToNewInstanceMap, false, false, false, false);
+	FArchiveReplaceObjectRef<UObject> Replacer(InObject, OldToNewInstanceMap);
 }
 
 void FixSubObjectReferencesPostUndoRedo(const FTransaction* Transaction)

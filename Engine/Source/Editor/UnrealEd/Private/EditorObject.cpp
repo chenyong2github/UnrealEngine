@@ -614,7 +614,7 @@ static const TCHAR* ImportProperties(
 				{
 					ReplacementMap.Add(OldComponent, ComponentTemplate);
 				}
-				FArchiveReplaceObjectRef<UObject> ReplaceAr(SubobjectOuter, ReplacementMap, false, false, true);
+				FArchiveReplaceObjectRef<UObject> ReplaceAr(SubobjectOuter, ReplacementMap, EArchiveReplaceObjectFlags::IgnoreArchetypeRef);
 
 				// import the properties for the subobject
 				SourceText = ImportObjectProperties(

@@ -5136,23 +5136,24 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 
 	for (UObject* Referencer : ReferencedLevels)
 	{
-		FArchiveReplaceObjectRef<AActor> Ar(Referencer, ConvertedMap, false, true, false);
+		constexpr EArchiveReplaceObjectFlags ArFlags = (EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::TrackReplacedReferences);
+		FArchiveReplaceObjectRef<AActor> Ar(Referencer, ConvertedMap, ArFlags);
 
-	for (const auto& MapItem : Ar.GetReplacedReferences())
-	{
-		UObject* ModifiedObject = MapItem.Key;
-
-		if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
+		for (const TPair<UObject*, TArray<FProperty*>>& MapItem : Ar.GetReplacedReferences())
 		{
-			ModifiedObject->MarkPackageDirty();
-		}
+			UObject* ModifiedObject = MapItem.Key;
 
-		for (FProperty* Property : MapItem.Value)
-		{
-			FPropertyChangedEvent PropertyEvent(Property);
-			ModifiedObject->PostEditChangeProperty(PropertyEvent);
+			if (!ModifiedObject->HasAnyFlags(RF_Transient) && ModifiedObject->GetOutermost() != GetTransientPackage() && !ModifiedObject->RootPackageHasAnyFlags(PKG_CompiledIn))
+			{
+				ModifiedObject->MarkPackageDirty();
+			}
+
+			for (FProperty* Property : MapItem.Value)
+			{
+				FPropertyChangedEvent PropertyEvent(Property);
+				ModifiedObject->PostEditChangeProperty(PropertyEvent);
+			}
 		}
-	}
 	}
 
 	RedrawLevelEditingViewports();

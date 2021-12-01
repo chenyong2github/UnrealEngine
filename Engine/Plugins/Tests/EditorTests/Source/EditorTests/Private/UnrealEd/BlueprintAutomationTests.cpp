@@ -896,7 +896,7 @@ bool FBlueprintCompileOnLoadTest::RunTest(const FString& BlueprintAssetPath)
 	{
 		TArray<UObject*> InitialBlueprintSubobjectsPtr;
 		GetObjectsWithOuter(InitialBlueprint, InitialBlueprintSubobjectsPtr);
-		for (auto Obj : InitialBlueprintSubobjectsPtr)
+		for (UObject* Obj : InitialBlueprintSubobjectsPtr)
 		{
 			InitialBlueprintSubobjects.Add(Obj);
 		}
@@ -907,7 +907,7 @@ bool FBlueprintCompileOnLoadTest::RunTest(const FString& BlueprintAssetPath)
 	{
 		TArray<UBlueprint*> DependentBlueprints;
 		FBlueprintEditorUtils::FindDependentBlueprints(InitialBlueprint, DependentBlueprints);
-		for (auto BP : DependentBlueprints)
+		for (UBlueprint* BP : DependentBlueprints)
 		{
 			BlueprintDependencies.Add(BP);
 		}
@@ -921,10 +921,10 @@ bool FBlueprintCompileOnLoadTest::RunTest(const FString& BlueprintAssetPath)
 		FSoftObjectPath BlueprintAsset;
 	};
 	TArray<FReplaceInnerData> ReplaceInnerData;
-	for (auto BPToUnloadWP : BlueprintDependencies)
+	for (TWeakObjectPtr<UBlueprint>& BPToUnloadWP : BlueprintDependencies)
 	{
-		auto BPToUnload = BPToUnloadWP.Get();
-		auto OldClass = BPToUnload ? *BPToUnload->GeneratedClass : NULL;
+		UBlueprint* BPToUnload = BPToUnloadWP.Get();
+		UClass* OldClass = BPToUnload ? *BPToUnload->GeneratedClass : nullptr;
 		if (OldClass)
 		{
 			FReplaceInnerData Data;
@@ -947,9 +947,9 @@ bool FBlueprintCompileOnLoadTest::RunTest(const FString& BlueprintAssetPath)
 	//UNLOAD DEPENDENCIES, all circular dependencies will be loaded again 
 	// unload the blueprint so we can reload it (to catch any differences, now  
 	// that all its dependencies should be loaded as well)
-	for (auto BPToUnloadWP : BlueprintDependencies)
+	for (TWeakObjectPtr<UBlueprint> BPToUnloadWP : BlueprintDependencies)
 	{
-		if (auto BPToUnload = BPToUnloadWP.Get())
+		if (UBlueprint* BPToUnload = BPToUnloadWP.Get())
 		{
 			FBlueprintAutomationTestUtilities::UnloadBlueprint(BPToUnload);
 		}
@@ -973,7 +973,7 @@ bool FBlueprintCompileOnLoadTest::RunTest(const FString& BlueprintAssetPath)
 	FObjectReader(InitialBlueprint, InitialLoadData);
 	{
 		TMap<UObject*, UObject*> ClassRedirects;
-		for (auto& Data : ReplaceInnerData)
+		for (FReplaceInnerData& Data : ReplaceInnerData)
 		{
 			UClass* OriginalClass = Data.Class.Get();
 			UBlueprint* NewBlueprint = Cast<UBlueprint>(Data.BlueprintAsset.ResolveObject());
@@ -984,12 +984,12 @@ bool FBlueprintCompileOnLoadTest::RunTest(const FString& BlueprintAssetPath)
 			}
 		}
 		// REPLACE OLD DATA
-		FArchiveReplaceObjectRef<UObject>(InitialBlueprint, ClassRedirects, /*bNullPrivateRefs=*/false, /*bIgnoreOuterRef=*/true, /*bIgnoreArchetypeRef=*/false);
-		for (auto SubobjWP : InitialBlueprintSubobjects)
+		FArchiveReplaceObjectRef<UObject>(InitialBlueprint, ClassRedirects, EArchiveReplaceObjectFlags::IgnoreOuterRef);
+		for (TWeakObjectPtr<UObject>& SubobjWP : InitialBlueprintSubobjects)
 		{
-			if (auto Subobj = SubobjWP.Get())
+			if (UObject* Subobj = SubobjWP.Get())
 			{
-				FArchiveReplaceObjectRef<UObject>(Subobj, ClassRedirects, /*bNullPrivateRefs=*/false, /*bIgnoreOuterRef=*/true, /*bIgnoreArchetypeRef=*/false);
+				FArchiveReplaceObjectRef<UObject>(Subobj, ClassRedirects, EArchiveReplaceObjectFlags::IgnoreOuterRef);
 			}
 		}
 	}

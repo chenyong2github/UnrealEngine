@@ -177,7 +177,7 @@ void FAutomationEditorCommonUtils::NullReferencesToObject(UObject* InObject)
 		UObject* CurReplaceObj = MapIter.Key();
 		const TArray<FProperty*>& RefPropArray = MapIter.Value();
 
-		FArchiveReplaceObjectRef<UObject> ReplaceAr(CurReplaceObj, ReplacementMap, false, true, false);
+		FArchiveReplaceObjectRef<UObject> ReplaceAr(CurReplaceObj, ReplacementMap, EArchiveReplaceObjectFlags::IgnoreOuterRef);
 
 		for (TArray<FProperty*>::TConstIterator RefPropIter(RefPropArray); RefPropIter; ++RefPropIter)
 		{

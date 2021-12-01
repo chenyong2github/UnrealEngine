@@ -2273,7 +2273,7 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 					{
 						TMap<UClass*, UClass*> ReplaceMap;
 						ReplaceMap.Add(ClassToReplace, ReplaceWithClass);
-						FArchiveReplaceObjectRef<UClass> ReplaceAr(OldObject, ReplaceMap, false, false, false);
+						FArchiveReplaceObjectRef<UClass> ReplaceAr(OldObject, ReplaceMap);
 						if( ReplaceAr.GetCount() > 0 )
 						{
 							UE_LOG(LogPackageUtilities, Display, TEXT("Replaced %i class references in an Object: %s"), ReplaceAr.GetCount(), *OldObject->GetName() );
@@ -2358,7 +2358,7 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 						// check for any references to the old Actor and replace them with the new one
 						TMap<AActor*, AActor*> ReplaceMap;
 						ReplaceMap.Add(OldActor, NewActor);
-						FArchiveReplaceObjectRef<AActor> ReplaceAr(World, ReplaceMap, false, false, false);
+						FArchiveReplaceObjectRef<AActor> ReplaceAr(World, ReplaceMap);
 						if (ReplaceAr.GetCount() > 0)
 						{
 							UE_LOG(LogPackageUtilities, Display, TEXT("Replaced %i actor references in %s"), ReplaceAr.GetCount(), *It->GetName());
@@ -2370,7 +2370,7 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 						// check for any references to the old class and replace them with the new one
 						TMap<UClass*, UClass*> ReplaceMap;
 						ReplaceMap.Add(ClassToReplace, ReplaceWithClass);
-						FArchiveReplaceObjectRef<UClass> ReplaceAr(*It, ReplaceMap, false, false, false);
+						FArchiveReplaceObjectRef<UClass> ReplaceAr(*It, ReplaceMap);
 						if (ReplaceAr.GetCount() > 0)
 						{
 							UE_LOG(LogPackageUtilities, Display, TEXT("Replaced %i class references in actor %s"), ReplaceAr.GetCount(), *It->GetName());

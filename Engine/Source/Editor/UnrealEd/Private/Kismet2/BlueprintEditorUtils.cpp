@@ -2009,7 +2009,7 @@ void FBlueprintEditorUtils::PostDuplicateBlueprint(UBlueprint* Blueprint, bool b
 				FBPCompileRequest(Blueprint, BPCompileOptions, nullptr)
 			);
 
-			FArchiveReplaceObjectRef<UObject> ReplaceTemplateRefs(NewBPGC, OldToNewMap, /*bNullPrivateRefs=*/ false, /*bIgnoreOuterRef=*/ false, /*bIgnoreArchetypeRef=*/ false);
+			FArchiveReplaceObjectRef<UObject> ReplaceTemplateRefs(NewBPGC, OldToNewMap);
 
 			// Now propagate the values from the old CDO to the new one
 			check(Blueprint->SkeletonGeneratedClass != nullptr);

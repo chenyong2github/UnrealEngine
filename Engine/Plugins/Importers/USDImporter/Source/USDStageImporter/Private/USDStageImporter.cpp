@@ -1003,15 +1003,8 @@ namespace UsdStageImporterImpl
 				continue;
 			}
 
-			constexpr bool bNullPrivateRefs = false;
-			constexpr bool bIgnoreOuterRef = true;
-			constexpr bool bIgnoreArchetypeRef = true;
-			FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRefInner(
-				Referencer,
-				ObjectsToRemap,
-				bNullPrivateRefs,
-				bIgnoreOuterRef,
-				bIgnoreArchetypeRef);
+			constexpr EArchiveReplaceObjectFlags ReplaceFlags = (EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::IgnoreArchetypeRef);
+			FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRefInner(Referencer,ObjectsToRemap, ReplaceFlags);
 		}
 	}
 
