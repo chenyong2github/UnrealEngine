@@ -384,8 +384,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check to see if any BuildConfiguration files have changed since the last build
-				List<XmlConfig.InputFile> InputFiles = XmlConfig.FindInputFiles();
-				foreach (XmlConfig.InputFile InputFile in InputFiles)
+				foreach (XmlConfig.InputFile InputFile in XmlConfig.InputFiles)
 				{
 					FileInfo InputFileInfo = new FileInfo(InputFile.Location.FullName);
 					if (InputFileInfo.LastWriteTime > MakefileInfo.LastWriteTime)
