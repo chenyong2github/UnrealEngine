@@ -9,6 +9,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SSegmentedControl.h"
 
 
