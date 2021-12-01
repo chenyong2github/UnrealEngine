@@ -269,45 +269,45 @@ void FNeuralTensor::SetTensorTypeGPU(const ENeuralTensorType InTensorTypeGPU)
 
 void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder)
 {
-// @todo: Volatile or not adding BUF_ShaderResource causes this error:
+// @todo: Volatile or not adding EBufferUsageFlags::ShaderResource causes this error:
 //Fatal error: [File:D:/P4/private_dh_research_pitt/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11Util.cpp] [Line: 258] 
 //Result failed 
 // at D:/P4/private_dh_research_pitt/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11VertexBuffer.cpp:109 
 // with error E_INVALIDARG
 	// Idea:
-	// - BUF_Volatile: Updated multiple times in a frame, but does not imply a lifetime of 1 frame. E.g. a vertex buffer you update every frame with new vertices.
-	// - BUF_Transient: Used during 1 frame. Volatile and transient are not mutually exclusive.
-	// - BUF_KeepCPUAccessible: Not needed, I can just copy the final GPU memory back to RAM at the very end
+	// - EBufferUsageFlags::Volatile: Updated multiple times in a frame, but does not imply a lifetime of 1 frame. E.g. a vertex buffer you update every frame with new vertices.
+	// - EBufferUsageFlags::Transient: Used during 1 frame. Volatile and transient are not mutually exclusive.
+	// - EBufferUsageFlags::KeepCPUAccessible: Not needed, I can just copy the final GPU memory back to RAM at the very end
 	// - Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor fed into a ReLU, which simply modifies
 	//   the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory from CPU to GPU but rather simply allocates it.
 	// - Output might also become Intermediate(Not)Initialized (e.g., if Output -> ReLU -> Output), so it is kept as ReadWrite rather than written once to account for this.
 	// Call ToGPU_RenderThread with the right flags
 	if (TensorTypeGPU == ENeuralTensorType::Generic)
 	{
-		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, true);
+		return ToGPU_RenderThread(InOutGraphBuilder, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess, true);
 	}
 	else if (TensorTypeGPU == ENeuralTensorType::Input)
 	{
-		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, true);
+		return ToGPU_RenderThread(InOutGraphBuilder, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess, true);
 	}
 	else if (TensorTypeGPU == ENeuralTensorType::IntermediateNotInitialized)
 	{
-		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess | BUF_Transient, false);
+		return ToGPU_RenderThread(InOutGraphBuilder, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::Transient, false);
 	}
 	else if (TensorTypeGPU == ENeuralTensorType::IntermediateInitialized)
 	{
-		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, true);
+		return ToGPU_RenderThread(InOutGraphBuilder, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess, true);
 	}
 	else if (TensorTypeGPU == ENeuralTensorType::Output)
 	{
-		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_UnorderedAccess, false);
+		return ToGPU_RenderThread(InOutGraphBuilder, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess, false);
 	}
 	else if (TensorTypeGPU == ENeuralTensorType::Weight)
 	{
-		return ToGPU_RenderThread(InOutGraphBuilder, BUF_ShaderResource | BUF_Static, true);
+		return ToGPU_RenderThread(InOutGraphBuilder, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::Static, true);
 	}
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): Unimplemented TensorTypeGPU = %d. Assuming ENeuralTensorType::Generic."), *Name, (int32)TensorTypeGPU);
-	return ToGPU_RenderThread(InOutGraphBuilder, BUF_UnorderedAccess, true);
+	return ToGPU_RenderThread(InOutGraphBuilder, EBufferUsageFlags::UnorderedAccess, true);
 }
 
 void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBufferUsageFlags InEBufferUsageFlags, const bool bInShouldCopyFromCPU)
@@ -321,10 +321,10 @@ void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBu
 	checkf(IsInRenderingThread(), TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): IsInRenderingThread() must be true."), *Name);
 	checkf(InOutGraphBuilder, TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): InOutGraphBuilder is nullptr."), *Name);
 	// Not SRV-only and not UAV/SRV
-	checkf(EnumHasAnyFlags(InEBufferUsageFlags, BUF_ShaderResource|BUF_UnorderedAccess),
+	checkf(EnumHasAnyFlags(InEBufferUsageFlags, EBufferUsageFlags::ShaderResource|EBufferUsageFlags::UnorderedAccess),
 		TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): Unexpected case InEBufferUsageFlags = %d."), *Name, (uint32)InEBufferUsageFlags);
 	// If SRV-only and bInShouldCopyFromCPU == false
-	if (!EnumHasAnyFlags(InEBufferUsageFlags, BUF_UnorderedAccess) && !bInShouldCopyFromCPU)
+	if (!EnumHasAnyFlags(InEBufferUsageFlags, EBufferUsageFlags::UnorderedAccess) && !bInShouldCopyFromCPU)
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): bInShouldCopyFromCPU must be true for SRVs (because they cannot be edited). Assumed true."), *Name);
 	}
@@ -356,7 +356,7 @@ void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBu
 	}
 
 	// Recreate BufferSRVRef
-	if (EnumHasAnyFlags(InEBufferUsageFlags, BUF_ShaderResource))
+	if (EnumHasAnyFlags(InEBufferUsageFlags, EBufferUsageFlags::ShaderResource))
 	{
 		BufferSRVRef = MakeShared<FRDGBufferSRVRef>(InOutGraphBuilder->CreateSRV(BufferRef, FNeuralDataTypeUtils::GetPixelFormat(DataType)));
 	}
@@ -365,7 +365,7 @@ void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBu
 		BufferSRVRef.Reset();
 	}
 	// Recreate BufferUAVRef
-	if (EnumHasAnyFlags(InEBufferUsageFlags, BUF_UnorderedAccess))
+	if (EnumHasAnyFlags(InEBufferUsageFlags, EBufferUsageFlags::UnorderedAccess))
 	{
 		BufferUAVRef = MakeShared<FRDGBufferUAVRef>(InOutGraphBuilder->CreateUAV(BufferRef, FNeuralDataTypeUtils::GetPixelFormat(DataType)));
 	}
@@ -443,7 +443,7 @@ bool FNeuralTensor::InitPooledBuffer(void** NativeResource)
 			FRDGBufferDesc BufferDesc;
 			BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetByteSize(DataType);
 			BufferDesc.NumElements = Num();
-			BufferDesc.Usage = BUF_UnorderedAccess | BUF_ShaderResource;
+			BufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
 			BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
 
 			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, GetNameData());
