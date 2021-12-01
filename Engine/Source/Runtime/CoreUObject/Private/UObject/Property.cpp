@@ -593,6 +593,7 @@ FString FGCStackSizeHelper::GetPropertyPath() const
 {
 	FString Result;
 	const FProperty* PreviousProperty = nullptr;
+	const TCHAR DelimiterChar = '.';
 
 	for (int32 PropertyIndex = 0; PropertyIndex < PropertyStack.Num(); ++PropertyIndex)
 	{
@@ -606,12 +607,78 @@ FString FGCStackSizeHelper::GetPropertyPath() const
 				// but we do want to keep TMapName.TMapName_Key
 				continue;
 			}
-			Result += '.';
+			Result += DelimiterChar;
 		}
 		Result += Property->GetName();
 		PreviousProperty = Property;
 	}
 	return Result;
+}
+
+bool FGCStackSizeHelper::ConvertPathToProperties(UClass* ObjectClass, const FName& InPropertyPath, TArray<FProperty*>& OutProperties)
+{
+	const TCHAR DelimiterChar = '.';
+	FString PropertyNameOrPath = InPropertyPath.ToString();
+	int32 DelimiterIndex = -1;
+	bool bFullPathConstructed = true;
+
+	if (!PropertyNameOrPath.FindChar(DelimiterChar, DelimiterIndex))
+	{
+		// 99% of the time we're be dealing with just a single property
+		FProperty* FoundProperty = ObjectClass->FindPropertyByName(*PropertyNameOrPath);
+		if (FoundProperty)
+		{
+			OutProperties.Add(FoundProperty);
+		}
+		else
+		{
+			bFullPathConstructed = false;
+		}
+	}
+	else
+	{
+		// Try and find the first property as we can't start processing the rest of the path without it
+		FString PropertyName = PropertyNameOrPath.Left(DelimiterIndex);
+		FProperty* FoundProperty = ObjectClass->FindPropertyByName(*PropertyName);
+		if (FoundProperty)
+		{
+			OutProperties.Add(FoundProperty);
+
+			int32 StartIndex = DelimiterIndex + 1;
+			const TCHAR DelimiterStr[] = { DelimiterChar, '\0' };
+			do
+			{
+				// Determine the next property name
+				DelimiterIndex = PropertyNameOrPath.Find(DelimiterStr, ESearchCase::CaseSensitive, ESearchDir::FromStart, StartIndex);
+				PropertyName = PropertyNameOrPath.Mid(StartIndex, DelimiterIndex >= 0 ? (DelimiterIndex - StartIndex) : (PropertyNameOrPath.Len() - StartIndex));
+
+				if (FStructProperty* StructProp = CastField<FStructProperty>(FoundProperty))
+				{
+					// If the previous property was a struct property, the next one belongs to the struct the previous property represented
+					FoundProperty = StructProp->Struct->FindPropertyByName(*PropertyName);
+				}
+				else
+				{
+					// In all other case (though in reality it should only be a TMap) find the inner property
+					FoundProperty = CastField<FProperty>(FoundProperty->GetInnerFieldByName(*PropertyName));
+				}
+
+				if (FoundProperty)
+				{
+					OutProperties.Add(FoundProperty);
+				}
+				else
+				{
+					bFullPathConstructed = false;
+				}
+			} while (DelimiterIndex >= 0 && bFullPathConstructed);
+		}
+		else
+		{
+			bFullPathConstructed = false;
+		}
+	}
+	return bFullPathConstructed;
 }
 
 /*-----------------------------------------------------------------------------

@@ -137,6 +137,15 @@ public:
 	/** Converts the interal property stack to a string representing the current property path (Member.StructMember.InnerStructMember) */
 	FString GetPropertyPath() const;
 
+	/** 
+	 * Converts a property path constructed with GetPropertyPath() to an array of properties (from the outermost to the innermost) *
+	 * @param ObjectClass Class that defines the outermost property
+	 * @param InPropertyPath Property path
+	 * @param OutProperties resulting array
+	 * @returns true if the conversion was successful, false otherwise
+	 */
+	static bool ConvertPathToProperties(UClass* ObjectClass, const FName& InPropertyPath, TArray<FProperty*>& OutProperties);
+
 	int32 GetMaxStackSize() const
 	{
 		return MaxStackSize;
