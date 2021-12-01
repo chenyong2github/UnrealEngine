@@ -843,7 +843,7 @@ namespace ObjectTools
 		GEditor->GetSelectedObjects()->Select( Object );
 
 		// Replace all references
-		FArchiveReplaceObjectRef<UObject> ReplaceAr( DupObject, ReplacementMap, false, true, true );
+		FArchiveReplaceObjectRef<UObject> ReplaceAr( DupObject, ReplacementMap, EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::IgnoreArchetypeRef );
 
 		return ReturnObject;
 	}
@@ -1119,19 +1119,9 @@ namespace ObjectTools
 					UBlueprint* BPObjectToUpdate = Cast<UBlueprint>(CurObject);
 					if (BPObjectToUpdate)
 					{
-						const bool bNullPrivateRefs = false;
-						const bool bIgnoreOuterRef = false;
-						const bool bIgnoreArchetypeRef = false;
-						const bool bDelayStart = false;
-						const bool bIgnoreClassGeneratedByRef = false;
-						FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
+						FArchiveReplaceObjectRef<UObject> ReplaceAr(BPObjectToUpdate->GeneratedClass->ClassDefaultObject, ReplacementMap, EArchiveReplaceObjectFlags::IncludeClassGeneratedByRef);
 					}
-					const bool bNullPrivateRefs = false;
-					const bool bIgnoreOuterRef = false;
-					const bool bIgnoreArchetypeRef = false;
-					const bool bDelayStart = false;
-					const bool bIgnoreClassGeneratedByRef = false;
-					FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
+					FArchiveReplaceObjectRef<UObject> ReplaceAr(CurObject, ReplacementMap, EArchiveReplaceObjectFlags::IncludeClassGeneratedByRef);
 				}
 			}
 		}
@@ -1145,12 +1135,7 @@ namespace ObjectTools
 				GWarn->StatusUpdate( NumObjsReplaced, ReferencingPropertiesMapKeys.Num(), NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_ReplacingReferences", "Replacing Asset References...") );
 
 				UObject* CurReplaceObj = ReferencingPropertiesMapKeys[Index];
-				const bool bNullPrivateRefs = false;
-				const bool bIgnoreOuterRef = false;
-				const bool bIgnoreArchetypeRef = false;
-				const bool bDelayStart = false;
-				const bool bIgnoreClassGeneratedByRef = false;
-				FArchiveReplaceObjectRef<UObject> ReplaceAr( CurReplaceObj, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef, bDelayStart, bIgnoreClassGeneratedByRef);
+				FArchiveReplaceObjectRef<UObject> ReplaceAr( CurReplaceObj, ReplacementMap, EArchiveReplaceObjectFlags::IncludeClassGeneratedByRef);
 			}
 		}
 		// Now alter the referencing objects the change has completed via PostEditChange,

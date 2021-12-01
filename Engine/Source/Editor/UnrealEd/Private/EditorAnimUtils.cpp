@@ -521,15 +521,15 @@ namespace EditorAnimUtils
 	{
 		UObject* DefaultObject = AnimBlueprint->GetAnimBlueprintGeneratedClass()->GetDefaultObject();
 
-		FArchiveReplaceObjectRef<UAnimationAsset> ReplaceAr(DefaultObject, AnimAssetReplacementMap, false, false, false);//bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef);
-		FArchiveReplaceObjectRef<UAnimationAsset> ReplaceAr2(AnimBlueprint, AnimAssetReplacementMap, false, false, false);//bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef);
+		FArchiveReplaceObjectRef<UAnimationAsset> ReplaceAr(DefaultObject, AnimAssetReplacementMap);
+		FArchiveReplaceObjectRef<UAnimationAsset> ReplaceAr2(AnimBlueprint, AnimAssetReplacementMap);
 
 		// Replace event graph references
 		for(UEdGraph* GraphPage : AnimBlueprint->UbergraphPages)
 		{
 			for(UEdGraphNode* Node : GraphPage->Nodes)
 			{
-				FArchiveReplaceObjectRef<UAnimationAsset> ReplaceGraphAr(Node, AnimAssetReplacementMap, false, false, false);
+				FArchiveReplaceObjectRef<UAnimationAsset> ReplaceGraphAr(Node, AnimAssetReplacementMap);
 			}
 		}
 
@@ -538,7 +538,7 @@ namespace EditorAnimUtils
 		{
 			for(UEdGraphNode* Node : GraphPage->Nodes)
 			{
-				FArchiveReplaceObjectRef<UAnimationAsset> ReplaceGraphAr(Node, AnimAssetReplacementMap, false, false, false);
+				FArchiveReplaceObjectRef<UAnimationAsset> ReplaceGraphAr(Node, AnimAssetReplacementMap);
 			}
 		}
 	}

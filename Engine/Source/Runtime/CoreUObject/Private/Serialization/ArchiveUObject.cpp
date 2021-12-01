@@ -223,6 +223,12 @@ void FSerializedPropertyScope::PopProperty()
 	}
 }
 
+const TMap<UObject*, TArray<FProperty*>>& FArchiveReplaceObjectRefBase::GetReplacedReferences() const
+{ 
+	ensure(bTrackReplacedReferences);
+	return ReplacedReferences; 
+}
+
 void FArchiveReplaceObjectRefBase::SerializeObject(UObject* ObjectToSerialize)
 {
 	// Simple FReferenceCollector proxy for FArchiveReplaceObjectRefBase

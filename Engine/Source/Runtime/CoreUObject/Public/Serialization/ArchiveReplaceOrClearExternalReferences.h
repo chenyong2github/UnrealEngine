@@ -25,7 +25,7 @@ public:
 		, const TMap<T*, T*>& InReplacementMap
 		, UPackage* InDestPackage
 		, bool bDelayStart = false )
-		: TSuper(InSearchObject, InReplacementMap, false, false, false, true)
+		: TSuper(InSearchObject, InReplacementMap, EArchiveReplaceObjectFlags::DelayStart)
 		, DestPackage(InDestPackage)
 	{
 		if (!bDelayStart)

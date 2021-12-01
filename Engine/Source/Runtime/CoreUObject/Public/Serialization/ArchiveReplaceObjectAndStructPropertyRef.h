@@ -20,14 +20,17 @@ public:
 	/**
 	 * Initializes variables and starts the serialization search
 	 *
-	 * @param InSearchObject		The object to start the search on
-	 * @param InReplacementMap		Map of objects to find -> objects to replace them with (null zeros them)
-	 * @param bNullPrivateRefs		Whether references to non-public objects not contained within the SearchObject
-	 *								should be set to null
-	 * @param bIgnoreOuterRef		Whether we should replace Outer pointers on Objects.
-	 * @param bIgnoreArchetypeRef	Whether we should replace the ObjectArchetype reference on Objects.
-	 * @param bDelayStart			Specify true to prevent the constructor from starting the process.  Allows child classes' to do initialization stuff in their ctor
+	 * @param InSearchObject        The object to start the search on
+	 * @param InReplacementMap      Map of objects to find -> objects to replace them with (null zeros them)
+	 * @param Flags                 Enum specifying behavior of archive
 	 */
+	FArchiveReplaceObjectAndStructPropertyRef(UObject* InSearchObject, const TMap<T*, T*>& InReplacementMap, EArchiveReplaceObjectFlags Flags = EArchiveReplaceObjectFlags::None)
+		: FArchiveReplaceObjectRef<T>(InSearchObject, InReplacementMap, Flags)
+	{
+	}
+
+
+	UE_DEPRECATED(5.0, "Use version that supplies flags via enum.")
 	FArchiveReplaceObjectAndStructPropertyRef
 	(
 		UObject* InSearchObject,
@@ -65,7 +68,10 @@ public:
 					// Do we need to verify the existence of ReplaceWithField? Theoretically it could be missing on the new version
 					// of the owner struct and in this case we still don't want to keep the stale old property pointer around so it's safer to null it
 					InField = ReplaceWithField;
-					this->ReplacedReferences.FindOrAdd(OldOwnerStruct).AddUnique(this->GetSerializedProperty());
+					if (this->bTrackReplacedReferences)
+					{
+						this->ReplacedReferences.FindOrAdd(OldOwnerStruct).AddUnique(this->GetSerializedProperty());
+					}
 					this->Count++;
 				}
 				// A->IsIn(A) returns false, but we don't want to NULL that reference out, so extra check here.

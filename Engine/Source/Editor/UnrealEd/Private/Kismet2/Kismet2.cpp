@@ -388,7 +388,7 @@ void FBlueprintUnloader::ReplaceStaleRefs(UBlueprint* NewBlueprint)
 
 	for (UObject* Referencer : Referencers)
 	{
-		FArchiveReplaceObjectRef<UObject>(Referencer, Redirects, /*bNullPrivateRefs=*/false, /*bIgnoreOuterRef=*/false, /*bIgnoreArchetypeRef=*/false);
+		FArchiveReplaceObjectRef<UObject>(Referencer, Redirects);
 	}
 }
 

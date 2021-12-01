@@ -400,13 +400,10 @@ void FDatasmithImporterImpl::CompileMaterial( UObject* Material, FMaterialUpdate
 
 void FDatasmithImporterImpl::FixReferencesForObject( UObject* Object, const TMap< UObject*, UObject* >& ReferencesToRemap )
 {
-	constexpr bool bNullPrivateRefs = false;
-	constexpr bool bIgnoreOuterRef = true;
-	constexpr bool bIgnoreArchetypeRef = true;
-
 	if ( ReferencesToRemap.Num() > 0 )
 	{
-		FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRef( Object, ReferencesToRemap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef );
+		constexpr EArchiveReplaceObjectFlags ReplaceFlags = (EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::IgnoreArchetypeRef);
+		FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRef( Object, ReferencesToRemap, ReplaceFlags);
 	}
 }
 

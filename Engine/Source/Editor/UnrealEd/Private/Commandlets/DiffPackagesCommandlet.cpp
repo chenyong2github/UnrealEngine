@@ -392,7 +392,7 @@ void FixupObjectReferences(UPackage* Package, TMap<UObject*, UObject*>& ObjectRe
 	{
 		if (It->IsIn(Package))
 		{
-			FArchiveReplaceObjectRef<UObject> ReplaceAr(*It, ObjectReplacementMap, true, false, false);
+			FArchiveReplaceObjectRef<UObject> ReplaceAr(*It, ObjectReplacementMap, EArchiveReplaceObjectFlags::NullPrivateRefs);
 		}
 	}
 }

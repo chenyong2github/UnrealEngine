@@ -873,12 +873,9 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 	// Now replace references from the old textures/classes to the new ones, if any were duplicated
 	if (ReplacementMap.Num() > 0)
 	{
-		const bool bNullPrivateRefs = false;
-		const bool bIgnoreOuterRef = true;
-		const bool bIgnoreArchetypeRef = false;
 		for (UObject* Obj : ObjectsToFixReferences)
 		{
-			FArchiveReplaceObjectRef<UObject> ReplaceAr(Obj, ReplacementMap, bNullPrivateRefs, bIgnoreOuterRef, bIgnoreArchetypeRef);
+			FArchiveReplaceObjectRef<UObject> ReplaceAr(Obj, ReplacementMap, EArchiveReplaceObjectFlags::IgnoreOuterRef);
 		}
 		// PostEditChange is required for some objects to react to the change, e.g. update render-thread proxies
 		for (UObject* Obj : ObjectsToFixReferences)
