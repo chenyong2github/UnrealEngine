@@ -223,7 +223,8 @@ private:
 	TSharedPtr<STextBlock> PresetNameTextBlock;
 	/** Holds a cache of widgets. */
 	TSharedPtr<FRCPanelWidgetRegistry> WidgetRegistry;
-	
+	/** Holds the handle to a timer set for next tick. Used to not schedule more than once event per frame */
+	FTimerHandle NextTickTimerHandle;
 	/** The toolkit that hosts this panel. */
 	TWeakPtr<IToolkitHost> ToolkitHost;
 };

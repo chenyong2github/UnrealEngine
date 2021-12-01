@@ -1008,13 +1008,14 @@ FReply SRemoteControlPanel::OnClickRebindAllButton()
 
 void SRemoteControlPanel::UpdateActorFunctionPicker()
 {
-	if (GEditor && ActorFunctionPicker)
+	if (GEditor && ActorFunctionPicker && !NextTickTimerHandle.IsValid())
 	{
-		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakPanelPtr = TWeakPtr<SRemoteControlPanel>(StaticCastSharedRef<SRemoteControlPanel>(AsShared()))]()
+		NextTickTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakPanelPtr = TWeakPtr<SRemoteControlPanel>(StaticCastSharedRef<SRemoteControlPanel>(AsShared()))]()
 		{
 			if (TSharedPtr<SRemoteControlPanel> PanelPtr = WeakPanelPtr.Pin())
 			{
 				PanelPtr->ActorFunctionPicker->Refresh();
+				PanelPtr->NextTickTimerHandle.Invalidate();
 			}
 		}));
 	}
