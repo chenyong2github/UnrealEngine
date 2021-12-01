@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "Python Editor Script Plugin",
-	"Description": "Python integration for the UE4 editor.",
+	"Description": "Python integration for the Unreal Editor.",
 	"Category": "Scripting",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
