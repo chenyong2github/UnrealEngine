@@ -334,6 +334,8 @@ inline void FShaderCommonCompileJob::Destroy() const
 class FShaderJobCache
 {
 public:
+	FShaderJobCache();
+
 	using FJobInputHash = FShaderCommonCompileJob::FInputHash;
 	using FJobCachedOutput = TArray<uint8>;
 
