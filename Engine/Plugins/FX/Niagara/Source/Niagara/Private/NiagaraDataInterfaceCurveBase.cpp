@@ -289,7 +289,7 @@ void UNiagaraDataInterfaceCurveBase::UpdateExposedTexture()
 	}
 
 	ExposedTexture->Source.UnlockMip(0);
-
+	ExposedTexture->Source.UseHashAsGuid();
 	ExposedTexture->PostEditChange();
 
 	// PostEditChange() will assign a random GUID to the texture, which leads to non-deterministic builds.
