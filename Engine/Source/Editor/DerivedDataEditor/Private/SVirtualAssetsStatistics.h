@@ -36,5 +36,6 @@ private:
 
 	TSharedPtr<SNotificationItem> PullRequestNotificationItem;
 
-	uint32 NumPullRequests = 0;
+	bool	IsPulling = false;
+	uint32	NumPullRequests = 0;
 };
