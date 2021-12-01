@@ -1975,17 +1975,17 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 			MarkPackageDirty();
 		}
 
-		else if (PropertiesChanged.Contains(TEXT("DrawContainer")))
+		if (PropertiesChanged.Contains(TEXT("DrawContainer")))
 		{
 			PropagateDrawInstructionsFromBPToInstances();
 		}
 
-		else if (PropertiesChanged.Contains(TEXT("VMRuntimeSettings")))
+		if (PropertiesChanged.Contains(TEXT("VMRuntimeSettings")))
 		{
 			PropagateRuntimeSettingsFromBPToInstances();
 		}
 
-		else if (PropertiesChanged.Contains(TEXT("NewVariables")))
+		if (PropertiesChanged.Contains(TEXT("NewVariables")))
 		{
 			if (RefreshEditorEvent.IsBound())
 			{

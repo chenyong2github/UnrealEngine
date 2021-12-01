@@ -12402,7 +12402,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	UObject* CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(InCPPTypeObjectPath.ToString());
 	if (InPin->CPPType == InCPPType && InPin->CPPTypeObject == CPPTypeObject)
 	{
-		return false;
+		return true;
 	}
 
 	return ChangePinType(InPin, InCPPType, CPPTypeObject, bSetupUndoRedo, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
