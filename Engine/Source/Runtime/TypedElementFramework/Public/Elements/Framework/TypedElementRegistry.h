@@ -283,6 +283,12 @@ public:
 		return ElementList;
 	}
 
+	/**
+	 * Extract a string that contains name of the type elements registered.
+	 * For each type it also says what interface are registered and the path of the class that implement them
+	 */
+	FString RegistredElementTypesAndInterfacesToString() const;
+
 	void Private_OnElementListCreated(FTypedElementList* InElementList)
 	{
 		FScopeLock ActiveElementListsLock(&ActiveElementListsCS);
