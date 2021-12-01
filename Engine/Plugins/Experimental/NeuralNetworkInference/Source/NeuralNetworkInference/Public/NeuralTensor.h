@@ -13,12 +13,13 @@
 #include "NeuralTensor.generated.h"
 
 /**
- * This is an auxiliary class. See UNeuralNetwork for a high-level wrapper of the whole NeuralNetworkInference plugin. The UNeuralNetwork header
- * documentation also includes some code examples.
+ * @see UNeuralNetwork for general documentation and code samples about the whole NeuralNetworkInference (NNI) plugin.
  *
- * FNeuralTensor represents a tensor of the UNeuralNetwork model.
- * Its CPU operations are very similar to those of TArray<T>. Most of its operations run on CPU, so `ToGPU_RenderThread()` must be called before
- * running on GPU and after running any FNeuralTensor function that modified the CPU memory.
+ * FNeuralTensor is an auxiliary class of UNeuralNetwork which represents a tensor of the UNeuralNetwork model. It is Unreal Engine's equivalent of
+ * torch.Tensor (PyTorch) or caffe::Blob.
+ *
+ * Most of its functions run on the CPU, so `ToGPU_RenderThread()` must be called before running on GPU and after running any FNeuralTensor function
+ * that modifies the CPU memory. In addition, FNeuralTensor's CPU functions are very similar to those of TArray<T>.
  */
 USTRUCT()
 struct NEURALNETWORKINFERENCE_API FNeuralTensor
