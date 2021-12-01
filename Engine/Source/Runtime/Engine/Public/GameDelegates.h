@@ -20,8 +20,12 @@ enum class EGameDelegates_SaveGame : short
 	Detail,	
 };
 
-/** Delegate to modify cooking behavior - return extra packages to cook, load up the asset registry, etc */
+// UE_DEPRECATED(5.0, "Use AssetManager or FModifyCookDelegate instead.")
 DECLARE_DELEGATE_OneParam(FCookModificationDelegate, TArray<FString>& /*ExtraPackagesToCook*/);
+/** Delegate to modify cooking behavior - return extra packages to cook, load up the asset registry, etc */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FModifyCookDelegate,
+	TConstArrayView<const ITargetPlatform*> /* InTargetPlatforms */, TArray<FName>& /* InOutPackagesToCook */,
+	TArray<FName>& /* InOutPackagesToNeverCook */);
 DECLARE_DELEGATE_FiveParams(FAssignStreamingChunkDelegate, const FString& /*PackageToAdd*/, const FString& /*LastLoadedMapName*/, const TArray<int32>& /*AssetRegistryChunkIDs*/, const TArray<int32>& /*ExistingChunkIds*/, TArray<int32>& /*OutChunkIndexList*/);
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FGetPackageDependenciesForManifestGeneratorDelegate, FName /*PackageName*/, TArray<FName>& /*DependentPackageNames*/, uint8 /*DependencyType*/);
 
@@ -92,8 +96,14 @@ public:
 	DEFINE_GAME_DELEGATE(ExtendedSaveGameInfoDelegate);
 	DEFINE_GAME_DELEGATE(WebServerActionDelegate);	
 
-	// DEPRECATED, switch to subclassing AssetManager instead
-	DEFINE_GAME_DELEGATE(CookModificationDelegate);
+public:
+	UE_DEPRECATED(5.0, "Use AssetManager or ModifyCookDelegate instead.")
+	FCookModificationDelegate& GetCookModificationDelegate() { return CookModificationDelegate; }
+private:
+	FCookModificationDelegate CookModificationDelegate;
+
+	// Called at start of CookByTheBook
+	DEFINE_GAME_DELEGATE(ModifyCookDelegate);
 
 	DEFINE_GAME_DELEGATE(CookedEditorPackageManagerFactoryDelegate);
 public:

@@ -37,6 +37,7 @@ namespace UE::Cook
 	CallbackMacro(StartupSoftObjectPath, true) \
 	CallbackMacro(PackagingSettingsMapToCook, true) \
 	CallbackMacro(CookModificationDelegate, true) \
+	CallbackMacro(ModifyCookDelegate, true) \
 	CallbackMacro(AssetManagerModifyCook, true) \
 	CallbackMacro(AssetManagerModifyDLCCook, true) \
 	CallbackMacro(TargetPlatformExtraPackagesToCook, true) \

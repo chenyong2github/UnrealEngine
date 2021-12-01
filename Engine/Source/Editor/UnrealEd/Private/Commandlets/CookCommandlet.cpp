@@ -797,6 +797,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 
 		// Check for -MAP=<name of map> entries
 		CmdLineMapEntries += GetSwitchValueElements(TEXT("MAP"));
+		CmdLineMapEntries += GetSwitchValueElements(TEXT("PACKAGE"));
 
 		// Check for -COOKDIR=<path to directory> entries
 		const FString CookDirPrefix = TEXT("COOKDIR=");
