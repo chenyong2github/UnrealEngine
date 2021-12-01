@@ -208,4 +208,10 @@ protected:
 	void SetPublicViewCheckboxState(ECheckBoxState InIsChecked);
 
 	bool IsAnyParentContainerSelected(const FPropertyAndParent& PropertyAndParent) const;
+
+	/** Callback invoked after a value change on the selected object(s) */
+	void OnFinishedChangingProperties(const FPropertyChangedEvent& InPropertyChangedEvent);
+
+	/** Auto-import any namespaces associated with a property's value into the current editor context */
+	void ImportNamespacesForPropertyValue(const FProperty* InProperty) const;
 };

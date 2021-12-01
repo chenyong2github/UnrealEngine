@@ -8,7 +8,6 @@
 #include "Toolkits/ToolkitManager.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
-#include "AssetRegistryModule.h"
 #include "SPinTypeSelector.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
@@ -261,20 +260,11 @@ bool FBlueprintNamespaceHelper::IsImportedObject(const UObject* InObject) const
 
 bool FBlueprintNamespaceHelper::IsImportedObject(const FSoftObjectPath& InObjectPath) const
 {
-	if (const UObject* Object = InObjectPath.ResolveObject())
-	{
-		return IsImportedObject(Object);
-	}
-	
-	FString ObjectPathAsString = InObjectPath.ToString();
-	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
-	if (!AssetData.IsValid() && ObjectPathAsString.RemoveFromEnd(TEXT("_C")))
-	{
-		AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*ObjectPathAsString);
-	}
+	// Determine the object's namespace identifier.
+	FString Namespace = FBlueprintNamespaceUtilities::GetObjectNamespace(InObjectPath);
 
-	return IsImportedAsset(AssetData);
+	// Return whether or not the namespace was added, explicitly or otherwise.
+	return IsIncludedInNamespaceList(Namespace);
 }
 
 bool FBlueprintNamespaceHelper::IsImportedAsset(const FAssetData& InAssetData) const
