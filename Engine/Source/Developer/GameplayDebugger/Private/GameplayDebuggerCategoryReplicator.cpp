@@ -550,6 +550,16 @@ void AGameplayDebuggerCategoryReplicator::ServerSetDebugActor_Implementation(AAc
 	SetDebugActor(Actor, bSelectInEditor);
 }
 
+bool AGameplayDebuggerCategoryReplicator::ServerSetViewPoint_Validate(const FVector& InViewLocation, const FVector& InViewDirection)
+{
+	return true;
+}
+
+void AGameplayDebuggerCategoryReplicator::ServerSetViewPoint_Implementation(const FVector& InViewLocation, const FVector& InViewDirection)
+{
+	SetViewPoint(InViewLocation, InViewDirection);
+}
+
 bool AGameplayDebuggerCategoryReplicator::ServerSetCategoryEnabled_Validate(int32 CategoryId, bool bEnable)
 {
 	return true;
@@ -738,6 +748,18 @@ void AGameplayDebuggerCategoryReplicator::CollectCategoryData(bool bForce)
 	}
 }
 
+bool AGameplayDebuggerCategoryReplicator::GetViewPoint(FVector& OutViewLocation, FVector& OutViewDirection) const
+{
+	if (ViewLocation.IsSet() && ViewDirection.IsSet())
+	{
+		OutViewLocation = ViewLocation.GetValue();
+		OutViewDirection = ViewDirection.GetValue();
+		return true;
+	}
+
+	return false;
+}
+
 void AGameplayDebuggerCategoryReplicator::SetReplicatorOwner(APlayerController* InOwnerPC)
 {
 	if (!bIsEnabled)
@@ -807,6 +829,19 @@ void AGameplayDebuggerCategoryReplicator::SetDebugActor(AActor* Actor, bool bSel
 	else
 	{
 		ServerSetDebugActor(Actor, bSelectInEditor);
+	}
+}
+
+void AGameplayDebuggerCategoryReplicator::SetViewPoint(const FVector& InViewLocation, const FVector& InViewDirection)
+{
+	if (bHasAuthority)
+	{
+		ViewLocation = InViewLocation;
+		ViewDirection = InViewDirection;
+	}
+	else
+	{
+		ServerSetViewPoint(InViewLocation, InViewDirection);
 	}
 }
 

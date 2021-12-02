@@ -100,6 +100,9 @@ public:
 	/** [ALL] set actor for debugging */
 	void SetDebugActor(AActor* Actor, bool bSelectInEditor = false);
 
+	/** [ALL] set view matrix that should be used for culling */
+	void SetViewPoint(const FVector& InViewLocation, const FVector& InViewDirection);
+
 	/** [ALL] send input event to category */
 	void SendCategoryInputEvent(int32 CategoryId, int32 HandlerId);
 
@@ -117,6 +120,9 @@ public:
 
 	/** get sync counter, increased with every change of DebugActor */
 	int32 GetDebugActorCounter() const { return DebugActor.SyncCounter; }
+
+	/** get view point information */
+	bool GetViewPoint(FVector& OutViewLocation, FVector& OutViewDirection) const;
 
 	const FGameplayDebuggerVisLogSync& GetVisLogSyncData() const { return VisLogSync; }
 
@@ -183,6 +189,9 @@ protected:
 	/** extension objects */
 	TArray<TSharedRef<FGameplayDebuggerExtension> > Extensions;
 
+	TOptional<FVector> ViewLocation;
+	TOptional<FVector> ViewDirection;
+
 	uint32 bIsEnabledLocal : 1;
 	uint32 bHasAuthority : 1;
 	uint32 bIsLocal : 1;
@@ -205,6 +214,9 @@ protected:
 
 	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
 	void ServerSetDebugActor(AActor* Actor, bool bSelectInEditor);
+
+	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
+	void ServerSetViewPoint(const FVector& InViewLocation, const FVector& InViewDirection);
 
 	UFUNCTION(Server, Reliable, WithValidation, meta = (CallInEditor = "true"))
 	void ServerSetCategoryEnabled(int32 CategoryId, bool bEnable);

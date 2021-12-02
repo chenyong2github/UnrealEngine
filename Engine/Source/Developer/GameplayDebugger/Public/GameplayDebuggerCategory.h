@@ -104,6 +104,21 @@ public:
 	TArray<FGameplayDebuggerShape> GetReplicatedShapesCopy() const { return ReplicatedShapes; }
 
 protected:
+	/**
+	 * Returns view location and direction from replicated data if available or will extract it from
+	 * the provided player controller. The replicated data is used first since it might be provided
+	 * from a detached camera.
+	 * @return whether OutViewLocation and OutViewDirection were assigned to valid values
+	 * @note Method is expected to always return valid outputs if valid controller is provided. Otherwise it
+	 * depends if the view information has been replicated before the methods gets called.
+	 */
+	bool GetViewPoint(const APlayerController* OwnerPC, FVector& OutViewLocation, FVector& OutViewDirection) const;
+
+	/**
+	 * Indicates if a given location is within a vision cone built from provided view location and direction based
+	 * on MaxViewDistance and MaxViewAngle from GameplayDebuggerUserSettings
+	 */
+	static bool IsLocationInViewCone(const FVector& ViewLocation, const FVector& ViewDirection, const FVector& TargetLocation);
 
 	/** [AUTH] marks data pack as needing replication */
 	void MarkDataPackDirty(int32 DataPackId);
