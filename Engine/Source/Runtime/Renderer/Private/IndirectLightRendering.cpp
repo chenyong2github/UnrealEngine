@@ -818,6 +818,9 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 					LumenReflectionCompositeParameters);
 			}
 
+			// Lumen needs its own depth history because things like Translucency velocities write to depth
+			StoreLumenDepthHistory(GraphBuilder, SceneTextures, View);
+
 			if (!DenoiserOutputs.Textures[2])
 			{
 				DenoiserOutputs.Textures[2] = DenoiserOutputs.Textures[1];

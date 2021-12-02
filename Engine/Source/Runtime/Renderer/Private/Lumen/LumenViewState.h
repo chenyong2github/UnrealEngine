@@ -118,6 +118,7 @@ public:
 
 	FScreenProbeGatherTemporalState ScreenProbeGatherState;
 	FReflectionTemporalState ReflectionState;
+	TRefCountPtr<IPooledRenderTarget> DepthHistoryRT;
 
 	// Voxel clipmaps
 	int32 NumClipmapLevels = 0;
@@ -135,6 +136,7 @@ public:
 	{
 		ScreenProbeGatherState.SafeRelease();
 		ReflectionState.SafeRelease();
+		DepthHistoryRT.SafeRelease();
 
 		VoxelLighting.SafeRelease();
 		VoxelVisBuffer.SafeRelease();

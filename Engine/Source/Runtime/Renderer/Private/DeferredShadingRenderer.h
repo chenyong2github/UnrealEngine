@@ -503,6 +503,8 @@ private:
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
 
+	void StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View);
+
 	FSSDSignalTextures RenderLumenIrradianceFieldGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,

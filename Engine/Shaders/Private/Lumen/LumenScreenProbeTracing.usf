@@ -44,12 +44,14 @@ Texture2D FurthestHZBTexture;
 
 Texture2D PrevSceneColorTexture;
 float4 PrevScreenPositionScaleBias;
+float4 PrevScreenPositionScaleBiasForDepth;
 Texture2D HistorySceneDepth;
 
 float4 HZBUvFactorAndInvFactor;
 float PrevSceneColorPreExposureCorrection;
 float MaxHierarchicalScreenTraceIterations;
 float RelativeDepthThickness;
+float HistoryDepthTestRelativeThickness;
 float NumThicknessStepsToDetermineCertainty;
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
@@ -111,6 +113,7 @@ void ScreenProbeTraceScreenTexturesCS(
 				bool bHit;
 				bool bUncertain;
 				float3 HitUVz;
+				float Unused;
 
 				TraceScreen(
 					WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
@@ -122,7 +125,8 @@ void ScreenProbeTraceScreenTexturesCS(
 					NumThicknessStepsToDetermineCertainty,
 					bHit,
 					bUncertain,
-					HitUVz);
+					HitUVz,
+					Unused);
 				
 				#if USE_HAIRSTRANDS_SCREEN
 				if (!bHit)
@@ -141,7 +145,8 @@ void ScreenProbeTraceScreenTexturesCS(
 						NumThicknessStepsToDetermineCertainty,
 						Hair_bHit,
 						Hair_bUncertain,
-						Hair_HitUVz);
+						Hair_HitUVz,
+						Unused);
 
 					if (Hair_bHit && !Hair_bUncertain)
 					{
@@ -249,12 +254,12 @@ void ScreenProbeTraceScreenTexturesCS(
 					float HitDeviceZ = HitUVz.z;
 
 					float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
-					float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 
 					float Vignette = min(ComputeHitVignetteFromScreenPos(HitScreenPosition), ComputeHitVignetteFromScreenPos(HitHistoryScreenPosition.xy));
+					float Noise = InterleavedGradientNoise(TraceCoord + 0.5f, View.StateFrameIndexMod8);
 
 					// Skip reporting a hit if near the edge of the screen
-					if (Vignette < InterleavedGradientNoise(TraceCoord + 0.5f, 0))
+					if (Vignette < Noise)
 					{
 						bHit = false;
 					}
@@ -265,15 +270,15 @@ void ScreenProbeTraceScreenTexturesCS(
 						float PrevSceneDepth = ConvertFromDeviceZ(HitHistoryScreenPosition.z);
 
 						// Lookup the actual depth at the same screen position last frame
-						float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalBilinearClampedSampler, HitHistoryScreenUV, 0).x);
+						float2 HitHistoryScreenUVForDepth = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBiasForDepth.xy + PrevScreenPositionScaleBiasForDepth.zw;
+						float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalPointClampedSampler, HitHistoryScreenUVForDepth, 0).x);
 
-						float DistanceToHistoryValue = abs(HistoryDepth - PrevSceneDepth);
-						// Skip reporting a hit if the position was occluded last frame
-						bHit = DistanceToHistoryValue / PrevSceneDepth < .01f;
+						bHit = abs(HistoryDepth - PrevSceneDepth) < HistoryDepthTestRelativeThickness * lerp(.5f, 2.0f, Noise) * PrevSceneDepth;
 					}
 
 					if (bHit)
 					{
+						float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 						float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
 
 						#if DEBUG_VISUALIZE_TRACE_TYPES

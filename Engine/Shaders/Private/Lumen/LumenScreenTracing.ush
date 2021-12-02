@@ -37,7 +37,8 @@ void InternalTraceScreen(
 	float NumThicknessStepsToDetermineCertainty,
 	inout bool bHit,
 	inout bool bUncertain,
-	inout float3 OutScreenUV)
+	inout float3 OutScreenUV,
+	inout float OutHitTileZ)
 {
 	float3 RayStartScreenUV;
 	{
@@ -87,6 +88,7 @@ void InternalTraceScreen(
 
 	bHit = false;
 	bUncertain = false;
+	OutHitTileZ = 0;
 
 	float RayLength2D = length(RayEndScreenUV.xy - RayStartScreenUV.xy);
 	float2 RayDirectionScreenUV = (RayEndScreenUV.xy - RayStartScreenUV.xy) / max(RayLength2D, .0001f);
@@ -137,7 +139,8 @@ void InternalTraceScreen(
 			if (abs(MipLevel - BaseMipLevel) < .1f)
 			{
 				RayScreenUV = RayStartScreenUV + (RayEndScreenUV - RayStartScreenUV) * TileIntersections.x;
-				
+				OutHitTileZ = TileZ;
+
 				bHit = true;
 				float IntersectionDepth = ConvertFromDeviceZ(TileZ);
 				float RayTileEnterZ = RayStartScreenUV.z + (RayEndScreenUV.z - RayStartScreenUV.z) * TileIntersections.x;
@@ -198,7 +201,8 @@ void TraceScreen(
 	float NumThicknessStepsToDetermineCertainty,
 	inout bool bHit,
 	inout bool bUncertain,
-	inout float3 OutScreenUV)
+	inout float3 OutScreenUV,
+	inout float OutHitTileZ)
 {
 	InternalTraceScreen(
 		SceneDepthTexture,
@@ -214,7 +218,8 @@ void TraceScreen(
 		NumThicknessStepsToDetermineCertainty,
 		bHit,
 		bUncertain,
-		OutScreenUV);
+		OutScreenUV,
+		OutHitTileZ);
 } 
 
 float3 GetPrevScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)

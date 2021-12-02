@@ -38,10 +38,12 @@ float MaxTraceDistance;
 Texture2D PrevSceneColorTexture;
 Texture2D HistorySceneDepth;
 float4 PrevScreenPositionScaleBias;
+float4 PrevScreenPositionScaleBiasForDepth;
 float PrevSceneColorPreExposureCorrection;
 float4 HZBUvFactorAndInvFactor;
 float MaxHierarchicalScreenTraceIterations;
 float RelativeDepthThickness;
+float HistoryDepthTestRelativeThickness;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTraceScreenTexturesCS(
@@ -63,6 +65,7 @@ void ReflectionTraceScreenTexturesCS(
 			bool bHit;
 			bool bUncertain;
 			float3 HitUVz;
+			float HitTileZ;
 
 			TraceScreen(
 				WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
@@ -74,7 +77,8 @@ void ReflectionTraceScreenTexturesCS(
 				0,
 				bHit,
 				bUncertain,
-				HitUVz);
+				HitUVz,
+				HitTileZ);
 
 			#if USE_HAIRSTRANDS_SCREEN
 			if (!bHit)
@@ -82,6 +86,7 @@ void ReflectionTraceScreenTexturesCS(
 				bool   Hair_bHit;
 				bool   Hair_bUncertain;
 				float3 Hair_HitUVz;
+				float Hair_HitTileZ;
 
 				TraceHairScreen(
 					WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation),
@@ -93,13 +98,15 @@ void ReflectionTraceScreenTexturesCS(
 					0,
 					Hair_bHit,
 					Hair_bUncertain,
-					Hair_HitUVz);
+					Hair_HitUVz,
+					Hair_HitTileZ);
 
 				if (Hair_bHit && !Hair_bUncertain)
 				{
 					bHit = Hair_bHit;
 					HitUVz = Hair_HitUVz;
 					bUncertain = Hair_bUncertain;
+					HitTileZ = Hair_HitTileZ;
 				}
 			}
 			#endif
@@ -110,15 +117,15 @@ void ReflectionTraceScreenTexturesCS(
 			{
 				float2 HitScreenUV = HitUVz.xy;
 				float2 HitScreenPosition = (HitUVz.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-				float HitDeviceZ = HitUVz.z;
+				float HitDeviceZ = HitTileZ;
 
 				float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
-				float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 
 				float Vignette = min(ComputeHitVignetteFromScreenPos(HitScreenPosition), ComputeHitVignetteFromScreenPos(HitHistoryScreenPosition.xy));
+				float Noise = InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, View.StateFrameIndexMod8);
 
 				// Skip reporting a hit if near the edge of the screen
-				if (Vignette < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0))
+				if (Vignette < Noise)
 				{
 					bHit = false;
 				}
@@ -129,15 +136,15 @@ void ReflectionTraceScreenTexturesCS(
 					float PrevSceneDepth = ConvertFromDeviceZ(HitHistoryScreenPosition.z);
 
 					// Lookup the actual depth at the same screen position last frame
-					float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalBilinearClampedSampler, HitHistoryScreenUV, 0).x);
+					float2 HitHistoryScreenUVForDepth = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBiasForDepth.xy + PrevScreenPositionScaleBiasForDepth.zw;
+					float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalPointClampedSampler, HitHistoryScreenUVForDepth, 0).x);
 
-					float DistanceToHistoryValue = abs(HistoryDepth - PrevSceneDepth);
-					// Skip reporting a hit if the position was occluded last frame
-					bHit = DistanceToHistoryValue / PrevSceneDepth < .01f;
+					bHit = abs(HistoryDepth - PrevSceneDepth) < HistoryDepthTestRelativeThickness * lerp(.5f, 2.0f, Noise) * PrevSceneDepth;
 				}
 
 				if (bHit)
 				{
+					float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 					float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
 
 					float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);

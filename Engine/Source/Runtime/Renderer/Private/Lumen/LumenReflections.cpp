@@ -54,8 +54,8 @@ int32 GLumenReflectionsUseRadianceCache = 0;
 FAutoConsoleVariableRef CVarLumenReflectionsUseRadianceCache(
 	TEXT("r.Lumen.Reflections.RadianceCache"),
 	GLumenReflectionsUseRadianceCache,
-	TEXT(""),
-	ECVF_RenderThreadSafe
+	TEXT("Whether to reuse Lumen's ScreenProbeGather Radiance Cache, when it is available.  When enabled, reflection rays from rough surfaces are shortened and distant lighting comes from interpolating from the Radiance Cache, speeding up traces."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 float GLumenReflectionRadianceCacheAngleThresholdScale = 1.0f;
@@ -63,6 +63,14 @@ FAutoConsoleVariableRef CVarLumenReflectionRadianceCacheAngleThresholdScale(
 	TEXT("r.Lumen.Reflections.RadianceCache.AngleThresholdScale"),
 	GLumenReflectionRadianceCacheAngleThresholdScale,
 	TEXT("Controls when the Radiance Cache is used for distant lighting.  A value of 1 means only use the Radiance Cache when appropriate for the reflection cone, lower values are more aggressive."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenReflectionRadianceCacheReprojectionRadiusScale = 10.0f;
+FAutoConsoleVariableRef CVarLumenReflectionRadianceCacheReprojectionRadiusScale(
+	TEXT("r.Lumen.Reflections.RadianceCache.ReprojectionRadiusScale"),
+	GLumenReflectionRadianceCacheReprojectionRadiusScale,
+	TEXT("Scales the radius of the sphere around each Radiance Cache probe that is intersected for parallax correction when interpolating from the Radiance Cache."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -686,7 +694,7 @@ void UpdateHistoryReflections(
 		FIntRect* HistoryViewRect = &ReflectionTemporalState.HistoryViewRect;
 		FVector4f* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
 
-		FRDGTextureRef OldDepthHistory = View.PrevViewInfo.DepthBuffer ? GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer) : SceneTextures.Depth.Target;
+		FRDGTextureRef OldDepthHistory = View.ViewState->Lumen.DepthHistoryRT ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.DepthHistoryRT) : SceneTextures.Depth.Target;
 
 		{
 			FRDGTextureRef OldSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*SpecularIndirectHistoryState);
@@ -779,13 +787,16 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& ScreenProbeRadianceCacheParameters,
 	FLumenReflectionCompositeParameters& OutCompositeParameters)
 {
 	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 
 	check(ShouldRenderLumenReflections(View));
+
+	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters = ScreenProbeRadianceCacheParameters;
+	RadianceCacheParameters.RadianceCacheInputs.ReprojectionRadiusScale = FMath::Clamp<float>(GLumenReflectionRadianceCacheReprojectionRadiusScale, 1.0f, 100000.0f);
 
 	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenReflections");
