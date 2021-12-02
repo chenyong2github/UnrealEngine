@@ -38,6 +38,14 @@ FAutoConsoleVariableRef CVarLumenTranslucencyRadianceCacheReprojectionRadiusScal
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+namespace Lumen
+{
+	bool UseLumenTranslucencyReflections(const FViewInfo& View)
+	{
+		return GLumenTranslucencyReflections != 0 && View.Family->EngineShowFlags.LumenReflections;
+	}
+}
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenTranslucencyRadianceCacheMarkPassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheMarkParameters, RadianceCacheMarkParameters)
