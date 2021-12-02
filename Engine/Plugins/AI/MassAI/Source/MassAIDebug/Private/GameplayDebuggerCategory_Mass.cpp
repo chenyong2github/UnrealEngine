@@ -5,8 +5,8 @@
 #if WITH_GAMEPLAY_DEBUGGER && WITH_MASSGAMEPLAY_DEBUG
 #include "MassGameplayDebugTypes.h"
 #include "MassEntityView.h"
+#include "GameplayDebuggerConfig.h"
 #include "GameplayDebuggerCategoryReplicator.h"
-#include "GameplayDebuggerPlayerManager.h"
 #include "MassDebuggerSubsystem.h"
 #include "MassSignalSubsystem.h"
 #include "MassActorSubsystem.h"
@@ -28,7 +28,7 @@ namespace UE::Mass::Debug
 	FMassEntityHandle GetEntityFromActor(const AActor& Actor, const UMassAgentComponent*& OutMassAgentComponent)
 	{
 		FMassEntityHandle EntityHandle;
-		if (UMassAgentComponent* AgentComp = Actor.FindComponentByClass<UMassAgentComponent>())
+		if (const UMassAgentComponent* AgentComp = Actor.FindComponentByClass<UMassAgentComponent>())
 		{
 			EntityHandle = AgentComp->GetEntityHandle();
 			OutMassAgentComponent = AgentComp;
@@ -107,17 +107,17 @@ FGameplayDebuggerCategory_Mass::FGameplayDebuggerCategory_Mass()
 	BindKeyPress(EKeys::C.GetFName(), FGameplayDebuggerInputModifier::Shift, this, &FGameplayDebuggerCategory_Mass::OnToggleNearEntityPath, EGameplayDebuggerInputMode::Replicated);
 }
 
-void FGameplayDebuggerCategory_Mass::SetCachedEntity(FMassEntityHandle Entity, UMassDebuggerSubsystem& Debugger)
+void FGameplayDebuggerCategory_Mass::SetCachedEntity(const FMassEntityHandle Entity, UMassDebuggerSubsystem& Debugger)
 {
 	CachedEntity = Entity;
 	Debugger.SetSelectedEntity(Entity);
 }
 
-void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC, UWorld& World, UMassDebuggerSubsystem& Debugger, const bool bLimitAngle)
+void FGameplayDebuggerCategory_Mass::PickEntity(const APlayerController& OwnerPC, const UWorld& World, UMassDebuggerSubsystem& Debugger, const bool bLimitAngle)
 {
 	FVector ViewLocation = FVector::ZeroVector;
 	FVector ViewDirection = FVector::ForwardVector;
-	AGameplayDebuggerPlayerManager::GetViewPoint(OwnerPC, ViewLocation, ViewDirection);
+	ensureMsgf(GetViewPoint(&OwnerPC, ViewLocation, ViewDirection), TEXT("GetViewPoint is expected to always succeed when passing a valid controller."));
 
 	FMassEntityHandle BestEntity;
 	// entities indicated by UE::Mass::Debug take precedence 
@@ -317,8 +317,8 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 				}
 
-				FDataFragment_Transform& TransformFragment = EntitySystem->GetFragmentDataChecked<FDataFragment_Transform>(CachedEntity);
-				const float CapsuleRadius = 50.f;
+				const FDataFragment_Transform& TransformFragment = EntitySystem->GetFragmentDataChecked<FDataFragment_Transform>(CachedEntity);
+				constexpr float CapsuleRadius = 50.f;
 				AddShape(FGameplayDebuggerShape::MakeCapsule(TransformFragment.GetTransform().GetLocation() + 2.f * CapsuleRadius * FVector::UpVector, CapsuleRadius, CapsuleRadius * 2.f, FColor::Orange));
 			}
 			else
@@ -337,7 +337,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 	{
 		FVector ViewLocation = FVector::ZeroVector;
 		FVector ViewDirection = FVector::ForwardVector;
-		AGameplayDebuggerPlayerManager::GetViewPoint(*OwnerPC, ViewLocation, ViewDirection);
+		ensureMsgf(GetViewPoint(OwnerPC, ViewLocation, ViewDirection), TEXT("GetViewPoint is expected to always succeed when passing a valid controller."));
 
 		FMassEntityQuery EntityQuery;
 		EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
@@ -360,7 +360,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		{
 			FMassExecutionContext Context(0.0f);
 		
-			EntityQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, MassStateTreeSubsystem, SignalSubsystem, EntitySystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FMassExecutionContext& Context)
+			EntityQuery.ForEachEntityChunk(*EntitySystem, Context, [this, MassStateTreeSubsystem, SignalSubsystem, EntitySystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetNumEntities();
 				const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
@@ -376,8 +376,9 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 				const bool bHasLOD = (SimLODList.Num() > 0);
 				const TConstArrayView<FMassZoneGraphShortPathFragment> ShortPathList = Context.GetFragmentView<FMassZoneGraphShortPathFragment>();
 
-				constexpr float MaxViewDistance = 25000.0f;
-				constexpr float MinViewDirDot = 0.707f; // 45 degrees
+				const UGameplayDebuggerUserSettings* Settings = GetDefault<UGameplayDebuggerUserSettings>();
+				const float MaxViewDistance = Settings->MaxViewDistance;
+				const float MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
 
 				const UStateTree* StateTree = MassStateTreeSubsystem->GetRegisteredStateTreeAsset(StateTreeList[0].StateTreeHandle);
 
@@ -409,8 +410,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 
 					const FVector EntityForward = Transform.GetTransform().GetRotation().GetForwardVector();
 
-					const float Height = 180.0f; // @todo: add height to agent.
-					const float EyeHeight = 160.0f; // @todo: add eye height to agent.
+					constexpr float EyeHeight = 160.0f; // @todo: add eye height to agent.
 
 					// Draw entity position and orientation.
 					FVector BasePos = EntityLocation + FVector(0.0f ,0.0f ,25.0f );
@@ -577,15 +577,12 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 			EntityColliderQuery.AddRequirement<FMassAvoidanceColliderFragment>(EMassFragmentAccess::ReadOnly);
 			EntityColliderQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
 			FMassExecutionContext Context(0.f);
-			EntityColliderQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, EntitySystem, OwnerPC, ViewLocation, ViewDirection](FMassExecutionContext& Context)
+			EntityColliderQuery.ForEachEntityChunk(*EntitySystem, Context, [this, ViewLocation, ViewDirection](const FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetNumEntities();
 				const TConstArrayView<FDataFragment_Transform> TransformList = Context.GetFragmentView<FDataFragment_Transform>();
 				const TConstArrayView<FMassAvoidanceColliderFragment> CollidersList = Context.GetFragmentView<FMassAvoidanceColliderFragment>();
-	
-				constexpr float MaxViewDistance = 25000.0f;
-				constexpr float MinViewDirDot = 0.707f; // 45 degrees
-				
+
 				for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
 				{
 					const FDataFragment_Transform& Transform = TransformList[EntityIndex];
@@ -595,14 +592,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 					FVector BasePos = EntityLocation + FVector(0.0f ,0.0f ,25.0f );
 
 					// Cull entities
-					const FVector DirToEntity = EntityLocation - ViewLocation;
-					const float DistanceToEntitySq = DirToEntity.SquaredLength();
-					if (DistanceToEntitySq > FMath::Square(MaxViewDistance))
-					{
-						continue;
-					}
-					const float ViewDot = FVector::DotProduct(DirToEntity.GetSafeNormal(), ViewDirection);
-					if (ViewDot < MinViewDirDot)
+					if (!IsLocationInViewCone(ViewLocation, ViewDirection, EntityLocation))
 					{
 						continue;
 					}

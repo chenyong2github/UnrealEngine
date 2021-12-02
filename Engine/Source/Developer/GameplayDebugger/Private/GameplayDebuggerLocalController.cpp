@@ -167,6 +167,8 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 			RebuildDataPackMap();
 		}
 
+		CachedReplicator->SetViewPoint(Canvas->SceneView->ViewLocation, Canvas->SceneView->ViewRotation.Vector());
+
 		const bool bHasDebugActor = CachedReplicator->HasDebugActor();
 		for (int32 Idx = 0; Idx < NumCategories; Idx++)
 		{
@@ -651,11 +653,14 @@ void UGameplayDebuggerLocalController::OnSelectActorTick()
 	{
 		FVector ViewLocation = FVector::ZeroVector;
 		FVector ViewDirection = FVector::ForwardVector;
-		AGameplayDebuggerPlayerManager::GetViewPoint(*OwnerPC, ViewLocation, ViewDirection);
+		if (!CachedReplicator->GetViewPoint(ViewLocation, ViewDirection))
+		{
+			AGameplayDebuggerPlayerManager::GetViewPoint(*OwnerPC, ViewLocation, ViewDirection);
+		}
 
-		// TODO: move to module's settings
-		const float MaxScanDistance = 25000.0f;
-		const float MinViewDirDot = 0.8f;
+		const UGameplayDebuggerUserSettings* Settings = GetDefault<UGameplayDebuggerUserSettings>();
+		const float MaxScanDistance = Settings->MaxViewDistance;
+		const float MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
 
 		AActor* BestCandidate = nullptr;
 		float BestScore = MinViewDirDot;

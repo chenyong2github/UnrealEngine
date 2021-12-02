@@ -2,6 +2,7 @@
 
 #include "GameplayDebuggerCategory_SmartObject.h"
 #include "SmartObjectSubsystem.h"
+#include "Math/ColorList.h"
 #include "Engine/World.h"
 
 #if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
@@ -36,8 +37,13 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 	AddTextLine(FString::Printf(TEXT("{White}Collection entries = {Green}%d\n{White}Runtime objects = {Green}%s\n{White}Registered components = {Green}%s"),
 		NumCollectionEntries, *LexToString(NumRuntimeObjects), *LexToString(NumRegisteredComponents)));
 
+	FVector ViewLocation = FVector::ZeroVector;
+	FVector ViewDirection = FVector::ForwardVector;
+	bool bApplyCulling = GetViewPoint(OwnerPC, ViewLocation, ViewDirection);
+
 	FColor DebugColor = FColor::Yellow;
-	const FColor FreeColor = FColor::Cyan;
+
+	const FColor FreeColor = FColorList::Grey;
 	const FColor ClaimedColor = FColor::Yellow;
 	const FColor OccupiedColor = FColor::Red;
 
@@ -47,6 +53,15 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 		const FSmartObjectRuntime& Entry = LookupEntry.Value;
 		const FTransform LocalToWorld = Entry.GetTransform();
 		const USmartObjectDefinition& Definition = Entry.GetDefinition();
+
+		const FVector Location = LocalToWorld.GetLocation();
+		if (bApplyCulling && !IsLocationInViewCone(ViewLocation, ViewDirection, Location))
+		{
+			continue;
+		}
+
+		constexpr float DebugReferencePointRadius = 10.f;
+		AddShape(FGameplayDebuggerShape::MakePoint(Location, DebugReferencePointRadius, FColorList::Grey));
 
 		for (int32 i = 0; i < Definition.GetSlots().Num(); ++i)
 		{
@@ -75,6 +90,7 @@ void FGameplayDebuggerCategory_SmartObject::CollectData(APlayerController* Owner
 				ensureMsgf(false, TEXT("Unsupported value: %s"), *UEnum::GetValueAsString(State));
 			}
 
+			AddShape(FGameplayDebuggerShape::MakeSegment(Location, Pos, /* Thickness */1.f, FColorList::Grey));
 			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, DebugCircleRadius, DebugColor));
 			AddShape(FGameplayDebuggerShape::MakeCircle(Pos, FVector::UpVector, 0.75f*DebugCircleRadius, /* Thickness */5.f, StateColor));
 			AddShape(FGameplayDebuggerShape::MakeArrow(Pos, Pos + Dir * 2.0f * DebugCircleRadius, DebugArrowHeadSize, DebugArrowThickness, DebugColor));

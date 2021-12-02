@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayDebuggerCategoryReplicator.h"
+#include "GameplayDebuggerConfig.h"
+#include "GameplayDebuggerPlayerManager.h"
 
 FGameplayDebuggerCategory::FGameplayDebuggerCategory() :
 	CollectDataInterval(0.0f),
@@ -110,6 +112,45 @@ void FGameplayDebuggerCategory::DrawCategory(APlayerController* OwnerPC, FGamepl
 	}
 
 	DrawData(OwnerPC, CanvasContext);
+}
+
+bool FGameplayDebuggerCategory::GetViewPoint(const APlayerController* OwnerPC, FVector& OutViewLocation, FVector& OutViewDirection) const
+{
+	if (const AGameplayDebuggerCategoryReplicator* Replicator = GetReplicator())
+	{
+		if (Replicator->GetViewPoint(OutViewLocation, OutViewDirection))
+		{
+			return true;
+		}
+	}
+
+	if (OwnerPC != nullptr)
+	{
+		AGameplayDebuggerPlayerManager::GetViewPoint(*OwnerPC, OutViewLocation, OutViewDirection);
+		return true;
+	}
+
+	return false;
+}
+
+bool FGameplayDebuggerCategory::IsLocationInViewCone(const FVector& ViewLocation, const FVector& ViewDirection, const FVector& TargetLocation)
+{
+	const UGameplayDebuggerUserSettings* Settings = GetDefault<UGameplayDebuggerUserSettings>();
+	const FVector DirToEntity = TargetLocation - ViewLocation;
+	const float DistanceToEntitySq = DirToEntity.SquaredLength();
+	if (DistanceToEntitySq > FMath::Square(Settings->MaxViewDistance))
+	{
+		return false;
+	}
+
+	const float ViewDot = FVector::DotProduct(DirToEntity.GetSafeNormal(), ViewDirection);
+	const float MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
+	if (ViewDot < MinViewDirDot)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void FGameplayDebuggerCategory::MarkDataPackDirty(int32 DataPackId)
