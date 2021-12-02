@@ -61,6 +61,7 @@ float DiffuseConeHalfAngle;
 float TanDiffuseConeHalfAngle;
 float MinSampleRadius;
 float TanRadiosityRayConeHalfAngle;
+float MaxRayIntensity;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void LumenRadiosityDistanceFieldTracingCS(
@@ -103,6 +104,13 @@ void LumenRadiosityDistanceFieldTracingCS(
 			if (TraceResult.Transparency < 0.5f)
 			{
 				Radiance = TraceResult.Lighting;
+
+				float MaxLighting = max3(Radiance.x, Radiance.y, Radiance.z);
+
+				if (MaxLighting > MaxRayIntensity * View.OneOverPreExposure)
+				{
+					Radiance *= MaxRayIntensity * View.OneOverPreExposure / MaxLighting;
+				}
 			}
 			else
 			{
