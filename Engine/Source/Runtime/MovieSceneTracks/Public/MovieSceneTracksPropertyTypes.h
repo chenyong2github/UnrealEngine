@@ -102,8 +102,13 @@ struct FIntermediateColor
 		: R(InColor.R), G(InColor.G), B(InColor.B), A(InColor.A)
 	{}
 	explicit FIntermediateColor(const FColor& InColor)
-		: R(InColor.R), G(InColor.G), B(InColor.B), A(InColor.A)
-	{}
+	{
+		FLinearColor NewColor = FLinearColor::FromSRGBColor(InColor);
+		R = NewColor.R;
+		G = NewColor.G;
+		B = NewColor.B;
+		A = NewColor.A;
+	}
 
 	explicit FIntermediateColor(const FSlateColor& InSlateColor)
 	{
