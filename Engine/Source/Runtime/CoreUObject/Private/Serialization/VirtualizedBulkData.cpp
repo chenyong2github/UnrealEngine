@@ -801,7 +801,6 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 		{
 			FPackageTrailer* Trailer = GetTrailerFromOwner(Owner);
 
-			// TODO: Error on not EPayloadStatus::NotFound
 			if (Trailer != nullptr && Trailer->FindPayloadStatus(PayloadContentId) == EPayloadStatus::StoredVirtualized)
 			{
 				check(!IsReferencingOldBulkData()); // This should not be possible

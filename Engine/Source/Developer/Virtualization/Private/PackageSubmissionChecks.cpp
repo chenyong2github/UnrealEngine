@@ -213,9 +213,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 		for (int32 Index = 0; Index < PackageInfo.LocalPayloads.Num(); ++Index)
 		{
-			// TODO: Remove FPayloadStatus::Invalid when trailers no longer support invalid payloads ids
-			if (PayloadStatuses[PackageInfo.PayloadIndex + Index] == FPayloadStatus::FoundAll ||
-				PayloadStatuses[PackageInfo.PayloadIndex + Index] == FPayloadStatus::Invalid)
+			if (PayloadStatuses[PackageInfo.PayloadIndex + Index] == FPayloadStatus::FoundAll)
 			{
 				if (PackageInfo.Trailer.UpdatePayloadAsVirtualized(PackageInfo.LocalPayloads[Index]))
 				{
@@ -265,7 +263,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 
 		for (const FPayloadId& PayloadId : PackageInfo.LocalPayloads)
 		{
-			check(PayloadId.IsValid());
+			checkf(PayloadId.IsValid(), TEXT("PackageTrailer for package '%s' should not contain invalid FPayloadIds"), *PackageInfo.Path.GetDebugName());
 			
 			FCompressedBuffer Payload = PackageInfo.Trailer.LoadPayload(PayloadId, *PackageAr);
 
@@ -364,7 +362,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 			return;
 		}
 
-		FPackageTrailerBuilder TrailerBuilder = FPackageTrailerBuilder::Create(PackageInfo.Trailer, *PackageAr);
+		FPackageTrailerBuilder TrailerBuilder = FPackageTrailerBuilder::Create(PackageInfo.Trailer, *PackageAr, PackagePath);
 		if (!TrailerBuilder.BuildAndAppendTrailer(nullptr, *CopyAr))
 		{
 			FText Message = FText::Format(	LOCTEXT("Virtualization_TrailerAppend", "Failed to append the trailer to '{0}'"),

@@ -7,6 +7,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackagePath.h"
 #include "Misc/PackageSegment.h"
+#include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
 
 namespace UE
@@ -71,12 +72,14 @@ FArchive& operator<<(FArchive& Ar, FLookupTableEntry& Entry)
 
 } // namespace Private
 
-FPackageTrailerBuilder FPackageTrailerBuilder::Create(const FPackageTrailer& Trailer, FArchive& Ar)
+FPackageTrailerBuilder FPackageTrailerBuilder::Create(const FPackageTrailer& Trailer, FArchive& Ar, const FPackagePath& PackagePath)
 {
-	FPackageTrailerBuilder Builder;
+	FPackageTrailerBuilder Builder(PackagePath.GetPackageFName());
 
 	for (const Private::FLookupTableEntry& Entry : Trailer.Header.PayloadLookupTable)
 	{
+		checkf(Entry.Identifier.IsValid(), TEXT("PackageTrailer for package should not contain invalid FPayloadIds. Package '%s'"), *PackagePath.GetPackageName());
+
 		if (Entry.IsVirtualized())
 		{
 			Builder.VirtualizedEntries.Add(Entry.Identifier, VirtualizedEntry(Entry.CompressedSize, Entry.RawSize));
@@ -91,26 +94,34 @@ FPackageTrailerBuilder FPackageTrailerBuilder::Create(const FPackageTrailer& Tra
 	return Builder;
 }
 
-int64 FPackageTrailerBuilder::FindPayloadOffset(const Virtualization::FPayloadId& Identifier) const
+FPackageTrailerBuilder::FPackageTrailerBuilder(UPackage* Package)
 {
-	check(TrailerPositionInFile != INDEX_NONE);
-	check(PayloadPosInFile != INDEX_NONE);
-	check(PayloadLookupTable.Num() == LocalEntries.Num() + VirtualizedEntries.Num());
-
-	for (const Private::FLookupTableEntry& Entry : PayloadLookupTable)
+	if (Package != nullptr)
 	{
-		if (Entry.Identifier == Identifier)
-		{
-			return PayloadPosInFile + Entry.OffsetInFile;
-		}
+		PackageName = Package->GetFName();
 	}
+}
 
-	return INDEX_NONE;
+FPackageTrailerBuilder::FPackageTrailerBuilder(FName InPackageName)
+	: PackageName(InPackageName)
+{
+}
+
+void FPackageTrailerBuilder::AddPayload(const Virtualization::FPayloadId& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback)
+{
+	checkf(TrailerPositionInFile == INDEX_NONE, TEXT("Attempting to add payloads after the trailer has been built. Package '%s'"), *PackageName.ToString());
+
+	Callbacks.Emplace(MoveTemp(Callback));
+
+	if (Identifier.IsValid())
+	{
+		LocalEntries.Add(Identifier, LocalEntry(MoveTemp(Payload)));
+	}
 }
 
 bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive)
 {
-	checkf(TrailerPositionInFile == INDEX_NONE, TEXT("Attempting to build the same FPackageTrailer multiple times"));
+	checkf(TrailerPositionInFile == INDEX_NONE, TEXT("Attempting to build the same FPackageTrailer multiple times. Package '%s'"), *PackageName.ToString());
 
 	// Note that we do not serialize containers directly as we want a file format that is 
 	// 100% under our control. This will allow people to create external scripts that can
@@ -134,6 +145,8 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	for (const TPair<Virtualization::FPayloadId, LocalEntry>& It : LocalEntries)
 	{
+		checkf(It.Key.IsValid(), TEXT("PackageTrailer should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
+
 		Private::FLookupTableEntry& Entry = PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
 		Entry.OffsetInFile = PayloadsDataLength;
@@ -145,6 +158,8 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	for (const TPair<Virtualization::FPayloadId, VirtualizedEntry>& It : VirtualizedEntries)
 	{
+		checkf(It.Key.IsValid(), TEXT("PackageTrailer should not contain invalid FPayloadIds. Package '%s'"), *PackageName.ToString());
+
 		Private::FLookupTableEntry& Entry = PayloadLookupTable.AddDefaulted_GetRef();
 		Entry.Identifier = It.Key;
 		Entry.OffsetInFile = INDEX_NONE;
@@ -202,12 +217,24 @@ bool FPackageTrailerBuilder::IsEmpty() const
 	return LocalEntries.IsEmpty() && VirtualizedEntries.IsEmpty();
 }
 
-void FPackageTrailerBuilder::AddPayload(const Virtualization::FPayloadId& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback)
+int64 FPackageTrailerBuilder::FindPayloadOffset(const Virtualization::FPayloadId& Identifier) const
 {
-	checkf(TrailerPositionInFile == INDEX_NONE, TEXT("Attempting to add payloads after the trailer has been built"));
+	check(TrailerPositionInFile != INDEX_NONE);
+	check(PayloadPosInFile != INDEX_NONE);
+	check(PayloadLookupTable.Num() == LocalEntries.Num() + VirtualizedEntries.Num());
 
-	Callbacks.Emplace(MoveTemp(Callback));
-	LocalEntries.Add(Identifier, LocalEntry(MoveTemp(Payload)));
+	if (Identifier.IsValid())
+	{
+		for (const Private::FLookupTableEntry& Entry : PayloadLookupTable)
+		{
+			if (Entry.Identifier == Identifier)
+			{
+				return PayloadPosInFile + Entry.OffsetInFile;
+			}
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 bool FPackageTrailer::IsEnabled()
