@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.67";
+        private static string VersionString = "4.68";
 
         public static string Get() { return VersionString; }
     };
