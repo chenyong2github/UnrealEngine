@@ -243,7 +243,8 @@ bool UUVSeamSewAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVSeamSewAction_ApplyAction);
 
-	FDynamicMesh3& MeshToSew = *(Targets[SelectionTargetIndex]->UnwrapCanonical);
+	UUVEditorToolMeshInput* Target = Targets[SelectionTargetIndex];
+	FDynamicMesh3& MeshToSew = *(Target->UnwrapCanonical);
 
 	TArray<int32> SelectedTids;
 	TArray<FIndex2i> ResolvedEdgePairs;
@@ -269,7 +270,7 @@ bool UUVSeamSewAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 	SelectedTids.Sort();
 	SelectedTids.SetNum(Algo::Unique(SelectedTids));
 
-	FDynamicMeshChangeTracker ChangeTracker(Targets[SelectionTargetIndex]->UnwrapCanonical.Get());
+	FDynamicMeshChangeTracker ChangeTracker(Target->UnwrapCanonical.Get());
 	ChangeTracker.BeginChange();
 	ChangeTracker.SaveTriangles(SelectedTids, true);
 
@@ -312,15 +313,17 @@ bool UUVSeamSewAction::ApplyAction(UUVToolEmitChangeAPI& EmitChangeAPI)
 		}
 	}
 
-	Targets[SelectionTargetIndex]->UpdateUnwrapCanonicalOverlayFromPositions(&RemainingVids, &SelectedTids);
-	Targets[SelectionTargetIndex]->UpdateAllFromUnwrapCanonical(&RemainingVids, &SelectedTids, &SelectedTids);
-	checkSlow(MeshToSew.IsSameAs(*Targets[SelectionTargetIndex]->UnwrapPreview->PreviewMesh->GetMesh(), FDynamicMesh3::FSameAsOptions()));
+	// Our selection is no longer valid, and we should clear it now before the broadcasts from the upcoming
+	// canonical updates ask us to rebuild our visualization.
+	SetSelection(-1, nullptr);
+
+	Target->UpdateUnwrapCanonicalOverlayFromPositions(&RemainingVids, &SelectedTids);
+	Target->UpdateAllFromUnwrapCanonical(&RemainingVids, &SelectedTids, &SelectedTids);
+	checkSlow(MeshToSew.IsSameAs(*Target->UnwrapPreview->PreviewMesh->GetMesh(), FDynamicMesh3::FSameAsOptions()));
 
 	const FText TransactionName(LOCTEXT("SewCompleteTransactionName", "Sew Edges"));
-	EmitChangeAPI.EmitToolIndependentUnwrapCanonicalChange(Targets[SelectionTargetIndex],
+	EmitChangeAPI.EmitToolIndependentUnwrapCanonicalChange(Target,
 		ChangeTracker.EndChange(), TransactionName);
-
-	SetSelection(-1, nullptr);
 
 	return true;
 }

@@ -348,6 +348,13 @@ public:
 	*/
 	int SplitElementWithNewParent(int ElementID, int SplitParentVertexID, const TArrayView<const int>& TrianglesToUpdate);
 
+	/**
+	 * Split any bowties at given vertex.
+	 * 
+	 * @param NewElementIDs If not null, newly created element IDs are placed here. Note that this array is
+	 *   intentionally not cleared before appending to it.
+	 */
+	void SplitBowtiesAtVertex(int32 Vid, TArray<int32>* NewElementIDs = nullptr);
 
 	/**
 	* Refine an existing overlay topology by splitting any bow ties

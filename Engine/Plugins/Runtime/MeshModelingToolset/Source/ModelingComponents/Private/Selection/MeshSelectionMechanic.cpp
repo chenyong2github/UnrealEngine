@@ -31,10 +31,9 @@ namespace MeshSelectionMechanicLocals
 	{
 	public:
 		FMeshSelectionMechanicSelectionChange(const FDynamicMeshSelection& OldSelection,
-			const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChangedIn)
+			const FDynamicMeshSelection& NewSelection)
 			: Before(OldSelection)
 			, After(NewSelection)
-			, bBroadcastOnSelectionChanged(bBroadcastOnSelectionChangedIn)
 		{
 		}
 
@@ -43,7 +42,7 @@ namespace MeshSelectionMechanicLocals
 			UMeshSelectionMechanic* Mechanic = Cast<UMeshSelectionMechanic>(Object);
 			if (Mechanic)
 			{
-				Mechanic->SetSelection(After, bBroadcastOnSelectionChanged, false);
+				Mechanic->SetSelection(After, true, false);
 			}
 		}
 
@@ -52,7 +51,7 @@ namespace MeshSelectionMechanicLocals
 			UMeshSelectionMechanic* Mechanic = Cast<UMeshSelectionMechanic>(Object);
 			if (Mechanic)
 			{
-				Mechanic->SetSelection(Before, bBroadcastOnSelectionChanged, false);
+				Mechanic->SetSelection(Before, true, false);
 			}
 		}
 
@@ -64,7 +63,6 @@ namespace MeshSelectionMechanicLocals
 	protected:
 		FDynamicMeshSelection Before;
 		FDynamicMeshSelection After;
-		bool bBroadcastOnSelectionChanged;
 	};
 
 	template <typename InElementType>
@@ -313,10 +311,10 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	// Add default selection change emitter if one was not provided.
 	if (!EmitSelectionChange)
 	{
-		EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged)
+		EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection)
 		{
 			GetParentTool()->GetToolManager()->EmitObjectChange(this, 
-				MakeUnique<MeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange>(OldSelection, NewSelection, bBroadcastOnSelectionChanged),
+				MakeUnique<MeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange>(OldSelection, NewSelection),
 				LOCTEXT("SelectionChangeMessage", "Selection Change"));
 		};
 	}
@@ -442,7 +440,7 @@ void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection
 
 	if (bEmitChange && OriginalSelection != CurrentSelection)
 	{
-		EmitSelectionChange(OriginalSelection, CurrentSelection, bBroadcast);
+		EmitSelectionChange(OriginalSelection, CurrentSelection);
 	}
 	if (bBroadcast)
 	{
@@ -829,7 +827,7 @@ void UMeshSelectionMechanic::ChangeSelectionMode(const EMeshSelectionMechanicMod
 	{
 		UpdateCentroid();
 		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
-		EmitSelectionChange(OriginalSelection, CurrentSelection, true);
+		EmitSelectionChange(OriginalSelection, CurrentSelection);
 		OnSelectionChanged.Broadcast();
 	}
 
@@ -1001,7 +999,7 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 	if (OriginalSelection != CurrentSelection)
 	{
 		UpdateCentroid();
-		EmitSelectionChange(OriginalSelection, CurrentSelection, true);
+		EmitSelectionChange(OriginalSelection, CurrentSelection);
 		OnSelectionChanged.Broadcast();
 
 		// Rebuild after broadcast in case the outside world wants to adjust things like color...
@@ -1169,7 +1167,7 @@ void UMeshSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& Cur
 	if (!bCancelled && (PreDragSelection != CurrentSelection))
 	{
 		UpdateCentroid();		
-		EmitSelectionChange(PreDragSelection, CurrentSelection, true);
+		EmitSelectionChange(PreDragSelection, CurrentSelection);
 		OnSelectionChanged.Broadcast();
 
 		// Rebuild after broadcast in case the outside world wants to adjust things like color...

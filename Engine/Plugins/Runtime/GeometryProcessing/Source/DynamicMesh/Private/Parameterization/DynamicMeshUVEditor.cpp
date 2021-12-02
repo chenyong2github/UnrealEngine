@@ -846,46 +846,68 @@ bool FDynamicMeshUVEditor::CreateSeamsAtEdges(const TSet<int32>& EidsToMakeIntoS
 
 		if (UVOverlay->IsSeamEdge(Eid))
 		{
-			// If this is already a seam edge, we may have made it one by splitting the opposite vertex earlier
-			// (as part of an adjacent edge split). Make sure that we don't leave a bowtie.
+			// If this is already a seam edge, make sure its endpoints are not bowties. We create such edges 
+			// sometimes as we split adjacent edges, and it is also likely to be what the user wants when
+			// selecting edges adjacent to a bowtie.
 			for (int i = 0; i < 2; ++i)
 			{
 				if (UVOverlay->IsBowtieInOverlay(EdgeVids[i]))
 				{
-					VertNeedsSplitting[i] = true;
-
-					// Gather up the attached verts into VertTidsToUseForSplit
-					ensure(DoesVertHaveAnotherSeamAttached(Eid, EdgeVids[i], VertTidsToUseForSplit[i]));
+					UVOverlay->SplitBowtiesAtVertex(EdgeVids[i], 
+						Result ? &Result->NewUVElements : nullptr);
 				}
+			}
+			continue;
+		}
+
+		// If we're not already a seam, then it's going to become one. A vert needs to get split if it
+		// has a present or future seam attached, or else it will become a bowtie if we just split the
+		// other vert.
+		for (int i = 0; i < 2; ++i)
+		{
+			VertNeedsSplitting[i] = DoesVertHaveAnotherSeamAttached(Eid, EdgeVids[i], VertTidsToUseForSplit[i]);
+		}
+			
+		// If neither absolutely has to get split, then one needs to get split anyway so that we
+		// make the edge into a seam.
+		if (!VertNeedsSplitting[0] && !VertNeedsSplitting[1])
+		{
+			// We'll go halfway around the triangle one-ring, rounding up
+			int32 NumTrisToDisconnect = (VertTidsToUseForSplit[0].Num() + 1) / 2;
+
+			// In doing this, we are splitting an adjacent edge and therefore might inadvertantly
+			// introduce a bowtie on the other vert of that edge, which we would like to avoid. 
+			// So keep track of that potential bowtie.
+			int32 OtherSplitEdge = Mesh->FindEdgeFromTriPair(
+				VertTidsToUseForSplit[0][NumTrisToDisconnect - 1],
+				VertTidsToUseForSplit[0][NumTrisToDisconnect]);
+			int32 PotentialBowtieVid = ensure(OtherSplitEdge != IndexConstants::InvalidID) ?
+				IndexUtil::FindEdgeOtherVertex(Mesh->GetEdgeV(OtherSplitEdge), EdgeVids[0])
+				: IndexConstants::InvalidID;
+
+			// Perform the split
+			VertTidsToUseForSplit[0].SetNum(NumTrisToDisconnect);
+			SplitEdgeVertElement(Eid, EdgeVids[0], VertTidsToUseForSplit[0]);
+
+			// Deal with the bowtie if we created one
+			if (ensure(PotentialBowtieVid != IndexConstants::InvalidID) 
+				&& UVOverlay->IsBowtieInOverlay(PotentialBowtieVid))
+			{
+				UVOverlay->SplitBowtiesAtVertex(PotentialBowtieVid,
+					Result ? &Result->NewUVElements : nullptr);
 			}
 		}
 		else
 		{
-			// If we're not already a seam, then it's going to become one. A vert needs to get split if it
-			// has a present or future seam attached, or else it will become a bowtie if we just split the
-			// other vert.
 			for (int i = 0; i < 2; ++i)
 			{
-				VertNeedsSplitting[i] = DoesVertHaveAnotherSeamAttached(Eid, EdgeVids[i], VertTidsToUseForSplit[i]);
+				if (VertNeedsSplitting[i])
+				{
+					SplitEdgeVertElement(Eid, EdgeVids[i], VertTidsToUseForSplit[i]);
+				}
 			}
-			
-			// If neither absolutely has to get split, then one needs to get split anyway so that we
-			// make the edge into a seam.
-			if (!VertNeedsSplitting[0] && !VertNeedsSplitting[1])
-			{
-				VertNeedsSplitting[0] = true;
-				VertTidsToUseForSplit[0].SetNum((VertTidsToUseForSplit[0].Num() + 1) / 2); // Go halfway around, rounding up
-			}
-		}
-
-		for (int i = 0; i < 2; ++i)
-		{
-			if (VertNeedsSplitting[i])
-			{
-				SplitEdgeVertElement(Eid, EdgeVids[i], VertTidsToUseForSplit[i]);
-			}
-		}
-	}
+		}//end if at least one side needed splitting
+	}//end for each edge
 
 	return true;
 }

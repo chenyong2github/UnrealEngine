@@ -107,25 +107,19 @@ namespace UVSelectToolLocals
 	{
 	public:
 		/**
-		 * @param bBroadcastOnSelectionChangedIn Whether the change in selection should broadcast
-		 *   OnSelectionChanged, which updates gizmo, etc.
-		 * @param GizmoBeforeIn Only relevant if bBroadcastOnSelectionChangedIn is true. In that case,
-		 *   the gizmo gets reset on the way forward to the current selection, which means we have to
-		 *   reset it to the old orientation on the way back (otherwise a rotated gizmo would end up
-		 *   losing its rotation on undo).
+		 * @param GizmoBeforeIn Transform to which to revert gizmo on the way back (to avoid losing gizmo rotation, which
+		 *   gets transacted post-selection-change, and therefore in the wrong place for undo).
 		 * @param EdgeVidPairsBeforeIn
 		 * @param EdgeVidPairsAfterIn
 		 */
 		FSelectionChange(const FDynamicMeshSelection& SelectionBeforeIn,
 			const FDynamicMeshSelection& SelectionAfterIn,
-			bool bBroadcastOnSelectionChangedIn,
 			const FTransform& GizmoBeforeIn,
 			TUniquePtr<TArray<FIndex2i>> EdgeVidPairsBeforeIn,
 			TUniquePtr<TArray<FIndex2i>> EdgeVidPairsAfterIn
 			)
 			: SelectionBefore(SelectionBeforeIn)
 			, SelectionAfter(SelectionAfterIn)
-			, bBroadcastOnSelectionChanged(bBroadcastOnSelectionChangedIn)
 			, GizmoBefore(GizmoBeforeIn)
 			, EdgeVidPairsBefore(MoveTemp(EdgeVidPairsBeforeIn))
 			, EdgeVidPairsAfter(MoveTemp(EdgeVidPairsAfterIn))
@@ -142,7 +136,7 @@ namespace UVSelectToolLocals
 			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
 			{
 				UpdateSelectionEidsAfterMeshChange(SelectionAfter, EdgeVidPairsAfter.Get());
-				ChangeRouter->CurrentSelectTool->SetSelection(SelectionAfter, bBroadcastOnSelectionChanged);
+				ChangeRouter->CurrentSelectTool->SetSelection(SelectionAfter);
 			}
 		}
 
@@ -152,11 +146,8 @@ namespace UVSelectToolLocals
 			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
 			{
 				UpdateSelectionEidsAfterMeshChange(SelectionBefore, EdgeVidPairsBefore.Get());
-				ChangeRouter->CurrentSelectTool->SetSelection(SelectionBefore, bBroadcastOnSelectionChanged);
-				if (bBroadcastOnSelectionChanged)
-				{
-					ChangeRouter->CurrentSelectTool->SetGizmoTransform(GizmoBefore);
-				}
+				ChangeRouter->CurrentSelectTool->SetSelection(SelectionBefore);
+				ChangeRouter->CurrentSelectTool->SetGizmoTransform(GizmoBefore);
 			}
 		}
 
@@ -174,7 +165,6 @@ namespace UVSelectToolLocals
 	protected:
 		FDynamicMeshSelection SelectionBefore;
 		FDynamicMeshSelection SelectionAfter;
-		bool bBroadcastOnSelectionChanged;
 		FTransform GizmoBefore;
 
 		TUniquePtr<TArray<FIndex2i>> EdgeVidPairsBefore;
@@ -346,7 +336,7 @@ void UUVSelectTool::Setup()
 	ChangeRouter->CurrentSelectTool = this;
 
 	SelectionMechanic->EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection,
-		const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChangedIn)
+		const FDynamicMeshSelection& NewSelection)
 	{
 		TUniquePtr<TArray<FIndex2i>> VidPairsBefore;
 		TUniquePtr<TArray<FIndex2i>> VidPairsAfter;
@@ -361,7 +351,7 @@ void UUVSelectTool::Setup()
 			GetVidPairsFromSelection(NewSelection, *VidPairsAfter);
 		}
 		EmitChangeAPI->EmitToolIndependentChange(ChangeRouter, MakeUnique<UVSelectToolLocals::FSelectionChange>(
-			OldSelection, NewSelection, bBroadcastOnSelectionChangedIn, TransformGizmo->GetGizmoTransform(),
+			OldSelection, NewSelection, TransformGizmo->GetGizmoTransform(),
 			MoveTemp(VidPairsBefore), MoveTemp(VidPairsAfter)),
 			LOCTEXT("SelectionChangeMessage", "Selection Change"));
 	};
@@ -415,6 +405,7 @@ void UUVSelectTool::Setup()
 			UpdateSelectionEidsAfterMeshChange(*SelectionMechanic, &CurrentSelectionVidPairs);
 			UpdateGizmo();
 			SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());
+			SewAction->UpdateVisualizations();
 		});
 	}
 
@@ -526,14 +517,13 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	ChangeRouter = nullptr;
 }
 
-void UUVSelectTool::SetSelection(const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged)
+void UUVSelectTool::SetSelection(const FDynamicMeshSelection& NewSelection)
 {
-	SelectionMechanic->SetSelection(NewSelection, bBroadcastOnSelectionChanged, 
+	SelectionMechanic->SetSelection(NewSelection, true, 
 		false); // Don't emit undo because this function is called from undo
 	
 	// Make sure the current selection mode is compatible with the new selection we received. Don't broadcast
-	// this part because presumably we've already responded to selection change if bBroadcastOnSelectionChanged
-	// was true above.
+	// this part because presumably we've already responded to selection change through selection change broadcast.
 	// TODO: there are a couple things that are not ideal about the below. One is that we always change to
 	// triangle mode when we don't know if the triangles came from island or mesh selection mode. Another is
 	// that we change the selection mode in the mechanic directly rather than going through ChangeSelectionMode,
@@ -977,32 +967,43 @@ void UUVSelectTool::ApplySplit()
 
 	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
 
-	if (Selection.IsEmpty() || Selection.Type != FDynamicMeshSelection::EType::Edge)
+	if (Selection.IsEmpty())
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("SplitErrorSelectionEmpty", "Cannot split UV's. Edge selection was empty."),
+			LOCTEXT("SplitErrorSelectionEmpty", "Cannot split UVs. Selection was empty."),
 			EToolMessageLevel::UserWarning);
-		return;
 	}
+	else if (Selection.Type == FDynamicMeshSelection::EType::Edge)
+	{
+		ApplySplitEdges();
+	}
+	else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
+	{
+		ApplySplitBowtieVertices();
+	}
+	else
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("SplitErrorSelectionEmpty", "Cannot split UVs. Selection must be edges or vertices."),
+			EToolMessageLevel::UserWarning);
+	}
+}
 
-	if (!ensure(SelectionTargetIndex >= 0))
+void UUVSelectTool::ApplySplitEdges()
+{
+	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	if (!ensure(SelectionTargetIndex >= 0 && !Selection.IsEmpty() && Selection.Type == FDynamicMeshSelection::EType::Edge))
 	{
 		return;
 	}
 	UUVEditorToolMeshInput* Target = Targets[SelectionTargetIndex];
-	
+
 	// Gather up the corresponding edge IDs in the applied (3d) mesh.
 	TSet<int32> AppliedEidSet;
 	for (int32 Eid : Selection.SelectedIDs)
 	{
-		if (Selection.Mesh->IsBoundaryEdge(Eid))
-		{
-			// We will skip these already-split edges here. It would be safe to pass the corresponding
-			// applied edge into the CreateSeamsAtEdges call, but we don't want this edge to stay selected
-			// after the split action, because we would like a split followed by immediate sew to revert
-			// the mesh to the previous state, rather than sewing edges that started out split.
-			continue;
-		}
+		// Note that we don't check whether edges are already boundary edges because we allow such edges
+		// to be selected for splitting of any attached bowties.
 
 		FIndex2i EdgeUnwrapVids = Selection.Mesh->GetEdgeV(Eid);
 
@@ -1016,7 +1017,7 @@ void UUVSelectTool::ApplySplit()
 		}
 	}
 
-	// Perform the cut in the overlay
+	// Perform the cut in the overlay, but don't propagate to unwrap yet
 	FUVEditResult UVEditResult;
 	FDynamicMeshUVEditor UVEditor(Target->AppliedCanonical.Get(),
 		Target->UVLayerIndex, false);
@@ -1035,17 +1036,13 @@ void UUVSelectTool::ApplySplit()
 	ChangeTracker.BeginChange();
 	ChangeTracker.SaveTriangles(TidSet, true);
 
-	// We're about to update the unwrap, which may mess up our selection because a selected edge may
-	// no longer exist after the update, even if we store it as a pair of verts. Instead, we're going
-	// to be changing the selection to all the resulting border edges after this.
-	// The cleanest thing to do (esp for undo/redo) is to clear selection first, then reset it.
-
-	const FText TransactionName(LOCTEXT("ApplySplitTransactionName", "Split Edges"));
+	const FText TransactionName(LOCTEXT("ApplySplitEdgesTransactionName", "Split Edges"));
 	EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
-	FDynamicMeshSelection NewSelection = SelectionMechanic->GetCurrentSelection();
-	FDynamicMeshSelection EmptySelection;
-	SelectionMechanic->SetSelection(EmptySelection, false, true); // don't broadcast, do emit undo
+	// Clear selection here so that it is restored on undo
+	// TODO: We could apply a new selection after the change, but this should only happen
+	// once we apply a new selection on split, which we currently don't do.
+	SelectionMechanic->SetSelection(FDynamicMeshSelection(), true, true);
 
 	// Perform the update
 	TArray<int32> AppliedTids = TidSet.Array();
@@ -1058,26 +1055,68 @@ void UUVSelectTool::ApplySplit()
 	EmitChangeAPI->EmitToolIndependentUnwrapCanonicalChange(
 		Target, ChangeTracker.EndChange(), TransactionName);
 
-	// Set selection to new border edges
-	NewSelection.SelectedIDs.Empty();
-	for (int32 AppliedEid : AppliedEidSet)
+	EmitChangeAPI->EndUndoTransaction();
+}
+
+void UUVSelectTool::ApplySplitBowtieVertices()
+{
+	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
+	if (!ensure(SelectionTargetIndex >= 0 && !Selection.IsEmpty() && Selection.Type == FDynamicMeshSelection::EType::Vertex))
 	{
-		FIndex2i EdgeAppliedVids = Target->AppliedCanonical->GetEdgeV(AppliedEid);
-		TArray<int32> UnwrapVids1, UnwrapVids2;
-		Target->AppliedVidToUnwrapVids(EdgeAppliedVids.A, UnwrapVids1);
-		Target->AppliedVidToUnwrapVids(EdgeAppliedVids.B, UnwrapVids2);
-		for (int32 Vid1 : UnwrapVids1)
-		{
-			for (int32 Vid2 : UnwrapVids2)
-			{
-				int32 Eid = NewSelection.Mesh->FindEdge(Vid1, Vid2);
-				if (Eid != IndexConstants::InvalidID)
-				{
-					NewSelection.SelectedIDs.Add(Eid);
-				}
-			}
-		}
+		return;
 	}
+	UUVEditorToolMeshInput* Target = Targets[SelectionTargetIndex];
+
+	// Gather the corresponding vert ID's in the applied mesh
+	TSet<int32> AppliedVidSet;
+	for (int32 UnwrapVid : Selection.SelectedIDs)
+	{
+		int32 AppliedVid = Target->UnwrapVidToAppliedVid(UnwrapVid);
+		AppliedVidSet.Add(AppliedVid);
+	}
+
+	// Split any bowties in the applied mesh overlay
+	TArray<int32> NewUVElements;
+	FDynamicMeshUVOverlay* Overlay = Target->AppliedCanonical->Attributes()->GetUVLayer(Target->UVLayerIndex);
+	for (int32 Vid : AppliedVidSet)
+	{
+		Overlay->SplitBowtiesAtVertex(Vid, &NewUVElements);
+	}
+
+	// Prep for undo transaction
+	TSet<int32> TidSet;
+	for (int32 UnwrapVid : NewUVElements)
+	{
+		TArray<int32> VertTids;
+		Target->AppliedCanonical->GetVtxTriangles(Target->UnwrapVidToAppliedVid(UnwrapVid), VertTids);
+		TidSet.Append(VertTids);
+	}
+
+	FDynamicMeshChangeTracker ChangeTracker(Target->UnwrapCanonical.Get());
+	ChangeTracker.BeginChange();
+	ChangeTracker.SaveTriangles(TidSet, true);
+
+	const FText TransactionName(LOCTEXT("ApplySplitBowtieVerticesTransactionName", "Split Bowties"));
+	EmitChangeAPI->BeginUndoTransaction(TransactionName);
+
+	// Emit selection clear first so that we restore it on undo
+	FDynamicMeshSelection NewSelection = SelectionMechanic->GetCurrentSelection(); // save type, etc
+	// TODO: This emitted transaction doesn't actually need to broadcast on redo, but we don't yet
+	// have support for that.
+	SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true); // don't broadcast, do emit undo
+
+	// Perform the update
+	TArray<int32> AppliedTids = TidSet.Array();
+	Target->UpdateAllFromAppliedCanonical(&NewUVElements, &AppliedTids, &AppliedTids);
+
+	// Emit update transaction
+	EmitChangeAPI->EmitToolIndependentUnwrapCanonicalChange(
+		Target, ChangeTracker.EndChange(), TransactionName);
+
+	// Set up the new selection to include the new elements
+	NewSelection.SelectedIDs.Append(NewUVElements);
+	// TODO: This emitted transaction doesn't actually need to broadcast on undo, but we don't yet
+	// have support for that.
 	SelectionMechanic->SetSelection(NewSelection, true, true); // both broadcast and emit undo
 
 	EmitChangeAPI->EndUndoTransaction();

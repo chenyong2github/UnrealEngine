@@ -68,11 +68,15 @@ public:
 	void Initialize(UUVSelectTool* ParentToolIn) { ParentTool = ParentToolIn; }
 	void PostAction(ESelectToolAction Action);
 
+	//~ NOTE: the below comments don't actually get used as tooltips because we use a detail
+	//~ customization, and the tooltips are specified in UVEditorCommands.cpp. Change them
+	//~ there if needed!
+
 	/** Sew edges. The red edges will be sewn to the green edges */
 	UFUNCTION(CallInEditor, Category = Actions)
 	void Sew() { PostAction(ESelectToolAction::Sew); }
 
-	/** Split given edges/verts */
+	/** Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie verts. */
 	UFUNCTION(CallInEditor, Category = Actions)
 	void Split() { PostAction(ESelectToolAction::Split); };
 
@@ -108,7 +112,7 @@ public:
 	}
 
 	// Used by undo/redo changes to update the tool state
-	void SetSelection(const UE::Geometry::FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged);
+	void SetSelection(const UE::Geometry::FDynamicMeshSelection& NewSelection);
 	void SetGizmoTransform(const FTransform& NewTransform);
 
 	// UInteractiveTool
@@ -197,6 +201,8 @@ protected:
 
 	void ApplyAction(ESelectToolAction ActionType);
 	void ApplySplit();
+	void ApplySplitEdges();
+	void ApplySplitBowtieVertices();
 
 
 };
