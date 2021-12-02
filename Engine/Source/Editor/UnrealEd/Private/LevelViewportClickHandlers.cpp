@@ -253,7 +253,7 @@ namespace LevelViewportClickHandlers
 				FlushRenderingCommands();
 			}
 
-			PrivateSummonContextMenu(ViewportClient, UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor));
+			PrivateSummonContextMenu(ViewportClient, Actor ? UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor) : FTypedElementHandle());
 			return true;
 		}
 		else if( Click.GetEvent() == IE_DoubleClick && Click.GetKey() == EKeys::LeftMouseButton && !Click.IsControlDown() && !Click.IsShiftDown() )
