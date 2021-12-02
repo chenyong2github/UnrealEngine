@@ -7,7 +7,6 @@
 
 class FConsoleVariablesEditorMainPanel;
 class SBox;
-class SMultiLineEditableTextBox;
 class SHorizontalBox;
 class SVerticalBox;
 class UConsoleVariablesAsset;
@@ -27,7 +26,7 @@ public:
 	virtual ~SConsoleVariablesEditorMainPanel() override;
 
 	/** A handler for when text is committed to the Console Input Box that appears when clicking the "Add Console Variable" button */
-	FReply HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed);
+	FReply ValidateConsoleInput(const FText& CommittedText);
 
 	void RefreshMultiUserDetails();
 	void ToggleMultiUserDetails(ECheckBoxState CheckState);
@@ -42,13 +41,8 @@ private:
 	/** A reference to the button which opens the plugin settings */
 	TSharedPtr<SCheckBox> ConcertButtonPtr;
 
-	/** A special text box widget that can search console variables as text is typed into it */
-	TSharedPtr<SWidget> ConsoleInput;
-	/** A reference to the actual text box inside ConsoleInput */
-	TSharedPtr<SMultiLineEditableTextBox> ConsoleInputEditableTextBox;
-
 	/** Creates the toolbar at the top of the MainPanel widget */
-	TSharedRef<SWidget> GeneratePanelToolbar(const TSharedRef<SWidget> InConsoleInputWidget);
+	TSharedRef<SWidget> GeneratePanelToolbar();
 	
 	void CreateConcertButtonIfNeeded();
 
