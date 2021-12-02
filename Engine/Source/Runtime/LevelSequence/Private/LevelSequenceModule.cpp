@@ -298,18 +298,18 @@ bool FLevelSequenceModule::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutput
 				return true;
 			}
 		}
+
+		// show usage
+		Ar.Log(TEXT("Usage: Sequencer <Command>"));
+		Ar.Log(TEXT(""));
+		Ar.Log(TEXT("Command"));
+		Ar.Log(TEXT("    Play <SequenceName> = Start playback forwards from the current time cursor position, using the current play rate"));
+		Ar.Log(TEXT("    Pause <SequenceName> = Pause playback"));
+		Ar.Log(TEXT("    Stop <SequenceName> = Stop playback and move the cursor to the end (or start, for reversed playback) of the sequence"));
+		Ar.Log(TEXT("    SetPlaybackPosition <SequenceName> <FrameNumber> = Set the current time of the player by evaluating from the current time to the specified time"));
+		Ar.Log(TEXT("    PlayTo <SequenceName> <FrameNumber> = Play from the current position to the requested position and pause"));
+		Ar.Log(TEXT("    SetClockSource <SequenceName> <ClockSource, ie. Tick, Audio, PlayEveryFrame> = Set the clock source"));
 	}
-		
-	// show usage
-	Ar.Log(TEXT("Usage: Sequencer <Command>"));
-	Ar.Log(TEXT(""));
-	Ar.Log(TEXT("Command"));
-	Ar.Log(TEXT("    Play <SequenceName> = Start playback forwards from the current time cursor position, using the current play rate"));
-	Ar.Log(TEXT("    Pause <SequenceName> = Pause playback"));
-	Ar.Log(TEXT("    Stop <SequenceName> = Stop playback and move the cursor to the end (or start, for reversed playback) of the sequence"));
-	Ar.Log(TEXT("    SetPlaybackPosition <SequenceName> <FrameNumber> = Set the current time of the player by evaluating from the current time to the specified time"));
-	Ar.Log(TEXT("    PlayTo <SequenceName> <FrameNumber> = Play from the current position to the requested position and pause"));
-	Ar.Log(TEXT("    SetClockSource <SequenceName> <ClockSource, ie. Tick, Audio, PlayEveryFrame> = Set the clock source"));
 		
 	return false;
 }
