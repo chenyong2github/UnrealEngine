@@ -115,7 +115,7 @@ namespace Metasound
 								}
 							}
 
-							return EVisibility::Hidden;
+							return EVisibility::Collapsed;
 						}))
 						.OnClicked(FOnClicked::CreateLambda([this]()
 						{
