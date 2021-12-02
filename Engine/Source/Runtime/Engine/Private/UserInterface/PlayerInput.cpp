@@ -203,6 +203,7 @@ bool UPlayerInput::InputKey(FKey Key, EInputEvent Event, float AmountDepressed, 
 	Params.Key = Key;
 	Params.Event = Event;
 	Params.Delta = FVector((double)AmountDepressed, 0.0, 0.0);
+	Params.bIsGamepadOverride = bGamepad;
 	
 	return InputKey(Params);
 }
@@ -370,6 +371,7 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 	Params.Key = Key;
 	Params.Delta = FVector((double)Delta, 0.0, 0.0);
 	Params.NumSamples = NumSamples;
+	Params.bIsGamepadOverride = bGamepad;
 	
 	return InputKey(Params);
 }
