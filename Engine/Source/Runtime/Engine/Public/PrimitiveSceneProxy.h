@@ -402,14 +402,14 @@ public:
 	 * 
 	 * @return return true if the primitive should be added to the scene
 	 */
-	virtual bool OnLevelAddedToWorld_RenderThread() {return false;}
+	ENGINE_API virtual bool OnLevelAddedToWorld_RenderThread();
 
 	/**
 	 * Called to notify the proxy that the level has been fully removed from
 	 * the world and the primitive will not be rendered.
 	 * Only called if bShouldNotifyOnWorldAddRemove is set to true.
 	 */
-	virtual void OnLevelRemovedFromWorld_RenderThread() {}
+	ENGINE_API virtual void OnLevelRemovedFromWorld_RenderThread();
 
 	/**
 	* @return true if the proxy can be culled when occluded by other primitives
@@ -995,9 +995,9 @@ private:
 	/** If true this primitive Renders in the mainPass */
 	uint8 bRenderInMainPass : 1;
 
-	/** If true this primitive will always return that it is hidden if queried*/
+	/** If true this primitive is hidden (used when level is not yet visible) */
 	uint8 bForceHidden : 1;
-	
+
 	/** Whether this component has any collision enabled */
 	uint8 bCollisionEnabled : 1;
 

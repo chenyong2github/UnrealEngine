@@ -87,6 +87,12 @@ protected:
 		ToolTip = "Batching granularity used to register actor components during level streaming."))
 	int32 LevelStreamingComponentsRegistrationGranularity;
 
+	/** Batching granularity used to add primitives to scene in parallel when registering actor components during level streaming */
+	UPROPERTY(EditAnywhere, config, Category = LevelStreaming, AdvancedDisplay, meta = (
+		ConsoleVariable = "s.LevelStreamingAddPrimitiveGranularity", DisplayName = "Added Primitive Granularity",
+		ToolTip = "Batching granularity used to add primitives to scene in parallel when registering actor components during level streaming."))
+	int32 LevelStreamingAddPrimitiveGranularity;
+
 	/** Maximum allowed time to spend while unregistering components during level streaming (ms per frame) */
 	UPROPERTY(EditAnywhere, config, Category = LevelStreaming, AdvancedDisplay, meta = (
 		ConsoleVariable = "s.UnregisterComponentsTimeLimit", DisplayName = "Component Unregister Update Time Limit",
@@ -132,6 +138,8 @@ extern ENGINE_API float GLevelStreamingActorsUpdateTimeLimit;
 extern ENGINE_API float GPriorityLevelStreamingActorsUpdateExtraTime;
 /** Batching granularity used to register actor components during level streaming. */
 extern ENGINE_API int32 GLevelStreamingComponentsRegistrationGranularity;
+/** Batching granularity used to add primitives to scene in parallel when registering actor components during level streaming. */
+extern ENGINE_API int32 GLevelStreamingAddPrimitiveGranularity;
 /** Batching granularity used to unregister actor components during level streaming.  */
 extern ENGINE_API int32 GLevelStreamingComponentsUnregistrationGranularity;
 /** Maximum allowed time to spend for actor unregistration steps during level streaming (ms per frame). If this is 0.0 then we don't timeslice.*/

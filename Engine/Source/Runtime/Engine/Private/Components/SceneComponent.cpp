@@ -3020,13 +3020,6 @@ bool USceneComponent::IsVisible() const
 		return false;
 	}
 
-	// If the level has the bRequireFullVisibilityToRender flag and it ain't visible yet, this component should not be visible.
-	const ULevel* ComponentLevel = GetComponentLevel();
-	if (ComponentLevel && ComponentLevel->bRequireFullVisibilityToRender && !ComponentLevel->bIsVisible)
-	{
-		return false;
-	}
-	
 	return (GetVisibleFlag() && (!CachedLevelCollection || CachedLevelCollection->IsVisible())); 
 }
 

@@ -220,6 +220,16 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 {
 	check(Scene);
 
+	// Initialize ForceHidden flag based on Level's visibility (only if Level bRequireFullVisibilityToRender is set)
+	if (ULevel* Level = InComponent->GetComponentLevel())
+	{
+		bShouldNotifyOnWorldAddRemove = Level->bRequireFullVisibilityToRender;
+		if (bShouldNotifyOnWorldAddRemove)
+		{
+			SetForceHidden(!Level->bIsVisible);
+		}
+	}
+
 #if STATS
 	{
 		UObject const* StatObject = InComponent->AdditionalStatObject(); // prefer the additional object, this is usually the thing related to the component
@@ -331,6 +341,19 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			}
 		}
 	}
+}
+
+bool FPrimitiveSceneProxy::OnLevelAddedToWorld_RenderThread()
+{
+	check(bShouldNotifyOnWorldAddRemove);
+	SetForceHidden(false);
+	return false;
+}
+
+void FPrimitiveSceneProxy::OnLevelRemovedFromWorld_RenderThread()
+{
+	check(bShouldNotifyOnWorldAddRemove);
+	SetForceHidden(true);
 }
 
 #if WITH_EDITOR
@@ -821,6 +844,12 @@ void FPrimitiveSceneProxy::SetCollisionEnabled_RenderThread(const bool bNewEnabl
 /** @return True if the primitive is visible in the given View. */
 bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 {
+	// If primitive is forcibly hidden
+	if (IsForceHidden())
+	{
+		return false;
+	}
+
 #if WITH_EDITOR
 	// Don't draw editor specific actors during game mode
 	if (View->Family->EngineShowFlags.Game)
@@ -832,12 +861,6 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 	}
 
 	if (bIsFoliage && !View->Family->EngineShowFlags.InstancedFoliage)
-	{
-		return false;
-	}
-
-	// If primitive is forcibly hidden
-	if (bForceHidden)
 	{
 		return false;
 	}
@@ -958,7 +981,7 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 #endif	//#if WITH_EDITOR
 
 		// If primitive is forcibly hidden
-		if (bForceHidden)
+		if (IsForceHidden())
 		{
 			return false;
 		}

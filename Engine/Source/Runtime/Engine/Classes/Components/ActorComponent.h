@@ -42,6 +42,7 @@ public:
 		AddPrimitiveBatches.Add(PrimitiveComponent);
 	}
 
+	int32 Count() const { return AddPrimitiveBatches.Num(); }
 	void Process();
 
 private:

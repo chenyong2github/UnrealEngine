@@ -614,6 +614,9 @@ private:
 	/** True if the primitive registered with velocity data and needs to remove itself when being removed from the scene. */
 	bool bRegisteredWithVelocityData : 1;
 
+	/** Index into the scene's PrimitivesNeedingLevelUpdateNotification array for this primitive scene info level. */
+	int32 LevelUpdateNotificationIndex;
+
 	/** Offset into the scene's instance scene data buffer, when GPUScene is enabled. */
 	int32 InstanceSceneDataOffset;
 

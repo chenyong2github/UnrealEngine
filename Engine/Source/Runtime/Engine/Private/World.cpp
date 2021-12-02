@@ -2773,14 +2773,26 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 			// from disk rather than duplicated
 			bRerunConstructionScript = !(IsGameWorld() && (Level->bHasRerunConstructionScripts || !bRerunConstructionDuringEditorStreaming));
 		}
-		
+
+		// Prepare context used to store batch/parallelize AddPrimitive calls
+		FRegisterComponentContext Context(this);
+		FRegisterComponentContext* ContextPtr = GLevelStreamingAddPrimitiveGranularity == 0 ? nullptr : &Context;
+
 		// Incrementally update components.
 		int32 NumComponentsToUpdate = (!bConsiderTimeLimit || !IsGameWorld() || IsRunningCommandlet() ? 0 : GLevelStreamingComponentsRegistrationGranularity);
 		do
 		{
-			Level->IncrementalUpdateComponents( NumComponentsToUpdate, bRerunConstructionScript );
+			Level->IncrementalUpdateComponents( NumComponentsToUpdate, bRerunConstructionScript, ContextPtr);
+			// Process AddPrimitives if threshold is reached
+			if (Context.Count() > GLevelStreamingAddPrimitiveGranularity)
+			{
+				Context.Process();
+			}
 		}
 		while (!Level->bAreComponentsCurrentlyRegistered && !IsTimeLimitExceeded(TEXT("updating components"), StartTime, Level, TimeLimit));
+		
+		// Process remaining AddPrimitives
+		Context.Process();
 
 		// We are done once all components are attached.
 		Level->bAlreadyUpdatedComponents	= Level->bAreComponentsCurrentlyRegistered;

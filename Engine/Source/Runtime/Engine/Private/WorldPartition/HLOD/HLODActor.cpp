@@ -38,9 +38,12 @@ UPrimitiveComponent* AWorldPartitionHLOD::GetHLODComponent()
 
 void AWorldPartitionHLOD::SetVisibility(bool bInVisible)
 {
-	if (GetRootComponent())
+	// When propagating visibility state to children, SetVisibility dirties all attached components.
+	// Because we know that the visibility flag of all components of an HLOD actor are always in sync, 
+	// we test on RootComponent to check if call is required. This way we avoid dirtying all primitive proxies render state.
+	if (RootComponent && (RootComponent->GetVisibleFlag() != bInVisible))
 	{
-		GetRootComponent()->SetVisibility(bInVisible, /*bPropagateToChildren*/ true);
+		RootComponent->SetVisibility(bInVisible, /*bPropagateToChildren*/ true);
 	}
 }
 

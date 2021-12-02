@@ -3879,6 +3879,12 @@ void FScene::OnLevelAddedToWorld_RenderThread(FName InLevelName)
 				Primitive->RemoveStaticMeshes();
 				PrimitivesToAdd.Add(Primitive);
 			}
+			// Invalidate primitive proxy entry in GPU Scene. 
+			// This is necessary for Nanite::FSceneProxy to be uploaded to GPU scene (see GetPrimitiveID in GPUScene.cpp)
+			if (Primitive->Proxy->IsNaniteMesh())
+			{
+				Primitive->RequestGPUSceneUpdate();
+			}
 		}
 	}
 
@@ -3911,6 +3917,12 @@ void FScene::OnLevelRemovedFromWorld_RenderThread(FName InLevelName)
 		for (FPrimitiveSceneInfo* Primitive : *LevelPrimitives)
 		{
 			Primitive->Proxy->OnLevelRemovedFromWorld_RenderThread();
+			// Invalidate primitive proxy entry in GPU Scene.
+			// This is necessary for Nanite::FSceneProxy to be uploaded to GPU scene (see GetPrimitiveID in GPUScene.cpp)
+			if (Primitive->Proxy->IsNaniteMesh())
+			{
+				Primitive->RequestGPUSceneUpdate();
+			}
 		}
 	}
 }
