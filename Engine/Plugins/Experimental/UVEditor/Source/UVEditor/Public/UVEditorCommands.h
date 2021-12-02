@@ -40,4 +40,5 @@ public:
 
 	TSharedPtr<FUICommandInfo> EnableOrbitCamera;
 	TSharedPtr<FUICommandInfo> EnableFlyCamera;
+	TSharedPtr<FUICommandInfo> ToggleBackground;
 };

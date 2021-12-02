@@ -239,6 +239,11 @@ void UUVEditorMode::BindCommands()
 	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 
+	// Hookup Background toggle command
+	CommandList->MapAction(CommandInfos.ToggleBackground, FExecuteAction::CreateLambda([this]() {
+		BackgroundVisualization->Settings->bVisible = !BackgroundVisualization->Settings->bVisible;
+	}));
+
 	// Hook up to Enter/Esc key presses
 	CommandList->MapAction(
 		CommandInfos.AcceptOrCompleteActiveTool,

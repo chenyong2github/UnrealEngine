@@ -29,8 +29,8 @@ class UVEDITOR_API UUVEditorBackgroundPreviewProperties : public UInteractiveToo
 {
 	GENERATED_BODY()
 public:
-	/** Should the background be shown */
-	UPROPERTY(EditAnywhere, Category = Background, meta = (DisplayName = "Display Background") )
+	/** Should the background be shown (Alt+B)*/
+	UPROPERTY(EditAnywhere, Category = Background, meta = (DisplayName = "Display Background"))
 	bool bVisible = false;
 
 	/** Source of background visuals */
