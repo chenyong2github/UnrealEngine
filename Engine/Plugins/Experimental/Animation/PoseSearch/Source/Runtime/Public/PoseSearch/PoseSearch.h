@@ -251,6 +251,30 @@ struct POSESEARCH_API FPoseSearchIndexPreprocessInfo
 	}
 };
 
+UENUM()
+enum class EPoseSearchPoseFlags : uint32
+{
+	None = 0,
+
+	/** Can be returned in a pose search */
+	BlockTransition = 1 << 0,
+};
+ENUM_CLASS_FLAGS(EPoseSearchPoseFlags);
+
+// This is kept for each pose in the search index along side the feature vector values and is used to influence the
+// search.
+USTRUCT()
+struct POSESEARCH_API FPoseSearchPoseMetadata
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EPoseSearchPoseFlags Flags = EPoseSearchPoseFlags::None;
+
+	UPROPERTY()
+	float CostAddend = 0.0f;
+};
+
 /**
 * A search index for animation poses. The structure of the search index is determined by its UPoseSearchSchema.
 * May represent a single animation (see UPoseSearchSequenceMetaData) or a collection (see UPoseSearchDatabase).
@@ -265,6 +289,9 @@ struct POSESEARCH_API FPoseSearchIndex
 
 	UPROPERTY()
 	TArray<float> Values;
+
+	UPROPERTY()
+	TArray<FPoseSearchPoseMetadata> PoseMetadata;
 
 	UPROPERTY()
 	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
@@ -299,6 +326,20 @@ public:
 	// Time from sequence start/end used to extrapolate the trajectory.
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	float SampleTime = 0.05f;
+};
+
+USTRUCT()
+struct FPoseSearchBlockTransitionParameters
+{
+	GENERATED_BODY()
+
+	// Excluding the beginning of sequences can help ensure an exact past trajectory is used when building the features
+	float SequenceStartInterval = 0.0f;
+
+	// Excluding the end of sequences help ensure an exact future trajectory, and also prevents the selection of
+	// a sequence which will end too soon to be worth selecting.
+	float SequenceEndInterval = 0.2f;
+
 };
 
 /** Animation metadata object for indexing a single animation. */
@@ -526,6 +567,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
+
+	UPROPERTY(EditAnywhere, Category = "Database")
+	FPoseSearchBlockTransitionParameters BlockTransitionParameters;
 
 	// Drag and drop animations here to add them in bulk to Sequences
 	UPROPERTY(EditAnywhere, Category = "Database", DisplayName="Drag And Drop Anims Here")
@@ -815,7 +859,7 @@ POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayVie
 * 
 * @return The pose in the database that most closely matches the Query.
 */
-POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, const float EndTimeToExclude = 0.0f, FDebugDrawParams DrawParams = FDebugDrawParams());
+POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
 
 
 /**

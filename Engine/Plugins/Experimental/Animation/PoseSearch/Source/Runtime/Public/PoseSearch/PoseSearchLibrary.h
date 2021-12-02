@@ -66,11 +66,6 @@ struct POSESEARCH_API FMotionMatchingSettings
 	// Note: This feature won't work quite as advertised until search data rescaling is implemented
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0", ClampMax="100"))
 	float MinPercentImprovement = 100.f;
-
-	// Pose indices SequenceEndExclusionTime or less away from the end of the database sequence will be ignored by the 
-	// PoseSearch. This ensures the search doesn't get stuck at the end of a sequence.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0"))
-	float SequenceEndExlusionTime = 0.25f;
 };
 
 USTRUCT(BlueprintType, Category="Animation|Pose Search")

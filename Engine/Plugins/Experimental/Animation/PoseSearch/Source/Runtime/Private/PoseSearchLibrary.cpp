@@ -128,8 +128,7 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(
 			Database,
 			InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(),
-			&InOutMotionMatchingState.WeightsContext,
-			Settings.SequenceEndExlusionTime
+			&InOutMotionMatchingState.WeightsContext
 		);
 		if (Result.IsValid() && ((InOutMotionMatchingState.ElapsedPoseJumpTime >= Settings.SearchThrottleTime) || !bCanContinue))
 		{
