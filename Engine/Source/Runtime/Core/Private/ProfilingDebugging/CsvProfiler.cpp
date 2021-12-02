@@ -2654,11 +2654,6 @@ FCsvProfiler::FCsvProfiler()
 	{
 		SetMetadataInternal(TEXT("DeviceID"), *DeviceID);
 	}
-#if !UE_BUILD_SHIPPING
-	int32 ExtraDevelopmentMemoryMB = (int32)(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024ull / 1024ull);
-	SetMetadataInternal(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB));
-#endif
-
 }
 
 FCsvProfiler::~FCsvProfiler()

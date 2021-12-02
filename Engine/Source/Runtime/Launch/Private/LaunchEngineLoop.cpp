@@ -36,6 +36,7 @@
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/TraceAuxiliary.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/BootProfiling.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
@@ -2578,6 +2579,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		UE::DerivedData::IoStore::InitializeIoDispatcher();
 	}
 #endif // WITH_ENGINE
+
+#if !UE_BUILD_SHIPPING
+	{
+		int32 ExtraDevelopmentMemoryMB = (int32)(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024ull / 1024ull);
+		CSV_METADATA(TEXT("ExtraDevelopmentMemoryMB"), *FString::FromInt(ExtraDevelopmentMemoryMB));
+	}
+#endif
+
+#endif
 
 #if USE_IO_DISPATCHER
 	{
