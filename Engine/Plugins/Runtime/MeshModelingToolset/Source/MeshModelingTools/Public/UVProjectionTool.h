@@ -28,7 +28,7 @@ class UUVProjectionTool;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVProjectionToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLS_API UUVProjectionToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
@@ -49,7 +49,7 @@ enum class EUVProjectionToolActions
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVProjectionToolEditActions : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UUVProjectionToolEditActions : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -100,7 +100,7 @@ enum class EUVProjectionToolInitializationMode
  * Standard properties
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVProjectionToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UUVProjectionToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -185,7 +185,7 @@ public:
  *  stores a pointer to the tool and enough info to know which specific operator it should spawn
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVProjectionOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UUVProjectionOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 public:
@@ -201,7 +201,7 @@ public:
  * UV projection tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVProjectionTool : public USingleSelectionMeshEditingTool
+class MESHMODELINGTOOLS_API UUVProjectionTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
