@@ -382,6 +382,9 @@ public:
 	/** Restores all animated state for the current sequence. */
 	TSharedPtr< FUICommandInfo > RestoreAnimatedState;
 
+	/** Attempts to fix possessables whose object class don't match the object class of their currently bound objects. */
+	TSharedPtr< FUICommandInfo > FixPossessableObjectClass;
+
 	/** Rebinds all possessable references with their current bindings. */
 	TSharedPtr< FUICommandInfo > RebindPossessableReferences;
 
