@@ -98,15 +98,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 			float SampleHitDistance = MaxHalfFloat;
 
 			FRayTracedLightingResult Result;
-			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE);
-			if (bUseMinimalPayload)
+			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 			{
 				Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 			}
-			else
+			#else
 			{
 				Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
 			}
+			#endif
 			SampleHitDistance = Result.TraceHitDistance;
 			SampleRadiance = Result.Radiance;
 

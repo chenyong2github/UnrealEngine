@@ -75,10 +75,10 @@ static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingNormalBias(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingCullBackFacingTriangles(
-	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.CullBackFacingTriangles"),
-	0,
-	TEXT("Whether to cull backfacing triangles during ray traversal.  Culling can introduce leaking, especially where biases are required (Nanite proxy geometry)"),
+static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingAvoidSelfIntersectionTraceDistance(
+	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.AvoidSelfIntersectionTraceDistance"),
+	5.0f,
+	TEXT("Distance to trace with backface culling enabled, useful when the Ray Tracing geometry doesn't match the GBuffer (Nanite Proxy geometry)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -142,7 +142,7 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 		// Constants
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(float, NormalBias)
-		SHADER_PARAMETER(uint32, CullBackFacingTriangles)
+		SHADER_PARAMETER(float, AvoidSelfIntersectionTraceDistance)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
@@ -184,7 +184,7 @@ class FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS : public FLum
 		// Constants
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(float, NormalBias)
-		SHADER_PARAMETER(uint32, CullBackFacingTriangles)
+		SHADER_PARAMETER(float, AvoidSelfIntersectionTraceDistance)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedTraceParameters, CompactedTraceParameters)
@@ -290,7 +290,7 @@ void RenderHardwareRayTracingScreenProbe(
 		// Constants
 		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 		PassParameters->NormalBias = CVarLumenHardwareRayTracingNormalBias.GetValueOnRenderThread();
-		PassParameters->CullBackFacingTriangles = CVarLumenHardwareRayTracingCullBackFacingTriangles.GetValueOnRenderThread();
+		PassParameters->AvoidSelfIntersectionTraceDistance = FMath::Max(CVarLumenHardwareRayTracingAvoidSelfIntersectionTraceDistance.GetValueOnRenderThread(), 0.0f);
 
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
@@ -350,7 +350,7 @@ void RenderHardwareRayTracingScreenProbe(
 		// Constants
 		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 		PassParameters->NormalBias = CVarLumenHardwareRayTracingNormalBias.GetValueOnRenderThread();
-		PassParameters->CullBackFacingTriangles = CVarLumenHardwareRayTracingCullBackFacingTriangles.GetValueOnRenderThread();
+		PassParameters->AvoidSelfIntersectionTraceDistance = FMath::Max(CVarLumenHardwareRayTracingAvoidSelfIntersectionTraceDistance.GetValueOnRenderThread(), 0.0f);
 		PassParameters->MaxTranslucentSkipCount = CVarLumenScreenProbeGatherHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
