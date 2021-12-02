@@ -589,7 +589,7 @@ bool FActorFolders::RenameFolderInWorld(UWorld& World, const FFolder& OldPath, c
 			bool ContainsFolder = false;
 			for (const auto& FolderPair : FoldersInWorld.Folders)
 			{
-				if (FolderPair.Key.GetPath().IsEqual(NewFolder.GetPath(), ENameCase::CaseSensitive))
+				if (FolderPair.Key.GetRootObject() == NewFolder.GetRootObject() && FolderPair.Key.GetPath().IsEqual(NewFolder.GetPath(), ENameCase::CaseSensitive))
 				{
 					ContainsFolder = true;
 					break;
