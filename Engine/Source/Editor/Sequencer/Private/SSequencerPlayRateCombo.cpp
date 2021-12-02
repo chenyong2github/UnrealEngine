@@ -568,6 +568,8 @@ const FSlateBrush* SSequencerPlayRateCombo::GetClockSourceImage() const
 					return FEditorStyle::GetBrush("Sequencer.ClockSource.RelativeTimecode");
 				case EUpdateClockSource::Timecode:
 					return FEditorStyle::GetBrush("Sequencer.ClockSource.Timecode");
+				case EUpdateClockSource::PlayEveryFrame:
+					return FEditorStyle::GetBrush("Sequencer.ClockSource.PlayEveryFrame");
 				case EUpdateClockSource::Custom:
 					return FEditorStyle::GetBrush("Sequencer.ClockSource.Custom");
 				default:

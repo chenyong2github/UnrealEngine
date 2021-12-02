@@ -568,6 +568,8 @@ protected:
 
 	FFrameTime GetLastValidTime() const;
 
+	FFrameRate GetDisplayRate() const;
+
 	bool NeedsQueueLatentAction() const;
 	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void RunLatentActions();

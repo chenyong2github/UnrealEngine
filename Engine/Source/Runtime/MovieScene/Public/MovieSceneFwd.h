@@ -55,6 +55,9 @@ enum class EUpdateClockSource : uint8
 	/** Use current timecode provider for timing. Does not honor world or actor pause state. */
 	Timecode,
 
+	/** Debugging Tool: Hold on each whole frame for a Sequencer.SecondsPerFrame many wall-clock seconds before advancing to the next one. Does not honor world or actor pause state or time dilation and audio will be out of sync. */
+	PlayEveryFrame,
+
 	/** Custom clock source created and defined externally. */
 	Custom,
 };

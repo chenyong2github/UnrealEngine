@@ -13,6 +13,12 @@ static TAutoConsoleVariable<int32> CVarSequencerRelativeTimecodeSmoothing(
 	TEXT("If nonzero, accumulate with platform time since when the timecodes were equal."),
 	ECVF_Default);
 
+static TAutoConsoleVariable<float> CVarSequencerSecondsPerFrame(
+	TEXT("Sequencer.SecondsPerFrame"),
+	1.f,
+	TEXT("Seconds per frame to wait when in play every frame mode."),
+	ECVF_Default);
+
 void FMovieSceneTimeController::Tick(float DeltaSeconds, float InPlayRate)
 {
 	OnTick(DeltaSeconds, InPlayRate);
@@ -56,8 +62,9 @@ void FMovieSceneTimeController::StopPlaying(const FQualifiedFrameTime& InStopTim
 	PlaybackStartTime.Reset();
 }
 
-FFrameTime FMovieSceneTimeController::RequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate)
+FFrameTime FMovieSceneTimeController::RequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate, FFrameRate InDisplayRate)
 {
+	DisplayRate = InDisplayRate;
 	return OnRequestCurrentTime(InCurrentTime, InPlayRate);
 }
 
@@ -204,4 +211,24 @@ FFrameTime FMovieSceneTimeController_Tick::OnRequestCurrentTime(const FQualified
 		FFrameTime StartTime = StartTimeIfPlaying->ConvertTo(InCurrentTime.Rate);
 		return StartTime + CurrentOffsetSeconds * InCurrentTime.Rate;
 	}
+}
+
+void FMovieSceneTimeController_PlayEveryFrame::OnStartPlaying(const FQualifiedFrameTime& InStartTime)
+{
+	PreviousPlatformTime = FPlatformTime::Seconds();
+	CurrentTime = InStartTime.Time;
+}
+
+FFrameTime FMovieSceneTimeController_PlayEveryFrame::OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate)
+{
+	double TimeDiff = FPlatformTime::Seconds() - PreviousPlatformTime;
+	if (TimeDiff > CVarSequencerSecondsPerFrame->GetFloat())
+	{
+		// Update current time by moving onto the next frame
+		FFrameRate CurrentDisplayRate = GetDisplayRate();
+		FFrameTime OneDisplayFrame = CurrentDisplayRate.AsFrameTime(CurrentDisplayRate.AsInterval());
+		CurrentTime = CurrentTime + ConvertFrameTime(OneDisplayFrame, CurrentDisplayRate, InCurrentTime.Rate);
+		PreviousPlatformTime = FPlatformTime::Seconds();
+	}
+	return CurrentTime;
 }

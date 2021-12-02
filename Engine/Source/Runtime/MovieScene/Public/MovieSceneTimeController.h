@@ -41,7 +41,7 @@ public:
 	 * @param InCurrentTime    The current time of the sequence
 	 * @param InPlayRate       The current play rate of the sequence, multiplied by any world actor settings global dilation
 	 */
-	FFrameTime RequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate);
+	FFrameTime RequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate, FFrameRate InDisplayRate);
 
 	/**
 	 * Called when the status of the owning IMovieScenePlayer has changed
@@ -67,9 +67,16 @@ protected:
 		return PlaybackStartTime;
 	}
 
+	FFrameRate GetDisplayRate() const
+	{
+		return DisplayRate;
+	}
+
 private:
 
 	TOptional<FQualifiedFrameTime> PlaybackStartTime;
+
+	FFrameRate DisplayRate;
 };
 
 /**
@@ -161,5 +168,25 @@ protected:
 private:
 	double CurrentOffsetSeconds;
 };
+
+/**
+ * A timing manager that plays every display frame for a certain number of seconds
+ */
+struct MOVIESCENE_API FMovieSceneTimeController_PlayEveryFrame : FMovieSceneTimeController
+{
+	FMovieSceneTimeController_PlayEveryFrame()
+		: PreviousPlatformTime(0.f)
+	{}
+
+protected:
+
+	virtual void OnStartPlaying(const FQualifiedFrameTime& InStartTime) override;
+	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
+
+private:
+	double PreviousPlatformTime;
+	FFrameTime CurrentTime;
+};
+
 
 

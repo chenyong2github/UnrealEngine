@@ -2577,6 +2577,7 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 		Set("Sequencer.ClockSource.Audio", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_ClockSource_Audio_16x", Icon14x14));
 		Set("Sequencer.ClockSource.RelativeTimecode", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_ClockSource_RelativeTimecode_16x", Icon14x14));
 		Set("Sequencer.ClockSource.Timecode", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_ClockSource_Timecode_16x", Icon14x14));
+		Set("Sequencer.ClockSource.PlayEveryFrame", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_ClockSource_PlayEveryFrame_16x", Icon14x14));
 		Set("Sequencer.ClockSource.Custom", new IMAGE_BRUSH("Sequencer/Main_Icons/Icon_ClockSource_Custom_16x", Icon14x14));
 
 
