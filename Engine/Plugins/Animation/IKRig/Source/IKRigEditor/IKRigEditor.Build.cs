@@ -45,6 +45,8 @@ namespace UnrealBuildTool.Rules
 					"IKRig",
 					"IKRigDeveloper",
 					"ToolWidgets",
+					"AnimationCore",
+                    "AnimationWidgets",
 				}
             );
 

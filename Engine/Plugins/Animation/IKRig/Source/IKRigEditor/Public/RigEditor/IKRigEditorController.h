@@ -6,6 +6,7 @@
 #include "SIKRigRetargetChainList.h"
 #include "Templates/SubclassOf.h"
 #include "Animation/AnimationAsset.h"
+#include "SAdvancedTransformInputBox.h"
 
 #include "IKRigEditorController.generated.h"
 
@@ -31,21 +32,36 @@ class IKRIGEDITOR_API UIKRigBoneDetails : public UObject
 	GENERATED_BODY()
 
 public:
-	
+
 	// todo update bone info automatically using something else
 	void SetBone(const FName& BoneName)
 	{
 		SelectedBone = BoneName;
 	};
 
-	UPROPERTY(VisibleAnywhere, Category = "Bone Transforms")
+	UPROPERTY(VisibleAnywhere, Category = "Selection")
 	FName SelectedBone;
 	
 	UPROPERTY(VisibleAnywhere, Category = "Bone Transforms")
 	FTransform CurrentTransform;
 
 	UPROPERTY(VisibleAnywhere, Category = "Bone Transforms")
-	FTransform DefaultTransform;
+	FTransform ReferenceTransform;
+
+	UPROPERTY()
+	TWeakObjectPtr<UAnimInstance> AnimInstancePtr;
+
+	UPROPERTY()
+	TWeakObjectPtr<UIKRigDefinition> AssetPtr;
+
+	TOptional<FTransform> GetTransform(EIKRigTransformType::Type TransformType) const;
+	bool IsComponentRelative(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const;
+	void OnComponentRelativeChanged(ESlateTransformComponent::Type Component, bool bIsRelative, EIKRigTransformType::Type TransformType);
+
+private:
+	
+	static bool CurrentTransformRelative[3];
+	static bool ReferenceTransformRelative[3];
 };
 
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */

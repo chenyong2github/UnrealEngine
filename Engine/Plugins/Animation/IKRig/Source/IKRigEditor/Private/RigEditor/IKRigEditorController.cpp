@@ -14,6 +14,95 @@
 
 #define LOCTEXT_NAMESPACE "IKRigEditorController"
 
+bool UIKRigBoneDetails::CurrentTransformRelative[3] = {true, true, true};
+bool UIKRigBoneDetails::ReferenceTransformRelative[3] = {true, true, true};
+
+TOptional<FTransform> UIKRigBoneDetails::GetTransform(EIKRigTransformType::Type TransformType) const
+{
+	if(!AnimInstancePtr.IsValid() || !AssetPtr.IsValid())
+	{
+		return TOptional<FTransform>();
+	}
+	
+	FTransform LocalTransform = FTransform::Identity;
+	FTransform GlobalTransform = FTransform::Identity;
+	const bool* IsRelative = nullptr;
+	
+	const int32 BoneIndex = AssetPtr->Skeleton.GetBoneIndexFromName(SelectedBone);
+	if(BoneIndex == INDEX_NONE)
+	{
+		return TOptional<FTransform>();
+	}
+
+	switch(TransformType)
+	{
+		case EIKRigTransformType::Current:
+		{
+			IsRelative = CurrentTransformRelative;
+			GlobalTransform = AnimInstancePtr->GetSkelMeshComponent()->GetBoneTransform(BoneIndex);
+			LocalTransform = AnimInstancePtr->GetSkelMeshComponent()->GetBoneSpaceTransforms()[BoneIndex];
+			break;
+		}
+		case EIKRigTransformType::Reference:
+		{
+			IsRelative = ReferenceTransformRelative;
+			GlobalTransform = AssetPtr->Skeleton.RefPoseGlobal[BoneIndex];
+			LocalTransform = GlobalTransform;
+			const int32 ParentBoneIndex = AssetPtr->Skeleton.ParentIndices[BoneIndex];
+			if(ParentBoneIndex != INDEX_NONE)
+			{
+				const FTransform ParentTransform = AssetPtr->Skeleton.RefPoseGlobal[ParentBoneIndex];;
+				LocalTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
+			}
+			break;
+		}
+	}
+
+	FTransform Transform = LocalTransform;
+	if(!IsRelative[0]) Transform.SetLocation(GlobalTransform.GetLocation());
+	if(!IsRelative[1]) Transform.SetRotation(GlobalTransform.GetRotation());
+	if(!IsRelative[2]) Transform.SetScale3D(GlobalTransform.GetScale3D());
+	return Transform;
+}
+
+bool UIKRigBoneDetails::IsComponentRelative(
+	ESlateTransformComponent::Type Component,
+	EIKRigTransformType::Type TransformType) const
+{
+	switch(TransformType)
+	{
+		case EIKRigTransformType::Current:
+		{
+			return CurrentTransformRelative[(int32)Component]; 
+		}
+		case EIKRigTransformType::Reference:
+		{
+			return ReferenceTransformRelative[(int32)Component]; 
+		}
+	}
+	return true;
+}
+
+void UIKRigBoneDetails::OnComponentRelativeChanged(
+	ESlateTransformComponent::Type Component,
+	bool bIsRelative,
+	EIKRigTransformType::Type TransformType)
+{
+	switch(TransformType)
+	{
+		case EIKRigTransformType::Current:
+		{
+			CurrentTransformRelative[(int32)Component] = bIsRelative;
+			break; 
+		}
+		case EIKRigTransformType::Reference:
+		{
+			ReferenceTransformRelative[(int32)Component] = bIsRelative;
+			break; 
+		}
+	}
+}
+
 void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit, UIKRigDefinition* IKRigAsset)
 {
 	EditorToolkit = Toolkit;
@@ -41,6 +130,10 @@ void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedI
 
 	// Initialize editor's instances on request
 	InitializeSolvers();
+
+	// update the bone details so it can pull on the current data
+	BoneDetails->AnimInstancePtr = AnimInstance;
+	BoneDetails->AssetPtr = ModifiedIKRig;
 }
 
 void FIKRigEditorController::Reset() const
