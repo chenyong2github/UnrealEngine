@@ -158,7 +158,7 @@ void UPlayerViewportCompositingOutput::RelayOutput_Implementation(UTexture* Rend
 			}
 		}
 
-		ViewportOverrideMID->SetTextureParameterValue(PlayerViewportCompDispatcher_Impl::PlayerViewportMatInputName, RenderResult);
+		ViewportOverrideMID->SetTextureParameterValue(PlayerViewportCompDispatcher_Impl::PlayerViewportMatInputName, OutputImage);
 	}
 	else
 	{
