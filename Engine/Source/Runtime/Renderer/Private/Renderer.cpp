@@ -35,6 +35,7 @@
 #include "VT/VirtualTextureSystem.h"
 #include "PostProcess/TemporalAA.h"
 #include "CanvasRender.h"
+#include "RendererOnScreenNotification.h"
 DEFINE_LOG_CATEGORY(LogRenderer);
 
 IMPLEMENT_MODULE(FRendererModule, Renderer);
@@ -56,6 +57,7 @@ void FRendererModule::StartupModule()
 	GScreenSpaceDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
 	GTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
 
+	FRendererOnScreenNotification::Get();
 	FVirtualTextureSystem::Initialize();
 
 	StopRenderingThreadDelegate = RegisterStopRenderingThreadDelegate(FStopRenderingThreadDelegate::CreateLambda([this]
@@ -73,6 +75,7 @@ void FRendererModule::ShutdownModule()
 	UnregisterStopRenderingThreadDelegate(StopRenderingThreadDelegate);
 
 	FVirtualTextureSystem::Shutdown();
+	FRendererOnScreenNotification::TearDown();
 
 	// Free up the memory of the default denoiser. Responsibility of the plugin to free up theirs.
 	delete IScreenSpaceDenoiser::GetDefaultDenoiser();
