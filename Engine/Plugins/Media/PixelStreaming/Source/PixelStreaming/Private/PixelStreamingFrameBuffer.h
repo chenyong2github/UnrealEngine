@@ -3,6 +3,7 @@
 #pragma once
 
 #include "WebRTCIncludes.h"
+#include "RHI.h"
 
 class FPixelStreamingFrameSource;
 class FPixelStreamingLayerFrameSource;
