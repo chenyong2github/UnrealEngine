@@ -252,7 +252,7 @@ private:
 	{
 		const FName PropertyEditor("PropertyEditor");
 
-		if (FModuleManager::Get().IsModuleLoaded(PropertyEditor))
+		if (UObjectInitialized() && FModuleManager::Get().IsModuleLoaded(PropertyEditor))
 		{
 			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 			PropertyModule.UnregisterCustomPropertyTypeLayout(FDatasmithImportInfo::StaticStruct()->GetFName());
