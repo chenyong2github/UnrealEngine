@@ -7,6 +7,7 @@
 #include "Elements/Framework/TypedElementListFwd.h"
 #include "Elements/Framework/TypedElementInterfaceCustomization.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Elements/Framework/TypedElementAssetEditorToolkitHostMixin.h"
 #include "TypedElementViewportInteraction.generated.h"
 
 class UTypedElementSelectionSet;
@@ -22,7 +23,7 @@ enum class ETypedElementViewportInteractionGizmoManipulationType : uint8
 /**
  * Customization used to allow asset editors (such as the level editor) to override the base behavior of viewport interaction.
  */
-class EDITORFRAMEWORK_API FTypedElementViewportInteractionCustomization
+class EDITORFRAMEWORK_API FTypedElementViewportInteractionCustomization : public FTypedElementAssetEditorToolkitHostMixin
 {
 public:
 	virtual ~FTypedElementViewportInteractionCustomization() = default;

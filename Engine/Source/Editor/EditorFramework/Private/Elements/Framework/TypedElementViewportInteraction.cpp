@@ -1,12 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Framework/TypedElementViewportInteraction.h"
-#include "Elements/Framework/TypedElementSelectionSet.h"
+
+#include "EditorModeManager.h"
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementUtil.h"
+#include "Toolkits/IToolkitHost.h"
 
 bool FTypedElementViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
 {
+	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
+	{
+		OutPivotLocation = ToolkitHostPtr->GetEditorModeManager().PivotLocation;
+		return true;
+	}
+
 	FTransform ElementWorldTransform;
 	if (InElementWorldHandle.GetWorldTransform(ElementWorldTransform))
 	{
@@ -36,7 +45,9 @@ void FTypedElementViewportInteractionCustomization::GizmoManipulationDeltaUpdate
 			const FQuat DeltaRotation = InDeltaTransform.GetRotation();
 			if (!DeltaRotation.Rotator().IsZero())
 			{
-				ElementWorldTransform.SetRotation(ElementWorldTransform.GetRotation() * DeltaRotation);
+				const FQuat ActorQ =  ElementWorldTransform.GetRotation();
+				const FQuat ResultQ = DeltaRotation * ActorQ;
+				ElementWorldTransform.SetRotation(ResultQ.GetNormalized());
 
 				FVector ElementLocation = ElementWorldTransform.GetTranslation();
 				ElementLocation -= InPivotLocation;

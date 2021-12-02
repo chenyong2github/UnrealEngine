@@ -1830,6 +1830,10 @@ void FLevelEditorViewportClient::InitializeViewportInteraction()
 	}
 
 	{
+		ViewportInteraction->GetDefaultInterfaceCustomization()->SetToolkitHost(ParentLevelEditor.Pin().Get());
+	}
+
+	{
 		TUniquePtr<FActorElementLevelEditorViewportInteractionCustomization> ActorCustomization = MakeUnique<FActorElementLevelEditorViewportInteractionCustomization>();
 		ActorCustomization->SetLevelEditorViewportClient(this);
 		ActorCustomization->SetToolkitHost(ParentLevelEditor.Pin().Get());
