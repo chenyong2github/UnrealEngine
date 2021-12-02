@@ -2899,11 +2899,8 @@ bool ULevel::IsBeingRemoved() const
 
 bool ULevel::IsInstancedLevel() const
 {
-	UPackage* LevelPackage = GetOutermost();
-	static FName UnsavedPackageName("/Temp/Untitled");
-	const FPackagePath& PackagePath = LevelPackage->GetLoadedPath();
-	return !PackagePath.IsEmpty() && PackagePath.GetPackageFName() != LevelPackage->GetFName() 
-		&& !LevelPackage->GetFName().IsEqual(UnsavedPackageName, ENameCase::IgnoreCase, /*bCompareNumber*/false);
+	const UWorld* OuterWorld = GetTypedOuter<UWorld>();
+	return OuterWorld && OuterWorld->IsInstanced();
 }
 
 void ULevel::ApplyWorldOffset(const FVector& InWorldOffset, bool bWorldShift)

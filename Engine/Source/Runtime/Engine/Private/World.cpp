@@ -3292,11 +3292,17 @@ void UWorld::RenameToPIEWorld(int32 PIEInstanceID)
 #endif
 }
 
-bool UWorld::GetSoftObjectPathMapping(FString& OutSourceWorldPath, FString& OutRemappedWorldPath) const
+bool UWorld::IsInstanced() const
 {
 	UPackage* Package = GetPackage();
-	if (Package->GetFName() != Package->GetLoadedPath().GetPackageFName())
+	return !Package->GetLoadedPath().IsEmpty() && Package->GetFName() != Package->GetLoadedPath().GetPackageFName();
+}
+
+bool UWorld::GetSoftObjectPathMapping(FString& OutSourceWorldPath, FString& OutRemappedWorldPath) const
+{
+	if (IsInstanced())
 	{
+		UPackage* Package = GetPackage();
 		const FString SourcePackageName = Package->GetLoadedPath().GetPackageName();
 		const FString SourceWorldName = FPaths::GetBaseFilename(SourcePackageName);
 		const FString RemmappedPackageName = Package->GetName();
