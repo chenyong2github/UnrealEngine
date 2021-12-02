@@ -196,7 +196,7 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text( EndpointStats.Name.Contains("Jupiter")? FText::FromString(TEXT("Horde")) : FText::FromString(TEXT("Zen")) )
+			.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Name); })
 		];
 
 		Panel->AddSlot(1, Row)
@@ -231,7 +231,7 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 		[
 			SNew(STextBlock)
 			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Name); })
+			.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Url); })
 		];
 
 		Row++;
