@@ -64,7 +64,7 @@ TSharedRef< FSlateStyleSet > FConsoleVariablesEditorStyle::Create()
 
 	Style->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	// Toolbar
+	// Icons
 	Style->Set("ConsoleVariables.ToolbarButton", new IMAGE_BRUSH("Icons/Icon40", Icon40x40));
 	Style->Set("ConsoleVariables.ToolbarButton.Small", new IMAGE_BRUSH("Icons/Icon20", Icon20x20));
 

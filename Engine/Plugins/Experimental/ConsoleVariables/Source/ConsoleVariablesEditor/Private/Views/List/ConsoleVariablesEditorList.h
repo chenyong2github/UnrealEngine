@@ -4,8 +4,11 @@
 
 #include "Widgets/SWidget.h"
 
-class UConsoleVariablesAsset;
+struct FConsoleVariablesEditorListRow;
+typedef TSharedPtr<FConsoleVariablesEditorListRow> FConsoleVariablesEditorListRowPtr;
+
 class SConsoleVariablesEditorList;
+class UConsoleVariablesAsset;
 
 class FConsoleVariablesEditorList : public TSharedFromThis<FConsoleVariablesEditorList>
 {

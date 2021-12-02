@@ -6,6 +6,7 @@
 #include "ConsoleVariablesEditorStyle.h"
 #include "SConsoleVariablesEditorListValueInput.h"
 
+#include "Input/DragAndDrop.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
@@ -16,6 +17,45 @@
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
+
+class FConsoleVariablesListRowDragDropOp : public FDecoratedDragDropOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FConsoleVariablesListRowDragDropOp, FDecoratedDragDropOp)
+
+	/** The item being dragged and dropped */
+	TArray<FConsoleVariablesEditorListRowPtr> DraggedItems;
+
+	/** Constructs a new drag/drop operation */
+	static TSharedRef<FConsoleVariablesListRowDragDropOp> New(const TArray<FConsoleVariablesEditorListRowPtr>& InItems)
+	{
+		check(InItems.Num() > 0);
+
+		TSharedRef<FConsoleVariablesListRowDragDropOp> Operation = MakeShareable(new FConsoleVariablesListRowDragDropOp());
+
+		Operation->DraggedItems = InItems;
+
+		Operation->DefaultHoverIcon = FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error");
+
+		// Set the display text and the transaction name based on whether we're dragging a single or multiple widgets
+		if (InItems.Num() == 1)
+		{
+			Operation->DefaultHoverText = FText::FromString(InItems[0]->GetCommandInfo().Pin()->Command);
+		}
+		else
+		{
+			Operation->DefaultHoverText =
+				FText::Format(
+					SConsoleVariablesEditorListRow::MultiDragFormatText,
+					FText::AsNumber(Operation->DraggedItems.Num())
+				);
+		}
+
+		Operation->Construct();
+
+		return Operation;
+	}
+};
 
 void SConsoleVariablesEditorListRow::Construct(
 	const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, const TWeakPtr<FConsoleVariablesEditorListRow> InRow)
@@ -30,7 +70,11 @@ void SConsoleVariablesEditorListRow::Construct(
 
 	SMultiColumnTableRow<FConsoleVariablesEditorListRowPtr>::Construct(
 		FSuperRowType::FArguments()
-		.Padding(1.0f),
+		.Padding(1.0f)
+		.OnCanAcceptDrop(this, &SConsoleVariablesEditorListRow::HandleCanAcceptDrop)
+		.OnAcceptDrop(this, &SConsoleVariablesEditorListRow::HandleAcceptDrop)
+		.OnDragDetected(this, &SConsoleVariablesEditorListRow::HandleDragDetected)
+		.OnDragLeave(this, &SConsoleVariablesEditorListRow::HandleDragLeave),
 		InOwnerTable
 	);
 
@@ -56,8 +100,10 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateWidgetForColumn(cons
 	FlashImages.Add(FlashImage);
 
 	return SNew(SBox)
+			.Visibility(EVisibility::SelfHitTestInvisible)
 			[
 				SNew(SOverlay)
+				.Visibility(EVisibility::SelfHitTestInvisible)
 
 				+SOverlay::Slot()
 				[
@@ -81,22 +127,26 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateWidgetForColumn(cons
 
 void SConsoleVariablesEditorListRow::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
+	bIsHovered = true;
 
 	if (HoverableWidgetsPtr.IsValid())
 	{
-		HoverableWidgetsPtr->SetVisibility(EVisibility::Visible);
+		HoverableWidgetsPtr->SetVisibility(EVisibility::SelfHitTestInvisible);
 	}
+	
+	SMultiColumnTableRow<FConsoleVariablesEditorListRowPtr>::OnMouseEnter(MyGeometry, MouseEvent);
 }
 
 void SConsoleVariablesEditorListRow::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
-	SCompoundWidget::OnMouseLeave(MouseEvent);
-
+	bIsHovered = false;
+	
 	if (HoverableWidgetsPtr.IsValid())
 	{
 		HoverableWidgetsPtr->SetVisibility(EVisibility::Collapsed);
 	}
+	
+	SMultiColumnTableRow<FConsoleVariablesEditorListRowPtr>::OnMouseLeave(MouseEvent);
 }
 
 SConsoleVariablesEditorListRow::~SConsoleVariablesEditorListRow()
@@ -108,6 +158,122 @@ SConsoleVariablesEditorListRow::~SConsoleVariablesEditorListRow()
 	ValueChildInputWidget.Reset();
 	
 	HoverableWidgetsPtr.Reset();
+}
+
+FReply SConsoleVariablesEditorListRow::HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	TArray<FConsoleVariablesEditorListRowPtr> DraggedItems = Item.Pin()->GetSelectedTreeViewItems();
+	TSharedRef<FConsoleVariablesListRowDragDropOp> Operation =
+		FConsoleVariablesListRowDragDropOp::New(DraggedItems);
+	
+	return FReply::Handled().BeginDragDrop(Operation);
+}
+
+void SConsoleVariablesEditorListRow::HandleDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FConsoleVariablesListRowDragDropOp> Operation =
+	DragDropEvent.GetOperationAs<FConsoleVariablesListRowDragDropOp>())
+	{
+		Operation->ResetToDefaultToolTip();
+	}
+}
+
+TOptional<EItemDropZone> SConsoleVariablesEditorListRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent,
+	EItemDropZone DropZone, FConsoleVariablesEditorListRowPtr TargetItem)
+{
+	TSharedPtr<FConsoleVariablesListRowDragDropOp> Operation =
+		DragDropEvent.GetOperationAs<FConsoleVariablesListRowDragDropOp>();
+
+	if (!Operation.IsValid())
+	{
+		return TOptional<EItemDropZone>();
+	}
+
+	const bool bIsDropDenied = !TargetItem.IsValid() || Operation->DraggedItems.Num() < 1 ||
+		!TargetItem->GetCommandInfo().IsValid() || Operation->DraggedItems.Contains(TargetItem);
+
+	FString BoolAsString = bIsDropDenied ? "true" : "false";
+
+	if (bIsDropDenied)
+	{
+		Operation->ResetToDefaultToolTip();
+		
+		return TOptional<EItemDropZone>();
+	}
+
+	FText ItemNameText = FText::FromString(Operation->DraggedItems[0]->GetCommandInfo().Pin()->Command);
+
+	if (Operation->DraggedItems.Num() > 1)
+	{
+		ItemNameText = FText::Format(MultiDragFormatText, FText::AsNumber(Operation->DraggedItems.Num()));
+	}
+
+	const FText DropPermittedText =
+		FText::Format(InsertFormatText,
+			ItemNameText,
+			DropZone == EItemDropZone::BelowItem ? BelowText : AboveText,
+			FText::FromString(TargetItem->GetCommandInfo().Pin()->Command)
+		);
+	
+	Operation->SetToolTip(
+		DropPermittedText,
+		FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.OK")
+	);
+
+	// We have no behaviour yet for dropping one item onto another, so we'll treat it like we dropped it above
+	return DropZone == EItemDropZone::OntoItem ? EItemDropZone::AboveItem : DropZone;
+}
+
+FReply SConsoleVariablesEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone,
+	FConsoleVariablesEditorListRowPtr TargetItem)
+{
+	TSharedPtr<FConsoleVariablesListRowDragDropOp> Operation =
+		DragDropEvent.GetOperationAs<FConsoleVariablesListRowDragDropOp>();
+
+	if (!Operation.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	const TSharedPtr<SConsoleVariablesEditorList> ListView = Item.Pin()->GetListViewPtr().Pin();
+	
+	TArray<FConsoleVariablesEditorListRowPtr> DraggedItems = Operation->DraggedItems;
+
+	TArray<FConsoleVariablesEditorListRowPtr> AllTreeItemsCopy = ListView->GetTreeViewItems();
+	
+	for (FConsoleVariablesEditorListRowPtr DraggedItem : DraggedItems)
+	{
+		if (!DraggedItem.IsValid() || !AllTreeItemsCopy.Contains(DraggedItem))
+		{
+			continue;
+		}
+
+		AllTreeItemsCopy.Remove(DraggedItem);
+	}
+	
+	const int32 TargetIndex = AllTreeItemsCopy.IndexOfByKey(TargetItem);
+
+	if (TargetIndex > -1)
+	{
+		for (int32 ItemIndex = DraggedItems.Num() - 1; ItemIndex >= 0; ItemIndex--)
+		{
+			FConsoleVariablesEditorListRowPtr DraggedItem = DraggedItems[ItemIndex];
+			
+			if (!DraggedItem.IsValid() || AllTreeItemsCopy.Contains(DraggedItem))
+			{
+				continue;
+			}
+			
+			AllTreeItemsCopy.Insert(DraggedItem, DropZone == EItemDropZone::AboveItem ? TargetIndex : TargetIndex + 1);
+		}
+		
+		FScopedTransaction(LOCTEXT("DragDropOperationTransactionText", "Console Variables Drag & Drop Operation"));
+		ListView->SetTreeViewItems(AllTreeItemsCopy);
+
+		ListView->ClearSorting();
+	}
+
+	return FReply::Handled();
 }
 
 void SConsoleVariablesEditorListRow::FlashRow()
@@ -150,9 +316,21 @@ const FSlateBrush* SConsoleVariablesEditorListRow::GetBorderImage(
 
 TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& InColumnName, const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem)
 {
+	
+	if (InColumnName.IsEqual(SConsoleVariablesEditorList::CustomSortOrderColumnName))
+	{
+		return  SNew(STextBlock)
+				.Visibility(EVisibility::SelfHitTestInvisible)
+				.Justification(ETextJustify::Center)
+				.Text_Lambda([this, PinnedItem]()
+				{
+					return FText::AsNumber(PinnedItem->GetSortOrder() + 1);
+				});
+	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::CheckBoxColumnName))
 	{
 		return SNew(SBox)
+				.Visibility(EVisibility::SelfHitTestInvisible)
 				.HAlign(HAlign_Center)
 				[
 					SNew(SCheckBox)
@@ -163,6 +341,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::VariableNameColumnName))
 	{
 		return  SNew(STextBlock)
+				.Visibility(EVisibility::SelfHitTestInvisible)
 				.Text(FText::FromString(PinnedItem->GetCommandInfo().Pin()->Command));
 	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::ValueColumnName))
@@ -179,6 +358,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
+					.Visibility(EVisibility::SelfHitTestInvisible)
 					.Text_Lambda([this]()
 					{
 						return Item.Pin()->GetCommandInfo().Pin()->GetSourceAsText();
@@ -278,7 +458,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(cons
 				if (PinnedItem.IsValid() && PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
 				{
 					return PinnedItem->IsRowChecked() && PinnedItem->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(PinnedItem->GetPresetValue()) ?
-						EVisibility::Visible : EVisibility::Hidden;
+						EVisibility::Visible : EVisibility::Collapsed;
 				}
 
 				return EVisibility::Collapsed;
@@ -319,6 +499,7 @@ void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InA
 		})
 		[
 			SNew(SImage)
+			.Visibility(EVisibility::SelfHitTestInvisible)
 			.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		]

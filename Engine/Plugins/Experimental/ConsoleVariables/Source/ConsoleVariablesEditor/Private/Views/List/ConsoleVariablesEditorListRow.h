@@ -25,24 +25,28 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 
 	void FlushReferences();
 	
-	FConsoleVariablesEditorListRow(const TWeakPtr<FConsoleVariablesEditorCommandInfo> InCommandInfo, const FString& InPresetValue, const EConsoleVariablesEditorListRowType InRowType, 
+	FConsoleVariablesEditorListRow(
+		const TWeakPtr<FConsoleVariablesEditorCommandInfo> InCommandInfo, const FString& InPresetValue, const EConsoleVariablesEditorListRowType InRowType, 
 		const ECheckBoxState StartingWidgetCheckboxState, const TSharedRef<SConsoleVariablesEditorList>& InListView, 
-		const TWeakPtr<FConsoleVariablesEditorListRow>& InDirectParentRow)
+		const int32 IndexInList, const TWeakPtr<FConsoleVariablesEditorListRow>& InDirectParentRow)
 	: CommandInfo(InCommandInfo)
 	, PresetValue(InPresetValue)
 	, RowType(InRowType)
 	, WidgetCheckedState(StartingWidgetCheckboxState)
 	, ListViewPtr(InListView)
+	, SortOrder(IndexInList)
 	, DirectParentRow(InDirectParentRow)
-	{};
+	{}
 
 	[[nodiscard]] TWeakPtr<FConsoleVariablesEditorCommandInfo> GetCommandInfo() const;
 
 	[[nodiscard]] EConsoleVariablesEditorListRowType GetRowType() const;
 
 	[[nodiscard]] int32 GetChildDepth() const;
-
 	void SetChildDepth(const int32 InDepth);
+
+	[[nodiscard]] int32 GetSortOrder() const;
+	void SetSortOrder(const int32 InNewOrder);
 
 	TWeakPtr<FConsoleVariablesEditorListRow> GetDirectParentRow() const;
 	void SetDirectParentRow(const TWeakPtr<FConsoleVariablesEditorListRow>& InDirectParentRow);
@@ -75,6 +79,9 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 	void ExecuteSearchOnChildNodes(const FString& SearchString) const;
 	void ExecuteSearchOnChildNodes(const TArray<FString>& Tokens) const;
 
+	[[nodiscard]] bool GetIsSelected() const;
+	void SetIsSelected(const bool bNewSelected);
+
 	[[nodiscard]] ECheckBoxState GetWidgetCheckedState() const;
 	void SetWidgetCheckedState(const ECheckBoxState NewState, const bool bShouldUpdateHierarchyCheckedStates = false);
 
@@ -92,6 +99,8 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 		return ListViewPtr;
 	}
 
+	[[nodiscard]] TArray<FConsoleVariablesEditorListRowPtr> GetSelectedTreeViewItems() const;
+
 	FReply OnRemoveButtonClicked();
 	
 	void ResetToPresetValue() const;
@@ -102,17 +111,21 @@ private:
 	FString PresetValue = "";
 	EConsoleVariablesEditorListRowType RowType = SingleCommand;
 	TArray<FConsoleVariablesEditorListRowPtr> ChildRows;
+
+	ECheckBoxState WidgetCheckedState = ECheckBoxState::Checked;
+	
+	TWeakPtr<SConsoleVariablesEditorList> ListViewPtr;
 	
 	bool bIsTreeViewItemExpanded = false;
 	bool bShouldFlashOnScrollIntoView = false;
 
 	int32 ChildDepth = 0;
 
-	bool bDoesRowMatchSeachTerms = true;
-	
-	ECheckBoxState WidgetCheckedState = ECheckBoxState::Checked;
+	int32 SortOrder = -1;
 
-	TWeakPtr<SConsoleVariablesEditorList> ListViewPtr;
+	bool bDoesRowMatchSearchTerms = true;
+
+	bool bIsSelected = false;
 	TWeakPtr<FConsoleVariablesEditorListRow> DirectParentRow;
 
 	// Used to expand all children on shift+click.

@@ -6,6 +6,7 @@
 #include "SConsoleVariablesEditorList.h"
 
 #include "CoreMinimal.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -27,12 +28,18 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
 
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override;
-	
+
+	// Begin SWidget
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
+	// End SWidget
+	
+	virtual ~SConsoleVariablesEditorListRow() override;	
 
-	virtual ~SConsoleVariablesEditorListRow() override;
+	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	void HandleDragLeave(const FDragDropEvent& DragDropEvent);
+	TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, FConsoleVariablesEditorListRowPtr TargetItem);
+	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, FConsoleVariablesEditorListRowPtr TargetItem);
 	
 	void FlashRow();
 	
@@ -48,6 +55,18 @@ public:
 
 	TSharedRef<SWidget> GenerateValueCellWidget(const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem);
 
+	#define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
+
+	const FText ValueWidgetToolTipFormatText = LOCTEXT("ValueWidgetToolTipFormatText", "Custom Value: {0}\nPreset Value: {1}\nStartup Value: {2} (Set By {3})");
+	const FText RevertButtonFormatText = LOCTEXT("RevertButtonFormatText", "Reset to Preset Value: {0}");
+
+	const FText InsertFormatText = LOCTEXT("InsertAboveFormatText", "Insert {0} {1} {2}");
+	const FText AboveText = LOCTEXT("AboveListItem", "above");
+	const FText BelowText = LOCTEXT("BelowListItem", "below");
+	static const inline FText MultiDragFormatText = LOCTEXT("MultiDragFormatText", "{0} Items");
+
+	#undef LOCTEXT_NAMESPACE
+
 private:
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item;
@@ -55,13 +74,6 @@ private:
 	TArray<TSharedPtr<SImage>> FlashImages;
 
 	TSharedPtr<SConsoleVariablesEditorListValueInput> ValueChildInputWidget;
-
-	#define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
-
-	FText ValueWidgetToolTipFormatText = LOCTEXT("ValueWidgetToolTipFormatText", "Custom Value: {0}\nPreset Value: {1}\nStartup Value: {2} (Set By {3})");
-	FText RevertButtonFormatText = LOCTEXT("RevertButtonFormatText", "Reset to Preset Value: {0}");
-
-	#undef LOCTEXT_NAMESPACE
 	
 	TSharedPtr<SConsoleVariablesEditorListRowHoverWidgets> HoverableWidgetsPtr;
 
@@ -69,6 +81,8 @@ private:
 
 	const float FlashAnimationDuration = 0.75f;
 	const FLinearColor FlashColor = FLinearColor::White;
+	
+	bool bIsHovered = false;
 };
 
 class SConsoleVariablesEditorListRowHoverWidgets : public SCompoundWidget
