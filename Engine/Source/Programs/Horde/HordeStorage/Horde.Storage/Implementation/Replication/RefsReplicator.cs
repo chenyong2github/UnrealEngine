@@ -364,7 +364,7 @@ namespace Horde.Storage.Implementation
             return countOfReplicationsDone;
         }
 
-        private async Task AddToReplicationLog(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blob)
+        private async Task AddToReplicationLog(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blob)
         {
             await _replicationLog.InsertAddEvent(ns, bucket, key, blob);
         }

@@ -123,7 +123,7 @@ namespace Horde.Storage.FunctionalTests.Replication
                 byte[] blobContents = Encoding.UTF8.GetBytes($"random content {i}");
                 BlobIdentifier blob = BlobIdentifier.FromBlob(blobContents);
                 blobs.Add(blob, blobContents);
-                replicationEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, new KeyId($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
+                replicationEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, IoHashKey.FromName($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
             }
             string lastBucket = "refs-000";
             Guid lastEvent = Guid.NewGuid();
@@ -180,7 +180,7 @@ namespace Horde.Storage.FunctionalTests.Replication
                 byte[] blobContents = Encoding.UTF8.GetBytes($"random content {i}");
                 BlobIdentifier blob = BlobIdentifier.FromBlob(blobContents);
                 blobs.Add(blob, blobContents);
-                replicationEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, new KeyId($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
+                replicationEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, IoHashKey.FromName($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
             }
 
             // Build snapshot
@@ -257,7 +257,7 @@ namespace Horde.Storage.FunctionalTests.Replication
                 byte[] blobContents = Encoding.UTF8.GetBytes($"random content in snapshot {i}");
                 BlobIdentifier blob = BlobIdentifier.FromBlob(blobContents);
                 blobs.Add(blob, blobContents);
-                snapshotEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, new KeyId($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
+                snapshotEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket,IoHashKey.FromName($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
             }
 
             for (int i = 0; i < countOfTestEvents; i++)
@@ -265,7 +265,7 @@ namespace Horde.Storage.FunctionalTests.Replication
                 byte[] blobContents = Encoding.UTF8.GetBytes($"random content {i}");
                 BlobIdentifier blob = BlobIdentifier.FromBlob(blobContents);
                 blobs.Add(blob, blobContents);
-                incrementalEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, new KeyId($"incremental-event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
+                incrementalEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, IoHashKey.FromName($"incremental-event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
             }
             
             // Build snapshot
@@ -345,7 +345,7 @@ namespace Horde.Storage.FunctionalTests.Replication
                 byte[] blobContents = Encoding.UTF8.GetBytes($"random content in snapshot {i}");
                 BlobIdentifier blob = BlobIdentifier.FromBlob(blobContents);
                 blobs.Add(blob, blobContents);
-                snapshotEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, new KeyId($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
+                snapshotEvents.Add(new ReplicationLogEvent(TestNamespace, TestBucket, IoHashKey.FromName($"event-{i}"), blob, Guid.NewGuid(), "refs-000", DateTime.Now, ReplicationLogEvent.OpType.Added));
             }
 
             // Build snapshot

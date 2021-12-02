@@ -37,7 +37,7 @@ namespace Horde.Storage.Implementation.TransactionLog
 
         public class SnapshotLiveObject
         {
-            public SnapshotLiveObject(BucketId bucket, KeyId key, BlobIdentifier blob)
+            public SnapshotLiveObject(BucketId bucket, IoHashKey key, BlobIdentifier blob)
             {
                 Bucket = bucket;
                 Key = key;
@@ -45,7 +45,7 @@ namespace Horde.Storage.Implementation.TransactionLog
             }
 
             public BucketId Bucket { get; set; }
-            public KeyId Key { get; set; }
+            public IoHashKey Key { get; set; }
             public BlobIdentifier Blob { get; set; }
         }
 
@@ -129,16 +129,16 @@ namespace Horde.Storage.Implementation.TransactionLog
         }
 
 
-        private string BuildObjectKey(BucketId bucket, KeyId key)
+        private string BuildObjectKey(BucketId bucket, IoHashKey key)
         {
             return $"{bucket}.{key}";
         }
 
-        private void ProcessAddEvent(BucketId bucket, KeyId key, BlobIdentifier blob)
+        private void ProcessAddEvent(BucketId bucket, IoHashKey key, BlobIdentifier blob)
         {
             _liveObjects.TryAdd(BuildObjectKey(bucket, key), new SnapshotLiveObject(bucket, key, blob));
         }
-        private void ProcessDeleteEvent(BucketId bucket, KeyId key)
+        private void ProcessDeleteEvent(BucketId bucket, IoHashKey key)
         {
             _liveObjects.Remove(BuildObjectKey(bucket, key));
         }

@@ -14,13 +14,13 @@ namespace Horde.Storage.Implementation
 {
     public interface IObjectService
     {
-        Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, KeyId key, string[] fields);
-        Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blobHash, CompactBinaryObject payload);
-        Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blobHash);
+        Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[] fields);
+        Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload);
+        Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash);
 
         IAsyncEnumerator<NamespaceId> GetNamespaces();
 
-        Task<long> Delete(NamespaceId ns, BucketId bucket, KeyId key);
+        Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);
         Task<long> DropNamespace(NamespaceId ns);
         Task<long> DeleteBucket(NamespaceId ns, BucketId bucket);
     }
@@ -40,7 +40,7 @@ namespace Horde.Storage.Implementation
             _replicationLog = replicationLog;
         }
 
-        public async Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, KeyId key, string[]? fields = null)
+        public async Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[]? fields = null)
         {
             ObjectRecord o = await _referencesStore.Get(ns, bucket, key);
 
@@ -56,7 +56,7 @@ namespace Horde.Storage.Implementation
             return (o, blobContents);
         }
 
-        public async Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blobHash, CompactBinaryObject payload)
+        public async Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload)
         {
             bool hasReferences = payload.GetAllFields().Any(field => field.IsAttachment());
 
@@ -93,7 +93,7 @@ namespace Horde.Storage.Implementation
             return new PutObjectResult(missingReferences);
         }
 
-        public async Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blobHash)
+        public async Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash)
         {
             (ObjectRecord o, BlobContents blob) = await Get(ns, bucket, key);
             byte[] blobContents = await blob.Stream.ToByteArray();
@@ -130,7 +130,7 @@ namespace Horde.Storage.Implementation
             return _referencesStore.GetNamespaces();
         }
 
-        public Task<long> Delete(NamespaceId ns, BucketId bucket, KeyId key)
+        public Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             return _referencesStore.Delete(ns, bucket, key);
         }

@@ -90,7 +90,7 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> Get(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
-            [FromRoute] [Required] KeyId key,
+            [FromRoute] [Required] IoHashKey key,
             [FromQuery] string[] fields,
             [FromRoute] string? format = null)
         {
@@ -219,7 +219,7 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> Head(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
-            [FromRoute] [Required] KeyId key)
+            [FromRoute] [Required] IoHashKey key)
         {
             if (ShouldDoAuth())
             {
@@ -261,7 +261,7 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> ExistsMultiple(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
-            [FromQuery] [Required] List<KeyId> names)
+            [FromQuery] [Required] List<IoHashKey> names)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 
@@ -270,7 +270,7 @@ namespace Horde.Storage.Controllers
                 return Forbid();
             }
 
-            ConcurrentBag<KeyId> missingObject = new ConcurrentBag<KeyId>();
+            ConcurrentBag<IoHashKey> missingObject = new ConcurrentBag<IoHashKey>();
 
             IEnumerable<Task> tasks = names.Select(async name =>
             {
@@ -295,7 +295,7 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> PutObject(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
-            [FromRoute] [Required] KeyId key)
+            [FromRoute] [Required] IoHashKey key)
         {
             if (ShouldDoAuth())
             {
@@ -394,7 +394,7 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> FinalizeObject(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
-            [FromRoute] [Required] KeyId key,
+            [FromRoute] [Required] IoHashKey key,
             [FromRoute] [Required] BlobIdentifier hash)
         {
             if (ShouldDoAuth())
@@ -493,7 +493,7 @@ namespace Horde.Storage.Controllers
         public async Task<IActionResult> Delete(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
-            [FromRoute] [Required] KeyId key)
+            [FromRoute] [Required] IoHashKey key)
         {
             AuthorizationResult authorizationResult = await _authorizationService.AuthorizeAsync(User, ns, NamespaceAccessRequirement.Name);
 

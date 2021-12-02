@@ -63,7 +63,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier objectBlob, DateTime? timestamp)
+        public async Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.insert_add_event");
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
@@ -75,7 +75,7 @@ namespace Horde.Storage.Implementation
             return (log.GetReplicationBucketIdentifier(), log.ReplicationId);
         }
 
-        public async Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier objectBlob, DateTime? timestamp)
+        public async Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.insert_delete_event");
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
@@ -132,7 +132,7 @@ namespace Horde.Storage.Implementation
                     yield return new ReplicationLogEvent(
                         new NamespaceId(scyllaReplicationLog.Namespace),
                         new BucketId(scyllaReplicationLog.Bucket!),
-                        new KeyId(scyllaReplicationLog.Key!),
+                        new IoHashKey(scyllaReplicationLog.Key!),
                         scyllaReplicationLog.ObjectIdentifier!.AsBlobIdentifier(),
                         scyllaReplicationLog.ReplicationId,
                         scyllaReplicationLog.GetReplicationBucketIdentifier(),

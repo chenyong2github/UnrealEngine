@@ -57,7 +57,7 @@ namespace Horde.Storage.Implementation
 
         }
 
-        public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, KeyId name)
+        public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.get");
 
@@ -67,10 +67,10 @@ namespace Horde.Storage.Implementation
                 throw new ObjectNotFoundException(ns, bucket, name);
 
             // TODO: Check returned values for null
-            return new ObjectRecord(new NamespaceId(o.Namespace!), new BucketId(o.Bucket!), new KeyId(o.Name!), o.LastAccessTime, o.InlinePayload, o.PayloadHash!.AsBlobIdentifier(), o.IsFinalized!.Value);
+            return new ObjectRecord(new NamespaceId(o.Namespace!), new BucketId(o.Bucket!), new IoHashKey(o.Name!), o.LastAccessTime, o.InlinePayload, o.PayloadHash!.AsBlobIdentifier(), o.IsFinalized!.Value);
         }
 
-        public async Task Put(NamespaceId ns, BucketId bucket, KeyId name, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
+        public async Task Put(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.put");
             if (blob.LongLength > _settings.CurrentValue.InlineBlobMaxSize)
@@ -89,7 +89,7 @@ namespace Horde.Storage.Implementation
         }
 
 
-        public async Task Finalize(NamespaceId ns, BucketId bucket, KeyId name, BlobIdentifier blobHash)
+        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobHash)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.finalize");
             ObjectRecord o = await Get(ns, bucket, name);
@@ -101,7 +101,7 @@ namespace Horde.Storage.Implementation
                 throw new InvalidOperationException("Failed to finalize object even though it existed and hashes matched");
         }
 
-        private async Task CreateTTLRecord(NamespaceId ns, BucketId bucket, KeyId name, sbyte partitionIndex)
+        private async Task CreateTTLRecord(NamespaceId ns, BucketId bucket, IoHashKey name, sbyte partitionIndex)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.create_ttl_record");
             DateTime now = DateTime.Now;
@@ -114,14 +114,14 @@ namespace Horde.Storage.Implementation
             return RemoveTTLRecord(record.Namespace, record.Bucket, record.Name, record.LastAccess, (sbyte)record.BlobIdentifier.HashData[0]);
         }
 
-        private async Task RemoveTTLRecord(NamespaceId ns, BucketId bucket, KeyId name, DateTime lastAccess, sbyte partitionIndex)
+        private async Task RemoveTTLRecord(NamespaceId ns, BucketId bucket, IoHashKey name, DateTime lastAccess, sbyte partitionIndex)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.remove_ttl_record");
             LocalDate lastAccessAt = new LocalDate(lastAccess.Year, lastAccess.Month, lastAccess.Day);
             await _mapper.UpdateAsync<ScyllaObjectLastAccessAt>("SET objects = objects - ? WHERE accessed_at = ? AND namespace = ? AND partition_index = ?", new string[] {$"{bucket}#{name}"},  lastAccessAt, ns.ToString(), partitionIndex);
         }
 
-        public async Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, KeyId name, DateTime lastAccessTime)
+        public async Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey name, DateTime lastAccessTime)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.update_last_access_time");
             // fetch the old record
@@ -170,7 +170,7 @@ namespace Horde.Storage.Implementation
                         {
                             int bucketSeparator = o.IndexOf("#", StringComparison.InvariantCultureIgnoreCase);
                             BucketId bucket = new BucketId(o.Substring(0, bucketSeparator));
-                            KeyId name = new KeyId(o.Substring(bucketSeparator + 1));
+                            IoHashKey name = new IoHashKey(o.Substring(bucketSeparator + 1));
 
                             ObjectRecord record;
                             try
@@ -204,7 +204,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async Task<long> Delete(NamespaceId ns, BucketId bucket, KeyId key)
+        public async Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.delete_record");
             ObjectRecord record;
@@ -238,7 +238,7 @@ namespace Horde.Storage.Implementation
                 string bucket = row.GetValue<string>("bucket");
                 string name = row.GetValue<string>("name");
 
-                await Delete(ns, new BucketId(bucket), new KeyId(name));
+                await Delete(ns, new BucketId(bucket), new IoHashKey(name));
 
                 deletedCount++;
             }
@@ -258,7 +258,7 @@ namespace Horde.Storage.Implementation
             {
                 string name = row.GetValue<string>("name");
 
-                await Delete(ns, bucket, new KeyId(name));
+                await Delete(ns, bucket, new IoHashKey(name));
                 deletedCount++;
             }
 
@@ -277,7 +277,7 @@ namespace Horde.Storage.Implementation
 
     public class ObjectHashMismatchException : Exception
     {
-        public ObjectHashMismatchException(NamespaceId ns, BucketId bucket, KeyId name, BlobIdentifier suppliedHash, BlobIdentifier actualHash) : base($"Object {name} in bucket {bucket} and namespace {ns} did not reference hash {suppliedHash} was referencing {actualHash}")
+        public ObjectHashMismatchException(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier suppliedHash, BlobIdentifier actualHash) : base($"Object {name} in bucket {bucket} and namespace {ns} did not reference hash {suppliedHash} was referencing {actualHash}")
         {
         }
     }
@@ -351,7 +351,7 @@ namespace Horde.Storage.Implementation
 
         }
 
-        public ScyllaObject(NamespaceId ns, BucketId bucket, KeyId name, byte[] payload, BlobIdentifier payloadHash, bool isFinalized)
+        public ScyllaObject(NamespaceId ns, BucketId bucket, IoHashKey name, byte[] payload, BlobIdentifier payloadHash, bool isFinalized)
         {
             Namespace = ns.ToString();
             Bucket = bucket.ToString();
@@ -362,11 +362,6 @@ namespace Horde.Storage.Implementation
             IsFinalized = isFinalized;
 
             LastAccessTime = DateTime.Now;
-        }
-
-        public static string BuildKey(string ns, string bucket, string name)
-        {
-            return $"{ns}.{bucket}.{name}";
         }
 
         [Cassandra.Mapping.Attributes.PartitionKey(0)]

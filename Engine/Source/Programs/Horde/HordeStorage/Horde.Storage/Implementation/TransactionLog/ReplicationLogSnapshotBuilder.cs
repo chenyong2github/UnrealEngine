@@ -77,7 +77,7 @@ namespace Horde.Storage.Implementation.TransactionLog
 
                 byte[] cbObjectBytes = writer.Save();
                 BlobIdentifier cbBlobId = BlobIdentifier.FromBlob(cbObjectBytes);
-                await _referencesStore.Put(storeInNamespace, new BucketId("snapshot"), new KeyId(blobIdentifier.ToString()), cbBlobId, cbObjectBytes, true);
+                await _referencesStore.Put(storeInNamespace, new BucketId("snapshot"), new IoHashKey(blobIdentifier.ToString()), cbBlobId, cbObjectBytes, true);
                 await _blobService.PutObject(storeInNamespace, buf, blobIdentifier);
 
                 if (cancellationToken.IsCancellationRequested)

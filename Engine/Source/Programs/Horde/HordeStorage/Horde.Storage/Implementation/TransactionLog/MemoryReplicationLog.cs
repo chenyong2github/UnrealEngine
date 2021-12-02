@@ -21,12 +21,12 @@ namespace Horde.Storage.Implementation
             return _replicationEvents.Keys.ToAsyncEnumerable();
         }
 
-        public Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier objectBlob, DateTime? timestamp)
+        public Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
         {
             return DoInsert(ns, bucket, key, objectBlob, ReplicationLogEvent.OpType.Added, timestamp);
         }
 
-        private async Task<(string, Guid)> DoInsert(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier hash, ReplicationLogEvent.OpType op, DateTime? lastTimestamp)
+        private async Task<(string, Guid)> DoInsert(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier hash, ReplicationLogEvent.OpType op, DateTime? lastTimestamp)
         {
             DateTime timestamp = lastTimestamp.GetValueOrDefault(DateTime.Now);
 
@@ -65,7 +65,7 @@ namespace Horde.Storage.Implementation
             });
         }
 
-        public Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier objectBlob, DateTime? timestamp)
+        public Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
         {
             return DoInsert(ns, bucket, key, objectBlob, ReplicationLogEvent.OpType.Deleted, timestamp); 
         }

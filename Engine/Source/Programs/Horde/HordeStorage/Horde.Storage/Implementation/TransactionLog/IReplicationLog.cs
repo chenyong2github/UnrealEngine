@@ -14,8 +14,8 @@ namespace Horde.Storage.Implementation
     {
         IAsyncEnumerable<NamespaceId> GetNamespaces();
 
-        Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier objectBlob, DateTime? timeBucket = null);
-        Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier objectBlob, DateTime? timeBucket = null);
+        Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timeBucket = null);
+        Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timeBucket = null);
         IAsyncEnumerable<ReplicationLogEvent> Get(NamespaceId ns, string? lastBucket, Guid? lastEvent);
 
         Task AddSnapshot(SnapshotInfo snapshotHeader);
@@ -40,7 +40,7 @@ namespace Horde.Storage.Implementation
 
     public class ReplicationLogEvent
     {
-        public ReplicationLogEvent(NamespaceId @namespace, BucketId bucket, KeyId key, BlobIdentifier blob, Guid eventId, string timeBucket, DateTime timestamp, OpType op)
+        public ReplicationLogEvent(NamespaceId @namespace, BucketId bucket, IoHashKey key, BlobIdentifier blob, Guid eventId, string timeBucket, DateTime timestamp, OpType op)
         {
             Namespace = @namespace;
             Bucket = bucket;
@@ -61,7 +61,7 @@ namespace Horde.Storage.Implementation
 
         public NamespaceId Namespace { get; }
         public BucketId Bucket { get; }
-        public KeyId Key { get; }
+        public IoHashKey Key { get; }
         public OpType Op { get; }
         public DateTime Timestamp { get; }
         public string TimeBucket { get; }

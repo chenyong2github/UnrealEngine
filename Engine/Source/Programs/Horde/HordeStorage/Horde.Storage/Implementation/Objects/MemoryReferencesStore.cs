@@ -20,7 +20,7 @@ namespace Horde.Storage.Implementation
 
         }
 
-        public Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, KeyId key)
+        public Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             if (_objects.TryGetValue(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
             {
@@ -30,7 +30,7 @@ namespace Horde.Storage.Implementation
             throw new ObjectNotFoundException(ns, bucket, key);
         }
 
-        public Task Put(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
+        public Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
         {
             lock (_namespaces)
             {
@@ -44,7 +44,7 @@ namespace Horde.Storage.Implementation
             return Task.FromResult(o);
         }
 
-        public Task Finalize(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blobHash)
+        public Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash)
         {
             if (!_objects.TryGetValue(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
             {
@@ -55,7 +55,7 @@ namespace Horde.Storage.Implementation
             return Task.CompletedTask;
         }
 
-        public Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, KeyId key, DateTime lastAccessTime)
+        public Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime lastAccessTime)
         {
             if (!_objects.TryGetValue(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
             {
@@ -80,7 +80,7 @@ namespace Horde.Storage.Implementation
             return _namespaces.GetAsyncEnumerator();
         }
 
-        public Task<long> Delete(NamespaceId ns, BucketId bucket, KeyId key)
+        public Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)
         {
             if (!_objects.TryRemove(BuildKey(ns, bucket, key), out MemoryStoreObject? o))
             {
@@ -143,7 +143,7 @@ namespace Horde.Storage.Implementation
             return Task.FromResult(removedCount);
         }
 
-        private static string BuildKey(NamespaceId ns, BucketId bucket, KeyId name)
+        private static string BuildKey(NamespaceId ns, BucketId bucket, IoHashKey name)
         {
             return $"{ns}.{bucket}.{name}";
         }
@@ -151,7 +151,7 @@ namespace Horde.Storage.Implementation
 
     public class MemoryStoreObject
     {
-        public MemoryStoreObject(NamespaceId ns, BucketId bucket, KeyId key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
+        public MemoryStoreObject(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized)
         {
             Namespace = ns;
             Bucket = bucket;
@@ -164,7 +164,7 @@ namespace Horde.Storage.Implementation
 
         public NamespaceId Namespace { get; }
         public BucketId Bucket { get; }
-        public KeyId Name { get; }
+        public IoHashKey Name { get; }
         public byte[] Blob { get; }
         public BlobIdentifier BlobHash { get; }
 
