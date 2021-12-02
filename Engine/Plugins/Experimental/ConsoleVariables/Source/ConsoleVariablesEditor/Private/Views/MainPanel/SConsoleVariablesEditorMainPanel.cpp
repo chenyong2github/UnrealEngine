@@ -9,12 +9,12 @@
 #include "MultiUser/ConsoleVariableSyncData.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
+#include "Views/MainPanel/SConsoleVariablesEditorCustomConsoleInputBox.h"
 
 #include "ContentBrowserModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
-#include "OutputLog/Public/OutputLogModule.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
@@ -27,20 +27,12 @@
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
-void SConsoleVariablesEditorMainPanel::Construct(const FArguments& InArgs, const TSharedRef<FConsoleVariablesEditorMainPanel>& InMainPanel)
+void SConsoleVariablesEditorMainPanel::Construct(
+	const FArguments& InArgs, const TSharedRef<FConsoleVariablesEditorMainPanel>& InMainPanel)
 {
 	check(InMainPanel->GetEditorList().IsValid());
 
 	MainPanel = InMainPanel;
-
-	const FOutputLogModule& OutputLogModule = FModuleManager::LoadModuleChecked< FOutputLogModule >(TEXT("OutputLog"));
-
-	ConsoleInput = OutputLogModule.MakeConsoleInputBox(
-		ConsoleInputEditableTextBox, FSimpleDelegate::CreateLambda([](){}), FSimpleDelegate::CreateLambda([](){}));
-
-	check(ConsoleInput.IsValid());
-
-	ConsoleInputEditableTextBox->SetOnKeyDownHandler(FOnKeyDown::CreateRaw(this, &SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted));
 	
 	ChildSlot
 	[
@@ -50,7 +42,7 @@ void SConsoleVariablesEditorMainPanel::Construct(const FArguments& InArgs, const
 		
 		+SSplitter::Slot().SizeRule(SSplitter::ESizeRule::SizeToContent)
 		[
-	        GeneratePanelToolbar(ConsoleInput.ToSharedRef())
+	        GeneratePanelToolbar()
 		]
 
 		+SSplitter::Slot()
@@ -73,32 +65,29 @@ SConsoleVariablesEditorMainPanel::~SConsoleVariablesEditorMainPanel()
 
 }
 
-FReply SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed)
+FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInput(const FText& CommittedText)
 {
-	if (KeyPressed.GetKey().GetFName() == TEXT("Enter"))
+	FString CommandString = CommittedText.ToString().TrimStartAndEnd();
+	FString ValueString;
+	
+	if (CommandString.Contains(" "))
 	{
-		FString CommandString = ConsoleInputEditableTextBox->GetText().ToString();
-		FString ValueString;
-		
-		if (CommandString.Contains(" "))
-		{
-			CommandString.Split(TEXT(" "), &CommandString, &ValueString);
-		}
+		CommandString.Split(TEXT(" "), &CommandString, &ValueString);
+	}
 
-		if (IConsoleVariable* AsVariable = IConsoleManager::Get().FindConsoleVariable(*CommandString))
-		{
-			MainPanel.Pin()->AddConsoleVariable(CommandString, ValueString.IsEmpty() ? AsVariable->GetString() : ValueString, true);
-		}
-		else if (CommandString.IsEmpty())
-		{
-			UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("hs: Input is blank."), __FUNCTION__);
-		}
-		else
-		{
-			UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input %s is not a recognized console command."), __FUNCTION__, *CommandString);
-		}
-
-		ConsoleInputEditableTextBox->SetText(FText::GetEmpty());
+	if (IConsoleVariable* AsVariable = IConsoleManager::Get().FindConsoleVariable(*CommandString))
+	{
+		MainPanel.Pin()->AddConsoleVariable(
+			CommandString, ValueString.IsEmpty() ? AsVariable->GetString() : ValueString, true);
+	}
+	else if (CommandString.IsEmpty())
+	{
+		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("hs: Input is blank."), __FUNCTION__);
+	}
+	else
+	{
+		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input %s is not a recognized console command."),
+			__FUNCTION__, *CommandString);
 	}
 
 	return FReply::Handled();
@@ -135,7 +124,7 @@ void SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails(ECheckBoxState Che
 	}
 }
 
-TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const TSharedRef<SWidget> InConsoleInputWidget)
+TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar()
 {
 	return SNew(SBorder)
 	        .Padding(0)
@@ -150,7 +139,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const
 				.VAlign(VAlign_Fill)
 				.Padding(2.f, 2.f)
 				[
-					InConsoleInputWidget
+					SNew(SConsoleVariablesEditorCustomConsoleInputBox, SharedThis(this))
 				]
 
 				// Presets Management Button
@@ -224,10 +213,13 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+	IContentBrowserSingleton& ContentBrowser =
+		FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 
 	const FText LoadedPresetName = MainPanel.Pin()->GetReferenceAssetOnDisk().IsValid() ?
-		FText::Format(LoadedPresetFormatText, FText::FromString(MainPanel.Pin()->GetReferenceAssetOnDisk()->GetName())) : NoLoadedPresetText;
+		FText::Format(
+			LoadedPresetFormatText,
+			FText::FromString(MainPanel.Pin()->GetReferenceAssetOnDisk()->GetName())) : NoLoadedPresetText;
 
 	MenuBuilder.AddMenuEntry(
 		LoadedPresetName,
@@ -271,7 +263,8 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoPresets_Warning", "No Presets Found");
 		AssetPickerConfig.Filter.ClassNames.Add(UConsoleVariablesAsset::StaticClass()->GetFName());
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
-		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::ImportPreset);
+		AssetPickerConfig.OnAssetSelected =
+			FOnAssetSelected::CreateRaw(MainPanel.Pin().Get(), &FConsoleVariablesEditorMainPanel::ImportPreset);
 	}
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ImportPreset_MenuSection", "Import Preset"));
