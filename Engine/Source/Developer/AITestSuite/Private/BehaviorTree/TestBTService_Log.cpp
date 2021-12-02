@@ -8,7 +8,8 @@ UTestBTService_Log::UTestBTService_Log(const FObjectInitializer& ObjectInitializ
 {
 	NodeName = "LogService";
 
-	INIT_AUXILIARY_NODE_NOTIFY_FLAGS();
+	bNotifyBecomeRelevant = true;
+	bNotifyCeaseRelevant = true;
 
 	LogActivation = INDEX_NONE;
 	LogDeactivation = INDEX_NONE;

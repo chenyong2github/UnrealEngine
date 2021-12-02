@@ -8,7 +8,7 @@
 UBTDecorator_ConditionalLoop::UBTDecorator_ConditionalLoop(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Conditional Loop";
-	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
+	bNotifyDeactivation = true;
 
 	bAllowAbortNone = false;
 	bAllowAbortLowerPri = false;

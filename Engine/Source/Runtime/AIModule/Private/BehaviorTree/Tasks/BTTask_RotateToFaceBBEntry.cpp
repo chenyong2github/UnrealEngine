@@ -13,7 +13,7 @@ UBTTask_RotateToFaceBBEntry::UBTTask_RotateToFaceBBEntry(const FObjectInitialize
 	, Precision(10.f)
 {
 	NodeName = "Rotate to face BB entry";
-	INIT_TASK_NODE_NOTIFY_FLAGS();
+	bNotifyTick = true;
 	
 	// accept only actors and vectors
 	BlackboardKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_RotateToFaceBBEntry, BlackboardKey), AActor::StaticClass());

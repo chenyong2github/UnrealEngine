@@ -6,7 +6,8 @@ UBTDecorator_TimeLimit::UBTDecorator_TimeLimit(const FObjectInitializer& ObjectI
 {
 	NodeName = "TimeLimit";
 	TimeLimit = 5.0f;
-	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
+	bNotifyActivation = true;
+	bNotifyTick = true;
 	bTickIntervals = true;
 
 	// time limit always abort current branch
@@ -42,7 +43,7 @@ void UBTDecorator_TimeLimit::DescribeRuntimeValues(const UBehaviorTreeComponent&
 {
 	Super::DescribeRuntimeValues(OwnerComp, NodeMemory, Verbosity, Values);
 
-	const FBTAuxiliaryMemory* DecoratorMemory = GetSpecialNodeMemory<FBTAuxiliaryMemory>(NodeMemory);
+	FBTAuxiliaryMemory* DecoratorMemory = GetSpecialNodeMemory<FBTAuxiliaryMemory>(NodeMemory);
 	if (OwnerComp.GetWorld())
 	{
 		const float TimeLeft = DecoratorMemory->NextTickRemainingTime > 0 ? DecoratorMemory->NextTickRemainingTime : 0;

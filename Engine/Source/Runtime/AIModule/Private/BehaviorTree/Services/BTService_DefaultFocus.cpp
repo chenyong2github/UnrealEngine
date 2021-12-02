@@ -12,8 +12,10 @@ UBTService_DefaultFocus::UBTService_DefaultFocus(const FObjectInitializer& Objec
 {
 	NodeName = "Set default focus";
 
+	bNotifyTick = false;
 	bTickIntervals = false;
-	INIT_AUXILIARY_NODE_NOTIFY_FLAGS();
+	bNotifyBecomeRelevant = true;
+	bNotifyCeaseRelevant = true;
 
 	FocusPriority = EAIFocusPriority::Default;
 
@@ -26,14 +28,14 @@ void UBTService_DefaultFocus::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp
 {
 	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
 
-	FBTFocusMemory* MyMemory = CastInstanceNodeMemory<FBTFocusMemory>(NodeMemory);
+	FBTFocusMemory* MyMemory = (FBTFocusMemory*)NodeMemory;
 	check(MyMemory);
 	MyMemory->Reset();
 
 	AAIController* OwnerController = OwnerComp.GetAIOwner();
 	UBlackboardComponent* MyBlackboard = OwnerComp.GetBlackboardComponent();
 	
-	if (OwnerController != nullptr && MyBlackboard != nullptr)
+	if (OwnerController != NULL && MyBlackboard != NULL)
 	{
 		if (BlackboardKey.SelectedKeyType == UBlackboardKeyType_Object::StaticClass())
 		{
@@ -53,7 +55,7 @@ void UBTService_DefaultFocus::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp
 			MyMemory->FocusLocationSet = FocusLocation;
 		}
 
-		const FBlackboard::FKey KeyID = BlackboardKey.GetSelectedKeyID();
+		auto KeyID = BlackboardKey.GetSelectedKeyID();
 		MyBlackboard->RegisterObserver(KeyID, this, FOnBlackboardChangeNotification::CreateUObject(this, &UBTService_DefaultFocus::OnBlackboardKeyValueChange));
 	}
 }
@@ -62,10 +64,10 @@ void UBTService_DefaultFocus::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp,
 {
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
 
-	FBTFocusMemory* MyMemory = CastInstanceNodeMemory<FBTFocusMemory>(NodeMemory);
+	FBTFocusMemory* MyMemory = (FBTFocusMemory*)NodeMemory;
 	check(MyMemory);
 	AAIController* OwnerController = OwnerComp.GetAIOwner();
-	if (OwnerController != nullptr)
+	if (OwnerController != NULL)
 	{
 		bool bClearFocus = false;
 		if (MyMemory->bActorSet)
@@ -112,7 +114,7 @@ EBlackboardNotificationResult UBTService_DefaultFocus::OnBlackboardKeyValueChang
 	}
 
 	const int32 NodeInstanceIdx = OwnerComp->FindInstanceContainingNode(this);
-	FBTFocusMemory* MyMemory = CastInstanceNodeMemory<FBTFocusMemory>(OwnerComp->GetNodeMemory(this, NodeInstanceIdx));
+	FBTFocusMemory* MyMemory = (FBTFocusMemory*)OwnerComp->GetNodeMemory(this, NodeInstanceIdx);
 	MyMemory->Reset();
 	OwnerController->ClearFocus(FocusPriority);
 

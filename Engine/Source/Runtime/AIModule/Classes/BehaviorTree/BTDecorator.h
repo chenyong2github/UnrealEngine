@@ -101,18 +101,15 @@ protected:
 	void SetIsInversed(bool bShouldBeInversed);
 
 	/** called when underlying node is activated
-	* this function should be considered as const (don't modify state of object) if node is not instanced! 
-	* bNotifyActivation must be set to true when this function must be called */
+	  * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData);
 
 	/** called when underlying node has finished
-	* this function should be considered as const (don't modify state of object) if node is not instanced! 
-	* bNotifyDeactivation must be set to true when this function must be called */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult);
 
 	/** called when underlying node was processed (deactivated or failed to activate)
-	* this function should be considered as const (don't modify state of object) if node is not instanced! 
-	* bNotifyProcessed must be set to true when this function must be called */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual void OnNodeProcessed(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult);
 
 	/** calculates raw, core value of decorator's condition. Should not include calling IsInversed */
@@ -125,28 +122,6 @@ protected:
 
 	friend FBehaviorDecoratorDetails;
 
-	template<typename T,
-			typename TickNodeFunc = decltype(&T::TickNode),
-			typename OnBecomeRelevantFunc = decltype(&T::OnBecomeRelevant),
-			typename OnCeaseRelevantFunc = decltype(&T::OnCeaseRelevant),
-			typename OnNodeActivationFunc = decltype(&T::OnNodeActivation),
-			typename OnNodeDeactivationFunc = decltype(&T::OnNodeDeactivation),
-			typename OnNodeProcessedFunc = decltype(&T::OnNodeProcessed)>
-	void InitNotifyFlags(const T* Node, TickNodeFunc TickFunction,
-										OnBecomeRelevantFunc OnBecomeRelevantFunction,
-										OnCeaseRelevantFunc OnCeaseRelevantFunction,
-										OnNodeActivationFunc OnNodeActivationFunction,
-										OnNodeDeactivationFunc OnNodeDeactivationFunction,
-										OnNodeProcessedFunc OnNodeProcessedFunction)
-	{
-		bNotifyTick |= &UBTDecorator::TickNode != TickFunction;
-		bNotifyBecomeRelevant |= &UBTDecorator::OnBecomeRelevant != OnBecomeRelevantFunction;
-		bNotifyCeaseRelevant |= &UBTDecorator::OnCeaseRelevant != OnCeaseRelevantFunction;
-		bNotifyActivation |= &UBTDecorator::OnNodeActivation != OnNodeActivationFunction;
-		bNotifyDeactivation |= &UBTDecorator::OnNodeDeactivation != OnNodeDeactivationFunction;
-		bNotifyProcessed |= &UBTDecorator::OnNodeProcessed != OnNodeProcessedFunction;
-	}
-
 	//----------------------------------------------------------------------//
 	// DEPRECATED
 	//----------------------------------------------------------------------//
@@ -154,14 +129,6 @@ protected:
 	void InitializeDecorator(uint8 InChildIndex);
 };
 
-#define INIT_DECORATOR_NODE_NOTIFY_FLAGS() \
-	using NodeType = TRemovePointer<decltype(this)>::Type; \
-	InitNotifyFlags(this, &NodeType::TickNode, \
-					&NodeType::OnBecomeRelevant, \
-					&NodeType::OnCeaseRelevant, \
-					&NodeType::OnNodeActivation, \
-					&NodeType::OnNodeDeactivation, \
-					&NodeType::OnNodeProcessed) \
 
 //////////////////////////////////////////////////////////////////////////
 // Inlines
