@@ -80,6 +80,23 @@ const static float3 Max111110BitsFloat3 = float3(Max11BitsFloat, Max11BitsFloat,
 	#define TextureCubeArray TextureCube
 #endif
 
+// Control MIP level used for material texture fetches. By default only raytracing 
+// shaders (i.e., !PIXELSHADER) use manual MIP level selection. A material shader 
+// can opt. in to force a specific MIP level.
+//
+// * USE_FORCE_TEXTURE_MIP : enable/disable manual MIP level selection
+// * FORCED_TEXTURE_MIP    : force a specific MIP level
+//
+#if !PIXELSHADER && !defined(USE_FORCE_TEXTURE_MIP)
+	#define USE_FORCE_TEXTURE_MIP 1
+#endif
+#ifndef USE_FORCE_TEXTURE_MIP
+	#define USE_FORCE_TEXTURE_MIP 0
+#endif
+#ifndef FORCED_TEXTURE_MIP
+	#define FORCED_TEXTURE_MIP 0.0f
+#endif
+
 // Add definition of types used by generated uniform buffers
 #include "GeneratedUniformBufferTypes.ush"
 
@@ -132,23 +149,6 @@ float4 FmodFloor(float4 Lhs, float4 Rhs)
 
 // Using SV_ClipDistance has overhead (15% slower base pass in triangle bound test scene on PS4) so projects have to opt-in
 #define USE_GLOBAL_CLIP_PLANE (PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE && PROJECT_ALLOW_GLOBAL_CLIP_PLANE && !MATERIAL_DOMAIN_POSTPROCESS && !MATERIAL_DOMAIN_UI)
-
-// Control MIP level used for material texture fetches. By default only raytracing 
-// shaders (i.e., !PIXELSHADER) use manual MIP level selection. A material shader 
-// can opt. in to force a specific MIP level.
-//
-// * USE_FORCE_TEXTURE_MIP : enable/disable manual MIP level selection
-// * FORCED_TEXTURE_MIP    : force a specific MIP level
-//
-#if !PIXELSHADER && !defined(USE_FORCE_TEXTURE_MIP)
-	#define USE_FORCE_TEXTURE_MIP 1
-#endif
-#ifndef USE_FORCE_TEXTURE_MIP
-	#define USE_FORCE_TEXTURE_MIP 0
-#endif
-#ifndef FORCED_TEXTURE_MIP
-	#define FORCED_TEXTURE_MIP 0.0f
-#endif
 
 #if RAYHITGROUPSHADER || RAYMISSHADER
 
