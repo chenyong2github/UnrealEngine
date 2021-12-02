@@ -260,6 +260,7 @@ void UWorldPartitionSubsystem::UpdateStreamingState()
 
 void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::Draw);
 	if (!Canvas || !Canvas->SceneView)
 	{
 		return;
@@ -327,6 +328,8 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 
 	if (GDrawStreamingSources || GDrawRuntimeHash2D)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::DrawStreamingSources);
+
 		const UWorldPartition* WorldPartition = GetWorldPartition();
 		const TArray<FWorldPartitionStreamingSource>* StreamingSources = WorldPartition ? &WorldPartition->GetStreamingSources() : nullptr;
 		if (StreamingSources && (StreamingSources->Num() > 0))
