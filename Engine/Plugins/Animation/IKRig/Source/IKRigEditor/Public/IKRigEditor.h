@@ -15,4 +15,6 @@ private:
 	TSharedPtr<class FAssetTypeActions_AnimationAssetRetarget> RetargetAnimationAssetAction;
 	TSharedPtr<class FAssetTypeActions_IKRigDefinition> IKRigDefinitionAssetAction;
 	TSharedPtr<class FAssetTypeActions_IKRetargeter> IKRetargeterAssetAction;
+
+	TArray<FName> ClassesToUnregisterOnShutdown;
 };

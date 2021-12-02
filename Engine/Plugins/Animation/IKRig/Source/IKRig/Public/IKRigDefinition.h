@@ -6,6 +6,9 @@
 #include "UObject/Object.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "IKRigSkeleton.h"
+#if WITH_EDITOR
+#include "SAdvancedTransformInputBox.h"
+#endif
 #include "IKRigDefinition.generated.h"
 
 class UIKRigSolver;
@@ -17,6 +20,15 @@ enum class EIKRigGoalPreviewMode : uint8
 	Additive		UMETA(DisplayName = "Additive"),
 	Absolute		UMETA(DisplayName = "Absolute"),
 };
+
+namespace EIKRigTransformType
+{
+	enum Type : int8
+	{
+		Current,
+		Reference,
+	};
+}
 #endif
 
 UCLASS()
@@ -75,6 +87,29 @@ public:
 		Super::PostLoad();
 		SetFlags(RF_Transactional);
 	}
+	
+#endif
+
+#if WITH_EDITOR
+
+	TOptional<FTransform::FReal> GetNumericValue(
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		EIKRigTransformType::Type TransformType
+	) const;
+	
+	void OnNumericValueChanged(
+		ESlateTransformComponent::Type Component,
+		ESlateRotationRepresentation::Type Representation,
+		ESlateTransformSubComponent::Type SubComponent,
+		FTransform::FReal Value,
+		ETextCommit::Type CommitType,
+		EIKRigTransformType::Type TransformType
+	);
+
+	bool TransformDiffersFromDefault(TSharedPtr<IPropertyHandle> PropertyHandle, ESlateTransformComponent::Type Component) const;
+	void ResetTransformToDefault(TSharedPtr<IPropertyHandle> PropertyHandle, ESlateTransformComponent::Type Component);
 	
 #endif
 };

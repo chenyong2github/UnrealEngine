@@ -15,6 +15,8 @@
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
 #include "RigEditor/IKRigSkeletonCommands.h"
+#include "RigEditor/IKRigDetailCustomizations.h"
+#include "RigEditor/IKRigEditorController.h"
 
 IMPLEMENT_MODULE(FIKRigEditor, IKRigEditor)
 
@@ -42,6 +44,13 @@ void FIKRigEditor::StartupModule()
 	// register custom editor modes
 	FEditorModeRegistry::Get().RegisterMode<FIKRigEditMode>(FIKRigEditMode::ModeName, LOCTEXT("IKRigEditMode", "IKRig"), FSlateIcon(), false);
 	FEditorModeRegistry::Get().RegisterMode<FIKRetargetEditMode>(FIKRetargetEditMode::ModeName, LOCTEXT("IKRetargetEditMode", "IKRetarget"), FSlateIcon(), false);
+
+	// register detail customizations
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	ClassesToUnregisterOnShutdown.Add(UIKRigBoneDetails::StaticClass()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FIKRigGenericDetailCustomization::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(UIKRigEffectorGoal::StaticClass()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FIKRigGenericDetailCustomization::MakeInstance));
 }
 
 void FIKRigEditor::ShutdownModule()
@@ -52,9 +61,6 @@ void FIKRigEditor::ShutdownModule()
 	
 	FEditorModeRegistry::Get().UnregisterMode(FIKRigEditMode::ModeName);
 	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetEditMode::ModeName);
-
-	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.UnregisterCustomPropertyTypeLayout("IKRigEffector");
 
 	// unregister IKRigDefinition asset action
 	if (IKRigDefinitionAssetAction.IsValid())

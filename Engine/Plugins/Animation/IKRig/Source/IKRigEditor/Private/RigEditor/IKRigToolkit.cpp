@@ -261,6 +261,7 @@ void FIKRigEditorToolkit::SetupAnimInstance()
 	InAnimInstance->SetIKRigAsset(EditorController->AssetController->GetAsset());
 	EditorController->SkelMeshComponent->PreviewInstance = InAnimInstance;
 	InAnimInstance->InitializeAnimation();
+	EditorController->OnIKRigNeedsInitialized(EditorController->AssetController->GetAsset());
 }
 
 
