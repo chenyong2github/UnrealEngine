@@ -811,10 +811,9 @@ void Lumen::BuildCardUpdateContext(
 	IndirectLightingCardUpdateContext.CardPageIndexData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::RoundUpToPowerOfTwo(NumCardPages)), TEXT("Lumen.IndirectLightingCardPageIndexData"));
 	IndirectLightingCardUpdateContext.CardPageIndexIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.IndirectLightingCardPageIndexIndirectArgs"));
 
-	const uint32 MaxTempBufferSize = LumenCardUpdateContext::CARD_UPDATE_CONTEXT_MAX * LumenCardUpdateContext::PRIORITY_HISTOGRAM_SIZE;
-	FRDGBufferRef PriorityHistogram = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxTempBufferSize), TEXT("Lumen.PriorityHistogram"));
-	FRDGBufferRef MaxUpdateBucket = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxTempBufferSize), TEXT("Lumen.MaxUpdateBucket"));
-	FRDGBufferRef CardPageTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxTempBufferSize), TEXT("Lumen.CardPageTileAllocator"));
+	FRDGBufferRef PriorityHistogram = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), LumenCardUpdateContext::CARD_UPDATE_CONTEXT_MAX * LumenCardUpdateContext::PRIORITY_HISTOGRAM_SIZE), TEXT("Lumen.PriorityHistogram"));
+	FRDGBufferRef MaxUpdateBucket = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), LumenCardUpdateContext::CARD_UPDATE_CONTEXT_MAX * LumenCardUpdateContext::MAX_UPDATE_BUCKET_STRIDE), TEXT("Lumen.MaxUpdateBucket"));
+	FRDGBufferRef CardPageTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), LumenCardUpdateContext::CARD_UPDATE_CONTEXT_MAX * LumenCardUpdateContext::CARD_PAGE_TILE_ALLOCATOR_STRIDE), TEXT("Lumen.CardPageTileAllocator"));
 
 	// Batch clear all resources required for the subsequent card context update pass
 	{
@@ -827,7 +826,7 @@ void Lumen::BuildCardUpdateContext(
 
 		auto ComputeShader = View.ShaderMap->GetShader<FClearCardUpdateContextCS>();
 
-		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(MaxTempBufferSize, FClearCardUpdateContextCS::GetGroupSize()), 1, 1);
+		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenCardUpdateContext::CARD_UPDATE_CONTEXT_MAX * LumenCardUpdateContext::PRIORITY_HISTOGRAM_SIZE, FClearCardUpdateContextCS::GetGroupSize()), 1, 1);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
