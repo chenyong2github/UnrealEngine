@@ -1,0 +1,49 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	Stats.ush: 
+=============================================================================*/
+
+#include "../Common.ush"
+#include "../WaveOpUtil.ush"
+
+
+#define VSM_STAT_ALLOCATED_PAGES            0
+#define VSM_STAT_CACHED_PAGES                    1
+#define VSM_STAT_INVALIDATED_BY_DYNAMIC_PAGES    2
+#define VSM_STAT_NUM_SMS                         3
+#define VSM_STAT_NON_NANITE_INSTANCES_TOTAL      4
+#define VSM_STAT_NON_NANITE_INSTANCES_DRAWN      5
+#define VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED 6
+#define VSM_STAT_NON_NANITE_INSTANCES_PAGE_MASK_CULLED 7
+#define VSM_STAT_NON_NANITE_INSTANCES_EMPTY_RECT_CULLED 8
+#define VSM_STAT_NON_NANITE_INSTANCES_FRUSTUM_CULLED 9
+
+#ifndef VSM_GENERATE_STATS
+#define VSM_GENERATE_STATS 0
+#endif // VSM_GENERATE_STATS
+
+#if VSM_GENERATE_STATS
+RWStructuredBuffer<uint> OutStatsBuffer;
+#endif // VSM_GENERATE_STATS
+
+void StatsBufferWrite(uint Index, uint Value)
+{
+#if VSM_GENERATE_STATS
+	OutStatsBuffer[Index] = Value;
+#endif
+}
+
+void StatsBufferInterlockedAdd(uint Index, uint Value)
+{
+#if VSM_GENERATE_STATS
+	InterlockedAdd(OutStatsBuffer[Index], Value);
+#endif
+}
+
+void StatsBufferInterlockedInc(uint Index)
+{
+#if VSM_GENERATE_STATS
+	WaveInterlockedAddScalar(OutStatsBuffer[Index], 1U);
+#endif
+}

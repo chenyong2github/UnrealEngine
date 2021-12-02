@@ -179,3 +179,40 @@ bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect Page
 
 	return true;
 }
+
+/**
+ * Perform HZB-Test for a rectangle of pages, returning true if the Rect is visible in at least one page. 
+ * Skips unallocated pages, and returns 'visible' (true) for any page that contains any bit in the VisiblePageMask. This can be used
+ * to default un-cached pages to visible. If the PrevShadowMapID is INDEX_NONE, the function returns visible.
+ */
+bool IsVisibleValidMaskedHZB(uint PrevShadowMapID, uint VirtualShadowMapId, uint MipLevel, uint4 RectPages, FScreenRect Rect, uint VisiblePageMask)
+{
+	// Don't have an HZB to test.
+	if (PrevShadowMapID == ~0u)
+	{
+		return true;
+	}
+
+	FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect);
+	uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
+	for (uint y = RectPages.y; y <= RectPages.w; y++)
+	{
+		for (uint x = RectPages.x; x <= RectPages.z; x++)
+		{
+			uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
+			uint PageFlag = PageFlags[PageFlagOffset];
+
+			// Skip un-allocated pages as we are not going to draw into them anyway
+			if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)
+			{
+				// Treat pages with the VisiblePageMask as visible - can be used to select only cached pages
+				if ((PageFlag & VisiblePageMask) != 0 || IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}

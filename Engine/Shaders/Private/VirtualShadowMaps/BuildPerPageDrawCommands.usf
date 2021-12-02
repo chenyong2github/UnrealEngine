@@ -11,6 +11,7 @@
 #include "../InstanceCulling/InstanceCullingCommon.ush"
 #include "../InstanceCulling/InstanceCullingLoadBalancer.ush"
 #include "../WaveOpUtil.ush"
+#include "Stats.ush"
 
 
 #ifndef NEAR_CLIP
@@ -53,6 +54,13 @@ RWBuffer<uint> DrawIndirectArgsBufferOut;
 
 RWStructuredBuffer<uint> OutInvalidatingInstances;
 uint NumInvalidatingInstanceSlots;
+
+
+#if USE_HZB_OCCLUSION
+// Mode 1 == previous frame HZB, 
+// Mode 2 == this frame HZB (Nanite only).
+uint HZBMode;
+#endif
 
 void MarkInstanceForInvalidation(uint InstanceId)
 {
@@ -136,6 +144,12 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, false);
 
+#if USE_HZB_OCCLUSION
+		const bool bViewHZB = (NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0 || HZBMode == 2;
+#endif
+
+		StatsBufferInterlockedAdd(VSM_STAT_NON_NANITE_INSTANCES_TOTAL, NaniteView.TargetNumMipLevels);
+
 		if (Cull.bIsVisible)
 		{
 			// Loop over mip levels and count number of output visible instances, also retain a bit for each mip level (used to skip empty levels in output loop)
@@ -160,11 +174,45 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 					RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
 					if (all(RectPages.zw >= RectPages.xy))
 					{
+#if USE_HZB_OCCLUSION
+						if (bViewHZB)
+						{
+							// Assume:
+							//  1. Virtual address space has not changed (if so it'd have been invalidated)
+							//  2. Physical pages that are chached have not changed (guaranteed by persistent caching)
+							//  OR (mode 2): Using this frame's HZB from Nanite shadow passes.
+							// Then we can:
+							//  1. Iterate the clipped page rect
+							//  2. Test against only valid pages which enables
+							//  3. rejecting any that don't pass HZB at least once (or touches an uncached page)
+
+							// In Mode 2 we are using the current-frame HZB and can use any page whether it is cached or not.
+							uint VisiblePageMask = HZBMode == 1 ? VSM_UNCACHED_FLAG : 0U;
+							if (!IsVisibleValidMaskedHZB(HZBMode == 1 ? MipView.TargetPrevLayerIndex : VirtualShadowMapId, VirtualShadowMapId, MipLevel, RectPages, Rect, VisiblePageMask))
+							{
+								StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED);
+								continue;
+							}
+						}
+#endif // USE_HZB_OCCLUSION
+
 						++ThreadTotalForAllViews;
 						WriteCmd(RectPages.xy, MipViewId, InstanceId, IndirectArgIndex);
 					}
+					else
+					{
+						StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_EMPTY_RECT_CULLED);
+					}
+				}
+				else
+				{
+					StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_PAGE_MASK_CULLED);
 				}
 			}
+		}
+		else
+		{
+			StatsBufferInterlockedAdd(VSM_STAT_NON_NANITE_INSTANCES_FRUSTUM_CULLED, NaniteView.TargetNumMipLevels);
 		}
 	}
 
@@ -174,6 +222,8 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	{
 		MarkInstanceForInvalidation(InstanceId);
 	}
+
+	StatsBufferInterlockedAdd(VSM_STAT_NON_NANITE_INSTANCES_DRAWN, ThreadTotalForAllViews);
 
 	// Accumulate total number of instances for each indirect argument, is also used to allocate space and output compact range of instances later
 	InterlockedAdd(DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], ThreadTotalForAllViews);

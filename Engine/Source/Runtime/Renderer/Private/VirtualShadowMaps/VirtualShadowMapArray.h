@@ -263,12 +263,9 @@ public:
 	FRDGTextureRef HZBPhysical = nullptr;
 	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
 
-	static constexpr uint32 NumStats = 5;
-	// 0 - allocated pages
-	// 1 - re-usable pages
-	// 2 - Touched by dynamic
-	// 3 - NumSms
-	// 4 - RandRobin invalidated
+	// See Engine\Shaders\Private\VirtualShadowMaps\Stats.ush for definitions of the different stat indexes
+	static constexpr uint32 NumStats = 16;
+
 	FRDGBufferRef StatsBufferRDG = nullptr;
 
 	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;

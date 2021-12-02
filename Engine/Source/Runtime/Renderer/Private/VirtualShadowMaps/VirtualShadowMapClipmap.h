@@ -49,6 +49,14 @@ public:
 		return LightSceneInfo;
 	}
 
+	int32 GetHZBKey(int32 ClipmapLevelIndex) const
+	{
+		int32 AbsoluteClipmapLevel = GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
+		int32 ClipmapLevelKey = AbsoluteClipmapLevel + 128;
+		check(ClipmapLevelKey > 0 && ClipmapLevelKey < 256);
+		return GetLightSceneInfo().Id + (ClipmapLevelKey << 24);
+	}
+
 	FVirtualShadowMapProjectionShaderData GetProjectionShaderData(int32 ClipmapIndex) const;
 
 	FVector GetWorldOrigin() const

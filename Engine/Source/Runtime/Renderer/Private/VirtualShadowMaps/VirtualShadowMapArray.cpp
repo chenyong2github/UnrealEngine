@@ -134,6 +134,12 @@ FAutoConsoleVariableRef CVarEnableNonNaniteVSM(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
+static TAutoConsoleVariable<int32> CVarNonNaniteVsmUseHzb(
+	TEXT("r.Shadow.Virtual.NonNanite.UseHZB"),
+	2,
+	TEXT("Cull Non-Nanite instances using HZB. If set to 2, attempt to use Nanite-HZB from the current frame."),
+	ECVF_RenderThreadSafe);
+
 #if !UE_BUILD_SHIPPING
 bool GDumpVSMLightNames = false;
 void DumpVSMLightNames()
@@ -1211,6 +1217,16 @@ class FVirtualSmPrintStatsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InStatsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FIntVector4>, AllocatedPageRectBounds)
 	END_SHADER_PARAMETER_STRUCT()
+
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FVirtualPageManagementShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		// Disable optimizations as shader print causes long compile times
+		OutEnvironment.CompilerFlags.Add(CFLAG_SkipOptimizations);
+	}
+
+		
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmPrintStatsCS, "/Engine/Private/VirtualShadowMaps/PrintStats.usf", "PrintStats", SF_Compute);
 
@@ -1369,7 +1385,9 @@ class FCullPerPageDrawCommandsCs : public FGlobalShader
 
 	class FNearClipDim		: SHADER_PERMUTATION_BOOL( "NEAR_CLIP" );
 	class FLoopOverViewsDim	: SHADER_PERMUTATION_BOOL( "LOOP_OVER_VIEWS" );
-	using FPermutationDomain = TShaderPermutationDomain< FNearClipDim, FLoopOverViewsDim >;
+	class FUseHzbDim : SHADER_PERMUTATION_BOOL("USE_HZB_OCCLUSION");
+	class FGenerateStatsDim : SHADER_PERMUTATION_BOOL("VSM_GENERATE_STATS");
+	using FPermutationDomain = TShaderPermutationDomain< FUseHzbDim, FNearClipDim, FLoopOverViewsDim, FGenerateStatsDim >;
 
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1413,8 +1431,16 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleInstanceCountBufferOut)
 
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, ShadowHZBPageTable)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
+		SHADER_PARAMETER(FVector2D, HZBSize)
+		SHADER_PARAMETER(uint32, HZBMode)
+
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutInvalidatingInstances)
 		SHADER_PARAMETER(uint32, NumInvalidatingInstanceSlots)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCullPerPageDrawCommandsCs, "/Engine/Private/VirtualShadowMaps/BuildPerPageDrawCommands.usf", "CullPerPageDrawCommandsCs", SF_Compute);
@@ -1507,6 +1533,26 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Non-Nanite)");
 
 	FGPUScene& GPUScene = Scene.GPUScene;
+
+	FRDGBufferSRVRef PrevPageTableRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"))) : nullptr;
+
+	int32 HZBMode = CVarNonNaniteVsmUseHzb.GetValueOnRenderThread();
+
+	auto InitHZB = [&]()->FRDGTextureRef
+	{
+		if (HZBMode == 1 && CacheManager->IsValid())
+		{
+			return GraphBuilder.RegisterExternalTexture(CacheManager->PrevBuffers.HZBPhysical);
+		}
+
+		if (HZBMode == 2 && HZBPhysical != nullptr)
+		{
+			return HZBPhysical;
+		}
+		return nullptr;
+	};
+	const FRDGTextureRef HZBTexture = InitHZB();
+
 	// TODO: create a VirtualClipMapMeshRenderInfo - or something - that contains the required info:
 	//       The View used to set up (to get all the usual crap), The MeshCommandPass (to perform setup & culling), Culling volume?, Ref to Clipmap itself.
 
@@ -1553,6 +1599,11 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				Params.PrevTargetLayerIndex = INDEX_NONE;
 				Params.PrevViewMatrices = Params.ViewMatrices;
 
+				if (HZBTexture)
+				{
+					CacheManager->SetHZBViewParams(Clipmap->GetHZBKey(ClipmapLevelIndex), Params);
+				}
+
 				VirtualShadowViews.Add(Nanite::CreatePackedView(Params));
 
 				// This is used to mark all the referenced physical pages as being updated. 
@@ -1582,6 +1633,11 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				Nanite::FPackedViewParams Params = BaseParams;
 				Params.TargetLayerIndex = VirtualShadowMap->ID;
 				Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(i, true);
+
+				if (HZBTexture)
+				{
+					CacheManager->SetHZBViewParams(ProjectedShadowInfo->GetLightSceneInfo().Id + (i << 24), Params);
+				}
 
 				VirtualShadowViews.Add(Nanite::CreatePackedView(Params));
 
@@ -1672,9 +1728,27 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->OutInvalidatingInstances = GraphBuilder.CreateUAV(InvalidatingInstancesRDG);
 				PassParameters->NumInvalidatingInstanceSlots = NumInvalidatingInstanceSlots;
 
+				if (HZBTexture)
+				{
+					// Mode 2 uses the current frame HZB  & page table.
+					PassParameters->ShadowHZBPageTable = HZBMode == 2 ? GraphBuilder.CreateSRV(PageTableRDG) : PrevPageTableRDGSRV;
+					PassParameters->HZBTexture = HZBTexture;
+					PassParameters->HZBSize = HZBTexture->Desc.Extent;
+					PassParameters->HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+					PassParameters->HZBMode = HZBMode;
+				}
+
+				bool bGenerateStats = StatsBufferRDG != nullptr;
+				if (bGenerateStats)
+				{
+					PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(StatsBufferRDG);
+				}
+
 				FCullPerPageDrawCommandsCs::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FCullPerPageDrawCommandsCs::FNearClipDim >( !Clipmap.IsValid() );
 				PermutationVector.Set< FCullPerPageDrawCommandsCs::FLoopOverViewsDim >( Clipmap.IsValid() );
+				PermutationVector.Set< FCullPerPageDrawCommandsCs::FUseHzbDim >(HZBTexture != nullptr);
+				PermutationVector.Set< FCullPerPageDrawCommandsCs::FGenerateStatsDim >(bGenerateStats);
 
 				auto ComputeShader = ShaderMap->GetShader<FCullPerPageDrawCommandsCs>( PermutationVector );
 

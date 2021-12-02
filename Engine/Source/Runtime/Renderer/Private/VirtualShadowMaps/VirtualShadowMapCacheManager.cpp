@@ -354,26 +354,36 @@ void FVirtualShadowMapArrayCacheManager::ExtractStats(FRDGBuilder& GraphBuilder,
 		ensure(FileToLogTo);
 		if (FileToLogTo)
 		{
-			static const FString StatNames[FVirtualShadowMapArray::NumStats] =
+			static const FString StatNames[] =
 			{
 				TEXT("Allocated"),
 				TEXT("Cached"),
 				TEXT("Dynamic"),
 				TEXT("NumSms"),
-				TEXT("RandRobin"),
+				TEXT("NonNaniteInstances"),
+				TEXT("NonNaniteInstancesDrawn"),
+				TEXT("NonNaniteInstancesHZBCulled"),
+				TEXT("NonNaniteInstancesPageMaskCulled"),
+				TEXT("NonNaniteInstancesEmptyRectCulled"),
+				TEXT("NonNaniteInstancesFrustumCulled"),
 			};
-
 
 			// Print header
 			FString StringToPrint;
-			for (const FString &StatName : StatNames)
+			for (int32 Index = 0; Index < FVirtualShadowMapArray::NumStats; ++Index)
 			{
 				if (!StringToPrint.IsEmpty())
 				{
 					StringToPrint += TEXT(",");
 				}
-
-				StringToPrint += StatName;
+				if (Index < int32(UE_ARRAY_COUNT(StatNames)))
+				{
+					StringToPrint.Append(StatNames[Index]);
+				}
+				else
+				{
+					StringToPrint.Appendf(TEXT("Stat_%d"), Index);
+				}
 			}
 
 			StringToPrint += TEXT("\n");
@@ -579,6 +589,17 @@ TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> FVirtualShadowMapArrayC
 	FVirtualShadowMapUniformParameters* VersionedParameters = GraphBuilder.AllocParameters<FVirtualShadowMapUniformParameters>();
 	*VersionedParameters = PrevUniformParameters;
 	return GraphBuilder.CreateUniformBuffer(VersionedParameters);
+}
+
+void FVirtualShadowMapArrayCacheManager::SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams)
+{
+	FVirtualShadowMapHZBMetadata* PrevHZBMeta = PrevBuffers.HZBMetadata.Find(HZBKey);
+	if (PrevHZBMeta)
+	{
+		OutParams.PrevTargetLayerIndex = PrevHZBMeta->TargetLayerIndex;
+		OutParams.PrevViewMatrices = PrevHZBMeta->ViewMatrices;
+		OutParams.Flags = VIEW_FLAG_HZBTEST;
+	}
 }
 
 static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* CacheManager, int32 TotalInstanceCount, const FGPUScene& GPUScene, 

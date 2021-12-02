@@ -126,6 +126,8 @@ public:
 	FVirtualShadowMapArrayFrameData PrevBuffers;
 	FVirtualShadowMapUniformParameters PrevUniformParameters;
 		
+	void SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams);
+
 private:
 	// Must match shader...
 	struct FInstanceSceneDataRange
