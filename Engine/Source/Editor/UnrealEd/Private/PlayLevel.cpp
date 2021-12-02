@@ -2853,11 +2853,9 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 
 	if (!InPIEParameters.bRunAsDedicated)
 	{
-		bool bCreateNewAudioDevice = InParams.EditorPlaySettings->IsCreateAudioDeviceForEveryPlayer();
-
 		// Create an instance of the Game Viewport Client, with the class specified by the Engine.
 		ViewportClient = NewObject<UGameViewportClient>(this, GameViewportClientClass);
-		ViewportClient->Init(*PieWorldContext, GameInstance, bCreateNewAudioDevice);
+		ViewportClient->Init(*PieWorldContext, GameInstance);
 
 		ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 		ViewportClient->EngineShowFlags.SetServerDrawDebug(PlayInSettings->ShowServerDebugDrawingByDefault());
@@ -2977,6 +2975,9 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 			DeviceParams.Scope = EAudioDeviceScope::Unique;
 			DeviceParams.AssociatedWorld = PlayWorld;
 			DeviceParams.bIsNonRealtime = true;
+			// For NRT rendering, don't need a large buffer and don't need to double buffer
+			DeviceParams.BufferSizeOverride = 32;
+			DeviceParams.NumBuffersOverride = 2;
 			FAudioDeviceHandle AudioDevice = AudioDeviceManager->RequestAudioDevice(DeviceParams);
 			check(AudioDevice.IsValid());
 			if (PlayWorld)

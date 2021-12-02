@@ -63,20 +63,17 @@ enum class EAudioDeviceScope : uint8
 struct FAudioDeviceParams
 {
 	// Optional world parameter. This allows tools to surface information about which worlds are being rendered through which audio devices.
-	UWorld* AssociatedWorld;
+	UWorld* AssociatedWorld = nullptr;
 	// This should be set to EAudioDeviceScope::Unique if you'd like to force a new device to be created from scratch, or use EAudioDeviceScope::Shared to use an existing device if possible.
-	EAudioDeviceScope Scope;
+	EAudioDeviceScope Scope = EAudioDeviceScope::Default;
 	// Set this to true to get a handle to a non realtime audio renderer.
-	bool bIsNonRealtime;
+	bool bIsNonRealtime = false;
 	// Use this to force this audio device to use a specific audio module. If nullptr, uses the default audio module.
-	IAudioDeviceModule* AudioModule;
-
-	FAudioDeviceParams()
-		: AssociatedWorld(nullptr)
-		, Scope(EAudioDeviceScope::Default)
-		, bIsNonRealtime(false)
-		, AudioModule(nullptr)
-	{}
+	IAudioDeviceModule* AudioModule = nullptr;
+	// Buffer size override
+	int32 BufferSizeOverride = INDEX_NONE;
+	// Num buffers override
+	int32 NumBuffersOverride = INDEX_NONE;
 };
 
 // Strong handle to an audio device. Guarantees that the audio device it references will stay alive while it is in scope.

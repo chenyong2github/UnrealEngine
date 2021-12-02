@@ -333,7 +333,7 @@ const FAudioQualitySettings& FAudioDevice::GetQualityLevelSettings()
 	return AudioSettings->GetQualityLevelSettings(QualityLevel);
 }
 
-bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
+bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 InBufferSizeOverride, int32 InNumBuffersOverride)
 {
 	SCOPED_BOOT_TIMING("FAudioDevice::Init");
 
@@ -368,6 +368,21 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources)
 	{
 		UE_LOG(LogAudioMixer, Display, TEXT("Command Line NumBuffersToEnqueue Override: %d"), PlatformSettings.NumBuffers);
 	}
+
+	// Override arguments passed into this function trump command line argument overrides
+	if (InBufferSizeOverride != INDEX_NONE)
+	{
+		PlatformSettings.CallbackBufferFrameSize = InBufferSizeOverride;
+	}
+	if (InNumBuffersOverride != INDEX_NONE)
+	{
+		PlatformSettings.NumBuffers = InNumBuffersOverride;
+	}
+
+	// Validate buffer size and num buffers
+ 	PlatformSettings.CallbackBufferFrameSize = FMath::Max(4, PlatformSettings.CallbackBufferFrameSize);
+ 	PlatformSettings.CallbackBufferFrameSize = PlatformSettings.CallbackBufferFrameSize - (PlatformSettings.CallbackBufferFrameSize % 4);
+ 	PlatformSettings.NumBuffers = FMath::Max(1, PlatformSettings.NumBuffers);
 
 	// MaxSources is the max value supplied to Init call (quality settings), unless overwritten by the platform settings.
 	// This does not have to be the minimum value in this case (nor is it desired, so platforms can potentially scale up)
