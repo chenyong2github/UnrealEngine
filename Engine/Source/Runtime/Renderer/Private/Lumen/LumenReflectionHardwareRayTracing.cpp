@@ -284,6 +284,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
+		SHADER_PARAMETER(int, ApplySkyLight)
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
 
 		// Reflection-specific includes (includes output targets)
@@ -647,6 +648,7 @@ void RenderLumenHardwareRayTracingReflections(
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 			PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 			PassParameters->MaxTranslucentSkipCount = CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+			PassParameters->ApplySkyLight = !UseFarFieldForReflections();
 
 			// Reflection-specific
 			PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
@@ -808,6 +810,7 @@ void RenderLumenHardwareRayTracingReflections(
 				PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 				PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 				PassParameters->MaxTranslucentSkipCount = CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+				PassParameters->ApplySkyLight = 1;
 
 				// Reflection-specific
 				PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
@@ -1073,6 +1076,7 @@ void RenderLumenHardwareRayTracingReflections(
 				PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 				PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 				PassParameters->MaxTranslucentSkipCount = CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+				PassParameters->ApplySkyLight = 1;
 
 				// Reflection-specific
 				PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;

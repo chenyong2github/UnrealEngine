@@ -257,6 +257,7 @@ float MaxTraceDistance;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
 int MaxTranslucentSkipCount;
+int ApplySkyLight;
 
 RWTexture2D<float3> RWTraceRadiance;
 RWTexture2D<float> RWTraceHit;
@@ -336,8 +337,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 
 #endif // DIM_LIGHTING_MODE
 
-#if DIM_WRITE_FINAL_LIGHTING
-		if (!Result.bIsHit)
+		if ((ApplySkyLight != 0) && !Result.bIsHit)
 		{
 			FConeTraceResult TraceResult;
 			TraceResult.Lighting = Result.Radiance;
@@ -360,7 +360,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 			Result.Radiance = TraceResult.Lighting;
 			Result.bIsHit = true;
 		}
-#endif // DIM_LIGHTING_MODE
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
