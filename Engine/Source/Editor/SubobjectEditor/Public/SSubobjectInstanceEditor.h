@@ -21,7 +21,6 @@ private:
 	    SLATE_ATTRIBUTE(bool, AllowEditing)
 	    SLATE_EVENT(FOnSelectionUpdated, OnSelectionUpdated)
 	    SLATE_EVENT(FOnItemDoubleClicked, OnItemDoubleClicked)
-		SLATE_EVENT(FSimpleDelegate, OnObjectReplaced)
 	
 	SLATE_END_ARGS()
 	
@@ -48,9 +47,6 @@ protected:
 	// End of SSubobjectEditor
 
 public:
-	/** Delegate to invoke when objects within the Subobject tree are replaced (eg, via re-instancing from a BP compile) */
-	FSimpleDelegate OnObjectReplaced;
-
 private:
 
 	/** @return the tooltip describing how many properties will be applied to the blueprint */
