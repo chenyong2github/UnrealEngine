@@ -663,9 +663,8 @@ void FHairCardsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 		// buffers are never transit from UAV (clear) to SRV for rasterization. 
 		HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[0], ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
 		HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[1], ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
-
-		HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedNormalBuffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
 	}
+	HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedNormalBuffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
 }
 
 void FHairCardsDeformedResource::InternalRelease()
