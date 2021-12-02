@@ -26,6 +26,7 @@ public:
 	
 	virtual bool UsesToolkits() const  override { return false; }
 	virtual bool InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent) override;
+	virtual bool UsesPropertyWidgets() const override { return true; }
 
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
 
