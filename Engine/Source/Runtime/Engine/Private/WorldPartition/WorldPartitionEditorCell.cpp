@@ -68,7 +68,7 @@ void UWorldPartitionEditorCell::AddActor(const FGuid& Source, const FWorldPartit
 			if (ReferenceHandle.IsValid())
 			{
 				AddActor(ActorHandle->GetGuid(), ReferenceHandle);
-				WorldPartition->EditorHash->AddBackReference(ReferenceHandle, this, Source);
+				WorldPartition->EditorHash->AddBackReference(ReferenceHandle->GetGuid(), this, Source);
 			}
 		}
 	}
@@ -104,7 +104,7 @@ void UWorldPartitionEditorCell::RemoveActor(const FGuid& Source, const FWorldPar
 			if (ReferenceHandle.IsValid())
 			{
 				RemoveActor(ActorHandle->GetGuid(), ReferenceHandle);
-				WorldPartition->EditorHash->RemoveBackReference(ReferenceHandle, this, Source);
+				WorldPartition->EditorHash->RemoveBackReference(ReferenceHandle->GetGuid(), this, Source);
 			}
 		}
 	}
