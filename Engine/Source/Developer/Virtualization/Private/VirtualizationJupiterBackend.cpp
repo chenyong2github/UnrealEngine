@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IVirtualizationBackend.h"
+#include "VirtualizationJupiterBackend.h"
 
 // TODO: Our libcurl implementation does not currently support MacOS
 // (not registering this will cause a fatal log error if the backend is actually used)
 #if PLATFORM_WINDOWS
-#define WITH_MIRAGE_JUPITER_BACKEND 1
+	#define WITH_MIRAGE_JUPITER_BACKEND 1
 #else
-#define WITH_MIRAGE_JUPITER_BACKEND 0
+	#define WITH_MIRAGE_JUPITER_BACKEND 0
 #endif //PLATFORM_WINDOWS
 
 #if WITH_MIRAGE_JUPITER_BACKEND
@@ -1294,771 +1294,718 @@ private:
 	FString SiteIdentifier;
 };
 
-/**
-* This backend allows data to be stored in and retrieved from a Jupiter service.
-* 
-* Ini file setup:
-* 'Name'=(Type=Jupiter, Host="", Namespace="", ChunkSize=, OAuthProvider="", OAuthClientId="", OAuthSecret="")
-* Host:				The URL of the service, use http://localhost if hosted locally.
-* Namespace:		Jupiter storage is divided into a number of namespaces allowing projects to keep their data separate
-*					while using the same service. This value controls which name space will be used.
-* ChunkSize:		Each payload can be divided into a number of chunks when being uploaded to Jupiter to improve upload 
-*					performance, this value sets the max size (in bytes) of each chunk. To disable and attempt to upload 
-*					each payload as a single data blob, set this to -1. 
-* OAuthProvider:	Url of the OAuth authorization server.
-* OAuthClientId:	Public identifier for use with the OAuth authorization server.
-* OAuthSecret:		Password for the OAuthClientId
-* (Note that the OAuth entries are not required if hosting locally)
-*/
-class FJupiterBackend : public IVirtualizationBackend
+FJupiterBackend::FJupiterBackend(FStringView ConfigName, FStringView InDebugName)
+	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
+	, Namespace(TEXT("mirage"))
+	, Bucket(TEXT("default"))
+	, ChunkSize(-1)
+	, FailedLoginAttempts(0)		
+{		
+}
+
+bool FJupiterBackend::Initialize(const FString& ConfigEntry)
 {
-public:
-	FJupiterBackend(FStringView ConfigName, FStringView InDebugName)
-		: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
-		, Namespace(TEXT("mirage"))
-		, Bucket(TEXT("default"))
-		, ChunkSize(-1)
-		, FailedLoginAttempts(0)		
+	using namespace Utility;
+
+	// Some fields are required and will give fatal errors if not found!
+
+	if (!FParse::Value(*ConfigEntry, TEXT("Host="), HostAddress))
 	{
-		
+		UE_LOG(LogVirtualization, Fatal, TEXT("'Host=' not found in the config file"));
+		return false;
 	}
 
-private:
-
-	virtual bool Initialize(const FString& ConfigEntry)
+	if (!FParse::Value(*ConfigEntry, TEXT("Namespace="), Namespace))
 	{
-		using namespace Utility;
-
-		// Some fields are required and will give fatal errors if not found!
-
-		if (!FParse::Value(*ConfigEntry, TEXT("Host="), HostAddress))
-		{
-			UE_LOG(LogVirtualization, Fatal, TEXT("'Host=' not found in the config file"));
-			return false;
-		}
-
-		if (!FParse::Value(*ConfigEntry, TEXT("Namespace="), Namespace))
-		{
-			UE_LOG(LogVirtualization, Fatal, TEXT("'Namespace=' not found in the config file"));
-			return false;
-		}
-
-		if (FParse::Value(*ConfigEntry, TEXT("ChunkSize="), ChunkSize))
-		{
-			UE_LOG(LogVirtualization, Log, TEXT("ChunkSize set to '%" UINT64_FMT "' bytes"), ChunkSize);
-		}
-		else
-		{
-			UE_LOG(LogVirtualization, Log, TEXT("Payloads will not be chunked!"));
-		}
-
-		// If we are connecting to a locally hosted Jupiter service then we do not need authorization
-		if (!IsUsingLocalHost())
-		{
-			if (!FParse::Value(*ConfigEntry, TEXT("OAuthProvider="), OAuthProvider))
-			{
-				UE_LOG(LogVirtualization, Fatal, TEXT("'OAuthProvider=' not found in the config file"));
-					return false;
-			}
-
-			if (!FParse::Value(*ConfigEntry, TEXT("OAuthSecret="), OAuthSecret))
-			{
-				UE_LOG(LogVirtualization, Fatal, TEXT("'OAuthSecret=' not found in the config file"));
-				return false;
-			}
-
-			if (!FParse::Value(*ConfigEntry, TEXT("OAuthClientId="), OAuthClientId))
-			{
-				UE_LOG(LogVirtualization, Fatal, TEXT("'OAuthClientId=' not found in the config file"));
-				return false;
-			}
-		}
-
-		UE_LOG(LogVirtualization, Log, TEXT("Attempting to connect to a Jupiter service at '%s' with namespace '%s'"), *HostAddress, *Namespace);
-
-		if (!IsServiceReady())
-		{
-			return false;
-		}
-
-		if (!AcquireAccessToken())
-		{
-			return false;
-		}
-
-		if (!ValidateServiceVersion())
-		{
-			return false;
-		}
-		
-		RequestPool = MakeUnique<FRequestPool>(*HostAddress, AccessToken.Get());
-
-		return true; 
+		UE_LOG(LogVirtualization, Fatal, TEXT("'Namespace=' not found in the config file"));
+		return false;
 	}
 
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FPackagePath& PackageContext) override
+	if (FParse::Value(*ConfigEntry, TEXT("ChunkSize="), ChunkSize))
 	{
-		using namespace Utility;
+		UE_LOG(LogVirtualization, Log, TEXT("ChunkSize set to '%" UINT64_FMT "' bytes"), ChunkSize);
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Log, TEXT("Payloads will not be chunked!"));
+	}
 
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PushData);
+	// If we are connecting to a locally hosted Jupiter service then we do not need authorization
+	if (!IsUsingLocalHost())
+	{
+		if (!FParse::Value(*ConfigEntry, TEXT("OAuthProvider="), OAuthProvider))
+		{
+			UE_LOG(LogVirtualization, Fatal, TEXT("'OAuthProvider=' not found in the config file"));
+			return false;
+		}
+
+		if (!FParse::Value(*ConfigEntry, TEXT("OAuthSecret="), OAuthSecret))
+		{
+			UE_LOG(LogVirtualization, Fatal, TEXT("'OAuthSecret=' not found in the config file"));
+			return false;
+		}
+
+		if (!FParse::Value(*ConfigEntry, TEXT("OAuthClientId="), OAuthClientId))
+		{
+			UE_LOG(LogVirtualization, Fatal, TEXT("'OAuthClientId=' not found in the config file"));
+			return false;
+		}
+	}
+
+	UE_LOG(LogVirtualization, Log, TEXT("Attempting to connect to a Jupiter service at '%s' with namespace '%s'"), *HostAddress, *Namespace);
+
+	if (!IsServiceReady())
+	{
+		return false;
+	}
+
+	if (!AcquireAccessToken())
+	{
+		return false;
+	}
+
+	if (!ValidateServiceVersion())
+	{
+		return false;
+	}
+
+	RequestPool = MakeUnique<FRequestPool>(*HostAddress, AccessToken.Get());
+
+	return true;
+}
+
+EPushResult FJupiterBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FPackagePath& PackageContext)
+{
+	using namespace Utility;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PushData);
 
 #if UE_CHECK_FOR_EXISTING_PAYLOADS
-		if (DoesPayloadExist(Id))
-		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Jupiter already has a copy of the payload '%s'"), *Id.ToString());
-			return EPushResult::PayloadAlreadyExisted;
-		}
+	if (DoesPayloadExist(Id))
+	{
+		UE_LOG(LogVirtualization, Verbose, TEXT("Jupiter already has a copy of the payload '%s'"), *Id.ToString());
+		return EPushResult::PayloadAlreadyExisted;
+	}
 #endif // UE_CHECK_FOR_EXISTING_PAYLOADS
 
-		FEuropaDDCCachePUTRequest PUTRequest;
+	FEuropaDDCCachePUTRequest PUTRequest;
 
-		// TODO: This is a waste, we shouldn't need to flatten the buffer, but it makes it easier to work
-		// with the existing chunked code. The chunking code is most likely going to be removed before 
-		// this backend goes to production so it is not worth fixing up to work with FCompressedBuffer 
-		// properly.
-		FSharedBuffer FlattenedPayload = CompressedPayload.GetCompressed().ToShared();
+	// TODO: This is a waste, we shouldn't need to flatten the buffer, but it makes it easier to work
+	// with the existing chunked code. The chunking code is most likely going to be removed before 
+	// this backend goes to production so it is not worth fixing up to work with FCompressedBuffer 
+	// properly.
+	FSharedBuffer FlattenedPayload = CompressedPayload.GetCompressed().ToShared();
 
-		const int64 NumChunks = FMath::DivideAndRoundUp(FlattenedPayload.GetSize(), ChunkSize);
-		if (NumChunks > MAX_int32)
-		{
-			UE_LOG(LogVirtualization, Error, TEXT("Too many chunks (%d) are required for the payload '%s', try increasing the ChunkSize"), NumChunks, *Id.ToString());
-			return EPushResult::Failed;
-		}
-
-		PUTRequest.ChunkHashes.SetNum((int32)NumChunks);
-
-		const uint8* DataPtr = (const uint8*)FlattenedPayload.GetData();
-
-		std::atomic<int32> NumFailedChunks(0);
-		FGraphEventArray Tasks;
-		Tasks.Reserve((int32)NumChunks);
-
-		// Create and process the chunks that make up the payload
-		for (int32 Index = 0; Index < NumChunks; ++Index )
-		{
-			const int64 ChunkStart = Index * ChunkSize;
-			const uint64 BytesInChunk = FMath::Min(ChunkSize, FlattenedPayload.GetSize() - ChunkStart);
-
-			TArrayView<const uint8> ChunkData(&DataPtr[ChunkStart], (int32)BytesInChunk);
-			FString& ChunkHashString = PUTRequest.ChunkHashes[Index];
-
-			auto Job = [this, ChunkData, &Id, &ChunkHashString, &NumFailedChunks]()
-			{
-				if (!PostChunk(ChunkData, Id, ChunkHashString))
-				{
-					NumFailedChunks++;
-				}
-			};
-
-#if UE_ENABLE_ASYNC_CHUNK_ACCESS
-			Tasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Job)));
-#else
-			Job();
-#endif //UE_ENABLE_ASYNC_CHUNK_ACCESS
-		}
-
-		// There is some expensive work that we can do while we wait for the chunks to finish their upload
-		const FIoHash PayloadHash = FIoHash::HashBuffer(FlattenedPayload.GetData(), FlattenedPayload.GetSize());
-
-		PUTRequest.PayloadHash = LexToString(PayloadHash);
-		PUTRequest.MetaData.PayloadLength = (int64)FlattenedPayload.GetSize();
-		PUTRequest.MetaData.ChunkLength = ChunkSize;
-
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData::WaitOnChunks);
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks);
-		}
-
-		if (NumFailedChunks > 0)
-		{
-			UE_LOG(LogVirtualization, Error, TEXT("Failed to upload %d chunks for the payload '%s'."), NumFailedChunks.load(), *Id.ToString());
-			return EPushResult::Failed;
-		}
-
-		UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded all chunks for the payload '%s'"), *Id.ToString());	
-
-		// Note that the ddc end point is used by both ddc and mirage
-		TStringBuilder<256> Uri;
-		Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *Id.ToString());
-
-		// Retry request until we get an accepted response or exhaust allowed number of attempts.
-		uint32 Attempts = 0;
-		while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
-		{
-			FScopedRequestPtr Request(RequestPool.Get());
-			if (Request.IsValid())
-			{	
-				const FString OutputString = PUTRequest.ToJson(false);
-				
-				TStringConversion<TStringConvert<TCHAR, ANSICHAR>> ConvertedString = StringCast<ANSICHAR>(*OutputString);
-				TArrayView<const uint8> AnsiStringBuffer((uint8*)ConvertedString.Get(),ConvertedString.Length());
-
-				FRequest::Result Result = Request->PerformBlockingUpload<FRequest::PutJson>(*Uri, AnsiStringBuffer);
-				const int64 ResponseCode = Request->GetResponseCode();
-
-				if (ResponseCode == 200)
-				{
-					UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded the description for the payload '%s'"), *Id.ToString());	
-					return EPushResult::Success;
-				}
-
-				if (!ShouldRetryOnError(ResponseCode))
-				{
-					UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to upload header infomation about payload '%s'"), ResponseCode, *Id.ToString());
-					return EPushResult::Failed;
-				}
-			}
-		}
-
-		UE_LOG(LogVirtualization, Error, TEXT("Failed  '%d' attempts to upload header infomation about payload '%s'"), UE_MIRAGE_MAX_ATTEMPTS, *Id.ToString());
+	const int64 NumChunks = FMath::DivideAndRoundUp(FlattenedPayload.GetSize(), ChunkSize);
+	if (NumChunks > MAX_int32)
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Too many chunks (%d) are required for the payload '%s', try increasing the ChunkSize"), NumChunks, *Id.ToString());
 		return EPushResult::Failed;
 	}
 
-	virtual FCompressedBuffer PullData(const FPayloadId& Id) override
+	PUTRequest.ChunkHashes.SetNum((int32)NumChunks);
+
+	const uint8* DataPtr = (const uint8*)FlattenedPayload.GetData();
+
+	std::atomic<int32> NumFailedChunks(0);
+	FGraphEventArray Tasks;
+	Tasks.Reserve((int32)NumChunks);
+
+	// Create and process the chunks that make up the payload
+	for (int32 Index = 0; Index < NumChunks; ++Index)
 	{
-		using namespace Utility;
+		const int64 ChunkStart = Index * ChunkSize;
+		const uint64 BytesInChunk = FMath::Min(ChunkSize, FlattenedPayload.GetSize() - ChunkStart);
 
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData);
+		TArrayView<const uint8> ChunkData(&DataPtr[ChunkStart], (int32)BytesInChunk);
+		FString& ChunkHashString = PUTRequest.ChunkHashes[Index];
 
-		// First we need to get the description of the payload from Europa
-
-		// Note that the ddc end point is used by both ddc and mirage
-		// fields=contentSha1 - Ask for the Sha1 hash of the fully reconstructed payload
-		// fields=blobIdentifiers - As for a list of the Sha1 hash ids for the payload chunks that we need to access from
-		// the Io service, the ids will be in the correct order.
-		// fields=metadata - Ask for the payload metadata which contains info we can use later for optimizations.
-		TStringBuilder<256> Uri;
-		Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s.json?fields=contentHash&fields=blobIdentifiers&fields=metadata"), *Namespace, *Bucket, *Id.ToString());
-
-		FDDCCacheGETResponse Response;
-
-		// Retry request until we get an accepted response or exhaust allowed number of attempts.
-		int64 ResponseCode = 0;
-		uint32 Attempts = 0;
-		while (ResponseCode != 200 && ++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+		auto Job = [this, ChunkData, &Id, &ChunkHashString, &NumFailedChunks]()
 		{
-			FScopedRequestPtr Request(RequestPool.Get());
-			if (Request.IsValid())
+			if (!PostChunk(ChunkData, Id, ChunkHashString))
 			{
-				const FRequest::Result Result = Request->PerformBlockingDownload(*Uri);
-				ResponseCode = Request->GetResponseCode();
-
-				// Request was successful, make sure we got all the expected data.
-				if (FRequest::IsSuccessfulResponse(ResponseCode))
-				{
-					if (!Response.FromJson(Request->GetResponseAsJsonObject()))
-					{
-						UE_LOG(LogVirtualization, Error, TEXT("Failed to parser the header infomation about payload '%s'"), *Id.ToString());
-						return FCompressedBuffer();
-					}
-				}
-				else if (ResponseCode == 400)
-				{
-					// Response 400 indicates that the payload does not exist in Jupiter. Note that it is faster to just make the request
-					// and check for the response rather than call ::DoesPayloadExist prior to requesting the json header because this way 
-					// we will only make a single request if the payload exists or not.
-					UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *Id.ToString());
-					return FCompressedBuffer();
-				}
-				else if(!ShouldRetryOnError(ResponseCode))
-				{
-					UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to download header infomation about payload '%s'"), ResponseCode, *Id.ToString());
-					return FCompressedBuffer();
-				}
+				NumFailedChunks++;
 			}
-		}
-
-		if (ResponseCode != 200)
-		{
-			UE_LOG(LogVirtualization, Error, TEXT("Failed '%d' attempts to download header infomation about payload (last error code '%d')  '%s'"), UE_MIRAGE_MAX_ATTEMPTS, ResponseCode, *Id.ToString());
-			return FCompressedBuffer();
-		}
-
-		UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a description for the payload '%s'"), *Id.ToString());	
-
-		// Now that we have the payload description we can start pulling the chunks from the Io service
-		// and reconstruct the final payload.
-		FUniqueBuffer Payload = FUniqueBuffer::Alloc(Response.MetaData.PayloadLength);
-		
-		int64 BytesLeft = Response.MetaData.PayloadLength;
-
-		FGraphEventArray Tasks;
-		Tasks.Reserve(Response.ChunkHashes.Num());
-
-		std::atomic<int32> NumFailedChunks(0);
-
-		bool bAllChunksPulled = true;
-		uint8* PayloadPtr = (uint8*)Payload.GetData();
-
-		for (const FString& HashString : Response.ChunkHashes)
-		{
-			checkf(BytesLeft > 0, TEXT("Ran out of buffer space before all payload chunks were read!"));
-
-			const int64 BytesToRead = FMath::Min(BytesLeft, Response.MetaData.ChunkLength);
-
-			auto Job = [this, PayloadPtr, BytesToRead, &Id, &HashString, &NumFailedChunks]()
-			{
-				if (!PullChunk(HashString, Id, PayloadPtr, BytesToRead))
-				{
-					NumFailedChunks++;
-				}
-			};
+		};
 
 #if UE_ENABLE_ASYNC_CHUNK_ACCESS
-			Tasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Job)));
+		Tasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Job)));
 #else
-			Job();
+		Job();
 #endif //UE_ENABLE_ASYNC_CHUNK_ACCESS
-
-			PayloadPtr += BytesToRead;
-			BytesLeft -= BytesToRead;
-		}
-
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData::WaitOnChunks);
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks);
-		}
-
-		if (NumFailedChunks == 0)
-		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded all chunks for the payload '%s'"), *Id.ToString());	
-			return FCompressedBuffer::FromCompressed(Payload.MoveToShared());
-		}
-		else
-		{
-			UE_LOG(LogVirtualization, Error, TEXT("Failed to download %d chunks for the payload '%s'"), NumFailedChunks.load(), *Id.ToString());
-			return FCompressedBuffer();
-		}
 	}
 
-	bool IsUsingLocalHost() const
+	// There is some expensive work that we can do while we wait for the chunks to finish their upload
+	const FIoHash PayloadHash = FIoHash::HashBuffer(FlattenedPayload.GetData(), FlattenedPayload.GetSize());
+
+	PUTRequest.PayloadHash = LexToString(PayloadHash);
+	PUTRequest.MetaData.PayloadLength = (int64)FlattenedPayload.GetSize();
+	PUTRequest.MetaData.ChunkLength = ChunkSize;
+
 	{
-		return HostAddress.StartsWith(TEXT("http://localhost"));
+		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData::WaitOnChunks);
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks);
 	}
 
-	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
-	bool IsServiceReady()
+	if (NumFailedChunks > 0)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::IsServiceReady);
-
-		using namespace Utility;
-
-		FRequest Request(*HostAddress, nullptr, false);
-		FRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"), nullptr);
-
-		if (Result == FRequest::Success && FRequest::IsSuccessfulResponse(Request.GetResponseCode()))
-		{
-			UE_LOG(LogVirtualization, Log, TEXT("Jupiter service status: '%s'."), *Request.GetResponseAsString());
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogVirtualization, Error, TEXT("Unable to reach Jupiter service at '%s'. Status: %d . Response: '%s'"), *HostAddress, Request.GetResponseCode(), *Request.GetResponseAsString());
-			return false;
-		}	
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to upload %d chunks for the payload '%s'."), NumFailedChunks.load(), *Id.ToString());
+		return EPushResult::Failed;
 	}
 
-	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
-	bool AcquireAccessToken()
+	UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded all chunks for the payload '%s'"), *Id.ToString());
+
+	// Note that the ddc end point is used by both ddc and mirage
+	TStringBuilder<256> Uri;
+	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *Id.ToString());
+
+	// Retry request until we get an accepted response or exhaust allowed number of attempts.
+	uint32 Attempts = 0;
+	while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::AcquireAccessToken);
-
-		using namespace Utility;
-
-		if (IsUsingLocalHost())
+		FScopedRequestPtr Request(RequestPool.Get());
+		if (Request.IsValid())
 		{
-			UE_LOG(LogVirtualization, Log, TEXT("Connecting to a local host '%s', so skipping authorization"), *HostAddress);
-			return true;
-		}
+			const FString OutputString = PUTRequest.ToJson(false);
 
-		// Avoid spamming the this if the service is down
-		if (FailedLoginAttempts > UE_MIRAGE_MAX_FAILED_LOGIN_ATTEMPTS)
-		{
-			return false;
-		}
+			TStringConversion<TStringConvert<TCHAR, ANSICHAR>> ConvertedString = StringCast<ANSICHAR>(*OutputString);
+			TArrayView<const uint8> AnsiStringBuffer((uint8*)ConvertedString.Get(), ConvertedString.Length());
 
-		ensureMsgf(OAuthProvider.StartsWith(TEXT("http://")) || OAuthProvider.StartsWith(TEXT("https://")),
-			TEXT("The OAuth provider %s is not valid. Needs to be a fully qualified url."),
-			*OAuthProvider
-		);
+			FRequest::Result Result = Request->PerformBlockingUpload<FRequest::PutJson>(*Uri, AnsiStringBuffer);
+			const int64 ResponseCode = Request->GetResponseCode();
 
-		// In case many requests wants to update the token at the same time
-		// get the current serial while we wait to take the CS.
-		const uint32 WantsToUpdateTokenSerial = AccessToken.IsValid() ? AccessToken->GetSerial() : 0u;
-
-		{
-			FScopeLock Lock(&AccessCs);
-
-			// Check if someone has beaten us to update the token, then it 
-			// should now be valid.
-			if (AccessToken.IsValid() && AccessToken->GetSerial() > WantsToUpdateTokenSerial)
-			{
-				return true;
-			}
-
-			const uint32 SchemeEnd = OAuthProvider.Find(TEXT("://")) + 3;
-			const uint32 DomainEnd = OAuthProvider.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, SchemeEnd);
-			FString AuthDomain(DomainEnd, *OAuthProvider);
-			FString Uri(*OAuthProvider + DomainEnd + 1);
-
-			FRequest Request(*AuthDomain, nullptr, false);
-
-			// If contents of the secret string is a file path, resolve and read form data.
-			if (OAuthSecret.StartsWith(TEXT("\\\\")))
-			{
-				FString SecretFileContents;
-				if (FFileHelper::LoadFileToString(SecretFileContents, *OAuthSecret))
-				{
-					// Overwrite the filepath with the actual content.
-					OAuthSecret = SecretFileContents;
-				}
-				else
-				{
-					UE_LOG(LogVirtualization, Warning, TEXT("Failed to read OAuth form data file (%s)."), *OAuthSecret);
-					return false;
-				}
-			}
-
-			FString OAuthFormData = FString::Printf(
-				TEXT("client_id=%s&scope=cache_access&grant_type=client_credentials&client_secret=%s"),
-				*OAuthClientId,
-				*OAuthSecret
-			);
-
-			TArray<uint8> FormData;
-			auto OAuthFormDataUTF8 = FTCHARToUTF8(*OAuthFormData);
-			FormData.Append((uint8*)OAuthFormDataUTF8.Get(), OAuthFormDataUTF8.Length());
-
-			FRequest::Result Result = Request.PerformBlockingUpload<FRequest::Post>(*Uri, MakeArrayView(FormData));
-
-			if (Result == FRequest::Success && Request.GetResponseCode() == 200)
-			{
-				TSharedPtr<FJsonObject> ResponseObject = Request.GetResponseAsJsonObject();
-				if (ResponseObject)
-				{
-					FString AccessTokenString;
-					int32 ExpiryTimeSeconds = 0;
-					int32 CurrentTimeSeconds = int32(FPlatformTime::ToSeconds(FPlatformTime::Cycles()));
-
-					if (ResponseObject->TryGetStringField(TEXT("access_token"), AccessTokenString) &&
-						ResponseObject->TryGetNumberField(TEXT("expires_in"), ExpiryTimeSeconds))
-					{
-						if (!AccessToken)
-						{
-							AccessToken = MakeUnique<FAccessToken>();
-						}
-						AccessToken->SetHeader(*AccessTokenString);
-						UE_LOG(LogVirtualization, Log, TEXT("Logged in to HTTP DDC services. Expires in %d seconds."), ExpiryTimeSeconds);
-
-						//Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)
-						if (!IsRunningCommandlet())
-						{
-							FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
-								[this](float DeltaTime)
-								{
-									this->AcquireAccessToken();
-									return false;
-								}
-							), ExpiryTimeSeconds - 20.0f);
-						}
-						// Reset failed login attempts, the service is indeed alive.
-						FailedLoginAttempts = 0;
-						return true;
-					}
-				}
-			}
-			else
-			{
-				UE_LOG(LogVirtualization, Warning, TEXT("Failed to log in to HTTP services. Server responed with code %d."), Request.GetResponseCode());
-				FailedLoginAttempts++;
-			}
-		}
-		return false;
-	}
-
-	/** 
-	 * Request the status of the service that we are connected to and make sure that it supports the 
-	 * feature set we need and meets our minimum version requirements.
-	 */
-	bool ValidateServiceVersion()
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::ValidateServiceVersion);
-
-		using namespace Utility;
-
-		FJupiterServiceStatus Response;
-
-		int64 ResponseCode = 0;
-		uint32 Attempts = 0;
-		while (ResponseCode != 200 && ++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
-		{
-			// We create the FRequest ourselves since the request pool does not yet exist
-			FRequest Request(*HostAddress, AccessToken.Get(), true);
-			FRequest::Result Result = Request.PerformBlockingDownload(TEXT("api/v1/status"));
-
-			ResponseCode = Request.GetResponseCode();
-
-			// Request was successful, make sure we got all the expected data.
 			if (ResponseCode == 200)
 			{
-				if (!Response.FromJson(Request.GetResponseAsJsonObject()))
+				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded the description for the payload '%s'"), *Id.ToString());
+				return EPushResult::Success;
+			}
+
+			if (!ShouldRetryOnError(ResponseCode))
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to upload header infomation about payload '%s'"), ResponseCode, *Id.ToString());
+				return EPushResult::Failed;
+			}
+		}
+	}
+
+	UE_LOG(LogVirtualization, Error, TEXT("Failed  '%d' attempts to upload header infomation about payload '%s'"), UE_MIRAGE_MAX_ATTEMPTS, *Id.ToString());
+	return EPushResult::Failed;
+}
+
+FCompressedBuffer FJupiterBackend::PullData(const FPayloadId& Id)
+{
+	using namespace Utility;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData);
+
+	// First we need to get the description of the payload from Europa
+
+	// Note that the ddc end point is used by both ddc and mirage
+	// fields=contentSha1 - Ask for the Sha1 hash of the fully reconstructed payload
+	// fields=blobIdentifiers - As for a list of the Sha1 hash ids for the payload chunks that we need to access from
+	// the Io service, the ids will be in the correct order.
+	// fields=metadata - Ask for the payload metadata which contains info we can use later for optimizations.
+	TStringBuilder<256> Uri;
+	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s.json?fields=contentHash&fields=blobIdentifiers&fields=metadata"), *Namespace, *Bucket, *Id.ToString());
+
+	FDDCCacheGETResponse Response;
+
+	// Retry request until we get an accepted response or exhaust allowed number of attempts.
+	int64 ResponseCode = 0;
+	uint32 Attempts = 0;
+	while (ResponseCode != 200 && ++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+	{
+		FScopedRequestPtr Request(RequestPool.Get());
+		if (Request.IsValid())
+		{
+			const FRequest::Result Result = Request->PerformBlockingDownload(*Uri);
+			ResponseCode = Request->GetResponseCode();
+
+			// Request was successful, make sure we got all the expected data.
+			if (FRequest::IsSuccessfulResponse(ResponseCode))
+			{
+				if (!Response.FromJson(Request->GetResponseAsJsonObject()))
 				{
-					UE_LOG(LogVirtualization, Error, TEXT("The response to 'api/v1/status' GET did not contain valid data!"));
-					return false;
+					UE_LOG(LogVirtualization, Error, TEXT("Failed to parser the header infomation about payload '%s'"), *Id.ToString());
+					return FCompressedBuffer();
 				}
+			}
+			else if (ResponseCode == 400)
+			{
+				// Response 400 indicates that the payload does not exist in Jupiter. Note that it is faster to just make the request
+				// and check for the response rather than call ::DoesPayloadExist prior to requesting the json header because this way 
+				// we will only make a single request if the payload exists or not.
+				UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *Id.ToString());
+				return FCompressedBuffer();
 			}
 			else if (!ShouldRetryOnError(ResponseCode))
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to access the services status"), ResponseCode);
+				UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to download header infomation about payload '%s'"), ResponseCode, *Id.ToString());
+				return FCompressedBuffer();
+			}
+		}
+	}
+
+	if (ResponseCode != 200)
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed '%d' attempts to download header infomation about payload (last error code '%d')  '%s'"), UE_MIRAGE_MAX_ATTEMPTS, ResponseCode, *Id.ToString());
+		return FCompressedBuffer();
+	}
+
+	UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a description for the payload '%s'"), *Id.ToString());
+
+	// Now that we have the payload description we can start pulling the chunks from the Io service
+	// and reconstruct the final payload.
+	FUniqueBuffer Payload = FUniqueBuffer::Alloc(Response.MetaData.PayloadLength);
+
+	int64 BytesLeft = Response.MetaData.PayloadLength;
+
+	FGraphEventArray Tasks;
+	Tasks.Reserve(Response.ChunkHashes.Num());
+
+	std::atomic<int32> NumFailedChunks(0);
+
+	bool bAllChunksPulled = true;
+	uint8* PayloadPtr = (uint8*)Payload.GetData();
+
+	for (const FString& HashString : Response.ChunkHashes)
+	{
+		checkf(BytesLeft > 0, TEXT("Ran out of buffer space before all payload chunks were read!"));
+
+		const int64 BytesToRead = FMath::Min(BytesLeft, Response.MetaData.ChunkLength);
+
+		auto Job = [this, PayloadPtr, BytesToRead, &Id, &HashString, &NumFailedChunks]()
+		{
+			if (!PullChunk(HashString, Id, PayloadPtr, BytesToRead))
+			{
+				NumFailedChunks++;
+			}
+		};
+
+#if UE_ENABLE_ASYNC_CHUNK_ACCESS
+		Tasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Job)));
+#else
+		Job();
+#endif //UE_ENABLE_ASYNC_CHUNK_ACCESS
+
+		PayloadPtr += BytesToRead;
+		BytesLeft -= BytesToRead;
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData::WaitOnChunks);
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks);
+	}
+
+	if (NumFailedChunks == 0)
+	{
+		UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded all chunks for the payload '%s'"), *Id.ToString());	
+		return FCompressedBuffer::FromCompressed(Payload.MoveToShared());
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to download %d chunks for the payload '%s'"), NumFailedChunks.load(), *Id.ToString());
+		return FCompressedBuffer();
+	}
+}
+
+bool FJupiterBackend::DoesPayloadExist(const FPayloadId& Id)
+{
+	using namespace Utility;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::DoesPayloadExist);
+
+	// Note that the ddc end point is used by both ddc and mirage
+	TStringBuilder<256> Uri;
+	Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *Id.ToString());
+
+	// Retry request until we get an accepted response or exhaust allowed number of attempts.
+	uint32 Attempts = 0;
+	while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+	{
+		FScopedRequestPtr Request(RequestPool.Get());
+		if (Request.IsValid())
+		{
+			const FRequest::Result Result = Request->PerformBlockingQuery<FRequest::Head>(*Uri);
+			const int64 ResponseCode = Request->GetResponseCode();
+
+			if (FRequest::IsSuccessfulResponse(ResponseCode))
+			{
+				return true;
+			}
+			else if (ResponseCode == 400)
+			{
+				return false;
+			}
+
+			if (!ShouldRetryOnError(ResponseCode))
+			{
+				return false;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FJupiterBackend::IsUsingLocalHost() const
+{
+	return HostAddress.StartsWith(TEXT("http://localhost"));
+}
+
+bool FJupiterBackend::IsServiceReady() const
+{
+	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::IsServiceReady);
+
+	using namespace Utility;
+
+	FRequest Request(*HostAddress, nullptr, false);
+	FRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"), nullptr);
+
+	if (Result == FRequest::Success && FRequest::IsSuccessfulResponse(Request.GetResponseCode()))
+	{
+		UE_LOG(LogVirtualization, Log, TEXT("Jupiter service status: '%s'."), *Request.GetResponseAsString());
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Unable to reach Jupiter service at '%s'. Status: %d . Response: '%s'"), *HostAddress, Request.GetResponseCode(), *Request.GetResponseAsString());
+		return false;
+	}
+}
+
+bool FJupiterBackend::AcquireAccessToken()
+{
+	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::AcquireAccessToken);
+
+	using namespace Utility;
+
+	if (IsUsingLocalHost())
+	{
+		UE_LOG(LogVirtualization, Log, TEXT("Connecting to a local host '%s', so skipping authorization"), *HostAddress);
+		return true;
+	}
+
+	// Avoid spamming the this if the service is down
+	if (FailedLoginAttempts > UE_MIRAGE_MAX_FAILED_LOGIN_ATTEMPTS)
+	{
+		return false;
+	}
+
+	ensureMsgf(OAuthProvider.StartsWith(TEXT("http://")) || OAuthProvider.StartsWith(TEXT("https://")),
+		TEXT("The OAuth provider %s is not valid. Needs to be a fully qualified url."),
+		*OAuthProvider
+	);
+
+	// In case many requests wants to update the token at the same time
+	// get the current serial while we wait to take the CS.
+	const uint32 WantsToUpdateTokenSerial = AccessToken.IsValid() ? AccessToken->GetSerial() : 0u;
+
+	{
+		FScopeLock Lock(&AccessCs);
+
+		// Check if someone has beaten us to update the token, then it 
+		// should now be valid.
+		if (AccessToken.IsValid() && AccessToken->GetSerial() > WantsToUpdateTokenSerial)
+		{
+			return true;
+		}
+
+		const uint32 SchemeEnd = OAuthProvider.Find(TEXT("://")) + 3;
+		const uint32 DomainEnd = OAuthProvider.Find(TEXT("/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, SchemeEnd);
+		FString AuthDomain(DomainEnd, *OAuthProvider);
+		FString Uri(*OAuthProvider + DomainEnd + 1);
+
+		FRequest Request(*AuthDomain, nullptr, false);
+
+		// If contents of the secret string is a file path, resolve and read form data.
+		if (OAuthSecret.StartsWith(TEXT("\\\\")))
+		{
+			FString SecretFileContents;
+			if (FFileHelper::LoadFileToString(SecretFileContents, *OAuthSecret))
+			{
+				// Overwrite the filepath with the actual content.
+				OAuthSecret = SecretFileContents;
+			}
+			else
+			{
+				UE_LOG(LogVirtualization, Warning, TEXT("Failed to read OAuth form data file (%s)."), *OAuthSecret);
 				return false;
 			}
 		}
 
-		if (ResponseCode != 200)
+		FString OAuthFormData = FString::Printf(
+			TEXT("client_id=%s&scope=cache_access&grant_type=client_credentials&client_secret=%s"),
+			*OAuthClientId,
+			*OAuthSecret
+		);
+
+		TArray<uint8> FormData;
+		auto OAuthFormDataUTF8 = FTCHARToUTF8(*OAuthFormData);
+		FormData.Append((uint8*)OAuthFormDataUTF8.Get(), OAuthFormDataUTF8.Length());
+
+		FRequest::Result Result = Request.PerformBlockingUpload<FRequest::Post>(*Uri, MakeArrayView(FormData));
+
+		if (Result == FRequest::Success && Request.GetResponseCode() == 200)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("Failed '%d' attempts to access the services status (last error code '%d')"), UE_MIRAGE_MAX_ATTEMPTS, ResponseCode);
+			TSharedPtr<FJsonObject> ResponseObject = Request.GetResponseAsJsonObject();
+			if (ResponseObject)
+			{
+				FString AccessTokenString;
+				int32 ExpiryTimeSeconds = 0;
+				int32 CurrentTimeSeconds = int32(FPlatformTime::ToSeconds(FPlatformTime::Cycles()));
+
+				if (ResponseObject->TryGetStringField(TEXT("access_token"), AccessTokenString) &&
+					ResponseObject->TryGetNumberField(TEXT("expires_in"), ExpiryTimeSeconds))
+				{
+					if (!AccessToken)
+					{
+						AccessToken = MakeUnique<FAccessToken>();
+					}
+					AccessToken->SetHeader(*AccessTokenString);
+					UE_LOG(LogVirtualization, Log, TEXT("Logged in to HTTP DDC services. Expires in %d seconds."), ExpiryTimeSeconds);
+
+					//Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)
+					if (!IsRunningCommandlet())
+					{
+						FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+							[this](float DeltaTime)
+							{
+								this->AcquireAccessToken();
+								return false;
+							}
+						), ExpiryTimeSeconds - 20.0f);
+					}
+					// Reset failed login attempts, the service is indeed alive.
+					FailedLoginAttempts = 0;
+					return true;
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("Failed to log in to HTTP services. Server responed with code %d."), Request.GetResponseCode());
+			FailedLoginAttempts++;
+		}
+	}
+	return false;
+}
+
+bool FJupiterBackend::ValidateServiceVersion()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::ValidateServiceVersion);
+
+	using namespace Utility;
+
+	FJupiterServiceStatus Response;
+
+	int64 ResponseCode = 0;
+	uint32 Attempts = 0;
+	while (ResponseCode != 200 && ++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+	{
+		// We create the FRequest ourselves since the request pool does not yet exist
+		FRequest Request(*HostAddress, AccessToken.Get(), true);
+		FRequest::Result Result = Request.PerformBlockingDownload(TEXT("api/v1/status"));
+
+		ResponseCode = Request.GetResponseCode();
+
+		// Request was successful, make sure we got all the expected data.
+		if (ResponseCode == 200)
+		{
+			if (!Response.FromJson(Request.GetResponseAsJsonObject()))
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("The response to 'api/v1/status' GET did not contain valid data!"));
+				return false;
+			}
+		}
+		else if (!ShouldRetryOnError(ResponseCode))
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("Failed with error code '%d' to access the services status"), ResponseCode);
 			return false;
 		}
+	}
 
-		// Check version number
-		if (!Response.DoesHaveValidVersion(UE_MIRAGE_JUPITER_MIN_MAJOR_VER, UE_MIRAGE_JUPITER_MIN_MINOR_VER, UE_MIRAGE_JUPITER_MIN_PATCH_VER))
-		{
-			return false;
-		}
+	if (ResponseCode != 200)
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed '%d' attempts to access the services status (last error code '%d')"), UE_MIRAGE_MAX_ATTEMPTS, ResponseCode);
+		return false;
+	}
 
-		if (!Response.SupportsCapability(TEXT("ddc")))
-		{
-			UE_LOG(LogVirtualization, Error, TEXT("Jupiter service does not support Europa (ddc) capability"));
-			return false;
-		}
+	// Check version number
+	if (!Response.DoesHaveValidVersion(UE_MIRAGE_JUPITER_MIN_MAJOR_VER, UE_MIRAGE_JUPITER_MIN_MINOR_VER, UE_MIRAGE_JUPITER_MIN_PATCH_VER))
+	{
+		return false;
+	}
 
-		Response.LogStatusInfo();
+	if (!Response.SupportsCapability(TEXT("ddc")))
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Jupiter service does not support Europa (ddc) capability"));
+		return false;
+	}
 
+	Response.LogStatusInfo();
+
+	return true;
+}
+	
+bool FJupiterBackend::ShouldRetryOnError(int64 ResponseCode)
+{
+	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
+	// 
+	// Access token might have expired, request a new token and try again.
+	if (ResponseCode == 401 && AcquireAccessToken())
+	{
 		return true;
 	}
 
-	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
-	bool ShouldRetryOnError(int64 ResponseCode)
+	// Too many requests, make a new attempt
+	if (ResponseCode == 429)
 	{
-		// Access token might have expired, request a new token and try again.
-		if (ResponseCode == 401 && AcquireAccessToken())
-		{
-			return true;
-		}
-
-		// Too many requests, make a new attempt
-		if (ResponseCode == 429)
-		{
-			return true;
-		}
-
-		// Gateway timeout, it will most likely work if we try again
-		if (ResponseCode == 504)
-		{
-			return true;
-		}
-
-		return false;
+		return true;
 	}
 
-	bool PostChunk(const TArrayView<const uint8>& ChunkData, const FPayloadId& PayloadId, FString& OutHashAsString)
+	// Gateway timeout, it will most likely work if we try again
+	if (ResponseCode == 504)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PostChunk);
+		return true;
+	}
 
-		using namespace Utility;
+	return false;
+}
 
-		const FIoHash ChunkHash = FIoHash::HashBuffer(ChunkData.GetData(), ChunkData.Num());
-		OutHashAsString = LexToString(ChunkHash);
+bool FJupiterBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const FPayloadId& PayloadId, FString& OutHashAsString)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PostChunk);
+
+	using namespace Utility;
+
+	const FIoHash ChunkHash = FIoHash::HashBuffer(ChunkData.GetData(), ChunkData.Num());
+	OutHashAsString = LexToString(ChunkHash);
 
 #if UE_CHECK_FOR_EXISTING_CHUNKS
-		if (DoesChunkExist(HashAsString))
-		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("Jupiter already has a copy of the chunk '%s' for payload '%s'"), *HashAsString, *PayloadId.ToString());
-			return true;
-		}
+	if (DoesChunkExist(HashAsString))
+	{
+		UE_LOG(LogVirtualization, Verbose, TEXT("Jupiter already has a copy of the chunk '%s' for payload '%s'"), *HashAsString, *PayloadId.ToString());
+		return true;
+	}
 #endif // UE_CHECK_FOR_EXISTING_CHUNKS
 
+	FScopedRequestPtr Request(RequestPool.Get());
+	// TODO: Another candidate for code sharing
+	Request->SetHeader(TEXT("X-Jupiter-IoHash"), *OutHashAsString);
+
+	TStringBuilder<256> Uri;
+	Uri.Appendf(TEXT("api/v1/s/%s/%s"), *Namespace, *OutHashAsString);
+
+	// Retry request until we get an accepted response or exhaust allowed number of attempts.
+	uint32 Attempts = 0;
+	while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+	{
+		if (Request.IsValid())
+		{
+			const FRequest::Result Result = Request->PerformBlockingUpload<FRequest::Put>(*Uri, ChunkData);
+			const int64 ResponseCode = Request->GetResponseCode();
+
+			if (ResponseCode == 200)
+			{
+				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded a chunk '%s'for payload '%s'"), *OutHashAsString, *PayloadId.ToString());
+				return true;
+			}
+
+			if (!ShouldRetryOnError(ResponseCode))
+			{
+				return false;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FJupiterBackend::PullChunk(const FString& Hash, const FPayloadId& PayloadId, uint8* DataPtr, int64 BufferSize)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullChunk);
+
+	using namespace Utility;
+
+	FScopedRequestPtr Request(RequestPool.Get());
+
+	TStringBuilder<256> Uri;
+	Uri.Appendf(TEXT("api/v1/s/%s/%s"), *Namespace, *Hash);
+
+	// Retry request until we get an accepted response or exhaust allowed number of attempts.
+	uint32 Attempts = 0;
+	while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+	{
+		if (Request.IsValid())
+		{
+			const FRequest::Result Result = Request->PerformBlockingDownload(*Uri, FMutableMemoryView(DataPtr, BufferSize));
+
+			if (Result != FRequest::Success)
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed due to an internal Curl error"), *Hash, *PayloadId.ToString());	
+				return false;
+			}
+
+			const int64 ResponseCode = Request->GetResponseCode();
+
+			if (ResponseCode == 200)
+			{
+				UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a payload chunk '%s' for payload '%s'"), *Hash, *PayloadId.ToString());	
+				return true;
+			}
+
+			if (!ShouldRetryOnError(ResponseCode))
+			{
+				UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed with http response: %" INT64_FMT), *Hash, *PayloadId.ToString(), ResponseCode);	
+				return false;
+			}
+		}
+	}
+
+	UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed all '%d' attempts"), *Hash, *PayloadId.ToString(), UE_MIRAGE_MAX_ATTEMPTS);	
+	return false;
+}
+
+bool FJupiterBackend::DoesChunkExist(const FString& Hash)
+{
+	using namespace Utility;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::DoesChunkExist);
+
+	TStringBuilder<256> Uri;
+	Uri.Appendf(TEXT("api/v1/s/%s/%s"), *Namespace, *Hash);
+
+	// Retry request until we get an accepted response or exhaust allowed number of attempts.
+	uint32 Attempts = 0;
+	while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+	{
 		FScopedRequestPtr Request(RequestPool.Get());
-		// TODO: Another candidate for code sharing
-		Request->SetHeader(TEXT("X-Jupiter-IoHash"), *OutHashAsString);		
-
-		TStringBuilder<256> Uri;
-		Uri.Appendf(TEXT("api/v1/s/%s/%s"), *Namespace, *OutHashAsString);
-
-		// Retry request until we get an accepted response or exhaust allowed number of attempts.
-		uint32 Attempts = 0;
-		while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
+		if (Request.IsValid())
 		{
-			if (Request.IsValid())
+			const FRequest::Result Result = Request->PerformBlockingQuery<FRequest::Head>(*Uri);
+			const int64 ResponseCode = Request->GetResponseCode();
+
+			if (FRequest::IsSuccessfulResponse(ResponseCode))
 			{
-				const FRequest::Result Result = Request->PerformBlockingUpload<FRequest::Put>(*Uri, ChunkData);
-				const int64 ResponseCode = Request->GetResponseCode();
+				return true;
+			}
+			else if (ResponseCode == 404)
+			{
+				return false;
+			}
 
-				if (ResponseCode == 200)
-				{
-					UE_LOG(LogVirtualization, Verbose, TEXT("Successfully uploaded a chunk '%s'for payload '%s'"), *OutHashAsString, *PayloadId.ToString());	
-					return true;
-				}
-
-				if (!ShouldRetryOnError(ResponseCode))
-				{
-					return false;
-				}
+			if (!ShouldRetryOnError(ResponseCode))
+			{
+				return false;
 			}
 		}
-
-		return false;
 	}
 
-	bool PullChunk(const FString& Hash, const FPayloadId& PayloadId, uint8* DataPtr, int64 BufferSize)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullChunk);
-
-		using namespace Utility;
-
-		FScopedRequestPtr Request(RequestPool.Get());
-
-		TStringBuilder<256> Uri;
-		Uri.Appendf(TEXT("api/v1/s/%s/%s"), *Namespace, *Hash);
-
-		// Retry request until we get an accepted response or exhaust allowed number of attempts.
-		uint32 Attempts = 0;
-		while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
-		{
-			if (Request.IsValid())
-			{
-				const FRequest::Result Result = Request->PerformBlockingDownload(*Uri, FMutableMemoryView(DataPtr, BufferSize));
-
-				if (Result != FRequest::Success)
-				{
-					UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed due to an internal Curl error"), *Hash, *PayloadId.ToString());	
-					return false;
-				}
-
-				const int64 ResponseCode = Request->GetResponseCode();
-
-				if (ResponseCode == 200)
-				{
-					UE_LOG(LogVirtualization, Verbose, TEXT("Successfully downloaded a payload chunk '%s' for payload '%s'"), *Hash, *PayloadId.ToString());	
-					return true;
-				}
-
-				if (!ShouldRetryOnError(ResponseCode))
-				{
-					UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed with http response: %" INT64_FMT), *Hash, *PayloadId.ToString(), ResponseCode);	
-					return false;
-				}
-			}
-		}
-
-		UE_LOG(LogVirtualization, Error, TEXT("Attempting to GET a payload chunk '%s' for payload '%s' failed all '%d' attempts"), *Hash, *PayloadId.ToString(), UE_MIRAGE_MAX_ATTEMPTS);	
-		return false;
-	}
-
-	virtual bool DoesPayloadExist(const FPayloadId& Id) override
-	{
-		using namespace Utility;
-
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::DoesPayloadExist);
-
-		// Note that the ddc end point is used by both ddc and mirage
-		TStringBuilder<256> Uri;
-		Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), *Namespace, *Bucket, *Id.ToString());
-		
-		// Retry request until we get an accepted response or exhaust allowed number of attempts.
-		uint32 Attempts = 0;
-		while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
-		{
-			FScopedRequestPtr Request(RequestPool.Get());
-			if (Request.IsValid())
-			{
-				const FRequest::Result Result = Request->PerformBlockingQuery<FRequest::Head>(*Uri);
-				const int64 ResponseCode = Request->GetResponseCode();
-
-				if (FRequest::IsSuccessfulResponse(ResponseCode))
-				{
-					return true;
-				}
-				else if (ResponseCode == 400)
-				{
-					return false;
-				}
-
-				if (!ShouldRetryOnError(ResponseCode))
-				{
-					return false;
-				}
-			}
-		}
-
-		return false;
-	}
-
-	bool DoesChunkExist(const FString& Hash)
-	{
-		using namespace Utility;
-
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::DoesChunkExist);
-
-		TStringBuilder<256> Uri;
-		Uri.Appendf(TEXT("api/v1/s/%s/%s"), *Namespace, *Hash);
-
-		// Retry request until we get an accepted response or exhaust allowed number of attempts.
-		uint32 Attempts = 0;
-		while (++Attempts <= UE_MIRAGE_MAX_ATTEMPTS)
-		{
-			FScopedRequestPtr Request(RequestPool.Get());
-			if (Request.IsValid())
-			{
-				const FRequest::Result Result = Request->PerformBlockingQuery<FRequest::Head>(*Uri);
-				const int64 ResponseCode = Request->GetResponseCode();
-
-				if (FRequest::IsSuccessfulResponse(ResponseCode))
-				{
-					return true;
-				}
-				else if (ResponseCode == 404)
-				{
-					return false;
-				}
-
-				if (!ShouldRetryOnError(ResponseCode))
-				{
-					return false;
-				}
-			}
-		}
-
-		return false;
-	}
-	
-	/** Address of the Jupiter service*/
-	FString HostAddress;
-	/** Namespace to connect to */
-	FString Namespace;
-	/** Europa allows us to organize the payloads by bucket. Currently this is not exposed and just set to 'default' */
-	FString Bucket;
-
-	/** The max size of each payload chunk */
-	uint64 ChunkSize;
-
-	/** Url of the OAuth authorization server */
-	FString OAuthProvider;
-	/**  Public identifier for use with the OAuth authorization server */
-	FString OAuthClientId;
-	/** Password for the OAuthClientId */
-	FString OAuthSecret;
-
-	/** The pool of FRequest objects that can be recycled */
-	TUniquePtr<Utility::FRequestPool> RequestPool;
-
-	/** Critical section used to protect the creation of new access tokens */
-	FCriticalSection AccessCs;
-	/** The access token used with service authorization */
-	TUniquePtr<Utility::FAccessToken> AccessToken;
-	/** Count how many times a login has failed since the last successful login */
-	uint32 FailedLoginAttempts;
-};
+	return false;
+}
 
 UE_REGISTER_VIRTUALIZATION_BACKEND_FACTORY(FJupiterBackend, Jupiter);
 

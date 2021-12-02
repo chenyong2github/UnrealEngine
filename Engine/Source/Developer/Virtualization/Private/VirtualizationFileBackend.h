@@ -28,13 +28,14 @@ namespace UE::Virtualization
  *					Remember that the max length of time that the process can stall attempting to read
  *					a payload file is RetryCount * RetryWaitTime; [Default=100ms]
  */
-class FFileSystemBackend : public IVirtualizationBackend
+class FFileSystemBackend final : public IVirtualizationBackend
 {
 public:
-	FFileSystemBackend(FStringView ConfigName, FStringView DebugName);
+	explicit FFileSystemBackend(FStringView ConfigName, FStringView DebugName);
 	virtual ~FFileSystemBackend() = default;
 
-protected:
+private:
+	/* IVirtualizationBackend implementation */
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 
@@ -44,6 +45,8 @@ protected:
 
 	virtual bool DoesPayloadExist(const FPayloadId& Id) override;
 	
+private:
+
 	void CreateFilePath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath);
 
 	TUniquePtr<FArchive> OpenFileForReading(const TCHAR* FilePath);

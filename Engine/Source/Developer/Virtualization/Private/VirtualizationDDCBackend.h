@@ -2,8 +2,9 @@
 
 #pragma once 
 
-#include "DerivedDataCacheKey.h"
 #include "IVirtualizationBackend.h"
+
+#include "DerivedDataCacheKey.h"
 
 namespace UE::DerivedData { enum class ECachePolicy : uint32; }
 
@@ -24,13 +25,14 @@ namespace UE::Virtualization
  * LocalStorage: When set to true, the payloads can be stored locally. [Default=true]
  * RemoteStorage: When set to true, the payloads can be stored remotely. [Default=true]
  */
-class FDDCBackend : public IVirtualizationBackend
+class FDDCBackend final : public IVirtualizationBackend
 {
 public:
 	explicit FDDCBackend(FStringView ConfigName, FStringView InDebugName);
 	virtual ~FDDCBackend() = default;
 
-protected:
+private:
+	/* IVirtualizationBackend implementation */
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 
@@ -39,11 +41,12 @@ protected:
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
 	
 	virtual bool DoesPayloadExist(const FPayloadId& Id) override;
-	
+
+private:
 	/** The bucket being used to group together the virtualized payloads in storage */
 	FString BucketName;
 
-	/** */
+	/** The FCacheBucket used with the DDC, cached to avoid recreating it for each request */
 	UE::DerivedData::FCacheBucket Bucket;
 
 	/** The policy to use when uploading or downloading data from the cache */
