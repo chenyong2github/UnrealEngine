@@ -863,6 +863,7 @@ namespace UnrealBuildTool
 			string Result = "";
 
 			//Result += " -nostdlib";
+			Result += " -static-libstdc++";
 			Result += " -no-canonical-prefixes";
 			Result += " -shared";
 			Result += " -Wl,-Bsymbolic";
