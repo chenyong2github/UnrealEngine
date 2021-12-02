@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Amazon;
 using Datadog.Trace;
+using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -67,8 +68,8 @@ namespace Jupiter
 
             services.AddOptions<ServiceAccountAuthOptions>().Bind(Configuration.GetSection("ServiceAccounts")).ValidateDataAnnotations();
 
-            services.AddOptions<AuthorizationSettings>().Bind(Configuration.GetSection("Authorization")).ValidateDataAnnotations();
             services.AddOptions<JupiterSettings>().Bind(Configuration.GetSection("Jupiter")).ValidateDataAnnotations();
+            services.AddOptions<NamespaceSettings>().Bind(Configuration.GetSection("Namespaces")).ValidateDataAnnotations();
 
             // this is the same as invoke MvcBuilder.AddJsonOptions but with a service provider passed so we can use DI in the options creation
             // see https://stackoverflow.com/questions/53288633/net-core-api-custom-json-resolver-based-on-request-values
@@ -460,6 +461,29 @@ namespace Jupiter
         public string CurrentSite { get; set; } = "";
 
         //public Dictionary<string, int> DisableAuthOnPorts { get; set; } = new ();
+    }
+
+    public class NamespaceSettings
+    {
+        public Dictionary<string, PerNamespaceSettings> Policies { get; set; } = new Dictionary<string, PerNamespaceSettings>();
+
+        public class PerNamespaceSettings
+        {
+            public string[] Claims { get; set; } = Array.Empty<string>();
+            public string StoragePool { get; set; } = "";
+        }
+
+        public PerNamespaceSettings GetPoliciesForNs(NamespaceId ns)
+        {
+            return Policies[ns.ToString()];
+        /*
+            if(Policies.TryGetValue(ns.ToString(), out PerNamespaceSettings? settings))
+            {
+                return settings;
+            }
+
+            return DefaultNamespaceSettings;*/
+        }
     }
 
     public class DatadogTraceMiddleware

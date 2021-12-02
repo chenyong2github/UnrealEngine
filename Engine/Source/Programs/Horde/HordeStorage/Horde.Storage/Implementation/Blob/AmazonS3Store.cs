@@ -8,10 +8,12 @@ using System.Threading.Tasks;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Horde.Storage.Implementation.Blob;
+using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;
+using KeyNotFoundException = System.Collections.Generic.KeyNotFoundException;
 
 namespace Horde.Storage.Implementation
 {
@@ -20,14 +22,16 @@ namespace Horde.Storage.Implementation
         private readonly ILogger _logger = Log.ForContext<AmazonS3Store>();
         private readonly IAmazonS3 _amazonS3;
         private readonly IBlobIndex _blobIndex;
+        private readonly IOptionsMonitor<NamespaceSettings> _namespaceSettings;
         private readonly S3Settings _settings;
         private readonly HashSet<string> _bucketAccessPolicyApplied = new HashSet<string>();
         private readonly HashSet<string> _bucketExistenceChecked = new HashSet<string>();
 
-        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex)
+        public AmazonS3Store(IAmazonS3 amazonS3, IOptionsMonitor<S3Settings> settings, IBlobIndex blobIndex, IOptionsMonitor<NamespaceSettings> namespaceSettings)
         {
             _amazonS3 = amazonS3;
             _blobIndex = blobIndex;
+            _namespaceSettings = namespaceSettings;
             _settings = settings.CurrentValue;
         }
 
@@ -120,7 +124,16 @@ namespace Horde.Storage.Implementation
 
         private string GetBucketName(NamespaceId ns)
         {
-            return $"{_settings.BucketName}";
+            try
+            {
+                string storagePool = _namespaceSettings.CurrentValue.GetPoliciesForNs(ns).StoragePool;
+                string storagePoolSuffix = string.IsNullOrEmpty(storagePool) ? "" : $"-{storagePool}";
+                return $"{_settings.BucketName}{storagePoolSuffix}";
+            }
+            catch (KeyNotFoundException)
+            {
+                throw new NamespaceNotFoundException(ns);
+            }
         }
 
 

@@ -168,7 +168,7 @@ namespace Horde.Storage.Implementation
 
         private IEnumerable<(BlobIdentifier, DateTime)> DoListOldObjects(NamespaceId ns)
         {
-            DirectoryInfo di = new DirectoryInfo(Path.Combine(_settings.CurrentValue.RootDir, ns.ToString()));
+            DirectoryInfo di = GetFilesystemPath(ns);
             if (!di.Exists)
             {
                 yield break;
