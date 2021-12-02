@@ -20,27 +20,7 @@
 #include "ProjectionCommon.ush"
 #include "ProjectionSpot.ush"
 #include "ProjectionDirectional.ush"
-
-#ifndef VSM_GENERATE_STATS
-#define VSM_GENERATE_STATS 0
-#endif // VSM_GENERATE_STATS
-
-#if VSM_GENERATE_STATS
-RWStructuredBuffer<uint> OutStatsBuffer;
-#endif // VSM_GENERATE_STATS
-
-void StatsBufferWrite(uint Index, uint Value)
-{
-#if VSM_GENERATE_STATS
-	OutStatsBuffer[Index] = Value;
-#endif
-}
-void StatsBufferInterlockedAdd(uint Index, uint Value)
-{
-#if VSM_GENERATE_STATS
-	InterlockedAdd(OutStatsBuffer[Index], Value);
-#endif
-}
+#include "Stats.ush"
 
 // Type of input data consume by the page allocation (i.e., data read from the source buffer: Gbuffer, HairStrands data, ...)
 #define INPUT_TYPE_GBUFFER 0
@@ -509,7 +489,7 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 			// stats for those pages who die from moving stuff
 			if (bPrevPageAllocated && bPrevDynamicPageFlag)
 			{
-				StatsBufferInterlockedAdd(2, 1);
+				StatsBufferInterlockedAdd(VSM_STAT_INVALIDATED_BY_DYNAMIC_PAGES, 1);
 			}
 
 			// If it was either rendered or cached previous frame, and not drawn to by a moving thing we may re-use
@@ -519,10 +499,10 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 				uint PhysicalPageIndex = VSMPhysicalPageAddressToIndex(PhysicalAddress);
 
 				FPhysicalPageMetaData PrevMetaData = PrevPhysicalPageMetaData[PhysicalPageIndex];
-				if (PrevMetaData.Flags & VSM_PHYSICAL_PAGE_FLAG_ALLOCATED != 0)
+				if ((PrevMetaData.Flags & VSM_PHYSICAL_PAGE_FLAG_ALLOCATED) != 0)
 				{
-					StatsBufferInterlockedAdd(0, 1);	// Total pages
-					StatsBufferInterlockedAdd(1, 1);	// Cached pages
+					StatsBufferInterlockedAdd(VSM_STAT_ALLOCATED_PAGES, 1);	// Total pages
+					StatsBufferInterlockedAdd(VSM_STAT_CACHED_PAGES, 1);	// Cached pages
 
 					// Keep the same cached physical page
 					// Note that we explicitly do not retain the propogated mip data as that could change this
@@ -586,7 +566,7 @@ void AllocateNewPageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId
 	uint RequestFlags = PageRequestFlags[GlobalPageOffset];
 	if (RequestFlags != 0 && OutPageFlags[GlobalPageOffset] == 0)
 	{
-		StatsBufferInterlockedAdd(0, 1);	// Total pages
+		StatsBufferInterlockedAdd(VSM_STAT_ALLOCATED_PAGES, 1);	// Total pages
 
 		// Grab a free page from the list
 		int FreeListOffset = 0;

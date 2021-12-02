@@ -1840,20 +1840,11 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 							Params.Flags = 0;
 
 							// TODO: Clean this up - could be stored in a single structure for the whole clipmap
-							int32 AbsoluteClipmapLevel = Clipmap->GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
-							int32 ClipmapLevelKey = AbsoluteClipmapLevel + 128;
-							check(ClipmapLevelKey > 0 && ClipmapLevelKey < 256);
-							int32 HZBKey = Clipmap->GetLightSceneInfo().Id + (ClipmapLevelKey << 24);
+							int32 HZBKey = Clipmap->GetHZBKey(ClipmapLevelIndex);
 
 							if (PrevHZBPhysical)
 							{
-								FVirtualShadowMapHZBMetadata* PrevHZBMeta = CacheManager->PrevBuffers.HZBMetadata.Find(HZBKey);
-								if (PrevHZBMeta)
-							{
-									Params.PrevTargetLayerIndex = PrevHZBMeta->TargetLayerIndex;
-									Params.PrevViewMatrices = PrevHZBMeta->ViewMatrices;
-								Params.Flags = VIEW_FLAG_HZBTEST;
-							}
+								CacheManager->SetHZBViewParams(HZBKey, Params);
 							}
 
 							// If we're going to generate a new HZB this frame, save the associated metadata
@@ -1905,13 +1896,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 							int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (i << 24);
 							if (PrevHZBPhysical)
 							{
-								FVirtualShadowMapHZBMetadata* PrevHZBMeta = CacheManager->PrevBuffers.HZBMetadata.Find(HZBKey);
-								if (PrevHZBMeta)
-							{
-									Params.PrevTargetLayerIndex = PrevHZBMeta->TargetLayerIndex;
-									Params.PrevViewMatrices = PrevHZBMeta->ViewMatrices;
-								Params.Flags = VIEW_FLAG_HZBTEST;
-							}
+								CacheManager->SetHZBViewParams(HZBKey, Params);
 							}
 
 							// If we're going to generate a new HZB this frame, save the associated metadata
