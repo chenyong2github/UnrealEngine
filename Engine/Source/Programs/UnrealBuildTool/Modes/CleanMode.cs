@@ -171,19 +171,21 @@ namespace UnrealBuildTool
 				{
 					foreach (string NamePrefix in NamePrefixes)
 					{
-						DirectoryReference GeneratedCodeDir = DirectoryReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Target.Platform, Target.Architecture), NamePrefix, "Inc");
+						DirectoryReference GeneratedCodeDir = DirectoryReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Target.Platform, Target.Architecture, false), NamePrefix, "Inc");
 						if (DirectoryReference.Exists(GeneratedCodeDir))
 						{
 							DirectoriesToDelete.Add(GeneratedCodeDir);
 						}
 
-						DirectoryReference IntermediateDir = DirectoryReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Target.Platform, Target.Architecture), NamePrefix, Target.Configuration.ToString());
+						DirectoryReference IntermediateDir = DirectoryReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Target.Platform, Target.Architecture, false), NamePrefix, Target.Configuration.ToString());
 						if (DirectoryReference.Exists(IntermediateDir))
 						{
 							DirectoriesToDelete.Add(IntermediateDir);
 						}
 					}
 				}
+
+				// todo: handle external plugin intermediates, written to the Project's Intermediate/External directory
 
 				// List of additional files and directories to clean, specified by the target platform
 				List<FileReference> AdditionalFilesToDelete = new List<FileReference>();

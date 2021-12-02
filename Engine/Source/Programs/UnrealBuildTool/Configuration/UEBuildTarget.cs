@@ -1089,7 +1089,7 @@ namespace UnrealBuildTool
 			bDeployAfterCompile = InRules.bDeployAfterCompile && !InRules.bDisableLinking && InDescriptor.SpecificFilesToCompile.Count == 0 && InDescriptor.OnlyModuleNames.Count == 0;
 
 			// now that we have the platform, we can set the intermediate path to include the platform/architecture name
-			PlatformIntermediateFolder = GetPlatformIntermediateFolder(Platform, Architecture);
+			PlatformIntermediateFolder = GetPlatformIntermediateFolder(Platform, Architecture, false);
 
 			TargetRulesFile = InRules.File;
 
@@ -1151,11 +1151,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Platform">Platform to get the folder for</param>
 		/// <param name="Architecture">Architecture to get the folder for</param>
+		/// <param name="External">Insert External after Intermediate - for out-of-tree plugins</param>
 		/// <returns>The output directory for intermediates</returns>
-		public static string GetPlatformIntermediateFolder(UnrealTargetPlatform Platform, string Architecture)
+		public static string GetPlatformIntermediateFolder(UnrealTargetPlatform Platform, string Architecture, bool External)
 		{
 			// now that we have the platform, we can set the intermediate path to include the platform/architecture name
-			return Path.Combine("Intermediate", "Build", Platform.ToString(), UEBuildPlatform.GetBuildPlatform(Platform).GetFolderNameForArchitecture(Architecture));
+			return Path.Combine("Intermediate", External ? "External" : String.Empty, "Build", Platform.ToString(), UEBuildPlatform.GetBuildPlatform(Platform).GetFolderNameForArchitecture(Architecture));
 		}
 
 		/// <summary>
@@ -2991,7 +2992,7 @@ namespace UnrealBuildTool
 		{
 			// Get the root output directory and base name (target name/app name) for this binary
 			DirectoryReference BaseOutputDirectory;
-			if(bUseSharedBuildEnvironment)
+			if(bUseSharedBuildEnvironment && ModuleRules.Plugin?.Type != PluginType.External)
 			{
 				BaseOutputDirectory = ModuleRules.Context.DefaultOutputBaseDir;
 			}
@@ -3020,7 +3021,7 @@ namespace UnrealBuildTool
 			}
 
 			// Get the output and intermediate directories for this module
-			DirectoryReference IntermediateDirectory = DirectoryReference.Combine(BaseOutputDirectory, PlatformIntermediateFolder, AppName, ModuleConfiguration.ToString());
+			DirectoryReference IntermediateDirectory = DirectoryReference.Combine(BaseOutputDirectory, GetPlatformIntermediateFolder(Platform, Architecture, ModuleRules.Plugin?.Type == PluginType.External), AppName, ModuleConfiguration.ToString());
 
 			// Append a subdirectory if the module rules specifies one
 			if (!String.IsNullOrEmpty(ModuleRules.BinariesSubFolder))
