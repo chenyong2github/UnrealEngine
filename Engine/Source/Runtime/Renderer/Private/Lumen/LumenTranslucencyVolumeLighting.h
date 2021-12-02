@@ -67,6 +67,7 @@ END_SHADER_PARAMETER_STRUCT()
 namespace Lumen
 {
 	extern bool UseHardwareRayTracedTranslucencyVolume();
+	extern bool UseLumenTranslucencyReflections(const FViewInfo& View);
 }
 
 extern void HardwareRayTraceTranslucencyVolume(

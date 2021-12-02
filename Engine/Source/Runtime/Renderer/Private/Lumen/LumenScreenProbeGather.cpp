@@ -1542,9 +1542,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				});
 		}
 
-		extern int32 GLumenTranslucencyReflections;
-
-		if (GLumenTranslucencyReflections != 0)
+		if (Lumen::UseLumenTranslucencyReflections(View))
 		{
 			const FSceneRenderer& SceneRenderer = *this;
 			FViewInfo& ViewNonConst = View;
@@ -1575,7 +1573,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			View.ViewState->RadianceCacheState, 
 			RadianceCacheParameters);
 
-		if (GLumenTranslucencyReflections != 0)
+		if (Lumen::UseLumenTranslucencyReflections(View))
 		{
 			View.LumenTranslucencyGIVolume.RadianceCacheInterpolationParameters = RadianceCacheParameters;
 
