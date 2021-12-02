@@ -9,6 +9,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
+#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/FileHelper.h"
@@ -25,6 +26,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DDynamic.h"
 #include "Misc/HashBuilder.h"
+#include "Fonts/FontMeasure.h"
 #include "EngineModule.h"
 #include "Renderer/Private/RendererModule.h"
 
@@ -348,6 +350,54 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			LinePoints[1] = WorldToScreen.TransformPoint(LineEndH);
 
 			FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::NoBlending, Color, false, 1.0f);
+		}
+
+		// Draw coordinates
+		if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords())
+		{
+			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+			const FVector2D CellScreenSize = WorldToScreen.TransformVector(FVector2D(EditorSpatialHash->CellSize, EditorSpatialHash->CellSize));
+
+			FSlateFontInfo CoordsFont;
+			FVector2D DefaultCoordTextSize;
+			bool bNeedsGradient = true;
+			for(int32 DesiredFontSize = 24; DesiredFontSize >= 8; DesiredFontSize -= 2)
+			{
+				CoordsFont = FCoreStyle::GetDefaultFontStyle("Bold", DesiredFontSize);
+				DefaultCoordTextSize = FontMeasure->Measure(TEXT("(-99,-99)"), CoordsFont);				
+
+				if (CellScreenSize.X > DefaultCoordTextSize.X)
+				{
+					bNeedsGradient = (DesiredFontSize == 8);
+					break;
+				}
+			}
+
+			if (CellScreenSize.X > DefaultCoordTextSize.X)
+			{
+				static float GradientDistance = 64.0f;
+				float ColorGradient = bNeedsGradient ? FMath::Min((CellScreenSize.X - DefaultCoordTextSize.X) / GradientDistance, 1.0f) : 1.0f;
+				const FLinearColor CoordTextColor(1.0f, 1.0f, 1.0f, ColorGradient);
+
+				for (int32 y = TopLeftW.Y; y < BottomRightW.Y; y += EditorSpatialHash->CellSize)
+				{
+					for (int32 x = TopLeftW.X; x < BottomRightW.X; x += EditorSpatialHash->CellSize)
+					{
+						const FString CoordText(FString::Printf(TEXT("(%d,%d)"), x / EditorSpatialHash->CellSize, y / EditorSpatialHash->CellSize));
+						const FVector2D CoordTextSize = FontMeasure->Measure(CoordText, CoordsFont);
+
+						FSlateDrawElement::MakeText(
+							OutDrawElements,
+							++LayerId,
+							AllottedGeometry.ToPaintGeometry(WorldToScreen.TransformPoint(FVector2D(x + EditorSpatialHash->CellSize / 2, y + EditorSpatialHash->CellSize / 2)) - CoordTextSize / 2, FVector2D(1,1)),
+							FString::Printf(TEXT("(%d,%d)"), x / EditorSpatialHash->CellSize, y / EditorSpatialHash->CellSize),
+							CoordsFont,
+							ESlateDrawEffect::None,
+							CoordTextColor
+						);
+					}
+				}
+			}
 		}
 
 		++LayerId;

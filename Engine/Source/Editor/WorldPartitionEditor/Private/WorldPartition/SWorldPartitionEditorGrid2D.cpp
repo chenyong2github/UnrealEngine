@@ -144,6 +144,23 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					[
+						SNew(SCheckBox)
+						.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+						.IsEnabled(true)
+						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetShowCellCoords(State == ECheckBoxState::Checked); }))
+					]
+					+SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.AutoWrapText(true)
+						.IsEnabled(true)
+						.Text(LOCTEXT("ShowCellCoords", "Show Cell Coords"))
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
 						SNew(SButton)
 						.Text(LOCTEXT("ReloadMiniMap", "Reload MiniMap"))
 						.Visibility_Lambda([]() {return CVarShowReloadMiniMapButton.GetValueOnAnyThread() != 0 ? EVisibility::Visible : EVisibility::Hidden;})
