@@ -214,7 +214,7 @@ void FTargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPose
 		RetargetLocalPose[BoneIndex].SetRotation(LocalBoneRotation);
 	}
 
-	UpdateGlobalTransformsBelowBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
+	UpdateGlobalTransformsBelowBone(0, RetargetLocalPose, RetargetGlobalPose);
 }
 
 void FTargetSkeleton::Reset()
