@@ -20,6 +20,7 @@ protected:
 	
 		TSharedPtr<FUICommandInfo> LoadSelectedCells;
 		TSharedPtr<FUICommandInfo> UnloadSelectedCells;
+		TSharedPtr<FUICommandInfo> UnloadAllCells;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
 
 		/**
@@ -36,6 +37,7 @@ public:
 
 	void LoadSelectedCells();
 	void UnloadSelectedCells();
+	void UnloadAllCells();
 	void MoveCameraHere();
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
