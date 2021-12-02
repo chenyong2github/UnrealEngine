@@ -148,8 +148,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 		.ObjectContext(this, &SActorDetails::GetActorContextAsObject)
 		.AllowEditing(this, &SActorDetails::GetAllowComponentTreeEditing)
 		.OnSelectionUpdated(this, &SActorDetails::OnSubobjectEditorTreeViewSelectionChanged)
-		.OnItemDoubleClicked(this, &SActorDetails::OnSubobjectEditorTreeViewItemDoubleClicked)
-		.OnObjectReplaced(this, &SActorDetails::OnSubobjectEditorTreeViewObjectReplaced);
+		.OnItemDoubleClicked(this, &SActorDetails::OnSubobjectEditorTreeViewItemDoubleClicked);
 
 	ComponentsBox->SetContent(SubobjectEditor.ToSharedRef());
 
@@ -580,13 +579,6 @@ void SActorDetails::OnSubobjectEditorTreeViewSelectionChanged(const TArray<FSubo
 	RefreshSubobjectTreeElements(SelectedNodes, /*bForceRefresh*/false, DetailsView->IsLocked());
 }
 
-void SActorDetails::OnSubobjectEditorTreeViewObjectReplaced()
-{
-	// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
-	TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
-	SubobjectEditor->UpdateTree();
-}
-
 void SActorDetails::OnSubobjectEditorTreeViewItemDoubleClicked(const FSubobjectEditorTreeNodePtrType ClickedNode)
 {
 	if (ClickedNode && ClickedNode->IsComponentNode())
@@ -880,5 +872,11 @@ void SActorDetails::OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacem
 			TArray<AActor*> NewSelection = SelectionOverrideActors;
 			OverrideSelection(NewSelection);
 		}
+	}
+	else
+	{
+		// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
+		TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
+		SubobjectEditor->UpdateTree();
 	}
 }

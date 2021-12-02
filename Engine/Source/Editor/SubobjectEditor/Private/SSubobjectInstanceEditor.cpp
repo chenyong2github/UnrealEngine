@@ -40,7 +40,6 @@ void SSubobjectInstanceEditor::Construct(const FArguments& InArgs)
 	OnSelectionUpdated = InArgs._OnSelectionUpdated;
 	OnItemDoubleClicked = InArgs._OnItemDoubleClicked;
 	AllowEditing = InArgs._AllowEditing;
-	OnObjectReplaced = InArgs._OnObjectReplaced;
 	bAllowTreeUpdates = true;
 	
 	CreateCommandList();
