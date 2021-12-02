@@ -60,15 +60,6 @@ void UUVProjectionTool::Setup()
 	BasicProperties = NewObject<UUVProjectionToolProperties>(this);
 	BasicProperties->RestoreProperties(this);
 	BasicProperties->GetOnModified().AddLambda([this](UObject*, FProperty*)	{ Preview->InvalidateResult(); });
-	BasicProperties->WatchProperty(BasicProperties->ProjectionType, [this](EUVProjectionMethod) { OnProjectionTypeChanged(); });
-
-	ExpMapProperties = NewObject<UUVProjectionToolExpMapProperties>(this);
-	ExpMapProperties->RestoreProperties(this);
-	ExpMapProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { Preview->InvalidateResult();	});
-
-	CylinderProperties = NewObject<UUVProjectionToolCylinderProperties>(this);
-	CylinderProperties->RestoreProperties(this);
-	CylinderProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { Preview->InvalidateResult();	});
 
 	// initialize input mesh
 	InitializeMesh();
@@ -100,13 +91,10 @@ void UUVProjectionTool::Setup()
 
 	AddToolPropertySource(UVChannelProperties);
 	AddToolPropertySource(BasicProperties);
-	AddToolPropertySource(ExpMapProperties);
-	AddToolPropertySource(CylinderProperties);
 	AddToolPropertySource(EditActions);
 	AddToolPropertySource(MaterialSettings);
 	
 	OnMaterialSettingsChanged();
-	OnProjectionTypeChanged();
 
 	// set up visualizers
 	ProjectionShapeVisualizer.LineColor = FLinearColor::Red;
@@ -123,12 +111,14 @@ void UUVProjectionTool::Setup()
 	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
 
 	InitialDimensions = BasicProperties->Dimensions;
+	bInitialUniformDimensions = BasicProperties->bUniformDimensions;
 	InitialTransform = TransformGizmo->GetGizmoTransform();
 	
 	ApplyInitializationMode();
 
 	// start watching for dimensions changes
 	DimensionsWatcher = BasicProperties->WatchProperty(BasicProperties->Dimensions, [this](FVector) { bTransformModified = true; });
+	DimensionsModeWatcher = BasicProperties->WatchProperty(BasicProperties->bUniformDimensions, [this](bool) { bTransformModified = true; });
 	BasicProperties->WatchProperty(BasicProperties->Initialization, [this](EUVProjectionToolInitializationMode NewMode) { OnInitializationModeChanged(); });
 	bTransformModified = false;
 	BasicProperties->SilentUpdateWatched();
@@ -210,10 +200,9 @@ void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	UVChannelProperties->SaveProperties(this);
 	BasicProperties->SavedDimensions = BasicProperties->Dimensions;
+	BasicProperties->bSavedUniformDimensions = BasicProperties->bUniformDimensions;
 	BasicProperties->SavedTransform = TransformGizmo->GetGizmoTransform();
 	BasicProperties->SaveProperties(this);
-	ExpMapProperties->SaveProperties(this);
-	CylinderProperties->SaveProperties(this);
 	MaterialSettings->SaveProperties(this);
 
 	EdgeRenderer->Disconnect();
@@ -258,19 +247,14 @@ TUniquePtr<FDynamicMeshOperator> UUVProjectionOperatorFactory::MakeNewOperator()
 
 	Op->MeshToProjectionSpace = Tool->WorldTransform;
 	Op->ProjectionBox = Tool->GetProjectionBox();
-	if (Tool->BasicProperties->DimensionMode == EUVProjectionToolDimensionMode::UseFirst)
-	{
-		double UseDim = Op->ProjectionBox.Extents.X;
-		Op->ProjectionBox.Extents = FVector3d(UseDim, UseDim, UseDim);
-	}
-	Op->CylinderSplitAngle = Tool->CylinderProperties->SplitAngle;
-	Op->BlendWeight = Tool->ExpMapProperties->NormalBlending;
-	Op->SmoothingRounds = Tool->ExpMapProperties->SmoothingRounds;
-	Op->SmoothingAlpha = Tool->ExpMapProperties->SmoothingAlpha;
+	Op->CylinderSplitAngle = Tool->BasicProperties->CylinderSplitAngle;
+	Op->BlendWeight = Tool->BasicProperties->ExpMapNormalBlending;
+	Op->SmoothingRounds = Tool->BasicProperties->ExpMapSmoothingSteps;
+	Op->SmoothingAlpha = Tool->BasicProperties->ExpMapSmoothingAlpha;
 
-	Op->UVRotationAngleDeg = Tool->BasicProperties->UVRotation;
-	Op->UVScale = (FVector2f)Tool->BasicProperties->UVScale;
-	Op->UVTranslate = (FVector2f)Tool->BasicProperties->UVTranslate;
+	Op->UVRotationAngleDeg = Tool->BasicProperties->Rotation;
+	Op->UVScale = (FVector2f)Tool->BasicProperties->Scale;
+	Op->UVTranslate = (FVector2f)Tool->BasicProperties->Translation;
 
 	Op->OriginalMesh = Tool->InputMesh;
 	Op->TriangleROI = Tool->TriangleROI;
@@ -319,11 +303,13 @@ void UUVProjectionTool::InitializeMesh()
 
 
 
-UE::Geometry::FOrientedBox3d UUVProjectionTool::GetProjectionBox()
+FOrientedBox3d UUVProjectionTool::GetProjectionBox() const
 {
-	FFrame3d BoxFrame(TransformProxy->GetTransform());
-	FVector3d BoxDimensions = 0.5 * (FVector3d)BasicProperties->Dimensions;
-	return UE::Geometry::FOrientedBox3d(BoxFrame, BoxDimensions);
+	const FFrame3d BoxFrame(TransformProxy->GetTransform());
+	const FVector3d BoxDimensions = 0.5 * (BasicProperties->bUniformDimensions
+		                                       ? FVector3d(BasicProperties->Dimensions.X, BasicProperties->Dimensions.X, BasicProperties->Dimensions.X)
+		                                       : static_cast<FVector3d>(BasicProperties->Dimensions));
+	return FOrientedBox3d(BoxFrame, BoxDimensions);
 }
 
 
@@ -396,13 +382,6 @@ void UUVProjectionTool::OnMaterialSettingsChanged()
 }
 
 
-void UUVProjectionTool::OnProjectionTypeChanged()
-{
-	SetToolPropertySourceEnabled(ExpMapProperties, BasicProperties->ProjectionType == EUVProjectionMethod::ExpMap);
-	SetToolPropertySourceEnabled(CylinderProperties, BasicProperties->ProjectionType == EUVProjectionMethod::Cylinder);
-}
-
-
 void UUVProjectionTool::OnMeshUpdated(UMeshOpPreviewWithBackgroundCompute* PreviewCompute)
 {
 	const FColor UVSeamColor(15, 240, 15);
@@ -411,7 +390,7 @@ void UUVProjectionTool::OnMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Previ
 
 	const FDynamicMesh3* UseMesh = Preview->PreviewMesh->GetMesh();
 	const FDynamicMeshUVOverlay* UVOverlay = UseMesh->Attributes()->GetUVLayer(UVChannelProperties->GetSelectedChannelIndex(true));
-	auto AppendSeamEdge = [UseMesh, UVOverlay, UVSeamColor, UVSeamThickness, UVSeamDepthBias](int32 eid, TArray<FRenderableLine>& LinesOut) {
+	auto AppendSeamEdge = [UseMesh, UVSeamColor, UVSeamThickness, UVSeamDepthBias](int32 eid, TArray<FRenderableLine>& LinesOut) {
 		FVector3d A, B;
 		UseMesh->GetEdgeV(eid, A, B);
 		LinesOut.Add(FRenderableLine((FVector)A, (FVector)B, UVSeamColor, UVSeamThickness, UVSeamDepthBias));
@@ -524,6 +503,8 @@ void UUVProjectionTool::ApplyAction(EUVProjectionToolActions ActionType)
 		case EUVProjectionToolActions::Reset:
 			ApplyAction_Reset();
 			break;
+		case EUVProjectionToolActions::NoAction:
+			break;
 	}
 }
 
@@ -594,6 +575,10 @@ void UUVProjectionTool::ApplyAction_AutoFit(bool bAlign)
 	if (DimensionsWatcher >= 0)
 	{
 		BasicProperties->SilentUpdateWatcherAtIndex(DimensionsWatcher);
+	}
+	if (DimensionsModeWatcher >= 0)
+	{
+		BasicProperties->SilentUpdateWatcherAtIndex(DimensionsModeWatcher);
 	}
 
 	// update Gizmo

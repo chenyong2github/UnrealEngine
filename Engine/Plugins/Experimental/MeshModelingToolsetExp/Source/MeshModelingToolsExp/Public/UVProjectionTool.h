@@ -16,12 +16,13 @@
 #include "UVProjectionTool.generated.h"
 
 
-// predeclarations
+// Forward declarations
 struct FMeshDescription;
 class UDynamicMeshComponent;
 class UCombinedTransformGizmo;
 class UTransformProxy;
 class USingleClickInputBehavior;
+class UUVProjectionTool;
 
 /**
  *
@@ -35,8 +36,6 @@ public:
 
 	virtual bool WantsInputSelectionIfAvailable() const override { return true; }
 };
-
-
 
 
 UENUM()
@@ -60,21 +59,21 @@ public:
 	void Initialize(UUVProjectionTool* ParentToolIn) { ParentTool = ParentToolIn; }
 	void PostAction(EUVProjectionToolActions Action);
 
-	/** Automatically fit the Projection Dimensions based on the current projection orientation */
+	/** Automatically fit the UV Projection Dimensions based on the current projection orientation */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "AutoFit", DisplayPriority = 1))
 	void AutoFit()
 	{
 		PostAction(EUVProjectionToolActions::AutoFit);
 	}
 
-	/** Automatically align the projection orientation and then automatically fit the Dimensions */
+	/** Automatically orient the projection and then automatically fit the UV Projection Dimensions */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "AutoFitAlign", DisplayPriority = 2))
 	void AutoFitAlign()
 	{
 		PostAction(EUVProjectionToolActions::AutoFitAlign);
 	}
 
-	/** Re-initialize the Projection based on the Initialization setting */
+	/** Re-initialize the projection based on the UV Projection Initialization property */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Reset", DisplayPriority = 3))
 	void Reset()
 	{
@@ -83,31 +82,18 @@ public:
 };
 
 
-
 UENUM()
 enum class EUVProjectionToolInitializationMode
 {
 	/** Initialize projection to bounding box center */
 	Default,
-	/** Initialize projection based on previous usage of the UV Projection Tool */
+	/** Initialize projection based on previous usage of the Project tool */
 	UsePrevious,
-	/** Initialize projection using AutoFitting, for the initial projection type */
+	/** Initialize projection using Auto Fitting for the initial projection type */
 	AutoFit,
-	/** Initialize projection using AutoFitting with Alignment, for the initial projection type */
+	/** Initialize projection using Auto Fitting with Alignment for the initial projection type */
 	AutoFitAlign
 };
-
-
-UENUM()
-enum class EUVProjectionToolDimensionMode
-{
-	/** All Dimensions of the projection are used */
-	AllFree,
-	/** The Dimensions.X value is used to define all projection Dimensions */
-	UseFirst
-};
-
-
 
 
 /**
@@ -119,89 +105,79 @@ class MESHMODELINGTOOLSEXP_API UUVProjectionToolProperties : public UInteractive
 	GENERATED_BODY()
 
 public:
-	/** Choose the UV projection method (cube, cylinder, plane) */
-	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
+	/** Shape and/or algorithm to use for UV projection */
+	UPROPERTY(EditAnywhere, Category = "UV Projection")
 	EUVProjectionMethod ProjectionType = EUVProjectionMethod::Plane;
 
-	/** Per-axis Dimensions of the Projection. Z is height of box/cylinder. */
-	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
+	/** Width, length, and height of the projection shape before rotation */
+	UPROPERTY(EditAnywhere, Category = "UV Projection")
 	FVector Dimensions = FVector(100.0f, 100.0f, 100.0f);
 
-	/** How the Dimensions are interpreted for Box/Plane/ExpMap Projections */
-	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
-	EUVProjectionToolDimensionMode DimensionMode = EUVProjectionToolDimensionMode::AllFree;
+	/** Only use the Dimensions X value to uniformly define all projection shape dimensions */
+	UPROPERTY(EditAnywhere, Category = "UV Projection")
+	bool bUniformDimensions = false;
 
-	/** Determines how projection settings will be initialized. Only affects Tool until changes are made to Dimensions/Position. */
-	UPROPERTY(EditAnywhere, Category = ProjectionSettings)
+	/** Determines how projection settings will be initialized; this only takes effect if the projection shape dimensions or position are unchanged */
+	UPROPERTY(EditAnywhere, Category = "UV Projection")
 	EUVProjectionToolInitializationMode Initialization = EUVProjectionToolInitializationMode::Default;
+
+	//
+	// Cylinder projection options
+	//
+
+	/** Angle in degrees to determine whether faces should be assigned to the cylinder or the flat end caps */
+	UPROPERTY(EditAnywhere, Category = CylinderProjection, meta = (DisplayName = "Split Angle", UIMin = "0", UIMax = "90",
+		EditCondition = "ProjectionType == EUVProjectionMethod::Cylinder", EditConditionHides))
+	float CylinderSplitAngle = 45.0f;
+
+	//
+	// ExpMap projection options
+	//
+
+	/** Blend between surface normals and projection normal; ExpMap projection becomes Plane projection when this value is 1 */
+	UPROPERTY(EditAnywhere, Category = "ExpMap Projection", meta = (DisplayName = "Normal Blending", UIMin = "0", UIMax = "1",
+		EditCondition = "ProjectionType == EUVProjectionMethod::ExpMap", EditConditionHides))
+	float ExpMapNormalBlending = 0.0f;
+
+	/** Number of smoothing steps to apply; this slightly increases distortion but produces more stable results. */
+	UPROPERTY(EditAnywhere, Category = "ExpMap Projection", meta = (DisplayName = "Smoothing Steps", UIMin = "0", UIMax = "100",
+		EditCondition = "ProjectionType == EUVProjectionMethod::ExpMap", EditConditionHides))
+	int ExpMapSmoothingSteps = 0;
+
+	/** Smoothing parameter, larger values result in faster smoothing in each step. */
+	UPROPERTY(EditAnywhere, Category = "ExpMap Projection", meta = (DisplayName = "Smoothing Alpha", UIMin = "0", UIMax = "1",
+		EditCondition = "ProjectionType == EUVProjectionMethod::ExpMap", EditConditionHides))
+	float ExpMapSmoothingAlpha = 0.25f;
 
 	//
 	// UV-space transform options
 	//
 
-	/** UV-Space Rotation Angle in Degrees, applied after computing projected UVs */
-	UPROPERTY(EditAnywhere, Category = "UV Transform", meta = (DisplayName = "UV Rotation") )
-	float UVRotation = 0.0;
+	/** Rotation in degrees applied after computing projection */
+	UPROPERTY(EditAnywhere, Category = "UV Transform")
+	float Rotation = 0.0;
 
-	/** UV-Space Scaling applied after computing projected UVs */
-	UPROPERTY(EditAnywhere, Category = "UV Transform", meta = (DisplayName = "UV Scale"))
-	FVector2D UVScale = FVector2D::UnitVector;
+	/** Scaling applied after computing projection */
+	UPROPERTY(EditAnywhere, Category = "UV Transform")
+	FVector2D Scale = FVector2D::UnitVector;
 
-	/** UV-Space Translation applied after computing projected UVs */
-	UPROPERTY(EditAnywhere, Category = "UV Transform", meta = (DisplayName = "UV Translation"))
-	FVector2D UVTranslate = FVector2D::ZeroVector;
-
+	/** Translation applied after computing projection */
+	UPROPERTY(EditAnywhere, Category = "UV Transform")
+	FVector2D Translation = FVector2D::ZeroVector;
 
 	//
 	// Saved State. These are used internally to support UsePrevious initialization mode
 	//
+
 	UPROPERTY()
 	FVector SavedDimensions = FVector::ZeroVector;
 
 	UPROPERTY()
+	bool bSavedUniformDimensions = false;
+
+	UPROPERTY()
 	FTransform SavedTransform;
 };
-
-
-
-
-/**
- * ExpMap Projection properties
- */
-UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVProjectionToolExpMapProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-public:
-	/** Blend between surface normals and projection normal - ExpMap becomes Planar Projection when value is 1 */
-	UPROPERTY(EditAnywhere, Category = ExpMap, meta = (UIMin = "0", UIMax = "1"))
-	float NormalBlending = 0.0;
-
-	/** Rounds of Smoothing to apply to surface normals before computing ExpMap */
-	UPROPERTY(EditAnywhere, Category = ExpMap, AdvancedDisplay, meta = (UIMin = "0", UIMax = "100"))
-	int SmoothingRounds = 0;
-
-	/** Smoothing Strength for ExpMap Smoothing */
-	UPROPERTY(EditAnywhere, Category = ExpMap, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
-	float SmoothingAlpha = 0.25f;
-};
-
-
-
-/**
- * Cylinder Projection properties
- */
-UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVProjectionToolCylinderProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-public:
-	/** Angle used to determine whether faces should be assigned to cylinder or flat endcaps */
-	UPROPERTY(EditAnywhere, Category = Cylinder, meta = (UIMin = "0", UIMax = "90"))
-	float SplitAngle = 45.0f;
-};
-
-
 
 
 /**
@@ -222,7 +198,7 @@ public:
 
 
 /**
- * Simple Mesh Normal Updating Tool
+ * UV projection tool
  */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UUVProjectionTool : public USingleSelectionMeshEditingTool
@@ -254,12 +230,6 @@ protected:
 	TObjectPtr<UUVProjectionToolProperties> BasicProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UUVProjectionToolExpMapProperties> ExpMapProperties = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<UUVProjectionToolCylinderProperties> CylinderProperties = nullptr;
-
-	UPROPERTY()
 	TObjectPtr<UUVProjectionToolEditActions> EditActions = nullptr;
 
 	UPROPERTY()
@@ -267,7 +237,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
-
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
@@ -284,7 +253,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPreviewGeometry> EdgeRenderer = nullptr;
 
-protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> TriangleROI;
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> VertexROI;
@@ -295,8 +263,10 @@ protected:
 	UE::Geometry::FAxisAlignedBox3d WorldBounds;
 
 	FVector InitialDimensions;
+	bool bInitialUniformDimensions;
 	FTransform InitialTransform;
 	int32 DimensionsWatcher = -1;
+	int32 DimensionsModeWatcher = -1;
 	bool bTransformModified = false;
 	void OnInitializationModeChanged();
 	void ApplyInitializationMode();
@@ -310,11 +280,10 @@ protected:
 
 	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
 
-	void OnProjectionTypeChanged();
 	void OnMaterialSettingsChanged();
 	void OnMeshUpdated(UMeshOpPreviewWithBackgroundCompute* PreviewCompute);
 
-	UE::Geometry::FOrientedBox3d GetProjectionBox();
+	UE::Geometry::FOrientedBox3d GetProjectionBox() const;
 
 
 	//

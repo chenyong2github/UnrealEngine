@@ -12,14 +12,14 @@
 UENUM()
 enum class EUVProjectionMethod : uint8
 {
-	/** Calculate UVs by assigning triangles to faces of a Box, and then apply per-box-face planar projection */
+	/** Calculate UVs by assigning triangles to faces of a box, and then apply per-box-face planar projection */
 	Box,
-	/** Calculate UVs by assigning triangles to Cylinder (radial projection) or Endcaps (planar projection) */
+	/** Calculate UVs by assigning triangles to a cylinder using radial projection or cylinder end caps using planar projection */
 	Cylinder,
-	/** Calculate UVs by projecting to a 3D plane */
+	/** Calculate UVs by projecting to a plane */
 	Plane,
-	/** Calculate UVs by Exponential Map Projection centered at nearest surface point to input 3D plane */
-	ExpMap
+	/** Calculate UVs by Exponential Map projection centered at the surface point nearest to the center of the input plane */
+	ExpMap UMETA(DisplayName = "ExpMap")
 };
 
 namespace UE
