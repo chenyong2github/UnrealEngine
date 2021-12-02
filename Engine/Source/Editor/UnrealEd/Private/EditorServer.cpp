@@ -6461,6 +6461,14 @@ bool UEditorEngine::HandleBugItGoCommand( const TCHAR* Str, FOutputDevice& Ar )
 		}
 	}
 
+	if (GetLevelViewportClients().Num())
+	{
+		// Now that all viewports are at the same position, broadcast the change
+		Loc = GetLevelViewportClients()[0]->GetViewLocation();
+		Rot = GetLevelViewportClients()[0]->GetViewRotation();
+		PostBugItGoCalled.Broadcast(Loc, Rot);
+	}
+
 	RedrawLevelEditingViewports();
 
 	return true;

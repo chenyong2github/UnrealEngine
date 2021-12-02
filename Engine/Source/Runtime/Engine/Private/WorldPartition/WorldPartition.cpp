@@ -41,6 +41,14 @@
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
+
+static int32 GLoadingRangeBugItGo = 12800;
+static FAutoConsoleVariableRef CVarGDefaultLoadingRangeHLOD0(
+	TEXT("wp.Editor.LoadingRangeBugItGo"),
+	GLoadingRangeBugItGo,
+	TEXT("Loading range for BugItGo command."),
+	ECVF_Default
+);
 #endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
@@ -589,6 +597,18 @@ bool UWorldPartition::IsMainWorldPartition() const
 	return World == GetTypedOuter<UWorld>();
 }
 
+void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot)
+{
+#if WITH_EDITOR
+	if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadCells())
+	{
+		const FVector LoadExtent(GLoadingRangeBugItGo, GLoadingRangeBugItGo, WORLD_MAX);
+		const FBox LoadCellsBox(Loc - LoadExtent, Loc + LoadExtent);
+		LoadEditorCells(LoadCellsBox, false);
+	}
+#endif
+}
+
 void UWorldPartition::RegisterDelegates()
 {
 	check(World); 
@@ -602,6 +622,8 @@ void UWorldPartition::RegisterDelegates()
 		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
 
 		FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
+
+		GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
 	}
 #endif
 
@@ -631,6 +653,8 @@ void UWorldPartition::UnregisterDelegates()
 		{
 			FCoreUObjectDelegates::PostReachabilityAnalysis.RemoveAll(this);
 		}
+
+		GEditor->OnPostBugItGoCalled().RemoveAll(this);
 	}
 #endif
 
