@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Subsystems/EditorActorSubsystem.h"
+
 #include "CoreMinimal.h"
 #include "Engine/MeshMerging.h"
 #include "GameFramework/Actor.h"
@@ -21,6 +22,7 @@
 #include "Engine/Selection.h"
 #include "LevelEditorViewport.h"
 #include "Subsystems/EditorElementSubsystem.h"
+#include "UObject/Stack.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementHandle.h"
@@ -472,7 +474,7 @@ AActor* UEditorActorSubsystem::SpawnActorFromClass(TSubclassOf<class AActor> Act
 
 	if (!ActorClass.Get())
 	{
-		UE_LOG(LogUtils, Error, TEXT("SpawnActorFromClass. ActorClass is not valid."));
+		FFrame::KismetExecutionMessage(TEXT("SpawnActorFromClass. ActorClass is not valid."), ELogVerbosity::Error);
 		return nullptr;
 	}
 
@@ -703,6 +705,12 @@ TArray<AActor*> UEditorActorSubsystem::DuplicateActors(const TArray<AActor*>& Ac
 
 bool UEditorActorSubsystem::SetActorTransform(AActor* InActor, const FTransform& InWorldTransform)
 {
+	if (!InActor)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot set the transfrom of a nullptr actor."), ELogVerbosity::Error);
+		return false;
+	}
+
 	if (UEditorElementSubsystem* ElementSubsystem = GEditor->GetEditorSubsystem<UEditorElementSubsystem>())
 	{
 		if (FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor))
@@ -714,11 +722,17 @@ bool UEditorActorSubsystem::SetActorTransform(AActor* InActor, const FTransform&
 	return false;
 }
 
-bool UEditorActorSubsystem::SetComponentTransform(UActorComponent* InActorComponent, const FTransform& InWorldTransform)
+bool UEditorActorSubsystem::SetComponentTransform(USceneComponent* InSceneComponent, const FTransform& InWorldTransform)
 {
+	if (!InSceneComponent)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot set the transform of a nullptr SceneComponent."), ELogVerbosity::Error);
+		return false;
+	}
+
 	if (UEditorElementSubsystem* ElementSubsystem = GEditor->GetEditorSubsystem<UEditorElementSubsystem>())
 	{
-		if (FTypedElementHandle ComponentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(InActorComponent))
+		if (FTypedElementHandle ComponentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(InSceneComponent))
 		{
 			return ElementSubsystem->SetElementTransform(ComponentElementHandle, InWorldTransform);
 		}

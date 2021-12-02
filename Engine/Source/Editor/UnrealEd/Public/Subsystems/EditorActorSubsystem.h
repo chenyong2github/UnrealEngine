@@ -236,7 +236,7 @@ public:
 	 * @returns false if the world transform could not be set.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	bool SetComponentTransform(UActorComponent* InActorComponent, const FTransform& InWorldTransform);
+	bool SetComponentTransform(USceneComponent* InSceneComponent, const FTransform& InWorldTransform);
 
 private:
 
