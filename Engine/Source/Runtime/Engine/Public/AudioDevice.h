@@ -514,7 +514,7 @@ public:
 	/**
 	 * Basic initialization of the platform agnostic layer of the audio system
 	 */
-	bool Init(Audio::FDeviceId InDeviceID, int32 InMaxSources);
+	bool Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 BufferSizeOverride = INDEX_NONE, int32 NumBuffersOverride = INDEX_NONE);
 
 	/**
 	 * Called after FAudioDevice creation and init
