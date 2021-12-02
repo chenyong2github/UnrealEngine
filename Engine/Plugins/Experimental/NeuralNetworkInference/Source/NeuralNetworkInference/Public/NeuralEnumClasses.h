@@ -127,6 +127,8 @@ enum class ENeuralThreadMode : uint8
 
 
 /**
+ * For a general overview of NeuralNetworkInference (NNI), including documentation and code samples, @see UNeuralNetwork, the main class of NNI.
+ *
  * Auxiliary class consisting of static and auxiliary functions for ENeuralDataType.
  */
 class NEURALNETWORKINFERENCE_API FNeuralDataTypeUtils

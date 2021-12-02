@@ -13,7 +13,7 @@
 #include "NeuralTensor.generated.h"
 
 /**
- * @see UNeuralNetwork for general documentation and code samples about the whole NeuralNetworkInference (NNI) plugin.
+ * For a general overview of NeuralNetworkInference (NNI), including documentation and code samples, @see UNeuralNetwork, the main class of NNI.
  *
  * FNeuralTensor is an auxiliary class of UNeuralNetwork which represents a tensor of the UNeuralNetwork model. It is Unreal Engine's equivalent of
  * torch.Tensor (PyTorch) or caffe::Blob.
