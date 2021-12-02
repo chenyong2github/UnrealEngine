@@ -221,6 +221,8 @@ bool UDataLayerSubsystem::IsAnyDataLayerInEffectiveRuntimeState(const TArray<FNa
 
 void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UDataLayerSubsystem::DrawDataLayersStatus);
+
 	if (!Canvas || !Canvas->SceneView)
 	{
 		return;
