@@ -1010,7 +1010,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionImpl(const ENeuralDeviceTyp
 					UploadParameters->Input = InputBufferRef;
 
 					GraphBuilder.AddPass(
-						RDG_EVENT_NAME("NNI:UploadTensor:%s", InputTensor.GetNameData()),
+						RDG_EVENT_NAME("NNI:UploadTensor:%s", *InputTensor.GetName()),
 						FUploadTensorParameters::FTypeInfo::GetStructMetadata(),
 						UploadParameters,
 						ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,

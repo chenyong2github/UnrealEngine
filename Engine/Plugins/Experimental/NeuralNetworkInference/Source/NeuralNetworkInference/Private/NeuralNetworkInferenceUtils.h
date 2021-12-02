@@ -34,7 +34,7 @@ public:
 
 	/**
 	 * It blocks the current thread until the RHI thread has finished all instructions before this point.
-	 * @returns The time it waited.
+	 * @return The time it waited.
 	 */
 	static void WaitUntilRHIFinished();
 };

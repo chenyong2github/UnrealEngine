@@ -323,15 +323,15 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 					{
 						// Is it also an absolute output of the network?
 						const int64 TensorIndex = InOutTensors.Num();
-						ENeuralTensorType TensorTypeGPU = ENeuralTensorType::IntermediateNotInitialized;
+						ENeuralTensorType TensorType = ENeuralTensorType::IntermediateNotInitialized;
 						if (InOutputNameDummyIndexMap.Find(OutputTensorName))
 						{
 							OutputNameIndexMap.Add(OutputTensorName, TensorIndex);
-							TensorTypeGPU = ENeuralTensorType::Output;
+							TensorType = ENeuralTensorType::Output;
 						}
 						// Create tensor
 						InOutNameIndexMap.Add(OutputTensorName, TensorIndex);
-						InOutTensors.Push(FNeuralTensor(ENeuralDataType::Float, TArray<int64>({}), OutputTensorName, TensorTypeGPU));
+						InOutTensors.Push(FNeuralTensor(ENeuralDataType::Float, TArray<int64>({}), OutputTensorName, TensorType));
 						OperatorOutputTensors.Push(&InOutTensors.Last());
 					}
 					// Subcase 3/3: Output tensor is the same than 1 of the input tensors of that operator (inlined operator)
