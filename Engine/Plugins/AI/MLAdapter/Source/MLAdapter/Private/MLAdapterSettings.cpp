@@ -13,7 +13,7 @@ UMLAdapterSettings::UMLAdapterSettings(const FObjectInitializer& ObjectInitializ
 }
 
 TSubclassOf<UMLAdapterManager> UMLAdapterSettings::GetManagerClass()
-{ 
+{
 	const FSoftClassPath LocalClassName = GET_CONFIG_VALUE(ManagerClass);
 	TSubclassOf<UMLAdapterManager> LocalClass = LocalClassName.ResolveClass();
 	return LocalClass;
@@ -37,6 +37,12 @@ TSubclassOf<UMLAdapterAgent> UMLAdapterSettings::GetAgentClass()
 void UMLAdapterSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UMLAdapterSettings, ManagerClass))
+	{
+		UMLAdapterManager::RecreateManagerInstance();
+	}
 }
 #endif // WITH_EDITOR
 

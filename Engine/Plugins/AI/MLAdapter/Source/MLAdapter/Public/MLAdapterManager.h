@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Logging/LogMacros.h"
 #include "Tickable.h"
 #include "Engine/World.h"
@@ -59,6 +60,7 @@ public:
 	// FExec end
 
 	virtual void BindToDelegates();
+	virtual void CleanUpDelegates();
 
 	virtual void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues);
 	virtual void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
@@ -155,11 +157,22 @@ protected:
 	 *	function) the simulation will progress by StepsRequested ticks before pausing */
 	int32 StepsRequested = 0;
 
+	FDelegateHandle OnPostWorldInitializationHandle;
+	FDelegateHandle OnWorldCleanupHandle;
+	FDelegateHandle OnGameModeInitializedHandle;
+	FDelegateHandle OnGameModePostLoginHandle;
+	FDelegateHandle OnGameModeMatchStateSetHandle;
+#if WITH_EDITORONLY_DATA
+	FDelegateHandle BeginPIEHandle;
+	FDelegateHandle EndPIEHandle;
+#endif // WITH_EDITORONLY_DATA
+
 	static UMLAdapterManager* ManagerInstance;
 public:
+	static void RecreateManagerInstance();
+
 	static FOnGenericEvent OnPostInit;
 };
-
 
 //----------------------------------------------------------------------//
 // inlines 

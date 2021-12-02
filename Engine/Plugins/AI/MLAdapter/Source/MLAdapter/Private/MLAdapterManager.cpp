@@ -50,38 +50,42 @@ namespace
 	}
 }
 
-namespace
+void UMLAdapterManager::RecreateManagerInstance()
 {
-	struct FManagerBootloader
+#if WITH_EDITOR
+	if (UMLAdapterManager::IsReady())
 	{
-		FManagerBootloader()
-		{
-			FCoreDelegates::OnPostEngineInit.AddLambda([this]()
-			{
-				OnPostEngineInit();
-			});
-		}
+		UMLAdapterManager& PreviousInstance = UMLAdapterManager::Get();
+		PreviousInstance.ConditionalBeginDestroy();
+	}
+#endif // WITH_EDITOR
 
-		void OnPostEngineInit()
-		{
-			// create the manager instance
-			TSubclassOf<UMLAdapterManager> SettingsManagerClass = UMLAdapterSettings::GetManagerClass().Get();
-			UClass* Class = SettingsManagerClass
-				? SettingsManagerClass.Get()
-				: UMLAdapterManager::StaticClass();
+	TSubclassOf<UMLAdapterManager> SettingsManagerClass = UMLAdapterSettings::GetManagerClass().Get();
+	UClass* Class = SettingsManagerClass
+		? SettingsManagerClass.Get()
+		: UMLAdapterManager::StaticClass();
 
-			UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Creating MLAdapter manager of class %s"), *GetNameSafe(Class));
+	UE_LOG(LogUnrealEditorMLAdapter, Log, TEXT("Creating MLAdapter manager of class %s"), *GetNameSafe(Class));
 
-			UMLAdapterManager* ManagerInstance = NewObject<UMLAdapterManager>(GEngine, Class);
-			check(ManagerInstance);
-			ManagerInstance->AddToRoot();
+	UMLAdapterManager* NewInstance = NewObject<UMLAdapterManager>(GEngine, Class);
+	check(NewInstance);
+	NewInstance->AddToRoot();
 
-			UMLAdapterManager::OnPostInit.Broadcast();
-		}
-	};
-
-	static FManagerBootloader Loader;
+	UMLAdapterManager::OnPostInit.Broadcast();
 }
+
+struct FManagerBootloader
+{
+	FManagerBootloader()
+	{
+		FCoreDelegates::OnPostEngineInit.AddLambda([this]()
+			{
+				UMLAdapterManager::RecreateManagerInstance();
+			});
+	}
+};
+
+static FManagerBootloader Loader;
 
 //----------------------------------------------------------------------//
 // 
@@ -136,6 +140,7 @@ void UMLAdapterManager::BeginDestroy()
 		ManagerInstance = nullptr;
 	}
 	StopServer();
+	CleanUpDelegates();
 	Super::BeginDestroy();
 }
 
@@ -329,19 +334,33 @@ void UMLAdapterManager::BindToDelegates()
 	//  FWorldDelegates::OnPostWorldCreation;
 	//	FWorldDelegates::OnPreWorldInitialization; 
 
-	FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UMLAdapterManager::OnPostWorldInit);
-	FWorldDelegates::OnWorldCleanup.AddUObject(this, &UMLAdapterManager::OnWorldCleanup);
+	OnPostWorldInitializationHandle = FWorldDelegates::OnPostWorldInitialization.AddUObject(this, &UMLAdapterManager::OnPostWorldInit);
+	OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddUObject(this, &UMLAdapterManager::OnWorldCleanup);
 
 	//FGameDelegates
-	FGameModeEvents::OnGameModeInitializedEvent().AddUObject(this, &UMLAdapterManager::OnGameModeInitialized);
+	OnGameModeInitializedHandle = FGameModeEvents::OnGameModeInitializedEvent().AddUObject(this, &UMLAdapterManager::OnGameModeInitialized);
 	// FGameModePreLoginEvent GameModePreLoginEvent;
-	FGameModeEvents::OnGameModePostLoginEvent().AddUObject(this, &UMLAdapterManager::OnGameModePostLogin);
+	OnGameModePostLoginHandle = FGameModeEvents::OnGameModePostLoginEvent().AddUObject(this, &UMLAdapterManager::OnGameModePostLogin);
 	// FGameModeLogoutEvent GameModeLogoutEvent;
-	FGameModeEvents::OnGameModeMatchStateSetEvent().AddUObject(this, &UMLAdapterManager::OnGameModeMatchStateSet);
+	OnGameModeMatchStateSetHandle = FGameModeEvents::OnGameModeMatchStateSetEvent().AddUObject(this, &UMLAdapterManager::OnGameModeMatchStateSet);
 
 #if WITH_EDITORONLY_DATA
-	FEditorDelegates::BeginPIE.AddUObject(this, &UMLAdapterManager::OnBeginPIE);
-	FEditorDelegates::EndPIE.AddUObject(this, &UMLAdapterManager::OnEndPIE);
+	BeginPIEHandle = FEditorDelegates::BeginPIE.AddUObject(this, &UMLAdapterManager::OnBeginPIE);
+	EndPIEHandle = FEditorDelegates::EndPIE.AddUObject(this, &UMLAdapterManager::OnEndPIE);
+#endif // WITH_EDITORONLY_DATA
+}
+
+void UMLAdapterManager::CleanUpDelegates()
+{
+	FWorldDelegates::OnPostWorldInitialization.Remove(OnPostWorldInitializationHandle);
+	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
+	FGameModeEvents::OnGameModeInitializedEvent().Remove(OnGameModeInitializedHandle);
+	FGameModeEvents::OnGameModePostLoginEvent().Remove(OnGameModePostLoginHandle);
+	FGameModeEvents::OnGameModeMatchStateSetEvent().Remove(OnGameModeMatchStateSetHandle);
+
+#if WITH_EDITORONLY_DATA
+	FEditorDelegates::BeginPIE.Remove(BeginPIEHandle);
+	FEditorDelegates::EndPIE.Remove(EndPIEHandle);
 #endif // WITH_EDITORONLY_DATA
 }
 
