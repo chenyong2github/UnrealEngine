@@ -12,7 +12,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMeshUVChannelProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UMeshUVChannelProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
