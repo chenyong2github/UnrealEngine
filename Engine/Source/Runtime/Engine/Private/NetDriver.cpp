@@ -2313,12 +2313,6 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 #endif
 
-	TArray<NetDriverInternal::FAutoDestructProperty> LocalOutParms;
-	if (Stack == nullptr)
-	{
-		LocalOutParms = NetDriverInternal::CopyOutParametersToLocalParameters(Function, OutParms, Parms, TargetObj);
-	}
-
 	bool LogAsWarning = (GNetRPCDebug == 1);
 	if (LogAsWarning)
 	{
@@ -6211,6 +6205,15 @@ void UNetDriver::ProcessRemoteFunction(
 		const bool bIsServerMulticast = bIsServer && (Function->FunctionFlags & FUNC_NetMulticast);
 
 		++TotalRPCsCalled;
+
+		// Copy Any Out Params to Local Params 
+		TArray<NetDriverInternal::FAutoDestructProperty> LocalOutParms;
+		if (Stack == nullptr)
+		{
+			// If we have a subobject, thats who we are actually calling this on. If no subobject, we are calling on the actor.
+			UObject* TargetObj = SubObject ? SubObject : Actor;
+			LocalOutParms = NetDriverInternal::CopyOutParametersToLocalParameters(Function, OutParms, Parameters, TargetObj);
+		}
 
 		// Forward to replication Driver if there is one
 		if (ReplicationDriver && ReplicationDriver->ProcessRemoteFunction(Actor, Function, Parameters, OutParms, Stack, SubObject))
