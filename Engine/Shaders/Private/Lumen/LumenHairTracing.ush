@@ -25,7 +25,8 @@ void TraceHairScreen(
 	float NumThicknessStepsToDetermineCertainty,
 	inout bool bHit,
 	inout bool bUncertain,
-	inout float3 OutScreenUV)
+	inout float3 OutScreenUV,
+	inout float OutHitTileZ)
 {
 	InternalTraceScreen(
 		HairStrands.HairOnlyDepthTexture,
@@ -41,7 +42,8 @@ void TraceHairScreen(
 		NumThicknessStepsToDetermineCertainty,
 		bHit,
 		bUncertain,
-		OutScreenUV);
+		OutScreenUV,
+		OutHitTileZ);
 }
 #endif
 

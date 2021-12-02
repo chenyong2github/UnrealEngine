@@ -498,6 +498,38 @@ FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 }
 
 
+class FCopyDepthCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyDepthCS)
+	SHADER_USE_PARAMETER_STRUCT(FCopyDepthCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWDepth)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static int32 GetGroupSize() 
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCopyDepthCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "CopyDepthCS", SF_Compute);
+
+
 class FScreenProbeDownsampleDepthUniformCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenProbeDownsampleDepthUniformCS)
@@ -1076,7 +1108,7 @@ void UpdateHistoryScreenProbeGather(
 
 			{
 				FRDGTextureRef OldRoughSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*RoughSpecularIndirectHistoryState);
-				FRDGTextureRef OldDepthHistory = View.PrevViewInfo.DepthBuffer ? GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer) : SceneTextures.Depth.Target;
+				FRDGTextureRef OldDepthHistory = View.ViewState->Lumen.DepthHistoryRT ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.DepthHistoryRT) : SceneTextures.Depth.Target;
 				FRDGTextureRef OldHistoryConvergence = GraphBuilder.RegisterExternalTexture(*HistoryConvergenceState);
 
 				FScreenProbeTemporalReprojectionDepthRejectionCS::FPermutationDomain PermutationVector;
@@ -1162,6 +1194,33 @@ void UpdateHistoryScreenProbeGather(
 	else
 	{
 		// Temporal reprojection is disabled or there is no view state - pass through
+	}
+}
+
+void FDeferredShadingSceneRenderer::StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View)
+{
+	if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+	{
+		FRDGTextureDesc DepthDesc = SceneTextures.Depth.Resolve->Desc;
+
+		FRDGTextureDesc NewDepthHistoryDesc = FRDGTextureDesc::Create2D(DepthDesc.Extent, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+		FRDGTextureRef NewDepthHistory = GraphBuilder.CreateTexture(NewDepthHistoryDesc, TEXT("Lumen.DepthHistory"));
+
+		FCopyDepthCS::FPermutationDomain PermutationVector;
+		auto ComputeShader = View.ShaderMap->GetShader<FCopyDepthCS>(PermutationVector);
+
+		FCopyDepthCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyDepthCS::FParameters>();
+		PassParameters->RWDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewDepthHistory));
+		PassParameters->SceneDepthTexture = SceneTextures.Depth.Resolve;
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("CopyDepth"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FCopyDepthCS::GetGroupSize()));
+
+		GraphBuilder.QueueTextureExtraction(NewDepthHistory, &View.ViewState->Lumen.DepthHistoryRT);
 	}
 }
 

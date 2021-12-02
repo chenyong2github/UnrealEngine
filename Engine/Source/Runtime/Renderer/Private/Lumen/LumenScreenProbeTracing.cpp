@@ -47,6 +47,14 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherRelativeDepthThickness(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenScreenProbeGatherHistoryDepthTestRelativeThickness = .1f;
+FAutoConsoleVariableRef GVarLumenScreenProbeGatherHistoryDepthTestRelativeThickness(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.HistoryDepthTestRelativeThickness"),
+	GLumenScreenProbeGatherHistoryDepthTestRelativeThickness,
+	TEXT("Distance between HZB trace hit and previous frame scene depth from which to allow hits, as a relative depth threshold."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty = 4;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty(
 	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.HZBTraversal.NumThicknessStepsToDetermineCertainty"),
@@ -123,6 +131,7 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, LightingChannelsTexture)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
 		SHADER_PARAMETER(float, RelativeDepthThickness)
+		SHADER_PARAMETER(float, HistoryDepthTestRelativeThickness)
 		SHADER_PARAMETER(float, NumThicknessStepsToDetermineCertainty)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -477,6 +486,7 @@ void TraceScreenProbes(
 		PassParameters->LightingChannelsTexture = LightingChannelsTexture;
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->RelativeDepthThickness = GLumenScreenProbeGatherRelativeDepthThickness;
+		PassParameters->HistoryDepthTestRelativeThickness = GLumenScreenProbeGatherHistoryDepthTestRelativeThickness;
 		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
 
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;

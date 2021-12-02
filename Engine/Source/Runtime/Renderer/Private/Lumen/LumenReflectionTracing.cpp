@@ -40,6 +40,14 @@ FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceRelativeDepthT
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness = .01f;
+FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness(
+	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.HistoryDepthTestRelativeThickness"),
+	GLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness,
+	TEXT("Distance between HZB trace hit and previous frame scene depth from which to allow hits, as a relative depth threshold."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenReflectionHairStrands_VoxelTrace = 1;
 FAutoConsoleVariableRef GVarLumenReflectionHairStrands_VoxelTrace(
 	TEXT("r.Lumen.Reflections.HairStrands.VoxelTrace"),
@@ -106,6 +114,7 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
 		SHADER_PARAMETER(float, RelativeDepthThickness)
+		SHADER_PARAMETER(float, HistoryDepthTestRelativeThickness)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -481,12 +490,21 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 			-ViewportExtent.Y * 0.5f * InvBufferSize.Y,
 			(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,
 			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSize.Y);
+
+		FIntPoint ViewportOffsetForDepth = View.PrevViewInfo.ViewRect.Min;
+		FIntPoint ViewportExtentForDepth = View.PrevViewInfo.ViewRect.Size();
+
+		Parameters.PrevScreenPositionScaleBiasForDepth = FVector4(
+			ViewportExtentForDepth.X * 0.5f * InvBufferSize.X,
+			-ViewportExtentForDepth.Y * 0.5f * InvBufferSize.Y,
+			(ViewportExtentForDepth.X * 0.5f + ViewportOffsetForDepth.X) * InvBufferSize.X,
+			(ViewportExtentForDepth.Y * 0.5f + ViewportOffsetForDepth.Y) * InvBufferSize.Y);
 	}
 
 	Parameters.PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
 
 	Parameters.PrevSceneColorTexture = InputColor;
-	Parameters.HistorySceneDepth = View.PrevViewInfo.DepthBuffer ? GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer) : SceneTextures.Depth.Target;
+	Parameters.HistorySceneDepth = View.ViewState->Lumen.DepthHistoryRT ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.DepthHistoryRT) : SceneTextures.Depth.Target;
 
 	checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
 	Parameters.ClosestHZBTexture = View.ClosestHZB;
@@ -547,6 +565,7 @@ void TraceReflections(
 
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenReflectionHierarchicalScreenTracesMaxIterations;
 		PassParameters->RelativeDepthThickness = GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold;
+		PassParameters->HistoryDepthTestRelativeThickness = GLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness;
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
