@@ -8,6 +8,7 @@
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 #include "Views/Details/DisplayClusterRootActorDetailsCustomization.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingCommands.h"
+#include "DisplayClusterConfiguratorLog.h"
 
 #include "Views/Details/DisplayClusterConfiguratorBaseTypeCustomization.h"
 #include "Views/Details/DisplayClusterEditorPropertyReferenceTypeCustomization.h"
@@ -37,6 +38,9 @@
 #include "AssetTypeCategories.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
+#include "IPlacementModeModule.h"
+#include "IVPUtilitiesEditorModule.h"
+#include "ActorFactories/ActorFactoryBlueprint.h"
 
 #define REGISTER_PROPERTY_LAYOUT(PropertyType, CustomizationType) { \
 	const FName LayoutName = PropertyType::StaticStruct()->GetFName(); \
@@ -83,6 +87,7 @@ void FDisplayClusterConfiguratorModule::StartupModule()
 
 	RegisterCustomLayouts();
 	RegisterSettings();
+	RegisterPlacementModeItems();
 	
 	FDisplayClusterConfiguratorStyle::Initialize();
 
@@ -119,6 +124,7 @@ void FDisplayClusterConfiguratorModule::ShutdownModule()
 
 	UnregisterSettings();
 	UnregisterCustomLayouts();
+	UnregisterPlacementModeItems();
 
 	FDisplayClusterConfiguratorStyle::Shutdown();
 	MenuExtensibilityManager.Reset();
@@ -213,6 +219,74 @@ void FDisplayClusterConfiguratorModule::UnregisterCustomLayouts()
 	}
 
 	RegisteredPropertyLayoutNames.Empty();
+}
+
+void FDisplayClusterConfiguratorModule::RegisterPlacementModeItems()
+{
+	auto RegisterPlaceActors = [&]() -> void
+	{
+		if (!GEditor)
+		{
+			return;
+		}
+		
+		const FPlacementCategoryInfo* Info = IVPUtilitiesEditorModule::Get().GetVirtualProductionPlacementCategoryInfo();
+		if (!Info)
+		{
+			UE_LOG(DisplayClusterConfiguratorLog, Warning, TEXT("Could not find or create VirtualProduction Place Actor Category"));
+			return;
+		}
+
+		FAssetData LightCardAssetData(
+			TEXT("/nDisplay/LightCard/LightCard"),
+			TEXT("/nDisplay/LightCard"),
+			TEXT("LightCard"),
+			TEXT("Blueprint")
+		);
+		check (LightCardAssetData.IsValid());
+	
+		PlaceActors.Add(IPlacementModeModule::Get().RegisterPlaceableItem(Info->UniqueHandle, MakeShared<FPlaceableItem>(
+			*UActorFactoryBlueprint::StaticClass(),
+			LightCardAssetData,
+			NAME_None,
+			NAME_None,
+			TOptional<FLinearColor>(),
+			TOptional<int32>(),
+			NSLOCTEXT("PlacementMode", "LightCard", "LightCard")
+		)));
+	};
+
+	if (GEngine && GEngine->IsInitialized())
+	{
+		RegisterPlaceActors();
+	}
+	else
+	{
+		PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddLambda(RegisterPlaceActors);
+	}
+}
+
+void FDisplayClusterConfiguratorModule::UnregisterPlacementModeItems()
+{
+	if (!IsEngineExitRequested() && GEditor && UObjectInitialized())
+	{
+		IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+
+		for (TOptional<FPlacementModeID>& PlaceActor : PlaceActors)
+		{
+			if (PlaceActor.IsSet())
+			{
+				PlacementModeModule.UnregisterPlaceableItem(*PlaceActor);
+			}
+		}
+	}
+
+	if (PostEngineInitHandle.IsValid())
+	{
+		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+	}
+	
+	PlaceActors.Empty();
 }
 
 TSharedPtr<FKismetCompilerContext> FDisplayClusterConfiguratorModule::GetCompilerForDisplayClusterBP(UBlueprint* BP,

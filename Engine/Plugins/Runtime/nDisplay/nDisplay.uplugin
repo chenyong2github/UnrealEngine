@@ -136,6 +136,10 @@
 		{
 			"Name": "ConcertSyncClient",
 			"Enabled": true
+		},
+		{
+			"Name": "VirtualProductionUtilities",
+			"Enabled": true
 		}
 	]
 }
