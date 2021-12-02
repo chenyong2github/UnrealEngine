@@ -65,14 +65,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 			FRadianceCacheCoverage Coverage;
 			Coverage.bValid = false;
 
-#if USE_RADIANCE_CACHE
-			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+			#if USE_RADIANCE_CACHE
+				Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
 				
-			if (Coverage.bValid)
-			{
-				TraceDistance = min(TraceDistance, Coverage.MinTraceDistanceBeforeInterpolation);
-			}
-#endif
+				if (Coverage.bValid)
+				{
+					TraceDistance = min(TraceDistance, Coverage.MinTraceDistanceBeforeInterpolation);
+				}
+			#endif
+
 			RayDesc Ray;
 			Ray.Origin = WorldPosition;
 			Ray.Direction = WorldConeDirection;
@@ -86,16 +87,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 			const bool bCullBackFacingTriangles = false;
 			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, GridCoordinate.xy, LinearCoord, bCullBackFacingTriangles);
 
-			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE);
-
-			if (bUseMinimalPayload)
-			{
-				TraceLightingResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
-			}
-			else
-			{
-				TraceLightingResult = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
-			}
+			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
+				{
+					TraceLightingResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+				}
+			#else
+				{
+					TraceLightingResult = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
+				}
+			#endif
 
 			if (!TraceLightingResult.bIsHit)
 			{

@@ -18,6 +18,7 @@ RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
 float PullbackBias;
 float NormalBias;
+float AvoidSelfIntersectionTraceDistance;
 uint CullBackFacingTriangles;
 int MaxTranslucentSkipCount; 
 
@@ -28,11 +29,12 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 	uint2 DispatchThreadId = DispatchRaysIndex().xy;
 
 	FDeferredMaterialPayload DeferredMaterialPayload;
-	if (DIM_DEFERRED_MATERIAL_MODE)
+	#if (DIM_DEFERRED_MATERIAL_MODE)
 	{
 		DeferredMaterialPayload = DeferredMaterialBuffer[DispatchRaysIndex().x];
 		DispatchThreadId = uint2(DeferredMaterialPayload.PixelCoordinates, 0);
 	}
+	#endif
 
 	if (DispatchThreadId.x >= CompactedTraceTexelAllocator[0])
 	{
@@ -50,104 +52,115 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
 	uint2 ScreenProbeTracingCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
 
-	if (DIM_DEFERRED_MATERIAL_MODE)
+	#if DIM_DEFERRED_MATERIAL_MODE
 	{
 		TraceHitDistance = DeferredMaterialPayload.HitT;
 
-		if (DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID)
+		if (DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID || DeferredMaterialPayload.SortKey == RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS)
 		{
 			bool bHit = false;
 			RWTraceHit[ScreenProbeTracingCoord] = EncodeProbeRayDistance(MaxTraceDistance, bHit, false);
 			return;
 		}
 	}
+	#endif
 
+	float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
+	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
+	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+	float3 WorldNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
+
+	float2 ProbeUV;
+	float ConeHalfAngle;
+	GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
+	float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
+
+	RayDesc Ray;
+	Ray.Origin = WorldPosition;
+	Ray.Direction = WorldConeDirection;
+	Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
+	Ray.TMax = AvoidSelfIntersectionTraceDistance;
+
+	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
+
+	FRayCone RayCone = (FRayCone)0;
+	RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
+
+	bool bCullBackfacingTriangles = true;
+
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(
+		TLAS,
+		RayCone,
+		ScreenTileCoord,
+		ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
+		bCullBackfacingTriangles,
+		MaxTranslucentSkipCount);
+	Context.bCalculateHitVelocity = true;
+
+	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
+
+	if (Ray.TMax > Ray.TMin)
 	{
-		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
-		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
-		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-		float3 WorldNormal = GetScreenProbeNormal(ScreenProbeAtlasCoord);
-
-		bool bHit = false;
-		bool bMoving = false;
+		// First trace - short distance with backface culling enabled to avoid self intersecting in cases where the traced geometry doesn't match what's in the GBuffer (Nanite, Ray Tracing LODs, etc)
+		#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE && (DIM_DEFERRED_MATERIAL_MODE == 0)
 		{
-			float2 ProbeUV;
-			float ConeHalfAngle;
-			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
-			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
-
-			RayDesc Ray;
-			Ray.Origin = WorldPosition;
-			Ray.Direction = WorldConeDirection;
-			Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
-			Ray.TMax = MaxTraceDistance;
-
-			ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
-
-			FRayCone RayCone = (FRayCone)0;
-			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
-
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(
-				TLAS,
-				RayCone,
-				ScreenTileCoord,
-				ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
-				CullBackFacingTriangles > 0,
-				MaxTranslucentSkipCount);
-			Context.bCalculateHitVelocity = true;
-
-			bool bTraceRay = true;
-			if (DIM_DEFERRED_MATERIAL_MODE)
-			{
-				bTraceRay = DeferredMaterialPayload.SortKey < RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
-				if (bTraceRay)
-				{
-					float Epsilon = 0.5;
-					Ray.TMin = max(0, DeferredMaterialPayload.HitT - Epsilon);
-					// Note: adjusting TMax will not properly account for masked materials because of restricted any-hit length
-					//Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
-				}
-			}
-
-			if (DIM_RADIANCE_CACHE)
-			{
-				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
-				
-				if (Coverage.bValid)
-				{
-					Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
-				}
-			}
-
-			float3 Radiance = 0.0;
-			if (bTraceRay)
-			{
-				FRayTracedLightingResult Result;
-				bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
-				if (bUseMinimalPayload)
-				{
-					Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
-
-					if (Result.bIsHit)
-					{
-						float3 HitWorldPosition = Ray.Origin + Ray.Direction * TraceHitDistance;
-						bMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitWorldPosition, Result.WorldVelocity);
-					}
-				}
-				else
-				{
-					Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
-				}
-				bHit = Result.bIsHit;
-				TraceHitDistance = Result.TraceHitDistance;
-				Radiance = Result.Radiance;
-			}
-			Radiance *= View.PreExposure;
-			RWTraceRadiance[ScreenProbeTracingCoord] = Radiance;
+			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 		}
-
-		RWTraceHit[ScreenProbeTracingCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit, bMoving);
+		#else
+		{
+			Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
+		}
+		#endif
 	}
+
+	if (!Result.bIsHit)
+	{
+		// Second trace - trace the rest of the ray with backface culling disabled to reduce leaking from rays that start inside the mesh
+		Context.bCullBackFacingTriangles = false;
+		Ray.TMin = max(Ray.TMin, AvoidSelfIntersectionTraceDistance);
+		Ray.TMax = MaxTraceDistance;
+
+		#if DIM_RADIANCE_CACHE
+		{
+			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(Ray.Origin, Ray.Direction);
+				
+			if (Coverage.bValid)
+			{
+				Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
+			}
+		}
+		#endif
+
+		#if DIM_DEFERRED_MATERIAL_MODE
+		{
+			float Epsilon = 0.5;
+			Ray.TMin = max(0, DeferredMaterialPayload.HitT - Epsilon);
+			// Note: adjusting TMax will not properly account for masked materials because of restricted any-hit length
+			//Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
+		}
+		#endif
+
+		#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE && (DIM_DEFERRED_MATERIAL_MODE == 0)
+		{
+			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+		}
+		#else
+		{
+			Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
+		}
+		#endif
+	}
+
+	bool bMoving = false;
+
+	if (Result.bIsHit)
+	{
+		float3 HitWorldPosition = Ray.Origin + Ray.Direction * Result.TraceHitDistance;
+		bMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitWorldPosition, Result.WorldVelocity);
+	}
+
+	RWTraceRadiance[ScreenProbeTracingCoord] = Result.Radiance * View.PreExposure;
+	RWTraceHit[ScreenProbeTracingCoord] = EncodeProbeRayDistance(Result.TraceHitDistance, Result.bIsHit, bMoving);
 }
 
 RWStructuredBuffer<FDeferredMaterialPayload> RWDeferredMaterialBuffer;
@@ -208,8 +221,10 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 	RayCone = PropagateRayCone(RayCone, ConeHalfAngle, SceneDepth);
 
+	//@todo - implement AvoidSelfIntersectionTraceDistance
+	bool bCullBackfacingTriangles = true;
 	uint LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
-	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ScreenTileCoord, LinearCoord, CullBackFacingTriangles > 0);
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ScreenTileCoord, LinearCoord, bCullBackfacingTriangles);
 
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
