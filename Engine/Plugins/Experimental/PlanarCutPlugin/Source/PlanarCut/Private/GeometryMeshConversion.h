@@ -80,13 +80,14 @@ struct PLANARCUT_API FCellMeshes
 		}
 	}
 
-	FCellMeshes(int32 NumUVLayers)
+	FCellMeshes(int32 NumUVLayers, FRandomStream& RandomStream)
 	{
-		InitEmpty();
+		InitEmpty(RandomStream);
 	}
 
-	FCellMeshes(int32 NumUVLayers, const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
+	FCellMeshes(int32 NumUVLayers, FRandomStream& RandomStream, const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
 
+	// Note: RandomStream not required for this constructor because noise is not supported in this case
 	FCellMeshes(int32 NumUVLayers, UE::Geometry::FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform);
 
 	// Special function to just make the "grout" part of the planar mesh cells
@@ -121,15 +122,15 @@ struct PLANARCUT_API FCellMeshes
 		return MaterialID >= 0 ? -1 : -(MaterialID + 1);
 	}
 
-	void InitEmpty()
+	void InitEmpty(FRandomStream& RandomStream)
 	{
-		NoiseOffsetX = FMath::VRand() * 100;
-		NoiseOffsetY = FMath::VRand() * 100;
-		NoiseOffsetZ = FMath::VRand() * 100;
+		NoiseOffsetX = RandomStream.VRand() * 100;
+		NoiseOffsetY = RandomStream.VRand() * 100;
+		NoiseOffsetZ = RandomStream.VRand() * 100;
 		OutsideCellIndex = -1;
 	}
 
-	void Init(int32 NumUVLayersIn, const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
+	void Init(int32 NumUVLayersIn, FRandomStream& RandomStream, const FPlanarCells& Cells, UE::Geometry::FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell);
 
 	void ApplyGeneralGrout(double Grout);
 
@@ -218,6 +219,7 @@ struct PLANARCUT_API FDynamicMeshCollection
 		const TArrayView<const FPlane>& Planes,
 		double Grout,
 		double CollisionSampleSpacing,
+		int32 RandomSeed,
 		FGeometryCollection* Collection,
 		FInternalSurfaceMaterials& InternalSurfaceMaterials,
 		bool bSetDefaultInternalMaterialsFromCollection

@@ -1171,9 +1171,9 @@ void SetGeometryCollectionAttributes(FDynamicMesh3& Mesh, int32 NumUVLayers)
 }
 
 
-FCellMeshes::FCellMeshes(int32 NumUVLayersIn, const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
+FCellMeshes::FCellMeshes(int32 NumUVLayersIn, FRandomStream& RandomStream, const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
 {
-	Init(NumUVLayersIn, Cells, DomainBounds, Grout, ExtendDomain, bIncludeOutsideCell);
+	Init(NumUVLayersIn, RandomStream, Cells, DomainBounds, Grout, ExtendDomain, bIncludeOutsideCell);
 }
 
 
@@ -1327,10 +1327,10 @@ void FCellMeshes::ApplyNoise(FDynamicMesh3& Mesh, FVector3d Normal, const FNoise
 }
 
 
-void FCellMeshes::Init(int32 NumUVLayersIn, const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
+void FCellMeshes::Init(int32 NumUVLayersIn, FRandomStream& RandomStream, const FPlanarCells& Cells, FAxisAlignedBox3d DomainBounds, double Grout, double ExtendDomain, bool bIncludeOutsideCell)
 {
 	NumUVLayers = NumUVLayersIn;
-	InitEmpty();
+	InitEmpty(RandomStream);
 
 	float GlobalUVScale = Cells.InternalSurfaceMaterials.GlobalUVScale;
 	if (!ensure(GlobalUVScale > 0))
@@ -2218,6 +2218,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 	const TArrayView<const FPlane>& Planes,
 	double Grout,
 	double CollisionSampleSpacing,
+	int32 RandomSeed,
 	FGeometryCollection* Collection,
 	FInternalSurfaceMaterials& InternalSurfaceMaterials,
 	bool bSetDefaultInternalMaterialsFromCollection
@@ -2243,6 +2244,8 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 
 	int32 NumUVLayers = Collection->NumUVLayers();
 
+	FRandomStream RandomStream(RandomSeed);
+
 	if (bHasGrout)
 	{
 		// For multi-plane cuts with grout specifically, the easiest path seems to be:
@@ -2251,7 +2254,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		// 3. Use the generic CutWithCellMeshes path, where that grout mesh is both the inner and outside cell mesh
 		//    (Note the outside cell mesh is subtracted, not intersected)
 		//    (Note this relies on island splitting to separate all the pieces afterwards.)
-		FCellMeshes GroutCells(NumUVLayers);
+		FCellMeshes GroutCells(NumUVLayers, RandomStream);
 		GroutCells.SetNumCells(2);
 		FDynamicMesh3& GroutMesh = GroutCells.CellMeshes[0].AugMesh;
 		FDynamicMeshEditor GroutAppender(&GroutMesh);
@@ -2261,7 +2264,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 			EnterProgressFrame(.5);
 			FPlanarCells PlaneCells(Planes[PlaneIdx]);
 			PlaneCells.InternalSurfaceMaterials = InternalSurfaceMaterials;
-			FCellMeshes PlaneGroutMesh(NumUVLayers);
+			FCellMeshes PlaneGroutMesh(NumUVLayers, RandomStream);
 			PlaneGroutMesh.MakeOnlyPlanarGroutCell(PlaneCells, Bounds, Grout);
 			GroutAppender.AppendMesh(&PlaneGroutMesh.CellMeshes[0].AugMesh, IndexMaps);
 		}
@@ -2367,7 +2370,7 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 		FPlanarCells PlaneCells(Planes[PlaneIdx]);
 		PlaneCells.InternalSurfaceMaterials = InternalSurfaceMaterials;
 		double OnePercentExtend = Bounds.MaxDim() * .01;
-		FCellMeshes CellMeshes(NumUVLayers, PlaneCells, Bounds, 0, OnePercentExtend, false);
+		FCellMeshes CellMeshes(NumUVLayers, RandomStream, PlaneCells, Bounds, 0, OnePercentExtend, false);
 
 		// TODO: we could do these cuts in parallel (will takes some rework of the proximity and how results are added to the ToCut array)
 		for (int32 ToCutIdx = 0, ToCutNum = ToCut.Num(); ToCutIdx < ToCutNum; ToCutIdx++)
