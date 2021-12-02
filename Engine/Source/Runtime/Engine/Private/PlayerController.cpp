@@ -2308,7 +2308,7 @@ bool APlayerController::InputKey(const FInputKeyParams& Params)
 		if (GEngine->XRSystem.IsValid())
 		{
 			auto XRInput = GEngine->XRSystem->GetXRInput();
-			if (XRInput && XRInput->HandleInputKey(PlayerInput, Params.Key, Params.Event, Params.Delta.X, Params.Key.IsGamepadKey()))
+			if (XRInput && XRInput->HandleInputKey(PlayerInput, Params.Key, Params.Event, Params.Delta.X, Params.IsGamepad()))
 			{
 				return true;
 			}
