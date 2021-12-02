@@ -52,6 +52,8 @@ void FUVEditorCommands::RegisterCommands()
 
 	UI_COMMAND(EnableOrbitCamera, "Orbit", "Enable Orbit Camera", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(EnableFlyCamera, "Fly", "Enable Fly Camera", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleBackground, "Toggle Background", "Toggle the display of the background", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::B));
 }
+
 
 #undef LOCTEXT_NAMESPACE
