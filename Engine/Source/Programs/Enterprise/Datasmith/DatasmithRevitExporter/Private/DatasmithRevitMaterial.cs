@@ -1783,13 +1783,17 @@ namespace DatasmithRevitExporter
 			string in_propertyName
 		)
         {
-			// DebugLog.AddLine($"Texture Property {in_propertyName}");
-
 			AssetProperty textureProperty = in_asset.FindByName(in_propertyName);
 
 			if (textureProperty != null)
 			{
-				Asset unifiedBitmapAsset = textureProperty.GetSingleConnectedAsset();
+				Asset unifiedBitmapAsset = null;
+
+				try
+				{
+					unifiedBitmapAsset = textureProperty.GetSingleConnectedAsset();
+				}
+				catch {}
 
 				if (unifiedBitmapAsset != null)
 				{
@@ -1798,8 +1802,6 @@ namespace DatasmithRevitExporter
 					if (sourceProperty != null)
 					{
 						string sourcePath = (sourceProperty as AssetPropertyString).Value;
-
-						// DebugLog.AddLine($"Texture path: {sourcePath}");
 
 						if (!string.IsNullOrEmpty(sourcePath))
 						{
