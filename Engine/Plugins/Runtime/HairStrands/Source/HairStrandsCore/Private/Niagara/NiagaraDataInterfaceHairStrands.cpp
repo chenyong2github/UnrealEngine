@@ -697,7 +697,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 				DeformedMeshProjection->MeshSampleWeightsBuffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 
 			// Simulation setup
-			const int32 NeedResetValue = bHasLODSwitched || (ProxyData->TickCount <= GHairSimulationMaxDelay);
+			const int32 NeedResetValue = (ProxyData->TickCount <= GHairSimulationMaxDelay);
 			const int32 RestUpdateValue = GHairSimulationRestUpdate;
 			const int32 LocalSimulationValue = ProxyData->LocalSimulation;
 			
