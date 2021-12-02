@@ -16,7 +16,7 @@
 #include "RecomputeUVsTool.generated.h"
 
 
-// predeclarations
+// Forward declarations
 class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
@@ -28,7 +28,7 @@ class URecomputeUVsOpFactory;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URecomputeUVsToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLS_API URecomputeUVsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ public:
  * URecomputeUVsTool Recomputes UVs based on existing segmentations of the mesh
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URecomputeUVsTool : public USingleSelectionMeshEditingTool
+class MESHMODELINGTOOLS_API URecomputeUVsTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -80,13 +80,10 @@ protected:
 	UPROPERTY()
 	TObjectPtr<URecomputeUVsOpFactory> RecomputeUVsOpFactory;
 
-protected:
 	UPROPERTY()
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
-protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
-
 
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();

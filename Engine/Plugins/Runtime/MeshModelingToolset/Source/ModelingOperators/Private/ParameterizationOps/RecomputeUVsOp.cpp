@@ -383,56 +383,61 @@ bool FRecomputeUVsOp::CalculateResult_RegionOptimization(FProgressCancel* Progre
 
 TUniquePtr<FDynamicMeshOperator> URecomputeUVsOpFactory::MakeNewOperator()
 {
-	FAxisAlignedBox3d MeshBounds = OriginalMesh->GetBounds();
 	TUniquePtr<FRecomputeUVsOp> RecomputeUVsOp = MakeUnique<FRecomputeUVsOp>();
+
 	RecomputeUVsOp->InputMesh = OriginalMesh;
 	RecomputeUVsOp->InputGroups = InputGroups;
 	RecomputeUVsOp->UVLayer = GetSelectedUVChannel();
 
-	RecomputeUVsOp->IslandMode = (UE::Geometry::ERecomputeUVsIslandMode)(int)Settings->IslandMode;
-	RecomputeUVsOp->UnwrapType = (UE::Geometry::ERecomputeUVsUnwrapType)(int)Settings->UnwrapType;
+	RecomputeUVsOp->IslandMode = static_cast<ERecomputeUVsIslandMode>(Settings->IslandGeneration);
 
-	RecomputeUVsOp->bAutoRotate = (Settings->AutoRotation == ERecomputeUVsToolOrientationMode::MinBoxBounds);
+	switch (Settings->UnwrapType)
+	{
+	case ERecomputeUVsPropertiesUnwrapType::ExpMap:
+		RecomputeUVsOp->UnwrapType = ERecomputeUVsUnwrapType::ExpMap;
+		RecomputeUVsOp->bMergingOptimization = false;
+		break;
+	case ERecomputeUVsPropertiesUnwrapType::Conformal:
+		RecomputeUVsOp->UnwrapType = ERecomputeUVsUnwrapType::ConformalFreeBoundary;
+		RecomputeUVsOp->bMergingOptimization = false;
+		break;
+	case ERecomputeUVsPropertiesUnwrapType::IslandMerging:
+		RecomputeUVsOp->UnwrapType = ERecomputeUVsUnwrapType::ExpMap;
+		RecomputeUVsOp->bMergingOptimization = true;
+	}
+
+	RecomputeUVsOp->bAutoRotate = (Settings->AutoRotation == ERecomputeUVsToolOrientationMode::MinBounds);
 
 	RecomputeUVsOp->NormalSmoothingRounds = Settings->SmoothingSteps;
 	RecomputeUVsOp->NormalSmoothingAlpha = Settings->SmoothingAlpha;
 
-	RecomputeUVsOp->bMergingOptimization = Settings->bIslandMerging;
-	RecomputeUVsOp->MergingThreshold = Settings->MergingThreshold;
-	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MaxAngleDeviation;
+	RecomputeUVsOp->MergingThreshold = Settings->MergingDistortionLimit;
+	RecomputeUVsOp->MaxNormalDeviationDeg = Settings->MergingAngleLimit;
 
-	RecomputeUVsOp->bPackUVs = Settings->bAutoPack;
-	if (Settings->bAutoPack)
+	RecomputeUVsOp->bPackUVs = false;
+	RecomputeUVsOp->bNormalizeAreas = false;
+
+	switch (Settings->LayoutType)
 	{
+	case ERecomputeUVsPropertiesLayoutType::None:
+		break;
+	case ERecomputeUVsPropertiesLayoutType::Repack:
+		RecomputeUVsOp->bPackUVs = true;
 		RecomputeUVsOp->PackingTextureResolution = Settings->TextureResolution;
-		RecomputeUVsOp->bNormalizeAreas = false;
-		RecomputeUVsOp->AreaScaling = 1.0;
+		break;
+	case ERecomputeUVsPropertiesLayoutType::NormalizeToBounds:
+		RecomputeUVsOp->bNormalizeAreas = true;
+		RecomputeUVsOp->AreaScaling = Settings->NormalizeScale / OriginalMesh->GetBounds().MaxDim();
+		break;
+	case ERecomputeUVsPropertiesLayoutType::NormalizeToWorld:
+		RecomputeUVsOp->bNormalizeAreas = true;
+		RecomputeUVsOp->AreaScaling = Settings->NormalizeScale;
 	}
-	else
-	{
-		switch (Settings->UVScaleMode)
-		{
-		case ERecomputeUVsToolUVScaleMode::NoScaling:
-			RecomputeUVsOp->bNormalizeAreas = false;
-			RecomputeUVsOp->AreaScaling = 1.0;
-			break;
-		case ERecomputeUVsToolUVScaleMode::NormalizeToBounds:
-			RecomputeUVsOp->bNormalizeAreas = true;
-			RecomputeUVsOp->AreaScaling = Settings->UVScale / MeshBounds.MaxDim();
-			break;
-		case ERecomputeUVsToolUVScaleMode::NormalizeToWorld:
-			RecomputeUVsOp->bNormalizeAreas = true;
-			RecomputeUVsOp->AreaScaling = Settings->UVScale;
-			break;
-		}
-	}
-
 
 	RecomputeUVsOp->SetTransform(TargetTransform);
 
 	return RecomputeUVsOp;
 }
-
 
 
 #undef LOCTEXT_NAMESPACE

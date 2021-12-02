@@ -20,10 +20,10 @@ class MODELINGCOMPONENTS_API UPolygroupLayersProperties : public UInteractiveToo
 public:
 
 	/** Select polygroup layer. */
-	UPROPERTY(EditAnywhere, Category = PolygroupLayers, meta = (GetOptions = GetGroupLayersFunc))
+	UPROPERTY(EditAnywhere, Category = "PolyGroup Layer", meta = (DisplayName = "Active PolyGroup", GetOptions = GetGroupLayersFunc))
 	FName ActiveGroupLayer = "Default";
 
-	// this function is called provide set of available group layers
+	// Provides set of available group layers
 	UFUNCTION()
 	TArray<FString> GetGroupLayersFunc() { return GroupLayersList; }
 
