@@ -7,7 +7,7 @@
 UBTDecorator_ForceSuccess::UBTDecorator_ForceSuccess(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = TEXT("Force Success");
-	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
+	bNotifyProcessed = true;
 
 	bAllowAbortNone = false;
 	bAllowAbortLowerPri = false;

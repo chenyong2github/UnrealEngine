@@ -6,12 +6,12 @@ UBTTask_Wait::UBTTask_Wait(const FObjectInitializer& ObjectInitializer) : Super(
 {
 	NodeName = "Wait";
 	WaitTime = 5.0f;
-	INIT_TASK_NODE_NOTIFY_FLAGS();
+	bNotifyTick = true;
 }
 
 EBTNodeResult::Type UBTTask_Wait::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FBTWaitTaskMemory* MyMemory = CastInstanceNodeMemory<FBTWaitTaskMemory>(NodeMemory);
+	FBTWaitTaskMemory* MyMemory = (FBTWaitTaskMemory*)NodeMemory;
 	MyMemory->RemainingWaitTime = FMath::FRandRange(FMath::Max(0.0f, WaitTime - RandomDeviation), (WaitTime + RandomDeviation));
 	
 	return EBTNodeResult::InProgress;
@@ -19,7 +19,7 @@ EBTNodeResult::Type UBTTask_Wait::ExecuteTask(UBehaviorTreeComponent& OwnerComp,
 
 void UBTTask_Wait::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FBTWaitTaskMemory* MyMemory = CastInstanceNodeMemory<FBTWaitTaskMemory>(NodeMemory);
+	FBTWaitTaskMemory* MyMemory = (FBTWaitTaskMemory*)NodeMemory;
 	MyMemory->RemainingWaitTime -= DeltaSeconds;
 
 	if (MyMemory->RemainingWaitTime <= 0.0f)
@@ -45,7 +45,7 @@ void UBTTask_Wait::DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp
 {
 	Super::DescribeRuntimeValues(OwnerComp, NodeMemory, Verbosity, Values);
 
-	FBTWaitTaskMemory* MyMemory = CastInstanceNodeMemory<FBTWaitTaskMemory>(NodeMemory);
+	FBTWaitTaskMemory* MyMemory = (FBTWaitTaskMemory*)NodeMemory;
 	if (MyMemory->RemainingWaitTime)
 	{
 		Values.Add(FString::Printf(TEXT("remaining: %ss"), *FString::SanitizeFloat(MyMemory->RemainingWaitTime)));

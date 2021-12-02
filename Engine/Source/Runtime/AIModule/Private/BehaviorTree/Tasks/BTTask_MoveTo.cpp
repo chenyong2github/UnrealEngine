@@ -14,9 +14,9 @@
 UBTTask_MoveTo::UBTTask_MoveTo(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Move To";
-	INIT_TASK_NODE_NOTIFY_FLAGS();
 	bUseGameplayTasks = GET_AI_CONFIG_VAR(bEnableBTAITasks);
 	bNotifyTick = !bUseGameplayTasks;
+	bNotifyTaskFinished = true;
 
 	AcceptableRadius = GET_AI_CONFIG_VAR(AcceptanceRadius);
 	bReachTestIncludesGoalRadius = bReachTestIncludesAgentRadius = bStopOnOverlap = GET_AI_CONFIG_VAR(bFinishMoveOnGoalOverlap);
@@ -316,7 +316,7 @@ void UBTTask_MoveTo::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* No
 
 void UBTTask_MoveTo::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	FBTMoveToTaskMemory* MyMemory = CastInstanceNodeMemory<FBTMoveToTaskMemory>(NodeMemory);
+	FBTMoveToTaskMemory* MyMemory = (FBTMoveToTaskMemory*)NodeMemory;
 	if (MyMemory->bWaitingForPath && !OwnerComp.IsPaused())
 	{
 		AAIController* MyController = OwnerComp.GetAIOwner();
@@ -351,7 +351,7 @@ void UBTTask_MoveTo::OnGameplayTaskDeactivated(UGameplayTask& Task)
 		if (BehaviorComp)
 		{
 			uint8* RawMemory = BehaviorComp->GetNodeMemory(this, BehaviorComp->FindInstanceContainingNode(this));
-			const FBTMoveToTaskMemory* MyMemory = CastInstanceNodeMemory<FBTMoveToTaskMemory>(RawMemory);
+			FBTMoveToTaskMemory* MyMemory = CastInstanceNodeMemory<FBTMoveToTaskMemory>(RawMemory);
 
 			if (MyMemory && MyMemory->bObserverCanFinishTask && (MoveTask == MyMemory->Task))
 			{
@@ -384,7 +384,7 @@ void UBTTask_MoveTo::DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerCo
 	{
 		const FString KeyValue = BlackboardComp->DescribeKeyValue(BlackboardKey.GetSelectedKeyID(), EBlackboardDescription::OnlyValue);
 
-		const FBTMoveToTaskMemory* MyMemory = CastInstanceNodeMemory<FBTMoveToTaskMemory>(NodeMemory);
+		const FBTMoveToTaskMemory* MyMemory = (FBTMoveToTaskMemory*)NodeMemory;
 		const bool bIsUsingTask = MyMemory->Task.IsValid();
 		
 		const FString ModeDesc =

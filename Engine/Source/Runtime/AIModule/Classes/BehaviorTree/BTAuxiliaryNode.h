@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 #include "BehaviorTree/BTNode.h"
 #include "BTAuxiliaryNode.generated.h"
 
@@ -74,25 +75,22 @@ protected:
 	/** if set, OnTick will be used */
 	uint8 bNotifyTick : 1;
 
-	/** if set, conditional tick will use remaining time from node's memory */
+	/** if set, conditional tick will use remaining time form node's memory */
 	uint8 bTickIntervals : 1;
 
 	/** child index in parent node */
 	uint8 ChildIndex;
 
 	/** called when auxiliary node becomes active
-	* this function should be considered as const (don't modify state of object) if node is not instanced!  
-	* bNotifyBecomeRelevant must be set to true when this function must be called */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
 	/** called when auxiliary node becomes inactive
-	* this function should be considered as const (don't modify state of object) if node is not instanced!  
-	* bNotifyCeaseRelevant must be set to true when this function must be called */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
 	/** tick function
-	* this function should be considered as const (don't modify state of object) if node is not instanced!   
-	* bNotifyTick must be set to true when this function must be called */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds);
 
 	/** sets next tick time */
@@ -100,24 +98,7 @@ protected:
 
 	/** gets remaining time for next tick */
 	float GetNextTickRemainingTime(uint8* NodeMemory) const;
-	
-	template<typename T,
-			typename TickNodeFunc = decltype(&T::TickNode),
-			typename OnBecomeRelevantFunc = decltype(&T::OnBecomeRelevant),
-			typename OnCeaseRelevantFunc = decltype(&T::OnCeaseRelevant)>
-	void InitNotifyFlags(const T* Node, TickNodeFunc TickFunction,
-										OnBecomeRelevantFunc OnBecomeRelevantFunction,
-										OnCeaseRelevantFunc OnCeaseRelevantFunction)
-	{
-		bNotifyTick |= &UBTAuxiliaryNode::TickNode != TickFunction;
-		bNotifyBecomeRelevant |= &UBTAuxiliaryNode::OnBecomeRelevant != OnBecomeRelevantFunction;
-		bNotifyCeaseRelevant |= &UBTAuxiliaryNode::OnCeaseRelevant != OnCeaseRelevantFunction;
-	}
 };
-
-#define INIT_AUXILIARY_NODE_NOTIFY_FLAGS() \
-	using NodeType = TRemovePointer<decltype(this)>::Type; \
-	InitNotifyFlags(this, &NodeType::TickNode, &NodeType::OnBecomeRelevant, &NodeType::OnCeaseRelevant)
 
 FORCEINLINE uint8 UBTAuxiliaryNode::GetChildIndex() const
 {

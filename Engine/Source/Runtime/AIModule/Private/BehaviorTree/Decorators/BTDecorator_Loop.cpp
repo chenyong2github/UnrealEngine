@@ -10,7 +10,7 @@ UBTDecorator_Loop::UBTDecorator_Loop(const FObjectInitializer& ObjectInitializer
 	NodeName = "Loop";
 	NumLoops = 3;
 	InfiniteLoopTimeoutTime = -1.f;
-	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
+	bNotifyActivation = true;
 	
 	bAllowAbortNone = false;
 	bAllowAbortLowerPri = false;

@@ -17,7 +17,8 @@ UBTDecorator_ConeCheck::UBTDecorator_ConeCheck(const FObjectInitializer& ObjectI
 	Observed.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTDecorator_ConeCheck, Observed), AActor::StaticClass());
 	Observed.AddVectorFilter(this, GET_MEMBER_NAME_CHECKED(UBTDecorator_ConeCheck, Observed));
 
-	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
+	bNotifyBecomeRelevant = true;
+	bNotifyTick = true;
 
 	// KeepInCone always abort current branch
 	FlowAbortMode = EBTFlowAbortMode::None;
@@ -85,7 +86,7 @@ bool UBTDecorator_ConeCheck::CalculateRawConditionValue(UBehaviorTreeComponent& 
 
 void UBTDecorator_ConeCheck::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	TNodeInstanceMemory* DecoratorMemory = CastInstanceNodeMemory<TNodeInstanceMemory>(NodeMemory);
+	TNodeInstanceMemory* DecoratorMemory = (TNodeInstanceMemory*)NodeMemory;
 	DecoratorMemory->bLastRawResult = CalcConditionImpl(OwnerComp, NodeMemory);
 }
 

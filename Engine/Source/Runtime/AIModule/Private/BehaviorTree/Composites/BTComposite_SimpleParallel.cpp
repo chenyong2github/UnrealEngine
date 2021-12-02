@@ -9,7 +9,9 @@
 UBTComposite_SimpleParallel::UBTComposite_SimpleParallel(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Simple Parallel";
-	INIT_COMPOSITE_NODE_NOTIFY_FLAGS();
+	bUseChildExecutionNotify = true;
+	bUseNodeDeactivationNotify = true;
+	bUseDecoratorsDeactivationCheck = true;
 	bApplyDecoratorScope = true;
 }
 

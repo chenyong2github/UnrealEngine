@@ -7,8 +7,8 @@
 UBTTask_GameplayTaskBase::UBTTask_GameplayTaskBase(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "GameplayTask Base";
-	INIT_TASK_NODE_NOTIFY_FLAGS();
 	bWaitForGameplayTask = true;
+	bNotifyTaskFinished = true;
 }
 
 EBTNodeResult::Type UBTTask_GameplayTaskBase::StartGameplayTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, UAITask& Task)
@@ -70,7 +70,7 @@ void UBTTask_GameplayTaskBase::OnGameplayTaskDeactivated(UGameplayTask& Task)
 		if (BehaviorComp)
 		{
 			uint8* RawMemory = BehaviorComp->GetNodeMemory(this, BehaviorComp->FindInstanceContainingNode(this));
-			const FBTGameplayTaskMemory* MyMemory = CastInstanceNodeMemory<FBTGameplayTaskMemory>(RawMemory);
+			FBTGameplayTaskMemory* MyMemory = CastInstanceNodeMemory<FBTGameplayTaskMemory>(RawMemory);
 
 			if (MyMemory->bObserverCanFinishTask && (AITask == MyMemory->Task))
 			{
