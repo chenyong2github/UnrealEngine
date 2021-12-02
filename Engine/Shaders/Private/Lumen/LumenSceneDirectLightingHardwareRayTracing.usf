@@ -22,6 +22,17 @@
 #include "../DeferredLightingCommon.ush"
 #include "LumenSceneDirectLighting.ush"
 
+StructuredBuffer<uint> CardTileAllocator;
+RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
+
+[numthreads(1, 1, 1)]
+void FLumenDirectLightingHardwareRayTracingIndirectArgsCS()
+{
+	RWHardwareRayTracingIndirectArgs[0] = CARD_TILE_SIZE * CARD_TILE_SIZE;
+	RWHardwareRayTracingIndirectArgs[1] = CardTileAllocator[0];
+	RWHardwareRayTracingIndirectArgs[2] = 1;
+}
+
 #if LUMEN_HARDWARE_RAYTRACING
 
 RaytracingAccelerationStructure TLAS;
@@ -41,20 +52,19 @@ float3 FarFieldReferencePos;
 float SurfaceBias;
 float SlopeScaledSurfaceBias;
 
-StructuredBuffer<uint> CardTileAllocator;
 StructuredBuffer<uint> CardTileData;
 uint MaxCardTilesPerScatterInstance;
 uint CardScatterInstanceIndex;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 {
-	uint ThreadIndex = DispatchRaysIndex().x;
-	uint GroupIndex = DispatchRaysIndex().y * CARD_TILE_SIZE * CARD_TILE_SIZE;
-	uint GroupStride = GroupCount * CARD_TILE_SIZE * CARD_TILE_SIZE;
+	uint2 CoordInCardTile = uint2(DispatchRaysIndex().x % CARD_TILE_SIZE, DispatchRaysIndex().x / CARD_TILE_SIZE);
 
-	uint2 CoordInCardTile = uint2(ThreadIndex % CARD_TILE_SIZE, ThreadIndex / CARD_TILE_SIZE);
-
+#if DIM_INDIRECT_DISPATCH
+	uint CardTileIndex = DispatchRaysIndex().y;
+#else
 	for (uint CardTileIndex = DispatchRaysIndex().y; CardTileIndex < CardTileAllocator[CardScatterInstanceIndex]; CardTileIndex += GroupCount)
+#endif
 	{
 		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
 		uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;

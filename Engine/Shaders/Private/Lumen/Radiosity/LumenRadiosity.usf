@@ -10,6 +10,7 @@
 #include "../LumenTracingCommon.ush"
 #include "../LumenCardTile.ush"
 #include "LumenRadiosity.ush"
+#include "../../RayTracing/RayGenUtils.ush"
 
 RWBuffer<uint> RWIndirectArgs;
 
@@ -21,19 +22,32 @@ void SetIndirectArgs(uint ArgIndex, uint NumThreads)
 	RWIndirectArgs[BaseOffset + 2] = 1;
 }
 
+void SetHardwareRayTracingIndirectArgs(uint ArgIndex, uint NumThreads)
+{
+	uint BaseOffset = ArgIndex * 3;
+	int3 DispatchDimension = GetRayTracingThreadCountWrapped(NumThreads, THREADGROUP_SIZE);
+	RWIndirectArgs[BaseOffset + 0] = DispatchDimension.x;
+	RWIndirectArgs[BaseOffset + 1] = DispatchDimension.y;
+	RWIndirectArgs[BaseOffset + 2] = DispatchDimension.z;
+}
+
 [numthreads(1, 1, 1)]
 void LumenRadiosityIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId.x == 0)
 	{
 		// ERadiosityIndirectArgs::ThreadPerTrace
-		SetIndirectArgs(0, CardTileAllocator[0] * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE * NumTracesPerTexel);
+		uint ThreadPerTrace = CardTileAllocator[0] * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE * NumTracesPerTexel;
+		SetIndirectArgs(0, ThreadPerTrace);
 
 		// ERadiosityIndirectArgs::ThreadPerProbeSH
 		SetIndirectArgs(1, CardTileAllocator[0] * (CARD_TILE_SIZE * CARD_TILE_SIZE) / (PROBE_SH_TILE_SIZE * PROBE_SH_TILE_SIZE));
 
 		// ERadiosityIndirectArgs::ThreadPerRadiosityTexel
 		SetIndirectArgs(2, CardTileAllocator[0] * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE);
+
+		// ERadiosityIndirectArgs::HardwareRayTracingThreadPerTrace
+		SetHardwareRayTracingIndirectArgs(3, ThreadPerTrace);
 	}
 }
 
