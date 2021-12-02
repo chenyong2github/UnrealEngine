@@ -701,6 +701,8 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 		TBSettings.OodleEncodeEffort = BuildSettingsForLayer.OodleEncodeEffort;
 		TBSettings.LossyCompressionAmount = BuildSettingsForLayer.LossyCompressionAmount;
 		TBSettings.OodleUniversalTiling = BuildSettingsForLayer.OodleUniversalTiling;
+		TBSettings.bOodleUsesRDO = BuildSettingsForLayer.bOodleUsesRDO;
+		TBSettings.OodleRDO = BuildSettingsForLayer.OodleRDO;
 
 		check(TBSettings.GetGammaSpace() == BuildSettingsForLayer.GetGammaSpace());
  
