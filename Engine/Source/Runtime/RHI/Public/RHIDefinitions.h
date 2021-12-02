@@ -1979,18 +1979,22 @@ inline bool IsVulkanSM5Platform(const FStaticShaderPlatform Platform)
 		&& FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
 }
 
+// @todo: data drive uses of this function
 inline bool IsVulkanMobileSM5Platform(const FStaticShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform)
-		&& FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5
-		&& FDataDrivenShaderPlatformInfo::GetIsMobile(Platform);
+	return Platform == SP_VULKAN_SM5_ANDROID;
+// 	return FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform)
+// 		&& FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5
+// 		&& FDataDrivenShaderPlatformInfo::GetIsMobile(Platform);
 }
 
+// @todo: data drive uses of this function
 inline bool IsMetalMobileSM5Platform(const FStaticShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetIsLanguageMetal(Platform)
-		&& FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5
-		&& FDataDrivenShaderPlatformInfo::GetIsMobile(Platform);
+	return Platform == SP_METAL_MRT;
+// 	return FDataDrivenShaderPlatformInfo::GetIsLanguageMetal(Platform)
+// 		&& FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5
+// 		&& FDataDrivenShaderPlatformInfo::GetIsMobile(Platform);
 }
 
 inline bool IsAndroidOpenGLESPlatform(const FStaticShaderPlatform Platform)
@@ -2001,7 +2005,7 @@ inline bool IsAndroidOpenGLESPlatform(const FStaticShaderPlatform Platform)
 inline bool IsVulkanMobilePlatform(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform)
-		&& FDataDrivenShaderPlatformInfo::GetIsMobile(Platform)
+		//&& FDataDrivenShaderPlatformInfo::GetIsMobile(Platform)
 		// This was limited to the ES3_1 platforms when hard coded
 		&& FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1;
 }
