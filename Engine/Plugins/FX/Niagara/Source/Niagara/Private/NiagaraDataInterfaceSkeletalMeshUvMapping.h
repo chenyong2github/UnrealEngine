@@ -41,7 +41,7 @@ struct FSkeletalMeshUvMapping
 	void RegisterUser(FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
 	void UnregisterUser(FSkeletalMeshUvMappingUsage Usage);
 
-	static bool IsValidMeshObject(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex);
+	static bool IsValidMeshObject(const TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex);
 
 	bool Matches(const TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex) const;
 

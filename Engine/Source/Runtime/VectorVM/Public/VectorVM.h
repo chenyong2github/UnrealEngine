@@ -227,7 +227,9 @@ struct FDataSetMeta
 	FORCEINLINE void UnlockFreeTable();
 
 	FDataSetMeta()
-		: DataSetAccessIndex(INDEX_NONE)
+		: InputRegisterTypeOffsets{}
+		, OutputRegisterTypeOffsets{}
+		, DataSetAccessIndex(INDEX_NONE)
 		, InstanceOffset(INDEX_NONE)
 		, IDTable(nullptr)
 		, FreeIDTable(nullptr)
@@ -569,7 +571,7 @@ namespace VectorVM
 			UserPtrIdx = *Context.GetConstant<int32>(ConstantTableOffset);
 			check(UserPtrIdx != INDEX_NONE);
 			
-			Ptr = reinterpret_cast<T*>(Context.GetUserPtrTable(UserPtrIdx));
+			Ptr = static_cast<T*>(Context.GetUserPtrTable(UserPtrIdx));
 #endif
 		}
 
@@ -712,6 +714,3 @@ namespace VectorVM
 		FORCEINLINE void Advance() { }
 	};
 } // namespace VectorVM
-
-
-

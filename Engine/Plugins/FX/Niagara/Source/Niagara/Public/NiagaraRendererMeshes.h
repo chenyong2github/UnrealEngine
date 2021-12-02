@@ -143,12 +143,12 @@ private:
 	uint32 bAccurateMotionVectors : 1;
 
 	uint32 bSubImageBlend : 1;
-	FVector2D SubImageSize;
+	FVector2f SubImageSize;
 
 	FVector LockedAxis;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
-	FVector2D DistanceCullRange;
+	FVector2f DistanceCullRange;
 	int32 RendererVisTagOffset;
 	int32 RendererVisibility;
 	int32 MeshIndexOffset;

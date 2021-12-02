@@ -2757,7 +2757,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetVertexUV(FVectorVMExternalFunctionCon
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
-			OutUV.SetAndAdvance(FVector2D::ZeroVector);
+			OutUV.SetAndAdvance(FVector2f::ZeroVector);
 		}
 	}
 }
@@ -3113,7 +3113,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetTriangleUV(FVectorVMExternalFunctionC
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
-			OutUVParam.SetAndAdvance(FVector2D::ZeroVector);
+			OutUVParam.SetAndAdvance(FVector2f::ZeroVector);
 		}
 	}
 }

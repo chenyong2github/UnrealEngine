@@ -3,8 +3,6 @@
 #include "NiagaraDataInterfaceSkeletalMeshConnectivity.h"
 
 #include "Algo/StableSort.h"
-#include "Algo/Unique.h"
-#include "NDISkeletalMeshCommon.h"
 #include "NiagaraResourceArrayWriter.h"
 #include "NiagaraSettings.h"
 #include "NiagaraStats.h"
@@ -36,14 +34,14 @@ FSkeletalMeshConnectivityHandle::~FSkeletalMeshConnectivityHandle()
 	}
 }
 
-FSkeletalMeshConnectivityHandle::FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityHandle&& Other)
+FSkeletalMeshConnectivityHandle::FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityHandle&& Other) noexcept
 {
 	Usage = Other.Usage;
 	ConnectivityData = Other.ConnectivityData;
 	Other.ConnectivityData = nullptr;
 }
 
-FSkeletalMeshConnectivityHandle& FSkeletalMeshConnectivityHandle::operator=(FSkeletalMeshConnectivityHandle&& Other)
+FSkeletalMeshConnectivityHandle& FSkeletalMeshConnectivityHandle::operator=(FSkeletalMeshConnectivityHandle&& Other) noexcept
 {
 	if (this != &Other)
 	{

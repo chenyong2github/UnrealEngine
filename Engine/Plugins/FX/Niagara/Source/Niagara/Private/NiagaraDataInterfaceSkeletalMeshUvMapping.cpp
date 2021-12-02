@@ -100,7 +100,7 @@ struct FQuadTreeQueryHelper
 			float TriangleSegmentMin = FMath::Min3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
 			float TriangleSegmentMax = FMath::Max3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
 
-			if (AabbSegmentMin > TriangleSegmentMax || AabbSegmentMax < TriangleSegmentMax)
+			if (AabbSegmentMin > TriangleSegmentMax || AabbSegmentMax < TriangleSegmentMin)
 			{
 				return false;
 			}
@@ -160,14 +160,14 @@ FSkeletalMeshUvMappingHandle::~FSkeletalMeshUvMappingHandle()
 	}
 }
 
-FSkeletalMeshUvMappingHandle::FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingHandle&& Other)
+FSkeletalMeshUvMappingHandle::FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingHandle&& Other) noexcept
 {
 	Usage = Other.Usage;
 	UvMappingData = Other.UvMappingData;
 	Other.UvMappingData = nullptr;
 }
 
-FSkeletalMeshUvMappingHandle& FSkeletalMeshUvMappingHandle::operator=(FSkeletalMeshUvMappingHandle&& Other)
+FSkeletalMeshUvMappingHandle& FSkeletalMeshUvMappingHandle::operator=(FSkeletalMeshUvMappingHandle&& Other) noexcept
 {
 	if (this != &Other)
 	{
@@ -183,7 +183,7 @@ FSkeletalMeshUvMappingHandle::operator bool() const
 	return UvMappingData.IsValid();
 }
 
-bool FSkeletalMeshUvMapping::IsValidMeshObject(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex)
+bool FSkeletalMeshUvMapping::IsValidMeshObject(const TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex)
 {
 	USkeletalMesh* Mesh = MeshObject.Get();
 
