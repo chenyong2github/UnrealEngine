@@ -3883,10 +3883,13 @@ public:
 	/** Given a level script actor, modify the string such that it points to the correct instance of the object. For replays. */
 	bool RemapCompiledScriptActor(FString& Str) const;
 
+	/** Returns true if world package is instanced. */
+	bool IsInstanced() const;
+
 	/** 
 	 * If World Package is instanced return a mapping that can be used to fixup SoftObjectPaths for this world 
 	 *
-	 * returns false if package doesn't need remapping
+	 * returns true if world package is instanced and needs remapping.
 	 */
 	bool GetSoftObjectPathMapping(FString& OutSourceWorldPath, FString& OutRemappedWorldPath) const;
 
