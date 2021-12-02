@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+
+#if SHADER_PRINT_STATS
 #include "../ShaderPrintCommon.ush"
+#endif
 
 #include "Culling.ush"
 
@@ -19,6 +22,8 @@ StructuredBuffer<FStats>			InStatsBuffer;
 RWStructuredBuffer<FStats>			OutStatsBuffer;
 
 RWBuffer<uint>						OutClusterStatsArgs;
+
+#if SHADER_PRINT_STATS
 
 float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 {
@@ -188,6 +193,10 @@ void PrintStats()
 #endif
 }
 
+#endif // SHADER_PRINT_STATS
+
+#if SHADER_CALCULATE_STATS
+
 [numthreads(1, 1, 1)]
 void CalculateStats()
 {
@@ -207,6 +216,10 @@ void CalculateStats()
 	OutStatsBuffer[0].NumPostVisitedNodes		= QueueState[0].PassState[1].NodeWriteOffset;
 	OutStatsBuffer[0].NumPostCandidateClusters	= QueueState[0].PassState[1].ClusterWriteOffset;
 }
+
+#endif // SHADER_CALCULATE_STATS
+
+#if SHADER_CALCULATE_CLUSTER_STATS
 
 groupshared uint GroupNumTris;
 groupshared uint GroupNumVerts;
@@ -258,3 +271,5 @@ void CalculateClusterStats(
 		InterlockedAdd(OutStatsBuffer[0].NumVerts, GroupNumVerts);
 	}
 }
+
+#endif // SHADER_CALCULATE_CLUSTER_STATS
