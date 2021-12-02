@@ -7,6 +7,7 @@
 
 #include "ControlRig.h"
 #include "DNAAsset.h"
+#include "Containers/DiscardableKeyValueCache.h"
 #include "Materials/Material.h"
 #include "Units/RigUnit.h"
 
@@ -47,20 +48,76 @@ public:
 	FTransformArrayView DeltaTransforms; //the result of rig logic calculations
 };
 
+/* A helper struct used inside of the RigUnit_RigLogic to store mappings between skelMesh and DNA. */
+USTRUCT(meta = (DocumentationPolicy = "Strict"))
+struct FRigDefinitionMapping
+{
+
+	GENERATED_BODY()
+
+		FRigDefinitionMapping() = default;
+	FRigDefinitionMapping(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy);
+
+	/** Mapping RL indices to UE indices
+	  * Note: we use int32 instead of uint32 to allow storing INDEX_NONE for missing elements
+	  * if value is valid, it is cast to appropriate uint type
+	**/
+
+	/** RL input index to ControlRig's input curve index for each LOD **/
+	UPROPERTY(transient)
+		TArray<int32> InputCurveIndices;
+
+	/** RL joint index to ControlRig's hierarchy bone index **/
+	UPROPERTY(transient)
+		TArray<int32> HierarchyBoneIndices;	/** RL mesh blend shape index to ControlRig's output blendshape curve index for each LOD **/
+
+		/** Mapping RL indices to UE indices
+		  * Note: we use int32 instead of uint32 to allow storing INDEX_NONE for missing elements
+		  * if value is valid, it is cast to appropriate uint type
+		**/
+	UPROPERTY(transient)
+		TArray<FRigUnit_RigLogic_IntArray> MorphTargetCurveIndices;
+
+	/** RL mesh+blend shape array index to RL blend shape index for each LOD **/
+	UPROPERTY(transient)
+		TArray<FRigUnit_RigLogic_IntArray> BlendShapeIndices;
+
+	/** RL animated map index to ControlRig's output anim map curve index for each LOD **/
+	UPROPERTY(transient)
+		TArray<FRigUnit_RigLogic_IntArray> CurveElementIndicesForAnimMaps;
+
+	/** RL animated map index to RL anim map curve index for each LOD **/
+	UPROPERTY(transient)
+		TArray<FRigUnit_RigLogic_IntArray> RigLogicIndicesForAnimMaps;
+
+private:
+	/** Makes a map of input curve indices from DNA file to the control rig curves **/
+	void MapInputCurveIndices(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy);
+	/** Uses names to map joint indices from DNA file to the indices of bones in control rig hierarchy **/
+	void MapJoints(const IBehaviorReader* DNABehavior, const URigHierarchy* Hierarchy);
+	/** Uses names of blend shapes and meshes in DNA file, for all LODs, to map their indices to the indices of
+	  * morph target curves in the curve container; curve name format is <mesh>__<blendshape> **/
+	void MapMorphTargets(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy);
+	/** Uses names to map mask multiplier indices from DNA file, for all LODs, to the indices of curves in the
+	  * control rig's curve container **/
+	void MapMaskMultipliers(const IBehaviorReader* DNABehavior, const URigHierarchy* InHierarchy);
+
+};
+
 /* The work data used by the FRigUnit_RigLogic */
 USTRUCT(meta = (DocumentationPolicy = "Strict"))
 struct FRigUnit_RigLogic_Data
 {
 	GENERATED_BODY()
 
-	FRigUnit_RigLogic_Data();
- 	~FRigUnit_RigLogic_Data();
- 	FRigUnit_RigLogic_Data(const FRigUnit_RigLogic_Data& Other);
- 	FRigUnit_RigLogic_Data& operator=(const FRigUnit_RigLogic_Data& Other);
+		FRigUnit_RigLogic_Data();
+	~FRigUnit_RigLogic_Data();
+	FRigUnit_RigLogic_Data(const FRigUnit_RigLogic_Data& Other);
+	FRigUnit_RigLogic_Data& operator=(const FRigUnit_RigLogic_Data& Other);
 
 	/** Cached Skeletal Mesh Component **/
 	UPROPERTY(transient)
-	TWeakObjectPtr<USkeletalMeshComponent> SkelMeshComponent;
+		TWeakObjectPtr<USkeletalMeshComponent> SkelMeshComponent;
 
 	FSharedRigRuntimeContext* SharedRigRuntimeContext;
 
@@ -70,56 +127,19 @@ struct FRigUnit_RigLogic_Data
 	**/
 	TUniquePtr<FRigInstance> RigInstance;
 
-	/** Mapping RL indices to UE indices
-	  * Note: we use int32 instead of uint32 to allow storing INDEX_NONE for missing elements
-	  * if value is valid, it is cast to appropriate uint type
-	**/
-
-	/** RL input index to ControlRig's input curve index for each LOD **/
-	UPROPERTY(transient)
-	TArray<int32> InputCurveIndices;
-
-	/** RL joint index to ControlRig's hierarchy bone index **/
-	UPROPERTY(transient)
-	TArray<int32> HierarchyBoneIndices;
-
-	/** RL mesh blend shape index to ControlRig's output blendshape curve index for each LOD **/
-	UPROPERTY(transient)
-	TArray<FRigUnit_RigLogic_IntArray> MorphTargetCurveIndices;
-
-	/** RL mesh+blend shape array index to RL blend shape index for each LOD **/
-	UPROPERTY(transient)
-	TArray<FRigUnit_RigLogic_IntArray> BlendShapeIndices;
-
-	/** RL animated map index to ControlRig's output anim map curve index for each LOD **/
-	UPROPERTY(transient)
-	TArray<FRigUnit_RigLogic_IntArray> CurveElementIndicesForAnimMaps;
-
-	/** RL animated map index to RL anim map curve index for each LOD **/
-	UPROPERTY(transient)
-	TArray<FRigUnit_RigLogic_IntArray> RigLogicIndicesForAnimMaps;
+	TSharedPtr<const FRigDefinitionMapping> Mappings;
 
 	/** LOD for which the model is rendered **/
 	UPROPERTY(transient)
-	uint32 CurrentLOD;
+		uint32 CurrentLOD;
 
 	static const uint8 MAX_ATTRS_PER_JOINT;
 
 	bool IsRigLogicInitialized();
 	void InitializeRigLogic(const URigHierarchy* InHierarchy);
 
-	/** Makes a map of input curve indices from DNA file to the control rig curves **/
-	void MapInputCurveIndices(const URigHierarchy* InHierarchy);
-	/** Uses names to map joint indices from DNA file to the indices of bones in control rig hierarchy **/
-	void MapJoints(const URigHierarchy* Hierarchy);
 	/** Cache the joint indices that change per each LOD **/
 	void CacheVariableJointIndices();
-	/** Uses names of blend shapes and meshes in DNA file, for all LODs, to map their indices to the indices of
-	  * morph target curves in the curve container; curve name format is <mesh>__<blendshape> **/
-	void MapMorphTargets(const URigHierarchy* InHierarchy);
-	/** Uses names to map mask multiplier indices from DNA file, for all LODs, to the indices of curves in the
-	  * control rig's curve container **/
-	void MapMaskMultipliers(const URigHierarchy* InHierarchy);
 
 	/** Calculates joint positions, orientation and scale based on inputs curves of the control rig **/
 	void CalculateRigLogic(const URigHierarchy* InHierarchy);
@@ -129,6 +149,8 @@ struct FRigUnit_RigLogic_Data
 	void UpdateBlendShapeCurves(URigHierarchy* InHierarchy, TArrayView<const float> BlendShapeValues);
 	/** Updates anim map curve values based on values of input curves of the control rig **/
 	void UpdateAnimMapCurves(URigHierarchy* InHierarchy, TArrayView<const float> AnimMapOutputs);
+private:
+	static TDiscardableKeyValueCache<uint32, TSharedPtr<const FRigDefinitionMapping>> RigDefintionMappingsCache;
 };
 
 
@@ -136,7 +158,7 @@ struct FRigUnit_RigLogic_Data
   *  animated map multiplier curves */
 
 USTRUCT(meta = (DisplayName = "RigLogic", Category = "RigLogic", DocumentationPolicy = "Strict", Keywords = "Rig,RigLogic"))
-struct FRigUnit_RigLogic: public FRigUnitMutable
+struct FRigUnit_RigLogic : public FRigUnitMutable
 {
 	GENERATED_BODY()
 
@@ -148,7 +170,7 @@ public:
 #endif
 
 	RIGVM_METHOD()
-	void Execute(const FRigUnitContext& Context) override;
+		void Execute(const FRigUnitContext& Context) override;
 
 private:
 	static FSharedRigRuntimeContext* GetSharedRigRuntimeContext(USkeletalMesh* SkelMesh);
@@ -156,5 +178,5 @@ private:
 private:
 	// internal work data for the unit
 	UPROPERTY(transient)
-	FRigUnit_RigLogic_Data Data;
+		FRigUnit_RigLogic_Data Data;
 };
