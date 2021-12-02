@@ -12253,6 +12253,68 @@ void FSequencer::NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid)
 	MovieSceneToolHelpers::CreateCameraCutSectionForCamera(GetFocusedMovieSceneSequence()->GetMovieScene(), CameraGuid, GetLocalTime().Time.FloorToFrame());
 }
 
+
+void FSequencer::FixPossessableObjectClassInternal(UMovieSceneSequence* Sequence, FMovieSceneSequenceIDRef SequenceID)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+
+	MovieScene->Modify();
+
+	for (int32 Index = 0; Index < MovieScene->GetPossessableCount(); ++Index)
+	{
+		FMovieScenePossessable& Possessable = MovieScene->GetPossessable(Index);
+
+		TOptional<UClass*> CommonBaseClass;
+
+		for (TWeakObjectPtr<> WeakObject : FindBoundObjects(Possessable.GetGuid(), SequenceID))
+		{
+			if (WeakObject.IsValid())
+			{
+				if (!CommonBaseClass.IsSet())
+				{
+					CommonBaseClass = WeakObject->GetClass();
+				}
+				else
+				{
+					CommonBaseClass = UClass::FindCommonBase(WeakObject->GetClass(), CommonBaseClass.GetValue());
+				}
+			}
+		}
+
+		if (CommonBaseClass.IsSet() && CommonBaseClass.GetValue() != Possessable.GetPossessedObjectClass())
+		{
+			UE_LOG(LogSequencer, Display, TEXT("Updated possessed object class in: %s for: %s, from: %s, to: %s"), *GetNameSafe(Sequence), *Possessable.GetName(), *GetNameSafe(Possessable.GetPossessedObjectClass()), *GetNameSafe(CommonBaseClass.GetValue()));
+			Possessable.SetPossessedObjectClass(CommonBaseClass.GetValue());
+		}
+	}
+}
+
+void FSequencer::FixPossessableObjectClass()
+{
+	FScopedTransaction FixPossessableObjectClassTransaction( NSLOCTEXT( "Sequencer", "FixPossessableObjectClass", "Fix Possessable Object Class" ) );
+
+	FMovieSceneRootEvaluationTemplateInstance& RootTemplate = GetEvaluationTemplate();
+		
+	UMovieSceneSequence* Sequence = RootTemplate.GetSequence(MovieSceneSequenceID::Root);
+
+	FixPossessableObjectClassInternal(Sequence, MovieSceneSequenceID::Root);
+
+	const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(RootTemplateInstance.GetCompiledDataID());
+	if (Hierarchy)
+	{
+		FMovieSceneEvaluationTreeRangeIterator Iter = Hierarchy->GetTree().IterateFromTime(PlayPosition.GetCurrentPosition().FrameNumber);
+
+		for (const FMovieSceneSubSequenceTreeEntry& Entry : Hierarchy->GetTree().GetAllData(Iter.Node()))
+		{
+			UMovieSceneSequence* SubSequence = Hierarchy->FindSubSequence(Entry.SequenceID);
+			if (SubSequence)
+			{
+				FixPossessableObjectClassInternal(SubSequence, Entry.SequenceID);
+			}
+		}
+	}
+}
+
 void FSequencer::RebindPossessableReferences()
 {
 	UMovieSceneSequence* FocusedSequence = GetFocusedMovieSceneSequence();
@@ -13233,6 +13295,11 @@ void FSequencer::BindCommands()
 		Commands.SyncSectionsUsingSourceTimecode,
 		FExecuteAction::CreateSP( this, &FSequencer::SyncSectionsUsingSourceTimecode ),
 		FCanExecuteAction::CreateLambda( [this]{ return (GetSelection().GetSelectedSections().Num() > 1); } ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.FixPossessableObjectClass,
+		FExecuteAction::CreateSP( this, &FSequencer::FixPossessableObjectClass ),
+		FCanExecuteAction::CreateLambda( []{ return true; } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.RebindPossessableReferences,

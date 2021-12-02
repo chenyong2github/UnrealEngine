@@ -2047,6 +2047,7 @@ void SSequencer::FillAdvancedMenu(FMenuBuilder& MenuBuilder)
 	{
 		MenuBuilder.BeginSection("Bindings", LOCTEXT("BindingsMenuHeader", "Bindings"));
 
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().FixPossessableObjectClass);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RebindPossessableReferences);
 
 		MenuBuilder.EndSection();

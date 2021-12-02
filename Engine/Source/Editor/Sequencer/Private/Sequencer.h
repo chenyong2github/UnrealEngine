@@ -661,6 +661,10 @@ public:
 	/** Called when a new camera is added. Locks the viewport to the NewCamera. */
 	void NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid);
 
+	/** Attempts to automatically fix up possessables whose object class don't match the object class of their currently bound objects */
+	void FixPossessableObjectClass();
+	void FixPossessableObjectClassInternal(UMovieSceneSequence* Sequence, FMovieSceneSequenceIDRef SequenceID);
+
 	/** Rebinds all possessable references in the current sequence to update them to the latest referencing mechanism. */
 	void RebindPossessableReferences();
 
