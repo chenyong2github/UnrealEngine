@@ -4,6 +4,7 @@
 
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Map.h"
+#include "UObject/NameTypes.h"
 #include "Virtualization/PayloadId.h"
 
 class FArchive;
@@ -136,7 +137,17 @@ class COREUOBJECT_API FPackageTrailerBuilder
 public:
 	using AdditionalDataCallback = TFunction<void(FLinkerSave& LinkerSave)>;
 
-	[[nodiscard]] static FPackageTrailerBuilder Create(const class FPackageTrailer& Trailer, FArchive& Ar);
+	/**
+	 * @param Trailer
+	 * @param Ar
+	 * @param PackagePath
+	 */
+	[[nodiscard]] static FPackageTrailerBuilder Create(const class FPackageTrailer& Trailer, FArchive& Ar, const FPackagePath& PackagePath);
+
+	FPackageTrailerBuilder() = delete;
+	FPackageTrailerBuilder(UPackage* Package);
+	FPackageTrailerBuilder(FName InPackageName);
+	~FPackageTrailerBuilder() = default;
 
 	// Methods that can be called while building the trailer
 
@@ -196,6 +207,9 @@ private:
 	};
 
 	// Members used when building the trailer
+
+	/** Name of the package the trailer is being built for, used to give meaningful error messages */
+	FName PackageName;
 
 	/** Payloads that will be stored locally when the trailer is written to disk */
 	TMap<Virtualization::FPayloadId, LocalEntry> LocalEntries;

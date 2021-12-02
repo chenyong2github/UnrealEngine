@@ -25,6 +25,7 @@ TMap<FString, TArray<uint8> > FLinkerSave::PackagesToScriptSHAMap;
 FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForceByteSwapping, bool bInSaveUnversioned)
 :	FLinker(ELinkerType::Save, InParent)
 ,	Saver(nullptr)
+,	PackageTrailerBuilder(LinkerRoot)
 {
 	SetFilename(InFilename);
 
@@ -79,6 +80,7 @@ FLinkerSave::FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForc
 FLinkerSave::FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned)
 : FLinker(ELinkerType::Save, InParent)
 , Saver(nullptr)
+, PackageTrailerBuilder(LinkerRoot)
 {
 	SetFilename(TEXT("$$Memory$$"));
 	if (FPlatformProperties::HasEditorOnlyData())
@@ -132,6 +134,7 @@ FLinkerSave::FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteS
 FLinkerSave::FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSaveUnversioned )
 :	FLinker(ELinkerType::Save, InParent)
 ,	Saver(nullptr)
+,	PackageTrailerBuilder(LinkerRoot)
 {
 	SetFilename(TEXT("$$Memory$$"));
 	if (FPlatformProperties::HasEditorOnlyData())
