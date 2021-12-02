@@ -68,9 +68,10 @@ public:
 	bool bAllowStrafing;
 
 	/** 
-	 * Deprecated: Whether or not to enable Gameplay Tasks for move tasks (always enabled now)
+	 * Whether or not to enable Gameplay Tasks for move tasks
+     * this property is just a transition-time flag - in the end we're going to switch over to Gameplay Tasks anyway, that's the goal. 
 	 */
-	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Gameplay Tasks", meta=(DisplayName="DEPRECATED Enable BT AITasks"))
+	UPROPERTY(globalconfig, EditDefaultsOnly, Category = "Gameplay Tasks")
 	bool bEnableBTAITasks;
 
 	/** if enable will make EQS not complaint about using Controllers as queriers. Default behavior (false) will 
