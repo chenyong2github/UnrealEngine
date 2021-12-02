@@ -288,8 +288,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 {
 	check(SkyLight && SkyLight->bRealTimeCaptureEnabled && !SkyLight->bHasStaticLighting);
 
-	// Ignore viewfamilies without the Atmosphere showflag enabled as the sky capture may fail otherwise.
-	if (!MainView.Family->EngineShowFlags.Atmosphere)
+	// Ignore viewfamilies without the Atmosphere showflag enabled as the sky capture may fail otherwise 
+	// as well as all views being "scene captures" which cannot be used to update the sky light data.
+	if (MainView.bIsSceneCapture || !MainView.Family->EngineShowFlags.Atmosphere)
 	{
 		return;
 	}
