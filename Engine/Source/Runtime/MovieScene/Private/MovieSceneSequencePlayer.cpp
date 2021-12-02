@@ -662,6 +662,11 @@ FFrameTime UMovieSceneSequencePlayer::GetLastValidTime() const
 	}
 }
 
+FFrameRate UMovieSceneSequencePlayer::GetDisplayRate() const
+{
+	return Sequence && Sequence->GetMovieScene() ? Sequence->GetMovieScene()->GetDisplayRate() : FFrameRate();
+}
+
 bool UMovieSceneSequencePlayer::ShouldStopOrLoop(FFrameTime NewPosition) const
 {
 	bool bShouldStopOrLoop = false;
@@ -817,6 +822,7 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		case EUpdateClockSource::Platform: TimeController = MakeShared<FMovieSceneTimeController_PlatformClock>(); break;
 		case EUpdateClockSource::RelativeTimecode: TimeController = MakeShared<FMovieSceneTimeController_RelativeTimecodeClock>(); break;
 		case EUpdateClockSource::Timecode: TimeController = MakeShared<FMovieSceneTimeController_TimecodeClock>(); break;
+		case EUpdateClockSource::PlayEveryFrame: TimeController = MakeShared<FMovieSceneTimeController_PlayEveryFrame>(); break;
 		default:                           TimeController = MakeShared<FMovieSceneTimeController_Tick>();          break;
 		}
 
@@ -867,7 +873,7 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 		{
 			check(!bIsEvaluating);
 
-			FFrameTime NewTime = TimeController->RequestCurrentTime(GetCurrentTime(), PlayRate);
+			FFrameTime NewTime = TimeController->RequestCurrentTime(GetCurrentTime(), PlayRate, GetDisplayRate());
 			UpdateTimeCursorPosition(NewTime, EUpdatePositionMethod::Play);
 		}
 
