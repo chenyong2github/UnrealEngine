@@ -12487,6 +12487,11 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	// we might want to use GetPinInitialDefaultValue here for a better default value
 	InPin->DefaultValue = FString();
 
+	if (InPin->IsExecuteContext())
+	{
+		InPin->Direction = ERigVMPinDirection::IO;
+	}
+
 	if (InPin->IsStruct())
 	{
 		FString DefaultValue = InPin->DefaultValue;

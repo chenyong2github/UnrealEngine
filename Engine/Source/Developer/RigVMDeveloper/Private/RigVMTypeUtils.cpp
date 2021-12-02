@@ -432,6 +432,7 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 		Suffix = TEXT(">");
 	}
 
+	OutCPPType = FString();
 	*OutCPPTypeObject = nullptr;
 	if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
@@ -494,6 +495,34 @@ bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FStrin
 	}
 		
 	return true;
+}
+
+bool RigVMTypeUtils::CPPTypeFromPinType(const FEdGraphPinType& InPinType, FString& OutCPPType, FName& OutCPPTypeObjectPath)
+{
+	OutCPPType = FString();
+	OutCPPTypeObjectPath = NAME_None;
+	UObject* CPPTypeObject = nullptr;
+	if (RigVMTypeUtils::CPPTypeFromPinType(InPinType, OutCPPType, &CPPTypeObject))
+	{
+		if (CPPTypeObject)
+		{
+			OutCPPTypeObjectPath = *CPPTypeObject->GetPathName();
+			if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
+			{
+				FString StructName = ScriptStruct->GetStructCPPName();
+				while (IsArrayType(OutCPPType))
+				{
+					OutCPPType = BaseTypeFromArrayType(OutCPPType);
+					StructName = ArrayTypeFromBaseType(StructName);
+				}
+				OutCPPType = StructName;
+			}
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 bool RigVMTypeUtils::CPPTypeFromExternalVariable(const FRigVMExternalVariable& InExternalVariable, FString& OutCPPType, UObject** OutCPPTypeObject)

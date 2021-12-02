@@ -902,9 +902,12 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 	{
 		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(PinType.PinSubCategoryObject))
 		{
-			if(ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+			if(SchemaAction.IsValid() && SchemaAction.Pin()->IsAVariable())
 			{
-				return false;
+				if(ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				{
+					return false;
+				}
 			}
 			return SupportsPinType(ScriptStruct);
 		}

@@ -725,30 +725,16 @@ public:
 		SLATE_EVENT(FOnPinTypeChanged, OnTypeChanged)
 	SLATE_END_ARGS()
 
-	/**
-	 * Constructs a PinTypeSelector widget (for variable actions only, so that 
-	 * the user can modify the variable's type without going to the details panel).
-	 * 
-	 * @param  InArgs					A set of slate arguments, defined above.
-	 * @param  InVariableProperty		The variable property to select
-	 * @param  InBlueprintEditor			A pointer to the blueprint editor that the palette belongs to.
-	 */
-	void Construct(const FArguments& InArgs, FProperty* InVariableProperty, UBlueprint* InBlueprint, TWeakPtr<FBlueprintEditor> InBlueprintEditor)
-	{
-		BlueprintObj = InBlueprint;
-		BlueprintEditorPtr = InBlueprintEditor;
-		VariableProperty = InVariableProperty;
-		ActionPtr = nullptr;
-
-		ConstructInternal(InArgs);
-	}
-
 	void Construct(const FArguments& InArgs, TWeakPtr<FEdGraphSchemaAction_BlueprintVariableBase> InAction, UBlueprint* InBlueprint, TWeakPtr<FBlueprintEditor> InBlueprintEditor)
 	{
 		BlueprintObj = InBlueprint;
 		BlueprintEditorPtr = InBlueprintEditor;
-		VariableProperty = nullptr;
 		ActionPtr = InAction;
+		VariableProperty = nullptr;
+		if (ActionPtr.IsValid())
+		{
+			VariableProperty = ActionPtr.Pin()->GetProperty();
+		}
 
 		ConstructInternal(InArgs);
 	}
@@ -1161,8 +1147,13 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 	TSharedRef<SWidget> NameSlotWidget = CreateTextSlotWidget(InCreateData, bIsReadOnly );
 	
 	// Will set the icon of this property to be a Pin Type selector. 
-	auto GenerateVariableSettings = [&](FProperty* VariableProp)
+	auto GenerateVariableSettings = [&](TSharedPtr<FEdGraphSchemaAction_BlueprintVariableBase> Action)
 	{
+		FProperty* VariableProp = nullptr;
+		if (Action.IsValid())
+		{
+			VariableProp = Action->GetProperty();
+		}
 		if (VariableProp)
 		{
 			if (bShouldCheckForAccessSpec)
@@ -1184,7 +1175,7 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 			if (FBlueprintEditorUtils::IsVariableCreatedByBlueprint(Blueprint, VariableProp) || VariableProp->GetOwner<UFunction>())
 			{
 				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-				IconWidget = SNew(SPinTypeSelectorHelper, VariableProp, Blueprint, BlueprintEditorPtr)
+				IconWidget = SNew(SPinTypeSelectorHelper, Action, Blueprint, BlueprintEditorPtr)
 					.IsEnabled(bIsEditingEnabled)
 					.ReadOnly_Lambda([this]() {return !IsHovered(); });
 			}
@@ -1194,11 +1185,11 @@ void SBlueprintPaletteItem::Construct(const FArguments& InArgs, FCreateWidgetFor
 	// For Variables and Local Variables, we will convert the icon widget into a pin type selector.
 	if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
 	{	
-		GenerateVariableSettings(StaticCastSharedPtr<FEdGraphSchemaAction_K2Var>(GraphAction)->GetProperty());
+		GenerateVariableSettings(StaticCastSharedPtr<FEdGraphSchemaAction_K2Var>(GraphAction));
 	}
 	else if (GraphAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 	{
-		GenerateVariableSettings(StaticCastSharedPtr<FEdGraphSchemaAction_K2LocalVar>(GraphAction)->GetProperty());
+		GenerateVariableSettings(StaticCastSharedPtr<FEdGraphSchemaAction_K2LocalVar>(GraphAction));
 	}
 	else if (GraphAction->IsA(FEdGraphSchemaAction_BlueprintVariableBase::StaticGetTypeId()))
 	{
