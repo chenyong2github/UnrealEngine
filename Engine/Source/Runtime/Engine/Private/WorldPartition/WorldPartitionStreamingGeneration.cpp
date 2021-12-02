@@ -167,7 +167,7 @@ class FWorldPartitionStreamingGenerator
 			const FActorContainerID& ContainerID = It.Key();
 			FContainerDescriptor& ContainerDescriptor = It.Value();
 
-			if (ContainerID.IsMainContainer())
+			if (ContainerID.IsMainContainer() && ContainerDescriptor.Container->GetWorld() != nullptr)
 			{
 				// Gather all references to external actors from the level script and make them always loaded
 				if (ULevelScriptBlueprint* LevelScriptBlueprint = ContainerDescriptor.Container->GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
@@ -202,7 +202,10 @@ class FWorldPartitionStreamingGenerator
 			}
 
 			// Give the associated runtime hash the possibility to adjust actor descriptor views based on its internal settings, etc.
-			RuntimeHash->UpdateActorDescViewMap(ContainerDescriptor.ActorDescViewMap);
+			if (RuntimeHash != nullptr)
+			{
+				RuntimeHash->UpdateActorDescViewMap(ContainerDescriptor.ActorDescViewMap);
+			}
 
 			// Perform various adjustements based on validations and errors
 			for (auto ActorDescIt = ContainerDescriptor.ActorDescViewMap.CreateIterator(); ActorDescIt; ++ActorDescIt)
@@ -506,6 +509,16 @@ void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHand
 		StreamingGenerator.PreparationPhase(this);
 	}
 }
+
+void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler, const UActorDescContainer* ActorDescContainer) 
+{
+	FActorClusterContext ActorClusterContext;
+	{
+		FWorldPartitionStreamingGenerator StreamingGenerator(nullptr, nullptr, ErrorHandler);
+		StreamingGenerator.PreparationPhase(ActorDescContainer);
+	}
+}
+
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

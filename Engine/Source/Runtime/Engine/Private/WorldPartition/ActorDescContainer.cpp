@@ -297,7 +297,7 @@ void UActorDescContainer::UnpinActor(const FGuid& ActorGuid)
 
 void UActorDescContainer::RegisterEditorDelegates()
 {
-	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (GEditor && !IsTemplate() && World && !World->IsGameWorld())
 	{
 		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
 		FEditorDelegates::OnPackageDeleted.AddUObject(this, &UActorDescContainer::OnPackageDeleted);
@@ -307,7 +307,7 @@ void UActorDescContainer::RegisterEditorDelegates()
 
 void UActorDescContainer::UnregisterEditorDelegates()
 {
-	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	if (GEditor && !IsTemplate() && World && !World->IsGameWorld())
 	{
 		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
 		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
