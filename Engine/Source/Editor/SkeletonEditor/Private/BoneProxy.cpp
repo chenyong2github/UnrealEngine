@@ -117,50 +117,14 @@ TOptional<FVector::FReal> UBoneProxy::GetNumericValue(
 			break;
 		}
 	}
-	
-	switch(Component)
-	{
-		case ESlateTransformComponent::Location:
-		{
-			switch(SubComponent)
-			{
-				case ESlateTransformSubComponent::X:
-					return LocationPtr->X;
-				case ESlateTransformSubComponent::Y:
-					return LocationPtr->Y;
-				case ESlateTransformSubComponent::Z:
-					return LocationPtr->Z;
-			}
-			break;
-		}
-		case ESlateTransformComponent::Rotation:
-		{
-			switch(SubComponent)
-			{
-			case ESlateTransformSubComponent::Roll:
-				return RotationPtr->Roll;
-			case ESlateTransformSubComponent::Pitch:
-				return RotationPtr->Pitch;
-			case ESlateTransformSubComponent::Yaw:
-				return RotationPtr->Yaw;
-			}
-			break;
-		}
-		case ESlateTransformComponent::Scale:
-		{
-			switch(SubComponent)
-			{
-			case ESlateTransformSubComponent::X:
-				return ScalePtr->X;
-			case ESlateTransformSubComponent::Y:
-				return ScalePtr->Y;
-			case ESlateTransformSubComponent::Z:
-				return ScalePtr->Z;
-			}
-			break;
-		}
-	}
-	return TOptional<FVector::FReal>();
+
+	const FEulerTransform Transform(*RotationPtr, *LocationPtr, *ScalePtr);
+	return SAdvancedTransformInputBox<FEulerTransform>::GetNumericValueFromTransform(
+		Transform,
+		Component,
+		Representation,
+		SubComponent
+		);
 }
 
 TOptional<FVector::FReal> UBoneProxy::GetMultiNumericValue(
