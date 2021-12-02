@@ -783,7 +783,7 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenSceneLightingStatsCS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenSceneLightingStatsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FLumenSceneLightingStatsCS, "/Engine/Private/Lumen/LumenSceneLightingDebug.usf", "LumenSceneLightingStatsCS", SF_Compute);
 
 void Lumen::BuildCardUpdateContext(
 	FRDGBuilder& GraphBuilder,
