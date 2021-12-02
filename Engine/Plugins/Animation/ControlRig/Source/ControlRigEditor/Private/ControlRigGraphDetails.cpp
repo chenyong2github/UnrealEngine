@@ -115,6 +115,7 @@ void FControlRigArgumentGroupLayout::HandleModifiedEvent(ERigVMGraphNotifType In
 		case ERigVMGraphNotifType::PinAdded:
 		case ERigVMGraphNotifType::PinRemoved:
 		case ERigVMGraphNotifType::PinIndexChanged:
+		case ERigVMGraphNotifType::PinTypeChanged:
 		{
 			URigVMPin* Pin = CastChecked<URigVMPin>(InSubject);
 			if (Pin->GetNode() == LibraryNode)
@@ -130,6 +131,63 @@ void FControlRigArgumentGroupLayout::HandleModifiedEvent(ERigVMGraphNotifType In
 	}
 }
 
+class FControlRigArgumentPinTypeSelectorFilter : public IPinTypeSelectorFilter
+{
+public:
+	FControlRigArgumentPinTypeSelectorFilter(TWeakPtr<IControlRigEditor> InControlRigEditor, TWeakObjectPtr<URigVMGraph> InGraph)
+		: ControlRigEditorPtr(InControlRigEditor), GraphPtr(InGraph)
+	{
+	}
+	
+	virtual bool ShouldShowPinTypeTreeItem(FPinTypeTreeItem InItem) const override
+	{
+		if (!InItem.IsValid())
+		{
+			return false;
+		}
+
+		// Only allow an execute context pin if the graph doesnt have one already
+		FString CPPType;
+		UObject* CPPTypeObject = nullptr;
+		RigVMTypeUtils::CPPTypeFromPinType(InItem.Get()->GetPinType(false), CPPType, &CPPTypeObject);
+		if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
+		{
+			if (ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+			{
+				if (GraphPtr.IsValid())
+				{
+					if (URigVMFunctionEntryNode* EntryNode = GraphPtr.Get()->GetEntryNode())
+					{
+						for (URigVMPin* Pin : EntryNode->GetPins())
+						{
+							if (Pin->IsExecuteContext())
+							{
+								return false;
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		if (ControlRigEditorPtr.IsValid())
+		{
+			if (ControlRigEditorPtr.Pin()->GetImportedPinTypeSelectorFilter().IsValid())
+			{
+				return ControlRigEditorPtr.Pin()->GetImportedPinTypeSelectorFilter()->ShouldShowPinTypeTreeItem(InItem);				
+			}
+		}
+
+		return false;
+	}
+
+private:
+
+	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
+	
+	TWeakObjectPtr<URigVMGraph> GraphPtr;
+};
+
 void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
 	const UEdGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
@@ -140,10 +198,9 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
 	if (ControlRigEditorPtr.IsValid())
 	{
-		CustomPinTypeFilter = ControlRigEditorPtr.Pin()->GetImportedPinTypeSelectorFilter();
+		CustomPinTypeFilter = MakeShared<FControlRigArgumentPinTypeSelectorFilter>(ControlRigEditorPtr, GraphPtr);
 	}
 	
-
 	NodeRow
 		.NameContent()
 		[
@@ -413,29 +470,10 @@ void FControlRigArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinType)
 		{
 			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
-				FRigVMExternalVariable ExternalVariable = RigVMTypeUtils::ExternalVariableFromPinType(Pin->GetFName(), PinType, true, false);
-				if (!ExternalVariable.IsValid(true /* allow nullptr memory */))
-				{
-					return;
-				}
-
-				FString CPPType = ExternalVariable.TypeName.ToString();
+				FString CPPType;
 				FName CPPTypeObjectName = NAME_None;
-				if (ExternalVariable.TypeObject)
-				{
-					CPPTypeObjectName = *ExternalVariable.TypeObject->GetPathName();
-
-					if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ExternalVariable.TypeObject))
-					{
-						CPPType = ScriptStruct->GetStructCPPName();
-					}
-				}
-
-				if (ExternalVariable.bIsArray)
-				{
-					CPPType = FString::Printf(TEXT("TArray<%s>"), *CPPType);
-				}
-
+				RigVMTypeUtils::CPPTypeFromPinType(PinType, CPPType, CPPTypeObjectName);
+				
 				bool bSetupUndoRedo = true;
 				Controller->ChangeExposedPinType(Pin->GetFName(), CPPType, CPPTypeObjectName, bSetupUndoRedo, false, true);
 
