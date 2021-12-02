@@ -7,7 +7,7 @@
 #include "Modules/ModuleManager.h"
 
 /**
- * @see UNeuralNetwork for general documentation and code samples about the whole NeuralNetworkInference (NNI) plugin.
+ * For a general overview of NeuralNetworkInference (NNI), including documentation and code samples, @see UNeuralNetwork, the main class of NNI.
  *
  * General NNI users do not need to use this class nor any other class from the NeuralNetworkInferenceEditor (NNIEditor) module, except for
  * potentially INeuralNetworkInferenceEditorModule::GetMLAssetCategoryBit().
