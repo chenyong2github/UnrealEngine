@@ -20,7 +20,7 @@ class IBehaviorReader;
 class IGeometryReader;
 class FRigLogicMemoryStream;
 class UAssetUserData;
-enum class EDNADataLayer: uint8;
+enum class EDNADataLayer : uint8;
 
 struct FSharedRigRuntimeContext
 {
@@ -29,6 +29,8 @@ struct FSharedRigRuntimeContext
 	{
 		TArray<T> Values;
 	};
+
+	uint32 DNAHash;
 
 	/** Part of the .dna file needed for run-time execution of RigLogic;
 	 **/
@@ -48,11 +50,11 @@ struct FSharedRigRuntimeContext
 };
 
 
- /** An asset holding the data needed to generate/update/animate a RigLogic character
-  * It is imported from character's DNA file as a bit stream, and separated out it into runtime (behavior) and design-time chunks;
-  * Currently, the design-time part still loads the geometry, as it is needed for the skeletal mesh update; once SkeletalMeshDNAReader is
-  * fully implemented, it will be able to read the geometry directly from the SkeletalMesh and won't load it into this asset 
-  **/
+/** An asset holding the data needed to generate/update/animate a RigLogic character
+ * It is imported from character's DNA file as a bit stream, and separated out it into runtime (behavior) and design-time chunks;
+ * Currently, the design-time part still loads the geometry, as it is needed for the skeletal mesh update; once SkeletalMeshDNAReader is
+ * fully implemented, it will be able to read the geometry directly from the SkeletalMesh and won't load it into this asset
+ **/
 UCLASS(NotBlueprintable, hidecategories = (Object))
 class RIGLOGICMODULE_API UDNAAsset : public UAssetUserData
 {
@@ -63,7 +65,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
-	class UAssetImportData* AssetImportData;
+		class UAssetImportData* AssetImportData;
 #endif
 
 	TSharedPtr<IBehaviorReader> GetBehaviorReader()
@@ -79,7 +81,7 @@ public:
 #endif
 
 	UPROPERTY()
-	FString DNAFileName; 
+		FString DNAFileName;
 
 	bool Init(const FString& Filename);
 	void Serialize(FArchive& Ar) override;

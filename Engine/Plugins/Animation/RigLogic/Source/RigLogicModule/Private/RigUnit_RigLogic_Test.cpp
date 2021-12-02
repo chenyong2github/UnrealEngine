@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #if WITH_DEV_AUTOMATION_TESTS
-	#include "RigUnit_RigLogic_Test.h"
+#include "RigUnit_RigLogic_Test.h"
 #endif
 
 #include "RigUnit_RigLogic.h"
@@ -55,7 +55,7 @@ TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveCont
 
 void FRigUnit_RigLogic::TestAccessor::Exec_MapInputCurve(URigHierarchy* TestHierarchy)
 {
-	Unit->Data.MapInputCurveIndices(TestHierarchy); //inside the method so we can access data, which is a private member
+	Unit->Data.InitializeRigLogic(TestHierarchy); //inside the method so we can access data, which is a private member
 }
 
 /** ====== Map Joints ===== **/
@@ -86,7 +86,7 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 
 void FRigUnit_RigLogic::TestAccessor::Exec_MapJoints(URigHierarchy* TestHierarchy)
 {
-	Unit->Data.MapJoints(TestHierarchy);
+	Unit->Data.InitializeRigLogic(TestHierarchy); //inside the method so we can access data, which is a private member
 }
 
 /** ====== Map Morph Targets ===== **/
@@ -145,7 +145,7 @@ TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveCont
 void FRigUnit_RigLogic::TestAccessor::Exec_MapMorphTargets(URigHierarchy* TestCurveContainer)
 {
 	//put into a separate method so we can access the private Data member
-	Unit->Data.MapMorphTargets(TestCurveContainer); 
+	Unit->Data.InitializeRigLogic(TestCurveContainer);
 }
 
 /** ====== Map Mask Multipliers ===== **/
@@ -161,13 +161,13 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 
 void FRigUnit_RigLogic::TestAccessor::Exec_MapMaskMultipliers(URigHierarchy* TestHierarchy)
 {
-	Unit->Data.MapMaskMultipliers(TestHierarchy); //inside the method so we can access data, which is a private member
+	Unit->Data.InitializeRigLogic(TestHierarchy); //inside the method so we can access data, which is a private member
 }
 
 void FRigUnit_RigLogic::TestAccessor::AddToTransformArray(float* InArray, FTransform& Transform)
 {
 	uint32 FirstAttributeIndex = 0;
-	
+
 	FVector Rotation = Transform.GetRotation().Euler();
 	InArray[FirstAttributeIndex + 0] = Rotation.X;
 	InArray[FirstAttributeIndex + 1] = Rotation.Y;
@@ -185,7 +185,7 @@ void FRigUnit_RigLogic::TestAccessor::AddToTransformArray(float* InArray, FTrans
 }
 
 
-FTransformArrayView FRigUnit_RigLogic::TestAccessor::CreateTwoJointNeutralTransforms(float *InValueArray)
+FTransformArrayView FRigUnit_RigLogic::TestAccessor::CreateTwoJointNeutralTransforms(float* InValueArray)
 {
 	float* Transform1Ptr = InValueArray;
 
@@ -229,7 +229,7 @@ TArrayView<const uint16> FRigUnit_RigLogic::TestAccessor::CreateTwoJointVariable
 		InVariableAttributeIndices[9 + 6] = 9 + 6;
 		InVariableAttributeIndices[9 + 7] = 9 + 7;
 		InVariableAttributeIndices[9 + 8] = 9 + 8;
-	
+
 		return TArrayView<const uint16>(InVariableAttributeIndices, 2 * FRigUnit_RigLogic::TestAccessor::MAX_ATTRS_PER_JOINT);
 	}
 
@@ -284,18 +284,18 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		Test.GetData()->RigInstance != nullptr &&
 
 		// Check joints
-		Test.GetData()->HierarchyBoneIndices.Num() > 0 &&
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() > 0 &&
 
 		// Check input curves
-		Test.GetData()->InputCurveIndices.Num() > 0 &&
+		Test.GetData()->Mappings->InputCurveIndices.Num() > 0 &&
 
 		// Check morph targets
-		Test.GetData()->MorphTargetCurveIndices.Num() > 0 &&
-		Test.GetData()->BlendShapeIndices.Num() > 0 &&
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() > 0 &&
+		Test.GetData()->Mappings->BlendShapeIndices.Num() > 0 &&
 
 		// Check mask multipliers
-		Test.GetData()->RigLogicIndicesForAnimMaps.Num() > 0 &&
-		Test.GetData()->CurveElementIndicesForAnimMaps.Num() > 0,
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps.Num() > 0 &&
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps.Num() > 0,
 
 		TEXT("InitAndExecute failed to initialize rig logic.")
 	);
@@ -312,8 +312,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapInputCurve(TestCurveContainerNameMismatch.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->InputCurveIndices.Num() == 1 &&
-		Test.GetData()->InputCurveIndices[0] == INDEX_NONE,
+		Test.GetData()->Mappings->InputCurveIndices.Num() == 1 &&
+		Test.GetData()->Mappings->InputCurveIndices[0] == INDEX_NONE,
 		TEXT("MapInputCurve - ValidReader CurveContainerWithNameMismatch")
 	);
 
@@ -327,7 +327,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapInputCurve(TestCurveContainerValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->InputCurveIndices.Num() == 0,
+		Test.GetData()->Mappings->InputCurveIndices.Num() == 0,
 		TEXT("MapInputCurve - EmptyReader ValidCurveContainer")
 	);
 
@@ -340,8 +340,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapInputCurve(TestCurveContainerEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->InputCurveIndices.Num() == 1 &&
-		Test.GetData()->InputCurveIndices[0] == INDEX_NONE,
+		Test.GetData()->Mappings->InputCurveIndices.Num() == 1 &&
+		Test.GetData()->Mappings->InputCurveIndices[0] == INDEX_NONE,
 		TEXT("MapInputCurve - ValidReader EmptyCurveContainer")
 	);
 
@@ -355,7 +355,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapInputCurve(TestCurveContainerValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->InputCurveIndices.Num() == 0,
+		Test.GetData()->Mappings->InputCurveIndices.Num() == 0,
 		TEXT("MapInputCurve - InvalidReader ValidCurveContainer")
 	);
 
@@ -368,8 +368,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapInputCurve(TestCurveContainerValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->InputCurveIndices.Num() == 1 &&
-		Test.GetData()->InputCurveIndices[0] == 0,
+		Test.GetData()->Mappings->InputCurveIndices.Num() == 1 &&
+		Test.GetData()->Mappings->InputCurveIndices[0] == 0,
 		TEXT("MapInputCurve - Valid Inputs")
 	);
 
@@ -384,7 +384,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapJoints(TestHierarchyEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 0,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 0,
 		TEXT("MapJoints - Empty Inputs")
 	);
 
@@ -395,7 +395,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//Test
 	Test.Exec_MapJoints(TestHierarchyTwoBones.Get());
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 0,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 0,
 		TEXT("MapJoints - EmptyReader TwoBones")
 	);
 
@@ -406,17 +406,17 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//Test
 	Test.Exec_MapJoints(TestHierarchyEmpty.Get());
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 2,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 2,
 		TEXT("MapJoints - TwoJoints NoBones - expected 2 bone indices")
 	);
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 2 && //repeated condition to prevent crash
-		Test.GetData()->HierarchyBoneIndices[0] == INDEX_NONE,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 2 && //repeated condition to prevent crash
+		Test.GetData()->Mappings->HierarchyBoneIndices[0] == INDEX_NONE,
 		TEXT("MapJoints - TwoJoints NoBones - Expected joint 0 index to be NONE")
 	);
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 2 && //repeated condition to prevent crash
-		Test.GetData()->HierarchyBoneIndices[1] == INDEX_NONE,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 2 && //repeated condition to prevent crash
+		Test.GetData()->Mappings->HierarchyBoneIndices[1] == INDEX_NONE,
 		TEXT("MapJoints - TwoJoints NoBones - Expected joint 1 index to be NONE")
 	);
 
@@ -428,17 +428,17 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapJoints(TestHierarchyTwoBones.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 2,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 2,
 		TEXT("MapJoints - TwoJoints TwoBones - Expected 2 bone indices")
 	);
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 2 && //prevent crash
-		Test.GetData()->HierarchyBoneIndices[0] == 0,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 2 && //prevent crash
+		Test.GetData()->Mappings->HierarchyBoneIndices[0] == 0,
 		TEXT("MapJoints - TwoJoints TwoBones - Expected bone 0 index to be 0")
 	);
 	AddErrorIfFalse(
-		Test.GetData()->HierarchyBoneIndices.Num() == 2 && //prevent crash
-		Test.GetData()->HierarchyBoneIndices[1] == 1,
+		Test.GetData()->Mappings->HierarchyBoneIndices.Num() == 2 && //prevent crash
+		Test.GetData()->Mappings->HierarchyBoneIndices[1] == 1,
 		TEXT("MapJoints - TwoJoints TwoBones - Expected bone index 1 index to be 1")
 	);
 
@@ -455,12 +455,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetNameMismatch.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
-		Test.GetData()->MorphTargetCurveIndices.Num() == 1 && //LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 1 && //at least one blendshape exists
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 && //has index 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 1 && //but morph target corresponding to that blendshape
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //wasn't found
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 && //LOD 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 1 && //LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 1 && //at least one blendshape exists
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 && //has index 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 1 && //but morph target corresponding to that blendshape
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //wasn't found
 		TEXT("MapMorphTargets - ValidReader MorphTargetWithNameMismatch")
 	);
 
@@ -474,8 +474,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->MorphTargetCurveIndices.Num() == 0 &&
-		Test.GetData()->BlendShapeIndices.Num() == 0,
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 0 &&
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 0,
 		TEXT("MapMorphTargets - EmptyReader ValidMorphTargetCurve")
 	);
 
@@ -489,9 +489,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0 exists
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 0 && //but no blend shapes mapped
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 0, //or morph targets
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 && //LOD 0 exists
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 0 && //but no blend shapes mapped
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 0, //or morph targets
 		TEXT("MapMorphTargets - NoBlendShapes ValidMorphTargetCurve")
 	);
 
@@ -504,11 +504,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestCurveContainerEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 1 && //one blend shape
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 && //of index 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 1 && //we put in a morph target index corresponding to it
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //but just to signal that it is not found
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 && //LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 1 && //one blend shape
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 && //of index 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 1 && //we put in a morph target index corresponding to it
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //but just to signal that it is not found
 		TEXT("MapMorphTargets - ValidReader EmptyCurveContainer")
 	);
 
@@ -521,11 +521,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 1 && //one blend shape (empty named)
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 && //of index 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 1 && //we put in a morph target index corresponding to it
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //but just to signal that it is not found
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 && //LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 1 && //one blend shape (empty named)
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 && //of index 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 1 && //we put in a morph target index corresponding to it
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //but just to signal that it is not found
 		TEXT("MapMorphTargets - InvalidReader ValidMorphTargetCurve")
 	);
 
@@ -538,11 +538,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetCurvesInvalid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 1 && //one blend shape
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 && //of index 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 1 && //we put in a morph target index corresponding to it
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //but just to signal that it is not found
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 && //LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 1 && //one blend shape
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 && //of index 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 1 && //we put in a morph target index corresponding to it
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == INDEX_NONE, //but just to signal that it is not found
 		TEXT("MapMorphTargets - ValidReader InvalidMorphTargetCurve")
 	);
 
@@ -555,12 +555,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetCurveValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 && //LOD 0
-		Test.GetData()->MorphTargetCurveIndices.Num() == 1 && //LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 1 && //at least one blendshape exists
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 && //has index 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 1 && //morph target corresponding to that blendshape exists
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == 0, //and actually points to the right index
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 && //LOD 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 1 && //LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 1 && //at least one blendshape exists
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 && //has index 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 1 && //morph target corresponding to that blendshape exists
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == 0, //and actually points to the right index
 		TEXT("MapMorphTargets - ValidReader ValidTestMorphTarget")
 	);
 
@@ -583,28 +583,28 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetTwoCurves.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 2 &&  //2 LODs
-		Test.GetData()->MorphTargetCurveIndices.Num() == 2,
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 2 &&  //2 LODs
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 2,
 		TEXT("MapMorphTargets LOD0(AB) LOD1(A) - Expected 2 LODs for both blendshapes and morph targets")
 	);
 
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 2 &&         //condition repeated for crash prevention
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 2 && //two blendshapes at LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 &&  // A
-		Test.GetData()->BlendShapeIndices[0].Values[1] == 1 &&  // B
-		Test.GetData()->BlendShapeIndices[1].Values.Num() == 1 && //one blendshape at LOD 1
-		Test.GetData()->BlendShapeIndices[1].Values[0] == 0,    // A
-			TEXT("MapMorphTargets LOD0(AB) LOD1(A) - resulting blendshape indices not correct")
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 2 &&         //condition repeated for crash prevention
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 2 && //two blendshapes at LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 &&  // A
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[1] == 1 &&  // B
+		Test.GetData()->Mappings->BlendShapeIndices[1].Values.Num() == 1 && //one blendshape at LOD 1
+		Test.GetData()->Mappings->BlendShapeIndices[1].Values[0] == 0,    // A
+		TEXT("MapMorphTargets LOD0(AB) LOD1(A) - resulting blendshape indices not correct")
 	);
 
 	AddErrorIfFalse(
-		Test.GetData()->MorphTargetCurveIndices.Num() == 2 &&         //condition repeated for crash prevention
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 2 && //two morph targets at LOD 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == 0 &&  // A
-		Test.GetData()->MorphTargetCurveIndices[0].Values[1] == 1 &&  // B
-		Test.GetData()->MorphTargetCurveIndices[1].Values.Num() == 1 && //one morph target at LOD 1
-		Test.GetData()->MorphTargetCurveIndices[1].Values[0] == 0,    // A
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 2 &&         //condition repeated for crash prevention
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 2 && //two morph targets at LOD 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == 0 &&  // A
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[1] == 1 &&  // B
+		Test.GetData()->Mappings->MorphTargetCurveIndices[1].Values.Num() == 1 && //one morph target at LOD 1
+		Test.GetData()->Mappings->MorphTargetCurveIndices[1].Values[0] == 0,    // A
 		TEXT("MapMorphTargets LOD0(AB) LOD1(A) - resulting morph target indices not correct")
 	);
 
@@ -621,25 +621,25 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetTwoCurves.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 &&  //1 LOD
-		Test.GetData()->MorphTargetCurveIndices.Num() == 1, //1 LOD
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 &&  //1 LOD
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 1, //1 LOD
 		TEXT("MapMorphTargets LOD0(AB) LOD1(-) - Expected 1 LOD for both blendshapes and morph targets")
 	);
 
 
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 1 &&         //condition repeated for crash prevention
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 2 && //two blendshapes at LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 &&  // A
-		Test.GetData()->BlendShapeIndices[0].Values[1] == 1,    // B
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 1 &&         //condition repeated for crash prevention
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 2 && //two blendshapes at LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 &&  // A
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[1] == 1,    // B
 		TEXT("MapMorphTargets LOD0(AB) LOD1(-) - Resulting blendshapes not correct")
 	);
 
 	AddErrorIfFalse(
-		Test.GetData()->MorphTargetCurveIndices.Num() == 1 &&         //condition repeated for crash prevention
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 2 && //two morph targets at LOD 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == 0 &&  // A
-		Test.GetData()->MorphTargetCurveIndices[0].Values[1] == 1,    // B
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 1 &&         //condition repeated for crash prevention
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 2 && //two morph targets at LOD 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == 0 &&  // A
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[1] == 1,    // B
 		TEXT("MapMorphTargets LOD0(AB) LOD1(-) - Resulting morph targets not correct")
 	);
 
@@ -655,26 +655,26 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMorphTargets(TestMorphTargetTwoCurves.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 2 &&  //2 LODs
-		Test.GetData()->MorphTargetCurveIndices.Num() == 2, //2 LODs
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 2 &&  //2 LODs
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 2, //2 LODs
 		TEXT("MapMorphTargets LOD0(A) LOD1(B) - Expected 2 LODs for both blendshapes and morph targets")
 	);
 
 	AddErrorIfFalse(
-		Test.GetData()->BlendShapeIndices.Num() == 2 &&         //condition repeated for crash prevention
-		Test.GetData()->BlendShapeIndices[0].Values.Num() == 1 && //1 blendshape at LOD 0
-		Test.GetData()->BlendShapeIndices[0].Values[0] == 0 &&  // A
-		Test.GetData()->BlendShapeIndices[1].Values.Num() == 1 && //1 blendshape at LOD 1
-		Test.GetData()->BlendShapeIndices[1].Values[0] == 1,    // B
+		Test.GetData()->Mappings->BlendShapeIndices.Num() == 2 &&         //condition repeated for crash prevention
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values.Num() == 1 && //1 blendshape at LOD 0
+		Test.GetData()->Mappings->BlendShapeIndices[0].Values[0] == 0 &&  // A
+		Test.GetData()->Mappings->BlendShapeIndices[1].Values.Num() == 1 && //1 blendshape at LOD 1
+		Test.GetData()->Mappings->BlendShapeIndices[1].Values[0] == 1,    // B
 		TEXT("MapMorphTargets LOD0(A) LOD1(B) - Resulting blendshape indices not correct")
 	);
 
 	AddErrorIfFalse(
-		Test.GetData()->MorphTargetCurveIndices.Num() == 2 &&         //condition repeated for crash prevention
-		Test.GetData()->MorphTargetCurveIndices[0].Values.Num() == 1 && //1 morph target at LOD 0
-		Test.GetData()->MorphTargetCurveIndices[0].Values[0] == 0 &&  // A
-		Test.GetData()->MorphTargetCurveIndices[1].Values.Num() == 1 && //1 morph target at LOD 1
-		Test.GetData()->MorphTargetCurveIndices[1].Values[0] == 1,    // B
+		Test.GetData()->Mappings->MorphTargetCurveIndices.Num() == 2 &&         //condition repeated for crash prevention
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values.Num() == 1 && //1 morph target at LOD 0
+		Test.GetData()->Mappings->MorphTargetCurveIndices[0].Values[0] == 0 &&  // A
+		Test.GetData()->Mappings->MorphTargetCurveIndices[1].Values.Num() == 1 && //1 morph target at LOD 1
+		Test.GetData()->Mappings->MorphTargetCurveIndices[1].Values[0] == 1,    // B
 		TEXT("MapMorphTargets LOD0(A) LOD1(B) - Resulting morph target indices not correct")
 	);
 
@@ -691,12 +691,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMaskMultipliers(TestCurveContainerForAnimMapsNameMismatch.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
-		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
 		TEXT("MapMaskMultipliers - ValidReader ValidAnimatedMapNameMismatch")
 	);
 
@@ -709,8 +709,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMaskMultipliers(TestCurveContainerForAnimMapsValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 0 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 0,
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps.Num() == 0 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps.Num() == 0,
 		TEXT("MapMaskMultipliers - EmptyReader ValidAnimatedMap")
 	);
 
@@ -721,12 +721,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMaskMultipliers(TestCurveContainerEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
-		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
 		TEXT("MapMaskMultipliers - ValidReader EmptyCurveContainer")
 	);
 
@@ -739,12 +739,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMaskMultipliers(TestCurveContainerForAnimMapsValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values[0] == 0 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->Mappings->CurveElementIndicesForAnimMaps[0].Values[0] == 0 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->Mappings->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
 		TEXT("MapMaskMultipliers - Valid Inputs")
 	);
 
