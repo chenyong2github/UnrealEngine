@@ -29,12 +29,15 @@ public class SkeletonEditor : ModuleRules
 				"ToolMenus",
 				"EditorWidgets",
 				"ToolWidgets",
+				"AnimationCore",
+				"AnimationWidgets",
 			}
 		);
 
         PublicIncludePathModuleNames.AddRange(
             new string[] {
                 "Persona",
+                "AnimationWidgets",
             }
         );
 
