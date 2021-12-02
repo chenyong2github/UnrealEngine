@@ -184,8 +184,8 @@ namespace Chaos
 		AngularPosition += Omega * DeltaTime;
 
 		// Handle wrap around of wheel position
-		float IntegerPart = 0;
-		AngularPosition = FMath::Modf(AngularPosition / TWO_PI, &IntegerPart);
+		float IntegerPart = 0.f;
+		AngularPosition = FMath::Modf(AngularPosition / TWO_PI, &IntegerPart) * TWO_PI;
 
 		if (!bInContact)
 		{
