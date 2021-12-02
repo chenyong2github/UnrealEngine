@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
 using Datadog.Trace;
+using Horde.Storage.Implementation.Blob;
 using Jupiter.Implementation;
 using Jupiter.Utils;
 
@@ -31,13 +32,15 @@ namespace Horde.Storage.Implementation
         private readonly IBlobService _blobService;
         private readonly IReferenceResolver _referenceResolver;
         private readonly IReplicationLog _replicationLog;
+        private readonly IBlobIndex _blobIndex;
 
-        public ObjectService(IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog)
+        public ObjectService(IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex)
         {
             _referencesStore = referencesStore;
             _blobService = blobService;
             _referenceResolver = referenceResolver;
             _replicationLog = replicationLog;
+            _blobIndex = blobIndex;
         }
 
         public async Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[]? fields = null)
@@ -66,7 +69,7 @@ namespace Horde.Storage.Implementation
             Task objectStorePut = _referencesStore.Put(ns, bucket, key, blobHash, payload.Data, isFinalized);
 
             Task<BlobIdentifier> blobStorePut = _blobService.PutObject(ns, payload.Data, blobHash);
-
+            Task addRefToBodyTask = _blobIndex.AddRefToBlobs(ns, bucket, key, new [] {blobHash});
             BlobIdentifier[] missingReferences = Array.Empty<BlobIdentifier>();
             if (hasReferences)
             {
@@ -74,7 +77,12 @@ namespace Horde.Storage.Implementation
                 try
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, payload);
-                    missingReferences = await _blobService.FilterOutKnownBlobs(ns, references);
+                    // TODO: we no longer use this as a async enumerable, which will slow down the resolve reference a little bit
+                    BlobIdentifier[] referencesArray = await references.ToArrayAsync();
+                    Task addRefsTask = _blobIndex.AddRefToBlobs(ns, bucket, key, referencesArray);
+                    Task<BlobIdentifier[]> checkReferencesTask = _blobService.FilterOutKnownBlobs(ns, referencesArray);
+                    await Task.WhenAll(addRefsTask, checkReferencesTask);
+                    missingReferences = await checkReferencesTask;
                 }
                 catch (PartialReferenceResolveException e)
                 {
@@ -82,7 +90,7 @@ namespace Horde.Storage.Implementation
                 }
             }
 
-            await Task.WhenAll(objectStorePut, blobStorePut);
+            await Task.WhenAll(objectStorePut, blobStorePut, addRefToBodyTask);
 
             if (missingReferences.Length == 0)
             {

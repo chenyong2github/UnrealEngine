@@ -92,13 +92,10 @@ namespace Horde.Storage.Implementation
         public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobHash)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.finalize");
-            ObjectRecord o = await Get(ns, bucket, name);
-            if (!o.BlobIdentifier.Equals(blobHash))
-                throw new ObjectHashMismatchException(ns, bucket, name, blobHash, o.BlobIdentifier);
 
-            AppliedInfo<ScyllaObject> info = await _mapper.UpdateIfAsync<ScyllaObject>("SET is_finalized=true WHERE namespace=? AND bucket=? AND name=?", ns.ToString(), bucket.ToString(), name.ToString());
+            AppliedInfo<ScyllaObject> info = await _mapper.UpdateIfAsync<ScyllaObject>("SET is_finalized=true WHERE namespace=? AND bucket=? AND name=? IF payload_hash=?", ns.ToString(), bucket.ToString(), name.ToString(), blobHash.ToString());
             if (!info.Applied)
-                throw new InvalidOperationException("Failed to finalize object even though it existed and hashes matched");
+                throw new ObjectHashMismatchException(ns, bucket, name, blobHash, info.Existing.PayloadHash!.AsBlobIdentifier());
         }
 
         private async Task CreateTTLRecord(NamespaceId ns, BucketId bucket, IoHashKey name, sbyte partitionIndex)
@@ -299,6 +296,30 @@ namespace Horde.Storage.Implementation
         public BlobIdentifier AsBlobIdentifier()
         {
             return new BlobIdentifier(Hash!); 
+        }
+    }
+
+    public class ScyllaObjectReference
+    {
+        // used by the cassandra mapper
+        public ScyllaObjectReference()
+        {
+            Bucket = null!;
+            Key = null!;
+        }
+
+        public ScyllaObjectReference(BucketId bucket, IoHashKey key)
+        {
+            Bucket = bucket.ToString();
+            Key = key.ToString();
+        }
+
+        public string Bucket { get;set; }
+        public string Key { get; set; }
+
+        public (BucketId, IoHashKey) AsTuple()
+        {
+            return (new BucketId(Bucket), new IoHashKey(Key));
         }
     }
 

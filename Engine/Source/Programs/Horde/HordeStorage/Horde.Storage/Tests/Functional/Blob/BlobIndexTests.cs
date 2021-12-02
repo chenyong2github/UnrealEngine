@@ -2,12 +2,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
 using System.Threading.Tasks;
+using Cassandra;
+using Horde.Storage.Implementation;
 using Horde.Storage.Implementation.Blob;
+using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -15,7 +19,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Serilog;
-using Serilog.Core;
+using Logger = Serilog.Core.Logger;
 
 namespace Horde.Storage.FunctionalTests.Storage
 {
@@ -25,22 +29,6 @@ namespace Horde.Storage.FunctionalTests.Storage
         protected HttpClient? _httpClient;
 
         protected readonly NamespaceId TestNamespaceName = new NamespaceId("testbucket");
-        protected const string SmallFileContents = "Small file contents";
-        protected const string AnotherFileContents = "Another file with contents";
-        protected const string DeletableFileContents = "Delete Me";
-        protected const string OldFileContents = "a old blob used for testing cutoff filtering";
-
-        protected readonly BlobIdentifier _smallFileHash =
-            BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes(SmallFileContents));
-
-        protected readonly BlobIdentifier _anotherFileHash =
-            BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes(AnotherFileContents));
-
-        protected readonly BlobIdentifier _deleteFileHash =
-            BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes(DeletableFileContents));
-
-        protected readonly BlobIdentifier _oldBlobFileHash =
-            BlobIdentifier.FromBlob(Encoding.ASCII.GetBytes(OldFileContents));
 
         [TestInitialize]
         public async Task Setup()
@@ -72,13 +60,13 @@ namespace Horde.Storage.FunctionalTests.Storage
         protected abstract IEnumerable<KeyValuePair<string, string>> GetSettings();
 
         protected abstract Task Seed(IServiceProvider serverServices);
-        protected abstract Task Teardown();
+        protected abstract Task Teardown(IServiceProvider serverServices);
 
 
         [TestCleanup]
         public async Task MyTeardown()
         {
-            await Teardown();
+            await Teardown(_server!.Services);
         }
 
         
@@ -98,6 +86,37 @@ namespace Horde.Storage.FunctionalTests.Storage
 
             Assert.IsNotNull(blobInfo);
             Assert.IsTrue(blobInfo.Regions.Contains("test"));
+        }
+
+        [TestMethod]
+        public async Task UploadRef()
+        {
+            CompactBinaryWriter writer = new CompactBinaryWriter();
+            writer.BeginObject();
+            writer.AddString("thisIsAField", "stringField");
+            writer.EndObject();
+
+            byte[] objectData = writer.Save();
+            BlobIdentifier objectHash = BlobIdentifier.FromBlob(objectData);
+
+            HttpContent requestContent = new ByteArrayContent(objectData);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+            requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
+            IoHashKey putKey = IoHashKey.FromName("newReferenceUploadObject");
+            HttpResponseMessage result = await _httpClient!.PutAsync(requestUri: $"api/v1/refs/{TestNamespaceName}/bucket/{putKey}.uecb", requestContent);
+            result.EnsureSuccessStatusCode();
+
+            IBlobIndex? index = _server!.Services.GetService<IBlobIndex>();
+            Assert.IsNotNull(index);
+            IBlobIndex.BlobInfo? blobInfo = await index.GetBlobInfo(TestNamespaceName, objectHash);
+
+            Assert.IsNotNull(blobInfo);
+            Assert.IsTrue(blobInfo.Regions.Contains("test"));
+            Assert.AreEqual(1, blobInfo.References.Count);
+
+            (BucketId bucket, IoHashKey key) = blobInfo.References[0];
+            Assert.AreEqual("bucket", bucket.ToString());
+            Assert.AreEqual(putKey, key);
         }
 
         [TestMethod]
@@ -145,7 +164,7 @@ namespace Horde.Storage.FunctionalTests.Storage
             return Task.CompletedTask;
         }
 
-        protected override Task Teardown()
+        protected override Task Teardown(IServiceProvider serverServices)
         {
             return Task.CompletedTask;
         }
@@ -164,9 +183,12 @@ namespace Horde.Storage.FunctionalTests.Storage
             return Task.CompletedTask;
         }
 
-        protected override Task Teardown()
+        protected override async Task Teardown(IServiceProvider provider)
         {
-            return Task.CompletedTask;
+            IScyllaSessionManager scyllaSessionManager = provider.GetService<IScyllaSessionManager>()!;
+
+            ISession replicatedKeyspace = scyllaSessionManager.GetSessionForReplicatedKeyspace();
+            await replicatedKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS blob_index"));
         }
     }
 }

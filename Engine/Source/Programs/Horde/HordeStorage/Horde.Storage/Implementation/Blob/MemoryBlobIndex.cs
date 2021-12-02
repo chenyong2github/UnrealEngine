@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ public class MemoryBlobIndex : IBlobIndex
 {
     private class MemoryBlobInfo : IBlobIndex.BlobInfo
     {
+
     }
 
     private readonly ConcurrentDictionary<NamespaceId, ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo>> _index = new ();
@@ -31,10 +33,7 @@ public class MemoryBlobIndex : IBlobIndex
     public Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id)
     {
         ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo> index = GetNamespaceContainer(ns);
-        index[id] = new MemoryBlobInfo
-        {
-            Regions = new HashSet<string> { _jupiterSettings.CurrentValue.CurrentSite }
-        };
+        index[id] = NewBlobInfo(ns);
         return Task.CompletedTask;
     }
 
@@ -59,5 +58,36 @@ public class MemoryBlobIndex : IBlobIndex
     {
         IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
         return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
+    }
+
+    public Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)
+    {
+        foreach (BlobIdentifier id in blobs)
+        {
+            ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo> index = GetNamespaceContainer(ns);
+
+            index.AddOrUpdate(id, _ =>
+            {
+                MemoryBlobInfo info = NewBlobInfo(ns);
+                info.References.Add((bucket, key));
+                return info;
+            }, (_, info) =>
+            {
+                info.References.Add((bucket, key));
+                return info;
+            });
+        };
+
+        return Task.CompletedTask;
+    }
+
+    private MemoryBlobInfo NewBlobInfo(NamespaceId ns)
+    {
+        MemoryBlobInfo info = new MemoryBlobInfo
+        {
+            Regions = new HashSet<string> { _jupiterSettings.CurrentValue.CurrentSite },
+            Namespace = ns,
+        };
+        return info;
     }
 }

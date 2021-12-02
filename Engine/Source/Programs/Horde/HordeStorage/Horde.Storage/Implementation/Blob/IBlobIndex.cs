@@ -10,7 +10,9 @@ namespace Horde.Storage.Implementation.Blob
     {
         public class BlobInfo
         {
-            public HashSet<string> Regions = new HashSet<string>();
+            public HashSet<string> Regions { get; init; } = new HashSet<string>();
+            public NamespaceId Namespace { get; init; }
+            public List<(BucketId, IoHashKey)> References { get; init; } = new List<(BucketId, IoHashKey)>();
         }
 
         Task AddBlobToIndex(NamespaceId ns, BlobIdentifier id);
@@ -19,5 +21,6 @@ namespace Horde.Storage.Implementation.Blob
 
         Task<bool> RemoveBlobFromIndex(NamespaceId ns, BlobIdentifier id);
         Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier);
+        Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs);
     }
 }

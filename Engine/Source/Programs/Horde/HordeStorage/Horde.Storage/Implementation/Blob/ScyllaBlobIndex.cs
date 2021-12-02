@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,6 +28,7 @@ public class ScyllaBlobIndex : IBlobIndex
             namespace text,
             blob_id frozen<blob_identifier>,
             regions set<text>,
+            references set<frozen<object_reference>>,
             PRIMARY KEY ((namespace, blob_id))
         );"
         ));
@@ -38,21 +38,26 @@ public class ScyllaBlobIndex : IBlobIndex
     {
         using Scope _ = Tracer.Instance.StartActive("scylla.insert_blob_index");
 
-        await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions + ? WHERE namespace = ? AND blob_id = ?", new string[] {_jupiterSettings.CurrentValue.CurrentSite}, ns.ToString(), new ScyllaBlobIdentifier(id));
+        await _mapper.UpdateAsync<ScyllaBlobIndexTable>("SET regions = regions + ? WHERE namespace = ? AND blob_id = ?",
+            new string[] { _jupiterSettings.CurrentValue.CurrentSite }, ns.ToString(), new ScyllaBlobIdentifier(id));
     }
 
     public async Task<IBlobIndex.BlobInfo?> GetBlobInfo(NamespaceId ns, BlobIdentifier id)
     {
         using Scope _ = Tracer.Instance.StartActive("scylla.fetch_blob_index");
 
-        ScyllaBlobIndexTable? blobIndex = await _mapper.FirstOrDefaultAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
+        ScyllaBlobIndexTable? blobIndex =
+            await _mapper.FirstOrDefaultAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?",
+                ns.ToString(), new ScyllaBlobIdentifier(id));
 
         if (blobIndex == null)
             return null;
 
-        return new IBlobIndex.BlobInfo()
+        return new IBlobIndex.BlobInfo
         {
-            Regions = blobIndex.Regions
+            Regions = blobIndex.Regions,
+            Namespace = new NamespaceId(blobIndex.Namespace),
+            References = blobIndex.References.Select(reference => reference.AsTuple()).ToList()
         };
     }
 
@@ -60,7 +65,8 @@ public class ScyllaBlobIndex : IBlobIndex
     {
         // TODO: Should this only remove the current region, and the actual row isnt removed until all regions have been removed? Seems overly complicated
         using Scope _ = Tracer.Instance.StartActive("scylla.remove_from_blob_index");
-        await _mapper.DeleteAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?", ns.ToString(), new ScyllaBlobIdentifier(id));
+        await _mapper.DeleteAsync<ScyllaBlobIndexTable>("WHERE namespace = ? AND blob_id = ?", ns.ToString(),
+            new ScyllaBlobIdentifier(id));
 
         return true;
     }
@@ -70,6 +76,27 @@ public class ScyllaBlobIndex : IBlobIndex
         IBlobIndex.BlobInfo? blobInfo = await GetBlobInfo(ns, blobIdentifier);
         return blobInfo?.Regions.Contains(_jupiterSettings.CurrentValue.CurrentSite) ?? false;
     }
+
+    public Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)
+    {
+        using Scope _ = Tracer.Instance.StartActive("scylla.add_ref_blobs");
+
+        string nsAsString = ns.ToString();
+        ScyllaObjectReference r = new ScyllaObjectReference(bucket, key);
+        Task[] refUpdateTasks = new Task[blobs.Length];
+        for (int i = 0; i < blobs.Length; i++)
+        {
+            BlobIdentifier id = blobs[i];
+            refUpdateTasks[i] = _mapper.UpdateAsync<ScyllaBlobIndexTable>(
+                "SET references = references + ? WHERE namespace = ? AND blob_id = ?",
+                new[] { r },
+                nsAsString,
+                new ScyllaBlobIdentifier(id));
+        }
+
+        return Task.WhenAll(refUpdateTasks);
+    }
+
 }
 
 
@@ -81,13 +108,15 @@ class ScyllaBlobIndexTable
         Namespace = null!;
         BlobId = null!;
         Regions = null!;
+        References = null!;
     }
 
-    public ScyllaBlobIndexTable(string @namespace, BlobIdentifier blobId, HashSet<string> regions)
+    public ScyllaBlobIndexTable(string @namespace, BlobIdentifier blobId, HashSet<string> regions, List<ScyllaObjectReference> references)
     {
         Namespace = @namespace;
         BlobId =  new ScyllaBlobIdentifier(blobId);
         Regions = regions;
+        References = references;
     }
 
     [Cassandra.Mapping.Attributes.PartitionKey]
@@ -99,4 +128,7 @@ class ScyllaBlobIndexTable
 
     [Cassandra.Mapping.Attributes.Column("regions")]
     public HashSet<string> Regions { get; set; }
+
+    [Cassandra.Mapping.Attributes.Column("references")]
+    public List<ScyllaObjectReference> References { get; set; }
 }
