@@ -18,6 +18,12 @@
 #include "HZBCull.ush"
 #include "Culling.ush"
 
+#define SANITY_CHECK_STREAMING_REQUESTS		1												// Adds frame counter dependent magic values to streaming requests to help verify their integrity.
+																							// Must match define in NaniteStreamingManager.h
+
+#define STREAMING_REQUEST_MAGIC_BITS		8												// Must match define in NaniteStreamingManager.cpp
+#define STREAMING_REQUEST_MAGIC_MASK		((1 << STREAMING_REQUEST_MAGIC_BITS) - 1)		// Must match define in NaniteStreamingManager.cpp
+
 #ifndef NEAR_CLIP
 #define NEAR_CLIP 1
 #endif
@@ -50,9 +56,9 @@ void SetGroupNodeData(uint NodeIndex, uint4 Data)	{ GroupNodeData[NodeIndex] = D
 
 struct FStreamingRequest
 {
-	uint RuntimeResourceID;
-	uint PageIndex;
-	uint Priority;
+	uint RuntimeResourceID_Magic;
+	uint PageIndex_NumPages_Magic;
+	uint Priority_Magic;
 };
 
 ByteAddressBuffer			HierarchyBuffer;
@@ -85,6 +91,7 @@ RWStructuredBuffer<FStats>	OutStatsBuffer;
 
 float						DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame an instance is visible to mitigate disocclusion spikes.
 uint						LargePageRectThreshold;
+uint						StreamingRequestsBufferVersion;
 
 
 // Get the area of an "inclusive" rect (which means that the max is inside the rect), also guards against negative area (where min > max)
@@ -218,14 +225,21 @@ void RequestPageRange( uint RuntimeResourceID, uint StartPageIndex, uint NumPage
 	if ((RenderFlags & RENDER_FLAG_OUTPUT_STREAMING_REQUESTS) && NumPages > 0)
 	{
 		uint Index;
-		WaveInterlockedAddScalar_(OutStreamingRequests[0].RuntimeResourceID, 1, Index);	// HACK: Store count in RuntimeResourceID of first request.
+		WaveInterlockedAddScalar_(OutStreamingRequests[0].RuntimeResourceID_Magic, 1, Index);	// HACK: Store count in RuntimeResourceID_Magic of first request.
 		if( Index < MAX_STREAMING_REQUESTS - 1 )
 		{
 			FStreamingRequest Request;
-			Request.RuntimeResourceID = RuntimeResourceID;
-			Request.PageIndex = (StartPageIndex << MAX_GROUP_PARTS_BITS) | NumPages;
-			Request.Priority = (PriorityCategory << 30) | (asuint(Priority) >> 2);
-			OutStreamingRequests[Index + 1] = Request;
+			Request.RuntimeResourceID_Magic		= (RuntimeResourceID << STREAMING_REQUEST_MAGIC_BITS);
+			Request.PageIndex_NumPages_Magic	= (((StartPageIndex << MAX_GROUP_PARTS_BITS) | NumPages) << STREAMING_REQUEST_MAGIC_BITS);
+			const uint UIntPriority				= (PriorityCategory << 30) | (asuint(Priority) >> 2);
+			Request.Priority_Magic				= UIntPriority & ~STREAMING_REQUEST_MAGIC_MASK;		// Mask off low bits to leave space for magic
+#if SANITY_CHECK_STREAMING_REQUESTS
+			const uint FrameNibble = StreamingRequestsBufferVersion & 0xF;
+			Request.RuntimeResourceID_Magic		|= 0xA0 | FrameNibble;
+			Request.PageIndex_NumPages_Magic	|= 0xB0 | FrameNibble;
+			Request.Priority_Magic				|= 0xC0 | FrameNibble;
+#endif
+			OutStreamingRequests[Index + 1]		= Request;
 		}
 	}
 }
@@ -1128,5 +1142,5 @@ void InitArgs()
 [numthreads(1, 1, 1)]
 void ClearStreamingRequestCount()
 {
-	OutStreamingRequests[0].RuntimeResourceID = 0;	// First entry holds count
+	OutStreamingRequests[0].RuntimeResourceID_Magic = 0;	// First entry holds count
 }
