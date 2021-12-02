@@ -11,6 +11,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "SceneTextureReductions.h"
+#include "RenderGraphUtils.h"
 
 DEFINE_GPU_STAT(NaniteRaster);
 
@@ -1276,7 +1277,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 			RDG_EVENT_NAME( "Main Pass: InstanceCullVSM - No occlusion" ),
 			ComputeShader,
 			PassParameters,
-			FComputeShaderUtils::GetGroupCount(CullingContext.NumInstancesPreCull, 64)
+			FComputeShaderUtils::GetGroupCountWrapped(CullingContext.NumInstancesPreCull, 64)
 		);
 	}
 	else if (CullingContext.NumInstancesPreCull > 0 || CullingPass == CULLING_PASS_OCCLUSION_POST)
@@ -1355,7 +1356,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 																		RDG_EVENT_NAME( "Main Pass: InstanceCull - Explicit list" ),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(CullingContext.NumInstancesPreCull, 64)
+				FComputeShaderUtils::GetGroupCountWrapped(CullingContext.NumInstancesPreCull, 64)
 			);
 		}
 	}

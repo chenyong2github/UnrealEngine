@@ -3,6 +3,7 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
+#include "../ComputeShaderUtils.ush"
 #include "../VirtualShadowMaps/PageOverlap.ush"
 
 #include "Culling.ush"
@@ -102,9 +103,11 @@ RWStructuredBuffer<FStats>				OutStatsBuffer;
 
 [numthreads(64, 1, 1)]
 void InstanceCull(
-	uint DispatchIndex : SV_DispatchThreadID,
+	uint3 GroupId : SV_GroupID,
 	uint GroupIndex : SV_GroupIndex)
 {
+	const uint DispatchIndex = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, 64);
+
 #if DEBUG_FLAGS && CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 	if (DebugFlags & DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
 	{
@@ -372,9 +375,11 @@ StructuredBuffer< uint > CompactedViewsAllocation;
 
 [numthreads(64, 1, 1)]
 void InstanceCullVSM(
-	uint DispatchIndex : SV_DispatchThreadID,
+	uint3 GroupId : SV_GroupID,
 	uint GroupIndex : SV_GroupIndex)
 {
+	const uint DispatchIndex = GetUnWrappedDispatchThreadId(GroupId, GroupIndex, 64);
+
 	// View compaction stats
 #if DEBUG_FLAGS
 	if (DebugFlags & DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
