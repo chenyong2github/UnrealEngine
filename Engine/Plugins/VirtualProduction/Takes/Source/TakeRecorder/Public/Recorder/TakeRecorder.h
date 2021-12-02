@@ -37,6 +37,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingStarted, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingStopped, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingFinished, UTakeRecorder*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTakeRecordingCancelled, UTakeRecorder*);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStartPlayFrameModified, UTakeRecorder*, const FFrameNumber& StartFrame);
 
 DECLARE_DELEGATE_RetVal_OneParam(FTakeRecorderParameters, FTakeRecorderParameterDelegate,const FTakeRecorderParameters&);
 
@@ -160,6 +161,11 @@ public:
 	 */
 	FOnTakeRecordingCancelled& OnRecordingCancelled();
 
+	/**
+	 * Retrieve a multi-cast delegate that is triggered when a delta time has been applied to the Movie Scene
+	 */
+	FOnStartPlayFrameModified& OnStartPlayFrameModified();
+
 private:
 
 	/**
@@ -278,6 +284,9 @@ private:
 
 	/** Triggered when this recorder is cancelled */
 	FOnTakeRecordingCancelled OnRecordingCancelledEvent;
+
+	/** Triggered when the movie scene is adjusted. */
+	FOnStartPlayFrameModified OnFrameModifiedEvent;
 
 	/** Sequencer ptr that controls playback of the desination asset during the recording */
 	TWeakPtr<ISequencer> WeakSequencer;

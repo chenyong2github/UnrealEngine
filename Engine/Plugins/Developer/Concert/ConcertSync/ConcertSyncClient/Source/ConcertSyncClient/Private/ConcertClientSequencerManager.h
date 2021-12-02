@@ -185,6 +185,13 @@ private:
 	void OnSyncEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerStateSyncEvent& InEvent);
 
 	/**
+	 * Called on receipt of time adjustment event.
+	 * @param InEventContext             The context for the current session.
+	 * @param InEvent                    The sequencer time adjustment event.
+	 */
+	void OnTimeAdjustmentEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerTimeAdjustmentEvent& TimeAdjustmentEvent);
+
+	/**
 	 * Called when the global time has been changed for the specified Sequencer
 	 *
 	 * @param InSequencer                 The sequencer that has just updated its time
@@ -253,12 +260,27 @@ private:
 	void ApplyTransportCloseEvent(const FConcertSequencerCloseEvent& PendingClose);
 
 	/**
+	 * Apply a sequencer time adjustment event.
+	 */
+	void ApplyTimeAdjustmentEvent(const FConcertSequencerTimeAdjustmentEvent& TimeAdjustmentEvent);
+
+	/**
+	 * Apply a sequencer time adjustment to players.
+	 */
+	void ApplyTimeAdjustmentPlayers(const FConcertSequencerTimeAdjustmentEvent& TimeAdjustmentEvent);
+
+	/**
+	 * Apply a sequencer time adjustment to sequencers.
+	 */
+	void ApplyTimeAdjustmentSequencers(const FConcertSequencerTimeAdjustmentEvent& TimeAdjustmentEvent);
+
+	/**
 	 * Gather all the currently open sequencer UIs that have the specified path as their root sequence
 	 *
 	 * @param InSequenceObjectPath        The full path to the root asset to gather sequences for
 	 * @return An array containing all the entries that apply to the supplied sequence path
 	 */
-	TArray<FOpenSequencerData*, TInlineAllocator<1>> GatherRootSequencersByState(const FConcertSequencerState& InSequenceObjectPath);
+	TArray<FOpenSequencerData*, TInlineAllocator<1>> GatherRootSequencersByState(const FString& InSequenceObjectPath);
 
 	/**
 	 * Get the amount of latency compensation to apply to time-synchronization sensitive interactions
@@ -293,6 +315,9 @@ private:
 
 	/** List of pending sequencer open events to apply at end of frame. */
 	TArray<FConcertSequencerCloseEvent> PendingSequenceCloseEvents;
+
+	/** List of pending time adjustment events. */
+	TArray<FConcertSequencerTimeAdjustmentEvent> PendingTimeAdjustmentEvents;
 
 	/**
 	 * List of pending sequence players that are scheduled for destruction. The first member of the tuple is the key /

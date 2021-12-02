@@ -25,6 +25,7 @@ void FConcertServerSequencerManager::BindSession(const TSharedRef<FConcertSyncSe
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerCloseEvent>(this, &FConcertServerSequencerManager::HandleSequencerCloseEvent);
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerStateEvent>(this, &FConcertServerSequencerManager::HandleSequencerStateEvent);
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertServerSequencerManager::HandleSequencerOpenEvent);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this, &FConcertServerSequencerManager::HandleSequencerTimeAdjustmentEvent);
 }
 
 void FConcertServerSequencerManager::UnbindSession()
@@ -63,6 +64,20 @@ void FConcertServerSequencerManager::HandleSequencerOpenEvent(const FConcertSess
 	TArray<FGuid> ClientIds = LiveSession->GetSession().GetSessionClientEndpointIds();
 	ClientIds.Remove(InEventContext.SourceEndpointId);
 	LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
+}
+
+void FConcertServerSequencerManager::HandleSequencerTimeAdjustmentEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerTimeAdjustmentEvent& InEvent)
+{
+	// Verify that we have sequencers with the given SequenceObjectPath open.
+	//
+	FConcertOpenSequencerState* SequencerState = SequencerStates.Find(*InEvent.SequenceObjectPath);
+	if (SequencerState)
+	{
+		// Forward the message to the other clients
+		TArray<FGuid> ClientIds = LiveSession->GetSession().GetSessionClientEndpointIds();
+		ClientIds.Remove(InEventContext.SourceEndpointId);
+		LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
+	}
 }
 
 void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerCloseEvent& InEvent)

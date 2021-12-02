@@ -976,6 +976,8 @@ void UTakeRecorder::Start()
 			}
 		}
 
+		OnFrameModifiedEvent.Broadcast(this, PlaybackStartFrame);
+
 		if (StopRecordingFrame.IsSet())
 		{
 			StopRecordingFrame = StopRecordingFrame.GetValue() + DeltaFrame;
@@ -1258,6 +1260,11 @@ FOnTakeRecordingFinished& UTakeRecorder::OnRecordingFinished()
 FOnTakeRecordingCancelled& UTakeRecorder::OnRecordingCancelled()
 {
 	return OnRecordingCancelledEvent;
+}
+
+FOnStartPlayFrameModified& UTakeRecorder::OnStartPlayFrameModified()
+{
+	return OnFrameModifiedEvent;
 }
 
 void UTakeRecorder::HandlePIE(bool bIsSimulating)

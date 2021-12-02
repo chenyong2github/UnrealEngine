@@ -5,6 +5,7 @@
 #include "Algo/Count.h"
 #include "Algo/Transform.h"
 #include "ConcertMessages.h"
+#include "ConcertSequencerMessages.h"
 #include "ConcertTransportMessages.h"
 #include "Delegates/IDelegateInstance.h"
 #include "HAL/IConsoleManager.h"
@@ -359,6 +360,7 @@ void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeR
 {
 	TakeRecorder->OnRecordingFinished().AddRaw(this, &FConcertTakeRecorderManager::OnRecordingFinished);
 	TakeRecorder->OnRecordingCancelled().AddRaw(this, &FConcertTakeRecorderManager::OnRecordingCancelled);
+	TakeRecorder->OnStartPlayFrameModified().AddRaw(this, &FConcertTakeRecorderManager::OnFrameAdjustment);
 
 	if (IsTakeSyncEnabled() && !bIsRecording && TakeRecorderState.LastStartedTake != TakeRecorder->GetName())
 	{
@@ -437,7 +439,22 @@ void FConcertTakeRecorderManager::OnRecordingCancelled(UTakeRecorder* TakeRecord
 
 	TakeRecorder->OnRecordingFinished().RemoveAll(this);
 	TakeRecorder->OnRecordingCancelled().RemoveAll(this);
+	TakeRecorder->OnStartPlayFrameModified().RemoveAll(this);
 	bIsRecording = false;
+}
+
+void FConcertTakeRecorderManager::OnFrameAdjustment(UTakeRecorder* TakeRecorder, const FFrameNumber& InPlaybackStartFrame)
+{
+	if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
+	{
+		ULevelSequence* LevelSequence = TakeRecorder->GetSequence();
+		check(LevelSequence);
+
+		FConcertSequencerTimeAdjustmentEvent TimeEvent;
+		TimeEvent.SequenceObjectPath = LevelSequence->GetPathName();
+		TimeEvent.PlaybackStartFrame = InPlaybackStartFrame;
+		Session->SendCustomEvent(TimeEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+	}
 }
 
 void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionContext&, const FConcertTakeInitializedEvent& InEvent)

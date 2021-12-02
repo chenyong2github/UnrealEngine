@@ -108,3 +108,19 @@ struct FConcertSequencerStateSyncEvent
 	UPROPERTY()
 	TArray<FConcertSequencerState> SequencerStates;
 };
+
+/**
+ * An event that represents a time changes on the sequencer. This can happen via take recorder
+ * which will shift the active take _if_ Start At Timecode is enabled.
+ */
+USTRUCT()
+struct FConcertSequencerTimeAdjustmentEvent
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FFrameNumber PlaybackStartFrame;
+
+	UPROPERTY()
+	FString SequenceObjectPath;
+};

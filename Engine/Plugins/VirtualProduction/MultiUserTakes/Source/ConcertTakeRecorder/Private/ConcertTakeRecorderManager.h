@@ -6,6 +6,7 @@
 #include "ConcertMessages.h"
 #include "Delegates/IDelegateInstance.h"
 #include "HAL/Platform.h"
+#include "Misc/FrameNumber.h"
 #include "UObject/StrongObjectPtr.h"
 #include "TakePreset.h"
 #include "ConcertSyncClient/Public/IConcertClientTransactionBridge.h"
@@ -57,6 +58,7 @@ private:
 	void OnTakeRecorderInitialized(UTakeRecorder* TakeRecorder);
 	void OnRecordingFinished(UTakeRecorder* TakeRecorder);
 	void OnRecordingCancelled(UTakeRecorder* TakeRecorder);
+	void OnFrameAdjustment(UTakeRecorder* TakeRecorder, const FFrameNumber& InPlaybackStartFrame);
 
 	//~ Concert event handlers
 	void OnTakeInitializedEvent(const FConcertSessionContext&, const FConcertTakeInitializedEvent& InEvent);
