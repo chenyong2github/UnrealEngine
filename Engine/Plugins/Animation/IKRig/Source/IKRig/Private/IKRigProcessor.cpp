@@ -265,6 +265,11 @@ void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(const UIKRigDefiniti
 {
 	check(SourceAsset)
 	
+	if (!bInitialized)
+	{
+		return;
+	}
+	
 	// copy goal settings
 	const TArray<UIKRigEffectorGoal*>& AssetGoals =  SourceAsset->GetGoalArray();
 	for (const UIKRigEffectorGoal* AssetGoal : AssetGoals)
