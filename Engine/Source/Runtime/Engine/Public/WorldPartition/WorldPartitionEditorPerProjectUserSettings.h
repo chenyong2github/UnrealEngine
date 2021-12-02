@@ -88,6 +88,20 @@ public:
 		}
 	}
 
+	bool GetShowCellCoords() const
+	{
+		return bShowCellCoords;
+	}
+
+	void SetShowCellCoords(bool bInShowCellCoords)
+	{
+		if (bShowCellCoords != bInShowCellCoords)
+		{
+			bShowCellCoords = bInShowCellCoords;
+			SaveConfig();
+		}
+	}
+
 	const TArray<FName>& GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
 	const TArray<FName>& GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
 	
@@ -134,6 +148,9 @@ private:
 
 	UPROPERTY(config)
 	uint32 bBugItGoLoadCells : 1;
+
+	UPROPERTY(config)
+	uint32 bShowCellCoords : 1;
 
 	UPROPERTY(config)
 	TMap<TSoftObjectPtr<UWorld>, FWorldPartitionPerWorldSettings> PerWorldEditorSettings;
