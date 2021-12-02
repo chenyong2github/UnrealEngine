@@ -12,6 +12,7 @@
 UBoneProxy::UBoneProxy()
 	: bLocalLocation(true)
 	, bLocalRotation(true)
+	, bLocalScale(true)
 	, PreviousLocation(FVector::ZeroVector)
 	, PreviousRotation(FRotator::ZeroRotator)
 	, PreviousScale(FVector::ZeroVector)
@@ -52,7 +53,14 @@ void UBoneProxy::Tick(float DeltaTime)
 					Rotation = BoneTransform.GetRotation().Rotator();
 				}
 
-				Scale = LocalTransform.GetScale3D();
+				if(bLocalScale)
+				{
+					Scale = LocalTransform.GetScale3D();
+				}
+				else
+				{
+					Scale = BoneTransform.GetScale3D();
+				}
 
 				FTransform ReferenceTransform = Component->SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 				ReferenceLocation = ReferenceTransform.GetLocation();
@@ -80,6 +88,220 @@ bool UBoneProxy::IsTickable() const
 TStatId UBoneProxy::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UBoneProxy, STATGROUP_Tickables);
+}
+
+TOptional<FVector::FReal> UBoneProxy::GetNumericValue(
+	ESlateTransformComponent::Type Component,
+	ESlateRotationRepresentation::Type Representation,
+	ESlateTransformSubComponent::Type SubComponent,
+	ETransformType TransformType) const
+{
+	const FVector* LocationPtr = &Location;
+	const FRotator* RotationPtr = &Rotation;
+	const FVector* ScalePtr = &Scale;
+
+	switch(TransformType)
+	{
+		case TransformType_Reference:
+		{
+			LocationPtr = &ReferenceLocation;
+			RotationPtr = &ReferenceRotation;
+			ScalePtr = &ReferenceScale;
+			break;
+		}
+		case TransformType_Mesh:
+		{
+			LocationPtr = &MeshLocation;
+			RotationPtr = &MeshRotation;
+			ScalePtr = &MeshScale;
+			break;
+		}
+	}
+	
+	switch(Component)
+	{
+		case ESlateTransformComponent::Location:
+		{
+			switch(SubComponent)
+			{
+				case ESlateTransformSubComponent::X:
+					return LocationPtr->X;
+				case ESlateTransformSubComponent::Y:
+					return LocationPtr->Y;
+				case ESlateTransformSubComponent::Z:
+					return LocationPtr->Z;
+			}
+			break;
+		}
+		case ESlateTransformComponent::Rotation:
+		{
+			switch(SubComponent)
+			{
+			case ESlateTransformSubComponent::Roll:
+				return RotationPtr->Roll;
+			case ESlateTransformSubComponent::Pitch:
+				return RotationPtr->Pitch;
+			case ESlateTransformSubComponent::Yaw:
+				return RotationPtr->Yaw;
+			}
+			break;
+		}
+		case ESlateTransformComponent::Scale:
+		{
+			switch(SubComponent)
+			{
+			case ESlateTransformSubComponent::X:
+				return ScalePtr->X;
+			case ESlateTransformSubComponent::Y:
+				return ScalePtr->Y;
+			case ESlateTransformSubComponent::Z:
+				return ScalePtr->Z;
+			}
+			break;
+		}
+	}
+	return TOptional<FVector::FReal>();
+}
+
+TOptional<FVector::FReal> UBoneProxy::GetMultiNumericValue(
+	ESlateTransformComponent::Type Component,
+	ESlateRotationRepresentation::Type Representation,
+	ESlateTransformSubComponent::Type SubComponent,
+	ETransformType TransformType,
+	TArrayView<UBoneProxy*> BoneProxies)
+{
+	TOptional<FVector::FReal> FirstValue = BoneProxies[0]->GetNumericValue(Component, Representation, SubComponent, TransformType);
+	if(!FirstValue.IsSet())
+	{
+		return FirstValue;
+	}
+
+	for(int32 Index=1;Index<BoneProxies.Num();Index++)
+	{
+		TOptional<FVector::FReal> Value = BoneProxies[Index]->GetNumericValue(Component, Representation, SubComponent, TransformType);
+		if(!Value.IsSet())
+		{
+			return Value;
+		}
+		if(!FMath::IsNearlyEqual(FirstValue.GetValue(), Value.GetValue()))
+		{
+			return TOptional<FVector::FReal>();
+		}
+	}
+
+	return FirstValue;
+}
+
+void UBoneProxy::OnNumericValueCommitted(
+	ESlateTransformComponent::Type Component,
+	ESlateRotationRepresentation::Type Representation,
+	ESlateTransformSubComponent::Type SubComponent,
+	FVector::FReal Value, ETextCommit::Type CommitType,
+	ETransformType TransformType,
+	bool bIsCommit)
+{
+	if(TransformType != TransformType_Bone)
+	{
+		return;
+	}
+
+	switch(Component)
+	{
+		case ESlateTransformComponent::Location:
+		{
+			OnPreEditChange(GET_MEMBER_NAME_CHECKED(UBoneProxy, Location), bIsCommit);
+				
+			switch(SubComponent)
+			{
+				case ESlateTransformSubComponent::X:
+				{
+					Location.X = Value;
+					break;
+				}
+				case ESlateTransformSubComponent::Y:
+				{
+					Location.Y = Value;
+					break;
+				}
+				case ESlateTransformSubComponent::Z:
+				{
+					Location.Z = Value;
+					break;
+				}
+			}
+
+			OnPostEditChangeProperty(GET_MEMBER_NAME_CHECKED(UBoneProxy, Location), bIsCommit);
+			break;
+		}
+		case ESlateTransformComponent::Rotation:
+		{
+			OnPreEditChange(GET_MEMBER_NAME_CHECKED(UBoneProxy, Rotation), bIsCommit);
+				
+			switch(SubComponent)
+			{
+				case ESlateTransformSubComponent::Roll:
+				{
+					Rotation.Roll = Value;
+					break;
+				}
+				case ESlateTransformSubComponent::Pitch:
+				{
+					Rotation.Pitch = Value;
+					break;
+				}
+				case ESlateTransformSubComponent::Yaw:
+				{
+					Rotation.Yaw = Value;
+					break;
+				}
+			}
+
+			OnPostEditChangeProperty(GET_MEMBER_NAME_CHECKED(UBoneProxy, Rotation), bIsCommit);
+			break;
+		}
+		case ESlateTransformComponent::Scale:
+		{
+			OnPreEditChange(GET_MEMBER_NAME_CHECKED(UBoneProxy, Scale), bIsCommit);
+
+			switch(SubComponent)
+			{
+				case ESlateTransformSubComponent::X:
+				{
+					Scale.X = Value;
+					break;
+				}
+				case ESlateTransformSubComponent::Y:
+				{
+					Scale.Y = Value;
+					break;
+				}
+				case ESlateTransformSubComponent::Z:
+				{
+					Scale.Z = Value;
+					break;
+				}
+			}
+
+			OnPostEditChangeProperty(GET_MEMBER_NAME_CHECKED(UBoneProxy, Scale), bIsCommit);
+			break;
+		}
+	}
+}
+
+void UBoneProxy::OnMultiNumericValueCommitted(
+	ESlateTransformComponent::Type Component,
+	ESlateRotationRepresentation::Type Representation,
+	ESlateTransformSubComponent::Type SubComponent,
+	FVector::FReal Value,
+	ETextCommit::Type CommitType,
+	ETransformType TransformType,
+	TArrayView<UBoneProxy*> BoneProxies,
+	bool bIsCommit)
+{
+	for(UBoneProxy* BoneProxy : BoneProxies)
+	{
+		BoneProxy->OnNumericValueCommitted(Component, Representation, SubComponent, Value, CommitType, TransformType, bIsCommit);
+	}
 }
 
 void UBoneProxy::PreEditChange(FEditPropertyChain& PropertyAboutToChange)
@@ -180,6 +402,22 @@ void UBoneProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			}
 		}
 	}
+}
+
+void UBoneProxy::OnPreEditChange(FName PropertyName, bool bIsCommit)
+{
+	FEditPropertyChain PropertyChain;
+	FProperty* Property = FindFProperty<FProperty>(GetClass(), PropertyName);
+	PropertyChain.AddHead(Property);
+	PropertyChain.SetActiveMemberPropertyNode(Property);
+	PreEditChange(PropertyChain);
+}
+
+void UBoneProxy::OnPostEditChangeProperty(FName PropertyName, bool bIsCommit)
+{
+	FProperty* Property = FindFProperty<FProperty>(GetClass(), PropertyName);
+	FPropertyChangedEvent ChangedEvent(Property, bIsCommit ? EPropertyChangeType::Unspecified : EPropertyChangeType::Interactive);
+	PostEditChangeProperty(ChangedEvent);
 }
 
 #undef LOCTEXT_NAMESPACE
