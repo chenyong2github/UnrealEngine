@@ -41,6 +41,8 @@ public:
 	const TArray<FGuid>& GetReferences() const;
 	FString ToString() const;
 	uint32 GetTag() const;
+	const FGuid& GetParentActor() const;
+	FName GetActorName() const;
 
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 

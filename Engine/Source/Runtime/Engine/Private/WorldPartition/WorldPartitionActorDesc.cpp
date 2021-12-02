@@ -64,6 +64,16 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
 	FolderPath = InActor->GetFolderPath();
+
+	const AActor* AttachParentActor = InActor->GetAttachParentActor();
+	if (AttachParentActor)
+	{
+		ParentActor = AttachParentActor->GetActorGuid();
+	}
+	else
+	{
+		ParentActor = FGuid();
+	}
 	
 	TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences((AActor*)InActor);
 
@@ -230,6 +240,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeActorFolderPath)
 	{
 		Ar << FolderPath;
+	}
+
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeAttachParent)
+	{
+		Ar << ParentActor;
 	}
 }
 
