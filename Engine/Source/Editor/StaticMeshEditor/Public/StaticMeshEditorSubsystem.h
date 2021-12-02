@@ -90,6 +90,24 @@ public:
 	void SetLodBuildSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshBuildSettings& BuildOptions);
 
 	/**
+	 * Get the LODGroup for the specified static mesh
+	 * @param StaticMesh
+	 * @return LODGroup
+	 */
+	UFUNCTION(BlueprintCallable,Category = "Editor Scripting | StaticMesh")
+	FName GetLODGroup(UStaticMesh* StaticMesh);
+
+	/**
+	 * Set the LODGroup for the specified static mesh
+	 * @param StaticMesh - Mesh to process.
+	 * @param LODGroup - Name of the LODGroup to apply
+	 * @param bRebuildImmediately - If true, rebuild the static mesh immediately
+	 * @return Success
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	bool SetLODGroup(UStaticMesh* StaticMesh, FName LODGroup, bool bRebuildImmediately=true);
+	
+	/**
 	 * Import or re-import a LOD into the specified base mesh. If the LOD do not exist it will import it and add it to the base static mesh. If the LOD already exist it will re-import the specified LOD.
 	 *
 	 * @param BaseStaticMesh: The static mesh we import or re-import a LOD.
@@ -149,6 +167,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
 	TArray<float> GetLodScreenSizes(UStaticMesh* StaticMesh);
 
+public:
+	/**
+	* Get the Nanite Settings for the mesh
+	* @param StaticMesh        Mesh to access
+	* @return FMeshNaniteSettings struct for the given static mesh
+	*/
+	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
+	FMeshNaniteSettings GetNaniteSettings(UStaticMesh* StaticMesh);
+
+	/**
+	* Get the Nanite Settings for the mesh
+	* @param StaticMesh        Mesh to up[date nanite settings for
+	* @param NaniteSettings    Settings with which to update the mesh
+	* @param bApplyChanges     Indicates if changes must be applied or not.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Static Mesh Utilities")
+	void SetNaniteSettings(UStaticMesh* StaticMesh, FMeshNaniteSettings NaniteSettings, bool bApplyChanges=true);
+	
 public:
 	/**
 	 * Add simple collisions to a static mesh.
@@ -487,4 +523,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 
+	
 };

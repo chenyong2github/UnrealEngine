@@ -33,6 +33,7 @@
 #include "Algo/AnyOf.h"
 #include "Async/Async.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/FeedbackContext.h"
 
 #include "UnrealEdGlobals.h"
 #include "UnrealEd/Private/GeomFitUtils.h"
@@ -586,6 +587,41 @@ void UStaticMeshEditorSubsystem::SetLodBuildSettings(UStaticMesh* StaticMesh, co
 	}
 }
 
+FName UStaticMeshEditorSubsystem::GetLODGroup(UStaticMesh* StaticMesh)
+{
+	return StaticMesh->LODGroup;
+}
+
+bool UStaticMeshEditorSubsystem::SetLODGroup(UStaticMesh* StaticMesh, FName LODGroup, bool bRebuildImmediately)
+{
+	
+	TArray<FName> LODGroups;
+	UStaticMesh::GetLODGroups(LODGroups);
+	
+	if(LODGroups.Contains(LODGroup))
+	{
+		GWarn->BeginSlowTask(FText::Format(FText::FromString("SetLODGroup: Applying changes to %s"), FText::FromString(StaticMesh->GetName())), true, false);
+		// Close the mesh editor to prevent crashing. If changes are applied, reopen it after the mesh has been built.
+		
+		bool bStaticMeshIsEdited = false;
+		UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+		if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
+		{
+			AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
+			bStaticMeshIsEdited = true;
+		}
+		
+		StaticMesh->SetLODGroup(LODGroup, bRebuildImmediately);
+
+		GWarn->EndSlowTask();
+
+		return true;
+	}
+	UE_LOG(LogStaticMeshEditorSubsystem, Error, TEXT("SetLODGroup: %s is not a valid LODGroup"), *LODGroup.ToString());
+	return false;
+		
+}
+
 int32 UStaticMeshEditorSubsystem::ImportLOD(UStaticMesh* BaseStaticMesh, const int32 LODIndex, const FString& SourceFilename)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
@@ -979,6 +1015,37 @@ TArray<float> UStaticMeshEditorSubsystem::GetLodScreenSizes(UStaticMesh* StaticM
 
 	return ScreenSizes;
 
+}
+
+FMeshNaniteSettings UStaticMeshEditorSubsystem::GetNaniteSettings(UStaticMesh* StaticMesh)
+{
+	return StaticMesh->NaniteSettings;
+}
+
+void UStaticMeshEditorSubsystem::SetNaniteSettings(UStaticMesh* StaticMesh, FMeshNaniteSettings NaniteSettings, bool bApplyChanges)
+{
+	// Close the mesh editor to prevent crashing. Reopen it after the mesh has been built.
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+	bool bStaticMeshIsEdited = false;
+	if (AssetEditorSubsystem->FindEditorForAsset(StaticMesh, false))
+	{
+		AssetEditorSubsystem->CloseAllEditorsForAsset(StaticMesh);
+		bStaticMeshIsEdited = true;
+	}
+	
+	StaticMesh->NaniteSettings = NaniteSettings;
+
+	if (bApplyChanges)
+	{
+		// Request re-building of mesh with new collision shapes
+		StaticMesh->PostEditChange();
+
+		// Reopen MeshEditor on this mesh if the MeshEditor was previously opened in it
+		if (bStaticMeshIsEdited)
+		{
+			AssetEditorSubsystem->OpenEditorForAsset(StaticMesh);
+		}
+	}
 }
 
 int32 UStaticMeshEditorSubsystem::AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType, bool bApplyChanges)
@@ -2280,5 +2347,6 @@ bool UStaticMeshEditorSubsystem::CreateProxyMeshActor(const TArray<class AStatic
 
 	return true;
 }
+
 
 #undef LOCTEXT_NAMESPACE
