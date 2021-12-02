@@ -100,6 +100,14 @@ static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarSMRTTexelDitherScale(
+	TEXT( "r.Shadow.Virtual.SMRT.TexelDitherScale" ),
+	2.0f,
+	TEXT( "Applies a dither to the shadow map ray casts to help hide aliasing due to insufficient shadow resolution.\n" )
+	TEXT( "This is usually desirable, but it can occasionally cause shadows from thin geometry to separate from their casters at shallow light angles." ),
+	ECVF_RenderThreadSafe
+);
+
 
 // Composite denoised shadow projection mask onto the light's shadow mask
 // Basically just a copy shader with a special blend mode
@@ -192,6 +200,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SMRTSamplesPerRay)
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
 		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
+		SHADER_PARAMETER(float, SMRTTexelDitherScale)
 		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
 		// One pass projection parameters
@@ -271,6 +280,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->NormalBias = GetNormalBiasForShader();
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
+	PassParameters->SMRTTexelDitherScale = CVarSMRTTexelDitherScale.GetValueOnRenderThread();
 	if (bHasHairStrandsData)
 	{
 		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
