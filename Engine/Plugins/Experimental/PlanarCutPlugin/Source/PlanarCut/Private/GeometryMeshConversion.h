@@ -10,6 +10,7 @@
 #include "MeshConstraints.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "Spatial/PointHashGrid3.h"
+#include "Math/RandomStream.h"
 
 struct FPlanarCells;
 struct FInternalSurfaceMaterials;
