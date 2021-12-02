@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/CoreMisc.h"
 #include "ILevelSequenceModule.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLevelSequence, Log, All);
@@ -9,7 +10,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogLevelSequence, Log, All);
 /**
  * Implements the LevelSequence module.
  */
-class FLevelSequenceModule : public ILevelSequenceModule
+class FLevelSequenceModule : public ILevelSequenceModule, public FSelfRegisteringExec
 {
 public:
 
@@ -17,6 +18,9 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	// FSelfRegisteringExec interface
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	
 	// ILevelSequenceModule interface
 	virtual FDelegateHandle RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner InOnCreateMovieSceneObjectSpawner) override;
 	virtual void GenerateObjectSpawners(TArray<TSharedRef<IMovieSceneObjectSpawner>>& OutSpawners) const override;
