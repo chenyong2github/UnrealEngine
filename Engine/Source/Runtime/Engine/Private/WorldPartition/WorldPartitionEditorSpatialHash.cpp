@@ -319,8 +319,8 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 	// This is important because the FWorldPartitionHandle will soon become invalid and Actors that were still 
 	// referencing this one will not be able to construct valid FWorldPartitionHandle to the actor we're 
 	// removing and it'll become impossible to clean the cells of their dangling actors
-	TArray< TTuple<UWorldPartitionEditorCell*, FGuid>> BackRefs;
-	BackReferences.MultiFind(InActorHandle, BackRefs);
+	TArray<TTuple<UWorldPartitionEditorCell*, FGuid>> BackRefs;
+	BackReferences.MultiFind(InActorHandle->GetGuid(), BackRefs);
 
 	for (auto& BackRef : BackRefs)
 	{
@@ -329,7 +329,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 
 	if (BackRefs.Num() != 0)
 	{
-		BackReferences.Remove(InActorHandle);
+		BackReferences.Remove(InActorHandle->GetGuid());
 	}
 }
 
@@ -589,17 +589,15 @@ void UWorldPartitionEditorSpatialHash::PostLoad()
 }
 
 
-void UWorldPartitionEditorSpatialHash::AddBackReference(FWorldPartitionHandle& ReferenceHandle,  UWorldPartitionEditorCell* Cell, const FGuid& Source)
+void UWorldPartitionEditorSpatialHash::AddBackReference(const FGuid& Reference, UWorldPartitionEditorCell* Cell, const FGuid& Source)
 {
-	BackReferences.Add(ReferenceHandle) = MakeTuple(Cell, Source);
+	BackReferences.Add(Reference, MakeTuple(Cell, Source));
 }
 
-void UWorldPartitionEditorSpatialHash::RemoveBackReference(FWorldPartitionHandle& ReferenceHandle,  UWorldPartitionEditorCell* Cell, const FGuid& Source)
+void UWorldPartitionEditorSpatialHash::RemoveBackReference(const FGuid& Reference, UWorldPartitionEditorCell* Cell, const FGuid& Source)
 {
-	BackReferences.RemoveSingle(ReferenceHandle, MakeTuple(Cell, Source));
+	BackReferences.RemoveSingle(Reference, MakeTuple(Cell, Source));
 }
-
-
 #endif
 
 #undef LOCTEXT_NAMESPACE
