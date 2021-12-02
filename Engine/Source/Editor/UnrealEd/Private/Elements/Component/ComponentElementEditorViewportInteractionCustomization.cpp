@@ -5,8 +5,6 @@
 #include "Components/SceneComponent.h"
 
 #include "Editor.h"
-#include "EditorModeManager.h"
-#include "Toolkits/IToolkitHost.h"
 #include "EditorSupportDelegates.h"
 
 bool FComponentElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
@@ -16,14 +14,7 @@ bool FComponentElementEditorViewportInteractionCustomization::GetGizmoPivotLocat
 	if (const USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
 		FVector BasePivotLocation = FVector::ZeroVector;
-		if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
-		{
-			BasePivotLocation = ToolkitHostPtr->GetEditorModeManager().PivotLocation;
-		}
-		else
-		{
-			FTypedElementViewportInteractionCustomization::GetGizmoPivotLocation(InElementWorldHandle, InWidgetMode, BasePivotLocation);
-		}
+		FTypedElementViewportInteractionCustomization::GetGizmoPivotLocation(InElementWorldHandle, InWidgetMode, BasePivotLocation);
 
 		// If necessary, transform the editor pivot location to be relative to the component's parent
 		const bool bIsRootComponent = SceneComponent->GetOwner()->GetRootComponent() == SceneComponent;

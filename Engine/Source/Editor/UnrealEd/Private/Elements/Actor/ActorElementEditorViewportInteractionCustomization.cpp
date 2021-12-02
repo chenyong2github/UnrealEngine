@@ -5,25 +5,12 @@
 #include "GameFramework/Actor.h"
 
 #include "Editor.h"
-#include "EditorModeManager.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AI/NavigationSystemBase.h"
 #include "Components/BrushComponent.h"
 #include "Engine/DocumentationActor.h"
 #include "Particles/Emitter.h"
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 #include "Elements/Framework/TypedElementRegistry.h"
-
-bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
-{
-	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
-	{
-		OutPivotLocation = ToolkitHostPtr->GetEditorModeManager().PivotLocation;
-		return true;
-	}
-	
-	return FTypedElementViewportInteractionCustomization::GetGizmoPivotLocation(InElementWorldHandle, InWidgetMode, OutPivotLocation);
-}
 
 void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
 {

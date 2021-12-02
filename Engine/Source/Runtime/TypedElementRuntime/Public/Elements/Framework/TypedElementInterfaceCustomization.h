@@ -59,6 +59,14 @@ public:
 	}
 
 	/**
+	 * Return the default interface customization instance.
+	 */
+	CustomizationBaseType* GetDefaultInterfaceCustomization() const
+	{
+		return DefaultInterfaceCustomization.Get();
+	}
+
+	/**
 	 * Register an interface customization for the given element type.
 	 */
 	void RegisterInterfaceCustomizationByTypeName(const FName InElementTypeName, TUniquePtr<CustomizationBaseType>&& InInterfaceCustomization)
