@@ -300,12 +300,7 @@ static FRDGTextureRef AddHistogramAtomicPass(
 		// 		FIntPoint(FHistogramAtomicCS::HistogramTexelCount, 1),
 		// 		PF_R32G32_UINT,
 		// 		FClearValueBinding::None,
-		// 		TexCreate_UAV);
-		// 
-		// 	if (IsMetalPlatform(View.GetShaderPlatform()))
-		// 	{
-		// 		Desc.Flags |= TexCreate_NoTiling;
-		// 	}
+		// 		TexCreate_UAV | TexCreate_AtomicCompatible);
 		// 
 		// 	HistogramScatter64Texture = GraphBuilder.CreateTexture(Desc, TEXT("Histogram.Scatter64"));
 		// }
@@ -315,12 +310,7 @@ static FRDGTextureRef AddHistogramAtomicPass(
 				FIntPoint(FHistogramAtomicCS::HistogramTexelCount * 2, 1),
 				PF_R32_UINT,
 				FClearValueBinding::None,
-				TexCreate_ShaderResource | TexCreate_UAV);
-
-			if (IsMetalPlatform(View.GetShaderPlatform()))
-			{
-				Desc.Flags |= TexCreate_NoTiling;
-			}
+				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_AtomicCompatible);
 
 			HistogramScatter32Texture = GraphBuilder.CreateTexture(Desc, TEXT("Histogram.Scatter32"));
 		}
