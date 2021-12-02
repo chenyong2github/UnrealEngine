@@ -3,7 +3,7 @@
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
-#include "Misc/CoreDelegates.h"
+#include "RendererOnScreenNotification.h"
 #include "VirtualTextureSystem.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureProducer.h"
@@ -61,7 +61,7 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 #if !UE_BUILD_SHIPPING
 				// Notify that streaming texture is invalid since this can cause performance regression.
 				const FString Name = InComponent->GetPathName();
-				OnScreenWarningDelegateHandle = FCoreDelegates::OnGetOnScreenMessages.AddLambda([Name](FCoreDelegates::FSeverityMessageMap& OutMessages)
+				OnScreenWarningDelegateHandle = FRendererOnScreenNotification::Get().AddLambda([Name](FCoreDelegates::FSeverityMessageMap& OutMessages)
 				{
 					OutMessages.Add(
 						FCoreDelegates::EOnScreenMessageSeverity::Warning,
@@ -96,7 +96,7 @@ FRuntimeVirtualTextureSceneProxy::~FRuntimeVirtualTextureSceneProxy()
 	checkSlow(IsInRenderingThread());
 
 #if !UE_BUILD_SHIPPING
-	FCoreDelegates::OnGetOnScreenMessages.Remove(OnScreenWarningDelegateHandle);
+	FRendererOnScreenNotification::Get().Remove(OnScreenWarningDelegateHandle);
 #endif
 }
 
