@@ -187,10 +187,10 @@ namespace ShaderConductor
             // UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
             bool enableFMAPass = false;
             // UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
-			// UE Change Begin: Force subpass OpTypeImage depth flag to be set to 0
-			bool forceSubpassImageDepthFalse = false;
-			// UE Change End: Force subpass OpTypeImage depth flag to be set to 0
-			// UE Change Begin: Allow separate samplers in GLSL via extensions.
+            // UE Change Begin: Force subpass OpTypeImage depth flag to be set to 0
+            bool forceSubpassImageDepthFalse = false;
+            // UE Change End: Force subpass OpTypeImage depth flag to be set to 0
+            // UE Change Begin: Allow separate samplers in GLSL via extensions.
             bool enableSeparateSamplers = false;
             // UE Change End: Allow separate samplers in GLSL via extensions.
             // UE Change Begin: Support for specifying direct arguments to DXC
@@ -293,10 +293,10 @@ namespace ShaderConductor
         static bool LinkSupport();
         static ResultDesc Link(const LinkDesc& modules, const Options& options, const TargetDesc& target);
 
-		// UE Change Begin: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
-		static void Shutdown();
-		// UE Change End: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
-	};
+        // UE Change Begin: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
+        static void Shutdown();
+        // UE Change End: Allow to manually shutdown compiler to avoid dangling mutex on Linux.
+    };
 } // namespace ShaderConductor
 
 #endif // SHADER_CONDUCTOR_HPP
