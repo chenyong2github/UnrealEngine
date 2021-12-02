@@ -1113,6 +1113,7 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 		return;
 	}
 
+	TGuardValue<bool> UpdateGuard(bUpdatingLocalValueDirectly, true);
 	FScopedTransaction ScopedTransaction(LOCTEXT("UpdateLinkedInputValue", "Update linked input value"));
 	RemoveOverridePin();
 
@@ -1123,6 +1124,27 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 
 	if (InParameterHandle != DefaultInputValues.LinkedHandle)
 	{
+		if (InParameterHandle.IsUserHandle())
+		{
+			// If the handle is a user parameter, make sure the system has it exposed.  If it's not exposed add it directly here
+			// rather than waiting on the compile results so that it's immediately available.
+			FNiagaraVariable LinkedParameterVariable = FNiagaraVariable(InputType, InParameterHandle.GetParameterHandleString()); 
+			FNiagaraParameterStore& UserParameters = GetSystemViewModel()->GetSystem().GetExposedParameters();
+			if (UserParameters.IndexOf(LinkedParameterVariable) == INDEX_NONE)
+			{
+				if (InputValues.Mode == EValueMode::Local && InputValues.LocalStruct.IsValid())
+				{
+					// If the current value is local, and valid transfer that value to the user parameter.
+					LinkedParameterVariable.SetData(InputValues.LocalStruct->GetStructMemory());
+				}
+				else
+				{
+					FNiagaraEditorUtilities::ResetVariableToDefaultValue(LinkedParameterVariable);
+				}
+				UserParameters.SetParameterData(LinkedParameterVariable.GetData(), LinkedParameterVariable, true);
+			}
+		}
+
 		// Only set the linked value if it's actually different from the default.
 		FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(GetOrCreateOverridePin(), InParameterHandle);
 		OwningFunctionCallNode->FixupPinNames(); // refresh the input guids and update the bound names
