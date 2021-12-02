@@ -116,12 +116,11 @@ public:
 	/**
 	 * Function to use for emitting selection change events. If not set, Setup() will attach a version that
 	 * uses EmitObjectChange() on the tool manager to emit a change that operates on this mechanic.
-	 * @param bBroadcastOnSelectionChanged Indicates whether the SetSelection call that asked to issue the
-	 *   transaction was also requested to broadcast the OnSelectionChanged delegate. If so, the transaction
-	 *   should probably do the same on revert/apply.
+	 * TODO: User should probably be able to specify whether the emitted transaction should broadcast
+	 * OnSelectionChanged on redo, undo, or both, to allow selection change events to be used as bookends
+	 * around topology changes.
 	 */ 
-	TUniqueFunction<void(const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection, 
-		bool bBroadcastOnSelectionChanged)> EmitSelectionChange;
+	TUniqueFunction<void(const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection)> EmitSelectionChange;
 
 protected:
 

@@ -250,105 +250,118 @@ template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::SplitBowties()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(DynamicMeshOverlay_SplitBowties);
-	
+
+	for (int VertexID : ParentMesh->VertexIndicesItr())
+	{
+		SplitBowtiesAtVertex(VertexID);
+	}
+}
+
+
+template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::SplitBowtiesAtVertex(int32 VertexID, TArray<int32>* NewElementIDs)
+{
 	// arrays for storing contiguous triangle groups from parentmesh
 	TArray<int> TrianglesOut, ContiguousGroupLengths;
 	TArray<bool> GroupIsLoop;
 
 	// per-vertex element group tracking data, reused in loop below
 	TSet<int> ElementIDSeen;
-	TArray<int> GroupElementIDs, // stores element IDs 1:1 w/ contiguous triangles in the parent mesh
+	TArray<int> GroupElementIDs, // stores element IDs of this vertex, 1:1 w/ contiguous triangles in the parent mesh
 		SubGroupID, // mapping from GroupElementIDs indices into SubGroupElementIDs indices, giving subgroup membership per triangle
 		SubGroupElementIDs; // 1:1 w/ 'subgroups' in the group (e.g. if all triangles in the group all had the same element ID, this would be an array of length 1, just containing that element ID)
-	
-	for (int VertexID : ParentMesh->VertexIndicesItr())
+
+	ensure(EMeshResult::Ok == ParentMesh->GetVtxContiguousTriangles(VertexID, TrianglesOut, ContiguousGroupLengths, GroupIsLoop));
+	int32 NumTris = TrianglesOut.Num();
+
+	ElementIDSeen.Reset();
+	// per contiguous group of triangles around vertex in ParentMesh, find contiguous sub-groups in overlay
+	for (int32 GroupIdx = 0, NumGroups = ContiguousGroupLengths.Num(), TriSubStart = 0; GroupIdx < NumGroups; GroupIdx++)
 	{
-		ensure(EMeshResult::Ok == ParentMesh->GetVtxContiguousTriangles(VertexID, TrianglesOut, ContiguousGroupLengths, GroupIsLoop));
-		int32 NumTris = TrianglesOut.Num();
-
-		ElementIDSeen.Reset();
-		// per contiguous group of triangles around vertex in ParentMesh, find contiguous sub-groups in overlay
-		for (int32 GroupIdx = 0, NumGroups = ContiguousGroupLengths.Num(), TriSubStart = 0; GroupIdx < NumGroups; GroupIdx++)
+		bool bIsLoop = GroupIsLoop[GroupIdx];
+		int TriInGroupNum = ContiguousGroupLengths[GroupIdx];
+		if (ensure(TriInGroupNum > 0) == false)
 		{
-			bool bIsLoop = GroupIsLoop[GroupIdx];
-			int TriInGroupNum = ContiguousGroupLengths[GroupIdx];
-			if (ensure(TriInGroupNum > 0) == false)
-			{
-				continue;
-			}
-			int TriSubEnd = TriSubStart + TriInGroupNum;
-			
-			GroupElementIDs.Reset();
-			for (int TriSubIdx = TriSubStart; TriSubIdx < TriSubEnd; TriSubIdx++)
-			{
-				int TriID = TrianglesOut[TriSubIdx];
-				FIndex3i TriVIDs = ParentMesh->GetTriangle(TriID);
-				FIndex3i TriEIDs = GetTriangle(TriID);
-				int SubIdx = TriVIDs.IndexOf(VertexID);
-				GroupElementIDs.Add(TriEIDs[SubIdx]);
-			}
-
-			auto IsConnected = [this, &GroupElementIDs, &TrianglesOut, &TriSubStart](int TriOutIdxA, int TriOutIdxB)
-			{
-				if (GroupElementIDs[TriOutIdxA - TriSubStart] != GroupElementIDs[TriOutIdxB - TriSubStart])
-				{
-					return false;
-				}
-				int EdgeID = ParentMesh->FindEdgeFromTriPair(TrianglesOut[TriOutIdxA], TrianglesOut[TriOutIdxB]);
-				return EdgeID >= 0 && !IsSeamEdge(EdgeID);
-			};
-
-			SubGroupID.Reset(); SubGroupID.SetNum(TriInGroupNum);
-			SubGroupElementIDs.Reset();
-			int MaxSubID = 0;
-			SubGroupID[0] = 0;
-			SubGroupElementIDs.Add(GroupElementIDs[0]);
-			for (int TriSubIdx = TriSubStart; TriSubIdx+1 < TriSubEnd; TriSubIdx++)
-			{
-				if (!IsConnected(TriSubIdx, TriSubIdx+1))
-				{
-					SubGroupElementIDs.Add(GroupElementIDs[TriSubIdx + 1 - TriSubStart]);
-					MaxSubID++;
-				}
-				SubGroupID[TriSubIdx - TriSubStart + 1] = MaxSubID;
-			}
-			// if group was a loop, need to check if the last sub-group and first sub-group were actually the same group
-			if (bIsLoop && MaxSubID > 0 && IsConnected(TriSubStart, TriSubStart + TriInGroupNum - 1))
-			{
-				int LastGroupID = SubGroupID.Last();
-				for (int32 Idx = SubGroupID.Num() - 1; Idx >= 0 && SubGroupID[Idx] == LastGroupID; Idx--)
-				{
-					SubGroupID[Idx] = 0;
-				}
-				MaxSubID--;
-				SubGroupElementIDs.Pop(false);
-			}
-
-			for (int SubID = 0; SubID < SubGroupElementIDs.Num(); SubID++)
-			{
-				int ElementID = SubGroupElementIDs[SubID];
-				if (ElementID < 0)
-				{
-					continue;		// skip if this is an invalid ElementID (eg from an invalid triangle)
-				}
-				// split needed the *second* time we see a sub-group using a given ElementID
-				if (ElementIDSeen.Contains(ElementID))
-				{
-					TArray<int> ConnectedTris;
-					for (int TriSubIdx = TriSubStart; TriSubIdx < TriSubEnd; TriSubIdx++)
-					{
-						if (SubID == SubGroupID[TriSubIdx - TriSubStart])
-						{
-							ConnectedTris.Add(TrianglesOut[TriSubIdx]);
-						}
-					}
-					SplitElement(ElementID, ConnectedTris);
-				}
-				ElementIDSeen.Add(ElementID);
-			}
-
-			TriSubStart = TriSubEnd;
+			continue;
 		}
+		int TriSubEnd = TriSubStart + TriInGroupNum;
+
+		GroupElementIDs.Reset();
+		for (int TriSubIdx = TriSubStart; TriSubIdx < TriSubEnd; TriSubIdx++)
+		{
+			int TriID = TrianglesOut[TriSubIdx];
+			FIndex3i TriVIDs = ParentMesh->GetTriangle(TriID);
+			FIndex3i TriEIDs = GetTriangle(TriID);
+			int SubIdx = TriVIDs.IndexOf(VertexID);
+			GroupElementIDs.Add(TriEIDs[SubIdx]);
+		}
+
+		auto IsConnected = [this, &GroupElementIDs, &TrianglesOut, &TriSubStart](int TriOutIdxA, int TriOutIdxB)
+		{
+			if (GroupElementIDs[TriOutIdxA - TriSubStart] != GroupElementIDs[TriOutIdxB - TriSubStart])
+			{
+				return false;
+			}
+			int EdgeID = ParentMesh->FindEdgeFromTriPair(TrianglesOut[TriOutIdxA], TrianglesOut[TriOutIdxB]);
+			return EdgeID >= 0 && !IsSeamEdge(EdgeID);
+		};
+
+		SubGroupID.Reset(); SubGroupID.SetNum(TriInGroupNum);
+		SubGroupElementIDs.Reset();
+		int MaxSubID = 0;
+		SubGroupID[0] = 0;
+		SubGroupElementIDs.Add(GroupElementIDs[0]);
+
+		// Iterate through tris in current group, except last one
+		for (int TriSubIdx = TriSubStart; TriSubIdx + 1 < TriSubEnd; TriSubIdx++)
+		{
+			if (!IsConnected(TriSubIdx, TriSubIdx + 1))
+			{
+				SubGroupElementIDs.Add(GroupElementIDs[TriSubIdx + 1 - TriSubStart]);
+				MaxSubID++;
+			}
+			SubGroupID[TriSubIdx - TriSubStart + 1] = MaxSubID;
+		}
+		// if group was a loop, need to check if the last sub-group and first sub-group were actually the same group
+		if (bIsLoop && MaxSubID > 0 && IsConnected(TriSubStart, TriSubStart + TriInGroupNum - 1))
+		{
+			int LastGroupID = SubGroupID.Last();
+			for (int32 Idx = SubGroupID.Num() - 1; Idx >= 0 && SubGroupID[Idx] == LastGroupID; Idx--)
+			{
+				SubGroupID[Idx] = 0;
+			}
+			MaxSubID--;
+			SubGroupElementIDs.Pop(false);
+		}
+
+		for (int SubID = 0; SubID < SubGroupElementIDs.Num(); SubID++)
+		{
+			int ElementID = SubGroupElementIDs[SubID];
+			if (ElementID < 0)
+			{
+				continue;		// skip if this is an invalid ElementID (eg from an invalid triangle)
+			}
+			// split needed the *second* time we see a sub-group using a given ElementID
+			if (ElementIDSeen.Contains(ElementID))
+			{
+				TArray<int> ConnectedTris;
+				for (int TriSubIdx = TriSubStart; TriSubIdx < TriSubEnd; TriSubIdx++)
+				{
+					if (SubID == SubGroupID[TriSubIdx - TriSubStart])
+					{
+						ConnectedTris.Add(TrianglesOut[TriSubIdx]);
+					}
+				}
+				int32 NewElementID = SplitElement(ElementID, ConnectedTris);
+				if (NewElementIDs)
+				{
+					NewElementIDs->Add(NewElementID);
+				}
+			}
+			ElementIDSeen.Add(ElementID);
+		}
+
+		TriSubStart = TriSubEnd;
 	}
 }
 

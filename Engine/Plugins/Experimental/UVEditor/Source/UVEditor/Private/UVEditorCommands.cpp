@@ -33,9 +33,11 @@ void FUVEditorCommands::RegisterCommands()
 
 	// These currently get linked to actions inside the select tool, but will eventually have their own buttons among the tools
 	// once selection is pulled out to mode-level.
-	UI_COMMAND(SewAction, "Sew", "Sew selected edges to their pairs", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(SplitAction, "Split", "Split UV's at selected edges", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(IslandConformalUnwrapAction, "IsdUw", "Perform a  conformal unwrap of selected islands", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SewAction, "Sew", "Sew edges. The red edges will be sewn to the green edges", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SplitAction, "Split", 
+		"Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie verts.", 
+		EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(IslandConformalUnwrapAction, "IsdUw", "Apply a conformal unwrap to the selected UV islands", EUserInterfaceActionType::Button, FInputChord());
 
 	// These allow us to link up to pressed keys
 	UI_COMMAND(AcceptOrCompleteActiveTool, "Accept", "Accept the active tool", EUserInterfaceActionType::Button, FInputChord(EKeys::Enter));
