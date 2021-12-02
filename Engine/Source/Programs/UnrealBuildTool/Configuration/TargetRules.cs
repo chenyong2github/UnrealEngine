@@ -207,6 +207,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool IsNameOverriden() { return !String.IsNullOrEmpty(NameOverride); }
 
+		/// <summary>
+		/// Override the name used for this target
+		/// </summary>
+		[CommandLine("-TargetNameOverride=")]
 		private string? NameOverride;
 
 		private readonly string DefaultName;
