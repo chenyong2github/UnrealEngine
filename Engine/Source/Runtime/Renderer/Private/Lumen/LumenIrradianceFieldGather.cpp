@@ -48,10 +48,10 @@ FAutoConsoleVariableRef CVarLumenIrradianceFieldClipmapDistributionBase(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenIrradianceFieldNumProbeTracesBudget = 200;
-FAutoConsoleVariableRef CVarLumenIrradianceFieldNumProbeTracesBudget(
-	TEXT("r.Lumen.IrradianceFieldGather.NumProbeTracesBudget"),
-	GLumenIrradianceFieldNumProbeTracesBudget,
+int32 GLumenIrradianceFieldNumProbesToTraceBudget = 200;
+FAutoConsoleVariableRef CVarLumenIrradianceFieldNumProbesToTraceBudget(
+	TEXT("r.Lumen.IrradianceFieldGather.NumProbesToTraceBudget"),
+	GLumenIrradianceFieldNumProbesToTraceBudget,
 	TEXT("Number of probes that can be updated in a frame before downsampling."),
 	ECVF_RenderThreadSafe
 );
@@ -120,6 +120,14 @@ FAutoConsoleVariableRef CVarLumenIrradianceFieldProbeOcclusionNormalBias(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenIrradianceFieldStats = 0;
+FAutoConsoleVariableRef CVarLumenIrradianceFieldStats(
+	TEXT("r.Lumen.IrradianceFieldGather.RadianceCache.Stats"),
+	GLumenIrradianceFieldStats,
+	TEXT("GPU print out Radiance Cache update stats."),
+	ECVF_RenderThreadSafe
+);
+
 namespace LumenIrradianceFieldGather
 {
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
@@ -137,7 +145,8 @@ namespace LumenIrradianceFieldGather
 		Parameters.CalculateIrradiance = 1;
 		Parameters.IrradianceProbeResolution = GLumenIrradianceFieldProbeIrradianceResolution;
 		Parameters.OcclusionProbeResolution = GLumenIrradianceFieldProbeOcclusionResolution;
-		Parameters.NumProbeTracesBudget = GLumenIrradianceFieldNumProbeTracesBudget;
+		Parameters.NumProbesToTraceBudget = GLumenIrradianceFieldNumProbesToTraceBudget;
+		Parameters.RadianceCacheStats = GLumenIrradianceFieldStats;
 		return Parameters;
 	}
 }

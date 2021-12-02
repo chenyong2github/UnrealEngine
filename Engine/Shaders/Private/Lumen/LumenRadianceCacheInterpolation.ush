@@ -109,7 +109,17 @@ float3 GetRadianceProbeCoordToWorldPositionBias(uint ClipmapIndex)
 	return PaddedRadianceProbeCoordToWorldPositionBias[ClipmapIndex].xyz; // must match with LumenRadianceCacheInterpolation.h
 }
 
+int3 GetRadianceProbeCoord(float3 ProbeWorldPosition, uint ClipmapIndex)
+{
+	// Use floor() to round negative numbers down
+	return floor(ProbeWorldPosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex));
+}
 
+int3 GetRadianceProbeBottomCornerCoord(float3 ProbeWorldPosition, uint ClipmapIndex)
+{
+	// Use floor() to round negative numbers down
+	return floor(ProbeWorldPosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex) - 0.5f);
+}
 
 float3 GetProbeWorldPosition(uint3 ProbeCoord, uint ClipmapIndex, uint ProbeIndex)
 {
@@ -117,9 +127,9 @@ float3 GetProbeWorldPosition(uint3 ProbeCoord, uint ClipmapIndex, uint ProbeInde
 	return ProbeWorldPosition + ProbeWorldOffset[ProbeIndex].xyz;
 }
 
-bool IsValidRadianceCacheClipmap(uint InClipmapIndex)
+bool IsValidRadianceCacheClipmap(uint FRadianceCacheCoverage)
 {
-	return InClipmapIndex < NumRadianceProbeClipmaps;
+	return FRadianceCacheCoverage < NumRadianceProbeClipmaps;
 }
 
 uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
@@ -133,10 +143,10 @@ uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
 		int3 ProbeMaxCoord;
 
 	#if RADIANCE_CACHE_USE_INTERPOLATION
-		ProbeMinCoord = ProbeCoordFloat - .5f;
+		ProbeMinCoord = floor(ProbeCoordFloat - 0.5f);
 		ProbeMaxCoord = ProbeMinCoord + 1;
 	#else
-		ProbeMinCoord = ProbeCoordFloat;
+		ProbeMinCoord = floor(ProbeCoordFloat);
 		ProbeMaxCoord = ProbeMinCoord;
 	#endif
 
@@ -268,8 +278,8 @@ float3 SampleRadianceCacheInterpolated(float3 WorldSpacePosition, float3 WorldSp
 		float MipLevel = clamp(log2(NumTexels), 0, (float)FinalRadianceAtlasMaxMip);
 
 #if RADIANCE_CACHE_USE_INTERPOLATION
-		float3 CornerProbeCoordFloat = ProbeCoordFloat - .5f;
-		int3 CornerProbeCoord = CornerProbeCoordFloat;
+		float3 CornerProbeCoordFloat = ProbeCoordFloat - 0.5f;
+		int3 CornerProbeCoord = floor(CornerProbeCoordFloat);
 		float3 LerpAlphas = frac(CornerProbeCoordFloat);
 
 #define STOCHASTIC_INTERPOLATION 0
@@ -363,7 +373,7 @@ float3 SampleIrradianceCacheInterpolated(float3 WorldSpacePosition, float3 World
 	float3 ProbeCoordFloat = WorldSpacePosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 
 	float3 CornerProbeCoordFloat = ProbeCoordFloat - .5f;
-	int3 CornerProbeCoord = CornerProbeCoordFloat;
+	int3 CornerProbeCoord = floor(CornerProbeCoordFloat);
 	float3 LerpAlphas = frac(CornerProbeCoordFloat);
 
 	float3 Irradiance = 0;

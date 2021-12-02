@@ -27,7 +27,8 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER(uint32, CalculateIrradiance)
 		SHADER_PARAMETER(uint32, IrradianceProbeResolution)
 		SHADER_PARAMETER(uint32, OcclusionProbeResolution)
-		SHADER_PARAMETER(uint32, NumProbeTracesBudget)
+		SHADER_PARAMETER(uint32, NumProbesToTraceBudget)
+		SHADER_PARAMETER(uint32, RadianceCacheStats)
 	END_SHADER_PARAMETER_STRUCT()
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FRadianceCacheInterpolationParameters, )

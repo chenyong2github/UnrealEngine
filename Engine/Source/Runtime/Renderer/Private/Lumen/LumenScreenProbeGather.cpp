@@ -322,10 +322,10 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheClipmapDistributionBase(
 	ECVF_RenderThreadSafe
 );
 
-int32 GRadianceCacheNumProbeTracesBudget = 200;
-FAutoConsoleVariableRef CVarRadianceCacheNumProbeTracesBudget(
-	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbeTracesBudget"),
-	GRadianceCacheNumProbeTracesBudget,
+int32 GRadianceCacheNumProbesToTraceBudget = 200;
+FAutoConsoleVariableRef CVarRadianceCacheNumProbesToTraceBudget(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.NumProbesToTraceBudget"),
+	GRadianceCacheNumProbesToTraceBudget,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -367,6 +367,14 @@ FAutoConsoleVariableRef CVarRadianceCacheProbeReprojectionRadiusScale(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ReprojectionRadiusScale"),
 	GRadianceCacheReprojectionRadiusScale,
 	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GRadianceCacheStats = 0;
+FAutoConsoleVariableRef CVarRadianceCacheStats(
+	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.Stats"),
+	GRadianceCacheStats,
+	TEXT("GPU print out Radiance Cache update stats."),
 	ECVF_RenderThreadSafe
 );
 
@@ -427,7 +435,8 @@ namespace LumenScreenProbeGatherRadianceCache
 		Parameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
 		Parameters.CalculateIrradiance = 0;
 		Parameters.IrradianceProbeResolution = 0;
-		Parameters.NumProbeTracesBudget = GRadianceCacheNumProbeTracesBudget;
+		Parameters.NumProbesToTraceBudget = GRadianceCacheNumProbesToTraceBudget;
+		Parameters.RadianceCacheStats = GRadianceCacheStats;
 		return Parameters;
 	}
 };

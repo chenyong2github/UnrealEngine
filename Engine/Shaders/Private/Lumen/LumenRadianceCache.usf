@@ -85,21 +85,21 @@ void UpdateCacheForUsedProbesCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	uint ClipmapIndex = DispatchThreadId.x / RadianceProbeClipmapResolution;
+	uint3 LastFrameProbeCoord = uint3(DispatchThreadId.x - ClipmapIndex * RadianceProbeClipmapResolution, DispatchThreadId.yz);
 
-	if (ClipmapIndex < NumRadianceProbeClipmaps)
+	if (ClipmapIndex < NumRadianceProbeClipmaps && all(LastFrameProbeCoord < RadianceProbeClipmapResolution))
 	{
-		uint3 LastFrameProbeCoord = uint3(DispatchThreadId.x - ClipmapIndex * RadianceProbeClipmapResolution, DispatchThreadId.y, DispatchThreadId.z);
 		uint3 LastFrameProbeIndirectionTextureCoord = uint3(LastFrameProbeCoord.x + ClipmapIndex * RadianceProbeClipmapResolution, LastFrameProbeCoord.yz);
 		uint LastFrameProbeIndex = LastFrameRadianceProbeIndirectionTexture.Load(uint4(LastFrameProbeIndirectionTextureCoord, 0));
 
 		if (LastFrameProbeIndex != INVALID_PROBE_INDEX)
 		{
 			float3 ProbeWorldPosition = LastFrameProbeCoord * LastFrameRadianceProbeCoordToWorldPositionScale(ClipmapIndex) + LastFrameRadianceProbeCoordToWorldPositionBias(ClipmapIndex);
-			int3 ProbeCoord = ProbeWorldPosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
+			int3 ProbeCoord = GetRadianceProbeCoord(ProbeWorldPosition, ClipmapIndex);
 
 			bool bReused = false;
 
-			if (all(ProbeCoord > 0) && all(ProbeCoord < (int3)RadianceProbeClipmapResolution))
+			if (all(ProbeCoord >= 0) && all(ProbeCoord < (int3)RadianceProbeClipmapResolution))
 			{
 				uint3 ProbeIndirectionTextureCoord = uint3(ProbeCoord.x + ClipmapIndex * RadianceProbeClipmapResolution, ProbeCoord.yz);
 				uint ProbeUsedMarker = RWRadianceProbeIndirectionTexture[ProbeIndirectionTextureCoord];
@@ -132,14 +132,14 @@ RWBuffer<uint> RWProbeTraceAllocator;
 RWBuffer<float4> RWProbeTraceData;
 Buffer<uint> ProbeFreeList;
 uint ProbesUpdateEveryNFrames;
-uint NumProbeTracesBudget;
+uint NumProbesToTraceBudget;
 
 bool ShouldUpdateProbeThisFrame(uint ProbeIndex, float3 ProbeWorldPosition)
 {
 	uint EffectiveProbesUpdateEveryNFrames = ProbesUpdateEveryNFrames;
 
 	// If the new probes already exceeded the trace budget, greatly lower the update rate for existing probes
-	if (RWProbeTraceAllocator[0] > NumProbeTracesBudget)
+	if (RWProbeTraceAllocator[0] > NumProbesToTraceBudget)
 	{
 		EffectiveProbesUpdateEveryNFrames *= 10;
 	}
@@ -161,12 +161,12 @@ void AllocateUsedProbesCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	uint ClipmapIndex = DispatchThreadId.x / RadianceProbeClipmapResolution;
+	uint3 ProbeCoord = uint3(DispatchThreadId.x - ClipmapIndex * RadianceProbeClipmapResolution, DispatchThreadId.y, DispatchThreadId.z);
 
-	if (ClipmapIndex < NumRadianceProbeClipmaps)
+	if (ClipmapIndex < NumRadianceProbeClipmaps && all(ProbeCoord < RadianceProbeClipmapResolution))
 	{
 		uint ProbeUsedMarker = RWRadianceProbeIndirectionTexture[DispatchThreadId];
 
-		uint3 ProbeCoord = uint3(DispatchThreadId.x - ClipmapIndex * RadianceProbeClipmapResolution, DispatchThreadId.y, DispatchThreadId.z);
 		float3 ProbeWorldPosition = ProbeCoord * GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex) + GetRadianceProbeCoordToWorldPositionBias(ClipmapIndex);
 
 		bool bTraceProbe;
@@ -407,7 +407,7 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 
 			if (ClipmapIndex < NumRadianceProbeClipmaps)
 			{
-				int3 BottomCornerProbeCoord = WorldPosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex) - .5f;
+				int3 BottomCornerProbeCoord = GetRadianceProbeBottomCornerCoord(WorldPosition, ClipmapIndex);
 				int3 IndirectionTextureCoord = BottomCornerProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolution, 0, 0);
 				uint ProbeIndex = RadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(GroupThreadId.x & 0x1, (GroupThreadId.x & 0x2) >> 1, (GroupThreadId.x & 0x4) >> 2)];
 
@@ -606,7 +606,7 @@ void GenerateProbeTraceTilesCS(
 
 	// Calculate subdivision level for the probe
 	// Level 0 is half of RadianceProbeResolution
-	if ((ProbeTraceIndex < NumProbeTracesBudget || ProbeTraceIndex >= NumNewProbes[0]) && DistanceFromCameraSq < DownsampleDistanceFromCameraSq)
+	if ((ProbeTraceIndex < NumProbesToTraceBudget || ProbeTraceIndex >= NumNewProbes[0]) && DistanceFromCameraSq < DownsampleDistanceFromCameraSq)
 	{
 		NumLevels = DistanceFromCameraSq < SupersampleDistanceFromCameraSq ? 3 : 2;
 	}
@@ -1002,7 +1002,7 @@ void FilterProbeRadianceWithGatherCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	int3 ProbeCoord = ProbeWorldCenter * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
+	int3 ProbeCoord = GetRadianceProbeCoord(ProbeWorldCenter, ClipmapIndex);
 	uint2 RandSeed = Rand3DPCG16(int3(ProbeWorldCenter / 10.0f)).xy;
 	uint ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
 
@@ -1108,7 +1108,7 @@ void FilterProbeRadianceWithGatherCS(
 		float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)RadianceProbeResolution;
 		float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
-		int3 ProbeCoord = ProbeWorldCenter * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
+		int3 ProbeCoord = GetRadianceProbeCoord(ProbeWorldCenter, ClipmapIndex);
 
 		int3 Offsets[6];
 		Offsets[0] = int3(-1, 0, 0);

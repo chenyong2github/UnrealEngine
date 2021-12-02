@@ -1,0 +1,47 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenRadianceCacheDebug.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "../ShaderPrintCommon.ush"
+
+uint MaxNumProbes;
+Buffer<uint> NumNewProbes;
+Buffer<uint> ProbeTraceAllocator;
+Buffer<uint> ProbeAllocator;
+Buffer<uint> ProbeFreeListAllocator;
+
+/** 
+ * Print out various stats for debugging radiance cache probe updates
+ */
+[numthreads(1, 1, 1)]
+void RadianceCacheUpdateStatsCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	float2 Origin = float2(0.1, 0.1);
+	float2 TextPos = Origin;
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("MaxProbesInAtlas "));
+	TextPos = ShaderPrint(TextPos, MaxNumProbes);
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("ProbesInAtlas "));
+	TextPos = ShaderPrint(TextPos, ProbeAllocator[0] - ProbeFreeListAllocator[0]);
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("Allocator "));
+	TextPos = ShaderPrint(TextPos, ProbeAllocator[0]);
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("FreeList "));
+	TextPos = ShaderPrint(TextPos, ProbeFreeListAllocator[0]);
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("NewProbes "));
+	TextPos = ShaderPrint(TextPos, NumNewProbes[0]);
+}

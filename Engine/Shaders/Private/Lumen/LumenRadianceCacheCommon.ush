@@ -20,7 +20,7 @@ FRadianceCacheCoverage GetRadianceCacheCoverageWithUncertainCoverage(float3 RayO
 	{
 		float3 ProbeCoordFloat = RayOrigin * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 		float3 CornerProbeCoordFloat = ProbeCoordFloat - .5f;
-		int3 CornerProbeCoord = CornerProbeCoordFloat;
+		int3 CornerProbeCoord = floor(CornerProbeCoordFloat);
 		Coverage.bValid = true;
 
 		UNROLL
