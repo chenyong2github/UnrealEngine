@@ -138,6 +138,7 @@ int SMRTRayCount;					// 0 = off
 int SMRTSamplesPerRay;
 float SMRTRayLengthScale;			// Directional lights
 float SMRTCotMaxRayAngleFromLight;	// Spot/point lights
+float SMRTTexelDitherScale;			// Currently only directional lights
 
 // One pass projection
 RWTexture2D< uint > RWShadowMaskBits;
@@ -220,7 +221,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 				SMRTRayLengthScale,
 				Noise,
 				bBackfaceCull,
-				WorldNormal);
+				WorldNormal,
+				SMRTTexelDitherScale);
 		#else
 			Result = TraceLocalLight(
 				VirtualShadowMapId,
