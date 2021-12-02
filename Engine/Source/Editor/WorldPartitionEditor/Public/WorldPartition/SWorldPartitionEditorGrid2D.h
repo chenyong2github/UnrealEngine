@@ -88,8 +88,6 @@ protected:
 	bool bIsSelecting;
 	bool bIsDragging;
 	bool bShowActors;
-	bool bShowActorClusters;
-	bool bShowGroupActors;
 	FVector2D MouseCursorPos;
 	FVector2D MouseCursorPosWorld;
 	FVector2D LastMouseCursorPosWorldDrag;

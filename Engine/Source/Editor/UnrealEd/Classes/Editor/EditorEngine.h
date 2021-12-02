@@ -531,6 +531,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FPreviewPlatformChanged);
 	FPreviewPlatformChanged PreviewPlatformChanged;
 
+	/** A delegate that is called when the bugitgo command is used. */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FPostBugItGoCalled, const FVector& Loc, const FRotator& Rot);
+	FPostBugItGoCalled PostBugItGoCalled;
+
 	/** Whether or not the editor is currently compiling */
 	bool bIsCompiling;
 
@@ -3210,6 +3214,9 @@ public:
 
 	/** Return the delegate that is called when the preview platform changes */
 	FPreviewPlatformChanged& OnPreviewPlatformChanged() { return PreviewPlatformChanged; }
+
+	/** Return the delegate that is called when the bugitgo command is called */
+	FPostBugItGoCalled& OnPostBugItGoCalled() { return PostBugItGoCalled; }
 
 protected:
 

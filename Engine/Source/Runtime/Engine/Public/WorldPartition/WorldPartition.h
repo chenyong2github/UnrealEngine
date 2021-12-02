@@ -221,6 +221,8 @@ private:
 	bool IsMainWorldPartition() const;
 	void OnWorldMatchStarting();
 
+	void OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot);
+
 	// Delegates registration
 	void RegisterDelegates();
 	void UnregisterDelegates();	

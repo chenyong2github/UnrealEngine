@@ -74,8 +74,22 @@ public:
 		return !bDisableLoadingOfLastLoadedCells;
 	}
 
-	TArray<FName> GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
-	TArray<FName> GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
+	bool GetBugItGoLoadCells() const
+	{
+		return bBugItGoLoadCells;
+	}
+
+	void SetBugItGoLoadCells(bool bInBugItGoLoadCells)
+	{
+		if (bBugItGoLoadCells != bInBugItGoLoadCells)
+		{
+			bBugItGoLoadCells = bInBugItGoLoadCells;
+			SaveConfig();
+		}
+	}
+
+	const TArray<FName>& GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
+	const TArray<FName>& GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
 	
 	void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor);
 
@@ -117,6 +131,9 @@ private:
 
 	UPROPERTY(config)
 	uint32 bDisableLoadingOfLastLoadedCells : 1;
+
+	UPROPERTY(config)
+	uint32 bBugItGoLoadCells : 1;
 
 	UPROPERTY(config)
 	TMap<TSoftObjectPtr<UWorld>, FWorldPartitionPerWorldSettings> PerWorldEditorSettings;
