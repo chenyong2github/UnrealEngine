@@ -104,9 +104,9 @@ private:
 	ENiagaraSpriteAlignment Alignment;
 	ENiagaraSpriteFacingMode FacingMode;
 	ENiagaraSortMode SortMode;
-	FVector2D PivotInUVSpace;
+	FVector2f PivotInUVSpace;
 	float MacroUVRadius;
-	FVector2D SubImageSize;
+	FVector2f SubImageSize;
 
 	uint32 NumIndicesPerInstance;
 
@@ -122,7 +122,7 @@ private:
 
 	float MinFacingCameraBlendDistance;
 	float MaxFacingCameraBlendDistance;
-	FVector2D DistanceCullRange;
+	FVector2f DistanceCullRange;
 	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;
 	int32 NumCutoutVertexPerSubImage = 0;
 	uint32 MaterialParamValidMask = 0;

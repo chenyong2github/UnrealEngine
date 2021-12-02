@@ -5,7 +5,6 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "Internationalization/Internationalization.h"
-#include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
 
@@ -520,7 +519,7 @@ void UNiagaraDataInterfaceSpline::DestroyPerInstanceData(void* PerInstanceData, 
 {
 	SystemInstancesToProxyData_GT.Remove(SystemInstance->GetId());
 	
-	FNDISpline_InstanceData* InstData = (FNDISpline_InstanceData*)PerInstanceData;
+	FNDISpline_InstanceData* InstData = static_cast<FNDISpline_InstanceData*>(PerInstanceData);
 	InstData->~FNDISpline_InstanceData();
 
 	FNiagaraDataInterfaceProxySpline* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxySpline>();
@@ -571,7 +570,7 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 						SplineComponent = UserSplineComp;
 					}
 				}
-				else if (AActor* Actor = Cast<AActor>(UserParamObject))
+				else if (Cast<AActor>(UserParamObject))
 				{
 					SplineComponent = Source->FindComponentByClass<USplineComponent>();
 				}

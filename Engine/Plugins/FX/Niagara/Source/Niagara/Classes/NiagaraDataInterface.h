@@ -598,7 +598,7 @@ struct FNDIRandomInfoPolicy
 	FORCEINLINE bool IsDeterministic() const { return RandInfo.Seed3 != INDEX_NONE; }
 
 	//////////////////////////////////////////////////////////////////////////
-	FORCEINLINE_DEBUGGABLE FVector4 Rand4(int32 InstanceIndex) const
+	FORCEINLINE_DEBUGGABLE FVector4f Rand4(int32 InstanceIndex) const
 	{
 		if (IsDeterministic())
 		{
@@ -620,16 +620,16 @@ struct FNDIRandomInfoPolicy
 			//           We use the upper 24 bits as they tend to be higher quality.
 
 			// NOTE(mv): The divide can often be folded with the range scale in the rand functions
-			return FVector4((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
+			return FVector4f((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
 			// return float4((v >> 8) & 0x00ffffff) * (1.0/16777216.0); // bugged, see UE-67738
 		}
 		else
 		{
-			return FVector4(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
+			return FVector4f(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE FVector Rand3(int32 InstanceIndex) const
+	FORCEINLINE_DEBUGGABLE FVector3f Rand3(int32 InstanceIndex) const
 	{
 		if (IsDeterministic())
 		{
@@ -644,24 +644,24 @@ struct FNDIRandomInfoPolicy
 			v.Y += v.Z * v.X;
 			v.Z += v.X * v.Y;
 
-			return FVector((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
+			return FVector3f((v >> 8) & 0x00ffffff) / 16777216.0; // 0x01000000 == 16777216
 		}
 		else
 		{
-			return FVector(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
+			return FVector3f(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE FVector2D Rand2(int32 InstanceIndex) const
+	FORCEINLINE_DEBUGGABLE FVector2f Rand2(int32 InstanceIndex) const
 	{
 		if (IsDeterministic())
 		{
 			FVector Rand3D = Rand3(InstanceIndex);
-			return FVector2D(Rand3D.X, Rand3D.Y);
+			return FVector2f(Rand3D.X, Rand3D.Y);
 		}
 		else
 		{
-			return FVector2D(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
+			return FVector2f(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
 		}
 	}
 
@@ -723,14 +723,13 @@ struct TNDIRandomHelper : public TRandomPolicy
 		return Min + (int(TRandomPolicy::Rand(InstanceIndex) * (Range + 1)));
 	}
 
-	FORCEINLINE_DEBUGGABLE FVector RandomBarycentricCoord(int32 InstanceIndex) const
+	FORCEINLINE_DEBUGGABLE FVector3f RandomBarycentricCoord(int32 InstanceIndex) const
 	{
 		//TODO: This is gonna be slooooow. Move to an LUT possibly or find faster method.
 		//Can probably handle lower quality randoms / uniformity for a decent speed win.
-		FVector2D r = TRandomPolicy::Rand2(InstanceIndex);
+		FVector2f r = TRandomPolicy::Rand2(InstanceIndex);
 		float sqrt0 = FMath::Sqrt(r.X);
-		float sqrt1 = FMath::Sqrt(r.Y);
-		return FVector(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
+		return FVector3f(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
 	}
 };
 

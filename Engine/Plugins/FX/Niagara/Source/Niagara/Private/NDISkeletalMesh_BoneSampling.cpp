@@ -2,11 +2,9 @@
 
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "NiagaraComponent.h"
-#include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SkeletalMeshTypes.h"
 #include "NiagaraStats.h"
-#include "Templates/AlignmentTemplates.h"
 #include "NDISkeletalMeshCommon.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceSkeletalMesh_BoneSampling"
@@ -793,10 +791,10 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 
 	//TODO: Replace this by storing off FTransforms and doing a proper lerp to get a final transform.
 	//Also need to pull in a per particle interpolation factor.
-	const FMatrix44f InstanceTransform = (FMatrix44f)InstData->Transform;
-	const FMatrix44f PrevInstanceTransform = (FMatrix44f)InstData->PrevTransform;
-	const FQuat4f InstanceRotation = Output.bNeedsRotation ? InstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat4f::Identity;
-	const FQuat4f PrevInstanceRotation = Output.bNeedsRotation ? PrevInstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat4f::Identity;
+	const FMatrix InstanceTransform = InstData->Transform;
+	const FMatrix PrevInstanceTransform = InstData->PrevTransform;
+	const FQuat4f InstanceRotation = Output.bNeedsRotation ? FQuat4f(InstanceTransform.GetMatrixWithoutScale().ToQuat()) : FQuat4f::Identity;
+	const FQuat4f PrevInstanceRotation = Output.bNeedsRotation ? FQuat4f(PrevInstanceTransform.GetMatrixWithoutScale().ToQuat()) : FQuat4f::Identity;
 
 	FSkeletalMeshAccessorHelper Accessor;
 	Accessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
@@ -1008,15 +1006,15 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMExte
 	if (SocketMax >= 0)
 	{
 		const bool bNeedsRotation = OutSocketRotation.IsValid();
-		const FMatrix44f InstanceTransform = (FMatrix44f)InstData->Transform;
-		const FQuat4f InstanceRotation = bNeedsRotation ? InstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat4f::Identity;
+		const FMatrix InstanceTransform = InstData->Transform;
+		const FQuat4f InstanceRotation = bNeedsRotation ? FQuat4f(InstanceTransform.GetMatrixWithoutScale().ToQuat()) : FQuat4f::Identity;
 
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, SocketMax);
-			FVector3f SocketTranslation = CurrentFilteredSockets[SocketIndex].GetTranslation();
+			FVector SocketTranslation = CurrentFilteredSockets[SocketIndex].GetTranslation();
 			FQuat4f SocketRotation = CurrentFilteredSockets[SocketIndex].GetRotation();
-			FVector3f SocketScale = CurrentFilteredSockets[SocketIndex].GetScale3D();
+			FVector SocketScale = CurrentFilteredSockets[SocketIndex].GetScale3D();
 
 			const bool bApplyTransform = ApplyWorldTransform.GetAndAdvance();
 			if (bApplyTransform)

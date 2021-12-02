@@ -3,7 +3,6 @@
 #include "NiagaraDataInterface.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveLinearColor.h"
-#include "Curves/CurveFloat.h"
 #include "NiagaraTypes.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraShader.h"

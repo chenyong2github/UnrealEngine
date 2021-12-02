@@ -652,7 +652,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMExternalFunctionCon
 	// Fall though for bad data
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		OutUV.SetAndAdvance(FVector2D::ZeroVector);
+		OutUV.SetAndAdvance(FVector2f::ZeroVector);
 	}
 }
 
@@ -668,7 +668,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV<FSkelMeshVertexAccessorNoop>
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		OutUV.SetAndAdvance(FVector2D::ZeroVector);
+		OutUV.SetAndAdvance(FVector2f::ZeroVector);
 	}
 }
 

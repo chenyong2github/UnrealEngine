@@ -1041,7 +1041,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordUV(FVectorVMExternalFunctionC
 	// Fall-though for failure conditions
 	for (int32 i=0; i < Context.GetNumInstances(); ++i)
 	{
-		OutUV.SetAndAdvance(FVector2D::ZeroVector);
+		OutUV.SetAndAdvance(FVector2f::ZeroVector);
 	}
 }
 

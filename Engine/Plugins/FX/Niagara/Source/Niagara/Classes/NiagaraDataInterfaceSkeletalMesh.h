@@ -54,11 +54,11 @@ struct FSkeletalMeshSkinningDataHandle
 	FSkeletalMeshSkinningDataHandle();
 	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataUsage InUsage, const TSharedPtr<struct FSkeletalMeshSkinningData>& InSkinningData, bool bNeedsDataImmediately);
 	FSkeletalMeshSkinningDataHandle(const FSkeletalMeshSkinningDataHandle& Other) = delete;
-	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other);
+	FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other) noexcept;
 	~FSkeletalMeshSkinningDataHandle();
 
 	FSkeletalMeshSkinningDataHandle& operator=(const FSkeletalMeshSkinningDataHandle& Other) = delete;
-	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle&& Other);
+	FSkeletalMeshSkinningDataHandle& operator=(FSkeletalMeshSkinningDataHandle&& Other) noexcept;
 
 	FSkeletalMeshSkinningDataUsage Usage;
 	TSharedPtr<FSkeletalMeshSkinningData> SkinningData;
@@ -260,11 +260,11 @@ struct NIAGARA_API FSkeletalMeshUvMappingHandle
 	FSkeletalMeshUvMappingHandle();
 	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingUsage InUsage, const TSharedPtr<struct FSkeletalMeshUvMapping>& InUvMappingData, bool bNeedsDataImmediately);
 	FSkeletalMeshUvMappingHandle(const FSkeletalMeshUvMappingHandle& Other) = delete;
-	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingHandle&& Other);
+	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingHandle&& Other) noexcept;
 	~FSkeletalMeshUvMappingHandle();
 
 	FSkeletalMeshUvMappingHandle& operator=(const FSkeletalMeshUvMappingHandle& Other) = delete;
-	FSkeletalMeshUvMappingHandle& operator=(FSkeletalMeshUvMappingHandle&& Other);
+	FSkeletalMeshUvMappingHandle& operator=(FSkeletalMeshUvMappingHandle&& Other) noexcept;
 	explicit operator bool() const;
 
 	FSkeletalMeshUvMappingUsage Usage;
@@ -301,11 +301,11 @@ struct NIAGARA_API FSkeletalMeshConnectivityHandle
 	FSkeletalMeshConnectivityHandle();
 	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityUsage InUsage, const TSharedPtr<struct FSkeletalMeshConnectivity>& InConnectivityData, bool bNeedsDataImmediately);
 	FSkeletalMeshConnectivityHandle(const FSkeletalMeshConnectivityHandle& Other) = delete;
-	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityHandle&& Other);
+	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityHandle&& Other) noexcept;
 	~FSkeletalMeshConnectivityHandle();
 
 	FSkeletalMeshConnectivityHandle& operator=(const FSkeletalMeshConnectivityHandle& Other) = delete;
-	FSkeletalMeshConnectivityHandle& operator=(FSkeletalMeshConnectivityHandle&& Other);
+	FSkeletalMeshConnectivityHandle& operator=(FSkeletalMeshConnectivityHandle&& Other) noexcept;
 	explicit operator bool() const;
 
 	FSkeletalMeshConnectivityUsage Usage;
@@ -433,7 +433,7 @@ class FSkeletalMeshGpuSpawnStaticBuffers : public FRenderResource
 {
 public:
 
-	virtual ~FSkeletalMeshGpuSpawnStaticBuffers();
+	virtual ~FSkeletalMeshGpuSpawnStaticBuffers() override;
 
 	FORCEINLINE_DEBUGGABLE void Initialise(struct FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData,const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData, FNiagaraSystemInstance* SystemInstance);
 
@@ -535,7 +535,7 @@ class FSkeletalMeshGpuDynamicBufferProxy : public FRenderResource
 public:
 
 	FSkeletalMeshGpuDynamicBufferProxy();
-	virtual ~FSkeletalMeshGpuDynamicBufferProxy();
+	virtual ~FSkeletalMeshGpuDynamicBufferProxy() override;
 
 	void Initialise(const FReferenceSkeleton& RefSkel, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, uint32 InSamplingSocketCount);
 

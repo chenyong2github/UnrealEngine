@@ -175,7 +175,6 @@ float FSkeletalMeshSamplingRegionAreaWeightedSampler::GetWeights(TArray<float>& 
 	for (int32 i = 0; i < NumUsedRegions; ++i)
 	{
 		int32 RegionIdx = Owner->SamplingRegionIndices[i];
-		const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(RegionIdx);
 		float T = SamplingInfo.GetRegionBuiltData(RegionIdx).AreaWeightedSampler.GetTotalWeight();
 		OutWeights.Add(T);
 		Total += T;
@@ -207,14 +206,14 @@ FSkeletalMeshSkinningDataHandle::~FSkeletalMeshSkinningDataHandle()
 	}
 }
 
-FSkeletalMeshSkinningDataHandle::FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other)
+FSkeletalMeshSkinningDataHandle::FSkeletalMeshSkinningDataHandle(FSkeletalMeshSkinningDataHandle&& Other) noexcept
 {
 	Usage = Other.Usage;
 	SkinningData = Other.SkinningData;
 	Other.SkinningData = nullptr;
 }
 
-FSkeletalMeshSkinningDataHandle& FSkeletalMeshSkinningDataHandle::operator=(FSkeletalMeshSkinningDataHandle&& Other)
+FSkeletalMeshSkinningDataHandle& FSkeletalMeshSkinningDataHandle::operator=(FSkeletalMeshSkinningDataHandle&& Other) noexcept
 {
 	if (this != &Other)
 	{
@@ -364,7 +363,6 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 		return;
 	}
 
-	const TArray<FTransform>& BaseCompSpaceTransforms = SkelComp->GetComponentSpaceTransforms();
 	TArray<FMatrix44f>& CurrBones = CurrBoneRefToLocals();
 	TArray<FTransform3f>& CurrTransforms = CurrComponentTransforms();
 
@@ -1077,7 +1075,6 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			check(0 <= LODIndex && LODIndex < LODRenderDataArray.Num());
 			FSkeletalMeshLODRenderData& LODRenderData = LODRenderDataArray[LODIndex];
 			TArray<FSkelMeshRenderSection>& Sections = LODRenderData.RenderSections;
-			uint32 SectionCount = Sections.Num();
 
 			// Count number of matrices we want before appending all of them according to the per section mapping from BoneMap
 			uint32 Float4Count = 0;
@@ -2356,13 +2353,6 @@ bool FNDISkeletalMesh_InstanceData::Tick(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 		if (MeshGpuSpawnDynamicBuffers)
 		{
-			USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(SceneComponent.Get());
-			const USkinnedMeshComponent* BaseComp = nullptr;
-			if (Comp)
-			{
-				BaseComp = Comp->GetBaseComponent();
-			}
-
 			MeshGpuSpawnDynamicBuffers->NewFrame(this, GetLODIndex());
 		}
 
@@ -2421,16 +2411,16 @@ void FNDISkeletalMesh_InstanceData::Release()
 
 UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, SourceMode(ENDISkeletalMesh_SourceMode::Default)
+	  , SourceMode(ENDISkeletalMesh_SourceMode::Default)
 #if WITH_EDITORONLY_DATA
-	, PreviewMesh(nullptr)
+	  , PreviewMesh(nullptr)
 #endif
-	, Source(nullptr)
-	, SkinningMode(ENDISkeletalMesh_SkinningMode::SkinOnTheFly)
-	, WholeMeshLOD(INDEX_NONE)
-	, ChangeId(0)
+	  , Source(nullptr)
+	  , SourceComponent(nullptr)
+      , SkinningMode(ENDISkeletalMesh_SkinningMode::SkinOnTheFly)
+	  , WholeMeshLOD(INDEX_NONE)
+	  , ChangeId(0)
 {
-
 	FNiagaraTypeDefinition Def(UObject::StaticClass());
 	MeshUserParameter.Parameter.SetType(Def);
 
@@ -2825,8 +2815,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 //Deprecated functions we check for and advise on updates in ValidateFunction
 static const FName GetTriPositionName_DEPRECATED("GetTriPosition");
 static const FName GetTriPositionWSName_DEPRECATED("GetTriPositionWS");
-static const FName GetTriNormalName_DEPRECATED("GetTriNormal");
-static const FName GetTriNormalWSName_DEPRECATED("GetTriNormalWS");
 static const FName GetTriPositionVelocityAndNormalName_DEPRECATED("GetTriPositionVelocityAndNormal");
 static const FName GetTriPositionVelocityAndNormalWSName_DEPRECATED("GetTriPositionVelocityAndNormalWS");
 static const FName GetTriPositionVelocityAndNormalBinormalTangentName_DEPRECATED("GetTriPositionVelocityAndNormalBinormalTangent");
