@@ -28,17 +28,20 @@ public:
 	SubdivPostProcessor(int InSubdivisionLevel,
 						ESubdivisionScheme InSubdivisionScheme,
 						ESubdivisionOutputNormals InNormalComputationMethod,
-						ESubdivisionOutputUVs InUVComputationMethod) :
+						ESubdivisionOutputUVs InUVComputationMethod,
+						bool bInNewPolyGroups) :
 		SubdivisionLevel(InSubdivisionLevel),
 		SubdivisionScheme(InSubdivisionScheme),
 		NormalComputationMethod(InNormalComputationMethod),
-		UVComputationMethod(InUVComputationMethod)
+		UVComputationMethod(InUVComputationMethod),
+		bNewPolyGroups(bInNewPolyGroups)
 	{}
 
 	int SubdivisionLevel = 3;
 	ESubdivisionScheme SubdivisionScheme = ESubdivisionScheme::CatmullClark;
 	ESubdivisionOutputNormals NormalComputationMethod = ESubdivisionOutputNormals::Generated;
 	ESubdivisionOutputUVs UVComputationMethod = ESubdivisionOutputUVs::Interpolated;
+	bool bNewPolyGroups = false;
 
 	void ProcessMesh(const FDynamicMesh3& Mesh, FDynamicMesh3& OutRenderMesh) final
 	{
@@ -48,6 +51,7 @@ public:
 		Subd.SubdivisionScheme = SubdivisionScheme;
 		Subd.NormalComputationMethod = NormalComputationMethod;
 		Subd.UVComputationMethod = UVComputationMethod;
+		Subd.bNewPolyGroups = bNewPolyGroups;
 
 		ensure(Subd.ComputeTopologySubdivision());
 
@@ -209,7 +213,8 @@ void USubdividePolyTool::Setup()
 	PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
 																							Properties->SubdivisionScheme,
 																							Properties->NormalComputationMethod,
-																							Properties->UVComputationMethod));
+																							Properties->UVComputationMethod,
+																							Properties->bNewPolyGroups));
 
 	// Use the input mesh's material on the preview
 	FComponentMaterialSet MaterialSet;
@@ -233,7 +238,8 @@ void USubdividePolyTool::Setup()
 		PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
 																								Properties->SubdivisionScheme,
 																								Properties->NormalComputationMethod,
-																								Properties->UVComputationMethod));
+																								Properties->UVComputationMethod,
+																								Properties->bNewPolyGroups));
 		PreviewDynamicMeshComponent->NotifyMeshUpdated();
 	};
 
@@ -256,6 +262,10 @@ void USubdividePolyTool::Setup()
 		RebuildMeshPostProcessor();
 	});
 	Properties->WatchProperty(Properties->UVComputationMethod, [this, RebuildMeshPostProcessor](ESubdivisionOutputUVs)
+	{
+		RebuildMeshPostProcessor();
+	});
+	Properties->WatchProperty(Properties->bNewPolyGroups, [this, RebuildMeshPostProcessor](bool)
 	{
 		RebuildMeshPostProcessor();
 	});

@@ -54,6 +54,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings)
 	ESubdivisionOutputUVs UVComputationMethod = ESubdivisionOutputUVs::Interpolated;
 
+	/** Assign a new PolyGroup ID to each newly created face */
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bNewPolyGroups = false;
+
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bRenderGroups = true;
 

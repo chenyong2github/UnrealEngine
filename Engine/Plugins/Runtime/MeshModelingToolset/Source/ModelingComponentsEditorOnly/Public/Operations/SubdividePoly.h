@@ -89,6 +89,8 @@ public:
 
 	ESubdivisionOutputUVs UVComputationMethod = ESubdivisionOutputUVs::Interpolated;
 
+	bool bNewPolyGroups = false;
+
 	// wrapper around Opensubdiv::TopologyRefiner to avoid including OSD headers here. See cpp file.
 	class RefinerImpl;
 
