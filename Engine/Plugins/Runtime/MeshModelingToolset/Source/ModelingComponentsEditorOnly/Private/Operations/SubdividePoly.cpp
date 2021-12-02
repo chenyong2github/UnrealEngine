@@ -717,14 +717,17 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 	check(SourceGroupIDs.Num() == Refiner->TopologyRefiner->GetLevel(0).GetNumFaces());
 
 	TArray<int> RefinedGroupIDs;
-	for (int CurrentLevel = 1; CurrentLevel <= Level; ++CurrentLevel)
+	if (!bNewPolyGroups)
 	{
-		// TODO: Don't keep resizing -- preallocate one big buffer and move through it
-		RefinedGroupIDs.SetNumUninitialized(Refiner->TopologyRefiner->GetLevel(CurrentLevel).GetNumFaces());
-		int* s = SourceGroupIDs.GetData();
-		int* d = RefinedGroupIDs.GetData();
-		Interpolator.InterpolateFaceUniform(CurrentLevel, s, d);
-		SourceGroupIDs = RefinedGroupIDs;
+		for (int CurrentLevel = 1; CurrentLevel <= Level; ++CurrentLevel)
+		{
+			// TODO: Don't keep resizing -- preallocate one big buffer and move through it
+			RefinedGroupIDs.SetNumUninitialized(Refiner->TopologyRefiner->GetLevel(CurrentLevel).GetNumFaces());
+			int* s = SourceGroupIDs.GetData();
+			int* d = RefinedGroupIDs.GetData();
+			Interpolator.InterpolateFaceUniform(CurrentLevel, s, d);
+			SourceGroupIDs = RefinedGroupIDs;
+		}
 	}
 
 
@@ -796,7 +799,7 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 	const OpenSubdiv::Far::TopologyLevel& FinalLevel = Refiner->TopologyRefiner->GetLevel(Level);
 
 	check(UVComputationMethod != ESubdivisionOutputUVs::Interpolated || FinalLevel.GetNumFVarValues() == RefinedUVs.Num());
-	check(FinalLevel.GetNumFaces() == RefinedGroupIDs.Num());
+	check(bNewPolyGroups || FinalLevel.GetNumFaces() == RefinedGroupIDs.Num());
 
 	// Add the faces (manually triangulate the output here)
 
@@ -819,7 +822,7 @@ bool FSubdividePoly::ComputeSubdividedMesh(FDynamicMesh3& OutMesh)
 
 	for (int FaceID = 0; FaceID < FinalLevel.GetNumFaces(); ++FaceID)
 	{
-		int GroupID = RefinedGroupIDs[FaceID];
+		int GroupID = bNewPolyGroups ? OutMesh.AllocateTriangleGroup() : RefinedGroupIDs[FaceID];
 
 		OpenSubdiv::Far::ConstIndexArray Face = FinalLevel.GetFaceVertices(FaceID);
 		NumFaceVertices += Face.size();
