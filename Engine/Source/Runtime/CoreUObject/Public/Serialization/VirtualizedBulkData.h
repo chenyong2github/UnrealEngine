@@ -13,6 +13,10 @@
 class FArchive;
 class UObject;
 
+// When enabled it will be possible for specific bulkdata objects to opt out of being virtualized
+// This is a development feature and not expected to be used
+#define UE_ENABLE_VIRTUALIZATION_TOGGLE 1
+
 //TODO: At some point it might be a good idea to uncomment this to make sure that FVirtualizedUntypedBulkData is
 //		never used at runtime (requires a little too much reworking of some assets for now though)
 //#if WITH_EDITORONLY_DATA
@@ -293,6 +297,11 @@ public:
 	/** Load the payload and set the correct payload id, if the bulkdata has a PlaceholderPayloadId. */
 	void UpdatePayloadId();
 
+#if UE_ENABLE_VIRTUALIZATION_TOGGLE
+	UE_DEPRECATED(5.0, "SetVirtualizationOptOut is an internal feature for development and will be removed without warning!")
+	void SetVirtualizationOptOut(bool bOptOut);
+#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
+
 protected:
 	enum class ETornOff {};
 	FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other, ETornOff);
@@ -336,6 +345,11 @@ private:
 	};
 
 	FRIEND_ENUM_CLASS_FLAGS(EFlags);
+
+	/** Old legacy path that saved the payload to the end of the package */
+	void SerializeToLegacyPath(FLinkerSave& LinkerSave, int64 OffsetPos, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
+	/** The new path that saves payloads to the FPackageTrailer which is then appended to the end of the package file */
+	void SerializeToPackageTrailer(FLinkerSave& LinkerSave, int64 OffsetPos, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner);
 
 	void UpdatePayloadImpl(FSharedBuffer&& InPayload, FPayloadId&& InPayloadID);
 
@@ -418,6 +432,10 @@ private:
 
 	/** A 32bit bitfield of flags */
 	EFlags Flags = EFlags::None;
+
+#if UE_ENABLE_VIRTUALIZATION_TOGGLE
+	bool bSkipVirtualization = false;
+#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
 
 	/** 
 	 * Compression settings to be applied to the payload when the package is next saved. The settings will be reset if
