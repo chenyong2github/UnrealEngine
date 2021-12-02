@@ -2003,7 +2003,7 @@ void PackStrataOut(
 						TopLayerData.Roughness += BSDFCoverage * SLAB_ROUGHNESS(BSDF);
 					}
 
-					const bool bSSSMask = !bIsThin;	// SSS and Thin can only be on the bottom layer and Simple can only be for non bottom layer: so ignoring bIsSimpleVolume here.
+					const bool bSSSMask = !bIsThin && bBottomLayer;	// SSS and Thin can only be on the bottom layer, so ignoring bIsSimpleVolume here.
 					SetHasSubsurface(StrataPixelHeader,			(bSSSMask && BSDF_GETHASSSS(BSDF)));
 					SetHasSubsurfaceProfile(StrataPixelHeader,	(bSSSMask && BSDF_GETHASSSSPROFILE(BSDF)));
 

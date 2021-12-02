@@ -386,7 +386,15 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	// Fixed layer structure for helping compiler to unroll and optimize shader
 	FStrataData Top_Slab = CreateLegacySlab(Top, SharedLocalBasisTypes);
 	FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes);
-	FStrataData Out = StrataVerticalLayering(StrataWeight(Top_Slab, Top.Weight), StrataWeight(Bot_Slab, Bot.Weight));
+	Top_Slab = StrataWeight(Top_Slab, Top.Weight);
+	FStrataData Out = Top_Slab; 
+	if (Bot.Weight > 0.0f)
+	{
+		// Default BSDF as set to be on top so that their information is stored as part of the Strata top layer data.
+		// When bottom weight is 0, we must set the top BRDF at the bottom to make sure SSS can be identified correctly.
+		Out = StrataVerticalLayering(Out, StrataWeight(Bot_Slab, Bot.Weight));
+	}
+	
 
 	// Take in account the legacy opacity weighting for translucent material
 	#if !MATERIALBLENDING_MASKED && !MATERIALBLENDING_SOLID

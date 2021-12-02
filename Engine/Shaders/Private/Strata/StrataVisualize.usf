@@ -120,6 +120,21 @@ void VisualizeMaterialPS(
 	return;
 #endif
 
+#if 0	// STRATA_TODO generalise this visualisation to more properties
+	{
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+		const uint PixelStrataDataByteOffsetStart = StrataAddressing.ReadBytes;
+
+		FStrataPixelHeader Header2 = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+		const uint PixelStrataDataByteOffsetPostHeader = StrataAddressing.ReadBytes;
+
+		if (HasSubsurface(Header2) || HasSubsurfaceProfile(Header2))
+		{
+			OutColor = float4(HasSubsurfaceProfile(Header2) ? 1 : 0, HasSubsurface(Header2) ? 1 : 0, 0, 0.5);
+		}
+	}
+#endif
+
 	OutColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
 	// Plot BSDFs
