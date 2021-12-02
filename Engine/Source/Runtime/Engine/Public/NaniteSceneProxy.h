@@ -38,7 +38,6 @@ public:
 	: FPrimitiveSceneProxy(Component)
 	{
 		bIsNaniteMesh  = true;
-		bAlwaysVisible = true;
 	}
 
 	ENGINE_API virtual ~FSceneProxyBase() = default;

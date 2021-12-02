@@ -2721,6 +2721,8 @@ public:
 	TArray<FPrimitiveFlagsCompact> PrimitiveFlagsCompact;
 	/** Packed array of precomputed primitive visibility IDs. */
 	TArray<FPrimitiveVisibilityId> PrimitiveVisibilityIds;
+	/**Array of primitive octree node index**/
+	TArray<uint32> PrimitiveOctreeIndex;
 	/** Packed array of primitive occlusion flags. See EOcclusionFlags. */
 	TArray<uint8> PrimitiveOcclusionFlags;
 	/** Packed array of primitive occlusion bounds. */
@@ -2731,8 +2733,6 @@ public:
 	TArray<FPrimitiveVirtualTextureFlags> PrimitiveVirtualTextureFlags;
 	/** Packed array of runtime virtual texture lod info. */
 	TArray<FPrimitiveVirtualTextureLodInfo> PrimitiveVirtualTextureLod;
-	/**  Packed bit array of primitives that are always visible. */
-	TBitArray<> PrimitivesAlwaysVisible;
 #if RHI_RAYTRACING
 	/** Packed array of ray tracing primitive caching flags*/
 	TArray<ERayTracingPrimitiveFlags> PrimitiveRayTracingFlags;

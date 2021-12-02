@@ -1176,9 +1176,6 @@ public:
 	/** A map from primitive ID to a boolean is fading value. */
 	FSceneBitArray PotentiallyFadingPrimitiveMap;
 
-	/** A map from primitive ID to a boolean is distance culled */
-	FSceneBitArray DistanceCullingPrimitiveMap;
-
 	/** A map from primitive ID to whether the primitve was culled for ray tracing */
 	FSceneBitArray RayTracingCullingPrimitiveMap;
 

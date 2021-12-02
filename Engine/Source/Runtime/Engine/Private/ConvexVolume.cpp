@@ -91,7 +91,7 @@ bool FConvexVolume::ClipPolygon(FPoly& Polygon) const
 
 FOutcode FConvexVolume::GetBoxIntersectionOutcode(const FVector& Origin,const FVector& Extent) const
 {
-	FOutcode Result(1,0);
+	FOutcode Result(true,false);
 
 	checkSlow(PermutedPlanes.Num() % 4 == 0);
 
@@ -138,15 +138,15 @@ FOutcode FConvexVolume::GetBoxIntersectionOutcode(const FVector& Origin,const FV
 		// Check for completely outside
 		if (VectorAnyGreaterThan(Distance,PushOut))
 		{
-			Result.SetInside(0);
-			Result.SetOutside(1);
+			Result.SetInside(false);
+			Result.SetOutside(true);
 			break;
 		}
 
 		// See if any part is outside
 		if (VectorAnyGreaterThan(Distance,VectorNegate(PushOut)))
 		{
-			Result.SetOutside(1);
+			Result.SetOutside(true);
 		}
 	}
 

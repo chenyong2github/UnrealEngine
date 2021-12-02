@@ -4497,7 +4497,7 @@ struct FGatherShadowPrimitivesPrepareTask
 
 			// Find primitives that are in a shadow frustum in the octree.
 			TaskData.Scene->PrimitiveOctree.FindNodesWithPredicate(
-				[this](const FBoxCenterAndExtent& NodeBounds)
+				[this](FScenePrimitiveOctree::FNodeIndex /*ParentNodeIndex*/, FScenePrimitiveOctree::FNodeIndex /*NodeIndex*/, const FBoxCenterAndExtent& NodeBounds)
 				{
 					// Check that the child node is in the frustum for at least one shadow.
 
@@ -4530,7 +4530,7 @@ struct FGatherShadowPrimitivesPrepareTask
 					// the iterator's pending node stack.
 					return false;
 				},
-				[this](FScenePrimitiveOctree::FNodeIndex NodeIndex)
+				[this](FScenePrimitiveOctree::FNodeIndex /*ParentNodeIndex*/, FScenePrimitiveOctree::FNodeIndex NodeIndex, const FBoxCenterAndExtent& /*NodeBounds*/)
 				{
 					if (TaskData.Scene->PrimitiveOctree.GetElementsForNode(NodeIndex).Num() > 0)
 					{

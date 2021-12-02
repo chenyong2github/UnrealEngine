@@ -3,7 +3,6 @@
 /*=============================================================================
 	SceneVisibility.cpp: Scene visibility determination.
 =============================================================================*/
-
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Stats/Stats.h"
@@ -225,7 +224,6 @@ static FAutoConsoleVariableRef CVarLODFadeTime( TEXT("r.LODFadeTime"), GFadeTime
 static float GDistanceFadeMaxTravel = 1000.0f;
 static FAutoConsoleVariableRef CVarDistanceFadeMaxTravel( TEXT("r.DistanceFadeMaxTravel"), GDistanceFadeMaxTravel, TEXT("Max distance that the player can travel during the fade time."), ECVF_RenderThreadSafe );
 
-
 static TAutoConsoleVariable<int32> CVarParallelInitViews(
 	TEXT("r.ParallelInitViews"),
 	1,
@@ -248,6 +246,26 @@ static FAutoConsoleVariableRef CVarOcclusionSingleRHIThreadStall(
 	TEXT("Enable a single RHI thread stall before polling occlusion queries. This will only happen if the RHI's occlusion queries would normally stall the RHI thread themselves."),
 	ECVF_RenderThreadSafe
 );
+
+static TAutoConsoleVariable<int32> CVarAlsoUseSphereForFrustumCull(
+	TEXT("r.AlsoUseSphereForFrustumCull"),
+	0,
+	TEXT("Performance tweak. If > 0, then use a sphere cull before and in addition to a box for frustum culling."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarUseFastIntersect(
+	TEXT("r.UseFastIntersect"),
+	1,
+	TEXT("Use optimized 8 plane fast intersection code if we have 8 permuted planes."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarUseVisibilityOctree(
+	TEXT("r.UseVisibilityOctree"), 
+	1, 
+	TEXT("Use the octree for visibility calculations."), 
+	ECVF_RenderThreadSafe);
 
 #if !UE_BUILD_SHIPPING
 
@@ -482,7 +500,6 @@ FORCEINLINE bool IntersectBox8Plane(const FVector& InOrigin, const FVector& InEx
 	return true;
 }
 
-
 static int32 FrustumCullNumWordsPerTask = 128;
 static FAutoConsoleVariableRef CVarFrustumCullNumWordsPerTask(
 	TEXT("r.FrustumCullNumWordsPerTask"),
@@ -490,6 +507,44 @@ static FAutoConsoleVariableRef CVarFrustumCullNumWordsPerTask(
 	TEXT("Performance tweak. Controls the granularity for the ParallelFor for frustum culling."),
 	ECVF_Default
 	);
+
+
+#define NANITE_MESH_ALWAYS_VISIBLE 0
+
+static TAutoConsoleVariable CVarNaniteMeshsAlwaysVisible(
+	TEXT("r.Nanite.PrimitivesAlwaysVisible"),
+	0,
+	TEXT("True - All Nanite primitives skip culling phases, False - All Nanite primitives are run through the culling phase."),
+	ECVF_Default
+);
+
+// Templated version for performance
+template<bool bNaniteAlwaysVisible>
+FORCEINLINE bool IsAlwaysVisible(const FScene* RESTRICT Scene, int32 Index);
+
+// Use template specialization to ensure proper optimizations are applied.  Runtime branching will still occur otherwise.
+template<>
+FORCEINLINE bool IsAlwaysVisible<true>(const FScene* RESTRICT Scene, int32 Index)
+{
+	return Scene->PrimitiveFlagsCompact[Index].bIsNaniteMesh;
+}
+
+template<>
+FORCEINLINE bool IsAlwaysVisible<false>(const FScene* RESTRICT Scene, int32 Index)
+{
+	return false;
+}
+
+// Non template version
+FORCEINLINE bool IsAlwaysVisible(const FScene* RESTRICT Scene, int32 Index)
+{
+	if (CVarNaniteMeshsAlwaysVisible.GetValueOnRenderThread())
+	{
+		return Scene->PrimitiveFlagsCompact[Index].bIsNaniteMesh;
+	}
+
+	return false;
+}
 
 // Returns true if the frustum and bounds intersect
 template<bool UseCustomCulling, bool bAlsoUseSphereTest, bool bUseFastIntersect>
@@ -519,8 +574,159 @@ FORCEINLINE static bool IsPrimitiveVisible(FViewInfo& View, const FPlane* Permut
 	}
 }
 
-template<bool UseCustomCulling, bool bAlsoUseSphereTest, bool bUseFastIntersect>
-static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
+
+template<bool UseCustomCulling, bool bAlsoUseSphereTest, bool bUseFastIntersect, bool bUseVisibilityOctree, bool bNaniteAlwaysVisible>
+FORCENOINLINE void FrustumCullTask(FThreadSafeCounter& NumCulledPrimitives, const FScene* RESTRICT Scene, FViewInfo& View, float MaxDrawDistanceScale, const FHLODVisibilityState* const HLODState, FSceneBitArray& VisibleNodes, int32 TaskIndex)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SceneVisibility_FrustumCull);
+	SCOPED_NAMED_EVENT(SceneVisibility_FrustumCull, FColor::Red);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FrustumCull_Loop);
+
+	FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
+
+	bool bDisableLODFade = GDisableLODFade || View.bDisableDistanceBasedFadeTransitions;
+	const FPlane* PermutedPlanePtr = View.ViewFrustum.PermutedPlanes.GetData();
+	const int32 BitArrayNumInner = View.PrimitiveVisibilityMap.Num();
+	FVector ViewOriginForDistanceCulling = View.ViewMatrices.GetViewOrigin();
+	float FadeRadius = bDisableLODFade ? 0.0f : GDistanceFadeMaxTravel;
+	uint8 CustomVisibilityFlags = EOcclusionFlags::CanBeOccluded | EOcclusionFlags::HasPrecomputedVisibility;
+
+	uint32 NumPrimitivesCulledForTask = 0;
+
+	// Primitives may be explicitly removed from stereo views when using mono
+	const int32 TaskWordOffset = TaskIndex * FrustumCullNumWordsPerTask;
+
+	for (int32 WordIndex = TaskWordOffset; WordIndex < TaskWordOffset + FrustumCullNumWordsPerTask && WordIndex * NumBitsPerDWORD < BitArrayNumInner; WordIndex++)
+	{
+		uint32 Mask = 0x1;
+		uint32 VisBits = 0;
+		uint32 FadingBits = 0;
+		for (int32 BitSubIndex = 0; BitSubIndex < NumBitsPerDWORD && WordIndex * NumBitsPerDWORD + BitSubIndex < BitArrayNumInner; BitSubIndex++, Mask <<= 1)
+		{
+			int32 Index = WordIndex * NumBitsPerDWORD + BitSubIndex;
+			bool bIsVisible = true;
+
+			// Handle primitives that are not always visible.
+			if (!IsAlwaysVisible<bNaniteAlwaysVisible>(Scene, Index))
+			{
+				bool bPartiallyOutside = true;
+				if (bUseVisibilityOctree)
+				{
+					// If the parent octree node was completely contained by the frustum, there is no need do an additional frustum test on the primitive bounds
+					// If the parent octree node is partially in the frustum, perform an additional test on the primitive bounds
+					uint32 OctreeNodeIndex = Scene->PrimitiveOctreeIndex[Index];
+
+					bIsVisible = VisibleNodes[OctreeNodeIndex * 2];
+					bPartiallyOutside = VisibleNodes[OctreeNodeIndex * 2 + 1];
+				}
+
+				// Frustum first
+				if (bIsVisible)
+				{
+					const FPrimitiveBounds& RESTRICT Bounds = Scene->PrimitiveBounds[Index];
+
+					int32 VisibilityId = INDEX_NONE;
+
+					if (UseCustomCulling &&
+						((Scene->PrimitiveOcclusionFlags[Index] & CustomVisibilityFlags) == CustomVisibilityFlags))
+					{
+						VisibilityId = Scene->PrimitiveVisibilityIds[Index].ByteIndex;
+					}
+
+					bIsVisible = !bPartiallyOutside || IsPrimitiveVisible<UseCustomCulling, bAlsoUseSphereTest, bUseFastIntersect>(View, PermutedPlanePtr, Bounds, VisibilityId);
+
+					// Distance cull if frustum cull passed
+					if (bIsVisible)
+					{
+						bool bShouldDistanceCull = true;
+
+						// If cull distance is disabled, always show the primitive (except foliage)
+						if (View.Family->EngineShowFlags.DistanceCulledPrimitives
+							&& !Scene->Primitives[Index]->Proxy->IsDetailMesh()) // Proxy call is intentionally behind the DistancedCulledPrimitives check to prevent an expensive memory read
+						{
+							bShouldDistanceCull = false;
+						}
+
+						// Fading HLODs and their children must be visible, objects hidden by HLODs can be culled
+						if (HLODState)
+						{
+							if (HLODState->IsNodeForcedVisible(Index))
+							{
+								bShouldDistanceCull = false;
+							}
+							else if (HLODState->IsNodeForcedHidden(Index))
+							{
+								bShouldDistanceCull = false;
+								bIsVisible = false;
+							}
+						}
+
+						if (bShouldDistanceCull)
+						{
+							// Preserve infinite draw distance
+							bool bHasMaxDrawDistance = Bounds.MaxCullDistance < FLT_MAX;
+							bool bHasMinDrawDistance = Bounds.MinDrawDistanceSq > 0;
+
+							if (bHasMaxDrawDistance || bHasMinDrawDistance)
+							{
+								float MaxDrawDistance = Bounds.MaxCullDistance * MaxDrawDistanceScale;
+								float MinDrawDistanceSq = Bounds.MinDrawDistanceSq;
+								float DistanceSquared = FVector::DistSquared(Bounds.BoxSphereBounds.Origin, ViewOriginForDistanceCulling);
+
+								// Always test the fade in distance.  If a primitive was set to always draw, it may need to be faded in.
+								if (bHasMaxDrawDistance)
+								{
+									float MaxFadeDistanceSquared = FMath::Square(MaxDrawDistance + FadeRadius);
+									float MinFadeDistanceSquared = FMath::Square(MaxDrawDistance - FadeRadius);
+									if ((DistanceSquared < MaxFadeDistanceSquared && DistanceSquared > MinFadeDistanceSquared)
+										&& Scene->Primitives[Index]->Proxy->IsUsingDistanceCullFade())  // Proxy call is intentionally behind the fade check to prevent an expensive memory read
+									{
+										FadingBits |= Mask;
+									}
+								}
+
+								// Check for distance culling first
+								const bool bFarDistanceCulled = bHasMaxDrawDistance && (DistanceSquared > FMath::Square(MaxDrawDistance));
+								const bool bNearDistanceCulled = bHasMinDrawDistance && (DistanceSquared < MinDrawDistanceSq);
+								bool bIsDistanceCulled = bNearDistanceCulled || bFarDistanceCulled;
+
+								if (bIsDistanceCulled)
+								{
+									bIsVisible = false;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if (bIsVisible)
+			{
+				// The primitive is visible!
+				VisBits |= Mask;
+			}
+			else
+			{
+				STAT(++NumPrimitivesCulledForTask);
+			}
+		}
+		if (FadingBits)
+		{
+			checkSlow(!View.PotentiallyFadingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
+			View.PotentiallyFadingPrimitiveMap.GetData()[WordIndex] = FadingBits;
+		}
+		if (VisBits)
+		{
+			checkSlow(!View.PrimitiveVisibilityMap.GetData()[WordIndex]); // this should start at zero
+			View.PrimitiveVisibilityMap.GetData()[WordIndex] = VisBits;
+		}
+	}
+
+	STAT(NumCulledPrimitives.Add(NumPrimitivesCulledForTask));
+}
+
+template<bool UseCustomCulling, bool bAlsoUseSphereTest, bool bUseFastIntersect, bool bUseVisibilityOctree, bool bNaniteAlwaysVisible>
+static int32 FrustumCullTemplated(const FScene* RESTRICT Scene, FViewInfo& View)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FrustumCull);
 
@@ -532,144 +738,146 @@ static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
 	const bool bHLODActive = Scene->SceneLODHierarchy.IsActive();
 	const FHLODVisibilityState* const HLODState = bHLODActive && ViewState ? &ViewState->HLODVisibilityState : nullptr;
 
+	FMemMark MemStackMark(FMemStack::Get());
+
+	FSceneBitArray VisibleNodes;
+
+	if (bUseVisibilityOctree)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SceneVisibility_CullOctree);
+
+		// Two bits per octree node, 1st bit is Inisde Frustum, 2nd bit is Outside Frustum
+		VisibleNodes.Init(false, Scene->PrimitiveOctree.GetNumNodes() * 2);
+
+		Scene->PrimitiveOctree.FindNodesWithPredicate(
+			[&View, &VisibleNodes](FScenePrimitiveOctree::FNodeIndex ParentNodeIndex, FScenePrimitiveOctree::FNodeIndex NodeIndex, const FBoxCenterAndExtent& NodeBounds)
+			{
+				// If the parent node is completely contained there is no need to test containment
+				if (ParentNodeIndex != INDEX_NONE && !VisibleNodes[(ParentNodeIndex * 2) + 1])
+				{
+					VisibleNodes[NodeIndex * 2] = true;
+					VisibleNodes[NodeIndex * 2 + 1] = false;
+					return true;
+				}
+
+				const FPlane* PermutedPlanePtr = View.ViewFrustum.PermutedPlanes.GetData();
+				bool bIntersects = false;
+
+				if (bUseFastIntersect)
+				{
+					bIntersects = IntersectBox8Plane(NodeBounds.Center, NodeBounds.Extent, PermutedPlanePtr);
+				}
+				else
+				{
+					bIntersects = View.ViewFrustum.IntersectBox(NodeBounds.Center, NodeBounds.Extent);
+				}
+
+				if (bIntersects)
+				{
+					VisibleNodes[NodeIndex * 2] = true;
+					VisibleNodes[NodeIndex * 2 + 1] = View.ViewFrustum.GetBoxIntersectionOutcode(NodeBounds.Center, NodeBounds.Extent).GetOutside();
+				}
+
+				return bIntersects;
+			},
+			[&View, &VisibleNodes](FScenePrimitiveOctree::FNodeIndex /*ParentNodeIndex*/, FScenePrimitiveOctree::FNodeIndex /*NodeIndex*/, const FBoxCenterAndExtent& /*NodeBounds*/)
+			{
+				
+			});
+	}
+
 	//Primitives per ParallelFor task
 	//Using async FrustumCull. Thanks Yager! See https://udn.unrealengine.com/questions/252385/performance-of-frustumcull.html
 	//Performance varies on total primitive count and tasks scheduled. Check the mentioned link above for some measurements.
 	//There have been some changes as compared to the code measured in the link
 
 	const int32 BitArrayNum = View.PrimitiveVisibilityMap.Num();
-	const int32 BitArrayWords = FMath::DivideAndRoundUp(View.PrimitiveVisibilityMap.Num(), (int32)NumBitsPerDWORD);
+	const int32 BitArrayWords = FMath::DivideAndRoundUp(BitArrayNum, (int32)NumBitsPerDWORD);
 	const int32 NumTasks = FMath::DivideAndRoundUp(BitArrayWords, FrustumCullNumWordsPerTask);
 
-	ParallelFor(NumTasks, 
-		[&NumCulledPrimitives, Scene, &View, MaxDrawDistanceScale, HLODState](int32 TaskIndex)
+	ParallelFor(NumTasks,
+		[&NumCulledPrimitives, Scene, &View, MaxDrawDistanceScale, HLODState, &VisibleNodes](int32 TaskIndex)
 		{
-			SCOPED_NAMED_EVENT(SceneVisibility_FrustumCull, FColor::Red);
-
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FrustumCull_Loop);
-			bool bDisableLODFade = GDisableLODFade || View.bDisableDistanceBasedFadeTransitions;
-			const FPlane* PermutedPlanePtr = View.ViewFrustum.PermutedPlanes.GetData();
-			const int32 BitArrayNumInner = View.PrimitiveVisibilityMap.Num();
-			FVector ViewOriginForDistanceCulling = View.ViewMatrices.GetViewOrigin();
-			float FadeRadius = bDisableLODFade ? 0.0f : GDistanceFadeMaxTravel;
-			uint8 CustomVisibilityFlags = EOcclusionFlags::CanBeOccluded | EOcclusionFlags::HasPrecomputedVisibility;
-
-			uint32 NumPrimitivesCulledForTask = 0;
-
-			// Primitives may be explicitly removed from stereo views when using mono
-			const int32 TaskWordOffset = TaskIndex * FrustumCullNumWordsPerTask;
-
-			for (int32 WordIndex = TaskWordOffset; WordIndex < TaskWordOffset + FrustumCullNumWordsPerTask && WordIndex * NumBitsPerDWORD < BitArrayNumInner; WordIndex++)
-			{
-				uint32 Mask = 0x1;
-				uint32 VisBits = 0;
-				uint32 FadingBits = 0;
-				uint32 DistanceCulledBits = 0;
-				for (int32 BitSubIndex = 0; BitSubIndex < NumBitsPerDWORD && WordIndex * NumBitsPerDWORD + BitSubIndex < BitArrayNumInner; BitSubIndex++, Mask <<= 1)
-				{
-					int32 Index = WordIndex * NumBitsPerDWORD + BitSubIndex;
-					const FPrimitiveBounds& RESTRICT Bounds = Scene->PrimitiveBounds[Index];
-					float DistanceSquared = (Bounds.BoxSphereBounds.Origin - ViewOriginForDistanceCulling).SizeSquared();
-					int32 VisibilityId = INDEX_NONE;
-
-					if (UseCustomCulling &&
-						((Scene->PrimitiveOcclusionFlags[Index] & CustomVisibilityFlags) == CustomVisibilityFlags))
-					{
-						VisibilityId = Scene->PrimitiveVisibilityIds[Index].ByteIndex;
-					}
-
-					// Preserve infinite draw distance
-					bool bHasMaxDrawDistance = Bounds.MaxCullDistance < FLT_MAX;
-					float MaxDrawDistance =  Bounds.MaxCullDistance * MaxDrawDistanceScale;
-					float MinDrawDistanceSq = Bounds.MinDrawDistanceSq;
-
-					// If cull distance is disabled, always show the primitive (except foliage)
-					if (   View.Family->EngineShowFlags.DistanceCulledPrimitives 
-						&& !Scene->Primitives[Index]->Proxy->IsDetailMesh()) // Proxy call is intentionally behind the DistancedCulledPrimitives check to prevent an expensive memory read
-					{
-						MaxDrawDistance = FLT_MAX;
-						bHasMaxDrawDistance = false;
-					}
-
-					// Fading HLODs and their children must be visible, objects hidden by HLODs can be culled
-					if (HLODState)
-					{
-						if (HLODState->IsNodeForcedVisible(Index))
-						{
-							bHasMaxDrawDistance = false;
-							MaxDrawDistance = FLT_MAX;
-							MinDrawDistanceSq = 0.f;
-						}
-						else if (HLODState->IsNodeForcedHidden(Index))
-						{
-							bHasMaxDrawDistance = true;
-							MaxDrawDistance = 0.f;
-						}
-					}
-
-					// Always test the fade in distance.  If a primitive was set to always draw, it may need to be faded in.
-					if (bHasMaxDrawDistance)
-					{
-						float MaxFadeDistanceSquared = FMath::Square(MaxDrawDistance + FadeRadius);
-						float MinFadeDistanceSquared = FMath::Square(MaxDrawDistance - FadeRadius);
-						if (  (DistanceSquared < MaxFadeDistanceSquared && DistanceSquared > MinFadeDistanceSquared)
-							&& Scene->Primitives[Index]->Proxy->IsUsingDistanceCullFade())  // Proxy call is intentionally behind the fade check to prevent an expensive memory read
-						{
-							FadingBits |= Mask;
-						}
-					}
-
-					bool bIsVisible = true;
-					
-					// Handle primitives that are not always visible.
-					if (!Scene->PrimitivesAlwaysVisible[Index])
-					{
-						// Check for distance culling first
-						const bool bFarDistanceCulled = bHasMaxDrawDistance && (DistanceSquared > FMath::Square(MaxDrawDistance));
-						const bool bNearDistanceCulled = (DistanceSquared < MinDrawDistanceSq);
-						bool bDistanceCulled = bNearDistanceCulled || bFarDistanceCulled;
-
-						if (bDistanceCulled)
-						{
-							DistanceCulledBits |= Mask;
-						}
-
-						bIsVisible = !bDistanceCulled && IsPrimitiveVisible<UseCustomCulling, bAlsoUseSphereTest, bUseFastIntersect>(View, PermutedPlanePtr, Bounds, VisibilityId);
-					}
-
-					if (bIsVisible)
-					{
-						// The primitive is visible!
-						VisBits |= Mask;
-					}
-					else
-					{
-						STAT(++NumPrimitivesCulledForTask);
-					}
-				}
-				if (FadingBits)
-				{
-					checkSlow(!View.PotentiallyFadingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
-					View.PotentiallyFadingPrimitiveMap.GetData()[WordIndex] = FadingBits;
-				}
-				if (VisBits)
-				{
-					checkSlow(!View.PrimitiveVisibilityMap.GetData()[WordIndex]); // this should start at zero
-					View.PrimitiveVisibilityMap.GetData()[WordIndex] = VisBits;
-				}
-				if (DistanceCulledBits)
-				{
-					checkSlow(!View.DistanceCullingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
-					View.DistanceCullingPrimitiveMap.GetData()[WordIndex] = DistanceCulledBits;
-				}
-			}
-
-			STAT(NumCulledPrimitives.Add(NumPrimitivesCulledForTask));
+			FrustumCullTask<UseCustomCulling, bAlsoUseSphereTest, bUseFastIntersect, bUseVisibilityOctree, bNaniteAlwaysVisible>(NumCulledPrimitives, Scene, View, MaxDrawDistanceScale, HLODState, VisibleNodes, TaskIndex);
 		},
 		!FApp::ShouldUseThreadingForPerformance() || (UseCustomCulling && !View.CustomVisibilityQuery->IsThreadsafe()) || CVarParallelInitViews.GetValueOnRenderThread() == 0 || !IsInActualRenderingThread()
-	);
+		);
+	
 
 	return NumCulledPrimitives.GetValue();
+}
+
+// Macros to help fill the templated frustum cull table without errors
+#define FRUSTUM_CULL_TABLE1(...) \
+	FrustumCullTemplated<false, __VA_ARGS__>, \
+	FrustumCullTemplated<true, __VA_ARGS__>, 
+
+#define FRUSTUM_CULL_TABLE2(...) \
+	FRUSTUM_CULL_TABLE1(false, __VA_ARGS__) \
+	FRUSTUM_CULL_TABLE1(true, __VA_ARGS__) 
+
+#define FRUSTUM_CULL_TABLE3(...) \
+	FRUSTUM_CULL_TABLE2(false, __VA_ARGS__) \
+	FRUSTUM_CULL_TABLE2(true, __VA_ARGS__) 
+
+#define FRUSTUM_CULL_TABLE4(...) \
+	FRUSTUM_CULL_TABLE3(false, __VA_ARGS__) \
+	FRUSTUM_CULL_TABLE3(true, __VA_ARGS__)
+
+#define FRUSTUM_CULL_TABLE5() \
+	FRUSTUM_CULL_TABLE4(false) \
+	FRUSTUM_CULL_TABLE4(true)
+
+// Matrix of template inputs to template functions.  See EFrustumCullFlags below
+typedef int32(*GFunctionCullMethod)(const FScene* RESTRICT Scene, FViewInfo& View);
+static const GFunctionCullMethod GFrustumCullTable[] =
+{
+	FRUSTUM_CULL_TABLE5()
+};
+
+static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
+{
+	enum EFrustumCullFlags
+	{
+		UseCustomCulling = 1 << 0,
+		AlsoUseSphereTest = 1 << 1,
+		UseFastInterscect = 1 << 2,
+		UseVisibilityOctree = 1 << 3,
+		NaniteAlwaysVisible = 1 << 4,
+		EFrustumCullFlags_End
+	};
+
+	// Make sure the the table matches the enumeration size
+	static_assert(((EFrustumCullFlags_End -1) << 1)  == (sizeof(GFrustumCullTable) / sizeof(GFunctionCullMethod)), "Invalid number of frustum cull methods found in GFrustumCullTable");
+
+	uint32 Flags = 0;
+	
+	if (View.CustomVisibilityQuery && View.CustomVisibilityQuery->Prepare())
+	{
+		Flags |= UseCustomCulling;
+	}
+
+	if (CVarAlsoUseSphereForFrustumCull.GetValueOnRenderThread())
+	{
+		Flags |= AlsoUseSphereTest;
+	}
+
+	if ((View.ViewFrustum.PermutedPlanes.Num() == 8) && CVarUseFastIntersect.GetValueOnRenderThread())
+	{
+		Flags |= UseFastInterscect;
+	}
+
+	if (CVarUseVisibilityOctree.GetValueOnRenderThread())
+	{
+		Flags |= UseVisibilityOctree;
+	}
+
+	if (CVarNaniteMeshsAlwaysVisible.GetValueOnRenderThread())
+	{
+		Flags |= NaniteAlwaysVisible;
+	}
+
+	return GFrustumCullTable[Flags](Scene, View);
 }
 
 /**
@@ -713,7 +921,6 @@ static void UpdatePrimitiveFading(const FScene* Scene, FViewInfo& View)
 				{
 					// If the primitive is fading out make sure it remains visible.
 					View.PrimitiveVisibilityMap.AccessCorrespondingBit(BitIt) = true;
-					View.DistanceCullingPrimitiveMap.AccessCorrespondingBit(BitIt) = false;
 				}
 				View.PrimitiveFadeUniformBuffers[BitIt.GetIndex()] = UniformBuffer;
 				View.PrimitiveFadeUniformBufferMap[BitIt.GetIndex()] = UniformBuffer != nullptr;
@@ -931,16 +1138,18 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 				}
 #endif
 
-				const uint8 OcclusionFlags = Scene->PrimitiveOcclusionFlags[BitIt.GetIndex()];
+				int32 Index = BitIt.GetIndex();
 
-				if (Scene->PrimitivesAlwaysVisible[BitIt.GetIndex()] || (OcclusionFlags & EOcclusionFlags::CanBeOccluded) == 0)
+				const uint8 OcclusionFlags = Scene->PrimitiveOcclusionFlags[Index];
+
+				if ((OcclusionFlags & EOcclusionFlags::CanBeOccluded) == 0)
 				{
 					continue;
 				}
 
 				if ((OcclusionFlags & EOcclusionFlags::HasSubprimitiveQueries) != 0)
 				{
-					NumQueriesToReserve += Scene->Primitives[BitIt.GetIndex()]->Proxy->GetOcclusionQueries(&View)->Num();
+					NumQueriesToReserve += Scene->Primitives[Index]->Proxy->GetOcclusionQueries(&View)->Num();
 				}
 				else
 				{
@@ -982,10 +1191,11 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 				continue;
 			}
 #endif
+			int32 Index = BitIt.GetIndex();
 
-			const uint8 OcclusionFlags = Scene->PrimitiveOcclusionFlags[BitIt.GetIndex()];
+			const uint8 OcclusionFlags = Scene->PrimitiveOcclusionFlags[Index];
 
-			if (Scene->PrimitivesAlwaysVisible[BitIt.GetIndex()] || (OcclusionFlags & EOcclusionFlags::CanBeOccluded) == 0)
+			if ((OcclusionFlags & EOcclusionFlags::CanBeOccluded) == 0)
 			{
 				View.PrimitiveDefinitelyUnoccludedMap.AccessCorrespondingBit(BitIt) = true;
 				continue;
@@ -998,7 +1208,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 			bool bCanBeOccluded = true;
 			if (GIsEditor)
 			{
-				if (Scene->PrimitivesSelected[BitIt.GetIndex()])
+				if (Scene->PrimitivesSelected[Index])
 				{
 					// to render occluded outline for selected objects
 					bCanBeOccluded = false;
@@ -1017,7 +1227,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 			int32 SubIsOccludedStart = SubIsOccluded.Num();
 			if ((OcclusionFlags & EOcclusionFlags::HasSubprimitiveQueries) && GAllowSubPrimitiveQueries && !View.bDisableQuerySubmissions)
 			{
-				FPrimitiveSceneProxy* Proxy = Scene->Primitives[BitIt.GetIndex()]->Proxy;
+				FPrimitiveSceneProxy* Proxy = Scene->Primitives[Index]->Proxy;
 				SubBounds = Proxy->GetOcclusionQueries(&View);
 				NumSubQueries = SubBounds->Num();
 				bSubQueries = true;
@@ -1031,7 +1241,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 
 			bool bAllSubOcclusionStateIsDefinite = true;
 			bool bAllSubOccluded = true;
-			FPrimitiveComponentId PrimitiveId = Scene->PrimitiveComponentIds[BitIt.GetIndex()];
+			FPrimitiveComponentId PrimitiveId = Scene->PrimitiveComponentIds[Index];
 
 			for (int32 SubQuery = 0; SubQuery < NumSubQueries; SubQuery++)
 			{
@@ -1151,7 +1361,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 
 						if (GVisualizeOccludedPrimitives && OcclusionPDI && bIsOccluded)
 						{
-							const FBoxSphereBounds& Bounds = bSubQueries ? (*SubBounds)[SubQuery] : Scene->PrimitiveOcclusionBounds[BitIt.GetIndex()];
+							const FBoxSphereBounds& Bounds = bSubQueries ? (*SubBounds)[SubQuery] : Scene->PrimitiveOcclusionBounds[Index];
 							DrawWireBox(OcclusionPDI, Bounds.GetBox(), FColor(50, 255, 50), SDPG_Foreground);
 						}
 					}
@@ -1201,7 +1411,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 
 
 						bool bAllowBoundsTest;
-						const FBoxSphereBounds OcclusionBounds = (bSubQueries ? (*SubBounds)[SubQuery] : Scene->PrimitiveOcclusionBounds[BitIt.GetIndex()]).ExpandBy(GExpandAllTestedBBoxesAmount + (bSkipNewlyConsidered ? GExpandNewlyOcclusionTestedBBoxesAmount : 0.0));
+						const FBoxSphereBounds OcclusionBounds = (bSubQueries ? (*SubBounds)[SubQuery] : Scene->PrimitiveOcclusionBounds[Index]).ExpandBy(GExpandAllTestedBBoxesAmount + (bSkipNewlyConsidered ? GExpandNewlyOcclusionTestedBBoxesAmount : 0.0));
 						if (FVector::DistSquared(ViewOrigin, OcclusionBounds.Origin) < NeverOcclusionTestDistanceSquared)
 						{
 							bAllowBoundsTest = false;
@@ -1360,7 +1570,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 			{
 				if (SubIsOccluded.Num() > 0)
 				{
-					FPrimitiveSceneProxy* Proxy = Scene->Primitives[BitIt.GetIndex()]->Proxy;
+					FPrimitiveSceneProxy* Proxy = Scene->Primitives[Index]->Proxy;
 					Proxy->AcceptOcclusionResults(&View, &SubIsOccluded, SubIsOccludedStart, SubIsOccluded.Num() - SubIsOccludedStart);
 				}
 
@@ -3704,21 +3914,6 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	MotionBlurTimeScale = MotionBlurTargetDeltaTime / DeltaWorldTime;
 }
 
-static TAutoConsoleVariable<int32> CVarAlsoUseSphereForFrustumCull(
-	TEXT("r.AlsoUseSphereForFrustumCull"),
-	0,  
-	TEXT("Performance tweak. If > 0, then use a sphere cull before and in addition to a box for frustum culling."),
-	ECVF_RenderThreadSafe
-	);
-
-static TAutoConsoleVariable<int32> CVarUseFastIntersect(
-	TEXT("r.UseFastIntersect"),
-	1,
-	TEXT("Use optimized 8 plane fast intersection code if we have 8 permuted planes."),
-	ECVF_RenderThreadSafe
-);
-
-
 void UpdateReflectionSceneData(FScene* Scene)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateReflectionSceneData)
@@ -4089,7 +4284,6 @@ void FSceneRenderer::ComputeViewVisibility(
 			View.StaticMeshFadeOutDitheredLODMap.Init(false, Scene->StaticMeshes.GetMaxIndex());
 			View.StaticMeshFadeInDitheredLODMap.Init(false, Scene->StaticMeshes.GetMaxIndex());
 			View.PrimitivesLODMask.Init(FLODMask(), Scene->Primitives.Num());
-			View.DistanceCullingPrimitiveMap.Init(false, Scene->Primitives.Num());
 
 			View.VisibleLightInfos.Empty(Scene->Lights.GetMaxIndex());
 
@@ -4151,12 +4345,12 @@ void FSceneRenderer::ComputeViewVisibility(
 				if (ViewParent)
 				{
 					bNeedsFrustumCulling = false;
-					for (FSceneBitArray::FIterator BitIt(View.PrimitiveVisibilityMap); BitIt; ++BitIt)
+					for (int32 Index = 0; Index < View.PrimitiveVisibilityMap.Num(); ++Index)
 					{
-						if (ViewParent->ParentPrimitives.Contains(Scene->PrimitiveComponentIds[BitIt.GetIndex()]) ||
-							Scene->PrimitivesAlwaysVisible[BitIt.GetIndex()])
+						if (ViewParent->ParentPrimitives.Contains(Scene->PrimitiveComponentIds[Index]) || 
+							IsAlwaysVisible(Scene, Index))
 						{
-							BitIt.GetValue() = true;
+							View.PrimitiveVisibilityMap[Index] = true;
 						}
 					}
 				}
@@ -4165,12 +4359,12 @@ void FSceneRenderer::ComputeViewVisibility(
 				if (ViewState->bIsFrozen)
 				{
 					bNeedsFrustumCulling = false;
-					for (FSceneBitArray::FIterator BitIt(View.PrimitiveVisibilityMap); BitIt; ++BitIt)
+					for (int32 Index = 0; Index < View.PrimitiveVisibilityMap.Num(); ++Index)
 					{
-						if (ViewState->FrozenPrimitives.Contains(Scene->PrimitiveComponentIds[BitIt.GetIndex()]) ||
-							Scene->PrimitivesAlwaysVisible[BitIt.GetIndex()])
+						if (ViewState->FrozenPrimitives.Contains(Scene->PrimitiveComponentIds[Index]) ||
+							IsAlwaysVisible(Scene, Index))
 						{
-							BitIt.GetValue() = true;
+							View.PrimitiveVisibilityMap[Index] = true;
 						}
 					}
 				}
@@ -4180,45 +4374,27 @@ void FSceneRenderer::ComputeViewVisibility(
 			// Most views use standard frustum culling.
 			if (bNeedsFrustumCulling)
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer_Cull);
-				// Update HLOD transition/visibility states to allow use during distance culling
-				FLODSceneTree& HLODTree = Scene->SceneLODHierarchy;
-				if (HLODTree.IsActive())
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_HLODUpdate);
-					HLODTree.UpdateVisibilityStates(View);
-				}
-				else
-				{
-					HLODTree.ClearVisibilityState(View);
-				}
+					TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer_Cull);
+					// Update HLOD transition/visibility states to allow use during distance culling
+					FLODSceneTree& HLODTree = Scene->SceneLODHierarchy;
+					if (HLODTree.IsActive())
+					{
+						QUICK_SCOPE_CYCLE_COUNTER(STAT_ViewVisibilityTime_HLODUpdate);
+						HLODTree.UpdateVisibilityStates(View);
+					}
+					else
+					{
+						HLODTree.ClearVisibilityState(View);
+					}
 
-				int32 NumCulledPrimitivesForView;
-				const bool bUseFastIntersect = (View.ViewFrustum.PermutedPlanes.Num() == 8) && CVarUseFastIntersect.GetValueOnRenderThread();
-				if (View.CustomVisibilityQuery && View.CustomVisibilityQuery->Prepare())
-				{
-					if (CVarAlsoUseSphereForFrustumCull.GetValueOnRenderThread())
-					{
-						NumCulledPrimitivesForView = bUseFastIntersect ? FrustumCull<true, true, true>(Scene, View) : FrustumCull<true, true, false>(Scene, View);
-					}
-					else
-					{
-						NumCulledPrimitivesForView = bUseFastIntersect ? FrustumCull<true, false, true>(Scene, View) : FrustumCull<true, false, false>(Scene, View);
-					}
+					int32 NumCulledPrimitivesForView = FrustumCull(Scene, View);
+					STAT(NumCulledPrimitives += NumCulledPrimitivesForView);
 				}
-				else
 				{
-					if (CVarAlsoUseSphereForFrustumCull.GetValueOnRenderThread())
-					{
-						NumCulledPrimitivesForView = bUseFastIntersect ? FrustumCull<false, true, true>(Scene, View) : FrustumCull<false, true, false>(Scene, View);
-					}
-					else
-					{
-						NumCulledPrimitivesForView = bUseFastIntersect ? FrustumCull<false, false, true>(Scene, View) : FrustumCull<false, false, false>(Scene, View);
-					}
+					TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer_UpdatePrimitiveFading);
+					UpdatePrimitiveFading(Scene, View);
 				}
-				STAT(NumCulledPrimitives += NumCulledPrimitivesForView);
-				UpdatePrimitiveFading(Scene, View);
 			}
 
 			// If any primitives are explicitly hidden, remove them now.

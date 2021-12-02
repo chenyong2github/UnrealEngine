@@ -645,12 +645,12 @@ void FScene::CheckPrimitiveArrays(int MaxTypeOffsetIndex)
 	check(Primitives.Num() == PrimitiveBounds.Num());
 	check(Primitives.Num() == PrimitiveFlagsCompact.Num());
 	check(Primitives.Num() == PrimitiveVisibilityIds.Num());
+	check(Primitives.Num() == PrimitiveOctreeIndex.Num());
 	check(Primitives.Num() == PrimitiveOcclusionFlags.Num());
 	check(Primitives.Num() == PrimitiveComponentIds.Num());
 	check(Primitives.Num() == PrimitiveVirtualTextureFlags.Num());
 	check(Primitives.Num() == PrimitiveVirtualTextureLod.Num());
 	check(Primitives.Num() == PrimitiveOcclusionBounds.Num());
-	check(Primitives.Num() == PrimitivesAlwaysVisible.Num());
 #if WITH_EDITOR
 	check(Primitives.Num() == PrimitivesSelected.Num());
 #endif
@@ -4039,6 +4039,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 	TSet<FPrimitiveSceneInfo*> DeletedSceneInfos;
 	DeletedSceneInfos.Reserve(RemovedLocalPrimitiveSceneInfos.Num());
 
+	TArray<int32> RemovedPrimitiveIndices;
+	RemovedPrimitiveIndices.SetNumUninitialized(RemovedLocalPrimitiveSceneInfos.Num());
+
 	GPUScene.ResizeDirtyState(Primitives.Num());
 	{
 		SCOPED_NAMED_EVENT(FScene_RemovePrimitiveSceneInfos, FColor::Red);
@@ -4113,12 +4116,12 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							TArraySwapElements(PrimitiveBounds, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveFlagsCompact, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveVisibilityIds, DestIndex, SourceIndex);
+							TArraySwapElements(PrimitiveOctreeIndex, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveVirtualTextureLod, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
-							TBitArraySwapElements(PrimitivesAlwaysVisible, DestIndex, SourceIndex);
 						#if WITH_EDITOR
 							TBitArraySwapElements(PrimitivesSelected, DestIndex, SourceIndex);
 						#endif
@@ -4167,9 +4170,18 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 			checkfSlow((TypeOffsetTable.Num() == 0 && Primitives.Num() == (RemovedLocalPrimitiveSceneInfos.Num() - StartIndex)) || TypeOffsetTable[TypeOffsetTable.Num() - 1].Offset == Primitives.Num() - (RemovedLocalPrimitiveSceneInfos.Num() - StartIndex), TEXT("Corrupted Tail Offset [%d, %d]"), TypeOffsetTable[TypeOffsetTable.Num() - 1].Offset, Primitives.Num() - (RemovedLocalPrimitiveSceneInfos.Num() - StartIndex));
 
-			for (int32 CheckIndex = StartIndex; CheckIndex < RemovedLocalPrimitiveSceneInfos.Num(); CheckIndex++)
+			for (int32 RemoveIndex = StartIndex; RemoveIndex < RemovedLocalPrimitiveSceneInfos.Num(); RemoveIndex++)
 			{
-				checkf(RemovedLocalPrimitiveSceneInfos[CheckIndex]->PackedIndex >= Primitives.Num() - RemovedLocalPrimitiveSceneInfos.Num(), TEXT("Removed item should be at the end"));
+				FPrimitiveSceneInfo* PrimitiveSceneInfo = RemovedLocalPrimitiveSceneInfos[RemoveIndex];
+				checkf(RemovedLocalPrimitiveSceneInfos[RemoveIndex]->PackedIndex >= Primitives.Num() - RemovedLocalPrimitiveSceneInfos.Num(), TEXT("Removed item should be at the end"));
+
+				// Store the previous index for use later, and set the PackedIndex member to invalid.
+				// FPrimitiveOctreeSemantics::SetOctreeNodeIndex will attempt to remove the node index from the 
+				// PrimitiveOctreeIndex.  Since the elements have already been swapped, this will cause an invalid change to PrimitiveOctreeIndex.
+				// Setting the packed index to INDEX_NONE prevents this from happening, but we also need to keep track of the old
+				// index for use below.
+				RemovedPrimitiveIndices[RemoveIndex] = RemovedLocalPrimitiveSceneInfos[RemoveIndex]->PackedIndex;
+				PrimitiveSceneInfo->PackedIndex = INDEX_NONE;
 			}
 
 			//Remove all items from the location of StartIndex to the end of the arrays.
@@ -4182,13 +4194,12 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			PrimitiveBounds.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveFlagsCompact.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveVisibilityIds.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveOctreeIndex.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveOcclusionFlags.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveComponentIds.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveVirtualTextureFlags.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveVirtualTextureLod.RemoveAt(SourceIndex, RemoveCount, false);
 			PrimitiveOcclusionBounds.RemoveAt(SourceIndex, RemoveCount, false);
-
-			PrimitivesAlwaysVisible.RemoveAt(SourceIndex, RemoveCount);
 
 			#if WITH_EDITOR
 			PrimitivesSelected.RemoveAt(SourceIndex, RemoveCount);
@@ -4204,8 +4215,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = RemovedLocalPrimitiveSceneInfos[RemoveIndex];
 				FScopeCycleCounter Context(PrimitiveSceneInfo->Proxy->GetStatId());
-				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
-				PrimitiveSceneInfo->PackedIndex = INDEX_NONE;
+
+				// The removed items PrimitiveIndex has already been invalidated, but a backup is kept in RemovedPrimitiveIndices
+				int32 PrimitiveIndex = RemovedPrimitiveIndices[RemoveIndex];
 
 				if (PrimitiveSceneInfo->bRegisteredWithVelocityData)
 				{
@@ -4285,7 +4297,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			PrimitiveVirtualTextureFlags.Reserve(PrimitiveVirtualTextureFlags.Num() + AddedLocalPrimitiveSceneInfos.Num());
 			PrimitiveVirtualTextureLod.Reserve(PrimitiveVirtualTextureLod.Num() + AddedLocalPrimitiveSceneInfos.Num());
 			PrimitiveOcclusionBounds.Reserve(PrimitiveOcclusionBounds.Num() + AddedLocalPrimitiveSceneInfos.Num());
-			PrimitivesAlwaysVisible.Reserve(PrimitivesAlwaysVisible.Num() + AddedLocalPrimitiveSceneInfos.Num());
 		#if WITH_EDITOR
 			PrimitivesSelected.Reserve(PrimitivesSelected.Num() + AddedLocalPrimitiveSceneInfos.Num());
 		#endif
@@ -4328,12 +4339,12 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveBounds.AddUninitialized();
 				PrimitiveFlagsCompact.AddUninitialized();
 				PrimitiveVisibilityIds.AddUninitialized();
+				PrimitiveOctreeIndex.Add(0);
 				PrimitiveOcclusionFlags.AddUninitialized();
 				PrimitiveComponentIds.AddUninitialized();
 				PrimitiveVirtualTextureFlags.AddUninitialized();
 				PrimitiveVirtualTextureLod.AddUninitialized();
 				PrimitiveOcclusionBounds.AddUninitialized();
-				PrimitivesAlwaysVisible.Add(PrimitiveSceneInfo->Proxy->IsAlwaysVisible());
 			#if WITH_EDITOR
 				PrimitivesSelected.Add(PrimitiveSceneInfo->Proxy->IsSelected());
 			#endif
@@ -4426,12 +4437,12 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							TArraySwapElements(PrimitiveBounds, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveFlagsCompact, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveVisibilityIds, DestIndex, SourceIndex);
+							TArraySwapElements(PrimitiveOctreeIndex, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveVirtualTextureLod, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
-							TBitArraySwapElements(PrimitivesAlwaysVisible, DestIndex, SourceIndex);
 						#if WITH_EDITOR
 							TBitArraySwapElements(PrimitivesSelected, DestIndex, SourceIndex);
 						#endif

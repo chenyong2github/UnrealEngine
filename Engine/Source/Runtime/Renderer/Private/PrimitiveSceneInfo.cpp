@@ -1946,6 +1946,16 @@ void FPrimitiveSceneInfo::UpdateComponentLastRenderTime(float CurrentWorldTime, 
 	}
 }
 
+void FPrimitiveOctreeSemantics::SetOctreeNodeIndex(const FPrimitiveSceneInfoCompact& Element, FOctreeElementId2 Id)
+{
+	// When a Primitive is removed from the renderer, it's index will be invalidated.  Only update if the primitive still
+	// has a valid index.
+	if (Element.PrimitiveSceneInfo->IsIndexValid())
+	{
+		Element.PrimitiveSceneInfo->Scene->PrimitiveOctreeIndex[Element.PrimitiveSceneInfo->GetIndex()] = Id.GetNodeIndex();
+	}
+}
+
 FString FPrimitiveSceneInfo::GetFullnameForDebuggingOnly() const
 {
 	// This is not correct to access component from rendering thread, but this is for debugging only
@@ -1955,4 +1965,3 @@ FString FPrimitiveSceneInfo::GetFullnameForDebuggingOnly() const
 	}
 	return FString(TEXT("Unknown Object"));
 }
-

@@ -583,20 +583,20 @@ private:
 	}
 
 	template<typename PredicateFunc, typename IterateFunc>
-	void FindNodesWithPredicateInternal(FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const PredicateFunc& Predicate, const IterateFunc& Func) const
+	void FindNodesWithPredicateInternal(FNodeIndex ParentNodeIndex, FNodeIndex CurrentNodeIndex, const FOctreeNodeContext& NodeContext, const PredicateFunc& Predicate, const IterateFunc& Func) const
 	{
 		if (TreeNodes[CurrentNodeIndex].InclusiveNumElements > 0)
 		{
-			if (Predicate(NodeContext.Bounds))
+			if (Predicate(ParentNodeIndex, CurrentNodeIndex, NodeContext.Bounds))
 			{
-				Func(CurrentNodeIndex);
+				Func(ParentNodeIndex, CurrentNodeIndex, NodeContext.Bounds);
 
 				if (!TreeNodes[CurrentNodeIndex].IsLeaf())
 				{
 					FNodeIndex ChildStartIndex = TreeNodes[CurrentNodeIndex].ChildNodes;
 					for (int8 i = 0; i < 8; i++)
 					{
-						FindNodesWithPredicateInternal(ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), Predicate, Func);
+						FindNodesWithPredicateInternal(CurrentNodeIndex, ChildStartIndex + i, NodeContext.GetChildContext(FOctreeChildNodeRef(i)), Predicate, Func);
 					}
 				}
 			}
@@ -697,6 +697,8 @@ private:
 	}
 public:
 
+	int32 GetNumNodes() const { return TreeNodes.Num(); }
+
 	/**
 	 * this function will call the passed in function for all elements in the Octree in node by node in no specified order.
 	 * @param Func - Function to call with each Element.
@@ -721,7 +723,7 @@ public:
 	template<typename PredicateFunc, typename IterateFunc>
 	inline void FindNodesWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
 	{
-		FindNodesWithPredicateInternal(0, RootNodeContext, Predicate, Func);
+		FindNodesWithPredicateInternal(INDEX_NONE, 0, RootNodeContext, Predicate, Func);
 	}
 
 	/**
@@ -732,11 +734,11 @@ public:
 	template<typename PredicateFunc, typename IterateFunc>
 	inline void FindElementsWithPredicate(const PredicateFunc& Predicate, const IterateFunc& Func) const
 	{
-		FindNodesWithPredicateInternal(0, RootNodeContext, Predicate, [&Func, this](FNodeIndex NodeIndex)
+		FindNodesWithPredicateInternal(INDEX_NONE, 0, RootNodeContext, Predicate, [&Func, this](FNodeIndex /*ParentNodeIndex*/, FNodeIndex NodeIndex, const FBoxCenterAndExtent& /*NodeBounds*/ )
 		{
 			for (typename TCallTraits<ElementType>::ConstReference Element : TreeElements[NodeIndex])
 			{
-				Func(Element);
+				Func(NodeIndex, Element);
 			}
 		});
 	}
@@ -901,7 +903,7 @@ public:
 		int32 MaxElementsPerNode = 0;
 		TArray<int32> NodeElementDistribution;
 
-		FindNodesWithPredicateInternal(0, RootNodeContext, [](const FBoxCenterAndExtent&) { return true; }, [&, this](FNodeIndex NodeIndex)
+		FindNodesWithPredicateInternal(INDEX_NONE, 0, RootNodeContext, [](FNodeIndex /*ParentNodeIndex*/, FNodeIndex /*NodeIndex*/, const FBoxCenterAndExtent&) { return true; }, [&, this](FNodeIndex /*ParentNodeIndex*/, FNodeIndex NodeIndex, const FBoxCenterAndExtent&)
 		{
 			const int32 CurrentNodeElementCount = GetElementsForNode(NodeIndex).Num();
 

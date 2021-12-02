@@ -703,11 +703,14 @@ struct FPrimitiveOctreeSemantics
 	FORCEINLINE static void SetElementId(const FPrimitiveSceneInfoCompact& Element,FOctreeElementId2 Id)
 	{
 		Element.PrimitiveSceneInfo->OctreeId = Id;
+		SetOctreeNodeIndex(Element, Id);
 	}
 
 	FORCEINLINE static void ApplyOffset(FPrimitiveSceneInfoCompact& Element, FVector Offset)
 	{
 		Element.Bounds.Origin+= Offset;
 	}
+
+	static void SetOctreeNodeIndex(const FPrimitiveSceneInfoCompact& Element, FOctreeElementId2 Id);
 };
 
