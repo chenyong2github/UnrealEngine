@@ -74,6 +74,14 @@ FAutoConsoleVariableRef CVarLumenRadiosityMinTraceDistanceToSampleSurface(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenRadiosityMaxRayIntensity = 10.0f;
+FAutoConsoleVariableRef CVarLumenRadiosityMaxRayIntensity(
+	TEXT("r.LumenScene.Radiosity.MaxRayIntensity"),
+	GLumenRadiosityMaxRayIntensity,
+	TEXT("Clamps Radiosity trace intensity, relative to current view exposure.  Useful for reducing artifacts from small bright emissive sources, but loses energy and adds view dependence."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 float GLumenRadiosityDistanceFieldSurfaceBias = 10.0f;
 FAutoConsoleVariableRef CVarLumenRadiositySurfaceBias(
 	TEXT("r.LumenScene.Radiosity.DistanceFieldSurfaceBias"),
@@ -256,6 +264,7 @@ class FLumenRadiosityDistanceFieldTracingCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenRadiosityTexelTraceParameters, RadiosityTexelTraceParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
+		SHADER_PARAMETER(float, MaxRayIntensity)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceRadianceBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -298,6 +307,7 @@ class FLumenRadiosityHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(float, MinTraceDistance)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, SurfaceBias)
+		SHADER_PARAMETER(float, MaxRayIntensity)
 		SHADER_PARAMETER(float, MinTraceDistanceToSampleSurface)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceRadianceBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -528,6 +538,7 @@ void LumenRadiosity::AddRadiosityPass(
 		const uint32 NumThreadsToDispatch = GRHIPersistentThreadGroupCount * FLumenRadiosityHardwareRayTracingRGS::GetGroupSize();
 		PassParameters->NumThreadsToDispatch = NumThreadsToDispatch;
 		PassParameters->SurfaceBias = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceSlopeBias, 0.0f, 1000.0f);
+		PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 		PassParameters->MinTraceDistance = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceBias, 0.0f, 1000.0f);
 		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
 		PassParameters->MinTraceDistanceToSampleSurface = GLumenRadiosityMinTraceDistanceToSampleSurface;
@@ -584,6 +595,7 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->IndirectTracingParameters.MinTraceDistance = FMath::Clamp(GLumenRadiosityDistanceFieldSurfaceBias, 0.0f, 1000.0f);
 		PassParameters->IndirectTracingParameters.MaxTraceDistance = Lumen::GetMaxTraceDistance();
 		PassParameters->IndirectTracingParameters.VoxelStepFactor = FMath::Clamp(GLumenRadiosityVoxelStepFactor, 0.1f, 10.0f);
+		PassParameters->MaxRayIntensity = FMath::Clamp(GLumenRadiosityMaxRayIntensity, 0.0f, 1000000.0f);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FLumenRadiosityDistanceFieldTracingCS>();
 

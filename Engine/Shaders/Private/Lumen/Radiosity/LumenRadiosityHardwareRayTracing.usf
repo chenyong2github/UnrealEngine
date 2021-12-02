@@ -25,6 +25,7 @@ float MinTraceDistance;
 float MaxTraceDistance;
 float MinTraceDistanceToSampleSurface;
 float SurfaceBias;
+float MaxRayIntensity;
 uint NumThreadsToDispatch;
 float TanRadiosityRayConeHalfAngle;
 
@@ -83,6 +84,13 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 				if (RayResult.bIsHit)
 				{
 					Radiance = RayResult.Radiance;
+
+					float MaxLighting = max3(Radiance.x, Radiance.y, Radiance.z);
+
+					if (MaxLighting > MaxRayIntensity * View.OneOverPreExposure)
+					{
+						Radiance *= MaxRayIntensity * View.OneOverPreExposure / MaxLighting;
+					}
 				}
 				else
 				{
