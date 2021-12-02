@@ -13,6 +13,13 @@ enum class ERHITransientResourceType
 	Buffer
 };
 
+struct FRHITransientResourceStats
+{
+	uint64 HeapOffsetMin = 0;
+	uint64 HeapOffsetMax = 0;
+	uint32 HeapIndex = 0;
+};
+
 class FRHITransientResource
 {
 public:
@@ -25,13 +32,14 @@ public:
 	virtual ~FRHITransientResource() = default;
 
 	// (Internal) Initializes the transient resource with a new allocation / name.
-	virtual void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InAcquirePassIndex)
+	virtual void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InAcquirePassIndex, const FRHITransientResourceStats& InStats)
 	{
 		Name = InName;
 		AllocationIndex = InAllocationIndex;
 		AcquirePasses = TInterval<uint32>(0, InAcquirePassIndex);
 		DiscardPasses = TInterval<uint32>(0, TNumericLimits<uint32>::Max());
 		AliasingOverlaps.Reset();
+		Stats = InStats;
 	}
 
 	// (Internal) Assigns the discard pass index.
@@ -71,6 +79,8 @@ public:
 	FORCEINLINE bool IsTexture() const { return Type == ERHITransientResourceType::Texture; }
 	FORCEINLINE bool IsBuffer() const { return Type == ERHITransientResourceType::Buffer; }
 
+	FORCEINLINE const FRHITransientResourceStats& GetStats() const { return Stats; }
+
 private:
 	// Underlying RHI resource.
 	TRefCountPtr<FRHIResource> Resource;
@@ -91,6 +101,8 @@ private:
 	uint32 AllocationIndex = ~0u;
 	TInterval<uint32> AcquirePasses = TInterval<uint32>(0, 0);
 	TInterval<uint32> DiscardPasses = TInterval<uint32>(0, 0);
+
+	FRHITransientResourceStats Stats;
 };
 
 class RHI_API FRHITransientTexture final : public FRHITransientResource
@@ -101,7 +113,7 @@ public:
 		, CreateInfo(InCreateInfo)
 	{}
 
-	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex) override;
+	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex, const FRHITransientResourceStats& InStats) override;
 
 	// Returns the underlying RHI texture.
 	FRHITexture* GetRHI() const { return static_cast<FRHITexture*>(FRHITransientResource::GetRHI()); }
@@ -130,7 +142,7 @@ public:
 		, CreateInfo(InCreateInfo)
 	{}
 
-	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex) override;
+	void Init(const TCHAR* InName, uint32 InAllocationIndex, uint32 InPassIndex, const FRHITransientResourceStats& InStats) override;
 
 	// Returns the underlying RHI buffer.
 	FORCEINLINE FRHIBuffer* GetRHI() const { return static_cast<FRHIBuffer*>(FRHITransientResource::GetRHI()); }
@@ -151,6 +163,20 @@ public:
 	FRHIBufferViewCache ViewCache;
 };
 
+struct FRHITransientHeapStats
+{
+	struct FHeap
+	{
+		// Maximum number of bytes used in the heap.
+		uint64 WatermarkSize{};
+
+		// Number of bytes allocated for use in the heap.
+		uint64 Capacity{};
+	};
+
+	TArray<FHeap, TInlineAllocator<4>> Heaps;
+};
+
 class IRHITransientResourceAllocator
 {
 public:
@@ -168,7 +194,7 @@ public:
 	virtual void Flush(FRHICommandListImmediate& RHICmdList) {}
 
 	// Freezes all allocations and validates that all resources have their memory deallocated.
-	virtual void Freeze(FRHICommandListImmediate& RHICmdList) = 0;
+	virtual void Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats) = 0;
 
 	// Releases the transient allocator and deletes the instance. Any FRHITransientResource* access after this call is not allowed.
 	virtual void Release(FRHICommandListImmediate& RHICmdList)

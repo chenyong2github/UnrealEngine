@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderGraphDefinitions.h"
+#include "RHITransientResourceAllocator.h"
 
 #if RDG_ENABLE_TRACE
 
@@ -18,7 +19,10 @@ public:
 	void AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass);
 	void AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass);
 
+	void SetTransientHeapStats(const FRHITransientHeapStats& Stats) { TransientHeapStats = Stats; }
+
 private:
+	FRHITransientHeapStats TransientHeapStats;
 	uint64 GraphStartCycles{};
 	uint32 ResourceOrder{};
 };

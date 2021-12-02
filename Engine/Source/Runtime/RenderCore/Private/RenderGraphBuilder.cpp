@@ -1589,7 +1589,9 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 
 				if (TransientResourceAllocator)
 				{
-					TransientResourceAllocator->Freeze(RHICmdList);
+					FRHITransientHeapStats TransientHeapStats;
+					TransientResourceAllocator->Freeze(RHICmdList, TransientHeapStats);
+					IF_RDG_ENABLE_TRACE(Trace.SetTransientHeapStats(TransientHeapStats));
 				}
 			}
 			else

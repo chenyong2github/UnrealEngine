@@ -1643,7 +1643,7 @@ void FValidationTransientResourceAllocator::Flush(FRHICommandListImmediate& RHIC
 	RHIAllocator->Flush(RHICmdList);
 }
 
-void FValidationTransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList)
+void FValidationTransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats)
 {
 	check(!bFrozen);
 
@@ -1685,7 +1685,7 @@ void FValidationTransientResourceAllocator::Freeze(FRHICommandListImmediate& RHI
 
 	bFrozen = true;
 
-	RHIAllocator->Freeze(RHICmdList);
+	RHIAllocator->Freeze(RHICmdList, OutHeapStats);
 }
 
 void FValidationTransientResourceAllocator::Release(FRHICommandListImmediate& RHICmdList)
