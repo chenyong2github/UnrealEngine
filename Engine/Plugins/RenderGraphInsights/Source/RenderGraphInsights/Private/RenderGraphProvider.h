@@ -76,6 +76,7 @@ public:
 	uint32 Index{};
 	uint32 Order{};
 	uint64 SizeInBytes{};
+	FRHITransientResourceStats TransientStats;
 
 	TArray<FRDGPassHandle> Passes;
 
@@ -152,6 +153,9 @@ public:
 	uint32 ScopeDepth{};
 	uint32 PassCount{};
 
+	FRHITransientHeapStats TransientHeapStats;
+	TArray<uint64, TInlineAllocator<8>> TransientHeapOffsets;
+
 	FGraphPacket(TraceServices::ILinearAllocator& Allocator, const UE::Trace::IAnalyzer::FOnEventContext& Context);
 
 	const FPassPacket* GetProloguePass() const
@@ -210,6 +214,16 @@ private:
 
 	TGraphTimeline GraphTimeline;
 };
+
+inline bool Intersects(const FPassIntervalPacket& A, const FPassPacket& B)
+{
+	return A.FirstPass <= B.Handle && A.LastPass >= B.Handle;
+}
+
+inline bool Intersects(const FPassIntervalPacket& A, const FPassIntervalPacket& B)
+{
+	return !(B.LastPass < A.FirstPass || A.LastPass < B.FirstPass);
+}
 
 } //namespace RenderGraphInsights
 } //namespace UE

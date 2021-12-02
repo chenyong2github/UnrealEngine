@@ -272,6 +272,17 @@ public:
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
 
+	virtual void ResetSelectedEvent() override
+	{
+		if (SelectedEvent)
+		{
+			SelectedEvent.Reset();
+			OnSelectedEventChanged();
+		}
+	}
+
+	virtual void ResetEventFilter() override { SetEventFilter(nullptr); }
+
 	virtual void PreventThrottling() override;
 	virtual void AddOverlayWidget(const TSharedRef<SWidget>& InWidget) override;
 

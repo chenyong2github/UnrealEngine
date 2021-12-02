@@ -110,6 +110,14 @@ public:
 
 	//////////////////////////////////////////////////
 
+	/** Resets the selected event back to empty. */
+	virtual void ResetSelectedEvent() = 0;
+
+	/** Resets the event filter back to empty. */
+	virtual void ResetEventFilter() = 0;
+
+	//////////////////////////////////////////////////
+
 	/** Prevents mouse movements from throttling application updates. */
 	virtual void PreventThrottling() = 0;
 

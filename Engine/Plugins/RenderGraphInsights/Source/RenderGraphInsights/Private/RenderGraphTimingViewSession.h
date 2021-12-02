@@ -36,6 +36,8 @@ public:
 	/** Show/Hide the RenderGraph track */
 	void ToggleRenderGraphTrack();
 
+	Insights::ITimingViewSession* GetTimingViewSession() const { return TimingViewSession; }
+
 private:
 	const TraceServices::IAnalysisSession* AnalysisSession = nullptr;
 	Insights::ITimingViewSession* TimingViewSession;
