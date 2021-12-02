@@ -126,7 +126,7 @@ struct FPhysicsMovementSimulation
 			if (InputCmd.bJumpedPressed && NetState.JumpStartFrame + 10 < SimulationFrame)
 			{
 				NetState.JumpStartFrame = SimulationFrame;
-				PT->SetLinearImpulse(FVector(0.f, 0.f, 60000.f + (FMath::FRand() * 50000.f)));
+				PT->SetLinearImpulse(FVector(0.f, 0.f, 60000.f + (FMath::FRand() * 50000.f)), /*bIsVelociy=*/false);
 			}
 			return;
 		}

@@ -145,28 +145,28 @@ class FParticleDynamics
 public:
 	void Serialize(FChaosArchive& Ar)
 	{
-		Ar << MF;
-		Ar << MTorque;
-		Ar << MLinearImpulse;
-		Ar << MAngularImpulse;	
+		Ar << MAcceleration;
+		Ar << MAngularAcceleration;
+		Ar << MLinearImpulseVelocity;
+		Ar << MAngularImpulseVelocity;	
 	}
 
 	template <typename TOther>
 	void CopyFrom(const TOther& Other)
 	{
-		MF = Other.F();
-		MTorque = Other.Torque();
-		MLinearImpulse = Other.LinearImpulse();
-		MAngularImpulse = Other.AngularImpulse();
+		MAcceleration = Other.Acceleration();
+		MAngularAcceleration = Other.AngularAcceleration();
+		MLinearImpulseVelocity = Other.LinearImpulseVelocity();
+		MAngularImpulseVelocity = Other.AngularImpulseVelocity();
 	}
 
 	template <typename TOther>
 	bool IsEqual(const TOther& Other) const
 	{
-		return F() == Other.F()
-			&& Torque() == Other.Torque()
-			&& LinearImpulse() == Other.LinearImpulse()
-			&& AngularImpulse() == Other.AngularImpulse();
+		return Acceleration() == Other.Acceleration()
+			&& AngularAcceleration() == Other.AngularAcceleration()
+			&& LinearImpulseVelocity() == Other.LinearImpulseVelocity()
+			&& AngularImpulseVelocity() == Other.AngularImpulseVelocity();
 	}
 
 	bool operator==(const FParticleDynamics& Other) const
@@ -174,34 +174,34 @@ public:
 		return IsEqual(Other);
 	}
 
-	const FVec3& F() const { return MF; }
-	void SetF(const FVec3& F){ MF = F; }
+	const FVec3& Acceleration() const { return MAcceleration; }
+	void SetAcceleration(const FVec3& Acceleration){ MAcceleration = Acceleration; }
 
-	const FVec3& Torque() const { return MTorque; }
-	void SetTorque(const FVec3& Torque){ MTorque = Torque; }
+	const FVec3& AngularAcceleration() const { return MAngularAcceleration; }
+	void SetAngularAcceleration(const FVec3& AngularAcceleration){ MAngularAcceleration = AngularAcceleration; }
 
-	const FVec3& LinearImpulse() const { return MLinearImpulse; }
-	void SetLinearImpulse(const FVec3& LinearImpulse){ MLinearImpulse = LinearImpulse; }
+	const FVec3& LinearImpulseVelocity() const { return MLinearImpulseVelocity; }
+	void SetLinearImpulseVelocity(const FVec3& LinearImpulseVelocity){ MLinearImpulseVelocity = LinearImpulseVelocity; }
 
-	const FVec3& AngularImpulse() const { return MAngularImpulse; }
-	void SetAngularImpulse(const FVec3& AngularImpulse){ MAngularImpulse = AngularImpulse; }
+	const FVec3& AngularImpulseVelocity() const { return MAngularImpulseVelocity; }
+	void SetAngularImpulseVelocity(const FVec3& AngularImpulseVelocity){ MAngularImpulseVelocity = AngularImpulseVelocity; }
 
 	static FParticleDynamics ZeroValue()
 	{
 		FParticleDynamics Result;
-		Result.MF = FVec3(0);
-		Result.MTorque = FVec3(0);
-		Result.MLinearImpulse = FVec3(0);
-		Result.MAngularImpulse = FVec3(0);
+		Result.MAcceleration = FVec3(0);
+		Result.MAngularAcceleration = FVec3(0);
+		Result.MLinearImpulseVelocity = FVec3(0);
+		Result.MAngularImpulseVelocity = FVec3(0);
 
 		return Result;
 	}
 
 private:
-	FVec3 MF;
-	FVec3 MTorque;
-	FVec3 MLinearImpulse;
-	FVec3 MAngularImpulse;
+	FVec3 MAcceleration;
+	FVec3 MAngularAcceleration;
+	FVec3 MLinearImpulseVelocity;
+	FVec3 MAngularImpulseVelocity;
 
 };
 

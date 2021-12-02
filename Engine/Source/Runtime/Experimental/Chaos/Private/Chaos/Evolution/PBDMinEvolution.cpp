@@ -85,10 +85,10 @@ namespace Chaos
 			RotationOfMass = Dynamics.AllRotationOfMass().GetData();
 			InvM = Dynamics.AllInvM().GetData();
 			InvI = Dynamics.AllInvI().GetData();
-			F = Dynamics.AllF().GetData();
-			T = Dynamics.AllT().GetData();
-			LinearImpulse = Dynamics.AllLinearImpulse().GetData();
-			AngularImpulse = Dynamics.AllAngularImpulse().GetData();
+			Acceleration = Dynamics.AllAcceleration().GetData();
+			AngularAcceleration = Dynamics.AllAngularAcceleration().GetData();
+			LinearImpulseVelocity = Dynamics.AllLinearImpulseVelocity().GetData();
+			AngularImpulseVelocity = Dynamics.AllAngularImpulseVelocity().GetData();
 			Disabled = Dynamics.AllDisabled().GetData();
 			GravityEnabled = Dynamics.AllGravityEnabled().GetData();
 			LinearEtherDrag = Dynamics.AllLinearEtherDrag().GetData();
@@ -112,10 +112,10 @@ namespace Chaos
 		FRotation3* RotationOfMass;
 		FReal* InvM;
 		FMatrix33* InvI;
-		FVec3* F;
-		FVec3* T;
-		FVec3* LinearImpulse;
-		FVec3* AngularImpulse;
+		FVec3* Acceleration;
+		FVec3* AngularAcceleration;
+		FVec3* LinearImpulseVelocity;
+		FVec3* AngularImpulseVelocity;
 		bool* Disabled;
 		bool* GravityEnabled;
 		FReal* LinearEtherDrag;
@@ -179,8 +179,8 @@ namespace Chaos
 		{
 			if (Particle.ObjectState() == EObjectStateType::Dynamic)
 			{
-				Particle.F() = FVec3(0);
-				Particle.Torque() = FVec3(0);
+				Particle.Acceleration() = FVec3(0);
+				Particle.AngularAcceleration() = FVec3(0);
 			}
 		}
 
@@ -326,8 +326,8 @@ namespace Chaos
 				
 				// Forces and torques
 				const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, Particle.InvI());
-				FVec3 DV = Particle.InvM() * (Particle.F() * Dt + Particle.LinearImpulse());
-				FVec3 DW = Utilities::Multiply(WorldInvI, (Particle.Torque() * Dt + Particle.AngularImpulse()));
+				FVec3 DV = Particle.Acceleration() * Dt + Particle.LinearImpulseVelocity();
+				FVec3 DW = Particle.AngularAcceleration() * Dt + Particle.AngularImpulseVelocity();
 				FVec3 TargetV = FVec3(0);
 				FVec3 TargetW = FVec3(0);
 
@@ -367,8 +367,8 @@ namespace Chaos
 				FParticleUtilitiesPQ::SetCoMWorldTransform(&Particle, PCoM, QCoM);
 				Particle.V() = V;
 				Particle.W() = W;
-				Particle.LinearImpulse() = FVec3(0);
-				Particle.AngularImpulse() = FVec3(0);
+				Particle.LinearImpulseVelocity() = FVec3(0);
+				Particle.AngularImpulseVelocity() = FVec3(0);
 
 				// Update cached world space state, including bounds. We use the Swept bounds update so that the bounds includes P,Q and X,Q.
 				// This is because when we have joints, they often pull bodies back to their original positions, so we need to know if there

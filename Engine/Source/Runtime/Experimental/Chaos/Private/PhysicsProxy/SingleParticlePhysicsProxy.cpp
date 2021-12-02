@@ -191,8 +191,8 @@ void FSingleParticlePhysicsProxy::ClearAccumulatedData()
 	{
 		Rigid->ClearForces(false);
 		Rigid->ClearTorques(false);
-		Rigid->SetLinearImpulse(Chaos::FVec3(0), false);
-		Rigid->SetAngularImpulse(Chaos::FVec3(0), false);
+		Rigid->SetLinearImpulseVelocity(Chaos::FVec3(0), false);
+		Rigid->SetAngularImpulseVelocity(Chaos::FVec3(0), false);
 	}
 	
 	Particle->ClearDirtyFlags();

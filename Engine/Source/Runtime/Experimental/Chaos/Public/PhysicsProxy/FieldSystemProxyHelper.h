@@ -641,7 +641,7 @@ namespace Chaos
 						{
 							RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
 						}
-						RigidHandle->F() += ResultsView[Index.Result];
+						RigidHandle->AddForce(ResultsView[Index.Result]);
 					}
 				}
 			}
@@ -659,7 +659,7 @@ namespace Chaos
 						{
 							RigidHandle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
 						}
-						RigidHandle->Torque() += ResultsView[Index.Result];
+						RigidHandle->AddTorque(ResultsView[Index.Result]);
 					}
 				}
 			}

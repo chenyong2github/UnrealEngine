@@ -1430,15 +1430,13 @@ namespace ChaosTest
 
 	void AddForceAtPosition(FPBDRigidsEvolutionGBF& Evolution, TPBDRigidParticleHandle<FReal, 3>* Rigid, const FVector& InForce, const FVector& InPosition)
 	{
-		const Chaos::FVec3& CurrentForce = Rigid->F();
-		const Chaos::FVec3& CurrentTorque = Rigid->Torque();
 		const Chaos::FVec3 WorldCOM = FParticleUtilitiesGT::GetCoMWorldPosition(Rigid);
 
 		Evolution.SetParticleObjectState(Rigid, EObjectStateType::Dynamic);
 
 		const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(InPosition - WorldCOM, InForce);
-		Rigid->SetF(CurrentForce + InForce);
-		Rigid->SetTorque(CurrentTorque + WorldTorque);
+		Rigid->AddForce(InForce);
+		Rigid->AddTorque(WorldTorque);
 
 	}
 

@@ -176,8 +176,8 @@ namespace Chaos
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle, int32 Index) {
-				Particle.F() = FVec3(0);
-				Particle.Torque() = FVec3(0);
+				Particle.Acceleration() = FVec3(0);
+				Particle.AngularAcceleration() = FVec3(0);
 			});
 		}
 
@@ -186,15 +186,12 @@ namespace Chaos
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_Integrate);
 			CHAOS_SCOPED_TIMER(Integrate);
-			FPerParticleEulerStepVelocity EulerStepVelocityRule;
-			FPerParticleAddImpulses AddImpulsesRule;
-			FPerParticleEtherDrag EtherDragRule;
-			FPerParticlePBDEulerStep EulerStepRule;
 
 			const FReal BoundsThickness = GetNarrowPhase().GetBoundsExpansion();
 			const FReal MaxAngularSpeedSq = CVars::HackMaxAngularVelocity * CVars::HackMaxAngularVelocity;
 			const FReal MaxSpeedSq = CVars::HackMaxVelocity * CVars::HackMaxVelocity;
 			InParticles.ParallelFor([&](auto& GeomParticle, int32 Index) {
+	
 				//question: can we enforce this at the API layer? Right now islands contain non dynamic which makes this hard
 				auto PBDParticle = GeomParticle.CastToRigidParticle();
 				if (PBDParticle && PBDParticle->ObjectState() == EObjectStateType::Dynamic)
@@ -209,9 +206,45 @@ namespace Chaos
 					{
 						ForceRule(Particle, Dt);
 					}
-					EulerStepVelocityRule.Apply(Particle, Dt);
-					AddImpulsesRule.Apply(Particle, Dt);
-					EtherDragRule.Apply(Particle, Dt);
+
+					//EulerStepVelocityRule.Apply(Particle, Dt);
+					Particle.V() += Particle.Acceleration() * Dt;
+					Particle.W() += Particle.AngularAcceleration() * Dt;
+
+
+					//AddImpulsesRule.Apply(Particle, Dt);
+					Particle.V() += Particle.LinearImpulseVelocity();
+					Particle.W() += Particle.AngularImpulseVelocity();
+					Particle.LinearImpulseVelocity() = FVec3(0);
+					Particle.AngularImpulseVelocity() = FVec3(0);
+					
+
+					//EtherDragRule.Apply(Particle, Dt);
+					{
+						FVec3& V = Particle.V();
+						FVec3& W = Particle.W();
+
+						const FReal LinearDrag = LinearEtherDragOverride >= 0 ? LinearEtherDragOverride : Particle.LinearEtherDrag() * Dt;
+						const FReal LinearMultiplier = FMath::Max(FReal(0), FReal(1) - LinearDrag);
+						V *= LinearMultiplier;
+
+						const FReal AngularDrag = AngularEtherDragOverride >= 0 ? AngularEtherDragOverride : Particle.AngularEtherDrag() * Dt;
+						const FReal AngularMultiplier = FMath::Max(FReal(0), FReal(1) - AngularDrag);
+						W *= AngularMultiplier;
+
+						const FReal LinearSpeedSq = V.SizeSquared();
+						const FReal AngularSpeedSq = W.SizeSquared();
+
+						if (LinearSpeedSq > Particle.MaxLinearSpeedSq())
+						{
+							V *= FMath::Sqrt(Particle.MaxLinearSpeedSq() / LinearSpeedSq);
+						}
+
+						if (AngularSpeedSq > Particle.MaxAngularSpeedSq())
+						{
+							W *= FMath::Sqrt(Particle.MaxAngularSpeedSq() / AngularSpeedSq);
+						}
+					}
 
 					if (CVars::HackMaxAngularVelocity >= 0.f)
 					{
@@ -231,7 +264,14 @@ namespace Chaos
 						}
 					}
 
-					EulerStepRule.Apply(Particle, Dt);
+					//EulerStepRule.Apply(Particle, Dt);
+					FVec3 PCoM = FParticleUtilitiesXR::GetCoMWorldPosition(&Particle);
+					FRotation3 QCoM = FParticleUtilitiesXR::GetCoMWorldRotation(&Particle);
+
+					PCoM = PCoM + Particle.V() * Dt;
+					QCoM = FRotation3::IntegrateRotationWithAngularVelocity(QCoM, Particle.W(), Dt);
+
+					FParticleUtilitiesPQ::SetCoMWorldTransform(&Particle, PCoM, QCoM);
 
 					if (!Particle.CCDEnabled())
 					{

@@ -70,7 +70,7 @@ namespace Chaos
 			const TArray<int32>& ElementIndices = PointToTriangleMap[Index];
 			for (const int32 ElementIndex : ElementIndices)
 			{
-				InParticles.F(Index) += Forces[ElementIndex];
+				InParticles.Acceleration(Index) += InParticles.InvM(Index) * Forces[ElementIndex];
 			}
 		}
 

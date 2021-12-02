@@ -145,7 +145,7 @@ namespace ChaosTest {
 		// Run the sim
 		for (int32 i = 0; i < NumSteps; ++i)
 		{
-			Test.GetParticle(1)->CastToRigidParticle()->Torque() = Torque;
+			Test.GetParticle(1)->CastToRigidParticle()->SetTorque(Torque);
 			
 			Test.Evolution.AdvanceOneTimeStep(Dt);
 			Test.Evolution.EndFrame(Dt);

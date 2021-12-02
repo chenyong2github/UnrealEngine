@@ -16,7 +16,7 @@ namespace Chaos
 		template<class T_PARTICLES>
 		inline void ApplyHelper(T_PARTICLES& InParticles, const FReal Dt, const int32 Index) const
 		{
-			InParticles.V(Index) += InParticles.LinearImpulse(Index) * InParticles.InvM(Index);
+			InParticles.V(Index) += InParticles.LinearImpulseVelocity(Index);
 		}
 
 		inline void Apply(FDynamicParticles& InParticles, const FReal Dt, const int32 Index) const override //-V762
@@ -38,28 +38,18 @@ namespace Chaos
 			//       Just using W += InvI * (Torque - W x (I * W)) * dt is not correct, since Torque
 			//		 and W are in an inertial frame.
 			//
-#if CHAOS_PARTICLE_ACTORTRANSFORM
-			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index) * InParticles.RotationOfMass(Index), InParticles.InvI(Index));
-#else
-			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index), InParticles.InvI(Index));
-#endif
 
-			InParticles.W(Index) += WorldInvI * InParticles.AngularImpulse(Index);
-			InParticles.LinearImpulse(Index) = FVec3(0);
-			InParticles.AngularImpulse(Index) = FVec3(0);
+			InParticles.W(Index) += InParticles.AngularImpulseVelocity(Index);
+			InParticles.LinearImpulseVelocity(Index) = FVec3(0);
+			InParticles.AngularImpulseVelocity(Index) = FVec3(0);
 		}
 
 		inline void Apply(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal Dt) const override //-V762
 		{
-			Particle.V() += Particle.LinearImpulse() * Particle.InvM();
-#if CHAOS_PARTICLE_ACTORTRANSFORM
-			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R() * Particle.RotationOfMass(), Particle.InvI());
-#else
-			const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R(), Particle.InvI());
-#endif
-			Particle.W() += WorldInvI * Particle.AngularImpulse();
-			Particle.LinearImpulse() = FVec3(0);
-			Particle.AngularImpulse() = FVec3(0);
+			Particle.V() += Particle.LinearImpulseVelocity();
+			Particle.W() += Particle.AngularImpulseVelocity();
+			Particle.LinearImpulseVelocity() = FVec3(0);
+			Particle.AngularImpulseVelocity() = FVec3(0);
 		}
 	};
 

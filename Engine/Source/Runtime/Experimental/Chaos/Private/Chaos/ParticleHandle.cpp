@@ -216,11 +216,41 @@ namespace Chaos
 		});
 	}
 
+	template <typename T, int d, bool bPersistent>
+	void TPBDRigidParticleHandleImp<T, d, bPersistent>::AddTorque(const TVector<T, d>& InTorque, bool bInvalidate)
+	{
+		const FRotation3 RCoM = FParticleUtilitiesPQ::GetCoMWorldRotation(this);
+		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, InvI());
+		SetAngularAcceleration(AngularAcceleration() + WorldInvI * InTorque);
+	}
+
+
+	template <typename T, int d, bool bPersistent>
+	void TPBDRigidParticleHandleImp<T, d, bPersistent>::SetTorque(const TVector<T, d>& InTorque, bool bInvalidate)
+	{
+		const FRotation3 RCoM = FParticleUtilitiesPQ::GetCoMWorldRotation(this);
+		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, InvI());
+		SetAngularAcceleration(WorldInvI * InTorque);
+	}
+
+	template <typename T, int d>
+	void TPBDRigidParticle<T, d>::AddTorque(const TVector<T, d>& InTorque, bool bInvalidate)
+	{
+		const FRotation3 RCoM = FParticleUtilitiesGT::GetCoMWorldRotation(this);
+		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(RCoM, InvI());
+		SetAngularAcceleration(AngularAcceleration() + WorldInvI * InTorque);
+	}
+
 	template class TGeometryParticle<FReal, 3>;
 
 	template class TKinematicGeometryParticle<FReal, 3>;
 
 	template class TPBDRigidParticle<FReal, 3>;
+
+	template class TParticleHandleBase<FReal, 3>;
+	template class TGeometryParticleHandleImp<FReal, 3, true>;
+	template class TKinematicGeometryParticleHandleImp<FReal, 3, true>;
+	template class TPBDRigidParticleHandleImp<FReal, 3, true>;
 
 	template <>
 	void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EChaosPropertyFlags DirtyBits, bool bInvalidate )

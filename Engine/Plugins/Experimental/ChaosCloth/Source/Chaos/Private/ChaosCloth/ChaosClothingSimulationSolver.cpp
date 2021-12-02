@@ -722,7 +722,7 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 					}
 				}
 
-				Particles.F(Index) += Forces;
+				Particles.Acceleration(Index) += Forces * Particles.InvM(Index);
 			};
 	}
 }
