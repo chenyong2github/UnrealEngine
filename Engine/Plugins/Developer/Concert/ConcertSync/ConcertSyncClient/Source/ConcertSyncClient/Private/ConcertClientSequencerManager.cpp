@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientSequencerManager.h"
+#include "ConcertSequencerMessages.h"
 #include "Delegates/IDelegateInstance.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/QualifiedFrameTime.h"
@@ -133,7 +134,8 @@ void FConcertClientSequencerManager::OnSequencerCreated(TSharedRef<ISequencer> I
 	}
 }
 
-TArray<FConcertClientSequencerManager::FOpenSequencerData*, TInlineAllocator<1>> FConcertClientSequencerManager::GatherRootSequencersByState(const FConcertSequencerState& InSequenceState)
+TArray<FConcertClientSequencerManager::FOpenSequencerData*, TInlineAllocator<1>>
+FConcertClientSequencerManager::GatherRootSequencersByState(const FString& InSequenceObjectPath)
 {
 	TArray<FOpenSequencerData*, TInlineAllocator<1>> OutSequencers;
 	for (FOpenSequencerData& Entry : OpenSequencers)
@@ -141,7 +143,7 @@ TArray<FConcertClientSequencerManager::FOpenSequencerData*, TInlineAllocator<1>>
 		TSharedPtr<ISequencer> Sequencer = Entry.WeakSequencer.Pin();
 		UMovieSceneSequence*   Sequence = Sequencer.IsValid() ? Sequencer->GetRootMovieSceneSequence() : nullptr;
 
-		if (Sequence && (Sequence->GetPathName() == InSequenceState.SequenceObjectPath || CVarEnableUnrelatedTimelineSync.GetValueOnAnyThread() > 0))
+		if (Sequence && (Sequence->GetPathName() == InSequenceObjectPath || CVarEnableUnrelatedTimelineSync.GetValueOnAnyThread() > 0))
 		{
 			OutSequencers.Add(&Entry);
 		}
@@ -172,6 +174,7 @@ void FConcertClientSequencerManager::Register(TSharedRef<IConcertClientSession> 
 	InSession->RegisterCustomEventHandler<FConcertSequencerCloseEvent>(this, &FConcertClientSequencerManager::OnCloseEvent);
 	InSession->RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertClientSequencerManager::OnOpenEvent);
 	InSession->RegisterCustomEventHandler<FConcertSequencerStateSyncEvent>(this, &FConcertClientSequencerManager::OnSyncEvent);
+	InSession->RegisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this, &FConcertClientSequencerManager::OnTimeAdjustmentEvent);
 }
 
 void FConcertClientSequencerManager::Unregister(TSharedRef<IConcertClientSession> InSession)
@@ -184,6 +187,7 @@ void FConcertClientSequencerManager::Unregister(TSharedRef<IConcertClientSession
 		Session->UnregisterCustomEventHandler<FConcertSequencerCloseEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertSequencerOpenEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertSequencerStateSyncEvent>(this);
+		Session->UnregisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this);
 	}
 	WeakSession.Reset();
 }
@@ -280,7 +284,7 @@ void FConcertClientSequencerManager::OnSyncEvent(const FConcertSessionContext& I
 	{
 		FConcertSequencerState& SequencerState = SequencerStates.FindOrAdd(*State.SequenceObjectPath);
 		SequencerState = State;
-		for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(SequencerState))
+		for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(SequencerState.SequenceObjectPath))
 		{
 			TSharedPtr<ISequencer> Sequencer = OpenSequencer->WeakSequencer.Pin();
 			if (Sequencer.IsValid() && IsSequencerPlaybackSyncEnabled())
@@ -395,7 +399,7 @@ void FConcertClientSequencerManager::ApplyTransportCloseEvent(const FConcertSequ
 		if (PendingClose.bControllerClose)
 		{
 			SequencerState->PlayerStatus = EConcertMovieScenePlayerStatus::Stopped;
-			for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(*SequencerState))
+			for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(SequencerState->SequenceObjectPath))
 			{
 				OpenSequencer->PlaybackMode = EPlaybackMode::Undefined;
 				TSharedPtr<ISequencer> Sequencer = OpenSequencer->WeakSequencer.Pin();
@@ -554,6 +558,101 @@ void FConcertClientSequencerManager::OnTransportEvent(const FConcertSessionConte
 	PendingSequencerEvents.Add(InEvent.State);
 }
 
+void FConcertClientSequencerManager::OnTimeAdjustmentEvent(const FConcertSessionContext&, const FConcertSequencerTimeAdjustmentEvent& TimeAdjustmentEvent)
+{
+	PendingTimeAdjustmentEvents.Add(TimeAdjustmentEvent);
+}
+
+void FConcertClientSequencerManager::ApplyTimeAdjustmentEvent(const FConcertSequencerTimeAdjustmentEvent& TimeEvent)
+{
+	if (bRespondingToTransportEvent)
+	{
+		return;
+	}
+
+	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("Apply Time adjustment Event: %s"), *TimeEvent.SequenceObjectPath);
+	TGuardValue<bool> ReentrancyGuard(bRespondingToTransportEvent, true);
+
+	if (GIsEditor)
+	{
+		ApplyTimeAdjustmentSequencers(TimeEvent);
+	}
+	else if (CVarEnableSequencePlayer.GetValueOnAnyThread() > 0)
+	{
+		ApplyTimeAdjustmentPlayers(TimeEvent);
+	}
+}
+
+bool ApplyStartFrameToMovieScene(FFrameNumber StartFrame, UMovieScene* MovieScene)
+{
+	check(MovieScene);
+
+	FFrameNumber DeltaFrame = StartFrame - MovieScene->GetPlaybackRange().GetLowerBoundValue();
+	if (DeltaFrame == 0)
+	{
+		return false;
+	}
+
+	for (UMovieSceneSection* Section : MovieScene->GetAllSections())
+	{
+		Section->ComputeEffectiveRange();
+		Section->MoveSection(DeltaFrame);
+	}
+	MovieScene->SetPlaybackRange(TRange<FFrameNumber>(StartFrame, TNumericLimits<int32>::Max() - 1), false);
+
+	return true;
+}
+
+void FConcertClientSequencerManager::ApplyTimeAdjustmentSequencers(const FConcertSequencerTimeAdjustmentEvent& TimeEvent)
+{
+	for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(TimeEvent.SequenceObjectPath))
+	{
+		ISequencer* Sequencer = OpenSequencer->WeakSequencer.Pin().Get();
+		// If the entry is driving playback (PlaybackMode == Controller) then we never respond time adjustment events.
+		if (!Sequencer || OpenSequencer->PlaybackMode == EPlaybackMode::Controller)
+		{
+			continue;
+		}
+
+		// Adjust the range of the sequencer based on the time provided.
+		//
+		UMovieScene* MovieScene = Sequencer->GetRootMovieSceneSequence()->GetMovieScene();
+		if (MovieScene)
+		{
+			if (ApplyStartFrameToMovieScene(TimeEvent.PlaybackStartFrame, MovieScene))
+			{
+				FFrameRate FrameRate = MovieScene->GetTickResolution();
+				double CurrentTimeSeconds = FrameRate.AsSeconds(FFrameTime(TimeEvent.PlaybackStartFrame));
+				TRange<double> NewRange(CurrentTimeSeconds, CurrentTimeSeconds+10.0);
+				Sequencer->SetViewRange(NewRange, EViewRangeInterpolation::Immediate);
+				Sequencer->SetClampRange(Sequencer->GetViewRange());
+			}
+		}
+
+	}
+}
+
+void FConcertClientSequencerManager::ApplyTimeAdjustmentPlayers(const FConcertSequencerTimeAdjustmentEvent& TimeEvent)
+{
+	FSequencePlayer* SeqPlayer = SequencePlayers.Find(*TimeEvent.SequenceObjectPath);
+
+	if (!SeqPlayer)
+	{
+		return;
+	}
+
+	ALevelSequenceActor* LevelSequenceActor = SeqPlayer->Actor.Get();
+	if (LevelSequenceActor && LevelSequenceActor->SequencePlayer)
+	{
+		UMovieScene* MovieScene = LevelSequenceActor->LevelSequenceAsset->GetMovieScene();
+		if (MovieScene)
+		{
+			ApplyStartFrameToMovieScene(TimeEvent.PlaybackStartFrame, MovieScene);
+		}
+	}
+}
+
+
 void FConcertClientSequencerManager::ApplyTransportEvent(const FConcertSequencerState& EventState)
 {
 	if (bRespondingToTransportEvent)
@@ -591,7 +690,7 @@ void FConcertClientSequencerManager::ApplyEventToSequencers(const FConcertSequen
 	float LatencyCompensationMs = GetLatencyCompensationMs();
 
 	// Update all opened sequencer with this root sequence
-	for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(EventState))
+	for (FOpenSequencerData* OpenSequencer : GatherRootSequencersByState(EventState.SequenceObjectPath))
 	{
 		ISequencer* Sequencer = OpenSequencer->WeakSequencer.Pin().Get();
 		// If the entry is driving playback (PlaybackMode == Controller) then we never respond to external transport events
@@ -834,6 +933,12 @@ void FConcertClientSequencerManager::OnEndFrame()
 		ApplyTransportEvent(State);
 	}
 	PendingSequencerEvents.Reset();
+
+	for (const FConcertSequencerTimeAdjustmentEvent& Event : PendingTimeAdjustmentEvents)
+	{
+		ApplyTimeAdjustmentEvent(Event);
+	}
+	PendingTimeAdjustmentEvents.Reset();
 }
 
 void FConcertClientSequencerManager::AddReferencedObjects(FReferenceCollector& Collector)
