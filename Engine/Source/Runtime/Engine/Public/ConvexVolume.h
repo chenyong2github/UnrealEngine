@@ -14,27 +14,26 @@
 struct FOutcode
 {
 private:
-
-	uint32	Inside : 1,
-				Outside : 1;
+	bool bInside;
+	bool bOutside;
 
 public:
 
 	// Constructor.
 
 	FOutcode():
-		Inside(0), Outside(0)
+		bInside(false), bOutside(false)
 	{}
-	FOutcode(bool InInside,bool InOutside):
-		Inside(InInside), Outside(InOutside)
+	FOutcode(bool bInInside,bool bInOutside):
+		bInside(bInInside), bOutside(bInOutside)
 	{}
 
 	// Accessors.
 
-	FORCEINLINE void SetInside(bool NewInside) { Inside = NewInside; }
-	FORCEINLINE void SetOutside(bool NewOutside) { Outside = NewOutside; }
-	FORCEINLINE bool GetInside() const { return Inside; }
-	FORCEINLINE bool GetOutside() const { return Outside; }
+	FORCEINLINE void SetInside(bool bNewInside) { bInside = bNewInside; }
+	FORCEINLINE void SetOutside(bool bNewOutside) { bOutside = bNewOutside; }
+	FORCEINLINE bool GetInside() const { return bInside; }
+	FORCEINLINE bool GetOutside() const { return bOutside; }
 };
 
 //

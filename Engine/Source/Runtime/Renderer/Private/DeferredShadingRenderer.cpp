@@ -655,8 +655,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 				continue;
 			}
 				
-			// Check if the primitive has been distance culled already during frustum culling
-			if (View.DistanceCullingPrimitiveMap[PrimitiveIndex])
+			// Check if the primitive has been culled already during frustum culling
+			if (!View.PrimitiveVisibilityMap[PrimitiveIndex])
 			{
 				continue;
 			}

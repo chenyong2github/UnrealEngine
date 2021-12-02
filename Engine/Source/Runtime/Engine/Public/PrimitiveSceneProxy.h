@@ -701,14 +701,6 @@ public:
 	}
 
 	/**
-	* Returns whether this proxy is always visible.
-	*/
-	inline bool IsAlwaysVisible() const
-	{
-		return bAlwaysVisible;
-	}
-
-	/**
 	 *	Returns whether the proxy utilizes custom occlusion bounds or not
 	 *
 	 *	@return	bool		true if custom occlusion bounds are used, false if not;
@@ -1105,9 +1097,6 @@ protected:
 
 	/** Whether this proxy is a Nanite mesh. */
 	uint8 bIsNaniteMesh : 1;
-
-	/** Whether this proxy is always visible. */
-	uint8 bAlwaysVisible : 1;
 
 	/** Whether the primitive supports the GPUScene instance data buffer. */
 	uint8 bSupportsInstanceDataBuffer : 1;

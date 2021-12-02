@@ -201,11 +201,11 @@ static bool MobileDetermineStaticMeshesCSMVisibilityState(FScene* Scene, FViewIn
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_ShadowOctreeTraversal);
 		// Find primitives that are in a shadow frustum in the octree.
-		Scene->PrimitiveOctree.FindElementsWithPredicate([&IsReceiverFunc](const FBoxCenterAndExtent& NodeBounds)
+		Scene->PrimitiveOctree.FindElementsWithPredicate([&IsReceiverFunc](FScenePrimitiveOctree::FNodeIndex /*ParentNodeIndex*/, FScenePrimitiveOctree::FNodeIndex /*NodeIndex*/, const FBoxCenterAndExtent& NodeBounds)
 		{
 			return IsReceiverFunc(FVector(NodeBounds.Center), FVector(NodeBounds.Extent), NodeBounds.Extent.Size3());
 		},
-		[&bFoundReceiver, Scene, &View, WholeSceneShadow, &IsReceiverFunc](const FPrimitiveSceneInfoCompact& Primitive)
+		[&bFoundReceiver, Scene, &View, WholeSceneShadow, &IsReceiverFunc](FScenePrimitiveOctree::FNodeIndex /*ParentNodeIndex*/, const FPrimitiveSceneInfoCompact& Primitive)
 		{
 			// gather the shadows for this one primitive
 			bFoundReceiver = MobileDetermineStaticMeshesCSMVisibilityStateInner(Scene, View, Primitive, WholeSceneShadow, IsReceiverFunc) || bFoundReceiver;

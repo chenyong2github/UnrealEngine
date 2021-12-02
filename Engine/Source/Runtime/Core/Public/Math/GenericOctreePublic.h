@@ -30,6 +30,8 @@ public:
 		return NodeIndex != INDEX_NONE;
 	}
 
+	uint32 GetNodeIndex() const { return NodeIndex; }
+
 private:
 
 	/** The node the element is in. */
