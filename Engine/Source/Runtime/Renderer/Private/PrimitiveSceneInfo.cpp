@@ -164,6 +164,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bIndirectLightingCacheBufferDirty(false),
 	bRegisteredVirtualTextureProducerCallback(false),
 	bRegisteredWithVelocityData(false),
+	LevelUpdateNotificationIndex(INDEX_NONE),
 	InstanceSceneDataOffset(INDEX_NONE),
 	NumInstanceSceneDataEntries(0),
 	InstancePayloadDataOffset(INDEX_NONE),
@@ -1339,15 +1340,18 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 		INC_MEMORY_STAT_BY(STAT_PrimitiveInfoMemory, sizeof(*SceneInfo) + SceneInfo->StaticMeshes.GetAllocatedSize() + SceneInfo->StaticMeshRelevances.GetAllocatedSize() + Proxy->GetMemoryFootprint());
 	}
 
-	// Some primitive types cannot add their meshes until the level is added to the world.
-	for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 	{
-		if (SceneInfo->Proxy->ShouldNotifyOnWorldAddRemove())
+		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_AddToScene_LevelNotifyPrimitives, FColor::Blue);
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
-			TArray<FPrimitiveSceneInfo*>& LevelNotifyPrimitives = Scene->PrimitivesNeedingLevelUpdateNotification.FindOrAdd(SceneInfo->Proxy->GetLevelName());
-			LevelNotifyPrimitives.Add(SceneInfo);
+			if (SceneInfo->Proxy->ShouldNotifyOnWorldAddRemove())
+			{
+				TArray<FPrimitiveSceneInfo*>& LevelNotifyPrimitives = Scene->PrimitivesNeedingLevelUpdateNotification.FindOrAdd(SceneInfo->Proxy->GetLevelName());
+				SceneInfo->LevelUpdateNotificationIndex = LevelNotifyPrimitives.Num();
+				LevelNotifyPrimitives.Add(SceneInfo);
+			}
 		}
-	}	
+	}
 }
 
 void FPrimitiveSceneInfo::RemoveStaticMeshes()
@@ -1442,10 +1446,16 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 		TArray<FPrimitiveSceneInfo*>* LevelNotifyPrimitives = Scene->PrimitivesNeedingLevelUpdateNotification.Find(Proxy->GetLevelName());
 		if (LevelNotifyPrimitives != nullptr)
 		{
-			LevelNotifyPrimitives->Remove(this);
+			checkSlow(LevelUpdateNotificationIndex != INDEX_NONE);
+			LevelNotifyPrimitives->RemoveAtSwap(LevelUpdateNotificationIndex, 1, false);
 			if (LevelNotifyPrimitives->Num() == 0)
 			{
 				Scene->PrimitivesNeedingLevelUpdateNotification.Remove(Proxy->GetLevelName());
+			}
+			else if (LevelUpdateNotificationIndex < LevelNotifyPrimitives->Num())
+			{
+				// Update swapped element's LevelUpdateNotificationIndex
+				((*LevelNotifyPrimitives)[LevelUpdateNotificationIndex])->LevelUpdateNotificationIndex = LevelUpdateNotificationIndex;
 			}
 		}
 	}

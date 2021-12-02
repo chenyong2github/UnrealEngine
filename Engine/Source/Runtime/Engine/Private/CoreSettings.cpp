@@ -18,6 +18,7 @@ float GLevelStreamingActorsUpdateTimeLimit = 5.0f;
 float GPriorityLevelStreamingActorsUpdateExtraTime = 5.0f;
 float GLevelStreamingUnregisterComponentsTimeLimit = 1.0f;
 int32 GLevelStreamingComponentsRegistrationGranularity = 10;
+int32 GLevelStreamingAddPrimitiveGranularity = 120;
 int32 GLevelStreamingComponentsUnregistrationGranularity = 5;
 int32 GLevelStreamingForceGCAfterLevelStreamedOut = 1;
 int32 GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = 1;
@@ -81,6 +82,13 @@ static FAutoConsoleVariableRef CVarLevelStreamingComponentsRegistrationGranulari
 	TEXT("Batching granularity used to register actor components during level streaming."),
 	ECVF_Default
 	);
+
+static FAutoConsoleVariableRef CVarLevelStreamingAddPrimitiveGranularity(
+	TEXT("s.LevelStreamingAddPrimitiveGranularity"),
+	GLevelStreamingAddPrimitiveGranularity,
+	TEXT("Batching granularity used to add primitives to scene in parallel when registering actor components during level streaming."),
+	ECVF_Default
+);
 
 static FAutoConsoleVariableRef CVarLevelStreamingComponentsUnregistrationGranularity(
 	TEXT("s.LevelStreamingComponentsUnregistrationGranularity"),
@@ -148,6 +156,7 @@ UStreamingSettings::UStreamingSettings()
 	LevelStreamingActorsUpdateTimeLimit = 5.0f;
 	PriorityLevelStreamingActorsUpdateExtraTime = 5.0f;
 	LevelStreamingComponentsRegistrationGranularity = 10;
+	LevelStreamingAddPrimitiveGranularity = 120;
 	LevelStreamingUnregisterComponentsTimeLimit = 1.0f;
 	LevelStreamingComponentsUnregistrationGranularity = 5;
 	EventDrivenLoaderEnabled = false;

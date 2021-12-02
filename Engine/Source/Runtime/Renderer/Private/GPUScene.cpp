@@ -217,6 +217,13 @@ struct FLightMapUploadInfo
 	int32 LightmapDataOffset = 0;
 };
 
+// TODO: Temporary hack : For FPrimitiveSceneProxy::IsForceHidden() to work with Nanite proxies, return an invalid primitive ID if IsForceHidden() returns true.
+static FORCEINLINE int32 GetPrimitiveID(const FScene& InScene, const int32 InPrimitiveID)
+{
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy = InScene.PrimitiveSceneProxies[InPrimitiveID];
+	return (PrimitiveSceneProxy->IsNaniteMesh() && PrimitiveSceneProxy->IsForceHidden()) ? INVALID_PRIMITIVE_ID : InPrimitiveID;
+}
+
 /**
  * Implements a thin data abstraction such that the UploadGeneral function can upload primitive data from
  * both scene primitives and dynamic primitives (which are not stored in the same way). 
@@ -292,7 +299,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 			InstanceUploadInfo.InstanceSceneDataOffset = PrimitiveSceneInfo->GetInstanceSceneDataOffset();
 			InstanceUploadInfo.LastUpdateSceneFrameNumber = SceneFrameNumber;
-			InstanceUploadInfo.PrimitiveID = PrimitiveID;
+			InstanceUploadInfo.PrimitiveID = GetPrimitiveID(Scene, PrimitiveID);
 			InstanceUploadInfo.PrimitiveToWorld = AbsoluteOrigin.MakeToRelativeWorldMatrix(LocalToWorld);
 
 			{
@@ -452,7 +459,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 				if (PrimitiveSceneInfo->GetInstanceSceneDataOffset() >= 0)
 				{
 					InstanceSceneDataToClear.SetRange(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), PrimitiveSceneInfo->GetNumInstanceSceneDataEntries(), false);
-					IdOnlyUpdateData.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), PrimitiveSceneInfo->GetNumInstanceSceneDataEntries(), PrimitiveId);
+					IdOnlyUpdateData.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), PrimitiveSceneInfo->GetNumInstanceSceneDataEntries(), GetPrimitiveID(Scene, PrimitiveId));
 				}
 			}
 		}
