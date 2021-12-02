@@ -74,6 +74,7 @@ public:
 	inline FName GetActorLabel() const { return ActorLabel; }
 	inline FName GetFolderPath() const { return FolderPath; }
 	FBox GetBounds() const;
+	inline const FGuid& GetParentActor() const { return ParentActor; }
 
 	FName GetActorName() const;
 
@@ -180,6 +181,8 @@ protected:
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
 	FName							FolderPath;
+
+	FGuid							ParentActor; // Used to validate settings against parent (to warn on layer/placement compatibility issues)
 	
 	// Transient
 	mutable uint32					SoftRefCount;

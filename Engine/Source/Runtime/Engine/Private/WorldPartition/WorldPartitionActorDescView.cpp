@@ -89,6 +89,12 @@ FName FWorldPartitionActorDescView::GetActorLabel() const
 	return ActorDesc->GetActorLabel();
 }
 
+FName FWorldPartitionActorDescView::GetActorName() const
+{
+	return ActorDesc->GetActorName();
+}
+
+
 FBox FWorldPartitionActorDescView::GetBounds() const
 {
 	return ActorDesc->GetBounds();
@@ -107,6 +113,11 @@ FString FWorldPartitionActorDescView::ToString() const
 uint32 FWorldPartitionActorDescView::GetTag() const
 {
 	return ActorDesc->Tag;
+}
+
+const FGuid& FWorldPartitionActorDescView::GetParentActor() const
+{
+	return ActorDesc->GetParentActor();
 }
 
 bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const

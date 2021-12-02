@@ -60,6 +60,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Add support for different external actor packaging schemes
 		AddLevelActorPackagingScheme,
 
+		// Add support for linking to the attached parent actor in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeAttachParent,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
