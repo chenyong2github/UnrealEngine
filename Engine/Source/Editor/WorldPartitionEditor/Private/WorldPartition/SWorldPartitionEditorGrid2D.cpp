@@ -265,6 +265,12 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 	return FReply::Unhandled();
 }
 
+FReply SWorldPartitionEditorGrid2D::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	MoveCameraHere();
+	return FReply::Handled();
+}
+
 FReply SWorldPartitionEditorGrid2D::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	const FVector2D CursorDelta = MouseEvent.GetCursorDelta();
