@@ -672,10 +672,10 @@ public:
 	REWIND_PARTICLE_STATIC_PROPERTY(NonFrequentData, DebugName)
 #endif
 
-	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, F)
-	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, Torque)
-	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, LinearImpulse)
-	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, AngularImpulse)
+	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, Acceleration)
+	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, AngularAcceleration)
+	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, LinearImpulseVelocity)
+	REWIND_PARTICLE_ZERO_PROPERTY(Dynamics, AngularImpulseVelocity)
 
 	TShapesArrayState<FGeometryParticleHandle> ShapesArray() const
 	{

@@ -335,21 +335,21 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 						for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
 						{
 							const auto LocalPreFrameData = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Obj.Frame-1, (Chaos::FFrameAndPhase::EParticleHistoryPhase)i);
-							if (Obj.DebugState[i].Force != LocalPreFrameData.F())
+							if (Obj.DebugState[i].Force != LocalPreFrameData.Acceleration())
 							{
-								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] FORCE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.F().ToString(), *Obj.DebugState[i].Force.ToString());
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] FORCE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.Acceleration().ToString(), *Obj.DebugState[i].Force.ToString());
 							}
-							if (Obj.DebugState[i].Torque != LocalPreFrameData.Torque())
+							if (Obj.DebugState[i].Torque != LocalPreFrameData.AngularAcceleration())
 							{
-								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] TORQUE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.Torque().ToString(), *Obj.DebugState[i].Torque.ToString());
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] TORQUE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.AngularAcceleration().ToString(), *Obj.DebugState[i].Torque.ToString());
 							}
-							if (Obj.DebugState[i].LinearImpulse != LocalPreFrameData.LinearImpulse())
+							if (Obj.DebugState[i].LinearImpulse != LocalPreFrameData.LinearImpulseVelocity())
 							{
-								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] LINEAR IMPULSE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.LinearImpulse().ToString(), *Obj.DebugState[i].LinearImpulse.ToString());
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] LINEAR IMPULSE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.LinearImpulseVelocity().ToString(), *Obj.DebugState[i].LinearImpulse.ToString());
 							}
-							if (Obj.DebugState[i].AngularImpulse != LocalPreFrameData.AngularImpulse())
+							if (Obj.DebugState[i].AngularImpulse != LocalPreFrameData.AngularImpulseVelocity())
 							{
-								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] ANGULAR IMPULSE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.AngularImpulse().ToString(), *Obj.DebugState[i].AngularImpulse.ToString());
+								UE_LOG(LogNetworkPhysics, Warning, TEXT("Previous Frame [%d] Phase [%d] ANGULAR IMPULSE mismatch. Local: %s. Server: %s"), PreSimulationFrame, i, *LocalPreFrameData.AngularImpulseVelocity().ToString(), *Obj.DebugState[i].AngularImpulse.ToString());
 							}
 						}
 					}
@@ -473,10 +473,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 						for (int32 i=(int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::PrePushData; i < (int32)Chaos::FFrameAndPhase::EParticleHistoryPhase::NumPhases; ++i)
 						{
 							Chaos::FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), PreStorageFrame, (Chaos::FFrameAndPhase::EParticleHistoryPhase)i);
-							Obj.DebugState[i].Force = State.F();
-							Obj.DebugState[i].Torque = State.Torque();
-							Obj.DebugState[i].LinearImpulse = State.LinearImpulse();
-							Obj.DebugState[i].AngularImpulse = State.AngularImpulse();
+							Obj.DebugState[i].Force = State.Acceleration();
+							Obj.DebugState[i].Torque = State.AngularAcceleration();
+							Obj.DebugState[i].LinearImpulse = State.LinearImpulseVelocity();
+							Obj.DebugState[i].AngularImpulse = State.AngularImpulseVelocity();
 
 							if (UE_NETWORK_PHYSICS::LogImpulses > 0)
 							{

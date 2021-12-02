@@ -24,7 +24,7 @@ namespace Chaos
 		template<class T_PARTICLES>
 		inline void ApplyHelper(T_PARTICLES& InParticles, const FReal Dt, const int Index) const
 		{
-			InParticles.F(Index) += MAcceleration * InParticles.M(Index);
+			InParticles.Acceleration(Index) += MAcceleration;
 		}
 		inline void Apply(FPBDParticles& InParticles, const FReal Dt, const int Index) const override //-V762
 		{
@@ -35,7 +35,7 @@ namespace Chaos
 		{
 			if(Particle.GravityEnabled())
 			{
-				Particle.F() += MAcceleration * Particle.M();
+				Particle.Acceleration() += MAcceleration;
 			}
 		}
 

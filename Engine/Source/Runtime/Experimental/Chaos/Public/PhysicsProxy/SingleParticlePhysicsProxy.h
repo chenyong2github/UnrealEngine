@@ -442,17 +442,36 @@ public:
 		return EResimType::FullResim;
 	}
 
-	const FVec3 F() const
+	const FVec3 Acceleration() const
 	{
 		return Read([](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
-				return Rigid->F();
+				return Rigid->Acceleration();
 			}
 
 			return FVec3(0);
 		});
+	}
+	
+	void SetAcceleration(const FVec3& Acceleration, bool bInvalidate = true)
+	{
+		Write([&Acceleration, bInvalidate, this](auto* Particle)
+			{
+				if (auto Rigid = Particle->CastToRigidParticle())
+				{
+					if (Rigid->ObjectState() == EObjectStateType::Sleeping || Rigid->ObjectState() == EObjectStateType::Dynamic)
+					{
+						if (bInvalidate)
+						{
+							SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
+						}
+
+						Rigid->SetAcceleration(Acceleration);
+					}
+				}
+			});
 	}
 
 	void AddForce(const FVec3& InForce, bool bInvalidate = true)
@@ -474,13 +493,32 @@ public:
 		});
 	}
 
-	const FVec3 Torque() const
+	void SetAngularAcceleration(const FVec3& AngularAcceleration, bool bInvalidate = true)
+	{
+		Write([&AngularAcceleration, bInvalidate, this](auto* Particle)
+			{
+				if (auto Rigid = Particle->CastToRigidParticle())
+				{
+					if (Rigid->ObjectState() == EObjectStateType::Sleeping || Rigid->ObjectState() == EObjectStateType::Dynamic)
+					{
+						if (bInvalidate)
+						{
+							SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
+						}
+
+						Rigid->SetAngularAcceleration(AngularAcceleration);
+					}
+				}
+			});
+	}
+
+	const FVec3 AngularAcceleration() const
 	{
 		return Read([](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
-				return Rigid->Torque();
+				return Rigid->AngularAcceleration();
 			}
 
 			return FVec3(0);
@@ -506,22 +544,35 @@ public:
 		});
 	}
 
-	const FVec3 LinearImpulse() const
+	const FVec3 LinearImpulseVelocity() const
 	{
 		return Read([](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
-				return Rigid->LinearImpulse();
+				return Rigid->LinearImpulseVelocity();
 			}
 
 			return FVec3(0);
 		});
 	}
 
-	void SetLinearImpulse(const FVec3& InLinearImpulse, bool bInvalidate = true)
+	const FVec3 LinearImpulse() const
 	{
-		Write([&InLinearImpulse, bInvalidate, this](auto* Particle)
+		return Read([](auto* Particle)
+		{
+			if (auto Rigid = Particle->CastToRigidParticle())
+			{
+				return Rigid->LinearImpulseVelocity() * Rigid->M();
+			}
+
+			return FVec3(0);
+		});
+	}
+
+	void SetLinearImpulse(const FVec3& InLinearImpulse, bool bIsVelocity, bool bInvalidate = true)
+	{
+		Write([&InLinearImpulse, bIsVelocity, bInvalidate, this](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
@@ -531,9 +582,30 @@ public:
 					{
 						SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
 					}
-					Rigid->SetLinearImpulse(InLinearImpulse, bInvalidate);
+
+					if (bIsVelocity)
+					{
+						Rigid->SetLinearImpulseVelocity(InLinearImpulse, bInvalidate);
+					}
+					else
+					{
+						Rigid->SetLinearImpulseVelocity(InLinearImpulse * Rigid->InvM(), bInvalidate);
+					}
 				}
 			}
+		});
+	}
+
+	const FVec3 AngularImpulseVelocity() const
+	{
+		return Read([](auto* Particle)
+		{
+			if (auto Rigid = Particle->CastToRigidParticle())
+			{
+				return Rigid->AngularImpulseVelocity();
+			}
+
+			return FVec3(0);
 		});
 	}
 
@@ -543,16 +615,17 @@ public:
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
-				return Rigid->AngularImpulse();
+				const FMatrix33 WorldI = Utilities::ComputeWorldSpaceInertia(Rigid->R() * Rigid->RotationOfMass(), Rigid->I());
+				return WorldI * Rigid->AngularImpulseVelocity();
 			}
 
 			return FVec3(0);
 		});
 	}
 
-	void SetAngularImpulse(const FVec3& InAngularImpulse, bool bInvalidate = true)
+	void SetAngularImpulse(const FVec3& InAngularImpulse, bool bIsVelocity, bool bInvalidate = true)
 	{
-		Write([&InAngularImpulse, bInvalidate, this](auto* Particle)
+		Write([&InAngularImpulse, bIsVelocity, bInvalidate, this](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
@@ -562,7 +635,16 @@ public:
 					{
 						SetObjectStateHelper(*GetProxy(), *Rigid, EObjectStateType::Dynamic, true);
 					}
-					Rigid->SetAngularImpulse(InAngularImpulse, bInvalidate);
+
+					if (bIsVelocity)
+					{
+						Rigid->SetAngularImpulseVelocity(InAngularImpulse, bInvalidate);
+					}
+					else
+					{
+						const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Rigid->R() * Rigid->RotationOfMass(), Rigid->InvI());
+						Rigid->SetAngularImpulseVelocity(WorldInvI * InAngularImpulse, bInvalidate);
+					}
 				}
 			}
 		});

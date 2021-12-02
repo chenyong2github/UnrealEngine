@@ -251,7 +251,7 @@ namespace ChaosTest {
 			{
 				if (Step == 5)
 				{
-					Particle.SetLinearImpulse(FVec3(0, 0, 100));
+					Particle.SetLinearImpulse(FVec3(0, 0, 100), /*bIsVelocity=*/false);
 				}
 
 				TickSolverHelper(Solver);
@@ -274,7 +274,7 @@ namespace ChaosTest {
 				{
 					if (Step == 5)
 					{
-						Particle.SetLinearImpulse(FVec3(0, 0, 100));
+						Particle.SetLinearImpulse(FVec3(0, 0, 100), /*bIsVelocity=*/false);
 					}
 
 					if(Step == 15)
@@ -1458,8 +1458,8 @@ namespace ChaosTest {
 					{
 						if (PhysicsStep == 3)
 						{
-							Proxy->GetPhysicsThreadAPI()->AddForce(FVec3(0, 0, 10));
-							Proxy->GetPhysicsThreadAPI()->AddTorque(FVec3(0, 0, 10));
+							Proxy->GetPhysicsThreadAPI()->SetAcceleration(FVec3(0, 0, 10) + Proxy->GetPhysicsThreadAPI()->Acceleration());
+							Proxy->GetPhysicsThreadAPI()->SetAngularAcceleration(FVec3(0, 0, 10) + Proxy->GetPhysicsThreadAPI()->AngularAcceleration());
 						}
 
 					for (int32 Step = 0; Step < PhysicsStep; ++Step)
@@ -1468,28 +1468,28 @@ namespace ChaosTest {
 							FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FFrameAndPhase::EParticleHistoryPhase::PostCallbacks);
 								if (Step == 3)
 								{
-									EXPECT_EQ(State.F()[2], 11);	//1 from GT + 10 from callback
-									EXPECT_EQ(State.Torque()[2], 10);	//10 from callback (nothing from GT)
+									EXPECT_EQ(State.Acceleration()[2], 11);	//1 from GT + 10 from callback
+									EXPECT_EQ(State.AngularAcceleration()[2], 10);	//10 from callback (nothing from GT)
 								}
 								else
 								{
-									EXPECT_EQ(State.F()[2], 1);	//GT always sets force of 1
-									EXPECT_EQ(State.Torque()[2], 0);	//GT never sets torque
+									EXPECT_EQ(State.Acceleration()[2], 1);	//GT always sets force of 1
+									EXPECT_EQ(State.AngularAcceleration()[2], 0);	//GT never sets torque
 								}
 							}
 
 							{
 								//Before push no force or torque at all
 							FGeometryParticleState PrePushState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FFrameAndPhase::EParticleHistoryPhase::PrePushData);
-								EXPECT_EQ(PrePushState.F()[2], 0);
-								EXPECT_EQ(PrePushState.Torque()[2], 0);
+								EXPECT_EQ(PrePushState.Acceleration()[2], 0);
+								EXPECT_EQ(PrePushState.AngularAcceleration()[2], 0);
 							}
 
 							{
 								//After push (but before callback) only see GT force, and no torque
 							FGeometryParticleState PostPushState = RewindData->GetPastStateAtFrame(*Proxy->GetHandle_LowLevel(), Step, FFrameAndPhase::EParticleHistoryPhase::PostPushData);
-								EXPECT_EQ(PostPushState.F()[2], 1);	//GT always sets force of 1
-								EXPECT_EQ(PostPushState.Torque()[2], 0);	//GT never sets torque
+								EXPECT_EQ(PostPushState.Acceleration()[2], 1);	//GT always sets force of 1
+								EXPECT_EQ(PostPushState.AngularAcceleration()[2], 0);	//GT never sets torque
 							}
 							
 						}
@@ -1540,7 +1540,7 @@ namespace ChaosTest {
 					//where step is game step: so really it's step * 4
 					ExpectedForce = Step * 4 + 2.5;
 				}
-				EXPECT_EQ(ParticleState.F()[2], ExpectedForce);
+				EXPECT_EQ(ParticleState.Acceleration()[2], ExpectedForce);
 			}
 		});
 	}
@@ -1581,15 +1581,15 @@ namespace ChaosTest {
 					const float SimTime = Step * SimDt;
 					if (SimTime >= 3 && SimTime < 4)
 					{
-						EXPECT_EQ(ParticleState.F()[2], 3);
+						EXPECT_EQ(ParticleState.Acceleration()[2], 3);
 					}
 					else if (SimTime >= 5 && SimTime < 6)
 					{
-						EXPECT_EQ(ParticleState.F()[2], 5);
+						EXPECT_EQ(ParticleState.Acceleration()[2], 5);
 					}
 					else
 					{
-						EXPECT_EQ(ParticleState.F()[2], 0);
+						EXPECT_EQ(ParticleState.Acceleration()[2], 0);
 					}
 				}
 				else
@@ -1597,15 +1597,15 @@ namespace ChaosTest {
 					//we get an average
 					if (Step == 0)
 					{
-						EXPECT_EQ(ParticleState.F()[2], 3 / 4.f);
+						EXPECT_EQ(ParticleState.Acceleration()[2], 3 / 4.f);
 					}
 					else if (Step == 1)
 					{
-						EXPECT_EQ(ParticleState.F()[2], 5 / 4.f);
+						EXPECT_EQ(ParticleState.Acceleration()[2], 5 / 4.f);
 					}
 					else
 					{
-						EXPECT_EQ(ParticleState.F()[2], 0);
+						EXPECT_EQ(ParticleState.Acceleration()[2], 0);
 					}
 				}
 
@@ -2911,7 +2911,7 @@ namespace ChaosTest {
 			{
 				FRewindData* RewindData = Solver->GetRewindData();
 				//EXPECT_TRUE(RewindData->RewindToFrame(7));
-				EXPECT_EQ(Particle.F()[1], 0);
+				EXPECT_EQ(Particle.Acceleration()[1], 0);
 			}
 
 			// Throw out the proxy

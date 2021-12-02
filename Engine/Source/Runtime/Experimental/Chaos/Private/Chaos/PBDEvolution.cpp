@@ -224,7 +224,7 @@ void FPBDEvolution::PreIterationUpdate(
 			if (MParticles.InvM(Index) != (FReal)0.)  // Process dynamic particles
 			{
 				// Init forces with GravityForces
-				MParticles.F(Index) = Gravity * MParticles.M(Index);  // F = M * G
+				MParticles.Acceleration(Index) = Gravity;
 
 				// Force Rule
 				if (bForceRule)
@@ -239,7 +239,7 @@ void FPBDEvolution::PreIterationUpdate(
 				}
 
 				// Euler Step Velocity
-				MParticles.V(Index) += MParticles.F(Index) * MParticles.InvM(Index) * MSmoothDt;
+				MParticles.V(Index) += MParticles.Acceleration(Index) * MSmoothDt;
 
 				// Damp Velocity Rule
 				if (bDampVelocityRule)

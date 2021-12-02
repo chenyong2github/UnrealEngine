@@ -16,7 +16,7 @@ class FPerParticleEulerStepVelocity : public FPerParticleRule
 	template<class T_PARTICLES>
 	inline void ApplyHelper(T_PARTICLES& InParticles, const FReal Dt, const int32 Index) const
 	{
-		InParticles.V(Index) += InParticles.F(Index) * InParticles.InvM(Index) * Dt;
+		InParticles.V(Index) += InParticles.Acceleration(Index) * Dt;
 	}
 
 	inline void Apply(FDynamicParticles& InParticles, const FReal Dt, const int32 Index) const override //-V762
@@ -39,23 +39,13 @@ class FPerParticleEulerStepVelocity : public FPerParticleRule
 		//       Just using W += InvI * (Torque - W x (I * W)) * dt is not correct, since Torque
 		//		 and W are in an inertial frame.
 		//
-#if CHAOS_PARTICLE_ACTORTRANSFORM
-		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index) * InParticles.RotationOfMass(Index), InParticles.InvI(Index));
-#else
-		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(InParticles.R(Index), InParticles.InvI(Index));
-#endif
-		InParticles.W(Index) += WorldInvI * InParticles.Torque(Index) * Dt;
+		InParticles.W(Index) += InParticles.AngularAcceleration(Index) * Dt;
 	}
 	
 	inline void Apply(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal Dt) const override //-V762
 	{
-		Particle.V() += Particle.F() * Particle.InvM() * Dt;
-#if CHAOS_PARTICLE_ACTORTRANSFORM
-		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R() * Particle.RotationOfMass(), Particle.InvI());
-#else
-		const FMatrix33 WorldInvI = Utilities::ComputeWorldSpaceInertia(Particle.R(Index), Particle.InvI());
-#endif
-		Particle.W() += WorldInvI * Particle.Torque() * Dt;
+		Particle.V() += Particle.Acceleration() * Dt;
+		Particle.W() += Particle.AngularAcceleration() * Dt;
 	}
 };
 

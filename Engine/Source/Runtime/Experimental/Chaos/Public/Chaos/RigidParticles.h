@@ -69,10 +69,10 @@ public:
 	{
 		TArrayCollection::AddArray(&MVSmooth);
 		TArrayCollection::AddArray(&MWSmooth);
-		TArrayCollection::AddArray(&MF);
-		TArrayCollection::AddArray(&MT);
-		TArrayCollection::AddArray(&MLinearImpulse);
-		TArrayCollection::AddArray(&MAngularImpulse);
+		TArrayCollection::AddArray(&MAcceleration);
+		TArrayCollection::AddArray(&MAngularAcceleration);
+		TArrayCollection::AddArray(&MLinearImpulseVelocity);
+		TArrayCollection::AddArray(&MAngularImpulseVelocity);
 		TArrayCollection::AddArray(&MI);
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
@@ -102,10 +102,10 @@ public:
 	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other))
 		, MVSmooth(MoveTemp(Other.MVSmooth))
 		, MWSmooth(MoveTemp(Other.MWSmooth))
-		, MF(MoveTemp(Other.MF))
-		, MT(MoveTemp(Other.MT))
-		, MLinearImpulse(MoveTemp(Other.MLinearImpulse))
-		, MAngularImpulse(MoveTemp(Other.MAngularImpulse))
+		, MAcceleration(MoveTemp(Other.MAcceleration))
+		, MAngularAcceleration(MoveTemp(Other.MAngularAcceleration))
+		, MLinearImpulseVelocity(MoveTemp(Other.MLinearImpulseVelocity))
+		, MAngularImpulseVelocity(MoveTemp(Other.MAngularImpulseVelocity))
 		, MI(MoveTemp(Other.MI)), MInvI(MoveTemp(Other.MInvI))
 		, MM(MoveTemp(Other.MM))
 		, MInvM(MoveTemp(Other.MInvM))
@@ -125,10 +125,10 @@ public:
 	{
 		TArrayCollection::AddArray(&MVSmooth);
 		TArrayCollection::AddArray(&MWSmooth);
-		TArrayCollection::AddArray(&MF);
-		TArrayCollection::AddArray(&MT);
-		TArrayCollection::AddArray(&MLinearImpulse);
-		TArrayCollection::AddArray(&MAngularImpulse);
+		TArrayCollection::AddArray(&MAcceleration);
+		TArrayCollection::AddArray(&MAngularAcceleration);
+		TArrayCollection::AddArray(&MLinearImpulseVelocity);
+		TArrayCollection::AddArray(&MAngularImpulseVelocity);
 		TArrayCollection::AddArray(&MI);
 		TArrayCollection::AddArray(&MInvI);
 		TArrayCollection::AddArray(&MM);
@@ -163,17 +163,17 @@ public:
 	FORCEINLINE const TVector<T, d>& WSmooth(const int32 Index) const { return MWSmooth[Index]; }
 	FORCEINLINE TVector<T, d>& WSmooth(const int32 Index) { return MWSmooth[Index]; }
 
-	FORCEINLINE const TVector<T, d>& Torque(const int32 Index) const { return MT[Index]; }
-	FORCEINLINE TVector<T, d>& Torque(const int32 Index) { return MT[Index]; }
+	FORCEINLINE const TVector<T, d>& AngularAcceleration(const int32 Index) const { return MAngularAcceleration[Index]; }
+	FORCEINLINE TVector<T, d>& AngularAcceleration(const int32 Index) { return MAngularAcceleration[Index]; }
 
-	FORCEINLINE const TVector<T, d>& F(const int32 Index) const { return MF[Index]; }
-	FORCEINLINE TVector<T, d>& F(const int32 Index) { return MF[Index]; }
+	FORCEINLINE const TVector<T, d>& Acceleration(const int32 Index) const { return MAcceleration[Index]; }
+	FORCEINLINE TVector<T, d>& Acceleration(const int32 Index) { return MAcceleration[Index]; }
 
-	FORCEINLINE const TVector<T, d>& LinearImpulse(const int32 Index) const { return MLinearImpulse[Index]; }
-	FORCEINLINE TVector<T, d>& LinearImpulse(const int32 Index) { return MLinearImpulse[Index]; }
+	FORCEINLINE const TVector<T, d>& LinearImpulseVelocity(const int32 Index) const { return MLinearImpulseVelocity[Index]; }
+	FORCEINLINE TVector<T, d>& LinearImpulseVelocity(const int32 Index) { return MLinearImpulseVelocity[Index]; }
 
-	FORCEINLINE const TVector<T, d>& AngularImpulse(const int32 Index) const { return MAngularImpulse[Index]; }
-	FORCEINLINE TVector<T, d>& AngularImpulse(const int32 Index) { return MAngularImpulse[Index]; }
+	FORCEINLINE const TVector<T, d>& AngularImpulseVelocity(const int32 Index) const { return MAngularImpulseVelocity[Index]; }
+	FORCEINLINE TVector<T, d>& AngularImpulseVelocity(const int32 Index) { return MAngularImpulseVelocity[Index]; }
 
 	FORCEINLINE const PMatrix<T, d, d>& I(const int32 Index) const { return MI[Index]; }
 	FORCEINLINE PMatrix<T, d, d>& I(const int32 Index) { return MI[Index]; }
@@ -287,8 +287,8 @@ public:
 	FORCEINLINE FString ToString(int32 index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(index);
-		return FString::Printf(TEXT("%s, MF:%s, MT:%s, MLinearImpulse:%s, MAngularImpulse:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCenterOfMass:%s, MRotationOfMass:%s, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleeping:%d, MIslandIndex:%d"),
-			*BaseString, *F(index).ToString(), *Torque(index).ToString(), *LinearImpulse(index).ToString(), *AngularImpulse(index).ToString(),
+		return FString::Printf(TEXT("%s, MAcceleration:%s, MAngularAcceleration:%s, MLinearImpulseVelocity:%s, MAngularImpulseVelocity:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCenterOfMass:%s, MRotationOfMass:%s, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleeping:%d, MIslandIndex:%d"),
+			*BaseString, *Acceleration(index).ToString(), *AngularAcceleration(index).ToString(), *LinearImpulseVelocity(index).ToString(), *AngularImpulseVelocity(index).ToString(),
 			*I(index).ToString(), *InvI(index).ToString(), M(index), InvM(index), *CenterOfMass(index).ToString(), *RotationOfMass(index).ToString(), CollisionParticlesSize(index),
 			CollisionGroup(index), Disabled(index), Sleeping(index), IslandIndex(index));
 	}
@@ -304,7 +304,7 @@ public:
 			Ar << MRotationOfMass;
 		}
 
-		Ar << MF << MT << MLinearImpulse << MAngularImpulse << MI << MInvI << MM << MInvM;
+		Ar << MAcceleration << MAngularAcceleration << MLinearImpulseVelocity << MAngularImpulseVelocity << MI << MInvI << MM << MInvM;
 
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddDampingToRigids)
@@ -316,10 +316,10 @@ public:
 		//todo: add gravity enabled when we decide how we want to handle serialization
 	}
 
-	FORCEINLINE TArray<TVector<T, d>>& AllF() { return MF; }
-	FORCEINLINE TArray<TVector<T, d>>& AllT() { return MT; }
-	FORCEINLINE TArray<TVector<T, d>>& AllLinearImpulse() { return MLinearImpulse; }
-	FORCEINLINE TArray<TVector<T, d>>& AllAngularImpulse() { return MAngularImpulse; }
+	FORCEINLINE TArray<TVector<T, d>>& AllAcceleration() { return MAcceleration; }
+	FORCEINLINE TArray<TVector<T, d>>& AllAngularAcceleration() { return MAngularAcceleration; }
+	FORCEINLINE TArray<TVector<T, d>>& AllLinearImpulseVelocity() { return MLinearImpulseVelocity; }
+	FORCEINLINE TArray<TVector<T, d>>& AllAngularImpulseVelocity() { return MAngularImpulseVelocity; }
 	FORCEINLINE TArray<PMatrix<T, d, d>>& AllI() { return MI; }
 	FORCEINLINE TArray<PMatrix<T, d, d>>& AllInvI() { return MInvI; }
 	FORCEINLINE TArray<FReal>& AllM() { return MM; }
@@ -338,10 +338,10 @@ public:
 private:
 	TArrayCollectionArray<TVector<T, d>> MVSmooth;
 	TArrayCollectionArray<TVector<T, d>> MWSmooth;
-	TArrayCollectionArray<TVector<T, d>> MF;
-	TArrayCollectionArray<TVector<T, d>> MT;
-	TArrayCollectionArray<TVector<T, d>> MLinearImpulse;
-	TArrayCollectionArray<TVector<T, d>> MAngularImpulse;
+	TArrayCollectionArray<TVector<T, d>> MAcceleration;
+	TArrayCollectionArray<TVector<T, d>> MAngularAcceleration;
+	TArrayCollectionArray<TVector<T, d>> MLinearImpulseVelocity;
+	TArrayCollectionArray<TVector<T, d>> MAngularImpulseVelocity;
 	TArrayCollectionArray<PMatrix<T, d, d>> MI;
 	TArrayCollectionArray<PMatrix<T, d, d>> MInvI;
 	TArrayCollectionArray<T> MM;

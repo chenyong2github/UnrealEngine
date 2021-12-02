@@ -89,8 +89,8 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const FPBDRigidPartic
 {
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.SetCollisionGroup(0);
-	Concrete.SetLinearImpulse(TVector<T, d>(0));
-	Concrete.SetAngularImpulse(TVector<T, d>(0));
+	Concrete.SetLinearImpulseVelocity(TVector<T, d>(0));
+	Concrete.SetAngularImpulseVelocity(TVector<T, d>(0));
 	Concrete.SetMaxLinearSpeedSq(TNumericLimits<T>::Max());
 	Concrete.SetMaxAngularSpeedSq(TNumericLimits<T>::Max());
 	Concrete.SetM(1);
@@ -522,7 +522,7 @@ public:
 	TSerializablePtr<FImplicitObject> Geometry() const { return GeometryParticles->Geometry(ParticleIdx); }
 	void SetGeometry(TSerializablePtr<FImplicitObject> InGeometry) { GeometryParticles->SetGeometry(ParticleIdx, InGeometry); }
 
-	TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> SharedGeometry() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
+	TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe> SharedGeometry() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
 	void SetSharedGeometry(TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe> InGeometry) { GeometryParticles->SetSharedGeometry(ParticleIdx, InGeometry); }
 
 	const TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return GeometryParticles->SharedGeometry(ParticleIdx); }
@@ -841,8 +841,8 @@ protected:
 		SetQ(this->R());
 		SetVSmooth(this->V());
 		SetWSmooth(this->W());
-		SetF(TVector<T, d>(0));
-		SetTorque(TVector<T, d>(0));
+		SetAcceleration(TVector<T, d>(0));
+		SetAngularAcceleration(TVector<T, d>(0));
 		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 		SetIslandIndex(INDEX_NONE);
 		SetConstraintGraphIndex(INDEX_NONE);
@@ -916,31 +916,29 @@ public:
 	TVector<T, d>& WSmooth() { return PBDRigidParticles->WSmooth(ParticleIdx); }
 	void SetWSmooth(const TVector<T, d>& InWSmooth) { PBDRigidParticles->WSmooth(ParticleIdx) = InWSmooth; }
 
-	const TVector<T, d>& F() const { return PBDRigidParticles->F(ParticleIdx); }
-	TVector<T, d>& F() { return PBDRigidParticles->F(ParticleIdx); }
-	void SetF(const TVector<T, d>& InF) { PBDRigidParticles->F(ParticleIdx) = InF; }
+	const TVector<T, d>& Acceleration() const { return PBDRigidParticles->Acceleration(ParticleIdx); }
+	TVector<T, d>& Acceleration() { return PBDRigidParticles->Acceleration(ParticleIdx); }
+	void SetAcceleration(const TVector<T, d>& InAcceleration) { PBDRigidParticles->Acceleration(ParticleIdx) = InAcceleration; }
 
 	void AddForce(const TVector<T, d>& InF, bool bInvalidate = true)
 	{
-		SetF(F() + InF);
+		SetAcceleration(Acceleration() + InF * InvM());
 	}
 
-	const TVector<T, d>& Torque() const { return PBDRigidParticles->Torque(ParticleIdx); }
-	TVector<T, d>& Torque() { return PBDRigidParticles->Torque(ParticleIdx); }
-	void SetTorque(const TVector<T, d>& InTorque) { PBDRigidParticles->Torque(ParticleIdx) = InTorque; }
+	const TVector<T, d>& AngularAcceleration() const { return PBDRigidParticles->AngularAcceleration(ParticleIdx); }
+	TVector<T, d>& AngularAcceleration() { return PBDRigidParticles->AngularAcceleration(ParticleIdx); }
+	void SetAngularAcceleration(const TVector<T, d>& InAngularAcceleration) { PBDRigidParticles->AngularAcceleration(ParticleIdx) = InAngularAcceleration; }
 
-	void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate = true)
-	{
-		SetTorque(Torque() + InTorque);
-	}
+	CHAOS_API void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate = true);
+	CHAOS_API void SetTorque(const TVector<T, d>& InTorque, bool bInvalidate = true);
 
-	const TVector<T, d>& LinearImpulse() const { return PBDRigidParticles->LinearImpulse(ParticleIdx); }
-	TVector<T, d>& LinearImpulse() { return PBDRigidParticles->LinearImpulse(ParticleIdx); }
-	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse, bool bInvalidate = false) { PBDRigidParticles->LinearImpulse(ParticleIdx) = InLinearImpulse; }
+	const TVector<T, d>& LinearImpulseVelocity() const { return PBDRigidParticles->LinearImpulseVelocity(ParticleIdx); }
+	TVector<T, d>& LinearImpulseVelocity() { return PBDRigidParticles->LinearImpulseVelocity(ParticleIdx); }
+	void SetLinearImpulseVelocity(const TVector<T, d>& InLinearImpulseVelocity, bool bInvalidate = false) { PBDRigidParticles->LinearImpulseVelocity(ParticleIdx) = InLinearImpulseVelocity; }
 
-	const TVector<T, d>& AngularImpulse() const { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
-	TVector<T, d>& AngularImpulse() { return PBDRigidParticles->AngularImpulse(ParticleIdx); }
-	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse, bool bInvalidate = false) { PBDRigidParticles->AngularImpulse(ParticleIdx) = InAngularImpulse; }
+	const TVector<T, d>& AngularImpulseVelocity() const { return PBDRigidParticles->AngularImpulseVelocity(ParticleIdx); }
+	TVector<T, d>& AngularImpulseVelocity() { return PBDRigidParticles->AngularImpulseVelocity(ParticleIdx); }
+	void SetAngularImpulseVelocity(const TVector<T, d>& InAngularImpulseVelocity, bool bInvalidate = false) { PBDRigidParticles->AngularImpulseVelocity(ParticleIdx) = InAngularImpulseVelocity; }
 
 	// Resets VSmooth value to something plausible based on external forces to prevent object from going back to sleep if it was just impulsed.
 	void ResetVSmoothFromForces()
@@ -950,10 +948,10 @@ public:
 
 	void SetDynamics(const FParticleDynamics& Dynamics)
 	{
-		SetF(Dynamics.F());
-		SetTorque(Dynamics.Torque());
-		SetLinearImpulse(Dynamics.LinearImpulse());
-		SetAngularImpulse(Dynamics.AngularImpulse());
+		SetAcceleration(Dynamics.Acceleration());
+		SetAngularAcceleration(Dynamics.AngularAcceleration());
+		SetLinearImpulseVelocity(Dynamics.LinearImpulseVelocity());
+		SetAngularImpulseVelocity(Dynamics.AngularImpulseVelocity());
 	}
 
 	void SetMassProps(const FParticleMassProps& Props)
@@ -1501,20 +1499,20 @@ public:
 		return W();
 	}
 
-	const FVec3& F() const
+	const FVec3& Acceleration() const
 	{ 
 		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return MHandle->CastToRigidParticle()->F();
+			return MHandle->CastToRigidParticle()->Acceleration();
 		}
 
 		return ZeroVector;
 	}
-	const FVec3& Torque() const
+	const FVec3& AngularAcceleration() const
 	{ 
 		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
 		{
-			return MHandle->CastToRigidParticle()->Torque();
+			return MHandle->CastToRigidParticle()->AngularAcceleration();
 		}
 
 		return ZeroVector;
@@ -2478,15 +2476,21 @@ public:
 		this->MInitialized = InInitialized;
 	}
 
-	const TVector<T, d>& F() const { return MDynamics.Read().F(); }
+	const TVector<T, d>& Acceleration() const { return MDynamics.Read().Acceleration(); }
+	void SetAcceleration(const FVec3& Acceleration, bool bInvalidate = true)
+	{ 
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [&Acceleration](auto& Data) { Data.SetAcceleration(Acceleration); });
+	}
+
 	void AddForce(const TVector<T, d>& InF, bool bInvalidate = true)
 	{
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF](auto& Data){ Data.SetF(InF + Data.F());});
+		FReal InvMass = InvM();
+		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InF, InvMass](auto& Data){ Data.SetAcceleration(InF * InvMass + Data.Acceleration());});
 	}
 
 	void ClearForces(bool bInvalidate = true)
 	{
-		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetF(FVec3(0)); });
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetAcceleration(FVec3(0)); });
 	}
 
 	void ApplyDynamicsWeight(const FReal DynamicsWeight)
@@ -2495,33 +2499,34 @@ public:
 		{
 			MDynamics.Modify(false, MDirtyFlags, Proxy, [DynamicsWeight](auto& Data)
 			{
-				Data.SetF(Data.F() * DynamicsWeight);
-				Data.SetTorque(Data.Torque() * DynamicsWeight);
+				Data.SetAcceleration(Data.Acceleration() * DynamicsWeight);
+				Data.SetAngularAcceleration(Data.AngularAcceleration() * DynamicsWeight);
 			});
 		}
 	}
 
-	const TVector<T, d>& Torque() const { return MDynamics.Read().Torque(); }
-	void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate=true)
+	const TVector<T, d>& AngularAcceleration() const { return MDynamics.Read().AngularAcceleration(); }
+	void SetAngularAcceleration(const TVector<T, d>& InTorque, bool bInvalidate = true)
 	{
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InTorque](auto& Data){ Data.SetTorque(InTorque + Data.Torque());});
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [&InTorque](auto& Data) { Data.SetAngularAcceleration(InTorque);});
 	}
+	CHAOS_API void AddTorque(const TVector<T, d>& InTorque, bool bInvalidate=true);
 
 	void ClearTorques(bool bInvalidate = true)
 	{
-		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetTorque(FVec3(0)); });
+		MDynamics.Modify(bInvalidate, MDirtyFlags, Proxy, [](auto& Data) { Data.SetAngularAcceleration(FVec3(0)); });
 	}
 
-	const TVector<T, d>& LinearImpulse() const { return MDynamics.Read().LinearImpulse(); }
-	void SetLinearImpulse(const TVector<T, d>& InLinearImpulse, bool bInvalidate = true)
+	const TVector<T, d>& LinearImpulseVelocity() const { return MDynamics.Read().LinearImpulseVelocity(); }
+	void SetLinearImpulseVelocity(const TVector<T, d>& InLinearImpulseVelocity, bool bInvalidate = true)
 	{
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InLinearImpulse](auto& Data){ Data.SetLinearImpulse(InLinearImpulse);});
+		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InLinearImpulseVelocity](auto& Data){ Data.SetLinearImpulseVelocity(InLinearImpulseVelocity);});
 	}
 
-	const TVector<T, d>& AngularImpulse() const { return MDynamics.Read().AngularImpulse(); }
-	void SetAngularImpulse(const TVector<T, d>& InAngularImpulse, bool bInvalidate = true)
+	const TVector<T, d>& AngularImpulseVelocity() const { return MDynamics.Read().AngularImpulseVelocity(); }
+	void SetAngularImpulseVelocity(const TVector<T, d>& InAngularImpulseVelocity, bool bInvalidate = true)
 	{
-		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InAngularImpulse](auto& Data){ Data.SetAngularImpulse(InAngularImpulse);});
+		MDynamics.Modify(bInvalidate,MDirtyFlags,Proxy,[&InAngularImpulseVelocity](auto& Data){ Data.SetAngularImpulseVelocity(InAngularImpulseVelocity);});
 	}
 
 	void SetDynamics(const FParticleDynamics& InDynamics,bool bInvalidate = true)

@@ -470,7 +470,7 @@ namespace ImmediatePhysics_Chaos
 
 		if (FPBDRigidParticleHandle* Rigid = Handle()->CastToRigidParticle())
 		{
-			Rigid->F() += Force;
+			Rigid->AddForce(Force);
 		}
 	}
 
@@ -480,7 +480,7 @@ namespace ImmediatePhysics_Chaos
 
 		if (FPBDRigidParticleHandle * Rigid = Handle()->CastToRigidParticle())
 		{
-			Rigid->Torque() += Torque;
+			Rigid->AddTorque(Torque);
 		}
 	}
 
@@ -515,7 +515,7 @@ namespace ImmediatePhysics_Chaos
 			}
 			else
 			{
-				Rigid->F() += ApplyDelta;
+				Rigid->Acceleration() += ApplyDelta * Rigid->InvM();
 			}
 		}
 	}
@@ -527,8 +527,9 @@ namespace ImmediatePhysics_Chaos
 		if (FPBDRigidParticleHandle* Rigid = Handle()->CastToRigidParticle())
 		{
 			FVector CoM = FParticleUtilities::GetCoMWorldPosition(Rigid);
-			Rigid->LinearImpulse() += Impulse;
-			Rigid->AngularImpulse() += FVector::CrossProduct(Location - CoM, Impulse);
+			Chaos::FMatrix33 InvInertia = FParticleUtilities::GetWorldInvInertia(Rigid);
+			Rigid->LinearImpulseVelocity() += Impulse * Rigid->InvM();
+			Rigid->AngularImpulseVelocity() += InvInertia * FVector::CrossProduct(Location - CoM, Impulse);
 		}
 	}
 

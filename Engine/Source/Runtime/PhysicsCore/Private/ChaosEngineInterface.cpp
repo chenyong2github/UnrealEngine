@@ -734,7 +734,7 @@ void FChaosEngineInterface::AddImpulse_AssumesLocked(const FPhysicsActorHandle& 
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
 	{
 		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		Body_External.SetLinearImpulse(Body_External.LinearImpulse() + InForce);
+		Body_External.SetLinearImpulse(Body_External.LinearImpulse() + InForce, /*bIsVelocity=*/false);
 	}
 }
 
@@ -743,7 +743,7 @@ void FChaosEngineInterface::AddAngularImpulseInRadians_AssumesLocked(const FPhys
 	if(ensure(FChaosEngineInterface::IsValid(InActorReference)))
 	{
 		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		Body_External.SetAngularImpulse(Body_External.AngularImpulse() + InTorque);
+		Body_External.SetAngularImpulse(Body_External.AngularImpulse() + InTorque, /*bIsVelocity=*/false);
 	}
 }
 

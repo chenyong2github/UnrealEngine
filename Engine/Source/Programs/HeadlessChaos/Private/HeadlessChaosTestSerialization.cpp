@@ -396,8 +396,9 @@ namespace ChaosTest
 		Particles.AddParticles(2);
 		Particles.R(0) = FRotation3::Identity;
 		Particles.R(1) = FRotation3::Identity;
-		Particles.F(0) = F[0];
-		Particles.F(1) = F[1];
+
+		Particles.Acceleration(0) = F[0];
+		Particles.Acceleration(1) = F[1];
 		Particles.X(0) = X[0];
 		Particles.X(1) = X[1];
 		Particles.RotationOfMass(0) = FRotation3::FromIdentity();
@@ -412,8 +413,8 @@ namespace ChaosTest
 		for (TRigidParticles<FReal, 3> const &TestParticles : ObjectsToTest)
 		{
 			EXPECT_EQ(TestParticles.Size(), Particles.Size());
-			EXPECT_EQ(TestParticles.F(0), Particles.F(0));
-			EXPECT_EQ(TestParticles.F(1), Particles.F(1));
+			EXPECT_EQ(TestParticles.Acceleration(0), Particles.Acceleration(0));
+			EXPECT_EQ(TestParticles.Acceleration(1), Particles.Acceleration(1));
 			EXPECT_EQ(TestParticles.X(0), Particles.X(0));
 			EXPECT_EQ(TestParticles.X(1), Particles.X(1));
 		}
