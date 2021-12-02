@@ -315,6 +315,10 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, MaxTranslucentSkipCount, bHiResSurface);
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
+#if DIM_SPECULAR_OCCLUSION
+		Context.bAcceptFirstHitAndEndSearch = true;
+		Context.bSkipClosestHitShader = true;
+#endif // DIM_SPECULAR_OCCLUSION
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING
 		FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
