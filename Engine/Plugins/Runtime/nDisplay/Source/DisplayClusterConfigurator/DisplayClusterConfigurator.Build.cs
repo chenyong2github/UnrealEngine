@@ -36,6 +36,7 @@ public class DisplayClusterConfigurator : ModuleRules
 				"MainFrame",
 				"MessageLog",
 				"PinnedCommandList",
+				"PlacementMode",
 				"Projects",
 				"PropertyEditor",
 				"Serialization",
@@ -47,6 +48,7 @@ public class DisplayClusterConfigurator : ModuleRules
 				"SubobjectEditor",
 				"SubobjectDataInterface",
 				"ToolWidgets",
+				"VPUtilitiesEditor"
 			});
 	}
 }
