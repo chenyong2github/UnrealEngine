@@ -422,7 +422,8 @@ FOcclusionResult ComputeOcclusion(
 
 		uint RayFlags = 0;
 
-		if (bTwoSidedGeometry != 0)
+		// Enable back face culling if not used two-sided shadow casting mode.
+		if (bTwoSidedGeometry != 1)
 		{
 			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 		}
