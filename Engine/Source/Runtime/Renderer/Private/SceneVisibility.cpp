@@ -409,7 +409,7 @@ bool FViewInfo::IsDistanceCulled_AnyThread(float DistanceSquared, float MinDrawD
 	}
 
 	// The primitive is always culled if it exceeds the max fade distance.
-	if ((bHasMaxDrawDistance && DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius)) || (bHasMaxDrawDistance && DistanceSquared < FMath::Square(MinDrawDistance)))
+	if ((bHasMaxDrawDistance && DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius)) || (bHasMinDrawDistance && DistanceSquared < FMath::Square(MinDrawDistance)))
 	{
 		return true;
 	}
