@@ -8,11 +8,13 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
+const FName SConsoleVariablesEditorList::CustomSortOrderColumnName(TEXT("Order"));
 const FName SConsoleVariablesEditorList::CheckBoxColumnName(TEXT("Column"));
 const FName SConsoleVariablesEditorList::VariableNameColumnName(TEXT("Name"));
 const FName SConsoleVariablesEditorList::ValueColumnName(TEXT("Value"));
@@ -36,10 +38,28 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 			SNew(SHorizontalBox)
 
 			+SHorizontalBox::Slot()
+			.Padding(10.f, 1.f, 0.f, 1.f)
 			[
 				SAssignNew(ListSearchBoxPtr, SSearchBox)
 				.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search tracked variables, values, sources or help text..."))
 				.OnTextChanged_Raw(this, &SConsoleVariablesEditorList::OnListViewSearchTextChanged)
+			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(10.f, 1.f, 15.f, 1.f)
+			.HAlign(HAlign_Right)
+			[
+				SAssignNew( ViewOptionsComboButton, SComboButton )
+				.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButtonWithIcon" ) // Use the tool bar item style for this button
+				.OnGetMenuContent( this, &SConsoleVariablesEditorList::BuildShowOptionsMenu)
+				.HasDownArrow(false)
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image( FAppStyle::Get().GetBrush("Icons.Settings") )
+				]
 			]
 		]
 
@@ -57,7 +77,14 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 			[
 				SAssignNew(TreeViewPtr, STreeView<FConsoleVariablesEditorListRowPtr>)
 				.HeaderRow(HeaderRow)
-				.SelectionMode(ESelectionMode::None)
+				.SelectionMode(ESelectionMode::Multi)
+				.OnSelectionChanged_Lambda([this] (const FConsoleVariablesEditorListRowPtr& Row, const ESelectInfo::Type SelectionType)
+				{
+					if(Row.IsValid())
+					{
+						Row->SetIsSelected(TreeViewPtr->GetSelectedItems().Contains(Row));
+					}
+				})
 				.TreeItemsSource(&TreeViewRootObjects)
 				.OnGenerateRow_Lambda([this](FConsoleVariablesEditorListRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable)
 					{
@@ -80,7 +107,7 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 				.Text(LOCTEXT("ConsoleVariablesEditorList_NoList", "No List to show. Try clearing the active search or adding some console variables to the list."))
 			]
 		]
-	];
+	]; 
 }
 
 SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
@@ -93,24 +120,58 @@ SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
 	TreeViewPtr.Reset();
 }
 
-FMenuBuilder SConsoleVariablesEditorList::BuildShowOptionsMenu()
+TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 {
 	FMenuBuilder ShowOptionsMenuBuilder = FMenuBuilder(true, nullptr);
 
-	ShowOptionsMenuBuilder.AddMenuEntry(
-		LOCTEXT("CollapseAll", "Collapse All"),
-		LOCTEXT("ConsoleVariablesEditorList_CollapseAll_Tooltip", "Collapse all expanded actor groups in the Modified Actors list."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([this]() {
-				SetAllGroupsCollapsed();
-				})
-		),
-		NAME_None,
-		EUserInterfaceActionType::Button
-	);
+	ShowOptionsMenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowHeading", "Show"));
+	{
+		// Add mode filters
+		auto AddFiltersLambda = [&ShowOptionsMenuBuilder](const FText& FilterTitle, const FText& FilterTooltip)
+		{
+			ShowOptionsMenuBuilder.AddMenuEntry(
+			   FilterTitle,
+			   FilterTooltip,
+			   FSlateIcon(),
+			   FUIAction(
+				   //FExecuteAction::CreateRaw( this, &SConsoleVariablesEditorList::ToggleFilterActive ),
+				   //FCanExecuteAction(),
+				   //FIsActionChecked::CreateRaw( this, &SConsoleVariablesEditorList::IsFilterActive )
+			   ),
+			   NAME_None,
+			   EUserInterfaceActionType::ToggleButton
+		   );
+		};
 
-	return ShowOptionsMenuBuilder;
+		//for (Filter : Filters) { AddFiltersLambda(Filter.Title, Filter.TooltipText); }
+	}
+	ShowOptionsMenuBuilder.EndSection();
+	
+	ShowOptionsMenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("SortHeading", "Sort"));
+	{
+		// Add commands
+
+		/*ShowOptionsMenuBuilder.AddMenuEntry(
+			LOCTEXT("CollapseAll", "Collapse All"),
+			LOCTEXT("ConsoleVariablesEditorList_CollapseAll_Tooltip", "Collapse all expanded actor groups in the Modified Actors list."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &SConsoleVariablesEditorList::SetAllGroupsCollapsed)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);*/
+		
+		ShowOptionsMenuBuilder.AddMenuEntry(
+			LOCTEXT("SetSortOrder", "Set Sort Order"),
+			LOCTEXT("ConsoleVariablesEditorList_SetSortOrder_Tooltip", "Makes the current order of the variables list the saved order."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &SConsoleVariablesEditorList::SetSortOrder)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	ShowOptionsMenuBuilder.EndSection();
+
+	return ShowOptionsMenuBuilder.MakeWidget();
 }
 
 void SConsoleVariablesEditorList::FlushMemory(const bool bShouldKeepMemoryAllocated)
@@ -163,6 +224,23 @@ void SConsoleVariablesEditorList::RefreshList(const FString& InConsoleCommandToS
 			TreeViewPtr->RequestScrollIntoView(ScrollToItem);
 		}
 	}
+}
+
+TArray<FConsoleVariablesEditorListRowPtr> SConsoleVariablesEditorList::GetSelectedTreeViewItems() const
+{
+	return TreeViewPtr->GetSelectedItems();
+}
+
+TArray<FConsoleVariablesEditorListRowPtr> SConsoleVariablesEditorList::GetTreeViewItems() const
+{
+	return TreeViewRootObjects;
+}
+
+void SConsoleVariablesEditorList::SetTreeViewItems(const TArray<FConsoleVariablesEditorListRowPtr>& InItems)
+{
+	TreeViewRootObjects = InItems;
+
+	TreeViewPtr->RequestListRefresh();
 }
 
 void SConsoleVariablesEditorList::UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const
@@ -221,7 +299,7 @@ void SConsoleVariablesEditorList::GenerateTreeView()
 				FConsoleVariablesEditorListRowPtr NewRow = 
 					MakeShared<FConsoleVariablesEditorListRow>(
 							CommandInfo.Pin(), CommandAndValue.Value, FConsoleVariablesEditorListRow::SingleCommand, 
-							ECheckBoxState::Checked, SharedThis(this), nullptr);
+							ECheckBoxState::Checked, SharedThis(this), TreeViewRootObjects.Num(), nullptr);
 				TreeViewRootObjects.Add(NewRow);
 			}
 		}
@@ -240,6 +318,16 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 {
 	check(HeaderRow);
 	HeaderRow->ClearColumns();
+
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(CustomSortOrderColumnName)
+			.DefaultLabel(FText::FromString("#"))
+			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+			.FillWidth(0.3f)
+			.ShouldGenerateWidget(true)
+			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortMode, CustomSortOrderColumnName)
+			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
+	);
 	
 	HeaderRow->AddColumn(
 		SHeaderRow::Column(CheckBoxColumnName)
@@ -270,6 +358,7 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 		SHeaderRow::Column(VariableNameColumnName)
 			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableNameHeaderText", "Console Variable Name"))
 			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
+			.FillWidth(1.7f)
 			.ShouldGenerateWidget(true)
 			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortMode, VariableNameColumnName)
 			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
@@ -293,7 +382,7 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 	return HeaderRow;
 }
 
-FReply SConsoleVariablesEditorList::SetAllGroupsCollapsed()
+void SConsoleVariablesEditorList::SetAllGroupsCollapsed()
 {
 	if (TreeViewPtr.IsValid())
 	{
@@ -308,8 +397,17 @@ FReply SConsoleVariablesEditorList::SetAllGroupsCollapsed()
 			RootRow->SetIsTreeViewItemExpanded(false);
 		}
 	}
+}
 
-	return FReply::Handled();
+void SConsoleVariablesEditorList::SetSortOrder()
+{
+	for (int32 RowItr = 0; RowItr < TreeViewRootObjects.Num(); RowItr++)
+	{
+		const TSharedPtr<FConsoleVariablesEditorListRow>& ChildRow = TreeViewRootObjects[RowItr];
+		ChildRow->SetSortOrder(RowItr);
+	}
+
+	ExecuteSort(CustomSortOrderColumnName, CycleSortMode(CustomSortOrderColumnName));
 }
 
 void SConsoleVariablesEditorList::OnListViewSearchTextChanged(const FText& Text) const
@@ -461,35 +559,28 @@ EColumnSortMode::Type SConsoleVariablesEditorList::CycleSortMode(const FName& In
 		break;
 	}
 
-	SortingMap.Empty();
+	ClearSorting();
 	SortingMap.Add(InColumnName, ColumnSortMode);
 
 	return ColumnSortMode;
 }
 
 void SConsoleVariablesEditorList::ExecuteSort(const FName& InColumnName, const EColumnSortMode::Type InColumnSortMode)
-{
-	if (InColumnSortMode == EColumnSortMode::Ascending)
+{	
+	if (InColumnName.IsEqual(CustomSortOrderColumnName))
 	{
-		if (InColumnName.IsEqual(VariableNameColumnName))
-		{
-			TreeViewRootObjects.StableSort(SortByVariableNameAscending);
-		}
-		else if (InColumnName.IsEqual(SourceColumnName))
-		{
-			TreeViewRootObjects.StableSort(SortBySourceAscending);
-		}
+		TreeViewRootObjects.StableSort(
+			InColumnSortMode == EColumnSortMode::Ascending ? SortByOrderAscending : SortByOrderDescending);
 	}
-	else if (InColumnSortMode == EColumnSortMode::Descending)
+	if (InColumnName.IsEqual(SourceColumnName))
 	{
-		if (InColumnName.IsEqual(VariableNameColumnName))
-		{
-			TreeViewRootObjects.StableSort(SortByVariableNameDescending);
-		}
-		else if (InColumnName.IsEqual(SourceColumnName))
-		{
-			TreeViewRootObjects.StableSort(SortBySourceDescending);
-		}
+		TreeViewRootObjects.StableSort(
+			InColumnSortMode == EColumnSortMode::Ascending ? SortBySourceAscending : SortBySourceDescending);
+	}
+	if (InColumnName.IsEqual(VariableNameColumnName))
+	{
+		TreeViewRootObjects.StableSort(
+			InColumnSortMode == EColumnSortMode::Ascending ? SortByVariableNameAscending : SortByVariableNameDescending);
 	}
 	
 	TreeViewPtr->RequestTreeRefresh();

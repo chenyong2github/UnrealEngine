@@ -10,23 +10,9 @@
 
 class UConsoleVariablesAsset;
 class SBox;
+class SComboButton;
 class SSearchBox;
 class SHeaderRow;
-
-struct FConsoleVariablesEditorListSplitterManager;
-typedef TSharedPtr<FConsoleVariablesEditorListSplitterManager> FConsoleVariablesEditorListSplitterManagerPtr;
-
-struct FConsoleVariablesEditorListSplitterManager
-{
-	float NestedColumnWidth = 0.5f; // The right side of the first splitter which contains the nested splitter for the property widgets
-	float SnapshotPropertyColumnWidth = 0.5f;
-};
-
-enum class EConsoleVariablesEditorSortType
-{
-	SortByVariableName,
-	SortBySource
-};
 
 class SConsoleVariablesEditorList final : public SCompoundWidget
 {
@@ -42,13 +28,23 @@ public:
 
 	virtual ~SConsoleVariablesEditorList() override;
 
-	FMenuBuilder BuildShowOptionsMenu();
+	TSharedRef<SWidget> BuildShowOptionsMenu();
 	
 	void FlushMemory(const bool bShouldKeepMemoryAllocated);
 
 	void RefreshScroll() const;
 
 	void RefreshList(const FString& InConsoleCommandToScrollTo = "");
+
+	[[nodiscard]] TArray<FConsoleVariablesEditorListRowPtr> GetSelectedTreeViewItems() const;
+
+	[[nodiscard]] TArray<FConsoleVariablesEditorListRowPtr> GetTreeViewItems() const;
+	void SetTreeViewItems(const TArray<FConsoleVariablesEditorListRowPtr>& InItems);
+
+	[[nodiscard]] int32 GetTreeViewItemCount() const
+	{
+		return TreeViewRootObjects.Num();
+	}
 
 	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
 	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
@@ -74,9 +70,14 @@ public:
 	void OnSortColumnCalled(EColumnSortPriority::Type Priority, const FName& ColumnName, EColumnSortMode::Type SortMode);
 	EColumnSortMode::Type CycleSortMode(const FName& InColumnName);
 	void ExecuteSort(const FName& InColumnName, const EColumnSortMode::Type InColumnSortMode);
+	void ClearSorting()
+	{
+		SortingMap.Empty();
+	}
 
 	// Column Names
 
+	static const FName CustomSortOrderColumnName;
 	static const FName CheckBoxColumnName;
 	static const FName VariableNameColumnName;
 	static const FName ValueColumnName;
@@ -88,13 +89,15 @@ private:
 	TSharedPtr<SHeaderRow> GenerateHeaderRow();
 	ECheckBoxState HeaderCheckBoxState = ECheckBoxState::Checked;
 	
-	FReply SetAllGroupsCollapsed();
+	void SetAllGroupsCollapsed();
+	void SetSortOrder();
 
 	// Search
 	
 	void OnListViewSearchTextChanged(const FText& Text) const;
 
 	TSharedPtr<SSearchBox> ListSearchBoxPtr;
+	TSharedPtr<SComboButton> ViewOptionsComboButton;
 	TSharedPtr<SBox> ListBoxContainerPtr;
 
 	//  Tree View Implementation
@@ -113,6 +116,30 @@ private:
 	// Sorting
 	
 	TMap<FName, EColumnSortMode::Type> SortingMap;
+
+	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortByOrderAscending =
+		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
+		{
+			return A->GetSortOrder() < B->GetSortOrder();
+		};
+
+	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortByOrderDescending =
+		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
+		{
+			return B->GetSortOrder() < A->GetSortOrder();
+		};
+
+	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortBySourceAscending =
+		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
+		{
+			return A->GetCommandInfo().Pin()->GetSourceAsText().ToString() < B->GetCommandInfo().Pin()->GetSourceAsText().ToString();
+		};
+
+	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortBySourceDescending =
+		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
+		{
+			return B->GetCommandInfo().Pin()->GetSourceAsText().ToString() < A->GetCommandInfo().Pin()->GetSourceAsText().ToString();
+		};
 	
 	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortByVariableNameAscending =
 		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
@@ -124,17 +151,5 @@ private:
 		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
 	{
 		return B->GetCommandInfo().Pin()->Command < A->GetCommandInfo().Pin()->Command;
-	};
-
-	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortBySourceAscending =
-		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
-	{
-		return A->GetCommandInfo().Pin()->GetSourceAsText().ToString() < B->GetCommandInfo().Pin()->GetSourceAsText().ToString();
-	};
-
-	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortBySourceDescending =
-		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
-	{
-		return B->GetCommandInfo().Pin()->GetSourceAsText().ToString() < A->GetCommandInfo().Pin()->GetSourceAsText().ToString();
 	};
 };

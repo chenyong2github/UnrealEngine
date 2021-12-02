@@ -41,6 +41,16 @@ void FConsoleVariablesEditorListRow::SetChildDepth(const int32 InDepth)
 	ChildDepth = InDepth;
 }
 
+int32 FConsoleVariablesEditorListRow::GetSortOrder() const
+{
+	return SortOrder;
+}
+
+void FConsoleVariablesEditorListRow::SetSortOrder(const int32 InNewOrder)
+{
+	SortOrder = InNewOrder;
+}
+
 TWeakPtr<FConsoleVariablesEditorListRow> FConsoleVariablesEditorListRow::GetDirectParentRow() const
 {
 	return DirectParentRow;
@@ -124,7 +134,7 @@ bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(const TArray
 			});
 	}
 
-	bDoesRowMatchSeachTerms = bMatchFound;
+	bDoesRowMatchSearchTerms = bMatchFound;
 
 	return bMatchFound;
 }
@@ -167,6 +177,16 @@ void FConsoleVariablesEditorListRow::ExecuteSearchOnChildNodes(const TArray<FStr
 	}
 }
 
+bool FConsoleVariablesEditorListRow::GetIsSelected() const
+{
+	return bIsSelected;
+}
+
+void FConsoleVariablesEditorListRow::SetIsSelected(const bool bNewSelected)
+{
+	bIsSelected = bNewSelected;
+}
+
 ECheckBoxState FConsoleVariablesEditorListRow::GetWidgetCheckedState() const
 {
 	return WidgetCheckedState;
@@ -184,7 +204,12 @@ bool FConsoleVariablesEditorListRow::IsRowChecked() const
 
 EVisibility FConsoleVariablesEditorListRow::GetDesiredVisibility() const
 {
-	return bDoesRowMatchSeachTerms || HasVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+	return bDoesRowMatchSearchTerms || HasVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+TArray<FConsoleVariablesEditorListRowPtr> FConsoleVariablesEditorListRow::GetSelectedTreeViewItems() const
+{
+	return ListViewPtr.Pin()->GetSelectedTreeViewItems();
 }
 
 FReply FConsoleVariablesEditorListRow::OnRemoveButtonClicked()
