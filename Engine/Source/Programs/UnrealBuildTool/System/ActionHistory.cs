@@ -197,7 +197,7 @@ namespace UnrealBuildTool
 				AppName = UEBuildTarget.GetAppNameForTargetType(TargetType);
 			}
 
-			return FileReference.Combine(Unreal.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, "ActionHistory.bin");
+			return FileReference.Combine(Unreal.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture, false), AppName, "ActionHistory.bin");
 		}
 
 		/// <summary>
@@ -210,7 +210,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to the project action history</returns>
 		public static FileReference GetProjectLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, string Architecture)
 		{
-			return FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), TargetName, "ActionHistory.dat");
+			return FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture, false), TargetName, "ActionHistory.dat");
 		}
 
 		/// <summary>
