@@ -129,6 +129,13 @@ static TAutoConsoleVariable<int32> CVarLumenRadiosityHardwareRayTracing(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenRadiosityHardwareRayTracingIndirect(
+	TEXT("r.LumenScene.Radiosity.HardwareRayTracing.Indirect"),
+	1,
+	TEXT("Enables indirect dispatch for hardware ray tracing for radiosity (default = 1)."),
+	ECVF_RenderThreadSafe
+);
+
 namespace LumenRadiosity
 {
 	// Must match LumenRadiosityProbeGather.ush
@@ -196,7 +203,8 @@ enum ERadiosityIndirectArgs
 	ThreadPerTrace = 0 * sizeof(FRHIDispatchIndirectParameters),
 	ThreadPerProbeSH = 1 * sizeof(FRHIDispatchIndirectParameters),
 	ThreadPerRadiosityTexel = 2 * sizeof(FRHIDispatchIndirectParameters),
-	MAX = 3,
+	HardwareRayTracingThreadPerTrace = 3 * sizeof(FRHIDispatchIndirectParameters),
+	MAX = 4,
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenRadiosityTexelTraceParameters, )
@@ -279,8 +287,12 @@ class FLumenRadiosityHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 	DECLARE_GLOBAL_SHADER(FLumenRadiosityHardwareRayTracingRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenRadiosityHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
 
+	class FIndirectDispatchDim : SHADER_PERMUTATION_BOOL("DIM_INDIRECT_DISPATCH");
+	using FPermutationDomain = TShaderPermutationDomain<FIndirectDispatchDim>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
+		RDG_BUFFER_ACCESS(HardwareRayTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenRadiosityTexelTraceParameters, RadiosityTexelTraceParameters)
 		SHADER_PARAMETER(uint32, NumThreadsToDispatch)
 		SHADER_PARAMETER(float, MinTraceDistance)
@@ -307,11 +319,17 @@ class FLumenRadiosityHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 
 IMPLEMENT_GLOBAL_SHADER(FLumenRadiosityHardwareRayTracingRGS, "/Engine/Private/Lumen/Radiosity/LumenRadiosityHardwareRayTracing.usf", "LumenRadiosityHardwareRayTracingRGS", SF_RayGen);
 
+bool IsHardwareRayTracingRadiosityIndirectDispatch()
+{
+	return GRHISupportsRayTracingDispatchIndirect && (CVarLumenRadiosityHardwareRayTracingIndirect.GetValueOnRenderThread() == 1);
+}
+
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadiosityLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	if (Lumen::UseHardwareRayTracedRadiosity())
 	{
 		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingRadiosityIndirectDispatch());
 		TShaderRef<FLumenRadiosityHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenRadiosityHardwareRayTracingRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 	}
@@ -493,6 +511,7 @@ void LumenRadiosity::AddRadiosityPass(
 	if (Lumen::UseHardwareRayTracedRadiosity())
 	{
 #if RHI_RAYTRACING
+
 		FLumenRadiosityHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenRadiosityHardwareRayTracingRGS::FParameters>();
 		SetLumenHardwareRayTracingSharedParameters(
 			GraphBuilder,
@@ -501,6 +520,7 @@ void LumenRadiosity::AddRadiosityPass(
 			TracingInputs,
 			&PassParameters->SharedParameters
 		);
+		PassParameters->HardwareRayTracingIndirectArgs = RadiosityIndirectArgs;
 
 		PassParameters->RadiosityTexelTraceParameters = RadiosityTexelTraceParameters;
 		PassParameters->RWTraceRadianceBuffer = GraphBuilder.CreateUAV(TraceRadianceBuffer);
@@ -512,12 +532,18 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
 		PassParameters->MinTraceDistanceToSampleSurface = GLumenRadiosityMinTraceDistanceToSampleSurface;
 
-		TShaderRef<FLumenRadiosityHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenRadiosityHardwareRayTracingRGS>();
+		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingRadiosityIndirectDispatch());
+		TShaderRef<FLumenRadiosityHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenRadiosityHardwareRayTracingRGS>(PermutationVector);
 
 		const FIntPoint DispatchResolution = FIntPoint(NumThreadsToDispatch, 1);
-
+		FString Resolution = FString::Printf(TEXT("%ux%u"), DispatchResolution.X, DispatchResolution.Y);
+		if (IsHardwareRayTracingRadiosityIndirectDispatch())
+		{
+			Resolution = FString::Printf(TEXT("<indirect>"));
+		}
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HardwareRayTracing %ux%u", DispatchResolution.X, DispatchResolution.Y),
+			RDG_EVENT_NAME("HardwareRayTracing %s", *Resolution),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
@@ -528,8 +554,17 @@ void LumenRadiosity::AddRadiosityPass(
 				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 				FRayTracingPipelineState* RayTracingPipeline = View.LumenHardwareRayTracingMaterialPipeline;
 
-				RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
-					DispatchResolution.X, DispatchResolution.Y);
+				if (IsHardwareRayTracingRadiosityIndirectDispatch())
+				{
+					PassParameters->HardwareRayTracingIndirectArgs->MarkResourceAsUsed();
+					RHICmdList.RayTraceDispatchIndirect(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+						PassParameters->HardwareRayTracingIndirectArgs->GetIndirectRHICallBuffer(), ERadiosityIndirectArgs::HardwareRayTracingThreadPerTrace);
+				}
+				else
+				{
+					RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
+						DispatchResolution.X, DispatchResolution.Y);
+				}
 			}
 		);
 #endif

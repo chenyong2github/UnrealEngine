@@ -11,6 +11,7 @@
 #include "../../MonteCarlo.ush"
 #include "../../MortonCode.ush"
 #include "../../SceneTextureParameters.ush"
+#include "../../RayTracing/RayGenUtils.ush"
 
 #include "../LumenCardCommon.ush"
 #include "../LumenTracingCommon.ush"
@@ -29,9 +30,17 @@ float TanRadiosityRayConeHalfAngle;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 {	
+#if DIM_INDIRECT_DISPATCH
+	uint GlobalThreadIndex = GetUnWrappedRayTracingDispatchThreadId(DispatchRaysIndex(), THREADGROUP_SIZE);
+	if (GlobalThreadIndex >= CardTileAllocator[0] * NumTracesPerTexel * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE)
+	{
+		return;
+	}
+#else
 	for (uint GlobalThreadIndex = DispatchRaysIndex().x;
 		GlobalThreadIndex < CardTileAllocator[0] * NumTracesPerTexel * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE;
 		GlobalThreadIndex += NumThreadsToDispatch)
+#endif
 	{
 		// Run one trace per thread
 		uint CardTileIndex = 0;

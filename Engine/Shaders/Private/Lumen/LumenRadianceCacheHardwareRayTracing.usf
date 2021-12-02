@@ -8,12 +8,25 @@
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenRadianceCacheTracingCommon.ush"
 #include "LumenCardCommon.ush"
+#include "LumenCardTile.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenReflectionCommon.ush"
 
 #define TEMP_ATLAS_TRACE_TILE_STRIDE 1024
 
+StructuredBuffer<uint> TileAllocator;
+RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
+
+[numthreads(1, 1, 1)]
+void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
+{
+	RWHardwareRayTracingIndirectArgs[0] = CARD_TILE_SIZE * CARD_TILE_SIZE;
+	RWHardwareRayTracingIndirectArgs[1] = TileAllocator[0];
+	RWHardwareRayTracingIndirectArgs[2] = 1;
+}
+
 #if LUMEN_HARDWARE_RAYTRACING
+
 #include "LumenHardwareRayTracingCommon.ush"
 
 #ifndef DIM_LIGHTING_MODE
@@ -29,8 +42,12 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 {
 	uint2 GroupThreadId = uint2(DispatchRaysIndex().x % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, DispatchRaysIndex().x / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
 
+#if DIM_INDIRECT_DISPATCH
+	uint TraceTileIteration = 0;
+#else
 	uint TraceTileIterationSize = (ProbeTraceTileAllocator[0] + PersistentTracingGroupCount - 1) / PersistentTracingGroupCount;
 	for (uint TraceTileIteration = 0; TraceTileIteration < TraceTileIterationSize; ++TraceTileIteration)
+#endif
 	{
 		uint TraceTileGroupIndex = DispatchRaysIndex().y;
 		uint TraceTileIndex = TraceTileIteration * PersistentTracingGroupCount + TraceTileGroupIndex;
