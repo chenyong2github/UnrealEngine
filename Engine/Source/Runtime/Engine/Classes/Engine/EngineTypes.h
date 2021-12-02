@@ -3083,21 +3083,21 @@ struct FSkeletalMeshBuildSettings
 /**
  * Settings applied when building Nanite data.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FMeshNaniteSettings
 {
 	GENERATED_BODY()
 
 	/** If true, Nanite data will be generated. */
-	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	uint8 bEnabled : 1;
 
 	/** Position Precision. Step size is 2^(-PositionPrecision) cm. MIN_int32 is auto. */
-	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	int32 PositionPrecision;
 
 	/** Percentage of triangles to keep from LOD0. 1.0 = no reduction, 0.0 = no triangles. */
-	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	float PercentTriangles;
 
 	/** Default settings. */
