@@ -29,6 +29,7 @@
 #include "VT/VirtualTextureSystem.h"
 #include "SceneRenderingUtils.h"
 #include "InstanceCulling/InstanceCullingManager.h"
+#include "GPUMessaging.h"
 #include "HairStrands/HairStrandsData.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
@@ -551,6 +552,8 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 {
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
+	GPU_MESSAGE_SCOPE(GraphBuilder);
+
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
 
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
@@ -588,6 +591,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	static const bool bNaniteEnabled = UseNanite(ShaderPlatform);
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
+
+	GPU_MESSAGE_SCOPE(GraphBuilder);
 
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
 

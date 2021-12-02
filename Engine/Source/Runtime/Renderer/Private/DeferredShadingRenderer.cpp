@@ -69,6 +69,7 @@
 #include "SceneCaptureRendering.h"
 #include "NaniteSceneProxy.h"
 #include "RayTracing/RayTracingInstanceCulling.h"
+#include "GPUMessaging.h"
 
 extern int32 GNaniteShowStats;
 
@@ -1875,6 +1876,8 @@ bool FDeferredShadingSceneRenderer::IsNaniteEnabled() const
 void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 {
 	const bool bNaniteEnabled = IsNaniteEnabled();
+
+	GPU_MESSAGE_SCOPE(GraphBuilder);
 
 #if RHI_RAYTRACING
 	{

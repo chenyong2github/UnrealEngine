@@ -57,6 +57,7 @@
 #include "SceneOcclusion.h"
 #include "VariableRateShadingImageManager.h"
 #include "SceneTextureReductions.h"
+#include "GPUMessaging.h"
 
 uint32 GetShadowQuality();
 
@@ -691,6 +692,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, MobileSceneRender);
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
+
+	GPU_MESSAGE_SCOPE(GraphBuilder);
 
 	// Establish scene primitive count (must be done after UpdateAllPrimitiveSceneInfos)
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
