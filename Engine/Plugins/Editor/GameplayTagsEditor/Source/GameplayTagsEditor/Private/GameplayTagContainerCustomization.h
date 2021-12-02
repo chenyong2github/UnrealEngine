@@ -10,7 +10,6 @@
 #include "Widgets/Views/STableRow.h"
 #include "SGameplayTagWidget.h"
 #include "EditorUndoClient.h"
-#include "UObject/UnrealType.h"
 
 class IPropertyHandle;
 
@@ -82,9 +81,6 @@ private:
 
 	void OnTagDoubleClicked(FGameplayTag Tag);
 	FReply OnRemoveTagClicked(FGameplayTag Tag);
-
-	void OnObjectPostEditChange(class UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
-	FDelegateHandle OnObjectPostEditChangeHandle;
 
 	FReply OnSingleTagMouseButtonPressed(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FString TagName);
 	void OnSingleTagSearchForReferences(FString TagName);
