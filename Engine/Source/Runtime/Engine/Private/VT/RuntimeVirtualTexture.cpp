@@ -289,7 +289,7 @@ int32 URuntimeVirtualTexture::GetPageTableSize() const
 void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutDesc, FInitSettings const& InitSettings, FTransform const& VolumeToWorld) const
 {
 	OutDesc.Name = GetFName();
-	OutDesc.FullNameHash = GetTypeHash(GetFullName());
+	OutDesc.FullNameHash = GetTypeHash(GetName());
 	OutDesc.Dimensions = 2;
 	OutDesc.DepthInTiles = 1;
 	OutDesc.WidthInBlocks = 1;
