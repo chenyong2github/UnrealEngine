@@ -119,6 +119,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxPhysicalPages)
 	// Set to 0 if separate static caching is disabled
 	SHADER_PARAMETER(uint32, StaticCachedPixelOffsetY)
+	SHADER_PARAMETER(uint32, StaticPageIndexOffset)
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)

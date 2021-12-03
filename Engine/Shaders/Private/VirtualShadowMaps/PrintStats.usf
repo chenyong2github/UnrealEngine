@@ -89,6 +89,12 @@ void PrintStats()
 			ScreenPos.x = ValueX;
 			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_DYNAMIC_INVALIDATED_BY_DYNAMIC_PAGES]);
 			ScreenPos = ShaderPrintNewline(ScreenPos);
+
+			ScreenPos.x = ItemX;
+			ScreenPos = ShaderPrintText(ScreenPos, TEXT("Merged"), FontWhite);
+			ScreenPos.x = ValueX;
+			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NUM_PAGES_TO_MERGE]);
+			ScreenPos = ShaderPrintNewline(ScreenPos);
 		}
 		else
 		{
@@ -105,6 +111,13 @@ void PrintStats()
 			ScreenPos = ShaderPrintNewline(ScreenPos);
 		}
 	}
+
+	ScreenPos.x = ItemX;
+	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Cleared"), FontWhite);
+	ScreenPos.x = ValueX;
+	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NUM_PAGES_TO_CLEAR]);
+	ScreenPos = ShaderPrintNewline(ScreenPos);
+
 
 	if (bShowNonNaniteInstances)
 	{

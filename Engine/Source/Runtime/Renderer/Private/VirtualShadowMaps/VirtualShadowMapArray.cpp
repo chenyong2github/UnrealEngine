@@ -192,6 +192,21 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
 );
 #endif // !UE_BUILD_SHIPPING
 
+TAutoConsoleVariable<int32> CVarInitializePhysicalUsingIndirect(
+	TEXT("r.Shadow.Virtual.InitPhysicalUsingIndirect"),
+	0,
+	TEXT("."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarMergePhysicalUsingIndirect(
+	TEXT("r.Shadow.Virtual.MergePhysicalUsingIndirect"),
+	0,
+	TEXT("."),
+	ECVF_RenderThreadSafe
+);
+
+
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
 	const FMatrix& ViewToClip)
@@ -298,11 +313,14 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	{
 		// Store the static pages below the dynamic/merged pages
 		UniformParameters.StaticCachedPixelOffsetY = PhysicalPagesY * FVirtualShadowMap::PageSize;
+		// Offset to static pages in linear page index
+		UniformParameters.StaticPageIndexOffset = PhysicalPagesY * PhysicalPagesX;
 		PhysicalPagesY *= 2;
 	}
 	else
 	{
 		UniformParameters.StaticCachedPixelOffsetY = 0;
+		UniformParameters.StaticPageIndexOffset = 0;
 	}
 
 	uint32 PhysicalX = PhysicalPagesX * FVirtualShadowMap::PageSize;
@@ -590,6 +608,65 @@ class FInitializePhysicalPagesCS : public FVirtualPageManagementShader
 };
 IMPLEMENT_GLOBAL_SHADER(FInitializePhysicalPagesCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitializePhysicalPages", SF_Compute);
 
+class FSelectPagesToInitializeCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FSelectPagesToInitializeCS);
+	SHADER_USE_PARAMETER_STRUCT(FSelectPagesToInitializeCS, FVirtualPageManagementShader)
+
+	class FGenerateStatsDim : SHADER_PERMUTATION_BOOL("VSM_GENERATE_STATS");
+	using FPermutationDomain = TShaderPermutationDomain<FGenerateStatsDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPhysicalPageMetaData>, PhysicalPageMetaData)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutInitializePagesIndirectArgsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPhysicalPagesToInitialize)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FSelectPagesToInitializeCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "SelectPagesToInitializeCS", SF_Compute);
+
+class FInitializePhysicalPagesIndirectCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FInitializePhysicalPagesIndirectCS);
+	SHADER_USE_PARAMETER_STRUCT(FInitializePhysicalPagesIndirectCS, FVirtualPageManagementShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PhysicalPagesToInitialize)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, OutPhysicalPagePool)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FInitializePhysicalPagesIndirectCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitializePhysicalPagesIndirectCS", SF_Compute);
+
+class FClearIndirectDispatchArgs1DCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FClearIndirectDispatchArgs1DCS);
+	SHADER_USE_PARAMETER_STRUCT(FClearIndirectDispatchArgs1DCS, FVirtualPageManagementShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutIndirectArgsBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FClearIndirectDispatchArgs1DCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "ClearIndirectDispatchArgs1DCS", SF_Compute);
+
+static void AddClearIndirectDispatchArgs1DPass(FRDGBuilder& GraphBuilder, FRDGBufferRef IndirectArgsRDG)
+{
+	FClearIndirectDispatchArgs1DCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearIndirectDispatchArgs1DCS::FParameters>();
+	PassParameters->OutIndirectArgsBuffer = GraphBuilder.CreateUAV(IndirectArgsRDG);
+
+	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearIndirectDispatchArgs1DCS>();
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("ClearIndirectDispatchArgs"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1)
+	);
+}
+
 class FMergeStaticPhysicalPagesCS : public FVirtualPageManagementShader
 {
 	DECLARE_GLOBAL_SHADER(FMergeStaticPhysicalPagesCS);
@@ -603,6 +680,40 @@ class FMergeStaticPhysicalPagesCS : public FVirtualPageManagementShader
 };
 IMPLEMENT_GLOBAL_SHADER(FMergeStaticPhysicalPagesCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "MergeStaticPhysicalPages", SF_Compute);
 
+class FSelectPagesToMergeCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FSelectPagesToMergeCS);
+	SHADER_USE_PARAMETER_STRUCT(FSelectPagesToMergeCS, FVirtualPageManagementShader)
+
+	class FGenerateStatsDim : SHADER_PERMUTATION_BOOL("VSM_GENERATE_STATS");
+	using FPermutationDomain = TShaderPermutationDomain<FGenerateStatsDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPhysicalPageMetaData>, PhysicalPageMetaData)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutMergePagesIndirectArgsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPhysicalPagesToMerge)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FSelectPagesToMergeCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "SelectPagesToMergeCS", SF_Compute);
+
+class FMergeStaticPhysicalPagesIndirectCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FMergeStaticPhysicalPagesIndirectCS);
+	SHADER_USE_PARAMETER_STRUCT(FMergeStaticPhysicalPagesIndirectCS, FVirtualPageManagementShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PhysicalPagesToMerge)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, OutPhysicalPagePool)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FMergeStaticPhysicalPagesIndirectCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "MergeStaticPhysicalPagesIndirectCS", SF_Compute);
+
+
+
 void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 {
 	check(IsEnabled());
@@ -612,6 +723,60 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 	}
 
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::MergeStaticPhysicalPages");
+	if (CVarMergePhysicalUsingIndirect.GetValueOnRenderThread() != 0)
+	{
+		FRDGBufferRef MergePagesIndirectArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(3), TEXT("Shadow.Virtual.MergePagesIndirectArgs"));
+		// Note: creating buffer of 2x MaxPhysicalPages as MaxPhysicalPages represents the number before adding the static page overload. The selection shader emits both types of pages.
+		FRDGBufferRef PhysicalPagesToMergeRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(int32), 2U * UniformParameters.MaxPhysicalPages + 1), TEXT("Shadow.Virtual.PhysicalPagesToMerge"));
+
+		// 1. Initialize the indirect args buffer
+		AddClearIndirectDispatchArgs1DPass(GraphBuilder, MergePagesIndirectArgsRDG);
+		// 2. Filter the relevant physical pages and set up the indirect args
+		{
+			FSelectPagesToMergeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesToMergeCS::FParameters>();
+			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+			PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
+			PassParameters->OutMergePagesIndirectArgsBuffer = GraphBuilder.CreateUAV(MergePagesIndirectArgsRDG);
+			PassParameters->OutPhysicalPagesToMerge = GraphBuilder.CreateUAV(PhysicalPagesToMergeRDG);
+			bool bGenerateStats = StatsBufferRDG != nullptr;
+			if (bGenerateStats)
+			{
+				PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(StatsBufferRDG);
+			}
+			FSelectPagesToMergeCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FSelectPagesToMergeCS::FGenerateStatsDim>(bGenerateStats);
+
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesToMergeCS>(PermutationVector);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SelectPagesToMerge"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(FMath::DivideAndRoundUp(UniformParameters.MaxPhysicalPages, FSelectPagesToMergeCS::DefaultCSGroupX), 1, 1)
+			);
+
+		}
+		// 3. Indirect dispatch to clear the selected pages
+		{
+			FMergeStaticPhysicalPagesIndirectCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMergeStaticPhysicalPagesIndirectCS::FParameters>();
+			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+			PassParameters->OutPhysicalPagePool = GraphBuilder.CreateUAV(PhysicalPagePoolRDG);
+			PassParameters->IndirectArgs = MergePagesIndirectArgsRDG;
+			PassParameters->PhysicalPagesToMerge = GraphBuilder.CreateSRV(PhysicalPagesToMergeRDG);
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FMergeStaticPhysicalPagesIndirectCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("MergeStaticPhysicalPagesIndirect"),
+				ComputeShader,
+				PassParameters,
+				PassParameters->IndirectArgs,
+				0
+			);
+		}
+	}
+	else
 	{
 		FMergeStaticPhysicalPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMergeStaticPhysicalPagesCS::FParameters>();
 		PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
@@ -1152,7 +1317,61 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		// Initialize the physical page pool
 		check(PhysicalPagePoolRDG != nullptr);
 		{
-			RDG_EVENT_SCOPE( GraphBuilder, "FVirtualShadowMapArray::InitializePhysicalPages" );
+			RDG_EVENT_SCOPE( GraphBuilder, "InitializePhysicalPages" );
+			if (CVarInitializePhysicalUsingIndirect.GetValueOnRenderThread() != 0)
+			{
+				FRDGBufferRef InitializePagesIndirectArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(3), TEXT("Shadow.Virtual.InitializePagesIndirectArgs"));
+				// Note: creating buffer of 2x MaxPhysicalPages as MaxPhysicalPages represents the number before adding the static page overload. The selection shader emits both types of pages.
+				FRDGBufferRef PhysicalPagesToInitializeRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(int32), 2U * UniformParameters.MaxPhysicalPages + 1), TEXT("Shadow.Virtual.PhysicalPagesToInitialize"));
+
+				// 1. Initialize the indirect args buffer
+				AddClearIndirectDispatchArgs1DPass(GraphBuilder, InitializePagesIndirectArgsRDG);
+				// 2. Filter the relevant physical pages and set up the indirect args
+				{
+					FSelectPagesToInitializeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesToInitializeCS::FParameters>();
+					PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+					PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
+					PassParameters->OutInitializePagesIndirectArgsBuffer = GraphBuilder.CreateUAV(InitializePagesIndirectArgsRDG);
+					PassParameters->OutPhysicalPagesToInitialize = GraphBuilder.CreateUAV(PhysicalPagesToInitializeRDG);
+					bool bGenerateStats = StatsBufferRDG != nullptr;
+					if (bGenerateStats)
+					{
+						PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(StatsBufferRDG);
+					}
+					FSelectPagesToInitializeCS::FPermutationDomain PermutationVector;
+					PermutationVector.Set<FSelectPagesToInitializeCS::FGenerateStatsDim>(bGenerateStats);
+
+					auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesToInitializeCS>(PermutationVector);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("SelectPagesToInitialize"),
+						ComputeShader,
+						PassParameters,
+						FIntVector(FMath::DivideAndRoundUp(UniformParameters.MaxPhysicalPages, FSelectPagesToInitializeCS::DefaultCSGroupX), 1, 1)
+					);
+
+				}
+				// 3. Indirect dispatch to clear the selected pages
+				{
+					FInitializePhysicalPagesIndirectCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitializePhysicalPagesIndirectCS::FParameters>();
+					PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+					PassParameters->OutPhysicalPagePool = GraphBuilder.CreateUAV(PhysicalPagePoolRDG);
+					PassParameters->IndirectArgs = InitializePagesIndirectArgsRDG;
+					PassParameters->PhysicalPagesToInitialize = GraphBuilder.CreateSRV(PhysicalPagesToInitializeRDG);
+					auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitializePhysicalPagesIndirectCS>();
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("InitializePhysicalMemoryIndirect"),
+						ComputeShader,
+						PassParameters,
+						PassParameters->IndirectArgs,
+						0
+					);
+				}
+			}
+			else
 			{
 				FInitializePhysicalPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitializePhysicalPagesCS::FParameters>();
 				PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
