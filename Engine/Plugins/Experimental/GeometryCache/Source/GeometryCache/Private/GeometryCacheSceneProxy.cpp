@@ -168,6 +168,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 						Initializer.TotalPrimitiveCount = 0;
 						Initializer.GeometryType = RTGT_Triangles;
 						Initializer.bFastBuild = false;
+						Initializer.bAllowCompaction = false;
 
 						TArray<FRayTracingGeometrySegment> Segments;
 						const FGeometryCacheMeshData* MeshData = Section->bNextFrameMeshDataSelected ? Section->NextFrameMeshData : Section->MeshData;
@@ -602,16 +603,34 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 			if (Section != nullptr)
 			{
 				const int PositionBufferIndex = Section->CurrentPositionBufferIndex != -1 ? Section->CurrentPositionBufferIndex % 2 : 0;
-
-				Section->RayTracingGeometry.Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
-				Section->RayTracingGeometry.Initializer.TotalPrimitiveCount = 0;
-
+				const FGeometryCacheMeshData* MeshData = Section->bNextFrameMeshDataSelected ? Section->NextFrameMeshData : Section->MeshData;
 				const uint32 IndexBufferNumTriangles = Section->IndexBuffer.NumValidIndices / 3;
 
 				TMemoryImageArray<FRayTracingGeometrySegment>& Segments = Section->RayTracingGeometry.Initializer.Segments;
-				Segments.Reset();
 
-				const FGeometryCacheMeshData* MeshData = Section->bNextFrameMeshDataSelected ? Section->NextFrameMeshData : Section->MeshData;
+				// Check if a full RaytracingGeometry object needs to be recreated. 
+				// Recreate when:
+				// - index buffer changes (grew in size)
+				// - total primitive count changes
+				// - segment count or vertex count changed (change BLAS size)
+				bool bRequireRecreate = false;
+				bRequireRecreate = bRequireRecreate || Segments.Num() != MeshData->BatchesInfo.Num();				
+
+				// Validate the max vertex count on all segments 
+				if (!bRequireRecreate)
+				{
+					for (int32 SegmentIndex = 0; SegmentIndex < Segments.Num(); ++SegmentIndex)
+					{
+						const FGeometryCacheMeshBatchInfo& BatchInfo = MeshData->BatchesInfo[SegmentIndex];
+						const FRayTracingGeometrySegment& Segment = Segments[SegmentIndex];
+
+						int32 MaxSegmentVertices = Section->PositionBuffers[PositionBufferIndex].GetSizeInBytes() / Segment.VertexBufferStride; // conservative estimate
+						bRequireRecreate = bRequireRecreate || Segment.MaxVertices != MaxSegmentVertices;
+					}
+				}
+
+				uint32 TotalPrimitiveCount = 0;				
+				Segments.Reset();
 				for (const FGeometryCacheMeshBatchInfo& BatchInfo : MeshData->BatchesInfo)
 				{
 					FRayTracingGeometrySegment Segment;
@@ -631,12 +650,30 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 					Segment.MaxVertices = Section->PositionBuffers[PositionBufferIndex].GetSizeInBytes() / Segment.VertexBufferStride; // conservative estimate
 
 					Segments.Add(Segment);
-					Section->RayTracingGeometry.Initializer.TotalPrimitiveCount += Segment.NumPrimitives;
+					TotalPrimitiveCount += BatchInfo.NumTriangles;
 				}
+
+				bRequireRecreate = bRequireRecreate || Section->RayTracingGeometry.Initializer.IndexBuffer != Section->IndexBuffer.IndexBufferRHI;
+				bRequireRecreate = bRequireRecreate || Section->RayTracingGeometry.Initializer.TotalPrimitiveCount != TotalPrimitiveCount;
+
+				Section->RayTracingGeometry.Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
+				Section->RayTracingGeometry.Initializer.TotalPrimitiveCount = TotalPrimitiveCount;
 
 				if (Segments.Num() > 0)
 				{
-					Section->RayTracingGeometry.UpdateRHI();
+					if (bRequireRecreate)
+					{
+						Section->RayTracingGeometry.UpdateRHI();
+					}
+					else
+					{
+						// Request full build on same geometry because data might have changed to much for update call?
+						FRayTracingGeometryBuildParams BuildParams;
+						BuildParams.Geometry = Section->RayTracingGeometry.RayTracingGeometryRHI;
+						BuildParams.BuildMode = EAccelerationStructureBuildMode::Build;
+						BuildParams.Segments = Section->RayTracingGeometry.Initializer.Segments;
+						FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructures(MakeArrayView(&BuildParams, 1));
+					}
 				}
 			}
 		}
