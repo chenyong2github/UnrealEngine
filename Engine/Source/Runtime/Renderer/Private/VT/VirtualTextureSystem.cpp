@@ -160,18 +160,6 @@ struct FFeedbackAnalysisParameters
 	uint32 FeedbackSize = 0u;
 };
 
-struct FGatherRequestsParameters
-{
-	FVirtualTextureSystem* System = nullptr;
-	const FUniquePageList* UniquePageList = nullptr;
-	FPageUpdateBuffer* PageUpdateBuffers = nullptr;
-	FUniqueRequestList* RequestList = nullptr;
-	uint32 PageUpdateFlushCount = 0u;
-	uint32 PageStartIndex = 0u;
-	uint32 NumPages = 0u;
-	uint32 FrameRequested;
-};
-
 class FFeedbackAnalysisTask
 {
 public:
@@ -194,6 +182,50 @@ public:
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::AnyNormalThreadNormalTask; }
 	FORCEINLINE TStatId GetStatId() const { return TStatId(); }
+};
+
+struct FAddRequestedTilesParameters
+{
+	FVirtualTextureSystem* System = nullptr;
+	const uint64* RequestBuffer = nullptr;
+	FUniquePageList* UniquePageList = nullptr;
+	uint32 NumRequests = 0u;
+};
+
+class FAddRequestedTilesTask
+{
+public:
+	explicit FAddRequestedTilesTask(const FAddRequestedTilesParameters& InParams) : Parameters(InParams) {}
+
+	FAddRequestedTilesParameters Parameters;
+
+	static void DoTask(FAddRequestedTilesParameters& InParams)
+	{
+		InParams.UniquePageList->Initialize();
+		InParams.System->AddRequestedTilesTask(InParams);
+	}
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
+		DoTask(Parameters);
+	}
+
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::AnyNormalThreadNormalTask; }
+	FORCEINLINE TStatId GetStatId() const { return TStatId(); }
+};
+
+struct FGatherRequestsParameters
+{
+	FVirtualTextureSystem* System = nullptr;
+	const FUniquePageList* UniquePageList = nullptr;
+	FPageUpdateBuffer* PageUpdateBuffers = nullptr;
+	FUniqueRequestList* RequestList = nullptr;
+	uint32 PageUpdateFlushCount = 0u;
+	uint32 PageStartIndex = 0u;
+	uint32 NumPages = 0u;
+	uint32 FrameRequested;
 };
 
 class FGatherRequestsTask
@@ -254,6 +286,7 @@ FVirtualTextureSystem::FVirtualTextureSystem()
 #if WITH_EDITOR
 	, SaveAllocatorImages(TEXT("r.VT.SaveAllocatorImages"), TEXT("Save images showing allocator usage."),
 		FConsoleCommandDelegate::CreateRaw(this, &FVirtualTextureSystem::SaveAllocatorImagesFromConsole))
+	, PageRequestRecordHandle(~0ull)
 #endif
 {
 #if !UE_BUILD_SHIPPING
@@ -272,6 +305,7 @@ FVirtualTextureSystem::~FVirtualTextureSystem()
 	DestroyPendingVirtualTextures(true);
 
 	check(AllocatedVTs.Num() == 0);
+	check(PersistentVTMap.Num() == 0);
 
 	for (uint32 SpaceID = 0u; SpaceID < MaxSpaces; ++SpaceID)
 	{
@@ -576,6 +610,12 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 	{
 		AllocatedVTsToMap.Add(AllocatedVT);
 	}
+
+	// Add to deterministic map that should apply across runs.
+	// Note that this may overwrite a duplicate old mapping whenever a new AllocatedVT is recreated after its producers have been recreated.
+	// In contrast AllocatedVTs maintains the duplicate entries temporarily until the older entry is deleted.
+	PersistentVTMap.Add(TPair<uint32, IAllocatedVirtualTexture*>(AllocatedVT->GetPersistentHash(), AllocatedVT));
+	
 	return AllocatedVT;
 }
 
@@ -633,6 +673,14 @@ void FVirtualTextureSystem::DestroyPendingVirtualTextures(bool bForceDestroyAll)
 		// shouldn't be more than 1 instance of this in the list
 		verify(AllocatedVTsToMap.Remove(AllocatedVT) <= 1);
 		verify(AllocatedVTs.Remove(AllocatedVT->GetDescription()) == 1);
+		
+		// persistent entry might have already been reallocated
+		IAllocatedVirtualTexture** Found = PersistentVTMap.Find(AllocatedVT->GetPersistentHash());
+		if (Found != nullptr && *Found == AllocatedVT)
+		{
+			PersistentVTMap.Remove(AllocatedVT->GetPersistentHash());
+		}
+		
 		AllocatedVT->Destroy(this);
 		delete AllocatedVT;
 	}
@@ -1342,6 +1390,32 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		}
 
 		GVirtualTextureFeedback.Unmap(GraphBuilder.RHICmdList, FeedbackResult.MapHandle);
+	}
+
+#if WITH_EDITOR
+	// If we're are recording page requests, then copy off pages to the recording buffer.
+	if (PageRequestRecordHandle != ~0ull)
+	{
+		RecordPageRequests(MergedUniquePageList, PageRequestRecordBuffer);
+	}
+#endif
+
+	// Add any page requests from recording playback.
+	// todo: We can split this into concurrent tasks. 
+	if (PageRequestPlaybackBuffer.Num() > 0)
+	{
+		FMemMark FeedbackMark(MemStack);
+
+		FAddRequestedTilesParameters Parameters;
+		Parameters.RequestBuffer = PageRequestPlaybackBuffer.GetData();
+		Parameters.NumRequests = PageRequestPlaybackBuffer.Num();
+		Parameters.System = this;
+		Parameters.UniquePageList = new(MemStack) FUniquePageList;
+
+		FAddRequestedTilesTask::DoTask(Parameters);
+		MergedUniquePageList->MergePages(Parameters.UniquePageList);
+
+		PageRequestPlaybackBuffer.Reset(0);
 	}
 
 	FUniqueRequestList* MergedRequestList = new(MemStack) FUniqueRequestList(MemStack);
@@ -2486,6 +2560,10 @@ void FVirtualTextureSystem::UpdateResidencyNotifications()
 			FString const& FormatString = PhysicalSpace->GetFormatString();
 			const float MipBias = PhysicalSpace->GetResidencyMipMapBias();
 
+#if CSV_PROFILER
+			CSV_CUSTOM_STAT_GLOBAL(VirtualTextureMipBias, MipBias, ECsvCustomStatOp::Set);
+#endif
+
 			OnScreenMessages.Add(
 				FCoreDelegates::EOnScreenMessageSeverity::Warning,
 				FText::Format(LOCTEXT("VTOversubscribed", "VT Pool [{0}] is oversubscribed. Setting MipBias {1}"), FText::FromString(FormatString), FText::AsNumber(MipBias)));
@@ -2552,5 +2630,125 @@ void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerControlle
 }
 
 #endif // !UE_BUILD_SHIPPING
+
+#if WITH_EDITOR
+
+void FVirtualTextureSystem::SetVirtualTextureRequestRecordBuffer(uint64 Handle)
+{
+	check(IsInRenderingThread());
+	check(PageRequestRecordHandle == ~0ull && PageRequestRecordBuffer.Num() == 0);
+	
+	PageRequestRecordHandle = Handle;
+	PageRequestRecordBuffer.Reset();
+}
+
+void FVirtualTextureSystem::RecordPageRequests(FUniquePageList const* UniquePageList, TSet<uint64>& OutPages)
+{
+	const uint32 PageCount = UniquePageList->GetNum();
+	OutPages.Reserve(PageCount);
+
+	for (uint32 PageIndex = 0; PageIndex < PageCount; ++PageIndex)
+	{
+		const uint32 PageId = UniquePageList->GetPage(PageIndex);
+
+		const uint32 SpaceId = (PageId >> 28);
+		const FVirtualTextureSpace* RESTRICT Space = GetSpace(SpaceId);
+		if (Space == nullptr)
+		{
+			continue;
+		}
+
+		const uint32 vLevelPlusOne = ((PageId >> 24) & 0x0f);
+		const uint32 vLevel = FMath::Max(vLevelPlusOne, 1u) - 1;
+		const uint32 vPageX = (PageId & 0xfff) << vLevel;
+		const uint32 vPageY = ((PageId >> 12) & 0xfff) << vLevel;
+
+		const uint32 vAddress = FMath::MortonCode2(vPageX) | (FMath::MortonCode2(vPageY) << 1);
+		const FAllocatedVirtualTexture* RESTRICT AllocatedVT = Space->GetAllocator().Find(vAddress);
+		if (AllocatedVT == nullptr)
+		{
+			continue;
+		}
+
+		const uint32 LocalAddress = vAddress - AllocatedVT->GetVirtualAddress();
+		const uint32 PersistentHash = AllocatedVT->GetPersistentHash();
+		const uint64 ExportPageId = ((uint64)PersistentHash << 32)| ((uint64)vLevelPlusOne << 28) | (uint64)LocalAddress;
+		
+		OutPages.Add(ExportPageId);
+	}
+}
+
+uint64 FVirtualTextureSystem::GetVirtualTextureRequestRecordBuffer(TSet<uint64>& OutPageRequests)
+{
+	check(IsInRenderingThread());
+
+	if (PageRequestRecordHandle == ~0ull)
+	{
+		return ~0ull;
+	}
+
+	uint64 Ret = PageRequestRecordHandle;
+	OutPageRequests = MoveTemp(PageRequestRecordBuffer);
+	PageRequestRecordBuffer.Reset();
+	PageRequestRecordHandle = ~0ull;
+	return Ret;
+}
+
+#endif // WITH_EDITOR
+
+void FVirtualTextureSystem::RequestRecordedTiles(TArray<uint64>&& InPageRequests)
+{
+	check(IsInRenderingThread());
+
+	if (PageRequestPlaybackBuffer.Num() == 0)
+	{
+		PageRequestPlaybackBuffer = MoveTemp(InPageRequests);
+	}
+	else
+	{
+		PageRequestPlaybackBuffer.Append(InPageRequests);
+	}
+}
+
+void FVirtualTextureSystem::AddRequestedTilesTask(const FAddRequestedTilesParameters& Parameters)
+{
+	FUniquePageList* RESTRICT RequestedPageList = Parameters.UniquePageList;
+	const uint64* RESTRICT Buffer = Parameters.RequestBuffer;
+	const uint32 BufferSize = Parameters.NumRequests;
+
+	uint32 CurrentPersistentHash = ~0u;
+	IAllocatedVirtualTexture* AllocatedVT = nullptr;
+
+	for (uint32 Index = 0; Index < BufferSize; Index++)
+	{
+		uint64 PageRequest = Buffer[Index];
+
+		// We expect requests to be at least partially sorted. 
+		// So a small optimization is to only resolve the PersistentHash to AllocatedVT on change.
+		const uint32 PersistentHash = (uint32)(PageRequest >> 32);
+		if (CurrentPersistentHash != PersistentHash)
+		{
+			IAllocatedVirtualTexture** AllocatedVTPtr = PersistentVTMap.Find(PersistentHash);
+			AllocatedVT = AllocatedVTPtr != nullptr ? *AllocatedVTPtr : nullptr;
+			CurrentPersistentHash = PersistentHash;
+		}
+
+		if (AllocatedVT != nullptr)
+		{
+			const uint32 LevelPlusOne = (uint32)(PageRequest >> 28) & 0xf;
+			const uint32 LocalAddress = (uint32)(PageRequest & 0xffffff);
+
+			const uint32 BaseAddress = AllocatedVT->GetVirtualAddress();
+			const uint32 Address = BaseAddress + LocalAddress;
+			const uint32 Level = FMath::Max(LevelPlusOne, 1u) - 1;
+			const uint32 PageX = FMath::ReverseMortonCode2(Address) >> Level;
+			const uint32 PageY = FMath::ReverseMortonCode2(Address >> 1) >> Level;
+			const uint32 SpaceId = AllocatedVT->GetSpaceID();
+			const uint32 PageId = PageX | (PageY << 12) | (LevelPlusOne << 24) | (SpaceId << 28);
+
+			RequestedPageList->Add(PageId, 0xffff);
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

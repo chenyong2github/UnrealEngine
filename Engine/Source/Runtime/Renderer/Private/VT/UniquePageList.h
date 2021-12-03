@@ -24,8 +24,8 @@ public:
 private:
 	enum
 	{
-		HashSize		= 8*1024,
-		MaxUniquePages	= 4*1024,
+		HashSize		= 16*1024,
+		MaxUniquePages	= 8*1024,
 	};
 
 	bool bInitialized;

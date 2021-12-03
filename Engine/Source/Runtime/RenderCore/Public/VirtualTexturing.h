@@ -129,6 +129,7 @@ inline uint32 GetTypeHash(const FAllocatedVTDescription& Description)
 struct FVTProducerDescription
 {
 	FName Name; /** Will be name of UTexture for streaming VTs, mostly here for debugging */
+	uint32 FullNameHash;
 	
 	bool bPersistentHighestMip = true;
 	bool bContinuousUpdate = false;
@@ -343,6 +344,7 @@ public:
 		, VirtualPageY(~0u)
 	{}
 
+	virtual uint32 GetPersistentHash() const = 0;
 	virtual uint32 GetNumPageTableTextures() const = 0;
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const = 0;
 	virtual FRHITexture* GetPageTableIndirectionTexture() const = 0;

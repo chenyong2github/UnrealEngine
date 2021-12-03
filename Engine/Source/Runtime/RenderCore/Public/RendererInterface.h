@@ -859,16 +859,18 @@ public:
 	virtual uint32 RemoveAllVirtualTextureProducerDestroyedCallbacks(const void* Baton) = 0;
 	virtual void ReleaseVirtualTexturePendingResources() = 0;
 
-	/**	Provided a list of packed virtual texture tile ids, let the VT system request them. Note this should be called as long as the tiles are needed.*/
-	virtual void RequestVirtualTextureTiles(TArrayView<uint64> InPageRequests) = 0;
 	virtual void RequestVirtualTextureTiles(const FVector2D& InScreenSpaceSize, int32 InMipLevel) = 0;
 	virtual void RequestVirtualTextureTilesForRegion(IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FVector2D& InViewportPosition, const FVector2D& InViewportSize, const FVector2D& InUV0, const FVector2D& InUV1, int32 InMipLevel) = 0;
 
 	/** Ensure that any tiles requested by 'RequestVirtualTextureTilesForRegion' are loaded, must be called from render thread */
 	virtual void LoadPendingVirtualTextureTiles(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel) = 0;
 
+	/** Allocate a buffer and record all virtual texture page requests until the next call to either SetVirtualTextureRequestRecordBuffer or GetVirtualTextureRequestRecordBuffer. */
 	virtual void SetVirtualTextureRequestRecordBuffer(uint64 Handle) = 0;
+	/** Fetch the virtual texture page requests recorded since the last call to SetVirtualTextureRequestRecordBuffer. Returns the handle that was passed in. */
 	virtual uint64 GetVirtualTextureRequestRecordBuffer(TSet<uint64>& OutPageRequests) = 0;
+	/**	Request an array of virtual texture page requests that was captured with SetVirtualTextureRequestRecordBuffer. Note that the array will be moved and ownership is taken. */
+	virtual void RequestVirtualTextureTiles(TArray<uint64>&& InPageRequests) = 0;
 
 	/** Evict all data from virtual texture caches*/
 	virtual void FlushVirtualTextureCache() = 0;
