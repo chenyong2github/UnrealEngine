@@ -879,7 +879,7 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 				[Scene, &SceneInfos](FCacheRayTracingPrimitivesContext<FTempRayTracingMeshCommandStorage>& Context, int32 Index)
 				{
 					FMemMark Mark(FMemStack::Get());
-					FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+					FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 
 					FPrimitiveSceneInfo* SceneInfo = SceneInfos[Index];
 					FRayTracingInstance CachedInstance;
