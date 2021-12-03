@@ -341,68 +341,73 @@ FScreenPassTexture AddLensFlaresPass(
 	return FScreenPassTexture(LensFlareTexture, OutputViewRect);
 }
 
+bool IsLensFlaresEnabled(const FViewInfo& View)
+{
+	const ELensFlareQuality LensFlareQuality = GetLensFlareQuality();
+
+	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
+
+	return (LensFlareQuality != ELensFlareQuality::Disabled &&
+		!Settings.LensFlareTint.IsAlmostBlack() &&
+		Settings.LensFlareBokehSize > SMALL_NUMBER &&
+		Settings.LensFlareIntensity > SMALL_NUMBER);
+}
+
 FScreenPassTexture AddLensFlaresPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FScreenPassTexture Bloom,
 	const FSceneDownsampleChain& SceneDownsampleChain)
 {
+	ensure(IsLensFlaresEnabled(View));
 	const ELensFlareQuality LensFlareQuality = GetLensFlareQuality();
 
 	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
-	if (LensFlareQuality != ELensFlareQuality::Disabled &&
-		!Settings.LensFlareTint.IsAlmostBlack() &&
-		Settings.LensFlareBokehSize > SMALL_NUMBER &&
-		Settings.LensFlareIntensity > SMALL_NUMBER)
+	RDG_GPU_STAT_SCOPE(GraphBuilder, LensFlare);
+
+	FRHITexture* BokehTextureRHI = GWhiteTexture->TextureRHI;
+
+	if (GEngine->DefaultBokehTexture)
 	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, LensFlare);
+		FTextureResource* BokehTextureResource = GEngine->DefaultBokehTexture->GetResource();
 
-		FRHITexture* BokehTextureRHI = GWhiteTexture->TextureRHI;
-
-		if (GEngine->DefaultBokehTexture)
+		if (BokehTextureResource && BokehTextureResource->TextureRHI)
 		{
-			FTextureResource* BokehTextureResource = GEngine->DefaultBokehTexture->GetResource();
-
-			if (BokehTextureResource && BokehTextureResource->TextureRHI)
-			{
-				BokehTextureRHI = BokehTextureResource->TextureRHI;
-			}
+			BokehTextureRHI = BokehTextureResource->TextureRHI;
 		}
-
-		if (Settings.LensFlareBokehShape)
-		{
-			FTextureResource* BokehTextureResource = Settings.LensFlareBokehShape->GetResource();
-
-			if (BokehTextureResource && BokehTextureResource->TextureRHI)
-			{
-				BokehTextureRHI = BokehTextureResource->TextureRHI;
-			}
-		}
-
-		// The quality level controls which downsample stage we use as the flare input texture.
-		const uint32 LensFlareDownsampleStageIndex = static_cast<uint32>(ELensFlareQuality::MAX) - static_cast<uint32>(LensFlareQuality) - 1;
-
-		FLensFlareInputs LensFlareInputs;
-		LensFlareInputs.Bloom = Bloom;
-		LensFlareInputs.Flare = SceneDownsampleChain.GetTexture(LensFlareDownsampleStageIndex);
-		LensFlareInputs.BokehShapeTexture = BokehTextureRHI;
-		LensFlareInputs.TintColorsPerFlare = Settings.LensFlareTints;
-		LensFlareInputs.TintColor = Settings.LensFlareTint;
-		LensFlareInputs.BokehSizePercent = Settings.LensFlareBokehSize;
-		LensFlareInputs.Intensity = Settings.LensFlareIntensity;
-		LensFlareInputs.Threshold = Settings.LensFlareThreshold;
-
-		// If a bloom output texture isn't available, substitute the half resolution scene color instead, but disable bloom
-		// composition. The pass needs a primary input in order to access the image descriptor and viewport for output.
-		if (!Bloom.IsValid())
-		{
-			LensFlareInputs.Bloom = SceneDownsampleChain.GetFirstTexture();
-			LensFlareInputs.bCompositeWithBloom = false;
-		}
-
-		return AddLensFlaresPass(GraphBuilder, View, LensFlareInputs);
 	}
 
-	return FScreenPassTexture();
+	if (Settings.LensFlareBokehShape)
+	{
+		FTextureResource* BokehTextureResource = Settings.LensFlareBokehShape->GetResource();
+
+		if (BokehTextureResource && BokehTextureResource->TextureRHI)
+		{
+			BokehTextureRHI = BokehTextureResource->TextureRHI;
+		}
+	}
+
+	// The quality level controls which downsample stage we use as the flare input texture.
+	const uint32 LensFlareDownsampleStageIndex = static_cast<uint32>(ELensFlareQuality::MAX) - static_cast<uint32>(LensFlareQuality) - 1;
+
+	FLensFlareInputs LensFlareInputs;
+	LensFlareInputs.Bloom = Bloom;
+	LensFlareInputs.Flare = SceneDownsampleChain.GetTexture(LensFlareDownsampleStageIndex);
+	LensFlareInputs.BokehShapeTexture = BokehTextureRHI;
+	LensFlareInputs.TintColorsPerFlare = Settings.LensFlareTints;
+	LensFlareInputs.TintColor = Settings.LensFlareTint;
+	LensFlareInputs.BokehSizePercent = Settings.LensFlareBokehSize;
+	LensFlareInputs.Intensity = Settings.LensFlareIntensity;
+	LensFlareInputs.Threshold = Settings.LensFlareThreshold;
+
+	// If a bloom output texture isn't available, substitute the half resolution scene color instead, but disable bloom
+	// composition. The pass needs a primary input in order to access the image descriptor and viewport for output.
+	if (!Bloom.IsValid())
+	{
+		LensFlareInputs.Bloom = SceneDownsampleChain.GetFirstTexture();
+		LensFlareInputs.bCompositeWithBloom = false;
+	}
+
+	return AddLensFlaresPass(GraphBuilder, View, LensFlareInputs);
 }

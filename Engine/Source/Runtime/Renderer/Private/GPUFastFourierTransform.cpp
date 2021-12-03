@@ -460,6 +460,7 @@ void DispatchReorderFFTPassCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT Multipass: Complex %s Reorder pass of size %d", FFTDesc.FFT_TypeName(), TransformLength),
+		FFTDesc.ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, TransformLength / Radix));
@@ -515,6 +516,7 @@ void DispatchGSSubComplexFFTPassCS(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT Multipass: %d GS Subpasses Complex %s of size %d",
 			NumSubRegions, FFTDesc.FFT_TypeName(), FGroupShardSubFFTPassCS::SubPassLength()),
+		FFTDesc.ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, NumSignals));
@@ -567,6 +569,7 @@ void DispatchComplexFFTPassCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT Multipass: Pass %d of Complex %s of size %d", PassLength, FFTDesc.FFT_TypeName(), TransformLength),
+		FFTDesc.ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, TransformLength / Radix));
@@ -623,6 +626,7 @@ void DispatchPackTwoForOneFFTPassCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT Multipass: TwoForOne Combine/split result of %s of size %d", FFTDesc.FFT_TypeName(), TransformLength),
+		FFTDesc.ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, RealTransformLength));
@@ -645,6 +649,7 @@ void DispatchPackTwoForOneFFTPassCS(
  */
 void DispatchCopyWindowCS(
 	FRDGBuilder& GraphBuilder,
+	ERDGPassFlags ComputePassFlags,
 	const FGlobalShaderMap* ShaderMap,
 	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
 	FRDGTextureRef DstTexture, const FIntRect& DstWindow,
@@ -662,6 +667,7 @@ void DispatchCopyWindowCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT Multipass: Copy Subwindow"),
+		ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(DstWindow.Size(), FCopyWindowCS::ThreadCount()));
@@ -697,6 +703,7 @@ void DispatchCopyWindowCS(
  */
 void DispatchComplexMultiplyImagesCS(
 	FRDGBuilder& GraphBuilder,
+	ERDGPassFlags ComputePassFlags,
 	const FGlobalShaderMap* ShaderMap,
 	const bool bHorizontalScanlines,
 	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
@@ -722,6 +729,7 @@ void DispatchComplexMultiplyImagesCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT Multipass: Convolution in freq-space"),
+		ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, NumScanLines));
@@ -780,6 +788,7 @@ void DispatchGSComplexFFTCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT: Complex %s of size %d", FFTDesc.FFT_TypeName(), TransformLength),
+		FFTDesc.ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, NumSignals));
@@ -842,6 +851,7 @@ void DispatchGSTwoForOneFFTCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT: Two-For-One %s of size %d of buffer %d x %d", FFTDesc.FFT_TypeName(), TransformLength, SrcRect.Size().X, SrcRect.Size().Y),
+		FFTDesc.ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, NumScanLines));
@@ -901,6 +911,7 @@ void DispatchGSConvolutionWithTextureCS(
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FFT: Apply %s Transform, Multiply Texture, and InverseTransform size %d of buffer %d x %d", FFTDesc.FFT_TypeName(), SignalLength, SrcRectSize.X, SrcRectSize.Y),
+		FFTDesc.ComputePassFlags,
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, NumSignals));
@@ -923,12 +934,13 @@ bool FitsInGroupSharedMemory(const GPUFFT::FFTDescription& FFTDesc)
 
 void GPUFFT::CopyImage2D(
 	FRDGBuilder& GraphBuilder,
+	ERDGPassFlags ComputePassFlags,
 	const FGlobalShaderMap* ShaderMap,
 	FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
 	FRDGTextureRef DstTexture, const FIntRect& DstWindow,
 	const FPreFilter& PreFilter)
 {
-	DispatchCopyWindowCS(GraphBuilder, ShaderMap, SrcTexture, SrcWindow, DstTexture, DstWindow, PreFilter);
+	DispatchCopyWindowCS(GraphBuilder, ComputePassFlags, ShaderMap, SrcTexture, SrcWindow, DstTexture, DstWindow, PreFilter);
 }
 
 void GPUFFT::ComplexFFTImage1D::MultiPass(
@@ -1071,7 +1083,7 @@ void GPUFFT::TwoForOneRealFFTImage1D::MultiPass(
 			FRDGTextureRef PreFilteredTexture = GraphBuilder.CreateTexture(Desc, TEXT("FFT.PreFilter"));
 
 			CopyImage2D(
-				GraphBuilder, ShaderMap,
+				GraphBuilder, FFTDesc.ComputePassFlags, ShaderMap,
 				/* SrcTexture = */ SrcTexture, SrcWindow,
 				/* DstTexture = */ PreFilteredTexture, SrcWindow,
 				PreFilter);
@@ -1189,7 +1201,7 @@ void GPUFFT::ConvolutionWithTextureImage1D::MultiPass(
 		// Apply convolution kernel.
 		FRDGTextureRef SpectralTexture1 = GraphBuilder.CreateTexture(SrcTexture->Desc, TEXT("FFT.Spectral"));
 		DispatchComplexMultiplyImagesCS(
-			GraphBuilder, ShaderMap, FFTDesc.IsHorizontal(),
+			GraphBuilder, FFTDesc.ComputePassFlags, ShaderMap, FFTDesc.IsHorizontal(),
 			/* SrcTexture = */ SpectralTexture0, TargetRect,
 			TransformedKernel, 
 			/* DstTexture = */ SpectralTexture1);
@@ -1253,6 +1265,7 @@ FRDGTextureDesc CreateFrequencyDesc(const FIntPoint& FrequencySize, const bool b
 
 void GPUFFT::ConvolutionWithTextureImage2D(
 	FRDGBuilder& GraphBuilder,
+	ERDGPassFlags ComputePassFlags,
 	const FGlobalShaderMap* ShaderMap,
 	const FIntPoint& FrequencySize, bool bHorizontalFirst,
 	FRDGTextureRef TransformedKernel,
@@ -1271,6 +1284,7 @@ void GPUFFT::ConvolutionWithTextureImage2D(
 	TwoForOneFFTDesc.XFormType = bHorizontalFirst ? FFT_XFORM_TYPE::FORWARD_HORIZONTAL : FFT_XFORM_TYPE::FORWARD_VERTICAL;
 	TwoForOneFFTDesc.SignalLength = bHorizontalFirst ? FrequencySize.X : FrequencySize.Y;
 	TwoForOneFFTDesc.NumScanLines = (bHorizontalFirst) ? ROISize.Y : ROISize.X;
+	TwoForOneFFTDesc.ComputePassFlags = ComputePassFlags;
 
 	// The output has two more elements
 	FIntRect SpectralOutputRect;
@@ -1284,9 +1298,11 @@ void GPUFFT::ConvolutionWithTextureImage2D(
 	ConvolutionFFTDesc.XFormType = bHorizontalFirst ? FFT_XFORM_TYPE::FORWARD_VERTICAL : FFT_XFORM_TYPE::FORWARD_HORIZONTAL;
 	ConvolutionFFTDesc.SignalLength = bHorizontalFirst ? FrequencySize.Y : FrequencySize.X;
 	ConvolutionFFTDesc.NumScanLines = TwoForOneFFTDesc.SignalLength + 2; // two-for-one transform generated two additional elements
+	ConvolutionFFTDesc.ComputePassFlags = ComputePassFlags;
 
 	FFTDescription TwoForOneIvnFFTDesc = TwoForOneFFTDesc;
 	TwoForOneIvnFFTDesc.XFormType = GetInverseOfXForm(TwoForOneFFTDesc.XFormType);
+	TwoForOneIvnFFTDesc.ComputePassFlags = ComputePassFlags;
 	
 	
 

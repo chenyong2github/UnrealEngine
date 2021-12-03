@@ -1461,7 +1461,7 @@ void AccumulateSquare3x3Kernel(
 			/* bForceSample = */ false);
 	}
 
-	static const float2 SampleOffsetArray[5] = {
+	static const float2 SampleOffsetArray[4] = {
 		float2(-1.0,  0.0),
 		float2( 0.0, -1.0),
 		float2(-1.0, 1.0),

@@ -5,6 +5,7 @@
 
 #include "MotionBlurCommon.ush"
 #include "../Random.ush"
+#include "/Engine/Public/WaveBroadcastIntrinsics.ush"
 
 
 //------------------------------------------------------- DEBUG
@@ -81,6 +82,8 @@ SCREEN_PASS_TEXTURE_VIEWPORT(Velocity)
 SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
 FScreenTransform ColorToVelocity;
 uint MaxSampleCount;
+uint OutputMip1;
+uint OutputMip2;
 
 uint TileListOffset;
 StructuredBuffer<uint> TileListsBuffer;
@@ -117,11 +120,23 @@ float2 TranslucencyExtentInverse;
 	#define SharedDepthSampler DepthSampler
 #endif
 
-RWTexture2D<mb_half4> OutColorTexture;
+RWTexture2D<mb_half4> SceneColorOutputMip0;
+RWTexture2D<mb_half4> SceneColorOutputMip1;
+RWTexture2D<mb_half4> SceneColorOutputMip2;
 RWTexture2D<float4> DebugOutput;
 
 
 //------------------------------------------------------- LDS
+
+#if !PLATFORM_SUPPORTS_WAVE_BROADCAST
+
+groupshared mb_half4 SharedArray0[TILE_SIZE * TILE_SIZE];
+
+#if POST_PROCESS_ALPHA
+groupshared mb_half  SharedArray1[TILE_SIZE * TILE_SIZE];
+#endif
+
+#endif // !PLATFORM_SUPPORTS_WAVE_BROADCAST
 
 #if !COMPILER_SUPPORTS_WAVE_VOTE
 
@@ -313,7 +328,7 @@ void MainCS(
 		
 		bFastPath = length2(MinVelocityPixels) > 0.4 * (MaxPixelLength0 * MaxPixelLength0);
 
-		#if COMPILER_SUPPORTS_WAVE_MINMAX
+		#if COMPILER_SUPPORTS_WAVE_MINMAX && COMPILER_SUPPORTS_WAVE_VOTE
 		{
 			SampleCount = ToScalarMemory(WaveActiveMax(RecommendedSampleCount));
 			bFastPath = WaveActiveAllTrue(bFastPath);
@@ -700,31 +715,16 @@ void MainCS(
 	BRANCH
 	if (bIsHalfRes)
 	{
-		#if CONFIG_SHUFFLE_HALF_RES
-			mb_short2 OutputPixelCoord = mb_short2(ColorUV * Color_Extent);
-			mb_short2 OutputPixelCoord0 = (OutputPixelCoord & mb_short(~0x3)) | ((OutputPixelCoord >> mb_short(1)) & mb_short(0x1));
-			mb_short2 OutputPixelCoord1 = OutputPixelCoord0 + mb_short2(2, 0);
-			mb_short2 OutputPixelCoord2 = OutputPixelCoord0 + mb_short2(0, 2);
-			mb_short2 OutputPixelCoord3 = OutputPixelCoord0 + mb_short2(2, 2);
-		#else
-			mb_short2 OutputPixelCoord0 = mb_short2(uint2(ColorUV * Color_Extent)) & mb_short(~0x1);
-			mb_short2 OutputPixelCoord1 = OutputPixelCoord0 + mb_short2(1, 0);
-			mb_short2 OutputPixelCoord2 = OutputPixelCoord0 + mb_short2(0, 1);
-			mb_short2 OutputPixelCoord3 = OutputPixelCoord0 + mb_short2(1, 1);
-		#endif
+		mb_short2 OutputPixelCoord0 = mb_short2(uint2(ColorUV * Color_Extent)) & mb_short(~0x1);
+		mb_short2 OutputPixelCoord1 = OutputPixelCoord0 + mb_short2(1, 0);
+		mb_short2 OutputPixelCoord2 = OutputPixelCoord0 + mb_short2(0, 1);
+		mb_short2 OutputPixelCoord3 = OutputPixelCoord0 + mb_short2(1, 1);
 
 		#if 1
 			float2 PostMotionBlurTranslucencyUV0 = ApplyScreenTransform((float2(uint2(OutputPixelCoord0)) + 0.5) * Color_ExtentInverse, ColorToTranslucency);
 			float2 PostMotionBlurTranslucencyUV1 = ApplyScreenTransform((float2(uint2(OutputPixelCoord1)) + 0.5) * Color_ExtentInverse, ColorToTranslucency);
 			float2 PostMotionBlurTranslucencyUV2 = ApplyScreenTransform((float2(uint2(OutputPixelCoord2)) + 0.5) * Color_ExtentInverse, ColorToTranslucency);
 			float2 PostMotionBlurTranslucencyUV3 = ApplyScreenTransform((float2(uint2(OutputPixelCoord3)) + 0.5) * Color_ExtentInverse, ColorToTranslucency);
-		#elif CONFIG_SHUFFLE_HALF_RES
-			float2 ColorUV0 = (float2(uint2(OutputPixelCoord0)) + 0.5) * Color_ExtentInverse;
-
-			float2 PostMotionBlurTranslucencyUV0 = ApplyScreenTransform(ColorUV0, ColorToTranslucency);
-			float2 PostMotionBlurTranslucencyUV1 = PostMotionBlurTranslucencyUV0 + float2(2.0, 0.0) * TranslucencyExtentInverse;
-			float2 PostMotionBlurTranslucencyUV2 = PostMotionBlurTranslucencyUV0 + float2(0.0, 2.0) * TranslucencyExtentInverse;
-			float2 PostMotionBlurTranslucencyUV3 = PostMotionBlurTranslucencyUV0 + float2(2.0, 2.0) * TranslucencyExtentInverse;
 		#else
 			float2 PostMotionBlurTranslucencyUV = ApplyScreenTransform(ColorUV, ColorToTranslucency);
 			float2 PostMotionBlurTranslucencyUV0 = PostMotionBlurTranslucencyUV + float2(-0.5, -0.5) * TranslucencyExtentInverse;
@@ -784,11 +784,84 @@ void MainCS(
 		}
 		#endif
 
+		// Swizzle the half res 2x2 motion blur color across the full res 4x4 quad
+		//  0  0  1  1      0  1  0  1
+		//  0  0  1  1  ->  2  3  2  3
+		//  2  2  3  3      0  1  0  1
+		//  2  2  3  3      2  3  2  3
+		mb_half4 MotionBlurColor0;
+		mb_half4 MotionBlurColor1;
+		mb_half4 MotionBlurColor2;
+		mb_half4 MotionBlurColor3;
+		mb_half FullResBlend0;
+		mb_half FullResBlend1;
+		mb_half FullResBlend2;
+		mb_half FullResBlend3;
+		#if CONFIG_SHUFFLE_HALF_RES && PLATFORM_SUPPORTS_WAVE_BROADCAST
+		{
+			const uint LaneGroupSize = 4;
+			const uint InnerLaneGroupSize = 1;
+
+			const FWaveBroadcastSettings Broadcast0 = InitWaveBroadcastLaneGroup(LaneGroupSize, InnerLaneGroupSize, /* InnerLaneGroupId = */ 0);
+			const FWaveBroadcastSettings Broadcast1 = InitWaveBroadcastLaneGroup(LaneGroupSize, InnerLaneGroupSize, /* InnerLaneGroupId = */ 1);
+			const FWaveBroadcastSettings Broadcast2 = InitWaveBroadcastLaneGroup(LaneGroupSize, InnerLaneGroupSize, /* InnerLaneGroupId = */ 2);
+			const FWaveBroadcastSettings Broadcast3 = InitWaveBroadcastLaneGroup(LaneGroupSize, InnerLaneGroupSize, /* InnerLaneGroupId = */ 3);
+			
+			MotionBlurColor0 = WaveBroadcast(Broadcast0, MotionBlurColor);
+			MotionBlurColor1 = WaveBroadcast(Broadcast1, MotionBlurColor);
+			MotionBlurColor2 = WaveBroadcast(Broadcast2, MotionBlurColor);
+			MotionBlurColor3 = WaveBroadcast(Broadcast3, MotionBlurColor);
+		
+			FullResBlend0 = WaveBroadcast(Broadcast0, FullResBlend);
+			FullResBlend1 = WaveBroadcast(Broadcast1, FullResBlend);
+			FullResBlend2 = WaveBroadcast(Broadcast2, FullResBlend);
+			FullResBlend3 = WaveBroadcast(Broadcast3, FullResBlend);
+		}
+		#elif CONFIG_SHUFFLE_HALF_RES && !PLATFORM_SUPPORTS_WAVE_BROADCAST
+		{
+			#if POST_PROCESS_ALPHA
+				SharedArray0[GroupThreadIndex] = MotionBlurColor;
+				SharedArray1[GroupThreadIndex] = FullResBlend;
+			#else
+				SharedArray0[GroupThreadIndex] = float4(MotionBlurColor.rgb, FullResBlend);
+			#endif
+
+			MotionBlurColor0 = SharedArray0[(GroupThreadIndex & (~0x3)) | 0x0];
+			MotionBlurColor1 = SharedArray0[(GroupThreadIndex & (~0x3)) | 0x1];
+			MotionBlurColor2 = SharedArray0[(GroupThreadIndex & (~0x3)) | 0x2];
+			MotionBlurColor3 = SharedArray0[(GroupThreadIndex & (~0x3)) | 0x3];
+		
+			#if POST_PROCESS_ALPHA
+				FullResBlend0 = SharedArray1[(GroupThreadIndex & (~0x3)) | 0x0];
+				FullResBlend1 = SharedArray1[(GroupThreadIndex & (~0x3)) | 0x1];
+				FullResBlend2 = SharedArray1[(GroupThreadIndex & (~0x3)) | 0x2];
+				FullResBlend3 = SharedArray1[(GroupThreadIndex & (~0x3)) | 0x3];
+			#else
+				FullResBlend0 = MotionBlurColor0.a;
+				FullResBlend1 = MotionBlurColor1.a;
+				FullResBlend2 = MotionBlurColor2.a;
+				FullResBlend3 = MotionBlurColor3.a;
+			#endif
+		}
+		#else // !CONFIG_SHUFFLE_HALF_RES
+		{
+			MotionBlurColor0 = MotionBlurColor;
+			MotionBlurColor1 = MotionBlurColor;
+			MotionBlurColor2 = MotionBlurColor;
+			MotionBlurColor3 = MotionBlurColor;
+		
+			FullResBlend0 = FullResBlend;
+			FullResBlend1 = FullResBlend;
+			FullResBlend2 = FullResBlend;
+			FullResBlend3 = FullResBlend;
+		}
+		#endif
+
 		// Blend full res and motion blur
-		mb_half4 OutputColor0 = CenterColor0 * FullResBlend + MotionBlurColor;
-		mb_half4 OutputColor1 = CenterColor1 * FullResBlend + MotionBlurColor;
-		mb_half4 OutputColor2 = CenterColor2 * FullResBlend + MotionBlurColor;
-		mb_half4 OutputColor3 = CenterColor3 * FullResBlend + MotionBlurColor;
+		mb_half4 OutputColor0 = CenterColor0 * FullResBlend0 + MotionBlurColor0;
+		mb_half4 OutputColor1 = CenterColor1 * FullResBlend1 + MotionBlurColor1;
+		mb_half4 OutputColor2 = CenterColor2 * FullResBlend2 + MotionBlurColor2;
+		mb_half4 OutputColor3 = CenterColor3 * FullResBlend3 + MotionBlurColor3;
 		
 		// Adds debug overlay
 		#if DEBUG_OVERLAY_TILE_CLASSIFICATION || DEBUG_OVERLAY_SKIP_CENTER || DEBUG_OVERLAY_SAMPLES
@@ -819,20 +892,60 @@ void MainCS(
 		}
 		#endif
 	
-		if (all(OutputPixelCoord0 < mb_short2(Color_ViewportMax)))
+		// Compute the half res.
+		mb_half4 HalfResOutput = mb_half(0.25) * (OutputColor0 + OutputColor1 + OutputColor2 + OutputColor3);
+		
+		// Compute the quarter res
+		mb_half4 QuarterResOutput;
+		BRANCH
+		if (OutputMip2)
+		#if PLATFORM_SUPPORTS_WAVE_BROADCAST
 		{
-			OutColorTexture[OutputPixelCoord0] = OutputColor0;
-			OutColorTexture[OutputPixelCoord1] = OutputColor1;
-			OutColorTexture[OutputPixelCoord2] = OutputColor2;
-			OutColorTexture[OutputPixelCoord3] = OutputColor3;
+			FWaveBroadcastSettings Horizontal = InitWaveXorButterfly(/* XorButterFly = */ 0x1);
+			FWaveBroadcastSettings Vertical = InitWaveXorButterfly(/* XorButterFly = */ 0x2);
 			
-			#if DEBUG_OUTPUT
-				DebugOutput[OutputPixelCoord0] = Debug;
-				DebugOutput[OutputPixelCoord1] = Debug;
-				DebugOutput[OutputPixelCoord2] = Debug;
-				DebugOutput[OutputPixelCoord3] = Debug;
-			#endif
+			QuarterResOutput = HalfResOutput * mb_half(0.25);
+			QuarterResOutput += WaveBroadcast(Horizontal, QuarterResOutput);
+			QuarterResOutput += WaveBroadcast(Vertical, QuarterResOutput);
 		}
+		#else
+		{
+			QuarterResOutput = HalfResOutput * mb_half(0.25);
+
+			SharedArray0[GroupThreadIndex] = QuarterResOutput;
+			QuarterResOutput += SharedArray0[GroupThreadIndex ^ 0x1];
+			
+			SharedArray0[GroupThreadIndex] = QuarterResOutput;
+			QuarterResOutput += SharedArray0[GroupThreadIndex ^ 0x2];
+		}
+		#endif
+		else
+		{
+			QuarterResOutput = 0.0;
+		}
+		
+		bool bIsValid = all(OutputPixelCoord0 < mb_short2(Color_ViewportMax));
+		mb_short2 OutputPixelCoord0Mip0 = (bIsValid) ? OutputPixelCoord0 : mb_short(~0).xx;
+		mb_short2 OutputPixelCoord1Mip0 = (bIsValid) ? OutputPixelCoord1 : mb_short(~0).xx;
+		mb_short2 OutputPixelCoord2Mip0 = (bIsValid) ? OutputPixelCoord2 : mb_short(~0).xx;
+		mb_short2 OutputPixelCoord3Mip0 = (bIsValid) ? OutputPixelCoord3 : mb_short(~0).xx;
+		mb_short2 OutputPixelCoordMip1 = (bIsValid && (OutputMip1 != 0)) ? (OutputPixelCoord0 >> mb_short(1)) : mb_short(~0).xx;
+		mb_short2 OutputPixelCoordMip2 = (bIsValid && (OutputMip2 != 0) && (OutputPixelCoord0 & 0x3) == 0) ? (OutputPixelCoord0 >> mb_short(2)) : mb_short(~0).xx;
+
+		SceneColorOutputMip0[OutputPixelCoord0Mip0] = OutputColor0;
+		SceneColorOutputMip0[OutputPixelCoord1Mip0] = OutputColor1;
+		SceneColorOutputMip0[OutputPixelCoord2Mip0] = OutputColor2;
+		SceneColorOutputMip0[OutputPixelCoord3Mip0] = OutputColor3;
+			
+		SceneColorOutputMip1[OutputPixelCoordMip1] = HalfResOutput;
+		SceneColorOutputMip2[OutputPixelCoordMip2] = QuarterResOutput;
+		
+		#if DEBUG_OUTPUT
+			DebugOutput[OutputPixelCoord0Mip0] = Debug;
+			DebugOutput[OutputPixelCoord1Mip0] = Debug;
+			DebugOutput[OutputPixelCoord2Mip0] = Debug;
+			DebugOutput[OutputPixelCoord3Mip0] = Debug;
+		#endif
 	}
 	else
 	{
@@ -886,14 +999,73 @@ void MainCS(
 		}
 		#endif
 	
-		if (all(OutputPixelCoord < mb_short2(Color_ViewportMax)))
+		mb_half4 HalfResOutput;
+		BRANCH
+		if (OutputMip1 || OutputMip2)
+		#if PLATFORM_SUPPORTS_WAVE_BROADCAST
 		{
-			OutColorTexture[OutputPixelCoord] = OutputColor;
-
-			#if DEBUG_OUTPUT
-				DebugOutput[OutputPixelCoord] = Debug;
-			#endif
+			FWaveBroadcastSettings Horizontal = InitWaveXorButterfly(/* XorButterFly = */ 0x1);
+			FWaveBroadcastSettings Vertical = InitWaveXorButterfly(/* XorButterFly = */ 0x2);
+			
+			HalfResOutput = OutputColor * mb_half(0.25);
+			HalfResOutput += WaveBroadcast(Horizontal, HalfResOutput);
+			HalfResOutput += WaveBroadcast(Vertical, HalfResOutput);
 		}
+		#else
+		{
+			HalfResOutput = OutputColor * mb_half(0.25);
+
+			SharedArray0[GroupThreadIndex] = HalfResOutput;
+			HalfResOutput += SharedArray0[GroupThreadIndex ^ 0x1];
+			
+			SharedArray0[GroupThreadIndex] = HalfResOutput;
+			HalfResOutput += SharedArray0[GroupThreadIndex ^ 0x2];
+		}
+		#endif
+		else
+		{
+			HalfResOutput = 0.0;
+		}
+		
+		mb_half4 QuarterResOutput;
+		BRANCH
+		if (OutputMip2)
+		#if PLATFORM_SUPPORTS_WAVE_BROADCAST
+		{
+			FWaveBroadcastSettings Horizontal = InitWaveXorButterfly(/* XorButterFly = */ 0x4);
+			FWaveBroadcastSettings Vertical = InitWaveXorButterfly(/* XorButterFly = */ 0x8);
+			
+			QuarterResOutput = HalfResOutput * mb_half(0.25);
+			QuarterResOutput += WaveBroadcast(Horizontal, QuarterResOutput);
+			QuarterResOutput += WaveBroadcast(Vertical, QuarterResOutput);
+		}
+		#else
+		{
+			QuarterResOutput = HalfResOutput * mb_half(0.25);
+
+			SharedArray0[GroupThreadIndex] = QuarterResOutput;
+			QuarterResOutput += SharedArray0[GroupThreadIndex ^ 0x4];
+			
+			SharedArray0[GroupThreadIndex] = QuarterResOutput;
+			QuarterResOutput += SharedArray0[GroupThreadIndex ^ 0x8];
+		}
+		#endif
+		else
+		{
+			QuarterResOutput = 0.0;
+		}
+
+		bool bIsValid = all(OutputPixelCoord < mb_short2(Color_ViewportMax));
+		mb_short2 OutputPixelCoordMip0 = (bIsValid) ? OutputPixelCoord : mb_short(~0).xx;
+		mb_short2 OutputPixelCoordMip1 = (bIsValid && (OutputMip1 != 0) && (OutputPixelCoordMip0 & 0x1) == 0) ? (OutputPixelCoord >> mb_short(1)) : mb_short(~0).xx;
+		mb_short2 OutputPixelCoordMip2 = (bIsValid && (OutputMip2 != 0) && (OutputPixelCoordMip0 & 0x3) == 0) ? (OutputPixelCoord >> mb_short(2)) : mb_short(~0).xx;
+
+		SceneColorOutputMip0[OutputPixelCoordMip0] = OutputColor;
+		SceneColorOutputMip1[OutputPixelCoordMip1] = HalfResOutput;
+		SceneColorOutputMip2[OutputPixelCoordMip2] = QuarterResOutput;
+
+		#if DEBUG_OUTPUT
+			DebugOutput[OutputPixelCoordMip0] = Debug;
+		#endif
 	}
 }
-
