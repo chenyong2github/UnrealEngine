@@ -634,7 +634,7 @@ namespace RobinHoodHashTable_Private
 		}
 
 	public:
-		inline FHashType ComputeHash(const KeyType& Key) const
+		inline static FHashType ComputeHash(const KeyType& Key)
 		{
 			typename FHashType::IntType HashValue = Hasher::GetKeyHash(Key);
 			constexpr typename FHashType::IntType HashBits = (~(1 << (sizeof(typename FHashType::IntType) * 8 - 1)));

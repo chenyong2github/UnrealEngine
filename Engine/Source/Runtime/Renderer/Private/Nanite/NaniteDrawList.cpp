@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDrawList.h"
+#include "NaniteSceneProxy.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
 #include "MeshPassProcessor.inl"
@@ -15,13 +16,11 @@ static FAutoConsoleVariableRef CVarNaniteMaterialSortMode(
 	ECVF_RenderThreadSafe
 );
 
-FNaniteDrawListContext::FNaniteDrawListContext(FNaniteMaterialCommands& InMaterialCommands)
-: MaterialCommands(InMaterialCommands)
-{
-}
-
 FMeshDrawCommand& FNaniteDrawListContext::AddCommand(FMeshDrawCommand& Initializer, uint32 NumElements)
 {
+	checkf(CurrPrimitiveSceneInfo != nullptr, TEXT("BeginPrimitiveSceneInfo() must be called on the context before adding commands"));
+	checkf(CurrMeshPass < ENaniteMeshPass::Num, TEXT("BeginMeshPass() must be called on the context before adding commands"));
+
 	{
 		MeshDrawCommandForStateBucketing.~FMeshDrawCommand();
 		new(&MeshDrawCommandForStateBucketing) FMeshDrawCommand();
@@ -31,7 +30,104 @@ FMeshDrawCommand& FNaniteDrawListContext::AddCommand(FMeshDrawCommand& Initializ
 	return MeshDrawCommandForStateBucketing;
 }
 
-void FNaniteDrawListContext::FinalizeCommand(
+void FNaniteDrawListContext::BeginPrimitiveSceneInfo(FPrimitiveSceneInfo& PrimitiveSceneInfo)
+{
+	checkf(CurrPrimitiveSceneInfo == nullptr, TEXT("BeginPrimitiveSceneInfo() was called without a matching EndPrimitiveSceneInfo()"));
+	check(PrimitiveSceneInfo.Proxy->IsNaniteMesh());
+
+	Nanite::FSceneProxyBase* NaniteSceneProxy = static_cast<Nanite::FSceneProxyBase*>(PrimitiveSceneInfo.Proxy);
+
+	const TArray<Nanite::FSceneProxyBase::FMaterialSection>& MaterialSections = NaniteSceneProxy->GetMaterialSections();
+
+	// Initialize material slots
+	for (int32 NaniteMeshPassIndex = 0; NaniteMeshPassIndex < ENaniteMeshPass::Num; ++NaniteMeshPassIndex)
+	{
+		check(PrimitiveSceneInfo.NaniteCommandInfos[NaniteMeshPassIndex].Num() == 0);
+
+		TArray<uint32>& MaterialSlots = PrimitiveSceneInfo.NaniteMaterialSlots[NaniteMeshPassIndex];
+		check(MaterialSlots.Num() == 0);
+
+		MaterialSlots.SetNumUninitialized(MaterialSections.Num());
+		FMemory::Memset(MaterialSlots.GetData(), 0xFF, MaterialSlots.Num() * MaterialSlots.GetTypeSize());
+	}
+
+#if WITH_EDITOR
+	// Initialize hit proxy IDs
+	check(PrimitiveSceneInfo.NaniteHitProxyIds.Num() == 0);
+	PrimitiveSceneInfo.NaniteHitProxyIds.SetNum(MaterialSections.Num());
+	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+	{
+		if (MaterialSections[SectionIndex].HitProxy)
+		{
+			PrimitiveSceneInfo.NaniteHitProxyIds[SectionIndex] = MaterialSections[SectionIndex].HitProxy->Id.GetColor().DWColor();
+		}
+		else
+		{
+			PrimitiveSceneInfo.NaniteHitProxyIds[SectionIndex] = INDEX_NONE;
+		}
+	}
+#endif
+
+	CurrPrimitiveSceneInfo = &PrimitiveSceneInfo;
+}
+
+void FNaniteDrawListContext::EndPrimitiveSceneInfo()
+{
+	checkf(CurrPrimitiveSceneInfo != nullptr, TEXT("EndPrimitiveSceneInfo() was called without matching BeginPrimitiveSceneInfo()"));
+	CurrPrimitiveSceneInfo = nullptr;
+}
+
+void FNaniteDrawListContext::BeginMeshPass(ENaniteMeshPass::Type MeshPass)
+{
+	checkf(CurrMeshPass == ENaniteMeshPass::Num, TEXT("BeginMeshPass() was called without a matching EndMeshPass()"));
+	check(MeshPass < ENaniteMeshPass::Num);
+	CurrMeshPass = MeshPass;
+}
+
+void FNaniteDrawListContext::EndMeshPass()
+{
+	checkf(CurrMeshPass < ENaniteMeshPass::Num, TEXT("EndMeshPass() was called without matching BeginMeshPass()"));
+	CurrMeshPass = ENaniteMeshPass::Num;
+}
+
+void FNaniteDrawListContext::FinalizeCommandCommon(
+	const FMeshBatch& MeshBatch,
+	int32 BatchElementIndex,
+	const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+	const FMeshProcessorShaders* ShadersForDebugging,
+	FMeshDrawCommand& MeshDrawCommand
+)
+{
+	checkf(CurrPrimitiveSceneInfo != nullptr, TEXT("BeginPrimitiveSceneInfo() must be called on the context before finalizing commands"));
+	checkf(CurrMeshPass < ENaniteMeshPass::Num, TEXT("BeginMeshPass() must be called on the context before finalizing commands"));
+
+	FGraphicsMinimalPipelineStateId PipelineId;
+	PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
+	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
+#if UE_BUILD_DEBUG
+	FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
+	check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
+	check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
+#endif
+
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	// When using state buckets, multiple PrimitiveSceneProxies can use the same 
+	// MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+	MeshDrawCommand.ClearDebugPrimitiveSceneProxy();
+#endif
+}
+
+void FNaniteDrawListContext::AddCommandInfo(FPrimitiveSceneInfo& PrimitiveSceneInfo, FNaniteCommandInfo CommandInfo, ENaniteMeshPass::Type MeshPass, uint8 SectionIndex)
+{
+	PrimitiveSceneInfo.NaniteCommandInfos[MeshPass].Add(CommandInfo);
+
+	check(SectionIndex < uint32(PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass].Num()));
+	check(PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex] == INDEX_NONE ||
+		 PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex] == CommandInfo.GetMaterialSlot());
+	PrimitiveSceneInfo.NaniteMaterialSlots[MeshPass][SectionIndex] = CommandInfo.GetMaterialSlot();
+}
+
+void FNaniteDrawListContextImmediate::FinalizeCommand(
 	const FMeshBatch& MeshBatch,
 	int32 BatchElementIndex,
 	const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
@@ -44,15 +140,55 @@ void FNaniteDrawListContext::FinalizeCommand(
 	FMeshDrawCommand& MeshDrawCommand
 )
 {
-	FGraphicsMinimalPipelineStateId PipelineId;
-	PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
-	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
-#if UE_BUILD_DEBUG
-	FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
-	check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
-	check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
-#endif
-	CommandInfo = MaterialCommands.Register(MeshDrawCommand);
+	FinalizeCommandCommon(MeshBatch, BatchElementIndex, PipelineState, ShadersForDebugging, MeshDrawCommand);
+
+	// generate the command info immediately and add to the PrimitiveSceneInfo
+	FNaniteMaterialCommands& MaterialCommands = Scene.NaniteMaterials[CurrMeshPass];
+	FNaniteCommandInfo CommandInfo = MaterialCommands.Register(MeshDrawCommand);
+	AddCommandInfo(*CurrPrimitiveSceneInfo, CommandInfo, CurrMeshPass, MeshBatch.SegmentIndex);
+}
+
+void FNaniteDrawListContextDeferred::FinalizeCommand(
+	const FMeshBatch& MeshBatch,
+	int32 BatchElementIndex,
+	const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
+	ERasterizerFillMode MeshFillMode,
+	ERasterizerCullMode MeshCullMode,
+	FMeshDrawCommandSortKey SortKey,
+	EFVisibleMeshDrawCommandFlags Flags,
+	const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+	const FMeshProcessorShaders* ShadersForDebugging,
+	FMeshDrawCommand& MeshDrawCommand
+)
+{
+	FinalizeCommandCommon(MeshBatch, BatchElementIndex, PipelineState, ShadersForDebugging, MeshDrawCommand);
+
+	// Defer the command
+	DeferredCommands[CurrMeshPass].Add(
+		FDeferredCommand {
+			CurrPrimitiveSceneInfo,
+			MeshDrawCommand,
+			FNaniteMaterialEntryMap::ComputeHash(MeshDrawCommand),
+			MeshBatch.SegmentIndex
+		}
+	);
+}
+
+void FNaniteDrawListContextDeferred::RegisterDeferredCommands(FScene& Scene)
+{
+	check(IsInRenderingThread());
+
+	for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
+	{
+		FNaniteMaterialCommands& MaterialCommands = Scene.NaniteMaterials[MeshPass];
+
+		for (auto& Command : DeferredCommands[MeshPass])
+		{
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = Command.PrimitiveSceneInfo;
+			FNaniteCommandInfo CommandInfo = MaterialCommands.Register(Command.MeshDrawCommand, Command.CommandHash);
+			AddCommandInfo(*PrimitiveSceneInfo, CommandInfo, (ENaniteMeshPass::Type)MeshPass, Command.SectionIndex);
+		}
+	}
 }
 
 void SubmitNaniteIndirectMaterial(
@@ -439,7 +575,7 @@ static void BuildNaniteMaterialPassCommands(
 		else if (MaterialSortMode == 3)
 		{
 			// Use reference count as the sort key
-			PassCommand.SortKey = uint64(Command.Value.ReferenceCount.load());
+			PassCommand.SortKey = uint64(Command.Value.ReferenceCount);
 		}
 		else if(MaterialSortMode == 4)
 		{
