@@ -145,6 +145,7 @@ public:
 		return !RuntimeResourceMap.IsEmpty();
 	}
 
+	ENGINE_API void		PrefetchResource(const FResources* Resource, uint32 NumFramesUntilRender);
 	ENGINE_API void		RequestNanitePages(TArrayView<uint32> RequestData);
 #if WITH_EDITOR
 	ENGINE_API uint64	GetRequestRecordBuffer(TArray<uint32>& OutRequestData);
@@ -168,6 +169,12 @@ private:
 			UploadBuffer.Release();
 			DataBuffer.Release();
 		}
+	};
+
+	struct FResourcePrefetch
+	{
+		uint32 RuntimeResourceID;
+		uint32 NumFramesUntilRender;
 	};
 
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
@@ -232,8 +239,10 @@ private:
 	TMap<FPageKey, uint32>					PageRequestRecordMap;
 #endif
 	TArray<uint32>							PendingExplicitRequests;
+	TArray<FResourcePrefetch>				PendingResourcePrefetches;
 
 	void AddPendingExplicitRequests();
+	void AddPendingResourcePrefetchRequests();
 
 	void CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key );
 	void SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 MaxSelectedPages );

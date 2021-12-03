@@ -36,6 +36,11 @@ class FRDGBuilder;
 class FMaterialRenderProxy;
 template<typename ShaderType, typename PointerTableType> class TShaderRefBase;
 
+namespace Nanite
+{
+	struct FResources;
+};
+
 // Shortcut for the allocator used by scene rendering.
 typedef TMemStackAllocator<> SceneRenderingAllocator;
 
@@ -883,6 +888,9 @@ public:
 	virtual uint64 GetNaniteRequestRecordBuffer(TArray<uint32>& OutRequestData) = 0;
 	/**	Request Nanite pages that were captured with SetNaniteRequestRecordBuffer. Note that the array will be moved and ownership is taken. */
 	virtual void RequestNanitePages(TArrayView<uint32> InRequestData) = 0;
+
+	/**	Start prefetching streaming data for Nanite resource that will soon be used for rendering. TODO: Implement callback mechanism */
+	virtual void PrefetchNaniteResource(const Nanite::FResources* Resource, uint32 NumFramesUntilRender) = 0;
 
 	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) = 0;
 
