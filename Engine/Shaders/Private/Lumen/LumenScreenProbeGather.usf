@@ -1509,7 +1509,6 @@ void ScreenProbeTemporalReprojectionCS(
 	float FastUpdateModeAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFastUpdateMode);
 	FastUpdateModeAmount = saturate(min((FastUpdateModeAmount - .2f) / .8f, MaxFastUpdateModeAmount));
 
-	if (View.GeneralPurposeTweak > 0)
 	{
 		RWNewHistoryFastUpdateMode[DispatchThreadId] = FastUpdateModeAmount;
 		float FastUpdateModeHistoryValue = WeightedAverage(FastUpdateModeHistory.GatherRed(GlobalPointClampedSampler, HistoryGatherUV).wzxy, FinalWeights);
