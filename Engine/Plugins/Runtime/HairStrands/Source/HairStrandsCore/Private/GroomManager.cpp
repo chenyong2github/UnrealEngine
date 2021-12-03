@@ -575,6 +575,22 @@ static void AddCopyHairStrandsPositionPass(
 #endif
 }
 
+#if RHI_RAYTRACING
+static void AllocateRaytracingResources(FHairGroupInstance* Instance)
+{
+	if (IsHairRayTracingEnabled() && !Instance->Strands.RenRaytracingResource)
+	{
+		check(Instance->Strands.Data);
+
+		// Allocate dynamic raytracing resources (owned by the groom component/instance)
+		FHairResourceName ResourceName(FName(Instance->Debug.GroomAssetName), Instance->Debug.GroupIndex);
+		Instance->Strands.RenRaytracingResource		 = new FHairStrandsRaytracingResource(*Instance->Strands.Data, ResourceName);
+		Instance->Strands.RenRaytracingResourceOwned = true;
+	}
+	Instance->Strands.ViewRayTracingMask |= EHairViewRayTracingMask::PathTracing;
+}
+#endif
+
 void AddHairStreamingRequest(FHairGroupInstance* Instance, int32 InLODIndex)
 {
 	if (Instance && InLODIndex >= 0)
@@ -737,7 +753,6 @@ static void RunHairLODSelection(
 		const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
 		float LODIndex = Instance->Debug.LODForcedIndex >= 0 ? FMath::Max(Instance->Debug.LODForcedIndex, MinLOD) : -1.0f;
 		float LODViewIndex = -1;
-		bool bCameraCut = false;
 		{
 			const FSphere SphereBound = Instance->ProxyBounds ? Instance->ProxyBounds->GetSphere() : FSphere(0);
 			for (const FSceneView* View : Views)
@@ -748,8 +763,6 @@ static void RunHairLODSelection(
 
 				// Select highest LOD accross all views
 				LODViewIndex = LODViewIndex < 0 ? CurrLODViewIndex : FMath::Min(LODViewIndex, CurrLODViewIndex);
-
-				bCameraCut = bCameraCut || View->bCameraCut;
 			}
 
 			if (LODIndex < 0)
@@ -764,8 +777,11 @@ static void RunHairLODSelection(
 		}
 
 		// Function for selecting, loading, & initializing LOD resources
-		auto SelectValidLOD = [Instance, ShaderPlatform, ShaderMap, PrevLODIndex, LODCount, MeshLODIndex, PrevMeshLODIndex, bHasPathTracingView] (
-			FRDGBuilder& GraphBuilder, float LODIndex) -> bool
+		auto SelectValidLOD = [Instance, ShaderPlatform, ShaderMap, PrevLODIndex, LODCount, MeshLODIndex, PrevMeshLODIndex
+		#if RHI_RAYTRACING
+		, bHasPathTracingView
+		#endif // RHI_RAYTRACING
+		] (FRDGBuilder& GraphBuilder, float LODIndex) -> bool
 		{
 			const int32 IntLODIndex = FMath::Clamp(FMath::FloorToInt(LODIndex), 0, LODCount - 1);
 			const TArray<EHairGeometryType>& LODGeometryTypes = Instance->HairGroupPublicData->GetLODGeometryTypes();

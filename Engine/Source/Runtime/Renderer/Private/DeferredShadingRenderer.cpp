@@ -1553,16 +1553,12 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	{
 		FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 		PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
-		PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
 		PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
+		PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
 
-		GraphBuilder.AddPass(RDG_EVENT_NAME("BuildAccelerationStructure"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+		GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			[this, PassParams](FRHICommandListImmediate& RHICmdList)
 			{
-				check(RayTracingDynamicGeometryUpdateEndTransition == nullptr);
-				const FRHITransition* RayTracingDynamicGeometryUpdateBeginTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::Graphics, ERHIPipeline::AsyncCompute));
-				RayTracingDynamicGeometryUpdateEndTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::AsyncCompute, ERHIPipeline::Graphics));
-
 				FRHIAsyncComputeCommandListImmediate& RHIAsyncCmdList = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
 
 
@@ -1571,7 +1567,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 				RHIAsyncCmdList.EndTransition(RayTracingDynamicGeometryUpdateBeginTransition);
 
 				FRHIBuffer* DynamicGeometryScratchBuffer = PassParams->DynamicGeometryScratchBuffer ? PassParams->DynamicGeometryScratchBuffer->GetRHI() : nullptr;
-
 				Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHIAsyncCmdList, DynamicGeometryScratchBuffer);
 
 				FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
@@ -1597,6 +1592,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 				check(RayTracingDynamicGeometryUpdateEndTransition == nullptr)
 				RayTracingDynamicGeometryUpdateEndTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::AsyncCompute, ERHIPipeline::Graphics));
 				RHIAsyncCmdList.BeginTransition(RayTracingDynamicGeometryUpdateEndTransition);
+
 				FRHIAsyncComputeCommandListImmediate::ImmediateDispatch(RHIAsyncCmdList);
 			});
 	}
@@ -1604,17 +1600,16 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	{
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingGeometry);
-
+			
 			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 			PassParams->RayTracingSceneScratchBuffer = nullptr;
 			PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
-
 			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingGeometry"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				[this, PassParams](FRHICommandListImmediate& RHICmdList)
-				{
-					FRHIBuffer* DynamicGeometryScratchBuffer = PassParams->DynamicGeometryScratchBuffer ? PassParams->DynamicGeometryScratchBuffer->GetRHI() : nullptr;
-					Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHICmdList, DynamicGeometryScratchBuffer);
-				});
+			{
+				FRHIBuffer* DynamicGeometryScratchBuffer = PassParams->DynamicGeometryScratchBuffer ? PassParams->DynamicGeometryScratchBuffer->GetRHI() : nullptr;
+				Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHICmdList, DynamicGeometryScratchBuffer);
+			});
 		}
 
 		{
@@ -1622,6 +1617,8 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 			PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+			PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
+			PassParams->DynamicGeometryScratchBuffer = nullptr;
 
 			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				[this, PassParams](FRHICommandListImmediate& RHICmdList)
@@ -3124,6 +3121,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			RenderHairStrandsDebugInfo(GraphBuilder, Scene, Views, HairStrandsBookmarkParameters.HairClusterData, SceneTextures.Color.Target, SceneTextures.Depth.Target);
 		}
+	}
+
+	for (FViewInfo& View : Views)
+	{
+		ShadingEnergyConservation::Debug(GraphBuilder, View, SceneTextures);
 	}
 
 	for (FViewInfo& View : Views)
