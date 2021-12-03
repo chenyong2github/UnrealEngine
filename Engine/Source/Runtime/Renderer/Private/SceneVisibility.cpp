@@ -275,6 +275,14 @@ static TAutoConsoleVariable<int32> CVarUseVisibilityOctree(
 	TEXT("Use the octree for visibility calculations."), 
 	ECVF_RenderThreadSafe);
 
+static bool GOcclusionSingleRHIThreadStall = false;
+static FAutoConsoleVariableRef CVarOcclusionSingleRHIThreadStall(
+	TEXT("r.Occlusion.SingleRHIThreadStall"),
+	GOcclusionSingleRHIThreadStall,
+	TEXT("Enable a single RHI thread stall before polling occlusion queries. This will only happen if the RHI's occlusion queries would normally stall the RHI thread themselves."),
+	ECVF_RenderThreadSafe
+);
+
 #if !UE_BUILD_SHIPPING
 
 static TAutoConsoleVariable<int32> CVarTAADebugOverrideTemporalIndex(

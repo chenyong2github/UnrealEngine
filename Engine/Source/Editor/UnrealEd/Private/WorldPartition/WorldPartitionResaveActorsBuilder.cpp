@@ -33,6 +33,18 @@ void UWorldPartitionResaveActorsBuilder::ParseCommandline()
 	}
 }
 
+bool UWorldPartitionResaveActorsBuilder::OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+{
+	FParse::Value(FCommandLine::Get(), TEXT("ActorClass="), ActorClassName);
+	
+	TArray<FString> Tokens, Switches;
+	UCommandlet::ParseCommandLine(FCommandLine::Get(), Tokens, Switches);
+
+	bSwitchActorPackagingSchemeToReduced = Switches.Contains(TEXT("SwitchActorPackagingSchemeToReduced"));
+
+	return true;
+}
+
 bool UWorldPartitionResaveActorsBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	TArray<FString> Tokens, Switches;
@@ -343,7 +355,6 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 					return true;
 				}
 
-				// It is possible the resave can't checkout everything. Continue processing.
 				UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved package %s."), *Package->GetName());
 				++SaveCount;
 				return true;
