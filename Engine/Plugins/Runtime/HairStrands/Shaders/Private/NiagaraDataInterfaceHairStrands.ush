@@ -334,11 +334,6 @@ void DIHairStrands_SetNodePosition(in FDIHairStrandsContext DIContext, in bool R
 						   f16tof32(DIContext.RestPositionBuffer[PointOffset+PointNext].xyz) * NodeAlpha;
 	}
 	OutNodePosition = mul(float4( OutNodePosition+DIContext.RestPositionOffset, 1.0), DIContext.WorldTransform).xyz;
-
-	if(DIContext.LocalSimulation)
-	{
-		OutNodePosition = mul(float4( OutNodePosition, 1.0), DIContext.BoneInverse).xyz;
-	}
 }
 
 // Compute the node position by linear interpolation over the points
@@ -841,35 +836,25 @@ void DIHairStrands_UpdateAngularVelocity(in FDIHairStrandsContext DIContext, in 
 // Compute rest position
 void DIHairStrands_ComputeRestPosition(in FDIHairStrandsContext DIContext, in float3 NodePosition, out float3 OutRestPosition)
 {	
-	OutRestPosition = DIContext.LocalSimulation ? mul(float4( NodePosition, 1.0), DIContext.BoneTransform).xyz : NodePosition;
-	OutRestPosition = mul(float4( OutRestPosition, 1.0), DIContext.WorldInverse).xyz;
+	OutRestPosition = mul(float4( NodePosition, 1.0), DIContext.WorldInverse).xyz;
 }
 
 // Compute rest orientation
 void DIHairStrands_ComputeRestOrientation(in FDIHairStrandsContext DIContext, in float4 NodeOrientation, out float4 OutRestOrientation)
 {	
-	OutRestOrientation = DIContext.LocalSimulation ? NormalizeQuat( MultiplyQuat(DIContext.BoneRotation,NodeOrientation) ) : NodeOrientation;
-	OutRestOrientation = NormalizeQuat( MultiplyQuat(InverseQuat(DIContext.WorldRotation),OutRestOrientation) );
+	OutRestOrientation = NormalizeQuat( MultiplyQuat(InverseQuat(DIContext.WorldRotation),NodeOrientation) );
 }
 
 // Update Node Position
 void DIHairStrands_AttachNodePosition(in FDIHairStrandsContext DIContext, in float3 RestPosition, out float3 OutNodePosition)
 {
 	OutNodePosition = mul(float4( RestPosition, 1.0), DIContext.WorldTransform).xyz;
-	if(DIContext.LocalSimulation)
-	{
-		OutNodePosition = mul(float4( OutNodePosition, 1.0), DIContext.BoneInverse).xyz;
-	}
 }
 
 // Update Node Orientation
 void DIHairStrands_AttachNodeOrientation(in FDIHairStrandsContext DIContext, in float4 RestOrientation, out float4 OutNodeOrientation)
 {
 	OutNodeOrientation = NormalizeQuat( MultiplyQuat(DIContext.WorldRotation,RestOrientation) );
-	if(DIContext.LocalSimulation)
-	{
-		OutNodeOrientation = NormalizeQuat( MultiplyQuat(InverseQuat(DIContext.BoneRotation),OutNodeOrientation) );
-	}
 }
 
 // Get World Vector
