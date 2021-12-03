@@ -117,14 +117,6 @@
 	#define USE_STENCIL_LOD_DITHER	USE_STENCIL_LOD_DITHER_DEFAULT
 #endif
 
-//Platforms that don't run the editor shouldn't need editor features in the shaders.
-#ifndef PLATFORM_SUPPORTS_EDITOR_SHADERS
-#define PLATFORM_SUPPORTS_EDITOR_SHADERS 1
-#endif
-
-//Tie Editor features to platform support and the COMPILE_SHADERS_FOR_DEVELOPMENT which is set via CVAR.
-#define USE_EDITOR_SHADERS (PLATFORM_SUPPORTS_EDITOR_SHADERS && USE_DEVELOPMENT_SHADERS)
-
 //Materials also have to opt in to these features.
 #define USE_EDITOR_COMPOSITING (USE_EDITOR_SHADERS && EDITOR_PRIMITIVE_MATERIAL)
 
@@ -479,6 +471,12 @@ struct FMaterialVertexParameters
 	float3 WorldPosition;
 	// TangentToWorld[2] is WorldVertexNormal
 	half3x3 TangentToWorld;
+	half3x3 TangentToWorld;
+
+#if USES_PER_INSTANCE_CUSTOM_DATA
+	uint CustomDataOffset;
+	uint CustomDataCount;
+#endif
 	
 #if USE_INSTANCING || USE_INSTANCE_CULLING || IS_MESHPARTICLE_FACTORY
 	FLWCMatrix InstanceLocalToWorld;
@@ -488,9 +486,7 @@ struct FMaterialVertexParameters
 	/** Per-instance properties. */
 	float3 InstanceLocalPosition;
 	float4 PerInstanceParams;
-#if USE_INSTANCE_CULLING
-	int PrimitiveLocalInstanceIndex;
-#else
+#if !USE_INSTANCE_CULLING
 	uint InstanceId;
 #endif
 	uint InstanceOffset;
@@ -1009,16 +1005,21 @@ float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, f
 /** Get the per-instance custom data when instancing */
 float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, float DefaultValue)
 {
-#if (USE_INSTANCING || USE_INSTANCE_CULLING) && USES_PER_INSTANCE_CUSTOM_DATA
+#if USE_INSTANCE_CULLING && USES_PER_INSTANCE_CUSTOM_DATA
+	const uint FloatIndex = uint(Index);
+	BRANCH
+	if (FloatIndex < Parameters.CustomDataCount)
+	{
+		const uint   Float4Offset = Parameters.CustomDataOffset + (FloatIndex >> 2u);
+		const float4 Float4Packed = LoadInstancePayloadDataElement(Float4Offset);
+		return Float4Packed[FloatIndex & 0x3u];
+	}
+#elif USE_INSTANCING && USES_PER_INSTANCE_CUSTOM_DATA
 	const uint FloatIndex = uint(Index);
 	BRANCH
 	if (FloatIndex < InstanceVF.NumCustomDataFloats)
 	{
-	#if USE_INSTANCE_CULLING
-		const uint InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
-	#else
 		const uint InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
-	#endif
 		const uint BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
 		return InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex];
 	}
@@ -1031,16 +1032,16 @@ float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, 
 /** Get the per-instance custom data when instancing */
 MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialVertexParameters Parameters, int Index, MaterialFloat3 DefaultValue)
 {
-#if (USE_INSTANCING || USE_INSTANCE_CULLING) && USES_PER_INSTANCE_CUSTOM_DATA
+#if USE_INSTANCE_CULLING && USES_PER_INSTANCE_CUSTOM_DATA
+		return float3(GetPerInstanceCustomData(Parameters, Index, DefaultValue.x), 
+					  GetPerInstanceCustomData(Parameters, Index + 1, DefaultValue.y),
+					  GetPerInstanceCustomData(Parameters, Index + 2, DefaultValue.z));
+#elif USE_INSTANCING && USES_PER_INSTANCE_CUSTOM_DATA
 	const uint FloatIndex = uint(Index);
 	BRANCH
 	if (FloatIndex + 2 < InstanceVF.NumCustomDataFloats)
 	{
-	#if USE_INSTANCE_CULLING
-		const uint InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
-	#else
 		const uint InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
-	#endif
 
 		const uint BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
 		return float3(InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex], 

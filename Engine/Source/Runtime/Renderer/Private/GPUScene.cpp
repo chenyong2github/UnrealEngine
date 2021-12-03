@@ -226,6 +226,9 @@ struct FInstanceUploadInfo
 	TConstArrayView<float> InstanceRandomID;
 	TConstArrayView<uint32> InstanceHierarchyOffset;
 	TConstArrayView<FRenderBounds> InstanceLocalBounds;
+#if WITH_EDITOR
+	TConstArrayView<uint32> InstanceEditorData;
+#endif
 
 	// Used for primitives that need to create a dummy instance (they do not have instance data in the proxy)
 	FPrimitiveInstance DummyInstance;
@@ -247,12 +250,19 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo)
 	const bool bHasDynamicData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
 	const bool bHasLMSMScaleBias	= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
 	const bool bHasHierarchyOffset	= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
+#if WITH_EDITOR
+	const bool bHasEditorData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
+#endif
 
 	const int32 InstanceCount = UploadInfo.PrimitiveInstances.Num();
 	check(UploadInfo.InstanceRandomID.Num()				== (bHasRandomID		? InstanceCount : 0));
 	check(UploadInfo.InstanceDynamicData.Num()			== (bHasDynamicData		? InstanceCount : 0));
 	check(UploadInfo.InstanceLightShadowUVBias.Num()	== (bHasLMSMScaleBias	? InstanceCount : 0));
 	check(UploadInfo.InstanceHierarchyOffset.Num()		== (bHasHierarchyOffset	? InstanceCount : 0));
+#if WITH_EDITOR
+	check(UploadInfo.InstanceEditorData.Num() == (bHasEditorData ? InstanceCount : 0));
+#endif
+
 	if (bHasCustomData)
 	{
 		check(UploadInfo.InstanceCustomDataCount > 0);
@@ -405,6 +415,10 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.InstanceCustomData = PrimitiveSceneProxy->GetInstanceCustomData();
 			InstanceUploadInfo.InstanceRandomID = PrimitiveSceneProxy->GetInstanceRandomID();
 			InstanceUploadInfo.InstanceHierarchyOffset = PrimitiveSceneProxy->GetInstanceHierarchyOffset();
+
+#if WITH_EDITOR
+			InstanceUploadInfo.InstanceEditorData = PrimitiveSceneProxy->GetInstanceEditorData();
+#endif
 		}
 		else
 		{
@@ -422,6 +436,9 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>();
 			InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>();
 			InstanceUploadInfo.InstanceHierarchyOffset = TConstArrayView<uint32>();
+#if WITH_EDITOR
+			InstanceUploadInfo.InstanceEditorData = TConstArrayView<uint32>();
+#endif
 		}
 
 		InstanceUploadInfo.InstanceCustomDataCount = 0;
@@ -1242,11 +1259,15 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 									int32 PayloadPosition = 0;
 
-									if (UploadInfo.PayloadDataFlags & (INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET | INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS))
+									if (UploadInfo.PayloadDataFlags & (INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET | INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS | INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA))
 									{
 										const uint32 InstanceHierarchyOffset = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) ? UploadInfo.InstanceHierarchyOffset[InstanceIndex] : 0;
 										InstancePayloadData[PayloadPosition].X = *(const float*)&InstanceHierarchyOffset;
 
+#if WITH_EDITOR
+										const uint32 InstanceEditorData = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) ? UploadInfo.InstanceEditorData[InstanceIndex] : 0;
+										InstancePayloadData[PayloadPosition].Y = *(const float*)&InstanceEditorData;
+#endif
 										if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS)
 										{
 											check(UploadInfo.InstanceLocalBounds.Num() == UploadInfo.PrimitiveInstances.Num());
@@ -1254,14 +1275,13 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 											const FVector3f BoundsOrigin = InstanceLocalBounds.GetCenter();
 											const FVector3f BoundsExtent = InstanceLocalBounds.GetExtent();
 
-											InstancePayloadData[PayloadPosition + 0].Y = *(const float*)&BoundsOrigin.X;
-											InstancePayloadData[PayloadPosition + 0].Z = *(const float*)&BoundsOrigin.Y;
-											InstancePayloadData[PayloadPosition + 0].W = *(const float*)&BoundsOrigin.Z;
-
-											InstancePayloadData[PayloadPosition + 1].X = *(const float*)&BoundsExtent.X;
-											InstancePayloadData[PayloadPosition + 1].Y = *(const float*)&BoundsExtent.Y;
-											InstancePayloadData[PayloadPosition + 1].Z = *(const float*)&BoundsExtent.Z;
-											// .W = Unused
+											InstancePayloadData[PayloadPosition + 0].Z = *(const float*)&BoundsOrigin.X;
+											InstancePayloadData[PayloadPosition + 0].W = *(const float*)&BoundsOrigin.Y;
+											
+											InstancePayloadData[PayloadPosition + 1].X = *(const float*)&BoundsOrigin.Z;
+											InstancePayloadData[PayloadPosition + 1].Y = *(const float*)&BoundsExtent.X;
+											InstancePayloadData[PayloadPosition + 1].Z = *(const float*)&BoundsExtent.Y;
+											InstancePayloadData[PayloadPosition + 1].W = *(const float*)&BoundsExtent.Z;
 										}
 
 										PayloadPosition += (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) ? 2 : 1;
@@ -1491,6 +1511,9 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 			InstanceUploadInfo.InstanceRandomID				= TConstArrayView<float>();
 			InstanceUploadInfo.InstanceLocalBounds			= TConstArrayView<FRenderBounds>(&InstanceUploadInfo.DummyLocalBounds, 1);
 			InstanceUploadInfo.InstanceHierarchyOffset		= TConstArrayView<uint32>();
+#if WITH_EDITOR
+			InstanceUploadInfo.InstanceEditorData			= TConstArrayView<uint32>();
+#endif
 			InstanceUploadInfo.InstanceSceneDataOffset		= InstanceIDStartOffset + ItemIndex; 
 			InstanceUploadInfo.PayloadDataFlags				= 0;
 			InstanceUploadInfo.InstancePayloadDataOffset	= INDEX_NONE;

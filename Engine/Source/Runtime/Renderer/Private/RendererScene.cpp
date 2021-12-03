@@ -4731,7 +4731,10 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveInstanceRenderThreadTime);
 
 		TArray<FPrimitiveSceneInfo*> UpdatedSceneInfosWithStaticDrawListUpdate;
-		UpdatedSceneInfosWithStaticDrawListUpdate.Reserve(UpdatedTransforms.Num());
+		UpdatedSceneInfosWithStaticDrawListUpdate.Reserve(UpdatedInstances.Num());
+
+		TArray<FPrimitiveSceneInfo*> UpdatedSceneInfosWithoutStaticDrawListUpdate;
+		UpdatedSceneInfosWithoutStaticDrawListUpdate.Reserve(UpdatedInstances.Num());
 
 		for (const auto& UpdateInstance : UpdatedInstances)
 		{
@@ -4745,15 +4748,29 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 			FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+			
+			PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 
-			UpdatedSceneInfosWithStaticDrawListUpdate.Push(PrimitiveSceneInfo);
+			const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer();
+
+			// If we recorded no adds or removes the instance count has stayed the same.  Therefore the cached mesh draw commands do not
+			// need to be updated.  In situations where the instance count changes the mesh draw command stores the instance count which
+			// would need to be updated.
+			const bool bInstanceCountChanged = (UpdateInstance.Value.CmdBuffer.NumAdds > 0) || (UpdateInstance.Value.CmdBuffer.NumRemoves > 0);
+
+			if (bUpdateStaticDrawLists || bInstanceCountChanged)
+			{
+				UpdatedSceneInfosWithStaticDrawListUpdate.Push(PrimitiveSceneInfo);
+				PrimitiveSceneInfo->RemoveFromScene(true);
+			}
+			else
+			{
+				UpdatedSceneInfosWithoutStaticDrawListUpdate.Push(PrimitiveSceneInfo);
+				PrimitiveSceneInfo->RemoveFromScene(false);
+			}
 
 			// Update the Proxy's data.
 			PrimitiveSceneProxy->UpdateInstances_RenderThread(UpdateInstance.Value.CmdBuffer, UpdateInstance.Value.WorldBounds, UpdateInstance.Value.LocalBounds, UpdateInstance.Value.StaticMeshBounds);
-
-			PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
-
-			PrimitiveSceneInfo->RemoveFromScene(true);
 
 			if (!RHISupportsVolumeTextures(GetFeatureLevel())
 				&& (PrimitiveSceneProxy->IsMovable() || PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting() || PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
@@ -4793,6 +4810,11 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		if (UpdatedSceneInfosWithStaticDrawListUpdate.Num() > 0)
 		{
 			FPrimitiveSceneInfo::AddToScene(GraphBuilder.RHICmdList, this, UpdatedSceneInfosWithStaticDrawListUpdate, true, true, bAsyncCreateLPIs);
+		}
+
+		if (UpdatedSceneInfosWithoutStaticDrawListUpdate.Num() > 0)
+		{
+			FPrimitiveSceneInfo::AddToScene(GraphBuilder.RHICmdList, this, UpdatedSceneInfosWithoutStaticDrawListUpdate, false, true, bAsyncCreateLPIs);
 		}
 	}
 

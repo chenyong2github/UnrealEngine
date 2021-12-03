@@ -1196,6 +1196,27 @@ public:
 		RandomInstanceID = Origin.W;
 	}
 
+
+#if WITH_EDITOR
+	FORCEINLINE_DEBUGGABLE void GetInstanceEditorData(int32 InstanceIndex, FColor& HitProxyColorOut, bool & bSelectedOut) const
+	{
+		// TODO: put this into a sensible format
+		FVector4 InstanceTransform[3];
+		if (bUseHalfFloat)
+		{
+			GetInstanceTransformInternal<FFloat16>(InstanceIndex, InstanceTransform);
+		}
+		else
+		{
+			GetInstanceTransformInternal<float>(InstanceIndex, InstanceTransform);
+		}
+		bSelectedOut = InstanceTransform[0][3] > 255.0f;
+		HitProxyColorOut.R = uint8(InstanceTransform[0][3] - (bSelectedOut ? 256.0f : 0.0f));
+		HitProxyColorOut.G = uint8(InstanceTransform[1][3]);
+		HitProxyColorOut.B = uint8(InstanceTransform[2][3]);
+	}
+#endif 
+
 	FORCEINLINE_DEBUGGABLE void GetInstanceLightMapData(int32 InstanceIndex, FVector4f& InstanceLightmapAndShadowMapUVBias) const
 	{
 		GetInstanceLightMapDataInternal(InstanceIndex, InstanceLightmapAndShadowMapUVBias);

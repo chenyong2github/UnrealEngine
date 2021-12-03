@@ -182,6 +182,11 @@
 #define COMPILER_SUPPORTS_WAVE_32_64_MODE 0
 #endif
 
+//Platforms that don't run the editor shouldn't need editor features in the shaders.
+#ifndef PLATFORM_SUPPORTS_EDITOR_SHADERS
+#define PLATFORM_SUPPORTS_EDITOR_SHADERS 1
+#endif
+
 // ---------------------------------------------------- Alternative floating point types
 
 #ifndef FORCE_FLOATS

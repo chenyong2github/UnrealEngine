@@ -868,6 +868,8 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+
 	// only tangent,normal are used by the stream. the binormal is derived in the shader
 	uint8 TangentBasisAttributes[2] = { 1, 2 };
 	for(int32 AxisIndex = 0;AxisIndex < 2;AxisIndex++)
@@ -962,6 +964,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 	// we don't need per-vertex shadow or lightmap rendering
 	InitDeclaration(Elements);
 
+	if (!bCanUseGPUScene)
 	{
 		FInstancedStaticMeshVertexFactoryUniformShaderParameters UniformParameters;
 		UniformParameters.VertexFetch_InstanceOriginBuffer = GetInstanceOriginSRV();
@@ -997,7 +1000,11 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 
 	check(IsInRenderingThread());
 
-	PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+	if (!bCanUseGPUScene)
+	{
+		PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
+	}
 
 	for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
 	{
@@ -1025,8 +1032,10 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 		}
 
 		check(PerInstanceRenderData);
-
-		PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
+		if (!bCanUseGPUScene)
+		{
+			PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
+		}
 
 		VertexFactory.SetData(Data);
 		VertexFactory.InitResource();
@@ -1401,6 +1410,11 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 
 		InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? InComponent->GetInstanceCount() : 0); // Only allocate if material bound which uses this
 
+#if WITH_EDITOR
+		bHasPerInstanceEditorData = true;
+		InstanceEditorData.SetNumZeroed(bHasPerInstanceEditorData ? InComponent->GetInstanceCount() : 0);
+#endif
+
 		// Only allocate if material bound which uses this
 		if (bHasPerInstanceCustomData && InComponent->NumCustomDataFloats > 0)
 		{
@@ -1469,7 +1483,11 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 	if (ensure(InstancedRenderData.PerInstanceRenderData.IsValid()))
 	{
 		FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData.PerInstanceRenderData->InstanceBuffer;
-		InstanceBuffer.FlushGPUUpload();
+		const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+		if (!bCanUseGPUScene)
+		{
+			InstanceBuffer.FlushGPUUpload();
+		}
 	}
 
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
@@ -1493,6 +1511,9 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 			{
 				const bool bHasLightMapData = bHasPerInstanceLMSMUVBias && InstanceLightShadowUVBias.Num() == InstanceSceneData.Num();
 				const bool bHasRandomID = bHasPerInstanceRandom && InstanceRandomID.Num() == InstanceSceneData.Num();
+#if WITH_EDITOR
+				const bool bHasEditorData = bHasPerInstanceEditorData && InstanceEditorData.Num() == InstanceSceneData.Num();
+#endif
 
 				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 				{
@@ -1508,6 +1529,16 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 					{
 						InstanceBuffer.GetInstanceLightMapData(InstanceIndex, InstanceLightShadowUVBias[InstanceIndex]);
 					}
+
+#if WITH_EDITOR
+					if (bHasEditorData)
+					{
+						FColor HitProxyColor;
+						bool bSelected;
+						InstanceBuffer.GetInstanceEditorData(InstanceIndex, HitProxyColor, bSelected);
+						InstanceEditorData[InstanceIndex] = FInstanceUpdateCmdBuffer::PackEditorData(HitProxyColor, bSelected);
+					}
+#endif
 				}
 			}
 		}
@@ -4506,21 +4537,24 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	const auto* InstancedVertexFactory = static_cast<const FInstancedStaticMeshVertexFactory*>(VertexFactory);
 	const int32 InstanceOffsetValue = BatchElement.UserIndex;
 
-	ShaderBindings.Add(Shader->GetUniformBufferParameter<FInstancedStaticMeshVertexFactoryUniformShaderParameters>(), InstancedVertexFactory->GetUniformBuffer());
 	ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
 	
-	if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
+	if (!UseGPUScene(Scene->GetShaderPlatform()))
 	{
-		ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
-		ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
-		ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
-	}
-	if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
-	{
-		// GPUCULL_TODO: This here can still work together with the instance attributes for index, but note that all instance attributes then must assume they are offset wrt the on-the-fly generate buffer
-		//          so with the new scheme there is no clear way this can work in the vanilla instancing way as there is an indirection. So either other attributes must be loaded in the shader or they
-		//          would have to be copied as the instance ID is now - not good.
-		VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FInstancedStaticMeshVertexFactoryUniformShaderParameters>(), InstancedVertexFactory->GetUniformBuffer());
+		if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
+		{
+			ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());
+			ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, InstancedVertexFactory->GetInstanceTransformSRV());
+			ShaderBindings.Add(VertexFetch_InstanceLightmapBufferParameter, InstancedVertexFactory->GetInstanceLightmapSRV());
+		}
+		if (InstanceOffsetValue > 0 && VertexStreams.Num() > 0)
+		{
+			// GPUCULL_TODO: This here can still work together with the instance attributes for index, but note that all instance attributes then must assume they are offset wrt the on-the-fly generate buffer
+			//          so with the new scheme there is no clear way this can work in the vanilla instancing way as there is an indirection. So either other attributes must be loaded in the shader or they
+			//          would have to be copied as the instance ID is now - not good.
+			VertexFactory->OffsetInstanceStreams(InstanceOffsetValue, InputStreamType, VertexStreams);
+		}
 	}
 
 	if( InstancingWorldViewOriginOneParameter.IsBound() )

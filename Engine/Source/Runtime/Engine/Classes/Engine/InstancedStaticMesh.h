@@ -93,6 +93,14 @@ public:
 		InstanceData->GetInstanceRandomID(InstanceIndex, RandomInstanceID);
 	}
 
+#if WITH_EDITOR
+	FORCEINLINE void GetInstanceEditorData(int32 InstanceIndex, FColor& HitProxyColorOut, bool& bSelectedOut) const
+	{
+		InstanceData->GetInstanceEditorData(InstanceIndex, HitProxyColorOut, bSelectedOut);
+	}
+#endif 
+
+
 	FORCEINLINE void GetInstanceLightMapData(int32 InstanceIndex, FVector4f& InstanceLightmapAndShadowMapUVBias) const
 	{
 		InstanceData->GetInstanceLightMapData(InstanceIndex, InstanceLightmapAndShadowMapUVBias);

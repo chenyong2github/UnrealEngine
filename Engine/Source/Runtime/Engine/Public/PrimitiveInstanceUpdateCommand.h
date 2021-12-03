@@ -57,6 +57,12 @@ struct FInstanceUpdateCmdBuffer
 	void Reset();
 	int32 NumTotalCommands() const { return NumEdits; };
 
+	static inline uint32 PackEditorData(const FColor& HitProxyColor, bool bSelected)
+	{
+		return uint32(HitProxyColor.R) | uint32(HitProxyColor.G) << 8u | uint32(HitProxyColor.B) << 16u | (bSelected ? 1u << 24u : 0u);
+	}
+
+
 	TArray<FInstanceUpdateCommand> Cmds;
 	int32 NumCustomDataFloats;
 	int32 NumAdds;

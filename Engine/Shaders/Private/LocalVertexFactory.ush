@@ -593,6 +593,10 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		Result.PerInstanceParams = Intermediates.PerInstanceParams;
 		Result.PrimitiveLocalInstanceIndex = Intermediates.PrimitiveLocalInstanceIndex;
 	#endif
+#if USES_PER_INSTANCE_CUSTOM_DATA
+	Result.CustomDataOffset = Intermediates.SceneData.InstanceData.CustomDataOffset;
+	Result.CustomDataCount = Intermediates.SceneData.InstanceData.CustomDataCount;
+#endif
 #endif
 
 	Result.PreSkinnedPosition = Intermediates.PreSkinPosition.xyz;
@@ -860,28 +864,23 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		float B = 0;
 
 		Intermediates.InstanceLightmapAndShadowMapUVBias = GetInstanceData(Intermediates).LightMapAndShadowMapUVBias;
-	#elif MANUAL_VERTEX_FETCH
-		Intermediates.PerInstanceRandom = InstanceVF.VertexFetch_InstanceOriginBuffer[Intermediates.PrimitiveLocalInstanceIndex].w;
-
-		float R = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (Intermediates.PrimitiveLocalInstanceIndex) + 0].w;
-		float G = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (Intermediates.PrimitiveLocalInstanceIndex) + 1].w;
-		float B = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (Intermediates.PrimitiveLocalInstanceIndex) + 2].w;
-
-		Intermediates.InstanceLightmapAndShadowMapUVBias = InstanceVF.VertexFetch_InstanceLightmapBuffer[Intermediates.PrimitiveLocalInstanceIndex];
 	#else
-		Intermediates.PerInstanceRandom = Input.InstanceOrigin.w;
-
-		float R = Input.InstanceTransform1.w;
-		float G = Input.InstanceTransform2.w;
-		float B = Input.InstanceTransform3.w;
-
-		Intermediates.InstanceLightmapAndShadowMapUVBias = Input.InstanceLightmapAndShadowMapUVBias;
+	Intermediates.InstanceLightmapAndShadowMapUVBias = Intermediates.SceneData.InstanceData.LightMapAndShadowMapUVBias;
+	Intermediates.PerInstanceRandom = Intermediates.SceneData.InstanceData.RandomID;
+#if USE_EDITOR_SHADERS
+	Intermediates.IsSelected = Intermediates.SceneData.InstanceData.EditorData.bIsSelected ? 1.0f : 0.0f;
+	Intermediates.HitProxyId = float4(Intermediates.SceneData.InstanceData.EditorData.HitProxyId, 0.0f);
+#else // !USE_EDITOR_SHADERS
+	Intermediates.IsSelected = 0.0f;
+	Intermediates.HitProxyId = float4(0.0f, 0.0f, 0.0f, 0.0f);
+#endif // USE_EDITOR_SHADERS
 	#endif
 
 		Intermediates.IsSelected = trunc(R * (1.0 / 256.0));;
 		R = R - 256.0 * Intermediates.IsSelected;
 		Intermediates.HitProxyId = float4(R / 255.0, G / 255.0, B / 255.0, 0);
 
+	{
 		// This repackaging is stupid-seeming but these params are propably packed off to some interpolator or something
 		Intermediates.PerInstanceParams.x = Intermediates.PerInstanceRandom;
 		
