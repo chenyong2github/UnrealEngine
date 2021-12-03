@@ -98,6 +98,9 @@ DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("RegisteredStreamingPages"),	STAT_NaniteReg
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("InstalledPages"),				STAT_NaniteInstalledPages,					STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("RootPages"),					STAT_NaniteRootPages,						STATGROUP_Nanite );
 
+DECLARE_FLOAT_COUNTER_STAT(		TEXT("RootDataMB"),					STAT_NaniteRootDataMB,						STATGROUP_Nanite );
+DECLARE_FLOAT_COUNTER_STAT(		TEXT("StreamingDiskIORequestsMB"),	STAT_NaniteStreamingDiskIORequestMB,		STATGROUP_Nanite );
+
 DECLARE_LOG_CATEGORY_EXTERN(LogNaniteStreaming, Log, All);
 DEFINE_LOG_CATEGORY(LogNaniteStreaming);
 
@@ -1301,6 +1304,9 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 		RootPageInfo.RuntimeResourceID = Resources->RuntimeResourceID;
 		RootPageInfo.NumClusters = NumClusters;
 
+		const float RootSizeMB = (PageStreamingState.BulkSize + Resources->HierarchyNodes.Num() * Resources->HierarchyNodes.GetTypeSize() + Resources->ImposterAtlas.Num() * Resources->ImposterAtlas.GetTypeSize()) * (1.0f / 1048576.0f);
+		INC_FLOAT_STAT_BY(STAT_NaniteRootDataMB, RootSizeMB);
+
 #if !WITH_EDITOR
 		// We can't free the CPU data in editor builds because the resource might be kept around and used for cooking later.
 		Resources->RootClusterPage.Empty();
@@ -1806,6 +1812,8 @@ void FStreamingManager::AsyncUpdate()
 						Task.BulkSize = PageStreamingState.BulkSize;
 					}
 #endif
+					const float RequestSizeMB = PageStreamingState.BulkSize * (1.0f / 1048576.0f);
+					INC_FLOAT_STAT_BY(STAT_NaniteStreamingDiskIORequestMB, RequestSizeMB);
 
 					// Grab a free page
 					check(StreamingPageInfoFreeList != nullptr);
