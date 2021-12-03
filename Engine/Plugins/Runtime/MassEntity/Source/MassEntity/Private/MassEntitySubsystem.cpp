@@ -505,9 +505,9 @@ void UMassEntitySubsystem::InternalAddFragmentListToEntityChecked(FMassEntityHan
 	FMassArchetypeData* OldArchetype = EntityData.CurrentArchetype.Get();
 	check(OldArchetype);
 
-	UE_CLOG(OldArchetype->GetFragmentBitSet().HasAny(InComponents), LogMass, Log
+	UE_CLOG(OldArchetype->GetFragmentBitSet().HasAny(InFragments), LogMass, Log
 		, TEXT("Trying to add a new fragment type to an entity, but it already has some of them. (%s)")
-		, *InComponents.GetOverlap(OldArchetype->GetFragmentBitSet()).DebugGetStringDesc());
+		, *InFragments.GetOverlap(OldArchetype->GetFragmentBitSet()).DebugGetStringDesc());
 
 	const FMassFragmentBitSet NewFragments = InFragments - OldArchetype->GetFragmentBitSet();
 	if (NewFragments.IsEmpty() == false)
