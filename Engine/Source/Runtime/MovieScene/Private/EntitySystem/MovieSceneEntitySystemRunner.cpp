@@ -6,13 +6,13 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
-DECLARE_CYCLE_STAT(TEXT("ECS System Cost"),             MovieSceneEval_TotalGTCost,             STATGROUP_MovieSceneEval);
+DECLARE_CYCLE_STAT(TEXT("ECS System Cost"), MovieSceneEval_TotalGTCost, STATGROUP_MovieSceneEval);
 
 DECLARE_CYCLE_STAT(TEXT("Spawn Phase"),                 MovieSceneEval_SpawnPhase,              STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Instantiation Phase"),         MovieSceneEval_InstantiationPhase,      STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Instantiation Async Tasks"),   MovieSceneEval_AsyncInstantiationTasks, STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Post Instantiation"),          MovieSceneEval_PostInstantiation,       STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Evaluation Phase"),            MovieSceneEval_EvaluationPhase,         STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Instantiation Phase"), MovieSceneEval_InstantiationPhase, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Instantiation Async Tasks"), MovieSceneEval_AsyncInstantiationTasks, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Post Instantiation"), MovieSceneEval_PostInstantiation, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Evaluation Phase"), MovieSceneEval_EvaluationPhase, STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Finalization Phase"),          MovieSceneEval_FinalizationPhase,       STATGROUP_MovieSceneECS);
 DECLARE_CYCLE_STAT(TEXT("Post Evaluation Phase"),       MovieSceneEval_PostEvaluationPhase,     STATGROUP_MovieSceneECS);
 
@@ -169,9 +169,9 @@ void FMovieSceneEntitySystemRunner::Flush()
 	bool bStructureHadChanged = Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
 
 	// Start flushing the update queue... keep flushing as long as we have work to do.
-	while (UpdateQueue.Num() > 0 || 
-			DissectedUpdates.Num() > 0 ||
-			bStructureHadChanged)
+	while (UpdateQueue.Num() > 0 ||
+		DissectedUpdates.Num() > 0 ||
+		bStructureHadChanged)
 	{
 		DoFlushUpdateQueueOnce();
 
@@ -221,7 +221,7 @@ void FMovieSceneEntitySystemRunner::DoFlushUpdateQueueOnce()
 void FMovieSceneEntitySystemRunner::GameThread_ProcessQueue()
 {
 	using namespace UE::MovieScene;
-	
+
 	UMovieSceneEntitySystemLinker* Linker = GetLinker();
 	check(Linker);
 
@@ -256,9 +256,9 @@ void FMovieSceneEntitySystemRunner::GameThread_ProcessQueue()
 
 			if (Dissections.Num() != 0)
 			{
-				for (int32 Index = 0; Index < Dissections.Num()-1; ++Index)
+				for (int32 Index = 0; Index < Dissections.Num() - 1; ++Index)
 				{
-					FDissectedUpdate Dissection {
+					FDissectedUpdate Dissection{
 						FMovieSceneContext(FMovieSceneEvaluationRange(Dissections[Index], Request.Context.GetFrameRate(), Request.Context.GetDirection()), Request.Context.GetStatus()),
 						Request.InstanceHandle,
 						Index
@@ -267,7 +267,7 @@ void FMovieSceneEntitySystemRunner::GameThread_ProcessQueue()
 				}
 
 				// Add the last one with MAX_int32 so it gets evaluated with all the others in this flush
-				FDissectedUpdate Dissection {
+				FDissectedUpdate Dissection{
 					FMovieSceneContext(FMovieSceneEvaluationRange(Dissections.Last(), Request.Context.GetFrameRate(), Request.Context.GetDirection()), Request.Context.GetStatus()),
 					Request.InstanceHandle,
 					MAX_int32
@@ -415,12 +415,12 @@ void FMovieSceneEntitySystemRunner::GameThread_InstantiationPhase()
 	if (AllTasks.Num() != 0)
 	{
 		TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&AllTasks, ENamedThreads::GameThread)
-		.ConstructAndDispatchWhenReady(
-			[this]
-			{
-				this->GameThread_PostInstantiation();
-			}
-		, TStatId(), GameThread);
+			.ConstructAndDispatchWhenReady(
+				[this]
+				{
+					this->GameThread_PostInstantiation();
+				}
+				, TStatId(), GameThread);
 	}
 	else
 	{
@@ -498,7 +498,7 @@ void FMovieSceneEntitySystemRunner::GameThread_EvaluationPhase()
 	if (AllTasks.Num() != 0)
 	{
 		TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&AllTasks, ENamedThreads::GameThread)
-		.ConstructAndDispatchWhenReady(MoveTemp(Finish), TStatId(), GameThread);
+			.ConstructAndDispatchWhenReady(MoveTemp(Finish), TStatId(), GameThread);
 	}
 	else
 	{
