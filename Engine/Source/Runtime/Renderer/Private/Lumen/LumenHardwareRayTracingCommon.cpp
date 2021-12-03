@@ -247,11 +247,6 @@ void LumenHWRTCompactRays(
 			FIntVector(1, 1, 1));
 	}
 
-	FRDGBufferRef CompactedRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Reflection.CompactedRayAllocator"));
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT), 0);
-
-	FRDGBufferRef CompactedTexelTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.BucketedTexelTraceDataPackedBuffer"));
-	FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), RayCount), TEXT("Lumen.Reflection.CompactedTraceDataPacked"));
 	{
 		FLumenHWRTCompactRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenHWRTCompactRaysCS::FParameters>();
 		{
@@ -261,9 +256,9 @@ void LumenHWRTCompactRays(
 			PassParameters->TraceDataPacked = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TraceDataPackedBuffer));
 
 			// Output
-			PassParameters->RWRayAllocator = GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT);
-			PassParameters->RWTraceTexelDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CompactedTexelTraceDataPackedBuffer, PF_R32G32_UINT));
-			PassParameters->RWTraceDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CompactedTraceDataPackedBuffer));
+			PassParameters->RWRayAllocator = GraphBuilder.CreateUAV(OutputRayAllocatorBuffer, PF_R32_UINT);
+			PassParameters->RWTraceTexelDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputTraceTexelDataPackedBuffer, PF_R32G32_UINT));
+			PassParameters->RWTraceDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputTraceDataPackedBuffer));
 
 			// Indirect args
 			PassParameters->CompactRaysIndirectArgs = CompactRaysIndirectArgsBuffer;
@@ -280,10 +275,6 @@ void LumenHWRTCompactRays(
 			PassParameters->CompactRaysIndirectArgs,
 			0);
 	}
-
-	OutputRayAllocatorBuffer = CompactedRayAllocatorBuffer;
-	OutputTraceTexelDataPackedBuffer = CompactedTexelTraceDataPackedBuffer;
-	OutputTraceDataPackedBuffer = CompactedTraceDataPackedBuffer;
 }
 
 void LumenHWRTBucketRaysByMaterialID(
