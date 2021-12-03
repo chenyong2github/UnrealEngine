@@ -459,7 +459,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 
 		int HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING;
 #if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
-		HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
+		HitLightingMode = LightingMode;
 #endif // DIM_TRACE_MODE
 
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);

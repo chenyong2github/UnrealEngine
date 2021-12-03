@@ -204,7 +204,8 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementLOD(
 	TEXT("0 - all\n")
 	TEXT("1 - only primitives\n")
 	TEXT("2 - only merged instances\n")
-	TEXT("3 - only merged components\n"),
+	TEXT("3 - only merged components\n")
+	TEXT("4 - only far field\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -891,6 +892,10 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 
 		case 3:
 			bVisible = bVisible && PrimitiveGroup.HasMergedInstances() && PrimitiveGroup.HasMergedPrimitives();
+			break;
+
+		case 4:
+			bVisible = bVisible && PrimitiveGroup.bFarField;
 			break;
 		}
 

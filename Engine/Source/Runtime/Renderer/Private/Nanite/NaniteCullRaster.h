@@ -155,7 +155,8 @@ FCullingContext	InitCullingContext(
 	bool bSupportsMultiplePasses,
 	bool bForceHWRaster,
 	bool bPrimaryContext,
-	bool bDrawOnlyVSMInvalidatingGeometry = false);
+	bool bDrawOnlyVSMInvalidatingGeometry = false,
+	bool bIgnoreVisibleInRaster = false);
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,

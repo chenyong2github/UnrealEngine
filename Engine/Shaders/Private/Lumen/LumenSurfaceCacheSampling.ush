@@ -274,7 +274,7 @@ FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId
 void SampleLumenCard(
 	float3 SamplePosition,
 	float SampleRadius,
-	bool bAccurateHit,
+	float SurfaceCacheDepthTestBias,
 	float CardWeight,
 	uint CardIndex,
 	float DepthVisibilityRadius,
@@ -300,8 +300,8 @@ void SampleLumenCard(
 					{
 						float2 DepthMoments = Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0.0f).xy;
 
-						// Bias a bit as SDF traces aren't super accurate
-						const float RayBias = bAccurateHit ? 10.0f : 20.0f;
+						// Bias a bit as traces may not be accurate (due to SDF or proxy geometry)
+						const float RayBias = SurfaceCacheDepthTestBias;
 						float NormalizedDistanceToHit = (-(LocalSamplePosition.z + RayBias) / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
 
 						VisibilityWeight = 1.0f;
@@ -353,7 +353,7 @@ void SampleLumenCard(
 	}
 }
 
-FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
+FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, float SurfaceCacheDepthTestBias, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
 	FSurfaceCacheSample SurfaceCacheSample;
 	SurfaceCacheSample.Lighting = float3(0.0f, 0.0f, 0.0f);
@@ -424,7 +424,7 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIn
 				SampleLumenCard(
 					SamplePosition,
 					SampleRadius,
-					bAccurateHit,
+					SurfaceCacheDepthTestBias,
 					NormalWeight,
 					CardIndex,
 					CardInterpolateDepthVisibilityRadius,

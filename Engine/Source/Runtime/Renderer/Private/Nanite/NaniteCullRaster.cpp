@@ -32,6 +32,7 @@ DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
 #define RENDER_FLAG_MESH_SHADER						0x8
 #define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x10
 #define RENDER_FLAG_REVERSE_CULLING					0x20
+#define RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER		0x40
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS						0x1
@@ -1104,7 +1105,8 @@ FCullingContext InitCullingContext(
 	bool bSupportsMultiplePasses,
 	bool bForceHWRaster,
 	bool bPrimaryContext,
-	bool bDrawOnlyVSMInvalidatingGeometry
+	bool bDrawOnlyVSMInvalidatingGeometry,
+	bool bIgnoreVisibleInRaster
 	)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
@@ -1138,6 +1140,11 @@ FCullingContext InitCullingContext(
 	else if (UsePrimitiveShader())
 	{
 		CullingContext.RenderFlags |= RENDER_FLAG_PRIMITIVE_SHADER;
+	}
+
+	if (bIgnoreVisibleInRaster)
+	{
+		CullingContext.RenderFlags |= RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER;
 	}
 
 	// TODO: Exclude from shipping builds

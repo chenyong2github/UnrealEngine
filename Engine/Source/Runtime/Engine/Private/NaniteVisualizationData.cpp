@@ -36,6 +36,7 @@ static FNaniteVisualizationData GNaniteVisualizationData;
 #define VISUALIZE_LIGHTMAP_DATA_INDEX				(1 << 22)
 #define VISUALIZE_HIERARCHY_OFFSET					(1 << 23)
 #define VISUALIZE_POSITION_BITS						(1 << 24)
+#define VISUALIZE_VSM_STATIC_CACHING				(1 << 25)
 
 void FNaniteVisualizationData::Initialize()
 {

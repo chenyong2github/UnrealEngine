@@ -716,7 +716,7 @@ struct FTraceMeshSDFDerivedData
 {
 	float3 HitNormal;
 	uint SceneInstanceIndex;
-	bool bAccurateHit;
+	float SurfaceCacheDepthTestBias;
 	float3 WorldVelocity;
 };
 
@@ -746,8 +746,7 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)DFObjectData.WorldToVolume));
 	float WorldGradientLength = length(WorldGradient);
 	TraceSDFData.HitNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
-
-	TraceSDFData.bAccurateHit = !DFObjectData.bMostlyTwoSided;
+	TraceSDFData.SurfaceCacheDepthTestBias = DFObjectData.bMostlyTwoSided ? 20.0f : 10.0f;
 
 	if (bCalculateHitVelocity)
 	{
@@ -808,7 +807,7 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 			InterpolatePosition,
 			TraceSDFData.HitNormal,
 			InterpolateRadius,
-			TraceSDFData.bAccurateHit,
+			TraceSDFData.SurfaceCacheDepthTestBias,
 			TraceInput.CardInterpolateDepthVisibilityRadius,
 			TraceInput.bHiResSurface,
 			AtlasId).Lighting;
