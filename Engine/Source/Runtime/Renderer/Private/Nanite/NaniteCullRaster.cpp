@@ -70,7 +70,7 @@ static FAutoConsoleVariableRef CVarNaniteComputeRasterization(
 );
 
 #if PLATFORM_WINDOWS
-// TODO: Off by default on Windows due to lack of atomic64 interop.
+// TODO: Off by default on Windows due to lack of atomic64 vendor extension interop.
 int32 GNaniteMeshShaderRasterization = 0;
 #else
 int32 GNaniteMeshShaderRasterization = 1;
@@ -78,6 +78,15 @@ int32 GNaniteMeshShaderRasterization = 1;
 FAutoConsoleVariableRef CVarNaniteMeshShaderRasterization(
 	TEXT("r.Nanite.MeshShaderRasterization"),
 	GNaniteMeshShaderRasterization,
+	TEXT("")
+);
+
+// TODO: Temporary workaround for broken raster on some platforms
+// Support disabling mesh shader raster for VSMs
+int32 GNaniteVSMMeshShaderRasterization = 0;
+FAutoConsoleVariableRef CVarNaniteVSMMeshShaderRasterization(
+	TEXT("r.Nanite.VSMMeshShaderRasterization"),
+	GNaniteVSMMeshShaderRasterization,
 	TEXT("")
 );
 
@@ -197,10 +206,11 @@ static TAutoConsoleVariable<int32> CVarCompactVSMViews(
 
 extern int32 GNaniteShowStats;
 
-static bool UseMeshShader()
+static bool UseMeshShader(Nanite::EPipeline Pipeline)
 {
 	// We require tier1 support to utilize primitive attributes
-	return GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1;
+	const bool bSupported = GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1;
+	return bSupported && (GNaniteVSMMeshShaderRasterization != 0 || Pipeline != Nanite::EPipeline::Shadows);
 }
 
 static bool UsePrimitiveShader()
@@ -1097,6 +1107,7 @@ static void AddPassInitNodesAndClusterBatchesUAV( FRDGBuilder& GraphBuilder, FGl
 
 FCullingContext InitCullingContext(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FScene& Scene,
 	const TRefCountPtr<IPooledRenderTarget> &PrevHZB,
 	const FIntRect &HZBBuildViewRect,
@@ -1118,8 +1129,6 @@ FCullingContext InitCullingContext(
 
 	FCullingContext CullingContext = {};
 
-	CullingContext.ShaderMap = GetGlobalShaderMap(Scene.GetFeatureLevel());
-
 	CullingContext.PrevHZB					= PrevHZB;
 	CullingContext.HZBBuildViewRect			= HZBBuildViewRect;
 	CullingContext.bTwoPassOcclusion		= CullingContext.PrevHZB != nullptr && bTwoPassOcclusion;
@@ -1133,7 +1142,7 @@ FCullingContext InitCullingContext(
 		CullingContext.RenderFlags |= RENDER_FLAG_FORCE_HW_RASTER;
 	}
 
-	if (UseMeshShader())
+	if (UseMeshShader(SharedContext.Pipeline))
 	{
 		CullingContext.RenderFlags |= RENDER_FLAG_MESH_SHADER;
 	}
@@ -1225,6 +1234,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	const FCullingParameters& CullingParameters,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	const uint32 NumPrimaryViews,
+	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
@@ -1277,7 +1287,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCullVSM_CS::FUseCompactedViewsDim>(CVarCompactVSMViews.GetValueOnRenderThread() != 0);
 
-		auto ComputeShader = CullingContext.ShaderMap->GetShader<FInstanceCullVSM_CS>(PermutationVector);
+		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCullVSM_CS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -1341,7 +1351,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
 
-		auto ComputeShader = CullingContext.ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
+		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
 		if( InstanceCullingPass == CULLING_PASS_OCCLUSION_POST )
 		{
 			PassParameters->IndirectArgs = CullingContext.OccludedInstancesArgs;
@@ -1430,7 +1440,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FPersistentClusterCull_CS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
 		PermutationVector.Set<FPersistentClusterCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 
-		auto ComputeShader = CullingContext.ShaderMap->GetShader<FPersistentClusterCull_CS>(PermutationVector);
+		auto ComputeShader = SharedContext.ShaderMap->GetShader<FPersistentClusterCull_CS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -1473,7 +1483,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FCalculateSafeRasterizerArgs_CS::FHasPrevDrawData>(bPrevDrawData);
 		PermutationVector.Set<FCalculateSafeRasterizerArgs_CS::FIsPostPass>(bPostPass);
 
-		auto ComputeShader = CullingContext.ShaderMap->GetShader< FCalculateSafeRasterizerArgs_CS >(PermutationVector);
+		auto ComputeShader = SharedContext.ShaderMap->GetShader< FCalculateSafeRasterizerArgs_CS >(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -1488,6 +1498,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 void AddPass_Rasterize(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	const FSharedContext& SharedContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
 	FIntVector4 PageConstants,
@@ -1601,7 +1612,7 @@ void AddPass_Rasterize(
 	RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
 	RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
 
-	const bool bUseMeshShader = UseMeshShader();
+	const bool bUseMeshShader = UseMeshShader(SharedContext.Pipeline);
 
 	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
 
@@ -1620,7 +1631,7 @@ void AddPass_Rasterize(
 	PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
 	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 	PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
-	auto PixelShader = RasterContext.ShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
+	auto PixelShader = SharedContext.ShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
 
 	if (bUseMeshShader)
 	{
@@ -1634,7 +1645,7 @@ void AddPass_Rasterize(
 		PermutationVectorMS.Set<FHWRasterizeMS::FNearClipDim>(bNearClip);
 		PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorMS.Set<FHWRasterizeMS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
-		auto MeshShader = RasterContext.ShaderMap->GetShader<FHWRasterizeMS>(PermutationVectorMS);
+		auto MeshShader = SharedContext.ShaderMap->GetShader<FHWRasterizeMS>(PermutationVectorMS);
 
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
@@ -1686,7 +1697,7 @@ void AddPass_Rasterize(
 		PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
 		PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
-		auto VertexShader = RasterContext.ShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
+		auto VertexShader = SharedContext.ShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
 
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
@@ -1735,7 +1746,7 @@ void AddPass_Rasterize(
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FClusterPerPageDim>(GNaniteClusterPerPage&& VirtualShadowMapArray != nullptr);
 
-		auto ComputeShader = RasterContext.ShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS);
+		auto ComputeShader = SharedContext.ShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -1751,7 +1762,7 @@ void AddPass_Rasterize(
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
-	ERHIFeatureLevel::Type FeatureLevel,
+	const FSharedContext& SharedContext,
 	FIntPoint TextureSize,
 	bool bVisualize,
 	EOutputBufferMode RasterMode,
@@ -1785,7 +1796,6 @@ FRasterContext InitRasterContext(
 		}
 	}
 
-	RasterContext.ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	RasterContext.TextureSize = TextureSize;
 
 	// Set rasterizer scheduling based on config and platform capabilities.
@@ -1817,7 +1827,7 @@ FRasterContext InitRasterContext(
 		{
 			RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
 		}
-		else if (UseMeshShader() && GNaniteAtomicRasterization != 0)
+		else if (UseMeshShader(SharedContext.Pipeline) && GNaniteAtomicRasterization != 0)
 		{
 			// TODO: Currently, atomic64 vendor extensions and mesh shaders don't interop.
 			// Mesh shaders require PSO stream support, and vendor extensions require legacy PSO create.
@@ -1923,6 +1933,7 @@ static void CullRasterizeMultiPass(
 	const FScene& Scene,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	uint32 NumPrimaryViews,
+	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
@@ -1962,18 +1973,30 @@ static void CullRasterizeMultiPass(
 		TArray<FPackedView, SceneRenderingAllocator> RangeViews;
 		RangeViews.SetNum(RangeNumViews);
 
-		for (int32 i = 0; i < RangeNumPrimaryViews; i++)
+		for (int32 ViewIndex = 0; ViewIndex < RangeNumPrimaryViews; ++ViewIndex)
 		{
-			const Nanite::FPackedView& PrimaryView = Views[RangeStartPrimaryView + i];
+			const Nanite::FPackedView& PrimaryView = Views[RangeStartPrimaryView + ViewIndex];
 			const int32 NumMips = PrimaryView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.Z;
 
-			for (int32 j = 0; j < NumMips; j++)
+			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 			{
-				RangeViews[j * RangeNumPrimaryViews + i] = Views[j * NumPrimaryViews + (RangeStartPrimaryView + i)];
+				RangeViews[MipIndex * RangeNumPrimaryViews + ViewIndex] = Views[MipIndex * NumPrimaryViews + (RangeStartPrimaryView + ViewIndex)];
 			}
 		}
 
-		CullRasterize(GraphBuilder, Scene, RangeViews, RangeNumPrimaryViews, CullingContext, RasterContext, RasterState, OptionalInstanceDraws, VirtualShadowMapArray, bExtractStats);
+		CullRasterize(
+			GraphBuilder,
+			Scene,
+			RangeViews,
+			RangeNumPrimaryViews,
+			SharedContext,
+			CullingContext,
+			RasterContext,
+			RasterState,
+			OptionalInstanceDraws,
+			VirtualShadowMapArray,
+			bExtractStats
+		);
 	}
 }
 
@@ -1982,6 +2005,7 @@ void CullRasterize(
 	const FScene& Scene,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	uint32 NumPrimaryViews,	// Number of non-mip views
+	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
@@ -1997,7 +2021,7 @@ void CullRasterize(
 	if (Views.Num() > MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 	{
 		check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
-		CullRasterizeMultiPass(GraphBuilder, Scene, Views, NumPrimaryViews, CullingContext, RasterContext, RasterState, OptionalInstanceDraws, VirtualShadowMapArray, bExtractStats);
+		CullRasterizeMultiPass(GraphBuilder, Scene, Views, NumPrimaryViews, SharedContext, CullingContext, RasterContext, RasterState, OptionalInstanceDraws, VirtualShadowMapArray, bExtractStats);
 		return;
 	}
 
@@ -2134,7 +2158,7 @@ void CullRasterize(
 			PassParameters->CompactedViewsAllocationOut = CompactedViewsAllocationUAV;
 
 			check(CullingContext.ViewsBuffer);
-			auto ComputeShader = CullingContext.ShaderMap->GetShader<FCompactViewsVSM_CS>();
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCompactViewsVSM_CS>();
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -2183,7 +2207,7 @@ void CullRasterize(
 		PermutationVector.Set<FInitArgs_CS::FOcclusionCullingDim>( CullingContext.bTwoPassOcclusion );
 		PermutationVector.Set<FInitArgs_CS::FDrawPassIndexDim>( ClampedDrawPassIndex );
 		
-		auto ComputeShader = CullingContext.ShaderMap->GetShader< FInitArgs_CS >( PermutationVector );
+		auto ComputeShader = SharedContext.ShaderMap->GetShader< FInitArgs_CS >( PermutationVector );
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -2196,7 +2220,7 @@ void CullRasterize(
 
 	// Allocate buffer for nodes and cluster batches
 	FRDGBufferRef MainAndPostNodesAndClusterBatchesBuffer = nullptr;
-	AllocateNodesAndBatchesBuffers(GraphBuilder, CullingContext.ShaderMap, &MainAndPostNodesAndClusterBatchesBuffer);
+	AllocateNodesAndBatchesBuffers(GraphBuilder, SharedContext.ShaderMap, &MainAndPostNodesAndClusterBatchesBuffer);
 
 	// Allocate candidate cluster buffer. Lifetime only duration of CullRasterize
 	FRDGBufferRef MainAndPostCandididateClustersBuffer = nullptr;
@@ -2214,6 +2238,7 @@ void CullRasterize(
 		CullingParameters,
 		Views,
 		NumPrimaryViews,
+		SharedContext,
 		CullingContext,
 		RasterContext,
 		RasterState,
@@ -2228,6 +2253,7 @@ void CullRasterize(
 	AddPass_Rasterize(
 		GraphBuilder,
 		Views,
+		SharedContext,
 		RasterContext,
 		RasterState,
 		CullingContext.PageConstants,
@@ -2291,6 +2317,7 @@ void CullRasterize(
 			CullingParameters,
 			Views,
 			NumPrimaryViews,
+			SharedContext,
 			CullingContext,
 			RasterContext,
 			RasterState,
@@ -2306,6 +2333,7 @@ void CullRasterize(
 		AddPass_Rasterize(
 			GraphBuilder,
 			Views,
+			SharedContext,
 			RasterContext,
 			RasterState,
 			CullingContext.PageConstants,
@@ -2332,7 +2360,7 @@ void CullRasterize(
 	if (bExtractStats)
 	{
 		const bool bVirtualTextureTarget = VirtualShadowMapArray != nullptr;
-		ExtractStats(GraphBuilder, CullingContext, bVirtualTextureTarget);
+		ExtractStats(GraphBuilder, SharedContext, CullingContext, bVirtualTextureTarget);
 	}
 }
 
@@ -2340,6 +2368,7 @@ void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState,
@@ -2352,6 +2381,7 @@ void CullRasterize(
 		Scene,
 		Views,
 		Views.Num(),
+		SharedContext,
 		CullingContext,
 		RasterContext,
 		RasterState,

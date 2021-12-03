@@ -410,6 +410,7 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 
 void ExtractStats(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
 	bool bVirtualTextureTarget
 )
@@ -439,7 +440,7 @@ void ExtractStats(
 			
 			FCalculateStatsCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FCalculateStatsCS::FTwoPassCullingDim>( CullingContext.bTwoPassOcclusion );
-			auto ComputeShader = CullingContext.ShaderMap->GetShader<FCalculateStatsCS>( PermutationVector );
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCalculateStatsCS>( PermutationVector );
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -472,7 +473,7 @@ void ExtractStats(
 			FCalculateClusterStatsCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FCalculateClusterStatsCS::FTwoPassCullingDim>( CullingContext.bTwoPassOcclusion );
 			PermutationVector.Set<FCalculateClusterStatsCS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
-			auto ComputeShader = CullingContext.ShaderMap->GetShader<FCalculateClusterStatsCS>( PermutationVector );
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCalculateClusterStatsCS>( PermutationVector );
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
@@ -587,6 +588,7 @@ void ExtractResults(
 
 void EmitShadowMap(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FRasterContext& RasterContext,
 	const FRDGTextureRef DepthBuffer,
 	const FIntRect& SourceRect,
@@ -610,7 +612,7 @@ void EmitShadowMap(
 	FEmitShadowMapPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set< FEmitShadowMapPS::FDepthOutputTypeDim >( bOrtho ? 1 : 2 );
 
-	auto PixelShader = RasterContext.ShaderMap->GetShader< FEmitShadowMapPS >( PermutationVector );
+	auto PixelShader = SharedContext.ShaderMap->GetShader< FEmitShadowMapPS >( PermutationVector );
 
 	FIntRect DestRect;
 	DestRect.Min = DestOrigin;
@@ -618,7 +620,7 @@ void EmitShadowMap(
 	
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,
-		RasterContext.ShaderMap,
+		SharedContext.ShaderMap,
 		RDG_EVENT_NAME("EmitShadowMap"),
 		PixelShader,
 		PassParameters,
@@ -626,11 +628,12 @@ void EmitShadowMap(
 		nullptr,
 		nullptr,
 		TStaticDepthStencilState<true, CF_LessEqual>::GetRHI()
-		);
+	);
 }
 
 void EmitCubemapShadow(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FRasterContext& RasterContext,
 	const FRDGTextureRef CubemapDepthBuffer,
 	const FIntRect& ViewRect,
@@ -642,14 +645,14 @@ void EmitCubemapShadow(
 
 	FEmitCubemapShadowVS::FPermutationDomain VertexPermutationVector;
 	VertexPermutationVector.Set<FEmitCubemapShadowVS::FUseGeometryShader>(bUseGeometryShader);
-	TShaderMapRef<FEmitCubemapShadowVS> VertexShader(RasterContext.ShaderMap, VertexPermutationVector);
+	TShaderMapRef<FEmitCubemapShadowVS> VertexShader(SharedContext.ShaderMap, VertexPermutationVector);
 	TShaderRef<FEmitCubemapShadowGS> GeometryShader;
-	TShaderMapRef<FEmitCubemapShadowPS> PixelShader(RasterContext.ShaderMap);
+	TShaderMapRef<FEmitCubemapShadowPS> PixelShader(SharedContext.ShaderMap);
 
 	// VS output of RT array index on D3D11 requires a caps bit. Use GS fallback if set.
 	if (bUseGeometryShader)
 	{
-		GeometryShader = TShaderMapRef<FEmitCubemapShadowGS>(RasterContext.ShaderMap);
+		GeometryShader = TShaderMapRef<FEmitCubemapShadowGS>(SharedContext.ShaderMap);
 	}
 
 	FEmitCubemapShadowParameters* PassParameters = GraphBuilder.AllocParameters<FEmitCubemapShadowParameters>();

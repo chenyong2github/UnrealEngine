@@ -2406,9 +2406,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		
 		// Primary raster view
 		{
-			Nanite::FRasterState RasterState;
+			Nanite::FSharedContext SharedContext{};
+			SharedContext.FeatureLevel = Scene->GetFeatureLevel();
+			SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+			SharedContext.Pipeline = Nanite::EPipeline::Primary;
 
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
+			Nanite::FRasterState RasterState;
+			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
 
 			const bool bTwoPassOcclusion = true;
 			const bool bUpdateStreaming = true;
@@ -2423,6 +2427,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
+					SharedContext,
 					*Scene,
 					!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
 					View.ViewRect,
@@ -2459,6 +2464,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					GraphBuilder,
 					*Scene,
 					{ PackedView },
+					SharedContext,
 					CullingContext,
 					RasterContext,
 					RasterState,

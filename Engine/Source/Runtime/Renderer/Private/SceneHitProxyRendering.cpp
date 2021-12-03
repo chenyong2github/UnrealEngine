@@ -682,8 +682,13 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	{
 		NaniteRasterResults.AddDefaulted(Views.Num());
 
+		Nanite::FSharedContext SharedContext{};
+		SharedContext.FeatureLevel = Scene->GetFeatureLevel();
+		SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+		SharedContext.Pipeline = Nanite::EPipeline::HitProxy;
+
 		Nanite::FRasterState RasterState;
-		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, HitProxyTextureSize, false);
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, HitProxyTextureSize, false);
 
 		const bool bTwoPassOcclusion = false;
 		const bool bUpdateStreaming = false;
@@ -695,6 +700,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		{
 			Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 				GraphBuilder,
+				SharedContext,
 				*Scene,
 				nullptr,
 				FIntRect(),
@@ -705,7 +711,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 				bPrimaryContext
 			);
 			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(Views[ViewIndex], HitProxyTextureSize, VIEW_FLAG_HZBTEST);
-			Nanite::CullRasterize(GraphBuilder, *Scene, { PackedView }, CullingContext, RasterContext, RasterState);
+			Nanite::CullRasterize(GraphBuilder, *Scene, { PackedView }, SharedContext, CullingContext, RasterContext, RasterState);
 			Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
 		}
 	}

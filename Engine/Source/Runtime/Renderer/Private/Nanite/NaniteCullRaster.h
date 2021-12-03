@@ -71,10 +71,23 @@ enum class EOutputBufferMode : uint8
 	DepthOnly,
 };
 
-struct FCullingContext
+enum class EPipeline : uint8
+{
+	Primary,
+	Shadows,
+	Lumen,
+	HitProxy
+};
+
+struct FSharedContext
 {
 	FGlobalShaderMap* ShaderMap;
+	ERHIFeatureLevel::Type FeatureLevel;
+	EPipeline Pipeline;
+};
 
+struct FCullingContext
+{
 	TRefCountPtr<IPooledRenderTarget> PrevHZB; // If non-null, HZB culling is enabled
 
 	uint32			DrawPassIndex;
@@ -106,8 +119,6 @@ struct FCullingContext
 
 struct FRasterContext
 {
-	FGlobalShaderMap*	ShaderMap;
-
 	FVector2f			RcpViewSize;
 	FIntPoint			TextureSize;
 	ERasterTechnique	RasterTechnique;
@@ -147,6 +158,7 @@ struct FRasterResults
 
 FCullingContext	InitCullingContext(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FScene& Scene,
 	const TRefCountPtr<IPooledRenderTarget> &PrevHZB,
 	const FIntRect& HZBBuildViewRect,
@@ -160,7 +172,7 @@ FCullingContext	InitCullingContext(
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
-	ERHIFeatureLevel::Type FeatureLevel,
+	const FSharedContext& SharedContext,
 	FIntPoint TextureSize,
 	bool bVisualize,
 	EOutputBufferMode RasterMode = EOutputBufferMode::VisBuffer,
@@ -180,6 +192,7 @@ void CullRasterize(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
+	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState = FRasterState(),
@@ -197,6 +210,7 @@ void CullRasterize(
 	const FScene& Scene,
 	const TArray<FPackedView, SceneRenderingAllocator>& Views,
 	uint32 NumPrimaryViews,	// Number of non-mip views
+	const FSharedContext& SharedContext,
 	FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	const FRasterState& RasterState = FRasterState(),
