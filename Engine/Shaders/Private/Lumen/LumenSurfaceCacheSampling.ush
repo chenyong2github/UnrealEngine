@@ -301,8 +301,8 @@ void SampleLumenCard(
 						float2 DepthMoments = Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0.0f).xy;
 
 						// Bias a bit as SDF traces aren't super accurate
-						const float RayBias = bAccurateHit ? -0.1f : -0.2f;
-						const float NormalizedDistanceToHit = (-LocalSamplePosition.z / LumenCardData.LocalExtent.z) * 0.5f + 0.5f + RayBias;
+						const float RayBias = bAccurateHit ? 10.0f : 20.0f;
+						float NormalizedDistanceToHit = (-(LocalSamplePosition.z + RayBias) / LumenCardData.LocalExtent.z) * 0.5f + 0.5f;
 
 						VisibilityWeight = 1.0f;
 						if (NormalizedDistanceToHit > DepthMoments.x)
