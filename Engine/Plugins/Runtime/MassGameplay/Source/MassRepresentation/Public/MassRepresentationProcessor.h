@@ -191,7 +191,7 @@ protected:
 	UWorld* World;
 
 	UPROPERTY(Transient)
-	UMassEntitySubsystem* PipeEntitySubsystem;
+	UMassEntitySubsystem* CachedEntitySubsystem;
 
 	/** A cache pointer to the representation subsystem */
 	UPROPERTY(Transient)
