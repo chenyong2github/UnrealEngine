@@ -8319,6 +8319,9 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		FString ObjectName;
 		FParse::Value(Cmd, TEXT("NAME="), ObjectName);
 
+		FString ObjectNameSubString;
+		FParse::Value(Cmd, TEXT("NAMESUB="), ObjectNameSubString);
+
 		TArray<FItem> List;
 		TArray<FSubItem> Objects;
 		FItem Total;
@@ -8418,6 +8421,15 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				if (!ObjectName.IsEmpty() && It->GetName() != ObjectName)
 				{
 					continue;
+				}
+
+				if (!ObjectNameSubString.IsEmpty())
+				{
+					FString FullName = *It->GetFullName();
+					if(!FullName.Contains(ObjectNameSubString, ESearchCase::IgnoreCase))
+					{
+						continue;
+					}
 				}
 
 				if ( MetaClass )
