@@ -1013,15 +1013,6 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	if (Cell->IsLoaded() != bShouldBeLoaded)
 	{
 		Cell->SetLoaded(bShouldBeLoaded, bShouldBeLoaded && bFromUserOperation);
-
-		if (Cell->IsLoaded())
-		{
-			EditorHash->OnCellLoaded(Cell);
-		}
-		else
-		{
-			EditorHash->OnCellUnloaded(Cell);
-		}
 	}
 
 	if (bPotentiallyUnloadedActors)

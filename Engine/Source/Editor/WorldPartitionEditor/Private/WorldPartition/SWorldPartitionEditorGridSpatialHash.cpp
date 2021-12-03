@@ -32,8 +32,6 @@
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
-TAutoConsoleVariable<bool> CVarDebugDrawOctree(TEXT("wp.Editor.DebugDrawOctree"), false, TEXT("Whether to debug draw the World Partition octree"), ECVF_Default);
-
 SWorldPartitionEditorGridSpatialHash::SWorldPartitionEditorGridSpatialHash()
 	: WorldMiniMapBounds(ForceInit)
 	, WorldMinimapUsesVirtualTexture(false)
@@ -214,46 +212,88 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	{
 		FCellDesc2D()
 			: Bounds(ForceInitToZero)
+			, NumLoaded(0)
+			, NumUnloaded(0)
+			, NumEmpty(0)
 		{}
 
 		FBox2D Bounds;
+		int32 NumLoaded;
+		int32 NumUnloaded;
+		int32 NumEmpty;
 	};
 
 	// Draw shadowed regions
 	{
-		TMap<uint32, FCellDesc2D> UniqueCells2D;
-		EditorSpatialHash->ForEachIntersectingUnloadedRegion(VisibleGridRectWorld, [&](const UWorldPartitionEditorSpatialHash::FCellCoord& CellCoord)
+		TMap<uint32, FCellDesc2D> FlattenedCells2D;
+		EditorSpatialHash->ForEachIntersectingCells(VisibleGridRectWorld.ExpandBy(-1), 0, [&](const UWorldPartitionEditorSpatialHash::FCellCoord& CellCoord)
 		{
-			FBox CellBounds = EditorSpatialHash->GetCellBounds(CellCoord);
-			CellBounds = CellBounds.Overlap(EditorSpatialHash->Bounds);
-
 			FHashBuilder HashBuilder;
-			HashBuilder << CellCoord.X << CellCoord.Y << CellCoord.Level;
-			uint32 CellHash2D = HashBuilder.GetHash();
-
-			FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
+			HashBuilder << CellCoord.X << CellCoord.Y;
+			uint32 CellHash2D = HashBuilder.GetHash();			
+			
+			FCellDesc2D& CellDesc2D = FlattenedCells2D.FindOrAdd(CellHash2D);
+			
+			FBox CellBounds = EditorSpatialHash->GetCellBounds(CellCoord);
 			CellDesc2D.Bounds = FBox2D(FVector2D(CellBounds.Min), FVector2D(CellBounds.Max));
+
+			if (UWorldPartitionEditorCell** CellPtr = EditorSpatialHash->HashCells.Find(CellCoord))
+			{
+				if ((*CellPtr)->IsEmpty())
+				{
+					CellDesc2D.NumEmpty++;
+				}
+				else if ((*CellPtr)->IsLoaded())
+				{
+					CellDesc2D.NumLoaded++;
+				}
+				else
+				{
+					CellDesc2D.NumUnloaded++;
+				}
+			}
+			else
+			{
+				CellDesc2D.NumEmpty++;
+			}
 		});
 
-		const bool bDebugDrawOctree = CVarDebugDrawOctree.GetValueOnAnyThread();
-
-		for(auto& UniqueCell: UniqueCells2D)
+		for(auto& UniqueCell: FlattenedCells2D)
 		{
 			const FCellDesc2D& Cell = UniqueCell.Value;
 
-			FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
+			// Fully loaded
+			if (Cell.NumLoaded && !Cell.NumUnloaded)
+			{
+				continue;
+			}
+
+			const FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
 				WorldToScreen.TransformPoint(Cell.Bounds.Min),
 				WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
 			);
 
-			FSlateColorBrush CellBrush(FLinearColor::White);
-			FLinearColor CellColor(0, 0, 0, 0.5f);
-
-			if (bDebugDrawOctree)
-			{
-				CellColor = FLinearColor::MakeFromHSV8((uint8)UniqueCell.Key, 255, 255);
-			}
+			const FSlateColorBrush CellBrush(FLinearColor::White);
+			const FLinearColor FullyUnloadedCellColor(0, 0, 0, 0.5f);
+			const FLinearColor PartiallyLoadedCellColor(0, 0, 0, 0.25f);
+			const FLinearColor EmptyCellColor(0, 0, 0, 0.75f);
 			
+			FLinearColor CellColor;
+
+			// Partially loaded aread
+			if (Cell.NumLoaded && Cell.NumUnloaded)
+			{
+				CellColor = PartiallyLoadedCellColor;
+			}
+			else if (Cell.NumEmpty && !Cell.NumUnloaded && !Cell.NumLoaded)
+			{
+				CellColor = EmptyCellColor;
+			}
+			else
+			{
+				CellColor = FullyUnloadedCellColor;
+			}
+
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
 				++LayerId,
@@ -272,8 +312,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 
 		if (VisibleSelectBox.IsValid)
 		{
-			TMap<uint32, FCellDesc2D> UniqueCells2D;
-
+			TMap<uint32, FCellDesc2D> FlattenedCells2D;
 			WorldPartition->EditorHash->ForEachIntersectingCell(VisibleSelectBox, [&](UWorldPartitionEditorCell* Cell)
 			{
 				UWorldPartitionEditorSpatialHash::FCellCoord CellCoord = EditorSpatialHash->GetCellCoords(Cell->Bounds.GetCenter(), 0);
@@ -281,13 +320,12 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 				FHashBuilder HashBuilder;
 				HashBuilder << CellCoord.X << CellCoord.Y;
 				uint32 CellHash2D = HashBuilder.GetHash();
-
-				FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
+				FCellDesc2D& CellDesc2D = FlattenedCells2D.Add(CellHash2D);
 
 				CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
 			});
 
-			for (auto& UniqueCell : UniqueCells2D)
+			for (auto& UniqueCell : FlattenedCells2D)
 			{
 				const FCellDesc2D& Cell = UniqueCell.Value;
 
