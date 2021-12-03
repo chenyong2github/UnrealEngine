@@ -4852,7 +4852,7 @@ int32 FHLSLMaterialTranslator::ParticleMacroUV()
 	return AddCodeChunk(MCT_Float2,TEXT("GetParticleMacroUV(Parameters)"));
 }
 
-int32 FHLSLMaterialTranslator::ParticleSubUV(int32 TextureIndex, EMaterialSamplerType SamplerType, bool bBlend)
+int32 FHLSLMaterialTranslator::ParticleSubUV(int32 TextureIndex, EMaterialSamplerType SamplerType, int32 MipValue0Index, int32 MipValue1Index, ETextureMipValueMode MipValueMode, bool bBlend)
 {
 	if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
 	{
@@ -4878,13 +4878,13 @@ int32 FHLSLMaterialTranslator::ParticleSubUV(int32 TextureIndex, EMaterialSample
 		const int32 TexCoord2 = AddCodeChunk( MCT_Float2,*TexCoordCode,1);
 		const int32 SubImageLerp = AddCodeChunk(MCT_Float, TEXT("Parameters.Particle.SubUVLerp"));
 
-		const int32 TexSampleA = TextureSample(TextureIndex, TexCoord1, SamplerType );
-		const int32 TexSampleB = TextureSample(TextureIndex, TexCoord2, SamplerType );
+		const int32 TexSampleA = TextureSample(TextureIndex, TexCoord1, SamplerType, MipValue0Index, MipValue1Index, MipValueMode);
+		const int32 TexSampleB = TextureSample(TextureIndex, TexCoord2, SamplerType, MipValue0Index, MipValue1Index, MipValueMode);
 		ParticleSubUV = Lerp( TexSampleA,TexSampleB, SubImageLerp);
 	} 
 	else
 	{
-		ParticleSubUV = TextureSample(TextureIndex, TexCoord1, SamplerType );
+		ParticleSubUV = TextureSample(TextureIndex, TexCoord1, SamplerType, MipValue0Index, MipValue1Index, MipValueMode);
 	}
 	
 	bUsesParticleSubUVs = true;
