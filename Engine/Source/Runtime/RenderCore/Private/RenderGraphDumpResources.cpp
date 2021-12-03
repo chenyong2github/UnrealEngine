@@ -329,9 +329,6 @@ void FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 	}
 
 	// Copy the viewer
-	#if PLATFORM_DESKTOP
-	// TODO: Have the viewer available in cooked build.
-	if (!FPlatformProperties::RequiresCookedData())
 	{
 		const TCHAR* OpenGPUDumpViewerWindowsName = TEXT("OpenGPUDumpViewer.bat");
 		const TCHAR* ViewerHTML = TEXT("GPUDumpViewer.html");
@@ -340,7 +337,6 @@ void FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 		PlatformFile.CopyFile(*(GRDGResourceDumpContext.DumpingDirectoryPath / ViewerHTML), *(DumpGPUViewerSourcePath / ViewerHTML));
 		PlatformFile.CopyFile(*(GRDGResourceDumpContext.DumpingDirectoryPath / OpenGPUDumpViewerWindowsName), *(DumpGPUViewerSourcePath / OpenGPUDumpViewerWindowsName));
 	}
-	#endif
 }
 
 void FRDGBuilder::EndResourceDump()
