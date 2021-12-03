@@ -1,0 +1,171 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "TSRCommon.ush"
+
+
+//------------------------------------------------------- CONFIG
+
+#define TILE_SIZE 8
+
+#define CONFIG_SAMPLES 9
+
+
+//------------------------------------------------------- PARAMETERS
+
+Texture2D<uint> PrevClosestDepthTexture;
+Texture2D<float2> DilatedVelocityTexture;
+Texture2D<taa_half> ParallaxRejectionMaskTexture;
+
+RWTexture2D<float2> HoleFilledVelocityOutput;
+RWTexture2D<taa_half> HoleFilledVelocityMaskOutput;
+
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void MainCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	float4 Debug = 0.0;
+
+	uint2 DispatchThreadId = (
+		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		GroupId * uint2(TILE_SIZE, TILE_SIZE));
+
+	taa_short2 InputPixelPos = taa_short2(InputInfo_ViewportMin + DispatchThreadId);
+	
+	float2 ViewportUV = (float2(DispatchThreadId) + 0.5f) * InputInfo_ViewportSizeInverse;
+	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
+
+	float2 EncodedVelocityNeighborhood[CONFIG_SAMPLES];
+	taa_half ParallaxRejectionMaskNeighborhood[CONFIG_SAMPLES];
+	ISOLATE
+	{
+		UNROLL_N(CONFIG_SAMPLES)
+		for (uint i = 0; i < CONFIG_SAMPLES; i++)
+		{
+			taa_short2 Offset;
+			#if CONFIG_SAMPLES == 9
+				Offset = kOffsets3x3[kSquareIndexes3x3[i]];
+			#elif CONFIG_SAMPLES == 5
+				Offset = kOffsets3x3[kPlusIndexes3x3[i]];
+			#endif
+
+			taa_short2 SampleInputPixelPos = InputPixelPos + ClampPixelOffset(
+				InputPixelPos,
+				Offset, Offset,
+				InputPixelPosMin, InputPixelPosMax);
+
+			EncodedVelocityNeighborhood[i] = DilatedVelocityTexture[SampleInputPixelPos];
+			ParallaxRejectionMaskNeighborhood[i] = ParallaxRejectionMaskTexture[SampleInputPixelPos];
+		}
+	}
+	
+	float2 ScreenVelocity = DecodeVelocityFromTexture(float4(EncodedVelocityNeighborhood[0], 0.0, 0.0)).xy;
+	
+	// Get the closest hole filling velocity.
+	float2 HoleFillingPixelVelocity;
+	float HoleFillingOutOfRange;
+	{
+		float2 PrevScreenPos = ScreenPos - ScreenVelocity;
+		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
+		
+		FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
+		
+		bool bIsValidHoleFillingPixelVelocity = false;
+		uint EncodedHoleFillingVelocity = ~0;
+		UNROLL_N(4)
+		for (uint i = 0; i < 4; i++)
+		{
+			uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
+
+			bool bValidPixelPos = all(PixelPos >= InputInfo_ViewportMin && PixelPos < InputInfo_ViewportMax);
+
+			uint SampleHistoryClosestDeviceZ = PrevClosestDepthTexture[PixelPos];
+
+			bIsValidHoleFillingPixelVelocity = bIsValidHoleFillingPixelVelocity || bValidPixelPos;
+
+			FLATTEN
+			if (bValidPixelPos)
+			{
+				EncodedHoleFillingVelocity = min(EncodedHoleFillingVelocity, SampleHistoryClosestDeviceZ);
+			}
+		}
+
+		DecodeHoleFillingVelocity(EncodedHoleFillingVelocity, /* out */ HoleFillingPixelVelocity, /* out */ HoleFillingOutOfRange);
+
+		if (!bIsValidHoleFillingPixelVelocity)
+		{
+			HoleFillingOutOfRange = 0.0;
+		}
+		
+		//Debug.r = EncodedHoleFillingVelocity;
+		//Debug.r = f16tof32(EncodedHoleFillingVelocity >> VELOCITY_HOLE_FILLING_BITS);
+		//Debug.r = f16tof32(EncodedHoleFillingVelocity);
+		//Debug.r = abs(EncodedHoleFillingVelocity % (1 << VELOCITY_HOLE_FILLING_LENGTH_BITS));
+	}
+	
+	bool bIsParallaxRejected = ParallaxRejectionMaskNeighborhood[0] < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+
+	taa_half HoleFilledVelocityMask = taa_half(0.0);
+
+	FLATTEN
+	if (bIsParallaxRejected && View.GeneralPurposeTweak >= 1)
+	{
+		float2 ScreenPixelVelocity = ScreenVelocity * InputInfo_ViewportSize * 0.5;
+		float ScreenPixelVelocityLength = length2(ScreenPixelVelocity);
+		
+		UNROLL_N((CONFIG_SAMPLES - 1) / 2)
+		for (uint i = 0; i < (CONFIG_SAMPLES - 1) / 2; i++)
+		{
+			uint NeightbordId0 = i + 1;
+			uint NeightbordId1 = i + 1 + (CONFIG_SAMPLES - 1) / 2;
+
+			float2 NeighborVelocity0 = DecodeVelocityFromTexture(float4(EncodedVelocityNeighborhood[NeightbordId0], 0.0, 0.0)).xy * InputInfo_ViewportSize * 0.5;
+			float2 NeighborVelocity1 = DecodeVelocityFromTexture(float4(EncodedVelocityNeighborhood[NeightbordId1], 0.0, 0.0)).xy * InputInfo_ViewportSize * 0.5;
+			bool bNeighborIsParallaxRejected0 = ParallaxRejectionMaskNeighborhood[NeightbordId0] < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+			bool bNeighborIsParallaxRejected1 = ParallaxRejectionMaskNeighborhood[NeightbordId1] < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD);
+			
+			bool bIsPixelThinRejection = !bNeighborIsParallaxRejected0 && !bNeighborIsParallaxRejected1; // && bIsParallaxRejected;
+
+			float IsSomeWhatIdentical0 = saturate(1.0 - length2(NeighborVelocity0 - ScreenPixelVelocity));
+			float IsSomeWhatIdentical1 = saturate(1.0 - length2(NeighborVelocity1 - ScreenPixelVelocity));
+
+			float NeighborPixelVelocityLength0 = length2(NeighborVelocity0);
+			float NeighborPixelVelocityLength1 = length2(NeighborVelocity1);
+			
+			if (bIsPixelThinRejection && NeighborPixelVelocityLength0 > ScreenPixelVelocityLength && IsSomeWhatIdentical1 > 0.0)
+			{
+				EncodedVelocityNeighborhood[0] = EncodedVelocityNeighborhood[NeightbordId0];
+				HoleFilledVelocityMask = taa_half(1.0);
+			}
+			else if (bIsPixelThinRejection && NeighborPixelVelocityLength1 > ScreenPixelVelocityLength && IsSomeWhatIdentical0 > 0.0)
+			{
+				EncodedVelocityNeighborhood[0] = EncodedVelocityNeighborhood[NeightbordId1];
+				HoleFilledVelocityMask = taa_half(1.0);
+			}
+		}
+
+		// If the hole filling velocity has better result that the neighborhood, use that.
+		if (HoleFillingOutOfRange > HoleFilledVelocityMask)
+		{
+			float2 HoleFillingVelocity = HoleFillingPixelVelocity * 2.0 * InputInfo_ViewportSizeInverse;
+
+			EncodedVelocityNeighborhood[0] = EncodeVelocityToTexture(float3(HoleFillingVelocity, 0.0)).xy;
+			HoleFilledVelocityMask = HoleFillingOutOfRange;
+		}
+	}
+
+	if (all(InputPixelPos < InputInfo_ViewportMax))
+	{
+		HoleFilledVelocityOutput[InputPixelPos] = EncodedVelocityNeighborhood[0];
+		HoleFilledVelocityMaskOutput[InputPixelPos] = HoleFilledVelocityMask;
+
+		#if DEBUG_OUTPUT
+		{
+			DebugOutput[InputPixelPos] = Debug;
+		}
+		#endif
+	}
+}

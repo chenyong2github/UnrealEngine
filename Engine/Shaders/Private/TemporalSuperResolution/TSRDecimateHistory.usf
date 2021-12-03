@@ -113,7 +113,7 @@ void MainCS(
 				uint HistoryUseCount = PrevUseCountTexture[PixelPos];
 			#endif
 
-			float HistoryClosestDeviceZ = f16tof32(PrevClosestDepthTexture[PixelPos]);
+			float HistoryClosestDeviceZ = f16tof32(PrevClosestDepthTexture[PixelPos] >> VELOCITY_HOLE_FILLING_BITS);
 			float HistoryClosestWorldDepth = ConvertFromDeviceZ(HistoryClosestDeviceZ);
 
 			taa_half DepthRejection;
