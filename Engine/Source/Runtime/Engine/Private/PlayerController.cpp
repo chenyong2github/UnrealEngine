@@ -128,7 +128,9 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	bForceFeedbackEnabled = true;
 	ForceFeedbackScale = 1.f;
 
+	bEnableStreamingSource = true;
 	bStreamingSourceShouldActivate = true;
+	bStreamingSourceShouldBlockOnSlowStreaming = true;
 
 	bAutoManageActiveCameraTarget = true;
 	bRenderPrimitiveComponents = true;
@@ -137,9 +139,7 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 
 	bIsPlayerController = true;
 	bIsLocalPlayerController = false;
-	bDisableHaptics = false;
-
-	bEnableStreamingSource = true;
+	bDisableHaptics = false;	
 
 	ClickEventKeys.Add(EKeys::LeftMouseButton);
 
