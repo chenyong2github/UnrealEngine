@@ -284,6 +284,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Get CPU target for ISPC.
+		/// </summary>
+		/// <param name="Platform">Which OS platform to target.</param>
+		/// <returns>CPU string passed to ISPC compiler</returns>
+		public virtual string GetISPCCpuTarget(UnrealTargetPlatform Platform)
+		{
+			return null;  // no specific CPU selected
+		}
+
+		/// <summary>
 		/// Get host compiler path for ISPC.
 		/// </summary>
 		/// <param name="Platform">Which OS build platform is running on.</param>
@@ -341,6 +351,33 @@ namespace UnrealBuildTool
 			}
 
 			return ISPCCompilerVersions[Platform];			
+		}
+
+		/// <summary>
+		/// Get object file format for ISPC.
+		/// </summary>
+		/// <param name="Platform">Which OS build platform is running on.</param>
+		/// <returns>Object file suffix</returns>
+		public virtual string GetISPCObjectFileFormat(UnrealTargetPlatform Platform)
+		{
+			string Format = "";
+
+			if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Windows))
+			{
+				Format += "obj";
+			}
+			else if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) ||
+					Platform == UnrealTargetPlatform.Mac ||
+					Platform == UnrealTargetPlatform.Android)
+			{
+				Format += "obj";
+			}
+			else
+			{
+				Log.TraceWarning("Unsupported ISPC platform target!");
+			}
+
+			return Format;
 		}
 
 		/// <summary>
@@ -454,6 +491,12 @@ namespace UnrealBuildTool
 				Arguments.Add(String.Format("--arch={0}", GetISPCArchTarget(CompileEnvironment.Platform, null)));
 				Arguments.Add(String.Format("--target={0}", TargetString));
 				Arguments.Add(String.Format("--emit-{0}", GetISPCObjectFileFormat(CompileEnvironment.Platform)));
+				
+				string CpuTarget = GetISPCCpuTarget(CompileEnvironment.Platform);
+				if (!String.IsNullOrEmpty(CpuTarget))
+                {
+					Arguments.Add(String.Format("--cpu={0}", CpuTarget));
+				}
 
 				// PIC is needed for modular builds except on Windows
 				if ((CompileEnvironment.bIsBuildingDLL ||
