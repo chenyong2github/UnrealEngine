@@ -11,7 +11,13 @@ D3D12Allocation.h: A Collection of allocators
 // Enable pool allocator by default only on Windows until all initial issues have been resolved.
 // Xbox is currently using the buddy allocator with a lot smaller pool sizes so the alignment waste is a lot less
 // It also has less of a problem with committed resource allocations
-#define USE_POOL_ALLOCATOR (PLATFORM_WINDOWS)
+#if !defined(USE_BUFFER_POOL_ALLOCATOR)
+#define USE_BUFFER_POOL_ALLOCATOR (PLATFORM_WINDOWS)
+#endif
+
+#if !defined(USE_TEXTURE_POOL_ALLOCATOR)
+#define USE_TEXTURE_POOL_ALLOCATOR (PLATFORM_WINDOWS)
+#endif
 
 // Segregated free list texture allocator
 // Description:
@@ -402,7 +408,7 @@ private:
 	FD3D12MultiBuddyAllocator* Allocator;
 };
 
-#if USE_POOL_ALLOCATOR
+#if USE_BUFFER_POOL_ALLOCATOR
 typedef FD3D12PoolAllocator FD3D12BufferPool;
 #else
 typedef FD3D12DefaultBufferPool FD3D12BufferPool;
@@ -891,7 +897,7 @@ private:
 //	FD3D12TextureAllocator
 //-----------------------------------------------------------------------------
 
-#if USE_POOL_ALLOCATOR
+#if USE_TEXTURE_POOL_ALLOCATOR
 class FD3D12TextureAllocatorPool : public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 public:

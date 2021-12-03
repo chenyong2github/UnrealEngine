@@ -359,11 +359,13 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 
+#if NAME_OBJECTS
 			if (InDebugName)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::SetDebugName);
 				NewBuffer->SetName(InDebugName);
 			}
+#endif // NAME_OBJECTS
 
 			if (Device->GetGPUIndex() == FirstGPUIndex)
 			{
@@ -386,11 +388,13 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 
+#if NAME_OBJECTS
 			if (InDebugName)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::SetDebugName);
 				NewBuffer->SetName(InDebugName);
 			}
+#endif // NAME_OBJECTS
 
 			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, TransientMode, ResourceAllocator, InDebugName);
 			
