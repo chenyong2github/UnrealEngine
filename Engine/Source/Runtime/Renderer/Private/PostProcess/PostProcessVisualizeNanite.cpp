@@ -46,7 +46,7 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 				    Parameters->RenderTargets[0] = FRenderTargetBinding(Output.Texture, ERenderTargetLoadAction::ENoAction);
     
 				    const FScreenPassTextureViewport InputViewport(Visualization.ModeOutput->Desc.Extent);
-				    const FScreenPassTextureViewport OutputViewport(Output.Texture->Desc.Extent);
+				    const FScreenPassTextureViewport OutputViewport(Output);
 				    TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
     
 				    // Use separate input and output viewports w/ bilinear sampling to properly support dynamic resolution scaling
