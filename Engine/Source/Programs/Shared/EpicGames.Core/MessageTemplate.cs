@@ -42,7 +42,7 @@ namespace EpicGames.Core
 						ReadOnlySpan<char> Name = Format.AsSpan(Offset, Length);
 						if (int.TryParse(Name, out int Number))
 						{
-							OutputProperties[Name.ToString()] = Properties.ElementAtOrDefault(Number);
+							OutputProperties[Name.ToString()] = Properties.ElementAtOrDefault(Number).Value;
 						}
 					}
 				}

@@ -5,6 +5,7 @@ using HordeAgent.Parser;
 using HordeAgent.Utility;
 using HordeCommon;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestPlatform.Common.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NuGet.Frameworks;
@@ -50,6 +51,35 @@ namespace HordeAgentTests
 				}
 				LogLineIndex++;
 			}
+		}
+
+		class JsonLoggerImpl : JsonLogger
+		{
+			public List<LogEvent> Lines = new List<LogEvent>();
+
+			public JsonLoggerImpl(bool? Warnings, ILogger Inner) 
+				: base(Warnings, Inner)
+			{
+			}
+
+			protected override void WriteFormattedEvent(LogLevel Level, byte[] Line)
+			{
+				Lines.Add(LogEvent.Read(Line));
+			}
+		}
+
+		[TestMethod]
+		public void JsonLoggerTest()
+		{
+			JsonLoggerImpl Impl = new JsonLoggerImpl(null, NullLogger.Instance);
+			Impl.LogInformation("Hello {0}", "world");
+			Impl.LogInformation("Hello {Text}", "world");
+
+			Assert.AreEqual(Impl.Lines.Count, 2);
+			Assert.AreEqual(Impl.Lines[0].ToString(), "Hello world");
+			Assert.AreEqual(Impl.Lines[0].Properties!["0"].ToString()!, "world");
+			Assert.AreEqual(Impl.Lines[1].ToString(), "Hello world");
+			Assert.AreEqual(Impl.Lines[1].Properties!["Text"].ToString(), "world");
 		}
 
 		[TestMethod]

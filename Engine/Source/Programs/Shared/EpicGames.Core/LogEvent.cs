@@ -115,6 +115,18 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Read a log event from a utf-8 encoded json byte array
+		/// </summary>
+		/// <param name="Data"></param>
+		/// <returns></returns>
+		public static LogEvent Read(ReadOnlySpan<byte> Data)
+		{
+			Utf8JsonReader Reader = new Utf8JsonReader(Data);
+			Reader.Read();
+			return Read(ref Reader);
+		}
+
+		/// <summary>
 		/// Read a log event from Json
 		/// </summary>
 		/// <param name="Reader">The Json reader</param>
