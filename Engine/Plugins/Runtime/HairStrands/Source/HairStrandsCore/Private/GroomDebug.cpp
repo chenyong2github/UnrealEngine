@@ -80,7 +80,7 @@ static void GetGroomInterpolationData(
 			{
 				if (SkinCache)
 				{
-					CachedGeometry = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue);
+					CachedGeometry = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue, EGPUSkinCacheEntryMode::Raster);
 				}
 
 				if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)

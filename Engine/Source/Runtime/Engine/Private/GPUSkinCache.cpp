@@ -2338,35 +2338,45 @@ FRHIShaderResourceView* FGPUSkinCache::GetBoneBuffer(uint32 ComponentId, uint32 
 	return nullptr;
 }
 
-FCachedGeometry FGPUSkinCache::GetCachedGeometry(uint32 ComponentId) const
+FCachedGeometry FGPUSkinCache::GetCachedGeometry(uint32 ComponentId, EGPUSkinCacheEntryMode Mode) const
 {
-	FCachedGeometry Out;
-	for (FGPUSkinCacheEntry* Entry : Entries)
+	auto FindEntry = [&](EGPUSkinCacheEntryMode InMode, bool bByPassModeCheck, FCachedGeometry& Out) -> bool
 	{
-		if (Entry && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId && Entry->GPUSkin->HaveValidDynamicData())
+		for (FGPUSkinCacheEntry* Entry : Entries)
 		{
-			const FSkeletalMeshRenderData& RenderData = Entry->GPUSkin->GetSkeletalMeshRenderData();
-			const int32 LODIndex = Entry->LOD;
-			if (LODIndex >= 0 && LODIndex < RenderData.LODRenderData.Num())
+			if (Entry && (bByPassModeCheck || Entry->Mode == InMode) && Entry->GPUSkin && Entry->GPUSkin->GetComponentId() == ComponentId && Entry->GPUSkin->HaveValidDynamicData())
 			{
-				const FSkeletalMeshLODRenderData& LODData = RenderData.LODRenderData[LODIndex];
-				const uint32 SectionCount = LODData.RenderSections.Num();
-				for (uint32 SectionIdx=0; SectionIdx< SectionCount;++SectionIdx)
+				const FSkeletalMeshRenderData& RenderData = Entry->GPUSkin->GetSkeletalMeshRenderData();
+				const int32 LODIndex = Entry->LOD;
+				if (LODIndex >= 0 && LODIndex < RenderData.LODRenderData.Num())
 				{
-					FCachedGeometry::Section CachedSection = Entry->GetCachedGeometry(SectionIdx);
-					CachedSection.IndexBuffer		= LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
-					CachedSection.TotalIndexCount	= LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
-					CachedSection.LODIndex			= LODIndex;
-					CachedSection.UVsChannelOffset	= 0; // Assume that we needs to pair meshes based on UVs 0
-					CachedSection.UVsChannelCount	= LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-					Out.Sections.Add(CachedSection);
+					const FSkeletalMeshLODRenderData& LODData = RenderData.LODRenderData[LODIndex];
+					const uint32 SectionCount = LODData.RenderSections.Num();
+					for (uint32 SectionIdx = 0; SectionIdx < SectionCount; ++SectionIdx)
+					{
+						FCachedGeometry::Section CachedSection = Entry->GetCachedGeometry(SectionIdx);
+						CachedSection.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();
+						CachedSection.TotalIndexCount = LODData.MultiSizeIndexContainer.GetIndexBuffer()->Num();
+						CachedSection.LODIndex = LODIndex;
+						CachedSection.UVsChannelOffset = 0; // Assume that we needs to pair meshes based on UVs 0
+						CachedSection.UVsChannelCount = LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+						Out.Sections.Add(CachedSection);
+					}
+					Out.LocalToWorld = FTransform(Entry->GPUSkin->GetTransform());
+					return true;
 				}
-				Out.LocalToWorld = FTransform(Entry->GPUSkin->GetTransform());
-				break;
 			}
 		}
-	}
+		return false;
+	};
 
+	// 1. Try to find a Skin cache entry which matches the requested mode (Raster/Raytracing)
+	// 2. If we can't find an entry with a matching mode, use any mode type
+	FCachedGeometry Out;
+	if (!FindEntry(Mode, false, Out))
+	{
+		FindEntry(Mode, true, Out);
+	}
 	return Out;
 }
 

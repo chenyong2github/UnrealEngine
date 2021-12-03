@@ -81,7 +81,7 @@ FCachedGeometry GetCacheGeometryForHair(
 		{
 			if (SkinCache)
 			{
-				Out = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue);
+				Out = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue, EGPUSkinCacheEntryMode::Raster);
 			}
 
 			if (IsHairStrandsSkinCacheEnable() && Out.Sections.Num() == 0)
