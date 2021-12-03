@@ -195,6 +195,12 @@ RWTexture2D<uint> RWScreenTileAdaptiveProbeHeader;
 RWTexture2D<uint> RWScreenTileAdaptiveProbeIndices;
 RWStructuredBuffer<uint> RWAdaptiveScreenProbeData;
 
+struct FScreenProbeSample
+{
+	uint2 AtlasCoord[4];
+	float4 Weights;
+};
+
 void CalculateUpsampleInterpolationWeights(
 	float2 ScreenCoord,
 	float2 NoiseOffset,
@@ -202,16 +208,15 @@ void CalculateUpsampleInterpolationWeights(
 	float SceneDepth,
 	float3 WorldNormal,
 	uniform bool bIsUpsamplePass,
-	out uint2 ScreenProbeAtlasCoordArray[4],
-	out float4 InterpolationWeights)
+	out FScreenProbeSample ScreenProbeSample)
 {
 	uint2 ScreenTileCoord00;
-	CalculateUniformUpsampleInterpolationWeights(ScreenCoord, NoiseOffset, WorldPosition, SceneDepth, WorldNormal, bIsUpsamplePass, ScreenTileCoord00, InterpolationWeights);
+	CalculateUniformUpsampleInterpolationWeights(ScreenCoord, NoiseOffset, WorldPosition, SceneDepth, WorldNormal, bIsUpsamplePass, ScreenTileCoord00, ScreenProbeSample.Weights);
 
-	ScreenProbeAtlasCoordArray[0] = ScreenTileCoord00;
-	ScreenProbeAtlasCoordArray[1] = ScreenTileCoord00 + uint2(1, 0);
-	ScreenProbeAtlasCoordArray[2] = ScreenTileCoord00 + uint2(0, 1);
-	ScreenProbeAtlasCoordArray[3] = ScreenTileCoord00 + uint2(1, 1);
+	ScreenProbeSample.AtlasCoord[0] = ScreenTileCoord00;
+	ScreenProbeSample.AtlasCoord[1] = ScreenTileCoord00 + uint2(1, 0);
+	ScreenProbeSample.AtlasCoord[2] = ScreenTileCoord00 + uint2(0, 1);
+	ScreenProbeSample.AtlasCoord[3] = ScreenTileCoord00 + uint2(1, 1);
 
 	bool bUseAdaptiveProbesForUpsample = true;
 
@@ -223,7 +228,7 @@ void CalculateUpsampleInterpolationWeights(
 		UNROLL
 		for (uint CornerIndex = 0; CornerIndex < 4; CornerIndex++)
 		{
-			if (InterpolationWeights[CornerIndex] <= Epsilon)
+			if (ScreenProbeSample.Weights[CornerIndex] <= Epsilon)
 			{
 				uint2 ScreenTileCoord = ScreenTileCoord00 + uint2(CornerIndex % 2, CornerIndex / 2);
 				uint NumAdaptiveProbes = bIsUpsamplePass ? ScreenTileAdaptiveProbeHeader[ScreenTileCoord] : RWScreenTileAdaptiveProbeHeader[ScreenTileCoord];
@@ -258,10 +263,10 @@ void CalculateUpsampleInterpolationWeights(
 					float NewCornerWeight = 1.0f - saturate(min(DistanceToScreenProbe.x, DistanceToScreenProbe.y) / (float)ScreenProbeDownsampleFactor);
 					float NewInterpolationWeight = NewDepthWeight * NewCornerWeight;
 
-					if (NewInterpolationWeight > InterpolationWeights[CornerIndex])
+					if (NewInterpolationWeight > ScreenProbeSample.Weights[CornerIndex])
 					{
-						InterpolationWeights[CornerIndex] = NewInterpolationWeight;
-						ScreenProbeAtlasCoordArray[CornerIndex] = ScreenProbeAtlasCoord;
+						ScreenProbeSample.Weights[CornerIndex] = NewInterpolationWeight;
+						ScreenProbeSample.AtlasCoord[CornerIndex] = ScreenProbeAtlasCoord;
 					}
 				}
 			}
@@ -305,8 +310,8 @@ void ScreenProbeAdaptivePlacementCS(
 				float2 ScreenUV = (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
 				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
 				float2 NoiseOffset = 0.0f;
-				uint2 ScreenProbeAtlasCoord[4];
-				float4 InterpolationWeights;
+
+				FScreenProbeSample ScreenProbeSample = (FScreenProbeSample)0;
 
 				CalculateUpsampleInterpolationWeights(
 					ScreenProbeScreenPosition,
@@ -315,13 +320,12 @@ void ScreenProbeAdaptivePlacementCS(
 					GBufferData.Depth,
 					GBufferData.WorldNormal,
 					false,
-					ScreenProbeAtlasCoord,
-					InterpolationWeights);
+					ScreenProbeSample);
 
 				float Epsilon = .01f;
-				InterpolationWeights /= max(dot(InterpolationWeights, 1), Epsilon);
+				ScreenProbeSample.Weights /= max(dot(ScreenProbeSample.Weights, 1), Epsilon);
 
-				float LightingIsValid = (dot(InterpolationWeights, 1) < 1.0f - Epsilon) ? 0.0f : 1.0f;
+				float LightingIsValid = (dot(ScreenProbeSample.Weights, 1) < 1.0f - Epsilon) ? 0.0f : 1.0f;
 
 				if (!LightingIsValid)
 				{
@@ -801,7 +805,7 @@ float4 BiasBSDFImportantSample(float4 E)
 Texture2D<float3> ScreenProbeRadianceWithBorder;
 Texture2D<float3> ScreenProbeRadiance;
 
-float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 ScreenProbeAtlasCoord[4], float4 InterpolationWeights)
+float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, FScreenProbeSample ScreenProbeSample)
 {
 	float2 ProbeUV = UnitVectorToOctahedron(ConeDirection) * 0.5 + 0.5;
 
@@ -817,17 +821,20 @@ float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 S
 	float2 AtlasUVAdd = (ProbeCoord + BorderSize) * InvBufferSize;
 #endif
 
-	float2 UV0 = ScreenProbeAtlasCoord[0] * AtlasUVMul + AtlasUVAdd;
-	float3 InterpolatedRadiance = ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV0, MipLevel).xyz * InterpolationWeights.x;
+	float2 UV0 = ScreenProbeSample.AtlasCoord[0] * AtlasUVMul + AtlasUVAdd;
+	float3 InterpolatedRadiance = ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV0, MipLevel).xyz * ScreenProbeSample.Weights.x;
 
-	float2 UV1 = ScreenProbeAtlasCoord[1] * AtlasUVMul + AtlasUVAdd;
-	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV1, MipLevel).xyz * InterpolationWeights.y;
+#if !STOCHASTIC_PROBE_INTERPOLATION
+	float2 UV1 = ScreenProbeSample.AtlasCoord[1] * AtlasUVMul + AtlasUVAdd;
+	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV1, MipLevel).xyz * ScreenProbeSample.Weights.y;
 
-	float2 UV2 = ScreenProbeAtlasCoord[2] * AtlasUVMul + AtlasUVAdd;
-	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV2, MipLevel).xyz * InterpolationWeights.z;
+	float2 UV2 = ScreenProbeSample.AtlasCoord[2] * AtlasUVMul + AtlasUVAdd;
+	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV2, MipLevel).xyz * ScreenProbeSample.Weights.z;
 
-	float2 UV3 = ScreenProbeAtlasCoord[3] * AtlasUVMul + AtlasUVAdd;
-	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV3, MipLevel).xyz * InterpolationWeights.w;
+	float2 UV3 = ScreenProbeSample.AtlasCoord[3] * AtlasUVMul + AtlasUVAdd;
+	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV3, MipLevel).xyz * ScreenProbeSample.Weights.w;
+#endif
+
 	return InterpolatedRadiance;
 }
 
@@ -956,8 +963,7 @@ void ScreenProbeIntegrateCS(
 				}
 			}
 
-			uint2 ScreenProbeAtlasCoord[4];
-			float4 InterpolationWeights;
+			FScreenProbeSample ScreenProbeSample = (FScreenProbeSample) 0;
 
 			CalculateUpsampleInterpolationWeights(
 				DispatchThreadId.xy,
@@ -966,11 +972,46 @@ void ScreenProbeIntegrateCS(
 				SceneDepth,
 				GBufferData.WorldNormal,
 				true,
-				ScreenProbeAtlasCoord,
-				InterpolationWeights);
+				ScreenProbeSample);
 
 			float Epsilon = .01f;
-			InterpolationWeights /= max(dot(InterpolationWeights, 1), Epsilon);
+			ScreenProbeSample.Weights /= max(dot(ScreenProbeSample.Weights, 1), Epsilon);
+
+			FScreenProbeSample StochasticScreenProbeSample = ScreenProbeSample;
+			#if STOCHASTIC_PROBE_INTERPOLATION
+			{
+				// Pick a single best sample in a stochastic manner
+				float RandomValue = InterleavedGradientNoise(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX);
+
+				float WeightSum = dot(ScreenProbeSample.Weights, 1.0f);
+				RandomValue *= WeightSum;
+
+				uint2 PickedScreenProbeAtlasCoord = 0;
+				if (RandomValue >= ScreenProbeSample.Weights[0] + ScreenProbeSample.Weights[1] + ScreenProbeSample.Weights[2])
+				{
+					PickedScreenProbeAtlasCoord = ScreenProbeSample.AtlasCoord[3];
+				}
+				else if (RandomValue >= ScreenProbeSample.Weights[0] + ScreenProbeSample.Weights[1])
+				{
+					PickedScreenProbeAtlasCoord = ScreenProbeSample.AtlasCoord[2];
+				}
+				else if (RandomValue >= ScreenProbeSample.Weights[0])
+				{
+					PickedScreenProbeAtlasCoord = ScreenProbeSample.AtlasCoord[1];
+				}
+				else
+				{
+					PickedScreenProbeAtlasCoord = ScreenProbeSample.AtlasCoord[0];
+				}
+
+				StochasticScreenProbeSample.AtlasCoord[0] = PickedScreenProbeAtlasCoord;
+				StochasticScreenProbeSample.AtlasCoord[1] = PickedScreenProbeAtlasCoord;
+				StochasticScreenProbeSample.AtlasCoord[2] = PickedScreenProbeAtlasCoord;
+				StochasticScreenProbeSample.AtlasCoord[3] = PickedScreenProbeAtlasCoord;
+				StochasticScreenProbeSample.Weights = float4(1.0f, 0.0f, 0.0f, 0.0f);
+				ScreenProbeSample = StochasticScreenProbeSample;
+			}
+			#endif
 
 			float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPosition);
 			float3 UnitBentNormal = GBufferData.WorldNormal;
@@ -992,10 +1033,10 @@ void ScreenProbeIntegrateCS(
 			{
 				#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 				{
-					FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeAtlasCoord[0], InterpolationWeights.x);
-					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[1], InterpolationWeights.y));
-					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[2], InterpolationWeights.z));
-					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[3], InterpolationWeights.w));
+					FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeSample.AtlasCoord[0], ScreenProbeSample.Weights.x);
+					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[1], ScreenProbeSample.Weights.y));
+					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[2], ScreenProbeSample.Weights.z));
+					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeSample.AtlasCoord[3], ScreenProbeSample.Weights.w));
 
 					float3 ProbeLightingNormal = GBufferData.WorldNormal;
 
@@ -1011,10 +1052,10 @@ void ScreenProbeIntegrateCS(
 				{
 					float2 IrradianceProbeUV = UnitVectorToOctahedron(GBufferData.WorldNormal) * 0.5f + 0.5f;
 
-					float3 Irradiance = GetScreenProbeIrradiance(ScreenProbeAtlasCoord[0], IrradianceProbeUV) * InterpolationWeights.x;
-					Irradiance += GetScreenProbeIrradiance(ScreenProbeAtlasCoord[1], IrradianceProbeUV) * InterpolationWeights.y;
-					Irradiance += GetScreenProbeIrradiance(ScreenProbeAtlasCoord[2], IrradianceProbeUV) * InterpolationWeights.z;
-					Irradiance += GetScreenProbeIrradiance(ScreenProbeAtlasCoord[3], IrradianceProbeUV) * InterpolationWeights.w;
+					float3 Irradiance = GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[0], IrradianceProbeUV) * ScreenProbeSample.Weights.x;
+					Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[1], IrradianceProbeUV) * ScreenProbeSample.Weights.y;
+					Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[2], IrradianceProbeUV) * ScreenProbeSample.Weights.z;
+					Irradiance += GetScreenProbeIrradiance(ScreenProbeSample.AtlasCoord[3], IrradianceProbeUV) * ScreenProbeSample.Weights.w;
 
 					DiffuseLighting += Irradiance;
 				}
@@ -1036,7 +1077,7 @@ void ScreenProbeIntegrateCS(
 					float4 E = ComputeIndirectLightingSampleE(DispatchThreadId.xy, PixelRayIndex, NumPixelSamples);
 					FBxDFSample BxDFSample = SampleBxDFWrapper(TermMask, GBufferData, V, E);
 
-					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, DiffuseMipLevel, ScreenProbeAtlasCoord, InterpolationWeights);
+					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, DiffuseMipLevel, StochasticScreenProbeSample);
 
 					#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 						bool bIsBentNormalOccluded = (GBufferData.DiffuseIndirectSampleOcclusion & (1 << PixelRayIndex)) != 0;
@@ -1098,19 +1139,19 @@ void ScreenProbeIntegrateCS(
 							float3 InterpolatedRadiance;
 
 							uint2 ProbeCoord = uint2(X, Y);
-							InterpolatedRadiance = InterpolationWeights.x > 0 ? ScreenProbeRadiance.Load(int3(ScreenProbeAtlasCoord[0] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * InterpolationWeights.x : 0;
+							InterpolatedRadiance = ScreenProbeSample.Weights.x > 0 ? ScreenProbeRadiance.Load(int3(ScreenProbeSample.AtlasCoord[0] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * ScreenProbeSample.Weights.x : 0;
 							
-							if (InterpolationWeights.y > 0)
+							if (ScreenProbeSample.Weights.y > 0)
 							{
-								InterpolatedRadiance += ScreenProbeRadiance.Load(int3(ScreenProbeAtlasCoord[1] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * InterpolationWeights.y;
+								InterpolatedRadiance += ScreenProbeRadiance.Load(int3(ScreenProbeSample.AtlasCoord[1] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * ScreenProbeSample.Weights.y;
 							}
-							if (InterpolationWeights.z > 0)
+							if (ScreenProbeSample.Weights.z > 0)
 							{
-								InterpolatedRadiance += ScreenProbeRadiance.Load(int3(ScreenProbeAtlasCoord[2] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * InterpolationWeights.z;
+								InterpolatedRadiance += ScreenProbeRadiance.Load(int3(ScreenProbeSample.AtlasCoord[2] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * ScreenProbeSample.Weights.z;
 							}
-							if (InterpolationWeights.w > 0)
+							if (ScreenProbeSample.Weights.w > 0)
 							{
-								InterpolatedRadiance += ScreenProbeRadiance.Load(int3(ScreenProbeAtlasCoord[3] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * InterpolationWeights.w;
+								InterpolatedRadiance += ScreenProbeRadiance.Load(int3(ScreenProbeSample.AtlasCoord[3] * ScreenProbeGatherOctahedronResolution + ProbeCoord, 0)).xyz * ScreenProbeSample.Weights.w;
 							}
 							float DirectionalOcclusion = 1.0f;
 
@@ -1131,7 +1172,7 @@ void ScreenProbeIntegrateCS(
 				}
 			}
 #endif
-			bool bLightingIsValid = dot(InterpolationWeights, 1) > 1.0f - Epsilon;
+			bool bLightingIsValid = dot(StochasticScreenProbeSample.Weights, 1) > 1.0f - Epsilon;
 
 			#if SCREEN_SPACE_BENT_NORMAL
 			{
@@ -1139,10 +1180,12 @@ void ScreenProbeIntegrateCS(
 			}
 			#endif
 
-			float LightingIsMoving = GetScreenProbeMoving(ScreenProbeAtlasCoord[0]) * InterpolationWeights.x
-				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[1]) * InterpolationWeights.y
-				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[2]) * InterpolationWeights.z
-				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[3]) * InterpolationWeights.w;
+			float LightingIsMoving = GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[0]) * StochasticScreenProbeSample.Weights.x;
+#if !STOCHASTIC_PROBE_INTERPOLATION
+			LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[1]) * StochasticScreenProbeSample.Weights.y;
+			LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[2]) * StochasticScreenProbeSample.Weights.z;
+			LightingIsMoving += GetScreenProbeMoving(StochasticScreenProbeSample.AtlasCoord[3]) * StochasticScreenProbeSample.Weights.w;
+#endif
 
 			float EncodedAlpha = (bLightingIsValid ? 1.0f : -1.0f) * max(LightingIsMoving, .001f);
 
@@ -1221,7 +1264,7 @@ void ScreenProbeIntegrateCS(
 					E = BiasBSDFImportantSample(E);
 
 					FBxDFSample BxDFSample = SampleBxDFWrapper(SHADING_TERM_SPECULAR, GBufferData, V, E);
-					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, MipLevel, ScreenProbeAtlasCoord, InterpolationWeights);
+					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, MipLevel, StochasticScreenProbeSample);
 
 					float DirectionVisibility = 1.0f;
 
