@@ -154,13 +154,7 @@ extern void FilterScreenProbes(
 	const FScreenProbeParameters& ScreenProbeParameters,
 	FScreenProbeGatherParameters& GatherParameters);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FScreenSpaceBentNormalParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenBentNormal)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenDiffuseLighting)
-	SHADER_PARAMETER(uint32, UseScreenBentNormal)
-END_SHADER_PARAMETER_STRUCT()
-
-extern FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
+extern FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,

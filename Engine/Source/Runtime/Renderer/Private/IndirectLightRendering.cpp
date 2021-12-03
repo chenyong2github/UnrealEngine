@@ -102,8 +102,9 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 	class FApplyDiffuseIndirectDim : SHADER_PERMUTATION_INT("DIM_APPLY_DIFFUSE_INDIRECT", 5);
 	class FUpscaleDiffuseIndirectDim : SHADER_PERMUTATION_BOOL("DIM_UPSCALE_DIFFUSE_INDIRECT");
+	class FScreenBentNormal : SHADER_PERMUTATION_BOOL("DIM_SCREEN_BENT_NORMAL");
 
-	using FPermutationDomain = TShaderPermutationDomain<FApplyDiffuseIndirectDim, FUpscaleDiffuseIndirectDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FApplyDiffuseIndirectDim, FUpscaleDiffuseIndirectDim, FScreenBentNormal>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -120,6 +121,12 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 			return false;
 		}
 
+		// Only support Bent Normal for ScreenProbeGather
+		if (PermutationVector.Get<FApplyDiffuseIndirectDim>() != 4 && PermutationVector.Get<FScreenBentNormal>())
+		{
+			return false;
+		}
+
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
@@ -128,7 +135,8 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 		SHADER_PARAMETER(float, ApplyAOToDynamicDiffuseIndirect)
 		SHADER_PARAMETER(int32, bVisualizeDiffuseIndirect)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionCompositeParameters, LumenReflectionCompositeParameters)
-
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenSpaceBentNormalParameters, ScreenBentNormalParameters)
+		
 		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, DiffuseIndirect)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DiffuseIndirectSampler)
 		
@@ -768,6 +776,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		IScreenSpaceDenoiser::FDiffuseIndirectInputs DenoiserInputs;
 		IScreenSpaceDenoiser::FDiffuseIndirectHarmonic DenoiserSphericalHarmonicInputs;
 		FLumenReflectionCompositeParameters LumenReflectionCompositeParameters;
+		FLumenScreenSpaceBentNormalParameters ScreenBentNormalParameters;
 		bool bLumenUseDenoiserComposite = ViewPipelineState.bUseLumenProbeHierarchy;
 
 		if (ViewPipelineState.bUseLumenProbeHierarchy)
@@ -808,7 +817,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				&View.PrevViewInfo,
 				bLumenUseDenoiserComposite,
 				MeshSDFGridParameters,
-				RadianceCacheParameters);
+				RadianceCacheParameters,
+				ScreenBentNormalParameters);
 
 			if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
 			{
@@ -967,6 +977,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			PassParameters->BufferUVToOutputPixelPosition = BufferExtent;
 			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
 			PassParameters->LumenReflectionCompositeParameters = LumenReflectionCompositeParameters;
+			PassParameters->ScreenBentNormalParameters = ScreenBentNormalParameters;
 
 			PassParameters->bVisualizeDiffuseIndirect = bIsVisualizePass;
 
@@ -1025,6 +1036,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				else if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 				{
 					PermutationVector.Set<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>(4);
+					PermutationVector.Set<FDiffuseIndirectCompositePS::FScreenBentNormal>(ScreenBentNormalParameters.UseScreenBentNormal != 0);
 					DiffuseIndirectSampling = TEXT("ScreenProbeGather");
 				}
 				else
