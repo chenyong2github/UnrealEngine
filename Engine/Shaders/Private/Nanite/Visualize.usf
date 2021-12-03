@@ -243,10 +243,19 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			const float ComplexityColor = 1.0f - exp2(-ComplexityCount * ComplexityScale);
 			Result = ColorMapTurbo(ComplexityColor);
 		}
+	#if USE_EDITOR_SHADERS
 		else if (VisualizeMode == VISUALIZE_HIT_PROXY_DEPTH)
 		{
-			Result = IntToColor(GetMaterialHitProxyId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable));
+			if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u)
+			{
+				Result = IntToColor(InstanceData.EditorData.HitProxyPacked);
+			}
+			else
+			{
+				Result = IntToColor(GetMaterialHitProxyId(Cluster, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable));
+			}
 		}
+	#endif
 		else if (VisualizeMode == VISUALIZE_NANITE_MASK)
 		{
 			Result = float3(0, 1, 0);

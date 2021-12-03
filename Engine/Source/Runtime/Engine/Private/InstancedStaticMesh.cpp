@@ -2321,8 +2321,8 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 	check(InstancingRandomSeed != 0);
 	FRandomStream RandomStream = FRandomStream(InstancingRandomSeed);
 
-	auto AdditionanlRandomSeedsIt = AdditionalRandomSeeds.CreateIterator();
-	int32 SeedResetIndex = AdditionanlRandomSeedsIt ? AdditionanlRandomSeedsIt->StartInstanceIndex : INDEX_NONE;
+	auto AdditionalRandomSeedsIt = AdditionalRandomSeeds.CreateIterator();
+	int32 SeedResetIndex = AdditionalRandomSeedsIt ? AdditionalRandomSeedsIt->StartInstanceIndex : INDEX_NONE;
 	
 	for (int32 Index = 0; Index < NumInstances; ++Index)
 	{
@@ -2336,9 +2336,9 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 		// Reset the random stream if necessary
 		if (Index == SeedResetIndex)
 		{
-			RandomStream = FRandomStream(AdditionanlRandomSeedsIt->RandomSeed);
-			AdditionanlRandomSeedsIt++;
-			SeedResetIndex = AdditionanlRandomSeedsIt ? AdditionanlRandomSeedsIt->StartInstanceIndex : INDEX_NONE;
+			RandomStream = FRandomStream(AdditionalRandomSeedsIt->RandomSeed);
+			AdditionalRandomSeedsIt++;
+			SeedResetIndex = AdditionalRandomSeedsIt ? AdditionalRandomSeedsIt->StartInstanceIndex : INDEX_NONE;
 		}
 
 		const FInstancedStaticMeshInstanceData& InstanceData = PerInstanceSMData[Index];

@@ -8,12 +8,22 @@
 #include "Rendering/NaniteResources.h"
 #include "RayTracingInstance.h"
 
+struct FPerInstanceRenderData;
+
 namespace Nanite
 {
 
 class FSceneProxyBase : public FPrimitiveSceneProxy
 {
 public:
+#if WITH_EDITOR
+	enum class EHitProxyMode : uint8
+	{
+		MaterialSection,
+		PerInstance,
+	};
+#endif
+
 	struct FMaterialSection
 	{
 		UMaterialInterface* Material = nullptr;
@@ -68,6 +78,18 @@ public:
 		return MaterialMaxIndex;
 	}
 
+#if WITH_EDITOR
+	inline const TConstArrayView<const FHitProxyId> GetHitProxyIds() const
+	{
+		return HitProxyIds;
+	}
+
+	inline EHitProxyMode GetHitProxyMode() const
+	{
+		return HitProxyMode;
+	}
+#endif
+
 	void UpdateMaterialDynamicDataUsage()
 	{
 		bHasPerInstanceCustomData = false;
@@ -94,6 +116,10 @@ protected:
 
 protected:
 	TArray<FMaterialSection> MaterialSections;
+#if WITH_EDITOR
+	TArray<FHitProxyId> HitProxyIds;
+	EHitProxyMode HitProxyMode = EHitProxyMode::MaterialSection;
+#endif
 	int32 MaterialMaxIndex = INDEX_NONE;
 };
 
@@ -195,6 +221,16 @@ protected:
 	uint32 bHasMaterialErrors : 1;
 
 	const UStaticMesh* StaticMesh = nullptr;
+
+	/** Per instance render data, could be shared with component */
+	TSharedPtr<FPerInstanceRenderData, ESPMode::ThreadSafe> PerInstanceRenderData;
+
+#if WITH_EDITOR
+	/* If we we have any selected instances */
+	bool bHasSelectedInstances;
+#else
+	static const bool bHasSelectedInstances = false;
+#endif
 
 #if RHI_RAYTRACING
 	bool bHasRayTracingInstances = false;

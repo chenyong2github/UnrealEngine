@@ -2860,6 +2860,7 @@ struct FRelevancePacket
 
 		// Add hit proxies from editing LevelInstance Nanite primitives
 		AddRelevantHitProxiesToArray(EditorVisualizeLevelInstancePrimitives, WriteView.EditorVisualizeLevelInstanceIds);
+
 		// Add hit proxies from selected Nanite primitives.
 		AddRelevantHitProxiesToArray(EditorSelectedPrimitives, WriteView.EditorSelectedHitProxyIds);
 #endif
@@ -4218,6 +4219,7 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 #endif
 
 #if WITH_EDITOR
+
 static void UpdateHitProxyIdBuffer(
 	TArray<uint32>& HitProxyIds,
 	FDynamicReadBuffer& DynamicReadBuffer)
@@ -4253,27 +4255,6 @@ static void UpdateHitProxyIdBuffer(
 	DynamicReadBuffer.Unlock();
 }
 
-static void UpdateEditorVisualizeLevelInstanceHitProxyIds(TArray<FViewInfo>& Views)
-{
-	int32 ViewCount = Views.Num();
-	for (int32 ViewIdx = 0; ViewIdx < ViewCount; ++ViewIdx)
-	{
-		FViewInfo& View = Views[ViewIdx];
-
-		UpdateHitProxyIdBuffer(View.EditorVisualizeLevelInstanceIds, View.EditorVisualizeLevelInstanceBuffer);
-	}
-}
-
-static void UpdateEditorSelectedHitProxyIds(TArray<FViewInfo>& Views)
-{
-	int32 ViewCount = Views.Num();
-	for (int32 ViewIdx = 0; ViewIdx < ViewCount; ++ViewIdx)
-	{
-		FViewInfo& View = Views[ViewIdx];
-
-		UpdateHitProxyIdBuffer(View.EditorSelectedHitProxyIds, View.EditorSelectedBuffer);
-	}
-}
 #endif
 
 void FSceneRenderer::ComputeViewVisibility(
@@ -4605,14 +4586,15 @@ void FSceneRenderer::ComputeViewVisibility(
 			HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, MeshCollector);
 	}
 
-#if WITH_EDITOR
-	UpdateEditorVisualizeLevelInstanceHitProxyIds(Views);
-	UpdateEditorSelectedHitProxyIds(Views);
-#endif
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
+
+	#if WITH_EDITOR
+		UpdateHitProxyIdBuffer(View.EditorSelectedHitProxyIds, View.EditorSelectedBuffer);
+		UpdateHitProxyIdBuffer(View.EditorVisualizeLevelInstanceIds, View.EditorVisualizeLevelInstanceBuffer);
+	#endif
+
 		if (!View.ShouldRenderView())
 		{
 			continue;

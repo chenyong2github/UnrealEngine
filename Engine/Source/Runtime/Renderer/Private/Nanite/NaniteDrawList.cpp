@@ -54,17 +54,11 @@ void FNaniteDrawListContext::BeginPrimitiveSceneInfo(FPrimitiveSceneInfo& Primit
 #if WITH_EDITOR
 	// Initialize hit proxy IDs
 	check(PrimitiveSceneInfo.NaniteHitProxyIds.Num() == 0);
-	PrimitiveSceneInfo.NaniteHitProxyIds.SetNum(MaterialSections.Num());
-	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+	const TConstArrayView<const FHitProxyId> HitProxyIds = NaniteSceneProxy->GetHitProxyIds();
+	PrimitiveSceneInfo.NaniteHitProxyIds.SetNumUninitialized(HitProxyIds.Num());
+	for (int32 IdIndex = 0; IdIndex < HitProxyIds.Num(); ++IdIndex)
 	{
-		if (MaterialSections[SectionIndex].HitProxy)
-		{
-			PrimitiveSceneInfo.NaniteHitProxyIds[SectionIndex] = MaterialSections[SectionIndex].HitProxy->Id.GetColor().DWColor();
-		}
-		else
-		{
-			PrimitiveSceneInfo.NaniteHitProxyIds[SectionIndex] = INDEX_NONE;
-		}
+		PrimitiveSceneInfo.NaniteHitProxyIds[IdIndex] = HitProxyIds[IdIndex].GetColor().ToPackedABGR();
 	}
 #endif
 

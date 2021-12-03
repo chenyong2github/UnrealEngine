@@ -25,6 +25,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "NaniteSceneProxy.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
+#include "Elements/SMInstance/SMInstanceManager.h"
+#include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -341,6 +343,9 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 , Resources(&Component->GetStaticMesh()->GetRenderData()->NaniteResources)
 , RenderData(Component->GetStaticMesh()->GetRenderData())
 , StaticMesh(Component->GetStaticMesh())
+#if WITH_EDITOR
+, bHasSelectedInstances(false)
+#endif
 #if NANITE_ENABLE_DEBUG_RENDERING
 , Owner(Component->GetOwner())
 , LightMapResolution(Component->GetStaticLightMapResolution())
@@ -525,6 +530,28 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
+	PerInstanceRenderData = Component->PerInstanceRenderData;
+	check(PerInstanceRenderData.IsValid());
+
+#if WITH_EDITOR
+	const bool bSupportInstancePicking = SMInstanceElementDataUtil::SMInstanceElementsEnabled();
+	HitProxyMode = bSupportInstancePicking ? EHitProxyMode::PerInstance : EHitProxyMode::MaterialSection;
+
+	if (HitProxyMode == EHitProxyMode::PerInstance)
+	{
+	    for (int32 InstanceIndex = 0; InstanceIndex < Component->SelectedInstances.Num() && !bHasSelectedInstances; ++InstanceIndex)
+	    {
+		    bHasSelectedInstances |= Component->SelectedInstances[InstanceIndex];
+	    }
+    
+	    if (bHasSelectedInstances)
+	    {
+		    // If we have selected indices, mark scene proxy as selected.
+		    SetSelection_GameThread(true);
+	    }
+	}
+#endif
+
 	InstanceSceneData.SetNum(Component->GetInstanceCount());
 
 	bHasPerInstanceLocalBounds = false;
@@ -541,6 +568,11 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	InstanceLightShadowUVBias.SetNumZeroed(bHasPerInstanceLMSMUVBias ? Component->GetInstanceCount() : 0);
 
 	InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? Component->GetInstanceCount() : 0); // Only allocate if material bound which uses this
+
+#if WITH_EDITOR
+	bHasPerInstanceEditorData = bSupportInstancePicking;// TODO: Would be good to decouple typed element picking from has editor data (i.e. always set this true, regardless)
+	InstanceEditorData.SetNumZeroed(bHasPerInstanceEditorData ? Component->GetInstanceCount() : 0);
+#endif
 
 	// Only allocate if material bound which uses this
 	if (bHasPerInstanceCustomData && Component->NumCustomDataFloats > 0)
@@ -571,11 +603,16 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	}
 
 	check(bHasPerInstanceRandom == false || InstanceRandomID.Num() == InstanceSceneData.Num());
+#if WITH_EDITOR
+	const bool bHasEditorData = bHasPerInstanceEditorData && InstanceEditorData.Num() == InstanceSceneData.Num();
+#else
+	const bool bHasEditorData = false;
+#endif
 
-	if (bHasPerInstanceRandom || bHasPerInstanceLMSMUVBias)
+	if (PerInstanceRenderData && (bHasPerInstanceRandom || bHasPerInstanceLMSMUVBias || bHasEditorData))
 	{
 		ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(
-			[this, PerInstanceRenderData = Component->PerInstanceRenderData](FRHICommandList& RHICmdList)
+			[this](FRHICommandList& RHICmdList)
 			{
 				check(bHasPerInstanceRandom == false || InstanceRandomID.Num() == InstanceSceneData.Num());
 
@@ -593,6 +630,16 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 						{
 							PerInstanceRenderData->InstanceBuffer.GetInstanceLightMapData(InstanceIndex, InstanceLightShadowUVBias[InstanceIndex]);
 						}
+
+					#if WITH_EDITOR
+						if (bHasPerInstanceEditorData)
+						{
+							FColor HitProxyColor;
+							bool bSelected;
+							PerInstanceRenderData->InstanceBuffer.GetInstanceEditorData(InstanceIndex, HitProxyColor, bSelected);
+							InstanceEditorData[InstanceIndex] = FInstanceUpdateCmdBuffer::PackEditorData(HitProxyColor, bSelected);
+						}
+					#endif
 					}
 				}
 
@@ -607,6 +654,9 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceDynamicData.GetAllocatedSize());
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceCustomData.GetAllocatedSize());
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceRandomID.GetAllocatedSize());
+#if WITH_EDITOR
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceEditorData.GetAllocatedSize());
+#endif
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLightShadowUVBias.GetAllocatedSize());
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLocalBounds.GetAllocatedSize());
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceHierarchyOffset.GetAllocatedSize());
@@ -641,6 +691,9 @@ FSceneProxy::~FSceneProxy()
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceDynamicData.GetAllocatedSize());
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceCustomData.GetAllocatedSize());
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceRandomID.GetAllocatedSize());
+#if WITH_EDITOR
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceEditorData.GetAllocatedSize());
+#endif
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLightShadowUVBias.GetAllocatedSize());
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLocalBounds.GetAllocatedSize());
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceHierarchyOffset.GetAllocatedSize());
@@ -762,17 +815,43 @@ HHitProxy* FSceneProxy::CreateHitProxies(UPrimitiveComponent* Component, TArray<
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
-	if (Component->GetOwner())
+	switch (HitProxyMode)
 	{
-		// Generate separate hit proxies for each material section, so that we can perform hit tests against each one.
-		for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+		case FSceneProxyBase::EHitProxyMode::MaterialSection:
 		{
-			FMaterialSection& Section = MaterialSections[SectionIndex];
-			HHitProxy* ActorHitProxy = new HActor(Component->GetOwner(), Component, SectionIndex, SectionIndex);
-			check(!Section.HitProxy);
-			Section.HitProxy = ActorHitProxy;
-			OutHitProxies.Add(ActorHitProxy);
+			if (Component->GetOwner())
+			{
+				// Generate separate hit proxies for each material section, so that we can perform hit tests against each one.
+				for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+				{
+					FMaterialSection& Section = MaterialSections[SectionIndex];
+					HHitProxy* ActorHitProxy = new HActor(Component->GetOwner(), Component, SectionIndex, SectionIndex);
+					check(!Section.HitProxy);
+					Section.HitProxy = ActorHitProxy;
+					OutHitProxies.Add(ActorHitProxy);
+				}
+			}
+			break;
 		}
+
+		case FSceneProxyBase::EHitProxyMode::PerInstance:
+		{
+			if (PerInstanceRenderData.IsValid() && PerInstanceRenderData->HitProxies.Num() > 0)
+			{
+				// Add any per-instance hit proxies.
+				OutHitProxies += PerInstanceRenderData->HitProxies;
+			}
+			break;
+		}
+
+		default:
+			break;
+	}
+
+	HitProxyIds.SetNumUninitialized(OutHitProxies.Num());
+	for (int32 HitProxyId = 0; HitProxyId < HitProxyIds.Num(); ++HitProxyId)
+	{
+		HitProxyIds[HitProxyId] = OutHitProxies[HitProxyId]->Id;
 	}
 
 	// We don't want a default hit proxy, or to output any hit proxies (avoid 2x registration).
