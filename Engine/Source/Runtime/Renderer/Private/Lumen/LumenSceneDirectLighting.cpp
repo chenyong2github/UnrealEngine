@@ -1219,7 +1219,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 				FIntVector(1, 1, 1));
 		}
 
-		enum EDispatchTilesIndirectArgOffset
+		enum class EDispatchTilesIndirectArgOffset
 		{
 			GroupPerTile = 0 * sizeof(FRHIDispatchIndirectParameters),
 			ThreadPerTile = 0 * sizeof(FRHIDispatchIndirectParameters),
@@ -1227,7 +1227,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		};
 
 		// Initialize indirect args for culled tiles
-		FRDGBufferRef DispatchLightTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(EDispatchTilesIndirectArgOffset::MAX), TEXT("Lumen.DirectLighting.DispatchLightTilesIndirectArgs"));
+		FRDGBufferRef DispatchLightTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>((int)EDispatchTilesIndirectArgOffset::MAX), TEXT("Lumen.DirectLighting.DispatchLightTilesIndirectArgs"));
 		FRDGBufferRef DrawTilesPerLightIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(NumLightsRoundedUp), TEXT("Lumen.DirectLighting.DrawTilesPerLightIndirectArgs"));
 		FRDGBufferRef DispatchTilesPerLightIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(NumLightsRoundedUp), TEXT("Lumen.DirectLighting.DispatchTilesPerLightIndirectArgs"));
 		{
@@ -1277,7 +1277,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 				ComputeShader,
 				PassParameters,
 				DispatchLightTilesIndirectArgs,
-				EDispatchTilesIndirectArgOffset::ThreadPerTile);
+				(int)EDispatchTilesIndirectArgOffset::ThreadPerTile);
 
 			LightTiles = CompactedLightTiles;
 		}

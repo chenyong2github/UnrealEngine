@@ -269,7 +269,7 @@ class FSetRadiosityTileIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSetRadiosityTileIndirectArgsCS, "/Engine/Private/Lumen/Radiosity/LumenRadiosityCulling.usf", "SetRadiosityTileIndirectArgs", SF_Compute);
 
-enum ERadiosityIndirectArgs
+enum class ERadiosityIndirectArgs
 {
 	ThreadPerTrace = 0 * sizeof(FRHIDispatchIndirectParameters),
 	ThreadPerProbeSH = 1 * sizeof(FRHIDispatchIndirectParameters),
@@ -593,7 +593,7 @@ void LumenRadiosity::AddRadiosityPass(
 			FLumenCardUpdateContext::EIndirectArgOffset::ThreadPerTile);
 	}
 
-	FRDGBufferRef RadiosityIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(ERadiosityIndirectArgs::MAX), TEXT("Lumen.RadiosityIndirectArgs"));
+	FRDGBufferRef RadiosityIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>((int)ERadiosityIndirectArgs::MAX), TEXT("Lumen.RadiosityIndirectArgs"));
 
 	// Setup indirect args for future passes
 	{
@@ -664,7 +664,7 @@ void LumenRadiosity::AddRadiosityPass(
 				{
 					PassParameters->HardwareRayTracingIndirectArgs->MarkResourceAsUsed();
 					RHICmdList.RayTraceDispatchIndirect(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources,
-						PassParameters->HardwareRayTracingIndirectArgs->GetIndirectRHICallBuffer(), ERadiosityIndirectArgs::HardwareRayTracingThreadPerTrace);
+						PassParameters->HardwareRayTracingIndirectArgs->GetIndirectRHICallBuffer(), (int)ERadiosityIndirectArgs::HardwareRayTracingThreadPerTrace);
 				}
 				else
 				{
@@ -700,7 +700,7 @@ void LumenRadiosity::AddRadiosityPass(
 			ComputeShader,
 			PassParameters,
 			RadiosityIndirectArgs,
-			ERadiosityIndirectArgs::ThreadPerTrace);
+			(int)ERadiosityIndirectArgs::ThreadPerTrace);
 	}
 
 	// Merge rays into a persistent SH atlas
@@ -724,7 +724,7 @@ void LumenRadiosity::AddRadiosityPass(
 			ComputeShader,
 			PassParameters,
 			RadiosityIndirectArgs,
-			ERadiosityIndirectArgs::ThreadPerProbeSH);
+			(int)ERadiosityIndirectArgs::ThreadPerProbeSH);
 	}
 
 	// Final Gather
@@ -750,7 +750,7 @@ void LumenRadiosity::AddRadiosityPass(
 			ComputeShader,
 			PassParameters,
 			RadiosityIndirectArgs,
-			ERadiosityIndirectArgs::ThreadPerRadiosityTexel);
+			(int)ERadiosityIndirectArgs::ThreadPerRadiosityTexel);
 	}
 
 	LumenSceneData.RadiosityProbeSHRedAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityProbeSHRedAtlas);
