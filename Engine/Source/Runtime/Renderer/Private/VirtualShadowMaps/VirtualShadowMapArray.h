@@ -228,6 +228,8 @@ public:
 
 	bool ShouldCullBackfacingPixels() const { return bCullBackfacingPixels; }
 
+	FRDGTextureRef BuildHZBFurthest(FRDGBuilder& GraphBuilder);
+
 	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
 	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;
 

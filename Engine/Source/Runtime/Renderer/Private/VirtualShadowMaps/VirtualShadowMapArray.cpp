@@ -13,6 +13,7 @@
 #include "VirtualShadowMapClipmap.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "HairStrands/HairStrandsData.h"
+#include "SceneTextureReductions.h"
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(VirtualShadowMapUbSlot);
 
@@ -210,6 +211,12 @@ TAutoConsoleVariable<int32> CVarDebugSkipDynamicPageInvalidation(
 );
 #endif // !UE_BUILD_SHIPPING
 
+TAutoConsoleVariable<int32> CVarVSMBuildHZBPerPage(
+	TEXT("r.Shadow.Virtual.BuildHZBPerPage"),
+	1,
+	TEXT("."),
+	ECVF_RenderThreadSafe
+);
 
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
@@ -650,14 +657,18 @@ class FClearIndirectDispatchArgs1DCS : public FVirtualPageManagementShader
 	SHADER_USE_PARAMETER_STRUCT(FClearIndirectDispatchArgs1DCS, FVirtualPageManagementShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumIndirectArgs)
+		SHADER_PARAMETER(uint32, IndirectArgStride)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutIndirectArgsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FClearIndirectDispatchArgs1DCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "ClearIndirectDispatchArgs1DCS", SF_Compute);
 
-static void AddClearIndirectDispatchArgs1DPass(FRDGBuilder& GraphBuilder, FRDGBufferRef IndirectArgsRDG)
+static void AddClearIndirectDispatchArgs1DPass(FRDGBuilder& GraphBuilder, FRDGBufferRef IndirectArgsRDG, uint32 NumIndirectArgs = 1U, uint32 IndirectArgStride = 4U)
 {
 	FClearIndirectDispatchArgs1DCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearIndirectDispatchArgs1DCS::FParameters>();
+	PassParameters->NumIndirectArgs = NumIndirectArgs;
+	PassParameters->IndirectArgStride = IndirectArgStride;
 	PassParameters->OutIndirectArgsBuffer = GraphBuilder.CreateUAV(IndirectArgsRDG);
 
 	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FClearIndirectDispatchArgs1DCS>();
@@ -667,7 +678,7 @@ static void AddClearIndirectDispatchArgs1DPass(FRDGBuilder& GraphBuilder, FRDGBu
 		RDG_EVENT_NAME("ClearIndirectDispatchArgs"),
 		ComputeShader,
 		PassParameters,
-		FIntVector(1, 1, 1)
+		FComputeShaderUtils::GetGroupCount(NumIndirectArgs, 64)
 	);
 }
 
@@ -2215,4 +2226,179 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			);
 		}
 	}
+}
+
+class FSelectPagesForHZBCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FSelectPagesForHZBCS);
+	SHADER_USE_PARAMETER_STRUCT(FSelectPagesForHZBCS, FVirtualPageManagementShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPhysicalPageMetaData>, PhysicalPageMetaData)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutPagesForHZBIndirectArgsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPhysicalPagesForHZB)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FSelectPagesForHZBCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "SelectPagesForHZBCS", SF_Compute);
+
+
+class FVirtualSmBuildHZBPerPageCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualSmBuildHZBPerPageCS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualSmBuildHZBPerPageCS, FVirtualPageManagementShader)
+
+	static constexpr uint32 TotalHZBLevels = FVirtualShadowMap::Log2PageSize;
+	static constexpr uint32 HZBLevelsBase = TotalHZBLevels - 2U;
+
+	static_assert(HZBLevelsBase == 5U, "The shader is expecting 5 levels, if the page size is changed, this needs to be massaged");
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PhysicalPagesForHZB)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PhysicalPagePoolSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D<float>, FurthestHZBOutput, [HZBLevelsBase])
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualSmBuildHZBPerPageCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "BuildHZBPerPageCS", SF_Compute);
+
+
+class FVirtualSmBBuildHZBPerPageTopCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualSmBBuildHZBPerPageTopCS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualSmBBuildHZBPerPageTopCS, FVirtualPageManagementShader)
+
+	// We need one level less as HZB starts at half-size (not really sure if we really need 1x1 and 2x2 sized levels).
+	static constexpr uint32 HZBLevelsTop = 2;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PhysicalPagesForHZB)
+		SHADER_PARAMETER_SAMPLER(SamplerState, ParentTextureMipSampler)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentTextureMip)
+		SHADER_PARAMETER(FVector2D, InvHzbInputSize)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D<float>, FurthestHZBOutput, [HZBLevelsTop])
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualSmBBuildHZBPerPageTopCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "BuildHZBPerPageTopCS", SF_Compute);
+
+FRDGTextureRef FVirtualShadowMapArray::BuildHZBFurthest(FRDGBuilder& GraphBuilder)
+{
+	const FIntRect ViewRect(0, 0, GetPhysicalPoolSize().X, GetPhysicalPoolSize().Y);
+	const EPixelFormat Format = PF_R32_FLOAT;
+
+	FRDGTextureRef OutFurthestHZBTexture = nullptr;
+	if (CVarVSMBuildHZBPerPage.GetValueOnRenderThread())
+	{
+		// 1. Gather up all physical pages that are allocated
+		FRDGBufferRef PagesForHZBIndirectArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(2U * 4U), TEXT("Shadow.Virtual.PagesForHZBIndirectArgs"));
+		FRDGBufferRef PhysicalPagesForHZBRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(int32), UniformParameters.MaxPhysicalPages + 1), TEXT("Shadow.Virtual.PhysicalPagesForHZB"));
+
+		// 1. Clear the indirect args buffer (note 2x args)
+		AddClearIndirectDispatchArgs1DPass(GraphBuilder, PagesForHZBIndirectArgsRDG, 2U);
+
+		// 2. Filter the relevant physical pages and set up the indirect args
+		{
+			FSelectPagesForHZBCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectPagesForHZBCS::FParameters>();
+			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+			PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV(PhysicalPageMetaDataRDG);
+			PassParameters->OutPagesForHZBIndirectArgsBuffer = GraphBuilder.CreateUAV(PagesForHZBIndirectArgsRDG);
+			PassParameters->OutPhysicalPagesForHZB = GraphBuilder.CreateUAV(PhysicalPagesForHZBRDG);
+
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesForHZBCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SelectPagesForHZB"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(FMath::DivideAndRoundUp(UniformParameters.MaxPhysicalPages, FSelectPagesForHZBCS::DefaultCSGroupX), 1, 1)
+			);
+
+		}
+
+
+		FIntPoint HZBSize(GetPhysicalPoolSize().X / 2, GetPhysicalPoolSize().Y / 2);
+
+		FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2D(HZBSize, Format, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV, FVirtualSmBuildHZBPerPageCS::TotalHZBLevels);
+		HZBDesc.Flags |= GFastVRamConfig.HZB;
+
+		/** Closest and furthest HZB are intentionally in separate render target, because majority of the case you only one or the other.
+		 * Keeping them separate avoid doubling the size in cache for this cases, to avoid performance regression.
+		 */
+		OutFurthestHZBTexture = GraphBuilder.CreateTexture(HZBDesc, TEXT("Shadow.Virtual.PreviousOccluderHZB"));
+		
+		{
+			FVirtualSmBuildHZBPerPageCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmBuildHZBPerPageCS::FParameters>();
+
+			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+			for (int32 DestMip = 0; DestMip < FVirtualSmBuildHZBPerPageCS::HZBLevelsBase; DestMip++)
+			{
+				PassParameters->FurthestHZBOutput[DestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutFurthestHZBTexture, DestMip));
+			}
+			PassParameters->PhysicalPagePool = PhysicalPagePoolRDG;
+			PassParameters->PhysicalPagePoolSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+			PassParameters->IndirectArgs = PagesForHZBIndirectArgsRDG;
+			PassParameters->PhysicalPagesForHZB = GraphBuilder.CreateSRV(PhysicalPagesForHZBRDG);
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmBuildHZBPerPageCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("BuildHZBPerPage"),
+				ComputeShader,
+				PassParameters,
+				PassParameters->IndirectArgs,
+				0
+			);
+		}
+		{
+			FVirtualSmBBuildHZBPerPageTopCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmBBuildHZBPerPageTopCS::FParameters>();
+
+			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+
+			uint32 StartDestMip = FVirtualSmBuildHZBPerPageCS::HZBLevelsBase;
+			for (int32 DestMip = 0; DestMip < FVirtualSmBBuildHZBPerPageTopCS::HZBLevelsTop; DestMip++)
+			{
+				PassParameters->FurthestHZBOutput[DestMip] = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutFurthestHZBTexture, StartDestMip + DestMip));
+			}
+			FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(HZBSize, 1 << int32(StartDestMip - 1));
+			PassParameters->InvHzbInputSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);;
+			PassParameters->ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(OutFurthestHZBTexture, StartDestMip - 1));
+			PassParameters->ParentTextureMipSampler = TStaticSamplerState<SF_Point>::GetRHI();
+
+			PassParameters->IndirectArgs = PagesForHZBIndirectArgsRDG;
+			PassParameters->PhysicalPagesForHZB = GraphBuilder.CreateSRV(PhysicalPagesForHZBRDG);
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmBBuildHZBPerPageTopCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("BuildHZBPerPageTop"),
+				ComputeShader,
+				PassParameters,
+				PassParameters->IndirectArgs,
+				// NOTE: offset 4 to get second set of args in the buffer.
+				4U
+			);
+		}
+	}
+	else
+	{
+		::BuildHZBFurthest(
+			GraphBuilder,
+			FRDGSystemTextures::Get(GraphBuilder).Black,
+			PhysicalPagePoolRDG,
+			ViewRect,
+			GMaxRHIFeatureLevel,
+			GMaxRHIShaderPlatform,
+			TEXT("Shadow.Virtual.HZB"),
+			/* OutFurthestHZBTexture = */ &OutFurthestHZBTexture,
+			Format);
+	}
+	return OutFurthestHZBTexture;
 }
