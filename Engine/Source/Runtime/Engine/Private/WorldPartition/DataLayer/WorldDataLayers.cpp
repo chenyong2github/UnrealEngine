@@ -144,6 +144,21 @@ void AWorldDataLayers::SetDataLayerRuntimeState(FActorDataLayer InDataLayer, EDa
 		EDataLayerRuntimeState CurrentState = GetDataLayerRuntimeStateByName(InDataLayer.Name);
 		if (CurrentState != InState)
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if (GetWorld()->IsGameWorld())
+			{
+				FName DataLayerLabelName = DataLayer->GetDataLayerLabel();
+				if (DataLayersFilterDelegate.IsBound())
+				{
+					if (!DataLayersFilterDelegate.Execute(DataLayerLabelName, CurrentState, InState))
+					{
+						UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' was filtered out: %s -> %s"),  *DataLayerLabelName.ToString(), GetDataLayerStateName(CurrentState), GetDataLayerStateName(InState));
+						return;
+					}
+				}
+			}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 			LoadedDataLayerNames.Remove(InDataLayer.Name);
 			ActiveDataLayerNames.Remove(InDataLayer.Name);
 
