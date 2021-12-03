@@ -377,7 +377,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(true);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteFinalLightingDim>(true);
 				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
-				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FSpecularOcclusionDim>(!UseHitLightingForReflections());
+				PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FSpecularOcclusionDim>(false);
 				TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 				OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 			}
@@ -580,7 +580,7 @@ void RenderLumenHardwareRayTracingReflections(
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FWriteFinalLightingDim>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingReflectionsIndirectDispatch());
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FSpecularOcclusionDim>(!UseHitLightingForReflections());
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FSpecularOcclusionDim>(false);
 
 			DispatchRayGenShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
 				PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache,

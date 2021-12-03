@@ -493,24 +493,29 @@ FLumenSceneData::~FLumenSceneData()
 
 bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 {
-	bool bTrack = Proxy->AffectsDynamicIndirectLighting()
-		&& Proxy->SupportsMeshCardRepresentation()
-		// For now Lumen depends on the distance field representation. 
-		// This also makes sure that non opaque things won't get included in Lumen Scene
-		&& Proxy->SupportsDistanceFieldRepresentation()
-		&& (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow())
-		// Exclude far field proxies as those won't use surface cache
-		&& !Proxy->IsRayTracingFarField();
+	const bool bTrack = Proxy->AffectsDynamicIndirectLighting()
+		&& Proxy->SupportsMeshCardRepresentation();
+
+	bool bCanBeTraced = false;
+	if (DoesProjectSupportDistanceFields() 
+		&& Proxy->SupportsDistanceFieldRepresentation() 
+		&& (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow()))
+	{
+		bCanBeTraced = true;
+	}
 
 #if RHI_RAYTRACING
-	// Make sure that this primitive can be used for ray tracing, if only hardware ray tracing is supported
-	if (bTrack && !DoesProjectSupportDistanceFields() && IsRayTracingEnabled() && !(Proxy->IsVisibleInRayTracing() && Proxy->HasRayTracingRepresentation()))
+	if (IsRayTracingEnabled() && Proxy->HasRayTracingRepresentation())
 	{
-		bTrack = false;
+		if (Proxy->IsRayTracingFarField() 
+			|| (Proxy->IsVisibleInRayTracing() && (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow())))
+		{
+			bCanBeTraced = true;
+		}
 	}
 #endif
 
-	return bTrack;
+	return bTrack && bCanBeTraced;
 }
 
 bool TrackPrimitiveInstanceForLumenScene(const FMatrix& LocalToWorld, const FBox& LocalBoundingBox)
@@ -691,7 +696,8 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 				// First try to merge components
 				extern int32 GLumenMeshCardsMergeComponents;
-				if (GLumenMeshCardsMergeComponents != 0 && ScenePrimitiveInfo->Proxy->GetRayTracingGroupId() != FPrimitiveSceneProxy::InvalidRayTracingGroupId)
+				if (GLumenMeshCardsMergeComponents != 0 
+					&& ScenePrimitiveInfo->Proxy->GetRayTracingGroupId() != FPrimitiveSceneProxy::InvalidRayTracingGroupId)
 				{
 					const Experimental::FHashElementId RayTracingGroupMapElementId = LumenSceneData.RayTracingGroups.FindOrAddId(ScenePrimitiveInfo->Proxy->GetRayTracingGroupId(), -1);
 					int32& PrimitiveGroupIndex = LumenSceneData.RayTracingGroups.GetByElementId(RayTracingGroupMapElementId).Value;
@@ -728,6 +734,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.WorldSpaceBoundingBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
 						PrimitiveGroup.MeshCardsIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
+						PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}
@@ -781,6 +788,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.WorldSpaceBoundingBox = LocalBounds.TransformBy(LocalToWorld).ToBox();
 								PrimitiveGroup.MeshCardsIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
+								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 
@@ -817,6 +825,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.LocalToPrimitive.ToMatrix() * LocalToWorld).ToBox();
 								PrimitiveGroup.MeshCardsIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
+								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 							}
@@ -833,6 +842,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.WorldSpaceBoundingBox = ScenePrimitiveInfo->Proxy->GetBounds().GetBox();
 						PrimitiveGroup.MeshCardsIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
+						PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}
@@ -1347,6 +1357,8 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	int32 NumPrimitivesMerged = 0;
 	int32 NumInstancesMerged = 0;
 	int32 NumMeshCards = 0;
+	uint32 NumFarFieldPrimitiveGroups = 0;
+	uint32 NumFarFieldMeshCards = 0;
 	SIZE_T PrimitiveGroupsAllocatedMemory = PrimitiveGroups.GetAllocatedSize();
 
 	for (const FLumenPrimitiveGroup& PrimitiveGroup : PrimitiveGroups)
@@ -1369,6 +1381,16 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 			++NumMeshCards;
 		}
 
+		if (PrimitiveGroup.bFarField)
+		{
+			++NumFarFieldPrimitiveGroups;
+
+			if (PrimitiveGroup.MeshCardsIndex >= 0)
+			{
+				++NumFarFieldMeshCards;
+			}
+		}
+
 		PrimitiveGroupsAllocatedMemory += PrimitiveGroup.Primitives.GetAllocatedSize();
 	}
 
@@ -1382,7 +1404,6 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  Merged instances: %d"), NumInstancesMerged);
 	UE_LOG(LogRenderer, Log, TEXT("  Mesh cards: %d"), NumMeshCards);
 	UE_LOG(LogRenderer, Log, TEXT("  Cards: %d"), NumCards);
-	UE_LOG(LogRenderer, Log, TEXT("  Visible cards: %d"), NumVisibleCards);
 
 	UE_LOG(LogRenderer, Log, TEXT("*** Surface cache ***"));
 	UE_LOG(LogRenderer, Log, TEXT("  Allocated %d physical pages out of %d"), NumPhysicalPages - AllocatorStats.NumFreePages, NumPhysicalPages);
@@ -1395,6 +1416,10 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  Mesh cards to add: %d"), NumMeshCardsToAdd);
 	UE_LOG(LogRenderer, Log, TEXT("  Locked cards to update: %d"), NumLockedCardsToUpdate);
 	UE_LOG(LogRenderer, Log, TEXT("  Hi-res pages to add: %d"), NumHiResPagesToAdd);
+
+	UE_LOG(LogRenderer, Log, TEXT("*** Far Field ***"));
+	UE_LOG(LogRenderer, Log, TEXT("  Primitive groups: %d"), NumFarFieldPrimitiveGroups);
+	UE_LOG(LogRenderer, Log, TEXT("  Mesh cards: %d"), NumFarFieldMeshCards);
 
 	UE_LOG(LogRenderer, Log, TEXT("*** Surface cache Bin Allocator ***"));
 	for (const FLumenSurfaceCacheAllocator::FBinStats& Bin : AllocatorStats.Bins)

@@ -30,7 +30,8 @@ public:
 		const FBox& InBounds,
 		int32 InPrimitiveGroupIndex,
 		uint32 InFirstCardIndex,
-		uint32 InNumCards)
+		uint32 InNumCards,
+		bool InFarField)
 	{
 		PrimitiveGroupIndex = InPrimitiveGroupIndex;
 
@@ -38,6 +39,7 @@ public:
 		SetTransform(InLocalToWorld);
 		FirstCardIndex = InFirstCardIndex;
 		NumCards = InNumCards;
+		bFarField = InFarField;
 	}
 
 	void UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards);
@@ -51,6 +53,7 @@ public:
 	FBox Bounds;
 
 	int32 PrimitiveGroupIndex = -1;
+	bool bFarField = false;
 
 	uint32 FirstCardIndex = 0;
 	uint32 NumCards = 0;

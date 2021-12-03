@@ -158,7 +158,7 @@ void InstanceCull(
 		}
 
 		BRANCH
-		if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER) == 0u)
+		if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER) == 0u && !(RenderFlags & RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER))
 		{
 			return;
 		}
@@ -433,7 +433,7 @@ void InstanceCullVSM(
 	}
 
 	BRANCH
-	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER) == 0u)
+	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER) == 0u && !(RenderFlags & RENDER_FLAG_IGNORE_VISIBLE_IN_RASTER))
 	{
 		return;
 	}

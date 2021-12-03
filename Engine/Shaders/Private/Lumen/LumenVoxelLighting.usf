@@ -509,7 +509,7 @@ void VisBufferShadingCS(
 					InterpolatePosition,
 					-RayDirection,
 					InterpolateRadius,
-					TraceSDFData.bAccurateHit,
+					TraceSDFData.SurfaceCacheDepthTestBias,
 					CardInterpolateDepthVisibilityRadius,
 					bHiResSurface,
 					AtlasId);

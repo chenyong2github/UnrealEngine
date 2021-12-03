@@ -738,7 +738,8 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 				MeshCardsBuildData.Bounds,
 				PrimitiveGroupIndex,
 				FirstCardIndex,
-				NumCards);
+				NumCards,
+				PrimitiveGroup.bFarField);
 
 			MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
 

@@ -191,6 +191,7 @@ public:
 	float CardResolutionScale = 1.0f;
 
 	bool bValidMeshCards = false;
+	bool bFarField = false;
 
 	bool HasMergedInstances() const;
 
@@ -471,7 +472,7 @@ public:
 
 private:
 
-	int32 AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale);
+	int32 AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale, bool bFarField);
 
 	void UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& Page, int32 PageIndex);
 

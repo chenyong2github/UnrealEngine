@@ -225,6 +225,22 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
 	ECVF_RenderThreadSafe
 );
 
+float GLumenSceneFarFieldTexelDensity = 0.001f;
+FAutoConsoleVariableRef CVarLumenSceneFarFieldTexelDensity(
+	TEXT("r.LumenScene.SurfaceCache.FarField.TexelDensity"),
+	GLumenSceneFarFieldTexelDensity,
+	TEXT("Far Field Lumen card texels per world space unit"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+float GLumenSceneFarFieldDistance = 40000.00f;
+FAutoConsoleVariableRef CVarLumenSceneFarFieldDistance(
+	TEXT("r.LumenScene.SurfaceCache.FarField.Distance"),
+	GLumenSceneFarFieldDistance,
+	TEXT("Far Field Lumen card culling distance"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenSummaryLLM, STATGROUP_LLM);
@@ -1050,11 +1066,11 @@ public:
 		FVector InViewOrigin,
 		float InMaxDistanceFromCamera,
 		int32 InFirstPrimitiveGroupIndex,
-		int32 InNumPrimitivesPerPacket)
+		int32 InNumPrimitiveGroupsPerPacket)
 		: PrimitiveGroups(InPrimitiveGroups)
 		, ViewOrigin(InViewOrigin)
 		, FirstPrimitiveGroupIndex(InFirstPrimitiveGroupIndex)
-		, NumPrimitivesPerPacket(InNumPrimitivesPerPacket)
+		, NumPrimitiveGroupsPerPacket(InNumPrimitiveGroupsPerPacket)
 		, MaxDistanceFromCamera(InMaxDistanceFromCamera)
 		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale())
 	{
@@ -1066,21 +1082,28 @@ public:
 
 	void AnyThreadTask()
 	{
-		const int32 LastLumenPrimitiveIndex = FMath::Min(FirstPrimitiveGroupIndex + NumPrimitivesPerPacket, PrimitiveGroups.Num());
-		const float MaxDistanceSquared = MaxDistanceFromCamera * MaxDistanceFromCamera;
+		const int32 LastPrimitiveGroupIndex = FMath::Min(FirstPrimitiveGroupIndex + NumPrimitiveGroupsPerPacket, PrimitiveGroups.Num());
 
-		for (int32 PrimitiveGroupIndex = FirstPrimitiveGroupIndex; PrimitiveGroupIndex < LastLumenPrimitiveIndex; ++PrimitiveGroupIndex)
+		for (int32 PrimitiveGroupIndex = FirstPrimitiveGroupIndex; PrimitiveGroupIndex < LastPrimitiveGroupIndex; ++PrimitiveGroupIndex)
 		{
 			if (PrimitiveGroups.IsAllocated(PrimitiveGroupIndex))
 			{
 				const FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
 
 				// Rough card min resolution test
+				float CardMaxDistanceSq = MaxDistanceFromCamera * MaxDistanceFromCamera;
 				const float DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(FVector(PrimitiveGroup.WorldSpaceBoundingBox.Min), FVector(PrimitiveGroup.WorldSpaceBoundingBox.Max), ViewOrigin);
 				const float MaxCardExtent = PrimitiveGroup.WorldSpaceBoundingBox.GetExtent().GetMax();
-				const float MaxCardResolution = (TexelDensityScale * MaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
+				float MaxCardResolution = (TexelDensityScale * MaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
 
-				if (DistanceSquared <= MaxDistanceSquared && MaxCardResolution >= 2.0f)
+				// Far field cards have constant resolution over entire range
+				if (PrimitiveGroup.bFarField)
+				{
+					CardMaxDistanceSq = GLumenSceneFarFieldDistance * GLumenSceneFarFieldDistance;
+					MaxCardResolution = MaxCardExtent * GLumenSceneFarFieldTexelDensity;
+				}
+
+				if (DistanceSquared <= CardMaxDistanceSq && MaxCardResolution >= 2.0f)
 				{
 					if (PrimitiveGroup.MeshCardsIndex == -1 && PrimitiveGroup.bValidMeshCards)
 					{
@@ -1103,7 +1126,7 @@ public:
 	const TSparseElementArray<FLumenPrimitiveGroup>& PrimitiveGroups;
 	FVector ViewOrigin;
 	int32 FirstPrimitiveGroupIndex;
-	int32 NumPrimitivesPerPacket;
+	int32 NumPrimitiveGroupsPerPacket;
 	float MaxDistanceFromCamera;
 	float TexelDensityScale;
 };
@@ -1143,7 +1166,6 @@ public:
 	void AnyThreadTask()
 	{
 		const int32 LastLumenMeshCardsIndex = FMath::Min(FirstMeshCardsIndex + NumMeshCardsPerPacket, LumenMeshCards.Num());
-		const float MaxDistanceSquared = MaxDistanceFromCamera * MaxDistanceFromCamera;
 		const int32 MinCardResolution = FMath::Clamp(GLumenSceneCardMinResolution, 1, 1024);
 
 		for (int32 MeshCardsIndex = FirstMeshCardsIndex; MeshCardsIndex < LastLumenMeshCardsIndex; ++MeshCardsIndex)
@@ -1156,19 +1178,22 @@ public:
 				{
 					const FLumenCard& LumenCard = LumenCards[CardIndex];
 
+					float CardMaxDistance = MaxDistanceFromCamera;
 					const float ViewerDistance = FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint(ViewOrigin)), 100.0f);
 
 					// Compute resolution based on its largest extent
 					float MaxExtent = FMath::Max(LumenCard.WorldOBB.Extent.X, LumenCard.WorldOBB.Extent.Y);
 					float MaxProjectedSize = FMath::Min(TexelDensityScale * MaxExtent * LumenCard.ResolutionScale / ViewerDistance, GLumenSceneCardMaxTexelDensity * MaxExtent);
 
-					if (GLumenSceneCardFixedDebugResolution > 0)
+					// Far field cards have constant resolution over entire range
+					if (MeshCardsInstance.bFarField)
 					{
-						MaxProjectedSize = GLumenSceneCardFixedDebugResolution;
+						CardMaxDistance = GLumenSceneFarFieldDistance;
+						MaxProjectedSize = GLumenSceneFarFieldTexelDensity * MaxExtent * LumenCard.ResolutionScale;
 					}
 
 					const int32 MaxSnappedRes = FMath::RoundUpToPowerOfTwo(FMath::Min(FMath::TruncToInt(MaxProjectedSize), GetCardMaxResolution()));
-					const bool bVisible = ViewerDistance < MaxDistanceFromCamera && MaxSnappedRes >= MinCardResolution;
+					const bool bVisible = ViewerDistance < CardMaxDistance && MaxSnappedRes >= MinCardResolution;
 					const int32 ResLevel = FMath::FloorLog2(FMath::Max<uint32>(MaxSnappedRes, Lumen::MinCardResolution));
 
 					if (!bVisible && LumenCard.bVisible)
@@ -2189,6 +2214,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				const bool bSupportsMultiplePasses = true;
 				const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 				const bool bPrimaryContext = false;
+				const bool bDrawOnlyVSMInvalidatingGeometry = false;
+				const bool bIgnoreVisibleInRaster = true; // Far field can be marked as invisible in raster, but we want to capture it into surface cache
 
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
@@ -2199,7 +2226,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 					bUpdateStreaming,
 					bSupportsMultiplePasses,
 					bForceHWRaster,
-					bPrimaryContext);
+					bPrimaryContext,
+					bDrawOnlyVSMInvalidatingGeometry,
+					bIgnoreVisibleInRaster);
 
 				if (GLumenSceneNaniteMultiViewRaster != 0)
 				{

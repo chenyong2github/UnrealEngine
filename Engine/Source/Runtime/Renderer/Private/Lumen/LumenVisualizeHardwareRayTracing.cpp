@@ -827,8 +827,7 @@ void VisualizeHardwareRayTracing(
 	}
 
 	// Resolve miss rays by firing against the distance scene (with hit-lighting)
-	if (CVarLumenVisualizeHardwareRayTracingRetraceFarField.GetValueOnRenderThread() != 0
-		&& GLumenVisualizeMode == 0)
+	if (CVarLumenVisualizeHardwareRayTracingRetraceFarField.GetValueOnRenderThread() != 0)
 	{
 		// Compact rays which need to be re-traced
 		if (CVarLumenVisualizeHardwareRayTracingCompact.GetValueOnRenderThread())
