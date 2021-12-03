@@ -165,10 +165,12 @@ class FReflectionCompactTracesCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FReflectionCompactTracesCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER(float, CompactionTracingEndDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionMaxTraceDistance)
+		SHADER_PARAMETER(float, RayTracingCullingRadius)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTracingTileIndirectArgs)
@@ -211,7 +213,8 @@ class FReflectionCompactTracesCS : public FGlobalShader
 
 	class FWaveOps : SHADER_PERMUTATION_BOOL("WAVE_OPS");
 	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZE", 64, 128, 256, 512, 1024);
-	using FPermutationDomain = TShaderPermutationDomain<FWaveOps, FThreadGroupSize>;
+	class FClipRayDim : SHADER_PERMUTATION_BOOL("DIM_CLIP_RAY");
+	using FPermutationDomain = TShaderPermutationDomain<FWaveOps, FThreadGroupSize, FClipRayDim>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -321,6 +324,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 	const FViewInfo& View, 
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
+	const FLumenCardTracingInputs& TracingInputs,
 	float CompactionTracingEndDistanceFromCamera,
 	float CompactionMaxTraceDistance)
 {
@@ -352,6 +356,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 
 	{
 		FReflectionCompactTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionCompactTracesCS::FParameters>();
+		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT);
@@ -359,11 +364,13 @@ FCompactedReflectionTraceParameters CompactTraces(
 		PassParameters->ReflectionTracingTileIndirectArgs = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ReflectionTileParameters.TracingIndirectArgs, PF_R32_UINT));
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
+		PassParameters->RayTracingCullingRadius = GetRayTracingCullingRadius();
 		PassParameters->IndirectArgs = ReflectionCompactionIndirectArgs;
 
 		FReflectionCompactTracesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FReflectionCompactTracesCS::FWaveOps >(bWaveOps);
 		PermutationVector.Set< FReflectionCompactTracesCS::FThreadGroupSize >(CompactionThreadGroupSize);
+		PermutationVector.Set< FReflectionCompactTracesCS::FClipRayDim >(GetRayTracingCulling() != 0);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionCompactTracesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -602,6 +609,7 @@ void TraceReflections(
 			View,
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
+			TracingInputs,
 			WORLD_MAX,
 			IndirectTracingParameters.MaxTraceDistance);
 
@@ -641,6 +649,7 @@ void TraceReflections(
 					View,
 					ReflectionTracingParameters,
 					ReflectionTileParameters,
+					TracingInputs,
 					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 					IndirectTracingParameters.MaxMeshSDFTraceDistance);
 
@@ -678,6 +687,7 @@ void TraceReflections(
 			View,
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
+			TracingInputs,
 			WORLD_MAX,
 			IndirectTracingParameters.MaxTraceDistance);
 

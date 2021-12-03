@@ -194,6 +194,7 @@ RWBuffer<uint2> RWCompactedTraceTexelData;
 
 float CompactionTracingEndDistanceFromCamera;
 float CompactionMaxTraceDistance;
+float RayTracingCullingRadius;
 
 groupshared uint SharedGlobalTraceTexelStartOffset;
 
@@ -211,6 +212,10 @@ groupshared uint SharedGlobalTraceTexelStartOffset;
 	groupshared uint SharedTraceTexelAllocator;
 	groupshared uint2 SharedTraceTexels[THREADGROUP_SIZE];
 #endif
+
+#ifndef DIM_CLIP_RAY
+#define DIM_CLIP_RAY 0
+#endif // DIM_CLIP_RAY
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void ReflectionCompactTracesCS(
@@ -241,6 +246,17 @@ void ReflectionCompactTracesCS(
 
 			bool bHit;
 			float TraceHitDistance = DecodeRayDistance(TraceHit[ReflectionTracingCoord].x, bHit);
+			float MaxTraceDistance = CompactionMaxTraceDistance;
+#if DIM_CLIP_RAY
+			FRayData RayData = GetRayData(ReflectionTracingCoord);
+			float3 RayOrigin = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 RayDirection = RayData.Direction;
+
+			float2 RaySphereHit = RayIntersectSphere(RayOrigin, RayDirection, float4(View.WorldCameraOrigin, RayTracingCullingRadius));
+			bool bInsideCullingSphere = RaySphereHit.x < 0 && RaySphereHit.y > 0;
+			MaxTraceDistance = bInsideCullingSphere ? RaySphereHit.y : TraceHitDistance;
+#endif
+
 
 			if (SceneDepth > 0 
 				&& !bHit
@@ -250,11 +266,11 @@ void ReflectionCompactTracesCS(
 #if ORDERED_COMPACTION
 				bTraceValid = true;
 				SharedTexelValid[GroupThreadId] = 1;
-				TraceTexelForThisThread = EncodeTraceTexel(ReflectionTracingCoord, TraceHitDistance);
+				TraceTexelForThisThread = EncodeTraceTexel(ReflectionTracingCoord, TraceHitDistance, MaxTraceDistance);
 #else
 				uint SharedTexelOffset;
 				InterlockedAdd(SharedTraceTexelAllocator, 1, SharedTexelOffset);
-				SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(ReflectionTracingCoord, TraceHitDistance);
+				SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(ReflectionTracingCoord, TraceHitDistance, MaxTraceDistance);
 #endif
 			}
 		}
@@ -433,7 +449,8 @@ void ReflectionTraceMeshSDFsCS(uint DispatchThreadId : SV_DispatchThreadID)
 	{
 		uint2 ReflectionTracingCoord;
 		float TraceHitDistance;
-		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance);
+		float MaxTraceDistance;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance, MaxTraceDistance);
 
 		TraceMeshSDFs(ReflectionTracingCoord, TraceHitDistance);
 	}
@@ -530,7 +547,8 @@ void ReflectionTraceVoxelsCS(uint DispatchThreadId : SV_DispatchThreadID)
 	{
 		uint2 ReflectionTracingCoord;
 		float TraceHitDistance;
-		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance);
+		float MaxTraceDistance;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance, MaxTraceDistance);
 
 		TraceVoxels(ReflectionTracingCoord, TraceHitDistance);
 	}
