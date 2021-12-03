@@ -25,8 +25,6 @@
 #include "AlTrimRegion.h"
 #include "AlTM.h"
 
-using namespace CADLibrary;
-
 namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
 {
 
@@ -35,7 +33,7 @@ namespace AliasToCoreTechUtils
 	template<typename Surface_T>
 	uint64 CreateCTNurbs(Surface_T& Surface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
 	{
-		FNurbsSurface CTSurface;
+		CADLibrary::FNurbsSurface CTSurface;
 
 		CTSurface.ControlPointDimension = 4;  // Control Hull Dimension (3 for non-rational or 4 for rational)
 
@@ -86,7 +84,7 @@ namespace AliasToCoreTechUtils
 
 uint64 FAliasModelToCoretechConverter::AddTrimCurve(const AlTrimCurve& TrimCurve)
 {
-	FNurbsCurve CTCurve;
+	CADLibrary::FNurbsCurve CTCurve;
 
 	CTCurve.Order = TrimCurve.degree() + 1;
 	CTCurve.ControlPointSize = TrimCurve.numberOfCVs();
@@ -107,14 +105,14 @@ uint64 FAliasModelToCoretechConverter::AddTrimCurve(const AlTrimCurve& TrimCurve
 	CTCurve.KnotValues[CTCurve.KnotSize - 1] = CTCurve.KnotValues[CTCurve.KnotSize - 2];
 
 	uint64 CoedgeID = 0;
-	if (CTKIO_CreateCoedge(CTCurve, (bool) TrimCurve.isReversed(), CoedgeID))
+	if (CADLibrary::CTKIO_CreateCoedge(CTCurve, (bool) TrimCurve.isReversed(), CoedgeID))
 	{
 		// Build topo
 		if (AlTrimCurve *TwinCurve = TrimCurve.getTwinCurve())
 		{
 			if (uint64* TwinCoedgeID = AlEdge2CTEdge.Find(TwinCurve->fSpline))
 			{
-				CTKIO_MatchCoedges(*TwinCoedgeID, CoedgeID);
+				CADLibrary::CTKIO_MatchCoedges(*TwinCoedgeID, CoedgeID);
 			}
 			// only TrimCurve with twin need to be in the map
 			AlEdge2CTEdge.Add(TrimCurve.fSpline, CoedgeID);
@@ -137,7 +135,7 @@ uint64 FAliasModelToCoretechConverter::AddTrimBoundary(const AlTrimBoundary& Tri
 	}
 
 	uint64 LoopID;
-	return CTKIO_CreateLoop(Edges, LoopID) ? LoopID : 0;
+	return CADLibrary::CTKIO_CreateLoop(Edges, LoopID) ? LoopID : 0;
 }
 
 uint64 FAliasModelToCoretechConverter::AddTrimRegion(const AlTrimRegion& TrimRegion, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation)
@@ -158,7 +156,7 @@ uint64 FAliasModelToCoretechConverter::AddTrimRegion(const AlTrimRegion& TrimReg
 	}
 
 	uint64 FaceID;
-	return CTKIO_CreateFace(SurfaceID, bInOrientation, Boundaries, FaceID) ? FaceID : 0;
+	return CADLibrary::CTKIO_CreateFace(SurfaceID, bInOrientation, Boundaries, FaceID) ? FaceID : 0;
 }
 
 void FAliasModelToCoretechConverter::AddFace(const AlSurface& Surface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceList)
@@ -179,7 +177,7 @@ void FAliasModelToCoretechConverter::AddFace(const AlSurface& Surface, EAliasObj
 	uint64 SurfaceID = AliasToCoreTechUtils::CreateCTNurbs(Surface, InObjectReference, InAlMatrix);
 
 	uint64 FaceID;
-	if (CTKIO_CreateFace(SurfaceID, bInOrientation, TArray<uint64>(), FaceID) && FaceID != 0)
+	if (CADLibrary::CTKIO_CreateFace(SurfaceID, bInOrientation, TArray<uint64>(), FaceID) && FaceID != 0)
 	{
 		OutFaceList.Add(FaceID);
 	}

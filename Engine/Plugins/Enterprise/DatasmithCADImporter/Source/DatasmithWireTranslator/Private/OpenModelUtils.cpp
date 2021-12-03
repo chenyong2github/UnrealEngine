@@ -20,8 +20,6 @@
 namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
 {
 
-using namespace OpenModelUtils;
-
 const TCHAR* OpenModelUtils::AlObjectTypeToString(AlObjectType type)
 {
 	switch (type)
