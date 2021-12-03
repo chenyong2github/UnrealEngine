@@ -1609,6 +1609,7 @@ bool UGroomComponent::GetIsHairLengthScaleEnabled()
 	return IsEnabled;
 }
 
+void AddHairStreamingRequest(FHairGroupInstance* InInstance, int32 InLODIndex);
 
 void UGroomComponent::SetForcedLOD(int32 CurrLODIndex)
 {
@@ -1657,6 +1658,7 @@ void UGroomComponent::SetForcedLOD(int32 CurrLODIndex)
 	SwitchSimulationLOD(PrevLODIndex, CurrLODIndex);
 
 	// Finally, update the forced LOD value and LOD selection type
+	const bool bHasLODSwitch = CurrLODIndex != PrevLODIndex;
 	LODForcedIndex	 = CurrLODIndex;
 	LODSelectionType = CurrLODSelectionType;
 
@@ -1665,12 +1667,17 @@ void UGroomComponent::SetForcedLOD(int32 CurrLODIndex)
 	{
 		const EHairLODSelectionType LocalLODSelectionType = LODSelectionType;
 		ENQUEUE_RENDER_COMMAND(FHairComponentSendLODIndex)(
-		[GroomSceneProxy, CurrLODIndex, LocalLODSelectionType](FRHICommandListImmediate& RHICmdList)
+		[GroomSceneProxy, CurrLODIndex, LocalLODSelectionType, bHasLODSwitch](FRHICommandListImmediate& RHICmdList)
 		{
 			for (FHairGroupInstance* Instance : GroomSceneProxy->HairGroupInstances)
 			{
 				Instance->Debug.LODForcedIndex = CurrLODIndex;
 				Instance->Debug.LODSelectionTypeForDebug = LocalLODSelectionType;
+
+				if (bHasLODSwitch)
+				{
+					AddHairStreamingRequest(Instance, CurrLODIndex);
+				}
 			}
 		});
 	}
@@ -3300,6 +3307,11 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			{
 				Instance->Debug.RigidPreviousLocalToWorld = Instance->Debug.RigidCurrentLocalToWorld;
 				Instance->Debug.RigidCurrentLocalToWorld = RigidLocalToWorld;
+			}
+
+			if (LocalLODSelectionType == EHairLODSelectionType::Predicted && EffectiveForceLOD >= 0)
+			{
+				AddHairStreamingRequest(Instance, EffectiveForceLOD);
 			}
 		}
 	});

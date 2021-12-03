@@ -587,6 +587,100 @@ static void AddCopyHairStrandsPositionPass(
 #endif
 }
 
+void AddHairStreamingRequest(FHairGroupInstance* Instance, int32 InLODIndex)
+{
+	if (Instance && InLODIndex >= 0)
+	{
+		check(Instance->HairGroupPublicData);
+
+		// Hypothesis: the mesh LOD will be the same as the hair LOD
+		const int32 MeshLODIndex = InLODIndex;
+		
+		// Insure that MinLOD is necessary taken into account if a force LOD is request (i.e., LODIndex>=0). If a Force LOD 
+		// is not resquested (i.e., LODIndex<0), the MinLOD is applied after ViewLODIndex has been determined in the codeblock below
+		const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
+		float LODIndex = FMath::Max(InLODIndex, MinLOD);
+
+		const TArray<EHairGeometryType>& LODGeometryTypes = Instance->HairGroupPublicData->GetLODGeometryTypes();
+		const TArray<bool>& LODVisibilities = Instance->HairGroupPublicData->GetLODVisibilities();
+		const int32 LODCount = LODVisibilities.Num();
+
+		LODIndex = FMath::Clamp(LODIndex, 0.f, float(LODCount - 1));
+
+		const int32 IntLODIndex = FMath::Clamp(FMath::FloorToInt(LODIndex), 0, LODCount - 1);
+		const bool bIsVisible = LODVisibilities[IntLODIndex];
+		const bool bForceCards = GHairStrands_UseCards > 0 || Instance->bForceCards; // todo
+		EHairGeometryType GeometryType = ConvertLODGeometryType(LODGeometryTypes[IntLODIndex], bForceCards, GMaxRHIShaderPlatform);
+
+		if (GeometryType == EHairGeometryType::Meshes)
+		{
+			if (!Instance->Meshes.IsValid(IntLODIndex))
+			{
+				GeometryType = EHairGeometryType::NoneGeometry;
+			}
+		}
+		else if (GeometryType == EHairGeometryType::Cards)
+		{
+			if (!Instance->Cards.IsValid(IntLODIndex))
+			{
+				GeometryType = EHairGeometryType::NoneGeometry;
+			}
+		}
+		else if (GeometryType == EHairGeometryType::Strands)
+		{
+			if (!Instance->Strands.IsValid())
+			{
+				GeometryType = EHairGeometryType::NoneGeometry;
+			}
+		}
+
+		if (!bIsVisible)
+		{
+			GeometryType = EHairGeometryType::NoneGeometry;
+		}
+
+		const bool bSimulationEnable			= Instance->HairGroupPublicData->IsSimulationEnable(LODIndex);
+		const bool bGlobalInterpolationEnable	= Instance->HairGroupPublicData->IsGlobalInterpolationEnable(LODIndex);
+		const bool bLODNeedsGuides				= bSimulationEnable || bGlobalInterpolationEnable;
+
+		const EHairResourceLoadingType LoadingType = GetHairResourceLoadingType(GeometryType, int32(LODIndex));
+		if (LoadingType != EHairResourceLoadingType::Async || GeometryType == EHairGeometryType::NoneGeometry)
+		{
+			return;
+		}
+
+		// Lazy allocation of resources
+		// Note: Allocation will only be done if the resources is not initialized yet. Guides deformed position are also initialized from the Rest position at creation time.
+		if (Instance->Guides.Data && bLODNeedsGuides)
+		{
+			if (Instance->Guides.RestRootResource)			{ Instance->Guides.RestRootResource->StreamInData(); Instance->Guides.RestRootResource->StreamInLODData(MeshLODIndex); }
+			if (Instance->Guides.RestResource)				{ Instance->Guides.RestResource->StreamInData(); }
+		}
+
+		if (GeometryType == EHairGeometryType::Meshes)
+		{
+			FHairGroupInstance::FMeshes::FLOD& InstanceLOD = Instance->Meshes.LODs[IntLODIndex];
+		}
+		else if (GeometryType == EHairGeometryType::Cards)
+		{
+			FHairGroupInstance::FCards::FLOD& InstanceLOD = Instance->Cards.LODs[IntLODIndex];
+
+			if (InstanceLOD.InterpolationResource)			{ InstanceLOD.InterpolationResource->StreamInData(); }
+			if (InstanceLOD.DeformedResource)				{ InstanceLOD.DeformedResource->StreamInData(); }
+			if (InstanceLOD.Guides.RestRootResource)		{ InstanceLOD.Guides.RestRootResource->StreamInData(); InstanceLOD.Guides.RestRootResource->StreamInLODData(MeshLODIndex); }
+			if (InstanceLOD.Guides.RestResource)			{ InstanceLOD.Guides.RestResource->StreamInData(); }
+			if (InstanceLOD.Guides.InterpolationResource)	{ InstanceLOD.Guides.InterpolationResource->StreamInData(); }
+		}
+		else if (GeometryType == EHairGeometryType::Strands)
+		{
+			if (Instance->Strands.RestRootResource)			{ Instance->Strands.RestRootResource->StreamInData(); Instance->Strands.RestRootResource->StreamInLODData(MeshLODIndex); }
+			if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->StreamInData(); }
+			if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->StreamInData(); }
+			if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->StreamInData(); }
+		}
+	}
+}
+
 #if RHI_RAYTRACING
 static void AllocateRaytracingResources(FHairGroupInstance* Instance)
 {
@@ -724,12 +818,16 @@ static void RunHairLODSelection(
 			GeometryType = EHairGeometryType::NoneGeometry;
 		}
 
-		const EHairResourceLoadingType LoadingType = GetHairResourceLoadingType();
+		const bool bSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(LODIndex);
+		const bool bGlobalInterpolationEnable =  Instance->HairGroupPublicData->IsGlobalInterpolationEnable(LODIndex);
+		const bool bLODNeedsGuides = bSimulationEnable || bGlobalInterpolationEnable;
+
+		const EHairResourceLoadingType LoadingType = GetHairResourceLoadingType(GeometryType, int32(LODIndex));
 		EHairResourceStatus ResourceStatus = EHairResourceStatus::None;
 
 		// Lazy allocation of resources
 		// Note: Allocation will only be done if the resources is not initialized yet. Guides deformed position are also initialized from the Rest position at creation time.
-		if (Instance->Guides.Data)
+		if (Instance->Guides.Data && bLODNeedsGuides)
 		{
 			if (Instance->Guides.RestRootResource)			{ Instance->Guides.RestRootResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); Instance->Guides.RestRootResource->AllocateLOD(GraphBuilder, MeshLODIndex, LoadingType, ResourceStatus); }
 			if (Instance->Guides.RestResource)				{ Instance->Guides.RestResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); }

@@ -70,7 +70,7 @@ FORCEINLINE EHairResourceStatus  operator| (EHairResourceStatus A, EHairResource
 FORCEINLINE EHairResourceStatus& operator|=(EHairResourceStatus&A, EHairResourceStatus B) { return A=A|B; }
 FORCEINLINE bool operator! (EHairResourceStatus A) { return static_cast<uint8>(A) != 0; }
 
-EHairResourceLoadingType GetHairResourceLoadingType();
+EHairResourceLoadingType GetHairResourceLoadingType(EHairGeometryType InGeometryType, int32 InLODIndex);
 
 /* Hair resouces which whom allocation can be deferred */
 struct FHairCommonResource : public FRenderResource
@@ -86,6 +86,10 @@ struct FHairCommonResource : public FRenderResource
 	void Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType);
 	void Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status);
 	void AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status);
+
+	void StreamInData();
+	void StreamInLODData(int32 LODIndex);
+
 	virtual void InternalAllocate() {}
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) {}
 	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) {}
