@@ -182,7 +182,7 @@ bool Lumen::UseHardwareRayTracedRadiosity()
 
 bool Lumen::IsRadiosityEnabled()
 {
-	return GLumenFastCameraMode ? false : bool(GLumenRadiosity);
+	return GLumenRadiosity != 0;
 }
 
 uint32 Lumen::GetRadiosityDownsampleFactor()
