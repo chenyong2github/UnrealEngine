@@ -1011,21 +1011,21 @@ uint EncodeSpatialAntiAliasingOffset(taa_half2 TexelOffset)
 	return dpv_lo(EncodeSpatialAntiAliasingOffset(dpv_interleave_mono_registers(TexelOffset)));
 }
 
-taa_half2x2 DecodeSpatialAntiAliasingOffset(uint2 EncodedInputTexelOffset)
+taa_half2x2 DecodeSpatialAntiAliasingOffset(taa_ushort2 EncodedInputTexelOffset)
 {
-	const uint Mask = (1 << SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL) - 1;
-	const uint Zero = Mask / 2;
+	const taa_ushort Mask = taa_ushort(1 << SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL) - taa_ushort(1);
+	const taa_ushort Zero = Mask / taa_ushort(2);
 	
 	taa_half Multiply = taa_half(SPATIAL_ANTI_ALIASING_OFFSET_RANGE / float(Zero));
 
 	taa_half2x2 TexelOffset;
-	TexelOffset[0] = taa_half2((EncodedInputTexelOffset >> 0                                                ) & Mask) * Multiply - (taa_half(1 + Zero) * Multiply);
-	TexelOffset[1] = taa_half2((EncodedInputTexelOffset >> SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL) & Mask) * Multiply - (taa_half(1 + Zero) * Multiply);
+	TexelOffset[0] = taa_half2((EncodedInputTexelOffset >> taa_ushort(0                                                )) & Mask) * Multiply - (taa_half(1 + Zero) * Multiply);
+	TexelOffset[1] = taa_half2((EncodedInputTexelOffset >> taa_ushort(SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL)) & Mask) * Multiply - (taa_half(1 + Zero) * Multiply);
 
 	return TexelOffset;
 }
 
-taa_half2 DecodeSpatialAntiAliasingOffset(uint EncodedInputTexelOffset)
+taa_half2 DecodeSpatialAntiAliasingOffset(taa_ushort EncodedInputTexelOffset)
 {
 	return dpv_lo(DecodeSpatialAntiAliasingOffset(dpv_interleave_mono_registers(EncodedInputTexelOffset)));
 }
