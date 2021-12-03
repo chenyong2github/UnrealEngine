@@ -6,12 +6,15 @@
 
 #include "../Common.ush"
 #include "../ShaderPrintCommon.ush"
+#include "LumenRadianceCacheUpdate.ush"
 
 uint MaxNumProbes;
-Buffer<uint> NumNewProbes;
+StructuredBuffer<uint> PriorityHistogram;
+StructuredBuffer<uint> MaxUpdateBucket;
+StructuredBuffer<uint> ProbesToUpdateTraceCost;
 Buffer<uint> ProbeTraceAllocator;
-Buffer<uint> ProbeAllocator;
 Buffer<uint> ProbeFreeListAllocator;
+Buffer<uint> ProbeAllocator;
 
 /** 
  * Print out various stats for debugging radiance cache probe updates
@@ -24,6 +27,45 @@ void RadianceCacheUpdateStatsCS(
 {
 	float2 Origin = float2(0.1, 0.1);
 	float2 TextPos = Origin;
+
+	TextPos = ShaderPrintNewline(TextPos);
+
+	[loop]
+	for (uint BucketIndex = 0; BucketIndex < PRIORITY_HISTOGRAM_SIZE; ++BucketIndex)
+	{
+		TextPos = ShaderPrint(TextPos, PriorityHistogram[BucketIndex]);
+
+		if ((BucketIndex + 1) % 8 == 0)
+		{
+			TextPos = ShaderPrintNewline(TextPos);
+		}
+		else
+		{
+			TextPos = ShaderPrintSymbol(TextPos, _SPC_);
+		}
+	}
+
+	const uint MaxUpdateBucketIndex = MaxUpdateBucket[0];
+	const uint TraceCostFromMaxUpdateBucket = MaxUpdateBucket[1];
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("MaxBucket "));
+	TextPos = ShaderPrint(TextPos, MaxUpdateBucketIndex);
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("TraceCostFromMaxUpdateBucket "));
+	TextPos = ShaderPrint(TextPos, TraceCostFromMaxUpdateBucket);
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT("Out "));
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT(" TraceCost "));
+	TextPos = ShaderPrint(TextPos, ProbesToUpdateTraceCost[0]);
+
+	TextPos = ShaderPrintNewline(TextPos);
+	TextPos = ShaderPrintText(TextPos, TEXT(" Probes "));
+	TextPos = ShaderPrint(TextPos, ProbeTraceAllocator[0]);
 
 	TextPos = ShaderPrintNewline(TextPos);
 	TextPos = ShaderPrintText(TextPos, TEXT("MaxProbesInAtlas "));
@@ -40,8 +82,4 @@ void RadianceCacheUpdateStatsCS(
 	TextPos = ShaderPrintNewline(TextPos);
 	TextPos = ShaderPrintText(TextPos, TEXT("FreeList "));
 	TextPos = ShaderPrint(TextPos, ProbeFreeListAllocator[0]);
-
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos = ShaderPrintText(TextPos, TEXT("NewProbes "));
-	TextPos = ShaderPrint(TextPos, NumNewProbes[0]);
 }

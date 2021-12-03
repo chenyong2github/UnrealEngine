@@ -126,17 +126,26 @@ uint GetRadianceProbeClipmapForMark(float3 WorldSpacePosition, float3 WorldSpace
 	return Cell.ClipmapIndex;
 }
 
+void MarkProbeIndirectionTextureCoord(int3 ProbeCoord, uint ClipmapIndex)
+{
+	if (all(ProbeCoord >= 0) && all(ProbeCoord < (int3)RadianceProbeClipmapResolutionForMark) && ClipmapIndex < NumRadianceProbeClipmapsForMark)
+	{
+		int3 IndirectionTextureCoord = ProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolutionForMark, 0, 0);
+		RWRadianceProbeIndirectionTexture[IndirectionTextureCoord] = USED_PROBE_INDEX;
+	}
+}
+
 void MarkPositionUsedInIndirectionTexture(float3 WorldPosition, uint ClipmapIndex)
 {
-	int3 BottomCornerProbeCoord = floor(WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex] - 0.5f);
-	int3 IndirectionTextureCoord = BottomCornerProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolutionForMark, 0, 0);
+	float3 ProbeCoordFloat = WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex];
+	int3 BottomCornerProbeCoord = floor(ProbeCoordFloat - 0.5f);
 
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(0, 0, 1)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(0, 1, 0)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(0, 1, 1)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 0, 0)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 0, 1)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 1, 0)] = USED_PROBE_INDEX;
-	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(1, 1, 1)] = USED_PROBE_INDEX;
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(0, 0, 0), ClipmapIndex);
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(0, 0, 1), ClipmapIndex);
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(0, 1, 0), ClipmapIndex);
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(0, 1, 1), ClipmapIndex);
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(1, 0, 0), ClipmapIndex);
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(1, 0, 1), ClipmapIndex);
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(1, 1, 0), ClipmapIndex);
+	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(1, 1, 1), ClipmapIndex);
 }
