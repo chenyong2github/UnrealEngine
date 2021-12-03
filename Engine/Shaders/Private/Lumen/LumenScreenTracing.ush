@@ -15,6 +15,10 @@
 #define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 0
 #endif
 
+#ifndef TERMINATE_ON_LOW_OCCUPANCY
+#define TERMINATE_ON_LOW_OCCUPANCY 0
+#endif
+
 /**
  * Accurate but slow screen trace by traversing the HZB.
  * RayTranslatedWorldOrigin must be a position on-screen
@@ -35,6 +39,7 @@ void InternalTraceScreen(
 	float MaxIterations,
 	float RelativeDepthThickness,
 	float NumThicknessStepsToDetermineCertainty,
+	uint MinimumTracingThreadOccupancy,
 	inout bool bHit,
 	inout bool bUncertain,
 	inout float3 OutScreenUV,
@@ -104,7 +109,13 @@ void InternalTraceScreen(
 	float LastAboveSurfaceTime = 0.0f;
 
 	// Stackless HZB traversal
-	while (MipLevel >= BaseMipLevel && NumIterations < MaxIterations && CurrentIntersectionTime < 1.0f)
+	while (MipLevel >= BaseMipLevel 
+		&& NumIterations < MaxIterations 
+		&& CurrentIntersectionTime < 1.0f
+#if TERMINATE_ON_LOW_OCCUPANCY
+		&& WaveActiveCountBits(true) > MinimumTracingThreadOccupancy
+#endif
+		)
 	{
 		float2 CurrentMipTexelSize = exp2(MipLevel) * InHZBBaseTexelSize;
 		float2 CurrentMipResolution = 1.0f / CurrentMipTexelSize;
@@ -222,6 +233,7 @@ void TraceScreen(
 	float MaxIterations,
 	float RelativeDepthThickness,
 	float NumThicknessStepsToDetermineCertainty,
+	uint MinimumTracingThreadOccupancy,
 	inout bool bHit,
 	inout bool bUncertain,
 	inout float3 OutScreenUV,
@@ -239,6 +251,7 @@ void TraceScreen(
 		MaxIterations,
 		RelativeDepthThickness,
 		NumThicknessStepsToDetermineCertainty,
+		MinimumTracingThreadOccupancy,
 		bHit,
 		bUncertain,
 		OutScreenUV,

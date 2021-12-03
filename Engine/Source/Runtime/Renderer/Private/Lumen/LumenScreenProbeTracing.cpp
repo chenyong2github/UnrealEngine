@@ -95,6 +95,14 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherHairStrands_ScreenTrace(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeGatherScreenTracesMinimumOccupancy = 0;
+FAutoConsoleVariableRef CVarLumenScreenProbeGatherScreenTraceMinimumOccupancy(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenTraces.MinimumOccupancy"),
+	GLumenScreenProbeGatherScreenTracesMinimumOccupancy,
+	TEXT("Minimum number of threads still tracing before aborting the trace.  Can be used for scalability to abandon traces that have a disproportionate cost."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 class FClearTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FClearTracesCS)
@@ -133,6 +141,7 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER(float, RelativeDepthThickness)
 		SHADER_PARAMETER(float, HistoryDepthTestRelativeThickness)
 		SHADER_PARAMETER(float, NumThicknessStepsToDetermineCertainty)
+		SHADER_PARAMETER(uint32, MinimumTracingThreadOccupancy)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
@@ -143,7 +152,9 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 	class FHierarchicalScreenTracing : SHADER_PERMUTATION_BOOL("HIERARCHICAL_SCREEN_TRACING");
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_SCREEN");
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHierarchicalScreenTracing, FRadianceCache, FHairStrands>;
+	class FTerminateOnLowOccupancy : SHADER_PERMUTATION_BOOL("TERMINATE_ON_LOW_OCCUPANCY");
+	
+	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHierarchicalScreenTracing, FRadianceCache, FHairStrands, FTerminateOnLowOccupancy>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -154,6 +165,13 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FTerminateOnLowOccupancy>())
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+		}
 	}
 };
 
@@ -490,6 +508,7 @@ void TraceScreenProbes(
 		PassParameters->RelativeDepthThickness = GLumenScreenProbeGatherRelativeDepthThickness;
 		PassParameters->HistoryDepthTestRelativeThickness = GLumenScreenProbeGatherHistoryDepthTestRelativeThickness;
 		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
+		PassParameters->MinimumTracingThreadOccupancy = GLumenScreenProbeGatherScreenTracesMinimumOccupancy;
 
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -501,11 +520,18 @@ void TraceScreenProbes(
 			PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 		}
 
+		const bool bTerminateOnLowOccupancy = GLumenScreenProbeGatherScreenTracesMinimumOccupancy > 0
+			&& GRHISupportsWaveOperations 
+			&& GRHIMinimumWaveSize >= 32 
+			&& RHISupportsWaveOperations(View.GetShaderPlatform());
+
 		FScreenProbeTraceScreenTexturesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FRadianceCache >(LumenScreenProbeGather::UseRadianceCache(View));
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHierarchicalScreenTracing >(GLumenScreenProbeGatherHierarchicalScreenTraces != 0);
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FHairStrands>(bHasHairStrands);
+		PermutationVector.Set< FScreenProbeTraceScreenTexturesCS::FTerminateOnLowOccupancy>(bTerminateOnLowOccupancy);
+		
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceScreenTexturesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(

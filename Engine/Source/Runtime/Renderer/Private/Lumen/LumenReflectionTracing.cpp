@@ -32,6 +32,14 @@ FAutoConsoleVariableRef CVarLumenReflectionHierarchicalScreenTracesMaxIterations
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenReflectionScreenTracesMinimumOccupancy = 0;
+FAutoConsoleVariableRef CVarLumenReflectionHierarchicalScreenTracesMinimumOccupancy(
+	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.MinimumOccupancy"),
+	GLumenReflectionScreenTracesMinimumOccupancy,
+	TEXT("Minimum number of threads still tracing before aborting the trace.  Can be used for scalability to abandon traces that have a disproportionate cost."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 float GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold = .005f;
 FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold(
 	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.RelativeDepthThickness"),
@@ -115,6 +123,7 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
 		SHADER_PARAMETER(float, RelativeDepthThickness)
 		SHADER_PARAMETER(float, HistoryDepthTestRelativeThickness)
+		SHADER_PARAMETER(uint32, MinimumTracingThreadOccupancy)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -122,7 +131,8 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_SCREEN");
-	using FPermutationDomain = TShaderPermutationDomain<FHairStrands>;
+	class FTerminateOnLowOccupancy : SHADER_PERMUTATION_BOOL("TERMINATE_ON_LOW_OCCUPANCY");
+	using FPermutationDomain = TShaderPermutationDomain<FHairStrands, FTerminateOnLowOccupancy>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -133,6 +143,13 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FTerminateOnLowOccupancy>())
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+		}
 	}
 };
 
@@ -576,6 +593,7 @@ void TraceReflections(
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenReflectionHierarchicalScreenTracesMaxIterations;
 		PassParameters->RelativeDepthThickness = GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold;
 		PassParameters->HistoryDepthTestRelativeThickness = GLumenReflectionHierarchicalScreenTraceHistoryDepthTestRelativeThickness;
+		PassParameters->MinimumTracingThreadOccupancy = GLumenReflectionScreenTracesMinimumOccupancy;
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
@@ -587,8 +605,14 @@ void TraceReflections(
 			PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 		}
 
+		const bool bTerminateOnLowOccupancy = GLumenReflectionScreenTracesMinimumOccupancy > 0
+			&& GRHISupportsWaveOperations 
+			&& GRHIMinimumWaveSize >= 32 
+			&& RHISupportsWaveOperations(View.GetShaderPlatform());
+
 		FReflectionTraceScreenTexturesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FReflectionTraceScreenTexturesCS::FHairStrands>(bHasHairStrands);
+		PermutationVector.Set< FReflectionTraceScreenTexturesCS::FTerminateOnLowOccupancy>(bTerminateOnLowOccupancy);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceScreenTexturesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
