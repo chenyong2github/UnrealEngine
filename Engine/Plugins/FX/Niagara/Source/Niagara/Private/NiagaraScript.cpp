@@ -822,6 +822,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			{
 				Id.AdditionalDefines.Add(TEXT("CompressAttributes"));
 			}
+			if (EmitterOwner->bIgnoreParticleReadsForAttributeTrim)
+			{
+				Id.AdditionalDefines.Add(TEXT("IgnoreParticleReadsForAttributeTrim"));
+			}
 
 			bool TrimAttributes = EmitterOwner->bTrimAttributes;
 			if (TrimAttributes)
@@ -849,12 +853,15 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				};
 
 				// if this emitter is being referenced by another emitter (PartilceRead) then don't worry about trimming attributes
-				for (const FNiagaraEmitterHandle& EmitterHandle : EmitterOwner->GetEmitterHandles())
+				if (!EmitterOwner->bIgnoreParticleReadsForAttributeTrim)
 				{
-					if (!TrimAttributesSupported(EmitterHandle.GetInstance()))
+					for (const FNiagaraEmitterHandle& EmitterHandle : EmitterOwner->GetEmitterHandles())
 					{
-						TrimAttributes = false;
-						break;
+						if (EmitterHandle.GetIsEnabled() && !TrimAttributesSupported(EmitterHandle.GetInstance()))
+						{
+							TrimAttributes = false;
+							break;
+						}
 					}
 				}
 			}
@@ -883,9 +890,12 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				// Now preserve the attributes that have been defined on the renderers in use
 				for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
 				{
-					for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
+					if (RendererProperty->bIsEnabled)
 					{
-						AddAttributeToPreserve(BoundAttribute.GetName());
+						for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
+						{
+							AddAttributeToPreserve(BoundAttribute.GetName());
+						}
 					}
 				}
 

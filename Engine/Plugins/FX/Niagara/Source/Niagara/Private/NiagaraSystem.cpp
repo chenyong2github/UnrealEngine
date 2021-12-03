@@ -110,6 +110,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bBakeOutRapidIterationOnCook(true)
 , bTrimAttributes(false)
 , bTrimAttributesOnCook(true)
+, bIgnoreParticleReadsForAttributeTrim(false)
 , bDisableDebugSwitches(false)
 , bDisableDebugSwitchesOnCook(true)
 #endif
