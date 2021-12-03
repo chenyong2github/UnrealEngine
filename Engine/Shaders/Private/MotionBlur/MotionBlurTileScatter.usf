@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define CONFIG_MAX_RANGE_SIZE 1
+
+
 #include "MotionBlurCommon.ush"
 
 //------------------------------------------------------- CONFIG
@@ -14,7 +17,8 @@ SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
 float MotionBlur_VelocityScaleForTiles;
 uint ScatterPass;
 
-Texture2D VelocityTileTexture;
+Texture2D VelocityTileTextures_Textures_0;
+Texture2D VelocityTileTextures_Textures_1;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -49,7 +53,7 @@ void MainVS(
 
 	float2 SvPosition = PixelPos + 0.5;
 
-	float4 MinMaxVelocity = VelocityTileTexture[PixelPos];
+	float4 MinMaxVelocity = VelocityTileTextures_Textures_0[PixelPos];
 	OutColor = MinMaxVelocity;
 
 	float4 MinMaxVelocityPixels = MinMaxVelocity * MotionBlur_VelocityScaleForTiles;
