@@ -471,6 +471,47 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 	}
 }
 
+uint32 FPrimitiveSceneProxy::GetPayloadDataStride() const
+{
+	static_assert(sizeof(FRenderTransform) == sizeof(float) * 3 * 4); // Sanity check
+	static_assert(sizeof(FRenderBounds) == sizeof(float) * 3 * 2); // Sanity check
+
+	// This count is per instance.
+	uint32 PayloadDataCount = 0;
+
+	// Random ID is packed into scene data currently
+	// TODO: Global setting/define for INSTANCE_COMPRESSED_TRANSFORMS
+#if 0
+	PayloadDataCount += HasPerInstanceDynamicData() ? 3 : 0;	// FRenderTransform
+#else
+	PayloadDataCount += HasPerInstanceDynamicData() ? 2 : 0;	// Compressed transform
+#endif
+		
+	// Hierarchy is packed in with local bounds if they are both present (almost always the case)
+	if (HasPerInstanceLocalBounds())
+	{
+		PayloadDataCount += 2; // FRenderBounds and possibly uint32 for hierarchy offset
+	}
+	else if (HasPerInstanceHierarchyOffset())
+	{
+		PayloadDataCount += 1; // uint32 for hierarchy offset (float4 packed)
+	}
+
+	PayloadDataCount += HasPerInstanceLMSMUVBias() ? 1 : 0; // FVector4
+
+	if (HasPerInstanceCustomData())
+	{
+		const uint32 InstanceCount   = InstanceSceneData.Num();
+		const uint32 CustomDataCount = InstanceCustomData.Num();
+		if (InstanceCount > 0)
+		{
+			PayloadDataCount += FMath::DivideAndRoundUp(CustomDataCount / InstanceCount, 4u);
+		}
+	}
+
+	return PayloadDataCount;
+}
+
 void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition)
 {
 	check(IsInRenderingThread());

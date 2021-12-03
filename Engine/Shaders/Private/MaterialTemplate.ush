@@ -380,8 +380,7 @@ struct FMaterialPixelParameters
 
 #if IS_NANITE_FACTORY && USES_PER_INSTANCE_CUSTOM_DATA
 	uint CustomDataOffset;
-	uint NumCustomDataFloats;
-	float CustomDataFloat0; // TODO: Temporary hack!
+	uint CustomDataCount;
 #endif
 
 	// Actual primitive Id
@@ -991,19 +990,17 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, float DefaultValue)
 {
 #if IS_NANITE_FACTORY && USES_PER_INSTANCE_CUSTOM_DATA
-	// TODO: Temporary hack!
-	//if (Parameters.NumCustomDataFloats > 0)
-	if (Parameters.NumCustomDataFloats == 1 && Index == 0)
+	const uint FloatIndex = uint(Index);
+	BRANCH
+	if (FloatIndex < Parameters.CustomDataCount)
 	{
-		return Parameters.CustomDataFloat0;
+		const uint   Float4Offset = Parameters.CustomDataOffset + (FloatIndex >> 2u);
+		const float4 Float4Packed = LoadInstancePayloadDataElement(Float4Offset);
+		return Float4Packed[FloatIndex & 0x3u];
 	}
-	else
-	{
-		return DefaultValue;
-	}
-#else
-	return DefaultValue;
 #endif
+
+	return DefaultValue;
 }
 
 // Per Instance Custom Data Getter (Vertex Shader Only)

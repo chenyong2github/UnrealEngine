@@ -1041,12 +1041,11 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 				{
 					SceneInfo->InstanceSceneDataOffset = Scene->GPUScene.AllocateInstanceSceneDataSlots(SceneInfo->NumInstanceSceneDataEntries);
 
-					// Data count is number of floats per instance. We round up to float4 for packing reasons.
-					SceneInfo->InstancePayloadDataStride = FMath::DivideAndRoundUp(SceneInfo->Proxy->GetPayloadDataCount(), 4u);
+					SceneInfo->InstancePayloadDataStride = SceneInfo->Proxy->GetPayloadDataStride(); // Returns number of float4 optional data values
 					if (SceneInfo->InstancePayloadDataStride > 0)
 					{
-						const uint32 Float4Count = SceneInfo->NumInstanceSceneDataEntries * SceneInfo->InstancePayloadDataStride;
-						SceneInfo->InstancePayloadDataOffset = Scene->GPUScene.AllocateInstancePayloadDataSlots(Float4Count);
+						const uint32 TotalFloat4Count = SceneInfo->NumInstanceSceneDataEntries * SceneInfo->InstancePayloadDataStride;
+						SceneInfo->InstancePayloadDataOffset = Scene->GPUScene.AllocateInstancePayloadDataSlots(TotalFloat4Count);
 					}
 
 					if (GGPUSceneInstanceBVH)
@@ -1067,6 +1066,10 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 				// Allocate a single 'dummy/fallback' instance for the primitive that gets automatically populated with the data from the primitive
 				SceneInfo->InstanceSceneDataOffset = Scene->GPUScene.AllocateInstanceSceneDataSlots(1);
 				SceneInfo->NumInstanceSceneDataEntries = 1;
+				
+				// TODO: Hook up for dummy instances?
+				SceneInfo->InstancePayloadDataOffset = INDEX_NONE;
+				SceneInfo->InstancePayloadDataStride = 0;
 			}
 
 			// Force a primitive update in the GPU scene, 
@@ -1110,8 +1113,8 @@ void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 		{
 			check(InstancePayloadDataStride > 0);
 
-			const uint32 Float4Count = NumInstanceSceneDataEntries * InstancePayloadDataStride;
-			Scene->GPUScene.FreeInstancePayloadDataSlots(InstancePayloadDataOffset, Float4Count);
+			const uint32 TotalFloat4Count = NumInstanceSceneDataEntries * InstancePayloadDataStride;
+			Scene->GPUScene.FreeInstancePayloadDataSlots(InstancePayloadDataOffset, TotalFloat4Count);
 			InstancePayloadDataOffset = INDEX_NONE;
 			InstancePayloadDataStride = 0;
 		}

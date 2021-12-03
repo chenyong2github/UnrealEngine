@@ -25,7 +25,6 @@
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
 #define INSTANCE_COMPRESSED_TRANSFORM	0
-
 // TODO: Rename to FInstanceSceneData
 struct FPrimitiveInstance
 {
@@ -80,85 +79,53 @@ struct FPrimitiveInstanceDynamicData
 	}
 };
 
-FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance()
-{
-	FPrimitiveInstance Result;
-	Result.LocalToPrimitive.SetIdentity();
-	return Result;
-}
-
 struct FInstanceSceneShaderData
 {
 	// Must match GetInstanceSceneData() in SceneData.ush
+	// TODO: Global setting/define for INSTANCE_COMPRESSED_TRANSFORMS
 #if INSTANCE_COMPRESSED_TRANSFORM
-	enum { DataStrideInFloat4s = 8 };
+	enum { DataStrideInFloat4s = 4 };
 #else
-	enum { DataStrideInFloat4s = 10 };
+	// Compressed transform
+	enum { DataStrideInFloat4s = 3 };
 #endif
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 
-	FInstanceSceneShaderData()
-		: Data(InPlace, NoInit)
+	FInstanceSceneShaderData() : Data(InPlace, NoInit)
 	{
-		// TODO: Should look into skipping default initialization here - likely unneeded, and just wastes CPU time.
-		Setup(
-			ConstructPrimitiveInstance(),
-			0, /* Primitive Id */
-			FRenderTransform::Identity,  /* LocalToWorld */
-			FRenderTransform::Identity,  /* PrevLocalToWorld */
-			FRenderTransform::Identity, /* PrevLocalToPrimitive */ // TODO: Temporary
-			FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector), /* Local Bounds */ // TODO: Temporary
-			0xFFFFFFFFu, /* Nanite Hierarchy Offset */ // TODO: Temporary
-			FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
-			0.0f, /* Per Instance Random */ // TODO: Temporary
-			0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-			INVALID_LAST_UPDATE_FRAME,
-			0 /* Instance Flags */ // TODO: Temporary
-		);
 	}
 
-	ENGINE_API FInstanceSceneShaderData(
-		const FPrimitiveInstance& Instance,
+	ENGINE_API void Build
+	(
 		uint32 PrimitiveId,
-		const FRenderTransform& PrimitiveLocalToWorld,
-		const FRenderTransform& PrimitivePrevLocalToWorld,
-		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
-		const FRenderBounds& LocalBounds, // TODO: Temporary
-		const uint32 HierarchyOffset, // TODO: Temporary
-		const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
-		float RandomID, // TODO: Temporary
-		float CustomDataFloat0, // TODO: Temporary Hack!
+		uint32 RelativeId,
+		uint32 PayloadDataFlags,
 		uint32 LastUpdateFrame,
-		uint32 InstanceFlags // TODO: Temporary
+		uint32 CustomDataCount,
+		float RandomID
 	);
 
-	ENGINE_API FInstanceSceneShaderData(
-		const FPrimitiveInstance& Instance,
+	ENGINE_API void Build
+	(
 		uint32 PrimitiveId,
-		const FMatrix& PrimitiveLocalToWorld,
-		const FMatrix& PrimitivePrevLocalToWorld,
-		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
-		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
-		float RandomID, // TODO: Temporary
-		float CustomDataFloat0, // TODO: Temporary Hack!
-		uint32 LastUpdateFrame
+		uint32 RelativeId,
+		uint32 PayloadDataFlags,
+		uint32 LastUpdateFrame,
+		uint32 CustomDataCount,
+		float RandomID,
+		const FRenderTransform& LocalToPrimitive,
+		const FRenderTransform& PrimitiveToWorld
 	);
 
-	ENGINE_API void Setup(
-		const FPrimitiveInstance& Instance,
+	ENGINE_API void Build
+	(
 		uint32 PrimitiveId,
-		const FRenderTransform& PrimitiveLocalToWorld,
-		const FRenderTransform& PrimitivePrevLocalToWorld,
-		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
-		const FRenderBounds& LocalBounds, // TODO: Temporary
-		const uint32 HierarchyOffset, // TODO: Temporary
-		const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
-		float RandomID, // TODO: Temporary
-		float CustomDataFloat0, // TODO: Temporary Hack!
+		uint32 RelativeId,
+		uint32 PayloadDataFlags,
 		uint32 LastUpdateFrame,
-		uint32 InstanceFlags // TODO: Temporary
+		uint32 CustomDataCount,
+		float RandomID,
+		const FRenderTransform& LocalToWorld
 	);
 };
-
-ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData();

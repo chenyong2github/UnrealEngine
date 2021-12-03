@@ -214,26 +214,16 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 			LightMapCoordinateInput_DDY = TexCoord.DDY;
 		}
 
+		const bool bHasPerInstanceCoordinateScaleBias = (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS);
+
 		const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
-		if (PrimitiveData.NumInstanceSceneDataEntries > 1)
-		{
-			LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.xy;
-		}
-		else
-		{
-			LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + LightMapCoordinateScaleBias.zw;
-		}
+		const float2 InstanceLightMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.xy, LightMapCoordinateScaleBias.zw);
+		LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceLightMapScaleBias;
 
 	#if STATICLIGHTING_TEXTUREMASK
 		const float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
-		if (PrimitiveData.NumInstanceSceneDataEntries > 1)
-		{
-			ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.zw;
-		}
-		else
-		{
-			ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + ShadowMapCoordinateScaleBias.zw;
-		}
+		const float2 InstanceShadowMapScaleBias = CondMask(bHasPerInstanceCoordinateScaleBias, InstanceData.LightMapAndShadowMapUVBias.zw, ShadowMapCoordinateScaleBias.zw);
+		ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceShadowMapScaleBias;
 	#endif
 
 	#if LIGHTMAP_UV_ACCESS
@@ -248,16 +238,14 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 	#endif // NEEDS_LIGHTMAP_COORDINATE
 
-		// TODO: Temporary hack!
 	#if USES_PER_INSTANCE_CUSTOM_DATA
 		Result.CustomDataOffset = InstanceData.CustomDataOffset;
-		Result.NumCustomDataFloats = InstanceData.NumCustomDataFloats;
-		Result.CustomDataFloat0 = InstanceData.CustomDataFloat0;
+		Result.CustomDataCount  = InstanceData.CustomDataCount;
 	#endif
 
 		Result.TwoSidedSign = 1;
-		Result.PrimitiveId = InstanceData.PrimitiveId;
-		Result.InstanceId  = InstanceData.RelativeId;
+		Result.PrimitiveId  = InstanceData.PrimitiveId;
+		Result.InstanceId   = InstanceData.RelativeId;
 	}
 
 	return Result;

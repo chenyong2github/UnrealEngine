@@ -526,18 +526,31 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 	InstanceSceneData.SetNum(Component->GetInstanceCount());
 
-	const bool bValidPreviousData = Component->PerInstancePrevTransform.Num() == Component->GetInstanceCount();
-	InstanceDynamicData.SetNumUninitialized(bValidPreviousData ? Component->GetInstanceCount() : 0);
+	bHasPerInstanceLocalBounds = false;
+	bHasPerInstanceHierarchyOffset = false;
 
-	InstanceRandomID.SetNumZeroed(Component->GetInstanceCount()); // TODO: Only allocate if material bound which uses this
-	InstanceLightShadowUVBias.SetNumZeroed(Component->GetInstanceCount()); // TODO: Only allocate if static lighting is enabled for the project
-	InstanceCustomData = Component->PerInstanceSMCustomData; // TODO: Only allocate if material bound which uses this
-	check(Component->NumCustomDataFloats == 0 || (InstanceCustomData.Num() / Component->NumCustomDataFloats == Component->GetInstanceCount())); // Sanity check on the data packing
+	UpdateMaterialDynamicDataUsage();
 
-	bHasPerInstanceRandom = InstanceRandomID.Num() > 0; // TODO: Only allocate if material bound which uses this
-	bHasPerInstanceCustomData = InstanceCustomData.Num() > 0; // TODO: Only allocate if material bound which uses this
-	bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
-	bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0; // TODO: Only allocate if static lighting is enabled for the project
+	bHasPerInstanceDynamicData = Component->PerInstancePrevTransform.Num() == Component->GetInstanceCount();
+	InstanceDynamicData.SetNumUninitialized(bHasPerInstanceDynamicData ? Component->GetInstanceCount() : 0);
+
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
+	bHasPerInstanceLMSMUVBias = bAllowStaticLighting;
+	InstanceLightShadowUVBias.SetNumZeroed(bHasPerInstanceLMSMUVBias ? Component->GetInstanceCount() : 0);
+
+	InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? Component->GetInstanceCount() : 0); // Only allocate if material bound which uses this
+
+	// Only allocate if material bound which uses this
+	if (bHasPerInstanceCustomData && Component->NumCustomDataFloats > 0)
+	{
+		InstanceCustomData = Component->PerInstanceSMCustomData;
+		check(InstanceCustomData.Num() / Component->NumCustomDataFloats == Component->GetInstanceCount()); // Sanity check on the data packing
+	}
+	else
+	{
+		bHasPerInstanceCustomData = false;
+	}
 
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
@@ -549,44 +562,43 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 		if (bHasPerInstanceDynamicData)
 		{
-			FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[InstanceIndex];
-
 			FTransform InstancePrevTransform;
 			const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
-			if (ensure(bHasPrevTransform)) // Should always be true here
-			{
-				DynamicData.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
-			}
-			else
-			{
-				DynamicData.PrevLocalToPrimitive = SceneData.LocalToPrimitive;
-			}
+			ensure(bHasPrevTransform); // Should always be true here
+			InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
 		}
 	}
 
-	ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(
-		[this, PerInstanceRenderData = Component->PerInstanceRenderData](FRHICommandList& RHICmdList)
-	{
-		if (PerInstanceRenderData != nullptr &&
-			PerInstanceRenderData->InstanceBuffer.GetNumInstances() == InstanceSceneData.Num())
-		{
-			if (bHasPerInstanceRandom || bHasPerInstanceLMSMUVBias)
-			{
-				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
-				{
-					if (bHasPerInstanceRandom)
-					{
-						PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, InstanceRandomID[InstanceIndex]);
-					}
+	check(bHasPerInstanceRandom == false || InstanceRandomID.Num() == InstanceSceneData.Num());
 
-					if (bHasPerInstanceLMSMUVBias)
+	if (bHasPerInstanceRandom || bHasPerInstanceLMSMUVBias)
+	{
+		ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(
+			[this, PerInstanceRenderData = Component->PerInstanceRenderData](FRHICommandList& RHICmdList)
+			{
+				check(bHasPerInstanceRandom == false || InstanceRandomID.Num() == InstanceSceneData.Num());
+
+				if (PerInstanceRenderData != nullptr &&
+					PerInstanceRenderData->InstanceBuffer.GetNumInstances() == InstanceSceneData.Num())
+				{
+					for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 					{
-						PerInstanceRenderData->InstanceBuffer.GetInstanceLightMapData(InstanceIndex, InstanceLightShadowUVBias[InstanceIndex]);
+						if (bHasPerInstanceRandom)
+						{
+							PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, InstanceRandomID[InstanceIndex]);
+						}
+
+						if (bHasPerInstanceLMSMUVBias)
+						{
+							PerInstanceRenderData->InstanceBuffer.GetInstanceLightMapData(InstanceIndex, InstanceLightShadowUVBias[InstanceIndex]);
+						}
 					}
 				}
+
+				check(bHasPerInstanceRandom == false || InstanceRandomID.Num() == InstanceSceneData.Num());
 			}
-		}
-	});
+		);
+	}
 
 	// TODO: Should report much finer granularity than what this code is doing (i.e. dynamic vs static, per stream sizes, etc..)
 	// TODO: Also should be reporting this for all proxies, not just the Nanite ones

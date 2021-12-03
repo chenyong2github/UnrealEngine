@@ -1216,6 +1216,8 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 #endif
 
 	bAnySegmentUsesWorldPositionOffset = false;
+	bHasPerInstanceRandom = false;
+	bHasPerInstanceCustomData = false;
 
 	// Make sure all the materials are okay to be rendered as an instanced mesh.
 	for (int32 LODIndex = 0; LODIndex < LODs.Num(); LODIndex++)
@@ -1228,7 +1230,15 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			{
 				Section.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 			}
+
 			bAnySegmentUsesWorldPositionOffset |= Section.Material->GetRelevance_Concurrent(GMaxRHIFeatureLevel).bUsesWorldPositionOffset;
+
+			const UMaterial* Material = Section.Material->GetMaterial_Concurrent();
+			check(Material != nullptr); // Should always be valid here
+
+			const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
+			bHasPerInstanceRandom |= CachedMaterialData.bHasPerInstanceRandom;
+			bHasPerInstanceCustomData |= CachedMaterialData.bHasPerInstanceCustomData;
 		}
 	}
 
@@ -1263,23 +1273,30 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
 		const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
-		bSupportsInstanceDataBuffer = true;
 
+		bSupportsInstanceDataBuffer = true;
 		InstanceSceneData.SetNum(InComponent->GetInstanceCount());
 
-		const bool bValidPreviousData = InComponent->PerInstancePrevTransform.Num() == InComponent->GetInstanceCount();
-		InstanceDynamicData.SetNumUninitialized(bValidPreviousData ? InComponent->GetInstanceCount() : 0);
+		bHasPerInstanceDynamicData = InComponent->PerInstancePrevTransform.Num() == InComponent->GetInstanceCount();
+		InstanceDynamicData.SetNumUninitialized(bHasPerInstanceDynamicData ? InComponent->GetInstanceCount() : 0);
 
-		InstanceRandomID.SetNumZeroed(InComponent->GetInstanceCount()); // TODO: Only allocate if material bound which uses this
-		InstanceLightShadowUVBias.SetNumZeroed(InComponent->GetInstanceCount()); // TODO: Only allocate if static lighting is enabled for the project
-		InstanceCustomData.SetNumZeroed(InComponent->GetInstanceCount() * InComponent->NumCustomDataFloats);
-		//InstanceCustomData = InComponent->PerInstanceSMCustomData; // TODO: Use this once the hacky reorder table is removed
-		//check(InComponent->NumCustomDataFloats == 0 || (InstanceCustomData.Num() / InComponent->NumCustomDataFloats == InComponent->GetInstanceCount()));
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
+		bHasPerInstanceLMSMUVBias = bAllowStaticLighting;
+		InstanceLightShadowUVBias.SetNumZeroed(bHasPerInstanceLMSMUVBias ? InComponent->GetInstanceCount() : 0);
 
-		bHasPerInstanceRandom = InstanceRandomID.Num() > 0; // TODO: Only allocate if material bound which uses this
-		bHasPerInstanceCustomData = InstanceCustomData.Num() > 0; // TODO: Only allocate if material bound which uses this
-		bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
-		bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0; // TODO: Only allocate if static lighting is enabled for the project
+		InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? InComponent->GetInstanceCount() : 0); // Only allocate if material bound which uses this
+
+		// Only allocate if material bound which uses this
+		if (bHasPerInstanceCustomData && InComponent->NumCustomDataFloats > 0)
+		{
+			InstanceCustomData = InComponent->PerInstanceSMCustomData;
+			check(InstanceCustomData.Num() / InComponent->NumCustomDataFloats == InComponent->GetInstanceCount()); // Sanity check on the data packing
+		}
+		else
+		{
+			bHasPerInstanceCustomData = false;
+		}
 
 		for (int32 InInstanceIndex = 0; InInstanceIndex < InstanceSceneData.Num(); ++InInstanceIndex)
 		{
@@ -1306,23 +1323,15 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			InComponent->GetInstanceTransform(InInstanceIndex, InstanceTransform);
 			SceneData.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 
-			if (bValidPreviousData)
+			if (bHasPerInstanceDynamicData)
 			{
-				FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[OutInstanceIndex];
-
 				FTransform InstancePrevTransform;
 				const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
-				if (ensure(bHasPrevTransform)) // Should always be true here
-				{
-					DynamicData.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
-				}
-				else
-				{
-					DynamicData.PrevLocalToPrimitive = SceneData.LocalToPrimitive;
-				}
+				ensure(bHasPrevTransform); // Should always be true here
+				InstanceDynamicData[OutInstanceIndex].PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
 			}
 
-			if (InComponent->NumCustomDataFloats > 0)
+			if (bHasPerInstanceCustomData)
 			{
 				const int32 SrcCustomDataOffset = InInstanceIndex  * InComponent->NumCustomDataFloats;
 				const int32 DstCustomDataOffset = OutInstanceIndex * InComponent->NumCustomDataFloats;
@@ -1368,8 +1377,8 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 			// NOTE: we set up partial data in the construction of ISM proxy (yep, awful but the equally awful way the InstanceBuffer is maintained means complete data is not available)
 			if (InstanceSceneData.Num() == InstanceBuffer.GetNumInstances())
 			{
-				const bool bHasLightMapData = InstanceLightShadowUVBias.Num() == InstanceSceneData.Num();
-				const bool bHasRandomID = InstanceRandomID.Num() == InstanceSceneData.Num();
+				const bool bHasLightMapData = bHasPerInstanceLMSMUVBias && InstanceLightShadowUVBias.Num() == InstanceSceneData.Num();
+				const bool bHasRandomID = bHasPerInstanceRandom && InstanceRandomID.Num() == InstanceSceneData.Num();
 
 				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 				{
