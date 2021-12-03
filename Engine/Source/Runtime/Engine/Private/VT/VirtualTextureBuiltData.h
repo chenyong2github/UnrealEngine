@@ -136,10 +136,16 @@ struct FVirtualTextureBuiltData
 	uint32 TileBorderSize; // A BorderSize pixel border will be added around all tiles
 
 	/**
-	 * The pixel format output of the data on the i'th layer. The actual data
+	 * The pixel format output of the data for each layer. The actual data
 	 * may still be compressed but will decompress to this pixel format (e.g. zipped DXT5 data).
 	 */
 	TEnumAsByte<EPixelFormat> LayerTypes[VIRTUALTEXTURE_DATA_MAXLAYERS];
+
+	/**
+	 * The fallback color to use for each layer. This color is used whenever we need to sample
+	 * the VT but have not yet streamed the root pages.
+	 */
+	FLinearColor LayerFallbackColors[VIRTUALTEXTURE_DATA_MAXLAYERS];
 
 	/**
 	 * Tile data is packed into separate chunks, typically there is 1 mip level in each chunk for high resolution mips.
@@ -189,6 +195,7 @@ struct FVirtualTextureBuiltData
 		, TileBorderSize(0u)
 	{
 		FMemory::Memzero(LayerTypes);
+		FMemory::Memzero(LayerFallbackColors);
 	}
 
 	inline bool IsInitialized() const { return TileSize != 0u; }

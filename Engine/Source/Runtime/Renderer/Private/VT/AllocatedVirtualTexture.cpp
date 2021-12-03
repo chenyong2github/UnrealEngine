@@ -23,6 +23,7 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 {
 	check(IsInRenderingThread());
 	FMemory::Memzero(TextureLayers);
+	FMemory::Memzero(FallbackColorPerTextureLayer);
 
 	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumTextureLayers; ++LayerIndex)
 	{
@@ -45,6 +46,11 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 			
 			TextureLayers[LayerIndex].UniquePageTableLayerIndex = UniquePhysicalSpaceIndex;
 			TextureLayers[LayerIndex].PhysicalTextureIndex = PageTableLayerLocalIndex;
+
+			if (Producer)
+			{
+				FallbackColorPerTextureLayer[LayerIndex] = Producer->GetDescription().LayerFallbackColor[ProducerLayerIndex].ToFColor(false).DWColor();
+			}
 		}
 	}
 
@@ -268,6 +274,8 @@ bool FAllocatedVirtualTexture::TryMapLockedTiles(FVirtualTextureSystem* InSystem
 					else
 					{
 						bHasMissingTiles = true;
+						// Mark page table entry as invalid if we can't map.
+						PageMap.InvalidateUnmappedRootPage(Space, PageTableLayer.PhysicalSpace, PageTableLayerIndex, MaxLevel, MaxLevel, vAddress, MaxLevel + LocalMipBias);
 					}
 				}
 			}
@@ -481,10 +489,13 @@ void FAllocatedVirtualTexture::GetPackedUniform(FUintVector4* OutUniform, uint32
 		const float RcpPhysicalTextureSize = 1.0f / float(PhysicalTextureSize);
 		const uint32 pPageSize = vPageSize + PageBorderSize * 2u;
 
-		OutUniform->X = GetPageTableFormat() == EVTPageTableFormat::UInt16 ? 1 : 0;
+		OutUniform->X = FallbackColorPerTextureLayer[LayerIndex];
 		OutUniform->Y = BitcastFloatToUInt32((float)vPageSize * RcpPhysicalTextureSize);
 		OutUniform->Z = BitcastFloatToUInt32((float)PageBorderSize * RcpPhysicalTextureSize);
-		OutUniform->W = BitcastFloatToUInt32((float)pPageSize * RcpPhysicalTextureSize);
+		// Pack page table format bool as sign bit on page size.
+		const bool bPageTableExtraBits = GetPageTableFormat() == EVTPageTableFormat::UInt32;
+		const float PackedSignBit = bPageTableExtraBits ? 1.f : -1.f;
+		OutUniform->W = BitcastFloatToUInt32((float)pPageSize * RcpPhysicalTextureSize * PackedSignBit);
 	}
 	else
 	{

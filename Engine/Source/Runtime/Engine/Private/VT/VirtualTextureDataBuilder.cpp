@@ -1235,6 +1235,14 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		}
 	}
 
+	// Extract fallback color from last mip.
+	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+	{
+		FImage OnePixelImage(1, 1, 1, ERawImageFormat::RGBA32F);
+		SourceBlocks.Last().MipsPerLayer[LayerIndex].Last().ResizeTo(OnePixelImage, 1, 1, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+		OutData.LayerFallbackColors[LayerIndex] = OnePixelImage.AsRGBA32F()[0];
+	}
+
 	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		const FTextureBuildSettings& BuildSettingsForLayer = SettingsPerLayer[LayerIndex];

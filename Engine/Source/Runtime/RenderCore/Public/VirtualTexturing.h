@@ -159,6 +159,7 @@ struct FVTProducerDescription
 	 */
 	uint8 NumTextureLayers = 0u;
 	TEnumAsByte<EPixelFormat> LayerFormat[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { PF_Unknown };
+	FLinearColor LayerFallbackColor[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { FLinearColor::Black };
 	
 	uint8 NumPhysicalGroups = 0u;
 	uint8 PhysicalGroupIndex[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { 0 };

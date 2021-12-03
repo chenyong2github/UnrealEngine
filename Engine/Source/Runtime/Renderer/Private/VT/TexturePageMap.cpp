@@ -225,6 +225,14 @@ void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysic
 	SortedKeysDirty = true;
 }
 
+void FTexturePageMap::InvalidateUnmappedRootPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint32 PackedProducerHandle, uint8 MaxLevel, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel)
+{
+	// Page should not be mapped.
+	check(FindPageIndex(vLogSize, vAddress) == ~0u);
+	// Queue clear page table entry.
+	Space->QueueUpdate(LayerIndex, vLogSize, vAddress, Local_vLevel, FIntVector::ZeroValue);
+}
+
 void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Width, uint32 Height, TArray<FMappedTexturePage>& OutMappedPages) const
 {
 	const uint32 vTileX0 = FMath::ReverseMortonCode2(vAddress);
