@@ -580,6 +580,8 @@ public:
 	RENDERER_API FRHIRayTracingGeometry* GetStaticRayTracingGeometryInstance(int LodLevel) const;
 
 	void UpdateCachedRayTracingInstanceWorldTransforms();
+
+	int GetRayTracingGeometryNum() const { return RayTracingGeometries.Num(); }
 #endif
 
 	/** Return primitive fullname (for debugging only). */
