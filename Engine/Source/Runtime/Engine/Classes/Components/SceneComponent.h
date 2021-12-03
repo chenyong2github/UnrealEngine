@@ -327,7 +327,7 @@ public:
 	 * ReplacementSceneComponent is there as a temp solution to allow finding of the replacement component of a trashed scene component. 
 	 */
 	UPROPERTY(Transient)
-	USceneComponent* ReplacementSceneComponent;
+	TObjectPtr<USceneComponent> ReplacementSceneComponent;
 #endif
 
 private:
