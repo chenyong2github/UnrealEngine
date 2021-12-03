@@ -1469,6 +1469,7 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 		case DVSM_MeshUVDensityAccuracy:
 		case DVSM_MaterialTextureScaleAccuracy:
 		case DVSM_RequiredTextureResolution:
+		case DVSM_VirtualTexturePendingMips:
 		{
 			FStreamingAccuracyLegendInputs PassInputs;
 			PassInputs.OverrideOutput = OverrideOutput;

@@ -17,6 +17,7 @@
 
 #include "Common.ush"
 #include "SHCommon.ush"
+#include "VirtualTextureCommon.ush"
 
  // If -1, output everything to the RW texture.
 int2 AnalysisParams; // (TextureAnalysisIndex, bOutputScales)
@@ -93,6 +94,11 @@ MaterialFloat StoreTexSample(in out FTexCoordScalesParams Params, float4 C, int 
 	Params.TexSample = TextureAnalysisIndex == TextureReferenceIndex ? lerp(.4f, 1.f, saturate(Luminance(C.rgb))) : Params.TexSample;
 
 	return 1.f;
+}
+
+MaterialFloat StoreVTSampleInfo(in out FTexCoordScalesParams Params, VTPageTableResult PageTableResult, uint LayerIndex, int TextureReferenceIndex)
+{
+	return 1.f; 
 }
 
 #include "/Engine/Generated/Material.ush"

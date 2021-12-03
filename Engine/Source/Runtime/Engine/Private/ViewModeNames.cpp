@@ -153,6 +153,11 @@ TArray<FText> FillViewModeDisplayNames()
 			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeNanite", "Nanite Visualization"));
 		}
 
+		else if (ViewModeIndex == VMI_VirtualTexturePendingMips)
+		{
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VirtualTexturePendingMips", "Virtual Texture Pending Mips"));
+		}
+
 		// VMI_Max
 		else if (ViewModeIndex == VMI_Max)
 		{
@@ -319,7 +324,7 @@ TArray<const FSlateBrush*> FillViewModeDisplayIcons()
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.RequiredTextureResolutionMode"));
 		}
-	
+
 		// Ray tracing modes
 		// Run path tracing pipeline
 		else if (ViewModeIndex == VMI_PathTracing)
@@ -330,6 +335,12 @@ TArray<const FSlateBrush*> FillViewModeDisplayIcons()
 		else if (ViewModeIndex == VMI_RayTracingDebug)
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.RayTracingDebugMode"));
+		}
+
+		// Compare the required texture resolution to the actual resolution
+		else if (ViewModeIndex == VMI_VirtualTexturePendingMips)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VirtualTexturePendingMipsMode"));
 		}
 
 		// VMI_Max

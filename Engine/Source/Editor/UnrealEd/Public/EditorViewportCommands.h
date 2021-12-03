@@ -110,6 +110,8 @@ public:
 	TSharedPtr< FUICommandInfo > RequiredTextureResolutionMode;
 	TSharedPtr< FUICommandInfo > RequiredTextureResolutionSingle[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL];
 
+	TSharedPtr< FUICommandInfo > VirtualTexturePendingMipsMode;
+
 	/** Changes the viewport to stationary light overlap mode */
 	TSharedPtr< FUICommandInfo > StationaryLightOverlapMode;
 

@@ -202,6 +202,31 @@ struct VTPageTableResult
 	uint PackedRequest;
 };
 
+uint GetRequestedLevel(VTPageTableResult PageTableResult)
+{
+	uint RequestLevelPlusOne = (PageTableResult.PackedRequest >> 24) & 0xf;
+	uint RequestLevel = max(RequestLevelPlusOne, 1) - 1;
+	return RequestLevel;
+}
+
+uint GetSampledLevel(VTPageTableResult PageTableResult, uint LayerIndex, uint FallbackValue)
+{
+	uint PackedPageTableValue = PageTableResult.PageTableValue[LayerIndex / 4u][LayerIndex & 3u];
+	
+	// 0 is an empty value in the PageTableResult.
+	// We must also consider 1 as an empty value since it will appear in the .w channel page table textures with less than 4 channels.
+	// todo: Inject the number of layers inside VTPageTableResult and avoid the need to special case values here.
+	// HLSLMaterialTranslator could pass the value to TextureLoadVirtualPageTable through a macro similar to VIRTUALTEXTURE_PAGETABLE_%d.
+	if (PackedPageTableValue != 0 && PackedPageTableValue != 1)
+	{
+		uint SampleLevel = PackedPageTableValue & 0xf;
+		return SampleLevel;
+	}
+
+	// Return whatever the caller can interpret as empty.
+	return FallbackValue;
+}
+
 float GetStochasticMipNoise(float2 SvPositionXY)
 {
 #if VT_DISABLE_VIEW_UNIFORM_BUFFER

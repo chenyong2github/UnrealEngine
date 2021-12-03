@@ -451,9 +451,11 @@ struct FMaterialPixelParameters
 #if TEX_COORD_SCALE_ANALYSIS
 #define MaterialStoreTexCoordScale(Parameters, UV, TextureReferenceIndex) StoreTexCoordScale(Parameters.TexCoordScalesParams, UV, TextureReferenceIndex)
 #define MaterialStoreTexSample(Parameters, UV, TextureReferenceIndex) StoreTexSample(Parameters.TexCoordScalesParams, UV, TextureReferenceIndex)
+#define MaterialStoreVTSampleInfo(Parameters, PageTableResult, LayerIndex, TextureReferenceIndex) StoreVTSampleInfo(Parameters, PageTableResult, LayerIndex, TextureReferenceIndex)
 #else
 #define MaterialStoreTexCoordScale(Parameters, UV, TextureReferenceIndex) 1.0f
 #define MaterialStoreTexSample(Parameters, UV, TextureReferenceIndex) 1.0f
+#define MaterialStoreVTSampleInfo(Parameters, PageTableResult, LayerIndex, TextureReferenceIndex) 1.0f
 #endif
 
 // @todo compat hack

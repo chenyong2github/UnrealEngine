@@ -29,6 +29,7 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 ) const
 {
 	const FRequiredTextureResolutionPS& Shader = static_cast<const FRequiredTextureResolutionPS&>(ShaderBase);
+	const int32 AnalysisType = DebugViewMode == DVSM_VirtualTexturePendingMips ? 1 : 0;
 	int32 AnalysisIndex = INDEX_NONE;
 	int32 TextureResolution = 64;
 	FMaterialRenderContext MaterialContext(&MaterialRenderProxy, Material, nullptr);
@@ -88,7 +89,7 @@ void FRequiredTextureResolutionInterface::GetDebugViewModeShaderBindings(
 		}
 	}
 
-	ShaderBindings.Add(Shader.AnalysisParamsParameter, FIntPoint(AnalysisIndex, TextureResolution));
+	ShaderBindings.Add(Shader.AnalysisParamsParameter, FIntVector(AnalysisType, AnalysisIndex, TextureResolution));
 	ShaderBindings.Add(Shader.PrimitiveAlphaParameter, (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f);
 }
 

@@ -26,7 +26,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileDebugViewModeShader(DVSM_RequiredTextureResolution, Parameters);
+		return 
+			ShouldCompileDebugViewModeShader(DVSM_RequiredTextureResolution, Parameters) ||
+			ShouldCompileDebugViewModeShader(DVSM_VirtualTexturePendingMips, Parameters);
 	}
 
 	FRequiredTextureResolutionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):

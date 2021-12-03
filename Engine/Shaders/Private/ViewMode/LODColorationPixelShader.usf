@@ -15,10 +15,12 @@
 
 #include "../Common.ush"
 #include "../SHCommon.ush"
+#include "../VirtualTextureCommon.ush"
 
 struct FTexCoordScalesParams { float Dummy; };
 MaterialFloat StoreTexCoordScale(in out FTexCoordScalesParams Params, float2 UV, int TextureReferenceIndex) { return 1.f; }
 MaterialFloat StoreTexSample(in out FTexCoordScalesParams Params, float4 C, int TextureReferenceIndex) { return 1.f; }
+MaterialFloat StoreVTSampleInfo(in out FTexCoordScalesParams Params, VTPageTableResult PageTableResult, uint LayerIndex, int TextureReferenceIndex) { return 1.f; }
 
 #include "/Engine/Generated/Material.ush"
 #include "../DebugViewModeCommon.ush"

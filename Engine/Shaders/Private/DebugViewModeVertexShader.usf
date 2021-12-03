@@ -9,6 +9,7 @@
 #define SCENE_TEXTURES_DISABLED 1
 
 #include "Common.ush"
+#include "VirtualTextureCommon.ush"
 
 struct FTexCoordScalesParams
 {
@@ -21,6 +22,11 @@ MaterialFloat StoreTexCoordScale(in out FTexCoordScalesParams Params, float2 UV,
 }
 
 MaterialFloat StoreTexSample(in out FTexCoordScalesParams Params, float4 C, int TextureReferenceIndex)
+{
+	return 1.f;
+}
+
+MaterialFloat StoreVTSampleInfo(in out FTexCoordScalesParams Params, VTPageTableResult PageTableResult, uint LayerIndex, int TextureReferenceIndex)
 {
 	return 1.f;
 }
