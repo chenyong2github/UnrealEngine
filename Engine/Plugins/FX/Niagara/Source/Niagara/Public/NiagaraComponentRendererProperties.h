@@ -107,6 +107,16 @@ public:
 	 * limit was reached) then it will be blocked from spawning a component on subsequent frames. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", meta = (EditCondition = "bAssignComponentsOnParticleID"))
 	bool bOnlyCreateComponentsOnParticleSpawn;
+	
+	/** 
+	If true then components will only be activated when newly acquired. e.g. on particle spawn or when the particle enables/disables the component.
+	If false, components will be always kept active while they are used by an enabled particle.
+	This can be useful for component types that can internally activate and deactivate during their lifetimes while still being used by an enabled particle.
+	For example NiagaraComponents that deactivate/reactivate according to scalability settings.
+	This setting is only valid when bAssignComponentsOnParticleID is true.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", meta = (EditCondition = "bAssignComponentsOnParticleID"))
+	bool bOnlyActivateNewlyAquiredComponents;
 
 #if WITH_EDITORONLY_DATA
 

@@ -569,6 +569,12 @@ FNiagaraScalabilitySystemData& FNiagaraScalabilityManager::GetSystemData(int32 C
 #if WITH_EDITOR
 void FNiagaraScalabilityManager::OnSystemPostChange(UNiagaraSystem* System)
 {
+	RefreshSystemScalabilitySettings(System);
+}
+#endif//WITH_EDITOR
+
+void FNiagaraScalabilityManager::RefreshSystemScalabilitySettings(UNiagaraSystem* System)
+{
 	//Clear and refresh all cached system data.
 	SystemDataIndexMap.Reset();
 	SystemData.Reset();
@@ -578,7 +584,6 @@ void FNiagaraScalabilityManager::OnSystemPostChange(UNiagaraSystem* System)
 		GetSystemData(CompIdx, true);
 	}
 }
-#endif//WITH_EDITOR
 
 #if DEBUG_SCALABILITY_STATE
 

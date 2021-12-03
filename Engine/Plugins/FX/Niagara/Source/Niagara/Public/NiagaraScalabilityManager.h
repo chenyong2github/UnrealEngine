@@ -86,6 +86,9 @@ struct FNiagaraScalabilityManager
 #if WITH_EDITOR
 	void OnSystemPostChange(UNiagaraSystem* System);
 #endif//WITH_EDITOR
+
+	void RefreshSystemScalabilitySettings(UNiagaraSystem* System);
+
 private: 
 	void UnregisterAt(int32 IndexToRemove);
 	bool HasPendingUpdates() const { return DefaultContext.ComponentRequiresUpdate.Num() > 0; }
