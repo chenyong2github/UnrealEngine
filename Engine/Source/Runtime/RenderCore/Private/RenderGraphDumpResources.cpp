@@ -34,6 +34,7 @@ struct FRDGResourceDumpContext
 	FDateTime Time;
 	int32 ResourcesDumped = 0;
 	int32 PassesCount = 0;
+	TMap<const FRDGResource*, const FRDGPass*> LastResourceVersion;
 
 	bool bShowInExplore = false;
 
@@ -48,7 +49,7 @@ struct FRDGResourceDumpContext
 		return FString::Printf(TEXT("%s.%p"), Resource->Name, Resource);
 	}
 
-	static FString GetResourceDumpName(const FRDGPass* Pass, const FRDGResource* Resource)
+	static FString GetResourceVersionDumpName(const FRDGPass* Pass, const FRDGResource* Resource)
 	{
 		return FString::Printf(TEXT("%s.%p.v%p.bin"), Resource->Name, Resource, Pass);
 	}
@@ -56,6 +57,43 @@ struct FRDGResourceDumpContext
 	FString GetResourceDumpDirectory() const
 	{
 		return DumpingDirectoryPath + TEXT("Resources/");
+	}
+
+	void GetResourceDumpInfo(
+		const FRDGPass* Pass,
+		const FRDGResource* Resource,
+		bool bIsOutputResource,
+		bool* bOutDumpResourceInfos,
+		FString* OutResourceVersionDumpName)
+	{
+		*bOutDumpResourceInfos = false;
+
+		if (bIsOutputResource)
+		{
+			*OutResourceVersionDumpName = GetResourceVersionDumpName(Pass, Resource);
+		}
+
+		if (!LastResourceVersion.Contains(Resource))
+		{
+			// First time we ever see this resource, so dump it's info to disk
+			*bOutDumpResourceInfos = true;
+
+			// If not an output, it might be a resource undumped by r.DumpGPU.Root or external texture so still dump it as v0.
+			if (!bIsOutputResource)
+			{
+				*OutResourceVersionDumpName = GetResourceVersionDumpName(/* Pass = */ nullptr, Resource);
+			}
+
+			if (LastResourceVersion.Num() % 1024 == 0)
+			{
+				LastResourceVersion.Reserve(LastResourceVersion.Num() + 1024);
+			}
+			LastResourceVersion.Add(Resource, Pass);
+		}
+		else
+		{
+			LastResourceVersion[Resource] = Pass;
+		}
 	}
 
 	void AddDumpTexturePass(
@@ -100,9 +138,14 @@ struct FRDGResourceDumpContext
 			}
 		}
 
+		bool bDumpResourceInfos;
+		FString ResourceVersionDumpName;
+		GetResourceDumpInfo(Pass, Texture, bIsOutputResource, &bDumpResourceInfos, &ResourceVersionDumpName);
+
 		FString ResourceDumpDirectory = GetResourceDumpDirectory();
 
 		// Dump the information of the texture to json file.
+		if (bDumpResourceInfos)
 		{
 			FString PixelFormat = FString::Printf(TEXT("PF_%s"), GPixelFormats[Desc.Format].Name);
 
@@ -132,9 +175,9 @@ struct FRDGResourceDumpContext
 		}
 
 		// Dump the resource's binary to a .bin file.
-		if (bIsOutputResource)
+		if (!ResourceVersionDumpName.IsEmpty())
 		{
-			FString DumpFilePath = ResourceDumpDirectory + GetResourceDumpName(Pass, Texture);
+			FString DumpFilePath = ResourceDumpDirectory + ResourceVersionDumpName;
 
 			FDumpTexturePass* PassParameters = GraphBuilder.AllocParameters<FDumpTexturePass>();
 			PassParameters->Texture = Texture;
@@ -206,7 +249,12 @@ struct FRDGResourceDumpContext
 
 		FString ResourceDumpDirectory = GetResourceDumpDirectory();
 
+		bool bDumpResourceInfos;
+		FString ResourceVersionDumpName;
+		GetResourceDumpInfo(Pass, Buffer, bIsOutputResource, &bDumpResourceInfos, &ResourceVersionDumpName);
+
 		// Dump the information of the buffer to json file.
+		if (bDumpResourceInfos)
 		{
 			TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 			JsonObject->SetStringField(TEXT("Name"), Buffer->Name);
@@ -229,9 +277,9 @@ struct FRDGResourceDumpContext
 		}
 
 		// Dump the resource's binary to a .bin file.
-		if (bIsOutputResource)
+		if (!ResourceVersionDumpName.IsEmpty())
 		{
-			FString DumpFilePath = ResourceDumpDirectory + GetResourceDumpName(Pass, Buffer);
+			FString DumpFilePath = ResourceDumpDirectory + ResourceVersionDumpName;
 
 			FDumpBufferPass* PassParameters = GraphBuilder.AllocParameters<FDumpBufferPass>();
 			PassParameters->Buffer = Buffer;
@@ -296,7 +344,7 @@ void FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 	}
 
 	GRDGResourceDumpContext.Time = FDateTime::Now();
-	GRDGResourceDumpContext.DumpingDirectoryPath = FPaths::ProjectSavedDir() + TEXT("GPUDumps/") + FPlatformProperties::PlatformName() + TEXT("/") + FApp::GetProjectName() + TEXT("-") + GRDGResourceDumpContext.Time.ToString() + TEXT("/");
+	GRDGResourceDumpContext.DumpingDirectoryPath = FPaths::ProjectSavedDir() + TEXT("GPUDumps/") + FApp::GetProjectName() + TEXT("-") + FPlatformProperties::PlatformName() + TEXT("-") + GRDGResourceDumpContext.Time.ToString() + TEXT("/");
 
 	GRDGResourceDumpContext.bShowInExplore = Args.Contains(TEXT("-show"));
 
