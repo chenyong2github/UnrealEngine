@@ -22,6 +22,10 @@ const FName SConsoleVariablesEditorList::SourceColumnName(TEXT("Source"));
 
 void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 {
+	// Set Default Sorting info
+	ActiveSortingColumnName = CustomSortOrderColumnName;
+	ActiveSortingType = EColumnSortMode::Ascending;
+	
 	HeaderRow = SNew(SHeaderRow)
 				.CanSelectGeneratedColumn(true).Visibility(EVisibility::Visible);
 	
@@ -114,9 +118,13 @@ SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
 {	
 	ListSearchBoxPtr.Reset();
 	ListBoxContainerPtr.Reset();
+	ViewOptionsComboButton.Reset();
 
 	FlushMemory(false);
 
+	HeaderRow.Reset();
+
+	TreeViewRootObjects.Empty();
 	TreeViewPtr.Reset();
 }
 
@@ -196,14 +204,8 @@ void SConsoleVariablesEditorList::RefreshList(const FString& InConsoleCommandToS
 	GenerateTreeView();
 
 	// Enforce Sort
-	TArray<FName> MapKeys;
-	if (SortingMap.GetKeys(MapKeys))
-	{
-		const FName& Key = MapKeys[0];
-		const EColumnSortMode::Type Mode = *SortingMap.Find(Key);
-		
-		ExecuteSort(Key, Mode);
-	}
+	const FName& SortingName = GetActiveSortingColumnName();
+	ExecuteSort(SortingName, GetSortModeForColumn(SortingName));
 
 	if (!InConsoleCommandToScrollTo.IsEmpty())
 	{
@@ -322,10 +324,11 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 	HeaderRow->AddColumn(
 		SHeaderRow::Column(CustomSortOrderColumnName)
 			.DefaultLabel(FText::FromString("#"))
+			.ToolTipText(LOCTEXT("ClickToSort","Click to sort"))
 			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
 			.FillWidth(0.3f)
 			.ShouldGenerateWidget(true)
-			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortMode, CustomSortOrderColumnName)
+			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortModeForColumn, CustomSortOrderColumnName)
 			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
 	);
 	
@@ -357,10 +360,11 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 	HeaderRow->AddColumn(
 		SHeaderRow::Column(VariableNameColumnName)
 			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableNameHeaderText", "Console Variable Name"))
+			.ToolTipText(LOCTEXT("ClickToSort","Click to sort"))
 			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
 			.FillWidth(1.7f)
 			.ShouldGenerateWidget(true)
-			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortMode, VariableNameColumnName)
+			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortModeForColumn, VariableNameColumnName)
 			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
 	);
 
@@ -374,8 +378,9 @@ TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 	HeaderRow->AddColumn(
 		SHeaderRow::Column(SourceColumnName)
 			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_SourceHeaderText", "Source"))
+			.ToolTipText(LOCTEXT("ClickToSort","Click to sort"))
 			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
-			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortMode, SourceColumnName)
+			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortModeForColumn, SourceColumnName)
 			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
 	);
 
@@ -514,13 +519,13 @@ void SConsoleVariablesEditorList::OnListItemCheckBoxStateChange(const ECheckBoxS
 	}
 }
 
-EColumnSortMode::Type SConsoleVariablesEditorList::GetSortMode(FName InColumnName) const
+EColumnSortMode::Type SConsoleVariablesEditorList::GetSortModeForColumn(FName InColumnName) const
 {
 	EColumnSortMode::Type ColumnSortMode = EColumnSortMode::None;
 
-	if (const EColumnSortMode::Type* FoundSortMode = SortingMap.Find(InColumnName))
+	if (GetActiveSortingColumnName().IsEqual(InColumnName))
 	{
-		ColumnSortMode = *FoundSortMode;
+		ColumnSortMode = ActiveSortingType;
 	}
 
 	return ColumnSortMode;
@@ -533,44 +538,27 @@ void SConsoleVariablesEditorList::OnSortColumnCalled(EColumnSortPriority::Type P
 
 EColumnSortMode::Type SConsoleVariablesEditorList::CycleSortMode(const FName& InColumnName)
 {
-	EColumnSortMode::Type ColumnSortMode = EColumnSortMode::None;
-
-	if (const EColumnSortMode::Type* FoundSortMode = SortingMap.Find(InColumnName))
+	// Custom handler for Custom Sort Order mode
+	if (InColumnName.IsEqual(CustomSortOrderColumnName))
 	{
-		ColumnSortMode = *FoundSortMode;
+		ActiveSortingType = EColumnSortMode::Ascending;
+	}
+	else
+	{
+		const EColumnSortMode::Type PreviousColumnSortMode = GetSortModeForColumn(InColumnName);
+		ActiveSortingType = PreviousColumnSortMode ==
+			EColumnSortMode::Ascending ? EColumnSortMode::Descending : EColumnSortMode::Ascending;
 	}
 
-	switch (ColumnSortMode)
-	{
-	case EColumnSortMode::None:
-		ColumnSortMode = EColumnSortMode::Ascending;
-		break;
-
-	case EColumnSortMode::Ascending:
-		ColumnSortMode = EColumnSortMode::Descending;
-		break;
-
-	case EColumnSortMode::Descending:
-		ColumnSortMode = EColumnSortMode::None;
-		break;
-
-	default:
-		ColumnSortMode = EColumnSortMode::None;
-		break;
-	}
-
-	ClearSorting();
-	SortingMap.Add(InColumnName, ColumnSortMode);
-
-	return ColumnSortMode;
+	ActiveSortingColumnName = InColumnName;
+	return ActiveSortingType;
 }
 
 void SConsoleVariablesEditorList::ExecuteSort(const FName& InColumnName, const EColumnSortMode::Type InColumnSortMode)
 {	
 	if (InColumnName.IsEqual(CustomSortOrderColumnName))
 	{
-		TreeViewRootObjects.StableSort(
-			InColumnSortMode == EColumnSortMode::Ascending ? SortByOrderAscending : SortByOrderDescending);
+		TreeViewRootObjects.StableSort(SortByOrderAscending);
 	}
 	if (InColumnName.IsEqual(SourceColumnName))
 	{

@@ -4,6 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Views/SListView.h"
 
 class SConsoleVariablesEditorMainPanel;
 class SEditableTextBox;

@@ -15,7 +15,6 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
