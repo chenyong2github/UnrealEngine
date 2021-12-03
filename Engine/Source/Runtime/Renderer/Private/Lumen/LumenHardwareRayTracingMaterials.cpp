@@ -59,37 +59,18 @@ IMPLEMENT_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialMS, "/Engine/Private/Lum
 // TODO: This should be moved into FRayTracingScene and used as a base for other effects. There is not need for it to be Lumen specific.
 void BuildHardwareRayTracingHitGroupData(FRHICommandList& RHICmdList, FRayTracingScene& RayTracingScene, TArrayView<FRayTracingLocalShaderBindings> Bindings, FRHIBuffer* DstBuffer)
 {
-	const uint32 NumSceneInstances = RayTracingScene.Instances.Num();
-
 	Lumen::FHitGroupRootConstants* DstBasePtr = (Lumen::FHitGroupRootConstants*)RHILockBuffer(DstBuffer, 0, DstBuffer->GetSize(), RLM_WriteOnly);
 
-	TArray<uint32> InstancePrefixSum;
-	TArray<uint32> SegmentPrefixSum;
-
-	InstancePrefixSum.Reserve(NumSceneInstances);
-	SegmentPrefixSum.Reserve(NumSceneInstances);
-
-	uint32 NumTotalSegments = 0;
-	uint32 NumInstances = 0;
-	for (const FRayTracingGeometryInstance& InstanceDesc : RayTracingScene.Instances)
-	{
-		SegmentPrefixSum.Add(NumTotalSegments);
-		InstancePrefixSum.Add(NumInstances);
-
-		check(InstanceDesc.GeometryRHI->GetNumSegments());
-
-		NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
-		NumInstances += InstanceDesc.NumTransforms;
-	}
+	const FRayTracingSceneInitializer2& SceneInitializer = RayTracingScene.GetRHIRayTracingSceneChecked()->GetInitializer();
 
 	for (const FRayTracingLocalShaderBindings& Binding : Bindings)
 	{
 		const uint32 InstanceIndex = Binding.InstanceIndex;
 		const uint32 SegmentIndex = Binding.SegmentIndex;
 
-		const uint32 HitGroupIndex = SegmentPrefixSum[InstanceIndex] + SegmentIndex;
+		const uint32 HitGroupIndex = SceneInitializer.SegmentPrefixSum[InstanceIndex] + SegmentIndex;
 
-		DstBasePtr[HitGroupIndex].BaseInstanceIndex = InstancePrefixSum[InstanceIndex];
+		DstBasePtr[HitGroupIndex].BaseInstanceIndex = SceneInitializer.BaseInstancePrefixSum[InstanceIndex];
 		DstBasePtr[HitGroupIndex].UserData = Binding.UserData;
 	}
 
@@ -98,7 +79,8 @@ void BuildHardwareRayTracingHitGroupData(FRHICommandList& RHICmdList, FRayTracin
 
 void FDeferredShadingSceneRenderer::SetupLumenHardwareRayTracingHitGroupBuffer(FViewInfo& View)
 {
-	const uint32 NumTotalSegments = FMath::Max(Scene->RayTracingScene.NumTotalSegments, 1u);
+	const FRayTracingSceneInitializer2& SceneInitializer = Scene->RayTracingScene.GetRHIRayTracingSceneChecked()->GetInitializer();
+	const uint32 NumTotalSegments = FMath::Max(SceneInitializer.NumTotalSegments, 1u);
 
 	const uint32 ElementCount = NumTotalSegments;
 	const uint32 ElementSize = sizeof(Lumen::FHitGroupRootConstants);
