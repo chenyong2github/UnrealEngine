@@ -566,8 +566,11 @@ namespace UnrealBuildTool
 				Rules.DefaultBuildSettings = DefaultBuildSettings.Value;
 			}
 
-			// Return the base target file name to the caller. This affects where the resulting build product is created so the platform/group is not desired in this case.
+			// The base target file name: this affects where the resulting build product is created so the platform/group is not desired in this case.
 			Rules.File = TargetNameToTargetFile[TargetInfo.Name];
+
+			// The platform/group-specific target file name
+			Rules.TargetSourceFile = TargetNameToTargetFile.TryGetValue(PlatformRulesName, out FileReference? PlatformTargetFile) ? PlatformTargetFile : Rules.File;
 
 			// Find the constructor
 			ConstructorInfo? Constructor = RulesType.GetConstructor(new Type[] { typeof(TargetInfo) });

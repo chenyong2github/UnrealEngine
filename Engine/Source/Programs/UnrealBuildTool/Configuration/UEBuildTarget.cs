@@ -2085,6 +2085,7 @@ namespace UnrealBuildTool
 
 			// Add all the input files to the predicate store
 			Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(TargetRulesFile));
+			Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(Rules.TargetSourceFile));
 			foreach(UEBuildModule Module in Modules.Values)
 			{
 				Makefile.ExternalDependencies.Add(FileItem.GetItemByFileReference(Module.RulesFile));
