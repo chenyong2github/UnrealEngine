@@ -14,6 +14,7 @@
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "../HairStrands/HairStrandsTileCommon.ush"
+#include "../ReductionCommon.ush"
 #include "PageAccessCommon.ush"
 #include "PageCacheCommon.ush"
 #include "PageOverlap.ush"
@@ -899,7 +900,8 @@ void SelectPagesToInitializeCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 	}
 }
 
-uint2 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
+
+uint2 GetTileOffset(uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
 {
 	const uint PageInputIndex = GroupIndex >> LOG2_TILES_PER_PAGE_1D;
 	const uint PageIndex = PageIndexBuffer[PageInputIndex];
@@ -911,6 +913,14 @@ uint2 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint>
 	uint2 PhysPageAddress = VSMPhysicalIndexToPageAddress(PageIndex);
 	// Pixel address of tile region for this thread group.
 	const uint2 TileOffset = (PhysPageAddress << uint2(VSM_LOG2_PAGE_SIZE, VSM_LOG2_PAGE_SIZE)) + (LocalTile << uint2(LOG2_TILE_SIZE_XY, LOG2_TILE_SIZE_XY));
+
+	return TileOffset;
+}
+
+uint2 GetTileBasePos(uint2 TileThreadID, uint GroupIndex, StructuredBuffer<uint> PageIndexBuffer)
+{
+	// Pixel address of tile region for this thread group.
+	const uint2 TileOffset = GetTileOffset(GroupIndex, PageIndexBuffer);
 	// Pixel address of 2x2 region to sample for this thread.
 	const uint2 BasePos = TileOffset + (TileThreadID.xy << 1u);
 
@@ -970,4 +980,228 @@ void MergeStaticPhysicalPagesIndirectCS(uint2 TileThreadID : SV_GroupThreadID, u
 	MergePhysicalPixel(BasePos + uint2(1U, 0U));
 	MergePhysicalPixel(BasePos + uint2(0U, 1U));
 	MergePhysicalPixel(BasePos + uint2(1U, 1U));
+}
+
+// Indirect HZB building:
+
+RWBuffer<uint> OutPagesForHZBIndirectArgsBuffer;
+RWStructuredBuffer<uint> OutPhysicalPagesForHZB;
+
+[numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
+void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
+{
+	if (PhysicalPageIndex >= VirtualShadowMap.MaxPhysicalPages)
+	{
+		return;
+	}
+
+	FPhysicalPageMetaData MetaData = PhysicalPageMetaData[PhysicalPageIndex];
+
+	if ((MetaData.Flags & VSM_ALLOCATED_FLAG) != 0)
+	{
+		int GroupCount = 0;
+		// Each page needs TILES_PER_PAGE_1D groups launched
+		WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0], TILES_PER_PAGE_1D, GroupCount);
+		OutPhysicalPagesForHZB[GroupCount >> LOG2_TILES_PER_PAGE_1D] = PhysicalPageIndex;
+
+		// Each top-reduction needs only one group launched
+		WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCount);
+	}
+}
+
+
+SamplerState PhysicalPagePoolSampler;
+Texture2D<uint> PhysicalPagePool;
+
+float4 Gather4VisZ(uint2 PixelCoord)
+{
+#if COMPILER_SUPPORTS_GATHER_UINT
+	// Offset to 2x2 footprint center and scale to UV space
+	float2 UV = float2(PixelCoord + uint2(1U, 1U)) * VirtualShadowMap.RecPhysicalPoolSize;
+	return asfloat(PhysicalPagePool.Gather(PhysicalPagePoolSampler, UV, 0));
+#else
+	uint4 PixelRect = uint4(PixelCoord.xy, PixelCoord.xy + uint2(1U, 1U));
+	uint4 UintDepths = uint4(
+		PhysicalPagePool[PixelRect.xw].r,	// (-, +)
+		PhysicalPagePool[PixelRect.zw].r,	// (+, +)
+		PhysicalPagePool[PixelRect.zy].r,	// (+, -)
+		PhysicalPagePool[PixelRect.xy].r	// (-, -)
+	);
+	return asfloat(UintDepths);
+#endif
+}
+
+StructuredBuffer<uint> PhysicalPagesForHzb;
+//                                         out                input               output   
+RWTexture2D<float> FurthestHZBOutput_0; // 64 // 1     Group: 32 (16 threads x2)  16
+RWTexture2D<float> FurthestHZBOutput_1; // 32 // 1            16                  8
+RWTexture2D<float> FurthestHZBOutput_2; // 16                 8                   4
+RWTexture2D<float> FurthestHZBOutput_3; // 8                  4                   2
+RWTexture2D<float> FurthestHZBOutput_4; // 4                  2                   1
+
+
+groupshared float SharedMinDeviceZ[TILE_THREAD_GROUP_SIZE_XY * TILE_THREAD_GROUP_SIZE_XY];
+groupshared float SharedMaxDeviceZ[TILE_THREAD_GROUP_SIZE_XY * TILE_THREAD_GROUP_SIZE_XY];
+
+#define DIM_FURTHEST 1
+#define DIM_CLOSEST 0
+
+void OutputMipLevel(uint MipLevel, uint2 OutputPixelPos, float FurthestDeviceZ, float ClosestDeviceZ)
+{
+#if DIM_FURTHEST
+#define COND_OUTPUT_LEVEL(_level_) \
+	if (MipLevel == _level_) \
+	{ \
+		FurthestHZBOutput_##_level_[OutputPixelPos] = FurthestDeviceZ; \
+		return; \
+	}
+#endif
+#if DIM_CLOSEST
+		ClosestHZBOutput_1[OutputPixelPos] = ClosestDeviceZ;
+#endif
+
+COND_OUTPUT_LEVEL(1)
+COND_OUTPUT_LEVEL(2)
+COND_OUTPUT_LEVEL(3)
+COND_OUTPUT_LEVEL(4)
+
+#undef COND_OUTPUT_LEVEL
+}
+
+[numthreads(TILE_THREAD_GROUP_SIZE_XY, TILE_THREAD_GROUP_SIZE_XY, 1)]
+void BuildHZBPerPageCS(uint GroupThreadIndex : SV_GroupIndex, uint GroupIndex : SV_GroupID)
+{
+	uint2 SrcTileOffset = GetTileOffset(GroupIndex, PhysicalPagesForHzb);
+
+	uint2 RemappedGroupThreadIndex = InitialTilePixelPositionForReduction2x2(LOG2_TILE_SIZE_XY - 1U, GroupThreadIndex);
+
+	uint2 SrcPos = SrcTileOffset + (RemappedGroupThreadIndex << uint2(1U, 1U));
+	// Sample 2x2 footprint - thread group covers 32x32 area
+	float4 DeviceZ = Gather4VisZ(SrcPos);
+	float MinDeviceZ = min(min3(DeviceZ.x, DeviceZ.y, DeviceZ.z), DeviceZ.w);
+
+	float MaxDeviceZ = 0.0f;//max(max3(DeviceZ.x, DeviceZ.y, DeviceZ.z), DeviceZ.w);
+	//uint LinearGroupThreadID = RemappedGroupThreadIndex.y << LOG2_TILE_THREAD_GROUP_SIZE_XY + RemappedGroupThreadIndex.x;
+	
+	// Broadcast to all threads (16x16).
+	SharedMinDeviceZ[GroupThreadIndex] = MinDeviceZ;
+	// Write base HZB level (half physical page size, e.g., 64x64) 
+	uint2 OutPixelPos = SrcPos >> 1U;
+	FurthestHZBOutput_0[OutPixelPos] = MinDeviceZ;
+
+	// Build next 4 levels: 32, 16, 8, 4
+	UNROLL
+	for (uint MipLevel = 1U; MipLevel < LOG2_TILE_SIZE_XY; ++MipLevel)
+	{
+		// 8x8, 4x4, 2x2, 1x1
+		const uint OutTileDim = uint(TILE_THREAD_GROUP_SIZE_XY) >> MipLevel;
+		const uint ReduceBankSize = OutTileDim * OutTileDim;
+			
+		// LDS has been written before.
+		GroupMemoryBarrierWithGroupSync();
+
+		BRANCH
+		if (GroupThreadIndex < ReduceBankSize)
+		{
+			float4 ParentMinDeviceZ;
+			//float4 ParentMaxDeviceZ;
+			ParentMinDeviceZ[0] = MinDeviceZ;
+			//ParentMaxDeviceZ[0] = MaxDeviceZ;
+
+			UNROLL
+			for (uint i = 1; i < 4; i++)
+			{
+				uint LDSIndex = GroupThreadIndex + i * ReduceBankSize;
+				ParentMinDeviceZ[i] = SharedMinDeviceZ[LDSIndex];
+				//ParentMaxDeviceZ[i] = SharedMaxDeviceZ[LDSIndex];
+			}
+				
+			MinDeviceZ = min(min3(ParentMinDeviceZ.x, ParentMinDeviceZ.y, ParentMinDeviceZ.z), ParentMinDeviceZ.w);
+			//MaxDeviceZ = max(max3(ParentMaxDeviceZ.x, ParentMaxDeviceZ.y, ParentMaxDeviceZ.z), ParentMaxDeviceZ.w);
+	
+			OutPixelPos = OutPixelPos >> 1;
+			OutputMipLevel(MipLevel, OutPixelPos, MinDeviceZ, MaxDeviceZ);
+				
+			SharedMinDeviceZ[GroupThreadIndex] = MinDeviceZ;
+			//SharedMaxDeviceZ[GroupThreadIndex] = MaxDeviceZ;
+		}
+	}
+}
+
+float4 Gather4(Texture2D Texture, SamplerState TextureSampler, uint2 SrcPos, float2 InvSize)
+{
+	float2 SrcUV = float2(SrcPos) * InvSize;
+#if COMPILER_GLSL || FEATURE_LEVEL < FEATURE_LEVEL_SM5
+	float2 HalfTexelOffset = float2(0.5f, 0.5f) * InvSize;
+
+	float4 Out;
+	Out.x = Texture.SampleLevel(TextureSampler, SrcUV + float2(-HalfTexelOffset.x, -HalfTexelOffset.y), 0 ).r;
+	Out.y = Texture.SampleLevel(TextureSampler, SrcUV + float2( HalfTexelOffset.x, -HalfTexelOffset.y), 0 ).r;
+	Out.z = Texture.SampleLevel(TextureSampler, SrcUV + float2(-HalfTexelOffset.x,  HalfTexelOffset.y), 0 ).r;
+	Out.w = Texture.SampleLevel(TextureSampler, SrcUV + float2( HalfTexelOffset.x,  HalfTexelOffset.y), 0 ).r;
+
+	return Out;
+#else
+	return Texture.GatherRed(TextureSampler, SrcUV, 0);
+#endif
+}
+
+
+Texture2D ParentTextureMip;
+SamplerState ParentTextureMipSampler;
+
+float2 InvHzbInputSize;
+
+#define TOP_MIP_TILE_SIZE_XY 4
+// Each fetches 2x2 using gather
+#define TOP_MIP_TILE_THREAD_GROUP_SIZE_XY (TOP_MIP_TILE_SIZE_XY/2)
+
+[numthreads(TOP_MIP_TILE_THREAD_GROUP_SIZE_XY, TOP_MIP_TILE_THREAD_GROUP_SIZE_XY, 1)]
+void BuildHZBPerPageTopCS(uint2 GroupThreadId : SV_GroupThreadID, uint PageInputIndex : SV_GroupID)
+{
+	const uint PageIndex = PhysicalPagesForHzb[PageInputIndex];
+	uint2 PhysPageAddress = VSMPhysicalIndexToPageAddress(PageIndex);
+	
+	// Pixel address of tile region for this thread group.
+	const uint2 SrcTileOffset = PhysPageAddress * uint2(TOP_MIP_TILE_SIZE_XY, TOP_MIP_TILE_SIZE_XY);
+
+	uint2 SrcPos = SrcTileOffset +  (GroupThreadId << uint2(1U, 1U));
+
+	// Sample 2x2 footprint - thread group covers 32x32 area
+	float4 DeviceZ = Gather4(ParentTextureMip, ParentTextureMipSampler, SrcPos + uint2(1U, 1U), InvHzbInputSize);
+	float MinDeviceZ = min(min3(DeviceZ.x, DeviceZ.y, DeviceZ.z), DeviceZ.w);
+
+	float MaxDeviceZ = 0.0f;//max(max3(DeviceZ.x, DeviceZ.y, DeviceZ.z), DeviceZ.w);
+	//uint LinearGroupThreadID = RemappedGroupThreadIndex.y << LOG2_TILE_THREAD_GROUP_SIZE_XY + RemappedGroupThreadIndex.x;
+	
+	// Broadcast to all threads.
+	SharedMinDeviceZ[GroupThreadId.y * TOP_MIP_TILE_THREAD_GROUP_SIZE_XY + GroupThreadId.x] = MinDeviceZ;
+	// Write first HZB output level (half size) 
+	uint2 OutPixelPos = SrcPos >> 1U;
+	FurthestHZBOutput_0[OutPixelPos] = MinDeviceZ;
+
+	// Build last level
+	GroupMemoryBarrierWithGroupSync();
+
+	BRANCH
+	if (all(GroupThreadId.xy == uint2(0U, 0U)))
+	{
+		float4 ParentMinDeviceZ;
+		//float4 ParentMaxDeviceZ;
+		ParentMinDeviceZ[0] = MinDeviceZ;
+		//ParentMaxDeviceZ[0] = MaxDeviceZ;
+
+		UNROLL
+		for (uint Index = 1; Index < 4; ++Index)
+		{
+			ParentMinDeviceZ[Index] = SharedMinDeviceZ[Index];
+			//ParentMaxDeviceZ[i] = SharedMaxDeviceZ[LDSIndex];
+		}
+				
+		MinDeviceZ = min(min3(ParentMinDeviceZ.x, ParentMinDeviceZ.y, ParentMinDeviceZ.z), ParentMinDeviceZ.w);
+		//MaxDeviceZ = max(max3(ParentMaxDeviceZ.x, ParentMaxDeviceZ.y, ParentMaxDeviceZ.z), ParentMaxDeviceZ.w);
+	
+		OutPixelPos = OutPixelPos >> 1;
+		FurthestHZBOutput_1[OutPixelPos] = MinDeviceZ;
+	}
 }

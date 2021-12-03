@@ -1918,20 +1918,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 			if (bVSMUseHZB)
 			{
-				FRDGTextureRef SceneDepth = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy );
-
-				// NOTE: 32-bit HZB is important to not lose precision (and thus culling efficiency) with
-				// some of the shadow depth functions.
-				BuildHZBFurthest(
-					GraphBuilder,
-					SceneDepth,
-					VirtualShadowMapArray.PhysicalPagePoolRDG,
-					VirtualShadowViewRect,
-					FeatureLevel,
-					ShaderPlatform,
-					TEXT("Shadow.Virtual.HZB"),
-					/* OutFurthestHZBTexture = */ &VirtualShadowMapArray.HZBPhysical,
-					PF_R32_FLOAT);
+				VirtualShadowMapArray.HZBPhysical = VirtualShadowMapArray.BuildHZBFurthest(GraphBuilder);
 			}
 		}
 	}
