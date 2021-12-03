@@ -208,9 +208,11 @@ void FNaniteDrawListContextDeferred::RegisterDeferredCommands(FScene& Scene)
 		{
 			uint32 InstructionCount = 0;
 #if WITH_DEBUG_VIEW_MODES
+
+			InstructionCount = Command.InstructionCount;
 #endif
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = Command.PrimitiveSceneInfo;
-			FNaniteCommandInfo CommandInfo = MaterialCommands.Register(Command.MeshDrawCommand, Command.CommandHash, Command.InstructionCount);
+			FNaniteCommandInfo CommandInfo = MaterialCommands.Register(Command.MeshDrawCommand, Command.CommandHash, InstructionCount);
 			AddCommandInfo(*PrimitiveSceneInfo, CommandInfo, (ENaniteMeshPass::Type)MeshPass, Command.SectionIndex);
 		}
 	}
