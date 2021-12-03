@@ -598,7 +598,26 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		PassSequence.Finalize();
 
-		bool bMotionBlurNeedsHalfResInput = PassSequence.IsEnabled(EPass::MotionBlur) && DoesMotionBlurNeedsHalfResInput();
+		const bool bLensFlareEnabled = bBloomEnabled && IsLensFlaresEnabled(View);
+		const bool bFFTBloomEnabled = bBloomEnabled && IsFFTBloomEnabled(View);
+
+		const bool bBasicEyeAdaptationEnabled = bEyeAdaptationEnabled && (AutoExposureMethod == EAutoExposureMethod::AEM_Basic);
+		const bool bLocalExposureBlurredLum = bLocalExposureEnabled && View.FinalPostProcessSettings.LocalExposureBlurredLuminanceBlend > 0.0f;
+
+		const bool bProcessQuarterResolution = IsPostProcessingQuarterResolutionDownsampleEnabled();
+		const bool bMotionBlurNeedsHalfResInput = PassSequence.IsEnabled(EPass::MotionBlur) && DoesMotionBlurNeedsHalfResInput();
+
+		const bool bIsFullResFFT = bFFTBloomEnabled && IsFFTBloomFullResolutionEnabled();
+		const bool bIsHalfResFFT = bFFTBloomEnabled && !IsFFTBloomFullResolutionEnabled() && !IsFFTBloomQuarterResolutionEnabled();
+		const bool bIsQuarterResFFT = bFFTBloomEnabled && IsFFTBloomQuarterResolutionEnabled();
+
+		const bool bProduceSceneColorChain = (
+			bBasicEyeAdaptationEnabled ||
+			(bBloomEnabled && !bFFTBloomEnabled) ||
+			(bLensFlareEnabled && bFFTBloomEnabled) ||
+			bLocalExposureBlurredLum);
+		const bool bNeedPostMotionBlurHalfRes = !bProcessQuarterResolution || bIsHalfResFFT;
+		const bool bNeedPostMotionBlurQuarterRes = bProcessQuarterResolution || bIsQuarterResFFT;
 
 		// Post Process Material Chain - Before Translucency
 		{
@@ -656,10 +675,11 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 		}
 
-		FScreenPassTexture DownsampledSceneColor;
-
 		// Scene color view rectangle after temporal AA upscale to secondary screen percentage.
 		FIntRect SecondaryViewRect = PrimaryViewRect;
+
+		FScreenPassTexture HalfResSceneColor;
+		FScreenPassTexture QuarterResSceneColor;
 
 		if (TAAConfig != EMainTAAPassConfig::Disabled)
 		{
@@ -668,9 +688,10 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			const bool bAllowSceneDownsample =
 				IsTemporalAASceneDownsampleAllowed(View) &&
 				// We can only merge if the normal downsample pass would happen immediately after.
+				bNeedPostMotionBlurHalfRes &&
 				!bMotionBlurEnabled && !bVisualizeMotionBlur &&
 				// TemporalAA is only able to match the low quality mode (box filter).
-				GetDownsampleQuality() == EDownsampleQuality::Low;
+				DownsampleQuality == EDownsampleQuality::Low;
 
 			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
 			check(UpscalerToUse);
@@ -702,8 +723,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				UpscalerPassInputs,
 				&SceneColor.Texture,
 				&SecondaryViewRect,
-				&DownsampledSceneColor.Texture,
-				&DownsampledSceneColor.ViewRect);
+				&HalfResSceneColor.Texture,
+				&HalfResSceneColor.ViewRect);
 		}
 		else if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View))
 		{
@@ -747,6 +768,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		{
 			FMotionBlurInputs PassInputs;
 			PassSequence.AcceptOverrideIfLastPass(EPass::MotionBlur, PassInputs.OverrideOutput);
+			PassInputs.bOutputHalfRes = bNeedPostMotionBlurHalfRes && DownsampleQuality == EDownsampleQuality::Low;
+			PassInputs.bOutputQuarterRes = bNeedPostMotionBlurQuarterRes && DownsampleQuality == EDownsampleQuality::Low;
 			PassInputs.SceneColor = SceneColor;
 			PassInputs.SceneDepth = SceneDepth;
 			PassInputs.SceneVelocity = Velocity;
@@ -761,7 +784,10 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 			else
 			{
-				SceneColor = AddMotionBlurPass(GraphBuilder, View, PassInputs);
+				FMotionBlurOutputs PassOutputs = AddMotionBlurPass(GraphBuilder, View, PassInputs);
+				SceneColor = PassOutputs.FullRes;
+				HalfResSceneColor = PassOutputs.HalfRes;
+				QuarterResSceneColor = PassOutputs.QuarterRes;
 			}
 		}
 		else
@@ -778,122 +804,127 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				/* bApplyModulateOnly = */ false);
 		}
 
-		SceneColor = AddAfterPass(EPass::MotionBlur, SceneColor);
-
-		// If TAA didn't do it, downsample the scene color texture by half.
-		if (!DownsampledSceneColor.IsValid())
 		{
-			FDownsamplePassInputs PassInputs;
-			PassInputs.Name = TEXT("HalfResolutionSceneColor");
-			PassInputs.SceneColor = SceneColor;
-			PassInputs.Quality = DownsampleQuality;
-			PassInputs.FormatOverride = DownsampleOverrideFormat;
-			PassInputs.UserSuppliedOutput = View.PrevViewInfo.HalfResTemporalAAHistory;
+			FScreenPassTexture NewSceneColor = AddAfterPass(EPass::MotionBlur, SceneColor);
 
-			DownsampledSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
+			// Invalidate half and quarter res.
+			if (NewSceneColor != SceneColor)
+			{
+				HalfResSceneColor = FScreenPassTexture();
+				QuarterResSceneColor = FScreenPassTexture();
+			}
+
+			SceneColor = NewSceneColor;
 		}
 
-		if (IsPostProcessingQuarterResolutionDownsampleEnabled())
+		// Generate post motion blur lower res scene color if they have not been generated.
 		{
-			FDownsamplePassInputs PassInputs;
-			PassInputs.Name = TEXT("QuarterResolutionSceneColor");
-			PassInputs.SceneColor = DownsampledSceneColor;
-			PassInputs.Quality = DownsampleQuality;
+			if ((bNeedPostMotionBlurHalfRes ||
+				(bNeedPostMotionBlurQuarterRes && !QuarterResSceneColor.IsValid())) && !HalfResSceneColor.IsValid())
+			{
+				FDownsamplePassInputs PassInputs;
+				PassInputs.Name = TEXT("PostProcessing.SceneColor.HalfRes");
+				PassInputs.SceneColor = SceneColor;
+				PassInputs.Quality = DownsampleQuality;
+				PassInputs.FormatOverride = DownsampleOverrideFormat;
+				PassInputs.UserSuppliedOutput = View.PrevViewInfo.HalfResTemporalAAHistory;
 
-			DownsampledSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
+				HalfResSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
+			}
+
+			if (bNeedPostMotionBlurQuarterRes && !QuarterResSceneColor.IsValid())
+			{
+				FDownsamplePassInputs PassInputs;
+				PassInputs.Name = TEXT("PostProcessing.SceneColor.QuarterRes");
+				PassInputs.SceneColor = HalfResSceneColor;
+				PassInputs.Quality = DownsampleQuality;
+
+				QuarterResSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
+			}
 		}
+
+
 
 		// Store half res scene color in the history
 		extern int32 GSSRHalfResSceneColor;
 		if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View) && !View.bStatePrevViewInfoIsReadOnly && GSSRHalfResSceneColor)
 		{
 			check(View.ViewState);
-			GraphBuilder.QueueTextureExtraction(DownsampledSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
+			GraphBuilder.QueueTextureExtraction(HalfResSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
 		}
 
 		if (bLocalExposureEnabled)
 		{
-			LocalExposureTexture = AddLocalExposurePass(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor);
+			LocalExposureTexture = AddLocalExposurePass(
+				GraphBuilder, View,
+				EyeAdaptationParameters,
+				bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor);
 		}
 
 		if (bHistogramEnabled)
 		{
-			HistogramTexture = AddHistogramPass(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, LastEyeAdaptationTexture);
+			HistogramTexture = AddHistogramPass(
+				GraphBuilder, View,
+				EyeAdaptationParameters,
+				bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor,
+				LastEyeAdaptationTexture);
 		}
 
-		const bool bFFTBloomEnabled = IsFFTBloomEnabled(View);
-		const bool bBasicEyeAdaptationEnabled = bEyeAdaptationEnabled && (AutoExposureMethod == EAutoExposureMethod::AEM_Basic);
-		const bool bLocalExposureBlurredLum = bLocalExposureEnabled && View.FinalPostProcessSettings.LocalExposureBlurredLuminanceBlend > 0.0f;
-
 		FSceneDownsampleChain SceneDownsampleChain;
-		if (bBasicEyeAdaptationEnabled || (bBloomEnabled && bFFTBloomEnabled) || bLocalExposureBlurredLum)
+		if (bProduceSceneColorChain)
 		{
 			const bool bLogLumaInAlpha = true;
-			SceneDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, DownsampleQuality, bLogLumaInAlpha);
+			SceneDownsampleChain.Init(
+				GraphBuilder, View,
+				EyeAdaptationParameters,
+				bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor,
+				DownsampleQuality,
+				bLogLumaInAlpha);
 		}
 
 		if (bLocalExposureBlurredLum)
 		{
-			LocalExposureBlurredLogLumTexture = AddLocalExposureBlurredLogLuminancePass(GraphBuilder, View, EyeAdaptationParameters, SceneDownsampleChain.GetTexture(4));
+			const uint32 BlurredLumMip = bProcessQuarterResolution ? 3 : 4;
+			LocalExposureBlurredLogLumTexture = AddLocalExposureBlurredLogLuminancePass(
+				GraphBuilder, View,
+				EyeAdaptationParameters, SceneDownsampleChain.GetTexture(BlurredLumMip));
 		}
 
 		if (bBasicEyeAdaptationEnabled)
 		{
 			// Use the alpha channel in the last downsample (smallest) to compute eye adaptations values.
-			EyeAdaptationTexture = AddBasicEyeAdaptationPass(GraphBuilder, View, EyeAdaptationParameters, SceneDownsampleChain.GetLastTexture(), LastEyeAdaptationTexture);
+			EyeAdaptationTexture = AddBasicEyeAdaptationPass(
+				GraphBuilder, View,
+				EyeAdaptationParameters,
+				SceneDownsampleChain.GetLastTexture(),
+				LastEyeAdaptationTexture);
 		}
 		// Add histogram eye adaptation pass even if no histogram exists to support the manual clamping mode.
 		else if (bEyeAdaptationEnabled)
 		{
-			EyeAdaptationTexture = AddHistogramEyeAdaptationPass(GraphBuilder, View, EyeAdaptationParameters, HistogramTexture);
+			EyeAdaptationTexture = AddHistogramEyeAdaptationPass(
+				GraphBuilder, View,
+				EyeAdaptationParameters,
+				HistogramTexture);
 		}
 
 		FBloomOutputs Bloom;
-
 		if (bBloomEnabled)
 		{
-			FSceneDownsampleChain BloomDownsampleChain;
-
-			const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f;
-
-			// Reuse the main scene downsample chain if a threshold isn't required for gaussian bloom.
-			const FSceneDownsampleChain* GaussianBloomSceneDownsampleChain;
-			if (SceneDownsampleChain.IsInitialized() && !bBloomThresholdEnabled)
-			{
-				GaussianBloomSceneDownsampleChain = &SceneDownsampleChain;
-			}
-			else
-			{
-				FScreenPassTexture DownsampleInput = DownsampledSceneColor;
-
-				if (bBloomThresholdEnabled)
-				{
-					const float BloomThreshold = View.FinalPostProcessSettings.BloomThreshold;
-
-					FBloomSetupInputs SetupPassInputs;
-					SetupPassInputs.SceneColor = DownsampleInput;
-					SetupPassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
-					SetupPassInputs.Threshold = BloomThreshold;
-
-					DownsampleInput = AddBloomSetupPass(GraphBuilder, View, SetupPassInputs);
-				}
-
-				const bool bLogLumaInAlpha = false;
-				BloomDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampleInput, DownsampleQuality, bLogLumaInAlpha);
-
-				GaussianBloomSceneDownsampleChain = &BloomDownsampleChain;
-			}
+			const FSceneDownsampleChain* LensFlareSceneDownsampleChain;
 
 			if (bFFTBloomEnabled)
 			{
+				LensFlareSceneDownsampleChain = &SceneDownsampleChain;
+
 				FScreenPassTexture HalfResolution;
 				if (IsFFTBloomQuarterResolutionEnabled())
 				{
-					HalfResolution = SceneDownsampleChain.GetTexture(1);
+					HalfResolution = QuarterResSceneColor;
 				}
 				else
 				{
-					HalfResolution = SceneDownsampleChain.GetFirstTexture();
+					HalfResolution = HalfResSceneColor;
 				}
 
 				FFFTBloomInputs PassInputs;
@@ -906,15 +937,43 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 			else
 			{
-				Bloom = AddGaussianBloomPasses(GraphBuilder, View, GaussianBloomSceneDownsampleChain);
+				FSceneDownsampleChain BloomDownsampleChain;
+
+				const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f;
+
+				// Reuse the main scene downsample chain if a threshold isn't required for gaussian bloom.
+				if (SceneDownsampleChain.IsInitialized() && !bBloomThresholdEnabled)
+				{
+					LensFlareSceneDownsampleChain = &SceneDownsampleChain;
+				}
+				else
+				{
+					FScreenPassTexture DownsampleInput = bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor;
+
+					if (bBloomThresholdEnabled)
+					{
+						const float BloomThreshold = View.FinalPostProcessSettings.BloomThreshold;
+
+						FBloomSetupInputs SetupPassInputs;
+						SetupPassInputs.SceneColor = DownsampleInput;
+						SetupPassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
+						SetupPassInputs.Threshold = BloomThreshold;
+
+						DownsampleInput = AddBloomSetupPass(GraphBuilder, View, SetupPassInputs);
+					}
+
+					const bool bLogLumaInAlpha = false;
+					BloomDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampleInput, DownsampleQuality, bLogLumaInAlpha);
+
+					LensFlareSceneDownsampleChain = &BloomDownsampleChain;
+				}
+
+				Bloom = AddGaussianBloomPasses(GraphBuilder, View, LensFlareSceneDownsampleChain);
 			}
 
-			FScreenPassTexture LensFlares = AddLensFlaresPass(GraphBuilder, View, Bloom.Bloom, *GaussianBloomSceneDownsampleChain);
-
-			if (LensFlares.IsValid())
+			if (bLensFlareEnabled)
 			{
-				// Lens flares are composited with bloom.
-				Bloom.Bloom = LensFlares;
+				Bloom.Bloom = AddLensFlaresPass(GraphBuilder, View, Bloom.Bloom, *LensFlareSceneDownsampleChain);
 			}
 		}
 

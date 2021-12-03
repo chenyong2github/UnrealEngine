@@ -57,7 +57,8 @@ struct FLensFlareInputs
 
 using FLensFlareOutputs = FScreenPassTexture;
 
-FLensFlareOutputs AddLensFlaresPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLensFlareInputs& Inputs);
+
+bool IsLensFlaresEnabled(const FViewInfo& View);
 
 // Helper function which pulls inputs from the post process settings of the view.
 FScreenPassTexture AddLensFlaresPass(

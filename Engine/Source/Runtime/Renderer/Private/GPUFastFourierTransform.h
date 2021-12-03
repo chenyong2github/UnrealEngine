@@ -67,6 +67,7 @@ namespace GPUFFT
 		FFT_XFORM_TYPE  XFormType = FFT_XFORM_TYPE::FORWARD_HORIZONTAL;
 		uint32 SignalLength = 0;
 		uint32 NumScanLines = 0;
+		ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute;
 	};
 
 	/**
@@ -280,6 +281,7 @@ namespace GPUFFT
 	*/
 	void ConvolutionWithTextureImage2D(
 		FRDGBuilder& GraphBuilder,
+		ERDGPassFlags ComputePassFlags,
 		const FGlobalShaderMap* ShaderMap,
 		const FIntPoint& FrequencySize,
 		bool bHorizontalFirst,
@@ -308,6 +310,7 @@ namespace GPUFFT
 	*/
 	void CopyImage2D(
 		FRDGBuilder& GraphBuilder,
+		ERDGPassFlags ComputePassFlags,
 		const FGlobalShaderMap* ShaderMap,
 		FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
 		FRDGTextureRef DstTexture, const FIntRect& DstWindow,

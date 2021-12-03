@@ -21,6 +21,11 @@ TAutoConsoleVariable<int32> CVarHalfResFFTBloom(
 	TEXT(" 2: Quarter-resolution convolution.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarAsynComputeFFTBloom(
+	TEXT("r.Bloom.AsyncCompute"), 0,
+	TEXT("Whether to run FFT bloom on async compute.\n"),
+	ECVF_RenderThreadSafe);
+
 static bool DoesPlatformSupportFFTBloom(EShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsFFTBloom(Platform);
@@ -191,9 +196,9 @@ IMPLEMENT_GLOBAL_SHADER(FBloomFinalizeApplyConstantsCS,     "/Engine/Private/Blo
 
 } //! namespace
 
-bool IsFFTBloomHalfResolutionEnabled()
+bool IsFFTBloomFullResolutionEnabled()
 {
-	return CVarHalfResFFTBloom.GetValueOnRenderThread() != 0;
+	return CVarHalfResFFTBloom.GetValueOnRenderThread() == 0;
 }
 
 bool IsFFTBloomQuarterResolutionEnabled()
@@ -283,6 +288,8 @@ struct FFFTBloomIntermediates
 	// The order of the two-dimensional transform.  This implicitly defines
 	// the data layout in transform space for both the kernel and image transform
 	bool bDoHorizontalFirst = false;
+
+	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute;
 };
 
 FFFTBloomIntermediates GetFFTBloomIntermediates(
@@ -319,7 +326,7 @@ FFFTBloomIntermediates GetFFTBloomIntermediates(
 		return FilterRadius;
 	};
 
-	const bool bHalfResolutionFFT = IsFFTBloomHalfResolutionEnabled();
+	const bool bHalfResolutionFFT = !IsFFTBloomFullResolutionEnabled();
 
 	FFFTBloomIntermediates Intermediates;
 	if (bHalfResolutionFFT)
@@ -367,6 +374,8 @@ FFFTBloomIntermediates GetFFTBloomIntermediates(
 	// Choose to do to transform in the direction that results in writing the least amount of data to main memory.
 
 	Intermediates.bDoHorizontalFirst = ((Intermediates.FrequencySize.Y * PaddedImageSize.X) > (Intermediates.FrequencySize.X * PaddedImageSize.Y));
+
+	Intermediates.ComputePassFlags = (GSupportsEfficientAsyncCompute && CVarAsynComputeFFTBloom.GetValueOnRenderThread() != 0) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
 
 	return Intermediates;
 }
@@ -452,6 +461,7 @@ void InitDomainAndGetKernel(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("FFTBloom FindKernelCenter %dx%d", SpatialKernelTexture->Desc.Extent.X, SpatialKernelTexture->Desc.Extent.Y),
+			Intermediates.ComputePassFlags,
 			ComputeShader,
 			PassParameters, 
 			FComputeShaderUtils::GetGroupCount(SpatialKernelTexture->Desc.Extent, 8));
@@ -500,6 +510,7 @@ void InitDomainAndGetKernel(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("FFTBloom ReduceKernelSurvey(Op=%d) %d", Op, SurveyGroupCount),
+				Intermediates.ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(SurveyGroupCount, 64));
@@ -524,6 +535,7 @@ void InitDomainAndGetKernel(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("FFTBloom SurveyMaxScatterDispersion"),
+				Intermediates.ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FIntVector(SurveyGroupGridSize, SurveyGroupGridSize, 1));
@@ -551,6 +563,7 @@ void InitDomainAndGetKernel(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("FFTBloom SurveyKernelCenterEnergy"),
+				Intermediates.ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FIntVector(SurveyGroupGridSize, SurveyGroupGridSize, 1));
@@ -594,6 +607,7 @@ void InitDomainAndGetKernel(
 				RDG_EVENT_NAME("FFTBloom SumScatterDispersionEnergy %dx%d -> %dx%d",
 					ScatterDispersionTexture->Desc.Extent.X, ScatterDispersionTexture->Desc.Extent.Y,
 					NewScatterDispersionTexture->Desc.Extent.X, NewScatterDispersionTexture->Desc.Extent.Y),
+				Intermediates.ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FIntVector(NewScatterDispersionTexture->Desc.Extent.X, NewScatterDispersionTexture->Desc.Extent.Y, 1));
@@ -620,6 +634,7 @@ void InitDomainAndGetKernel(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("FFTBloom PackKernelConstants"),
+			Intermediates.ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -654,6 +669,7 @@ void InitDomainAndGetKernel(
 				RDG_EVENT_NAME("FFTBloom ClampedKernel %dx%d",
 					SpatialKernelTexture->Desc.Extent.X,
 					SpatialKernelTexture->Desc.Extent.Y),
+				Intermediates.ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(SpatialKernelTexture->Desc.Extent, 8));
@@ -681,6 +697,7 @@ void InitDomainAndGetKernel(
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("FFTBloom PreProcessKernel %dx%d", Intermediates.FrequencySize.X, Intermediates.FrequencySize.Y),
+				Intermediates.ComputePassFlags,
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(PaddedFrequencySize, 8));
@@ -723,8 +740,6 @@ FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 	check(Inputs.HalfResolutionTexture);
 	check(!Inputs.HalfResolutionViewRect.IsEmpty());
 
-	const bool bHalfResolutionFFT = IsFFTBloomHalfResolutionEnabled();
-
 	FFFTBloomIntermediates Intermediates = GetFFTBloomIntermediates(View, Inputs);
 
 	RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom %dx%d", Intermediates.ImageRect.Width(), Intermediates.ImageRect.Height());
@@ -756,6 +771,7 @@ FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("FFTBloom FinalizeApplyConstants(ScatterDispersion=%f)", PassParameters->ScatterDispersionIntensity),
+			Intermediates.ComputePassFlags,
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -772,6 +788,7 @@ FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 	GPUFFT::ConvolutionWithTextureImage2D(
 		GraphBuilder,
+		Intermediates.ComputePassFlags,
 		View.ShaderMap,
 		Intermediates.FrequencySize,
 		Intermediates.bDoHorizontalFirst,

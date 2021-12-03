@@ -41,6 +41,9 @@ EMotionBlurFilter GetMotionBlurFilter();
 
 struct FMotionBlurInputs
 {
+	bool bOutputHalfRes = false;
+	bool bOutputQuarterRes = false;
+
 	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
 	FScreenPassRenderTarget OverrideOutput;
 
@@ -63,5 +66,12 @@ struct FMotionBlurInputs
 	EMotionBlurFilter Filter = EMotionBlurFilter::Separable;
 };
 
-FScreenPassTexture AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMotionBlurInputs& Inputs);
+struct FMotionBlurOutputs
+{
+	FScreenPassTexture FullRes;
+	FScreenPassTexture HalfRes;
+	FScreenPassTexture QuarterRes;
+};
+
+FMotionBlurOutputs AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMotionBlurInputs& Inputs);
 FScreenPassTexture AddVisualizeMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMotionBlurInputs& Inputs);
