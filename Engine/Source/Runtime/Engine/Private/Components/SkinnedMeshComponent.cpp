@@ -1484,7 +1484,7 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 	bool bIsRayTracing = FGPUSkinCache::IsGPUSkinCacheRayTracingSupported();
 	if (bIsRayTracing && SkeletalMesh)
 	{
-		bIsRayTracing = SkeletalMesh->GetSupportRayTracing();
+		bIsRayTracing = SkeletalMesh->bSupportRayTracing;
 	}
 
 	bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;

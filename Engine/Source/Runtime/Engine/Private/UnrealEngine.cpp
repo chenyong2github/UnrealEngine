@@ -7064,8 +7064,8 @@ bool UEngine::HandleSkeletalMeshReportCommand(const TCHAR* Cmd, FOutputDevice& A
 					ClothVertexBufferKB,
 					bSkinCachedLODEnabled ? TEXT("Y") : TEXT("N"),
 					*RecomputeTangentSections,
-					Mesh->GetSupportRayTracing() ? TEXT("Y") : TEXT("N"),
-					Mesh->GetRayTracingMinLOD());
+					Mesh->bSupportRayTracing ? TEXT("Y") : TEXT("N"),
+					Mesh->RayTracingMinLOD);
 			}
 		}
 
