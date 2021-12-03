@@ -693,6 +693,7 @@ class FSetupTraceFromProbesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWTraceProbesIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWSortProbeTraceTilesIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWRadianceCacheHardwareRayTracingIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWHardwareRayTracingRayAllocatorBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceTileAllocator)
 		SHADER_PARAMETER(uint32, SortTraceTilesGroupSize)
 	END_SHADER_PARAMETER_STRUCT()
@@ -1569,12 +1570,14 @@ void RenderRadianceCache(
 		FRDGBufferRef TraceProbesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(4), TEXT("Lumen.RadianceCache.TraceProbesIndirectArgs"));
 		FRDGBufferRef SortProbeTraceTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(5), TEXT("Lumen.RadianceCache.SortProbeTraceTilesIndirectArgs"));
 		FRDGBufferRef RadianceCacheHardwareRayTracingIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(6), TEXT("Lumen.RadianceCache.RadianceCacheHardwareRayTracingIndirectArgs"));
+		FRDGBufferRef HardwareRayTracingRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCache.HardwareRayTracing.RayAllocatorBuffer"));
 
 		{
 			FSetupTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupTraceFromProbesCS::FParameters>();
 			PassParameters->RWTraceProbesIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(TraceProbesIndirectArgs, PF_R32_UINT));
 			PassParameters->RWSortProbeTraceTilesIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(SortProbeTraceTilesIndirectArgs, PF_R32_UINT));
 			PassParameters->RWRadianceCacheHardwareRayTracingIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RadianceCacheHardwareRayTracingIndirectArgs, PF_R32_UINT));
+			PassParameters->RWHardwareRayTracingRayAllocatorBuffer = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(HardwareRayTracingRayAllocatorBuffer, PF_R32_UINT));
 			PassParameters->ProbeTraceTileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceTileAllocator, PF_R32_UINT));
 			PassParameters->SortTraceTilesGroupSize = FSortProbeTraceTilesCS::GetGroupSize();
 			auto ComputeShader = View.ShaderMap->GetShader<FSetupTraceFromProbesCS>(0);
@@ -1633,6 +1636,7 @@ void RenderRadianceCache(
 				ProbeTraceTileData,
 				ProbeTraceTileAllocator,
 				TraceProbesIndirectArgs,
+				HardwareRayTracingRayAllocatorBuffer,
 				RadianceCacheHardwareRayTracingIndirectArgs,
 				RadianceProbeAtlasTextureUAV,
 				DepthProbeTextureUAV

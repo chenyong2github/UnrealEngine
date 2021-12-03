@@ -5,6 +5,7 @@
 #include "../MortonCode.ush"
 #include "../SceneTextureParameters.ush"
 
+#include "../RayTracing/RayGenUtils.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenRadianceCacheTracingCommon.ush"
 #include "LumenCardCommon.ush"
@@ -14,20 +15,67 @@
 
 #define TEMP_ATLAS_TRACE_TILE_STRIDE 1024
 
-StructuredBuffer<uint> TileAllocator;
+struct FTraceTileResult
+{
+	float3 Radiance;
+	float HitDistance;
+};
+
+struct FTraceTileResultPacked
+{
+	uint PackedData[2];
+};
+
+FTraceTileResult CreateTraceTileResult(float3 Radiance, float3 HitDistance)
+{
+	FTraceTileResult TraceTileResult;
+	TraceTileResult.Radiance = Radiance;
+	TraceTileResult.HitDistance = HitDistance;
+
+	return TraceTileResult;
+}
+
+FTraceTileResultPacked PackTraceTileResult(FTraceTileResult TraceTileResult)
+{
+	FTraceTileResultPacked TraceTileResultPacked;
+	TraceTileResultPacked.PackedData[0] = f32tof16(TraceTileResult.Radiance.x) | (f32tof16(TraceTileResult.Radiance.y) << 16);
+	TraceTileResultPacked.PackedData[1] = f32tof16(TraceTileResult.Radiance.z) | (f32tof16(TraceTileResult.HitDistance) << 16);
+
+	return TraceTileResultPacked;
+}
+
+FTraceTileResult UnpackTraceTileResult(FTraceTileResultPacked TraceTileResultPacked)
+{
+	FTraceTileResult TraceTileResult;
+	TraceTileResult.Radiance.x = f16tof32(TraceTileResultPacked.PackedData[0]);
+	TraceTileResult.Radiance.y = f16tof32(TraceTileResultPacked.PackedData[0] >> 16);
+	TraceTileResult.Radiance.z = f16tof32(TraceTileResultPacked.PackedData[1]);
+	TraceTileResult.HitDistance = f16tof32(TraceTileResultPacked.PackedData[1] >> 16);
+
+	return TraceTileResult;
+}
+
+Buffer<uint> RayAllocatorBuffer;
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
 
 [numthreads(1, 1, 1)]
 void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 {
-	RWHardwareRayTracingIndirectArgs[0] = CARD_TILE_SIZE * CARD_TILE_SIZE;
-	RWHardwareRayTracingIndirectArgs[1] = TileAllocator[0];
-	RWHardwareRayTracingIndirectArgs[2] = 1;
+	uint NumRays = RayAllocatorBuffer[0];
+
+	int3 IndirectArgs = GetRayTracingThreadCountWrapped(NumRays, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
+	RWHardwareRayTracingIndirectArgs[0] = IndirectArgs.x;
+	RWHardwareRayTracingIndirectArgs[1] = IndirectArgs.y;
+	RWHardwareRayTracingIndirectArgs[2] = IndirectArgs.z;
 
 #if DIM_INLINE_RAYTRACING
 	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
 	// We need to adjust it to get the same number of threads running.
-	RWHardwareRayTracingIndirectArgs[0] /= INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+	uint NumGroups = (NumRays + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+	IndirectArgs = GetRayTracingThreadCountWrapped(NumGroups, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
+	RWHardwareRayTracingIndirectArgs[0] = IndirectArgs.x;
+	RWHardwareRayTracingIndirectArgs[1] = IndirectArgs.y;
+	RWHardwareRayTracingIndirectArgs[2] = IndirectArgs.z;
 #endif
 }
 
@@ -39,29 +87,98 @@ void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 #define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
 #endif
 
-RaytracingAccelerationStructure TLAS;
-RWTexture2D<float4> RWTraceTileRadianceAndHitDistanceTexture;
+#define LIGHTING_MODE_SURFACE_CACHE 0
+#define LIGHTING_MODE_HIT_LIGHTING 1
 
-uint PersistentTracingGroupCount;
+struct FRayId
+{
+	uint TraceTileIndex;
+	uint2 TexelCoord;
+};
+
+struct FRayIdPacked
+{
+	uint PackedData;
+};
+
+FRayId CreateRayId(uint TraceTileIndex, uint2 TexelCoord)
+{
+	FRayId RayId;
+	RayId.TraceTileIndex = TraceTileIndex;
+	RayId.TexelCoord = TexelCoord;
+
+	return RayId;
+}
+
+FRayIdPacked PackRayId(FRayId RayId)
+{
+	FRayIdPacked RayIdPacked;
+	RayIdPacked.PackedData = ((RayId.TraceTileIndex & 0x3FFFFFF) << 6)
+		| ((RayId.TexelCoord.x & 0x7) << 3)
+		| (RayId.TexelCoord.y & 0x7);
+
+	return RayIdPacked;
+}
+
+FRayId UnpackRayId(FRayIdPacked RayIdPacked)
+{
+	FRayId RayId;
+	RayId.TraceTileIndex = (RayIdPacked.PackedData >> 6) & 0x3FFFFFF;
+	RayId.TexelCoord.x = (RayIdPacked.PackedData >> 3) & 0x7;
+	RayId.TexelCoord.y = RayIdPacked.PackedData & 0x7;
+
+	return RayId;
+}
+
+RaytracingAccelerationStructure TLAS;
+
+StructuredBuffer<FTraceDataPacked> RetraceDataPackedBuffer;
+
+RWStructuredBuffer<FTraceTileResultPacked> RWTraceTileResultPackedBuffer;
+RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-void LumenRadianceCacheHardwareRayTracingCommon(uint2 DispatchThreadIndex)
+uint PersistentTracingGroupCount;
+float FarFieldMaxTraceDistance;
+float PullbackBias;
+int MaxTranslucentSkipCount;
+int ApplySkyLight;
+
+float3 FarFieldReferencePos;
+
+void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 {
-	uint2 GroupThreadId = uint2(DispatchThreadIndex.x % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, DispatchThreadIndex.x / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
+	uint TexelLinearCoord = ThreadIndex % RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+	uint LocalGroupIndex = ThreadIndex / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
 
 #if DIM_INDIRECT_DISPATCH
-	uint TraceTileIteration = 0;
+	uint Iteration = 0;
 #else
-	uint TraceTileIterationSize = (ProbeTraceTileAllocator[0] + PersistentTracingGroupCount - 1) / PersistentTracingGroupCount;
-	for (uint TraceTileIteration = 0; TraceTileIteration < TraceTileIterationSize; ++TraceTileIteration)
+	uint TileCount = RayAllocatorBuffer[0] / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+	uint IterationCount = (TileCount + PersistentTracingGroupCount - 1) / PersistentTracingGroupCount;
+	for (uint Iteration = 0; Iteration < IterationCount; ++Iteration)
 #endif
 	{
-		uint TraceTileGroupIndex = DispatchThreadIndex.y;
-		uint TraceTileIndex = TraceTileIteration * PersistentTracingGroupCount + TraceTileGroupIndex;
-		if (TraceTileIndex >= ProbeTraceTileAllocator[0])
+		uint GlobalGroupIndex = Iteration * PersistentTracingGroupCount + LocalGroupIndex;
+		uint RayIndex = GlobalGroupIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelLinearCoord;
+
+#if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
+		FTraceData TraceData = UnpackTraceData(RetraceDataPackedBuffer[RayIndex]);
+		FRayIdPacked RayIdPacked;
+		RayIdPacked.PackedData = TraceData.RayId;
+
+		FRayId RayId = UnpackRayId(RayIdPacked);
+		uint TraceTileIndex = RayId.TraceTileIndex;
+		uint2 TexelCoord = RayId.TexelCoord;
+
+#else
+		uint TraceTileIndex = GlobalGroupIndex;
+		uint2 TexelCoord = uint2(TexelLinearCoord % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, TexelLinearCoord / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
+#endif
+		if (RayIndex >= RayAllocatorBuffer[0])
 		{
 			return;
 		}
@@ -77,7 +194,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 		GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
 
 		uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
-		uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy;
+		uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + TexelCoord;
 
 		if (all(ProbeTexelCoord < TraceResolution))
 		{
@@ -104,39 +221,50 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 			const bool bCullBackFacingTriangles = false;
 			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, bCullBackFacingTriangles);
 
-			float3 SampleRadiance = 0.0;
-			float SampleHitDistance = MaxHalfFloat;
+			// Set far-field context specialization
+			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
+			Context.FarFieldReferencePos = FarFieldReferencePos;
+#if DIM_SPECULAR_OCCLUSION
+			Context.bAcceptFirstHitAndEndSearch = true;
+			Context.bSkipClosestHitShader = true;
+#endif // DIM_SPECULAR_OCCLUSION
 
 			FRayTracedLightingResult Result;
-			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
+#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 			{
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 				Context.HitGroupData = HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
+
 				Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 			}
-			#else
+#else
 			{
 				Result = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE);
 			}
-			#endif
-			SampleHitDistance = Result.TraceHitDistance;
-			SampleRadiance = Result.Radiance;
+#endif
 
-			// Apply environment contribution on miss
-			if (!Result.bIsHit)
+			if ((ApplySkyLight != 0) && !Result.bIsHit)
 			{
 				FConeTraceResult TraceResult = (FConeTraceResult)0;
 				TraceResult.Transparency = 1;
 				EvaluateSkyRadianceForCone(Ray.Direction, tan(ConeHalfAngle), TraceResult);
-				SampleRadiance = TraceResult.Lighting;
-				SampleHitDistance = MaxTraceDistance;
+				Result.Radiance = TraceResult.Lighting;
+				Result.TraceHitDistance = MaxTraceDistance;
 			}
 
-			uint2 WrappedTileCoord = uint2(TraceTileIndex % TEMP_ATLAS_TRACE_TILE_STRIDE, TraceTileIndex / TEMP_ATLAS_TRACE_TILE_STRIDE);
-			uint2 OutputIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId;
-			RWTraceTileRadianceAndHitDistanceTexture[OutputIndex] = float4(SampleRadiance, min(SampleHitDistance, MaxHalfFloat));
+			float SampleHitDistance = Result.TraceHitDistance;
+			float3 SampleRadiance = Result.Radiance;
+
+			// Write continuation data
+#if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
+			FRayIdPacked RayIdPacked = PackRayId(CreateRayId(TraceTileIndex, TexelCoord));
+			RWRetraceDataPackedBuffer[RayIndex] = PackTraceData(CreateTraceData(RayIdPacked.PackedData, Result.MaterialShaderIndex, Result.Bookmark, Result.TraceHitDistance, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
+#endif // DIM_LIGHTING_MODE
+
+			uint OutputIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + TexelCoord.x;
+			RWTraceTileResultPackedBuffer[OutputIndex] = PackTraceTileResult(CreateTraceTileResult(SampleRadiance, min(SampleHitDistance, MaxHalfFloat)));
 		}
 	}
 }
@@ -144,22 +272,38 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 
 [numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
-void LumenRadianceCacheHardwareRayTracingCS(uint2 DispatchThreadIndex : SV_DispatchThreadID)
+void LumenRadianceCacheHardwareRayTracingCS(
+	uint3 GroupId : SV_GroupID,
+	uint GroupIndex : SV_GroupIndex
+)
 {
-	LumenRadianceCacheHardwareRayTracingCommon(DispatchThreadIndex);
+#if DIM_INDIRECT_DISPATCH
+	uint GroupLinearIndex = GetUnWrappedRayTracingDispatchThreadId(GroupId, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
+#else
+	uint GroupCountX = RADIANCE_CACHE_TRACE_TILE_SIZE_1D / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+	uint GroupLinearIndex = GroupId.y * GroupCountX + GroupId.x;
+#endif
+	LumenRadianceCacheHardwareRayTracingCommon(GroupLinearIndex * INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X + GroupIndex);
 }
+
 #else // LUMEN_HARDWARE_RAYTRACING
 
 RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 {
-	LumenRadianceCacheHardwareRayTracingCommon(DispatchRaysIndex());
+#if DIM_INDIRECT_DISPATCH
+	uint ThreadIndex = GetUnWrappedRayTracingDispatchThreadId(DispatchRaysIndex(), RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
+#else
+	uint ThreadIndex = DispatchRaysIndex().y * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + DispatchRaysIndex().x;
+#endif
+	LumenRadianceCacheHardwareRayTracingCommon(ThreadIndex);
 }
+
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #endif // LUMEN_HARDWARE_RAYTRACING
 
-Texture2D<float4> RadianceAndHitDistanceTexture;
-uint2 RadianceAndHitDistanceTextureSize;
+uint TraceTileResultPackedBufferElementCount;
+StructuredBuffer<FTraceTileResultPacked> TraceTileResultPackedBuffer;
 
 
 [numthreads(RADIANCE_CACHE_TRACE_TILE_SIZE_2D, RADIANCE_CACHE_TRACE_TILE_SIZE_2D, 1)]
@@ -194,11 +338,11 @@ void SplatRadianceCacheIntoAtlasCS(
 		uint UpsampleFactor = RadianceProbeResolution / TraceResolution;
 		ProbeAtlasBaseCoord += (RADIANCE_CACHE_TRACE_TILE_SIZE_2D * TraceTileCoord + GroupThreadId.xy) * UpsampleFactor;
 
-		uint2 RadianceAndHitDistanceTextureIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy;
-		float4 Data = RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex];
-		float3 Lighting = Data.rgb;
+		uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + GroupThreadId.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.x;
+		FTraceTileResult TraceTileResult = UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]);
+		float3 Lighting = TraceTileResult.Radiance;
 
-		if (any(RadianceAndHitDistanceTextureIndex >= RadianceAndHitDistanceTextureSize))
+		if (TraceTileResultIndex >= TraceTileResultPackedBufferElementCount)
 		{
 			// Visual assert on overflow due to r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor
 			Lighting = float3(0, 10000, 0) * View.PreExposure;
@@ -212,7 +356,7 @@ void SplatRadianceCacheIntoAtlasCS(
 			}
 		}
 
-		float HitDistance = Data.a;
+		float HitDistance = TraceTileResult.HitDistance;
 
 		for (uint Y = 0; Y < UpsampleFactor; Y++)
 		for (uint X = 0; X < UpsampleFactor; X++)
@@ -233,10 +377,10 @@ void SplatRadianceCacheIntoAtlasCS(
 				for (uint Y = 0; Y < DownsampleFactor; Y++)
 				for (uint X = 0; X < DownsampleFactor; X++)
 				{
-					uint2 RadianceAndHitDistanceTextureIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy * DownsampleFactor + uint2(X, Y);
-					Lighting += RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex].rgb;
+					uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + GroupThreadId.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.x;
+					Lighting += UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]).Radiance;
 
-					if (any(RadianceAndHitDistanceTextureIndex >= RadianceAndHitDistanceTextureSize))
+					if (TraceTileResultIndex >= TraceTileResultPackedBufferElementCount)
 					{
 						// Visual assert on overflow due to r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor
 						Lighting += float3(0, 10000, 0) * View.PreExposure;
@@ -252,8 +396,8 @@ void SplatRadianceCacheIntoAtlasCS(
 			for (uint Y = 0; Y < DownsampleFactor; Y++)
 			for (uint X = 0; X < DownsampleFactor; X++)
 			{
-				uint2 RadianceAndHitDistanceTextureIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy * DownsampleFactor + uint2(X, Y);
-				HitDistance = min(HitDistance, RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex].a);
+				uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + GroupThreadId.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.x;
+				HitDistance += UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]).HitDistance;
 			}
 
 			RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord] = HitDistance;
