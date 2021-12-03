@@ -125,7 +125,6 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 	{
 		FCellNode()
 			: ChildNodesMask(0)
-			, ChildNodesLoadedMask(0)
 		{}
 
 		inline bool HasChildNodes() const
@@ -170,37 +169,7 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 			}
 		}
 
-		inline bool HasChildLoadedNodes() const
-		{
-			return !!ChildNodesLoadedMask;
-		}
-
-		inline bool HasChildLoadedNode(uint32 ChildIndex) const
-		{
-			check(ChildIndex < 8);
-			return !!(ChildNodesLoadedMask & (1 << ChildIndex));
-		}
-
-		inline void AddChildLoadedNode(uint32 ChildIndex)
-		{
-			check(ChildIndex < 8);
-			uint32 ChildMask = 1 << ChildIndex;
-			check(ChildNodesMask & ChildMask);
-			check(!(ChildNodesLoadedMask & ChildMask));
-			ChildNodesLoadedMask |= ChildMask;
-		}
-
-		inline void RemoveChildLoadedNode(uint32 ChildIndex)
-		{
-			check(ChildIndex < 8);
-			uint32 ChildMask = 1 << ChildIndex;
-			check(ChildNodesMask & ChildMask);
-			check(ChildNodesLoadedMask & ChildMask);
-			ChildNodesLoadedMask &= ~ChildMask;
-		}
-
 		uint8 ChildNodesMask;
-		uint8 ChildNodesLoadedMask;
 	};
 
 public:
@@ -220,9 +189,6 @@ public:
 	virtual void HashActor(FWorldPartitionHandle& InActorHandle) override;
 	virtual void UnhashActor(FWorldPartitionHandle& InActorHandle) override;
 
-	virtual void OnCellLoaded(const UWorldPartitionEditorCell* Cell) override;
-	virtual void OnCellUnloaded(const UWorldPartitionEditorCell* Cell) override;
-
 	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation) override;
 	virtual int32 ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) override;
 	virtual int32 ForEachCell(TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) override;
@@ -239,9 +205,6 @@ public:
 
 #if WITH_EDITORONLY_DATA
 private:
-	int32 ForEachIntersectingUnloadedRegion(const FBox& Box, TFunctionRef<void(const FCellCoord&)> InOperation);
-	int32 ForEachIntersectingUnloadedRegionInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(const FCellCoord&)> InOperation);
-
 	FBox GetActorBounds(const FWorldPartitionHandle& InActorHandle) const;
 	bool IsActorAlwaysLoaded(const FWorldPartitionHandle& InActorHandle) const;
 	int32 ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation);

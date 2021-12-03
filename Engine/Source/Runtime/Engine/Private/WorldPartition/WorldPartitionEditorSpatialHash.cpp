@@ -87,16 +87,7 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 						LevelCellCoord = LevelCellCoord.GetParentCellCoord();
 						const FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
 						check(CellNode.HasChildNode(ChildIndex));
-						check(CellNode.HasChildLoadedNode(ChildIndex));
 					}
-				}
-				else
-				{
-					FCellCoord LevelCellCoord = CellCoord;
-					const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
-					LevelCellCoord = LevelCellCoord.GetParentCellCoord();
-					const FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
-					check(!CellNode.HasChildLoadedNode(ChildIndex));
 				}
 			}
 		});
@@ -197,18 +188,6 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 			{
 				if (CurrentLevel ? HashNodes.Contains(CellCoord) : HashCells.Contains(CellCoord))
 				{
-					bool bSetLoadedMask;
-					if (CellCoord.Level)
-					{
-						FCellNode& ChildCellNode = HashNodes.FindChecked(CellCoord);
-						bSetLoadedMask = ChildCellNode.HasChildLoadedNodes();
-					}
-					else
-					{
-						UWorldPartitionEditorCell* EditorCell = HashCells.FindChecked(CellCoord);
-						bSetLoadedMask = EditorCell->IsLoaded();
-					}
-
 					FCellCoord LevelCellCoord = CellCoord;
 					while (LevelCellCoord.Level < NewLevel)
 					{
@@ -219,7 +198,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 						FCellNode& CellNode = HashNodes.FindOrAdd(LevelCellCoord);
 
 						// We can break updating when aggregated flags are already properly set for parent nodes
-						const bool bShouldBreak = CellNode.HasChildNodes() && (!bSetLoadedMask || CellNode.HasChildLoadedNodes());
+						const bool bShouldBreak = CellNode.HasChildNodes();
 
 						// Propagate the child mask
 						if (!CellNode.HasChildNode(ChildIndex))
@@ -227,12 +206,6 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 							CellNode.AddChildNode(ChildIndex);
 						}				
 				
-						// Propagate child loaded mask
-						if (bSetLoadedMask && !CellNode.HasChildLoadedNode(ChildIndex))
-						{
-							CellNode.AddChildLoadedNode(ChildIndex);
-						}
-
 						if (bShouldBreak)
 						{
 							break;
@@ -269,7 +242,6 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 				verify(HashCells.Remove(CellCoord));
 
 				bool bClearChildMask = true;
-				bool bClearLoadedMask = EditorCell->IsLoaded();
 
 				FCellCoord LevelCellCoord = CellCoord;
 				while (LevelCellCoord.Level < CurrentLevel)
@@ -279,16 +251,6 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 					LevelCellCoord = LevelCellCoord.GetParentCellCoord();
 
 					FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
-
-					if (bClearLoadedMask)
-					{
-						CellNode.RemoveChildLoadedNode(ChildIndex);
-
-						if (CellNode.HasChildLoadedNodes())
-						{
-							bClearLoadedMask = false;
-						}
-					}
 
 					if (bClearChildMask)
 					{
@@ -304,7 +266,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 						}
 					}
 
-					if (!bClearChildMask && !bClearLoadedMask)
+					if (!bClearChildMask)
 					{
 						break;
 					}
@@ -330,68 +292,6 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 	if (BackRefs.Num() != 0)
 	{
 		BackReferences.Remove(InActorHandle->GetGuid());
-	}
-}
-
-void UWorldPartitionEditorSpatialHash::OnCellLoaded(const UWorldPartitionEditorCell* Cell)
-{
-	if (Cell == AlwaysLoadedCell)
-	{
-		return;
-	}
-
-	check(Cell->IsLoaded());
-
-	const FCellCoord CellCoord = GetCellCoords(Cell->Bounds.GetCenter(), 0);
-	const int32 CurrentLevel = GetLevelForBox(Bounds);
-
-	FCellCoord LevelCellCoord = CellCoord;
-	while (LevelCellCoord.Level < CurrentLevel)
-	{
-		const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
-
-		LevelCellCoord = LevelCellCoord.GetParentCellCoord();
-
-		FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
-
-		check(!CellNode.HasChildLoadedNode(ChildIndex) || (CellCoord.Level != 1));
-
-		if (CellNode.HasChildLoadedNode(ChildIndex))
-		{
-			break;
-		}
-
-		CellNode.AddChildLoadedNode(ChildIndex);
-	}
-}
-
-void UWorldPartitionEditorSpatialHash::OnCellUnloaded(const UWorldPartitionEditorCell* Cell)
-{
-	if (Cell == AlwaysLoadedCell)
-	{
-		return;
-	}
-
-	check(!Cell->IsLoaded());
-
-	const FCellCoord CellCoord = GetCellCoords(Cell->Bounds.GetCenter(), 0);
-	const int32 CurrentLevel = GetLevelForBox(Bounds);
-
-	FCellCoord LevelCellCoord = CellCoord;
-	while (LevelCellCoord.Level < CurrentLevel)
-	{
-		const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
-
-		LevelCellCoord = LevelCellCoord.GetParentCellCoord();
-
-		FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
-
-		CellNode.RemoveChildLoadedNode(ChildIndex);
-
-		if (CellNode.HasChildLoadedNodes())
-		{
-			break;
-		}
 	}
 }
 
@@ -483,69 +383,6 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box,
 	ForEachIntersectingCells(Box, SearchLevel, [&](const FCellCoord& CellCoord)
 	{
 		NumIntersecting += ForEachIntersectingCellInner(Box, CellCoord, InOperation);
-	});
-
-	return NumIntersecting;
-}
-
-int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingUnloadedRegionInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(const FCellCoord&)> InOperation)
-{
-	int32 NumIntersecting = 0;
-
-	if (CellCoord.Level)
-	{
-		FCellNode CellNode;
-		if (FCellNode* CellNodePtr = HashNodes.Find(CellCoord))
-		{
-			CellNode = *CellNodePtr;
-
-			check(CellNode.HasChildNodes());
-
-			if (!CellNode.HasChildLoadedNodes())
-			{
-				InOperation(CellCoord);
-			}
-			else
-			{
-				CellNode.ForEachChild([&](uint32 ChildIndex)
-				{
-					const FCellCoord ChildCellCoord = CellCoord.GetChildCellCoord(ChildIndex);
-					const FBox CellBounds = GetCellBounds(ChildCellCoord);
-
-					if (Box.Intersect(CellBounds))
-					{
-						NumIntersecting += ForEachIntersectingUnloadedRegionInner(Box, ChildCellCoord, InOperation);
-					}
-				});
-			}
-		}
-	}
-	else
-	{
-		UWorldPartitionEditorCell* EditorCell = nullptr;
-		if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
-		{
-			if (!(*EditorCellPtr)->IsLoaded())
-			{
-				InOperation(CellCoord);
-				NumIntersecting++;
-			}			
-		}
-	}
-
-	return NumIntersecting;
-}
-
-int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingUnloadedRegion(const FBox& Box, TFunctionRef<void(const FCellCoord&)> InOperation)
-{
-	int32 NumIntersecting = 0;
-
-	const FBox SearchBox = Box.Overlap(Bounds);
-	const int32 SearchLevel = GetLevelForBox(SearchBox);
-
-	ForEachIntersectingCells(SearchBox, SearchLevel, [&](const FCellCoord& CellCoord)
-	{
-		NumIntersecting += ForEachIntersectingUnloadedRegionInner(Box, CellCoord, InOperation);
 	});
 
 	return NumIntersecting;

@@ -93,6 +93,11 @@ public:
 		return bLoadedChangedByUserOperation;
 	}
 
+	inline bool IsEmpty() const
+	{
+		return !Actors.Num();
+	}
+
 	FBox						Bounds;
 
 private:
