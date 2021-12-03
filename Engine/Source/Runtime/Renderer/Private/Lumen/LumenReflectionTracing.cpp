@@ -188,6 +188,7 @@ class FReflectionCompactTracesCS : public FGlobalShader
 		SHADER_PARAMETER(float, CompactionTracingEndDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionMaxTraceDistance)
 		SHADER_PARAMETER(float, RayTracingCullingRadius)
+		SHADER_PARAMETER(float, DitheredStartDistanceFactor)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTracingTileIndirectArgs)
@@ -382,6 +383,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
 		PassParameters->RayTracingCullingRadius = GetRayTracingCullingRadius();
+		PassParameters->DitheredStartDistanceFactor = Lumen::GetFarFieldDitheredStartDistanceFactor();
 		PassParameters->IndirectArgs = ReflectionCompactionIndirectArgs;
 
 		FReflectionCompactTracesCS::FPermutationDomain PermutationVector;

@@ -424,6 +424,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
+		SHADER_PARAMETER(float, FarFieldDitheredStartDistanceFactor)
 
 		// Output
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
@@ -628,6 +629,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+			PassParameters->FarFieldDitheredStartDistanceFactor = Lumen::GetFarFieldDitheredStartDistanceFactor();
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -801,6 +803,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -917,6 +920,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+			PassParameters->FarFieldDitheredStartDistanceFactor = 1.0;
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);

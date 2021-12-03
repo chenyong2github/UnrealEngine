@@ -217,6 +217,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 
 		SHADER_PARAMETER(float, FarFieldBias)
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
+		SHADER_PARAMETER(float, FarFieldDitheredStartDistanceFactor)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
@@ -483,6 +484,7 @@ void SetLumenHardwareRayTracingReflectionParameters(
 	Parameters->NearFieldLightingMode = static_cast<int>(Lumen::GetNearFieldLightingMode(View));
 	Parameters->FarFieldBias = LumenHardwareRayTracing::GetFarFieldBias();
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
+	Parameters->FarFieldDitheredStartDistanceFactor = UseFarFieldForReflections() ? Lumen::GetFarFieldDitheredStartDistanceFactor() : 1.0;
 	Parameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 	Parameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 	Parameters->MaxTranslucentSkipCount = CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();

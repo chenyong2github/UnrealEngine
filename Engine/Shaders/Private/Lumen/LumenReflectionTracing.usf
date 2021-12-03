@@ -197,6 +197,7 @@ RWBuffer<uint2> RWCompactedTraceTexelData;
 float CompactionTracingEndDistanceFromCamera;
 float CompactionMaxTraceDistance;
 float RayTracingCullingRadius;
+float DitheredStartDistanceFactor;
 
 groupshared uint SharedGlobalTraceTexelStartOffset;
 
@@ -254,7 +255,12 @@ void ReflectionCompactTracesCS(
 			float3 RayOrigin = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 			float3 RayDirection = RayData.Direction;
 
-			float2 RaySphereHit = RayIntersectSphere(RayOrigin, RayDirection, float4(View.WorldCameraOrigin, RayTracingCullingRadius));
+			// Dither culling sphere
+			float DitheredStartDistance = DitheredStartDistanceFactor * RayTracingCullingRadius;
+			const float Dither = InterleavedGradientNoise(ReflectionTracingCoord, View.StateFrameIndexMod8);
+			float DitheredRayTracingCullingRadius = lerp(DitheredStartDistance, RayTracingCullingRadius, Dither);
+
+			float2 RaySphereHit = RayIntersectSphere(RayOrigin, RayDirection, float4(View.WorldCameraOrigin, DitheredRayTracingCullingRadius));
 			bool bInsideCullingSphere = RaySphereHit.x < 0 && RaySphereHit.y > 0;
 			MaxTraceDistance = bInsideCullingSphere ? RaySphereHit.y : TraceHitDistance;
 #endif

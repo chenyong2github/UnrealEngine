@@ -436,6 +436,7 @@ uint VisualizeHiResSurface;
 uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 float3 FarFieldReferencePos;
+float FarFieldDitheredStartDistanceFactor;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 {
@@ -463,8 +464,11 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		HitLightingMode = LightingMode;
 #endif // DIM_TRACE_MODE
 
+		float DitheredStartDistance = FarFieldDitheredStartDistanceFactor * MaxTraceDistance;
+		float DitheredMaxTraceDistance = CalcDitheredDistance(TraceCoord, DitheredStartDistance, MaxTraceDistance);
+
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);
-		Ray.TMax = min(Ray.TMax, MaxTraceDistance);
+		Ray.TMax = min(Ray.TMax, DitheredMaxTraceDistance);
 #if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
 		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 		if (TraceData.bIsValidMeshCardIndex)

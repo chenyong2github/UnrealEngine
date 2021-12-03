@@ -124,6 +124,11 @@ static TAutoConsoleVariable<float> CVarLumenFarFieldMaxTraceDistance(
 	TEXT("Maximum hit-distance for Lumen far-field ray tracing (Default = 1.0e6)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarLumenFarFieldDitheredStartDistanceFactor(
+	TEXT("r.LumenScene.FarField.DitheredStartDistanceFactor"), 0.66f,
+	TEXT("Starting distance for far-field dithered t-min, as a percentage of near-field t-max (Default = 0.66f)."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
 	TEXT("r.LumenScene.FarField.ReferencePos.Z"),
 	100000.0f,
@@ -141,6 +146,11 @@ namespace Lumen
 	float GetFarFieldMaxTraceDistance()
 	{
 		return CVarLumenFarFieldMaxTraceDistance.GetValueOnRenderThread();
+	}
+
+	float GetFarFieldDitheredStartDistanceFactor()
+	{
+		return CVarLumenFarFieldDitheredStartDistanceFactor.GetValueOnRenderThread();
 	}
 
 	FVector GetFarFieldReferencePos() {
