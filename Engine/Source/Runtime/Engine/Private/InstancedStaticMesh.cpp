@@ -3465,9 +3465,11 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 	{
 		// This is an update.
 		const int32 InstanceId = UpdateInstanceIds[i];
-		int InstanceIndex = PerInstanceIds.Find(InstanceId);
-		if (InstanceIndex != INDEX_NONE)
+		int32* pInstanceIndex = InstanceIdToInstanceIndexMap.Find(InstanceId);
+		if (pInstanceIndex != nullptr)
 		{
+			const int32 InstanceIndex = *pInstanceIndex;
+
 			// Determine what data changed.
 
 			// Did the transform actually change?
@@ -3553,17 +3555,17 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 	{
 		if (OldInstanceIds[InstanceIndex] != INDEX_NONE)
 		{
-			PerInstanceSMData.RemoveAt(InstanceIndex, 1, false);
-			PerInstancePrevTransform.RemoveAt(InstanceIndex, 1, false);
-			PerInstanceIds.RemoveAt(InstanceIndex, 1, false);
+			PerInstanceSMData.RemoveAtSwap(InstanceIndex, 1, false);
+			PerInstancePrevTransform.RemoveAtSwap(InstanceIndex, 1, false);
+			PerInstanceIds.RemoveAtSwap(InstanceIndex, 1, false);
 
 			// Only remove the custom float data from this instance if it previously had it.
 			if (bPreviouslyHadCustomFloatData)
 			{
-				PerInstanceSMCustomData.RemoveAt((InstanceIndex * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
+				PerInstanceSMCustomData.RemoveAtSwap((InstanceIndex * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
 			}
 
-			OldInstanceIds.RemoveAt(InstanceIndex, 1, false);
+			OldInstanceIds.RemoveAtSwap(InstanceIndex, 1, false);
 			InstanceIndex--;
 		}
 	}
@@ -3583,6 +3585,13 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 				FMemory::Memcpy(&PerInstanceSMCustomData[Index], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
 			}
 		}
+	}
+
+	// Rebuild the mapping from ID to InstanceIndex.
+	InstanceIdToInstanceIndexMap.Reset();
+	for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceIds.Num(); ++InstanceIndex)
+	{
+		InstanceIdToInstanceIndexMap.Add(PerInstanceIds[InstanceIndex], InstanceIndex);
 	}
 
 	// Ensure our data is in sync.
@@ -3628,6 +3637,9 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 
 bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UInstancedStaticMeshComponent_BatchUpdateInstancesTransforms);
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms");
+
 	if (!PerInstanceSMData.IsValidIndex(StartInstanceIndex) || !PerInstanceSMData.IsValidIndex(StartInstanceIndex + NewInstancesTransforms.Num() - 1))
 	{
 		return false;

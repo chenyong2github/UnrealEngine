@@ -383,6 +383,12 @@ public:
 
 	TArray<int32> PerInstanceIds;
 
+	/** Used to cache a unique identifier for each instance.  These are provided
+	*	by the interface UpdateInstances.  This is a map from unique id to index
+	*	into the PerInstanceSMData array.
+	*/
+	TMap<int32, int32> InstanceIdToInstanceIndexMap;
+
 private:
 
 	/** Sets up new instance data to sensible defaults, creates physics counterparts if possible. */
