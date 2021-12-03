@@ -21,19 +21,164 @@ uint GPUSceneNumAllocatedPrimitives;
 
 void StoreInstanceSceneDataElement(uint InstanceId, uint ElementIndex, float4 DataElement)
 {
+	checkSlow(InstanceId < GPUSceneNumAllocatedInstances);
 	GPUSceneInstanceSceneDataRW[ElementIndex * GPUSceneInstanceSceneDataSOAStride + InstanceId] = DataElement;
+}
+
+void StoreInstanceSceneDataElementX(uint InstanceId, uint ElementIndex, float Data)
+{
+	// NOTE: Structured buffers allow for DWORD granularity storage, so you don't have to write the whole float4
+	checkSlow(InstanceId < GPUSceneNumAllocatedInstances);
+	GPUSceneInstanceSceneDataRW[ElementIndex * GPUSceneInstanceSceneDataSOAStride + InstanceId].x = Data;
+}
+
+void StoreInstancePayloadDataElement(uint PayloadDataOffset, uint ElementIndex, float4 DataElement)
+{
+	GPUSceneInstancePayloadDataRW[PayloadDataOffset + ElementIndex] = DataElement;
+}
+
+/**
+ * Helpers to load and store the primitive ID and flags for the specified instance, which are packed together
+ */
+void LoadInstancePrimitiveIdAndFlags(uint InstanceId, inout uint OutPrimitiveId, inout uint OutInstanceFlags)
+{
+	LoadInstancePrimitiveIdAndFlags(InstanceId, GPUSceneInstanceSceneDataSOAStride, OutPrimitiveId, OutInstanceFlags);
+}
+
+void WriteInstancePrimitiveIdAndFlags(uint InstanceId, uint PrimitiveId, uint InstanceFlags)
+{
+	const uint Packed0 = PackPrimitiveIdAndInstanceFlags(PrimitiveId, InstanceFlags);
+	StoreInstanceSceneDataElementX(InstanceId, 0, asfloat(Packed0));
 }
 
 /**
  * Store the contents of InstanceData.PrimitiveId to the GPUScene buffers. 
- * NOTE: As the granularity is float4 this also reads/stores other members that are co-located.
+ * NOTE: As the primitive ID is packed with the instance flags, the flags are loaded and re-stored
  */
 void WriteInstancePrimitiveId(uint InstanceId, uint NewPrimitiveId)
 {
-	float4 DataElement = LoadInstanceSceneDataElement(0 * GPUSceneInstanceSceneDataSOAStride + InstanceId);
-	const uint InstanceFlags = BitFieldExtractU32(asuint(DataElement.x),  12, 20); // Max of 12 instance flags
-	const uint Packed0 = (InstanceFlags << 20u) | NewPrimitiveId;
-	DataElement.x = asfloat(Packed0);
-	checkSlow(InstanceId < GPUSceneNumAllocatedInstances);
-	StoreInstanceSceneDataElement(InstanceId, 0, DataElement);
+	uint OldPrimitiveId, InstanceFlags;
+	LoadInstancePrimitiveIdAndFlags(InstanceId, OldPrimitiveId, InstanceFlags);
+	WriteInstancePrimitiveIdAndFlags(InstanceId, NewPrimitiveId, InstanceFlags);
 }
+
+/**
+ * Store the contents of InstanceData.LocalToWorld to the GPUScene buffers. Optionally, also calculates the determinant
+ * of the transform's rotation to set or unset the determinant sign flag on the instance flags
+ **/
+void WriteInstanceLocalToWorld(uint InstanceId, float4x4 LocalToWorld, bool StoreDeterminantSign)
+{
+#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+	uint4 RotationScale;
+	float3 Translation;
+	EncodeTransform(LocalToWorld, RotationScale, Translation);
+	StoreInstanceSceneDataElement(InstanceId, 1, asfloat(RotationScale));
+	StoreInstanceSceneDataElement(InstanceId, 2, float4(Translation, 0.0f));
+#else
+	LocalToWorld = transpose(LocalToWorld);
+	StoreInstanceSceneDataElement(InstanceId, 1, LocalToWorld[0]);
+	StoreInstanceSceneDataElement(InstanceId, 2, LocalToWorld[1]);
+	StoreInstanceSceneDataElement(InstanceId, 3, LocalToWorld[2]);
+#endif
+
+	// check to update the determinant sign flag on the instance flags as well
+	if (StoreDeterminantSign)
+	{
+		// Check to update the determinant sign flag on the instance flags
+		uint PrimitiveId, InstanceFlags;
+		LoadInstancePrimitiveIdAndFlags(InstanceId, PrimitiveId, InstanceFlags);
+		SetInstanceDeterminantSignFlag(determinant((float3x3)LocalToWorld), InstanceFlags);
+		WriteInstancePrimitiveIdAndFlags(InstanceId, PrimitiveId, InstanceFlags);
+	}
+}
+
+/**
+ * Initializes the instance scene data of the specified instance data slot.
+ * NOTE: This function must match FInstanceSceneShaderData::BuildInternal
+ **/
+ void InitializeInstanceSceneData(
+ 	uint InstanceId,
+ 	uint PrimitiveId,
+ 	uint InstanceRelativeId,
+ 	uint PayloadDataFlags,
+ 	uint CustomDataCount,
+ 	float RandomId,
+ 	float4x4 LocalToWorld)
+ {
+ 	uint InstanceFlags = PayloadDataFlags;
+ 	SetInstanceDeterminantSignFlag(determinant((float3x3)LocalToWorld), InstanceFlags);
+ 	
+ 	float4 Element0 =
+ 	{
+ 		asfloat(PackPrimitiveIdAndInstanceFlags(PrimitiveId, InstanceFlags)),
+ 		asfloat(PackInstanceRelativeIdAndCustomDataCount(InstanceRelativeId, CustomDataCount)),
+ 		asfloat(GetGPUSceneFrameNumber()),
+ 		RandomId
+	};
+ 	StoreInstanceSceneDataElement(InstanceId, 0, Element0);
+ 	WriteInstanceLocalToWorld(InstanceId, LocalToWorld, false);
+ }
+
+/**
+ * Helper for loading instance payload offsets for GPU writers (assumes global parameter for SOA stride)
+ **/
+ FInstancePayloadDataOffsets GetInstancePayloadDataOffsets(uint InstanceId)
+{
+	uint PrimitiveId, InstanceFlags, InstanceRelativeId, CustomDataCount;
+	LoadInstancePrimitiveIdAndFlags(InstanceId, GPUSceneInstanceSceneDataSOAStride, PrimitiveId, InstanceFlags);
+	LoadInstanceRelativeIdAndCustomDataCount(InstanceId, GPUSceneInstanceSceneDataSOAStride, InstanceRelativeId, CustomDataCount);
+	return GetInstancePayloadDataOffsets(PrimitiveId, InstanceFlags, InstanceRelativeId);
+}
+
+/**
+ * Store the data for dynamic instances to the GPUScene sidecar payload buffer.
+ **/
+void WriteInstanceDynamicData(FInstancePayloadDataOffsets PayloadOffsets, float4x4 PrevLocalToWorld)
+{	
+	BRANCH
+	if (PayloadOffsets.DynamicData == INVALID_INSTANCE_PAYLOAD_OFFSET)
+	{
+		// Instance doesn't have dynamic data
+		return;
+	}
+
+#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+	uint4 RotationScale;
+	float3 Translation;
+	EncodeTransform(PrevLocalToWorld, RotationScale, Translation);
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 0, asfloat(RotationScale));
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 1, float4(Translation, 0.0f));
+#else
+	PrevLocalToWorld = transpose(PrevLocalToWorld);
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 0, PrevLocalToWorld[0]);
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 1, PrevLocalToWorld[1]);
+	StoreInstancePayloadDataElement(PayloadOffsets.DynamicData, 2, PrevLocalToWorld[2]);
+#endif
+}
+
+void WriteInstanceDynamicData(uint InstanceId, float4x4 PrevLocalToWorld)
+{
+	FInstancePayloadDataOffsets PayloadOffsets = GetInstancePayloadDataOffsets(InstanceId);
+	WriteInstanceDynamicData(PayloadOffsets, PrevLocalToWorld);
+}
+
+/**
+ * Stores a float4 element of custom data for the given instance
+ */
+ void WriteInstanceCustomData(FInstancePayloadDataOffsets PayloadOffsets, uint ElementIndex, float4 ElementData)
+ {
+ 	BRANCH
+ 	if (PayloadOffsets.CustomData == INVALID_INSTANCE_PAYLOAD_OFFSET)
+ 	{
+		// Instance has no custom data
+ 		return;
+ 	}
+
+ 	StoreInstancePayloadDataElement(PayloadOffsets.CustomData, ElementIndex, ElementData);
+ }
+
+ void WriteInstanceCustomData(uint InstanceId, uint ElementIndex, float4 ElementData)
+ {
+	FInstancePayloadDataOffsets PayloadOffsets = GetInstancePayloadDataOffsets(InstanceId);
+ 	WriteInstanceCustomData(PayloadOffsets, ElementIndex, ElementData);
+ }

@@ -291,11 +291,17 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 		for (int32 Index = 0; Index < MeshBatch.Elements.Num(); ++Index)
 		{
 			const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource = MeshBatch.Elements[Index].PrimitiveUniformBufferResource;
-
 			if (PrimitiveUniformBufferResource)
 			{
-				MeshBatch.Elements[Index].PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
-				MeshBatch.Elements[Index].DynamicPrimitiveShaderDataIndex = DynamicPrimitiveCollectorPerView[ViewIndex]->Add(reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()), 1);;
+				FMeshBatchElement& Element = MeshBatch.Elements[Index];
+
+				Element.PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
+				DynamicPrimitiveCollectorPerView[ViewIndex]->Add(
+					Element.DynamicPrimitiveData,
+					*reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()),
+					Element.NumInstances,
+					Element.DynamicPrimitiveIndex,
+					Element.DynamicPrimitiveInstanceSceneDataOffset);
 			}
 		}
 	}
