@@ -411,6 +411,17 @@ public:
 		}
 	}
 
+	FString DebugGetStringDesc() const
+	{
+#if WITH_STRUCTUTILS_DEBUG
+		FStringOutputDevice Ar;
+		DebugGetStringDesc(Ar);
+		return static_cast<FString>(Ar);
+#else
+		return TEXT("DEBUG INFO COMPILED OUT");
+#endif //WITH_STRUCTUTILS_DEBUG
+	}
+
 #if WITH_STRUCTUTILS_DEBUG
 	void DebugGetStringDesc(FOutputDevice& Ar) const
 	{
