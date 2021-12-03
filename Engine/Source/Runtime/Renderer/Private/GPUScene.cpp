@@ -99,12 +99,19 @@ static TAutoConsoleVariable<float> CVarGPUSceneDebugDrawRange(
 	ECVF_RenderThreadSafe
 );
 
-
 static int32 GGPUSceneAllowDeferredAllocatorMerges = 1;
 FAutoConsoleVariableRef CVarGPUSceneAllowDeferredAllocatorMerges(
 	TEXT("r.GPUScene.AllowDeferredAllocatorMerges"),
 	GGPUSceneAllowDeferredAllocatorMerges,
 	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GGPUSceneInstanceUploadViaCreate = 1;
+FAutoConsoleVariableRef CVarGPUSceneInstanceUploadViaCreate(
+	TEXT("r.GPUScene.InstanceUploadViaCreate"),
+	GGPUSceneInstanceUploadViaCreate,
+	TEXT("When uploading GPUScene InstanceData, upload via resource creation when the RHI supports it efficiently."),
 	ECVF_RenderThreadSafe
 );
 
@@ -1083,6 +1090,10 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		{
 			SCOPED_NAMED_EVENT(STAT_UpdateGPUScenePrimitives, FColor::Green);
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateGPUScenePrimitives);
+
+			const bool bShouldUploadViaCreate = GRHISupportsEfficientUploadOnResourceCreation && GGPUSceneInstanceUploadViaCreate != 0;
+			PrimitiveUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
+			InstanceSceneUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
 
 			FUAVTransitionStateScopeHelper PrimitiveDataTransitionHelper(RHICmdList, BufferState.PrimitiveBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
 
