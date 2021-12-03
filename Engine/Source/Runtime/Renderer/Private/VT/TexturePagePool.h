@@ -230,6 +230,7 @@ private:
 	FBinaryHeap<uint32, uint16> FreeHeap;
 
 	FHashTable PageHash;
+	FHashTable ProducerToPageIndex;
 	TArray<FPageEntry> Pages;
 
 	// Holds linked lists of mappings for each  physical page in the pool
