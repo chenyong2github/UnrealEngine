@@ -238,7 +238,8 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 
 	uint32 PackedData[4];
 	PackedData[0] = MeshCards.FirstCardIndex;
-	PackedData[1] = MeshCards.NumCards;
+	PackedData[1] = MeshCards.NumCards & 0xFFFF;
+	PackedData[1] |= MeshCards.bLandscape ? 0x10000 : 0;
 	PackedData[2] = MeshCards.CardLookup[0];
 	PackedData[3] = MeshCards.CardLookup[1];
 	OutData[6] = *(FVector4f*)&PackedData;
@@ -498,6 +499,42 @@ public:
 	float InstanceCardAreaPerDirection[Lumen::NumAxisAlignedDirections];
 };
 
+void BuildMeshCardsDataForHeightfield(const FLumenPrimitiveGroup& PrimitiveGroup, FMeshCardsBuildData& MeshCardsBuildData, FMatrix& MeshCardsLocalToWorld)
+{
+	const FPrimitiveSceneProxy* Proxy = PrimitiveGroup.Primitives[0]->Proxy;
+
+	MeshCardsLocalToWorld = Proxy->GetLocalToWorld();
+
+	MeshCardsBuildData.MaxLODLevel = 0;
+	MeshCardsBuildData.Bounds.Init();
+
+	// Make sure BBox isn't empty and we can generate card representation for it. This handles e.g. infinitely thin planes.
+	const FBox LocalBBox = Proxy->GetLocalBounds().GetBox();
+	const FVector SafeCenter = LocalBBox.GetCenter();
+	const FVector SafeExtent = FVector::Max(LocalBBox.GetExtent() + 1.0f, FVector(5.0f));
+	const FBox SafeMergedBounds = FBox(SafeCenter - SafeExtent, SafeCenter + SafeExtent);
+
+	MeshCardsBuildData.Bounds = SafeMergedBounds;
+	MeshCardsBuildData.CardBuildData.SetNum(1);
+
+	{
+		FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[0];
+
+		// Set rotation
+		uint32 AxisAlignedDirectionIndex = 5;
+		CardBuildData.OBB.AxisZ = LumenMeshCards::GetAxisAlignedDirection(AxisAlignedDirectionIndex);
+		CardBuildData.OBB.AxisZ.FindBestAxisVectors(CardBuildData.OBB.AxisX, CardBuildData.OBB.AxisY);
+		CardBuildData.OBB.AxisX = FVector::CrossProduct(CardBuildData.OBB.AxisZ, CardBuildData.OBB.AxisY);
+		CardBuildData.OBB.AxisX.Normalize();
+
+		CardBuildData.OBB.Origin = SafeMergedBounds.GetCenter();
+		CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard(SafeMergedBounds.GetExtent() + FVector(1.0f)).GetAbs();
+
+		CardBuildData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
+		CardBuildData.LODLevel = 0;
+	}
+}
+
 void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveGroup, FMeshCardsBuildData& MeshCardsBuildData, FMatrix& MeshCardsLocalToWorld)
 {
 	MeshCardsLocalToWorld.SetIdentity();
@@ -619,10 +656,18 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 
 	if (PrimitiveGroup.MeshCardsIndex < 0)
 	{
-		const bool bMergeInstances = PrimitiveGroup.HasMergedInstances();
-
-		if (bMergeInstances)
+		if (PrimitiveGroup.bLandscape)
 		{
+			// Landscape component handling
+			FMatrix LocalToWorld;
+			FMeshCardsBuildData MeshCardsBuildData;
+			BuildMeshCardsDataForHeightfield(PrimitiveGroup, MeshCardsBuildData, LocalToWorld);
+
+			PrimitiveGroup.MeshCardsIndex = AddMeshCardsFromBuildData(PrimitiveGroupIndex, LocalToWorld, MeshCardsBuildData, PrimitiveGroup.CardResolutionScale);
+		}
+		else if (PrimitiveGroup.HasMergedInstances())
+		{
+			// Multiple meshes merged together
 			FMatrix LocalToWorld;
 			FMeshCardsBuildData MeshCardsBuildData;
 			BuildMeshCardsDataForMergedInstances(PrimitiveGroup, MeshCardsBuildData, LocalToWorld);
@@ -631,6 +676,7 @@ void FLumenSceneData::AddMeshCards(int32 PrimitiveGroupIndex)
 		}
 		else
 		{
+			// Single mesh
 			ensure(PrimitiveGroup.Primitives.Num() == 1);
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveGroup.Primitives[0];
 
@@ -739,7 +785,8 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 				PrimitiveGroupIndex,
 				FirstCardIndex,
 				NumCards,
-				PrimitiveGroup.bFarField);
+				PrimitiveGroup.bFarField,
+				PrimitiveGroup.bLandscape);
 
 			MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
 

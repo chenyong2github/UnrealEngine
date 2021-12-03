@@ -516,7 +516,7 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 
 	bool bCanBeTraced = false;
 	if (DoesProjectSupportDistanceFields() 
-		&& Proxy->SupportsDistanceFieldRepresentation() 
+		&& (Proxy->SupportsDistanceFieldRepresentation() || Proxy->SupportsHeightfieldRepresentation())
 		&& (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow()))
 	{
 		bCanBeTraced = true;
@@ -753,6 +753,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.MeshCardsIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
+						PrimitiveGroup.bLandscape = false;
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}
@@ -807,6 +808,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.MeshCardsIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
+								PrimitiveGroup.bLandscape = false;
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 
@@ -844,6 +846,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								PrimitiveGroup.MeshCardsIndex = -1;
 								PrimitiveGroup.bValidMeshCards = true;
 								PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
+								PrimitiveGroup.bLandscape = false;
 								PrimitiveGroup.Primitives.Reset();
 								PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 							}
@@ -861,6 +864,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						PrimitiveGroup.MeshCardsIndex = -1;
 						PrimitiveGroup.bValidMeshCards = true;
 						PrimitiveGroup.bFarField = ScenePrimitiveInfo->Proxy->IsRayTracingFarField();
+						PrimitiveGroup.bLandscape = ScenePrimitiveInfo->Proxy->SupportsHeightfieldRepresentation();
 						PrimitiveGroup.Primitives.Reset();
 						PrimitiveGroup.Primitives.Add(ScenePrimitiveInfo);
 					}

@@ -55,6 +55,8 @@ class FLumenCardRenderer
 public:
 	TArray<FCardPageRenderData, SceneRenderingAllocator> CardPagesToRender;
 
+	TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> LandscapePrimitivesInRange;
+
 	int32 NumCardTexelsToCapture;
 	FMeshCommandOneFrameArray MeshDrawCommands;
 	TArray<int32, SceneRenderingAllocator> MeshDrawPrimitiveIds;

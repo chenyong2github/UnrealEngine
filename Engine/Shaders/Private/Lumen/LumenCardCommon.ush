@@ -171,6 +171,8 @@ struct FLumenMeshCardsData
 	uint NumCards;
 	uint CardOffset;
 
+	bool bLandscape;
+
 	uint CardLookup[6];
 };
 
@@ -194,7 +196,8 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 	uint4 V3 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 6]);
 	uint4 V4 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 7]);
 	MeshCardsData.CardOffset = V3.x;
-	MeshCardsData.NumCards = V3.y;
+	MeshCardsData.NumCards = V3.y & 0xFFFF;
+	MeshCardsData.bLandscape = V3.y & 0x10000 ? true : false;
 	MeshCardsData.CardLookup[0] = V3.z;
 	MeshCardsData.CardLookup[1] = V3.w;
 	MeshCardsData.CardLookup[2] = V4.x;

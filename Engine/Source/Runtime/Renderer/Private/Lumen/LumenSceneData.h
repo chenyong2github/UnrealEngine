@@ -192,6 +192,7 @@ public:
 
 	bool bValidMeshCards = false;
 	bool bFarField = false;
+	bool bLandscape = false;
 
 	bool HasMergedInstances() const;
 
@@ -394,6 +395,9 @@ public:
 	TSparseElementArray<FLumenPrimitiveGroup> PrimitiveGroups;
 	// Maps RayTracingGroupId to a specific Primitive Group Index
 	Experimental::TRobinHoodHashMap<int32, int32> RayTracingGroups;
+
+	// List of landscape primitive added to the Lumen scene
+	TArray<const FPrimitiveSceneInfo*> LandscapePrimitives;
 
 	// Mesh Cards
 	FUniqueIndexList MeshCardsIndicesToUpdateInBuffer;
