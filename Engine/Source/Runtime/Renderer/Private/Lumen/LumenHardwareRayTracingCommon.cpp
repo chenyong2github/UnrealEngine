@@ -45,7 +45,7 @@ bool Lumen::UseHardwareRayTracing()
 bool Lumen::UseHardwareInlineRayTracing()
 {
 #if RHI_RAYTRACING
-	return (Lumen::UseHardwareRayTracing() && CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0);
+	return (Lumen::UseHardwareRayTracing() && CVarLumenUseHardwareRayTracingInline.GetValueOnRenderThread() != 0 && GRHISupportsInlineRayTracing);
 #else
 	return false;
 #endif

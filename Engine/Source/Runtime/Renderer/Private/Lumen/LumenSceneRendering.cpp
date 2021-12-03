@@ -320,22 +320,7 @@ namespace Lumen
 			return false;
 		}
 
-#if RHI_RAYTRACING
-		if (GAllowLumenDiffuseIndirect != 0
-			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
-			&& (UseHardwareInlineRayTracedRadianceCache()))
-		{
-			return true;
-		}
-
-		if (GAllowLumenReflections != 0
-			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
-			&& UseHardwareInlineRayTracedReflections())
-		{
-			return true;
-		}
-#endif // RHI_RAYTRACING
-		return false;
+		return Lumen::UseHardwareInlineRayTracing();
 	}
 }
 

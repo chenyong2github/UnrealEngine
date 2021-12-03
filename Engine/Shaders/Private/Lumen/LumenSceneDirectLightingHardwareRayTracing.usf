@@ -13,9 +13,13 @@
 #define LUMEN_HARDWARE_RAYTRACING 0
 #endif // LUMEN_HARDWARE_RAYTRACING
 
-#if LUMEN_HARDWARE_RAYTRACING
+#ifndef LUMEN_HARDWARE_INLINE_RAYTRACING
+#define LUMEN_HARDWARE_INLINE_RAYTRACING 0
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
+#if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 #include "LumenHardwareRayTracingCommon.ush"
-#endif // LUMEN_HARDWARE_RAYTRACING
+#endif // LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #include "LumenCardTile.ush"
 #define SUPPORT_CONTACT_SHADOWS 0
@@ -31,9 +35,16 @@ void FLumenDirectLightingHardwareRayTracingIndirectArgsCS()
 	RWHardwareRayTracingIndirectArgs[0] = CARD_TILE_SIZE * CARD_TILE_SIZE;
 	RWHardwareRayTracingIndirectArgs[1] = CardTileAllocator[0];
 	RWHardwareRayTracingIndirectArgs[2] = 1;
+
+#if DIM_INLINE_RAYTRACING
+	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
+	// We need to adjust it to get the same number of threads running.
+	RWHardwareRayTracingIndirectArgs[0] = (RWHardwareRayTracingIndirectArgs[0] + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+	RWHardwareRayTracingIndirectArgs[1] = (RWHardwareRayTracingIndirectArgs[1] + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y;
+#endif
 }
 
-#if LUMEN_HARDWARE_RAYTRACING
+#if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
 RaytracingAccelerationStructure TLAS;
 
@@ -56,14 +67,18 @@ StructuredBuffer<uint> CardTileData;
 uint MaxCardTilesPerScatterInstance;
 uint CardScatterInstanceIndex;
 
-RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
+LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 {
-	uint2 CoordInCardTile = uint2(DispatchRaysIndex().x % CARD_TILE_SIZE, DispatchRaysIndex().x / CARD_TILE_SIZE);
+	uint2 CoordInCardTile = uint2(DispatchThreadIndex.x % CARD_TILE_SIZE, DispatchThreadIndex.x / CARD_TILE_SIZE);
 
 #if DIM_INDIRECT_DISPATCH
-	uint CardTileIndex = DispatchRaysIndex().y;
+	uint CardTileIndex = DispatchThreadIndex.y;
 #else
-	for (uint CardTileIndex = DispatchRaysIndex().y; CardTileIndex < CardTileAllocator[CardScatterInstanceIndex]; CardTileIndex += GroupCount)
+	for (uint CardTileIndex = DispatchThreadIndex.y; CardTileIndex < CardTileAllocator[CardScatterInstanceIndex]; CardTileIndex += GroupCount)
 #endif
 	{
 		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
@@ -128,6 +143,10 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 
 					// Shadows don't need closest hit distance
 					Context.bAcceptFirstHitAndEndSearch = true;
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+					Context.HitGroupData = HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 					FLumenMinimalPayload Payload;
 

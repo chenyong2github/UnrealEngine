@@ -28,13 +28,6 @@ static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracing(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingInline(
-	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.Inline"),
-	1,
-	TEXT("Enables hardware inline ray tracing for Lumen radiance cache (Default = 1)"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingLightingMode(
 	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.LightingMode"),
 	0,
@@ -74,7 +67,7 @@ static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingIndir
 );
 
 static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracingMaxTranslucentSkipCount(
-	TEXT("r.Lumen.Reflections.HardwareRayTracing.MaxTranslucentSkipCount"),
+	TEXT("r.Lumen.RadianceCache.HardwareRayTracing.MaxTranslucentSkipCount"),
 	2,
 	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
 	ECVF_RenderThreadSafe
@@ -90,17 +83,6 @@ namespace Lumen
 		return IsRayTracingEnabled()
 			&& Lumen::UseHardwareRayTracing()
 			&& (CVarLumenRadianceCacheHardwareRayTracing.GetValueOnRenderThread() != 0);
-#else
-		return false;
-#endif
-	}
-
-	bool UseHardwareInlineRayTracedRadianceCache()
-	{
-#if RHI_RAYTRACING
-		return UseHardwareRayTracedRadianceCache() 
-			&& Lumen::UseHardwareInlineRayTracing()
-			&& (CVarLumenRadianceCacheHardwareRayTracingInline.GetValueOnRenderThread() != 0);
 #else
 		return false;
 #endif
@@ -163,7 +145,7 @@ class FLumenRadianceCacheHardwareRayTracingRGS : public FLumenHardwareRayTracing
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
 
 		// Output
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<TraceTileResult>, RWTraceTileResultPackedBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<TraceTileResult>, RWTraceTileResultPackedBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, RWRetraceDataPackedBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -333,11 +315,6 @@ bool UseFarFieldForRadianceCache()
 bool IsHardwareRayTracingRadianceCacheIndirectDispatch()
 {
 	return GRHISupportsRayTracingDispatchIndirect && (CVarLumenRadianceCacheHardwareRayTracingIndirect.GetValueOnRenderThread() == 1);
-}
-
-bool IsHardwareRayTracingRadianceCacheInline()
-{
-	return GRHISupportsInlineRayTracing && (CVarLumenRadianceCacheHardwareRayTracingInline.GetValueOnRenderThread() == 1);
 }
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingRadianceCache(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
@@ -725,7 +702,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	FRDGBufferRef RetraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), TraceTileResultPackedBufferElementCount), TEXT("Lumen.RadianceCache.HardwareRayTracing.RetraceTilePackedBuffer"));
 	uint32 MaxRayCount = TraceTileResultPackedBufferElementCount;
 
-	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracedRadianceCache() && IsHardwareRayTracingRadianceCacheInline();
+	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
 
 	// Default tracing of near-field, extract surface cache and material-id
 	{
@@ -756,6 +733,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 
 	FRDGBufferRef FarFieldRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.RadianceCache.HardwareRayTracing.FarFieldRayAllocatorBuffer"));
 	FRDGBufferRef FarFieldRetraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), TraceTileResultPackedBufferElementCount), TEXT("Lumen.RadianceCache.HardwareRayTracing.FarFieldRetraceDataPackedBuffer"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FarFieldRayAllocatorBuffer, PF_R32_UINT), 0);
 	if (UseFarFieldForRadianceCache())
 	{
 		LumenHWRTCompactRays(GraphBuilder, Scene, View, MaxRayCount, LumenHWRTPipeline::ECompactMode::FarFieldRetrace,
