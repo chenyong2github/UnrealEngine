@@ -1283,9 +1283,20 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	
 	uint32 NumAllocatedRootPages;	
 	if(GNaniteStreamingDynamicallyGrowAllocations)
-		NumAllocatedRootPages = FMath::Clamp( RoundUpToSignificantBits( ClusterPageData.Allocator.GetMaxSize(), 2 ), (uint32)GNaniteStreamingNumInitialRootPages, MaxRootPages );
+	{
+		if(ClusterPageData.Allocator.GetMaxSize() <= GNaniteStreamingNumInitialRootPages)
+		{
+			NumAllocatedRootPages = GNaniteStreamingNumInitialRootPages;	// Don't round up initial allocation
+		}
+		else
+		{
+			NumAllocatedRootPages = FMath::Clamp( RoundUpToSignificantBits( ClusterPageData.Allocator.GetMaxSize(), 2 ), (uint32)GNaniteStreamingNumInitialRootPages, MaxRootPages);
+		}
+	}
 	else
+	{
 		NumAllocatedRootPages = GNaniteStreamingNumInitialRootPages;
+	}
 
 	check( NumAllocatedRootPages >= (uint32)ClusterPageData.Allocator.GetMaxSize() );	// Root pages just don't fit!
 
