@@ -419,6 +419,16 @@ void ScreenProbeFilterGatherTracesCS(
 	}
 }
 
+#if WAVE_OPS
+float3 WaveActiveSumFloat3(float3 Vec)
+{
+	return float3(
+		WaveActiveSum(Vec.x),
+		WaveActiveSum(Vec.y),
+		WaveActiveSum(Vec.z));
+}
+#endif
+
 RWTexture2D<float3> RWScreenProbeRadianceSHAmbient;
 RWTexture2D<float4> RWScreenProbeRadianceSHDirectional;
 
@@ -464,7 +474,7 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 				FThreeBandSHVectorRGB LightingSH = MulSH3(BasisFunction, Radiance * SolidAngle);
 
 				float NormalizeWeight = 1.0f / WaveActiveSum(SolidAngle);
-				float3 AmbientRGB = float3(WaveActiveSum(float3(LightingSH.R.V0.x, LightingSH.G.V0.x, LightingSH.B.V0.x))) * NormalizeWeight;
+				float3 AmbientRGB = float3(WaveActiveSumFloat3(float3(LightingSH.R.V0.x, LightingSH.G.V0.x, LightingSH.B.V0.x))) * NormalizeWeight;
 
 				if (ThreadIndex == 0)
 				{
@@ -472,14 +482,14 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 				}
 
 				float4 DirectionalSH0[3];
-				DirectionalSH0[0] = WaveActiveSum(float4(LightingSH.R.V0.yzw, LightingSH.R.V1.x)) * NormalizeWeight;
-				DirectionalSH0[1] = WaveActiveSum(float4(LightingSH.G.V0.yzw, LightingSH.G.V1.x)) * NormalizeWeight;
-				DirectionalSH0[2] = WaveActiveSum(float4(LightingSH.B.V0.yzw, LightingSH.B.V1.x)) * NormalizeWeight;
+				DirectionalSH0[0] = float4(WaveActiveSumFloat3(LightingSH.R.V0.yzw), WaveActiveSum(LightingSH.R.V1.x)) * NormalizeWeight;
+				DirectionalSH0[1] = float4(WaveActiveSumFloat3(LightingSH.G.V0.yzw), WaveActiveSum(LightingSH.G.V1.x)) * NormalizeWeight;
+				DirectionalSH0[2] = float4(WaveActiveSumFloat3(LightingSH.B.V0.yzw), WaveActiveSum(LightingSH.B.V1.x)) * NormalizeWeight;
 
 				float4 DirectionalSH1[3];
-				DirectionalSH1[0] = WaveActiveSum(float4(LightingSH.R.V1.yzw, LightingSH.R.V2)) * NormalizeWeight;
-				DirectionalSH1[1] = WaveActiveSum(float4(LightingSH.G.V1.yzw, LightingSH.G.V2)) * NormalizeWeight;
-				DirectionalSH1[2] = WaveActiveSum(float4(LightingSH.B.V1.yzw, LightingSH.B.V2)) * NormalizeWeight;
+				DirectionalSH1[0] = float4(WaveActiveSumFloat3(LightingSH.R.V1.yzw), WaveActiveSum(LightingSH.R.V2)) * NormalizeWeight;
+				DirectionalSH1[1] = float4(WaveActiveSumFloat3(LightingSH.G.V1.yzw), WaveActiveSum(LightingSH.G.V2)) * NormalizeWeight;
+				DirectionalSH1[2] = float4(WaveActiveSumFloat3(LightingSH.B.V1.yzw), WaveActiveSum(LightingSH.B.V2)) * NormalizeWeight;
 
 				if (ThreadIndex < 3)
 				{
