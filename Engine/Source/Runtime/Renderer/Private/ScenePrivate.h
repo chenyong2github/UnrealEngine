@@ -1185,10 +1185,10 @@ public:
 	void UpdateLastRenderTime(const FSceneViewFamily& Family)
 	{
 		// The editor can trigger multiple update calls within a frame
-		if(Family.CurrentRealTime != LastRenderTime)
+		if(Family.Time.GetRealTimeSeconds() != LastRenderTime)
 		{
-			LastRenderTimeDelta = Family.CurrentRealTime - LastRenderTime;
-			LastRenderTime = Family.CurrentRealTime;
+			LastRenderTimeDelta = Family.Time.GetRealTimeSeconds() - LastRenderTime;
+			LastRenderTime = Family.Time.GetRealTimeSeconds();
 		}
 	}
 
