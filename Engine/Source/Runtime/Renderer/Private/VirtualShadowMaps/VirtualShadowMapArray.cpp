@@ -14,6 +14,8 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "HairStrands/HairStrandsData.h"
 #include "SceneTextureReductions.h"
+#include "ShaderDebug.h"
+#include "GPUMessaging.h"
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(VirtualShadowMapUbSlot);
 
@@ -419,6 +421,7 @@ void FVirtualShadowMapArray::SetShaderDefines(FShaderCompilerEnvironment& OutEnv
 	OutEnvironment.SetDefine(TEXT("VSM_VIRTUAL_MAX_RESOLUTION_XY"), FVirtualShadowMap::VirtualMaxResolutionXY);
 	OutEnvironment.SetDefine(TEXT("VSM_RASTER_WINDOW_PAGES"), FVirtualShadowMap::RasterWindowPages);
 	OutEnvironment.SetDefine(TEXT("VSM_PAGE_TABLE_SIZE"), FVirtualShadowMap::PageTableSize);
+	OutEnvironment.SetDefine(TEXT("VSM_NUM_STATS"), NumStats);
 	OutEnvironment.SetDefine(TEXT("INDEX_NONE"), INDEX_NONE);
 }
 
@@ -865,6 +868,29 @@ class FInitPageRectBoundsCS : public FVirtualPageManagementShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FInitPageRectBoundsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitPageRectBounds", SF_Compute);
+
+
+
+class FVirtualSmFeedbackStatusCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualSmFeedbackStatusCS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualSmFeedbackStatusCS, FVirtualPageManagementShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, FreePhysicalPages)
+		SHADER_PARAMETER_STRUCT_INCLUDE(GPUMessage::FParameters, GPUMessageParams)
+		SHADER_PARAMETER(uint32, StatusMessageId)
+	END_SHADER_PARAMETER_STRUCT()
+
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FVirtualPageManagementShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualSmFeedbackStatusCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "FeedbackStatusCS", SF_Compute);
+
 
 
 static FString GetLightNameForDebug(const FLightSceneProxy* Proxy)
@@ -1436,6 +1462,26 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		}
 
 		UniformParameters.PageTable = GraphBuilder.CreateSRV(PageTableRDG);
+
+		// Add pass to pipe back important stats
+		{
+
+			FVirtualSmFeedbackStatusCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmFeedbackStatusCS::FParameters>();
+			PassParameters->FreePhysicalPages = GraphBuilder.CreateSRV(FreePhysicalPagesRDG);
+			PassParameters->GPUMessageParams = GPUMessage::GetShaderParameters(GraphBuilder);
+			PassParameters->StatusMessageId = CacheManager->StatusFeedbackSocket.GetMessageId().GetIndex();
+			PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmFeedbackStatusCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Feedback Status"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(1, 1, 1)
+			);
+		}
 	}
 
 #if !UE_BUILD_SHIPPING

@@ -22,6 +22,7 @@
 #include "ProjectionSpot.ush"
 #include "ProjectionDirectional.ush"
 #include "Stats.ush"
+#include "../GPUMessaging.ush"
 
 #ifndef HAS_CACHE_DATA
 #define HAS_CACHE_DATA 0
@@ -1212,5 +1213,21 @@ void BuildHZBPerPageTopCS(uint2 GroupThreadId : SV_GroupThreadID, uint PageInput
 	
 		OutPixelPos = OutPixelPos >> 1;
 		FurthestHZBOutput_1[OutPixelPos] = MinDeviceZ;
+	}
+}
+
+uint StatusMessageId;
+StructuredBuffer<int> FreePhysicalPages;
+
+
+[numthreads(1, 1, 1)]
+void FeedbackStatusCS()
+{
+	{
+		FGPUMessageWriter Mw = GPUMessageBegin(StatusMessageId, 2U);
+		// 1. Write out frame number
+		GPUMessageWriteItem(Mw, 0U);
+		// 2. Write out the free list status
+		GPUMessageWriteItem(Mw, FreePhysicalPages[VirtualShadowMap.MaxPhysicalPages]);
 	}
 }

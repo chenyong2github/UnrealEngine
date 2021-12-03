@@ -81,6 +81,8 @@ public:
 		return DefaultValue;
 	}
 
+	uint32 GetPayloadSize() const { return PayloadSize; }
+
 private:
 	FReader(FMessageId InMessageId, uint32 InPayloadSize, const uint32* InPayloadData)
 		: MessageId(InMessageId)
@@ -149,7 +151,7 @@ FSocket RegisterHandler(const TCHAR* MessageDebugId, LambdaType&& Lambda)
 
 /** Shader parameters used to write to write a GPU message. */
 BEGIN_SHADER_PARAMETER_STRUCT(FParameters, RENDERCORE_API)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<uint>, GPUMessageDataBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, GPUMessageDataBuffer)
 	SHADER_PARAMETER(uint32, GPUMessageDataBufferSize)
 END_SHADER_PARAMETER_STRUCT()
 

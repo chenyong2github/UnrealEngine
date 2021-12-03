@@ -17,7 +17,7 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FClearMessageBufferCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer<uint>, GPUMessageDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, GPUMessageDataBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -48,10 +48,13 @@ static FAutoConsoleVariableRef CVarMaxBufferSize(
 class FSystem : public FRenderResource
 {
 public:
+	// Need to guard access because it may happen during FScene initialization (Game Thread) while another scene is being rendered.
+	FCriticalSection AccessCS;
+
+
 	FSocket RegisterHandler(const TSharedPtr<FHandler>& Handler)
 	{
-		checkf(!MessageBuffer, TEXT("Handlers must be registered outside of an active GPU message scope."));
-
+		FScopeLock Lock(&AccessCS);
 		const FMessageId MessageId(NextMessageId++);
 		check(!MessageHandlers.Contains(MessageId));
 		MessageHandlers.Add(MessageId, Handler);
@@ -60,8 +63,7 @@ public:
 
 	void RemoveHandler(FMessageId MessageId)
 	{
-		checkf(!MessageBuffer, TEXT("Handlers must be unregistered outside of an active GPU message scope."));
-
+		FScopeLock Lock(&AccessCS);
 		check(MessageId.IsValid());
 		check(MessageHandlers.Contains(MessageId));
 		MessageHandlers.Remove(MessageId);
@@ -70,6 +72,8 @@ public:
 	void BeginMessageScope(FRDGBuilder& GraphBuilder)
 	{
 		check(MessageBuffer == nullptr);
+		FScopeLock Lock(&AccessCS);
+
 		PollMessages();
 
 		if (MessageHandlers.IsEmpty())
@@ -97,6 +101,8 @@ public:
 
 	void EndMessageScope(FRDGBuilder& GraphBuilder)
 	{
+		FScopeLock Lock(&AccessCS);
+
 		if (MessageHandlers.IsEmpty())
 		{
 			check(MessageBuffer == nullptr);
@@ -213,6 +219,8 @@ private:
 
 	void ReleaseDynamicRHI() override
 	{
+		FScopeLock Lock(&AccessCS);
+
 		check(MessageBuffer == nullptr);
 
 		for (FRHIGPUBufferReadback* ReadbackBuffer : MessageReadbackBuffersInUse)

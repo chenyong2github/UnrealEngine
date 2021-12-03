@@ -10,6 +10,7 @@
 #include "SceneManagement.h"
 #include "InstanceCulling/InstanceCullingLoadBalancer.h"
 #include "GPUScene.h"
+#include "GPUMessaging.h"
 
 class FRHIGPUBufferReadback;
 class FGPUScene;
@@ -81,6 +82,9 @@ struct FVirtualShadowMapArrayFrameData
 class FVirtualShadowMapArrayCacheManager
 {
 public:
+	FVirtualShadowMapArrayCacheManager(FScene *InScene);
+	~FVirtualShadowMapArrayCacheManager();
+
 	// Enough for er lots...
 	static constexpr uint32 MaxStatFrames = 512*1024U;
 
@@ -176,6 +180,8 @@ public:
 	void SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams);
 
 
+	GPUMessage::FSocket StatusFeedbackSocket;
+
 private:
 	void ProcessInvalidations(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& Instances, int32 TotalInstanceCount, const FGPUScene& GPUScene);
 
@@ -196,4 +202,10 @@ private:
 	TRefCountPtr<FRDGPooledBuffer> AccumulatedStatsBuffer;
 	bool bAccumulatingStats = false;
 	FRHIGPUBufferReadback* GPUBufferReadback = nullptr;
+#if !UE_BUILD_SHIPPING
+	FDelegateHandle ScreenMessageDelegate;
+	int32 LastOverflowFrame = -1;
+	bool bLoggedPageOverflow = false;
+#endif
+	FScene* Scene;
 };
