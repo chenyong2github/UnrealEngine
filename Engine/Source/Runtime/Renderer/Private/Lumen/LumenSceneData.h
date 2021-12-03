@@ -356,6 +356,24 @@ struct FLumenSceneFrameTemporaries
 	FRDGBufferRef CardPageHighResLastUsedBuffer = nullptr;
 };
 
+// Tracks scene-wide lighting state whose changes we should propagate quickly by flushing various lighting caches
+class FLumenGlobalLightingState
+{
+public:
+	FLinearColor DirectionalLightColor;
+	FLinearColor SkyLightColor;
+	bool bDirectionalLightValid;
+	bool bSkyLightValid;
+
+	FLumenGlobalLightingState()
+	{
+		DirectionalLightColor = FLinearColor::Black;
+		SkyLightColor = FLinearColor::Black;
+		bDirectionalLightValid = false;
+		bSkyLightValid = false;
+	}
+};
+
 class FLumenSceneData
 {
 public:
@@ -416,6 +434,8 @@ public:
 
 	// Virtual surface cache feedback
 	FLumenSurfaceCacheFeedback SurfaceCacheFeedback;
+
+	FLumenGlobalLightingState GlobalLightingState;
 
 	bool bFinalLightingAtlasContentsValid;
 	int32 NumMeshCardsToAdd = 0;

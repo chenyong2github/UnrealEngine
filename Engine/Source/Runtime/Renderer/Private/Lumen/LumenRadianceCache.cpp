@@ -1193,7 +1193,8 @@ void RenderRadianceCache(
 			&& View.ViewState 
 			&& IsValidRef(RadianceCacheState.RadianceProbeIndirectionTexture)
 			&& RadianceCacheState.RadianceProbeIndirectionTexture->GetDesc().GetSize() == RadianceProbeIndirectionTextureSize
-			&& !bResizedHistoryState;
+			&& !bResizedHistoryState
+			&& !View.bLumenPropagateGlobalLightingChange;
 
 		FRDGBufferRef ProbeFreeListAllocator = nullptr;
 		FRDGBufferRef ProbeFreeList = nullptr;
