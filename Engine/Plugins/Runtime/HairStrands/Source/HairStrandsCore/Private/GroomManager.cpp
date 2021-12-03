@@ -25,14 +25,25 @@ static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD
 static int32 GHairStrands_UseCards = 0;
 static FAutoConsoleVariableRef CVarHairStrands_UseCards(TEXT("r.HairStrands.UseCardsInsteadOfStrands"), GHairStrands_UseCards, TEXT("Force cards geometry on all groom elements. If no cards data is available, nothing will be displayed"), ECVF_Scalability);
 
-static int32 GHairStrands_SwapBufferEndOfFrame = 1;
-static FAutoConsoleVariableRef CVarGHairStrands_SwapBufferEndOfFrame(TEXT("r.HairStrands.SwapEndOfFrame"), GHairStrands_SwapBufferEndOfFrame, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
+static int32 GHairStrands_SwapBufferType = 1;
+static FAutoConsoleVariableRef CVarGHairStrands_SwapBufferType(TEXT("r.HairStrands.SwapType"), GHairStrands_SwapBufferType, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
 
 static int32 GHairStrands_ManualSkinCache = 0;
 static FAutoConsoleVariableRef CVarGHairStrands_ManualSkinCache(TEXT("r.HairStrands.ManualSkinCache"), GHairStrands_ManualSkinCache, TEXT("If skin cache is not enabled, and grooms use skinning method, this enable a simple skin cache mechanisme for groom. Default:disable"));
 
 static int32 GHairStrands_InterpolationFrustumCullingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable(TEXT("r.HairStrands.Interoplation.FrustumCulling"), GHairStrands_InterpolationFrustumCullingEnable, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
+
+EHairBufferSwapType GetHairSwapBufferType()
+{
+	switch (GHairStrands_SwapBufferType)
+	{
+	case 0: return EHairBufferSwapType::BeginOfFrame;
+	case 1: return EHairBufferSwapType::EndOfFrame;
+	case 2: return EHairBufferSwapType::Tick;
+	}
+	return EHairBufferSwapType::EndOfFrame;
+}
 
 bool IsHairStrandsSkinCacheEnable()
 {
@@ -897,8 +908,11 @@ static void RunHairLODSelection(
 		}
 
 		// Update the local-to-world transform based on the binding type 
-		Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
-		Instance->Debug.SkinningCurrentLocalToWorld = CachedGeometry.LocalToWorld;
+		if (GetHairSwapBufferType() != EHairBufferSwapType::Tick)
+		{
+			Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
+			Instance->Debug.SkinningCurrentLocalToWorld = CachedGeometry.LocalToWorld;
+		}
 		Instance->LocalToWorld = Instance->GetCurrentLocalToWorld();
 	}
 }
@@ -988,7 +1002,7 @@ void ProcessHairStrandsBookmark(
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessLODSelection)
 	{
-		if (GHairStrands_SwapBufferEndOfFrame <= 0)
+		if (GetHairSwapBufferType() == EHairBufferSwapType::BeginOfFrame)
 		{
 			RunHairBufferSwap(
 				*Parameters.Instances,
@@ -1004,7 +1018,7 @@ void ProcessHairStrandsBookmark(
 	}
 	else if (Bookmark == EHairStrandsBookmark::ProcessEndOfFrame)
 	{
-		if (GHairStrands_SwapBufferEndOfFrame > 0)
+		if (GetHairSwapBufferType() == EHairBufferSwapType::EndOfFrame)
 		{
 			RunHairBufferSwap(
 				*Parameters.Instances,
