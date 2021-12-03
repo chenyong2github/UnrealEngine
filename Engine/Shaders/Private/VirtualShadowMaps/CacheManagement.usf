@@ -15,13 +15,9 @@
 #include "../ColorMap.ush"
 #endif
 
-struct FInstanceSceneDataRange
-{
-	int InstanceSceneDataOffset;
-	int NumInstanceSceneDataEntries;
-};
-StructuredBuffer<FInstanceSceneDataRange> InstanceSceneRanges;
-uint NumRemovedItems;
+#if INPUT_KIND == INPUT_KIND_LOAD_BALANCER
+#include "../InstanceCulling/InstanceCullingLoadBalancer.ush"
+#endif //
 
 RWStructuredBuffer<uint> OutDynamicCasterPageFlags;
 uint InstanceSceneDataSOAStride;
@@ -42,20 +38,18 @@ uint NumInvalidatingInstanceSlots;
 [numthreads(CS_1D_GROUP_SIZE_X, 1, 1)]
 void VirtualSmInvalidateInstancePagesCS(
 	uint DispatchIndex : SV_DispatchThreadID,
-	uint GroupId : SV_GroupID,
+	uint3 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
-#if INPUT_KIND == INPUT_KIND_LARGE_RANGES
-	// Large instance count ranges use one group per range instead, and use a group-stride loop
-	FInstanceSceneDataRange InstanceSceneDataRange = InstanceSceneRanges[GroupId];
-	for (int InstanceId = InstanceSceneDataRange.InstanceSceneDataOffset + GroupThreadIndex; InstanceId < InstanceSceneDataRange.NumInstanceSceneDataEntries + InstanceSceneDataRange.InstanceSceneDataOffset; InstanceId += CS_1D_GROUP_SIZE_X)
-#elif INPUT_KIND == INPUT_KIND_SMALL_RANGES
-	if (DispatchIndex >= NumRemovedItems)
+#if INPUT_KIND == INPUT_KIND_LOAD_BALANCER
+	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, 0U);
+
+	if (!WorkSetup.bValid)
 	{
 		return;
 	}
-	FInstanceSceneDataRange InstanceSceneDataRange = InstanceSceneRanges[DispatchIndex];
-	for (int InstanceId = InstanceSceneDataRange.InstanceSceneDataOffset; InstanceId < InstanceSceneDataRange.NumInstanceSceneDataEntries + InstanceSceneDataRange.InstanceSceneDataOffset; ++InstanceId)
+
+	uint InstanceId = WorkSetup.Item.InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
 #else // INPUT_KIND == INPUT_KIND_GPU_INSTANCES
 	// The 0th index stores the total number appended
 	if (DispatchIndex >= InvalidatingInstances[0])

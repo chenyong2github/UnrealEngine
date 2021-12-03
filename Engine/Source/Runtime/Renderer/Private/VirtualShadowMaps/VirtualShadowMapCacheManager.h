@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "VirtualShadowMapArray.h"
 #include "SceneManagement.h"
+#include "InstanceCulling/InstanceCullingLoadBalancer.h"
 
 class FRHIGPUBufferReadback;
 class FGPUScene;
@@ -128,20 +129,10 @@ public:
 		
 	void SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams);
 
-private:
-	// Must match shader...
-	struct FInstanceSceneDataRange
-	{
-		int32 InstanceSceneDataOffset;
-		int32 NumInstanceSceneDataEntries;
-	};
+	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
 
-	void ProcessInstanceRangeInvalidation(
-		FRDGBuilder& GraphBuilder,
-		const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesLarge,
-		const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesSmall,
-		int32 TotalInstanceCount,
-		const FGPUScene& GPUScene);
+private:
+	void ProcessInvalidations(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& Instances, int32 TotalInstanceCount, const FGPUScene& GPUScene);
 
 	void ProcessGPUInstanceInvalidations(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene);
 
