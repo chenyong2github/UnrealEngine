@@ -126,6 +126,7 @@ private:
 
 	static const uint32 MaxNumTasks = 16;
 	static const uint32 MaxSpaces = 16;
+	uint32 NumAllocatedSpaces = 0;
 	TUniquePtr<FVirtualTextureSpace> Spaces[MaxSpaces];
 	TArray<FVirtualTexturePhysicalSpace*> PhysicalSpaces;
 	FVirtualTextureProducerCollection Producers;
