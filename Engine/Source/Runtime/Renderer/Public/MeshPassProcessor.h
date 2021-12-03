@@ -2020,15 +2020,17 @@ public:
 	virtual void FinalizeCommand(FRayTracingMeshCommand& RayTracingMeshCommand) = 0;
 };
 
+using FTempRayTracingMeshCommandStorage = TArray<FRayTracingMeshCommand>;
+
 using FCachedRayTracingMeshCommandStorage = TSparseArray<FRayTracingMeshCommand>;
 
 using FDynamicRayTracingMeshCommandStorage = TChunkedArray<FRayTracingMeshCommand>;
 
-
+template<class T>
 class FCachedRayTracingMeshCommandContext : public FRayTracingMeshCommandContext
 {
 public:
-	FCachedRayTracingMeshCommandContext(FCachedRayTracingMeshCommandStorage& InDrawListStorage) : DrawListStorage(InDrawListStorage) {}
+	FCachedRayTracingMeshCommandContext(T& InDrawListStorage) : DrawListStorage(InDrawListStorage) {}
 
 	virtual FRayTracingMeshCommand& AddCommand(const FRayTracingMeshCommand& Initializer) override final
 	{
@@ -2041,7 +2043,7 @@ public:
 	int32 CommandIndex = -1;
 
 private:
-	FCachedRayTracingMeshCommandStorage& DrawListStorage;
+	T& DrawListStorage;
 };
 
 class FDynamicRayTracingMeshCommandContext : public FRayTracingMeshCommandContext
