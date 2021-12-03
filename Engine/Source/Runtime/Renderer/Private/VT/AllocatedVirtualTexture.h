@@ -101,4 +101,9 @@ private:
 		uint8 PhysicalTextureIndex;
 	};
 	FTextureLayerDesc TextureLayers[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+
+	// The fallback color to use on each texture layer when unmapped.
+	// This is stored as linear UNorm instead of full FLinearColor since that is what the shader uses.
+	// That means that HDR formats will be clamped.
+	uint32 FallbackColorPerTextureLayer[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 };

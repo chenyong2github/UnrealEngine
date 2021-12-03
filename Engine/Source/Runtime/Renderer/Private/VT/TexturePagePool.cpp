@@ -5,11 +5,14 @@
 #include "VirtualTextureSpace.h"
 #include "VirtualTextureSystem.h"
 
+// Reserve pAddress=0 to indicate unmapped page table entry.
+const uint32 FTexturePagePool::NumReservedPages = 1u;
+
 FTexturePagePool::FTexturePagePool()
 	: PageHash(16u * 1024)
 	, NumPages(0u)
 	, NumPagesMapped(0u)
-	, NumPagesAllocated(0u)
+	, NumPagesAllocated(NumReservedPages)
 {
 }
 
@@ -25,7 +28,7 @@ void FTexturePagePool::Initialize(uint32 InNumPages)
 
 	FreeHeap.Resize(InNumPages, InNumPages);
 
-	for (uint32 i = 0; i < InNumPages; i++)
+	for (uint32 i = NumReservedPages; i < InNumPages; i++)
 	{
 		FreeHeap.Add(0, i);
 	}
@@ -101,7 +104,7 @@ void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint
 
 void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& ProducerHandle)
 {
-	for (uint32 pAddress = 0u; pAddress < NumPages; ++pAddress)
+	for (uint32 pAddress = NumReservedPages; pAddress < NumPages; ++pAddress)
 	{
 		const FPageEntry& PageEntry = Pages[pAddress];
 		if (PageEntry.PackedProducerHandle == ProducerHandle.PackedValue)
@@ -114,7 +117,7 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualT
 
 void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, uint32 MaxLevel, TArray<union FVirtualTextureLocalTile>& OutLocked)
 {
-	for (uint32 i = 0; i < NumPages; ++i)
+	for (uint32 i = NumReservedPages; i < NumPages; ++i)
 	{
 		if (Pages[i].PackedProducerHandle == ProducerHandle.PackedValue)
 		{
@@ -150,7 +153,7 @@ void FTexturePagePool::GetAllLockedPages(FVirtualTextureSystem* System, TSet<FVi
 {
 	OutPages.Reserve(OutPages.Num() + GetNumLockedPages());
 
-	for (uint32 i = 0; i < NumPages; ++i)
+	for (uint32 i = NumReservedPages; i < NumPages; ++i)
 	{
 		if (!FreeHeap.IsPresent(i))
 		{
@@ -311,7 +314,7 @@ void FTexturePagePool::UpdateUsage(uint32 Frame, uint16 pAddress)
 uint32 FTexturePagePool::GetNumVisiblePages(uint32 Frame) const
 {
 	uint32 Count = 0;
-	for (uint32 i = 0; i < NumPages; ++i)
+	for (uint32 i = NumReservedPages; i < NumPages; ++i)
 	{
 		if (FreeHeap.IsPresent(i))
 		{
@@ -333,7 +336,7 @@ uint32 FTexturePagePool::GetNumVisiblePages(uint32 Frame) const
 
 void FTexturePagePool::CollectProducerCounts(TMap<uint32, uint32>& OutProducerCountMap) const
 {
-	for (uint32 i = 0; i < NumPages; ++i)
+	for (uint32 i = NumReservedPages; i < NumPages; ++i)
 	{
 		const uint32 PackedProducerHandle = Pages[i].PackedProducerHandle;
 		if (PackedProducerHandle != 0u)
@@ -346,6 +349,7 @@ void FTexturePagePool::CollectProducerCounts(TMap<uint32, uint32>& OutProducerCo
 
 void FTexturePagePool::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 PageTableLayerIndex, uint8 MaxLevel, uint8 vLogSize, uint32 vAddress, uint8 Local_vLevel, uint16 pAddress)
 {
+	check(pAddress >= NumReservedPages);
 	check(pAddress < NumPages);
 	const FPageEntry& PageEntry = Pages[pAddress];
 	checkf(PageEntry.PackedProducerHandle != 0u, TEXT("Trying to map pAddress %04x that hasn't been allocated"), pAddress);
@@ -390,7 +394,7 @@ void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddr
 	FPageEntry& PageEntry = Pages[pAddress];
 	if (PageEntry.PackedProducerHandle != 0u)
 	{
-		check(NumPagesAllocated > 0u);
+		check(NumPagesAllocated > NumReservedPages);
 		--NumPagesAllocated;
 		PageHash.Remove(GetPageHash(PageEntry), pAddress);
 		PageEntry.PackedValue = 0u;
@@ -417,7 +421,7 @@ void FTexturePagePool::RemapPages(FVirtualTextureSystem* System, uint8 SpaceID, 
 	const uint32 NewBaseX = FMath::ReverseMortonCode2(NewVirtualAddress);
 	const uint32 NewBaseY = FMath::ReverseMortonCode2(NewVirtualAddress >> 1);
 
-	for (uint32 pAddress = 0u; pAddress < NumPages; ++pAddress)
+	for (uint32 pAddress = NumReservedPages; pAddress < NumPages; ++pAddress)
 	{
 		FPageEntry& PageEntry = Pages[pAddress];
 		if (PageEntry.PackedProducerHandle == OldProducerHandle.PackedValue)

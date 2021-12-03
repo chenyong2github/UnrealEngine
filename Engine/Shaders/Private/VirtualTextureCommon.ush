@@ -632,19 +632,30 @@ struct VTUniform
 	float pPageSize;
 	float vPageSize;
 	float vPageBorderSize;
-	uint PageTableFormat;
+	bool bPageTableExtraBits;
+	float4 FallbackValue;
 };
 
 /** Unpack the physical sample uniform. */
 VTUniform VTUniform_Unpack(uint4 PackedUniform)
 {
 	VTUniform result;
-	result.pPageSize = asfloat(PackedUniform.w);
+	result.pPageSize = abs(asfloat(PackedUniform.w));
 	result.vPageSize = asfloat(PackedUniform.y);
 	result.vPageBorderSize = asfloat(PackedUniform.z);
-	result.PageTableFormat = PackedUniform.x;
-	//result.PageCoordinateBitCount = PackedUniform.x == 0 ? 8 : 6;
+	result.bPageTableExtraBits = asfloat(PackedUniform.w) > 0;
+	result.FallbackValue.b = float((PackedUniform.x >> 0) & 0xFF) * (1.0f / 255.0f);
+	result.FallbackValue.g = float((PackedUniform.x >> 8) & 0xFF) * (1.0f / 255.0f);
+	result.FallbackValue.r = float((PackedUniform.x >> 16) & 0xFF) * (1.0f / 255.0f);
+	result.FallbackValue.a = float((PackedUniform.x >> 24) & 0xFF) * (1.0f / 255.0f);
 	return result;
+}
+
+/** We use 0 to mark an unmapped page table entry. */
+bool IsValid(VTPageTableResult PageTableResult, uint LayerIndex)
+{
+	const uint PackedPageTableValue = PageTableResult.PageTableValue[LayerIndex / 4u][LayerIndex & 3u];
+	return (PackedPageTableValue >> 4) != 0;
 }
 
 /** Applies proper scaling to dUVdx/dUVdy in PageTableResult. */
@@ -657,8 +668,8 @@ float2 VTComputePhysicalUVs(in out VTPageTableResult PageTableResult, uint Layer
 	const float UVScale = float(4096u >> vLevel) * (1.0f / 4096.0f);
 
 	// This will compile to runtime branch, but should in theory be conditional moves selecting 1 of 2 different bitfield extracting instructions
-	const uint pPageX = (Uniform.PageTableFormat == 0u) ? (PackedPageTableValue >> 4) & 0xff : (PackedPageTableValue >> 4) & 0x3f;
-	const uint pPageY = (Uniform.PageTableFormat == 0u) ? (PackedPageTableValue >> 12) & 0xff : (PackedPageTableValue >> 10) & 0x3f;
+	const uint pPageX = Uniform.bPageTableExtraBits ? (PackedPageTableValue >> 4) & 0xff : (PackedPageTableValue >> 4) & 0x3f;
+	const uint pPageY = Uniform.bPageTableExtraBits ? (PackedPageTableValue >> 12) & 0xff : (PackedPageTableValue >> 10) & 0x3f;
 
 	const float2 vPageFrac = frac(PageTableResult.UV * UVScale);
 	const float2 pUV = float2(pPageX, pPageY) * Uniform.pPageSize + (vPageFrac * Uniform.vPageSize + Uniform.vPageBorderSize);
@@ -675,13 +686,18 @@ MaterialFloat4 TextureVirtualSample(
 	VTPageTableResult PageTableResult, uint LayerIndex,
 	VTUniform Uniform)
 {
-	const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
+	if (IsValid(PageTableResult, LayerIndex))
+	{
+		const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
 #if VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING
-	return Physical.SampleGrad(PhysicalSampler, pUV, PageTableResult.dUVdx, PageTableResult.dUVdy);
+		return Physical.SampleGrad(PhysicalSampler, pUV, PageTableResult.dUVdx, PageTableResult.dUVdy);
 #else
-	// no need for dUVdx/dUVdy unless we have anistropic filtering enabled
-	return Physical.SampleLevel(PhysicalSampler, pUV, 0.0f);
+		// no need for dUVdx/dUVdy unless we have anistropic filtering enabled
+		return Physical.SampleLevel(PhysicalSampler, pUV, 0.0f);
 #endif
+	}
+
+	return Uniform.FallbackValue;
 }
 
 // SamplePhysicalTexture: Aniso Off
@@ -690,9 +706,14 @@ MaterialFloat4 TextureVirtualSampleLevel(
 	VTPageTableResult PageTableResult, uint LayerIndex,
 	VTUniform Uniform)
 {
-	const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
-	// No need to apply dUVdx/dUVdy, don't support anisotropic when sampling a specific level
-	return Physical.SampleLevel(PhysicalSampler, pUV, 0.0f);
+	if (IsValid(PageTableResult, LayerIndex))
+	{
+		const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
+		// No need to apply dUVdx/dUVdy, don't support anisotropic when sampling a specific level
+		return Physical.SampleLevel(PhysicalSampler, pUV, 0.0f);
+	}
+
+	return Uniform.FallbackValue;
 }
 
 

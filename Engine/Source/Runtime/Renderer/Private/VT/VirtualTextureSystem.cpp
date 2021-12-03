@@ -1102,7 +1102,10 @@ void FVirtualTextureSystem::RequestTiles(const FMaterialRenderProxy* InMaterialR
 
 	for (IAllocatedVirtualTexture* AllocatedVT : InMaterialRenderProxy->UniformExpressionCache[InFeatureLevel].AllocatedVTs)
 	{
-		RequestTilesInternal(AllocatedVT, InScreenSpaceSize, INDEX_NONE);
+		if (AllocatedVT != nullptr)
+		{
+			RequestTilesInternal(AllocatedVT, InScreenSpaceSize, INDEX_NONE);
+		}
 	}
 }
 
@@ -1975,7 +1978,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 
 							// either it wasn't mapped, or it's mapped to the current physical address...
 							// otherwise that means that the same local tile is mapped to two separate physical addresses, which is an error
-							ensure(PrevPhysicalSpaceIDAndAddress.Packed == ~0u || PrevPhysicalSpaceIDAndAddress == PhysicalSpaceIDAndAddress);
+							ensure(PrevPhysicalSpaceIDAndAddress.Packed == ~0u || PrevPhysicalSpaceIDAndAddress.Packed == 0u || PrevPhysicalSpaceIDAndAddress == PhysicalSpaceIDAndAddress);
 
 							if (PrevPhysicalSpaceIDAndAddress.Packed == ~0u)
 							{
@@ -2253,10 +2256,14 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 		TArray<FProducePageDataPrepareTask> PrepareTasks;
 		PrepareTasks.Reserve(RequestList->GetNumLoadRequests());
 
-		// If we render a frame without all locked tiles loaded, may render garbage VT data, as there won't be low mip fallback for unloaded tiles
 #if WITH_EDITOR
+		// Always force loading of locked root pages in editor to be sure that any build steps give best quality.
 		const bool bSyncProduceLockedTiles = true;
 #else
+		// if bSyncProduceLockedTiles is false then we may render with a VT before the root pages are mapped.
+		// When that happens the shader switches to using the single color fallback value instead of sampling the VT.
+		// When the root page is finally mapped we will return to normal high quality VT sampling.
+		// todo[VT]: Make root pages always resident so that we never need to load sync the root pages.
 		const bool bSyncProduceLockedTiles = CVarVTSyncProduceLockedTiles.GetValueOnRenderThread() != 0;
 #endif
 

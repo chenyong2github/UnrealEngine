@@ -241,4 +241,6 @@ private:
 	uint32 NumPages;
 	uint32 NumPagesMapped;
 	uint32 NumPagesAllocated;
+
+	static const uint32 NumReservedPages;
 };

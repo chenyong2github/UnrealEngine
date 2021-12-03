@@ -344,6 +344,11 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 		}
 	}
 	
+ 	for (uint32 Layer = 0; Layer < NumLayers; Layer++)
+ 	{
+ 		Ar << LayerFallbackColors[Layer];
+ 	}
+
 	// Serialize the chunks
 	int32 NumChunksToSerialize = Chunks.Num() - NumChunksToStrip;
 	Ar << NumChunksToSerialize;
