@@ -86,6 +86,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeTemporalForceTracesMoving(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GLumenScreenProbeFilteringWaveOps = 1;
+FAutoConsoleVariableRef CVarLumenScreenProbeFilteringWaveOps(
+	TEXT("r.Lumen.ScreenProbeGather.Filtering.WaveOps"),
+	GLumenScreenProbeFilteringWaveOps,
+	TEXT("Whether to use Wave Ops path for screen probe filtering."),
+	ECVF_RenderThreadSafe
+);
+
 class FScreenProbeCompositeTracesWithScatterCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenProbeCompositeTracesWithScatterCS)
@@ -572,8 +580,7 @@ void FilterScreenProbes(
 
 		FScreenProbeConvertToSphericalHarmonicCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenProbeConvertToSphericalHarmonicCS::FThreadGroupSize >(ConvertToSHThreadGroupSize);
-		//@todo - fix or remove
-		PermutationVector.Set< FScreenProbeConvertToSphericalHarmonicCS::FWaveOps >(false && GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32 && RHISupportsWaveOperations(View.GetShaderPlatform()));
+		PermutationVector.Set< FScreenProbeConvertToSphericalHarmonicCS::FWaveOps >(GLumenScreenProbeFilteringWaveOps != 0 && GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32 && RHISupportsWaveOperations(View.GetShaderPlatform()));
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeConvertToSphericalHarmonicCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
