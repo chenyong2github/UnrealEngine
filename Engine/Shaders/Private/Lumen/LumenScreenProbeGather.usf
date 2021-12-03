@@ -733,6 +733,7 @@ void ScreenProbeTileClassificationBuildListsCS(
 
 Texture2D<float3> ScreenProbeRadianceSHAmbient;
 Texture2D<float4> ScreenProbeRadianceSHDirectional;
+Texture2D<float3> ScreenProbeIrradianceWithBorder;
 
 FThreeBandSHVectorRGB GetScreenProbeSH(uint2 ScreenProbeAtlasCoord, float InterpolationWeight)
 {
@@ -778,6 +779,13 @@ FThreeBandSHVectorRGB GetScreenProbeSH(uint2 ScreenProbeAtlasCoord, float Interp
 	LightingSH.B.V2 = SHCoefficients1Blue.w * InterpolationWeight;
 
 	return LightingSH;
+}
+
+float3 GetScreenProbeIrradiance(uint2 ScreenProbeAtlasCoord, float2 IrradianceProbeUV)
+{
+	float2 IrradianceProbeUVCoord = IrradianceProbeUV * IRRADIANCE_PROBE_RES + 1.0f;
+	float2 AtlasUV = (ScreenProbeAtlasCoord * IRRADIANCE_PROBE_WITH_BORDER_RES + IrradianceProbeUVCoord) / (ScreenProbeAtlasBufferSize * IRRADIANCE_PROBE_WITH_BORDER_RES);
+	return ScreenProbeIrradianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, AtlasUV, 0).xyz;
 }
 
 // Bias the important sampling of SampleBxDF(SHADING_TERM_SPECULAR, ....)
@@ -982,21 +990,35 @@ void ScreenProbeIntegrateCS(
 
 			if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC)
 			{
-				FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeAtlasCoord[0], InterpolationWeights.x);
-				LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[1], InterpolationWeights.y));
-				LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[2], InterpolationWeights.z));
-				LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[3], InterpolationWeights.w));
+				#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
+				{
+					FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeAtlasCoord[0], InterpolationWeights.x);
+					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[1], InterpolationWeights.y));
+					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[2], InterpolationWeights.z));
+					LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[3], InterpolationWeights.w));
 
-				float3 ProbeLightingNormal = GBufferData.WorldNormal;
+					float3 ProbeLightingNormal = GBufferData.WorldNormal;
 
-				#if SCREEN_SPACE_BENT_NORMAL 
-					// Use more bent normal in occluded corners
-					ProbeLightingNormal = normalize(lerp(UnitBentNormal, GBufferData.WorldNormal, AO));
-				#endif
+					#if SCREEN_SPACE_BENT_NORMAL 
+						// Use more bent normal in occluded corners
+						ProbeLightingNormal = normalize(lerp(UnitBentNormal, GBufferData.WorldNormal, AO));
+					#endif
 
-				float3 SHDiffuseLighting = EvaluateSHIrradiance(ProbeLightingNormal, 1 - AO, LightingSH);
-				
-				DiffuseLighting += 4 * PI * SHDiffuseLighting;
+					float3 SHDiffuseLighting = EvaluateSHIrradiance(ProbeLightingNormal, 1 - AO, LightingSH);
+					DiffuseLighting += 4 * PI * SHDiffuseLighting;
+				}
+				#else
+				{
+					float2 IrradianceProbeUV = UnitVectorToOctahedron(GBufferData.WorldNormal) * 0.5f + 0.5f;
+
+					float3 Irradiance = GetScreenProbeIrradiance(ScreenProbeAtlasCoord[0], IrradianceProbeUV) * InterpolationWeights.x;
+					Irradiance += GetScreenProbeIrradiance(ScreenProbeAtlasCoord[1], IrradianceProbeUV) * InterpolationWeights.y;
+					Irradiance += GetScreenProbeIrradiance(ScreenProbeAtlasCoord[2], IrradianceProbeUV) * InterpolationWeights.z;
+					Irradiance += GetScreenProbeIrradiance(ScreenProbeAtlasCoord[3], IrradianceProbeUV) * InterpolationWeights.w;
+
+					DiffuseLighting += Irradiance;
+				}
+				#endif				
 			}
 #if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
 			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF)

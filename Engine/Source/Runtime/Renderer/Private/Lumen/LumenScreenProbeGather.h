@@ -15,6 +15,15 @@
 
 extern int32 GLumenScreenProbeGatherNumMips;
 
+// Must match LumenScreenProbeCommon.ush
+enum class EScreenProbeIrradianceFormat : uint8
+{
+	SH3,
+	Octahedral,
+
+	MAX
+};
+
 namespace LumenScreenProbeGather 
 {
 	extern int32 GetTracingOctahedronResolution(const FViewInfo& View);
@@ -23,6 +32,11 @@ namespace LumenScreenProbeGather
 	extern bool UseProbeSpatialFilter();
 	extern bool UseProbeTemporalFilter();
 	extern bool UseRadianceCache(const FViewInfo& View);
+	EScreenProbeIrradianceFormat GetScreenProbeIrradianceFormat();
+
+	// Must match LumenScreenProbeCommon.ush
+	constexpr uint32 IrradianceProbeRes = 6;
+	constexpr uint32 IrradianceProbeWithBorderRes = (IrradianceProbeRes + 2);
 }
 
 // Must match SetupAdaptiveProbeIndirectArgsCS in usf
@@ -98,6 +112,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeGatherParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadianceWithBorder)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenProbeRadianceSHAmbient)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, ScreenProbeRadianceSHDirectional)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenProbeIrradianceWithBorder)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ScreenProbeMoving)
 END_SHADER_PARAMETER_STRUCT()
 

@@ -427,10 +427,23 @@ float3 WaveActiveSumFloat3(float3 Vec)
 		WaveActiveSum(Vec.y),
 		WaveActiveSum(Vec.z));
 }
+
+float4 WaveActiveSumFloat4(float4 Vec)
+{
+	return float4(
+		WaveActiveSum(Vec.x),
+		WaveActiveSum(Vec.y),
+		WaveActiveSum(Vec.z),
+		WaveActiveSum(Vec.w));
+}
 #endif
 
-RWTexture2D<float3> RWScreenProbeRadianceSHAmbient;
-RWTexture2D<float4> RWScreenProbeRadianceSHDirectional;
+#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
+	RWTexture2D<float3> RWScreenProbeRadianceSHAmbient;
+	RWTexture2D<float4> RWScreenProbeRadianceSHDirectional;
+#else
+	RWTexture2D<float3> RWScreenProbeIrradianceWithBorder;
+#endif
 
 #define NUM_LIGHTING_SH_COEFFICIENTS 9
 groupshared float SharedSHBasisFunctions[THREADGROUP_SIZE * THREADGROUP_SIZE][NUM_LIGHTING_SH_COEFFICIENTS];
@@ -438,7 +451,7 @@ groupshared float SharedLightingRadiance[THREADGROUP_SIZE * THREADGROUP_SIZE][4]
 groupshared float SharedSums[NUM_LIGHTING_SH_COEFFICIENTS * 4];
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void ScreenProbeConvertToSphericalHarmonicCS(
+void ScreenProbeConvertToIrradianceCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
@@ -474,30 +487,45 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 				FThreeBandSHVectorRGB LightingSH = MulSH3(BasisFunction, Radiance * SolidAngle);
 
 				float NormalizeWeight = 1.0f / WaveActiveSum(SolidAngle);
-				float3 AmbientRGB = float3(WaveActiveSumFloat3(float3(LightingSH.R.V0.x, LightingSH.G.V0.x, LightingSH.B.V0.x))) * NormalizeWeight;
 
-				if (ThreadIndex == 0)
+				FThreeBandSHVectorRGB RadianceSH;
+				RadianceSH.R.V0 = WaveActiveSumFloat4(LightingSH.R.V0) * NormalizeWeight;
+				RadianceSH.G.V0 = WaveActiveSumFloat4(LightingSH.G.V0) * NormalizeWeight;
+				RadianceSH.B.V0 = WaveActiveSumFloat4(LightingSH.B.V0) * NormalizeWeight;
+
+				RadianceSH.R.V1 = WaveActiveSumFloat4(LightingSH.R.V1) * NormalizeWeight;
+				RadianceSH.G.V1 = WaveActiveSumFloat4(LightingSH.G.V1) * NormalizeWeight;
+				RadianceSH.B.V1 = WaveActiveSumFloat4(LightingSH.B.V1) * NormalizeWeight;
+
+				RadianceSH.R.V2 = WaveActiveSum(LightingSH.R.V2) * NormalizeWeight;
+				RadianceSH.G.V2 = WaveActiveSum(LightingSH.G.V2) * NormalizeWeight;
+				RadianceSH.B.V2 = WaveActiveSum(LightingSH.B.V2) * NormalizeWeight;
+
+				#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 				{
-					RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = AmbientRGB;
-				}
+					float3 AmbientRGB = float3(RadianceSH.R.V0.x, RadianceSH.G.V0.x, RadianceSH.B.V0.x);
 
-				float4 DirectionalSH0[3];
-				DirectionalSH0[0] = float4(WaveActiveSumFloat3(LightingSH.R.V0.yzw), WaveActiveSum(LightingSH.R.V1.x)) * NormalizeWeight;
-				DirectionalSH0[1] = float4(WaveActiveSumFloat3(LightingSH.G.V0.yzw), WaveActiveSum(LightingSH.G.V1.x)) * NormalizeWeight;
-				DirectionalSH0[2] = float4(WaveActiveSumFloat3(LightingSH.B.V0.yzw), WaveActiveSum(LightingSH.B.V1.x)) * NormalizeWeight;
+					if (ThreadIndex == 0)
+					{
+						RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = AmbientRGB;
+					}
 
-				float4 DirectionalSH1[3];
-				DirectionalSH1[0] = float4(WaveActiveSumFloat3(LightingSH.R.V1.yzw), WaveActiveSum(LightingSH.R.V2)) * NormalizeWeight;
-				DirectionalSH1[1] = float4(WaveActiveSumFloat3(LightingSH.G.V1.yzw), WaveActiveSum(LightingSH.G.V2)) * NormalizeWeight;
-				DirectionalSH1[2] = float4(WaveActiveSumFloat3(LightingSH.B.V1.yzw), WaveActiveSum(LightingSH.B.V2)) * NormalizeWeight;
+					float4 DirectionalSH0[3];
+					DirectionalSH0[0] = float4(RadianceSH.R.V0.yzw, RadianceSH.R.V1.x);
+					DirectionalSH0[1] = float4(RadianceSH.G.V0.yzw, RadianceSH.G.V1.x);
+					DirectionalSH0[2] = float4(RadianceSH.B.V0.yzw, RadianceSH.B.V1.x);
 
-				if (ThreadIndex < 3)
-				{
-					float4 ThreadDirectionalSH0 = DirectionalSH0[ThreadIndex];
-					float4 ThreadDirectionalSH1 = DirectionalSH1[ThreadIndex];
+					float4 DirectionalSH1[3];
+					DirectionalSH1[0] = float4(RadianceSH.R.V1.yzw, RadianceSH.R.V2);
+					DirectionalSH1[1] = float4(RadianceSH.G.V1.yzw, RadianceSH.G.V2);
+					DirectionalSH1[2] = float4(RadianceSH.B.V1.yzw, RadianceSH.B.V2);
 
-					#if SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS
+					if (ThreadIndex < 3)
+					{
+						float4 ThreadDirectionalSH0 = DirectionalSH0[ThreadIndex];
+						float4 ThreadDirectionalSH1 = DirectionalSH1[ThreadIndex];
 
+#if SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS
 						float4 CoefficientNormalizationScale0 = float4(
 							0.282095f / 0.488603f,
 							0.282095f / 0.488603f,
@@ -512,11 +540,27 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 
 						ThreadDirectionalSH0 = ThreadDirectionalSH0 * CoefficientNormalizationScale0 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
 						ThreadDirectionalSH1 = ThreadDirectionalSH1 * CoefficientNormalizationScale1 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
-					#endif
+#endif
 
-					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = ThreadDirectionalSH0;
-					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = ThreadDirectionalSH1;
+						RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = ThreadDirectionalSH0;
+						RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = ThreadDirectionalSH1;
+					}
 				}
+				#elif PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_OCT
+				{
+					if (all(ProbeTexelCoord < IRRADIANCE_PROBE_WITH_BORDER_RES))
+					{
+						uint2 WrappedProbeTexelCoord = OctahedralMapWrapBorder(ProbeTexelCoord, IRRADIANCE_PROBE_WITH_BORDER_RES, 1);
+						float2 ProbeUV = (WrappedProbeTexelCoord + 0.5f) / IRRADIANCE_PROBE_RES;
+						float3 ProbeTexelDirection = OctahedronToUnitVector(ProbeUV * 2.0f - 1.0f);
+
+						FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(ProbeTexelDirection, 1.0f);
+						float3 Irradiance = 4.0f * PI * DotSH3(RadianceSH, DiffuseTransferSH);
+
+						RWScreenProbeIrradianceWithBorder[ScreenProbeAtlasCoord * IRRADIANCE_PROBE_WITH_BORDER_RES + ProbeTexelCoord] = Irradiance;
+					}
+				}
+				#endif
 #else
 				SharedSHBasisFunctions[ThreadIndex][0] = BasisFunction.V0.x;
 				SharedSHBasisFunctions[ThreadIndex][1] = BasisFunction.V0.y;
@@ -558,48 +602,80 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 			GroupMemoryBarrierWithGroupSync();
 
 			float NormalizeWeight = 1.0f / SharedSums[3 * NUM_LIGHTING_SH_COEFFICIENTS];
-			float3 AmbientRGB = float3(SharedSums[0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[2 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
 
-			if (ThreadIndex == 0)
+			#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 			{
-				RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = AmbientRGB;
-			}
+				float3 AmbientRGB = float3(SharedSums[0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[2 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
 
-			if (ThreadIndex < 3)
+				if (ThreadIndex == 0)
+				{
+					RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = AmbientRGB;
+				}
+
+				if (ThreadIndex < 3)
+				{
+					float4 DirectionalSH0 = float4(
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 1], 
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 2],
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 3],
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 4]) * NormalizeWeight;
+
+					float4 DirectionalSH1 = float4(
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 5], 
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 6],
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 7],
+						SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 8]) * NormalizeWeight;
+
+					#if SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS
+
+						float4 CoefficientNormalizationScale0 = float4(
+							0.282095f / 0.488603f,
+							0.282095f / 0.488603f,
+							0.282095f / 0.488603f,
+							0.282095f / 1.092548f);
+
+						float4 CoefficientNormalizationScale1 = float4(
+							0.282095f / 1.092548f,
+							0.282095f / (4.0f * 0.315392f),
+							0.282095f / 1.092548f,
+							0.282095f / (2.0f * 0.546274f));
+
+						DirectionalSH0 = DirectionalSH0 * CoefficientNormalizationScale0 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
+						DirectionalSH1 = DirectionalSH1 * CoefficientNormalizationScale1 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
+					#endif
+
+					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = DirectionalSH0;
+					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = DirectionalSH1;
+				}
+			}
+			#elif PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_OCT
 			{
-				float4 DirectionalSH0 = float4(
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 1], 
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 2],
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 3],
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 4]) * NormalizeWeight;
+				if (all(ProbeTexelCoord < IRRADIANCE_PROBE_WITH_BORDER_RES))
+				{
+					FThreeBandSHVectorRGB RadianceSH3;
+					RadianceSH3.R.V0 = float4(SharedSums[0 + 0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[1 + 0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[2 + 0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[3 + 0 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
+					RadianceSH3.G.V0 = float4(SharedSums[0 + 1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[1 + 1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[2 + 1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[3 + 1 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
+					RadianceSH3.B.V0 = float4(SharedSums[0 + 2 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[1 + 2 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[2 + 2 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[3 + 2 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
 
-				float4 DirectionalSH1 = float4(
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 5], 
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 6],
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 7],
-					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 8]) * NormalizeWeight;
+					RadianceSH3.R.V1 = float4(SharedSums[4 + 0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[5 + 0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[6 + 0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[7 + 0 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
+					RadianceSH3.G.V1 = float4(SharedSums[4 + 1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[5 + 1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[6 + 1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[7 + 1 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
+					RadianceSH3.B.V1 = float4(SharedSums[4 + 2 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[5 + 2 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[6 + 2 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[7 + 2 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
 
-				#if SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS
+					RadianceSH3.R.V2 = SharedSums[8 + 0 * NUM_LIGHTING_SH_COEFFICIENTS] * NormalizeWeight;
+					RadianceSH3.G.V2 = SharedSums[8 + 1 * NUM_LIGHTING_SH_COEFFICIENTS] * NormalizeWeight;
+					RadianceSH3.B.V2 = SharedSums[8 + 2 * NUM_LIGHTING_SH_COEFFICIENTS] * NormalizeWeight;
 
-					float4 CoefficientNormalizationScale0 = float4(
-						0.282095f / 0.488603f,
-						0.282095f / 0.488603f,
-						0.282095f / 0.488603f,
-						0.282095f / 1.092548f);
+					uint2 WrappedProbeTexelCoord = OctahedralMapWrapBorder(ProbeTexelCoord, IRRADIANCE_PROBE_WITH_BORDER_RES, 1);
+					float2 ProbeUV = (WrappedProbeTexelCoord + 0.5f) / IRRADIANCE_PROBE_RES;
+					float3 ProbeTexelDirection = OctahedronToUnitVector(ProbeUV * 2.0f - 1.0f);
 
-					float4 CoefficientNormalizationScale1 = float4(
-						0.282095f / 1.092548f,
-						0.282095f / (4.0f * 0.315392f),
-						0.282095f / 1.092548f,
-						0.282095f / (2.0f * 0.546274f));
+					FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(ProbeTexelDirection, 1.0f);
+					float3 Irradiance = 4.0f * PI * DotSH3(RadianceSH3, DiffuseTransferSH);
 
-					DirectionalSH0 = DirectionalSH0 * CoefficientNormalizationScale0 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
-					DirectionalSH1 = DirectionalSH1 * CoefficientNormalizationScale1 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
-				#endif
-
-				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = DirectionalSH0;
-				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = DirectionalSH1;
+					RWScreenProbeIrradianceWithBorder[ScreenProbeAtlasCoord * IRRADIANCE_PROBE_WITH_BORDER_RES + ProbeTexelCoord] = Irradiance;
+				}
 			}
+			#endif
 #endif
 		}
 		else
@@ -607,16 +683,28 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 			// Clear probes on unlit pixels to safe values, GetScreenProbeSH in the upsample does not skip reading from invalid probes which might contain NaN
 			uint ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
 
-			if (ThreadIndex == 0)
+			#if PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_SH3
 			{
-				RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = 0;
-			}
+				if (ThreadIndex == 0)
+				{
+					RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = 0;
+				}
 
-			if (ThreadIndex < 3)
-			{
-				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = 0;
-				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = 0;
+				if (ThreadIndex < 3)
+				{
+					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = 0;
+					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = 0;
+				}
 			}
+			#elif PROBE_IRRADIANCE_FORMAT == PROBE_IRRADIANCE_FORMAT_OCT
+			{
+				uint2 ProbeTexelCoord = GroupThreadId.xy;
+				if (all(ProbeTexelCoord < IRRADIANCE_PROBE_WITH_BORDER_RES))
+				{
+					RWScreenProbeIrradianceWithBorder[ScreenProbeAtlasCoord * IRRADIANCE_PROBE_WITH_BORDER_RES + ProbeTexelCoord] = float3(0.0f, 0.0f, 0.0f);
+				}
+			}
+			#endif
 		}
 	}
 }

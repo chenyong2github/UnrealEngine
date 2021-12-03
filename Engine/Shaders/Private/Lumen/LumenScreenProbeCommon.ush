@@ -11,6 +11,11 @@
 #define PROBE_THREADGROUP_SIZE_2D 8 
 #define PROBE_THREADGROUP_SIZE_1D 64
 
+#define PROBE_IRRADIANCE_FORMAT_SH3 0
+#define PROBE_IRRADIANCE_FORMAT_OCT 1
+#define IRRADIANCE_PROBE_RES 6
+#define IRRADIANCE_PROBE_WITH_BORDER_RES (IRRADIANCE_PROBE_RES + 2)
+
 // Main control for Screen Probe tracing resolution.  8 = 8x8 traces per probe
 uint ScreenProbeTracingOctahedronResolution;
 // Screen probe traces are re-sampled to this resolution before filtering / BRDF integration

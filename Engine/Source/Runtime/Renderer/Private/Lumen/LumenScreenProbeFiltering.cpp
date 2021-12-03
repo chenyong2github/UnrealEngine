@@ -215,14 +215,15 @@ class FScreenProbeFilterGatherTracesCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FScreenProbeFilterGatherTracesCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeFilterGatherTracesCS", SF_Compute);
 
 
-class FScreenProbeConvertToSphericalHarmonicCS : public FGlobalShader
+class FScreenProbeConvertToIrradianceCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FScreenProbeConvertToSphericalHarmonicCS)
-	SHADER_USE_PARAMETER_STRUCT(FScreenProbeConvertToSphericalHarmonicCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FScreenProbeConvertToIrradianceCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenProbeConvertToIrradianceCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeRadianceSHAmbient)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWScreenProbeRadianceSHDirectional)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeIrradianceWithBorder)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
@@ -262,7 +263,8 @@ class FScreenProbeConvertToSphericalHarmonicCS : public FGlobalShader
 
 	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZE", 4, 8, 16);
 	class FWaveOps : SHADER_PERMUTATION_BOOL("WAVE_OPS");
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize, FWaveOps>;
+	class FProbeIrradianceFormat : SHADER_PERMUTATION_ENUM_CLASS("PROBE_IRRADIANCE_FORMAT", EScreenProbeIrradianceFormat);
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize, FWaveOps, FProbeIrradianceFormat>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -277,7 +279,7 @@ class FScreenProbeConvertToSphericalHarmonicCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FScreenProbeConvertToSphericalHarmonicCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeConvertToSphericalHarmonicCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FScreenProbeConvertToIrradianceCS, "/Engine/Private/Lumen/LumenScreenProbeFiltering.usf", "ScreenProbeConvertToIrradianceCS", SF_Compute);
 
 
 class FScreenProbeCalculateMovingCS : public FGlobalShader
@@ -560,32 +562,48 @@ void FilterScreenProbes(
 		ScreenProbeGatherWriteableState.ProbeHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(GetSceneTextureExtent(), View.ViewRect);
 	}
 
-	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToSphericalHarmonicCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
+	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToIrradianceCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
 
-	FRDGTextureDesc ScreenProbeRadianceSHAmbientDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	FRDGTextureRef ScreenProbeRadianceSHAmbient = GraphBuilder.CreateTexture(ScreenProbeRadianceSHAmbientDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHAmbient"));
-	
-	const FIntPoint ProbeRadianceSHDirectionalBufferSize(ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * 6, ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y);
-	FRDGTextureDesc ScreenProbeRadianceSHDirectionalDesc(FRDGTextureDesc::Create2D(ProbeRadianceSHDirectionalBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	FRDGTextureRef ScreenProbeRadianceSHDirectional = GraphBuilder.CreateTexture(ScreenProbeRadianceSHDirectionalDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHDirectional"));
+	FRDGTextureRef ScreenProbeRadianceSHAmbient = nullptr;
+	FRDGTextureRef ScreenProbeRadianceSHDirectional = nullptr;
+	FRDGTextureRef ScreenProbeIrradianceWithBorder = nullptr;
+
+	const EScreenProbeIrradianceFormat ScreenProbeIrradianceFormat = LumenScreenProbeGather::GetScreenProbeIrradianceFormat();
+	if (ScreenProbeIrradianceFormat == EScreenProbeIrradianceFormat::SH3)
+	{
+		FRDGTextureDesc ScreenProbeRadianceSHAmbientDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ScreenProbeRadianceSHAmbient = GraphBuilder.CreateTexture(ScreenProbeRadianceSHAmbientDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHAmbient"));
+
+		const FIntPoint ProbeRadianceSHDirectionalBufferSize(ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * 6, ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y);
+		FRDGTextureDesc ScreenProbeRadianceSHDirectionalDesc(FRDGTextureDesc::Create2D(ProbeRadianceSHDirectionalBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ScreenProbeRadianceSHDirectional = GraphBuilder.CreateTexture(ScreenProbeRadianceSHDirectionalDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHDirectional"));
+	}
+	else
+	{
+		const FIntPoint ScreenProbeIrradianceWithBorderBufferSize(ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * LumenScreenProbeGather::IrradianceProbeWithBorderRes, ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y * LumenScreenProbeGather::IrradianceProbeWithBorderRes);
+		FRDGTextureDesc ScreenProbeIrradianceWithBorderDesc(FRDGTextureDesc::Create2D(ScreenProbeIrradianceWithBorderBufferSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+		ScreenProbeIrradianceWithBorder = GraphBuilder.CreateTexture(ScreenProbeIrradianceWithBorderDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeIrradianceWithBorder"));
+	}
 
 	if (ConvertToSHThreadGroupSize != MAX_uint32)
 	{
-		FScreenProbeConvertToSphericalHarmonicCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeConvertToSphericalHarmonicCS::FParameters>();
-		PassParameters->RWScreenProbeRadianceSHAmbient = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceSHAmbient));
-		PassParameters->RWScreenProbeRadianceSHDirectional = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceSHDirectional));
+		FScreenProbeConvertToIrradianceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeConvertToIrradianceCS::FParameters>();
+		PassParameters->RWScreenProbeRadianceSHAmbient = ScreenProbeRadianceSHAmbient ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceSHAmbient)) : nullptr;
+		PassParameters->RWScreenProbeRadianceSHDirectional = ScreenProbeRadianceSHDirectional ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceSHDirectional)) : nullptr;
+		PassParameters->RWScreenProbeIrradianceWithBorder = ScreenProbeIrradianceWithBorder ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeIrradianceWithBorder)) : nullptr;
 		PassParameters->ScreenProbeRadiance = ScreenProbeRadiance;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 
-		FScreenProbeConvertToSphericalHarmonicCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FScreenProbeConvertToSphericalHarmonicCS::FThreadGroupSize >(ConvertToSHThreadGroupSize);
-		PermutationVector.Set< FScreenProbeConvertToSphericalHarmonicCS::FWaveOps >(GLumenScreenProbeFilteringWaveOps != 0 && GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32 && RHISupportsWaveOperations(View.GetShaderPlatform()));
-		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeConvertToSphericalHarmonicCS>(PermutationVector);
+		FScreenProbeConvertToIrradianceCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FThreadGroupSize >(ConvertToSHThreadGroupSize);
+		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FWaveOps >(GLumenScreenProbeFilteringWaveOps != 0 && GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32 && RHISupportsWaveOperations(View.GetShaderPlatform()));
+		PermutationVector.Set< FScreenProbeConvertToIrradianceCS::FProbeIrradianceFormat >(ScreenProbeIrradianceFormat);
+		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeConvertToIrradianceCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("ConvertToSH"),
+			RDG_EVENT_NAME("ScreenProbeConvertToIrradiance Format:%d", (int32)ScreenProbeIrradianceFormat),
 			ComputeShader,
 			PassParameters,
 			ScreenProbeParameters.ProbeIndirectArgs,
@@ -639,5 +657,6 @@ void FilterScreenProbes(
 	GatherParameters.ScreenProbeRadianceWithBorder = ScreenProbeRadianceWithBorder;
 	GatherParameters.ScreenProbeRadianceSHAmbient =  ScreenProbeRadianceSHAmbient;
 	GatherParameters.ScreenProbeRadianceSHDirectional = ScreenProbeRadianceSHDirectional;
+	GatherParameters.ScreenProbeIrradianceWithBorder = ScreenProbeIrradianceWithBorder;
 	GatherParameters.ScreenProbeMoving = ScreenProbeMoving;
 }
