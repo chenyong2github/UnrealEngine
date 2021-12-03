@@ -337,7 +337,7 @@ EDataLayerUpdateFlags FDesiredLayerStates::Apply(FPreAnimatedDataLayerStorage* P
 							
 						CSV_EVENT_GLOBAL(TEXT("SeqDataLayerFlushFull-%s-%s"),
 							*DataLayer->GetDataLayerLabel().ToString(),
-							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)CurrentState).ToString());
+							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)DesiredStateValue).ToString());
 					}
 					else
 					{

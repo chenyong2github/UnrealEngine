@@ -968,11 +968,6 @@ static void RunHairLODSelection(
 		{
 			Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
 			Instance->Debug.SkinningCurrentLocalToWorld = CachedGeometry.LocalToWorld;
-
-			if (bCameraCut)
-			{
-				Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
-			}
 		}
 		Instance->LocalToWorld = Instance->GetCurrentLocalToWorld();
 	}
