@@ -1857,11 +1857,8 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 			// Get the scratch sizes used for build & update
 			SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize = RHICalcRayTracingGeometrySize(Initializer);
 
-			if (!bAnySegmentUsesWorldPositionOffset)
-			{
-				// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
-				RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
-			}
+			// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
+			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
 		}
 		else if (!bAnySegmentUsesWorldPositionOffset)
 		{
@@ -1874,6 +1871,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 		{
 			EAccelerationStructureBuildMode BuildMode = bRequireRecreatingRayTracingGeometry ? EAccelerationStructureBuildMode::Build : EAccelerationStructureBuildMode::Update;
 			AddRayTracingGeometryToUpdate(&RayTracingGeometry, SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize, BuildMode);
+			RayTracingGeometry.bRequiresBuild = false;
 		}
 		else
 		{
