@@ -2,16 +2,24 @@
 
 #include "TextureProfiler.h"
 
-#include "ProfilingDebugging/CsvProfiler.h"
-#include "RHI.h"
-#include "RHIResources.h"
 #include "UObject/NameTypes.h"
 
 #if TEXTURE_PROFILER_ENABLED
+#include "ProfilingDebugging/CsvProfiler.h"
+
 static int32 ToMB(uint64 Value)
 {
 	const size_t MB = 1024 * 1024;
 	uint64 Value64 = (Value + (MB - 1)) / MB;
+	int32 Value32 = static_cast<int32>(Value64);
+	check(Value64 == Value32);
+	return Value32;
+}
+
+static int32 ToKB(uint64 Value)
+{
+	const size_t KB = 1024;
+	uint64 Value64 = (Value + (KB - 1)) / KB;
 	int32 Value32 = static_cast<int32>(Value64);
 	check(Value64 == Value32);
 	return Value32;
@@ -74,15 +82,14 @@ static FAutoConsoleCommand CmdTextureProfilerDumpTextures(
 
 FTextureProfiler* FTextureProfiler::Instance = nullptr;
 
-
-FTextureProfiler::FTexureDetails::FTexureDetails(FRHITexture* Texture, size_t InSize, uint32 InAlign, size_t InAllocationWaste)
-	: TextureName(Texture->GetName().IsValid() ? Texture->GetName() : FName("None"))
+FTextureProfiler::FTexureDetails::FTexureDetails(FName InTextureName, size_t InSize, uint32 InAlign, size_t InAllocationWaste, bool InIsRenderTarget)
+	: TextureName(InTextureName)
 	, Size(InSize)
 	, Align(InAlign)
 	, AllocationWaste(InAllocationWaste)
-	, IsRenderTarget(EnumHasAnyFlags(Texture->GetFlags(), TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable))
+	, IsRenderTarget(InIsRenderTarget)
 {
-	TextureName.GetPlainANSIString(TextureNameString);
+	InTextureName.GetPlainANSIString(TextureNameString);
 }
 
 void FTextureProfiler::FTexureDetails::SetName(FName InTextureName)
@@ -129,82 +136,57 @@ FTextureProfiler* FTextureProfiler::Get()
 	return Instance;
 }
 
-void FTextureProfiler::AddTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste)
+void FTextureProfiler::AddTextureAllocationInternal(void* UniqueTexturePtr, FName TextureName, size_t Size, uint32 Alignment, size_t AllocationWaste, bool IsRenderTarget)
 {
 	FScopeLock Lock(&TextureMapCS);
 
 	FTexureDetails AddedDetails(
-		UniqueTexturePtr,
+		TextureName,
 		Size,
 		Alignment,
-		AllocationWaste);
+		AllocationWaste,
+		IsRenderTarget
+	);
 
 	AddedDetails.Count = 1;
 
-	FTexureDetails& TotalValue = AddedDetails.IsRenderTarget ? TotalRenderTargetSize : TotalTextureSize;
+	FTexureDetails& TotalValue = IsRenderTarget ? TotalRenderTargetSize : TotalTextureSize;
 	TotalValue += AddedDetails;
 
-	// Make sure we have a sane value
 	check(ToMB(TotalValue.Size) >= 0);
 
-	FTexureDetails& NamedValue = AddedDetails.IsRenderTarget ? CombinedRenderTargetSizes.FindOrAdd(AddedDetails.TextureName) : CombinedTextureSizes.FindOrAdd(AddedDetails.TextureName);
+	FTexureDetails& NamedValue = IsRenderTarget ? CombinedRenderTargetSizes.FindOrAdd(TextureName) : CombinedTextureSizes.FindOrAdd(TextureName);
 	NamedValue += AddedDetails;
 
 	if (NamedValue.TextureName.IsNone() || !NamedValue.TextureName.IsValid())
 	{
-		NamedValue.SetName(AddedDetails.TextureName);
+		NamedValue.SetName(TextureName);
 	}
 
 	TexturesMap.Add(UniqueTexturePtr, AddedDetails);
 }
 
-void FTextureProfiler::UpdateTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste)
-{
-	FScopeLock Lock(&TextureMapCS);
-
-	FTexureDetails UpdatedDetails(
-		UniqueTexturePtr,
-		Size,
-		Alignment,
-		AllocationWaste);
-
-	FTexureDetails& ExistingTexture = TexturesMap[UniqueTexturePtr];
-	FTexureDetails& TotalValue = UpdatedDetails.IsRenderTarget ? TotalRenderTargetSize : TotalTextureSize;
-
-	TotalValue -= ExistingTexture;
-	TotalValue += UpdatedDetails;
-
-	check(ToMB(TotalValue.Size) >= 0);
-
-	FTexureDetails& NamedValue = UpdatedDetails.IsRenderTarget ? CombinedRenderTargetSizes.FindOrAdd(UpdatedDetails.TextureName) : CombinedTextureSizes.FindOrAdd(UpdatedDetails.TextureName);
-	NamedValue -= ExistingTexture;
-	NamedValue += UpdatedDetails;
-
-	ExistingTexture = UpdatedDetails;
-}
-
-void FTextureProfiler::RemoveTextureAllocation(FRHITexture* UniqueTexturePtr)
+void FTextureProfiler::RemoveTextureAllocationInternal(void* UniqueTexturePtr, bool IsRenderTarget)
 {
 	FScopeLock Lock(&TextureMapCS);
 	FTexureDetails Details = TexturesMap.FindAndRemoveChecked(UniqueTexturePtr);
 	
-	FTexureDetails& TotalValue = Details.IsRenderTarget ? TotalRenderTargetSize : TotalTextureSize;
+	FTexureDetails& TotalValue = IsRenderTarget ? TotalRenderTargetSize : TotalTextureSize;
 	TotalValue -= Details;
 
-	FTexureDetails& NamedValue = Details.IsRenderTarget ? CombinedRenderTargetSizes[Details.TextureName] : CombinedTextureSizes[Details.TextureName];
+	FTexureDetails& NamedValue = IsRenderTarget ? CombinedRenderTargetSizes[Details.TextureName] : CombinedTextureSizes[Details.TextureName];
 	NamedValue -= Details;
 }
 
-void FTextureProfiler::UpdateTextureName(FRHITexture* UniqueTexturePtr)
+void FTextureProfiler::ChangeTextureNameInternal(void* UniqueTexturePtr, FName NewName, bool IsRenderTarget)
 {
 	FScopeLock Lock(&TextureMapCS);
 	FTexureDetails& Details = TexturesMap[UniqueTexturePtr];
 	FName OldName = Details.TextureName;
-	FName NewName = UniqueTexturePtr->GetName();
 	Details.SetName(NewName);
 
-	FTexureDetails& OldCombinedValue = Details.IsRenderTarget ? CombinedRenderTargetSizes[OldName] : CombinedTextureSizes[OldName];
-	FTexureDetails& NewCombinedValue = Details.IsRenderTarget ? CombinedRenderTargetSizes.FindOrAdd(NewName) : CombinedTextureSizes.FindOrAdd(NewName);
+	FTexureDetails& OldCombinedValue = IsRenderTarget ? CombinedRenderTargetSizes[OldName] : CombinedTextureSizes[OldName];
+	FTexureDetails& NewCombinedValue = IsRenderTarget ? CombinedRenderTargetSizes.FindOrAdd(NewName) : CombinedTextureSizes.FindOrAdd(NewName);
 
 	if (NewCombinedValue.TextureName.IsNone() || !NewCombinedValue.TextureName.IsValid())
 	{
@@ -265,7 +247,7 @@ void FTextureProfiler::Update()
 		}
 
 		ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, Pair.Value.TextureNameString, CSV_CATEGORY_INDEX(RenderTargetProfiler), ToMB(Pair.Value.PeakSize), ECsvCustomStatOp::Set);
-		ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, Pair.Value.TextureNameString, CSV_CATEGORY_INDEX(RenderTargetWasteProfiler), ToMB(Pair.Value.AllocationWaste), ECsvCustomStatOp::Set);
+		ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, Pair.Value.TextureNameString, CSV_CATEGORY_INDEX(RenderTargetWasteProfiler), ToKB(Pair.Value.AllocationWaste), ECsvCustomStatOp::Set);
 
 		Pair.Value.ResetPeakSize();
 	}
@@ -281,20 +263,20 @@ void FTextureProfiler::Update()
 		}
 
 		ReportTextureStat(CVarTextureProfilerEnableTextureCSV, Pair.Value.TextureNameString, CSV_CATEGORY_INDEX(TextureProfiler), ToMB(Pair.Value.PeakSize), ECsvCustomStatOp::Set);
-		ReportTextureStat(CVarTextureProfilerEnableTextureCSV, Pair.Value.TextureNameString, CSV_CATEGORY_INDEX(TextureWasteProfiler), ToMB(Pair.Value.AllocationWaste), ECsvCustomStatOp::Set);
+		ReportTextureStat(CVarTextureProfilerEnableTextureCSV, Pair.Value.TextureNameString, CSV_CATEGORY_INDEX(TextureWasteProfiler), ToKB(Pair.Value.AllocationWaste), ECsvCustomStatOp::Set);
 
 		Pair.Value.ResetPeakSize();
 	}
 
 	ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, "Total", CSV_CATEGORY_INDEX(RenderTargetProfiler), ToMB(TotalRenderTargetSize.PeakSize), ECsvCustomStatOp::Set);
-	ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, "Total", CSV_CATEGORY_INDEX(RenderTargetWasteProfiler), ToMB(TotalRenderTargetSize.AllocationWaste), ECsvCustomStatOp::Set);
+	ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, "Total", CSV_CATEGORY_INDEX(RenderTargetWasteProfiler), ToKB(TotalRenderTargetSize.AllocationWaste), ECsvCustomStatOp::Set);
 	ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, "Other", CSV_CATEGORY_INDEX(RenderTargetProfiler), ToMB(OtherRenderTargetSizes.PeakSize), ECsvCustomStatOp::Set);
-	ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, "Other", CSV_CATEGORY_INDEX(RenderTargetWasteProfiler), ToMB(OtherRenderTargetSizes.AllocationWaste), ECsvCustomStatOp::Set);
+	ReportTextureStat(CVarTextureProfilerEnableRenderTargetCSV, "Other", CSV_CATEGORY_INDEX(RenderTargetWasteProfiler), ToKB(OtherRenderTargetSizes.AllocationWaste), ECsvCustomStatOp::Set);
 
 	ReportTextureStat(CVarTextureProfilerEnableTextureCSV, "Total", CSV_CATEGORY_INDEX(TextureProfiler), ToMB(TotalTextureSize.PeakSize), ECsvCustomStatOp::Set);
-	ReportTextureStat(CVarTextureProfilerEnableTextureCSV, "Total", CSV_CATEGORY_INDEX(TextureWasteProfiler), ToMB(TotalTextureSize.AllocationWaste), ECsvCustomStatOp::Set);
+	ReportTextureStat(CVarTextureProfilerEnableTextureCSV, "Total", CSV_CATEGORY_INDEX(TextureWasteProfiler), ToKB(TotalTextureSize.AllocationWaste), ECsvCustomStatOp::Set);
 	ReportTextureStat(CVarTextureProfilerEnableTextureCSV, "Other", CSV_CATEGORY_INDEX(TextureProfiler), ToMB(OtherTextureSizes.PeakSize), ECsvCustomStatOp::Set);
-	ReportTextureStat(CVarTextureProfilerEnableTextureCSV, "Other", CSV_CATEGORY_INDEX(TextureWasteProfiler), ToMB(OtherTextureSizes.AllocationWaste), ECsvCustomStatOp::Set);
+	ReportTextureStat(CVarTextureProfilerEnableTextureCSV, "Other", CSV_CATEGORY_INDEX(TextureWasteProfiler), ToKB(OtherTextureSizes.AllocationWaste), ECsvCustomStatOp::Set);
 
 	TotalRenderTargetSize.ResetPeakSize();
 	TotalTextureSize.ResetPeakSize();
