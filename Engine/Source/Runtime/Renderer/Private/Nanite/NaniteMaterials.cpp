@@ -1272,11 +1272,16 @@ void FNaniteMaterialCommands::Release()
 	MaterialDepthUploadBuffer.Release();
 	MaterialDepthDataBuffer.Release();
 
+#if WITH_DEBUG_VIEW_MODES
+	MaterialEditorUploadBuffer.Release();
+	MaterialEditorDataBuffer.Release();
+#endif
+
 	//MaterialArgumentUploadBuffer.Release();
 	//MaterialArgumentDataBuffer.Release();
 }
 
-FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command, FCommandHash CommandHash)
+FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command, FCommandHash CommandHash, uint32 InstructionCount)
 {
 	FNaniteCommandInfo CommandInfo;
 
@@ -1290,6 +1295,9 @@ FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command, 
 		check(MaterialEntry.MaterialSlot == INDEX_NONE);				
 		MaterialEntry.MaterialSlot = MaterialSlotAllocator.Allocate(1);
 		MaterialEntry.MaterialId = CommandInfo.GetMaterialId();
+	#if WITH_DEBUG_VIEW_MODES
+		MaterialEntry.InstructionCount = InstructionCount;
+	#endif
 		MaterialEntry.bNeedUpload = true;
 
 		++NumMaterialDepthUpdates;
@@ -1324,6 +1332,9 @@ void FNaniteMaterialCommands::Unregister(const FNaniteCommandInfo& CommandInfo)
 		MaterialSlotAllocator.Free(MaterialEntry.MaterialSlot, 1);
 
 		MaterialEntry.MaterialSlot = INDEX_NONE;
+	#if WITH_DEBUG_VIEW_MODES
+		MaterialEntry.InstructionCount = 0;
+	#endif
 
 		if (MaterialEntry.bNeedUpload)
 		{
@@ -1371,12 +1382,19 @@ void FNaniteMaterialCommands::UpdateBufferState(FRDGBuilder& GraphBuilder, uint3
 
 	if (ResizeResourceIfNeeded(GraphBuilder, MaterialDepthDataBuffer, MaterialSlotReserve * sizeof(uint32), TEXT("Nanite.MaterialDepthDataBuffer")))
 	{
-		UAVs.Add(FRHITransitionInfo(MaterialDepthDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask)); // TODO: Correct? Not UAVMask?
+		UAVs.Add(FRHITransitionInfo(MaterialDepthDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
+
+#if WITH_DEBUG_VIEW_MODES
+	if (ResizeResourceIfNeeded(GraphBuilder, MaterialEditorDataBuffer, MaterialSlotReserve * sizeof(uint32), TEXT("Nanite.MaterialEditorDataBuffer")))
+	{
+		UAVs.Add(FRHITransitionInfo(MaterialEditorDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+	}
+#endif
 
 	//if (ResizeResourceIfNeeded(GraphBuilder, MaterialArgumentDataBuffer, SizeReserve * NANITE_DRAW_INDIRECT_ARG_COUNT * sizeof(uint32), TEXT("Nanite.MaterialArgumentDataBuffer")))
 	//{
-	//	UAVs.Add(FRHITransitionInfo(MaterialArgumentDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask)); // TODO: Correct? Not UAVMask?
+	//	UAVs.Add(FRHITransitionInfo(MaterialArgumentDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	//}
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("NaniteMaterialCommands.UpdateBufferState-Transition"), ERDGPassFlags::None,
@@ -1404,6 +1422,9 @@ void FNaniteMaterialCommands::Begin(FRHICommandListImmediate& RHICmdList, uint32
 	check(NumHitProxyTableUpdates == 0);
 	check(HitProxyTableDataBuffer.NumBytes == PrimitiveUpdateReserve * sizeof(uint32));
 #endif
+#if WITH_DEBUG_VIEW_MODES
+	check(MaterialEditorDataBuffer.NumBytes == MaterialSlotReserve * sizeof(uint32));
+#endif
 	check(MaterialSlotDataBuffer.NumBytes == PrimitiveUpdateReserve * sizeof(uint32));
 	check(MaterialDepthDataBuffer.NumBytes == MaterialSlotReserve * sizeof(uint32));
 	//check(MaterialArgumentDataBuffer.NumBytes == MaterialSlotReserve * NANITE_DRAW_INDIRECT_ARG_COUNT * sizeof(uint32));
@@ -1420,6 +1441,9 @@ void FNaniteMaterialCommands::Begin(FRHICommandListImmediate& RHICmdList, uint32
 	if (NumMaterialDepthUpdates > 0)
 	{
 		MaterialDepthUploadBuffer.Init(NumMaterialDepthUpdates, sizeof(uint32), false, TEXT("Nanite.MaterialDepthUploadBuffer"));
+	#if WITH_DEBUG_VIEW_MODES
+		MaterialEditorUploadBuffer.Init(NumMaterialDepthUpdates, sizeof(uint32), false, TEXT("Nanite.MaterialEditorUploadBuffer"));
+	#endif
 		//MaterialArgumentUploadBuffer.Init(NumMaterialDepthUpdates, sizeof(uint32) * NANITE_DRAW_INDIRECT_ARG_COUNT, false, TEXT("Nanite.MaterialArgumentUploadBuffer"));
 
 		for (auto& Command : EntryMap)
@@ -1429,6 +1453,9 @@ void FNaniteMaterialCommands::Begin(FRHICommandListImmediate& RHICmdList, uint32
 			{
 				check(MaterialEntry.MaterialSlot != INDEX_NONE);
 				*static_cast<uint32*>(MaterialDepthUploadBuffer.Add_GetRef(MaterialEntry.MaterialSlot)) = MaterialEntry.MaterialId;
+			#if WITH_DEBUG_VIEW_MODES
+				*static_cast<uint32*>(MaterialEditorUploadBuffer.Add_GetRef(MaterialEntry.MaterialSlot)) = MaterialEntry.InstructionCount;
+			#endif
 				//uint32* DrawArguments = static_cast<uint32*>(MaterialArgumentUploadBuffer.Add_GetRef(MaterialEntry.MaterialSlot, 4));
 				//DrawArguments[0] = 0; // VertexCountPerInstance
 				//DrawArguments[1] = 0; // InstanceCount
@@ -1487,6 +1514,9 @@ void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
 	if (NumMaterialDepthUpdates > 0)
 	{
 		UploadUAVs.Add(FRHITransitionInfo(MaterialDepthDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	#if WITH_DEBUG_VIEW_MODES
+		UploadUAVs.Add(FRHITransitionInfo(MaterialEditorDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+	#endif
 		//UploadUAVs.Add(FRHITransitionInfo(MaterialArgumentDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	}
 
@@ -1503,6 +1533,9 @@ void FNaniteMaterialCommands::Finish(FRHICommandListImmediate& RHICmdList)
 	if (NumMaterialDepthUpdates > 0)
 	{
 		MaterialDepthUploadBuffer.ResourceUploadTo(RHICmdList, MaterialDepthDataBuffer, false);
+	#if WITH_DEBUG_VIEW_MODES
+		MaterialEditorUploadBuffer.ResourceUploadTo(RHICmdList, MaterialEditorDataBuffer, false);
+	#endif
 		//MaterialArgumentUploadBuffer.ResourceUploadTo(RHICmdList, MaterialArgumentDataBuffer, false);
 	}
 

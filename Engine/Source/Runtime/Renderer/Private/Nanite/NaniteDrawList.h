@@ -122,6 +122,9 @@ private:
 		FPrimitiveSceneInfo* PrimitiveSceneInfo;
 		FMeshDrawCommand MeshDrawCommand;
 		FNaniteMaterialCommands::FCommandHash CommandHash;
+	#if WITH_DEBUG_VIEW_MODES
+		uint32 InstructionCount;
+	#endif
 		uint8 SectionIndex;
 	};
 

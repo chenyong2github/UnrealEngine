@@ -138,7 +138,20 @@ void FNaniteDrawListContextImmediate::FinalizeCommand(
 
 	// generate the command info immediately and add to the PrimitiveSceneInfo
 	FNaniteMaterialCommands& MaterialCommands = Scene.NaniteMaterials[CurrMeshPass];
-	FNaniteCommandInfo CommandInfo = MaterialCommands.Register(MeshDrawCommand);
+
+	uint32 NumPSInstructions = 0;
+	uint32 NumVSInstructions = 0;
+#if WITH_DEBUG_VIEW_MODES
+	if (ShadersForDebugging != nullptr)
+	{
+		NumPSInstructions = ShadersForDebugging->PixelShader->GetNumInstructions();
+		NumVSInstructions = ShadersForDebugging->VertexShader->GetNumInstructions();
+	}
+#endif
+
+	const uint32 InstructionCount = NumPSInstructions << 16u | NumVSInstructions;
+
+	FNaniteCommandInfo CommandInfo = MaterialCommands.Register(MeshDrawCommand, InstructionCount);
 	AddCommandInfo(*CurrPrimitiveSceneInfo, CommandInfo, CurrMeshPass, MeshBatch.SegmentIndex);
 }
 
@@ -157,12 +170,25 @@ void FNaniteDrawListContextDeferred::FinalizeCommand(
 {
 	FinalizeCommandCommon(MeshBatch, BatchElementIndex, PipelineState, ShadersForDebugging, MeshDrawCommand);
 
+	uint32 NumPSInstructions = 0;
+	uint32 NumVSInstructions = 0;
+#if WITH_DEBUG_VIEW_MODES
+	if (ShadersForDebugging != nullptr)
+	{
+		NumPSInstructions = ShadersForDebugging->PixelShader->GetNumInstructions();
+		NumVSInstructions = ShadersForDebugging->VertexShader->GetNumInstructions();
+	}
+#endif
+
+	const uint32 InstructionCount = NumPSInstructions << 16u | NumVSInstructions;
+
 	// Defer the command
 	DeferredCommands[CurrMeshPass].Add(
 		FDeferredCommand {
 			CurrPrimitiveSceneInfo,
 			MeshDrawCommand,
 			FNaniteMaterialEntryMap::ComputeHash(MeshDrawCommand),
+			InstructionCount,
 			MeshBatch.SegmentIndex
 		}
 	);
@@ -179,7 +205,7 @@ void FNaniteDrawListContextDeferred::RegisterDeferredCommands(FScene& Scene)
 		for (auto& Command : DeferredCommands[MeshPass])
 		{
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = Command.PrimitiveSceneInfo;
-			FNaniteCommandInfo CommandInfo = MaterialCommands.Register(Command.MeshDrawCommand, Command.CommandHash);
+			FNaniteCommandInfo CommandInfo = MaterialCommands.Register(Command.MeshDrawCommand, Command.CommandHash, Command.InstructionCount);
 			AddCommandInfo(*PrimitiveSceneInfo, CommandInfo, (ENaniteMeshPass::Type)MeshPass, Command.SectionIndex);
 		}
 	}

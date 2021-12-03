@@ -227,6 +227,9 @@ struct FNaniteMaterialEntry
 	: ReferenceCount(0)
 	, MaterialId(0)
 	, MaterialSlot(INDEX_NONE)
+#if WITH_DEBUG_VIEW_MODES
+	, InstructionCount(0)
+#endif
 	, bNeedUpload(false)
 	{
 	}
@@ -235,6 +238,9 @@ struct FNaniteMaterialEntry
 	: ReferenceCount(Other.ReferenceCount)
 	, MaterialId(Other.MaterialId)
 	, MaterialSlot(Other.MaterialSlot)
+#if WITH_DEBUG_VIEW_MODES
+	, InstructionCount(Other.InstructionCount)
+#endif
 	, bNeedUpload(false)
 	{
 		checkSlow(!Other.bNeedUpload);
@@ -243,6 +249,9 @@ struct FNaniteMaterialEntry
 	uint32 ReferenceCount;
 	uint32 MaterialId;
 	int32 MaterialSlot;
+#if WITH_DEBUG_VIEW_MODES
+	uint32 InstructionCount;
+#endif
 	bool bNeedUpload;
 };
 
@@ -273,8 +282,8 @@ public:
 
 	void Release();
 
-	FNaniteCommandInfo Register(FMeshDrawCommand& Command, FCommandHash CommandHash);
-	FNaniteCommandInfo Register(FMeshDrawCommand& Command) { return Register(Command, ComputeCommandHash(Command)); }	
+	FNaniteCommandInfo Register(FMeshDrawCommand& Command, FCommandHash CommandHash, uint32 InstructionCount);
+	FNaniteCommandInfo Register(FMeshDrawCommand& Command, uint32 InstructionCount) { return Register(Command, ComputeCommandHash(Command), InstructionCount); }
 	void Unregister(const FNaniteCommandInfo& CommandInfo);
 
 	inline const FCommandHash ComputeCommandHash(const FMeshDrawCommand& DrawCommand) const
@@ -338,6 +347,9 @@ public:
 
 	FRHIShaderResourceView* GetMaterialSlotSRV() const { return MaterialSlotDataBuffer.SRV; }
 	FRHIShaderResourceView* GetMaterialDepthSRV() const { return MaterialDepthDataBuffer.SRV; }
+#if WITH_DEBUG_VIEW_MODES
+	FRHIShaderResourceView* GetMaterialEditorSRV() const { return MaterialEditorDataBuffer.SRV; }
+#endif
 	//FRHIShaderResourceView* GetMaterialArgumentSRV() const { return MaterialArgumentDataBuffer.SRV; }
 
 	inline const int32 GetHighestMaterialSlot() const
@@ -365,6 +377,11 @@ private:
 
 	FScatterUploadBuffer	MaterialDepthUploadBuffer; // 1 uint per slot (Depth Value)
 	FRWByteAddressBuffer	MaterialDepthDataBuffer;
+
+#if WITH_DEBUG_VIEW_MODES
+	FScatterUploadBuffer	MaterialEditorUploadBuffer; // 1 uint per slot (VS and PS instruction count)
+	FRWByteAddressBuffer	MaterialEditorDataBuffer;
+#endif
 
 	//FScatterUploadBuffer	MaterialArgumentUploadBuffer; // 4 uints per slot (NANITE_DRAW_INDIRECT_ARG_COUNT)
 	//FRWByteAddressBuffer	MaterialArgumentDataBuffer;

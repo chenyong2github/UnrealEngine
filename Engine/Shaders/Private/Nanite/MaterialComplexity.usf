@@ -8,12 +8,17 @@
 #include "NaniteAttributeDecode.ush"
 
 Texture2D<UlongType> VisBuffer64;
+Texture2D<float> SceneDepth;
+Texture2D<uint> MaterialResolve;
 ByteAddressBuffer MaterialSlotTable;
 ByteAddressBuffer MaterialDepthTable;
+ByteAddressBuffer MaterialEditorTable;
 RWTexture2D<uint> MaterialComplexity;
 
 // .xy = min, .zw = max
 uint4 ViewRect;
+
+float InvShaderBudget;
 
 groupshared uint2 TileMaterialIDs[64];
 
@@ -100,3 +105,70 @@ void CalculateMaterialComplexity(uint3 GTID : SV_GroupThreadID, uint3 GID : SV_G
 
 	GroupMemoryBarrierWithGroupSync();
 }
+
+void ExportDebugViewPS(
+	in float4 SvPosition : SV_Position,
+	out float4 OutColor  : SV_Target0
+)
+{
+	const uint2 PixelPos = (uint2)SvPosition.xy;
+	const UlongType VisPixel = VisBuffer64[PixelPos];
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	bool bValidExport = false;
+
+	if (VisibleClusterIndex != 0xFFFFFFFFu)
+	{
+		const float NaniteDepth = asfloat(DepthInt);
+		float SceneDepthValue = SceneDepth[PixelPos.xy];
+		if (NaniteDepth >= SceneDepthValue)
+		{
+			FNaniteView NaniteView = GetNaniteView(0);
+
+			bool IsNanitePixel = false;
+			bool IsDecalReceiver = false;
+			uint MaterialSlot = 0;
+			UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+			const uint MaterialEditorData = GetMaterialDepthId(MaterialSlot, MaterialEditorTable);
+
+			const uint NumPSInstructions = (MaterialEditorData & 0xFFFF0000u) >> 16u;
+			const uint NumVSInstructions = (MaterialEditorData & 0x0000FFFFu);
+
+			// If mode is DVSM_QuadComplexity, different calculations used
+			// See: FComplexityAccumulateInterface::GetDebugViewModeShaderBindings()
+
+			// float3(PS/ShaderBudget, VS/ShaderBudget, overdraw)
+			float3 NormalizedComplexity = float3(
+				NumPSInstructions * InvShaderBudget,
+				NumVSInstructions * InvShaderBudget,
+				1.0 / 32.0f
+			);
+
+			float3 FinalComplexity = NormalizedComplexity.xyz;
+
+			//BRANCH
+			//if (bShowQuadOverdraw && NormalizedComplexity.x > 0.0f)
+			//{
+			//	uint Coverage = ComputeQuadCoverage(Input.SvPosition.xy, Input.PrimitiveID, 24, false, false, 0);
+			//	// The extra cost from quad overdraw is assumed to be linear.
+			//	FinalComplexity.x *= 4.f / (float)(Coverage);
+			//}
+
+			// use the maximum range allowed for scene color
+			// alpha channel needs to be 1 to have decals working where the framebuffer blend is setup to multiply with alpha
+			OutColor = float4(FinalComplexity.xyz, 1.0f);
+
+			bValidExport = true;
+		}
+	}
+	
+	if (!bValidExport)
+	{
+		discard;
+	}
+}
+

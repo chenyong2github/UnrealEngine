@@ -4,10 +4,12 @@
 #include "NaniteVisualizationData.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessing.h"
+#include "PostProcess/PostProcessVisualizeComplexity.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "PixelShaderUtils.h"
 #include "SceneTextureReductions.h"
 #include "Rendering/NaniteStreamingManager.h"
+#include "DebugViewModeHelpers.h"
 
 // Specifies if visualization only shows Nanite information that passes full scene depth test
 // -1: Use default composition specified the each mode
@@ -38,6 +40,14 @@ int32 GNaniteVisualizeComplexityScale = 80; // % of contribution per material ev
 FAutoConsoleVariableRef CVarNaniteVisualizeComplexityScale(
 	TEXT("r.Nanite.Visualize.ComplexityScale"),
 	GNaniteVisualizeComplexityScale,
+	TEXT("")
+);
+
+// Fudge factor chosen by visually comparing Nanite vs non-Nanite cube shader complexity using default material, and choosing value where colors match.
+int32 GNaniteVisualizeComplexityOverhead = 7400; // Baseline overhead of Nanite ALU (added to global shader budget)
+FAutoConsoleVariableRef CVarNaniteVisualizeComplexityOverhead(
+	TEXT("r.Nanite.Visualize.ComplexityOverhead"),
+	GNaniteVisualizeComplexityOverhead,
 	TEXT("")
 );
 
@@ -129,6 +139,40 @@ public:
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FMaterialComplexityCS, "/Engine/Private/Nanite/MaterialComplexity.usf", "CalculateMaterialComplexity", SF_Compute);
+
+class FExportDebugViewPS : public FNaniteShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FExportDebugViewPS);
+	SHADER_USE_PARAMETER_STRUCT(FExportDebugViewPS, FNaniteShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
+		SHADER_PARAMETER(FIntVector4, PageConstants)
+		SHADER_PARAMETER(FIntVector4, ViewRect)
+		SHADER_PARAMETER(float, InvShaderBudget)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialEditorTable)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform) && FDataDrivenShaderPlatformInfo::GetSupportsDebugViewShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FExportDebugViewPS, "/Engine/Private/Nanite/MaterialComplexity.usf", "ExportDebugViewPS", SF_Pixel);
 
 // TODO: Move to common location outside of Nanite
 class FHTileVisualizeCS : public FNaniteShader
@@ -448,5 +492,81 @@ void DrawVisualization(
 	}
 }
 #endif
+
+#if WITH_DEBUG_VIEW_MODES
+
+void RenderDebugViewMode(
+	FRDGBuilder& GraphBuilder,
+	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands,
+	const FSceneRenderer& SceneRenderer,
+	const FSceneTextures& SceneTextures,
+	const FDBufferTextures& DBufferTextures,
+	const FScene& Scene,
+	const FViewInfo& View,
+	const FSceneViewFamily& ViewFamily,
+	const FRasterResults& RasterResults,
+	FRDGTextureRef QuadOverdrawTexture,
+	const FRenderTargetBindingSlots& RenderTargets
+)
+{
+	const EDebugViewShaderMode DebugViewMode = ViewFamily.GetDebugViewShaderMode();
+
+	// TODO: Support more than shader complexity
+	bool bSupportedMode = false;
+	switch (DebugViewMode)
+	{
+	case DVSM_ShaderComplexity:							// Default shader complexity viewmode
+	case DVSM_ShaderComplexityContainedQuadOverhead:	// Show shader complexity with quad overdraw scaling the PS instruction count.
+	case DVSM_ShaderComplexityBleedingQuadOverhead:		// Show shader complexity with quad overdraw bleeding the PS instruction count over the quad.
+	case DVSM_QuadComplexity:							// Show quad overdraw only.
+		bSupportedMode = true;
+		break;
+
+	default:
+		break;
+	}
+
+	if (!bSupportedMode)
+	{
+		return;
+	}
+
+	LLM_SCOPE_BYTAG(Nanite);
+	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DebugView");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
+
+	const uint32 GlobalShaderBudget = GetMaxShaderComplexityCount(View.GetFeatureLevel());
+
+	// Increase the shader budget for Nanite meshes to account for baseline ALU overhead.
+	const uint32 NaniteShaderBudget = GlobalShaderBudget + uint32(GNaniteVisualizeComplexityOverhead);
+
+	FExportDebugViewPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FExportDebugViewPS::FParameters>();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
+	PassParameters->PageConstants = RasterResults.PageConstants;
+	PassParameters->ViewRect = FIntVector4(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
+	PassParameters->InvShaderBudget = 1.0f / float(NaniteShaderBudget);
+	PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+	PassParameters->VisBuffer64 = RasterResults.VisBuffer64;
+	PassParameters->SceneDepth = SceneTextures.Depth.Target;
+	PassParameters->MaterialResolve = RasterResults.MaterialResolve;
+	PassParameters->MaterialSlotTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
+	PassParameters->MaterialDepthTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
+	PassParameters->MaterialEditorTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialEditorSRV();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad, 0);
+
+	auto PixelShader = View.ShaderMap->GetShader<FExportDebugViewPS>();
+
+	FPixelShaderUtils::AddFullscreenPass(
+		GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("Export Debug View"),
+		PixelShader,
+		PassParameters,
+		View.ViewRect
+	);
+}
+
+#endif // WITH_DEBUG_VIEW_MODES
 
 } // namespace Nanite
