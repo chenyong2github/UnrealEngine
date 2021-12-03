@@ -78,6 +78,7 @@ struct FRayTracedLightingContext
 	bool bAcceptFirstHitAndEndSearch;
 	bool bSkipClosestHitShader;
 	bool bCalculateHitVelocity;
+	bool bUseBookmark;
 };
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
@@ -103,6 +104,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.bAcceptFirstHitAndEndSearch = false;
 	Context.bSkipClosestHitShader = false;
 	Context.bCalculateHitVelocity = false;
+	Context.bUseBookmark = false;
 	return Context;
 }
 
@@ -188,8 +190,14 @@ bool TraceLumenHitLightingRay(
 )
 {
 	uint RayFlags = 0;
-	TraceLumenShadingRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Bookmark, Payload);
-
+	if (Context.bUseBookmark)
+	{
+		TraceLumenShadingRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Bookmark, Payload);
+	}
+	else
+	{
+		TraceLumenShadingRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload);
+	}
 	return Payload.IsHit();
 }
 
@@ -418,10 +426,11 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 
 FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	in RayDesc Ray,
-	in FRayTracedLightingContext Context,
+	inout FRayTracedLightingContext Context,
 	int LightingMode
 )
 {
+	Context.bUseBookmark = false;
 	FLumenRayHitBookmark Bookmark;
 	return TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode, Bookmark);
 }
