@@ -652,10 +652,6 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		for (FPrimitiveSceneInfo* ScenePrimitiveInfo : LumenSceneData.PendingAddOperations)
 		{
 			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
-			const TConstArrayView<FRenderBounds> InstanceLocalBounds = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds();
-
-			const bool bHasInstanceBounds = InstanceSceneData.Num() == InstanceLocalBounds.Num();
-
 			const int32 NumInstances = FMath::Max(InstanceSceneData.Num(), 1);
 			bool bAnyInstanceValid = false;
 			{
@@ -670,11 +666,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					{
 						const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
 						LocalToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
-					}
-
-					if (InstanceIndex < InstanceLocalBounds.Num())
-					{
-						LocalBoundingBox = InstanceLocalBounds[InstanceIndex].ToBox();
+						LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds(InstanceIndex).ToBox();
 					}
 
 					if (TrackPrimitiveInstanceForLumenScene(LocalToWorld, LocalBoundingBox))
@@ -757,7 +749,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 							for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 							{
 								const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
-								const FRenderBounds& RenderBoundingBox = bHasInstanceBounds ? InstanceLocalBounds[InstanceIndex] : PrimitiveBounds;
+								const FRenderBounds& RenderBoundingBox = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds(InstanceIndex);
 								const FRenderBounds InstanceBounds = RenderBoundingBox.TransformBy(Instance.LocalToPrimitive);
 								LocalBounds += InstanceBounds;
 								const double InstanceSurfaceArea = BoxSurfaceArea(InstanceBounds.GetExtent());
@@ -809,7 +801,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 								ScenePrimitiveInfo->LumenPrimitiveGroupIndices[InstanceIndex] = PrimitiveGroupIndex;
 
 								const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
-								const FRenderBounds& RenderBoundingBox = bHasInstanceBounds ? InstanceLocalBounds[InstanceIndex] : PrimitiveBounds;
+								const FRenderBounds& RenderBoundingBox = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds(InstanceIndex);
 
 								FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[PrimitiveGroupIndex];
 								PrimitiveGroup.PrimitiveInstanceIndex = InstanceIndex;
@@ -856,10 +848,6 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 				const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 
 				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
-				const TConstArrayView<FRenderBounds> InstanceLocalBounds = PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds();
-
-				const bool bHasInstanceBounds = InstanceSceneData.Num() == InstanceLocalBounds.Num();
-				const FRenderBounds PrimitiveBounds = FRenderBounds(PrimitiveSceneInfo->Proxy->GetBounds().GetBox());
 
 				for (int32 PrimitiveGroupIndex : PrimitiveSceneInfo->LumenPrimitiveGroupIndices)
 				{
@@ -872,7 +860,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 						if (PrimitiveGroup.PrimitiveInstanceIndex < InstanceSceneData.Num())
 						{
 							const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[PrimitiveGroup.PrimitiveInstanceIndex];
-							const FRenderBounds& RenderBoundingBox = bHasInstanceBounds ? InstanceLocalBounds[PrimitiveGroup.PrimitiveInstanceIndex] : PrimitiveBounds; 
+							const FRenderBounds& RenderBoundingBox = PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds(PrimitiveGroup.PrimitiveInstanceIndex); 
 							WorldSpaceBoundingBox = RenderBoundingBox.ToBox().TransformBy(PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld);
 						}
 

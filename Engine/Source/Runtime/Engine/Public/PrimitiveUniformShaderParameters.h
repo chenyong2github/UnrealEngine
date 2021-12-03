@@ -46,10 +46,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(float,			ObjectBoundsY)											// Only needed for editor/development
 	SHADER_PARAMETER(FVector3f,		LocalObjectBoundsMax)									// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(float,			ObjectBoundsZ)											// Only needed for editor/development
+	SHADER_PARAMETER(FVector3f,		InstanceLocalBoundsCenter)
 	SHADER_PARAMETER(uint32,		InstancePayloadDataOffset)
+	SHADER_PARAMETER(FVector3f,		InstanceLocalBoundsExtent)
 	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
-	SHADER_PARAMETER(uint32,		Unused2)
-	SHADER_PARAMETER(uint32,		Unused3)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -69,6 +69,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
 #define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER					0x2000
 #define PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER				0x4000
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS			0x8000
 
 #define NANITE_INVALID_RESOURCE_ID			0xFFFFFFFFu
 #define NANITE_INVALID_HIERARCHY_OFFSET		0xFFFFFFFFu
@@ -95,6 +96,7 @@ public:
 		bHasPreSkinnedLocalBounds					= false;
 		bHasPreviousLocalToWorld					= false;
 		bHasNaniteImposterData						= false;
+		bHasInstanceLocalBounds						= false;
 
 		// Invalid indices
 		Parameters.LightmapDataIndex				= INDEX_NONE;
@@ -125,6 +127,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ReceivesDecals);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasNaniteImposterData);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasCapsuleRepresentation);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasInstanceLocalBounds);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastContactShadow);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			UseSingleSampleShadowFromStationaryLights);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			UseVolumetricLightmap);
@@ -197,6 +200,14 @@ public:
 		return *this;
 	}
 
+	inline FPrimitiveUniformShaderParametersBuilder& InstanceLocalBounds(const FRenderBounds& InInstanceLocalBounds)
+	{
+		bHasInstanceLocalBounds = true;
+		Parameters.InstanceLocalBoundsCenter = InInstanceLocalBounds.GetCenter();
+		Parameters.InstanceLocalBoundsExtent = InInstanceLocalBounds.GetExtent();
+		return *this;
+	}
+
 	inline FPrimitiveUniformShaderParametersBuilder& PreviousLocalToWorld(const FMatrix& InPreviousLocalToWorld)
 	{
 		bHasPreviousLocalToWorld = true;
@@ -255,6 +266,14 @@ public:
 			Parameters.PreviousRelativeWorldToLocal = Parameters.RelativeWorldToLocal;
 		}
 
+		if (!bHasInstanceLocalBounds)
+		{
+			FRenderBounds InstanceLocalBounds(Parameters.LocalObjectBoundsMin, Parameters.LocalObjectBoundsMax);
+			Parameters.InstanceLocalBoundsCenter = InstanceLocalBounds.GetCenter();
+			Parameters.InstanceLocalBoundsExtent = InstanceLocalBounds.GetExtent();
+		}
+
+
 		if (!bHasPreSkinnedLocalBounds)
 		{
 			Parameters.PreSkinnedLocalBoundsMin = Parameters.LocalObjectBoundsMin;
@@ -297,7 +316,7 @@ public:
 		Parameters.Flags |= ((LightingChannels & 0x4) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2 : 0u;
 		Parameters.Flags |= bVisibleInRaster ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER : 0u;
 		Parameters.Flags |= bHasNaniteImposterData ? PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER : 0u;
-
+		Parameters.Flags |= bHasInstanceLocalBounds ? PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS : 0u;
 		return Parameters;
 	}
 
@@ -324,6 +343,7 @@ private:
 	uint32 bHasPreviousLocalToWorld : 1;
 	uint32 bVisibleInRaster : 1;
 	uint32 bHasNaniteImposterData : 1;
+	uint32 bHasInstanceLocalBounds : 1;
 };
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
@@ -445,7 +465,6 @@ public:
 
 	FPrimitiveSceneShaderData PrimitiveSceneData;
 	FInstanceSceneShaderData InstanceSceneData;
-	//FInstancePayloadShaderData InstancePayloadData;
 	FLightmapSceneShaderData LightmapSceneData;
 
 	FBufferRHIRef PrimitiveSceneDataBufferRHI;

@@ -237,6 +237,10 @@ class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+
+		// Get data from GPUSceneParameters rather than View.
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 	}
 };
 

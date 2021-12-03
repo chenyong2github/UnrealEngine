@@ -508,7 +508,6 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 	{
 		const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 		const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
-		const TConstArrayView<FRenderBounds> InstanceLocalBounds = PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds();
 
 		const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneInfo->Proxy->GetBounds();
 		float InstanceArea = BoxSurfaceArea(PrimitiveBounds.BoxExtent);
@@ -543,7 +542,6 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 		{
 			const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
-			const TConstArrayView<FRenderBounds> InstanceLocalBounds = PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds();
 			const FMeshCardsBuildData& PrimitiveMeshCardsBuildData = CardRepresentationData->MeshCardsBuildData;
 			const FMatrix PrimitiveLocalToMeshCardsLocal = PrimitiveToWorld * WorldToMeshCardsLocal;
 

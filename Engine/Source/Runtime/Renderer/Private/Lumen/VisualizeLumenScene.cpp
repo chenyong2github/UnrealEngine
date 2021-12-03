@@ -740,26 +740,20 @@ void DrawPrimitiveBounds(const FLumenPrimitiveGroup& PrimitiveGroup, FLinearColo
 	{
 		const FMatrix& PrimitiveToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
 		const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
-		const TConstArrayView<FRenderBounds> InstanceLocalBounds = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds();
-		const bool bHasInstanceBounds = InstanceSceneData.Num() == InstanceLocalBounds.Num();
-
-		FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
 
 		if (InstanceSceneData.Num() > 0)
 		{
 			for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 			{
 				const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
-				if (bHasInstanceBounds)
-				{
-					LocalBoundingBox = InstanceLocalBounds[InstanceIndex].ToBox();
-				}
+				const FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetInstanceLocalBounds(InstanceIndex).ToBox();
 				FMatrix LocalToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
 				DrawWireBox(&ViewPDI, LocalToWorld, LocalBoundingBox, BoundsColor, DepthPriority);
 			}
 		}
 		else
 		{
+			const FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
 			DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBoundingBox, BoundsColor, DepthPriority);
 		}
 	}

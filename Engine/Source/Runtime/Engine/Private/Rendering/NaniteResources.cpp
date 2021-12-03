@@ -40,6 +40,13 @@ LLM_DEFINE_TAG(Nanite, NAME_None, NAME_None, GET_STATFNAME(STAT_NaniteLLM), GET_
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Total Instances"), STAT_NaniteInstanceCount, STATGROUP_Nanite);
 DECLARE_MEMORY_STAT(TEXT("Nanite Proxy Instance Memory"), STAT_ProxyInstanceMemory, STATGROUP_Nanite);
 
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Dynamic Data Instances"), STAT_InstanceHasDynamicCount, STATGROUP_Nanite);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("LMSM Data Instances"), STAT_InstanceHasLMSMBiasCount, STATGROUP_Nanite);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Custom Data Instances"), STAT_InstanceHasCustomDataCount, STATGROUP_Nanite);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Random Data Instances"), STAT_InstanceHasRandomCount, STATGROUP_Nanite);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Local Bounds Instances"), STAT_InstanceHasLocalBounds, STATGROUP_Nanite);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Hierarchy Offset Instances"), STAT_InstanceHasHierarchyOffset, STATGROUP_Nanite);
+
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
 
 int32 GNaniteOptimizedRelevance = 1;
@@ -255,6 +262,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
+
+		// Get data from GPUSceneParameters rather than View.
+		// TODO: Profile this vs view uniform buffer path
+		//OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 	}
 };
 IMPLEMENT_VERTEX_FACTORY_TYPE(Nanite::FVertexFactory, "/Engine/Private/Nanite/NaniteVertexFactory.ush",
@@ -584,7 +595,17 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceCustomData.GetAllocatedSize());
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceRandomID.GetAllocatedSize());
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLightShadowUVBias.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLocalBounds.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceHierarchyOffset.GetAllocatedSize());
+
 	INC_DWORD_STAT_BY(STAT_NaniteInstanceCount, InstanceSceneData.Num());
+
+	INC_DWORD_STAT_BY(STAT_InstanceHasDynamicCount, bHasPerInstanceDynamicData ? InstanceSceneData.Num() : 0);
+	INC_DWORD_STAT_BY(STAT_InstanceHasLMSMBiasCount, bHasPerInstanceLMSMUVBias ? InstanceSceneData.Num() : 0);
+	INC_DWORD_STAT_BY(STAT_InstanceHasCustomDataCount, bHasPerInstanceCustomData ? InstanceSceneData.Num() : 0);
+	INC_DWORD_STAT_BY(STAT_InstanceHasRandomCount, bHasPerInstanceRandom ? InstanceSceneData.Num() : 0);
+	INC_DWORD_STAT_BY(STAT_InstanceHasLocalBounds, bHasPerInstanceLocalBounds ? InstanceSceneData.Num() : 0);
+	INC_DWORD_STAT_BY(STAT_InstanceHasHierarchyOffset, bHasPerInstanceHierarchyOffset ? InstanceSceneData.Num() : 0);
 
 #if RHI_RAYTRACING
 	if (InstanceSceneData.Num() == 0)
@@ -608,7 +629,17 @@ FSceneProxy::~FSceneProxy()
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceCustomData.GetAllocatedSize());
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceRandomID.GetAllocatedSize());
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLightShadowUVBias.GetAllocatedSize());
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLocalBounds.GetAllocatedSize());
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceHierarchyOffset.GetAllocatedSize());
+
 	DEC_DWORD_STAT_BY(STAT_NaniteInstanceCount, InstanceSceneData.Num());
+
+	DEC_DWORD_STAT_BY(STAT_InstanceHasDynamicCount, bHasPerInstanceDynamicData ? InstanceSceneData.Num() : 0);
+	DEC_DWORD_STAT_BY(STAT_InstanceHasLMSMBiasCount, bHasPerInstanceLMSMUVBias ? InstanceSceneData.Num() : 0);
+	DEC_DWORD_STAT_BY(STAT_InstanceHasCustomDataCount, bHasPerInstanceCustomData ? InstanceSceneData.Num() : 0);
+	DEC_DWORD_STAT_BY(STAT_InstanceHasRandomCount, bHasPerInstanceRandom ? InstanceSceneData.Num() : 0);
+	DEC_DWORD_STAT_BY(STAT_InstanceHasLocalBounds, bHasPerInstanceLocalBounds ? InstanceSceneData.Num() : 0);
+	DEC_DWORD_STAT_BY(STAT_InstanceHasHierarchyOffset, bHasPerInstanceHierarchyOffset ? InstanceSceneData.Num() : 0);
 }
 
 void FSceneProxy::CreateRenderThreadResources()

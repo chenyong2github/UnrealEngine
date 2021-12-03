@@ -766,45 +766,45 @@ public:
 		return false;
 	}
 
-	TConstArrayView<FPrimitiveInstance> GetInstanceSceneData() const
+	FORCEINLINE TConstArrayView<FPrimitiveInstance> GetInstanceSceneData() const
 	{
 		return InstanceSceneData;
 	}
 
-	TConstArrayView<FPrimitiveInstanceDynamicData> GetInstanceDynamicData() const
+	FORCEINLINE TConstArrayView<FPrimitiveInstanceDynamicData> GetInstanceDynamicData() const
 	{
 		return InstanceDynamicData;
 	}
 
-	TConstArrayView<float> GetInstanceCustomData() const
+	FORCEINLINE TConstArrayView<float> GetInstanceCustomData() const
 	{
 		return InstanceCustomData;
 	}
 
-	TConstArrayView<float> GetInstanceRandomID() const
+	FORCEINLINE TConstArrayView<float> GetInstanceRandomID() const
 	{
 		return InstanceRandomID;
 	}
 
-	TConstArrayView<FVector4f> GetInstanceLightShadowUVBias() const
+	FORCEINLINE TConstArrayView<FVector4f> GetInstanceLightShadowUVBias() const
 	{
 		return InstanceLightShadowUVBias;
 	}
 
-	TConstArrayView<FRenderBounds> GetInstanceLocalBounds() const
+	FORCEINLINE TConstArrayView<FRenderBounds> GetInstanceLocalBounds() const
 	{
 		return InstanceLocalBounds;
 	}
 
 	// Helper function to avoid multiple code paths requesting bounds
-	const FRenderBounds& GetInstanceLocalBounds(uint32 Instance) 
+	FORCEINLINE const FRenderBounds& GetInstanceLocalBounds(uint32 Instance) 
 	{
 		const uint32 BoundsCount = uint32(InstanceLocalBounds.Num());
 		if (BoundsCount == 0)
 		{
 			// Messy, but allows for avoiding a lot of copies and marshaling to FRenderBounds
 			// TODO: Should change local bounds to the optimized type and clean this up.
-			check(!bHasPerInstanceLocalBounds);
+			checkSlow(!bHasPerInstanceLocalBounds);
 			InstanceLocalBounds.SetNumUninitialized(1);
 			InstanceLocalBounds[0] = LocalBounds;
 			return InstanceLocalBounds[0];
@@ -819,7 +819,7 @@ public:
 		return InstanceLocalBounds[Instance];
 	}
 
-	TConstArrayView<uint32> GetInstanceHierarchyOffset() const
+	FORCEINLINE TConstArrayView<uint32> GetInstanceHierarchyOffset() const
 	{
 		return InstanceHierarchyOffset;
 	}
@@ -1290,9 +1290,6 @@ private:
 
 	/** The primitive's local space bounds. */
 	FBoxSphereBounds LocalBounds;
-
-	/** The primitive's mesh bounds (zero size if inapplicable) */
-	FRenderBounds MeshBounds;
 
 	/** The component's actor's position. */
 	FVector ActorPosition;
