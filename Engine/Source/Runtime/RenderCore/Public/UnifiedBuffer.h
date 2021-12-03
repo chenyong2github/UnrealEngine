@@ -177,4 +177,15 @@ public:
 
 		return UploadData + ElementIndex * NumBytesPerElement;
 	}
+
+	void SetUploadViaCreate(bool bInUploadViaCreate)
+	{
+		if (bInUploadViaCreate != bUploadViaCreate)
+		{
+			// When switching the upload path, just free everything.
+			Release();
+
+			bUploadViaCreate = bInUploadViaCreate;
+		}
+	}
 };
