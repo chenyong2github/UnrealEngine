@@ -40,6 +40,9 @@ int VirtualShadowMapId;
 uint ForceShadowMaps;
 uint ForceOffscreenShadowing;
 
+// Workaround for a console shader compiler bug generating incorrect code. Likely can be removed in next SDK.
+uint DummyZeroForFixingShaderCompilerBug;
+
 StructuredBuffer<uint> CardTileAllocator;
 StructuredBuffer<uint> CardTileData;
 uint CardScatterInstanceIndex;
@@ -63,7 +66,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 	FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
 	uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
-	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex + DummyZeroForFixingShaderCompilerBug);
 	float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (TexelInCardPageCoord + 0.5f);
 	float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (TexelInCardPageCoord + 0.5f);
 
@@ -78,7 +81,6 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
 
 		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
 		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 
@@ -278,7 +280,7 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 	uint2 CoordInCardTile = GroupThreadId.xy;
 	uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
 
-	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex + DummyZeroForFixingShaderCompilerBug);
 	float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (TexelInCardPageCoord + 0.5f);
 	float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (TexelInCardPageCoord + 0.5f);
 
@@ -290,7 +292,6 @@ void LumenSceneDirectLightingTraceDistanceFieldShadowsCS(
 		FDeferredLightData LightData = LoadLightData(LIGHT_TYPE);
 
 		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalPointClampedSampler, AtlasUV, 0).x;
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
 		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 		float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
