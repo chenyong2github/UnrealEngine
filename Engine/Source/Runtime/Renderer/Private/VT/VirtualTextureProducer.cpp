@@ -23,8 +23,19 @@ void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirt
 	}
 
 	PhysicalGroups.Reset();
+
+	{
+		// Complete all open tasks before delete.
+		TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureProducer::Release_Wait);
+	
+		FGraphEventArray ProducePageTasks;
+		VirtualTexture->GatherProducePageDataTasks(HandleToSelf, ProducePageTasks);
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(ProducePageTasks, ENamedThreads::GetRenderThread_Local());
+	}
+
 	delete VirtualTexture;
 	VirtualTexture = nullptr;
+	
 	Description = FVTProducerDescription();
 }
 

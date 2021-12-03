@@ -139,7 +139,7 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 	TranscodeParams.LayerMask = LayerMask;
 	TranscodeParams.Codec = CodecResult.Codec;
 	TranscodeParams.Name = VTexture->GetName();
-	const FVTTranscodeTileHandle TranscodeHandle = TranscodeCache.SubmitTask(UploadCache, TranscodeKey, TranscodeParams, &GraphCompletionEvents);
+	const FVTTranscodeTileHandle TranscodeHandle = TranscodeCache.SubmitTask(UploadCache, TranscodeKey, ProducerHandle, TranscodeParams, &GraphCompletionEvents);
 	return FVTRequestPageResult(EVTRequestPageStatus::Pending, TranscodeHandle.PackedData);
 }
 
@@ -160,6 +160,11 @@ IVirtualTextureFinalizer* FVirtualTextureChunkStreamingManager::ProduceTile(FRHI
 	return &UploadCache;
 }
 
+void FVirtualTextureChunkStreamingManager::GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const
+{
+	TranscodeCache.GatherProducePageDataTasks(ProducerHandle, InOutTasks);
+}
+
 void FVirtualTextureChunkStreamingManager::GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const
 {
 	FGraphEventRef Event = TranscodeCache.GetTaskEvent(FVTTranscodeTileHandle(RequestHandle));
@@ -167,9 +172,4 @@ void FVirtualTextureChunkStreamingManager::GatherProducePageDataTasks(uint64 Req
 	{
 		InOutTasks.Emplace(MoveTemp(Event));
 	}
-}
-
-void FVirtualTextureChunkStreamingManager::WaitTasksFinished() const
-{
-	TranscodeCache.WaitTasksFinished();
 }

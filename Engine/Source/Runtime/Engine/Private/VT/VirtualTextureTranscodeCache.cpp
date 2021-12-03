@@ -310,21 +310,6 @@ void FVirtualTextureTranscodeCache::WaitTaskFinished(FVTTranscodeTileHandle InHa
 	}
 }
 
-void FVirtualTextureTranscodeCache::WaitTasksFinished() const
-{
-	int32 TaskIndex = Tasks[LIST_PENDING].NextIndex;
-	while (TaskIndex != LIST_PENDING)
-	{
-		FTaskEntry const& TaskEntry = Tasks[TaskIndex];
-		const int32 NextIndex = TaskEntry.NextIndex;
-		if (TaskEntry.GraphEvent && !TaskEntry.GraphEvent->IsComplete())
-		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(TaskEntry.GraphEvent, ENamedThreads::GetRenderThread_Local());
-		}
-		TaskIndex = NextIndex;
-	}
-}
-
 FGraphEventRef FVirtualTextureTranscodeCache::GetTaskEvent(FVTTranscodeTileHandle InHandle) const
 {
 	const uint32 TaskIndex = InHandle.Index;
@@ -332,6 +317,21 @@ FGraphEventRef FVirtualTextureTranscodeCache::GetTaskEvent(FVTTranscodeTileHandl
 	const FTaskEntry& TaskEntry = Tasks[TaskIndex];
 	check(TaskEntry.Magic == InHandle.Magic);
 	return TaskEntry.GraphEvent;
+}
+
+void FVirtualTextureTranscodeCache::GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const
+{
+	// todo[VT]: Add multimap or similar if we need faster lookup here.
+	int32 TaskIndex = Tasks[LIST_PENDING].NextIndex;
+	while (TaskIndex != LIST_PENDING)
+	{
+		FTaskEntry const& Task = Tasks[TaskIndex];
+		if (Task.PackedProducerHandle == ProducerHandle.PackedValue && Task.GraphEvent && !Task.GraphEvent->IsComplete())
+		{
+			InOutTasks.Add(Task.GraphEvent);
+		}
+		TaskIndex = Task.NextIndex;
+	}
 }
 
 const FVTUploadTileHandle* FVirtualTextureTranscodeCache::AcquireTaskResult(FVTTranscodeTileHandle InHandle)
@@ -357,8 +357,10 @@ const FVTUploadTileHandle* FVirtualTextureTranscodeCache::AcquireTaskResult(FVTT
 	return TaskEntry.StageTileHandle;
 }
 
-FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(FVirtualTextureUploadCache& InUploadCache,
+FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(
+	FVirtualTextureUploadCache& InUploadCache,
 	const FVTTranscodeKey& InKey,
+	const FVirtualTextureProducerHandle& InProducerHandle,
 	const FVTTranscodeParams& InParams,
 	const FGraphEventArray* InPrerequisites)
 {
@@ -382,6 +384,7 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(FVirtualTexture
 
 	FTaskEntry& TaskEntry = Tasks[TaskIndex];
 	TaskEntry.Key = InKey.Key;
+	TaskEntry.PackedProducerHandle = InProducerHandle.PackedValue;
 	TaskEntry.Hash = InKey.Hash;
 	TaskEntry.FrameSubmitted = GFrameNumberRenderThread;
 	FMemory::Memzero(TaskEntry.StageTileHandle);

@@ -73,17 +73,19 @@ public:
 
 	FVTTranscodeTileHandleAndStatus FindTask(const FVTTranscodeKey& InKey) const;
 
-	FVTTranscodeTileHandle SubmitTask(FVirtualTextureUploadCache& InUploadCache,
+	FVTTranscodeTileHandle SubmitTask(
+		FVirtualTextureUploadCache& InUploadCache,
 		const FVTTranscodeKey& InKey,
+		const FVirtualTextureProducerHandle& InProducerHandle,
 		const FVTTranscodeParams& InParams,
 		const FGraphEventArray* InPrerequisites = NULL);
 
 	bool IsTaskFinished(FVTTranscodeTileHandle InHandle) const;
 	void WaitTaskFinished(FVTTranscodeTileHandle InHandle) const;
 	const FVTUploadTileHandle* AcquireTaskResult(FVTTranscodeTileHandle InHandle);
+	
 	FGraphEventRef GetTaskEvent(FVTTranscodeTileHandle InHandle) const;
-
-	void WaitTasksFinished() const;
+	void GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const;
 
 	void RetireOldTasks(FVirtualTextureUploadCache& InUploadCache);
 
@@ -101,6 +103,7 @@ private:
 		uint64 Key;
 		FGraphEventRef GraphEvent;
 		FVTUploadTileHandle StageTileHandle[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+		uint32 PackedProducerHandle;
 		uint32 FrameSubmitted;
 		uint16 Magic;
 		uint16 Hash;
