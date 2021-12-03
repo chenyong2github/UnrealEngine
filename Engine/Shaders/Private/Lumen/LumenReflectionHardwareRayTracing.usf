@@ -128,10 +128,6 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 		Context.bUseBookmark = true;
-#if DIM_SPECULAR_OCCLUSION
-		Context.bAcceptFirstHitAndEndSearch = true;
-		Context.bSkipClosestHitShader = true;
-#endif // DIM_SPECULAR_OCCLUSION
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING
 		if (TraceData.bIsFarField)
@@ -158,26 +154,31 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 #endif // DIM_LIGHTING_MODE
 
+#if ENABLE_NEAR_FIELD_TRACING && DIM_RADIANCE_CACHE
+		// If we're tracing a near field ray that missed, which has valid Radiance Cache coverage, use that for final lighting
+		if (!Result.bIsHit && RayData.TraceDistance < MaxTraceDistance * .99f)
+		{
+			FConeTraceResult TraceResult;
+			TraceResult.Lighting = 0;
+			TraceResult.Transparency = 1;
+
+			SampleRadianceCacheAndApply(WorldPosition, RayData.Direction, RayData.ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			Result.TraceHitDistance = RayData.TraceDistance;
+			Result.Radiance = TraceResult.Lighting;
+
+			Result.bIsHit = true;
+		}
+#endif
+
 		if ((ApplySkyLight != 0) && !Result.bIsHit)
 		{
 			FConeTraceResult TraceResult;
 			TraceResult.Lighting = Result.Radiance;
 			TraceResult.Transparency = 1;
 
-#if DIM_RADIANCE_CACHE
-			if (RayData.TraceDistance < MaxTraceDistance * .99f)
-			{
-				SampleRadianceCacheAndApply(WorldPosition, RayData.Direction, RayData.ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
 
-				Result.TraceHitDistance = RayData.TraceDistance;
-			}
-			else
-#endif
-			{
-				Result.TraceHitDistance = MaxTraceDistance;
-				EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
-			}
-
+			Result.TraceHitDistance = MaxTraceDistance;
 			Result.Radiance = TraceResult.Lighting;
 			Result.bIsHit = true;
 		}

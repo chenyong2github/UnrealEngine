@@ -347,21 +347,16 @@ void SplatRadianceCacheIntoAtlasCS(
 			// Visual assert on overflow due to r.Lumen.RadianceCache.HardwareRayTracing.TemporaryBufferAllocationDownsampleFactor
 			Lighting = float3(0, 10000, 0) * View.PreExposure;
 		}
-
-		{
-			for (uint Y = 0; Y < UpsampleFactor; Y++)
-			for (uint X = 0; X < UpsampleFactor; X++)
-			{
-				RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = Lighting;
-			}
-		}
-
+		
 		float HitDistance = TraceTileResult.HitDistance;
 
 		for (uint Y = 0; Y < UpsampleFactor; Y++)
-		for (uint X = 0; X < UpsampleFactor; X++)
 		{
-			RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = HitDistance;
+			for (uint X = 0; X < UpsampleFactor; X++)
+			{
+				RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = Lighting;
+				RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = HitDistance;
+			}
 		}
 	}
 	else
@@ -372,13 +367,16 @@ void SplatRadianceCacheIntoAtlasCS(
 		if (all(GroupThreadId.xy < WriteTileSize))
 		{
 			float3 Lighting = 0;
+			float HitDistance = MaxHalfFloat;
 
+			for (uint Y = 0; Y < DownsampleFactor; Y++)
 			{
-				for (uint Y = 0; Y < DownsampleFactor; Y++)
 				for (uint X = 0; X < DownsampleFactor; X++)
 				{
-					uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + GroupThreadId.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.x;
-					Lighting += UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]).Radiance;
+					uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + (GroupThreadId.y * DownsampleFactor + Y) * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + (GroupThreadId.x * DownsampleFactor + X);
+					FTraceTileResult TraceTileResult = UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]);
+					Lighting += TraceTileResult.Radiance;
+					HitDistance = min(HitDistance, TraceTileResult.HitDistance);
 
 					if (TraceTileResultIndex >= TraceTileResultPackedBufferElementCount)
 					{
@@ -388,19 +386,9 @@ void SplatRadianceCacheIntoAtlasCS(
 				}
 			}
 
-			ProbeAtlasBaseCoord += WriteTileSize * TraceTileCoord + GroupThreadId.xy;
-			RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord] = Lighting / (float)(DownsampleFactor * DownsampleFactor);
-
-			float HitDistance = MaxHalfFloat;
-
-			for (uint Y = 0; Y < DownsampleFactor; Y++)
-			for (uint X = 0; X < DownsampleFactor; X++)
-			{
-				uint TraceTileResultIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + GroupThreadId.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.x;
-				HitDistance += UnpackTraceTileResult(TraceTileResultPackedBuffer[TraceTileResultIndex]).HitDistance;
-			}
-
-			RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord] = HitDistance;
+			uint2 ProbeAtlasCoord = ProbeAtlasBaseCoord + WriteTileSize * TraceTileCoord + GroupThreadId.xy;
+			RWRadianceProbeAtlasTexture[ProbeAtlasCoord] = Lighting / (float)(DownsampleFactor * DownsampleFactor);
+			RWDepthProbeAtlasTexture[ProbeAtlasCoord] = HitDistance;
 		}
 	}
 }

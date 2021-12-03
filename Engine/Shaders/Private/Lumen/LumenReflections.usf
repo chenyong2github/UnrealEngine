@@ -267,7 +267,7 @@ void ReflectionGenerateRaysCS(
 				if (Coverage.bValid)
 				{
 					float FadeAlpha = saturate((ConeAngle - RadianceCacheConeHalfAngle) / RadianceCacheConeHalfAngle);
-					TraceDistance = lerp(MaxTraceDistance, min(Coverage.MinTraceDistanceBeforeInterpolation, MaxTraceDistance), FadeAlpha);
+					TraceDistance = lerp(.99f * MaxTraceDistance, min(Coverage.MinTraceDistanceBeforeInterpolation, .99f * MaxTraceDistance), FadeAlpha);
 				}
 			}
 #endif

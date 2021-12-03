@@ -506,7 +506,7 @@ void DispatchComputeShader(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("FLumenRadianceCacheHardwareRayTracingIndirectArgsCS"),
+			RDG_EVENT_NAME("HardwareRayTracingIndirectArgsCS"),
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -602,7 +602,7 @@ void DispatchRayGenShader(
 		TShaderRef<FLumenRadianceCacheHardwareRayTracingIndirectArgsCS> ComputeShader = View.ShaderMap->GetShader<FLumenRadianceCacheHardwareRayTracingIndirectArgsCS>(MyPermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("FLumenRadianceCacheHardwareRayTracingIndirectArgsCS"),
+			RDG_EVENT_NAME("HardwareRayTracingIndirectArgsCS"),
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
