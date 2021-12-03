@@ -2306,7 +2306,7 @@ uint64 FStreamingManager::GetRequestRecordBuffer(TArray<uint32>& OutRequestData)
  			}
 			PrevResourceID = Request.Key.RuntimeResourceID;
 
-			const uint32 QuantizedPriority = Request.Priority >> (32 - MAX_RESOURCE_PAGES_BITS - 1);	// Exact priority doesn't matter, so just quantize it to fit
+			const uint32 QuantizedPriority = Request.Priority >> (MAX_RESOURCE_PAGES_BITS + 1);	// Exact priority doesn't matter, so just quantize it to fit
 			const uint32 Packed = (QuantizedPriority << (MAX_RESOURCE_PAGES_BITS + 1)) | (Request.Key.PageIndex << 1);	// Lowest bit is resource repeat bit
 			OutRequestData[WriteIndex++] = Packed;
 		}
