@@ -221,11 +221,15 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 			LoadedPresetFormatText,
 			FText::FromString(MainPanel.Pin()->GetReferenceAssetOnDisk()->GetName())) : NoLoadedPresetText;
 
+	FUIAction PresetNameAction = FUIAction();
+	PresetNameAction.CanExecuteAction = FCanExecuteAction::CreateLambda([]() { return false; });
 	MenuBuilder.AddMenuEntry(
 		LoadedPresetName,
 		LoadedPresetName,
 		FSlateIcon(),
-		FUIAction()
+		PresetNameAction,
+		NAME_None,
+		EUserInterfaceActionType::None
 	);
 
 	MenuBuilder.AddMenuSeparator();
