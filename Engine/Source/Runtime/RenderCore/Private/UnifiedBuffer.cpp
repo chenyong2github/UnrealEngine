@@ -673,6 +673,20 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 	}
 }
 
+void FScatterUploadBuffer::Init(TArrayView<const uint32> ElementScatterOffsets, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName)
+{
+	Init(ElementScatterOffsets.Num(), InNumBytesPerElement, bInFloat4Buffer, DebugName);
+	FMemory::ParallelMemcpy(ScatterData, ElementScatterOffsets.GetData(), ElementScatterOffsets.Num() * ElementScatterOffsets.GetTypeSize(), EMemcpyCachePolicy::StoreUncached);
+	NumScatters = ElementScatterOffsets.Num();
+	ScatterData += ElementScatterOffsets.Num();
+}
+
+void FScatterUploadBuffer::InitPreSized(uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName)
+{
+	Init(NumElements, InNumBytesPerElement, bInFloat4Buffer, DebugName);
+	NumScatters = NumElements;
+}
+
 // Helper type used to initialize the buffer data on creation
 struct FScatterUploadBufferResourceArray : public FResourceArrayInterface
 {
