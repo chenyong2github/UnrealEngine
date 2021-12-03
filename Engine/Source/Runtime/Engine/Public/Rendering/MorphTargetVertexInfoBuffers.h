@@ -4,6 +4,8 @@
 
 #include "RenderResource.h"
 
+struct FSkelMeshRenderSection;
+class UMorphTarget;
 
 class FMorphTargetVertexInfoBuffers : public FRenderResource
 {
@@ -11,6 +13,12 @@ public:
 	FMorphTargetVertexInfoBuffers() : NumTotalBatches(0)
 	{
 	}
+
+	void InitMorphResources(EShaderPlatform ShaderPlatform, const TArray<FSkelMeshRenderSection>& RenderSections, const TArray<UMorphTarget*>& MorphTargets, int NumVertices, int32 LODIndex, float TargetPositionErrorTolerance);
+
+	inline bool IsMorphResourcesInitialized() const { return bResourcesInitialized; }
+	inline bool IsRHIIntialized() const { return bRHIIntialized; }
+	inline bool IsMorphCPUDataValid() const{ return bIsMorphCPUDataValid; }
 
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
@@ -56,6 +64,8 @@ public:
 		return PositionPrecision;
 	}
 
+	static const float CalculatePositionPrecision(float TargetPositionErrorTolerance);
+
 	const float GetTangentZPrecision() const
 	{
 		return TangentZPrecision;
@@ -70,13 +80,19 @@ public:
 		MaximumValuePerMorph.Empty();
 		MinimumValuePerMorph.Empty();
 		BatchStartOffsetPerMorph.Empty();
-		BatchesPerMorph.Empty();		
+		BatchesPerMorph.Empty();
 		NumTotalBatches = 0;
 		PositionPrecision = 0.0f;
 		TangentZPrecision = 0.0f;
+		bResourcesInitialized = false;
+		bRHIIntialized = false;
+		bIsMorphCPUDataValid = false;
 	}
 
 protected:
+
+	void ValidateVertexBuffers(bool bMorphTargetsShouldBeValid);
+	void Serialize(FArchive& Ar);
 
 	// Transient data. Gets deleted as soon as the GPU resource has been initialized.
 	TArray<uint32> MorphData;
@@ -91,5 +107,12 @@ protected:
 	float PositionPrecision;
 	float TangentZPrecision;
 
+	bool bIsMorphCPUDataValid = false;
+	bool bResourcesInitialized = false;
+	bool bRHIIntialized = false;
+
 	friend class FSkeletalMeshLODRenderData;
+	friend FArchive& operator<<(FArchive& Ar, FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers);
 };
+
+FArchive& operator<<(FArchive& Ar, FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers);

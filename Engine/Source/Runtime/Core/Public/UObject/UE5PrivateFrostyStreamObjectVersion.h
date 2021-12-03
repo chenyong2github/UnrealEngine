@@ -30,6 +30,9 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 		// Re-calculate the long range attachment to prevent kinematic tethers.
 		ChaosClothRemoveKinematicTethers,
 
+		// Serializes the Morph Target render data for cooked platforms and the DDC
+		SerializeSkeletalMeshMorphTargetRenderData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
