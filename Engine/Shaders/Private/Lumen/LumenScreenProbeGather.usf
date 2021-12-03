@@ -1244,6 +1244,7 @@ Texture2D RoughSpecularIndirectHistory;
 Texture2D DiffuseIndirectDepthHistory;
 Texture2D HistoryNumFramesAccumulated;
 Texture2D FastUpdateModeHistory;
+Texture2D NormalHistory;
 
 float HistoryDistanceThreshold;
 
@@ -1256,6 +1257,7 @@ float PrevSceneColorPreExposureCorrection;
 float InvFractionOfLightingMovingForFastUpdateMode;
 float MaxFastUpdateModeAmount;
 float MaxFramesAccumulated;
+float HistoryNormalCosThreshold;
 
 static const int2 kOffsets3x3[8] =
 {
@@ -1397,6 +1399,9 @@ void ScreenProbeTemporalReprojectionCS(
 	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
 	float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
 
+	float2 TexelSize = View.BufferSizeAndInvSize.zw;
+	float2 HistoryGatherUV00 = (BilinearFilterAtHistoryScreenUV.Origin + .5f) * TexelSize;
+
 #define PLANE_DISOCCLUSION_WEIGHTS 0
 #if PLANE_DISOCCLUSION_WEIGHTS
 	float3 PrevTranslatedPrevWorldPosition = mul(float4(HistoryScreenPosition.xy * PrevSceneDepth, PrevSceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
@@ -1404,9 +1409,6 @@ void ScreenProbeTemporalReprojectionCS(
 
 	float4 PlaneDistance;
 	{
-		float2 TexelSize = View.BufferSizeAndInvSize.zw;
-		float2 HistoryGatherUV00 = (BilinearFilterAtHistoryScreenUV.Origin + .5f) * TexelSize;
-
 		float2 HistoryScreenPosition00 = HistoryGatherUV00 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
 		float3 PrevTranslatedHistoryWorldPosition00 = mul(float4(HistoryScreenPosition00 * HistorySceneDepth.x, HistorySceneDepth.x, 1), View.PrevScreenToTranslatedWorld).xyz;
 		PlaneDistance.x = abs(dot(float4(PrevTranslatedHistoryWorldPosition00, -1), PrevTranslatedPrevScenePlane));
@@ -1441,8 +1443,25 @@ void ScreenProbeTemporalReprojectionCS(
 
 #endif
 
+	float4 OriginalOcclusionWeights = OcclusionWeights;
+
+#if HISTORY_REJECT_BASED_ON_NORMAL
+	float3 HistoryNormal00 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGatherUV00, 0).xyz);
+	float3 HistoryNormal10 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(TexelSize.x, 0), 0).xyz);
+	float3 HistoryNormal01 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(0, TexelSize.y), 0).xyz);
+	float3 HistoryNormal11 = DecodeNormal(Texture2DSampleLevel(NormalHistory, GlobalPointClampedSampler, HistoryGatherUV00 + TexelSize, 0).xyz);
+
+	float4 HistoryNormalWeights = float4(
+		dot(HistoryNormal00, GBufferData.WorldNormal),
+		dot(HistoryNormal10, GBufferData.WorldNormal),
+		dot(HistoryNormal01, GBufferData.WorldNormal),
+		dot(HistoryNormal11, GBufferData.WorldNormal)) < HistoryNormalCosThreshold ? 1.0f : 0.0f;
+
+	OcclusionWeights = saturate(HistoryNormalWeights + OcclusionWeights);
+#endif
+
 	//@todo - calculate for each texel in the footprint to avoid tossing history around screen edges
-	OcclusionWeights = saturate((bHistoryWasOnscreen ? 1.0f : 0.0f) - OcclusionWeights);
+	float4 VisibilityWeights = saturate((bHistoryWasOnscreen ? 1.0f : 0.0f) - OcclusionWeights);
 
 	float4 NewDiffuseLighting = DiffuseIndirect[DispatchThreadId];
 	bool bLightingIsValid = NewDiffuseLighting.w > 0.0f;
@@ -1459,14 +1478,12 @@ void ScreenProbeTemporalReprojectionCS(
 	if (!bLightingIsValid)
 	{
 		// Flood fill failed and we have no valid lighting this frame, force history
-		OcclusionWeights = 1;
+		VisibilityWeights = 1;
 	}
 
-	float4 FinalWeights = GetBilinearCustomWeights(BilinearFilterAtHistoryScreenUV, OcclusionWeights);
+	float4 FinalWeights = GetBilinearCustomWeights(BilinearFilterAtHistoryScreenUV, VisibilityWeights);
 
 #if ACCURATE_HISTORY_DISOCCLUSION
-	float2 TexelSize = View.BufferSizeAndInvSize.zw;
-	float2 HistoryGatherUV00 = (BilinearFilterAtHistoryScreenUV.Origin + .5f) * TexelSize;
 	float3 HistoryDiffuseIndirect00 = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00, 0).xyz;
 	float3 HistoryDiffuseIndirect10 = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(TexelSize.x, 0), 0).xyz;
 	float3 HistoryDiffuseIndirect01 = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(0, TexelSize.y), 0).xyz;
@@ -1492,6 +1509,7 @@ void ScreenProbeTemporalReprojectionCS(
 	float FastUpdateModeAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFastUpdateMode);
 	FastUpdateModeAmount = saturate(min((FastUpdateModeAmount - .2f) / .8f, MaxFastUpdateModeAmount));
 
+	if (View.GeneralPurposeTweak > 0)
 	{
 		RWNewHistoryFastUpdateMode[DispatchThreadId] = FastUpdateModeAmount;
 		float FastUpdateModeHistoryValue = WeightedAverage(FastUpdateModeHistory.GatherRed(GlobalPointClampedSampler, HistoryGatherUV).wzxy, FinalWeights);
@@ -1504,7 +1522,7 @@ void ScreenProbeTemporalReprojectionCS(
 	NewNumFramesAccumulated = bHistoryWasOnscreen ? NewNumFramesAccumulated : 0;
 
 #if !ACCURATE_HISTORY_DISOCCLUSION
-	if (OcclusionWeights.x < .01f)
+	if (VisibilityWeights.x < .01f)
 	{
 		NewNumFramesAccumulated = 0;
 	}
@@ -1527,9 +1545,10 @@ void ScreenProbeTemporalReprojectionCS(
 	float3 OutRoughSpecularIndirect = lerp(HistoryRoughSpecularIndirect, NewRoughSpecularLighting, Alpha);
 
 	// Debug visualizations
-	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = bHistoryWasOnscreen ? (dot(OcclusionWeights, 1) > 0.0f) : 0.0f;
+	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = bHistoryWasOnscreen ? (dot(VisibilityWeights, 1) > 0.0f) : 0.0f;
 	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = FastUpdateModeAmount; 
 	//if (!bLightingIsValid) { OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = float3(1, 0, 0); }
+	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = bHistoryWasOnscreen ? saturate(HistoryNormalWeights.xyz - OriginalOcclusionWeights.xyz) : 0.0f;
 
 	OutDiffuseIndirect.rgb = -min(-OutDiffuseIndirect.rgb, 0.0f);
 	OutRoughSpecularIndirect.rgb = -min(-OutRoughSpecularIndirect.rgb, 0.0f);

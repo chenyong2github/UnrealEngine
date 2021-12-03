@@ -35,10 +35,11 @@ class FScreenProbeGatherTemporalState
 public:
 	FIntRect DiffuseIndirectHistoryViewRect;
 	FVector4f DiffuseIndirectHistoryScreenPositionScaleBias;
-	TRefCountPtr<IPooledRenderTarget> DiffuseIndirectHistoryRT[4];
+	TRefCountPtr<IPooledRenderTarget> DiffuseIndirectHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> RoughSpecularIndirectHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> NumFramesAccumulatedRT;
 	TRefCountPtr<IPooledRenderTarget> FastUpdateModeHistoryRT;
+	TRefCountPtr<IPooledRenderTarget> NormalHistoryRT;
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 	FIntRect ProbeHistoryViewRect;
 	FVector4f ProbeHistoryScreenPositionScaleBias;
@@ -58,14 +59,11 @@ public:
 
 	void SafeRelease()
 	{
-		for (int32 i = 0; i < UE_ARRAY_COUNT(DiffuseIndirectHistoryRT); i++)
-		{
-			DiffuseIndirectHistoryRT[i].SafeRelease();
-		}
-		
+		DiffuseIndirectHistoryRT.SafeRelease();
 		RoughSpecularIndirectHistoryRT.SafeRelease();
 		NumFramesAccumulatedRT.SafeRelease();
 		FastUpdateModeHistoryRT.SafeRelease();
+		NormalHistoryRT.SafeRelease();
 		OctahedralSolidAngleTextureRT.SafeRelease();
 		HistoryScreenProbeSceneDepth.SafeRelease();
 		HistoryScreenProbeTranslatedWorldPosition.SafeRelease();
