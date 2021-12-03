@@ -26,6 +26,7 @@ namespace HordeServer.Services
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Wraps funtionality for manipulating agents
@@ -145,7 +146,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="SessionId">The session id</param>
 		/// <returns>Bearer token for the agent</returns>
-		public string IssueSessionToken(ObjectId SessionId)
+		public string IssueSessionToken(SessionId SessionId)
 		{
 			List<AclClaim> Claims = new List<AclClaim>();
 			Claims.Add(AclService.AgentClaim);
@@ -285,7 +286,7 @@ namespace HordeServer.Services
 					}
 
 					// Create a new session document
-					ISession NewSession = await Sessions.AddAsync(ObjectId.GenerateNewId(), Agent.Id, Clock.UtcNow, Properties, Resources, Version);
+					ISession NewSession = await Sessions.AddAsync(SessionId.GenerateNewId(), Agent.Id, Clock.UtcNow, Properties, Resources, Version);
 					DateTime SessionExpiresAt = UtcNow + SessionExpiryTime;
 
 					// Get the new dynamic pools for the agent
@@ -490,7 +491,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// 
 		/// </summary>
-		public async Task<IAgent?> UpdateSessionWithWaitAsync(IAgent InAgent, ObjectId SessionId, AgentStatus Status, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IList<HordeCommon.Rpc.Messages.Lease> NewLeases, CancellationToken CancellationToken)
+		public async Task<IAgent?> UpdateSessionWithWaitAsync(IAgent InAgent, SessionId SessionId, AgentStatus Status, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IList<HordeCommon.Rpc.Messages.Lease> NewLeases, CancellationToken CancellationToken)
 		{
 			IAgent? Agent = InAgent;
 
@@ -516,7 +517,7 @@ namespace HordeServer.Services
 		/// <param name="Resources">New agent resources</param>
 		/// <param name="NewLeases">New list of leases for this session</param>
 		/// <returns>Updated agent state</returns>
-		public async Task<IAgent?> UpdateSessionAsync(IAgent InAgent, ObjectId SessionId, AgentStatus Status, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IList<HordeCommon.Rpc.Messages.Lease> NewLeases)
+		public async Task<IAgent?> UpdateSessionAsync(IAgent InAgent, SessionId SessionId, AgentStatus Status, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, IList<HordeCommon.Rpc.Messages.Lease> NewLeases)
 		{
 			DateTime UtcNow = Clock.UtcNow;
 
@@ -656,7 +657,7 @@ namespace HordeServer.Services
 			}
 
 			// Save off the session id and current leases
-			ObjectId SessionId = Agent.SessionId.Value;
+			SessionId SessionId = Agent.SessionId.Value;
 			List<AgentLease> Leases = new List<AgentLease>(Agent.Leases);
 
 			// Clear the current session
@@ -709,7 +710,7 @@ namespace HordeServer.Services
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>List of leases matching the given criteria</returns>
-		public Task<List<ILease>> FindLeasesAsync(AgentId? AgentId, ObjectId? SessionId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count)
+		public Task<List<ILease>> FindLeasesAsync(AgentId? AgentId, SessionId? SessionId, DateTime? StartTime, DateTime? FinishTime, int Index, int Count)
 		{
 			return Leases.FindLeasesAsync(AgentId, SessionId, StartTime, FinishTime, Index, Count);
 		}
@@ -775,7 +776,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="SessionId">The unique session id</param>
 		/// <returns>The session information</returns>
-		public Task<ISession?> GetSessionAsync(ObjectId SessionId)
+		public Task<ISession?> GetSessionAsync(SessionId SessionId)
 		{
 			return Sessions.GetAsync(SessionId);
 		}

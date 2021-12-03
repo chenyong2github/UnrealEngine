@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
+using HordeServer.Utilities;
 
 namespace HordeServer.Controllers
 {
@@ -21,7 +22,7 @@ namespace HordeServer.Controllers
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class ConfigController : ControllerBase
+	public class ConfigController : HordeControllerBase
 	{
 		/// <summary>
 		/// The database service singleton
@@ -75,13 +76,12 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminWrite);
 			}
 
 			if (!Settings.CurrentValue.SingleInstance)
 			{
-				Logger.LogError("Updating global configuration settings with ConfigController currently only supported in single instance mode");
-				return BadRequest();
+				return BadRequest("Updating global configuration settings with ConfigController currently only supported in single instance mode");
 			}
 
 			await ConfigService.UpdateGlobalConfig(Request);
@@ -99,12 +99,12 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminRead);
 			}
 
 			if (string.IsNullOrEmpty(Settings.CurrentValue.ConfigPath))
 			{
-				return BadRequest();
+				return BadRequest("Missing config path for settings");
 			}
 
 			FileReference GlobalConfigFile = new FileReference(Settings.CurrentValue.ConfigPath);
@@ -128,7 +128,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminRead);
 			}
 
 			GetServerSettingsResponse Response = new GetServerSettingsResponse(Settings.CurrentValue);
@@ -147,13 +147,12 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminWrite);
 			}
 
 			if (!Settings.CurrentValue.SingleInstance)
 			{
-				Logger.LogError("Updating server settings from ConfigController currently only supported in single instance mode");
-				return BadRequest();
+				return BadRequest("Updating server settings from ConfigController currently only supported in single instance mode");
 			}
 
 			if (Request.Settings == null || Request.Settings.Count == 0)

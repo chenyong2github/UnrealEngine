@@ -37,6 +37,7 @@ namespace HordeServer.Services
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Metadata about a log file
@@ -66,7 +67,7 @@ namespace HordeServer.Services
 		/// <param name="SessionId">Agent session allowed to update the log</param>
 		/// <param name="Type">Type of events to be stored in the log</param>
 		/// <returns>The new log file document</returns>
-		Task<ILogFile> CreateLogFileAsync(JobId JobId, ObjectId? SessionId, LogType Type);
+		Task<ILogFile> CreateLogFileAsync(JobId JobId, SessionId? SessionId, LogType Type);
 
 		/// <summary>
 		/// Gets a logfile by ID
@@ -513,7 +514,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public Task<ILogFile> CreateLogFileAsync(JobId JobId, ObjectId? SessionId, LogType Type)
+		public Task<ILogFile> CreateLogFileAsync(JobId JobId, SessionId? SessionId, LogType Type)
 		{
 			return LogFiles.CreateLogFileAsync(JobId, SessionId, Type);
 		}

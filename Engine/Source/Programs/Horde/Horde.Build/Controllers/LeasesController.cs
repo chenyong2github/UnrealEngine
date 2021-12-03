@@ -26,6 +26,7 @@ namespace HordeServer.Controllers
 {
 	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 
 	/// <summary>
@@ -34,7 +35,7 @@ namespace HordeServer.Controllers
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class LeasesController : ControllerBase
+	public class LeasesController : HordeControllerBase
 	{
 		/// <summary>
 		/// Singleton instance of the ACL service
@@ -76,32 +77,29 @@ namespace HordeServer.Controllers
 		/// <returns>Sessions </returns>
 		[HttpGet]
 		[Route("/api/v1/leases")]
-		public async Task<ActionResult<List<GetAgentLeaseResponse>>> FindLeasesAsync([FromQuery] string? AgentId, [FromQuery] string? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000)
+		public async Task<ActionResult<List<GetAgentLeaseResponse>>> FindLeasesAsync([FromQuery] AgentId? AgentId, [FromQuery] SessionId? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000)
 		{
-			AgentId? AgentIdValue = null;
 			if (AgentId == null)
 			{
 				if (!await AclService.AuthorizeAsync(AclAction.ViewLeases, User))
 				{
-					return Forbid();
+					return Forbid(AclAction.ViewLeases);
 				}
 			}
 			else
 			{
-				AgentIdValue = new AgentId(AgentId);
-
-				IAgent? Agent = await AgentService.GetAgentAsync(AgentIdValue.Value);
+				IAgent? Agent = await AgentService.GetAgentAsync(AgentId.Value);
 				if (Agent == null)
 				{
-					return NotFound();
+					return NotFound(AgentId.Value);
 				}
 				if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewLeases, User, null))
 				{
-					return Forbid();
+					return Forbid(AclAction.ViewLeases, AgentId.Value);
 				}
 			}
 
-			List<ILease> Leases = await AgentService.FindLeasesAsync(AgentIdValue, SessionId?.ToObjectId(), StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
+			List<ILease> Leases = await AgentService.FindLeasesAsync(AgentId, SessionId, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
 			return Leases.ConvertAll(x => new GetAgentLeaseResponse(x));
 		}
 
@@ -117,17 +115,17 @@ namespace HordeServer.Controllers
 			ILease? Lease = await AgentService.GetLeaseAsync(LeaseId);
 			if (Lease == null)
 			{
-				return NotFound();
+				return NotFound(LeaseId);
 			}
 
 			IAgent? Agent = await AgentService.GetAgentAsync(Lease.AgentId);
 			if (Agent == null)
 			{
-				return NotFound();
+				return NotFound(Lease.AgentId);
 			}
 			if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewLeases, User, null))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewLeases);
 			}
 
 			return new GetAgentLeaseResponse(Lease);
@@ -152,35 +150,33 @@ namespace HordeServer.Controllers
 			ILease? Lease = await AgentService.GetLeaseAsync(LeaseId);
 			if (Lease == null)
 			{
-				return NotFound();
+				return NotFound(LeaseId);
 			}
 
 			IAgent? Agent = await AgentService.GetAgentAsync(Lease.AgentId);
 			if (Agent == null)
 			{
-				return NotFound();
+				return NotFound(Lease.AgentId);
 			}
 
 			if (!await AgentService.AuthorizeAsync(Agent, AclAction.AdminWrite, User, null))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminWrite, Lease.AgentId);
 			}
 
 			AgentLease? AgentLease = Agent.Leases.FirstOrDefault(x => x.Id == LeaseId);
 
 			if (AgentLease == null)
 			{
-				return NotFound();
+				return NotFound(Agent.Id, LeaseId);
 			}
 
 			if (!AgentLease.IsConformLease())
 			{
-				Logger.LogError("Lease abort only supported on conform leases for now, {LeaseId}", LeaseId);
-				return Ok();
+				return BadRequest("Lease abort only supported on conform leases for now, {LeaseId}", LeaseId);
 			}
 
 			await AgentService.CancelLeaseAsync(Agent, LeaseId);
-
 			return Ok();
 		}
 

@@ -16,6 +16,7 @@ namespace HordeServer.Models
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Information about a log file chunk
@@ -61,7 +62,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The session allowed to write to this log
 		/// </summary>
-		public ObjectId? SessionId { get; }
+		public SessionId? SessionId { get; }
 
 		/// <summary>
 		/// Maximum line index in the file

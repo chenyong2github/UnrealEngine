@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace HordeServer.Models
 	/// Subresource identifiers are stored as 16-bit integers formatted as a 4-digit hex code, in order to keep URLs short. Calling Next() will generate a new
 	/// identifier with more entropy than just incrementing the value but an identical period before repeating, in order to make URL fragments more distinctive.
 	/// </summary>
+	[TypeConverter(typeof(SubResourceIdTypeConverter))]
 	[BsonSerializer(typeof(SubResourceIdSerializer))]
 	public struct SubResourceId : IEquatable<SubResourceId>
 	{
@@ -161,6 +163,43 @@ namespace HordeServer.Models
 		SubResourceId IBsonSerializer<SubResourceId>.Deserialize(BsonDeserializationContext Context, BsonDeserializationArgs Vrgs)
 		{
 			return new SubResourceId((ushort)Context.Reader.ReadInt32());
+		}
+	}
+
+	/// <summary>
+	/// Type converter from strings to SubResourceId objects
+	/// </summary>
+	sealed class SubResourceIdTypeConverter : TypeConverter
+	{
+		/// <inheritdoc/>
+		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
+		{
+			return SourceType == typeof(string);
+		}
+
+		/// <inheritdoc/>
+		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
+		{
+			return SubResourceId.Parse((string)Value);
+		}
+
+		/// <inheritdoc/>
+		public override bool CanConvertTo(ITypeDescriptorContext? Context, Type? DestinationType)
+		{
+			return DestinationType == typeof(string);
+		}
+
+		/// <inheritdoc/>
+		public override object? ConvertTo(ITypeDescriptorContext? Context, CultureInfo? Culture, object? Value, Type DestinationType)
+		{
+			if (DestinationType == typeof(string))
+			{
+				return Value?.ToString();
+			}
+			else
+			{
+				return null;
+			}
 		}
 	}
 }

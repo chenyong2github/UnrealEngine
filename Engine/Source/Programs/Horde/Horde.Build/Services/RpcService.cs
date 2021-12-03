@@ -32,6 +32,7 @@ namespace HordeServer.Services
 	using IStream = HordeServer.Models.IStream;
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 	using RpcAgentCapabilities = HordeCommon.Rpc.Messages.AgentCapabilities;
 	using RpcDeviceCapabilities = HordeCommon.Rpc.Messages.DeviceCapabilities;
@@ -417,7 +418,7 @@ namespace HordeServer.Services
 					}
 
 					// Update the session
-					Agent = await AgentService.UpdateSessionWithWaitAsync(Agent, Request.SessionId.ToObjectId(), Request.Status, Properties, Resources, Request.Leases, CancellationSource.Token);
+					Agent = await AgentService.UpdateSessionWithWaitAsync(Agent, SessionId.Parse(Request.SessionId), Request.Status, Properties, Resources, Request.Leases, CancellationSource.Token);
 				}
 
 				// Handle the invalid agent case
@@ -756,7 +757,7 @@ namespace HordeServer.Services
 			ClaimsPrincipal Principal = Context.GetHttpContext().User;
 			if (!Principal.HasSessionClaim(Batch.SessionId.Value))
 			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "Session id {SessionId} not valid for batch {JobId}:{BatchId}. Expected {ExpectedSessionId}.", Principal.GetSessionClaim() ?? ObjectId.Empty, Job.Id, BatchId, Batch.SessionId.Value);
+				throw new StructuredRpcException(StatusCode.PermissionDenied, "Session id {SessionId} not valid for batch {JobId}:{BatchId}. Expected {ExpectedSessionId}.", Principal.GetSessionClaim() ?? SessionId.Empty, Job.Id, BatchId, Batch.SessionId.Value);
 			}
 
 			return Batch;

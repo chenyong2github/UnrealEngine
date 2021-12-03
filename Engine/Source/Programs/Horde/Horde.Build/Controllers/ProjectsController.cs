@@ -23,7 +23,7 @@ namespace HordeServer.Controllers
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class ProjectsController : ControllerBase
+	public class ProjectsController : HordeControllerBase
 	{
 		/// <summary>
 		/// Singleton instance of the project service
@@ -88,20 +88,18 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/projects/{ProjectId}")]
 		[ProducesResponseType(typeof(List<GetProjectResponse>), 200)]
-		public async Task<ActionResult<object>> GetProjectAsync(string ProjectId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetProjectAsync(ProjectId ProjectId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			ProjectId ProjectIdValue = new ProjectId(ProjectId);
-
-			IProject? Project = await ProjectService.GetProjectAsync(ProjectIdValue);
+			IProject? Project = await ProjectService.GetProjectAsync(ProjectId);
 			if (Project == null)
 			{
-				return NotFound();
+				return NotFound(ProjectId);
 			}
 
 			ProjectPermissionsCache Cache = new ProjectPermissionsCache();
 			if (!await ProjectService.AuthorizeAsync(Project, AclAction.ViewProject, User, Cache))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewProject, ProjectId);
 			}
 
 			bool bIncludeStreams = PropertyFilter.Includes(Filter, nameof(GetProjectResponse.Streams));
@@ -133,21 +131,19 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/projects/{ProjectId}/logo")]
-		public async Task<ActionResult<object>> GetProjectLogoAsync(string ProjectId)
+		public async Task<ActionResult<object>> GetProjectLogoAsync(ProjectId ProjectId)
 		{
-			ProjectId ProjectIdValue = new ProjectId(ProjectId);
-
-			IProject? Project = await ProjectService.GetProjectAsync(ProjectIdValue);
+			IProject? Project = await ProjectService.GetProjectAsync(ProjectId);
 			if (Project == null)
 			{
-				return NotFound();
+				return NotFound(ProjectId);
 			}
 			if (!await ProjectService.AuthorizeAsync(Project, AclAction.ViewProject, User, null))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewProject, ProjectId);
 			}
 
-			IProjectLogo? ProjectLogo = await ProjectService.Collection.GetLogoAsync(ProjectIdValue);
+			IProjectLogo? ProjectLogo = await ProjectService.Collection.GetLogoAsync(ProjectId);
 			if (ProjectLogo == null)
 			{
 				return NotFound();

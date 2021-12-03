@@ -61,7 +61,7 @@ namespace HordeServer.Controllers
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class AdminController : ControllerBase
+	public class AdminController : HordeControllerBase
 	{
 		/// <summary>
 		/// The database service singleton
@@ -99,39 +99,6 @@ namespace HordeServer.Controllers
 		}
 
 		/// <summary>
-		/// Force a reset on the database
-		/// </summary>
-		[HttpPost]
-		[Route("/api/v1/admin/reset")]
-		public async Task<ActionResult> ForceResetAsync([FromQuery] string? Instance = null)
-		{
-			if(!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid();
-			}
-
-			for (; ; )
-			{
-				Globals Globals = await DatabaseService.GetGlobalsAsync();
-				if (Instance == null)
-				{
-					return NotFound($"Missing code query parameter. Set to {Globals.InstanceId} to reset.");
-				}
-				if (Globals.InstanceId != Instance.ToObjectId())
-				{
-					return NotFound($"Incorrect code query parameter. Should be {Globals.InstanceId}.");
-				}
-
-				Globals.ForceReset = true;
-
-				if (await DatabaseService.TryUpdateSingletonAsync(Globals))
-				{
-					return Ok("Database will be reinitialized on next restart");
-				}
-			}
-		}
-
-		/// <summary>
 		/// Upgrade the database to the latest schema
 		/// </summary>
 		/// <param name="FromVersion">The schema version to upgrade from.</param>
@@ -141,7 +108,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminWrite);
 			}
 
 			await UpgradeService.UpgradeSchemaAsync(FromVersion);
@@ -158,7 +125,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.IssueBearerToken, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.IssueBearerToken);
 			}
 
 			return AclService.IssueBearerToken(User.Claims, GetDefaultExpiryTime());
@@ -175,7 +142,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminWrite);
 			}
 
 			List<Claim> Claims = new List<Claim>();
@@ -194,7 +161,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminWrite);
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
@@ -214,7 +181,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminWrite);
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
@@ -234,7 +201,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminRead);
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
@@ -254,7 +221,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminRead);
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();
@@ -274,7 +241,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.AdminRead, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.AdminRead);
 			}
 
 			List<AclClaim> Claims = new List<AclClaim>();

@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Models
 {
+	using SessionId = ObjectId<ISession>;
+
 	/// <summary>
 	/// Information about an agent session.
 	/// </summary>
@@ -19,7 +21,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Unique id for this session
 		/// </summary>
-		public ObjectId Id { get; }
+		public SessionId Id { get; }
 
 		/// <summary>
 		/// The agent id

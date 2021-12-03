@@ -20,6 +20,7 @@ namespace HordeServer.Controllers
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using LeaseId = ObjectId<ILease>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Controller for the /api/v1/agents endpoint
@@ -27,7 +28,7 @@ namespace HordeServer.Controllers
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class AgentsController : ControllerBase
+	public class AgentsController : HordeControllerBase
 	{
 		/// <summary>
 		/// Singleton instance of the ACL service
@@ -68,7 +69,7 @@ namespace HordeServer.Controllers
 		{
 			if(!await AclService.AuthorizeAsync(AclAction.CreateAgent, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.CreateAgent);
 			}
 
 			AgentSoftwareChannelName? Channel = String.IsNullOrEmpty(Request.Channel) ? (AgentSoftwareChannelName?)null : new AgentSoftwareChannelName(Request.Channel);
@@ -113,12 +114,12 @@ namespace HordeServer.Controllers
 		[HttpGet]
 		[Route("/api/v1/agents/{AgentId}")]
 		[ProducesResponseType(typeof(GetAgentResponse), 200)]
-		public async Task<ActionResult<object>> GetAgentAsync(string AgentId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetAgentAsync(AgentId AgentId, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IAgent? Agent = await AgentService.GetAgentAsync(new AgentId(AgentId));
+			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if (Agent == null)
 			{
-				return NotFound();
+				return NotFound(AgentId);
 			}
 
 			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
@@ -134,7 +135,7 @@ namespace HordeServer.Controllers
 		/// <returns>Http result code</returns>
 		[HttpPut]
 		[Route("/api/v1/agents/{AgentId}")]
-		public async Task<ActionResult> UpdateAgentAsync(string AgentId, [FromBody] UpdateAgentRequest Update)
+		public async Task<ActionResult> UpdateAgentAsync(AgentId AgentId, [FromBody] UpdateAgentRequest Update)
 		{
 			List<PoolId>? UpdatePools = Update.Pools?.ConvertAll(x => new PoolId(x));
 			AgentSoftwareChannelName? Channel = String.IsNullOrEmpty(Update.Channel) ? (AgentSoftwareChannelName?)null : new AgentSoftwareChannelName(Update.Channel);
@@ -144,18 +145,18 @@ namespace HordeServer.Controllers
 			GlobalPermissionsCache Cache = new GlobalPermissionsCache();
 			for (; ; )
 			{
-				IAgent? Agent = await AgentService.GetAgentAsync(new AgentId(AgentId));
+				IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 				if (Agent == null)
 				{
-					return NotFound();
+					return NotFound(AgentId);
 				}
 				if (!await AgentService.AuthorizeAsync(Agent, AclAction.UpdateAgent, User, Cache))
 				{
-					return Forbid();
+					return Forbid(AclAction.UpdateAgent, AgentId);
 				}
 				if (Update.Acl != null && !await AgentService.AuthorizeAsync(Agent, AclAction.ChangePermissions, User, Cache))
 				{
-					return Forbid();
+					return Forbid(AclAction.ChangePermissions, AgentId);
 				}
 
 				IAgent? NewAgent = await AgentService.Agents.TryUpdateSettingsAsync(Agent, Update.Enabled, Update.RequestConform, Update.RequestRestart, Update.RequestShutdown, Channel, Update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(Agent.Acl, Update.Acl), Update.Comment);
@@ -205,16 +206,16 @@ namespace HordeServer.Controllers
 		/// <returns>Http result code</returns>
 		[HttpDelete]
 		[Route("/api/v1/agents/{AgentId}")]
-		public async Task<ActionResult> DeleteAgentAsync(string AgentId)
+		public async Task<ActionResult> DeleteAgentAsync(AgentId AgentId)
 		{
-			IAgent? Agent = await AgentService.GetAgentAsync(new AgentId(AgentId));
+			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if (Agent == null)
 			{
-				return NotFound();
+				return NotFound(AgentId);
 			}
 			if (!await AgentService.AuthorizeAsync(Agent, AclAction.DeleteAgent, User, null))
 			{
-				return Forbid();
+				return Forbid(AclAction.DeleteAgent, AgentId);
 			}
 
 			await AgentService.DeleteAgentAsync(Agent);
@@ -232,12 +233,12 @@ namespace HordeServer.Controllers
 		/// <returns>Information about the requested agent</returns>
 		[HttpGet]
 		[Route("/api/v1/agents/{AgentId}/history")]
-		public async Task GetAgentHistoryAsync(string AgentId, [FromQuery] DateTime? MinTime = null, [FromQuery] DateTime? MaxTime = null, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
+		public async Task GetAgentHistoryAsync(AgentId AgentId, [FromQuery] DateTime? MinTime = null, [FromQuery] DateTime? MaxTime = null, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
 		{
 			Response.ContentType = "application/json";
 			Response.StatusCode = 200;
 			await Response.StartAsync();
-			await AgentService.Agents.GetLogger(AgentId.ToAgentId()).FindAsync(Response.BodyWriter, MinTime, MaxTime, Index, Count);
+			await AgentService.Agents.GetLogger(AgentId).FindAsync(Response.BodyWriter, MinTime, MaxTime, Index, Count);
 		}
 
 		/// <summary>
@@ -251,21 +252,19 @@ namespace HordeServer.Controllers
 		/// <returns>Sessions </returns>
 		[HttpGet]
 		[Route("/api/v1/agents/{AgentId}/sessions")]
-		public async Task<ActionResult<List<GetAgentSessionResponse>>> FindSessionsAsync(string AgentId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
+		public async Task<ActionResult<List<GetAgentSessionResponse>>> FindSessionsAsync(AgentId AgentId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 50)
 		{
-			AgentId AgentIdValue = new AgentId(AgentId);
-
-			IAgent? Agent = await AgentService.GetAgentAsync(AgentIdValue);
+			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if (Agent == null)
 			{
-				return NotFound();
+				return NotFound(AgentId);
 			}
 			if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewSession, User, null))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewSession, AgentId);
 			}
 
-			List<ISession> Sessions = await AgentService.FindSessionsAsync(AgentIdValue, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
+			List<ISession> Sessions = await AgentService.FindSessionsAsync(AgentId, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
 			return Sessions.ConvertAll(x => new GetAgentSessionResponse(x));
 		}
 
@@ -277,22 +276,20 @@ namespace HordeServer.Controllers
 		/// <returns>Sessions </returns>
 		[HttpGet]
 		[Route("/api/v1/agents/{AgentId}/sessions/{SessionId}")]
-		public async Task<ActionResult<GetAgentSessionResponse>> GetSessionAsync(string AgentId, string SessionId)
+		public async Task<ActionResult<GetAgentSessionResponse>> GetSessionAsync(AgentId AgentId, SessionId SessionId)
 		{
-			AgentId AgentIdValue = new AgentId(AgentId);
-
-			IAgent? Agent = await AgentService.GetAgentAsync(AgentIdValue);
+			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if (Agent == null)
 			{
-				return NotFound();
+				return NotFound(AgentId);
 			}
 			if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewSession, User, null))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewSession, AgentId);
 			}
 
-			ISession? Session = await AgentService.GetSessionAsync(SessionId.ToObjectId());
-			if(Session == null || Session.AgentId != AgentIdValue)
+			ISession? Session = await AgentService.GetSessionAsync(SessionId);
+			if(Session == null || Session.AgentId != AgentId)
 			{
 				return NotFound();
 			}
@@ -312,21 +309,19 @@ namespace HordeServer.Controllers
 		/// <returns>Sessions </returns>
 		[HttpGet]
 		[Route("/api/v1/agents/{AgentId}/leases")]
-		public async Task<ActionResult<List<GetAgentLeaseResponse>>> FindLeasesAsync(string AgentId, [FromQuery] string? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000)
+		public async Task<ActionResult<List<GetAgentLeaseResponse>>> FindLeasesAsync(AgentId AgentId, [FromQuery] SessionId? SessionId, [FromQuery] DateTimeOffset? StartTime, [FromQuery] DateTimeOffset? FinishTime, [FromQuery] int Index = 0, [FromQuery] int Count = 1000)
 		{
-			AgentId AgentIdValue = new AgentId(AgentId);
-
-			IAgent? Agent = await AgentService.GetAgentAsync(AgentIdValue);
+			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if (Agent == null)
 			{
-				return NotFound();
+				return NotFound(AgentId);
 			}
 			if (!await AgentService.AuthorizeAsync(Agent, AclAction.ViewLeases, User, null))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewLeases, AgentId);
 			}
 
-			List<ILease> Leases = await AgentService.FindLeasesAsync(AgentIdValue, SessionId?.ToObjectId(), StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
+			List<ILease> Leases = await AgentService.FindLeasesAsync(AgentId, SessionId, StartTime?.UtcDateTime, FinishTime?.UtcDateTime, Index, Count);
 			return Leases.ConvertAll(x => new GetAgentLeaseResponse(x));
 		}
 
@@ -343,17 +338,17 @@ namespace HordeServer.Controllers
 			IAgent? Agent = await AgentService.GetAgentAsync(AgentId);
 			if(Agent == null)
 			{
-				return NotFound();
+				return NotFound(AgentId);
 			}
 			if (!await AclService.AuthorizeAsync(AclAction.ViewLeases, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewLeases, AgentId);
 			}
 
 			ILease? Lease = await AgentService.GetLeaseAsync(LeaseId);
 			if (Lease == null || Lease.AgentId != AgentId)
 			{
-				return NotFound();
+				return NotFound(AgentId, LeaseId);
 			}
 
 			return new GetAgentLeaseResponse(Lease);

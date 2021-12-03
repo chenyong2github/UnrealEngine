@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections
 {
+	using SessionId = ObjectId<ISession>;
+
 	/// <summary>
 	/// Interface for a collection of session documents
 	/// </summary>
@@ -28,14 +30,14 @@ namespace HordeServer.Collections
 		/// <param name="Properties">Properties of this agent at the time the session started</param>
 		/// <param name="Resources">Resources which the agent has</param>
 		/// <param name="Version">Version of the agent software</param>
-		Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version);
+		Task<ISession> AddAsync(SessionId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version);
 
 		/// <summary>
 		/// Gets information about a particular session
 		/// </summary>
 		/// <param name="SessionId">The unique session id</param>
 		/// <returns>The session information</returns>
-		Task<ISession?> GetAsync(ObjectId SessionId);
+		Task<ISession?> GetAsync(SessionId SessionId);
 
 		/// <summary>
 		/// Find sessions for the given agent
@@ -64,13 +66,13 @@ namespace HordeServer.Collections
 		/// <param name="Properties">The agent properties</param>
 		/// <param name="Resources">Resources which the agent has</param>
 		/// <returns>Async task</returns>
-		Task UpdateAsync(ObjectId SessionId, DateTime FinishTime, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources);
+		Task UpdateAsync(SessionId SessionId, DateTime FinishTime, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources);
 
 		/// <summary>
 		/// Delete a session from the collection
 		/// </summary>
 		/// <param name="SessionId">The session id</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(ObjectId SessionId);
+		Task DeleteAsync(SessionId SessionId);
 	}
 }

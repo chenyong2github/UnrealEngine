@@ -17,6 +17,7 @@ namespace HordeServer.Collections
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -37,7 +38,7 @@ namespace HordeServer.Collections
 		/// <param name="StartTime">Start time of the lease</param>
 		/// <param name="Payload">Payload for the lease</param>
 		/// <returns>Async task</returns>
-		Task<ILease> AddAsync(LeaseId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload);
+		Task<ILease> AddAsync(LeaseId Id, string Name, AgentId AgentId, SessionId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload);
 
 		/// <summary>
 		/// Deletes a lease from the collection
@@ -63,7 +64,7 @@ namespace HordeServer.Collections
 		/// <param name="Index">Index of the first result to return</param>
 		/// <param name="Count">Number of results to return</param>
 		/// <returns>List of leases matching the given criteria</returns>
-		Task<List<ILease>> FindLeasesAsync(AgentId? AgentId = null, ObjectId? SessionId = null, DateTime? MinTime = null, DateTime? MaxTime = null, int? Index = null, int? Count = null);
+		Task<List<ILease>> FindLeasesAsync(AgentId? AgentId = null, SessionId? SessionId = null, DateTime? MinTime = null, DateTime? MaxTime = null, int? Index = null, int? Count = null);
 
 		/// <summary>
 		/// Finds all active leases

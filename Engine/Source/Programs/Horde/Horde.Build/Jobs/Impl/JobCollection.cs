@@ -26,6 +26,7 @@ namespace HordeServer.Collections.Impl
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using PoolId = StringId<IPool>;
@@ -134,7 +135,7 @@ namespace HordeServer.Collections.Impl
 			public AgentId? AgentId { get; set; }
 
 			[BsonIgnoreIfNull]
-			public ObjectId? SessionId { get; set; }
+			public SessionId? SessionId { get; set; }
 
 			[BsonIgnoreIfNull]
 			public LeaseId? LeaseId { get; set; }
@@ -1176,7 +1177,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IJob?> TryAssignLeaseAsync(IJob Job, int BatchIdx, PoolId PoolId, AgentId AgentId, ObjectId SessionId, LeaseId LeaseId, LogId LogId)
+		public async Task<IJob?> TryAssignLeaseAsync(IJob Job, int BatchIdx, PoolId PoolId, AgentId AgentId, SessionId SessionId, LeaseId LeaseId, LogId LogId)
 		{
 			// Try to update the job with this agent id
 			UpdateDefinitionBuilder<JobDocument> UpdateBuilder = Builders<JobDocument>.Update;

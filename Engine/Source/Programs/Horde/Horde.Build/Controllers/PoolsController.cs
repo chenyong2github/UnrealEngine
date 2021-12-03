@@ -23,7 +23,7 @@ namespace HordeServer.Controllers
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class PoolsController : ControllerBase
+	public class PoolsController : HordeControllerBase
 	{
 		/// <summary>
 		/// Singleton instance of the ACL service
@@ -57,7 +57,7 @@ namespace HordeServer.Controllers
 		{
 			if(!await AclService.AuthorizeAsync(AclAction.CreatePool, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.CreatePool);
 			}
 
 			IPool NewPool = await PoolService.CreatePoolAsync(Create.Name, Create.Condition, Create.EnableAutoscaling, Create.MinAgents, Create.NumReserveAgents, Create.Properties);
@@ -76,7 +76,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.ListPools, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.ListPools);
 			}
 
 			List<IPool> Pools = await PoolService.GetPoolsAsync();
@@ -102,7 +102,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.ViewPool, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.ViewPool);
 			}
 
 			PoolId PoolIdValue = new PoolId(PoolId);
@@ -110,7 +110,7 @@ namespace HordeServer.Controllers
 			IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
 			if (Pool == null)
 			{
-				return NotFound();
+				return NotFound(PoolIdValue);
 			}
 
 			return new GetPoolResponse(Pool).ApplyFilter(Filter);
@@ -128,7 +128,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.UpdatePool, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.UpdatePool);
 			}
 
 			PoolId PoolIdValue = new PoolId(PoolId);
@@ -136,7 +136,7 @@ namespace HordeServer.Controllers
 			IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
 			if(Pool == null)
 			{
-				return NotFound();
+				return NotFound(PoolIdValue);
 			}
 
 			await PoolService.UpdatePoolAsync(Pool, Update.Name, Update.Condition, Update.EnableAutoscaling, Update.MinAgents, Update.NumReserveAgents, Update.Properties);
@@ -154,15 +154,15 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.DeletePool, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.DeletePool);
 			}
 
 			PoolId PoolIdValue = new PoolId(PoolId);
 			if(!await PoolService.DeletePoolAsync(PoolIdValue))
 			{
-				return NotFound();
+				return NotFound(PoolIdValue);
 			}
-			return new OkResult();
+			return Ok();
 		}
 
 		/// <summary>
@@ -176,7 +176,7 @@ namespace HordeServer.Controllers
 		{
 			if (!await AclService.AuthorizeAsync(AclAction.UpdatePool, User))
 			{
-				return Forbid();
+				return Forbid(AclAction.UpdatePool);
 			}
 
 			foreach (BatchUpdatePoolRequest Update in BatchUpdates)
@@ -186,12 +186,12 @@ namespace HordeServer.Controllers
 				IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
 				if (Pool == null)
 				{
-					return NotFound();
+					return NotFound(PoolIdValue);
 				}
 
 				await PoolService.UpdatePoolAsync(Pool, Update.Name, NewProperties: Update.Properties);
 			}
-			return new OkResult();
+			return Ok();
 		}
 	}
 }

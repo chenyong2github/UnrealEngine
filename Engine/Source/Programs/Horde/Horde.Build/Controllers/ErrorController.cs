@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
+using HordeServer.Utilities;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace HordeServer.Controllers
 {
@@ -10,7 +14,7 @@ namespace HordeServer.Controllers
 	/// </summary>
 	[ApiController]
 	[ApiExplorerSettings(IgnoreApi = true)]
-	public class ErrorController : ControllerBase
+	public class ErrorController : HordeControllerBase
 	{
 		/// <summary>
 		/// Handle an exception and generate a problem response
@@ -24,8 +28,7 @@ namespace HordeServer.Controllers
 			{
 				return NoContent();
 			}
-
-			return Problem(detail: Context.Error.StackTrace, title: Context.Error.Message);
+			return StatusCode(StatusCodes.Status500InternalServerError, LogEvent.Create(LogLevel.Error, KnownLogEvents.None, Context.Error, Context.Error.Message));
 		}
 	}
 }

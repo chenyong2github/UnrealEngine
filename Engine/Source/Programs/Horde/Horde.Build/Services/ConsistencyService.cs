@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Services
 {
+	using SessionId = ObjectId<ISession>;
+
 	/// <summary>
 	/// Service which checks the database for consistency and fixes up any errors
 	/// </summary>
@@ -48,7 +50,7 @@ namespace HordeServer.Services
 			DateTime NextTickTime = DateTime.UtcNow + TimeSpan.FromMinutes(20.0);
 
 			List<ISession> Sessions = await SessionCollection.FindActiveSessionsAsync();
-			Dictionary<ObjectId, ISession> SessionIdToInstance = Sessions.ToDictionary(x => x.Id, x => x);
+			Dictionary<SessionId, ISession> SessionIdToInstance = Sessions.ToDictionary(x => x.Id, x => x);
 
 			// Find any leases that are still running when their session has terminated
 			List<ILease> Leases = await LeaseCollection.FindActiveLeasesAsync();

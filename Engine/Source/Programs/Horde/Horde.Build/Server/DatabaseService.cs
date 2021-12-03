@@ -185,28 +185,6 @@ namespace HordeServer.Services
 				Singletons = GetCollection<BsonDocument>("Singletons");
 
 				Globals Globals = GetGlobalsAsync().Result;
-				if (Globals.ForceReset)
-				{
-					Logger.LogInformation("Performing DB reset...");
-
-					// Drop all the collections
-					List<string> CollectionNames = Database.ListCollectionNames().ToList();
-					foreach (string CollectionName in CollectionNames)
-					{
-						Logger.LogInformation("Dropping {CollectionName}", CollectionName);
-						Database.DropCollection(CollectionName);
-					}
-
-					// Create the new singletons collection
-					Singletons = GetCollection<BsonDocument>("Singletons");
-
-					// Create the new globals object
-					Globals NewGlobals = new Globals();
-					NewGlobals.JwtSigningKey = Globals.JwtSigningKey; // Ensure agents can still register
-					Singletons.InsertOne(NewGlobals.ToBsonDocument());
-					Globals = NewGlobals;
-				}
-
 				while (Globals.JwtSigningKey == null)
 				{
 					Globals.RotateSigningKey();

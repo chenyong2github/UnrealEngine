@@ -23,6 +23,7 @@ namespace HordeServer.Models
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using PoolId = StringId<IPool>;
@@ -217,7 +218,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The agent session that is executing this group
 		/// </summary>
-		public ObjectId? SessionId { get; }
+		public SessionId? SessionId { get; }
 
 		/// <summary>
 		/// The lease that's executing this group

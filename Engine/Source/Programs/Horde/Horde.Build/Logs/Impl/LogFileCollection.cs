@@ -17,6 +17,7 @@ namespace HordeServer.Collections.Impl
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Wrapper around the jobs collection in a mongo DB
@@ -59,7 +60,7 @@ namespace HordeServer.Collections.Impl
 			[BsonRequired]
 			public JobId JobId { get; set; }
 
-			public ObjectId? SessionId { get; set; }
+			public SessionId? SessionId { get; set; }
 			public LogType Type { get; set; }
 
 			[BsonIgnoreIfNull]
@@ -80,7 +81,7 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public LogFileDocument(JobId JobId, ObjectId? SessionId, LogType Type)
+			public LogFileDocument(JobId JobId, SessionId? SessionId, LogType Type)
 			{
 				this.Id = LogId.GenerateNewId();
 				this.JobId = JobId;
@@ -118,7 +119,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> CreateLogFileAsync(JobId JobId, ObjectId? SessionId, LogType Type)
+		public async Task<ILogFile> CreateLogFileAsync(JobId JobId, SessionId? SessionId, LogType Type)
 		{
 			LogFileDocument NewLogFile = new LogFileDocument(JobId, SessionId, Type);
 			await LogFiles.InsertOneAsync(NewLogFile);

@@ -25,7 +25,7 @@ namespace HordeServer.Controllers
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class UsersController : ControllerBase
+	public class UsersController : HordeControllerBase
 	{
 		/// <summary>
 		/// The user collection instance
@@ -57,10 +57,16 @@ namespace HordeServer.Controllers
 		[ProducesResponseType(typeof(List<GetUserResponse>), 200)]
 		public async Task<ActionResult<object>> GetUserAsync(string Id, [FromQuery] PropertyFilter? Filter = null)
 		{
-			IUser? User = await GetUserInternalAsync(Id);
+			UserId? UserId = ParseUserId(Id);
+			if(UserId == null)
+			{
+				return BadRequest("Invalid user id '{Id}'", Id);
+			}
+
+			IUser? User = await UserCollection.GetUserAsync(UserId.Value);
 			if (User == null)
 			{
-				return NotFound();
+				return NotFound(UserId.Value);
 			}
 
 			IAvatar? Avatar = (AvatarService == null) ? (IAvatar?)null : await AvatarService.GetAvatarAsync(User);
@@ -102,17 +108,6 @@ namespace HordeServer.Controllers
 			}
 
 			return Response;
-		}
-
-
-		async Task<IUser?> GetUserInternalAsync(string Id)
-		{
-			UserId? UserId = ParseUserId(Id);
-			if(UserId == null)
-			{
-				return null;
-			}
-			return await UserCollection.GetUserAsync(UserId.Value);
 		}
 
 		UserId? ParseUserId(string Id)

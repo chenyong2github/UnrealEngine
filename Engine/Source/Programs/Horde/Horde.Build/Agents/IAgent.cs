@@ -28,6 +28,7 @@ namespace HordeServer.Models
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 	using AgentSoftwareVersion = StringId<IAgentSoftwareCollection>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
@@ -402,7 +403,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// The current session id, if it's online
 		/// </summary>
-		public ObjectId? SessionId { get; }
+		public SessionId? SessionId { get; }
 
 		/// <summary>
 		/// Time at which the current session expires. 

@@ -7,7 +7,6 @@ using HordeCommon;
 using HordeServer.Models;
 using HordeCommon.Rpc;
 using HordeServer.Utilities;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
@@ -34,6 +33,7 @@ namespace HordeServer.Services
 	using JobId = ObjectId<IJob>;
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
@@ -1353,8 +1353,8 @@ namespace HordeServer.Services
 				{
 					if(Claim.Type == HordeClaimTypes.AgentSessionId)
 					{
-						ObjectId SessionId;
-						if (ObjectId.TryParse(Claim.Value, out SessionId) && SessionId == Batch.SessionId.Value)
+						SessionId SessionIdValue;
+						if (SessionId.TryParse(Claim.Value, out SessionIdValue) && SessionIdValue == Batch.SessionId.Value)
 						{
 							return true;
 						}

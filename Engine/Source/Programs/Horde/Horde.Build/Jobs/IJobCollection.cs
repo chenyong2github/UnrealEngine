@@ -23,6 +23,7 @@ namespace HordeServer.Collections
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
@@ -240,7 +241,7 @@ namespace HordeServer.Collections
 		/// <param name="LeaseId">The lease unique id</param>
 		/// <param name="LogId">Unique id of the log for the batch</param>
 		/// <returns>True if the batch is updated</returns>
-		Task<IJob?> TryAssignLeaseAsync(IJob Job, int BatchIdx, PoolId PoolId, AgentId AgentId, ObjectId SessionId, LeaseId LeaseId, LogId LogId);
+		Task<IJob?> TryAssignLeaseAsync(IJob Job, int BatchIdx, PoolId PoolId, AgentId AgentId, SessionId SessionId, LeaseId LeaseId, LogId LogId);
 
 		/// <summary>
 		/// Cancel a lease reservation on a batch (before it has started)

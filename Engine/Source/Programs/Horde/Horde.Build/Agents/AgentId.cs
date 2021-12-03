@@ -22,6 +22,7 @@ namespace HordeServer.Utilities
 	/// <summary>
 	/// Normalized hostname of an agent
 	/// </summary>
+	[TypeConverter(typeof(AgentIdTypeConverter))]
 	[RedisConverter(typeof(AgentIdRedisConverter))]
 	[BsonSerializer(typeof(AgentIdBsonSerializer))]
 	public struct AgentId : IEquatable<AgentId>
@@ -167,19 +168,41 @@ namespace HordeServer.Utilities
 		}
 	}
 
+
 	/// <summary>
-	/// Extension methods for AgentId types
+	/// Type converter from strings to PropertyFilter objects
 	/// </summary>
-	static class AgentIdExtensions
+	sealed class AgentIdTypeConverter : TypeConverter
 	{
-		/// <summary>
-		/// Create an AgentId from a string
-		/// </summary>
-		/// <param name="Text">String to parse</param>
-		/// <returns>New agent id</returns>
-		public static AgentId ToAgentId(this string Text)
+		/// <inheritdoc/>
+		public override bool CanConvertFrom(ITypeDescriptorContext? Context, Type SourceType)
 		{
-			return new AgentId(Text);
+			return SourceType == typeof(string);
+		}
+
+		/// <inheritdoc/>
+		public override object ConvertFrom(ITypeDescriptorContext? Context, CultureInfo? Culture, object Value)
+		{
+			return new AgentId((string)Value);
+		}
+
+		/// <inheritdoc/>
+		public override bool CanConvertTo(ITypeDescriptorContext? Context, Type? DestinationType)
+		{
+			return DestinationType == typeof(string);
+		}
+
+		/// <inheritdoc/>
+		public override object? ConvertTo(ITypeDescriptorContext? Context, CultureInfo? Culture, object? Value, Type DestinationType)
+		{
+			if (DestinationType == typeof(string))
+			{
+				return Value?.ToString();
+			}
+			else
+			{
+				return null;
+			}
 		}
 	}
 }

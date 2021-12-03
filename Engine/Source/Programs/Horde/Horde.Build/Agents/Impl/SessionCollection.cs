@@ -14,6 +14,8 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Collections.Impl
 {
+	using SessionId = ObjectId<ISession>;
+
 	/// <summary>
 	/// Collection of session documents
 	/// </summary>
@@ -25,7 +27,7 @@ namespace HordeServer.Collections.Impl
 		class SessionDocument : ISession
 		{
 			[BsonRequired, BsonId]
-			public ObjectId Id { get; set; }
+			public SessionId Id { get; set; }
 
 			[BsonRequired]
 			public AgentId AgentId { get; set; }
@@ -43,7 +45,7 @@ namespace HordeServer.Collections.Impl
 			{
 			}
 
-			public SessionDocument(ObjectId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
+			public SessionDocument(SessionId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
 			{
 				this.Id = Id;
 				this.AgentId = AgentId;
@@ -82,7 +84,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISession> AddAsync(ObjectId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
+		public async Task<ISession> AddAsync(SessionId Id, AgentId AgentId, DateTime StartTime, IReadOnlyList<string>? Properties, IReadOnlyDictionary<string, int>? Resources, string? Version)
 		{
 			SessionDocument NewSession = new SessionDocument(Id, AgentId, StartTime, Properties, Resources, Version);
 			await Sessions.InsertOneAsync(NewSession);
@@ -90,7 +92,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISession?> GetAsync(ObjectId SessionId)
+		public async Task<ISession?> GetAsync(SessionId SessionId)
 		{
 			return await Sessions.Find(x => x.Id == SessionId).FirstOrDefaultAsync();
 		}
@@ -122,7 +124,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task UpdateAsync(ObjectId SessionId, DateTime FinishTime, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources)
+		public Task UpdateAsync(SessionId SessionId, DateTime FinishTime, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources)
 		{
 			UpdateDefinition<SessionDocument> Update = Builders<SessionDocument>.Update
 				.Set(x => x.FinishTime, FinishTime)
@@ -133,7 +135,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task DeleteAsync(ObjectId SessionId)
+		public Task DeleteAsync(SessionId SessionId)
 		{
 			return Sessions.DeleteOneAsync(x => x.Id == SessionId);
 		}

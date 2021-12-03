@@ -311,11 +311,6 @@ namespace HordeServer.Models
 		public ObjectId InstanceId { get; set; }
 
 		/// <summary>
-		/// Set to true to drop the database on restart.
-		/// </summary>
-		public bool ForceReset { get; set; }
-
-		/// <summary>
 		/// The config revision
 		/// </summary>
 		public string? ConfigRevision { get; set; }

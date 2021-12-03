@@ -17,6 +17,7 @@ namespace HordeServer.Collections.Impl
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -32,7 +33,7 @@ namespace HordeServer.Collections.Impl
 			public LeaseId Id { get; set; }
 			public string Name { get; set; }
 			public AgentId AgentId { get; set; }
-			public ObjectId SessionId { get; set; }
+			public SessionId SessionId { get; set; }
 			public StreamId? StreamId { get; set; }
 			public PoolId? PoolId { get; set; }
 			public LogId? LogId { get; set; }
@@ -54,7 +55,7 @@ namespace HordeServer.Collections.Impl
 				Payload = null!;
 			}
 
-			public LeaseDocument(LeaseId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
+			public LeaseDocument(LeaseId Id, string Name, AgentId AgentId, SessionId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
 			{
 				this.Id = Id;
 				this.Name = Name;
@@ -91,7 +92,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILease> AddAsync(LeaseId Id, string Name, AgentId AgentId, ObjectId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
+		public async Task<ILease> AddAsync(LeaseId Id, string Name, AgentId AgentId, SessionId SessionId, StreamId? StreamId, PoolId? PoolId, LogId? LogId, DateTime StartTime, byte[] Payload)
 		{
 			LeaseDocument Lease = new LeaseDocument(Id, Name, AgentId, SessionId, StreamId, PoolId, LogId, StartTime, Payload);
 			await Leases.ReplaceOneAsync(x => x.Id == Id, Lease, new ReplaceOptions { IsUpsert = true });
@@ -111,7 +112,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILease>> FindLeasesAsync(AgentId? AgentId, ObjectId? SessionId, DateTime? MinTime, DateTime? MaxTime, int? Index, int? Count)
+		public async Task<List<ILease>> FindLeasesAsync(AgentId? AgentId, SessionId? SessionId, DateTime? MinTime, DateTime? MaxTime, int? Index, int? Count)
 		{
 			FilterDefinitionBuilder<LeaseDocument> FilterBuilder = Builders<LeaseDocument>.Filter;
 

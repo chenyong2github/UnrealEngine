@@ -21,6 +21,7 @@ namespace HordeServer.Collections.Impl
 {
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Collection of agent documents
@@ -60,7 +61,7 @@ namespace HordeServer.Collections.Impl
 			[BsonRequired, BsonId]
 			public AgentId Id { get; set; }
 
-			public ObjectId? SessionId { get; set; }
+			public SessionId? SessionId { get; set; }
 			public DateTime? SessionExpiresAt { get; set; }
 
 			public AgentStatus Status { get; set; }
@@ -426,7 +427,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryStartSessionAsync(IAgent AgentInterface, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, IReadOnlyList<PoolId> DynamicPools, string? Version)
+		public async Task<IAgent?> TryStartSessionAsync(IAgent AgentInterface, SessionId SessionId, DateTime SessionExpiresAt, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, IReadOnlyList<PoolId> DynamicPools, string? Version)
 		{
 			AgentDocument Agent = (AgentDocument)AgentInterface;
 			List<string> NewProperties = Properties.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();

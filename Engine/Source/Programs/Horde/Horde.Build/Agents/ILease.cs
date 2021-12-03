@@ -18,6 +18,7 @@ namespace HordeServer.Models
 	using LeaseId = ObjectId<ILease>;
 	using LogId = ObjectId<ILogFile>;
 	using PoolId = StringId<IPool>;
+	using SessionId = ObjectId<ISession>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -43,7 +44,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Unique id of the agent session
 		/// </summary>
-		public ObjectId SessionId { get; }
+		public SessionId SessionId { get; }
 
 		/// <summary>
 		/// The stream this lease belongs to

@@ -10,6 +10,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace EpicGames.Core
@@ -17,6 +18,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Epic representation of a log event. Can be serialized to/from Json for the Horde dashboard, and passed directly through ILogger interfaces.
 	/// </summary>
+	[JsonConverter(typeof(LogEventConverter))]
 	public class LogEvent : IEnumerable<KeyValuePair<string, object?>>
 	{
 		static class InternalPropertyNames
@@ -416,6 +418,21 @@ namespace EpicGames.Core
 			}
 		}
 
+		public static LogEvent Create(LogLevel Level, string Format, params object[] Args)
+			=> Create(Level, KnownLogEvents.None, null, Format, Args);
+
+		public static LogEvent Create(LogLevel Level, EventId EventId, string Format, params object[] Args)
+			=> Create(Level, EventId, null, Format, Args);
+
+		public static LogEvent Create(LogLevel Level, EventId EventId, Exception? Exception, string Format, params object[] Args)
+		{
+			Dictionary<string, object> Properties = new Dictionary<string, object>();
+			MessageTemplate.ParsePropertyValues(Format, Args, Properties);
+
+			string Message = MessageTemplate.Render(Format, Properties!);
+			return new LogEvent(DateTime.UtcNow, Level, EventId, Message, Format, Properties, LogException.FromException(Exception));
+		}
+
 		/// <summary>
 		/// Creates a log event from an ILogger parameters
 		/// </summary>
@@ -628,6 +645,24 @@ namespace EpicGames.Core
 				}
 			}
 			return Result;
+		}
+	}
+
+	/// <summary>
+	/// Converter for serialization of <see cref="LogEvent"/> instances to Json streams
+	/// </summary>
+	public class LogEventConverter : JsonConverter<LogEvent>
+	{
+		/// <inheritdoc/>
+		public override LogEvent Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		{
+			return LogEvent.Read(ref Reader);
+		}
+
+		/// <inheritdoc/>
+		public override void Write(Utf8JsonWriter Writer, LogEvent Value, JsonSerializerOptions Options)
+		{
+			Value.Write(Writer);
 		}
 	}
 }

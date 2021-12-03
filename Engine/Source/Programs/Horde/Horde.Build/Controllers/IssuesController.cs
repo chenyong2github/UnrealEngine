@@ -32,7 +32,7 @@ namespace HordeServer.Controllers
 	[Authorize]
 	[ApiController]
 	[Route("[controller]")]
-	public class IssuesController : ControllerBase
+	public class IssuesController : HordeControllerBase
 	{
 		private readonly IIssueCollection IssueCollection;
 		private readonly IIssueService IssueService;
@@ -216,11 +216,11 @@ namespace HordeServer.Controllers
 				IJob? Job = await JobService.GetJobAsync(JobId.Value);
 				if (Job == null)
 				{
-					return NotFound();
+					return NotFound(JobId.Value);
 				}
 				if(!await JobService.AuthorizeAsync(Job, AclAction.ViewJob, this.User, null))
 				{
-					return Forbid();
+					return Forbid(AclAction.ViewJob, JobId.Value);
 				}
 
 				IGraph Graph = await JobService.GetGraphAsync(Job);

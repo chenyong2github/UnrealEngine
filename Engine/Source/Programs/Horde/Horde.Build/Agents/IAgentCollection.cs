@@ -20,6 +20,7 @@ namespace HordeServer.Collections
 {
 	using PoolId = StringId<IPool>;
 	using AgentSoftwareChannelName = StringId<AgentSoftwareChannels>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Interface for a collection of agent documents
@@ -112,7 +113,7 @@ namespace HordeServer.Collections
 		/// <param name="DynamicPools">New list of dynamic pools for the agent</param>
 		/// <param name="Version">Current version of the agent software</param>
 		/// <returns>New agent state</returns>
-		Task<IAgent?> TryStartSessionAsync(IAgent Agent, ObjectId SessionId, DateTime SessionExpiresAt, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, IReadOnlyList<PoolId> DynamicPools, string? Version);
+		Task<IAgent?> TryStartSessionAsync(IAgent Agent, SessionId SessionId, DateTime SessionExpiresAt, AgentStatus Status, IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> Resources, IReadOnlyList<PoolId> DynamicPools, string? Version);
 
 		/// <summary>
 		/// Attempt to update the agent state

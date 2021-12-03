@@ -21,6 +21,7 @@ using System.Threading.Tasks;
 namespace HordeServer.Services
 {
 	using UserId = ObjectId<IUser>;
+	using SessionId = ObjectId<ISession>;
 
 	/// <summary>
 	/// Cache of global ACL
@@ -216,7 +217,7 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="SessionId">The session id</param>
 		/// <returns>New claim instance</returns>
-		public static AclClaim GetSessionClaim(ObjectId SessionId)
+		public static AclClaim GetSessionClaim(SessionId SessionId)
 		{
 			return new AclClaim(HordeClaimTypes.AgentSessionId, SessionId.ToString());
 		}
@@ -243,21 +244,21 @@ namespace HordeServer.Services
 
 	static class ClaimExtensions
 	{
-		public static bool HasSessionClaim(this ClaimsPrincipal User, ObjectId SessionId)
+		public static bool HasSessionClaim(this ClaimsPrincipal User, SessionId SessionId)
 		{
 			return User.HasClaim(HordeClaimTypes.AgentSessionId, SessionId.ToString());
 		}
 
-		public static ObjectId? GetSessionClaim(this ClaimsPrincipal User)
+		public static SessionId? GetSessionClaim(this ClaimsPrincipal User)
 		{
 			Claim? Claim = User.FindFirst(HordeClaimTypes.AgentSessionId);
-			if (Claim == null || !ObjectId.TryParse(Claim.Value, out ObjectId SessionId))
+			if (Claim == null || !SessionId.TryParse(Claim.Value, out SessionId SessionIdValue))
 			{
 				return null;
 			}
 			else
 			{
-				return SessionId;
+				return SessionIdValue;
 			}
 		}
 		
