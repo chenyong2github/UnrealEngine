@@ -15,8 +15,10 @@ FControlRigAnimInstanceProxy* FControlRigComponentMappedElement::GetAnimProxyOnG
 {
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
 	{
-		UControlRigAnimInstance* AnimInstance = Cast<UControlRigAnimInstance>(SkeletalMeshComponent->GetAnimInstance());
-		return AnimInstance->GetControlRigProxyOnGameThread();
+		if (UControlRigAnimInstance* AnimInstance = Cast<UControlRigAnimInstance>(SkeletalMeshComponent->GetAnimInstance()))
+		{
+			return AnimInstance->GetControlRigProxyOnGameThread();
+		}
 	}
 
 	return nullptr;
