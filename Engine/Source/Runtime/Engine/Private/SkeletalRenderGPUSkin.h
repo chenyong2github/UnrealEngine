@@ -331,6 +331,7 @@ public:
 #if RHI_RAYTRACING
 	/** Geometry for ray tracing. */
 	FRayTracingGeometry RayTracingGeometry;
+	FRayTracingAccelerationStructureSize RayTracingGeometryStructureSize;
 	FRWBuffer RayTracingDynamicVertexBuffer;
 
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return &RayTracingGeometry; }

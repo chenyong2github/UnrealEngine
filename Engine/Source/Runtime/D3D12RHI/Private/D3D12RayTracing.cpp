@@ -3625,7 +3625,7 @@ void FD3D12RayTracingGeometry::SetupHitGroupSystemParameters(uint32 InGPUIndex)
 	}
 }
 
-void FD3D12RayTracingGeometry::CreateAccelerationStructureBuildDesc(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode, const TRefCountPtr<FD3D12Buffer>& ScratchBuffer, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC& OutDesc, TArrayView<D3D12_RAYTRACING_GEOMETRY_DESC>& OutGeometryDescs) const
+void FD3D12RayTracingGeometry::CreateAccelerationStructureBuildDesc(FD3D12CommandContext& CommandContext, EAccelerationStructureBuildMode BuildMode, D3D12_GPU_VIRTUAL_ADDRESS ScratchBufferAddress, D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC& OutDesc, TArrayView<D3D12_RAYTRACING_GEOMETRY_DESC>& OutGeometryDescs) const
 {
 	if (RHIIndexBuffer)
 	{
@@ -3762,7 +3762,7 @@ void FD3D12RayTracingGeometry::CreateAccelerationStructureBuildDesc(FD3D12Comman
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC BuildDesc = {};
 	BuildDesc.Inputs = PrebuildDescInputs;
 	BuildDesc.DestAccelerationStructureData = AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress();
-	BuildDesc.ScratchAccelerationStructureData = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress();
+	BuildDesc.ScratchAccelerationStructureData = ScratchBufferAddress;
 	BuildDesc.SourceAccelerationStructureData = bIsUpdate
 		? AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress()
 		: D3D12_GPU_VIRTUAL_ADDRESS(0);
@@ -4246,18 +4246,42 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 		Geometry->SetupHitGroupSystemParameters(GPUIndex);
 
 		if (Geometry->IsDirty(GPUIndex))
-		{
-			TRefCountPtr<FD3D12Buffer> ScratchBuffer;
-			if (P.BuildMode == EAccelerationStructureBuildMode::Update)
+		{			
+			D3D12_GPU_VIRTUAL_ADDRESS ScratchBufferAddress;
+			if (P.ScratchBuffer)
 			{
-				static const FName BufferName("UpdateScratchBLAS");
-				ScratchBuffer = CreateRayTracingBuffer(GetParentAdapter(), GPUIndex, Geometry->SizeInfo.UpdateScratchSize, ERayTracingBufferType::Scratch, BufferName);
+				FD3D12Buffer* ScratchBuffer = FD3D12DynamicRHI::ResourceCast(P.ScratchBuffer);
+
+				uint64 ScratchBufferRequiredSize = P.BuildMode == EAccelerationStructureBuildMode::Update ? Geometry->SizeInfo.UpdateScratchSize : Geometry->SizeInfo.BuildScratchSize;
+				checkf(ScratchBufferRequiredSize + P.ScratchBufferOffset <= ScratchBuffer->GetSize(),
+					TEXT("BLAS scratch buffer size is %lld bytes with offset %lld (%lld bytes available), but the build requires %lld bytes. "),
+					ScratchBuffer->GetSize(), P.ScratchBufferOffset, ScratchBuffer->GetSize() - P.ScratchBufferOffset, ScratchBufferRequiredSize);
+
+				ScratchBufferAddress = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress() + P.ScratchBufferOffset;
+				ScratchBuffer->GetResource()->UpdateResidency(CommandListHandle);
 			}
 			else
 			{
-				static const FName BufferName("BuildScratchBLAS");
-				ScratchBuffer = CreateRayTracingBuffer(GetParentAdapter(), GPUIndex, Geometry->SizeInfo.BuildScratchSize, ERayTracingBufferType::Scratch, BufferName);
+				TRefCountPtr<FD3D12Buffer> ScratchBuffer;
+				if (P.BuildMode == EAccelerationStructureBuildMode::Update)
+				{
+					static const FName BufferName("UpdateScratchBLAS");
+					ScratchBuffer = CreateRayTracingBuffer(GetParentAdapter(), GPUIndex, Geometry->SizeInfo.UpdateScratchSize, ERayTracingBufferType::Scratch, BufferName);
+				}
+				else
+				{
+					static const FName BufferName("BuildScratchBLAS");
+					ScratchBuffer = CreateRayTracingBuffer(GetParentAdapter(), GPUIndex, Geometry->SizeInfo.BuildScratchSize, ERayTracingBufferType::Scratch, BufferName);
+				}
+
+				ScratchBufferAddress = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress();
+				ScratchBuffers.Add(ScratchBuffer);
+				ScratchBuffer->GetResource()->UpdateResidency(CommandListHandle);
 			}
+
+			checkf(ScratchBufferAddress % GRHIRayTracingAccelerationStructureAlignment == 0,
+				TEXT("BLAS scratch buffer (plus offset) must be aligned to %lld bytes."),
+				GRHIRayTracingAccelerationStructureAlignment);
 
 			// We need to keep D3D12_RAYTRACING_GEOMETRY_DESCs that are used in D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC alive.
 			const uint32 NumGeometryDescs = Geometry->GeometryDescs.Num();
@@ -4265,11 +4289,9 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 			TArrayView<D3D12_RAYTRACING_GEOMETRY_DESC> LocalGeometryDescs = MakeArrayView(LocalGeometryDescsMemory, NumGeometryDescs);
 
 			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC& BuildDesc = BuildDescs.AddZeroed_GetRef();			
-			Geometry->CreateAccelerationStructureBuildDesc(*this, P.BuildMode, ScratchBuffer, BuildDesc, LocalGeometryDescs);
+			Geometry->CreateAccelerationStructureBuildDesc(*this, P.BuildMode, ScratchBufferAddress, BuildDesc, LocalGeometryDescs);
 
 			Geometry->UpdateResidency(*this);
-			ScratchBuffer->GetResource()->UpdateResidency(CommandListHandle);
-			ScratchBuffers.Add(ScratchBuffer);
 
 			if (P.BuildMode == EAccelerationStructureBuildMode::Update)
 			{
@@ -4338,8 +4360,6 @@ void FD3D12CommandContext::RHIClearRayTracingBindings(FRHIRayTracingScene* InSce
 		delete Item.Value;
 	}
 	Table.Reset();
-
-	Scene->ReleaseBuffer();
 }
 
 struct FD3D12RayTracingGlobalResourceBinder
