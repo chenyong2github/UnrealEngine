@@ -134,12 +134,10 @@ class FLumenHWRTCompactRaysCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Input
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TraceTexelDataPacked)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, TraceDataPacked)
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWRayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, RWTraceTexelDataPacked)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, RWTraceDataPacked)
 
 		// Indirect args
@@ -201,13 +199,11 @@ class FLumenHWRTBucketRaysByMaterialIdCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Input
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TraceTexelDataPacked)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, TraceDataPacked)
 
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 
 		// Output
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, RWTraceTexelDataPacked)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, RWTraceDataPacked)
 
 		// Indirect args
@@ -239,10 +235,8 @@ void LumenHWRTCompactRays(
 	int32 RayCount,
 	LumenHWRTPipeline::ECompactMode CompactMode,
 	const FRDGBufferRef& RayAllocatorBuffer,
-	const FRDGBufferRef& TraceTexelDataPackedBuffer,
 	const FRDGBufferRef& TraceDataPackedBuffer,
 	FRDGBufferRef& OutputRayAllocatorBuffer,
-	FRDGBufferRef& OutputTraceTexelDataPackedBuffer,
 	FRDGBufferRef& OutputTraceDataPackedBuffer
 )
 {
@@ -268,12 +262,10 @@ void LumenHWRTCompactRays(
 		{
 			// Input
 			PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
-			PassParameters->TraceTexelDataPacked = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TraceTexelDataPackedBuffer, PF_R32G32_UINT));
 			PassParameters->TraceDataPacked = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TraceDataPackedBuffer));
 
 			// Output
 			PassParameters->RWRayAllocator = GraphBuilder.CreateUAV(OutputRayAllocatorBuffer, PF_R32_UINT);
-			PassParameters->RWTraceTexelDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputTraceTexelDataPackedBuffer, PF_R32G32_UINT));
 			PassParameters->RWTraceDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputTraceDataPackedBuffer));
 
 			// Indirect args
@@ -299,7 +291,6 @@ void LumenHWRTBucketRaysByMaterialID(
 	const FViewInfo& View,
 	int32 RayCount,
 	FRDGBufferRef& RayAllocatorBuffer,
-	FRDGBufferRef& TraceTexelDataPackedBuffer,
 	FRDGBufferRef& TraceDataPackedBuffer
 )
 {
@@ -327,12 +318,10 @@ void LumenHWRTBucketRaysByMaterialID(
 		{
 			// Input
 			PassParameters->RayAllocator = GraphBuilder.CreateSRV(RayAllocatorBuffer, PF_R32_UINT);
-			PassParameters->TraceTexelDataPacked = GraphBuilder.CreateSRV(TraceTexelDataPackedBuffer, PF_R32G32_UINT);
 			PassParameters->TraceDataPacked = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TraceDataPackedBuffer));
 			PassParameters->MaxRayAllocationCount = RayCount;
 
 			// Output
-			PassParameters->RWTraceTexelDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(BucketedTexelTraceDataPackedBuffer, PF_R32G32_UINT));
 			PassParameters->RWTraceDataPacked = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(BucketedTraceDataPackedBuffer));
 
 			// Indirect args
@@ -348,7 +337,6 @@ void LumenHWRTBucketRaysByMaterialID(
 			PassParameters->BucketRaysByMaterialIdIndirectArgs,
 			0);
 
-		TraceTexelDataPackedBuffer = BucketedTexelTraceDataPackedBuffer;
 		TraceDataPackedBuffer = BucketedTraceDataPackedBuffer;
 	}
 }

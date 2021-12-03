@@ -65,7 +65,6 @@ void FLumenHWRTCompactRaysCS(
 		uint ThreadOffset;
 		InterlockedAdd(SharedRayAllocator, 1, ThreadOffset);
 
-		SharedTraceTexelDataPacked[ThreadOffset] = TraceTexelDataPacked[RayIndex];
 		SharedTraceDataPacked[ThreadOffset] = TraceDataPacked[RayIndex];
 	}
 	GroupMemoryBarrierWithGroupSync();
@@ -78,7 +77,6 @@ void FLumenHWRTCompactRaysCS(
 
 	if (GroupThreadId < SharedRayAllocator)
 	{
-		RWTraceTexelDataPacked[SharedGroupOffset + GroupThreadId] = SharedTraceTexelDataPacked[GroupThreadId];
 		RWTraceDataPacked[SharedGroupOffset + GroupThreadId] = SharedTraceDataPacked[GroupThreadId];
 	}
 }
@@ -120,7 +118,6 @@ void FLumenHWRTBucketRaysByMaterialIdCS(
 	GroupMemoryBarrierWithGroupSync();
 
 	uint Hash[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
-	uint2 TraceTexelDataPackedCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
 	FTraceData TraceDataCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
 
 	for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
@@ -128,7 +125,6 @@ void FLumenHWRTBucketRaysByMaterialIdCS(
 		uint RayIndex = GroupOffset + i;
 		if (RayIndex < RayAllocator[0])
 		{
-			TraceTexelDataPackedCache[i / THREADGROUP_SIZE_1D] = TraceTexelDataPacked[RayIndex];
 			TraceDataCache[i / THREADGROUP_SIZE_1D] = UnpackTraceData(TraceDataPacked[RayIndex]);
 			uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
 
@@ -156,7 +152,6 @@ void FLumenHWRTBucketRaysByMaterialIdCS(
 			uint BinIndex = TraceDataCache[i / THREADGROUP_SIZE_1D].MaterialId % NUM_BINS;
 			uint OutputIndex = GroupOffset + BinOffset[BinIndex] + Hash[i / THREADGROUP_SIZE_1D];
 
-			RWTraceTexelDataPacked[OutputIndex] = TraceTexelDataPackedCache[i / THREADGROUP_SIZE_1D];
 			RWTraceDataPacked[OutputIndex] = PackTraceData(TraceDataCache[i / THREADGROUP_SIZE_1D]);
 		}
 	}

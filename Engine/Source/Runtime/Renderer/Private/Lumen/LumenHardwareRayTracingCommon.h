@@ -170,7 +170,8 @@ namespace LumenHWRTPipeline
 	// Struct definitions much match those in LumenHardwareRayTracingPipelineCommon.ush
 	struct FTraceDataPacked
 	{
-		uint32 PackedData[4];
+		//uint32 PackedData[4];
+		uint32 PackedData[5];
 	};
 
 } // namespace LumenHWRTPipeline
@@ -182,10 +183,8 @@ void LumenHWRTCompactRays(
 	int32 RayCount,
 	LumenHWRTPipeline::ECompactMode CompactMode,
 	const FRDGBufferRef& RayAllocatorBuffer,
-	const FRDGBufferRef& TraceTexelDataPackedBuffer,
 	const FRDGBufferRef& TraceDataPackedBuffer,
 	FRDGBufferRef& OutputRayAllocatorBuffer,
-	FRDGBufferRef& OutputTraceTexelDataPackedBuffer,
 	FRDGBufferRef& OutputTraceDataPackedBuffer
 );
 
@@ -195,7 +194,6 @@ void LumenHWRTBucketRaysByMaterialID(
 	const FViewInfo& View,
 	int32 RayCount,
 	FRDGBufferRef& RayAllocatorBuffer,
-	FRDGBufferRef& TraceTexelDataPackedBuffer,
 	FRDGBufferRef& TraceDataPackedBuffer
 );
 
