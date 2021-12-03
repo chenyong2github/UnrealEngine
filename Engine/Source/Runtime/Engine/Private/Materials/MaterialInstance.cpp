@@ -312,9 +312,23 @@ void FMaterialInstanceResource::GameThread_UpdateCachedData(const FMaterialInsta
 		});
 }
 
+template <typename TInstanceType>
+static bool SortMaterialInstanceParametersPredicate(const FMaterialInstanceResource::TNamedParameter<TInstanceType>& Left, const FMaterialInstanceResource::TNamedParameter<TInstanceType>& Right)
+{
+	return GetTypeHash(Left.Info) < GetTypeHash(Right.Info);
+}
+
 void FMaterialInstanceResource::InitMIParameters(FMaterialInstanceParameterSet& ParameterSet)
 {
 	InvalidateUniformExpressionCache(false);
+
+	// Sort the parameters so that a binary lookup and be used.
+	ParameterSet.ScalarParameters.Sort(SortMaterialInstanceParametersPredicate<float>);
+	ParameterSet.VectorParameters.Sort(SortMaterialInstanceParametersPredicate<FLinearColor>);
+	ParameterSet.DoubleVectorParameters.Sort(SortMaterialInstanceParametersPredicate<FVector4d>);
+	ParameterSet.TextureParameters.Sort(SortMaterialInstanceParametersPredicate<const UTexture*>);
+	ParameterSet.RuntimeVirtualTextureParameters.Sort(SortMaterialInstanceParametersPredicate<const URuntimeVirtualTexture*>);
+
 	Swap(ScalarParameterArray, ParameterSet.ScalarParameters);
 	Swap(VectorParameterArray, ParameterSet.VectorParameters);
 	Swap(DoubleVectorParameterArray, ParameterSet.DoubleVectorParameters);
