@@ -251,9 +251,10 @@ void ReflectionGenerateRaysCS(
 				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(TopLayerRoughness), TangentV);
 				float3 WorldH = mul(GGXSample.xyz, TangentBasis);
 				RayDirection = reflect(CameraVector, WorldH);
-				ConeAngle = 1.0f / GGXSample.w;
+				ConeAngle = 1.0f / max(GGXSample.w, 0.0001f);
 			}
 
+			ConeAngle = max(ConeAngle, MinReflectionConeAngle);
 			RWRayBuffer[ReflectionTracingCoord] = float4(RayDirection, ConeAngle);
 
 			float TraceDistance = MaxTraceDistance;
