@@ -875,6 +875,13 @@ public:
 	/** Evict all data from virtual texture caches*/
 	virtual void FlushVirtualTextureCache() = 0;
 
+	/** Allocate a buffer and record all nanite page requests until the next call to either SetNaniteRequestRecordBuffer or GetNaniteRequestRecordBuffer. */
+	virtual void SetNaniteRequestRecordBuffer(uint64 Handle) = 0;
+	/** Fetch the page requests recorded since the last call to SetNaniteRequestRecordBuffer. Returns the handle that was passed in. */
+	virtual uint64 GetNaniteRequestRecordBuffer(TArray<uint32>& OutRequestData) = 0;
+	/**	Request Nanite pages that were captured with SetNaniteRequestRecordBuffer. Note that the array will be moved and ownership is taken. */
+	virtual void RequestNanitePages(TArrayView<uint32> InRequestData) = 0;
+
 	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) = 0;
 
 	/**

@@ -128,7 +128,7 @@ FArchive& operator<<( FArchive& Ar, FPageStreamingState& PageStreamingState )
 	return Ar;
 }
 
-void FResources::InitResources()
+void FResources::InitResources(const UObject* Owner)
 {
 	// TODO: Should remove bulk data from built data if platform cannot run Nanite in any capacity
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
@@ -144,7 +144,8 @@ void FResources::InitResources()
 	
 	// Root pages should be available here. If they aren't, this resource has probably already been initialized and added to the streamer. Investigate!
 	check(RootClusterPage.Num() > 0);
-
+	PersistentHash = FMath::Max(FCrc::StrCrc32<TCHAR>(*Owner->GetFullName()), 1u);
+	
 	ENQUEUE_RENDER_COMMAND(InitNaniteResources)(
 		[this](FRHICommandListImmediate& RHICmdList)
 		{

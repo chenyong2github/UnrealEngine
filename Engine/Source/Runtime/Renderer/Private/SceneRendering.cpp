@@ -74,6 +74,7 @@
 #include "Nanite/Nanite.h"
 #include "DistanceFieldLightingShared.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
+#include "Rendering/NaniteStreamingManager.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -4619,6 +4620,28 @@ void FRendererModule::RequestVirtualTextureTiles(TArray<uint64>&& InPageRequests
 void FRendererModule::FlushVirtualTextureCache()
 {
 	FVirtualTextureSystem::Get().FlushCache();
+}
+
+
+uint64 FRendererModule::GetNaniteRequestRecordBuffer(TArray<uint32>& OutPageRequests)
+{
+#if WITH_EDITOR
+	return Nanite::GStreamingManager.GetRequestRecordBuffer(OutPageRequests);
+#else
+	return (uint64)-1;
+#endif
+}
+
+void FRendererModule::SetNaniteRequestRecordBuffer(uint64 Handle)
+{
+#if WITH_EDITOR
+	Nanite::GStreamingManager.SetRequestRecordBuffer(Handle);
+#endif
+}
+
+void FRendererModule::RequestNanitePages(TArrayView<uint32> RequestData)
+{
+	Nanite::GStreamingManager.RequestNanitePages(RequestData);
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
