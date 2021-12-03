@@ -49,8 +49,6 @@ void FMovieSceneEntitySystemRunner::AttachToLinker(UMovieSceneEntitySystemLinker
 	}
 
 	WeakLinker = InLinker;
-	LastInstantiationVersion = 0;
-	InLinker->Events.CleanTaggedGarbage.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerGarbageCleaned);
 	InLinker->Events.AbandonLinker.AddRaw(this, &FMovieSceneEntitySystemRunner::OnLinkerAbandon);
 }
 
@@ -103,9 +101,9 @@ bool FMovieSceneEntitySystemRunner::HasQueuedUpdates() const
 	{
 		return true;
 	}
-	if (UMovieSceneEntitySystemLinker* Linker = GetLinker())
+	if (const UMovieSceneEntitySystemLinker* Linker = GetLinker())
 	{
-		return Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
+		return Linker->HasStructureChangedSinceLastRun();
 	}
 	return false;
 }
@@ -166,7 +164,7 @@ void FMovieSceneEntitySystemRunner::Flush()
 
 	// We specifically only check whether the entity manager has changed since the last instantation once
 	// to ensure that we are not vulnerable to infinite loops where components are added/removed in post-evaluation
-	bool bStructureHadChanged = Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion);
+	bool bStructureHadChanged = Linker->HasStructureChangedSinceLastRun();
 
 	// Start flushing the update queue... keep flushing as long as we have work to do.
 	while (UpdateQueue.Num() > 0 ||
@@ -338,7 +336,7 @@ void FMovieSceneEntitySystemRunner::GameThread_SpawnPhase()
 		DissectedUpdates.RemoveAt(0, Index);
 	}
 
-	const bool bInstantiationDirty = Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion) || InstanceRegistry->HasInvalidatedBindings();
+	const bool bInstantiationDirty = Linker->HasStructureChangedSinceLastRun() || InstanceRegistry->HasInvalidatedBindings();
 
 	FGraphEventArray AllTasks;
 
@@ -440,8 +438,7 @@ void FMovieSceneEntitySystemRunner::GameThread_PostInstantiation()
 		UMovieSceneEntitySystemLinker* Linker = GetLinker();
 		check(Linker);
 
-		LastInstantiationVersion = Linker->EntityManager.GetSystemSerial();
-		Linker->GetInstanceRegistry()->PostInstantation();
+		Linker->PostInstantation(*this);
 
 		FEntityManager& EntityManager = Linker->EntityManager;
 		FBuiltInComponentTypes* BuiltInComponentTypes = FBuiltInComponentTypes::Get();
@@ -613,7 +610,7 @@ void FMovieSceneEntitySystemRunner::FinishInstance(FInstanceHandle InInstanceHan
 	}
 
 	InstanceRegistry->MutateInstance(InInstanceHandle).Finish(Linker);
-	if (Linker->EntityManager.HasStructureChangedSince(LastInstantiationVersion))
+	if (Linker->HasStructureChangedSinceLastRun())
 	{
 		MarkForUpdate(InInstanceHandle);
 		Flush();
@@ -629,17 +626,10 @@ void FMovieSceneEntitySystemRunner::MarkForUpdate(FInstanceHandle InInstanceHand
 	CurrentInstances.AddUnique(InInstanceHandle);
 }
 
-void FMovieSceneEntitySystemRunner::OnLinkerGarbageCleaned(UMovieSceneEntitySystemLinker* InLinker)
-{
-	check(WeakLinker.Get() == InLinker);
-	LastInstantiationVersion = 0;
-}
-
 void FMovieSceneEntitySystemRunner::OnLinkerAbandon(UMovieSceneEntitySystemLinker* InLinker)
 {
 	if (ensure(InLinker))
 	{
-		InLinker->Events.CleanTaggedGarbage.RemoveAll(this);
 		InLinker->Events.AbandonLinker.RemoveAll(this);
 	}
 	WeakLinker.Reset();
