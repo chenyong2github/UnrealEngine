@@ -648,7 +648,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			// TEMP: These check are only temporary for avoiding crashes while we find the bottom of the issue.
 			ProxyData->HairStrandsBuffer->CurvesOffsetsBuffer.SRV && ProxyData->HairStrandsBuffer->ParamsScaleBuffer.SRV && ProxyData->HairStrandsBuffer->BoundingBoxBuffer.UAV;
 
-		const bool bIsGeometryValid = bIsHairValid && ProxyData->HairGroupInstance && (ProxyData->HairGroupInstance->GeometryType != EHairGeometryType::NoneGeometry);
+		const bool bIsGeometryValid = bIsHairValid&& ProxyData->HairGroupInstance && (ProxyData->HairGroupInstance->GeometryType != EHairGeometryType::NoneGeometry);
 		const bool bIsDeformedValid = bIsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedResources && ProxyData->HairStrandsBuffer->SourceDeformedResources->IsInitialized();
 
 		if (bIsHairValid && bIsRestValid && bIsGeometryValid)
@@ -710,6 +710,15 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			FMatrix44f WorldTransformFloat = ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->GetCurrentLocalToWorld().ToMatrixWithScale() :
 																			ProxyData->WorldTransform.ToMatrixWithScale();
 			FMatrix44f BoneTransformFloat = ProxyData->BoneTransform.ToMatrixWithScale();
+
+			if (ProxyData->LocalSimulation)
+			{
+				FMatrix44d WorldTransformDouble = WorldTransformFloat;
+				FMatrix44d BoneTransformDouble = BoneTransformFloat;
+
+				// Due to large world coordinate we store the relative world transform in double precision
+				WorldTransformFloat = WorldTransformDouble * BoneTransformDouble.Inverse();
+			}
 
 			if (!bIsRootValid && bHasSkinningBinding)
 			{
