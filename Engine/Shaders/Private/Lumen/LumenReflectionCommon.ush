@@ -95,7 +95,8 @@ struct FRayData
 	bool bUseRadianceCache;
 };
 
-const static float MinReflectionConeAngle = .00001f;
+// Must be larger than FLOAT16_MIN
+const static float MinReflectionConeAngle = 0.00001f;
 
 uint PackRayTraceDistance(float RayTraceDistance, bool bUseRadianceCache)
 {
@@ -118,7 +119,7 @@ FRayData GetRayData(uint2 TracingCoord)
 	FRayData RayData;
 	RayData.Direction = PackedRayData.xyz;
 	RayData.ConeHalfAngle = PackedRayData.w;
-	RayData.PDF = 1.0f / max(PackedRayData.w, MinReflectionConeAngle);
+	RayData.PDF = 1.0f / PackedRayData.w;
 	UnpackRayTraceDistance(RayTraceDistance[TracingCoord], RayData.TraceDistance, RayData.bUseRadianceCache);
 	return RayData;
 }
