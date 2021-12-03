@@ -567,6 +567,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
 	uint32 bTrimAttributesOnCook : 1;
 
+	/** If true ParticleReads will not absolutely prevent attribute trimming - User must ensure that the appropriate attributes are preserved on the source emitter! */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	uint32 bIgnoreParticleReadsForAttributeTrim : 1;
+
 	/** If true all debug switches will be ignored in the editor. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bDisableDebugSwitches : 1;
