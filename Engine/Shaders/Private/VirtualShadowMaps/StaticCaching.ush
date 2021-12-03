@@ -1,0 +1,19 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+// NOTE: The primary goal of this file is to separate out the decision around
+// which geometry gets binned into static/dynamic from other VSM code and dependencies
+// as much as possible.
+
+#pragma once
+
+bool ShouldCacheInstanceAsStatic(FInstanceSceneData InstanceData)
+{
+	// TODO: Fix this with our own mobility flag, but for testing for now
+	// this flag should be stable and not change, which is a requirement.
+	//return (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) == 0;
+
+	uint Flags = GetPrimitiveData(InstanceData.PrimitiveId).Flags;
+	//return (Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW) != 0;
+	// DrawsVelocity is IsMovable() || IsBeingMovedByEditor() so good enough test for now
+	return (Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0;
+}

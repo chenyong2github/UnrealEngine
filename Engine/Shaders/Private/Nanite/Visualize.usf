@@ -5,6 +5,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "../ColorMap.ush"
 #include "../Visualization.ush"
+#include "../VirtualShadowMaps/StaticCaching.ush"
 
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
@@ -275,6 +276,10 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			{
 				Result = lerp(float3(1.0f, 1.0f, 1.0f), float3(1.0f, 0.0f, 0.0f), (NumBits - 30) / (float)(3 * 16 - 30));
 			}
+		}
+		else if (VisualizeMode == VISUALIZE_VSM_STATIC_CACHING)
+		{
+			Result = ShouldCacheInstanceAsStatic(InstanceData) ? float3(0, 1, 0) : float3(1, 0, 0);
 		}
 	}
 	else

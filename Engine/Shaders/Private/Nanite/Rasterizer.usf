@@ -4,7 +4,7 @@
 #include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
-#include "../VirtualShadowMaps/PageOverlap.ush"
+#include "../VirtualShadowMaps/StaticCaching.ush"
 #include "WritePixel.ush"
 
 #define SUBPIXEL_BITS				8
