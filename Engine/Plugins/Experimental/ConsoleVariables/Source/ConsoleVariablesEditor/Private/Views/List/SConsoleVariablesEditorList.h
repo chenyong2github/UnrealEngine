@@ -65,15 +65,21 @@ public:
 	void OnListItemCheckBoxStateChange(const ECheckBoxState InNewState);
 
 	// Sorting
-	
-	EColumnSortMode::Type GetSortMode(FName InColumnName) const;
+
+	const FName& GetActiveSortingColumnName() const
+	{
+		return ActiveSortingColumnName;
+	}
+	EColumnSortMode::Type GetSortModeForColumn(FName InColumnName) const;
 	void OnSortColumnCalled(EColumnSortPriority::Type Priority, const FName& ColumnName, EColumnSortMode::Type SortMode);
 	EColumnSortMode::Type CycleSortMode(const FName& InColumnName);
 	void ExecuteSort(const FName& InColumnName, const EColumnSortMode::Type InColumnSortMode);
 	void ClearSorting()
 	{
-		SortingMap.Empty();
+		ActiveSortingColumnName = NAME_None;
+		ActiveSortingType = EColumnSortMode::None;
 	}
+	void SetSortOrder();
 
 	// Column Names
 
@@ -90,7 +96,6 @@ private:
 	ECheckBoxState HeaderCheckBoxState = ECheckBoxState::Checked;
 	
 	void SetAllGroupsCollapsed();
-	void SetSortOrder();
 
 	// Search
 	
@@ -114,19 +119,14 @@ private:
 	TArray<FConsoleVariablesEditorListRowPtr> TreeViewRootObjects;
 
 	// Sorting
-	
-	TMap<FName, EColumnSortMode::Type> SortingMap;
+
+	FName ActiveSortingColumnName = NAME_None;
+	EColumnSortMode::Type ActiveSortingType = EColumnSortMode::None;
 
 	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortByOrderAscending =
 		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
 		{
 			return A->GetSortOrder() < B->GetSortOrder();
-		};
-
-	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortByOrderDescending =
-		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
-		{
-			return B->GetSortOrder() < A->GetSortOrder();
 		};
 
 	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortBySourceAscending =

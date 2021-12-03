@@ -180,12 +180,26 @@ void SConsoleVariablesEditorListRow::HandleDragLeave(const FDragDropEvent& DragD
 
 TOptional<EItemDropZone> SConsoleVariablesEditorListRow::HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent,
 	EItemDropZone DropZone, FConsoleVariablesEditorListRowPtr TargetItem)
-{
+{	
 	TSharedPtr<FConsoleVariablesListRowDragDropOp> Operation =
 		DragDropEvent.GetOperationAs<FConsoleVariablesListRowDragDropOp>();
 
 	if (!Operation.IsValid())
 	{
+		return TOptional<EItemDropZone>();
+	}
+	
+	const bool bShouldEvaluateDrop = Item.IsValid() && Item.Pin()->GetListViewPtr().IsValid() &&
+		Item.Pin()->GetListViewPtr().Pin()->GetActiveSortingColumnName().IsEqual(
+			SConsoleVariablesEditorList::CustomSortOrderColumnName);
+
+	if (!bShouldEvaluateDrop)
+	{
+		Operation->SetToolTip(
+			LOCTEXT("SortByCustomOrderDrgDropWarning","Sort by custom order (\"#\") to drag & drop"),
+			FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Error")
+		);
+			
 		return TOptional<EItemDropZone>();
 	}
 
@@ -267,10 +281,8 @@ FReply SConsoleVariablesEditorListRow::HandleAcceptDrop(const FDragDropEvent& Dr
 			AllTreeItemsCopy.Insert(DraggedItem, DropZone == EItemDropZone::AboveItem ? TargetIndex : TargetIndex + 1);
 		}
 		
-		FScopedTransaction(LOCTEXT("DragDropOperationTransactionText", "Console Variables Drag & Drop Operation"));
 		ListView->SetTreeViewItems(AllTreeItemsCopy);
-
-		ListView->ClearSorting();
+		ListView->SetSortOrder();
 	}
 
 	return FReply::Handled();
