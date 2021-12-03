@@ -7,8 +7,8 @@
 UMovieSceneDataLayerSection::UMovieSceneDataLayerSection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
-	DesiredState = EDataLayerRuntimeState::Loaded;
-	PrerollState = EDataLayerRuntimeState::Loaded;
+	DesiredState = EDataLayerRuntimeState::Activated;
+	PrerollState = EDataLayerRuntimeState::Activated;
 	EvalOptions.EnableAndSetCompletionMode(EMovieSceneCompletionMode::RestoreState);
 }
 
