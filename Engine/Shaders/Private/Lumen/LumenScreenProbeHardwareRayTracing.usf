@@ -72,7 +72,6 @@ int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 int ApplySkyLight;
 
-StructuredBuffer<FTraceDataPacked> RetraceDataPackedBuffer;
 RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
@@ -127,7 +126,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		}
 
 #if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
-		FTraceData TraceData = UnpackTraceData(RetraceDataPackedBuffer[RayIndex]);
+		FTraceData TraceData = UnpackTraceData(RWRetraceDataPackedBuffer[RayIndex]);
 		uint RayId = TraceData.RayId;
 #else
 		uint RayId = RayIndex;
@@ -213,6 +212,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 
+#if DIM_PACK_TRACE_DATA
 			RWRetraceDataPackedBuffer[RayIndex] = PackTraceData(CreateTraceData(
 				RayId,
 				Result.MaterialShaderIndex,
@@ -221,6 +221,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 				Result.bIsHit || bIsRadianceCacheHit,
 				Result.bIsRadianceCompleted,
 				Result.bIsFarField));
+#endif // DIM_PACK_TRACE_DATA
 
 #else // DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 			// TODO: Hit lighting

@@ -24,7 +24,6 @@
 
 Buffer<int> RayAllocator;
 Buffer<uint2> TraceTexelDataPacked;
-StructuredBuffer<FTraceDataPacked> TraceDataPacked;
 RWStructuredBuffer<FTraceDataPacked> RWTraceDataPacked;
 
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
@@ -89,7 +88,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		}
 
 #if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
-		FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
+		FTraceData TraceData = UnpackTraceData(RWTraceDataPacked[RayIndex]);
 		uint RayId = TraceData.RayId;
 #else
 		uint RayId = RayIndex;
@@ -187,7 +186,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			Result.bIsHit = true;
 		}
 
-#if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
+#if DIM_PACK_TRACE_DATA
 		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(
 			RayId,
 			Result.MaterialShaderIndex,
@@ -196,7 +195,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			Result.bIsHit,
 			Result.bIsRadianceCompleted,
 			Result.bIsFarField));
-#endif // DIM_LIGHTING_MODE
+#endif // DIM_PACK_TRACE_DATA
 
 #if DIM_WRITE_FINAL_LIGHTING
 		Result.Radiance *= View.PreExposure;
