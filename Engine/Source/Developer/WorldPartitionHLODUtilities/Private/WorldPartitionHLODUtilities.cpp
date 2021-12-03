@@ -315,7 +315,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 	return HLODActors;
 }
 
-static TSubclassOf<UHLODBuilder> GetHLODBuilderClassForLayer(const UHLODLayer* InHLODLayer)
+TSubclassOf<UHLODBuilder> FWorldPartitionHLODUtilities::GetHLODBuilderClass(const UHLODLayer* InHLODLayer)
 {
 	EHLODLayerType HLODLayerType = InHLODLayer->GetLayerType();
 	switch (HLODLayerType)
@@ -348,7 +348,7 @@ static TSubclassOf<UHLODBuilder> GetHLODBuilderClassForLayer(const UHLODLayer* I
 
 UHLODBuilderSettings* FWorldPartitionHLODUtilities::CreateHLODBuilderSettings(UHLODLayer* InHLODLayer)
 {
-	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClassForLayer(InHLODLayer);
+	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClass(InHLODLayer);
 	if (!HLODBuilderClass)
 	{
 		return NewObject<UHLODBuilderSettings>(InHLODLayer, UHLODBuilderSettings::StaticClass());
@@ -382,7 +382,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 	}
 
 	const UHLODLayer* HLODLayer = InHLODActor->GetSubActorsHLODLayer();
-	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClassForLayer(HLODLayer);
+	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClass(HLODLayer);
 
 	if (HLODBuilderClass)
 	{

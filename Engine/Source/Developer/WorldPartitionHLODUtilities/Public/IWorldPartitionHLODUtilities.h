@@ -11,6 +11,7 @@
 class AActor;
 class UWorldPartition;
 class UHLODLayer;
+class UHLODBuilder;
 class UHLODBuilderSettings;
 class AWorldPartitionHLOD;
 
@@ -61,6 +62,14 @@ public:
 	 * @return An hash that represent the content used to build this HLOD.
 	 */
 	virtual uint32 BuildHLOD(AWorldPartitionHLOD* InHLODActor) = 0;
+
+	/**
+	 * Retrieve the HLOD Builder class to use for the given HLODLayer.
+	 * 
+	 * @param	InHLODLayer		HLODLayer
+	 * @return The HLOD builder subclass to use for building HLODs for the provided HLOD layer.
+	 */
+	virtual TSubclassOf<UHLODBuilder> GetHLODBuilderClass(const UHLODLayer* InHLODLayer) = 0;
 
 	/**
 	 * Create the HLOD builder settings for the provided HLOD layer object. The type of settings created will depend on the HLOD layer type.

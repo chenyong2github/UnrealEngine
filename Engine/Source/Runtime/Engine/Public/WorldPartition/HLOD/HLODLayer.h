@@ -53,7 +53,7 @@ public:
 	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
 	bool IsAlwaysLoaded() const { return bAlwaysLoaded; }
 
-	bool DoesRequireWarmup() const { return HLODBuilderClass ? HLODBuilderClass->GetDefaultObject<UHLODBuilder>()->RequiresWarmup() : true; }
+	bool DoesRequireWarmup() const;
 
 	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, double InLoadingRange);
 #endif
