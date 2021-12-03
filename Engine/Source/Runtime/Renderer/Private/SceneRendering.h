@@ -1139,6 +1139,7 @@ struct FRayTracingCullingParameters
 	float FarFieldCullingRadius;
 	float CullAngleThreshold;
 	float AngleThresholdRatio;
+	float AngleThresholdRatioSq;
 	FVector ViewOrigin;
 	FVector ViewDirection;
 	bool bCullAllObjects;
@@ -1170,14 +1171,14 @@ public:
 	/** A map from primitive ID to a boolean visibility value. */
 	FSceneBitArray PrimitiveVisibilityMap;
 
-	/** Bit set when a primitive is known to be unoccluded. */
+	/** A map from primitive ID to a boolean ray tracing visibility value. */
+	FSceneBitArray PrimitiveRayTracingVisibilityMap;
+
+	/** Bit set when a primitive is known to be un-occluded. */
 	FSceneBitArray PrimitiveDefinitelyUnoccludedMap;
 
 	/** A map from primitive ID to a boolean is fading value. */
 	FSceneBitArray PotentiallyFadingPrimitiveMap;
-
-	/** A map from primitive ID to whether the primitve was culled for ray tracing */
-	FSceneBitArray RayTracingCullingPrimitiveMap;
 
 	/** Primitive fade uniform buffers, indexed by packed primitive index. */
 	TArray<FRHIUniformBuffer*,SceneRenderingAllocator> PrimitiveFadeUniformBuffers;

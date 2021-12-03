@@ -112,13 +112,14 @@ DEFINE_STAT(STAT_ViewRelevance);
 DEFINE_STAT(STAT_ComputeViewRelevance);
 DEFINE_STAT(STAT_OcclusionCull);
 DEFINE_STAT(STAT_UpdatePrimitiveFading);
-DEFINE_STAT(STAT_FrustumCull);
+DEFINE_STAT(STAT_PrimitiveCull);
 DEFINE_STAT(STAT_DecompressPrecomputedOcclusion);
 DEFINE_STAT(STAT_ViewVisibilityTime);
 
 DEFINE_STAT(STAT_RayTracingInstances);
 DEFINE_STAT(STAT_ProcessedPrimitives);
 DEFINE_STAT(STAT_CulledPrimitives);
+DEFINE_STAT(STAT_VisibleRayTracingPrimitives);
 DEFINE_STAT(STAT_StaticallyOccludedPrimitives);
 DEFINE_STAT(STAT_OccludedPrimitives);
 DEFINE_STAT(STAT_OcclusionQueries);

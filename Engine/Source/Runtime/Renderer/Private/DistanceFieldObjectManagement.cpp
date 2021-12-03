@@ -747,7 +747,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 									const int32 PrimIdx = PrimAndInst.Primitive->GetIndex();
 									const FPrimitiveBounds& PrimBounds = PrimitiveBounds[PrimIdx];
-									float MinDrawDist2 = PrimBounds.MinDrawDistanceSq;
+									float MinDrawDist2 = FMath::Square(PrimBounds.MinDrawDistance);
 									// For IEEE compatible machines, float operations goes to inf if overflow
 									// In this case, it will effectively disable max draw distance culling
 									float MaxDrawDist = FMath::Max(PrimBounds.MaxCullDistance, 0.f) * GetCachedScalabilityCVars().ViewDistanceScale;
