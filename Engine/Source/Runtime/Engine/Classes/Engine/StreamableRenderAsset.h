@@ -157,6 +157,7 @@ public:
 	* @param Seconds					Duration in seconds
 	* @param CinematicTextureGroups	Bitfield indicating which texture groups that use extra high-resolution mips
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetForceMipLevelsToBeResident(float Seconds, int32 CinematicLODGroupMask = 0);
 
 	/**
