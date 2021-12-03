@@ -1045,11 +1045,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 			FPendingPage& PendingPage = PendingPages[PendingPageIndex];
 			
 			// Update when the GPU page was touched for the last time.
-			FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
-			if(Resources)
-			{
-				GPUPageToLastPendingPageIndex.Add(PendingPage.GPUPageIndex, PendingPageIndex);
-			}
+			// This also includes pages from deleted resources. This is intentional as the corresponding uninstall still needs to happen.
+			GPUPageToLastPendingPageIndex.Add(PendingPage.GPUPageIndex, PendingPageIndex);
 		}
 
 		TSet<FPageKey> BatchNewPageKeys;
@@ -1119,20 +1116,18 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 			uint32 NumInstalledPages = 0;
 			for (uint32 TaskIndex = 0; TaskIndex < NumReadyPages; TaskIndex++)
 			{
-				uint32 LastPendingPageIndex = (StartPendingPageIndex + TaskIndex) % MaxPendingPages;
-				FPendingPage& PendingPage = PendingPages[LastPendingPageIndex];
+				uint32 PendingPageIndex = (StartPendingPageIndex + TaskIndex) % MaxPendingPages;
+				FPendingPage& PendingPage = PendingPages[PendingPageIndex];
 
 				FUploadTask& UploadTask = UploadTasks[TaskIndex];
 				UploadTask.PendingPage = &PendingPage;
 
-				uint32* PagePtr = GPUPageToLastPendingPageIndex.Find(PendingPages[LastPendingPageIndex].GPUPageIndex);
-				if (PagePtr == nullptr || *PagePtr != LastPendingPageIndex)
+				FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
+				uint32 LastPendingPageIndex = GPUPageToLastPendingPageIndex.FindChecked(PendingPages[PendingPageIndex].GPUPageIndex);
+				if (PendingPageIndex != LastPendingPageIndex || !Resources)
+				{
 					continue;	// Skip resource install. Resource no longer exists or page has already been overwritten.
-
-				FStreamingPageInfo& StreamingPageInfo = StreamingPageInfos[PendingPage.GPUPageIndex];
-			
-				FResources** Resources = RuntimeResourceMap.Find( PendingPage.InstallKey.RuntimeResourceID );
-				check(Resources);
+				}
 
 				TArray< FPageStreamingState >& PageStreamingStates = ( *Resources )->PageStreamingStates;
 				const FPageStreamingState& PageStreamingState = PageStreamingStates[ PendingPage.InstallKey.PageIndex ];
