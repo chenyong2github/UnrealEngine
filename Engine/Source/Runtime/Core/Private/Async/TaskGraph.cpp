@@ -2628,11 +2628,14 @@ void FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskTh
 	double StartTime = FPlatformTime::Seconds();
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FTaskGraphInterface_BroadcastSlow_OnlyUseForSpecialPurposes);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTaskGraphInterface_BroadcastSlow);
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
+
+	Callback(ENamedThreads::GameThread_Local);
+
 	if (!TaskGraphImplementationSingleton)
 	{
 		// we aren't going yet
-		Callback(ENamedThreads::GameThread);
 		return;
 	}
 
@@ -2695,33 +2698,6 @@ void FTaskGraphInterface::BroadcastSlow_OnlyUseForSpecialPurposes(bool bDoTaskTh
 	}
 
 
-	FGraphEventArray Tasks;
-#if STATS
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::StatsThread))
-	{
-		Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("Stats"), ENamedThreads::SetTaskPriority(ENamedThreads::StatsThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr));
-	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-	if (IsRHIThreadRunning())
-	{
-		Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("RHIT"), ENamedThreads::SetTaskPriority(ENamedThreads::RHIThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr));
-	}
-	ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread();
-	if (RenderThread != ENamedThreads::GameThread)
-	{
-		Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("RT"), ENamedThreads::SetTaskPriority(RenderThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr));
-	}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::AudioThread))
-	{
-		Tasks.Add(TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("AudioT"), ENamedThreads::SetTaskPriority(ENamedThreads::AudioThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr));
-	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	Callback(ENamedThreads::GameThread_Local);
-
 	if (bDoTaskThreads)
 	{
 		check(MyEvent);
@@ -2736,6 +2712,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			const double StartTimeInner = FPlatformTime::Seconds();
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_Broadcast_WaitForTaskThreads);
+			TRACE_CPUPROFILER_EVENT_SCOPE(Broadcast_WaitForTaskThreads);
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(TaskThreadTasks, ENamedThreads::GameThread_Local);
 			{
 				const double ThisTime = FPlatformTime::Seconds() - StartTimeInner;
@@ -2746,36 +2723,31 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 	}
-	{
-		double StartTimeInner = FPlatformTime::Seconds();
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_Broadcast_WaitForNamedThreads);
-		
-		// Wait for all tasks to be complete.  Spin and pump messages to avoid deadlocks when other threads send messages and block until messages are processed
-		while (true)
-		{
-			bool bAnyNotDone = false;
-			for (FGraphEventRef& Item : Tasks)
-			{
-				if (Item.GetReference() && !Item->IsComplete())
-				{
-					bAnyNotDone = true;
-					break;
-				}
-			}
-			if (!bAnyNotDone)
-			{
-				break;
-			}
 
-			FPlatformMisc::PumpMessagesOutsideMainLoop();
-		}
-		
-		const double EndTimeInner = FPlatformTime::Seconds() - StartTimeInner;
-		if (EndTimeInner > 0.02)
-		{
-			UE_CLOG(GPrintBroadcastWarnings, LogTaskGraph, Warning, TEXT("Task graph took %6.2fms to wait for named thread broadcast."), EndTimeInner * 1000.0);
-		}
+#if STATS
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::StatsThread))
+	{
+		TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("Stats"), ENamedThreads::SetTaskPriority(ENamedThreads::StatsThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+	if (IsRHIThreadRunning())
+	{
+		TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("RHIT"), ENamedThreads::SetTaskPriority(ENamedThreads::RHIThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr);
+	}
+	ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread();
+	if (RenderThread != ENamedThreads::GameThread)
+	{
+		TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("RT"), ENamedThreads::SetTaskPriority(RenderThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr);
+	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (FTaskGraphInterface::Get().IsThreadProcessingTasks(ENamedThreads::AudioThread))
+	{
+		TGraphTask<FBroadcastTask>::CreateTask().ConstructAndDispatchWhenReady(Callback, StartTime, TEXT("AudioT"), ENamedThreads::SetTaskPriority(ENamedThreads::AudioThread, ENamedThreads::HighTaskPriority), nullptr, nullptr, nullptr);
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	for (FEvent* TaskEvent : TaskEvents)
 	{
 		FPlatformProcess::ReturnSynchEventToPool(TaskEvent);

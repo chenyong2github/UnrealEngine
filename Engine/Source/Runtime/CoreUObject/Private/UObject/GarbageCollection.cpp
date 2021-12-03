@@ -1590,7 +1590,7 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 		GObjCurrentPurgeObjectIndexNeedsReset = true;
 	}
 	// Early out if there is nothing to do.
-	if (!GObjPurgeIsRequired)
+	if (!GObjPurgeIsRequired && !GObjIncrementalPurgeIsInProgress)
 	{
 		return;
 	}
@@ -1622,6 +1622,13 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 
 	} ResetPurgeProgress(bCompleted);
 	
+	// if the purge was completed last tick, perform the trim to finalize this incremental purge
+	if (!GObjPurgeIsRequired)
+	{
+		FMemory::Trim();
+		bCompleted = true;
+	}
+	else
 	{
 		// Lock before settting GCStartTime as it could be slow to lock if async loading is in progress
 		// but we still want to perform some GC work otherwise we'd be keeping objects in memory for a long time
@@ -1645,6 +1652,9 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 		{
 			bCompleted = IncrementalDestroyGarbage(bUseTimeLimit, TimeLimit);
 		}
+
+		// when running incrementally using a time limit, add one last tick for the memory trim
+		bCompleted = bCompleted && !bUseTimeLimit;
 	}
 #endif // !UE_WITH_GC
 }
@@ -2178,7 +2188,10 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		if (GObjIncrementalPurgeIsInProgress || GObjPurgeIsRequired)
 		{
 			IncrementalPurgeGarbage(false);
-			FMemory::Trim();
+			if (!bPerformFullPurge)
+			{
+				FMemory::Trim();
+			}
 		}
 		check(!GObjIncrementalPurgeIsInProgress);
 		check(!GObjPurgeIsRequired);
@@ -2291,8 +2304,10 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		// Destroy all pending delete linkers
 		DeleteLoaders();
 
-		// Trim allocator memory
-		FMemory::Trim();
+		if (bPerformFullPurge)
+		{
+			FMemory::Trim();
+		}
 	}
 
 	// Route callbacks to verify GC assumptions
