@@ -105,4 +105,58 @@ void SetLumenHardwareRayTracingSharedParameters(
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters);
 
+// Hardware ray-tracing pipeline
+namespace LumenHWRTPipeline
+{
+	enum class ELightingMode
+	{
+		// Permutations for tracing modes
+		SurfaceCache,
+		HitLighting,
+		MAX
+	};
+
+	enum class ECompactMode
+	{
+		// Permutations for compaction modes
+		HitLightingRetrace,
+		FarFieldRetrace,
+		ForceHitLighting,
+		AppendRays,
+
+		MAX
+	};
+
+	// Struct definitions much match those in LumenHardwareRayTracingPipeline.usf
+	struct FTraceDataPacked
+	{
+		uint32 PackedData[2];
+	};
+
+} // namespace LumenHWRTPipeline
+
+void LumenHWRTCompactRays(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View,
+	int32 RayCount,
+	LumenHWRTPipeline::ECompactMode CompactMode,
+	const FRDGBufferRef& RayAllocatorBuffer,
+	const FRDGBufferRef& TraceTexelDataPackedBuffer,
+	const FRDGBufferRef& TraceDataPackedBuffer,
+	FRDGBufferRef& OutputRayAllocatorBuffer,
+	FRDGBufferRef& OutputTraceTexelDataPackedBuffer,
+	FRDGBufferRef& OutputTraceDataPackedBuffer
+);
+
+void LumenHWRTBucketRaysByMaterialID(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View,
+	int32 RayCount,
+	FRDGBufferRef& RayAllocatorBuffer,
+	FRDGBufferRef& TraceTexelDataPackedBuffer,
+	FRDGBufferRef& TraceDataPackedBuffer
+);
+
 #endif // RHI_RAYTRACING
