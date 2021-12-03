@@ -35,6 +35,7 @@ private:
 	{
 		FRWBuffer RWBuffer;
 		uint32 UsedSize = 0;
+		uint32 LastUsedGenerationID = 0;
 	};
 	TArray<FVertexPositionBuffer*> VertexPositionBuffers;
 
