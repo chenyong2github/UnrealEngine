@@ -1256,7 +1256,7 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 			FPrimitiveBounds& PrimitiveBounds = Scene->PrimitiveBounds[PackedIndex];
 			FBoxSphereBounds BoxSphereBounds = Proxy->GetBounds();
 			PrimitiveBounds.BoxSphereBounds = BoxSphereBounds;
-			PrimitiveBounds.MinDrawDistanceSq = FMath::Square(Proxy->GetMinDrawDistance());
+			PrimitiveBounds.MinDrawDistance = Proxy->GetMinDrawDistance();
 			PrimitiveBounds.MaxDrawDistance = Proxy->GetMaxDrawDistance();
 			PrimitiveBounds.MaxCullDistance = PrimitiveBounds.MaxDrawDistance;
 

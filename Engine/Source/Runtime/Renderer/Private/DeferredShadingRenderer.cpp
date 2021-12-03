@@ -588,6 +588,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	TArray<FPrimitiveSceneInfo*> DirtyCachedRayTracingPrimitives;
 	DirtyCachedRayTracingPrimitives.Reserve(Scene->PrimitiveSceneProxies.Num());
 
+	int32 VisiblePrimitives = 0;
+	bool bPerformRayTracing = View.State != nullptr && !View.bIsReflectionCapture;
+	if (bPerformRayTracing)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
 
@@ -608,44 +611,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 				continue;
 			}
 
-			if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Excluded))
+			// Get primitive visibility state from culling
+			if (!View.PrimitiveRayTracingVisibilityMap[PrimitiveIndex])
 			{
 				continue;
 			}
 
 			const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
-
-			// Skip far field if not enabled
-			const bool bIsFarFieldPrimitive = EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::FarField);
-			if (!View.RayTracingCullingParameters.bIsRayTracingFarField && bIsFarFieldPrimitive)
-			{
-				continue;
-			}
-
-			if (RayTracing::ShouldCullBounds(View.RayTracingCullingParameters, Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds, bIsFarFieldPrimitive))
-			{
-				continue;
-			}
-
-			if (!View.State)
-			{
-				continue;
-			}
-
-			if (View.bIsReflectionCapture)
-			{
-				continue;
-			}
-
-			if (View.HiddenPrimitives.Contains(Scene->PrimitiveComponentIds[PrimitiveIndex]))
-			{
-				continue;
-			}
-
-			if (View.ShowOnlyPrimitives.IsSet() && !View.ShowOnlyPrimitives->Contains(Scene->PrimitiveComponentIds[PrimitiveIndex]))
-			{
-				continue;
-			}
 
 			// #dxr_todo: ray tracing in scene captures should re-use the persistent RT scene. (UE-112448)
 			bool bShouldRayTraceSceneCapture = GRayTracingSceneCaptures > 0
@@ -655,15 +627,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			{
 				continue;
 			}
-			
-			// Disabling for now, this is not correct for ray tracing visibility
-			/*
-			// Check if the primitive has been culled already during frustum culling
-			if (!View.PrimitiveVisibilityMap[PrimitiveIndex])
-			{
-				continue;
-			}
-			*/
 
 			// Marked visible and used after point, check if streaming then mark as used in the TLAS (so it can be streamed in)
 			if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Streaming))
@@ -678,6 +641,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 				RayTracingScene.UsedCoarseMeshStreamingHandles.Add(SceneInfo->CoarseMeshStreamingHandle);
 			}
 
+			VisiblePrimitives++;
+
 			//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
 			//Touching the SceneProxy to determine this would simply cost too much
 			static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
@@ -686,7 +651,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			Item.PrimitiveIndex = PrimitiveIndex;
 
 			if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::CacheMeshCommands)
-				&& View.Family->EngineShowFlags.StaticMeshes 
+				&& View.Family->EngineShowFlags.StaticMeshes
 				&& RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() > 0)
 			{
 				Item.bStatic = true;
@@ -699,6 +664,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			}
 		}
 	}
+
+	INC_DWORD_STAT_BY(STAT_VisibleRayTracingPrimitives, VisiblePrimitives);
 
 	FPrimitiveSceneInfo::UpdateCachedRaytracingData(Scene, DirtyCachedRayTracingPrimitives);
 

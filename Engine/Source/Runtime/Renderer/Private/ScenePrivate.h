@@ -2368,7 +2368,7 @@ struct FPrimitiveBounds
 {
 	FBoxSphereBounds BoxSphereBounds;
 	/** Square of the minimum draw distance for the primitive. */
-	float MinDrawDistanceSq;
+	float MinDrawDistance;
 	/** Maximum draw distance for the primitive. */
 	float MaxDrawDistance;
 	/** Maximum cull distance for the primitive. This is only different from the MaxDrawDistance for HLOD.*/

@@ -55,6 +55,7 @@ void FRayTracingCullingParameters::Init(FViewInfo& View)
 	FarFieldCullingRadius = Lumen::GetFarFieldMaxTraceDistance();
 	CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
 	AngleThresholdRatio = FMath::Tan(FMath::Min(89.99f, CullAngleThreshold) * PI / 180.0f);
+	AngleThresholdRatioSq = FMath::Square(AngleThresholdRatio);
 	ViewOrigin = View.ViewMatrices.GetViewOrigin();
 	ViewDirection = View.GetViewDirection();
 	bCullAllObjects = CullInRayTracing == 2 || CullInRayTracing == 3;
@@ -64,43 +65,84 @@ void FRayTracingCullingParameters::Init(FViewInfo& View)
 
 namespace RayTracing
 {
+bool CullPrimitiveByFlags(const FRayTracingCullingParameters& CullingParameters, const FScene* RESTRICT Scene, int32 PrimitiveIndex)
+{
+	if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::UnsupportedProxyType))
+	{
+		return true;
+	}
 
-bool ShouldCullBounds(const FRayTracingCullingParameters& CullingParameters, FBoxSphereBounds ObjectBounds, bool bIsFarFieldPrimitive)
+	if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Excluded))
+	{
+		return true;
+	}
+
+	// Skip far field if not enabled
+	const bool bIsFarFieldPrimitive = EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::FarField);
+	if (!CullingParameters.bIsRayTracingFarField && bIsFarFieldPrimitive)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+// Tests if the given primitive should be culled, given the pre-calculated inputs for the primitive, returns true if the primitive SHOULD be culled
+template<bool bCullByRadiusOrDistance>
+bool CullBounds(const FRayTracingCullingParameters& CullingParameters, const FBoxSphereBounds& RESTRICT ObjectBounds, bool bIsFarFieldPrimitive)
+{
+	const float ObjectRadius = ObjectBounds.SphereRadius;
+	const FVector ObjectCenter = ObjectBounds.Origin + 0.5 * ObjectBounds.BoxExtent;
+	float CameraToObjectCenterLengthSq = FVector::DistSquared(ObjectCenter, CullingParameters.ViewOrigin);
+
+	if (bIsFarFieldPrimitive)
+	{
+		if (CameraToObjectCenterLengthSq > FMath::Square(CullingParameters.FarFieldCullingRadius + ObjectRadius))
+		{
+			return true;
+		}
+	}
+	else
+	{
+		const bool bIsFarEnoughToCull = CameraToObjectCenterLengthSq > FMath::Square(CullingParameters.CullingRadius + ObjectRadius);
+
+		if (bCullByRadiusOrDistance && bIsFarEnoughToCull)
+		{
+			return true;
+		}
+		else
+		{
+			// Cull by solid angle: check the radius of bounding sphere against angle threshold
+			const bool bAngleIsSmallEnoughToCull = FMath::Square(ObjectRadius) / CameraToObjectCenterLengthSq < CullingParameters.AngleThresholdRatioSq;
+			if (bCullByRadiusOrDistance && bAngleIsSmallEnoughToCull)
+			{
+				return true;
+			}
+			else if (bIsFarEnoughToCull && bAngleIsSmallEnoughToCull)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool ShouldCullBounds(const FRayTracingCullingParameters& CullingParameters, const FBoxSphereBounds& RESTRICT ObjectBounds, bool bIsFarFieldPrimitive)
 {
 	if (CullingParameters.CullInRayTracing > 0)
 	{
-		const float ObjectRadius = ObjectBounds.SphereRadius;
-		const FVector ObjectCenter = ObjectBounds.Origin + 0.5 * ObjectBounds.BoxExtent;
-		const FVector CameraToObjectCenter = FVector(ObjectCenter - CullingParameters.ViewOrigin);
-
-		const bool bConsiderCulling = CullingParameters.bCullAllObjects || FVector::DotProduct(CullingParameters.ViewDirection, CameraToObjectCenter) < -ObjectRadius;
+		const bool bConsiderCulling = CullingParameters.bCullAllObjects || ShouldConsiderCulling(CullingParameters, ObjectBounds);
 
 		if (bConsiderCulling)
 		{
-			const float CameraToObjectCenterLength = CameraToObjectCenter.Size();
-
-			if (bIsFarFieldPrimitive)
+			if (CullingParameters.bCullByRadiusOrDistance)
 			{
-				if (CameraToObjectCenterLength > (CullingParameters.FarFieldCullingRadius + ObjectRadius))
-				{
-					return true;
-				}
+				return CullBounds<true>(CullingParameters, ObjectBounds, bIsFarFieldPrimitive);
 			}
 			else
 			{
-				const bool bIsFarEnoughToCull = CameraToObjectCenterLength > (CullingParameters.CullingRadius + ObjectRadius);
-
-				// Cull by solid angle: check the radius of bounding sphere against angle threshold
-				const bool bAngleIsSmallEnoughToCull = ObjectRadius / CameraToObjectCenterLength < CullingParameters.AngleThresholdRatio;
-
-				if (CullingParameters.bCullByRadiusOrDistance && (bIsFarEnoughToCull || bAngleIsSmallEnoughToCull))
-				{
-					return true;
-				}
-				else if (bIsFarEnoughToCull && bAngleIsSmallEnoughToCull)
-				{
-					return true;
-				}
+				return CullBounds<false>(CullingParameters, ObjectBounds, bIsFarFieldPrimitive);
 			}
 		}
 	}
@@ -113,7 +155,7 @@ bool ShouldSkipPerInstanceCullingForPrimitive(const FRayTracingCullingParameters
 	bool bSkipCulling = false;
 
 	const float ObjectRadius = ObjectBounds.SphereRadius;
-	const FVector ObjectCenter = ObjectBounds.Origin + 0.5 * ObjectBounds.BoxExtent;
+	const FVector ObjectCenter = ObjectBounds.Origin;
 	const FVector CameraToObjectCenter = FVector(ObjectCenter - CullingParameters.ViewOrigin);
 
 	const FVector CameraToFurthestInstanceCenter = CameraToObjectCenter * (CameraToObjectCenter.Size() + ObjectRadius + SmallestInstanceBounds.SphereRadius) / CameraToObjectCenter.Size();
