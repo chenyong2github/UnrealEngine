@@ -80,6 +80,17 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc
 	return GetHLODLayer(FWorldPartitionActorDescView(&InActorDesc), InWorldPartition);
 }
 
+bool UHLODLayer::DoesRequireWarmup() const
+{
+	IWorldPartitionHLODUtilities* WPHLODUtilities = FModuleManager::Get().LoadModuleChecked<IWorldPartitionHLODUtilitiesModule>("WorldPartitionHLODUtilities").GetUtilities();
+	if (WPHLODUtilities)
+	{
+		return WPHLODUtilities->GetHLODBuilderClass(this)->GetDefaultObject<UHLODBuilder>()->RequiresWarmup();
+	}
+
+	return false;
+}
+
 void UHLODLayer::PostLoad()
 {
 	Super::PostLoad();
