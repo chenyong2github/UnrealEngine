@@ -615,7 +615,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 						const FPrimitiveSceneShaderData& Item = PrimitiveBufferPtr[Index + IndexOffset];
 						for (int32 DataIndex = 0; DataIndex < FPrimitiveSceneShaderData::DataStrideInFloat4s; ++DataIndex)
 						{
-							check(FMemory::Memcmp(&PrimitiveSceneData.Data[DataIndex], &Item.Data[DataIndex], sizeof(FVector4)) == 0);
+							check(FMemory::Memcmp(&PrimitiveSceneData.Data[DataIndex], &Item.Data[DataIndex], sizeof(FVector4f)) == 0);
 						}
 					}
 				}
@@ -1294,7 +1294,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 									#if INSTANCE_COMPRESSED_TRANSFORMS
 										check(PayloadPosition + 1 < InstancePayloadData.Num()); // Sanity check
 										FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
-										InstancePayloadData[PayloadPosition + 0] = *(const FVector4*)&CompressedPrevLocalToWorld.Rotation[0];
+										InstancePayloadData[PayloadPosition + 0] = *(const FVector4f*)&CompressedPrevLocalToWorld.Rotation[0];
 										InstancePayloadData[PayloadPosition + 1] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
 										PayloadPosition += 2;
 									#else
