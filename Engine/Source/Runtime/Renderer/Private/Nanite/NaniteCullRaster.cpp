@@ -2115,10 +2115,11 @@ void CullRasterize(
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
 		FRDGBufferRef CompactedViews = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedView), ViewsBufferElements), TEXT("Shadow.Virtual.CompactedViews"));
 		FRDGBufferRef CompactedViewInfo = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FCompactedViewInfo), Views.Num()), TEXT("Shadow.Virtual.CompactedViewInfo"));
-		// just an atomic counter that needs to be zero
-		// NOTE: must be static since we're passing a reference to RDG
-		const static uint32 TheZeros[2] = { 0U, 0U };
-		FRDGBufferRef CompactedViewsAllocation = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.CompactedViewsAllocation"), sizeof(uint32), 2, TheZeros, sizeof(TheZeros), ERDGInitialDataFlags::NoCopy);
+		
+		// Just a pair of atomic counters, zeroed by a clear UAV pass.
+		FRDGBufferRef CompactedViewsAllocation = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2), TEXT("Shadow.Virtual.CompactedViewsAllocation"));
+		FRDGBufferUAVRef CompactedViewsAllocationUAV = GraphBuilder.CreateUAV(CompactedViewsAllocation);
+		AddClearUAVPass(GraphBuilder, CompactedViewsAllocationUAV, 0);
 
 		{
 			FCompactViewsVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCompactViewsVSM_CS::FParameters >();
@@ -2130,7 +2131,7 @@ void CullRasterize(
 
 			PassParameters->CompactedViewsOut = GraphBuilder.CreateUAV(CompactedViews);
 			PassParameters->CompactedViewInfoOut = GraphBuilder.CreateUAV(CompactedViewInfo);
-			PassParameters->CompactedViewsAllocationOut = GraphBuilder.CreateUAV(CompactedViewsAllocation);
+			PassParameters->CompactedViewsAllocationOut = CompactedViewsAllocationUAV;
 
 			check(CullingContext.ViewsBuffer);
 			auto ComputeShader = CullingContext.ShaderMap->GetShader<FCompactViewsVSM_CS>();
