@@ -3,6 +3,7 @@
 #include "PixelStreamingSettings.h"
 #include "PixelStreamingPrivate.h"
 #include "Misc/DefaultValueHelper.h"
+#include "Async/Async.h"
 
 template<typename T>
 void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)

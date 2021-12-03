@@ -1,21 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include <memory>
-#include <stack>
-#include <string>
-#include <utility>
-#include <vector>
+#include "CoreMinimal.h"
 
-#include "absl/types/optional.h"
-#include "api/fec_controller_override.h"
-#include "api/video_codecs/sdp_video_format.h"
-#include "api/video_codecs/video_encoder.h"
-#include "modules/video_coding/include/video_codec_interface.h"
-#include "modules/video_coding/utility/framerate_controller.h"
-#include "rtc_base/atomic_ops.h"
-#include "rtc_base/synchronization/sequence_checker.h"
-#include "rtc_base/system/rtc_export.h"
+#include "WebRTCIncludes.h"
+//#include <memory>
+
+//#include <string>
+//#include <utility>
+//#include <vector>
+
+//#include "absl/types/optional.h"
+//#include "api/fec_controller_override.h"
+//#include "api/video_codecs/sdp_video_format.h"
+//#include "api/video_codecs/video_encoder.h"
+//#include "modules/video_coding/include/video_codec_interface.h"
+//#include "modules/video_coding/utility/framerate_controller.h"
+//#include "rtc_base/atomic_ops.h"
+//#include "rtc_base/synchronization/sequence_checker.h"
+//#include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {
 

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "WebRTCIncludes.h"
+
 // each connected player has a single source. it is fed by FVideoSource and feeds the encoder
 class FPlayerVideoSource : public rtc::AdaptedVideoTrackSource
 {

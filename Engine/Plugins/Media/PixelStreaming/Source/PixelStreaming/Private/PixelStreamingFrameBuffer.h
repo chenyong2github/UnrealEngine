@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "RHI.h"
 #include "WebRTCIncludes.h"
 #include "RHI.h"
 

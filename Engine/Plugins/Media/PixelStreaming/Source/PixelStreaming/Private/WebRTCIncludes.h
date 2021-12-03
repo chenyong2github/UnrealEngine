@@ -34,12 +34,31 @@ THIRD_PARTY_INCLUDES_START
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/video_codecs/video_decoder.h"
 #include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_frame_buffer.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_sink_interface.h"
 
+#if PLATFORM_WINDOWS
+// some code in the simulcast adaptor has trouble finding the windows versions of these
+// functions. these are here to redirect them properly
+template<class T>
+T InterlockedIncrement(volatile T* i) {
+	return ::_InterlockedIncrement(i);
+}
+template<class T>
+T InterlockedDecrement(volatile T* i) {
+	return ::_InterlockedDecrement(i);
+}
+template<class T, class U>
+T InterlockedCompareExchange(volatile T* i, U old_value, U new_value) {
+	return ::_InterlockedCompareExchange(i, new_value, old_value);
+}
+#endif
+
+#include "rtc_base/atomic_ops.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
@@ -47,6 +66,7 @@ THIRD_PARTY_INCLUDES_START
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/string_utils.h"
 #include "rtc_base/signal_thread.h"
+#include "rtc_base/experiments/rate_control_settings.h"
 
 #include "pc/session_description.h"
 #include "pc/video_track_source.h"
@@ -63,15 +83,20 @@ THIRD_PARTY_INCLUDES_START
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
+#include "modules/video_coding/utility/framerate_controller.h"
+#include "modules/video_coding/utility/simulcast_rate_allocator.h"
 
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "common_video/h264/h264_common.h"
 
 #include "media/base/video_broadcaster.h"
 
+#include "system_wrappers/include/field_trial.h"
+
 // because WebRTC uses STL
 #include <string>
 #include <memory>
+#include <stack>
 
 #if PLATFORM_WINDOWS
 #pragma warning(pop)

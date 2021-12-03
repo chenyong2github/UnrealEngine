@@ -3,6 +3,7 @@
 
 #include "LatencyTester.h"
 #include "PixelStreamingStats.h"
+#include "Async/Async.h"
 
 FPixelStreamingFrameSource::FPixelStreamingFrameSource()
 {

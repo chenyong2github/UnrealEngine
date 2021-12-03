@@ -14,6 +14,7 @@
 #include "Async/Async.h"
 #include "Utils.h"
 #include "PixelStreamingRealEncoder.h"
+#include "HAL/PlatformFilemanager.h"
 
 FPixelStreamingVideoEncoder::FPixelStreamingVideoEncoder(IPixelStreamingSessions* InPixelStreamingSessions, FPixelStreamingVideoEncoderFactory& InFactory)
 	: PixelStreamingSessions(InPixelStreamingSessions)
