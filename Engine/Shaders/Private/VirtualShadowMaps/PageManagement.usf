@@ -1006,6 +1006,15 @@ void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 
 		// Each top-reduction needs only one group launched
 		WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCount);
+
+		if (VirtualShadowMapShouldCacheStaticSeparately())
+		{
+			// Also queue build for the static page
+			int GroupCountStatic = 0;
+			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0], TILES_PER_PAGE_1D, GroupCountStatic);
+			OutPhysicalPagesForHZB[GroupCountStatic >> LOG2_TILES_PER_PAGE_1D] = PhysicalPageIndex + VirtualShadowMap.StaticPageIndexOffset;
+			WaveInterlockedAddScalar_(OutPagesForHZBIndirectArgsBuffer[0 + 4], 1U, GroupCountStatic);
+		}
 	}
 }
 
