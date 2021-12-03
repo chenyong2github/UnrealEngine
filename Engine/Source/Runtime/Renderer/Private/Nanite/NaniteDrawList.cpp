@@ -555,9 +555,6 @@ static void BuildNaniteMaterialPassCommands(
 
 	// Pull into local here so another thread can't change the sort values mid-iteration.
 	const int32 MaterialSortMode = GNaniteMaterialSortMode;
-	// #### 
-	int Test = 0;
-	// #### 
 	for (auto Iter = BucketMap.begin(); Iter != BucketMap.end(); ++Iter)
 	{
 		auto& Command = *Iter;
@@ -588,15 +585,8 @@ static void BuildNaniteMaterialPassCommands(
 			PassCommand.SortKey = ((uint64)PipelineSortKeyHash << 32) | MaterialHash;
 		}
 
-		OutNaniteMaterialPassCommands.Emplace(PassCommand);
-		// #### 
-		++Test;
-		// #### 		
+		OutNaniteMaterialPassCommands.Emplace(PassCommand);		
 	}
-	// ####
-	check(Test == BucketMap.Num());
-	// ####
-
 
 	if (MaterialSortMode != 0)
 	{
