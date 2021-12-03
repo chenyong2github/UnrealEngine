@@ -456,6 +456,13 @@ public:
 	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
 	{
 		RHI->RHIUpdateShaderResourceView(SRV, Buffer, Stride, Format);
+		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+	}
+
+	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer) override final
+	{
+		RHI->RHIUpdateShaderResourceView(SRV, Buffer);
+		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
 	}
 
 	/**
@@ -727,6 +734,11 @@ public:
 	virtual void RHIGenerateMips(FRHITexture* Texture) override final
 	{
 		return RHI->RHIGenerateMips(Texture);
+	}
+
+	virtual bool RHIRequiresComputeGenerateMips() const final override
+	{
+		return RHI->RHIRequiresComputeGenerateMips();
 	}
 
 	/**
