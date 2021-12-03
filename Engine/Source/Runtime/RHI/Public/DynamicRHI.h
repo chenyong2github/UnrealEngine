@@ -298,13 +298,6 @@ struct FRayTracingSceneInitializer2
 	FName DebugName;
 };
 
-struct FRayTracingAccelerationStructureSize
-{
-	uint64 ResultSize = 0;
-	uint64 BuildScratchSize = 0;
-	uint64 UpdateScratchSize = 0;
-};
-
 struct FShaderResourceViewInitializer
 {
 	struct FBufferShaderResourceViewInitializer

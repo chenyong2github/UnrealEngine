@@ -330,7 +330,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	}
 }
 
-void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandList& ParentCmdList)
+void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandList& ParentCmdList, FRHIBuffer* ScratchBuffer)
 {
 #if WANTS_DRAW_MESH_EVENTS
 #define SCOPED_DRAW_OR_COMPUTE_EVENT(ParentCmdList, Name) FDrawEvent PREPROCESSOR_JOIN(Event_##Name,__LINE__); if(GetEmitDrawEvents()) PREPROCESSOR_JOIN(Event_##Name,__LINE__).Start(&ParentCmdList, FColor(0), TEXT(#Name));
@@ -361,6 +361,9 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(SetupSegmentData);
 
+				const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+				uint32 ScratchBLASOffset = 0;
+
 				// Setup the array views on final allocated segments array
 				FRayTracingGeometrySegment* SegmentData = Segments.GetData();
 				for (FRayTracingGeometryBuildParams& Param : BuildParams)
@@ -371,6 +374,15 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 						Param.Segments = MakeArrayView(SegmentData, SegmentCount);
 						SegmentData += SegmentCount;
 					}
+
+					Param.ScratchBuffer = ScratchBuffer;
+					Param.ScratchBufferOffset = ScratchBLASOffset;
+
+					// Update the offset
+
+					const FRayTracingAccelerationStructureSize BLASSizeInfo = Param.Geometry->GetSizeInfo();
+					const uint64 ScratchSize = Param.BuildMode == EAccelerationStructureBuildMode::Build ? BLASSizeInfo.BuildScratchSize : BLASSizeInfo.UpdateScratchSize;
+					ScratchBLASOffset = Align(ScratchBLASOffset + ScratchSize, ScratchAlignment);
 				}
 			}
 
@@ -513,6 +525,24 @@ void FRayTracingDynamicGeometryCollection::EndUpdate(FRHICommandListImmediate& R
 
 	// Move ownership to RHI thread for another frame
 	RHICmdList.EnqueueLambda([ArrayOwnedByRHIThread = MoveTemp(Segments)](FRHICommandListImmediate&){});
+}
+
+uint32 FRayTracingDynamicGeometryCollection::ComputeScratchBufferSize()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRayTracingDynamicGeometryCollection::ComputeScratchBufferSize);
+
+	const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+
+	uint32 BLASScratchSize = 0;
+
+	for (FRayTracingGeometryBuildParams& Params : BuildParams)
+	{
+		const FRayTracingAccelerationStructureSize BLASSizeInfo = Params.Geometry->GetSizeInfo();
+		const uint64 ScratchSize = Params.BuildMode == EAccelerationStructureBuildMode::Build ? BLASSizeInfo.BuildScratchSize : BLASSizeInfo.UpdateScratchSize;
+		BLASScratchSize = Align(BLASScratchSize + ScratchSize, ScratchAlignment);
+	}
+
+	return BLASScratchSize;
 }
 
 #undef USE_RAY_TRACING_DYNAMIC_GEOMETRY_PARALLEL_COMMAND_LISTS
