@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define CONFIG_MAX_RANGE_SIZE DIM_BLUR_DIRECTIONS
+
+
 #include "MotionBlurCommon.ush"
 #include "../Random.ush"
 
@@ -12,7 +15,22 @@
 #define MOTION_BLUR_QUALITY_LOW 0
 #define MOTION_BLUR_QUALITY_MEDIUM 1
 #define MOTION_BLUR_QUALITY_HIGH 2
-#define MOTION_BLUR_QUALITY_VERY_HIGH 2
+#define MOTION_BLUR_QUALITY_VERY_HIGH 3
+
+
+#define CONFIG_HOLE_FILL_SEPARATLY 1
+
+#if MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_LOW
+	#define CONFIG_SAMPLE_COUNT 4
+#elif MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_MEDIUM
+	#define CONFIG_SAMPLE_COUNT 6
+#elif MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_HIGH
+	#define CONFIG_SAMPLE_COUNT 8
+#elif MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_VERY_HIGH
+	#define CONFIG_SAMPLE_COUNT 16
+#else
+	#error Unknown motion blur quality
+#endif
 
 
 //------------------------------------------------------- PARAMETERS
@@ -29,7 +47,8 @@ FScreenTransform ColorToVelocity;
 
 Texture2D ColorTexture;
 Texture2D VelocityTexture;
-Texture2D VelocityTileTexture;
+Texture2D VelocityTileTextures_Textures_0;
+Texture2D VelocityTileTextures_Textures_1;
 Texture2D VelocityFlatTexture;
 Texture2D DepthTexture;
 
@@ -61,9 +80,13 @@ float2 PostMotionBlurTranslucencyUVMax;
 	#define SharedDepthSampler DepthSampler
 #endif
 
+RWTexture2D<float4> OutColorTexture;
+RWTexture2D<float4> DebugOutput;
+
+
 //------------------------------------------------------- LDS
 
-#if COMPUTESHADER && !COMPILER_SUPPORTS_WAVE_VOTE
+#if !COMPILER_SUPPORTS_WAVE_VOTE
 
 groupshared uint GroupSharedFastPath;
 
@@ -72,46 +95,84 @@ groupshared uint GroupSharedFastPath;
 
 //------------------------------------------------------- FUNCTIONS
 
-uint GetStepCountFromQuality()
+float NormalizeAccumulator(float Accumulator, float AccumulatorWeight)
 {
-#if MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_LOW
-	return 4;
-#elif MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_MEDIUM
-	return 6;
-#elif MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_HIGH
-	return 8;
-#else // MOTION_BLUR_QUALITY == MOTION_BLUR_QUALITY_VERY_HIGH
-	return 16;
-#endif
+	return -min(-Accumulator * rcp(AccumulatorWeight), 0.0);
 }
 
-float2 DepthCmp(float CenterDepth, float SampleDepth, float DepthScale)
+float4 NormalizeAccumulator(float4 Accumulator, float AccumulatorWeight)
 {
-	return saturate(0.5 + float2(DepthScale, -DepthScale) * (SampleDepth - CenterDepth));
+	return -min(-Accumulator * rcp(AccumulatorWeight), 0.0);
 }
 
-float2 SpreadCmp(float OffsetLength, float2 SpreadLength, float PixelToSampleScale)
+void NormalizeAccumulatorWithHoleFill(
+	float4 Color,
+	float ColorWeight,
+	float HoleFillWeight,
+	float DepthAware,
+	float4 HoleFillingColor,
+	float InvSampleCount,
+	out float4 ColorOutput,
+	out float OpacityOutput,
+	out bool bValidColorOutput)
 {
-	return saturate(PixelToSampleScale * SpreadLength - max(OffsetLength - 1, 0));
+	OpacityOutput = min(saturate(ColorWeight * InvSampleCount * 2), (DepthAware * InvSampleCount * 2));
+	
+	float4 FinalAccumulator = Color + HoleFillWeight * HoleFillingColor;
+	
+	ColorOutput = NormalizeAccumulator(FinalAccumulator, ColorWeight + HoleFillWeight);
+	bValidColorOutput = (ColorWeight + HoleFillWeight) > 0;
 }
 
-float SampleWeight(float CenterDepth, float SampleDepth, float OffsetLength, float CenterSpreadLength, float SampleSpreadLength, float PixelToSampleScale, float DepthScale)
+
+// Compute the weight of the sample for hole filling.
+float ComputeSampleHoleFillWeight(float CenterDepth, float SampleDepth, float DepthScale)
 {
-	float2 DepthWeights = DepthCmp(CenterDepth, SampleDepth, DepthScale);
-	float2 SpreadWeights = SpreadCmp(OffsetLength, float2(CenterSpreadLength, SampleSpreadLength), PixelToSampleScale);
-	return dot(DepthWeights, SpreadWeights);
+	return saturate(DepthScale * (SampleDepth - CenterDepth));
 }
 
-float2 DecodeVelocity(float2 Velocity)
+// Computes the contribution weight of one sample.
+float ComputeSampleConvolutionWeight(
+	float SampleDepth, float SampleSpreadLength, float SampleVelocityAngle,
+	float OffsetLength, float BlurAngle, float PixelToSampleScale)
 {
-	// 11:11:10  (VelocityLength, VelocityAngle, Depth)
-	float VelocityLength = Velocity.x;
-	float VelocityAngle = Velocity.y * (2 * PI) - PI;
-	sincos(VelocityAngle, Velocity.x, Velocity.y);
-	Velocity *= VelocityLength;
-	return Velocity;
+	// Compare the length 
+	float SpreadWeights = saturate(PixelToSampleScale * SampleSpreadLength - max(OffsetLength - 1, 0));
+	
+	// Compare the directions
+	#if CONFIG_MAX_RANGE_SIZE > 1
+		float DirectionWeights = saturate(1.0 - max(GetPolarRelativeAngle(SampleVelocityAngle, BlurAngle) - 0.1, 0.0) * 4.0);
+	#else
+		float DirectionWeights = 1.0;
+	#endif
+
+	return SpreadWeights * DirectionWeights;
 }
 
+// Selectively computes the contribution weight of the center or the sample based on whether sample is respectively behind center or not
+float ComputeCenterOrSampleWeight(
+	float CenterDepth, float CenterSpreadLength, float CenterVelocityAngle,
+	float SampleDepth, float SampleSpreadLength, float SampleVelocityAngle,
+	float OffsetLength, float BlurAngle, float PixelToSampleScale, float DepthScale)
+{
+	// Compute weight to use the center data if center is closer than the sample.
+	float CenterWeight = saturate(0.5 + DepthScale * (SampleDepth - CenterDepth));
+	
+	// Compute weight to use the sample data if sample is closer than the center.
+	float SampleWeight = saturate(0.5 - DepthScale * (SampleDepth - CenterDepth));
+
+	float CenterConvolutionWeight = ComputeSampleConvolutionWeight(
+		CenterDepth, CenterSpreadLength, CenterVelocityAngle,
+		OffsetLength, BlurAngle, PixelToSampleScale);
+	
+	float SampleConvolutionWeight = ComputeSampleConvolutionWeight(
+		SampleDepth, SampleSpreadLength, SampleVelocityAngle,
+		OffsetLength, BlurAngle, PixelToSampleScale);
+
+	return CenterWeight * CenterConvolutionWeight + SampleWeight * SampleConvolutionWeight;
+}
+
+// TODO: move that to velocity flatten.
 float GetVelocityLengthPixels(float2 EncodedVelocity)
 {
 	// 11:11:10  (VelocityLength, VelocityAngle, Depth)
@@ -123,9 +184,14 @@ float GetVelocityLengthPixels(float2 EncodedVelocity)
 
 //------------------------------------------------------- ENTRY POINT
 
-float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint StepCount = GetStepCountFromQuality() / 2;
+	float4 Debug = 0;
+
+	uint2 iColorPixelPos = DispatchThreadId + Color_ViewportMin;
+	float2 ColorPixelPos = float2(iColorPixelPos);
+	float2 ColorUV = (ColorPixelPos + 0.5) * Color_ExtentInverse;
 
 	const float PixelToTileScale = (1.0 / 16.0);
 
@@ -145,23 +211,25 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	// Velocity tile UV originates at [0,0]; only need to clamp max.
 	VelocityTileUV = min(VelocityTileUV, VelocityTile_UVViewportBilinearMax);
 
-	float4 MinMaxVelocity = VelocityTileTexture.SampleLevel(SharedVelocityTileSampler, VelocityTileUV, 0);
+	FVelocityRange VelocityRange = DecodeVelocityRange(
+		VelocityTileTextures_Textures_0.SampleLevel(SharedVelocityTileSampler, VelocityTileUV, 0),
+		VelocityTileTextures_Textures_1.SampleLevel(SharedVelocityTileSampler, VelocityTileUV, 0));
 
-	float2 MinVelocityPixels = MinMaxVelocity.xy * MotionBlur_VelocityScale;
-	float2 MaxVelocityPixels = MinMaxVelocity.zw * MotionBlur_VelocityScale;
+	float2 MinVelocityPixels = VelocityRange.Min * MotionBlur_VelocityScale;
+	float2 Max0VelocityPixels = VelocityRange.Max[0] * MotionBlur_VelocityScale;
+
+	#if CONFIG_MAX_RANGE_SIZE >= 2
+		float2 Max1VelocityPixels = VelocityRange.Max[1] * MotionBlur_VelocityScale;
+	#endif
 
 	float MinVelocityLengthSqrPixels = dot(MinVelocityPixels, MinVelocityPixels);
-	float MaxVelocityLengthSqrPixels = dot(MaxVelocityPixels, MaxVelocityPixels);
+	float Max0VelocityLengthSqrPixels = dot(Max0VelocityPixels, Max0VelocityPixels);
 
 	// Input buffer 0 as same viewport as output buffer.
 	float4 CenterColor = ColorTexture.SampleLevel(ColorSampler, ColorUV, 0);
 
-	float4 SearchVectorPixels = float4(MaxVelocityPixels, -MaxVelocityPixels);
-	float4 SearchVector = SearchVectorPixels * Color_ExtentInverse.xyxy;
+	float2 SearchVector0 = Max0VelocityPixels * Color_ExtentInverse.xyxy;
 
-	// converts pixel length to sample steps
-	float PixelToSampleScale = StepCount * rsqrt(dot(MaxVelocityPixels, MaxVelocityPixels));	
-		
 	#if USE_POST_MOTION_BLUR_TRANSLUCENCY
 		const float2 PostMotionBlurTranslucencyUV = min((ColorPixelPos + (float2)0.5f) * ScreenPosToPostMotionBlurTranslucencyUV, PostMotionBlurTranslucencyUVMax);
 		float4 PostMotionBlurTranslucency = PostMotionBlurTranslucencyTexture.SampleLevel(PostMotionBlurTranslucencySampler, PostMotionBlurTranslucencyUV, 0);
@@ -169,15 +237,15 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 
 	
 	// TODO expose cvars
-	bool bSkipPath = MaxVelocityLengthSqrPixels < 0.25;
-	bool bFastPath = MinVelocityLengthSqrPixels > 0.4 * MaxVelocityLengthSqrPixels;
-
+	bool bSkipPath = Max0VelocityLengthSqrPixels < 0.25;
+	bool bFastPath = MinVelocityLengthSqrPixels > 0.4 * Max0VelocityLengthSqrPixels;
+	
 	// Only use fast path if all threads of the compute shader would.
 	#if COMPILER_SUPPORTS_WAVE_VOTE
 	{
 		bFastPath = WaveActiveAllTrue(bFastPath);
 	}
-	#elif COMPUTESHADER
+	#else
 	{
 		GroupSharedFastPath = 0;
 		GroupMemoryBarrierWithGroupSync();
@@ -190,34 +258,29 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	}
 	#endif
 	
+	float4 OutColor;
+
 	BRANCH
 	if (bSkipPath)
 	{
-		#if USE_POST_MOTION_BLUR_TRANSLUCENCY
-			CenterColor.rgb = CenterColor.rgb * PostMotionBlurTranslucency.a + PostMotionBlurTranslucency.rgb;
-		#endif
-		#if !POST_PROCESS_ALPHA
-			CenterColor.a = 0;
-		#endif
-		return CenterColor;
+		OutColor = CenterColor;
 	}
-
-	float4 OutColor = 0;
-
-	BRANCH
-	if (bFastPath)
+	else if (bFastPath)
 	{
-		float4 ColorAccum = 0;
+		const float InvSampleCount = rcp(float(CONFIG_SAMPLE_COUNT));
 
-		UNROLL
-		for (uint i = 0; i < StepCount; i++)
+
+		float4 ColorAccum = 0;
+		
+		UNROLL_N(CONFIG_SAMPLE_COUNT / 2)
+		for (uint i = 0; i < (CONFIG_SAMPLE_COUNT / 2); i++)
 		{
 			float2 OffsetLength = (float)i + 0.5 + float2(Random - 0.5, 0.5 - Random);
-			float2 OffsetFraction = OffsetLength / StepCount;
+			float2 OffsetFraction = OffsetLength * (2.0 * InvSampleCount);
 
 			float2 SampleUV[2];
-			SampleUV[0] = ColorUV + OffsetFraction.x * SearchVector.xy;
-			SampleUV[1] = ColorUV + OffsetFraction.y * SearchVector.zw;
+			SampleUV[0] = ColorUV + OffsetFraction.x * SearchVector0;
+			SampleUV[1] = ColorUV - OffsetFraction.y * SearchVector0;
 
 			SampleUV[0] = clamp(SampleUV[0], Color_UVViewportBilinearMin, Color_UVViewportBilinearMax);
 			SampleUV[1] = clamp(SampleUV[1], Color_UVViewportBilinearMin, Color_UVViewportBilinearMax);
@@ -226,101 +289,269 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 			ColorAccum += ColorTexture.SampleLevel(ColorSampler, SampleUV[1], 0);
 		}
 	
-		ColorAccum *= 0.5 / StepCount;
+		ColorAccum *= InvSampleCount;
 
 		OutColor = ColorAccum;
 	}
 	else
 	{
+		const uint TotalSteps = CONFIG_SAMPLE_COUNT / 2;
+		const uint DirectionCount = CONFIG_MAX_RANGE_SIZE;
+		const uint StepPerDirectionCount = TotalSteps / DirectionCount;
+		const uint SamplePerDirection = CONFIG_SAMPLE_COUNT / DirectionCount;
+
+		const uint StepCount = CONFIG_SAMPLE_COUNT / 2;
+
+		// Decide whether should only accumulate along one direction.
+		#if CONFIG_MAX_RANGE_SIZE > 1
+			float Max1VelocityLengthSqrPixels = dot(Max1VelocityPixels, Max1VelocityPixels);
+			bool bDoOneDirectionOnly = Max1VelocityLengthSqrPixels < 0.25;
+			if (bDoOneDirectionOnly)
+			{
+				Max1VelocityPixels = Max0VelocityPixels;
+			}
+		#else
+			const bool bDoOneDirectionOnly = true;
+		#endif
+		
 		float3 CenterVelocityDepth = VelocityFlatTexture.SampleLevel(SharedVelocityFlatSampler, VelocityUV, 0).xyz;
 		float  CenterDepth = CenterVelocityDepth.z;
 		float  CenterVelocityLength = GetVelocityLengthPixels(CenterVelocityDepth.xy);
+		float  CenterVelocityAngle = CenterVelocityDepth.y * (2.0 * PI) - PI;
+		
+		#if CONFIG_MAX_RANGE_SIZE > 1
+			float4 HoleFillColor = 0;
+			float  HoleFillColorWeight = 0;
+		#endif
 
-		float4 ColorAccum = 0;
-		float  ColorAccumWeight = 0;
+		float4 DirectionalColor[CONFIG_MAX_RANGE_SIZE];
+		float  DirectionalColorWeight[CONFIG_MAX_RANGE_SIZE];
+		
+		#if CONFIG_MAX_RANGE_SIZE > 1
+			float  HoleFillWeightAccum[CONFIG_MAX_RANGE_SIZE];
 
-		UNROLL
-		for (uint i = 0; i < StepCount; i++)
+			float  DepthAccum[CONFIG_MAX_RANGE_SIZE];
+			float  DepthSquareAccum[CONFIG_MAX_RANGE_SIZE];
+			float  DepthAwareWeight[CONFIG_MAX_RANGE_SIZE];
+		#endif
+
+		// Iterate over the different directions.
+		UNROLL_N(CONFIG_MAX_RANGE_SIZE)
+		for (uint DirectionId = 0; DirectionId < CONFIG_MAX_RANGE_SIZE; DirectionId++)
 		{
-			float2 SampleUV[2];
-			float4 SampleColor[2];
-			float  SampleDepth[2];
-			float  SampleVelocityLength[2];
-			float  Weight[2];
+			float PixelToSampleScale = TotalSteps * rsqrt(dot(Max0VelocityPixels, Max0VelocityPixels));	
+			float2 SearchVector = SearchVector0;
+			float BlurAngle = CartesianToPolar(Max0VelocityPixels).y;
 
-			float2 OffsetLength = (float)i + 0.5 + float2(Random - 0.5, 0.5 - Random);
-			float2 OffsetFraction = OffsetLength / StepCount;
+			bool bAccumulateHoleFillColor = true;
 
-			SampleUV[0] = ColorUV + OffsetFraction.x * SearchVector.xy;
-			SampleUV[1] = ColorUV + OffsetFraction.y * SearchVector.zw;
-
-			SampleUV[0] = clamp(SampleUV[0], Color_UVViewportBilinearMin, Color_UVViewportBilinearMax);
-			SampleUV[1] = clamp(SampleUV[1], Color_UVViewportBilinearMin, Color_UVViewportBilinearMax);
-
-			UNROLL
-			for (uint j = 0; j < 2; j++)
+			#if CONFIG_MAX_RANGE_SIZE > 1
+			if (DirectionId == 1)
 			{
-				float3 SampleVelocityDepth = VelocityFlatTexture.SampleLevel(
-					SharedVelocityFlatSampler, ApplyScreenTransform(SampleUV[j], ColorToVelocity), 0).xyz;
+				PixelToSampleScale = TotalSteps * rsqrt(dot(Max1VelocityPixels, Max1VelocityPixels));	
+				SearchVector = Max1VelocityPixels * Color_ExtentInverse.xy;
+				BlurAngle = CartesianToPolar(Max1VelocityPixels).y;
+				bAccumulateHoleFillColor = HoleFillColorWeight == 0.0;
+			}
+			#endif
+		
+			DirectionalColor[DirectionId] = 0;
+			DirectionalColorWeight[DirectionId] = 0;
+			
+			#if CONFIG_MAX_RANGE_SIZE > 1
+			{
+				HoleFillWeightAccum[DirectionId] = 0;
 
-				SampleColor[j] = ColorTexture.SampleLevel(ColorSampler, SampleUV[j], 0);
-				SampleDepth[j] = SampleVelocityDepth.z;
+				DepthAccum[DirectionId] = 0;
+				DepthSquareAccum[DirectionId] = 0;
+				DepthAwareWeight[DirectionId] = 0;
+			}
+			#endif
+			
+			// Iterate over steps of 2 samples in each directions.
+			UNROLL
+			for (uint StepId = DirectionId; StepId < TotalSteps; StepId += CONFIG_MAX_RANGE_SIZE)
+			{
+				float2 SampleUV[2];
+				float4 SampleColor[2];
+				float  SampleDepth[2];
+				float  SampleVelocityLength[2];
+				float  ConvolutionWeight[2];
+				float  HoleFillingWeight[2];
 
-				// in pixels
-				SampleVelocityLength[j] = GetVelocityLengthPixels(SampleVelocityDepth.xy);
+				float2 OffsetLength = (float(StepId) + 0.5) + float2(Random - 0.5, 0.5 - Random) * (bDoOneDirectionOnly ? 1.0 : 2.0);
+				float2 OffsetFraction = OffsetLength / TotalSteps;
 
-				Weight[j] = SampleWeight(CenterDepth, SampleDepth[j], OffsetLength.x, CenterVelocityLength, SampleVelocityLength[j], PixelToSampleScale, SOFT_Z_EXTENT);
+				float WeightOffsetLength = (float)(DirectionId + StepId) + 0.5;
+
+				SampleUV[0] = ColorUV + OffsetFraction.x * SearchVector;
+				SampleUV[1] = ColorUV - OffsetFraction.y * SearchVector;
+
+				SampleUV[0] = clamp(SampleUV[0], Color_UVViewportBilinearMin, Color_UVViewportBilinearMax);
+				SampleUV[1] = clamp(SampleUV[1], Color_UVViewportBilinearMin, Color_UVViewportBilinearMax);
+
+				UNROLL
+				for (uint j = 0; j < 2; j++)
+				{
+					float3 SampleVelocityDepth = VelocityFlatTexture.SampleLevel(
+						SharedVelocityFlatSampler, ApplyScreenTransform(SampleUV[j], ColorToVelocity), 0).xyz;
+
+					SampleColor[j] = ColorTexture.SampleLevel(ColorSampler, SampleUV[j], 0);
+					SampleDepth[j] = SampleVelocityDepth.z;
+
+					// Decode
+					SampleVelocityDepth.x = GetVelocityLengthPixels(SampleVelocityDepth.x); // TODO: move in velocity flatten
+					SampleVelocityDepth.y = SampleVelocityDepth.y * (2.0 * PI) - PI;
+
+					// in pixels
+					SampleVelocityLength[j] = SampleVelocityDepth.x;
+					
+					ConvolutionWeight[j] = ComputeSampleConvolutionWeight(
+						SampleDepth[j], SampleVelocityDepth.x, SampleVelocityDepth.y,
+						OffsetLength, BlurAngle, PixelToSampleScale);
+
+					HoleFillingWeight[j] = ComputeCenterOrSampleWeight(
+						CenterDepth, CenterVelocityLength, CenterVelocityAngle,
+						SampleDepth[j], SampleVelocityDepth.x, SampleVelocityDepth.y,
+						WeightOffsetLength, BlurAngle, PixelToSampleScale, SOFT_Z_EXTENT);
+				}
+		
+				{
+					bool2 Mirror = bool2(SampleDepth[0] > SampleDepth[1], SampleVelocityLength[0] < SampleVelocityLength[1]);
+					HoleFillingWeight[0] = all(Mirror) ? HoleFillingWeight[1] : HoleFillingWeight[0];
+					HoleFillingWeight[1] = any(Mirror) ? HoleFillingWeight[1] : HoleFillingWeight[0];
+				}
+				
+				#if CONFIG_MAX_RANGE_SIZE > 1
+				{
+					DirectionalColor[DirectionId] += ConvolutionWeight[0] * SampleColor[0] + ConvolutionWeight[1] * SampleColor[1];
+					DirectionalColorWeight[DirectionId] += ConvolutionWeight[0] + ConvolutionWeight[1];
+				
+					DepthAccum[DirectionId] += HoleFillingWeight[0] * SampleDepth[0] + HoleFillingWeight[1] * SampleDepth[1];
+					DepthSquareAccum[DirectionId] += HoleFillingWeight[0] * Square(SampleDepth[0]) + HoleFillingWeight[1] * Square(SampleDepth[1]);
+					DepthAwareWeight[DirectionId] += HoleFillingWeight[0] + HoleFillingWeight[1];
+
+				
+					// Measure how much should hole fill DirectionalColor with.
+					{
+						float HoleFillingWeight0 = saturate(HoleFillingWeight[0] - ConvolutionWeight[0]);
+						float HoleFillingWeight1 = saturate(HoleFillingWeight[1] - ConvolutionWeight[1]);
+
+						//float HoleFillingWeight = ComputeSampleHoleFillWeight(CenterDepth, SampleDepth[j], SOFT_Z_EXTENT);
+						
+						HoleFillWeightAccum[DirectionId] += HoleFillingWeight0 + HoleFillingWeight1;
+					
+						// Build a hole filling along the major directional blur.
+						if (bAccumulateHoleFillColor)
+						{
+							HoleFillColor += HoleFillingWeight0 * SampleColor[0] + HoleFillingWeight1 * SampleColor[1];
+							HoleFillColorWeight += HoleFillingWeight0 + HoleFillingWeight1;
+						}
+					}
+
+				}
+				#else
+				{
+					DirectionalColor[DirectionId] += HoleFillingWeight[0] * SampleColor[0] + HoleFillingWeight[1] * SampleColor[1];
+					DirectionalColorWeight[DirectionId] += HoleFillingWeight[0] + HoleFillingWeight[1];
+				}
+				#endif
+			} // for (uint StepId = 0; StepId < StepCount; StepId += CONFIG_MAX_RANGE_SIZE)
+		} // for (uint DirectionId = 0; DirectionId < CONFIG_MAX_RANGE_SIZE; DirectionId++)
+		
+		#if CONFIG_MAX_RANGE_SIZE > 1
+		{
+			float InvStepCount = rcp(float(StepPerDirectionCount));
+			float InvSampleCount = rcp(float(SamplePerDirection));
+			if (bDoOneDirectionOnly)
+			{
+				DirectionalColor[0] += DirectionalColor[1];
+				DirectionalColorWeight[0] += DirectionalColorWeight[1];
+				HoleFillWeightAccum[0] += HoleFillWeightAccum[1];
+		
+				DirectionalColor[1] = 0.0;
+				DirectionalColorWeight[1] = 0.0;
+				HoleFillWeightAccum[1] = 0.0;
+		
+				InvStepCount = rcp(float(TotalSteps));
+				InvSampleCount = rcp(float(CONFIG_SAMPLE_COUNT));
 			}
 		
-			bool2 Mirror = bool2(SampleDepth[0] > SampleDepth[1], SampleVelocityLength[1] > SampleVelocityLength[0]);
-			Weight[0] = all(Mirror) ? Weight[1] : Weight[0];
-			Weight[1] = any(Mirror) ? Weight[1] : Weight[0];
-			
-			ColorAccum += Weight[0] * SampleColor[0] + Weight[1] * SampleColor[1];
-			ColorAccumWeight += Weight[0] + Weight[1];
-		}
-	
-		ColorAccum			*= 0.5 / StepCount;
-		ColorAccumWeight	*= 0.5 / StepCount;
+			float Velocity1Translucency;
+			{
+				float AvgDepthSquare0 = NormalizeAccumulator(DepthSquareAccum[0], DepthAwareWeight[0]);
+				float AvgDepth0 = NormalizeAccumulator(DepthAccum[0], DepthAwareWeight[0]);
+				float AvgDepth1 = NormalizeAccumulator(DepthAccum[1], DepthAwareWeight[1]);
 
-		OutColor = ColorAccum + (1 - ColorAccumWeight) * CenterColor;
+				float Variance0 = AvgDepthSquare0 - Square(AvgDepth0);
+
+				Velocity1Translucency = saturate(2.0 * Variance0 / (Variance0 + Square(AvgDepth1 - AvgDepth0)));
+			}
+
+			float4 NormalizedHoleFillColor0 = NormalizeAccumulator(HoleFillColor, HoleFillColorWeight);
+			float4 NormalizedColor0;
+			float Opacity0;
+			bool bValidColorOutput0;
+			NormalizeAccumulatorWithHoleFill(
+				DirectionalColor[0],
+				DirectionalColorWeight[0],
+				HoleFillWeightAccum[0],
+				DepthAwareWeight[0],
+				NormalizedHoleFillColor0,
+				InvSampleCount,
+				/* out */ NormalizedColor0,
+				/* out */ Opacity0,
+				/* out */ bValidColorOutput0);
+
+			float4 NormalizedHoleFillColor1 = lerp(NormalizedColor0, NormalizedHoleFillColor0, bValidColorOutput0 ? Velocity1Translucency : 1.0);
+			float4 NormalizedColor1;
+			float Opacity1;
+			bool bValidColorOutput1;
+			NormalizeAccumulatorWithHoleFill(
+				DirectionalColor[1],
+				DirectionalColorWeight[1],
+				HoleFillWeightAccum[1],
+				DepthAwareWeight[1],
+				NormalizedHoleFillColor1,
+				InvSampleCount,
+				/* out */ NormalizedColor1,
+				/* out */ Opacity1,
+				/* out */ bValidColorOutput1);
+		
+			Opacity1 *= saturate(1.0 - Velocity1Translucency);
+
+			float CenterColorContribution = saturate(1.0 - Opacity0) * saturate(1.0 - Opacity1);
+			float InvTotalWeight = rcp(Opacity0 + Opacity1);
+
+			OutColor = (NormalizedColor0 * Opacity0 + NormalizedColor1 * Opacity1) * -min(-InvTotalWeight * (1.0 - CenterColorContribution), 0.0) + CenterColorContribution * CenterColor;
+		}
+		#else // CONFIG_MAX_RANGE_SIZE == 1
+		{
+			const uint DirectionId = 0;
+
+			DirectionalColor[DirectionId] *= 0.5 / float(StepPerDirectionCount);
+			DirectionalColorWeight[DirectionId] *= 0.5 / float(StepPerDirectionCount);
+
+			OutColor = DirectionalColor[DirectionId] + (1.0 - DirectionalColorWeight[DirectionId]) * CenterColor;
+		}
+		#endif
 	}
 	
-#if USE_POST_MOTION_BLUR_TRANSLUCENCY
-	OutColor.rgb = OutColor.rgb * PostMotionBlurTranslucency.a + PostMotionBlurTranslucency.rgb;
-#endif
+	#if USE_POST_MOTION_BLUR_TRANSLUCENCY
+		OutColor.rgb = OutColor.rgb * PostMotionBlurTranslucency.a + PostMotionBlurTranslucency.rgb;
+	#endif
 
-#if !POST_PROCESS_ALPHA
-	OutColor.a = 0;
-#endif
-
-	return OutColor;
-}
-
-void MainPS(
-	in noperspective float4 UVAndScreenPos : TEXCOORD0,
-	in float4 SvPosition : SV_Position,
-	out float4 OutColor : SV_Target0)
-{
-	float2 ColorUV = UVAndScreenPos.xy;
-	OutColor = MainMotionBlurCommon(ColorUV, floor(SvPosition.xy));
-}
-
-#if COMPUTESHADER
-RWTexture2D<float4> OutColorTexture;
-
-[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
-void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
-{
-	uint2 iColorPixelPos = DispatchThreadId + Color_ViewportMin;
-	float2 ColorPixelPos = float2(iColorPixelPos);
-	float2 ColorUV = (ColorPixelPos + 0.5) * Color_ExtentInverse;
-
-	float4 OutColor = MainMotionBlurCommon(ColorUV, ColorPixelPos);
-
+	#if !POST_PROCESS_ALPHA
+		OutColor.a = 0;
+	#endif
+	
 	if (all(iColorPixelPos < Color_ViewportMax))
 	{
 		OutColorTexture[iColorPixelPos] = OutColor;
+
+		#if DEBUG_OUTPUT
+			DebugOutput[iColorPixelPos] = Debug;
+		#endif
 	}
 }
-#endif
+

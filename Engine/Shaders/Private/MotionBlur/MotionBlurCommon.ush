@@ -5,6 +5,15 @@
 #include "../ScreenPass.ush"
 
 
+//------------------------------------------------------- CONFIG
+
+#define DEBUG_OUTPUT 0
+
+#ifndef CONFIG_MAX_RANGE_SIZE
+	#error need to set CONFIG_MAX_RANGE_SIZE
+#endif
+
+
 //------------------------------------------------------- FUNCTIONS
 
 float4 MinMaxLength(float4 v0, float4 v1)
@@ -34,4 +43,132 @@ float2 PolarToCartesian(float2 Velocity)
 	float Angle = Velocity.y;
 	sincos(Angle, Velocity.y, Velocity.x);
 	return Velocity * Length;
+}
+
+float GetPolarRelativeAngle(float V0, float V1)
+{
+	float AbsDiff = abs(V0 - V1);
+
+	if (AbsDiff > PI)
+	{
+		AbsDiff = 2.0 * PI - AbsDiff;
+	}
+
+	return AbsDiff;
+}
+
+float2 GetMaxPolarvelocity(float2 V0, float2 V1)
+{
+	return V0.x > V1.x ? V0 : V1;
+}
+
+float2 GetMinPolarvelocity(float2 V0, float2 V1)
+{
+	return V0.x > V1.x ? V1 : V0;
+}
+
+float2 GetMaxPolarvelocity(float2 V0, float2 V1, float2 V2)
+{
+	return GetMaxPolarvelocity(GetMaxPolarvelocity(V0, V1), V2);
+}
+
+
+//------------------------------------------------------- TILED VELOCITY RANGE FUNCTIONS
+
+struct FVelocityRange
+{
+	float2 Max[CONFIG_MAX_RANGE_SIZE];
+	float2 Min;
+};
+
+FVelocityRange SetupPolarVelocityRange(float2 PolarVelocity)
+{
+	FVelocityRange V;
+	V.Max[0] = PolarVelocity;
+
+	#if CONFIG_MAX_RANGE_SIZE > 1
+		V.Max[1] = 0.0;
+	#endif
+
+	V.Min = PolarVelocity;
+	return V;
+}
+
+FVelocityRange ReducePolarVelocityRange(FVelocityRange V0, FVelocityRange V1)
+{
+	FVelocityRange V;
+	V.Max[0] = GetMaxPolarvelocity(V0.Max[0], V1.Max[0]);
+	
+	#if CONFIG_MAX_RANGE_SIZE > 1
+	if (GetPolarRelativeAngle(V0.Max[0].y, V1.Max[0].y) < ((PI / 180) * 5.0) || 0)
+	{
+		V.Max[1] = GetMaxPolarvelocity(V0.Max[1], V1.Max[1]);
+	}
+	else
+	{
+		V.Max[1] = GetMaxPolarvelocity(GetMinPolarvelocity(V0.Max[0], V1.Max[0]), V0.Max[1], V1.Max[1]);
+	}
+	#endif
+	
+	V.Min = GetMinPolarvelocity(V0.Min, V1.Min);
+
+	return V;
+}
+
+FVelocityRange CartesianToPolar(FVelocityRange CartesianRange)
+{
+	FVelocityRange PolarRange;
+	PolarRange.Max[0] = CartesianToPolar(CartesianRange.Max[0]);
+	#if CONFIG_MAX_RANGE_SIZE > 1
+		PolarRange.Max[1] = CartesianToPolar(CartesianRange.Max[1]);
+	#endif
+	PolarRange.Min = CartesianToPolar(CartesianRange.Min);
+	return PolarRange;
+}
+
+FVelocityRange PolarToCartesian(FVelocityRange PolarRange)
+{
+	FVelocityRange CartesianRange;
+	CartesianRange.Max[0] = PolarToCartesian(PolarRange.Max[0]);
+	#if CONFIG_MAX_RANGE_SIZE > 1
+		CartesianRange.Max[1] = PolarToCartesian(PolarRange.Max[1]);
+	#endif
+	CartesianRange.Min = PolarToCartesian(PolarRange.Min);
+	return CartesianRange;
+}
+
+void StoreVelocityRange(
+	RWTexture2D<float4> VelocityFlatTexture_0,
+	RWTexture2D<float4>	VelocityTileTexture_1,
+	uint2 PixelCoord,
+	FVelocityRange CartesianRange)
+{
+	VelocityFlatTexture_0[PixelCoord] = float4(CartesianRange.Min, CartesianRange.Max[0]);
+	#if CONFIG_MAX_RANGE_SIZE > 1
+		VelocityTileTexture_1[PixelCoord] = float4(CartesianRange.Max[1], 0.0, 0.0);
+	#endif
+}
+
+FVelocityRange DecodeVelocityRange(
+	float4 Raw0,
+	float4 Raw1)
+{
+	FVelocityRange CartesianRange;
+	CartesianRange.Max[0] = Raw0.zw;
+	#if CONFIG_MAX_RANGE_SIZE > 1
+		CartesianRange.Max[1] = Raw1.xy;
+	#endif
+	CartesianRange.Min = Raw0.xy;
+	return CartesianRange;
+}
+
+FVelocityRange LoadVelocityRange(
+	Texture2D<float4> VelocityFlatTexture_0,
+	Texture2D<float4> VelocityTileTexture_1,
+	uint2 PixelCoord)
+{
+	float4 Raw0 = VelocityFlatTexture_0[PixelCoord];
+	float4 Raw1 = VelocityTileTexture_1[PixelCoord];
+
+	return DecodeVelocityRange(Raw0, Raw1);
 }

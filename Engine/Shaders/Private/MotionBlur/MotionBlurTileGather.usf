@@ -1,13 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define CONFIG_MAX_RANGE_SIZE DIM_BLUR_DIRECTIONS
+
 #include "MotionBlurCommon.ush"
-
-
-//------------------------------------------------------- CONFIG
-
-#define THREADGROUP_SIZEX		16
-#define THREADGROUP_SIZEY		16
-#define THREADGROUP_TOTALSIZE	(THREADGROUP_SIZEX * THREADGROUP_SIZEY)
 
 
 //------------------------------------------------------- PARAMETERS
@@ -15,9 +10,14 @@
 SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
 float MotionBlur_VelocityScaleForTiles;
 
-Texture2D VelocityTileTexture;
+Texture2D CenterVelocityTileTextures_Textures_0;
+Texture2D CenterVelocityTileTextures_Textures_1;
 
-RWTexture2D<float4>	OutVelocityTileTexture;
+Texture2D VelocityTileTextures_Textures_0;
+Texture2D VelocityTileTextures_Textures_1;
+
+RWTexture2D<float4>	OutVelocityTile_Textures_0;
+RWTexture2D<float4>	OutVelocityTile_Textures_1;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -31,8 +31,8 @@ void MainCS(
 {
 	uint2 PixelPos = DispatchThreadId.xy;
 	float2 UV = ((float2)PixelPos.xy + 0.5) * VelocityTile_ExtentInverse;
-
-	float4 MinMaxVelocity = VelocityTileTexture[PixelPos];
+	
+	FVelocityRange VelocityPolarRange = CartesianToPolar(LoadVelocityRange(CenterVelocityTileTextures_Textures_0, CenterVelocityTileTextures_Textures_1, PixelPos));
 
 	// Scatter as gather
 	for(int x = -3; x <= 3; x++)
@@ -48,9 +48,10 @@ void MainCS(
 			bool2 bInsideViewport = 0 <= SampleIndex && SampleIndex < (int2)VelocityTile_ViewportMax;
 			if (!all(bInsideViewport))
 				continue;
+			
+			FVelocityRange NeighborVelocityRange = LoadVelocityRange(VelocityTileTextures_Textures_0, VelocityTileTextures_Textures_1, SampleIndex);
 
-			float4 ScatterMinMax = VelocityTileTexture[SampleIndex];
-			float2 MaxVelocity = ScatterMinMax.zw;
+			float2 MaxVelocity = NeighborVelocityRange.Max[0];
 
 			float2 VelocityPixels = MaxVelocity * MotionBlur_VelocityScaleForTiles;
 
@@ -78,7 +79,7 @@ void MainCS(
 			bool2 bInsideQuad = abs(PixelCenterOnQuad) < QuadExtent;
 			if (all(bInsideQuad)) 
 			{
-				MinMaxVelocity = MinMaxLength(MinMaxVelocity, ScatterMinMax);
+				VelocityPolarRange = ReducePolarVelocityRange(VelocityPolarRange, CartesianToPolar(NeighborVelocityRange));
 			}
 		}
 	}
@@ -86,6 +87,6 @@ void MainCS(
 	BRANCH
 	if (all(PixelPos.xy < VelocityTile_ViewportMax))
 	{
-		OutVelocityTileTexture[PixelPos] = MinMaxVelocity;
+		StoreVelocityRange(OutVelocityTile_Textures_0, OutVelocityTile_Textures_1, PixelPos, PolarToCartesian(VelocityPolarRange));
 	}
 }
