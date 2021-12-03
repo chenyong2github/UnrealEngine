@@ -31,6 +31,13 @@ static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingPullbackBias(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingFarFieldBias(
+	TEXT("r.Lumen.HardwareRayTracing.FarFieldBias"),
+	200.0f,
+	TEXT("Determines bias for the far field traces. Default = 200"),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxIterations(
 	TEXT("r.Lumen.HardwareRayTracing.MaxIterations"),
 	8192,
@@ -60,7 +67,12 @@ bool Lumen::UseHardwareInlineRayTracing()
 #endif
 }
 
-uint32 Lumen::GetMaxTraversalIterations()
+float LumenHardwareRayTracing::GetFarFieldBias()
+{
+	return FMath::Max(CVarLumenHardwareRayTracingFarFieldBias.GetValueOnRenderThread(), 0.0f);
+}
+
+uint32 LumenHardwareRayTracing::GetMaxTraversalIterations()
 {
 	return FMath::Max(CVarLumenHardwareRayTracingMaxIterations.GetValueOnRenderThread(), 1);
 }

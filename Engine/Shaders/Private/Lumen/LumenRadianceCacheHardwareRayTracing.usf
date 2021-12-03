@@ -142,6 +142,7 @@ StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 uint PersistentTracingGroupCount;
+float FarFieldBias;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
 int MaxTranslucentSkipCount;
@@ -214,6 +215,9 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			Ray.Direction = WorldConeDirection;
 			Ray.TMin = FinalMinTraceDistance;
 			Ray.TMax = FinalMaxTraceDistance;
+#if ENABLE_FAR_FIELD_TRACING
+			Ray.TMin = max(Ray.TMin, FarFieldBias);
+#endif
 
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);

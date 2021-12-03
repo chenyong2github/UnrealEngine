@@ -624,7 +624,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
-			PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
+			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
@@ -797,7 +797,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
-			PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
+			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
@@ -914,7 +914,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
-			PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
+			PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 

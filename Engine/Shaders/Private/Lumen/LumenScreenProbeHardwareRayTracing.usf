@@ -63,6 +63,7 @@ uint ThreadCount;
 uint GroupCount;
 int NearFieldLightingMode;
 float MaxTraceDistance;
+float FarFieldBias;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
 float NormalBias;
@@ -157,6 +158,9 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 		Ray.Origin = WorldPosition;
 		Ray.Direction = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 		Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
+#if ENABLE_FAR_FIELD_TRACING
+		Ray.TMin = max(Ray.TMin, FarFieldBias);
+#endif
 
 		ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
 		FRayCone RayCone = (FRayCone)0;
