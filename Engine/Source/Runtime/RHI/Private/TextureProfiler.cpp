@@ -24,7 +24,7 @@ CSV_DEFINE_CATEGORY(TextureWasteProfiler, true);
 
 static TAutoConsoleVariable<int32> CVarTextureProfilerMinTextureSizeMB(
 	TEXT("r.TextureProfiler.MinTextureSizeMB"),
-	0,
+	16,
 	TEXT("The minimum size for any texture to be reported.  All textures below this threshold will be reported as Other."));
 
 static TAutoConsoleVariable<int32> CVarTextureProfilerMinRenderTargetSizeMB(
