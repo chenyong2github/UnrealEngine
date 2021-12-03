@@ -44,6 +44,7 @@
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "TemporalAA.h"
 #include "RayTracing/RayTracingInstanceCulling.h"
+#include "RendererModule.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -320,7 +321,7 @@ static void UpdatePrimitiveFadingStateHelper(FPrimitiveFadingState& FadingState,
 	{
 		if (FadingState.bIsVisible != bVisible)
 		{
-			float CurrentRealTime = View.Family->CurrentRealTime;
+			float CurrentRealTime = View.Family->Time.GetRealTimeSeconds();
 
 			// Need to kick off a fade, so make sure that we have fading state for that
 			if( !IsValidRef(FadingState.UniformBuffer) )
@@ -942,7 +943,7 @@ static void UpdatePrimitiveFading(const FScene* Scene, FViewInfo& View)
 	if (ViewState)
 	{
 		uint32 PrevFrameNumber = ViewState->PrevFrameNumber;
-		float CurrentRealTime = View.Family->CurrentRealTime;
+		float CurrentRealTime = View.Family->Time.GetRealTimeSeconds();
 
 		// First clear any stale fading states.
 		for (FPrimitiveFadingStateMap::TIterator It(ViewState->PrimitiveFadingStates); It; ++It)
@@ -1138,7 +1139,7 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
 	const int32 NumBufferedFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(Scene->GetFeatureLevel());
 	bool bClearQueries = !View.Family->EngineShowFlags.HitProxies;
-	const float CurrentRealTime = View.Family->CurrentRealTime;
+	const float CurrentRealTime = View.Family->Time.GetRealTimeSeconds();
 	uint32 OcclusionFrameCounter = ViewState->OcclusionFrameCounter;
 	FHZBOcclusionTester& HZBOcclusionTests = ViewState->HZBOcclusionTests;
 
@@ -1995,7 +1996,7 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 		}
 	}
 
-	float CurrentRealTime = View.Family->CurrentRealTime;
+	float CurrentRealTime = View.Family->Time.GetRealTimeSeconds();
 	if (ViewState)
 	{
 		bool bSubmitQueries = !View.bDisableQuerySubmissions;
@@ -2274,8 +2275,8 @@ struct FRelevancePacket
 		FPrimitiveViewMasks& InOutHasDynamicEditorMeshElementsMasks,
 		uint8* InMarkMasks)
 
-		: CurrentWorldTime(InView.Family->CurrentWorldTime)
-		, DeltaWorldTime(InView.Family->DeltaWorldTime)
+		: CurrentWorldTime(InView.Family->Time.GetWorldTimeSeconds())
+		, DeltaWorldTime(InView.Family->Time.GetDeltaWorldTimeSeconds())
 		, RHICmdList(InRHICmdList)
 		, Scene(InScene)
 		, View(InView)
@@ -3783,7 +3784,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			}
 
 			// determine if we are initializing or we should reset the persistent state
-			const float DeltaTime = View.Family->CurrentRealTime - ViewState->LastRenderTime;
+			const float DeltaTime = View.Family->Time.GetRealTimeSeconds() - ViewState->LastRenderTime;
 			const bool bFirstFrameOrTimeWasReset = DeltaTime < -0.0001f || ViewState->LastRenderTime < 0.0001f;
 			const bool bIsLargeCameraMovement = IsLargeCameraMovement(
 				View,
@@ -3862,7 +3863,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 			// detect conditions where we should reset occlusion queries
 			if (bFirstFrameOrTimeWasReset || 
-				ViewState->LastRenderTime + GEngine->PrimitiveProbablyVisibleTime < View.Family->CurrentRealTime ||
+				GEngine->PrimitiveProbablyVisibleTime < View.Family->Time.GetDeltaRealTimeSeconds() ||
 				View.bCameraCut ||
 				View.bForceCameraVisibilityReset ||
 				IsLargeCameraMovement(
@@ -3944,7 +3945,7 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	const int32 MotionBlurTargetFPS = View.FinalPostProcessSettings.MotionBlurTargetFPS;
 
 	// Ensure we can divide by the Delta Time later without a divide by zero.
-	float DeltaWorldTime = FMath::Max(View.Family->DeltaWorldTime, SMALL_NUMBER);
+	float DeltaRealTime = FMath::Max(View.Family->Time.GetDeltaRealTimeSeconds(), SMALL_NUMBER);
 
 	// Track the current FPS by using an exponential moving average of the current delta time.
 	if (MotionBlurTargetFPS <= 0)
@@ -3953,12 +3954,12 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 		if (GetSequencerState() == ESS_Paused)
 		{
 			// Reset the moving average to the current delta time.
-			MotionBlurTargetDeltaTime = DeltaWorldTime;
+			MotionBlurTargetDeltaTime = DeltaRealTime;
 		}
 		else
 		{
 			// Smooth the target delta time using a moving average.
-			MotionBlurTargetDeltaTime = FMath::Lerp(MotionBlurTargetDeltaTime, DeltaWorldTime, 0.1f);
+			MotionBlurTargetDeltaTime = FMath::Lerp(MotionBlurTargetDeltaTime, DeltaRealTime, 0.1f);
 		}
 	}
 	else // Track a fixed target FPS.
@@ -3967,13 +3968,14 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 		// Tuned for content compatibility with existing content when target is the default 30 FPS.
 		if (GetSequencerState() == ESS_Paused)
 		{
-			DeltaWorldTime = 1.0f / 60.0f;
+			DeltaRealTime = 1.0f / 60.0f;
 		}
+
 
 		MotionBlurTargetDeltaTime = 1.0f / static_cast<float>(MotionBlurTargetFPS);
 	}
 
-	MotionBlurTimeScale = MotionBlurTargetDeltaTime / DeltaWorldTime;
+	MotionBlurTimeScale = MotionBlurTargetDeltaTime / DeltaRealTime;
 }
 
 void UpdateReflectionSceneData(FScene* Scene)
@@ -4284,7 +4286,7 @@ void FSceneRenderer::ComputeViewVisibility(
 	}
 
 	int32 NumPrimitives = Scene->Primitives.Num();
-	float CurrentRealTime = ViewFamily.CurrentRealTime;
+	float CurrentRealTime = ViewFamily.Time.GetRealTimeSeconds();
 
 	FPrimitiveViewMasks HasDynamicMeshElementsMasks;
 	HasDynamicMeshElementsMasks.AddZeroed(NumPrimitives);
