@@ -842,7 +842,7 @@ void RenderDirectLightIntoLumenCards(
 	const uint32 DrawIndirectArgOffset = Light.LightIndex * sizeof(FRHIDrawIndirectParameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("%s %s", *Light.Name),
+		RDG_EVENT_NAME("%s", *Light.Name),
 		PassParameters,
 		ERDGPassFlags::Raster,
 		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, &Material, &View, DrawIndirectArgOffset](FRHICommandList& RHICmdList)
