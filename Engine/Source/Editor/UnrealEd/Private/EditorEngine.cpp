@@ -1885,6 +1885,17 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	/////////////////////////////
 	// Redraw viewports.
 
+	ForEachObjectOfClass(UWorld::StaticClass(), [](UObject* WorldObj)
+	{
+		UWorld* World = CastChecked<UWorld>(WorldObj);
+
+		if (World->HasEndOfFrameUpdates())
+		{
+			// Make sure deferred component updates have been sent to the rendering thread.
+			World->SendAllEndOfFrameUpdates();
+		}
+	});
+
 	// Do not redraw if the application is hidden
 	bool bAllWindowsHidden = !bHasFocus && AreAllWindowsHidden();
 	if( !bAllWindowsHidden || bRunDrawWithEditorHidden)

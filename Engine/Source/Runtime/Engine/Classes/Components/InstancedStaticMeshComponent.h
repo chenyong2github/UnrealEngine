@@ -229,7 +229,6 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	* @param UpdateInstancePreviousTransforms	The transforms of the new instances to update.
 	* @return									True on success
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	virtual bool UpdateInstances(
 		const TArray<int32>& UpdateInstanceIds, 
 		const TArray<FTransform>& UpdateInstanceTransforms, 
@@ -316,6 +315,7 @@ public:
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
 	virtual bool IsHLODRelevant() const override;
+	virtual void SendRenderInstanceData_Concurrent() override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface
@@ -381,6 +381,8 @@ public:
 
 	void FlushInstanceUpdateCommands(bool bFlushInstanceUpdateCmdBuffer);
 
+	TArray<int32> PerInstanceIds;
+
 private:
 
 	/** Sets up new instance data to sensible defaults, creates physics counterparts if possible. */
@@ -388,12 +390,6 @@ private:
 
 	/** Update instance body with a new transform */
 	void UpdateInstanceBodyTransform(int32 InstanceIndex, const FTransform& WorldSpaceInstanceTransform, bool bTeleport);
-
-	/** Used to cache a unique identifier for each instance.  These are provided 
-	*	by the interface UpdateInstances.  This is a map from unique id to index
-	*	into the PerInstanceSMData array.
-	*/
-	TMap<int32, int32> InstanceIdToInstanceIndexMap;
 
 protected:
 	/** Creates body instances for all instances owned by this component. */

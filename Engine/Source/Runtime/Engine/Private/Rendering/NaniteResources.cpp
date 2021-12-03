@@ -526,6 +526,11 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 	InstanceSceneData.SetNum(Component->GetInstanceCount());
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	InstanceXFormUpdatedThisFrame.Init(false, Component->GetInstanceCount());
+	InstanceCustomDataUpdatedThisFrame.Init(false, Component->GetInstanceCount());
+#endif
+
 	bHasPerInstanceLocalBounds = false;
 	bHasPerInstanceHierarchyOffset = false;
 
@@ -708,7 +713,8 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) co
 		bSetDynamicRelevance |= (IsRichView(*View->Family) ||
 			View->Family->EngineShowFlags.Collision ||
 			bInCollisionView ||
-			View->Family->EngineShowFlags.Bounds);
+			View->Family->EngineShowFlags.Bounds ||
+			View->Family->EngineShowFlags.VisualizeInstanceUpdates);
 	#endif
 	#if WITH_EDITOR
 		bSetDynamicRelevance |= (IsSelected() && View->Family->EngineShowFlags.VertexColors);
@@ -981,6 +987,25 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 			{
 				RenderBounds(Collector.GetPDI(ViewIndex), EngineShowFlags, GetBounds(), !Owner || IsSelected());
 			}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (EngineShowFlags.VisualizeInstanceUpdates && HasInstanceDebugData())
+			{
+				const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
+				for (int i = 0; i < InstanceSceneData.Num(); ++i)
+				{
+					const FPrimitiveInstance& Instance = InstanceSceneData[i];
+
+					FRenderTransform InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
+					DrawWireStar(Collector.GetPDI(ViewIndex), InstanceToWorld.Origin, 40.0f, WasInstanceXFormUpdatedThisFrame(i) ? FColor::Red : FColor::Green, EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
+
+					if (WasInstanceCustomDataUpdatedThisFrame(i))
+					{
+						DrawCircle(Collector.GetPDI(ViewIndex), InstanceToWorld.Origin, FVector(1, 0, 0), FVector(0, 1, 0), FColor::Orange, 40.0f, 32, EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
+					}
+				}
+			}
+#endif
 		}
 	}
 #endif // NANITE_ENABLE_DEBUG_RENDERING

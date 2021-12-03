@@ -871,6 +871,7 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceWorldTransforms()
 		}
 
 		CachedRayTracingInstance.Transforms = MakeArrayView(CachedRayTracingInstanceWorldTransforms);
+		check(CachedRayTracingInstance.NumTransforms >= uint32(CachedRayTracingInstance.Transforms.Num()));
 	}
 }
 
@@ -911,9 +912,8 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 		if (!GCachedRayTracingInstancesLazyUpdate)
 		{
 			SceneInfo->CachedRayTracingInstance.Transforms = MakeArrayView(SceneInfo->CachedRayTracingInstanceWorldTransforms);
+			check(SceneInfo->CachedRayTracingInstance.NumTransforms >= uint32(SceneInfo->CachedRayTracingInstance.Transforms.Num()));
 		}
-
-		check(SceneInfo->CachedRayTracingInstance.NumTransforms >= uint32(SceneInfo->CachedRayTracingInstance.Transforms.Num()));
 
 		SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
 

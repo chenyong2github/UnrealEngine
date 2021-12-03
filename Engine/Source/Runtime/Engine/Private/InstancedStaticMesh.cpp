@@ -123,6 +123,49 @@ static TAutoConsoleVariable<int32> CVarRayTracingSimulatedInstanceCount(
 	TEXT("Maximum number of instances to simulate per instanced static mesh, presently capped to 256")
 );
 
+class FISMExecHelper : public FSelfRegisteringExec
+{
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	{
+		if (FParse::Command(&Cmd, TEXT("LIST ISM")))
+		{
+			// Flush commands because we will be touching the proxy.
+			FlushRenderingCommands();
+
+			Ar.Logf(TEXT("Name, Num Instances, Has Previous Transform, Num Custom Floats, Has Random, Has Custom Data, Has Dynamic Data, Has LMSMUVBias, Has LocalBounds, Has Instance Hiearchy Offset"));
+
+			for (TObjectIterator<UInstancedStaticMeshComponent> It; It; ++It)
+			{
+				UInstancedStaticMeshComponent* ISMComponent = *It;
+				if ((!ISMComponent->GetWorld() || !ISMComponent->GetWorld()->IsGameWorld()))
+				{
+					continue;
+				}
+
+				UStaticMesh* Mesh = ISMComponent->GetStaticMesh();
+				if (ISMComponent->SceneProxy)
+				{
+					Ar.Logf(TEXT("%s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d"),
+						Mesh ? *Mesh->GetFullName() : TEXT(""),
+						ISMComponent->GetInstanceCount(),
+						ISMComponent->SceneProxy->GetInstanceSceneData().Num(),
+						ISMComponent->SceneProxy->GetInstanceCustomData().Num(),
+						ISMComponent->PerInstancePrevTransform.Num() > 0,
+						ISMComponent->NumCustomDataFloats,
+						ISMComponent->SceneProxy->HasPerInstanceRandom(),
+						ISMComponent->SceneProxy->HasPerInstanceCustomData(),
+						ISMComponent->SceneProxy->HasPerInstanceDynamicData(),
+						ISMComponent->SceneProxy->HasPerInstanceLMSMUVBias(),
+						ISMComponent->SceneProxy->HasPerInstanceLocalBounds(),
+						ISMComponent->SceneProxy->HasPerInstanceHierarchyOffset());
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+};
+static FISMExecHelper GISMExecHelper;
 
 class FDummyFloatBuffer : public FVertexBufferWithSRV
 {
@@ -204,13 +247,15 @@ void FInstanceUpdateCmdBuffer::AddInstance(const FMatrix& InTransform)
 	Edit();
 }
 
-void FInstanceUpdateCmdBuffer::AddInstance(const FMatrix& InTransform, const FMatrix& InPreviousTransform)
+void FInstanceUpdateCmdBuffer::AddInstance(int32 InstanceId, const FMatrix& InTransform, const FMatrix& InPreviousTransform, const TArray<float>& InCustomDataFloats)
 {
 	FInstanceUpdateCommand& Cmd = Cmds.AddDefaulted_GetRef();
 	Cmd.InstanceIndex = INDEX_NONE;
+	Cmd.InstanceId = InstanceId;
 	Cmd.Type = FInstanceUpdateCmdBuffer::Add;
 	Cmd.XForm = InTransform;
 	Cmd.PreviousXForm = InPreviousTransform;
+	Cmd.CustomDataFloats = InCustomDataFloats;
 
 	NumAdds++;
 	Edit();
@@ -325,16 +370,8 @@ void FInstanceUpdateCmdBuffer::SetCustomData(int32 RenderIndex, const TArray<flo
 		Cmd.CustomDataFloats = CustomDataFloats;
 	}
 
-	// #todo (jnadro) Should really ensure these are all the same size for all instances.
-	NumCustomDataFloats = CustomDataFloats.Num();
-
+	NumCustomFloatUpdates++;
 	Edit();
-}
-
-void FInstanceUpdateCmdBuffer::SetCustomDataFloatsBulk(const TArray<float>& CustomDataFloats, int32 InNumCustomDataFloats)
-{
-	CustomDataFloatsBulk = CustomDataFloats;
-	NumCustomDataFloats = InNumCustomDataFloats;
 }
 
 void FInstanceUpdateCmdBuffer::ResetInlineCommands()
@@ -343,6 +380,7 @@ void FInstanceUpdateCmdBuffer::ResetInlineCommands()
 	NumCustomDataFloats = 0;
 	NumAdds = 0;
 	NumUpdates = 0;
+	NumCustomFloatUpdates = 0;
 	NumRemoves = 0;
 }
 
@@ -354,10 +392,10 @@ void FInstanceUpdateCmdBuffer::Edit()
 void FInstanceUpdateCmdBuffer::Reset()
 {
 	Cmds.Empty();
-	CustomDataFloatsBulk.Empty();
 	NumCustomDataFloats = 0;
 	NumAdds = 0;
 	NumUpdates = 0;
+	NumCustomFloatUpdates = 0;
 	NumRemoves = 0;
 	NumEdits = 0;
 }
@@ -480,6 +518,8 @@ void FStaticMeshInstanceBuffer::operator=(const FStaticMeshInstanceBuffer &Other
 
 void FStaticMeshInstanceBuffer::InitRHI()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshInstanceBuffer::InitRHI");
+
 	check(InstanceData);
 	if (InstanceData->GetNumInstances() > 0)
 	{
@@ -783,6 +823,8 @@ void FInstancedStaticMeshVertexFactory::Copy(const FInstancedStaticMeshVertexFac
 
 void FInstancedStaticMeshVertexFactory::InitRHI()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("FInstancedStaticMeshVertexFactory::InitRHI");
+
 	SCOPED_LOADTIMER(FInstancedStaticMeshVertexFactory_InitRHI);
 
 	check(HasValidFeatureLevel());
@@ -950,6 +992,8 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory,"/Engine/Private
 
 void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("FInstancedStaticMeshRenderData::BindBuffersToVertexFactories");
+
 	check(IsInRenderingThread());
 
 	PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
@@ -1251,6 +1295,25 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 					}
 				}
 			}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (View->Family->EngineShowFlags.VisualizeInstanceUpdates && HasInstanceDebugData())
+			{
+				const FRenderTransform PrimitiveToWorld = (FMatrix44f)GetLocalToWorld();
+				for (int i = 0; i < InstanceSceneData.Num(); ++i)
+				{
+					const FPrimitiveInstance& Instance = InstanceSceneData[i];
+
+					FRenderTransform InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
+					DrawWireStar(Collector.GetPDI(ViewIndex), InstanceToWorld.Origin, 40.0f, WasInstanceXFormUpdatedThisFrame(i) ? FColor::Red : FColor::Green, View->Family->EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
+
+					if (WasInstanceCustomDataUpdatedThisFrame(i))
+					{
+						DrawCircle(Collector.GetPDI(ViewIndex), InstanceToWorld.Origin, FVector(1, 0, 0), FVector(0, 1, 0), FColor::Orange, 40.0f, 32, View->Family->EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
+					}
+				}
+			}
+#endif
 		}
 	}
 }
@@ -1336,6 +1399,11 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 		InstanceLightShadowUVBias.SetNumZeroed(bHasPerInstanceLMSMUVBias ? InComponent->GetInstanceCount() : 0);
 
 		InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? InComponent->GetInstanceCount() : 0); // Only allocate if material bound which uses this
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		InstanceXFormUpdatedThisFrame.Init(false, InComponent->GetInstanceCount());
+		InstanceCustomDataUpdatedThisFrame.Init(false, InComponent->GetInstanceCount());
+#endif
 
 		// Only allocate if material bound which uses this
 		if (bHasPerInstanceCustomData && InComponent->NumCustomDataFloats > 0)
@@ -1481,7 +1549,7 @@ void FInstancedStaticMeshSceneProxy::OnTransformChanged()
 	}
 }
 
-bool FInstancedStaticMeshSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds)
+void FInstancedStaticMeshSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds)
 {
 	// This will flush GPU instance data, create buffers, srvs and vertex factories.
 	InstancedRenderData.BindBuffersToVertexFactories();
@@ -2097,6 +2165,22 @@ bool UInstancedStaticMeshComponent::IsHLODRelevant() const
 	}
 
 	return Super::IsHLODRelevant();
+}
+
+void UInstancedStaticMeshComponent::SendRenderInstanceData_Concurrent()
+{
+	Super::SendRenderInstanceData_Concurrent();
+
+	// If the primitive isn't hidden update its transform.
+	const bool bDetailModeAllowsRendering = DetailMode <= GetCachedScalabilityCVars().DetailMode;
+	if (InstanceUpdateCmdBuffer.NumTotalCommands() && bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField))
+	{
+		UpdateBounds();
+
+		// Update the scene info's transform for this primitive.
+		GetWorld()->Scene->UpdatePrimitiveInstances(this);
+		InstanceUpdateCmdBuffer.Reset();
+	}
 }
 
 FBodyInstance* UInstancedStaticMeshComponent::GetBodyInstance(FName BoneName, bool bGetWelded, int32 Index) const
@@ -3314,13 +3398,15 @@ bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartIn
 }
 
 bool UInstancedStaticMeshComponent::UpdateInstances(
-	const TArray<int32>& UpdateInstanceIds, 
-	const TArray<FTransform>& UpdateInstanceTransforms, 
+	const TArray<int32>& UpdateInstanceIds,
+	const TArray<FTransform>& UpdateInstanceTransforms,
 	const TArray<FTransform>& UpdateInstancePreviousTransforms,
 	int32 InNumCustomDataFloats,
 	const TArray<float>& CustomFloatData)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE_STR("ISM UpdateInstances")
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("UInstancedStaticMeshComponent::UpdateInstances");
+
+	const float EqualTolerance = 1e-6;
 
 	if (UpdateInstanceIds.Num() != UpdateInstanceTransforms.Num())
 	{
@@ -3353,12 +3439,6 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 		return false;
 	}
 
-	if (CustomFloatData.Num())
-	{
-		int32 MyNumCustomDataFloats = CustomFloatData.Num() / UpdateInstanceIds.Num();
-		check(UpdateInstanceIds.Num() * MyNumCustomDataFloats == CustomFloatData.Num()); // Temp sanity check
-	}
-
 	Modify();
 
 	// Need to empty the command buffer if it already has values.
@@ -3367,51 +3447,119 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 	// only be processed once.
 	InstanceUpdateCmdBuffer.Reset();
 
-	NumCustomDataFloats = InNumCustomDataFloats;
-	PerInstanceSMCustomData = CustomFloatData;
+	// Cache the previous num custom data floats so if we have to remove floats we remove at the 
+	// old value.
+	const int32 PrevNumCustomDataFloats = NumCustomDataFloats;
 
-	InstanceUpdateCmdBuffer.SetCustomDataFloatsBulk(CustomFloatData, NumCustomDataFloats);
-
-	PerInstanceSMData.SetNum(NewNumInstances, /*bAllowShrinking*/false);
-	PerInstancePrevTransform.SetNum(NewNumInstances, /*bAllowShrinking*/false);
+	InstanceUpdateCmdBuffer.NumCustomDataFloats = NumCustomDataFloats = InNumCustomDataFloats;
 
 	// if we already have values we need to update, remove, and add.
-	TMap<int32, int32> OldInstanceIdToInstanceIndexMap(InstanceIdToInstanceIndexMap);
-	InstanceIdToInstanceIndexMap.Empty();
+	TArray<int32> OldInstanceIds(PerInstanceIds);
 
 	// Apply updates
 	for (int32 i = 0; i < UpdateInstanceIds.Num(); ++i)
 	{
-		FInstancedStaticMeshInstanceData& InstanceData = PerInstanceSMData[i];
-		InstanceData.Transform = UpdateInstanceTransforms[i].ToMatrixWithScale();
-		PerInstancePrevTransform[i] = UpdateInstancePreviousTransforms[i].ToMatrixWithScale();
-
 		// This is an update.
 		const int32 InstanceId = UpdateInstanceIds[i];
-		if (int32* pInstanceIndex = OldInstanceIdToInstanceIndexMap.Find(InstanceId))
+		int InstanceIndex = PerInstanceIds.Find(InstanceId);
+		if (InstanceIndex != INDEX_NONE)
 		{
-			InstanceUpdateCmdBuffer.UpdateInstance(*pInstanceIndex, InstanceData.Transform, PerInstancePrevTransform[i]);
-			OldInstanceIdToInstanceIndexMap.Remove(InstanceId);
+			// Determine what data changed.
+
+			// Did the transform actually change?
+			// Explicitly check the component's previous transform for this instance because this 
+			// is the position we were previously rendered at.
+			FMatrix NewInstanceTransformMatrix = UpdateInstanceTransforms[i].ToMatrixWithScale();
+			if (!PerInstanceSMData[InstanceIndex].Transform.Equals(NewInstanceTransformMatrix, EqualTolerance))
+			{
+				// Update the component's data in place.
+				PerInstanceSMData[InstanceIndex] = NewInstanceTransformMatrix;
+				PerInstancePrevTransform[InstanceIndex] = UpdateInstancePreviousTransforms[i].ToMatrixWithScale();
+
+				// Record in a command buffer for future use.
+				InstanceUpdateCmdBuffer.UpdateInstance(InstanceIndex, PerInstanceSMData[InstanceIndex].Transform, PerInstancePrevTransform[InstanceIndex]);
+			}
+
+			// Did the custom data actually change?
+			const int32 CustomDataOffset = InstanceIndex * NumCustomDataFloats;
+			const int32 SrcCustomDataOffset = i * NumCustomDataFloats;
+			for (int32 FloatIndex = 0; FloatIndex < NumCustomDataFloats; ++FloatIndex)
+			{
+				if (FMath::Abs(CustomFloatData[SrcCustomDataOffset + FloatIndex] - PerInstanceSMCustomData[CustomDataOffset + FloatIndex]) > EqualTolerance)
+				{
+					// If any custom float data changed update it all.
+					TArray<float> NewCustomFloatData;
+					NewCustomFloatData.SetNumUninitialized(NumCustomDataFloats);
+					FMemory::Memcpy(&NewCustomFloatData[0], &CustomFloatData[SrcCustomDataOffset], NumCustomDataFloats * sizeof(float));
+
+					// Update the component's data in place.
+					FMemory::Memcpy(&PerInstanceSMCustomData[CustomDataOffset], &NewCustomFloatData[0], NumCustomDataFloats * sizeof(float));
+
+					// Record in a command buffer for future use.
+					InstanceUpdateCmdBuffer.SetCustomData(InstanceIndex, NewCustomFloatData);
+
+					break;
+				}
+			}
+
+			// Mark this index as one we've updated.
+			OldInstanceIds[InstanceIndex] = INDEX_NONE;
 		}
-		// This is an add.
 		else
 		{
-			InstanceUpdateCmdBuffer.AddInstance(InstanceData.Transform, PerInstancePrevTransform[i]);
-		}
+			// This is an add.
+			TArray<float> NewCustomFloatData;
+			NewCustomFloatData.SetNumUninitialized(NumCustomDataFloats);
 
-		// need to make sure the indices we tracked are updated.
-		InstanceIdToInstanceIndexMap.Add(InstanceId, i);
+			const int32 SrcCustomDataOffset = i * NumCustomDataFloats;
+			FMemory::Memcpy(&NewCustomFloatData[0], &CustomFloatData[SrcCustomDataOffset], NumCustomDataFloats * sizeof(float));
+
+			InstanceUpdateCmdBuffer.AddInstance(InstanceId, UpdateInstanceTransforms[i].ToMatrixWithScale(), UpdateInstancePreviousTransforms[i].ToMatrixWithScale(), NewCustomFloatData);
+		}
 	}
 
 	// Inform the cmd buffer which instances were removed.
-	for (const auto& InstanceMapping : OldInstanceIdToInstanceIndexMap)
+	for (int32 InstanceIndex = 0; InstanceIndex < OldInstanceIds.Num(); ++InstanceIndex)
 	{
-		const int32& InstanceIndex = InstanceMapping.Value;
-
-		// not sure if we really need to record this information.
-		// this instance index is the OLD one and is no longer valid.
-		InstanceUpdateCmdBuffer.HideInstance(InstanceIndex);
+		if (OldInstanceIds[InstanceIndex] != INDEX_NONE)
+		{
+			InstanceUpdateCmdBuffer.HideInstance(InstanceIndex);
+		}
 	}
+
+	// Remove instances to the component's data.
+	for (int32 InstanceIndex = 0; InstanceIndex < OldInstanceIds.Num(); ++InstanceIndex)
+	{
+		if (OldInstanceIds[InstanceIndex] != INDEX_NONE)
+		{
+			PerInstanceSMData.RemoveAt(InstanceIndex, 1, false);
+			PerInstancePrevTransform.RemoveAt(InstanceIndex, 1, false);
+			PerInstanceIds.RemoveAt(InstanceIndex, 1, false);
+			PerInstanceSMCustomData.RemoveAt((InstanceIndex * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
+
+			OldInstanceIds.RemoveAt(InstanceIndex, 1, false);
+			InstanceIndex--;
+		}
+	}
+
+	// Add new instances to the component's data.
+	for (const FInstanceUpdateCmdBuffer::FInstanceUpdateCommand& Cmd : InstanceUpdateCmdBuffer.Cmds)
+	{
+		if (Cmd.Type == FInstanceUpdateCmdBuffer::Add)
+		{
+			PerInstanceSMData.Add(Cmd.XForm);
+			PerInstancePrevTransform.Add(Cmd.PreviousXForm);
+			PerInstanceIds.Add(Cmd.InstanceId);
+
+			const int32 Index = PerInstanceSMCustomData.AddUninitialized(NumCustomDataFloats);
+			FMemory::Memcpy(&PerInstanceSMCustomData[Index], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
+		}
+	}
+
+	// Ensure our data is in sync.
+	check(PerInstanceSMData.Num() == PerInstancePrevTransform.Num());
+	check(PerInstanceSMData.Num() == PerInstanceIds.Num());
+	check(PerInstanceSMCustomData.Num() == (NumCustomDataFloats * PerInstanceSMData.Num()));
 
 	// #todo (jnadro) InstanceIndex is ignored by this function so just pass zero.
 	PartialNavigationUpdate(0);
@@ -3430,7 +3578,7 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 		FlushInstanceUpdateCommands(false);
 	}
 
-	MarkRenderTransformDirty();
+	MarkRenderInstancesDirty();
 
 	return true;
 }

@@ -4089,6 +4089,17 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 	if (VirtualShadowMapArrayCacheManager)
 	{
 		VirtualShadowMapArrayCacheManager->ProcessRemovedPrimives(GraphBuilder, GPUScene, RemovedLocalPrimitiveSceneInfos);
+
+		if (UpdatedInstances.Num())
+		{
+			TArray<FPrimitiveSceneInfo*> RemovedInstances;
+			RemovedInstances.Reserve(UpdatedInstances.Num());
+			for (auto& Instance : UpdatedInstances)
+			{
+				RemovedInstances.Add(Instance.Key->GetPrimitiveSceneInfo());
+			}
+			VirtualShadowMapArrayCacheManager->ProcessRemovedPrimives(GraphBuilder, GPUScene, RemovedInstances);
+		}
 	}
 	TArray<FPrimitiveSceneInfo*> AddedLocalPrimitiveSceneInfos(AddedPrimitiveSceneInfos.Array());
 	AddedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
@@ -4713,9 +4724,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		SCOPED_NAMED_EVENT(FScene_UpdatePrimitiveInstances, FColor::Emerald);
 		SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveInstanceRenderThreadTime);
 
-		TArray<FPrimitiveSceneInfo*> UpdatedInstancesLocalPrimitiveSceneInfos;
-
-		TArray<FPrimitiveSceneProxy*> SameSceneInfos;
+		TArray<FPrimitiveSceneInfo*> UpdatedSceneInfosWithStaticDrawListUpdate;
+		UpdatedSceneInfosWithStaticDrawListUpdate.Reserve(UpdatedTransforms.Num());
 
 		for (const auto& UpdateInstance : UpdatedInstances)
 		{
@@ -4725,16 +4735,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				continue;
 			}
 
-			check(!SameSceneInfos.Contains(PrimitiveSceneProxy));
-			SameSceneInfos.Add(PrimitiveSceneProxy);
-
 			check(PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex != INDEX_NONE);
 
 			FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
+			UpdatedSceneInfosWithStaticDrawListUpdate.Push(PrimitiveSceneInfo);
+
 			// Update the Proxy's data.
 			PrimitiveSceneProxy->UpdateInstances_RenderThread(UpdateInstance.Value.CmdBuffer, UpdateInstance.Value.WorldBounds, UpdateInstance.Value.LocalBounds, UpdateInstance.Value.StaticMeshBounds);
+
+			PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+
+			PrimitiveSceneInfo->RemoveFromScene(true);
 
 			if (!RHISupportsVolumeTextures(GetFeatureLevel())
 				&& (PrimitiveSceneProxy->IsMovable() || PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting() || PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
@@ -4742,37 +4755,27 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
 			}
 
-			UpdatedInstancesLocalPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
+			PrimitiveSceneInfo->FreeGPUSceneInstances();
+			FPrimitiveSceneInfo::AllocateGPUSceneInstances(this, MakeArrayView(&PrimitiveSceneInfo, 1));
+
+			DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
+
+			LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->PackedIndex);
+			LumenSceneData->AddPrimitive(PrimitiveSceneInfo);
 		}
 
-		if (UpdatedInstancesLocalPrimitiveSceneInfos.Num() > 0)
+#if RHI_RAYTRACING
 		{
-			{
-				SCOPED_NAMED_EVENT(CacheDrawCommands, FColor::Emerald);
+			TSet<FPrimitiveSceneProxy*> UpdatedPrimitives;
+			UpdatedInstances.GetKeys(UpdatedPrimitives);
+			UpdateRayTracingGroupBounds_UpdatePrimitives(UpdatedPrimitives);
+		}
+#endif
 
-				// Update all the static mesh draw lists...just so we can patch the instance count.
-				for (FPrimitiveSceneInfo* SceneInfo : UpdatedInstancesLocalPrimitiveSceneInfos)
-				{
-					SceneInfo->RemoveStaticMeshes();
-				}
-				FPrimitiveSceneInfo::AddStaticMeshes(GraphBuilder.RHICmdList, this, UpdatedInstancesLocalPrimitiveSceneInfos);
-			}
-
-			// Do system updates in the same order that Update Primitive Transform does.
-			// 1. GPU Scene
-			// 2. Distance Fields
-			// 3. Lumen
-			// 4. Ray Tracing (This gets updated in FPrimitiveSceneInfo::AddStaticMeshes above).
-
-			// GPU Scene
-			FPrimitiveSceneInfo::ReallocateGPUSceneInstances(this, TArrayView<FPrimitiveSceneInfo*>(&UpdatedInstancesLocalPrimitiveSceneInfos[0], UpdatedInstancesLocalPrimitiveSceneInfos.Num()));
-
-			// Distance Fields
-			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : UpdatedInstancesLocalPrimitiveSceneInfos)
-			{
-				// This clobbers any existing instance data and pulls new data from the proxy.
-				DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
-			}
+		// Re-add the primitive to the scene with the new transform.
+		if (UpdatedSceneInfosWithStaticDrawListUpdate.Num() > 0)
+		{
+			FPrimitiveSceneInfo::AddToScene(GraphBuilder.RHICmdList, this, UpdatedSceneInfosWithStaticDrawListUpdate, true, true, bAsyncCreateLPIs);
 		}
 	}
 

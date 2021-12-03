@@ -1346,6 +1346,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 		|| bDrawMeshCollisionIfSimple
 #endif
 		|| EngineShowFlags.Bounds
+		|| EngineShowFlags.VisualizeInstanceUpdates
 		|| bProxyIsSelected 
 		|| IsHovered()
 		|| bIsLightmapSettingError);
