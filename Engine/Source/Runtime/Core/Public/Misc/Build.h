@@ -382,6 +382,17 @@
 // draw events with "TOGGLEDRAWEVENTS" "r.ShowMaterialDrawEvents" (for ProfileGPU, Pix, Razor, RenderDoc, ...) and the "ProfileGPU" command are normally compiled out for TEST and SHIPPING
 #define WITH_PROFILEGPU (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || (UE_BUILD_TEST && ALLOW_PROFILEGPU_IN_TEST) || (UE_BUILD_SHIPPING && ALLOW_PROFILEGPU_IN_SHIPPING))
 
+#ifndef ALLOW_DUMPGPU_IN_TEST
+	#define ALLOW_DUMPGPU_IN_TEST 1
+#endif
+
+#ifndef ALLOW_DUMPGPU_IN_SHIPPING
+	#define ALLOW_DUMPGPU_IN_SHIPPING 0
+#endif
+
+// DumpGPU command
+#define WITH_DUMPGPU (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || (UE_BUILD_TEST && ALLOW_DUMPGPU_IN_TEST) || (UE_BUILD_SHIPPING && ALLOW_DUMPGPU_IN_SHIPPING))
+
 #ifndef ALLOW_CHEAT_CVARS_IN_TEST
 	#define ALLOW_CHEAT_CVARS_IN_TEST 1
 #endif

@@ -8,6 +8,7 @@
 #include "VisualizeTexture.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
+
 #if ENABLE_RHI_VALIDATION
 
 inline void GatherPassUAVsForOverlapValidation(const FRDGPass* Pass, TArray<FRHIUnorderedAccessView*, TInlineAllocator<MaxSimultaneousUAVs, FRDGArrayAllocator>>& OutUAVs)
@@ -2562,7 +2563,15 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 	Pass->GPUScopeOpsPrologue.Execute(RHICmdListPass);
 #endif
 
+#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
+	BeginPassDump(Pass);
+#endif
+
 	Pass->Execute(RHICmdListPass);
+
+#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
+	EndPassDump(Pass);
+#endif
 
 #if RDG_GPU_SCOPES
 	Pass->GPUScopeOpsEpilogue.Execute(RHICmdListPass);

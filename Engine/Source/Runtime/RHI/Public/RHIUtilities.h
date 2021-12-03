@@ -136,6 +136,41 @@ static bool IsSnormFormat(EPixelFormat Format)
 	return false;
 }
 
+static bool IsUintFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_R32_UINT:
+	case PF_R16_UINT:
+	case PF_R16G16B16A16_UINT:
+	case PF_R32G32B32A32_UINT:
+	case PF_R16G16_UINT:
+	case PF_R8_UINT:
+	case PF_R8G8B8A8_UINT:
+	case PF_R32G32_UINT:
+		return true;
+
+	default:
+		break;
+	}
+	return false;
+}
+
+static bool IsSintFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_R32_SINT:
+	case PF_R16_SINT:
+	case PF_R16G16B16A16_SINT:
+		return true;
+
+	default:
+		break;
+	}
+	return false;
+}
+
 /** Get the best default resource state for the given texture creation flags */
 extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData);
 

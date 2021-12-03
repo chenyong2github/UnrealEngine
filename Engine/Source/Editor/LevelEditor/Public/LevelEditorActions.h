@@ -614,6 +614,7 @@ public:
 	TSharedPtr< FUICommandInfo > ShowSelectedDetails;
 	TSharedPtr< FUICommandInfo > RecompileShaders;
 	TSharedPtr< FUICommandInfo > ProfileGPU;
+	TSharedPtr< FUICommandInfo > DumpGPU;
 
 	TSharedPtr< FUICommandInfo > ResetAllParticleSystems;
 	TSharedPtr< FUICommandInfo > ResetSelectedParticleSystem;

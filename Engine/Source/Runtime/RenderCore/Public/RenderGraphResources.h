@@ -178,7 +178,7 @@ protected:
 	template <typename TParameterStruct>
 	explicit FRDGUniformBuffer(const TParameterStruct* InParameters, const TCHAR* InName)
 		: FRDGResource(InName)
-		, ParameterStruct(InParameters)
+		, ParameterStruct(InParameters, TParameterStruct::FTypeInfo::GetStructMetadata())
 	{}
 
 private:
@@ -778,6 +778,14 @@ struct FRDGBufferDesc
 		return Desc;
 	}
 
+	template<typename ParameterStruct>
+	static FRDGBufferDesc CreateStructuredDesc(uint32 NumElements)
+	{
+		FRDGBufferDesc Desc = CreateStructuredDesc(sizeof(ParameterStruct), NumElements);
+		Desc.Metadata = ParameterStruct::FTypeInfo::GetStructMetadata();
+		return Desc;
+	}
+
 	static FRDGBufferDesc CreateBufferDesc(uint32 BytesPerElement, uint32 NumElements)
 	{
 		FRDGBufferDesc Desc;
@@ -785,6 +793,14 @@ struct FRDGBufferDesc
 		Desc.Usage = (EBufferUsageFlags)(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
+		return Desc;
+	}
+
+	template<typename ParameterStruct>
+	static FRDGBufferDesc CreateBufferDesc(uint32 NumElements)
+	{
+		FRDGBufferDesc Desc = CreateBufferDesc(sizeof(ParameterStruct), NumElements);
+		Desc.Metadata = ParameterStruct::FTypeInfo::GetStructMetadata();
 		return Desc;
 	}
 
@@ -799,6 +815,14 @@ struct FRDGBufferDesc
 		return Desc;
 	}
 
+	template<typename ParameterStruct>
+	static FRDGBufferDesc CreateByteAddressDesc(uint32 NumElements)
+	{
+		FRDGBufferDesc Desc = CreateByteAddressDesc(sizeof(ParameterStruct) * NumElements);
+		Desc.Metadata = ParameterStruct::FTypeInfo::GetStructMetadata();
+		return Desc;
+	}
+
 	static FRDGBufferDesc CreateUploadDesc(uint32 BytesPerElement, uint32 NumElements)
 	{
 		FRDGBufferDesc Desc;
@@ -806,6 +830,14 @@ struct FRDGBufferDesc
 		Desc.Usage = (EBufferUsageFlags)(BUF_Static | BUF_ShaderResource);
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
+		return Desc;
+	}
+
+	template<typename ParameterStruct>
+	static FRDGBufferDesc CreateUploadDesc(uint32 NumElements)
+	{
+		FRDGBufferDesc Desc = CreateUploadDesc(sizeof(ParameterStruct), NumElements);
+		Desc.Metadata = ParameterStruct::FTypeInfo::GetStructMetadata();
 		return Desc;
 	}
 
@@ -840,6 +872,9 @@ struct FRDGBufferDesc
 
 	/** The underlying RHI type to use. */
 	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
+
+	/** Meta data of the layout of the buffer for debugging purposes. */
+	const FShaderParametersMetadata* Metadata = nullptr;
 };
 
 inline const TCHAR* GetBufferUnderlyingTypeName(FRDGBufferDesc::EUnderlyingType BufferType)

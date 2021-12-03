@@ -2027,6 +2027,10 @@ public:
 	bool HandleProfileGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
 #endif
 
+#if WITH_DUMPGPU
+	bool HandleDumpGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+#endif
+
 	// Compile in Debug or Development
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
 	bool HandleHotReloadCommand( const TCHAR* Cmd, FOutputDevice& Ar );

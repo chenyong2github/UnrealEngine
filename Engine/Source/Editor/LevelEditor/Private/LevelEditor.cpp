@@ -1696,6 +1696,11 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		Commands.ProfileGPU,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("PROFILEGPU") ) )
 		);
+	
+	ActionList.MapAction(
+		Commands.DumpGPU,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DUMPGPU") ) )
+		);
 
 	ActionList.MapAction(
 		Commands.ResetAllParticleSystems,

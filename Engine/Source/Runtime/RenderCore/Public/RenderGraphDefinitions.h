@@ -8,7 +8,7 @@
 /** DEFINES */
 
 /** Whether render graph debugging is enabled. */
-#define RDG_ENABLE_DEBUG (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+#define RDG_ENABLE_DEBUG (!UE_BUILD_SHIPPING)
 
 /** Performs the operation if RDG_ENABLE_DEBUG is enabled. Useful for one-line checks without explicitly wrapping in #if. */
 #if RDG_ENABLE_DEBUG
@@ -29,6 +29,12 @@
 	#define IF_RDG_ENABLE_TRACE(Op)
 #endif
 
+/** Allows to dump all RDG resources of a frame. */
+#define RDG_DUMP_RESOURCES (WITH_DUMPGPU)
+
+/** Allows to dump RDG resource after each draw call. */
+#define RDG_DUMP_RESOURCES_AT_EACH_DRAW (RDG_DUMP_RESOURCES)
+
 /** The type of GPU events the render graph system supports.
  *  RDG_EVENTS == 0 means there is no string processing at all.
  *  RDG_EVENTS == 1 means the format component of the event name is stored as a const TCHAR*.
@@ -39,7 +45,7 @@
 #define RDG_EVENTS_STRING_COPY 2
 
 /** Whether render graph GPU events are enabled. */
-#if WITH_PROFILEGPU
+#if WITH_PROFILEGPU || RDG_DUMP_RESOURCES
 	#define RDG_EVENTS RDG_EVENTS_STRING_COPY
 #elif RHI_WANT_BREADCRUMB_EVENTS
 	#define RDG_EVENTS RDG_EVENTS_STRING_REF
@@ -70,9 +76,6 @@
 #else
 	#define IF_RDG_CMDLIST_STATS(Op)
 #endif
-
-/** Allows to dump all RDG resources of a frame. */
-#define RDG_DUMP_RESOURCES (!UE_BUILD_SHIPPING)
 
 /** ENUMS */
 

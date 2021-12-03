@@ -300,8 +300,18 @@ public:
 	FRDGBlackboard Blackboard;
 
 #if RDG_DUMP_RESOURCES
-	static void BeginResourceDump(const TArray<FString>& Args);
+	static FString BeginResourceDump(const TArray<FString>& Args);
 	static void EndResourceDump();
+#endif
+
+#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
+	static void DumpDraw(const FRDGEventName& DrawEventName);
+	static bool IsDumpingDraws();
+#else
+	static inline bool IsDumpingDraws()
+	{
+		return false;
+	}
 #endif
 
 	//////////////////////////////////////////////////////////////////////////
@@ -710,6 +720,11 @@ private:
 
 #if RDG_DUMP_RESOURCES
 	void DumpResourcePassOutputs(const FRDGPass* Pass);
+
+#if RDG_DUMP_RESOURCES_AT_EACH_DRAW
+	void BeginPassDump(const FRDGPass* Pass);
+	void EndPassDump(const FRDGPass* Pass);
+#endif
 #endif
 
 #if RDG_ENABLE_DEBUG

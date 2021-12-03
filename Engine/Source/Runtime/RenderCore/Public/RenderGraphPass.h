@@ -539,7 +539,7 @@ public:
 		const ParameterStructType* InParameterStruct,
 		ERDGPassFlags InPassFlags,
 		ExecuteLambdaType&& InExecuteLambda)
-		: FRDGPass(MoveTemp(InName), FRDGParameterStruct(InParameterStruct, InParameterMetadata->GetLayoutPtr()), InPassFlags)
+		: FRDGPass(MoveTemp(InName), FRDGParameterStruct(InParameterStruct, InParameterMetadata), InPassFlags)
 		, ExecuteLambda(MoveTemp(InExecuteLambda))
 #if RDG_ENABLE_DEBUG
 		, DebugParameterStruct(InParameterStruct)
@@ -585,7 +585,7 @@ class FRDGSentinelPass final
 {
 public:
 	FRDGSentinelPass(FRDGEventName&& Name, ERDGPassFlags InPassFlagsToAdd = ERDGPassFlags::None)
-		: FRDGPass(MoveTemp(Name), FRDGParameterStruct(&EmptyShaderParameters), ERDGPassFlags::NeverCull | InPassFlagsToAdd)
+		: FRDGPass(MoveTemp(Name), FRDGParameterStruct(&EmptyShaderParameters, FEmptyShaderParameters::FTypeInfo::GetStructMetadata()), ERDGPassFlags::NeverCull | InPassFlagsToAdd)
 	{
 		bSentinel = 1;
 	}
