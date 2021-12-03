@@ -390,7 +390,9 @@ void ReflectionResolveCS(
 
 				float MinKernelRadius = ReflectionDownsampleFactor;
 				float MaxKernelRadius = SpatialReconstructionKernelRadius;
-				float KernelDiameter = 2.0 * lerp(MinKernelRadius, MaxKernelRadius, saturate(TopLayerRoughness * 8));
+				float KernelScale = 2.0f * (1.0f - log2((float)ReflectionDownsampleFactor) * .25f);
+				float KernelDiameter = KernelScale * lerp(MinKernelRadius, MaxKernelRadius, saturate(TopLayerRoughness * 8));
+
 				for (uint SampleIndex = 0; SampleIndex < NumSpatialReconstructionSamples; SampleIndex++)
 				{
 					float2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelDiameter;
