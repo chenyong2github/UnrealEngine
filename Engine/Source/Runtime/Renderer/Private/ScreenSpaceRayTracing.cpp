@@ -782,7 +782,7 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 	// Number of mip in the mip chain
 	const int32 kNumMips = 5;
 
-	bool bUseLeakFree = View.PrevViewInfo.ScreenSpaceRayTracingInput != nullptr;
+	bool bUseLeakFree = View.PrevViewInfo.ScreenSpaceRayTracingInput != nullptr && View.PrevViewInfo.DepthBuffer != nullptr;
 	check(bUseLeakFree == true);
 
 	// Allocate FPrevSceneColorMip.
