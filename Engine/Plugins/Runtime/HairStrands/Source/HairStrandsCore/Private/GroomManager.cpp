@@ -156,7 +156,7 @@ static void RunInternalHairStrandsInterpolation(
 			if (MeshLODIndex < 0) MeshLODIndex = Section.LODIndex;
 			check(MeshLODIndex == Section.LODIndex);
 
-			MeshDataLOD.Sections.Add(ConvertMeshSection(Section));
+			MeshDataLOD.Sections.Add(ConvertMeshSection(Section, CachedGeometry.LocalToWorld));
 		}
 
 		Instance->Debug.MeshLODIndex = MeshLODIndex;
@@ -707,11 +707,6 @@ static void RunHairLODSelection(
 		const FCachedGeometry CachedGeometry = GetCacheGeometryForHair(GraphBuilder, Instance, SkinCache, ShaderMap);
 		const int32 MeshLODIndex = GetCacheGeometryLODIndex(CachedGeometry);
 
-		//if (Instance->ProxyLocalToWorld)
-		//{
-		//	Instance->LocalToWorld = *Instance->ProxyLocalToWorld;
-		//}
-
 		// Perform LOD selection based on all the views	
 		// CPU LOD selection. 
 		// * When enable the CPU LOD selection allow to change the geometry representation. 
@@ -898,6 +893,8 @@ static void RunHairLODSelection(
 		}
 
 		// Update the local-to-world transform based on the binding type 
+		Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
+		Instance->Debug.SkinningCurrentLocalToWorld = CachedGeometry.LocalToWorld;
 		Instance->LocalToWorld = Instance->GetCurrentLocalToWorld();
 	}
 }

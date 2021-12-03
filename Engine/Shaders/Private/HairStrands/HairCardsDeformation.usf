@@ -4,6 +4,14 @@
 #include "HairStrandsVertexFactoryCommon.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
 
+#define DEBUG_ENABLE 0
+
+#if DEBUG_ENABLE
+#include "../ShaderDrawDebug.ush"?
+#endif
+
+float4x4 LocalToWorld;
+
 uint CardsVertexCount;
 uint GuideVertexCount;
 float3 GuideRestPositionOffset;
@@ -161,10 +169,19 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	ControlPoint = ToTriangle(ControlPoint, RootBarycentric, RestTriangle);
 	ControlPoint = ToWorld(ControlPoint, RootBarycentric, DeformedTriangle) + CurrOffset;
 
+	#if DEBUG_ENABLE
+	{
+		float3 WP0 = mul(float4(DeformedTriangle.P0, 1), LocalToWorld).xyz;
+		float3 WP1 = mul(float4(DeformedTriangle.P1, 1), LocalToWorld).xyz;
+		float3 WP2 = mul(float4(DeformedTriangle.P2, 1), LocalToWorld).xyz;
+		AddLineTriangle(WP0, WP1, WP2, ColorOrange);
+	}
+	#endif
+
 	CardsDeformedPositionBuffer[VertexId] = float4(ControlPoint, RestControlPoint.w);
 
 	// Transform tangent
 	TransformTangent(VertexId, 0, RestTriangle, DeformedTriangle);
 	TransformTangent(VertexId, 1, RestTriangle, DeformedTriangle);
-#endif
+#endif // PERMUTATION_DYNAMIC_GEOMETRY
 }

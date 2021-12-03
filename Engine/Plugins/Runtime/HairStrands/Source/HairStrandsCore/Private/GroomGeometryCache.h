@@ -12,7 +12,7 @@
 #include "HairStrandsMeshProjection.h"
 #include "GPUSkinCache.h"
 
-FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry::Section& In);
+FHairStrandsProjectionMeshData::Section ConvertMeshSection(const FCachedGeometry::Section& In, const FTransform& T);
 
 void BuildCacheGeometry(
 	FRDGBuilder& GraphBuilder,

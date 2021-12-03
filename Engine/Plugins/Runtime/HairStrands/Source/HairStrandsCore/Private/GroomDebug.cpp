@@ -100,7 +100,7 @@ static void GetGroomInterpolationData(
 		{
 			for (const FCachedGeometry::Section& Section : CachedGeometry.Sections)
 			{
-				FHairStrandsProjectionMeshData::Section OutSection = ConvertMeshSection(Section);
+				FHairStrandsProjectionMeshData::Section OutSection = ConvertMeshSection(Section, CachedGeometry.LocalToWorld);
 				if (MeshType == EHairStrandsProjectionMeshType::RestMesh)
 				{					
 					// If the mesh has some mesh-tranferred data, we display that otherwise we use the rest data
@@ -707,11 +707,11 @@ class FDrawDebugCardGuidesCS : public FGlobalShader
 		
 		SHADER_PARAMETER(uint32,  RenVertexCount)
 		SHADER_PARAMETER(FVector3f, RenRestOffset)
-		SHADER_PARAMETER(FVector3f, RenDeformedOffset)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenDeformedOffset)
 		
 		SHADER_PARAMETER(uint32,  SimVertexCount)
 		SHADER_PARAMETER(FVector3f, SimRestOffset)
-		SHADER_PARAMETER(FVector3f, SimDeformedOffset)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, SimDeformedOffset)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenRestPosition)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenDeformedPosition)
@@ -791,13 +791,13 @@ static void AddDrawDebugCardsGuidesPass(
 	Parameters->RenVertexCount = 0;
 	Parameters->RenRestOffset = FVector3f::ZeroVector;
 	Parameters->RenRestPosition = DefaultBuffer;
-	Parameters->RenDeformedOffset = FVector3f::ZeroVector;
+	Parameters->RenDeformedOffset = DefaultBuffer;
 	Parameters->RenDeformedPosition = DefaultBuffer;
 
 	Parameters->SimVertexCount = 0;
 	Parameters->SimRestOffset = FVector3f::ZeroVector;
 	Parameters->SimRestPosition = DefaultBuffer;
-	Parameters->SimDeformedOffset = FVector3f::ZeroVector;
+	Parameters->SimDeformedOffset = DefaultBuffer;
 	Parameters->SimDeformedPosition = DefaultBuffer;
 
 	if (bRen)
@@ -807,7 +807,7 @@ static void AddDrawDebugCardsGuidesPass(
 		Parameters->RenRestPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer);
 		if (bDeformed)
 		{
-			Parameters->RenDeformedOffset = LOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);
+			Parameters->RenDeformedOffset = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current));
 			Parameters->RenDeformedPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
 		}
 	}
@@ -819,22 +819,23 @@ static void AddDrawDebugCardsGuidesPass(
 		Parameters->SimRestPosition = RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer);
 		if (bDeformed)
 		{
-			Parameters->SimDeformedOffset = Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);
+			Parameters->SimDeformedOffset = RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current));
 			Parameters->SimDeformedPosition = RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
 		}
 	}
 
 	Parameters->LocalToWorld = Instance->LocalToWorld.ToMatrixWithScale();
 
-	if (!bDeformed &&  bRen) Parameters->DebugMode = 1;
-	if ( bDeformed &&  bRen) Parameters->DebugMode = 2;
-	if (!bDeformed && !bRen) Parameters->DebugMode = 3;
-	if ( bDeformed && !bRen) Parameters->DebugMode = 4;
+	const TCHAR* DebugName = TEXT("Unknown");
+	if (!bDeformed &&  bRen) { Parameters->DebugMode = 1; DebugName = TEXT("Ren, Rest"); } 
+	if ( bDeformed &&  bRen) { Parameters->DebugMode = 2; DebugName = TEXT("Ren, Deformed"); } 
+	if (!bDeformed && !bRen) { Parameters->DebugMode = 3; DebugName = TEXT("Sim, Rest"); } 
+	if ( bDeformed && !bRen) { Parameters->DebugMode = 4; DebugName = TEXT("Sim, Deformed"); } 
 
 	ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
 
 	const uint32 VertexCount = Parameters->DebugMode <= 2 ? Parameters->RenVertexCount : Parameters->SimVertexCount;
-	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("DrawDebugCardsAtlas"), ComputeShader, Parameters,
+	FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::DebugCards(%s)", DebugName), ComputeShader, Parameters,
 	FIntVector::DivideAndRoundUp(FIntVector(VertexCount, 1, 1), FIntVector(32, 1, 1)));
 }
 

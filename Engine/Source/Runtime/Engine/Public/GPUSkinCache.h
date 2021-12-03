@@ -114,6 +114,7 @@ struct FCachedGeometry
 	int32 LODIndex = 0;
 	TArray<Section> Sections;
 	FRDGBufferRef DeformedPositionBuffer = nullptr;
+	FTransform LocalToWorld = FTransform::Identity;
 };
 
 enum class EGPUSkinCacheEntryMode

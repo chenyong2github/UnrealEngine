@@ -45,7 +45,7 @@ static FAutoConsoleVariableRef CVarHairBindingValidationEnable(TEXT("r.HairStran
 static bool GUseGroomCacheStreaming = true;
 static FAutoConsoleVariableRef CVarGroomCacheStreamingEnable(TEXT("GroomCache.EnableStreaming"), GUseGroomCacheStreaming, TEXT("Enable groom cache streaming and prebuffering. Do not switch while groom caches are in use."));
 
-static bool GUseProxyLocalToWorld = false;
+static bool GUseProxyLocalToWorld = true;
 static FAutoConsoleVariableRef CVarUseProxyLocalToWorld(TEXT("r.HairStrands.UseProxyLocalToWorld"), GUseProxyLocalToWorld, TEXT("Enable the use of the groom proxy local to world instead of extracting it from the game thread."));
 
 
@@ -430,15 +430,6 @@ public:
 					++MeshesLODIndex;
 				}
 			}
-
-			// Initialization of the default skel. mesh transform (refresh during ticking).
-			HairInstance->Debug.SkinningCurrentLocalToWorld = HairInstance->Debug.MeshComponent ? HairInstance->Debug.MeshComponent->GetComponentTransform() : FTransform();
-			HairInstance->Debug.SkinningPreviousLocalToWorld = HairInstance->Debug.SkinningCurrentLocalToWorld;
-
-			HairInstance->Debug.RigidCurrentLocalToWorld = Component->GetComponentTransform();
-			HairInstance->Debug.RigidPreviousLocalToWorld = HairInstance->Debug.RigidCurrentLocalToWorld;
-
-			HairInstance->LocalToWorld = HairInstance->GetCurrentLocalToWorld();
 		}
 	}
 
@@ -494,14 +485,11 @@ public:
 
 	virtual void OnTransformChanged() override
 	{
-		if (GUseProxyLocalToWorld)
+		const FTransform RigidLocalToWorld = FTransform(GetLocalToWorld());
+		for (FHairGroupInstance* Instance : HairGroupInstances)
 		{
-			const FTransform RigidLocalToWorld = FTransform(GetLocalToWorld());
-			for (FHairGroupInstance* Instance : HairGroupInstances)
-			{
-				Instance->Debug.RigidPreviousLocalToWorld = Instance->Debug.RigidCurrentLocalToWorld;
-				Instance->Debug.RigidCurrentLocalToWorld = RigidLocalToWorld;
-			}
+			Instance->Debug.RigidPreviousLocalToWorld = Instance->Debug.RigidCurrentLocalToWorld;
+			Instance->Debug.RigidCurrentLocalToWorld = RigidLocalToWorld;
 		}
 	}
 
@@ -2063,20 +2051,6 @@ FHairStrandsRestRootResource* UGroomComponent::GetGuideStrandsRestRootResource(u
 	return HairGroupInstances[GroupIndex]->Guides.RestRootResource;
 }
 
-const FTransform& UGroomComponent::GetGuideStrandsLocalToWorld(uint32 GroupIndex) const
-{
-	if (GroupIndex >= uint32(HairGroupInstances.Num()))
-	{
-		return FTransform::Identity;
-	}
-
-	if (!HairGroupInstances[GroupIndex]->Guides.IsValid())
-	{
-		return FTransform::Identity;
-	}
-	return HairGroupInstances[GroupIndex]->LocalToWorld;
-}
-
 FHairStrandsDeformedRootResource* UGroomComponent::GetGuideStrandsDeformedRootResource(uint32 GroupIndex)
 {
 	if (GroupIndex >= uint32(HairGroupInstances.Num()))
@@ -2454,6 +2428,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		}
 		HairGroupInstance->GeometryType = EHairGeometryType::NoneGeometry;
 		HairGroupInstance->BindingType = EHairBindingType::NoneBinding;
+
+		HairGroupInstance->Debug.SkinningCurrentLocalToWorld	= RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
+		HairGroupInstance->Debug.SkinningPreviousLocalToWorld	= HairGroupInstance->Debug.SkinningCurrentLocalToWorld;
+		HairGroupInstance->Debug.RigidCurrentLocalToWorld		= GetComponentTransform();
+		HairGroupInstance->Debug.RigidPreviousLocalToWorld		= HairGroupInstance->Debug.RigidCurrentLocalToWorld;
+		HairGroupInstance->LocalToWorld							= HairGroupInstance->GetCurrentLocalToWorld();
 
 		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
 
@@ -3285,12 +3265,10 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		EffectiveForceLOD = LODForcedIndex;
 	}
 
-	const FTransform SkinningLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
-	const FTransform RigidLocalToWorld = GetComponentTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	const EHairLODSelectionType LocalLODSelectionType = LODSelectionType;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, SkinningLocalToWorld, RigidLocalToWorld, FeatureLevel, LocalHairGroupInstances, EffectiveForceLOD, LocalLODSelectionType](FRHICommandListImmediate& RHICmdList)
+		[Id, FeatureLevel, LocalHairGroupInstances, EffectiveForceLOD, LocalLODSelectionType](FRHICommandListImmediate& RHICmdList)
 	{
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
@@ -3299,16 +3277,6 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		{
 			Instance->Debug.LODForcedIndex = EffectiveForceLOD;
 			Instance->Debug.LODSelectionTypeForDebug = LocalLODSelectionType;
-
-			Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
-			Instance->Debug.SkinningCurrentLocalToWorld = SkinningLocalToWorld;
-
-			if (!GUseProxyLocalToWorld)
-			{
-				Instance->Debug.RigidPreviousLocalToWorld = Instance->Debug.RigidCurrentLocalToWorld;
-				Instance->Debug.RigidCurrentLocalToWorld = RigidLocalToWorld;
-			}
-
 			if (LocalLODSelectionType == EHairLODSelectionType::Predicted && EffectiveForceLOD >= 0)
 			{
 				AddHairStreamingRequest(Instance, EffectiveForceLOD);

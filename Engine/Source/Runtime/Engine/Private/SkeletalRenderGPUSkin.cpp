@@ -1279,6 +1279,23 @@ FSkinWeightVertexBuffer* FSkeletalMeshObjectGPUSkin::GetSkinWeightVertexBuffer(i
 	return LODs[LODIndex].MeshObjectWeightBuffer;
 }
 
+FMatrix FSkeletalMeshObjectGPUSkin::GetTransform() const
+{
+	if (DynamicData)
+	{
+		return DynamicData->LocalToWorld;
+	}
+	return FMatrix();
+}
+
+void FSkeletalMeshObjectGPUSkin::SetTransform(const FMatrix& InNewLocalToWorld, uint32 FrameNumber)
+{
+	if (DynamicData)
+	{
+		DynamicData->LocalToWorld = InNewLocalToWorld;
+	}
+}
+
 void FSkeletalMeshObjectGPUSkin::RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber)
 {
 	if(DynamicData && DynamicData->ClothingSimData.Num() > 0)
@@ -1922,6 +1939,7 @@ void FDynamicSkelMeshObjectDataGPUSkin::Clear()
 #if RHI_RAYTRACING
 	bAnySegmentUsesWorldPositionOffset = false;
 #endif
+	LocalToWorld = FMatrix::Identity;
 }
 
 #define SKELETON_POOL_GPUSKINS 1
@@ -2098,6 +2116,10 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 			ActiveMorphTargets.RemoveAt(MorphIdx, 1, false);
 		}
 	}
+
+	// Update local to world transform
+	LocalToWorld = InMeshComponent ? InMeshComponent->GetComponentTransform().ToMatrixWithScale() : FMatrix::Identity;
+
 	// Update the clothing simulation mesh positions and normals
 	UpdateClothSimulationData(InMeshComponent);
 
