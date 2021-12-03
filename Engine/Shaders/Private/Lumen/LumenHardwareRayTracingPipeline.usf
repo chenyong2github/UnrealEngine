@@ -59,7 +59,7 @@ void FLumenHWRTCompactRaysCS(
 #else // COMPACT_MODE_APPEND_RAYS
 	bool bIsRayValid = true;
 #endif // DIM_COMPACT_MODE
-	if (bIsRayValid)
+	if (bIsRayValid && (RayIndex < RayAllocator[0]))
 	{
 		// Allocate rays to re-trace with hit lighting
 		uint ThreadOffset;
