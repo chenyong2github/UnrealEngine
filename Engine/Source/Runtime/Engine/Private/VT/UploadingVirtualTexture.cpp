@@ -82,9 +82,6 @@ FUploadingVirtualTexture::~FUploadingVirtualTexture()
 	DEC_DWORD_STAT_BY(STAT_TotalDiskSize, Data->GetDiskMemoryFootprint() / (1024 * 1024));
 	DEC_DWORD_STAT_BY(STAT_NumTileHeaders, Data->GetNumTileHeaders());
 
-	// Complete all open transcode requests before deleting IFileCacheHandle objects
-	StreamingManager->WaitTasksFinished();
-
 	for (TUniquePtr<FVirtualTextureCodec>& Codec : CodecPerChunk)
 	{
 		if (Codec)
@@ -143,6 +140,11 @@ IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandL
 
 	const uint32 SkipBorderSize = (Flags & EVTProducePageFlags::SkipPageBorders) != EVTProducePageFlags::None ? Data->TileBorderSize : 0;
 	return StreamingManager->ProduceTile(RHICmdList, SkipBorderSize, Data->GetNumLayers(), LayerMask, RequestHandle, TargetLayers);
+}
+
+void FUploadingVirtualTexture::GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const
+{
+	StreamingManager->GatherProducePageDataTasks(ProducerHandle, InOutTasks);
 }
 
 void FUploadingVirtualTexture::GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const

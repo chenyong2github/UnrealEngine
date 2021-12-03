@@ -298,8 +298,13 @@ public:
 		uint64 RequestHandle,
 		const FVTProduceTargetLayer* TargetLayers) = 0;
 
+	/** Collect all task graph events. */
+	virtual void GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const {}
+
+	/** Collect all task graph events related to a request. */
 	virtual void GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const {};
 
+	/** Dump any type specific debug info. */
 	virtual void DumpToConsole(bool verbose) {}
 };
 

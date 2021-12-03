@@ -84,6 +84,7 @@ public:
 		const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress,
 		uint64 RequestHandle,
 		const FVTProduceTargetLayer* TargetLayers) override;
+	virtual void GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const override;
 	virtual void GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const override;
 	virtual void DumpToConsole(bool verbose) override;
 	// End IVirtualTexture interface
