@@ -6,7 +6,6 @@
 
 #include "D3D12RHIPrivate.h"
 #include "D3D12RHIBridge.h"
-#include "TextureProfiler.h"
 
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;
@@ -331,23 +330,8 @@ TStatId FD3D12TextureStats::GetD3D12StatEnum(D3D12_RESOURCE_FLAGS MiscFlags)
 // Note: This function can be called from many different threads
 // @param TextureSize >0 to allocate, <0 to deallocate
 // @param b3D true:3D, false:2D or cube map
-template<typename TD3D12Texture>
-void FD3D12TextureStats::UpdateD3D12TextureStats(TD3D12Texture& Texture, const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable, bool bNewTexture)
+void FD3D12TextureStats::UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable)
 {
-
-#if TEXTURE_PROFILER_ENABLED
-
-	if (!bNewTexture && 
-		!Texture.ResourceLocation.IsTransient() 
-		&& !EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual)
-		&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eAliased
-		&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eHeapAliased)
-	{
-		uint64 SafeSize = (uint64)(TextureSize >= 0 ? TextureSize : 0);
-		FTextureProfiler::Get()->UpdateTextureAllocation(&Texture, SafeSize, Desc.Alignment, 0);
-	}
-#endif
-
 	if (TextureSize == 0)
 	{
 		return;
@@ -403,24 +387,12 @@ void FD3D12TextureStats::D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>
 
 			Texture.SetMemorySize(TextureSize);
 
-			UpdateD3D12TextureStats(Texture, *Desc, TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable(), true);
+			UpdateD3D12TextureStats(*Desc, TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable());
 		}
 		else
 		{
 			Texture.SetMemorySize(Texture.ResourceLocation.GetSize());
 		}
-
-#if TEXTURE_PROFILER_ENABLED
-		if (!EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual)
-			&& !Texture.ResourceLocation.IsTransient()
-			&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eAliased
-			&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eHeapAliased)
-		{
-			size_t Size = Texture.GetMemorySize();
-			uint32 Alignment = Desc->Alignment;
-			FTextureProfiler::Get()->AddTextureAllocation(&Texture, Size, Alignment, 0);
-		}
-#endif
 	}
 }
 
@@ -438,17 +410,7 @@ void FD3D12TextureStats::D3D12TextureDeleted(TD3D12Texture2D<BaseResourceType>& 
 			const int64 TextureSize = Texture.GetMemorySize();
 			ensure(TextureSize > 0 || EnumHasAnyFlags(Texture.Flags, TexCreate_Virtual) || Texture.GetAliasingSourceTexture() != nullptr);
 
-			UpdateD3D12TextureStats(Texture, Desc, -TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable(), false);
-
-#if TEXTURE_PROFILER_ENABLED
-			if (!EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual)
-				&& !Texture.ResourceLocation.IsTransient()
-				&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eAliased
-				&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eHeapAliased)
-			{
-				FTextureProfiler::Get()->RemoveTextureAllocation(&Texture);
-			}
-#endif
+			UpdateD3D12TextureStats(Desc, -TextureSize, false, Texture.IsCubemap(), Texture.IsStreamable());
 		}
 	}
 }
@@ -464,33 +426,21 @@ void FD3D12TextureStats::D3D12TextureAllocated(FD3D12Texture3D& Texture)
 
 	if (D3D12Texture3D)
 	{
-		const D3D12_RESOURCE_DESC& Desc = D3D12Texture3D->GetDesc();
 		// Don't update state for virtual or transient textures	
 		if (!EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual) && !Texture.ResourceLocation.IsTransient())
 		{
+			const D3D12_RESOURCE_DESC& Desc = D3D12Texture3D->GetDesc();
 			const D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo = Texture.GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 			const int64 TextureSize = AllocationInfo.SizeInBytes;
 
 			Texture.SetMemorySize(TextureSize);
 
-			UpdateD3D12TextureStats(Texture, Desc, TextureSize, true, false, Texture.IsStreamable(), true);
+			UpdateD3D12TextureStats(Desc, TextureSize, true, false, Texture.IsStreamable());
 		}
 		else
 		{
 			Texture.SetMemorySize(Texture.ResourceLocation.GetSize());
 		}
-
-#if TEXTURE_PROFILER_ENABLED
-		if (!EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual)
-			&& !Texture.ResourceLocation.IsTransient()
-			&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eAliased
-			&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eHeapAliased)
-		{
-			size_t Size = Texture.GetMemorySize();
-			uint32 Alignment = Desc.Alignment;
-			FTextureProfiler::Get()->AddTextureAllocation(&Texture, Size, Alignment, 0);
-		}
-#endif
 	}
 }
 
@@ -507,18 +457,8 @@ void FD3D12TextureStats::D3D12TextureDeleted(FD3D12Texture3D& Texture)
 			const int64 TextureSize = Texture.GetMemorySize();
 			if (TextureSize > 0)
 			{
-				UpdateD3D12TextureStats(Texture, Desc, -TextureSize, true, false, Texture.IsStreamable(), false);
+				UpdateD3D12TextureStats(Desc, -TextureSize, true, false, Texture.IsStreamable());
 			}
-
-#if TEXTURE_PROFILER_ENABLED
-			if (!EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual)
-				&& !Texture.ResourceLocation.IsTransient()
-				&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eAliased
-				&& Texture.ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eHeapAliased)
-			{
-				FTextureProfiler::Get()->RemoveTextureAllocation(&Texture);
-			}
-#endif
 		}
 	}
 }
@@ -3010,20 +2950,6 @@ void FD3D12DynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHA
 
 	// Also set on RHI object
 	TextureRHI->SetName(Name);
-
-#if TEXTURE_PROFILER_ENABLED
-
-	FD3D12TextureBase* D3D12Texture = GetD3D12TextureFromRHITexture(TextureRHI);
-	
-	if (!EnumHasAnyFlags(TextureRHI->GetFlags(), TexCreate_Virtual)
-		&& !D3D12Texture->ResourceLocation.IsTransient()
-		&& D3D12Texture->ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eAliased
-		&& D3D12Texture->ResourceLocation.GetType() != FD3D12ResourceLocation::ResourceLocationType::eHeapAliased)
-	{
-		FTextureProfiler::Get()->UpdateTextureName(TextureRHI);
-	}
-	
-#endif
 }
 
 void FD3D12DynamicRHI::RHIVirtualTextureSetFirstMipInMemory(FRHITexture2D* TextureRHI, uint32 FirstMip)

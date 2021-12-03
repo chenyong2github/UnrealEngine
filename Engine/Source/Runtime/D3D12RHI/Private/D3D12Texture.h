@@ -612,8 +612,7 @@ public:
 	// @param TextureSize >0 to allocate, <0 to deallocate
 	// @param b3D true:3D, false:2D or cube map
 	// @param bStreamable true:Streamable, false:not streamable
-	template<typename TD3D12Texture>
-	static void UpdateD3D12TextureStats(TD3D12Texture& Texture, const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable, bool bNewTexture = false);
+	static void UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable);
 
 	template<typename BaseResourceType>
 	static void D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>& Texture, const D3D12_RESOURCE_DESC *Desc = nullptr);
