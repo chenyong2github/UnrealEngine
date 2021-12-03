@@ -1861,13 +1861,14 @@ void USkinnedMeshComponent::RemoveSlavePoseComponent(USkinnedMeshComponent* Skin
 void USkinnedMeshComponent::InvalidateCachedBounds()
 {
 	bCachedLocalBoundsUpToDate = false;
-
+	bCachedWorldSpaceBoundsUpToDate = false;
 	// Also invalidate all slave components.
 	for (const TWeakObjectPtr<USkinnedMeshComponent>& SkinnedMeshComp : SlavePoseComponents)
 	{
 		if (USkinnedMeshComponent* SkinnedMeshCompPtr = SkinnedMeshComp.Get())
 		{
 			SkinnedMeshCompPtr->bCachedLocalBoundsUpToDate = false;
+			SkinnedMeshCompPtr->bCachedWorldSpaceBoundsUpToDate = false;
 		}
 	}
 

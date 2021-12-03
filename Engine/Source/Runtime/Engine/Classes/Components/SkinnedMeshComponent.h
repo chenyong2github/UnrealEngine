@@ -599,6 +599,8 @@ protected:
 	/** true when CachedLocalBounds is up to date. */
 	UPROPERTY(Transient)
 	mutable uint8 bCachedLocalBoundsUpToDate:1;
+	UPROPERTY(Transient)
+	mutable uint8 bCachedWorldSpaceBoundsUpToDate:1;
 
 	/** Whether we have updated bone visibility this tick */
 	uint8 bBoneVisibilityDirty:1;
@@ -1206,8 +1208,15 @@ public:
 
 	FBoxSphereBounds GetCachedLocalBounds()  const
 	{ 
-		ensure(bCachedLocalBoundsUpToDate);
-		return CachedWorldSpaceBounds.TransformBy(CachedWorldToLocalTransform);
+		ensure(bCachedLocalBoundsUpToDate || bCachedWorldSpaceBoundsUpToDate);
+		if (bCachedWorldSpaceBoundsUpToDate)
+		{
+			return CachedWorldOrLocalSpaceBounds.TransformBy(CachedWorldToLocalTransform);
+		}
+		else
+		{
+			return CachedWorldOrLocalSpaceBounds;
+		}
 	} 
 
 	/**
@@ -1238,9 +1247,9 @@ protected:
 	virtual bool AllocateTransformData();
 	virtual void DeallocateTransformData();
 
-	/** Bounds cached, so they're computed just once. */
+	/** Bounds cached, so they're computed just once, either in local or worldspace depending on cvar 'a.CacheLocalSpaceBounds'. */
 	UPROPERTY(Transient)
-	mutable FBoxSphereBounds CachedWorldSpaceBounds;
+	mutable FBoxSphereBounds CachedWorldOrLocalSpaceBounds;
 	UPROPERTY(Transient)
 	mutable FMatrix CachedWorldToLocalTransform;
 
