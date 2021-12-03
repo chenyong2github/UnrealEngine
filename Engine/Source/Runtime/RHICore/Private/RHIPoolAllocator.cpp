@@ -594,7 +594,7 @@ void FRHIMemoryPool::Validate()
 		FRHIPoolAllocationData* FreeBlock = FreeBlocks[FreeBlockIndex];
 		check(!FreeBlock->GetPrev()->IsFree() || FreeBlock->GetPrev()->IsLocked());
 		check(!FreeBlock->GetNext()->IsFree() || FreeBlock->GetNext()->IsLocked());
-		check(FreeBlockIndex == (FreeBlocks.Num() - 1) || FreeBlock->GetSize() <= FreeBlocks[FreeBlockIndex + 1]->GetSize());
+		check(FreeListOrder != EFreeListOrder::SortBySize || FreeBlockIndex == (FreeBlocks.Num() - 1) || FreeBlock->GetSize() <= FreeBlocks[FreeBlockIndex + 1]->GetSize());
 		check(IsAligned(FreeBlock->GetOffset(), PoolAlignment));
 		TotalFreeSize += FreeBlock->GetSize();
 	}

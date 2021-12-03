@@ -431,7 +431,7 @@ void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLoc
 				break;
 			}
 		}
-
+		
 		// If still pending copy then clear the copy operation data
 		for (FD3D12VRAMCopyOperation& CopyOperation : PendingCopyOps)
 		{
@@ -662,9 +662,29 @@ void FD3D12PoolAllocator::TransferOwnership(FD3D12ResourceLocation& InSource, FD
 
 	check(IsOwner(InSource));
 
-	// Don't need to lock - ownership simply changed
-	bool bLocked = false;
+	FRHIPoolAllocationData& SourcePoolData = InSource.GetPoolAllocatorPrivateData().PoolData;
 	FRHIPoolAllocationData& DestinationPoolData = InDest.GetPoolAllocatorPrivateData().PoolData;
+
+	// If locked then assume the block is currently being defragged and then the frame fenced operation
+	// also needs to be updated
+	if (SourcePoolData.IsLocked())
+	{
+		bool bFound = false;
+		for (FrameFencedAllocationData& Operation : FrameFencedOperations)
+		{
+			if (Operation.AllocationData == &SourcePoolData)
+			{
+				check(Operation.Operation == FrameFencedAllocationData::EOperation::Unlock);
+				Operation.AllocationData = &DestinationPoolData;
+				bFound = true;
+				break;
+			}
+		}
+		check(bFound);
+	}
+
+	// Take over lock as well - can be defragging
+	bool bLocked = SourcePoolData.IsLocked();
 	DestinationPoolData.MoveFrom(InSource.GetPoolAllocatorPrivateData().PoolData, bLocked);
 	DestinationPoolData.SetOwner(&InDest);
 }
