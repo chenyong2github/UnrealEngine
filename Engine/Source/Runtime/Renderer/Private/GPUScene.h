@@ -334,8 +334,13 @@ public:
 private:
 	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
 
-	TBitArray<>				InstanceSceneDataToClear;
-	TSet<uint32>			InstanceSceneDataClearList;
+	struct FInstanceRange
+	{
+		uint32 InstanceSceneDataOffset;
+		uint32 NumInstanceSceneDataEntries;
+	};
+
+	TArray<FInstanceRange> InstanceRangesToClear;
 
 	TRange<int32> CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector);
 
@@ -372,6 +377,8 @@ private:
 	void UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene);
 
 	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& IdOnlyUpdateItems);
+
+	void AddClearInstancesPass(FRDGBuilder& GraphBuilder);
 };
 
 class FGPUSceneScopeBeginEndHelper
