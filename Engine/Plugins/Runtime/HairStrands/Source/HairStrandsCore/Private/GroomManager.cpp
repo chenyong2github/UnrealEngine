@@ -363,6 +363,7 @@ static void RunInternalHairStrandsInterpolation(
 	// Hair interpolation
 	if (EHairStrandsInterpolationType::RenderStrands == Type)
 	{
+		const bool bCameraCut = View->bCameraCut;
 		for (FHairStrandsInstance* AbstractInstance : Instances)
 		{
 			FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
@@ -374,6 +375,7 @@ static void RunInternalHairStrandsInterpolation(
 				GraphBuilder, 
 				ShaderMap,
 				ViewUniqueID,
+				bCameraCut,
 				ViewRayTracingMask,
 				ShaderDrawData, 
 				ShaderPrintData,
@@ -735,6 +737,7 @@ static void RunHairLODSelection(
 		const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
 		float LODIndex = Instance->Debug.LODForcedIndex >= 0 ? FMath::Max(Instance->Debug.LODForcedIndex, MinLOD) : -1.0f;
 		float LODViewIndex = -1;
+		bool bCameraCut = false;
 		{
 			const FSphere SphereBound = Instance->ProxyBounds ? Instance->ProxyBounds->GetSphere() : FSphere(0);
 			for (const FSceneView* View : Views)
@@ -745,6 +748,8 @@ static void RunHairLODSelection(
 
 				// Select highest LOD accross all views
 				LODViewIndex = LODViewIndex < 0 ? CurrLODViewIndex : FMath::Min(LODViewIndex, CurrLODViewIndex);
+
+				bCameraCut = bCameraCut || View->bCameraCut;
 			}
 
 			if (LODIndex < 0)
@@ -947,6 +952,11 @@ static void RunHairLODSelection(
 		{
 			Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
 			Instance->Debug.SkinningCurrentLocalToWorld = CachedGeometry.LocalToWorld;
+
+			if (bCameraCut)
+			{
+				Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
+			}
 		}
 		Instance->LocalToWorld = Instance->GetCurrentLocalToWorld();
 	}
