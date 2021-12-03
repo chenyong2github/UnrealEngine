@@ -449,7 +449,7 @@ public:
 	}
 
 	void ForceEvictEntireCache();
-	bool EvictOldestAllocation(bool bForceEvict, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
+	bool EvictOldestAllocation(uint32 MaxFramesSinceLastUsed, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
 
 	uint32 GetSurfaceCacheUpdateFrameIndex() const;
 	void IncrementSurfaceCacheUpdateFrameIndex();

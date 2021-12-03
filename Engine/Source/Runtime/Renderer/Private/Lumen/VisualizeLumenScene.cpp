@@ -723,6 +723,19 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 	}
 
 	RenderLumenRadianceCacheVisualization(GraphBuilder, SceneTextures);
+
+	if (GLumenSceneDumpStats)
+	{
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
+
+		LumenSceneData.DumpStats(
+			DistanceFieldSceneData,
+			/*bDumpMeshDistanceFields*/ GLumenSceneDumpStats == 2,
+			/*bDumpPrimitiveGroups*/ GLumenSceneDumpStats == 3);
+
+		GLumenSceneDumpStats = 0;
+	}
 }
 
 void AddBoxFaceTriangles(FDynamicMeshBuilder& MeshBuilder, int32 FaceIndex)
@@ -1045,17 +1058,6 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-
-	if (GLumenSceneDumpStats)
-	{
-		LumenSceneData.DumpStats(
-			DistanceFieldSceneData,
-			/*bDumpMeshDistanceFields*/ GLumenSceneDumpStats == 2,
-			/*bDumpPrimitiveGroups*/ GLumenSceneDumpStats == 3);
-
-		GLumenSceneDumpStats = 0;
-	}
 
 	const bool bAnyLumenEnabled = ShouldRenderLumenDiffuseGI(Scene, Views[0])
 		|| ShouldRenderLumenReflections(Views[0]);
