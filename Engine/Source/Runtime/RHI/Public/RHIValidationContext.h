@@ -207,6 +207,27 @@ public:
 
 	virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) override final;
 
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params) override final
+	{
+		// #yuriy_todo: explicit transitions and state validation for BLAS
+		RHIContext->RHIBuildAccelerationStructures(Params);
+	}
+
+	virtual void RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams) override final
+	{
+		// #yuriy_todo: validate all referenced BLAS states
+		if (SceneBuildParams.Scene)
+		{
+			Tracker->Assert(SceneBuildParams.Scene->GetWholeResourceIdentity(), ERHIAccess::BVHWrite);
+		}
+		RHIContext->RHIBuildAccelerationStructure(SceneBuildParams);
+	}
+
+	virtual void RHIBindAccelerationStructureMemory(FRHIRayTracingScene* Scene, FRHIBuffer* Buffer, uint32 BufferOffset) override final
+	{
+		RHIContext->RHIBindAccelerationStructureMemory(Scene, Buffer, BufferOffset);
+	}
+
 	inline void LinkToContext(IRHIComputeContext* PlatformContext)
 	{
 		RHIContext = PlatformContext;
