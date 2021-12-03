@@ -78,6 +78,9 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 
 	/** Bounding box offsets */
 	FIntVector4 BoundingBoxOffsets;
+
+	/** Valid geometry type for hair (strands, cards, mesh)*/
+	bool bValidGeometryType = false;
 };
 
 /** Data stored per strand base instance*/
