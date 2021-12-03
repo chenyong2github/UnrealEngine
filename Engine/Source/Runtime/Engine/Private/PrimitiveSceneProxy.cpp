@@ -19,6 +19,7 @@
 #include "FoliageHelper.h"
 #include "ObjectCacheEventSink.h"
 #endif
+#include "PrimitiveInstanceUpdateCommand.h"
 
 static TAutoConsoleVariable<int32> CVarForceSingleSampleShadowingFromStationary(
 	TEXT("r.Shadow.ForceSingleSampleShadowingFromStationary"),
@@ -535,6 +536,57 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	
 	// Notify the proxy's implementation of the change.
 	OnTransformChanged();
+}
+
+bool FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds)
+{
+	SCOPED_NAMED_EVENT(FPrimitiveSceneProxy_UpdateInstances_RenderThread, FColor::Emerald);
+
+	check(IsInRenderingThread());
+
+	bool bInstanceCountChanged = false;
+	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
+	{
+		const uint32 NumInstances = CmdBuffer.NumUpdates + CmdBuffer.NumAdds;
+		bInstanceCountChanged = NumInstances != InstanceSceneData.Num();
+
+		InstanceSceneData.SetNum(NumInstances);
+		InstanceLocalBounds.SetNumUninitialized(1);
+		InstanceLocalBounds[0] = InStaticMeshBounds;
+		InstanceDynamicData.SetNumUninitialized(NumInstances);
+		InstanceRandomID.SetNumZeroed(NumInstances);
+		InstanceLightShadowUVBias.SetNumZeroed(NumInstances);
+		InstanceCustomData = CmdBuffer.CustomDataFloatsBulk;
+
+		if (InstanceCustomData.Num())
+		{
+			int32 MyNumCustomDataFloats = InstanceCustomData.Num() / InstanceSceneData.Num();
+			check(InstanceSceneData.Num() * MyNumCustomDataFloats == InstanceCustomData.Num()); // Temp sanity check
+		}
+
+		bHasPerInstanceRandom = InstanceRandomID.Num() > 0;
+		bHasPerInstanceCustomData = InstanceCustomData.Num() > 0;
+		bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
+		bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0;
+
+		int32 i = 0;
+		for (const auto& Cmd : CmdBuffer.Cmds)
+		{
+			if (Cmd.Type == FInstanceUpdateCmdBuffer::Add || Cmd.Type == FInstanceUpdateCmdBuffer::Update)
+			{
+				FPrimitiveInstance& SceneData = InstanceSceneData[i];
+				SceneData.LocalToPrimitive = Cmd.XForm;
+
+				FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[i];
+				DynamicData.PrevLocalToPrimitive = Cmd.PreviousXForm;
+
+				i++;
+			}
+		}
+		ensure(NumInstances == i);
+	}
+
+	return bInstanceCountChanged;
 }
 
 bool FPrimitiveSceneProxy::WouldSetTransformBeRedundant_AnyThread(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FVector& InActorPosition) const

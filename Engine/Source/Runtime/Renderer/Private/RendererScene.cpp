@@ -1470,6 +1470,50 @@ void FScene::UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive,
 	}
 }
 
+void FScene::UpdatePrimitiveInstances(UPrimitiveComponent* Primitive)
+{
+	SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveInstanceGT);
+	SCOPED_NAMED_EVENT(FScene_UpdatePrimitiveInstance, FColor::Yellow);
+
+	if (Primitive->SceneProxy)
+	{
+		FUpdateInstanceCommand UpdateParams;
+		UpdateParams.PrimitiveSceneProxy = Primitive->SceneProxy;
+		UpdateParams.WorldBounds = Primitive->Bounds;
+		UpdateParams.LocalBounds = Primitive->GetLocalBounds();
+
+		// #todo (jnadro) This code should not be dependent on static mesh bounds.
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Primitive);
+		UpdateParams.StaticMeshBounds = StaticMeshComponent ? StaticMeshComponent->GetStaticMesh()->GetBounds() : FBoxSphereBounds();
+		UpdateParams.CmdBuffer = Primitive->InstanceUpdateCmdBuffer;	// Copy
+
+		ENQUEUE_RENDER_COMMAND(UpdateInstanceCommand)(
+			[this, UpdateParams = MoveTemp(UpdateParams)](FRHICommandListImmediate& RHICmdList)
+			{
+#if VALIDATE_PRIMITIVE_PACKED_INDEX
+				if (AddedPrimitiveSceneInfos.Contains(UpdateParams.PrimitiveSceneProxy->GetPrimitiveSceneInfo()))
+				{
+					check(UpdateParams.PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex == INDEX_NONE);
+				}
+				else
+				{
+					check(UpdateParams.PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex != INDEX_NONE);
+				}
+
+				check(!RemovedPrimitiveSceneInfos.Contains(UpdateParams.PrimitiveSceneProxy->GetPrimitiveSceneInfo()));
+#endif
+				FScopeCycleCounter Context(UpdateParams.PrimitiveSceneProxy->GetStatId());
+				UpdatedInstances.Add(UpdateParams.PrimitiveSceneProxy, UpdateParams);
+			}
+		);
+	}
+ 	else
+ 	{
+ 		// If the primitive doesn't have a scene info object yet, it must be added from scratch.
+ 		AddPrimitive(Primitive);
+ 	}
+}
+
 void FScene::UpdatePrimitiveSelectedState_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bIsSelected)
 {
 	check(IsInRenderingThread());
@@ -4639,6 +4683,74 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		}
 	}
 
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdatePrimitiveInstances);
+		SCOPED_NAMED_EVENT(FScene_UpdatePrimitiveInstances, FColor::Emerald);
+		SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveInstanceRenderThreadTime);
+
+		TArray<FPrimitiveSceneInfo*> UpdatedInstancesLocalPrimitiveSceneInfos;
+
+		TArray<FPrimitiveSceneProxy*> SameSceneInfos;
+
+		for (const auto& UpdateInstance : UpdatedInstances)
+		{
+			FPrimitiveSceneProxy* PrimitiveSceneProxy = UpdateInstance.Key;
+			if (DeletedSceneInfos.Contains(PrimitiveSceneProxy->GetPrimitiveSceneInfo()))
+			{
+				continue;
+			}
+
+			check(!SameSceneInfos.Contains(PrimitiveSceneProxy));
+			SameSceneInfos.Add(PrimitiveSceneProxy);
+
+			check(PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex != INDEX_NONE);
+
+			FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+
+			// Update the Proxy's data.
+			PrimitiveSceneProxy->UpdateInstances_RenderThread(UpdateInstance.Value.CmdBuffer, UpdateInstance.Value.WorldBounds, UpdateInstance.Value.LocalBounds, UpdateInstance.Value.StaticMeshBounds);
+
+			if (!RHISupportsVolumeTextures(GetFeatureLevel())
+				&& (PrimitiveSceneProxy->IsMovable() || PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting() || PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
+			{
+				PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
+			}
+
+			UpdatedInstancesLocalPrimitiveSceneInfos.Add(PrimitiveSceneInfo);
+		}
+
+		if (UpdatedInstancesLocalPrimitiveSceneInfos.Num() > 0)
+		{
+			{
+				SCOPED_NAMED_EVENT(CacheDrawCommands, FColor::Emerald);
+
+				// Update all the static mesh draw lists...just so we can patch the instance count.
+				for (FPrimitiveSceneInfo* SceneInfo : UpdatedInstancesLocalPrimitiveSceneInfos)
+				{
+					SceneInfo->RemoveStaticMeshes();
+				}
+				FPrimitiveSceneInfo::AddStaticMeshes(GraphBuilder.RHICmdList, this, UpdatedInstancesLocalPrimitiveSceneInfos);
+			}
+
+			// Do system updates in the same order that Update Primitive Transform does.
+			// 1. GPU Scene
+			// 2. Distance Fields
+			// 3. Lumen
+			// 4. Ray Tracing (This gets updated in FPrimitiveSceneInfo::AddStaticMeshes above).
+
+			// GPU Scene
+			FPrimitiveSceneInfo::ReallocateGPUSceneInstances(this, TArrayView<FPrimitiveSceneInfo*>(&UpdatedInstancesLocalPrimitiveSceneInfos[0], UpdatedInstancesLocalPrimitiveSceneInfos.Num()));
+
+			// Distance Fields
+			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : UpdatedInstancesLocalPrimitiveSceneInfos)
+			{
+				// This clobbers any existing instance data and pulls new data from the proxy.
+				DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
+			}
+		}
+	}
+
 	for (const auto& Attachments : UpdatedAttachmentRoots)
 	{
 		FPrimitiveSceneInfo* PrimitiveSceneInfo = Attachments.Key;
@@ -4725,6 +4837,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 	UpdatedAttachmentRoots.Reset();
 	UpdatedTransforms.Reset();
+	UpdatedInstances.Reset();
 	UpdatedCustomPrimitiveParams.Reset();
 	OverridenPreviousTransforms.Reset();
 	UpdatedOcclusionBoundsSlacks.Reset();
@@ -4790,6 +4903,7 @@ public:
 
 	/** Updates the transform of a primitive which has already been added to the scene. */
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override {}
+	virtual void UpdatePrimitiveInstances(UPrimitiveComponent* Primitive) override {}
 	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) override {}
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override {}
 	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override {}

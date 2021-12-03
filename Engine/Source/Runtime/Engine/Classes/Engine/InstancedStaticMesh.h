@@ -445,6 +445,7 @@ public:
 
 	FInstancedStaticMeshRenderData(UInstancedStaticMeshComponent* InComponent, ERHIFeatureLevel::Type InFeatureLevel)
 	  : Component(InComponent)
+	  , LightMapCoordinateIndex(Component->GetStaticMesh()->GetLightMapCoordinateIndex())
 	  , PerInstanceRenderData(InComponent->PerInstanceRenderData)
 	  , LODModels(Component->GetStaticMesh()->GetRenderData()->LODResources)
 	  , FeatureLevel(InFeatureLevel)
@@ -475,6 +476,9 @@ public:
 	/** Source component */
 	UInstancedStaticMeshComponent* Component;
 
+	/** Cache off some component data. */
+	int32 LightMapCoordinateIndex;
+
 	/** Per instance render data, could be shared with component */
 	TSharedPtr<FPerInstanceRenderData, ESPMode::ThreadSafe> PerInstanceRenderData;
 
@@ -486,6 +490,8 @@ public:
 
 	/** Feature level used when creating instance data */
 	ERHIFeatureLevel::Type FeatureLevel;
+
+	void BindBuffersToVertexFactories();
 
 private:
 	void InitVertexFactories();
@@ -548,6 +554,8 @@ public:
 	virtual void DestroyRenderThreadResources() override;
 
 	virtual void OnTransformChanged() override;
+
+	virtual bool UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds) override;
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{

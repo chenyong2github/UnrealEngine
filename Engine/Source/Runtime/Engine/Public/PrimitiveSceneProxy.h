@@ -28,6 +28,7 @@ class UTexture2D;
 enum class ERuntimeVirtualTextureMaterialType : uint8;
 struct FMeshBatch;
 class FColorVertexBuffer;
+struct FInstanceUpdateCmdBuffer;
 
 namespace Nanite
 {
@@ -1349,6 +1350,16 @@ private:
 	void SetHiddenEdViews_RenderThread( uint64 InHiddenEditorViews );
 
 protected:
+	/**
+	 * Updates the primitive proxy's cached transforms for all instances given a buffer of instance updates.
+	 * @param CmdBuffer - A record of all the add, update and remove instances for the proxy to apply to its internal data.
+	 * @param InBounds - Primitive world space bounds.
+	 * @param InLocalBounds - Primitive local space bounds.
+	 * @param InStaticMeshBounds - Bounds of the primitive mesh instance.
+	 * @returns True if instance count has changed since last time.
+	 */
+	ENGINE_API virtual bool UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds);
+
 	/** Updates selection for the primitive proxy. This is called in the rendering thread by SetSelection_GameThread. */
 	void SetSelection_RenderThread(const bool bInParentSelected, const bool bInIndividuallySelected);
 

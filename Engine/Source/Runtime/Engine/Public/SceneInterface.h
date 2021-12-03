@@ -84,6 +84,14 @@ public:
 	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) = 0;
 	/** Updates primitive attachment state. */
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) = 0;
+
+	/**
+	 * Updates all the instances that have been updated through the InstanceUpdateCmdBuffer on the UPrimitiveComponent.
+	 *
+	 * @param Primitive - primitive component to update
+	 */
+	virtual void UpdatePrimitiveInstances(UPrimitiveComponent* Primitive) = 0;
+
 	/** 
 	 * Updates the custom primitive data of a primitive component which has already been added to the scene. 
 	 * 

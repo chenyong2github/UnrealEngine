@@ -11,6 +11,7 @@
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/StaticMeshComponent.h"
 #include "Elements/SMInstance/SMInstanceManager.h"
+#include "PrimitiveInstanceUpdateCommand.h"
 #include "InstancedStaticMeshComponent.generated.h"
 
 class FLightingBuildOptions;
@@ -28,56 +29,6 @@ class FStaticLightingTextureMapping_InstancedStaticMesh;
 class FInstancedLightMap2D;
 class FInstancedShadowMap2D;
 class FStaticMeshInstanceData;
-
-struct FInstanceUpdateCmdBuffer
-{
-	enum EUpdateCommandType
-	{
-		Add,
-		Update,
-		Hide,
-		EditorData,
-		LightmapData,
-		CustomData,
-	};
-	
-	struct FInstanceUpdateCommand
-	{
-		int32 InstanceIndex;
-		EUpdateCommandType Type;
-		FMatrix XForm;
-		
-		FColor HitProxyColor;
-		bool bSelected;
-
-		FVector2D LightmapUVBias;
-		FVector2D ShadowmapUVBias;
-
-		TArray<float> CustomDataFloats;
-	};
-	
-	FInstanceUpdateCmdBuffer();
-	
-	// Commands that can modify render data in place
-	void HideInstance(int32 RenderIndex);
-	void AddInstance(const FMatrix& InTransform);
-	void UpdateInstance(int32 RenderIndex, const FMatrix& InTransform);
-	void SetEditorData(int32 RenderIndex, const FColor& Color, bool bSelected);
-	void SetLightMapData(int32 RenderIndex, const FVector2D& LightmapUVBias);
-	void SetShadowMapData(int32 RenderIndex, const FVector2D& ShadowmapUVBias);
-	void SetCustomData(int32 RenderIndex, const TArray<float>& CustomDataFloats);
-	void ResetInlineCommands();
-	int32 NumInlineCommands() const { return Cmds.Num(); }
-
-	// Command that can't be in-lined and should cause full buffer rebuild
-	void Edit();
-	void Reset();
-	int32 NumTotalCommands() const { return NumEdits; };
-	
-	TArray<FInstanceUpdateCommand> Cmds;
-	int32 NumAdds;
-	int32 NumEdits;
-};
 
 USTRUCT()
 struct FInstancedStaticMeshInstanceData
@@ -268,6 +219,23 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	*/
 	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, const TArray<FTransform>& NewInstancesPrevTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
+	/**
+	* Lightweight interface to add, remove and update instances.
+	*
+	* @param AddInstanceTransforms				The transforms of the new instances to add.
+	* @param RemoveInstanceIds					The ids of the instances to remove.
+	* @param UpdateInstanceIds					The ids of the new instances to update.
+	* @param UpdateInstanceTransforms			The transforms of the new instances to update.
+	* @param UpdateInstancePreviousTransforms	The transforms of the new instances to update.
+	* @return									True on success
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
+	virtual bool UpdateInstances(
+		const TArray<int32>& UpdateInstanceIds, 
+		const TArray<FTransform>& UpdateInstanceTransforms, 
+		const TArray<FTransform>& UpdateInstancePreviousTransforms,
+		int32 NumCustomFloats,
+		const TArray<float>& CustomFloatData);
 
 	/**
 	* Update the transform for a number of instances.
@@ -327,9 +295,6 @@ public:
 	/** Render data will be initialized on PostLoad or on demand. Released on the rendering thread. */
 	TSharedPtr<FPerInstanceRenderData, ESPMode::ThreadSafe> PerInstanceRenderData;
 
-	/** Recorded modifications to per-instance data */
-	FInstanceUpdateCmdBuffer InstanceUpdateCmdBuffer;
-
 	/** 
 	 *  Buffers with per-instance data laid out for rendering. 
 	 *  Serialized for cooked content. Used to create PerInstanceRenderData. 
@@ -351,6 +316,7 @@ public:
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
 	virtual bool IsHLODRelevant() const override;
+	virtual void SendRenderTransform_Concurrent() override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface
@@ -414,7 +380,7 @@ public:
 
 	void GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const;
 
-	void FlushInstanceUpdateCommands();
+	void FlushInstanceUpdateCommands(bool bFlushInstanceUpdateCmdBuffer);
 
 private:
 
@@ -423,6 +389,12 @@ private:
 
 	/** Update instance body with a new transform */
 	void UpdateInstanceBodyTransform(int32 InstanceIndex, const FTransform& WorldSpaceInstanceTransform, bool bTeleport);
+
+	/** Used to cache a unique identifier for each instance.  These are provided 
+	*	by the interface UpdateInstances.  This is a map from unique id to index
+	*	into the PerInstanceSMData array.
+	*/
+	TMap<int32, int32> InstanceIdToInstanceIndexMap;
 
 protected:
 	/** Creates body instances for all instances owned by this component. */

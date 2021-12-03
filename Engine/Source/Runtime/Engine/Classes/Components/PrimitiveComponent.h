@@ -23,6 +23,7 @@
 #include "HitProxies.h"
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "HLOD/HLODBatchingPolicy.h"
+#include "PrimitiveInstanceUpdateCommand.h"
 #include "PrimitiveComponent.generated.h"
 
 class AController;
@@ -798,6 +799,11 @@ public:
 
 	/** Last time the component was submitted for rendering (called FScene::AddPrimitive). */
 	float LastSubmitTime;
+
+	// This is here because in void FScene::UpdatePrimitiveInstance(UPrimitiveComponent* Primitive) we want access
+	// to the instances updates through the primitive component in a generic way.
+	/** Recorded modifications to per-instance data */
+	FInstanceUpdateCmdBuffer InstanceUpdateCmdBuffer;
 
 private:
 	/**
