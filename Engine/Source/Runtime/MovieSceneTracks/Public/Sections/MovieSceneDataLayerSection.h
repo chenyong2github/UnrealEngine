@@ -33,6 +33,12 @@ public:
 	MOVIESCENETRACKS_API void SetPrerollState(EDataLayerRuntimeState InPrerollState);
 
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
+	MOVIESCENETRACKS_API bool GetFlushOnUnload() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
+	MOVIESCENETRACKS_API void SetFlushOnUnload(bool bFlushOnUnload);
+
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	const TArray<FActorDataLayer>& GetDataLayers() const { return DataLayers; }
 
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
@@ -55,4 +61,8 @@ private:
 	/** The desired state for the data layers on this section when the section is pre or post-rolling. */
 	UPROPERTY(EditAnywhere, Category=DataLayer)
 	EDataLayerRuntimeState PrerollState;
+
+	/** Determine if we need to flush level streaming when the data layers unloads. */
+	UPROPERTY(EditAnywhere, Category=DataLayer)
+	bool bFlushOnUnload;
 };
