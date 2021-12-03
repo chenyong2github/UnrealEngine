@@ -127,10 +127,10 @@ namespace LumenHWRTPipeline
 		MAX
 	};
 
-	// Struct definitions much match those in LumenHardwareRayTracingPipeline.usf
+	// Struct definitions much match those in LumenHardwareRayTracingPipelineCommon.ush
 	struct FTraceDataPacked
 	{
-		uint32 PackedData[2];
+		uint32 PackedData[4];
 	};
 
 } // namespace LumenHWRTPipeline

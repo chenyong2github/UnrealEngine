@@ -6,7 +6,11 @@
 #include "/Platform/Private/LumenHardwareRayTracingPlatformCommon.ush"
 #else
 
-#define TraceLumenRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload){\
+#define TraceLumenRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload, OutBookmark){\
+	TraceRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload);\
+}
+
+#define TraceLumenShadingRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, Bookmark, InOutPayload){\
 	TraceRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload);\
 }
 
