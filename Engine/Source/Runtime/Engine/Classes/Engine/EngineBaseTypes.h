@@ -907,6 +907,9 @@ enum EViewModeIndex
 	/** Visualize various aspects of Nanite */
 	VMI_VisualizeNanite = 29 UMETA(DisplayName = "Nanite Visualization"),
 
+	/** Compare the required texture resolution to the actual resolution. */
+	VMI_VirtualTexturePendingMips = 30 UMETA(DisplayName = "Virtual Texture Pending Mips"),
+
 	VMI_Max UMETA(Hidden),
 
 	// VMI_Unknown - The value assigned to VMI_Unknown must be the highest possible of any member of EViewModeIndex, or GetViewModeName might seg-fault

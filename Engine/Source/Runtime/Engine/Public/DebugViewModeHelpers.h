@@ -29,8 +29,9 @@ enum EDebugViewShaderMode
 	DVSM_PrimitiveDistanceAccuracy,	// Visualize the accuracy of the primitive distance computed for texture streaming.
 	DVSM_MeshUVDensityAccuracy,		// Visualize the accuracy of the mesh UV densities computed for texture streaming.
 	DVSM_MaterialTextureScaleAccuracy, // Visualize the accuracy of the material texture scales used for texture streaming.
-	DVSM_OutputMaterialTextureScales, // Outputs the material texture scales.
-	DVSM_RequiredTextureResolution, // Visualize the accuracy of the material texture scales used for texture streaming.
+	DVSM_OutputMaterialTextureScales,  // Outputs the material texture scales.
+	DVSM_RequiredTextureResolution, // Visualize the accuracy of the streamed texture resolution.
+	DVSM_VirtualTexturePendingMips,	// Visualize the pending virtual texture mips.
 	DVSM_RayTracingDebug,			// Visualize ray tracing debug modes.
 	DVSM_LODColoration,				// Visualize primitive LOD .
 	DVSM_MAX

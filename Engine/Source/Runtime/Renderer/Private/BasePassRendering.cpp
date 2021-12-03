@@ -735,6 +735,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	const bool bDoParallelBasePass = bEnableParallelBasePasses && !bDebugViewMode && !bRenderLightmapDensity; // DebugView and LightmapDensity are non-parallel substitutions inside BasePass
 	const bool bNeedsBeginRender = AllowDebugViewmodes() &&
 		(ViewFamily.EngineShowFlags.RequiredTextureResolution ||
+			ViewFamily.EngineShowFlags.VirtualTexturePendingMips ||
 			ViewFamily.EngineShowFlags.MaterialTextureScaleAccuracy ||
 			ViewFamily.EngineShowFlags.MeshUVDensityAccuracy ||
 			ViewFamily.EngineShowFlags.PrimitiveDistanceAccuracy ||

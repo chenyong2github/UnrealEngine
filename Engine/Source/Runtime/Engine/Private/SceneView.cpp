@@ -2791,6 +2791,10 @@ EDebugViewShaderMode FSceneViewFamily::ChooseDebugViewShaderMode() const
 	{
 		return DVSM_RequiredTextureResolution;
 	}
+	else if (EngineShowFlags.VirtualTexturePendingMips)
+	{
+		return DVSM_VirtualTexturePendingMips;
+	}
 	else if (EngineShowFlags.RayTracingDebug)
 	{
 		return DVSM_RayTracingDebug;

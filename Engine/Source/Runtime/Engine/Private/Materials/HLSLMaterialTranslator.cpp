@@ -6063,9 +6063,13 @@ int32 FHLSLMaterialTranslator::TextureSample(
 			FString SampleCodeAnalytic;
 
 			if (SamplerDebugSupported(TextureType, bVirtualTexture, bDecal))
+			{
 				SampleCodeAnalytic = FString::Printf(TEXT("Debug%s(%s, %s, %d, VTUniform_Unpack(Material.VTPackedUniform[%d]), %s)"), *TextureTypeName, *TextureName, *VTPageTableResult_Analytic, VTPageTableIndex, VirtualTextureIndex, *UV_Scale);
+			}
 			else
+			{
 				SampleCodeAnalytic = FString::Printf(TEXT("%s(%s, %s, %d, VTUniform_Unpack(Material.VTPackedUniform[%d]))"), *TextureTypeName, *TextureName, *VTPageTableResult_Analytic, VTPageTableIndex, VirtualTextureIndex);
+			}
 
 			SampleCodeAnalytic = ApplySamplerType(SampleCodeAnalytic, SamplerType);
 			SamplingCodeIndex = AddCodeChunkInnerDeriv(*SampleCodeFinite, *SampleCodeAnalytic, MCT_Float4, false, EDerivativeStatus::NotValid);
@@ -6074,20 +6078,12 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		{
 			SamplingCodeIndex = AddCodeChunk(MCT_Float4, *SampleCodeFinite, *TextureName, *VTPageTableResult_Finite, VTPageTableIndex, VirtualTextureIndex);
 		}
-		// TODO
-		/*
-		const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
-		if (bStoreAvailableVTLevel)
+	
+		const bool bStoreVTSampleInfo = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
+		if (bStoreVTSampleInfo)
 		{
-			check(VirtualTextureUniformExpressionIndex >= 0);
-			check(VirtualTextureIndex >= 0);
-
-			AddCodeChunk(MCT_Float, TEXT("StoreAvailableVTLevel(Parameters.TexCoordScalesParams, TextureVirtualGetSampledLevelSize(Material.VirtualTexturePageTable_%d, Material.VirtualTextureUniformData[%d], Parameters.SvPosition.xy, %s), %d)"),
-				VirtualTextureUniformExpressionIndex,
-				VirtualTextureIndex,
-				*UVs,
-				(int)TextureReferenceIndex);
-		}*/
+			AddCodeChunk(MCT_Float, TEXT("MaterialStoreVTSampleInfo(Parameters.TexCoordScalesParams, %s, %d, %d)"), *VTPageTableResult_Finite, VTPageTableIndex, TextureReferenceIndex);
+		}
 	}
 	else
 	{
@@ -6129,6 +6125,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 			FString SampleCodeAnalytic = SampleCodeFinite;
 			if (MipValueMode == TMVM_None || MipValueMode == TMVM_MipBias)
 			{
+				
 				if (SamplerDebugSupported(TextureType, bVirtualTexture, bDecal))
 					SampleCodeAnalytic = FString::Printf(TEXT("Debug%sGrad(%s,%s,%s,%s,%s,%s)"), *TextureTypeName, *TextureName, *SamplerStateCode, *UVs, *UV_Ddx, *UV_Ddy, *UV_Scale);
 				else
@@ -6163,9 +6160,9 @@ int32 FHLSLMaterialTranslator::TextureProperty(int32 TextureIndex, EMaterialExpo
 		TextureType != MCT_VolumeTexture &&
 		TextureType != MCT_Texture2DArray)
 	{
-		return Errorf(TEXT("Texture size only available for Texture2D, TextureVirtual, Texture2DArray, and VolumeTexture, not %s"),DescribeType(TextureType));
+		return Errorf(TEXT("Texture size only available for Texture2D, TextureVirtual, Texture2DArray, and VolumeTexture, not %s"), DescribeType(TextureType));
 	}
-		
+
 	FMaterialUniformExpressionTexture* TextureExpression = (*CurrentScopeChunks)[TextureIndex].UniformExpression->GetTextureUniformExpression();
 	if (!TextureExpression)
 	{

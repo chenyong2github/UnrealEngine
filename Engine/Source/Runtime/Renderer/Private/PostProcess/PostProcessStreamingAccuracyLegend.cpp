@@ -54,6 +54,10 @@ FScreenPassTexture AddStreamingAccuracyLegendPass(FRDGBuilder& GraphBuilder, con
 		{
 			DrawDesc(Canvas, OutputViewRect.Min.X + 115, OutputViewRect.Max.Y - 75, LOCTEXT("DescRequiredTextureResolution", "Shows the ratio between the currently streamed texture resolution and the resolution wanted by the GPU."));
 		}
+		else if (ViewFamily.GetDebugViewShaderMode() == DVSM_VirtualTexturePendingMips)
+		{
+			DrawDesc(Canvas, OutputViewRect.Min.X + 115, OutputViewRect.Max.Y - 75, LOCTEXT("DescVirtualTexturePendingMips", "Shows the number of pending virtual texture mips to reach the resolution wanted by the GPU."));
+		}
 		else if (ViewFamily.GetDebugViewShaderMode() == DVSM_MaterialTextureScaleAccuracy)
 		{
 			DrawDesc(Canvas, OutputViewRect.Min.X + 115, OutputViewRect.Max.Y - 75, LOCTEXT("DescMaterialTextureScaleAccuracy", "Shows under/over texture streaming caused by the material texture scales applied when sampling."));
@@ -71,11 +75,15 @@ FScreenPassTexture AddStreamingAccuracyLegendPass(FRDGBuilder& GraphBuilder, con
 		DrawBox(Canvas, OutputViewRect.Min.X + 115, OutputViewRect.Max.Y - 25, Colors[0], LOCTEXT("2XUnder", "2X+ Under"));
 		DrawBox(Canvas, OutputViewRect.Min.X + 215, OutputViewRect.Max.Y - 25, Colors[1], LOCTEXT("1XUnder", "1X Under"));
 		DrawBox(Canvas, OutputViewRect.Min.X + 315, OutputViewRect.Max.Y - 25, Colors[2], LOCTEXT("Good", "Good"));
-		DrawBox(Canvas, OutputViewRect.Min.X + 415, OutputViewRect.Max.Y - 25, Colors[3], LOCTEXT("1xOver", "1X Over"));
-		DrawBox(Canvas, OutputViewRect.Min.X + 515, OutputViewRect.Max.Y - 25, Colors[4], LOCTEXT("2XOver", "2X+ Over"));
 
-		const FLinearColor UndefColor(UndefinedStreamingAccuracyIntensity, UndefinedStreamingAccuracyIntensity, UndefinedStreamingAccuracyIntensity, 1.f);
-		DrawBox(Canvas, OutputViewRect.Min.X + 615, OutputViewRect.Max.Y - 25, UndefColor, LOCTEXT("Undefined", "Undefined"));
+		if (ViewFamily.GetDebugViewShaderMode() != DVSM_VirtualTexturePendingMips)
+		{
+			DrawBox(Canvas, OutputViewRect.Min.X + 415, OutputViewRect.Max.Y - 25, Colors[3], LOCTEXT("1xOver", "1X Over"));
+			DrawBox(Canvas, OutputViewRect.Min.X + 515, OutputViewRect.Max.Y - 25, Colors[4], LOCTEXT("2XOver", "2X+ Over"));
+
+			const FLinearColor UndefColor(UndefinedStreamingAccuracyIntensity, UndefinedStreamingAccuracyIntensity, UndefinedStreamingAccuracyIntensity, 1.f);
+			DrawBox(Canvas, OutputViewRect.Min.X + 615, OutputViewRect.Max.Y - 25, UndefColor, LOCTEXT("Undefined", "Undefined"));
+		}
 
 		if (ViewFamily.GetDebugViewShaderMode() == DVSM_MaterialTextureScaleAccuracy || ViewFamily.GetDebugViewShaderMode() == DVSM_MeshUVDensityAccuracy)
 		{
