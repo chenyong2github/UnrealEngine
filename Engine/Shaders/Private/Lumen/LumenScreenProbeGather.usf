@@ -98,7 +98,7 @@ void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, 
 		float3 ProbeHistoryScreenPosition = GetHistoryScreenPositionIncludingTAAJitter(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
 
 		ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeGBuffer.SceneDepth, ProbeGBuffer.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetTranslatedPrevWorldPosition(ProbeHistoryScreenPosition);
+		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
 	}
 
 	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = length(ProbeWorldVelocity);

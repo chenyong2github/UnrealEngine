@@ -260,7 +260,7 @@ void ReflectionCompactTracesCS(
 			const float Dither = InterleavedGradientNoise(ReflectionTracingCoord, View.StateFrameIndexMod8);
 			float DitheredRayTracingCullingRadius = lerp(DitheredStartDistance, RayTracingCullingRadius, Dither);
 
-			float2 RaySphereHit = RayIntersectSphere(RayOrigin, RayDirection, float4(View.WorldCameraOrigin, DitheredRayTracingCullingRadius));
+			float2 RaySphereHit = RayIntersectSphere(RayOrigin, RayDirection, float4(LWCHackToFloat(PrimaryView.WorldCameraOrigin), DitheredRayTracingCullingRadius));
 			bool bInsideCullingSphere = RaySphereHit.x < 0 && RaySphereHit.y > 0;
 			MaxTraceDistance = bInsideCullingSphere ? RaySphereHit.y : TraceHitDistance;
 #endif
