@@ -1136,29 +1136,17 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 										MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry];
 									}
 
-#if WITH_EDITOR
-									const uint32 HitProxyEntryCount = (NaniteMeshPass == ENaniteMeshPass::BasePass) ? TableEntryCount : NANITE_MAX_MATERIALS;
-									void* HitProxyTable = NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, HitProxyEntryCount);
-									if (NaniteMeshPass == ENaniteMeshPass::BasePass)
+								#if WITH_EDITOR
+									if (NaniteMeshPass == ENaniteMeshPass::BasePass && NaniteSceneProxy->GetHitProxyMode() == Nanite::FSceneProxyBase::EHitProxyMode::MaterialSection)
 									{
 										const TArray<uint32>& PassHitProxyIds = PrimitiveSceneInfo->NaniteHitProxyIds;
-
-										uint32* HitProxyEntry = static_cast<uint32*>(HitProxyTable);
+										uint32* HitProxyTable = static_cast<uint32*>(NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, TableEntryCount));
 										for (int32 Entry = 0; Entry < PassHitProxyIds.Num(); ++Entry)
 										{
-											HitProxyEntry[PassMaterials[Entry].MaterialIndex] = PassHitProxyIds[Entry];
+											HitProxyTable[PassMaterials[Entry].MaterialIndex] = PassHitProxyIds[Entry];
 										}
 									}
-									else
-									{
-										// Other passes don't use hit proxies. TODO: Shouldn't even need to do this.
-										uint64* DualHitProxyEntry = static_cast<uint64*>(HitProxyTable);
-										for (uint32 DualEntry = 0; DualEntry < NANITE_MAX_MATERIALS >> 1; ++DualEntry)
-										{
-											DualHitProxyEntry[DualEntry] = 0;
-										}
-									}
-#endif
+								#endif
 								}
 							}
 						}

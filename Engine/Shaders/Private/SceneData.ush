@@ -335,9 +335,21 @@ uint GetPrimitive_LightingChannelMask(FPrimitiveSceneData Primitive)
 struct FInstanceSceneEditorData
 {
 	float3 HitProxyId;
+	uint   HitProxyPacked;
 	bool bIsSelected;
 };
 #endif
+
+float3 UnpackHitProxyId(uint HitProxyPacked)
+{
+	// BGR (dword) -> RGA (float)
+	return float3
+	(
+		float((HitProxyPacked       ) & 0xFF),
+		float((HitProxyPacked >>  8u) & 0xFF),
+		float((HitProxyPacked >> 16u) & 0xFF)
+	) * (1.0f / 255.0f);
+}
 
 struct FInstanceSceneData
 {
@@ -668,11 +680,12 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		{
 			const uint PackedEditorData = asuint(LoadInstancePayloadDataElement(Offset_EditorData)).y;
 
-			InstanceData.EditorData.bIsSelected = (PackedEditorData >> 24u) != 0;
-			InstanceData.EditorData.HitProxyId = float3(float(PackedEditorData & 0xFF), float((PackedEditorData >> 8u) & 0xFF), float((PackedEditorData >> 16u) & 0xFF)) * (1.0f / 255.0f);
+			InstanceData.EditorData.bIsSelected    = (PackedEditorData >> 24u) != 0;
+			InstanceData.EditorData.HitProxyPacked =  PackedEditorData & 0x00FFFFFFu;
+			InstanceData.EditorData.HitProxyId = UnpackHitProxyId(InstanceData.EditorData.HitProxyPacked);
 		}
 #endif
-		// TODO: Permutation? Should be mutually exclusive for specific VFs (i.e. geometry collections), in theory
+
 		BRANCH
 		if (bHasLocalBounds)
 		{

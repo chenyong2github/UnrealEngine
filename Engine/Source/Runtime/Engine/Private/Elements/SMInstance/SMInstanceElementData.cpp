@@ -3,6 +3,7 @@
 #include "Elements/SMInstance/SMInstanceElementData.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "ComponentRecreateRenderStateContext.h"
 #include "HAL/IConsoleManager.h"
 
 UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(FSMInstanceElementData);
@@ -14,8 +15,12 @@ static int32 GEnableSMInstanceElements = 1;
 static FAutoConsoleVariableRef CVarEnableSMInstanceElements(
 	TEXT("TypedElements.EnableSMInstanceElements"),
 	GEnableSMInstanceElements,
-	TEXT("Is support for static mesh instance elements enabled?")
-	);
+	TEXT("Is support for static mesh instance elements enabled?"),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	})
+);
 
 bool SMInstanceElementsEnabled()
 {
