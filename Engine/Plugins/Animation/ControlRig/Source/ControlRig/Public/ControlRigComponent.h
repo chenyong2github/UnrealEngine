@@ -215,7 +215,9 @@ public:
 	//~ End UObject Interface
 	
 	//~ Begin UActorComponent Interface
+#if WITH_EDITOR
 	virtual void InitializeComponent() override;
+#endif
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
