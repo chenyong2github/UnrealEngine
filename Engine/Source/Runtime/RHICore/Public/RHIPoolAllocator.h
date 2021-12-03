@@ -254,6 +254,9 @@ protected:
 	// Actual pools managing each a linked list of allocations
 	TArray<FRHIMemoryPool*> Pools;
 
+	// Last defrag pool index - defrag is time slices to reduce CPU overhead
+	int32 LastDefragPoolIndex;
+
 	// Allocation order of the pools when performing new allocations
 	// Can' sort the pools directly because pool index is stored in the allocation info
 	TArray<uint32> PoolAllocationOrder;

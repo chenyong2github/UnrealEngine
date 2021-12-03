@@ -1338,7 +1338,7 @@ FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE
 	FRHIMemoryPool::EFreeListOrder FreeListOrder = FRHIMemoryPool::EFreeListOrder::SortBySize;
 
 	// Disable defrag if not Default memory
-	bool bDefragEnabled = (InitConfig.HeapType == D3D12_HEAP_TYPE_DEFAULT && AllocationStrategy == EResourceAllocationStrategy::kPlacedResource);
+	bool bDefragEnabled = (InitConfig.HeapType == D3D12_HEAP_TYPE_DEFAULT);
 
 #if D3D12_RHI_RAYTRACING
 	// Disable defrag on the RT Acceleration pool - #kenzo_todo
@@ -1496,6 +1496,12 @@ void FD3D12DefaultBufferAllocator::BeginFrame()
 			if (DefaultBufferPool)
 			{
 				DefaultBufferPool->Defrag(MaxCopySize, CopySize);
+
+				// break when we reach the max copy size
+				if (CopySize >= MaxCopySize)
+				{
+					break;
+				}
 			}
 		}
 	}
