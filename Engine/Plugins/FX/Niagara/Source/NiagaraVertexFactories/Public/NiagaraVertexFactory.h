@@ -107,12 +107,12 @@ public:
 
 	bool CheckAndUpdateLastFrame(const FSceneViewFamily& ViewFamily, const FSceneView *View = nullptr) const
 	{
-		if (LastFrameSetup != MAX_uint32 && (&ViewFamily == LastViewFamily) && (View == LastView) && ViewFamily.FrameNumber == LastFrameSetup && LastFrameRealTime == ViewFamily.Time.GetRealTimeSeconds())
+		if (LastFrameSetup != MAX_uint32 && (&ViewFamily == LastViewFamily) && (View == LastView) && ViewFamily.FrameNumber == LastFrameSetup && LastFrameRealTime == ViewFamily.CurrentRealTime)
 		{
 			return false;
 		}
 		LastFrameSetup = ViewFamily.FrameNumber;
-		LastFrameRealTime = ViewFamily.Time.GetRealTimeSeconds();
+		LastFrameRealTime = ViewFamily.CurrentRealTime;
 		LastViewFamily = &ViewFamily;
 		LastView = View;
 		return true;

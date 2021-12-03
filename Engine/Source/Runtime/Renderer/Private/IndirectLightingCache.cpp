@@ -583,7 +583,7 @@ void FIndirectLightingCache::FinalizeUpdateInternal_RenderThread(FScene* Scene, 
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_UpdateIndirectLightingCacheTransitions);
-			UpdateTransitionsOverTime(TransitionsOverTimeToUpdate, Renderer.ViewFamily.Time.GetDeltaWorldTimeSeconds());
+			UpdateTransitionsOverTime(TransitionsOverTimeToUpdate, Renderer.ViewFamily.DeltaWorldTime);
 		}
 
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < PrimitivesToUpdateStaticMeshes.Num(); ++PrimitiveIndex)

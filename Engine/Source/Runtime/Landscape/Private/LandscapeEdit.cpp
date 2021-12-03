@@ -7346,7 +7346,7 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	FTextureRenderTargetResource* RenderTargetResource = InRenderTarget->GameThread_GetRenderTargetResource();
 
 	// Create a canvas for the render target and clear it to black
-	FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), World->FeatureLevel);
+	FCanvas Canvas(RenderTargetResource, nullptr, 0, 0, 0, World->FeatureLevel);
 	Canvas.Clear(FLinearColor::Black);
 
 	// Find exported component's base offset

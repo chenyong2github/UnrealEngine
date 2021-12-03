@@ -28,15 +28,19 @@ struct FSlateRenderingParams
 {
 	FMatrix44f ViewProjectionMatrix;
 	FVector2D ViewOffset;
-	FGameTime Time;
+	float CurrentWorldTime;
+	float DeltaTimeSeconds;
+	float CurrentRealTime;
 	bool bAllowSwitchVerticalAxis;
 	bool bWireFrame;
 	bool bIsHDR;
 
-	FSlateRenderingParams(const FMatrix& InViewProjectionMatrix, FGameTime InTime)
+	FSlateRenderingParams(const FMatrix& InViewProjectionMatrix, float InCurrentWorldTime, float InDeltaTimeSeconds, float InCurrentRealTime)
 		: ViewProjectionMatrix(InViewProjectionMatrix)
 		, ViewOffset(0, 0)
-		, Time(InTime)
+		, CurrentWorldTime(InCurrentWorldTime)
+		, DeltaTimeSeconds(InDeltaTimeSeconds)
+		, CurrentRealTime(InCurrentRealTime)
 		, bAllowSwitchVerticalAxis(true)
 		, bWireFrame(false)
 		, bIsHDR(false)

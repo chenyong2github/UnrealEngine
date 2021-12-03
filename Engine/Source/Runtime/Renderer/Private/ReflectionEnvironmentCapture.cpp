@@ -1384,7 +1384,7 @@ void CaptureSceneIntoScratchCubemap(
 
 		if( bStaticSceneOnly )
 		{
-			ViewFamilyInit.SetTime(FGameTime());
+			ViewFamilyInit.SetWorldTimes( 0.0f, 0.0f, 0.0f );
 		}
 
 		FSceneViewFamilyContext ViewFamily( ViewFamilyInit );

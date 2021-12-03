@@ -624,7 +624,7 @@ bool FMeshRenderer::RenderMaterial(struct FMaterialMergeData& InMaterialData, FM
 
 	{
 		// Create a canvas for the render target and clear it to black
-		FCanvas Canvas(RTResource, NULL, FGameTime::GetTimeSinceAppStart(), GMaxRHIFeatureLevel);
+		FCanvas Canvas(RTResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, GMaxRHIFeatureLevel);
 
 #if 0	// original FFlattenMaterial code - kept here for comparison
 
@@ -644,12 +644,16 @@ bool FMeshRenderer::RenderMaterial(struct FMaterialMergeData& InMaterialData, FM
 #else
 
 		// create ViewFamily
+		float CurrentRealTime = 0.f;
+		float CurrentWorldTime = 0.f;
+		float DeltaWorldTime = 0.f;
+
 		const FRenderTarget* CanvasRenderTarget = Canvas.GetRenderTarget();
 		FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(
 			CanvasRenderTarget,
 			NULL,
 			FEngineShowFlags(ESFIM_Game))
-			.SetTime(FGameTime())
+			.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
 			.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
 		
 #if !SHOW_WIREFRAME_MESH
@@ -755,10 +759,14 @@ bool FMeshRenderer::RenderMaterialTexCoordScales(struct FMaterialMergeData& InMa
 {
 	check(IsInGameThread());
 	check(InRenderTarget);
+	// create ViewFamily
+	float CurrentRealTime = 0.f;
+	float CurrentWorldTime = 0.f;
+	float DeltaWorldTime = 0.f;
 
 	// Create a canvas for the render target and clear it to black
 	FTextureRenderTargetResource* RTResource = InRenderTarget->GameThread_GetRenderTargetResource();
-	FCanvas Canvas(RTResource, NULL, FGameTime::GetTimeSinceAppStart(), GMaxRHIFeatureLevel);
+	FCanvas Canvas(RTResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, GMaxRHIFeatureLevel);
 	const FRenderTarget* CanvasRenderTarget = Canvas.GetRenderTarget();
 	Canvas.Clear(FLinearColor::Black);
 
@@ -768,7 +776,7 @@ bool FMeshRenderer::RenderMaterialTexCoordScales(struct FMaterialMergeData& InMa
 	ShowFlags.OutputMaterialTextureScales = true; // This will bind the DVSM_OutputMaterialTextureScales
 
 	FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(CanvasRenderTarget, nullptr, ShowFlags)
-		.SetTime(FGameTime())
+		.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
 		.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
 
 	// The next line ensures a constant view vector of (0,0,1) for all pixels. Required because here SVPositionToTranslatedWorld is identity, making excessive view angle increase per pixel.

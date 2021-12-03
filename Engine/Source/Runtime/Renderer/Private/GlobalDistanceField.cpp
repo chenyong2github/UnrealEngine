@@ -547,7 +547,7 @@ void UpdateGlobalDistanceFieldViewOrigin(const FViewInfo& View, bool bLumenEnabl
 			FVector& CameraVelocityOffset = View.ViewState->GlobalDistanceFieldCameraVelocityOffset;
 			const FVector CameraVelocity = View.ViewMatrices.GetViewOrigin() - View.PrevViewInfo.ViewMatrices.GetViewOrigin();
 			// Framerate independent decay
-			CameraVelocityOffset = CameraVelocityOffset * FMath::Pow(GAOGlobalDistanceFieldCameraPositionVelocityOffsetDecay, View.Family->Time.GetDeltaWorldTimeSeconds()) + CameraVelocity;
+			CameraVelocityOffset = CameraVelocityOffset * FMath::Pow(GAOGlobalDistanceFieldCameraPositionVelocityOffsetDecay, View.Family->DeltaWorldTime) + CameraVelocity;
 
 			const FScene* Scene = (const FScene*)View.Family->Scene;
 			const int32 NumClipmaps = GetNumGlobalDistanceFieldClipmaps();

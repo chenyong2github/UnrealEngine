@@ -84,7 +84,5 @@ public:
 protected:
 	/** Renders the thumbnail's view family. */
 	UNREALED_API static void RenderViewFamily(FCanvas* Canvas, class FSceneViewFamily* ViewFamily);
-
-	UNREALED_API static struct FGameTime GetTime();
 };
 

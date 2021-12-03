@@ -1384,7 +1384,7 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 
 	bool bUseLocalSpace = UseLocalSpace(SceneProxy);
 	PerViewUniformParameters.bLocalSpace = bUseLocalSpace;
-	PerViewUniformParameters.DeltaSeconds = ViewFamily.Time.GetDeltaWorldTimeSeconds();
+	PerViewUniformParameters.DeltaSeconds = ViewFamily.DeltaWorldTime;
 	PerViewUniformParameters.SystemLWCTile = SceneProxy->GetLWCRenderTile();
 	PerViewUniformParameters.CameraUp = View->GetViewUp(); // FVector4(0.0f, 0.0f, 1.0f, 0.0f);
 	PerViewUniformParameters.CameraRight = View->GetViewRight();//	FVector4(1.0f, 0.0f, 0.0f, 0.0f);

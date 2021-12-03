@@ -297,7 +297,7 @@ namespace
 
 		// Create the view
 		FSceneViewFamily::ConstructionValues ViewFamilyInit(nullptr, SceneInterface, FEngineShowFlags(ESFIM_Game));
-		ViewFamilyInit.SetTime(FGameTime());
+		ViewFamilyInit.SetWorldTimes(0.0f, 0.0f, 0.0f);
 		FSceneViewFamilyContext ViewFamily(ViewFamilyInit);
 		ViewFamily.LandscapeLODOverride = 0; // Force LOD 0 render
 

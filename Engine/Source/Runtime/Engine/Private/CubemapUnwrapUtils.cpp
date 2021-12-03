@@ -51,7 +51,7 @@ namespace CubemapHelpers
 		RenderTargetLongLat->TargetGamma = 0;
 		FRenderTarget* RenderTarget = RenderTargetLongLat->GameThread_GetRenderTargetResource();
 
-		FCanvas* Canvas = new FCanvas(RenderTarget, NULL, FGameTime(), GMaxRHIFeatureLevel);
+		FCanvas* Canvas = new FCanvas(RenderTarget, NULL, 0, 0, 0, GMaxRHIFeatureLevel);
 		Canvas->SetRenderTarget_GameThread(RenderTarget);
 
 		// Clear the render target to black

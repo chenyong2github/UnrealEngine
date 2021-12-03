@@ -77,7 +77,7 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 		RenderTarget,
 		GetPipeline()->GetWorld()->Scene,
 		ShowFlags)
-		.SetTime(FGameTime::CreateUndilated(TimeData.WorldSeconds, TimeData.FrameDeltaTime))
+		.SetWorldTimes(TimeData.WorldSeconds, TimeData.FrameDeltaTime, TimeData.WorldSeconds)
 		.SetRealtimeUpdate(true));
 
 	OutViewFamily->SceneCaptureSource = InOutSampleState.SceneCaptureSource;
