@@ -1126,7 +1126,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 
 	LumenSceneData = new FLumenSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel], InWorld->WorldType);
 
-	VirtualShadowMapArrayCacheManager = new FVirtualShadowMapArrayCacheManager;
+	VirtualShadowMapArrayCacheManager = new FVirtualShadowMapArrayCacheManager(this);
 }
 
 FScene::~FScene()

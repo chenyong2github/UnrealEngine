@@ -30,7 +30,10 @@ static TAutoConsoleVariable<int32> CVarCacheVirtualSMs(
 static TAutoConsoleVariable<int32> CVarDrawInvalidatingBounds(
 	TEXT("r.Shadow.Virtual.DrawInvalidatingBounds"),
 	0,
-	TEXT("Turn on debug render cache invalidating instance bounds."),
+	TEXT("Turn on debug render cache invalidating instance bounds, heat mapped by number of pages invalidated.\n")
+	TEXT("   1  = Draw all bounds.\n")
+	TEXT("   2  = Draw those invalidating static cached pages only\n")
+	TEXT("   3  = Draw those invalidating dynamic cached pages only"),
 	ECVF_RenderThreadSafe
 );
 
@@ -120,6 +123,70 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FW
 	CurrentVirtualShadowMapId = VirtualShadowMapId;
 	CurrentPageSpaceLocation = FIntPoint(0, 0);		// Not used for local lights
 	bCurrentRendered = false;
+}
+
+FVirtualShadowMapArrayCacheManager::FVirtualShadowMapArrayCacheManager(FScene* InScene) 
+	: Scene(InScene)
+{
+	// Handle message with status sent back from GPU
+	StatusFeedbackSocket = GPUMessage::RegisterHandler(TEXT("Shadow.Virtual.StatusFeedback"), [this](GPUMessage::FReader Message)
+	{
+		// Get the frame that the message was sent.
+		uint32 FrameNumber = Message.Read<uint32>(0);
+		// Goes negative on underflow
+		int32 NumPagesFree = Message.Read<int32>(0);
+
+		if (NumPagesFree < 0)
+		{
+			static const auto* CVarResolutionLodBiasLocalPtr = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.Virtual.ResolutionLodBiasLocal"));
+			const float LodBiasLocal = CVarResolutionLodBiasLocalPtr->GetValueOnRenderThread();
+
+			static const auto* CVarResolutionLodBiasDirectionalPtr = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.Virtual.ResolutionLodBiasDirectional"));
+			const float LodBiasDirectional = CVarResolutionLodBiasDirectionalPtr->GetValueOnRenderThread();
+
+			static const auto* CVarMaxPhysicalPagesPtr = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.Virtual.MaxPhysicalPages"));
+			const int32 MaxPhysicalPages = CVarMaxPhysicalPagesPtr->GetValueOnRenderThread();
+
+#if !UE_BUILD_SHIPPING
+			if (!bLoggedPageOverflow)
+			{
+				UE_LOG(LogRenderer, Warning, TEXT("Virtual Shadow Map Page Pool overflow (%d page allocations were not served), this will produce visual artifacts (missing shadow), increase the page pool limit or reduce resolution bias to avoid.\n")
+					TEXT(" See r.Shadow.Virtual.MaxPhysicalPages (%d), r.Shadow.Virtual.ResolutionLodBiasLocal (%.2f), and r.Shadow.Virtual.ResolutionLodBiasDirectional (%.2f)"),
+					-NumPagesFree,
+					MaxPhysicalPages,
+					LodBiasLocal,
+					LodBiasDirectional);
+				bLoggedPageOverflow = true;
+			}
+			LastOverflowFrame = Scene->GetFrameNumber();
+#endif
+		}
+#if !UE_BUILD_SHIPPING
+		else
+		{
+			bLoggedPageOverflow = false;
+		}
+#endif
+	});
+
+#if !UE_BUILD_SHIPPING
+	ScreenMessageDelegate = FCoreDelegates::OnGetOnScreenMessages.AddLambda([this](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText >& OutMessages)
+	{
+		// Show for ~5s after last overflow
+		int32 CurrentFrameNumber = Scene->GetFrameNumber();
+		if (LastOverflowFrame >= 0 && CurrentFrameNumber - LastOverflowFrame < 30 * 5)
+		{
+			OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(FString::Printf(TEXT("Virtual Shadow Map Page Pool overflow detected (%d frames ago)"), CurrentFrameNumber - LastOverflowFrame)));
+		}
+	});
+#endif
+}
+
+FVirtualShadowMapArrayCacheManager::~FVirtualShadowMapArrayCacheManager()
+{
+#if !UE_BUILD_SHIPPING
+	FCoreDelegates::OnGetOnScreenMessages.Remove(ScreenMessageDelegate);
+#endif
 }
 
 
