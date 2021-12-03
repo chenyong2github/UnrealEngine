@@ -233,7 +233,7 @@ inline void FUniqueRequestList::AddMappingRequest(uint16 LoadRequestIndex, uint8
 		}
 	}
 
-	if (ensure(NumMappingRequests < MappingRequestCapacity))
+	if (NumMappingRequests < MappingRequestCapacity)
 	{
 		const uint32 Index = NumMappingRequests++;
 		MappingRequestHash.Add(Hash, Index);
@@ -258,7 +258,7 @@ inline void FUniqueRequestList::AddDirectMappingRequest(const FDirectMappingRequ
 		}
 	}
 
-	if (ensure(NumDirectMappingRequests < DirectMappingRequestCapacity))
+	if (NumDirectMappingRequests < DirectMappingRequestCapacity)
 	{
 		const uint32 Index = NumDirectMappingRequests++;
 		DirectMappingRequestHash.Add(Hash, Index);
@@ -277,7 +277,7 @@ inline void FUniqueRequestList::AddContinuousUpdateRequest(const FVirtualTexture
 		}
 	}
 
-	if (ensure(NumContinuousUpdateRequests < ContinuousUpdateRequestCapacity))
+	if (NumContinuousUpdateRequests < ContinuousUpdateRequestCapacity)
 	{
 		const uint32 Index = NumContinuousUpdateRequests++;
 		ContinuousUpdateRequestHash.Add(Hash, Index);
@@ -287,7 +287,7 @@ inline void FUniqueRequestList::AddContinuousUpdateRequest(const FVirtualTexture
 
 void FUniqueRequestList::AddAdaptiveAllocationRequest(uint32 Request)
 {
-	if (ensure(NumAdaptiveAllocationRequests < AdaptiveAllocationRequestCapacity))
+	if (NumAdaptiveAllocationRequests < AdaptiveAllocationRequestCapacity)
 	{
 		AdaptiveAllocationsRequests[NumAdaptiveAllocationRequests++] = Request;
 	}
