@@ -416,6 +416,10 @@ void ScreenProbeFilterGatherTracesCS(
 
 			RWScreenProbeRadiance[DispatchThreadId.xy] = TotalRadiance;
 		}
+		else
+		{
+			RWScreenProbeRadiance[DispatchThreadId.xy] = float3(0.0f, 0.0f, 0.0f);
+		}
 	}
 }
 
