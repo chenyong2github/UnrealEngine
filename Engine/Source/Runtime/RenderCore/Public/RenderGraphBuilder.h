@@ -299,6 +299,11 @@ public:
 	/** The blackboard used to hold common data tied to the graph lifetime. */
 	FRDGBlackboard Blackboard;
 
+#if RDG_DUMP_RESOURCES
+	static void BeginResourceDump(const TArray<FString>& Args);
+	static void EndResourceDump();
+#endif
+
 	//////////////////////////////////////////////////////////////////////////
 	// Deprecated Functions
 	UE_DEPRECATED(5.0, "PreallocateTexture has been renamed to ConvertToExternalTexture")
@@ -576,10 +581,10 @@ private:
 	FRDGUserValidation UserValidation;
 	FRDGBarrierValidation BarrierValidation;
 	FRDGLogFile LogFile;
+#endif
 
 	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
 	bool bInDebugPassScope = false;
-#endif
 
 #if WITH_MGPU
 	/** Name for the temporal effect used to synchronize multi-frame resources. */
@@ -702,6 +707,10 @@ private:
 	{
 		BitArray.Insert(bValue, BitArray.Num(), Passes.Num() - BitArray.Num());
 	}
+
+#if RDG_DUMP_RESOURCES
+	void DumpResourcePassOutputs(const FRDGPass* Pass);
+#endif
 
 #if RDG_ENABLE_DEBUG
 	void VisualizePassOutputs(const FRDGPass* Pass);

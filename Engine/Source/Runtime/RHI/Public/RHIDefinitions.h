@@ -2260,6 +2260,24 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	return String;
 };
 
+inline const TCHAR* GetTextureDimensionString(ETextureDimension Dimension)
+{
+	switch (Dimension)
+	{
+	case ETextureDimension::Texture2D:
+		return TEXT("Texture2D");
+	case ETextureDimension::Texture2DArray:
+		return TEXT("Texture2DArray");
+	case ETextureDimension::Texture3D:
+		return TEXT("Texture3D");
+	case ETextureDimension::TextureCube:
+		return TEXT("TextureCube");
+	case ETextureDimension::TextureCubeArray:
+		return TEXT("TextureCubeArray");
+	}
+	return TEXT("");
+}
+
 inline bool IsGeometryPipelineShaderFrequency(EShaderFrequency Frequency)
 {
 	return Frequency == SF_Mesh || Frequency == SF_Amplification;

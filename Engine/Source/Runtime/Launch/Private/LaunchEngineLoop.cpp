@@ -173,6 +173,7 @@
 	#include "RenderUtils.h"
 	#include "DynamicResolutionState.h"
 	#include "EngineModule.h"
+	#include "RenderGraphBuilder.h"
 
 #if !UE_SERVER
 	#include "AppMediaTimeSource.h"
@@ -5504,6 +5505,17 @@ void FEngineLoop::Tick()
 #endif
 
 		FCoreDelegates::OnEndFrame.Broadcast();
+
+		// end of RDG resource dump
+		#if WITH_ENGINE
+			#if RDG_DUMP_RESOURCES
+				ENQUEUE_RENDER_COMMAND(EndRDGResourceDump)(
+					[](FRHICommandListImmediate& RHICmdList)
+					{
+						FRDGBuilder::EndResourceDump();
+					});
+			#endif
+		#endif
 
 		#if !UE_SERVER && WITH_ENGINE
 		{

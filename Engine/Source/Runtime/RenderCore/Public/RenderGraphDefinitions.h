@@ -71,6 +71,9 @@
 	#define IF_RDG_CMDLIST_STATS(Op)
 #endif
 
+/** Allows to dump all RDG resources of a frame. */
+#define RDG_DUMP_RESOURCES (!UE_BUILD_SHIPPING)
+
 /** ENUMS */
 
 enum class ERDGBuilderFlags

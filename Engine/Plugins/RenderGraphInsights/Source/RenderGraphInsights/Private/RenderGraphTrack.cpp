@@ -1524,24 +1524,6 @@ TSharedPtr<ITimingEventFilter> FRenderGraphTrack::GetFilterByEvent(const TShared
 	return nullptr;
 }
 
-const TCHAR* GetDimensionName(ETextureDimension Dimension)
-{
-	switch (Dimension)
-	{
-	case ETextureDimension::Texture2D:
-		return TEXT("Texture2D");
-	case ETextureDimension::Texture2DArray:
-		return TEXT("Texture2DArray");
-	case ETextureDimension::Texture3D:
-		return TEXT("Texture3D");
-	case ETextureDimension::TextureCube:
-		return TEXT("TextureCube");
-	case ETextureDimension::TextureCubeArray:
-		return TEXT("TextureCubeArray");
-	}
-	return TEXT("");
-}
-
 void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	Super::BuildContextMenu(MenuBuilder);
@@ -2080,7 +2062,7 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 			const FTexturePacket& Texture = TooltipEvent.GetPacket();
 
 			Tooltip.AddTitle(Texture.Name);
-			Tooltip.AddNameValueTextLine(TEXT("Dimension:"), GetDimensionName(Texture.Desc.Dimension));
+			Tooltip.AddNameValueTextLine(TEXT("Dimension:"), GetTextureDimensionString(Texture.Desc.Dimension));
 			Tooltip.AddNameValueTextLine(TEXT("Create Flags:"), GetTextureCreateFlagsName(Texture.Desc.Flags));
 			Tooltip.AddNameValueTextLine(TEXT("Format:"), UEnum::GetValueAsString(Texture.Desc.Format));
 			Tooltip.AddNameValueTextLine(TEXT("Extent:"), FString::Printf(TEXT("%d, %d"), Texture.Desc.Extent.X, Texture.Desc.Extent.Y));
