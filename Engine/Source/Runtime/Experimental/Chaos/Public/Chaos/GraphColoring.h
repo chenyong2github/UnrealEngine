@@ -11,7 +11,7 @@ namespace Chaos
 
 class FGraphColoring
 {
-	typedef TSet<int32> FColorSet;
+	typedef TArray<int32, TInlineAllocator<8>> FColorSet;
 	
 	struct FGraphNode
 	{
@@ -20,7 +20,7 @@ class FGraphColoring
 		{
 		}
 
-		TArray<int32> Edges;
+		TArray<int32, TInlineAllocator<8>> Edges;
 		int32 NextColor;
 		FColorSet UsedColors;
 	};
