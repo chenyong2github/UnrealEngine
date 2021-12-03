@@ -122,7 +122,7 @@ void ReflectionTraceScreenTexturesCS(
 				float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
 
 				float Vignette = min(ComputeHitVignetteFromScreenPos(HitScreenPosition), ComputeHitVignetteFromScreenPos(HitHistoryScreenPosition.xy));
-				float Noise = InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, View.StateFrameIndexMod8);
+				float Noise = InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, SCREEN_TEMPORAL_INDEX);
 
 				// Skip reporting a hit if near the edge of the screen
 				if (Vignette < Noise)

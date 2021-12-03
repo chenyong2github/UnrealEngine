@@ -78,6 +78,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeTemporalFilterProbesHistoryWeight(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GLumenScreenProbeTemporalDebugForceTracesMoving = 0;
+FAutoConsoleVariableRef CVarLumenScreenProbeTemporalForceTracesMoving(
+	TEXT("r.Lumen.ScreenProbeGather.Temporal.DebugForceTracesMoving"),
+	GLumenScreenProbeTemporalDebugForceTracesMoving,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+	);
+
 class FScreenProbeCompositeTracesWithScatterCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenProbeCompositeTracesWithScatterCS)
@@ -272,6 +280,7 @@ class FScreenProbeCalculateMovingCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<UNORM float>, RWScreenProbeMoving)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeTraceMoving)
+		SHADER_PARAMETER(float, DebugForceTracesMoving)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -425,6 +434,7 @@ void FilterScreenProbes(
 		FScreenProbeCalculateMovingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeCalculateMovingCS::FParameters>();
 		PassParameters->RWScreenProbeMoving = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeMoving));
 		PassParameters->ScreenProbeTraceMoving = ScreenProbeTraceMoving;
+		PassParameters->DebugForceTracesMoving = GLumenScreenProbeTemporalDebugForceTracesMoving != 0 ? 1.0f : 0.0f;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 

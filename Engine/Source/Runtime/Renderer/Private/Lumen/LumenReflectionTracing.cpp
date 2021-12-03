@@ -32,7 +32,7 @@ FAutoConsoleVariableRef CVarLumenReflectionHierarchicalScreenTracesMaxIterations
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold = .01f;
+float GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold = .005f;
 FAutoConsoleVariableRef GVarLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold(
 	TEXT("r.Lumen.Reflections.HierarchicalScreenTraces.RelativeDepthThickness"),
 	GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold,
@@ -434,35 +434,35 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 	FRDGTextureRef InputColor = CurrentSceneColor;
 	FIntPoint ViewportOffset = View.ViewRect.Min;
 	FIntPoint ViewportExtent = View.ViewRect.Size();
-	FIntPoint BufferSize = SceneTextures.Config.Extent;
+	FIntPoint PrevColorBufferSize = SceneTextures.Config.Extent;
 
 	if (View.PrevViewInfo.CustomSSRInput.IsValid())
 	{
 		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput.RT[0]);
 		ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
 		ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
-		BufferSize = InputColor->Desc.Extent;
+		PrevColorBufferSize = InputColor->Desc.Extent;
 	}
 	else if (View.PrevViewInfo.TSRHistory.IsValid())
 	{
 		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
 		ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
 		ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
-		BufferSize = InputColor->Desc.Extent;
+		PrevColorBufferSize = InputColor->Desc.Extent;
 	}
 	else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 	{
 		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
 		ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
 		ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
-		BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
+		PrevColorBufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
 	}
 	else if (View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
 	{
 		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.ScreenSpaceRayTracingInput);
 		ViewportOffset = View.PrevViewInfo.ViewRect.Min;
 		ViewportExtent = View.PrevViewInfo.ViewRect.Size();
-		BufferSize = InputColor->Desc.Extent;
+		PrevColorBufferSize = InputColor->Desc.Extent;
 	}
 
 	FLumenHZBScreenTraceParameters Parameters;
@@ -483,22 +483,26 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 	}
 
 	{
-		FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
+		const float InvPrevColorBufferSizeX = 1.0f / PrevColorBufferSize.X;
+		const float InvPrevColorBufferSizeY = 1.0f / PrevColorBufferSize.Y;
 
 		Parameters.PrevScreenPositionScaleBias = FVector4(
-			ViewportExtent.X * 0.5f * InvBufferSize.X,
-			-ViewportExtent.Y * 0.5f * InvBufferSize.Y,
-			(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,
-			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSize.Y);
+			ViewportExtent.X * 0.5f * InvPrevColorBufferSizeX,
+			-ViewportExtent.Y * 0.5f * InvPrevColorBufferSizeY,
+			(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvPrevColorBufferSizeX,
+			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvPrevColorBufferSizeY);
 
 		FIntPoint ViewportOffsetForDepth = View.PrevViewInfo.ViewRect.Min;
 		FIntPoint ViewportExtentForDepth = View.PrevViewInfo.ViewRect.Size();
 
+		const float InvBufferSizeX = 1.0f / SceneTextures.Config.Extent.X;
+		const float InvBufferSizeY = 1.0f / SceneTextures.Config.Extent.Y;
+
 		Parameters.PrevScreenPositionScaleBiasForDepth = FVector4(
-			ViewportExtentForDepth.X * 0.5f * InvBufferSize.X,
-			-ViewportExtentForDepth.Y * 0.5f * InvBufferSize.Y,
-			(ViewportExtentForDepth.X * 0.5f + ViewportOffsetForDepth.X) * InvBufferSize.X,
-			(ViewportExtentForDepth.Y * 0.5f + ViewportOffsetForDepth.Y) * InvBufferSize.Y);
+			ViewportExtentForDepth.X * 0.5f * InvBufferSizeX,
+			-ViewportExtentForDepth.Y * 0.5f * InvBufferSizeY,
+			(ViewportExtentForDepth.X * 0.5f + ViewportOffsetForDepth.X) * InvBufferSizeX,
+			(ViewportExtentForDepth.Y * 0.5f + ViewportOffsetForDepth.Y) * InvBufferSizeY);
 	}
 
 	Parameters.PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;

@@ -68,89 +68,112 @@ void InternalTraceScreen(
 	float BaseMipLevel = HZB_TRACE_INCLUDE_FULL_RES_DEPTH ? -1 : 0;
 	float MipLevel = BaseMipLevel;
 
+	float3 RayDirectionScreenUV = RayEndScreenUV - RayStartScreenUV;
+	float CurrentIntersectionTime = 0;
+
+    // Offset to pick which XY boundary planes to intersect
+    float2 FloorOffset = RayDirectionScreenUV.xy < 0 ? 0 : 1;
+
+	float3 RayScreenUV = RayStartScreenUV;
+
 	// Step out of current tile without hit test to avoid self-intersection
-	// This is necessary because HZB mip 0 is the closest of the 2x2 depths, and because HZB is stored in 16 bit fp
 	bool bStepOutOfCurrentTile = true;
 
 	if (bStepOutOfCurrentTile)
 	{
-		float2 HZBTileSize = exp2(MipLevel) * InHZBBaseTexelSize;
-		float2 BiasedUV = RayStartScreenUV.xy;
-		float3 HZBTileMin = float3(floor(BiasedUV.xy / HZBTileSize) * HZBTileSize, 0.0f);
-		float3 HZBTileMax = float3(HZBTileMin.xy + HZBTileSize, 1);
-		float2 TileIntersections = LineBoxIntersect(RayStartScreenUV, RayEndScreenUV, HZBTileMin, HZBTileMax);
+		float MipLevelForStepOut = MipLevel;
+		float2 CurrentMipTexelSize = exp2(MipLevelForStepOut) * InHZBBaseTexelSize;
+		float2 CurrentMipResolution = 1.0f / CurrentMipTexelSize;
 
-		{
-			float3 RayTileHit = RayStartScreenUV + (RayEndScreenUV - RayStartScreenUV) * TileIntersections.y;
-			RayStartScreenUV = RayTileHit;
-		}
+		float2 UVOffset = .005f * CurrentMipTexelSize;
+		UVOffset = RayDirectionScreenUV.xy < 0 ? -UVOffset : UVOffset;
+
+		float2 XYPlane = floor(RayScreenUV.xy * CurrentMipResolution) + FloorOffset;
+		XYPlane = XYPlane * CurrentMipTexelSize + UVOffset;
+		
+		float2 PlaneIntersectionTimes = (XYPlane - RayStartScreenUV.xy) / RayDirectionScreenUV;
+		float IntersectionTime = min(PlaneIntersectionTimes.x, PlaneIntersectionTimes.y);
+		CurrentIntersectionTime = IntersectionTime;
+		RayScreenUV = RayStartScreenUV + CurrentIntersectionTime * RayDirectionScreenUV;
 	}
 
+	float NumIterations = 0;
 	bHit = false;
 	bUncertain = false;
 	OutHitTileZ = 0;
+	float LastAboveSurfaceTime = 0.0f;
 
-	float RayLength2D = length(RayEndScreenUV.xy - RayStartScreenUV.xy);
-	float2 RayDirectionScreenUV = (RayEndScreenUV.xy - RayStartScreenUV.xy) / max(RayLength2D, .0001f);
-	float3 RayScreenUV = RayStartScreenUV;
-	float NumIterations = 0;
-	
 	// Stackless HZB traversal
-	while (MipLevel >= BaseMipLevel && NumIterations < MaxIterations)
+	while (MipLevel >= BaseMipLevel && NumIterations < MaxIterations && CurrentIntersectionTime < 1.0f)
 	{
-		float2 HZBTileSize = exp2(MipLevel) * InHZBBaseTexelSize;
-		// RayScreenUV is on a tile boundary due to bStepOutOfCurrentTile
-		// Offset the UV along the ray direction so it always quantizes to the next tile
-		float2 BiasedUV = RayScreenUV.xy + .01f * RayDirectionScreenUV.xy * HZBTileSize;
-		float3 HZBTileMin = float3(floor(BiasedUV / HZBTileSize) * HZBTileSize, 0.0f);
-		float3 HZBTileMax = float3(HZBTileMin.xy + HZBTileSize, 1);
-		float2 TileIntersections = LineBoxIntersect(RayStartScreenUV, RayEndScreenUV, HZBTileMin, HZBTileMax);
-		float3 RayTileHit = RayStartScreenUV + (RayEndScreenUV - RayStartScreenUV) * TileIntersections.y;
+		float2 CurrentMipTexelSize = exp2(MipLevel) * InHZBBaseTexelSize;
+		float2 CurrentMipResolution = 1.0f / CurrentMipTexelSize;
+
+		float2 UVOffset = .005f * CurrentMipTexelSize;
+		UVOffset = RayDirectionScreenUV.xy < 0 ? -UVOffset : UVOffset;
+
+		float2 XYPlane = floor(RayScreenUV.xy * CurrentMipResolution) + FloorOffset;
+		XYPlane = XYPlane * CurrentMipTexelSize + UVOffset;
 
 		float TileZ;
-		float AvoidSelfIntersectionZScale = 1.0f;
 
 #if HZB_TRACE_INCLUDE_FULL_RES_DEPTH
 		if (MipLevel < 0)
 		{
-			TileZ = InSceneDepthTexture.SampleLevel(GlobalPointClampedSampler, BiasedUV * InHZBUVToScreenUVScaleBias.xy + InHZBUVToScreenUVScaleBias.zw, 0).r;
+			TileZ = InSceneDepthTexture.SampleLevel(GlobalPointClampedSampler, RayScreenUV.xy * InHZBUVToScreenUVScaleBias.xy + InHZBUVToScreenUVScaleBias.zw, 0).r;
 		}
 		else
 #endif
 		{
-			TileZ = InClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, BiasedUV, MipLevel).x;
-			// Heuristic to avoid incorrect self-intersection because HZB mip 0 is actually the closest of the 2x2 depths, and because HZB is only 16 bit fp
-			AvoidSelfIntersectionZScale = lerp(.99f, 1.0f, saturate(TileIntersections.y * 10.0f));
+			TileZ = InClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, RayScreenUV.xy, MipLevel).x;
+#if !HZB_TRACE_INCLUDE_FULL_RES_DEPTH
+			TileZ *= lerp(.99f, 1.0f, saturate(CurrentIntersectionTime * 10.0f));
+#endif
 		}
 
-		if (RayTileHit.z > TileZ * AvoidSelfIntersectionZScale)
+		float3 BoundaryPlanes = float3(XYPlane, TileZ);
+
+		float3 PlaneIntersectionTimes = (BoundaryPlanes - RayStartScreenUV) / RayDirectionScreenUV;
+		PlaneIntersectionTimes.z = RayDirectionScreenUV.z < 0 ? PlaneIntersectionTimes.z : 1.0f;
+		float IntersectionTime = min3(PlaneIntersectionTimes.x, PlaneIntersectionTimes.y, PlaneIntersectionTimes.z);
+
+		bool bAboveSurface = RayScreenUV.z > TileZ;
+		bool bSkippedTile = IntersectionTime != PlaneIntersectionTimes.z && bAboveSurface;
+
+		if (bAboveSurface)
 		{
-			RayScreenUV = RayTileHit;
-			MipLevel++;
-
-			if (TileIntersections.y == 1.0f)
-			{
-				// Ray did not intersect HZB tile, no hit
-				MipLevel = BaseMipLevel - 1;
-			}
+			LastAboveSurfaceTime = CurrentIntersectionTime;
 		}
-		else
-		{
-			if (abs(MipLevel - BaseMipLevel) < .1f)
-			{
-				RayScreenUV = RayStartScreenUV + (RayEndScreenUV - RayStartScreenUV) * TileIntersections.x;
-				OutHitTileZ = TileZ;
-
-				bHit = true;
-				float IntersectionDepth = ConvertFromDeviceZ(TileZ);
-				float RayTileEnterZ = RayStartScreenUV.z + (RayEndScreenUV.z - RayStartScreenUV.z) * TileIntersections.x;
-				bUncertain = (ConvertFromDeviceZ(RayTileEnterZ) - IntersectionDepth) / max(IntersectionDepth, .00001f) > RelativeDepthThickness;
-			}
-
-			MipLevel--;
-		}
+		
+		CurrentIntersectionTime = bAboveSurface ? IntersectionTime : CurrentIntersectionTime;
+		RayScreenUV = RayStartScreenUV + min(CurrentIntersectionTime, 1.0f) * RayDirectionScreenUV;
+		MipLevel += bSkippedTile ? 1 : -1;
 
 		NumIterations++;
+	}
+
+	if (MipLevel < BaseMipLevel)
+	{
+		float TileZ;
+
+#if HZB_TRACE_INCLUDE_FULL_RES_DEPTH
+		TileZ = InSceneDepthTexture.SampleLevel(GlobalPointClampedSampler, RayScreenUV.xy * InHZBUVToScreenUVScaleBias.xy + InHZBUVToScreenUVScaleBias.zw, 0).r;
+#else
+		TileZ = InClosestHZBTexture.SampleLevel(GlobalPointClampedSampler, RayScreenUV.xy, 0).x;
+#endif
+
+		OutHitTileZ = TileZ;
+
+		float HitSceneDepth = ConvertFromDeviceZ(TileZ);
+		float RaySceneDepth = ConvertFromDeviceZ(RayScreenUV.z);
+
+		bHit = (RaySceneDepth - HitSceneDepth) < RelativeDepthThickness * max(HitSceneDepth, .00001f);
+
+		if (!bHit)
+		{
+			// We went below the surface and couldn't count it as a hit, rewind to the last time we were above
+			RayScreenUV = RayStartScreenUV + LastAboveSurfaceTime * RayDirectionScreenUV;
+		}
 	}
 
 	// Linear steps to determine feature thickness along the ray, to reject hits behind very thin surfaces (grass / hair / foliage)

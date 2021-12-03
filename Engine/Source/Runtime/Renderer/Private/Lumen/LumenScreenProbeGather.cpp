@@ -129,14 +129,6 @@ FAutoConsoleVariableRef CVarLumenScreenProbeClearHistoryEveryFrame(
 	ECVF_RenderThreadSafe
 	);
 
-float GLumenScreenProbeHistoryWeight = .9f;
-FAutoConsoleVariableRef CVarLumenScreenProbeHistoryWeight(
-	TEXT("r.Lumen.ScreenProbeGather.Temporal.HistoryWeight"),
-	GLumenScreenProbeHistoryWeight,
-	TEXT("Weight of the history lighting.  Values closer to 1 exponentially decrease noise but also response time to lighting changes."),
-	ECVF_RenderThreadSafe
-	);
-
 int32 GLumenScreenProbeUseHistoryNeighborhoodClamp = 0;
 FAutoConsoleVariableRef CVarLumenScreenProbeUseHistoryNeighborhoodClamp(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.NeighborhoodClamp"),
@@ -145,19 +137,11 @@ FAutoConsoleVariableRef CVarLumenScreenProbeUseHistoryNeighborhoodClamp(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenScreenProbeHistoryDistanceThreshold = 10;
+float GLumenScreenProbeHistoryDistanceThreshold = .01f;
 FAutoConsoleVariableRef CVarLumenScreenProbeHistoryDistanceThreshold(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.DistanceThreshold"),
 	GLumenScreenProbeHistoryDistanceThreshold,
-	TEXT("World space distance threshold needed to discard last frame's lighting results.  Lower values reduce ghosting from characters when near a wall but increase flickering artifacts."),
-	ECVF_RenderThreadSafe
-	);
-
-float GLumenScreenProbeHistoryConvergenceWeight = .8f;
-FAutoConsoleVariableRef CVarLumenScreenProbeHistoryConvergenceWeightt(
-	TEXT("r.Lumen.ScreenProbeGather.Temporal.HistoryConvergenceWeight"),
-	GLumenScreenProbeHistoryConvergenceWeight,
-	TEXT(""),
+	TEXT("Relative distance threshold needed to discard last frame's lighting results.  Lower values reduce ghosting from characters when near a wall but increase flickering artifacts."),
 	ECVF_RenderThreadSafe
 	);
 
@@ -169,7 +153,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeFractionOfLightingMovingForFastUpdat
 	ECVF_RenderThreadSafe
 	);
 
-float GLumenScreenProbeTemporalMaxFastUpdateModeAmount = .4f;
+float GLumenScreenProbeTemporalMaxFastUpdateModeAmount = .9f;
 FAutoConsoleVariableRef CVarLumenScreenProbeTemporalMaxFastUpdateModeAmount(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFastUpdateModeAmount"),
 	GLumenScreenProbeTemporalMaxFastUpdateModeAmount,
@@ -182,6 +166,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeRelativeSpeedDifferenceToConsiderLig
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.RelativeSpeedDifferenceToConsiderLightingMoving"),
 	GLumenScreenProbeRelativeSpeedDifferenceToConsiderLightingMoving,
 	TEXT(""),
+	ECVF_RenderThreadSafe
+	);
+
+float GLumenScreenProbeTemporalMaxFramesAccumulated = 10.0f;
+FAutoConsoleVariableRef CVarLumenScreenProbeTemporalMaxFramesAccumulated(
+	TEXT("r.Lumen.ScreenProbeGather.Temporal.MaxFramesAccumulated"),
+	GLumenScreenProbeTemporalMaxFramesAccumulated,
+	TEXT("Lower values cause the temporal filter to propagate lighting changes faster, but also increase flickering from noise."),
 	ECVF_RenderThreadSafe
 	);
 
@@ -819,34 +811,31 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FScreenProbeIntegrateCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "ScreenProbeIntegrateCS", SF_Compute);
 
 
-class FScreenProbeTemporalReprojectionDepthRejectionCS : public FGlobalShader
+class FScreenProbeTemporalReprojectionCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FScreenProbeTemporalReprojectionDepthRejectionCS)
-	SHADER_USE_PARAMETER_STRUCT(FScreenProbeTemporalReprojectionDepthRejectionCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FScreenProbeTemporalReprojectionCS)
+	SHADER_USE_PARAMETER_STRUCT(FScreenProbeTemporalReprojectionCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWNewHistoryDiffuseIndirect)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWNewHistoryRoughSpecularIndirect)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWNewHistoryConvergence)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWNumHistoryFramesAccumulated)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirectHistory)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RoughSpecularIndirectHistory)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirectDepthHistory)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryConvergence)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryNumFramesAccumulated)
 		SHADER_PARAMETER(float,HistoryDistanceThreshold)
-		SHADER_PARAMETER(float,HistoryWeight)
-		SHADER_PARAMETER(float,HistoryConvergenceWeight)
-		SHADER_PARAMETER(float,PrevInvPreExposure)
+		SHADER_PARAMETER(float,PrevSceneColorPreExposureCorrection)
 		SHADER_PARAMETER(float,InvFractionOfLightingMovingForFastUpdateMode)
 		SHADER_PARAMETER(float,MaxFastUpdateModeAmount)
-		SHADER_PARAMETER(FVector2f,InvDiffuseIndirectBufferSize)
+		SHADER_PARAMETER(float,MaxFramesAccumulated)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
+		SHADER_PARAMETER(FVector4f,HistoryUVToScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER(FIntVector4,HistoryViewportMinMax)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DiffuseIndirect)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RoughSpecularIndirect)
 	END_SHADER_PARAMETER_STRUCT()
@@ -879,7 +868,8 @@ class FScreenProbeTemporalReprojectionDepthRejectionCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FScreenProbeTemporalReprojectionDepthRejectionCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "ScreenProbeTemporalReprojectionDepthRejectionCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FScreenProbeTemporalReprojectionCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "ScreenProbeTemporalReprojectionCS", SF_Compute);
+
 
 class FGenerateCompressedGBuffer : public FGlobalShader
 {
@@ -1088,7 +1078,7 @@ void UpdateHistoryScreenProbeGather(
 		TRefCountPtr<IPooledRenderTarget>* RoughSpecularIndirectHistoryState = &ScreenProbeGatherState.RoughSpecularIndirectHistoryRT;
 		FIntRect* DiffuseIndirectHistoryViewRect = &ScreenProbeGatherState.DiffuseIndirectHistoryViewRect;
 		FVector4f* DiffuseIndirectHistoryScreenPositionScaleBias = &ScreenProbeGatherState.DiffuseIndirectHistoryScreenPositionScaleBias;
-		TRefCountPtr<IPooledRenderTarget>* HistoryConvergenceState = &ScreenProbeGatherState.HistoryConvergenceStateRT;
+		TRefCountPtr<IPooledRenderTarget>* HistoryNumFramesAccumulated = &ScreenProbeGatherState.NumFramesAccumulatedRT;
 
 		ensureMsgf(SceneTextures.Velocity->Desc.Format != PF_G16R16, TEXT("Lumen requires 3d velocity.  Update Velocity format code."));
 
@@ -1112,70 +1102,72 @@ void UpdateHistoryScreenProbeGather(
 			FRDGTextureDesc RoughSpecularIndirectDesc = FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 			FRDGTextureRef NewRoughSpecularIndirect = GraphBuilder.CreateTexture(RoughSpecularIndirectDesc, TEXT("Lumen.ScreenProbeGather.RoughSpecularIndirect"));
 
-			FRDGTextureDesc HistoryConvergenceDesc(FRDGTextureDesc::Create2D(BufferSize, PF_R8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-			FRDGTextureRef NewHistoryConvergence = GraphBuilder.CreateTexture(HistoryConvergenceDesc, TEXT("Lumen.ScreenProbeGather.HistoryConvergence"));
+			FRDGTextureDesc NumHistoryFramesAccumulatedDesc(FRDGTextureDesc::Create2D(BufferSize, PF_R8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+			FRDGTextureRef NewNumHistoryFramesAccumulated = GraphBuilder.CreateTexture(NumHistoryFramesAccumulatedDesc, TEXT("Lumen.ScreenProbeGather.NumHistoryFramesAccumulated"));
 
 			{
 				FRDGTextureRef OldRoughSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*RoughSpecularIndirectHistoryState);
 				FRDGTextureRef OldDepthHistory = View.ViewState->Lumen.DepthHistoryRT ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.DepthHistoryRT) : SceneTextures.Depth.Target;
-				FRDGTextureRef OldHistoryConvergence = GraphBuilder.RegisterExternalTexture(*HistoryConvergenceState);
+				FRDGTextureRef OldHistoryNumFramesAccumulated = GraphBuilder.RegisterExternalTexture(*HistoryNumFramesAccumulated);
 
-				FScreenProbeTemporalReprojectionDepthRejectionCS::FPermutationDomain PermutationVector;
-				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTemporalReprojectionDepthRejectionCS>(PermutationVector);
+				{
+					FScreenProbeTemporalReprojectionCS::FPermutationDomain PermutationVector;
+					auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTemporalReprojectionCS>(PermutationVector);
 
-				FScreenProbeTemporalReprojectionDepthRejectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTemporalReprojectionDepthRejectionCS::FParameters>();
-				PassParameters->RWNewHistoryDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewDiffuseIndirect));
-				PassParameters->RWNewHistoryRoughSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewRoughSpecularIndirect));
-				PassParameters->RWNewHistoryConvergence = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewHistoryConvergence));
+					FScreenProbeTemporalReprojectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTemporalReprojectionCS::FParameters>();
+					PassParameters->RWNewHistoryDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewDiffuseIndirect));
+					PassParameters->RWNewHistoryRoughSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewRoughSpecularIndirect));
+					PassParameters->RWNumHistoryFramesAccumulated = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewNumHistoryFramesAccumulated));
 
-				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
-				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-				PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
-				PassParameters->RoughSpecularIndirectHistory = OldRoughSpecularIndirectHistory;
-				PassParameters->DiffuseIndirectDepthHistory = OldDepthHistory;
-				PassParameters->HistoryConvergence  = OldHistoryConvergence;
-				PassParameters->HistoryDistanceThreshold = GLumenScreenProbeHistoryDistanceThreshold;
-				PassParameters->HistoryWeight = GLumenScreenProbeHistoryWeight;
-				PassParameters->HistoryConvergenceWeight = GLumenScreenProbeHistoryConvergenceWeight;
-				PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
-				PassParameters->InvFractionOfLightingMovingForFastUpdateMode = 1.0f / FMath::Max(GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode, .001f);
-				PassParameters->MaxFastUpdateModeAmount = GLumenScreenProbeTemporalMaxFastUpdateModeAmount;
-				const FVector2D InvBufferSize(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
-				PassParameters->InvDiffuseIndirectBufferSize = InvBufferSize;
-				PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
+					PassParameters->View = View.ViewUniformBuffer;
+					PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
+					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+					PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
+					PassParameters->RoughSpecularIndirectHistory = OldRoughSpecularIndirectHistory;
+					PassParameters->DiffuseIndirectDepthHistory = OldDepthHistory;
+					PassParameters->HistoryNumFramesAccumulated  = OldHistoryNumFramesAccumulated;
+					PassParameters->HistoryDistanceThreshold = GLumenScreenProbeHistoryDistanceThreshold;
+					PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
+					PassParameters->InvFractionOfLightingMovingForFastUpdateMode = 1.0f / FMath::Max(GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode, .001f);
+					PassParameters->MaxFastUpdateModeAmount = GLumenScreenProbeTemporalMaxFastUpdateModeAmount;
+					PassParameters->MaxFramesAccumulated = GLumenScreenProbeTemporalMaxFramesAccumulated;
+					PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
 
-				// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
-				PassParameters->HistoryUVMinMax = FVector4f(
-					(DiffuseIndirectHistoryViewRect->Min.X + 0.5f) * InvBufferSize.X,
-					(DiffuseIndirectHistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
-					(DiffuseIndirectHistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,
-					(DiffuseIndirectHistoryViewRect->Max.Y - 0.5f) * InvBufferSize.Y);
+					const FVector2D HistoryUVToScreenPositionScale(1.0f / PassParameters->HistoryScreenPositionScaleBias.X, 1.0f / PassParameters->HistoryScreenPositionScaleBias.Y);
+					const FVector2D HistoryUVToScreenPositionBias = -FVector2D(PassParameters->HistoryScreenPositionScaleBias.W, PassParameters->HistoryScreenPositionScaleBias.Z) * HistoryUVToScreenPositionScale;
+					PassParameters->HistoryUVToScreenPositionScaleBias = FVector4(HistoryUVToScreenPositionScale, HistoryUVToScreenPositionBias);
 
-				PassParameters->HistoryViewportMinMax = FIntVector4(
-					DiffuseIndirectHistoryViewRect->Min.X, 
-					DiffuseIndirectHistoryViewRect->Min.Y, 
-					DiffuseIndirectHistoryViewRect->Max.X,
-					DiffuseIndirectHistoryViewRect->Max.Y);
+					const FVector2D InvBufferSize(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+					// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
+					PassParameters->HistoryUVMinMax = FVector4f(
+						(DiffuseIndirectHistoryViewRect->Min.X + 0.5f) * InvBufferSize.X,
+						(DiffuseIndirectHistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
+						(DiffuseIndirectHistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,
+						(DiffuseIndirectHistoryViewRect->Max.Y - 0.5f) * InvBufferSize.Y);
 
-				PassParameters->VelocityTexture = SceneTextures.Velocity;
-				PassParameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-				PassParameters->DiffuseIndirect = DiffuseIndirect;
-				PassParameters->RoughSpecularIndirect = RoughSpecularIndirect;
+					PassParameters->HistoryViewportMinMax = FIntVector4(
+						DiffuseIndirectHistoryViewRect->Min.X, 
+						DiffuseIndirectHistoryViewRect->Min.Y, 
+						DiffuseIndirectHistoryViewRect->Max.X,
+						DiffuseIndirectHistoryViewRect->Max.Y);
 
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("TemporalReprojection %ux%u", View.ViewRect.Width(), View.ViewRect.Height()),
-					ComputeShader,
-					PassParameters,
-					FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenProbeTemporalReprojectionDepthRejectionCS::GetGroupSize()));
+					PassParameters->DiffuseIndirect = DiffuseIndirect;
+					PassParameters->RoughSpecularIndirect = RoughSpecularIndirect;
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TemporalReprojection %ux%u", View.ViewRect.Width(), View.ViewRect.Height()),
+						ComputeShader,
+						PassParameters,
+						FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenProbeTemporalReprojectionCS::GetGroupSize()));
+				}
 
 				if (!View.bStatePrevViewInfoIsReadOnly)
 				{
 					// Queue updating the view state's render target reference with the new history
 					GraphBuilder.QueueTextureExtraction(NewDiffuseIndirect, &ScreenProbeGatherState.DiffuseIndirectHistoryRT[0]);
 					GraphBuilder.QueueTextureExtraction(NewRoughSpecularIndirect, RoughSpecularIndirectHistoryState);
-					GraphBuilder.QueueTextureExtraction(NewHistoryConvergence, HistoryConvergenceState);
+					GraphBuilder.QueueTextureExtraction(NewNumHistoryFramesAccumulated, HistoryNumFramesAccumulated);
 				}
 			}
 
@@ -1189,7 +1181,7 @@ void UpdateHistoryScreenProbeGather(
 				// Queue updating the view state's render target reference with the new values
 				GraphBuilder.QueueTextureExtraction(DiffuseIndirect, &ScreenProbeGatherState.DiffuseIndirectHistoryRT[0]);
 				GraphBuilder.QueueTextureExtraction(RoughSpecularIndirect, RoughSpecularIndirectHistoryState);
-				*HistoryConvergenceState = GSystemTextures.BlackDummy;
+				*HistoryNumFramesAccumulated = GSystemTextures.BlackDummy;
 			}
 		}
 
