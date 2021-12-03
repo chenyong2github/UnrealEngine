@@ -6,28 +6,23 @@
 #pragma once
 
 #include "../Common.ush"
-
-#ifndef HAS_CACHE_DATA
-#define HAS_CACHE_DATA 0
-#endif //HAS_CACHE_DATA
+#include "../BitPacking.ush"
 
 // Used in the PageFlags
 // NOTE: These flags are combined hierarchically using bitwise *OR*, so plan/negate them appropriately
 // Marks pages that are allocated
-#define VSM_ALLOCATED_FLAG  (1U)
-// Marks pages that are not cached
-#define VSM_UNCACHED_FLAG   (2U)
+#define VSM_ALLOCATED_FLAG			(1U)
+// Marks pages whose dynamic pages are uncached
+#define VSM_DYNAMIC_UNCACHED_FLAG	(2U)
+// Marks pages whose static pages are uncached
+#define VSM_STATIC_UNCACHED_FLAG	(4U)
 // Marks pages that need non-nanite rendering
-#define VSM_NON_NANITE_FLAG (4U)
+#define VSM_NON_NANITE_FLAG			(8U)
 
-// GPUCULL_TODO: These 10 bits don't match Nanite and we may run out what with mip-levels and all!
-#define VSM_PACKED_PAGE_INFO_VIEW_ID_BITS (10U)
-
-struct FPageInfo
+struct FPhysicalPageMetaData
 {
-	uint2 VirtualPage;
-	uint ViewId;
-	uint SuperPageLevel;
+	uint Flags;	// VSM_*_FLAG. Not all relevant to physical pages
+	uint Age;
 };
 
 uint CalcLog2LevelDimsPages(uint Level)
@@ -112,6 +107,7 @@ uint2 VSMPhysicalIndexToPageAddress(uint PageIndex)
 	return PageAddress;
 }
 
+
 // Current page table format:
 // NOTE: Some redundancy in flags and encoding, but we have spare bits for now
 //   [0:9] PageAddress.x
@@ -188,4 +184,36 @@ FShadowPageTranslationResult ShadowVirtualToPhysicalUV(uint VirtualShadowMapID, 
 	Result.PhysicalTexelAddress = PhysicalPageEntry.PhysicalAddress * VSM_PAGE_SIZE + (Result.VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 
 	return Result;
+}
+
+struct FPageInfo
+{
+	uint ViewId;
+	bool bStaticPage;		// Write to static page vs dynamic page
+};
+
+uint PackPageInfo(FPageInfo PageInfo)
+{
+	// TODO: Line up the bit encoding here with the max view count from Nanite
+	return
+		PageInfo.ViewId |
+		(PageInfo.bStaticPage ? (1U << 16) : 0U);
+}
+
+FPageInfo UnpackPageInfo(uint PackedData)
+{
+	FPageInfo PageInfo;
+	PageInfo.ViewId			= PackedData & 0xFFFF;
+	PageInfo.bStaticPage	= ((PackedData >> 16) & 0x1) != 0;
+	return PageInfo;
+}
+
+bool VirtualShadowMapShouldCacheStaticSeparately()
+{
+	return VirtualShadowMap.StaticCachedPixelOffsetY > 0;
+}
+
+uint2 GetVirtualShadowMapStaticPixelOffset()
+{
+	return uint2(0, VirtualShadowMap.StaticCachedPixelOffsetY);
 }

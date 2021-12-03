@@ -279,6 +279,8 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	bool bVisible		= true;
 
 #if VIRTUAL_TEXTURE_TARGET
+	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, DynamicData.bHasMoved);
+
 	// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
 	uint4 RectPages = PageRectBounds[NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel];
 #endif // VIRTUAL_TEXTURE_TARGET
@@ -304,9 +306,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 		BRANCH
 		if( bVisible && !Cull.bCrossesNearPlane )
 		{
-			// Clusters that has moved must be rendered to any allocated page, whereas static ones only need to be rendered into invalid pages.
-			uint FlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
-			bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, FlagMask );
+			bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, PageFlagMask );
 
 			uint4 ClusterRectPages = uint4( NaniteView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 
@@ -396,8 +396,6 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	uint PageTableLevelOffset = 0;
 	if( bVisible )
 	{
-		const uint PageFlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
-
 		PageTableLevelOffset = CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel );
 
 		if( bUseHWRaster )
@@ -501,7 +499,6 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 			}
 			else
 			{
-				const uint PageFlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 				for( uint y = RectPages.y; y <= RectPages.w; y++ )
 				{
 					for( uint x = RectPages.x; x <= RectPages.z; x++ )
@@ -588,6 +585,10 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 	FInstanceSceneData InstanceData = GetInstanceSceneData(CandidateNode.InstanceId, false);
 	FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
+#if VIRTUAL_TEXTURE_TARGET
+	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, DynamicData.bHasMoved);
+#endif
+
 	// Depth clipping should only be disabled with orthographic projections
 	const bool bNearClip = (NEAR_CLIP != 0);
 	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
@@ -639,8 +640,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 			BRANCH
 			if( bVisible )
 			{
-				uint FlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
-				bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, FlagMask );
+				bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, PageFlagMask );
 			}
 #endif
 		}

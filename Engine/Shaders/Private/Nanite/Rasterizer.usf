@@ -4,6 +4,7 @@
 #include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
 #include "../VirtualShadowMaps/PageAccessCommon.ush"
+#include "../VirtualShadowMaps/PageOverlap.ush"
 #include "WritePixel.ush"
 
 #define SUBPIXEL_BITS				8
@@ -45,7 +46,7 @@ void RasterizeTri(
 	uint2 VisualizeValues,
 #endif
 	float3 Verts[3],
-	bool bUsePageTable )
+	WritePixelPageTranslation PageTranslation)
 {
 	float3 v01 = Verts[1] - Verts[0];
 	float3 v02 = Verts[2] - Verts[0];
@@ -181,9 +182,9 @@ void RasterizeTri(
 			x1 += MinPixel.x;
 			for( float x = x0; x <= x1; x++ )
 			{
-				WritePixel(OutVisBuffer64, PixelValue, uint2(x,y), ZX, NaniteView, bUsePageTable);
+				WritePixel(OutVisBuffer64, PixelValue, uint2(x,y), ZX, PageTranslation);
 			#if VISUALIZE
-				WritePixel(OutDbgBuffer64, VisualizeValues.x, uint2(x,y), ZX, NaniteView, bUsePageTable);
+				WritePixel(OutDbgBuffer64, VisualizeValues.x, uint2(x,y), ZX, PageTranslation);
 				InterlockedAdd(OutDbgBuffer32[uint2(x,y)], VisualizeValues.y);
 			#endif
 
@@ -209,9 +210,9 @@ void RasterizeTri(
 			int x = MinPixel.x;
 			if (min3(CY0, CY1, CY2) >= 0)
 			{
-				WritePixel(OutVisBuffer64, PixelValue, uint2(x, y), ZY, NaniteView, bUsePageTable);
+				WritePixel(OutVisBuffer64, PixelValue, uint2(x, y), ZY, PageTranslation);
 			#if VISUALIZE
-				WritePixel(OutDbgBuffer64, VisualizeValues.x, uint2(x, y), ZY, NaniteView, bUsePageTable);
+				WritePixel(OutDbgBuffer64, VisualizeValues.x, uint2(x, y), ZY, PageTranslation);
 				InterlockedAdd(OutDbgBuffer32[uint2(x, y)], VisualizeValues.y);
 			#endif
 			}
@@ -229,9 +230,9 @@ void RasterizeTri(
 				{
 					if (min3(CX0, CX1, CX2) >= 0)
 					{
-						WritePixel(OutVisBuffer64, PixelValue, uint2(x, y), ZX, NaniteView, bUsePageTable);
+						WritePixel(OutVisBuffer64, PixelValue, uint2(x, y), ZX, PageTranslation);
 					#if VISUALIZE
-						WritePixel(OutDbgBuffer64, VisualizeValues.x, uint2(x, y), ZX, NaniteView, bUsePageTable);
+						WritePixel(OutDbgBuffer64, VisualizeValues.x, uint2(x, y), ZX, PageTranslation);
 						InterlockedAdd(OutDbgBuffer32[uint2(x, y)], VisualizeValues.y);
 					#endif
 					}
@@ -297,11 +298,23 @@ void MicropolyRasterize(
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
+	
+	// Virtual shadow maps can scatter instances into different physical pages for caching purposes
+	bool bVirtualTargetStaticPage = false;
+#if VIRTUAL_TEXTURE_TARGET
+	bVirtualTargetStaticPage = ShouldCacheInstanceAsStatic( InstanceData );
+#endif
 
 #if CLUSTER_PER_PAGE
 	// Scalar
 	uint2 vPage = VisibleCluster.vPage;
-	FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) );
+	uint2 pPageAddress = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ).PhysicalAddress;	
+	WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
+	// We can just move the physical page address we're rasterizing into
+	pPageAddress += bVirtualTargetStaticPage ? GetVirtualShadowMapStaticPixelOffset() >> VSM_LOG2_PAGE_SIZE : uint2( 0, 0 );
+#else
+	// Per-pixel page translation means we need to pass through an offset to WritePixel
+	WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation( NaniteView, bVirtualTargetStaticPage );
 #endif
 
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
@@ -309,7 +322,7 @@ void MicropolyRasterize(
 	float2 SubpixelScale = float2(0.5, -0.5) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
 	float2 SubpixelBias = (0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy) * SUBPIXEL_SAMPLES + 0.5f;
 #if CLUSTER_PER_PAGE
-	SubpixelBias += ( (float2)pPage.PhysicalAddress - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
+	SubpixelBias += ( (float2)pPageAddress - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
 #endif
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
@@ -336,7 +349,7 @@ void MicropolyRasterize(
 	int4 ViewRect = NaniteView.ViewRect;
 
 #if CLUSTER_PER_PAGE
-	ViewRect.xy = pPage.PhysicalAddress * VSM_PAGE_SIZE;
+	ViewRect.xy = pPageAddress * VSM_PAGE_SIZE;
 	ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
 #endif
 
@@ -367,7 +380,7 @@ void MicropolyRasterize(
 				GetVisualizeValues(),
 			#endif
 				Vertices,
-				!CLUSTER_PER_PAGE );
+				PageTranslation );
 		}
 	}
 }
@@ -390,7 +403,7 @@ struct VSOut
 	nointerpolation uint2 VisualizeValues	: TEXCOORD3;
 #endif
 #if VIRTUAL_TEXTURE_TARGET
-	nointerpolation int ViewId				: TEXCOORD4;
+	nointerpolation uint PackedPageInfo		: TEXCOORD4;
 #endif
 #if VERTEX_TO_TRIANGLE_MASKS
 	CUSTOM_INTERPOLATION uint4 ToTriangleMasks	: TEXCOORD5;
@@ -432,7 +445,10 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	Out.ViewRect = NaniteView.ViewRect;
 #endif
 #if VIRTUAL_TEXTURE_TARGET
-	Out.ViewId = VisibleCluster.ViewId;
+	FPageInfo PageInfo;
+	PageInfo.ViewId = VisibleCluster.ViewId;
+	PageInfo.bStaticPage = ShouldCacheInstanceAsStatic( InstanceData );
+	Out.PackedPageInfo = PackPageInfo( PageInfo );
 #endif
 	Out.Position = PointClip;
 #if !NEAR_CLIP
@@ -760,12 +776,6 @@ void HWRasterizePS(VSOut In)
 	PixelValue = ((ClusterIndex + 1) << 7) | TriangleIndex;
 #endif
 
-#if VIRTUAL_TEXTURE_TARGET
-	FNaniteView NaniteView = GetNaniteView(In.ViewId);
-#else
-	FNaniteView NaniteView;
-#endif
-
 #if CLUSTER_PER_PAGE
 	PixelPos += In.ViewRect.xy;
 	if (all(PixelPos < In.ViewRect.zw))
@@ -779,9 +789,18 @@ void HWRasterizePS(VSOut In)
 	#else
 		float DeviceZ = In.ClipZW.x / In.ClipZW.y;
 	#endif
-		WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET);
+		
+	#if VIRTUAL_TEXTURE_TARGET
+		FPageInfo PageInfo = UnpackPageInfo(In.PackedPageInfo);
+		FNaniteView NaniteView = GetNaniteView(PageInfo.ViewId);
+		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation(NaniteView, PageInfo.bStaticPage);
+	#else
+		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
+	#endif
+
+		WritePixel(OutVisBuffer64, PixelValue, PixelPos, DeviceZ, PageTranslation);
 	#if VISUALIZE
-		WritePixel(OutDbgBuffer64, In.VisualizeValues.x, PixelPos, DeviceZ, NaniteView, VIRTUAL_TEXTURE_TARGET);
+		WritePixel(OutDbgBuffer64, In.VisualizeValues.x, PixelPos, DeviceZ, PageTranslation);
 		InterlockedAdd(OutDbgBuffer32[PixelPos], In.VisualizeValues.y);
 	#endif
 	}

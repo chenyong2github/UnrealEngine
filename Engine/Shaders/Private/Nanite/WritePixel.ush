@@ -48,19 +48,13 @@ RWTexture2D<uint> 						LockBuffer;
 #include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
 #endif
 
-void WritePixel( RWTexture2D<UlongType> OutBuffer, uint PixelValue, uint2 PixelPos, float DeviceZ, FNaniteView NaniteView, bool bUsePageTable )
+void WritePixel(
+	RWTexture2D<UlongType> OutBuffer,
+	uint PixelValue,
+	uint2 PixelPos,
+	float DeviceZ
+)
 {
-#if VIRTUAL_TEXTURE_TARGET
-	if( bUsePageTable )
-	{
-		if( !VirtualToPhysicalTexel(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, PixelPos, PixelPos) )
-		{
-			// mapped to non-commited space.
-			return;
-		}
-	}
-#endif
-
 #if !NEAR_CLIP
 	DeviceZ = max(0.0f, DeviceZ);
 #endif
@@ -94,4 +88,56 @@ void WritePixel( RWTexture2D<UlongType> OutBuffer, uint PixelValue, uint2 PixelP
 	}
 #endif
 #endif
+}
+
+
+// Optional per-pixel page translation parameters
+struct WritePixelPageTranslation
+{
+	// TODO: We could optimize this slightly be precomputing the base layer/level offset
+	int TargetLayerIndex;
+	int TargetMipLevel;
+	uint2 PhysicalOffset;
+};
+
+WritePixelPageTranslation InitializeWritePixelPageTranslation()
+{
+	WritePixelPageTranslation Result;
+	Result.TargetLayerIndex = INDEX_NONE;
+	Result.TargetMipLevel = 0;
+	Result.PhysicalOffset = uint2( 0, 0 );
+	return Result;
+}
+
+WritePixelPageTranslation InitializeWritePixelPageTranslation( FNaniteView NaniteView, bool bStaticPage )
+{
+	WritePixelPageTranslation Result;
+	Result.TargetLayerIndex = NaniteView.TargetLayerIndex;
+	Result.TargetMipLevel = NaniteView.TargetMipLevel;
+	Result.PhysicalOffset = bStaticPage ? GetVirtualShadowMapStaticPixelOffset() : uint2( 0, 0 );
+	return Result;
+}
+
+// Write pixel with per-pixel page translation
+void WritePixel(
+	RWTexture2D<UlongType> OutBuffer,
+	uint PixelValue,
+	uint2 PixelPos,
+	float DeviceZ,
+	WritePixelPageTranslation PageTranslation
+)
+{
+#if VIRTUAL_TEXTURE_TARGET
+	if( PageTranslation.TargetLayerIndex != INDEX_NONE )
+	{
+		if( !VirtualToPhysicalTexel(PageTranslation.TargetLayerIndex, PageTranslation.TargetMipLevel, PixelPos, PixelPos) )
+		{
+			// mapped to non-commited space.
+			return;
+		}
+		PixelPos += PageTranslation.PhysicalOffset;
+	}
+#endif
+
+	WritePixel( OutBuffer, PixelValue, PixelPos, DeviceZ );
 }

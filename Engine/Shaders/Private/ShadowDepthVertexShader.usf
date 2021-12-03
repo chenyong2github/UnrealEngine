@@ -109,24 +109,8 @@ void SetShadowDepthOutputs(
  */
 #if VIRTUAL_SM_ENABLED
 
-FPageInfo UnPackPageInfo(uint PackedData)
-{
-	// TODO: Why not do address translation here? Physical pages need fewer bits.
-	uint4 PackedData4 = 0U;
-	PackedData4.x = PackedData;
-	uint BitPos = 0U;
-	FPageInfo PageInfo;
-	PageInfo.VirtualPage.x = ReadBits(PackedData, BitPos, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
-	PageInfo.VirtualPage.y = ReadBits(PackedData, BitPos, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
-	PageInfo.ViewId = ReadBits(PackedData, BitPos, VSM_PACKED_PAGE_INFO_VIEW_ID_BITS);
-
-	return PageInfo;
-}
-
 void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 PositionClip, inout float4 ClipPlanesInOut, FPageInfo PageInfo)
 {
-	uint2 vPage = PageInfo.VirtualPage;
-
 	float2 vClip = PositionClip.xy;
 	float2 vUV = vClip * float2(0.5, -0.5) + 0.5 * PositionClip.w;
 	float2 vPixels = vUV * ( uint(VSM_VIRTUAL_MAX_RESOLUTION_XY) >> NaniteView.TargetMipLevel );
@@ -293,7 +277,7 @@ void Main(
 	out FShadowDepthVSToPS OutParameters,
 #endif
 #if VIRTUAL_SM_ENABLED
-	out nointerpolation uint ViewId : TEXCOORD8,
+	out nointerpolation uint PackedPageInfo : TEXCOORD8,
 #endif
 	out float4 OutPosition : SV_POSITION
 #if VIRTUAL_SM_ENABLED	
@@ -375,18 +359,18 @@ void Main(
 #endif
 
 #if VIRTUAL_SM_ENABLED
-	ViewId = 0;
+	PackedPageInfo = 0;
 	
 	OutVirtualSmPageClip = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	if (PassStruct.bRenderToVirtualShadowMap != 0)
 	{
 		// Get the offset from which we loaded the instance ID
 		uint InstanceIdIndex = VertexFactoryGetInstanceIdLoadIndex(VFIntermediates);
-		FPageInfo PageInfo = UnPackPageInfo(InstanceCulling.PageInfoBuffer[InstanceIdIndex]);
+		PackedPageInfo = InstanceCulling.PageInfoBuffer[InstanceIdIndex];
+
+		FPageInfo PageInfo = UnpackPageInfo(PackedPageInfo);
 
 		TransformToVirtualSmPage(OutPosition, OutVirtualSmPageClip, PageInfo, WorldPos.xyz);
-		
-		ViewId = PageInfo.ViewId;
 	}
 #endif // VIRTUAL_SM_ENABLED
 }
@@ -440,7 +424,7 @@ void PositionOnlyMain(
 	out FShadowDepthVSToPS OutParameters,
 #endif
 #if VIRTUAL_SM_ENABLED
-	out nointerpolation uint ViewId : TEXCOORD8,
+	out nointerpolation uint PackedPageInfo : TEXCOORD8,
 #endif
 	out float4 OutPosition : SV_POSITION
 #if VIRTUAL_SM_ENABLED	
@@ -500,7 +484,7 @@ void PositionOnlyMain(
 #endif
 
 #if VIRTUAL_SM_ENABLED
-	ViewId = 0;
+	PackedPageInfo = 0;
 
 	OutVirtualSmPageClip = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	if (PassStruct.bRenderToVirtualShadowMap != 0)
@@ -509,10 +493,9 @@ void PositionOnlyMain(
 		uint InstanceIdIndex = VertexFactoryGetInstanceIdLoadIndex(Input);
 		// TODO: Maybe offset index to local buffer for this? We may not want to use a global since most passes are not supporting this
 		//       Or perhaps both are different, as they are managed somewhat differently anyway, maybe.
-		FPageInfo PageInfo = UnPackPageInfo(InstanceCulling.PageInfoBuffer[InstanceIdIndex]);
+		PackedPageInfo = InstanceCulling.PageInfoBuffer[InstanceIdIndex];
+		FPageInfo PageInfo = UnpackPageInfo(PackedPageInfo);
 		TransformToVirtualSmPage(OutPosition, OutVirtualSmPageClip, PageInfo, WorldPos.xyz);
-
-		ViewId = PageInfo.ViewId;
 	}
 #endif // VIRTUAL_SM_ENABLED
 }

@@ -4,6 +4,7 @@
 #include "../SceneData.ush"
 #include "ProjectionCommon.ush"
 #include "PageOverlap.ush"
+#include "PageCacheCommon.ush"
 #include "../ScreenSpaceDenoise/SSDDefinitions.ush"		// For LIGHT_TYPE's
 
 //#include "NaniteDataDecode.ush"
@@ -22,7 +23,7 @@ struct FInstanceSceneDataRange
 StructuredBuffer<FInstanceSceneDataRange> InstanceSceneRanges;
 uint NumRemovedItems;
 
-RWStructuredBuffer<uint> OutDynamicCasterFlags;
+RWStructuredBuffer<uint> OutDynamicCasterPageFlags;
 uint InstanceSceneDataSOAStride;
 
 #if ENABLE_DEBUG_MODE
@@ -65,6 +66,7 @@ void VirtualSmInvalidateInstancePagesCS(
 #endif
 	{
 		FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
+		uint InvalidationFlags = ShouldCacheInstanceAsStatic(InstanceSceneData) ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG;
 
 		// TODO: Clean up hardcoded flag field test.
 		bool bCastShadows = InstanceSceneData.ValidInstance 
@@ -139,7 +141,9 @@ void VirtualSmInvalidateInstancePagesCS(
 													continue;
 												}
 #endif // USE_HZB_OCCLUSION
-												OutDynamicCasterFlags[PageFlagOffset] = 1;
+												// Accumulate static/dynamic invalidation flags
+												// TODO: Wave version												
+												InterlockedOr(OutDynamicCasterPageFlags[PageFlagOffset], InvalidationFlags);
 #if ENABLE_DEBUG_MODE
 												++PageInvalidationCount;
 #endif

@@ -2,11 +2,19 @@
 
 #include "../Common.ush"
 #include "../ShaderPrintCommon.ush"
-#include "PageOverlap.ush"
+#include "PageAccessCommon.ush"
 #include "Stats.ush"
 
 StructuredBuffer<uint>	InStatsBuffer;
+// Rectangles bounding (allocated) pages for each mip level
+StructuredBuffer<uint4> PageRectBounds;
 StructuredBuffer<uint4> AllocatedPageRectBounds;
+
+// From cvar, used to determine which stats are shown
+// 1 = all
+// 2 = only physical pages
+// 3 = only non-nanite-instances
+int ShowStatsValue;
 
 float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 {
@@ -32,84 +40,114 @@ float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 [numthreads(1, 1, 1)]
 void PrintStats()
 {
+	const bool bShowAll                = ShowStatsValue == 1;
+	const bool bShowPhysicalPages      = bShowAll || ShowStatsValue == 2;
+	const bool bShowNonNaniteInstances = bShowAll || ShowStatsValue == 3;
+
 	float TopMargin = 0.05f;
 	float HeadlineX = 0.47f;
 	float ItemX = 0.48f;
 	float ValueX = 0.58f;
 	float2 ScreenPos = float2(HeadlineX, TopMargin);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("MAX PAGES"), FontWhite);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, VirtualShadowMap.MaxPhysicalPages);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("PAGES"), FontWhite);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_ALLOCATED_PAGES]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("CACHED PAGES"), FontWhite);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_CACHED_PAGES]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("CACHED PERCT"), FontWhite);
-	ScreenPos.x = ValueX;
-	if (InStatsBuffer[VSM_STAT_ALLOCATED_PAGES])
+	if (bShowPhysicalPages)
 	{
-		ScreenPos = ShaderPrintLeftAlign(ScreenPos, (InStatsBuffer[VSM_STAT_CACHED_PAGES] * 100) / InStatsBuffer[VSM_STAT_ALLOCATED_PAGES]);
+		ScreenPos.x = HeadlineX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Physical Pages"), FontWhite);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, VirtualShadowMap.MaxPhysicalPages);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
+
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Allocated"), FontWhite);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_ALLOCATED_PAGES]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
+
+		if (VirtualShadowMapShouldCacheStaticSeparately())
+		{
+			ScreenPos.x = HeadlineX;
+			ScreenPos = ShaderPrintText(ScreenPos, TEXT("Static Cached"), FontWhite);
+			ScreenPos.x = ValueX;
+			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_STATIC_CACHED_PAGES]);
+			ScreenPos = ShaderPrintNewline(ScreenPos);
+
+			ScreenPos.x = ItemX;
+			ScreenPos = ShaderPrintText(ScreenPos, TEXT("Invalidated"), FontWhite);
+			ScreenPos.x = ValueX;
+			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_STATIC_INVALIDATED_BY_DYNAMIC_PAGES]);
+			ScreenPos = ShaderPrintNewline(ScreenPos);
+
+			ScreenPos.x = HeadlineX;
+			ScreenPos = ShaderPrintText(ScreenPos, TEXT("Dynamic Cached"), FontWhite);
+			ScreenPos.x = ValueX;
+			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_DYNAMIC_CACHED_PAGES]);
+			ScreenPos = ShaderPrintNewline(ScreenPos);
+
+			ScreenPos.x = ItemX;
+			ScreenPos = ShaderPrintText(ScreenPos, TEXT("Invalidated"), FontWhite);
+			ScreenPos.x = ValueX;
+			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_DYNAMIC_INVALIDATED_BY_DYNAMIC_PAGES]);
+			ScreenPos = ShaderPrintNewline(ScreenPos);
+		}
+		else
+		{
+			ScreenPos.x = HeadlineX;
+			ScreenPos = ShaderPrintText(ScreenPos, TEXT("Cached"), FontWhite);
+			ScreenPos.x = ValueX;
+			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_STATIC_CACHED_PAGES]);
+			ScreenPos = ShaderPrintNewline(ScreenPos);
+
+			ScreenPos.x = ItemX;
+			ScreenPos = ShaderPrintText(ScreenPos, TEXT("Invalidated"), FontWhite);
+			ScreenPos.x = ValueX;
+			ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_STATIC_INVALIDATED_BY_DYNAMIC_PAGES]);
+			ScreenPos = ShaderPrintNewline(ScreenPos);
+		}
 	}
-	ScreenPos = ShaderPrintNewline(ScreenPos);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("DYN INVAL"), FontWhite);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_INVALIDATED_BY_DYNAMIC_PAGES]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+	if (bShowNonNaniteInstances)
+	{
+		ScreenPos.x = HeadlineX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Non-Nanite Instances"), FontCyan);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
 
-	ScreenPos.x = HeadlineX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Non-Nanite Instances"), FontCyan);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Total"), FontCyan);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_TOTAL]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Total"), FontCyan);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_TOTAL]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Drawn"), FontCyan);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_DRAWN]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Drawn"), FontCyan);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_DRAWN]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("HZB Culled"), FontCyan);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("HZB Culled"), FontCyan);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Page Mask Culled"), FontCyan);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_PAGE_MASK_CULLED]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Page Mask Culled"), FontCyan);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_PAGE_MASK_CULLED]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Empty Rect Culled"), FontCyan);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_EMPTY_RECT_CULLED]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
 
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Empty Rect Culled"), FontCyan);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_EMPTY_RECT_CULLED]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
-
-	ScreenPos.x = ItemX;
-	ScreenPos = ShaderPrintText(ScreenPos, TEXT("Frustum Culled"), FontCyan);
-	ScreenPos.x = ValueX;
-	ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_FRUSTUM_CULLED]);
-	ScreenPos = ShaderPrintNewline(ScreenPos);
+		ScreenPos.x = ItemX;
+		ScreenPos = ShaderPrintText(ScreenPos, TEXT("Frustum Culled"), FontCyan);
+		ScreenPos.x = ValueX;
+		ScreenPos = ShaderPrintLeftAlign(ScreenPos, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_FRUSTUM_CULLED]);
+		ScreenPos = ShaderPrintNewline(ScreenPos);
+	}
 }
 
 
