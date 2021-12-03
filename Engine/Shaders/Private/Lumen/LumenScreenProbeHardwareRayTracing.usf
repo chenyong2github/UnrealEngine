@@ -42,10 +42,16 @@ void FLumenScreenProbeHardwareRayTracingIndirectArgsCS()
 	RWHardwareRayTracingIndirectArgs[0] = RayAllocator[0];
 	RWHardwareRayTracingIndirectArgs[1] = 1;
 	RWHardwareRayTracingIndirectArgs[2] = 1;
+
+#if DIM_INLINE_RAYTRACING
+	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
+	// We need to adjust it to get the same number of threads running.
+	RWHardwareRayTracingIndirectArgs[0] = (RWHardwareRayTracingIndirectArgs[0] + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+#endif
 }
 
 
-#if LUMEN_HARDWARE_RAYTRACING
+#if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
 float3 FarFieldReferencePos;
 
@@ -66,6 +72,10 @@ int ApplySkyLight;
 
 StructuredBuffer<FTraceDataPacked> RetraceDataPackedBuffer;
 RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 FRayTracedLightingResult EpsilonTrace(RayDesc Ray, inout FRayTracedLightingContext Context)
 {
@@ -94,10 +104,10 @@ FRayTracedLightingResult EpsilonTrace(RayDesc Ray, inout FRayTracedLightingConte
 	return Result;
 }
 
-RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
+LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 {
-	uint ThreadIndex = DispatchRaysIndex().x;
-	uint GroupIndex = DispatchRaysIndex().y;
+	uint ThreadIndex = DispatchThreadIndex.x;
+	uint GroupIndex = DispatchThreadIndex.y;
 
 #if DIM_INDIRECT_DISPATCH
 	uint Iteration = 0;
@@ -161,6 +171,10 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			MaxTranslucentSkipCount);
 		Context.bCalculateHitVelocity = true;
 
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+		Context.HitGroupData = HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 		// Initialize by testing against a small epsilon
 		FRayTracedLightingResult Result = EpsilonTrace(Ray, Context);
 		if (!Result.bIsHit)
@@ -216,4 +230,4 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 	}
 }
 
-#endif // LUMEN_HARDWARE_RAYTRACING
+#endif // LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING

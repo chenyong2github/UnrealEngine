@@ -54,6 +54,27 @@ float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPU
 #define LUMEN_HARDWARE_INLINE_RAYTRACING 0
 #endif
 
+// Helper macro to set common entry point for passes that have both inline (CS) and non-inline (RGS) version.
+// Given "name" it will create "nameCS" entry point for compute and "nameRGS" for raygen shader.
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+
+#define LUMEN_HARDWARE_RAY_TRACING_ENTRY(name)\
+void name##_INTERNAL(uint3 DispatchThreadIndex);\
+[numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]\
+void name##CS(uint3 DispatchThreadIndex : SV_DispatchThreadID) {\
+	name##_INTERNAL(DispatchThreadIndex);}\
+void name##_INTERNAL(uint3 DispatchThreadIndex)
+
+#else // LUMEN_HARDWARE_RAYTRACING
+
+#define LUMEN_HARDWARE_RAY_TRACING_ENTRY(name)\
+void name##_INTERNAL(uint3 DispatchThreadIndex);\
+RAY_TRACING_ENTRY_RAYGEN(name##RGS){\
+name##_INTERNAL(DispatchRaysIndex());}\
+void name##_INTERNAL(uint3 DispatchThreadIndex)
+
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 // Lighting modes
 #define LIGHTING_FROM_SURFACE_CACHE 0
 #define EVALUATE_MATERIAL 1

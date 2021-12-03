@@ -39,7 +39,7 @@ void FLumenReflectionHardwareRayTracingIndirectArgsCS()
 #if DIM_INLINE_RAYTRACING
 	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
 	// We need to adjust it to get the same number of threads running.
-	RWHardwareRayTracingIndirectArgs[0] /= INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+	RWHardwareRayTracingIndirectArgs[0] = (RWHardwareRayTracingIndirectArgs[0] + INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X - 1) / INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
 #endif
 }
 
@@ -67,7 +67,7 @@ RWTexture2D<float> RWTraceHit;
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-void LumenReflectionHardwareRayTracingCommon(uint2 DispatchThreadIndex)
+LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 {
 	uint ThreadIndex = DispatchThreadIndex.x;
 	uint GroupIndex = DispatchThreadIndex.y;
@@ -217,20 +217,5 @@ void LumenReflectionHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 #endif // DIM_WRITE_FINAL_LIGHTING
 	}
 }
-
-#if LUMEN_HARDWARE_INLINE_RAYTRACING
-
-[numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
-void LumenReflectionHardwareRayTracingCS(uint2 DispatchThreadIndex : SV_DispatchThreadID)
-{
-	LumenReflectionHardwareRayTracingCommon(DispatchThreadIndex);
-}
-#else // LUMEN_HARDWARE_RAYTRACING
-
-RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
-{
-	LumenReflectionHardwareRayTracingCommon(DispatchRaysIndex());
-}
-#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #endif // LUMEN_HARDWARE_RAYTRACING
