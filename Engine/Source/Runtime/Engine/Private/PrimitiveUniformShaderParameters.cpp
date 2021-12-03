@@ -122,12 +122,13 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = Proxy->GetPrimitiveSceneInfo();
 
-	uint32 NaniteResourceID = NANITE_INVALID_RESOURCE_ID;
-	uint32 NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	uint32 NaniteResourceID = INDEX_NONE;
+	uint32 NaniteHierarchyOffset = INDEX_NONE;
+	uint32 NaniteImposterIndex = INDEX_NONE;
 	bool bHasNaniteImposterData = false;
 	if (Proxy->IsNaniteMesh())
 	{
-		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, bHasNaniteImposterData);
+		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
 	}
 
 	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
@@ -156,8 +157,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
 		.NaniteResourceID(NaniteResourceID)
 		.NaniteHierarchyOffset(NaniteHierarchyOffset)
-		.VisibleInRaster(Proxy->IsVisibleInRaster())
-		.HasNaniteImposterData(bHasNaniteImposterData);
+		.NaniteImposterIndex(NaniteImposterIndex)
+		.VisibleInRaster(Proxy->IsVisibleInRaster());
 
 	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
 	if (InstanceBounds.Num() > 0)
@@ -236,9 +237,14 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[28].Y = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.Y;
 	Data[28].Z = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.Z;
 	Data[28].W = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataStride;
+	
+	Data[29].X = 0.0f;
+	Data[29].Y = 0.0f;
+	Data[29].Z = 0.0f;
+	Data[29].W = *(const float*)&PrimitiveUniformShaderParameters.NaniteImposterIndex;
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 29;
+	const int32 CustomPrimitiveDataStartIndex = 30;
 	for (int32 DataIndex = 0; DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; ++DataIndex)
 	{
 		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];

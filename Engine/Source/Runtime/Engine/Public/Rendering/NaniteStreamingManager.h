@@ -137,7 +137,7 @@ public:
 
 	FRHIShaderResourceView*				GetClusterPageDataSRV() const			{ return ClusterPageData.DataBuffer.SRV; }
 	FRHIShaderResourceView*				GetHierarchySRV() const					{ return Hierarchy.DataBuffer.SRV; }
-	FRHIShaderResourceView*				GetRootPagesSRV() const					{ return RootPages.DataBuffer.SRV; }
+	FRHIShaderResourceView*				GetImposterDataSRV() const				{ return ImposterData.DataBuffer.SRV; }
 	uint32								GetMaxStreamingPages() const			{ return MaxStreamingPages; }
 
 	inline bool HasResourceEntries() const
@@ -173,7 +173,7 @@ private:
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
 	FScatterUploadBuffer	ClusterFixupUploadBuffer;
 	FHeapBuffer				Hierarchy;
-	FHeapBuffer				RootPages;
+	FHeapBuffer				ImposterData;
 	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
 
 	uint32					StreamingRequestsBufferVersion;
@@ -190,6 +190,10 @@ private:
 	uint32					NumRegisteredStreamingPages;
 	uint32					NumPendingPages;
 	uint32					NextPendingPageIndex;
+
+	uint32					StatNumRootPages;
+	uint32					StatPeakRootPages;
+	uint32					StatPeakAllocatedRootPages;
 
 	TArray<FRootPageInfo>	RootPageInfos;
 

@@ -50,6 +50,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,		InstancePayloadDataOffset)
 	SHADER_PARAMETER(FVector3f,		InstanceLocalBoundsExtent)
 	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
+	SHADER_PARAMETER(FVector3f,		Padding)
+	SHADER_PARAMETER(uint32,		NaniteImposterIndex)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -70,9 +72,6 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER					0x2000
 #define PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER				0x4000
 #define PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS			0x8000
-
-#define NANITE_INVALID_RESOURCE_ID			0xFFFFFFFFu
-#define NANITE_INVALID_HIERARCHY_OFFSET		0xFFFFFFFFu
 
 struct FPrimitiveUniformShaderParametersBuilder
 {
@@ -95,7 +94,6 @@ public:
 		bHasCapsuleRepresentation					= false;
 		bHasPreSkinnedLocalBounds					= false;
 		bHasPreviousLocalToWorld					= false;
-		bHasNaniteImposterData						= false;
 		bHasInstanceLocalBounds						= false;
 
 		// Invalid indices
@@ -104,8 +102,9 @@ public:
 		Parameters.SingleCaptureIndex				= INDEX_NONE;
 
 		// Nanite
-		Parameters.NaniteResourceID					= NANITE_INVALID_RESOURCE_ID;
-		Parameters.NaniteHierarchyOffset			= NANITE_INVALID_HIERARCHY_OFFSET;
+		Parameters.NaniteResourceID					= INDEX_NONE;
+		Parameters.NaniteHierarchyOffset			= INDEX_NONE;
+		Parameters.NaniteImposterIndex				= INDEX_NONE;
 
 		// Instance data
 		Parameters.InstanceSceneDataOffset			= INDEX_NONE;
@@ -125,7 +124,6 @@ public:
 	inline FPrimitiveUniformShaderParametersBuilder& VARIABLE_NAME(INPUT_TYPE In##VARIABLE_NAME) { b##VARIABLE_NAME = In##VARIABLE_NAME; return *this; }
 
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ReceivesDecals);
-	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasNaniteImposterData);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasCapsuleRepresentation);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasInstanceLocalBounds);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastContactShadow);
@@ -143,6 +141,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				SingleCaptureIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteResourceID);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteHierarchyOffset);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteImposterIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			LightmapUVIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			LightmapDataIndex);
 
@@ -315,7 +314,7 @@ public:
 		Parameters.Flags |= ((LightingChannels & 0x2) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x4) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2 : 0u;
 		Parameters.Flags |= bVisibleInRaster ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER : 0u;
-		Parameters.Flags |= bHasNaniteImposterData ? PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER : 0u;
+		Parameters.Flags |= (Parameters.NaniteImposterIndex != INDEX_NONE) ? PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER : 0u;
 		Parameters.Flags |= bHasInstanceLocalBounds ? PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS : 0u;
 		return Parameters;
 	}
@@ -342,7 +341,6 @@ private:
 	uint32 bHasCustomData : 1;
 	uint32 bHasPreviousLocalToWorld : 1;
 	uint32 bVisibleInRaster : 1;
-	uint32 bHasNaniteImposterData : 1;
 	uint32 bHasInstanceLocalBounds : 1;
 };
 
@@ -404,7 +402,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match usf
-	enum { DataStrideInFloat4s = 37 };
+	enum { DataStrideInFloat4s = 38 };
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 

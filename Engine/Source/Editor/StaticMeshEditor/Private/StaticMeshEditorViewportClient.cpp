@@ -801,10 +801,26 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		if (StaticMesh->GetRenderData())
 		{
 			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
-			if (Resources.RootClusterPage.Num() > 0)
+			if (Resources.RootData.Num() > 0)
 			{
-				FString Str = FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(Resources.PositionPrecision);
-				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NanitePositionPrecision", "Position Precision: {0}"), FText::FromString(Str)));
+				const FString PositionStr = FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(Resources.PositionPrecision);
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NanitePositionPrecision", "Position Precision: {0}"), FText::FromString(PositionStr)));
+				
+				const uint32 NumStreamingPages = Resources.PageStreamingStates.Num() - Resources.NumRootPages;
+				const uint64 RootKB = uint64(Resources.NumRootPages) * ROOT_PAGE_GPU_SIZE;
+				const uint64 StreamingKB = uint64(NumStreamingPages) * STREAMING_PAGE_GPU_SIZE;
+				const uint64 TotalKB = RootKB + StreamingKB;
+
+				FNumberFormattingOptions NumberOptions;
+				NumberOptions.MinimumFractionalDigits = 2;
+				NumberOptions.MaximumFractionalDigits = 2;
+
+				TextItems.Emplace(FText::Format(
+					NSLOCTEXT("UnrealEd", "NaniteResidency", "GPU Memory: Always allocated {0} MB. Streaming {1} MB. Total {2} MB."),
+					FText::AsNumber(RootKB / 1048576.0f, &NumberOptions),
+					FText::AsNumber(StreamingKB / 1048576.0f, &NumberOptions),
+					FText::AsNumber(TotalKB / 1048576.0f, &NumberOptions)
+					));
 			}
 		}
 	}
@@ -837,7 +853,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		if (StaticMesh->GetRenderData())
 		{
 			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
-			if (Resources.RootClusterPage.Num() > 0)
+			if (Resources.RootData.Num() > 0)
 			{
 				// Nanite Mesh Information
 				const FText NaniteTriangleCount = FText::AsNumber(Resources.NumInputTriangles);

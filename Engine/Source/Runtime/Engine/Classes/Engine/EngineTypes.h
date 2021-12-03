@@ -3100,11 +3100,16 @@ struct FMeshNaniteSettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
 	float PercentTriangles;
 
+	/** How much of the resource should always be resident (In KB). Approximate due to paging. 0: Minimum size (single page). MAX_uint32: Entire mesh.*/
+	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	uint32 TargetMinimumResidencyInKB;
+
 	/** Default settings. */
 	FMeshNaniteSettings()
 	: bEnabled(false)
 	, PositionPrecision(MIN_int32)
 	, PercentTriangles(0.0f)
+	, TargetMinimumResidencyInKB(0)
 	{
 	}
 
@@ -3112,13 +3117,14 @@ struct FMeshNaniteSettings
 	: bEnabled(Other.bEnabled)
 	, PositionPrecision(Other.PositionPrecision)
 	, PercentTriangles(Other.PercentTriangles)
+	, TargetMinimumResidencyInKB(Other.TargetMinimumResidencyInKB)
 	{
 	}
 
 	/** Equality operator. */
 	bool operator==(const FMeshNaniteSettings& Other) const
 	{
-		return bEnabled == Other.bEnabled && PositionPrecision == Other.PositionPrecision && PercentTriangles == Other.PercentTriangles;
+		return bEnabled == Other.bEnabled && PositionPrecision == Other.PositionPrecision && PercentTriangles == Other.PercentTriangles && TargetMinimumResidencyInKB == Other.TargetMinimumResidencyInKB;
 	}
 
 	/** Inequality operator. */

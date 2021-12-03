@@ -400,7 +400,7 @@ public:
 	virtual void OnTransformChanged() override;
 
 	// FSceneProxyBase interface.
-	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const override;
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, uint32& ImposterIndex) const override;
 
 	/** Called on render thread to setup static geometry for rendering */
 	void SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit = false);
@@ -435,8 +435,8 @@ protected:
 	};
 	TArray<FGeometryNaniteData> GeometryNaniteData;
 
-	uint32 NaniteResourceID = NANITE_INVALID_RESOURCE_ID;
-	uint32 NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	uint32 NaniteResourceID = INDEX_NONE;
+	uint32 NaniteHierarchyOffset = INDEX_NONE;
 
 	// TODO: Should probably calculate this on the materials array above instead of on the component
 	//       Null and !Opaque are assigned default material unlike the component material relevance.

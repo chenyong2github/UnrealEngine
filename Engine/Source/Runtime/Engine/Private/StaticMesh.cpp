@@ -2315,6 +2315,7 @@ static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& Nan
 	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bEnabled);
 	Ar << NaniteSettings.PositionPrecision;
 	Ar << NaniteSettings.PercentTriangles;
+	Ar << NaniteSettings.TargetMinimumResidencyInKB;
 }
 
 static void SerializeReductionSettingsForDDC(FArchive& Ar, FMeshReductionSettings& ReductionSettings)
@@ -3204,7 +3205,7 @@ int32 UStaticMesh::GetNumNaniteVertices() const
 	if (HasValidNaniteData())
 	{
 		const Nanite::FResources& Resources = GetRenderData()->NaniteResources;
-		if (Resources.RootClusterPage.Num() > 0)
+		if (Resources.RootData.Num() > 0)
 		{
 			NumVertices = Resources.NumInputVertices;
 		}
@@ -3218,7 +3219,7 @@ int32 UStaticMesh::GetNumNaniteTriangles() const
 	if (HasValidNaniteData())
 	{
 		const Nanite::FResources& Resources = GetRenderData()->NaniteResources;
-		if (Resources.RootClusterPage.Num() > 0)
+		if (Resources.RootData.Num() > 0)
 		{
 			NumTriangles = Resources.NumInputTriangles;
 		}

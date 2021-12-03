@@ -4763,6 +4763,14 @@ FNaniteSettingsLayout::FNaniteSettingsLayout(FStaticMeshEditor& InStaticMeshEdit
 	{
 		PositionPrecisionOptions.Add(MakeShared<FString>(PositionPrecisionValueToDisplayString(i)));
 	}
+
+	const FText ResidencyMinimalText = FText::Format(LOCTEXT("ResidencyMinimum", "Minimal ({0}KB)"), ROOT_PAGE_GPU_SIZE >> 10);
+	ResidencyOptions.Add(MakeShared<FString>(ResidencyMinimalText.ToString()));
+	for (int32 i = DisplayMinimumResidencyExpRangeMin; i <= DisplayMinimumResidencyExpRangeMax; i++)
+	{
+		ResidencyOptions.Add(MakeShared<FString>(MinimumResidencyValueToDisplayString(1 << i), false));
+	}
+	ResidencyOptions.Add(MakeShared<FString>(LOCTEXT("ResidencyFull", "Full").ToString()));
 }
 
 FNaniteSettingsLayout::~FNaniteSettingsLayout()
@@ -4822,6 +4830,26 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			.OptionsSource(&PositionPrecisionOptions)
 			.InitiallySelectedItem(PositionPrecisionOptions[PositionPrecisionValueToIndex(NaniteSettings.PositionPrecision)])
 			.OnSelectionChanged(this, &FNaniteSettingsLayout::OnPositionPrecisionChanged)
+		];
+	}
+
+	{
+		TSharedPtr<STextComboBox> TerminationCriterionCombo;
+		NaniteSettingsCategory.AddCustomRow(LOCTEXT("MinimumResidency", "Minimum Residency"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("MinimumResidency", "Minimum Residency"))
+			.ToolTipText(LOCTEXT("ResidencyTooltip", "How much should always be in memory. The rest will be streamed. Higher values require more memory, but also mitigate streaming pop-in issues."))
+		]
+		.ValueContent()
+		[
+			SAssignNew(TerminationCriterionCombo, STextComboBox)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.OptionsSource(&ResidencyOptions)
+			.InitiallySelectedItem(ResidencyOptions[MinimumResidencyValueToIndex(NaniteSettings.TargetMinimumResidencyInKB)])
+			.OnSelectionChanged(this, &FNaniteSettingsLayout::OnResidencyChanged)
 		];
 	}
 
@@ -4944,6 +4972,51 @@ FString FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(int32 Value
 	}
 }
 
+uint32 FNaniteSettingsLayout::MinimumResidencyIndexToValue(int32 Index)
+{
+	if (Index == DisplayMinimumResidencyMinimalIndex)
+	{
+		return 0;
+	}
+	else if (Index == DisplayMinimumResidencyFullIndex)
+	{
+		return MAX_uint32;
+	}
+	else
+	{
+		return 1u << (DisplayMinimumResidencyExpRangeMin + Index - 1);
+	}
+}
+
+int32 FNaniteSettingsLayout::MinimumResidencyValueToIndex(uint32 Value)
+{
+	if (Value == 0)
+	{
+		return DisplayMinimumResidencyMinimalIndex;
+	}
+	else if (Value == MAX_uint32)
+	{
+		return DisplayMinimumResidencyFullIndex;
+	}
+	else
+	{
+		int32 Exp = (int32)FMath::CeilLogTwo(Value);
+		return FMath::Clamp(Exp, DisplayMinimumResidencyExpRangeMin, DisplayMinimumResidencyExpRangeMax) - DisplayMinimumResidencyExpRangeMin + 1;
+	}
+}
+
+FString FNaniteSettingsLayout::MinimumResidencyValueToDisplayString(uint32 Value)
+{
+	if (Value < 1024)
+	{
+		return FString::Printf(TEXT("%dKB"), Value);
+	}
+	else
+	{
+		return FString::Printf(TEXT("%dMB"), Value >> 10);
+	}
+}
+
 ECheckBoxState FNaniteSettingsLayout::IsEnabledChecked() const
 {
 	return NaniteSettings.bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -4964,6 +5037,19 @@ void FNaniteSettingsLayout::OnPositionPrecisionChanged(TSharedPtr<FString> NewVa
 			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("PositionPrecision"), *NewValue.Get());
 		}
 		NaniteSettings.PositionPrecision = NewValueInt;
+	}
+}
+
+void FNaniteSettingsLayout::OnResidencyChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
+{
+	int32 NewValueInt = MinimumResidencyIndexToValue(ResidencyOptions.Find(NewValue));
+	if (NaniteSettings.TargetMinimumResidencyInKB != NewValueInt)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("MinimumResidency"), *NewValue.Get());
+		}
+		NaniteSettings.TargetMinimumResidencyInKB = NewValueInt;
 	}
 }
 

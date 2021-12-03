@@ -943,6 +943,7 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 	FMeshNaniteSettings NaniteSettings = {};
 	NaniteSettings.bEnabled = true;
 	NaniteSettings.PercentTriangles = 1.0f; // 100% - no reduction
+	NaniteSettings.TargetMinimumResidencyInKB = 0;	// Default to smallest possible, which is a single page
 
 	NaniteData->NaniteResource = {};
 	if (!NaniteBuilderModule.Build(NaniteData->NaniteResource, BuildVertices, BuildIndices, MaterialIndices, MeshTriangleCounts, NumTexCoords, NaniteSettings))

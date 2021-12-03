@@ -1599,11 +1599,11 @@ void FNaniteGeometryCollectionSceneProxy::OnTransformChanged()
 {
 }
 
-void FNaniteGeometryCollectionSceneProxy::GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const
+void FNaniteGeometryCollectionSceneProxy::GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, uint32& ImposterIndex) const
 {
 	ResourceID = NaniteResourceID;
 	HierarchyOffset = NaniteHierarchyOffset;
-	bHasImposterData = false;
+	ImposterIndex = INDEX_NONE;	// Imposters are not supported (yet?)
 }
 
 void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
