@@ -75,7 +75,7 @@ class DeviceAdditionalSettingsUI(QtCore.QObject):
     signal_device_widget_tracing = QtCore.Signal(object)
 
     enable_insight_trace = False
-    insight_trace_args = "log,cpu,gpu,frame,concert,messaging"
+    insight_trace_args = "log,cpu,gpu,frame,bookmark,concert,messaging"
 
     def __init__(self, name, parent = None):
         super().__init__(parent)
