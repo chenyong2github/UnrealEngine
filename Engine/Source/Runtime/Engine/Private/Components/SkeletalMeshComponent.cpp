@@ -65,6 +65,12 @@ static TAutoConsoleVariable<float> CVarStallParallelAnimation(
 	TEXT("Sleep for the given time in each parallel animation task. Time is given in ms. This is a debug option used for critical path analysis and forcing a change in the critical path."));
 
 
+static TAutoConsoleVariable<int32> CVarCacheLocalSpaceBounds(
+	TEXT("a.CacheLocalSpaceBounds"),
+	1,
+	TEXT("If 1 (default) local-space bounds are calculated and cached, otherwise worldspace bounds are built and cached (and inverse transformed to produce local bounds)."));
+
+
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Anim Instance Spawn Time"), STAT_AnimSpawnTime, STATGROUP_Anim, );
 DEFINE_STAT(STAT_AnimSpawnTime);
 DEFINE_STAT(STAT_PostAnimEvaluation);
@@ -2781,17 +2787,26 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 	// fixme laurent - extend concept of LocalBounds to all SceneComponent
 	// as rendered calls CalcBounds*() directly in FScene::UpdatePrimitiveTransform, which is pretty expensive for SkelMeshes.
 	// No need to calculated that again, just use cached local bounds.
-	if (bCachedLocalBoundsUpToDate)
+	if (bCachedWorldSpaceBoundsUpToDate || bCachedLocalBoundsUpToDate)
 	{
-		if (bIncludeComponentLocationIntoBounds)
+		FBoxSphereBounds Result;
+		if (bCachedLocalBoundsUpToDate)
 		{
-			const FVector ComponentLocation = GetComponentLocation();
-			return CachedWorldSpaceBounds.TransformBy(CachedWorldToLocalTransform * LocalToWorld.ToMatrixWithScale()) 
-					+ FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
+			Result = CachedWorldOrLocalSpaceBounds.TransformBy(LocalToWorld);
 		}
 		else
 		{
-			return CachedWorldSpaceBounds.TransformBy(CachedWorldToLocalTransform * LocalToWorld.ToMatrixWithScale());
+			Result = CachedWorldOrLocalSpaceBounds.TransformBy(CachedWorldToLocalTransform * LocalToWorld.ToMatrixWithScale());
+		}
+
+		if (bIncludeComponentLocationIntoBounds)
+		{
+			const FVector ComponentLocation = GetComponentLocation();
+			return Result + FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
+		}
+		else
+		{
+			return Result;
 		}
 	}
 	// Calculate new bounds
@@ -2814,7 +2829,11 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 			}
 		}
 
-		FBoxSphereBounds NewBounds = CalcMeshBound(RootBoneOffset, bHasValidBodies, LocalToWorld);
+		const bool bCacheLocalSpaceBounds = CVarCacheLocalSpaceBounds.GetValueOnGameThread() != 0;
+		
+		const FTransform CachedBoundsTransform = bCacheLocalSpaceBounds ? FTransform::Identity : LocalToWorld;
+
+		FBoxSphereBounds NewBounds = CalcMeshBound(RootBoneOffset, bHasValidBodies, CachedBoundsTransform);
 
 		if (bIncludeComponentLocationIntoBounds)
 		{
@@ -2823,14 +2842,24 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 		}
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-		AddClothingBounds(NewBounds, LocalToWorld);
+		AddClothingBounds(NewBounds, CachedBoundsTransform);
 #endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
-		bCachedLocalBoundsUpToDate = true;
-		CachedWorldSpaceBounds = NewBounds;
-		CachedWorldToLocalTransform = LocalToWorld.ToInverseMatrixWithScale();
+		CachedWorldOrLocalSpaceBounds = NewBounds;
+		bCachedLocalBoundsUpToDate = bCacheLocalSpaceBounds;
+		bCachedWorldSpaceBoundsUpToDate = !bCacheLocalSpaceBounds;
 
-		return NewBounds;
+		if (bCacheLocalSpaceBounds)
+		{ 
+			CachedWorldToLocalTransform.SetIdentity();
+			return NewBounds.TransformBy(LocalToWorld);
+		}
+		else
+		{
+			CachedWorldToLocalTransform = LocalToWorld.ToInverseMatrixWithScale();
+			return NewBounds;
+		}
+
 	}
 }
 
