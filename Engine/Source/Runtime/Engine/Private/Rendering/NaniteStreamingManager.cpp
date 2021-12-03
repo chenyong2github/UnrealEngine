@@ -1840,7 +1840,17 @@ void FStreamingManager::AsyncUpdate()
 					FResources** Resources = RuntimeResourceMap.Find( SelectedRequest.Key.RuntimeResourceID );
 					check( Resources != nullptr );
 
-					SelectStreamingPages( *Resources, SelectedPages, SelectedPagesSet, SelectedRequest.Key.RuntimeResourceID, SelectedRequest.Key.PageIndex, MaxSelectedPages );
+					const uint32 NumResourcePages = (uint32)(*Resources)->PageStreamingStates.Num();
+					if (SelectedRequest.Key.PageIndex < NumResourcePages)
+					{
+						SelectStreamingPages(*Resources, SelectedPages, SelectedPagesSet, SelectedRequest.Key.RuntimeResourceID, SelectedRequest.Key.PageIndex, MaxSelectedPages);
+					}
+					else
+					{
+						checkf(false, TEXT(	"Reference to page index that is out of bounds: %d / %d. "
+											"This could be caused by GPUScene corruption or issues with the GPU readback."),
+											SelectedRequest.Key.PageIndex, NumResourcePages);
+					}
 				}
 				check( (uint32)SelectedPages.Num() <= MaxSelectedPages );
 			}
