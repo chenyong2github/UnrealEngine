@@ -2800,6 +2800,7 @@ struct FD3D12RHICommandInitializeRayTracingGeometry final : public FRHICommand<F
 
 			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
 
+			Geometry->RegisterAsRenameListener(GPUIndex);
 			Geometry->SetupHitGroupSystemParameters(GPUIndex);
 			Geometry->SetDirty(FRHIGPUMask::FromIndex(GPUIndex), false);
 		}
