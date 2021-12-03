@@ -26,8 +26,11 @@
 static int32 GHairStrandsBulkData_ReleaseAfterUse = 0;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_ReleaseAfterUse(TEXT("r.HairStrands.Strands.BulkData.ReleaseAfterUse"), GHairStrandsBulkData_ReleaseAfterUse, TEXT("Release CPU bulk data once hair groom/groom binding asset GPU resources are created. This saves memory"));
 
-static int32 GHairStrandsBulkData_AsyncLoading = 0;
-static FAutoConsoleVariableRef CVarHairStrandsBulkData_AsyncLoading(TEXT("r.HairStrands.Strands.BulkData.AsyncLoading"), GHairStrandsBulkData_AsyncLoading, TEXT("Load hair data with async loading so that it is not blocking the rendering thread."));
+static int32 GHairStrandsBulkData_AsyncLoading = -1;
+static int32 GHairCardsBulkData_AsyncLoading = -1;
+
+static FAutoConsoleVariableRef CVarHairStrandsBulkData_AsyncLoading(TEXT("r.HairStrands.Strands.BulkData.AsyncLoading"), GHairStrandsBulkData_AsyncLoading, TEXT("Load hair strands data with async loading so that it is not blocking the rendering thread. This value define the MinLOD at which this happen. Default disabled (-1)"));
+static FAutoConsoleVariableRef CVarHairCardsBulkData_AsyncLoading(TEXT("r.HairStrands.Cards.BulkData.AsyncLoading"), GHairCardsBulkData_AsyncLoading, TEXT("Load hair cards/meshes data with async loading so that it is not blocking the rendering thread. This value define the MinLOD at which this happen. Default disabled (-1)"));
 
 static int32 GHairStrandsBulkData_Validation = 1;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_Validation(TEXT("r.HairStrands.Strands.BulkData.Validation"), GHairStrandsBulkData_Validation, TEXT("Validate some hair strands data at serialization/loading time."));
@@ -39,10 +42,16 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_MaxSegmentPerVoxel(TEXT
 
 ////////////////////////////////////////////////////////////////////////////////////
 
-EHairResourceLoadingType GetHairResourceLoadingType()
+EHairResourceLoadingType GetHairResourceLoadingType(EHairGeometryType InGeometryType, int32 InLODIndex)
 {
 #if !WITH_EDITORONLY_DATA
-	return GHairStrandsBulkData_AsyncLoading > 0 ? EHairResourceLoadingType::Async : EHairResourceLoadingType::Sync;
+	switch (InGeometryType)
+	{
+	case EHairGeometryType::Strands: return InLODIndex <= GHairStrandsBulkData_AsyncLoading ? EHairResourceLoadingType::Async : EHairResourceLoadingType::Sync;
+	case EHairGeometryType::Cards:
+	case EHairGeometryType::Meshes: return InLODIndex <= GHairCardsBulkData_AsyncLoading ? EHairResourceLoadingType::Async : EHairResourceLoadingType::Sync;
+	}
+	return EHairResourceLoadingType::Sync;
 #else
 	return EHairResourceLoadingType::Sync;
 #endif
@@ -519,6 +528,22 @@ void FHairCommonResource::AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex,
 
 	InternalAllocateLOD(GraphBuilder, LODIndex);
 	Status |= EHairResourceStatus::Valid;
+}
+
+void FHairCommonResource::StreamInData()
+{
+	if (!bIsInitialized)
+	{
+		InternalIsDataLoaded();
+	}
+}
+
+void FHairCommonResource::StreamInLODData(int32 LODIndex)
+{
+	if (!bIsInitialized)
+	{
+		InternalIsLODDataLoaded(LODIndex);
+	}
 }
 
 void AsyncLoadHairBulkData(FByteBulkData& InData, bool& bIsLoading)
