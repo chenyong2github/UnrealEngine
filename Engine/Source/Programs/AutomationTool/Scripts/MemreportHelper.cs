@@ -1,4 +1,4 @@
-// Copyright 2006-2016 Donya Labs AB. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.IO;
