@@ -2024,12 +2024,11 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	// if it has bake pose, gets ref to local matrices using bake pose
-	if (const UAnimSequence* BakePoseAnim = SkeletalMesh.GetLODInfo(LODIndex)->BakePose)
+	if (const UAnimSequence* BakePoseAnim = SkeletalMesh.GetBakePose(LODIndex))
 	{
 		FMemMark Mark(FMemStack::Get());
 		
 		const FReferenceSkeleton& RefSkeleton = SkeletalMesh.GetRefSkeleton();
-		const TArray<FTransform>& RefPoseInLocal = RefSkeleton.GetRefBonePose();
 
 		// Get component space retarget base pose, will be equivalent of ref-pose if not edited
 		TArray<FTransform> ComponentSpaceRefPose;
@@ -2054,6 +2053,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 		FCompactPose Pose;
 		Pose.SetBoneContainer(&RequiredBones);
+		Pose.ResetToRefPose();
 
 		// Retrieve animated pose from anim sequence (including retargeting)
 		const USkeleton* Skeleton = SkeletalMesh.GetSkeleton();
