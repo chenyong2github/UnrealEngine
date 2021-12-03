@@ -559,7 +559,7 @@ FPostProcessSettings::FPostProcessSettings()
 	MotionBlurAmount = 0.5f;
 	MotionBlurMax = 5.0f;
 	MotionBlurTargetFPS = 30;
-	MotionBlurPerObjectSize = 0.5f;
+	MotionBlurPerObjectSize = 0.f;
 	ScreenPercentage_DEPRECATED = 100.0f;
 	ReflectionsType_DEPRECATED = EReflectionsType::RayTracing;
 	ReflectionMethod = EReflectionMethod::Lumen;
