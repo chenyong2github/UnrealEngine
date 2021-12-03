@@ -120,8 +120,9 @@ float4 GetNeighborSectionLod(uint ComponentIndex)
 
 		uint NeighborComponentIndex = (NeighborPos.y - LandscapeContinuousLODParameters.Min.y) * LandscapeContinuousLODParameters.Size.x + (NeighborPos.x - LandscapeContinuousLODParameters.Min.x);
 		float SectionLOD = GetViewLODData(NeighborComponentIndex);
-		NeighborLod[i] = View.OverrideLandscapeLOD >= 0.0f ? View.OverrideLandscapeLOD : NeighborLod[i] + View.FarShadowStaticMeshLODBias;
+
 		NeighborLod[i] = max(SectionLOD, GetSectionLod(ComponentIndex));
+		NeighborLod[i] = View.OverrideLandscapeLOD >= 0.0f ? View.OverrideLandscapeLOD : NeighborLod[i] + View.FarShadowStaticMeshLODBias;
 		NeighborLod[i] = min(NeighborLod[i], LandscapeParameters.LastLOD);
 	}
 	return float4(NeighborLod[0], NeighborLod[1], NeighborLod[2], NeighborLod[3]);
