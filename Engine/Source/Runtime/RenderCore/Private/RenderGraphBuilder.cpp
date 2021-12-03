@@ -1486,7 +1486,11 @@ void FRDGBuilder::Execute(EExecuteMode ExecuteMode)
 	SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::Execute", FColor::Magenta);
 
 	// Create the epilogue pass at the end of the graph just prior to compilation.
-	SetupEmptyPass(EpiloguePass = Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Epilogue%s", (ExecuteMode == EExecuteMode::Drain) ? TEXT(" (Drain)") : TEXT(""))));
+	{
+		bInDebugPassScope = true;
+		SetupEmptyPass(EpiloguePass = Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Epilogue%s", (ExecuteMode == EExecuteMode::Drain) ? TEXT(" (Drain)") : TEXT(""))));
+		bInDebugPassScope = false;
+	}
 
 	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
 	const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
@@ -2127,6 +2131,10 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 	}
 
 	IF_RDG_ENABLE_DEBUG(VisualizePassOutputs(Pass));
+
+	#if RDG_DUMP_RESOURCES
+		DumpResourcePassOutputs( Pass);
+	#endif
 }
 
 void FRDGBuilder::SetupBufferUploads()
@@ -2405,6 +2413,8 @@ void FRDGBuilder::CreateUniformBuffers()
 
 void FRDGBuilder::AddProloguePass()
 {
+	bInDebugPassScope = true;
+
 	if (AsyncComputePassCount > 0)
 	{
 		FRDGPass* AsyncComputePass = SetupEmptyPass(Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Prologue (AsyncCompute)"), ERDGPassFlags::AsyncCompute));
@@ -2421,6 +2431,8 @@ void FRDGBuilder::AddProloguePass()
 	{
 		ProloguePassHandles[ERHIPipeline::AsyncCompute] = GraphicsPass->Handle;
 	}
+
+	bInDebugPassScope = false;
 }
 
 void FRDGBuilder::ExecutePassPrologue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass)
@@ -3353,6 +3365,15 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 		return;
 	}
 
+	// Don't scan any of the pass output if not texture is requested to be visualized.
+	if (GVisualizeTexture.Requested.Name.IsEmpty())
+	{
+		return;
+	}
+
+	bInDebugPassScope = true;
+
+
 	Pass->GetParameters().EnumerateTextures([&](FRDGParameter Parameter)
 	{
 		switch (Parameter.GetType())
@@ -3417,6 +3438,8 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 		break;
 		}
 	});
+
+	bInDebugPassScope = false;
 #endif
 }
 

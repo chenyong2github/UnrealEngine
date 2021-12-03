@@ -12,11 +12,14 @@ public class RenderCore : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(new string[] { "TargetPlatform" });
 
+		// JSON is used for the asset info in the shader library and dumping out frames.
+		PrivateDependencyModuleNames.Add("Json");
+
+		PrivateDependencyModuleNames.Add("BuildSettings");
+
 		if (Target.bBuildEditor == true)
         {
 			DynamicallyLoadedModuleNames.Add("TargetPlatform");
-			// JSON is used for the asset info in the shader library
-			PrivateDependencyModuleNames.Add("Json");
 			// UObjects are used to produce the full path of the asset by which the shaders are identified
 			PrivateDependencyModuleNames.Add("CoreUObject");
 		}

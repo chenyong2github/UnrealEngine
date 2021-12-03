@@ -842,6 +842,20 @@ struct FRDGBufferDesc
 	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
 };
 
+inline const TCHAR* GetBufferUnderlyingTypeName(FRDGBufferDesc::EUnderlyingType BufferType)
+{
+	switch (BufferType)
+	{
+	case FRDGBufferDesc::EUnderlyingType::VertexBuffer:
+		return TEXT("VertexBuffer");
+	case FRDGBufferDesc::EUnderlyingType::StructuredBuffer:
+		return TEXT("StructuredBuffer");
+	case FRDGBufferDesc::EUnderlyingType::AccelerationStructure:
+		return TEXT("AccelerationStructure");
+	}
+	return TEXT("");
+}
+
 struct FRDGBufferSRVDesc final
 	: public FRHIBufferSRVCreateInfo
 {
