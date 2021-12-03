@@ -456,6 +456,8 @@ public:
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const override { return true; }
 
+	virtual bool HasRayTracingRepresentation() const override { return true; }
+
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override final
 	{
 		if (!CVarRayTracingProceduralMesh.GetValueOnRenderThread())

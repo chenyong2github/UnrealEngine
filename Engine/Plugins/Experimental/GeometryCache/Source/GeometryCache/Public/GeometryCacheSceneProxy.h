@@ -313,6 +313,7 @@ public:
 #if RHI_RAYTRACING
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override final;
 	virtual bool IsRayTracingRelevant() const override { return true; }
+	virtual bool HasRayTracingRepresentation() const override { return true; }
 #endif
 
 	const TArray<FGeomCacheTrackProxy*>& GetTracks() { return Tracks; }

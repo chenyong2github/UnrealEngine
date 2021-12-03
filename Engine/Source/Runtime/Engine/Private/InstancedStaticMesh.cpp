@@ -1512,6 +1512,11 @@ HHitProxy* FInstancedStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent*
 }
 
 #if RHI_RAYTRACING
+bool FInstancedStaticMeshSceneProxy::HasRayTracingRepresentation() const
+{
+	return bSupportRayTracing;
+}
+
 void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
 	if (!CVarRayTracingRenderInstances.GetValueOnRenderThread())

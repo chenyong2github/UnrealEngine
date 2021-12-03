@@ -1692,6 +1692,11 @@ const FCardRepresentationData* FStaticMeshSceneProxy::GetMeshCardRepresentation(
 
 
 #if RHI_RAYTRACING
+bool FStaticMeshSceneProxy::HasRayTracingRepresentation() const
+{
+	return bSupportRayTracing;
+}
+
 void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances )
 {
 	if (DynamicRayTracingGeometries.Num() <= 0 || CVarRayTracingStaticMeshes.GetValueOnRenderThread() == 0 || CVarRayTracingStaticMeshesWPO.GetValueOnRenderThread() == 0)
