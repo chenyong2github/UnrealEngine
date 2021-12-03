@@ -16,7 +16,7 @@
 #include "../RayTracing/RayTracingHitGroupCommon.ush"
 #endif
 
-#define USE_HAIR_COMPLEX_TRANSMITTANCE 1 
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 1
 
 #if MANUAL_VERTEX_FETCH
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
@@ -25,8 +25,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // HAIR_CARD_MESH_FACTORY
-// Define used in certain shader like DeepShadow for running specific code (coverage computation for instance) 
-// when vertices are produced by the strand hair vertex factory 
 // This is set by compilation enviromenent of the vertex factory
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -58,7 +56,6 @@ struct FVertexFactoryInput
 #if RAYHITGROUPSHADER
 FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
-	// #hair_todo
 	FTriangleBaseAttributes TriangleAttributes = LoadTriangleBaseAttributes(TriangleIndex);
 
 	FVertexFactoryInput Input = (FVertexFactoryInput)0;
@@ -253,23 +250,6 @@ half3x3 CalcTangentToWorld(FVertexFactoryIntermediates Intermediates, half3x3 Ta
 	return TangentToWorld;
 }
 
-float3 GetTangent(FVertexFactoryInput Input)
-{
-	FVertexFactoryIntermediates Intermediates;
-	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
-	
-	float TangentSign;
-	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
-	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates,Intermediates.TangentToLocal);
-	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveData(Intermediates).Flags);
-
-	// Hair shader expec the tangent to be stored in place of the normal. This is what the StrandHairComponent is filling in:
-	// [0]: Real normal		| Should be Tangent
-	// [1]: Bitangent		| Should be BiTangent
-	// [2]: Real Tangent	| Should be Normal
-	return Intermediates.TangentToWorld[2].xyz;
-}
-
 FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
 {
 	FVertexFactoryIntermediates Intermediates;
@@ -286,7 +266,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.TangentToWorldSign = TangentSign * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveData(Intermediates).Flags);	
 	return Intermediates;
 }
-
 
 /**
 * Get the 3x3 tangent basis vectors for this vertex factory

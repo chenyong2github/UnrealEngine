@@ -14,8 +14,6 @@
 #include "GroomInstance.h"
 #include "SystemTextures.h" 
 
-#define VF_CARDS_SUPPORT_GPU_SCENE 0
-
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value) { if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderParameter& Param, const T& Value) { if (Param.IsBound()) ShaderBindings.Add(Param, Value); }
 
@@ -215,15 +213,7 @@ void FHairCardsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-	bool bUseGPUSceneAndPrimitiveIdStream = false;
-#if VF_CARDS_SUPPORT_GPU_SCENE
-	bUseGPUSceneAndPrimitiveIdStream = 
-		Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && 
-		UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform))
-		// TODO: support GPUScene on mobile
-		&& !IsMobilePlatform(Parameters.Platform);
-#endif
-
+	const bool bUseGPUSceneAndPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
 	OutEnvironment.SetDefine(TEXT("HAIR_CARD_MESH_FACTORY"), TEXT("1"));
 	OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), RHISupportsManualVertexFetch(Parameters.Platform) ? TEXT("1") : TEXT("0"));	
@@ -231,14 +221,12 @@ void FHairCardsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 
 void FHairCardsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
 {
-#if VF_CARDS_SUPPORT_GPU_SCENE
 	if (Type->SupportsPrimitiveIdStream() 
 		&& UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)) 
 		&& ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
 	{
 		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(PrimitiveId).Member instead of Primitive.Member."), Type->GetName()));
 	}
-#endif
 }
 
 void FHairCardsVertexFactory::SetData(const FDataType& InData)
@@ -276,13 +264,12 @@ void FHairCardsVertexFactory::InitResources()
 	// We create different streams based on feature level
 	check(HasValidFeatureLevel());
 
+	// If the platform does not support manual vertex fetching we assume it is a low end platform, and so we don't enable deformation.
+	// VertexFactory needs to be able to support max possible shader platform and feature level
+	// in case if we switch feature level at runtime.
 	FVertexDeclarationElementList Elements;
-#if VF_CARDS_SUPPORT_GPU_SCENE
-	if (AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xff))
-	{
-		bNeedsDeclaration = true;
-	}
-#endif
+	SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, -1);
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, 13, Elements);
 
 	// Note this is a local version of the VF's bSupportsManualVertexFetch, which take into account the feature level
 	const bool bManualFetch = SupportsManualVertexFetch(GetFeatureLevel());
@@ -357,5 +344,5 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FHairCardsVertexFactory,"/Engine/Private/HairStran
 	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
 	| EVertexFactoryFlags::SupportsCachingMeshDrawCommands
 	| EVertexFactoryFlags::SupportsRayTracing
-	| (VF_CARDS_SUPPORT_GPU_SCENE ? EVertexFactoryFlags::SupportsPrimitiveIdStream : EVertexFactoryFlags::None)
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
