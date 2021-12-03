@@ -92,10 +92,13 @@ void UControlRigComponent::BeginDestroy()
 	gPendingSkeletalMeshes.Remove(this);
 }
 
+#if WITH_EDITOR
 void UControlRigComponent::InitializeComponent()
 {
+	Super::InitializeComponent();
 	Initialize();
 }
+#endif
 
 void UControlRigComponent::OnRegister()
 {
