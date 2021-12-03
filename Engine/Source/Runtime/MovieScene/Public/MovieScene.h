@@ -1154,6 +1154,7 @@ protected:
 private:
 
 #if WITH_EDITOR
+	void OptimizeForCook();
 	void RemoveNullTracks();
 #endif
 
