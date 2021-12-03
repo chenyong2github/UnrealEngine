@@ -42,13 +42,13 @@ struct FInstanceUpdateCmdBuffer
 	// Commands that can modify render data in place
 	void HideInstance(int32 RenderIndex);
 	void AddInstance(const FMatrix& InTransform);
-	void AddInstance(int32 InstanceId, const FMatrix& InTransform, const FMatrix& InPreviousTransform, const TArray<float>& InCustomDataFloats);
+	void AddInstance(int32 InstanceId, const FMatrix& InTransform, const FMatrix& InPreviousTransform, TConstArrayView<float> InCustomDataFloats);
 	void UpdateInstance(int32 RenderIndex, const FMatrix& InTransform);
 	void UpdateInstance(int32 RenderIndex, const FMatrix& InTransform, const FMatrix& InPreviousTransform);
 	void SetEditorData(int32 RenderIndex, const FColor& Color, bool bSelected);
 	void SetLightMapData(int32 RenderIndex, const FVector2D& LightmapUVBias);
 	void SetShadowMapData(int32 RenderIndex, const FVector2D& ShadowmapUVBias);
-	void SetCustomData(int32 RenderIndex, const TArray<float>& CustomDataFloats);
+	void SetCustomData(int32 RenderIndex, TConstArrayView<float> CustomDataFloats);
 	void ResetInlineCommands();
 	int32 NumInlineCommands() const { return Cmds.Num(); }
 
