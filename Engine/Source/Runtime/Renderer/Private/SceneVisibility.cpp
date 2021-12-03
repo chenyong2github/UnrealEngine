@@ -4168,8 +4168,6 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 	Primitives.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
 
 	{
-		FRWScopeLock Lock(Scene->CachedMeshDrawCommandLock[EMeshPass::BasePass], SLT_ReadOnly);
-
 		for (const FVisibleMeshDrawCommand& Mesh : ViewCommands.MeshCommands[EMeshPass::BasePass])
 		{
 			int32 PrimitiveId = Mesh.PrimitiveIdInfo.ScenePrimitiveId;

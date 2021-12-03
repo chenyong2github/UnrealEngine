@@ -45,16 +45,23 @@ static FAutoConsoleVariableRef CVarCachedRayTracingInstancesLazyUpdate(
 	ECVF_ReadOnly);
 #endif
 
+static int32 GMeshDrawCommandsCacheMultithreaded = 1;
+static FAutoConsoleVariableRef CVarDrawCommandsCacheMultithreaded(
+	TEXT("r.MeshDrawCommands.CacheMultithreaded"),
+	GMeshDrawCommandsCacheMultithreaded,
+	TEXT("Enable multithreading of draw command caching for static meshes. 0=disabled, 1=enabled (default)"),
+	ECVF_RenderThreadSafe);
+
 static int32 GNaniteDrawCommandCacheMultithreaded = 1;
 static FAutoConsoleVariableRef CVarNaniteDrawCommandCacheMultithreaded(
-	TEXT("r.Nanite.DrawCommands.CacheMultithreaded"),
+	TEXT("r.Nanite.MeshDrawCommands.CacheMultithreaded"),
 	GNaniteDrawCommandCacheMultithreaded,
 	TEXT("Enable multithreading of draw command caching for Nanite materials. 0=disabled, 1=enabled (default)"),
-	ECVF_ReadOnly);
+	ECVF_RenderThreadSafe);
 
 static int32 GRayTracingPrimitiveCacheMultithreaded = 1;
 static FAutoConsoleVariableRef CVarRayTracingPrimitiveCacheMultithreaded(
-	TEXT("r.RayTracing.MeshCommands.CacheMultithreaded"),
+	TEXT("r.RayTracing.MeshDrawCommands.CacheMultithreaded"),
 	GRayTracingPrimitiveCacheMultithreaded,
 	TEXT("Enable multithreading of raytracing primitive mesh command caching. 0=disabled, 1=enabled (default)"),
 	ECVF_RenderThreadSafe);
@@ -283,6 +290,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_CacheMeshDrawCommands, FColor::Emerald);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FPrimitiveSceneInfo_CacheMeshDrawCommands);
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CacheMeshDrawCommands);
 	FMemMark Mark(FMemStack::Get());
@@ -290,7 +298,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	static constexpr int BATCH_SIZE = 64;
 	const int NumBatches = (SceneInfos.Num() + BATCH_SIZE - 1) / BATCH_SIZE;
 
-	auto DoWorkLambda = [Scene, SceneInfos](int32 Index)
+	auto DoWorkLambda = [Scene, SceneInfos](FCachedPassMeshDrawListContext& DrawListContext, int32 Index)
 	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_CacheMeshDrawCommand, FColor::Green);
 
@@ -334,16 +342,10 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 			if ((FPassProcessorManager::GetPassFlags(ShadingPath, PassType) & EMeshPassFlags::CachedMeshCommands) != EMeshPassFlags::None)
 			{
-				FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-				FCachedMeshDrawCommandInfo CommandInfo(PassType);
-
-				FRWLock& CachedMeshDrawCommandLock = Scene->CachedMeshDrawCommandLock[PassType];
-				FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[PassType];
-				FStateBucketMap& CachedMeshDrawCommandStateBuckets = Scene->CachedMeshDrawCommandStateBuckets[PassType];
-				FCachedPassMeshDrawListContext CachedPassMeshDrawListContext(CommandInfo, CachedMeshDrawCommandLock, SceneDrawList, CachedMeshDrawCommandStateBuckets, *Scene);
+				FCachedPassMeshDrawListContext::FMeshPassScope MeshPassScope(DrawListContext, PassType);
 
 				PassProcessorCreateFunction CreateFunction = FPassProcessorManager::GetCreateFunction(ShadingPath, PassType);
-				FMeshPassProcessor* PassMeshProcessor = CreateFunction(Scene, nullptr, &CachedPassMeshDrawListContext);
+				FMeshPassProcessor* PassMeshProcessor = CreateFunction(Scene, nullptr, &DrawListContext);
 
 				if (PassMeshProcessor != nullptr)
 				{
@@ -352,15 +354,15 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 						FPrimitiveSceneInfo* SceneInfo = SceneInfos[MeshAndInfo.InfoIndex];
 						FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshAndInfo.MeshIndex];
 
-						CommandInfo = FCachedMeshDrawCommandInfo(PassType);
 						FStaticMeshBatchRelevance& MeshRelevance = SceneInfo->StaticMeshRelevances[MeshAndInfo.MeshIndex];
 
 						check(!MeshRelevance.CommandInfosMask.Get(PassType));
 
 						uint64 BatchElementMask = ~0ull;
-						// NOTE: Modifies CommandInfo (through a reference), AddMeshBatch calls FCachedPassMeshDrawListContext::FinalizeCommand
+						// NOTE: AddMeshBatch calls FCachedPassMeshDrawListContext::FinalizeCommand
 						PassMeshProcessor->AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
 
+						FCachedMeshDrawCommandInfo CommandInfo = DrawListContext.GetCommandInfoAndReset();
 						if (CommandInfo.CommandIndex != -1 || CommandInfo.StateBucketId != -1)
 						{
 							static_assert(sizeof(MeshRelevance.CommandInfosMask) * 8 >= EMeshPass::Num, "CommandInfosMask is too small to contain all mesh passes.");
@@ -370,36 +372,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 							int CommandInfoIndex = MeshAndInfo.MeshIndex * EMeshPass::Num + PassType;
 							check(SceneInfo->StaticMeshCommandInfos[CommandInfoIndex].MeshPass == EMeshPass::Num);
 							SceneInfo->StaticMeshCommandInfos[CommandInfoIndex] = CommandInfo;
-#if DO_GUARD_SLOW
-							if (ShadingPath == EShadingPath::Deferred)
-							{
-								FRWScopeLock Lock(CachedMeshDrawCommandLock, SLT_ReadOnly);
-								const FMeshDrawCommand* MeshDrawCommand = CommandInfo.StateBucketId >= 0
-									? &Scene->CachedMeshDrawCommandStateBuckets[PassType].GetByElementId(CommandInfo.StateBucketId).Key
-									: &SceneDrawList.MeshDrawCommands[CommandInfo.CommandIndex];
-
-								ensureMsgf(MeshDrawCommand->VertexStreams.GetAllocatedSize() == 0, TEXT("Cached Mesh Draw command overflows VertexStreams.  VertexStream inline size should be tweaked."));
-
-								if (PassType == EMeshPass::BasePass || PassType == EMeshPass::DepthPass || PassType == EMeshPass::CSMShadowDepth || PassType == EMeshPass::VSMShadowDepth)
-								{
-									TArray<EShaderFrequency, TInlineAllocator<SF_NumFrequencies>> ShaderFrequencies;
-									MeshDrawCommand->ShaderBindings.GetShaderFrequencies(ShaderFrequencies);
-
-									int32 DataOffset = 0;
-									for (int32 i = 0; i < ShaderFrequencies.Num(); i++)
-									{
-										FMeshDrawSingleShaderBindings SingleShaderBindings = const_cast<FMeshDrawCommand*>(MeshDrawCommand)->ShaderBindings.GetSingleShaderBindings(ShaderFrequencies[i], DataOffset);
-										static int32 LogCount = 0;
-										if (SingleShaderBindings.GetParameterMapInfo().LooseParameterBuffers.Num() != 0 && ((LogCount++ % 1000) == 0))
-										{
-											UE_LOG(LogRenderer, Warning, TEXT("Cached Mesh Draw command uses loose parameters.  This causes overhead and will break dynamic instancing, potentially reducing performance further.  Use Uniform Buffers instead."));
-										}
-										ensureMsgf(SingleShaderBindings.GetParameterMapInfo().SRVs.Num() == 0, TEXT("Cached Mesh Draw command uses individual SRVs.  This will break dynamic instancing in performance critical pass.  Use Uniform Buffers instead."));
-										ensureMsgf(SingleShaderBindings.GetParameterMapInfo().TextureSamplers.Num() == 0, TEXT("Cached Mesh Draw command uses individual Texture Samplers.  This will break dynamic instancing in performance critical pass.  Use Uniform Buffers instead."));
-									}
-								}
-							}
-#endif
 						}
 					}
 
@@ -453,17 +425,59 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		}
 	};
 
-	if (FApp::ShouldUseThreadingForPerformance())
+	bool bAnyLooseParameterBuffers = false;
+	if (GMeshDrawCommandsCacheMultithreaded && FApp::ShouldUseThreadingForPerformance())
 	{
-		ParallelForTemplate(NumBatches, DoWorkLambda, EParallelForFlags::PumpRenderingThread | EParallelForFlags::Unbalanced);
+		TArray<FCachedPassMeshDrawListContextDeferred, TMemStackAllocator<>> DrawListContexts;
+		DrawListContexts.Reserve(NumBatches);
+		for(int32 ContextIndex = 0; ContextIndex < NumBatches; ++ContextIndex)
+		{
+			DrawListContexts.Emplace(*Scene);
+		}
+
+		ParallelForTemplate(
+			NumBatches, 
+			[&DrawListContexts, &DoWorkLambda](int32 Index)
+			{
+				FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+				DoWorkLambda(DrawListContexts[Index], Index);
+			},
+			EParallelForFlags::PumpRenderingThread | EParallelForFlags::Unbalanced
+		);
+
+		if (NumBatches > 0)
+		{
+			SCOPED_NAMED_EVENT(DeferredFinalizeMeshDrawCommands, FColor::Emerald);
+
+			for (int32 Index = 0; Index < NumBatches; ++Index)
+			{
+				FCachedPassMeshDrawListContextDeferred& DrawListContext = DrawListContexts[Index];
+				const int32 Start = Index * BATCH_SIZE;
+				const int32 End = FMath::Min((Index * BATCH_SIZE) + BATCH_SIZE, SceneInfos.Num());
+				DrawListContext.DeferredFinalizeMeshDrawCommands(SceneInfos, Start, End);
+				bAnyLooseParameterBuffers |= DrawListContext.HasAnyLooseParameterBuffers();
+			}
+		}
 	}
 	else
 	{
+		FCachedPassMeshDrawListContextImmediate DrawListContext(*Scene);
 		for (int Idx = 0; Idx < NumBatches; Idx++)
 		{
-			DoWorkLambda(Idx);
+			DoWorkLambda(DrawListContext, Idx);
+		}
+		bAnyLooseParameterBuffers = DrawListContext.HasAnyLooseParameterBuffers();
+	}
+
+#if DO_GUARD_SLOW
+	{
+		static int32 LogCount = 0;
+		if (bAnyLooseParameterBuffers && (LogCount++ % 1000) == 0)
+		{
+			UE_LOG(LogRenderer, Warning, TEXT("One or more Cached Mesh Draw commands use loose parameters. This causes overhead and will break dynamic instancing, potentially reducing performance further. Use Uniform Buffers instead."));
 		}
 	}
+#endif
 
 	if (!FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled())
 	{
@@ -485,8 +499,6 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 			FGraphicsMinimalPipelineStateId CachedPipelineId;
 
 			{
-				FRWScopeLock Lock(Scene->CachedMeshDrawCommandLock[PassIndex], SLT_ReadOnly);
-
 				auto& ElementKVP = Scene->CachedMeshDrawCommandStateBuckets[PassIndex].GetByElementId(CachedCommand.StateBucketId);
 				CachedPipelineId = ElementKVP.Key.CachedPipelineId;
 
@@ -495,12 +507,7 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 				StateBucketCount.Num--;
 				if (StateBucketCount.Num == 0)
 				{
-					Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-
-					if (StateBucketCount.Num == 0)
-					{
-						Scene->CachedMeshDrawCommandStateBuckets[PassIndex].RemoveByElementId(CachedCommand.StateBucketId);
-					}
+					Scene->CachedMeshDrawCommandStateBuckets[PassIndex].RemoveByElementId(CachedCommand.StateBucketId);
 				}
 			}
 
@@ -535,6 +542,7 @@ static void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene
 void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
 {
 	SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_CacheNaniteDrawCommands, FColor::Emerald);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FPrimitiveSceneInfo_CacheNaniteDrawCommands);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CacheNaniteDrawCommands);
 
 	FMemMark Mark(FMemStack::Get());

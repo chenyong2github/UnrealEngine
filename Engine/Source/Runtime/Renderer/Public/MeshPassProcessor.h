@@ -1592,9 +1592,81 @@ using FStateBucketMap = Experimental::TRobinHoodHashMap<FMeshDrawCommand, FMeshD
 class FCachedPassMeshDrawListContext : public FMeshPassDrawListContext
 {
 public:
-	FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FRWLock& InCachedMeshDrawCommandLock, FCachedPassMeshDrawList& InCachedDrawLists, FStateBucketMap& InCachedMeshDrawCommandStateBuckets, const FScene& InScene);
+	struct FMeshPassScope
+	{
+		FMeshPassScope(const FMeshPassScope&) = delete;
+		FMeshPassScope& operator=(const FMeshPassScope&) = delete;
+
+		inline FMeshPassScope(FCachedPassMeshDrawListContext& InContext, EMeshPass::Type MeshPass)
+			: Context(InContext)
+		{
+			Context.BeginMeshPass(MeshPass);
+		}
+
+		inline ~FMeshPassScope()
+		{
+			Context.EndMeshPass();
+		}
+		
+	private:
+		FCachedPassMeshDrawListContext& Context;
+	};
+
+	FCachedPassMeshDrawListContext(FScene& InScene);
 
 	virtual FMeshDrawCommand& AddCommand(FMeshDrawCommand& Initializer, uint32 NumElements) override final;
+
+	void BeginMeshPass(EMeshPass::Type MeshPass);
+	void EndMeshPass();
+
+	void BeginMesh(int32 SceneInfoIndex, int32 MeshIndex);
+	void EndMesh();
+
+	FCachedMeshDrawCommandInfo GetCommandInfoAndReset();
+	bool HasAnyLooseParameterBuffers() const { return bAnyLooseParameterBuffers; }	
+
+protected:
+	void FinalizeCommandCommon(
+		const FMeshBatch& MeshBatch, 
+		int32 BatchElementIndex,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
+		FMeshDrawCommand& MeshDrawCommand);
+
+	FScene& Scene;
+	FMeshDrawCommand MeshDrawCommandForStateBucketing;
+	FCachedMeshDrawCommandInfo CommandInfo;
+	EMeshPass::Type CurrMeshPass = EMeshPass::Num;
+	bool bUseGPUScene = false;
+	bool bAnyLooseParameterBuffers = false;
+};
+
+class FCachedPassMeshDrawListContextImmediate : public FCachedPassMeshDrawListContext
+{
+public:
+	FCachedPassMeshDrawListContextImmediate(FScene& InScene) : FCachedPassMeshDrawListContext(InScene) {}
+
+	virtual void FinalizeCommand(
+		const FMeshBatch& MeshBatch, 
+		int32 BatchElementIndex,
+		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
+		FMeshDrawCommand& MeshDrawCommand) override final;
+};
+
+class FCachedPassMeshDrawListContextDeferred : public FCachedPassMeshDrawListContext
+{
+public:
+	FCachedPassMeshDrawListContextDeferred(FScene& InScene) : FCachedPassMeshDrawListContext(InScene) {}
 
 	virtual void FinalizeCommand(
 		const FMeshBatch& MeshBatch, 
@@ -1608,13 +1680,11 @@ public:
 		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand) override final;
 
+	void DeferredFinalizeMeshDrawCommands(const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, int32 Start, int32 End);
+
 private:
-	FMeshDrawCommand MeshDrawCommandForStateBucketing;
-	FCachedMeshDrawCommandInfo& CommandInfo;
-	FRWLock& CachedMeshDrawCommandLock;
-	FCachedPassMeshDrawList& CachedDrawLists;
-	FStateBucketMap& CachedMeshDrawCommandStateBuckets;
-	const FScene& Scene;
+	TArray<FMeshDrawCommand> DeferredCommands;
+	TArray<Experimental::FHashType> DeferredCommandHashes;
 };
 
 template<typename VertexType, typename PixelType, typename GeometryType = FMeshMaterialShader, typename RayHitGroupType = FMeshMaterialShader, typename ComputeType = FMeshMaterialShader>

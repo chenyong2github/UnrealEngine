@@ -2689,7 +2689,6 @@ public:
 	FPersistentUniformBuffers UniformBuffers;
 
 	/** Instancing state buckets.  These are stored on the scene as they are precomputed at FPrimitiveSceneInfo::AddToScene time. */
-	FRWLock CachedMeshDrawCommandLock[EMeshPass::Num];
 	FStateBucketMap CachedMeshDrawCommandStateBuckets[EMeshPass::Num];
 	FCachedPassMeshDrawList CachedDrawLists[EMeshPass::Num];
 
