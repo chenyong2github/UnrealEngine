@@ -530,6 +530,7 @@ public:
 	 * @see Parse, ToIso8601
 	 */
 	CORE_API FString ToString(const TCHAR* Format) const;
+	CORE_API void ToString(const TCHAR* Format, FStringBuilderBase& Result) const;
 
 	/**
 	 * Returns the string representation of this date.
