@@ -206,7 +206,7 @@ void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 	}
 }
 
-void PrepareVTRequests(TMap<UMaterialInterface*, float>& InOutVTRequests, UStaticMeshComponent* InStaticMeshComponent, int32 InPixelSize)
+static void PrepareVTRequests(TMap<UMaterialInterface*, float>& InOutVTRequests, UStaticMeshComponent* InStaticMeshComponent, float InPixelSize)
 {
 	for (UMaterialInterface* MaterialInterface : InStaticMeshComponent->GetMaterials())
 	{
@@ -214,6 +214,16 @@ void PrepareVTRequests(TMap<UMaterialInterface*, float>& InOutVTRequests, UStati
 		// If the texture was already requested by another component, fetch the highest required resolution only.
 		float& CurrentMaxPixel = InOutVTRequests.FindOrAdd(MaterialInterface);
 		CurrentMaxPixel = FMath::Max(CurrentMaxPixel, InPixelSize);
+	}
+}
+
+static void PrepareNaniteRequests(TSet<Nanite::FResources*>& InOutNaniteRequests, UStaticMeshComponent* InStaticMeshComponent)
+{
+	UStaticMesh* StaticMesh = InStaticMeshComponent->GetStaticMesh();
+	if (StaticMesh && StaticMesh->HasValidNaniteData())
+	{
+		// UE_LOG(LogHLODSubsystem, Warning, TEXT("NanitePrefetch: %s, %d pages"), *StaticMesh->GetFullName(), StaticMesh->GetRenderData()->NaniteResources.PageStreamingStates.Num());
+		InOutNaniteRequests.Add(&StaticMesh->GetRenderData()->NaniteResources);
 	}
 }
 
@@ -242,6 +252,7 @@ void UHLODSubsystem::MakeRenderResourcesResident(const FCellData& CellData, cons
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::MakeRenderResourcesResident)
 
 	TMap<UMaterialInterface*, float> VTRequests;
+	TSet<Nanite::FResources*> NaniteRequests;
 
 	// For each HLOD actor representing this cell
 	for(AWorldPartitionHLOD* HLODActor : CellData.LoadedHLODs)
@@ -261,24 +272,28 @@ void UHLODSubsystem::MakeRenderResourcesResident(const FCellData& CellData, cons
 			if (PixelSize > 0)
 			{
 				PrepareVTRequests(VTRequests, SMC, PixelSize);
-				
-				// TODO: Nanite
-				//PrepareNaniteRequests(NaniteRequests, SMC, MaxPixels);
+				PrepareNaniteRequests(NaniteRequests, SMC);
 			}
 		});
 	}
 
-	if (!VTRequests.IsEmpty())
+	if (!VTRequests.IsEmpty() || !NaniteRequests.IsEmpty())
 	{
 		ENQUEUE_RENDER_COMMAND(MakeHLODRenderResourcesResident)(
-			[VTRequests = MoveTemp(VTRequests), FeatureLevel = InViewFamily.GetFeatureLevel()](FRHICommandListImmediate& RHICmdList)
+			[VTRequests = MoveTemp(VTRequests), NaniteRequests = MoveTemp(NaniteRequests), FeatureLevel = InViewFamily.GetFeatureLevel()](FRHICommandListImmediate& RHICmdList)
 			{
-				for(const TPair<UMaterialInterface*, float>& VTRequest : VTRequests)
+				for (const TPair<UMaterialInterface*, float>& VTRequest : VTRequests)
 				{
 					UMaterialInterface* Material = VTRequest.Key;
 					FMaterialRenderProxy* MaterialRenderProxy = Material->GetRenderProxy();
 
 					GetRendererModule().RequestVirtualTextureTiles(MaterialRenderProxy, FVector2D(VTRequest.Value, VTRequest.Value), FeatureLevel);
+				}
+
+				const uint32 NumFramesBeforeRender = CVarHLODWarmupNumFrames.GetValueOnRenderThread();
+				for (const Nanite::FResources* Resource : NaniteRequests)
+				{
+					GetRendererModule().PrefetchNaniteResource(Resource, NumFramesBeforeRender);
 				}
 			});
 	}

@@ -111,6 +111,7 @@ public:
 	virtual void SetNaniteRequestRecordBuffer(uint64 Handle) override;
 	virtual uint64 GetNaniteRequestRecordBuffer(TArray<uint32>& OutPageRequests) override; 	
 	virtual void RequestNanitePages(TArrayView<uint32> InRequestData) override;
+	virtual void PrefetchNaniteResource(const Nanite::FResources* Resource, uint32 NumFramesUntilRender) override;
 	
 	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) override;
 

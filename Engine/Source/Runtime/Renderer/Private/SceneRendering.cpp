@@ -4649,6 +4649,11 @@ void FRendererModule::RequestNanitePages(TArrayView<uint32> RequestData)
 	Nanite::GStreamingManager.RequestNanitePages(RequestData);
 }
 
+void FRendererModule::PrefetchNaniteResource(const Nanite::FResources* Resource, uint32 NumFramesUntilRender)
+{
+	Nanite::GStreamingManager.PrefetchResource(Resource, NumFramesUntilRender);
+}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 class FConsoleVariableAutoCompleteVisitor 

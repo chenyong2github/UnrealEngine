@@ -29,6 +29,7 @@
 #define MAX_RUNTIME_RESOURCE_VERSIONS_BITS	8												// Just needs to be large enough to cover maximum number of in-flight versions
 #define MAX_RUNTIME_RESOURCE_VERSIONS_MASK	((1 << MAX_RUNTIME_RESOURCE_VERSIONS_BITS) - 1)	
 
+#define MAX_RESOURCE_PREFETCH_PAGES			16
 
 static int32 GNaniteStreamingAsync = 1;
 static FAutoConsoleVariableRef CVarNaniteStreamingAsync(
@@ -112,6 +113,13 @@ static FAutoConsoleVariableRef CVarNaniteStreamingGPUFeedback(
 	TEXT("r.Nanite.Streaming.Debug.GPURequests"),
 	GNaniteStreamingGPURequests,
 	TEXT("Process requests coming from GPU rendering feedback")
+);
+
+static int32 GNaniteStreamingPrefetch = 1;
+static FAutoConsoleVariableRef CVarNaniteStreamingPrefetch(
+	TEXT("r.Nanite.Streaming.Debug.Prefetch"),
+	GNaniteStreamingPrefetch,
+	TEXT("Process resource prefetch requests from calls to PrefetchResource().")
 );
 
 static_assert(MAX_GPU_PAGES_BITS + MAX_RUNTIME_RESOURCE_VERSIONS_BITS + STREAMING_REQUEST_MAGIC_BITS <= 32,	"Streaming request member RuntimeResourceID_Magic doesn't fit in 32 bits");
@@ -622,6 +630,8 @@ void FStreamingManager::ReleaseRHI()
 void FStreamingManager::Add( FResources* Resources )
 {
 	check(IsInRenderingThread());
+	check(!AsyncState.bUpdateActive);
+
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		return;
@@ -676,6 +686,8 @@ void FStreamingManager::Add( FResources* Resources )
 void FStreamingManager::Remove( FResources* Resources )
 {
 	check(IsInRenderingThread());
+	check(!AsyncState.bUpdateActive);
+
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		return;
@@ -1546,6 +1558,35 @@ void FStreamingManager::AddPendingExplicitRequests()
 	}
 }
 
+void FStreamingManager::AddPendingResourcePrefetchRequests()
+{
+	for (FResourcePrefetch& Prefetch : PendingResourcePrefetches)
+	{
+		FResources** Resources = RuntimeResourceMap.Find(Prefetch.RuntimeResourceID);
+		if (Resources)
+		{
+			// Request first MAX_RESOURCE_PREFETCH_PAGES streaming pages of resource
+			const uint32 NumRootPages = (*Resources)->NumRootPages;
+			const uint32 NumPages = (*Resources)->PageStreamingStates.Num();
+			const uint32 EndPage = FMath::Min(NumPages, NumRootPages + MAX_RESOURCE_PREFETCH_PAGES);
+
+			for (uint32 PageIndex = NumRootPages; PageIndex < EndPage; PageIndex++)
+			{
+				FStreamingRequest Request;
+				Request.Key.RuntimeResourceID	= Prefetch.RuntimeResourceID;
+				Request.Key.PageIndex			= PageIndex;
+				Request.Priority				= 0xFFFFFFFFu - Prefetch.NumFramesUntilRender;	// Prefetching has highest priority. Prioritize requests closer to the deadline higher.
+																								// TODO: Calculate appropriate priority based on bounds
+				RequestsHashTable->AddRequest(Request);
+			}
+		}
+		Prefetch.NumFramesUntilRender--;	// Keep the request alive until projected first render
+	}
+
+	// Remove requests that are past the rendering deadline
+	PendingResourcePrefetches.RemoveAll([](const FResourcePrefetch& Prefetch) { return Prefetch.NumFramesUntilRender == 0; });
+}
+
 void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 {
 	check(IsInRenderingThread());
@@ -1751,6 +1792,9 @@ void FStreamingManager::AsyncUpdate()
 
 	// Add any pending explicit requests
 	AddPendingExplicitRequests();
+
+	// Add any requests coming from pending resource prefetch hints
+	AddPendingResourcePrefetchRequests();
 	
 	const uint32 NumUniqueRequests = RequestsHashTable->GetNumElements();
 	INC_DWORD_STAT_BY(STAT_NaniteUniqueRequests, NumUniqueRequests);
@@ -2158,9 +2202,23 @@ void FStreamingManager::ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FR
 }
 
 
-ENGINE_API bool FStreamingManager::IsAsyncUpdateInProgress()
+bool FStreamingManager::IsAsyncUpdateInProgress()
 {
 	return AsyncState.bUpdateActive;
+}
+
+void FStreamingManager::PrefetchResource(const FResources* Resources, uint32 NumFramesUntilRender)
+{
+	check(IsInRenderingThread());
+	check(!AsyncState.bUpdateActive);
+	check(Resources);
+	if (GNaniteStreamingPrefetch)
+	{
+		FResourcePrefetch Prefetch;
+		Prefetch.RuntimeResourceID		= Resources->RuntimeResourceID;
+		Prefetch.NumFramesUntilRender	= FMath::Min(NumFramesUntilRender, 30u);		// Make sure invalid values doesn't cause the request to stick around forever
+		PendingResourcePrefetches.Add(Prefetch);
+	}
 }
 
 void FStreamingManager::RequestNanitePages(TArrayView<uint32> RequestData)
