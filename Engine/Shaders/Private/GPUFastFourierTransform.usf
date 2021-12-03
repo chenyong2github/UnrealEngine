@@ -322,6 +322,9 @@ uint TransformType;
 uint2 SrcRectMin;
 uint2 SrcRectMax;
 uint4 DstRect;
+
+StructuredBuffer<float4> DstPostFilterParameters;
+
 [numthreads(NUMTHREADSX, 1, 1)]
 void GroupSharedTwoForOneFFTCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_GroupThreadID )
 {
@@ -402,6 +405,15 @@ void GroupSharedTwoForOneFFTCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID :
 		// This is specialized for images, where floating point errors may have
 		// resulted in (very very small) negative color values.
 		ScrubNANs(LocalBuffer);
+		
+		float4 Scale = DstPostFilterParameters[0];
+
+		UNROLL
+		for (uint r = 0; r < RADIX; r++)
+		{
+			LocalBuffer[0][r] *= Scale.xy;
+			LocalBuffer[1][r] *= Scale.xw;
+		}
 
 		CopyDataLocalToDstWindow(LocalBuffer, bIsHorizontal, ScanIdx, Head, Stride, DstRect);
 	}
@@ -999,6 +1011,7 @@ uint TransformType;
 uint BitCount;  // log(2, TransformLength) + 1;
 uint PowTwoLength;  // Power of two.  2^p where p is the pass number
 
+StructuredBuffer<float4> DstPostFilterParameters;
 
 [numthreads(NUMTHREADS_PER_COL, 1, 1)]
 void ComplexFFTPassCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_GroupThreadID )
@@ -1068,7 +1081,9 @@ void ComplexFFTPassCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_Group
 	float4 SrcValueB;
 
 	const uint TransformLength = 1 << (BitCount-1);
-	const float Scale = (Ns == 1 && !bIsForward) ? 1.f / float(TransformLength) : 1.f;
+	
+	float4 Scale = DstPostFilterParameters[0] * ((Ns == 1 && !bIsForward) ? 1.f / float(TransformLength) : 1.f);
+
 	if (bIsHorizontal)
 	{
 		uint CurRowIdx = RowIdx;
