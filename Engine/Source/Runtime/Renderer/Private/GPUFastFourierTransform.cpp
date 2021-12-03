@@ -1035,7 +1035,7 @@ void GPUFFT::ComplexFFTImage1D::MultiPass(
 				FIntPoint SrcBufferSize = PrevSpectralTexture->Desc.Extent;
 				checkf(!(SrcBufferSize.X < DstExtent.X) && !(SrcBufferSize.Y < DstExtent.Y), TEXT("FFT: Allocated Buffers too small."));
 
-				OpDstTexture = GraphBuilder.CreateTexture(DstTexture->Desc, TEXT("FFT.Spectral"));
+				OpDstTexture = GraphBuilder.CreateTexture(SpectralDesc, TEXT("FFT.Spectral"));
 			}
 			else
 			{
