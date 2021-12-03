@@ -216,9 +216,14 @@ namespace UnrealBuildTool
 		private readonly string DefaultName;
 
 		/// <summary>
-		/// File containing this target
+		/// File containing the general type for this target (not including platform/group)
 		/// </summary>
 		internal FileReference? File { get; set; }
+
+		/// <summary>
+		/// File containing the platform/group-specific type for this target
+		/// </summary>
+		internal FileReference? TargetSourceFile { get; set; }
 
 		/// <summary>
 		/// Platform that this target is being built for.
@@ -1937,6 +1942,11 @@ namespace UnrealBuildTool
 		internal FileReference File
 		{
 			get { return Inner.File!; }
+		}
+
+		internal FileReference TargetSourceFile 
+		{
+			get { return Inner.TargetSourceFile!; }
 		}
 
 		public UnrealTargetPlatform Platform
