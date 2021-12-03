@@ -253,7 +253,8 @@ int32 GLumenSceneSurfaceCacheLogUpdates = 0;
 FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheLogUpdates(
 	TEXT("r.LumenScene.SurfaceCache.LogUpdates"),
 	GLumenSceneSurfaceCacheLogUpdates,
-	TEXT("Whether to log Lumen surface cache updates."),
+	TEXT("Whether to log Lumen surface cache updates.\n")
+	TEXT("2 - will log mesh names."),
 	ECVF_RenderThreadSafe
 );
 
@@ -1802,16 +1803,19 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				#if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT) && STATS
 				if (GLumenSceneSurfaceCacheLogUpdates != 0)
 				{
-					UE_LOG(LogRenderer, Log, TEXT("Surface Cache Updates %d"), CardPagesToRender.Num());
+					UE_LOG(LogRenderer, Log, TEXT("Surface Cache Updates: %d"), CardPagesToRender.Num());
 
-					for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
-					{
-						const FLumenPrimitiveGroup& LumenPrimitiveGroup = LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex];
+					if (GLumenSceneSurfaceCacheLogUpdates > 1)
+					{ 
+						for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+						{
+							const FLumenPrimitiveGroup& LumenPrimitiveGroup = LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex];
 
-						UE_LOG(LogRenderer, Log, TEXT("%s Instance:%d NumPrimsInGroup: %d"), 
-							*LumenPrimitiveGroup.Primitives[0]->Proxy->GetStatId().GetName().ToString(),
-							LumenPrimitiveGroup.PrimitiveInstanceIndex,
-							LumenPrimitiveGroup.Primitives.Num());
+							UE_LOG(LogRenderer, Log, TEXT("%s Instance:%d NumPrimsInGroup: %d"),
+								*LumenPrimitiveGroup.Primitives[0]->Proxy->GetStatId().GetName().ToString(),
+								LumenPrimitiveGroup.PrimitiveInstanceIndex,
+								LumenPrimitiveGroup.Primitives.Num());
+						}
 					}
 				}
 				#endif

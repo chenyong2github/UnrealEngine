@@ -4758,11 +4758,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			PrimitiveSceneInfo->FreeGPUSceneInstances();
 			FPrimitiveSceneInfo::AllocateGPUSceneInstances(this, MakeArrayView(&PrimitiveSceneInfo, 1));
 
-			DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
-			DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
+			if (UpdateInstance.Value.CmdBuffer.NumAdds > 0 || UpdateInstance.Value.CmdBuffer.NumRemoves > 0)
+			{
+				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
+				DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
-			LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->PackedIndex);
-			LumenSceneData->AddPrimitive(PrimitiveSceneInfo);
+				LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->GetIndex());
+				LumenSceneData->AddPrimitive(PrimitiveSceneInfo);
+			}
+			else
+			{
+				DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
+				LumenSceneData->UpdatePrimitive(PrimitiveSceneInfo);
+			}
 		}
 
 #if RHI_RAYTRACING
