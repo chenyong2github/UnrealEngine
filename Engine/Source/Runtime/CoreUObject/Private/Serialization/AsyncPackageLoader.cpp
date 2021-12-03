@@ -602,6 +602,8 @@ bool IsInAsyncLoadingThreadCoreUObjectInternal()
 
 void FlushAsyncLoading(int32 PackageID /* = INDEX_NONE */)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FlushAsyncLoading);
+
 #if defined(WITH_CODE_GUARD_HANDLER) && WITH_CODE_GUARD_HANDLER
 	void CheckImageIntegrityAtRuntime();
 	CheckImageIntegrityAtRuntime();
