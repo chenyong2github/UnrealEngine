@@ -9,6 +9,7 @@
 DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 
 TSharedPtr<FLightWeightInstanceSubsystem> FLightWeightInstanceSubsystem::LWISubsystem;
+FCriticalSection FLightWeightInstanceSubsystem::GetFunctionCS;
 
 FLightWeightInstanceSubsystem::FLightWeightInstanceSubsystem()
 {

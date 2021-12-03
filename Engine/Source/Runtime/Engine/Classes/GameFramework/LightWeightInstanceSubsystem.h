@@ -24,8 +24,12 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 	friend struct FActorInstanceHandle;
 	friend class ALightWeightInstanceManager;
 
+	static FCriticalSection GetFunctionCS;
+
 	static FLightWeightInstanceSubsystem& Get()
 	{
+		FScopeLock Lock(&GetFunctionCS);
+
 		if (!LWISubsystem)
 		{
 			LWISubsystem = MakeShareable(new FLightWeightInstanceSubsystem());
@@ -106,12 +110,11 @@ protected:
 
 private:
 	/** Application singleton */
-	static TSharedPtr<FLightWeightInstanceSubsystem> LWISubsystem;
+	static TSharedPtr<FLightWeightInstanceSubsystem, ESPMode::ThreadSafe> LWISubsystem;
 
 	// TODO: preallocate the size of this based on a config variable
 	UPROPERTY()
 	TArray<ALightWeightInstanceManager*> LWInstanceManagers;
-
 
 #ifdef WITH_EDITOR
 private:
