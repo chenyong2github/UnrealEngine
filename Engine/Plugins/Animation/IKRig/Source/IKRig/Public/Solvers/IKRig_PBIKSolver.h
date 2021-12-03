@@ -201,7 +201,7 @@ public:
 	/** (Default is true) If true, solver runs a pre-pass (before the constraint solve) which will translate the whole body by the average motion of the stretched effectors.
 	*This can decrease the amount of iterations needed to achieve a converged pose when the effectors are pulling the body far.
 	*This option has no effect if PinRoot is set to True.*/
-	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings")
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings", meta=(EditCondition = "!bPinRoot"))
 	bool bPrePullRoot = true;
 
 	/** Lock the position and rotation of the solver root bone in-place (at animated position). Useful for partial-body solves. Default is false. */
