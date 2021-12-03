@@ -2910,7 +2910,7 @@ static ERayTracingAccelerationStructureFlags GetRayTracingAccelerationStructureB
 		EnumAddFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowUpdate);
 	}
 
-	if (!Initializer.bFastBuild && !Initializer.bAllowUpdate && GD3D12RayTracingAllowCompaction)
+	if (!Initializer.bFastBuild && !Initializer.bAllowUpdate && Initializer.bAllowCompaction && GD3D12RayTracingAllowCompaction)
 	{
 		EnumAddFlags(BuildFlags, ERayTracingAccelerationStructureFlags::AllowCompaction);
 	}
