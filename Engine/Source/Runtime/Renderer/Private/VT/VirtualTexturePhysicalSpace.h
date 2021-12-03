@@ -116,6 +116,8 @@ public:
 	inline uint32 GetLastFrameOversubscribed() const { return LastFrameOversubscribed; }
 	/** Draw residency graph on screen. */
 	void DrawResidencyGraph(class FCanvas* Canvas, FBox2D CanvasPosition, bool bDrawKey);
+	/** Write residency stats to CSV profiler */
+	void UpdateCsvStats() const;
 
 private:
 	FVTPhysicalSpaceDescription Description;
