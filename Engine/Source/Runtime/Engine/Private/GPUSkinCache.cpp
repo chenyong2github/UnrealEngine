@@ -2317,6 +2317,7 @@ FCachedGeometry FGPUSkinCache::GetCachedGeometry(uint32 ComponentId) const
 					CachedSection.UVsChannelCount	= LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 					Out.Sections.Add(CachedSection);
 				}
+				Out.LocalToWorld = FTransform(Entry->GPUSkin->GetTransform());
 				break;
 			}
 		}

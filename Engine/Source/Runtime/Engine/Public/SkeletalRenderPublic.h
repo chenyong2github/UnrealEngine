@@ -212,6 +212,9 @@ public:
 	virtual FGPUSkinCacheEntry* GetSkinCacheEntryForRayTracing() const { return ShouldUseSeparateSkinCacheEntryForRayTracing() ? SkinCacheEntryForRayTracing : SkinCacheEntry; }
 #endif // RHI_RAYTRACING
 
+	/** Called when that component transform has changed */
+	virtual void SetTransform(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) {};
+
 	/** Called to notify clothing data that component transform has changed */
 	virtual void RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) {};
 

@@ -98,6 +98,9 @@ public:
     /** store transform of the cloth object **/
     FMatrix ClothObjectLocalToWorld;
 
+	/** store transform of the object **/
+	FMatrix LocalToWorld;
+
 	/** a weight factor to blend between simulated positions and skinned positions */	
 	float ClothBlendWeight;
 
@@ -410,6 +413,8 @@ public:
 		uint32 NumVertices = 0;
 	};
 
+	FMatrix GetTransform() const;
+	virtual void SetTransform(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) override;
 	virtual void RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) override;
 	virtual void UpdateSkinWeightBuffer(USkinnedMeshComponent* InMeshComponent) override;
 protected:

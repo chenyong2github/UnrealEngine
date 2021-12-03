@@ -140,7 +140,6 @@ public:
 	/** Return the guide hairs root resources*/
 	FHairStrandsRestRootResource* GetGuideStrandsRestRootResource(uint32 GroupIndex);
 	FHairStrandsDeformedRootResource* GetGuideStrandsDeformedRootResource(uint32 GroupIndex);
-	const FTransform& GetGuideStrandsLocalToWorld(uint32 GroupIndex) const;
 
 
 #if WITH_EDITOR
