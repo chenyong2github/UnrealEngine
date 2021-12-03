@@ -51,7 +51,7 @@ void FLumenHWRTCompactRaysCS(
 	uint RayIndex = DispatchThreadId;
 	FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 #if DIM_COMPACT_MODE == COMPACT_MODE_HIT_LIGHTING_RETRACE
-	bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsValidMeshCardIndex;
+	bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsRadianceCompleted;
 #elif DIM_COMPACT_MODE == COMPACT_MODE_FORCE_HIT_LIGHTING
 	bool bIsRayValid = TraceData.bIsHit;
 #elif DIM_COMPACT_MODE == COMPACT_MODE_FAR_FIELD_RETRACE

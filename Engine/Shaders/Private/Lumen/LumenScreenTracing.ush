@@ -91,7 +91,7 @@ void InternalTraceScreen(
 		float2 XYPlane = floor(RayScreenUV.xy * CurrentMipResolution) + FloorOffset;
 		XYPlane = XYPlane * CurrentMipTexelSize + UVOffset;
 		
-		float2 PlaneIntersectionTimes = (XYPlane - RayStartScreenUV.xy) / RayDirectionScreenUV;
+		float2 PlaneIntersectionTimes = (XYPlane - RayStartScreenUV.xy) / RayDirectionScreenUV.xy;
 		float IntersectionTime = min(PlaneIntersectionTimes.x, PlaneIntersectionTimes.y);
 		CurrentIntersectionTime = IntersectionTime;
 		RayScreenUV = RayStartScreenUV + CurrentIntersectionTime * RayDirectionScreenUV;
@@ -183,7 +183,7 @@ void InternalTraceScreen(
 		float MipNumTexels = exp2(ThicknessSearchMipLevel);
 		float2 HZBTileSize = MipNumTexels * InHZBBaseTexelSize;
 		float NumSteps = NumThicknessStepsToDetermineCertainty / MipNumTexels;
-		float ThicknessSearchEndTime = min(length(RayDirectionScreenUV * HZBTileSize * NumSteps) / length(RayEndScreenUV.xy - RayScreenUV.xy), 1.0f);
+		float ThicknessSearchEndTime = min(length(RayDirectionScreenUV.xy * HZBTileSize * NumSteps) / length(RayEndScreenUV.xy - RayScreenUV.xy), 1.0f);
 
 		for (float I = 0; I < NumSteps; I++)
 		{

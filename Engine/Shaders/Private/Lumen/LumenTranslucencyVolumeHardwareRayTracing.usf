@@ -28,6 +28,7 @@
 RaytracingAccelerationStructure TLAS;
 RWTexture3D<float3> RWVolumeTraceRadiance;
 RWTexture3D<float> RWVolumeTraceHitDistance;
+uint MaxTraversalIterations;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS) 
 {
@@ -85,7 +86,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 
 			const uint LinearCoord = GridCoordinate.y * TranslucencyGIGridSize.x + GridCoordinate.x;
 			const bool bCullBackFacingTriangles = false;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, GridCoordinate.xy, LinearCoord, bCullBackFacingTriangles);
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, GridCoordinate.xy, LinearCoord, bCullBackFacingTriangles, MaxTraversalIterations);
 
 			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 				{

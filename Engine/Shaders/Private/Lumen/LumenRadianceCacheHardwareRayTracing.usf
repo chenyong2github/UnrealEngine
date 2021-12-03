@@ -145,6 +145,7 @@ uint PersistentTracingGroupCount;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
 int MaxTranslucentSkipCount;
+uint MaxTraversalIterations;
 int ApplySkyLight;
 
 float3 FarFieldReferencePos;
@@ -219,7 +220,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 
 			const uint LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
 			const bool bCullBackFacingTriangles = false;
-			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, bCullBackFacingTriangles);
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ProbeTexelCoord, LinearCoord, bCullBackFacingTriangles, MaxTraversalIterations);
 
 			// Set far-field context specialization
 			Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
@@ -235,7 +236,6 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 				Context.HitGroupData = HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
-
 
 				Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 			}
@@ -260,7 +260,14 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			// Write continuation data
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 			FRayIdPacked RayIdPacked = PackRayId(CreateRayId(TraceTileIndex, TexelCoord));
-			RWRetraceDataPackedBuffer[RayIndex] = PackTraceData(CreateTraceData(RayIdPacked.PackedData, Result.MaterialShaderIndex, Result.Bookmark, Result.TraceHitDistance, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
+			RWRetraceDataPackedBuffer[RayIndex] = PackTraceData(CreateTraceData(
+				RayIdPacked.PackedData,
+				Result.MaterialShaderIndex,
+				Result.Bookmark,
+				Result.TraceHitDistance,
+				Result.bIsHit,
+				Result.bIsRadianceCompleted,
+				Result.bIsFarField));
 #endif // DIM_LIGHTING_MODE
 
 			uint OutputIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + TexelCoord.x;

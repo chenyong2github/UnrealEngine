@@ -140,6 +140,7 @@ class FLumenRadianceCacheHardwareRayTracingRGS : public FLumenHardwareRayTracing
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
+		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(int, ApplySkyLight)
 
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
@@ -421,6 +422,7 @@ void SetLumenHardwareRayTracingRadianceCacheParameters(
 	PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 	PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
 	PassParameters->MaxTranslucentSkipCount = CVarLumenRadianceCacheHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+	PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
 	PassParameters->ApplySkyLight = bApplySkyLight;
 
 	// Output

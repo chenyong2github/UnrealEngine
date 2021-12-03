@@ -58,6 +58,7 @@ float MaxTraceDistance;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
 int MaxTranslucentSkipCount;
+uint MaxTraversalIterations;
 int ApplySkyLight;
 
 RWTexture2D<float3> RWTraceRadiance;
@@ -124,7 +125,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		const bool bHiResSurface = true;
 		const bool bCullBackFacingTriangles = true;
-		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, MaxTranslucentSkipCount, bHiResSurface);
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, MaxTranslucentSkipCount, MaxTraversalIterations, bHiResSurface);
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
 		Context.bUseBookmark = true;
@@ -138,7 +139,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		const float Epsilon = 0.5;
 		Ray.TMin = TraceData.TraceDistance - Epsilon;
 
-		int LightingMode = (TraceData.bIsFarField || !TraceData.bIsValidMeshCardIndex) ?
+		int LightingMode = (TraceData.bIsFarField || !TraceData.bIsRadianceCompleted) ?
 			EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING :
 			NearFieldLightingMode;
 		LightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
@@ -184,8 +185,14 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		}
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
-		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(RayId, Result.MaterialShaderIndex, Result.Bookmark, Result.TraceHitDistance,
-			Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
+		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(
+			RayId,
+			Result.MaterialShaderIndex,
+			Result.Bookmark,
+			Result.TraceHitDistance,
+			Result.bIsHit,
+			Result.bIsRadianceCompleted,
+			Result.bIsFarField));
 #endif // DIM_LIGHTING_MODE
 
 #if DIM_WRITE_FINAL_LIGHTING

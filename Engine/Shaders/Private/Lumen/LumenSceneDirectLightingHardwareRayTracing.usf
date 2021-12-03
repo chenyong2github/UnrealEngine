@@ -52,6 +52,7 @@ Buffer<uint2> ShadowTraceTileData;
 Buffer<int> VirtualShadowMapIds;
 
 uint TranslucentSkipCount;
+uint MaxTraversalIterations;
 uint GroupCount;
 uint LightOffset;
 
@@ -139,7 +140,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						CoordInCardTile,
 						CoordInCardTile.x, // dummy coordinate
 						bCullBackFacingTriangles,
-						TranslucentSkipCount);
+						TranslucentSkipCount,
+						MaxTraversalIterations);
 
 					// Shadows don't need closest hit distance
 					Context.bAcceptFirstHitAndEndSearch = true;
@@ -162,7 +164,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 						Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
 						Context.bSkipClosestHitShader = true;
-						bHit = TraceLumenMinimalRay(FarFieldRay, Context, Payload);
+						FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(FarFieldRay, Context, Payload);
+						bHit = MinimalRayResult.bHit || !MinimalRayResult.bCompleted;
 
 						Context.bSkipClosestHitShader = false;
 					}
@@ -172,7 +175,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 						Ray.TMin = 0;
 						Ray.TMax = NearFieldTMax;
 						Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
-						bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+						FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload);
+						bHit = MinimalRayResult.bHit || !MinimalRayResult.bCompleted;
 					}
 
 					ShadowMaskRay.ShadowFactor = bHit ? 0.0f : 1.0f;

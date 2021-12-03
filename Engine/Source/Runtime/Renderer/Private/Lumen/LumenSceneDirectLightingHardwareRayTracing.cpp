@@ -78,6 +78,7 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 		SHADER_PARAMETER(uint32, LumenLightType)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
+		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(uint32, GroupCount)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
@@ -207,6 +208,7 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 
 	Parameters->PullbackBias = 0.0f;
 	Parameters->MaxTranslucentSkipCount = 1; // TODO: CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+	Parameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
 	Parameters->GroupCount = FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingGroupCount.GetValueOnRenderThread(), 1);
 	Parameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();

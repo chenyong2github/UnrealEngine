@@ -110,11 +110,11 @@ struct FRayTracedLightingContext
 	uint LinearCoord;
 	uint InstanceMask;
 	int TranslucentSkipCountMax;
+	uint MaxTraversalIterations; // Max ray tracing traversal iterations on supported platforms
 	float FarFieldMaxTraceDistance;
 	float3 FarFieldReferencePos;
 
-	// Whether to sample high res surface cache data or low res always resident pages
-	bool bHiResSurface;
+	bool bHiResSurface;	// Whether to sample high res surface cache data or low res always resident pages
 	bool bCullBackFacingTriangles;
 	bool bAcceptFirstHitAndEndSearch;
 	bool bSkipClosestHitShader;
@@ -129,7 +129,8 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in uint LinearCoord,
 	bool bCullBackFacingTriangles,
 	in int TranslucentSkipCountMax,
-	in bool bHiResSurface
+	uint MaxTraversalIterations,
+	bool bHiResSurface
 )
 {
 	FRayTracedLightingContext Context;
@@ -140,6 +141,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
 	Context.FarFieldMaxTraceDistance = -1.0;
 	Context.FarFieldReferencePos = 0;
+	Context.MaxTraversalIterations = MaxTraversalIterations;
 	Context.bHiResSurface = bHiResSurface;
 	Context.bCullBackFacingTriangles = bCullBackFacingTriangles;
 	Context.bAcceptFirstHitAndEndSearch = false;
@@ -155,11 +157,12 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in uint2 TraceCoord,
 	in uint LinearCoord,
 	bool bCullBackFacingTriangles,
-	in int TranslucentSkipCountMax
+	in int TranslucentSkipCountMax,
+	uint MaxTraversalIterations
 )
 {
 	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, bHiResSurface);
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
 }
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
@@ -167,19 +170,23 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in FRayCone RayCone,
 	in uint2 TraceCoord,
 	in uint LinearCoord,
-	bool bCullBackFacingTriangles
+	bool bCullBackFacingTriangles,
+	uint MaxTraversalIterations
 )
 {
 	int TranslucentSkipCountMax = 0;
 	bool bHiResSurface = false;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, bHiResSurface);
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, TranslucentSkipCountMax, MaxTraversalIterations, bHiResSurface);
 }
 
 struct FRayTracedLightingResult
 {
 	bool bIsHit;
+	bool bIsCompleted; // Was ray tracing completed or stopped due to reaching MaxTraversalIterations
 	bool bIsFarField;
 	float TraceHitDistance;
+
+	bool bIsRadianceCompleted; // Is radiance computation completed or do we need a fallback shading pass
 	float3 Radiance;
 
 	float3 WorldVelocity;
@@ -192,8 +199,10 @@ FRayTracedLightingResult CreateRayTracedLightingResult()
 {
 	FRayTracedLightingResult Result;
 	Result.bIsHit = false;
+	Result.bIsCompleted = true;
 	Result.bIsFarField = false;
 	Result.TraceHitDistance = 0;
+	Result.bIsRadianceCompleted = true;
 	Result.Radiance = 0;
 	Result.WorldVelocity = 0;
 	Result.MeshCardsIndex = LUMEN_INVALID_CARD_INDEX;
@@ -225,7 +234,13 @@ bool TraceLumenHitLightingRay(
 }
 #endif // !COMPUTESHADER
 
-bool TraceLumenMinimalRay(
+struct FLumenMinimalRayResult
+{
+	bool bHit;
+	bool bCompleted;
+};
+
+FLumenMinimalRayResult TraceLumenMinimalRay(
 	in RayDesc Ray,
 	inout FRayTracedLightingContext Context,
 	inout FLumenMinimalPayload Payload,
@@ -233,6 +248,10 @@ bool TraceLumenMinimalRay(
 )
 {
 	Payload = (FLumenMinimalPayload)0;
+
+	FLumenMinimalRayResult MinimalRayResult;
+	MinimalRayResult.bHit = false;
+	MinimalRayResult.bCompleted = true;
 	
 	// UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER is required to trace TraceLumenMinimalRay for performance reasons
 	// Ignored when we are using inline ray tracing
@@ -249,7 +268,10 @@ bool TraceLumenMinimalRay(
 		{
 			Payload.SetMiss();	
 		}		
-		return Payload.IsHit();
+
+		MinimalRayResult.bHit = Payload.IsHit();
+		MinimalRayResult.bCompleted = true;
+		return MinimalRayResult;
 	}
 	#endif
 
@@ -259,7 +281,7 @@ bool TraceLumenMinimalRay(
 	RayFlags |= Context.bSkipClosestHitShader ? RAY_FLAG_SKIP_CLOSEST_HIT_SHADER : 0;
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING	
-	FTraceRayInlineResult TraceResult = TraceRayInline(Context.TLAS, RayFlags, Context.InstanceMask, Ray);
+	FTraceRayInlineResult TraceResult = TraceRayInline(Context.TLAS, RayFlags, Context.InstanceMask, Ray, Context.MaxTraversalIterations);
 	if (TraceResult.IsHit())
 	{
 		Payload.HitT = TraceResult.HitT;
@@ -291,15 +313,19 @@ bool TraceLumenMinimalRay(
 	else
 	{
 		Payload.SetMiss();
-	}	
+	}
+	MinimalRayResult.bCompleted = TraceResult.bIsCompleted;
 #else
-	TraceLumenRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload, Bookmark);
+	{
+		TraceLumenRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload, Bookmark);
+	}
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
-	return Payload.IsHit();
+	MinimalRayResult.bHit = Payload.IsHit();
+	return MinimalRayResult;
 }
 
-bool TraceLumenMinimalRay(
+FLumenMinimalRayResult TraceLumenMinimalRay(
 	in RayDesc Ray,
 	inout FRayTracedLightingContext Context,
 	inout FLumenMinimalPayload Payload
@@ -529,7 +555,11 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
 
 #if ENABLE_NEAR_FIELD_TRACING
-	Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
+	{
+		FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
+		Result.bIsHit = MinimalRayResult.bHit;
+		Result.bIsCompleted = MinimalRayResult.bCompleted;
+	}
 
 #if ENABLE_TRANSLUCENT_SKIP_COUNT
 	int TranslucentSkipCount = 0;
@@ -537,7 +567,11 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	{
 		float Epsilon = 0.01;
 		Ray.TMin = Payload.HitT + Epsilon;
-		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
+
+		FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
+		Result.bIsHit = MinimalRayResult.bHit;
+		Result.bIsCompleted = MinimalRayResult.bCompleted;
+
 		TranslucentSkipCount++;
 	}
 #endif // ENABLE_TRANSLUCENT_SKIP_COUNT
@@ -560,7 +594,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 #endif
 
 #if ENABLE_FAR_FIELD_TRACING
-	if (!Result.bIsHit)
+	if (!Result.bIsHit && Result.bIsCompleted)
 	{
 		float3 NonRebasedRayOrigin = Ray.Origin;
 
@@ -568,7 +602,10 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		Ray.TMin = Ray.TMax;
 		Ray.TMax = Context.FarFieldMaxTraceDistance;
 		Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
-		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
+
+		FLumenMinimalRayResult MinimalRayResult = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
+		Result.bIsHit = MinimalRayResult.bHit;
+		Result.bIsCompleted = MinimalRayResult.bCompleted;
 
 		Ray.Origin = NonRebasedRayOrigin;
 
@@ -583,5 +620,17 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		}
 	}
 #endif // ENABLE_FAR_FIELD_TRACING
+
+	Result.bIsRadianceCompleted = Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX;
+
+	// Force a black hit when reached max iterations without hitting anything
+	if (!Result.bIsHit && !Result.bIsCompleted)
+	{
+		Result.bIsHit = true;
+		Result.TraceHitDistance = Ray.TMax;
+		Result.bIsRadianceCompleted = true;
+		Result.Radiance = float3(0.0f, 0.0f, 0.0f);
+	}
+
 	return Result;
 }
