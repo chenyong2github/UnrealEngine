@@ -14,6 +14,8 @@
 
 bool GRHIValidationEnabled = false;
 
+bool GRHIValidateBufferSourceCopy = true;
+
 // When set to 1, callstack for each uniform buffer allocation will be tracked 
 // (slow and leaks memory, but can be handy to find the location where an invalid
 // allocation has been made)
@@ -490,7 +492,10 @@ void FValidationContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRH
 {
 	using namespace RHIValidation;
 	Tracker->Assert(SourceBufferRHI->GetWholeResourceIdentity(), ERHIAccess::CopySrc);
-	RHI_VALIDATION_CHECK(EnumHasAnyFlags(SourceBufferRHI->GetUsage(), BUF_SourceCopy), *GetReasonString_SourceCopyFlagMissing(SourceBufferRHI));
+	if (GRHIValidateBufferSourceCopy)
+	{
+		RHI_VALIDATION_CHECK(EnumHasAnyFlags(SourceBufferRHI->GetUsage(), BUF_SourceCopy), *GetReasonString_SourceCopyFlagMissing(SourceBufferRHI));
+	}
 	RHIContext->RHICopyToStagingBuffer(SourceBufferRHI, DestinationStagingBufferRHI, InOffset, InNumBytes);
 }
 
@@ -498,7 +503,10 @@ void FValidationComputeContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferR
 {
 	using namespace RHIValidation;
 	Tracker->Assert(SourceBufferRHI->GetWholeResourceIdentity(), ERHIAccess::CopySrc);
-	RHI_VALIDATION_CHECK(EnumHasAnyFlags(SourceBufferRHI->GetUsage(), BUF_SourceCopy), *GetReasonString_SourceCopyFlagMissing(SourceBufferRHI));
+	if (GRHIValidateBufferSourceCopy)
+	{
+		RHI_VALIDATION_CHECK(EnumHasAnyFlags(SourceBufferRHI->GetUsage(), BUF_SourceCopy), *GetReasonString_SourceCopyFlagMissing(SourceBufferRHI));
+	}
 	RHIContext->RHICopyToStagingBuffer(SourceBufferRHI, DestinationStagingBufferRHI, InOffset, InNumBytes);
 }
 

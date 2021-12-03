@@ -15,6 +15,10 @@
 class FValidationComputeContext;
 class FValidationContext;
 
+// Controls whether BUF_SourceCopy should be validate or not.
+extern RHI_API bool GRHIValidateBufferSourceCopy;
+
+
 // This is a macro because we only want to evaluate the message expression if the checked expression is false.
 #define RHI_VALIDATION_CHECK(InExpression, InMessage) \
 	do \
