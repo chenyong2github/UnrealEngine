@@ -527,38 +527,13 @@ static void RunHairBufferSwap(const FHairStrandsInstances& Instances, const TArr
 
 		check(Instance->HairGroupPublicData);
 
-		// 1. Swap current/previous buffer for all LODs
+		// Swap current/previous buffer for all LODs
 		const bool bIsPaused = Views[0]->Family->bWorldIsPaused;
 		if (!bIsPaused)
 		{
 			if (Instance->Guides.DeformedResource) { Instance->Guides.DeformedResource->SwapBuffer(); }
 			if (Instance->Strands.DeformedResource) { Instance->Strands.DeformedResource->SwapBuffer(); }
 			Instance->Debug.LastFrameIndex = Views[0]->Family->FrameNumber;
-		}
-
-		// 2. Update the local offset (used for improving precision of strands data, as they are stored in 16bit precision)
-		// If attached to a mesh, ProxyLocalBound is mapped on the bounding box of the parent skeletal mesh. This offset is 
-		// based on the center of the skeletal mesh (which is computed based on the physics capsules/boxes/...)
-		if (Instance->bUpdatePositionOffset && Instance->ProxyLocalBounds && !bIsPaused)
-		{
-			const FVector PositionOffset = Instance->ProxyLocalBounds->GetSphere().Center;
-			if (Instance->Strands.DeformedResource)
-			{
-				Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current) = PositionOffset;
-			}
-
-			if (Instance->Guides.DeformedResource)
-			{
-				Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current) = PositionOffset;
-			}
-
-			for (uint32 LODIt = 0, LODCount = Instance->Cards.LODs.Num(); LODIt < LODCount; ++LODIt)
-			{
-				if (Instance->Cards.IsValid(LODIt) && Instance->Cards.LODs[LODIt].Guides.IsValid())
-				{
-					Instance->Cards.LODs[LODIt].Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current) = PositionOffset;
-				}
-			}
 		}
 	}
 }

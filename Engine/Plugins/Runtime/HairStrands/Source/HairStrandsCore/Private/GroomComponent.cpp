@@ -1395,7 +1395,6 @@ void UGroomComponent::CreateHairSimulation(const int32 GroupIndex, const int32 L
 			if (!NiagaraComponent)
 			{
 				NiagaraComponent = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
-				NiagaraComponent->SetVisibleFlag(SimulationSettings.SimulationSetup.bDebugSimulation);
 				NiagaraComponent->bUseAttachParentBound = true;
 			}
 			if (GetWorld() && GetWorld()->bIsWorldInitialized)
@@ -1414,6 +1413,7 @@ void UGroomComponent::CreateHairSimulation(const int32 GroupIndex, const int32 L
 					(GroomAsset->HairGroupsPhysics[GroupIndex].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods) ? ToRawPtr(CosseratRodsSystem) :
 					GroomAsset->HairGroupsPhysics[GroupIndex].SolverSettings.CustomSystem.LoadSynchronous();
 
+				NiagaraComponent->SetVisibleFlag(SimulationSettings.SimulationSetup.bDebugSimulation);
 				NiagaraComponent->SetAsset(NiagaraAsset);
 				NiagaraComponent->ReinitializeSystem();
 			}
