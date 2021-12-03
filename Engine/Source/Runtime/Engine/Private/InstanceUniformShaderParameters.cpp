@@ -21,7 +21,7 @@ void FInstanceSceneShaderData::Build
 	float RandomID
 )
 {
-	Build(PrimitiveId, RelativeId, PayloadDataFlags, LastUpdateFrame, CustomDataCount, RandomID, FRenderTransform::Identity);
+	BuildInternal(PrimitiveId, RelativeId, PayloadDataFlags, LastUpdateFrame, CustomDataCount, RandomID, FRenderTransform::Identity, FRenderTransform::Identity);
 }
 
 void FInstanceSceneShaderData::Build
@@ -33,18 +33,21 @@ void FInstanceSceneShaderData::Build
 	uint32 CustomDataCount,
 	float RandomID,
 	const FRenderTransform& LocalToPrimitive,
-	const FRenderTransform& PrimitiveToWorld
+	const FRenderTransform& PrimitiveToWorld,
+	const FRenderTransform& PrevPrimitiveToWorld // TODO: Temporary PrevVelocityHack
 )
 {
 	FRenderTransform LocalToWorld = LocalToPrimitive * PrimitiveToWorld;
+	FRenderTransform PrevLocalToWorld = LocalToPrimitive * PrevPrimitiveToWorld; // TODO: Temporary PrevVelocityHack
 
 	// Remove shear
 	LocalToWorld.Orthogonalize();
+	PrevLocalToWorld.Orthogonalize(); // TODO: Temporary PrevVelocityHack
 
-	Build(PrimitiveId, RelativeId, PayloadDataFlags, LastUpdateFrame, CustomDataCount, RandomID, LocalToWorld);
+	BuildInternal(PrimitiveId, RelativeId, PayloadDataFlags, LastUpdateFrame, CustomDataCount, RandomID, LocalToWorld, PrevLocalToWorld);
 }
 
-void FInstanceSceneShaderData::Build
+void FInstanceSceneShaderData::BuildInternal
 (
 	uint32 PrimitiveId,
 	uint32 RelativeId,
@@ -52,7 +55,8 @@ void FInstanceSceneShaderData::Build
 	uint32 LastUpdateFrame,
 	uint32 CustomDataCount,
 	float RandomID,
-	const FRenderTransform& LocalToWorld // Assumes shear has been removed already
+	const FRenderTransform& LocalToWorld, // Assumes shear has been removed already
+	const FRenderTransform& PrevLocalToWorld // Assumes shear has been removed already // TODO: Temporary PrevVelocityHack
 )
 {
 	// Note: layout must match GetInstanceData in SceneData.ush
@@ -80,10 +84,15 @@ void FInstanceSceneShaderData::Build
 	Data[0].Z  = *(const float*)&LastUpdateFrame;
 	Data[0].W  = *(const float*)&RandomID;
 
+	// TODO: Temporary PrevVelocityHack
 #if INSTANCE_COMPRESSED_TRANSFORMS
 	FCompressedTransform CompressedLocalToWorld(LocalToWorld);
 	Data[1] = *(const FVector4*)&CompressedLocalToWorld.Rotation[0];
 	Data[2] = *(const FVector3f*)&CompressedLocalToWorld.Translation;
+
+	FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
+	Data[3] = *(const FVector4*)&CompressedPrevLocalToWorld.Rotation[0];
+	Data[4] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
 #else
 	// Note: writes 3x float4s
 	LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);

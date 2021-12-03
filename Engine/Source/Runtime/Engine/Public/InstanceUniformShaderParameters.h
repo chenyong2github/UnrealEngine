@@ -87,7 +87,7 @@ struct FInstanceSceneShaderData
 	enum { DataStrideInFloat4s = 4 };
 #else
 	// Compressed transform
-	enum { DataStrideInFloat4s = 3 };
+	enum { DataStrideInFloat4s = 5 }; // TODO: Temporary PrevVelocityHack
 #endif
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
@@ -115,10 +115,11 @@ struct FInstanceSceneShaderData
 		uint32 CustomDataCount,
 		float RandomID,
 		const FRenderTransform& LocalToPrimitive,
-		const FRenderTransform& PrimitiveToWorld
+		const FRenderTransform& PrimitiveToWorld,
+		const FRenderTransform& PrevPrimitiveToWorld // TODO: Temporary PrevVelocityHack
 	);
 
-	ENGINE_API void Build
+	ENGINE_API void BuildInternal
 	(
 		uint32 PrimitiveId,
 		uint32 RelativeId,
@@ -126,6 +127,7 @@ struct FInstanceSceneShaderData
 		uint32 LastUpdateFrame,
 		uint32 CustomDataCount,
 		float RandomID,
-		const FRenderTransform& LocalToWorld
+		const FRenderTransform& LocalToWorld,
+		const FRenderTransform& PrevLocalToWorld // Assumes shear has been removed already // TODO: Temporary PrevVelocityHack
 	);
 };

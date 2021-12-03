@@ -320,7 +320,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
 
 				FInstanceSceneShaderData& SceneData = InstanceSceneData.Emplace_GetRef();
-				SceneData.Build
+				SceneData.BuildInternal
 				(
 					InstanceIndex, /* Primitive Id */
 					0, /* Relative Instance Id */
@@ -328,7 +328,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					INVALID_LAST_UPDATE_FRAME,
 					0, /* Custom Data Count */
 					0.0f, /* Random ID */
-					PrimitiveUniformShaderParameters.LocalToWorld
+					PrimitiveUniformShaderParameters.LocalToWorld,
+					PrimitiveUniformShaderParameters.LocalToWorld // TODO: Temporary PrevVelocityHack
 				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
@@ -403,7 +404,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Instance.LocalToPrimitive);
 
 				FInstanceSceneShaderData& SceneData = InstanceSceneData.Emplace_GetRef();
-				SceneData.Build
+				SceneData.BuildInternal
 				(
 					PrimitiveId,
 					0, /* Relative Instance Id */
@@ -411,7 +412,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					INVALID_LAST_UPDATE_FRAME,
 					0, /* Custom Data Count */
 					0.0f, /* Random ID */
-					InstanceGroup.LocalToWorld
+					InstanceGroup.LocalToWorld,
+					InstanceGroup.LocalToWorld // TODO: Temporary PrevVelocityHack
 				);
 			}
 
@@ -461,7 +463,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 			}
 
 			FInstanceSceneShaderData& Instance = InstanceSceneData.Emplace_GetRef();
-			Instance.Build
+			Instance.BuildInternal
 			(
 				PrimitiveId,
 				0, /* Relative Instance Id */
@@ -469,7 +471,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				INVALID_LAST_UPDATE_FRAME,
 				0, /* Custom Data Count */
 				0.0f, /* Random ID */
-				PrimitiveUniformShaderParameters.LocalToWorld
+				PrimitiveUniformShaderParameters.LocalToWorld,
+				PrimitiveUniformShaderParameters.LocalToWorld // TODO: Temporary PrevVelocityHack
 			);
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));

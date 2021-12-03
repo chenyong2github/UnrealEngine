@@ -172,7 +172,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
 
 				// Also fill out correct single-primitive instance data, derived from the primitive.
-				SinglePrimitiveStructured.InstanceSceneData.Build
+				SinglePrimitiveStructured.InstanceSceneData.BuildInternal
 				(
 					0 /* Primitive Id */,
 					0 /* Relative Instance Id */,
@@ -180,7 +180,8 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					INVALID_LAST_UPDATE_FRAME,
 					0 /* Custom Data Count */,
 					0.0f /* Random ID */,
-					PrimitiveParams.LocalToWorld
+					PrimitiveParams.LocalToWorld,
+					PrimitiveParams.PreviousLocalToWorld
 				);
 
 				// TODO: Payload dummy?
