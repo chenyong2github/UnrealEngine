@@ -70,6 +70,7 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("LightmapUVIndex"), LOCTEXT("LightmapUVIndex", "Lightmap UV Index"), FModeType::Advanced, VISUALIZE_LIGHTMAP_UV_INDEX, true);
 		AddVisualizationMode(TEXT("LightmapDataIndex"), LOCTEXT("LightmapDataIndex", "Lightmap Data Index"), FModeType::Advanced, VISUALIZE_LIGHTMAP_DATA_INDEX, true);
 		AddVisualizationMode(TEXT("PositionBits"), LOCTEXT("PositionBits", "Position Bits"), FModeType::Advanced, VISUALIZE_POSITION_BITS, true);
+		AddVisualizationMode(TEXT("VSMStatic"), LOCTEXT("VSMStatic", "Virtual Shadow Map Static"), FModeType::Advanced, VISUALIZE_VSM_STATIC_CACHING, true);
 
 		ConfigureConsoleCommand();
 

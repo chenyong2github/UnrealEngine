@@ -133,17 +133,6 @@ static TAutoConsoleVariable<int32> CVarCullBackfacingPixels(
 	ECVF_RenderThreadSafe
 );
 
-int32 GDynamicPageInvalidation = 1;
-#if !UE_BUILD_SHIPPING
-TAutoConsoleVariable<int32> CVarDynamicPageInvalidation(
-	TEXT("r.Shadow.Virtual.DynamicPageInvalidation"),
-	1,
-	TEXT("Invalidate cached pages when geometry moves.\n")
-	TEXT("This should be left enabled except for targeted profiling, as disabling it will produce artifacts with moving geometry."),
-	ECVF_RenderThreadSafe
-);
-#endif
-
 int32 GEnableNonNaniteVSM = 1;
 FAutoConsoleVariableRef CVarEnableNonNaniteVSM(
 	TEXT("r.Shadow.Virtual.NonNaniteVSM"),
@@ -158,6 +147,20 @@ static TAutoConsoleVariable<int32> CVarNonNaniteVsmUseHzb(
 	2,
 	TEXT("Cull Non-Nanite instances using HZB. If set to 2, attempt to use Nanite-HZB from the current frame."),
 	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarInitializePhysicalUsingIndirect(
+	TEXT("r.Shadow.Virtual.InitPhysicalUsingIndirect"),
+	1,
+	TEXT("."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarMergePhysicalUsingIndirect(
+	TEXT("r.Shadow.Virtual.MergePhysicalUsingIndirect"),
+	1,
+	TEXT("."),
+	ECVF_RenderThreadSafe
+);
 
 #if !UE_BUILD_SHIPPING
 bool GDumpVSMLightNames = false;
@@ -182,29 +185,30 @@ FAutoConsoleVariableRef CVarDebugLight(
 	GVirtualShadowMapDebugLight,
 	TEXT("Sets the name of a specific light to debug."),
 	ECVF_RenderThreadSafe
-);	// !UE_BUILD_SHIPPING
+);
 
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
-	TEXT( "r.Shadow.Virtual.DebugProjection" ),
+	TEXT("r.Shadow.Virtual.DebugProjection"),
 	0,
-	TEXT( "Projection pass debug output visualization for use with 'vis Shadow.Virtual.DebugProjection'." ),
+	TEXT("Projection pass debug output visualization for use with 'vis Shadow.Virtual.DebugProjection'."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarDebugSkipMergePhysical(
+	TEXT("r.Shadow.Virtual.DebugSkipMergePhysical"),
+	0,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarDebugSkipDynamicPageInvalidation(
+	TEXT("r.Shadow.Virtual.DebugSkipDynamicPageInvalidation"),
+	0,
+	TEXT("Invalidate cached pages when geometry moves.\n")
+	TEXT("This should be left enabled except for targeted profiling, as disabling it will produce artifacts with moving geometry."),
 	ECVF_RenderThreadSafe
 );
 #endif // !UE_BUILD_SHIPPING
-
-TAutoConsoleVariable<int32> CVarInitializePhysicalUsingIndirect(
-	TEXT("r.Shadow.Virtual.InitPhysicalUsingIndirect"),
-	1,
-	TEXT("."),
-	ECVF_RenderThreadSafe
-);
-
-TAutoConsoleVariable<int32> CVarMergePhysicalUsingIndirect(
-	TEXT("r.Shadow.Virtual.MergePhysicalUsingIndirect"),
-	1,
-	TEXT("."),
-	ECVF_RenderThreadSafe
-);
 
 
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
@@ -722,6 +726,13 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 		return;
 	}
 
+#if !UE_BUILD_SHIPPING
+	if (CVarDebugSkipMergePhysical.GetValueOnRenderThread() != 0)
+	{
+		return;
+	}
+#endif
+
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::MergeStaticPhysicalPages");
 	if (CVarMergePhysicalUsingIndirect.GetValueOnRenderThread() != 0)
 	{
@@ -1205,7 +1216,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			PassParameters->OutPageTable			 = GraphBuilder.CreateUAV(PageTableRDG);
 			PassParameters->OutPhysicalPageMetaData  = GraphBuilder.CreateUAV(PhysicalPageMetaDataRDG);
 			PassParameters->OutPageFlags			 = GraphBuilder.CreateUAV(PageFlagsRDG);
-			PassParameters->bDynamicPageInvalidation = GDynamicPageInvalidation;
+			PassParameters->bDynamicPageInvalidation = 0;
+#if !UE_BUILD_SHIPPING
+			PassParameters->bDynamicPageInvalidation = CVarDebugSkipDynamicPageInvalidation.GetValueOnRenderThread();
+#endif
 
 			bool bCacheEnabled = CacheManager->IsValid();
 			if (bCacheEnabled)
