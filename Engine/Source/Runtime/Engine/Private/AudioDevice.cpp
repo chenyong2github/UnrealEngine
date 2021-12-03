@@ -5121,6 +5121,13 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 				}
 				ActiveSound->bAsyncOcclusionPending = false;
 				PendingSoundsToDelete.RemoveAtSwap(i, 1, false);
+
+				// TODO: Phil Popp investigate a more robust fix -- call Shutdown in FActiveSound or transmitter destructor?
+				if (IAudioInstanceTransmitter* Transmitter = ActiveSound->GetTransmitter())
+				{
+					Transmitter->Shutdown();
+				}
+
 				NotifyPendingDelete(*ActiveSound);
 				delete ActiveSound;
 			}
@@ -5175,6 +5182,12 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 
 			if (bDeleteActiveSound)
 			{
+				// TODO: Phil Popp investigate a more robust fix -- call Shutdown in FActiveSound or transmitter destructor?
+				if (IAudioInstanceTransmitter* Transmitter = ActiveSound->GetTransmitter())
+				{
+					Transmitter->Shutdown();
+				}
+
 				NotifyPendingDelete(*ActiveSound);
 
 				// Remove from the list of pending sounds to stop

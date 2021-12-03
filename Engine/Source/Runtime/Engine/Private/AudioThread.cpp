@@ -371,6 +371,8 @@ struct FAudioAsyncBatcher
 		LastBatch = GAudioPipe.Launch(TEXT("AudioBatch"),
 			[WorkItems = MoveTemp(WorkItems)]() mutable
 			{
+				LLM_SCOPE(ELLMTag::AudioMisc);
+
 				for (FWork& Work : WorkItems)
 				{
 					Work();
