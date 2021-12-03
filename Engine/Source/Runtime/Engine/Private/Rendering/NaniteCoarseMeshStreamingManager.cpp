@@ -16,7 +16,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Streaming Meshes Requested"), STAT_NaniteCo
 DECLARE_MEMORY_STAT(TEXT("Streaming Memory Used"), STAT_NaniteCoarseMeshStreamingMeshMemoryUsed, STATGROUP_NaniteCoarseMeshStreaming);
 DECLARE_MEMORY_STAT(TEXT("Streaming Memory Requested"), STAT_NaniteCoarseMeshStreamingMeshMemoryRequested, STATGROUP_NaniteCoarseMeshStreaming);
 
-static int32 GNaniteCoarseMeshStreamingMemoryPoolSizeInMB = 120;
+static int32 GNaniteCoarseMeshStreamingMemoryPoolSizeInMB = 220;
 static FAutoConsoleVariableRef CVarNaniteCoarseMeshStreamingMemoryPoolSizeInMB(
 	TEXT("r.Nanite.CoarseStreamingMeshMemoryPoolSizeInMB"),
 	GNaniteCoarseMeshStreamingMemoryPoolSizeInMB,

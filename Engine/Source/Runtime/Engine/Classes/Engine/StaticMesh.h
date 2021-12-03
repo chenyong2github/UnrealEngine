@@ -1847,6 +1847,9 @@ public:
 	/** Get whether this mesh should use LOD streaming for the given platform. */
 	bool GetEnableLODStreaming(const class ITargetPlatform* TargetPlatform) const;
 
+	/* Get a static mesh render data for requested platform. */
+	static FStaticMeshRenderData& GetPlatformStaticMeshRenderData(UStaticMesh* Mesh, const ITargetPlatform* Platform);
+
 private:
 	/**
 	 * Converts legacy LODDistance in the source models to Display Factor

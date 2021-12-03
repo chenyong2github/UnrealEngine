@@ -416,7 +416,8 @@ bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform
 		MaxNumStreamedLODs = LODGroupSettings.GetDefaultMaxNumStreamedLODs();
 	}
 	
-	const int32 NumLODs = StaticMesh->GetNumLODs();
+	FStaticMeshRenderData& PlatformRenderData = UStaticMesh::GetPlatformStaticMeshRenderData(StaticMesh, TargetPlatform);
+	const int32 NumLODs = PlatformRenderData.LODResources.Num();
 	const int32 NumStreamedLODs = FMath::Min(MaxNumStreamedLODs, NumLODs - 1);
 	const int32 InlinedLODStartIdx = NumStreamedLODs;
 	return LODIdx >= InlinedLODStartIdx;
@@ -4283,7 +4284,7 @@ void UStaticMesh::RegisterMeshAttributes(FMeshDescription& MeshDescription)
 
 
 #if WITH_EDITOR
-static FStaticMeshRenderData& GetPlatformStaticMeshRenderData(UStaticMesh* Mesh, const ITargetPlatform* Platform)
+FStaticMeshRenderData& UStaticMesh::GetPlatformStaticMeshRenderData(UStaticMesh* Mesh, const ITargetPlatform* Platform)
 {
 	check(Mesh && Mesh->GetRenderData());
 	const FStaticMeshLODSettings& PlatformLODSettings = Platform->GetStaticMeshLODSettings();
