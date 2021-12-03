@@ -238,16 +238,24 @@ float GetProbeMaxHitDistance()
 
 }
 
+#define PROBE_RAY_DISTANCE_ENCODE_SCALE 0.1f
+
 uint EncodeProbeRayDistance(float HitDistance, bool bHit, bool bMoving)
 {
-	return f32tof16(HitDistance) | (bHit ? (1 << 17) : 0) | (bMoving ? (1 << 18) : 0);
+	HitDistance = max(HitDistance, 0.0f);
+
+	uint EncodedRay = 0;
+	EncodedRay = clamp(uint(HitDistance * PROBE_RAY_DISTANCE_ENCODE_SCALE + 0.5f), 0, 0x3FFFFFFF);
+	EncodedRay |= bHit ? (1 << 30) : 0;
+	EncodedRay |= bMoving ? (1 << 31) : 0;
+	return EncodedRay;
 }
 
 float DecodeProbeRayDistance(uint Encoded, out bool bHit, out bool bMoving)
 {
-	bHit = (Encoded & (1 << 17)) != 0;
-	bMoving = (Encoded & (1 << 18)) != 0;
-	return f16tof32(Encoded & 0xFFFF);
+	bHit = (Encoded & (1 << 30)) != 0;
+	bMoving = (Encoded & (1 << 31)) != 0;
+	return (Encoded & 0x3FFFFFFF) / PROBE_RAY_DISTANCE_ENCODE_SCALE;
 }
 
 float DecodeProbeRayDistance(uint Encoded, out bool bHit)
