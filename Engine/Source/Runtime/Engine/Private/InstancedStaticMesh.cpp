@@ -1400,11 +1400,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 
 		InstanceRandomID.SetNumZeroed(bHasPerInstanceRandom ? InComponent->GetInstanceCount() : 0); // Only allocate if material bound which uses this
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		InstanceXFormUpdatedThisFrame.Init(false, InComponent->GetInstanceCount());
-		InstanceCustomDataUpdatedThisFrame.Init(false, InComponent->GetInstanceCount());
-#endif
-
 		// Only allocate if material bound which uses this
 		if (bHasPerInstanceCustomData && InComponent->NumCustomDataFloats > 0)
 		{
@@ -3404,6 +3399,7 @@ bool UInstancedStaticMeshComponent::UpdateInstances(
 	int32 InNumCustomDataFloats,
 	const TArray<float>& CustomFloatData)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UInstancedStaticMeshComponent_UpdateInstances);
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("UInstancedStaticMeshComponent::UpdateInstances");
 
 	const float EqualTolerance = 1e-6;
