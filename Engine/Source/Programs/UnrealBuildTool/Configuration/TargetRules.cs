@@ -1130,6 +1130,14 @@ namespace UnrealBuildTool
 		public bool bAllowLTCG = false;
 
 		/// <summary>
+		/// When Link Time Code Generation (LTCG) is enabled, whether to 
+		/// prefer using the lighter weight version on supported platforms.
+		/// </summary>
+		[CommandLine("-ThinLTO")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bPreferThinLTO = false;
+
+		/// <summary>
 		/// Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
 		/// </summary>
 		[CommandLine("-PGOProfile", Value = "true")]
@@ -2561,6 +2569,12 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bAllowLTCG; }
 		}
+
+		public bool bPreferThinLTO
+		{
+			get { return Inner.bPreferThinLTO; }
+		}
+
 		public bool bPGOProfile
 		{
 			get { return Inner.bPGOProfile; }

@@ -69,12 +69,6 @@ namespace UnrealBuildTool
 		public bool bEnableMemorySanitizer = false;
 
 		/// <summary>
-		/// Enables "thin" LTO
-		/// </summary>
-		[CommandLine("-ThinLTO")]
-		public bool bEnableThinLTO = false;
-
-		/// <summary>
 		/// Whether or not to preserve the portable symbol file produced by dump_syms
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxPlatform.LinuxTargetSettings")]
@@ -126,11 +120,6 @@ namespace UnrealBuildTool
 		public bool bEnableMemorySanitizer
 		{
 			get { return Inner.bEnableMemorySanitizer; }
-		}
-
-		public bool bEnableThinLTO
-		{
-			get { return Inner.bEnableThinLTO; }
 		}
 
 		#pragma warning restore CS1591
@@ -202,11 +191,6 @@ namespace UnrealBuildTool
 
 		public override void ValidateTarget(TargetRules Target)
 		{
-			if(Target.LinuxPlatform.bEnableThinLTO)
-			{
-				Target.bAllowLTCG = true;
-			}
-
 			if (!Target.IsNameOverriden())
 			{
 				string? SanitizerSuffix = null;
@@ -575,7 +559,7 @@ namespace UnrealBuildTool
 					throw new BuildException("Memory Sanitizer (MSan) unsupported for non-monolithic builds");
 				}
 			}
-			if (Target.LinuxPlatform.bEnableThinLTO)
+			if (Target.bAllowLTCG && Target.bPreferThinLTO)
 			{
 				Options |= LinuxToolChainOptions.EnableThinLTO;
 			}
