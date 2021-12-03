@@ -3557,6 +3557,9 @@ void FScene::UpdateCachedRayTracingState(FPrimitiveSceneProxy* SceneProxy)
 	if (SceneProxy->GetPrimitiveSceneInfo())
 	{
 		SceneProxy->GetPrimitiveSceneInfo()->bCachedRaytracingDataDirty = true;
+
+		// Clear the recounted pointer as well since we don't need it anymore
+		SceneProxy->GetPrimitiveSceneInfo()->CachedRayTracingInstance.GeometryRHI = nullptr;
 	}
 }
 
