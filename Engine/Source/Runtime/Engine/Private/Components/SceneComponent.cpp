@@ -98,6 +98,25 @@ void USceneComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 
 	Super::AddReferencedObjects(InThis, Collector);
 }
+
+void USceneComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (AttachParent)
+	{
+		USceneComponent* TopReplacementComponent = AttachParent->ReplacementSceneComponent;
+		while (TopReplacementComponent && TopReplacementComponent->ReplacementSceneComponent)
+		{
+			TopReplacementComponent = TopReplacementComponent->ReplacementSceneComponent;
+		}
+
+		if (TopReplacementComponent)
+		{
+			SetAttachParent(TopReplacementComponent);
+		}
+	}
+}
 #endif
 
 #if WITH_EDITOR
