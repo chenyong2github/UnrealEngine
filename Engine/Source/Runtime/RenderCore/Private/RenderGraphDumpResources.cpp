@@ -15,6 +15,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "RenderGraphUtils.h"
 #include "GlobalShader.h"
+#include "RHIValidation.h"
 
 #if RDG_DUMP_RESOURCES
 
@@ -1086,7 +1087,7 @@ struct FRDGResourceDumpContext
 				}
 				else
 				{
-					UE_LOG(LogRendererCore, Warning, TEXT("RHICmdList.MapStagingSurface() to dump buffer %s failed."), Buffer->Name);
+					UE_LOG(LogRendererCore, Warning, TEXT("RHICmdList.LockStagingBuffer() to dump buffer %s failed."), Buffer->Name);
 				}
 
 				StagingBuffer = nullptr;
@@ -1241,6 +1242,13 @@ FString FRDGBuilder::BeginResourceDump(const TArray<FString>& Args)
 	{
 		check(IsInRenderingThread());
 		GRDGResourceDumpContext = NewResourceDumpContext;
+
+		ImmediateRHICmdList.SubmitCommandsAndFlushGPU();
+
+		// Disable the validation for BUF_SourceCopy so that all buffers can be copied into staging buffer for CPU readback.
+		#if ENABLE_RHI_VALIDATION
+			GRHIValidateBufferSourceCopy = false;
+		#endif
 	});
 
 	bIsDumpingFrame_GameThread = true;
@@ -1264,6 +1272,16 @@ void FRDGBuilder::EndResourceDump()
 	// Wait all rendering commands are completed to finish with GRDGResourceDumpContext.
 	{
 		UE_LOG(LogRendererCore, Display, TEXT("Stalling game thread until render thread finishes to dump resources"));
+
+		ENQUEUE_RENDER_COMMAND(FEndGPUDump)(
+			[](FRHICommandListImmediate& ImmediateRHICmdList)
+		{
+			ImmediateRHICmdList.SubmitCommandsAndFlushGPU();
+			#if ENABLE_RHI_VALIDATION
+				GRHIValidateBufferSourceCopy = true;
+			#endif
+		});
+
 		FlushRenderingCommands();
 	}
 
