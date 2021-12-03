@@ -1405,7 +1405,7 @@ class Config(object):
         self.INSIGHTS_TRACE_ARGS = StringSetting(
             "tracing_args",
             "Unreal Insights Tracing Args",
-            data.get('tracing_arg', 'log,cpu,gpu,frame,concert,messaging')
+            data.get('tracing_arg', 'log,cpu,gpu,frame,bookmark,concert,messaging')
         )
         self.INSIGHTS_STAT_EVENTS = BoolSetting(
             "tracing_stat_events",
