@@ -3,6 +3,7 @@
 	HLSLMaterialTranslator.cpp: Translates material expressions into HLSL code.
 =============================================================================*/
 #include "HLSLMaterialTranslator.h"
+#include "VT/VirtualTextureScalability.h"
 
 #if WITH_EDITORONLY_DATA
 
@@ -5723,8 +5724,10 @@ int32 FHLSLMaterialTranslator::TextureSample(
 
 		if (SamplerSource != SSM_FromTextureAsset)
 		{
-			// VT doesn't care if the shared sampler is wrap or clamp this is handled in the shader explicitly by our code so we still inherit this from the texture
-			const TCHAR* SharedSamplerName = (MipValueMode == TMVM_MipLevel) ? TEXT("View.SharedBilinearClampedSampler") : TEXT("View.SharedBilinearAnisoClampedSampler");
+			// VT doesn't care if the shared sampler is wrap or clamp. It only cares if it is aniso or not.
+			// The wrap/clamp/mirror operation is handled in the shader explicitly.
+			const bool bUseAnisoSampler = VirtualTextureScalability::IsAnisotropicFilteringEnabled() && MipValueMode != TMVM_MipLevel;
+			const TCHAR* SharedSamplerName = bUseAnisoSampler ? TEXT("View.SharedBilinearAnisoClampedSampler") : TEXT("View.SharedBilinearClampedSampler");
 			TextureName += FString::Printf(TEXT("Material.VirtualTexturePhysical_%d, GetMaterialSharedSampler(Material.VirtualTexturePhysical_%dSampler, %s)")
 				, VirtualTextureIndex, VirtualTextureIndex, SharedSamplerName);
 		}
