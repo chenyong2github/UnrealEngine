@@ -313,7 +313,7 @@ struct HAIRSTRANDSCORE_API FHairSimulationConstraints
 	float BendDamping = 0.001;
 
 	/** Stiffness for the bend constraint in GPa */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "BendConstraint", meta = (ToolTip = "Stiffness for the bend constraint in GPa", EditCondition = "bOverrideSettings"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "BendConstraint", meta = (ToolTip = "Stiffness for the bend constraint in GPa"))
 	float BendStiffness = 0.01;
 
 	/** Damping for the stretch constraint between 0 and 1 */
