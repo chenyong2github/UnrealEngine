@@ -393,7 +393,7 @@ FIntPoint FVirtualShadowMapArray::GetDynamicPhysicalPoolSize() const
 uint32 FVirtualShadowMapArray::GetTotalAllocatedPhysicalPages() const
 {
 	check(bInitialized);
-	return ShouldCacheStaticSeparately() ? UniformParameters.MaxPhysicalPages : (2U * UniformParameters.MaxPhysicalPages);
+	return ShouldCacheStaticSeparately() ? (2U * UniformParameters.MaxPhysicalPages) : UniformParameters.MaxPhysicalPages;
 }
 
 
