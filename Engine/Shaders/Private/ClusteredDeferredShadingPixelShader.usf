@@ -38,7 +38,7 @@
 // Extracts out the simple lights into their own loop that is executed first, independently of shading model.
 #define ENABLE_SEPARATE_SIMPLE_LIGHT_LOOP 0
 
-Texture2D< uint > ShadowMaskBits;
+Texture2D< uint4 > ShadowMaskBits;
 
 #if USE_HAIR_LIGHTING
 uint				HairTransmittanceBufferMaxCount;
@@ -61,7 +61,7 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 	const uint NumLocalLights = min(InLightGridData.NumLocalLights, GetNumLocalLights(EyeIndex));
 
 	int2 PixelPos = int2( ScreenUV.xy * View.BufferSizeAndInvSize.xy );
-	uint ShadowMask = ~ShadowMaskBits[ PixelPos ];
+	uint4 ShadowMask = ~ShadowMaskBits[ PixelPos ];
 	half SubsurfaceOpacity = GetSubsurfaceOpacityFromGbuffer( PixelPos );
 
 	LOOP
@@ -126,11 +126,22 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		float4 LightAttenuation = float4(1, 1, 1, 1);
 
 		LightData.ShadowedBits = 1;
-		// Be careful with the shift here as the shift amount is mod 32, so >>32 is a noop rather than zero
-		// We treat lights past the 10th as unshadowed
-		if (LocalLightListIndex < GetShadowMaskMaxLightCount())
+		if (LocalLightListIndex < GetPackedShadowMaskMaxLightCount())
 		{
-			LightAttenuation = UnpackShadowMask(ShadowMask, LocalLightListIndex).xxxx;
+			LightAttenuation = UnpackShadowMask(ShadowMask, LocalLightListIndex, Dither).xxxx;
+		}
+		else if (LocalLight.VirtualShadowMapId != INDEX_NONE)
+		{
+			// Single sample VSM lookup
+			// TODO: Normal bias? Screen space ray? Etc? Do we need a path that does more of that stuff
+			// unified but without SMRT? For now we'll just keep this as a simple lookup to avoid potential performance tradeoffs
+			// as this is meant to be the fallback path on overflowing tiles.
+			FVirtualShadowMapSampleResult VSMResult = SampleVirtualShadowMap(
+				LocalLight.VirtualShadowMapId,
+				WorldPosition,
+				30.0f // RayStartDistance TODO... maybe at least make this a proportional screen offset like the contact shadow trace
+			);
+			LightAttenuation = VSMResult.ShadowFactor.xxxx;
 		}
 
 		if ( SubsurfaceOpacity < 1.0f )
@@ -156,10 +167,10 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 
 			// Fetch precomputed transmittance
 			FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
-			if (LocalLightListIndex < GetShadowMaskMaxLightCount())
+			if (LocalLightListIndex < GetPackedShadowMaskMaxLightCount())
 			{
 				const uint TransmittanceSampleIndex = SampleIndex + LocalLightListIndex * TotalSampleCount;
-				const uint TransmittanceSampleMaxCount = TotalSampleCount * GetShadowMaskMaxLightCount();
+				const uint TransmittanceSampleMaxCount = TotalSampleCount * GetPackedShadowMaskMaxLightCount();
 				if (TransmittanceSampleIndex < TransmittanceSampleMaxCount)
 				{
 					TransmittanceMask = UnpackTransmittanceMask(HairTransmittanceBuffer[TransmittanceSampleIndex]);		

@@ -936,7 +936,6 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 					// These are not simple lights.
 					SortedLightInfo->SortKey.Fields.bIsNotSimpleLight = 1;
 
-
 					// tiled and clustered deferred lighting only supported for certain lights that don't use any additional features
 					// And also that are not directional (mostly because it does'nt make so much sense to insert them into every grid cell in the universe)
 					// In the forward case one directional light gets put into its own variables, and in the deferred case it gets a full-screen pass.
@@ -949,6 +948,11 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 						!SortedLightInfo->SortKey.Fields.bUsesLightingChannels
 						&& LightSceneInfoCompact.LightType != LightType_Directional
 						&& LightSceneInfoCompact.LightType != LightType_Rect;
+
+					// One pass projection is supported for lights with only virtual shadow maps
+					// TODO: Exclude lights that also have non-virtual shadow maps
+					bool bHasVirtualShadowMap = VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&Views[ViewIndex]) != INDEX_NONE;
+					SortedLightInfo->SortKey.Fields.bDoesNotWriteIntoPackedShadowMask = !bTiledOrClusteredDeferredSupported || !bHasVirtualShadowMap;
 
 					SortedLightInfo->SortKey.Fields.bTiledDeferredNotSupported = !(bTiledOrClusteredDeferredSupported && LightSceneInfo->Proxy->IsTiledDeferredLightingSupported());
 
@@ -1001,7 +1005,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 	OutSortedLights.SimpleLightsEnd = SortedLights.Num();
 	OutSortedLights.TiledSupportedEnd = SortedLights.Num();
 	OutSortedLights.ClusteredSupportedEnd = SortedLights.Num();
-	OutSortedLights.AttenuationLightStart = SortedLights.Num();
+	OutSortedLights.UnbatchedLightStart = SortedLights.Num();
 
 	// Iterate over all lights to be rendered and build ranges for tiled deferred and unshadowed lights
 	for (int32 LightIndex = 0; LightIndex < SortedLights.Num(); LightIndex++)
@@ -1032,9 +1036,9 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 		if( (bDrawShadows || bDrawLightFunction || bLightingChannels) && SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported )
 		{
-			// Once we find a shadowed light, we can exit the loop, these lights should never support tiled deferred rendering either
+			// Once we find an unbatched shadowed light, we can exit the loop
 			check(SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported);
-			OutSortedLights.AttenuationLightStart = LightIndex;
+			OutSortedLights.UnbatchedLightStart = LightIndex;
 			break;
 		}
 	}
@@ -1042,7 +1046,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 	// Make sure no obvious things went wrong!
 	check(OutSortedLights.TiledSupportedEnd >= OutSortedLights.SimpleLightsEnd);
 	check(OutSortedLights.ClusteredSupportedEnd >= OutSortedLights.TiledSupportedEnd);
-	check(OutSortedLights.AttenuationLightStart >= OutSortedLights.ClusteredSupportedEnd);
+	check(OutSortedLights.UnbatchedLightStart >= OutSortedLights.ClusteredSupportedEnd);
 }
 
 /** Shader parameters to use when creating a RenderLight(...) pass. */
@@ -1126,7 +1130,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 	const FSimpleLightArray &SimpleLights = SortedLightSet.SimpleLights;
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;
-	const int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
+	const int32 UnbatchedLightStart = SortedLightSet.UnbatchedLightStart;
 	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
 
 	FHairStrandsTransmittanceMaskData DummyTransmittanceMaskData;
@@ -1148,8 +1152,8 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 		if(ViewFamily.EngineShowFlags.DirectLighting)
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "NonShadowedLights");
-			INC_DWORD_STAT_BY(STAT_NumUnshadowedLights, AttenuationLightStart);
+			RDG_EVENT_SCOPE(GraphBuilder, "BatchedLights");
+			INC_DWORD_STAT_BY(STAT_NumBatchedLights, UnbatchedLightStart);
 
 			// Currently they have a special path anyway in case of standard deferred so always skip the simple lights
 			int32 StandardDeferredStart = SortedLightSet.SimpleLightsEnd;
@@ -1239,10 +1243,10 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						RDG_EVENT_NAME("StandardDeferredLighting"),
 						PassParameters,
 						ERDGPassFlags::Raster,
-						[this, &View, &SortedLights, LightingChannelsTexture, StandardDeferredStart, AttenuationLightStart, PassParameters](FRHICommandList& RHICmdList)
+						[this, &View, &SortedLights, LightingChannelsTexture, StandardDeferredStart, UnbatchedLightStart, PassParameters](FRHICommandList& RHICmdList)
 					{
 						// Draw non-shadowed non-light function lights without changing render targets between them
-						for (int32 LightIndex = StandardDeferredStart; LightIndex < AttenuationLightStart; LightIndex++)
+						for (int32 LightIndex = StandardDeferredStart; LightIndex < UnbatchedLightStart; LightIndex++)
 						{
 							const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 							const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
@@ -1266,7 +1270,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 					if (HairStrands::HasViewHairStrandsData(View))
 					{
 						// Draw non-shadowed non-light function lights without changing render targets between them
-						for (int32 LightIndex = StandardDeferredStart; LightIndex < AttenuationLightStart; LightIndex++)
+						for (int32 LightIndex = StandardDeferredStart; LightIndex < UnbatchedLightStart; LightIndex++)
 						{
 							const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 							const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
@@ -1278,10 +1282,10 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 			if (GUseTranslucentLightingVolumes && GSupportsVolumeTextureRendering)
 			{
-				if (AttenuationLightStart)
+				if (UnbatchedLightStart)
 				{
 					// Inject non-shadowed, non-simple, non-light function lights in to the volume.
-					InjectTranslucencyLightingVolumeArray(GraphBuilder, Views, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, SortedLights, TInterval<int32>(SimpleLightsEnd, AttenuationLightStart));
+					InjectTranslucencyLightingVolumeArray(GraphBuilder, Views, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, SortedLights, TInterval<int32>(SimpleLightsEnd, UnbatchedLightStart));
 				}
 
 				if (SimpleLights.InstanceData.Num() > 0)
@@ -1308,7 +1312,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 		}
 
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "ShadowedLights");
+			RDG_EVENT_SCOPE(GraphBuilder, "UnbatchedLights");
 
 			const int32 DenoiserMode = CVarShadowUseDenoiser.GetValueOnRenderThread();
 
@@ -1358,7 +1362,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 			FRDGTextureRef SharedScreenShadowMaskSubPixelTexture = nullptr;
 
 			// Draw shadowed and light function lights
-			for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+			for (int32 LightIndex = UnbatchedLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 			{
 				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 				const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
@@ -1425,7 +1429,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						if (
 							RHI_RAYTRACING &&
 							bWantsBatchedShadow &&
-							(PreprocessedShadowMaskTextures.Num() == 0 || !PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart]))
+							(PreprocessedShadowMaskTextures.Num() == 0 || !PreprocessedShadowMaskTextures[LightIndex - UnbatchedLightStart]))
 						{
 							RDG_EVENT_SCOPE(GraphBuilder, "ShadowBatch");
 							TStaticArray<IScreenSpaceDenoiser::FShadowVisibilityParameters, IScreenSpaceDenoiser::kMaxBatchSize> DenoisingQueue;
@@ -1467,7 +1471,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 									const FLightSceneInfo* LocalLightSceneInfo = DenoisingQueue[i].LightSceneInfo;
 
 									int32 LocalLightIndex = LightIndices[i];
-									FRDGTextureRef& RefDestination = PreprocessedShadowMaskTextures[LocalLightIndex - AttenuationLightStart];
+									FRDGTextureRef& RefDestination = PreprocessedShadowMaskTextures[LocalLightIndex - UnbatchedLightStart];
 									check(RefDestination == nullptr);
 									RefDestination = Outputs[i].Mask;
 									DenoisingQueue[i].LightSceneInfo = nullptr;
@@ -1565,7 +1569,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 									
 									if (HairStrands::HasViewHairStrandsData(View))
 									{
-										FRDGTextureRef& RefDestination = PreprocessedShadowMaskSubPixelTextures[LightBatchIndex - AttenuationLightStart];
+										FRDGTextureRef& RefDestination = PreprocessedShadowMaskSubPixelTextures[LightBatchIndex - UnbatchedLightStart];
 										check(RefDestination == nullptr);
 										RefDestination = SubPixelRayTracingShadowMaskTexture;
 									}
@@ -1602,7 +1606,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 								}
 								else
 								{
-									PreprocessedShadowMaskTextures[LightBatchIndex - AttenuationLightStart] = RayTracingShadowMaskTexture;
+									PreprocessedShadowMaskTextures[LightBatchIndex - UnbatchedLightStart] = RayTracingShadowMaskTexture;
 								}
 
 								// terminate batch if we filled a denoiser batch or hit our max light batch
@@ -1621,9 +1625,9 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						}
 					} // end inline batched raytraced shadow
 
-					if (RHI_RAYTRACING && PreprocessedShadowMaskTextures.Num() > 0 && PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart])
+					if (RHI_RAYTRACING && PreprocessedShadowMaskTextures.Num() > 0 && PreprocessedShadowMaskTextures[LightIndex - UnbatchedLightStart])
 					{
-						const uint32 ShadowMaskIndex = LightIndex - AttenuationLightStart;
+						const uint32 ShadowMaskIndex = LightIndex - UnbatchedLightStart;
 						ScreenShadowMaskTexture = PreprocessedShadowMaskTextures[ShadowMaskIndex];
 						PreprocessedShadowMaskTextures[ShadowMaskIndex] = nullptr;
 
@@ -2583,7 +2587,7 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 {
 	const FSimpleLightArray &SimpleLights = SortedLightSet.SimpleLights;
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;
-	const int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
+	const int32 UnbatchedLightStart = SortedLightSet.UnbatchedLightStart;
 	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
 
 	if (ViewFamily.EngineShowFlags.DirectLighting)
@@ -2598,7 +2602,7 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 			}
 
 			FHairStrandsTransmittanceMaskData DummyTransmittanceMaskData = CreateDummyHairStrandsTransmittanceMaskData(GraphBuilder, View.ShaderMap);
-			for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+			for (int32 LightIndex = UnbatchedLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 			{
 				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 				const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;

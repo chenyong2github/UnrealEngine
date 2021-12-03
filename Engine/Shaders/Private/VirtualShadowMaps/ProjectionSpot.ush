@@ -269,7 +269,6 @@ bool IsBackfaceToLocalLight(float3 Position, half3 Normal, float3 LightPosition,
 FVirtualShadowMapSampleResult TraceLocalLight(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
-	uint LightType,
 	uint2 PixelPos,
 	const float SceneDepth,
 	float3 TranslatedWorldPosition,
@@ -283,6 +282,8 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 {
 	const float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 
+	uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
+
 	half3 ConeAxis;
 	half ConeSin;
 	half DistToLight;	
@@ -292,7 +293,6 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 	Result.bValid = true;
 	Result.ShadowFactor = 0.0f;
 
-	half RayMissFactor = 0;
 	if (!bBackface || !bCullBackface)
 	{
 		float StepOffset = Noise;
@@ -300,6 +300,7 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 		uint TileID = MortonEncode( PixelPos );
 
 		uint i = 0;
+		uint RayMissCount = 0;
 		for( ; i < MaxRayCount; i++ )
 		{
 			RandomSequence RandSequence;
@@ -315,9 +316,7 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			float4 RandSample = SobolSampler( RandSequence.SampleIndex, RandSequence.SampleSeed, 8 );
 #endif
 
-			float2 E = RandSample.xy;
-
-			half2 LightUV = UniformSampleDiskConcentricApprox( E ).xy;
+			half2 LightUV = UniformSampleDiskConcentricApprox( RandSample.xy ).xy;
 			LightUV *= ConeSin;
 
 			half SinTheta2 = dot( LightUV, LightUV );
@@ -331,10 +330,11 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			// where the projection becomes extreme.
 			
 			// Clip ray to max angle to limit penumbra sizes
-			float ClampedLength = DistToLight * 0.75 * saturate( 1.5 / ( CosTheta + CotMaxRayAngleFromLight * SinTheta ) );
+			float ClampedEnd = DistToLight * 0.75 * saturate( 1.5 / ( CosTheta + CotMaxRayAngleFromLight * SinTheta ) );
+			float Start = min(RayStartOffset, ClampedEnd - 1e-6f);
 
-			float3 RayStart = WorldPosition + Dir * RayStartOffset;
-			float3 RayEnd = WorldPosition + Dir * ClampedLength;
+			float3 RayStart = WorldPosition + Dir * Start;
+			float3 RayEnd = WorldPosition + Dir * ClampedEnd;
 
 			FSMRTResult SMRTResult;
 			FSMRTSingleRayState RayState;	// For debug output
@@ -359,7 +359,7 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 					RayState);
 			}
 
-			RayMissFactor += SMRTResult.bValidHit ? 0 : 1;
+			RayMissCount += SMRTResult.bValidHit ? 0 : 1;
 			
 			// Debug output (DCE'd if not used)
 			Result.ClipmapIndexOrMipLevel = RayState.MipLevel;
@@ -371,18 +371,20 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			if( i == 0 )
 			{
 				bool bHit = SMRTResult.bValidHit;
-				if( bHit )
-				{
-				#if 0
-					//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, SMRTResult.OccluderDistance );
-					//float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
-					float WorldBluringRadius = Light.SourceRadius * SMRTResult.OccluderDistance / max( DistToLight - SMRTResult.OccluderDistance, 0.001 );
-					float PixelBluringRadius = WorldBluringRadius * View.ViewSizeAndInvSize.x * 0.5 / ( SceneDepth * View.ClipToView[0][0] );
-					bHit = PixelBluringRadius > 2;
-				#else
-					bHit = SMRTResult.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
+				#if 0			// Disabled heuristic penumbra size path for now as it creates some speckle artifacts near the edges of sharp shadows
+					if( bHit )
+					{
+					#if 0
+						//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, SMRTResult.OccluderDistance );
+						//float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
+						float WorldBluringRadius = Light.SourceRadius * SMRTResult.OccluderDistance / max( DistToLight - SMRTResult.OccluderDistance, 0.001 );
+						float PixelBluringRadius = WorldBluringRadius * View.ViewSizeAndInvSize.x * 0.5 / ( SceneDepth * View.ClipToView[0][0] );
+						bHit = PixelBluringRadius > 2;
+					#else
+						bHit = SMRTResult.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
+					#endif
+					}
 				#endif
-				}
 
 				// All lanes miss or hit something close enough to not be noisy.
 				bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
@@ -394,7 +396,8 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			else if( i == 1 )
 			{
 				// After 2 iterations and all have hit, must be in umbra.
-				bool bAllLanesHit = WaveActiveAllTrue( RayMissFactor == 0 );
+				// TODO: Modify this heuristic based on ray counts to avoid blocky artifacts in near-umbra
+				bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
 				if( bAllLanesHit )
 				{
 					break;
@@ -405,9 +408,8 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			StepOffset = ( EvolveSobolSeed( Seed ) >> 8 ) * 5.96046447754e-08; // * 2^-24;
 		}
 		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
-		RayMissFactor /= float(RayCount);
 
-		Result.ShadowFactor = RayMissFactor;
+		Result.ShadowFactor = SMRTComputeRayMissFactor(RayMissCount, RayCount, MaxRayCount, Noise);
 		Result.RayCount = RayCount;
 	}
 

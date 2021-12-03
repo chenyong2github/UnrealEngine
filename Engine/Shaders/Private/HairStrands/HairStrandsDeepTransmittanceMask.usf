@@ -444,7 +444,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float3 WorldPosition	= ToWorldPosition(UV, SceneDepth);
 	const float PixelRadius		= SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 
-	const uint PackedShadowMask = ~ShadowMaskBitsTexture[PixelCoord];
+	const uint4 PackedShadowMask = ~ShadowMaskBitsTexture[PixelCoord];
 	const float3 Random = GetHairVoxelJitter(PixelCoord.xy, View.StateFrameIndexMod8, VirtualVoxel.JitterMode);
 
 	const uint2 LocalPixelPos = PixelCoord;
@@ -453,7 +453,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint GridLinearIndex = ComputeLightGridCellIndex(LocalPixelPos, SceneDepth, EyeIndex);
 	const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridLinearIndex, EyeIndex);
 
-	const uint LightCount = min(GetShadowMaskMaxLightCount(), CulledLightGridData.NumLocalLights);
+	const uint LightCount = min(GetPackedShadowMaskMaxLightCount(), CulledLightGridData.NumLocalLights);
 
 	LOOP
 	for (uint LightIndex = 0; LightIndex < LightCount; ++LightIndex)

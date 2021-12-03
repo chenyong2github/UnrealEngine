@@ -183,6 +183,7 @@ class FHairStrandsVoxelTransmittanceMaskCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
 
 		SHADER_PARAMETER(float, LightRadius)
 		SHADER_PARAMETER(FVector3f, LightDirection)
@@ -224,7 +225,8 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	const FHairStrandsTransmittanceLightParams& Params,
 	const uint32 NodeGroupSize,
 	FRDGBufferRef IndirectArgsBuffer,
-	FRDGTextureRef ShadowMaskTexture)
+	FRDGTextureRef ShadowMaskTexture,
+	FVirtualShadowMapArray* VirtualShadowMapArray = nullptr)
 {
 	check(HairStrands::HasViewHairStrandsVoxelData(View));
 	check(NodeGroupSize == 64 || NodeGroupSize == 32);
@@ -239,6 +241,8 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	Parameters->OutTransmittanceMask = GraphBuilder.CreateUAV(OutBuffer, FHairStrandsTransmittanceMaskData::Format);
 	if (PassType == EHairTransmittancePassType::OnePass)
 	{
+		check(VirtualShadowMapArray != nullptr);
+		Parameters->VirtualShadowMap = VirtualShadowMapArray->GetSamplingParameters(GraphBuilder);
 		Parameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 		Parameters->RayMarchMaskTexture = nullptr;
 		Parameters->ShadowMaskBitsTexture = ShadowMaskTexture;
@@ -811,7 +815,8 @@ static FHairStrandsTransmittanceMaskData InternalRenderHairStrandsTransmittanceM
 FHairStrandsTransmittanceMaskData RenderHairStrandsOnePassTransmittanceMask(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
-	FRDGTextureRef ShadowMaskBits)
+	FRDGTextureRef ShadowMaskBits,
+	FVirtualShadowMapArray& VirtualShadowMapArray)
 {
 	FHairStrandsTransmittanceMaskData Out;
 	if (HairStrands::HasViewHairStrandsData(View) && View.HairStrandsViewData.MacroGroupDatas.Num() > 0)
@@ -834,7 +839,8 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsOnePassTransmittanceMask(
 				DummyParams,
 				View.HairStrandsViewData.VisibilityData.NodeGroupSize,
 				View.HairStrandsViewData.VisibilityData.NodeIndirectArg,
-				ShadowMaskBits);
+				ShadowMaskBits,
+				&VirtualShadowMapArray);
 		}
 	}
 	return Out;

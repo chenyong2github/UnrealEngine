@@ -172,7 +172,7 @@ struct FLocalLightData
 	float4 SpotAnglesAndSourceRadiusPacked;
     float4 LightDirectionAndShadowMask;
     float4 LightTangentAndSoftSourceRadius;
-	float4 RectBarnDoor;
+	float4 RectBarnDoorAndVirtualShadowMapId;
 	/** Flag is true if clustered deferred is supported for this light. They are always first / together.*/
 	bool bClusteredDeferredSupported; 
 	/** Flag is true if it is a simple light. They are always first / together.*/
@@ -200,8 +200,8 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		Result.LightDirectionAndShadowMask = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 2];
 		Result.SpotAnglesAndSourceRadiusPacked = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 3];
 		Result.LightTangentAndSoftSourceRadius = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 4];
-		Result.RectBarnDoor = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
-		Result.VirtualShadowMapId = asint(ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 5].z);
+		Result.RectBarnDoorAndVirtualShadowMapId = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
+		Result.VirtualShadowMapId = int(Result.RectBarnDoorAndVirtualShadowMapId.z);
 #if INSTANCED_STEREO
 	}
 	else
@@ -215,8 +215,8 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		Result.LightDirectionAndShadowMask = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 2];
 		Result.SpotAnglesAndSourceRadiusPacked = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 3];
 		Result.LightTangentAndSoftSourceRadius = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 4];
-		Result.RectBarnDoor = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
-		Result.VirtualShadowMapId = asint(ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 5].z);
+		Result.RectBarnDoorAndVirtualShadowMapId = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
+		Result.VirtualShadowMapId = int(Result.RectBarnDoorAndVirtualShadowMapId.z);
 	}
 #endif
 
@@ -232,20 +232,46 @@ float4 UnpackShadowMapChannelMask(uint ShadowMapChannelMaskPacked)
 }
 
 /**
- * Helper to pack/unpack the shadow mask for cluster shading and virtual shadow map
- * This packing encode up to 10 lights into a 32bits uint
+ * Helpers to pack/unpack the shadow mask for cluster shading and virtual shadow map
+ * Currently hard-coded for 4 bits per light, up to 32 lights per pixel in a uint4
  */
-uint GetShadowMaskMaxLightCount()
+uint4 InitializePackedShadowMask()
 {
-	return 10;
+	return uint(0xffffffff).xxxx;
 }
 
-void PackShadowMask(inout uint OutShadowMask, float InShadowFactor, uint InLightIndex)
+uint GetPackedShadowMaskMaxLightCount()
 {
-	OutShadowMask ^= (~uint(round(InShadowFactor * 7.0)) & 7u) << (InLightIndex * 3u);
+	return VirtualShadowMap.PackedShadowMaskMaxLightCount;
 }
 
-float UnpackShadowMask(uint InShadowMask, uint InLightIndex)
+void PackShadowMask(inout uint4 InOutShadowMask, float InShadowFactor, uint InLightIndex)
 {
-	return ((InShadowMask >> (InLightIndex * 3u)) & 7u) / 7.0;
+	uint Value = ~uint(round(InShadowFactor * 15.0f)) & 15U;
+	uint Dword = InLightIndex / 8;
+
+	InOutShadowMask.x ^= (Dword == 0U) ? (Value << (InLightIndex      ) * 4U) : 0U;
+	InOutShadowMask.y ^= (Dword == 1U) ? (Value << (InLightIndex -  8U) * 4U) : 0U;
+	InOutShadowMask.z ^= (Dword == 2U) ? (Value << (InLightIndex - 16U) * 4U) : 0U;
+	InOutShadowMask.w ^= (Dword == 3U) ? (Value << (InLightIndex - 24U) * 4U) : 0U;
+
+	//OutShadowMask ^= (~uint(round(InShadowFactor * 7.0)) & 7u) << (InLightIndex * 3u);
+}
+
+float UnpackShadowMask(uint4 InShadowMask, uint InLightIndex)
+{	
+	uint Dword = InLightIndex / 8;
+	return ((InShadowMask[Dword] >> (InLightIndex - Dword*8U) * 4U) & 15U) / 15.0f;	
+	//return ((InShadowMask >> (InLightIndex * 3u)) & 7u) / 7.0;
+}
+
+// Unpack with dither to hide some of the quantization
+float UnpackShadowMask(uint4 InShadowMask, uint InLightIndex, float Dither)
+{	
+	float ShadowFactor = UnpackShadowMask(InShadowMask, InLightIndex);
+	if (ShadowFactor > 0.0f && ShadowFactor < 1.0f)
+	{
+		ShadowFactor = saturate(ShadowFactor + (Dither - 0.5f) * (1.0f / 16.0f));
+	}
+	return ShadowFactor;
 }

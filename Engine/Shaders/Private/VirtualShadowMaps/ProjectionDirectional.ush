@@ -210,7 +210,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 	const half Noise,
 	bool bCullBackface,
 	half3 WorldNormal,
-	float TexelDitherScale)
+	half TexelDitherScale)
 {
 	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
@@ -284,7 +284,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 		}
 		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
 
-		Result.ShadowFactor = float(RayMissCount) / float(RayCount);
+		Result.ShadowFactor = SMRTComputeRayMissFactor(RayMissCount, RayCount, MaxRayCount, Noise);;
 		Result.OccluderDistance = -1.0f;	// TODO?
 		Result.RayCount = RayCount;
 	}

@@ -205,7 +205,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
 		// One pass projection parameters
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D< uint >, RWShadowMaskBits)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWShadowMaskBits)
 		// Pass per light parameters
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 		SHADER_PARAMETER(int32, LightUniformVirtualShadowMapId)
@@ -240,7 +240,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		// Directional lights are always in separate passes as forward light data structure currently
-		// only contains a single single directional light.
+		// only contains a single directional light.
 		if( PermutationVector.Get< FDirectionalLightDim >() && PermutationVector.Get< FOnePassProjectionDim >() )
 		{
 			return false;
@@ -368,11 +368,11 @@ FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 
 	const FRDGTextureDesc ShadowMaskDesc = FRDGTextureDesc::Create2D(
 		SceneTextures.Config.Extent,
-		PF_R32_UINT,
+		VirtualShadowMapArray.GetPackedShadowMaskFormat(),
 		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_UAV );
+		TexCreate_ShaderResource | TexCreate_UAV);
 
-	FRDGTextureRef ShadowMaskBits = GraphBuilder.CreateTexture( ShadowMaskDesc, InputType == EVirtualShadowMapProjectionInputType::HairStrands ? TEXT("ShadowMaskBits(HairStrands)") : TEXT("ShadowMaskBits(Gbuffer)"));
+	FRDGTextureRef ShadowMaskBits = GraphBuilder.CreateTexture(ShadowMaskDesc, InputType == EVirtualShadowMapProjectionInputType::HairStrands ? TEXT("ShadowMaskBits(HairStrands)") : TEXT("ShadowMaskBits(Gbuffer)"));
 	
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
