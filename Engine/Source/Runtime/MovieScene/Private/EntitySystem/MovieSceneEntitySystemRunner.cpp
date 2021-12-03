@@ -6,15 +6,16 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
-DECLARE_CYCLE_STAT(TEXT("ECS System Cost"), MovieSceneEval_TotalGTCost, STATGROUP_MovieSceneEval);
+DECLARE_CYCLE_STAT(TEXT("ECS System Cost"), 			MovieSceneEval_TotalGTCost, 				STATGROUP_MovieSceneEval);
 
-DECLARE_CYCLE_STAT(TEXT("Spawn Phase"),                 MovieSceneEval_SpawnPhase,              STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Instantiation Phase"), MovieSceneEval_InstantiationPhase, STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Instantiation Async Tasks"), MovieSceneEval_AsyncInstantiationTasks, STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Post Instantiation"), MovieSceneEval_PostInstantiation, STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Evaluation Phase"), MovieSceneEval_EvaluationPhase, STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Finalization Phase"),          MovieSceneEval_FinalizationPhase,       STATGROUP_MovieSceneECS);
-DECLARE_CYCLE_STAT(TEXT("Post Evaluation Phase"),       MovieSceneEval_PostEvaluationPhase,     STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Spawn Phase"),                 MovieSceneEval_SpawnPhase,              	STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Instantiation Phase"), 		MovieSceneEval_InstantiationPhase, 			STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Instantiation Async Tasks"), 	MovieSceneEval_AsyncInstantiationTasks,		STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Post Instantiation"), 			MovieSceneEval_PostInstantiation, 			STATGROUP_MovieSceneECS);
+
+DECLARE_CYCLE_STAT(TEXT("Evaluation Phase"), 			MovieSceneEval_EvaluationPhase, 			STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Finalization Phase"),          MovieSceneEval_FinalizationPhase,       	STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("Post Evaluation Phase"),       MovieSceneEval_PostEvaluationPhase,     	STATGROUP_MovieSceneECS);
 
 TRACE_DECLARE_INT_COUNTER(MovieSceneEntitySystemFlushes, TEXT("MovieScene/ECSFlushes"));
 TRACE_DECLARE_INT_COUNTER(MovieSceneEntitySystemEvaluations, TEXT("MovieScene/ECSEvaluations"));

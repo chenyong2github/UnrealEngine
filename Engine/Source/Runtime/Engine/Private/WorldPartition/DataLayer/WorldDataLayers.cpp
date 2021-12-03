@@ -153,7 +153,10 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				{
 					if (!DataLayersFilterDelegate.Execute(DataLayerLabelName, CurrentState, InState))
 					{
-						UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' was filtered out: %s -> %s"),  *DataLayerLabelName.ToString(), GetDataLayerStateName(CurrentState), GetDataLayerStateName(InState));
+						UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' was filtered out: %s -> %s"),
+							*DataLayerLabelName.ToString(),
+							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)CurrentState).ToString(),
+							*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)InState).ToString());
 						return;
 					}
 				}
@@ -171,7 +174,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				ActiveDataLayerNames.Add(InDataLayer.Name);
 			}
-			else if (InState == EDataLayerState::Unloaded)
+			else if (InState == EDataLayerRuntimeState::Unloaded)
 			{
 				GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeOverride = 1;
 			}
@@ -184,8 +187,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if !NO_LOGGING || CSV_PROFILER
 			const FString DataLayerLabel = DataLayer->GetDataLayerLabel().ToString();
-			UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' state changed: %s -> %s"),  *DataLayerLabel,  GetDataLayerStateName(CurrentState), GetDataLayerStateName(InState));
-			CSV_EVENT_GLOBAL(TEXT("DataLayer-%s-%s"), *DataLayerLabel, GetDataLayerStateName(InState));
+			UE_LOG(LogWorldPartition, Log, TEXT("Data Layer '%s' state changed: %s -> %s"),
+				*DataLayerLabel, 
+				*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)CurrentState).ToString(),
+				*StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)InState).ToString());
+
+			CSV_EVENT_GLOBAL(TEXT("DataLayer-%s-%s"), *DataLayerLabel, *StaticEnum<EDataLayerRuntimeState>()->GetDisplayNameTextByValue((int64)InState).ToString());
 #endif
 
 			ResolveEffectiveRuntimeState(DataLayer);
