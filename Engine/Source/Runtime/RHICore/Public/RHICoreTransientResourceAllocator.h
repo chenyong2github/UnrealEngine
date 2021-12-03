@@ -250,7 +250,6 @@ struct RHICORE_API FRHITransientResourceSystemInitializer
 	// Creates a default initializer using common RHI CVars.
 	static FRHITransientResourceSystemInitializer CreateDefault();
 
-	static const uint32 kDefaultGarbageCollectLatency = 20;
 	static const uint32 kDefaultResourceCacheSize = 256;
 
 	// The minimum size to use when creating a heap. This is the default but can grow based on allocations.
@@ -263,7 +262,7 @@ struct RHICORE_API FRHITransientResourceSystemInitializer
 	uint32 HeapAlignment{};
 
 	// The latency between the completed fence value and the used fence value to invoke garbage collection of the heap.
-	uint32 GarbageCollectLatency = kDefaultGarbageCollectLatency;
+	uint32 GarbageCollectLatency{};
 
 	// Size of the texture cache before elements are evicted.
 	uint32 TextureCacheSize = kDefaultResourceCacheSize;
