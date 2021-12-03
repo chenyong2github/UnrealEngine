@@ -143,6 +143,8 @@ void FWorldPartitionDebugHelper::DrawText(UCanvas* Canvas, const FString& Text, 
 {
 	float TextWidth, TextHeight;
 	Canvas->StrLen(Font, Text, TextWidth, TextHeight);
+	Canvas->SetDrawColor(FColor(0,0,0));
+	Canvas->DrawText(Font, Text, Pos.X + 1, Pos.Y + 1);
 	Canvas->SetDrawColor(Color);
 	Canvas->DrawText(Font, Text, Pos.X, Pos.Y);
 	Pos.Y += TextHeight + 1;
@@ -157,7 +159,13 @@ void FWorldPartitionDebugHelper::DrawLegendItem(UCanvas* Canvas, const FString& 
 	static const FVector2D ItemSize(12, 12);
 	
 	float MaxTextWidth = 0.f;
-	
+
+	const FVector2D ShadowItemPos(Pos - FVector2D(1, 1));
+	const FVector2D ShadowItemSize(ItemSize + FVector2D(2, 2));
+	const FColor ShadowItemColor(0,0,0);
+	FCanvasTileItem ShadowItem(ShadowItemPos, GWhiteTexture, ShadowItemSize, ShadowItemColor);
+	Canvas->DrawItem(ShadowItem);
+
 	FCanvasTileItem Item(Pos, GWhiteTexture, ItemSize, Color);
 	Canvas->DrawItem(Item);
 
