@@ -54,7 +54,6 @@ RaytracingAccelerationStructure TLAS;
 uint ThreadCount;
 uint GroupCount;
 int NearFieldLightingMode;
-float MaxTraceDistance;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
 int MaxTranslucentSkipCount;
@@ -97,7 +96,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 		uint2 TraceCoord;
 		float TraceHitDistance = 0;
-		DecodeTraceTexel(TraceTexelDataPacked[RayId], TraceCoord, TraceHitDistance);
+		float MaxTraceDistance;
+		DecodeTraceTexel(TraceTexelDataPacked[RayId], TraceCoord, TraceHitDistance, MaxTraceDistance);
 
 		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(TraceCoord);
 		float2 ScreenCoord = ScreenUV * View.BufferSizeAndInvSize.xy;
@@ -114,7 +114,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		Ray.Direction = RayData.Direction;
 		float RayBias = 0.05;
 		Ray.TMin = max(TraceHitDistance - PullbackBias, RayBias);
-		Ray.TMax = RayData.TraceDistance;
+		Ray.TMax = max(MaxTraceDistance - PullbackBias, RayBias);
+		Ray.TMax = min(Ray.TMax, RayData.TraceDistance);
 
 		float NormalBias = 0.05;
 		ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
@@ -147,6 +148,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 #else // DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 
+
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 		Context.HitGroupData = HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
@@ -157,7 +159,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 #if ENABLE_NEAR_FIELD_TRACING && DIM_RADIANCE_CACHE
 		// If we're tracing a near field ray that missed, which has valid Radiance Cache coverage, use that for final lighting
-		if (!Result.bIsHit && RayData.TraceDistance < MaxTraceDistance * .99f)
+		if (!Result.bIsHit && RayData.bUseRadianceCache)
 		{
 			FConeTraceResult TraceResult;
 			TraceResult.Lighting = 0;

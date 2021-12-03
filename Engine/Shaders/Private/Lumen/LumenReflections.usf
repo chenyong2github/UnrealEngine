@@ -197,7 +197,7 @@ float GGXSamplingBias;
 float MaxTraceDistance;
 float RadianceCacheAngleThresholdScale;
 
-RWTexture2D<float> RWRayTraceDistance;
+RWTexture2D<uint> RWRayTraceDistance;
 RWTexture2D<float4> RWRayBuffer;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
@@ -257,14 +257,15 @@ void ReflectionGenerateRaysCS(
 			RWRayBuffer[ReflectionTracingCoord] = float4(RayDirection, ConeAngle);
 
 			float TraceDistance = MaxTraceDistance;
+			bool bUseRadianceCache = false;
 #if RADIANCE_CACHE
 			float RadianceCacheConeHalfAngle = RadianceCacheAngleThresholdScale * acosFast(1.0f - 1 / (float)(RadianceProbeResolution * RadianceProbeResolution));
 
 			if (ConeAngle > RadianceCacheConeHalfAngle)
 			{
 				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverageWithUncertainCoverage(WorldPosition, RayDirection);
-				
-				if (Coverage.bValid)
+				bUseRadianceCache = Coverage.bValid;
+				if (bUseRadianceCache)
 				{
 					float FadeAlpha = saturate((ConeAngle - RadianceCacheConeHalfAngle) / RadianceCacheConeHalfAngle);
 					TraceDistance = lerp(.99f * MaxTraceDistance, min(Coverage.MinTraceDistanceBeforeInterpolation, .99f * MaxTraceDistance), FadeAlpha);
@@ -272,7 +273,7 @@ void ReflectionGenerateRaysCS(
 			}
 #endif
 
-			RWRayTraceDistance[ReflectionTracingCoord] = TraceDistance;
+			RWRayTraceDistance[ReflectionTracingCoord] = PackRayTraceDistance(TraceDistance, bUseRadianceCache);
 		}
 		else
 		{

@@ -20,7 +20,7 @@ float ReflectionSmoothBias;
 Texture2D DownsampledDepth;
 Texture2D<float4> RayBuffer;
 // The distance to trace each ray before interpolating from the Radiance Cache
-Texture2D<float> RayTraceDistance;
+Texture2D<uint> RayTraceDistance;
 
 Texture2D<float3> TraceRadiance;
 Texture2D<float> TraceHit;
@@ -92,9 +92,24 @@ struct FRayData
 	float TraceDistance;
 	float PDF;
 	float ConeHalfAngle;
+	bool bUseRadianceCache;
 };
 
 const static float MinReflectionConeAngle = .00001f;
+
+uint PackRayTraceDistance(float RayTraceDistance, bool bUseRadianceCache)
+{
+	uint PackedData =
+		(f32tof16(RayTraceDistance) & 0x7FFF) |
+		(bUseRadianceCache << 15);
+	return PackedData;
+}
+
+void UnpackRayTraceDistance(uint PackedData, inout float RayTraceDistance, inout bool bUseRadianceCache)
+{
+	RayTraceDistance = f16tof32(PackedData & 0x7FFF);
+	bUseRadianceCache = (PackedData >> 15) != 0;
+}
 
 FRayData GetRayData(uint2 TracingCoord)
 {
@@ -104,7 +119,7 @@ FRayData GetRayData(uint2 TracingCoord)
 	RayData.Direction = PackedRayData.xyz;
 	RayData.ConeHalfAngle = PackedRayData.w;
 	RayData.PDF = 1.0f / max(PackedRayData.w, MinReflectionConeAngle);
-	RayData.TraceDistance = RayTraceDistance[TracingCoord];
+	UnpackRayTraceDistance(RayTraceDistance[TracingCoord], RayData.TraceDistance, RayData.bUseRadianceCache);
 	return RayData;
 }
 
@@ -133,18 +148,20 @@ uint2 GetReflectionTracingScreenCoordZOrder(uint TileIndex, uint ThreadIndex)
 Buffer<uint> CompactedTraceTexelAllocator;
 Buffer<uint2> CompactedTraceTexelData;
 
-uint2 EncodeTraceTexel(uint2 ReflectionTracingCoord, float TraceHitDistance)
+uint2 EncodeTraceTexel(uint2 ReflectionTracingCoord, float TraceHitDistance, float MaxTraceDistance)
 {
 	return uint2(
 		(ReflectionTracingCoord.x & 0xFFFF) | ((ReflectionTracingCoord.y & 0xFFFF) << 16),
-		asuint(TraceHitDistance));
+		(f32tof16(MaxTraceDistance) << 16) | f32tof16(TraceHitDistance));
 }
 
-void DecodeTraceTexel(uint2 TraceTexelData, inout uint2 ReflectionTracingCoord, inout float TraceHitDistance)
+void DecodeTraceTexel(uint2 TraceTexelData, inout uint2 ReflectionTracingCoord,
+	inout float TraceHitDistance, inout float MaxTraceDistance)
 {
 	ReflectionTracingCoord.x = TraceTexelData.x & 0xFFFF;
 	ReflectionTracingCoord.y = (TraceTexelData.x >> 16) & 0xFFFF;
-	TraceHitDistance = asfloat(TraceTexelData.y);
+	TraceHitDistance = f16tof32(TraceTexelData.y);
+	MaxTraceDistance = f16tof32(TraceTexelData.y >> 16);
 }
 
 float ApplySmoothBias(float Roughness)

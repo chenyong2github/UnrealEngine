@@ -27,7 +27,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 	SHADER_PARAMETER(float, ReflectionSmoothBias)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RayBuffer)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RayTraceDistance)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, RayTraceDistance)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledDepth)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TraceHit)
