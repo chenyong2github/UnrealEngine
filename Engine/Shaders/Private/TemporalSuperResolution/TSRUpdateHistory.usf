@@ -65,7 +65,7 @@ Texture2D<uint> ParallaxFactorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
 Texture2D<uint> AntiAliasingTexture;
 Texture2D<taa_half> NoiseFilteringTexture;
-Texture2D<taa_half> HoleFilledVelocityMaskTexture;
+Texture2D<taa_half2> HoleFilledVelocityMaskTexture;
 
 float4 HistoryPixelPosToScreenPos;
 float4 HistoryPixelPosToPPCo;
@@ -246,7 +246,7 @@ void MainCS(
 	taa_half2 OutputPixelVelocity = taa_half(0.0).xx;
 	taa_half2 MoireWeight = taa_half(1.0).xx;
 	taa_half2 NoiseFiltering = taa_half(0.0).xx;
-	taa_half2 HoleFilledVelocityMask = taa_half(0.0).xx;
+	taa_half2x2 HoleFilledVelocityMask = dpv_interleave_mono_registers(taa_half(1.0).xx);
 	taa_subpixel_payload2 ParallaxFactorBits = taa_subpixel_payload(0x0).xx;
 	bool2 bIsResponsiveAAPixel = false;
 
@@ -362,7 +362,7 @@ void MainCS(
 				NoiseFilteringTexture[dpv_lo(InputPixelPos)],
 				NoiseFilteringTexture[dpv_hi(InputPixelPos)]);
 			
-			HoleFilledVelocityMask = dpv_interleave_registers(
+			HoleFilledVelocityMask = dpv_interleave_mono_registers(taa_half(1.0).xx) - dpv_interleave_registers(
 				HoleFilledVelocityMaskTexture[dpv_lo(InputPixelPos)],
 				HoleFilledVelocityMaskTexture[dpv_hi(InputPixelPos)]);
 
@@ -886,7 +886,7 @@ void MainCS(
 		taa_half2 InvPrevHistoryValidity = SafeRcp(PrevHistoryValidity);
 
 		// Compute how much the history needs to be rejected, based on the completeness.
-		taa_half2 PrevHistoryRejectionWeight = LowFrequencyRejection;
+		taa_half2 PrevHistoryRejectionWeight = LowFrequencyRejection * HoleFilledVelocityMask[1];
 			
 		//#if !CONFIG_CLAMP
 		//	PrevHistoryRejectionWeight = 1.0;
@@ -1091,7 +1091,7 @@ void MainCS(
 
 			// Completely discard the history
 			{
-				taa_half2 TotalRejectionBlending = max(BlendFinal, taa_half(1.0) - HoleFilledVelocityMask);
+				taa_half2 TotalRejectionBlending = max(BlendFinal, HoleFilledVelocityMask[0]);
 
 				PrevLowFrequencySampleCount *= TotalRejection;
 				BlendFinal = lerp(TotalRejectionBlending, BlendFinal, TotalRejection);

@@ -11,6 +11,8 @@
 #include "ScenePrivate.h"
 #include "RendererModule.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 #define COMPILE_TSR_DEBUG_PASSES (!UE_BUILD_SHIPPING)
 
 namespace
@@ -88,8 +90,8 @@ TAutoConsoleVariable<int32> CVarTSRVelocityHoleFill(
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRVelocityMaxHoleFillScatterVelocity(
-	TEXT("r.TSR.Velocity.HoleFill.MaxScatterVelocity"), 4.0f,
-	TEXT("Maximum pixel velocity difference tolerated between the disoccluded and scattered disoccluding geometries."),
+	TEXT("r.TSR.Velocity.HoleFill.MaxScatterVelocity"), 8.0f,
+	TEXT("Maximum output pixel velocity difference tolerated between the disoccluded and scattered disoccluding geometries."),
 	ECVF_RenderThreadSafe);
 
 #if COMPILE_TSR_DEBUG_PASSES
@@ -109,10 +111,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRCommonParameters, )
 
 	SHADER_PARAMETER(FIntPoint, InputPixelPosMin)
 	SHADER_PARAMETER(FIntPoint, InputPixelPosMax)
+	SHADER_PARAMETER(FScreenTransform, InputPixelPosToScreenPos)
 
 	SHADER_PARAMETER(FVector2f, InputJitter)
 	SHADER_PARAMETER(int32, bCameraCut)
 	SHADER_PARAMETER(float, MoireInvExposure)
+	SHADER_PARAMETER(FVector2D, ScreenVelocityToInputPixelVelocity)
+	SHADER_PARAMETER(FVector2D, InputPixelVelocityToScreenVelocity)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 END_SHADER_PARAMETER_STRUCT()
@@ -284,7 +289,6 @@ class FTSRCompareTranslucencyCS : public FTSRShader
 		SHADER_PARAMETER(float, PrevTranslucencyPreExposureCorrection)
 		SHADER_PARAMETER(float, TranslucencyHighlightLuminance)
 
-		SHADER_PARAMETER(FScreenTransform, InputPixelPosToScreenPos)
 		SHADER_PARAMETER(FScreenTransform, ScreenPosToPrevTranslucencyTextureUV)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
@@ -674,12 +678,15 @@ void AddTemporalSuperResolutionPasses(
 			FMath::Max(InputExtent.Y, QuantizedHistoryViewSize.Y));
 	}
 
+	float ScreenPercentage = float(InputRect.Width()) / float(OutputRect.Width());
+	float InvScreenPercentage = float(OutputRect.Width()) / float(InputRect.Width());
+
 	RDG_EVENT_SCOPE(GraphBuilder, "TemporalSuperResolution %dx%d -> %dx%d", InputRect.Width(), InputRect.Height(), OutputRect.Width(), OutputRect.Height());
 	RDG_GPU_STAT_SCOPE(GraphBuilder, TemporalSuperResolution);
 
 	FRDGTextureRef BlackUintDummy = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
-	FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-	FRDGTextureRef WhiteDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+	FRDGTextureRef BlackDummy = GSystemTextures.GetBlackDummy(GraphBuilder);
+	FRDGTextureRef WhiteDummy = GSystemTextures.GetWhiteDummy(GraphBuilder);
 
 	FRDGTextureRef SeparateTranslucencyTexture = (bRejectSeparateTranslucency || bAccumulateSeparateTranslucency) ?
 		PassInputs.SeparateTranslucencyTextures->GetColorForRead(GraphBuilder) : nullptr;
@@ -690,6 +697,9 @@ void AddTemporalSuperResolutionPasses(
 			InputExtent, InputRect));
 		CommonParameters.InputPixelPosMin = CommonParameters.InputInfo.ViewportMin;
 		CommonParameters.InputPixelPosMax = CommonParameters.InputInfo.ViewportMax - 1;
+		CommonParameters.InputPixelPosToScreenPos = (FScreenTransform::Identity + 0.5) * CommonParameters.InputInfo.ViewportSizeInverse * FScreenTransform::ViewportUVToScreenPos;
+		CommonParameters.ScreenVelocityToInputPixelVelocity = (FScreenTransform::Identity / CommonParameters.InputPixelPosToScreenPos).Scale;
+		CommonParameters.InputPixelVelocityToScreenVelocity = CommonParameters.InputPixelPosToScreenPos.Scale;
 
 		CommonParameters.LowFrequencyInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			LowFrequencyExtent, LowFrequencyRect));
@@ -1055,7 +1065,6 @@ void AddTemporalSuperResolutionPasses(
 		PassParameters->PrevTranslucencyPreExposureCorrection = PrevHistoryParameters.HistoryPreExposureCorrection;
 		PassParameters->TranslucencyHighlightLuminance = CVarTSRTranslucencyHighlightLuminance.GetValueOnRenderThread();
 
-		PassParameters->InputPixelPosToScreenPos = (FScreenTransform::Identity + 0.5) * CommonParameters.InputInfo.ViewportSizeInverse * FScreenTransform::ViewportUVToScreenPos;
 		PassParameters->ScreenPosToPrevTranslucencyTextureUV = FScreenTransform::ChangeTextureBasisFromTo(
 			PrevTranslucencyViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
 
@@ -1136,21 +1145,21 @@ void AddTemporalSuperResolutionPasses(
 
 			HoleFilledVelocityTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.Velocity.HoleFilled"));
 
-			Desc.Format = PF_R8;
+			Desc.Format = PF_R8G8;
 			HoleFilledVelocityMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.velocity.HoleFillMask"));
 		}
 
 		FTSRHoleFillVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRHoleFillVelocityCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 
-		PassParameters->MaxHollFillPixelVelocity = CVarTSRVelocityMaxHoleFillScatterVelocity.GetValueOnRenderThread();
+		PassParameters->MaxHollFillPixelVelocity = CVarTSRVelocityMaxHoleFillScatterVelocity.GetValueOnRenderThread() * ScreenPercentage;
 		PassParameters->PrevClosestDepthTexture = PrevClosestDepthTexture;
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 
 		PassParameters->HoleFilledVelocityOutput = GraphBuilder.CreateUAV(HoleFilledVelocityTexture);
 		PassParameters->HoleFilledVelocityMaskOutput = GraphBuilder.CreateUAV(HoleFilledVelocityMaskTexture);
-		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TSR.HoleFillelocity"));
+		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TSR.HoleFillVelocity"));
 
 		TShaderMapRef<FTSRHoleFillVelocityCS> ComputeShader(View.ShaderMap);
 		FComputeShaderUtils::AddPass(
