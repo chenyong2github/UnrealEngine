@@ -587,8 +587,8 @@ void UMovieSceneDataLayerSystem::UpdateDesiredStates()
 				continue;
 			}
 
-			const bool bRequiresStreamingFlush = bPreroll == false;
 			EDataLayerRuntimeState DesiredState = bPreroll ? Section->GetPrerollState() : Section->GetDesiredState();
+			const bool bRequiresStreamingFlush = (DesiredState == EDataLayerState::Unloaded) ? Section->GetFlushOnUnload() : !bPreroll;
 
 			for (const FActorDataLayer& ActorDataLayer : Section->GetDataLayers())
 			{

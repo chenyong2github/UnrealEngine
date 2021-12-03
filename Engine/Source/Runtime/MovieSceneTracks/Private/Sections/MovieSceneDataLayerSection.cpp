@@ -9,6 +9,7 @@ UMovieSceneDataLayerSection::UMovieSceneDataLayerSection(const FObjectInitialize
 {
 	DesiredState = EDataLayerRuntimeState::Activated;
 	PrerollState = EDataLayerRuntimeState::Activated;
+	bFlushOnUnload = true;
 	EvalOptions.EnableAndSetCompletionMode(EMovieSceneCompletionMode::RestoreState);
 }
 
@@ -30,6 +31,16 @@ EDataLayerRuntimeState UMovieSceneDataLayerSection::GetPrerollState() const
 void UMovieSceneDataLayerSection::SetPrerollState(EDataLayerRuntimeState InPrerollState)
 {
 	PrerollState = InPrerollState;
+}
+
+bool UMovieSceneDataLayerSection::GetFlushOnUnload() const
+{
+	return bFlushOnUnload;
+}
+
+void UMovieSceneDataLayerSection::SetFlushOnUnload(bool bInFlushOnUnload)
+{
+	bFlushOnUnload = bInFlushOnUnload;
 }
 
 void UMovieSceneDataLayerSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
