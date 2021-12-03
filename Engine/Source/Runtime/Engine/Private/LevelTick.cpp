@@ -1422,7 +1422,6 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 
 	DeltaSeconds = GameDeltaSeconds;
 	DeltaTimeSeconds = DeltaSeconds;
-	DeltaRealTimeSeconds = RealDeltaSeconds;
 
 	UnpausedTimeSeconds += DeltaSeconds;
 

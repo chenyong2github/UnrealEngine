@@ -261,11 +261,11 @@ int32 FCanvasWordWrapper::FindEndOfLastWholeGraphemeCluster(const int32 InStartI
 	return BreakIndex;
 }
 
-FCanvas* FCanvas::Create(FRDGBuilder& GraphBuilder, FRDGTextureRef InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, const FGameTime& Time, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale)
+FCanvas* FCanvas::Create(FRDGBuilder& GraphBuilder, FRDGTextureRef InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, float InRealTime, float InWorldTime, float InWorldDeltaTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale)
 {
 	return GraphBuilder.AllocObject<FCanvas>(
 		GraphBuilder.AllocObject<FRDGCanvasRenderTarget>(InRenderTarget),
-		InHitProxyConsumer, Time, InFeatureLevel, InDPIScale);
+		InHitProxyConsumer, InRealTime, InWorldTime, InWorldDeltaTime, InFeatureLevel, InDPIScale);
 }
 
 FCanvas::FCanvas(FRenderTarget* InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, UWorld* InWorld, ERHIFeatureLevel::Type InFeatureLevel, ECanvasDrawMode InDrawMode, float InDPIScale)
@@ -276,6 +276,9 @@ FCanvas::FCanvas(FRenderTarget* InRenderTarget, FHitProxyConsumer* InHitProxyCon
 ,	Scene(InWorld ? InWorld->Scene : NULL)
 ,	AllowedModes(0xFFFFFFFF)
 ,	bRenderTargetDirty(false)
+,	CurrentRealTime(0)
+,	CurrentWorldTime(0)
+,	CurrentDeltaWorldTime(0)
 ,	FeatureLevel(InFeatureLevel)
 ,	bUseInternalTexture(false)
 ,	DrawMode(InDrawMode)
@@ -285,11 +288,13 @@ FCanvas::FCanvas(FRenderTarget* InRenderTarget, FHitProxyConsumer* InHitProxyCon
 
 	if (InWorld)
 	{
-		Time = InWorld->GetTime();
+		CurrentRealTime = InWorld->GetRealTimeSeconds();
+		CurrentWorldTime = InWorld->GetTimeSeconds();
+		CurrentDeltaWorldTime = InWorld->GetDeltaSeconds();
 	}
 }
 
-FCanvas::FCanvas(FRenderTarget* InRenderTarget,FHitProxyConsumer* InHitProxyConsumer, const FGameTime& InTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale)
+FCanvas::FCanvas(FRenderTarget* InRenderTarget,FHitProxyConsumer* InHitProxyConsumer, float InRealTime, float InWorldTime, float InWorldDeltaTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale)
 :	ViewRect(0,0,0,0)
 ,	ScissorRect(0,0,0,0)
 ,	RenderTarget(InRenderTarget)
@@ -297,7 +302,9 @@ FCanvas::FCanvas(FRenderTarget* InRenderTarget,FHitProxyConsumer* InHitProxyCons
 ,	Scene(NULL)
 ,	AllowedModes(0xFFFFFFFF)
 ,	bRenderTargetDirty(false)
-,	Time(InTime)
+,	CurrentRealTime(InRealTime)
+,	CurrentWorldTime(InWorldTime)
+,	CurrentDeltaWorldTime(InWorldDeltaTime)
 ,	bAllowsToSwitchVerticalAxis(false)
 ,	FeatureLevel(InFeatureLevel)
 ,	bUseInternalTexture(false)

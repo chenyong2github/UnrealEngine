@@ -228,13 +228,7 @@ public:
 		CDM_ImmediateDrawing
 	};
 
-	ENGINE_API static FCanvas* Create(FRDGBuilder& GraphBuilder, FRDGTextureRef InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, const FGameTime& Time, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale = 1.0f);
-
-	UE_DEPRECATED(5.0, "Pass down a FGameTime instead.")
-	FORCEINLINE_DEBUGGABLE static FCanvas* Create(FRDGBuilder& GraphBuilder, FRDGTextureRef InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, float InRealTime, float InWorldTime, float InWorldDeltaTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale = 1.0f)
-	{
-		return Create(GraphBuilder, InRenderTarget, InHitProxyConsumer, FGameTime::CreateDilated(InRealTime, InWorldDeltaTime, InWorldTime, InWorldDeltaTime), InFeatureLevel, InDPIScale);
-	}
+	ENGINE_API static FCanvas* Create(FRDGBuilder& GraphBuilder, FRDGTextureRef InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, float InRealTime, float InWorldTime, float InWorldDeltaTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale = 1.0f);
 
 	/**
 	* Constructor.
@@ -244,12 +238,7 @@ public:
 	/**
 	* Constructor. For situations where a world is not available, but time information is
 	*/
-	ENGINE_API FCanvas(FRenderTarget* InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, const FGameTime& Time, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale = 1.0f);
-	
-	UE_DEPRECATED(5.0, "Pass down a FGameTime instead.")
-	FORCEINLINE_DEBUGGABLE FCanvas(FRenderTarget* InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, float InRealTime, float InWorldTime, float InWorldDeltaTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale = 1.0f)
-		: FCanvas(InRenderTarget, InHitProxyConsumer, FGameTime::CreateDilated(InRealTime, InWorldDeltaTime, InWorldTime, InWorldDeltaTime), InFeatureLevel, InDPIScale)
-	{ }
+	ENGINE_API FCanvas(FRenderTarget* InRenderTarget, FHitProxyConsumer* InHitProxyConsumer, float InRealTime, float InWorldTime, float InWorldDeltaTime, ERHIFeatureLevel::Type InFeatureLevel, float InDPIScale = 1.0f);
 
 	/**
 	* Destructor.
@@ -628,8 +617,12 @@ private:
 	uint32 AllowedModes;
 	/** true if the render target has been rendered to since last calling SetRenderTarget() */
 	bool bRenderTargetDirty;	
-	/** Current gameplay time */
-	FGameTime Time;
+	/** Current real time in seconds */
+	float CurrentRealTime;
+	/** Current world time in seconds */
+	float CurrentWorldTime;
+	/** Current world time in seconds */
+	float CurrentDeltaWorldTime;
 	/** true, if Canvas should be scaled to whole render target */
 	bool bScaledToRenderTarget;
 	// True if canvas allows switching vertical axis; false will ignore any flip
@@ -657,22 +650,20 @@ private:
 public:	
 
 	/**
-	 * Access gameplay time
+	 * Access current real time 
 	 */
-	const FGameTime& GetTime() const
-	{
-		return Time;
-	}
+	float GetCurrentRealTime() const { return CurrentRealTime; }
 
-	UE_DEPRECATED(5.0, "Use FCanvas::GetTime()")
-	float GetCurrentRealTime() const { return GetTime().GetRealTimeSeconds(); }
+	/**
+	 * Access current world time 
+	 */
+	float GetCurrentWorldTime() const { return CurrentWorldTime; }
 
-	UE_DEPRECATED(5.0, "Use FCanvas::GetTime()")
-	float GetCurrentWorldTime() const { return GetTime().GetWorldTimeSeconds(); }
+	/**
+	 * Access current delta time 
+	 */
+	float GetCurrentDeltaWorldTime() const { return CurrentDeltaWorldTime; }
 
-	UE_DEPRECATED(5.0, "Use FCanvas::GetTime()")
-	float GetCurrentDeltaWorldTime() const { return GetTime().GetDeltaWorldTimeSeconds(); }
-	
 	/** 
 	 * Draw a CanvasItem
 	 *

@@ -1542,6 +1542,9 @@ public:
 		,	Scene(InScene)
 		,	EngineShowFlags(InEngineShowFlags)
 		,	ViewModeParam(-1)
+		,	CurrentWorldTime(0.0f)
+		,	DeltaWorldTime(0.0f)
+		,	CurrentRealTime(0.0f)
 		,	GammaCorrection(1.0f)
 		,	bAdditionalViewFamily(false)
 		,	bRealtimeUpdate(false)
@@ -1554,8 +1557,11 @@ public:
 				UWorld* World = InScene->GetWorld();
 				// Ensure the world is valid and that we are being called from a game thread (GetRealTimeSeconds requires this)
 				if( World && IsInGameThread() )
-				{	
-					SetTime(World->GetTime());
+				{					
+					CurrentWorldTime = World->GetTimeSeconds();
+					DeltaWorldTime = World->GetDeltaSeconds();
+					CurrentRealTime = World->GetRealTimeSeconds();
+					bTimesSet = true;
 				}
 			}
 		}
@@ -1573,8 +1579,14 @@ public:
 		/** An name bound to the current viewmode param. (example : texture name) */
 		FName ViewModeParamName;
 
-		/** The current time. */
-		FGameTime Time;
+		/** The current world time. */
+		float CurrentWorldTime;
+
+		/** The difference between the last world time and CurrentWorldTime. */
+		float DeltaWorldTime;
+		
+		/** The current real time. */
+		float CurrentRealTime;
 
 		/** Gamma correction used when rendering this family. Default is 1.0 */
 		float GammaCorrection;
@@ -1594,19 +1606,8 @@ public:
 		/** Safety check to ensure valid times are set either from a valid world/scene pointer or via the SetWorldTimes function */
 		uint32 bTimesSet:1;
 
-		/** Set the world time and real time independently to handle time dilation. */
-		ConstructionValues& SetTime(const FGameTime& InTime)
-		{
-			Time = InTime;
-			bTimesSet = true;
-			return *this;
-		}
-
-		UE_DEPRECATED(5.0, "Use FSceneViewFamily::ConstructionValues::SetTime()")
-		ConstructionValues& SetWorldTimes(float InCurrentWorldTime, float InDeltaWorldTime, float InCurrentRealTime)
-		{
-			return SetTime(FGameTime::CreateDilated(InCurrentRealTime, /* InCurrentRealTime = */ InDeltaWorldTime, InCurrentWorldTime, InDeltaWorldTime));
-		}
+		/** Set the world time ,difference between the last world time and CurrentWorldTime and current real time. */
+		ConstructionValues& SetWorldTimes(const float InCurrentWorldTime,const float InDeltaWorldTime,const float InCurrentRealTime) { CurrentWorldTime = InCurrentWorldTime; DeltaWorldTime = InDeltaWorldTime; CurrentRealTime = InCurrentRealTime;bTimesSet = true;return *this; }
 
 		/** Set  whether the view family is additional. */
 		ConstructionValues& SetAdditionalViewFamily(const bool Value) { bAdditionalViewFamily = Value; return *this; }
@@ -1642,16 +1643,13 @@ public:
 	/** The new show flags for the views (meant to replace the old system). */
 	FEngineShowFlags EngineShowFlags;
 
-	/** The current time. */
-	FGameTime Time;
-
-	UE_DEPRECATED(5.0, "Use FSceneViewFamily::Time")
+	/** The current world time. */
 	float CurrentWorldTime;
 
-	UE_DEPRECATED(5.0, "Use FSceneViewFamily::Time")
+	/** The difference between the last world time and CurrentWorldTime. */
 	float DeltaWorldTime;
 
-	UE_DEPRECATED(5.0, "Use FSceneViewFamily::Time")
+	/** The current real time. */
 	float CurrentRealTime;
 
 	/** Copy from main thread GFrameNumber to be accessible on render thread side. UINT_MAX before CreateSceneRenderer() or BeginRenderingViewFamily() was called */
@@ -1870,16 +1868,11 @@ private:
 	/** whether the translucency are allowed to render after DOF, if not they will be rendered in standard translucency. */
 	bool bAllowTranslucencyAfterDOF;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Only FSceneRenderer can copy a view family.
 	FSceneViewFamily(const FSceneViewFamily&) = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	friend class FSceneRenderer;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
  * A view family which deletes its views when it goes out of scope.
