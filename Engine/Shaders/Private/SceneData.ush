@@ -52,6 +52,7 @@
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
 #define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER					0x2000
 #define PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER				0x4000
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS			0x8000
 
 // GPUCULL_TODO: Eventually we need to remove this workaround
 #define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
@@ -102,8 +103,8 @@ struct FPrimitiveSceneData
 	float		ObjectBoundsZ;
 	uint		InstancePayloadDataOffset;
 	uint		InstancePayloadDataStride; // TODO: Use 16 bits? 8 bits?
-	uint		Unused1;
-	uint		Unused2;
+	float3		InstanceLocalBoundsCenter;
+	float3		InstanceLocalBoundsExtent;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
 
@@ -243,14 +244,16 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.ObjectBoundsY					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).w;
 	PrimitiveData.LocalObjectBoundsMax			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).xyz;
 	PrimitiveData.ObjectBoundsZ					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).w;
-	PrimitiveData.InstancePayloadDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).x);
-	PrimitiveData.InstancePayloadDataStride		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).y);
+	PrimitiveData.InstanceLocalBoundsCenter		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).xyz;
+	PrimitiveData.InstancePayloadDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w);
+	PrimitiveData.InstanceLocalBoundsExtent		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).xyz;
+	PrimitiveData.InstancePayloadDataStride		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).w);
 
 	// TODO: Move to associated array to shrink primitive data and better pack cachelines
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
-		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  28 + DataIndex);
+		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  29 + DataIndex);
 	}
 	return PrimitiveData;
 #endif
@@ -553,10 +556,19 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 																	                 LoadInstanceSceneDataElement(6 * SOAStride + InstanceId),
 																	                 float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-		InstanceData.LocalBoundsCenter							= LoadInstanceSceneDataElement(7 * SOAStride + InstanceId).xyz;
-		InstanceData.LocalBoundsExtent.x						= LoadInstanceSceneDataElement(7 * SOAStride + InstanceId).w;
+		BRANCH
+		if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u)
+		{
+			InstanceData.LocalBoundsCenter							= LoadInstanceSceneDataElement(7 * SOAStride + InstanceId).xyz;
+			InstanceData.LocalBoundsExtent.x						= LoadInstanceSceneDataElement(7 * SOAStride + InstanceId).w;
+			InstanceData.LocalBoundsExtent.yz						= LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).xy;
+		}
+		else
+		{
+			InstanceData.LocalBoundsCenter							= GetPrimitiveData(InstanceData.PrimitiveId).InstanceLocalBoundsCenter;
+			InstanceData.LocalBoundsExtent							= GetPrimitiveData(InstanceData.PrimitiveId).InstanceLocalBoundsExtent;
+		}
 
-		InstanceData.LocalBoundsExtent.yz						= LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).xy;
 		InstanceData.PayloadDataOffset							= asuint(LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).z);
 
 	#if USES_PER_INSTANCE_RANDOM
@@ -578,10 +590,19 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		float3 PrevScale = 0;
 		float4x4 PrevLocalToRelativeWorld = DecodeTransform( PrevRotationScale, PrevTranslation, PrevScale );
 
-		InstanceData.LocalBoundsCenter							= LoadInstanceSceneDataElement(5 * SOAStride + InstanceId).xyz;
-		InstanceData.LocalBoundsExtent.x						= LoadInstanceSceneDataElement(5 * SOAStride + InstanceId).w;
+		BRANCH
+		if ((InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u)
+		{
+			InstanceData.LocalBoundsCenter							= LoadInstanceSceneDataElement(5 * SOAStride + InstanceId).xyz;
+			InstanceData.LocalBoundsExtent.x						= LoadInstanceSceneDataElement(5 * SOAStride + InstanceId).w;
+			InstanceData.LocalBoundsExtent.yz						= LoadInstanceSceneDataElement(6 * SOAStride + InstanceId).xy;
+		}
+		else
+		{
+			InstanceData.LocalBoundsCenter							= GetPrimitiveData(InstanceData.PrimitiveId).InstanceLocalBoundsCenter;
+			InstanceData.LocalBoundsExtent							= GetPrimitiveData(InstanceData.PrimitiveId).InstanceLocalBoundsExtent;
+		}
 
-		InstanceData.LocalBoundsExtent.yz						= LoadInstanceSceneDataElement(6 * SOAStride + InstanceId).xy;
 		InstanceData.PayloadDataOffset							= asuint(LoadInstanceSceneDataElement(6 * SOAStride + InstanceId).z);
 
 	#if USES_PER_INSTANCE_RANDOM

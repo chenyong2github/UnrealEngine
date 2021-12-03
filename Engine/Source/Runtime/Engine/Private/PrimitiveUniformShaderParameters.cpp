@@ -130,37 +130,42 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, bHasNaniteImposterData);
 	}
 
-	Setup(
-		FPrimitiveUniformShaderParametersBuilder{}
+	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
 		.Defaults()
-			.LocalToWorld(Proxy->GetLocalToWorld())
-			.PreviousLocalToWorld(PreviousLocalToWorld)
-			.ActorWorldPosition(Proxy->GetActorPosition())
-			.WorldBounds(Proxy->GetBounds())
-			.LocalBounds(Proxy->GetLocalBounds())
-			.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
-			.CustomPrimitiveData(Proxy->GetCustomPrimitiveData())
-			.LightingChannelMask(Proxy->GetLightingChannelMask())
-			.LightmapDataIndex(Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset())
-			.LightmapUVIndex(Proxy->GetLightMapCoordinateIndex())
-			.SingleCaptureIndex(SingleCaptureIndex)
-			.InstanceSceneDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstanceSceneDataOffset())
-			.NumInstanceSceneDataEntries(Proxy->GetPrimitiveSceneInfo()->GetNumInstanceSceneDataEntries())
-			.InstancePayloadDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataOffset())
-			.InstancePayloadDataStride(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataStride())
-			.ReceivesDecals(Proxy->ReceivesDecals())
-			.DrawsVelocity(Proxy->DrawsVelocity())
-			.OutputVelocity(bOutputVelocity)
-			.CastContactShadow(Proxy->CastsContactShadow())
-			.CastShadow(Proxy->CastsDynamicShadow())
-			.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
-			.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
-			.NaniteResourceID(NaniteResourceID)
-			.NaniteHierarchyOffset(NaniteHierarchyOffset)
-			.VisibleInRaster(Proxy->IsVisibleInRaster())
-			.HasNaniteImposterData(bHasNaniteImposterData)
-		.Build()
-	);
+		.LocalToWorld(Proxy->GetLocalToWorld())
+		.PreviousLocalToWorld(PreviousLocalToWorld)
+		.ActorWorldPosition(Proxy->GetActorPosition())
+		.WorldBounds(Proxy->GetBounds())
+		.LocalBounds(Proxy->GetLocalBounds())
+		.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+		.CustomPrimitiveData(Proxy->GetCustomPrimitiveData())
+		.LightingChannelMask(Proxy->GetLightingChannelMask())
+		.LightmapDataIndex(Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset())
+		.LightmapUVIndex(Proxy->GetLightMapCoordinateIndex())
+		.SingleCaptureIndex(SingleCaptureIndex)
+		.InstanceSceneDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstanceSceneDataOffset())
+		.NumInstanceSceneDataEntries(Proxy->GetPrimitiveSceneInfo()->GetNumInstanceSceneDataEntries())
+		.InstancePayloadDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataOffset())
+		.InstancePayloadDataStride(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataStride())
+		.ReceivesDecals(Proxy->ReceivesDecals())
+		.DrawsVelocity(Proxy->DrawsVelocity())
+		.OutputVelocity(bOutputVelocity)
+		.CastContactShadow(Proxy->CastsContactShadow())
+		.CastShadow(Proxy->CastsDynamicShadow())
+		.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
+		.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
+		.NaniteResourceID(NaniteResourceID)
+		.NaniteHierarchyOffset(NaniteHierarchyOffset)
+		.VisibleInRaster(Proxy->IsVisibleInRaster())
+		.HasNaniteImposterData(bHasNaniteImposterData);
+
+	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
+	if (InstanceBounds.Num() > 0)
+	{
+		Builder.InstanceLocalBounds(InstanceBounds[0]);
+	}
+
+	Setup(Builder.Build());
 }
 
 void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters)
@@ -222,12 +227,18 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[25]	= FVector4f(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.ObjectBoundsY);
 	Data[26]	= FVector4f(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, PrimitiveUniformShaderParameters.ObjectBoundsZ);
 
-	Data[27].X = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataOffset;
-	Data[27].Y = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataStride;
-	// .ZW = unused
+	Data[27].X = PrimitiveUniformShaderParameters.InstanceLocalBoundsCenter.X;
+	Data[27].Y = PrimitiveUniformShaderParameters.InstanceLocalBoundsCenter.Y;
+	Data[27].Z = PrimitiveUniformShaderParameters.InstanceLocalBoundsCenter.Z;
+	Data[27].W = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataOffset;
+
+	Data[28].X = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.X;
+	Data[28].Y = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.Y;
+	Data[28].Z = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.Z;
+	Data[28].W = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataStride;
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 28;
+	const int32 CustomPrimitiveDataStartIndex = 29;
 	for (int32 DataIndex = 0; DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; ++DataIndex)
 	{
 		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];
