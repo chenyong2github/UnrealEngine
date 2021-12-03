@@ -553,18 +553,18 @@ static void BuildNaniteMaterialPassCommands(
 	const FNaniteMaterialEntryMap& BucketMap = MaterialCommands.GetCommands();
 	OutNaniteMaterialPassCommands.Reset(BucketMap.Num());
 
-	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-
 	// Pull into local here so another thread can't change the sort values mid-iteration.
 	const int32 MaterialSortMode = GNaniteMaterialSortMode;
-
-	for (auto& Command : BucketMap)
+	// #### 
+	int Test = 0;
+	// #### 
+	for (auto Iter = BucketMap.begin(); Iter != BucketMap.end(); ++Iter)
 	{
+		auto& Command = *Iter;
 		const FMeshDrawCommand& MeshDrawCommand = Command.Key;
 		FNaniteMaterialPassCommand PassCommand(MeshDrawCommand);
-		const FNaniteMaterialCommands::FCommandId CommandId = MaterialCommands.FindIdByCommand(Command.Key);
+		const int32 MaterialId = Iter.GetElementId().GetIndex();
 
-		const int32 MaterialId = CommandId.GetIndex();
 		PassCommand.MaterialDepth = FNaniteCommandInfo::GetDepthId(MaterialId);
 		PassCommand.MaterialSlot  = Command.Value.MaterialSlot;
 
@@ -589,7 +589,14 @@ static void BuildNaniteMaterialPassCommands(
 		}
 
 		OutNaniteMaterialPassCommands.Emplace(PassCommand);
+		// #### 
+		++Test;
+		// #### 		
 	}
+	// ####
+	check(Test == BucketMap.Num());
+	// ####
+
 
 	if (MaterialSortMode != 0)
 	{

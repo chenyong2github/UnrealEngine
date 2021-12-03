@@ -107,6 +107,7 @@ namespace RobinHoodHashTable_Private
 		};
 
 		TArray<FSpan, AllocatorType> FreeList;
+		int32 NumElements = 0;
 
 	public:
 		TFreeList()
@@ -116,6 +117,8 @@ namespace RobinHoodHashTable_Private
 
 		void Push(IndexType NodeIndex)
 		{
+			++NumElements;
+
 			//find the index that points to our right side node
 			int Index = 1; //exclude the dummy
 			int Size = FreeList.Num() - 1;
@@ -170,6 +173,8 @@ namespace RobinHoodHashTable_Private
 
 		IndexType Pop()
 		{
+			--NumElements;
+
 			FSpan& Span = FreeList.Last();
 			IndexType Index = Span.Start;
 			checkSlow(Index != INDEX_NONE);
@@ -194,8 +199,7 @@ namespace RobinHoodHashTable_Private
 
 		int Num() const
 		{
-			//includes one dummy
-			return FreeList.Num() - 1;
+			return NumElements;
 		}
 
 		SIZE_T GetAllocatedSize() const
@@ -682,6 +686,11 @@ namespace RobinHoodHashTable_Private
 				State = Data.Next(State);
 				return *this;
 			}
+
+			inline FHashElementId GetElementId() const
+			{
+				return FHashElementId(State.Index);
+			}
 		};
 
 		inline FIteratorType begin()
@@ -734,6 +743,11 @@ namespace RobinHoodHashTable_Private
 			{
 				State = Data.Next(State);
 				return *this;
+			}
+
+			inline FHashElementId GetElementId() const
+			{
+				return FHashElementId(State.Index);
 			}
 		};
 
