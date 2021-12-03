@@ -504,6 +504,7 @@ void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InA
 	[
 		// Remove Button
 		SAssignNew(RemoveButtonPtr, SButton)
+		.ToolTipText(LOCTEXT("RemoveCvarTooltip","Remove cvar from this list and reset its value to the startup value."))
 		.ButtonColorAndOpacity(FStyleColors::Transparent)
 		.OnClicked_Lambda([this]()
 		{
