@@ -31,6 +31,8 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER(uint32, RadianceCacheStats)
 	END_SHADER_PARAMETER_STRUCT()
 
+	FRadianceCacheInputs GetDefaultRadianceCacheInputs();
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FRadianceCacheInterpolationParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRadianceCacheInputs, RadianceCacheInputs)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, RadianceProbeIndirectionTexture)

@@ -226,6 +226,14 @@ FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheProbeReprojectionRadi
 	ECVF_RenderThreadSafe
 );
 
+int32 GTranslucencyVolumeRadianceCacheFarField = 0;
+FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheFarField(
+	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.FarField"),
+	GTranslucencyVolumeRadianceCacheFarField,
+	TEXT("Whether to trace against the FarField representation"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GTranslucencyVolumeRadianceCacheStats = 0;
 FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheStats(
 	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.Stats"),
@@ -276,7 +284,7 @@ namespace LumenTranslucencyVolumeRadianceCache
 
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
 	{
-		LumenRadianceCache::FRadianceCacheInputs Parameters;
+		LumenRadianceCache::FRadianceCacheInputs Parameters = LumenRadianceCache::GetDefaultRadianceCacheInputs();
 		Parameters.ReprojectionRadiusScale = GTranslucencyVolumeRadianceCacheReprojectionRadiusScale;
 		Parameters.ClipmapWorldExtent = GLumenTranslucencyVolumeRadianceCacheClipmapWorldExtent;
 		Parameters.ClipmapDistributionBase = GLumenTranslucencyVolumeRadianceCacheClipmapDistributionBase;
@@ -286,8 +294,6 @@ namespace LumenTranslucencyVolumeRadianceCache
 		Parameters.RadianceProbeResolution = GetProbeResolution();
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GetNumMipmaps() - 1;
-		Parameters.CalculateIrradiance = 0;
-		Parameters.IrradianceProbeResolution = 0;
 		Parameters.NumProbesToTraceBudget = GTranslucencyVolumeRadianceCacheNumProbesToTraceBudget;
 		Parameters.RadianceCacheStats = GTranslucencyVolumeRadianceCacheStats;
 		return Parameters;
@@ -650,10 +656,14 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 						RadianceCacheMarkParameters);
 				});
 
+			FRadianceCacheConfiguration Configuration;
+			Configuration.bFarField = GTranslucencyVolumeRadianceCacheFarField != 0;
+
 			RenderRadianceCache(
 				GraphBuilder, 
 				TracingInputs, 
 				RadianceCacheInputs, 
+				Configuration,
 				Scene,
 				View, 
 				nullptr, 

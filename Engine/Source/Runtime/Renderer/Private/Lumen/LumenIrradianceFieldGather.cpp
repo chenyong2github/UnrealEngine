@@ -132,7 +132,7 @@ namespace LumenIrradianceFieldGather
 {
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
 	{
-		LumenRadianceCache::FRadianceCacheInputs Parameters;
+		LumenRadianceCache::FRadianceCacheInputs Parameters = LumenRadianceCache::GetDefaultRadianceCacheInputs();
 		Parameters.ReprojectionRadiusScale = 1.5f;
 		Parameters.ClipmapWorldExtent = GLumenIrradianceFieldClipmapWorldExtent;
 		Parameters.ClipmapDistributionBase = GLumenIrradianceFieldClipmapDistributionBase;
@@ -278,6 +278,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 		GraphBuilder, 
 		TracingInputs, 
 		RadianceCacheInputs, 
+		FRadianceCacheConfiguration(),
 		Scene,
 		View, 
 		nullptr, 
