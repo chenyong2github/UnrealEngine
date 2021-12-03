@@ -488,7 +488,7 @@ void GenerateProbeTraceTilesCS(
 	}
 	
 
-	// 'vis DebugBRDFProbabilityDensityFunction uv1'
+	// 'vis Lumen.RadianceCache.DebugBRDFProbabilityDensityFunction uv1'
 	#define VISUALIZE_BRDF_PDF_SPHERICAL_HARMONIC 0
 	#if VISUALIZE_BRDF_PDF_SPHERICAL_HARMONIC
 		uint2 TexelCoord = GroupThreadId.xy;

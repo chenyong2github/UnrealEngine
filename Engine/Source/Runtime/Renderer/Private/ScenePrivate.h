@@ -510,7 +510,6 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> ProbeLastUsedFrame;
 	TRefCountPtr<FRDGPooledBuffer> ProbeLastTracedFrame;
 	TRefCountPtr<FRDGPooledBuffer> ProbeWorldOffset;
-	TRefCountPtr<IPooledRenderTarget> DebugBRDFProbabilityDensityFunction;
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 
 	void ReleaseTextures()

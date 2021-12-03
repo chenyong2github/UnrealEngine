@@ -86,7 +86,6 @@ class FVisualizeRadianceCachePS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeRadianceCacheCommonParameters, VisualizeCommonParameters)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, DebugBRDFProbabilityDensityFunction)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -173,7 +172,6 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 			PassParameters->PS.VisualizeCommonParameters = VisualizeCommonParameters;
 			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
-			PassParameters->PS.DebugBRDFProbabilityDensityFunction = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DebugBRDFProbabilityDensityFunction);
 
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 				SceneDepth,

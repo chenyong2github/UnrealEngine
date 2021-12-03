@@ -1132,23 +1132,6 @@ void RenderRadianceCache(
 			}
 		}
 
-		FRDGTextureRef DebugBRDFProbabilityDensityFunction = nullptr;
-
-		if (RadianceCacheState.DebugBRDFProbabilityDensityFunction.IsValid())
-		{
-			DebugBRDFProbabilityDensityFunction = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DebugBRDFProbabilityDensityFunction);
-		}
-		else
-		{
-			FRDGTextureDesc DebugBRDFProbabilityDensityFunctionDesc = FRDGTextureDesc::Create2D(
-				FIntPoint(RadianceCacheInputs.ProbeAtlasResolutionInProbes * 8),
-				PF_FloatRGB,
-				FClearValueBinding::None,
-				TexCreate_ShaderResource | TexCreate_UAV);
-
-			DebugBRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(DebugBRDFProbabilityDensityFunctionDesc, TEXT("Lumen.RadianceCache.DebugBRDFProbabilityDensityFunction"));
-		}
-
 		LumenRadianceCache::GetInterpolationParametersNoResources(GraphBuilder, RadianceCacheState, RadianceCacheInputs, RadianceCacheParameters);
 		
 		const FIntVector RadianceProbeIndirectionTextureSize = FIntVector(
@@ -1537,6 +1520,15 @@ void RenderRadianceCache(
 		const int32 MaxProbeTraceTileResolution = RadianceCacheInputs.RadianceProbeResolution / FRadianceCacheTraceFromProbesCS::GetGroupSize() * 2;
 		FRDGBufferRef ProbeTraceTileData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntPoint), MaxNumProbes * MaxProbeTraceTileResolution * MaxProbeTraceTileResolution), TEXT("Lumen.RadianceCache.ProbeTraceTileData"));
 
+		const int32 DebugProbeBRDFOctahedronResolution = 8;
+		FRDGTextureDesc DebugBRDFProbabilityDensityFunctionDesc = FRDGTextureDesc::Create2D(
+			FIntPoint(RadianceCacheInputs.ProbeAtlasResolutionInProbes * DebugProbeBRDFOctahedronResolution),
+			PF_R16F,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV);
+
+		FRDGTextureRef DebugBRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(DebugBRDFProbabilityDensityFunctionDesc, TEXT("Lumen.RadianceCache.DebugBRDFProbabilityDensityFunction"));
+
 		{
 			FGenerateProbeTraceTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGenerateProbeTraceTilesCS::FParameters>();
 			PassParameters->RWProbeTraceTileAllocator = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ProbeTraceTileAllocator, PF_R32_UINT));
@@ -1549,7 +1541,7 @@ void RenderRadianceCache(
 			PassParameters->DownsampleDistanceFromCameraSq = GLumenRadianceCacheDownsampleDistanceFromCamera * GLumenRadianceCacheDownsampleDistanceFromCamera;
 
 			PassParameters->RWDebugBRDFProbabilityDensityFunction = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DebugBRDFProbabilityDensityFunction));
-			PassParameters->DebugProbeBRDFOctahedronResolution = 8;
+			PassParameters->DebugProbeBRDFOctahedronResolution = DebugProbeBRDFOctahedronResolution;
 
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->RadianceCacheParameters = RadianceCacheParameters;
@@ -1827,7 +1819,6 @@ void RenderRadianceCache(
 		RadianceCacheState.RadianceProbeIndirectionTexture = GraphBuilder.ConvertToExternalTexture(RadianceProbeIndirectionTexture);
 		RadianceCacheState.DepthProbeAtlasTexture = GraphBuilder.ConvertToExternalTexture(DepthProbeAtlasTexture);
 		RadianceCacheState.RadianceProbeAtlasTexture = GraphBuilder.ConvertToExternalTexture(RadianceProbeAtlasTextureSource);
-		RadianceCacheState.DebugBRDFProbabilityDensityFunction = GraphBuilder.ConvertToExternalTexture(DebugBRDFProbabilityDensityFunction);
 
 		if (FinalRadianceAtlas)
 		{
