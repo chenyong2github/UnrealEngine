@@ -8,7 +8,7 @@
 #include "RenderGraphResources.h"
 #include "RHIGPUReadback.h"
 
-#define SANITY_CHECK_STREAMING_REQUESTS		1		// Performs a number of sanity checks of streaming requests to verify their integrity.
+#define SANITY_CHECK_STREAMING_REQUESTS		0		// Performs a number of sanity checks of streaming requests to verify their integrity.
 													// Must match define in ClusterCulling.ush
 
 class IFileCacheHandle;

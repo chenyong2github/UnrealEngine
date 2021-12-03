@@ -18,7 +18,7 @@
 #include "HZBCull.ush"
 #include "Culling.ush"
 
-#define SANITY_CHECK_STREAMING_REQUESTS		1												// Adds frame counter dependent magic values to streaming requests to help verify their integrity.
+#define SANITY_CHECK_STREAMING_REQUESTS		0												// Adds frame counter dependent magic values to streaming requests to help verify their integrity.
 																							// Must match define in NaniteStreamingManager.h
 
 #define STREAMING_REQUEST_MAGIC_BITS		8												// Must match define in NaniteStreamingManager.cpp
