@@ -268,9 +268,11 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		}
 
 		// Runtime grid placement
-		if (HLODActor->GetGridPlacement() != SubActorsInfo.GridPlacement)
+		// HLOD that are always loaded will not take the SubActorsInfo.GridPlacement into account
+		EActorGridPlacement ExpectedGridPlacement = HLODLayer->IsAlwaysLoaded() ? EActorGridPlacement::AlwaysLoaded : SubActorsInfo.GridPlacement;
+		if (HLODActor->GetGridPlacement() != ExpectedGridPlacement)
 		{
-			HLODActor->SetGridPlacement(SubActorsInfo.GridPlacement);
+			HLODActor->SetGridPlacement(ExpectedGridPlacement);
 			bIsDirty = true;
 		}
 
