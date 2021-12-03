@@ -129,21 +129,21 @@ public:
 		LLM_SCOPE(ELLMTag::MaterialInstance);
 
 		InvalidateUniformExpressionCache(false);
+		bool bWasFound;
 		TArray<TNamedParameter<ValueType> >& ValueArray = GetValueArray<ValueType>();
-		const int32 ParameterCount = ValueArray.Num();
-		for (int32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+		int Index = RenderThread_FindParameterByNameInternal<ValueType>(ParameterInfo, bWasFound);
+
+		if (bWasFound)
 		{
-			TNamedParameter<ValueType>& Parameter = ValueArray[ParameterIndex];
-			if (Parameter.Info == ParameterInfo)
-			{
-				Parameter.Value = Value;
-				return;
-			}
+			ValueArray[Index].Value = Value;
 		}
-		TNamedParameter<ValueType> NewParameter;
-		NewParameter.Info = ParameterInfo;
-		NewParameter.Value = Value;
-		ValueArray.Add(NewParameter);
+		else
+		{
+			TNamedParameter<ValueType> NewParameter;
+			NewParameter.Info = ParameterInfo;
+			NewParameter.Value = Value;
+			ValueArray.Insert(NewParameter, Index);
+		}
 	}
 
 	/**
@@ -152,16 +152,15 @@ public:
 	template <typename ValueType>
 	bool RenderThread_GetParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue) const
 	{
-		const TArray<TNamedParameter<ValueType>>& ValueArray = GetValueArray<ValueType>();
-		for (const TNamedParameter<ValueType>& Parameter : ValueArray)
+		bool bWasFound;
+		const TArray<TNamedParameter<ValueType> >& ValueArray = GetValueArray<ValueType>();
+		int Index = RenderThread_FindParameterByNameInternal<ValueType>(ParameterInfo, bWasFound);
+
+		if (bWasFound)
 		{
-			if (Parameter.Info == ParameterInfo && IsValidParameterValue(Parameter.Value))
-			{
-				OutValue = Parameter.Value;
-				return true;
-			}
+			OutValue = ValueArray[Index].Value;
 		}
-		return false;
+		return bWasFound;
 	}
 
 private:
@@ -176,6 +175,37 @@ private:
 	static bool IsValidParameterValue(const FVector4d&) { return true; }
 	static bool IsValidParameterValue(const UTexture* Value) { return Value != nullptr; }
 	static bool IsValidParameterValue(const URuntimeVirtualTexture* Value) { return Value != nullptr; }
+
+	template <typename ValueType>
+	int RenderThread_FindParameterByNameInternal(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutWasFound) const
+	{
+		const TArray<TNamedParameter<ValueType> >& ValueArray = GetValueArray<ValueType>();
+
+		TNamedParameter<ValueType> SearchParam;
+		SearchParam.Info = ParameterInfo;
+
+		int Index = Algo::LowerBound(ValueArray, SearchParam,
+			[](const TNamedParameter<ValueType>& Left, const TNamedParameter<ValueType>& Right)
+			{
+				return GetTypeHash(Left.Info) < GetTypeHash(Right.Info);
+			});
+
+		uint32 SearchHash = GetTypeHash(ParameterInfo);
+
+		while (ValueArray.IsValidIndex(Index) && GetTypeHash(ValueArray[Index].Info) == SearchHash)
+		{
+			if (ValueArray[Index].Info == ParameterInfo)
+			{
+				OutWasFound = true;
+				return Index;
+			}
+
+			Index++;
+		}
+
+		OutWasFound = false;
+		return Index;
+	}
 
 	/** The parent of the material instance. */
 	UMaterialInterface* Parent;

@@ -3183,6 +3183,8 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	check(IsInParallelRenderingThread());
 
 	SCOPE_CYCLE_COUNTER(STAT_CacheUniformExpressions);
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialRenderProxy::EvaluateUniformExpressions);
 	
 	// Retrieve the material's uniform expression set.
 	FMaterialShaderMap* ShaderMap = Context.Material.GetRenderingThreadShaderMap();
