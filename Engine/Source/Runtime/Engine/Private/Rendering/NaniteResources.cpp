@@ -144,7 +144,7 @@ void FResources::InitResources(const UObject* Owner)
 	
 	// Root pages should be available here. If they aren't, this resource has probably already been initialized and added to the streamer. Investigate!
 	check(RootData.Num() > 0);
-	PersistentHash = FMath::Max(FCrc::StrCrc32<TCHAR>(*Owner->GetFullName()), 1u);
+	PersistentHash = FMath::Max(FCrc::StrCrc32<TCHAR>(*Owner->GetName()), 1u);
 	
 	ENQUEUE_RENDER_COMMAND(InitNaniteResources)(
 		[this](FRHICommandListImmediate& RHICmdList)

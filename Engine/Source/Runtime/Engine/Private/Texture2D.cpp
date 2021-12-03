@@ -1297,7 +1297,7 @@ void FVirtualTexture2DResource::InitRHI()
 
 	FVTProducerDescription ProducerDesc;
 	ProducerDesc.Name = TextureOwner->GetFName();
-	ProducerDesc.FullNameHash = GetTypeHash(TextureOwner->GetFullName());
+	ProducerDesc.FullNameHash = GetTypeHash(TextureOwner->GetName());
 	ProducerDesc.bContinuousUpdate = bContinuousUpdate;
 	ProducerDesc.Dimensions = 2;
 	ProducerDesc.TileSize = VTData->TileSize;
