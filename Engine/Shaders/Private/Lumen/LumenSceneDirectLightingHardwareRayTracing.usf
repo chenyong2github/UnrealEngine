@@ -26,14 +26,14 @@
 #include "../DeferredLightingCommon.ush"
 #include "LumenSceneDirectLighting.ush"
 
-StructuredBuffer<uint> CardTileAllocator;
+Buffer<uint> DispatchLightTilesIndirectArgs;
 RWBuffer<uint> RWHardwareRayTracingIndirectArgs;
 
 [numthreads(1, 1, 1)]
-void FLumenDirectLightingHardwareRayTracingIndirectArgsCS()
+void LumenDirectLightingHardwareRayTracingIndirectArgsCS()
 {
 	RWHardwareRayTracingIndirectArgs[0] = CARD_TILE_SIZE * CARD_TILE_SIZE;
-	RWHardwareRayTracingIndirectArgs[1] = CardTileAllocator[0];
+	RWHardwareRayTracingIndirectArgs[1] = DispatchLightTilesIndirectArgs[0];
 	RWHardwareRayTracingIndirectArgs[2] = 1;
 
 #if DIM_INLINE_RAYTRACING
@@ -64,36 +64,37 @@ float3 FarFieldReferencePos;
 float SurfaceBias;
 float SlopeScaledSurfaceBias;
 
-StructuredBuffer<uint> CardTileData;
-uint MaxCardTilesPerScatterInstance;
-uint CardScatterInstanceIndex;
-
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
+StructuredBuffer<uint> LightTileAllocator;
+StructuredBuffer<uint2> LightTiles;
 
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 {
 	uint2 CoordInCardTile = uint2(DispatchThreadIndex.x % CARD_TILE_SIZE, DispatchThreadIndex.x / CARD_TILE_SIZE);
 
 #if DIM_INDIRECT_DISPATCH
-	uint CardTileIndex = DispatchThreadIndex.y;
+	uint LightTileIndex = DispatchThreadIndex.y;
 #else
-	for (uint CardTileIndex = DispatchThreadIndex.y; CardTileIndex < CardTileAllocator[CardScatterInstanceIndex]; CardTileIndex += GroupCount)
+	for (uint LightTileIndex = DispatchThreadIndex.y; LightTileIndex < LightTileAllocator[0]; LightTileIndex += GroupCount)
 #endif
 	{
-		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
-		uint2 TexelInCardPageCoord = CardTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
+		const FLightTile LightTile = UnpackLightTile(LightTiles[LightTileIndex]);
+		uint2 TexelInCardPageCoord = LightTile.TileCoord * CARD_TILE_SIZE + CoordInCardTile;
+
+		const FLumenLight LumenLight = LoadLumenLight(LightTile.LightIndex);
 
 		if (all(CoordInCardTile < CARD_TILE_SIZE))
 		{
 			FShadowMaskRay ShadowMaskRay;
-			ReadShadowMaskRayRW(CardTileIndex, CoordInCardTile, ShadowMaskRay);
+			ReadShadowMaskRayRW(LightTileIndex, CoordInCardTile, ShadowMaskRay);
 
 			// Trace visibility ray
 			if (!ShadowMaskRay.bShadowFactorComplete)
 			{
-				FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
+				FLumenCardPageData CardPage = GetLumenCardPageData(LightTile.CardPageIndex);
 				FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 				float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * (TexelInCardPageCoord + 0.5f);
 				float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * (TexelInCardPageCoord + 0.5f);
@@ -102,16 +103,14 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 				float3 WorldNormal = DecodeSurfaceCacheNormal(Card, Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalPointClampedSampler, AtlasUV, 0).xy);
 
-				FDeferredLightData LightData = LoadLightData(LumenLightType);
-
-				float3 L = LightData.Direction;
+				float3 L = LumenLight.DeferredLightData.Direction;
 				float3 ToLight = L;
 				float NearFieldTMax = MaxTraceDistance;
 				float FarFieldTMax = FarFieldMaxTraceDistance;
 
-				if (LumenLightType != LIGHT_TYPE_DIRECTIONAL && LightData.bRadialLight)
+				if (LumenLight.Type != LIGHT_TYPE_DIRECTIONAL)
 				{
-					ToLight = LightData.Position - WorldPosition;
+					ToLight = LumenLight.DeferredLightData.Position - WorldPosition;
 					float LengthToLight = length(ToLight);
 					NearFieldTMax = min(NearFieldTMax, LengthToLight);
 					FarFieldTMax = min(FarFieldTMax, LengthToLight);
@@ -122,7 +121,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				const float2 RandSample = 0.5;
 
 #if 0
-				bool bIsValid = GenerateOcclusionRay(LumenLightType, LightParameters, WorldPosition, WorldNormal, RandSample,
+				bool bIsValid = GenerateOcclusionRay(LumenLight.Type, LightParameters, WorldPosition, WorldNormal, RandSample,
 					Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
 #else
 
@@ -184,7 +183,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 				ShadowMaskRay.bShadowFactorComplete = true;
 
-				WriteShadowMaskRay(ShadowMaskRay, CardTileIndex, CoordInCardTile);
+				WriteShadowMaskRay(ShadowMaskRay, LightTileIndex, CoordInCardTile);
 			}
 		}
 	}

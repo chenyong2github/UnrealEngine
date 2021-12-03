@@ -329,38 +329,64 @@ void BuildCardsUpdateListCS(
 	}
 }
 
-RWBuffer<uint> RWDirectLightingCardPageIndexIndirectArgs;
-RWBuffer<uint> RWIndirectLightingCardPageIndexIndirectArgs;
+RWBuffer<uint> RWDirectLightingDrawCardPageIndicesIndirectArgs;
+RWBuffer<uint> RWDirectLightingDispatchCardPageIndicesIndirectArgs;
+RWBuffer<uint> RWIndirectLightingDrawCardPageIndicesIndirectArgs;
+RWBuffer<uint> RWIndirectLightingDispatchCardPageIndicesIndirectArgs;
+
 StructuredBuffer<uint> DirectLightingCardPageIndexAllocator;
 StructuredBuffer<uint> IndirectLightingCardPageIndexAllocator;
-
+uint VertexCountPerInstanceIndirect;
 
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void SetCardPageIndexIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (DispatchThreadId.x == 0)
 	{
-		uint NumPageIndices = DirectLightingCardPageIndexAllocator[0];
-		RWDirectLightingCardPageIndexIndirectArgs[0] = (NumPageIndices + 63) / 64;
-		RWDirectLightingCardPageIndexIndirectArgs[1] = 1;
-		RWDirectLightingCardPageIndexIndirectArgs[2] = 1;
+		{
+			uint NumPageIndices = DirectLightingCardPageIndexAllocator[0];
 
-		NumPageIndices = IndirectLightingCardPageIndexAllocator[0];
-		RWIndirectLightingCardPageIndexIndirectArgs[0] = (NumPageIndices + 63) / 64;
-		RWIndirectLightingCardPageIndexIndirectArgs[1] = 1;
-		RWIndirectLightingCardPageIndexIndirectArgs[2] = 1;
+			// FRHIDrawIndirectParameters
+			RWDirectLightingDrawCardPageIndicesIndirectArgs[0] = VertexCountPerInstanceIndirect;
+			RWDirectLightingDrawCardPageIndicesIndirectArgs[1] = NumPageIndices;
+			RWDirectLightingDrawCardPageIndicesIndirectArgs[2] = 0;
+			RWDirectLightingDrawCardPageIndicesIndirectArgs[3] = 0;
+
+			// Thread per page
+			RWDirectLightingDispatchCardPageIndicesIndirectArgs[0] = (NumPageIndices + 63) / 64;
+			RWDirectLightingDispatchCardPageIndicesIndirectArgs[1] = 1;
+			RWDirectLightingDispatchCardPageIndicesIndirectArgs[2] = 1;
+
+			// Thread per tile
+			RWDirectLightingDispatchCardPageIndicesIndirectArgs[3 + 0] = 4 * NumPageIndices;
+			RWDirectLightingDispatchCardPageIndicesIndirectArgs[3 + 1] = 1;
+			RWDirectLightingDispatchCardPageIndicesIndirectArgs[3 + 2] = 1;
+		}
+
+		{
+			uint NumPageIndices = IndirectLightingCardPageIndexAllocator[0];
+
+			// FRHIDrawIndirectParameters
+			RWIndirectLightingDrawCardPageIndicesIndirectArgs[0] = VertexCountPerInstanceIndirect;
+			RWIndirectLightingDrawCardPageIndicesIndirectArgs[1] = NumPageIndices;
+			RWIndirectLightingDrawCardPageIndicesIndirectArgs[2] = 0;
+			RWIndirectLightingDrawCardPageIndicesIndirectArgs[3] = 0;
+
+			// Thread per page
+			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[0] = (NumPageIndices + 63) / 64;
+			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[1] = 1;
+			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[2] = 1;
+
+			// Thread per tile
+			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[3 + 0] = 4 * NumPageIndices;
+			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[3 + 1] = 1;
+			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[3 + 2] = 1;
+		}
 	}
 }
 
 RWStructuredBuffer<uint> RWQuadAllocator;
 RWStructuredBuffer<uint> RWQuadData;
-
-float4 InfluenceSphere;
-float3 LightPosition;
-float3 LightDirection;
-float LightRadius;
-float CosConeAngle;
-float SinConeAngle;
 
 void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out float3 WorldCardExtent)
 {
@@ -368,188 +394,9 @@ void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out f
 	WorldCardExtent = mul(abs(LumenCardData.WorldToLocalRotation), LumenCardData.LocalExtent);
 }
 
-#ifndef THREADGROUP_SIZE
-#define THREADGROUP_SIZE 0
-#endif
-
-#ifndef SHAPE_TYPE
-#define SHAPE_TYPE 0
-#endif
-
-uint MaxQuadsPerScatterInstance;
-uint MaxCardTilesPerScatterInstance;
-uint CardScatterInstanceIndex;
-
 StructuredBuffer<uint> CardPageIndexAllocator;
 StructuredBuffer<uint> CardPageIndexData;
 
-uint FrameId;
-float CardLightingUpdateFrequencyScale;
-uint CardLightingUpdateMinFrequency;
-
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void CullCardPagesToShapeCS(
-	uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	uint IndexInIndexBuffer = DispatchThreadId.x;
-
-	if (IndexInIndexBuffer < CardPageIndexAllocator[0])
-	{
-		uint CardPageIndex = CardPageIndexData[IndexInIndexBuffer];
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
-		if (CardPage.CardIndex >= 0)
-		{
-			FLightCullingParameters LightCullingParameters = CreateLightCullingParameters(
-				InfluenceSphere, LightPosition, LightDirection, LightRadius, CosConeAngle, SinConeAngle);
-
-			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-			if (Card.bVisible && DoesLightAffectCardPage(SHAPE_TYPE, LightCullingParameters, CardPage, Card))
-			{
-				uint QuadDataInsertIndex;
-				InterlockedAdd(RWQuadAllocator[CardScatterInstanceIndex], 1, QuadDataInsertIndex);
-
-				if (QuadDataInsertIndex < MaxQuadsPerScatterInstance)
-				{
-					RWQuadData[CardScatterInstanceIndex * MaxQuadsPerScatterInstance + QuadDataInsertIndex] = CardPageIndex;
-				}
-			}
-		}
-	}
-}
-
-StructuredBuffer<uint> QuadAllocator;
-StructuredBuffer<uint> QuadData;
-RWStructuredBuffer<uint> RWCardTileAllocator;
-RWStructuredBuffer<uint> RWCardTileData;
-
-groupshared uint SharedTileAllocator;
-groupshared uint SharedGlobalTileOffset;
-
-/**
- * Build a coherent list of 8x8 tiles, based on the input list of card pages
- */
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void BuildCardTilesCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	SharedTileAllocator = 0;
-	SharedGlobalTileOffset = 0;
-
-	GroupMemoryBarrierWithGroupSync();
-
-	// Every group works on a single page, which has up to 128 tiles
-	// Every thread works on 2x2 tiles in that page
-	uint QuadIndex = GroupId.x;
-	uint2 TileInQuadBaseCoord = 2 * ZOrder2D(GroupThreadId.x, log2(8));
-	uint NumQuads = QuadAllocator[CardScatterInstanceIndex];
-
-	uint PackedTileData[4];
-	uint NumPackedTiles = 0;
-	uint TileOffset = 0;
-
-	if (QuadIndex < NumQuads)
-	{
-		uint CardPageIndex = QuadData[CardScatterInstanceIndex * MaxQuadsPerScatterInstance + QuadIndex];
-
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
-		if (CardPage.CardIndex >= 0)
-		{
-			FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
-
-			FLightCullingParameters LightCullingParameters = CreateLightCullingParameters(
-				InfluenceSphere, LightPosition, LightDirection, LightRadius, CosConeAngle, SinConeAngle);
-
-			const uint2 SizeInTiles = CardPage.SizeInTexels / CARD_TILE_SIZE;
-
-			for (uint LinearTileCoordOffset = 0; LinearTileCoordOffset < 4; ++LinearTileCoordOffset)
-			{
-				const uint2 TileCoord = TileInQuadBaseCoord + uint2(LinearTileCoordOffset % 2, LinearTileCoordOffset / 2);
-
-				if (all(TileCoord < SizeInTiles))
-				{
-					FCardTileData CardTile;
-					CardTile.CardPageIndex = CardPageIndex;
-					CardTile.TileCoord = TileCoord;
-
-					float2 UVMin = float2(CardTile.TileCoord) / SizeInTiles;
-					float2 UVMax = float2(CardTile.TileCoord + 1) / SizeInTiles;
-
-					float SwapY = UVMin.y;
-					UVMin.y = 1.0f - UVMax.y;
-					UVMax.y = 1.0f - SwapY;
-
-					bool bLightAffectsCard = DoesLightAffectCardPageUVRange(SHAPE_TYPE, LightCullingParameters, CardPage, Card, UVMin, UVMax);
-					if (bLightAffectsCard)
-					{
-						PackedTileData[NumPackedTiles] = PackCardTileData(CardTile);
-						++NumPackedTiles;
-					}
-				}
-			}
-
-			InterlockedAdd(SharedTileAllocator, NumPackedTiles, TileOffset);
-		}
-	}
-
-	GroupMemoryBarrierWithGroupSync();
-
-	// Allocate memory
-	if (all(GroupThreadId.xy == 0) && SharedTileAllocator > 0)
-	{
-		uint GlobalTileOffset = 0;
-		InterlockedAdd(RWCardTileAllocator[CardScatterInstanceIndex], SharedTileAllocator, GlobalTileOffset);
-		SharedGlobalTileOffset = GlobalTileOffset;
-	}	
-
-	GroupMemoryBarrierWithGroupSync();
-
-	// Write tiles to memory
-	for (uint TileIndex = 0; TileIndex < NumPackedTiles; ++TileIndex)
-	{
-		RWCardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + SharedGlobalTileOffset + TileOffset + TileIndex] = PackedTileData[TileIndex];
-	}
-}
-
-RWBuffer<uint> RWDrawCardPagesIndirectArgs;
-RWBuffer<uint> RWBuildTilesIndirectArgs;
-
-uint MaxScatterInstanceCount;
-uint VertexCountPerInstanceIndirect;
-
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void InitializeCardPageIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	uint ScatterInstanceIndex = DispatchThreadId.x;
-
-	if (ScatterInstanceIndex < MaxScatterInstanceCount)
-	{
-		uint NumQuads = QuadAllocator[ScatterInstanceIndex];
-
-		// FRHIDrawIndirectParameters
-		uint ArgOffset = 4 * ScatterInstanceIndex;
-		RWDrawCardPagesIndirectArgs[ArgOffset + 0] = VertexCountPerInstanceIndirect;
-		RWDrawCardPagesIndirectArgs[ArgOffset + 1] = NumQuads;
-		RWDrawCardPagesIndirectArgs[ArgOffset + 2] = 0;
-		RWDrawCardPagesIndirectArgs[ArgOffset + 3] = 0;
-
-		// FRHIDispatchIndirectParameters
-		ArgOffset = 3 * ScatterInstanceIndex;
-		RWBuildTilesIndirectArgs[ArgOffset + 0] = NumQuads;
-		RWBuildTilesIndirectArgs[ArgOffset + 1] = 1;
-		RWBuildTilesIndirectArgs[ArgOffset + 2] = 1;
-	}
-}
-
-RWBuffer<uint> RWDrawCardTilesIndirectArgs;
-RWBuffer<uint> RWDispatchCardTilesIndirectArgs;
-
-StructuredBuffer<uint> CardTileAllocator;
-StructuredBuffer<uint> CardTileData;
-
-Buffer<uint4> RectMinMaxBuffer;
-float2 InvRectMinMaxResolution;
 float2 IndirectLightingAtlasSize;
 
 void RasterizeToCardsVS(
@@ -564,48 +411,18 @@ void RasterizeToCardsVS(
 	TexCoord.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? 1.0f : 0.0f;
 
 	uint QuadIndex = InstanceId.x;
-	uint NumQuads = QuadAllocator[CardScatterInstanceIndex];
 
 	CardInterpolants = (FCardVSToPS)0;
 	OutPosition = 0;
 
-	if (QuadIndex < NumQuads)
+	if (QuadIndex < CardPageIndexAllocator[0])
 	{
-		uint CardPageIndex = QuadData[CardScatterInstanceIndex * MaxQuadsPerScatterInstance + QuadIndex];
+		uint CardPageIndex = CardPageIndexData[QuadIndex];
 		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex);
 		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
 
-		#if CLAMP_TO_INFLUENCE_SPHERE
-		{
-			float3 LocalSphereOrigin = mul(InfluenceSphere.xyz - Card.Origin, Card.WorldToLocalRotation);
-
-			float2 InvCardPageUVSize = 1.0f / (CardPage.CardUVRect.zw - CardPage.CardUVRect.xy);
-
-			float2 SphereOriginCardUV = SamplePositonToCardUV(Card, LocalSphereOrigin.xy);
-			float2 SphereOriginCardPageUV = (SphereOriginCardUV - CardPage.CardUVRect.xy) * InvCardPageUVSize;
-
-			float2 SphereRadius = 0.5f * (InfluenceSphere.ww / Card.LocalExtent.xy) * InvCardPageUVSize;
-
-			TexCoord = clamp(TexCoord, SphereOriginCardPageUV - SphereRadius, SphereOriginCardPageUV + SphereRadius);
-		}
-		#endif
-
 		float2 ScreenUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, TexCoord);
 		float2 AtlasUV = ScreenUV;
-
-		#if RECT_BUFFER_SRC
-		{
-			float4 AtlasUVRect = RectMinMaxBuffer[CardPageIndex].xyzw * InvRectMinMaxResolution.xyxy;
-			AtlasUV = lerp(AtlasUVRect.xy, AtlasUVRect.zw, TexCoord);
-		}
-		#endif
-
-		#if RECT_BUFFER_SRC
-		{
-			float4 AtlasUVRect = RectMinMaxBuffer[QuadIndex].xyzw * InvRectMinMaxResolution.xyxy;
-			ScreenUV = lerp(AtlasUVRect.xy, AtlasUVRect.zw, TexCoord);
-		}
-		#endif
 
 		// When sampling from a downsampled Indirect Lighting atlas we need to appropriately clamp input UVs to prevent bilinear reading outside of the valid area
 		float2 CardWidthInTexels = (CardPage.PhysicalAtlasUVRect.zw - CardPage.PhysicalAtlasUVRect.xy) * IndirectLightingAtlasSize;
@@ -622,42 +439,6 @@ void RasterizeToCardsVS(
 		CardInterpolants.CardUV = lerp(CardPage.CardUVRect.xy, CardPage.CardUVRect.zw, TexCoord);
 		CardInterpolants.CardTileIndex = 0;
 		CardInterpolants.CardPageIndex = CardPageIndex;
-	}
-}
-
-void RasterizeToCardTilesVS(
-	uint VertexId : SV_VertexID,
-	uint InstanceId : SV_InstanceID, 
-	out FCardVSToPS CardInterpolants,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	float2 TexCoord = float2(0.0f, 0.0f);
-	TexCoord.x += VertexId == 1 || VertexId == 2 || VertexId == 4 ? 1.0f : 0.0f;
-	TexCoord.y += VertexId == 2 || VertexId == 4 || VertexId == 5 ? 1.0f : 0.0f;
-
-	uint CardTileIndex = InstanceId.x;
-	uint NumCardTiles = CardTileAllocator[CardScatterInstanceIndex];
-
-	CardInterpolants = (FCardVSToPS)0;
-	OutPosition = 0;
-
-	if (CardTileIndex < NumCardTiles)
-	{
-		FCardTileData CardTile = UnpackCardTileData(CardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + CardTileIndex]);
-		FLumenCardPageData CardPage = GetLumenCardPageData(CardTile.CardPageIndex);
-
-		float2 AtlasUV = CardPage.PhysicalAtlasUVRect.xy + CardPage.PhysicalAtlasUVTexelScale * CARD_TILE_SIZE * (CardTile.TileCoord + TexCoord);
-		float2 CardUV = CardPage.CardUVRect.xy + CardPage.CardUVTexelScale * CARD_TILE_SIZE * (CardTile.TileCoord + TexCoord);
-
-		float2 ScreenPosition = float2(2.0f, -2.0f) * AtlasUV + float2(-1.0f, 1.0f);
-		OutPosition = float4(ScreenPosition, 0, 1);
-
-		CardInterpolants.AtlasUV = AtlasUV;
-		CardInterpolants.IndirectLightingAtlasUV = float2(0.0f, 0.0f);
-		CardInterpolants.CardUV = CardUV;
-		CardInterpolants.CardTileIndex = CardTileIndex;
-		CardInterpolants.CardPageIndex = CardTile.CardPageIndex;
 	}
 }
 

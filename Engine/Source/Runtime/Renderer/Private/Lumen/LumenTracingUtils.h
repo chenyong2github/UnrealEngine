@@ -12,7 +12,6 @@
 #include "IndirectLightRendering.h"
 #include "LumenProbeHierarchy.h"
 
-class FLumenCardTileScatterParameters;
 class FLumenCardUpdateContext;
 
 class FHemisphereDirectionSampleGenerator

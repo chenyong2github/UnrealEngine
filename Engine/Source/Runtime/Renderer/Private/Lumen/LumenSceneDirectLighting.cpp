@@ -48,10 +48,10 @@ FAutoConsoleVariableRef CVarLumenDirectLightingOffscreenShadowingTraceMeshSDFs(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenDirectLightingBatchSize = 16;
-FAutoConsoleVariableRef CVarLumenDirectLightingBatchSize(
-	TEXT("r.LumenScene.DirectLighting.BatchSize"),
-	GLumenDirectLightingBatchSize,
+int32 GLumenDirectLightingMaxLightsPerTile = 8;
+FAutoConsoleVariableRef CVarLumenDirectLightinggMaxLightsPerTile(
+	TEXT("r.LumenScene.DirectLighting.MaxLightsPerTile"),
+	GLumenDirectLightingMaxLightsPerTile,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -130,7 +130,202 @@ float Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance()
 	return FMath::Max(GOffscreenShadowingMaxTraceDistance, 0.0f);
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardsParamaters, )
+class FLumenGatheredLight
+{
+public:
+	FLumenGatheredLight(const FLightSceneInfo* InLightSceneInfo, uint32 InLightIndex)
+	{
+		LightIndex = InLightIndex;
+		LightSceneInfo = InLightSceneInfo;
+		bHasShadows = InLightSceneInfo->Proxy->CastsDynamicShadow();
+
+		Type = ELumenLightType::MAX;
+		const ELightComponentType LightType = (ELightComponentType)InLightSceneInfo->Proxy->GetLightType();
+		switch (LightType)
+		{
+			case LightType_Directional: Type = ELumenLightType::Directional;	break;
+			case LightType_Point:		Type = ELumenLightType::Point;			break;
+			case LightType_Spot:		Type = ELumenLightType::Spot;			break;
+			case LightType_Rect:		Type = ELumenLightType::Rect;			break;
+		}
+
+		FSceneRenderer::GetLightNameForDrawEvent(InLightSceneInfo->Proxy, Name);
+	}
+
+	const FLightSceneInfo* LightSceneInfo = nullptr;
+	uint32 LightIndex = 0;
+	ELumenLightType Type = ELumenLightType::MAX;
+	bool bHasShadows = false;
+	FString Name;
+};
+
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenLightTileScatterParameters, )
+	RDG_BUFFER_ACCESS(DrawIndirectArgs, ERHIAccess::IndirectArgs)
+	RDG_BUFFER_ACCESS(DispatchIndirectArgs, ERHIAccess::IndirectArgs)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, LightTiles)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileOffsetsPerLight)
+END_SHADER_PARAMETER_STRUCT()
+
+class FRasterizeToLightTilesVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRasterizeToLightTilesVS);
+	SHADER_USE_PARAMETER_STRUCT(FRasterizeToLightTilesVS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenLightTileScatterParameters, LightTileScatterParameters)
+		SHADER_PARAMETER(uint32, LightIndex)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRasterizeToLightTilesVS,"/Engine/Private/Lumen/LumenSceneDirectLightingCulling.usf","RasterizeToLightTilesVS",SF_Vertex);
+
+class FBuildLightTilesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FBuildLightTilesCS);
+	SHADER_USE_PARAMETER_STRUCT(FBuildLightTilesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLumenPackedLight>, LumenPackedLights)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWLightTileAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWLightTiles)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWLightTileAllocatorPerLight)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageIndexAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageIndexData)
+		SHADER_PARAMETER(uint32, MaxLightsPerTile)
+		SHADER_PARAMETER(uint32, NumLights)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 8;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FBuildLightTilesCS, "/Engine/Private/Lumen/LumenSceneDirectLightingCulling.usf", "BuildLightTilesCS", SF_Compute);
+
+class FComputeLightTileOffsetsPerLightCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FComputeLightTileOffsetsPerLightCS)
+	SHADER_USE_PARAMETER_STRUCT(FComputeLightTileOffsetsPerLightCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWLightTileOffsetsPerLight)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocatorPerLight)
+		SHADER_PARAMETER(uint32, NumLights)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		return 64;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FComputeLightTileOffsetsPerLightCS, "/Engine/Private/Lumen/LumenSceneDirectLightingCulling.usf", "ComputeLightTileOffsetsPerLightCS", SF_Compute);
+
+class FCompactLightTilesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCompactLightTilesCS);
+	SHADER_USE_PARAMETER_STRUCT(FCompactLightTilesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCompactedLightTiles)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWLightTileAllocatorPerLight)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, LightTiles)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileOffsetsPerLight)
+		SHADER_PARAMETER(uint32, NumLights)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 64;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCompactLightTilesCS, "/Engine/Private/Lumen/LumenSceneDirectLightingCulling.usf", "CompactLightTilesCS", SF_Compute);
+
+class FInitializeLightTileIndirectArgsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FInitializeLightTileIndirectArgsCS)
+	SHADER_USE_PARAMETER_STRUCT(FInitializeLightTileIndirectArgsCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWDispatchLightTilesIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWDrawTilesPerLightIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWDispatchTilesPerLightIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocatorPerLight)
+		SHADER_PARAMETER(uint32, VertexCountPerInstanceIndirect)
+		SHADER_PARAMETER(uint32, NumLights)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		return 64;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FInitializeLightTileIndirectArgsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingCulling.usf", "InitializeLightTileIndirectArgsCS", SF_Compute)
+
+BEGIN_SHADER_PARAMETER_STRUCT(FClearLumenCardsParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FClearLumenCardsPS::FParameters, PS)
 	RENDER_TARGET_BINDING_SLOTS()
@@ -141,14 +336,15 @@ void ClearLumenSceneDirectLighting(
 	FRDGBuilder& GraphBuilder,
 	const FLumenSceneData& LumenSceneData,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenCardScatterContext& VisibleCardScatterContext)
+	const FLumenCardUpdateContext& CardUpdateContext)
 {
-	FClearLumenCardsParamaters* PassParameters = GraphBuilder.AllocParameters<FClearLumenCardsParamaters>();
+	FClearLumenCardsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenCardsParameters>();
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.DirectLightingAtlas, ERenderTargetLoadAction::ENoAction);
 	PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
-	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.CardPageParameters;
-	PassParameters->VS.CardScatterInstanceIndex = 0;
+	PassParameters->VS.DrawIndirectArgs = CardUpdateContext.DrawCardPageIndicesIndirectArgs;
+	PassParameters->VS.CardPageIndexAllocator = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexAllocator);
+	PassParameters->VS.CardPageIndexData = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexData);
 	PassParameters->VS.IndirectLightingAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 	PassParameters->PS.View = View.ViewUniformBuffer;
 	PassParameters->PS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
@@ -157,13 +353,25 @@ void ClearLumenSceneDirectLighting(
 		RDG_EVENT_NAME("ClearDirectLighting"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandList& RHICmdList)
+		[ViewportSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandList& RHICmdList)
 	{
 		FClearLumenCardsPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(1);
 		auto PixelShader = GlobalShaderMap->GetShader<FClearLumenCardsPS>(PermutationVector);
 
-		DrawQuadsToAtlas(MaxAtlasSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
+		auto VertexShader = GlobalShaderMap->GetShader<FRasterizeToCardsVS>();
+
+		DrawQuadsToAtlas(
+			ViewportSize,
+			VertexShader,
+			PixelShader,
+			PassParameters,
+			GlobalShaderMap,
+			TStaticBlendState<>::GetRHI(),
+			RHICmdList,
+			[](FRHICommandList& RHICmdList, TShaderRefBase<FClearLumenCardsPS, FShaderMapPointerTable> Shader, FRHIPixelShader* ShaderRHI, const typename FClearLumenCardsPS::FParameters& Parameters) {},
+			PassParameters->VS.DrawIndirectArgs,
+			0);
 	});
 }
 
@@ -214,7 +422,6 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightFunctionParameters, LightFunctionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightCloudTransmittanceParameters, LightCloudTransmittanceParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ShadowMaskTiles)
-		SHADER_PARAMETER(uint32, ShadowMaskTilesOffset)
 		SHADER_PARAMETER(uint32, UseIESProfile)
 		SHADER_PARAMETER_TEXTURE(Texture2D,IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,IESTextureSampler)
@@ -270,11 +477,11 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowMaskTiles)
-		SHADER_PARAMETER(uint32, ShadowMaskTilesOffset)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenLightTileScatterParameters, LightTileScatterParameters)
 		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
+		SHADER_PARAMETER(uint32, LightIndex)
 		SHADER_PARAMETER(uint32, DummyZeroForFixingShaderCompilerBug)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
@@ -326,11 +533,10 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowMaskTiles)
-		SHADER_PARAMETER(uint32, ShadowMaskTilesOffset)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
-		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenLightTileScatterParameters, LightTileScatterParameters)
+		SHADER_PARAMETER(uint32, LightIndex)
 		SHADER_PARAMETER(uint32, DummyZeroForFixingShaderCompilerBug)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
@@ -383,7 +589,7 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 IMPLEMENT_GLOBAL_SHADER(FLumenSceneDirectLightingTraceDistanceFieldShadowsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingShadowMask.usf", "LumenSceneDirectLightingTraceDistanceFieldShadowsCS", SF_Compute);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardDirectLighting, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardTilesVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToLightTilesVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardDirectLightingPS::FParameters, PS)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -553,53 +759,15 @@ FLumenShadowSetup GetShadowForLumenDirectLighting(const FViewInfo& View, FVisibl
 
 const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FVisibleLightInfo & VisibleLightInfo);
 
-void SetupLumenLight(
-	FRDGBuilder& GraphBuilder, 
-	const FLumenSceneData& LumenSceneData, 
-	const FLightSceneInfo* LightSceneInfo, 
-	int32 LightIndexInBatch, 
-	uint32 ShadowMaskTilesStride, 
-	uint32 CardScatterInstanceIndex,
-	FLumenLight& LumenLight)
-{
-	LumenLight.LightSceneInfo = LightSceneInfo;
-	FSceneRenderer::GetLightNameForDrawEvent(LightSceneInfo->Proxy, LumenLight.Name);
-
-	const ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
-	LumenLight.Type = ELumenLightType::MAX;
-	{
-		switch (LightType)
-		{
-		case LightType_Directional: LumenLight.Type = ELumenLightType::Directional;	break;
-		case LightType_Point:		LumenLight.Type = ELumenLightType::Point;		break;
-		case LightType_Spot:		LumenLight.Type = ELumenLightType::Spot;		break;
-		case LightType_Rect:		LumenLight.Type = ELumenLightType::Rect;		break;
-		}
-		check(LumenLight.Type != ELumenLightType::MAX);
-	}
-
-	if (LightSceneInfo->Proxy->CastsDynamicShadow())
-	{
-		LumenLight.ShadowMaskTilesOffset = LightIndexInBatch * ShadowMaskTilesStride;
-	}
-	else
-	{
-		LumenLight.ShadowMaskTilesOffset = UINT32_MAX;
-	}
-
-	LumenLight.CardScatterInstanceIndex = CardScatterInstanceIndex;
-}
-
 void RenderDirectLightIntoLumenCards(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenCardRenderer& LumenCardRenderer,
 	const FEngineShowFlags& EngineShowFlags,
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-	const FLumenLight& LumenLight,
-	const FLumenCardScatterContext& CardScatterContext,
+	const FLumenGatheredLight& Light,
+	const FLumenLightTileScatterParameters& LightTileScatterParameters,
 	FRDGBufferSRVRef ShadowMaskTilesSRV)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
@@ -608,21 +776,20 @@ void RenderDirectLightIntoLumenCards(
 	{
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(TracingInputs.DirectLightingAtlas, ERenderTargetLoadAction::ELoad);
 		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
-		PassParameters->VS.CardScatterParameters = CardScatterContext.CardTileParameters;
-		PassParameters->VS.CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
+		PassParameters->VS.LightTileScatterParameters = LightTileScatterParameters;
+		PassParameters->VS.LightIndex = Light.LightIndex;
 
 		PassParameters->PS.View = View.ViewUniformBuffer;
 		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
-		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, LumenLight.LightSceneInfo, PassParameters->PS.DeferredLightUniforms);
+		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, Light.LightSceneInfo, PassParameters->PS.DeferredLightUniforms);
 
-		SetupLightFunctionParameters(LumenLight.LightSceneInfo, 1.0f, PassParameters->PS.LightFunctionParameters);
+		SetupLightFunctionParameters(Light.LightSceneInfo, 1.0f, PassParameters->PS.LightFunctionParameters);
 
 		PassParameters->PS.ShadowMaskTiles = ShadowMaskTilesSRV;
-		PassParameters->PS.ShadowMaskTilesOffset = LumenLight.ShadowMaskTilesOffset;
 
 		// IES profile
 		{
-			FTexture* IESTextureResource = LumenLight.LightSceneInfo->Proxy->GetIESTextureResource();
+			FTexture* IESTextureResource = Light.LightSceneInfo->Proxy->GetIESTextureResource();
 
 			if (View.Family->EngineShowFlags.TexturedLightProfiles && IESTextureResource)
 			{
@@ -639,8 +806,9 @@ void RenderDirectLightIntoLumenCards(
 		}
 	}
 
-	auto VertexShader = View.ShaderMap->GetShader<FRasterizeToCardTilesVS>();
-	const FMaterialRenderProxy* LightFunctionMaterialProxy = LumenLight.LightSceneInfo->Proxy->GetLightFunctionMaterial();
+	auto VertexShader = View.ShaderMap->GetShader<FRasterizeToLightTilesVS>();
+
+	const FMaterialRenderProxy* LightFunctionMaterialProxy = Light.LightSceneInfo->Proxy->GetLightFunctionMaterial();
 	bool bUseLightFunction = true;
 
 	if (!LightFunctionMaterialProxy
@@ -651,14 +819,18 @@ void RenderDirectLightIntoLumenCards(
 		LightFunctionMaterialProxy = UMaterial::GetDefaultMaterial(MD_LightFunction)->GetRenderProxy();
 	}
 
-	const bool bUseCloudTransmittance = SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, GLumenDirectLightingCloudTransmittance != 0 ? LumenLight.LightSceneInfo : nullptr, PassParameters->PS.LightCloudTransmittanceParameters);
+	const bool bUseCloudTransmittance = SetupLightCloudTransmittanceParameters(
+		GraphBuilder,
+		Scene,
+		View,
+		GLumenDirectLightingCloudTransmittance != 0 ? Light.LightSceneInfo : nullptr,
+		PassParameters->PS.LightCloudTransmittanceParameters);
 
 	FLumenCardDirectLightingPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLumenCardDirectLightingPS::FLightType>(LumenLight.Type);
-	PermutationVector.Set<FLumenCardDirectLightingPS::FShadowMask>(LumenLight.HasShadowMask());
+	PermutationVector.Set<FLumenCardDirectLightingPS::FLightType>(Light.Type);
+	PermutationVector.Set<FLumenCardDirectLightingPS::FShadowMask>(Light.bHasShadows);
 	PermutationVector.Set<FLumenCardDirectLightingPS::FLightFunction>(bUseLightFunction);
 	PermutationVector.Set<FLumenCardDirectLightingPS::FCloudTransmittance>(bUseCloudTransmittance);
-	
 	PermutationVector = FLumenCardDirectLightingPS::RemapPermutation(PermutationVector);
 
 	const FMaterial& Material = LightFunctionMaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), LightFunctionMaterialProxy);
@@ -667,10 +839,10 @@ void RenderDirectLightIntoLumenCards(
 
 	ClearUnusedGraphResources(PixelShader, &PassParameters->PS);
 
-	const uint32 DrawIndirectArgOffset = LumenLight.CardScatterInstanceIndex * sizeof(FRHIDrawIndirectParameters);
+	const uint32 DrawIndirectArgOffset = Light.LightIndex * sizeof(FRHIDrawIndirectParameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("%s %s", *LumenLight.Name, LumenLight.HasShadowMask() ? TEXT("ShadowMask") : TEXT("")),
+		RDG_EVENT_NAME("%s %s", *Light.Name),
 		PassParameters,
 		ERDGPassFlags::Raster,
 		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, &Material, &View, DrawIndirectArgOffset](FRHICommandList& RHICmdList)
@@ -687,6 +859,7 @@ void RenderDirectLightIntoLumenCards(
 				{
 					Shader->SetParameters(RHICmdList, ShaderRHI, LightFunctionMaterialProxy, Material, View);
 				},
+				PassParameters->VS.LightTileScatterParameters.DrawIndirectArgs,
 				DrawIndirectArgOffset);
 		});
 }
@@ -698,15 +871,14 @@ void SampleShadowMap(
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FLumenLight& LumenLight,
-	const FLumenCardScatterContext& CardScatterContext,
+	const FLumenGatheredLight& Light,
+	const FLumenLightTileScatterParameters& LightTileScatterParameters,
 	FRDGBufferUAVRef ShadowMaskTilesUAV)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-	const bool bShadowed = LumenLight.LightSceneInfo->Proxy->CastsDynamicShadow();
-	check(bShadowed);
+	check(Light.bHasShadows);
 
-	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LumenLight.LightSceneInfo->Id];
+	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[Light.LightSceneInfo->Id];
 	FLumenShadowSetup ShadowSetup = GetShadowForLumenDirectLighting(View, VisibleLightInfo);
 
 	const bool bUseVirtualShadowMap = ShadowSetup.VirtualShadowMapId != INDEX_NONE;
@@ -719,22 +891,22 @@ void SampleShadowMap(
 
 	FLumenDirectLightingSampleShadowMapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenDirectLightingSampleShadowMapCS::FParameters>();
 	{
-		PassParameters->IndirectArgBuffer = CardScatterContext.CardTileParameters.DispatchIndirectArgs;
+		PassParameters->IndirectArgBuffer = LightTileScatterParameters.DispatchIndirectArgs;
 		PassParameters->RWShadowMaskTiles = ShadowMaskTilesUAV;
-		PassParameters->ShadowMaskTilesOffset = LumenLight.ShadowMaskTilesOffset;
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
-		PassParameters->CardScatterParameters = CardScatterContext.CardTileParameters;
-		PassParameters->CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
+		PassParameters->LightTileScatterParameters = LightTileScatterParameters;
+		PassParameters->CardScatterInstanceIndex = 0;
+		PassParameters->LightIndex = Light.LightIndex;
 		PassParameters->DummyZeroForFixingShaderCompilerBug = 0;
-		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, LumenLight.LightSceneInfo, PassParameters->DeferredLightUniforms);
+		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, Light.LightSceneInfo, PassParameters->DeferredLightUniforms);
 		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
 		GetVolumeShadowingShaderParameters(
 			GraphBuilder,
 			View,
-			LumenLight.LightSceneInfo,
+			Light.LightSceneInfo,
 			ShadowSetup.DenseShadowMap,
 			0,
 			bUseDenseShadowMap,
@@ -746,7 +918,7 @@ void SampleShadowMap(
 			PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		}
 
-		PassParameters->TanLightSourceAngle = FMath::Tan(LumenLight.LightSceneInfo->Proxy->GetLightSourceAngle());
+		PassParameters->TanLightSourceAngle = FMath::Tan(Light.LightSceneInfo->Proxy->GetLightSourceAngle());
 		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
@@ -757,7 +929,7 @@ void SampleShadowMap(
 	}
 
 	FLumenDirectLightingSampleShadowMapCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FLightType>(LumenLight.Type);
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FVirtualShadowMap>(bUseVirtualShadowMap);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDynamicallyShadowed>(bUseDenseShadowMap);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDenseShadowMap>(bUseDenseShadowMap);
@@ -765,11 +937,11 @@ void SampleShadowMap(
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("ShadowMapPass %s", *LumenLight.Name),
+		RDG_EVENT_NAME("ShadowMapPass %s", *Light.Name),
 		ComputeShader,
 		PassParameters,
-		CardScatterContext.CardTileParameters.DispatchIndirectArgs,
-		LumenLight.CardScatterInstanceIndex * sizeof(FRHIDispatchIndirectParameters));
+		LightTileScatterParameters.DispatchIndirectArgs,
+		Light.LightIndex * sizeof(FRHIDispatchIndirectParameters));
 }
 
 void TraceDistanceFieldShadows(
@@ -777,13 +949,12 @@ void TraceDistanceFieldShadows(
 	const FScene* Scene,
 	const FViewInfo& View,
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-	const FLumenLight& LumenLight,
-	const FLumenCardScatterContext& CardScatterContext,
+	const FLumenGatheredLight& Light,
+	const FLumenLightTileScatterParameters& LightTileScatterParameters,
 	FRDGBufferUAVRef ShadowMaskTilesUAV)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-	const bool bShadowed = LumenLight.LightSceneInfo->Proxy->CastsDynamicShadow();
-	check(bShadowed);
+	check(Light.bHasShadows);
 
 	FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
 
@@ -791,9 +962,8 @@ void TraceDistanceFieldShadows(
 	FDistanceFieldCulledObjectBufferParameters CulledObjectBufferParameters;
 	FMatrix WorldToMeshSDFShadowValue = FMatrix::Identity;
 
-	const bool bLumenUseHardwareRayTracedDirectLighting = Lumen::UseHardwareRayTracedDirectLighting();
-	const bool bTraceMeshSDFs = bShadowed
-		&& LumenLight.Type == ELumenLightType::Directional
+	const bool bTraceMeshSDFs = Light.bHasShadows
+		&& Light.Type == ELumenLightType::Directional
 		&& DoesPlatformSupportDistanceFieldShadowing(View.GetShaderPlatform())
 		&& GLumenDirectLightingOffscreenShadowingTraceMeshSDFs != 0
 		&& Lumen::UseMeshSDFTracing()
@@ -801,21 +971,20 @@ void TraceDistanceFieldShadows(
 
 	if (bTraceMeshSDFs)
 	{
-		CullMeshSDFsForLightCards(GraphBuilder, Scene, View, LumenLight.LightSceneInfo, ObjectBufferParameters, WorldToMeshSDFShadowValue, CulledObjectBufferParameters, LightTileIntersectionParameters);
+		CullMeshSDFsForLightCards(GraphBuilder, Scene, View, Light.LightSceneInfo, ObjectBufferParameters, WorldToMeshSDFShadowValue, CulledObjectBufferParameters, LightTileIntersectionParameters);
 	}
 
 	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FParameters>();
 	{
-		PassParameters->IndirectArgBuffer = CardScatterContext.CardTileParameters.DispatchIndirectArgs;
+		PassParameters->IndirectArgBuffer = LightTileScatterParameters.DispatchIndirectArgs;
 		PassParameters->RWShadowMaskTiles = ShadowMaskTilesUAV;
-		PassParameters->ShadowMaskTilesOffset = LumenLight.ShadowMaskTilesOffset;
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
-		PassParameters->CardScatterParameters = CardScatterContext.CardTileParameters;
-		PassParameters->CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
+		PassParameters->LightTileScatterParameters = LightTileScatterParameters;
+		PassParameters->LightIndex = Light.LightIndex;
 		PassParameters->DummyZeroForFixingShaderCompilerBug = 0;
-		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, LumenLight.LightSceneInfo, PassParameters->DeferredLightUniforms);
+		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, Light.LightSceneInfo, PassParameters->DeferredLightUniforms);
 
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;
@@ -828,7 +997,7 @@ void TraceDistanceFieldShadows(
 		extern float GTwoSidedMeshDistanceBias;
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 
-		PassParameters->TanLightSourceAngle = FMath::Tan(LumenLight.LightSceneInfo->Proxy->GetLightSourceAngle());
+		PassParameters->TanLightSourceAngle = FMath::Tan(Light.LightSceneInfo->Proxy->GetLightSourceAngle());
 		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 		PassParameters->StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
@@ -837,7 +1006,7 @@ void TraceDistanceFieldShadows(
 	}
 
 	FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(LumenLight.Type);
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 	PermutationVector = FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::RemapPermutation(PermutationVector);
 
@@ -845,11 +1014,104 @@ void TraceDistanceFieldShadows(
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("DistanceFieldShadowPass %s", *LumenLight.Name),
+		RDG_EVENT_NAME("DistanceFieldShadowPass %s", *Light.Name),
 		ComputeShader,
 		PassParameters,
-		CardScatterContext.CardTileParameters.DispatchIndirectArgs,
-		LumenLight.CardScatterInstanceIndex * sizeof(FRHIDispatchIndirectParameters));
+		LightTileScatterParameters.DispatchIndirectArgs,
+		Light.LightIndex * sizeof(FRHIDispatchIndirectParameters));
+}
+
+// Must match FLumenPackedLight in LumenSceneDirectLighting.ush
+struct FLumenPackedLight
+{
+	FVector3f Position;
+	float InvRadius;
+
+	FVector3f Color;
+	float FalloffExponent;
+
+	FVector3f Direction;
+	float SpecularScale;
+
+	FVector3f Tangent;
+	float SourceRadius;
+
+	FVector2f SpotAngles;
+	float SoftSourceRadius;
+	float SourceLength;
+
+	float RectLightBarnCosAngle;
+	float RectLightBarnLength;
+	uint32 LightType;
+	uint32 VirtualShadowMapId;
+
+	FVector4f InfluenceSphere;
+
+	FVector3f ProxyPosition;
+	float ProxyRadius;
+
+	FVector3f ProxyDirection;
+	float CosConeAngle;
+	
+	float SinConeAngle;
+	FVector3f Padding;
+};
+
+FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View, const TArray<FLumenGatheredLight, TInlineAllocator<64>>& GatheredLights)
+{
+	TArray<FLumenPackedLight, TInlineAllocator<16>> PackedLightData;
+	PackedLightData.SetNum(FMath::RoundUpToPowerOfTwo(FMath::Max(GatheredLights.Num(), 16)));
+
+	for (int32 LightIndex = 0; LightIndex < GatheredLights.Num(); ++LightIndex)
+	{
+		const FLightSceneInfo* LightSceneInfo = GatheredLights[LightIndex].LightSceneInfo;
+		const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
+
+		FLightShaderParameters ShaderParameters;
+		LightSceneInfo->Proxy->GetLightShaderParameters(ShaderParameters);
+
+		if (LightSceneInfo->Proxy->IsInverseSquared())
+		{
+			ShaderParameters.FalloffExponent = 0;
+		}
+		ShaderParameters.Color *= LightSceneInfo->Proxy->GetIndirectLightingScale();
+
+		FLumenPackedLight& LightData = PackedLightData[LightIndex];
+		LightData.Position = ShaderParameters.Position;
+		LightData.InvRadius = ShaderParameters.InvRadius;
+
+		LightData.Color = ShaderParameters.Color;
+		LightData.FalloffExponent = ShaderParameters.FalloffExponent;
+
+		LightData.Direction = ShaderParameters.Direction;
+		LightData.SpecularScale = ShaderParameters.SpecularScale;
+
+		LightData.Tangent = ShaderParameters.Tangent;
+		LightData.SourceRadius = ShaderParameters.SourceRadius;
+
+		LightData.SpotAngles = ShaderParameters.SpotAngles;
+		LightData.SoftSourceRadius = ShaderParameters.SoftSourceRadius;
+		LightData.SourceLength = ShaderParameters.SourceLength;
+
+		LightData.RectLightBarnCosAngle = ShaderParameters.RectLightBarnCosAngle;
+		LightData.RectLightBarnLength = ShaderParameters.RectLightBarnLength;
+		LightData.LightType = LightSceneInfo->Proxy->GetLightType();
+		LightData.VirtualShadowMapId = 0;
+
+		LightData.InfluenceSphere = FVector4f(LightBounds.Center, LightBounds.W);
+
+		LightData.ProxyPosition = FVector3f(LightSceneInfo->Proxy->GetPosition());
+		LightData.ProxyRadius = LightSceneInfo->Proxy->GetRadius();
+
+		LightData.ProxyDirection = LightSceneInfo->Proxy->GetDirection();
+		LightData.CosConeAngle = FMath::Cos(LightSceneInfo->Proxy->GetOuterConeAngle());
+
+		LightData.SinConeAngle = FMath::Sin(LightSceneInfo->Proxy->GetOuterConeAngle());
+		LightData.Padding = FVector3f(0.0f, 0.0f, 0.0f);
+	}
+
+	FRDGBufferRef LightDataBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Lumen.DirectLighting.Lights"), PackedLightData);
+	return LightDataBuffer;
 }
 
 void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
@@ -870,27 +1132,14 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = TracingInputs.LumenCardSceneUniformBuffer;
 
-		// Build the indirect args to write to the card faces we are going to update direct lighting for this frame
-		FLumenCardScatterContext VisibleCardScatterContext;
-		VisibleCardScatterContext.Build(
-			GraphBuilder,
-			View,
-			LumenSceneData,
-			LumenCardRenderer,
-			TracingInputs.LumenCardSceneUniformBuffer,
-			CardUpdateContext,
-			/*bBuildCardTiles*/ true,
-			FCullCardsShapeParameters(),
-			ECullCardsShapeType::None);
-
 		ClearLumenSceneDirectLighting(
 			View,
 			GraphBuilder,
 			LumenSceneData,
 			TracingInputs,
-			VisibleCardScatterContext);
+			CardUpdateContext);
 
-		TArray<const FLightSceneInfo*, TInlineAllocator<64>> GatheredLights;
+		TArray<FLumenGatheredLight, TInlineAllocator<64>> GatheredLights;
 
 		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 		{
@@ -901,193 +1150,227 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 				&& LightSceneInfo->ShouldRenderLight(View, true)
 				&& LightSceneInfo->Proxy->GetIndirectLightingScale() > 0.0f)
 			{
-				GatheredLights.Add(LightSceneInfo);
+				const FLumenGatheredLight GatheredLight(LightSceneInfo, /*LightIndex*/ GatheredLights.Num());
+				GatheredLights.Add(GatheredLight);
 			}
 		}
 
-		const int32 LightBatchSize = FMath::Clamp(GLumenDirectLightingBatchSize, 1, 64);
+		FRDGBufferRef LumenPackedLights = CreateLumenLightDataBuffer(GraphBuilder, View, GatheredLights);
 
-		TArray<FLumenLight, SceneRenderingAllocator> LumenLights;
-		LumenLights.SetNum(LightBatchSize);
-
-		FLumenCardScatterContext CardScatterContext;
-		TArray<FLumenCardScatterInstance, SceneRenderingAllocator> CardScatterInstances;
-		CardScatterInstances.Reserve(LightBatchSize);
+		const uint32 MaxLightTilesTilesX = FMath::DivideAndRoundUp<uint32>(CardUpdateContext.UpdateAtlasSize.X, Lumen::CardTileSize);
+		const uint32 MaxLightTilesTilesY = FMath::DivideAndRoundUp<uint32>(CardUpdateContext.UpdateAtlasSize.Y, Lumen::CardTileSize);
+		const uint32 MaxLightTiles = MaxLightTilesTilesX * MaxLightTilesTilesY;
+		const uint32 NumLightsRoundedUp = FMath::RoundUpToPowerOfTwo(FMath::Max(GatheredLights.Num(), 1));
+		const uint32 MaxLightsPerTile = FMath::Max(GLumenDirectLightingMaxLightsPerTile, 1);
+		const uint32 MaxCulledCardTiles = MaxLightsPerTile * MaxLightTiles;
 
 		// 2 bits per shadow mask texel
-		const int32 ShadowMaskTileSize = Lumen::CardTileSize;
-		const uint32 MaxShadowMaskX = FMath::DivideAndRoundUp(CardUpdateContext.UpdateAtlasSize.X, ShadowMaskTileSize);
-		const uint32 MaxShadowMaskY = FMath::DivideAndRoundUp(CardUpdateContext.UpdateAtlasSize.Y, ShadowMaskTileSize);
-		const uint32 ShadowMaskTilesStride = 4 * MaxShadowMaskX * MaxShadowMaskY;
-		const uint32 ShadowMaskTilesSize = FMath::Max(LightBatchSize * ShadowMaskTilesStride, 1024u);
-		FRDGBufferRef ShadowMaskTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), ShadowMaskTilesSize), TEXT("Lumen.ShadowMaskTiles"));
+		const uint32 ShadowMaskTilesSize = FMath::Max(4 * MaxCulledCardTiles, 1024u);
+		FRDGBufferRef ShadowMaskTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), ShadowMaskTilesSize), TEXT("Lumen.DirectLighting.ShadowMaskTiles"));
 
-		// Batched light culling and drawing
-		for (int32 LightBatchIndex = 0; LightBatchIndex * LightBatchSize < GatheredLights.Num(); ++LightBatchIndex)
+		FRDGBufferRef LightTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.DirectLighting.LightTileAllocator"));
+		FRDGBufferRef LightTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(2 * sizeof(uint32), MaxCulledCardTiles), TEXT("Lumen.DirectLighting.LightTiles"));
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(LightTileAllocator), 0);
+
+		FRDGBufferRef LightTileAllocatorPerLight = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumLightsRoundedUp), TEXT("Lumen.DirectLighting.LightTileAllocatorPerLight"));
+		FRDGBufferRef LightTileOffsetsPerLight = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumLightsRoundedUp), TEXT("Lumen.DirectLighting.LightTileOffsetsPerLight"));
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(LightTileAllocatorPerLight), 0);
+
+		// Build a list of light tiles for future processing
 		{
-			const int32 FirstLightIndex = LightBatchIndex * LightBatchSize;
-			const int32 LastLightIndex = FMath::Min((LightBatchIndex + 1) * LightBatchSize, GatheredLights.Num());
-			RDG_EVENT_SCOPE(GraphBuilder, "Batch draw %d lights", LastLightIndex - FirstLightIndex);
+			FBuildLightTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildLightTilesCS::FParameters>();
+			PassParameters->IndirectArgBuffer = CardUpdateContext.DispatchCardPageIndicesIndirectArgs;
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
+			PassParameters->LumenPackedLights = GraphBuilder.CreateSRV(LumenPackedLights);
+			PassParameters->RWLightTileAllocator = GraphBuilder.CreateUAV(LightTileAllocator);
+			PassParameters->RWLightTiles = GraphBuilder.CreateUAV(LightTiles);
+			PassParameters->RWLightTileAllocatorPerLight = GraphBuilder.CreateUAV(LightTileAllocatorPerLight);
+			PassParameters->CardPageIndexAllocator = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexAllocator);
+			PassParameters->CardPageIndexData = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexData);
+			PassParameters->MaxLightsPerTile = MaxLightsPerTile;
+			PassParameters->NumLights = GatheredLights.Num();
+			auto ComputeShader = View.ShaderMap->GetShader<FBuildLightTilesCS>();
 
-			// Build card tiles and setup Lumen lights
-			for (int32 LightIndex = FirstLightIndex; LightIndex < LastLightIndex; ++LightIndex)
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("BuildLightTiles"),
+				ComputeShader,
+				PassParameters,
+				CardUpdateContext.DispatchCardPageIndicesIndirectArgs,
+				FLumenCardUpdateContext::EIndirectArgOffset::ThreadPerTile);
+		}
+
+		// Compute prefix sum for card tile array
+		{
+			FComputeLightTileOffsetsPerLightCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeLightTileOffsetsPerLightCS::FParameters>();
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->RWLightTileOffsetsPerLight = GraphBuilder.CreateUAV(LightTileOffsetsPerLight);
+			PassParameters->LightTileAllocatorPerLight = GraphBuilder.CreateSRV(LightTileAllocatorPerLight);
+			PassParameters->NumLights = GatheredLights.Num();
+
+			auto ComputeShader = View.ShaderMap->GetShader<FComputeLightTileOffsetsPerLightCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ComputeLightTileOffsetsPerLight"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(1, 1, 1));
+		}
+
+		enum EDispatchTilesIndirectArgOffset
+		{
+			GroupPerTile = 0 * sizeof(FRHIDispatchIndirectParameters),
+			ThreadPerTile = 0 * sizeof(FRHIDispatchIndirectParameters),
+			MAX = 2,
+		};
+
+		// Initialize indirect args for culled tiles
+		FRDGBufferRef DispatchLightTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(EDispatchTilesIndirectArgOffset::MAX), TEXT("Lumen.DirectLighting.DispatchLightTilesIndirectArgs"));
+		FRDGBufferRef DrawTilesPerLightIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(NumLightsRoundedUp), TEXT("Lumen.DirectLighting.DrawTilesPerLightIndirectArgs"));
+		FRDGBufferRef DispatchTilesPerLightIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(NumLightsRoundedUp), TEXT("Lumen.DirectLighting.DispatchTilesPerLightIndirectArgs"));
+		{
+			FInitializeLightTileIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitializeLightTileIndirectArgsCS::FParameters>();
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->RWDispatchLightTilesIndirectArgs = GraphBuilder.CreateUAV(DispatchLightTilesIndirectArgs);
+			PassParameters->RWDrawTilesPerLightIndirectArgs = GraphBuilder.CreateUAV(DrawTilesPerLightIndirectArgs);
+			PassParameters->RWDispatchTilesPerLightIndirectArgs = GraphBuilder.CreateUAV(DispatchTilesPerLightIndirectArgs);
+			PassParameters->LightTileAllocator = GraphBuilder.CreateSRV(LightTileAllocator);
+			PassParameters->LightTileAllocatorPerLight = GraphBuilder.CreateSRV(LightTileAllocatorPerLight);
+			PassParameters->VertexCountPerInstanceIndirect = GRHISupportsRectTopology ? 3 : 6;
+			PassParameters->NumLights = GatheredLights.Num();
+
+			auto ComputeShader = View.ShaderMap->GetShader<FInitializeLightTileIndirectArgsCS>();
+
+			const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(GatheredLights.Num(), FInitializeLightTileIndirectArgsCS::GetGroupSize());
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("InitializeLightTileIndirectArgs"),
+				ComputeShader,
+				PassParameters,
+				GroupSize);
+		}
+
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(LightTileAllocatorPerLight), 0);
+
+		// Compact card tile array
+		{
+			FRDGBufferRef CompactedLightTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(2 * sizeof(uint32), MaxCulledCardTiles), TEXT("Lumen.DirectLighting.CompactedLightTiles"));
+
+			FCompactLightTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCompactLightTilesCS::FParameters>();
+			PassParameters->IndirectArgBuffer = DispatchLightTilesIndirectArgs;
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->RWCompactedLightTiles = GraphBuilder.CreateUAV(CompactedLightTiles);
+			PassParameters->RWLightTileAllocatorPerLight = GraphBuilder.CreateUAV(LightTileAllocatorPerLight);
+			PassParameters->LightTileAllocator = GraphBuilder.CreateSRV(LightTileAllocator);
+			PassParameters->LightTiles = GraphBuilder.CreateSRV(LightTiles);
+			PassParameters->LightTileOffsetsPerLight = GraphBuilder.CreateSRV(LightTileOffsetsPerLight);
+			PassParameters->NumLights = GatheredLights.Num();
+
+			auto ComputeShader = View.ShaderMap->GetShader<FCompactLightTilesCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("CompactLightTiles"),
+				ComputeShader,
+				PassParameters,
+				DispatchLightTilesIndirectArgs,
+				EDispatchTilesIndirectArgOffset::ThreadPerTile);
+
+			LightTiles = CompactedLightTiles;
+		}
+
+		FLumenLightTileScatterParameters LightTileScatterParameters;
+		LightTileScatterParameters.DrawIndirectArgs = DrawTilesPerLightIndirectArgs;
+		LightTileScatterParameters.DispatchIndirectArgs = DispatchTilesPerLightIndirectArgs;
+		LightTileScatterParameters.LightTileAllocator = GraphBuilder.CreateSRV(LightTileAllocator);
+		LightTileScatterParameters.LightTiles = GraphBuilder.CreateSRV(LightTiles);
+		LightTileScatterParameters.LightTileOffsetsPerLight = GraphBuilder.CreateSRV(LightTileOffsetsPerLight);
+
+		// Apply shadow map
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "Shadow map");
+
+			FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+			for (int32 LightIndex = 0; LightIndex < GatheredLights.Num(); ++LightIndex)
 			{
-				const int32 LightIndexInBatch = LightIndex - FirstLightIndex;
-				const FLightSceneInfo* LightSceneInfo = GatheredLights[LightIndex];
-				const ELightComponentType LightType = (ELightComponentType) LightSceneInfo->Proxy->GetLightType();
-				FLumenLight& LumenLight = LumenLights[LightIndexInBatch];
-
-				SetupLumenLight(
-					GraphBuilder,
-					LumenSceneData,
-					LightSceneInfo, 
-					LightIndexInBatch,
-					ShadowMaskTilesStride,
-					LightType == LightType_Directional ? 0 : CardScatterInstances.Num(),
-					LumenLight);
-
-				if (LightType != LightType_Directional)
+				const FLumenGatheredLight& GatheredLight = GatheredLights[LightIndex];
+				if (GatheredLight.bHasShadows)
 				{
-					const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
-					ECullCardsShapeType ShapeType = ECullCardsShapeType::None;
-
-					if (LightType == LightType_Point)
-					{
-						ShapeType = ECullCardsShapeType::PointLight;
-					}
-					else if (LightType == LightType_Spot)
-					{
-						ShapeType = ECullCardsShapeType::SpotLight;
-					}
-					else if (LightType == LightType_Rect)
-					{
-						ShapeType = ECullCardsShapeType::RectLight;
-					}
-					else
-					{
-						ensureMsgf(false, TEXT("Need Lumen card culling for new light type"));
-					}
-
-					FCullCardsShapeParameters ShapeParameters;
-					ShapeParameters.InfluenceSphere = FVector4f(LightBounds.Center, LightBounds.W);
-					ShapeParameters.LightPosition = FVector4f(LightSceneInfo->Proxy->GetPosition());
-					ShapeParameters.LightDirection = LightSceneInfo->Proxy->GetDirection();
-					ShapeParameters.LightRadius = LightSceneInfo->Proxy->GetRadius();
-					ShapeParameters.CosConeAngle = FMath::Cos(LightSceneInfo->Proxy->GetOuterConeAngle());
-					ShapeParameters.SinConeAngle = FMath::Sin(LightSceneInfo->Proxy->GetOuterConeAngle());
-
-					FLumenCardScatterInstance& CardScatterInstance = CardScatterInstances.AddDefaulted_GetRef();
-					CardScatterInstance.ShapeParameters = ShapeParameters;
-					CardScatterInstance.ShapeType = ShapeType;
+					SampleShadowMap(
+						GraphBuilder,
+						Scene,
+						View,
+						LumenCardSceneUniformBuffer,
+						VisibleLightInfos,
+						VirtualShadowMapArray,
+						GatheredLight,
+						LightTileScatterParameters,
+						ShadowMaskTilesUAV);
 				}
 			}
+		}
 
-			if (CardScatterInstances.Num() > 0)
+		// Offscreen shadowing
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "Offscreen shadows");
+
+			FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+			if (Lumen::UseHardwareRayTracedDirectLighting())
 			{
-				CardScatterContext.Build(
+				TraceLumenHardwareRayTracedDirectLightingShadows(
 					GraphBuilder,
+					Scene,
 					View,
-					LumenSceneData,
-					LumenCardRenderer,
-					LumenCardSceneUniformBuffer,
-					CardUpdateContext,
-					/*bBuildCardTiles*/ true,
-					CardScatterInstances,
-					LightBatchSize);
-
-				CardScatterInstances.Reset();
+					TracingInputs,
+					DispatchLightTilesIndirectArgs,
+					LightTileAllocator,
+					LightTiles,
+					LumenPackedLights,
+					ShadowMaskTilesUAV);
 			}
-
-			// Shadow map pass
+			else
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "Shadow map");
-
-				FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
-
-				for (int32 LightIndex = FirstLightIndex; LightIndex < LastLightIndex; ++LightIndex)
+				for (int32 LightIndex = 0; LightIndex < GatheredLights.Num(); ++LightIndex)
 				{
-					const int32 LightIndexInBatch = LightIndex - FirstLightIndex;
-					const FLumenLight& LumenLight = LumenLights[LightIndexInBatch];
-
-					if (LumenLight.HasShadowMask())
+					const FLumenGatheredLight& GatheredLight = GatheredLights[LightIndex];
+					if (GatheredLight.bHasShadows)
 					{
-						SampleShadowMap(
+						TraceDistanceFieldShadows(
 							GraphBuilder,
 							Scene,
 							View,
 							LumenCardSceneUniformBuffer,
-							VisibleLightInfos,
-							VirtualShadowMapArray,
-							LumenLight,
-							LumenLight.Type == ELumenLightType::Directional ? VisibleCardScatterContext : CardScatterContext,
+							GatheredLight,
+							LightTileScatterParameters,
 							ShadowMaskTilesUAV);
 					}
 				}
 			}
+		}
 
-			// Offscreen shadow pass
+		// Apply lights
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "Lights");
+				
+			FRDGBufferSRVRef ShadowMaskTilesSRV = GraphBuilder.CreateSRV(ShadowMaskTiles);
+
+			for (int32 LightIndex = 0; LightIndex < GatheredLights.Num(); ++LightIndex)
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "Offscreen shadows");
-
-				const bool bLumenUseHardwareRayTracedDirectLighting = Lumen::UseHardwareRayTracedDirectLighting();
-				FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
-
-				for (int32 LightIndex = FirstLightIndex; LightIndex < LastLightIndex; ++LightIndex)
-				{
-					const int32 LightIndexInBatch = LightIndex - FirstLightIndex;
-					const FLumenLight& LumenLight = LumenLights[LightIndexInBatch];
-
-					if (LumenLight.HasShadowMask())
-					{
-						if (bLumenUseHardwareRayTracedDirectLighting)
-						{
-							TraceLumenHardwareRayTracedDirectLightingShadows(
-								GraphBuilder,
-								Scene,
-								View,
-								TracingInputs,
-								LumenLight,
-								LumenLight.Type == ELumenLightType::Directional ? VisibleCardScatterContext : CardScatterContext,
-								ShadowMaskTilesUAV);
-						}
-						else
-						{
-							TraceDistanceFieldShadows(
-								GraphBuilder,
-								Scene,
-								View,
-								LumenCardSceneUniformBuffer,
-								LumenLight,
-								LumenLight.Type == ELumenLightType::Directional ? VisibleCardScatterContext : CardScatterContext,
-								ShadowMaskTilesUAV);
-						}
-					}
-				}
-			}
-
-			// Apply lights pass
-			{
-				RDG_EVENT_SCOPE(GraphBuilder, "Lights");
-
-				FRDGBufferSRVRef ShadowMaskTilesSRV = GraphBuilder.CreateSRV(ShadowMaskTiles);
-
-				for (int32 LightIndex = FirstLightIndex; LightIndex < LastLightIndex; ++LightIndex)
-				{
-					const int32 LightIndexInBatch = LightIndex - FirstLightIndex;
-					const FLumenLight& LumenLight = LumenLights[LightIndexInBatch];
-
-					RenderDirectLightIntoLumenCards(
-						GraphBuilder,
-						Scene,
-						View,
-						TracingInputs,
-						LumenCardRenderer,
-						ViewFamily.EngineShowFlags,
-						LumenCardSceneUniformBuffer,
-						LumenLight,
-						LumenLight.Type == ELumenLightType::Directional ? VisibleCardScatterContext : CardScatterContext,
-						ShadowMaskTilesSRV);
-				}
+				RenderDirectLightIntoLumenCards(
+					GraphBuilder,
+					Scene,
+					View,
+					TracingInputs,
+					ViewFamily.EngineShowFlags,
+					LumenCardSceneUniformBuffer,
+					GatheredLights[LightIndex],
+					LightTileScatterParameters,
+					ShadowMaskTilesSRV);
 			}
 		}
 
@@ -1097,6 +1380,6 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			View,
 			GraphBuilder,
 			TracingInputs,
-			VisibleCardScatterContext);
+			CardUpdateContext);
 	}
 }

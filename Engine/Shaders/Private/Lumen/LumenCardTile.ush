@@ -31,3 +31,30 @@ uint PackCardTileData(FCardTileData CardTile)
 	PackedTile |= (CardTile.TileCoord.y << 28);
 	return PackedTile;
 }
+
+struct FLightTile
+{
+	uint LightIndex;
+	uint CardPageIndex;
+	uint2 TileCoord;
+};
+
+FLightTile UnpackLightTile(uint2 PackedTile)
+{
+	FLightTile Tile;
+	Tile.LightIndex = PackedTile.x;
+	Tile.CardPageIndex = PackedTile.y & 0xFFFFFF;
+	Tile.TileCoord.x = (PackedTile.y >> 24) & 0xF;
+	Tile.TileCoord.y = (PackedTile.y >> 28) & 0xF;
+	return Tile;
+}
+
+uint2 PackLightTile(FLightTile Tile)
+{
+	uint2 PackedTile;
+	PackedTile.x = Tile.LightIndex;		
+	PackedTile.y = Tile.CardPageIndex;
+	PackedTile.y |= (Tile.TileCoord.x << 24);
+	PackedTile.y |= (Tile.TileCoord.y << 28);
+	return PackedTile;
+}
