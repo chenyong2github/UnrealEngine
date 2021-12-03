@@ -3,6 +3,7 @@
 
 #include "RHI.h"
 #include "Containers/TripleBuffer.h"
+#include "HAL/ThreadSafeBool.h"
 
 class FPixelStreamingLayerFrameSource;
 

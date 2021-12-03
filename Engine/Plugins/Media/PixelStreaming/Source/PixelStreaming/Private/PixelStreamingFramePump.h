@@ -2,6 +2,7 @@
 #pragma once
 
 #include "PlayerId.h"
+#include "HAL/Thread.h"
 
 class FPixelStreamingFrameSource;
 class FPlayerVideoSource;

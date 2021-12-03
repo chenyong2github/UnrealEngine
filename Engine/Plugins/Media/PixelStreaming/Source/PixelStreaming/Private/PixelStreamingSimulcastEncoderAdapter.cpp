@@ -1,30 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PixelStreamingSimulcastEncoderAdapter.h"
 
-#include <stdio.h>
-#include <string.h>
+//#include <stdio.h>
+//#include <string.h>
+//
+//#include <algorithm>
+//#include <cstdint>
+//#include <string>
+//#include <utility>
 
-#include <algorithm>
-#include <cstdint>
-#include <string>
-#include <utility>
-
-#include "api/scoped_refptr.h"
-#include "api/video/i420_buffer.h"
-#include "api/video/video_codec_constants.h"
-#include "api/video/video_frame_buffer.h"
-#include "api/video/video_rotation.h"
-#include "api/video_codecs/video_encoder.h"
-#include "api/video_codecs/video_encoder_factory.h"
-#include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
-#include "media/base/video_common.h"
-#include "modules/video_coding/include/video_error_codes.h"
-#include "modules/video_coding/utility/simulcast_rate_allocator.h"
-#include "rtc_base/atomic_ops.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/experiments/rate_control_settings.h"
-#include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
+//#include "api/scoped_refptr.h"
+//#include "api/video/i420_buffer.h"
+//#include "api/video/video_codec_constants.h"
+//#include "api/video/video_frame_buffer.h"
+//#include "api/video/video_rotation.h"
+//#include "api/video_codecs/video_encoder.h"
+//#include "api/video_codecs/video_encoder_factory.h"
+//#include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
+//#include "media/base/video_common.h"
+//#include "modules/video_coding/include/video_error_codes.h"
+//#include "modules/video_coding/utility/simulcast_rate_allocator.h"
+//#include "rtc_base/atomic_ops.h"
+//#include "rtc_base/checks.h"
+//#include "rtc_base/experiments/rate_control_settings.h"
+//#include "rtc_base/logging.h"
+//#include "system_wrappers/include/field_trial.h"
 
 #include "PixelStreamingFrameBuffer.h"
 
