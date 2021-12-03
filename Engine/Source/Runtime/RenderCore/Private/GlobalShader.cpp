@@ -551,11 +551,15 @@ FGlobalShader::FGlobalShader(const ShaderMetaType::CompiledShaderInitializerType
 :	FShader(Initializer)
 {}
 
-void FGlobalShader::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& Environment)
+void FGlobalShaderType::SetupCompileEnvironment(EShaderPlatform Platform, int32 PermutationId, EShaderPermutationFlags Flags, FShaderCompilerEnvironment& Environment) const
 {
-	FShader::ModifyCompilationEnvironment(Parameters, Environment);
+	FGlobalShaderPermutationParameters Parameters(GetFName(), Platform, PermutationId, Flags);
 
+	// Modify the compilation environment based on platform.
 	FGlobalShaderConfigDefines::ApplyConfigDefines(Parameters, Environment);
+
+	// Allow the shader type to modify its compile environment.
+	ModifyCompilationEnvironment(Parameters, Environment);
 }
 
 void BackupGlobalShaderMap(FGlobalShaderBackupData& OutGlobalShaderBackup)
