@@ -1726,6 +1726,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 {
 	LLM_SCOPE_BYNAME(TEXT("SkeletalMesh/Serialize")); // This is an important test case for SCOPE_BYNAME with a matching LLM_DEFINE_TAG
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT("USkeletalMesh::Serialize"), STAT_SkeletalMesh_Serialize, STATGROUP_LoadTime );
+	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::Serialize);
 
 #if WITH_EDITOR
 	if (IsCompiling())
@@ -5542,6 +5543,7 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 	Ar << BonesToRemove;
 	Ar << BonesToPrioritize;
 	Ar << WeightOfPrioritization;
+	Ar << MorphTargetPositionErrorTolerance;
 
 	//TODO: Ask the derivedata key of the UObject reference by FSoftObjectPath. So if someone change the UObject, this LODs will get dirty
 	//and will be rebuild.
