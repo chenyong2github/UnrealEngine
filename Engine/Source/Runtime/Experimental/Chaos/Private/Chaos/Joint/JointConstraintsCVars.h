@@ -20,6 +20,8 @@ extern float Chaos_Joint_VelProjectionAlpha;
 
 extern bool bChaos_Joint_DisableSoftLimits;
 
+extern bool bChaos_Joint_Plasticity_ClampToLimits;
+
 extern float Chaos_Joint_LinearVelocityThresholdToApplyRestitution;
 
 extern float Chaos_Joint_AngularVelocityThresholdToApplyRestitution;
