@@ -158,6 +158,13 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FTerminateOnLowOccupancy>() && !RHISupportsWaveOperations(Parameters.Platform))
+		{
+			return false;
+		}
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
