@@ -12,6 +12,7 @@
 
 class FLightSceneInfo;
 class FViewInfo;
+class FVirtualShadowMapArray;
 
 struct FHairStrandsTransmittanceMaskData
 {
@@ -44,4 +45,5 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 FHairStrandsTransmittanceMaskData RenderHairStrandsOnePassTransmittanceMask(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FRDGTextureRef ShadowMaskBits);
+	FRDGTextureRef ShadowMaskBits,
+	FVirtualShadowMapArray& VirtualShadowMapArray);

@@ -252,7 +252,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 
 			if (HairStrands::HasViewHairStrandsData(View))
 			{
-				FHairStrandsTransmittanceMaskData TransmittanceMask = RenderHairStrandsOnePassTransmittanceMask(GraphBuilder, View, HairStrandsShadowMaskBits);
+				FHairStrandsTransmittanceMaskData TransmittanceMask = RenderHairStrandsOnePassTransmittanceMask(GraphBuilder, View, HairStrandsShadowMaskBits, VirtualShadowMapArray);
 				InternalAddClusteredDeferredShadingPass(
 					GraphBuilder,
 					View,

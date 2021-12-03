@@ -38,7 +38,8 @@ RWStructuredBuffer<uint> OutPageRequestFlags;
 StructuredBuffer<int> DirectionalLightIds;
 
 float ResolutionLodBiasLocal;
-float PageDilationBorderSize;
+float PageDilationBorderSizeDirectional;
+float PageDilationBorderSizeLocal;
 uint InputType;
 uint bCullBackfacingPixels;
 
@@ -108,7 +109,7 @@ uint GetMipLevelLocal(int VirtualShadowMapId, float3 WorldPosition, float SceneD
 	return CalcMipLevelLocal(Footprint);
 }
 
-void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, float2 PageDilationOffset)
+void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, bool bUsePageDilation, float2 PageDilationOffset)
 {
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 	float4 ShadowUVz = mul(float4(WorldPosition + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
@@ -126,21 +127,22 @@ void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, floa
 
 	uint Flags = VSM_ALLOCATED_FLAG | VSM_NON_NANITE_FLAG;
 
+	uint MaxPageAddress = CalcLevelDimsPages(MipLevel) - 1U;
 	float2 PageAddressFloat = ShadowUVz.xy * CalcLevelDimsPages(MipLevel);
-	uint2 PageAddress = uint2(PageAddressFloat);
+	uint2 PageAddress = clamp(uint2(PageAddressFloat), 0U, MaxPageAddress);
 	uint PageOffset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
 	OutPageRequestFlags[PageOffset] = Flags;
 
 	// PageDilationBorderSize == 0 implies PageDilationOffset.xy == 0
-	if (PageDilationBorderSize > 0.0f)
+	if (bUsePageDilation)
 	{
-		uint2 PageAddress2 = uint2(PageAddressFloat + PageDilationOffset);
+		uint2 PageAddress2 = clamp(uint2(PageAddressFloat + PageDilationOffset), 0, MaxPageAddress);
 		uint PageOffset2 = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress2);
 		if (PageOffset2 != PageOffset)
 		{
 			OutPageRequestFlags[PageOffset2] = Flags;
 		}
-		uint2 PageAddress3 = uint2(max(float2(0, 0), PageAddressFloat - PageDilationOffset));
+		uint2 PageAddress3 = clamp(uint2(PageAddressFloat - PageDilationOffset), 0, MaxPageAddress);
 		uint PageOffset3 = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress3);
 		if (PageOffset3 != PageOffset)
 		{
@@ -215,38 +217,46 @@ void GeneratePageFlagsFromPixels(
 	// We don't need to to check all 8 adjacent pages; as long as there's at least a single pixel near the edge
 	// the adjacent one will get mapped. In practice only checking one diagonal seems to work fine and have minimal
 	// overhead.
-	float2 PageDilationOffset = PageDilationBorderSize * 
-		float2(GroupIndex & 1 ? 1.0f : -1.0f,
-			   GroupIndex & 2 ? 1.0f : -1.0f);
-	
+	const float2 PageDilationDither = float2(
+		(GroupIndex & 1) ? 1.0f : -1.0f,
+		(GroupIndex & 2) ? 1.0f : -1.0f);
+		
 	// Directional lights
-	for (uint Index = 0; Index < VirtualShadowMap.NumDirectionalLights; ++Index)
 	{
-		int ClipmapStartId = DirectionalLightIds[Index];
-		FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(ClipmapStartId);
+		const bool bUsePageDilation = PageDilationBorderSizeDirectional > 0.0f;
+		const float2 PageDilationOffset = PageDilationBorderSizeDirectional * PageDilationDither;
+
+		for (uint Index = 0; Index < VirtualShadowMap.NumDirectionalLights; ++Index)
+		{
+			int ClipmapStartId = DirectionalLightIds[Index];
+			FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(ClipmapStartId);
 
 #if PERMUTATION_INPUT_TYPE != INPUT_TYPE_HAIRSTRANDS
-		// Backface test if requested
-		float3 LightDirection = -BaseProjectionData.TranslatedWorldToShadowViewMatrix._13_23_33;
-		if (bBackfaceCull && IsBackfaceToDirectionalLight(normalize(WorldNormal), normalize(LightDirection), BaseProjectionData.LightSourceRadius))
-		{
-			continue;
-		}
+			// Backface test if requested
+			float3 LightDirection = -BaseProjectionData.TranslatedWorldToShadowViewMatrix._13_23_33;
+			if (bBackfaceCull && IsBackfaceToDirectionalLight(normalize(WorldNormal), normalize(LightDirection), BaseProjectionData.LightSourceRadius))
+			{
+				continue;
+			}
 #endif
 
-		// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
-		// each level (to handle snapping). For now we maintain one per level.
-		//int ClipmapLevel = CalcClipmapLevel(length(WorldPosition - ProjectionData.ClipmapWorldOrigin), ClipmapResolutionLodBias);
-		const int ClipmapLevel = CalcClipmapLevel(BaseProjectionData, WorldPosition);
-		int ClipmapIndex = max(0, ClipmapLevel - BaseProjectionData.ClipmapLevel);
-		if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
-		{
-			MarkPage(ClipmapStartId + ClipmapIndex, 0, WorldPosition, PageDilationOffset);
+			// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
+			// each level (to handle snapping). For now we maintain one per level.
+			//int ClipmapLevel = CalcClipmapLevel(length(WorldPosition - ProjectionData.ClipmapWorldOrigin), ClipmapResolutionLodBias);
+			const int ClipmapLevel = CalcClipmapLevel(BaseProjectionData, WorldPosition);
+			int ClipmapIndex = max(0, ClipmapLevel - BaseProjectionData.ClipmapLevel);
+			if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
+			{
+				MarkPage(ClipmapStartId + ClipmapIndex, 0, WorldPosition, bUsePageDilation, PageDilationOffset);
+			}
 		}
 	}
 
 	// Local lights
 	{
+		const bool bUsePageDilation = PageDilationBorderSizeLocal > 0.0f;
+		const float2 PageDilationOffset = PageDilationBorderSizeLocal * PageDilationDither;
+
 		uint EyeIndex = 0; // ??
 		uint3 GridCoordinate = ComputeLightGridCellCoordinate(PixelPos, SceneDepth, EyeIndex);
 		uint GridLinearIndex = ComputeLightGridCellIndex(GridCoordinate, EyeIndex);
@@ -281,11 +291,11 @@ void GeneratePageFlagsFromPixels(
 				bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;
 				if( !bSpotLight )
 				{
-					VirtualShadowMapId += VirtualShadowMapGetCubeFace( -ToLight );
+					VirtualShadowMapId += VirtualShadowMapGetCubeFace(-ToLight);
 				}
 
 				uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, WorldPosition, SceneDepth);
-				MarkPage(VirtualShadowMapId, MipLevel, WorldPosition, PageDilationOffset);
+				MarkPage(VirtualShadowMapId, MipLevel, WorldPosition, bUsePageDilation, PageDilationOffset);
 			}
 		}
 	}

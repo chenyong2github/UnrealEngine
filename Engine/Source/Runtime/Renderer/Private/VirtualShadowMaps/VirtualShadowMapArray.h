@@ -126,6 +126,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(FVector4f, RecPhysicalPoolSize)
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSize)
 	SHADER_PARAMETER(FIntPoint, PhysicalPoolSizePages)
+	SHADER_PARAMETER(uint32, PackedShadowMaskMaxLightCount)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ProjectionData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageTable)
@@ -184,6 +185,8 @@ public:
 	uint32 GetMaxPhysicalPages() const { return UniformParameters.MaxPhysicalPages; }
 	// Total physical page count that includes separate static pages
 	uint32 GetTotalAllocatedPhysicalPages() const;
+
+	EPixelFormat GetPackedShadowMaskFormat() const;
 
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 

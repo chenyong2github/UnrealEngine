@@ -1029,8 +1029,8 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 						LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
 						LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
 						LightData.bInverseSquared = LightData.FalloffExponent == 0;
-						LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoor.x;
-						LightData.RectLightBarnLength = LocalLight.RectBarnDoor.y;
+						LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoorAndVirtualShadowMapId.x;
+						LightData.RectLightBarnLength = LocalLight.RectBarnDoorAndVirtualShadowMapId.y;
 						LightData.bRadialLight = true;
 						LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 						LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;

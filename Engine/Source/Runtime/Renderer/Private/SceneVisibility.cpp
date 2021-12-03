@@ -4284,7 +4284,7 @@ void FSceneRenderer::ComputeViewVisibility(
 	// Allocate the visible light info.
 	if (Scene->Lights.GetMaxIndex() > 0)
 	{
-		VisibleLightInfos.AddZeroed(Scene->Lights.GetMaxIndex());
+		VisibleLightInfos.AddDefaulted(Scene->Lights.GetMaxIndex());
 	}
 
 	int32 NumPrimitives = Scene->Primitives.Num();

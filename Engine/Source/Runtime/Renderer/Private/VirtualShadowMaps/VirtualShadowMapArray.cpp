@@ -83,10 +83,18 @@ static TAutoConsoleVariable<float> CVarResolutionLodBiasLocal(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarPageDilationBorderSize(
-	TEXT("r.Shadow.Virtual.PageDilationBorderSize"),
+static TAutoConsoleVariable<float> CVarPageDilationBorderSizeDirectional(
+	TEXT("r.Shadow.Virtual.PageDilationBorderSizeDirectional"),
 	0.05f,
-	TEXT("If a screen pixel falls within this fraction of a page border, the adacent page will also be mapped.")
+	TEXT("If a screen pixel falls within this fraction of a page border for directional lights, the adacent page will also be mapped.")
+	TEXT("Higher values can reduce page misses at screen edges or disocclusions, but increase total page counts."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarPageDilationBorderSizeLocal(
+	TEXT("r.Shadow.Virtual.PageDilationBorderSizeLocal"),
+	0.05f,
+	TEXT("If a screen pixel falls within this fraction of a page border for local lights, the adacent page will also be mapped.")
 	TEXT("Higher values can reduce page misses at screen edges or disocclusions, but increase total page counts."),
 	ECVF_RenderThreadSafe
 );
@@ -162,6 +170,14 @@ TAutoConsoleVariable<int32> CVarMergePhysicalUsingIndirect(
 	TEXT("r.Shadow.Virtual.MergePhysicalUsingIndirect"),
 	1,
 	TEXT("."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjectionMaxLights(
+	TEXT("r.Shadow.Virtual.OnePassProjection.MaxLightsPerPixel"),
+	16,
+	TEXT("Maximum lights per pixel that get full filtering when using one pass projection and clustered shading.")
+	TEXT("Generally set to 8 (32bpp), 16 (64bpp) or 32 (128bpp). Lower values require less transient VRAM during the lighting pass."),
 	ECVF_RenderThreadSafe
 );
 
@@ -350,6 +366,10 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	UniformParameters.PhysicalPoolSize = FIntPoint( PhysicalX, PhysicalY );
 	UniformParameters.PhysicalPoolSizePages = FIntPoint( PhysicalPagesX, PhysicalPagesY );
 
+	// TODO: Parameterize this in a useful way; potentially modify it automatically
+	// when there are fewer lights in the scene and/or clustered shading settings differ.
+	UniformParameters.PackedShadowMaskMaxLightCount = FMath::Min(CVarVirtualShadowOnePassProjectionMaxLights.GetValueOnRenderThread(), 32);
+
 	// Reference dummy data in the UB initially
 	const uint32 DummyPageElement = 0xFFFFFFFF;
 	UniformParameters.PageTable = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(DummyPageElement), DummyPageElement));
@@ -375,6 +395,26 @@ FVirtualShadowMapArray::~FVirtualShadowMapArray()
 	for (FVirtualShadowMap *SM : ShadowMaps)
 	{
 		SM->~FVirtualShadowMap();
+	}
+}
+
+EPixelFormat FVirtualShadowMapArray::GetPackedShadowMaskFormat() const
+{
+	// TODO: Check if we're after any point that determines the format later too (light setup)
+	check(bInitialized);
+	// NOTE: Currently 4bpp/light
+	if (UniformParameters.PackedShadowMaskMaxLightCount <= 8)
+	{
+		return PF_R32_UINT;
+	}
+	else if (UniformParameters.PackedShadowMaskMaxLightCount <= 16)
+	{
+		return PF_R32G32_UINT;
+	}
+	else
+	{
+		check(UniformParameters.PackedShadowMaskMaxLightCount <= 32);
+		return PF_R32G32B32A32_UINT;
 	}
 }
 
@@ -505,7 +545,8 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
 		SHADER_PARAMETER(uint32, bPostBasePass)
 		SHADER_PARAMETER(float, ResolutionLodBiasLocal)
-		SHADER_PARAMETER(float, PageDilationBorderSize)
+		SHADER_PARAMETER(float, PageDilationBorderSizeDirectional)
+		SHADER_PARAMETER(float, PageDilationBorderSizeLocal)
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -972,9 +1013,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	check(IsEnabled());
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::BuildPageAllocation");
 
-	const float ResolutionLodBiasLocal = CVarResolutionLodBiasLocal.GetValueOnRenderThread();
-	const float PageDilationBorderSize = CVarPageDilationBorderSize.GetValueOnRenderThread();
-
 #if !UE_BUILD_SHIPPING
 	bool bDebugOutputEnabled = false;
 	if (GDumpVSMLightNames)
@@ -1164,8 +1202,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
 						PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 						PassParameters->DirectionalLightIds = GraphBuilder.CreateSRV(DirectionalLightIdsRDG);
-						PassParameters->ResolutionLodBiasLocal = ResolutionLodBiasLocal;
-						PassParameters->PageDilationBorderSize = PageDilationBorderSize;
+						PassParameters->ResolutionLodBiasLocal = CVarResolutionLodBiasLocal.GetValueOnRenderThread();
+						PassParameters->PageDilationBorderSizeLocal = CVarPageDilationBorderSizeLocal.GetValueOnRenderThread();
+						PassParameters->PageDilationBorderSizeDirectional = CVarPageDilationBorderSizeDirectional.GetValueOnRenderThread();
 						PassParameters->bCullBackfacingPixels = ShouldCullBackfacingPixels() ? 1 : 0;
 
 						auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
