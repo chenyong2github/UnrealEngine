@@ -231,25 +231,20 @@ bool FDataLayerState::IsEmpty() const
 
 TOptional<EDataLayerRuntimeState> FDataLayerState::ComputeDesiredState() const
 {
-	// If we have any requests to keep a layer loaded, always keep it loaded (even if things ask for it to be hidden)
-	EDataLayerRuntimeState FallbackState = LoadedCount != 0 ? EDataLayerRuntimeState::Loaded : EDataLayerRuntimeState::Unloaded;
-
-	if (ActivatedCount == UnloadedCount)
-	{
-		// Equal number of requests for active and unloaded - just leave the data layer alone
-		if (LoadedCount != 0)
-		{
-			return EDataLayerRuntimeState::Loaded;
-		}
-		return TOptional<EDataLayerRuntimeState>();
-	}
-	
-	if (ActivatedCount > UnloadedCount)
+	if (ActivatedCount > 0)
 	{
 		return EDataLayerRuntimeState::Activated;
 	}
+	else if (LoadedCount > 0)
+	{
+		return EDataLayerRuntimeState::Loaded;
+	}
+	else if (UnloadedCount > 0)
+	{
+		return EDataLayerRuntimeState::Unloaded;
+	}
 
-	return FallbackState;
+	return TOptional<EDataLayerRuntimeState>();
 }
 
 bool FDataLayerState::ShouldFlushStreaming(EDataLayerRuntimeState ComputedState) const
