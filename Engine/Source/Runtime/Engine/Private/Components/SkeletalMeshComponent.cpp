@@ -3718,7 +3718,7 @@ void USkeletalMeshComponent::ValidateAnimation()
 {
 	if (SkeletalMesh && SkeletalMesh->GetSkeleton() == nullptr)
 	{
-		UE_LOG(LogAnimation, Warning, TEXT("SkeletalMesh %s has no skeleton. This needs to fixed before an animation can be set"), *SkeletalMesh->GetName());
+		UE_LOG(LogAnimation, Warning, TEXT("SkeletalMesh %s has no skeleton. This needs to fixed before an animation can be set"), *SkeletalMesh->GetFullName());
 		if (AnimationMode == EAnimationMode::AnimationSingleNode)
 		{
 			AnimationData.AnimToPlay = nullptr;
