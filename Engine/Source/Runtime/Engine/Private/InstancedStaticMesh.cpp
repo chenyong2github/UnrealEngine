@@ -2099,20 +2099,6 @@ bool UInstancedStaticMeshComponent::IsHLODRelevant() const
 	return Super::IsHLODRelevant();
 }
 
-void UInstancedStaticMeshComponent::SendRenderTransform_Concurrent()
-{
-	// If the primitive isn't hidden update its transform.
-	const bool bDetailModeAllowsRendering = DetailMode <= GetCachedScalabilityCVars().DetailMode;
-	if ((InstanceUpdateCmdBuffer.NumEdits || InstanceUpdateCmdBuffer.NumAdds) && bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField))
-	{
-		UpdateBounds();
-
-		// Update the scene info's transform for this primitive.
-		GetWorld()->Scene->UpdatePrimitiveInstances(this);
-		InstanceUpdateCmdBuffer.Reset();
-	}
-}
-
 FBodyInstance* UInstancedStaticMeshComponent::GetBodyInstance(FName BoneName, bool bGetWelded, int32 Index) const
 {
 	if (Index != INDEX_NONE && IsValidInstance(Index))

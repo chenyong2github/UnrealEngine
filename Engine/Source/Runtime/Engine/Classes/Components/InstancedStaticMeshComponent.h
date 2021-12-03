@@ -316,7 +316,6 @@ public:
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
 	virtual bool IsHLODRelevant() const override;
-	virtual void SendRenderTransform_Concurrent() override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface
