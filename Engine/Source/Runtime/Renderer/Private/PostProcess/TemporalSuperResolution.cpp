@@ -87,6 +87,11 @@ TAutoConsoleVariable<int32> CVarTSRVelocityHoleFill(
 	TEXT("Whether to holl-fill the velocity buffer on parralax disocclusion to reduce boiling of disoccluded areas."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<float> CVarTSRVelocityMaxHoleFillScatterVelocity(
+	TEXT("r.TSR.Velocity.HoleFill.MaxScatterVelocity"), 4.0f,
+	TEXT("Maximum pixel velocity difference tolerated between the disoccluded and scattered disoccluding geometries."),
+	ECVF_RenderThreadSafe);
+
 #if COMPILE_TSR_DEBUG_PASSES
 
 TAutoConsoleVariable<int32> CVarTSRSetupDebugPasses(
@@ -321,6 +326,7 @@ class FTSRHoleFillVelocityCS : public FTSRShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
+		SHADER_PARAMETER(float, MaxHollFillPixelVelocity)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevClosestDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
@@ -1137,6 +1143,7 @@ void AddTemporalSuperResolutionPasses(
 		FTSRHoleFillVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRHoleFillVelocityCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 
+		PassParameters->MaxHollFillPixelVelocity = CVarTSRVelocityMaxHoleFillScatterVelocity.GetValueOnRenderThread();
 		PassParameters->PrevClosestDepthTexture = PrevClosestDepthTexture;
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
