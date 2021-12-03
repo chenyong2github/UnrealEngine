@@ -55,6 +55,7 @@ uint GroupCount;
 int NearFieldLightingMode;
 float FarFieldBias;
 float FarFieldMaxTraceDistance;
+float FarFieldDitheredStartDistanceFactor;
 float PullbackBias;
 int MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
@@ -99,6 +100,9 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		float MaxTraceDistance;
 		DecodeTraceTexel(TraceTexelDataPacked[RayId], TraceCoord, TraceHitDistance, MaxTraceDistance);
 
+		float DitheredStartDistance = FarFieldDitheredStartDistanceFactor * MaxTraceDistance;
+		float DitheredMaxTraceDistance = CalcDitheredDistance(TraceCoord, DitheredStartDistance, MaxTraceDistance);
+
 		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(TraceCoord);
 		float2 ScreenCoord = ScreenUV * View.BufferSizeAndInvSize.xy;
 		uint LinearCoord = ScreenCoord.y * View.BufferSizeAndInvSize.x + ScreenCoord.x;
@@ -114,7 +118,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		Ray.Direction = RayData.Direction;
 		float RayBias = ENABLE_FAR_FIELD_TRACING == 1 ? FarFieldBias : 0.05;
 		Ray.TMin = max(TraceHitDistance - PullbackBias, RayBias);
-		Ray.TMax = max(MaxTraceDistance - PullbackBias, RayBias);
+		Ray.TMax = max(DitheredMaxTraceDistance - PullbackBias, RayBias);
 		Ray.TMax = min(Ray.TMax, RayData.TraceDistance);
 
 		float NormalBias = 0.05;

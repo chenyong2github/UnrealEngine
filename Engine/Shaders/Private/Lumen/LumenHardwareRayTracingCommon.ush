@@ -95,6 +95,13 @@ uint GetAtlasId(int Mode)
 	return AtlasId;
 }
 
+float CalcDitheredDistance(uint2 TraceCoord, float StartDistance, float EndDistance)
+{
+	const float Dither = InterleavedGradientNoise(TraceCoord, View.StateFrameIndexMod8);
+	float DitheredDistance = lerp(StartDistance, EndDistance, Dither);
+	return DitheredDistance;
+}
+
 struct FHitGroupRootConstants
 {
 	uint BaseInstanceIndex;

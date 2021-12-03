@@ -98,6 +98,7 @@ namespace Lumen
 
 	bool UseFarField();
 	float GetFarFieldMaxTraceDistance();
+	float GetFarFieldDitheredStartDistanceFactor();
 	FVector GetFarFieldReferencePos();
 };
 
