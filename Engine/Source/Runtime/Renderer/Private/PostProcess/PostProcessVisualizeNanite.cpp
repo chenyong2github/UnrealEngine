@@ -37,15 +37,34 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 			if (ensure(RasterResults.Visualizations.Num() == 1))
 			{
 				const Nanite::FVisualizeResult& Visualization = RasterResults.Visualizations[0];
-				AddDrawTexturePass(
-					GraphBuilder,
-					View,
-					Visualization.ModeOutput,
-					Output.Texture,
-					View.ViewRect.Min,
-					View.ViewRect.Min,
-					View.ViewRect.Size()
-				);
+
+				if (View.ViewRect != View.UnscaledViewRect)
+				{
+				    FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+				    Parameters->InputTexture = Visualization.ModeOutput;
+				    Parameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+				    Parameters->RenderTargets[0] = FRenderTargetBinding(Output.Texture, ERenderTargetLoadAction::ENoAction);
+    
+				    const FScreenPassTextureViewport InputViewport(Visualization.ModeOutput->Desc.Extent);
+				    const FScreenPassTextureViewport OutputViewport(Output.Texture->Desc.Extent);
+				    TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
+    
+				    // Use separate input and output viewports w/ bilinear sampling to properly support dynamic resolution scaling
+				    AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawTexture"), View, OutputViewport, InputViewport, PixelShader, Parameters, EScreenPassDrawFlags::None);
+				}
+				else
+				{
+					// Can use faster 1:1 blit when view sizes match
+					AddDrawTexturePass(
+					    GraphBuilder,
+					    View,
+					    Visualization.ModeOutput,
+					    Output.Texture,
+					    View.ViewRect.Min,
+					    View.ViewRect.Min,
+					    View.ViewRect.Size()
+				    );
+				}
 			}
 		}
 		// Overview mode
@@ -60,14 +79,17 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 			TArray<FTileLabel> TileLabels;
 			TileLabels.Reserve(RasterResults.Visualizations.Num());
 
-			const int32 MaxTilesX = 4;
-			const int32 MaxTilesY = 4;
-			const int32 TileWidth = View.ViewRect.Width() / MaxTilesX;
-			const int32 TileHeight = View.ViewRect.Height() / MaxTilesY;
+			// Use the unscaled view so that dynamic resolution scaling doesn't scale the Nanite visualization tile(s).
+			const FIntRect& UnscaledViewRect = View.UnscaledViewRect;
+
+			const int32 MaxTilesX  = 4;
+			const int32 MaxTilesY  = 4;
+			const int32 TileWidth  = UnscaledViewRect.Width() / MaxTilesX;
+			const int32 TileHeight = UnscaledViewRect.Height() / MaxTilesY;
 
 			FRHISamplerState* BilinearClampSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-			FScreenPassRenderTarget OutputTarget(Output.Texture, View.ViewRect, ERenderTargetLoadAction::ELoad);
+			FScreenPassRenderTarget OutputTarget(Output.Texture, UnscaledViewRect, ERenderTargetLoadAction::ELoad);
 
 			for (int32 TileIndex = 0; TileIndex < RasterResults.Visualizations.Num(); ++TileIndex)
 			{
