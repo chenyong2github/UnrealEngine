@@ -8,7 +8,9 @@
 #include "PackedNormal.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "Serialization/MemoryArchive.h"
+
 #include "MorphTarget.generated.h"
 
 class USkeletalMesh;
@@ -76,6 +78,7 @@ struct FMorphTargetLODModel
 	{
 		Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 		Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+		Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
 
 		if (!Ar.IsObjectReferenceCollector())
 		{
@@ -91,14 +94,30 @@ struct FMorphTargetLODModel
 			}
 			else
 			{
-				Ar << M.Vertices << M.NumBaseMeshVerts << M.SectionIndices << M.bGeneratedByEngine;
-			}
-		}
+				bool bIsCooked = false;
+				if (Ar.IsPersistent() && (Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) >= FUE5PrivateFrostyStreamObjectVersion::StripMorphTargetSourceDataForCookedBuilds))
+				{
+					bIsCooked = Ar.IsCooking();
+					Ar << bIsCooked;
+				}
 
-		// Cache Vertices array size, no need to serialize NumVertices value.
-		if (Ar.IsLoading())
-		{
-			M.NumVertices = M.Vertices.Num();
+				if (bIsCooked)
+				{
+					M.NumVertices = M.Vertices.Num();
+					Ar << M.NumVertices;
+				}
+				else
+				{
+					Ar << M.Vertices;
+
+					if (Ar.IsLoading())
+					{
+						M.NumVertices = M.Vertices.Num();
+					}
+				}
+
+				Ar << M.NumBaseMeshVerts << M.SectionIndices << M.bGeneratedByEngine;
+			}
 		}
 
 		return Ar;
@@ -119,8 +138,11 @@ struct FMorphTargetLODModel
 	{
 		// Vertices array can be discarded after render data is initialized and if CPU data is no longer required,
 		// but cache the array size so that UMorphTarget::HasValidData() can still query if morph target is valid. 
-		NumVertices = Vertices.Num();
-		Vertices.Empty();
+		if (Vertices.Num())
+		{
+			NumVertices = Vertices.Num();
+			Vertices.Empty();
+		}
 	}
 };
 

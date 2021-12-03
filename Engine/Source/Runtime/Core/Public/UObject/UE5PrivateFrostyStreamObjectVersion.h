@@ -33,6 +33,9 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 		// Serializes the Morph Target render data for cooked platforms and the DDC
 		SerializeSkeletalMeshMorphTargetRenderData,
 
+		// Strip the Morph Target source data for cooked builds
+		StripMorphTargetSourceDataForCookedBuilds,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

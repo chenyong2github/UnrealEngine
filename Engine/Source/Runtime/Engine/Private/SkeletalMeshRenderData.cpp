@@ -731,8 +731,9 @@ void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMor
 #if !WITH_EDITOR
 		for (UMorphTarget* MorphTarget : InMorphTargets)
 		{
-			// A CPU copy of the morph deltas has been  made so it is safe to 
-			// discard the original data.  Keep CPU buffers when in the editor.
+			// A CPU copy of the morph deltas has been made so it is safe to 
+			// discard the original data. Keep CPU buffers when in the editor.
+			// Note: this data is stripped at cook time so it's probably empty.
 			MorphTarget->DiscardVertexData();
 		}
 #endif
