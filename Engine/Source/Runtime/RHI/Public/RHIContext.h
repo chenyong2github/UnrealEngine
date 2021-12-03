@@ -739,13 +739,6 @@ public:
 		checkNoEntry();
 	}
 
-	void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene)
-	{
-		FRayTracingSceneBuildParams Params;
-		Params.Scene = Scene;
-		RHIBuildAccelerationStructure(Params);
-	}
-
 	virtual void RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,
 		FRHIShaderResourceView* Rays,
 		FRHIUnorderedAccessView* Output,

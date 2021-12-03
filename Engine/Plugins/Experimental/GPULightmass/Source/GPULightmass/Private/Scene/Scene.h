@@ -99,6 +99,7 @@ public:
 	FRayTracingSceneRHIRef RayTracingScene;
 	FShaderResourceViewRHIRef RayTracingSceneSRV;
 	FBufferRHIRef RayTracingSceneBuffer;
+	FBufferRHIRef RayTracingScratchBuffer;
 
 	FRayTracingPipelineState* RayTracingPipelineState;
 	TSharedPtr<FViewInfo> ReferenceView;
