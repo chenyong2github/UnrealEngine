@@ -72,6 +72,18 @@ enum class EActorGridPlacement : uint8
 	AlwaysLoaded,
 	None UMETA(Hidden)
 };
+
+inline const TCHAR* GetActorGridPlacementName(EActorGridPlacement ActorGridPlacement)
+{
+	switch(ActorGridPlacement)
+	{
+	case EActorGridPlacement::Bounds: return TEXT("Bounds");
+	case EActorGridPlacement::Location: return TEXT("Location");
+	case EActorGridPlacement::AlwaysLoaded: return TEXT("AlwaysLoaded");
+	default: check(0);
+	}
+	return TEXT("Invalid");
+}
 #endif
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogActor, Log, Warning);
@@ -887,19 +899,20 @@ public:
 	bool CanPlayFromHere() const { return bCanPlayFromHere; }
 
 	/**
-	 * Creates an uninitialized actor descriptor. Can be overriden.
+	 * Creates an uninitialized actor descriptor from this actor. Meant to be called on the class CDO.
 	 */
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const;
 
+public:
 	/**
-	 * Creates an initialized actor descriptor.
+	 * Creates an initialized actor descriptor from this actor.
 	 */
 	TUniquePtr<class FWorldPartitionActorDesc> CreateActorDesc() const;
 
 	/**
-	 * Creates an uninitialized actor descriptor.
+	 * Creates an uninitialized actor descriptor from a specific class.
 	 */
-	static TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc(const TSubclassOf<AActor>& ActorClass);
+	static TUniquePtr<class FWorldPartitionActorDesc> StaticCreateClassActorDesc(const TSubclassOf<AActor>& ActorClass);
 #endif // WITH_EDITOR
 
 public:

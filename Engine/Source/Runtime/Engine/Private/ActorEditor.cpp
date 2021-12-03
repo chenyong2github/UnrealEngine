@@ -853,7 +853,7 @@ TUniquePtr<FWorldPartitionActorDesc> AActor::CreateActorDesc() const
 	return ActorDesc;
 }
 
-TUniquePtr<class FWorldPartitionActorDesc> AActor::CreateClassActorDesc(const TSubclassOf<AActor>& ActorClass)
+TUniquePtr<class FWorldPartitionActorDesc> AActor::StaticCreateClassActorDesc(const TSubclassOf<AActor>& ActorClass)
 {
 	return CastChecked<AActor>(ActorClass->GetDefaultObject())->CreateClassActorDesc();
 }
