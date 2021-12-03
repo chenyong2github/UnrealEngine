@@ -2,6 +2,7 @@
 
 #include "PostProcess/PostProcessFFTBloom.h"
 #include "PostProcess/PostProcessBloomSetup.h"
+#include "PostProcess/PostProcessTonemap.h"
 #include "GPUFastFourierTransform.h"
 #include "RendererModule.h"
 #include "Rendering/Texture2DResource.h"
@@ -180,7 +181,8 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, ScatterDispersionIntensity)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, KernelConstantsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, BloomApplyConstantsOutput)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, SceneColorApplyOutput)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, FFTMulitplyOutput)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -733,7 +735,7 @@ void InitDomainAndGetKernel(
 	*OutKernelConstantsBuffer = KernelConstantsBuffer;
 }
 
-FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs)
+FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs)
 {
 	check(Inputs.FullResolutionTexture);
 	check(!Inputs.FullResolutionViewRect.IsEmpty());
@@ -752,20 +754,25 @@ FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		/* out */ &SpectralKernelTexture,
 		/* out */ &KernelConstantsBuffer);
 
-	FBloomOutputs BloomOutput;
-
+	FFFTBloomOutput BloomOutput;
+	FRDGBufferRef FFTMulitplyParameters;
 	// Generate the apply constant buffer for the tone-maping pass.
 	{
-		check(FBloomOutputs::SupportsApplyParametersBuffer(View.GetShaderPlatform()));
+		check(FTonemapInputs::SupportsSceneColorApplyParametersBuffer(View.GetShaderPlatform()));
 
-		BloomOutput.ApplyParameters = GraphBuilder.CreateBuffer(
-			FRDGBufferDesc::CreateStructuredDesc(sizeof(FBloomOutputs::FApplyInfo), /* NumElements = */ 1),
-			TEXT("Bloom.FFT.KernelConstants"));
+		BloomOutput.SceneColorApplyParameters = GraphBuilder.CreateBuffer(
+			FRDGBufferDesc::CreateStructuredDesc(sizeof(FLinearColor), /* NumElements = */ 1),
+			TEXT("Bloom.FFT.SceneColorApplyParameters"));
+
+		FFTMulitplyParameters = GraphBuilder.CreateBuffer(
+			FRDGBufferDesc::CreateStructuredDesc(sizeof(FLinearColor), /* NumElements = */ 1),
+			TEXT("Bloom.FFT.FFTMulitplyParameters"));
 
 		FBloomFinalizeApplyConstantsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomFinalizeApplyConstantsCS::FParameters>();
 		PassParameters->ScatterDispersionIntensity = View.FinalPostProcessSettings.BloomConvolutionScatterDispersion;
 		PassParameters->KernelConstantsBuffer = GraphBuilder.CreateSRV(KernelConstantsBuffer);
-		PassParameters->BloomApplyConstantsOutput = GraphBuilder.CreateUAV(BloomOutput.ApplyParameters);
+		PassParameters->SceneColorApplyOutput = GraphBuilder.CreateUAV(BloomOutput.SceneColorApplyParameters);
+		PassParameters->FFTMulitplyOutput = GraphBuilder.CreateUAV(FFTMulitplyParameters);
 
 		TShaderMapRef<FBloomFinalizeApplyConstantsCS> ComputeShader(View.ShaderMap);
 		FComputeShaderUtils::AddPass(
@@ -783,8 +790,8 @@ FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		FClearValueBinding::None,
 		TexCreate_ShaderResource | TexCreate_UAV);
 		
-	BloomOutput.Bloom.Texture = GraphBuilder.CreateTexture(OutputSceneColorDesc, TEXT("Bloom.FFT.SceneColor"));
-	BloomOutput.Bloom.ViewRect = Intermediates.ImageRect;
+	BloomOutput.BloomTexture.Texture = GraphBuilder.CreateTexture(OutputSceneColorDesc, TEXT("Bloom.FFT.ScatterDispersion"));
+	BloomOutput.BloomTexture.ViewRect = Intermediates.ImageRect;
 
 	GPUFFT::ConvolutionWithTextureImage2D(
 		GraphBuilder,
@@ -794,8 +801,9 @@ FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		Intermediates.bDoHorizontalFirst,
 		SpectralKernelTexture,
 		Intermediates.InputTexture, Intermediates.ImageRect,
-		BloomOutput.Bloom.Texture, BloomOutput.Bloom.ViewRect,
-		Intermediates.PreFilter);
+		BloomOutput.BloomTexture.Texture, BloomOutput.BloomTexture.ViewRect,
+		Intermediates.PreFilter,
+		FFTMulitplyParameters);
 
 	return BloomOutput;
 }

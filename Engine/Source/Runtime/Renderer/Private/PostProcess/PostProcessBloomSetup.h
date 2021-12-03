@@ -19,26 +19,7 @@ enum class EBloomQuality : uint32
 
 EBloomQuality GetBloomQuality();
 
-struct FBloomOutputs
-{
-	// Bloom texture to apply to the scene colors.
-	FScreenPassTexture Bloom;
-
-	// Parameters to apply the bloom texture to scene color.
-	FRDGBufferRef ApplyParameters = nullptr;
-
-	// Structure of ApplyParameters.
-	struct FApplyInfo
-	{
-		FLinearColor SceneColorMultiply;
-		FLinearColor BloomMultiply;
-	};
-
-	// Returns whether ApplyParameters is supported by the tonemapper.
-	static bool SupportsApplyParametersBuffer(EShaderPlatform Platform);
-};
-
-FBloomOutputs AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSceneDownsampleChain* SceneDownsampleChain);
+FScreenPassTexture AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSceneDownsampleChain* SceneDownsampleChain);
 
 struct FBloomSetupInputs
 {
