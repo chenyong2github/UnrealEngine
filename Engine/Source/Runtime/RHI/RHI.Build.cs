@@ -31,7 +31,7 @@ public class RHI : ModuleRules
 					PublicDefinitions.Add("RHI_WANT_BREADCRUMB_EVENTS=1");
 				}
 
-				if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+				if (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Configuration != UnrealTargetConfiguration.Test)
                 {
 					PublicDefinitions.Add("RHI_WANT_RESOURCE_INFO=1");
                 }
