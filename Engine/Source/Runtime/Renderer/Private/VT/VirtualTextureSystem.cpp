@@ -630,6 +630,14 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 		NumPhysicalGroups = Desc.NumTextureLayers;
 	}
 
+	if (NumAllocatedSpaces == MaxSpaces)
+	{
+		// We have already allocated the maximum number of spaces. If this allocation needs a new space then it will fail.
+		// To give us the best chance of success, flush all pending destroys now. This may free up a space.
+		// This is potentially an expensive operation, which is why we only do it if necessary.
+		DestroyPendingVirtualTextures(true);
+	}
+
 	AllocatedVT = new FAllocatedVirtualTexture(this, Frame, Desc, ProducerForLayer, BlockWidthInTiles, BlockHeightInTiles, WidthInBlocks, HeightInBlocks, DepthInTiles);
 	AllocatedVT->NumRefs = 1;
 	if (bAnyLayerProducerWantsPersistentHighestMip)
@@ -808,6 +816,7 @@ FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescript
 				const uint32 InitialPageTableSize = InDesc.bPrivateSpace ? InDesc.MaxSpaceSize : FMath::Max(AllocatedVT->GetWidthInTiles(), AllocatedVT->GetHeightInTiles());
 				FVirtualTextureSpace* Space = new FVirtualTextureSpace(this, SpaceIndex, InDesc, InitialPageTableSize);
 				Spaces[SpaceIndex].Reset(Space);
+				NumAllocatedSpaces++;
 				INC_MEMORY_STAT_BY(STAT_TotalPagetableMemory, Space->GetSizeInBytes());
 				BeginInitResource(Space);
 
@@ -837,6 +846,7 @@ void FVirtualTextureSystem::ReleaseSpace(FVirtualTextureSpace* Space)
 		DEC_MEMORY_STAT_BY(STAT_TotalPagetableMemory, Space->GetSizeInBytes());
 		Space->ReleaseResource();
 		Spaces[Space->GetID()].Reset();
+		NumAllocatedSpaces--;
 	}
 }
 
