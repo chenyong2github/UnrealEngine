@@ -56,7 +56,7 @@ bool FNiagaraBakerRenderer::RenderView(UNiagaraComponent* PreviewComponent, cons
 		return false;
 	}
 
-	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, FGameTime::CreateUndilated(WorldTime, FApp::GetDeltaTime()), World->Scene->GetFeatureLevel());
+	FCanvas Canvas(RenderTarget->GameThread_GetRenderTargetResource(), nullptr, WorldTime, FApp::GetDeltaTime(), WorldTime, World->Scene->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Black);
 
 	bool bRendered = false;
@@ -172,7 +172,7 @@ bool FNiagaraBakerRenderer::RenderView(UNiagaraComponent* PreviewComponent, cons
 			// Create View Family
 			FSceneViewFamilyContext ViewFamily(
 				FSceneViewFamily::ConstructionValues(RenderTarget->GameThread_GetRenderTargetResource(), World->Scene, FEngineShowFlags(ESFIM_Game))
-				.SetTime(FGameTime::CreateUndilated(WorldTime, FApp::GetDeltaTime()))
+				.SetWorldTimes(WorldTime, FApp::GetDeltaTime(), WorldTime)
 				.SetGammaCorrection(GammaCorrection)
 			);
 

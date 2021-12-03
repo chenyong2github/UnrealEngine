@@ -255,7 +255,7 @@ void UDisplayClusterPreviewComponent::UpdatePreviewRenderTarget()
 			FTextureRenderTarget2DResource* TexResource = (FTextureRenderTarget2DResource*)RenderTarget->GetResource();
 			if (TexResource)
 			{
-				FCanvas Canvas(TexResource, NULL, FGameTime(), GMaxRHIFeatureLevel);
+				FCanvas Canvas(TexResource, NULL, 0, 0, 0, GMaxRHIFeatureLevel);
 				Canvas.Clear(FLinearColor::Black);
 			}
 		}

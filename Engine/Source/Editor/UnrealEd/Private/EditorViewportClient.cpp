@@ -3750,15 +3750,24 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	FViewport* ViewportBackup = Viewport;
 	Viewport = InViewport ? InViewport : Viewport;
 
+	// Determine whether we should use world time or real time based on the scene.
+	float TimeSeconds;
+	float RealTimeSeconds;
+	float DeltaTimeSeconds;
+
 	UWorld* World = GetWorld();
-	FGameTime Time;
 	if (!World || (GetScene() != World->Scene) || UseAppTime()) 
 	{
-		Time = FGameTime::GetTimeSinceAppStart();
+		// Use time relative to start time to avoid issues with float vs double
+		TimeSeconds = FApp::GetCurrentTime() - GStartTime;
+		RealTimeSeconds = FApp::GetCurrentTime() - GStartTime;
+		DeltaTimeSeconds = FApp::GetDeltaTime();
 	}
 	else
 	{
-		Time = World->GetTime();
+		TimeSeconds = World->GetTimeSeconds();
+		RealTimeSeconds = World->GetRealTimeSeconds();
+		DeltaTimeSeconds = World->GetDeltaSeconds();
 	}
 
 	// Allow HMD to modify the view later, just before rendering
@@ -3783,7 +3792,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		Canvas->GetRenderTarget(),
 		GetScene(),
 		UseEngineShowFlags)
-		.SetTime(Time)
+		.SetWorldTimes( TimeSeconds, DeltaTimeSeconds, RealTimeSeconds )
 		.SetRealtimeUpdate( IsRealtime() && FSlateThrottleManager::Get().IsAllowingExpensiveTasks() )
 		.SetViewModeParam( ViewModeParam, ViewModeParamName ) );
 

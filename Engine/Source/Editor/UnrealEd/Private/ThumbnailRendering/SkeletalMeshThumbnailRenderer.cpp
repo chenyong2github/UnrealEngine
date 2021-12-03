@@ -24,7 +24,7 @@ void USkeletalMeshThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uin
 	AddAdditionalPreviewSceneContent(Object, ThumbnailScene->GetWorld());
 
 	FSceneViewFamilyContext ViewFamily( FSceneViewFamily::ConstructionValues( RenderTarget, ThumbnailScene->GetScene(), FEngineShowFlags(ESFIM_Game) )
-		.SetTime(UThumbnailRenderer::GetTime())
+		.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
 		.SetAdditionalViewFamily(bAdditionalViewFamily));
 
 	ViewFamily.EngineShowFlags.DisableAdvancedFeatures();

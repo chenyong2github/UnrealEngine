@@ -229,10 +229,15 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 
 bool FCanvasTileRendererItem::Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
-	FGameTime Time;
+	float CurrentRealTime = 0.f;
+	float CurrentWorldTime = 0.f;
+	float DeltaWorldTime = 0.f;
+
 	if (!bFreezeTime)
 	{
-		Time = Canvas->GetTime();
+		CurrentRealTime = Canvas->GetCurrentRealTime();
+		CurrentWorldTime = Canvas->GetCurrentWorldTime();
+		DeltaWorldTime = Canvas->GetCurrentDeltaWorldTime();
 	}
 
 	checkSlow(Data);
@@ -243,7 +248,7 @@ bool FCanvasTileRendererItem::Render_RenderThread(FCanvasRenderContext& RenderCo
 		CanvasRenderTarget,
 		nullptr,
 		FEngineShowFlags(ESFIM_Game))
-		.SetTime(Time)
+		.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
 		.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
 
 	const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());
@@ -275,10 +280,15 @@ bool FCanvasTileRendererItem::Render_RenderThread(FCanvasRenderContext& RenderCo
 
 bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope)
 {
-	FGameTime Time;
+	float CurrentRealTime = 0.f;
+	float CurrentWorldTime = 0.f;
+	float DeltaWorldTime = 0.f;
+
 	if (!bFreezeTime)
 	{
-		Time = Canvas->GetTime();
+		CurrentRealTime = Canvas->GetCurrentRealTime();
+		CurrentWorldTime = Canvas->GetCurrentWorldTime();
+		DeltaWorldTime = Canvas->GetCurrentDeltaWorldTime();
 	}
 
 	checkSlow(Data);
@@ -290,7 +300,7 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRe
 			CanvasRenderTarget,
 			Canvas->GetScene(),
 			FEngineShowFlags(ESFIM_Game))
-			.SetTime(Time)
+			.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
 			.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
 
 		const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());

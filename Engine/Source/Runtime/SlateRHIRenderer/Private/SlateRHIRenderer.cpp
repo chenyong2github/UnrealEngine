@@ -96,7 +96,9 @@ struct FSlateDrawWindowCommandParams
 #if WANTS_DRAW_MESH_EVENTS
 	FString WindowTitle;
 #endif
-	FGameTime Time;
+	float WorldTimeSeconds;
+	float DeltaTimeSeconds;
+	float RealTimeSeconds;
 	bool bLockToVsync;
 	bool bClear;
 };
@@ -886,7 +888,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 						{
 							FSlateBackBuffer BackBufferTarget(BackBuffer, FIntPoint(ViewportWidth, ViewportHeight));
 
-							FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.Time);
+							FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.WorldTimeSeconds, DrawCommandParams.DeltaTimeSeconds, DrawCommandParams.RealTimeSeconds);
 							RenderParams.bWireFrame = !!SlateWireFrame;
 							RenderParams.bIsHDR = ViewportInfo.bHDREnabled;
 
@@ -1322,9 +1324,9 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 #else
 					Params.bClear = false;
 #endif	
-					Params.Time = FGameTime::CreateDilated(
-						FPlatformTime::Seconds() - GStartTime, FApp::GetDeltaTime(),
-						FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime());
+					Params.WorldTimeSeconds = FApp::GetCurrentTime() - GStartTime;
+					Params.DeltaTimeSeconds = FApp::GetDeltaTime();
+					Params.RealTimeSeconds = FPlatformTime::Seconds() - GStartTime;
 
 					// Skip the actual draw if we're in a headless execution environment
 					bool bLocalTakingAScreenShot = bTakingAScreenShot;

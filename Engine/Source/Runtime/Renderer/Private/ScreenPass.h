@@ -648,7 +648,7 @@ FORCEINLINE void AddDrawCanvasPass(
 	check(Output.IsValid());
 
 	const FSceneViewFamily& ViewFamily = *View.Family;
-	FCanvas& Canvas = *FCanvas::Create(GraphBuilder, Output.Texture, nullptr, ViewFamily.Time, View.GetFeatureLevel());
+	FCanvas& Canvas = *FCanvas::Create(GraphBuilder, Output.Texture, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.GetFeatureLevel());
 	Canvas.SetRenderTargetRect(Output.ViewRect);
 
 	Function(Canvas);

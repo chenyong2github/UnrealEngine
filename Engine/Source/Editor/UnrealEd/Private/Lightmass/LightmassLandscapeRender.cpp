@@ -91,7 +91,7 @@ void RenderLandscapeMaterialForLightmass(const FLandscapeStaticLightingMesh* Lan
 		RenderTarget,
 		NULL,
 		FEngineShowFlags(ESFIM_Game))
-		.SetTime(FGameTime())
+		.SetWorldTimes(0, 0, 0)
 		.SetGammaCorrection(RenderTarget->GetDisplayGamma()));
 
 	FDynamicMeshBuilder DynamicMeshBuilder(ViewFamily.GetFeatureLevel(), 4, 0, true);

@@ -42,7 +42,7 @@ void AddTestImagePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenP
 	PassParameters->Output = GetScreenPassTextureViewportParameters(Viewport);
 	PassParameters->ColorRemap = GetColorRemapParameters();
 	PassParameters->FrameNumber = ViewFamily.FrameNumber;
-	PassParameters->FrameTime = ViewFamily.Time.GetRealTimeSeconds();
+	PassParameters->FrameTime = ViewFamily.CurrentRealTime;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::EClear);
 
 	TShaderMapRef<FTestImagePS> PixelShader(View.ShaderMap);

@@ -200,10 +200,15 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 
 bool FCanvasTriangleRendererItem::Render_RenderThread(FCanvasRenderContext& RenderContext, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
-	FGameTime Time;
+	float CurrentRealTime = 0.f;
+	float CurrentWorldTime = 0.f;
+	float DeltaWorldTime = 0.f;
+
 	if (!bFreezeTime)
 	{
-		Time = Canvas->GetTime();
+		CurrentRealTime = Canvas->GetCurrentRealTime();
+		CurrentWorldTime = Canvas->GetCurrentWorldTime();
+		DeltaWorldTime = Canvas->GetCurrentDeltaWorldTime();
 	}
 
 	checkSlow(Data);
@@ -214,7 +219,7 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FCanvasRenderContext& Rend
 		CanvasRenderTarget,
 		nullptr,
 		FEngineShowFlags(ESFIM_Game))
-		.SetTime(Time)
+		.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
 		.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
 
 	const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());
@@ -246,10 +251,15 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FCanvasRenderContext& Rend
 
 bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRenderThreadScope& RenderScope)
 {
-	FGameTime Time;
+	float CurrentRealTime = 0.f;
+	float CurrentWorldTime = 0.f;
+	float DeltaWorldTime = 0.f;
+
 	if (!bFreezeTime)
 	{
-		Time = Canvas->GetTime();
+		CurrentRealTime = Canvas->GetCurrentRealTime();
+		CurrentWorldTime = Canvas->GetCurrentWorldTime();
+		DeltaWorldTime = Canvas->GetCurrentDeltaWorldTime();
 	}
 
 	checkSlow(Data);
@@ -260,7 +270,7 @@ bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FCanv
 		CanvasRenderTarget,
 		Canvas->GetScene(),
 		FEngineShowFlags(ESFIM_Game))
-		.SetTime(Time)
+		.SetWorldTimes(CurrentWorldTime, DeltaWorldTime, CurrentRealTime)
 		.SetGammaCorrection(CanvasRenderTarget->GetDisplayGamma()));
 
 	const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());

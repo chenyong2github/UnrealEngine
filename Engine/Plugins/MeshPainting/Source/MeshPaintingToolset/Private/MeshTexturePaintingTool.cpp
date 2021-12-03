@@ -827,7 +827,7 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 	check(BrushRenderTargetResource != nullptr);
 
 	// Create a canvas for the brush render target.
-	FCanvas BrushPaintCanvas(BrushRenderTargetResource, nullptr, FGameTime(), FeatureLevel);
+	FCanvas BrushPaintCanvas(BrushRenderTargetResource, nullptr, 0, 0, 0, FeatureLevel);
 
 	// Parameters for brush paint
 	TRefCountPtr< FMeshPaintBatchedElementParameters > MeshPaintBatchedElementParameters(new FMeshPaintBatchedElementParameters());
@@ -865,7 +865,7 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 		check(BrushMaskRenderTargetResource != nullptr);
 
 		// Create a canvas for the brush mask rendertarget and clear it to black.
-		BrushMaskCanvas = TSharedPtr<FCanvas>(new FCanvas(BrushMaskRenderTargetResource, nullptr, FGameTime(), FeatureLevel));
+		BrushMaskCanvas = TSharedPtr<FCanvas>(new FCanvas(BrushMaskRenderTargetResource, nullptr, 0, 0, 0, FeatureLevel));
 		BrushMaskCanvas->Clear(FLinearColor::Black);
 
 		// Parameters for the mask
@@ -1063,7 +1063,7 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 		// Dilate the paint stroke into the texture seams.
 		{
 			// Create a canvas for the render target.
-			FCanvas Canvas3(RenderTargetResource, nullptr, FGameTime(), FeatureLevel);
+			FCanvas Canvas3(RenderTargetResource, nullptr, 0, 0, 0, FeatureLevel);
 
 
 			TRefCountPtr< FMeshPaintDilateBatchedElementParameters > MeshPaintDilateBatchedElementParameters(new FMeshPaintDilateBatchedElementParameters());

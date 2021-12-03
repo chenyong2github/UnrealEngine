@@ -1662,7 +1662,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 		if (bShadowRelevance)
 		{
 			// Update the primitive component's last render time. Allows the component to update when using bCastWhenHidden.
-			const float CurrentWorldTime = Views[0].Family->Time.GetWorldTimeSeconds();
+			const float CurrentWorldTime = Views[0].Family->CurrentWorldTime;
 			PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/false);
 
 			if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
@@ -1891,7 +1891,7 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 		}
 
 		// Update the primitive component's last render time. Allows the component to update when using bCastWhenHidden.
-		const float CurrentWorldTime = CurrentView->Family->Time.GetWorldTimeSeconds();
+		const float CurrentWorldTime = CurrentView->Family->CurrentWorldTime;
 		PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/false);
 
 		if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
@@ -3612,7 +3612,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					ComputeWholeSceneShadowCacheModes(
 						LightSceneInfo,
 						ProjectedShadowInitializer.bOnePassPointLightShadow,
-						ViewFamily.Time.GetRealTimeSeconds(),
+						ViewFamily.CurrentRealTime,
 						MaxDesiredResolution,
 						FIntPoint(MaxShadowResolution, MaxShadowResolutionY),
 						Scene,
@@ -4718,7 +4718,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						{
 							ComputeViewDependentWholeSceneShadowCacheModes(
 								&LightSceneInfo,
-								ViewFamily.Time.GetRealTimeSeconds(),
+								ViewFamily.CurrentRealTime,
 								Scene,
 								ProjectedShadowInitializer,
 								ShadowBufferResolution,
@@ -5154,7 +5154,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 
 		for (auto& ShadowMapData : ShadowMapDatas)
 		{
-			if (ShadowMapData.ShadowMap.IsValid() && ViewFamily.Time.GetRealTimeSeconds() - ShadowMapData.LastUsedTime > 2.0f)
+			if (ShadowMapData.ShadowMap.IsValid() && ViewFamily.CurrentRealTime - ShadowMapData.LastUsedTime > 2.0f)
 			{
 				ShadowMapData.InvalidateCachedShadow();
 			}

@@ -403,7 +403,7 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	Parameters.MaxAverageLuminance = MaxAverageLuminance;
 	Parameters.ExposureCompensationSettings = ExposureCompensationSettings;
 	Parameters.ExposureCompensationCurve = ExposureCompensationCurve;
-	Parameters.DeltaWorldTime = View.Family->Time.GetDeltaWorldTimeSeconds();
+	Parameters.DeltaWorldTime = View.Family->DeltaWorldTime;
 	Parameters.ExposureSpeedUp = Settings.AutoExposureSpeedUp;
 	Parameters.ExposureSpeedDown = Settings.AutoExposureSpeedDown;
 	Parameters.HistogramScale = HistogramScale;

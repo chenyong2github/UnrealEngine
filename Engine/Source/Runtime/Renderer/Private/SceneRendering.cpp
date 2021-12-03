@@ -2575,7 +2575,8 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 	// rendering differences in materials.
 	if (bAnyViewIsLocked)
 	{
-		ViewFamily.Time = FGameTime::CreateDilated(0.0f, ViewFamily.Time.GetDeltaRealTimeSeconds(), 0.0f, ViewFamily.Time.GetDeltaWorldTimeSeconds());
+		ViewFamily.CurrentRealTime = 0.0f;
+		ViewFamily.CurrentWorldTime = 0.0f;
 	}
 	
 	if(HitProxyConsumer)
@@ -4639,7 +4640,7 @@ static void DisplayInternals(FRHICommandListImmediate& RHICmdList, FViewInfo& In
 		// could be 0
 		auto State = InView.ViewState;
 
-		FCanvas Canvas((FRenderTarget*)Family->RenderTarget, NULL, Family->Time, InView.GetFeatureLevel());
+		FCanvas Canvas((FRenderTarget*)Family->RenderTarget, NULL, Family->CurrentRealTime, Family->CurrentWorldTime, Family->DeltaWorldTime, InView.GetFeatureLevel());
 		Canvas.SetRenderTargetRect(FIntRect(0, 0, Family->RenderTarget->GetSizeXY().X, Family->RenderTarget->GetSizeXY().Y));
 
 
@@ -4713,7 +4714,7 @@ static void DisplayInternals(FRHICommandListImmediate& RHICmdList, FViewInfo& In
 		}
 
 		CANVAS_HEADER(TEXT("Family:"))
-		CANVAS_LINE(false, TEXT("  Time (Real/World/DeltaWorld): %.2f/%.2f/%.2f"), Family->Time.GetRealTimeSeconds(), Family->Time.GetWorldTimeSeconds(), Family->Time.GetDeltaWorldTimeSeconds())
+		CANVAS_LINE(false, TEXT("  Time (Real/World/DeltaWorld): %.2f/%.2f/%.2f"), Family->CurrentRealTime, Family->CurrentWorldTime, Family->DeltaWorldTime)
 		CANVAS_LINE(false, TEXT("  FrameNumber: %u"), Family->FrameNumber)
 		CANVAS_LINE(false, TEXT("  ExposureSettings: %s"), *Family->ExposureSettings.ToString())
 		CANVAS_LINE(false, TEXT("  GammaCorrection: %.2f"), Family->GammaCorrection)

@@ -27,7 +27,7 @@ void UAnimBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, ui
 		if(ThumbnailScene->SetAnimBlueprint(AnimBlueprint))
 		{
 			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(RenderTarget, ThumbnailScene->GetScene(), FEngineShowFlags(ESFIM_Game))
-				.SetTime(UThumbnailRenderer::GetTime())
+				.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
 				.SetAdditionalViewFamily(bAdditionalViewFamily));
 
 			ViewFamily.EngineShowFlags.DisableAdvancedFeatures();

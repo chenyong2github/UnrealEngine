@@ -750,7 +750,7 @@ static void RenderSceneToTexture(
 
 	FSceneViewFamilyContext ViewFamily(
 		FSceneViewFamily::ConstructionValues(RenderTargetResource, Scene, FEngineShowFlags(ESFIM_Game))
-			.SetTime(FGameTime::GetTimeSinceAppStart())
+			.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
 		);
 
 	// To enable visualization mode
@@ -774,7 +774,7 @@ static void RenderSceneToTexture(
 	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
 		ViewFamily, /* GlobalResolutionFraction = */ 1.0f));
 
-	FCanvas Canvas(RenderTargetResource, NULL, FGameTime::GetTimeSinceAppStart(), Scene->GetFeatureLevel());
+	FCanvas Canvas(RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, Scene->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Transparent);
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 

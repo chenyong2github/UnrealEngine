@@ -45,7 +45,9 @@ public:
 		ShowFlags.SetBloom(0);
 
 		// Turn off time the ultimate source of noise.
-		InViewFamily.Time = FGameTime();
+		InViewFamily.CurrentWorldTime = 0;
+		InViewFamily.CurrentRealTime = 0;
+		InViewFamily.DeltaWorldTime = 0;
 	}
 
 	bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const
