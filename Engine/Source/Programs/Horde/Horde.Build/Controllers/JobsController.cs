@@ -169,6 +169,27 @@ namespace HordeServer.Controllers
 				}
 			}
 
+			// Check the preflight change is valid
+			if (Create.PreflightChange != null)
+			{
+				CheckShelfResult Result = await Perforce.CheckShelfAsync(Stream.ClusterName, Stream.Name, Create.PreflightChange.Value, null);
+				switch (Result)
+				{
+					case CheckShelfResult.Ok:
+						break;
+					case CheckShelfResult.NoChange:
+						return BadRequest(KnownLogEvents.Horde_InvalidPreflight, "CL {Change} does not exist", Create.PreflightChange);
+					case CheckShelfResult.NoShelvedFiles:
+						return BadRequest(KnownLogEvents.Horde_InvalidPreflight, "CL {Change} does not contain any shelved files", Create.PreflightChange);
+					case CheckShelfResult.WrongStream:
+						return BadRequest(KnownLogEvents.Horde_InvalidPreflight, "CL {Change} does not contain files in {Stream}", Create.PreflightChange, Stream.Name);
+					case CheckShelfResult.MixedStream:
+						return BadRequest(KnownLogEvents.Horde_InvalidPreflight, "CL {Change} contains files from multiple streams", Create.PreflightChange);
+					default:
+						return BadRequest(KnownLogEvents.Horde_InvalidPreflight, "CL {Change} cannot be preflighted ({Result})", Create.PreflightChange, Result);
+				}
+			}
+
 			bool? UpdateIssues = null;
 			if (Template.UpdateIssues)
 			{
@@ -700,7 +721,7 @@ namespace HordeServer.Controllers
 			}
 			return Responses;
 		}
-		
+
 		/// <summary>
 		/// Find jobs for a stream with given templates, sorted by creation date
 		/// </summary>

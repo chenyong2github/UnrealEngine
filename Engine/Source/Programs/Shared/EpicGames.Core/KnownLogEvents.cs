@@ -163,6 +163,16 @@ namespace EpicGames.Core
 		/// A systemic event from MSBuild
 		/// </summary>
 		public static EventId Systemic_MSBuild { get; } = new EventId(750);
+
+		/// <summary>
+		/// Horde error codes
+		/// </summary>
+		public static EventId Horde { get; } = new EventId(1000);
+
+		/// <summary>
+		/// Invalid preflight change
+		/// </summary>
+		public static EventId Horde_InvalidPreflight { get; } = new EventId(1001);
 	}
 #pragma warning restore CA1707 // Identifiers should not contain underscores
 }

@@ -45,6 +45,37 @@ namespace HordeServer.Services
 	}
 
 	/// <summary>
+	/// Result from checking a shelved change status
+	/// </summary>
+	public enum CheckShelfResult
+	{
+		/// <summary>
+		/// The shelf is ok
+		/// </summary>
+		Ok,
+
+		/// <summary>
+		/// Changelist does not exist
+		/// </summary>
+		NoChange,
+
+		/// <summary>
+		/// The change does not contain any shelved files
+		/// </summary>
+		NoShelvedFiles,
+
+		/// <summary>
+		/// The shelf contains *some* files from a different stream
+		/// </summary>
+		MixedStream,
+
+		/// <summary>
+		/// The shelf contains only files from a different stream
+		/// </summary>
+		WrongStream,
+	}
+
+	/// <summary>
 	/// Interface for a Perforce stream view
 	/// </summary>
 	public interface IStreamView : IDisposable
@@ -142,6 +173,16 @@ namespace HordeServer.Services
 		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
 		/// <returns>Latest changelist number</returns>
 		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser);
+
+		/// <summary>
+		/// Checks a shelf is valid for the given stream
+		/// </summary>
+		/// <param name="ClusterName">Name of the Perforce cluster</param>
+		/// <param name="StreamName">The stream to query</param>
+		/// <param name="ChangeNumber">Shelved changelist number</param>
+		/// <param name="ImpersonateUser">Name of the user to impersonate</param>
+		/// <returns></returns>
+		public Task<CheckShelfResult> CheckShelfAsync(string ClusterName, string StreamName, int ChangeNumber, string? ImpersonateUser);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream

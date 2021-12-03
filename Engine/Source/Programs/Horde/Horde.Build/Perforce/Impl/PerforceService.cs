@@ -886,6 +886,53 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
+		public async Task<CheckShelfResult> CheckShelfAsync(string ClusterName, string StreamName, int ChangeNumber, string? ImpersonateUser)
+		{
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.CheckPreflightAsync").StartActive();
+			Scope.Span.SetTag("ClusterName", ClusterName);
+			Scope.Span.SetTag("StreamName", StreamName);
+			Scope.Span.SetTag("ChangeNumber", ChangeNumber);
+			Scope.Span.SetTag("ImpersonateUser", ImpersonateUser);
+
+			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
+			using (P4.Repository Repository = await GetConnection(Cluster, Stream: StreamName, Username: ImpersonateUser))
+			{
+				P4.Changelist Change = Repository.GetChangelist(ChangeNumber, new P4.DescribeCmdOptions(P4.DescribeChangelistCmdFlags.Omit | P4.DescribeChangelistCmdFlags.Shelved, 0, 0));
+				if(Change == null)
+				{
+					return CheckShelfResult.NoChange;
+				}
+				if (Change.ShelvedFiles.Count == 0)
+				{
+					return CheckShelfResult.NoShelvedFiles;
+				}
+
+				P4.Stream Stream = Repository.GetStream(StreamName, new P4.StreamCmdOptions(P4.StreamCmdFlags.View, null, null));
+				ViewMap Map = new ViewMap(Stream.View);
+
+				bool bHasMappedFile = false;
+				bool bHasUnmappedFile = false;
+				foreach (P4.ShelvedFile ShelvedFile in Change.ShelvedFiles)
+				{
+					if (Map.TryMapFile(ShelvedFile.Path.Path, Utf8StringComparer.OrdinalIgnoreCase, out Utf8String _))
+					{
+						bHasMappedFile = true;
+					}
+					else
+					{
+						bHasUnmappedFile = true;
+					}
+				}
+
+				if (bHasUnmappedFile)
+				{
+					return bHasMappedFile ? CheckShelfResult.MixedStream : CheckShelfResult.WrongStream;
+				}
+			}
+			return CheckShelfResult.Ok;
+		}
+
+		/// <inheritdoc/>
 		public async Task<List<ChangeDetails>> GetChangeDetailsAsync(string ClusterName, string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
 		{
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetChangeDetailsAsync").StartActive();
