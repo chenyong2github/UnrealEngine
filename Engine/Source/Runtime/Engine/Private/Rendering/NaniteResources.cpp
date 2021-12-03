@@ -996,6 +996,10 @@ void FSceneProxy::OnTransformChanged()
 }
 
 #if RHI_RAYTRACING
+bool FSceneProxy::HasRayTracingRepresentation() const
+{
+	return bHasRayTracingInstances;
+}
 
 int32 FSceneProxy::GetFirstValidRaytracingGeometryLODIndex() const
 {

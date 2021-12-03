@@ -502,6 +502,14 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 		// Exclude far field proxies as those won't use surface cache
 		&& !Proxy->IsRayTracingFarField();
 
+#if RHI_RAYTRACING
+	// Make sure that this primitive can be used for ray tracing, if only hardware ray tracing is supported
+	if (bTrack && !DoesProjectSupportDistanceFields() && IsRayTracingEnabled() && !(Proxy->IsVisibleInRayTracing() && Proxy->HasRayTracingRepresentation()))
+	{
+		bTrack = false;
+	}
+#endif
+
 	return bTrack;
 }
 

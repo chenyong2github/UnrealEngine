@@ -6506,6 +6506,11 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 }
 
 #if RHI_RAYTRACING
+bool FSkeletalMeshSceneProxy::HasRayTracingRepresentation() const
+{
+	return bRenderStatic;
+}
+
 void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext & Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances)
 {
 	if (!CVarRayTracingSkeletalMeshes.GetValueOnRenderThread()

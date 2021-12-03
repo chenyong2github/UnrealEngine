@@ -575,6 +575,8 @@ public:
 		return false;
 	}
 
+	virtual bool HasRayTracingRepresentation() const override;
+
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) final override;
 
 	void SetupRayTracingDynamicInstances(int32 NumDynamicInstances, int32 LOD);

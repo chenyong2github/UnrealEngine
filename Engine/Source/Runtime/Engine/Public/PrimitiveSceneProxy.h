@@ -264,6 +264,9 @@ public:
 	virtual bool IsRayTracingRelevant() const { return false; }
 	virtual bool IsRayTracingStaticRelevant() const { return false; }
 
+	/** Return whether proxy has a valid ray tracing representation and can be used for ray tracing. */
+	virtual bool HasRayTracingRepresentation() const { return false; }
+
 	/** Gathers dynamic ray tracing instances from this proxy. */
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) {}
 
