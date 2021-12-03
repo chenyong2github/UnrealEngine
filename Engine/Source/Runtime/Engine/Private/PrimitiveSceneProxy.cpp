@@ -177,6 +177,9 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bHasPerInstanceLMSMUVBias(false)
 ,	bHasPerInstanceLocalBounds(false)
 ,	bHasPerInstanceHierarchyOffset(false)
+#if WITH_EDITOR
+,	bHasPerInstanceEditorData(false)
+#endif
 ,	bUseAsOccluder(InComponent->bUseAsOccluder)
 ,	bAllowApproximateOcclusion(InComponent->Mobility != EComponentMobility::Movable)
 ,	bSelectable(InComponent->bSelectable)
@@ -479,11 +482,11 @@ uint32 FPrimitiveSceneProxy::GetPayloadDataStride() const
 	// Hierarchy is packed in with local bounds if they are both present (almost always the case)
 	if (HasPerInstanceLocalBounds())
 	{
-		PayloadDataCount += 2; // FRenderBounds and possibly uint32 for hierarchy offset
+		PayloadDataCount += 2; // FRenderBounds and possibly uint32 for hierarchy offset & another uint32 for EditorData
 	}
-	else if (HasPerInstanceHierarchyOffset())
+	else if (HasPerInstanceHierarchyOffset() || HasPerInstanceEditorData())
 	{
-		PayloadDataCount += 1; // uint32 for hierarchy offset (float4 packed)
+		PayloadDataCount += 1; // uint32 for hierarchy offset (float4 packed) & instance editor data is packed in the same float4
 	}
 
 	PayloadDataCount += HasPerInstanceLMSMUVBias() ? 1 : 0; // FVector4
@@ -556,29 +559,44 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 		// Apply all updates.
 		for (const auto& Cmd : CmdBuffer.Cmds)
 		{
-			if (Cmd.Type == FInstanceUpdateCmdBuffer::Update)
+			switch (Cmd.Type)
 			{
-				// update transform data.
-				InstanceSceneData[Cmd.InstanceIndex].LocalToPrimitive = Cmd.XForm;
-				InstanceDynamicData[Cmd.InstanceIndex].PrevLocalToPrimitive = Cmd.PreviousXForm;
+				case FInstanceUpdateCmdBuffer::Update:
+				{
+					// update transform data.
+					InstanceSceneData[Cmd.InstanceIndex].LocalToPrimitive = Cmd.XForm;
+					InstanceDynamicData[Cmd.InstanceIndex].PrevLocalToPrimitive = Cmd.PreviousXForm;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				InstanceXFormUpdatedThisFrame[Cmd.InstanceIndex] = true;
+					InstanceXFormUpdatedThisFrame[Cmd.InstanceIndex] = true;
 #endif
-			}
-			else if (Cmd.Type == FInstanceUpdateCmdBuffer::CustomData)
-			{
-				check(bHasCustomFloatData);
+				}
+				break;
+				case FInstanceUpdateCmdBuffer::CustomData:
+				{
+					check(bHasCustomFloatData);
 
-				// update custom data because it changed.
-				check(PrevNumCustomDataFloats == NumCustomDataFloats);
-				const int32 DstCustomDataOffset = Cmd.InstanceIndex * NumCustomDataFloats;
-				FMemory::Memcpy(&InstanceCustomData[DstCustomDataOffset], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
+					// update custom data because it changed.
+					check(PrevNumCustomDataFloats == NumCustomDataFloats);
+					const int32 DstCustomDataOffset = Cmd.InstanceIndex * NumCustomDataFloats;
+					FMemory::Memcpy(&InstanceCustomData[DstCustomDataOffset], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				InstanceCustomDataUpdatedThisFrame[Cmd.InstanceIndex] = true;
+					InstanceCustomDataUpdatedThisFrame[Cmd.InstanceIndex] = true;
 #endif
-			}
+				}
+				break;
+#if WITH_EDITOR
+				case FInstanceUpdateCmdBuffer::EditorData:
+				{
+					check(bHasPerInstanceEditorData);
+					InstanceEditorData[Cmd.InstanceIndex] = FInstanceUpdateCmdBuffer::PackEditorData(Cmd.HitProxyColor, Cmd.bSelected);
+				}
+				break;
+#endif //WITH_EDITOR
+				default:
+				break;
+			};
 		}
 
 		// Build bit array of commands to remove.
@@ -608,6 +626,13 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 				{
 					InstanceLightShadowUVBias.RemoveAtSwap(i, 1, false);
 				}
+
+#if WITH_EDITOR
+				if (bHasPerInstanceEditorData)
+				{
+					InstanceEditorData.RemoveAtSwap(i, 1, false);
+				}
+#endif
 
 				// Only remove the custom float data from this instance if it previously had it.
 				if (bPreviouslyHadCustomFloatData)
@@ -644,6 +669,12 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 					InstanceLightShadowUVBias.AddZeroed();
 				}
 
+#if WITH_EDITOR
+				if (bHasPerInstanceEditorData)
+				{
+					InstanceEditorData.AddZeroed();
+				}
+#endif
 				if (bHasCustomFloatData)
 				{
 					const int32 DstCustomDataOffset = InstanceCustomData.AddUninitialized(NumCustomDataFloats);
@@ -664,6 +695,9 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 		bHasPerInstanceCustomData = InstanceCustomData.Num() > 0;
 		bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
 		bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0;
+#if WITH_EDITOR
+		bHasPerInstanceEditorData = InstanceEditorData.Num() > 0;
+#endif
 
 		// Ensure our data is in sync.
 		check(InstanceSceneData.Num() == InstanceDynamicData.Num());

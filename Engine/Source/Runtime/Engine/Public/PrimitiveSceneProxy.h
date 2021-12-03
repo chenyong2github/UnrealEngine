@@ -642,6 +642,11 @@ public:
 	inline bool HasPerInstanceLMSMUVBias() const { return bHasPerInstanceLMSMUVBias; }
 	inline bool HasPerInstanceLocalBounds() const { return bHasPerInstanceLocalBounds; }
 	inline bool HasPerInstanceHierarchyOffset() const { return bHasPerInstanceHierarchyOffset; }
+#if WITH_EDITOR
+	inline bool HasPerInstanceEditorData() const { return bHasPerInstanceEditorData; }
+#else
+	FORCEINLINE bool HasPerInstanceEditorData() const { return false; }
+#endif // WITH_EDITOR
 
 	inline bool HasAnyPerInstancePayloadData() const
 	{
@@ -651,6 +656,9 @@ public:
 			bHasPerInstanceDynamicData	|
 			bHasPerInstanceLMSMUVBias	|
 			bHasPerInstanceLocalBounds	|
+#if WITH_EDITOR
+			bHasPerInstanceEditorData	|
+#endif
 			bHasPerInstanceHierarchyOffset;
 	}
 
@@ -663,6 +671,10 @@ public:
 		PayloadDataFlags |= HasPerInstanceLMSMUVBias()      ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	: 0u;
 		PayloadDataFlags |= HasPerInstanceHierarchyOffset() ? INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		: 0u;
 		PayloadDataFlags |= HasPerInstanceLocalBounds()     ? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			: 0u;
+#if WITH_EDITOR
+		PayloadDataFlags |= HasPerInstanceEditorData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA			: 0u;
+#endif
+
 		return PayloadDataFlags;
 	}
 
@@ -805,6 +817,13 @@ public:
 	{
 		return InstanceLocalBounds;
 	}
+
+#if WITH_EDITOR
+	FORCEINLINE TConstArrayView<uint32> GetInstanceEditorData() const
+	{
+		return InstanceEditorData;
+	}
+#endif // 
 
 	// Helper function to avoid multiple code paths requesting bounds
 	FORCEINLINE const FRenderBounds& GetInstanceLocalBounds(uint32 Instance) 
@@ -1189,6 +1208,9 @@ protected:
 	uint8 bHasPerInstanceLMSMUVBias : 1;
 	uint8 bHasPerInstanceLocalBounds : 1;
 	uint8 bHasPerInstanceHierarchyOffset : 1;
+#if WITH_EDITOR
+	uint8 bHasPerInstanceEditorData : 1;
+#endif
 
 private:
 
@@ -1245,6 +1267,10 @@ protected:
 	TArray<float> InstanceRandomID;
 	TArray<FVector4f> InstanceLightShadowUVBias;
 	TArray<uint32> InstanceHierarchyOffset;
+#if WITH_EDITOR
+	TArray<uint32> InstanceEditorData;
+#endif
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Whether instance data has changed this frame on the proxy. Currently used for non-shipping debug drawing. */
 	TBitArray<> InstanceXFormUpdatedThisFrame;

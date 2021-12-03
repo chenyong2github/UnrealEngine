@@ -68,6 +68,7 @@
 #define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x10
 #define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x20
 #define INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			0x40
+#define INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA			0x80
 
 #define INVALID_PRIMITIVE_ID 0x000FFFFFu
 
@@ -330,6 +331,14 @@ uint GetPrimitive_LightingChannelMask(FPrimitiveSceneData Primitive)
 #endif
 
 // Unpacked AoS layout - see FInstanceSceneShaderData::Setup() for SoA packed layout.
+#if USE_EDITOR_SHADERS
+struct FInstanceSceneEditorData
+{
+	float3 HitProxyId;
+	bool bIsSelected;
+};
+#endif
+
 struct FInstanceSceneData
 {
 	FLWCMatrix LocalToWorld;
@@ -346,7 +355,7 @@ struct FInstanceSceneData
 	uint     LastUpdateSceneFrameNumber;
 	uint     NaniteRuntimeResourceID;
 	uint     NaniteHierarchyOffset;
-#if USES_PER_INSTANCE_RANDOM
+#if 1//USES_PER_INSTANCE_RANDOM
 	float    RandomID;
 #endif
 #if USES_PER_INSTANCE_CUSTOM_DATA
@@ -358,6 +367,10 @@ struct FInstanceSceneData
 #endif
 	bool     ValidInstance;
 	uint     Flags;
+
+#if USE_EDITOR_SHADERS
+	FInstanceSceneEditorData EditorData;
+#endif
 };
 
 #if USE_GLOBAL_GPU_SCENE_DATA
@@ -569,10 +582,10 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		const uint RelativeIdAndCustomDataCount					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).y);
 		InstanceData.RelativeId									= BitFieldExtractU32(RelativeIdAndCustomDataCount, 24, 0); // Max of 16,777,216 instances per primitive
 	#if USES_PER_INSTANCE_CUSTOM_DATA
-		InstanceData.CustomDataCount							= BitFieldExtractU32(RelativeIdAndCustomDataCount, 8, 24); // Max of 255 custom data float4 per instance
+		InstanceData.CustomDataCount							= BitFieldExtractU32(RelativeIdAndCustomDataCount, 8, 24); // Max of 255 custom data floats per instance
 	#endif
 		InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).z);
-	#if USES_PER_INSTANCE_RANDOM
+	#if 1//USES_PER_INSTANCE_RANDOM
 		InstanceData.RandomID									= LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w;
 	#endif
 
@@ -632,11 +645,17 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		const bool bHasLightShadowUVBias		= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
 		const bool bHasCustomData				= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
 		const bool bHasRandomID					= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0u;
+#if USE_EDITOR_SHADERS
+		const bool bHasEditorData				= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
+#else //
+		const bool bHasEditorData				= false;
+#endif
 
 		// Offsets are in float4s
 		const uint Offset_HierarchyOffset		= PayloadDataGlobalOffset + 0u; // float0.x
-		const uint Offset_LocalBounds			= Offset_HierarchyOffset; // float0.yzw
-		const uint Offset_DynamicData			= CondMask(bHasLocalBounds, 2u, CondMask(bHasHierarchyOffset, 1u, 0u)) + PayloadDataGlobalOffset;
+		const uint Offset_EditorData			= PayloadDataGlobalOffset + 0u; // float0.y
+		const uint Offset_LocalBounds			= Offset_HierarchyOffset; // float0.zw + float1.xyzw
+		const uint Offset_DynamicData			= CondMask(bHasLocalBounds, 2u, CondMask(bHasHierarchyOffset || bHasEditorData, 1u, 0u)) + PayloadDataGlobalOffset;
 		const uint Offset_LightShadowUVBias		= CondMask(bHasDynamicData, TransformSizeFloat4Count, 0u) + Offset_DynamicData;
 	#if USES_PER_INSTANCE_CUSTOM_DATA
 		InstanceData.CustomDataOffset			= CondMask(bHasCustomData, CondMask(bHasLightShadowUVBias, 1u, 0u) + Offset_LightShadowUVBias, 0xFFFFFFFFu);
@@ -654,12 +673,22 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 			InstanceData.NaniteHierarchyOffset += HierarchyRootOffset;
 		}
 
+#if USE_EDITOR_SHADERS
+		BRANCH
+		if (bHasEditorData)
+		{
+			const uint PackedEditorData = asuint(LoadInstancePayloadDataElement(Offset_EditorData)).y;
+
+			InstanceData.EditorData.bIsSelected = (PackedEditorData >> 24u) != 0;
+			InstanceData.EditorData.HitProxyId = float3(float(PackedEditorData & 0xFF), float((PackedEditorData >> 8u) & 0xFF), float((PackedEditorData >> 16u) & 0xFF)) * (1.0f / 255.0f);
+		}
+#endif
 		// TODO: Permutation? Should be mutually exclusive for specific VFs (i.e. geometry collections), in theory
 		BRANCH
 		if (bHasLocalBounds)
 		{
-			InstanceData.LocalBoundsCenter = LoadInstancePayloadDataElement(Offset_LocalBounds + 0).yzw;
-			InstanceData.LocalBoundsExtent = LoadInstancePayloadDataElement(Offset_LocalBounds + 1).xyz;
+			InstanceData.LocalBoundsCenter = float3(LoadInstancePayloadDataElement(Offset_LocalBounds + 0).zw, LoadInstancePayloadDataElement(Offset_LocalBounds + 1).x);
+			InstanceData.LocalBoundsExtent = LoadInstancePayloadDataElement(Offset_LocalBounds + 1).yzw;
 		}
 		else
 		{
