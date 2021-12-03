@@ -2511,11 +2511,11 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	else
 #endif
 	{
-		ViewUniformShaderParameters.PrevFrameGameTime = Family->CurrentWorldTime - Family->DeltaWorldTime;
-		ViewUniformShaderParameters.PrevFrameRealTime = Family->CurrentRealTime - Family->DeltaWorldTime;
-		ViewUniformShaderParameters.GameTime = Family->CurrentWorldTime;
-		ViewUniformShaderParameters.RealTime = Family->CurrentRealTime;
-		ViewUniformShaderParameters.DeltaTime = Family->DeltaWorldTime;
+		ViewUniformShaderParameters.PrevFrameGameTime = Family->Time.GetWorldTimeSeconds() - Family->Time.GetDeltaWorldTimeSeconds();
+		ViewUniformShaderParameters.PrevFrameRealTime = Family->Time.GetRealTimeSeconds() - Family->Time.GetDeltaRealTimeSeconds();
+		ViewUniformShaderParameters.GameTime = Family->Time.GetWorldTimeSeconds();
+		ViewUniformShaderParameters.RealTime = Family->Time.GetRealTimeSeconds();
+		ViewUniformShaderParameters.DeltaTime = Family->Time.GetDeltaWorldTimeSeconds();
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2582,9 +2582,10 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	RenderTarget(CVS.RenderTarget),
 	Scene(CVS.Scene),
 	EngineShowFlags(CVS.EngineShowFlags),
-	CurrentWorldTime(CVS.CurrentWorldTime),
-	DeltaWorldTime(CVS.DeltaWorldTime),
-	CurrentRealTime(CVS.CurrentRealTime),
+	Time(CVS.Time),
+	CurrentWorldTime(CVS.Time.GetWorldTimeSeconds()),
+	DeltaWorldTime(CVS.Time.GetDeltaWorldTimeSeconds()),
+	CurrentRealTime(CVS.Time.GetRealTimeSeconds()),
 	FrameNumber(UINT_MAX),
 	bAdditionalViewFamily(CVS.bAdditionalViewFamily),
 	bRealtimeUpdate(CVS.bRealtimeUpdate),
@@ -2605,15 +2606,14 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	PrimarySpatialUpscalerInterface(nullptr),
 	SecondarySpatialUpscalerInterface(nullptr)
 {
-	// If we do not pass a valid scene pointer then SetWorldTimes must be called to initialized with valid times.
+	// If we do not pass a valid scene pointer then SetTime() must be called to initialized with valid times.
 	ensure(CVS.bTimesSet);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	int32 Value = CVarRenderTimeFrozen.GetValueOnAnyThread();
 	if(Value)
 	{
-		CurrentWorldTime = 0;
-		CurrentRealTime = 0;
+		Time = FGameTime::CreateDilated(0.0f, Time.GetDeltaRealTimeSeconds(), 0.0f, Time.GetDeltaWorldTimeSeconds());
 	}
 
 	DebugViewShaderMode = ChooseDebugViewShaderMode();

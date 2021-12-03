@@ -191,11 +191,9 @@ public:
 		}
 
 		if (Options.bOverride_OverrideTimeTo)
-{
+		{
 			// Turn off time the ultimate source of noise.
-			InViewFamily.CurrentWorldTime = Options.OverrideTimeTo;
-			InViewFamily.CurrentRealTime = Options.OverrideTimeTo;
-			InViewFamily.DeltaWorldTime = 0;
+			InViewFamily.Time = FGameTime::CreateUndilated(Options.OverrideTimeTo, 0.0f);
 		}
 
 		if (Options.bDisableNoisyRenderingFeatures)

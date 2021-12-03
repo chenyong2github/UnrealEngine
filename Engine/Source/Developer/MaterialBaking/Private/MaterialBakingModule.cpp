@@ -587,14 +587,14 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 
 							FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(RenderTarget->GetRenderTargetResource(), nullptr,
 								FEngineShowFlags(ESFIM_Game))
-								.SetWorldTimes(0.0f, 0.0f, 0.0f)
+								.SetTime(FGameTime())
 								.SetGammaCorrection(RenderTarget->GetRenderTargetResource()->GetDisplayGamma()));
 
 							RenderItem.MaterialRenderProxy = ExportMaterialProxy;
 							RenderItem.ViewFamily = &ViewFamily;
 
 							FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GetRenderTargetResource();
-							FCanvas Canvas(RenderTargetResource, nullptr, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, GMaxRHIFeatureLevel);
+							FCanvas Canvas(RenderTargetResource, nullptr, FGameTime::GetTimeSinceAppStart(), GMaxRHIFeatureLevel);
 							Canvas.SetAllowedModes(FCanvas::Allow_Flush);
 							Canvas.SetRenderTargetRect(FIntRect(0, 0, RenderTarget->GetSurfaceWidth(), RenderTarget->GetSurfaceHeight()));
 							Canvas.SetBaseTransform(Canvas.CalcBaseTransform2D(RenderTarget->GetSurfaceWidth(), RenderTarget->GetSurfaceHeight()));
