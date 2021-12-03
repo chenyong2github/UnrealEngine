@@ -403,6 +403,7 @@ public:
 	TArray<FMatrix> CachedRayTracingInstanceWorldTransforms;
 	TArray<FBoxSphereBounds> CachedRayTracingInstanceWorldBounds;
 	int32 SmallestRayTracingInstanceWorldBoundsIndex;
+	bool bUpdateCachedRayTracingInstanceWorldTransforms;
 #endif
 
 	/** Initialization constructor. */
@@ -577,6 +578,8 @@ public:
 #if RHI_RAYTRACING
 	static void UpdateCachedRaytracingData(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 	RENDERER_API FRHIRayTracingGeometry* GetStaticRayTracingGeometryInstance(int LodLevel) const;
+
+	void UpdateCachedRayTracingInstanceWorldTransforms();
 #endif
 
 	/** Return primitive fullname (for debugging only). */
