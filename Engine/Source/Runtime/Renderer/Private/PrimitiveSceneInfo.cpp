@@ -699,6 +699,13 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(FScene* Scene, const T
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
+			// Write group id
+			const int32 RayTracingGroupId = SceneInfo->Proxy->GetRayTracingGroupId();
+			if (RayTracingGroupId != -1)
+			{
+				Scene->PrimitiveRayTracingGroupIds[SceneInfo->GetIndex()] = Scene->PrimitiveRayTracingGroups.FindId(RayTracingGroupId);
+			}
+
 			FRayTracingInstance CachedRayTracingInstance;
 			ERayTracingPrimitiveFlags& Flags = Scene->PrimitiveRayTracingFlags[SceneInfo->GetIndex()];
 
@@ -765,6 +772,13 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 
 			// This path is mutually exclusive with the old path (used by normal static meshes) and is only used by Nanite proxies now.
 			// TODO: move normal static meshes to this path, but needs testing to not break FN
+
+			// Write group id
+			const int32 RayTracingGroupId = SceneInfo->Proxy->GetRayTracingGroupId();
+			if (RayTracingGroupId != -1)
+			{
+				Scene->PrimitiveRayTracingGroupIds[SceneInfo->GetIndex()] = Scene->PrimitiveRayTracingGroups.FindId(RayTracingGroupId);
+			}
 
 			FRayTracingInstance CachedRayTracingInstance;
 			ERayTracingPrimitiveFlags& Flags = Scene->PrimitiveRayTracingFlags[SceneInfo->GetIndex()];
@@ -1402,6 +1416,15 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 
 			// Store the component.
 			Scene->PrimitiveComponentIds[PackedIndex] = SceneInfo->PrimitiveComponentId;
+
+#if RHI_RAYTRACING
+			// Set group id
+			const int32 RayTracingGroupId = SceneInfo->Proxy->GetRayTracingGroupId();
+			if (RayTracingGroupId != -1)
+			{
+				Scene->PrimitiveRayTracingGroupIds[PackedIndex] = Scene->PrimitiveRayTracingGroups.FindId(RayTracingGroupId);
+			}
+#endif
 		}
 	}
 

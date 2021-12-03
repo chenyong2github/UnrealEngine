@@ -33,6 +33,12 @@ static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
 	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 5 degrees )"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRayTracingCullingGroupIds(
+	TEXT("r.RayTracing.Culling.UseGroupIds"),
+	0,
+	TEXT("Cull using aggregate ray tracing group id bounds when defined instead of primitive or instance bounds."),
+	ECVF_RenderThreadSafe);
+
 int32 GetRayTracingCulling()
 {
 	return CVarRayTracingCulling.GetValueOnRenderThread();
@@ -61,6 +67,7 @@ void FRayTracingCullingParameters::Init(FViewInfo& View)
 	bCullAllObjects = CullInRayTracing == 2 || CullInRayTracing == 3;
 	bCullByRadiusOrDistance = CullInRayTracing == 3;
 	bIsRayTracingFarField = Lumen::UseFarField();
+	bCullUsingGroupIds = CVarRayTracingCullingGroupIds.GetValueOnRenderThread() != 0;
 }
 
 namespace RayTracing
@@ -201,17 +208,23 @@ bool ShouldSkipPerInstanceCullingForPrimitive(const FRayTracingCullingParameters
 	return bSkipCulling;
 }
 
-}
+} // namspace RayTracing
 
 void FRayTracingCullPrimitiveInstancesClosure::operator()() const
 {
 	FMemory::Memset(OutInstanceActivationMask.GetData(), 0xFF, OutInstanceActivationMask.Num() * 4);
 
-	if (!RayTracing::ShouldSkipPerInstanceCullingForPrimitive(*CullingParameters, Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds, SceneInfo->CachedRayTracingInstanceWorldBounds[SceneInfo->SmallestRayTracingInstanceWorldBoundsIndex], bIsFarFieldPrimitive))
+	const Experimental::FHashElementId GroupId = Scene->PrimitiveRayTracingGroupIds[PrimitiveIndex];
+	const bool bUseGroupBounds = CullingParameters->bCullUsingGroupIds && GroupId.IsValid();
+	const FBoxSphereBounds* const GroupBounds = (bUseGroupBounds) ? &Scene->PrimitiveRayTracingGroups.GetByElementId(GroupId).Value.Bounds : nullptr;
+	const FBoxSphereBounds& PrimitiveBounds = (GroupBounds) ? *GroupBounds : Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;
+
+	if (!RayTracing::ShouldSkipPerInstanceCullingForPrimitive(*CullingParameters, PrimitiveBounds, SceneInfo->CachedRayTracingInstanceWorldBounds[SceneInfo->SmallestRayTracingInstanceWorldBoundsIndex], bIsFarFieldPrimitive))
 	{
 		for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->CachedRayTracingInstanceWorldBounds.Num(); InstanceIndex++)
 		{
-			if (RayTracing::ShouldCullBounds(*CullingParameters, SceneInfo->CachedRayTracingInstanceWorldBounds[InstanceIndex], bIsFarFieldPrimitive))
+			const FBoxSphereBounds& InstanceBounds = (GroupBounds) ? *GroupBounds : SceneInfo->CachedRayTracingInstanceWorldBounds[InstanceIndex];
+			if (RayTracing::ShouldCullBounds(*CullingParameters, InstanceBounds, bIsFarFieldPrimitive))
 			{
 				OutInstanceActivationMask[InstanceIndex / 32] &= ~(1 << (InstanceIndex % 32));
 			}

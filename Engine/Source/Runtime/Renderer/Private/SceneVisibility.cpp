@@ -621,8 +621,18 @@ FORCEINLINE bool ShouldCullForRayTracing(const FScene* RESTRICT Scene, FViewInfo
 	}
 
 	const bool bIsFarFieldPrimitive = EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::FarField);
-	const FPrimitiveBounds& RESTRICT Bounds = Scene->PrimitiveBounds[PrimitiveIndex];
-	return RayTracing::ShouldCullBounds(RayTracingCullingParameters, Bounds.BoxSphereBounds, bIsFarFieldPrimitive);
+	const Experimental::FHashElementId GroupId = Scene->PrimitiveRayTracingGroupIds[PrimitiveIndex];
+
+	if (RayTracingCullingParameters.bCullUsingGroupIds && GroupId.IsValid())
+	{
+		const FBoxSphereBounds& GroupBounds = Scene->PrimitiveRayTracingGroups.GetByElementId(GroupId).Value.Bounds;
+		return RayTracing::ShouldCullBounds(RayTracingCullingParameters, GroupBounds, bIsFarFieldPrimitive);
+	}
+	else
+	{
+		const FPrimitiveBounds& RESTRICT Bounds = Scene->PrimitiveBounds[PrimitiveIndex];
+		return RayTracing::ShouldCullBounds(RayTracingCullingParameters, Bounds.BoxSphereBounds, bIsFarFieldPrimitive);
+	}
 };
 #endif //RHI_RAYTRACING
 

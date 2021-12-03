@@ -656,6 +656,7 @@ void FScene::CheckPrimitiveArrays(int MaxTypeOffsetIndex)
 #endif
 #if RHI_RAYTRACING
 	check(Primitives.Num() == PrimitiveRayTracingFlags.Num());
+	check(Primitives.Num() == PrimitiveRayTracingGroupIds.Num());
 #endif
 	check(Primitives.Num() == PrimitivesNeedingStaticMeshUpdate.Num());
 
@@ -3805,6 +3806,13 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 		PrimitiveBounds[Idx].BoxSphereBounds.Origin+= InOffset;
 	}
 
+#if RHI_RAYTRACING
+	for (auto& BoundsPair : PrimitiveRayTracingGroups)
+	{
+		BoundsPair.Value.Bounds.Origin += InOffset;
+	}
+#endif
+
 	// Primitive occlusion bounds
 	for (int32 Idx = 0; Idx < PrimitiveOcclusionBounds.Num(); ++Idx)
 	{
@@ -4066,6 +4074,11 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 	RDG_EVENT_SCOPE(GraphBuilder, "UpdateAllPrimitiveSceneInfos");
 
+#if RHI_RAYTRACING
+	UpdateRayTracingGroupBounds_RemovePrimitives(RemovedPrimitiveSceneInfos);
+	UpdateRayTracingGroupBounds_AddPrimitives(AddedPrimitiveSceneInfos);
+#endif
+
 	TArray<FPrimitiveSceneInfo*> RemovedLocalPrimitiveSceneInfos(RemovedPrimitiveSceneInfos.Array());
 	// NOTE: We clear this early because IsPrimitiveBeingRemoved gets called from the CreateLightPrimitiveInteraction (to make sure that old primitives are not accessed) 
 	// we cannot safely kick off the AsyncCreateLightPrimitiveInteractionsTask before the RemovedPrimitiveSceneInfos has been cleared.
@@ -4171,6 +4184,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 						#endif
 						#if RHI_RAYTRACING
 							TArraySwapElements(PrimitiveRayTracingFlags, DestIndex, SourceIndex);
+							TArraySwapElements(PrimitiveRayTracingGroupIds, DestIndex, SourceIndex);
 						#endif
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
@@ -4250,6 +4264,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			#endif
 			#if RHI_RAYTRACING
 			PrimitiveRayTracingFlags.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveRayTracingGroupIds.RemoveAt(SourceIndex, RemoveCount);
 			#endif
 			PrimitivesNeedingStaticMeshUpdate.RemoveAt(SourceIndex, RemoveCount);
 
@@ -4346,6 +4361,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		#endif
 		#if RHI_RAYTRACING
 			PrimitiveRayTracingFlags.Reserve(PrimitiveRayTracingFlags.Num() + AddedLocalPrimitiveSceneInfos.Num());
+			PrimitiveRayTracingGroupIds.Reserve(PrimitiveRayTracingGroupIds.Num() + AddedLocalPrimitiveSceneInfos.Num());
 		#endif
 			PrimitivesNeedingStaticMeshUpdate.Reserve(PrimitivesNeedingStaticMeshUpdate.Num() + AddedLocalPrimitiveSceneInfos.Num());
 
@@ -4394,6 +4410,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			#endif
 			#if RHI_RAYTRACING
 				PrimitiveRayTracingFlags.AddZeroed();
+				PrimitiveRayTracingGroupIds.Add(Experimental::FHashElementId());
 			#endif
 				PrimitivesNeedingStaticMeshUpdate.Add(false);
 
@@ -4492,6 +4509,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 						#endif
 						#if RHI_RAYTRACING
 							TArraySwapElements(PrimitiveRayTracingFlags, DestIndex, SourceIndex);
+							TArraySwapElements(PrimitiveRayTracingGroupIds, DestIndex, SourceIndex);
 						#endif
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
@@ -4660,6 +4678,13 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			// If the primitive has static mesh elements, it should have returned true from ShouldRecreateProxyOnUpdateTransform!
 			check(!(bUpdateStaticDrawLists && PrimitiveSceneInfo->StaticMeshes.Num()));
 		}
+#if RHI_RAYTRACING
+		{
+			TSet<FPrimitiveSceneProxy*> UpdatedPrimitives;
+			UpdatedTransforms.GetKeys(UpdatedPrimitives);
+			UpdateRayTracingGroupBounds_UpdatePrimitives(UpdatedPrimitives);
+		}
+#endif
 
 		// Re-add the primitive to the scene with the new transform.
 		if (UpdatedSceneInfosWithStaticDrawListUpdate.Num() > 0)
@@ -4870,6 +4895,93 @@ bool FScene::IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) co
 	check(IsInParallelRenderingThread() || IsInRenderingThread());
 	return RemovedPrimitiveSceneInfos.Contains(PrimitiveSceneInfo);
 }
+
+#if RHI_RAYTRACING
+void FScene::UpdateRayTracingGroupBounds_AddPrimitives(TSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos)
+{
+	for (FPrimitiveSceneInfo* const PrimitiveSceneInfo : PrimitiveSceneInfos)
+	{
+		const int32 GroupId = PrimitiveSceneInfo->Proxy->GetRayTracingGroupId();
+		if (GroupId != -1)
+		{
+			bool bInMap = false;
+			static const FRayTracingCullingGroup DefaultGroup;
+			FRayTracingCullingGroup* const Group = PrimitiveRayTracingGroups.FindOrAdd(GroupId, DefaultGroup, bInMap);
+			if (bInMap)
+			{
+				Group->Bounds = Group->Bounds + PrimitiveSceneInfo->Proxy->GetBounds();
+			}
+			else
+			{
+				Group->Bounds = PrimitiveSceneInfo->Proxy->GetBounds();
+			}
+			Group->Primitives.Add(PrimitiveSceneInfo);
+		}
+	}
+}
+
+static void UpdateRayTracingGroupBounds(Experimental::TRobinHoodHashSet<FScene::FRayTracingCullingGroup*>& GroupsToUpdate)
+{
+	for (FScene::FRayTracingCullingGroup* const Group : GroupsToUpdate)
+	{
+		bool bFirstBounds = false;
+		for (FPrimitiveSceneInfo* const Primitive : Group->Primitives)
+		{
+			if (!bFirstBounds)
+			{
+				Group->Bounds = Primitive->Proxy->GetBounds();
+				bFirstBounds = true;
+			}
+			else
+			{
+				Group->Bounds = Group->Bounds + Primitive->Proxy->GetBounds();
+			}
+		}
+	}
+}
+
+void FScene::UpdateRayTracingGroupBounds_RemovePrimitives(TSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos)
+{
+	Experimental::TRobinHoodHashSet<FRayTracingCullingGroup*> GroupsToUpdate;
+	for (FPrimitiveSceneInfo* const PrimitiveSceneInfo : PrimitiveSceneInfos)
+	{
+		const int32 RayTracingGroupId = PrimitiveSceneInfo->Proxy->GetRayTracingGroupId();
+		const Experimental::FHashElementId GroupId = (RayTracingGroupId != -1) ? PrimitiveRayTracingGroups.FindId(RayTracingGroupId) : Experimental::FHashElementId();
+		if (GroupId.IsValid())
+		{
+			FRayTracingCullingGroup& Group = PrimitiveRayTracingGroups.GetByElementId(GroupId).Value;
+			Group.Primitives.RemoveSingleSwap(PrimitiveSceneInfo);
+			if (Group.Primitives.Num() == 0)
+			{
+				PrimitiveRayTracingGroups.RemoveByElementId(GroupId);
+			}
+			else
+			{
+				GroupsToUpdate.FindOrAdd(&Group);
+			}
+		}
+	}
+
+	UpdateRayTracingGroupBounds(GroupsToUpdate);
+}
+
+void FScene::UpdateRayTracingGroupBounds_UpdatePrimitives(TSet<FPrimitiveSceneProxy*>& PrimitiveProxies)
+{
+	Experimental::TRobinHoodHashSet<FRayTracingCullingGroup*> GroupsToUpdate;
+	for (FPrimitiveSceneProxy* const PrimitiveSceneProxy : PrimitiveProxies)
+	{
+		const int32 RayTracingGroupId = PrimitiveSceneProxy->GetRayTracingGroupId();
+		const Experimental::FHashElementId GroupId = (RayTracingGroupId != -1) ? PrimitiveRayTracingGroups.FindId(RayTracingGroupId) : Experimental::FHashElementId();
+		if (GroupId.IsValid())
+		{
+			FRayTracingCullingGroup& Group = PrimitiveRayTracingGroups.GetByElementId(GroupId).Value;
+			GroupsToUpdate.FindOrAdd(&Group);
+		}
+	}
+
+	UpdateRayTracingGroupBounds(GroupsToUpdate);
+}
+#endif
 
 /**
  * Dummy NULL scene interface used by dedicated servers.
