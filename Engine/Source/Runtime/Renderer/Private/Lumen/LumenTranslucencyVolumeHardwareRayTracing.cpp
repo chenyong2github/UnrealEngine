@@ -120,7 +120,7 @@ void HardwareRayTraceTranslucencyVolume(
 		PassParameters->RWVolumeTraceHitDistance = GraphBuilder.CreateUAV(VolumeTraceHitDistance);
 		PassParameters->VolumeParameters = VolumeParameters;
 		PassParameters->TraceSetupParameters = TraceSetupParameters;
-		PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
+		PassParameters->MaxTraversalIterations = LumenHardwareRayTracing::GetMaxTraversalIterations();
 
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 

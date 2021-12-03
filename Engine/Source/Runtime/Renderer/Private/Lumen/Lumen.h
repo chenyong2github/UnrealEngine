@@ -71,7 +71,6 @@ namespace Lumen
 	bool UseHardwareRayTracedRadiosity();
 
 	bool UseHardwareInlineRayTracing();
-	uint32 GetMaxTraversalIterations();
 
 	enum class EHardwareRayTracingLightingMode
 	{
@@ -100,6 +99,12 @@ namespace Lumen
 	bool UseFarField();
 	float GetFarFieldMaxTraceDistance();
 	FVector GetFarFieldReferencePos();
+};
+
+namespace LumenHardwareRayTracing
+{
+	float GetFarFieldBias();
+	uint32 GetMaxTraversalIterations();
 };
 
 extern int32 GLumenFastCameraMode;

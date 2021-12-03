@@ -54,6 +54,7 @@ RaytracingAccelerationStructure TLAS;
 uint ThreadCount;
 uint GroupCount;
 int NearFieldLightingMode;
+float FarFieldBias;
 float FarFieldMaxTraceDistance;
 float PullbackBias;
 int MaxTranslucentSkipCount;
@@ -112,7 +113,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 		RayDesc Ray;
 		Ray.Origin = WorldPosition;
 		Ray.Direction = RayData.Direction;
-		float RayBias = 0.05;
+		float RayBias = ENABLE_FAR_FIELD_TRACING == 1 ? FarFieldBias : 0.05;
 		Ray.TMin = max(TraceHitDistance - PullbackBias, RayBias);
 		Ray.TMax = max(MaxTraceDistance - PullbackBias, RayBias);
 		Ray.TMax = min(Ray.TMax, RayData.TraceDistance);
