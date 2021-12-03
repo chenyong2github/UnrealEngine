@@ -471,7 +471,6 @@ struct FMaterialVertexParameters
 	float3 WorldPosition;
 	// TangentToWorld[2] is WorldVertexNormal
 	half3x3 TangentToWorld;
-	half3x3 TangentToWorld;
 
 #if USES_PER_INSTANCE_CUSTOM_DATA
 	uint CustomDataOffset;

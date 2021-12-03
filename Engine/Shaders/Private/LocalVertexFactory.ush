@@ -591,12 +591,11 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		Result.InstanceLocalToWorld = GetInstanceData(Intermediates).LocalToWorld;
 		Result.InstanceWorldToLocal = GetInstanceData(Intermediates).WorldToLocal;
 		Result.PerInstanceParams = Intermediates.PerInstanceParams;
-		Result.PrimitiveLocalInstanceIndex = Intermediates.PrimitiveLocalInstanceIndex;
 	#endif
-#if USES_PER_INSTANCE_CUSTOM_DATA
-	Result.CustomDataOffset = Intermediates.SceneData.InstanceData.CustomDataOffset;
-	Result.CustomDataCount = Intermediates.SceneData.InstanceData.CustomDataCount;
-#endif
+	#if USES_PER_INSTANCE_CUSTOM_DATA
+		Result.CustomDataOffset = Intermediates.SceneData.InstanceData.CustomDataOffset;
+		Result.CustomDataCount = Intermediates.SceneData.InstanceData.CustomDataCount;
+	#endif
 #endif
 
 	Result.PreSkinnedPosition = Intermediates.PreSkinPosition.xyz;
@@ -853,18 +852,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.PrimitiveLocalInstanceIndex = Intermediates.SceneData.InstanceId - GetPrimitiveData(Intermediates).InstanceSceneDataOffset;
 
 #if USE_INSTANCE_CULLING
-	{
-	#if (VF_USE_PRIMITIVE_SCENE_DATA == 2)
-		#if USES_PER_INSTANCE_RANDOM
-		Intermediates.PerInstanceRandom = GetInstanceData(Intermediates).RandomID;
-		#endif
-		
-		float R = 0; // FIX ME: use SRV for this data?
-		float G = 0;
-		float B = 0;
-
-		Intermediates.InstanceLightmapAndShadowMapUVBias = GetInstanceData(Intermediates).LightMapAndShadowMapUVBias;
-	#else
 	Intermediates.InstanceLightmapAndShadowMapUVBias = Intermediates.SceneData.InstanceData.LightMapAndShadowMapUVBias;
 	Intermediates.PerInstanceRandom = Intermediates.SceneData.InstanceData.RandomID;
 #if USE_EDITOR_SHADERS
@@ -874,11 +861,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.IsSelected = 0.0f;
 	Intermediates.HitProxyId = float4(0.0f, 0.0f, 0.0f, 0.0f);
 #endif // USE_EDITOR_SHADERS
-	#endif
-
-		Intermediates.IsSelected = trunc(R * (1.0 / 256.0));;
-		R = R - 256.0 * Intermediates.IsSelected;
-		Intermediates.HitProxyId = float4(R / 255.0, G / 255.0, B / 255.0, 0);
 
 	{
 		// This repackaging is stupid-seeming but these params are propably packed off to some interpolator or something
