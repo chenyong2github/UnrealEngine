@@ -314,6 +314,12 @@ ULevel* UWorldPartitionRuntimeLevelStreamingCell::GetLevel() const
 	return LevelStreaming ? LevelStreaming->GetLoadedLevel() : nullptr;
 }
 
+bool UWorldPartitionRuntimeLevelStreamingCell::CanUnload() const
+{
+	check(LevelStreaming);
+	return LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->RequestUnloading(this);
+}
+
 void UWorldPartitionRuntimeLevelStreamingCell::Unload() const
 {
 #if WITH_EDITOR

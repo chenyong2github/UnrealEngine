@@ -24,14 +24,18 @@ public:
 
 	virtual bool IsHLODRelevant() const override { return true; }
 
+	bool DoesRequireWarmup() const { return bRequireWarmup; }
+
 #if WITH_EDITOR
 	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
 
 	void SetSubActors(const TArray<FGuid>& InSubActors);
 	const TArray<FGuid>& GetSubActors() const;
 
-	void SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer) { SubActorsHLODLayer = InSubActorsHLODLayer; }
+	void SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer);
 	const UHLODLayer* GetSubActorsHLODLayer() const { return SubActorsHLODLayer; }
+
+	void SetRequireWarmup(bool InRequireWarmup) { bRequireWarmup = InRequireWarmup; }
 
 	void SetGridIndices(uint64 InGridIndexX, uint64 InGridIndexY, uint64 InGridIndexZ)
 	{
@@ -113,6 +117,9 @@ private:
 
 	UPROPERTY()
 	uint32 LODLevel;
+
+	UPROPERTY()
+	bool bRequireWarmup;
 
 	UPROPERTY()
 	TSoftObjectPtr<UWorldPartitionRuntimeCell> SourceCell_DEPRECATED;

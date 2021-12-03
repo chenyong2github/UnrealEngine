@@ -558,10 +558,13 @@ void UWorldPartitionStreamingPolicy::SetCellsStateToUnloaded(const TSet<const UW
 
 	for (const UWorldPartitionRuntimeCell* Cell : ToUnloadCells)
 	{
-		UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy::UnloadCells %s"), *Cell->GetName());
-		Cell->Unload();
-		ActivatedCells.Remove(Cell);
-		LoadedCells.Remove(Cell);
+		if (Cell->CanUnload())
+		{
+			UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy::UnloadCells %s"), *Cell->GetName());
+			Cell->Unload();
+			ActivatedCells.Remove(Cell);
+			LoadedCells.Remove(Cell);
+		}
 	}
 }
 

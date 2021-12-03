@@ -36,6 +36,11 @@ bool UHLODBuilder::RequiresCompiledAssets() const
 	return true;
 }
 
+bool UHLODBuilder::RequiresWarmup() const
+{
+	return true;
+}
+
 TArray<UPrimitiveComponent*> UHLODBuilder::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const
 {
 	return TArray<UPrimitiveComponent*>();

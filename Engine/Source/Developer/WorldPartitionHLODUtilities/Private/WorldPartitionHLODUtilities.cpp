@@ -281,6 +281,13 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			bIsDirty = true;
 		}
 
+		// Require warmup
+		if (HLODActor->DoesRequireWarmup() != HLODLayer->DoesRequireWarmup())
+		{
+			HLODActor->SetRequireWarmup(HLODLayer->DoesRequireWarmup());
+			bIsDirty = true;
+		}
+
 		// Parent HLOD layer
 		UHLODLayer* ParentHLODLayer = HLODLayer->GetParentLayer().LoadSynchronous();
 		if (HLODActor->GetHLODLayer() != ParentHLODLayer)

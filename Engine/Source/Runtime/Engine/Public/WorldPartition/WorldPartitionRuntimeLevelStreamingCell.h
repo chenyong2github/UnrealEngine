@@ -13,6 +13,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	//~Begin UWorldPartitionRuntimeCell Interface
 	virtual void Load() const override;
 	virtual void Unload() const override;
+	virtual bool CanUnload() const override;
 	virtual void Activate() const override;
 	virtual void Deactivate() const override;
 	virtual bool IsAddedToWorld() const override;
