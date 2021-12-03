@@ -293,6 +293,18 @@ void FMovieSceneEntitySystemRunner::GameThread_ProcessQueue()
 		}
 	}
 
+	// If we have no instances marked for update, we are running an evaluation probably because some
+	// structural changes have occured in the entity manager (out of date instantiation serial number
+	// in the linker). So we mark everything for update, so that PreEvaluation/PostEvaluation callbacks
+	// and legacy templates are correctly executed.
+	if (CurrentInstances.Num() == 0)
+	{
+		for (const FSequenceInstance& Instance : InstanceRegistry->GetSparseInstances())
+		{
+			MarkForUpdate(Instance.GetInstanceHandle());
+		}
+	}
+
 	// Let sequence instances do any pre-evaluation work.
 	for (FInstanceHandle UpdatedInstanceHandle : CurrentInstances)
 	{

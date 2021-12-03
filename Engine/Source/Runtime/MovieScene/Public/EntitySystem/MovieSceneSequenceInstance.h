@@ -135,6 +135,14 @@ public:
 	}
 
 	/**
+	 * Gets the handle to this instance
+	 */
+	FInstanceHandle GetInstanceHandle() const
+	{
+		return InstanceHandle;
+	}
+
+	/**
 	 * Get a handle to the root instance for this sub sequence instance
 	 *
 	 * @return A handle to the root sequence instance for this sub sequence, or a handle to this sequence instance if it is not a sub sequence
