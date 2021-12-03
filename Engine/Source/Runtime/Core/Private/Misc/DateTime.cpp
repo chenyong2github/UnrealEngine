@@ -234,7 +234,12 @@ FString FDateTime::ToString() const
 FString FDateTime::ToString(const TCHAR* Format) const
 {
 	TStringBuilder<32> Result;
+	ToString(Format, Result);
+	return Result.ToString();
+}
 
+void FDateTime::ToString(const TCHAR* Format, FStringBuilderBase& Result) const
+{
 	if (Format != nullptr)
 	{
 		while (*Format != TCHAR('\0'))
@@ -267,8 +272,6 @@ FString FDateTime::ToString(const TCHAR* Format) const
 			Format++;
 		}
 	}
-
-	return Result.ToString();
 }
 
 FString FDateTime::ToFormattedString(const TCHAR* Format) const
