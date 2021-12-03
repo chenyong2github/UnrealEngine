@@ -59,8 +59,8 @@ namespace Metasound
 
 		friend uint32 GetTypeHash(const FSendAddress& InAddress)
 		{
-			uint32 HashedChannel = HashCombineFast(::GetTypeHash(InAddress.DataType), ::GetTypeHash(InAddress.ChannelName));
-			HashedChannel = HashCombineFast(HashedChannel, ::GetTypeHash(InAddress.InstanceID));
+			uint32 HashedChannel = HashCombineFast(GetTypeHash(InAddress.DataType), GetTypeHash(InAddress.ChannelName));
+			HashedChannel = HashCombineFast(HashedChannel, GetTypeHash(InAddress.InstanceID));
 			return HashedChannel;
 		}
 
