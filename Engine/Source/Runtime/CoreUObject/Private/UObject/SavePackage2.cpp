@@ -271,7 +271,9 @@ ESavePackageResult RoutePresave(FSaveContext& SaveContext)
 	GetObjectsWithPackage(SaveContext.GetPackage(), ObjectsInPackage);
 	for (UObject* Object : ObjectsInPackage)
 	{
-		if (!SaveContext.IsUnsaveable(Object))
+		// Do not emit unsaveable warning while routing presave. 
+		// this is to prevent warning on objects which won't be harvested later since they are unreferenced
+		if (!SaveContext.IsUnsaveable(Object, false/*bEmitWarning*/))
 		{
 			if (SaveContext.IsCooking() && Object->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 			{

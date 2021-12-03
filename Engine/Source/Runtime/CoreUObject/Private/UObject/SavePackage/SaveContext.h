@@ -566,7 +566,7 @@ public:
 
 	void MarkUnsaveable(UObject* InObject);
 
-	bool IsUnsaveable(UObject* InObject) const;
+	bool IsUnsaveable(UObject* InObject, bool bEmitWarning = true) const;
 
 	void RecordIllegalReference(UObject* InFrom, UObject* InTo, EIllegalRefReason InReason)
 	{
