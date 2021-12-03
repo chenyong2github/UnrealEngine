@@ -117,6 +117,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(uint32, NumShadowMaps)
 	SHADER_PARAMETER(uint32, NumDirectionalLights)
 	SHADER_PARAMETER(uint32, MaxPhysicalPages)
+	// Set to 0 if separate static caching is disabled
+	SHADER_PARAMETER(uint32, StaticCachedPixelOffsetY)
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
@@ -171,11 +173,14 @@ public:
 		return SM;
 	}
 
+	// Raw size of the physical pool, including both static and dynamic pages (if enabled)
 	FIntPoint GetPhysicalPoolSize() const;
+	// Size of the physical pool for only the dynamic pages (if static are cached separately)
+	FIntPoint GetDynamicPhysicalPoolSize() const;
 
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 
-	void ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture);
+	void MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder);
 
 	void BuildPageAllocations(
 		FRDGBuilder& GraphBuilder,
@@ -190,6 +195,11 @@ public:
 	bool IsAllocated() const
 	{
 		return PhysicalPagePoolRDG != nullptr && PageTableRDG != nullptr;
+	}
+
+	bool ShouldCacheStaticSeparately() const
+	{
+		return UniformParameters.StaticCachedPixelOffsetY > 0;
 	}
 
 	void CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const;

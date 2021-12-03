@@ -17,7 +17,6 @@
 #include "ProjectionCommon.ush"
 #include "ProjectionDirectional.ush"
 #include "ProjectionSpot.ush"
-#include "PageCacheCommon.ush"
 #include "TransmissionCommon.ush"
 
 #if HAS_HAIR_STRANDS
@@ -398,7 +397,7 @@ void OutputDebug( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 		}
 		else if ( DebugOutputType == 7 )	// Cached or not?
 		{
-			bool bCached = (PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)].Flags & VSM_PHYSICAL_PAGE_FLAG_CACHED) != 0;
+			bool bCached = (PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)].Flags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
 			float3 Color = GreenToRedTurbo(1.0f - float(bCached));
 			float3 Color2 = IntToColor(vPage.x + (vPage.y << 10U));
 

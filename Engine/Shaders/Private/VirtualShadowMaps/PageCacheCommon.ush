@@ -5,17 +5,6 @@ PageCacheCommon.ush:
 =============================================================================*/
 #pragma once
 
-// Set to indicate being allocated
-#define VSM_PHYSICAL_PAGE_FLAG_ALLOCATED 0x1
-// Set to indicate reuse from previous frame(s)
-#define VSM_PHYSICAL_PAGE_FLAG_CACHED    0x2
-
-struct FPhysicalPageMetaData
-{
-	uint Flags;	// VSM_PHYSICAL_PAGE_FLAG_*
-	uint Age;
-};
-
 struct FShadowMapCacheData
 {
 	// ID of the corresponding virtual shadow map from the previous frame, or INDEX_NONE if

@@ -66,10 +66,10 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 
 				uint TriIndex = ImposterPixel.x;
 				uint PixelValue = RootClusterCode + TriIndex;
-				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ, NaniteView, false );
+				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ );
 
 				#if 0//VISUALIZE
-					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ, NaniteView, false );
+					WritePixel( OutDbgBuffer64, 0, PixelPos, DeviceZ );
 					InterlockedAdd(OutDbgBuffer32[ PixelPos ], 1);
 				#endif
 			}
@@ -487,8 +487,8 @@ void InstanceCullVSM(
 				BRANCH
 				if( bVisible && !Cull.bCrossesNearPlane )
 				{
-					uint FlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
-					bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, MipView.ViewRect.xy, Rect, FlagMask );
+					const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, bHasMoved);
+					bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, MipView.ViewRect.xy, Rect, PageFlagMask );
 				}
 
 				BRANCH

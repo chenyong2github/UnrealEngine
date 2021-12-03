@@ -47,7 +47,7 @@
 void Main( 
 	FShadowDepthVSToPS Inputs,
 #if VIRTUAL_SM_ENABLED
-	nointerpolation uint ViewId : TEXCOORD8,
+	nointerpolation uint PackedPageInfo : TEXCOORD8,
 #endif
 	in float4 SvPosition : SV_Position		// after all interpolators
 #if PERSPECTIVE_CORRECT_DEPTH || COMPILER_METAL
@@ -99,13 +99,19 @@ void Main(
 	//DeviceZ = max(0.0f, DeviceZ);
 #endif
 
-	FNaniteView NaniteView = UnpackNaniteView( PassStruct.PackedNaniteViews[ ViewId ] );
+	FPageInfo PageInfo = UnpackPageInfo( PackedPageInfo );
+	FNaniteView NaniteView = UnpackNaniteView( PassStruct.PackedNaniteViews[ PageInfo.ViewId ] );
 
 	FShadowPhysicalPage Page = ShadowDecodePageTable( PassStruct.VirtualSmPageTable[ CalcPageOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vAddress >> VSM_LOG2_PAGE_SIZE ) ] );
 
 	if( Page.bThisLODValid )
 	{
 		uint2 pAddress = Page.PhysicalAddress * VSM_PAGE_SIZE + (vAddress & VSM_PAGE_SIZE_MASK);
+		// If requested, render to the static page
+		if ( PageInfo.bStaticPage )
+		{
+			pAddress += GetVirtualShadowMapStaticPixelOffset();
+		}
 
 		InterlockedMax( PassStruct.OutDepthBuffer[ pAddress ], asuint( DeviceZ ) );
 	}

@@ -1699,87 +1699,29 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 	ResourceAccessFinalizer.Finalize(GraphBuilder);
 }
 
-void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
+void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled)
 {
-	ensureMsgf(!bShadowDepthRenderCompleted, TEXT("RenderShadowDepthMaps called twice in the same frame"));
 
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::RenderShadowDepthMaps);
-	SCOPED_NAMED_EVENT(FSceneRenderer_RenderShadowDepthMaps, FColor::Emerald);
-
-	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
-
-	// Ensure all shadow view dynamic primitives are uploaded before shadow-culling batching pass.
-	// TODO: automate this such that:
-	//  1. we only process views that need it (have dynamic primitives)
-	//  2. it is integrated in the GPU-scene (it already collects the dynamic primives and know about them...)
-	//  3. BUT: we need to touch the views to update the GPUScene buffer references in the FViewInfo
-	//          so need to refactor that into its own binding point, probably. Or something.
-	for (FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.ShadowMapAtlases)
+	if (SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() == 0 &&
+		SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() == 0)
 	{
-		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
-		{
-			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
-		}
-	}
-	for (FSortedShadowMapAtlas& ShadowMap : SortedShadowsForShadowDepthPass.ShadowMapCubemaps)
-	{
-		check(ShadowMap.Shadows.Num() == 1);
-		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMap.Shadows[0];
-		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
-	}
-	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.PreshadowCache.Shadows)
-	{
-		if (!ProjectedShadowInfo->bDepthsCached)
-		{
-			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
-		}
-	}
-	for (const FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases)
-	{
-		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
-		{
-			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
-		}
-	}
-	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowMapShadows)
-	{
-		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+		return;
 	}
 
-	// Begin new deferred culling bacthing scope to catch shadow render passes, as there can use dynamic primitives that have not been uploaded before 
-	// the previous batching scope. Also flushes the culling views registered during the setup (in InitViewsAfterPrepass) that are referenced in the shadow view
-	// culling.
-	InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
+	FVirtualShadowMapArrayCacheManager *CacheManager = Scene->VirtualShadowMapArrayCacheManager;
 
-	// Perform setup work on all GPUs in case any cached shadows are being updated this
-	// frame. We revert to the AllViewsGPUMask for uncached shadows.
-#if WITH_MGPU
-	ensure(GraphBuilder.RHICmdList.GetGPUMask() == AllViewsGPUMask);
-#endif
-	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+	// TODO: Separate out the decision about nanite using HZB and stuff like HZB culling invalidations?
+	const bool bVSMUseHZB = (CVarShadowsVirtualUseHZB.GetValueOnRenderThread() != 0);
 
-	const bool bHasVSMShadows = SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() > 0;
-	const bool bHasVSMClipMaps = SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() > 0;
-	const bool bNaniteEnabled = 
-		UseNanite(ShaderPlatform) &&
-		ViewFamily.EngineShowFlags.NaniteMeshes &&
-		Nanite::GStreamingManager.HasResourceEntries();
+	const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
+	const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
 
-	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
+	if (bNaniteEnabled)
 	{
-		const bool bVSMUseHZB = (CVarShadowsVirtualUseHZB.GetValueOnRenderThread() != 0);
-
-		FVirtualShadowMapArrayCacheManager *CacheManager = Scene->VirtualShadowMapArrayCacheManager;
 		const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bVSMUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
-		
+
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
-
-			const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
-			const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
 
 			check(VirtualShadowMapArray.PhysicalPagePoolRDG != nullptr);
 
@@ -1797,14 +1739,14 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 			auto FilterAndRenderVirtualShadowMaps = [
 				&SortedShadowsForShadowDepthPass = SortedShadowsForShadowDepthPass,
-				&RasterContext,
-				&VirtualShadowMapArray = VirtualShadowMapArray,
-				&GraphBuilder,
-				bUpdateStreaming,
-				bVSMUseHZB,
-				Scene = Scene,
-				CacheManager = CacheManager,
-				PrevHZBPhysical
+					&RasterContext,
+					&VirtualShadowMapArray = VirtualShadowMapArray,
+					&GraphBuilder,
+					bUpdateStreaming,
+					bVSMUseHZB,
+					Scene = Scene,
+					CacheManager = CacheManager,
+					PrevHZBPhysical
 			](bool bShouldClampToNearPlane, const FString &VirtualFilterName)
 			{
 				TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
@@ -1907,7 +1849,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 								HZBMeta.ViewMatrices = Params.ViewMatrices;
 								HZBMeta.ViewRect = Params.ViewRect;
 							}
-						
+
 							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
 							VirtualShadowViews.Add(View);
 
@@ -1983,7 +1925,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				BuildHZBFurthest(
 					GraphBuilder,
 					SceneDepth,
-					RasterContext.DepthBuffer,
+					VirtualShadowMapArray.PhysicalPagePoolRDG,
 					VirtualShadowViewRect,
 					FeatureLevel,
 					ShaderPlatform,
@@ -1999,8 +1941,81 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
 	}
 
+	// If separate static/dynamic caching is enabled, we may need to merge some pages after rendering
+	VirtualShadowMapArray.MergeStaticPhysicalPages(GraphBuilder);
+}
+
+void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
+{
+	ensureMsgf(!bShadowDepthRenderCompleted, TEXT("RenderShadowDepthMaps called twice in the same frame"));
+
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::RenderShadowDepthMaps);
+	SCOPED_NAMED_EVENT(FSceneRenderer_RenderShadowDepthMaps, FColor::Emerald);
+
+	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
+
+	// Ensure all shadow view dynamic primitives are uploaded before shadow-culling batching pass.
+	// TODO: automate this such that:
+	//  1. we only process views that need it (have dynamic primitives)
+	//  2. it is integrated in the GPU-scene (it already collects the dynamic primives and know about them...)
+	//  3. BUT: we need to touch the views to update the GPUScene buffer references in the FViewInfo
+	//          so need to refactor that into its own binding point, probably. Or something.
+	for (FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.ShadowMapAtlases)
+	{
+		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+		}
+	}
+	for (FSortedShadowMapAtlas& ShadowMap : SortedShadowsForShadowDepthPass.ShadowMapCubemaps)
+	{
+		check(ShadowMap.Shadows.Num() == 1);
+		FProjectedShadowInfo* ProjectedShadowInfo = ShadowMap.Shadows[0];
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+	}
+	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.PreshadowCache.Shadows)
+	{
+		if (!ProjectedShadowInfo->bDepthsCached)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+		}
+	}
+	for (const FSortedShadowMapAtlas& ShadowMapAtlas : SortedShadowsForShadowDepthPass.TranslucencyShadowMapAtlases)
+	{
+		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
+		{
+			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+		}
+	}
+	for (FProjectedShadowInfo* ProjectedShadowInfo : SortedShadowsForShadowDepthPass.VirtualShadowMapShadows)
+	{
+		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, *ProjectedShadowInfo->ShadowDepthView);
+	}
+
+	// Begin new deferred culling bacthing scope to catch shadow render passes, as there can use dynamic primitives that have not been uploaded before 
+	// the previous batching scope. Also flushes the culling views registered during the setup (in InitViewsAfterPrepass) that are referenced in the shadow view
+	// culling.
+	InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
+
+	// Perform setup work on all GPUs in case any cached shadows are being updated this
+	// frame. We revert to the AllViewsGPUMask for uncached shadows.
+#if WITH_MGPU
+	ensure(GraphBuilder.RHICmdList.GetGPUMask() == AllViewsGPUMask);
+#endif
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
+	const bool bNaniteEnabled = 
+		UseNanite(ShaderPlatform) &&
+		ViewFamily.EngineShowFlags.NaniteMeshes &&
+		Nanite::GStreamingManager.HasResourceEntries();
+
+	RenderVirtualShadowMaps(GraphBuilder, bNaniteEnabled);
+
 	// Render non-VSM shadows
-	FSceneRenderer::RenderShadowDepthMapAtlases(GraphBuilder);
+	RenderShadowDepthMapAtlases(GraphBuilder);
 
 	const bool bUseGeometryShader = !GRHISupportsArrayIndexFromAnyShader;
 

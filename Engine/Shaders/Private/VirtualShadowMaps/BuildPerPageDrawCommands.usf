@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	BuildPerPageDrawCommands.usf.usf: 
+	BuildPerPageDrawCommands.usf: 
 =============================================================================*/
 
 #include "../Common.ush"
@@ -12,6 +12,7 @@
 #include "../InstanceCulling/InstanceCullingLoadBalancer.ush"
 #include "../WaveOpUtil.ush"
 #include "Stats.ush"
+#include "PageCacheCommon.ush"
 
 
 #ifndef NEAR_CLIP
@@ -25,19 +26,6 @@ struct FVisibleInstanceCmd
 	uint InstanceId;
 	uint IndirectArgIndex;
 };
-
-uint PackPageInfo(FPageInfo PageInfo)
-{
-	// TODO: Why not do address translation here? Physical pages need fewer bits.
-	uint4 PackedData = 0U;
-	uint BitPos = 0U;
-	WriteBits(PackedData, BitPos, PageInfo.VirtualPage.x, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
-	WriteBits(PackedData, BitPos, PageInfo.VirtualPage.y, VSM_LOG2_LEVEL0_DIM_PAGES_XY);
-	WriteBits(PackedData, BitPos, PageInfo.ViewId, VSM_PACKED_PAGE_INFO_VIEW_ID_BITS);
-
-	return PackedData.x;
-}
-
 
 RWStructuredBuffer<FVisibleInstanceCmd> VisibleInstancesOut;
 uint FirstPrimaryView;
@@ -83,11 +71,11 @@ void MarkInstanceForInvalidation(uint InstanceId)
 	}
 }
 
-void WriteCmd(uint2 VirtualPage, uint MipViewId, uint InstanceId, uint IndirectArgIndex)
+void WriteCmd(uint MipViewId, uint InstanceId, uint IndirectArgIndex, bool bStaticPage)
 {
 	FPageInfo PageInfo;
-	PageInfo.VirtualPage = VirtualPage;
 	PageInfo.ViewId = MipViewId;
+	PageInfo.bStaticPage = bStaticPage;
 
 	FVisibleInstanceCmd VisibleInstanceCmd;
 	VisibleInstanceCmd.PackedPageInfo = PackPageInfo(PageInfo);
@@ -130,7 +118,6 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || DrawCommandDesc.bMaterialMayModifyPosition;
-	const uint PageFlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 
 	uint ThreadTotalForAllViews = 0;
 	// Loop over views and output visible instance (i.e., those that overlap a valid page)
@@ -161,8 +148,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
 
-				uint FlagMask = VSM_NON_NANITE_FLAG | (bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG);
-
+				uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(InstanceData, bHasMoved);
 				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, FlagMask))
 				{
 					uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
@@ -187,7 +173,8 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 							//  3. rejecting any that don't pass HZB at least once (or touches an uncached page)
 
 							// In Mode 2 we are using the current-frame HZB and can use any page whether it is cached or not.
-							uint VisiblePageMask = HZBMode == 1 ? VSM_UNCACHED_FLAG : 0U;
+							// TODO: Figure out which flag(s) we actually want here
+							uint VisiblePageMask = HZBMode == 1 ? (VSM_DYNAMIC_UNCACHED_FLAG | VSM_STATIC_UNCACHED_FLAG) : 0U;
 							if (!IsVisibleValidMaskedHZB(HZBMode == 1 ? MipView.TargetPrevLayerIndex : VirtualShadowMapId, VirtualShadowMapId, MipLevel, RectPages, Rect, VisiblePageMask))
 							{
 								StatsBufferInterlockedInc(VSM_STAT_NON_NANITE_INSTANCES_HZB_CULLED);
@@ -197,7 +184,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 #endif // USE_HZB_OCCLUSION
 
 						++ThreadTotalForAllViews;
-						WriteCmd(RectPages.xy, MipViewId, InstanceId, IndirectArgIndex);
+						WriteCmd(MipViewId, InstanceId, IndirectArgIndex, ShouldCacheInstanceAsStatic(InstanceData));
 					}
 					else
 					{

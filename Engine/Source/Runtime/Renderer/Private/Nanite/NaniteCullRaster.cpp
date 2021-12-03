@@ -482,7 +482,6 @@ class FPersistentClusterCull_CS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWBuffer< uint >, VisibleClustersArgsSWHW )
 
 		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >, OutDynamicCasterFlags)
 
 		SHADER_PARAMETER(uint32,												MaxNodes)
 		SHADER_PARAMETER(uint32,												LargePageRectThreshold)
@@ -1404,7 +1403,6 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		if (VirtualShadowMapArray)
 		{
 			PassParameters->VirtualShadowMap = VirtualTargetParameters;
-			PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(VirtualShadowMapArray->DynamicCasterPageFlagsRDG, PF_R32_UINT);
 		}
 
 		if (CullingContext.StatsBuffer)
