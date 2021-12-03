@@ -2684,6 +2684,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, InstanceCullingManager);
 	}
 
+	FLumenSceneFrameTemporaries LumenFrameTemporaries;
+
 	// Shadows, lumen and fog after base pass
 	if (!bHasRayTracedOverlay)
 	{
@@ -2711,7 +2713,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		{
 			LLM_SCOPE_BYTAG(Lumen);
-			RenderLumenSceneLighting(GraphBuilder, Views[0]);
+			RenderLumenSceneLighting(GraphBuilder, Views[0], LumenFrameTemporaries);
 		}
 
 		ComputeVolumetricFog(GraphBuilder, SceneTextures);
@@ -2824,10 +2826,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderLighting);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Lighting);
 
-		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0]);
+		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 
 		FRDGTextureRef DynamicBentNormalAOTexture = nullptr;
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LightingChannelsTexture, /* bIsVisualizePass = */ false);
+		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ false);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		if (bAllowStaticLighting)
@@ -3131,9 +3133,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bRenderDeferredLighting)
 	{
-		RenderLumenSceneVisualization(GraphBuilder, SceneTextures);
-	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0]);
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LightingChannelsTexture, /* bIsVisualizePass = */ true);
+	RenderLumenSceneVisualization(GraphBuilder, SceneTextures, LumenFrameTemporaries);
+	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+	RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ true);
 	}
 
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)

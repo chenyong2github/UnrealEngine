@@ -378,7 +378,7 @@ private:
 	void InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder);
-	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FViewInfo& View);
+	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
@@ -439,6 +439,7 @@ private:
 	FSSDSignalTextures RenderLumenProbeHierarchy(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const HybridIndirectLighting::FCommonParameters& CommonParameters,
 		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
 		const FViewInfo& View,
@@ -448,6 +449,7 @@ private:
 	void RenderDiffuseIndirectAndAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
 		FSceneTextures& SceneTextures,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		FRDGTextureRef LightingChannelsTexture,
 		bool bIsVisualizePass);
 
@@ -496,6 +498,7 @@ private:
 	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		FRDGTextureRef LightingChannelsTexture,
 		FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -508,11 +511,13 @@ private:
 	FSSDSignalTextures RenderLumenIrradianceFieldGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FViewInfo& View);
 
 	void RenderLumenProbe(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
 		const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
 		const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters);
@@ -520,6 +525,7 @@ private:
 	void RenderLumenProbeOcclusion(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const HybridIndirectLighting::FCommonParameters& CommonParameters,
 		const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters);
 
@@ -527,17 +533,18 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FSceneTextures& SceneTextures,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		const class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 		FLumenReflectionCompositeParameters& OutCompositeParameters);
 
-	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
+	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void LumenScenePDIVisualization();
 
 	/** Mark time line for gathering Lumen virtual surface cache feedback. */
-	void BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View);
-	void FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+	void BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries);
 	 
 	/** Whether tiled deferred is supported and can be used at all. */
 	bool CanUseTiledDeferred() const;

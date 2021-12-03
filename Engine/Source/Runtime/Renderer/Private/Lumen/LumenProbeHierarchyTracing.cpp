@@ -238,13 +238,14 @@ IMPLEMENT_GLOBAL_SHADER(FLumenTraceProbeOcclusionCS, "/Engine/Private/Lumen/Fina
 void FDeferredShadingSceneRenderer::RenderLumenProbe(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
 	const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
 	const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
 
 	FRDGBufferRef DispatchParameters = GraphBuilder.CreateBuffer(
 		FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(LumenProbeHierarchy::kProbeMaxHierarchyDepth),
@@ -367,6 +368,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const HybridIndirectLighting::FCommonParameters& CommonParameters,
 	const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters)
 {
@@ -400,7 +402,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 
 	const bool bTraceMeshSDFs = GLumenProbeHierarchyTraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing();
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
 
 	FLumenTraceProbeOcclusionCS::FParameters ReferencePassParameters;
 	{

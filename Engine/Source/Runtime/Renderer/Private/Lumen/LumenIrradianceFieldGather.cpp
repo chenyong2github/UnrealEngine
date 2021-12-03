@@ -248,6 +248,7 @@ DECLARE_GPU_STAT(LumenIrradianceFieldGather);
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FViewInfo& View)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenIrradianceFieldGather");
@@ -255,7 +256,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 
 	check(GLumenIrradianceFieldGather != 0);
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
 
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenIrradianceFieldGather::SetupRadianceCacheInputs();
 

@@ -1309,6 +1309,7 @@ DECLARE_GPU_STAT(LumenScreenProbeGather);
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	FRDGTextureRef LightingChannelsTexture,
 	FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
@@ -1321,7 +1322,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	if (GLumenIrradianceFieldGather != 0)
 	{
 		bLumenUseDenoiserComposite = false;
-		return RenderLumenIrradianceFieldGather(GraphBuilder, SceneTextures, View);
+		return RenderLumenIrradianceFieldGather(GraphBuilder, SceneTextures, FrameTemporaries, View);
 	}
 
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenScreenProbeGather");
@@ -1503,7 +1504,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	ScreenProbeParameters.ProbeIndirectArgs = ScreenProbeIndirectArgs;
 
-	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, FrameTemporaries);
 
 	FRDGTextureRef BRDFProbabilityDensityFunction = nullptr;
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH = nullptr;

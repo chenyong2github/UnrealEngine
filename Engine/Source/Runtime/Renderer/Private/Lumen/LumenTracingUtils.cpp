@@ -7,12 +7,11 @@
 #include "LumenTracingUtils.h"
 #include "LumenSceneRendering.h"
 
-FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCacheFeedback)
+FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-	FLumenSceneFrameTemporaries& FrameTemporaries = LumenSceneData.FrameTemporaries;
 
 	{
 		FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
