@@ -47,6 +47,7 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 	using namespace UE::MovieScene;
 
 	LastSystemLinkVersion = 0;
+	LastInstantiationVersion = 0;
 	AutoLinkMode = EAutoLinkRelevantSystems::Enabled;
 	SystemContext = EEntitySystemContext::Runtime;
 
@@ -202,6 +203,11 @@ void UMovieSceneEntitySystemLinker::TagInvalidBoundObjects()
 	}
 }
 
+bool UMovieSceneEntitySystemLinker::HasStructureChangedSinceLastRun() const
+{
+	return EntityManager.HasStructureChangedSince(LastInstantiationVersion);
+}
+
 bool UMovieSceneEntitySystemLinker::StartEvaluation(FMovieSceneEntitySystemRunner& InRunner)
 {
 	if (ActiveRunners.Num() == 0 || ActiveRunners.Last().bIsReentrancyAllowed)
@@ -223,6 +229,13 @@ FMovieSceneEntitySystemRunner* UMovieSceneEntitySystemLinker::GetActiveRunner() 
 		return ActiveRunners.Last().Runner;
 	}
 	return nullptr;
+}
+
+void UMovieSceneEntitySystemLinker::PostInstantation(FMovieSceneEntitySystemRunner& InRunner)
+{
+	LastInstantiationVersion = EntityManager.GetSystemSerial();
+
+	GetInstanceRegistry()->PostInstantation();
 }
 
 void UMovieSceneEntitySystemLinker::EndEvaluation(FMovieSceneEntitySystemRunner& InRunner)
@@ -264,6 +277,10 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 	{
 		return;
 	}
+
+	// Clear the instantiation serial to indicate that we probably need to re-run the instantiation systems
+	// the next time a runner gets flushed
+	LastInstantiationVersion = 0;
 
 	// Allow any other system to tag garbage
 	Events.CleanTaggedGarbage.Broadcast(this);

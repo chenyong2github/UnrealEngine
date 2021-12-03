@@ -80,7 +80,6 @@ public:
 
 private:
 
-	void OnLinkerGarbageCleaned(UMovieSceneEntitySystemLinker* Linker);
 	void OnLinkerAbandon(UMovieSceneEntitySystemLinker* Linker);
 
 private:
@@ -123,8 +122,6 @@ private:
 	TArray<FInstanceHandle> CurrentInstances;
 	/** When an update is running, the list of sub-contexts for the requested update */
 	TArray<FDissectedUpdate> DissectedUpdates;
-
-	uint64 LastInstantiationVersion = 0;
 
 	TGraphTask<FNullGraphTask>* CompletionTask;
 

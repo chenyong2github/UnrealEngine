@@ -234,11 +234,14 @@ public:
 	void LinkRelevantSystems();
 	void AutoLinkRelevantSystems();
 
+	bool HasStructureChangedSinceLastRun() const;
+
 	void InvalidateObjectBinding(const FGuid& ObjectBindingID, FInstanceHandle InstanceHandle);
 	void CleanupInvalidBoundObjects();
 
 	bool StartEvaluation(FMovieSceneEntitySystemRunner& InRunner);
 	FMovieSceneEntitySystemRunner* GetActiveRunner() const;
+	void PostInstantation(FMovieSceneEntitySystemRunner& InRunner);
 	void EndEvaluation(FMovieSceneEntitySystemRunner& InRunner);
 
 private:
@@ -287,6 +290,7 @@ public:
 private:
 
 	uint64 LastSystemLinkVersion;
+	uint64 LastInstantiationVersion;
 
 	TWeakPtr<bool> GlobalStateCaptureToken;
 
