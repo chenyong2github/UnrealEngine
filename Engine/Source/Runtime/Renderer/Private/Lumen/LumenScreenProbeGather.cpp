@@ -257,6 +257,16 @@ FAutoConsoleVariableRef CVarRadianceCache(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GLumenScreenProbeIrradianceFormat = 1;
+FAutoConsoleVariableRef CVarLumenScreenProbeIrradianceFormat(
+	TEXT("r.Lumen.ScreenProbeGather.IrradianceFormat"),
+	GLumenScreenProbeIrradianceFormat,
+	TEXT("Prefilter irradiance format\n")
+	TEXT("0 - SH3 slower\n")
+	TEXT("1 - Octahedral probe. Faster, but reverts to SH3 when ScreenSpaceBentNormal.ApplyDuringIntegration is enabled"),
+	ECVF_RenderThreadSafe
+);
+
 namespace LumenScreenProbeGather 
 {
 	int32 GetTracingOctahedronResolution(const FViewInfo& View)
@@ -324,6 +334,18 @@ namespace LumenScreenProbeGather
 	int32 GetDiffuseIntegralMethod()
 	{
 		return GLumenScreenProbeGatherReferenceMode ? 2 : GLumenScreenProbeDiffuseIntegralMethod;
+	}
+
+	EScreenProbeIrradianceFormat GetScreenProbeIrradianceFormat()
+	{
+		const bool bApplyScreenBentNormal = UseScreenSpaceBentNormal() && ApplyScreenBentNormalDuringIntegration();
+		if (bApplyScreenBentNormal)
+		{
+			// At the moment only SH3 support bent normal path
+			return EScreenProbeIrradianceFormat::SH3;
+		}
+
+		return (EScreenProbeIrradianceFormat)FMath::Clamp(GLumenScreenProbeIrradianceFormat, 0, 1);
 	}
 }
 
@@ -837,7 +859,8 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 
 	class FScreenSpaceBentNormal : SHADER_PERMUTATION_BOOL("SCREEN_SPACE_BENT_NORMAL");
 	class FTileClassificationMode : SHADER_PERMUTATION_INT("INTEGRATE_TILE_CLASSIFICATION_MODE", 4);
-	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal>;
+	class FProbeIrradianceFormat : SHADER_PERMUTATION_ENUM_CLASS("PROBE_IRRADIANCE_FORMAT", EScreenProbeIrradianceFormat);
+	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal, FProbeIrradianceFormat>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -1066,6 +1089,7 @@ void InterpolateAndIntegrate(
 			FScreenProbeIntegrateCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >(ClassificationMode);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FScreenSpaceBentNormal >(bApplyScreenBentNormal);
+			PermutationVector.Set< FScreenProbeIntegrateCS::FProbeIrradianceFormat >(LumenScreenProbeGather::GetScreenProbeIrradianceFormat());
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeIntegrateCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
