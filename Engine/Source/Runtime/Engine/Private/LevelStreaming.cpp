@@ -538,20 +538,6 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 
 	auto UpdateStreamingState_RequestLevel = [&]()
 	{
-		if (GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge)
-		{
-			// Figure out whether there are any levels we haven't collected garbage yet.
-			const bool bAreLevelsPendingPurge = FLevelStreamingGCHelper::GetNumLevelsPendingPurge() >= GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
-
-			// Request a 'soft' GC if there are levels pending purge and there are levels to be loaded. In the case of a blocking
-			// load this is going to guarantee GC firing first thing afterwards and otherwise it is going to sneak in right before
-			// kicking off the async load.
-			if (bAreLevelsPendingPurge)
-			{
-				GEngine->ForceGarbageCollection(false);
-			}
-		}
-
 		bool bBlockOnLoad = (bShouldBlockOnLoad || ShouldBeAlwaysLoaded());
 		const bool bAllowLevelLoadRequests = (bBlockOnLoad || World->AllowLevelLoadRequests());
 		bBlockOnLoad |= (!GUseBackgroundLevelStreaming || !World->IsGameWorld());

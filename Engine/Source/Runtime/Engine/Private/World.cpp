@@ -3864,6 +3864,21 @@ void UWorld::UpdateLevelStreaming()
 
 	StreamingLevelsToConsider.EndConsideration();
 
+	if (GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge)
+	{
+		// Figure out whether there are any levels we haven't collected garbage yet.
+		const int32 LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeOverride ? 1 : GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
+		const bool bAreLevelsPendingPurge = FLevelStreamingGCHelper::GetNumLevelsPendingPurge() >= LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
+
+		// Request a 'soft' GC if there are levels pending purge and there are levels to be loaded. In the case of a blocking
+		// load this is going to guarantee GC firing first thing afterwards and otherwise it is going to sneak in right before
+		// kicking off the async load.
+		if (bAreLevelsPendingPurge)
+		{
+			GEngine->ForceGarbageCollection(false);
+			GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeOverride = 0;
+		}
+	}
 
 	// In case more levels has been requested to unload, force GC on next tick 
 	if (GLevelStreamingForceGCAfterLevelStreamedOut != 0)

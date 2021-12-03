@@ -8,6 +8,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "EngineUtils.h"
+#include "Engine/CoreSettings.h"
 #include "Net/UnrealNetwork.h"
 #include "WorldPartition/WorldPartition.h"
 #if WITH_EDITOR
@@ -169,6 +170,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			else if (InState == EDataLayerRuntimeState::Activated)
 			{
 				ActiveDataLayerNames.Add(InDataLayer.Name);
+			}
+			else if (InState == EDataLayerState::Unloaded)
+			{
+				GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeOverride = 1;
 			}
 
 			// Update Replicated Properties
