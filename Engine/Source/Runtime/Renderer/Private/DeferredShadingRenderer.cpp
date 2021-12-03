@@ -1168,13 +1168,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 				// At the moment we only support SM & ISMs on this path
 				check(EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands));
-				for (int32 CommandIndex : SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[0])
+				if (SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Num() > 0 && SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[0].Num() > 0)
 				{
-					FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
+					for (int32 CommandIndex : SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[0])
+					{
+						FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
 
-					NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands[CommandIndex];
-					NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
-					View.VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+						NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands[CommandIndex];
+						NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
+						View.VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
+					}
 				}
 
 				checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));

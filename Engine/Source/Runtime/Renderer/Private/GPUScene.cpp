@@ -936,53 +936,55 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 							const TArray<uint32>& PassMaterialSlots = PrimitiveSceneInfo->NaniteMaterialSlots[NaniteMeshPass];
 							const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
-							check(PassMaterials.Num() == PassMaterialSlots.Num());
-
-							const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
-							check(TableEntryCount >= uint32(PassMaterials.Num()));
-						#if WITH_EDITOR
-							const uint32 HitProxyEntryCount = (NaniteMeshPass == ENaniteMeshPass::BasePass) ? TableEntryCount : NANITE_MAX_MATERIALS;
-						#endif
-
-							void* MaterialSlotRange = nullptr;
-						#if WITH_EDITOR
-							void* HitProxyTable = nullptr;
-						#endif
+							if (PassMaterials.Num() == PassMaterialSlots.Num())
 							{
-								FNaniteMaterialCommandsLock NaniteLock(NaniteMaterials, SLT_Write);
-								MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, TableEntryCount);
-							#if WITH_EDITOR
-								HitProxyTable = NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, HitProxyEntryCount);
-							#endif
-							}
 
-							uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
-							for (int32 Entry = 0; Entry < PassMaterialSlots.Num(); ++Entry)
-							{
-								MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry];
-							}
+								const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
+								check(TableEntryCount >= uint32(PassMaterials.Num()));
+#if WITH_EDITOR
+								const uint32 HitProxyEntryCount = (NaniteMeshPass == ENaniteMeshPass::BasePass) ? TableEntryCount : NANITE_MAX_MATERIALS;
+#endif
 
-						#if WITH_EDITOR
-							if (NaniteMeshPass == ENaniteMeshPass::BasePass)
-							{
-								const TArray<uint32>& PassHitProxyIds = PrimitiveSceneInfo->NaniteHitProxyIds;
-
-								uint32* HitProxyEntry = static_cast<uint32*>(HitProxyTable);
-								for (int32 Entry = 0; Entry < PassHitProxyIds.Num(); ++Entry)
+								void* MaterialSlotRange = nullptr;
+#if WITH_EDITOR
+								void* HitProxyTable = nullptr;
+#endif
 								{
-									HitProxyEntry[PassMaterials[Entry].MaterialIndex] = PassHitProxyIds[Entry];
+									FNaniteMaterialCommandsLock NaniteLock(NaniteMaterials, SLT_Write);
+									MaterialSlotRange = NaniteMaterials.GetMaterialSlotPtr(UploadInfo.PrimitiveID, TableEntryCount);
+#if WITH_EDITOR
+									HitProxyTable = NaniteMaterials.GetHitProxyTablePtr(UploadInfo.PrimitiveID, HitProxyEntryCount);
+#endif
 								}
-							}
-							else
-							{
-								// Other passes don't use hit proxies. TODO: Shouldn't even need to do this.
-								uint64* DualHitProxyEntry = static_cast<uint64*>(HitProxyTable);
-								for (uint32 DualEntry = 0; DualEntry < NANITE_MAX_MATERIALS >> 1; ++DualEntry)
+
+								uint32* MaterialSlots = static_cast<uint32*>(MaterialSlotRange);
+								for (int32 Entry = 0; Entry < PassMaterialSlots.Num(); ++Entry)
 								{
-									DualHitProxyEntry[DualEntry] = 0;
+									MaterialSlots[PassMaterials[Entry].MaterialIndex] = PassMaterialSlots[Entry];
 								}
+
+#if WITH_EDITOR
+								if (NaniteMeshPass == ENaniteMeshPass::BasePass)
+								{
+									const TArray<uint32>& PassHitProxyIds = PrimitiveSceneInfo->NaniteHitProxyIds;
+
+									uint32* HitProxyEntry = static_cast<uint32*>(HitProxyTable);
+									for (int32 Entry = 0; Entry < PassHitProxyIds.Num(); ++Entry)
+									{
+										HitProxyEntry[PassMaterials[Entry].MaterialIndex] = PassHitProxyIds[Entry];
+									}
+								}
+								else
+								{
+									// Other passes don't use hit proxies. TODO: Shouldn't even need to do this.
+									uint64* DualHitProxyEntry = static_cast<uint64*>(HitProxyTable);
+									for (uint32 DualEntry = 0; DualEntry < NANITE_MAX_MATERIALS >> 1; ++DualEntry)
+									{
+										DualHitProxyEntry[DualEntry] = 0;
+									}
+								}
+#endif
 							}
-						#endif
 						}
 					}
 				}
