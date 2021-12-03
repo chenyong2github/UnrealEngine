@@ -16,6 +16,7 @@ class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderInstancing : public UHLODBuild
 
 public:
 	virtual bool RequiresCompiledAssets() const override { return false; }
+	virtual bool RequiresWarmup() const override { return false; }
 
 	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const override;
 };

@@ -10,13 +10,29 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectGlobals.h"
-#include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "EngineModule.h"
 #include "EngineUtils.h"
+#include "Components/StaticMeshComponent.h"
 
 #define LOCTEXT_NAMESPACE "HLODSubsystem"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODSubsystem, Log, All);
+
+static TAutoConsoleVariable<int32> CVarHLODWarmupNumFrames(
+	TEXT("wp.Runtime.HLOD.WarmupNumFrames"),
+	5,
+	TEXT("Delay unloading of a cell for this amount of frames to ensure HLOD assets are ready to be shown at the proper resolution. Set to 0 to force disable warmup."),
+	ECVF_Default
+);
+
+static TAutoConsoleVariable<int32> CVarHLODWarmupEnabled(
+	TEXT("wp.Runtime.HLOD.WarmupEnabled"),
+	1,
+	TEXT("Enable HLOD assets warmup. Will delay unloading of cells & transition to HLODs for wp.Runtime.HLOD.WarmupNumFrames frames."),
+	ECVF_Default
+);
 
 UHLODSubsystem::UHLODSubsystem()
 	: UWorldSubsystem()
@@ -41,11 +57,11 @@ FAutoConsoleCommand UHLODSubsystem::EnableHLODCommand(
 			if (World && World->IsGameWorld())
 			{
 				UHLODSubsystem* HLODSubSystem = World->GetSubsystem<UHLODSubsystem>();
-				for (const auto& CellHLODMapping : HLODSubSystem->CellsHLODMapping)
+				for (const auto& CellHLODMapping : HLODSubSystem->CellsData)
 				{
-					const FCellHLODMapping& CellHLODs = CellHLODMapping.Value;
-					bool bIsHLODVisible = UHLODSubsystem::WorldPartitionHLODEnabled && !CellHLODs.bIsCellVisible;
-					for (AWorldPartitionHLOD* HLODActor : CellHLODs.LoadedHLODs)
+					const FCellData& CellData = CellHLODMapping.Value;
+					bool bIsHLODVisible = UHLODSubsystem::WorldPartitionHLODEnabled && !CellData.bIsCellVisible;
+					for (AWorldPartitionHLOD* HLODActor : CellData.LoadedHLODs)
 					{
 						HLODActor->SetVisibility(bIsHLODVisible);
 					}
@@ -81,17 +97,21 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	Super::Initialize(Collection);
 
-	if (GetWorld()->IsGameWorld())
+	UWorld* World = GetWorld();
+
+	if (World->IsGameWorld())
 	{
-		GetWorld()->GetSubsystem<UWorldPartitionSubsystem>()->OnWorldPartitionRegistered.AddUObject(this, &UHLODSubsystem::OnWorldPartitionRegistered);
-		GetWorld()->GetSubsystem<UWorldPartitionSubsystem>()->OnWorldPartitionUnregistered.AddUObject(this, &UHLODSubsystem::OnWorldPartitionUnregistered);
+		World->GetSubsystem<UWorldPartitionSubsystem>()->OnWorldPartitionRegistered.AddUObject(this, &UHLODSubsystem::OnWorldPartitionRegistered);
+		World->GetSubsystem<UWorldPartitionSubsystem>()->OnWorldPartitionUnregistered.AddUObject(this, &UHLODSubsystem::OnWorldPartitionUnregistered);
+
+		SceneViewExtension = FSceneViewExtensions::NewExtension<FHLODResourcesResidencySceneViewExtension>(World);
 	}
 }
 
 void UHLODSubsystem::OnWorldPartitionRegistered(UWorldPartition* InWorldPartition)
 {
 	check(InWorldPartition == GetWorld()->GetWorldPartition());
-	check(CellsHLODMapping.IsEmpty());
+	check(CellsData.IsEmpty());
 
 	TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
 	InWorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bAllDataLayers*/ true);
@@ -99,14 +119,14 @@ void UHLODSubsystem::OnWorldPartitionRegistered(UWorldPartition* InWorldPartitio
 	// Build cell to HLOD mapping
 	for (const UWorldPartitionRuntimeCell* Cell : StreamingCells)
 	{
-		CellsHLODMapping.Emplace(Cell->GetFName());
+		CellsData.Emplace(Cell->GetFName());
 	}
 }
 
 void UHLODSubsystem::OnWorldPartitionUnregistered(UWorldPartition* InWorldPartition)
 {
 	check(InWorldPartition == GetWorld()->GetWorldPartition());
-	CellsHLODMapping.Reset();
+	CellsData.Reset();
 }
 
 void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD)
@@ -114,16 +134,16 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::RegisterHLODActor);
 
 	const FName CellName = InWorldPartitionHLOD->GetSourceCellName();
-	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(CellName);
+	FCellData* CellData = CellsData.Find(CellName);
 
 #if WITH_EDITOR
 	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *CellName.ToString());
 #endif
 
-	if (CellHLODs)
+	if (CellData)
 	{
-		CellHLODs->LoadedHLODs.Add(InWorldPartitionHLOD);
-		InWorldPartitionHLOD->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled && !CellHLODs->bIsCellVisible);
+		CellData->LoadedHLODs.Add(InWorldPartitionHLOD);
+		InWorldPartitionHLOD->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled && !CellData->bIsCellVisible);
 	}
 	else
 	{
@@ -137,29 +157,29 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::UnregisterHLODActor);
 
 	const FName CellName = InWorldPartitionHLOD->GetSourceCellName();
-	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(CellName);
+	FCellData* CellData = CellsData.Find(CellName);
 
 #if WITH_EDITOR
 	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *CellName.ToString());
 #endif
 
-	if (CellHLODs)
+	if (CellData)
 	{
-		int32 NumRemoved = CellHLODs->LoadedHLODs.Remove(InWorldPartitionHLOD);
+		int32 NumRemoved = CellData->LoadedHLODs.Remove(InWorldPartitionHLOD);
 		check(NumRemoved == 1);
 	}
 }
 
 void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 {
-	FCellHLODMapping& CellHLODs = CellsHLODMapping.FindChecked(InCell->GetFName());
-	CellHLODs.bIsCellVisible = true;
+	FCellData& CellData = CellsData.FindChecked(InCell->GetFName());
+	CellData.bIsCellVisible = true;
 
 #if WITH_EDITOR
-	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell shown - %s - hiding %d HLOD actors"), *InCell->GetName(), CellHLODs.LoadedHLODs.Num());
+	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell shown - %s - hiding %d HLOD actors"), *InCell->GetName(), CellData.LoadedHLODs.Num());
 #endif
 
-	for (AWorldPartitionHLOD* HLODActor : CellHLODs.LoadedHLODs)
+	for (AWorldPartitionHLOD* HLODActor : CellData.LoadedHLODs)
 	{
 #if WITH_EDITOR
 		UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
@@ -170,20 +190,157 @@ void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 
 void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
-	FCellHLODMapping& CellHLODs = CellsHLODMapping.FindChecked(InCell->GetFName());
-	CellHLODs.bIsCellVisible = false;
+	FCellData& CellData = CellsData.FindChecked(InCell->GetFName());
+	CellData.bIsCellVisible = false;
 
 #if WITH_EDITOR
-	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell hidden - %s - showing %d HLOD actors"), *InCell->GetName(), CellHLODs.LoadedHLODs.Num());
+	UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell hidden - %s - showing %d HLOD actors"), *InCell->GetName(), CellData.LoadedHLODs.Num());
 #endif
 
-	for (AWorldPartitionHLOD* HLODActor : CellHLODs.LoadedHLODs)
+	for (AWorldPartitionHLOD* HLODActor : CellData.LoadedHLODs)
 	{
 #if WITH_EDITOR
 		UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
 #endif
 		HLODActor->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled);
 	}
+}
+
+void PrepareVTRequests(TMap<UMaterialInterface*, float>& InOutVTRequests, UStaticMeshComponent* InStaticMeshComponent, int32 InPixelSize)
+{
+	for (UMaterialInterface* MaterialInterface : InStaticMeshComponent->GetMaterials())
+	{
+		// We have a VT we'd like to prefetch, add or update a request in our request map.
+		// If the texture was already requested by another component, fetch the highest required resolution only.
+		float& CurrentMaxPixel = InOutVTRequests.FindOrAdd(MaterialInterface);
+		CurrentMaxPixel = FMath::Max(CurrentMaxPixel, InPixelSize);
+	}
+}
+
+static float EstimateScreenSize(UStaticMeshComponent* InStaticMeshComponent, const FSceneViewFamily& InViewFamily)
+{
+	float MaxPixels = 0;
+
+	// Estimate the highest screen pixel size of this component in the provided views
+	for (const FSceneView* View : InViewFamily.Views)
+	{
+		// Make sure the HLOD actor we're about to show is actually in the frustum
+		if (View->ViewFrustum.IntersectSphere(InStaticMeshComponent->Bounds.Origin, InStaticMeshComponent->Bounds.SphereRadius))
+		{
+			float ScreenDiameter = ComputeBoundsScreenSize(InStaticMeshComponent->Bounds.Origin, InStaticMeshComponent->Bounds.SphereRadius, *View);
+			float PixelSize = ScreenDiameter * View->ViewMatrices.GetScreenScale() * 2.0f;
+
+			MaxPixels = FMath::Max(MaxPixels, PixelSize);
+		}
+	}
+
+	return MaxPixels;
+}
+
+void UHLODSubsystem::MakeRenderResourcesResident(const FCellData& CellData, const FSceneViewFamily& InViewFamily)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::MakeRenderResourcesResident)
+
+	TMap<UMaterialInterface*, float> VTRequests;
+
+	// For each HLOD actor representing this cell
+	for(AWorldPartitionHLOD* HLODActor : CellData.LoadedHLODs)
+	{
+		// Skip HLOD actors that doesn't require warmup.
+		// For example, instanced HLODs, as they reuse the same meshes/textures as their source actors.
+		// These resources should already be resident & at the proper resolution.
+		if (!HLODActor->DoesRequireWarmup())
+		{
+			continue;
+		}
+
+		HLODActor->ForEachComponent<UStaticMeshComponent>(false, [&](UStaticMeshComponent* SMC)
+		{
+			float PixelSize = EstimateScreenSize(SMC, InViewFamily);
+
+			if (PixelSize > 0)
+			{
+				PrepareVTRequests(VTRequests, SMC, PixelSize);
+				
+				// TODO: Nanite
+				//PrepareNaniteRequests(NaniteRequests, SMC, MaxPixels);
+			}
+		});
+	}
+
+	if (!VTRequests.IsEmpty())
+	{
+		ENQUEUE_RENDER_COMMAND(MakeHLODRenderResourcesResident)(
+			[VTRequests = MoveTemp(VTRequests), FeatureLevel = InViewFamily.GetFeatureLevel()](FRHICommandListImmediate& RHICmdList)
+			{
+				for(const TPair<UMaterialInterface*, float>& VTRequest : VTRequests)
+				{
+					UMaterialInterface* Material = VTRequest.Key;
+					FMaterialRenderProxy* MaterialRenderProxy = Material->GetRenderProxy();
+
+					GetRendererModule().RequestVirtualTextureTiles(MaterialRenderProxy, FVector2D(VTRequest.Value, VTRequest.Value), FeatureLevel);
+				}
+			});
+	}
+}
+
+bool UHLODSubsystem::RequestUnloading(const UWorldPartitionRuntimeCell* InCell)
+{
+	// Test if warmup is disabled globally.
+	bool bPerformWarmpup = CVarHLODWarmupEnabled.GetValueOnGameThread() != 0 && CVarHLODWarmupNumFrames.GetValueOnGameThread() > 0;
+	if (!bPerformWarmpup)
+	{
+		return true;
+	}
+
+	FCellData& CellData = CellsData.FindChecked(InCell->GetFName());
+
+	// If cell wasn't even visible yet or doesn't have HLOD actors, skip warmup.
+	bPerformWarmpup = !CellData.LoadedHLODs.IsEmpty() && CellData.bIsCellVisible;
+	if (!bPerformWarmpup)
+	{
+		return true;
+	}
+
+	// Verify that at least one HLOD actor associated with this cell needs warmup.
+	bPerformWarmpup = Algo::AnyOf(CellData.LoadedHLODs, [](const AWorldPartitionHLOD* HLODActor) { return HLODActor->DoesRequireWarmup(); });
+	if (!bPerformWarmpup)
+	{
+		return true;
+	}
+
+	uint32 CurrentFrameNumber = GetWorld()->Scene->GetFrameNumber();
+
+	// Trigger warmup on the first request to unload
+	if (CellData.WarmupCompleteFrame == INDEX_NONE)
+	{
+		CellData.WarmupCompleteFrame = CurrentFrameNumber + CVarHLODWarmupNumFrames.GetValueOnGameThread();
+		CellsToWarmup.Add(&CellData);
+	}
+
+	// Test if warmup is completed
+	bool bCanUnload = CurrentFrameNumber >= CellData.WarmupCompleteFrame;
+	if (bCanUnload)
+	{
+		CellData.WarmupCompleteFrame = INDEX_NONE;
+	}
+
+	return bCanUnload;
+}
+
+void UHLODSubsystem::OnBeginRenderViews(const FSceneViewFamily& InViewFamily)
+{
+	for (FCellData* CellPendingUnload : CellsToWarmup)
+	{
+		MakeRenderResourcesResident(*CellPendingUnload, InViewFamily);
+	}
+
+	CellsToWarmup.Reset();
+}
+
+void FHLODResourcesResidencySceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
+{
+	GetWorld()->GetSubsystem<UHLODSubsystem>()->OnBeginRenderViews(InViewFamily);
 }
 
 #undef LOCTEXT_NAMESPACE

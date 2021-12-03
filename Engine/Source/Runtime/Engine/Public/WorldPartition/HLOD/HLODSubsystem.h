@@ -5,12 +5,27 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
+#include "SceneViewExtension.h"
 
 #include "HLODSubsystem.generated.h"
 
 class UWorldPartition;
 class UWorldPartitionRuntimeCell;
 class AWorldPartitionHLOD;
+
+class FHLODResourcesResidencySceneViewExtension : public FWorldSceneViewExtension
+{
+public:
+	FHLODResourcesResidencySceneViewExtension(const FAutoRegister& AutoRegister, UWorld* InWorld)
+		: FWorldSceneViewExtension(AutoRegister, InWorld)
+	{
+	}
+
+	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
+
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
+};
 
 /**
  * UHLODSubsystem
@@ -35,29 +50,39 @@ public:
 	void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
 	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
 
+	bool RequestUnloading(const UWorldPartitionRuntimeCell* InCell);
+
 	static bool IsHLODEnabled();
 	
 private:
-	void OnWorldPartitionRegistered(UWorldPartition* InWorldPartition);
-	void OnWorldPartitionUnregistered(UWorldPartition* InWorldPartition);
-
-	/** Console command used to turn on/off loading & rendering of world partition HLODs */
-	static class FAutoConsoleCommand EnableHLODCommand;
-
-private:
-
-	static bool WorldPartitionHLODEnabled;
-
-	struct FCellHLODMapping
+	struct FCellData
 	{
 		bool						bIsCellVisible;
 		TSet<AWorldPartitionHLOD*>	LoadedHLODs;
-		
 
-		FCellHLODMapping() : bIsCellVisible(false)
+		uint32						WarmupCompleteFrame;
+
+		FCellData() 
+			: bIsCellVisible(false)
+			, WarmupCompleteFrame(INDEX_NONE)
 		{
 		}
 	};
 
-	TMap<FName, FCellHLODMapping> CellsHLODMapping;
+	TMap<FName, FCellData> CellsData;
+	TSet<FCellData*> CellsToWarmup;
+
+	void OnWorldPartitionRegistered(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUnregistered(UWorldPartition* InWorldPartition);
+	void OnBeginRenderViews(const FSceneViewFamily& InViewFamily);
+
+	void MakeRenderResourcesResident(const FCellData& CellHLODs, const FSceneViewFamily& InViewFamily);
+
+	/** Console command used to turn on/off loading & rendering of world partition HLODs */
+	static class FAutoConsoleCommand EnableHLODCommand;
+
+	static bool WorldPartitionHLODEnabled;
+
+	friend class FHLODResourcesResidencySceneViewExtension;
+	TSharedPtr<FHLODResourcesResidencySceneViewExtension, ESPMode::ThreadSafe> SceneViewExtension;
 };

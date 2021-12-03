@@ -38,6 +38,8 @@ public:
 
 	virtual bool RequiresCompiledAssets() const;
 
+	virtual bool RequiresWarmup() const;
+
 	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) const;
 
 	void Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<FWorldPartitionReference>& InSubActors);

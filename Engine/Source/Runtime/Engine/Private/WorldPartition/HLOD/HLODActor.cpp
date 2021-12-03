@@ -21,6 +21,7 @@
 
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bRequireWarmup(false)
 {
 	SetCanBeDamaged(false);
 	SetActorEnableCollision(false);
@@ -149,6 +150,12 @@ void AWorldPartitionHLOD::SetSubActors(const TArray<FGuid>& InSubActors)
 const TArray<FGuid>& AWorldPartitionHLOD::GetSubActors() const
 {
 	return SubActors;
+}
+
+void AWorldPartitionHLOD::SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer)
+{
+	SubActorsHLODLayer = InSubActorsHLODLayer;
+	bRequireWarmup = SubActorsHLODLayer->DoesRequireWarmup();
 }
 
 void AWorldPartitionHLOD::SetSourceCellName(FName InSourceCellName)

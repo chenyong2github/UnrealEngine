@@ -6,6 +6,7 @@
 #include "Engine/Canvas.h"
 #include "Debug/DebugDrawService.h"
 #include "HAL/IConsoleManager.h"
+#include "MaterialShared.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -1079,23 +1080,39 @@ void FVirtualTextureSystem::RequestTiles(const FVector2D& InScreenSpaceSize, int
 
 	for (const auto& Pair : AllocatedVTs)
 	{
-		const IAllocatedVirtualTexture* AllocatedVT = Pair.Value;
-		if (InMipLevel < 0)
+		RequestTilesInternal(Pair.Value, InScreenSpaceSize, InMipLevel);
+	}
+}
+
+void FVirtualTextureSystem::RequestTiles(const FMaterialRenderProxy* InMaterialRenderProxy, const FVector2D& InScreenSpaceSize, ERHIFeatureLevel::Type InFeatureLevel)
+{
+	check(IsInRenderingThread());
+
+	FScopeLock Lock(&RequestedTilesLock);
+
+	for (IAllocatedVirtualTexture* AllocatedVT : InMaterialRenderProxy->UniformExpressionCache[InFeatureLevel].AllocatedVTs)
+	{
+		RequestTilesInternal(AllocatedVT, InScreenSpaceSize, INDEX_NONE);
+	}
+}
+
+void FVirtualTextureSystem::RequestTilesInternal(const IAllocatedVirtualTexture* InAllocatedVT, const FVector2D& InScreenSpaceSize, int32 InMipLevel)
+{
+	if (InMipLevel < 0)
+	{
+		const uint32 vMaxLevel = InAllocatedVT->GetMaxLevel();
+		const float vLevel = ComputeMipLevel(InAllocatedVT, InScreenSpaceSize);
+		const int32 vMipLevelDown = FMath::Clamp((int32)FMath::FloorToInt(vLevel), 0, (int32)vMaxLevel);
+		RequestTilesInternal(InAllocatedVT, vLevel);
+		if (vMipLevelDown + 1u <= vMaxLevel)
 		{
-			const uint32 vMaxLevel = AllocatedVT->GetMaxLevel();
-			const float vLevel = ComputeMipLevel(AllocatedVT, InScreenSpaceSize);
-			const int32 vMipLevelDown = FMath::Clamp((int32)FMath::FloorToInt(vLevel), 0, (int32)vMaxLevel);
-			RequestTilesInternal(AllocatedVT, vLevel);
-			if (vMipLevelDown + 1u <= vMaxLevel)
-			{
-				// Need to fetch 2 levels to support trilinear filtering
-				RequestTilesInternal(AllocatedVT, vMipLevelDown);
-			}
+			// Need to fetch 2 levels to support trilinear filtering
+			RequestTilesInternal(InAllocatedVT, vMipLevelDown);
 		}
-		else
-		{
-			RequestTilesInternal(AllocatedVT, InMipLevel);
-		}
+	}
+	else
+	{
+		RequestTilesInternal(InAllocatedVT, InMipLevel);
 	}
 }
 
