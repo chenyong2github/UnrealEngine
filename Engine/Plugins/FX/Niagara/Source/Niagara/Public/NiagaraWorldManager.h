@@ -174,6 +174,9 @@ public:
 	void PrimePoolForAllSystems();
 	void PrimePool(UNiagaraSystem* System);
 
+	static void RefreshSystemScalabilitySettingsForAllWorlds(UNiagaraSystem* System);
+	void RefreshSystemScalabilitySettings(UNiagaraSystem* System);
+
 	void SetDebugPlaybackMode(ENiagaraDebugPlaybackMode Mode) { RequestedDebugPlaybackMode = Mode; }
 	ENiagaraDebugPlaybackMode GetDebugPlaybackMode() const { return DebugPlaybackMode; }
 

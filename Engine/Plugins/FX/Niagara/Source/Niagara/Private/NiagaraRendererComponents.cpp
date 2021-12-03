@@ -447,6 +447,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 		}
 
 		// Acquire a component for this particle
+		bool bNewlyAcquiredComponent = false;
 		USceneComponent* SceneComponent = nullptr;
 		if (PoolIndex == -1)
 		{
@@ -460,6 +461,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			{
 				PoolIndex = FreeList.Pop(false);
 			}
+			bNewlyAcquiredComponent = true;
 		}
 
 		if (PoolIndex >= 0)
@@ -513,11 +515,15 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 		FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(Emitter->GetCachedEmitter()->bLocalSpace);
 		TickPropertyBindings(Properties, SceneComponent, Data, ParticleIndex, PoolEntry, LwcConverter);
 
-		// activate the component
-		if (!SceneComponent->IsActive())
+		// Activate the component.
+		// If components are assigned by ID then we can optionally do this only on the first frame the component is acquired by a particle.
+		if(!Properties->bAssignComponentsOnParticleID || bNewlyAcquiredComponent || !Properties->bOnlyActivateNewlyAquiredComponents)
 		{
-			SceneComponent->SetVisibility(true, true);
-			SceneComponent->Activate(false);
+			if (!SceneComponent->IsActive())
+			{
+				SceneComponent->SetVisibility(true, true);
+				SceneComponent->Activate(false);
+			}
 		}
 
 		PoolEntry.LastAssignedToParticleID = ParticleID;

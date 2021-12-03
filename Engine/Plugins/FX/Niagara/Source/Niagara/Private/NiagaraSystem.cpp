@@ -3581,6 +3581,8 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 		};
 		ForEachScript(ScriptUsesSigIndex);
 	}
+
+	FNiagaraWorldManager::RefreshSystemScalabilitySettingsForAllWorlds(this);
 }
 
 void UNiagaraSystem::OnScalabilityCVarChanged()

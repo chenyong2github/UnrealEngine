@@ -1521,6 +1521,26 @@ bool FNiagaraWorldManager::GetScalabilityState(UNiagaraComponent* Component, FNi
 	return false;
 }
 
+void FNiagaraWorldManager::RefreshSystemScalabilitySettingsForAllWorlds(UNiagaraSystem* System)
+{
+	for (auto& Pair : WorldManagers)
+	{
+		if (Pair.Value)
+		{
+			Pair.Value->RefreshSystemScalabilitySettings(System);
+		}
+	}
+}
+
+void FNiagaraWorldManager::RefreshSystemScalabilitySettings(UNiagaraSystem* System)
+{
+	for (auto& Pair : ScalabilityManagers)
+	{
+		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
+		ScalabilityMan.RefreshSystemScalabilitySettings(System);
+	}
+}
+
 void FNiagaraWorldManager::PrimePoolForAllWorlds(UNiagaraSystem* System)
 {
 	if (GNigaraAllowPrimedPools)
