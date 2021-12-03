@@ -8,7 +8,7 @@
 //------------------------------------------------------- PARAMETERS
 
 SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
-float MotionBlur_VelocityScaleForTiles;
+float VelocityScaleForFlattenTiles;
 
 Texture2D CenterVelocityTileTextures_Textures_0;
 Texture2D CenterVelocityTileTextures_Textures_1;
@@ -53,7 +53,7 @@ void MainCS(
 
 			float2 MaxVelocity = NeighborVelocityRange.Max[0];
 
-			float2 VelocityPixels = MaxVelocity * MotionBlur_VelocityScaleForTiles;
+			float2 VelocityPixels = MaxVelocity * VelocityScaleForFlattenTiles;
 
 			float  VelocityLengthPixelsSqr = dot(VelocityPixels, VelocityPixels);
 			float  VelocityLengthPixelsInv = rsqrtFast(VelocityLengthPixelsSqr + 1e-8);

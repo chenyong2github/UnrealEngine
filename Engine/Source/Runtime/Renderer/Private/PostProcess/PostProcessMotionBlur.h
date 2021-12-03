@@ -30,6 +30,9 @@ enum class EMotionBlurFilter : uint32
 	Separable
 };
 
+// Returns whether motion blur also want half res input the scene color's MIP1.
+bool DoesMotionBlurNeedsHalfResInput();
+
 // Returns the global setting for motion blur quality.
 EMotionBlurQuality GetMotionBlurQuality();
 

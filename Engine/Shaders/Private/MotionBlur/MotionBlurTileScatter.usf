@@ -14,7 +14,7 @@
 //------------------------------------------------------- PARAMETERS
 
 SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
-float MotionBlur_VelocityScaleForTiles;
+float VelocityScaleForFlattenTiles;
 uint ScatterPass;
 
 Texture2D VelocityTileTextures_Textures_0;
@@ -56,7 +56,7 @@ void MainVS(
 	float4 MinMaxVelocity = VelocityTileTextures_Textures_0[PixelPos];
 	OutColor = MinMaxVelocity;
 
-	float4 MinMaxVelocityPixels = MinMaxVelocity * MotionBlur_VelocityScaleForTiles;
+	float4 MinMaxVelocityPixels = MinMaxVelocity * VelocityScaleForFlattenTiles;
 	float2 VelocityPixels = MinMaxVelocityPixels.zw;
 
 	// Is the velocity small enough not to cover adjacent tiles?

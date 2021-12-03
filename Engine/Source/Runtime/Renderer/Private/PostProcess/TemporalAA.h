@@ -177,7 +177,8 @@ public:
 
 	struct FPassInputs
 	{
-		bool bAllowDownsampleSceneColor;
+		bool bAllowDownsampleSceneColor = false;
+		bool bGenerateOutputMip1 = false;
 		EPixelFormat DownsampleOverrideFormat;
 		FRDGTextureRef SceneColorTexture = nullptr;
 		FRDGTextureRef SceneDepthTexture = nullptr;
