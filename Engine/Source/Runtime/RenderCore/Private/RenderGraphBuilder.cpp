@@ -3365,12 +3365,6 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 		return;
 	}
 
-	// Don't scan any of the pass output if not texture is requested to be visualized.
-	if (GVisualizeTexture.Requested.Name.IsEmpty())
-	{
-		return;
-	}
-
 	bInDebugPassScope = true;
 
 
