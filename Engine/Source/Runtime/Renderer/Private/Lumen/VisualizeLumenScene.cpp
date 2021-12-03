@@ -165,6 +165,14 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardGenerationSurfels(
 	ECVF_RenderThreadSafe
 );
 
+float GVisualizeLumenCardGenerationSurfelScale = 1.0f;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneCardGenerationSurfelScale(
+	TEXT("r.Lumen.Visualize.CardGenerationSurfelScale"),
+	GVisualizeLumenCardGenerationSurfelScale,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
 int32 GVisualizeLumenCardGenerationCluster = 0;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneCardGenerationCluster(
 	TEXT("r.Lumen.Visualize.CardGenerationCluster"),
@@ -798,7 +806,7 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 			const float	AngleDelta = 2.0f * PI / NumSides;
 			for (int32 SideIndex = 0; SideIndex < NumSides; ++SideIndex)
 			{
-				const FVector3f VertexPosition = DiskPosition + (AxisX * FMath::Cos(AngleDelta * (SideIndex)) + AxisY * FMath::Sin(AngleDelta * (SideIndex))) * SurfelRadius;
+				const FVector3f VertexPosition = DiskPosition + (AxisX * FMath::Cos(AngleDelta * (SideIndex)) + AxisY * FMath::Sin(AngleDelta * (SideIndex))) * SurfelRadius * GVisualizeLumenCardGenerationSurfelScale;
 
 				MeshBuilder.AddVertex(VertexPosition, FVector2D(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
 			}

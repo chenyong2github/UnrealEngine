@@ -241,6 +241,14 @@ FAutoConsoleVariableRef CVarLumenSceneFarFieldDistance(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenSceneSurfaceCacheLogUpdates = 0;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheLogUpdates(
+	TEXT("r.LumenScene.SurfaceCache.LogUpdates"),
+	GLumenSceneSurfaceCacheLogUpdates,
+	TEXT("Whether to log Lumen surface cache updates."),
+	ECVF_RenderThreadSafe
+);
+
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenSummaryLLM, STATGROUP_LLM);
@@ -1776,6 +1784,23 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 						FPrimitiveSceneInfo::UpdateStaticMeshes(GraphBuilder.RHICmdList, Scene, UpdatedSceneInfos, EUpdateStaticMeshFlags::RasterCommands, true);
 					}
 				}
+
+				#if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT) && STATS
+				if (GLumenSceneSurfaceCacheLogUpdates != 0)
+				{
+					UE_LOG(LogRenderer, Log, TEXT("Surface Cache Updates %d"), CardPagesToRender.Num());
+
+					for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+					{
+						const FLumenPrimitiveGroup& LumenPrimitiveGroup = LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex];
+
+						UE_LOG(LogRenderer, Log, TEXT("%s Instance:%d NumPrimsInGroup: %d"), 
+							*LumenPrimitiveGroup.Primitives[0]->Proxy->GetStatId().GetName().ToString(),
+							LumenPrimitiveGroup.PrimitiveInstanceIndex,
+							LumenPrimitiveGroup.Primitives.Num());
+					}
+				}
+				#endif
 
 				for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 				{

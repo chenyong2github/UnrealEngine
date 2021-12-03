@@ -1359,6 +1359,8 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	int32 NumMeshCards = 0;
 	uint32 NumFarFieldPrimitiveGroups = 0;
 	uint32 NumFarFieldMeshCards = 0;
+	uint32 NumFarFieldCards = 0;
+	FLumenCard::FSurfaceStats FarFieldSurfaceStats;
 	SIZE_T PrimitiveGroupsAllocatedMemory = PrimitiveGroups.GetAllocatedSize();
 
 	for (const FLumenPrimitiveGroup& PrimitiveGroup : PrimitiveGroups)
@@ -1388,6 +1390,18 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 			if (PrimitiveGroup.MeshCardsIndex >= 0)
 			{
 				++NumFarFieldMeshCards;
+
+				const FLumenMeshCards& MeshCardsInstance = MeshCards[PrimitiveGroup.MeshCardsIndex];
+				NumFarFieldCards += MeshCardsInstance.NumCards;
+
+				for (uint32 LocalCardIndex = 0; LocalCardIndex < MeshCardsInstance.NumCards; ++LocalCardIndex)
+				{
+					const FLumenCard& LumenCard = Cards[MeshCardsInstance.FirstCardIndex + LocalCardIndex];
+					if (LumenCard.IsAllocated())
+					{
+						LumenCard.GetSurfaceStats(PageTable, FarFieldSurfaceStats);
+					}
+				}
 			}
 		}
 
@@ -1420,6 +1434,12 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("*** Far Field ***"));
 	UE_LOG(LogRenderer, Log, TEXT("  Primitive groups: %d"), NumFarFieldPrimitiveGroups);
 	UE_LOG(LogRenderer, Log, TEXT("  Mesh cards: %d"), NumFarFieldMeshCards);
+	UE_LOG(LogRenderer, Log, TEXT("  Cards: %d"), NumFarFieldCards);
+	UE_LOG(LogRenderer, Log, TEXT("  Virtual texels: %.3fM"), FarFieldSurfaceStats.NumVirtualTexels / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  Locked virtual texels: %.3fM"), FarFieldSurfaceStats.NumLockedVirtualTexels / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  Physical texels: %.3fM, usage: %.3f%%"), FarFieldSurfaceStats.NumPhysicalTexels / (1024.0f * 1024.0f), (100.0f * FarFieldSurfaceStats.NumPhysicalTexels) / (PhysicalAtlasSize.X * PhysicalAtlasSize.Y));
+	UE_LOG(LogRenderer, Log, TEXT("  Locked Physical texels: %.3fM, usage: %.3f%%"), FarFieldSurfaceStats.NumLockedPhysicalTexels / (1024.0f * 1024.0f), (100.0f * FarFieldSurfaceStats.NumLockedPhysicalTexels) / (PhysicalAtlasSize.X * PhysicalAtlasSize.Y));
+	UE_LOG(LogRenderer, Log, TEXT("  Dropped res levels: %u"), FarFieldSurfaceStats.DroppedResLevels);
 
 	UE_LOG(LogRenderer, Log, TEXT("*** Surface cache Bin Allocator ***"));
 	for (const FLumenSurfaceCacheAllocator::FBinStats& Bin : AllocatorStats.Bins)
