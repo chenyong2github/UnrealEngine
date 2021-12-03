@@ -137,6 +137,7 @@ public:
 	AActor* GetActor(bool bEvenIfPendingKill=true, bool bEvenIfUnreachable=false) const;
 	AActor* Load() const;
 	virtual void Unload();
+	virtual bool ShouldBeLoadedByEditorCells() const { return true; }
 
 	void RegisterActor();
 	void UnregisterActor();

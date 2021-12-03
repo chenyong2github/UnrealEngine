@@ -926,6 +926,11 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 
 bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActorDesc* ActorDesc) const
 {
+	if (!ActorDesc->ShouldBeLoadedByEditorCells())
+	{
+		return false;
+	}
+
 	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
 		// Use DataLayers of loaded/dirty Actor if available to handle dirtied actors

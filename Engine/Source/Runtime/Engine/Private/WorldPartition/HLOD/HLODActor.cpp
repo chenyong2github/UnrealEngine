@@ -91,11 +91,6 @@ void AWorldPartitionHLOD::RerunConstructionScripts()
 
 #if WITH_EDITOR
 
-bool AWorldPartitionHLOD::IsHiddenEd() const
-{
-	return !IsRunningCommandlet();
-}
-
 EActorGridPlacement AWorldPartitionHLOD::GetGridPlacement() const
 {
 	return SubActorsHLODLayer && SubActorsHLODLayer->IsAlwaysLoaded() ? EActorGridPlacement::AlwaysLoaded : Super::GetGridPlacement();
