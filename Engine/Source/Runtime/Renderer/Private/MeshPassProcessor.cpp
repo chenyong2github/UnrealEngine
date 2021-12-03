@@ -1493,17 +1493,17 @@ FMeshDrawCommandPrimitiveIdInfo FMeshPassProcessor::GetDrawCommandPrimitiveId(
 	return PrimitiveIdInfo;
 }
 
-FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FRWLock& InCachedMeshDrawCommandLock, FCachedPassMeshDrawList& InCachedDrawLists, FStateBucketMap& InCachedMeshDrawCommandStateBuckets, const FScene& InScene) :
-	CommandInfo(InCommandInfo),
-	CachedMeshDrawCommandLock(InCachedMeshDrawCommandLock),
-	CachedDrawLists(InCachedDrawLists),
-	CachedMeshDrawCommandStateBuckets(InCachedMeshDrawCommandStateBuckets),
-	Scene(InScene)
+FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FScene& InScene)
+	: Scene(InScene)
+	, bUseGPUScene(UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
 {
 }
 
 FMeshDrawCommand& FCachedPassMeshDrawListContext::AddCommand(FMeshDrawCommand& Initializer, uint32 NumElements)
 {
+	checkf(CurrMeshPass < EMeshPass::Num, TEXT("BeginMeshPass() must be called before adding commands to this context"));
+	ensureMsgf(CommandInfo.CommandIndex == -1 && CommandInfo.StateBucketId == -1, TEXT("GetCommandInfoAndReset() wasn't called since the last command was added"));
+
 	if (NumElements == 1)
 	{
 		return Initializer;
@@ -1515,10 +1515,30 @@ FMeshDrawCommand& FCachedPassMeshDrawListContext::AddCommand(FMeshDrawCommand& I
 	}
 }
 
-void FCachedPassMeshDrawListContext::FinalizeCommand(
+void FCachedPassMeshDrawListContext::BeginMeshPass(EMeshPass::Type MeshPass)
+{
+	checkf(CurrMeshPass == EMeshPass::Num, TEXT("BeginMeshPass() was called without a matching EndMeshPass()"));
+	check(MeshPass < EMeshPass::Num);
+	CurrMeshPass = MeshPass;
+}
+
+void FCachedPassMeshDrawListContext::EndMeshPass()
+{
+	checkf(CurrMeshPass < EMeshPass::Num, TEXT("EndMeshPass() was called without matching BeginMeshPass()"));
+	CurrMeshPass = EMeshPass::Num;
+}
+
+FCachedMeshDrawCommandInfo FCachedPassMeshDrawListContext::GetCommandInfoAndReset()
+{
+	FCachedMeshDrawCommandInfo Ret = CommandInfo;
+	CommandInfo.CommandIndex = -1;
+	CommandInfo.StateBucketId = -1;
+	return Ret;
+}
+
+void FCachedPassMeshDrawListContext::FinalizeCommandCommon(
 	const FMeshBatch& MeshBatch, 
 	int32 BatchElementIndex,
-	const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	FMeshDrawCommandSortKey SortKey,
@@ -1527,61 +1547,191 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	const FMeshProcessorShaders* ShadersForDebugging,
 	FMeshDrawCommand& MeshDrawCommand)
 {
-	// disabling this by default as it incurs a high cost in perf captures due to sheer volume.  Recommendation is to re-enable locally if you need to profile this particular code.
-	// QUICK_SCOPE_CYCLE_COUNTER(STAT_FinalizeCachedMeshDrawCommand);
-
 	FGraphicsMinimalPipelineStateId PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
 
 	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
 
-	if (UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
-		{
-		Experimental::FHashElementId SetId;
-		auto hash = CachedMeshDrawCommandStateBuckets.ComputeHash(MeshDrawCommand);
-		{
-			FRWScopeLock Lock(CachedMeshDrawCommandLock, SLT_ReadOnly);
-
-#if UE_BUILD_DEBUG
-			FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
-			check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
-			check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
-#endif
-			SetId = CachedMeshDrawCommandStateBuckets.FindIdByHash(hash, MeshDrawCommand);
-
-			if (!SetId.IsValid())
-			{
-				Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-				SetId = CachedMeshDrawCommandStateBuckets.FindOrAddIdByHash(hash, MeshDrawCommand, FMeshDrawCommandCount());
-			}
-
-			FMeshDrawCommandCount& DrawCount = CachedMeshDrawCommandStateBuckets.GetByElementId(SetId).Value;
-			DrawCount.Num++;
-
-#if MESH_DRAW_COMMAND_DEBUG_DATA
-			if (DrawCount.Num == 1)
-			{
-				MeshDrawCommand.ClearDebugPrimitiveSceneProxy(); //When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
-			}
-#endif
-		}
-
-		check(CommandInfo.StateBucketId == -1);
-		CommandInfo.StateBucketId = SetId.GetIndex();
-		check(CommandInfo.CommandIndex == -1);
-	}
-	else
-	{
-		check(CommandInfo.CommandIndex == -1);
-		FRWScopeLock Lock(CachedMeshDrawCommandLock, SLT_Write);
-		// Only one FMeshDrawCommand supported per FStaticMesh in a pass
-		// Allocate at lowest free index so that 'r.DoLazyStaticMeshUpdate' can shrink the TSparseArray more effectively
-		CommandInfo.CommandIndex = CachedDrawLists.MeshDrawCommands.EmplaceAtLowestFreeIndex(CachedDrawLists.LowestFreeIndexSearchStart, MeshDrawCommand);
-	}
-
+	CommandInfo = FCachedMeshDrawCommandInfo(CurrMeshPass);
 	CommandInfo.SortKey = SortKey;
 	CommandInfo.MeshFillMode = MeshFillMode;
 	CommandInfo.MeshCullMode = MeshCullMode;
 	CommandInfo.Flags = Flags;
+
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	if (bUseGPUScene)
+	{
+		MeshDrawCommand.ClearDebugPrimitiveSceneProxy(); //When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+	}
+#endif
+#if DO_GUARD_SLOW
+	if (bUseGPUScene)
+	{
+		FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
+		check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
+		check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
+	}
+	if (Scene.GetShadingPath() == EShadingPath::Deferred)
+	{
+		ensureMsgf(MeshDrawCommand.VertexStreams.GetAllocatedSize() == 0, TEXT("Cached Mesh Draw command overflows VertexStreams. VertexStream inline size should be tweaked."));
+
+		if (CurrMeshPass == EMeshPass::BasePass || CurrMeshPass == EMeshPass::DepthPass || CurrMeshPass == EMeshPass::CSMShadowDepth || CurrMeshPass == EMeshPass::VSMShadowDepth)
+		{
+			TArray<EShaderFrequency, TInlineAllocator<SF_NumFrequencies>> ShaderFrequencies;
+			MeshDrawCommand.ShaderBindings.GetShaderFrequencies(ShaderFrequencies);
+
+			int32 DataOffset = 0;
+			for (int32 i = 0; i < ShaderFrequencies.Num(); i++)
+			{
+				FMeshDrawSingleShaderBindings SingleShaderBindings = MeshDrawCommand.ShaderBindings.GetSingleShaderBindings(ShaderFrequencies[i], DataOffset);
+				if (SingleShaderBindings.GetParameterMapInfo().LooseParameterBuffers.Num() != 0)
+				{
+					bAnyLooseParameterBuffers = true;
+				}
+				ensureMsgf(SingleShaderBindings.GetParameterMapInfo().SRVs.Num() == 0, TEXT("Cached Mesh Draw command uses individual SRVs.  This will break dynamic instancing in performance critical pass.  Use Uniform Buffers instead."));
+				ensureMsgf(SingleShaderBindings.GetParameterMapInfo().TextureSamplers.Num() == 0, TEXT("Cached Mesh Draw command uses individual Texture Samplers.  This will break dynamic instancing in performance critical pass.  Use Uniform Buffers instead."));
+			}
+		}
+	}
+#endif
+}
+
+void FCachedPassMeshDrawListContextImmediate::FinalizeCommand(
+		const FMeshBatch& MeshBatch, 
+		int32 BatchElementIndex,
+		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
+		FMeshDrawCommand& MeshDrawCommand)
+{
+	// disabling this by default as it incurs a high cost in perf captures due to sheer volume.  Recommendation is to re-enable locally if you need to profile this particular code.
+	// QUICK_SCOPE_CYCLE_COUNTER(STAT_FinalizeCachedMeshDrawCommand);
+
+	FinalizeCommandCommon(
+		MeshBatch, 
+		BatchElementIndex,
+		MeshFillMode,
+		MeshCullMode,
+		SortKey,
+		Flags,
+		PipelineState,
+		ShadersForDebugging,
+		MeshDrawCommand
+	);
+
+	if (bUseGPUScene)
+	{
+		Experimental::FHashElementId SetId;
+		FStateBucketMap& BucketMap = Scene.CachedMeshDrawCommandStateBuckets[CurrMeshPass];
+		auto hash = BucketMap.ComputeHash(MeshDrawCommand);
+		{
+			SetId = BucketMap.FindOrAddIdByHash(hash, MeshDrawCommand, FMeshDrawCommandCount());
+			FMeshDrawCommandCount& DrawCount = BucketMap.GetByElementId(SetId).Value;
+			DrawCount.Num++;
+		}
+
+		CommandInfo.StateBucketId = SetId.GetIndex();
+	}
+	else
+	{
+		// Only one FMeshDrawCommand supported per FStaticMesh in a pass
+		// Allocate at lowest free index so that 'r.DoLazyStaticMeshUpdate' can shrink the TSparseArray more effectively
+		FCachedPassMeshDrawList& CachedDrawLists = Scene.CachedDrawLists[CurrMeshPass];
+		CommandInfo.CommandIndex = CachedDrawLists.MeshDrawCommands.EmplaceAtLowestFreeIndex(CachedDrawLists.LowestFreeIndexSearchStart, MeshDrawCommand);
+	}	
+}
+
+void FCachedPassMeshDrawListContextDeferred::FinalizeCommand(
+		const FMeshBatch& MeshBatch, 
+		int32 BatchElementIndex,
+		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
+		ERasterizerFillMode MeshFillMode,
+		ERasterizerCullMode MeshCullMode,
+		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
+		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
+		const FMeshProcessorShaders* ShadersForDebugging,
+		FMeshDrawCommand& MeshDrawCommand)
+{
+	// disabling this by default as it incurs a high cost in perf captures due to sheer volume.  Recommendation is to re-enable locally if you need to profile this particular code.
+	// QUICK_SCOPE_CYCLE_COUNTER(STAT_FinalizeCachedMeshDrawCommand);
+
+	FinalizeCommandCommon(
+		MeshBatch, 
+		BatchElementIndex,
+		MeshFillMode,
+		MeshCullMode,
+		SortKey,
+		Flags,
+		PipelineState,
+		ShadersForDebugging,
+		MeshDrawCommand
+	);
+
+	const int32 Index = DeferredCommands.Add(MeshDrawCommand);
+
+	if (bUseGPUScene)
+	{
+		// Cache the hash here to make the deferred finalize less expensive
+		DeferredCommandHashes.Add(FStateBucketMap::ComputeHash(MeshDrawCommand));
+
+		CommandInfo.StateBucketId = Index;
+	}
+	else
+	{
+		CommandInfo.CommandIndex = Index;
+	}
+}
+
+void FCachedPassMeshDrawListContextDeferred::DeferredFinalizeMeshDrawCommands(const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, int32 Start, int32 End)
+{
+	if (bUseGPUScene)
+	{
+		for (int32 SceneInfoIndex = Start; SceneInfoIndex < End; ++SceneInfoIndex)
+		{
+			FPrimitiveSceneInfo* SceneInfo = SceneInfos[SceneInfoIndex];
+			for (auto& CmdInfo : SceneInfo->StaticMeshCommandInfos)
+			{				
+				check(CmdInfo.MeshPass < EMeshPass::Num);
+				FStateBucketMap& BucketMap = Scene.CachedMeshDrawCommandStateBuckets[CmdInfo.MeshPass];
+
+				check(CmdInfo.StateBucketId >= 0 && CmdInfo.StateBucketId < DeferredCommands.Num());
+				check(CmdInfo.CommandIndex == -1);
+				FMeshDrawCommand& Command = DeferredCommands[CmdInfo.StateBucketId];
+				const Experimental::FHashType CommandHash = DeferredCommandHashes[CmdInfo.StateBucketId];
+
+				Experimental::FHashElementId SetId = BucketMap.FindOrAddIdByHash(CommandHash, MoveTemp(Command), FMeshDrawCommandCount());
+				FMeshDrawCommandCount& DrawCount = BucketMap.GetByElementId(SetId).Value;
+				DrawCount.Num++;
+
+				CmdInfo.StateBucketId = SetId.GetIndex();
+			}
+		}
+	}
+	else
+	{
+		for (int32 SceneInfoIndex = Start; SceneInfoIndex < End; ++SceneInfoIndex)
+		{
+			FPrimitiveSceneInfo* SceneInfo = SceneInfos[SceneInfoIndex];
+			for (auto& CmdInfo : SceneInfo->StaticMeshCommandInfos)
+			{				
+				check(CmdInfo.MeshPass < EMeshPass::Num);
+				FCachedPassMeshDrawList& CachedDrawLists = Scene.CachedDrawLists[CmdInfo.MeshPass];
+
+				check(CmdInfo.CommandIndex >= 0 && CmdInfo.CommandIndex < DeferredCommands.Num());
+				check(CmdInfo.StateBucketId == -1);
+				FMeshDrawCommand& Command = DeferredCommands[CmdInfo.CommandIndex];
+				
+				CmdInfo.CommandIndex = CachedDrawLists.MeshDrawCommands.EmplaceAtLowestFreeIndex(CachedDrawLists.LowestFreeIndexSearchStart, MoveTemp(Command));
+			}
+		}
+	}
+
+	DeferredCommands.Reset();
+	DeferredCommandHashes.Reset();
 }
 
 PassProcessorCreateFunction FPassProcessorManager::JumpTable[(int32)EShadingPath::Num][EMeshPass::Num] = {};
