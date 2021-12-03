@@ -101,9 +101,6 @@ const uint64 LibAliasVersionMax = LibAliasNext_Version;
 const FString AliasVersionChar = TEXT("AliasStudio 2022.2, Model files");
 #endif
 
-
-using namespace CADLibrary;
-
 class BodyData
 {
 public:
@@ -225,8 +222,8 @@ public:
 			DatasmithScene->SetProductVersion(TEXT("Alias 2022.2"));
 		}
 
-		FImportParameters ImportParameters(0.01, 1);
-		if(FImportParameters::bGDisableCADKernelTessellation)
+		CADLibrary::FImportParameters ImportParameters(0.01, 1);
+		if(CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
 			TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
 			CADModelConverter = AliasToCoretechConverter;
@@ -374,7 +371,7 @@ private:
 
 	FDatasmithTessellationOptions TessellationOptions;
 
-	TSharedPtr<ICADModelConverter> CADModelConverter;
+	TSharedPtr<CADLibrary::ICADModelConverter> CADModelConverter;
 	TSharedPtr<IAliasBRepConverter> AliasBRepConverter;
 
 };
