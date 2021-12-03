@@ -87,9 +87,16 @@ void LumenReflectionHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 			return;
 		}
 
+#if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
+		FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
+		uint RayId = TraceData.RayId;
+#else
+		uint RayId = RayIndex;
+#endif // DIM_LIGHTING_MODE
+
 		uint2 TraceCoord;
 		float TraceHitDistance = 0;
-		DecodeTraceTexel(TraceTexelDataPacked[RayIndex], TraceCoord, TraceHitDistance);
+		DecodeTraceTexel(TraceTexelDataPacked[RayId], TraceCoord, TraceHitDistance);
 
 		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(TraceCoord);
 		float2 ScreenCoord = ScreenUV * View.BufferSizeAndInvSize.xy;
@@ -120,13 +127,13 @@ void LumenReflectionHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, bCullBackFacingTriangles, MaxTranslucentSkipCount, bHiResSurface);
 		Context.FarFieldMaxTraceDistance = FarFieldMaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
+		Context.bUseBookmark = true;
 #if DIM_SPECULAR_OCCLUSION
 		Context.bAcceptFirstHitAndEndSearch = true;
 		Context.bSkipClosestHitShader = true;
 #endif // DIM_SPECULAR_OCCLUSION
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING
-		FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 		if (TraceData.bIsFarField)
 		{
 			Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
@@ -176,7 +183,8 @@ void LumenReflectionHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 		}
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
-		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.Bookmark, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
+		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(RayId, Result.MaterialShaderIndex, Result.Bookmark, Result.TraceHitDistance,
+			Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
 #endif // DIM_LIGHTING_MODE
 
 #if DIM_WRITE_FINAL_LIGHTING

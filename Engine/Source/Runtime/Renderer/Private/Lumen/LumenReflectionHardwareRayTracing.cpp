@@ -814,14 +814,14 @@ void RenderLumenHardwareRayTracingReflections(
 
 	// Default tracing of far-field, extract material-id
 	FRDGBufferRef FarFieldRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Reflection.FarFieldRayAllocator"));
-	FRDGBufferRef FarFieldTraceTexelDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.FarFieldTraceTexelDataPacked"));
+	//FRDGBufferRef FarFieldTraceTexelDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.FarFieldTraceTexelDataPacked"));
 	FRDGBufferRef FarFieldTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), RayCount), TEXT("Lumen.Reflection.FarFieldTraceDataPacked"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(FarFieldRayAllocatorBuffer, PF_R32_UINT), 0);
 	if (UseFarFieldForReflections())
 	{
 		LumenHWRTCompactRays(GraphBuilder, Scene, View, RayCount, LumenHWRTPipeline::ECompactMode::FarFieldRetrace,
-			RayAllocatorBufferCached, TraceTexelDataPackedBufferCached, TraceDataPackedBufferCached,
-			FarFieldRayAllocatorBuffer, FarFieldTraceTexelDataPackedBuffer, FarFieldTraceDataPackedBuffer);
+			RayAllocatorBufferCached, TraceDataPackedBufferCached,
+			FarFieldRayAllocatorBuffer, FarFieldTraceDataPackedBuffer);
 
 		bool bApplySkyLight = true;
 
@@ -838,7 +838,7 @@ void RenderLumenHardwareRayTracingReflections(
 
 			DispatchComputeShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
 				PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache,
-				FarFieldRayAllocatorBuffer, FarFieldTraceTexelDataPackedBuffer, FarFieldTraceDataPackedBuffer);
+				FarFieldRayAllocatorBuffer, TraceTexelDataPackedBufferCached, FarFieldTraceDataPackedBuffer);
 		}
 		else
 		{
@@ -853,7 +853,7 @@ void RenderLumenHardwareRayTracingReflections(
 
 			DispatchRayGenShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
 				PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache,
-				FarFieldRayAllocatorBuffer, FarFieldTraceTexelDataPackedBuffer, FarFieldTraceDataPackedBuffer);
+				FarFieldRayAllocatorBuffer, TraceTexelDataPackedBufferCached, FarFieldTraceDataPackedBuffer);
 		}
 	}
 
@@ -861,28 +861,28 @@ void RenderLumenHardwareRayTracingReflections(
 	if (UseHitLightingForReflections())
 	{
 		FRDGBufferRef RayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Reflection.CompactedRayAllocator"));
-		FRDGBufferRef TraceTexelDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.BucketedTexelTraceDataPackedBuffer"));
+		//FRDGBufferRef TraceTexelDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.BucketedTexelTraceDataPackedBuffer"));
 		FRDGBufferRef TraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), RayCount), TEXT("Lumen.Reflection.CompactedTraceDataPacked"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(RayAllocatorBuffer, PF_R32_UINT), 0);
 
 		LumenHWRTPipeline::ECompactMode CompactMode = bIsForceHitLighting ?
 			LumenHWRTPipeline::ECompactMode::ForceHitLighting : LumenHWRTPipeline::ECompactMode::HitLightingRetrace;
 		LumenHWRTCompactRays(GraphBuilder, Scene, View, RayCount, CompactMode,
-			RayAllocatorBufferCached, TraceTexelDataPackedBufferCached, TraceDataPackedBufferCached,
-			RayAllocatorBuffer, TraceTexelDataPackedBuffer, TraceDataPackedBuffer);
+			RayAllocatorBufferCached, TraceDataPackedBufferCached,
+			RayAllocatorBuffer, TraceDataPackedBuffer);
 
 		// Append far-field rays
 		if (UseFarFieldForReflections())
 		{
 			LumenHWRTCompactRays(GraphBuilder, Scene, View, RayCount, LumenHWRTPipeline::ECompactMode::AppendRays,
-				FarFieldRayAllocatorBuffer, FarFieldTraceTexelDataPackedBuffer, FarFieldTraceDataPackedBuffer,
-				RayAllocatorBuffer, TraceTexelDataPackedBuffer, TraceDataPackedBuffer);
+				FarFieldRayAllocatorBuffer, FarFieldTraceDataPackedBuffer,
+				RayAllocatorBuffer, TraceDataPackedBuffer);
 		}
 
 		// Sort rays by material
 		if (CVarLumenReflectionsHardwareRayTracingBucketMaterials.GetValueOnRenderThread())
 		{
-			LumenHWRTBucketRaysByMaterialID(GraphBuilder, Scene, View, RayCount, RayAllocatorBuffer, TraceTexelDataPackedBuffer, TraceDataPackedBuffer);
+			LumenHWRTBucketRaysByMaterialID(GraphBuilder, Scene, View, RayCount, RayAllocatorBuffer, TraceDataPackedBuffer);
 		}
 
 		// Trace with hit-lighting
@@ -899,7 +899,7 @@ void RenderLumenHardwareRayTracingReflections(
 
 			DispatchRayGenShader(GraphBuilder, SceneTextures, Scene, View, ReflectionTracingParameters, ReflectionTileParameters, TracingInputs, CompactedTraceParameters, RadianceCacheParameters,
 				PermutationVector, MaxVoxelTraceDistance, RayCount, bApplySkyLight, bUseRadianceCache,
-				RayAllocatorBuffer, TraceTexelDataPackedBuffer, TraceDataPackedBuffer);
+				RayAllocatorBuffer, TraceTexelDataPackedBufferCached, TraceDataPackedBuffer);
 		}
 	}
 #else

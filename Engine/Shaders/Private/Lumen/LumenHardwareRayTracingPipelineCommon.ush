@@ -19,8 +19,9 @@ struct FLumenRayHitBookmark
  */
 struct FTraceData
 {
-	float TraceDistance;
+	uint RayId;
 	uint MaterialId;
+	float TraceDistance;
 	FLumenRayHitBookmark Bookmark;
 
 	bool bIsHit;
@@ -30,15 +31,16 @@ struct FTraceData
 
 struct FTraceDataPacked
 {
-	uint PackedData[4];
+	uint PackedData[5];
 };
 
-FTraceData CreateTraceData(float TraceDistance, uint MaterialId, FLumenRayHitBookmark Bookmark,
+FTraceData CreateTraceData(uint RayId, uint MaterialId, FLumenRayHitBookmark Bookmark, float TraceDistance,
 	bool bIsHit, bool bIsValidMeshCardIndex, bool bIsFarField)
 {
 	FTraceData TraceData;
-	TraceData.TraceDistance = TraceDistance;
+	TraceData.RayId = RayId;
 	TraceData.MaterialId = MaterialId;
+	TraceData.TraceDistance = TraceDistance;
 	TraceData.Bookmark = Bookmark;
 	TraceData.bIsHit = bIsHit;
 	TraceData.bIsValidMeshCardIndex = bIsValidMeshCardIndex;
@@ -50,14 +52,15 @@ FTraceData CreateTraceData(float TraceDistance, uint MaterialId, FLumenRayHitBoo
 FTraceDataPacked PackTraceData(FTraceData TraceData)
 {
 	FTraceDataPacked TraceDataPacked;
-	TraceDataPacked.PackedData[0] =
+	TraceDataPacked.PackedData[0] = TraceData.RayId;
+	TraceDataPacked.PackedData[1] = TraceData.MaterialId;
+	TraceDataPacked.PackedData[2] =
 		(asint(TraceData.TraceDistance) & 0xFFFFFFF8)
 		| (TraceData.bIsHit & 0x01)
 		| ((TraceData.bIsValidMeshCardIndex & 0x01) << 1)
 		| ((TraceData.bIsFarField & 0x01) << 2);
-	TraceDataPacked.PackedData[1] = TraceData.MaterialId;
-	TraceDataPacked.PackedData[2] = TraceData.Bookmark.PackedData[0];
-	TraceDataPacked.PackedData[3] = TraceData.Bookmark.PackedData[1];
+	TraceDataPacked.PackedData[3] = TraceData.Bookmark.PackedData[0];
+	TraceDataPacked.PackedData[4] = TraceData.Bookmark.PackedData[1];
 
 	return TraceDataPacked;
 }
@@ -65,13 +68,14 @@ FTraceDataPacked PackTraceData(FTraceData TraceData)
 FTraceData UnpackTraceData(FTraceDataPacked TraceDataPacked)
 {
 	FTraceData TraceData;
-	TraceData.TraceDistance = asfloat(asint(TraceDataPacked.PackedData[0] & 0xFFFFFFF8));
-	TraceData.bIsHit = (TraceDataPacked.PackedData[0] & 0x01) != 0;
-	TraceData.bIsValidMeshCardIndex = (TraceDataPacked.PackedData[0] & 0x02) != 0;
-	TraceData.bIsFarField = (TraceDataPacked.PackedData[0] & 0x04) != 0;
+	TraceData.RayId = TraceDataPacked.PackedData[0];
 	TraceData.MaterialId = TraceDataPacked.PackedData[1];
-	TraceData.Bookmark.PackedData[0] = TraceDataPacked.PackedData[2];
-	TraceData.Bookmark.PackedData[1] = TraceDataPacked.PackedData[3];
+	TraceData.TraceDistance = asfloat(asint(TraceDataPacked.PackedData[2] & 0xFFFFFFF8));
+	TraceData.bIsHit = (TraceDataPacked.PackedData[2] & 0x01) != 0;
+	TraceData.bIsValidMeshCardIndex = (TraceDataPacked.PackedData[2] & 0x02) != 0;
+	TraceData.bIsFarField = (TraceDataPacked.PackedData[2] & 0x04) != 0;
+	TraceData.Bookmark.PackedData[0] = TraceDataPacked.PackedData[3];
+	TraceData.Bookmark.PackedData[1] = TraceDataPacked.PackedData[4];
 
 	return TraceData;
 }
