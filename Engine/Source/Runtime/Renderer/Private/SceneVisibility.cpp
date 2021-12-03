@@ -867,7 +867,7 @@ static void PrimitiveCullTask(FThreadSafeCounter& NumCulledPrimitives, const FSc
 #if RHI_RAYTRACING
 		if (RayTracingBits)
 		{
-			checkSlow(!View.PrimitiveVisibilityMap.GetData()[WordIndex]); // this should start at zero
+			checkSlow(!View.PrimitiveRayTracingVisibilityMap.GetData()[WordIndex]); // this should start at zero
 			View.PrimitiveRayTracingVisibilityMap.GetData()[WordIndex] = RayTracingBits;
 		}
 #endif
