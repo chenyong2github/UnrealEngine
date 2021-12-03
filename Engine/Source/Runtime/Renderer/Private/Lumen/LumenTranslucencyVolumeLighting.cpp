@@ -186,10 +186,10 @@ FAutoConsoleVariableRef CVarLumenTranslucencyVolumeRadianceCacheClipmapDistribut
 	ECVF_RenderThreadSafe
 );
 
-int32 GTranslucencyVolumeRadianceCacheNumProbeTracesBudget = 200;
-FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheNumProbeTracesBudget(
-	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.NumProbeTracesBudget"),
-	GTranslucencyVolumeRadianceCacheNumProbeTracesBudget,
+int32 GTranslucencyVolumeRadianceCacheNumProbesToTraceBudget = 200;
+FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheNumProbesToTraceBudget(
+	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.NumProbesToTraceBudget"),
+	GTranslucencyVolumeRadianceCacheNumProbesToTraceBudget,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -223,6 +223,14 @@ FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheProbeReprojectionRadi
 	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.ReprojectionRadiusScale"),
 	GTranslucencyVolumeRadianceCacheReprojectionRadiusScale,
 	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+int32 GTranslucencyVolumeRadianceCacheStats = 0;
+FAutoConsoleVariableRef CVarTranslucencyVolumeRadianceCacheStats(
+	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.Stats"),
+	GTranslucencyVolumeRadianceCacheStats,
+	TEXT("GPU print out Radiance Cache update stats."),
 	ECVF_RenderThreadSafe
 );
 
@@ -280,7 +288,8 @@ namespace LumenTranslucencyVolumeRadianceCache
 		Parameters.FinalRadianceAtlasMaxMip = GetNumMipmaps() - 1;
 		Parameters.CalculateIrradiance = 0;
 		Parameters.IrradianceProbeResolution = 0;
-		Parameters.NumProbeTracesBudget = GTranslucencyVolumeRadianceCacheNumProbeTracesBudget;
+		Parameters.NumProbesToTraceBudget = GTranslucencyVolumeRadianceCacheNumProbesToTraceBudget;
+		Parameters.RadianceCacheStats = GTranslucencyVolumeRadianceCacheStats;
 		return Parameters;
 	}
 };

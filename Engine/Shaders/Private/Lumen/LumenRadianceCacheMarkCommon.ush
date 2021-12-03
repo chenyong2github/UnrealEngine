@@ -66,7 +66,7 @@ FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition)
 		int3 ProbeMinCoord;
 		int3 ProbeMaxCoord;
 
-		ProbeMinCoord = ProbeCoordFloat - .5f;
+		ProbeMinCoord = floor(ProbeCoordFloat - 0.5f);
 		ProbeMaxCoord = ProbeMinCoord + 1;
 
 		if (all(ProbeMinCoord >= 0) && all(ProbeMaxCoord < (int3)RadianceProbeClipmapResolutionForMark))
@@ -105,8 +105,8 @@ FRadianceProbeCoord GetRadianceProbeCoord(float3 WorldSpacePosition, float3 Worl
 		int3 ProbeMaxCoord;
 
 		// Trilinear footprint
-		ProbeMinCoord = ProbeCoordMinFloat - .5f;
-		ProbeMaxCoord = (int3)(ProbeCoordMaxFloat - .5f) + 1;
+		ProbeMinCoord = floor(ProbeCoordMinFloat - 0.5f);
+		ProbeMaxCoord = floor(ProbeCoordMaxFloat - 0.5f) + 1.0f;
 
 		if (all(ProbeMinCoord >= 0) && all(ProbeMaxCoord < (int3)RadianceProbeClipmapResolutionForMark))
 		{
@@ -128,7 +128,7 @@ uint GetRadianceProbeClipmapForMark(float3 WorldSpacePosition, float3 WorldSpace
 
 void MarkPositionUsedInIndirectionTexture(float3 WorldPosition, uint ClipmapIndex)
 {
-	int3 BottomCornerProbeCoord = WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex) - .5f;
+	int3 BottomCornerProbeCoord = floor(WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex] - 0.5f);
 	int3 IndirectionTextureCoord = BottomCornerProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolutionForMark, 0, 0);
 
 	RWRadianceProbeIndirectionTexture[IndirectionTextureCoord] = USED_PROBE_INDEX;
