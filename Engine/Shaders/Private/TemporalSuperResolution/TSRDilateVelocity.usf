@@ -163,6 +163,11 @@ void MainCS(
 	{
 		#if 1
 		{
+			float2 PixelVelocity = FinalScreenVelocity * 0.5 * InputInfo_ViewportSize;
+			uint EncodedHoleFillingVelocity = EncodeHoleFillingVelocity(PixelVelocity);
+
+			uint PrevClosestDepth = (f32tof16(ClosestDeviceZ) << VELOCITY_HOLE_FILLING_BITS) | EncodedHoleFillingVelocity;
+			
 			bool bValidHistoryCoord = all(PrevInputBufferUV > PrevOutputBufferUVMin && PrevInputBufferUV < PrevOutputBufferUVMax);
 
 			FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
@@ -188,7 +193,7 @@ void MainCS(
 				#endif
 
 				InterlockedAdd(PrevUseCountOutput[CompressedUseCountPixelPos], FinalAdd);
-				InterlockedMax(PrevClosestDepthOutput[PixelPos], f32tof16(ClosestDeviceZ));
+				InterlockedMax(PrevClosestDepthOutput[PixelPos], PrevClosestDepth);
 			}
 		}
 		#endif

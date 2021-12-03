@@ -139,10 +139,10 @@ static const int2 Offsets2x2[4] =
 };
 
 // Indexes of the 3x3 square.
-static const uint kSquareIndexes3x3[9] = { 4, 0, 1, 2, 3, 5, 6, 7, 8 };
+static const uint kSquareIndexes3x3[9] = { 4, 0, 1, 2, 3, 8, 7, 6, 5 };
 
 // Indexes of the offsets to have plus + shape.
-static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 5, 7 };
+static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 7, 5 };
 
 
 #if CONFIG_COMPILE_FP16
@@ -1018,4 +1018,48 @@ taa_half2x2 DecodeSpatialAntiAliasingOffset(uint2 EncodedInputTexelOffset)
 taa_half2 DecodeSpatialAntiAliasingOffset(uint EncodedInputTexelOffset)
 {
 	return dpv_lo(DecodeSpatialAntiAliasingOffset(dpv_interleave_mono_registers(EncodedInputTexelOffset)));
+}
+
+
+#define VELOCITY_HOLE_FILLING_BITS 18
+#define VELOCITY_HOLE_FILLING_LENGTH_BITS 13
+#define VELOCITY_HOLE_FILLING_ANGLE_BITS (VELOCITY_HOLE_FILLING_BITS - VELOCITY_HOLE_FILLING_LENGTH_BITS)
+#define VELOCITY_HOLE_FILLING_LENGTH_PRECISION (pow(2.0, 5))
+
+uint EncodeHoleFillingVelocity(float2 PixelVelocity)
+{
+	const uint AngleBitDepth = 1 << VELOCITY_HOLE_FILLING_ANGLE_BITS;
+	const uint LengthBitDepth = 1 << VELOCITY_HOLE_FILLING_LENGTH_BITS;
+	const float LengthPixelPrecision = VELOCITY_HOLE_FILLING_LENGTH_PRECISION;
+
+	float EncodedAngle = atan2Fast(PixelVelocity.y, PixelVelocity.x) * (0.5 * AngleBitDepth / PI) + (0.5 * AngleBitDepth);
+	uint iEncodedAngle = uint(round(EncodedAngle)) & (AngleBitDepth - 1);
+
+	float EncodedLength = length(PixelVelocity) * LengthPixelPrecision;
+	uint iEncodedLength = clamp(ceil(EncodedLength), 0, LengthBitDepth - 1);
+
+	uint EncodedHoleFillingVelocity = iEncodedAngle * LengthBitDepth + iEncodedLength;
+	return EncodedHoleFillingVelocity;
+}
+
+void DecodeHoleFillingVelocity(uint EncodedHoleFillingVelocity, out float2 PixelVelocity, out float OutOfRangeFactor)
+{
+	const uint AngleBitDepth = 1 << VELOCITY_HOLE_FILLING_ANGLE_BITS;
+	const uint LengthBitDepth = 1 << VELOCITY_HOLE_FILLING_LENGTH_BITS;
+	const float LengthPixelPrecision = VELOCITY_HOLE_FILLING_LENGTH_PRECISION;
+	const float LengthRange = float(LengthBitDepth) / LengthPixelPrecision;
+
+	uint iEncodedLength = EncodedHoleFillingVelocity % LengthBitDepth;
+	uint iEncodedAngle = (EncodedHoleFillingVelocity >> VELOCITY_HOLE_FILLING_LENGTH_BITS) % AngleBitDepth;
+
+	float EncodedLength = float(iEncodedLength);
+	float Length = EncodedLength * rcp(LengthPixelPrecision);
+
+	float EncodedAngle = float(iEncodedAngle);
+	float Angle = EncodedAngle * (PI * 2.0 / float(AngleBitDepth)) - PI;
+
+	sincos(Angle, /* out */ PixelVelocity.y, /* out */ PixelVelocity.x);
+	PixelVelocity *= Length;
+
+	OutOfRangeFactor = saturate(LengthRange - Length);
 }
