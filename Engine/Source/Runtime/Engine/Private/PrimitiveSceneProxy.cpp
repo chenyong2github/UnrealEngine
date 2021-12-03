@@ -609,30 +609,30 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 		{
 			if (RemoveBits[i])
 			{
-				InstanceSceneData.RemoveAt(i, 1, false);
-				InstanceDynamicData.RemoveAt(i, 1, false);
+				InstanceSceneData.RemoveAtSwap(i, 1, false);
+				InstanceDynamicData.RemoveAtSwap(i, 1, false);
 
 				if (bHasPerInstanceRandom)
 				{
-					InstanceRandomID.RemoveAt(i, 1, false);
+					InstanceRandomID.RemoveAtSwap(i, 1, false);
 				}
 				if (bHasPerInstanceLMSMUVBias)
 				{
-					InstanceLightShadowUVBias.RemoveAt(i, 1, false);
+					InstanceLightShadowUVBias.RemoveAtSwap(i, 1, false);
 				}
 
 				// Only remove the custom float data from this instance if it previously had it.
 				if (bPreviouslyHadCustomFloatData)
 				{
-					InstanceCustomData.RemoveAt((i * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
+					InstanceCustomData.RemoveAtSwap((i * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
 					check(InstanceCustomData.Num() == (PrevNumCustomDataFloats * InstanceSceneData.Num()));
 				}
 
-				RemoveBits.RemoveAt(i);
+				RemoveBits.RemoveAtSwap(i);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				InstanceXFormUpdatedThisFrame.RemoveAt(i);
-				InstanceCustomDataUpdatedThisFrame.RemoveAt(i);
+				InstanceXFormUpdatedThisFrame.RemoveAtSwap(i);
+				InstanceCustomDataUpdatedThisFrame.RemoveAtSwap(i);
 #endif
 				i--;
 			}
