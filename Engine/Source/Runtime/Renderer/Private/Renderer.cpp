@@ -180,8 +180,8 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					INVALID_LAST_UPDATE_FRAME,
 					0 /* Custom Data Count */,
 					0.0f /* Random ID */,
-					PrimitiveParams.LocalToWorld,
-					PrimitiveParams.PreviousLocalToWorld
+					PrimitiveParams.LocalToRelativeWorld,
+					PrimitiveParams.PreviousLocalToRelativeWorld
 				);
 
 				// TODO: Payload dummy?

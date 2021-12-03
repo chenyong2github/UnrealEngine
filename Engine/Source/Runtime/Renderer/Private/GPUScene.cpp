@@ -1473,7 +1473,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 
 			InstanceUploadInfo.PrimitiveID					= PrimitiveIDStartOffset + ItemIndex;
 			InstanceUploadInfo.PrimitiveToWorld				= PrimitiveData.LocalToRelativeWorld;
-			InstanceUploadInfo.PrevPrimitiveToWorld			= PrimitiveData.PreviousLocalToWorld;
+			InstanceUploadInfo.PrevPrimitiveToWorld			= PrimitiveData.PreviousLocalToRelativeWorld;
 			InstanceUploadInfo.PrimitiveInstances			= TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
 			InstanceUploadInfo.InstanceDynamicData			= TConstArrayView<FPrimitiveInstanceDynamicData>();
 			InstanceUploadInfo.InstanceLightShadowUVBias	= TConstArrayView<FVector4f>();
