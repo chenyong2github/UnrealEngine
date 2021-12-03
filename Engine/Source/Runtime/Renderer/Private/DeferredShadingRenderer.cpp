@@ -3196,9 +3196,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bRenderDeferredLighting)
 	{
-	RenderLumenSceneVisualization(GraphBuilder, SceneTextures, LumenFrameTemporaries);
-	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-	RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ true);
+		RenderLumenSceneVisualization(GraphBuilder, SceneTextures, LumenFrameTemporaries);
+		FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
+		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ true);
 	}
 
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)
