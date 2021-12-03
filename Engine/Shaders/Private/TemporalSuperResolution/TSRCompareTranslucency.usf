@@ -51,7 +51,6 @@ float PrevTranslucencyPreExposureCorrection;
 
 float TranslucencyHighlightLuminance;
 
-FScreenTransform InputPixelPosToScreenPos;
 FScreenTransform ScreenPosToPrevTranslucencyTextureUV;
 
 Texture2D<taa_half4> TranslucencyTexture;

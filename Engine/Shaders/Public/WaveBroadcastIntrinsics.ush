@@ -16,8 +16,7 @@
 /** Different instruction available for WaveBroadcast() */
 	#define WAVE_BROADCAST_NOP 0
 	#if PLATFORM_SUPPORTS_WAVE_BROADCAST
-		#define WAVE_BROADCAST_SWAP_WITHIN_LANE_GROUP 1
-		#define WAVE_BROADCAST_LANE_GROUP 2
+		#define WAVE_BROADCAST_GCN_SWIZZLE 1
 	#endif
 
 /** Compile time structure to choose which broadcasting should be done. */
@@ -27,9 +26,9 @@ struct FWaveBroadcastSettings
 	uint Operation;
 
 	// Informations about the broadcast.
-	uint LaneGroupSize;
-	uint InnerLaneGroupSize;
-	uint InnerLaneGroupId;
+	uint SwizzleAnd;
+	uint SwizzleOr;
+	uint SwizzleXor;
 };
 
 /** Generic broadcast instruction. */
@@ -40,21 +39,9 @@ uint WaveBroadcast(const FWaveBroadcastSettings Settings, uint x)
 		 return x;
 	}
 	#if PLATFORM_SUPPORTS_WAVE_BROADCAST
-	else if (Settings.Operation == WAVE_BROADCAST_SWAP_WITHIN_LANE_GROUP)
+	else if (Settings.Operation == WAVE_BROADCAST_GCN_SWIZZLE)
 	{
-		const uint and_mask = 0x1F;
-		const uint or_mask  = 0x00;
-		const uint xor_mask = Settings.LaneGroupSize >> 1;
-		return WaveLaneSwizzleGCN(x, and_mask, or_mask, xor_mask);
-	}
-	else if (Settings.Operation == WAVE_BROADCAST_LANE_GROUP)
-	{
-		const uint InnerGroupCount = Settings.LaneGroupSize / Settings.InnerLaneGroupSize;
-
-		const uint and_mask = ~((InnerGroupCount - 1) * Settings.InnerLaneGroupSize);
-		const uint or_mask  = Settings.InnerLaneGroupId * Settings.InnerLaneGroupSize;
-		const uint xor_mask = 0x00;
-		return WaveLaneSwizzleGCN(x, and_mask, or_mask, xor_mask);
+		return WaveLaneSwizzleGCN(x, Settings.SwizzleAnd, Settings.SwizzleOr, Settings.SwizzleXor);
 	}
 	#endif
 
@@ -145,8 +132,33 @@ float4 WaveBroadcast(const FWaveBroadcastSettings Settings, float4 v)
 
 
 
+/** Init a nop broadcast */
+FWaveBroadcastSettings InitNopBroadcast()
+{
+	FWaveBroadcastSettings Settings;
+	Settings.Operation = WAVE_BROADCAST_NOP;
+	Settings.SwizzleAnd = 0x00;
+	Settings.SwizzleOr  = 0x00;
+	Settings.SwizzleXor = 0x00;
+	return Settings;
+}
+
 
 #if PLATFORM_SUPPORTS_WAVE_BROADCAST
+
+/**  Broadcast in butterfly pattern.
+ *
+ *	return src[laneId ^ XorButterFly];
+ */
+FWaveBroadcastSettings InitWaveXorButterfly(const uint XorButterFly)
+{
+	FWaveBroadcastSettings Settings;
+	Settings.Operation = WAVE_BROADCAST_GCN_SWIZZLE;
+	Settings.SwizzleAnd = 0x1F;
+	Settings.SwizzleOr  = 0x00;
+	Settings.SwizzleXor = XorButterFly;
+	return Settings;
+}
 
 /** Swap left lane with righ lanes within lane group (size is power of two in [2; 64]). 
  *
@@ -162,12 +174,7 @@ float4 WaveBroadcast(const FWaveBroadcastSettings Settings, float4 v)
  */
 FWaveBroadcastSettings InitWaveSwapWithinLaneGroup(const uint LaneGroupSize)
 {
-	FWaveBroadcastSettings Settings;
-	Settings.Operation = WAVE_BROADCAST_SWAP_WITHIN_LANE_GROUP;
-	Settings.LaneGroupSize = LaneGroupSize;
-	Settings.InnerLaneGroupSize = 0;
-	Settings.InnerLaneGroupId = 0;
-	return Settings;
+	return InitWaveXorButterfly(/* XorButterFly = */ LaneGroupSize >> 1);
 }
 
 /**  Broadcast inner lane group over a lane group (size is power of two in [2; 64]).
@@ -185,11 +192,13 @@ FWaveBroadcastSettings InitWaveSwapWithinLaneGroup(const uint LaneGroupSize)
  */
 FWaveBroadcastSettings InitWaveBroadcastLaneGroup(const uint LaneGroupSize, const uint InnerLaneGroupSize, const uint InnerLaneGroupId)
 {
+	const uint InnerGroupCount = LaneGroupSize / InnerLaneGroupSize;
+
 	FWaveBroadcastSettings Settings;
-	Settings.Operation = WAVE_BROADCAST_LANE_GROUP;
-	Settings.LaneGroupSize = LaneGroupSize;
-	Settings.InnerLaneGroupSize = InnerLaneGroupSize;
-	Settings.InnerLaneGroupId = InnerLaneGroupId;
+	Settings.Operation = WAVE_BROADCAST_GCN_SWIZZLE;
+	Settings.SwizzleAnd = ~((InnerGroupCount - 1) * InnerLaneGroupSize);
+	Settings.SwizzleOr  = InnerLaneGroupId * InnerLaneGroupSize;
+	Settings.SwizzleXor = 0x00;
 	return Settings;
 }
 

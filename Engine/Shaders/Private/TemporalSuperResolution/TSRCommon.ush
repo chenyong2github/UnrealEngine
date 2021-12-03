@@ -7,6 +7,7 @@
 #include "../MonteCarlo.ush"
 #include "../ScreenPass.ush"
 #include "/Engine/Public/DualPixelVectorization.ush"
+#include "/Engine/Public/WaveBroadcastIntrinsics.ush"
 
 
 //------------------------------------------------------- RECOMPILE HASH
@@ -27,6 +28,12 @@
 	#define CONFIG_COMPILE_FP16 1
 #else
 	#define CONFIG_COMPILE_FP16 0
+#endif
+
+#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 1
+	#define CONFIG_BUTTERFLY_KERNEL 1
+#else
+	#define CONFIG_BUTTERFLY_KERNEL 0
 #endif
 
 #define CONFIG_ENABLE_STOCASTIC_QUANTIZATION 1
@@ -237,6 +244,9 @@ float2 InputInfo_UVViewportBilinearMax;
 float2 InputJitter;
 int2   InputPixelPosMin;
 int2   InputPixelPosMax;
+FScreenTransform InputPixelPosToScreenPos;
+float2 ScreenVelocityToInputPixelVelocity;
+float2 InputPixelVelocityToScreenVelocity;
 
 float2 LowFrequencyInfo_Extent;
 float2 LowFrequencyInfo_ExtentInverse;
@@ -1063,3 +1073,16 @@ void DecodeHoleFillingVelocity(uint EncodedHoleFillingVelocity, out float2 Pixel
 
 	OutOfRangeFactor = saturate(LengthRange - Length);
 }
+
+taa_short2 GetLaneOffsetSign()
+#if CONFIG_BUTTERFLY_KERNEL
+{
+	uint LaneIndex = WaveGetLaneIndex();
+
+	return taa_short(-1) + taa_short2(taa_ushort2(taa_ushort(LaneIndex) << taa_ushort(1), LaneIndex) & taa_ushort(0x2));
+}
+#else
+{
+	return taa_short(1).xx;
+}
+#endif
