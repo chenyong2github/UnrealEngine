@@ -8,6 +8,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "GrowOnlySpanAllocator.h"
 #include "InstanceCulling/InstanceCullingLoadBalancer.h"
+#include "MeshBatch.h"
 
 class FRHICommandList;
 class FScene;
@@ -33,38 +34,16 @@ public:
 	{};
 
 	/**
-	 * Add data for a number of primitives, 
+	 * Add data for a primitive with a number of instances.
 	 * May be called outside (before) a FGPUScene::Begin/EndRender block.
-	 * @return The local index of the first primitive added - this needs to be offset after commiting to the GPU-Scene.
+	 * Note: needs to be virtual to prevent a linker error
 	 */
-	FORCEINLINE int32 Add(const FPrimitiveUniformShaderParameters* Data, int32 Num)
-	{
-		check(GPUSceneDynamicContext != nullptr);
-		check(!bCommitted);
-
-		// Lazy allocation of the upload data to not waste space and processing if none was needed.
-		if (UploadData == nullptr)
-		{
-			UploadData = AllocateUploadData();
-		}
-
-		const int32 LocalIndex = UploadData->PrimitiveShaderData.Num();
-		UploadData->PrimitiveShaderData.Append(Data, Num);
-		return LocalIndex;
-	}
-
-	/**
-	 * Translates the LocalIndex returned when adding a dynamic primitive into the final GPU-Scene index,
-	 * Only valid to call after Commit has been called.
-	 */
-	FORCEINLINE int32 GetFinalId(int32 LocalIndex) const
-	{
-		check(bCommitted);
-
-		check(PrimitiveIdRange.GetLowerBoundValue() >= 0);
-		check(PrimitiveIdRange.Size<int32>() >= LocalIndex);
-		return PrimitiveIdRange.GetLowerBoundValue() + LocalIndex;
-	}
+	virtual void Add(
+		const FMeshBatchDynamicPrimitiveData* MeshBatchData,
+		const FPrimitiveUniformShaderParameters& PrimitiveShaderParams,
+		uint32 NumInstances,
+		uint32& OutPrimitiveIndex,
+		uint32& OutInstanceSceneDataOffset);
 
 	/**
 	 * Allocates the range in GPUScene and queues the data for upload. 
@@ -82,41 +61,60 @@ public:
 		return PrimitiveIdRange;
 	}
 
-	FORCEINLINE int32 GetInstanceSceneDataOffset(int32 PrimitiveId) const
-	{
-		check(bCommitted);
-		check(PrimitiveIdRange.Contains(PrimitiveId));
-		check(UploadData->bIsUploaded);
-
-		// Assume a 1:1 mapping between primitive ID and instance ID
-		return UploadData->InstanceSceneDataOffset + (PrimitiveId - PrimitiveIdRange.GetLowerBoundValue());
-	}
-
 	FORCEINLINE int32 GetInstanceSceneDataOffset() const
 	{
 		check(bCommitted || UploadData == nullptr);
 
-		// Assume a 1:1 mapping between primitive ID and instance ID
 		return UploadData != nullptr ? UploadData->InstanceSceneDataOffset : 0;
 	}
 
-	int32 Num() const {	return UploadData != nullptr ? UploadData->PrimitiveShaderData.Num() : 0; }
-	int32 NumInstances() const { return Num(); }
+	FORCEINLINE int32 GetInstancePayloadDataOffset() const
+	{
+		check(bCommitted || UploadData == nullptr);
+
+		return UploadData != nullptr ? UploadData->InstancePayloadDataOffset : 0;
+	}
+
+	int32 Num() const {	return UploadData != nullptr ? UploadData->PrimitiveData.Num() : 0; }
+	int32 NumInstances() const { return UploadData != nullptr ? UploadData->TotalInstanceCount : 0; }
+	int32 NumPayloadDataSlots() const { return UploadData != nullptr ? UploadData->InstancePayloadDataFloat4Count : 0; }
+
+#if DO_CHECK
+	/**
+	 * Determines if the specified primitive has been sufficiently processed and its data can be read
+	 */
+	bool IsPrimitiveProcessed(uint32 PrimitiveIndex, const FGPUScene& GPUScene) const;
+#endif // DO_CHECK
+
 private:
 
 	friend class FGPUScene;
 	friend class FGPUSceneDynamicContext;
 	friend struct FGPUSceneCompactInstanceData;
+	friend struct FUploadDataSourceAdapterDynamicPrimitives;
+
+	struct FPrimitiveData
+	{
+		FMeshBatchDynamicPrimitiveData SourceData;
+		const FPrimitiveUniformShaderParameters* ShaderParams = nullptr;
+		uint32 NumInstances = 0;
+		uint32 LocalInstanceSceneDataOffset = INDEX_NONE;
+		uint32 LocalPayloadDataOffset = INDEX_NONE;
+	};
 
 	struct FUploadData
 	{
-		TArray<FPrimitiveUniformShaderParameters, TInlineAllocator<8>> PrimitiveShaderData;
-		int32 InstanceSceneDataOffset = INDEX_NONE;
+		TArray<FPrimitiveData, TInlineAllocator<8>> PrimitiveData;
+		TArray<uint32> GPUWritePrimitives;
+
+		uint32 InstanceSceneDataOffset = INDEX_NONE;
+		uint32 TotalInstanceCount = 0;
+		uint32 InstancePayloadDataOffset = INDEX_NONE;
+		uint32 InstancePayloadDataFloat4Count = 0;
 		bool bIsUploaded = false;
 	};
 
-	// Note: needs to be virtual to prevent a liker error
-	virtual FUploadData* AllocateUploadData();
+	FUploadData* AllocateUploadData();
 
 	/**
 	 * Range in GPU scene allocated to the dynamic primitives.
@@ -170,18 +168,6 @@ struct FGPUSceneBufferState
 	bool bResizedInstancePayloadData = false;
 	bool bResizedLightmapData = false;
 };
-
-
-// Include in shader that modifies GPU-Scene instances
-BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneWriterParameters, )
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstanceSceneDataRW)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstancePayloadDataRW)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUScenePrimitiveSceneDataRW)
-	SHADER_PARAMETER(uint32, GPUSceneInstanceSceneDataSOAStride)
-	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
-	SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)
-	SHADER_PARAMETER(uint32, GPUSceneNumAllocatedPrimitives)
-END_SHADER_PARAMETER_STRUCT()
 
 class FGPUScene
 {
@@ -287,7 +273,7 @@ public:
 	/**
 	 * Call before accessing the GPU scene in a read/write pass, returns false if read/write acces is not supported on the platform or the GPU scene is not enabled.
 	 */
-	bool BeginReadWriteAccess(FRDGBuilder& GraphBuilder);
+	bool BeginReadWriteAccess(FRDGBuilder& GraphBuilder, bool bAllowUAVOverlap = false);
 
 	/**
 	 * Fills in the FGPUSceneWriterParameters to use for read/write access to the GPU Scene.
@@ -318,6 +304,14 @@ public:
 	void BeginDeferAllocatorMerges();
 	void EndDeferAllocatorMerges();
 
+	/**
+	 * Executes GPUScene writes that were deferred until a later point in scene rendering
+	 **/
+	bool ExecuteDeferredGPUWritePass(FRDGBuilder& GraphBuilder, const TArrayView<FViewInfo>& Views, EGPUSceneGPUWritePass Pass);
+
+	/** Returns whether or not a GPU Write is pending for the specified primitive */
+	bool HasPendingGPUWrite(uint32 PrimitiveId) const;
+
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
@@ -344,17 +338,31 @@ public:
 	FRWBufferStructured		LightmapDataBuffer;
 	FScatterUploadBuffer	LightmapUploadBuffer;
 
-	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
-private:
-	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
-
 	struct FInstanceRange
 	{
 		uint32 InstanceSceneDataOffset;
 		uint32 NumInstanceSceneDataEntries;
 	};
 
+	TArray<FInstanceRange> DynamicPrimitiveInstancesToInvalidate;
+
+	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
+private:
+	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
+
 	TArray<FInstanceRange> InstanceRangesToClear;
+
+	struct FDeferredGPUWrite
+	{
+		FGPUSceneWriteDelegate DataWriterGPU;
+		int32 ViewId = INDEX_NONE;
+		uint32 PrimitiveId = INDEX_NONE;
+		uint32 InstanceSceneDataOffset = INDEX_NONE;
+	};
+
+	static constexpr uint32 NumDeferredGPUWritePasses = uint32(EGPUSceneGPUWritePass::Num);
+	TArray<FDeferredGPUWrite> DeferredGPUWritePassDelegates[NumDeferredGPUWritePasses];
+	EGPUSceneGPUWritePass LastDeferredGPUWritePass = EGPUSceneGPUWritePass::None;
 
 	TRange<int32> CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector);
 
@@ -371,6 +379,8 @@ private:
 
 	bool bIsEnabled = false;
 	bool bInBeginEndBlock = false;
+	bool bReadWriteAccess = false;
+	bool bReadWriteUAVOverlap = false;
 	FGPUSceneDynamicContext* CurrentDynamicContext = nullptr;
 	int32 NumScenePrimitives = 0;
 

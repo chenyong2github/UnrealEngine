@@ -8,8 +8,10 @@
 #include "MaterialShared.h"
 #include "Engine/Scene.h"
 #include "PrimitiveUniformShaderParameters.h"
+#include "InstanceUniformShaderParameters.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "EngineDefines.h"
+#include "GPUSceneWriter.h"
 
 #define USE_MESH_BATCH_VALIDATION !UE_BUILD_SHIPPING
 
@@ -24,8 +26,8 @@ enum EPrimitiveIdMode
 	PrimID_FromPrimitiveSceneInfo		= 0,
 
 	/** 
-     * The renderer will upload Primitive data from the FMeshBatchElement's PrimitiveUniformBufferResource to the end of the GPUScene PrimitiveBuffer, and assign the offset to DynamicPrimitiveShaderDataIndex.
-	 * PrimitiveId for drawing will be computed as Scene->NumPrimitives + FMeshBatchElement's DynamicPrimitiveShaderDataIndex. 
+     * The renderer will upload Primitive data from the FMeshBatchElement's PrimitiveUniformBufferResource to the end of the GPUScene PrimitiveBuffer, and assign the offset to DynamicPrimitiveIndex.
+	 * PrimitiveId for drawing will be computed as Scene->NumPrimitives + FMeshBatchElement's DynamicPrimitiveIndex. 
 	 */
 	PrimID_DynamicPrimitiveShaderData	= 1,
 
@@ -55,6 +57,87 @@ struct FMeshBatchElementDynamicIndexBuffer
 	FORCEINLINE bool IsValid() const
 	{
 		return IndexBuffer != NULL;
+	}
+};
+
+/**
+ * Dynamic primitive/instance data for a mesh batch element.
+ * 
+ * NOTES:
+ * - When applied to a FMeshBatchElement, data provided to the TConstArrayView members are expected to live until the end of the frame on the render thread
+ * - If `DataWriterGPU` is bound and the TConstArrayView members are left empty, the delegate is expected to write any missing data, as it will not be uploaded
+ */
+struct FMeshBatchDynamicPrimitiveData
+{
+	TConstArrayView<FPrimitiveInstance> InstanceSceneData;
+	TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData;
+	TConstArrayView<float> InstanceCustomData;
+	FGPUSceneWriteDelegate DataWriterGPU;		
+	EGPUSceneGPUWritePass DataWriterGPUPass = EGPUSceneGPUWritePass::None;
+	uint16 PayloadDataFlags = 0;
+	uint32 NumInstanceCustomDataFloats = 0;
+
+	FORCEINLINE void SetPayloadDataFlags(uint16 Flags, bool bValue)
+	{
+		if (bValue)
+		{
+			PayloadDataFlags |= Flags;
+		}
+		else
+		{
+			PayloadDataFlags &= ~Flags;
+		}
+	}
+	
+	FORCEINLINE void EnableInstanceDynamicData(bool bEnable) { SetPayloadDataFlags(INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA, bEnable); }
+	FORCEINLINE void SetNumInstanceCustomDataFloats(uint32 NumFloats)
+	{
+		SetPayloadDataFlags(INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA, NumFloats > 0);
+		NumInstanceCustomDataFloats = NumFloats;
+	}
+
+	FORCEINLINE uint32 GetPayloadFloat4Stride() const
+	{
+		uint32 Total = 0;
+		if (PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
+		{
+#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+			Total += 2;
+#else
+			Total += 3;
+#endif
+		}
+		if (PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA)
+		{
+			Total += FMath::DivideAndRoundUp(NumInstanceCustomDataFloats, 4u);
+		}
+
+		return Total;
+	}
+
+	FORCEINLINE void Validate(uint32 NumInstances) const
+	{
+#if DO_CHECK
+		// Ensure array views are sized exactly for all instances, or are empty and there is a GPU writer
+		const bool bGPUWrite = DataWriterGPU.IsBound();
+		checkf(uint32(InstanceSceneData.Num()) == NumInstances || (bGPUWrite && InstanceSceneData.Num() == 0),
+			TEXT("DynamicPrimitiveData provided should have %u instances in InstanceSceneData. Found %d"),
+			NumInstances, InstanceSceneData.Num());
+		if (PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
+		{
+			checkf(uint32(InstanceDynamicData.Num()) == NumInstances || (bGPUWrite && InstanceDynamicData.Num() == 0),
+				TEXT("DynamicPrimitiveData provided should have %u elements in InstanceDynamicData. Found %d"),
+				NumInstances, InstanceDynamicData.Num());
+		}
+		if (PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA)
+		{
+			checkf(NumInstanceCustomDataFloats > 0,
+				TEXT("DynamicPrimitiveData provided has the custom data flag set, but NumInstanceCustomDataFloats == 0"));
+			checkf(uint32(InstanceCustomData.Num()) == NumInstances * NumInstanceCustomDataFloats || (bGPUWrite && InstanceCustomData.Num() == 0),
+				TEXT("DynamicPrimitiveData provided should have %u elements in InstanceCustomData. Found %d"),
+				NumInstances * NumInstanceCustomDataFloats, InstanceCustomData.Num());
+		}
+#endif
 	}
 };
 
@@ -101,9 +184,6 @@ struct FMeshBatchElement
 	/** Assigned by renderer */
 	EPrimitiveIdMode PrimitiveIdMode : PrimID_NumBits + 1;
 
-	/** Assigned by renderer */
-	uint32 DynamicPrimitiveShaderDataIndex : 24;
-
 	uint32 FirstIndex;
 	/** When 0, IndirectArgsBuffer will be used. */
 	uint32 NumPrimitives;
@@ -127,6 +207,14 @@ struct FMeshBatchElement
 	/** Conceptual element index used for debug viewmodes. */
 	int32 VisualizeElementIndex : 8;
 #endif
+
+	/**
+	 * Source instance scene data and payload data for dynamic primitives. Must be provided for dynamic primitives that have more than a single instance.
+	 * NOTE: The lifetime of the object pointed to is expected to match or exceed that of the mesh batch itself.
+	 **/
+	const FMeshBatchDynamicPrimitiveData* DynamicPrimitiveData;
+	uint32 DynamicPrimitiveIndex;
+	uint32 DynamicPrimitiveInstanceSceneDataOffset;
 
 	FORCEINLINE int32 GetNumPrimitives() const
 	{
@@ -155,7 +243,6 @@ struct FMeshBatchElement
 	,	IndirectArgsBuffer(nullptr)
 	,	IndirectArgsOffset(0)
 	,	PrimitiveIdMode(PrimID_FromPrimitiveSceneInfo)
-	,	DynamicPrimitiveShaderDataIndex(0)
 	,	NumInstances(1)
 	,	BaseVertexIndex(0)
 	,	UserIndex(-1)
@@ -166,9 +253,12 @@ struct FMeshBatchElement
 	,	bUserDataIsColorVertexBuffer(false)
 	,	bIsSplineProxy(false)
 	,	bIsInstanceRuns(false)
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if UE_ENABLE_DEBUG_DRAWING
 	,	VisualizeElementIndex(INDEX_NONE)
 #endif
+	,	DynamicPrimitiveData(nullptr)
+	,	DynamicPrimitiveIndex(INDEX_NONE)
+	,	DynamicPrimitiveInstanceSceneDataOffset(INDEX_NONE)
 	{
 	}
 };
