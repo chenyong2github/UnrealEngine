@@ -570,9 +570,6 @@ IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FA
 		return AllocatedVT;
 	}
 
-	// Clear out any AllocatedVTs that are ready to be deleted, before trying a new allocation
-	DestroyPendingVirtualTextures(false);
-
 	uint32 BlockWidthInTiles = 0u;
 	uint32 BlockHeightInTiles = 0u;
 	uint32 WidthInBlocks = 0u;
@@ -663,7 +660,9 @@ void FVirtualTextureSystem::DestroyVirtualTexture(IAllocatedVirtualTexture* Allo
 void FVirtualTextureSystem::DestroyPendingVirtualTextures(bool bForceDestroyAll)
 {
 	check(IsInRenderingThread());
-	
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::DestroyPendingVirtualTextures);
+
 	TArray<IAllocatedVirtualTexture*> AllocatedVTsToDelete;
 	{
 		FScopeLock Lock(&AllocatedVTLock);
@@ -674,6 +673,7 @@ void FVirtualTextureSystem::DestroyPendingVirtualTextures(bool bForceDestroyAll)
 		}
 		else
 		{
+			const int32 MaxDeleteBudget = VirtualTextureScalability::GetMaxAllocatedVTReleasedPerFrame();
 			const uint32 CurrentFrame = Frame;
 			int32 Index = 0;
 			while (Index < PendingDeleteAllocatedVTs.Num())
@@ -682,9 +682,13 @@ void FVirtualTextureSystem::DestroyPendingVirtualTextures(bool bForceDestroyAll)
 				const FAllocatedVTDescription& Desc = AllocatedVT->GetDescription();
 				check(AllocatedVT->NumRefs == 0);
 
-				// If the AllocatedVT is using a private space release it immediately, we don't want to hold references to these private spaces any longer then needed
-				// Otherwise keep deleted VTs around for a few frames, in case they are reused
-				if (Desc.bPrivateSpace || CurrentFrame >= AllocatedVT->FrameDeleted + 60u)
+				// If the AllocatedVT is using a private space release it immediately, we don't want to hold references to these private spaces any longer then needed.
+				const bool bForceDelete = Desc.bPrivateSpace;
+				// Keep deleted VTs around for a few frames, in case they are reused.
+				const bool bCanDeleteForAge = CurrentFrame >= AllocatedVT->FrameDeleted + 60u;
+				// Time slice deletion unless we can make it cheaper.
+				const bool bCanDeleteForBudget = MaxDeleteBudget <= 0 || AllocatedVTsToDelete.Num() < MaxDeleteBudget;
+				if (bForceDelete || (bCanDeleteForAge && bCanDeleteForBudget))
 				{
 					AllocatedVTsToDelete.Add(AllocatedVT);
 					PendingDeleteAllocatedVTs.RemoveAtSwap(Index, 1, false);
