@@ -1107,6 +1107,14 @@ void InterpolateAndIntegrate(
 		PassParameters->RWDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DiffuseIndirect));
 		PassParameters->RWRoughSpecularIndirect =  GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RoughSpecularIndirect));
 		PassParameters->GatherParameters = GatherParameters;
+
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+		if (!PassParameters->GatherParameters.ScreenProbeRadianceSHAmbient)
+		{
+			PassParameters->GatherParameters.ScreenProbeRadianceSHAmbient = SystemTextures.Black;
+			PassParameters->GatherParameters.ScreenProbeRadianceSHDirectional = SystemTextures.Black;
+		}
+
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;

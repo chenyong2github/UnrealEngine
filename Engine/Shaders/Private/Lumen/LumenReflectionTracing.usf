@@ -44,6 +44,7 @@ float4 HZBUvFactorAndInvFactor;
 float MaxHierarchicalScreenTraceIterations;
 float RelativeDepthThickness;
 float HistoryDepthTestRelativeThickness;
+uint MinimumTracingThreadOccupancy;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
 void ReflectionTraceScreenTexturesCS(
@@ -75,6 +76,7 @@ void ReflectionTraceScreenTexturesCS(
 				MaxHierarchicalScreenTraceIterations, 
 				RelativeDepthThickness,
 				0,
+				MinimumTracingThreadOccupancy,
 				bHit,
 				bUncertain,
 				HitUVz,

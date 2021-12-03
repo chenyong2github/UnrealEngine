@@ -49,6 +49,7 @@ float MaxHierarchicalScreenTraceIterations;
 float RelativeDepthThickness;
 float HistoryDepthTestRelativeThickness;
 float NumThicknessStepsToDetermineCertainty;
+uint MinimumTracingThreadOccupancy;
 
 [numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
 void ScreenProbeTraceScreenTexturesCS(
@@ -56,7 +57,7 @@ void ScreenProbeTraceScreenTexturesCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-#define DEINTERLEAVED_SCREEN_TRACING 1
+#define DEINTERLEAVED_SCREEN_TRACING 0
 #if DEINTERLEAVED_SCREEN_TRACING
 	uint2 AtlasSizeInProbes = uint2(ScreenProbeAtlasViewSize.x, (GetNumScreenProbes() + ScreenProbeAtlasViewSize.x - 1) / ScreenProbeAtlasViewSize.x);
 	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy % AtlasSizeInProbes;
@@ -119,6 +120,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					MaxHierarchicalScreenTraceIterations, 
 					RelativeDepthThickness * DepthThresholdScale,
 					NumThicknessStepsToDetermineCertainty,
+					MinimumTracingThreadOccupancy,
 					bHit,
 					bUncertain,
 					HitUVz,
