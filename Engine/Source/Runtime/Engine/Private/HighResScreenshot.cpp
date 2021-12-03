@@ -17,6 +17,21 @@ static TAutoConsoleVariable<int32> CVarSaveEXRCompressionQuality(
 	TEXT(" 1: default compression which can be slow (default)"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<FString> CVarHighResScreenshotCmd(
+	TEXT("r.HighResScreenshot.AdditionalCmds"), TEXT(""),
+	TEXT("Additional command to execute when a high res screenshot is requested."),
+	ECVF_Default);
+
+static void RunHighResScreenshotAdditionalCommands()
+{
+	FString Cmds = CVarHighResScreenshotCmd.GetValueOnGameThread();
+
+	if (!Cmds.IsEmpty())
+	{
+		GEngine->Exec(GWorld, *Cmds);
+	}
+}
+
 DEFINE_LOG_CATEGORY(LogHighResScreenshot);
 
 FHighResScreenshotConfig& GetHighResScreenshotConfig()
@@ -121,7 +136,7 @@ bool FHighResScreenshotConfig::ParseConsoleCommand(const FString& InCmd, FOutput
 		}
 
 		GIsHighResScreenshot = true;
-
+		RunHighResScreenshotAdditionalCommands();
 		return true;
 	}
 
@@ -183,6 +198,7 @@ bool FHighResScreenshotConfig::SetResolution(uint32 ResolutionX, uint32 Resoluti
 	GScreenshotResolutionX = (ResolutionX * ResolutionScale);
 	GScreenshotResolutionY = (ResolutionY * ResolutionScale);
 	GIsHighResScreenshot = true;
+	RunHighResScreenshotAdditionalCommands();
 
 	return true;
 }
