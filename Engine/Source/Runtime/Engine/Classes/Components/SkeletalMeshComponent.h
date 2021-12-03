@@ -671,7 +671,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=Animation)
 	uint8 bPauseAnims:1;
 
-	/** On InitAnim should we set to ref pose (if false use first tick of animation data)*/
+	/** On InitAnim should we set to ref pose (if false use first tick of animation data). If enabled, takes precedence over UAnimationSettings::bTickAnimationOnSkeletalMeshInit*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Animation)
 	uint8 bUseRefPoseOnInitAnim:1;
 
