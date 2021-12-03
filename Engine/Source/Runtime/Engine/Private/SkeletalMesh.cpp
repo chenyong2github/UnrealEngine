@@ -513,8 +513,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 	SetMinLod(FPerPlatformInt(0));
 	SetDisableBelowMinLodStripping(FPerPlatformBool(false));
-	SetSupportRayTracing(true);
-	SetRayTracingMinLOD(0);
+	bSupportRayTracing = true;
+	RayTracingMinLOD = 0;
 }
 
 USkeletalMesh::USkeletalMesh(FVTableHelper& Helper)
