@@ -3736,9 +3736,16 @@ void UMaterialExpressionTextureSampleParameterVolume::SetDefaultTexture()
  * Performs a SubUV operation, which is doing a texture lookup into a sub rectangle of a texture, and optionally blending with another rectangle.  
  * This supports both sprites and mesh emitters.
  */
-static int32 ParticleSubUV(FMaterialCompiler* Compiler, int32 TextureIndex, UTexture* DefaultTexture, EMaterialSamplerType SamplerType, FExpressionInput& Coordinates, bool bBlend)
+static int32 ParticleSubUV(
+	FMaterialCompiler* Compiler, 
+	int32 TextureIndex, 
+	EMaterialSamplerType SamplerType, 
+	int32 MipValue0Index,
+	int32 MipValue1Index,
+	ETextureMipValueMode MipValueMode,
+	bool bBlend)
 {
-	return Compiler->ParticleSubUV(TextureIndex, SamplerType, bBlend);
+	return Compiler->ParticleSubUV(TextureIndex, SamplerType, MipValue0Index, MipValue1Index, MipValueMode, bBlend);
 }
 
 /** 
@@ -3781,7 +3788,7 @@ int32 UMaterialExpressionTextureSampleParameterSubUV::Compile(class FMaterialCom
 	}
 
 	int32 TextureCodeIndex = Compiler->TextureParameter(ParameterName, Texture, SamplerType);
-	return ParticleSubUV(Compiler, TextureCodeIndex, Texture, SamplerType, Coordinates, bBlend);
+	return ParticleSubUV(Compiler, TextureCodeIndex, SamplerType, CompileMipValue0(Compiler), CompileMipValue1(Compiler), MipValueMode,	bBlend);
 }
 
 void UMaterialExpressionTextureSampleParameterSubUV::GetCaption(TArray<FString>& OutCaptions) const
@@ -9373,7 +9380,7 @@ int32 UMaterialExpressionParticleSubUV::Compile(class FMaterialCompiler* Compile
 			return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 		}
 		int32 TextureCodeIndex = Compiler->Texture(Texture, SamplerType);
-		return ParticleSubUV(Compiler, TextureCodeIndex, Texture, SamplerType, Coordinates, bBlend);
+		return ParticleSubUV(Compiler, TextureCodeIndex, SamplerType, CompileMipValue0(Compiler), CompileMipValue1(Compiler), MipValueMode, bBlend);
 	}
 	else
 	{

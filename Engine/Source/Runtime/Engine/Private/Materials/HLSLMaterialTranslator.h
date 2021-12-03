@@ -750,7 +750,7 @@ protected:
 	virtual int32 GetPixelPosition() override;
 
 	virtual int32 ParticleMacroUV() override;
-	virtual int32 ParticleSubUV(int32 TextureIndex, EMaterialSamplerType SamplerType, bool bBlend) override;
+	virtual int32 ParticleSubUV(int32 TextureIndex, EMaterialSamplerType SamplerType, int32 MipValue0Index, int32 MipValue1Index, ETextureMipValueMode MipValueMode, bool bBlend) override;
 	virtual int32 ParticleSubUVProperty(int32 PropertyIndex) override;
 	virtual int32 ParticleColor() override;
 	virtual int32 ParticlePosition() override;
