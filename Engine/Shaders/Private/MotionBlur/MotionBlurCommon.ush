@@ -1,0 +1,37 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../FastMath.ush"
+#include "../ScreenPass.ush"
+
+
+//------------------------------------------------------- FUNCTIONS
+
+float4 MinMaxLength(float4 v0, float4 v1)
+{
+	float2 Min = dot(v0.xy, v0.xy) < dot(v1.xy, v1.xy) ? v0.xy : v1.xy;
+	float2 Max = dot(v0.zw, v0.zw) > dot(v1.zw, v1.zw) ? v0.zw : v1.zw;
+	return float4(Min, Max);
+}
+
+float4 MinMaxLengthPolar(float4 v0, float4 v1)
+{
+	float2 Min = v0.x < v1.x ? v0.xy : v1.xy;
+	float2 Max = v0.z > v1.z ? v0.zw : v1.zw;
+	return float4(Min, Max);
+}
+
+float2 CartesianToPolar(float2 Velocity)
+{
+	float Length = length(Velocity);
+	float Angle = atan2Fast(Velocity.y, Velocity.x);
+	return float2(Length, Angle);
+}
+
+float2 PolarToCartesian(float2 Velocity)
+{
+	float Length = Velocity.x;
+	float Angle = Velocity.y;
+	sincos(Angle, Velocity.y, Velocity.x);
+	return Velocity * Length;
+}

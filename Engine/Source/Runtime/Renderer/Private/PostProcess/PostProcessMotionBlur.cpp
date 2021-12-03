@@ -257,8 +257,6 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityFlattenCS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityFlattenMain", SF_Compute);
-
 BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurVelocityDilateParameters, )
 	SHADER_PARAMETER_STRUCT(FMotionBlurParameters, MotionBlur)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, VelocityTile)
@@ -279,8 +277,6 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateGatherCS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityGatherCS", SF_Compute);
-
 enum class EMotionBlurVelocityScatterPass : uint32
 {
 	DrawMin,
@@ -296,23 +292,19 @@ END_SHADER_PARAMETER_STRUCT()
 
 class FMotionBlurVelocityDilateScatterVS : public FMotionBlurShader
 {
-public:
 	DECLARE_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterVS);
 	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVelocityDilateScatterVS, FMotionBlurShader);
+
 	using FParameters = FMotionBlurVelocityDilateScatterParameters;
 };
-
-IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterVS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityScatterVS", SF_Vertex);
 
 class FMotionBlurVelocityDilateScatterPS : public FMotionBlurShader
 {
-public:
 	DECLARE_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterPS);
 	SHADER_USE_PARAMETER_STRUCT(FMotionBlurVelocityDilateScatterPS, FMotionBlurShader);
+
 	using FParameters = FMotionBlurVelocityDilateScatterParameters;
 };
-
-IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterPS, "/Engine/Private/PostProcessVelocityFlatten.usf", "VelocityScatterPS", SF_Pixel);
 
 class FMotionBlurQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("MOTION_BLUR_QUALITY", EMotionBlurQuality);
 class FPostMotionBlurTranslucencyDimension : SHADER_PERMUTATION_BOOL("USE_POST_MOTION_BLUR_TRANSLUCENCY");
@@ -357,8 +349,6 @@ public:
 	using FPermutationDomain = FMotionBlurFilterPermutationDomain;
 };
 
-IMPLEMENT_GLOBAL_SHADER(FMotionBlurFilterPS, "/Engine/Private/PostProcessMotionBlur.usf", "MainPS", SF_Pixel);
-
 class FMotionBlurFilterCS : public FMotionBlurShader
 {
 public:
@@ -379,8 +369,6 @@ public:
 
 	using FPermutationDomain = FMotionBlurFilterPermutationDomain;
 };
-
-IMPLEMENT_GLOBAL_SHADER(FMotionBlurFilterCS, "/Engine/Private/PostProcessMotionBlur.usf", "MainCS", SF_Compute);
 
 class FMotionBlurVisualizePS : public FMotionBlurShader
 {
@@ -404,14 +392,15 @@ public:
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FMotionBlurVisualizePS, "/Engine/Private/PostProcessMotionBlur.usf", "VisualizeMotionBlurPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityFlattenCS,       "/Engine/Private/MotionBlur/MotionBlurVelocityFlatten.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateGatherCS,  "/Engine/Private/MotionBlur/MotionBlurTileGather.usf",      "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterVS, "/Engine/Private/MotionBlur/MotionBlurTileScatter.usf",     "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVelocityDilateScatterPS, "/Engine/Private/MotionBlur/MotionBlurTileScatter.usf",     "MainPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurFilterPS,                "/Engine/Private/MotionBlur/MotionBlurApply.usf",           "MainPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurFilterCS,                "/Engine/Private/MotionBlur/MotionBlurApply.usf",           "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMotionBlurVisualizePS,             "/Engine/Private/MotionBlur/MotionBlurVisualize.usf",       "MainPS", SF_Pixel);
 
 TGlobalResource<FSpriteIndexBuffer<8>> GScatterQuadIndexBuffer;
 
