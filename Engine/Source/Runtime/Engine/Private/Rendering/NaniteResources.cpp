@@ -527,11 +527,6 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 	InstanceSceneData.SetNum(Component->GetInstanceCount());
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	InstanceXFormUpdatedThisFrame.Init(false, Component->GetInstanceCount());
-	InstanceCustomDataUpdatedThisFrame.Init(false, Component->GetInstanceCount());
-#endif
-
 	bHasPerInstanceLocalBounds = false;
 	bHasPerInstanceHierarchyOffset = false;
 
@@ -999,6 +994,8 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 
 					FRenderTransform InstanceToWorld = Instance.ComputeLocalToWorld(PrimitiveToWorld);
 					DrawWireStar(Collector.GetPDI(ViewIndex), InstanceToWorld.Origin, 40.0f, WasInstanceXFormUpdatedThisFrame(i) ? FColor::Red : FColor::Green, EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
+
+					Collector.GetPDI(ViewIndex)->DrawLine(InstanceToWorld.Origin, InstanceToWorld.Origin + 40.0f * FVector(0, 0, 1), FColor::Blue, EngineShowFlags.Game ? SDPG_World : SDPG_Foreground);
 
 					if (WasInstanceCustomDataUpdatedThisFrame(i))
 					{

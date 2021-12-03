@@ -551,8 +551,10 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 	UpdateUniformBuffer();
 	
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	InstanceXFormUpdatedThisFrame.SetRange(0, InstanceXFormUpdatedThisFrame.Num(), 0);
-	InstanceCustomDataUpdatedThisFrame.SetRange(0, InstanceCustomDataUpdatedThisFrame.Num(), 0);
+	// JIT initialize only when we go through UpdateInstances.
+	// This will also clear the bits so we can reset the state for this frame.
+	InstanceXFormUpdatedThisFrame.Init(false, InstanceSceneData.Num());
+	InstanceCustomDataUpdatedThisFrame.Init(false, InstanceSceneData.Num());
 #endif
 
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
