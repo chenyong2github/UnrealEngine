@@ -275,6 +275,7 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
 		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
+		SHADER_PARAMETER(uint32, DummyZeroForFixingShaderCompilerBug)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
@@ -330,6 +331,7 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
 		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
+		SHADER_PARAMETER(uint32, DummyZeroForFixingShaderCompilerBug)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
@@ -725,6 +727,7 @@ void SampleShadowMap(
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->CardScatterParameters = CardScatterContext.CardTileParameters;
 		PassParameters->CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
+		PassParameters->DummyZeroForFixingShaderCompilerBug = 0;
 		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, LumenLight.LightSceneInfo, PassParameters->DeferredLightUniforms);
 		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 
@@ -811,6 +814,7 @@ void TraceDistanceFieldShadows(
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->CardScatterParameters = CardScatterContext.CardTileParameters;
 		PassParameters->CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
+		PassParameters->DummyZeroForFixingShaderCompilerBug = 0;
 		Lumen::SetDirectLightingDeferredLightUniformBuffer(View, LumenLight.LightSceneInfo, PassParameters->DeferredLightUniforms);
 
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
