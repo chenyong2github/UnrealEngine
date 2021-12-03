@@ -1103,11 +1103,12 @@ void FVirtualTextureSystem::RequestTilesInternal(const IAllocatedVirtualTexture*
 		const uint32 vMaxLevel = InAllocatedVT->GetMaxLevel();
 		const float vLevel = ComputeMipLevel(InAllocatedVT, InScreenSpaceSize);
 		const int32 vMipLevelDown = FMath::Clamp((int32)FMath::FloorToInt(vLevel), 0, (int32)vMaxLevel);
-		RequestTilesInternal(InAllocatedVT, vLevel);
+
+		RequestTilesInternal(InAllocatedVT, vMipLevelDown);
 		if (vMipLevelDown + 1u <= vMaxLevel)
 		{
 			// Need to fetch 2 levels to support trilinear filtering
-			RequestTilesInternal(InAllocatedVT, vMipLevelDown);
+			RequestTilesInternal(InAllocatedVT, vMipLevelDown + 1u);
 		}
 	}
 	else
