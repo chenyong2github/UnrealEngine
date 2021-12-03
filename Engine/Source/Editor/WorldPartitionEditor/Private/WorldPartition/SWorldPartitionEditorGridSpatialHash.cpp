@@ -70,6 +70,13 @@ void SWorldPartitionEditorGridSpatialHash::Tick(const FGeometry& AllottedGeometr
 	{
 		UpdateWorldMiniMapDetails();
 	}
+
+	/*static double LastTime = InCurrentTime;
+	if ((InCurrentTime - LastTime) > 15.0)
+	{
+		LastTime = InCurrentTime;
+		ReloadMiniMap();
+	}*/
 }
 
 FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()

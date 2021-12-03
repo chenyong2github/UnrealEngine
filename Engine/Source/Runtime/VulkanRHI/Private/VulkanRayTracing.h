@@ -35,13 +35,6 @@ public:
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
 };
 
-struct FVkRtAllocation
-{
-	VkDevice Device = VK_NULL_HANDLE;
-	VkDeviceMemory Memory = VK_NULL_HANDLE;
-	VkBuffer Buffer = VK_NULL_HANDLE;
-};
-
 class FVulkanRayTracingAllocator
 {
 public:
@@ -83,7 +76,7 @@ public:
 	FVulkanRayTracingGeometry(FRayTracingGeometryInitializer Initializer, FVulkanDevice* InDevice);
 	~FVulkanRayTracingGeometry();
 
-	virtual FRayTracingAccelerationStructureAddress GetAccelerationStructureAddress(uint64 GPUIndex) const final override { return Address; }
+	virtual FRayTracingAccelerationStructureAddress GetAccelerationStructureAddress(uint64 GPUIndex) const final override { return AccelerationStructureBuffer->GetAddress(); }
 	virtual uint32 GetNumSegments() const final override { return Initializer.Segments.Num(); }
 	virtual FRayTracingAccelerationStructureSize GetSizeInfo() const final override { return SizeInfo; }
 
@@ -95,7 +88,6 @@ private:
 	const FRayTracingGeometryInitializer Initializer;
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
-	VkDeviceAddress Address = 0;
 	TRefCountPtr<FVulkanResourceMultiBuffer> AccelerationStructureBuffer;
 	TRefCountPtr<FVulkanResourceMultiBuffer> ScratchBuffer;
 	

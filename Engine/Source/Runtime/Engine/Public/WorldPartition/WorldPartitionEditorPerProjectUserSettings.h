@@ -66,6 +66,8 @@ public:
 	{}
 
 #if WITH_EDITOR
+	void UpdateEditorGridConfigHash(UWorld* InWorld);
+	static void UpdateEditorGridConfigHash(UWorld* InWorld, FWorldPartitionPerWorldSettings& PerWorldSettings);
 	TArray<FName> GetEditorGridLoadedCells(UWorld* InWorld) const;
 	void SetEditorGridLoadedCells(UWorld* InWorld, const TArray<FName>& InEditorGridLoadedCells);
 

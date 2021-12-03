@@ -456,7 +456,7 @@ public:
 					{
 						FVector TangentX = Vertex.TangentX;
 						FVector TangentY = Vertex.TangentY;
-						FVector TangentZ = Vertex.TangentZ;
+						FVector TangentZ = (FVector4)Vertex.TangentZ;
 						FVector Position = Vertex.Position;
 						for (uint8 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 				        {
@@ -469,7 +469,7 @@ public:
 
 									TangentX += ((RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentX) - Vertex.TangentX) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
 									TangentY += ((RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentY) - Vertex.TangentY) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
-									TangentZ += ((RemovedBoneMatrices[ArrayIndex].TransformVector(Vertex.TangentZ) - Vertex.TangentZ) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
+									TangentZ += ((RemovedBoneMatrices[ArrayIndex].TransformVector((FVector4)Vertex.TangentZ) - Vertex.TangentZ) * ((float)Vertex.InfluenceWeights[InfluenceIndex] * InfluenceMultiplier));
 								}
 							}
 				        }

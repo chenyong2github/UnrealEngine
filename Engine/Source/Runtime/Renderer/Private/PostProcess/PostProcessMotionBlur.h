@@ -44,7 +44,7 @@ int32 GetMotionBlurDirections();
 
 // Shader parameters for MotionBlurVelocityFlatten.ush when another pass can also generate the FVelocityFlattenTextures
 BEGIN_SHADER_PARAMETER_STRUCT(FVelocityFlattenParameters, )
-	SHADER_PARAMETER(FVector2D, VelocityScale)
+	SHADER_PARAMETER(FVector2f, VelocityScale)
 	SHADER_PARAMETER(float, VelocityMax)
 END_SHADER_PARAMETER_STRUCT()
 
