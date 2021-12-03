@@ -1091,7 +1091,8 @@ void UpdateHistoryScreenProbeGather(
 			&& !GLumenScreenProbeClearHistoryEveryFrame
 			// If the scene render targets reallocate, toss the history so we don't read uninitialized data
 			&& (*DiffuseIndirectHistoryState0)->GetDesc().Extent == SceneTextures.Config.Extent
-			&& ScreenProbeGatherState.LumenGatherCvars == GLumenGatherCvars)
+			&& ScreenProbeGatherState.LumenGatherCvars == GLumenGatherCvars
+			&& !View.bLumenPropagateGlobalLightingChange)
 		{
 			EPixelFormat HistoryFormat = PF_FloatRGBA;
 			FRDGTextureDesc DiffuseIndirectDesc = FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);

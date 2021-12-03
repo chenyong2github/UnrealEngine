@@ -1675,7 +1675,6 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 	{
 		SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_BeginUpdateLumenSceneTasks, FColor::Emerald);
 		QUICK_SCOPE_CYCLE_COUNTER(BeginUpdateLumenSceneTasks);
-		const double StartTime = FPlatformTime::Seconds();
 
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame != 0;
@@ -1835,13 +1834,6 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 					CardPageRenderData.NumMeshDrawCommands = LumenCardRenderer.MeshDrawCommands.Num() - CardPageRenderData.StartMeshDrawCommandIndex;
 				}
-			}
-
-			const float TimeElapsed = FPlatformTime::Seconds() - StartTime;
-
-			if (TimeElapsed > .03f)
-			{
-				UE_LOG(LogRenderer, Log, TEXT("BeginUpdateLumenSceneTasks %u Card Renders %.1fms"), CardPagesToRender.Num(), TimeElapsed * 1000.0f);
 			}
 		}
 	}
@@ -2018,6 +2010,78 @@ void AllocatedCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureA
 		TEXT("Lumen.CardCaptureDepthStencilAtlas"));
 }
 
+void UpdateGlobalLightingState(const FScene* Scene, FViewInfo& View, FLumenSceneData& LumenSceneData)
+{
+	FLumenGlobalLightingState& GlobalLightingState = LumenSceneData.GlobalLightingState;
+
+	bool bModifySceneStateVersion = false;
+	const FLightSceneInfo* DirectionalLightSceneInfo = nullptr;
+
+	for (const FLightSceneInfo* LightSceneInfo : Scene->DirectionalLights)
+	{
+		if (LightSceneInfo->ShouldRenderLightViewIndependent()
+			&& LightSceneInfo->ShouldRenderLight(View, true)
+			&& LightSceneInfo->Proxy->GetIndirectLightingScale() > 0.0f)
+		{
+			DirectionalLightSceneInfo = LightSceneInfo;
+			break;
+		}
+	}
+
+	if (DirectionalLightSceneInfo && GlobalLightingState.bDirectionalLightValid)
+	{
+		const float OldMax = GlobalLightingState.DirectionalLightColor.GetMax();
+		const float NewMax = DirectionalLightSceneInfo->Proxy->GetColor().GetMax();
+		const float Ratio = OldMax / FMath::Max(NewMax, .00001f);
+
+		if (Ratio > 4.0f || Ratio < .25f)
+		{
+			bModifySceneStateVersion = true;
+		}
+	}
+
+	if (DirectionalLightSceneInfo)
+	{
+		GlobalLightingState.DirectionalLightColor = DirectionalLightSceneInfo->Proxy->GetColor();
+		GlobalLightingState.bDirectionalLightValid = true;
+	}
+	else
+	{
+		GlobalLightingState.DirectionalLightColor = FLinearColor::Black;
+		GlobalLightingState.bDirectionalLightValid = false;
+	}
+
+	const FSkyLightSceneProxy* SkyLightProxy = Scene->SkyLight;
+
+	if (SkyLightProxy && GlobalLightingState.bSkyLightValid)
+	{
+		const float OldMax = GlobalLightingState.SkyLightColor.GetMax();
+		const float NewMax = SkyLightProxy->GetEffectiveLightColor().GetMax();
+		const float Ratio = OldMax / FMath::Max(NewMax, .00001f);
+
+		if (Ratio > 4.0f || Ratio < .25f)
+		{
+			bModifySceneStateVersion = true;
+		}
+	}
+
+	if (SkyLightProxy)
+	{
+		GlobalLightingState.SkyLightColor = SkyLightProxy->GetEffectiveLightColor();
+		GlobalLightingState.bSkyLightValid = true;
+	}
+	else
+	{
+		GlobalLightingState.SkyLightColor = FLinearColor::Black;
+		GlobalLightingState.bSkyLightValid = false;
+	}
+
+	if (bModifySceneStateVersion)
+	{
+		View.bLumenPropagateGlobalLightingChange = true;
+	}
+}
+
 void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -2034,8 +2098,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		&& !View.bIsReflectionCapture
 		&& View.ViewState)
 	{
-		const double StartTime = FPlatformTime::Seconds();
-
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 		TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender = LumenCardRenderer.CardPagesToRender;
 
@@ -2043,6 +2105,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, UpdateLumenSceneBuffers);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenSceneUpdate);
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneUpdate: %u card captures %.3fM texels", CardPagesToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / (1024.0f * 1024.0f));
+
+		UpdateGlobalLightingState(Scene, View, LumenSceneData);
 
 		Lumen::UpdateCardSceneBuffer(GraphBuilder.RHICmdList, ViewFamily, Scene);
 
@@ -2454,13 +2518,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 			}
 
 			UpdateLumenSurfaceCacheAtlas(GraphBuilder, View, CardPagesToRender, CardCaptureRectBufferSRV, CardCaptureAtlas);
-		}
-
-		const float TimeElapsed = FPlatformTime::Seconds() - StartTime;
-
-		if (TimeElapsed > .02f)
-		{
-			UE_LOG(LogRenderer, Log, TEXT("UpdateLumenScene %u Card Renders %.1fms"), CardPagesToRender.Num(), TimeElapsed * 1000.0f);
 		}
 	}
 
