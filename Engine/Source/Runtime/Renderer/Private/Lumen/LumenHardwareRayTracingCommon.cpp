@@ -31,6 +31,15 @@ static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingPullbackBias(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxIterations(
+	TEXT("r.Lumen.HardwareRayTracing.MaxIterations"),
+	8192,
+	TEXT("Limit number of ray tracing traversal iterations on supported platfoms.\n"
+		"Incomplete misses will be treated as hitting a black surface (can cause overocculsion).\n"
+		"Incomplete hits will be treated as a hit (can cause leaking)."),
+	ECVF_RenderThreadSafe
+);
+
 bool Lumen::UseHardwareRayTracing()
 {
 #if RHI_RAYTRACING
@@ -49,6 +58,11 @@ bool Lumen::UseHardwareInlineRayTracing()
 #else
 	return false;
 #endif
+}
+
+uint32 Lumen::GetMaxTraversalIterations()
+{
+	return FMath::Max(CVarLumenHardwareRayTracingMaxIterations.GetValueOnRenderThread(), 1);
 }
 
 #if RHI_RAYTRACING

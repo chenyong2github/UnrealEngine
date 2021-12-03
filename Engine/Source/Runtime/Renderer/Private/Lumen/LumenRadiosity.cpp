@@ -309,6 +309,7 @@ class FLumenRadiosityHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, MaxRayIntensity)
 		SHADER_PARAMETER(float, MinTraceDistanceToSampleSurface)
+		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWTraceRadianceBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -542,6 +543,7 @@ void LumenRadiosity::AddRadiosityPass(
 		PassParameters->MinTraceDistance = FMath::Clamp(GLumenRadiosityHardwareRayTracingSurfaceBias, 0.0f, 1000.0f);
 		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
 		PassParameters->MinTraceDistanceToSampleSurface = GLumenRadiosityMinTraceDistanceToSampleSurface;
+		PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
 
 		FLumenRadiosityHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenRadiosityHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingRadiosityIndirectDispatch());

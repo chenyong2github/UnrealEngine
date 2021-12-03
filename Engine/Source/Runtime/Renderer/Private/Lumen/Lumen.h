@@ -71,6 +71,7 @@ namespace Lumen
 	bool UseHardwareRayTracedRadiosity();
 
 	bool UseHardwareInlineRayTracing();
+	uint32 GetMaxTraversalIterations();
 
 	enum class EHardwareRayTracingLightingMode
 	{

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#define INLINE_RAY_TRACING_MAX_ITERATIONS 0xFFFFFFFF
+
 struct FTraceRayInlineResult
 {
 	float HitT;
@@ -18,8 +20,18 @@ struct FTraceRayInlineResult
 	// Only valid when PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS is 1
 	float3 WorldGeometryNormal;
 
+	// Can be false only if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS is 1
+	bool bIsCompleted;
+
 	bool IsMiss() { return HitT < 0; }
 	bool IsHit() { return !IsMiss(); }
 
 	void SetMiss() { HitT = -1; }
+};
+
+struct FTraceRayInlineTraversalStatistics
+{
+	uint NodeIntersectionCount;
+	uint TriangleIntersectionCount;
+	uint IterationCount;
 };

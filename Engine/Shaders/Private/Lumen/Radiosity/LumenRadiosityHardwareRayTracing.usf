@@ -28,6 +28,7 @@ float SurfaceBias;
 float MaxRayIntensity;
 uint NumThreadsToDispatch;
 float TanRadiosityRayConeHalfAngle;
+uint MaxTraversalIterations;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 {	
@@ -72,7 +73,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
 
 				const uint LinearCoord = CoordInCardTile.y * CARD_TILE_SIZE + CoordInCardTile.x;
 				const bool bCullBackFacingTriangles = true;
-				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, bCullBackFacingTriangles);
+				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, bCullBackFacingTriangles, MaxTraversalIterations);
 
 				FRayTracedLightingResult RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 

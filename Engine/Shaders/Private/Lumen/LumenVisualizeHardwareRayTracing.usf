@@ -434,6 +434,7 @@ uint GroupCount;
 uint LightingMode;
 uint VisualizeHiResSurface;
 uint MaxTranslucentSkipCount;
+uint MaxTraversalIterations;
 float3 FarFieldReferencePos;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
@@ -492,6 +493,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			LinearCoord,
 			bCullBackFacingTriangles,
 			MaxTranslucentSkipCount,
+			MaxTraversalIterations,
 			bHiResSurface);
 		Context.FarFieldMaxTraceDistance = MaxTraceDistance;
 		Context.FarFieldReferencePos = FarFieldReferencePos;
@@ -508,7 +510,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		// Trace segmentation visualization
 #if 0
 #if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
-		if (Result.bIsHit && Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX) Result.Radiance = float3(1, 1, 0);
+		if (Result.bIsHit && Result.bIsRadianceCompleted) Result.Radiance = float3(1, 1, 0);
 #elif DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
 		if (Result.bIsHit) Result.Radiance = float3(1, 0, 0);
 #elif DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
@@ -527,7 +529,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 #endif // DIM_TRACE_MODE
 
 #if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
-		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX));
+		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.bIsRadianceCompleted));
 #endif // DIM_TRACE_MODE
 
 		Result.Radiance *= View.PreExposure;

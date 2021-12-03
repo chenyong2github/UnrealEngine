@@ -420,6 +420,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(int, VisualizeHiResSurface)
 		SHADER_PARAMETER(int, VisualizeMode)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
+		SHADER_PARAMETER(uint32, MaxTraversalIterations)
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
@@ -623,6 +624,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+			PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
@@ -795,6 +797,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+			PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
@@ -908,9 +911,10 @@ void VisualizeHardwareRayTracing(
 			PassParameters->ThreadCount = RayGenThreadCount;
 			PassParameters->GroupCount = RayGenGroupCount;
 			PassParameters->LightingMode = CVarLumenVisualizeHardwareRayTracingLightingMode.GetValueOnRenderThread();
-			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;;
+			PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+			PassParameters->MaxTraversalIterations = Lumen::GetMaxTraversalIterations();
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
 			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 
