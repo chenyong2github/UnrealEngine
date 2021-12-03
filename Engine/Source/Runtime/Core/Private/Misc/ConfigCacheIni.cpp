@@ -41,6 +41,8 @@
 #define DISABLE_GENERATED_INI_WHEN_COOKED 0
 #endif
 
+const TSet<FString>* FConfigCacheIni::IniCacheSet = nullptr;
+
 namespace
 {
 	static FName VersionName("Version");
@@ -474,8 +476,38 @@ static bool DoesConfigFileExistWrapper(const TCHAR* IniFile)
 		return true;
 	}
 
+	// So far, testing on cooked consoles, cooked desktop, and the Editor
+	// works fine.
+	// However, there was an issue where INIs wouldn't be found during cooking,
+	// which would pass by silently. Realistically, in most cases this would never
+	// have caused an issue, but using FPlatformProperties::RequiresCookedData
+	// to prevent using the cache in that case ensures full consistency.
+	const TSet<FString>* const IniCacheSet = FConfigCacheIni::GetIniCacheSet();
+	if (IniCacheSet && FPlatformProperties::RequiresCookedData())
+	{ 
+		const FString IniFileString(IniFile);
+		const bool bFileExistsCached = IniCacheSet->Contains(IniFileString);
+
+		// This code can be uncommented if we expect there are INIs that are not being
+		// found in the cache.
+		/**
+		const bool bFileExistsCachedTest = IFileManager::Get().FileSize(IniFile) >= 0;
+		ensureMsgf(
+			bFileExistsCached == bFileExistsCachedTest,
+			TEXT("DoesConfigFileExistWrapper: InCache = %d, InFileSystem = %d, Name = %s, Configs = \n%s"),
+			!!bFileExistsCached,
+			!!bFileExistsCachedTest,
+			IniFile,
+			*FString::Join(*IniCacheSet, TEXT("\n"))
+		);
+		*/
+		
+		return bFileExistsCached;
+	}
+
 	// otherwise just look for the normal file to exist
-	return IFileManager::Get().FileSize(IniFile) >= 0;
+	const bool bFileExistsCached = IFileManager::Get().FileSize(IniFile) >= 0;
+	return bFileExistsCached;
 }
 
 /**

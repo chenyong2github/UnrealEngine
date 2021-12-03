@@ -74,6 +74,16 @@ namespace PluginSystemDefs
 
 		return PluginCount;
 	}
+
+	// TODO: This processing happens too early to actually get picked up by ExecCmds,
+	// so it has to be reset in code when A/B testing. May be fine for INI settings though,
+	// otherwise, we might need a command line setting instead?
+	static bool GbCacheIniFilesForProcessing = true;
+	static FAutoConsoleVariableRef CVarCacheIniFilesForProcessing(
+		TEXT("c.CacheIniFilesForProcessing"),
+		GbCacheIniFilesForProcessing,
+		TEXT("When enabled, we'll scrape top level known directories for INI files and use that instead of system calls when processing plugins. Can decrease startup times.")
+	);
 }
 
 FPlugin::FPlugin(const FString& InFileName, const FPluginDescriptor& InDescriptor, EPluginType InType)
@@ -992,10 +1002,28 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				}
 			}
 
+			TSet<FString> AllIniFiles;
+
+			if (PluginSystemDefs::GbCacheIniFilesForProcessing)
+			{
+				SCOPED_BOOT_TIMING("ParallelPluginEnabling::FindIniFiles");
+				TArray<FString> AllIniFilesList;
+				
+				// Using ProjectDir and EngineDir are really broad, but they also cover all plugin config directories individually
+				// and should cover all of the extension directories as well.
+				IFileManager::Get().FindFilesRecursive(AllIniFilesList, *FPaths::EngineDir(), TEXT("*.ini"), /*Files=*/true, /*Directories=*/false, /*bClearFileNames=*/false);
+				IFileManager::Get().FindFilesRecursive(AllIniFilesList, *FPaths::ProjectDir(), TEXT("*.ini"), /*Files=*/true, /*Directories=*/false, /*bClearFileNames=*/false);
+				IFileManager::Get().FindFilesRecursive(AllIniFilesList, *FPaths::ProjectSavedDir(), TEXT("*.ini"), /*Files=*/true, /*Directories=*/false, /*bClearFileNames=*/false);
+
+				AllIniFiles.Append(AllIniFilesList);
+			}
+
+			
 			FCriticalSection ConfigCS;
 			FCriticalSection PluginPakCS;
+			
 			// Mount all the enabled plugins
-			ParallelFor(PluginsArray.Num(), [&PluginsArray, &ConfigCS, &PluginPakCS, this](int32 Index)
+			ParallelFor(PluginsArray.Num(), [&PluginsArray, &ConfigCS, &PluginPakCS, &AllIniFiles, this](int32 Index)
 			{
 				FString PlatformName = FPlatformProperties::PlatformName();
 				FPlugin& Plugin = *PluginsArray[Index];
@@ -1019,9 +1047,18 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				// Build the config system key for PluginName.ini
 				FString PluginConfigFilename = GConfig->GetConfigFilename(*Plugin.Name);
 				{
+					
 					FScopeLock Locker(&ConfigCS);
 
 					FConfigFile& PluginConfig = GConfig->Add(PluginConfigFilename, FConfigFile());
+
+					// We probably *don't* need to set and unset this every time,
+					// but this feels safer in case INI files are added for a plugin and then we try to load it later.
+					// Dynamically added / generated INI files should be irrelevant for the LoadExternalIniFile call.
+					if (PluginSystemDefs::GbCacheIniFilesForProcessing)
+					{
+						FConfigCacheIni::SetIniCacheSet(&AllIniFiles);
+					}	
 
 					// This will write out an ini to PluginConfigFilename
 					if (!FConfigCacheIni::LoadExternalIniFile(PluginConfig, *Plugin.Name, *EngineConfigDir, *SourceConfigDir, true, nullptr, false, true))
@@ -1029,6 +1066,11 @@ bool FPluginManager::ConfigureEnabledPlugins()
 						// Nothing to add, remove from map
 						GConfig->Remove(PluginConfigFilename);
 					}
+
+					if (PluginSystemDefs::GbCacheIniFilesForProcessing)
+					{
+						FConfigCacheIni::SetIniCacheSet(nullptr);
+					}	
 				}
 
 				// override config cache entries with plugin configs (Engine.ini, Game.ini, etc in <PluginDir>\Config\)
