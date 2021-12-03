@@ -6528,8 +6528,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	// GetRayTracingGeometry()->IsInitialized() is checked as a workaround for UE-92634. FSkeletalMeshSceneProxy's resources may have already been released, but proxy has not removed yet)
 	if (MeshObject->GetRayTracingGeometry() && MeshObject->GetRayTracingGeometry()->IsInitialized() && MeshObject->GetSkinCacheEntryForRayTracing())
 	{
-		// #dxr: the only case where RayTracingGeometryRHI is invalid is the very first frame - if that's not the case we have a bug somewhere else
-		if (MeshObject->GetRayTracingGeometry()->RayTracingGeometryRHI.IsValid())
+		checkf(MeshObject->GetRayTracingGeometry()->RayTracingGeometryRHI.IsValid() || bAnySegmentUsesWorldPositionOffset, TEXT("RayTracingGeometryRHI should be valid at this point unless object uses WorldPositionOffset"));
 		{
 			check(MeshObject->GetRayTracingGeometry()->Initializer.IndexBuffer.IsValid());
 			
@@ -6589,6 +6588,8 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 			}
 
+			const uint32 VertexBufferStride = LODData.StaticVertexBuffers.PositionVertexBuffer.GetStride();
+
 			const FVertexFactory* VertexFactory = MeshObject->GetSkinVertexFactory(Context.ReferenceView, LODIndex, 0, ESkinVertexFactoryMode::RayTracing);
 			const FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
 			if (bAnySegmentUsesWorldPositionOffset 
@@ -6605,6 +6606,8 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 					const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
 
 					FRayTracingGeometrySegment Segment;
+					Segment.VertexBufferStride = VertexBufferStride;
+					Segment.MaxVertices = Section.GetNumVertices();
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
 					Segment.bEnabled = !MeshObject->IsMaterialHidden(LODIndex, SectionElementInfo.UseMaterialIndex) && !Section.bDisabled && Section.bVisibleInRayTracing;
