@@ -485,7 +485,8 @@ class FPersistentClusterCull_CS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< uint >, OutDynamicCasterFlags)
 
 		SHADER_PARAMETER(uint32,												MaxNodes)
-		SHADER_PARAMETER(uint32, LargePageRectThreshold)
+		SHADER_PARAMETER(uint32,												LargePageRectThreshold)
+		SHADER_PARAMETER(uint32,												StreamingRequestsBufferVersion)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1412,6 +1413,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		}
 
 		PassParameters->LargePageRectThreshold = CVarLargePageRectThreshold.GetValueOnRenderThread();
+		PassParameters->StreamingRequestsBufferVersion = GStreamingManager.GetStreamingRequestsBufferVersion();
 
 		check(CullingContext.ViewsBuffer);
 

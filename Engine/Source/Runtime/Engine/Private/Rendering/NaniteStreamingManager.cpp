@@ -23,6 +23,13 @@
 #define INVALID_RUNTIME_RESOURCE_ID			0xFFFFFFFFu
 #define INVALID_PAGE_INDEX					0xFFFFFFFFu
 
+#define STREAMING_REQUEST_MAGIC_BITS		8												// Must match define in ClusterCulling.usf
+#define STREAMING_REQUEST_MAGIC_MASK		((1 << STREAMING_REQUEST_MAGIC_BITS) - 1)		// Must match define in ClusterCulling.usf
+
+#define MAX_RUNTIME_RESOURCE_VERSIONS_BITS	8												// Just needs to be large enough to cover maximum number of in-flight versions
+#define MAX_RUNTIME_RESOURCE_VERSIONS_MASK	((1 << MAX_RUNTIME_RESOURCE_VERSIONS_BITS) - 1)	
+
+
 int32 GNaniteStreamingAsync = 1;
 static FAutoConsoleVariableRef CVarNaniteStreamingAsync(
 	TEXT("r.Nanite.Streaming.Async"),
@@ -77,6 +84,8 @@ static FAutoConsoleVariableRef CVarNaniteStreamingMaxPageInstallsPerFrame(
 	ECVF_ReadOnly
 );
 
+static_assert(MAX_GPU_PAGES_BITS + MAX_RUNTIME_RESOURCE_VERSIONS_BITS + STREAMING_REQUEST_MAGIC_BITS <= 32,	"Streaming request member RuntimeResourceID_Magic doesn't fit in 32 bits");
+static_assert(MAX_RESOURCE_PAGES_BITS + MAX_GROUP_PARTS_BITS + STREAMING_REQUEST_MAGIC_BITS <= 32,			"Streaming request member PageIndex_NumPages_Magic doesn't fit in 32 bits");
 
 DECLARE_CYCLE_STAT( TEXT("StreamingManager_Update"),STAT_NaniteStreamingManagerUpdate,	STATGROUP_Nanite );
 
@@ -462,6 +471,7 @@ private:
 };
 
 FStreamingManager::FStreamingManager() :
+	StreamingRequestsBufferVersion(0),
 	MaxStreamingPages(0),
 	MaxPendingPages(0),
 	MaxPageInstallsPerUpdate(0),
@@ -603,7 +613,8 @@ void FStreamingManager::Add( FResources* Resources )
 		// Version root pages so we can disregard invalid streaming requests.
 		// TODO: We only need enough versions to cover the frame delay from the GPU, so most of the version bits can be reclaimed.
 		check(Resources->RootPageIndex < MAX_GPU_PAGES);
-		Resources->RuntimeResourceID = (NextRootPageVersion[Resources->RootPageIndex]++ << MAX_GPU_PAGES_BITS) | Resources->RootPageIndex;
+		Resources->RuntimeResourceID = (NextRootPageVersion[Resources->RootPageIndex] << MAX_GPU_PAGES_BITS) | Resources->RootPageIndex;
+		NextRootPageVersion[Resources->RootPageIndex] = (NextRootPageVersion[Resources->RootPageIndex] + 1) & MAX_RUNTIME_RESOURCE_VERSIONS_MASK;
 		RuntimeResourceMap.Add( Resources->RuntimeResourceID, Resources );
 		
 		PendingAdds.Add( Resources );
@@ -1489,6 +1500,56 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 	}
 }
 
+#if SANITY_CHECK_STREAMING_REQUESTS
+void FStreamingManager::SanityCheckStreamingRequests(const FGPUStreamingRequest* StreamingRequestsPtr, const uint32 NumStreamingRequests)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SanityCheckRequests);
+	uint32 PrevFrameNibble = ~0u;
+	for (uint32 Index = 0; Index < NumStreamingRequests; Index++)
+	{
+		const FGPUStreamingRequest& GPURequest = StreamingRequestsPtr[Index];
+
+		// Validate request magics
+		if ((GPURequest.RuntimeResourceID_Magic & 0xF0) != 0xA0 ||
+			(GPURequest.PageIndex_NumPages_Magic & 0xF0) != 0xB0 ||
+			(GPURequest.Priority_Magic & 0xF0) != 0xC0)
+		{
+			UE_LOG(LogNaniteStreaming, Fatal, TEXT("Validation of Nanite streaming request failed! The magic doesn't match. This likely indicates an issue with the GPU readback."));
+		}
+
+		// Validate that requests are from the same frame
+		const uint32 FrameNibble0 = GPURequest.RuntimeResourceID_Magic & 0xF;
+		const uint32 FrameNibble1 = GPURequest.PageIndex_NumPages_Magic & 0xF;
+		const uint32 FrameNibble2 = GPURequest.Priority_Magic & 0xF;
+		if (FrameNibble0 != FrameNibble1 || FrameNibble0 != FrameNibble2 || FrameNibble1 != FrameNibble2 || (PrevFrameNibble != ~0u && FrameNibble0 != PrevFrameNibble))
+		{
+			UE_LOG(LogNaniteStreaming, Fatal, TEXT("Validation of Nanite streaming request failed! Single readback has data from multiple frames. Is there a race condition on the readback, a missing streaming update or is GPUScene being updated mid-frame?"));
+		}
+		PrevFrameNibble = FrameNibble0;
+
+		FResources** Resources = RuntimeResourceMap.Find(GPURequest.RuntimeResourceID_Magic >> STREAMING_REQUEST_MAGIC_BITS);
+		if (!Resources)
+		{
+			UE_LOG(LogNaniteStreaming, Fatal, TEXT("Validation of Nanite streaming request failed! Request for a resource that no longer exists!"));
+		}
+
+		const uint32 NumPages = (GPURequest.PageIndex_NumPages_Magic >> STREAMING_REQUEST_MAGIC_BITS) & MAX_GROUP_PARTS_MASK;
+		const uint32 PageStartIndex = GPURequest.PageIndex_NumPages_Magic >> (STREAMING_REQUEST_MAGIC_BITS + MAX_GROUP_PARTS_BITS);
+		
+		if (NumPages == 0)
+		{
+			UE_LOG(LogNaniteStreaming, Fatal, TEXT("Validation of Nanite streaming request failed! Request range is empty."));
+		}
+
+		const uint32 MaxPageIndex = PageStartIndex + NumPages - 1;
+		if (MaxPageIndex >= (uint32)(*Resources)->PageStreamingStates.Num())
+		{
+			UE_LOG(LogNaniteStreaming, Fatal, TEXT("Validation of Nanite streaming request failed! Page range out of bounds. Start: %d Num: %d Total: %d"), PageStartIndex, NumPages, (*Resources)->PageStreamingStates.Num());
+		}
+	}
+}
+#endif
+
 void FStreamingManager::AsyncUpdate()
 {
 	LLM_SCOPE_BYTAG(Nanite);
@@ -1526,7 +1587,10 @@ void FStreamingManager::AsyncUpdate()
 	if( NumStreamingRequests > 0 )
 	{
 		// Update priorities
-		FGPUStreamingRequest* StreamingRequestsPtr = ( ( FGPUStreamingRequest* ) BufferPtr + 1 );
+		const FGPUStreamingRequest* StreamingRequestsPtr = ((const FGPUStreamingRequest*)BufferPtr + 1);
+#if SANITY_CHECK_STREAMING_REQUESTS
+		SanityCheckStreamingRequests(StreamingRequestsPtr, NumStreamingRequests);
+#endif
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(DeduplicateRequests);
@@ -1534,12 +1598,12 @@ void FStreamingManager::AsyncUpdate()
 			for( uint32 Index = 0; Index < NumStreamingRequests; Index++ )
 			{
 				const FGPUStreamingRequest& GPURequest = StreamingRequestsPtr[ Index ];
-				uint32 NumPages = GPURequest.PageIndex_NumPages & MAX_GROUP_PARTS_MASK;
-				uint32 PageStartIndex = GPURequest.PageIndex_NumPages >> MAX_GROUP_PARTS_BITS;
+				const uint32 NumPages		= (GPURequest.PageIndex_NumPages_Magic >> STREAMING_REQUEST_MAGIC_BITS) & MAX_GROUP_PARTS_MASK;
+				const uint32 PageStartIndex	= GPURequest.PageIndex_NumPages_Magic >> (STREAMING_REQUEST_MAGIC_BITS + MAX_GROUP_PARTS_BITS);
 					
 				FStreamingRequest Request;
-				Request.Key.RuntimeResourceID = GPURequest.RuntimeResourceID;
-				Request.Priority = GPURequest.Priority;
+				Request.Key.RuntimeResourceID	= (GPURequest.RuntimeResourceID_Magic >> STREAMING_REQUEST_MAGIC_BITS);
+				Request.Priority				= GPURequest.Priority_Magic & ~STREAMING_REQUEST_MAGIC_MASK;
 				for (uint32 i = 0; i < NumPages; i++)
 				{
 					Request.Key.PageIndex = PageStartIndex + i;
@@ -1923,6 +1987,7 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 
 	ReadbackBuffersWriteIndex = ( ReadbackBuffersWriteIndex + 1u ) % MaxStreamingReadbackBuffers;
 	ReadbackBuffersNumPending = FMath::Min( ReadbackBuffersNumPending + 1u, MaxStreamingReadbackBuffers );
+	StreamingRequestsBufferVersion++;
 }
 
 void FStreamingManager::ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef)

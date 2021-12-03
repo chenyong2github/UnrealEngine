@@ -8,6 +8,9 @@
 #include "RenderGraphResources.h"
 #include "RHIGPUReadback.h"
 
+#define SANITY_CHECK_STREAMING_REQUESTS		1		// Performs a number of sanity checks of streaming requests to verify their integrity.
+													// Must match define in ClusterCulling.ush
+
 class IFileCacheHandle;
 
 namespace Nanite
@@ -38,9 +41,9 @@ FORCEINLINE bool operator!=(const FPageKey& A, const FPageKey& B)
 // Before deduplication
 struct FGPUStreamingRequest
 {
-	uint32		RuntimeResourceID;
-	uint32		PageIndex_NumPages;
-	uint32		Priority;
+	uint32		RuntimeResourceID_Magic;
+	uint32		PageIndex_NumPages_Magic;
+	uint32		Priority_Magic;
 };
 
 // After deduplication
@@ -119,12 +122,13 @@ public:
 	ENGINE_API bool IsAsyncUpdateInProgress();
 	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
 
-	const TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()	{ return StreamingRequestsBuffer; }
+	const TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()		{ return StreamingRequestsBuffer; }
+	uint32									GetStreamingRequestsBufferVersion() { return StreamingRequestsBufferVersion; }
 
-	FRHIShaderResourceView*				GetClusterPageDataSRV() const		{ return ClusterPageData.DataBuffer.SRV; }
-	FRHIShaderResourceView*				GetHierarchySRV() const				{ return Hierarchy.DataBuffer.SRV; }
-	FRHIShaderResourceView*				GetRootPagesSRV() const				{ return RootPages.DataBuffer.SRV; }
-	uint32								GetMaxStreamingPages() const		{ return MaxStreamingPages; }
+	FRHIShaderResourceView*				GetClusterPageDataSRV() const			{ return ClusterPageData.DataBuffer.SRV; }
+	FRHIShaderResourceView*				GetHierarchySRV() const					{ return Hierarchy.DataBuffer.SRV; }
+	FRHIShaderResourceView*				GetRootPagesSRV() const					{ return RootPages.DataBuffer.SRV; }
+	uint32								GetMaxStreamingPages() const			{ return MaxStreamingPages; }
 
 	inline bool HasResourceEntries() const
 	{
@@ -155,7 +159,8 @@ private:
 	FHeapBuffer				Hierarchy;
 	FHeapBuffer				RootPages;
 	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
-	
+
+	uint32					StreamingRequestsBufferVersion;
 	uint32					MaxStreamingPages;
 	uint32					MaxPendingPages;
 	uint32					MaxPageInstallsPerUpdate;
@@ -225,6 +230,10 @@ private:
 	void ClearStreamingRequestCount(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAVRef);
 #if DO_CHECK
 	void VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetListLength, bool bCheckUpdateIndex );
+#endif
+
+#if SANITY_CHECK_STREAMING_REQUESTS
+	void SanityCheckStreamingRequests(const FGPUStreamingRequest* StreamingRequestsPtr, const uint32 NumStreamingRequests);
 #endif
 };
 
