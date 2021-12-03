@@ -19,6 +19,7 @@
 #include "ClearQuad.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "DebugProbeRendering.h"
+#include "Nanite/NaniteVisualize.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(
