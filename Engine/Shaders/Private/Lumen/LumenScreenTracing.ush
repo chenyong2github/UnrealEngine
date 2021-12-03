@@ -252,8 +252,7 @@ float3 GetPrevScreenPosition(float2 ScreenPosition, float2 ScreenUV, float Devic
 
 	{
 		float4 ThisClip = float4(HistoryScreenPosition, 1);
-		//float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
-		float4 PrevClip = mul(ThisClip, View.ClipToPrevClipWithAA);
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
 		
 		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
 		float3 Velocity = HistoryScreenPosition - PrevScreen;

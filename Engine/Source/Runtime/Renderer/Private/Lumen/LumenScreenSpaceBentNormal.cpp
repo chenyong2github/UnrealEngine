@@ -20,6 +20,14 @@ FAutoConsoleVariableRef CVarLumenScreenBentNormalSlopeCompareToleranceScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenBentNormalCalculateFastMoving = 0;
+FAutoConsoleVariableRef CVarLumenScreenBentNormalCalculateFastMoving(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal.CalculateFastMoving"),
+	GLumenScreenBentNormalCalculateFastMoving,
+	TEXT("Whether Screen Space Bent Normal hits should lookup velocity to calculate if the pixel hit was fast moving, which can improve the reliability of r.Lumen.ScreenProbeGather.Temporal.MaxFastUpdateModeAmount."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 class FScreenSpaceBentNormalCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenSpaceBentNormalCS)
@@ -28,6 +36,7 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenBentNormal)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, LightingChannelsTexture)
@@ -38,7 +47,8 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FNumPixelRays : SHADER_PERMUTATION_SPARSE_INT("NUM_PIXEL_RAYS", 4, 8, 16);
-	using FPermutationDomain = TShaderPermutationDomain<FNumPixelRays>;
+	class FCalculateFastMoving : SHADER_PERMUTATION_BOOL("CALCULATE_FAST_MOVING");
+	using FPermutationDomain = TShaderPermutationDomain<FNumPixelRays, FCalculateFastMoving>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -64,12 +74,13 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
-	const FMinimalSceneTextures& SceneTextures,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FScreenProbeParameters& ScreenProbeParameters)
 {
 	FScreenSpaceBentNormalParameters OutParameters;
 
+	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(GetSceneTextureExtent(), PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenBentNormal = GraphBuilder.CreateTexture(ScreenBentNormalDesc, TEXT("Lumen.ScreenProbeGather.ScreenBentNormal"));
 
@@ -88,6 +99,13 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 		FScreenSpaceBentNormalCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceBentNormalCS::FParameters>();
 		PassParameters->RWScreenBentNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenBentNormal));
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+		PassParameters->SceneTextures = SceneTextureParameters;
+
+		if (!PassParameters->SceneTextures.GBufferVelocityTexture)
+		{
+			PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+		}
+
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->LightingChannelsTexture = LightingChannelsTexture;
@@ -109,11 +127,12 @@ FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 
 		FScreenSpaceBentNormalCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenSpaceBentNormalCS::FNumPixelRays >(NumPixelRays);
+		PermutationVector.Set< FScreenSpaceBentNormalCS::FCalculateFastMoving >(GLumenScreenBentNormalCalculateFastMoving != 0);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenSpaceBentNormalCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("ScreenSpaceBentNormal"),
+			RDG_EVENT_NAME("ScreenSpaceBentNormal Rays=%u", NumPixelRays),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenSpaceBentNormalCS::GetGroupSize()));

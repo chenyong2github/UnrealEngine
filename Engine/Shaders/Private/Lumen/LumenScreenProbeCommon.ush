@@ -175,16 +175,23 @@ float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
 	return WorldPosition;
 }
 
-float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ, out float3 ScreenVelocity)
+float3 GetTranslatedWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
+{
+	float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+	return TranslatedWorldPosition;
+}
+
+// This version ignores TAA jitter, use when sampling a history texture
+float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)
 {
 	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
 	bool bIsDynamicPixel = false;
 
 	{
 		float4 ThisClip = float4(HistoryScreenPosition, 1);
-		//float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
-		float4 PrevClip = mul(ThisClip, View.ClipToPrevClipWithAA);
-		
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
+
 		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
 		float3 Velocity = HistoryScreenPosition - PrevScreen;
 		float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
@@ -196,17 +203,18 @@ float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float De
 			Velocity = DecodeVelocityFromTexture(EncodedVelocity);
 		}
 
-		ScreenVelocity = Velocity;
 		HistoryScreenPosition -= Velocity;
 	}
 
 	return HistoryScreenPosition;
 }
 
-float3 GetHistoryScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)
+// This version accounts for TAA jitter, use when comparing positions like calculating world space velocity
+float3 GetHistoryScreenPositionIncludingTAAJitter(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)
 {
-	float3 ScreenVelocity;
-	return GetHistoryScreenPosition(ScreenPosition, ScreenUV, DeviceZ, ScreenVelocity);
+	float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition - View.TemporalAAJitter.xy, ScreenUV, DeviceZ);
+	HistoryScreenPosition.xy += View.TemporalAAJitter.zw;
+	return HistoryScreenPosition;
 }
 
 float3 GetPrevTranslatedWorldPosition(float3 HistoryScreenPosition)

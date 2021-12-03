@@ -7,6 +7,7 @@
 #include "../MonteCarlo.ush"
 #include "../ShadingModelsSampling.ush"
 #include "../SceneTextureParameters.ush"
+#include "LumenScreenTracing.ush"
 
 #define IS_SSGI_SHADER 1
 #include "../SSRT/SSRTRayCast.ush"
@@ -16,7 +17,7 @@
 #endif
 
 
-RWTexture2D<UNORM float3> RWScreenBentNormal;
+RWTexture2D<UNORM float4> RWScreenBentNormal;
 float SlopeCompareToleranceScale;
 
 Texture2D FurthestHZBTexture;
@@ -33,17 +34,18 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
 	{
-		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
 		uint2 Seed0 = Rand3DPCG16(int3(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX)).xy;
 		float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
 		float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
 		float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
-
+		float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 		uint NumPixelSamples = NUM_PIXEL_RAYS;
 
 		float3 UnoccludedSum = 0;
 		float3 BentNormal = 0;
+		float HitFastMovingSum = 0;
 
 		UNROLL
 		for (uint PixelRayIndex = 0; PixelRayIndex < NumPixelSamples; PixelRayIndex++)
@@ -74,7 +76,7 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				bool bRayWasClipped;
 
 				FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(
-					WorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), RayDirection,
+					TranslatedWorldPosition + LWCHackToFloat(PrimaryView.PreViewTranslation), RayDirection,
 					/* WorldTMax = */ TraceDistance,
 					/* SceneDepth = */ SceneDepth,
 					/* SlopeCompareToleranceScale */ SlopeCompareToleranceScale * DepthThresholdScale,
@@ -97,6 +99,29 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 					/* out */ bUncertain);
 
 				DirectionVisible = bHit && !bUncertain ? 0.0f : 1.0f;
+
+#if CALCULATE_FAST_MOVING
+				if (bHit && !bUncertain)
+				{
+					float2 HitScreenUV = HitUVz.xy;
+					float HitDeviceZ = SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, HitScreenUV, 0).r;
+					float HitSceneDepth = ConvertFromDeviceZ(HitDeviceZ);
+					float2 HitScreenPosition = (HitUVz.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+					float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+
+					float3 HitHistoryScreenPosition = GetHistoryScreenPositionIncludingTAAJitter(HitScreenPosition, HitScreenUV, HitDeviceZ);
+					float3 HitWorldVelocity = HitTranslatedWorldPosition - GetTranslatedPrevWorldPosition(HitHistoryScreenPosition);
+
+					float RelativeSpeedDifferenceToConsiderLightingMoving = .005f;
+					//float HitFastMoving = abs(length(SourceWorldVelocity) - length(HitWorldVelocity)) / max(HitSceneDepth, 100.0f) > RelativeSpeedDifferenceToConsiderLightingMoving ? 1 : 0;
+					float HitFastMoving =  length(HitWorldVelocity) / max(HitSceneDepth, 10.0f) > RelativeSpeedDifferenceToConsiderLightingMoving ? 1 : 0;
+
+					if (length(ScreenPosition - HitScreenPosition) > .01f && (SceneDepth - HitSceneDepth) < .05f * max(SceneDepth, .00001f))
+					{
+						HitFastMovingSum += HitFastMoving;
+					}
+				}
+#endif
 			}
 			#endif
 
@@ -114,6 +139,8 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// Debug passthrough
 		//BentNormal = GBufferData.WorldNormal;
 
-		RWScreenBentNormal[DispatchThreadId.xy] = BentNormal * .5f + .5f;
+		float HitFastMoving = HitFastMovingSum / (float)NumPixelSamples;
+
+		RWScreenBentNormal[DispatchThreadId.xy] = float4(BentNormal * .5f + .5f, HitFastMoving);
 	}
 }

@@ -286,6 +286,7 @@ void ScreenProbeTraceScreenTexturesCS(
 						{
 							float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
 							float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+							//Note: this will be affected by TAA jitter, should use GetHistoryScreenPositionIncludingTAAJitter instead but costs too much
 							float3 HitWorldVelocity = HitTranslatedWorldPosition - GetTranslatedPrevWorldPosition(HitHistoryScreenPosition);
 
 							bFastMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation), HitWorldVelocity);
@@ -610,6 +611,11 @@ void TraceVoxels(
 					TraceResult.Transparency *= DistantTraceResult.Transparency;
 				}
 #endif
+				if (TraceResult.Transparency > .5f)
+				{
+					TraceHitDistance = MaxTraceDistance;
+				}
+
 				EvaluateSkyRadianceForCone(WorldConeDirection, tan(ConeHalfAngle), TraceResult);
 
 				if (TraceHitDistance >= GetProbeMaxHitDistance())

@@ -40,7 +40,7 @@ void RemapClearCoatDiffuseAndSpecularColor(FGBufferData GBuffer, float NoV, inou
 		DiffuseColor = BaseColor - BaseColor * GBuffer.Metallic;
 
 		float Specular = lerp(GBuffer.Specular, RefractionScale, ClearCoat);
-		SpecularColor = ComputeF0(Specular, BaseColor, GBuffer.Metallic);
+		SpecularColor = ComputeF0(Specular, BaseColor, GBuffer.Metallic) * View.SpecularOverrideParameter.w + View.SpecularOverrideParameter.xyz;
 	}
 }
 

@@ -94,7 +94,7 @@ void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, 
 		float2 ProbeScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
 		float ProbeDeviceZ = ConvertToDeviceZ(ProbeGBuffer.SceneDepth);
-		float3 ProbeHistoryScreenPosition = GetHistoryScreenPosition(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
+		float3 ProbeHistoryScreenPosition = GetHistoryScreenPositionIncludingTAAJitter(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
 
 		ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeGBuffer.SceneDepth, ProbeGBuffer.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetTranslatedPrevWorldPosition(ProbeHistoryScreenPosition);
@@ -824,39 +824,36 @@ float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 S
 
 void DebugVisualizeScreenProbePlacement(uint2 SVPosition, inout float3 DiffuseIndirectOutput)
 {
-	#define DEBUG_VISUALIZE_SCREEN_PROBE_PLACEMENT 0
-	#if DEBUG_VISUALIZE_SCREEN_PROBE_PLACEMENT
-		uint2 ScreenTileCoord = GetScreenTileCoord(SVPosition);
-		uint2 UniformScreenProbeScreenPosition = GetUniformScreenProbeScreenPosition(ScreenTileCoord);
+	uint2 ScreenTileCoord = GetScreenTileCoord(SVPosition);
+	uint2 UniformScreenProbeScreenPosition = GetUniformScreenProbeScreenPosition(ScreenTileCoord);
 
-		if (all(UniformScreenProbeScreenPosition == SVPosition) && GetScreenProbeDepth(ScreenTileCoord) >= 0)
+	if (all(UniformScreenProbeScreenPosition == SVPosition) && GetScreenProbeDepth(ScreenTileCoord) >= 0)
+	{
+		DiffuseIndirectOutput = float3(200, 0, 200);
+	}
+
+	uint NumAdaptiveProbes = ScreenTileAdaptiveProbeHeader[ScreenTileCoord];
+
+	for (uint AdaptiveProbeListIndex = 0; AdaptiveProbeListIndex < NumAdaptiveProbes; AdaptiveProbeListIndex++)
+	{
+		uint2 AdaptiveProbeCoord = GetAdaptiveProbeCoord(ScreenTileCoord, AdaptiveProbeListIndex);
+		uint AdaptiveProbeIndex = ScreenTileAdaptiveProbeIndices[AdaptiveProbeCoord];
+		uint ScreenProbeIndex = AdaptiveProbeIndex + NumUniformScreenProbes;
+
+		uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+
+		if (all(ScreenProbeScreenPosition == SVPosition))
 		{
 			DiffuseIndirectOutput = float3(200, 0, 200);
 		}
+	}
 
-		uint NumAdaptiveProbes = ScreenTileAdaptiveProbeHeader[ScreenTileCoord];
-
-		for (uint AdaptiveProbeListIndex = 0; AdaptiveProbeListIndex < NumAdaptiveProbes; AdaptiveProbeListIndex++)
-		{
-			uint2 AdaptiveProbeCoord = GetAdaptiveProbeCoord(ScreenTileCoord, AdaptiveProbeListIndex);
-			uint AdaptiveProbeIndex = ScreenTileAdaptiveProbeIndices[AdaptiveProbeCoord];
-			uint ScreenProbeIndex = AdaptiveProbeIndex + NumUniformScreenProbes;
-
-			uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
-
-			if (all(ScreenProbeScreenPosition == SVPosition))
-			{
-				DiffuseIndirectOutput = float3(200, 0, 200);
-			}
-		}
-
-		//DiffuseIndirectOutput = NumAdaptiveProbes / 10.0f;
-	#endif
+	//DiffuseIndirectOutput = NumAdaptiveProbes / 10.0f;
 }
 
 float FullResolutionJitterWidth;
 uint UseScreenBentNormal;
-Texture2D<float3> ScreenBentNormal;
+Texture2D<float4> ScreenBentNormal;
 
 FBxDFSample SampleBxDFWrapper(const uint TermMask, FGBufferData GBuffer, float3 V, float4 E)
 {
@@ -1149,6 +1146,12 @@ void ScreenProbeIntegrateCS(
 				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[2]) * InterpolationWeights.z
 				+ GetScreenProbeMoving(ScreenProbeAtlasCoord[3]) * InterpolationWeights.w;
 
+			if (UseScreenBentNormal > 0)
+			{
+				float IsFastMovingFromScreenBentNormal = ScreenBentNormal[DispatchThreadId.xy].w;
+				LightingIsMoving = saturate(max(IsFastMovingFromScreenBentNormal * 10, LightingIsMoving));
+			}
+
 			float EncodedAlpha = (bLightingIsValid ? 1.0f : -1.0f) * max(LightingIsMoving, .001f);
 
 			float3 DiffuseIndirectOutput = DiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1));
@@ -1163,7 +1166,10 @@ void ScreenProbeIntegrateCS(
 				DiffuseIndirectOutput = abs(InterpolatedWorldSpeed) / 2.0f;
 			#endif
 
-			DebugVisualizeScreenProbePlacement(DispatchThreadId, DiffuseIndirectOutput);
+			#define DEBUG_VISUALIZE_SCREEN_PROBE_PLACEMENT 0
+			#if DEBUG_VISUALIZE_SCREEN_PROBE_PLACEMENT
+				DebugVisualizeScreenProbePlacement(DispatchThreadId, DiffuseIndirectOutput);
+			#endif
 
 			#define DEBUG_VISUALIZE_INVALID_UPSAMPLE 0
 			#if DEBUG_VISUALIZE_INVALID_UPSAMPLE
@@ -1200,6 +1206,9 @@ void ScreenProbeIntegrateCS(
 
 			if ((DiffuseLerp < 1.0f && GBufferData.Roughness >= MinRoughnessForProbeImportanceSampling) || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 			{
+				// Prevent low roughness values that we can't support through screen probes with acceptable quality, eg clearcoat with bottom layer roughness 0
+				GBufferData.Roughness = max(GBufferData.Roughness, MaxRoughnessToTrace);
+				// For clear coat materials, screen probes are always providing the bottom layer reflections
 				GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
 
 				//@todo - derive mip from cone angle from roughness
@@ -1256,6 +1265,7 @@ void ScreenProbeIntegrateCS(
 RWTexture2D<float3> RWNewHistoryDiffuseIndirect;
 RWTexture2D<float3> RWNewHistoryRoughSpecularIndirect;
 RWTexture2D<UNORM float> RWNumHistoryFramesAccumulated;
+RWTexture2D<UNORM float> RWNewHistoryFastUpdateMode;
 
 Texture2D DiffuseIndirect;
 Texture2D RoughSpecularIndirect;
@@ -1263,6 +1273,7 @@ Texture2D DiffuseIndirectHistory;
 Texture2D RoughSpecularIndirectHistory;
 Texture2D DiffuseIndirectDepthHistory;
 Texture2D HistoryNumFramesAccumulated;
+Texture2D FastUpdateModeHistory;
 
 float HistoryDistanceThreshold;
 
@@ -1317,6 +1328,34 @@ float3 GetFilteredNeighborhoodLighting(
 
 	bLightingIsValid = TotalWeight > 0;
 	return FilteredLighting /= max(TotalWeight, 1.0f);
+}
+
+float3 ClampHistory(
+	Texture2D LightingTexture,
+	uint2 ScreenCoord, 
+	uint2 MinScreenCoord, 
+	uint2 MaxScreenCoord,
+	float3 NewLighting,
+	float3 HistoryLighting)
+{
+	float3 NeighborMin = NewLighting;
+	float3 NeighborMax = NewLighting;
+
+	UNROLL
+	for (uint NeighborId = 0; NeighborId < 8; NeighborId++)
+	{
+		int2 SampleOffset = kOffsets3x3[NeighborId];
+
+		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
+		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
+
+		float3 Lighting = LightingTexture[NeighborScreenCoord].xyz;
+		NeighborMin = min(NeighborMin, Lighting.xyz);
+		NeighborMax = max(NeighborMax, Lighting.xyz);
+	}
+
+	HistoryLighting = clamp(HistoryLighting, NeighborMin, NeighborMax);
+	return HistoryLighting;
 }
 
 struct Bilinear
@@ -1483,6 +1522,13 @@ void ScreenProbeTemporalReprojectionCS(
 	float FastUpdateModeAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFastUpdateMode);
 	FastUpdateModeAmount = saturate(min((FastUpdateModeAmount - .2f) / .8f, MaxFastUpdateModeAmount));
 
+	{
+		RWNewHistoryFastUpdateMode[DispatchThreadId] = FastUpdateModeAmount;
+		float FastUpdateModeHistoryValue = WeightedAverage(FastUpdateModeHistory.GatherRed(GlobalPointClampedSampler, HistoryGatherUV).wzxy, FinalWeights);
+		// Stabilizes the calculated value, and speeds up lighting change propagation around where the moving object was last frame
+		FastUpdateModeAmount = max(FastUpdateModeAmount, FastUpdateModeHistoryValue);
+	}
+	
 	float NewNumFramesAccumulated = NumFramesAccumulated;
 	NewNumFramesAccumulated = min(NewNumFramesAccumulated, (1.0f - FastUpdateModeAmount) * MaxFramesAccumulated);
 	NewNumFramesAccumulated = bHistoryWasOnscreen ? NewNumFramesAccumulated : 0;
@@ -1494,10 +1540,20 @@ void ScreenProbeTemporalReprojectionCS(
 	}
 #endif
 
+	float3 NewRoughSpecularLighting = RoughSpecularIndirect[DispatchThreadId].xyz;
+
+#if FAST_UPDATE_MODE_NEIGHBORHOOD_CLAMP
+	if (FastUpdateModeAmount > 0.0f)
+	{
+		uint2 MinScreenCoord = uint2(0, 0);
+		uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
+		HistoryDiffuseIndirect = ClampHistory(DiffuseIndirect, DispatchThreadId, MinScreenCoord, MaxScreenCoord, NewDiffuseLighting.xyz, HistoryDiffuseIndirect);
+		HistoryRoughSpecularIndirect = ClampHistory(RoughSpecularIndirect, DispatchThreadId, MinScreenCoord, MaxScreenCoord, NewRoughSpecularLighting, HistoryRoughSpecularIndirect);
+	}
+#endif
+
 	float Alpha = 1.0f / (1.0f + NewNumFramesAccumulated);
 	float3 OutDiffuseIndirect = lerp(HistoryDiffuseIndirect, NewDiffuseLighting.xyz, Alpha);
-
-	float3 NewRoughSpecularLighting = RoughSpecularIndirect[DispatchThreadId].xyz;
 	float3 OutRoughSpecularIndirect = lerp(HistoryRoughSpecularIndirect, NewRoughSpecularLighting, Alpha);
 
 	// Debug visualizations
