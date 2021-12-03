@@ -278,7 +278,7 @@ bool Lumen::IsSurfaceCacheFrozen()
 
 bool Lumen::IsSurfaceCacheUpdateFrameFrozen()
 {
-	return GLumenSurfaceCacheFreezeUpdateFrame != 0;
+	return GLumenSurfaceCacheFreeze != 0 || GLumenSurfaceCacheFreezeUpdateFrame != 0;
 }
 
 namespace Lumen
@@ -1476,6 +1476,7 @@ void ProcessLumenSurfaceCacheRequests(
 	}
 
 	// Evict pages which weren't used recently
+	if (!Lumen::IsSurfaceCacheFrozen())
 	{
 		uint32 MaxFramesSinceLastUsed = FMath::Max(GSurfaceCacheNumFramesToKeepUnusedPages, 0);
 		while (LumenSceneData.EvictOldestAllocation(MaxFramesSinceLastUsed, DirtyCards))

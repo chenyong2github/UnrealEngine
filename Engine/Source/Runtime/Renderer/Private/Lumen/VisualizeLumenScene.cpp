@@ -81,7 +81,11 @@ FAutoConsoleVariableRef CVarLumenVisualizeMode(
 	TEXT("7 - Direct lighting\n")
 	TEXT("8 - Indirect lighting\n")
 	TEXT("9 - Local Position (hardware ray-tracing only)\n")
-	TEXT("10 - Velocity (hardware ray-tracing only)"),
+	TEXT("10 - Velocity (hardware ray-tracing only)\n")
+	TEXT("11 - Direct lighting updates\n")
+	TEXT("12 - Indirect lighting updates")
+	TEXT("13 - Last used pages\n")
+	TEXT("14 - Last used high res pages"),
 	ECVF_RenderThreadSafe
 );
 
@@ -293,18 +297,12 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 
 	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("TRACE_CARDS");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
-	class FSurfaceCacheFeedback : SHADER_PERMUTATION_BOOL("SURFACE_CACHE_FEEDBACK");
 
-	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDFs, FRadianceCache, FSurfaceCacheFeedback>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDFs, FRadianceCache>;
 
 public:
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		if (!PermutationVector.Get<FTraceMeshSDFs>())
-		{
-			PermutationVector.Set<FSurfaceCacheFeedback>(false);
-		}
-
 		return PermutationVector;
 	}
 
@@ -569,7 +567,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 			FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
 			FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColor));
 
-			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, /*bSurfaceCachaFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
+			FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, /*bSurfaceCacheFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 
 			/* Texture Level-of-Detail Strategies for Real-Time Ray Tracing https://developer.nvidia.com/raytracinggems Equation 20 */
 			const float RadFOV = (PI / 180.0f) * View.FOV;
@@ -665,7 +663,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 					FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 					PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 					PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
-					PermutationVector.Set<FVisualizeLumenSceneCS::FSurfaceCacheFeedback>(TracingInputs.SurfaceCacheFeedbackBufferUAV != nullptr && GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 					PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
 					auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);

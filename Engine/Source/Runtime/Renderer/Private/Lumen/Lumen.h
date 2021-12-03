@@ -85,6 +85,13 @@ namespace Lumen
 	EHardwareRayTracingLightingMode GetRadianceCacheHardwareRayTracingLightingMode();
 	EHardwareRayTracingLightingMode GetVisualizeHardwareRayTracingLightingMode();
 
+	enum class ESurfaceCacheSampling
+	{
+		AlwaysResidentPagesWithoutFeedback,
+		AlwaysResidentPages,
+		HighResPages,
+	};
+
 	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode);
 	const TCHAR* GetRayTracedNormalModeName(int NormalMode);
 	float GetHardwareRayTracingPullbackBias();

@@ -47,23 +47,32 @@ Texture2D DepthAtlas;
 	#define VISUALIZE_MODE_INDIRECT_LIGHTING 8
 	#define VISUALIZE_MODE_LOCAL_POSITION 9
 	#define VISUALIZE_MODE_VELOCITY 10
+	#define VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES 11
+	#define VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES 12
+	#define VISUALIZE_MODE_LAST_USED_PAGE 13
+	#define VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES 14
 
 	uint VisualizeMode;
 #endif
 
+uint SurfaceCacheUpdateFrameIndex;
+
 #if SURFACE_CACHE_FEEDBACK
+	uint SurfaceCacheFeedbackBufferSize;
+	RWStructuredBuffer<uint> RWCardPageLastUsedBuffer;
+	RWStructuredBuffer<uint> RWCardPageHighResLastUsedBuffer;
+
 	RWStructuredBuffer<uint> RWSurfaceCacheFeedbackBufferAllocator;
 	RWStructuredBuffer<uint2> RWSurfaceCacheFeedbackBuffer;
-	uint SurfaceCacheFeedbackBufferSize;
 	uint SurfaceCacheFeedbackBufferTileWrapMask;
 	uint2 SurfaceCacheFeedbackBufferTileJitter;
 	float SurfaceCacheFeedbackResLevelBias;
 #endif
 
-
 struct FLumenCardSample
 {
 	uint CardIndex;
+	uint CardPageIndex;
 	float2 PhysicalAtlasUV;
 	float2 IndirectLightingPhysicalAtlasUV;
 	uint2 PackedFeedback;
@@ -107,15 +116,17 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 	uint LinearPageCoord = PageCoord.x + PageCoord.y * SizeInPages.x;
 
 	const uint PageTableIndex = PageTableOffset + LinearPageCoord;
-	const uint PageTableValue = LumenCardScene.PageTableBuffer.Load(4 * PageTableIndex);
+	const uint2 PageTableValue = LumenCardScene.PageTableBuffer.Load2(8 * PageTableIndex);
 
 	uint2 AtlasBias;
-	AtlasBias.x = ((PageTableValue >> 0) & 0xFFF) * MIN_CARD_RESOLUTION;
-	AtlasBias.y = ((PageTableValue >> 12) & 0xFFF) * MIN_CARD_RESOLUTION;
+	AtlasBias.x = ((PageTableValue.x >> 0) & 0xFFF) * MIN_CARD_RESOLUTION;
+	AtlasBias.y = ((PageTableValue.x >> 12) & 0xFFF) * MIN_CARD_RESOLUTION;
 
 	uint2 ResLevelXY;
-	ResLevelXY.x = (PageTableValue >> 24) & 0xF;
-	ResLevelXY.y = (PageTableValue >> 28) & 0xF;
+	ResLevelXY.x = (PageTableValue.x >> 24) & 0xF;
+	ResLevelXY.y = (PageTableValue.x >> 28) & 0xF;
+
+	const uint CardPageIndex = PageTableValue.y;
 
 	// Recompute new SizeInPages, as page may be pointing to an another mip map level
 	SizeInPages = ResLevelXYToSizeInPages(ResLevelXY);
@@ -131,7 +142,7 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 
 	// Compute packed feedback buffer value
 	uint2 PackedFeedback = 0;
-	#if SURFACE_CACHE_FEEDBACK
+	#if SURFACE_CACHE_FEEDBACK && SURFACE_CACHE_HIGH_RES_PAGES
 	{
 		// Compute optimal res level, based on the cone width (SampleRadius)
 		float SampleResolution = max(Card.LocalExtent.x, Card.LocalExtent.y) / max(SampleRadius, 1.0f);
@@ -147,6 +158,7 @@ FLumenCardSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, 
 
 	FLumenCardSample CardSample;
 	CardSample.CardIndex = CardIndex;
+	CardSample.CardPageIndex = CardPageIndex;
 	CardSample.PhysicalAtlasUV = PhysicalAtlasUV;
 	CardSample.IndirectLightingPhysicalAtlasUV = IndirectLightingPhysicalAtlasUV;
 	CardSample.bValid = ResLevelXY.x > 0;
@@ -190,6 +202,7 @@ void InitCardSampleAccumulator(uint2 ScreenCoord, inout FCardSampleAccumulator C
 	CardSampleAccumulator.SampleWeightSum = 0.0f;
 
 	CardSampleAccumulator.CardSample.CardIndex = 0;
+	CardSampleAccumulator.CardSample.CardPageIndex = 0;
 	CardSampleAccumulator.CardSample.PackedFeedback = uint2(0, 0);
 	CardSampleAccumulator.CardSample.PhysicalAtlasUV = float2(0.0f, 0.0f);
 	CardSampleAccumulator.CardSample.IndirectLightingPhysicalAtlasUV = float2(0.0f, 0.0f);
@@ -260,6 +273,42 @@ FSurfaceCacheSample SampleSurfaceCache(FLumenCardSample CardSample, uint AtlasId
 				RandomColor.y = ((CardSample.CardIndex / 4) % 4) / 3.0f;
 				RandomColor.z = saturate(1.0f - RandomColor.x - RandomColor.y);
 				SurfaceCacheSample.Lighting = RandomColor * View.OneOverPreExposure;
+			}
+			else if (VisualizeMode == VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES || VisualizeMode == VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES || VisualizeMode == VISUALIZE_MODE_LAST_USED_PAGE || VisualizeMode == VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES)
+			{
+				FLumenCardPageData LumenCardPage = GetLumenCardPageData(CardSample.CardPageIndex);
+
+				uint LastUpdateFrameIndex = 0;
+				float VisScale = 8.0f;
+				if (VisualizeMode == VISUALIZE_MODE_DIRECT_LIGHTING_UPDATES)
+				{
+					LastUpdateFrameIndex = LumenCardPage.LastDirectLightingUpdateFrameIndex;
+				}
+				else if (VisualizeMode == VISUALIZE_MODE_INDIRECT_LIGHTING_UPDATES)
+				{
+					LastUpdateFrameIndex = LumenCardPage.LastIndirectLightingUpdateFrameIndex;
+					VisScale = 32.0f;
+				}
+				else if (VisualizeMode == VISUALIZE_MODE_LAST_USED_PAGE)
+				{
+					#if SURFACE_CACHE_FEEDBACK
+						LastUpdateFrameIndex = RWCardPageLastUsedBuffer[CardSample.CardPageIndex];
+					#endif
+				}
+				else if (VisualizeMode == VISUALIZE_MODE_LAST_USED_PAGE_HIGH_RES)
+				{
+					#if SURFACE_CACHE_FEEDBACK
+						LastUpdateFrameIndex = RWCardPageHighResLastUsedBuffer[CardSample.CardPageIndex];
+					#endif
+				}
+
+				uint FramesSinceLastUpdated = SurfaceCacheUpdateFrameIndex - LastUpdateFrameIndex;
+				float3 VisColor = lerp(float3(1, 0, 0), float3(0, 0, 1), saturate(FramesSinceLastUpdated / VisScale));
+				if (FramesSinceLastUpdated < 1)
+				{
+					VisColor = float3(1, 1, 1);
+				}
+				SurfaceCacheSample.Lighting = VisColor * View.OneOverPreExposure;
 			}
 		}
 #endif
@@ -456,13 +505,23 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIn
 				&& SurfaceCacheFeedbackBufferSize > 0
 				&& CardSampleAccumulator.SampleWeightSum > 0.1f)
 			{
-				uint WriteOffset = 0;
-				InterlockedAdd(RWSurfaceCacheFeedbackBufferAllocator[0], 1, WriteOffset);
-
-				if (WriteOffset < SurfaceCacheFeedbackBufferSize)
+				#if SURFACE_CACHE_HIGH_RES_PAGES
 				{
-					RWSurfaceCacheFeedbackBuffer[WriteOffset] = CardSampleAccumulator.CardSample.PackedFeedback;
+					uint WriteOffset = 0;
+					InterlockedAdd(RWSurfaceCacheFeedbackBufferAllocator[0], 1, WriteOffset);
+
+					if (WriteOffset < SurfaceCacheFeedbackBufferSize)
+					{
+						RWSurfaceCacheFeedbackBuffer[WriteOffset] = CardSampleAccumulator.CardSample.PackedFeedback;
+					}
+
+					RWCardPageHighResLastUsedBuffer[CardSampleAccumulator.CardSample.CardPageIndex] = SurfaceCacheUpdateFrameIndex;
 				}
+				#else
+				{
+					RWCardPageLastUsedBuffer[CardSampleAccumulator.CardSample.CardPageIndex] = SurfaceCacheUpdateFrameIndex;
+				}
+				#endif
 			}
 		}
 		#endif

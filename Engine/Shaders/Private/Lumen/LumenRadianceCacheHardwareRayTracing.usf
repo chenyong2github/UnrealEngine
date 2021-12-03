@@ -26,7 +26,7 @@ struct FTraceTileResultPacked
 	uint PackedData[2];
 };
 
-FTraceTileResult CreateTraceTileResult(float3 Radiance, float3 HitDistance)
+FTraceTileResult CreateTraceTileResult(float3 Radiance, float HitDistance)
 {
 	FTraceTileResult TraceTileResult;
 	TraceTileResult.Radiance = Radiance;
