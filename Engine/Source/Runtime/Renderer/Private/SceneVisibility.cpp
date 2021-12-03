@@ -3468,7 +3468,11 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		}
 	}
 
-	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
+	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSkinCache::Transitions"), [this](FRHICommandList& InRHICmdList)
+	{
+		RunGPUSkinCacheTransition(InRHICmdList, Scene, EGPUSkinCacheTransition::FrameSetup);
+	});
+
 
 	if (Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{

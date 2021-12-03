@@ -689,7 +689,10 @@ void FHairCardsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 		HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[0], ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
 		HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[1], ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
 	}
-	HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedNormalBuffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
+
+	FRDGImportedBuffer CardsDeformedNormalRDGBuffer = Register(GraphBuilder, DeformedNormalBuffer, ERDGImportedBufferFlags::CreateSRV);
+	HairTransition::TransitToSRV(GraphBuilder, CardsDeformedNormalRDGBuffer.SRV, ERDGPassFlags::Raster);
+	GraphBuilder.SetBufferAccessFinal(CardsDeformedNormalRDGBuffer.Buffer, ERHIAccess::SRVGraphics);
 }
 
 void FHairCardsDeformedResource::InternalRelease()

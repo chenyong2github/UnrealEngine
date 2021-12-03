@@ -1162,6 +1162,7 @@ static void AddHairCardsDeformationPass(
 	HairTransition::TransitToSRV(GraphBuilder, CardsDeformedPositionBuffer_Curr.SRV, ERDGPassFlags::Raster);
 	HairTransition::TransitToSRV(GraphBuilder, CardsDeformedPositionBuffer_Prev.SRV, ERDGPassFlags::Raster);
 	HairTransition::TransitToSRV(GraphBuilder, CardsDeformedNormalBuffer.SRV, ERDGPassFlags::Raster);
+	GraphBuilder.SetBufferAccessFinal(CardsDeformedNormalBuffer.Buffer, ERHIAccess::SRVGraphics);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
