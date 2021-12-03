@@ -1521,23 +1521,23 @@ bool FNiagaraWorldManager::GetScalabilityState(UNiagaraComponent* Component, FNi
 	return false;
 }
 
-void FNiagaraWorldManager::RefreshSystemScalabilitySettingsForAllWorlds(UNiagaraSystem* System)
+void FNiagaraWorldManager::InvalidateCachedSystemScalabilityDataForAllWorlds()
 {
 	for (auto& Pair : WorldManagers)
 	{
 		if (Pair.Value)
 		{
-			Pair.Value->RefreshSystemScalabilitySettings(System);
+			Pair.Value->InvalidateCachedSystemScalabilityData();
 		}
 	}
 }
 
-void FNiagaraWorldManager::RefreshSystemScalabilitySettings(UNiagaraSystem* System)
+void FNiagaraWorldManager::InvalidateCachedSystemScalabilityData()
 {
 	for (auto& Pair : ScalabilityManagers)
 	{
 		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
-		ScalabilityMan.RefreshSystemScalabilitySettings(System);
+		ScalabilityMan.InvalidateCachedSystemData();
 	}
 }
 

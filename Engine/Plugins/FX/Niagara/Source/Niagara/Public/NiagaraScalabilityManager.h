@@ -87,7 +87,7 @@ struct FNiagaraScalabilityManager
 	void OnSystemPostChange(UNiagaraSystem* System);
 #endif//WITH_EDITOR
 
-	void RefreshSystemScalabilitySettings(UNiagaraSystem* System);
+	void InvalidateCachedSystemData();
 
 private: 
 	void UnregisterAt(int32 IndexToRemove);
@@ -101,4 +101,6 @@ private:
 	FNiagaraScalabilitySystemData& GetSystemData(int32 ComponentIndex, bool bForceRefresh=false);
 
 	FComponentIterationContext DefaultContext;
+
+	bool bRefreshCachedSystemData;
 };
