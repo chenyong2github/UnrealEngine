@@ -605,7 +605,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		const bool bLocalExposureBlurredLum = bLocalExposureEnabled && View.FinalPostProcessSettings.LocalExposureBlurredLuminanceBlend > 0.0f;
 
 		const bool bProcessQuarterResolution = IsPostProcessingQuarterResolutionDownsampleEnabled();
-		const bool bMotionBlurNeedsHalfResInput = PassSequence.IsEnabled(EPass::MotionBlur) && DoesMotionBlurNeedsHalfResInput();
+		const bool bMotionBlurNeedsHalfResInput = PassSequence.IsEnabled(EPass::MotionBlur) && DoesMotionBlurNeedsHalfResInput() && !bVisualizeMotionBlur;
 
 		const bool bIsFullResFFT = bFFTBloomEnabled && IsFFTBloomFullResolutionEnabled();
 		const bool bIsHalfResFFT = bFFTBloomEnabled && !IsFFTBloomFullResolutionEnabled() && !IsFFTBloomQuarterResolutionEnabled();
@@ -675,12 +675,9 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 		}
 
-		// Scene color view rectangle after temporal AA upscale to secondary screen percentage.
-		FIntRect SecondaryViewRect = PrimaryViewRect;
-
 		FScreenPassTexture HalfResSceneColor;
 		FScreenPassTexture QuarterResSceneColor;
-
+		FVelocityFlattenTextures VelocityFlattenTextures;
 		if (TAAConfig != EMainTAAPassConfig::Disabled)
 		{
 			// Whether we allow the temporal AA pass to downsample scene color. It may choose not to based on internal context,
@@ -711,20 +708,21 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 			UpscalerPassInputs.bAllowDownsampleSceneColor = bAllowSceneDownsample;
 			UpscalerPassInputs.bGenerateOutputMip1 = bMotionBlurNeedsHalfResInput;
+			UpscalerPassInputs.bGenerateVelocityFlattenTextures = PassSequence.IsEnabled(EPass::MotionBlur) && FVelocityFlattenTextures::AllowExternal() && !bVisualizeMotionBlur;
 			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
 			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
 			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
 			UpscalerPassInputs.SeparateTranslucencyTextures = Inputs.SeparateTranslucencyTextures;
 
-			UpscalerToUse->AddPasses(
+			ITemporalUpscaler::FOutputs Outputs = UpscalerToUse->AddPasses(
 				GraphBuilder,
 				View,
-				UpscalerPassInputs,
-				&SceneColor.Texture,
-				&SecondaryViewRect,
-				&HalfResSceneColor.Texture,
-				&HalfResSceneColor.ViewRect);
+				UpscalerPassInputs);
+
+			SceneColor = Outputs.FullRes;
+			HalfResSceneColor = Outputs.HalfRes;
+			VelocityFlattenTextures = Outputs.VelocityFlattenTextures;
 		}
 		else if (ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View))
 		{
@@ -744,9 +742,6 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				OutputHistory.ReferenceBufferSize = TAAInputs.GetOutputExtent() * TAAInputs.ResolutionDivisor;
 			}
 		}
-
-		//! SceneColorTexture is now upsampled to the SecondaryViewRect. Use SecondaryViewRect for input / output.
-		SceneColor.ViewRect = SecondaryViewRect;
 
 		// Post Process Material Chain - SSR Input
 		if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
@@ -776,6 +771,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			PassInputs.PostMotionBlurTranslucency = PostMotionBlurTranslucency;
 			PassInputs.Quality = GetMotionBlurQuality();
 			PassInputs.Filter = GetMotionBlurFilter();
+			PassInputs.VelocityFlattenTextures = VelocityFlattenTextures;
 
 			// Motion blur visualization replaces motion blur when enabled.
 			if (bVisualizeMotionBlur)
@@ -2265,26 +2261,16 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
 
 			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
-
-			UpscalerPassInputs.bAllowDownsampleSceneColor = false;
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
 			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
 			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
 
-			FIntRect SecondaryViewRect;
-			FScreenPassTexture HalfResolutionSceneColor;
-
-			UpscalerToUse->AddPasses(
+			ITemporalUpscaler::FOutputs Outputs = UpscalerToUse->AddPasses(
 				GraphBuilder,
 				View,
-				UpscalerPassInputs,
-				&SceneColor.Texture,
-				&SecondaryViewRect,
-				&HalfResolutionSceneColor.Texture,
-				&HalfResolutionSceneColor.ViewRect);
+				UpscalerPassInputs);
 
-			//! SceneColorTexture is now upsampled to the SecondaryViewRect. Use SecondaryViewRect for input / output.
-			SceneColor.ViewRect = SecondaryViewRect;
+			SceneColor = Outputs.FullRes;
 		}
 	}
 	else

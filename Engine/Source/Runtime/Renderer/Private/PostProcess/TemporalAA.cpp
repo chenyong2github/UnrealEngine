@@ -883,12 +883,10 @@ static void AddGen4MainTemporalAAPasses(
 
 bool DoesPlatformSupportTSR(EShaderPlatform Platform);
 
-void AddTemporalSuperResolutionPasses(
+ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const ITemporalUpscaler::FPassInputs& PassInputs,
-	FRDGTextureRef* OutSceneColorTexture,
-	FIntRect* OutSceneColorViewRect);
+	const ITemporalUpscaler::FPassInputs& PassInputs);
 
 const ITemporalUpscaler* GTemporalUpscaler = nullptr;
 
@@ -901,37 +899,31 @@ public:
 		return TEXT("FDefaultTemporalUpscaler");
 	}
 
-	virtual void AddPasses(
+	virtual FOutputs AddPasses(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		const FPassInputs& PassInputs,
-		FRDGTextureRef* OutSceneColorTexture,
-		FIntRect* OutSceneColorViewRect,
-		FRDGTextureRef* OutSceneColorHalfResTexture,
-		FIntRect* OutSceneColorHalfResViewRect) const final
+		const FPassInputs& PassInputs) const final
 	{
 		if (ITemporalUpscaler::GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR)
 		{
-			*OutSceneColorHalfResTexture = nullptr;
-			//*OutSceneColorHalfResViewRect; // TODO.
-
 			return AddTemporalSuperResolutionPasses(
 				GraphBuilder,
 				View,
-				PassInputs,
-				OutSceneColorTexture,
-				OutSceneColorViewRect);
+				PassInputs);
 		}
 		else
 		{
-			return AddGen4MainTemporalAAPasses(
+			FOutputs Outputs;
+			AddGen4MainTemporalAAPasses(
 				GraphBuilder,
 				View,
 				PassInputs,
-				OutSceneColorTexture,
-				OutSceneColorViewRect,
-				OutSceneColorHalfResTexture,
-				OutSceneColorHalfResViewRect);
+				&Outputs.FullRes.Texture,
+				&Outputs.FullRes.ViewRect,
+				&Outputs.HalfRes.Texture,
+				&Outputs.HalfRes.ViewRect);
+
+			return Outputs;
 		}
 	}
 

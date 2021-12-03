@@ -178,7 +178,7 @@ void MainCS(
 	{
 		TileListsOutput[GlobalAllocation + TileListMaxSize * TileClassify] = uint(FilterTileCoord.x) | (uint(FilterTileCoord.y) << 16);
 
-		#if DEBUG_OUTPUT
+		#if DEBUG_MOTION_BLUR_OUTPUT
 			DebugOutput[FilterTileCoord] = Debug;
 		#endif
 	}

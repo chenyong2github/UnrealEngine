@@ -19,79 +19,22 @@
 //------------------------------------------------------- PARAMETERS
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Velocity)
-SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
 
-#if CAMERA_MOTION_BLUR_MODE == 2
+#if CAMERA_MOTION_BLUR_MODE == 2 // TODO: move into MotionBlurVelocityFlatten.ush
 float4x4 ClipToPrevClipOverride;
 #endif
 
-float2 VelocityScale;
-float VelocityMax;
-
 Texture2D VelocityTexture;
-Texture2D VelocityTileTexture;
 Texture2D DepthTexture;
 
-RWTexture2D<float4>	OutVelocityFlatTexture;
+RWTexture2D<float3>	OutVelocityFlatTexture;
 RWTexture2D<float4>	OutVelocityTile_Textures_0;
 RWTexture2D<float4>	OutVelocityTile_Textures_1;
 
 RWTexture2D<float4>	DebugOutput;
 
 
-//------------------------------------------------------- LDS
-
-#if DEBUG_OUTPUT
-groupshared float4 Debug[THREADGROUP_TOTALSIZE];
-#endif
-
-groupshared float4 SharedArray0[THREADGROUP_TOTALSIZE];
-groupshared float2 SharedArray1[THREADGROUP_TOTALSIZE];
-
-
 //------------------------------------------------------- FUNCTIONS
-
-void WritePolarVelocityRangeToLDS(uint LDSSlotId, FVelocityRange V)
-{
-	SharedArray0[LDSSlotId] = float4(V.Max[0], V.Min);
-	
-	#if CONFIG_MAX_RANGE_SIZE > 1
-		SharedArray1[LDSSlotId] = V.Max[1];
-	#endif
-}
-
-FVelocityRange ReadPolarVelocityRangeFromLDS(uint LDSSlotId)
-{
-	FVelocityRange V;
-	V.Max[0] = SharedArray0[LDSSlotId].xy;
-	#if CONFIG_MAX_RANGE_SIZE > 1
-		V.Max[1] = SharedArray1[LDSSlotId].xy;
-	#endif
-	V.Min = SharedArray0[LDSSlotId].zw;
-	return V;
-}
-
-void VelovityFlattenStep(uint GroupIndex, const uint GroupSize, inout FVelocityRange V)
-{
-	if (GroupIndex < GroupSize)
-	{
-		FVelocityRange V1 = ReadPolarVelocityRangeFromLDS(GroupIndex + GroupSize);
-		
-		//if (GroupSize == uint(View.GeneralPurposeTweak))
-		//{
-		//	Debug[GroupIndex].r = V.Max[1].g;
-		//}
-
-		V = ReducePolarVelocityRange(V, V1);
-		
-		//if (GroupSize == uint(View.GeneralPurposeTweak))
-		//{
-		//	Debug[GroupIndex].g = V.Max[1].g;
-		//}
-
-		WritePolarVelocityRangeToLDS(GroupIndex, V);
-	}
-}
 
 float2 GetCameraMotionVelocity(uint2 DispatchThreadId, float Depth, float4x4 ClipToPrevClip)
 {
@@ -107,16 +50,14 @@ float2 GetCameraMotionVelocity(uint2 DispatchThreadId, float Depth, float4x4 Cli
 
 //------------------------------------------------------- ENTRY POINT
 
-[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+[numthreads(VELOCITY_FLATTEN_TILE_SIZE, VELOCITY_FLATTEN_TILE_SIZE, 1)]
 void MainCS(
 	uint2 GroupId : SV_GroupID,
 	uint2 DispatchThreadId : SV_DispatchThreadID,
 	uint2 GroupThreadId : SV_GroupThreadID,
 	uint GroupIndex : SV_GroupIndex) 
 { 
-#if DEBUG_OUTPUT
-	Debug[GroupIndex] = 0.0;
-#endif
+	float4 Debug = 0;
 
 	int2 PixelPos = min(DispatchThreadId.xy + Velocity_ViewportMin, Velocity_ViewportMax - 1);
 	int2 DepthOffset = 0;
@@ -154,7 +95,7 @@ void MainCS(
 	}
 
 	float4 EncodedVelocity = VelocityTexture[ PixelPos + DepthOffset ];
-	float Depth = DepthTexture[ PixelPos + DepthOffset ].x;
+	float DeviceZ = DepthTexture[ PixelPos + DepthOffset ].x;
 
 	float2 Velocity = 0.0f;
 	if (EncodedVelocity.x > 0.0)
@@ -162,11 +103,11 @@ void MainCS(
 		Velocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
 #if CAMERA_MOTION_BLUR_MODE != 1
 		// Cancel motion blur caused by the current camera movements
-		Velocity -= GetCameraMotionVelocity(DispatchThreadId, Depth, View.ClipToPrevClip);
+		Velocity -= GetCameraMotionVelocity(DispatchThreadId, DeviceZ, View.ClipToPrevClip);
 #endif
 #if CAMERA_MOTION_BLUR_MODE == 2
 		// Apply motion blur caused by the custom camera movements
-		Velocity += GetCameraMotionVelocity(DispatchThreadId, Depth, ClipToPrevClipOverride);
+		Velocity += GetCameraMotionVelocity(DispatchThreadId, DeviceZ, ClipToPrevClipOverride);
 #endif
 	}
 #if CAMERA_MOTION_BLUR_MODE > 0
@@ -174,85 +115,31 @@ void MainCS(
 	{
 #if CAMERA_MOTION_BLUR_MODE == 2
 		// Apply motion blur caused by the custom camera movements
-		Velocity = GetCameraMotionVelocity(DispatchThreadId, Depth, ClipToPrevClipOverride);
+		Velocity = GetCameraMotionVelocity(DispatchThreadId, DeviceZ, ClipToPrevClipOverride);
 #else
 		// Apply motion blur caused by the current camera movements
-		Velocity = GetCameraMotionVelocity(DispatchThreadId, Depth, View.ClipToPrevClip);
+		Velocity = GetCameraMotionVelocity(DispatchThreadId, DeviceZ, View.ClipToPrevClip);
 #endif
 	}
 #endif
 
-	Velocity *= VelocityScale;
+	FVelocityRange VelocityPolarRange;
+	float2 VelocityPolar;
+	ReduceVelocityFlattenTile(GroupIndex, Velocity, /* out */ VelocityPolarRange, /* out */ VelocityPolar);
 
-	float2 VelocityPolar = CartesianToPolar(Velocity);
-
-	// If the velocity vector was zero length, VelocityPolar will contain NaNs.
-	if (any(isnan(VelocityPolar)))
+	// Output velcity flatten texture.
 	{
-		VelocityPolar = float2(0.0f, 0.0f);
+		uint2 OutputPos = PixelPos.xy < Velocity_ViewportMax ? PixelPos : uint(~0).xx;
+		OutVelocityFlatTexture[OutputPos] = EncodeVelocityFlatten(VelocityPolar, DeviceZ);
 	}
 
-	bool bInsideViewport = all(PixelPos.xy < Velocity_ViewportMax);
-
-	// 11:11:10  (VelocityLength, VelocityAngle, Depth)
+	// Output tile
 	{
-		float2 EncodedPolarVelocity;
-		EncodedPolarVelocity.x = VelocityPolar.x;
-		EncodedPolarVelocity.y = VelocityPolar.y * (0.5 / PI) + 0.5;
-
-		BRANCH
-		if (bInsideViewport)
-		{
-			OutVelocityFlatTexture[PixelPos] = float3(EncodedPolarVelocity, ConvertFromDeviceZ(Depth)).xyzz;
-		}
-	}
-
-	// Limit velocity
-	VelocityPolar.x = min(VelocityPolar.x, VelocityMax);
-
-	FVelocityRange VelocityPolarRange = SetupPolarVelocityRange(VelocityPolar);
-
-	// TODO
-	//float4 VelocityMinMax = VelocityPolar.xyxy;
-	//VelocityMinMax.x = bInsideViewport ? VelocityMinMax.x : 2;
-	//VelocityMinMax.z = bInsideViewport ? VelocityMinMax.z : 0;
-
-	WritePolarVelocityRangeToLDS(GroupIndex, VelocityPolarRange);
-
-	GroupMemoryBarrierWithGroupSync();
-
-#if THREADGROUP_TOTALSIZE > 512
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */ 512, /* inout */ VelocityPolarRange);
-	GroupMemoryBarrierWithGroupSync();
-#endif
-#if THREADGROUP_TOTALSIZE > 256
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */ 256, /* inout */ VelocityPolarRange);
-	GroupMemoryBarrierWithGroupSync();
-#endif
-#if THREADGROUP_TOTALSIZE > 128
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */ 128, /* inout */ VelocityPolarRange);
-	GroupMemoryBarrierWithGroupSync();
-#endif
-#if THREADGROUP_TOTALSIZE > 64
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */ 64, /* inout */ VelocityPolarRange);
-	GroupMemoryBarrierWithGroupSync();
-#endif
-
-	// Safe for vector sizes 32 or larger, AMD and NV
-	// TODO Intel variable size vector
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */ 32, /* inout */ VelocityPolarRange);
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */ 16, /* inout */ VelocityPolarRange);
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */  8, /* inout */ VelocityPolarRange);
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */  4, /* inout */ VelocityPolarRange);
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */  2, /* inout */ VelocityPolarRange);
-	VelovityFlattenStep(GroupIndex, /* GroupSize = */  1, /* inout */ VelocityPolarRange);
-
-	if (GroupIndex == 0)
-	{
-		StoreVelocityRange(OutVelocityTile_Textures_0, OutVelocityTile_Textures_1, GroupId, PolarToCartesian(VelocityPolarRange));
+		uint2 OutputPos = GroupIndex == 0 ? GroupId : uint(~0).xx;
+		StoreVelocityRange(OutVelocityTile_Textures_0, OutVelocityTile_Textures_1, OutputPos, PolarToCartesian(VelocityPolarRange));
 	}
 	
-#if DEBUG_OUTPUT
-	DebugOutput[PixelPos] = Debug[GroupIndex];
+#if DEBUG_MOTION_BLUR_OUTPUT
+	DebugOutput[PixelPos] = Debug;
 #endif
 }

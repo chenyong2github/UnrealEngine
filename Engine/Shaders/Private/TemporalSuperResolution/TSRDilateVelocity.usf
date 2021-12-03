@@ -2,10 +2,19 @@
 
 #include "TSRCommon.ush"
 
+#if DIM_MOTION_BLUR_DIRECTIONS > 0
+	#define CONFIG_MAX_RANGE_SIZE (DIM_MOTION_BLUR_DIRECTIONS)
+	#include "../MotionBlur/MotionBlurVelocityFlatten.ush"
+#endif
+
 
 //------------------------------------------------------- CONFIG
 
-#define TILE_SIZE 8
+#if DIM_MOTION_BLUR_DIRECTIONS > 0
+	#define TILE_SIZE (VELOCITY_FLATTEN_TILE_SIZE)
+#else
+	#define TILE_SIZE 8
+#endif
 
 #define AA_CROSS 1
 
@@ -26,6 +35,10 @@ RWTexture2D<float> ClosestDepthOutput;
 RWTexture2D<uint> PrevUseCountOutput;
 RWTexture2D<uint> PrevClosestDepthOutput;
 RWTexture2D<uint> ParallaxFactorOutput;
+
+RWTexture2D<float3>	VelocityFlattenOutput;
+RWTexture2D<float4>	VelocityTileOutput0;
+RWTexture2D<float4>	VelocityTileOutput1;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -152,23 +165,30 @@ void MainCS(
 	}
 	#endif
 
-	// Scatter parallax rejection
-	float2 PrevScreenPos = ScreenPos - FinalScreenVelocity;
-	float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
-
+	// Do motion blur velocity flatten.
+	#if DIM_MOTION_BLUR_DIRECTIONS > 0
+		FVelocityRange VelocityPolarRange;
+		float2 VelocityPolar;
+		ReduceVelocityFlattenTile(GroupThreadIndex, FinalScreenVelocity, /* out */ VelocityPolarRange, /* out */ VelocityPolar);
+	#endif
 
 	Debug.rg = VelocityPixelOffset * 0.5 + 0.5;
 
-	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
+		bool bValidOutputPixel = all(InputPixelPos < InputInfo_ViewportMax);
+		
+		// Scatter parallax rejection
 		#if 1
 		{
+			float2 PrevScreenPos = ScreenPos - FinalScreenVelocity;
+			float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
+
 			float2 PixelVelocity = FinalScreenVelocity * 0.5 * InputInfo_ViewportSize;
 			uint EncodedHoleFillingVelocity = EncodeHoleFillingVelocity(PixelVelocity);
 
 			uint PrevClosestDepth = (f32tof16(ClosestDeviceZ) << VELOCITY_HOLE_FILLING_BITS) | EncodedHoleFillingVelocity;
 			
-			bool bValidHistoryCoord = all(PrevInputBufferUV > PrevOutputBufferUVMin && PrevInputBufferUV < PrevOutputBufferUVMax);
+			bool bValidHistoryCoord = bValidOutputPixel && all(PrevInputBufferUV > PrevOutputBufferUVMin && PrevInputBufferUV < PrevOutputBufferUVMax);
 
 			FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
 
@@ -200,14 +220,26 @@ void MainCS(
 		
 		float4 EncodedVelocity = SceneVelocityTexture[uint2(InputBufferUV * InputInfo_Extent)];
 		
-		//DilatedVelocityOutput[InputPixelPos] = EncodedVelocity.xy; //EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
-		DilatedVelocityOutput[InputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
-		ClosestDepthOutput[InputPixelPos] = ClosestDeviceZ;
-		ParallaxFactorOutput[InputPixelPos] = CompressParallaxFactor(ParallaxFactorForHistory) | (CompressParallaxFactor(ParallaxFactorForHistoryRejection) << 4);
+		uint2 OutputPixelPos = bValidOutputPixel ? InputPixelPos : uint(~0).xx;
+
+		//DilatedVelocityOutput[OutputPixelPos] = EncodedVelocity.xy; //EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
+		DilatedVelocityOutput[OutputPixelPos] = EncodeVelocityToTexture(float3(FinalScreenVelocity, 0.0)).xy;
+		ClosestDepthOutput[OutputPixelPos] = ClosestDeviceZ;
+		ParallaxFactorOutput[OutputPixelPos] = CompressParallaxFactor(ParallaxFactorForHistory) | (CompressParallaxFactor(ParallaxFactorForHistoryRejection) << 4);
+
+		// Output motion blur velocity flatten
+		#if DIM_MOTION_BLUR_DIRECTIONS > 0
+		{
+			VelocityFlattenOutput[OutputPixelPos] = EncodeVelocityFlatten(VelocityPolar, ClosestDeviceZ);
+			
+			uint2 OutputTilePos = GroupThreadIndex == 0 ? GroupId : uint(~0).xx;
+			StoreVelocityRange(VelocityTileOutput0, VelocityTileOutput1, OutputTilePos, PolarToCartesian(VelocityPolarRange));
+		}
+		#endif
 
 		#if DEBUG_OUTPUT
 		{
-			DebugOutput[InputPixelPos] = Debug;
+			DebugOutput[OutputPixelPos] = Debug;
 		}
 		#endif
 	}

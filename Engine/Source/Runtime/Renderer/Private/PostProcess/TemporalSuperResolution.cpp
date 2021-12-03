@@ -220,8 +220,12 @@ class FTSRDilateVelocityCS : public FTSRShader
 	DECLARE_GLOBAL_SHADER(FTSRDilateVelocityCS);
 	SHADER_USE_PARAMETER_STRUCT(FTSRDilateVelocityCS, FTSRShader);
 
+	class FMotionBlurDirectionsDim : SHADER_PERMUTATION_INT("DIM_MOTION_BLUR_DIRECTIONS", 3);
+	using FPermutationDomain = TShaderPermutationDomain<FMotionBlurDirectionsDim>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVelocityFlattenParameters, VelocityFlattenParameters)
 
 		SHADER_PARAMETER(FVector2f, PrevOutputBufferUVMin)
 		SHADER_PARAMETER(FVector2f, PrevOutputBufferUVMax)
@@ -235,6 +239,11 @@ class FTSRDilateVelocityCS : public FTSRShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevUseCountOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PrevClosestDepthOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ParallaxFactorOutput)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, VelocityFlattenOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, VelocityTileOutput0)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, VelocityTileOutput1)
+
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRDilateVelocityCS
@@ -586,12 +595,10 @@ bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View)
 	return CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
 }
 
-void AddTemporalSuperResolutionPasses(
+ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const ITemporalUpscaler::FPassInputs& PassInputs,
-	FRDGTextureRef* OutSceneColorTexture,
-	FIntRect* OutSceneColorViewRect)
+	const ITemporalUpscaler::FPassInputs& PassInputs)
 {
 	const FTSRHistory& InputHistory = View.PrevViewInfo.TSRHistory;
 
@@ -762,6 +769,7 @@ void AddTemporalSuperResolutionPasses(
 	FRDGTextureRef DilatedVelocityTexture;
 	FRDGTextureRef ClosestDepthTexture;
 	FRDGTextureRef ParallaxFactorTexture;
+	FVelocityFlattenTextures VelocityFlattenTextures;
 	{
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -779,6 +787,8 @@ void AddTemporalSuperResolutionPasses(
 			ParallaxFactorTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.ParallaxFactor"));
 		}
 
+		int32 TileSize = 8;
+		FTSRDilateVelocityCS::FPermutationDomain PermutationVector;
 		FTSRDilateVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRDilateVelocityCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->PrevOutputBufferUVMin = CommonParameters.InputInfo.UVViewportBilinearMin - CommonParameters.InputInfo.ExtentInverse;
@@ -793,20 +803,63 @@ void AddTemporalSuperResolutionPasses(
 		}
 		PassParameters->SceneDepthTexture = PassInputs.SceneDepthTexture;
 		PassParameters->SceneVelocityTexture = PassInputs.SceneVelocityTexture;
+
 		PassParameters->DilatedVelocityOutput = GraphBuilder.CreateUAV(DilatedVelocityTexture);
 		PassParameters->ClosestDepthOutput = GraphBuilder.CreateUAV(ClosestDepthTexture);
 		PassParameters->PrevUseCountOutput = GraphBuilder.CreateUAV(PrevUseCountTexture);
 		PassParameters->PrevClosestDepthOutput = GraphBuilder.CreateUAV(PrevClosestDepthTexture);
 		PassParameters->ParallaxFactorOutput = GraphBuilder.CreateUAV(ParallaxFactorTexture);
+
+		// Setup up the motion blur's velocity flatten pass.
+		if (PassInputs.bGenerateVelocityFlattenTextures)
+		{
+			const int32 MotionBlurDirections = GetMotionBlurDirections();
+			PermutationVector.Set<FTSRDilateVelocityCS::FMotionBlurDirectionsDim>(MotionBlurDirections);
+			TileSize = FVelocityFlattenTextures::kTileSize;
+
+			{
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					InputExtent,
+					PF_FloatR11G11B10,
+					FClearValueBinding::None,
+					GFastVRamConfig.VelocityFlat | TexCreate_ShaderResource | TexCreate_UAV);
+
+				VelocityFlattenTextures.VelocityFlatten.Texture = GraphBuilder.CreateTexture(Desc, TEXT("MotionBlur.VelocityTile"));
+				VelocityFlattenTextures.VelocityFlatten.ViewRect = InputRect;
+			}
+
+			{
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+					FIntPoint::DivideAndRoundUp(InputRect.Size(), FVelocityFlattenTextures::kTileSize),
+					PF_FloatRGBA,
+					FClearValueBinding::None,
+					GFastVRamConfig.MotionBlur | TexCreate_ShaderResource | TexCreate_UAV);
+
+				VelocityFlattenTextures.VelocityTile[0].Texture = GraphBuilder.CreateTexture(Desc, TEXT("MotionBlur.VelocityTile"));
+				VelocityFlattenTextures.VelocityTile[0].ViewRect = FIntRect(FIntPoint::ZeroValue, Desc.Extent);
+
+				Desc.Format = PF_G16R16F;
+				VelocityFlattenTextures.VelocityTile[1].Texture = GraphBuilder.CreateTexture(Desc, TEXT("MotionBlur.VelocityTile"));
+				VelocityFlattenTextures.VelocityTile[1].ViewRect = FIntRect(FIntPoint::ZeroValue, Desc.Extent);
+			}
+
+			PassParameters->VelocityFlattenParameters = GetVelocityFlattenParameters(View);
+			PassParameters->VelocityFlattenOutput = GraphBuilder.CreateUAV(VelocityFlattenTextures.VelocityFlatten.Texture);
+			PassParameters->VelocityTileOutput0 = GraphBuilder.CreateUAV(VelocityFlattenTextures.VelocityTile[0].Texture);
+			PassParameters->VelocityTileOutput1 = GraphBuilder.CreateUAV(VelocityFlattenTextures.VelocityTile[1].Texture);
+		}
+
 		PassParameters->DebugOutput = CreateDebugUAV(InputExtent, TEXT("Debug.TSR.DilateVelocity"));
 
-		TShaderMapRef<FTSRDilateVelocityCS> ComputeShader(View.ShaderMap);
+		TShaderMapRef<FTSRDilateVelocityCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TSR DilateVelocity %dx%d", InputRect.Width(), InputRect.Height()),
+			RDG_EVENT_NAME("TSR DilateVelocity(MotionBlurDirections=%d) %dx%d",
+				PermutationVector.Get<FTSRDilateVelocityCS::FMotionBlurDirectionsDim>(),
+				InputRect.Width(), InputRect.Height()),
 			ComputeShader,
 			PassParameters,
-			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+			FComputeShaderUtils::GetGroupCount(InputRect.Size(), TileSize));
 	}
 
 	// Setup a dummy history
@@ -1590,6 +1643,10 @@ void AddTemporalSuperResolutionPasses(
 		}
 	}
 
-	*OutSceneColorTexture = SceneColorOutputTexture;
-	*OutSceneColorViewRect = OutputRect;
+
+	ITemporalUpscaler::FOutputs Outputs;
+	Outputs.FullRes.Texture = SceneColorOutputTexture;
+	Outputs.FullRes.ViewRect = OutputRect;
+	Outputs.VelocityFlattenTextures = VelocityFlattenTextures;
+	return Outputs;
 } // AddTemporalSuperResolutionPasses()

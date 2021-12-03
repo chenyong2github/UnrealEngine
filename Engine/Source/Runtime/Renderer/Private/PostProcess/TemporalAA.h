@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ScreenPass.h"
+#include "PostProcessMotionBlur.h"
 
 struct FTemporalAAHistory;
 class FSeparateTranslucencyTextures;
@@ -179,11 +180,19 @@ public:
 	{
 		bool bAllowDownsampleSceneColor = false;
 		bool bGenerateOutputMip1 = false;
+		bool bGenerateVelocityFlattenTextures = false;
 		EPixelFormat DownsampleOverrideFormat;
 		FRDGTextureRef SceneColorTexture = nullptr;
 		FRDGTextureRef SceneDepthTexture = nullptr;
 		FRDGTextureRef SceneVelocityTexture = nullptr;
 		const FSeparateTranslucencyTextures* SeparateTranslucencyTextures = nullptr;
+	};
+
+	struct FOutputs
+	{
+		FScreenPassTexture FullRes;
+		FScreenPassTexture HalfRes;
+		FVelocityFlattenTextures VelocityFlattenTextures;
 	};
 
 	virtual ~ITemporalUpscaler() {};
@@ -195,14 +204,10 @@ public:
 	// *  scene color (or null if it was not performed), and the secondary view rect.
 	// */
 
-	virtual void AddPasses(
+	virtual FOutputs AddPasses(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		const FPassInputs& PassInputs,
-		FRDGTextureRef* OutSceneColorTexture,
-		FIntRect* OutSceneColorViewRect,
-		FRDGTextureRef* OutSceneColorHalfResTexture,
-		FIntRect* OutSceneColorHalfResViewRect) const = 0;
+		const FPassInputs& PassInputs) const = 0;
 
 
 	virtual float GetMinUpsampleResolutionFraction() const = 0;
