@@ -12,6 +12,7 @@
 #include "ScenePrivate.h"
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "InstanceCullingLoadBalancer.h"
+#include "InstanceCullingMergedContext.h"
 
 static TAutoConsoleVariable<int32> CVarCullInstances(
 	TEXT("r.CullInstances"),
@@ -50,7 +51,7 @@ FMeshDrawCommandOverrideArgs GetMeshDrawCommandOverrideArgs(const FInstanceCulli
 	return Result;
 }
 
-static uint32 StepInstanceDataOffset(ERHIFeatureLevel::Type FeatureLevel, uint32 NumStepInstances, uint32 NumStepDraws)
+uint32 FInstanceCullingContext::StepInstanceDataOffset(ERHIFeatureLevel::Type FeatureLevel, uint32 NumStepInstances, uint32 NumStepDraws)
 {
 	// mobile uses one instance step rate, on desktop step is once per draw
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
@@ -271,12 +272,12 @@ const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> FInstanceCullingConte
 }
 
 
-class FInstanceCullingDeferredContext
+class FInstanceCullingDeferredContext : public FInstanceCullingMergedContext
 {
 public:
 	FInstanceCullingDeferredContext(ERHIFeatureLevel::Type InFeatureLevel, FInstanceCullingManager* InInstanceCullingManager = nullptr) 
-		: InstanceCullingManager(InInstanceCullingManager)
-		, FeatureLevel(InFeatureLevel)
+		: FInstanceCullingMergedContext(InFeatureLevel)
+		, InstanceCullingManager(InInstanceCullingManager)
 	{}
 
 	FInstanceCullingManager* InstanceCullingManager;
@@ -285,46 +286,9 @@ public:
 	FRDGBufferRef InstanceDataBuffer = nullptr;
 	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
 
-	/** Batches of GPU instance culling input data. */
-	TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> Batches;
-
-	TArray<int32, SceneRenderingAllocator> ViewIds;
-	//TArray<FMeshDrawCommandInfo, SceneRenderingAllocator> MeshDrawCommandInfos;
-	TArray<FRHIDrawIndexedIndirectParameters, SceneRenderingAllocator> IndirectArgs;
-	TArray<FInstanceCullingContext::FDrawCommandDesc, SceneRenderingAllocator> DrawCommandDescs;
-	TArray<uint32, SceneRenderingAllocator> InstanceIdOffsets;
-
-	FInstanceCullingContext::LoadBalancerArray LoadBalancers = FInstanceCullingContext::LoadBalancerArray(InPlace, nullptr);
-	TStaticArray<TArray<uint32, SceneRenderingAllocator>, static_cast<uint32>(EBatchProcessingMode::Num)> BatchInds;
-	TArray<FInstanceCullingContext::FContextBatchInfo, SceneRenderingAllocator> BatchInfos;
-
-	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
-	// Counters to sum up all sizes to facilitate pre-sizing
-	uint32 InstanceIdBufferSize = 0U;
-	TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalBatches = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
-	TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalItems = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
-	int32 TotalIndirectArgs = 0;
-	int32 TotalViewIds = 0;
-
-	// Single Previous frame HZB which is shared among all batched contexts, thus only one is allowed (but the same can be used in multiple passes). (Needs atlas or bindless to expand(.
-	FRDGTextureRef PrevHZB = nullptr;
-	int32 NumCullingViews = 0;
-
 	bool bProcessed = false;
 
 	void ProcessBatched(TStaticArray<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters*, static_cast<uint32>(EBatchProcessingMode::Num)> PassParameters);
-
-
-	~FInstanceCullingDeferredContext()
-	{
-		for (auto& LoadBalancer : LoadBalancers)
-		{
-			if (LoadBalancer != nullptr)
-			{
-				delete LoadBalancer;
-			}
-		}
-	}
 };
 
 static FRDGBufferDesc CreateInstanceIdsBufferDesc(ERHIFeatureLevel::Type FeatureLevel, uint32 BufferSize)
@@ -370,37 +334,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 			Results.DrawIndirectArgsBuffer = DeferredContext->DrawIndirectArgsBuffer;
 			Results.InstanceDataBuffer = DeferredContext->InstanceDataBuffer;
 			Results.UniformBuffer = DeferredContext->UniformBuffer;
-			DeferredContext->Batches.Add(FBatchItem{ this, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum });
-
-			// Set HZB texture for the merged batches
-			if (bOcclusionCullInstances)
-			{
-				// Verify that each batch contains the same HZB if not null as we only support one
-				check(DeferredContext->PrevHZB == nullptr || DeferredContext->PrevHZB == GraphBuilder.RegisterExternalTexture(PrevHZB));
-
-				if (DeferredContext->PrevHZB == nullptr)
-				{
-					DeferredContext->PrevHZB = GraphBuilder.RegisterExternalTexture(PrevHZB);
-				}
-			}
-
-			// Accumulate the totals so the deferred processing can pre-size the arrays
-			for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
-			{
-				LoadBalancers[Mode]->FinalizeBatches();
-				DeferredContext->TotalBatches[Mode] += LoadBalancers[Mode]->GetBatches().Max();
-				DeferredContext->TotalItems[Mode] += LoadBalancers[Mode]->GetItems().Max();
-			}
-#if DO_CHECK
-			for (int32 ViewId : ViewIds)
-			{
-				checkf(ViewId < DeferredContext->NumCullingViews, TEXT("Attempting to defer a culling context that references a view that has not been uploaded yet."));
-			}
-#endif 
-
-			DeferredContext->TotalIndirectArgs += IndirectArgs.Num();
-			DeferredContext->TotalViewIds += ViewIds.Num();
-			DeferredContext->InstanceIdBufferSize += InstanceIdBufferSize;
+			DeferredContext->AddBatch(GraphBuilder, this, DynamicInstanceIdOffset, DynamicInstanceIdNum, InstanceCullingDrawParams);
 		}
 		return;
 	}
@@ -535,8 +469,6 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	}
 }
 
-
-
 void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters*, static_cast<uint32>(EBatchProcessingMode::Num)> PassParameters)
 {
 	if (bProcessed)
@@ -544,93 +476,16 @@ void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstance
 		return;
 	}
 
+	MergeBatches();
 	bProcessed = true;
-	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
-	{
-		LoadBalancers[Mode]= new FInstanceProcessingGPULoadBalancer;
-		LoadBalancers[Mode]->ReserveStorage(TotalBatches[Mode], TotalItems[Mode]);
-	}
-	// Pre-size all arrays
-	IndirectArgs.Empty(TotalIndirectArgs);
-	DrawCommandDescs.Empty(TotalIndirectArgs);
-	InstanceIdOffsets.Empty(TotalIndirectArgs);
-	ViewIds.Empty(TotalViewIds);
 
-	BatchInfos.AddDefaulted(Batches.Num());
-	uint32 InstanceIdBufferOffset = 0U;
-	uint32 InstanceDataByteOffset = 0U;
-	const uint32 InstanceIdBufferStride = FInstanceCullingContext::GetInstanceIdBufferStride(FeatureLevel);
-
-	// Index that maps from each command to the corresponding batch - maybe not the utmost efficiency
-	for (int32 BatchIndex = 0; BatchIndex < Batches.Num(); ++BatchIndex)
-	{
-		const FInstanceCullingContext::FBatchItem& BatchItem = Batches[BatchIndex];
-		const FInstanceCullingContext& InstanceCullingContext = *BatchItem.Context;
-
-		FInstanceCullingContext::FContextBatchInfo& BatchInfo = BatchInfos[BatchIndex];
-
-		BatchInfo.IndirectArgsOffset = IndirectArgs.Num();
-		//BatchInfo.NumIndirectArgs = InstanceCullingContext.IndirectArgs.Num();
-		IndirectArgs.Append(InstanceCullingContext.IndirectArgs);
-
-		check(InstanceCullingContext.DrawCommandDescs.Num() == InstanceCullingContext.IndirectArgs.Num());
-		DrawCommandDescs.Append(InstanceCullingContext.DrawCommandDescs);
-
-		check(InstanceCullingContext.InstanceIdOffsets.Num() == InstanceCullingContext.IndirectArgs.Num());
-		InstanceIdOffsets.AddDefaulted(InstanceCullingContext.InstanceIdOffsets.Num());
-		// TODO: perform offset on GPU
-		// InstanceIdOffsets.Append(InstanceCullingContext.InstanceIdOffsets);
-		for (int32 Index = 0; Index < InstanceCullingContext.InstanceIdOffsets.Num(); ++Index)
-		{
-			InstanceIdOffsets[BatchInfo.IndirectArgsOffset + Index] = InstanceCullingContext.InstanceIdOffsets[Index] + InstanceIdBufferOffset;
-		}
-
-		BatchInfo.ViewIdsOffset = ViewIds.Num();
-		BatchInfo.NumViewIds = InstanceCullingContext.ViewIds.Num();
-		ViewIds.Append(InstanceCullingContext.ViewIds);
-
-		BatchInfo.DynamicInstanceIdOffset = BatchItem.DynamicInstanceIdOffset;
-		BatchInfo.DynamicInstanceIdMax = BatchItem.DynamicInstanceIdOffset + BatchItem.DynamicInstanceIdNum;
-
-		for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
-		{
-			int32 StartIndex = BatchInds[Mode].Num();
-			FInstanceProcessingGPULoadBalancer* MergedLoadBalancer = LoadBalancers[Mode];
-				
-			BatchInfo.ItemDataOffset[Mode] = MergedLoadBalancer->GetItems().Num();
-			FInstanceProcessingGPULoadBalancer* LoadBalancer = InstanceCullingContext.LoadBalancers[Mode];
-			LoadBalancer->FinalizeBatches();
-
-			// UnCulled bucket is used for a single instance mode
-			check(EBatchProcessingMode(Mode) != EBatchProcessingMode::UnCulled || LoadBalancer->HasSingleInstanceItemsOnly());
-
-			BatchInds[Mode].AddDefaulted(LoadBalancer->GetBatches().Num());
-
-			MergedLoadBalancer->AppendData(*LoadBalancer);
-			for (int32 Index = StartIndex; Index < BatchInds[Mode].Num(); ++Index)
-			{
-				BatchInds[Mode][Index] = BatchIndex;
-			}
-		}
-		const uint32 BatchTotalInstances = InstanceCullingContext.TotalInstances * InstanceCullingContext.ViewIds.Num();
-		const uint32 BatchTotalDraws = InstanceCullingContext.InstanceIdOffsets.Num();
-
-		FInstanceCullingDrawParams& Result = *BatchItem.Result;
-		Result.InstanceDataByteOffset = InstanceDataByteOffset;
-		Result.IndirectArgsByteOffset = BatchInfo.IndirectArgsOffset * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
-
-		BatchInfo.InstanceDataWriteOffset = InstanceIdBufferOffset;
-		InstanceIdBufferOffset += BatchTotalInstances;
-		// Advance offset into per-instance buffer
-		InstanceDataByteOffset += StepInstanceDataOffset(FeatureLevel, BatchTotalInstances, BatchTotalDraws) * InstanceIdBufferStride;
-	}
 
 	// Finalize culling pass parameters
 	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
 	{
 		PassParameters[Mode]->NumViewIds = ViewIds.Num();
-		PassParameters[Mode]->LoadBalancerParameters.NumBatches = LoadBalancers[Mode]->GetBatches().Num();
-		PassParameters[Mode]->LoadBalancerParameters.NumItems = LoadBalancers[Mode]->GetItems().Num();
+		PassParameters[Mode]->LoadBalancerParameters.NumBatches = LoadBalancers[Mode].GetBatches().Num();
+		PassParameters[Mode]->LoadBalancerParameters.NumItems = LoadBalancers[Mode].GetItems().Num();
 
 		const bool bOcclusionCullInstances = PrevHZB != nullptr && FInstanceCullingContext::IsOcclusionCullingEnabled();
 		if (bOcclusionCullInstances)
@@ -638,8 +493,8 @@ void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstance
 			PassParameters[Mode]->HZBTexture = PrevHZB;
 			PassParameters[Mode]->HZBSize = PrevHZB->Desc.Extent;
 			PassParameters[Mode]->HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+		}
 	}
-}
 }
 
 template <typename DataType>
@@ -775,17 +630,17 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 			GraphBuilder,
 			TEXT("InstanceCullingLoadBalancer.Batches"),
 			sizeof(FInstanceProcessingGPULoadBalancer::FPackedBatch),
-			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode]->GetBatches().Num()),
-			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode]->GetBatches().GetData()),
-			INST_CULL_CALLBACK_MODE(GetArrayDataSize(DeferredContext->LoadBalancers[Mode]->GetBatches())));
+			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode].GetBatches().Num()),
+			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode].GetBatches().GetData()),
+			INST_CULL_CALLBACK_MODE(GetArrayDataSize(DeferredContext->LoadBalancers[Mode].GetBatches())));
 
 		FRDGBufferRef ItemBuffer = CreateStructuredBuffer(
 			GraphBuilder,
 			TEXT("InstanceCullingLoadBalancer.Items"),
 			sizeof(FInstanceProcessingGPULoadBalancer::FPackedItem),
-			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode]->GetItems().Num()),
-			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode]->GetItems().GetData()),
-			INST_CULL_CALLBACK_MODE(GetArrayDataSize(DeferredContext->LoadBalancers[Mode]->GetItems())));
+			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode].GetItems().Num()),
+			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode].GetItems().GetData()),
+			INST_CULL_CALLBACK_MODE(GetArrayDataSize(DeferredContext->LoadBalancers[Mode].GetItems())));
 
 		PassParameters[Mode]->LoadBalancerParameters.BatchBuffer = GraphBuilder.CreateSRV(BatchBuffer);
 		PassParameters[Mode]->LoadBalancerParameters.ItemBuffer = GraphBuilder.CreateSRV(ItemBuffer);
@@ -813,7 +668,7 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 			RDG_EVENT_NAME("CullInstances(%s)", BatchProcessingModeStr[Mode]),
 			ComputeShader,
 			PassParameters[Mode],
-			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode]->GetWrappedCsGroupCount()));
+			INST_CULL_CALLBACK_MODE(DeferredContext->LoadBalancers[Mode].GetWrappedCsGroupCount()));
 	}
 	
 	if (FeatureLevel > ERHIFeatureLevel::ES3_1)

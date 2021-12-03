@@ -28,13 +28,25 @@ struct FVisibleInstanceCmd
 };
 
 RWStructuredBuffer<FVisibleInstanceCmd> VisibleInstancesOut;
-uint FirstPrimaryView;
-uint NumPrimaryViews;
 RWStructuredBuffer<uint> VisibleInstanceCountBufferOut;
 uint InstanceSceneDataSOAStride;
+uint TotalPrimaryViews;
+uint VisibleInstancesBufferNum;
+
+struct FVSMCullingBatchInfo
+{
+	uint FirstPrimaryView;
+	uint NumPrimaryViews;
+};
+
+#if ENABLE_BATCH_MODE
+StructuredBuffer<FVSMCullingBatchInfo> VSMCullingBatchInfos;
+#else // !ENABLE_BATCH_MODE
+uint FirstPrimaryView;
+uint NumPrimaryViews;
 uint DynamicInstanceIdOffset;
 uint DynamicInstanceIdMax;
-
+#endif // ENABLE_BATCH_MODE
 
 StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
 
@@ -84,16 +96,39 @@ void WriteCmd(uint MipViewId, uint InstanceId, uint IndirectArgIndex, bool bStat
 
 	uint VisibleInstanceOutputOffset = 0U;
 	WaveInterlockedAddScalar_(VisibleInstanceCountBufferOut[0], 1U, VisibleInstanceOutputOffset);
-	VisibleInstancesOut[VisibleInstanceOutputOffset] = VisibleInstanceCmd;
+	if (VisibleInstanceOutputOffset < VisibleInstancesBufferNum)
+	{
+		// TODO: Flag & feedback on overflow.
+		VisibleInstancesOut[VisibleInstanceOutputOffset] = VisibleInstanceCmd;
+	}
 }
 
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
 void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex : SV_GroupIndex)
 {
-	// TODO: Support batching? Currently VSM are culled before each draw. Batching could work explicitly or using the same deferred mechanism as other InstanceCullingContexts.
-	//       However, these would need to be kept separate, and also means all instance data must be pre-allocated for all the lights (and cannot be re-used between lights).
-	//       For supporting many small lights, we will certainly need batching, but perhaps they will use a different path anyway.
-	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, 0);
+	uint DispatchGroupId = GetUnWrappedDispatchGroupId(GroupId);
+
+	if (DispatchGroupId >= InstanceCullingLoadBalancer_GetNumBatches())
+	{
+		return;
+	}
+#if ENABLE_BATCH_MODE
+	// Load Instance culling context batch info, indirection per group
+	FContextBatchInfo BatchInfo = BatchInfos[BatchInds[DispatchGroupId]];
+	FVSMCullingBatchInfo VSMCullingBatchInfo = VSMCullingBatchInfos[BatchInds[DispatchGroupId]];
+#else // !ENABLE_BATCH_MODE
+	// Single Instance culling context batch in the call, set up batch from the kernel parameters
+	FContextBatchInfo BatchInfo = (FContextBatchInfo)0;
+	BatchInfo.DynamicInstanceIdOffset = DynamicInstanceIdOffset;
+	BatchInfo.DynamicInstanceIdMax = DynamicInstanceIdMax;
+
+	FVSMCullingBatchInfo VSMCullingBatchInfo;
+	VSMCullingBatchInfo.FirstPrimaryView = FirstPrimaryView;
+	VSMCullingBatchInfo.NumPrimaryViews = NumPrimaryViews;
+#endif // ENABLE_BATCH_MODE
+
+	uint CurrentBatchProcessingMode = 0U;
+	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, GetItemDataOffset(BatchInfo, CurrentBatchProcessingMode));
 	if (!WorkSetup.bValid)
 	{
 		return;
@@ -104,13 +139,13 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 	if (bDynamicInstanceDataOffset)
 	{
-		InstanceDataOffset += DynamicInstanceIdOffset;
-		checkSlow(InstanceDataOffset + uint(WorkSetup.LocalItemIndex) < DynamicInstanceIdMax);
+		InstanceDataOffset += BatchInfo.DynamicInstanceIdOffset;
+		checkSlow(InstanceDataOffset + uint(WorkSetup.LocalItemIndex) < BatchInfo.DynamicInstanceIdMax);
 	}
 
-
 	uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
-	uint IndirectArgIndex = WorkSetup.Item.Payload >> 1U;
+	// Work item payload stores the IndirectArgsOffset, which must be offset for the batch.
+	uint IndirectArgIndex = BatchInfo.IndirectArgOffset + (WorkSetup.Item.Payload >> 1U);
 	FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[IndirectArgIndex];
 
 	const bool bNearClip = (NEAR_CLIP != 0);
@@ -121,7 +156,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 	uint ThreadTotalForAllViews = 0;
 	// Loop over views and output visible instance (i.e., those that overlap a valid page)
-	for (uint PrimaryViewId = FirstPrimaryView; PrimaryViewId < FirstPrimaryView + NumPrimaryViews; ++PrimaryViewId)
+	for (uint PrimaryViewId = VSMCullingBatchInfo.FirstPrimaryView; PrimaryViewId < VSMCullingBatchInfo.FirstPrimaryView + VSMCullingBatchInfo.NumPrimaryViews; ++PrimaryViewId)
 	{
 		FNaniteView NaniteView = GetNaniteView(PrimaryViewId);
 		const uint2 TargetViewSize = uint2(NaniteView.ViewSizeAndInvSize.xy);
@@ -140,9 +175,9 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 		if (Cull.bIsVisible)
 		{
 			// Loop over mip levels and count number of output visible instances, also retain a bit for each mip level (used to skip empty levels in output loop)
-			for (uint MipLevel = 0; MipLevel < uint(NaniteView.TargetNumMipLevels); ++MipLevel)
+			for (uint MipLevel = 0U; MipLevel < uint(NaniteView.TargetNumMipLevels); ++MipLevel)
 			{
-				uint MipViewId = MipLevel * NumPrimaryViews + PrimaryViewId;
+				uint MipViewId = MipLevel * TotalPrimaryViews + PrimaryViewId;
 				FNaniteView MipView = GetNaniteView(MipViewId);
 				uint VirtualShadowMapId = uint(MipView.TargetLayerIndex);
 

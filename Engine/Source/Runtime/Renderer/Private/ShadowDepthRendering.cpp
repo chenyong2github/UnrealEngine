@@ -1770,57 +1770,12 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 				{
 					for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps)
 					{
-						// TODO: Decide if this sort of logic belongs here or in Nanite (as with the mip level view expansion logic)
-						// We're eventually going to want to snap/quantize these rectangles/positions somewhat so probably don't want it
-						// entirely within Nanite, but likely makes sense to have some sort of "multi-viewport" notion in Nanite that can
-						// handle both this and mips.
-						// NOTE: There's still the additional VSM view logic that runs on top of this in Nanite too (see CullRasterize variant)
-						Nanite::FPackedViewParams BaseParams;
-						BaseParams.ViewRect = FIntRect(0, 0, FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY);
-						BaseParams.HZBTestViewRect = BaseParams.ViewRect;
-						BaseParams.RasterContextSize = VirtualShadowMapArray.GetPhysicalPoolSize();
-						BaseParams.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
-						BaseParams.PrevTargetLayerIndex = INDEX_NONE;
-						BaseParams.TargetMipLevel = 0;
-						BaseParams.TargetMipCount = 1;	// No mips for clipmaps
-
-						for (int32 ClipmapLevelIndex = 0; ClipmapLevelIndex < Clipmap->GetLevelCount(); ++ClipmapLevelIndex)
-						{
-							FVirtualShadowMap* VirtualShadowMap = Clipmap->GetVirtualShadowMap(ClipmapLevelIndex);
-
-							Nanite::FPackedViewParams Params = BaseParams;
-							Params.TargetLayerIndex = VirtualShadowMap->ID;
-							Params.ViewMatrices = Clipmap->GetViewMatrices(ClipmapLevelIndex);
-							Params.PrevTargetLayerIndex = INDEX_NONE;
-							Params.PrevViewMatrices = Params.ViewMatrices;
-							Params.Flags = 0;
-
-							// TODO: Clean this up - could be stored in a single structure for the whole clipmap
-							int32 HZBKey = Clipmap->GetHZBKey(ClipmapLevelIndex);
-
-							if (PrevHZBPhysical)
-							{
-								CacheManager->SetHZBViewParams(HZBKey, Params);
-							}
-
-							// If we're going to generate a new HZB this frame, save the associated metadata
-							if (bVSMUseHZB)
-							{
-								FVirtualShadowMapHZBMetadata& HZBMeta = VirtualShadowMapArray.HZBMetadata.FindOrAdd(HZBKey);
-								HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
-								HZBMeta.ViewMatrices = Params.ViewMatrices;
-								HZBMeta.ViewRect = Params.ViewRect;
-							}
-
-							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
-							VirtualShadowViews.Add(View);
-
-							// Mark that we rendered to this VSM for caching purposes
-							if (VirtualShadowMap->VirtualShadowMapCacheEntry)
-							{
-								VirtualShadowMap->VirtualShadowMapCacheEntry->MarkRendered();
-							}		
-						}
+						VirtualShadowMapArray.AddRenderViews(
+							Clipmap,
+							ComputeNaniteShadowsLODScaleFactor(),
+							PrevHZBPhysical.IsValid(),
+							bVSMUseHZB,
+							VirtualShadowViews);
 					}
 				}
 
@@ -1828,51 +1783,12 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 				{
 					if (ProjectedShadowInfo->ShouldClampToNearPlane() == bShouldClampToNearPlane && ProjectedShadowInfo->HasVirtualShadowMap())
 					{
-						Nanite::FPackedViewParams BaseParams;
-						BaseParams.ViewRect = ProjectedShadowInfo->GetOuterViewRect();
-						BaseParams.HZBTestViewRect = BaseParams.ViewRect;
-						BaseParams.RasterContextSize = VirtualShadowMapArray.GetPhysicalPoolSize();
-						BaseParams.LODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
-						BaseParams.PrevTargetLayerIndex = INDEX_NONE;
-						BaseParams.TargetMipLevel = 0;
-						BaseParams.TargetMipCount = FVirtualShadowMap::MaxMipLevels;
-
-						int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
-						for( int32 i = 0; i < NumMaps; i++ )
-						{
-							FVirtualShadowMap* VirtualShadowMap = ProjectedShadowInfo->VirtualShadowMaps[i];
-
-							Nanite::FPackedViewParams Params = BaseParams;
-							Params.TargetLayerIndex = VirtualShadowMap->ID;
-							Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(i, true);
-							Params.PrevTargetLayerIndex = INDEX_NONE;
-							Params.PrevViewMatrices = Params.ViewMatrices;
-							Params.Flags = 0;
-
-							int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (i << 24);
-							if (PrevHZBPhysical)
-							{
-								CacheManager->SetHZBViewParams(HZBKey, Params);
-							}
-
-							// If we're going to generate a new HZB this frame, save the associated metadata
-							if (bVSMUseHZB)
-							{
-								FVirtualShadowMapHZBMetadata& HZBMeta = VirtualShadowMapArray.HZBMetadata.FindOrAdd(HZBKey);
-								HZBMeta.TargetLayerIndex = Params.TargetLayerIndex;
-								HZBMeta.ViewMatrices = Params.ViewMatrices;
-								HZBMeta.ViewRect = Params.ViewRect;
-							}
-
-							Nanite::FPackedView View = Nanite::CreatePackedView(Params);
-							VirtualShadowViews.Add(View);
-
-							// Mark that we rendered to this VSM for caching purposes
-							if (VirtualShadowMap->VirtualShadowMapCacheEntry)
-							{
-								VirtualShadowMap->VirtualShadowMapCacheEntry->MarkRendered();
-							}							
-						}
+						VirtualShadowMapArray.AddRenderViews(
+							ProjectedShadowInfo, 
+							ComputeNaniteShadowsLODScaleFactor(),
+							PrevHZBPhysical.IsValid(),
+							bVSMUseHZB,
+							VirtualShadowViews);
 					}
 				}
 
@@ -1941,7 +1857,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 	if (UseNonNaniteVirtualShadowMaps(ShaderPlatform, FeatureLevel))
 	{
-		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
+		VirtualShadowMapArray.RenderVirtualShadowMapsNonNanite(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
 	}
 
 	// If separate static/dynamic caching is enabled, we may need to merge some pages after rendering
