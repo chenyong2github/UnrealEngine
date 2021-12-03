@@ -15,6 +15,7 @@
 #include "../RayTracing/RayTracingDeferredShadingCommon.ush"
 #include "../RayTracing/RayTracingLightingCommon.ush"
 #include "LumenHardwareRayTracingPayloadCommon.ush"
+#include "LumenHardwareRayTracingPipelineCommon.ush"
 #include "LumenHardwareRayTracingPlatformCommon.ush"
 
 float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
@@ -141,6 +142,7 @@ struct FRayTracedLightingResult
 	float3 WorldVelocity;
 	uint MeshCardsIndex;
 	uint MaterialShaderIndex;
+	FLumenRayHitBookmark Bookmark;
 };
 
 FRayTracedLightingResult CreateRayTracedLightingResult()
@@ -153,6 +155,8 @@ FRayTracedLightingResult CreateRayTracedLightingResult()
 	Result.WorldVelocity = 0;
 	Result.MeshCardsIndex = LUMEN_INVALID_CARD_INDEX;
 	Result.MaterialShaderIndex = RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID;
+	Result.Bookmark.PackedData[0] = 0xFFFFFFFF;
+	Result.Bookmark.PackedData[1] = 0xFFFFFFFF;
 
 	return Result;
 }
@@ -176,10 +180,24 @@ bool TraceDeferredMaterialRay(
 	return DeferredMaterialPayload.IsHit();
 }
 
+bool TraceLumenHitLightingRay(
+	in RayDesc Ray,
+	inout FRayTracedLightingContext Context,
+	inout FLumenRayHitBookmark Bookmark,
+	inout FPackedMaterialClosestHitPayload Payload
+)
+{
+	uint RayFlags = 0;
+	TraceLumenShadingRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Bookmark, Payload);
+
+	return Payload.IsHit();
+}
+
 bool TraceLumenMinimalRay(
 	in RayDesc Ray,
 	inout FRayTracedLightingContext Context,
-	inout FLumenMinimalPayload Payload
+	inout FLumenMinimalPayload Payload,
+	inout FLumenRayHitBookmark Bookmark
 )
 {
 	Payload = (FLumenMinimalPayload)0;
@@ -207,9 +225,19 @@ bool TraceLumenMinimalRay(
 	RayFlags |= Context.bAcceptFirstHitAndEndSearch ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
 	RayFlags |= Context.bSkipClosestHitShader ? RAY_FLAG_SKIP_CLOSEST_HIT_SHADER : 0;
 
-	TraceLumenRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload);
+	TraceLumenRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload, Bookmark);
 
 	return Payload.IsHit();
+}
+
+bool TraceLumenMinimalRay(
+	in RayDesc Ray,
+	inout FRayTracedLightingContext Context,
+	inout FLumenMinimalPayload Payload
+)
+{
+	FLumenRayHitBookmark Bookmark;
+	return TraceLumenMinimalRay(Ray, Context, Payload, Bookmark);
 }
 
 float3 CalculateSurfaceCacheLighting(
@@ -350,7 +378,8 @@ float3 CalculateRayTracedLighting(
 FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
-	int LightingMode
+	int LightingMode,
+	inout FLumenRayHitBookmark Bookmark
 )
 {
 	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
@@ -366,21 +395,15 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	{
 		Payload.SetMinimalPayloadMode();
 	}
+	else if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
+	{
+		Payload.SetEnableSkyLightContribution();
+	}
 
 	// Permute ray origin if tracing against far-field
 	float3 RayOrigin = Ray.Origin;
 	Ray.Origin += Context.InstanceMask == RAY_TRACING_MASK_FAR_FIELD ? Context.FarFieldReferencePos : 0.0;
-
-	// Trace visibility ray
-	TraceMaterialRayPacked(
-		Payload,
-		Context.TLAS,
-		RayFlags,
-		Context.InstanceMask,
-		Ray,
-		Context.RayCone,
-		Context.TraceCoord,
-		bEnableSkyLightContribution);
+	TraceLumenHitLightingRay(Ray, Context, Bookmark, Payload);
 
 	Ray.Origin = RayOrigin;
 	Result.bIsHit = Payload.IsHit();
@@ -394,6 +417,16 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 	return Result;
 }
 
+FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
+	in RayDesc Ray,
+	in FRayTracedLightingContext Context,
+	int LightingMode
+)
+{
+	FLumenRayHitBookmark Bookmark;
+	return TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode, Bookmark);
+}
+
 FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context
@@ -405,7 +438,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
 
 #if ENABLE_NEAR_FIELD_TRACING
-	Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
+	Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
 
 #if ENABLE_TRANSLUCENT_SKIP_COUNT
 	int TranslucentSkipCount = 0;
@@ -413,7 +446,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	{
 		float Epsilon = 0.01;
 		Ray.TMin = Payload.HitT + Epsilon;
-		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
+		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
 		TranslucentSkipCount++;
 	}
 #endif // ENABLE_TRANSLUCENT_SKIP_COUNT
@@ -442,7 +475,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		Ray.TMin = Ray.TMax;
 		Ray.TMax = Context.FarFieldMaxTraceDistance;
 		Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
-		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
+		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload, Result.Bookmark);
 		if (Result.bIsHit)
 		{
 			Result.TraceHitDistance = Payload.HitT;

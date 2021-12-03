@@ -129,7 +129,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 			EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING :
 			NearFieldLightingMode;
 		LightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
-		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode);
+		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode, TraceData.Bookmark);
 
 #else // DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
@@ -161,7 +161,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		}
 
 #if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
-		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
+		RWTraceDataPacked[RayIndex] = PackTraceData(CreateTraceData(Result.TraceHitDistance, Result.MaterialShaderIndex, Result.Bookmark, Result.bIsHit, Result.MeshCardsIndex != LUMEN_INVALID_CARD_INDEX, Result.bIsFarField));
 #endif // DIM_LIGHTING_MODE
 
 #if DIM_WRITE_FINAL_LIGHTING

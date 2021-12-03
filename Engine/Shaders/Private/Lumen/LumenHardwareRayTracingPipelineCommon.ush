@@ -2,6 +2,13 @@
 
 #pragma once
 
+#define LUMEN_RAYHIT_BOOKMARK_MISS 0xFFFFFFFF
+
+struct FLumenRayHitBookmark
+{
+	uint PackedData[2];
+};
+
 /**
  * TraceData can represent three types of rays:
  * 1) Rays that hit an object with a valid surface-cache entry
@@ -14,6 +21,7 @@ struct FTraceData
 {
 	float TraceDistance;
 	uint MaterialId;
+	FLumenRayHitBookmark Bookmark;
 
 	bool bIsHit;
 	bool bIsValidMeshCardIndex;
@@ -22,14 +30,16 @@ struct FTraceData
 
 struct FTraceDataPacked
 {
-	uint PackedData[2];
+	uint PackedData[4];
 };
 
-FTraceData CreateTraceData(float TraceDistance, uint MaterialId, bool bIsHit, bool bIsValidMeshCardIndex, bool bIsFarField)
+FTraceData CreateTraceData(float TraceDistance, uint MaterialId, FLumenRayHitBookmark Bookmark,
+	bool bIsHit, bool bIsValidMeshCardIndex, bool bIsFarField)
 {
 	FTraceData TraceData;
 	TraceData.TraceDistance = TraceDistance;
 	TraceData.MaterialId = MaterialId;
+	TraceData.Bookmark = Bookmark;
 	TraceData.bIsHit = bIsHit;
 	TraceData.bIsValidMeshCardIndex = bIsValidMeshCardIndex;
 	TraceData.bIsFarField = bIsFarField;
@@ -46,6 +56,8 @@ FTraceDataPacked PackTraceData(FTraceData TraceData)
 		| ((TraceData.bIsValidMeshCardIndex & 0x01) << 1)
 		| ((TraceData.bIsFarField & 0x01) << 2);
 	TraceDataPacked.PackedData[1] = TraceData.MaterialId;
+	TraceDataPacked.PackedData[2] = TraceData.Bookmark.PackedData[0];
+	TraceDataPacked.PackedData[3] = TraceData.Bookmark.PackedData[1];
 
 	return TraceDataPacked;
 }
@@ -58,6 +70,8 @@ FTraceData UnpackTraceData(FTraceDataPacked TraceDataPacked)
 	TraceData.bIsValidMeshCardIndex = (TraceDataPacked.PackedData[0] & 0x02) != 0;
 	TraceData.bIsFarField = (TraceDataPacked.PackedData[0] & 0x04) != 0;
 	TraceData.MaterialId = TraceDataPacked.PackedData[1];
+	TraceData.Bookmark.PackedData[0] = TraceDataPacked.PackedData[2];
+	TraceData.Bookmark.PackedData[1] = TraceDataPacked.PackedData[3];
 
 	return TraceData;
 }

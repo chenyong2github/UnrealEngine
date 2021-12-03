@@ -229,7 +229,7 @@ void FLumenVisualizeCompactRaysIndirectArgsCS()
  *
  * NOTE: Miss rays need additional data and must be determined by the caller.
  */
-struct FTraceData
+struct FTraceDataLocal
 {
 	float TraceDistance;
 	uint MaterialId;
@@ -238,14 +238,14 @@ struct FTraceData
 	bool bIsValidMeshCardIndex;
 };
 
-struct FTraceDataPacked
+struct FTraceDataLocalPacked
 {
 	uint PackedData[2];
 };
 
-FTraceData CreateTraceData(float TraceDistance, uint MaterialId, bool bIsHit, bool bIsValidMeshCardIndex)
+FTraceDataLocal CreateTraceData(float TraceDistance, uint MaterialId, bool bIsHit, bool bIsValidMeshCardIndex)
 {
-	FTraceData TraceData;
+	FTraceDataLocal TraceData;
 	TraceData.TraceDistance = TraceDistance;
 	TraceData.MaterialId = MaterialId;
 	TraceData.bIsHit = bIsHit;
@@ -254,9 +254,9 @@ FTraceData CreateTraceData(float TraceDistance, uint MaterialId, bool bIsHit, bo
 	return TraceData;
 }
 
-FTraceDataPacked PackTraceData(FTraceData TraceData)
+FTraceDataLocalPacked PackTraceData(FTraceDataLocal TraceData)
 {
-	FTraceDataPacked TraceDataPacked;
+	FTraceDataLocalPacked TraceDataPacked;
 	TraceDataPacked.PackedData[0] =
 		(asint(TraceData.TraceDistance) & 0xFFFFFFFC)
 		| (TraceData.bIsHit & 0x01)
@@ -266,9 +266,9 @@ FTraceDataPacked PackTraceData(FTraceData TraceData)
 	return TraceDataPacked;
 }
 
-FTraceData UnpackTraceData(FTraceDataPacked TraceDataPacked)
+FTraceDataLocal UnpackTraceData(FTraceDataLocalPacked TraceDataPacked)
 {
-	FTraceData TraceData;
+	FTraceDataLocal TraceData;
 	TraceData.TraceDistance = asfloat(asint(TraceDataPacked.PackedData[0] & 0xFFFFFFFc));
 	TraceData.bIsHit = (TraceDataPacked.PackedData[0] & 0x01) != 0;
 	TraceData.bIsValidMeshCardIndex = (TraceDataPacked.PackedData[0] & 0x02) != 0;
@@ -278,15 +278,15 @@ FTraceData UnpackTraceData(FTraceDataPacked TraceDataPacked)
 }
 
 StructuredBuffer<FRayDataPacked> RayDataPacked;
-StructuredBuffer<FTraceDataPacked> TraceDataPacked;
+StructuredBuffer<FTraceDataLocalPacked> TraceDataPacked;
 
 uint MaxRayAllocationCount;
 
 RWBuffer<uint> RWCompactedRayAllocator;
 RWStructuredBuffer<FRayDataPacked> RWCompactedRayDataPacked;
-RWStructuredBuffer<FTraceDataPacked> RWCompactedTraceDataPacked;
+RWStructuredBuffer<FTraceDataLocalPacked> RWCompactedTraceDataPacked;
 
-groupshared FTraceDataPacked SharedTraceDataPacked[THREADGROUP_SIZE_1D];
+groupshared FTraceDataLocalPacked SharedTraceDataPacked[THREADGROUP_SIZE_1D];
 
 #define COMPACT_MODE_HIT_LIGHTING_RETRACE 0
 #define COMPACT_MODE_FAR_FIELD_RETRACE 1
@@ -302,7 +302,7 @@ void FLumenVisualizeCompactRaysCS(
 	GroupMemoryBarrierWithGroupSync();
 
 	uint RayIndex = DispatchThreadId;
-	FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
+	FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 #if DIM_COMPACT_MODE == COMPACT_MODE_HIT_LIGHTING_RETRACE
 	bool bIsRayValid = TraceData.bIsHit && !TraceData.bIsValidMeshCardIndex;
 #elif DIM_COMPACT_MODE == COMPACT_MODE_FORCE_HIT_LIGHTING
@@ -350,7 +350,7 @@ void FLumenVisualizeBucketRaysByMaterialIdIndirectArgsCS()
 	RWBucketRaysByMaterialIdIndirectArgs[2] = 1;
 }
 
-RWStructuredBuffer<FTraceDataPacked> RWTraceDataPacked;
+RWStructuredBuffer<FTraceDataLocalPacked> RWTraceDataPacked;
 
 #define NUM_BINS (THREADGROUP_SIZE_1D / 2)
 groupshared uint BinSize[NUM_BINS];
@@ -375,7 +375,7 @@ void FLumenVisualizeBucketRaysByMaterialIdCS(
 
 	uint Hash[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
 	FRayDataPacked RayDataPackedCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
-	FTraceData TraceDataCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
+	FTraceDataLocal TraceDataCache[NUM_ELEMENTS / THREADGROUP_SIZE_1D];
 
 	for (int i = GroupThreadId; i < NUM_ELEMENTS; i += THREADGROUP_SIZE_1D)
 	{
@@ -465,7 +465,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);
 		Ray.TMax = min(Ray.TMax, MaxTraceDistance);
 #if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
-		FTraceData TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
+		FTraceDataLocal TraceData = UnpackTraceData(TraceDataPacked[RayIndex]);
 		if (TraceData.bIsValidMeshCardIndex)
 		{
 			HitLightingMode = LightingMode;
