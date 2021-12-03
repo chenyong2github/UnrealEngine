@@ -139,4 +139,5 @@ private:
 
 	TArray<FTaskEntry> Tasks;
 	FHashTable TileIDToTaskIndex;
+	FHashTable ProducerToTaskIndex;
 };
