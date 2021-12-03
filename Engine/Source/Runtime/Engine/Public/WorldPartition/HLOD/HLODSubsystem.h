@@ -60,11 +60,13 @@ private:
 		bool						bIsCellVisible;
 		TSet<AWorldPartitionHLOD*>	LoadedHLODs;
 
-		uint32						WarmupCompleteFrame;
+		uint32						WarmupStartFrame;
+		uint32						WarmupEndFrame;
 
 		FCellData() 
 			: bIsCellVisible(false)
-			, WarmupCompleteFrame(INDEX_NONE)
+			, WarmupStartFrame(INDEX_NONE)
+			, WarmupEndFrame(INDEX_NONE)
 		{
 		}
 	};
