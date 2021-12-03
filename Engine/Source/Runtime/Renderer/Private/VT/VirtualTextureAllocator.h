@@ -92,6 +92,11 @@ private:
 
 	bool TestAllocation(uint32 Index, uint32 vTileX0, uint32 vTileY0, uint32 vTileX1, uint32 vTileY1) const;
 
+	void RecurseComputeFreeMip(uint16 BlockIndex, uint32 Depth, uint64& IoBlockMap) const;
+	uint32 ComputeFreeMip(uint16 BlockIndex) const;
+
+	void FreeMipUpdateParents(uint16 ParentIndex);
+
 #if WITH_EDITOR
 	void FillDebugImage(uint32 Index, uint32* ImageData, TMap<FAllocatedVirtualTexture*, uint32>& ColorMap) const;
 #endif
@@ -109,6 +114,7 @@ private:
 		uint16						NextFree;
 		uint16						PrevFree;
 		EBlockState                 State;
+		uint8						FreeMip;
 
 		FAddressBlock()
 		{}
@@ -125,6 +131,7 @@ private:
 			, NextFree(0xffff)
 			, PrevFree(0xffff)
 			, State(EBlockState::None)
+			, FreeMip(0)
 		{}
 
 		FAddressBlock(const FAddressBlock& Block, uint32 Offset, uint32 Dimensions)
@@ -139,22 +146,35 @@ private:
 			, NextFree(0xffff)
 			, PrevFree(0xffff)
 			, State(EBlockState::None)
+			, FreeMip(0)
 		{}
 	};
 
-	const uint32			vDimensions;
-	uint32					AllocatedWidth;
-	uint32					AllocatedHeight;
+	// We separate items in the partially free list by the alignment of sub-allocation that can
+	// potentially fit, based on what's already allocated.  A level of zero means a block could
+	// be allocated at 1x1 tile alignment, one means 2x2, etc.  It caps at level 3 (8x8) to
+	// keep the cost of updating this information manageable.  Capping it means we don't need
+	// to recurse too far into children or update too many parents when a block's state changes.
+	static const uint32 PartiallyFreeMipDepth = 4;
 
-	TArray< FAddressBlock >	AddressBlocks;
-	TArray< uint16 >		FreeList;
-	TArray< uint16 >		PartiallyFreeList;
-	uint16					GlobalFreeList;
-	TArray< uint32 >		SortedAddresses;
-	TArray< uint16 >		SortedIndices;
-	FHashTable				HashTable;
-	uint16                  RootIndex;
+	struct FPartiallyFreeMip
+	{
+		uint16	Mips[PartiallyFreeMipDepth];
+	};
 
-	uint32					NumAllocations;
-	uint32					NumAllocatedPages;
+	const uint32				vDimensions;
+	uint32						AllocatedWidth;
+	uint32						AllocatedHeight;
+
+	TArray< FAddressBlock >		AddressBlocks;
+	TArray< uint16 >			FreeList;
+	TArray< FPartiallyFreeMip >	PartiallyFreeList;
+	uint16						GlobalFreeList;
+	TArray< uint32 >			SortedAddresses;
+	TArray< uint16 >			SortedIndices;
+	FHashTable					HashTable;
+	uint16						RootIndex;
+
+	uint32						NumAllocations;
+	uint32						NumAllocatedPages;
 };
