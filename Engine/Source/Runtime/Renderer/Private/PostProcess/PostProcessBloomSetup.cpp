@@ -109,11 +109,6 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FBloomSetupCS, "/Engine/Private/PostProcessBloom.usf", "BloomSetupCS", SF_Compute);
 } //!namespace
 
-bool FBloomOutputs::SupportsApplyParametersBuffer(EShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsFFTBloom(Platform);
-}
-
 FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FBloomSetupInputs& Inputs)
 {
 	check(Inputs.SceneColor.IsValid());
@@ -185,7 +180,7 @@ static_assert(
 	static_cast<uint32>(EBloomQuality::MAX) == FSceneDownsampleChain::StageCount,
 	"The total number of stages in the scene downsample chain and the number of bloom quality levels must match.");
 
-FBloomOutputs AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSceneDownsampleChain* SceneDownsampleChain)
+FScreenPassTexture AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSceneDownsampleChain* SceneDownsampleChain)
 {
 	check(SceneDownsampleChain);
 	check(!IsFFTBloomEnabled(View));
@@ -194,7 +189,7 @@ FBloomOutputs AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo&
 
 	const EBloomQuality BloomQuality = GetBloomQuality();
 
-	FBloomOutputs PassOutputs;
+	FScreenPassTexture PassOutputs;
 	if (BloomQuality != EBloomQuality::Disabled)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Bloom");
@@ -239,7 +234,7 @@ FBloomOutputs AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo&
 		// Use bloom quality to select the number of downsample stages to use for bloom.
 		const uint32 BloomStageCount = BloomQualityToSceneDownsampleStage[BloomQualityIndex];
 
-		const float TintScale = 1.0f / BloomQualityCountMax;
+		const float TintScale = (1.0f / BloomQualityCountMax) * Settings.BloomIntensity;
 
 		for (uint32 StageIndex = 0, SourceIndex = BloomQualityCountMax - 1; StageIndex < BloomStageCount; ++StageIndex, --SourceIndex)
 		{
@@ -251,29 +246,13 @@ FBloomOutputs AddGaussianBloomPasses(FRDGBuilder& GraphBuilder, const FViewInfo&
 				PassInputs.NameX = TEXT("BloomX");
 				PassInputs.NameY = TEXT("BloomY");
 				PassInputs.Filter = SceneDownsampleChain->GetTexture(SourceIndex);
-				PassInputs.Additive = PassOutputs.Bloom;
+				PassInputs.Additive = PassOutputs;
 				PassInputs.CrossCenterWeight = CrossCenterWeight;
 				PassInputs.KernelSizePercent = BloomStage.Size * Settings.BloomSizeScale;
 				PassInputs.TintColor = BloomStage.Tint * TintScale;
 
-				PassOutputs.Bloom = AddGaussianBlurPass(GraphBuilder, View, PassInputs);
+				PassOutputs = AddGaussianBlurPass(GraphBuilder, View, PassInputs);
 			}
-		}
-
-		if (FBloomOutputs::SupportsApplyParametersBuffer(View.GetShaderPlatform()))
-		{
-			FBloomOutputs::FApplyInfo ApplyParameters;
-			ApplyParameters.SceneColorMultiply = FLinearColor::White;
-			ApplyParameters.BloomMultiply = FLinearColor::White * View.FinalPostProcessSettings.BloomIntensity;
-			ApplyParameters.BloomMultiply.A = 0.0f;
-
-			TArray<FBloomOutputs::FApplyInfo, TInlineAllocator<1> > ApplyParametersArray;
-			ApplyParametersArray.Add(ApplyParameters);
-
-			PassOutputs.ApplyParameters = CreateStructuredBuffer(
-				GraphBuilder,
-				TEXT("Bloom.ApplyParameters"),
-				ApplyParametersArray);
 		}
 	}
 

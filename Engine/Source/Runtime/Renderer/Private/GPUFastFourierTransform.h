@@ -131,6 +131,7 @@ namespace GPUFFT
 			const FFTDescription& FFTDesc,
 			FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
 			FRDGTextureRef DstTexture,
+			FRDGBufferRef PostFilterParameters = nullptr,
 			const bool bScrubNaNs = false);
 
 	};
@@ -180,7 +181,8 @@ namespace GPUFFT
 			const FFTDescription& FFTDesc,
 			FRDGTextureRef SrcTexture, const FIntRect& SrcWindow,
 			FRDGTextureRef DstTexture, const FIntRect& DstWindow,
-			const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f));
+			const FPreFilter& PreFilter = FPreFilter(TNumericLimits<float>::Max(), TNumericLimits<float>::Lowest(), 0.f),
+			FRDGBufferRef PostFilterParameters = nullptr);
 
 	};
 
@@ -288,7 +290,8 @@ namespace GPUFFT
 		FRDGTextureRef TransformedKernel,
 		FRDGTextureRef SrcTexture, const FIntRect& ROIRect,
 		FRDGTextureRef DstTexture, const FIntRect& DstRect,
-		const FPreFilter& PreFilter);
+		const FPreFilter& PreFilter,
+		FRDGBufferRef PostFilterParameters);
 
 	FIntPoint Convolution2DBufferSize(const FIntPoint& FrequencySize, const bool bHorizontalFirst, const FIntPoint& SrcExtent);
 
