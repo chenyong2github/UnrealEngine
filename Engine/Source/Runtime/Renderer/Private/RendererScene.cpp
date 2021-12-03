@@ -4758,7 +4758,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			PrimitiveSceneInfo->FreeGPUSceneInstances();
 			FPrimitiveSceneInfo::AllocateGPUSceneInstances(this, MakeArrayView(&PrimitiveSceneInfo, 1));
 
-			DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
+			DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
+			DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
 			LumenSceneData->RemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->PackedIndex);
 			LumenSceneData->AddPrimitive(PrimitiveSceneInfo);
