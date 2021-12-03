@@ -81,7 +81,8 @@ uint GetPriorityBucketIndex(uint LastTracedFrameIndex, uint LastUsedFrameIndex, 
 		// [0;MAX_UPDATE_FREQUENCY]
 		float Frequency = 1.0f;
 		{
-			const float DistanceFromViewer = sqrt(dot(View.WorldCameraOrigin - ProbeWorldPosition, View.WorldCameraOrigin - ProbeWorldPosition));
+			float3 CameraVector = LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldPosition;
+			const float DistanceFromViewer = sqrt(dot(CameraVector, CameraVector));
 			Frequency = MAX_UPDATE_FREQUENCY - clamp(DistanceFromViewer * FirstClipmapWorldExtentRcp, 0.0f, MAX_UPDATE_FREQUENCY);
 		}
 
@@ -284,8 +285,7 @@ void ClearProbeFreeListCS(
 }
 
 Texture3D<uint> LastFrameRadianceProbeIndirectionTexture;
-float LastFrameRadianceProbeCoordToWorldPositionScale[RADIANCE_PROBE_MAX_CLIPMAPS];
-float3 LastFrameRadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
+float4 PackedLastFrameRadianceProbeCoordToWorldPosition[RADIANCE_PROBE_MAX_CLIPMAPS];
 uint NumFramesToKeepCachedProbes;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
@@ -304,7 +304,7 @@ void UpdateCacheForUsedProbesCS(
 
 		if (LastFrameProbeIndex != INVALID_PROBE_INDEX)
 		{
-			float3 ProbeWorldPosition = LastFrameProbeCoord * LastFrameRadianceProbeCoordToWorldPositionScale[ClipmapIndex] + LastFrameRadianceProbeCoordToWorldPositionBias[ClipmapIndex];
+			float3 ProbeWorldPosition = LastFrameProbeCoord * PackedLastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex].w + PackedLastFrameRadianceProbeCoordToWorldPosition[ClipmapIndex].xyz;
 			int3 ProbeCoord = GetRadianceProbeCoord(ProbeWorldPosition, ClipmapIndex);
 
 			bool bReused = false;

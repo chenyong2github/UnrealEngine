@@ -137,7 +137,7 @@ void MarkProbeIndirectionTextureCoord(int3 ProbeCoord, uint ClipmapIndex)
 
 void MarkPositionUsedInIndirectionTexture(float3 WorldPosition, uint ClipmapIndex)
 {
-	float3 ProbeCoordFloat = WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark[ClipmapIndex] + WorldPositionToRadianceProbeCoordBiasForMark[ClipmapIndex];
+	float3 ProbeCoordFloat = WorldPosition * WorldPositionToRadianceProbeCoordScaleForMark(ClipmapIndex) + WorldPositionToRadianceProbeCoordBiasForMark(ClipmapIndex);
 	int3 BottomCornerProbeCoord = floor(ProbeCoordFloat - 0.5f);
 
 	MarkProbeIndirectionTextureCoord(BottomCornerProbeCoord + int3(0, 0, 0), ClipmapIndex);
