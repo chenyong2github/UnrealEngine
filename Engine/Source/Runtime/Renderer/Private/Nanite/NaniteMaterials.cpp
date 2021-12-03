@@ -1276,60 +1276,28 @@ void FNaniteMaterialCommands::Release()
 	//MaterialArgumentDataBuffer.Release();
 }
 
-FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command)
+FNaniteCommandInfo FNaniteMaterialCommands::Register(FMeshDrawCommand& Command, FCommandHash CommandHash)
 {
 	FNaniteCommandInfo CommandInfo;
-	const FCommandHash CommandHash = ComputeCommandHash(Command);
 
-	FCommandId CommandId;
+	FCommandId CommandId = FindOrAddIdByHash(CommandHash, Command);
+	
+	CommandInfo.SetStateBucketId(CommandId.GetIndex());
+
+	FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandId);
+	if (MaterialEntry.ReferenceCount == 0)
 	{
-		FNaniteMaterialCommandsLock Lock(*this, SLT_ReadOnly);
+		check(MaterialEntry.MaterialSlot == INDEX_NONE);				
+		MaterialEntry.MaterialSlot = MaterialSlotAllocator.Allocate(1);
+		MaterialEntry.MaterialId = CommandInfo.GetMaterialId();
+		MaterialEntry.bNeedUpload = true;
 
-		CommandId = FindIdByHash(CommandHash, Command);
-		if (CommandId.IsValid())
-		{
-			CommandInfo.SetStateBucketId(CommandId.GetIndex());
-
-			FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandId);
-			MaterialEntry.MaterialId = CommandInfo.GetMaterialId();
-
-			CommandInfo.SetMaterialSlot(MaterialEntry.MaterialSlot);
-
-			++MaterialEntry.ReferenceCount;
-		}
-		else
-		{
-			// Multiple threads can reach this lock, and attempt to add a missing entry.
-			// We need to handle the case where the first thread releases the lock, and the
-			// other threads here actually fetch a (now added) entry with a non-zero ref count.
-			Lock.AcquireWriteAccess();
-
-			CommandId = FindOrAddIdByHash(CommandHash, Command);
-			CommandInfo.SetStateBucketId(CommandId.GetIndex());
-
-			FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandId);
-
-			if (MaterialEntry.ReferenceCount == 0)
-			{
-				check(MaterialEntry.MaterialSlot == INDEX_NONE);
-				MaterialEntry.MaterialSlot = MaterialSlotAllocator.Allocate(1);
-				MaterialEntry.MaterialId = CommandInfo.GetMaterialId();
-				MaterialEntry.bNeedUpload = true;
-
-				++NumMaterialDepthUpdates;
-
-			#if MESH_DRAW_COMMAND_DEBUG_DATA
-				// When using state buckets, multiple PrimitiveSceneProxies can use the same 
-				// MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
-				Command.ClearDebugPrimitiveSceneProxy();
-			#endif
-			}
-
-			CommandInfo.SetMaterialSlot(MaterialEntry.MaterialSlot);
-
-			++MaterialEntry.ReferenceCount;
-		}
+		++NumMaterialDepthUpdates;
 	}
+
+	CommandInfo.SetMaterialSlot(MaterialEntry.MaterialSlot);
+
+	++MaterialEntry.ReferenceCount;
 
 	check(CommandInfo.GetMaterialSlot() != INDEX_NONE);
 	return CommandInfo;
@@ -1342,38 +1310,29 @@ void FNaniteMaterialCommands::Unregister(const FNaniteCommandInfo& CommandInfo)
 		return;
 	}
 
-	FGraphicsMinimalPipelineStateId CachedPipelineId;
+	const FMeshDrawCommand& MeshDrawCommand = GetCommand(CommandInfo.GetStateBucketId());
+	FGraphicsMinimalPipelineStateId CachedPipelineId = MeshDrawCommand.CachedPipelineId;
+
+	FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandInfo.GetStateBucketId());
+	check(MaterialEntry.ReferenceCount > 0);
+	check(MaterialEntry.MaterialSlot != INDEX_NONE);
+
+	--MaterialEntry.ReferenceCount;
+	if (MaterialEntry.ReferenceCount == 0)
 	{
-		FNaniteMaterialCommandsLock Lock(*this, SLT_ReadOnly);
-
-		const FMeshDrawCommand& MeshDrawCommand = GetCommand(CommandInfo.GetStateBucketId());
-		CachedPipelineId = MeshDrawCommand.CachedPipelineId;
-
-		FNaniteMaterialEntry& MaterialEntry = GetPayload(CommandInfo.GetStateBucketId());
-		check(MaterialEntry.ReferenceCount > 0);
 		check(MaterialEntry.MaterialSlot != INDEX_NONE);
+		MaterialSlotAllocator.Free(MaterialEntry.MaterialSlot, 1);
 
-		--MaterialEntry.ReferenceCount;
-		if (MaterialEntry.ReferenceCount == 0)
+		MaterialEntry.MaterialSlot = INDEX_NONE;
+
+		if (MaterialEntry.bNeedUpload)
 		{
-			Lock.AcquireWriteAccess();
-			if (MaterialEntry.ReferenceCount == 0)
-			{
-				check(MaterialEntry.MaterialSlot != INDEX_NONE);
-				MaterialSlotAllocator.Free(MaterialEntry.MaterialSlot, 1);
-
-				MaterialEntry.MaterialSlot = INDEX_NONE;
-
-				if (MaterialEntry.bNeedUpload)
-				{
-					check(NumMaterialDepthUpdates > 0);
-					--NumMaterialDepthUpdates;
-					MaterialEntry.bNeedUpload = false;
-				}
-				
-				RemoveById(CommandInfo.GetStateBucketId());
-			}
+			check(NumMaterialDepthUpdates > 0);
+			--NumMaterialDepthUpdates;
+			MaterialEntry.bNeedUpload = false;
 		}
+		
+		RemoveById(CommandInfo.GetStateBucketId());
 	}
 
 	FGraphicsMinimalPipelineStateId::RemovePersistentId(CachedPipelineId);

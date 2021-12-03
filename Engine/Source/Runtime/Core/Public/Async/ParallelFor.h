@@ -103,19 +103,38 @@ namespace ParallelForImpl
 			check(bExited.load(std::memory_order_relaxed));
 			FPlatformProcess::ReturnSynchEventToPool(Event);
 		}
-		bool Process(int32 TasksToSpawn, TSharedRef<TParallelForData, ESPMode::ThreadSafe>& Data, ENamedThreads::Type InDesiredThread, bool bMaster);
+
+		template<typename ContextType>
+		bool Process(TArray<ContextType>* InContexts, int32 TaskIndex, int32 TasksToSpawn, TSharedRef<TParallelForData, ESPMode::ThreadSafe>& Data, ENamedThreads::Type InDesiredThread, bool bMaster);
+		
+		inline bool Process(int32 TaskIndex, int32 TasksToSpawn, TSharedRef<TParallelForData, ESPMode::ThreadSafe>& Data, ENamedThreads::Type InDesiredThread, bool bMaster)
+		{
+			return Process<nullptr_t>(nullptr, TaskIndex, TasksToSpawn, Data, InDesiredThread, bMaster);
+		}
 	};
 
-	template<typename FunctionType>
+	template<typename FunctionType, typename ContextType = nullptr_t>
 	class TParallelForTask
 	{
+		TArray<ContextType>* Contexts;
 		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data;
 		ENamedThreads::Type DesiredThread;
+		int32 TaskIndex;
 		int32 TasksToSpawn;
 	public:
-		TParallelForTask(TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& InData, ENamedThreads::Type InDesiredThread, int32 InTasksToSpawn = 0)
-			: Data(InData) 
+		TParallelForTask(TArray<ContextType>* InContexts, int32 InTaskIndex, TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& InData, ENamedThreads::Type InDesiredThread, int32 InTasksToSpawn = 0)
+			: Contexts(InContexts)
+			, Data(InData) 
 			, DesiredThread(InDesiredThread)
+			, TaskIndex(InTaskIndex)
+			, TasksToSpawn(InTasksToSpawn)
+		{
+		}		
+		TParallelForTask(int32 InTaskIndex, TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& InData, ENamedThreads::Type InDesiredThread, int32 InTasksToSpawn = 0)
+			: Contexts(nullptr)
+			, Data(InData) 
+			, DesiredThread(InDesiredThread)
+			, TaskIndex(InTaskIndex)
 			, TasksToSpawn(InTasksToSpawn)
 		{
 		}
@@ -136,7 +155,7 @@ namespace ParallelForImpl
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 		{
 			FMemMark Mark(FMemStack::Get());
-			if (Data->Process(TasksToSpawn, Data, DesiredThread, false))
+			if (Data->Process(Contexts, TaskIndex, TasksToSpawn, Data, DesiredThread, false))
 			{
 				checkSlow(!Data->bTriggered);
 				Data->bTriggered = true;
@@ -145,8 +164,30 @@ namespace ParallelForImpl
 		}
 	};
 
-	template<typename FunctionType>
-	inline bool TParallelForData<FunctionType>::Process(int32 TasksToSpawn, TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& Data, ENamedThreads::Type InDesiredThread, bool bMaster)
+	// Helper to call body with context reference
+	template <typename FunctionType, typename ContextType>
+	inline void CallBody(const FunctionType& Body, ContextType* Context, int32 Index)
+	{
+		Body(*Context, Index);
+	}
+	
+	// Helper specialization for "no context", which changes the assumed body call signature
+	template <typename FunctionType>
+	inline void CallBody(const FunctionType& Body, nullptr_t*, int32 Index)
+	{
+		Body(Index);
+	}
+
+	template <typename FunctionType, typename ContextType>
+	inline void CallBody(const FunctionType& Body, TArray<ContextType>* Contexts, int32 TaskIndex, int32 Index)
+	{
+		ContextType* Context = Contexts ? &(*Contexts)[TaskIndex] : nullptr;
+		CallBody(Body, Context, Index);
+	}
+
+	template<typename FunctionType> 
+	template<typename ContextType> 
+	inline bool TParallelForData<FunctionType>::Process(TArray<ContextType>* Contexts, int32 TaskIndex, int32 TasksToSpawn, TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe>& Data, ENamedThreads::Type InDesiredThread, bool bMaster)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TParallelForData::Process)
 
@@ -154,7 +195,7 @@ namespace ParallelForImpl
 		if (TasksToSpawn && MaybeTasksLeft > 0)
 		{
 			TasksToSpawn = FMath::Min<int32>(TasksToSpawn, MaybeTasksLeft);
-			TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, InDesiredThread, TasksToSpawn - 1);
+			TGraphTask<TParallelForTask<FunctionType, ContextType>>::CreateTask().ConstructAndDispatchWhenReady(Contexts, TaskIndex + 1, Data, InDesiredThread, TasksToSpawn - 1);
 		}
 		int32 LocalBlockSize = BlockSize;
 		int32 LocalNum = Num;
@@ -172,7 +213,6 @@ namespace ParallelForImpl
 			YieldingThreshold = FTimespan::FromMilliseconds(FMath::Max(0, GParallelForBackgroundYieldingTimeoutMs));
 		}
 
-		TFunctionRef<void(int32)> LocalBody(Body);
 		while (true)
 		{
 			int32 MyIndex = IndexToDo.Increment() - 1;
@@ -189,6 +229,8 @@ namespace ParallelForImpl
 			}
 			if (MyIndex < LocalNum)
 			{
+				check(Contexts == nullptr || TaskIndex < Contexts->Num());
+
 				int32 ThisBlockSize = LocalBlockSize;
 				if (MyIndex == LocalNum - 1)
 				{
@@ -196,7 +238,7 @@ namespace ParallelForImpl
 				}
 				for (int32 LocalIndex = 0; LocalIndex < ThisBlockSize; LocalIndex++)
 				{
-					LocalBody(MyIndex * LocalBlockSize + LocalIndex);
+					CallBody(Body, Contexts, TaskIndex, MyIndex * LocalBlockSize + LocalIndex);
 				}
 				checkSlow(!bExited.load(std::memory_order_relaxed));
 				int32 LocalNumCompleted = NumCompleted.Increment();
@@ -216,7 +258,7 @@ namespace ParallelForImpl
 				auto PassedTime = [Start, &Now]() { return Now() - Start; };
 				if (PassedTime() > YieldingThreshold)
 				{
-					TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, InDesiredThread, 0);
+					TGraphTask<TParallelForTask<FunctionType, ContextType>>::CreateTask().ConstructAndDispatchWhenReady(Contexts, TaskIndex, Data, InDesiredThread, 0);
 					return false;
 				}
 			}
@@ -260,24 +302,31 @@ namespace ParallelForImpl
 		return ENamedThreads::AnyBackgroundThreadNormalTask;
 	}
 
-	template<typename FunctionType>
-	inline void ParallelForInternal(int32 Num, FunctionType Body, EParallelForFlags Flags)
+	inline int32 GetNumberOfThreadTasks(int32 Num, EParallelForFlags Flags)
+	{
+		int32 NumThreadTasks = 0;
+		const bool bIsMultithread = FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::IsForkedMultithreadInstance();
+		if (Num > 1 && (Flags & EParallelForFlags::ForceSingleThread) == EParallelForFlags::None && bIsMultithread)
+		{
+			NumThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads(), Num - 1);
+		}
+
+		return NumThreadTasks;
+	}
+
+	template<typename FunctionType, typename ContextType>
+	inline void ParallelForInternal(int32 Num, FunctionType Body, EParallelForFlags Flags, TArray<ContextType>* Contexts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ParallelFor);
 		check(Num >= 0);
 
-		int32 AnyThreadTasks = 0;
-		const bool bIsMultithread = FApp::ShouldUseThreadingForPerformance() || FForkProcessHelper::IsForkedMultithreadInstance();
-		if (Num > 1 && (Flags & EParallelForFlags::ForceSingleThread) == EParallelForFlags::None && bIsMultithread)
-		{
-			AnyThreadTasks = FMath::Min<int32>(FTaskGraphInterface::Get().GetNumWorkerThreads(), Num - 1);
-		}
+		int32 AnyThreadTasks = GetNumberOfThreadTasks(Num, Flags);
 		if (!AnyThreadTasks)
 		{
 			// no threads, just do it and return
 			for (int32 Index = 0; Index < Num; Index++)
-			{
-				Body(Index);
+			{				
+				CallBody(Body, Contexts, 0, Index);
 			}
 			return;
 		}
@@ -287,9 +336,9 @@ namespace ParallelForImpl
 
 		TParallelForData<FunctionType>* DataPtr = new TParallelForData<FunctionType>(Num, AnyThreadTasks + 1, (Num > AnyThreadTasks + 1) && bPumpRenderingThread, Body, Flags);
 		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
-		TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, DesiredThread, AnyThreadTasks - 1);
+		TGraphTask<TParallelForTask<FunctionType, ContextType>>::CreateTask().ConstructAndDispatchWhenReady(Contexts, 1, Data, DesiredThread, AnyThreadTasks - 1);
 		// this thread can help too and this is important to prevent deadlock on recursion 
-		if (!Data->Process(0, Data, DesiredThread, true))
+		if (!Data->Process(Contexts, 0, 0, Data, DesiredThread, true))
 		{
 			if (bPumpRenderingThread && IsInActualRenderingThread())
 			{
@@ -316,6 +365,12 @@ namespace ParallelForImpl
 
 		// DoneEvent waits here if some other thread finishes the last item
 		// Data must live on until all of the tasks are cleared which might be long after this function exits
+	}
+
+	template<typename FunctionType>
+	inline void ParallelForInternal(int32 Num, FunctionType Body, EParallelForFlags Flags)
+	{
+		ParallelForInternal<FunctionType, nullptr_t>(Num, Body, Flags, nullptr);
 	}
 	
 	/** 
@@ -354,11 +409,11 @@ namespace ParallelForImpl
 
 		TParallelForData<FunctionType>* DataPtr = new TParallelForData<FunctionType>(Num, AnyThreadTasks, false, Body, Flags);
 		TSharedRef<TParallelForData<FunctionType>, ESPMode::ThreadSafe> Data = MakeShareable(DataPtr);
-		TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, DesiredThread, AnyThreadTasks - 1);
+		TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(1, Data, DesiredThread, AnyThreadTasks - 1);
 		// do the prework
 		CurrentThreadWorkToDoBeforeHelping();
 		// this thread can help too and this is important to prevent deadlock on recursion 
-		if (!Data->Process(0, Data, DesiredThread, true))
+		if (!Data->Process(0, 0, Data, DesiredThread, true))
 		{
 			if ((Flags & EParallelForFlags::PumpRenderingThread) != EParallelForFlags::None && IsInRenderingThread())
 			{
@@ -454,4 +509,54 @@ inline void ParallelForWithPreWork(int32 Num, TFunctionRef<void(int32)> Body, TF
 inline void ParallelForWithPreWork(int32 Num, TFunctionRef<void(int32)> Body, TFunctionRef<void()> CurrentThreadWorkToDoBeforeHelping, EParallelForFlags Flags = EParallelForFlags::None)
 {
 	ParallelForImpl::ParallelForWithPreWorkInternal(Num, Body, CurrentThreadWorkToDoBeforeHelping, Flags);
+}
+
+/** 
+	*	General purpose parallel for that uses the taskgraph. This variant constructs for the caller a user-defined context
+	* 	object for each task that may get spawned to do work, and passes it on to the loop body to give it a task-local
+	*   "workspace" that can be mutated without need for synchronization primitives. For this variant, the user provides a
+	* 	callable to construct each context element.
+	*	@param OutContexts; Array that will hold the user-defined, task-level context objects (allocated per parallel task)
+	*	@param Num; number of calls of Body; Body(0), Body(1)....Body(Num - 1)
+	* 	@param ContextConstructor; Function to call to initialize each task context allocated for the operation
+	*	@param Body; Function to call from multiple threads
+	*	@param Flags; Used to customize the behavior of the ParallelFor if needed.
+	*	Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
+**/
+template <typename ContextType, typename ContextAllocatorType, typename ContextConstructorType, typename FunctionType>
+inline void ParallelForWithTaskContext(TArray<ContextType, ContextAllocatorType>& OutContexts, int32 Num, const ContextConstructorType& ContextConstructor, const FunctionType& Body, EParallelForFlags Flags = EParallelForFlags::None)
+{
+	if (Num > 0)
+	{
+		const int32 NumContexts = ParallelForImpl::GetNumberOfThreadTasks(Num, Flags) + 1;
+		OutContexts.Reset();
+		OutContexts.AddUninitialized(NumContexts);
+		for (int32 ContextIndex = 0; ContextIndex < NumContexts; ++ContextIndex)
+		{
+			new(&OutContexts[ContextIndex]) ContextType(ContextConstructor(ContextIndex, NumContexts));
+		}
+		ParallelForImpl::ParallelForInternal(Num, Body, Flags, &OutContexts);
+	}
+}
+
+/** 
+	*	General purpose parallel for that uses the taskgraph. This variant constructs for the caller a user-defined context
+	* 	object for each task that may get spawned to do work, and passes it on to the loop body to give it a task-local
+	*   "workspace" that can be mutated without need for synchronization primitives.
+	*	@param OutContexts; Array that will hold the user-defined, task-level context objects (allocated per parallel task)
+	*	@param Num; number of calls of Body; Body(0), Body(1)....Body(Num - 1)
+	*	@param Body; Function to call from multiple threads
+	*	@param Flags; Used to customize the behavior of the ParallelFor if needed.
+	*	Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
+**/
+template <typename ContextType, typename ContextAllocatorType, typename FunctionType>
+inline void ParallelForWithTaskContext(TArray<ContextType, ContextAllocatorType>& OutContexts, int32 Num, const FunctionType& Body, EParallelForFlags Flags = EParallelForFlags::None)
+{
+	if (Num > 0)
+	{
+		const int32 NumContexts = ParallelForImpl::GetNumberOfThreadTasks(Num, Flags) + 1;
+		OutContexts.Reset();
+		OutContexts.AddDefaulted(NumContexts);
+		ParallelForImpl::ParallelForInternal(Num, Body, Flags, &OutContexts);
+	}
 }

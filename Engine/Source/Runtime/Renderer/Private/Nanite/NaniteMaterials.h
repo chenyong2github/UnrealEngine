@@ -232,7 +232,7 @@ struct FNaniteMaterialEntry
 	}
 
 	FNaniteMaterialEntry(FNaniteMaterialEntry&& Other)
-	: ReferenceCount(Other.ReferenceCount.load())
+	: ReferenceCount(Other.ReferenceCount)
 	, MaterialId(Other.MaterialId)
 	, MaterialSlot(Other.MaterialSlot)
 	, bNeedUpload(false)
@@ -240,7 +240,7 @@ struct FNaniteMaterialEntry
 		checkSlow(!Other.bNeedUpload);
 	}
 
-	std::atomic<uint32> ReferenceCount;
+	uint32 ReferenceCount;
 	uint32 MaterialId;
 	int32 MaterialSlot;
 	bool bNeedUpload;
@@ -263,8 +263,6 @@ using FNaniteMaterialEntryMap = Experimental::TRobinHoodHashMap<FMeshDrawCommand
 
 class FNaniteMaterialCommands
 {
-	friend class FNaniteMaterialCommandsLock;
-
 public:
 	typedef Experimental::FHashType FCommandHash;
 	typedef Experimental::FHashElementId FCommandId;
@@ -275,7 +273,8 @@ public:
 
 	void Release();
 
-	FNaniteCommandInfo Register(FMeshDrawCommand& Command);
+	FNaniteCommandInfo Register(FMeshDrawCommand& Command, FCommandHash CommandHash);
+	FNaniteCommandInfo Register(FMeshDrawCommand& Command) { return Register(Command, ComputeCommandHash(Command)); }	
 	void Unregister(const FNaniteCommandInfo& CommandInfo);
 
 	inline const FCommandHash ComputeCommandHash(const FMeshDrawCommand& DrawCommand) const
@@ -347,7 +346,6 @@ public:
 	}
 
 private:
-	FRWLock ReadWriteLock;
 	FNaniteMaterialEntryMap EntryMap;
 
 	uint32 MaxMaterials = 0;
@@ -370,23 +368,6 @@ private:
 
 	//FScatterUploadBuffer	MaterialArgumentUploadBuffer; // 4 uints per slot (NANITE_DRAW_INDIRECT_ARG_COUNT)
 	//FRWByteAddressBuffer	MaterialArgumentDataBuffer;
-};
-
-class FNaniteMaterialCommandsLock : public FRWScopeLock
-{
-public:
-	explicit FNaniteMaterialCommandsLock(FNaniteMaterialCommands& InMaterialCommands, FRWScopeLockType InLockType)
-	: FRWScopeLock(InMaterialCommands.ReadWriteLock, InLockType)
-	{
-	}
-
-	inline void AcquireWriteAccess()
-	{
-		ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-	}
-
-private:
-	UE_NONCOPYABLE(FNaniteMaterialCommandsLock);
 };
 
 extern bool UseComputeDepthExport();
