@@ -39,6 +39,14 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 		Reset();
 		return false;
 	}
+	
+	if (InStateTree.Instances.Num() == 0)
+	{
+		STATETREE_LOG(Error, TEXT("%s: StateTree asset '%s' has no valid instances."), ANSI_TO_TCHAR(__FUNCTION__), *InStateTree.GetName());
+		Reset();
+		return false;
+	}
+	
 	StateTree = &InStateTree;
 
 	StorageType = InStorageType;

@@ -94,9 +94,8 @@ void ForEachEntityInChunk(
 	// Initialize the execution context if changed between chunks.
 	if (StateTreeContext.GetStateTree() != StateTree)
 	{
-		StateTreeContext.Init(MassStateTreeSubsystem, *StateTree, EStateTreeStorage::External);
-
 		// Gather subsystems.
+		if (StateTreeContext.Init(MassStateTreeSubsystem, *StateTree, EStateTreeStorage::External))
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExternalSubsystems);
 			if (!ensureMsgf(UE::MassBehavior::SetExternalSubsystems(StateTreeContext), TEXT("StateTree will not execute due to missing subsystem requirements.")))
