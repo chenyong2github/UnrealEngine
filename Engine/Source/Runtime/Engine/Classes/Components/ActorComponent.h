@@ -178,6 +178,9 @@ private:
 	/** Is this component's dynamic data in need of sending to the renderer? */
 	uint8 bRenderDynamicDataDirty:1;
 
+	/** Is this component's instanced data in need of sending to the renderer? */
+	uint8 bRenderInstancesDirty:1;
+
 	/** Used to ensure that any subclass of UActorComponent that overrides PostRename calls up to the Super to make OwnedComponents arrays get updated correctly */
 	uint8 bRoutedPostRename:1;
 
@@ -589,6 +592,9 @@ protected:
 	/** Called to send dynamic data for this component to the rendering thread */
 	virtual void SendRenderDynamicData_Concurrent();
 
+	/** Called to send instance data for this component to the rendering thread */
+	virtual void SendRenderInstanceData_Concurrent();
+
 	/** 
 	 * Used to shut down any rendering thread structure for this component
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
@@ -732,6 +738,9 @@ public:
 	/** Is this component's transform in need of sending to the renderer? */
 	inline bool IsRenderTransformDirty() const { return bRenderTransformDirty; }
 
+	/** Is this component's instance data in need of sending to the renderer? */
+	inline bool IsRenderInstancesDirty() const { return bRenderInstancesDirty; }
+
 	/** Is this component in need of its whole state being sent to the renderer? */
 	inline bool IsRenderStateDirty() const { return bRenderStateDirty; }
 
@@ -771,8 +780,8 @@ public:
 #endif // WITH_EDITOR
 
 	/**
-	 * Uses the bRenderStateDirty/bRenderTransformDirty to perform any necessary work on this component.
-	 * Do not call this directly, call MarkRenderStateDirty, MarkRenderDynamicDataDirty, 
+	 * Uses the bRenderStateDirty/bRenderTransformDirty/bRenderInstancesDirty to perform any necessary work on this component.
+	 * Do not call this directly, call MarkRenderStateDirty, MarkRenderDynamicDataDirty,  MarkRenderInstancesDataDirty,
 	 *
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
 	 */
@@ -789,6 +798,9 @@ public:
 
 	/** Marks the transform as dirty - will be sent to the render thread at the end of the frame*/
 	void MarkRenderTransformDirty();
+
+	/** Marks the instances as dirty - changes to instance transforms/custom data will be sent to the render thread at the end of the frame*/
+	void MarkRenderInstancesDirty();
 
 	/** If we belong to a world, mark this for a deferred update, otherwise do it now. */
 	void MarkForNeededEndOfFrameUpdate();

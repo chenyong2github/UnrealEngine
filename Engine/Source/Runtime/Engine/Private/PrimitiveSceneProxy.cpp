@@ -538,55 +538,134 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	OnTransformChanged();
 }
 
-bool FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds)
+void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds)
 {
-	SCOPED_NAMED_EVENT(FPrimitiveSceneProxy_UpdateInstances_RenderThread, FColor::Emerald);
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("FPrimitiveSceneProxy::UpdateInstances_RenderThread");
 
 	check(IsInRenderingThread());
 
-	bool bInstanceCountChanged = false;
+	// Update the cached bounds.
+	Bounds = InBounds;
+	LocalBounds = InLocalBounds;
+
+	UpdateUniformBuffer();
+	
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	InstanceXFormUpdatedThisFrame.SetRange(0, InstanceXFormUpdatedThisFrame.Num(), 0);
+	InstanceCustomDataUpdatedThisFrame.SetRange(0, InstanceCustomDataUpdatedThisFrame.Num(), 0);
+#endif
+
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
-		const uint32 NumInstances = CmdBuffer.NumUpdates + CmdBuffer.NumAdds;
-		bInstanceCountChanged = NumInstances != InstanceSceneData.Num();
+		const int32 PrevNumCustomDataFloats = InstanceSceneData.Num() ? InstanceCustomData.Num() / InstanceSceneData.Num() : 0;
+		const int32 NumCustomDataFloats = CmdBuffer.NumCustomDataFloats;
 
-		InstanceSceneData.SetNum(NumInstances);
-		InstanceLocalBounds.SetNumUninitialized(1);
-		InstanceLocalBounds[0] = InStaticMeshBounds;
-		InstanceDynamicData.SetNumUninitialized(NumInstances);
-		InstanceRandomID.SetNumZeroed(NumInstances);
-		InstanceLightShadowUVBias.SetNumZeroed(NumInstances);
-		InstanceCustomData = CmdBuffer.CustomDataFloatsBulk;
-
-		if (InstanceCustomData.Num())
+		// Apply all updates.
+		for (const auto& Cmd : CmdBuffer.Cmds)
 		{
-			int32 MyNumCustomDataFloats = InstanceCustomData.Num() / InstanceSceneData.Num();
-			check(InstanceSceneData.Num() * MyNumCustomDataFloats == InstanceCustomData.Num()); // Temp sanity check
+			if (Cmd.Type == FInstanceUpdateCmdBuffer::Update)
+			{
+				// update transform data.
+				InstanceSceneData[Cmd.InstanceIndex].LocalToPrimitive = Cmd.XForm;
+				InstanceDynamicData[Cmd.InstanceIndex].PrevLocalToPrimitive = Cmd.PreviousXForm;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				InstanceXFormUpdatedThisFrame[Cmd.InstanceIndex] = true;
+#endif
+			}
+			else if (Cmd.Type == FInstanceUpdateCmdBuffer::CustomData)
+			{
+				// update custom data because it changed.
+				check(PrevNumCustomDataFloats == NumCustomDataFloats);
+				const int32 DstCustomDataOffset = Cmd.InstanceIndex * NumCustomDataFloats;
+				FMemory::Memcpy(&InstanceCustomData[DstCustomDataOffset], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				InstanceCustomDataUpdatedThisFrame[Cmd.InstanceIndex] = true;
+#endif
+			}
 		}
 
+		// Build bit array of commands to remove.
+		TBitArray<> RemoveBits;
+		RemoveBits.Init(false, InstanceSceneData.Num());
+		for (const auto& Cmd : CmdBuffer.Cmds)
+		{
+			if (Cmd.Type == FInstanceUpdateCmdBuffer::Hide)
+			{
+				RemoveBits[Cmd.InstanceIndex] = true;
+			}
+		}
+
+		// Do removes.
+		for (int32 i = 0; i < RemoveBits.Num(); ++i)
+		{
+			if (RemoveBits[i])
+			{
+				InstanceSceneData.RemoveAt(i, 1, false);
+				InstanceDynamicData.RemoveAt(i, 1, false);
+
+				if (bHasPerInstanceRandom)
+				{
+					InstanceRandomID.RemoveAt(i, 1, false);
+				}
+				if (bHasPerInstanceLMSMUVBias)
+				{
+					InstanceLightShadowUVBias.RemoveAt(i, 1, false);
+				}
+				InstanceCustomData.RemoveAt((i * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
+				check(InstanceCustomData.Num() == (PrevNumCustomDataFloats * InstanceSceneData.Num()));
+
+				RemoveBits.RemoveAt(i);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				InstanceXFormUpdatedThisFrame.RemoveAt(i);
+				InstanceCustomDataUpdatedThisFrame.RemoveAt(i);
+#endif
+				i--;
+			}
+		}
+
+		// Apply all adds.
+		for (const auto& Cmd : CmdBuffer.Cmds)
+		{
+			if (Cmd.Type == FInstanceUpdateCmdBuffer::Add)
+			{
+				InstanceSceneData.AddDefaulted_GetRef().LocalToPrimitive = Cmd.XForm;
+				InstanceDynamicData.AddDefaulted_GetRef().PrevLocalToPrimitive = Cmd.PreviousXForm;
+
+				if (bHasPerInstanceRandom)
+				{
+					InstanceRandomID.AddZeroed();
+				}
+
+				if (bHasPerInstanceLMSMUVBias)
+				{
+					InstanceLightShadowUVBias.AddZeroed();
+				}
+
+				const int32 DstCustomDataOffset = InstanceCustomData.AddUninitialized(NumCustomDataFloats);
+				FMemory::Memcpy(&InstanceCustomData[DstCustomDataOffset], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				InstanceXFormUpdatedThisFrame.Add(true);
+				InstanceCustomDataUpdatedThisFrame.Add(true);
+#endif
+			}
+		}
+
+		// #todo (jnadro) Do I still need to update this?
+		InstanceLocalBounds.SetNumUninitialized(1);
+		InstanceLocalBounds[0] = InStaticMeshBounds;
 		bHasPerInstanceRandom = InstanceRandomID.Num() > 0;
 		bHasPerInstanceCustomData = InstanceCustomData.Num() > 0;
 		bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
 		bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0;
 
-		int32 i = 0;
-		for (const auto& Cmd : CmdBuffer.Cmds)
-		{
-			if (Cmd.Type == FInstanceUpdateCmdBuffer::Add || Cmd.Type == FInstanceUpdateCmdBuffer::Update)
-			{
-				FPrimitiveInstance& SceneData = InstanceSceneData[i];
-				SceneData.LocalToPrimitive = Cmd.XForm;
-
-				FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[i];
-				DynamicData.PrevLocalToPrimitive = Cmd.PreviousXForm;
-
-				i++;
-			}
-		}
-		ensure(NumInstances == i);
+		// Ensure our data is in sync.
+		check(InstanceSceneData.Num() == InstanceDynamicData.Num());
+		check(InstanceCustomData.Num() == (NumCustomDataFloats * InstanceSceneData.Num()));
 	}
-
-	return bInstanceCountChanged;
 }
 
 bool FPrimitiveSceneProxy::WouldSetTransformBeRedundant_AnyThread(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FVector& InActorPosition) const

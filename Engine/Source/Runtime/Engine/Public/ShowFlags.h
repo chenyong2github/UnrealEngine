@@ -396,6 +396,7 @@ private:
 		SetStreamingBounds(false);
 		SetHISMCOcclusionBounds(false);
 		SetHISMCClusterTree(false);
+		SetVisualizeInstanceUpdates(false);
 		SetConstraints(false);
 		SetMassProperties(false);
 		SetCameraFrustums(false);

@@ -1445,6 +1445,7 @@ void UActorComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Co
 	bRenderStateDirty = false;
 	bRenderTransformDirty = false;
 	bRenderDynamicDataDirty = false;
+	bRenderInstancesDirty = false;
 
 #if LOG_RENDER_STATE
 	UE_LOG(LogActorComponent, Log, TEXT("CreateRenderState_Concurrent: %s"), *GetPathName());
@@ -1475,6 +1476,16 @@ void UActorComponent::SendRenderDynamicData_Concurrent()
 #endif
 }
 
+void UActorComponent::SendRenderInstanceData_Concurrent()
+{
+	check(bRenderStateCreated);
+	bRenderInstancesDirty = false;
+
+#if LOG_RENDER_STATE
+	UE_LOG(LogActorComponent, Log, TEXT("SendRenderInstanceData_Concurrent: %s"), *GetPathName());
+#endif
+}
+
 void UActorComponent::DestroyRenderState_Concurrent()
 {
 	check(bRenderStateCreated);
@@ -1485,6 +1496,7 @@ void UActorComponent::DestroyRenderState_Concurrent()
 	// so that the component can be left in a state where its transform is marked for update while render state destroyed
 	bRenderStateDirty = false;
 	bRenderTransformDirty = false;
+	bRenderInstancesDirty = false;
 	bRenderDynamicDataDirty = false;
 
 #if LOG_RENDER_STATE
@@ -1754,6 +1766,11 @@ void UActorComponent::DoDeferredRenderUpdates_Concurrent()
 		{
 			SendRenderDynamicData_Concurrent();
 		}
+
+		if (bRenderInstancesDirty)
+		{
+			SendRenderInstanceData_Concurrent();
+		}
 	}
 }
 
@@ -1781,6 +1798,15 @@ void UActorComponent::MarkRenderTransformDirty()
 	if (IsRegistered() && bRenderStateCreated)
 	{
 		bRenderTransformDirty = true;
+		MarkForNeededEndOfFrameUpdate();
+	}
+}
+
+void UActorComponent::MarkRenderInstancesDirty()
+{
+	if (IsRegistered() && bRenderStateCreated)
+	{
+		bRenderInstancesDirty = true;
 		MarkForNeededEndOfFrameUpdate();
 	}
 }

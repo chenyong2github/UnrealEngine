@@ -691,6 +691,12 @@ public:
 		return !(IsRayTracingFarField() && (!IsDrawnInGame() || GetScene().IsEditorScene()));
 	}
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	inline bool HasInstanceDebugData() const { return InstanceXFormUpdatedThisFrame.Num() && InstanceCustomDataUpdatedThisFrame.Num(); }
+	inline bool WasInstanceXFormUpdatedThisFrame(int i) const { return InstanceXFormUpdatedThisFrame.IsValidIndex(i) && InstanceXFormUpdatedThisFrame[i]; }
+	inline bool WasInstanceCustomDataUpdatedThisFrame(int i) const{ return InstanceCustomDataUpdatedThisFrame.IsValidIndex(i) && InstanceCustomDataUpdatedThisFrame[i]; }
+#endif
+
 	static constexpr int32 InvalidRayTracingGroupId = -1;
 
 	/** Returns whether draws velocity in base pass. */
@@ -1239,6 +1245,11 @@ protected:
 	TArray<float> InstanceRandomID;
 	TArray<FVector4f> InstanceLightShadowUVBias;
 	TArray<uint32> InstanceHierarchyOffset;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** Whether instance data has changed this frame on the proxy. Currently used for non-shipping debug drawing. */
+	TBitArray<> InstanceXFormUpdatedThisFrame;
+	TBitArray<> InstanceCustomDataUpdatedThisFrame;
+#endif
 
 	/** Quality of interpolated indirect lighting for Movable components. */
 	TEnumAsByte<EIndirectLightingCacheQuality> IndirectLightingCacheQuality;
@@ -1356,9 +1367,8 @@ protected:
 	 * @param InBounds - Primitive world space bounds.
 	 * @param InLocalBounds - Primitive local space bounds.
 	 * @param InStaticMeshBounds - Bounds of the primitive mesh instance.
-	 * @returns True if instance count has changed since last time.
 	 */
-	ENGINE_API virtual bool UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds);
+	ENGINE_API virtual void UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds);
 
 	/** Updates selection for the primitive proxy. This is called in the rendering thread by SetSelection_GameThread. */
 	void SetSelection_RenderThread(const bool bInParentSelected, const bool bInIndividuallySelected);
