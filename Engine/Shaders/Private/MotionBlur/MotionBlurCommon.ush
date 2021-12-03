@@ -5,6 +5,12 @@
 #include "../ScreenPass.ush"
 
 
+//------------------------------------------------------- COMPILER CONFIG
+
+// Generate vector truncation warnings to errors.
+#pragma warning(error: 3206)
+
+
 //------------------------------------------------------- CONFIG
 
 #define DEBUG_OUTPUT 0
@@ -12,6 +18,92 @@
 #ifndef CONFIG_MAX_RANGE_SIZE
 	#error need to set CONFIG_MAX_RANGE_SIZE
 #endif
+
+// Size in input pixel of the velocity flatten tiling
+#define VELOCITY_FLATTEN_TILE_SIZE 16
+
+// Size of the tile at full resolution
+#define VELOCITY_FILTER_TILE_SIZE 16
+
+#if PLATFORM_SUPPORTS_REAL_TYPES && 0
+	#define CONFIG_COMPILE_FP16 1
+#else
+	#define CONFIG_COMPILE_FP16 0
+#endif
+
+#define CONFIG_MINIMAL_PIXEL_VELOCITY 0.5
+
+
+//------------------------------------------------------- CONSTANTS
+
+#if CONFIG_COMPILE_FP16
+	#define mb_half  half
+	#define mb_half2 half2
+	#define mb_half3 half3
+	#define mb_half4 half4
+
+	#define mb_short  int16_t
+	#define mb_short2 int16_t2
+	#define mb_short3 int16_t3
+	#define mb_short4 int16_t4
+
+	#define mb_ushort  uint16_t
+	#define mb_ushort2 uint16_t2
+	#define mb_ushort3 uint16_t3
+	#define mb_ushort4 uint16_t4
+
+	#define mb_half2x2 half2x2
+	#define mb_half3x2 half3x2
+	#define mb_half4x2 half4x2
+
+	#define mb_short2x2 int16_t2x2
+	#define mb_short3x2 int16_t3x2
+	#define mb_short4x2 int16_t4x2
+
+	#define mb_ushort2x2 uint16_t2x2
+	#define mb_ushort3x2 uint16_t3x2
+	#define mb_ushort4x2 uint16_t4x2
+
+#else
+	#define mb_half  float
+	#define mb_half2 float2
+	#define mb_half3 float3
+	#define mb_half4 float4
+
+	#define mb_short  int
+	#define mb_short2 int2
+	#define mb_short3 int3
+	#define mb_short4 int4
+
+	#define mb_ushort  uint
+	#define mb_ushort2 uint2
+	#define mb_ushort3 uint3
+	#define mb_ushort4 uint4
+
+	#define mb_half2x2 float2x2
+	#define mb_half3x2 float3x2
+	#define mb_half4x2 float4x2
+
+	#define mb_short2x2 int2x2
+	#define mb_short3x2 int3x2
+	#define mb_short4x2 int4x2
+
+	#define mb_ushort2x2 uint2x2
+	#define mb_ushort3x2 uint3x2
+	#define mb_ushort4x2 uint4x2
+
+#endif
+
+//------------------------------------------------------- DEFINES
+
+/** Filter tile classification. Matches FMotionBlurFilterCS::ETileClassification */
+#define FILTER_TILE_CLASSIFY_GATHER_HALF_RES 0
+#define FILTER_TILE_CLASSIFY_GATHER_FULL_RES 1
+#define FILTER_TILE_CLASSIFY_SCATTER_AS_GATHER_1_VELOCITY_HALF_RES 2
+#define FILTER_TILE_CLASSIFY_SCATTER_AS_GATHER_1_VELOCITY_FULL_RES 3
+#define FILTER_TILE_CLASSIFY_SCATTER_AS_GATHER_2_VELOCITY_FULL_RES 4
+#define FILTER_TILE_CLASSIFY_COUNT 5
+
 
 
 //------------------------------------------------------- FUNCTIONS

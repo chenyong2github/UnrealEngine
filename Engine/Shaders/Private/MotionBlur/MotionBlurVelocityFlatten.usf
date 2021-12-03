@@ -7,9 +7,8 @@
 
 //------------------------------------------------------- CONSTANTS
 
-#define THREADGROUP_SIZEX		16
-#define THREADGROUP_SIZEY		16
-#define THREADGROUP_TOTALSIZE	(THREADGROUP_SIZEX * THREADGROUP_SIZEY)
+#define TILE_SIZE				(VELOCITY_FLATTEN_TILE_SIZE)
+#define THREADGROUP_TOTALSIZE	(TILE_SIZE * TILE_SIZE)
 
 #ifndef CAMERA_MOTION_BLUR_MODE
 // 0-off; 1-on; 2-override
@@ -26,10 +25,8 @@ SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
 float4x4 ClipToPrevClipOverride;
 #endif
 
-float MotionBlur_AspectRatio;
-float MotionBlur_VelocityScale;
-float MotionBlur_VelocityScaleForTiles;
-float MotionBlur_VelocityMax;
+float2 VelocityScale;
+float VelocityMax;
 
 Texture2D VelocityTexture;
 Texture2D VelocityTileTexture;
@@ -96,7 +93,7 @@ void VelovityFlattenStep(uint GroupIndex, const uint GroupSize, inout FVelocityR
 	}
 }
 
-float2 GetCameraMotionVelocity(uint3 DispatchThreadId, float Depth, float4x4 ClipToPrevClip)
+float2 GetCameraMotionVelocity(uint2 DispatchThreadId, float Depth, float4x4 ClipToPrevClip)
 {
 	// Compute velocity due to camera motion.
 	float2 ViewportUV = ((float2)DispatchThreadId.xy + 0.5) / Velocity_ViewportSize;
@@ -110,11 +107,11 @@ float2 GetCameraMotionVelocity(uint3 DispatchThreadId, float Depth, float4x4 Cli
 
 //------------------------------------------------------- ENTRY POINT
 
-[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
 void MainCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID,
+	uint2 GroupId : SV_GroupID,
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupThreadId : SV_GroupThreadID,
 	uint GroupIndex : SV_GroupIndex) 
 { 
 #if DEBUG_OUTPUT
@@ -185,7 +182,7 @@ void MainCS(
 	}
 #endif
 
-	Velocity.y *= -MotionBlur_AspectRatio;
+	Velocity *= VelocityScale;
 
 	float2 VelocityPolar = CartesianToPolar(Velocity);
 
@@ -211,7 +208,7 @@ void MainCS(
 	}
 
 	// Limit velocity
-	VelocityPolar.x = min(VelocityPolar.x, MotionBlur_VelocityMax / MotionBlur_VelocityScale);
+	VelocityPolar.x = min(VelocityPolar.x, VelocityMax);
 
 	FVelocityRange VelocityPolarRange = SetupPolarVelocityRange(VelocityPolar);
 

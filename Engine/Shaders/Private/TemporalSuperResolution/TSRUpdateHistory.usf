@@ -74,6 +74,7 @@ float MinTranslucencyRejection;
 float InvWeightClampingPixelSpeed;
 float InputToHistoryFactor;
 uint ResponsiveStencilMask;
+uint bGenerateOutputMip1;
 
 Texture2D<taa_half3> PrevHistory_LowFrequency;
 Texture2D<taa_half3> PrevHistory_HighFrequency;
@@ -89,12 +90,11 @@ RWTexture2D<taa_half3> HistoryOutput_Translucency;
 RWTexture2D<taa_half>  HistoryOutput_TranslucencyAlpha;
 RWTexture2D<taa_subpixel_details> HistoryOutput_SubpixelDetails;
 
-RWTexture2D<taa_half3> SceneColorOutput;
+RWTexture2D<taa_half3> SceneColorOutputMip0;
+RWTexture2D<taa_half3> SceneColorOutputMip1;
 
 
 //------------------------------------------------------- LDS
-
-#if CONFIG_MANUAL_LDS_SPILL
 
 #if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
 #define GROUP_SHARED_SIZE (TILE_SIZE * TILE_SIZE / 2)
@@ -117,8 +117,6 @@ groupshared taa_half4 SharedArray10[GROUP_SHARED_SIZE];
 groupshared taa_half4 SharedArray11[GROUP_SHARED_SIZE];
 
 groupshared taa_subpixel_payload2 SharedParallaxFactorBits[GROUP_SHARED_SIZE];
-
-#endif // CONFIG_MANUAL_LDS_SPILL
 
 
 //------------------------------------------------------- FUNCTIONS
@@ -1360,17 +1358,69 @@ void MainCS(
 		}
 		#endif
 
-		// Output final scene color
+		// Output final scene color Mip0
+		taa_half3x2 OutputColor;
 		{
-			taa_half3x2 OutputColor = FinalOutputColor;
+			OutputColor = FinalOutputColor;
 
 			OutputColor = -dpv_min(-OutputColor, taa_half(0.0).xxx);
 			OutputColor = dpv_min(OutputColor, taa_half(Max10BitsFloat).xxx);
 
-			SceneColorOutput[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(OutputColor);
+			SceneColorOutputMip0[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(OutputColor);
 			
 			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-				SceneColorOutput[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(OutputColor);
+				SceneColorOutputMip0[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(OutputColor);
+			#endif
+		}
+		
+		// Output final scene color Mip1
+		{
+			taa_half3x2 HalfResOutput = OutputColor;
+			taa_short2x2 HalfResOutputPixelPos = (LocalHistoryPixelPos >> taa_short(1)) | (((LocalHistoryPixelPos & taa_short(0x1)) | !bGenerateOutputMip1) * taa_short(~0));
+			
+			//HalfResOutputPixelPos = (LocalHistoryPixelPos >> taa_short(1));
+			
+			#if PLATFORM_SUPPORTS_WAVE_BROADCAST && 0 // Support WaveBroadcast with halfs
+			BRANCH
+			if (bGenerateOutputMip1)
+			{
+				FWaveBroadcastSettings Horizontal = InitWaveXorButterfly(/* XorButterFly = */ 0x1);
+				FWaveBroadcastSettings Vertical = InitWaveXorButterfly(/* XorButterFly = */ 0x2);
+
+				HalfResOutput += WaveBroadcast(Horizontal, HalfResOutput);
+				HalfResOutput = HalfResOutput * taa_half(0.25) + taa_half(0.25) * WaveBroadcast(Vertical, HalfResOutput);
+			}
+			#else
+			BRANCH
+			if (bGenerateOutputMip1)
+			{
+				SharedArray0[LocalGroupThreadIndex] = taa_half4(dpv_lo(HalfResOutput), 0.0);
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					SharedArray1[LocalGroupThreadIndex] = taa_half4(dpv_hi(HalfResOutput), 0.0);
+				#endif
+
+				SharedArray0[LocalGroupThreadIndex] += SharedArray0[LocalGroupThreadIndex ^ 0x1];
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					SharedArray1[LocalGroupThreadIndex] += SharedArray1[LocalGroupThreadIndex ^ 0x1];
+				#endif
+					
+				SharedArray0[LocalGroupThreadIndex] += SharedArray0[LocalGroupThreadIndex ^ 0x2];
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					SharedArray1[LocalGroupThreadIndex] += SharedArray1[LocalGroupThreadIndex ^ 0x2];
+				#endif
+					
+				#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+					HalfResOutput = dpv_interleave_registers(SharedArray0[LocalGroupThreadIndex].rgb, SharedArray1[LocalGroupThreadIndex].rgb) * 0.25;
+				#else
+					HalfResOutput = dpv_interleave_mono_registers(SharedArray0[LocalGroupThreadIndex].rgb) * 0.25;
+				#endif
+			}
+			#endif
+
+			SceneColorOutputMip1[dpv_lo(HalfResOutputPixelPos)] = dpv_lo(HalfResOutput);
+			
+			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
+				SceneColorOutputMip1[dpv_hi(HalfResOutputPixelPos)] = dpv_hi(HalfResOutput);
 			#endif
 		}
 

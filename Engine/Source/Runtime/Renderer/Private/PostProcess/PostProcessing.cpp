@@ -598,6 +598,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		PassSequence.Finalize();
 
+		bool bMotionBlurNeedsHalfResInput = PassSequence.IsEnabled(EPass::MotionBlur) && DoesMotionBlurNeedsHalfResInput();
+
 		// Post Process Material Chain - Before Translucency
 		{
 			const FPostProcessMaterialChain MaterialChain = GetPostProcessMaterialChain(View, BL_BeforeTranslucency);
@@ -687,6 +689,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
 
 			UpscalerPassInputs.bAllowDownsampleSceneColor = bAllowSceneDownsample;
+			UpscalerPassInputs.bGenerateOutputMip1 = bMotionBlurNeedsHalfResInput;
 			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
 			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
