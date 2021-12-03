@@ -1484,7 +1484,15 @@ void AddTemporalSuperResolutionPasses(
 		}
 		else
 		{
-			PassParameters->SceneColorOutputMip1 = PassParameters->SceneColorOutputMip0;
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				FIntPoint(1, 1),
+				PF_FloatR11G11B10,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+			FRDGTextureRef DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.DummyOutput"));
+			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(DummyTexture);
+			GraphBuilder.RemoveUnusedTextureWarning(DummyTexture);
 		}
 		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent, TEXT("Debug.TSR.UpdateHistory"));
 
