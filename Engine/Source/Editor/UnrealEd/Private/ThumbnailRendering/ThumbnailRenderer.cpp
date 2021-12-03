@@ -21,3 +21,9 @@ void UThumbnailRenderer::RenderViewFamily(FCanvas* Canvas, FSceneViewFamily* Vie
 
 	GetRendererModule().BeginRenderingViewFamily(Canvas, ViewFamily);
 }
+
+// static
+FGameTime UThumbnailRenderer::GetTime()
+{
+	return FGameTime::GetTimeSinceAppStart();
+}

@@ -3121,6 +3121,13 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 	}
 }
 
+
+// static
+FGameTime FGameTime::GetTimeSinceAppStart()
+{
+	return FGameTime::CreateUndilated(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime());
+}
+
 /************************************************************************/
 /* FLevelStreamingGCHelper implementation                               */
 /************************************************************************/

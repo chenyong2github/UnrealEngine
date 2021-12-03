@@ -381,7 +381,7 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 		RenderTargetResource, Scene, ShowFlags)
-		.SetWorldTimes(0, 0, 0)
+		.SetTime(FGameTime())
 		.SetRealtimeUpdate(false));
 
 	// unclear whether these show flags are really necessary, since we are using
@@ -523,7 +523,7 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 
 	FSceneViewFamilyContext ViewFamily(
 		FSceneViewFamily::ConstructionValues(RenderTargetResource, World->Scene, ShowFlags)
-		.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+		.SetTime(FGameTime::GetTimeSinceAppStart())
 	);
 
 	// To enable visualization mode
@@ -571,7 +571,7 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 	ViewFamily.EngineShowFlags.SetCapsuleShadows(false);
 	ViewFamily.EngineShowFlags.SetContactShadows(false);
 
-	FCanvas Canvas(RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, World->Scene->GetFeatureLevel());
+	FCanvas Canvas(RenderTargetResource, NULL, FGameTime::GetTimeSinceAppStart(), World->Scene->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Transparent);
 
 	UE::Internal::PerformSceneRender(&Canvas, &ViewFamily);
@@ -625,7 +625,7 @@ namespace Internal
 
 		FSceneViewFamilyContext ViewFamily(
 			FSceneViewFamily::ConstructionValues(RenderTargetResource, Scene, FEngineShowFlags(ESFIM_Game))
-			.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+			.SetTime(FGameTime::GetTimeSinceAppStart())
 		);
 
 		// To enable visualization mode
@@ -653,7 +653,7 @@ namespace Internal
 		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
 
 		// should we cache the FCanvas?
-		FCanvas Canvas(RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, Scene->GetFeatureLevel());
+		FCanvas Canvas(RenderTargetResource, NULL, FGameTime::GetTimeSinceAppStart(), Scene->GetFeatureLevel());
 		Canvas.Clear(FLinearColor::Transparent);
 
 		UE::Internal::PerformSceneRender(&Canvas, &ViewFamily);

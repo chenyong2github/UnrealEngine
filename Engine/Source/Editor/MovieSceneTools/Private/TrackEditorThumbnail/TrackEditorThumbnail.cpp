@@ -41,8 +41,7 @@ public:
 		FSceneView* View = FLevelEditorViewportClient::CalcSceneView(ViewFamily, StereoViewIndex);
 
 		// Artificially set the world times so that graphics settings apply correctly (we don't tick the world when rendering thumbnails)
-		ViewFamily->CurrentWorldTime = CurrentWorldTime;
-		ViewFamily->DeltaWorldTime = DeltaWorldTime;
+		ViewFamily->Time = FGameTime::CreateDilated(ViewFamily->Time.GetRealTimeSeconds(), ViewFamily->Time.GetDeltaRealTimeSeconds(), CurrentWorldTime, DeltaWorldTime);
 
 		View->FinalPostProcessSettings.bOverride_AutoExposureSpeedDown = View->FinalPostProcessSettings.bOverride_AutoExposureSpeedUp = true;
 		View->FinalPostProcessSettings.AutoExposureSpeedDown = View->FinalPostProcessSettings.AutoExposureSpeedUp = 0.02f;
@@ -404,7 +403,7 @@ void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& Tr
 	UWorld* World = PreviewCameraComponent->GetWorld();
 
 	FSceneViewFamilyContext ViewFamily( FSceneViewFamily::ConstructionValues( TrackEditorThumbnail.GetRenderTarget(), World->Scene, FEngineShowFlags(ESFIM_Game) )
-		.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+		.SetTime(FGameTime::GetTimeSinceAppStart())
 		.SetResolveScene(true));
 
 	FSceneViewStateInterface* ViewStateInterface = nullptr;
@@ -460,7 +459,7 @@ void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& Tr
 	const float GlobalResolutionFraction = 1.f;
 	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, GlobalResolutionFraction));
 
-	FCanvas Canvas(TrackEditorThumbnail.GetRenderTarget(), nullptr, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, World->Scene->GetFeatureLevel());
+	FCanvas Canvas(TrackEditorThumbnail.GetRenderTarget(), nullptr, FGameTime::GetTimeSinceAppStart(), World->Scene->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Transparent);
 
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
