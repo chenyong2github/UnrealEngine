@@ -1857,27 +1857,27 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 			// Get the scratch sizes used for build & update
 			SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize = RHICalcRayTracingGeometrySize(Initializer);
 
-			// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
-			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
+			if (!bAnySegmentUsesWorldPositionOffset)
+			{
+				// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
+				RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
+			}
+		}
+		else if (!bAnySegmentUsesWorldPositionOffset)
+		{
+			// Refit BLAS with new vertex buffer data
+			FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, RayTracingGeometry.Initializer.Segments);
+		}
 
-			// Request the build
-			AddRayTracingGeometryToUpdate(&RayTracingGeometry, SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize, EAccelerationStructureBuildMode::Build);
+		// If we are not using world position offset in material, handle BLAS build/refit here
+		if (!bAnySegmentUsesWorldPositionOffset)
+		{
+			EAccelerationStructureBuildMode BuildMode = bRequireRecreatingRayTracingGeometry ? EAccelerationStructureBuildMode::Build : EAccelerationStructureBuildMode::Update;
+			AddRayTracingGeometryToUpdate(&RayTracingGeometry, SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize, BuildMode);
 		}
 		else
 		{
-			// If we are not using world position offset in material, handle BLAS refit here
-			if (!bAnySegmentUsesWorldPositionOffset)
-			{
-				// Refit BLAS with new vertex buffer data
-				FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, RayTracingGeometry.Initializer.Segments);
-
-				// Request the update
-				AddRayTracingGeometryToUpdate(&RayTracingGeometry, SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize, EAccelerationStructureBuildMode::Update);
-			}
-			else
-			{
-				// Otherwise, we will run the dynamic ray tracing geometry path, i.e. runnning VSinCS and refit geometry there, so do nothing here
-			}
+			// Otherwise, we will run the dynamic ray tracing geometry path, i.e. runnning VSinCS and build/refit geometry there, so do nothing here
 		}
 	}
 }
