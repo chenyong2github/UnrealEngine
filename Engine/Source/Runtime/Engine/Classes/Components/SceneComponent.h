@@ -313,6 +313,23 @@ public:
 	/** Returns the current scoped movement update, or NULL if there is none. @see FScopedMovementUpdate */
 	class FScopedMovementUpdate* GetCurrentScopedMovement() const;
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * @todo_ow: This is needed because of order of registration of Actors
+	 * 
+	 * In World Partition Levels loaded actors are Registered in an atomic fashion meaning we register all their
+	 * components and then call RerunConstructionScripts before loading the next actor. This means that a Parent can be Reconstructed and trash its components
+	 * without notifying its attached actors.
+	 * 
+	 * In Non World Partition Levels when adding actors to world we sort all actors based on hierarchy, register all actors and then RerunConstructionScripts on all actors
+	 * which allows handling of Attachments as attached actors are already registered when the parent gets reconstructed and so attachment is preserved.
+	 * 
+	 * ReplacementSceneComponent is there as a temp solution to allow finding of the replacement component of a trashed scene component. 
+	 */
+	UPROPERTY(Transient)
+	USceneComponent* ReplacementSceneComponent;
+#endif
+
 private:
 	/** Stack of current movement scopes. */
 	TArray<class FScopedMovementUpdate*> ScopedMovementStack;
@@ -918,6 +935,8 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITORONLY_DATA
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+
+	virtual void PostLoad() override;
 #endif
 
 #if WITH_EDITOR
