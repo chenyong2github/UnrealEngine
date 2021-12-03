@@ -547,6 +547,8 @@ public:
 
 	virtual void DestroyRenderThreadResources() override;
 
+	virtual void OnTransformChanged() override;
+
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
 		FPrimitiveViewRelevance Result;

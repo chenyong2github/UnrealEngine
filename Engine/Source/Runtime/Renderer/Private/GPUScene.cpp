@@ -198,9 +198,14 @@ struct FInstanceUploadInfo
 	TConstArrayView<FVector4f> InstanceLightShadowUVBias;
 	TConstArrayView<float> InstanceCustomData;
 	TConstArrayView<float> InstanceRandomID;
-	
+	TConstArrayView<uint32> InstanceHierarchyOffset;
+	TConstArrayView<FRenderBounds> InstanceLocalBounds;
+
 	// Used for primitives that need to create a dummy instance (they do not have instance data in the proxy)
 	FPrimitiveInstance DummyInstance;
+	FRenderBounds DummyLocalBounds;
+
+	uint32 PayloadDataFlags = 0x0;
 
 	FRenderTransform PrimitiveToWorld;
 	FRenderTransform PrevPrimitiveToWorld;
@@ -312,7 +317,13 @@ struct FUploadDataSourceAdapterScenePrimitives
 				InstanceUploadInfo.PrevPrimitiveToWorld = AbsoluteOrigin.MakeClampedToRelativeWorldMatrix(PreviousLocalToWorld);
 			}
 
-			bool bPerformUpload = true;
+			InstanceUploadInfo.PayloadDataFlags = PrimitiveSceneProxy->GetPayloadDataFlags();
+			InstanceUploadInfo.InstanceLocalBounds = PrimitiveSceneProxy->GetInstanceLocalBounds();
+			if (InstanceUploadInfo.InstanceLocalBounds.Num() == 0)
+			{
+				InstanceUploadInfo.DummyLocalBounds = PrimitiveSceneProxy->GetLocalBounds();
+				InstanceUploadInfo.InstanceLocalBounds = TConstArrayView<FRenderBounds>(&InstanceUploadInfo.DummyLocalBounds, 1);
+			}
 
 			if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
 			{
@@ -321,29 +332,27 @@ struct FUploadDataSourceAdapterScenePrimitives
 				InstanceUploadInfo.InstanceLightShadowUVBias = PrimitiveSceneProxy->GetInstanceLightShadowUVBias();
 				InstanceUploadInfo.InstanceCustomData = PrimitiveSceneProxy->GetInstanceCustomData();
 				InstanceUploadInfo.InstanceRandomID = PrimitiveSceneProxy->GetInstanceRandomID();
-
-				// Only trigger upload if this primitive has instances
-				bPerformUpload = InstanceUploadInfo.PrimitiveInstances.Num() > 0;
+				InstanceUploadInfo.InstanceHierarchyOffset = PrimitiveSceneProxy->GetInstanceHierarchyOffset();
 			}
 			else
 			{
+				check(InstanceUploadInfo.PayloadDataFlags == 0x0);
+
 				// We always create an instance to ensure that we can always use the same code paths in the shader
 				// In the future we should remove redundant data from the primitive, and then the instances should be
 				// provided by the proxy. However, this is a lot of work before we can just enable it in the base proxy class.
 				InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
-				InstanceUploadInfo.DummyInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
-				InstanceUploadInfo.DummyInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-
-				InstanceUploadInfo.DummyInstance.Flags = 0;
 
 				InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
-				InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>((FPrimitiveInstanceDynamicData*)nullptr, 0);
-				InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4f>((FVector4f*)nullptr, 0);
-				InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>((float*)nullptr, 0);
-				InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>((float*)nullptr, 0);
+				InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>();
+				InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4f>();
+				InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>();
+				InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>();
+				InstanceUploadInfo.InstanceHierarchyOffset = TConstArrayView<uint32>();
 			}
 
-			return bPerformUpload;
+			// Only trigger upload if this primitive has instances
+			return InstanceUploadInfo.PrimitiveInstances.Num() > 0;
 		}
 
 		return false;
@@ -1191,12 +1200,13 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 										const FRenderTransform& PrevLocalToPrimitive = UploadInfo.InstanceDynamicData.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive : FRenderTransform::Identity;
 										FVector4f LightMapShadowMapUVBias = UploadInfo.InstanceLightShadowUVBias.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceLightShadowUVBias[InstanceIndex] : FVector4f(ForceInitToZero);
 										float RandomID = UploadInfo.InstanceRandomID.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
+										FRenderBounds InstanceLocalBounds = InstanceIndex < UploadInfo.InstanceLocalBounds.Num() ? UploadInfo.InstanceLocalBounds[InstanceIndex] : UploadInfo.InstanceLocalBounds[0];
+										uint32 NaniteHierarchyOffset = UploadInfo.InstanceHierarchyOffset.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceHierarchyOffset[InstanceIndex] : 0;
 
 										// TODO: Temporary hack!
 										float CustomDataFloat0 = 0.0f;
 										if (NumCustomDataFloats > 0)
 										{
-											check(SceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA);
 											CustomDataFloat0 = UploadInfo.InstanceCustomData[InstanceIndex * NumCustomDataFloats];
 										}
 
@@ -1206,10 +1216,13 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 											UploadInfo.PrimitiveToWorld,
 											UploadInfo.PrevPrimitiveToWorld,
 											PrevLocalToPrimitive, // TODO: Temporary
+											InstanceLocalBounds, // TODO: Temporary
+											NaniteHierarchyOffset, // TODO: Temporary
 											LightMapShadowMapUVBias, // TODO: Temporary
 											RandomID, // TODO: Temporary
 											CustomDataFloat0, // TODO: Temporary Hack!
-											UploadInfo.LastUpdateSceneFrameNumber
+											UploadInfo.LastUpdateSceneFrameNumber,
+											UploadInfo.PayloadDataFlags
 										);
 
 										void* DstRefs[FInstanceSceneShaderData::DataStrideInFloat4s];
@@ -1372,25 +1385,26 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		if (ItemIndex < PrimitiveShaderData.Num())
 		{
 			const FPrimitiveUniformShaderParameters& PrimitiveData = PrimitiveShaderData[ItemIndex];
-			InstanceUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
-			InstanceUploadInfo.PrimitiveToWorld = PrimitiveData.LocalToRelativeWorld;
-			InstanceUploadInfo.PrevPrimitiveToWorld = InstanceUploadInfo.PrimitiveToWorld;
-			
+
 			InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
-			InstanceUploadInfo.DummyInstance.LocalBounds = FRenderBounds(PrimitiveData.LocalObjectBoundsMin, PrimitiveData.LocalObjectBoundsMax);
-			InstanceUploadInfo.DummyInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+			InstanceUploadInfo.DummyLocalBounds = FRenderBounds(PrimitiveData.LocalObjectBoundsMin, PrimitiveData.LocalObjectBoundsMax);
 
-			// TODO: Set INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS when appropriate
-			InstanceUploadInfo.DummyInstance.Flags = 0;
+			InstanceUploadInfo.PrimitiveID					= PrimitiveIDStartOffset + ItemIndex;
+			InstanceUploadInfo.PrimitiveToWorld				= PrimitiveData.LocalToRelativeWorld;
+			InstanceUploadInfo.PrevPrimitiveToWorld			= InstanceUploadInfo.PrimitiveToWorld;
+			InstanceUploadInfo.PrimitiveInstances			= TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
+			InstanceUploadInfo.InstanceDynamicData			= TConstArrayView<FPrimitiveInstanceDynamicData>();
+			InstanceUploadInfo.InstanceLightShadowUVBias	= TConstArrayView<FVector4f>();
+			InstanceUploadInfo.InstanceCustomData			= TConstArrayView<float>();
+			InstanceUploadInfo.InstanceRandomID				= TConstArrayView<float>();
+			InstanceUploadInfo.InstanceLocalBounds			= TConstArrayView<FRenderBounds>(&InstanceUploadInfo.DummyLocalBounds, 1);
+			InstanceUploadInfo.InstanceHierarchyOffset		= TConstArrayView<uint32>();
+			InstanceUploadInfo.InstanceSceneDataOffset		= InstanceIDStartOffset + ItemIndex; 
+			InstanceUploadInfo.PayloadDataFlags				= 0;
 
-			InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
-			InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>((FPrimitiveInstanceDynamicData*)nullptr, 0);
-			InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4f>((FVector4f*)nullptr, 0);
-			InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>((float*)nullptr, 0);
-			InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>((float*)nullptr, 0);
-			InstanceUploadInfo.InstanceSceneDataOffset = InstanceIDStartOffset + ItemIndex;
 			return true;
 		}
+
 		return false;
 	}
 

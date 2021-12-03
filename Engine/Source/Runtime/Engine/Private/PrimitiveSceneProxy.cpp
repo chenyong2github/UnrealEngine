@@ -751,9 +751,6 @@ void FPrimitiveSceneProxy::UpdateDefaultInstanceSceneData()
 	InstanceSceneData.SetNumUninitialized(1);
 	FPrimitiveInstance& DefaultInstance = InstanceSceneData[0];
 	DefaultInstance.LocalToPrimitive.SetIdentity();
-	DefaultInstance.LocalBounds = GetLocalBounds();
-	DefaultInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-	DefaultInstance.Flags = 0;
 }
 
 bool FPrimitiveSceneProxy::DrawInVirtualTextureOnly(bool bEditor) const

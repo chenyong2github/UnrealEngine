@@ -883,11 +883,19 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceTransforms(const FMatrix
 	
 	SmallestRayTracingInstanceWorldBoundsIndex = 0;
 
+	const TConstArrayView<FRenderBounds> InstanceLocalBounds = Proxy->GetInstanceLocalBounds();
+	const bool bHasInstanceBounds = Proxy->GetInstanceSceneData().Num() == InstanceLocalBounds.Num();
+	FRenderBounds LocalBoundingBox = Proxy->GetLocalBounds().GetBox();
+
 	for (int32 Index = 0; Index < CachedRayTracingInstanceLocalTransforms.Num(); Index++)
 	{
+		if (bHasInstanceBounds)
+		{
+			LocalBoundingBox = InstanceLocalBounds[Index];
+		}
+
 		CachedRayTracingInstanceWorldTransforms[Index] = CachedRayTracingInstanceLocalTransforms[Index] * NewPrimitiveLocalToWorld;
-		CachedRayTracingInstanceWorldBounds[Index] = Proxy->GetInstanceSceneData()[Index].LocalBounds.TransformBy(CachedRayTracingInstanceLocalTransforms[Index] * NewPrimitiveLocalToWorld).ToBoxSphereBounds();
-		
+		CachedRayTracingInstanceWorldBounds[Index] = LocalBoundingBox.TransformBy(CachedRayTracingInstanceLocalTransforms[Index] * NewPrimitiveLocalToWorld).ToBoxSphereBounds();
 		SmallestRayTracingInstanceWorldBoundsIndex = CachedRayTracingInstanceWorldBounds[Index].SphereRadius < CachedRayTracingInstanceWorldBounds[SmallestRayTracingInstanceWorldBoundsIndex].SphereRadius ? Index : SmallestRayTracingInstanceWorldBoundsIndex;
 	}
 }
@@ -1051,12 +1059,31 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 
 					if (GGPUSceneInstanceBVH)
 					{
-						for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->NumInstanceSceneDataEntries; ++InstanceIndex)
+						// TODO: Replace Instance BVH FBounds with FRenderBounds
+						if (SceneInfo->Proxy->HasPerInstanceLocalBounds())
 						{
-							const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
-							const FRenderBounds WorldBounds = PrimitiveInstance.LocalBounds.TransformBy(SceneInfo->Proxy->GetLocalToWorld());
-							// TODO: Replace Instance BVH FBounds with FRenderBounds
-							Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceSceneDataOffset + InstanceIndex);
+							const TConstArrayView<FRenderBounds> InstanceLocalBounds = SceneInfo->Proxy->GetInstanceLocalBounds();
+							check(InstanceLocalBounds.Num() == SceneInfo->NumInstanceSceneDataEntries);
+
+							for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->NumInstanceSceneDataEntries; ++InstanceIndex)
+							{
+								const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
+								FRenderBounds WorldBounds = InstanceLocalBounds[InstanceIndex];
+								WorldBounds.TransformBy(PrimitiveInstance.ComputeLocalToWorld(SceneInfo->Proxy->GetLocalToWorld()));
+								Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceSceneDataOffset + InstanceIndex);
+							}
+						}
+						else
+						{
+							const FRenderBounds LocalBounds = SceneInfo->Proxy->GetLocalBounds();
+
+							for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->NumInstanceSceneDataEntries; ++InstanceIndex)
+							{
+								const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
+								FRenderBounds WorldBounds = LocalBounds;
+								WorldBounds.TransformBy(PrimitiveInstance.ComputeLocalToWorld(SceneInfo->Proxy->GetLocalToWorld()));
+								Scene->InstanceBVH.Add(FBounds({ WorldBounds.GetMin(), WorldBounds.GetMax() }), SceneInfo->InstanceSceneDataOffset + InstanceIndex);
+							}
 						}
 					}
 				}

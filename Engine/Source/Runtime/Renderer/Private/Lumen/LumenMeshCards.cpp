@@ -508,14 +508,16 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 	{
 		const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 		const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
+		const TConstArrayView<FRenderBounds> InstanceLocalBounds = PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds();
 
-		float InstanceArea = BoxSurfaceArea(PrimitiveSceneInfo->Proxy->GetBounds().BoxExtent);
+		const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneInfo->Proxy->GetBounds();
+		float InstanceArea = BoxSurfaceArea(PrimitiveBounds.BoxExtent);
 		FMatrix InstanceMeshCardsLocalToWorld = PrimitiveToWorld;
 
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 		{
 			const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
-			InstanceArea = BoxSurfaceArea(Instance.LocalBounds.GetExtent());
+			InstanceArea = BoxSurfaceArea(PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds(InstanceIndex).GetExtent());
 			InstanceMeshCardsLocalToWorld = Instance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
 		}
 
@@ -541,6 +543,7 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 		{
 			const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
+			const TConstArrayView<FRenderBounds> InstanceLocalBounds = PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds();
 			const FMeshCardsBuildData& PrimitiveMeshCardsBuildData = CardRepresentationData->MeshCardsBuildData;
 			const FMatrix PrimitiveLocalToMeshCardsLocal = PrimitiveToWorld * WorldToMeshCardsLocal;
 
@@ -550,7 +553,7 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 				{
 					const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
 					MergedMeshCards.AddInstance(
-						Instance.LocalBounds.ToBox(),
+						PrimitiveSceneInfo->Proxy->GetInstanceLocalBounds(InstanceIndex).ToBox(),
 						Instance.LocalToPrimitive.ToMatrix() * PrimitiveLocalToMeshCardsLocal,
 						PrimitiveMeshCardsBuildData);
 				}

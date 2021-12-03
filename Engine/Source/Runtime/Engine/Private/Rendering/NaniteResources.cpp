@@ -506,9 +506,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
 	Instance.LocalToPrimitive.SetIdentity();
-	Instance.LocalBounds                = Component->GetStaticMesh()->GetBounds();
-	Instance.NaniteHierarchyOffset      = 0u;
-	Instance.Flags = 0u;
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
@@ -531,18 +528,9 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
 	bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0; // TODO: Only allocate if static lighting is enabled for the project
 
-	uint32 InstanceDataFlags = 0;
-	InstanceDataFlags |= bHasPerInstanceLMSMUVBias ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
-	InstanceDataFlags |= bHasPerInstanceDynamicData ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA : 0u;
-	InstanceDataFlags |= bHasPerInstanceCustomData ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA : 0u;
-	InstanceDataFlags |= bHasPerInstanceRandom ? INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM : 0u;
-
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
 		FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
-		SceneData.LocalBounds = Component->GetStaticMesh()->GetBounds();
-		SceneData.NaniteHierarchyOffset = 0U;
-		SceneData.Flags = InstanceDataFlags;
 
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
@@ -628,12 +616,6 @@ void FSceneProxy::CreateRenderThreadResources()
 	// These couldn't be copied on the game thread because they are initialized
 	// by the streaming manager on the render thread - initialize them now.
 	check(Resources->RuntimeResourceID != NANITE_INVALID_RESOURCE_ID && Resources->HierarchyOffset != NANITE_INVALID_HIERARCHY_OFFSET);
-
-	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
-	{
-		// Regular static mesh instances only use hierarchy offset on primitive.
-		InstanceSceneData[InstanceIndex].NaniteHierarchyOffset = 0;
-	}
 }
 
 FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) const
@@ -966,6 +948,20 @@ void FSceneProxy::OnTransformChanged()
 #if RHI_RAYTRACING
 	bCachedRayTracingInstanceTransformsValid = false;
 #endif
+
+	if (!bHasPerInstanceLocalBounds)
+	{
+		check(InstanceLocalBounds.Num() <= 1);
+		InstanceLocalBounds.SetNumUninitialized(1);
+		if (StaticMesh != nullptr)
+		{
+			InstanceLocalBounds[0] = StaticMesh->GetBounds();
+		}
+		else
+		{
+			InstanceLocalBounds[0] = GetLocalBounds();
+		}
+	}
 }
 
 #if RHI_RAYTRACING
