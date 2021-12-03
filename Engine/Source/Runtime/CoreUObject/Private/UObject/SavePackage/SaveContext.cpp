@@ -37,29 +37,11 @@ void FSaveContext::MarkUnsaveable(UObject* InObject)
 	ensureAlways(!InObject->HasAllFlags(RF_ClassDefaultObject | RF_Transient) || (InObject->GetClass()->ClassGeneratedBy != nullptr && InObject->GetClass()->HasAnyFlags(RF_Transient)));
 }
 
-bool FSaveContext::IsUnsaveable(UObject* InObject) const
+bool FSaveContext::IsUnsaveable(UObject* InObject, bool bEmitWarning) const
 {
 	UObject* Obj = InObject;
 	while (Obj)
 	{
-		// if the object class is abstract, has been marked as deprecated, there is a newer version that exist, or the class is marked transient, then the object is unsaveable
-		// @note: Although object instances of a transient class should definitely be unsaveable, it results in discrepancies with the old save algorithm and currently load problems
-		if (Obj->GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists /*| CLASS_Transient*/) 
-			&& !Obj->HasAnyFlags(RF_ClassDefaultObject))
-		{
-			// only warn if the base object is fine but the outer is invalid. If an object is itself unsaveable, the old behavior is to ignore it
-			if (IsValidChecked(InObject) 
-				&& InObject->GetOutermost() == GetPackage()
-				&& Obj != InObject)
-			{
-				UE_LOG(LogSavePackage, Warning, TEXT("%s has a deprecated or abstract class outer %s, so it will not be saved"), *InObject->GetFullName(), *Obj->GetFullName());
-			}
-
-			// there used to be a check for reference if the class had the CLASS_HasInstancedReference,
-			// those reference were outer-ed to the object being flagged as unsaveable, making them unsaveable as well without having to look for them
-			return true;
-		}
-
 		// pending kill object are unsaveable
 		if (!IsValidChecked(Obj))
 		{
@@ -69,6 +51,25 @@ bool FSaveContext::IsUnsaveable(UObject* InObject) const
 		// transient object are considered unsaveable if non native
 		if (Obj->HasAnyFlags(RF_Transient) && !Obj->IsNative())
 		{
+			return true;
+		}
+
+		// if the object class is abstract, has been marked as deprecated, there is a newer version that exist, or the class is marked transient, then the object is unsaveable
+		// @note: Although object instances of a transient class should definitely be unsaveable, it results in discrepancies with the old save algorithm and currently load problems
+		if (Obj->GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists /*| CLASS_Transient*/) 
+			&& !Obj->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			// only warn if the base object is fine but the outer is invalid. If an object is itself unsaveable, the old behavior is to ignore it
+			if (bEmitWarning
+				&& IsValidChecked(Obj)
+				&& InObject->GetOutermost() == GetPackage()
+				&& Obj != InObject)
+			{
+				UE_LOG(LogSavePackage, Warning, TEXT("%s has a deprecated or abstract class outer %s, so it will not be saved"), *InObject->GetFullName(), *Obj->GetFullName());
+			}
+
+			// there used to be a check for reference if the class had the CLASS_HasInstancedReference,
+			// those reference were outer-ed to the object being flagged as unsaveable, making them unsaveable as well without having to look for them
 			return true;
 		}
 
