@@ -692,6 +692,7 @@ public:
 
 	FRayTracingGeometryInitializer Initializer;
 	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
+	bool bRequiresBuild = false;
 
 	void SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
 	{

@@ -416,10 +416,17 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 			if (InBuildPriority != ERTAccelerationStructureBuildPriority::Skip)
 			{
 				RayTracingBuildRequestIndex = GRayTracingGeometryManager.RequestBuildAccelerationStructure(this, InBuildPriority);
+				bRequiresBuild = false;
+			}
+			else
+			{
+				bRequiresBuild = true;
 			}
 		}
 		else
 		{
+			bRequiresBuild = false;
+
 			// Offline data ownership is transferred to the RHI, which discards it after use.
 			// It is no longer valid to use it after this point.
 			Initializer.OfflineData = nullptr;
