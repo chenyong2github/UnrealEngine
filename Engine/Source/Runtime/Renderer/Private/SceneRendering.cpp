@@ -4576,6 +4576,10 @@ uint32 FRendererModule::RemoveAllVirtualTextureProducerDestroyedCallbacks(const 
 	return FVirtualTextureSystem::Get().RemoveAllProducerDestroyedCallbacks(Baton);
 }
 
+void FRendererModule::RequestVirtualTextureTiles(TArrayView<uint64> InPageRequests)
+{
+}
+
 void FRendererModule::RequestVirtualTextureTiles(const FVector2D& InScreenSpaceSize, int32 InMipLevel)
 {
 	FVirtualTextureSystem::Get().RequestTiles(InScreenSpaceSize, InMipLevel);
@@ -4592,6 +4596,15 @@ void FRendererModule::LoadPendingVirtualTextureTiles(FRHICommandListImmediate& R
 	FRDGBuilder GraphBuilder(RHICmdList);
 	FVirtualTextureSystem::Get().LoadPendingTiles(GraphBuilder, FeatureLevel);
 	GraphBuilder.Execute();
+}
+
+void FRendererModule::SetVirtualTextureRequestRecordBuffer(uint64 Handle)
+{
+}
+
+uint64 FRendererModule::GetVirtualTextureRequestRecordBuffer(TSet<uint64>& OutPageRequests)
+{
+	return (uint64)-1;
 }
 
 void FRendererModule::FlushVirtualTextureCache()
