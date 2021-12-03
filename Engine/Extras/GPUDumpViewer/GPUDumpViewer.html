@@ -193,7 +193,7 @@ function display_input_resource(pass_id, resource_name)
 
 function display_output_resource(pass_id, resource_name)
 {
-	var resource_version_name = resource_name;
+	var resource_version_name = `${resource_name}.v0000000000000000`;
 	if (pass_id >= 0)
 	{
 		var pass_data = g_passes[pass_id];
