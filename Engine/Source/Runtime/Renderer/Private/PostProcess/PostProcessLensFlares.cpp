@@ -398,7 +398,7 @@ FScreenPassTexture AddLensFlaresPass(
 	LensFlareInputs.TintColorsPerFlare = Settings.LensFlareTints;
 	LensFlareInputs.TintColor = Settings.LensFlareTint;
 	LensFlareInputs.BokehSizePercent = Settings.LensFlareBokehSize;
-	LensFlareInputs.Intensity = Settings.LensFlareIntensity * Settings.BloomIntensity;
+	LensFlareInputs.Intensity = Settings.LensFlareIntensity;
 	LensFlareInputs.Threshold = Settings.LensFlareThreshold;
 
 	// If a bloom output texture isn't available, substitute the half resolution scene color instead, but disable bloom

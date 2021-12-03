@@ -1027,12 +1027,11 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<
 		FUseBloomDim,
 		FUseSunDim>;
-	
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4f, BloomDirtMaskTint)
 		SHADER_PARAMETER(FVector4f, SunColorVignetteIntensity)
 		SHADER_PARAMETER(FVector3f, BloomColor)
-		SHADER_PARAMETER(float, BloomIntensity)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SunBlurTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SunBlurSampler)
@@ -1140,7 +1139,6 @@ FScreenPassTexture AddMobileSunMergePass(FRDGBuilder& GraphBuilder, const FViewI
 	PSShaderParameters->BloomDirtMaskTint = Settings.BloomDirtMaskTint * Settings.BloomDirtMaskIntensity;
 	PSShaderParameters->SunColorVignetteIntensity = SunColorVignetteIntensityParam;
 	PSShaderParameters->BloomColor = FVector(BloomColor.R, BloomColor.G, BloomColor.B);
-	PSShaderParameters->BloomIntensity = Settings.BloomIntensity;
 	PSShaderParameters->SunBlurTexture = Inputs.SunBlur.Texture;
 	PSShaderParameters->SunBlurSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PSShaderParameters->BloomSetup_BloomTexture = Inputs.BloomSetup_Bloom.Texture;

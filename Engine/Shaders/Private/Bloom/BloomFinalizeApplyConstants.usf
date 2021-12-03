@@ -8,8 +8,7 @@
 float ScatterDispersionIntensity;
 
 StructuredBuffer<FBloomKernelInfo> KernelConstantsBuffer;
-RWStructuredBuffer<float4> SceneColorApplyOutput;
-RWStructuredBuffer<float4> FFTMulitplyOutput;
+RWStructuredBuffer<FBloomApplyInfo> BloomApplyConstantsOutput;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -37,6 +36,6 @@ void MainCS(
 	
 	float4 FinalCenterEnergy = OriginalTotalEnergy - FinalScatterDispersionEnergy;
 
-	SceneColorApplyOutput[0] = Tint * saturate(FinalCenterEnergy / OriginalTotalEnergy);
-	FFTMulitplyOutput[0] = Tint * saturate(FinalScatterDispersionEnergy / OriginalTotalEnergy);
+	BloomApplyConstantsOutput[0].SceneColorMultiply = Tint * saturate(FinalCenterEnergy / OriginalTotalEnergy);
+	BloomApplyConstantsOutput[0].BloomMultiply = Tint * saturate(FinalScatterDispersionEnergy / OriginalTotalEnergy);
 }

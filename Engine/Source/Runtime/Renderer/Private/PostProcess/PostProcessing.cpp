@@ -908,8 +908,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				HistogramTexture);
 		}
 
-		FScreenPassTexture Bloom;
-		FRDGBufferRef SceneColorApplyParameters = nullptr;
+		FBloomOutputs Bloom;
 		if (bBloomEnabled)
 		{
 			const FSceneDownsampleChain* LensFlareSceneDownsampleChain;
@@ -934,9 +933,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				PassInputs.HalfResolutionTexture = HalfResolution.Texture;
 				PassInputs.HalfResolutionViewRect = HalfResolution.ViewRect;
 
-				FFFTBloomOutput Outputs = AddFFTBloomPass(GraphBuilder, View, PassInputs);
-				Bloom = Outputs.BloomTexture;
-				SceneColorApplyParameters = Outputs.SceneColorApplyParameters;
+				Bloom = AddFFTBloomPass(GraphBuilder, View, PassInputs);
 			}
 			else
 			{
@@ -976,7 +973,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 			if (bLensFlareEnabled)
 			{
-				Bloom = AddLensFlaresPass(GraphBuilder, View, Bloom, *LensFlareSceneDownsampleChain);
+				Bloom.Bloom = AddLensFlaresPass(GraphBuilder, View, Bloom.Bloom, *LensFlareSceneDownsampleChain);
 			}
 		}
 
@@ -994,7 +991,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, PassInputs.OverrideOutput);
 				PassInputs.SetInput(EPostProcessMaterialInput::SceneColor, SceneColor);
 				PassInputs.SetInput(EPostProcessMaterialInput::SeparateTranslucency, SeparateTranslucency);
-				PassInputs.SetInput(EPostProcessMaterialInput::CombinedBloom, Bloom);
+				PassInputs.SetInput(EPostProcessMaterialInput::CombinedBloom, Bloom.Bloom);
 				PassInputs.SceneTextures = GetSceneTextureShaderParameters(Inputs.SceneTextures);
 				PassInputs.CustomDepthTexture = CustomDepth.Texture;
 
@@ -1023,13 +1020,11 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, PassInputs.OverrideOutput);
 				PassInputs.SceneColor = SceneColor;
 				PassInputs.Bloom = Bloom;
-				PassInputs.SceneColorApplyParamaters = SceneColorApplyParameters;
 				PassInputs.LocalExposureTexture = LocalExposureTexture;
 				PassInputs.BlurredLogLuminanceTexture = LocalExposureBlurredLogLumTexture;
 				PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 				PassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
 				PassInputs.ColorGradingTexture = ColorGradingTexture;
-				PassInputs.bAllowDirtMask = !bFFTBloomEnabled;
 				PassInputs.bWriteAlphaChannel = AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported();
 				PassInputs.bOutputInHDR = bTonemapOutputInHDR;
 
@@ -2348,7 +2343,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		}
 			
 		TonemapperInputs.SceneColor = SceneColor;
-		TonemapperInputs.Bloom = BloomOutput;
+		TonemapperInputs.Bloom.Bloom = BloomOutput;
 		TonemapperInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 		TonemapperInputs.EyeAdaptationTexture = nullptr;
 		TonemapperInputs.ColorGradingTexture = ColorGradingTexture;
