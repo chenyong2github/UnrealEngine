@@ -23,9 +23,15 @@ void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 	RWHardwareRayTracingIndirectArgs[0] = CARD_TILE_SIZE * CARD_TILE_SIZE;
 	RWHardwareRayTracingIndirectArgs[1] = TileAllocator[0];
 	RWHardwareRayTracingIndirectArgs[2] = 1;
+
+#if DIM_INLINE_RAYTRACING
+	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
+	// We need to adjust it to get the same number of threads running.
+	RWHardwareRayTracingIndirectArgs[0] /= INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+#endif
 }
 
-#if LUMEN_HARDWARE_RAYTRACING
+#if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #include "LumenHardwareRayTracingCommon.ush"
 
@@ -38,9 +44,13 @@ RWTexture2D<float4> RWTraceTileRadianceAndHitDistanceTexture;
 
 uint PersistentTracingGroupCount;
 
-RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
+void LumenRadianceCacheHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 {
-	uint2 GroupThreadId = uint2(DispatchRaysIndex().x % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, DispatchRaysIndex().x / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
+	uint2 GroupThreadId = uint2(DispatchThreadIndex.x % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, DispatchThreadIndex.x / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
 
 #if DIM_INDIRECT_DISPATCH
 	uint TraceTileIteration = 0;
@@ -49,7 +59,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 	for (uint TraceTileIteration = 0; TraceTileIteration < TraceTileIterationSize; ++TraceTileIteration)
 #endif
 	{
-		uint TraceTileGroupIndex = DispatchRaysIndex().y;
+		uint TraceTileGroupIndex = DispatchThreadIndex.y;
 		uint TraceTileIndex = TraceTileIteration * PersistentTracingGroupCount + TraceTileGroupIndex;
 		if (TraceTileIndex >= ProbeTraceTileAllocator[0])
 		{
@@ -100,6 +110,10 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 			FRayTracedLightingResult Result;
 			#if DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE
 			{
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+				Context.HitGroupData = HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 				Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 			}
 			#else
@@ -126,6 +140,21 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 		}
 	}
 }
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+
+[numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
+void LumenRadianceCacheHardwareRayTracingCS(uint2 DispatchThreadIndex : SV_DispatchThreadID)
+{
+	LumenRadianceCacheHardwareRayTracingCommon(DispatchThreadIndex);
+}
+#else // LUMEN_HARDWARE_RAYTRACING
+
+RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
+{
+	LumenRadianceCacheHardwareRayTracingCommon(DispatchRaysIndex());
+}
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #endif // LUMEN_HARDWARE_RAYTRACING
 
