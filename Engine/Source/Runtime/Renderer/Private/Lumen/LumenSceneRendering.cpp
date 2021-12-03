@@ -113,7 +113,7 @@ FAutoConsoleVariableRef CVarLumenSceneCardCapturesPerFrame(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneCardCaptureFactor = 16;
+int32 GLumenSceneCardCaptureFactor = 64;
 FAutoConsoleVariableRef CVarLumenSceneCardCaptureFactor(
 	TEXT("r.LumenScene.SurfaceCache.CardCaptureFactor"),
 	GLumenSceneCardCaptureFactor,
