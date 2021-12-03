@@ -11,10 +11,13 @@
 #define TEXTURE_PROFILER_ENABLED WITH_ENGINE && !UE_BUILD_SHIPPING
 
 #if TEXTURE_PROFILER_ENABLED
+
+class FRHITexture;
+
 /**
 * FTextureProfiler class. This manages recording and reporting texture allocations in the RHI
 */
-class FTextureProfiler
+class RHI_API FTextureProfiler
 {
 	static FTextureProfiler* Instance;
 public:
@@ -25,39 +28,23 @@ public:
 
 	void DumpTextures(bool RenderTargets, bool CombineTextureNames, bool AsCSV, FOutputDevice& OutputDevice);
 
-	template <typename RHITextureType>
-	void AddTextureAllocation(RHITextureType* UniqueTexturePtr, FName TextureName, size_t Size, uint32 Alignment, size_t AllocationWaste, bool IsRenderTarget)
-	{
-		AddTextureAllocationInternal(reinterpret_cast<void*>(UniqueTexturePtr), TextureName, Size, Alignment, AllocationWaste, IsRenderTarget);
-	}
-
-	template <typename RHITextureType>
-	void RemoveTextureAllocation(RHITextureType* UniqueTexturePtr, bool IsRenderTarget)
-	{
-		RemoveTextureAllocationInternal(reinterpret_cast<void*>(UniqueTexturePtr), IsRenderTarget);
-	}
-
-	template <typename RHITextureType>
-	void ChangeTextureName(RHITextureType* UniqueTexturePtr, FName NewName, bool IsRenderTarget)
-	{
-		ChangeTextureNameInternal(reinterpret_cast<void*>(UniqueTexturePtr), NewName, IsRenderTarget);
-	}
+	void AddTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste);
+	void UpdateTextureAllocation(FRHITexture* UniqueTexturePtr, size_t Size, uint32 Alignment, size_t AllocationWaste);
+	void RemoveTextureAllocation(FRHITexture* UniqueTexturePtr);
+	void UpdateTextureName(FRHITexture* UniqueTexturePtr);
 private:
 
 	FTextureProfiler() = default;
 	FTextureProfiler(const FTextureProfiler&) = delete;
 	FTextureProfiler(const FTextureProfiler&&) = delete;
 
-	void AddTextureAllocationInternal(void* UniqueTexturePtr, FName TextureName, size_t Size, uint32 Alignment, size_t AllocationWaste, bool IsRenderTarget);
-	void RemoveTextureAllocationInternal(void* UniqueTexturePtr, bool IsRenderTarget);
-	void ChangeTextureNameInternal(void* UniqueTexturePtr, FName NewName, bool IsRenderTarget);
 	void Update();
 
 	FCriticalSection TextureMapCS;
 	struct FTexureDetails
 	{
 		FTexureDetails() = default;
-		FTexureDetails(FName InTextureName, size_t InSize, uint32 InAlign, size_t InAllocationWaste, bool InIsRenderTarget);
+		FTexureDetails(FRHITexture* Texture, size_t InSize, uint32 InAlign, size_t InAllocationWaste);
 
 		void SetName(FName InTextureName);
 		void ResetPeakSize();
