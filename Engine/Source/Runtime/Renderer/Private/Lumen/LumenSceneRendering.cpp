@@ -2333,9 +2333,14 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				const FIntPoint DepthStencilAtlasSize = CardCaptureAtlas.Size;
 				const FIntRect DepthAtlasRect = FIntRect(0, 0, DepthStencilAtlasSize.X, DepthStencilAtlasSize.Y);
 
+				Nanite::FSharedContext SharedContext{};
+				SharedContext.FeatureLevel = Scene->GetFeatureLevel();
+				SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+				SharedContext.Pipeline = Nanite::EPipeline::Lumen;
+
 				Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 					GraphBuilder,
-					FeatureLevel,
+					SharedContext,
 					DepthStencilAtlasSize,
 					false,
 					Nanite::EOutputBufferMode::VisBuffer,
@@ -2352,6 +2357,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 					GraphBuilder,
+					SharedContext,
 					*Scene,
 					nullptr,
 					FIntRect(),
@@ -2406,6 +2412,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 								GraphBuilder,
 								*Scene,
 								NaniteViews,
+								SharedContext,
 								CullingContext,
 								RasterContext,
 								RasterState,
@@ -2436,6 +2443,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 								GraphBuilder,
 								*Scene,
 								{ PackedView },
+								SharedContext,
 								CullingContext,
 								RasterContext,
 								Nanite::FRasterState(),
@@ -2468,6 +2476,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 							GraphBuilder,
 							*Scene,
 							{ PackedView },
+							SharedContext,
 							CullingContext,
 							RasterContext,
 							RasterState);

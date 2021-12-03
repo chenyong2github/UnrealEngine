@@ -16,6 +16,7 @@ namespace Nanite
 
 void ExtractStats(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FCullingContext& CullingContext,
 	bool bVirtualTextureTarget
 );
@@ -34,6 +35,7 @@ void ExtractResults(
 
 void EmitShadowMap(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FRasterContext& RasterContext,
 	const FRDGTextureRef DepthBuffer,
 	const FIntRect& SourceRect,
@@ -45,6 +47,7 @@ void EmitShadowMap(
 
 void EmitCubemapShadow(
 	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
 	const FRasterContext& RasterContext,
 	const FRDGTextureRef CubemapDepthBuffer,
 	const FIntRect& ViewRect,

@@ -1480,6 +1480,11 @@ static void RenderShadowDepthAtlasNanite(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Nanite Shadows");
 
+		Nanite::FSharedContext SharedContext{};
+		SharedContext.FeatureLevel = Scene.GetFeatureLevel();
+		SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+		SharedContext.Pipeline = Nanite::EPipeline::Shadows;
+
 		// Need separate passes for near clip on/off currently
 		const bool bSupportsMultiplePasses = (PackedViews.Num() > 0 && PackedViewsNoNearClip.Num() > 0);
 		const bool bPrimaryContext = false;
@@ -1489,8 +1494,8 @@ static void RenderShadowDepthAtlasNanite(
 		FIntRect FullAtlasViewRect(FIntPoint(0, 0), AtlasSize);
 		const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 		TRefCountPtr<IPooledRenderTarget> PrevAtlasHZB = bUseHZB ? PrevAtlasHZBs[AtlasIndex] : nullptr;
-		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, Scene, PrevAtlasHZB, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
-		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, AtlasSize, false, Nanite::EOutputBufferMode::DepthOnly);
+		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, Scene, PrevAtlasHZB, FullAtlasViewRect, true, bUpdateStreaming, bSupportsMultiplePasses, false, bPrimaryContext);
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, AtlasSize, false, Nanite::EOutputBufferMode::DepthOnly);
 
 		bool bExtractStats = false;		
 		if (GNaniteShowStats != 0)
@@ -1508,6 +1513,7 @@ static void RenderShadowDepthAtlasNanite(
 				GraphBuilder,
 				Scene,
 				PackedViews,
+				SharedContext,
 				CullingContext,
 				RasterContext,
 				RasterState,
@@ -1525,6 +1531,7 @@ static void RenderShadowDepthAtlasNanite(
 				GraphBuilder,
 				Scene,
 				PackedViewsNoNearClip,
+				SharedContext,
 				CullingContext,
 				RasterContext,
 				RasterState,
@@ -1561,6 +1568,7 @@ static void RenderShadowDepthAtlasNanite(
 
 			Nanite::EmitShadowMap(
 				GraphBuilder,
+				SharedContext,
 				RasterContext,
 				ShadowMap,
 				AtlasViewRect,
@@ -1716,6 +1724,11 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 	const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 	const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
 
+	Nanite::FSharedContext SharedContext{};
+	SharedContext.FeatureLevel = FeatureLevel;
+	SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+	SharedContext.Pipeline = Nanite::EPipeline::Shadows;
+
 	if (bNaniteEnabled)
 	{
 		const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bVSMUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
@@ -1727,7 +1740,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 				GraphBuilder,
-				FeatureLevel,
+				SharedContext,
 				VirtualShadowSize,
 				false,
 				Nanite::EOutputBufferMode::DepthOnly,
@@ -1739,6 +1752,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 			auto FilterAndRenderVirtualShadowMaps = [
 				&SortedShadowsForShadowDepthPass = SortedShadowsForShadowDepthPass,
+					&SharedContext,
 					&RasterContext,
 					&VirtualShadowMapArray = VirtualShadowMapArray,
 					&GraphBuilder,
@@ -1877,6 +1891,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
 						GraphBuilder,
+						SharedContext,
 						*Scene,
 						PrevHZBPhysical,
 						FIntRect(),
@@ -1894,6 +1909,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 						*Scene,
 						VirtualShadowViews,
 						NumPrimaryViews,
+						SharedContext,
 						CullingContext,
 						RasterContext,
 						RasterState,
@@ -2084,10 +2100,15 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					FPersistentShadowState* PrevShadowState = LightSceneInfo.PrevPersistentShadows.Find(ShadowKey);
 
 					const bool bPrimaryContext = false;
+
+					Nanite::FSharedContext SharedContext{};
+					SharedContext.FeatureLevel = Scene->GetFeatureLevel();
+					SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+					SharedContext.Pipeline = Nanite::EPipeline::Shadows;
 					
 					TRefCountPtr<IPooledRenderTarget> PrevHZB = (PrevShadowState && bUseHZB) ? PrevShadowState->HZB : nullptr;
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, PrevHZB, ShadowViewRect, true, bUpdateStreaming, false, false, bPrimaryContext);
-					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, TargetSize, false, Nanite::EOutputBufferMode::DepthOnly);
+					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, *Scene, PrevHZB, ShadowViewRect, true, bUpdateStreaming, false, false, bPrimaryContext);
+					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, TargetSize, false, Nanite::EOutputBufferMode::DepthOnly);
 
 					// Setup packed view
 					TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
@@ -2118,6 +2139,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						GraphBuilder,
 						*Scene,
 						PackedViews,
+						SharedContext,
 						CullingContext,
 						RasterContext,
 						RasterState,
@@ -2127,6 +2149,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 					Nanite::EmitCubemapShadow(
 						GraphBuilder,
+						SharedContext,
 						RasterContext,
 						RDGShadowMap,
 						ShadowViewRect,
