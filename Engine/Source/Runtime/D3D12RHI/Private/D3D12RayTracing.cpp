@@ -3906,22 +3906,18 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 		TEXT("TLAS build scratch buffer now requires %lld bytes, but only %lld was calculated in the constructor."),
 			PrebuildInfo.ScratchDataSizeInBytes, SizeInfo.BuildScratchSize);
 
-	TRefCountPtr<FD3D12Buffer> AutoScratchBuffer;
-	if (ScratchBuffer == nullptr)
-	{
-		static const FName ScratchBufferName("AutoBuildScratchTLAS");
-		AutoScratchBuffer = CreateRayTracingBuffer(Adapter, GPUIndex, PrebuildInfo.ScratchDataSizeInBytes, ERayTracingBufferType::Scratch, ScratchBufferName);
-		ScratchBuffer = AutoScratchBuffer.GetReference();
-		ScratchBufferOffset = 0;
-	}
-
 	checkf(ScratchBuffer, TEXT("TLAS build requires scratch buffer of at least %lld bytes."), PrebuildInfo.ScratchDataSizeInBytes);
 
 	const D3D12_GPU_VIRTUAL_ADDRESS ScratchAddress = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress() + ScratchBufferOffset;
 
-	checkf(ScratchAddress % GRHIRayTracingScratchBufferAlignment == 0,
+	checkf(ScratchAddress % GRHIRayTracingAccelerationStructureAlignment == 0,
 		TEXT("TLAS scratch buffer (plus offset) must be aligned to %lld bytes."),
-		GRHIRayTracingScratchBufferAlignment);
+		GRHIRayTracingAccelerationStructureAlignment);
+		
+	checkf(ScratchBuffer, TEXT("TLAS build requires scratch buffer of at least %lld bytes."), PrebuildInfo.ScratchDataSizeInBytes);
+
+	const D3D12_GPU_VIRTUAL_ADDRESS ScratchAddress = ScratchBuffer->ResourceLocation.GetGPUVirtualAddress() + ScratchBufferOffset;
+
 
 	checkf(PrebuildInfo.ScratchDataSizeInBytes + ScratchBufferOffset <= ScratchBuffer->GetSize(),
 		TEXT("TLAS scratch buffer size is %lld bytes with offset %lld (%lld bytes available), but the build requires %lld bytes. ")
