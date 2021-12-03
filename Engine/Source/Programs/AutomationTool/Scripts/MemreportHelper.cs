@@ -93,7 +93,6 @@ public class MemreportHelper : BuildCommand
 
 	public override ExitCode Execute()
 	{
-		System.Diagnostics.Debugger.Launch();
 		LogInformation("************************ STARTING MemreportToGSheet ************************");
 
 		if (Params.Length < 2)
