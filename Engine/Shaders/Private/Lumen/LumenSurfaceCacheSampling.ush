@@ -326,8 +326,8 @@ void SampleLumenCard(
 	float SurfaceCacheDepthTestBias,
 	float CardWeight,
 	uint CardIndex,
-	float DepthVisibilityRadius,
 	bool bHiResSurface,
+	bool bLandscape,
 	uint AtlasId,
 	inout FCardSampleAccumulator CardSampleAccumulator)
 {
@@ -346,6 +346,7 @@ void SampleLumenCard(
 				{
 					// Shadow map visibility
 					float VisibilityWeight = 1.0f;
+					if (!bLandscape)
 					{
 						float2 DepthMoments = Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, CardSample.PhysicalAtlasUV, 0.0f).xy;
 
@@ -476,8 +477,8 @@ FSurfaceCacheSample SampleLumenMeshCards(uint2 ScreenCoord, uint SceneInstanceIn
 					SurfaceCacheDepthTestBias,
 					NormalWeight,
 					CardIndex,
-					CardInterpolateDepthVisibilityRadius,
 					bHiResSurface,
+					MeshCardsData.bLandscape,
 					AtlasId,
 					CardSampleAccumulator);
 			}

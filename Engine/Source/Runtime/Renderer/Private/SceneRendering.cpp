@@ -1820,6 +1820,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		}
 	}
 
+	ViewUniformShaderParameters.OverrideLandscapeLOD = -1.0f;
 	if (DrawDynamicFlags & EDrawDynamicFlags::FarShadowCascade)
 	{
 		extern ENGINE_API int32 GFarShadowStaticMeshLODBias;

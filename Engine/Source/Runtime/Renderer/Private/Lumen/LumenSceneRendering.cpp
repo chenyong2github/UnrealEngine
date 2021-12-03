@@ -267,6 +267,11 @@ LLM_DEFINE_TAG(Lumen, NAME_None, NAME_None, GET_STATFNAME(STAT_LumenLLM), GET_ST
 extern int32 GAllowLumenDiffuseIndirect;
 extern int32 GAllowLumenReflections;
 
+namespace LumenLandscape
+{
+	constexpr int32 CardCaptureLOD = 0;
+};
+
 void Lumen::DebugResetSurfaceCache()
 {
 	GLumenSceneSurfaceCacheReset = 1;
@@ -938,12 +943,15 @@ void FCardPageRenderData::PatchView(FRHICommandList& RHICmdList, const FScene* S
 		*View->CachedViewUniformShaderParameters);
 
 	View->CachedViewUniformShaderParameters->NearPlane = 0;
+	View->CachedViewUniformShaderParameters->FarShadowStaticMeshLODBias = 0;
+	View->CachedViewUniformShaderParameters->OverrideLandscapeLOD = LumenLandscape::CardCaptureLOD;
 }
 
 void AddCardCaptureDraws(const FScene* Scene,
 	FRHICommandListImmediate& RHICmdList,
 	FCardPageRenderData& CardPageRenderData,
 	const FLumenPrimitiveGroup& PrimitiveGroup,
+	TConstArrayView<const FPrimitiveSceneInfo*> SceneInfoPrimitives,
 	FMeshCommandOneFrameArray& VisibleMeshCommands,
 	TArray<int32, SceneRenderingAllocator>& PrimitiveIds)
 {
@@ -951,20 +959,26 @@ void AddCardCaptureDraws(const FScene* Scene,
 
 	const EMeshPass::Type MeshPass = EMeshPass::LumenCardCapture;
 	const ENaniteMeshPass::Type NaniteMeshPass = ENaniteMeshPass::LumenCardCapture;
+	const FBox WorldSpaceCardBox = CardPageRenderData.CardWorldOBB.GetBox();
 
 	uint32 MaxVisibleMeshDrawCommands = 0;
-	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
+	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfoPrimitives)
 	{
-		if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting() && !PrimitiveSceneInfo->Proxy->IsNaniteMesh())
+		if (PrimitiveSceneInfo
+			&& PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting()
+			&& WorldSpaceCardBox.Intersect(PrimitiveSceneInfo->Proxy->GetBounds().GetBox())
+			&& !PrimitiveSceneInfo->Proxy->IsNaniteMesh())
 		{
 			MaxVisibleMeshDrawCommands += PrimitiveSceneInfo->StaticMeshRelevances.Num();
 		}
 	}
 	CardPageRenderData.InstanceRuns.Reserve(2 * MaxVisibleMeshDrawCommands);
 
-	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
+	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : SceneInfoPrimitives)
 	{
-		if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
+		if (PrimitiveSceneInfo
+			&& PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting()
+			&& WorldSpaceCardBox.Intersect(PrimitiveSceneInfo->Proxy->GetBounds().GetBox()))
 		{
 			if (PrimitiveSceneInfo->Proxy->IsNaniteMesh())
 			{
@@ -992,17 +1006,26 @@ void AddCardCaptureDraws(const FScene* Scene,
 			{
 				FLODMask LODToRender;
 
-				int32 MaxLOD = 0;
-				for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); ++MeshIndex)
+				if (PrimitiveGroup.bLandscape)
 				{
-					const FStaticMeshBatchRelevance& Mesh = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
-					if (Mesh.ScreenSize > 0.0f)
-					{
-						//todo DynamicGI artist control - last LOD is sometimes billboard
-						MaxLOD = FMath::Max(MaxLOD, (int32)Mesh.LODIndex);
-					}
+					// Landscape can't use last LOD, as it's a single quad with only 4 distinct heightfield values
+					// Also selected LOD needs to to match FLandscapeSectionLODUniformParameters uniform buffers
+					LODToRender.SetLOD(LumenLandscape::CardCaptureLOD);
 				}
-				LODToRender.SetLOD(MaxLOD);
+				else
+				{
+					int32 MaxLOD = 0;
+					for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); ++MeshIndex)
+					{
+						const FStaticMeshBatchRelevance& Mesh = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
+						if (Mesh.ScreenSize > 0.0f)
+						{
+							//todo DynamicGI artist control - last LOD is sometimes billboard
+							MaxLOD = FMath::Max(MaxLOD, (int32)Mesh.LODIndex);
+						}
+					}
+					LODToRender.SetLOD(MaxLOD);
+				}
 
 				FMeshDrawCommandPrimitiveIdInfo IdInfo(PrimitiveSceneInfo->GetIndex(), PrimitiveSceneInfo->GetInstanceSceneDataOffset());
 
@@ -1106,6 +1129,7 @@ public:
 	// Output
 	TArray<FMeshCardsAdd> MeshCardsAdds;
 	TArray<FMeshCardsRemove> MeshCardsRemoves;
+	TArray<FPrimitiveSceneInfo*> LandscapePrimitivesInRange;
 
 	void AnyThreadTask()
 	{
@@ -1138,6 +1162,11 @@ public:
 						Add.PrimitiveGroupIndex = PrimitiveGroupIndex;
 						Add.DistanceSquared = DistanceSquared;
 						MeshCardsAdds.Add(Add);
+					}
+
+					if (PrimitiveGroup.bLandscape)
+					{
+						LandscapePrimitivesInRange.Append(PrimitiveGroup.Primitives);
 					}
 				}
 				else if (PrimitiveGroup.MeshCardsIndex >= 0)
@@ -1509,7 +1538,8 @@ void ProcessLumenSurfaceCacheRequests(
 void UpdateSurfaceCachePrimitives(
 	FLumenSceneData& LumenSceneData,
 	FVector LumenSceneCameraOrigin,
-	float MaxCardUpdateDistanceFromCamera)
+	float MaxCardUpdateDistanceFromCamera,
+	FLumenCardRenderer& LumenCardRenderer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSurfaceCachePrimitives);
 
@@ -1560,6 +1590,8 @@ void UpdateSurfaceCachePrimitives(
 			FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[MeshCardsRemove.PrimitiveGroupIndex];
 			LumenSceneData.RemoveMeshCards(PrimitiveGroup);
 		}
+
+		LumenCardRenderer.LandscapePrimitivesInRange.Append(Task.LandscapePrimitivesInRange);
 	}
 
 	if (MeshCardsAdds.Num() > 0)
@@ -1725,7 +1757,8 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 			UpdateSurfaceCachePrimitives(
 				LumenSceneData,
 				LumenSceneCameraOrigin,
-				MaxCardUpdateDistanceFromCamera);
+				MaxCardUpdateDistanceFromCamera,
+				LumenCardRenderer);
 
 			UpdateSurfaceCacheMeshCards(
 				LumenSceneData,
@@ -1831,15 +1864,32 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 					CardPageRenderData.NumMeshDrawCommands = 0;
 					int32 NumNanitePrimitives = 0;
 
+					const FLumenPrimitiveGroup& PrimitiveGroup = LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex];
 					const FLumenCard& Card = LumenSceneData.Cards[CardPageRenderData.CardIndex];
 					ensure(Card.bVisible);
 
-					AddCardCaptureDraws(Scene, 
-						GraphBuilder.RHICmdList, 
-						CardPageRenderData,
-						LumenSceneData.PrimitiveGroups[CardPageRenderData.PrimitiveGroupIndex],
-						LumenCardRenderer.MeshDrawCommands, 
-						LumenCardRenderer.MeshDrawPrimitiveIds);
+					if (PrimitiveGroup.bLandscape)
+					{
+						AddCardCaptureDraws(
+							Scene,
+							GraphBuilder.RHICmdList,
+							CardPageRenderData,
+							PrimitiveGroup,
+							LumenCardRenderer.LandscapePrimitivesInRange,
+							LumenCardRenderer.MeshDrawCommands,
+							LumenCardRenderer.MeshDrawPrimitiveIds);
+					}
+					else
+					{
+						AddCardCaptureDraws(
+							Scene,
+							GraphBuilder.RHICmdList,
+							CardPageRenderData,
+							PrimitiveGroup,
+							PrimitiveGroup.Primitives,
+							LumenCardRenderer.MeshDrawCommands,
+							LumenCardRenderer.MeshDrawPrimitiveIds);
+					}
 
 					CardPageRenderData.NumMeshDrawCommands = LumenCardRenderer.MeshDrawCommands.Num() - CardPageRenderData.StartMeshDrawCommandIndex;
 				}
@@ -2289,7 +2339,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 								if (Scene->GPUScene.IsEnabled())
 								{
 									FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;
-									
+
 									InstanceCullingContext->SubmitDrawCommands(
 										LumenCardRenderer.MeshDrawCommands,
 										GraphicsMinimalPipelineStateSet,

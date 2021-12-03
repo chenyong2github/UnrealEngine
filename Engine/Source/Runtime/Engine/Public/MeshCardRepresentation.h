@@ -103,6 +103,14 @@ public:
 		return WorldOBB;
 	}
 
+	FBox GetBox()
+	{
+		FBox Box;
+		Box.Min = AxisX.GetAbs() * -Extent.X + AxisY.GetAbs() * -Extent.Y + AxisZ.GetAbs() * -Extent.Z + Origin;
+		Box.Max = AxisX.GetAbs() * +Extent.X + AxisY.GetAbs() * +Extent.Y + AxisZ.GetAbs() * +Extent.Z + Origin;
+		return Box;
+	}
+
 	friend FArchive& operator<<(FArchive& Ar, FLumenCardOBB& Data)
 	{
 		Ar << Data.AxisX;
