@@ -181,10 +181,9 @@ private:
 
 	void UpdateNotifications();
 	void UpdateResidencyNotifications();
+	void UpdateCsvStats();
 
 	void DrawResidencyHud(class UCanvas*, class APlayerController*);
 	FDelegateHandle	DrawResidencyHudDelegateHandle;
 #endif
 };
-
-

@@ -26,6 +26,8 @@
 
 #define LOCTEXT_NAMESPACE "VirtualTexture"
 
+CSV_DEFINE_CATEGORY(VirtualTexturing, true);
+
 DECLARE_CYCLE_STAT(TEXT("VirtualTextureSystem Update"), STAT_VirtualTextureSystem_Update, STATGROUP_VirtualTexturing);
 
 DECLARE_CYCLE_STAT(TEXT("Gather Requests"), STAT_ProcessRequests_Gather, STATGROUP_VirtualTexturing);
@@ -147,6 +149,14 @@ static TAutoConsoleVariable<int32> CVarVTResidencyNotify(
 	TEXT("Show on screen notifications for virtual texture physical pool residency"),
 	ECVF_Default
 );
+static TAutoConsoleVariable<int32> CVarVTCsvStats(
+	TEXT("r.VT.CsvStats"),
+	1,
+	TEXT("Send virtual texturing stats to CSV profiler\n")
+	TEXT("0=off, 1=on, 2=verbose"),
+	ECVF_Default
+);
+
 
 static FORCEINLINE uint32 EncodePage(uint32 ID, uint32 vLevel, uint32 vTileX, uint32 vTileY)
 {
@@ -1574,6 +1584,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 
 #if !UE_BUILD_SHIPPING
 	UpdateNotifications();
+	UpdateCsvStats();
 #endif
 
 	ReleasePendingSpaces();
@@ -2616,15 +2627,39 @@ void FVirtualTextureSystem::UpdateResidencyNotifications()
 			FString const& FormatString = PhysicalSpace->GetFormatString();
 			const float MipBias = PhysicalSpace->GetResidencyMipMapBias();
 
-#if CSV_PROFILER
-			CSV_CUSTOM_STAT_GLOBAL(VirtualTextureMipBias, MipBias, ECsvCustomStatOp::Set);
-#endif
-
 			OnScreenMessages.Add(
 				FCoreDelegates::EOnScreenMessageSeverity::Warning,
 				FText::Format(LOCTEXT("VTOversubscribed", "VT Pool [{0}] is oversubscribed. Setting MipBias {1}"), FText::FromString(FormatString), FText::AsNumber(MipBias)));
 		}
 	}
+}
+
+void FVirtualTextureSystem::UpdateCsvStats()
+{
+#if CSV_PROFILER
+	if (CVarVTCsvStats.GetValueOnRenderThread() == 0)
+	{
+		return;
+	}
+
+	float MaxResidencyMipMapBias = 0.f;
+	for (int32 SpaceIndex = 0u; SpaceIndex < PhysicalSpaces.Num(); ++SpaceIndex)
+	{
+		const FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[SpaceIndex];
+		if (PhysicalSpace != nullptr)
+		{
+			const float ResidencyMipMapBias = PhysicalSpace->GetResidencyMipMapBias();
+			MaxResidencyMipMapBias = FMath::Max(MaxResidencyMipMapBias, ResidencyMipMapBias);
+
+			if (CVarVTCsvStats.GetValueOnRenderThread() == 2)
+			{
+				PhysicalSpace->UpdateCsvStats();
+			}
+		}
+	}
+
+	CSV_CUSTOM_STAT(VirtualTexturing, ResidencyMipBias, MaxResidencyMipMapBias, ECsvCustomStatOp::Set);
+#endif
 }
 
 void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerController* InController)

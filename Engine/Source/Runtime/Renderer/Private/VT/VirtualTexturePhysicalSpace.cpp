@@ -9,6 +9,8 @@
 #include "VT/VirtualTextureScalability.h"
 #include "VT/VirtualTextureSystem.h"
 
+CSV_DECLARE_CATEGORY_EXTERN(VirtualTexturing);
+
 static TAutoConsoleVariable<float> CVarVTResidencyMaxMipMapBias(
 	TEXT("r.VT.Residency.MaxMipMapBias"),
 	4,
@@ -301,4 +303,20 @@ void FVirtualTexturePhysicalSpace::DrawResidencyGraph(FCanvas* Canvas, FBox2D Ca
 			HitProxyId);
 	}
 #endif // UE_BUILD_SHIPPING
+}
+
+void FVirtualTexturePhysicalSpace::UpdateCsvStats() const
+{
+#if CSV_PROFILER
+	FCsvProfiler* Profiler = FCsvProfiler::Get();
+	if (Profiler->IsCapturing_Renderthread())
+	{
+		const FString LockedTitle = FString::Printf(TEXT("%s_%d/LockedPages"), *FormatString, GetID());
+		Profiler->RecordCustomStat(*LockedTitle, CSV_CATEGORY_INDEX(VirtualTexturing), LockedHistory[HistoryIndex], ECsvCustomStatOp::Set);
+		const FString VisbileTitle = FString::Printf(TEXT("%s_%d/VisiblePages"), *FormatString, GetID());
+		Profiler->RecordCustomStat(*VisbileTitle, CSV_CATEGORY_INDEX(VirtualTexturing), VisibleHistory[HistoryIndex], ECsvCustomStatOp::Set);
+		const FString MipBiasTitle = FString::Printf(TEXT("%s_%d/MipBias"), *FormatString, GetID());
+		Profiler->RecordCustomStat(*MipBiasTitle, CSV_CATEGORY_INDEX(VirtualTexturing), MipMapBiasHistory[HistoryIndex], ECsvCustomStatOp::Set);
+	}
+#endif
 }
