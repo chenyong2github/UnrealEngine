@@ -4026,7 +4026,7 @@ static void VerifyClusterContraints( const TArray< FCluster >& Clusters )
 static uint32 CalculateMaxRootPages(uint32 TargetResidencyInKB)
 {
 	const uint64 SizeInBytes = uint64(TargetResidencyInKB) << 10;
-	return (uint32)FMath::Clamp((SizeInBytes + ROOT_PAGE_GPU_SIZE - 1) >> ROOT_PAGE_GPU_SIZE_BITS, 1u, MAX_uint32);
+	return (uint32)FMath::Clamp((SizeInBytes + ROOT_PAGE_GPU_SIZE - 1u) >> ROOT_PAGE_GPU_SIZE_BITS, 1llu, (uint64)MAX_uint32);
 }
 
 void Encode(
