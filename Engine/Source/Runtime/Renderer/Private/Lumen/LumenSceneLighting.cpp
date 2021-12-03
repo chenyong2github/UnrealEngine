@@ -60,7 +60,7 @@ int32 GLumenLightingStats = 0;
 FAutoConsoleVariableRef CVarLumenSceneLightingStats(
 	TEXT("r.LumenScene.Lighting.Stats"),
 	GLumenLightingStats,
-	TEXT("GPU print out Lumen lighting update stats."),
+	TEXT("GPU print out Lumen lighting update stats. Requires r.ShaderPrintEnable 1."),
 	ECVF_RenderThreadSafe
 );
 

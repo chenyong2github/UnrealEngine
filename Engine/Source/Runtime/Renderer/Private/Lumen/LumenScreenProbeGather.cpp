@@ -267,6 +267,14 @@ FAutoConsoleVariableRef CVarLumenScreenProbeIrradianceFormat(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenScreenProbeStochasticInterpolation = 1;
+FAutoConsoleVariableRef CVarLumenScreenProbeStochasticInterpolation(
+	TEXT("r.Lumen.ScreenProbeGather.StochasticInterpolation"),
+	GLumenScreenProbeStochasticInterpolation,
+	TEXT("Where to interpolate screen probes stochastically (1 sample) or bilinearly (4 samples)"),
+	ECVF_RenderThreadSafe
+);
+
 namespace LumenScreenProbeGather 
 {
 	int32 GetTracingOctahedronResolution(const FViewInfo& View)
@@ -425,7 +433,7 @@ int32 GRadianceCacheStats = 0;
 FAutoConsoleVariableRef CVarRadianceCacheStats(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.Stats"),
 	GRadianceCacheStats,
-	TEXT("GPU print out Radiance Cache update stats."),
+	TEXT("GPU print out Radiance Cache update stats. Requires r.ShaderPrintEnable 1."),
 	ECVF_RenderThreadSafe
 );
 
@@ -860,7 +868,8 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 	class FScreenSpaceBentNormal : SHADER_PERMUTATION_BOOL("SCREEN_SPACE_BENT_NORMAL");
 	class FTileClassificationMode : SHADER_PERMUTATION_INT("INTEGRATE_TILE_CLASSIFICATION_MODE", 4);
 	class FProbeIrradianceFormat : SHADER_PERMUTATION_ENUM_CLASS("PROBE_IRRADIANCE_FORMAT", EScreenProbeIrradianceFormat);
-	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal, FProbeIrradianceFormat>;
+	class FStochasticProbeInterpolation : SHADER_PERMUTATION_BOOL("STOCHASTIC_PROBE_INTERPOLATION");
+	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal, FProbeIrradianceFormat, FStochasticProbeInterpolation>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -1090,6 +1099,7 @@ void InterpolateAndIntegrate(
 			PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >(ClassificationMode);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FScreenSpaceBentNormal >(bApplyScreenBentNormal);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FProbeIrradianceFormat >(LumenScreenProbeGather::GetScreenProbeIrradianceFormat());
+			PermutationVector.Set< FScreenProbeIntegrateCS::FStochasticProbeInterpolation >(GLumenScreenProbeStochasticInterpolation != 0);
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeIntegrateCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(
