@@ -823,8 +823,14 @@ void Lumen::BuildCardUpdateContext(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildCardUpdateContext");
 
-	FRDGBufferRef CardPageLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageLastUsedBuffer);
-	FRDGBufferRef CardPageHighResLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageHighResLastUsedBuffer);
+	FRDGBufferRef CardPageLastUsedBuffer = nullptr;
+	FRDGBufferRef CardPageHighResLastUsedBuffer = nullptr;
+	const bool bUseFeedback = LumenSceneData.CardPageLastUsedBuffer && LumenSceneData.CardPageHighResLastUsedBuffer && LumenSceneLighting::UseFeedback();
+	if (bUseFeedback)
+	{
+		CardPageLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageLastUsedBuffer);
+		CardPageHighResLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageHighResLastUsedBuffer);
+	}
 
 	const int32 NumCardPages = LumenSceneData.GetNumCardPages();
 	const uint32 UpdateFrameIndex = LumenSceneData.GetSurfaceCacheUpdateFrameIndex();
@@ -873,8 +879,8 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->RWPriorityHistogram = GraphBuilder.CreateUAV(PriorityHistogram);
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
-		PassParameters->CardPageLastUsedBuffer = GraphBuilder.CreateSRV(CardPageLastUsedBuffer);
-		PassParameters->CardPageHighResLastUsedBuffer = GraphBuilder.CreateSRV(CardPageHighResLastUsedBuffer);
+		PassParameters->CardPageLastUsedBuffer = CardPageLastUsedBuffer ? GraphBuilder.CreateSRV(CardPageLastUsedBuffer) : nullptr;
+		PassParameters->CardPageHighResLastUsedBuffer = CardPageHighResLastUsedBuffer ? GraphBuilder.CreateSRV(CardPageHighResLastUsedBuffer) : nullptr;
 		PassParameters->CardPageNum = NumCardPages;
 		PassParameters->SurfaceCacheUpdateFrameIndex = UpdateFrameIndex;
 		PassParameters->FreezeUpdateFrame = FreezeUpdateFrame;
@@ -883,7 +889,7 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->IndirectLightingUpdateFactor = IndirectLightingCardUpdateContext.UpdateFactor;
 
 		FBuildPageUpdatePriorityHistogramCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FBuildPageUpdatePriorityHistogramCS::FSurfaceCacheFeedback>(LumenSceneLighting::UseFeedback());
+		PermutationVector.Set<FBuildPageUpdatePriorityHistogramCS::FSurfaceCacheFeedback>(bUseFeedback);
 		auto ComputeShader = View.ShaderMap->GetShader<FBuildPageUpdatePriorityHistogramCS>(PermutationVector);
 
 		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenSceneData.GetNumCardPages(), FBuildPageUpdatePriorityHistogramCS::GetGroupSize()), 1, 1);
@@ -940,8 +946,8 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->LumenCardDataBuffer = LumenSceneData.CardBuffer.SRV;
 		PassParameters->RWLumenCardPageDataBuffer = LumenSceneData.CardPageBuffer.UAV;
-		PassParameters->CardPageLastUsedBuffer = GraphBuilder.CreateSRV(CardPageLastUsedBuffer);
-		PassParameters->CardPageHighResLastUsedBuffer = GraphBuilder.CreateSRV(CardPageHighResLastUsedBuffer);
+		PassParameters->CardPageLastUsedBuffer = CardPageLastUsedBuffer ? GraphBuilder.CreateSRV(CardPageLastUsedBuffer) : nullptr;
+		PassParameters->CardPageHighResLastUsedBuffer = CardPageHighResLastUsedBuffer ? GraphBuilder.CreateSRV(CardPageHighResLastUsedBuffer) : nullptr;
 		PassParameters->CardPageNum = NumCardPages;
 		PassParameters->SurfaceCacheUpdateFrameIndex = UpdateFrameIndex;
 		PassParameters->FreezeUpdateFrame = FreezeUpdateFrame;
@@ -952,7 +958,7 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->IndirectLightingUpdateFactor = IndirectLightingCardUpdateContext.UpdateFactor;
 
 		FBuildCardsUpdateListCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FBuildCardsUpdateListCS::FSurfaceCacheFeedback>(LumenSceneLighting::UseFeedback());
+		PermutationVector.Set<FBuildCardsUpdateListCS::FSurfaceCacheFeedback>(bUseFeedback);
 		auto ComputeShader = View.ShaderMap->GetShader<FBuildCardsUpdateListCS>(PermutationVector);
 
 		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenSceneData.GetNumCardPages(), FBuildCardsUpdateListCS::GetGroupSize()), 1, 1);
