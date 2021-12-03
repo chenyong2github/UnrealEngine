@@ -4828,7 +4828,21 @@ void FHlslNiagaraTranslator::ParameterMapForBegin(UNiagaraNodeParameterMapFor* F
 {
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_MapForBegin);
 
-	AddBodyChunk(TEXT(""), TEXT("for(int index = 0; index < {0}; ++index)\n\t{"), FNiagaraTypeDefinition::GetIntDef(), IterationCount, false, false);
+	const int32 IndexChunkIndex = AddBodyChunk(GetUniqueSymbolName(TEXT("Index")), TEXT(""), FNiagaraTypeDefinition::GetIntDef(), true);
+	ParameterMapForIndexStack.Push(IndexChunkIndex);
+
+	TArray<int32> SourceChunks;
+	SourceChunks.Add(IndexChunkIndex);
+	SourceChunks.Add(IterationCount);
+
+	AddBodyChunk(TEXT(""), TEXT("for({0} = 0; {0} < {1}; ++{0})\n\t{"), FNiagaraTypeDefinition::GetIntDef(), SourceChunks, false, false);
+}
+
+void FHlslNiagaraTranslator::ParameterMapForContinue(UNiagaraNodeParameterMapFor* ForNode, int32 IterationEnabled)
+{
+	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_MapForBegin);
+
+	AddBodyChunk(TEXT(""), TEXT("if (!{0}) continue;"), FNiagaraTypeDefinition::GetBoolDef(), IterationEnabled, false, false);
 }
 
 void FHlslNiagaraTranslator::ParameterMapForEnd(UNiagaraNodeParameterMapFor* ForNode)
@@ -4836,6 +4850,18 @@ void FHlslNiagaraTranslator::ParameterMapForEnd(UNiagaraNodeParameterMapFor* For
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_MapForEnd);
 
 	AddBodyChunk(TEXT(""), TEXT("}"), FNiagaraTypeDefinition::GetIntDef(), false, false);
+
+	ParameterMapForIndexStack.Pop();
+}
+
+int32 FHlslNiagaraTranslator::ParameterMapForInnerIndex() const
+{
+	if (ParameterMapForIndexStack.Num())
+	{
+		return ParameterMapForIndexStack.Last();
+	}
+
+	return INDEX_NONE;
 }
 
 void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNode, TArrayView<const FCompiledPin> Inputs, TArray<int32>& Outputs)
