@@ -213,8 +213,10 @@ class RENDERCORE_API FRDGParameterStruct
 {
 public:
 	template <typename ParameterStructType>
-	explicit FRDGParameterStruct(const ParameterStructType* Parameters)
-		: FRDGParameterStruct(Parameters, ParameterStructType::FTypeInfo::GetStructMetadata()->GetLayoutPtr())
+	explicit FRDGParameterStruct(const ParameterStructType* Parameters, const FShaderParametersMetadata* InParameterMetadata)
+		: Contents(reinterpret_cast<const uint8*>(Parameters))
+		, Layout(InParameterMetadata->GetLayoutPtr())
+		, Metadata(InParameterMetadata)
 	{}
 
 	explicit FRDGParameterStruct(const void* InContents, const FRHIUniformBufferLayout* InLayout)
@@ -230,6 +232,8 @@ public:
 	/** Returns the layout associated with this struct. */
 	const FRHIUniformBufferLayout& GetLayout() const { return *Layout; }
 	const FRHIUniformBufferLayout* GetLayoutPtr() const { return Layout; }
+
+	const FShaderParametersMetadata* GetMetadata() const { return Metadata; }
 
 	/** Helpful forwards from the layout. */
 	FORCEINLINE bool HasRenderTargets() const   { return Layout->HasRenderTargets(); }
@@ -288,6 +292,7 @@ private:
 
 	const uint8* Contents;
 	FUniformBufferLayoutRHIRef Layout;
+	const FShaderParametersMetadata* Metadata = nullptr;
 
 	friend class FRDGPass;
 };
@@ -321,12 +326,12 @@ public:
 template <typename TParameterStruct>
 FORCEINLINE static FRHIRenderPassInfo GetRenderPassInfo(TParameterStruct* Parameters)
 {
-	return FRDGParameterStruct(Parameters).GetRenderPassInfo();
+	return FRDGParameterStruct(Parameters, TParameterStruct::FTypeInfo::GetStructMetadata()).GetRenderPassInfo();
 }
 
 /** Helper function to get RHI global uniform buffers out of a pass parameters struct. */
 template <typename TParameterStruct>
 FORCEINLINE static FUniformBufferStaticBindings GetStaticUniformBuffers(TParameterStruct* Parameters)
 {
-	return FRDGParameterStruct(Parameters).GetStaticUniformBuffers();
+	return FRDGParameterStruct(Parameters, TParameterStruct::FTypeInfo::GetStructMetadata()).GetStaticUniformBuffers();
 }

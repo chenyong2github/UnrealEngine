@@ -255,6 +255,19 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Engine/InstancedStaticMesh.h"
 #include "IDeviceProfileSelectorModule.h"
 
+#if WITH_DUMPGPU
+	#include "RenderGraph.h"
+#endif
+
+#if WITH_DUMPGPU
+
+static TAutoConsoleVariable<int32> GDumpGPUScreenshot(
+	TEXT("r.DumpGPU.Screenshot"), 1,
+	TEXT("Whether to take a final screenshot."),
+	ECVF_Default);
+
+#endif
+
 DEFINE_LOG_CATEGORY(LogEngine);
 IMPLEMENT_MODULE( FEngineModule, Engine );
 
@@ -4528,6 +4541,13 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	}	
 #endif // #if !UE_BUILD_SHIPPING
 
+#if WITH_DUMPGPU
+	else if (FParse::Command(&Cmd, TEXT("DUMPGPU")))
+	{
+		return HandleDumpGPUCommand(Cmd, Ar);
+	}
+#endif
+
 #if	!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
 	else if( FParse::Command(&Cmd,TEXT("HotReload")) )
 	{
@@ -5472,6 +5492,33 @@ bool UEngine::HandleProfileGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 }
 
 #endif // WITH_PROFILEGPU
+
+#if WITH_DUMPGPU
+bool UEngine::HandleDumpGPUCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	if (!FApp::CanEverRender())
+	{
+		return true;
+	}
+
+	check(IsInGameThread());
+	TArray<FString> Args;
+	FString ResourceDumpDirectory = FRDGBuilder::BeginResourceDump(Args);
+
+	if (!ResourceDumpDirectory.IsEmpty())
+	{
+		// Dump a screenshot
+		if (GDumpGPUScreenshot.GetValueOnGameThread())
+		{
+			FString FileName = ResourceDumpDirectory / TEXT("Base/Screenshot.png");
+			FScreenshotRequest::RequestScreenshot(FileName, /* bShowUI = */ true, /* bAddFilenameSuffix = */ false);
+		}
+	}
+
+	return true;
+}
+
+#endif // WITH_DUMPGPU
 
 #if !UE_BUILD_SHIPPING
 bool UEngine::HandleStartFPSChartCommand( const TCHAR* Cmd, FOutputDevice& Ar )

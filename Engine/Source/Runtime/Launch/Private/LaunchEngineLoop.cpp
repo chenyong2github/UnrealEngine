@@ -5517,14 +5517,8 @@ void FEngineLoop::Tick()
 		FCoreDelegates::OnEndFrame.Broadcast();
 
 		// end of RDG resource dump
-		#if WITH_ENGINE
-			#if RDG_DUMP_RESOURCES
-				ENQUEUE_RENDER_COMMAND(EndRDGResourceDump)(
-					[](FRHICommandListImmediate& RHICmdList)
-					{
-						FRDGBuilder::EndResourceDump();
-					});
-			#endif
+		#if WITH_ENGINE && WITH_DUMPGPU
+			FRDGBuilder::EndResourceDump();
 		#endif
 
 		#if !UE_SERVER && WITH_ENGINE

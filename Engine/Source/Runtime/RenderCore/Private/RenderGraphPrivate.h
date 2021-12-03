@@ -196,6 +196,8 @@ FORCEINLINE bool IsRenderPassMergeEnabled()
 	return GRDGMergeRenderPasses != 0 && !IsImmediateMode();
 }
 
+bool IsDumpingRDGResources();
+
 FORCEINLINE bool IsParallelExecuteEnabled()
 {
 	return GRDGParallelExecute > 0
@@ -203,7 +205,11 @@ FORCEINLINE bool IsParallelExecuteEnabled()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
 		&& !GRDGTransitionLog
-		&& GRHISupportsMultithreadedShaderCreation;
+		&& GRHISupportsMultithreadedShaderCreation
+#if WITH_DUMPGPU
+		&& !IsDumpingRDGResources()
+#endif
+		;
 }
 
 template <typename ResourceRegistryType, typename FunctionType>
