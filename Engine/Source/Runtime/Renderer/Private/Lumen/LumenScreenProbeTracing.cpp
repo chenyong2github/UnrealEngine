@@ -180,7 +180,6 @@ class FScreenProbeCompactTracesCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 	}
 };
@@ -234,7 +233,6 @@ class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 

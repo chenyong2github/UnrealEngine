@@ -504,40 +504,58 @@ FIntPoint FLumenSurfaceCacheFeedback::GetFeedbackBufferTileJitter() const
 
 void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
 	if (bLumenActive && GLumenSurfaceCacheFeedback != 0)
 	{
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneFrameTemporaries& FrameTemporaries = LumenSceneData.FrameTemporaries;
+
 		extern int32 GVisualizeLumenSceneSurfaceCacheFeedback;
 		const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
 
 		extern int32 GLumenReflectionsSurfaceCacheFeedback;
 		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections() && GLumenReflectionsSurfaceCacheFeedback != 0;
 
-		if (bReflectionsUseFeedback || bVisualizeUsesFeedback)
+		if (!Lumen::IsSurfaceCacheFrozen() && (bReflectionsUseFeedback || bVisualizeUsesFeedback))
 		{
-			FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+			ensure(FrameTemporaries.SurfaceCacheFeedbackResources.Buffer == nullptr);
 
-			ensure(LumenSceneData.SurfaceCacheFeedbackResources.Buffer == nullptr);
+			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources);
+		}
 
-			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, LumenSceneData.SurfaceCacheFeedbackResources);
+		if (LumenSceneData.CardPageLastUsedBuffer && LumenSceneData.CardPageHighResLastUsedBuffer)
+		{
+			FrameTemporaries.CardPageLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageLastUsedBuffer);
+			FrameTemporaries.CardPageHighResLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageHighResLastUsedBuffer);
 		}
 	}
 }
 
-void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-	if (LumenSceneData.SurfaceCacheFeedbackResources.Buffer)
+	if (bLumenActive && GLumenSurfaceCacheFeedback != 0)
 	{
-		LumenSceneData.SurfaceCacheFeedback.SubmitFeedbackBuffer(Views[0], GraphBuilder, LumenSceneData.SurfaceCacheFeedbackResources);
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		FLumenSceneFrameTemporaries& FrameTemporaries = LumenSceneData.FrameTemporaries;
 
-		LumenSceneData.SurfaceCacheFeedbackResources.BufferAllocator = nullptr;
-		LumenSceneData.SurfaceCacheFeedbackResources.Buffer = nullptr;
-		LumenSceneData.SurfaceCacheFeedbackResources.BufferSize = 0;
+		if (FrameTemporaries.SurfaceCacheFeedbackResources.Buffer)
+		{
+			LumenSceneData.SurfaceCacheFeedback.SubmitFeedbackBuffer(Views[0], GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources);
+
+			FrameTemporaries.SurfaceCacheFeedbackResources.BufferAllocator = nullptr;
+			FrameTemporaries.SurfaceCacheFeedbackResources.Buffer = nullptr;
+			FrameTemporaries.SurfaceCacheFeedbackResources.BufferSize = 0;
+		}
+
+		if (LumenSceneData.CardPageLastUsedBuffer && LumenSceneData.CardPageHighResLastUsedBuffer)
+		{
+			LumenSceneData.CardPageLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(FrameTemporaries.CardPageLastUsedBuffer);
+			LumenSceneData.CardPageHighResLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(FrameTemporaries.CardPageHighResLastUsedBuffer);
+		}
 	}
 }

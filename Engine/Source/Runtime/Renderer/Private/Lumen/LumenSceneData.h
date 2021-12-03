@@ -210,6 +210,7 @@ struct FLumenPageTableEntry
 	FIntRect PhysicalAtlasRect;
 
 	// Sampling data, can point to a coarser page
+	uint32 SamplePageIndex = 0;
 	uint16 SampleAtlasBiasX = 0;
 	uint16 SampleAtlasBiasY = 0;
 	uint16 SampleCardResLevelX = 0;
@@ -345,6 +346,16 @@ enum class ESurfaceCacheCompression : uint8
 	CopyTextureRegion
 };
 
+// Temporaries valid only in a single frame
+struct FLumenSceneFrameTemporaries
+{
+	// Current frame's buffers for writing feedback
+	FLumenSurfaceCacheFeedback::FFeedbackResources SurfaceCacheFeedbackResources;
+
+	FRDGBufferRef CardPageLastUsedBuffer = nullptr;
+	FRDGBufferRef CardPageHighResLastUsedBuffer = nullptr;
+};
+
 class FLumenSceneData
 {
 public:
@@ -380,6 +391,12 @@ public:
 	// Single card tile per FLumenPageTableEntry. Used for various atlas update operations
 	FRWBufferStructured CardPageBuffer;
 
+	// Last frame index when this page was sampled from. Used to controlling page update rate
+	TRefCountPtr<FRDGPooledBuffer> CardPageLastUsedBuffer;
+	TRefCountPtr<FRDGPooledBuffer> CardPageHighResLastUsedBuffer;
+
+	FLumenSceneFrameTemporaries FrameTemporaries;
+
 	// Captured from the triangle scene
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
 	TRefCountPtr<IPooledRenderTarget> OpacityAtlas;
@@ -399,9 +416,6 @@ public:
 
 	// Virtual surface cache feedback
 	FLumenSurfaceCacheFeedback SurfaceCacheFeedback;
-
-	// Current frame's buffers for writing feedback
-	FLumenSurfaceCacheFeedback::FFeedbackResources SurfaceCacheFeedbackResources;
 
 	bool bFinalLightingAtlasContentsValid;
 	int32 NumMeshCardsToAdd = 0;

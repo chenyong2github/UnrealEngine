@@ -3108,7 +3108,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bRenderDeferredLighting)
 	{
 		RenderLumenSceneVisualization(GraphBuilder, SceneTextures);
-		FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder);
+	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0]);
 		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LightingChannelsTexture, /* bIsVisualizePass = */ true);
 	}
 

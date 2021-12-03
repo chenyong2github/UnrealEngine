@@ -54,12 +54,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCardPageLastUsedBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCardPageHighResLastUsedBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWSurfaceCacheFeedbackBufferAllocator)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint2>, RWSurfaceCacheFeedbackBuffer)
 	SHADER_PARAMETER(uint32, SurfaceCacheFeedbackBufferSize)
 	SHADER_PARAMETER(uint32, SurfaceCacheFeedbackBufferTileWrapMask)
 	SHADER_PARAMETER(FIntPoint, SurfaceCacheFeedbackBufferTileJitter)
 	SHADER_PARAMETER(float, SurfaceCacheFeedbackResLevelBias)
+	SHADER_PARAMETER(uint32, SurfaceCacheUpdateFrameIndex)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DirectLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
@@ -77,7 +80,7 @@ class FLumenCardTracingInputs
 {
 public:
 
-	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCachaFeedback = true);
+	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCacheFeedback = true);
 
 	FRDGTextureRef AlbedoAtlas;
 	FRDGTextureRef OpacityAtlas;
@@ -90,11 +93,16 @@ public:
 	FRDGTextureRef FinalLightingAtlas;
 	FRDGTextureRef VoxelLighting;
 
+	// Feedback
+	FRDGBufferUAVRef CardPageLastUsedBufferUAV;
+	FRDGBufferUAVRef CardPageHighResLastUsedBufferUAV;
 	FRDGBufferUAVRef SurfaceCacheFeedbackBufferAllocatorUAV;
 	FRDGBufferUAVRef SurfaceCacheFeedbackBufferUAV;
 	uint32 SurfaceCacheFeedbackBufferSize;
 	uint32 SurfaceCacheFeedbackBufferTileWrapMask;
 	FIntPoint SurfaceCacheFeedbackBufferTileJitter;
+
+	// Voxel clipmaps
 	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVScale;
@@ -103,6 +111,7 @@ public:
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldExtent;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldSamplingExtent;
 	TStaticArray<FVector4f, MaxVoxelClipmapLevels> ClipmapVoxelSizeAndRadius;
+
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer;
 };
 

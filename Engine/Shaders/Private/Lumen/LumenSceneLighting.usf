@@ -15,6 +15,8 @@
 #endif
 
 RWStructuredBuffer<float4> RWCardPageBuffer;
+StructuredBuffer<uint> CardPageLastUsedBuffer;
+StructuredBuffer<uint> CardPageHighResLastUsedBuffer;
 
 RWStructuredBuffer<uint> RWDirectLightingCardPageIndexAllocator;
 RWStructuredBuffer<uint> RWDirectLightingCardPageIndexData;
@@ -31,7 +33,7 @@ StructuredBuffer<uint> MaxUpdateBucket;
 RWStructuredBuffer<uint> RWCardPageTileAllocator;
 StructuredBuffer<uint> CardPageTileAllocator;
 
-uint UpdateFrameIndex;
+uint SurfaceCacheUpdateFrameIndex;
 uint FreezeUpdateFrame;
 uint CardPageNum;
 uint MaxDirectLightingTilesToUpdate;
@@ -92,16 +94,16 @@ uint GetNumCardPageTiles(FLumenCardPageData CardPage)
 	return (CardPage.SizeInTexels.x * CardPage.SizeInTexels.y) / (CARD_TILE_SIZE * CARD_TILE_SIZE);
 }
 
-uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, uint CardUpdateContext)
+uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, uint CardPageIndex, uint CardUpdateContext)
 {
-	const uint LastLightingUpdateFrameIndex = GetLastLightingUpdateFrameIndex(CardPage, CardUpdateContext);
+	uint LastLightingUpdateFrameIndex = GetLastLightingUpdateFrameIndex(CardPage, CardUpdateContext);
 	const float UpdateFactor = GetUpdateFactor(CardUpdateContext);
 
 	// [1;N]
-	uint FramesSinceLastUpdated = UpdateFrameIndex - LastLightingUpdateFrameIndex;
+	uint FramesSinceLastUpdated = SurfaceCacheUpdateFrameIndex - LastLightingUpdateFrameIndex;
 
 	// [0;MAX_UPDATE_FREQUENCY]
-	float Frequency = 1.0f;
+	float Frequency = 0.0f;
 	{
 		float3 CardSpaceViewPosition = mul(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - Card.Origin, Card.WorldToLocalRotation);
 		float3 CardPageLocalCenter;
@@ -110,6 +112,22 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 		const float DistanceFromViewer = sqrt(ComputeSquaredDistanceFromBoxToPoint(CardPageLocalCenter, CardPageLocalExtent, CardSpaceViewPosition));
 		Frequency = MAX_UPDATE_FREQUENCY - clamp(DistanceFromViewer * FirstClipmapWorldExtentRcp, 0.0f, MAX_UPDATE_FREQUENCY);
 	}
+
+	// Drive frequency based on the feedback
+	#if SURFACE_CACHE_FEEDBACK
+	{
+		const uint LastUsedFrameIndex = CardPageLastUsedBuffer[CardPageIndex];
+		const uint LastUsedHighResFrameIndex = CardPageHighResLastUsedBuffer[CardPageIndex];
+
+		FramesSinceLastUpdated = max(max(LastUsedFrameIndex, LastUsedHighResFrameIndex), LastLightingUpdateFrameIndex) - LastLightingUpdateFrameIndex + 1;
+
+		Frequency *= 0.5f;
+		if (SurfaceCacheUpdateFrameIndex >= LastUsedHighResFrameIndex + 1)
+		{
+			Frequency += 0.5f * MAX_UPDATE_FREQUENCY * saturate((SurfaceCacheUpdateFrameIndex - (LastUsedHighResFrameIndex + 1)) / 2.0f);
+		}
+	}
+	#endif
 
 	uint BucketIndex = 0;
 	if (LastLightingUpdateFrameIndex == 0)
@@ -132,9 +150,9 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 	return BucketIndex;
 }
 
-void BuildUpdatePriorityHistogram(FLumenCardData Card, FLumenCardPageData CardPage, uint NumCardPageTiles, uint CardUpdateContext)
+void BuildUpdatePriorityHistogram(FLumenCardData Card, FLumenCardPageData CardPage, uint CardPageIndex, uint NumCardPageTiles, uint CardUpdateContext)
 {
-	uint PriorityBucketIndex = GetPriorityBucketIndex(Card, CardPage, CardUpdateContext);
+	uint PriorityBucketIndex = GetPriorityBucketIndex(Card, CardPage, CardPageIndex, CardUpdateContext);
 	InterlockedAdd(RWPriorityHistogram[CardUpdateContext * PRIORITY_HISTOGRAM_SIZE + PriorityBucketIndex], NumCardPageTiles);
 }
 
@@ -156,8 +174,8 @@ void BuildPageUpdatePriorityHistogramCS(
 
 		if (NumCardPageTiles > 0)
 		{
-			BuildUpdatePriorityHistogram(Card, CardPage, NumCardPageTiles, CARD_UPDATE_CONTEXT_DIRECT_LIGHTING);
-			BuildUpdatePriorityHistogram(Card, CardPage, NumCardPageTiles, CARD_UPDATE_CONTEXT_INDIRECT_LIGHTING);
+			BuildUpdatePriorityHistogram(Card, CardPage, CardPageIndex, NumCardPageTiles, CARD_UPDATE_CONTEXT_DIRECT_LIGHTING);
+			BuildUpdatePriorityHistogram(Card, CardPage, CardPageIndex, NumCardPageTiles, CARD_UPDATE_CONTEXT_INDIRECT_LIGHTING);
 		}
 	}
 }
@@ -220,7 +238,7 @@ bool BuildCardsUpdateList(
 	const uint MaxUpdateBucketMaxTiles = MaxUpdateBucket[MAX_UPDATE_BUCKET_STRIDE * CardUpdateContext + 1];
 
 	// Update everything up to the max selected priority bucket
-	uint PriorityBucketIndex = GetPriorityBucketIndex(Card, CardPage, CardUpdateContext);
+	uint PriorityBucketIndex = GetPriorityBucketIndex(Card, CardPage, CardPageIndex, CardUpdateContext);
 	bool bUpdateThisPage = PriorityBucketIndex <= MaxUpdateBucketIndex;
 
 	if (bUpdateThisPage && PriorityBucketIndex == MaxUpdateBucketIndex)
@@ -286,7 +304,7 @@ void BuildCardsUpdateListCS(
 				RWDirectLightingCardPageIndexAllocator,
 				RWDirectLightingCardPageIndexData))
 			{
-				CardPage.LastDirectLightingUpdateFrameIndex = UpdateFrameIndex;
+				CardPage.LastDirectLightingUpdateFrameIndex = SurfaceCacheUpdateFrameIndex;
 				bUpdatedCardPage = true;
 			}
 
@@ -299,7 +317,7 @@ void BuildCardsUpdateListCS(
 				RWIndirectLightingCardPageIndexAllocator,
 				RWIndirectLightingCardPageIndexData))
 			{
-				CardPage.LastIndirectLightingUpdateFrameIndex = UpdateFrameIndex;
+				CardPage.LastIndirectLightingUpdateFrameIndex = SurfaceCacheUpdateFrameIndex;
 				bUpdatedCardPage = true;
 			}
 

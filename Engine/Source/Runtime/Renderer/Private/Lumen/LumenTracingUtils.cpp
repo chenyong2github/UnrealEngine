@@ -7,11 +7,12 @@
 #include "LumenTracingUtils.h"
 #include "LumenSceneRendering.h"
 
-FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCachaFeedback)
+FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCacheFeedback)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	FLumenSceneFrameTemporaries& FrameTemporaries = LumenSceneData.FrameTemporaries;
 
 	{
 		FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
@@ -57,11 +58,22 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		NumClipmapLevels = 0;
 	}
 
-	if (LumenSceneData.SurfaceCacheFeedbackResources.Buffer && bSurfaceCachaFeedback)
+	if (FrameTemporaries.CardPageLastUsedBuffer && FrameTemporaries.CardPageHighResLastUsedBuffer)
 	{
-		SurfaceCacheFeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.BufferAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		SurfaceCacheFeedbackBufferUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.Buffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		SurfaceCacheFeedbackBufferSize = LumenSceneData.SurfaceCacheFeedbackResources.BufferSize;
+		CardPageLastUsedBufferUAV = GraphBuilder.CreateUAV(FrameTemporaries.CardPageLastUsedBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		CardPageHighResLastUsedBufferUAV = GraphBuilder.CreateUAV(FrameTemporaries.CardPageHighResLastUsedBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+	else
+	{
+		CardPageLastUsedBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
+		CardPageHighResLastUsedBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
+	}
+
+	if (FrameTemporaries.SurfaceCacheFeedbackResources.Buffer && bSurfaceCacheFeedback)
+	{
+		SurfaceCacheFeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(FrameTemporaries.SurfaceCacheFeedbackResources.BufferAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		SurfaceCacheFeedbackBufferUAV = GraphBuilder.CreateUAV(FrameTemporaries.SurfaceCacheFeedbackResources.Buffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		SurfaceCacheFeedbackBufferSize = FrameTemporaries.SurfaceCacheFeedbackResources.BufferSize;
 		SurfaceCacheFeedbackBufferTileJitter = LumenSceneData.SurfaceCacheFeedback.GetFeedbackBufferTileJitter();
 		SurfaceCacheFeedbackBufferTileWrapMask = Lumen::GetFeedbackBufferTileWrapMask();
 	}
@@ -113,20 +125,27 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.View = View.ViewUniformBuffer;
 	TracingParameters.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
-
-	const FGPUScene& GPUScene = ((const FScene*)View.Family->Scene)->GPUScene;
+	
+	// GPUScene
+	const FScene* Scene = ((const FScene*)View.Family->Scene);
+	const FGPUScene& GPUScene = Scene->GPUScene;
 	TracingParameters.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 	TracingParameters.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
 	TracingParameters.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 
+	// Feedback
 	extern float GLumenSurfaceCacheFeedbackResLevelBias;
+	TracingParameters.RWCardPageLastUsedBuffer = TracingInputs.CardPageLastUsedBufferUAV;
+	TracingParameters.RWCardPageHighResLastUsedBuffer = TracingInputs.CardPageHighResLastUsedBufferUAV;
 	TracingParameters.RWSurfaceCacheFeedbackBufferAllocator = TracingInputs.SurfaceCacheFeedbackBufferAllocatorUAV;
 	TracingParameters.RWSurfaceCacheFeedbackBuffer = TracingInputs.SurfaceCacheFeedbackBufferUAV;
 	TracingParameters.SurfaceCacheFeedbackBufferSize = TracingInputs.SurfaceCacheFeedbackBufferSize;
 	TracingParameters.SurfaceCacheFeedbackBufferTileJitter = TracingInputs.SurfaceCacheFeedbackBufferTileJitter;
 	TracingParameters.SurfaceCacheFeedbackBufferTileWrapMask = TracingInputs.SurfaceCacheFeedbackBufferTileWrapMask;
 	TracingParameters.SurfaceCacheFeedbackResLevelBias = GLumenSurfaceCacheFeedbackResLevelBias + 0.5f; // +0.5f required for uint to float rounding in shader
+	TracingParameters.SurfaceCacheUpdateFrameIndex = Scene->LumenSceneData->GetSurfaceCacheUpdateFrameIndex();
 
+	// Lumen surface cache atlas
 	TracingParameters.DirectLightingAtlas = TracingInputs.DirectLightingAtlas;
 	TracingParameters.IndirectLightingAtlas = TracingInputs.IndirectLightingAtlas;
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;

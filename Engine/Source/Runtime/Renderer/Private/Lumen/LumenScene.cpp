@@ -372,7 +372,7 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 
 	// PageTableBuffer
 	{
-		const int32 NumBytesPerElement = sizeof(uint32);
+		const int32 NumBytesPerElement = 2 * sizeof(uint32);
 		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, PageTableBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageTable"));
 
 		if (NumElementsToUpload > 0)
@@ -383,19 +383,21 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 			{
 				if (PageIndex < PageTable.Num())
 				{
-					uint32 PackedData = 0;
+					uint32 PackedData[2] = { 0, 0 };
 
 					if (PageTable.IsAllocated(PageIndex))
 					{
 						const FLumenPageTableEntry& Page = PageTable[PageIndex];
 
-						PackedData |= ((Page.SampleAtlasBiasX & 0xFFF) << 0);
-						PackedData |= ((Page.SampleAtlasBiasY & 0xFFF) << 12);
-						PackedData |= ((Page.SampleCardResLevelX & 0xF) << 24);
-						PackedData |= ((Page.SampleCardResLevelY & 0xF) << 28);
+						PackedData[0] |= ((Page.SampleAtlasBiasX & 0xFFF) << 0);
+						PackedData[0] |= ((Page.SampleAtlasBiasY & 0xFFF) << 12);
+						PackedData[0] |= ((Page.SampleCardResLevelX & 0xF) << 24);
+						PackedData[0] |= ((Page.SampleCardResLevelY & 0xF) << 28);
+
+						PackedData[1] = Page.SamplePageIndex;
 					}
 
-					ByteBufferUploadBuffer.Add(PageIndex, &PackedData);
+					ByteBufferUploadBuffer.Add(PageIndex, PackedData);
 				}
 			}
 
@@ -460,6 +462,22 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 		else if (bResourceResized)
 		{
 			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(CardPageBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		}
+
+		// Resize also the CardPageLastUsedBuffers
+		if (bResourceResized)
+		{
+			FRDGBufferRef CardPageLastUsedBufferRDG = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumElements), TEXT("Lumen.CardPageLastUsedBuffer"));
+
+			FRDGBufferRef CardPageHighResLastUsedBufferRDG = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumElements), TEXT("Lumen.CardPageHighResLastUsedBuffer"));
+
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CardPageLastUsedBufferRDG), 0);
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CardPageHighResLastUsedBufferRDG), 0);
+
+			CardPageLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(CardPageLastUsedBufferRDG);
+			CardPageHighResLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(CardPageHighResLastUsedBufferRDG);
 		}
 	}
 
@@ -1051,6 +1069,7 @@ void FLumenSceneData::MapSurfaceCachePage(const FLumenSurfaceMipMap& MipMap, int
 
 		if (PageTableEntry.IsMapped())
 		{
+			PageTableEntry.SamplePageIndex = PageTableIndex;
 			PageTableEntry.SampleAtlasBiasX = PageTableEntry.PhysicalAtlasRect.Min.X / Lumen::MinCardResolution;
 			PageTableEntry.SampleAtlasBiasY = PageTableEntry.PhysicalAtlasRect.Min.Y / Lumen::MinCardResolution;
 			PageTableEntry.SampleCardResLevelX = MipMap.ResLevelX;
@@ -1271,6 +1290,7 @@ void FLumenSceneData::UpdateCardMipMapHierarchy(FLumenCard& Card)
 					const int32 ParentPageIndex = ParentMipMap.GetPageTableIndex(ParentLocalPageIndex);
 					FLumenPageTableEntry& ParentPageTableEntry = GetPageTableEntry(ParentPageIndex);
 
+					PageTableEntry.SamplePageIndex = ParentPageTableEntry.SamplePageIndex;
 					PageTableEntry.SampleAtlasBiasX = ParentPageTableEntry.SampleAtlasBiasX;
 					PageTableEntry.SampleAtlasBiasY = ParentPageTableEntry.SampleAtlasBiasY;
 					PageTableEntry.SampleCardResLevelX = ParentPageTableEntry.SampleCardResLevelX;

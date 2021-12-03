@@ -24,6 +24,14 @@ FAutoConsoleVariableRef CVarLumenSceneLightingForceFullUpdate(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenSceneLightingFeedback = 1;
+FAutoConsoleVariableRef CVarLumenSceneLightingFeedback(
+	TEXT("r.LumenScene.Lighting.Feedback"),
+	GLumenSceneLightingFeedback,
+	TEXT("Whether to prioritize surface cache lighting updates based on the feedback."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 float GLumenSceneSurfaceCacheDiffuseReflectivityOverride = 0;
 FAutoConsoleVariableRef CVarLumenSceneDiffuseReflectivityOverride(
 	TEXT("r.LumenScene.Lighting.DiffuseReflectivityOverride"),
@@ -55,6 +63,14 @@ FAutoConsoleVariableRef CVarLumenSceneLightingStats(
 	TEXT("GPU print out Lumen lighting update stats."),
 	ECVF_RenderThreadSafe
 );
+
+namespace LumenSceneLighting
+{
+	bool UseFeedback()
+	{
+		return Lumen::UseHardwareRayTracing() && GLumenSceneLightingFeedback != 0;
+	}
+}
 
 bool Lumen::UseHardwareRayTracedSceneLighting()
 {
@@ -524,6 +540,9 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneLighting");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenSceneLighting);
 
+		LumenSceneData.FrameTemporaries = FLumenSceneFrameTemporaries();
+		LumenSceneData.IncrementSurfaceCacheUpdateFrameIndex();
+
 		FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, Views[0]);
 
@@ -545,7 +564,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				TracingInputs.LumenCardSceneUniformBuffer,
 				DirectLightingCardUpdateContext,
 				IndirectLightingCardUpdateContext);
-			LumenSceneData.IncrementSurfaceCacheUpdateFrameIndex();
 
 			RenderDirectLightingForLumenScene(
 				GraphBuilder,
@@ -614,13 +632,18 @@ class FBuildPageUpdatePriorityHistogramCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWPriorityHistogram)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER(uint32, UpdateFrameIndex)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageLastUsedBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageHighResLastUsedBuffer)
+		SHADER_PARAMETER(uint32, SurfaceCacheUpdateFrameIndex)
 		SHADER_PARAMETER(uint32, FreezeUpdateFrame)
 		SHADER_PARAMETER(uint32, CardPageNum)
 		SHADER_PARAMETER(float, FirstClipmapWorldExtentRcp)
 		SHADER_PARAMETER(float, DirectLightingUpdateFactor)
 		SHADER_PARAMETER(float, IndirectLightingUpdateFactor)
 	END_SHADER_PARAMETER_STRUCT()
+
+	class FSurfaceCacheFeedback : SHADER_PERMUTATION_BOOL("SURFACE_CACHE_FEEDBACK");
+	using FPermutationDomain = TShaderPermutationDomain<FSurfaceCacheFeedback>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -652,7 +675,7 @@ class FSelectMaxUpdateBucketCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(uint32, MaxDirectLightingTilesToUpdate)
 		SHADER_PARAMETER(uint32, MaxIndirectLightingTilesToUpdate)
-		SHADER_PARAMETER(uint32, UpdateFrameIndex)
+		SHADER_PARAMETER(uint32, SurfaceCacheUpdateFrameIndex)
 		SHADER_PARAMETER(uint32, FreezeUpdateFrame)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -690,7 +713,9 @@ class FBuildCardsUpdateListCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, LumenCardDataBuffer)
 		SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, RWLumenCardPageDataBuffer)
-		SHADER_PARAMETER(uint32, UpdateFrameIndex)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageLastUsedBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageHighResLastUsedBuffer)
+		SHADER_PARAMETER(uint32, SurfaceCacheUpdateFrameIndex)
 		SHADER_PARAMETER(uint32, FreezeUpdateFrame)
 		SHADER_PARAMETER(uint32, CardPageNum)
 		SHADER_PARAMETER(float, FirstClipmapWorldExtentRcp)
@@ -699,6 +724,9 @@ class FBuildCardsUpdateListCS : public FGlobalShader
 		SHADER_PARAMETER(float, DirectLightingUpdateFactor)
 		SHADER_PARAMETER(float, IndirectLightingUpdateFactor)
 	END_SHADER_PARAMETER_STRUCT()
+
+	class FSurfaceCacheFeedback : SHADER_PERMUTATION_BOOL("SURFACE_CACHE_FEEDBACK");
+	using FPermutationDomain = TShaderPermutationDomain<FSurfaceCacheFeedback>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -795,6 +823,9 @@ void Lumen::BuildCardUpdateContext(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildCardUpdateContext");
 
+	FRDGBufferRef CardPageLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageLastUsedBuffer);
+	FRDGBufferRef CardPageHighResLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageHighResLastUsedBuffer);
+
 	const int32 NumCardPages = LumenSceneData.GetNumCardPages();
 	const uint32 UpdateFrameIndex = LumenSceneData.GetSurfaceCacheUpdateFrameIndex();
 	const uint32 FreezeUpdateFrame = Lumen::IsSurfaceCacheUpdateFrameFrozen() ? 1 : 0;
@@ -842,14 +873,18 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->RWPriorityHistogram = GraphBuilder.CreateUAV(PriorityHistogram);
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->LumenCardScene = LumenCardSceneUniformBuffer;
+		PassParameters->CardPageLastUsedBuffer = GraphBuilder.CreateSRV(CardPageLastUsedBuffer);
+		PassParameters->CardPageHighResLastUsedBuffer = GraphBuilder.CreateSRV(CardPageHighResLastUsedBuffer);
 		PassParameters->CardPageNum = NumCardPages;
-		PassParameters->UpdateFrameIndex = UpdateFrameIndex;
+		PassParameters->SurfaceCacheUpdateFrameIndex = UpdateFrameIndex;
 		PassParameters->FreezeUpdateFrame = FreezeUpdateFrame;
 		PassParameters->FirstClipmapWorldExtentRcp = FirstClipmapWorldExtentRcp;
 		PassParameters->DirectLightingUpdateFactor = DirectLightingCardUpdateContext.UpdateFactor;
 		PassParameters->IndirectLightingUpdateFactor = IndirectLightingCardUpdateContext.UpdateFactor;
 
-		auto ComputeShader = View.ShaderMap->GetShader<FBuildPageUpdatePriorityHistogramCS>();
+		FBuildPageUpdatePriorityHistogramCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FBuildPageUpdatePriorityHistogramCS::FSurfaceCacheFeedback>(LumenSceneLighting::UseFeedback());
+		auto ComputeShader = View.ShaderMap->GetShader<FBuildPageUpdatePriorityHistogramCS>(PermutationVector);
 
 		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenSceneData.GetNumCardPages(), FBuildPageUpdatePriorityHistogramCS::GetGroupSize()), 1, 1);
 
@@ -869,7 +904,7 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->MaxDirectLightingTilesToUpdate = DirectLightingCardUpdateContext.MaxUpdateTiles;
 		PassParameters->MaxIndirectLightingTilesToUpdate = IndirectLightingCardUpdateContext.MaxUpdateTiles;
-		PassParameters->UpdateFrameIndex = UpdateFrameIndex;
+		PassParameters->SurfaceCacheUpdateFrameIndex = UpdateFrameIndex;
 		PassParameters->FreezeUpdateFrame = FreezeUpdateFrame;
 
 		auto ComputeShader = View.ShaderMap->GetShader<FSelectMaxUpdateBucketCS>();
@@ -905,8 +940,10 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->LumenCardDataBuffer = LumenSceneData.CardBuffer.SRV;
 		PassParameters->RWLumenCardPageDataBuffer = LumenSceneData.CardPageBuffer.UAV;
+		PassParameters->CardPageLastUsedBuffer = GraphBuilder.CreateSRV(CardPageLastUsedBuffer);
+		PassParameters->CardPageHighResLastUsedBuffer = GraphBuilder.CreateSRV(CardPageHighResLastUsedBuffer);
 		PassParameters->CardPageNum = NumCardPages;
-		PassParameters->UpdateFrameIndex = UpdateFrameIndex;
+		PassParameters->SurfaceCacheUpdateFrameIndex = UpdateFrameIndex;
 		PassParameters->FreezeUpdateFrame = FreezeUpdateFrame;
 		PassParameters->FirstClipmapWorldExtentRcp = FirstClipmapWorldExtentRcp;
 		PassParameters->MaxDirectLightingTilesToUpdate = DirectLightingCardUpdateContext.MaxUpdateTiles;
@@ -914,7 +951,9 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->DirectLightingUpdateFactor = DirectLightingCardUpdateContext.UpdateFactor;
 		PassParameters->IndirectLightingUpdateFactor = IndirectLightingCardUpdateContext.UpdateFactor;
 
-		auto ComputeShader = View.ShaderMap->GetShader<FBuildCardsUpdateListCS>();
+		FBuildCardsUpdateListCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FBuildCardsUpdateListCS::FSurfaceCacheFeedback>(LumenSceneLighting::UseFeedback());
+		auto ComputeShader = View.ShaderMap->GetShader<FBuildCardsUpdateListCS>(PermutationVector);
 
 		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenSceneData.GetNumCardPages(), FBuildCardsUpdateListCS::GetGroupSize()), 1, 1);
 

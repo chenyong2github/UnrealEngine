@@ -216,7 +216,6 @@ class FReflectionCompactTracesCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
