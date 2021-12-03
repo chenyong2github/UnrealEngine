@@ -652,7 +652,7 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 
 	const bool bUseLocalSpace = UseLocalSpace(&SceneProxy);
 	PerViewUniformParameters.bLocalSpace = bUseLocalSpace;
-	PerViewUniformParameters.DeltaSeconds = View.Family->DeltaWorldTime;
+	PerViewUniformParameters.DeltaSeconds = View.Family->Time.GetDeltaWorldTimeSeconds();
 	PerViewUniformParameters.MeshScale = MeshData.Scale;
 	PerViewUniformParameters.SystemLWCTile = SceneProxy.GetLWCRenderTile();
 

@@ -130,26 +130,17 @@ void FUMGViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	FViewport* ViewportBackup = Viewport;
 	Viewport = InViewport ? InViewport : Viewport;
 
-	// Determine whether we should use world time or real time based on the scene.
-	float TimeSeconds;
-	float RealTimeSeconds;
-	float DeltaTimeSeconds;
-
 	const bool bIsRealTime = true;
 
-	UWorld* World = GWorld;
+	UWorld* World = GetWorld();
+	FGameTime Time;
 	if ( bIsRealTime || GetScene() != World->Scene )
 	{
-		// Use time relative to start time to avoid issues with float vs double
-		TimeSeconds = FApp::GetCurrentTime() - GStartTime;
-		RealTimeSeconds = FApp::GetCurrentTime() - GStartTime;
-		DeltaTimeSeconds = FApp::GetDeltaTime();
+		Time = FGameTime::GetTimeSinceAppStart();
 	}
 	else
 	{
-		TimeSeconds = World->GetTimeSeconds();
-		RealTimeSeconds = World->GetRealTimeSeconds();
-		DeltaTimeSeconds = World->GetDeltaSeconds();
+		Time = World->GetTime();
 	}
 
 	// Setup a FSceneViewFamily/FSceneView for the viewport.
@@ -157,7 +148,7 @@ void FUMGViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		Canvas->GetRenderTarget(),
 		GetScene(),
 		EngineShowFlags)
-		.SetWorldTimes(TimeSeconds, DeltaTimeSeconds, RealTimeSeconds)
+		.SetTime(Time)
 		.SetRealtimeUpdate(bIsRealTime));
 
 	// Get DPI derived view fraction.

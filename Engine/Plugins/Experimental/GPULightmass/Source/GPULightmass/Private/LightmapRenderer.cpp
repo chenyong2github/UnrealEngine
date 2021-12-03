@@ -757,7 +757,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		nullptr,
 		nullptr,
 		FEngineShowFlags(ESFIM_Game))
-		.SetWorldTimes(0, 0, 0)
+		.SetTime(FGameTime())
 		.SetGammaCorrection(1.0f));
 
 	const FIntRect ViewRect(FIntPoint(0, 0), FIntPoint(GPreviewLightmapPhysicalTileSize, GPreviewLightmapPhysicalTileSize));
