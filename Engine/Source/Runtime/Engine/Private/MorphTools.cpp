@@ -53,6 +53,13 @@ bool UMorphTarget::HasValidData() const
 		{
 			return true;
 		}
+#if !WITH_EDITOR
+		// In cooked builds, Model.Vertices is stripped but Model.NumVertices is valid
+		else if (Model.NumVertices > 0)
+		{
+			return true;
+		}
+#endif
 	}
 
 	return false;
