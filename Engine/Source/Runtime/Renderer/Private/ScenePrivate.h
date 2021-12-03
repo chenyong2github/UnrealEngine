@@ -507,6 +507,7 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeListAllocator;
 	TRefCountPtr<FRDGPooledBuffer> ProbeFreeList;
 	TRefCountPtr<FRDGPooledBuffer> ProbeLastUsedFrame;
+	TRefCountPtr<FRDGPooledBuffer> ProbeLastTracedFrame;
 	TRefCountPtr<FRDGPooledBuffer> ProbeWorldOffset;
 	TRefCountPtr<IPooledRenderTarget> DebugBRDFProbabilityDensityFunction;
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
@@ -523,6 +524,7 @@ public:
 		ProbeFreeListAllocator.SafeRelease();
 		ProbeFreeList.SafeRelease();
 		ProbeLastUsedFrame.SafeRelease();
+		ProbeLastTracedFrame.SafeRelease();
 		ProbeWorldOffset.SafeRelease();
 	}
 };
