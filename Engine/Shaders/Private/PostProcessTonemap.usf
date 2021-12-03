@@ -6,8 +6,8 @@
 
 #define EYE_ADAPTATION_LOOSE_PARAMETERS 1
 
-#ifndef SUPPORTS_SCENE_COLOR_APPLY_PARAMETERS
-	#define Undefined SUPPORTS_SCENE_COLOR_APPLY_PARAMETERS 0
+#ifndef SUPPORTS_BLOOM_APPLY_PARAMETERS
+	#define SUPPORTS_BLOOM_APPLY_PARAMETERS 0
 #endif
 
 
@@ -18,7 +18,9 @@
 #include "PostProcessHistogramCommon.ush"
 #include "PixelQuadMessagePassing.ush"
 #include "ScreenPass.ush"
-
+#if SUPPORTS_BLOOM_APPLY_PARAMETERS
+	#include "Bloom/BloomCommon.ush"
+#endif
 
 /** Values of DIM_OUTPUT_DEVICE (matching C++'s ETonemapperOutputDevice) */
 #define TONEMAPPER_OUTPUT_sRGB 0
@@ -53,11 +55,12 @@ SamplerState ColorSampler;
 FScreenTransform ColorToBloom;
 float2 BloomUVViewportBilinearMin;
 float2 BloomUVViewportBilinearMax;
+float4 BloomMultiply;
 Texture2D BloomTexture;
 SamplerState BloomSampler;
 
-#if SUPPORTS_SCENE_COLOR_APPLY_PARAMETERS
-	StructuredBuffer<float4> SceneColorApplyParamaters;
+#if SUPPORTS_BLOOM_APPLY_PARAMETERS
+	StructuredBuffer<FBloomApplyInfo> BloomApplyParameters;
 #endif
 
 Texture3D LumBilateralGrid;
@@ -580,13 +583,6 @@ float4 TonemapCommonPS(
 	
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
-		#if SUPPORTS_SCENE_COLOR_APPLY_PARAMETERS
-		{
-			float4 SceneColorMultiply = SceneColorApplyParamaters[0];
-			LinearColor *= SceneColorMultiply;
-		}
-		#endif
-
 		#if USE_BLOOM
 		{
 			float2 BloomUV;
@@ -632,15 +628,30 @@ float4 TonemapCommonPS(
 
 				float3 BloomDirtMaskColor = Texture2DSample(BloomDirtMaskTexture, BloomDirtMaskSampler, DirtLensUV * .5f + .5f).rgb * BloomDirtMaskTint.rgb;
 				
-				LinearColor += CombinedBloom.rgb * (1.0 + BloomDirtMaskColor);
+				#if SUPPORTS_BLOOM_APPLY_PARAMETERS
+				{
+					FBloomApplyInfo BloomApplyInfo = BloomApplyParameters[0];
+
+					LinearColor = (
+						LinearColor.rgb * BloomApplyInfo.SceneColorMultiply.rgb +
+						CombinedBloom.rgb * (BloomApplyInfo.BloomMultiply.rgb + BloomDirtMaskColor));
+					
+					SceneColor.a = (
+						SceneColor.a * BloomApplyInfo.SceneColorMultiply.a +
+						CombinedBloom.a * BloomApplyInfo.BloomMultiply.a);
+				}
+				#else
+				{
+					LinearColor += CombinedBloom.rgb * (BloomMultiply.rgb + BloomDirtMaskColor);
+				}
+				#endif
 			}
 			#endif
 		}
 		#endif
 
-		// TODO: doesn't need a shader permutation for a scalar.
 		#if NO_EYEADAPTATION_EXPOSURE_FIX == 1
-			ExposureScale = 1.0;
+			ExposureScale = BloomDirtMaskTint.w;
 		#endif
 		
 		LinearColor *= ExposureScale;

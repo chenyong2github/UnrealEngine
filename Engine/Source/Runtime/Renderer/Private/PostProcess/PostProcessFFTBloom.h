@@ -4,7 +4,6 @@
 
 #include "RenderGraph.h"
 #include "ScenePrivate.h"
-#include "ScreenPass.h"
 
 struct FBloomOutputs;
 
@@ -20,13 +19,7 @@ struct FFFTBloomInputs
 	FIntRect HalfResolutionViewRect;
 };
 
-struct FFFTBloomOutput
-{
-	FScreenPassTexture BloomTexture;
-	FRDGBufferRef SceneColorApplyParameters = nullptr;
-};
-
 bool IsFFTBloomFullResolutionEnabled();
 bool IsFFTBloomQuarterResolutionEnabled();
 
-FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs);
+FBloomOutputs AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs);

@@ -51,10 +51,7 @@ struct FTonemapInputs
 	FScreenPassTexture SceneColor;
 
 	// [Required] Filtered bloom texture to composite with tonemapped scene color. This should be transparent black for no bloom.
-	FScreenPassTexture Bloom;
-
-	// [Optional] structured buffer of multiply parameters to apply to the scene color.
-	FRDGBufferRef SceneColorApplyParamaters;
+	FBloomOutputs Bloom;
 
 	// [Optional] Luminance bilateral grid. If this is null, local exposure is disabled.
 	FRDGTextureRef LocalExposureTexture = nullptr;
@@ -74,9 +71,6 @@ struct FTonemapInputs
 	// [Optional, ES31] Eye adaptation buffer used to compute exposure. 
 	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
-	// Weather should allow dirk mask.
-	bool bAllowDirtMask = true;
-
 	// [Raster Only, Mobile] Flips the image vertically on output.
 	bool bFlipYAxis = false;
 
@@ -90,9 +84,6 @@ struct FTonemapInputs
 	bool bOutputInHDR = false;
 
 	bool bMetalMSAAHDRDecode = false;
-
-	// Returns whether ApplyParameters is supported by the tonemapper.
-	static bool SupportsSceneColorApplyParametersBuffer(EShaderPlatform Platform);
 };
 
 FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FTonemapInputs& Inputs);

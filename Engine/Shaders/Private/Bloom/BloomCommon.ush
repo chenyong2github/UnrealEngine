@@ -28,3 +28,9 @@ struct FBloomKernelInfo
 	// Some padding to make vulkan happy
 	uint2 _Padding;
 };
+
+struct FBloomApplyInfo
+{
+	float4 SceneColorMultiply;
+	float4 BloomMultiply;
+};
