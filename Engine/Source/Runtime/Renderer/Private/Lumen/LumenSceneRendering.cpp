@@ -169,6 +169,14 @@ FAutoConsoleVariableRef CVarLumenSceneCardMaxResolution(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GSurfaceCacheNumFramesToKeepUnusedPages = 256;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheNumFramesToKeepUnusedPages(
+	TEXT("r.LumenScene.SurfaceCache.NumFramesToKeepUnusedPages"),
+	GSurfaceCacheNumFramesToKeepUnusedPages,
+	TEXT("Num frames to keep unused pages in surface cache."),
+	ECVF_RenderThreadSafe
+);
+
 int32 GLumenSceneForceEvictHiResPages = 0;
 FAutoConsoleVariableRef CVarLumenSceneForceEvictHiResPages(
 	TEXT("r.LumenScene.SurfaceCache.ForceEvictHiResPages"),
@@ -1321,7 +1329,9 @@ void ProcessLumenSurfaceCacheRequests(
 				uint8 NewLockedAllocationResLevel = Request.ResLevel;
 				while (!LumenSceneData.IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false))
 				{
-					if (!LumenSceneData.EvictOldestAllocation(/*bForceEvict*/ true, DirtyCards))
+					const int32 MaxFramesSinceLastUsed = 2;
+
+					if (!LumenSceneData.EvictOldestAllocation(/*MaxFramesSinceLastUsed*/ MaxFramesSinceLastUsed, DirtyCards))
 					{
 						bCanAlloc = false;
 						break;
@@ -1424,7 +1434,10 @@ void ProcessLumenSurfaceCacheRequests(
 			bool bCanAlloc = true;
 			while (!LumenSceneData.IsPhysicalSpaceAvailable(Card, VirtualPageIndex.ResLevel, /*bSinglePage*/ true))
 			{
-				if (!LumenSceneData.EvictOldestAllocation(/*bForceEvict*/ false, DirtyCards))
+				// Don't want to evict pages which may be picked up a jittering tile feedback
+				const int32 MaxFramesSinceLastUsed = Lumen::GetFeedbackBufferTileSize() * Lumen::GetFeedbackBufferTileSize();
+
+				if (!LumenSceneData.EvictOldestAllocation(MaxFramesSinceLastUsed, DirtyCards))
 				{
 					bCanAlloc = false;
 					break;
@@ -1474,6 +1487,14 @@ void ProcessLumenSurfaceCacheRequests(
 					DirtyCards.Add(VirtualPageIndex.CardIndex);
 				}
 			}
+		}
+	}
+
+	// Evict pages which weren't used recently
+	{
+		uint32 MaxFramesSinceLastUsed = FMath::Max(GSurfaceCacheNumFramesToKeepUnusedPages, 0);
+		while (LumenSceneData.EvictOldestAllocation(MaxFramesSinceLastUsed, DirtyCards))
+		{
 		}
 	}
 

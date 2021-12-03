@@ -1292,7 +1292,7 @@ void FLumenSceneData::ForceEvictEntireCache()
 {
 	TSparseUniqueList<int32, SceneRenderingAllocator> DirtyCards;
 
-	while (EvictOldestAllocation(/*bForceEvict*/ true, DirtyCards))
+	while (EvictOldestAllocation(/*MaxFramesSinceLastUsed*/ 0, DirtyCards))
 	{
 	}
 
@@ -1304,17 +1304,14 @@ void FLumenSceneData::ForceEvictEntireCache()
 	}
 }
 
-bool FLumenSceneData::EvictOldestAllocation(bool bForceEvict, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards)
+bool FLumenSceneData::EvictOldestAllocation(uint32 MaxFramesSinceLastUsed, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards)
 {
 	if (UnlockedAllocationHeap.Num() > 0)
 	{
 		const uint32 PageTableIndex = UnlockedAllocationHeap.Top();
 		const uint32 LastFrameUsed = UnlockedAllocationHeap.GetKey(PageTableIndex);
 
-		// Don't want to evict pages which may be picked up a jittering tile feedback
-		const int32 MaxFrameDelta = bForceEvict ? 0 : Lumen::GetFeedbackBufferTileSize() * Lumen::GetFeedbackBufferTileSize();
-
-		if (uint32(LastFrameUsed + MaxFrameDelta) <= SurfaceCacheFeedback.GetFrameIndex())
+		if (uint32(LastFrameUsed + MaxFramesSinceLastUsed) <= SurfaceCacheFeedback.GetFrameIndex())
 		{
 			UnlockedAllocationHeap.Pop();
 
