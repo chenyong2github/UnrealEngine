@@ -1303,7 +1303,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		const ERasterTechnique Technique = RasterContext.RasterTechnique;
 		PassParameters->OnlyCastShadowsPrimitives = Technique == ERasterTechnique::DepthOnly ? 1 : 0;
 
-		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetRootPagesSRV();
+		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetImposterDataSRV();
 
 		PassParameters->OutQueueState						= GraphBuilder.CreateUAV( CullingContext.QueueState );
 		

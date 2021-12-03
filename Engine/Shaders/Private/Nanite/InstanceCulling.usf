@@ -12,12 +12,10 @@
 #include "WritePixel.ush"
 #include "Imposter.ush"
 
-void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, FScreenRect Rect )
+void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint InstanceId, uint ImposterIndex, FScreenRect Rect )
 {
 	// High bit flags it as an imposter
-	uint BaseCode = (1 << 31) | (1 << 7);
-	uint RootClusterCode = ( InstanceId << 8 ) | BaseCode;
-	uint RootClusterIndex = InstanceData.NaniteRuntimeResourceID & MAX_GPU_PAGES_MASK;
+	uint ImposterPixelCode = (1u << 31) | (InstanceId << 8) | (1u << 7);
 
 	bool bOrtho = NaniteView.ViewToClip[3][3] >= 1;
 
@@ -53,7 +51,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 			RayLocal.Origin		= LWCMultiply( RayWorldOrigin,	InstanceData.WorldToLocal );
 			RayLocal.Direction	= LWCMultiplyVector( RayWorldDirection,	InstanceData.WorldToLocal );
 
-			uint2 ImposterPixel = RayIntersectImposter( RayLocal, RootClusterIndex, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, Noise );
+			uint2 ImposterPixel = RayIntersectImposter( RayLocal, ImposterIndex, InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, Noise );
 
 			if( ImposterPixel.y != 0 )
 			{
@@ -65,7 +63,7 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 					DeviceZ = 1 - Depth;
 
 				uint TriIndex = ImposterPixel.x;
-				uint PixelValue = RootClusterCode + TriIndex;
+				uint PixelValue = ImposterPixelCode + TriIndex;
 				WritePixel( OutVisBuffer64, PixelValue, NaniteView.ViewRect.xy + PixelPos, DeviceZ );
 
 				#if 0//VISUALIZE
@@ -258,7 +256,7 @@ void InstanceCull(
 
 				if( all( Rect.Pixels.zw - Rect.Pixels.xy <= ImposterMaxPixels ) )
 				{
-					DrawImposter( NaniteView, InstanceData, InstanceId, Rect );
+					DrawImposter( NaniteView, InstanceData, InstanceId, PrimitiveData.NaniteImposterIndex, Rect );
 					bIsVisible = false;
 				}
 			}

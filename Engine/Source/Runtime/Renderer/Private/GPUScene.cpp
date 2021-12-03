@@ -739,7 +739,8 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 							{
 								PrimitiveInstance.LocalToPrimitive.SetIdentity();
 								PrimitiveInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
-								PrimitiveInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+								PrimitiveInstance.NaniteHierarchyOffset = INDEX_NONE;
+								PrimitiveInstance.NaniteImposterIndex = INDEX_NONE;
 								// TODO: Set INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS when appropriate
 								PrimitiveInstance.Flags = 0;
 							}

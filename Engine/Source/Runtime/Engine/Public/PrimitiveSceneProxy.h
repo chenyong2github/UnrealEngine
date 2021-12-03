@@ -834,11 +834,11 @@ public:
 		return InstanceHierarchyOffset;
 	}
 
-	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, uint32& ImposterIndex) const
 	{
-		ResourceID = NANITE_INVALID_RESOURCE_ID;
-		HierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-		bHasImposterData = false;
+		ResourceID = INDEX_NONE;
+		HierarchyOffset = INDEX_NONE;
+		ImposterIndex = INDEX_NONE;
 	}
 
 	// Number of packed float4 values per instance

@@ -143,7 +143,7 @@ void FResources::InitResources(const UObject* Owner)
 	}
 	
 	// Root pages should be available here. If they aren't, this resource has probably already been initialized and added to the streamer. Investigate!
-	check(RootClusterPage.Num() > 0);
+	check(RootData.Num() > 0);
 	PersistentHash = FMath::Max(FCrc::StrCrc32<TCHAR>(*Owner->GetFullName()), 1u);
 	
 	ENQUEUE_RENDER_COMMAND(InitNaniteResources)(
@@ -185,14 +185,14 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 	if( !StripFlags.IsDataStrippedForServer() )
 	{
 		Ar << ResourceFlags;
-		Ar << RootClusterPage;
-		StreamableClusterPages.Serialize(Ar, Owner, 0);
+		Ar << RootData;
+		StreamablePages.Serialize(Ar, Owner, 0);
 		Ar << PageStreamingStates;
-	
 		Ar << HierarchyNodes;
 		Ar << HierarchyRootOffsets;
 		Ar << PageDependencies;
 		Ar << ImposterAtlas;
+		Ar << NumRootPages;
 		Ar << PositionPrecision;
 		Ar << NumInputTriangles;
 		Ar << NumInputVertices;
@@ -204,10 +204,10 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 void FResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
 {
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(*this));
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RootClusterPage.GetAllocatedSize());
-	if (StreamableClusterPages.IsBulkDataLoaded())
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RootData.GetAllocatedSize());
+	if (StreamablePages.IsBulkDataLoaded())
 	{
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(StreamableClusterPages.GetBulkDataSize());
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(StreamablePages.GetBulkDataSize());
 	}
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(ImposterAtlas.GetAllocatedSize());
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HierarchyNodes.GetAllocatedSize());
@@ -657,9 +657,7 @@ FSceneProxy::~FSceneProxy()
 
 void FSceneProxy::CreateRenderThreadResources()
 {
-	// These couldn't be copied on the game thread because they are initialized
-	// by the streaming manager on the render thread - initialize them now.
-	check(Resources->RuntimeResourceID != NANITE_INVALID_RESOURCE_ID && Resources->HierarchyOffset != NANITE_INVALID_HIERARCHY_OFFSET);
+	check(Resources->RuntimeResourceID != INDEX_NONE && Resources->HierarchyOffset != INDEX_NONE);
 }
 
 FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) const

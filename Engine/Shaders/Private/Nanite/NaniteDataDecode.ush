@@ -20,7 +20,7 @@
 #define ROOT_PAGE_GPU_SIZE_BITS					15														// must match define in NaniteResources.h
 #define STREAMING_PAGE_GPU_SIZE_BITS			17														// must match define in NaniteResources.h
 
-#define MAX_CLUSTERS_PER_PAGE_BITS				10														// must match define in NaniteResources.h
+#define MAX_CLUSTERS_PER_PAGE_BITS				8														// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteResources.h
 #define MAX_CLUSTERS_PER_GROUP_BITS				9														// must match define in NaniteResources.h
@@ -31,7 +31,7 @@
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS	12														// must match define in NaniteResources.h
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS_MASK	( ( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS ) - 1 )	// must match define in NaniteResources.h
 #define MAX_VIEWS_PER_CULL_RASTERIZE_PASS		( 1 << MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS )			// must match define in NaniteResources.h
-#define MAX_GPU_PAGES_BITS						14														// must match define in NaniteResources.h
+#define MAX_GPU_PAGES_BITS						16														// must match define in NaniteResources.h
 #define	MAX_GPU_PAGES_MASK						( ( 1 << MAX_GPU_PAGES_BITS ) - 1 )						// must match define in NaniteResources.h
 #define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteResources.h
 #define MAX_INSTANCES_BITS						24														// must match define in NaniteResources.h

@@ -26,7 +26,6 @@
 #define MAX_CLUSTER_VERTICES					( 1 << MAX_CLUSTER_VERTICES_BITS )						// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTER_INDICES						( MAX_CLUSTER_TRIANGLES * 3 )
 #define MAX_NANITE_UVS							4														// must match define in NaniteDataDecode.ush
-#define NUM_ROOT_PAGES							1u														// Should probably be made a per-resource option
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush
 
@@ -36,7 +35,7 @@
 #define STREAMING_PAGE_GPU_SIZE					( 1u << STREAMING_PAGE_GPU_SIZE_BITS )					// must match define in NaniteDataDecode.ush
 #define MAX_PAGE_DISK_SIZE						( STREAMING_PAGE_GPU_SIZE * 2 )							// must match define in NaniteDataDecode.ush
 
-#define MAX_CLUSTERS_PER_PAGE_BITS				10														// must match define in NaniteDataDecode.ush
+#define MAX_CLUSTERS_PER_PAGE_BITS				8														// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE_MASK				( ( 1 << MAX_CLUSTERS_PER_PAGE_BITS ) - 1 )				// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_PAGE					( 1 << MAX_CLUSTERS_PER_PAGE_BITS )						// must match define in NaniteDataDecode.ush
 #define MAX_CLUSTERS_PER_GROUP_BITS				9														// must match define in NaniteDataDecode.ush
@@ -46,7 +45,7 @@
 																										// enough that it won't overflow after constraint-based splitting
 #define MAX_HIERACHY_CHILDREN_BITS				6														// must match define in NaniteDataDecode.ush
 #define MAX_HIERACHY_CHILDREN					( 1 << MAX_HIERACHY_CHILDREN_BITS )						// must match define in NaniteDataDecode.ush
-#define MAX_GPU_PAGES_BITS						14														// must match define in NaniteDataDecode.ush
+#define MAX_GPU_PAGES_BITS						16														// must match define in NaniteDataDecode.ush
 #define	MAX_GPU_PAGES							( 1 << MAX_GPU_PAGES_BITS )								// must match define in NaniteDataDecode.ush
 #define MAX_INSTANCES_BITS						24														// must match define in NaniteDataDecode.ush
 #define MAX_INSTANCES							( 1 << MAX_INSTANCES_BITS )								// must match define in NaniteDataDecode.ush
@@ -372,18 +371,18 @@ struct FInstanceDraw
 
 #define NANITE_RESOURCE_FLAG_HAS_VERTEX_COLOR 0x1
 #define NANITE_RESOURCE_FLAG_HAS_IMPOSTER 0x2
-#define NANITE_RESOURCE_FLAG_HAS_LZ_COMPRESSION 0x4
 
 struct FResources
 {
 	// Persistent State
-	TArray< uint8 >					RootClusterPage;		// Root page is loaded on resource load, so we always have something to draw.
-	FByteBulkData					StreamableClusterPages;	// Remaining pages are streamed on demand.
+	TArray< uint8 >					RootData;			// Root pages are loaded on resource load, so we always have something to draw.
+	FByteBulkData					StreamablePages;	// Remaining pages are streamed on demand.
 	TArray< uint16 >				ImposterAtlas;
 	TArray< FPackedHierarchyNode >	HierarchyNodes;
 	TArray< uint32 >				HierarchyRootOffsets;
 	TArray< FPageStreamingState >	PageStreamingStates;
 	TArray< uint32 >				PageDependencies;
+	uint32							NumRootPages		= 0;
 	int32							PositionPrecision	= 0;
 	uint32							NumInputTriangles	= 0;
 	uint32							NumInputVertices	= 0;
@@ -395,6 +394,7 @@ struct FResources
 	uint32	RuntimeResourceID		= 0xFFFFFFFFu;
 	uint32	HierarchyOffset			= 0xFFFFFFFFu;
 	int32	RootPageIndex			= INDEX_NONE;
+	int32	ImposterIndex			= INDEX_NONE;
 	uint32	NumHierarchyNodes		= 0;
 	uint32	PersistentHash			= INVALID_PERSISTENT_HASH;
 
@@ -404,6 +404,7 @@ struct FResources
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
+	bool IsRootPage(uint32 PageIndex) const { return PageIndex < NumRootPages; }
 };
 
 /*

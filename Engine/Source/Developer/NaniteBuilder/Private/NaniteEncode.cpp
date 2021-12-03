@@ -261,19 +261,33 @@ void PackBoundsConservative( Nanite::FPackedBound& PackedBound, const FSphere& B
 }
 */
 
-FORCEINLINE bool IsRootPage(uint32 PageIndex)	// Keep in sync with ClusterCulling.usf
+static void RemoveRootPagesFromRange(uint32& StartPage, uint32& NumPages, const uint32 NumResourceRootPages)
 {
-	return PageIndex < NUM_ROOT_PAGES;
+	if (StartPage < NumResourceRootPages)
+	{
+		NumPages = (uint32)FMath::Max((int32)NumPages - (int32)(NumResourceRootPages - StartPage), 0); 
+		StartPage = NumResourceRootPages;
+	}
+
+	if(NumPages == 0)
+	{
+		StartPage = 0;
+	}
 }
 
-FORCEINLINE void RemoveRootPagesFromRange(uint32& StartPage, uint32& NumPages)
+static void RemovePageFromRange(uint32& StartPage, uint32& NumPages, const uint32 PageIndex)
 {
-	uint32_t NumRootPages = StartPage < NUM_ROOT_PAGES ? (NUM_ROOT_PAGES - StartPage) : 0u;
-	if (NumRootPages > 0u)
+	if (NumPages > 0)
 	{
-		NumRootPages = FMath::Min(NumRootPages, NumPages);
-		StartPage += NumRootPages;
-		NumPages -= NumRootPages;
+		if (StartPage == PageIndex)
+		{
+			StartPage++;
+			NumPages--;
+		}
+		else if (StartPage + NumPages - 1 == PageIndex)
+		{
+			NumPages--;
+		}
 	}
 
 	if (NumPages == 0)
@@ -612,7 +626,7 @@ struct FHierarchyNode
 	uint32			ClusterGroupPartIndex[MAX_BVH_NODE_FANOUT];
 };
 
-static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHierarchyNode& InNode, const TArray<FClusterGroup>& Groups, const TArray<FClusterGroupPart>& GroupParts)
+static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHierarchyNode& InNode, const TArray<FClusterGroup>& Groups, const TArray<FClusterGroupPart>& GroupParts, const uint32 NumResourceRootPages)
 {
 	static_assert( MAX_RESOURCE_PAGES_BITS + MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS <= 32, "" );
 	for (uint32 i = 0; i < MAX_BVH_NODE_FANOUT; i++)
@@ -639,7 +653,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 				// If group spans multiple pages, request all of them, except the root pages
 				uint32 PageIndexStart = Group.PageIndexStart;
 				uint32 PageIndexNum = Group.PageIndexNum;
-				RemoveRootPagesFromRange(PageIndexStart, PageIndexNum);
+				RemoveRootPagesFromRange(PageIndexStart, PageIndexNum, NumResourceRootPages);
 				ResourcePageIndex_NumPages_GroupPartSize = (PageIndexStart << (MAX_CLUSTERS_PER_GROUP_BITS + MAX_GROUP_PARTS_BITS)) | (PageIndexNum << MAX_CLUSTERS_PER_GROUP_BITS) | GroupPartSize;
 			}
 			else
@@ -1324,7 +1338,8 @@ static void AssignClustersToPages(
 	TArray< FCluster >& Clusters,
 	const TArray< FEncodingInfo >& EncodingInfos,
 	TArray<FPage>& Pages,
-	TArray<FClusterGroupPart>& Parts
+	TArray<FClusterGroupPart>& Parts,
+	const uint32 MaxRootPages
 	)
 {
 	check(Pages.Num() == 0);
@@ -1351,7 +1366,7 @@ static void AssignClustersToPages(
 
 			// Add to page
 			FPage* Page = &Pages.Top();
-			bool bRootPage = IsRootPage(Pages.Num() - 1u);
+			bool bRootPage =  (Pages.Num() - 1u) < MaxRootPages;
 			if (Page->GpuSizes.GetTotal() + EncodingInfo.GpuSizes.GetTotal() > (bRootPage ? ROOT_PAGE_GPU_SIZE : STREAMING_PAGE_GPU_SIZE) || Page->NumClusters + 1 > MAX_CLUSTERS_PER_PAGE)
 			{
 				// Page is full. Need to start a new one
@@ -1582,14 +1597,15 @@ static void WritePages(	FResources& Resources,
 			{
 				const FClusterGroup& GeneratingGroup = Groups[Cluster.GeneratingGroupIndex];
 				check(GeneratingGroup.PageIndexNum >= 1);
-
-				if (GeneratingGroup.PageIndexStart == Part.PageIndex && GeneratingGroup.PageIndexNum == 1)
-					continue;	// Dependencies already met by current page. Fixup directly instead.
-
+				
 				uint32 PageDependencyStart = GeneratingGroup.PageIndexStart;
 				uint32 PageDependencyNum = GeneratingGroup.PageIndexNum;
-				RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum);	// Root page should never be a dependency
-
+				RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum, Resources.NumRootPages);
+				RemovePageFromRange(PageDependencyStart, PageDependencyNum, Part.PageIndex);
+				
+				if (PageDependencyNum == 0)
+					continue;	// Dependencies already met by current page and/or root pages
+					
 				const FClusterFixup ClusterFixup = FClusterFixup(Part.PageIndex, Part.PageClusterOffset + ClusterPositionInPart, PageDependencyStart, PageDependencyNum);
 				for (uint32 i = 0; i < GeneratingGroup.PageIndexNum; i++)
 				{
@@ -1661,7 +1677,7 @@ static void WritePages(	FResources& Resources,
 
 				uint32 PageDependencyStart = Group.PageIndexStart;
 				uint32 PageDependencyNum = Group.PageIndexNum;
-				RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum);
+				RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum, Resources.NumRootPages);
 
 				// Add fixups to all parts of the group
 				for (uint32 j = 0; j < Group.PageIndexNum; j++)
@@ -1763,20 +1779,20 @@ static void WritePages(	FResources& Resources,
 		{
 			const FClusterGroupPart& Part = Parts[Page.PartsStartIndex + LocalPartIndex];
 			const FClusterGroup& Group = Groups[Part.GroupIndex];
-			uint32 GeneratingGroupIndex = MAX_uint32;
 			for (uint32 ClusterPositionInPart = 0; ClusterPositionInPart < (uint32)Part.Clusters.Num(); ClusterPositionInPart++)
 			{
 				const FCluster& Cluster = Clusters[Part.Clusters[ClusterPositionInPart]];
 				if (Cluster.GeneratingGroupIndex != INVALID_GROUP_INDEX)
 				{
 					const FClusterGroup& GeneratingGroup = Groups[Cluster.GeneratingGroupIndex];
-					uint32 PageDependencyStart = Group.PageIndexStart;
-					uint32 PageDependencyNum = Group.PageIndexNum;
-					RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum);
-
-					if (GeneratingGroup.PageIndexStart == PageIndex && GeneratingGroup.PageIndexNum == 1)
+					uint32 PageDependencyStart = GeneratingGroup.PageIndexStart;
+					uint32 PageDependencyNum = GeneratingGroup.PageIndexNum;
+					RemoveRootPagesFromRange(PageDependencyStart, PageDependencyNum, Resources.NumRootPages);
+					RemovePageFromRange(PageDependencyStart, PageDependencyNum, PageIndex);
+					
+					if (PageDependencyNum == 0)
 					{
-						// Dependencies already met by current page. Fixup directly.
+						// Dependencies already met by current page and/or root pages. Fixup directly.
 						PackedClusters[Part.PageClusterOffset + ClusterPositionInPart].Flags &= ~NANITE_CLUSTER_FLAG_LEAF;	// Mark parent as no longer leaf
 					}
 				}
@@ -1973,9 +1989,9 @@ static void WritePages(	FResources& Resources,
 	for (uint32 PageIndex = 0; PageIndex < NumPages; PageIndex++)
 	{
 		const FPage& Page = Pages[PageIndex];
-		const bool bRootPage = IsRootPage(PageIndex);
+		const bool bRootPage = Resources.IsRootPage(PageIndex);
 		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
-		TArray<uint8>& BulkData = bRootPage ? Resources.RootClusterPage : StreamableBulkData;
+		TArray<uint8>& BulkData = bRootPage ? Resources.RootData : StreamableBulkData;
 
 		FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
 		PageStreamingState.BulkOffset = BulkData.Num();
@@ -2017,11 +2033,11 @@ static void WritePages(	FResources& Resources,
 	UE_LOG(LogStaticMesh, Log, TEXT("  Total GPU size: %d bytes, Total disk size: %d bytes."), TotalPageGPUSize, TotalPageDiskSize + TotalFixupSize);
 
 	// Store PageData
-	Resources.StreamableClusterPages.Lock(LOCK_READ_WRITE);
-	uint8* Ptr = (uint8*)Resources.StreamableClusterPages.Realloc(StreamableBulkData.Num());
+	Resources.StreamablePages.Lock(LOCK_READ_WRITE);
+	uint8* Ptr = (uint8*)Resources.StreamablePages.Realloc(StreamableBulkData.Num());
 	FMemory::Memcpy(Ptr, StreamableBulkData.GetData(), StreamableBulkData.Num());
-	Resources.StreamableClusterPages.Unlock();
-	Resources.StreamableClusterPages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+	Resources.StreamablePages.Unlock();
+	Resources.StreamablePages.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
 }
 
 struct FIntermediateNode
@@ -2387,7 +2403,7 @@ static void BuildHierarchies(FResources& Resources, const TArray<FClusterGroup>&
 		Resources.HierarchyNodes.AddDefaulted(NumHierarchyNodes);
 		for (uint32 i = 0; i < NumHierarchyNodes; i++)
 		{
-			PackHierarchyNode(Resources.HierarchyNodes[PackedBaseIndex + i], HierarchyNodes[i], Groups, Parts);
+			PackHierarchyNode(Resources.HierarchyNodes[PackedBaseIndex + i], HierarchyNodes[i], Groups, Parts, Resources.NumRootPages);
 		}
 	}
 }
@@ -4006,7 +4022,13 @@ static void VerifyClusterContraints( const TArray< FCluster >& Clusters )
 		} );
 }
 #endif
-	
+
+static uint32 CalculateMaxRootPages(uint32 TargetResidencyInKB)
+{
+	const uint64 SizeInBytes = uint64(TargetResidencyInKB) << 10;
+	return (uint32)FMath::Clamp((SizeInBytes + ROOT_PAGE_GPU_SIZE - 1) >> ROOT_PAGE_GPU_SIZE_BITS, 1u, MAX_uint32);
+}
+
 void Encode(
 	FResources& Resources,
 	const FMeshNaniteSettings& Settings,
@@ -4015,8 +4037,10 @@ void Encode(
 	const FBounds& MeshBounds,
 	uint32 NumMeshes,
 	uint32 NumTexCoords,
-	bool bHasColors )
+	bool bHasColors)
 {
+	const uint32 MaxRootPages = CalculateMaxRootPages(Settings.TargetMinimumResidencyInKB);
+
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::RemoveDegenerateTriangles);	// TODO: is this still necessary?
 		RemoveDegenerateTriangles( Clusters );
@@ -4061,7 +4085,8 @@ void Encode(
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::AssignClustersToPages);
-		AssignClustersToPages(Groups, Clusters, EncodingInfos, Pages, GroupParts);
+		AssignClustersToPages(Groups, Clusters, EncodingInfos, Pages, GroupParts, MaxRootPages);
+		Resources.NumRootPages = FMath::Min((uint32)Pages.Num(), MaxRootPages);
 	}
 
 	{
