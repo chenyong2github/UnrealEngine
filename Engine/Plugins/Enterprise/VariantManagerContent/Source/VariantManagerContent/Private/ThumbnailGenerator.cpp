@@ -41,7 +41,7 @@ namespace ThumbnailGeneratorImpl
 
 		FSceneViewFamilyContext ViewFamily(
 			FSceneViewFamily::ConstructionValues(RenderTargetResource, Scene, FEngineShowFlags(ESFIM_Game))
-			.SetWorldTimes(FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime)
+			.SetTime(FGameTime::GetTimeSinceAppStart())
 		);
 
 		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
@@ -57,7 +57,7 @@ namespace ThumbnailGeneratorImpl
 		FSceneView* NewView = new FSceneView(ViewInitOptions);
 		ViewFamily.Views.Add(NewView);
 
-		FCanvas Canvas(RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, Scene->GetFeatureLevel());
+		FCanvas Canvas(RenderTargetResource, NULL, FGameTime::GetTimeSinceAppStart(), Scene->GetFeatureLevel());
 		Canvas.Clear(FLinearColor::Transparent);
 		GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 

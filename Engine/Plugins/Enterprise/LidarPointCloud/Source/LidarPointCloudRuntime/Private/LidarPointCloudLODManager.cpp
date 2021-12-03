@@ -152,7 +152,7 @@ bool FLidarPointCloudViewData::ComputeFromEditorViewportClient(FViewportClient* 
 		if (Client->Viewport && Client->Viewport->GetSizeXY() != FIntPoint::ZeroValue)
 		{
 			FSceneViewFamily::ConstructionValues CVS(nullptr, nullptr, FEngineShowFlags(EShowFlagInitMode::ESFIM_Game));
-			CVS.SetWorldTimes(0, 0, 0);
+			CVS.SetTime(FGameTime());
 			FSceneViewFamily ViewFamily(CVS);
 			FSceneView* View = Client->CalcSceneView(&ViewFamily);
 

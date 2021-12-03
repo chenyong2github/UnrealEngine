@@ -1230,7 +1230,7 @@ bool FLightmassMaterialRenderer::CreateRenderTarget(EPixelFormat InFormat, int32
 		RenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		RenderTarget->InitCustomFormat(InSizeX, InSizeY, InFormat, false);
 
-		Canvas = new FCanvas(RenderTarget->GameThread_GetRenderTargetResource(), NULL, 0, 0, 0, GMaxRHIFeatureLevel);
+		Canvas = new FCanvas(RenderTarget->GameThread_GetRenderTargetResource(), NULL, FGameTime(), GMaxRHIFeatureLevel);
 		check(Canvas);
 	}
 

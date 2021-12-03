@@ -458,7 +458,7 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			FMemMark Mark(FMemStack::Get());
 
 			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
-				.SetWorldTimes(0, 0, 0)
+				.SetTime(FGameTime())
 				.SetGammaCorrection(1.0f));
 
 			FSceneViewInitOptions ViewInitOptions;

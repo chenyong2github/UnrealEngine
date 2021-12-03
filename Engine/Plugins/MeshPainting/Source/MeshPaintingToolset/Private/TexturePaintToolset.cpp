@@ -28,7 +28,7 @@ void UTexturePaintToolset::CopyTextureToRenderTargetTexture(UTexture* SourceText
 	check(RenderTargetResource != nullptr);
 	
 	// Create a canvas for the render target and clear it to black
-	FCanvas Canvas(RenderTargetResource, nullptr, 0, 0, 0, FeatureLevel);
+	FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), FeatureLevel);
 
 	const uint32 Width = RenderTargetTexture->GetSurfaceWidth();
 	const uint32 Height = RenderTargetTexture->GetSurfaceHeight();
@@ -204,7 +204,7 @@ bool UTexturePaintToolset::GenerateSeamMask(UMeshComponent* MeshComponent, int32
 
 	{
 		// Create a canvas for the render target and clear it to white
-		FCanvas Canvas(RenderTargetResource, nullptr, 0, 0, 0, GEditor->GetEditorWorldContext().World()->FeatureLevel);
+		FCanvas Canvas(RenderTargetResource, nullptr, FGameTime(), GEditor->GetEditorWorldContext().World()->FeatureLevel);
 		Canvas.Clear(FLinearColor::White);
 
 		TArray<FCanvasUVTri> TriList;

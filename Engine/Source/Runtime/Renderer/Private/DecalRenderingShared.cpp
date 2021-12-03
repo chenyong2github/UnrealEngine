@@ -154,9 +154,9 @@ public:
 		float LifetimeAlpha = 1.0f;
 
 		// Certain engine captures (e.g. environment reflection) don't have a tick. Default to fully opaque.
-		if (View.Family->CurrentWorldTime)
+		if (View.Family->Time.GetWorldTimeSeconds())
 		{
-			LifetimeAlpha = FMath::Clamp(FMath::Min(View.Family->CurrentWorldTime * -DecalProxy.InvFadeDuration + DecalProxy.FadeStartDelayNormalized, View.Family->CurrentWorldTime * DecalProxy.InvFadeInDuration + DecalProxy.FadeInStartDelayNormalized), 0.0f, 1.0f);
+			LifetimeAlpha = FMath::Clamp(FMath::Min(View.Family->Time.GetWorldTimeSeconds() * -DecalProxy.InvFadeDuration + DecalProxy.FadeStartDelayNormalized, View.Family->Time.GetWorldTimeSeconds() * DecalProxy.InvFadeInDuration + DecalProxy.FadeInStartDelayNormalized), 0.0f, 1.0f);
 		}
  
 		SetShaderValue(RHICmdList, ShaderRHI, DecalParams, FVector2f(FadeAlphaValue, LifetimeAlpha));
