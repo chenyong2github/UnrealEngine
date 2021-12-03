@@ -132,8 +132,6 @@ FRayId UnpackRayId(FRayIdPacked RayIdPacked)
 
 RaytracingAccelerationStructure TLAS;
 
-StructuredBuffer<FTraceDataPacked> RetraceDataPackedBuffer;
-
 RWStructuredBuffer<FTraceTileResultPacked> RWTraceTileResultPackedBuffer;
 RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
@@ -168,7 +166,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 		uint RayIndex = GlobalGroupIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelLinearCoord;
 
 #if (DIM_LIGHTING_MODE == LIGHTING_MODE_HIT_LIGHTING) || ENABLE_FAR_FIELD_TRACING
-		FTraceData TraceData = UnpackTraceData(RetraceDataPackedBuffer[RayIndex]);
+		FTraceData TraceData = UnpackTraceData(RWRetraceDataPackedBuffer[RayIndex]);
 		FRayIdPacked RayIdPacked;
 		RayIdPacked.PackedData = TraceData.RayId;
 
@@ -262,7 +260,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			float3 SampleRadiance = Result.Radiance;
 
 			// Write continuation data
-#if DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
+#if DIM_PACK_TRACE_DATA
 			FRayIdPacked RayIdPacked = PackRayId(CreateRayId(TraceTileIndex, TexelCoord));
 			RWRetraceDataPackedBuffer[RayIndex] = PackTraceData(CreateTraceData(
 				RayIdPacked.PackedData,
@@ -272,7 +270,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 				Result.bIsHit,
 				Result.bIsRadianceCompleted,
 				Result.bIsFarField));
-#endif // DIM_LIGHTING_MODE
+#endif // DIM_PACK_TRACE_DATA
 
 			uint OutputIndex = TraceTileIndex * RADIANCE_CACHE_TRACE_TILE_SIZE_1D + TexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + TexelCoord.x;
 			RWTraceTileResultPackedBuffer[OutputIndex] = PackTraceTileResult(CreateTraceTileResult(SampleRadiance, min(SampleHitDistance, MaxHalfFloat)));

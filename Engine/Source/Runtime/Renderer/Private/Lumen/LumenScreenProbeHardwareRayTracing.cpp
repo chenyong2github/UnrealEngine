@@ -152,15 +152,15 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("DIM_RADIANCE_CACHE");
 	class FWriteFinalLightingDim : SHADER_PERMUTATION_BOOL("DIM_WRITE_FINAL_LIGHTING");
 	class FIndirectDispatchDim : SHADER_PERMUTATION_BOOL("DIM_INDIRECT_DISPATCH");
+	class FPackTraceDataDim : SHADER_PERMUTATION_BOOL("DIM_PACK_TRACE_DATA");
 	class FStructuredImportanceSamplingDim : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FLightingModeDim, FEnableNearFieldTracing, FEnableFarFieldTracing, FRadianceCache, FWriteFinalLightingDim, FIndirectDispatchDim, FStructuredImportanceSamplingDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FLightingModeDim, FEnableNearFieldTracing, FEnableFarFieldTracing, FRadianceCache, FWriteFinalLightingDim, FIndirectDispatchDim, FStructuredImportanceSamplingDim, FPackTraceDataDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		RDG_BUFFER_ACCESS(HardwareRayTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TraceTexelDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenHWRTPipeline::FTraceDataPacked>, RetraceDataPackedBuffer)
 
 		// Screen probes
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
@@ -227,8 +227,9 @@ class FLumenScreenProbeGatherHardwareRayTracingCS : public FLumenHardwareRayTrac
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("DIM_RADIANCE_CACHE");
 	class FWriteFinalLightingDim : SHADER_PERMUTATION_BOOL("DIM_WRITE_FINAL_LIGHTING");
 	class FIndirectDispatchDim : SHADER_PERMUTATION_BOOL("DIM_INDIRECT_DISPATCH");
+	class FPackTraceDataDim : SHADER_PERMUTATION_BOOL("DIM_PACK_TRACE_DATA");
 	class FStructuredImportanceSamplingDim : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FEnableNearFieldTracing, FEnableFarFieldTracing, FRadianceCache, FWriteFinalLightingDim, FIndirectDispatchDim, FStructuredImportanceSamplingDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FEnableNearFieldTracing, FEnableFarFieldTracing, FRadianceCache, FWriteFinalLightingDim, FIndirectDispatchDim, FStructuredImportanceSamplingDim, FPackTraceDataDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenProbeGatherHardwareRayTracingRGS::FParameters, CommonParameters)
@@ -360,6 +361,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FWriteFinalLightingDim>(!bIsForceHitLighting || !UseFarFieldForScreenProbeGather());
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
+			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FPackTraceDataDim>(UseFarFieldForScreenProbeGather());
 			TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
 
 			OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
@@ -380,6 +382,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FWriteFinalLightingDim>(true);
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
 			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
+			PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FPackTraceDataDim>(false);
 			TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
 
 			OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
@@ -421,10 +424,6 @@ void SetLumenHardwareRayTracingScreenProbeParameters(
 	Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
 	Parameters->RayAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RayAllocatorBuffer, PF_R32_UINT));
 	Parameters->TraceTexelDataPacked = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(TraceTexelDataPackedBuffer));
-	if (bEnableHitLighting || bEnableFarFieldTracing)
-	{
-		Parameters->RetraceDataPackedBuffer = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(RetraceDataPackedBuffer));
-	}
 
 	Parameters->IndirectTracingParameters = IndirectTracingParameters;
 	Parameters->ScreenProbeParameters = ScreenProbeParameters;
@@ -445,10 +444,7 @@ void SetLumenHardwareRayTracingScreenProbeParameters(
 	Parameters->ApplySkyLight = bApplySkyLight;
 
 	// Ray continuation buffer
-	if (!bEnableHitLighting || !bUseRadianceCache)
-	{
-		Parameters->RWRetraceDataPackedBuffer = GraphBuilder.CreateUAV(RetraceDataPackedBuffer);
-	}
+	Parameters->RWRetraceDataPackedBuffer = GraphBuilder.CreateUAV(RetraceDataPackedBuffer);
 }
 
 FLumenScreenProbeGatherHardwareRayTracingCS::FPermutationDomain ToComputePermutationVector(const FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain& RGSPermutationVector)
@@ -472,6 +468,9 @@ FLumenScreenProbeGatherHardwareRayTracingCS::FPermutationDomain ToComputePermuta
 
 	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingCS::FWriteFinalLightingDim>(
 		RGSPermutationVector.Get<FLumenScreenProbeGatherHardwareRayTracingRGS::FWriteFinalLightingDim>());
+
+	PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingCS::FPackTraceDataDim>(
+		RGSPermutationVector.Get<FLumenScreenProbeGatherHardwareRayTracingRGS::FPackTraceDataDim>());
 
 	return PermutationVector;
 }
@@ -544,6 +543,7 @@ void DispatchComputeShader(
 	PassParameters->InlineParameters.HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;
 
 	TShaderRef<FLumenScreenProbeGatherHardwareRayTracingCS> ComputeShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingCS>(PermutationVector);
+	ClearUnusedGraphResources(ComputeShader, PassParameters);
 
 	auto GenerateModeString = [bEnableHitLighting, bEnableFarFieldTracing]()
 	{
@@ -637,6 +637,7 @@ void DispatchRayGenShader(
 	);
 
 	TShaderRef<FLumenScreenProbeGatherHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenScreenProbeGatherHardwareRayTracingRGS>(PermutationVector);
+	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
 	auto GenerateModeString = [bEnableHitLighting, bEnableFarFieldTracing]()
 	{
@@ -736,6 +737,7 @@ void RenderHardwareRayTracingScreenProbe(
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FWriteFinalLightingDim>(!bIsForceHitLighting || !UseFarFieldForScreenProbeGather());
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FPackTraceDataDim>(UseFarFieldForScreenProbeGather());
 
 		if (bInlineRayTracing)
 		{
@@ -770,6 +772,7 @@ void RenderHardwareRayTracingScreenProbe(
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FWriteFinalLightingDim>(true);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FIndirectDispatchDim>(IsHardwareRayTracingScreenProbeGatherIndirectDispatch());
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
+		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FPackTraceDataDim>(false);
 
 		// Trace continuation rays
 		if (bInlineRayTracing)
