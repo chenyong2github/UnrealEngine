@@ -1228,7 +1228,7 @@ void FGeometryCollectionNaniteData::InitResources(UGeometryCollection* Owner)
 		ReleaseResources();
 	}
 
-	NaniteResource.InitResources();
+	NaniteResource.InitResources(Owner);
 
 	bIsInitialized = true;
 }

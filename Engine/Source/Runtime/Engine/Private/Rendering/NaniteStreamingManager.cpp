@@ -30,21 +30,21 @@
 #define MAX_RUNTIME_RESOURCE_VERSIONS_MASK	((1 << MAX_RUNTIME_RESOURCE_VERSIONS_BITS) - 1)	
 
 
-int32 GNaniteStreamingAsync = 1;
+static int32 GNaniteStreamingAsync = 1;
 static FAutoConsoleVariableRef CVarNaniteStreamingAsync(
 	TEXT("r.Nanite.Streaming.Async"),
 	GNaniteStreamingAsync,
 	TEXT("Perform most of the Nanite streaming on an asynchronous worker thread instead of the rendering thread.")
 );
 
-float GNaniteStreamingBandwidthLimit = -1.0f;
+static float GNaniteStreamingBandwidthLimit = -1.0f;
 static FAutoConsoleVariableRef CVarNaniteStreamingBandwidthLimit(
 	TEXT("r.Nanite.Streaming.BandwidthLimit" ),
 	GNaniteStreamingBandwidthLimit,
 	TEXT("Streaming bandwidth limit in megabytes per second. Negatives values are interpreted as unlimited. ")
 );
 
-int32 GNaniteStreamingPoolSize = 512;
+static int32 GNaniteStreamingPoolSize = 512;
 static FAutoConsoleVariableRef CVarNaniteStreamingPoolSize(
 	TEXT("r.Nanite.Streaming.StreamingPoolSize"),
 	GNaniteStreamingPoolSize,
@@ -52,7 +52,7 @@ static FAutoConsoleVariableRef CVarNaniteStreamingPoolSize(
 	ECVF_ReadOnly
 );
 
-int32 GNaniteStreamingNumInitialRootPages = 2048;
+static int32 GNaniteStreamingNumInitialRootPages = 2048;
 static FAutoConsoleVariableRef CVarNaniteStreamingNumInitialRootPages(
 	TEXT("r.Nanite.Streaming.NumInitialRootPages"),
 	GNaniteStreamingNumInitialRootPages,
@@ -60,7 +60,7 @@ static FAutoConsoleVariableRef CVarNaniteStreamingNumInitialRootPages(
 	ECVF_ReadOnly
 );
 
-int32 GNaniteStreamingDynamicRootPages = 1;
+static int32 GNaniteStreamingDynamicRootPages = 1;
 static FAutoConsoleVariableRef CVarNaniteStreamingDynamicRootPages(
 	TEXT("r.Nanite.Streaming.DynamicRootPages"),
 	GNaniteStreamingDynamicRootPages,
@@ -68,7 +68,7 @@ static FAutoConsoleVariableRef CVarNaniteStreamingDynamicRootPages(
 	ECVF_ReadOnly
 );
 
-int32 GNaniteStreamingMaxPendingPages = 128;
+static int32 GNaniteStreamingMaxPendingPages = 128;
 static FAutoConsoleVariableRef CVarNaniteStreamingMaxPendingPages(
 	TEXT("r.Nanite.Streaming.MaxPendingPages"),
 	GNaniteStreamingMaxPendingPages,
@@ -76,7 +76,7 @@ static FAutoConsoleVariableRef CVarNaniteStreamingMaxPendingPages(
 	ECVF_ReadOnly
 );
 
-int32 GNaniteStreamingMaxPageInstallsPerFrame = 128;
+static int32 GNaniteStreamingMaxPageInstallsPerFrame = 128;
 static FAutoConsoleVariableRef CVarNaniteStreamingMaxPageInstallsPerFrame(
 	TEXT("r.Nanite.Streaming.MaxPageInstallsPerFrame"),
 	GNaniteStreamingMaxPageInstallsPerFrame,
@@ -84,15 +84,28 @@ static FAutoConsoleVariableRef CVarNaniteStreamingMaxPageInstallsPerFrame(
 	ECVF_ReadOnly
 );
 
+static int32 GNaniteStreamingExplicitRequests = 1;
+static FAutoConsoleVariableRef CVarNaniteStreamingExplicitRequests(
+	TEXT("r.Nanite.Streaming.Debug.ExplicitRequests"),
+	GNaniteStreamingExplicitRequests,
+	TEXT("Process requests coming from explicit calls to RequestNanitePages().")
+);
+
+static int32 GNaniteStreamingGPURequests = 1;
+static FAutoConsoleVariableRef CVarNaniteStreamingGPUFeedback(
+	TEXT("r.Nanite.Streaming.Debug.GPURequests"),
+	GNaniteStreamingGPURequests,
+	TEXT("Process requests coming from GPU rendering feedback")
+);
+
 static_assert(MAX_GPU_PAGES_BITS + MAX_RUNTIME_RESOURCE_VERSIONS_BITS + STREAMING_REQUEST_MAGIC_BITS <= 32,	"Streaming request member RuntimeResourceID_Magic doesn't fit in 32 bits");
 static_assert(MAX_RESOURCE_PAGES_BITS + MAX_GROUP_PARTS_BITS + STREAMING_REQUEST_MAGIC_BITS <= 32,			"Streaming request member PageIndex_NumPages_Magic doesn't fit in 32 bits");
 
-DECLARE_CYCLE_STAT( TEXT("StreamingManager_Update"),STAT_NaniteStreamingManagerUpdate,	STATGROUP_Nanite );
-
+DECLARE_DWORD_COUNTER_STAT(		TEXT("ExplicitRequests"),			STAT_NaniteExplicitRequests,				STATGROUP_Nanite );
+DECLARE_DWORD_COUNTER_STAT(		TEXT("GPURequests"),				STAT_NaniteGPURequests,						STATGROUP_Nanite );
+DECLARE_DWORD_COUNTER_STAT(		TEXT("UniqueRequests"),				STAT_NaniteUniqueRequests,					STATGROUP_Nanite );
 
 DECLARE_DWORD_COUNTER_STAT(		TEXT("PageInstalls"),				STAT_NanitePageInstalls,					STATGROUP_Nanite );
-DECLARE_DWORD_COUNTER_STAT(		TEXT("StreamingRequests"),			STAT_NaniteStreamingRequests,				STATGROUP_Nanite );
-DECLARE_DWORD_COUNTER_STAT(		TEXT("UniqueStreamingRequests"),	STAT_NaniteUniqueStreamingRequests,			STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("TotalPages"),					STAT_NaniteTotalPages,						STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("RegisteredStreamingPages"),	STAT_NaniteRegisteredStreamingPages,		STATGROUP_Nanite );
 DECLARE_DWORD_ACCUMULATOR_STAT( TEXT("InstalledPages"),				STAT_NaniteInstalledPages,					STATGROUP_Nanite );
@@ -590,6 +603,7 @@ void FStreamingManager::ReleaseRHI()
 
 void FStreamingManager::Add( FResources* Resources )
 {
+	check(IsInRenderingThread());
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		return;
@@ -619,6 +633,9 @@ void FStreamingManager::Add( FResources* Resources )
 		Resources->RuntimeResourceID = (NextRootPageVersion[Resources->RootPageIndex] << MAX_GPU_PAGES_BITS) | Resources->RootPageIndex;
 		NextRootPageVersion[Resources->RootPageIndex] = (NextRootPageVersion[Resources->RootPageIndex] + 1) & MAX_RUNTIME_RESOURCE_VERSIONS_MASK;
 		RuntimeResourceMap.Add( Resources->RuntimeResourceID, Resources );
+
+		check(Resources->PersistentHash != INVALID_PERSISTENT_HASH);
+		PersistentHashResourceMap.Add(Resources->PersistentHash, Resources);
 		
 		PendingAdds.Add( Resources );
 	}
@@ -626,6 +643,7 @@ void FStreamingManager::Add( FResources* Resources )
 
 void FStreamingManager::Remove( FResources* Resources )
 {
+	check(IsInRenderingThread());
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		return;
@@ -658,6 +676,12 @@ void FStreamingManager::Remove( FResources* Resources )
 
 		RuntimeResourceMap.Remove( Resources->RuntimeResourceID );
 		Resources->RuntimeResourceID = INVALID_RUNTIME_RESOURCE_ID;
+
+		check(Resources->PersistentHash != INVALID_PERSISTENT_HASH);
+		int32 NumRemoved = PersistentHashResourceMap.Remove(Resources->PersistentHash, Resources);
+		check(NumRemoved == 1);
+		Resources->PersistentHash = INVALID_PERSISTENT_HASH;
+		
 		PendingAdds.Remove( Resources );
 	}
 }
@@ -1425,8 +1449,56 @@ uint32 FStreamingManager::DetermineReadyPages()
 	return NumReadyPages;
 }
 
+void FStreamingManager::AddPendingExplicitRequests()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(AddPendingExplicitRequests);
+	
+	const int32 NumPendingExplicitRequests = PendingExplicitRequests.Num();
+	if (NumPendingExplicitRequests > 0)
+	{
+		int32 Index = 0;
+		while (Index < NumPendingExplicitRequests)
+		{
+			const uint32 ResourcePersistentHash = PendingExplicitRequests[Index++];
+			
+			// Resolve resource
+			TArray<FResources*, TInlineAllocator<16>> MultiMapResult;
+			PersistentHashResourceMap.MultiFind(ResourcePersistentHash, MultiMapResult);
+
+			// Keep processing requests from this resource as long as they have the repeat bit set
+			bool bRepeat = true;
+			while (bRepeat && Index < NumPendingExplicitRequests)
+			{
+				const uint32 Packed = PendingExplicitRequests[Index++];
+
+				bRepeat = (Packed & 1u) != 0u;
+				
+				// Add requests to table
+				// In the rare event of a collision all resources with the same hash will be requested
+				for (const FResources* Resources : MultiMapResult)
+				{
+					const uint32 NumResourcePages = (uint32)Resources->PageStreamingStates.Num();
+					const uint32 PageIndex = (Packed >> 1) & MAX_RESOURCE_PAGES_MASK;
+					const uint32 Priority = Packed | ((1 << (MAX_RESOURCE_PAGES_BITS + 1)) - 1);	// Round quantized priority up
+					if (PageIndex < NumResourcePages)
+					{
+						FStreamingRequest Request;
+						Request.Key.RuntimeResourceID = Resources->RuntimeResourceID;
+						Request.Key.PageIndex = PageIndex;
+						Request.Priority = *(const float*)&Priority;
+						RequestsHashTable->AddRequest(Request);
+						INC_DWORD_STAT(STAT_NaniteExplicitRequests);
+					}
+				}
+			}
+		}
+		PendingExplicitRequests.Empty();
+	}
+}
+
 void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 {
+	check(IsInRenderingThread());
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		return;
@@ -1588,9 +1660,11 @@ void FStreamingManager::AsyncUpdate()
 	
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessReadback);
 	const uint32* BufferPtr = AsyncState.LatestReadbackBufferPtr;
-	uint32 NumStreamingRequests = FMath::Min( BufferPtr[ 0 ], MAX_STREAMING_REQUESTS - 1u );	// First request is reserved for counter
+	const uint32 NumGPUStreamingRequests = FMath::Min( BufferPtr[ 0 ], MAX_STREAMING_REQUESTS - 1u );	// First request is reserved for counter
 
-	if( NumStreamingRequests > 0 )
+	RequestsHashTable->Clear();
+
+	if(GNaniteStreamingGPURequests && NumGPUStreamingRequests > 0)
 	{
 		// Update priorities
 		const FGPUStreamingRequest* StreamingRequestsPtr = ((const FGPUStreamingRequest*)BufferPtr + 1);
@@ -1599,9 +1673,8 @@ void FStreamingManager::AsyncUpdate()
 #endif
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(DeduplicateRequests);
-			RequestsHashTable->Clear();
-			for( uint32 Index = 0; Index < NumStreamingRequests; Index++ )
+			TRACE_CPUPROFILER_EVENT_SCOPE(DeduplicateGPURequests);
+			for( uint32 Index = 0; Index < NumGPUStreamingRequests; Index++ )
 			{
 				const FGPUStreamingRequest& GPURequest = StreamingRequestsPtr[ Index ];
 				const uint32 NumPages		= (GPURequest.PageIndex_NumPages_Magic >> STREAMING_REQUEST_MAGIC_BITS) & MAX_GROUP_PARTS_MASK;
@@ -1619,68 +1692,77 @@ void FStreamingManager::AsyncUpdate()
 			}
 		}
 
-		uint32 NumUniqueStreamingRequests = RequestsHashTable->GetNumElements();
-		INC_DWORD_STAT_BY( STAT_NaniteStreamingRequests, NumStreamingRequests );
-		INC_DWORD_STAT_BY( STAT_NaniteUniqueStreamingRequests, NumUniqueStreamingRequests );
+		INC_DWORD_STAT_BY( STAT_NaniteGPURequests, NumGPUStreamingRequests );
+
+#if WITH_EDITOR
+		RecordGPURequests();
+#endif
+	}
+
+	// Add any pending explicit requests
+	AddPendingExplicitRequests();
+	
+	const uint32 NumUniqueRequests = RequestsHashTable->GetNumElements();
+	INC_DWORD_STAT_BY(STAT_NaniteUniqueRequests, NumUniqueRequests);
+
+	if (NumUniqueRequests > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UpdatePriorities);
+
+		struct FPrioritizedStreamingPage
+		{
+			FStreamingPageInfo* Page;
+			uint32 Priority;
+		};
+
+		TArray< FPrioritizedStreamingPage > UpdatedPages;
+		for(uint32 UniqueRequestIndex = 0; UniqueRequestIndex < NumUniqueRequests; UniqueRequestIndex++)
+		{
+			const FStreamingRequest& Request = RequestsHashTable->GetElement(UniqueRequestIndex);
+			FStreamingPageInfo** StreamingPage = RegisteredStreamingPagesMap.Find( Request.Key );
+			if( StreamingPage )
+			{
+				// Update index and move to front of LRU.
+				(*StreamingPage)->LatestUpdateIndex = NextUpdateIndex;
+				UpdatedPages.Push( { *StreamingPage, Request.Priority } );
+			}
+			else
+			{
+				// Page isn't there. Is the resource still here?
+				FResources** Resources = RuntimeResourceMap.Find( Request.Key.RuntimeResourceID );
+				if( Resources )
+				{
+					// ResourcesID is valid, so add request to the queue
+					PrioritizedRequestsHeap.Push( Request );
+				}
+			}
+		}
+
+		PrioritizedRequestsHeap.Heapify( StreamingPriorityPredicate );
 
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UpdatePriorities);
+			TRACE_CPUPROFILER_EVENT_SCOPE(PrioritySort);
+			UpdatedPages.Sort( []( const FPrioritizedStreamingPage& A, const FPrioritizedStreamingPage& B ) { return A.Priority < B.Priority; } );
+		}
 
-			struct FPrioritizedStreamingPage
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UpdateLRU);
+
+			for( const FPrioritizedStreamingPage& PrioritizedPage : UpdatedPages )
 			{
-				FStreamingPageInfo* Page;
-				uint32 Priority;
-			};
+				FStreamingPageInfo* Page = PrioritizedPage.Page;
 
-			TArray< FPrioritizedStreamingPage > UpdatedPages;
-			for(uint32 UniqueRequestIndex = 0; UniqueRequestIndex < NumUniqueStreamingRequests; UniqueRequestIndex++)
-			{
-				const FStreamingRequest& Request = RequestsHashTable->GetElement(UniqueRequestIndex);
-				FStreamingPageInfo** StreamingPage = RegisteredStreamingPagesMap.Find( Request.Key );
-				if( StreamingPage )
-				{
-					// Update index and move to front of LRU.
-					(*StreamingPage)->LatestUpdateIndex = NextUpdateIndex;
-					UpdatedPages.Push( { *StreamingPage, Request.Priority } );
-				}
-				else
-				{
-					// Page isn't there. Is the resource still here?
-					FResources** Resources = RuntimeResourceMap.Find( Request.Key.RuntimeResourceID );
-					if( Resources )
-					{
-						// ResourcesID is valid, so add request to the queue
-						PrioritizedRequestsHeap.Push( Request );
-					}
-				}
-			}
+				// Unlink
+				FStreamingPageInfo* OldNext = Page->Next;
+				FStreamingPageInfo* OldPrev = Page->Prev;
+				OldNext->Prev = OldPrev;
+				OldPrev->Next = OldNext;
 
-			PrioritizedRequestsHeap.Heapify( StreamingPriorityPredicate );
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(PrioritySort);
-				UpdatedPages.Sort( []( const FPrioritizedStreamingPage& A, const FPrioritizedStreamingPage& B ) { return A.Priority < B.Priority; } );
-			}
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UpdateLRU);
-
-				for( const FPrioritizedStreamingPage& PrioritizedPage : UpdatedPages )
-				{
-					FStreamingPageInfo* Page = PrioritizedPage.Page;
-
-					// Unlink
-					FStreamingPageInfo* OldNext = Page->Next;
-					FStreamingPageInfo* OldPrev = Page->Prev;
-					OldNext->Prev = OldPrev;
-					OldPrev->Next = OldNext;
-
-					// Insert at the front of the LRU
-					Page->Prev = &StreamingPageLRU;
-					Page->Next = StreamingPageLRU.Next;
-					StreamingPageLRU.Next->Prev = Page;
-					StreamingPageLRU.Next = Page;
-				}
+				// Insert at the front of the LRU
+				Page->Prev = &StreamingPageLRU;
+				Page->Next = StreamingPageLRU.Next;
+				StreamingPageLRU.Next->Prev = Page;
+				StreamingPageLRU.Next = Page;
 			}
 		}
 	}
@@ -1879,6 +1961,7 @@ void FStreamingManager::AsyncUpdate()
 
 void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 {
+	check(IsInRenderingThread());
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		return;
@@ -1961,6 +2044,7 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 
 void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 {
+	check(IsInRenderingThread());
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		return;
@@ -2018,6 +2102,124 @@ ENGINE_API bool FStreamingManager::IsAsyncUpdateInProgress()
 {
 	return AsyncState.bUpdateActive;
 }
+
+void FStreamingManager::RequestNanitePages(TArrayView<uint32> RequestData)
+{
+	check(IsInRenderingThread());
+	check(!AsyncState.bUpdateActive);
+	if (GNaniteStreamingExplicitRequests)
+	{
+		PendingExplicitRequests.Append(RequestData.GetData(), RequestData.Num());
+	}
+}
+
+#if WITH_EDITOR
+uint64 FStreamingManager::GetRequestRecordBuffer(TArray<uint32>& OutRequestData)
+{
+	check(IsInRenderingThread());
+	check(!AsyncState.bUpdateActive);
+	if (PageRequestRecordHandle == (uint64)-1)
+	{
+		return (uint64)-1;
+	}
+
+	const uint64 Ret = PageRequestRecordHandle;
+	PageRequestRecordHandle = (uint64)-1;
+	if (PageRequestRecordMap.Num() == 0)
+	{
+		OutRequestData.Empty();
+		return Ret;
+	}
+
+	// Resolve requests and convert to persistent resource IDs
+	TArray<FStreamingRequest> Requests;
+	Requests.Reserve(PageRequestRecordMap.Num());
+	for (const TPair<FPageKey, uint32>& MapEntry : PageRequestRecordMap)
+	{
+		FResources** Resources = RuntimeResourceMap.Find(MapEntry.Key.RuntimeResourceID);
+		if (Resources)
+		{	
+			Requests.Add(FStreamingRequest { FPageKey { (*Resources)->PersistentHash, MapEntry.Key.PageIndex }, MapEntry.Value } );
+		}
+	}
+	PageRequestRecordMap.Reset();
+
+	Requests.Sort();
+
+	// Count unique resources
+	uint32 NumUniqueResources = 0;
+	{
+		uint64 PrevPersistentHash = INVALID_PERSISTENT_HASH;
+		for (const FStreamingRequest& Request : Requests)
+		{
+			if (Request.Key.RuntimeResourceID != PrevPersistentHash)
+			{
+				NumUniqueResources++;
+			}
+			PrevPersistentHash = Request.Key.RuntimeResourceID;
+		}
+	}
+	
+	// Write packed requests
+	// A request consists of two DWORDs. A resource DWORD and a pageindex/priority/repeat DWORD.
+	// The repeat bit indicates if the next request is to he same resource, so the resource DWORD can be omitted.
+	// As there are often many requests per resource, this encoding can safe upwards of half of the total DWORDs.
+	{
+		const uint32 NumOutputDwords = NumUniqueResources + Requests.Num();
+		OutRequestData.SetNum(NumOutputDwords);
+		uint32 WriteIndex = 0;
+		uint64 PrevResourceID = ~0ull;
+		for (const FStreamingRequest& Request : Requests)
+		{
+			check(Request.Key.PageIndex < MAX_RESOURCE_PAGES);
+			if (Request.Key.RuntimeResourceID != PrevResourceID)
+			{
+				OutRequestData[WriteIndex++] = Request.Key.RuntimeResourceID;
+			}
+			else
+			{
+				OutRequestData[WriteIndex - 1] |= 1;	// Mark resource repeat bit in previous packed dword
+ 			}
+			PrevResourceID = Request.Key.RuntimeResourceID;
+
+			const uint32 QuantizedPriority = Request.Priority >> (32 - MAX_RESOURCE_PAGES_BITS - 1);	// Exact priority doesn't matter, so just quantize it to fit
+			const uint32 Packed = (QuantizedPriority << (MAX_RESOURCE_PAGES_BITS + 1)) | (Request.Key.PageIndex << 1);	// Lowest bit is resource repeat bit
+			OutRequestData[WriteIndex++] = Packed;
+		}
+
+		check(WriteIndex == NumOutputDwords);
+	}
+	
+	return Ret;
+}
+
+void FStreamingManager::SetRequestRecordBuffer(uint64 Handle)
+{
+	check(IsInRenderingThread());
+	check(!AsyncState.bUpdateActive);
+	PageRequestRecordHandle = Handle;
+	PageRequestRecordMap.Empty();
+}
+
+void FStreamingManager::RecordGPURequests()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(RecordGPURequests);
+	if (PageRequestRecordHandle != (uint64)-1)
+	{
+		const uint32 NumUniqueRequests = RequestsHashTable->GetNumElements();
+		for (uint32 Index = 0; Index < NumUniqueRequests; Index++)
+		{
+			const FStreamingRequest& Request = RequestsHashTable->GetElement(Index);
+			uint32* Priority = PageRequestRecordMap.Find(Request.Key);
+			if (Priority)
+				*Priority = FMath::Max(*Priority, Request.Priority);
+			else
+				PageRequestRecordMap.Add(Request.Key, Request.Priority);
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 TGlobalResource< FStreamingManager > GStreamingManager;
 

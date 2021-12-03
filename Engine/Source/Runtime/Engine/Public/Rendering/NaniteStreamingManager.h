@@ -37,6 +37,11 @@ FORCEINLINE bool operator!=(const FPageKey& A, const FPageKey& B)
 	return !(A == B);
 }
 
+FORCEINLINE bool operator<(const FPageKey& A, const FPageKey& B)
+{
+	return A.RuntimeResourceID != B.RuntimeResourceID ? A.RuntimeResourceID < B.RuntimeResourceID : A.PageIndex < B.PageIndex;
+}
+
 
 // Before deduplication
 struct FGPUStreamingRequest
@@ -52,6 +57,11 @@ struct FStreamingRequest
 	FPageKey	Key;
 	uint32		Priority;
 };
+
+FORCEINLINE bool operator<(const FStreamingRequest& A, const FStreamingRequest& B)
+{
+	return A.Key != B.Key ? A.Key < B.Key : A.Priority > B.Priority;
+}
 
 struct FStreamingPageInfo
 {
@@ -135,6 +145,12 @@ public:
 		return !RuntimeResourceMap.IsEmpty();
 	}
 
+	ENGINE_API void		RequestNanitePages(TArrayView<uint32> RequestData);
+#if WITH_EDITOR
+	ENGINE_API uint64	GetRequestRecordBuffer(TArray<uint32>& OutRequestData);
+	ENGINE_API void		SetRequestRecordBuffer(uint64 Handle);
+#endif
+	
 private:
 	friend class FStreamingUpdateTask;
 
@@ -185,6 +201,7 @@ private:
 	TArray< FResources* >					PendingAdds;
 
 	TMap< uint32, FResources* >				RuntimeResourceMap;
+	TMultiMap< uint32, FResources* >		PersistentHashResourceMap;			// TODO: MultiMap to handle potential collisions and issues with there temporarily being two meshes with the same hash because of unordered add/remove.
 	TMap< FPageKey, FStreamingPageInfo* >	RegisteredStreamingPagesMap;		// This is updated immediately.
 	TMap< FPageKey, FStreamingPageInfo* >	CommittedStreamingPageMap;			// This update is deferred to the point where the page has been loaded and committed to memory.
 	TArray< FStreamingRequest >				PrioritizedRequestsHeap;
@@ -205,6 +222,14 @@ private:
 
 	FGraphEventArray						AsyncTaskEvents;
 	FAsyncState								AsyncState;
+
+#if WITH_EDITOR
+	uint64									PageRequestRecordHandle = (uint64)-1;
+	TMap<FPageKey, uint32>					PageRequestRecordMap;
+#endif
+	TArray<uint32>							PendingExplicitRequests;
+
+	void AddPendingExplicitRequests();
 
 	void CollectDependencyPages( FResources* Resources, TSet< FPageKey >& DependencyPages, const FPageKey& Key );
 	void SelectStreamingPages( FResources* Resources, TArray< FPageKey >& SelectedPages, TSet<FPageKey>& SelectedPagesSet, uint32 RuntimeResourceID, uint32 PageIndex, uint32 MaxSelectedPages );
@@ -234,6 +259,10 @@ private:
 
 #if SANITY_CHECK_STREAMING_REQUESTS
 	void SanityCheckStreamingRequests(const FGPUStreamingRequest* StreamingRequestsPtr, const uint32 NumStreamingRequests);
+#endif
+
+#if WITH_EDITOR
+	void RecordGPURequests();
 #endif
 };
 

@@ -52,6 +52,7 @@
 #define MAX_INSTANCES							( 1 << MAX_INSTANCES_BITS )								// must match define in NaniteDataDecode.ush
 #define MAX_NODES_PER_PRIMITIVE_BITS			16														// must match define in NaniteDataDecode.ush
 #define MAX_RESOURCE_PAGES_BITS					20
+#define MAX_RESOURCE_PAGES_MASK					( ( 1 << MAX_RESOURCE_PAGES_BITS ) - 1 )
 #define MAX_RESOURCE_PAGES						(1 << MAX_RESOURCE_PAGES_BITS)
 #define MAX_GROUP_PARTS_BITS					3
 #define MAX_GROUP_PARTS_MASK					((1 << MAX_GROUP_PARTS_BITS) - 1)
@@ -92,6 +93,8 @@
 #define NANITE_CLUSTER_FLAG_LEAF				0x1
 
 #define NANITE_PAGE_FLAG_RELATIVE_ENCODING		0x1
+
+#define INVALID_PERSISTENT_HASH					0
 
 DECLARE_STATS_GROUP( TEXT("Nanite"), STATGROUP_Nanite, STATCAT_Advanced );
 
@@ -393,8 +396,9 @@ struct FResources
 	uint32	HierarchyOffset			= 0xFFFFFFFFu;
 	int32	RootPageIndex			= INDEX_NONE;
 	uint32	NumHierarchyNodes		= 0;
+	uint32	PersistentHash			= INVALID_PERSISTENT_HASH;
 
-	ENGINE_API void InitResources();
+	ENGINE_API void InitResources(const UObject* Owner);
 	ENGINE_API bool ReleaseResources();
 
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
