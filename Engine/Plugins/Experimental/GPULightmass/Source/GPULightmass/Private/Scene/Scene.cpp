@@ -1018,7 +1018,7 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 		}
 	}
 
-	InComponent->FlushInstanceUpdateCommands();
+	InComponent->FlushInstanceUpdateCommands(true);
 
 	FInstanceGroupRenderState InstanceRenderState;
 	InstanceRenderState.ComponentUObject = Instance->ComponentUObject;
@@ -1145,7 +1145,7 @@ void FScene::RemoveGeometryInstanceFromComponent(UInstancedStaticMeshComponent* 
 		HISMC->BuildTreeIfOutdated(false, true);
 	}
 
-	InComponent->FlushInstanceUpdateCommands();
+	InComponent->FlushInstanceUpdateCommands(true);
 
 	ENQUEUE_RENDER_COMMAND(RenderThreadRemove)(
 		[ElementId, &RenderState = RenderState](FRHICommandListImmediate&) mutable

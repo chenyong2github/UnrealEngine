@@ -419,6 +419,7 @@ public:
 
 	/** Allocate/Free slots for instance data in GPU-Scene */
 	static void AllocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+	static void ReallocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 	void FreeGPUSceneInstances();
 
 	/** return true if we need to call ConditionalUpdateStaticMeshes */

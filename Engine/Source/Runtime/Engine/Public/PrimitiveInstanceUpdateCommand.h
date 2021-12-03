@@ -1,0 +1,63 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+struct FInstanceUpdateCmdBuffer
+{
+	enum EUpdateCommandType
+	{
+		Add,
+		Update,
+		Hide,
+		EditorData,
+		LightmapData,
+		CustomData,
+	};
+
+	struct FInstanceUpdateCommand
+	{
+		int32 InstanceIndex;
+		EUpdateCommandType Type;
+		FMatrix XForm;
+		FMatrix PreviousXForm;
+
+		FColor HitProxyColor;
+		bool bSelected;
+
+		FVector2D LightmapUVBias;
+		FVector2D ShadowmapUVBias;
+
+		TArray<float> CustomDataFloats;
+	};
+
+	ENGINE_API FInstanceUpdateCmdBuffer();
+
+	// Commands that can modify render data in place
+	void HideInstance(int32 RenderIndex);
+	void AddInstance(const FMatrix& InTransform);
+	void AddInstance(const FMatrix& InTransform, const FMatrix& InPreviousTransform);
+	void UpdateInstance(int32 RenderIndex, const FMatrix& InTransform);
+	void UpdateInstance(int32 RenderIndex, const FMatrix& InTransform, const FMatrix& InPreviousTransform);
+	void SetEditorData(int32 RenderIndex, const FColor& Color, bool bSelected);
+	void SetLightMapData(int32 RenderIndex, const FVector2D& LightmapUVBias);
+	void SetShadowMapData(int32 RenderIndex, const FVector2D& ShadowmapUVBias);
+	void SetCustomData(int32 RenderIndex, const TArray<float>& CustomDataFloats);
+	void SetCustomDataFloatsBulk(const TArray<float>& CustomDataFloats, int32 InNumCustomDataFloats);
+	void ResetInlineCommands();
+	int32 NumInlineCommands() const { return Cmds.Num(); }
+
+	// Command that can't be in-lined and should cause full buffer rebuild
+	void Edit();
+	void Reset();
+	int32 NumTotalCommands() const { return NumEdits; };
+
+	TArray<FInstanceUpdateCommand> Cmds;
+	TArray<float> CustomDataFloatsBulk;
+	int32 NumCustomDataFloats;
+	int32 NumAdds;
+	int32 NumUpdates;
+	int32 NumRemoves;
+	int32 NumEdits;
+};

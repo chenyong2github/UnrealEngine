@@ -174,7 +174,9 @@ FTypedElementHandle HInstancedStaticMeshInstance::GetElementHandle() const
 }
 
 FInstanceUpdateCmdBuffer::FInstanceUpdateCmdBuffer()
-	: NumAdds(0)
+	: NumAdds(0),
+	  NumUpdates(0),
+	  NumRemoves(0)
 	, NumEdits(0)
 {
 }
@@ -187,6 +189,7 @@ void FInstanceUpdateCmdBuffer::HideInstance(int32 RenderIndex)
 	Cmd.InstanceIndex = RenderIndex;
 	Cmd.Type = FInstanceUpdateCmdBuffer::Hide;
 
+	NumRemoves++;
 	Edit();
 }
 
@@ -201,6 +204,18 @@ void FInstanceUpdateCmdBuffer::AddInstance(const FMatrix& InTransform)
 	Edit();
 }
 
+void FInstanceUpdateCmdBuffer::AddInstance(const FMatrix& InTransform, const FMatrix& InPreviousTransform)
+{
+	FInstanceUpdateCommand& Cmd = Cmds.AddDefaulted_GetRef();
+	Cmd.InstanceIndex = INDEX_NONE;
+	Cmd.Type = FInstanceUpdateCmdBuffer::Add;
+	Cmd.XForm = InTransform;
+	Cmd.PreviousXForm = InPreviousTransform;
+
+	NumAdds++;
+	Edit();
+}
+
 void FInstanceUpdateCmdBuffer::UpdateInstance(int32 RenderIndex, const FMatrix& InTransform)
 {
 	FInstanceUpdateCommand& Cmd = Cmds.AddDefaulted_GetRef();
@@ -208,6 +223,19 @@ void FInstanceUpdateCmdBuffer::UpdateInstance(int32 RenderIndex, const FMatrix& 
 	Cmd.Type = FInstanceUpdateCmdBuffer::Update;
 	Cmd.XForm = InTransform;
 
+	NumUpdates++;
+	Edit();
+}
+
+void FInstanceUpdateCmdBuffer::UpdateInstance(int32 RenderIndex, const FMatrix& InTransform, const FMatrix& InPreviousTransform)
+{
+	FInstanceUpdateCommand& Cmd = Cmds.AddDefaulted_GetRef();
+	Cmd.InstanceIndex = RenderIndex;
+	Cmd.Type = FInstanceUpdateCmdBuffer::Update;
+	Cmd.XForm = InTransform;
+	Cmd.PreviousXForm = FMatrix(InPreviousTransform);
+
+	NumUpdates++;
 	Edit();
 }
 
@@ -297,13 +325,25 @@ void FInstanceUpdateCmdBuffer::SetCustomData(int32 RenderIndex, const TArray<flo
 		Cmd.CustomDataFloats = CustomDataFloats;
 	}
 
+	// #todo (jnadro) Should really ensure these are all the same size for all instances.
+	NumCustomDataFloats = CustomDataFloats.Num();
+
 	Edit();
+}
+
+void FInstanceUpdateCmdBuffer::SetCustomDataFloatsBulk(const TArray<float>& CustomDataFloats, int32 InNumCustomDataFloats)
+{
+	CustomDataFloatsBulk = CustomDataFloats;
+	NumCustomDataFloats = InNumCustomDataFloats;
 }
 
 void FInstanceUpdateCmdBuffer::ResetInlineCommands()
 {
 	Cmds.Empty();
+	NumCustomDataFloats = 0;
 	NumAdds = 0;
+	NumUpdates = 0;
+	NumRemoves = 0;
 }
 
 void FInstanceUpdateCmdBuffer::Edit()
@@ -314,7 +354,11 @@ void FInstanceUpdateCmdBuffer::Edit()
 void FInstanceUpdateCmdBuffer::Reset()
 {
 	Cmds.Empty();
+	CustomDataFloatsBulk.Empty();
+	NumCustomDataFloats = 0;
 	NumAdds = 0;
+	NumUpdates = 0;
+	NumRemoves = 0;
 	NumEdits = 0;
 }
 
@@ -379,7 +423,7 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 		AddIndex = InstanceData->GetNumInstances();
 		int32 NewNumInstances = NumAdds + InstanceData->GetNumInstances();
 
-		InstanceData->AllocateInstances(NewNumInstances, InstanceData->GetNumCustomDataFloats(), GIsEditor ? EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce : EResizeBufferFlags::None, false); // In Editor always permit overallocation, to prevent too much realloc
+		InstanceData->AllocateInstances(NewNumInstances, CmdBuffer.NumCustomDataFloats, GIsEditor ? EResizeBufferFlags::AllowSlackOnGrow | EResizeBufferFlags::AllowSlackOnReduce : EResizeBufferFlags::None, false); // In Editor always permit overallocation, to prevent too much realloc
 	}
 
 	for (int32 i = 0; i < NumCommands; ++i)
@@ -904,6 +948,46 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FInstancedStaticMeshVertexFactory,"/Engine/Private
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
+void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
+{
+	check(IsInRenderingThread());
+
+	PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
+
+	for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
+	{
+		const FStaticMeshLODResources* RenderData = &LODModels[LODIndex];
+
+		FInstancedStaticMeshVertexFactory::FDataType Data;
+		// Assign to the vertex factory for this LOD.
+		FInstancedStaticMeshVertexFactory& VertexFactory = VertexFactories[LODIndex];
+
+		RenderData->VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
+		RenderData->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&VertexFactory, Data);
+		RenderData->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&VertexFactory, Data);
+		if (LightMapCoordinateIndex < (int32)RenderData->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() && LightMapCoordinateIndex >= 0)
+		{
+			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&VertexFactory, Data, LightMapCoordinateIndex);
+		}
+
+		if (RenderData->bHasColorVertexData)
+		{
+			RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
+		}
+		else
+		{
+			FColorVertexBuffer::BindDefaultColorVertexBuffer(&VertexFactory, Data, FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride);
+		}
+
+		check(PerInstanceRenderData);
+
+		PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
+
+		VertexFactory.SetData(Data);
+		VertexFactory.InitResource();
+	}
+}
+
 void FInstancedStaticMeshRenderData::InitVertexFactories()
 {
 	// Allocate the vertex factories for each LOD
@@ -912,45 +996,11 @@ void FInstancedStaticMeshRenderData::InitVertexFactories()
 		VertexFactories.Add(new FInstancedStaticMeshVertexFactory(FeatureLevel));
 	}
 
-	const int32 LightMapCoordinateIndex = Component->GetStaticMesh()->GetLightMapCoordinateIndex();
 	ENQUEUE_RENDER_COMMAND(InstancedStaticMeshRenderData_InitVertexFactories)(
-		[this, LightMapCoordinateIndex](FRHICommandListImmediate& RHICmdList)
-	{
-		PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
-
-		for (int32 LODIndex = 0; LODIndex < VertexFactories.Num(); LODIndex++)
+		[this](FRHICommandListImmediate& RHICmdList)
 		{
-			const FStaticMeshLODResources* RenderData = &LODModels[LODIndex];
-
-			FInstancedStaticMeshVertexFactory::FDataType Data;
-			// Assign to the vertex factory for this LOD.
-			FInstancedStaticMeshVertexFactory& VertexFactory = VertexFactories[LODIndex];
-
-			RenderData->VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
-			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&VertexFactory, Data);
-			RenderData->VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(&VertexFactory, Data);
-			if (LightMapCoordinateIndex < (int32)RenderData->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() && LightMapCoordinateIndex >= 0)
-			{
-				RenderData->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&VertexFactory, Data, LightMapCoordinateIndex);
-			}
-
-			if (RenderData->bHasColorVertexData)
-			{
-				RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
-			}
-			else
-			{
-				FColorVertexBuffer::BindDefaultColorVertexBuffer(&VertexFactory, Data, FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride);
-			}
-			
-			check(PerInstanceRenderData);
-			
-			PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
-
-			VertexFactory.SetData(Data);
-			VertexFactory.InitResource();
-		}
-	});
+			BindBuffersToVertexFactories();
+		});
 }
 
 
@@ -1429,6 +1479,14 @@ void FInstancedStaticMeshSceneProxy::OnTransformChanged()
 			InstanceLocalBounds[0] = GetLocalBounds();
 		}
 	}
+}
+
+bool FInstancedStaticMeshSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmdBuffer& CmdBuffer, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FBoxSphereBounds& InStaticMeshBounds)
+{
+	// This will flush GPU instance data, create buffers, srvs and vertex factories.
+	InstancedRenderData.BindBuffersToVertexFactories();
+
+	return FPrimitiveSceneProxy::UpdateInstances_RenderThread(CmdBuffer, InBounds, InLocalBounds, InStaticMeshBounds);
 }
 
 void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const
@@ -2019,9 +2077,12 @@ void UInstancedStaticMeshComponent::ApplyComponentInstanceData(FInstancedStaticM
 #endif
 }
 
-void UInstancedStaticMeshComponent::FlushInstanceUpdateCommands()
+void UInstancedStaticMeshComponent::FlushInstanceUpdateCommands(bool bFlushInstanceUpdateCmdBuffer)
 {
-	InstanceUpdateCmdBuffer.Reset();
+	if (bFlushInstanceUpdateCmdBuffer)
+	{
+		InstanceUpdateCmdBuffer.Reset();
+	}
 
 	FStaticMeshInstanceData RenderInstanceData = FStaticMeshInstanceData(GVertexElementTypeSupport.IsSupported(VET_Half2));
 	BuildRenderData(RenderInstanceData, PerInstanceRenderData->HitProxies);
@@ -2036,6 +2097,20 @@ bool UInstancedStaticMeshComponent::IsHLODRelevant() const
 	}
 
 	return Super::IsHLODRelevant();
+}
+
+void UInstancedStaticMeshComponent::SendRenderTransform_Concurrent()
+{
+	// If the primitive isn't hidden update its transform.
+	const bool bDetailModeAllowsRendering = DetailMode <= GetCachedScalabilityCVars().DetailMode;
+	if ((InstanceUpdateCmdBuffer.NumEdits || InstanceUpdateCmdBuffer.NumAdds) && bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow || bRayTracingFarField))
+	{
+		UpdateBounds();
+
+		// Update the scene info's transform for this primitive.
+		GetWorld()->Scene->UpdatePrimitiveInstances(this);
+		InstanceUpdateCmdBuffer.Reset();
+	}
 }
 
 FBodyInstance* UInstancedStaticMeshComponent::GetBodyInstance(FName BoneName, bool bGetWelded, int32 Index) const
@@ -2073,7 +2148,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		// generally happens only in editor 
 		if (InstanceUpdateCmdBuffer.NumTotalCommands() != 0)
 		{
-			FlushInstanceUpdateCommands();
+			FlushInstanceUpdateCommands(true);
 		}
 		
 		ProxySize = PerInstanceRenderData->ResourceSize;
@@ -2705,7 +2780,7 @@ void UInstancedStaticMeshComponent::SerializeRenderData(FArchive& Ar)
 				// This will usually happen when having a BP adding instance through the construct script
 				if (PerInstanceRenderData->InstanceBuffer.GetNumInstances() != PerInstanceSMData.Num() || InstanceUpdateCmdBuffer.NumTotalCommands() > 0)
 				{
-					FlushInstanceUpdateCommands();
+					FlushInstanceUpdateCommands(true);
 					MarkRenderStateDirty();
 				}
 			}
@@ -3248,6 +3323,128 @@ bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartIn
 	{
 		MarkRenderStateDirty();
 	}
+
+	return true;
+}
+
+bool UInstancedStaticMeshComponent::UpdateInstances(
+	const TArray<int32>& UpdateInstanceIds, 
+	const TArray<FTransform>& UpdateInstanceTransforms, 
+	const TArray<FTransform>& UpdateInstancePreviousTransforms,
+	int32 InNumCustomDataFloats,
+	const TArray<float>& CustomFloatData)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("ISM UpdateInstances")
+
+	if (UpdateInstanceIds.Num() != UpdateInstanceTransforms.Num())
+	{
+		UE_LOG(LogStaticMesh, Warning, TEXT("Add instances to ISM has missmatched update arrays.  UpdateInstanceIds and UpdateInstanceTransforms should match."));
+		return false;
+	}
+
+	if (UpdateInstanceTransforms.Num() != UpdateInstancePreviousTransforms.Num())
+	{
+		UE_LOG(LogStaticMesh, Warning, TEXT("Add instances to ISM has missmatched update arrays.  Current transform and previous transform arrays should match."));
+		return false;
+	}
+
+	if (InNumCustomDataFloats > 0)
+	{
+		if ((CustomFloatData.Num() / InNumCustomDataFloats) != UpdateInstanceIds.Num())
+		{
+			UE_LOG(LogStaticMesh, Warning, TEXT("CustomFloatData only contains %d entires.  Which is not enough for NumCustomFloat count %d * %d instances."), CustomFloatData.Num(), InNumCustomDataFloats, UpdateInstanceIds.Num());
+			return false;
+		}
+	}
+
+	const int32 NewNumInstances = UpdateInstanceIds.Num();
+	const int32 PreviousNumInstances = PerInstanceSMData.Num();
+
+	// If we didn't have any instances and there are no new instances
+	// skip doing any work.
+	if (PreviousNumInstances == 0 && NewNumInstances == 0)
+	{
+		return false;
+	}
+
+	if (CustomFloatData.Num())
+	{
+		int32 MyNumCustomDataFloats = CustomFloatData.Num() / UpdateInstanceIds.Num();
+		check(UpdateInstanceIds.Num() * MyNumCustomDataFloats == CustomFloatData.Num()); // Temp sanity check
+	}
+
+	Modify();
+
+	// Need to empty the command buffer if it already has values.
+	// If this function is called multiple times the last set of values will take
+	// precedence.  Due to the way MarkRenderTransformDirty() works the primitive will
+	// only be processed once.
+	InstanceUpdateCmdBuffer.Reset();
+
+	NumCustomDataFloats = InNumCustomDataFloats;
+	PerInstanceSMCustomData = CustomFloatData;
+
+	InstanceUpdateCmdBuffer.SetCustomDataFloatsBulk(CustomFloatData, NumCustomDataFloats);
+
+	PerInstanceSMData.SetNum(NewNumInstances, /*bAllowShrinking*/false);
+	PerInstancePrevTransform.SetNum(NewNumInstances, /*bAllowShrinking*/false);
+
+	// if we already have values we need to update, remove, and add.
+	TMap<int32, int32> OldInstanceIdToInstanceIndexMap(InstanceIdToInstanceIndexMap);
+	InstanceIdToInstanceIndexMap.Empty();
+
+	// Apply updates
+	for (int32 i = 0; i < UpdateInstanceIds.Num(); ++i)
+	{
+		FInstancedStaticMeshInstanceData& InstanceData = PerInstanceSMData[i];
+		InstanceData.Transform = UpdateInstanceTransforms[i].ToMatrixWithScale();
+		PerInstancePrevTransform[i] = UpdateInstancePreviousTransforms[i].ToMatrixWithScale();
+
+		// This is an update.
+		const int32 InstanceId = UpdateInstanceIds[i];
+		if (int32* pInstanceIndex = OldInstanceIdToInstanceIndexMap.Find(InstanceId))
+		{
+			InstanceUpdateCmdBuffer.UpdateInstance(*pInstanceIndex, InstanceData.Transform, PerInstancePrevTransform[i]);
+			OldInstanceIdToInstanceIndexMap.Remove(InstanceId);
+		}
+		// This is an add.
+		else
+		{
+			InstanceUpdateCmdBuffer.AddInstance(InstanceData.Transform, PerInstancePrevTransform[i]);
+		}
+
+		// need to make sure the indices we tracked are updated.
+		InstanceIdToInstanceIndexMap.Add(InstanceId, i);
+	}
+
+	// Inform the cmd buffer which instances were removed.
+	for (const auto& InstanceMapping : OldInstanceIdToInstanceIndexMap)
+	{
+		const int32& InstanceIndex = InstanceMapping.Value;
+
+		// not sure if we really need to record this information.
+		// this instance index is the OLD one and is no longer valid.
+		InstanceUpdateCmdBuffer.HideInstance(InstanceIndex);
+	}
+
+	// #todo (jnadro) InstanceIndex is ignored by this function so just pass zero.
+	PartialNavigationUpdate(0);
+
+	// #todo (jnadro) Updating the PerInstanceRenderData this way currently does not work.
+	// Updating the PerInstanceRenderData from the InstanceUpdateCmdBuffer causes
+	// the instances to be in a different order than what is in GPU scene.  This 
+	// causes all sorts of visual artifacts because custom float data doesn't match
+	// with the tranforms in GPU Scene.
+	// PerInstanceRenderData->UpdateFromCommandBuffer(InstanceUpdateCmdBuffer, false);
+
+	// if instance data was modified update it.  This pulls data directly
+	// from the component which we have updated above.
+	if (InstanceUpdateCmdBuffer.NumTotalCommands() != 0)
+	{
+		FlushInstanceUpdateCommands(false);
+	}
+
+	MarkRenderTransformDirty();
 
 	return true;
 }

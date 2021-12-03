@@ -177,11 +177,13 @@ DEFINE_STAT(STAT_RemoveScenePrimitiveTime);
 DEFINE_STAT(STAT_AddScenePrimitiveRenderThreadTime);
 DEFINE_STAT(STAT_UpdateScenePrimitiveRenderThreadTime);
 DEFINE_STAT(STAT_UpdatePrimitiveTransformRenderThreadTime);
+DEFINE_STAT(STAT_UpdatePrimitiveInstanceRenderThreadTime);
 DEFINE_STAT(STAT_FlushAsyncLPICreation);
 
 DEFINE_STAT(STAT_RemoveScenePrimitiveGT);
 DEFINE_STAT(STAT_AddScenePrimitiveGT);
 DEFINE_STAT(STAT_UpdatePrimitiveTransformGT);
+DEFINE_STAT(STAT_UpdatePrimitiveInstanceGT);
 DEFINE_STAT(STAT_UpdateCustomPrimitiveDataGT);
 
 DEFINE_STAT(STAT_Scene_SetShaderMapsOnMaterialResources_RT);

@@ -57,6 +57,7 @@
 #include "VolumetricRenderTargetViewStateData.h"
 #include "GPUScene.h"
 #include "DynamicBVH.h"
+#include "PrimitiveInstanceUpdateCommand.h"
 #include "OIT/OIT.h"
 #include "ShadingEnergyConservation.h"
 
@@ -3030,7 +3031,6 @@ public:
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsyncCreateLPIs = false) override;
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override;
-	virtual void UpdatePrimitiveOcclusionBoundsSlack(UPrimitiveComponent* Primitive, float NewSlack) override;
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override;
 	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override;
 	virtual void UpdatePrimitiveDistanceFieldSceneData_GameThread(UPrimitiveComponent* Primitive) override;
@@ -3462,9 +3462,19 @@ private:
 		FVector AttachmentRootPosition;
 	};
 
+	struct FUpdateInstanceCommand
+	{
+		FPrimitiveSceneProxy* PrimitiveSceneProxy{ nullptr };
+		FInstanceUpdateCmdBuffer CmdBuffer;
+		FBoxSphereBounds WorldBounds;
+		FBoxSphereBounds LocalBounds;
+		FBoxSphereBounds StaticMeshBounds;
+	};
+
 	TMap<FPrimitiveSceneInfo*, FPrimitiveComponentId> UpdatedAttachmentRoots;
 	TMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
 	TMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
+	TMap<FPrimitiveSceneProxy*, FUpdateInstanceCommand> UpdatedInstances;
 	TMap<FPrimitiveSceneInfo*, FMatrix> OverridenPreviousTransforms;
 	TMap<const FPrimitiveSceneProxy*, float> UpdatedOcclusionBoundsSlacks;
 	TSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;

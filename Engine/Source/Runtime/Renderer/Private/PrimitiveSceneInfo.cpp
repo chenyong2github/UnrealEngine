@@ -1087,6 +1087,20 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 	}
 }
 
+void FPrimitiveSceneInfo::ReallocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
+{
+	SCOPED_NAMED_EVENT(ReallocateGPUSceneInstances, FColor::Emerald);
+
+	// Free each scene info.
+	for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+	{
+		SceneInfo->FreeGPUSceneInstances();
+	}
+
+	// Allocate them all.
+	AllocateGPUSceneInstances(Scene, SceneInfos);
+}
+
 void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 {
 	if (!Scene->GPUScene.IsEnabled())
