@@ -16,7 +16,7 @@
 
 namespace UE::MassRepresentation
 {
-	int32 GCallUpdateInstances = 0;
+	int32 GCallUpdateInstances = 1;
 	FAutoConsoleVariableRef  CVarCallUpdateInstances(TEXT("Mass.CallUpdateInstances"), GCallUpdateInstances, TEXT("Toggle between UpdateInstances and BatchUpdateTransform."));
 }  // UE::MassRepresentation
 
