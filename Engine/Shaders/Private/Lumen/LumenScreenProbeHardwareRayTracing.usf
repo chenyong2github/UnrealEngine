@@ -187,9 +187,9 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 			Ray.TMin = max(Ray.TMin, AvoidSelfIntersectionTraceDistance);
 			Ray.TMax = Ray.TMin;
 			// Cull TMax by the bounding sphere of the near-field
-			if (length(Ray.Origin - View.WorldCameraOrigin) < MaxTraceDistance)
+			if (length(Ray.Origin - LWCHackToFloat(PrimaryView.WorldCameraOrigin)) < MaxTraceDistance)
 			{
-				float2 Hit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(View.WorldCameraOrigin, MaxTraceDistance));
+				float2 Hit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(LWCHackToFloat(PrimaryView.WorldCameraOrigin), MaxTraceDistance));
 				Ray.TMax = (Hit.x > 0) ? Hit.x : ((Hit.y > 0) ? Hit.y : Ray.TMin);
 			}
 

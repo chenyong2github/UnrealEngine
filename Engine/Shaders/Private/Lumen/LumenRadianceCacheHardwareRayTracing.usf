@@ -220,7 +220,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 
 #if DIM_CLIP_RAY
 			// Cull TMax by the bounding sphere of the near-field
-			float2 RaySphereHit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(View.WorldCameraOrigin, RayTracingCullingRadius));
+			float2 RaySphereHit = RayIntersectSphere(Ray.Origin, Ray.Direction, float4(LWCHackToFloat(PrimaryView.WorldCameraOrigin), RayTracingCullingRadius));
 			bool bInsideCullingSphere = RaySphereHit.x < 0 && RaySphereHit.y > 0;
 			Ray.TMax = bInsideCullingSphere ? RaySphereHit.y : Ray.TMin;
 #endif // DIM_CULL_RAY
