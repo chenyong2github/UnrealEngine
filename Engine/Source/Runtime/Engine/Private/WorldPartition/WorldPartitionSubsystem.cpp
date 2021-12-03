@@ -57,6 +57,12 @@ static FAutoConsoleCommand CVarDrawDataLayers(
 	TEXT("Toggles debug display of active data layers."),
 	FConsoleCommandDelegate::CreateLambda([] { GDrawDataLayers = !GDrawDataLayers; }));
 
+int32 GDrawDataLayersLoadTime = 0;
+static FAutoConsoleCommand CVarDrawDataLayersLoadTime(
+	TEXT("wp.Runtime.ToggleDrawDataLayersLoadTime"),
+	TEXT("Toggles debug display of active data layers load time."),
+	FConsoleCommandDelegate::CreateLambda([] { GDrawDataLayersLoadTime = !GDrawDataLayersLoadTime; }));
+
 int32 GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP = 64;
 static FAutoConsoleVariableRef CVarGLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP(
 	TEXT("wp.Runtime.LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP"),
@@ -370,7 +376,7 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			WorldPartition->DrawStreamingStatusLegend(Canvas, CurrentOffset);
 		}
 
-		if (DataLayerSubsystem && (GDrawDataLayers || GDrawRuntimeHash2D))
+		if (DataLayerSubsystem && (GDrawDataLayers || GDrawDataLayersLoadTime || GDrawRuntimeHash2D))
 		{
 			DataLayerSubsystem->DrawDataLayersStatus(Canvas, CurrentOffset);
 		}

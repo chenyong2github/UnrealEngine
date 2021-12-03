@@ -150,6 +150,9 @@ private:
 	/** Console command used to toggle activation of a DataLayer */
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
 
+	/** Data layers load time */
+	mutable TMap<UDataLayer*, double> ActiveDataLayersLoadTime;
+
 	/** Console command used to set Runtime DataLayer state*/
 	static class FAutoConsoleCommand SetDataLayerRuntimeStateCommand;
 };

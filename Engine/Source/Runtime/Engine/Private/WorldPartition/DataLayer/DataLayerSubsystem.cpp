@@ -4,15 +4,20 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
+#include "Algo/Transform.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #endif
+
+extern int32 GDrawDataLayersLoadTime;
 
 static FAutoConsoleCommandWithOutputDevice GDumpDataLayersCmd(
 	TEXT("wp.DumpDataLayers"),
@@ -231,19 +236,47 @@ void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offse
 	FVector2D Pos = Offset;
 	float MaxTextWidth = 0.f;
 
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
+
 	auto DrawLayerNames = [this, Canvas, &Pos, &MaxTextWidth](const FString& Title, FColor HeaderColor, FColor TextColor, const TSet<FName>& LayerNames)
 	{
 		if (LayerNames.Num() > 0)
 		{
 			FWorldPartitionDebugHelper::DrawText(Canvas, Title, GEngine->GetSmallFont(), HeaderColor, Pos, &MaxTextWidth);
 
-			UFont* DataLayerFont = GEngine->GetSmallFont();
+			TArray<UDataLayer*> DataLayers;
+			DataLayers.Reserve(LayerNames.Num());
 			for (const FName& DataLayerName : LayerNames)
 			{
 				if (UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName))
 				{
-					FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DataLayer->GetDataLayerLabel().ToString(), DataLayerFont, DataLayer->GetDebugColor(), TextColor, Pos, &MaxTextWidth);
+					DataLayers.Add(DataLayer);
 				}
+			}
+
+			DataLayers.Sort([](const UDataLayer& A, const UDataLayer& B) { return A.GetDataLayerLabel().LexicalLess(B.GetDataLayerLabel()); });
+
+			UFont* DataLayerFont = GEngine->GetSmallFont();
+			for (UDataLayer* DataLayer : DataLayers)
+			{
+				FString DataLayerString = DataLayer->GetDataLayerLabel().ToString();
+
+				if (GDrawDataLayersLoadTime)
+				{
+					if (double* DataLayerLoadTime = ActiveDataLayersLoadTime.Find(DataLayer))
+					{
+						if (*DataLayerLoadTime < 0)
+						{
+							DataLayerString += FString::Printf(TEXT(" (streaming %s)"), *FPlatformTime::PrettyTime(FPlatformTime::Seconds() + *DataLayerLoadTime));
+						}
+						else
+						{
+							DataLayerString += FString::Printf(TEXT(" (took %s)"), *FPlatformTime::PrettyTime(*DataLayerLoadTime));
+						}
+					}
+				}
+
+				FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *DataLayerString, DataLayerFont, DataLayer->GetDebugColor(), TextColor, Pos, &MaxTextWidth);
 			}
 		}
 	};
@@ -254,9 +287,9 @@ void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offse
 	DrawLayerNames(TEXT("Loaded Data Layers"), FColor::Cyan, FColor::White, LoadedDataLayers);
 	DrawLayerNames(TEXT("Active Data Layers"), FColor::Green, FColor::White, ActiveDataLayers);
 
+	TSet<FName> UnloadedDataLayers;
 	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		TSet<FName> UnloadedDataLayers;
+	{		
 		WorldDataLayers->ForEachDataLayer([&LoadedDataLayers, &ActiveDataLayers, &UnloadedDataLayers](UDataLayer* DataLayer)
 		{
 			if (DataLayer->IsRuntime())
@@ -273,6 +306,60 @@ void UDataLayerSubsystem::DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offse
 	}
 
 	Offset.X += MaxTextWidth + 10;
+
+	// Update data layers load times
+	if (GDrawDataLayersLoadTime)
+	{
+		for (FName DataLayerName : UnloadedDataLayers)
+		{
+			if (UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName))
+			{
+				ActiveDataLayersLoadTime.Remove(DataLayer);
+			}
+		}
+
+		TArray<UDataLayer*> LoadingDataLayers;
+		LoadingDataLayers.Reserve(LoadedDataLayers.Num() + ActiveDataLayers.Num());
+		auto CopyLambda = [this](FName DataLayerName) { return GetDataLayerFromName(DataLayerName); };
+		Algo::Transform(LoadedDataLayers, LoadingDataLayers, CopyLambda);
+		Algo::Transform(ActiveDataLayers, LoadingDataLayers, CopyLambda);
+
+		for (UDataLayer* DataLayer : LoadingDataLayers)
+		{
+			double* DataLayerLoadTime = ActiveDataLayersLoadTime.Find(DataLayer);
+
+			auto IsDataLayerReady = [WorldPartitionSubsystem](UDataLayer* DataLayer, EWorldPartitionRuntimeCellState TargetState)
+			{
+				FWorldPartitionStreamingQuerySource QuerySource;
+				QuerySource.bDataLayersOnly = true;
+				QuerySource.bSpatialQuery = false;
+				QuerySource.DataLayers.Add(DataLayer->GetFName());
+				return WorldPartitionSubsystem->IsStreamingCompleted(TargetState, { QuerySource }, true);
+			};
+
+			const EWorldPartitionRuntimeCellState TargetState = ActiveDataLayers.Contains(DataLayer->GetFName()) ? EWorldPartitionRuntimeCellState::Activated : EWorldPartitionRuntimeCellState::Loaded;
+
+			if (!DataLayerLoadTime)
+			{
+				if (!IsDataLayerReady(DataLayer, TargetState))
+				{
+					DataLayerLoadTime = &ActiveDataLayersLoadTime.Add(DataLayer, -FPlatformTime::Seconds());
+				}
+			}
+
+			if (DataLayerLoadTime && (*DataLayerLoadTime < 0))
+			{
+				if (IsDataLayerReady(DataLayer, TargetState))
+				{
+					*DataLayerLoadTime = FPlatformTime::Seconds() + *DataLayerLoadTime;
+				}
+			}
+		}
+	}
+	else
+	{
+		ActiveDataLayersLoadTime.Empty();
+	}
 }
 
 TArray<UDataLayer*> UDataLayerSubsystem::ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs)
