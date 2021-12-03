@@ -31,10 +31,16 @@ inline void SetRadianceProbeCoordToWorldPosition(FVector4f& PackedParams, const 
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FMarkUsedRadianceCacheProbes, FRDGBuilder&, const FViewInfo&, const LumenRadianceCache::FRadianceCacheMarkParameters&);
 
+struct FRadianceCacheConfiguration
+{
+	bool bFarField = true;
+};
+
 extern void RenderRadianceCache(
 	FRDGBuilder& GraphBuilder, 
 	const FLumenCardTracingInputs& TracingInputs, 
 	const LumenRadianceCache::FRadianceCacheInputs& RadianceCacheInputs,
+	FRadianceCacheConfiguration Configuration,
 	const class FScene* Scene,
 	const FViewInfo& View, 
 	const FScreenProbeParameters* ScreenProbeParameters,
@@ -50,6 +56,7 @@ extern void RenderLumenHardwareRayTracingRadianceCache(
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	FRadianceCacheConfiguration Configuration,
 	float DiffuseConeHalfAngle,
 	int32 MaxNumProbes,
 	int32 MaxProbeTraceTileResolution,

@@ -109,6 +109,14 @@ namespace LumenRadianceCache
 	constexpr uint32 MAX_UPDATE_BUCKET_STRIDE = 2;
 	constexpr uint32 PROBES_TO_UPDATE_TRACE_COST_STRIDE = 2;
 
+	FRadianceCacheInputs GetDefaultRadianceCacheInputs()
+	{
+		FRadianceCacheInputs RadianceCacheInputs;
+		RadianceCacheInputs.CalculateIrradiance = 0;
+		RadianceCacheInputs.IrradianceProbeResolution = 0;
+		return RadianceCacheInputs;
+	}
+
 	void GetInterpolationParametersNoResources(
 		FRDGBuilder& GraphBuilder, 
 		const FRadianceCacheState& RadianceCacheState,
@@ -1014,6 +1022,7 @@ void RenderRadianceCache(
 	FRDGBuilder& GraphBuilder, 
 	const FLumenCardTracingInputs& TracingInputs, 
 	const LumenRadianceCache::FRadianceCacheInputs& RadianceCacheInputs,
+	FRadianceCacheConfiguration Configuration,
 	const FScene* Scene,
 	const FViewInfo& View, 
 	const FScreenProbeParameters* ScreenProbeParameters,
@@ -1622,6 +1631,7 @@ void RenderRadianceCache(
 				View,
 				TracingInputs,
 				RadianceCacheParameters,
+				Configuration,
 				DiffuseConeHalfAngle,
 				MaxNumProbes,
 				MaxProbeTraceTileResolution,

@@ -482,7 +482,7 @@ namespace LumenScreenProbeGatherRadianceCache
 
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs()
 	{
-		LumenRadianceCache::FRadianceCacheInputs Parameters;
+		LumenRadianceCache::FRadianceCacheInputs Parameters = LumenRadianceCache::GetDefaultRadianceCacheInputs();
 		Parameters.ReprojectionRadiusScale = GRadianceCacheReprojectionRadiusScale;
 		Parameters.ClipmapWorldExtent = GLumenRadianceCacheClipmapWorldExtent;
 		Parameters.ClipmapDistributionBase = GLumenRadianceCacheClipmapDistributionBase;
@@ -492,8 +492,6 @@ namespace LumenScreenProbeGatherRadianceCache
 		Parameters.RadianceProbeResolution = GetProbeResolution();
 		Parameters.FinalProbeResolution = GetFinalProbeResolution();
 		Parameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
-		Parameters.CalculateIrradiance = 0;
-		Parameters.IrradianceProbeResolution = 0;
 		Parameters.NumProbesToTraceBudget = GRadianceCacheNumProbesToTraceBudget;
 		Parameters.RadianceCacheStats = GRadianceCacheStats;
 		return Parameters;
@@ -1681,6 +1679,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			GraphBuilder, 
 			TracingInputs, 
 			RadianceCacheInputs, 
+			FRadianceCacheConfiguration(),
 			Scene,
 			View, 
 			&ScreenProbeParameters, 
