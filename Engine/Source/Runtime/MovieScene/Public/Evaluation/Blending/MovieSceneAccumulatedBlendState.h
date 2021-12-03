@@ -13,7 +13,7 @@
 /**
  * Container struct that houses all tokens of a single data type that are to be applied using a specific actuator
  */
-typedef TInlineValue<IBlendableTokenStack, 32> FActuatorTokenStackPtr;
+typedef TInlineValue<IBlendableTokenStack, 64> FActuatorTokenStackPtr;
 
 struct FMovieSceneBlendingKey
 {
