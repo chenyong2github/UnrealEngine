@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	QuadOverdraw.usf: Utils to compute quad coverage
+	QuadOverdraw.ush: Utils to compute quad coverage
 =============================================================================*/
 
 #pragma once
 
-// Because we use the same UAV for Descritors and Complexity, we have the same clear value.
+// Because we use the same UAV for Descriptors and Complexity, we have the same clear value.
 // In this case, the invalid descriptor is 0, so we need to add 1 to the primitive ID to prevent clash.
 const static uint QO_DESC_NONE = 0;
 
@@ -74,7 +74,7 @@ uint2 QuadComplexityOffset()
 	
 	bOutputToComplexity : if complexity is written to the UAV instead of RT. 
 		This is the only code path enabling early out in the costly loop. 
-		Use with [earlydepthstencil] to keep depth write and udpate.
+		Use with [earlydepthstencil] to keep depth write and update.
 		A major behavior difference is that complexity is always additive. (can be changed)
 	
 	QuadComplexity : the value of the quad complexity.
