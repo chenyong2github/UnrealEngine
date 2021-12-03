@@ -41,6 +41,13 @@ void FGrowOnlySpanAllocator::Free(int32 BaseOffset, int32 Num)
 
 	FLinearAllocation NewFreeSpan(BaseOffset, Num);
 
+	// If we are deferring consolidation, just store the item, merging happens on allocate
+	if (bDeferMerges)
+	{
+		FreeSpans.Add(NewFreeSpan);
+		return;
+	}
+
 #if DO_GUARD_SLOW
 	// Detect double delete
 	for (int32 i = 0; i < FreeSpans.Num(); i++)
@@ -49,8 +56,6 @@ void FGrowOnlySpanAllocator::Free(int32 BaseOffset, int32 Num)
 		checkSlow(!(CurrentSpan.Contains(NewFreeSpan)));
 	}
 #endif
-
-	bool bMergedIntoExisting = false;
 
 	int32 SpanBeforeIndex = INDEX_NONE;
 	int32 SpanAfterIndex = INDEX_NONE;
@@ -98,6 +103,48 @@ void FGrowOnlySpanAllocator::Free(int32 BaseOffset, int32 Num)
 		FreeSpans.Add(NewFreeSpan);
 	}
 }
+
+
+void FGrowOnlySpanAllocator::BeginDeferMerges()
+{
+	check(!bDeferMerges);
+	bDeferMerges = true;
+
+}
+void FGrowOnlySpanAllocator::EndDeferMerges()
+{
+	check(bDeferMerges);
+	bDeferMerges = false;
+
+	// Consolidation 
+	// 1. Sort the Free list by span start
+	FreeSpans.Sort();
+
+	// alternate free list, used during consolidation to avoid N^2 worst case, retained to avoid re-allocations.
+	TArray<FLinearAllocation, TInlineAllocator<10>> FreeSpansTmp;
+	FreeSpansTmp.Reset(FreeSpans.Num());
+
+	int32 PrevEndOffset = INDEX_NONE;
+
+	// 2. Loop over and fuse all adjacent, copy into new free list (to avoid compaction)
+	for (int32 Index = 0; Index < FreeSpans.Num(); ++Index)
+	{
+		FLinearAllocation Alloc = FreeSpans[Index];
+		// Continues the previous one, fuse
+		if (PrevEndOffset == Alloc.StartOffset)
+		{
+			FreeSpansTmp.Last().Num += Alloc.Num;
+		}
+		else
+		{
+			FreeSpansTmp.Add(Alloc);
+		}
+		PrevEndOffset = FreeSpansTmp.Last().Num + FreeSpansTmp.Last().StartOffset;
+	}
+	// 3. Swap old and new free lists
+	Swap(FreeSpans, FreeSpansTmp);
+}
+
 
 int32 FGrowOnlySpanAllocator::SearchFreeList(int32 Num)
 {

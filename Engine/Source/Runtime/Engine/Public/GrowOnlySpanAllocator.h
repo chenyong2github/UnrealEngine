@@ -65,6 +65,13 @@ public:
 	}
 #endif // DO_CHECK
 
+	/** 
+	 * Between these calls to Free just appends the allocation to the free list, rather than trying to merge with existing allocations.
+	 * At EndDeferMerges the free list is consolidated by sorting and merging all spans. This amortises the cost of the merge over many calls.
+	 */
+	ENGINE_API void BeginDeferMerges();
+	ENGINE_API void EndDeferMerges();
+
 private:
 	class FLinearAllocation
 	{
@@ -82,6 +89,11 @@ private:
 		{
 			return StartOffset <= Other.StartOffset && (StartOffset + Num) >= (Other.StartOffset + Other.Num);
 		}
+
+		bool operator<(const FLinearAllocation& Other) const
+		{
+			return StartOffset < Other.StartOffset;
+		}
 	};
 
 	// Size of the linear range used by the allocator
@@ -89,6 +101,8 @@ private:
 
 	// Unordered free list
 	TArray<FLinearAllocation, TInlineAllocator<10>> FreeSpans;
+
+	bool bDeferMerges = false;
 
 	ENGINE_API int32 SearchFreeList(int32 Num);
 };

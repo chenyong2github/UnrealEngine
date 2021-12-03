@@ -97,6 +97,16 @@ static TAutoConsoleVariable<float> CVarGPUSceneDebugDrawRange(
 	ECVF_RenderThreadSafe
 );
 
+
+static int32 GGPUSceneAllowDeferredAllocatorMerges = 1;
+FAutoConsoleVariableRef CVarGPUSceneAllowDeferredAllocatorMerges(
+	TEXT("r.GPUScene.AllowDeferredAllocatorMerges"),
+	GGPUSceneAllowDeferredAllocatorMerges,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+
 constexpr uint32 InstanceSceneDataNumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
 
 int32 GGPUSceneInstanceUploadViaCreate = 1;
@@ -1844,6 +1854,26 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 }
 
 
+void FGPUScene::BeginDeferAllocatorMerges()
+{
+	if (GGPUSceneAllowDeferredAllocatorMerges != 0)
+	{
+		InstanceSceneDataAllocator.BeginDeferMerges();
+		InstancePayloadDataAllocator.BeginDeferMerges();
+		LightmapDataAllocator.BeginDeferMerges();
+	}
+}
+
+
+void FGPUScene::EndDeferAllocatorMerges()
+{
+	if (GGPUSceneAllowDeferredAllocatorMerges != 0)
+	{
+		InstanceSceneDataAllocator.EndDeferMerges();
+		InstancePayloadDataAllocator.EndDeferMerges();
+		LightmapDataAllocator.EndDeferMerges();
+	}
+}
 
 
 TRange<int32> FGPUScene::CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector)

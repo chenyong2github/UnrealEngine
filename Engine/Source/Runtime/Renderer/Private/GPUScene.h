@@ -304,6 +304,13 @@ public:
 	 */
 	void DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View);
 
+	/**
+	 * Between these calls to FGrowOnlySpanAllocator::Free just appends the allocation to the free list, rather than trying to merge with existing allocations.
+	 * At EndDeferAllocatorMerges the free list is consolidated by sorting and merging all spans. This amortises the cost of the merge over many calls.
+	 */
+	void BeginDeferAllocatorMerges();
+	void EndDeferAllocatorMerges();
+
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
