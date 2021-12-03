@@ -60,6 +60,7 @@ class FInstanceCullingContext
 public:
 	static constexpr uint32 IndirectArgsNumWords = 5;
 	RENDERER_API static uint32 GetInstanceIdBufferStride(ERHIFeatureLevel::Type FeatureLevel);
+	RENDERER_API static uint32 StepInstanceDataOffset(ERHIFeatureLevel::Type FeatureLevel, uint32 NumStepInstances, uint32 NumStepDraws);
 
 	FInstanceCullingContext() {}
 
@@ -82,14 +83,6 @@ public:
 	static RENDERER_API const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> CreateDummyInstanceCullingUniformBuffer(FRDGBuilder& GraphBuilder);
 
 	static bool IsOcclusionCullingEnabled();
-
-	struct FBatchItem
-	{
-		const FInstanceCullingContext* Context = nullptr;
-		FInstanceCullingDrawParams* Result = nullptr;
-		int32 DynamicInstanceIdOffset = 0;
-		int32 DynamicInstanceIdNum = 0;
-	};
 
 	/**
 	 * Call to empty out the culling commands & other culling data.
@@ -192,19 +185,6 @@ public:
 		uint32 bMaterialMayModifyPosition;
 	};
 
-	// Info about a batch of culling work produced by a context, when part of a batched job
-	// Store once per context, provides start offsets to commands/etc for the context.
-	struct FContextBatchInfo
-	{
-		uint32 IndirectArgsOffset;
-		uint32 InstanceDataWriteOffset;
-		uint32 ViewIdsOffset;
-		uint32 NumViewIds;
-		uint32 DynamicInstanceIdOffset;
-		uint32 DynamicInstanceIdMax;
-		uint32 ItemDataOffset[uint32(EBatchProcessingMode::Num)];
-	};
-	
 	TArray<FMeshDrawCommandInfo> MeshDrawCommandInfos;
 	TArray<FRHIDrawIndexedIndirectParameters> IndirectArgs;
 	TArray<FDrawCommandDesc> DrawCommandDescs;

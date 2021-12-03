@@ -28,13 +28,9 @@ namespace InstanceCullingImplementationDetails
 /*
  * Helper to build the needed data to run per-instance operation on the GPU in a balanced way
  */
-template <typename InAllocatorType = FDefaultAllocator>
-class TInstanceCullingLoadBalancer
+class FInstanceCullingLoadBalancerBase
 {
 public:
-	using AllocatorType = InAllocatorType;
-	static constexpr ERDGInitialDataFlags DefaultRDGInitialDataFlags = InstanceCullingImplementationDetails::AllocatorTypeRDGInitialDataFlags<AllocatorType>::Flags;
-
 	static constexpr uint32 ThreadGroupSize = 64U;
 
 	// Number of bits needed for prefix sum storage
@@ -44,6 +40,76 @@ public:
 
 	static constexpr uint32 NumInstancesItemBits = PrefixBits + 1U;
 	static constexpr uint32 NumInstancesItemMask = (1U << NumInstancesItemBits) - 1U;
+
+
+	struct FPackedBatch
+	{
+		uint32 FirstItem_NumItems;
+	};
+
+	FPackedBatch PackBatch(uint32 FirstItem, uint32 NumItems)
+	{
+		checkSlow(NumItems < (1U << NumInstancesItemBits));
+		checkSlow(FirstItem < (1U << (32U - NumInstancesItemBits)));
+
+		return FPackedBatch{ (FirstItem << NumInstancesItemBits) | (NumItems & NumInstancesItemMask) };
+	}
+
+	struct FPackedItem
+	{
+		// packed 32-NumInstancesItemBits:NumInstancesItemBits - need one more bit for the case where one item has ThreadGroupSize work to do
+		uint32 InstanceDataOffset_NumInstances;
+		// packed 32-PrefixBits:PrefixBits
+		uint32 Payload_BatchPrefixOffset;
+	};
+	FPackedItem PackItem(uint32 InstanceDataOffset, uint32 NumInstances, uint32 Payload, uint32 BatchPrefixSum)
+	{
+		checkSlow(NumInstances < (1U << NumInstancesItemBits));
+		checkSlow(InstanceDataOffset < (1U << (32U - NumInstancesItemBits)));
+		checkSlow(BatchPrefixSum < (1U << PrefixBits));
+		checkSlow(Payload < (1U << (32U - PrefixBits)));
+
+		return FPackedItem
+		{
+			(InstanceDataOffset << NumInstancesItemBits) | (NumInstances & NumInstancesItemMask),
+			(Payload << PrefixBits) | (BatchPrefixSum & PrefixBitMask)
+		};
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedBatch >, BatchBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedItem >, ItemBuffer)
+		SHADER_PARAMETER(uint32, NumBatches)
+		SHADER_PARAMETER(uint32, NumItems)
+	END_SHADER_PARAMETER_STRUCT()
+
+	struct FGPUData
+	{
+		int32 NumBatches = 0;
+		int32 NumItems = 0;
+		FRDGBufferRef BatchBuffer = nullptr;
+		FRDGBufferRef ItemBuffer = nullptr;
+
+		void GetShaderParameters(FRDGBuilder& GraphBuilder, FShaderParameters& ShaderParameters)
+		{
+			ShaderParameters.BatchBuffer = GraphBuilder.CreateSRV(BatchBuffer);
+			ShaderParameters.ItemBuffer = GraphBuilder.CreateSRV(ItemBuffer);
+			ShaderParameters.NumBatches = NumBatches;
+			ShaderParameters.NumItems = NumItems;
+		}
+	};
+};
+
+/*
+ * Helper to build the needed data to run per-instance operation on the GPU in a balanced way
+ */
+template <typename InAllocatorType = FDefaultAllocator>
+class TInstanceCullingLoadBalancer : public FInstanceCullingLoadBalancerBase
+{
+public:
+	using AllocatorType = InAllocatorType;
+	static constexpr ERDGInitialDataFlags DefaultRDGInitialDataFlags = InstanceCullingImplementationDetails::AllocatorTypeRDGInitialDataFlags<AllocatorType>::Flags;
+
 
 	/*
 	 * Publish constants to a shader implementing a kernel using the load balancer.
@@ -107,63 +173,6 @@ public:
 		return Items.IsEmpty();
 	}
 
-	struct FPackedBatch
-	{
-		uint32 FirstItem_NumItems;
-	};
-
-	FPackedBatch PackBatch(uint32 FirstItem, uint32 NumItems)
-	{
-		checkSlow(NumItems < (1U << NumInstancesItemBits));
-		checkSlow(FirstItem < (1U << (32U - NumInstancesItemBits)));
-
-		return FPackedBatch{ (FirstItem << NumInstancesItemBits) | (NumItems & NumInstancesItemMask) };
-	}
-
-	struct FPackedItem
-	{
-		// packed 32-NumInstancesItemBits:NumInstancesItemBits - need one more bit for the case where one item has ThreadGroupSize work to do
-		uint32 InstanceDataOffset_NumInstances;
-		// packed 32-PrefixBits:PrefixBits
-		uint32 Payload_BatchPrefixOffset;
-	};
-	FPackedItem PackItem(uint32 InstanceDataOffset, uint32 NumInstances, uint32 Payload, uint32 BatchPrefixSum)
-	{
-		checkSlow(NumInstances < (1U << NumInstancesItemBits));
-		checkSlow(InstanceDataOffset < (1U << (32U - NumInstancesItemBits)));
-		checkSlow(BatchPrefixSum < (1U << PrefixBits));
-		checkSlow(Payload < (1U << (32U - PrefixBits)));
-
-		return FPackedItem
-		{
-			(InstanceDataOffset << NumInstancesItemBits) | (NumInstances & NumInstancesItemMask),
-			(Payload << PrefixBits) | (BatchPrefixSum & PrefixBitMask)
-		};
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedBatch >, BatchBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedItem >, ItemBuffer)
-		SHADER_PARAMETER(uint32, NumBatches)
-		SHADER_PARAMETER(uint32, NumItems)
-	END_SHADER_PARAMETER_STRUCT()
-
-	struct FGPUData
-	{
-		int32 NumBatches = 0;
-		int32 NumItems = 0;
-		FRDGBufferRef BatchBuffer = nullptr;
-		FRDGBufferRef ItemBuffer = nullptr;
-
-		void GetShaderParameters(FRDGBuilder& GraphBuilder, FShaderParameters& ShaderParameters)
-		{
-			ShaderParameters.BatchBuffer = GraphBuilder.CreateSRV(BatchBuffer);
-			ShaderParameters.ItemBuffer = GraphBuilder.CreateSRV(ItemBuffer);
-			ShaderParameters.NumBatches = NumBatches;
-			ShaderParameters.NumItems = NumItems;
-		}
-	};
-
 	FGPUData Upload(FRDGBuilder& GraphBuilder, ERDGInitialDataFlags RDGInitialDataFlags = DefaultRDGInitialDataFlags)
 	{
 		FinalizeBatches();
@@ -210,14 +219,14 @@ public:
 		return Items;
 	}
 
+	uint32 GetTotalNumInstances() const { return TotalInstances; }
+
 	template <typename AllocatorType>
 	void AppendData(const TInstanceCullingLoadBalancer<AllocatorType> &Other)
 	{
-		check(Other.CurrentBatchNumItems == 0);
-
-		Batches.Append(Other.Batches);
-		Items.Append(Other.Items);
-		TotalInstances += Other.TotalInstances;
+		Batches.Append(Other.GetBatches().GetData(), Other.GetBatches().Num());
+		Items.Append(Other.GetItems().GetData(), Other.GetItems().Num());
+		TotalInstances += Other.GetTotalNumInstances();
 	}
 
 	bool HasSingleInstanceItemsOnly() const

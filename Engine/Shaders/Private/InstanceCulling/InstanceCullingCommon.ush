@@ -4,7 +4,40 @@
 
 #include "../Common.ush"
 
+#ifndef BATCH_PROCESSING_MODE_NUM
+#define BATCH_PROCESSING_MODE_NUM 1
+#endif // BATCH_PROCESSING_MODE_NUM
+
+
 struct FDrawCommandDesc
 {
 	uint bMaterialMayModifyPosition;
 };
+
+struct FContextBatchInfo
+{
+	uint IndirectArgOffset;
+	uint InstanceDataWriteOffset;
+	uint ViewIdsOffset;
+	uint NumViewIds;
+	uint DynamicInstanceIdOffset;
+	uint DynamicInstanceIdMax;
+	// Must be equal to ItemDataOffset[BATCH_PROCESSING_MODE_NUM]
+	// Not using array here to avoid GL shader compiler bug on Adreno devices
+	uint ItemDataOffset0;
+	uint ItemDataOffset1;
+};
+
+uint GetItemDataOffset(FContextBatchInfo BatchInfo, uint BatchProcessingMode)
+{
+#if BATCH_PROCESSING_MODE_NUM > 2
+#error Make sure FContextBatchInfo::ItemDataOffset is up to date with BATCH_PROCESSING_MODE_NUM
+#else
+	return (BatchProcessingMode == 0U) ? BatchInfo.ItemDataOffset0 : BatchInfo.ItemDataOffset1;
+#endif
+}
+
+#if ENABLE_BATCH_MODE
+StructuredBuffer<FContextBatchInfo> BatchInfos;
+StructuredBuffer<uint> BatchInds;
+#endif // ENABLE_BATCH_MODE
