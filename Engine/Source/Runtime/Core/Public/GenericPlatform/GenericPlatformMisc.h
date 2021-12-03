@@ -922,6 +922,11 @@ public:
 	 */
 	static bool RestartApplication();
 
+    /**
+	 * Requests application to restart appending the passed in CmdLine to the restart
+	 */
+	static bool RestartApplicationWithCmdLine(const char* CmdLine);
+
 	/**
 	 * Returns the last system error code in string form.  NOTE: Only one return value is valid at a time!
 	 *

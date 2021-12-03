@@ -911,6 +911,12 @@ void FGenericPlatformMisc::RequestExit( bool Force )
 	}
 }
 
+bool FGenericPlatformMisc::RestartApplicationWithCmdLine(const char* CmdLine)
+{
+	UE_LOG(LogInit, Display, TEXT("Restart application (with cmdnline) is not supported or implemented in current platform"));
+	return false;
+}
+
 bool FGenericPlatformMisc::RestartApplication()
 {
 	UE_LOG(LogInit, Display, TEXT("Restart application is not supported or implemented in current platform"));
