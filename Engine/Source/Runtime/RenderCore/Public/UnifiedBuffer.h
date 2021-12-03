@@ -57,7 +57,7 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBuffer&
 class FScatterUploadBuffer
 {
 public:
-	enum { PrimitiveDataStrideInFloat4s = 38 };
+	enum { PrimitiveDataStrideInFloat4s = 39 };
 
 	FByteAddressBuffer ScatterBuffer;
 	FByteAddressBuffer UploadBuffer;
