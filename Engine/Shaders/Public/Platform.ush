@@ -752,6 +752,95 @@ float4 max3( float4 a, float4 b, float4 c )
 	);
 }
 
+#if PLATFORM_SUPPORTS_REAL_TYPES
+
+half min3( half a, half b, half c )
+{
+	return min( a, min( b, c ) );
+}
+
+half max3( half a, half b, half c )
+{
+	return max( a, max( b, c ) );
+}
+
+half2 min3( half2 a, half2 b, half2 c )
+{
+	return half2(
+		min3( a.x, b.x, c.x ),
+		min3( a.y, b.y, c.y )
+	);
+}
+
+half2 max3( half2 a, half2 b, half2 c )
+{
+	return half2(
+		max3( a.x, b.x, c.x ),
+		max3( a.y, b.y, c.y )
+	);
+}
+
+half3 max3( half3 a, half3 b, half3 c )
+{
+	return half3(
+		max3( a.x, b.x, c.x ),
+		max3( a.y, b.y, c.y ),
+		max3( a.z, b.z, c.z )
+	);
+}
+
+half3 min3( half3 a, half3 b, half3 c )
+{
+	return half3(
+		min3( a.x, b.x, c.x ),
+		min3( a.y, b.y, c.y ),
+		min3( a.z, b.z, c.z )
+	);
+}
+
+half4 min3( half4 a, half4 b, half4 c )
+{
+	return half4(
+		min3( a.x, b.x, c.x ),
+		min3( a.y, b.y, c.y ),
+		min3( a.z, b.z, c.z ),
+		min3( a.w, b.w, c.w )
+	);
+}
+
+half4 max3( half4 a, half4 b, half4 c )
+{
+	return half4(
+		max3( a.x, b.x, c.x ),
+		max3( a.y, b.y, c.y ),
+		max3( a.z, b.z, c.z ),
+		max3( a.w, b.w, c.w )
+	);
+}
+
+#endif
+
+#endif
+
+#if PLATFORM_SUPPORTS_REAL_TYPES && !defined(COMPILER_SUPPORTS_PACK_B32_B16)
+
+// Function that explicitly use RDNA's v_pack_b32_f16 on supported platform. Note that RDNA's documentation call this instruction v_pack_b32_f16
+// but really is a v_pack_b32_b16.
+half2 v_pack_b32_b16(half a, half b)
+{
+	return half2(a, b);
+}
+
+int16_t2 v_pack_b32_b16(int16_t a, int16_t b)
+{
+	return int16_t2(a, b);
+}
+
+uint16_t2 v_pack_b32_b16(uint16_t a, uint16_t b)
+{
+	return uint16_t2(a, b);
+}
+
 #endif
 
 #if !defined(COMPILER_SUPPORTS_COND_MASK)

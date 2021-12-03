@@ -9,6 +9,10 @@
 #include "/Engine/Public/DualPixelVectorization.ush"
 
 
+//------------------------------------------------------- RECOMPILE HASH
+// 4E268118-A455-494C-BA81-DCFF1C9528CB
+
+
 //------------------------------------------------------- COMPILER CONFIG
 
 // Generate vector truncation warnings to errors.
@@ -543,12 +547,8 @@ taa_short2 InvalidateOutputPixelPos(taa_short2 PixelPos, uint2 ViewportMax)
 
 taa_ushort2 Map8x8Tile2x2Lane(uint GroupThreadIndex)
 {
-	taa_ushort T = taa_ushort(GroupThreadIndex);
-
-	taa_ushort2 GroupId;
-	GroupId.x = ((T >> taa_ushort(0)) & taa_ushort(0x01)) | ((T >> taa_ushort(2 - 1)) & taa_ushort(0x03 << 1));
-	GroupId.y = ((T >> taa_ushort(1)) & taa_ushort(0x01)) | ((T >> taa_ushort(4 - 1)) & taa_ushort(0x03 << 1));
-
+	taa_ushort2 T = taa_ushort(GroupThreadIndex).xx;
+	taa_ushort2 GroupId = (T >> taa_ushort2(0, 1) & taa_ushort2(0x01, 0x01)) | ((T >> taa_ushort2(2 - 1, 4 - 1)) & taa_ushort2(0x03 << 1, 0x03 << 1));
 	return GroupId;
 }
 
@@ -591,12 +591,17 @@ half2 SafeRcp(half2 x)
 
 taa_half3x2 RGBToYCoCg(taa_half3x2 RGB)
 {
-	taa_half2 Y  = mul(taa_half3(1, 2, 1), RGB);
-	taa_half2 Co = mul(taa_half3(2, 0, -2), RGB);
-	taa_half2 Cg = mul(taa_half3(-1, 2, -1), RGB);
+    taa_half2 R = RGB[0];
+    taa_half2 G = RGB[1];
+    taa_half2 B = RGB[2];       
 
-	taa_half3x2 YCoCg = taa_half3x2(Y, Co, Cg);
-	return YCoCg;
+    taa_half2 RplusB = R + B;
+    taa_half2 Y = 2.0 * G + RplusB;
+    taa_half2 Cg = 2.0 * G - RplusB;
+    taa_half2 Co = 2.0 * (R - B);
+    taa_half3x2 YCoCg = taa_half3x2(Y, Co, Cg);
+
+    return YCoCg;
 }
 
 taa_half3x2 YCoCgToRGB(taa_half3x2 YCoCg)
@@ -774,7 +779,7 @@ taa_half2 MeasureRejectionFactor(
 		BoxSize * taa_half(0.25),
 		taa_half3x2(BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError));
 
-	taa_half3x2 Factor = taa_half(1.0) - saturate(max(ClampedEnergy - ClampError, taa_half3x2(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) / max(Delta, BoxSize));
+	taa_half3x2 Factor = taa_half(1.0) - saturate(max(ClampedEnergy - ClampError, taa_half3x2(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)) * rcp(max(Delta, BoxSize)));
 
 	taa_half2 Rejection = min3(Factor[0], Factor[1], Factor[2]);
 	

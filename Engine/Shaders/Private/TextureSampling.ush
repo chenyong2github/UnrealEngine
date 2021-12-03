@@ -105,7 +105,7 @@ void Bicubic2DCatmullRom(in float2 UV, in float2 Size, in float2 InvSize, out fl
 	Weight[2] = w3;
 
 	Sample[0] = tc - 1;
-	Sample[1] = tc + w2 / Weight[1];
+	Sample[1] = tc + w2 * rcp(Weight[1]);
 	Sample[2] = tc + 2;
 
 	Sample[0] *= InvSize;
