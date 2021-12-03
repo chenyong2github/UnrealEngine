@@ -3279,10 +3279,16 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		EffectiveForceLOD = LODForcedIndex;
 	}
 
+	const bool bSwapBuffer = GetHairSwapBufferType() == EHairBufferSwapType::Tick;
+	FTransform SkelLocalToTransform = FTransform::Identity;	
+	if (RegisteredMeshComponent)
+	{
+		SkelLocalToTransform = RegisteredMeshComponent->GetComponentTransform();
+	}
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	const EHairLODSelectionType LocalLODSelectionType = LODSelectionType;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, FeatureLevel, LocalHairGroupInstances, EffectiveForceLOD, LocalLODSelectionType](FRHICommandListImmediate& RHICmdList)
+		[Id, FeatureLevel, LocalHairGroupInstances, EffectiveForceLOD, LocalLODSelectionType, bSwapBuffer, SkelLocalToTransform](FRHICommandListImmediate& RHICmdList)
 	{
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
@@ -3294,6 +3300,15 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			if (LocalLODSelectionType == EHairLODSelectionType::Predicted && EffectiveForceLOD >= 0)
 			{
 				AddHairStreamingRequest(Instance, EffectiveForceLOD);
+			}
+
+			if (bSwapBuffer)
+			{
+				Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
+				Instance->Debug.SkinningCurrentLocalToWorld  = SkelLocalToTransform;
+
+				if (Instance->Guides.DeformedResource)  { Instance->Guides.DeformedResource->SwapBuffer(); }
+				if (Instance->Strands.DeformedResource) { Instance->Strands.DeformedResource->SwapBuffer(); }
 			}
 		}
 	});
