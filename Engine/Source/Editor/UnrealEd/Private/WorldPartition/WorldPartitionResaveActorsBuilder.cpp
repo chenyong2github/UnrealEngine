@@ -328,7 +328,9 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 				if (!bReportOnly && bShouldResaveActor)
 				{
 					FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-					if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+					FSavePackageArgs SaveArgs;
+					SaveArgs.TopLevelFlags = RF_Standalone;
+					if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 					{
 						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 						++FailCount;
