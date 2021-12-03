@@ -81,7 +81,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, TFunc
 				ActorDescInitData.ActorPath = InAssetData.ObjectPath;
 				FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
 
-				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::CreateClassActorDesc(ActorDescInitData.NativeClass));
+				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::StaticCreateClassActorDesc(ActorDescInitData.NativeClass));
 
 				NewActorDesc->Init(this, ActorDescInitData);
 			

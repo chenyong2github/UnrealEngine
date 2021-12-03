@@ -190,7 +190,20 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 
 FString FWorldPartitionActorDesc::ToString() const
 {
-	return FString::Printf(TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s"), *Guid.ToString(), *Class.ToString(), *FPaths::GetExtension(ActorPath.ToString()), (GridPlacement != EActorGridPlacement::AlwaysLoaded) ? TEXT("True") : TEXT("False"));
+	return FString::Printf(
+		TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s Bounds:%s GridPlacement:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s"), 
+		*Guid.ToString(), 
+		*Class.ToString(), 
+		*FPaths::GetExtension(ActorPath.ToString()), 
+		(GridPlacement != EActorGridPlacement::AlwaysLoaded) ? TEXT("True") : TEXT("False"),
+		*GetBounds().ToString(),
+		GetActorGridPlacementName(GridPlacement),
+		*RuntimeGrid.ToString(),
+		bActorIsEditorOnly ? TEXT("true") : TEXT("false"),
+		bLevelBoundsRelevant ? TEXT("true") : TEXT("false"),
+		bActorIsHLODRelevant ? TEXT("true") : TEXT("false"),
+		*FolderPath.ToString()
+	);
 }
 
 void FWorldPartitionActorDesc::Serialize(FArchive& Ar)

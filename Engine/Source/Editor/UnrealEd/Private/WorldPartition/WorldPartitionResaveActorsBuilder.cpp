@@ -20,6 +20,19 @@ UWorldPartitionResaveActorsBuilder::UWorldPartitionResaveActorsBuilder(const FOb
 	: Super(ObjectInitializer)
 {}
 
+void UWorldPartitionResaveActorsBuilder::ParseCommandline()
+{
+	FParse::Value(FCommandLine::Get(), TEXT("ActorClass="), ActorClassName);
+
+	bReportOnly = FParse::Param(FCommandLine::Get(), TEXT("ReportOnly"));
+	bOnlyResaveOnActorDescDiff = FParse::Param(FCommandLine::Get(), TEXT("OnlyResaveOnActorDescDiff"));
+	
+	if(FParse::Param(FCommandLine::Get(), TEXT("Verbose")))
+	{
+		LogWorldPartitionResaveActorsBuilder.SetVerbosity(ELogVerbosity::Verbose);
+	}
+}
+
 bool UWorldPartitionResaveActorsBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	TArray<FString> Tokens, Switches;
@@ -82,10 +95,12 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 {
 	FPackageSourceControlHelper SCCHelper;
 
+	ParseCommandline();
 	UPackage* WorldPackage = World->GetPackage();
 
 	int32 LoadCount = 0;
 	int32 SaveCount = 0;
+	int32 SkipCount = 0;
 	int32 FailCount = 0;
 
 	// Actor Class Filter
@@ -133,17 +148,18 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 	{
 		World->PersistentLevel->ActorPackagingScheme = EActorPackagingScheme::Reduced;
 
-		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SCCHelper, &PackagesToDelete, WorldPackage](const FWorldPartitionActorDesc* ActorDesc)
+		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [this, &LoadCount, &SaveCount, &FailCount, &SkipCount, &SCCHelper, &PackagesToDelete, WorldPackage](const FWorldPartitionActorDesc* ActorDesc)
 		{
 			ON_SCOPE_EXIT
 			{
-				UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Processed %d packages (%d Saved / %d Failed)"), LoadCount, SaveCount, FailCount);
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Processed %d packages (%d Saved / %d Skipped / %d Failed)"), SaveCount + SkipCount + FailCount, SaveCount, SkipCount, FailCount);
 			};
 
 			AActor* Actor = ActorDesc->GetActor();
 
 			if (!Actor)
 			{
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error loading package %s."), *ActorDesc->GetActorPackage().ToString());
 				PackagesToDelete.Add(ActorDesc->GetActorPackage().ToString());
 				++FailCount;
 				return true;
@@ -277,33 +293,69 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 				UE_LOG(LogWorldPartitionResaveActorsBuilder, Log, TEXT("Package %s needs to be resaved."), *Package->GetName());
 			}
 
-			if (!bReportOnly)
+			if (bReportOnly || SCCHelper.Checkout(Package))
 			{
-				if (SCCHelper.Checkout(Package))
+				bool bShouldResaveActor = !bOnlyResaveOnActorDescDiff;
+
+				if (bOnlyResaveOnActorDescDiff)
 				{
-					// Save package
+					TUniquePtr<FWorldPartitionActorDesc> CurActorDesc = Actor->CreateActorDesc();
+					const FWorldPartitionActorDesc& OldActorDesc = *ActorDesc;
+					const FWorldPartitionActorDesc& NewActorDesc = *CurActorDesc.Get();
+
+					// Bounds can change if the source asset changed
+					if (!OldActorDesc.GetBounds().Equals(NewActorDesc.GetBounds(), 1.0f))
+					{
+						bShouldResaveActor = true;
+					}
+					// Grid placement can have changed from defaults
+					else if (OldActorDesc.GetGridPlacement() != NewActorDesc.GetGridPlacement())
+					{
+						bShouldResaveActor = true;
+					}
+					// Editor-only flag can have changed from defaults
+					else if (OldActorDesc.GetActorIsEditorOnly() != NewActorDesc.GetActorIsEditorOnly())
+					{
+						bShouldResaveActor = true;
+					}
+
+					if (bShouldResaveActor)
+					{
+						UE_LOG(LogWorldPartitionResaveActorsBuilder, Verbose, TEXT("Actor descriptor mismatch: [%s]<->[%s]"), *OldActorDesc.ToString(), *NewActorDesc.ToString());
+					}
+				}
+
+				// Save package
+				if (!bReportOnly && bShouldResaveActor)
+				{
 					FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-					FSavePackageArgs SaveArgs;
-					SaveArgs.TopLevelFlags = RF_Standalone;
-					if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
+					if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
 					{
 						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 						++FailCount;
 						return true;
 					}
-
-					UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved package %s."), *Package->GetName());
-					++SaveCount;
-					return true;
 				}
 				else
 				{
-					// It is possible the resave can't checkout everything. Continue processing.
-					UE_LOG(LogWorldPartitionResaveActorsBuilder, Warning, TEXT("Error checking out package %s."), *Package->GetName());
-					++FailCount;
+					UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Skipped package %s."), *Package->GetName());
+					++SkipCount;
 					return true;
 				}
+
+				// It is possible the resave can't checkout everything. Continue processing.
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved package %s."), *Package->GetName());
+				++SaveCount;
+				return true;
 			}
+			else
+			{
+				// It is possible the resave can't checkout everything. Continue processing.
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Warning, TEXT("Error checking out package %s."), *Package->GetName());
+				++FailCount;
+				return true;
+			}
+			
 		}
 
 		return true;
@@ -311,28 +363,31 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 	if (!bReportOnly)
 	{
+		UPackage::WaitForAsyncFileWrites();
 		SCCHelper.Delete(PackagesToDelete);
+		
+		if (bSwitchActorPackagingSchemeToReduced)
+		{
+			// checkout world package
+			if (!SCCHelper.Checkout(WorldPackage))
+			{
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error checking out world package %s."), *WorldPackage->GetName());
+				return false;
+			}
+
+			// Save world package
+			FString PackageFileName = SourceControlHelpers::PackageFilename(WorldPackage);
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			if (!UPackage::SavePackage(WorldPackage, nullptr, *PackageFileName, SaveArgs))
+			{
+				UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving world %s."), *WorldPackage->GetName());
+				return false;
+			}
+		}
 	}
 
-	if (bSwitchActorPackagingSchemeToReduced && !bReportOnly)
-	{
-		// checkout world package
-		if (!SCCHelper.Checkout(WorldPackage))
-		{
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error checking out world package %s."), *WorldPackage->GetName());
-			return false;
-		}
-
-		// Save world package
-		FString PackageFileName = SourceControlHelpers::PackageFilename(WorldPackage);
-		FSavePackageArgs SaveArgs;
-		SaveArgs.TopLevelFlags = RF_Standalone;
-		if (!UPackage::SavePackage(WorldPackage, nullptr, *PackageFileName, SaveArgs))
-		{
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving world %s."), *WorldPackage->GetName());
-			return false;
-		}
-	}
+	
 
 	return true;
 }
