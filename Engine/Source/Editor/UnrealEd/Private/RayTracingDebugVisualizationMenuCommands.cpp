@@ -61,6 +61,7 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 	}
 
 	RayTracingDebugModeNames.Add(LOCTEXT("Triangles", "Triangles"));
+	RayTracingDebugModeNames.Add(LOCTEXT("FarField", "FarField"));
 
 	for ( int32 RayTracingDebugIndex = 0; RayTracingDebugIndex < RayTracingDebugModeNames.Num(); ++RayTracingDebugIndex)
 	{
