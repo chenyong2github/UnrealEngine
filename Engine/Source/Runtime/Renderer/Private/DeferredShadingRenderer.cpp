@@ -1466,6 +1466,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder, FRDGBufferRef& OutDynamicGeometryScratchBuffer)
 {
+	OutDynamicGeometryScratchBuffer = nullptr;
+
 	bool bAnyRayTracingPassEnabled = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -1531,8 +1533,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	RayTracingScene.Create(GraphBuilder, Scene->GPUScene);
-
-	OutDynamicGeometryScratchBuffer = nullptr;
 
 	const uint32 BLASScratchSize = Scene->GetRayTracingDynamicGeometryCollection()->ComputeScratchBufferSize();
 	if (BLASScratchSize > 0)
