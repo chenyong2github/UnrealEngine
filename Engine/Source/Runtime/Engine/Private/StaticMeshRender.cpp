@@ -1851,6 +1851,7 @@ FPrimitiveViewRelevance FStaticMeshSceneProxy::GetViewRelevance(const FSceneView
 		View->Family->EngineShowFlags.Collision ||
 		bInCollisionView ||
 		View->Family->EngineShowFlags.Bounds ||
+		View->Family->EngineShowFlags.VisualizeInstanceUpdates ||
 #endif
 #if WITH_EDITOR
 		(IsSelected() && View->Family->EngineShowFlags.VertexColors) ||
