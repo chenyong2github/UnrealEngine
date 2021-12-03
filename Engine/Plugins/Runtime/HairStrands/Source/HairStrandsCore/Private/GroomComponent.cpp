@@ -859,7 +859,7 @@ public:
 
 		BatchElement.FirstIndex = 0;
 		BatchElement.NumInstances = 1;
-		BatchElement.PrimitiveIdMode = PrimID_ForceZero;
+		BatchElement.PrimitiveIdMode = GeometryType == EHairGeometryType::Strands ? PrimID_ForceZero : PrimID_DynamicPrimitiveShaderData;
 		if (bUseCulling)
 		{
 			BatchElement.NumPrimitives = 0;
