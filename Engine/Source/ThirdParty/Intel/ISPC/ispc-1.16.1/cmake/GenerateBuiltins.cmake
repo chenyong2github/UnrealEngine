@@ -212,7 +212,7 @@ function(builtin_to_cpp bit os_name arch supported_archs supported_oses resultFi
             set(includePath -isystem${ISPC_MACOS_SDK_PATH}/usr/include)
         else()
             # -isystemC:/gnuwin32/include/glibc
-            set(includePath -isystem${ISPC_GNUWIN32_PATH}/include/glibc)
+            set(includePath -isystem${ISPC_GNUWIN32_PATH}/usr/include)
         endif()
     elseif (APPLE)
         if (${os_name} STREQUAL "ios")
