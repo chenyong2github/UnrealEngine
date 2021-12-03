@@ -103,6 +103,10 @@ void ForEachEntityInChunk(
 				return;
 			}
 		}
+		else
+		{
+			return;
+		}
 	}
 
 	const UScriptStruct* StorageScriptStruct = StateTree->GetInstanceStorageStruct();
