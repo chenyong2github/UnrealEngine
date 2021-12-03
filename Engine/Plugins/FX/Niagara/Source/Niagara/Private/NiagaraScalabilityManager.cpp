@@ -73,6 +73,7 @@ static int32 GetMaxUpdatesPerFrame(const UNiagaraEffectType* EffectType, int32 I
 FNiagaraScalabilityManager::FNiagaraScalabilityManager()
 	: EffectType(nullptr)
 	, LastUpdateTime(0.0f)
+	, bRefreshCachedSystemData(false)
 {
 
 }
@@ -448,6 +449,20 @@ void FNiagaraScalabilityManager::UpdateInternal(FNiagaraWorldManager* WorldMan, 
 
 void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float DeltaSeconds, bool bNewOnly)
 {
+	if (bRefreshCachedSystemData)
+	{	
+		bRefreshCachedSystemData = false;
+
+		//Clear and refresh all cached system data.
+		SystemDataIndexMap.Reset();
+		SystemData.Reset();
+
+		for (int32 CompIdx = 0; CompIdx < ManagedComponents.Num(); ++CompIdx)
+		{
+			GetSystemData(CompIdx, true);
+		}
+	}
+
 	//Paranoia code in case the EffectType is GCd from under us.
 	if (EffectType == nullptr)
 	{
@@ -569,20 +584,13 @@ FNiagaraScalabilitySystemData& FNiagaraScalabilityManager::GetSystemData(int32 C
 #if WITH_EDITOR
 void FNiagaraScalabilityManager::OnSystemPostChange(UNiagaraSystem* System)
 {
-	RefreshSystemScalabilitySettings(System);
+	InvalidateCachedSystemData();
 }
 #endif//WITH_EDITOR
 
-void FNiagaraScalabilityManager::RefreshSystemScalabilitySettings(UNiagaraSystem* System)
+void FNiagaraScalabilityManager::InvalidateCachedSystemData()
 {
-	//Clear and refresh all cached system data.
-	SystemDataIndexMap.Reset();
-	SystemData.Reset();
-
-	for (int32 CompIdx = 0; CompIdx < ManagedComponents.Num(); ++CompIdx)
-	{
-		GetSystemData(CompIdx, true);
-	}
+	bRefreshCachedSystemData = true;
 }
 
 #if DEBUG_SCALABILITY_STATE
