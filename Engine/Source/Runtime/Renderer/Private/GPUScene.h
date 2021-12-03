@@ -265,7 +265,14 @@ public:
 		}
 	}
 
-	FORCEINLINE EPrimitiveDirtyState GetPrimitiveDirtyState(int32 PrimitiveId) const { return PrimitiveDirtyState[PrimitiveId]; }
+	FORCEINLINE EPrimitiveDirtyState GetPrimitiveDirtyState(int32 PrimitiveId) const 
+	{ 
+		if (PrimitiveId >= PrimitiveDirtyState.Num())
+		{
+			return EPrimitiveDirtyState::None;
+		}
+		return PrimitiveDirtyState[PrimitiveId]; 
+	}
 
 	FORCEINLINE void ResizeDirtyState(int32 NewSizeIn)
 	{

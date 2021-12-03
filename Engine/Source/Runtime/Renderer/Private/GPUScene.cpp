@@ -23,6 +23,8 @@
 #include "ShaderDebug.h"
 #include "ShaderPrint.h"
 
+#define LOG_INSTANCE_ALLOCATIONS 0
+
 // TODO: Global setting/define
 #ifndef INSTANCE_COMPRESSED_TRANSFORMS
 #define INSTANCE_COMPRESSED_TRANSFORMS 1
@@ -242,14 +244,15 @@ struct FInstanceUploadInfo
 	uint32 LastUpdateSceneFrameNumber = ~uint32(0);
 };
 
-void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo)
+void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo, const FGPUSceneBufferState& BufferState)
 {
 #if DO_CHECK
 	const bool bHasRandomID			= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0u;
 	const bool bHasCustomData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
 	const bool bHasDynamicData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
-	const bool bHasLMSMScaleBias	= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
+	const bool bHasLightShadowUVBias = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
 	const bool bHasHierarchyOffset	= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
+	const bool bHasLocalBounds		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
 #if WITH_EDITOR
 	const bool bHasEditorData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
 #endif
@@ -257,7 +260,7 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo)
 	const int32 InstanceCount = UploadInfo.PrimitiveInstances.Num();
 	check(UploadInfo.InstanceRandomID.Num()				== (bHasRandomID		? InstanceCount : 0));
 	check(UploadInfo.InstanceDynamicData.Num()			== (bHasDynamicData		? InstanceCount : 0));
-	check(UploadInfo.InstanceLightShadowUVBias.Num()	== (bHasLMSMScaleBias	? InstanceCount : 0));
+	check(UploadInfo.InstanceLightShadowUVBias.Num()	== (bHasLightShadowUVBias ? InstanceCount : 0));
 	check(UploadInfo.InstanceHierarchyOffset.Num()		== (bHasHierarchyOffset	? InstanceCount : 0));
 #if WITH_EDITOR
 	check(UploadInfo.InstanceEditorData.Num() == (bHasEditorData ? InstanceCount : 0));
@@ -271,6 +274,17 @@ void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo)
 	else
 	{
 		check(UploadInfo.InstanceCustomData.Num() == 0 && UploadInfo.InstanceCustomDataCount == 0);
+	}
+
+	// RandomID is not stored in the payload but in the instance scene data.
+	const bool bHasAnyPayloadData = bHasHierarchyOffset || bHasLocalBounds || bHasDynamicData || bHasLightShadowUVBias || bHasCustomData/*|| bHasRandomID*/;
+
+	if (bHasAnyPayloadData)
+	{
+		check(UploadInfo.InstancePayloadDataOffset != INDEX_NONE);
+
+		const int32 PayloadBufferSize = BufferState.InstancePayloadDataBuffer.Buffer->GetSize() / BufferState.InstancePayloadDataBuffer.Buffer->GetStride();
+		check(UploadInfo.InstancePayloadDataOffset < PayloadBufferSize);
 	}
 #endif
 }
@@ -446,8 +460,6 @@ struct FUploadDataSourceAdapterScenePrimitives
 		{
 			InstanceUploadInfo.InstanceCustomDataCount = InstanceUploadInfo.InstanceCustomData.Num() / InstanceUploadInfo.PrimitiveInstances.Num();
 		}
-
-		ValidateInstanceUploadInfo(InstanceUploadInfo);
 
 		// Only trigger upload if this primitive has instances
 		check(InstanceUploadInfo.PrimitiveInstances.Num() > 0);
@@ -1214,6 +1226,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 							const int32 ItemIndex = Item.ItemIndex;
 							FInstanceUploadInfo UploadInfo;
 							UploadDataSourceAdapter.GetInstanceInfo(ItemIndex, UploadInfo);
+							ValidateInstanceUploadInfo(UploadInfo, BufferState);
 							FInstanceBatcher::FPrimitiveItemInfo PrimitiveItemInfo = InstanceUpdates.PerPrimitiveItemInfo[ItemIndex];
 
 							check(NumInstancePayloadDataUploads > 0 || UploadInfo.InstancePayloadDataStride == 0); // Sanity check
@@ -1485,7 +1498,8 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		FPrimitiveUniformShaderParameters Tmp = PrimitiveShaderData[ItemIndex];
 		Tmp.InstanceSceneDataOffset = InstanceIDStartOffset + ItemIndex;
 		Tmp.NumInstanceSceneDataEntries = 1;
-
+		Tmp.InstancePayloadDataOffset = INDEX_NONE;
+		Tmp.InstancePayloadDataStride = 0;
 		PrimitiveUploadInfo.NumInstanceUploads = 1;
 		PrimitiveUploadInfo.NumInstancePayloadDataUploads = 0;
 		PrimitiveUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
@@ -1630,12 +1644,6 @@ void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
 	if (bIsEnabled)
 	{
 		ensure(bInBeginEndBlock);
-		// Invoke the cache manager to invalidate the previous location of all instances that are to be updated, 
-		// must be done prior to update of GPU-side data to use the previous transforms.
-		if (Scene.VirtualShadowMapArrayCacheManager)
-		{
-			Scene.VirtualShadowMapArrayCacheManager->ProcessPrimitivesToUpdate(GraphBuilder, Scene);
-		}
 		
 		UpdateInternal(GraphBuilder, Scene);
 	}
@@ -1659,6 +1667,9 @@ int32 FGPUScene::AllocateInstanceSceneDataSlots(int32 NumInstanceSceneDataEntrie
 		{
 			int32 InstanceSceneDataOffset = InstanceSceneDataAllocator.Allocate(NumInstanceSceneDataEntries);
 			InstanceRangesToClear.Add(FInstanceRange{ uint32(InstanceSceneDataOffset), uint32(NumInstanceSceneDataEntries) });
+#if LOG_INSTANCE_ALLOCATIONS
+			UE_LOG(LogTemp, Warning, TEXT("AllocateInstanceSceneDataSlots: [%6d,%6d)"), InstanceSceneDataOffset, InstanceSceneDataOffset + NumInstanceSceneDataEntries);
+#endif
 
 			return InstanceSceneDataOffset;
 		}
@@ -1675,6 +1686,9 @@ void FGPUScene::FreeInstanceSceneDataSlots(int32 InstanceSceneDataOffset, int32 
 	{
 		InstanceSceneDataAllocator.Free(InstanceSceneDataOffset, NumInstanceSceneDataEntries);
 		InstanceRangesToClear.Add(FInstanceRange{ uint32(InstanceSceneDataOffset), uint32(NumInstanceSceneDataEntries) });
+#if LOG_INSTANCE_ALLOCATIONS
+		UE_LOG(LogTemp, Warning, TEXT("FreeInstanceSceneDataSlots: [%6d,%6d)"), InstanceSceneDataOffset, InstanceSceneDataOffset + NumInstanceSceneDataEntries);
+#endif
 	}
 }
 
@@ -2101,10 +2115,19 @@ void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
 void FGPUScene::AddClearInstancesPass(FRDGBuilder& GraphBuilder)
 {
 	FInstanceGPULoadBalancer ClearIdData;
+#if LOG_INSTANCE_ALLOCATIONS
+	FString RangesStr;
+#endif
 	for (FInstanceRange Range : InstanceRangesToClear)
 	{
 		ClearIdData.Add(Range.InstanceSceneDataOffset, Range.NumInstanceSceneDataEntries, INVALID_PRIMITIVE_ID);
+#if LOG_INSTANCE_ALLOCATIONS
+		RangesStr.Appendf(TEXT("[%6d, %6d), "), Range.InstanceSceneDataOffset, Range.InstanceSceneDataOffset + Range.NumInstanceSceneDataEntries);
+#endif
 	}
+#if LOG_INSTANCE_ALLOCATIONS
+	UE_LOG(LogTemp, Warning, TEXT("AddClearInstancesPass: \n%s"), *RangesStr);
+#endif
 	AddUpdatePrimitiveIdsPass(GraphBuilder, ClearIdData);
 	InstanceRangesToClear.Empty();
 }

@@ -4089,20 +4089,27 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 	RemovedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
 
-	if (VirtualShadowMapArrayCacheManager)
+	if (VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->IsValid())
 	{
-		VirtualShadowMapArrayCacheManager->ProcessRemovedPrimives(GraphBuilder, GPUScene, RemovedLocalPrimitiveSceneInfos);
+		FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector InvalidatingPrimitiveCollector(Primitives.Num(), GPUScene);
 
-		if (UpdatedInstances.Num())
+		// All removed primitives must invalidate their footprints in the VSM before leaving
+		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
 		{
-			TArray<FPrimitiveSceneInfo*> RemovedInstances;
-			RemovedInstances.Reserve(UpdatedInstances.Num());
-			for (auto& Instance : UpdatedInstances)
-			{
-				RemovedInstances.Add(Instance.Key->GetPrimitiveSceneInfo());
-			}
-			VirtualShadowMapArrayCacheManager->ProcessRemovedPrimives(GraphBuilder, GPUScene, RemovedInstances);
+			InvalidatingPrimitiveCollector.Add(PrimitiveSceneInfo);
 		}
+		// All updated instances must also before moving or re-allocating (TODO: filter out only those actually updated)
+		for (const auto& Instance : UpdatedInstances)
+		{
+			InvalidatingPrimitiveCollector.Add(Instance.Key->GetPrimitiveSceneInfo());
+		}
+		// As must all primitive updates, 
+		for (const auto& Transform : UpdatedTransforms)
+		{
+			InvalidatingPrimitiveCollector.Add(Transform.Key->GetPrimitiveSceneInfo());
+		}
+
+		VirtualShadowMapArrayCacheManager->ProcessRemovedOrUpdatedPrimitives(GraphBuilder, GPUScene, InvalidatingPrimitiveCollector);
 	}
 	TArray<FPrimitiveSceneInfo*> AddedLocalPrimitiveSceneInfos(AddedPrimitiveSceneInfos.Array());
 	AddedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
@@ -4915,7 +4922,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			bPathTracingNeedsInvalidation = true;
 		}
 	}
-
+	
 	UpdatedAttachmentRoots.Reset();
 	UpdatedTransforms.Reset();
 	UpdatedInstances.Reset();

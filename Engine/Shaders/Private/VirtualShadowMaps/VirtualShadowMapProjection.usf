@@ -397,8 +397,8 @@ void OutputDebug( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 		}
 		else if ( DebugOutputType == 7 )	// Cached or not?
 		{
-			bool bCached = (PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)].Flags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
-			float3 Color = GreenToRedTurbo(1.0f - float(bCached));
+			bool bUncached = (PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)].Flags & VSM_DYNAMIC_UNCACHED_FLAG) != 0;
+			float3 Color = GreenToRedTurbo(float(bUncached));
 			float3 Color2 = IntToColor(vPage.x + (vPage.y << 10U));
 
 			Output = lerp(Color, Color2, 0.35f);
