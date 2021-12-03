@@ -437,11 +437,8 @@ void EmitEditorSelectionDepthPS(
 	}
 #endif // USE_EDITOR_SHADERS
 
-	if (bValidExport)
-	{
-		OutDepth = asfloat(DepthInt);
-	}
-	else
+	OutDepth = asfloat(DepthInt);
+	if (!bValidExport)
 	{
 		discard;
 	}
