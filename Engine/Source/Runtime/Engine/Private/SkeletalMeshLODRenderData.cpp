@@ -531,15 +531,6 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 			MorphTargetVertexInfoBuffers.BatchesPerMorph.Add(MorphNumBatches);
 			MorphTargetVertexInfoBuffers.MaximumValuePerMorph.Add(FVector4(MaximumValues[0], MaximumValues[1], MaximumValues[2], MaximumValues[3]));
 			MorphTargetVertexInfoBuffers.MinimumValuePerMorph.Add(FVector4(MinimumValues[0], MinimumValues[1], MinimumValues[2], MinimumValues[3]));
-
-#if !WITH_EDITOR
-			if (NumSrcDeltas > 0)
-			{
-				// A CPU copy of the morph deltas has beenA  made so it is safe to 
-				// discard the original data.  Keep CPU buffers when in the editor.
-				MorphTarget->DiscardVertexData();
-			}
-#endif
 		}
 
 
