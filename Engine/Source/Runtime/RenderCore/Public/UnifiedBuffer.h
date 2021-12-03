@@ -108,6 +108,18 @@ public:
 		return Result;
 	}
 
+	void* Set_GetRef(uint32 ElementIndex, uint32 ElementScatterOffset, uint32 Num = 1)
+	{
+		checkSlow(ElementIndex + Num <= MaxScatters );
+		checkSlow( ScatterData != nullptr );
+		checkSlow( UploadData != nullptr );
+		for (uint32 i = 0; i < Num; i++)
+		{
+			ScatterData[ElementIndex + i] = ElementScatterOffset + i;
+		}
+		return UploadData + ElementIndex * NumBytesPerElement;
+	}
+
 	void Release()
 	{
 		ScatterBuffer.Release();
@@ -144,5 +156,25 @@ public:
 
 			bUploadViaCreate = bInUploadViaCreate;
 		}
+	}
+	
+	/**
+	 * Init with presized num scatters, expecting each to be set at a later point. Requires the user to keep track of the offsets to use.
+	 */
+	RENDERCORE_API void InitPreSized(uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
+
+	/**
+	 * Init with pre-existing destination index data, performs a bulk-copy.
+	 */
+	RENDERCORE_API void Init(TArrayView<const uint32> ElementScatterOffsets, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
+	/**
+	 * Get pointer to an element data area, given the index of the element (not the destination scatter offset).
+	 */
+	FORCEINLINE void* GetRef(uint32 ElementIndex)
+	{
+		checkSlow(ScatterData != nullptr);
+		checkSlow(UploadData != nullptr);
+
+		return UploadData + ElementIndex * NumBytesPerElement;
 	}
 };
