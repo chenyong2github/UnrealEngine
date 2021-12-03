@@ -321,22 +321,10 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		{
 			if (MaterialInterface)
 			{
-				const UMaterial* Material = MaterialInterface->GetMaterial_Concurrent();
-				if (const FMaterialResource* MaterialResource = Material->GetMaterialResource(FeatureLevel))
+				bAlwaysHasVelocity = MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset;
+				if (bAlwaysHasVelocity)
 				{
-					if (IsInParallelGameThread() || IsInGameThread())
-					{
-						bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_GameThread();
-					}
-					else
-					{
-						bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_RenderThread();
-					}
-
-					if (bAlwaysHasVelocity)
-					{
-						break;
-					}
+					break;
 				}
 			}
 		}
