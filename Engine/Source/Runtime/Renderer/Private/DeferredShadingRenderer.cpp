@@ -655,12 +655,15 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			{
 				continue;
 			}
-				
+			
+			// Disabling for now, this is not correct for ray tracing visibility
+			/*
 			// Check if the primitive has been culled already during frustum culling
 			if (!View.PrimitiveVisibilityMap[PrimitiveIndex])
 			{
 				continue;
 			}
+			*/
 
 			// Marked visible and used after point, check if streaming then mark as used in the TLAS (so it can be streamed in)
 			if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Streaming))
