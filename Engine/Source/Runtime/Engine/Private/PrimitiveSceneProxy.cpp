@@ -562,6 +562,9 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 		const int32 PrevNumCustomDataFloats = InstanceSceneData.Num() ? InstanceCustomData.Num() / InstanceSceneData.Num() : 0;
 		const int32 NumCustomDataFloats = CmdBuffer.NumCustomDataFloats;
 
+		const bool bPreviouslyHadCustomFloatData = PrevNumCustomDataFloats > 0;
+		const bool bHasCustomFloatData = CmdBuffer.NumCustomDataFloats > 0;
+
 		// Apply all updates.
 		for (const auto& Cmd : CmdBuffer.Cmds)
 		{
@@ -577,6 +580,8 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 			}
 			else if (Cmd.Type == FInstanceUpdateCmdBuffer::CustomData)
 			{
+				check(bHasCustomFloatData);
+
 				// update custom data because it changed.
 				check(PrevNumCustomDataFloats == NumCustomDataFloats);
 				const int32 DstCustomDataOffset = Cmd.InstanceIndex * NumCustomDataFloats;
@@ -615,8 +620,13 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 				{
 					InstanceLightShadowUVBias.RemoveAt(i, 1, false);
 				}
-				InstanceCustomData.RemoveAt((i * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
-				check(InstanceCustomData.Num() == (PrevNumCustomDataFloats * InstanceSceneData.Num()));
+
+				// Only remove the custom float data from this instance if it previously had it.
+				if (bPreviouslyHadCustomFloatData)
+				{
+					InstanceCustomData.RemoveAt((i * PrevNumCustomDataFloats), PrevNumCustomDataFloats, false);
+					check(InstanceCustomData.Num() == (PrevNumCustomDataFloats * InstanceSceneData.Num()));
+				}
 
 				RemoveBits.RemoveAt(i);
 
@@ -646,8 +656,11 @@ void FPrimitiveSceneProxy::UpdateInstances_RenderThread(const FInstanceUpdateCmd
 					InstanceLightShadowUVBias.AddZeroed();
 				}
 
-				const int32 DstCustomDataOffset = InstanceCustomData.AddUninitialized(NumCustomDataFloats);
-				FMemory::Memcpy(&InstanceCustomData[DstCustomDataOffset], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
+				if (bHasCustomFloatData)
+				{
+					const int32 DstCustomDataOffset = InstanceCustomData.AddUninitialized(NumCustomDataFloats);
+					FMemory::Memcpy(&InstanceCustomData[DstCustomDataOffset], &Cmd.CustomDataFloats[0], NumCustomDataFloats * sizeof(float));
+				}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				InstanceXFormUpdatedThisFrame.Add(true);
