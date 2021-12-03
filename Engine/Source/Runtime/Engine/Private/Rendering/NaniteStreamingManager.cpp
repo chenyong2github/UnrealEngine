@@ -932,8 +932,8 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 
 		if( Resources.IsRootPage( TargetPageIndex ) )
 		{
-			TargetGPUPageIndex = MaxStreamingPages + Resources.RootPageIndex;
-			NumTargetPageClusters = RootPageInfos[ Resources.RootPageIndex ].NumClusters;
+			TargetGPUPageIndex = MaxStreamingPages + Resources.RootPageIndex + TargetPageIndex;
+			NumTargetPageClusters = RootPageInfos[ Resources.RootPageIndex + TargetPageIndex ].NumClusters;
 		}
 		else
 		{
@@ -978,7 +978,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		{
 			if (Resources.IsRootPage(TargetKey.PageIndex))
 			{
-				TargetGPUPageIndex = MaxStreamingPages + Resources.RootPageIndex;
+				TargetGPUPageIndex = MaxStreamingPages + Resources.RootPageIndex + TargetKey.PageIndex;
 			}
 			else
 			{
@@ -1170,7 +1170,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 						const uint32 DependencyPageIndex = (*Resources)->PageDependencies[PageStreamingState.DependenciesStart + i];
 						if ((*Resources)->IsRootPage(DependencyPageIndex))
 						{
-							GPUPageDependencies.Add(MaxStreamingPages + (*Resources)->RootPageIndex);
+							GPUPageDependencies.Add(MaxStreamingPages + (*Resources)->RootPageIndex + DependencyPageIndex);
 						}
 						else
 						{
