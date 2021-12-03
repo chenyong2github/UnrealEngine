@@ -319,19 +319,16 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
 
-				InstanceSceneData[InstanceIndex]  = FInstanceSceneShaderData(
-					ConstructPrimitiveInstance(),
+				FInstanceSceneShaderData& SceneData = InstanceSceneData.Emplace_GetRef();
+				SceneData.Build
+				(
 					InstanceIndex, /* Primitive Id */
-					FRenderTransform(PrimitiveUniformShaderParameters.LocalToRelativeWorld),
-					FRenderTransform(PrimitiveUniformShaderParameters.PreviousLocalToRelativeWorld),
-					FRenderTransform::Identity, /* PrevLocalToPrimitive */
-					FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
-					NANITE_INVALID_HIERARCHY_OFFSET,
-					FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
-					0.0f, /* Per instance Random ID */
-					0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
+					0, /* Relative Instance Id */
+					0, /* Payload Data Flags */
 					INVALID_LAST_UPDATE_FRAME,
-					0 /* Instance Flags */ // TODO: Temporary
+					0, /* Custom Data Count */
+					0.0f, /* Random ID */
+					PrimitiveUniformShaderParameters.LocalToWorld
 				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
@@ -405,21 +402,16 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				FPrimitiveInstance Instance;
 				InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Instance.LocalToPrimitive);
 
-				InstanceSceneData.Add(
-					FInstanceSceneShaderData(
-						Instance,
-						PrimitiveId,
-						FRenderTransform(InstanceGroup.LocalToWorld),
-						FRenderTransform(InstanceGroup.LocalToWorld),
-						FRenderTransform::Identity, /* PrevLocalToPrimitive */
-						InstanceGroup.RenderData->Bounds,
-						NANITE_INVALID_HIERARCHY_OFFSET,
-						FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
-						0.0f, /* Per instance Random ID */
-						0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-						INVALID_LAST_UPDATE_FRAME,
-						0 /* Instance Flags */
-					)
+				FInstanceSceneShaderData& SceneData = InstanceSceneData.Emplace_GetRef();
+				SceneData.Build
+				(
+					PrimitiveId,
+					0, /* Relative Instance Id */
+					0, /* Payload Data Flags */
+					INVALID_LAST_UPDATE_FRAME,
+					0, /* Custom Data Count */
+					0.0f, /* Random ID */
+					InstanceGroup.LocalToWorld
 				);
 			}
 
@@ -468,20 +460,17 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				LightmapSceneData[LightmapSceneDataStartOffsets[PrimitiveId] + LODIndex] = FLightmapSceneShaderData(LightmapParams);
 			}
 
-			InstanceSceneData.Add(FInstanceSceneShaderData(
-				ConstructPrimitiveInstance(),
+			FInstanceSceneShaderData& Instance = InstanceSceneData.Emplace_GetRef();
+			Instance.Build
+			(
 				PrimitiveId,
-				FRenderTransform(PrimitiveUniformShaderParameters.LocalToRelativeWorld),
-				FRenderTransform(PrimitiveUniformShaderParameters.PreviousLocalToRelativeWorld),
-				FRenderTransform::Identity, /* PrevLocalToPrimitive */
-				FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
-				NANITE_INVALID_HIERARCHY_OFFSET,
-				FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
-				0.0f, /* Per instance Random ID */
-				0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
+				0, /* Relative Instance Id */
+				0, /* Payload Data Flags */
 				INVALID_LAST_UPDATE_FRAME,
-				0 /* Instance Flags */ // TODO: Temporary Hack!
-			));
+				0, /* Custom Data Count */
+				0.0f, /* Random ID */
+				PrimitiveUniformShaderParameters.LocalToWorld
+			);
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));
 

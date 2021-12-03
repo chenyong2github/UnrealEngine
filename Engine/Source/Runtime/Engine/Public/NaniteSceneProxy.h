@@ -68,18 +68,18 @@ public:
 		return MaterialMaxIndex;
 	}
 
-	inline void GetMaterialDynamicDataUsage(bool& bOutCustomData, bool& bOutRandomID) const
+	void UpdateMaterialDynamicDataUsage()
 	{
-		bOutCustomData	= false;
-		bOutRandomID	= false;
+		bHasPerInstanceCustomData = false;
+		bHasPerInstanceRandom = false;
 
 		// Checks if any material assigned to the mesh uses custom data and/or random ID
 		for (const FMaterialSection& MaterialSection : MaterialSections)
 		{
-			bOutCustomData	|= MaterialSection.bHasPerInstanceCustomData;
-			bOutRandomID	|= MaterialSection.bHasPerInstanceRandomID;
+			bHasPerInstanceCustomData |= MaterialSection.bHasPerInstanceCustomData;
+			bHasPerInstanceRandom |= MaterialSection.bHasPerInstanceRandomID;
 
-			if (bOutCustomData && bOutRandomID)
+			if (bHasPerInstanceCustomData && bHasPerInstanceRandom)
 			{
 				break;
 			}

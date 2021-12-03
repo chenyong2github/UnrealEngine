@@ -23,6 +23,13 @@
 #include "ShaderDebug.h"
 #include "ShaderPrint.h"
 
+// TODO: Global setting/define
+#ifndef INSTANCE_COMPRESSED_TRANSFORMS
+#define INSTANCE_COMPRESSED_TRANSFORMS 1
+#else
+#error "This should not be defined yet"
+#endif
+
 int32 GGPUSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarGPUSceneUploadEveryFrame(
 	TEXT("r.GPUScene.UploadEveryFrame"),
@@ -178,6 +185,8 @@ struct FPrimitiveUploadInfo
 	/** Optional */
 	int32 InstanceSceneDataOffset = INDEX_NONE;
 	int32 InstanceSceneDataUploads = 0;
+	//int32 InstancePayloadDataOffset = INDEX_NONE;
+	int32 InstancePayloadDataUploads = 0;
 	int32 LightmapUploadCount = 0;
 
 	/** NaniteSceneProxy must be set if the proxy is a Nanite proxy */
@@ -192,6 +201,9 @@ struct FInstanceUploadInfo
 {
 	TConstArrayView<FPrimitiveInstance> PrimitiveInstances;
 	int32 InstanceSceneDataOffset = INDEX_NONE;
+	int32 InstancePayloadDataOffset = INDEX_NONE;
+	int32 InstancePayloadDataStride = 0;
+	int32 InstanceCustomDataCount = 0;
 
 	// Optional per-instance data views
 	TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData;
@@ -212,6 +224,32 @@ struct FInstanceUploadInfo
 	int32 PrimitiveID = INDEX_NONE;
 	uint32 LastUpdateSceneFrameNumber = ~uint32(0);
 };
+
+void ValidateInstanceUploadInfo(const FInstanceUploadInfo& UploadInfo)
+{
+#if DO_CHECK
+	const bool bHasRandomID			= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0u;
+	const bool bHasCustomData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
+	const bool bHasDynamicData		= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
+	const bool bHasLMSMScaleBias	= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
+	const bool bHasHierarchyOffset	= (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
+
+	const int32 InstanceCount = UploadInfo.PrimitiveInstances.Num();
+	check(UploadInfo.InstanceRandomID.Num()				== (bHasRandomID		? InstanceCount : 0));
+	check(UploadInfo.InstanceDynamicData.Num()			== (bHasDynamicData		? InstanceCount : 0));
+	check(UploadInfo.InstanceLightShadowUVBias.Num()	== (bHasLMSMScaleBias	? InstanceCount : 0));
+	check(UploadInfo.InstanceHierarchyOffset.Num()		== (bHasHierarchyOffset	? InstanceCount : 0));
+	if (bHasCustomData)
+	{
+		check(UploadInfo.InstanceCustomDataCount > 0);
+		check(UploadInfo.InstanceCustomDataCount * InstanceCount == UploadInfo.InstanceCustomData.Num());
+	}
+	else
+	{
+		check(UploadInfo.InstanceCustomData.Num() == 0 && UploadInfo.InstanceCustomDataCount == 0);
+	}
+#endif
+}
 
 /**
  * Info required by the uploader to update the lightmap data for a primitive.
@@ -266,25 +304,28 @@ struct FUploadDataSourceAdapterScenePrimitives
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
 			PrimitiveUploadInfo.PrimitiveID = PrimitiveID;;
-			PrimitiveUploadInfo.InstanceSceneDataOffset = INDEX_NONE;;
-			PrimitiveUploadInfo.InstanceSceneDataUploads = 0;
 			PrimitiveUploadInfo.LightmapUploadCount = PrimitiveSceneInfo->GetNumLightmapDataEntries();
 			PrimitiveUploadInfo.NaniteSceneProxy = PrimitiveSceneProxy->IsNaniteMesh() ? static_cast<const Nanite::FSceneProxyBase*>(PrimitiveSceneProxy) : nullptr;
 			PrimitiveUploadInfo.PrimitiveSceneInfo = PrimitiveSceneInfo;
+
 			// Count all primitive instances represented in the instance data buffer.
 			if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
 			{
 				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneProxy->GetInstanceSceneData();
 				PrimitiveUploadInfo.InstanceSceneDataOffset = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetInstanceSceneDataOffset();
 				PrimitiveUploadInfo.InstanceSceneDataUploads = InstanceSceneData.Num();
+				PrimitiveUploadInfo.InstancePayloadDataUploads = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataStride() * InstanceSceneData.Num();
 			}
 			else
 			{
 				PrimitiveUploadInfo.InstanceSceneDataOffset = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetInstanceSceneDataOffset();
 				PrimitiveUploadInfo.InstanceSceneDataUploads = 1;
-			}
-			PrimitiveUploadInfo.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveSceneProxy);
+				PrimitiveUploadInfo.InstancePayloadDataUploads = 0;
 
+				checkSlow(!PrimitiveSceneProxy->HasAnyPerInstancePayloadData());
+			}
+
+			PrimitiveUploadInfo.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveSceneProxy);
 			return true;
 		}
 
@@ -303,6 +344,9 @@ struct FUploadDataSourceAdapterScenePrimitives
 			const FLargeWorldRenderPosition AbsoluteOrigin(LocalToWorld.GetOrigin());
 
 			InstanceUploadInfo.InstanceSceneDataOffset = PrimitiveSceneInfo->GetInstanceSceneDataOffset();
+			InstanceUploadInfo.InstancePayloadDataOffset = PrimitiveSceneInfo->GetInstancePayloadDataOffset();
+			InstanceUploadInfo.InstancePayloadDataStride = PrimitiveSceneInfo->GetInstancePayloadDataStride();
+
 			InstanceUploadInfo.LastUpdateSceneFrameNumber = SceneFrameNumber;
 			InstanceUploadInfo.PrimitiveID = GetPrimitiveID(Scene, PrimitiveID);
 			InstanceUploadInfo.PrimitiveToWorld = AbsoluteOrigin.MakeToRelativeWorldMatrix(LocalToWorld);
@@ -337,6 +381,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 			else
 			{
 				check(InstanceUploadInfo.PayloadDataFlags == 0x0);
+				check(InstanceUploadInfo.InstancePayloadDataOffset == INDEX_NONE && InstanceUploadInfo.InstancePayloadDataStride == 0);
 
 				// We always create an instance to ensure that we can always use the same code paths in the shader
 				// In the future we should remove redundant data from the primitive, and then the instances should be
@@ -350,6 +395,14 @@ struct FUploadDataSourceAdapterScenePrimitives
 				InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>();
 				InstanceUploadInfo.InstanceHierarchyOffset = TConstArrayView<uint32>();
 			}
+
+			InstanceUploadInfo.InstanceCustomDataCount = 0;
+			if (InstanceUploadInfo.InstanceCustomData.Num() > 0)
+			{
+				InstanceUploadInfo.InstanceCustomDataCount = InstanceUploadInfo.InstanceCustomData.Num() / InstanceUploadInfo.PrimitiveInstances.Num();
+			}
+
+			ValidateInstanceUploadInfo(InstanceUploadInfo);
 
 			// Only trigger upload if this primitive has instances
 			return InstanceUploadInfo.PrimitiveInstances.Num() > 0;
@@ -489,6 +542,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 		UploadGeneral<FUploadDataSourceAdapterScenePrimitives>(RHICmdList, &Scene, Adapter, BufferState);
 
+// TODO: Reimplement!
 #if DO_CHECK && 0
 		// Validate the scene primitives are identical to the uploaded data (not the dynamic ones).
 		if (GGPUSceneValidatePrimitiveBuffer && BufferState.PrimitiveBuffer.NumBytes > 0)
@@ -865,7 +919,6 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 		const uint32 InstanceSceneDataNumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
 		FUAVTransitionStateScopeHelper InstanceSceneDataTransitionHelper(RHICmdList, BufferState.InstanceSceneDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
-		FUAVTransitionStateScopeHelper InstancePayloadDataTransitionHelper(RHICmdList, BufferState.InstancePayloadDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
 
 		const uint32 LightMapDataBufferSize = BufferState.LightMapDataBufferSize;
 
@@ -887,6 +940,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 		int32 NumLightmapDataUploads = 0;
 		int32 NumInstanceSceneDataUploads = 0;
+		int32 NumInstancePayloadDataUploads = 0; // Count of float4s
 
 		static FCriticalSection PrimitiveUploadBufferCS;
 
@@ -894,7 +948,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 		if (NumPrimitiveDataUploads > 0)
 		{
-			auto ProcessPrimitiveFn = [this, &UploadDataSourceAdapter, Scene, &NumLightmapDataUploads, &NumInstanceSceneDataUploads, bNaniteEnabled](int32 ItemIndex, bool bThreaded)
+			auto ProcessPrimitiveFn = [this, &UploadDataSourceAdapter, Scene, &NumLightmapDataUploads, &NumInstanceSceneDataUploads, &NumInstancePayloadDataUploads, bNaniteEnabled](int32 ItemIndex, bool bThreaded)
 			{
 				FPrimitiveUploadInfo UploadInfo;
 				if (UploadDataSourceAdapter.GetPrimitiveInfo(ItemIndex, UploadInfo))
@@ -914,8 +968,11 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 						NumLightmapDataUploads += UploadInfo.LightmapUploadCount; // Not thread safe
 						NumInstanceSceneDataUploads += UploadInfo.InstanceSceneDataUploads; // Not thread safe
+						NumInstancePayloadDataUploads += UploadInfo.InstancePayloadDataUploads; // Not thread safe
 
 						void* UploadDst = PrimitiveUploadBuffer.Add_GetRef(UploadInfo.PrimitiveID); // Not thread safe
+
+						// TODO: Reserve entire payload data range here for all instances on this primitive, then per instance just write without add ref
 
 						if (bThreaded)
 						{
@@ -1121,9 +1178,12 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		// Clears count toward the total instance scene data uploads - batched together for efficiency.
 		NumInstanceSceneDataUploads += InstancesToClear.Num();
 
-		// GPUCULL_TODO: May this not skip clears? E.g. if something is removed?
-		//ensure(NumPrimitiveDataUploads == 0 ? NumInstanceDataUploads == 0 : true);
 		{
+			if (NumInstancePayloadDataUploads > 0)
+			{
+				InstancePayloadUploadBuffer.Init(NumInstancePayloadDataUploads, sizeof(FVector4), true, TEXT("InstancePayloadUploadBuffer"));
+			}
+
 			// Upload instancing data for the scene.
 			if (NumInstanceSceneDataUploads > 0)
 			{
@@ -1131,7 +1191,8 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 				int32 RangeCount = PartitionUpdateRanges(ParallelRanges, InstancesToClear.Num(), bExecuteInParallel);
 
-				const FInstanceSceneShaderData& ClearedShaderData = GetDummyInstanceSceneShaderData();
+				FInstanceSceneShaderData ClearedShaderData;
+				ClearedShaderData.Build(INVALID_PRIMITIVE_ID, 0, 0, INVALID_LAST_UPDATE_FRAME, 0, 0.0f);
 
 				// Reset any instance slots marked for clearing.
 				ParallelFor(RangeCount,
@@ -1176,56 +1237,40 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 					// Upload any out of date instance slots.
 					ParallelFor(RangeCount,
-						[&UploadDataSourceAdapter, this, &ParallelRanges, RangeCount, InstanceSceneDataNumArrays, &BufferState](int32 RangeIndex)
+						[&UploadDataSourceAdapter, this, &ParallelRanges, RangeCount, InstanceSceneDataNumArrays, NumInstancePayloadDataUploads, &BufferState](int32 RangeIndex)
 						{
 							for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
 							{
 								FInstanceUploadInfo UploadInfo;
 								if (UploadDataSourceAdapter.GetInstanceInfo(ItemIndex, UploadInfo))
 								{
-									// TODO: Temporary hack!
-									uint32 NumCustomDataFloats = 0;
-									if (UploadInfo.PrimitiveInstances.Num() > 0 && UploadInfo.InstanceCustomData.Num() > 0)
-									{
-										NumCustomDataFloats = UploadInfo.InstanceCustomData.Num() / UploadInfo.PrimitiveInstances.Num();
-										check(UploadInfo.PrimitiveInstances.Num() * NumCustomDataFloats == UploadInfo.InstanceCustomData.Num()); // Temp sanity check
-									}
+									check(NumInstancePayloadDataUploads > 0 || UploadInfo.InstancePayloadDataStride == 0); // Sanity check
 
 									// Update each primitive instance with current data.
 									for (int32 InstanceIndex = 0; InstanceIndex < UploadInfo.PrimitiveInstances.Num(); ++InstanceIndex)
 									{
 										const FPrimitiveInstance& SceneData = UploadInfo.PrimitiveInstances[InstanceIndex];
 
-										// TODO: Temporary
-										const FRenderTransform& PrevLocalToPrimitive = UploadInfo.InstanceDynamicData.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive : FRenderTransform::Identity;
-										FVector4f LightMapShadowMapUVBias = UploadInfo.InstanceLightShadowUVBias.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceLightShadowUVBias[InstanceIndex] : FVector4f(ForceInitToZero);
-										float RandomID = UploadInfo.InstanceRandomID.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
-										FRenderBounds InstanceLocalBounds = InstanceIndex < UploadInfo.InstanceLocalBounds.Num() ? UploadInfo.InstanceLocalBounds[InstanceIndex] : UploadInfo.InstanceLocalBounds[0];
-										uint32 NaniteHierarchyOffset = UploadInfo.InstanceHierarchyOffset.Num() == UploadInfo.PrimitiveInstances.Num() ? UploadInfo.InstanceHierarchyOffset[InstanceIndex] : 0;
+										// Directly embedded in instance scene data
+										const float RandomID = UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
 
-										// TODO: Temporary hack!
-										float CustomDataFloat0 = 0.0f;
-										if (NumCustomDataFloats > 0)
-										{
-											CustomDataFloat0 = UploadInfo.InstanceCustomData[InstanceIndex * NumCustomDataFloats];
-										}
-
-										const FInstanceSceneShaderData InstanceSceneData(
-											SceneData,
+										FInstanceSceneShaderData InstanceSceneData;
+										InstanceSceneData.Build(
 											UploadInfo.PrimitiveID,
-											UploadInfo.PrimitiveToWorld,
-											UploadInfo.PrevPrimitiveToWorld,
-											PrevLocalToPrimitive, // TODO: Temporary
-											InstanceLocalBounds, // TODO: Temporary
-											NaniteHierarchyOffset, // TODO: Temporary
-											LightMapShadowMapUVBias, // TODO: Temporary
-											RandomID, // TODO: Temporary
-											CustomDataFloat0, // TODO: Temporary Hack!
+											InstanceIndex,
+											UploadInfo.PayloadDataFlags,
 											UploadInfo.LastUpdateSceneFrameNumber,
-											UploadInfo.PayloadDataFlags
+											UploadInfo.InstanceCustomDataCount,
+											RandomID,
+											SceneData.LocalToPrimitive,
+											UploadInfo.PrimitiveToWorld
 										);
 
+										int32 PayloadDataStart = UploadInfo.InstancePayloadDataOffset + (InstanceIndex * UploadInfo.InstancePayloadDataStride); 
+										
 										void* DstRefs[FInstanceSceneShaderData::DataStrideInFloat4s];
+										FVector4* DstPayloadData = nullptr;
+
 										if (RangeCount > 1)
 										{
 											PrimitiveUploadBufferCS.Lock();
@@ -1236,16 +1281,93 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 											DstRefs[RefIndex] = InstanceSceneUploadBuffer.Add_GetRef(RefIndex * BufferState.InstanceSceneDataSOAStride + UploadInfo.InstanceSceneDataOffset + InstanceIndex);
 										}
 
+										if (UploadInfo.InstancePayloadDataStride > 0)
+										{
+											DstPayloadData = static_cast<FVector4*>(InstancePayloadUploadBuffer.Add_GetRef(PayloadDataStart, UploadInfo.InstancePayloadDataStride)); // Not thread safe
+										}
+
 										if (RangeCount > 1)
 										{
 											PrimitiveUploadBufferCS.Unlock();
 										}
 
-										for (uint32 RefIndex = 0; RefIndex < InstanceSceneDataNumArrays; ++RefIndex) //TODO: make a SOA version of InstanceUploadBuffer.Add
+										for (uint32 RefIndex = 0; RefIndex < InstanceSceneDataNumArrays; ++RefIndex)
 										{
 											FVector4f* DstVector = static_cast<FVector4f*>(DstRefs[RefIndex]);
 											*DstVector = InstanceSceneData.Data[RefIndex];
 										}
+
+										// BEGIN PAYLOAD
+
+										if (UploadInfo.InstancePayloadDataStride > 0)
+										{
+											TArrayView<FVector4> InstancePayloadData = TArrayView<FVector4>(DstPayloadData, UploadInfo.InstancePayloadDataStride);
+
+											int32 PayloadPosition = 0;
+
+											if (UploadInfo.PayloadDataFlags & (INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET | INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS))
+											{
+												const uint32 InstanceHierarchyOffset = (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) ? UploadInfo.InstanceHierarchyOffset[InstanceIndex] : 0;
+												InstancePayloadData[PayloadPosition].X = *(const float*)&InstanceHierarchyOffset;
+
+												if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS)
+												{
+													check(UploadInfo.InstanceLocalBounds.Num() == UploadInfo.PrimitiveInstances.Num());
+													const FRenderBounds& InstanceLocalBounds = UploadInfo.InstanceLocalBounds[InstanceIndex];
+													const FVector3f BoundsOrigin = InstanceLocalBounds.GetCenter();
+													const FVector3f BoundsExtent = InstanceLocalBounds.GetExtent();
+
+													InstancePayloadData[PayloadPosition + 0].Y = *(const float*)&BoundsOrigin.X;
+													InstancePayloadData[PayloadPosition + 0].Z = *(const float*)&BoundsOrigin.Y;
+													InstancePayloadData[PayloadPosition + 0].W = *(const float*)&BoundsOrigin.Z;
+
+													InstancePayloadData[PayloadPosition + 1].X = *(const float*)&BoundsExtent.X;
+													InstancePayloadData[PayloadPosition + 1].Y = *(const float*)&BoundsExtent.Y;
+													InstancePayloadData[PayloadPosition + 1].Z = *(const float*)&BoundsExtent.Z;
+													// .W = Unused
+												}
+
+												PayloadPosition += (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) ? 2 : 1;
+											}
+
+											if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
+											{
+												check(UploadInfo.InstanceDynamicData.Num() == UploadInfo.PrimitiveInstances.Num());
+												const FRenderTransform PrevLocalToWorld = UploadInfo.InstanceDynamicData[InstanceIndex].ComputePrevLocalToWorld(UploadInfo.PrevPrimitiveToWorld);
+											#if INSTANCE_COMPRESSED_TRANSFORMS
+												check(PayloadPosition + 1 < InstancePayloadData.Num()); // Sanity check
+												FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
+												InstancePayloadData[PayloadPosition + 0] = *(const FVector4*)&CompressedPrevLocalToWorld.Rotation[0];
+												InstancePayloadData[PayloadPosition + 1] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
+												PayloadPosition += 2;
+											#else
+												// Note: writes 3x float4s
+												check(PayloadPosition + 2 < InstancePayloadData.Num()); // Sanity check
+												PrevLocalToWorld.To3x4MatrixTranspose((float*)&InstancePayloadData[PayloadPosition]);
+												PayloadPosition += 3;
+											#endif
+											}
+
+											if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS)
+											{
+												check(UploadInfo.InstanceLightShadowUVBias.Num() == UploadInfo.PrimitiveInstances.Num());
+												InstancePayloadData[PayloadPosition] = UploadInfo.InstanceLightShadowUVBias[InstanceIndex];
+												PayloadPosition += 1;
+											}
+
+											if (UploadInfo.PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA)
+											{
+												check(PayloadPosition + (UploadInfo.InstanceCustomDataCount >> 2u) <= InstancePayloadData.Num());
+												const float* CustomDataGetPtr = &UploadInfo.InstanceCustomData[(InstanceIndex * UploadInfo.InstanceCustomDataCount)];
+												float* CustomDataPutPtr = (float*)&InstancePayloadData[PayloadPosition];
+												for (uint32 FloatIndex = 0; FloatIndex < uint32(UploadInfo.InstanceCustomDataCount); ++FloatIndex)
+												{
+													CustomDataPutPtr[FloatIndex] = CustomDataGetPtr[FloatIndex];
+												}
+											}
+										}
+
+										// END PAYLOAD
 									}
 								}
 							}
@@ -1253,6 +1375,14 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						RangeCount == 1
 					);
 				}
+
+				if (NumInstancePayloadDataUploads > 0)
+				{
+					FUAVTransitionStateScopeHelper InstancePayloadDataTransitionHelper(RHICmdList, BufferState.InstancePayloadDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+					InstancePayloadDataTransitionHelper.TransitionTo(ERHIAccess::UAVCompute);
+					InstancePayloadUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.InstancePayloadDataBuffer, false);
+				}
+
 				InstanceSceneDataTransitionHelper.TransitionTo(ERHIAccess::UAVCompute);
 				InstanceSceneUploadBuffer.ResourceUploadTo(RHICmdList, BufferState.InstanceSceneDataBuffer, false);
 			}
@@ -1328,6 +1458,11 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 				InstanceSceneUploadBuffer.Release();
 			}
 
+			if (InstancePayloadUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+			{
+				InstancePayloadUploadBuffer.Release();
+			}
+
 			if (LightmapUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
 			{
 				LightmapUploadBuffer.Release();
@@ -1371,6 +1506,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 
 			PrimitiveUploadInfo.InstanceSceneDataOffset = InstanceIDStartOffset + ItemIndex;
 			PrimitiveUploadInfo.InstanceSceneDataUploads = 1;
+			PrimitiveUploadInfo.InstancePayloadDataUploads = 0;
 			PrimitiveUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
 			PrimitiveUploadInfo.PrimitiveSceneData = FPrimitiveSceneShaderData(Tmp);
 
@@ -1401,6 +1537,9 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 			InstanceUploadInfo.InstanceHierarchyOffset		= TConstArrayView<uint32>();
 			InstanceUploadInfo.InstanceSceneDataOffset		= InstanceIDStartOffset + ItemIndex; 
 			InstanceUploadInfo.PayloadDataFlags				= 0;
+			InstanceUploadInfo.InstancePayloadDataOffset	= INDEX_NONE;
+			InstanceUploadInfo.InstancePayloadDataStride	= 0;
+			InstanceUploadInfo.InstanceCustomDataCount		= 0;
 
 			return true;
 		}
@@ -1637,6 +1776,7 @@ class FGPUSceneDebugRenderCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
@@ -1756,6 +1896,7 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 			ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawUniformBuffer);
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
 			PassParameters->GPUSceneInstanceSceneData = InstanceSceneDataBuffer.SRV;
+			PassParameters->GPUSceneInstancePayloadData = InstancePayloadDataBuffer.SRV;
 			PassParameters->GPUScenePrimitiveSceneData = PrimitiveBuffer.SRV;
 			PassParameters->InstanceDataSOAStride = InstanceSceneDataSOAStride;
 			PassParameters->GPUSceneFrameNumber = GetSceneFrameNumber();

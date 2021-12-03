@@ -171,26 +171,16 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
 				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
 
-				uint32 InstanceFlags = 0;
-				if (PrimitiveParams.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN)
-				{
-					InstanceFlags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
-				}
-
 				// Also fill out correct single-primitive instance data, derived from the primitive.
-				SinglePrimitiveStructured.InstanceSceneData = FInstanceSceneShaderData(
-					ConstructPrimitiveInstance(),
-					0, /* Primitive Id */
-					FRenderTransform(PrimitiveParams.LocalToRelativeWorld),
-					FRenderTransform(PrimitiveParams.PreviousLocalToRelativeWorld),
-					FRenderTransform::Identity, /* PrevLocalToPrimitive */
-					FRenderBounds(PrimitiveParams.LocalObjectBoundsMin, PrimitiveParams.LocalObjectBoundsMax),
-					NANITE_INVALID_HIERARCHY_OFFSET,
-					FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */
-					0.0f, /* Per instance Random ID */
-					0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
+				SinglePrimitiveStructured.InstanceSceneData.Build
+				(
+					0 /* Primitive Id */,
+					0 /* Relative Instance Id */,
+					0 /* Payload Data Flags */,
 					INVALID_LAST_UPDATE_FRAME,
-					InstanceFlags
+					0 /* Custom Data Count */,
+					0.0f /* Random ID */,
+					PrimitiveParams.LocalToWorld
 				);
 
 				// TODO: Payload dummy?

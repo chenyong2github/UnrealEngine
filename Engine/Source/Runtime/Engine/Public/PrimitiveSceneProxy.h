@@ -661,7 +661,7 @@ public:
 		PayloadDataFlags |= HasPerInstanceDynamicData()     ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			: 0u;
 		PayloadDataFlags |= HasPerInstanceLMSMUVBias()      ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	: 0u;
 		PayloadDataFlags |= HasPerInstanceHierarchyOffset() ? INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		: 0u;
-		PayloadDataFlags |= HasPerInstanceLocalBounds()		? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			: 0u;
+		PayloadDataFlags |= HasPerInstanceLocalBounds()     ? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			: 0u;
 		return PayloadDataFlags;
 	}
 
@@ -834,30 +834,8 @@ public:
 		bHasImposterData = false;
 	}
 
-	inline uint32 GetPayloadDataCount() const
-	{
-		static_assert(sizeof(FRenderTransform) == sizeof(float) * 3 * 4); // Sanity check
-		static_assert(sizeof(FRenderBounds) == sizeof(float) * 3 * 2); // Sanity check
-
-		// Count of 32bit values to keep buffer accesses 4 byte aligned.
-		// This count is per instance.
-		uint32 PayloadDataCount = 0;
-		PayloadDataCount += HasPerInstanceDynamicData() ? (3 * 4) : 0;	// FRenderTransform
-		PayloadDataCount += HasPerInstanceRandom() ? 1 : 0;				// Single float
-		PayloadDataCount += HasPerInstanceHierarchyOffset() ? 1 : 0;	// Single uint32
-		PayloadDataCount += HasPerInstanceLocalBounds() ? (3 * 2) : 0;	// FRenderBounds
-		PayloadDataCount += HasPerInstanceLMSMUVBias() ? 4 : 0;			// FVector4
-		if (HasPerInstanceCustomData())
-		{
-			const uint32 InstanceCount		= InstanceSceneData.Num();
-			const uint32 CustomDataCount	= InstanceCustomData.Num();
-			if (InstanceCount > 0)
-			{
-				PayloadDataCount += (CustomDataCount / InstanceCount);
-			}
-		}
-		return PayloadDataCount;
-	}
+	// Number of packed float4 values per instance
+	ENGINE_API uint32 GetPayloadDataStride() const;
 
 	/** 
 	 * Drawing helper. Draws nice bouncy line.

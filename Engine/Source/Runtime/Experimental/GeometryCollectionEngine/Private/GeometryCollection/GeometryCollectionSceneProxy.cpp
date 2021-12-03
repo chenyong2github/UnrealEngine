@@ -1402,7 +1402,6 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// Indicates if 1 or more materials contain settings not supported by Nanite.
 	bHasMaterialErrors = false;
 
-	// TODO: Respect this setting with de-interleaved stream data
 	bHasPerInstanceHierarchyOffset = true;
 	bHasPerInstanceLocalBounds = true;
 	bHasPerInstanceDynamicData = true;
