@@ -170,17 +170,17 @@ void FNaniteDrawListContextDeferred::FinalizeCommand(
 {
 	FinalizeCommandCommon(MeshBatch, BatchElementIndex, PipelineState, ShadersForDebugging, MeshDrawCommand);
 
+#if WITH_DEBUG_VIEW_MODES
 	uint32 NumPSInstructions = 0;
 	uint32 NumVSInstructions = 0;
-#if WITH_DEBUG_VIEW_MODES
 	if (ShadersForDebugging != nullptr)
 	{
 		NumPSInstructions = ShadersForDebugging->PixelShader->GetNumInstructions();
 		NumVSInstructions = ShadersForDebugging->VertexShader->GetNumInstructions();
 	}
-#endif
 
-	const uint32 InstructionCount = NumPSInstructions << 16u | NumVSInstructions;
+	const uint32 InstructionCount = static_cast<uint32>(NumPSInstructions << 16u | NumVSInstructions);
+#endif
 
 	// Defer the command
 	DeferredCommands[CurrMeshPass].Add(
@@ -188,7 +188,9 @@ void FNaniteDrawListContextDeferred::FinalizeCommand(
 			CurrPrimitiveSceneInfo,
 			MeshDrawCommand,
 			FNaniteMaterialEntryMap::ComputeHash(MeshDrawCommand),
+#if WITH_DEBUG_VIEW_MODES
 			InstructionCount,
+#endif
 			MeshBatch.SegmentIndex
 		}
 	);
@@ -204,6 +206,9 @@ void FNaniteDrawListContextDeferred::RegisterDeferredCommands(FScene& Scene)
 
 		for (auto& Command : DeferredCommands[MeshPass])
 		{
+			uint32 InstructionCount = 0;
+#if WITH_DEBUG_VIEW_MODES
+#endif
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = Command.PrimitiveSceneInfo;
 			FNaniteCommandInfo CommandInfo = MaterialCommands.Register(Command.MeshDrawCommand, Command.CommandHash, Command.InstructionCount);
 			AddCommandInfo(*PrimitiveSceneInfo, CommandInfo, (ENaniteMeshPass::Type)MeshPass, Command.SectionIndex);
