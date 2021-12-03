@@ -1487,12 +1487,12 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	const bool bEnableScatterBokehSettings = CVarEnableScatterBokehSettings.GetValueOnRenderThread() == 1;
 	const bool bEnableSlightOutOfFocusBokeh = bSupportGatheringBokehSimulation && bRecombineDoesSlightOutOfFocus && CVarEnableRecombineBokehSettings.GetValueOnRenderThread();
 		
-	// Setup all the desciptors.
+	// Setup all the descriptors.
 	FRDGTextureDesc FullResDesc;
 	{
 		FullResDesc = InputSceneColor->Desc;
 
-		// Reset so that the number of samples of decsriptor becomes 1, which is totally legal still with MSAA because
+		// Reset so that the number of samples of descriptor becomes 1, which is totally legal still with MSAA because
 		// the scene color will already be resolved to ShaderResource texture that is always 1. This is to work around
 		// hack that MSAA will have targetable texture with MSAA != shader resource, and still have descriptor indicating
 		// the number of samples of the targetable resource.

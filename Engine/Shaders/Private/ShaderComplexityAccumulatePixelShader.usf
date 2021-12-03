@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	ShaderComplexityAccumulatePixelShader.usf: Outputs complexity
+	ShaderComplexityAccumulatePixelShader.usf: Outputs shader complexity
 =============================================================================*/
 
 #include "Common.ush"
@@ -24,7 +24,7 @@ void Main(
 {
 	float3 FinalComplexity = NormalizedComplexity.xyz;
 
-	[branch]
+	BRANCH
 	if (bShowQuadOverdraw && NormalizedComplexity.x > 0)
 	{
 		uint Coverage = ComputeQuadCoverage(Input.SvPosition.xy, Input.PrimitiveID, 24, false, false, 0);
