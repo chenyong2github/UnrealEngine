@@ -36,6 +36,13 @@ namespace VirtualTextureScalability
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
+	static TAutoConsoleVariable<int32> CVarVTMaxReleasedPerFrame(
+		TEXT("r.VT.MaxReleasedPerFrame"),
+		0,
+		TEXT("Max number of allocated virtual textures to release per frame"),
+		ECVF_RenderThreadSafe | ECVF_Scalability
+	);
+
 #if WITH_EDITOR
 	static TAutoConsoleVariable<int32> CVarVTMaxContinuousUpdatesPerFrameInEditor(
 		TEXT("r.VT.MaxContinuousUpdatesPerFrameInEditor"),
@@ -231,7 +238,12 @@ namespace VirtualTextureScalability
 	{
 		return CVarMaxPagesProducedPerFrame.GetValueOnAnyThread();
 	}
-	
+
+	int32 GetMaxAllocatedVTReleasedPerFrame()
+	{
+		return CVarVTMaxReleasedPerFrame.GetValueOnAnyThread();
+	}
+
 	int32 GetMaxContinuousUpdatesPerFrame()
 	{
 #if WITH_EDITOR
