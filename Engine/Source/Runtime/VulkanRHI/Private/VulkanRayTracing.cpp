@@ -325,6 +325,10 @@ FVulkanRayTracingGeometry::FVulkanRayTracingGeometry(FRayTracingGeometryInitiali
 	ZeroVulkanStruct(DeviceAddressInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR);
 	DeviceAddressInfo.accelerationStructure = Handle;
 	Address = vkGetAccelerationStructureDeviceAddressKHR(NativeDevice, &DeviceAddressInfo);
+	
+	SizeInfo.ResultSize = BuildData.SizesInfo.accelerationStructureSize;
+	SizeInfo.BuildScratchSize = BuildData.SizesInfo.buildScratchSize;
+	SizeInfo.UpdateScratchSize = BuildData.SizesInfo.updateScratchSize;
 }
 
 FVulkanRayTracingGeometry::~FVulkanRayTracingGeometry()

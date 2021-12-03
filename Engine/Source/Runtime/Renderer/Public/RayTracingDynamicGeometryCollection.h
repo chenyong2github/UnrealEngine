@@ -20,10 +20,13 @@ public:
 
 	// Starts an update batch and returns the current shared buffer generation ID which is used for validation.
 	int64 BeginUpdate();
-	void DispatchUpdates(FRHIComputeCommandList& ParentCmdList);
+	void DispatchUpdates(FRHIComputeCommandList& ParentCmdList, FRHIBuffer* ScratchBuffer);
 	void EndUpdate(FRHICommandListImmediate& RHICmdList);
 
+	uint32 ComputeScratchBufferSize();
+
 private:
+
 	TArray<struct FMeshComputeDispatchCommand> DispatchCommands;
 	TArray<FRayTracingGeometryBuildParams> BuildParams;
 	TArray<FRayTracingGeometrySegment> Segments;

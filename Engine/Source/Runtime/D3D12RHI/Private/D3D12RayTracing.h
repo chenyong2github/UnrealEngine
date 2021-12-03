@@ -32,6 +32,7 @@ public:
 		return AccelerationStructureBuffers[GPUIndex]->ResourceLocation.GetGPUVirtualAddress();
 	}
 	virtual uint32 GetNumSegments() const final override { return Segments.Num(); }
+	virtual FRayTracingAccelerationStructureSize GetSizeInfo() const final override { return SizeInfo; }
 
 	void SetupHitGroupSystemParameters(uint32 InGPUIndex);
 	void TransitionBuffers(FD3D12CommandContext& CommandContext);

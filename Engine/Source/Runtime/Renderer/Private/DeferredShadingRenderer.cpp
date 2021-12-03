@@ -1301,6 +1301,7 @@ static void DeduplicateRayGenerationShaders(TArray< FRHIRayTracingShader*>& RayG
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildAccelerationStructurePassParams, )
 	RDG_BUFFER_ACCESS(RayTracingSceneScratchBuffer, ERHIAccess::UAVCompute)
+	RDG_BUFFER_ACCESS(DynamicGeometryScratchBuffer, ERHIAccess::UAVCompute)
 	RDG_BUFFER_ACCESS(RayTracingSceneInstanceBuffer, ERHIAccess::SRVCompute)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -1435,7 +1436,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGPUSkinCacheBLASUpdateParams, )
 	RDG_BUFFER_ACCESS(SharedScratchBuffer, ERHIAccess::UAVCompute)
 END_SHADER_PARAMETER_STRUCT()
 
-bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder)
+bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder, FRDGBufferRef& OutDynamicGeometryScratchBuffer)
 {
 	bool bAnyRayTracingPassEnabled = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -1503,12 +1504,28 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	RayTracingScene.Create(GraphBuilder, Scene->GPUScene);
 
+	OutDynamicGeometryScratchBuffer = nullptr;
+
+	const uint32 BLASScratchSize = Scene->GetRayTracingDynamicGeometryCollection()->ComputeScratchBufferSize();
+	if (BLASScratchSize > 0)
+	{
+		const uint32 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+		FRDGBufferDesc ScratchBufferDesc;
+		ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
+		ScratchBufferDesc.Usage = BUF_UnorderedAccess;
+		ScratchBufferDesc.BytesPerElement = ScratchAlignment;
+		ScratchBufferDesc.NumElements = FMath::DivideAndRoundUp(BLASScratchSize, ScratchAlignment);
+
+		OutDynamicGeometryScratchBuffer = GraphBuilder.CreateBuffer(ScratchBufferDesc, TEXT("DynamicGeometry.BLASSharedScratchBuffer"));
+	}
+
 	const bool bRayTracingAsyncBuild = CVarRayTracingAsyncBuild.GetValueOnRenderThread() != 0;
 
 	if (bRayTracingAsyncBuild && GRHISupportsRayTracingAsyncBuildAccelerationStructure)
 	{
 		FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 		PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+		PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
 		PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("BuildAccelerationStructure"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
@@ -1525,7 +1542,9 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 				RHICmdList.BeginTransition(RayTracingDynamicGeometryUpdateBeginTransition);
 				RHIAsyncCmdList.EndTransition(RayTracingDynamicGeometryUpdateBeginTransition);
 
-				Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHIAsyncCmdList);
+				FRHIBuffer* DynamicGeometryScratchBuffer = PassParams->DynamicGeometryScratchBuffer ? PassParams->DynamicGeometryScratchBuffer->GetRHI() : nullptr;
+
+				Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHIAsyncCmdList, DynamicGeometryScratchBuffer);
 
 				FRHIRayTracingScene* RayTracingSceneRHI = Scene->RayTracingScene.GetRHIRayTracingSceneChecked();
 				FRHIBuffer* AccelerationStructureBuffer = Scene->RayTracingScene.GetBufferChecked();
@@ -1557,10 +1576,17 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	{
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingGeometry);
-			AddPass(GraphBuilder, RDG_EVENT_NAME("RayTracingGeometry"), [this](FRHICommandListImmediate& RHICmdList)
-			{
-				Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHICmdList);
-			});
+
+			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
+			PassParams->RayTracingSceneScratchBuffer = nullptr;
+			PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
+
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingGeometry"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+				[this, PassParams](FRHICommandListImmediate& RHICmdList)
+				{
+					FRHIBuffer* DynamicGeometryScratchBuffer = PassParams->DynamicGeometryScratchBuffer ? PassParams->DynamicGeometryScratchBuffer->GetRHI() : nullptr;
+					Scene->GetRayTracingDynamicGeometryCollection()->DispatchUpdates(RHICmdList, DynamicGeometryScratchBuffer);
+				});
 		}
 
 		{
@@ -1568,7 +1594,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 			FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 			PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
-			PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
 
 			GraphBuilder.AddPass(RDG_EVENT_NAME("RayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				[this, PassParams](FRHICommandListImmediate& RHICmdList)
@@ -1650,7 +1675,7 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 	});
 }
 
-void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBuilder, FRDGBufferRef DynamicGeometryScratchBuffer)
 {
 	bool bAnyRayTracingPassEnabled = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -1686,6 +1711,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	// Scratch buffer must be referenced in this pass, as it must live until the BVH build is complete.
 	FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 	PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+	PassParams->DynamicGeometryScratchBuffer = DynamicGeometryScratchBuffer;
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		[this, PassParams](FRHICommandListImmediate& RHICmdList)
@@ -2612,7 +2638,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 	// Async AS builds can potentially overlap with BasePass
-	DispatchRayTracingWorldUpdates(GraphBuilder);
+	FRDGBufferRef DynamicGeometryScratchBuffer;
+	DispatchRayTracingWorldUpdates(GraphBuilder, DynamicGeometryScratchBuffer);
 #endif
 
 	{
@@ -2706,7 +2733,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
 		if (Lumen::UseHardwareRayTracedSceneLighting())
 		{
-			WaitForRayTracingScene(GraphBuilder);
+			WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
 			bRayTracingSceneReady = true;
 		}
 #endif // RHI_RAYTRACING
@@ -2815,7 +2842,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// If Lumen did not force an earlier ray tracing scene sync, we must wait for it here.
 	if (!bRayTracingSceneReady)
 	{
-		WaitForRayTracingScene(GraphBuilder);
+		WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
 		bRayTracingSceneReady = true;
 	}
 #endif // RHI_RAYTRACING

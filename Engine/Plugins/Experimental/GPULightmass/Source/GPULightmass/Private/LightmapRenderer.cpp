@@ -920,7 +920,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 								StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupRenderStates.Elements.Num() + LandscapeIndex
 							);
 
-							DynamicGeometryCollection.DispatchUpdates(RHICmdList);
+							DynamicGeometryCollection.DispatchUpdates(RHICmdList, nullptr);
 
 							// Landscape VF doesn't really use the vertex buffer in HitGroupSystemParameters
 							// We can release after all related RHI cmds get dispatched onto the cmd list
