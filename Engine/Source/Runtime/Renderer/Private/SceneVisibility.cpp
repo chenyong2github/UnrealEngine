@@ -2287,11 +2287,6 @@ struct FRelevancePacket
 			const bool bTranslucentRelevance = ViewRelevance.HasTranslucency();
 
 			const bool bHairStrandsEnabled = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform());
-			if (!bEditorRelevance && bHairStrandsEnabled)
-			{
-				++NumVisibleDynamicPrimitives;
-				OutHasDynamicMeshElementsMasks[BitIndex] |= ViewBit;
-			}
 
 			if (View.bIsReflectionCapture && !PrimitiveSceneInfo->Proxy->IsVisibleInReflectionCaptures())
 			{
@@ -2341,6 +2336,12 @@ struct FRelevancePacket
 				{
 					VisibleDynamicPrimitivesWithSimpleLights.AddPrim(PrimitiveSceneInfo);
 				}
+			}
+			else if (bHairStrandsEnabled)
+			{
+				// Strands MeshElement
+				++NumVisibleDynamicPrimitives;
+				OutHasDynamicMeshElementsMasks[BitIndex] |= ViewBit;
 			}
 
 			if (bTranslucentRelevance && !bEditorRelevance && ViewRelevance.bRenderInMainPass)
