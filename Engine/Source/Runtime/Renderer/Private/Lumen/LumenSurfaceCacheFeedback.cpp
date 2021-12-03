@@ -552,7 +552,7 @@ void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRD
 			FrameTemporaries.SurfaceCacheFeedbackResources.BufferSize = 0;
 		}
 
-		if (LumenSceneData.CardPageLastUsedBuffer && LumenSceneData.CardPageHighResLastUsedBuffer)
+		if (FrameTemporaries.CardPageLastUsedBuffer && FrameTemporaries.CardPageHighResLastUsedBuffer)
 		{
 			LumenSceneData.CardPageLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(FrameTemporaries.CardPageLastUsedBuffer);
 			LumenSceneData.CardPageHighResLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(FrameTemporaries.CardPageHighResLastUsedBuffer);
