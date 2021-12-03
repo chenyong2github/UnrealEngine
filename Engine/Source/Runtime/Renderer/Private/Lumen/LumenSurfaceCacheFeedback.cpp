@@ -502,7 +502,7 @@ FIntPoint FLumenSurfaceCacheFeedback::GetFeedbackBufferTileJitter() const
 	return TileJitter;
 }
 
-void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
@@ -510,7 +510,6 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 	if (bLumenActive && GLumenSurfaceCacheFeedback != 0)
 	{
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		FLumenSceneFrameTemporaries& FrameTemporaries = LumenSceneData.FrameTemporaries;
 
 		extern int32 GVisualizeLumenSceneSurfaceCacheFeedback;
 		const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
@@ -533,7 +532,7 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 	}
 }
 
-void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
@@ -541,7 +540,6 @@ void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRD
 	if (bLumenActive && GLumenSurfaceCacheFeedback != 0)
 	{
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		FLumenSceneFrameTemporaries& FrameTemporaries = LumenSceneData.FrameTemporaries;
 
 		if (FrameTemporaries.SurfaceCacheFeedbackResources.Buffer)
 		{

@@ -80,7 +80,7 @@ class FLumenCardTracingInputs
 {
 public:
 
-	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, bool bSurfaceCacheFeedback = true);
+	FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View, FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback = true);
 
 	FRDGTextureRef AlbedoAtlas;
 	FRDGTextureRef OpacityAtlas;

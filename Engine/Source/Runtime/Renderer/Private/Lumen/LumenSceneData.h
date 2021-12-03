@@ -413,8 +413,6 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> CardPageLastUsedBuffer;
 	TRefCountPtr<FRDGPooledBuffer> CardPageHighResLastUsedBuffer;
 
-	FLumenSceneFrameTemporaries FrameTemporaries;
-
 	// Captured from the triangle scene
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
 	TRefCountPtr<IPooledRenderTarget> OpacityAtlas;

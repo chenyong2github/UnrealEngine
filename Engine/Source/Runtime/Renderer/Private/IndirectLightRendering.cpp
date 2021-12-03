@@ -719,6 +719,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextures& SceneTextures,
+	FLumenSceneFrameTemporaries& LumenFrameTemporaries,
 	FRDGTextureRef LightingChannelsTexture,
 	bool bIsVisualizePass)
 {
@@ -775,6 +776,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			DenoiserOutputs = RenderLumenProbeHierarchy(
 				GraphBuilder,
 				SceneTextures,
+				LumenFrameTemporaries,
 				CommonDiffuseParameters, PrevSceneColorMip,
 				View, &View.PrevViewInfo);
 		}
@@ -800,6 +802,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			DenoiserOutputs = RenderLumenScreenProbeGather(
 				GraphBuilder, 
 				SceneTextures,
+				LumenFrameTemporaries,
 				LightingChannelsTexture,
 				View,
 				&View.PrevViewInfo,
@@ -812,7 +815,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				DenoiserOutputs.Textures[2] = RenderLumenReflections(
 					GraphBuilder,
 					View,
-					SceneTextures, 
+					SceneTextures,
+					LumenFrameTemporaries,
 					MeshSDFGridParameters,
 					RadianceCacheParameters,
 					LumenReflectionCompositeParameters);

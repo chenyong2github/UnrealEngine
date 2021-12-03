@@ -524,7 +524,8 @@ DECLARE_GPU_STAT(LumenSceneLighting);
 
 void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 	FRDGBuilder& GraphBuilder,
-	FViewInfo& View)
+	FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderLumenSceneLighting);
@@ -540,11 +541,10 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneLighting%s", View.bLumenPropagateGlobalLightingChange ? TEXT(" PROPAGATE GLOBAL CHANGE!") : TEXT(""));
 		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenSceneLighting);
 
-		LumenSceneData.FrameTemporaries = FLumenSceneFrameTemporaries();
 		LumenSceneData.IncrementSurfaceCacheUpdateFrameIndex();
 
 		FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
-		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, Views[0]);
+		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, Views[0], FrameTemporaries);
 
 		if (LumenSceneData.GetNumCardPages() > 0)
 		{

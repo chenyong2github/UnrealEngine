@@ -768,6 +768,7 @@ DECLARE_GPU_STAT(LumenProbeDenoiser);
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const HybridIndirectLighting::FCommonParameters& CommonParameters,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 	const FViewInfo& View,
@@ -1600,6 +1601,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 				RenderLumenProbeOcclusion(
 					GraphBuilder,
 					View,
+					FrameTemporaries,
 					CommonParameters,
 					IndirectLightingProbeOcclusionParameters);
 			}
@@ -1773,7 +1775,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 	if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 	{
 		RenderLumenProbe(
-			GraphBuilder, View,
+			GraphBuilder, View, FrameTemporaries,
 			ProbeHierachyParameters,
 			IndirectLightingAtlasParameters,
 			EmitProbeParameters);
