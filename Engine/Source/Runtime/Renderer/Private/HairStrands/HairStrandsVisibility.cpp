@@ -2848,7 +2848,7 @@ static FRDGTextureRef AddHairHairCountToTransmittancePass(
 }
 
 // Transit resources used during the MeshDraw passes
-static void AddMeshDrawTransitionPass(
+void AddMeshDrawTransitionPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& ViewInfo,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas)
@@ -3577,11 +3577,6 @@ void RenderHairStrandsVisibilityBuffer(
 			FRDGBufferRef  CompactNodeData = nullptr;
 			FRDGBufferRef  CompactNodeVis = nullptr;
 			FRDGTextureRef NodeCounter = nullptr;
-
-			if (RenderMode != HairVisibilityRenderMode_ComputeRaster)
-			{
-				AddMeshDrawTransitionPass(GraphBuilder, View, MacroGroupDatas);
-			}
 
 			if (RenderMode == HairVisibilityRenderMode_ComputeRaster)
 			{

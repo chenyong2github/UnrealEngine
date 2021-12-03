@@ -86,6 +86,10 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, "Hai
 
 bool GetHairStrandsSkyLightingDebugEnable();
 bool IsHairStrandsAdaptiveVoxelAllocationEnable();
+void AddMeshDrawTransitionPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& ViewInfo,
+	const FHairStrandsMacroGroupDatas& MacroGroupDatas);
 
 void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
@@ -125,6 +129,10 @@ void RenderHairPrePass(
 
 		// Voxelization and Deep Opacity Maps
 		VoxelizeHairStrands(GraphBuilder, Scene, View, InstanceCullingManager);
+		if (View.HairStrandsViewData.MacroGroupDatas.Num() > 0)
+		{
+			AddMeshDrawTransitionPass(GraphBuilder, View, View.HairStrandsViewData.MacroGroupDatas);
+		}
 		RenderHairStrandsDeepShadows(GraphBuilder, Scene, View, InstanceCullingManager);
 		GraphBuilder.AddDispatchHint();;
 	}

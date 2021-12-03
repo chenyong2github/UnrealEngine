@@ -2272,7 +2272,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSkinCacheTransitions"), [this](FRHICommandList& InRHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("GPUSkinCache::Transitions"), [this](FRHICommandList& InRHICmdList)
 	{
 		RunGPUSkinCacheTransition(InRHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 	});
