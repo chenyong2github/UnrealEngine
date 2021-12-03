@@ -1264,14 +1264,22 @@ public:
 float ComputeMaxCardUpdateDistanceFromCamera()
 {
 	float MaxCardDistanceFromCamera = 0.0f;
-
-	// Max voxel clipmap extent
+	
+	// Limit to voxel clipmap range
 	extern int32 GLumenSceneClipmapResolution;
 	if (GetNumLumenVoxelClipmaps() > 0 && GLumenSceneClipmapResolution > 0)
 	{
 		const float LastClipmapExtent = Lumen::GetFirstClipmapWorldExtent() * (float)(1 << (GetNumLumenVoxelClipmaps() - 1));
 		MaxCardDistanceFromCamera = LastClipmapExtent;
 	}
+
+#if RHI_RAYTRACING
+	// Limit to ray tracing culling radius if ray tracing is used
+	if (Lumen::UseHardwareRayTracing() && GetRayTracingCulling() != 0)
+	{
+		MaxCardDistanceFromCamera = GetRayTracingCullingRadius();
+	}
+#endif
 
 	return MaxCardDistanceFromCamera + GLumenSceneCardCaptureMargin;
 }
