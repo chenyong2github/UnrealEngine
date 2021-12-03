@@ -58,12 +58,14 @@
 #include "BRDF.ush"
 #include "ShadingModels.ush"
 #include "ClearCoatCommon.ush"
+#include "FastMath.ush"
 
 #if DIM_APPLY_DIFFUSE_INDIRECT
 
 #include "ScreenSpaceDenoise/SSDSignalFramework.ush"
 #include "ScreenSpaceDenoise/SSDSignalArray.ush"
 #include "ScreenSpaceDenoise/SSDSpatialKernel.ush"
+#include "Lumen/LumenScreenSpaceBentNormal.ush"
 
 #endif
 
@@ -270,8 +272,20 @@ void MainPS(
 				RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
 			#endif
 
-			#if DIM_APPLY_DIFFUSE_INDIRECT == 2 || DIM_APPLY_DIFFUSE_INDIRECT == 4
+			#if DIM_APPLY_DIFFUSE_INDIRECT == 2
 				float DiffuseIndirectAO = 1;
+			#elif DIM_APPLY_DIFFUSE_INDIRECT == 4	// Lumen Screen Probe Gather
+
+				#if DIM_SCREEN_BENT_NORMAL
+					float3 BentNormal = ScreenBentNormal[(uint2)SvPosition.xy].xyz * 2 - 1;
+					float AO = length(BentNormal);
+					float3 DiffuseIndirectAO = DistantIlluminationRescale(GBuffer.BaseColor, AO);
+					float SpecularOcclusion = CalculateSpecularOcclusion(GBuffer, AO, V, BentNormal);
+				#else
+					float SpecularOcclusion = 1.0f;
+					float DiffuseIndirectAO = 1;
+				#endif
+
 			#else
 				float DiffuseIndirectAO = lerp(1, FinalAmbientOcclusion, ApplyAOToDynamicDiffuseIndirect);
 			#endif
@@ -293,6 +307,7 @@ void MainPS(
 				IndirectLighting.Transmission = 0;
 
 				#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+					RoughSpecularIndirectLighting *= SpecularOcclusion;
 					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
 				#else
 					IndirectLighting.Specular = SpecularIndirectLighting * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);

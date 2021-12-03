@@ -504,7 +504,8 @@ private:
 		FPreviousViewInfo* PreviousViewInfos,
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-		class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
+		class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		class FLumenScreenSpaceBentNormalParameters& ScreenBentNormalParameters);
 
 	void StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View);
 
