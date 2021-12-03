@@ -7,7 +7,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);
 
-int32 GNaniteMaterialSortMode = 2;
+int32 GNaniteMaterialSortMode = 4;
 static FAutoConsoleVariableRef CVarNaniteMaterialSortMode(
 	TEXT("r.Nanite.MaterialSortMode"),
 	GNaniteMaterialSortMode,
@@ -432,7 +432,6 @@ static void BuildNaniteMaterialPassCommands(
 		PassCommand.MaterialDepth = FNaniteCommandInfo::GetDepthId(MaterialId);
 		PassCommand.MaterialSlot  = Command.Value.MaterialSlot;
 
-		// TODO: Remove other sort modes and just use 2 (needs more optimization/profiling).
 		if (MaterialSortMode == 2)
 		{
 			PassCommand.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(RHICmdList);
@@ -441,6 +440,16 @@ static void BuildNaniteMaterialPassCommands(
 		{
 			// Use reference count as the sort key
 			PassCommand.SortKey = uint64(Command.Value.ReferenceCount.load());
+		}
+		else if(MaterialSortMode == 4)
+		{
+			// TODO: Remove other sort modes and just use 4 (needs more optimization/profiling)?
+			// Sort by pipeline state, but use hash of MaterialId for randomized tie-breaking.
+			// This spreads out the empty draws inside the pipeline buckets and improves overall utilization.
+			const uint64 PipelineSortKey = MeshDrawCommand.GetPipelineStateSortingKey(RHICmdList);
+			const uint32 PipelineSortKeyHash = GetTypeHash(PipelineSortKey);
+			const uint32 MaterialHash = MurmurFinalize32(MaterialId);
+			PassCommand.SortKey = ((uint64)PipelineSortKeyHash << 32) | MaterialHash;
 		}
 
 		OutNaniteMaterialPassCommands.Emplace(PassCommand);
