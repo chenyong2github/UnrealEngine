@@ -823,23 +823,46 @@ void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList)
 
 #if RHI_RAYTRACING
 
-void FGPUSkinCache::AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTracingGeometry, EAccelerationStructureBuildMode InBuildMode)
+void FGPUSkinCache::AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTracingGeometry, const FRayTracingAccelerationStructureSize& StructureSize, EAccelerationStructureBuildMode InBuildMode)
 {
-	EAccelerationStructureBuildMode* CurrentBuildMode = RayTracingGeometriesToUpdate.Find(InRayTracingGeometry);
-	if (CurrentBuildMode == nullptr)
+	FRayTracingUpdateInfo* CurrentUpdateInfo = RayTracingGeometriesToUpdate.Find(InRayTracingGeometry);
+	if (CurrentUpdateInfo == nullptr)
 	{
-		RayTracingGeometriesToUpdate.Add(InRayTracingGeometry, InBuildMode);
+		FRayTracingUpdateInfo UpdateInfo;
+		UpdateInfo.BuildMode = InBuildMode;
+		UpdateInfo.ScratchSize = InBuildMode == EAccelerationStructureBuildMode::Build ? StructureSize.BuildScratchSize : StructureSize.UpdateScratchSize;
+		RayTracingGeometriesToUpdate.Add(InRayTracingGeometry, UpdateInfo);
 	}
 	// If currently updating but need full rebuild then update the stored build mode
-	else if (*CurrentBuildMode == EAccelerationStructureBuildMode::Update && InBuildMode == EAccelerationStructureBuildMode::Build)
+	else if (CurrentUpdateInfo->BuildMode == EAccelerationStructureBuildMode::Update && InBuildMode == EAccelerationStructureBuildMode::Build)
 	{
-		RayTracingGeometriesToUpdate[InRayTracingGeometry] = InBuildMode;
+		CurrentUpdateInfo->BuildMode = InBuildMode;
+		CurrentUpdateInfo->ScratchSize = StructureSize.BuildScratchSize;
 	}
+}
+
+uint32 FGPUSkinCache::ComputeRayTracingGeometryScratchBufferSize()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::ComputeRayTracingGeometryScratchBufferSize);
+
+	const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+	uint32 ScratchBLASSize = 0;
+
+	if (RayTracingGeometriesToUpdate.Num())
+	{
+		for (TMap<FRayTracingGeometry*, FRayTracingUpdateInfo>::TRangedForIterator Iter = RayTracingGeometriesToUpdate.begin(); Iter != RayTracingGeometriesToUpdate.end(); ++Iter)
+		{			
+			FRayTracingUpdateInfo& UpdateInfo = Iter.Value();
+			ScratchBLASSize = Align(ScratchBLASSize + UpdateInfo.ScratchSize, ScratchAlignment);
+		}
+	}
+
+	return ScratchBLASSize;
 }
 
 DECLARE_GPU_STAT(GPUSkinCacheBuildBLAS);
 DECLARE_GPU_STAT(GPUSkinCacheUpdateBLAS);
-void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList)
+void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList, FRHIBuffer* ScratchBuffer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::CommitRayTracingGeometryUpdates);
 
@@ -882,14 +905,24 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RH
 			PrimitivesToUpdates = 0;
 		};
 
+		const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+		uint32 ScratchBLASOffset = 0;
+
 		// Iterate all the geometries which need an update
-		for (TMap<FRayTracingGeometry*, EAccelerationStructureBuildMode>::TRangedForIterator Iter = RayTracingGeometriesToUpdate.begin(); Iter != RayTracingGeometriesToUpdate.end(); ++Iter)
+		for (TMap<FRayTracingGeometry*, FRayTracingUpdateInfo>::TRangedForIterator Iter = RayTracingGeometriesToUpdate.begin(); Iter != RayTracingGeometriesToUpdate.end(); ++Iter)
 		{
 			FRayTracingGeometry* RayTracingGeometry = Iter.Key();
+			FRayTracingUpdateInfo& UpdateInfo = Iter.Value();
+
 			FRayTracingGeometryBuildParams BuildParams;
 			BuildParams.Geometry	= RayTracingGeometry->RayTracingGeometryRHI;
-			BuildParams.BuildMode   = Iter.Value();
+			BuildParams.BuildMode   = UpdateInfo.BuildMode;
 			BuildParams.Segments	= RayTracingGeometry->Initializer.Segments;
+			BuildParams.ScratchBuffer = ScratchBuffer;
+			BuildParams.ScratchBufferOffset = ScratchBLASOffset;
+
+			// Update the offset
+			ScratchBLASOffset = Align(ScratchBLASOffset + UpdateInfo.ScratchSize, ScratchAlignment);
 
 			// Make 'Build' 10 times more expensive than 1 'Update' of the BVH
 			uint32 PrimitiveCount = RayTracingGeometry->Initializer.TotalPrimitiveCount;
@@ -1813,11 +1846,14 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 			// Update the new init data
 			RayTracingGeometry.SetInitializer(Initializer);
 
+			// Get the scratch sizes used for build & update
+			SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize = RHICalcRayTracingGeometrySize(Initializer);
+
 			// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
 			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
 
 			// Request the build
-			AddRayTracingGeometryToUpdate(&RayTracingGeometry, EAccelerationStructureBuildMode::Build);
+			AddRayTracingGeometryToUpdate(&RayTracingGeometry, SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize, EAccelerationStructureBuildMode::Build);
 		}
 		else
 		{
@@ -1828,7 +1864,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				FGPUSkinCache::GetRayTracingSegmentVertexBuffers(*SkinCacheEntry, RayTracingGeometry.Initializer.Segments);
 
 				// Request the update
-				AddRayTracingGeometryToUpdate(&RayTracingGeometry, EAccelerationStructureBuildMode::Update);
+				AddRayTracingGeometryToUpdate(&RayTracingGeometry, SkinCacheEntry->GPUSkin->RayTracingGeometryStructureSize, EAccelerationStructureBuildMode::Update);
 			}
 			else
 			{

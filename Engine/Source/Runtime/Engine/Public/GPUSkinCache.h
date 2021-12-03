@@ -429,8 +429,9 @@ public:
 	ENGINE_API FRHIShaderResourceView* GetBoneBuffer(uint32 ComponentId, uint32 SectionIndex) const;
 
 #if RHI_RAYTRACING
-	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTracingGeometry, EAccelerationStructureBuildMode InBuildMode);
-	ENGINE_API void CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList);
+	void AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTracingGeometry, const FRayTracingAccelerationStructureSize& StructureSize, EAccelerationStructureBuildMode InBuildMode);
+	ENGINE_API uint32 ComputeRayTracingGeometryScratchBufferSize();
+	ENGINE_API void CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList, FRHIBuffer* ScratchBuffer);
 	void RemoveRayTracingGeometryUpdate(FRayTracingGeometry* RayTracingGeometry)
 	{
 		if (RayTracingGeometriesToUpdate.Find(RayTracingGeometry) != nullptr)
@@ -460,7 +461,12 @@ protected:
 
 	TSet<FSkinCacheRWBuffer*> BuffersToTransitionToRead;
 #if RHI_RAYTRACING
-	TMap<FRayTracingGeometry*, EAccelerationStructureBuildMode> RayTracingGeometriesToUpdate;
+	struct FRayTracingUpdateInfo
+	{
+		EAccelerationStructureBuildMode BuildMode;
+		uint32 ScratchSize;
+	};
+	TMap<FRayTracingGeometry*, FRayTracingUpdateInfo> RayTracingGeometriesToUpdate;
 	uint64 RayTracingGeometryMemoryPendingRelease = 0;
 #endif // RHI_RAYTRACING
 
