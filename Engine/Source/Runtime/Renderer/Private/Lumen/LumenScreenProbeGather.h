@@ -164,7 +164,7 @@ extern FScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	const FMinimalSceneTextures& SceneTextures,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FScreenProbeParameters& ScreenProbeParameters);
 

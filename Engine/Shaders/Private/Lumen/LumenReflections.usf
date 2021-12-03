@@ -394,7 +394,7 @@ void ReflectionResolveCS(
 					float2 Offset = (Hammersley16(SampleIndex, NumSpatialReconstructionSamples, RandomSeed) - .5f) * KernelDiameter;
 					int2 NeighborTracingCoord = (int2)(ReflectionScreenCoord + Offset);
 
-					if (all(NeighborTracingCoord >= int2(0, 0) && NeighborTracingCoord < (int2)View.ViewSizeAndInvSize.xy))
+					if (all(NeighborTracingCoord >= int2(0, 0) && NeighborTracingCoord < (int2)ReflectionTracingViewSize))
 					{
 						float2 NeighborScreenUV = GetScreenUVFromReflectionTracingCoord(NeighborTracingCoord);
 						float NeighborSceneDepth = DownsampledDepth[NeighborTracingCoord].x;
