@@ -9,9 +9,12 @@
 #include "VirtualShadowMapArray.h"
 #include "SceneManagement.h"
 #include "InstanceCulling/InstanceCullingLoadBalancer.h"
+#include "GPUScene.h"
 
 class FRHIGPUBufferReadback;
 class FGPUScene;
+
+#define VSM_LOG_INVALIDATIONS 0
 
 class FVirtualShadowMapCacheEntry
 {
@@ -110,17 +113,60 @@ public:
 
 	bool IsAccumulatingStats();
 
+	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
+
+	/**
+	 * Helper to collect primitives that need invalidation, filters out redundant adds and also those that are not yet known to the GPU
+	 */
+	class FInvalidatingPrimitiveCollector
+	{
+	public:
+		FInvalidatingPrimitiveCollector(int32 MaxPrimitiveID, const FGPUScene& InGPUScene)
+			: AlreadyAddedPrimitives(false, MaxPrimitiveID)
+			, GPUScene(InGPUScene)
+		{
+		}
+
+		/**
+		 * Add a primitive to invalidate the instances for, the function filters redundant primitive adds, and thus expects valid IDs (so can't be called for primitives that have not yet been added)
+		 * and unchanging IDs (so can't be used over a span that include any scene mutation).
+		 */
+		void Add(const FPrimitiveSceneInfo* PrimitiveSceneInfo)
+		{
+			int32 PrimitiveID = PrimitiveSceneInfo->GetIndex();
+			if (PrimitiveID >= 0
+				&& !AlreadyAddedPrimitives[PrimitiveID]
+				&& PrimitiveSceneInfo->GetInstanceSceneDataOffset() != INDEX_NONE
+				// Don't process primitives that are still in the 'added' state because this means that they
+				// have not been uploaded to the GPU yet and may be pending from a previous call to update primitive scene infos.
+				&& !EnumHasAnyFlags(GPUScene.GetPrimitiveDirtyState(PrimitiveID), EPrimitiveDirtyState::Added))
+			{
+				AlreadyAddedPrimitives[PrimitiveID] = true;
+				const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
+				LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, 0U);
+#if VSM_LOG_INVALIDATIONS
+				RangesStr.Appendf(TEXT("[%6d, %6d), "), PrimitiveSceneInfo->GetInstanceSceneDataOffset(), PrimitiveSceneInfo->GetInstanceSceneDataOffset() + NumInstanceSceneDataEntries);
+#endif
+				TotalInstanceCount += NumInstanceSceneDataEntries;
+			}
+		}
+
+		bool IsEmpty() const { return LoadBalancer.IsEmpty(); }
+
+		TBitArray<SceneRenderingAllocator> AlreadyAddedPrimitives;
+		FInstanceGPULoadBalancer LoadBalancer;
+		int32 TotalInstanceCount = 0;
+#if VSM_LOG_INVALIDATIONS
+		FString RangesStr;
+#endif
+		const FGPUScene& GPUScene;
+	};
 	/**
 	 * This must to be executed before the instances are actually removed / updated, otherwise the wrong position will be used. 
 	 * In particular, it must be processed before the Scene primitive IDs are updated/compacted as part of the removal.
 	 * Invalidate pages that are touched by (the instances of) the removed primitives. 
 	 */
-	void ProcessRemovedPrimives(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const TArray<FPrimitiveSceneInfo*>& RemovedPrimitiveSceneInfos);
-
-	/**
-	 * Invalidate pages that are touched by (the instances of) all primitive about to be removed. Must be called before the GPU-Scene is updated (but after all upates are registered).
-	 */
-	void ProcessPrimitivesToUpdate(FRDGBuilder& GraphBuilder, const FScene& Scene);
+	void ProcessRemovedOrUpdatedPrimitives(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector);
 
 	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetPreviousUniformBuffer(FRDGBuilder& GraphBuilder) const;
 
@@ -129,7 +175,6 @@ public:
 		
 	void SetHZBViewParams(int32 HZBKey, Nanite::FPackedViewParams& OutParams);
 
-	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
 
 private:
 	void ProcessInvalidations(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& Instances, int32 TotalInstanceCount, const FGPUScene& GPUScene);

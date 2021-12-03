@@ -437,69 +437,18 @@ bool FVirtualShadowMapArrayCacheManager::IsAccumulatingStats()
 	return CVarAccumulateStats.GetValueOnRenderThread() != 0;
 }
 
-void FVirtualShadowMapArrayCacheManager::ProcessRemovedPrimives(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const TArray<FPrimitiveSceneInfo*>& RemovedPrimitiveSceneInfos)
+void FVirtualShadowMapArrayCacheManager::ProcessRemovedOrUpdatedPrimitives(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector)
 {
-	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && RemovedPrimitiveSceneInfos.Num() > 0 && PrevBuffers.DynamicCasterPageFlags.IsValid())
+	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && !InvalidatingPrimitiveCollector.IsEmpty() && PrevBuffers.DynamicCasterPageFlags.IsValid())
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "Shadow.Virtual.ProcessRemovedPrimives [%d]", RemovedPrimitiveSceneInfos.Num());
-
-		FInstanceGPULoadBalancer LoadBalancer;
-
-		int32 TotalInstanceCount = 0;
-		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedPrimitiveSceneInfos)
-		{
-			if (PrimitiveSceneInfo->GetInstanceSceneDataOffset() != INDEX_NONE)
-			{
-				const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
-				LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, 0U);
-				TotalInstanceCount += NumInstanceSceneDataEntries;
-			}
-		}
-		ProcessInvalidations(GraphBuilder, LoadBalancer, TotalInstanceCount, GPUScene);
+		RDG_EVENT_SCOPE(GraphBuilder, "Shadow.Virtual.ProcessRemovedOrUpdatedPrimitives");
+#if VSM_LOG_INVALIDATIONS
+		UE_LOG(LogTemp, Warning, TEXT("ProcessRemovedOrUpdatedPrimitives: \n%s"), *InvalidatingPrimitiveCollector.RangesStr);
+#endif
+		ProcessInvalidations(GraphBuilder, InvalidatingPrimitiveCollector.LoadBalancer, InvalidatingPrimitiveCollector.TotalInstanceCount, GPUScene);
 	}
 }
 
-
-void FVirtualShadowMapArrayCacheManager::ProcessPrimitivesToUpdate(FRDGBuilder& GraphBuilder, const FScene& Scene)
-{
-	const FGPUScene& GPUScene = Scene.GPUScene;
-	if (IsValid())
-	{
-		RDG_EVENT_SCOPE(GraphBuilder, "Shadow.Virtual.ProcessPrimitivesToUpdate [%d]", GPUScene.PrimitivesToUpdate.Num());
-
-		ProcessGPUInstanceInvalidations(GraphBuilder, GPUScene);
-
-		if (GPUScene.PrimitivesToUpdate.Num() > 0)
-		{
-			FInstanceGPULoadBalancer LoadBalancer;
-
-			int32 TotalInstanceCount = 0;
-			for (const int32 PrimitiveId : GPUScene.PrimitivesToUpdate)
-			{
-				// There may possibly be IDs that are out of range if they were marked for update and then removed.
-				if (PrimitiveId < Scene.Primitives.Num())
-				{
-					EPrimitiveDirtyState PrimitiveDirtyState = GPUScene.GetPrimitiveDirtyState(PrimitiveId);
-
-					// SKIP if marked for Add, because this means it has no previous location to invalidate.
-					// SKIP if transform has not changed, as this means no invalidation needs to take place.
-					const bool bDoInvalidation = !EnumHasAnyFlags(PrimitiveDirtyState, EPrimitiveDirtyState::Added) && EnumHasAnyFlags(PrimitiveDirtyState, EPrimitiveDirtyState::ChangedTransform);
-					if (bDoInvalidation)
-					{
-						const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene.Primitives[PrimitiveId];
-						if (PrimitiveSceneInfo->GetInstanceSceneDataOffset() != INDEX_NONE)
-						{
-							const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
-							LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, PrimitiveId);
-							TotalInstanceCount += NumInstanceSceneDataEntries;
-						}
-					}
-				}
-			}
-			ProcessInvalidations(GraphBuilder, LoadBalancer, TotalInstanceCount, GPUScene);
-		}
-	}
-}
 
 /**
  * Compute shader to project and invalidate the rectangles of given instances.
@@ -537,6 +486,8 @@ public:
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
+		SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)
+		SHADER_PARAMETER(uint32, GPUSceneNumAllocatedPrimitives)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, ShadowHZBPageTable)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
@@ -635,6 +586,9 @@ static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapAr
 	OutPassParameters.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 	OutPassParameters.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
 	OutPassParameters.GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
+	OutPassParameters.GPUSceneNumAllocatedInstances = GPUScene.GetNumInstances();
+	OutPassParameters.GPUSceneNumAllocatedPrimitives = GPUScene.GetNumPrimitives();
+
 	OutPassParameters.InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
 	OutPassParameters.bDrawBounds = bDrawBounds;
 

@@ -21,6 +21,8 @@
 
 RWStructuredBuffer<uint> OutDynamicCasterPageFlags;
 uint InstanceSceneDataSOAStride;
+uint GPUSceneNumAllocatedInstances;
+uint GPUSceneNumAllocatedPrimitives;
 
 #if ENABLE_DEBUG_MODE
 uint bDrawBounds;
@@ -59,7 +61,16 @@ void VirtualSmInvalidateInstancePagesCS(
 	int InstanceId = InvalidatingInstances[1 + DispatchIndex];
 #endif
 	{
+		checkSlow(InstanceId >= 0 && InstanceId < InstanceSceneDataSOAStride);
+		checkSlow(InstanceId >= 0 && InstanceId < GPUSceneNumAllocatedInstances);
+
 		FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
+
+		if (!InstanceSceneData.ValidInstance)
+		{
+			return;
+		}
+
 		uint InvalidationFlags = ShouldCacheInstanceAsStatic(InstanceSceneData) ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG;
 
 		// TODO: Clean up hardcoded flag field test.
