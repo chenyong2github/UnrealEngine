@@ -3096,6 +3096,7 @@ static void ComputeAndMarkRelevanceForViewParallel(
 	}
 }
 
+bool IsHairStrandsVisible(const FMeshBatchAndRelevance& MeshBatch);
 void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDensityCommands, const FPrimitiveViewRelevance& ViewRelevance, const FMeshBatchAndRelevance& MeshBatch, FViewInfo& View, FMeshPassMask& PassMask, FPrimitiveSceneInfo* PrimitiveSceneInfo, const FPrimitiveBounds& Bounds)
 {
 	const int32 NumElements = MeshBatch.Mesh->Elements.Num();
@@ -3279,7 +3280,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 	}
 	
 	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform()) && IsHairStrandsCompatible(MeshBatch.Mesh);
-	if (bIsHairStrandsCompatible)
+	if (bIsHairStrandsCompatible && IsHairStrandsVisible(MeshBatch))
 	{
 		View.HairStrandsMeshElements.AddUninitialized(1);
 		FMeshBatchAndRelevance& BatchAndProxy = View.HairStrandsMeshElements.Last();

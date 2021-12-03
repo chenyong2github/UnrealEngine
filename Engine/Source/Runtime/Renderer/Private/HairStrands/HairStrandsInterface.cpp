@@ -425,6 +425,7 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	Out.VisibleInstances.Reserve(View.HairStrandsMeshElements.Num());
 	for (const FMeshBatchAndRelevance& MeshBatch : View.HairStrandsMeshElements)
 	{
+		check(MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass());
 		if (MeshBatch.Mesh && MeshBatch.Mesh->Elements.Num() > 0)
 		{
 			FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(MeshBatch.Mesh->Elements[0].VertexFactoryUserData);
@@ -482,3 +483,17 @@ bool IsHairStrandsCompatible(const FMeshBatch* Mesh)
 	return false;
 }
 
+bool IsHairStrandsVisible(const FMeshBatchAndRelevance& MeshBatch)
+{
+	if (MeshBatch.Mesh && MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass())
+	{
+		const FHairGroupPublicData* Data = reinterpret_cast<const FHairGroupPublicData*>(MeshBatch.Mesh->Elements[0].VertexFactoryUserData);
+		switch (Data->VFInput.GeometryType)
+		{
+			case EHairGeometryType::Strands: return Data->VFInput.Strands.HairLengthScale > 0;
+			case EHairGeometryType::Cards  : return true;
+			case EHairGeometryType::Meshes : return true;
+		}
+	}
+	return false;
+}

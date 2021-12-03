@@ -861,6 +861,10 @@ static void RunHairLODSelection(
 			if (Instance->Strands.RenRaytracingResource)	{ Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); }
 			#endif
 			Instance->Strands.VertexFactory->InitResources();
+
+			// Early initialization, so that when filtering MeshBatch block in SceneVisiblity, we can use this value to know 
+			// if the hair instance is visible or not (i.e., HairLengthScale > 0)
+			Instance->HairGroupPublicData->VFInput.Strands.HairLengthScale = Instance->Strands.Modifier.HairLengthScale;
 		}
 
 		// Only switch LOD if the data are ready to be used
