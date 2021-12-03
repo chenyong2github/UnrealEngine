@@ -29,6 +29,7 @@ private:
 	uint32 AcquireIndex();
 
 	FHashTable TileHash;
+	FHashTable ProducerToTileIndex;
 	TArray<FVirtualTextureLocalTile> LockedTiles;
 	TArray<uint16> LockCounts;
 	TArray<uint32> FreeIndices;

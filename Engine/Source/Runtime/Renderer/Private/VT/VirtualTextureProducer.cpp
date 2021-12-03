@@ -10,6 +10,8 @@ FVirtualTextureProducer::~FVirtualTextureProducer()
 
 void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& HandleToSelf)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureProducer::Release);
+
 	if (Description.bPersistentHighestMip)
 	{
 		System->ForceUnlockAllTiles(HandleToSelf, this);
