@@ -731,7 +731,11 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 		::Swap(*this, Other);
 
 		// Restore allocator data and perform pool aware swap
-		PoolData = TmpPoolData;	
+		PoolData = TmpPoolData;
+
+		// Reset the tmp pool data again, because it's not needed anymore - all data copied over
+		TmpPoolData.Init();
+
 		Other.SetPoolAllocator(GetPoolAllocator());
 		GetPoolAllocator()->TransferOwnership(Other, *this);
 	}
