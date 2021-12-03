@@ -3263,6 +3263,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	QueueSceneTextureExtractions(GraphBuilder, SceneTextures);
+
+	// Release the view's previous frame histories so that their memory can be reused at the graph's execution.
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		Views[ViewIndex].PrevViewInfo = FPreviousViewInfo();
+	}
 }
 
 #if RHI_RAYTRACING
