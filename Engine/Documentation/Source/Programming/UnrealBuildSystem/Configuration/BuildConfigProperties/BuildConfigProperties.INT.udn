@@ -98,6 +98,8 @@ $ bUseIncrementalLinking : Whether to use incremental linking or not. Incrementa
 
 $ bAllowLTCG : Whether to allow the use of link time code generation (LTCG).
 
+$ bPreferThinLTO : When Link Time Code Generation (LTCG) is enabled, whether to prefer using the lighter weight version on supported platforms.
+
 $ bPGOProfile : Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
 
 $ bPGOOptimize : Whether to optimize this build with Profile Guided Optimization (PGO).

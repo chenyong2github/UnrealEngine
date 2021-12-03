@@ -228,6 +228,8 @@ $ bUseIncrementalLinking (Boolean): Whether to use incremental linking or not. I
 
 $ bAllowLTCG (Boolean): Whether to allow the use of link time code generation (LTCG).
 
+$ bPreferThinLTO (Boolean): When Link Time Code Generation (LTCG) is enabled, whether to prefer using the lighter weight version on supported platforms.
+
 $ bPGOProfile (Boolean): Whether to enable Profile Guided Optimization (PGO) instrumentation in this build.
 
 $ bPGOOptimize (Boolean): Whether to optimize this build with Profile Guided Optimization (PGO).
