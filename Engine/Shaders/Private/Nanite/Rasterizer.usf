@@ -380,7 +380,7 @@ void MicropolyRasterize(
 				GetVisualizeValues(),
 			#endif
 				Vertices,
-				PageTranslation );
+				PageTranslation);
 		}
 	}
 }
