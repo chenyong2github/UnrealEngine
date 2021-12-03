@@ -179,6 +179,12 @@ public:
 	// Size of the physical pool for only the dynamic pages (if static are cached separately)
 	FIntPoint GetDynamicPhysicalPoolSize() const;
 
+	// Maximum number of physical pages to allocate. This value is NOT doubled when static caching is
+	// enabled as we always allocate both as pairs (offset in the page pool).
+	uint32 GetMaxPhysicalPages() const { return UniformParameters.MaxPhysicalPages; }
+	// Total physical page count that includes separate static pages
+	uint32 GetTotalAllocatedPhysicalPages() const;
+
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 
 	void MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder);
