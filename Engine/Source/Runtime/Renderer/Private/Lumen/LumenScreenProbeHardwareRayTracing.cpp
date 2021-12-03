@@ -228,7 +228,7 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!FLumenHardwareRayTracingCS::ShouldCompilePermutation(Parameters))
+		if (!FLumenHardwareRayTracingRGS::ShouldCompilePermutation(Parameters))
 		{
 			return false;
 		}
