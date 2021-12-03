@@ -13,7 +13,7 @@
 
 //------------------------------------------------------- CONFIG
 
-#define DEBUG_OUTPUT 0
+#define DEBUG_MOTION_BLUR_OUTPUT 0
 
 #ifndef CONFIG_MAX_RANGE_SIZE
 	#error need to set CONFIG_MAX_RANGE_SIZE
@@ -26,9 +26,9 @@
 #define VELOCITY_FILTER_TILE_SIZE 16
 
 #if PLATFORM_SUPPORTS_REAL_TYPES && 0
-	#define CONFIG_COMPILE_FP16 1
+	#define CONFIG_MOTION_BLUR_COMPILE_FP16 1
 #else
-	#define CONFIG_COMPILE_FP16 0
+	#define CONFIG_MOTION_BLUR_COMPILE_FP16 0
 #endif
 
 #define CONFIG_MINIMAL_PIXEL_VELOCITY 0.5
@@ -36,7 +36,7 @@
 
 //------------------------------------------------------- CONSTANTS
 
-#if CONFIG_COMPILE_FP16
+#if CONFIG_MOTION_BLUR_COMPILE_FP16
 	#define mb_half  half
 	#define mb_half2 half2
 	#define mb_half3 half3

@@ -158,7 +158,7 @@ float4 NormalizeAccumulator(float4 Accumulator, float AccumulatorWeight)
 	return -min(-Accumulator * rcp(AccumulatorWeight), float(0.0));
 }
 
-#if CONFIG_COMPILE_FP16
+#if CONFIG_MOTION_BLUR_COMPILE_FP16
 
 mb_half NormalizeAccumulator(mb_half Accumulator, mb_half AccumulatorWeight)
 {
@@ -170,7 +170,7 @@ mb_half4 NormalizeAccumulator(mb_half4 Accumulator, mb_half AccumulatorWeight)
 	return -min(-Accumulator * rcp(AccumulatorWeight), mb_half(0.0));
 }
 
-#endif // CONFIG_COMPILE_FP16
+#endif // CONFIG_MOTION_BLUR_COMPILE_FP16
 
 void NormalizeAccumulatorWithHoleFill(
 	mb_half4 Color,
@@ -942,7 +942,7 @@ void MainCS(
 		SceneColorOutputMip1[OutputPixelCoordMip1] = HalfResOutput;
 		SceneColorOutputMip2[OutputPixelCoordMip2] = QuarterResOutput;
 		
-		#if DEBUG_OUTPUT
+		#if DEBUG_MOTION_BLUR_OUTPUT
 			DebugOutput[OutputPixelCoord0Mip0] = Debug;
 			DebugOutput[OutputPixelCoord1Mip0] = Debug;
 			DebugOutput[OutputPixelCoord2Mip0] = Debug;
@@ -1066,7 +1066,7 @@ void MainCS(
 		SceneColorOutputMip1[OutputPixelCoordMip1] = HalfResOutput;
 		SceneColorOutputMip2[OutputPixelCoordMip2] = QuarterResOutput;
 
-		#if DEBUG_OUTPUT
+		#if DEBUG_MOTION_BLUR_OUTPUT
 			DebugOutput[OutputPixelCoordMip0] = Debug;
 		#endif
 	}

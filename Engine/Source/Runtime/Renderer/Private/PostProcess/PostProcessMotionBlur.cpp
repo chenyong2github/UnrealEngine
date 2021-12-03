@@ -53,6 +53,11 @@ namespace
 		TEXT("Whether to do motion blur filter dynamically at half res under heavy motion."),
 		ECVF_RenderThreadSafe);
 
+	TAutoConsoleVariable<int32> CVarMotionBlurAllowExternalVelocityFlatten(
+		TEXT("r.MotionBlur.AllowExternalVelocityFlatten"), 1,
+		TEXT("Whether to allow motion blur's velocity flatten into other pass."),
+		ECVF_RenderThreadSafe);
+
 	TAutoConsoleVariable<int32> CVarAllowMotionBlurInVR(
 		TEXT("vr.AllowMotionBlurInVR"),
 		0,
@@ -88,7 +93,7 @@ DECLARE_GPU_STAT(MotionBlur)
 
 }
 
-const int32 kMotionBlurFlattenTileSize = 16;
+const int32 kMotionBlurFlattenTileSize = FVelocityFlattenTextures::kTileSize;
 const int32 kMotionBlurFilterTileSize = 16;
 const int32 kMotionBlurComputeTileSizeX = 8;
 const int32 kMotionBlurComputeTileSizeY = 8;
@@ -175,6 +180,12 @@ int32 GetMotionBlurDirections()
 	return FMath::Clamp(CVarMotionBlurDirections.GetValueOnRenderThread(), 1, 2);
 }
 
+// static
+bool FVelocityFlattenTextures::AllowExternal()
+{
+	return CVarMotionBlurAllowExternalVelocityFlatten.GetValueOnRenderThread() != 0;
+}
+
 FRHISamplerState* GetMotionBlurColorSampler()
 {
 	bool bFiltered = false;
@@ -228,11 +239,11 @@ FRDGTextureUAVRef CreateDebugUAV(FRDGBuilder& GraphBuilder, const FIntPoint& Ext
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVecocityTileTextures, )
-	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [2])
+	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [FVelocityFlattenTextures::kMaxVelocityTileTextureCount])
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVecocityTileUAVs, )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, Textures, [2])
+	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, Textures, [FVelocityFlattenTextures::kMaxVelocityTileTextureCount])
 END_SHADER_PARAMETER_STRUCT()
 
 FVecocityTileTextures CreateVecocityTileTextures(FRDGBuilder& GraphBuilder, FIntPoint VelocityTileCount, const TCHAR* DebugName, bool ScatterDilatation = false)
@@ -295,6 +306,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Velocity)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVelocityFlattenParameters, VelocityFlattenParameters)
 		SHADER_PARAMETER(FMatrix44f, ClipToPrevClipOverride)
 		SHADER_PARAMETER(FVector2f, VelocityScale)
 		SHADER_PARAMETER(float, VelocityMax)
@@ -557,19 +569,35 @@ struct FMotionBlurViewports
 	FScreenTransform ColorToVelocityTransform;
 };
 
+FVelocityFlattenParameters GetVelocityFlattenParameters(const FViewInfo& View)
+{
+	const FSceneViewState* ViewState = View.ViewState;
+
+	const float SceneViewportSizeX = View.GetSecondaryViewRectSize().X;
+	const float SceneViewportSizeY = View.GetSecondaryViewRectSize().Y;
+	const float MotionBlurTimeScale = ViewState ? ViewState->MotionBlurTimeScale : 1.0f;
+
+	// Scale by 0.5 due to blur samples going both ways.
+	const float VelocityScale = MotionBlurTimeScale * View.FinalPostProcessSettings.MotionBlurAmount * 0.5f;
+
+	// 0:no 1:full screen width, percent conversion
+	const float UVVelocityMax = View.FinalPostProcessSettings.MotionBlurMax / 100.0f;
+
+	FVelocityFlattenParameters VelocityFlattenParameters;
+	VelocityFlattenParameters.VelocityScale.X = SceneViewportSizeX * 0.5f * VelocityScale;
+	VelocityFlattenParameters.VelocityScale.Y = -SceneViewportSizeY * 0.5f * VelocityScale;
+	VelocityFlattenParameters.VelocityMax = SceneViewportSizeX * 0.5f * UVVelocityMax;
+	return VelocityFlattenParameters;
+}
+
 void AddMotionBlurVelocityPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FMotionBlurViewports& Viewports,
-	FRDGTextureRef ColorTexture,
-	FRDGTextureRef DepthTexture,
-	FRDGTextureRef VelocityTexture,
+	const FMotionBlurInputs& Inputs,
 	FRDGTextureRef* VelocityFlatTextureOutput,
 	FVecocityTileTextures* VelocityTileTexturesOutput)
 {
-	check(ColorTexture);
-	check(DepthTexture);
-	check(VelocityTexture);
 	check(VelocityFlatTextureOutput);
 	check(VelocityTileTexturesOutput);
 
@@ -577,54 +605,50 @@ void AddMotionBlurVelocityPass(
 
 	const FIntPoint VelocityTileCount = Viewports.VelocityTile.Extent;
 
-	// NOTE: Use scene depth's dimensions because velocity can actually be a 1x1 black texture when there are no moving objects in sight.
-	FRDGTextureRef VelocityFlatTexture =
-		GraphBuilder.CreateTexture(
-			FRDGTextureDesc::Create2D(
-				DepthTexture->Desc.Extent,
+	// Velocity flatten pass: combines depth / velocity into a single target for sampling efficiency.
+	FRDGTextureRef VelocityFlatTexture = nullptr;
+	FVecocityTileTextures VelocityTileTexturesSetup;
+	if (Inputs.VelocityFlattenTextures.IsValid())
+	{
+		ensure(Inputs.VelocityFlattenTextures.VelocityFlatten.ViewRect == View.ViewRect);
+		ensure(Inputs.VelocityFlattenTextures.VelocityTile[0].ViewRect == FIntRect(FIntPoint::ZeroValue, VelocityTileCount));
+
+		VelocityFlatTexture = Inputs.VelocityFlattenTextures.VelocityFlatten.Texture;
+		for (int32 i = 0; i < FVelocityFlattenTextures::kMaxVelocityTileTextureCount; i++)
+		{
+			VelocityTileTexturesSetup.Textures[i] = Inputs.VelocityFlattenTextures.VelocityTile[i].Texture;
+		}
+	}
+	else
+	{
+		{
+			// NOTE: Use scene depth's dimensions because velocity can actually be a 1x1 black texture when there are no moving objects in sight.
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				Inputs.SceneDepth.Texture->Desc.Extent,
 				PF_FloatR11G11B10,
 				FClearValueBinding::None,
-				GFastVRamConfig.VelocityFlat | TexCreate_ShaderResource | TexCreate_UAV),
-			TEXT("MotionBlur.VelocityFlat"));
+				GFastVRamConfig.VelocityFlat | TexCreate_ShaderResource | TexCreate_UAV);
 
-	FVecocityTileTextures VelocityTileTexturesSetup = CreateVecocityTileTextures(
-		GraphBuilder, VelocityTileCount, TEXT("MotionBlur.VelocityTile"));
+			VelocityFlatTexture = GraphBuilder.CreateTexture(Desc, TEXT("MotionBlur.VelocityTile"));
+		}
 
-	// Velocity flatten pass: combines depth / velocity into a single target for sampling efficiency.
-	{
+		VelocityTileTexturesSetup = CreateVecocityTileTextures(
+			GraphBuilder, VelocityTileCount, TEXT("MotionBlur.VelocityTile"));
+
 		const bool bEnableCameraMotionBlur = View.bCameraMotionBlur.Get(true);
 		const bool bOverrideCameraMotionBlur = View.ClipToPrevClipOverride.IsSet();
 
 		FMotionBlurVelocityFlattenCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMotionBlurVelocityFlattenCS::FParameters>();
-
-		{
-			const FSceneViewState* ViewState = View.ViewState;
-
-			const float TileSize = kMotionBlurFlattenTileSize;
-			const float SceneViewportSizeX = Viewports.Color.Rect.Width();
-			const float SceneViewportSizeY = Viewports.Color.Rect.Height();
-			const float MotionBlurTimeScale = ViewState ? ViewState->MotionBlurTimeScale : 1.0f;
-
-			// Scale by 0.5 due to blur samples going both ways.
-			const float VelocityScale = MotionBlurTimeScale * View.FinalPostProcessSettings.MotionBlurAmount * 0.5f;
-
-			// 0:no 1:full screen width, percent conversion
-			const float UVVelocityMax = View.FinalPostProcessSettings.MotionBlurMax / 100.0f;
-
-			PassParameters->VelocityScale.X = SceneViewportSizeX * 0.5f * VelocityScale;
-			PassParameters->VelocityScale.Y = - SceneViewportSizeY * 0.5f * VelocityScale;
-			PassParameters->VelocityMax = SceneViewportSizeX * 0.5f * UVVelocityMax;
-		}
-
 		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->VelocityFlattenParameters = GetVelocityFlattenParameters(View);
 		if (bOverrideCameraMotionBlur)
 		{
 			PassParameters->ClipToPrevClipOverride = View.ClipToPrevClipOverride.GetValue();
 		}
 
 		PassParameters->Velocity = Viewports.VelocityParameters;
-		PassParameters->DepthTexture = DepthTexture;
-		PassParameters->VelocityTexture = VelocityTexture;
+		PassParameters->DepthTexture = Inputs.SceneDepth.Texture;
+		PassParameters->VelocityTexture = Inputs.SceneVelocity.Texture;
 
 		PassParameters->OutVelocityFlatTexture = GraphBuilder.CreateUAV(VelocityFlatTexture);
 		PassParameters->OutVelocityTile = CreateUAVs(GraphBuilder, VelocityTileTexturesSetup);
@@ -1169,9 +1193,7 @@ FMotionBlurOutputs AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 		GraphBuilder,
 		View,
 		Viewports,
-		Inputs.SceneColor.Texture,
-		Inputs.SceneDepth.Texture,
-		Inputs.SceneVelocity.Texture,
+		Inputs,
 		&VelocityFlatTexture,
 		&VelocityTileTextures);
 
