@@ -3291,12 +3291,12 @@ static TRefCountPtr<FD3D12Buffer> CreateRayTracingBuffer(FD3D12Adapter* Adapter,
 	FString DebugNameString = DebugName.ToString();
 	ED3D12ResourceTransientMode TransientMode = ED3D12ResourceTransientMode::NonTransient;
 	ID3D12ResourceAllocator* ResourceAllocator = nullptr;
-	D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(Size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	FRHIGPUMask GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 	bool bHasInitialData = false;
 
 	if (Type == ERayTracingBufferType::AccelerationStructure)
 	{
+		D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(Size, D3D12_RESOURCE_FLAG_NONE);
 		Result = Adapter->CreateRHIBuffer(
 			BufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 			0, BufferDesc.Width, BUF_AccelerationStructure,
@@ -3305,10 +3305,13 @@ static TRefCountPtr<FD3D12Buffer> CreateRayTracingBuffer(FD3D12Adapter* Adapter,
 	}
 	else if (Type == ERayTracingBufferType::Scratch)
 	{
+		// Scratch doesn't need single state anymore because there are only a few scratch allocations left and allocating a 
+		// dedicated single state heap for it wastes memory - ideally all scratch allocations should be transient
+		D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(Size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		Result = Adapter->CreateRHIBuffer(
 			BufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 			0, BufferDesc.Width, BUF_UnorderedAccess,
-			ED3D12ResourceStateMode::SingleState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, bHasInitialData,
+			ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, bHasInitialData,
 			GPUMask, TransientMode, ResourceAllocator, *DebugNameString);
 
 		// Elevates the scratch buffer heap priority, which may help performance / stability in low memory conditions 

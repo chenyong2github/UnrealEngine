@@ -7,14 +7,6 @@
 #define NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND 0
 #endif
 
-// Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as committed resources (see UE-115982)
-static int32 GD3D12AllowPoolAllocateIndirectArgBuffers = 0;
-static FAutoConsoleVariableRef CVarD3D12AllowPoolAllocateIndirectArgBuffers(
-	TEXT("d3d12.AllowPoolAllocateIndirectArgBuffers"),
-	GD3D12AllowPoolAllocateIndirectArgBuffers,
-	TEXT("Allow indirect args to be pool allocated (otherwise they will be committed resources) (default: 0)"),
-	ECVF_ReadOnly);
-
 //-----------------------------------------------------------------------------
 //	FD3D12MemoryPool
 //-----------------------------------------------------------------------------
@@ -207,7 +199,16 @@ bool FD3D12PoolAllocator::SupportsAllocation(D3D12_HEAP_TYPE InHeapType, D3D12_R
 {
 	FD3D12ResourceInitConfig InInitConfig = GetResourceAllocatorInitConfig(InHeapType, InResourceFlags, InBufferUsage);
 	EResourceAllocationStrategy InAllocationStrategy = GetResourceAllocationStrategy(InResourceFlags, InResourceStateMode, Alignment);
-	return (InitConfig == InInitConfig && AllocationStrategy == InAllocationStrategy);
+
+	// Don't check the resource flags & states for places resource but only the heap flags
+	if (InAllocationStrategy == EResourceAllocationStrategy::kPlacedResource && AllocationStrategy == InAllocationStrategy)
+	{
+		return (InitConfig.HeapType == InInitConfig.HeapType && InitConfig.HeapFlags == InInitConfig.HeapFlags);
+	}
+	else
+	{
+		return (InitConfig == InInitConfig && AllocationStrategy == InAllocationStrategy);
+	}
 }
 
 
@@ -238,23 +239,7 @@ void FD3D12PoolAllocator::AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const
 #endif // D3D12_RHI_RAYTRACING
 #endif  // DO_CHECK
 
-	// Force indirect args to stand alone allocations instead of pooled
-	if (!GD3D12AllowPoolAllocateIndirectArgBuffers && EnumHasAnyFlags(InBufferUsage, BUF_DrawIndirect))
-	{
-		ResourceLocation.Clear();
-
-		FD3D12Resource* NewResource = nullptr;
-		const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InHeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
-		D3D12_RESOURCE_DESC Desc = InDesc;
-		Desc.Alignment = 0;
-		VERIFYD3D12RESULT(GetParentDevice()->GetParentAdapter()->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, InCreateState, nullptr, &NewResource, InName, false));
-
-		ResourceLocation.AsStandAlone(NewResource, InDesc.Width);
-	}
-	else
-	{
-		AllocateResource(GetParentDevice()->GetGPUIndex(), InHeapType, InDesc, InDesc.Width, InAllocationAlignment, InResourceStateMode, InCreateState, nullptr, InName, ResourceLocation);
-	}
+	AllocateResource(GetParentDevice()->GetGPUIndex(), InHeapType, InDesc, InDesc.Width, InAllocationAlignment, InResourceStateMode, InCreateState, nullptr, InName, ResourceLocation);
 }
 
 
@@ -382,7 +367,8 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 		else
 		{
 			// Allocate Standalone - move to owner of resource because this allocator should only manage pooled allocations (needed for now to do the same as FD3D12DefaultBufferPool)
-			VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName, false));
+			D3D12_RESOURCE_STATES DefaultState = (InResourceStateMode == ED3D12ResourceStateMode::Default) ? D3D12_RESOURCE_STATE_TBD : InCreateState;
+			VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, DefaultState, InClearValue, &NewResource, InName, false));
 		}
 
 		ResourceLocation.AsStandAlone(NewResource, InSize);
