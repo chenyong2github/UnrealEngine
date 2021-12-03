@@ -682,7 +682,15 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		}
 		else
 		{
+		#if INSTANCE_COMPRESSED_TRANSFORMS
+			// TODO: Temporary PrevVelocityHack
+			uint4  PrevRotationScale		= asuint(LoadInstanceSceneDataElement(3 * SOAStride + InstanceId));
+			float3 PrevTranslation			= LoadInstanceSceneDataElement(4 * SOAStride + InstanceId).xyz;
+			float3 PrevScale = 0;
+			InstanceData.PrevLocalToWorld	= DecodeTransform(PrevRotationScale, PrevTranslation, PrevScale);
+		#else
 			InstanceData.PrevLocalToWorld	= InstanceData.LocalToWorld;
+		#endif
 		}
 
 	#if 1 //NEEDS_LIGHTMAP_COORDINATE

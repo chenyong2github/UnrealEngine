@@ -1263,7 +1263,8 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 											UploadInfo.InstanceCustomDataCount,
 											RandomID,
 											SceneData.LocalToPrimitive,
-											UploadInfo.PrimitiveToWorld
+											UploadInfo.PrimitiveToWorld,
+											UploadInfo.PrevPrimitiveToWorld
 										);
 
 										int32 PayloadDataStart = UploadInfo.InstancePayloadDataOffset + (InstanceIndex * UploadInfo.InstancePayloadDataStride); 
