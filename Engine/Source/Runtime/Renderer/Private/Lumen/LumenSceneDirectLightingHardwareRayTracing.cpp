@@ -70,12 +70,11 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		RDG_BUFFER_ACCESS(HardwareRayTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
-		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
-		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, LightTileAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, LightTiles)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLumenPackedLight>, LumenPackedLights)
 
 		// Constants
-		SHADER_PARAMETER(uint32, LumenLightType)
 		SHADER_PARAMETER(float, PullbackBias)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, MaxTraversalIterations)
@@ -89,7 +88,6 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWShadowMaskTiles)
-		SHADER_PARAMETER(uint32, ShadowMaskTilesOffset)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -144,7 +142,7 @@ class FLumenDirectLightingHardwareRayTracingIndirectArgsCS : public FGlobalShade
 	using FPermutationDomain = TShaderPermutationDomain<FInlineRaytracing>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, DispatchLightTilesIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWHardwareRayTracingIndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -162,7 +160,7 @@ class FLumenDirectLightingHardwareRayTracingIndirectArgsCS : public FGlobalShade
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenDirectLightingHardwareRayTracingIndirectArgsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingHardwareRayTracing.usf", "FLumenDirectLightingHardwareRayTracingIndirectArgsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FLumenDirectLightingHardwareRayTracingIndirectArgsCS, "/Engine/Private/Lumen/LumenSceneDirectLightingHardwareRayTracing.usf", "LumenDirectLightingHardwareRayTracingIndirectArgsCS", SF_Compute);
 
 bool IsHardwareRayTracedDirectLightingIndirectDispatch()
 {
@@ -185,11 +183,11 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenLight& LumenLight,
-	const FLumenCardScatterContext& CardScatterContext,
+	FRDGBufferRef LightTileAllocator,
+	FRDGBufferRef LightTiles,
+	FRDGBufferRef LumenPackedLights,
 	FRDGBufferUAVRef ShadowMaskTilesUAV,
 	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer,
-
 	FLumenDirectLightingHardwareRayTracingBatchedRGS::FParameters* Parameters
 )
 {
@@ -201,10 +199,10 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 		&Parameters->SharedParameters
 	);
 
-	Parameters->CardScatterParameters = CardScatterContext.CardTileParameters;
-	Parameters->CardScatterInstanceIndex = LumenLight.CardScatterInstanceIndex;
-	Lumen::SetDirectLightingDeferredLightUniformBuffer(View, LumenLight.LightSceneInfo, Parameters->DeferredLightUniforms);
 	Parameters->HardwareRayTracingIndirectArgs = HardwareRayTracingIndirectArgsBuffer;
+	Parameters->LightTileAllocator = GraphBuilder.CreateSRV(LightTileAllocator);
+	Parameters->LightTiles = GraphBuilder.CreateSRV(LightTiles);
+	Parameters->LumenPackedLights = GraphBuilder.CreateSRV(LumenPackedLights);
 
 	Parameters->PullbackBias = 0.0f;
 	Parameters->MaxTranslucentSkipCount = 1; // TODO: CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
@@ -213,14 +211,12 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 	Parameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 	Parameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
 	Parameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
-
-	Parameters->LumenLightType = (uint32)LumenLight.Type;
+	
 	Parameters->SurfaceBias = 1.0f;
 	Parameters->SlopeScaledSurfaceBias = 1.0f;
 
 	// Output
 	Parameters->RWShadowMaskTiles = ShadowMaskTilesUAV;
-	Parameters->ShadowMaskTilesOffset = LumenLight.ShadowMaskTilesOffset;
 }
 
 #endif // RHI_RAYTRACING
@@ -230,13 +226,13 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	const FScene* Scene,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenLight& LumenLight,
-	const FLumenCardScatterContext& CardScatterContext,
+	FRDGBufferRef DispatchLightTilesIndirectArgs,
+	FRDGBufferRef LightTileAllocator,
+	FRDGBufferRef LightTiles,
+	FRDGBufferRef LumenPackedLights,
 	FRDGBufferUAVRef ShadowMaskTilesUAV)
 {
 #if RHI_RAYTRACING
-	check(LumenLight.HasShadowMask());
-
 	const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing();
 
 	FRDGBufferRef HardwareRayTracingIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflection.CompactTracingIndirectArgs"));
@@ -244,7 +240,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	{
 		FLumenDirectLightingHardwareRayTracingIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenDirectLightingHardwareRayTracingIndirectArgsCS::FParameters>();
 		{
-			PassParameters->CardScatterParameters = CardScatterContext.CardTileParameters;
+			PassParameters->DispatchLightTilesIndirectArgs = GraphBuilder.CreateSRV(DispatchLightTilesIndirectArgs, PF_R32_UINT);
 			PassParameters->RWHardwareRayTracingIndirectArgs = GraphBuilder.CreateUAV(HardwareRayTracingIndirectArgsBuffer, PF_R32_UINT);
 		}
 
@@ -266,8 +262,9 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 			GraphBuilder,
 			View,
 			TracingInputs,
-			LumenLight,
-			CardScatterContext,
+			LightTileAllocator,
+			LightTiles,
+			LumenPackedLights,
 			ShadowMaskTilesUAV,
 			HardwareRayTracingIndirectArgsBuffer,
 			&PassParameters->CommonParameters
@@ -288,9 +285,8 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 			Resolution = FString::Printf(TEXT("<indirect>"));
 		}
 
-		FString LightName;
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LumenDirectLightingHardwareInlineRayTracingCS %s %s", *LumenLight.Name, *Resolution),
+			RDG_EVENT_NAME("LumenDirectLightingHardwareInlineRayTracingCS %s", *Resolution),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, ComputeShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
@@ -321,8 +317,9 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 			GraphBuilder,
 			View,
 			TracingInputs,
-			LumenLight,
-			CardScatterContext,
+			LightTileAllocator,
+			LightTiles,
+			LumenPackedLights,
 			ShadowMaskTilesUAV,
 			HardwareRayTracingIndirectArgsBuffer,
 			PassParameters
@@ -344,7 +341,7 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 
 		FString LightName;
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LumenDirectLightingHardwareRayTracingRGS %s %s", *LumenLight.Name, *Resolution),
+			RDG_EVENT_NAME("LumenDirectLightingHardwareRayTracingRGS %s", *Resolution),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)

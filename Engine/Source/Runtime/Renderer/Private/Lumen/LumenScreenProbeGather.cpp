@@ -1236,7 +1236,7 @@ void UpdateHistoryScreenProbeGather(
 
 					const FVector2D HistoryUVToScreenPositionScale(1.0f / PassParameters->HistoryScreenPositionScaleBias.X, 1.0f / PassParameters->HistoryScreenPositionScaleBias.Y);
 					const FVector2D HistoryUVToScreenPositionBias = -FVector2D(PassParameters->HistoryScreenPositionScaleBias.W, PassParameters->HistoryScreenPositionScaleBias.Z) * HistoryUVToScreenPositionScale;
-					PassParameters->HistoryUVToScreenPositionScaleBias = FVector4(HistoryUVToScreenPositionScale, HistoryUVToScreenPositionBias);
+					PassParameters->HistoryUVToScreenPositionScaleBias = FVector4f(HistoryUVToScreenPositionScale, HistoryUVToScreenPositionBias);
 
 					const FVector2D InvBufferSize(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
 					// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering

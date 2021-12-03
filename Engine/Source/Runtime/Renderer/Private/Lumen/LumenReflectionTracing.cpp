@@ -495,7 +495,7 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 		const FVector2D HZBUvFactor(
 			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
-		Parameters.HZBUvFactorAndInvFactor = FVector4(
+		Parameters.HZBUvFactorAndInvFactor = FVector4f(
 			HZBUvFactor.X,
 			HZBUvFactor.Y,
 			1.0f / HZBUvFactor.X,
@@ -504,14 +504,14 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 		const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
 		const FVector2D HZBUVToScreenUVScale = FVector2D(1.0f / HZBUvFactor.X, 1.0f / HZBUvFactor.Y) * FVector2D(2.0f, -2.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y);
 		const FVector2D HZBUVToScreenUVBias = FVector2D(-1.0f, 1.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y) + FVector2D(ScreenPositionScaleBias.W, ScreenPositionScaleBias.Z);
-		Parameters.HZBUVToScreenUVScaleBias = FVector4(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
+		Parameters.HZBUVToScreenUVScaleBias = FVector4f(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
 	}
 
 	{
 		const float InvPrevColorBufferSizeX = 1.0f / PrevColorBufferSize.X;
 		const float InvPrevColorBufferSizeY = 1.0f / PrevColorBufferSize.Y;
 
-		Parameters.PrevScreenPositionScaleBias = FVector4(
+		Parameters.PrevScreenPositionScaleBias = FVector4f(
 			ViewportExtent.X * 0.5f * InvPrevColorBufferSizeX,
 			-ViewportExtent.Y * 0.5f * InvPrevColorBufferSizeY,
 			(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvPrevColorBufferSizeX,
@@ -523,7 +523,7 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 		const float InvBufferSizeX = 1.0f / SceneTextures.Config.Extent.X;
 		const float InvBufferSizeY = 1.0f / SceneTextures.Config.Extent.Y;
 
-		Parameters.PrevScreenPositionScaleBiasForDepth = FVector4(
+		Parameters.PrevScreenPositionScaleBiasForDepth = FVector4f(
 			ViewportExtentForDepth.X * 0.5f * InvBufferSizeX,
 			-ViewportExtentForDepth.Y * 0.5f * InvBufferSizeY,
 			(ViewportExtentForDepth.X * 0.5f + ViewportOffsetForDepth.X) * InvBufferSizeX,

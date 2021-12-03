@@ -162,8 +162,7 @@ namespace LumenRadiosity
 		FLumenSceneData& LumenSceneData,
 		FRDGTextureRef RadiosityAtlas,
 		const FLumenCardTracingInputs& TracingInputs,
-		const FLumenCardUpdateContext& CardUpdateContext,
-		const FLumenCardTileScatterParameters& CardTileParameters);
+		const FLumenCardUpdateContext& CardUpdateContext);
 
 	float GetConeHalfAngle();
 	uint32 GetNumTracesPerTexel();
@@ -206,6 +205,70 @@ FIntPoint FLumenSceneData::GetRadiosityAtlasSize() const
 	return FIntPoint::DivideAndRoundDown(PhysicalAtlasSize, Lumen::GetRadiosityDownsampleFactor());
 }
 
+class FBuildRadiosityTilesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FBuildRadiosityTilesCS);
+	SHADER_USE_PARAMETER_STRUCT(FBuildRadiosityTilesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RDG_BUFFER_ACCESS(IndirectArgBuffer, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCardTileAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCardTileData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageIndexAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardPageIndexData)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 8;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FBuildRadiosityTilesCS, "/Engine/Private/Lumen/Radiosity/LumenRadiosityCulling.usf", "BuildRadiosityTilesCS", SF_Compute);
+
+class FSetRadiosityTileIndirectArgsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSetRadiosityTileIndirectArgsCS);
+	SHADER_USE_PARAMETER_STRUCT(FSetRadiosityTileIndirectArgsCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCardDispatchIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardTileAllocator)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 8;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FSetRadiosityTileIndirectArgsCS, "/Engine/Private/Lumen/Radiosity/LumenRadiosityCulling.usf", "SetRadiosityTileIndirectArgs", SF_Compute);
+
 enum ERadiosityIndirectArgs
 {
 	ThreadPerTrace = 0 * sizeof(FRHIDispatchIndirectParameters),
@@ -216,7 +279,8 @@ enum ERadiosityIndirectArgs
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenRadiosityTexelTraceParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardTileParameters)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardTileAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CardTileData)
 	SHADER_PARAMETER_ARRAY(FVector4f, RadiosityRayDirections, [LumenRadiosity::NumRayDirections])
 	SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
 	SHADER_PARAMETER(uint32, NumTracesPerTexel)
@@ -429,8 +493,7 @@ void LumenRadiosity::AddRadiosityPass(
 	FLumenSceneData& LumenSceneData,
 	FRDGTextureRef RadiosityAtlas,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenCardUpdateContext& CardUpdateContext,
-	const FLumenCardTileScatterParameters& CardTileParameters)
+	const FLumenCardUpdateContext& CardUpdateContext)
 {
 	LumenRadiosity::RayDirections.GenerateSamples(
 		LumenRadiosity::NumRayDirections,
@@ -480,10 +543,19 @@ void LumenRadiosity::AddRadiosityPass(
 			TEXT("Lumen.RadiosityProbeSHBlueAtlas"));
 	}
 
+	const uint32 MaxCardTilesX = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().X, Lumen::CardTileSize);
+	const uint32 MaxCardTilesY = FMath::DivideAndRoundUp<uint32>(LumenSceneData.GetPhysicalAtlasSize().Y, Lumen::CardTileSize);
+	const uint32 MaxCardTiles = MaxCardTilesX * MaxCardTilesY;
+
+	FRDGBufferRef CardTileAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.Radiosity.CardTileAllocator"));
+	FRDGBufferRef CardTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxCardTiles), TEXT("Lumen.Radiosity.CardTiles"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CardTileAllocator), 0);
+
 	// Setup common radiosity tracing parameters
 	FLumenRadiosityTexelTraceParameters RadiosityTexelTraceParameters;
 	{
-		RadiosityTexelTraceParameters.CardTileParameters = CardTileParameters;
+		RadiosityTexelTraceParameters.CardTileAllocator = GraphBuilder.CreateSRV(CardTileAllocator);
+		RadiosityTexelTraceParameters.CardTileData = GraphBuilder.CreateSRV(CardTiles);
 		RadiosityTexelTraceParameters.RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 		RadiosityTexelTraceParameters.TanRadiosityRayConeHalfAngle = FMath::Tan(LumenRadiosity::GetConeHalfAngle());
 		RadiosityTexelTraceParameters.NumTracesPerTexel = LumenRadiosity::GetNumTracesPerTexel();
@@ -498,6 +570,27 @@ void LumenRadiosity::AddRadiosityPass(
 			// Scramble ray directions so that we can index them linearly in shader
 			RadiosityTexelTraceParameters.RadiosityRayDirections[i] = SampleDirections[(i + 4) % LumenRadiosity::NumRayDirections];
 		}
+	}
+
+	// Build a list of radiosity tiles for future processing
+	{
+		FBuildRadiosityTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildRadiosityTilesCS::FParameters>();
+		PassParameters->IndirectArgBuffer = CardUpdateContext.DispatchCardPageIndicesIndirectArgs;
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
+		PassParameters->RWCardTileAllocator = GraphBuilder.CreateUAV(CardTileAllocator);
+		PassParameters->RWCardTileData = GraphBuilder.CreateUAV(CardTiles);
+		PassParameters->CardPageIndexAllocator = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexAllocator);
+		PassParameters->CardPageIndexData = GraphBuilder.CreateSRV(CardUpdateContext.CardPageIndexData);
+		auto ComputeShader = View.ShaderMap->GetShader<FBuildRadiosityTilesCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("BuildRadiosityTiles"),
+			ComputeShader,
+			PassParameters,
+			CardUpdateContext.DispatchCardPageIndicesIndirectArgs,
+			FLumenCardUpdateContext::EIndirectArgOffset::ThreadPerTile);
 	}
 
 	FRDGBufferRef RadiosityIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(ERadiosityIndirectArgs::MAX), TEXT("Lumen.RadiosityIndirectArgs"));
@@ -686,20 +779,6 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
 
-		FLumenCardScatterContext VisibleCardScatterContext;
-
-		// Build the indirect args to write to the card faces we are going to update radiosity for this frame
-		VisibleCardScatterContext.Build(
-			GraphBuilder,
-			View,
-			LumenSceneData,
-			LumenCardRenderer,
-			TracingInputs.LumenCardSceneUniformBuffer,
-			CardUpdateContext,
-			true /*bBuildCardTiles*/,
-			FCullCardsShapeParameters(),
-			ECullCardsShapeType::None);
-
 		const bool bRenderSkylight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
 
 		LumenRadiosity::AddRadiosityPass(
@@ -710,8 +789,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			LumenSceneData,
 			RadiosityAtlas,
 			TracingInputs,
-			CardUpdateContext,
-			VisibleCardScatterContext.CardTileParameters);
+			CardUpdateContext);
 
 		// Update Final Lighting
 		Lumen::CombineLumenSceneLighting(
@@ -719,7 +797,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			View,
 			GraphBuilder,
 			TracingInputs,
-			VisibleCardScatterContext);
+			CardUpdateContext);
 	}
 	else
 	{

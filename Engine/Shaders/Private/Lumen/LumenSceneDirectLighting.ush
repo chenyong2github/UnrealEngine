@@ -16,7 +16,6 @@ groupshared uint SharedShadowMask[4];
 
 RWStructuredBuffer<uint> RWShadowMaskTiles;
 StructuredBuffer<uint> ShadowMaskTiles;
-uint ShadowMaskTilesOffset;
 
 struct FShadowMaskRay
 {
@@ -39,7 +38,7 @@ void ReadShadowMaskRayRW(uint CardTileIndex, uint2 CoordInCardTile, inout FShado
 {
 	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
 
-	uint ShadowMask = RWShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + BitOffset / 32];
+	uint ShadowMask = RWShadowMaskTiles[4 * CardTileIndex + BitOffset / 32];
 	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
 
 	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
@@ -50,7 +49,7 @@ void ReadShadowMaskRay(uint CardTileIndex, uint2 CoordInCardTile, inout FShadowM
 {
 	uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
 
-	uint ShadowMask = ShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + BitOffset / 32];
+	uint ShadowMask = ShadowMaskTiles[4 * CardTileIndex + BitOffset / 32];
 	ShadowMask = (ShadowMask >> (BitOffset % 32)) & 0x3;
 
 	ShadowMaskRay.ShadowFactor = ShadowMask & 0x1 ? 0.0f : 1.0f;
@@ -95,7 +94,7 @@ void WriteShadowMaskRay(FShadowMaskRay Ray, uint CardTileIndex, uint2 CoordInCar
 		}
 
 		uint BitOffset = 2 * (CoordInCardTile.x + CoordInCardTile.y * CARD_TILE_SIZE);
-		InterlockedOr(RWShadowMaskTiles[ShadowMaskTilesOffset + 4 * CardTileIndex + BitOffset / 32], Mask << (BitOffset % 32));
+		InterlockedOr(RWShadowMaskTiles[4 * CardTileIndex + BitOffset / 32], Mask << (BitOffset % 32));
 	}
 }
 
@@ -128,4 +127,103 @@ FDeferredLightData LoadLightData(uint LightType)
 	LightData.bRectLight = LightType == LIGHT_TYPE_RECT;
 
 	return LightData;
+}
+
+struct FLumenPackedLight
+{
+	float3 Position;
+	float InvRadius;
+
+	float3 Color;
+	float FalloffExponent;
+
+	float3 Direction;
+	float SpecularScale;
+
+	float3 Tangent;
+	float SourceRadius;
+
+	float2 SpotAngles;
+	float SoftSourceRadius;
+	float SourceLength;
+
+	float RectLightBarnCosAngle;
+	float RectLightBarnLength;
+	uint LightType;
+	uint VirtualShadowMapId;
+
+	float4 InfluenceSphere;
+
+	float3 ProxyPosition;
+	float ProxyRadius;
+
+	float3 ProxyDirection;
+	float CosConeAngle;
+
+	float SinConeAngle;
+	float3 Padding;
+};
+
+struct FLumenLight
+{
+	FDeferredLightData DeferredLightData;
+
+	float4 InfluenceSphere;
+	float3 ProxyPosition;
+	float3 ProxyDirection;
+	float ProxyRadius;
+	float CosConeAngle;
+	float SinConeAngle;
+
+	uint VirtualShadowMapId;
+	uint Type;
+};
+
+StructuredBuffer<FLumenPackedLight> LumenPackedLights;
+
+FLumenLight LoadLumenLight(uint LightIndex)
+{
+	FLumenPackedLight PackedLight = LumenPackedLights[LightIndex];
+
+	FDeferredLightData DeferredLightData = (FDeferredLightData)0;
+	DeferredLightData.Position = PackedLight.Position;
+	DeferredLightData.InvRadius = PackedLight.InvRadius;
+	DeferredLightData.Color = PackedLight.Color;
+	DeferredLightData.FalloffExponent = PackedLight.FalloffExponent;
+	DeferredLightData.Direction = PackedLight.Direction;
+	DeferredLightData.Tangent = PackedLight.Tangent;
+	DeferredLightData.SpotAngles = PackedLight.SpotAngles;
+	DeferredLightData.SourceRadius = PackedLight.SourceRadius;
+	DeferredLightData.SourceLength = PackedLight.SourceLength;
+	DeferredLightData.SoftSourceRadius = PackedLight.SoftSourceRadius;
+	DeferredLightData.SpecularScale = PackedLight.SpecularScale;
+	DeferredLightData.ContactShadowLength = 0.0f;
+	DeferredLightData.ContactShadowLengthInWS = false;
+	DeferredLightData.DistanceFadeMAD = 0.0f;
+	DeferredLightData.ShadowMapChannelMask = 0.0f;
+	DeferredLightData.ShadowedBits = 0;
+	DeferredLightData.RectLightBarnCosAngle = PackedLight.RectLightBarnCosAngle;
+	DeferredLightData.RectLightBarnLength = PackedLight.RectLightBarnLength;
+	DeferredLightData.bInverseSquared = PackedLight.FalloffExponent == 0.0f;
+	DeferredLightData.bRadialLight = PackedLight.LightType != LIGHT_TYPE_DIRECTIONAL;
+	DeferredLightData.bSpotLight = PackedLight.LightType == LIGHT_TYPE_SPOT;
+	DeferredLightData.bRectLight = PackedLight.LightType == LIGHT_TYPE_RECT;
+
+	FLumenLight LumenLight = (FLumenLight)0;
+	LumenLight.DeferredLightData = DeferredLightData;
+	LumenLight.InfluenceSphere = PackedLight.InfluenceSphere;
+	LumenLight.ProxyPosition = PackedLight.ProxyPosition;
+	LumenLight.ProxyRadius = PackedLight.ProxyRadius;
+	LumenLight.ProxyDirection = PackedLight.ProxyDirection;
+	LumenLight.CosConeAngle = PackedLight.CosConeAngle;
+	LumenLight.SinConeAngle = PackedLight.SinConeAngle;
+	LumenLight.VirtualShadowMapId = PackedLight.VirtualShadowMapId;
+	LumenLight.Type = PackedLight.LightType;
+	return LumenLight;
+}
+
+float3 GetCardWorldPositionForShadowing(float3 WorldPosition, float3 L, float3 WorldNormal, float SurfaceBias, float SlopeScaledSurfaceBias, float BiasScale)
+{
+	//@todo DynamicGI - derive from card texel size
+	return WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal))) * BiasScale;
 }
