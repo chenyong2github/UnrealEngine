@@ -2774,7 +2774,7 @@ void FVirtualTextureSystem::AddRequestedTilesTask(const FAddRequestedTilesParame
 			const uint32 PageX = FMath::ReverseMortonCode2(Address) >> Level;
 			const uint32 PageY = FMath::ReverseMortonCode2(Address >> 1) >> Level;
 			const uint32 SpaceId = AllocatedVT->GetSpaceID();
-			const uint32 PageId = PageX | (PageY << 12) | (LevelPlusOne << 24) | (SpaceId << 28);
+			const uint32 PageId = PageX | (PageY << 12) | ((Level+1) << 24) | (SpaceId << 28);
 
 			RequestedPageList->Add(PageId, 0xffff);
 		}
