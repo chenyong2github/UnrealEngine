@@ -319,23 +319,19 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
 
-				uint32 InstanceSceneDataFlags = 0;
-				InstanceSceneDataFlags |= (PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
-
 				InstanceSceneData[InstanceIndex]  = FInstanceSceneShaderData(
-					ConstructPrimitiveInstance(
-						FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
-						NANITE_INVALID_HIERARCHY_OFFSET,
-						InstanceSceneDataFlags
-					),
+					ConstructPrimitiveInstance(),
 					InstanceIndex, /* Primitive Id */
 					FRenderTransform(PrimitiveUniformShaderParameters.LocalToRelativeWorld),
 					FRenderTransform(PrimitiveUniformShaderParameters.PreviousLocalToRelativeWorld),
 					FRenderTransform::Identity, /* PrevLocalToPrimitive */
+					FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
+					NANITE_INVALID_HIERARCHY_OFFSET,
 					FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 					0.0f, /* Per instance Random ID */
 					0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-					INVALID_LAST_UPDATE_FRAME
+					INVALID_LAST_UPDATE_FRAME,
+					0 /* Instance Flags */ // TODO: Temporary
 				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
@@ -407,7 +403,6 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 			for (int32 InstanceIdx = 0; InstanceIdx < NumInstancesThisGroup; InstanceIdx++)
 			{
 				FPrimitiveInstance Instance;
-				Instance.LocalBounds = InstanceGroup.RenderData->Bounds;
 				InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Instance.LocalToPrimitive);
 
 				InstanceSceneData.Add(
@@ -417,10 +412,13 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 						FRenderTransform(InstanceGroup.LocalToWorld),
 						FRenderTransform(InstanceGroup.LocalToWorld),
 						FRenderTransform::Identity, /* PrevLocalToPrimitive */
+						InstanceGroup.RenderData->Bounds,
+						NANITE_INVALID_HIERARCHY_OFFSET,
 						FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 						0.0f, /* Per instance Random ID */
 						0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-						INVALID_LAST_UPDATE_FRAME
+						INVALID_LAST_UPDATE_FRAME,
+						0 /* Instance Flags */
 					)
 				);
 			}
@@ -470,23 +468,19 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				LightmapSceneData[LightmapSceneDataStartOffsets[PrimitiveId] + LODIndex] = FLightmapSceneShaderData(LightmapParams);
 			}
 
-			uint32 InstanceSceneDataFlags = 0;
-			InstanceSceneDataFlags |= (PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
-
 			InstanceSceneData.Add(FInstanceSceneShaderData(
-				ConstructPrimitiveInstance(
-					FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
-					NANITE_INVALID_HIERARCHY_OFFSET,
-					InstanceSceneDataFlags
-				),
+				ConstructPrimitiveInstance(),
 				PrimitiveId,
 				FRenderTransform(PrimitiveUniformShaderParameters.LocalToRelativeWorld),
 				FRenderTransform(PrimitiveUniformShaderParameters.PreviousLocalToRelativeWorld),
 				FRenderTransform::Identity, /* PrevLocalToPrimitive */
+				FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
+				NANITE_INVALID_HIERARCHY_OFFSET,
 				FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 				0.0f, /* Per instance Random ID */
 				0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-				INVALID_LAST_UPDATE_FRAME
+				INVALID_LAST_UPDATE_FRAME,
+				0 /* Instance Flags */ // TODO: Temporary Hack!
 			));
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));

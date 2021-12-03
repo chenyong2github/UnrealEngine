@@ -1404,6 +1404,8 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 
 	// TODO: Respect this setting with de-interleaved stream data
 	bHasPerInstanceHierarchyOffset = true;
+	bHasPerInstanceLocalBounds = true;
+	bHasPerInstanceDynamicData = true;
 
 	// Check if the assigned material can be rendered in Nanite. If not, default.
 	// TODO: Handle cases like geometry collections adding a "selected geometry" material with translucency.
@@ -1514,18 +1516,18 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// transforms will be corrected during the first frame before any rendering occurs.
 	InstanceSceneData.SetNumUninitialized(NumGeometry);
 	InstanceDynamicData.SetNumUninitialized(NumGeometry);
+	InstanceLocalBounds.SetNumUninitialized(NumGeometry);
+	InstanceHierarchyOffset.SetNumZeroed(NumGeometry);
 
 	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 	{
-		FPrimitiveInstance& SceneData		= InstanceSceneData[GeometryIndex];
+		FPrimitiveInstance& SceneData = InstanceSceneData[GeometryIndex];
 		SceneData.LocalToPrimitive.SetIdentity();
-		SceneData.LocalBounds				= GeometryNaniteData[GeometryIndex].LocalBounds;
-		SceneData.NaniteHierarchyOffset		= NANITE_INVALID_HIERARCHY_OFFSET;
-		SceneData.Flags						= 0u;
-		SceneData.Flags					   |= INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA;
 
 		FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[GeometryIndex];
 		DynamicData.PrevLocalToPrimitive.SetIdentity();
+
+		InstanceLocalBounds[GeometryIndex] = FRenderBounds();
 	}
 }
 
@@ -1610,11 +1612,14 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
 	const TManagedArray<int32>& TransformToGeometryIndices = Collection->TransformToGeometryIndex;
 
-	check(NewConstantData->RestTransforms.Num() == TransformToGeometryIndices.Num());
-	InstanceSceneData.Reset(NewConstantData->RestTransforms.Num());
-	InstanceDynamicData.Reset(NewConstantData->RestTransforms.Num());
+	const int32 TransformCount = NewConstantData->RestTransforms.Num();
+	check(TransformCount == TransformToGeometryIndices.Num());
+	InstanceSceneData.Reset(TransformCount);
+	InstanceDynamicData.Reset(TransformCount);
+	InstanceLocalBounds.Reset(TransformCount);
+	InstanceHierarchyOffset.Reset(TransformCount);
 
-	for (int32 TransformIndex = 0; TransformIndex < NewConstantData->RestTransforms.Num(); ++TransformIndex)
+	for (int32 TransformIndex = 0; TransformIndex < TransformCount; ++TransformIndex)
 	{
 		const int32 TransformToGeometryIndex = TransformToGeometryIndices[TransformIndex];
 		if (!Collection->IsGeometry(TransformIndex))
@@ -1626,13 +1631,12 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 		FPrimitiveInstance& Instance	= InstanceSceneData.Emplace_GetRef();
 		Instance.LocalToPrimitive		= NewConstantData->RestTransforms[TransformIndex];
-		Instance.LocalBounds			= NaniteData.LocalBounds;
-		Instance.NaniteHierarchyOffset	= NaniteData.HierarchyOffset;
-		Instance.Flags					= 0u;
-		Instance.Flags				   |= INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA;
 
 		FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
 		DynamicData.PrevLocalToPrimitive = Instance.LocalToPrimitive;
+
+		InstanceLocalBounds.Emplace(NaniteData.LocalBounds);
+		InstanceHierarchyOffset.Emplace(NaniteData.HierarchyOffset);
 	}
 
 	delete NewConstantData;
@@ -1648,14 +1652,16 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 		const TManagedArray<TSet<int32>>& TransformChildren		 = Collection->Children;
 		const TManagedArray<int32>& SimulationType				 = Collection->SimulationType;
 
-		const int32 NumTransforms = NewDynamicData->Transforms.Num();
-		check(NumTransforms == TransformToGeometryIndices.Num());
-		check(NumTransforms == TransformChildren.Num());
-		check(NumTransforms == NewDynamicData->PrevTransforms.Num());
-		InstanceSceneData.Reset(NumTransforms);
-		InstanceDynamicData.Reset(NumTransforms);
+		const int32 TransformCount = NewDynamicData->Transforms.Num();
+		check(TransformCount == TransformToGeometryIndices.Num());
+		check(TransformCount == TransformChildren.Num());
+		check(TransformCount == NewDynamicData->PrevTransforms.Num());
+		InstanceSceneData.Reset(TransformCount);
+		InstanceDynamicData.Reset(TransformCount);
+		InstanceLocalBounds.Reset(TransformCount);
+		InstanceHierarchyOffset.Reset(TransformCount);
 
-		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
+		for (int32 TransformIndex = 0; TransformIndex < TransformCount; ++TransformIndex)
 		{
 			const int32 TransformToGeometryIndex = TransformToGeometryIndices[TransformIndex];
 			if (SimulationType[TransformIndex] != FGeometryCollection::ESimulationTypes::FST_Rigid)
@@ -1665,12 +1671,8 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 
 			const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
-			FPrimitiveInstance& SceneData		= InstanceSceneData.Emplace_GetRef();
-			SceneData.LocalToPrimitive			= NewDynamicData->Transforms[TransformIndex];
-			SceneData.LocalBounds				= NaniteData.LocalBounds;
-			SceneData.NaniteHierarchyOffset		= NaniteData.HierarchyOffset;
-			SceneData.Flags						= 0u;
-			SceneData.Flags					   |= INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA;
+			FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
+			Instance.LocalToPrimitive = NewDynamicData->Transforms[TransformIndex];
 
 			FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
 
@@ -1680,8 +1682,11 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			}
 			else
 			{
-				DynamicData.PrevLocalToPrimitive = SceneData.LocalToPrimitive;
+				DynamicData.PrevLocalToPrimitive = Instance.LocalToPrimitive;
 			}
+
+			InstanceLocalBounds.Emplace(NaniteData.LocalBounds);
+			InstanceHierarchyOffset.Emplace(NaniteData.HierarchyOffset);
 		}
 	}
 	else

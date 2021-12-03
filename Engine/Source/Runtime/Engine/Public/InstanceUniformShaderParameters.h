@@ -18,6 +18,7 @@
 #define INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			0x8
 #define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x10
 #define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x20
+#define INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			0x40
 
 #define INVALID_PRIMITIVE_ID 0x000FFFFFu
 
@@ -28,10 +29,7 @@
 // TODO: Rename to FInstanceSceneData
 struct FPrimitiveInstance
 {
-	FRenderTransform		LocalToPrimitive;
-	FRenderBounds			LocalBounds;  // TODO: Move to another data stream (only if proxies like geometry collection require it).
-	uint32					NaniteHierarchyOffset; // TODO: Move to another data stream (only if proxies like geometry collection require it).
-	uint32					Flags;
+	FRenderTransform LocalToPrimitive;
 
 	// Should always use this accessor so shearing is properly
 	// removed from the concatenated transform.
@@ -44,7 +42,7 @@ struct FPrimitiveInstance
 	#if 0
 		// Shearing occurs when applying a rotation and then non-uniform scaling. It is much more likely that 
 		// an instance would be non-uniformly scaled than the primitive, so we'll check if the primitive has 
-		// non-uniform scaling, and orthonormalize in that case.
+		// non-uniform scaling, and orthogonalize in that case.
 		if (PrimitiveToWorld.IsScaleNonUniform())
 	#endif
 		{
@@ -71,7 +69,7 @@ struct FPrimitiveInstanceDynamicData
 	#if 0
 		// Shearing occurs when applying a rotation and then non-uniform scaling. It is much more likely that 
 		// an instance would be non-uniformly scaled than the primitive, so we'll check if the primitive has 
-		// non-uniform scaling, and orthonormalize in that case.
+		// non-uniform scaling, and orthogonalize in that case.
 		if (PrevPrimitiveToWorld.IsScaleNonUniform())
 	#endif
 		{
@@ -82,18 +80,10 @@ struct FPrimitiveInstanceDynamicData
 	}
 };
 
-FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
-	const FRenderBounds& LocalBounds,
-	uint32 NaniteHierarchyOffset,
-	uint32 Flags
-)
+FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance()
 {
 	FPrimitiveInstance Result;
 	Result.LocalToPrimitive.SetIdentity();
-	Result.LocalBounds							= LocalBounds;
-	Result.NaniteHierarchyOffset				= NaniteHierarchyOffset;
-	Result.Flags								= Flags;
-
 	return Result;
 }
 
@@ -113,19 +103,18 @@ struct FInstanceSceneShaderData
 	{
 		// TODO: Should look into skipping default initialization here - likely unneeded, and just wastes CPU time.
 		Setup(
-			ConstructPrimitiveInstance(
-				FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
-				0xFFFFFFFFu, /* Nanite Hierarchy Offset */
-				0u /* Instance Flags */
-			),
+			ConstructPrimitiveInstance(),
 			0, /* Primitive Id */
 			FRenderTransform::Identity,  /* LocalToWorld */
 			FRenderTransform::Identity,  /* PrevLocalToWorld */
 			FRenderTransform::Identity, /* PrevLocalToPrimitive */ // TODO: Temporary
+			FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector), /* Local Bounds */ // TODO: Temporary
+			0xFFFFFFFFu, /* Nanite Hierarchy Offset */ // TODO: Temporary
 			FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
 			0.0f, /* Per Instance Random */ // TODO: Temporary
 			0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-			INVALID_LAST_UPDATE_FRAME
+			INVALID_LAST_UPDATE_FRAME,
+			0 /* Instance Flags */ // TODO: Temporary
 		);
 	}
 
@@ -135,10 +124,13 @@ struct FInstanceSceneShaderData
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
 		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+		const FRenderBounds& LocalBounds, // TODO: Temporary
+		const uint32 HierarchyOffset, // TODO: Temporary
 		const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 		float RandomID, // TODO: Temporary
 		float CustomDataFloat0, // TODO: Temporary Hack!
-		uint32 LastUpdateFrame
+		uint32 LastUpdateFrame,
+		uint32 InstanceFlags // TODO: Temporary
 	);
 
 	ENGINE_API FInstanceSceneShaderData(
@@ -159,10 +151,13 @@ struct FInstanceSceneShaderData
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
 		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+		const FRenderBounds& LocalBounds, // TODO: Temporary
+		const uint32 HierarchyOffset, // TODO: Temporary
 		const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 		float RandomID, // TODO: Temporary
 		float CustomDataFloat0, // TODO: Temporary Hack!
-		uint32 LastUpdateFrame
+		uint32 LastUpdateFrame,
+		uint32 InstanceFlags // TODO: Temporary
 	);
 };
 

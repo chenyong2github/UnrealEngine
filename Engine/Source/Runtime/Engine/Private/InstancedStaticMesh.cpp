@@ -1276,11 +1276,10 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 		//InstanceCustomData = InComponent->PerInstanceSMCustomData; // TODO: Use this once the hacky reorder table is removed
 		//check(InComponent->NumCustomDataFloats == 0 || (InstanceCustomData.Num() / InComponent->NumCustomDataFloats == InComponent->GetInstanceCount()));
 
-		uint32 InstanceDataFlags = 0;
-		InstanceDataFlags |= InstanceLightShadowUVBias.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
-		InstanceDataFlags |= InstanceDynamicData.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA : 0u;
-		InstanceDataFlags |= InstanceCustomData.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA : 0u;
-		InstanceDataFlags |= InstanceRandomID.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM : 0u;
+		bHasPerInstanceRandom = InstanceRandomID.Num() > 0; // TODO: Only allocate if material bound which uses this
+		bHasPerInstanceCustomData = InstanceCustomData.Num() > 0; // TODO: Only allocate if material bound which uses this
+		bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
+		bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0; // TODO: Only allocate if static lighting is enabled for the project
 
 		for (int32 InInstanceIndex = 0; InInstanceIndex < InstanceSceneData.Num(); ++InInstanceIndex)
 		{
@@ -1288,9 +1287,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			{
 				FPrimitiveInstance& TmpSceneData = InstanceSceneData[InInstanceIndex];
 				TmpSceneData.LocalToPrimitive = FRenderTransform::Identity;
-				TmpSceneData.LocalBounds = InComponent->GetStaticMesh()->GetBounds();
-				TmpSceneData.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-				TmpSceneData.Flags = InstanceDataFlags;
 			}
 
 			int32 OutInstanceIndex = InInstanceIndex;
@@ -1367,13 +1363,6 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 			if (InstanceSceneData.Num() == 0)
 			{
 				InstanceSceneData.SetNum(InstanceBuffer.GetNumInstances());
-				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
-				{
-					FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
-					SceneData.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-					// TODO: Probably need to set  these flags up properly?
-					SceneData.Flags = 0U;
-				}
 			}
 
 			// NOTE: we set up partial data in the construction of ISM proxy (yep, awful but the equally awful way the InstanceBuffer is maintained means complete data is not available)
@@ -1385,7 +1374,6 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 				{
 					FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
-					SceneData.LocalBounds = StaticMeshBounds; // TODO: redundant setting
 					InstanceBuffer.GetInstanceTransform(InstanceIndex, SceneData.LocalToPrimitive);
 
 					if (bHasRandomID)
@@ -1415,6 +1403,23 @@ void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
 		DynamicRayTracingItem.DynamicGeometryVertexBuffer.Release();
 	}
 #endif
+}
+
+void FInstancedStaticMeshSceneProxy::OnTransformChanged()
+{
+	if (!bHasPerInstanceLocalBounds)
+	{
+		check(InstanceLocalBounds.Num() <= 1);
+		InstanceLocalBounds.SetNumUninitialized(1);
+		if (StaticMesh != nullptr)
+		{
+			InstanceLocalBounds[0] = StaticMesh->GetBounds();
+		}
+		else
+		{
+			InstanceLocalBounds[0] = GetLocalBounds();
+		}
+	}
 }
 
 void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int32 BatchIndex, FMeshBatch& OutMeshBatch) const

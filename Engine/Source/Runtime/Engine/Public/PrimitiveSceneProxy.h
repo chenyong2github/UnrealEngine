@@ -393,6 +393,14 @@ public:
 	 */
 	virtual void OnTransformChanged()
 	{
+		// For most primitives, mesh bounds are the same as local bounds.
+		// Generally only primitives with instances override this behavior.
+		if (!bHasPerInstanceLocalBounds)
+		{
+			check(InstanceLocalBounds.Num() <= 1);
+			InstanceLocalBounds.SetNumUninitialized(1);
+			InstanceLocalBounds[0] = LocalBounds;
+		}
 	}
 
 	/**
@@ -616,17 +624,44 @@ public:
 	inline bool DoesVFRequirePrimitiveUniformBuffer() const { return bVFRequiresPrimitiveUniformBuffer; }
 	inline bool ShouldUseAsOccluder() const { return bUseAsOccluder; }
 	inline bool AllowApproximateOcclusion() const { return bAllowApproximateOcclusion; }
+
 	inline FRHIUniformBuffer* GetUniformBuffer() const
 	{
 		return UniformBuffer.GetReference(); 
 	}
+
 	inline bool HasPerInstanceHitProxies () const { return bHasPerInstanceHitProxies; }
+
 	inline bool HasPerInstanceRandom() const { return bHasPerInstanceRandom; }
 	inline bool HasPerInstanceCustomData() const { return bHasPerInstanceCustomData; }
 	inline bool HasPerInstanceDynamicData() const { return bHasPerInstanceDynamicData; }
 	inline bool HasPerInstanceLMSMUVBias() const { return bHasPerInstanceLMSMUVBias; }
 	inline bool HasPerInstanceLocalBounds() const { return bHasPerInstanceLocalBounds; }
 	inline bool HasPerInstanceHierarchyOffset() const { return bHasPerInstanceHierarchyOffset; }
+
+	inline bool HasAnyPerInstancePayloadData() const
+	{
+		return
+			bHasPerInstanceRandom		|
+			bHasPerInstanceCustomData	|
+			bHasPerInstanceDynamicData	|
+			bHasPerInstanceLMSMUVBias	|
+			bHasPerInstanceLocalBounds	|
+			bHasPerInstanceHierarchyOffset;
+	}
+
+	inline uint32 GetPayloadDataFlags()
+	{
+		uint32 PayloadDataFlags = 0x0;
+		PayloadDataFlags |= HasPerInstanceRandom()          ? INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM				: 0u;
+		PayloadDataFlags |= HasPerInstanceCustomData()      ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA			: 0u;
+		PayloadDataFlags |= HasPerInstanceDynamicData()     ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			: 0u;
+		PayloadDataFlags |= HasPerInstanceLMSMUVBias()      ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	: 0u;
+		PayloadDataFlags |= HasPerInstanceHierarchyOffset() ? INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		: 0u;
+		PayloadDataFlags |= HasPerInstanceLocalBounds()		? INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			: 0u;
+		return PayloadDataFlags;
+	}
+
 	inline bool UseEditorCompositing(const FSceneView* View) const { return GIsEditor && bUseEditorCompositing && !View->bIsGameView; }
 	inline bool IsBeingMovedByEditor() const { return bIsBeingMovedByEditor; }
 	inline const FVector& GetActorPosition() const { return ActorPosition; }
@@ -754,6 +789,39 @@ public:
 	TConstArrayView<FVector4f> GetInstanceLightShadowUVBias() const
 	{
 		return InstanceLightShadowUVBias;
+	}
+
+	TConstArrayView<FRenderBounds> GetInstanceLocalBounds() const
+	{
+		return InstanceLocalBounds;
+	}
+
+	// Helper function to avoid multiple code paths requesting bounds
+	const FRenderBounds& GetInstanceLocalBounds(uint32 Instance) 
+	{
+		const uint32 BoundsCount = uint32(InstanceLocalBounds.Num());
+		if (BoundsCount == 0)
+		{
+			// Messy, but allows for avoiding a lot of copies and marshaling to FRenderBounds
+			// TODO: Should change local bounds to the optimized type and clean this up.
+			check(!bHasPerInstanceLocalBounds);
+			InstanceLocalBounds.SetNumUninitialized(1);
+			InstanceLocalBounds[0] = LocalBounds;
+			return InstanceLocalBounds[0];
+		}
+
+		if (Instance >= BoundsCount)
+		{
+			// OnTransformChanged populates a default 0th bounds element
+			Instance = 0;
+		}
+
+		return InstanceLocalBounds[Instance];
+	}
+
+	TConstArrayView<uint32> GetInstanceHierarchyOffset() const
+	{
+		return InstanceHierarchyOffset;
 	}
 
 	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const
@@ -1183,10 +1251,12 @@ private:
 
 protected:
 	TArray<FPrimitiveInstance, TInlineAllocator<1>> InstanceSceneData;
+	TArray<FRenderBounds, TInlineAllocator<1>> InstanceLocalBounds;
 	TArray<FPrimitiveInstanceDynamicData> InstanceDynamicData;
 	TArray<float> InstanceCustomData;
 	TArray<float> InstanceRandomID;
 	TArray<FVector4f> InstanceLightShadowUVBias;
+	TArray<uint32> InstanceHierarchyOffset;
 
 	/** Quality of interpolated indirect lighting for Movable components. */
 	TEnumAsByte<EIndirectLightingCacheQuality> IndirectLightingCacheQuality;
@@ -1220,6 +1290,9 @@ private:
 
 	/** The primitive's local space bounds. */
 	FBoxSphereBounds LocalBounds;
+
+	/** The primitive's mesh bounds (zero size if inapplicable) */
+	FRenderBounds MeshBounds;
 
 	/** The component's actor's position. */
 	FVector ActorPosition;

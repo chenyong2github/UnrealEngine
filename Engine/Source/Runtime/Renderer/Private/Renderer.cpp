@@ -179,19 +179,18 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 
 				// Also fill out correct single-primitive instance data, derived from the primitive.
 				SinglePrimitiveStructured.InstanceSceneData = FInstanceSceneShaderData(
-					ConstructPrimitiveInstance(
-						FRenderBounds(PrimitiveParams.LocalObjectBoundsMin, PrimitiveParams.LocalObjectBoundsMax),
-						NANITE_INVALID_HIERARCHY_OFFSET,
-						InstanceFlags
-					),
+					ConstructPrimitiveInstance(),
 					0, /* Primitive Id */
 					FRenderTransform(PrimitiveParams.LocalToRelativeWorld),
 					FRenderTransform(PrimitiveParams.PreviousLocalToRelativeWorld),
 					FRenderTransform::Identity, /* PrevLocalToPrimitive */
+					FRenderBounds(PrimitiveParams.LocalObjectBoundsMin, PrimitiveParams.LocalObjectBoundsMax),
+					NANITE_INVALID_HIERARCHY_OFFSET,
 					FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */
 					0.0f, /* Per instance Random ID */
 					0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-					INVALID_LAST_UPDATE_FRAME
+					INVALID_LAST_UPDATE_FRAME,
+					InstanceFlags
 				);
 
 				// TODO: Payload dummy?

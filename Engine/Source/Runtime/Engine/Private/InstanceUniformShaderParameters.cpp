@@ -10,10 +10,13 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 	const FRenderTransform& PrimitiveLocalToWorld,
 	const FRenderTransform& PrimitivePrevLocalToWorld,
 	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+	const FRenderBounds& LocalBounds, // TODO: Temporary
+	const uint32 HierarchyOffset, // TODO: Temporary
 	const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 	float RandomID, // TODO: Temporary
 	float CustomDataFloat0, // TODO: Temporary Hack!
-	uint32 LastUpdateFrame
+	uint32 LastUpdateFrame,
+	uint32 InstanceFlags // TODO: Temporary
 )
 : Data(InPlace, NoInit)
 {
@@ -24,10 +27,13 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 		PrimitiveLocalToWorld,
 		PrimitivePrevLocalToWorld,
 		PrevLocalToPrimitive,
+		LocalBounds,
+		HierarchyOffset,
 		LightMapShadowMapUVBias,
 		RandomID,
 		CustomDataFloat0,
-		LastUpdateFrame
+		LastUpdateFrame,
+		InstanceFlags
 	);
 }
 
@@ -63,10 +69,13 @@ void FInstanceSceneShaderData::Setup(
 	const FRenderTransform& PrimitiveToWorld,
 	const FRenderTransform& PrevPrimitiveToWorld,
 	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+	const FRenderBounds& LocalBounds, // TODO: Temporary
+	const uint32 HierarchyOffset, // TODO: Temporary
 	const FVector4f& LightMapShadowMapUVBias, // TODO: Temporary
 	float RandomID, // TODO: Temporary
 	float CustomDataFloat0, // TODO: Temporary Hack!
-	uint32 LastUpdateFrame
+	uint32 LastUpdateFrame,
+	uint32 RawInstanceFlags // TODO: Temporary
 )
 {
 	// Note: layout must match GetInstanceData in SceneData.ush
@@ -76,7 +85,7 @@ void FInstanceSceneShaderData::Setup(
 
 	FRenderTransform LocalToWorld = Instance.LocalToPrimitive * PrimitiveToWorld;
 	FRenderTransform PrevLocalToWorld;
-	if (Instance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
+	if (RawInstanceFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
 	{
 		PrevLocalToWorld = PrevLocalToPrimitive * PrevPrimitiveToWorld;
 	}
@@ -92,7 +101,7 @@ void FInstanceSceneShaderData::Setup(
 	FCompressedTransform CompressedLocalToWorld( LocalToWorld );
 	FCompressedTransform CompressedPrevLocalToWorld( PrevLocalToWorld );
 
-	uint32 InstanceFlags = Instance.Flags;
+	uint32 InstanceFlags = RawInstanceFlags;
 	if (LocalToWorld.RotDeterminant() < 0.0f)
 	{
 		InstanceFlags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
@@ -115,7 +124,7 @@ void FInstanceSceneShaderData::Setup(
 
 	Data[0].X  = *(const float*)&Packed0;
 	Data[0].Y  = *(const float*)&Packed1;
-	Data[0].Z  = *(const float*)&Instance.NaniteHierarchyOffset;
+	Data[0].Z  = *(const float*)&HierarchyOffset;
 	Data[0].W  = *(const float*)&LastUpdateFrame;
 
 #if !INSTANCE_COMPRESSED_TRANSFORM
@@ -141,8 +150,8 @@ void FInstanceSceneShaderData::Setup(
 	Data[3]    = *(const FVector4f* )&CompressedPrevLocalToWorld.Rotation[0];
 	Data[4]    = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
 
-	const FVector3f BoundsOrigin = Instance.LocalBounds.GetCenter();
-	const FVector3f BoundsExtent = Instance.LocalBounds.GetExtent();
+	const FVector3f BoundsOrigin = LocalBounds.GetCenter();
+	const FVector3f BoundsExtent = LocalBounds.GetExtent();
 	
 	Data[5]    = *(const FVector3f*)&BoundsOrigin;
 	Data[5].W  = *(const     float*)&BoundsExtent.X;
@@ -159,19 +168,18 @@ void FInstanceSceneShaderData::Setup(
 ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 {
 	static FInstanceSceneShaderData DummyShaderData = FInstanceSceneShaderData(
-		ConstructPrimitiveInstance(
-			FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
-			NANITE_INVALID_HIERARCHY_OFFSET,
-			0u /* Instance Flags */
-		),
+		ConstructPrimitiveInstance(),
 		INVALID_PRIMITIVE_ID,
 		FRenderTransform::Identity, /* Primitive LocalToWorld */
 		FRenderTransform::Identity,  /* Primitive PrevLocalToWorld */
 		FRenderTransform::Identity,  /* PrevLocalToPrimitive */
+		FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector), /* Instance Bounds */ // TODO: Temporary
+		NANITE_INVALID_HIERARCHY_OFFSET, /* Nanite Hierarchy Offset */ // TODO: Temporary
 		FVector4f(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
 		0.0f, /* Per instance Random */ // TODO: Temporary
 		0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
-		INVALID_LAST_UPDATE_FRAME
+		INVALID_LAST_UPDATE_FRAME,
+		0 /* InstanceFlags */ // TODO: Temporary
 	);
 	return DummyShaderData;
 }
