@@ -240,7 +240,7 @@ void LumenHWRTCompactRays(
 	FRDGBufferRef& OutputTraceDataPackedBuffer
 )
 {
-	FRDGBufferRef CompactRaysIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflection.CompactTracingIndirectArgs"));
+	FRDGBufferRef CompactRaysIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.HWRT.CompactTracingIndirectArgs"));
 	{
 		FLumenHWRTCompactRaysIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenHWRTCompactRaysIndirectArgsCS::FParameters>();
 		{
@@ -251,7 +251,7 @@ void LumenHWRTCompactRays(
 		TShaderRef<FLumenHWRTCompactRaysIndirectArgsCS> ComputeShader = View.ShaderMap->GetShader<FLumenHWRTCompactRaysIndirectArgsCS>();
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("ReflectionCompactRaysIndirectArgs"),
+			RDG_EVENT_NAME("CompactRaysIndirectArgs"),
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
@@ -277,7 +277,7 @@ void LumenHWRTCompactRays(
 		TShaderRef<FLumenHWRTCompactRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenHWRTCompactRaysCS>(PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("ReflectionCompactRays"),
+			RDG_EVENT_NAME("CompactRays"),
 			ComputeShader,
 			PassParameters,
 			PassParameters->CompactRaysIndirectArgs,
@@ -294,7 +294,7 @@ void LumenHWRTBucketRaysByMaterialID(
 	FRDGBufferRef& TraceDataPackedBuffer
 )
 {
-	FRDGBufferRef BucketRaysByMaterialIdIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflections.BucketRaysByMaterialIdIndirectArgsBuffer"));
+	FRDGBufferRef BucketRaysByMaterialIdIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.HWRT.BucketRaysByMaterialIdIndirectArgsBuffer"));
 	{
 		FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS::FParameters>();
 		{
@@ -305,14 +305,14 @@ void LumenHWRTBucketRaysByMaterialID(
 		TShaderRef<FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS> ComputeShader = View.ShaderMap->GetShader<FLumenHWRTBucketRaysByMaterialIdIndirectArgsCS>();
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("ReflectionBucketRaysByMaterialIdIndirectArgs"),
+			RDG_EVENT_NAME("BucketRaysByMaterialIdIndirectArgs"),
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1));
 	}
 
-	FRDGBufferRef BucketedTexelTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflections.BucketedTexelTraceDataPackedBuffer"));
-	FRDGBufferRef BucketedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), RayCount), TEXT("Lumen.Reflections.BucketedTraceDataPacked"));
+	FRDGBufferRef BucketedTexelTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.HWRT.BucketedTexelTraceDataPackedBuffer"));
+	FRDGBufferRef BucketedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenHWRTPipeline::FTraceDataPacked), RayCount), TEXT("Lumen.HWRT.BucketedTraceDataPacked"));
 	{
 		FLumenHWRTBucketRaysByMaterialIdCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenHWRTBucketRaysByMaterialIdCS::FParameters>();
 		{
@@ -331,7 +331,7 @@ void LumenHWRTBucketRaysByMaterialID(
 		TShaderRef<FLumenHWRTBucketRaysByMaterialIdCS> ComputeShader = View.ShaderMap->GetShader<FLumenHWRTBucketRaysByMaterialIdCS>();
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("ReflectionBucketRaysByMaterialId"),
+			RDG_EVENT_NAME("BucketRaysByMaterialId"),
 			ComputeShader,
 			PassParameters,
 			PassParameters->BucketRaysByMaterialIdIndirectArgs,
