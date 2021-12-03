@@ -1497,6 +1497,11 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 	return ButtonPressed == 0;
 }
 
+FGameInstancePIEResult UEditorEngine::PreCreatePIEInstances(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances)
+{
+	return FGameInstancePIEResult::Success();
+}
+
 FGameInstancePIEResult UEditorEngine::PreCreatePIEServerInstance(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances)
 {
 	return FGameInstancePIEResult::Success();
@@ -2677,15 +2682,23 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 		const bool bNetModeRequiresSeparateServer = NetMode == EPlayNetMode::PIE_Client;
 		const bool bLaunchExtraServerAnyways = InRequestParams.EditorPlaySettings->bLaunchSeparateServer;
 		const bool bNeedsServer = bNetModeRequiresSeparateServer || bLaunchExtraServerAnyways;
-		
+
+		// Allow the engine to cancel the PIE request if needed.
+		FGameInstancePIEResult PreCreateResult = PreCreatePIEInstances(
+			ErroredBlueprints.Num() > 0, false /*bStartInSpectorMode*/, PIEStartTime, SupportsOnlinePIE(), PlayInEditorSessionInfo->NumOutstandingPIELogins);
+		if (!PreCreateResult.IsSuccess())
+		{
+			UE_LOG(LogPlayLevel, Warning, TEXT("PlayInEditor Session failed (%s::PreCreatePIEInstances) and will not be started."), *GetClass()->GetName());
+			return;
+		}
 
 		// If they require a separate server we'll give the EditorEngine a chance to handle any additional prep-work.
 		if (bNeedsServer)
 		{
 			// Allow the engine to cancel the server request if needed.
-			FGameInstancePIEResult PreCreateResult = PreCreatePIEServerInstance(
-			ErroredBlueprints.Num() > 0, false /*bStartInSpectorMode*/, PIEStartTime, true, PlayInEditorSessionInfo->NumOutstandingPIELogins);
-			if (!PreCreateResult.IsSuccess())
+			FGameInstancePIEResult ServerPreCreateResult = PreCreatePIEServerInstance(
+				ErroredBlueprints.Num() > 0, false /*bStartInSpectorMode*/, PIEStartTime, true, PlayInEditorSessionInfo->NumOutstandingPIELogins);
+			if (!ServerPreCreateResult.IsSuccess())
 			{
 				// ToDo: This will skip client creation as well right now. Probably OK though.
 				UE_LOG(LogPlayLevel, Warning, TEXT("PlayInEditor Session Server failed Pre-Create and will not be started."));
