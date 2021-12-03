@@ -1642,11 +1642,25 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
+	SetupRayTracingPipelineStates(GraphBuilder.RHICmdList);
+
+	bool bAnyInlineRayTracingPassEnabled = false;
+	for (const FViewInfo& View : Views)
+	{
+		bAnyInlineRayTracingPassEnabled |= Lumen::AnyLumenHardwareInlineRayTracingPassEnabled(Scene, View);
+	}
+
+	if (bAnyInlineRayTracingPassEnabled)
+	{
+		const int32 ReferenceViewIndex = 0;
+		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+
+		SetupLumenHardwareRayTracingHitGroupBuffer(ReferenceView);
+	}
+
 	// Scratch buffer must be referenced in this pass, as it must live until the BVH build is complete.
 	FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 	PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
-
-	SetupRayTracingPipelineStates(GraphBuilder.RHICmdList);
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		[this, PassParams](FRHICommandListImmediate& RHICmdList)
@@ -1749,7 +1763,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 				if (LumenHardwareRayTracingRayGenShaders.Num())
 				{
-					ReferenceView.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, ReferenceView, LumenHardwareRayTracingRayGenShaders);
+					ReferenceView.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, ReferenceView, LumenHardwareRayTracingRayGenShaders, ReferenceView.LumenHardwareRayTracingHitDataBuffer);
 				}
 			}
 
@@ -1785,6 +1799,11 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 		FRHIRayTracingScene* RayTracingScene = ReferenceView.GetRayTracingSceneChecked();
 		RHICmdList.Transition(FRHITransitionInfo(RayTracingScene, ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
+
+		if (ReferenceView.LumenHardwareRayTracingHitDataBuffer)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(ReferenceView.LumenHardwareRayTracingHitDataBuffer, ERHIAccess::None, ERHIAccess::SRVMask));
+		}			
 	});
 }
 

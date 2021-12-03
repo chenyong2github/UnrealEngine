@@ -31,6 +31,13 @@ namespace Lumen
 		bool bUseMinimalPayload;
 		bool bUseDeferredMaterial;
 	};
+
+	// Struct definitions much match those in LumenHardwareRayTracingCommon.ush 
+	struct FHitGroupRootConstants
+	{
+		uint32 BaseInstanceIndex;
+		uint32 UserData;
+	};
 }
 
 class FLumenHardwareRayTracingRGS : public FGlobalShader
@@ -69,6 +76,39 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+class FLumenHardwareRayTracingCS : public FGlobalShader
+{
+public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FInlineParameters, )		
+		SHADER_PARAMETER_SRV(StructuredBuffer<Lumen::FHitGroupRootConstants>, HitGroupData)
+	END_SHADER_PARAMETER_STRUCT()
+
+
+	FLumenHardwareRayTracingCS() = default;
+	FLumenHardwareRayTracingCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("LUMEN_HARDWARE_INLINE_RAYTRACING"), 1);
+		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
+
+		// GPU Scene definitions
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+
+		// Current inline ray tracing implementation only supports wave32 mode.
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+		OutEnvironment.CompilerFlags.Add(CFLAG_InlineRayTracing);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FLumenHardwareRayTracingRGS::ShouldCompilePermutation(Parameters) && FDataDrivenShaderPlatformInfo::GetSupportsInlineRayTracing(Parameters.Platform);
 	}
 };
 

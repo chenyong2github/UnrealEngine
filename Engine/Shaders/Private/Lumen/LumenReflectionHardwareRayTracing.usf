@@ -35,9 +35,15 @@ void FLumenReflectionHardwareRayTracingIndirectArgsCS()
 	RWHardwareRayTracingIndirectArgs[0] = RayAllocator[0];
 	RWHardwareRayTracingIndirectArgs[1] = 1;
 	RWHardwareRayTracingIndirectArgs[2] = 1;
+
+#if DIM_INLINE_RAYTRACING
+	// For RayTraceDispatchIndirect we dispatch in threads but for DispatchIndirectComputeShader we dispatch in thread groups.
+	// We need to adjust it to get the same number of threads running.
+	RWHardwareRayTracingIndirectArgs[0] /= INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X;
+#endif
 }
 
-#if LUMEN_HARDWARE_RAYTRACING
+#if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
 float3 FarFieldReferencePos;
 
@@ -57,10 +63,14 @@ int ApplySkyLight;
 RWTexture2D<float3> RWTraceRadiance;
 RWTexture2D<float> RWTraceHit;
 
-RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
+void LumenReflectionHardwareRayTracingCommon(uint2 DispatchThreadIndex)
 {
-	uint ThreadIndex = DispatchRaysIndex().x;
-	uint GroupIndex = DispatchRaysIndex().y;
+	uint ThreadIndex = DispatchThreadIndex.x;
+	uint GroupIndex = DispatchThreadIndex.y;
 
 #if DIM_INDIRECT_DISPATCH
 	uint Iteration = 0;
@@ -132,6 +142,11 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode, TraceData.Bookmark);
 
 #else // DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+		Context.HitGroupData = HitGroupData;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 
 #endif // DIM_LIGHTING_MODE
@@ -194,5 +209,20 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 #endif // DIM_WRITE_FINAL_LIGHTING
 	}
 }
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+
+[numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
+void LumenReflectionHardwareRayTracingCS(uint2 DispatchThreadIndex : SV_DispatchThreadID)
+{
+	LumenReflectionHardwareRayTracingCommon(DispatchThreadIndex);
+}
+#else // LUMEN_HARDWARE_RAYTRACING
+
+RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
+{
+	LumenReflectionHardwareRayTracingCommon(DispatchRaysIndex());
+}
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #endif // LUMEN_HARDWARE_RAYTRACING

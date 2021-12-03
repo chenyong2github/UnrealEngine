@@ -1923,9 +1923,8 @@ public:
 };
 
 using FRayTracingAccelerationStructureAddress = uint64;
-
 /** Bottom level ray tracing acceleration structure (contains triangles). */
-class FRHIRayTracingGeometry : public FRHIRayTracingAccelerationStructure
+class FRHIRayTracingGeometry : public FRHIRayTracingAccelerationStructure 
 {
 public:
 	virtual FRayTracingAccelerationStructureAddress GetAccelerationStructureAddress(uint64 GPUIndex) const = 0;

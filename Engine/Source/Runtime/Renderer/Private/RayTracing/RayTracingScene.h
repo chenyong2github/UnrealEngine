@@ -74,6 +74,8 @@ public:
 	// This must be filled before calling BeginCreateTask().
 	TArray<FRayTracingGeometryInstance> Instances;
 
+	uint32 NumTotalSegments = 0;
+
 	// Geometries which still have a pending build request but are used this frame and require a force build.
 	TArray<const FRayTracingGeometry*> GeometriesToBuild;
 

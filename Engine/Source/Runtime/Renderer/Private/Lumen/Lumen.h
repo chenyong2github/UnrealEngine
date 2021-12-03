@@ -37,6 +37,7 @@ namespace Lumen
 	bool UseMeshSDFTracing();
 	float GetMaxTraceDistance();
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
+	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool IsSoftwareRayTracingSupported();
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 	bool ShouldVisualizeHardwareRayTracing(const FViewInfo& View);
@@ -68,6 +69,11 @@ namespace Lumen
 	bool UseHardwareRayTracedScreenProbeGather();
 	bool UseHardwareRayTracedRadianceCache();
 	bool UseHardwareRayTracedRadiosity();
+
+	// Hardware inline ray tracing
+	bool UseHardwareInlineRayTracing();
+	bool UseHardwareInlineRayTracedReflections();
+	bool UseHardwareInlineRayTracedRadianceCache();
 
 	enum class EHardwareRayTracingLightingMode
 	{

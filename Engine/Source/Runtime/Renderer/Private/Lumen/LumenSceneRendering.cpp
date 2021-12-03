@@ -296,6 +296,31 @@ namespace Lumen
 #endif
 		return false;
 	}
+
+	bool AnyLumenHardwareInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
+	{
+		if (!AnyLumenHardwareRayTracingPassEnabled(Scene, View))
+		{
+			return false;
+		}
+
+#if RHI_RAYTRACING
+		if (GAllowLumenDiffuseIndirect != 0
+			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
+			&& (UseHardwareInlineRayTracedRadianceCache()))
+		{
+			return true;
+		}
+
+		if (GAllowLumenReflections != 0
+			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
+			&& UseHardwareInlineRayTracedReflections())
+		{
+			return true;
+		}
+#endif // RHI_RAYTRACING
+		return false;
+	}
 }
 
 bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily)

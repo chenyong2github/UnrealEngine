@@ -57,6 +57,7 @@ ENUM_CLASS_FLAGS(ERayTracingPipelineCompatibilityFlags);
 extern bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags);
 
 extern bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
+extern bool AnyInlineRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 extern FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions(const FViewInfo& View);
 
 extern bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProxy);

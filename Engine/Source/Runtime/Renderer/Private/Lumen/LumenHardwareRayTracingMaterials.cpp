@@ -11,6 +11,7 @@
 #include "DeferredShadingRenderer.h"
 #include "PipelineStateCache.h"
 #include "ShaderCompilerCore.h"
+#include "Lumen/LumenHardwareRayTracingCommon.h"
 
 class FLumenHardwareRayTracingMaterialCHS : public FGlobalShader
 {
@@ -55,7 +56,59 @@ class FLumenHardwareRayTracingMaterialMS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialMS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialMS", SF_RayMiss);
 
-FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTracingMaterialPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable)
+// TODO: This should be moved into FRayTracingScene and used as a base for other effects. There is not need for it to be Lumen specific.
+void BuildHardwareRayTracingHitGroupData(FRHICommandList& RHICmdList, FRayTracingScene& RayTracingScene, TArrayView<FRayTracingLocalShaderBindings> Bindings, FRHIBuffer* DstBuffer)
+{
+	const uint32 NumSceneInstances = RayTracingScene.Instances.Num();
+
+	Lumen::FHitGroupRootConstants* DstBasePtr = (Lumen::FHitGroupRootConstants*)RHILockBuffer(DstBuffer, 0, DstBuffer->GetSize(), RLM_WriteOnly);
+
+	TArray<uint32> InstancePrefixSum;
+	TArray<uint32> SegmentPrefixSum;
+
+	InstancePrefixSum.Reserve(NumSceneInstances);
+	SegmentPrefixSum.Reserve(NumSceneInstances);
+
+	uint32 NumTotalSegments = 0;
+	uint32 NumInstances = 0;
+	for (const FRayTracingGeometryInstance& InstanceDesc : RayTracingScene.Instances)
+	{
+		SegmentPrefixSum.Add(NumTotalSegments);
+		InstancePrefixSum.Add(NumInstances);
+
+		check(InstanceDesc.GeometryRHI->GetNumSegments());
+
+		NumTotalSegments += InstanceDesc.GeometryRHI->GetNumSegments();
+		NumInstances += InstanceDesc.NumTransforms;
+	}
+
+	for (const FRayTracingLocalShaderBindings& Binding : Bindings)
+	{
+		const uint32 InstanceIndex = Binding.InstanceIndex;
+		const uint32 SegmentIndex = Binding.SegmentIndex;
+
+		const uint32 HitGroupIndex = SegmentPrefixSum[InstanceIndex] + SegmentIndex;
+
+		DstBasePtr[HitGroupIndex].BaseInstanceIndex = InstancePrefixSum[InstanceIndex];
+		DstBasePtr[HitGroupIndex].UserData = Binding.UserData;
+	}
+
+	RHIUnlockBuffer(DstBuffer);
+}
+
+void FDeferredShadingSceneRenderer::SetupLumenHardwareRayTracingHitGroupBuffer(FViewInfo& View)
+{
+	const uint32 NumTotalSegments = FMath::Max(Scene->RayTracingScene.NumTotalSegments, 1u);
+
+	const uint32 ElementCount = NumTotalSegments;
+	const uint32 ElementSize = sizeof(Lumen::FHitGroupRootConstants);
+
+	FRHIResourceCreateInfo CreateInfo(TEXT("LumenHitGroupBuffer"));
+	View.LumenHardwareRayTracingHitDataBuffer = RHICreateStructuredBuffer(ElementSize, ElementSize * ElementCount, BUF_ShaderResource | BUF_Static | BUF_KeepCPUAccessible, CreateInfo);
+	View.LumenHardwareRayTracingHitDataBufferSRV = RHICreateShaderResourceView(View.LumenHardwareRayTracingHitDataBuffer);
+}
+
+FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTracingMaterialPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable, FRHIBuffer* OutHitGroupDataBuffer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
@@ -112,6 +165,11 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 		BindingIndex++;
 	}
 	
+	if (OutHitGroupDataBuffer)
+	{
+		BuildHardwareRayTracingHitGroupData(RHICmdList, Scene->RayTracingScene, MakeArrayView(Bindings, NumTotalBindings), OutHitGroupDataBuffer);
+	}
+
 	const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
 	RHICmdList.SetRayTracingHitGroups(
 		View.GetRayTracingSceneChecked(),
