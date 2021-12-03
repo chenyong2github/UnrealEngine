@@ -125,6 +125,11 @@ void FNiagaraMeshVertexFactory::InitRHI()
 			}
 		}
 
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
+		// TODO: Support GPU Scene on mobile? Maybe only for CPU particles?
+		AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xFF);
+#endif
+
 		//if (Streams.Num() > 0)
 		{
 			InitDeclaration(Elements);
@@ -140,12 +145,45 @@ bool FNiagaraMeshVertexFactory::ShouldCompilePermutation(const FVertexFactorySha
 			&& (Parameters.MaterialParameters.MaterialDomain != MD_Volume);
 }
 
+void FNiagaraMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+	// Set a define so we can tell in MaterialTemplate.usf when we are compiling a mesh particle vertex factory
+	OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_FACTORY"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_INSTANCED"), TEXT("1"));
+	OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"), TEXT("NiagaraMeshVF"));
+
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
+	const ERHIFeatureLevel::Type MaxSupportedFeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
+
+	// TODO: Support GPU Scene on mobile?
+	const bool bUseGPUScene = UseGPUScene(Parameters.Platform, MaxSupportedFeatureLevel) && MaxSupportedFeatureLevel > ERHIFeatureLevel::ES3_1;
+	const bool bSupportsPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream();
+	
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
+	OutEnvironment.SetDefine(TEXT("VF_REQUIRES_PER_INSTANCE_CUSTOM_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
+#endif
+}
+
 void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 {
 	check(IsInRenderingThread());
 	Data = InData;
 	UpdateRHI();
 }
+
+#if NIAGARA_ENABLE_GPU_SCENE_MESHES
+	#define NIAGARA_MESH_VF_FLAGS (EVertexFactoryFlags::UsedWithMaterials \
+		| EVertexFactoryFlags::SupportsDynamicLighting \
+		| EVertexFactoryFlags::SupportsRayTracing \
+		| EVertexFactoryFlags::SupportsPrimitiveIdStream)
+#else
+	#define NIAGARA_MESH_VF_FLAGS (EVertexFactoryFlags::UsedWithMaterials \
+		| EVertexFactoryFlags::SupportsDynamicLighting \
+		| EVertexFactoryFlags::SupportsRayTracing)
+#endif
+#define NIAGARA_MESH_VF_FLAGS_EX (NIAGARA_MESH_VF_FLAGS | EVertexFactoryFlags::SupportsPrecisePrevWorldPos)
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_Vertex, FNiagaraMeshVertexFactoryShaderParametersVS);
 #if RHI_RAYTRACING
@@ -154,11 +192,7 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_RayHitGrou
 #endif
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactory, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush",
-	  EVertexFactoryFlags::UsedWithMaterials 
-	| EVertexFactoryFlags::SupportsDynamicLighting
-	| EVertexFactoryFlags::SupportsRayTracing
-);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush",	NIAGARA_MESH_VF_FLAGS);
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -169,9 +203,4 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_RayHitGr
 #endif
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FNiagaraMeshVertexFactoryEx, SF_Pixel, FNiagaraMeshVertexFactoryShaderParametersPS);
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEx, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush",
-	  EVertexFactoryFlags::UsedWithMaterials
-	| EVertexFactoryFlags::SupportsDynamicLighting
-	| EVertexFactoryFlags::SupportsRayTracing
-	| EVertexFactoryFlags::SupportsPrecisePrevWorldPos
-);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactoryEx, "/Plugin/FX/Niagara/Private/NiagaraMeshVertexFactory.ush", NIAGARA_MESH_VF_FLAGS_EX);

@@ -1,136 +1,23 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*********************************************************************************
  *							Niagara Vertex Factory data access
  *********************************************************************************/
 
-//Currently we have no integer data being fed into the renderers.
-//Buffer<int> NiagaraParticleDataInt;
-//uint NiagaraIntDataOffset;
-//uint NiagaraIntDataStride;
+// These lines set up access to Niagara particle data buffers for Vertex Factories
+Buffer<float> NiagaraGetFloatBuffer() { return NiagaraVFLooseParameters.NiagaraParticleDataFloat; }
+Buffer<float> NiagaraGetHalfBuffer() { return NiagaraVFLooseParameters.NiagaraParticleDataHalf; }
+uint NiagaraGetFloatDataStride() { return NiagaraVFLooseParameters.NiagaraFloatDataStride; }
+#define USE_GLOBAL_NIAGARA_DATA_BUFFERS 0 // We provided the buffer accessors above
+#define ENABLE_NIAGARA_INT_DATA_ACCESS 0 // Currently, ints not supported in VFs (but could be)
+#include "/Plugin/FX/Niagara/Private/NiagaraParticleAccess.ush"
 
-bool GetIsHalfAndFixupRegister(inout int RegisterIdx)
-{
-	// this was originally: bool IsHalf = RegisterIdx & (1 << 31);
-	// but the glsl comes out as -2147483648 and this appears to be upsetting some old android glsl compilers. Doing this forces an
-	// unsigned 2147483648u literal into glsl. FORT-286011.
-	const uint HalfBit = (1 << 31);
-	const bool bIsHalf = RegisterIdx & HalfBit;
-
-	RegisterIdx &= ~HalfBit;	
-
-	return bIsHalf;
-}
-
-float GetFloat(Buffer<float> FloatBuffer, int RegisterIdx, uint InstanceID)
-{
-	return FloatBuffer[RegisterIdx * NiagaraVFLooseParameters.NiagaraFloatDataStride + InstanceID];
-}
-
-float2 GetVec2(Buffer<float> FloatBuffer, int RegisterIdx, uint InstanceID)
-{
-	return float2(GetFloat(FloatBuffer, RegisterIdx + 0, InstanceID),
-				  GetFloat(FloatBuffer, RegisterIdx + 1, InstanceID));
-}
-
-float3 GetVec3(Buffer<float> FloatBuffer, int RegisterIdx, uint InstanceID)
-{
-	return float3(GetFloat(FloatBuffer, RegisterIdx + 0, InstanceID),
-				  GetFloat(FloatBuffer, RegisterIdx + 1, InstanceID),
-				  GetFloat(FloatBuffer, RegisterIdx + 2, InstanceID));
-}
-
-float4 GetVec4(Buffer<float> FloatBuffer, int RegisterIdx, uint InstanceID)
-{
-	return float4(GetFloat(FloatBuffer, RegisterIdx + 0, InstanceID),
-				  GetFloat(FloatBuffer, RegisterIdx + 1, InstanceID),
-				  GetFloat(FloatBuffer, RegisterIdx + 2, InstanceID),
-				  GetFloat(FloatBuffer, RegisterIdx + 3, InstanceID));
-}
-
-float GetFloat(int RegisterIdx, uint InstanceID)
-{
-	BRANCH
-	if (GetIsHalfAndFixupRegister(RegisterIdx))
-	{
-		return GetFloat(NiagaraVFLooseParameters.NiagaraParticleDataHalf, RegisterIdx, InstanceID);
-	}
-	else
-	{
-		return GetFloat(NiagaraVFLooseParameters.NiagaraParticleDataFloat, RegisterIdx, InstanceID);
-	}
-}
-
-float2 GetVec2(int RegisterIdx, uint InstanceID)
-{
-	BRANCH
-	if (GetIsHalfAndFixupRegister(RegisterIdx))
-	{
-		return GetVec2(NiagaraVFLooseParameters.NiagaraParticleDataHalf, RegisterIdx, InstanceID);
-	}
-	else
-	{
-		return GetVec2(NiagaraVFLooseParameters.NiagaraParticleDataFloat, RegisterIdx, InstanceID);
-	}
-}
-
-float3 GetVec3(int RegisterIdx, uint InstanceID)
-{
-	BRANCH
-	if (GetIsHalfAndFixupRegister(RegisterIdx))
-	{
-		return GetVec3(NiagaraVFLooseParameters.NiagaraParticleDataHalf, RegisterIdx, InstanceID);
-	}
-	else
-	{
-		return GetVec3(NiagaraVFLooseParameters.NiagaraParticleDataFloat, RegisterIdx, InstanceID);
-	}
-}
-
-float4 GetVec4(int RegisterIdx, uint InstanceID)
-{
-	BRANCH
-	if (GetIsHalfAndFixupRegister(RegisterIdx))
-	{
-		return GetVec4(NiagaraVFLooseParameters.NiagaraParticleDataHalf, RegisterIdx, InstanceID);
-	}
-	else
-	{
-		return GetVec4(NiagaraVFLooseParameters.NiagaraParticleDataFloat, RegisterIdx, InstanceID);
-	}
-}
-
-float SafeGetFloat(int RegisterIdx, uint InstanceID, float Default)
-{
-	// NOTE: Branch to prevent unnecessary loads
-	BRANCH
-	if (RegisterIdx == -1)
-		return Default;
-	return GetFloat(RegisterIdx, InstanceID);
-}
-
-float2 SafeGetVec2(int RegisterIdx, uint InstanceID, float2 Default)
-{
-	// NOTE: Branch to prevent unnecessary loads
-	BRANCH
-	if (RegisterIdx == -1)
-		return Default;
-	return GetVec2(RegisterIdx, InstanceID);
-}
-
-float3 SafeGetVec3(int RegisterIdx, uint InstanceID, float3 Default)
-{
-	// NOTE: Branch to prevent unnecessary loads
-	BRANCH
-	if (RegisterIdx == -1)
-		return Default;
-	return GetVec3(RegisterIdx, InstanceID);
-}
-
-float4 SafeGetVec4(int RegisterIdx, uint InstanceID, float4 Default)
-{
-	// NOTE: Branch to prevent unnecessary loads
-	BRANCH
-	if (RegisterIdx == -1)
-		return Default;
-	return GetVec4(RegisterIdx, InstanceID);
-}
+// Define some shorter name functions for legacy use in existing VFs
+float GetFloat(int RegisterIdx, uint InstanceID) { return NiagaraGetFloat(RegisterIdx, InstanceID); }	
+float2 GetVec2(int RegisterIdx, uint InstanceID) { return NiagaraGetVec2(RegisterIdx, InstanceID); }
+float3 GetVec3(int RegisterIdx, uint InstanceID) { return NiagaraGetVec3(RegisterIdx, InstanceID); }
+float4 GetVec4(int RegisterIdx, uint InstanceID) { return NiagaraGetVec4(RegisterIdx, InstanceID); }
+float SafeGetFloat(int RegisterIdx, uint InstanceID, float Default) { return NiagaraSafeGetFloat(RegisterIdx, InstanceID, Default); }
+float2 SafeGetVec2(int RegisterIdx, uint InstanceID, float2 Default) { return NiagaraSafeGetVec2(RegisterIdx, InstanceID, Default); }
+float3 SafeGetVec3(int RegisterIdx, uint InstanceID, float3 Default) { return NiagaraSafeGetVec3(RegisterIdx, InstanceID, Default); }
+float4 SafeGetVec4(int RegisterIdx, uint InstanceID, float4 Default) { return NiagaraSafeGetVec4(RegisterIdx, InstanceID, Default); }
