@@ -741,7 +741,7 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 
 const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSources() const
 {
-	if (GetWorld()->IsGameWorld())
+	if (StreamingPolicy && GetWorld()->IsGameWorld())
 	{
 		return StreamingPolicy->GetStreamingSources();
 	}
