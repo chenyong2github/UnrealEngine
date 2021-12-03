@@ -2739,6 +2739,15 @@ public:
 #if RHI_RAYTRACING
 	/** Packed array of ray tracing primitive caching flags*/
 	TArray<ERayTracingPrimitiveFlags> PrimitiveRayTracingFlags;
+	/** Packed array of ray tracing primitive group id hash indices. */
+	TArray<Experimental::FHashElementId> PrimitiveRayTracingGroupIds;
+	/** Aggregate bounds for all primitives which share a ray tracing group id. */
+	struct FRayTracingCullingGroup
+	{
+		FBoxSphereBounds Bounds;
+		TArray<FPrimitiveSceneInfo*> Primitives;
+	};
+	Experimental::TRobinHoodHashMap<int32, FRayTracingCullingGroup> PrimitiveRayTracingGroups;
 #endif
 
 	TMap<FName, TArray<FPrimitiveSceneInfo*>> PrimitivesNeedingLevelUpdateNotification;
@@ -3452,6 +3461,12 @@ private:
 
 	void ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo);
 	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);
+
+#if RHI_RAYTRACING
+	void UpdateRayTracingGroupBounds_AddPrimitives(TSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
+	void UpdateRayTracingGroupBounds_RemovePrimitives(TSet<FPrimitiveSceneInfo*>& PrimitiveSceneInfos);
+	void UpdateRayTracingGroupBounds_UpdatePrimitives(TSet<FPrimitiveSceneProxy*>& PrimitiveProxies);
+#endif
 
 private:
 	struct FUpdateTransformCommand
