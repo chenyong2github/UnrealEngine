@@ -32,6 +32,13 @@ static FAutoConsoleVariableRef CVarRHITransientAllocatorTextureCacheSize(
 	TEXT("The maximum number of RHI textures to cache on each heap before garbage collecting."),
 	ECVF_ReadOnly);
 
+static int32 GRHITransientAllocatorHeapGarbageCollectLatency = 20;
+static FAutoConsoleVariableRef CVarRHITransientAllocatorHeapGarbageCollectLatency(
+	TEXT("RHI.TransientAllocator.HeapGarbageCollectLatency"),
+	GRHITransientAllocatorHeapGarbageCollectLatency,
+	TEXT("Amount of update cycles before a heap is deleted when not used."),
+	ECVF_ReadOnly);
+
 DECLARE_STATS_GROUP(TEXT("RHI: Transient Memory"), STATGROUP_RHITransientMemory, STATCAT_Advanced);
 
 DECLARE_MEMORY_STAT(TEXT("Memory Allocated"), STAT_RHITransientMemoryAllocated, STATGROUP_RHITransientMemory);
@@ -88,6 +95,7 @@ FRHITransientResourceSystemInitializer FRHITransientResourceSystemInitializer::C
 	Initializer.MaximumHeapSize = GRHITransientAllocatorMaximumHeapSize * 1024 * 1024;
 	Initializer.BufferCacheSize = GRHITransientAllocatorBufferCacheSize;
 	Initializer.TextureCacheSize = GRHITransientAllocatorTextureCacheSize;
+	Initializer.GarbageCollectLatency = GRHITransientAllocatorHeapGarbageCollectLatency;
 	return Initializer;
 }
 
