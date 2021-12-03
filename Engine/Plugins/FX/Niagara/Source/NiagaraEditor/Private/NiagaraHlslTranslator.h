@@ -555,7 +555,9 @@ public:
 	virtual void Emitter(class UNiagaraNodeEmitter* GetNode, TArray<int32>& Inputs, TArray<int32>& Outputs);
 
 	virtual void ParameterMapForBegin(class UNiagaraNodeParameterMapFor* ForNode, int32 IterationCount);
+	virtual void ParameterMapForContinue(class UNiagaraNodeParameterMapFor* ForNode, int32 IterationEnabled);
 	virtual void ParameterMapForEnd(class UNiagaraNodeParameterMapFor* ForNode);
+	virtual int32 ParameterMapForInnerIndex() const;
 
 	void DefineInterpolatedParametersFunction(FString &HlslOutput);
 	void DefinePreviousParametersFunction(FString& HlslOutput, TArray<TArray<FNiagaraVariable>>& DataSetVariables, TMap<FNiagaraDataSetID, int32>& DataSetReads, TMap<FNiagaraDataSetID, int32>& DataSetWrites);
@@ -788,6 +790,8 @@ private:
 	
 	// Map ofthe primary output variable description to the actual chunk id that wrote to it.
 	TMap<FNiagaraVariable, int32> UniqueVarToChunk;
+
+	TArray<int32> ParameterMapForIndexStack;
 
 	// Strings to be inserted within the main function
 	TArray<TArray<FString>> PerStageMainPreSimulateChunks;

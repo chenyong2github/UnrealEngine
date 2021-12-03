@@ -21,3 +21,29 @@ public:
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 };
+
+UCLASS()
+class UNiagaraNodeParameterMapForWithContinue : public UNiagaraNodeParameterMapFor
+{
+public:
+	GENERATED_BODY()
+
+	UNiagaraNodeParameterMapForWithContinue();
+
+	virtual void AllocateDefaultPins() override;
+	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+};
+
+UCLASS()
+class UNiagaraNodeParameterMapForIndex : public UNiagaraNode
+{
+public:
+	GENERATED_BODY()
+
+	UNiagaraNodeParameterMapForIndex();
+
+	virtual void AllocateDefaultPins() override;
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
+};
