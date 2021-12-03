@@ -57,6 +57,7 @@ extern void RenderLumenHardwareRayTracingRadianceCache(
 	FRDGBufferRef ProbeTraceTileData,
 	FRDGBufferRef ProbeTraceTileAllocator,
 	FRDGBufferRef TraceProbesIndirectArgs,
+	FRDGBufferRef HardwareRayTracingRayAllocatorBuffer,
 	FRDGBufferRef RadianceCacheHardwareRayTracingIndirectArgs,
 	FRDGTextureUAVRef RadianceProbeAtlasTextureUAV,
 	FRDGTextureUAVRef DepthProbeTextureUAV);

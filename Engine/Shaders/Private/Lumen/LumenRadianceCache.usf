@@ -512,6 +512,7 @@ void GenerateProbeTraceTilesCS(
 RWBuffer<uint> RWTraceProbesIndirectArgs;
 RWBuffer<uint> RWSortProbeTraceTilesIndirectArgs;
 RWBuffer<uint> RWRadianceCacheHardwareRayTracingIndirectArgs;
+RWBuffer<uint> RWHardwareRayTracingRayAllocatorBuffer;
 uint SortTraceTilesGroupSize;
 
 [numthreads(1, 1, 1)]
@@ -533,6 +534,8 @@ void SetupTraceFromProbesCS()
 	RWRadianceCacheHardwareRayTracingIndirectArgs[0] = RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
 	RWRadianceCacheHardwareRayTracingIndirectArgs[1] = NumProbeTraceTiles;
 	RWRadianceCacheHardwareRayTracingIndirectArgs[2] = 1;
+
+	RWHardwareRayTracingRayAllocatorBuffer[0] = NumProbeTraceTiles * RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
 }
 
 #ifndef SORT_TILES_THREADGROUP_SIZE
