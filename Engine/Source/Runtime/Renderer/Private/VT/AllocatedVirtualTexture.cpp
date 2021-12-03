@@ -60,6 +60,9 @@ FAllocatedVirtualTexture::FAllocatedVirtualTexture(FVirtualTextureSystem* InSyst
 
 	MaxLevel = FMath::Min(MaxLevel, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE - 1u);
 
+	// Get the persistent hash that we will use for identification of AllocatedVT objects across runs.
+	PersistentHash = CalculatePersistentHash(InDesc, InProducers);
+
 	// Lock tiles
 	LockOrUnlockTiles(InSystem, true);
 
@@ -279,6 +282,29 @@ bool FAllocatedVirtualTexture::TryMapLockedTiles(FVirtualTextureSystem* InSystem
 	}
 
 	return !bHasMissingTiles;
+}
+
+uint32 FAllocatedVirtualTexture::CalculatePersistentHash(FAllocatedVTDescription const& InDesc, FVirtualTextureProducer* const* InProducers) const
+{
+	uint32 Hash = 0;
+
+	for (uint32 LayerIndex = 0u; LayerIndex < InDesc.NumTextureLayers; ++LayerIndex)
+	{
+		FVirtualTextureProducer const* Producer = InProducers[LayerIndex];
+		if (Producer != nullptr)
+		{
+			Hash = HashCombine(Hash, LayerIndex);
+			Hash = HashCombine(Hash, Producer->GetDescription().FullNameHash);
+		}
+	}
+
+	Hash = HashCombine(Hash, GetTypeHash(InDesc.TileSize));
+	Hash = HashCombine(Hash, GetTypeHash(InDesc.TileBorderSize));
+	Hash = HashCombine(Hash, GetTypeHash(InDesc.Dimensions));
+	Hash = HashCombine(Hash, GetTypeHash(InDesc.NumTextureLayers));
+	Hash = HashCombine(Hash, GetTypeHash(InDesc.PackedFlags));
+
+	return Hash;
 }
 
 uint32 FAllocatedVirtualTexture::AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, const FVirtualTextureProducer* InProducer)

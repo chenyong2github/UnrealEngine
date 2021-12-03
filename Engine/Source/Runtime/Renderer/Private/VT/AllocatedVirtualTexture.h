@@ -17,7 +17,8 @@ class FVirtualTextureSystem;
 class FAllocatedVirtualTexture final : public IAllocatedVirtualTexture
 {
 public:
-	FAllocatedVirtualTexture(FVirtualTextureSystem* InSystem,
+	FAllocatedVirtualTexture(
+		FVirtualTextureSystem* InSystem,
 		uint32 InFrame,
 		const FAllocatedVTDescription& InDesc,
 		FVirtualTextureProducer* const* InProducers,
@@ -36,6 +37,7 @@ public:
 	void LockOrUnlockTiles(FVirtualTextureSystem* InSystem, bool bLock) const;
 
 	// begin IAllocatedVirtualTexture
+	virtual uint32 GetPersistentHash() const override { return PersistentHash; }
 	virtual uint32 GetNumPageTableTextures() const override;
 	virtual FRHITexture* GetPageTableTexture(uint32 InPageTableIndex) const override;
 	virtual FRHITexture* GetPageTableIndirectionTexture() const override;
@@ -61,10 +63,12 @@ public:
 	inline uint32 GetProducerPhysicalGroupIndexForPageTableLayer(uint32 InLayerIndex) const { return UniquePageTableLayers[InLayerIndex].ProducerPhysicalGroupIndex; }
 
 private:
+	uint32 CalculatePersistentHash(FAllocatedVTDescription const& InDesc, FVirtualTextureProducer* const* InProducers) const;
 	uint32 AddUniqueProducer(FVirtualTextureProducerHandle const& InHandle, const FVirtualTextureProducer* InProducer);
 	uint32 AddUniquePhysicalSpace(FVirtualTexturePhysicalSpace* InPhysicalSpace, uint32 InUniqueProducerIndex, uint32 InProducerPhysicalSpaceIndex);
 
 	uint32 FrameAllocated;
+	uint32 PersistentHash;
 
 	FVirtualTextureSpace* Space;
 

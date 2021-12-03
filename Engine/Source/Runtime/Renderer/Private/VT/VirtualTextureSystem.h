@@ -25,6 +25,7 @@ struct FVTSpaceDescription;
 struct FVTPhysicalSpaceDescription;
 union FPhysicalSpaceIDAndAddress;
 struct FFeedbackAnalysisParameters;
+struct FAddRequestedTilesParameters;
 struct FGatherRequestsParameters;
 struct FPageUpdateBuffer;
 
@@ -72,6 +73,12 @@ public:
 	void RequestTilesForRegion(IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FVector2D& InViewportPosition, const FVector2D& InViewportSize, const FVector2D& InUV0, const FVector2D& InUV1, int32 InMipLevel = -1);
 	void LoadPendingTiles(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
 	
+#if WITH_EDITOR
+	void SetVirtualTextureRequestRecordBuffer(uint64 Handle);
+	uint64 GetVirtualTextureRequestRecordBuffer(TSet<uint64>& OutPageRequests);
+#endif
+	void RequestRecordedTiles(TArray<uint64>&& InPageRequests);
+
 	void FlushCache();
 	void FlushCache(FVirtualTextureProducerHandle const& ProducerHandle, FIntRect const& TextureRegion, uint32 MaxLevel);
 
@@ -79,6 +86,7 @@ public:
 
 private:
 	friend class FFeedbackAnalysisTask;
+	friend class FAddRequestedTilesTask;
 	friend class FGatherRequestsTask;
 
 	FVirtualTextureSystem();
@@ -100,12 +108,17 @@ private:
 
 	void AddPageUpdate(FPageUpdateBuffer* Buffers, uint32 FlushCount, uint32 PhysicalSpaceID, uint16 pAddress);
 
-	void GatherRequestsTask(const FGatherRequestsParameters& Parameters);
 	void FeedbackAnalysisTask(const FFeedbackAnalysisParameters& Parameters);
+	void AddRequestedTilesTask(const FAddRequestedTilesParameters& Parameters);
+	void GatherRequestsTask(const FGatherRequestsParameters& Parameters);
 
 	void GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce);
 
 	void UpdateResidencyTracking() const;
+
+#if WITH_EDITOR
+	void RecordPageRequests(FUniquePageList const* UniquePageList, TSet<uint64>& OutPages);
+#endif
 
 	uint32	Frame;
 
@@ -120,6 +133,7 @@ private:
 
 	TMap<FAllocatedVTDescription, FAllocatedVirtualTexture*> AllocatedVTs;
 	TArray<IAllocatedVirtualTexture*> AllocatedVTsToMap;
+	TMap<uint32, IAllocatedVirtualTexture*> PersistentVTMap;
 
 	FAdaptiveVirtualTexture* AdaptiveVTs[MaxSpaces] = { nullptr };
 
@@ -151,6 +165,12 @@ private:
 	TSet<FVirtualTextureLocalTile> MappedTilesToProduce;
 	TArray<FVirtualTextureLocalTile> TransientCollectedPages;
 	TArray<IVirtualTextureFinalizer*> Finalizers;
+
+#if WITH_EDITOR
+	uint64 PageRequestRecordHandle;
+	TSet<uint64> PageRequestRecordBuffer;
+#endif
+	TArray<uint64> PageRequestPlaybackBuffer;
 
 #if !UE_BUILD_SHIPPING
 	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
