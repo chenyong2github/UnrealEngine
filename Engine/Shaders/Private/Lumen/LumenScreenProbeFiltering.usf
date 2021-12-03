@@ -613,6 +613,7 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 
 RWTexture2D<UNORM float> RWScreenProbeMoving;
 Texture2D<float> ScreenProbeTraceMoving;
+float DebugForceTracesMoving;
 
 groupshared float SharedTexelMoving[THREADGROUP_SIZE * THREADGROUP_SIZE * 4];
 
@@ -680,6 +681,11 @@ void ScreenProbeCalculateMovingCS(
 			
 			if (ThreadIndex == 0)
 			{
+				if (DebugForceTracesMoving > 0)
+				{
+					ProbeMoving = 1.0f;
+				}
+
 				RWScreenProbeMoving[ScreenProbeAtlasCoord] = ProbeMoving;
 			}
 		}

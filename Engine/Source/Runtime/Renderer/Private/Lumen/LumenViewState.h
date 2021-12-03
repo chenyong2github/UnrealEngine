@@ -37,7 +37,7 @@ public:
 	FVector4f DiffuseIndirectHistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> DiffuseIndirectHistoryRT[4];
 	TRefCountPtr<IPooledRenderTarget> RoughSpecularIndirectHistoryRT;
-	TRefCountPtr<IPooledRenderTarget> HistoryConvergenceStateRT;
+	TRefCountPtr<IPooledRenderTarget> NumFramesAccumulatedRT;
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 	FIntRect ProbeHistoryViewRect;
 	FVector4f ProbeHistoryScreenPositionScaleBias;
@@ -63,7 +63,7 @@ public:
 		}
 		
 		RoughSpecularIndirectHistoryRT.SafeRelease();
-		HistoryConvergenceStateRT.SafeRelease();
+		NumFramesAccumulatedRT.SafeRelease();
 		OctahedralSolidAngleTextureRT.SafeRelease();
 		HistoryScreenProbeSceneDepth.SafeRelease();
 		HistoryScreenProbeTranslatedWorldPosition.SafeRelease();
@@ -79,6 +79,7 @@ public:
 	FIntRect HistoryViewRect;
 	FVector4f HistoryScreenPositionScaleBias;
 	TRefCountPtr<IPooledRenderTarget> SpecularIndirectHistoryRT;
+	TRefCountPtr<IPooledRenderTarget> NumFramesAccumulatedRT;
 	TRefCountPtr<IPooledRenderTarget> ResolveVarianceHistoryRT;
 
 	FReflectionTemporalState()
@@ -90,6 +91,7 @@ public:
 	void SafeRelease()
 	{
 		SpecularIndirectHistoryRT.SafeRelease();
+		NumFramesAccumulatedRT.SafeRelease();
 		ResolveVarianceHistoryRT.SafeRelease();
 	}
 };

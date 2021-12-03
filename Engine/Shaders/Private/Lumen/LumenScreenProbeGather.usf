@@ -97,7 +97,7 @@ void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, 
 		float3 ProbeHistoryScreenPosition = GetHistoryScreenPosition(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
 
 		ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeGBuffer.SceneDepth, ProbeGBuffer.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
+		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetTranslatedPrevWorldPosition(ProbeHistoryScreenPosition);
 	}
 
 	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = length(ProbeWorldVelocity);
@@ -1255,30 +1255,26 @@ void ScreenProbeIntegrateCS(
 
 RWTexture2D<float3> RWNewHistoryDiffuseIndirect;
 RWTexture2D<float3> RWNewHistoryRoughSpecularIndirect;
-RWTexture2D<float> RWNewHistoryConvergence;
+RWTexture2D<UNORM float> RWNumHistoryFramesAccumulated;
 
 Texture2D DiffuseIndirect;
 Texture2D RoughSpecularIndirect;
 Texture2D DiffuseIndirectHistory;
 Texture2D RoughSpecularIndirectHistory;
 Texture2D DiffuseIndirectDepthHistory;
-Texture2D HistoryConvergence;
+Texture2D HistoryNumFramesAccumulated;
 
-float HistoryWeight;
-float HistoryConvergenceWeight;
 float HistoryDistanceThreshold;
 
 float4 HistoryScreenPositionScaleBias;
+float4 HistoryUVToScreenPositionScaleBias;
 float4 HistoryUVMinMax;
 uint4 HistoryViewportMinMax;
-float2 InvDiffuseIndirectBufferSize;
 
-Texture2D VelocityTexture;
-SamplerState VelocityTextureSampler;
-
-float PrevInvPreExposure;
+float PrevSceneColorPreExposureCorrection;
 float InvFractionOfLightingMovingForFastUpdateMode;
 float MaxFastUpdateModeAmount;
+float MaxFramesAccumulated;
 
 static const int2 kOffsets3x3[8] =
 {
@@ -1323,8 +1319,43 @@ float3 GetFilteredNeighborhoodLighting(
 	return FilteredLighting /= max(TotalWeight, 1.0f);
 }
 
+struct Bilinear
+{
+	float2 Origin;
+	float2 Weights;
+};
+
+Bilinear GetBilinearFilter(float2 UV, float2 TextureSize)
+{
+	Bilinear Result;
+	Result.Origin = floor(UV * TextureSize - .5f);
+	Result.Weights = frac(UV * TextureSize - .5f);
+	return Result;
+}
+
+float4 GetBilinearCustomWeights(Bilinear F, float4 CustomWeights)
+{
+	float4 Weights;
+	Weights.x = (1.0f - F.Weights.x) * (1.0f - F.Weights.y);
+	Weights.y = F.Weights.x * (1.0f - F.Weights.y);
+	Weights.z = (1.0f - F.Weights.x) * F.Weights.y;
+	Weights.w = F.Weights.x * F.Weights.y;
+	return Weights * CustomWeights;
+}
+
+float3 WeightedAverage(float3 V00, float3 V10,  float3 V01,  float3 V11, float4 Weights)
+{
+	float3 Result = V00 * Weights.x + V10 * Weights.y + V01 * Weights.z + V11 * Weights.w;
+	return Result / max(dot(Weights, 1), .00001f);
+}
+
+float WeightedAverage(float4 V, float4 Weights)
+{	
+	return dot(V, Weights) / max(dot(Weights, 1), .00001f);
+}
+
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void ScreenProbeTemporalReprojectionDepthRejectionCS( 
+void ScreenProbeTemporalReprojectionCS( 
 	uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	float2 ScreenUV = (DispatchThreadId + 0.5f) * View.BufferSizeAndInvSize.zw;
@@ -1335,99 +1366,151 @@ void ScreenProbeTemporalReprojectionDepthRejectionCS(
 	float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, ScreenUV, DeviceZ);
 
 	float2 HistoryScreenUV = HistoryScreenPosition.xy * HistoryScreenPositionScaleBias.xy + HistoryScreenPositionScaleBias.wz;
-	bool bHistoryWasOffscreen = any(HistoryScreenUV > HistoryUVMinMax.zw) || any(HistoryScreenUV < HistoryUVMinMax.xy);
+	bool bHistoryWasOnscreen = all(HistoryScreenUV < HistoryUVMinMax.zw) && all(HistoryScreenUV > HistoryUVMinMax.xy);
+	// Avoid reading NaNs outside the valid viewport, just setting the weight to 0 is not enough
 	HistoryScreenUV = clamp(HistoryScreenUV, HistoryUVMinMax.xy, HistoryUVMinMax.zw);
 
+	Bilinear BilinearFilterAtHistoryScreenUV = GetBilinearFilter(HistoryScreenUV, View.BufferSizeAndInvSize.xy);
+	float2 HistoryGatherUV = (BilinearFilterAtHistoryScreenUV.Origin + 1.0f) * View.BufferSizeAndInvSize.zw;
+
+	// Whether to disocclusion test each of the 4 neighboring texels in the history
+	// This allows for much more reliable history, especially on foliage
+#define ACCURATE_HISTORY_DISOCCLUSION 1
+#if ACCURATE_HISTORY_DISOCCLUSION
+	float4 HistoryDepthDeviceZ = DiffuseIndirectDepthHistory.GatherRed(GlobalPointClampedSampler, HistoryGatherUV).wzxy;
+	float4 HistorySceneDepth = float4(ConvertFromDeviceZ(HistoryDepthDeviceZ.x), ConvertFromDeviceZ(HistoryDepthDeviceZ.y), ConvertFromDeviceZ(HistoryDepthDeviceZ.z), ConvertFromDeviceZ(HistoryDepthDeviceZ.w));
+#else
+	float4 HistorySceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x).xxxx;
+#endif
+
+	FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
+	float Noise = InterleavedGradientNoise(DispatchThreadId.xy, View.StateFrameIndexMod8);
+	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
+	float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
+
+#define PLANE_DISOCCLUSION_WEIGHTS 0
+#if PLANE_DISOCCLUSION_WEIGHTS
+	float3 PrevTranslatedPrevWorldPosition = mul(float4(HistoryScreenPosition.xy * PrevSceneDepth, PrevSceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
+	float4 PrevTranslatedPrevScenePlane = float4(GBufferData.WorldNormal, dot(PrevTranslatedPrevWorldPosition, GBufferData.WorldNormal));
+
+	float4 PlaneDistance;
+	{
+		float2 TexelSize = View.BufferSizeAndInvSize.zw;
+		float2 HistoryGatherUV00 = (BilinearFilterAtHistoryScreenUV.Origin + .5f) * TexelSize;
+
+		float2 HistoryScreenPosition00 = HistoryGatherUV00 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition00 = mul(float4(HistoryScreenPosition00 * HistorySceneDepth.x, HistorySceneDepth.x, 1), View.PrevScreenToTranslatedWorld).xyz;
+		PlaneDistance.x = abs(dot(float4(PrevTranslatedHistoryWorldPosition00, -1), PrevTranslatedPrevScenePlane));
+
+		float2 HistoryScreenPosition10 = (HistoryGatherUV00 + float2(TexelSize.x, 0)) * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition10 = mul(float4(HistoryScreenPosition10 * HistorySceneDepth.y, HistorySceneDepth.y, 1), View.PrevScreenToTranslatedWorld).xyz;
+		PlaneDistance.y = abs(dot(float4(PrevTranslatedHistoryWorldPosition10, -1), PrevTranslatedPrevScenePlane));
+
+		float2 HistoryScreenPosition01 = (HistoryGatherUV00 + float2(0, TexelSize.y)) * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition01 = mul(float4(HistoryScreenPosition01 * HistorySceneDepth.z, HistorySceneDepth.z, 1), View.PrevScreenToTranslatedWorld).xyz;
+		PlaneDistance.z = abs(dot(float4(PrevTranslatedHistoryWorldPosition01, -1), PrevTranslatedPrevScenePlane));
+
+		float2 HistoryScreenPosition11 = (HistoryGatherUV00 + TexelSize) * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition11 = mul(float4(HistoryScreenPosition11.xy * HistorySceneDepth.w, HistorySceneDepth.w, 1), View.PrevScreenToTranslatedWorld).xyz;
+		PlaneDistance.w = abs(dot(float4(PrevTranslatedHistoryWorldPosition11, -1), PrevTranslatedPrevScenePlane));
+	}
+	
+	float4 OcclusionWeights = PlaneDistance >= PrevSceneDepth * DisocclusionDistanceThreshold ? 1 : 0;
+#else
+
+	#define EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER 1
+	#if EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER
+		float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		float3 V = normalize(-TranslatedWorldPosition);
+		// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
+		// This also introduces some ghosting around characters, needs a better solution
+		DisocclusionDistanceThreshold /= clamp(saturate(dot(V, GBufferData.WorldNormal)), .1f, 1.0f); 
+	#endif
+
+	float4 DistanceToHistoryValue = abs(HistorySceneDepth - PrevSceneDepth);
+	float4 OcclusionWeights = DistanceToHistoryValue >= PrevSceneDepth * DisocclusionDistanceThreshold ? 1 : 0;
+
+#endif
+
+	//@todo - calculate for each texel in the footprint to avoid tossing history around screen edges
+	OcclusionWeights = saturate((bHistoryWasOnscreen ? 1.0f : 0.0f) - OcclusionWeights);
+
 	float4 NewDiffuseLighting = DiffuseIndirect[DispatchThreadId];
-	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
 	bool bLightingIsValid = NewDiffuseLighting.w > 0.0f;
 	float LightingIsMoving = abs(NewDiffuseLighting.w);
 
 	if (!bLightingIsValid)
 	{
+		// Flood fill from valid neighbors as a last ditch effort for when ScreenProbe interpolation fails
 		uint2 MinScreenCoord = uint2(0, 0);
 		uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
 		NewDiffuseLighting.xyz = GetFilteredNeighborhoodLighting(DiffuseIndirect, DispatchThreadId, MinScreenCoord, MaxScreenCoord, bLightingIsValid);
 	}
 
-	float EffectiveConvergenceWeight = HistoryConvergenceWeight;
-	float NewConvergence = 1;
-
-	if (bHistoryWasOffscreen)
-	{ 
-		EffectiveConvergenceWeight = 0;
-		NewConvergence = 0;
-	}
-
-	float PositionWeight = 1.0;
-
-	{
-		// Calculate the expected depth of the pixel last frame
-		// This uses velocity depth to correctly handle moving objects, see FVelocityRendering::GetFormat
-		float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
-
-		// Lookup the actual depth at the same screen position last frame
-		float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x);
-
-		float Noise = InterleavedGradientNoise(DispatchThreadId.xy, View.StateFrameIndexMod8);
-		float RelativeHistoryDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise) / 1000.0f;
-
-		{
-			FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
-			float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-			float3 V = normalize(-TranslatedWorldPosition);
-			// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
-			// This also introduces some ghosting, needs a better solution
-			RelativeHistoryDistanceThreshold /= clamp(saturate(dot(V, GBufferData.WorldNormal)), .1f, 1.0f); 
-		}
-
-		float DistanceToHistoryValue = abs(HistoryDepth - PrevSceneDepth);
-		PositionWeight = DistanceToHistoryValue / PrevSceneDepth > RelativeHistoryDistanceThreshold ? 0.0f : 1.0f;
-	}
-
-	EffectiveConvergenceWeight *= PositionWeight;
-	NewConvergence *= PositionWeight;
-
-	float ConvergenceHistory = Texture2DSampleLevel(HistoryConvergence, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x;
-
-	float UpdatedConvergence = lerp(NewConvergence, ConvergenceHistory, EffectiveConvergenceWeight);
-
-	float3 NewRoughSpecularLighting = RoughSpecularIndirect[DispatchThreadId].xyz;
-	float3 HistoryRoughSpecularIndirect = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
-
-	// Compute the amount of neighborhood clamp history rejection to apply based on what fraction of the probe directions hit fast moving objects
-	float FastUpdateModeAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFastUpdateMode);
-	// For performance, skip neighborhood clamp when it would have had a small contribution
-	FastUpdateModeAmount = saturate(min((FastUpdateModeAmount - .2f) / .8f, MaxFastUpdateModeAmount));
-	float EffectiveHistoryWeight = HistoryWeight;
-
-	UpdatedConvergence = min(UpdatedConvergence, 1.0f - .5f * FastUpdateModeAmount);
-	EffectiveHistoryWeight *= UpdatedConvergence * lerp(PositionWeight, 1.0f, FastUpdateModeAmount);
-
-	if (bHistoryWasOffscreen)
-	{ 
-		EffectiveHistoryWeight = 0;
-	}
-
 	if (!bLightingIsValid)
 	{
-		EffectiveHistoryWeight = 1.0f;
+		// Flood fill failed and we have no valid lighting this frame, force history
+		OcclusionWeights = 1;
 	}
 
-	float3 OutDiffuseIndirect = lerp(NewDiffuseLighting.rgb, HistoryDiffuseIndirect.rgb, EffectiveHistoryWeight);
-	float3 OutRoughSpecularIndirect = lerp(NewRoughSpecularLighting.rgb, HistoryRoughSpecularIndirect.rgb, EffectiveHistoryWeight);
+	float4 FinalWeights = GetBilinearCustomWeights(BilinearFilterAtHistoryScreenUV, OcclusionWeights);
 
+#if ACCURATE_HISTORY_DISOCCLUSION
+	float2 TexelSize = View.BufferSizeAndInvSize.zw;
+	float2 HistoryGatherUV00 = (BilinearFilterAtHistoryScreenUV.Origin + .5f) * TexelSize;
+	float3 HistoryDiffuseIndirect00 = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00, 0).xyz;
+	float3 HistoryDiffuseIndirect10 = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(TexelSize.x, 0), 0).xyz;
+	float3 HistoryDiffuseIndirect01 = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(0, TexelSize.y), 0).xyz;
+	float3 HistoryDiffuseIndirect11 = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + TexelSize, 0).xyz;
 
-	/////////////////
+	float3 HistoryDiffuseIndirect = WeightedAverage(HistoryDiffuseIndirect00, HistoryDiffuseIndirect10, HistoryDiffuseIndirect01, HistoryDiffuseIndirect11, FinalWeights) * PrevSceneColorPreExposureCorrection;
+
+	float3 HistoryRoughSpecularIndirect00 = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00, 0).xyz;
+	float3 HistoryRoughSpecularIndirect10 = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(TexelSize.x, 0), 0).xyz;
+	float3 HistoryRoughSpecularIndirect01 = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + float2(0, TexelSize.y), 0).xyz;
+	float3 HistoryRoughSpecularIndirect11 = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalPointClampedSampler, HistoryGatherUV00 + TexelSize, 0).xyz;
+
+	float3 HistoryRoughSpecularIndirect = WeightedAverage(HistoryRoughSpecularIndirect00, HistoryRoughSpecularIndirect10, HistoryRoughSpecularIndirect01, HistoryRoughSpecularIndirect11, FinalWeights) * PrevSceneColorPreExposureCorrection;
+#else
+	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevSceneColorPreExposureCorrection;
+	float3 HistoryRoughSpecularIndirect = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevSceneColorPreExposureCorrection;
+#endif
+
+	float4 NumFramesAccumulatedNeighborhood = HistoryNumFramesAccumulated.GatherRed(GlobalPointClampedSampler, HistoryGatherUV).wzxy * MaxFramesAccumulated;
+	NumFramesAccumulatedNeighborhood = min(NumFramesAccumulatedNeighborhood + 1.0f, MaxFramesAccumulated);
+	float NumFramesAccumulated = WeightedAverage(NumFramesAccumulatedNeighborhood, FinalWeights);
+
+	float FastUpdateModeAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFastUpdateMode);
+	FastUpdateModeAmount = saturate(min((FastUpdateModeAmount - .2f) / .8f, MaxFastUpdateModeAmount));
+
+	float NewNumFramesAccumulated = NumFramesAccumulated;
+	NewNumFramesAccumulated = min(NewNumFramesAccumulated, (1.0f - FastUpdateModeAmount) * MaxFramesAccumulated);
+	NewNumFramesAccumulated = bHistoryWasOnscreen ? NewNumFramesAccumulated : 0;
+
+#if !ACCURATE_HISTORY_DISOCCLUSION
+	if (OcclusionWeights.x < .01f)
+	{
+		NewNumFramesAccumulated = 0;
+	}
+#endif
+
+	float Alpha = 1.0f / (1.0f + NewNumFramesAccumulated);
+	float3 OutDiffuseIndirect = lerp(HistoryDiffuseIndirect, NewDiffuseLighting.xyz, Alpha);
+
+	float3 NewRoughSpecularLighting = RoughSpecularIndirect[DispatchThreadId].xyz;
+	float3 OutRoughSpecularIndirect = lerp(HistoryRoughSpecularIndirect, NewRoughSpecularLighting, Alpha);
+
+	// Debug visualizations
+	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = bHistoryWasOnscreen ? (dot(OcclusionWeights, 1) > 0.0f) : 0.0f;
 	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = FastUpdateModeAmount; 
-	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = bHistoryWasOffscreen ? 0 : PositionWeight;
+	//if (!bLightingIsValid) { OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = float3(1, 0, 0); }
 
 	OutDiffuseIndirect.rgb = -min(-OutDiffuseIndirect.rgb, 0.0f);
 	OutRoughSpecularIndirect.rgb = -min(-OutRoughSpecularIndirect.rgb, 0.0f);
 
 	RWNewHistoryDiffuseIndirect[DispatchThreadId] = OutDiffuseIndirect;
 	RWNewHistoryRoughSpecularIndirect[DispatchThreadId] = OutRoughSpecularIndirect;
-	RWNewHistoryConvergence[DispatchThreadId] = UpdatedConvergence;
+	RWNumHistoryFramesAccumulated[DispatchThreadId] = NewNumFramesAccumulated / MaxFramesAccumulated;
 }
 
 RWTexture2D<float> RWCompressedDepthBufferOutput;

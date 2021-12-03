@@ -290,7 +290,7 @@ void ScreenProbeTraceScreenTexturesCS(
 						{
 							float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
 							float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-							float3 HitWorldVelocity = HitTranslatedWorldPosition - GetPrevTranslatedWorldPosition(HitHistoryScreenPosition);
+							float3 HitWorldVelocity = HitTranslatedWorldPosition - GetTranslatedPrevWorldPosition(HitHistoryScreenPosition);
 
 							bFastMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation), HitWorldVelocity);
 						}
