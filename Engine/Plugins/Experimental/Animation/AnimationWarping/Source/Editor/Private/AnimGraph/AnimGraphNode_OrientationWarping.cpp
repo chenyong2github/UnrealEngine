@@ -3,6 +3,7 @@
 #include "AnimGraph/AnimGraphNode_OrientationWarping.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "ScopedTransaction.h"
@@ -176,6 +177,89 @@ void UAnimGraphNode_OrientationWarping::GetOutputLinkAttributes(FNodeAttributeAr
 	{
 		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
+}
+
+void UAnimGraphNode_OrientationWarping::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
+{
+	auto HasInvalidBoneName = [](const FName& BoneName)
+	{
+		return BoneName == NAME_None;
+	};
+
+	auto HasInvalidBoneIndex = [&](const FName& BoneName)
+	{
+		return ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE;
+	};
+
+	auto InvalidBoneNameMessage = [&](const FName& BoneName)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BoneName"), FText::FromName(BoneName));
+		const FText Message = FText::Format(NSLOCTEXT("OrientationWarping", "Invalid{BoneName}BoneName", "@@ - {BoneName} bone not found in Skeleton"), Args);
+		MessageLog.Warning(*Message.ToString(), this);
+	};
+
+	auto InvalidBoneIndexMessage = [&](const FName& BoneName)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BoneName"), FText::FromName(BoneName));
+		const FText Message = FText::Format(NSLOCTEXT("OrientationWarping", "Invalid{BoneName}BoneInSkeleton", "@@ - {BoneName} bone definition is required"), Args);
+		MessageLog.Warning(*Message.ToString(), this);
+	};
+
+	if (Node.RotationAxis == EAxis::None)
+	{
+		MessageLog.Warning(*NSLOCTEXT("OrientationWarping", "InvalidRotationAxis", "@@ - Rotation Axis choice of X, Y, or Z is required").ToString(), this);
+	}
+
+	if (Node.SpineBones.IsEmpty())
+	{
+		MessageLog.Warning(*NSLOCTEXT("OrientationWarping", "InvalidSpineBones", "@@ - Spine bone definitions are required").ToString(), this);
+	}
+	else
+	{
+		for (const auto& Bone : Node.SpineBones)
+		{
+			if (HasInvalidBoneName(Bone.BoneName))
+			{
+				InvalidBoneIndexMessage("Spine");
+			}
+			else if (HasInvalidBoneIndex(Bone.BoneName))
+			{
+				InvalidBoneNameMessage(Bone.BoneName);
+			}
+		}
+	}
+
+	if (HasInvalidBoneName(Node.IKFootRootBone.BoneName))
+	{
+		InvalidBoneIndexMessage("IK Foot Root");
+	}
+	else if (HasInvalidBoneIndex(Node.IKFootRootBone.BoneName))
+	{
+		InvalidBoneNameMessage(Node.IKFootRootBone.BoneName);
+	}
+
+	if (Node.SpineBones.IsEmpty())
+	{
+		MessageLog.Warning(*NSLOCTEXT("OrientationWarping", "InvalidIKFootBones", "@@ - IK Foot bone definitions are required").ToString(), this);
+	}
+	else
+	{
+		for (const auto& Bone : Node.IKFootBones)
+		{
+			if (HasInvalidBoneName(Bone.BoneName))
+			{
+				InvalidBoneIndexMessage("IK Foot");
+			}
+			else if (HasInvalidBoneIndex(Bone.BoneName))
+			{
+				InvalidBoneNameMessage(Bone.BoneName);
+			}
+		}
+	}
+
+	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 }
 
 #undef LOCTEXT_NAMESPACE

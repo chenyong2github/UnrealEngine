@@ -61,7 +61,7 @@ public:
 class USkeletalMeshComponent;
 class UCharacterMovementComponent;
 
-USTRUCT()
+USTRUCT(Experimental)
 struct ANIMATIONWARPINGRUNTIME_API FAnimNode_SlopeWarping : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_USTRUCT_BODY()

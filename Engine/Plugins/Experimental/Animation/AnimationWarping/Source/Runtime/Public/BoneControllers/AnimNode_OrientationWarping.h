@@ -56,12 +56,16 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 	UPROPERTY(EditAnywhere, Category=Settings)
 	TEnumAsByte<EAxis::Type> RotationAxis = EAxis::Z;
 
-	// Specifies the interpolation speed (in degrees per second) towards reaching the final warped rotation angle
+	// Specifies the interpolation speed (in Alpha per second) towards reaching the final warped rotation angle
 	// A value of 0 will cause instantaneous warping, while a greater value will introduce smoothing
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(ClampMin="0.0"))
 	float RotationInterpSpeed = 10.f;
 
 #if WITH_EDITORONLY_DATA
+	// Scale all debug drawing visualization by a factor
+	UPROPERTY(EditAnywhere, Category=Debug, meta=(ClampMin="0.0"))
+	float DebugDrawScale = 1.f;
+
 	// Enable/Disable orientation warping debug drawing
 	UPROPERTY(EditAnywhere, Category=Debug)
 	bool bEnableDebugDraw = false;
@@ -129,6 +133,12 @@ private:
 	// Computed IK bone indices for the specified foot definitions 
 	FOrientationWarpingFootData IKFootData;
 
-	// Internally cached previous frame orientation warping angle
-	float PreviousWarpedRotation = 0.f;
+	// Internal previous frame root motion delta direction
+	FVector PreviousRootMotionDeltaDirection = FVector::ZeroVector;
+
+	// Internal previous frame orientation warping angle
+	float PreviousOrientationAngle = 0.f;
+	
+	// Internal orientation warping angle
+	float ActualOrientationAngle = 0.f;
 };
