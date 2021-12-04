@@ -20,7 +20,7 @@
 		},
 		{
 			"Name": "AnimationWarpingEditor",
-			"Type": "Editor",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 	]
