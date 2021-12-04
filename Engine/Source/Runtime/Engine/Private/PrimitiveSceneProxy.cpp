@@ -15,13 +15,11 @@
 #include "Materials/Material.h"
 #include "SceneManagement.h"
 #include "VT/RuntimeVirtualTexture.h"
-#include "PrimitiveInstanceUpdateCommand.h"
-#include "InstanceUniformShaderParameters.h"
-
 #if WITH_EDITOR
 #include "FoliageHelper.h"
 #include "ObjectCacheEventSink.h"
 #endif
+#include "PrimitiveInstanceUpdateCommand.h"
 
 static TAutoConsoleVariable<int32> CVarForceSingleSampleShadowingFromStationary(
 	TEXT("r.Shadow.ForceSingleSampleShadowingFromStationary"),
@@ -474,10 +472,11 @@ uint32 FPrimitiveSceneProxy::GetPayloadDataStride() const
 	uint32 PayloadDataCount = 0;
 
 	// Random ID is packed into scene data currently
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-	PayloadDataCount += HasPerInstanceDynamicData() ? 2 : 0;	// Compressed transform
-#else
+	// TODO: Global setting/define for INSTANCE_COMPRESSED_TRANSFORMS
+#if 0
 	PayloadDataCount += HasPerInstanceDynamicData() ? 3 : 0;	// FRenderTransform
+#else
+	PayloadDataCount += HasPerInstanceDynamicData() ? 2 : 0;	// Compressed transform
 #endif
 		
 	// Hierarchy is packed in with local bounds if they are both present (almost always the case)

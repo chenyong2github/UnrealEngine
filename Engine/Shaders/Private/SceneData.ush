@@ -25,15 +25,8 @@
 	#define NEEDS_LIGHTMAP_COORDINATE 0
 #endif
 
-#ifndef VF_REQUIRES_PER_INSTANCE_CUSTOM_DATA
-	#define VF_REQUIRES_PER_INSTANCE_CUSTOM_DATA 0
-#endif
-
-#define ENABLE_PER_INSTANCE_CUSTOM_DATA (USES_PER_INSTANCE_CUSTOM_DATA || VF_REQUIRES_PER_INSTANCE_CUSTOM_DATA)
-
-// When transforms come from the InstanceSceneData buffer, indicates whether or not the transforms are compressed (ignored on mobile)
 // TODO: Global setting/define
-#define INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS 1
+#define INSTANCE_COMPRESSED_TRANSFORMS 1
 
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
 #if VF_SUPPORTS_PRIMITIVE_SCENE_DATA
@@ -67,17 +60,6 @@
 // GPUCULL_TODO: Eventually we need to remove this workaround
 #define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
 
-#define PRIMITIVE_ID_NUM_BITS				(20u) // Max of 1,048,576 primitives
-#define INSTANCE_SCENE_DATA_FLAGS_NUM_BITS	(12u) // Max of 12 flags
-#define INSTANCE_RELATIVE_ID_NUM_BITS		(24u) // Max of 16,777,216 instances per primitive
-#define INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS	 (8u) // Max of 255 custom data floats per instance
-
-#define PRIMITIVE_ID_MASK			((1u << PRIMITIVE_ID_NUM_BITS) - 1u)
-#define INSTANCE_RELATIVE_ID_MASK	((1u << INSTANCE_RELATIVE_ID_NUM_BITS) - 1u)
-
-#define INVALID_PRIMITIVE_ID PRIMITIVE_ID_MASK
-#define INVALID_INSTANCE_PAYLOAD_OFFSET (0xFFFFFFFFu)
-
 // Must match InstanceUniformShaderParameters.h
 #define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN			0x1
 #define INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM					0x2
@@ -88,11 +70,9 @@
 #define INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS			0x40
 #define INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA			0x80
 
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-	static const uint InstanceTransformSizeFloat4Count = 2u; // compressed transform
-#else
-	static const uint InstanceTransformSizeFloat4Count = 3u; // encoded scale/rotation (uint4) and translation (float3)
-#endif
+#define INVALID_PRIMITIVE_ID 0x000FFFFFu
+
+#define INSTANCE_COMPRESSED_TRANSFORM	0
 
 #define NUM_CUSTOM_PRIMITIVE_DATA 9 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
 
@@ -371,16 +351,6 @@ float3 UnpackHitProxyId(uint HitProxyPacked)
 	) * (1.0f / 255.0f);
 }
 
-struct FInstancePayloadDataOffsets
-{
-	uint HierarchyOffset;
-	uint EditorData;
-	uint LocalBounds;
-	uint DynamicData;
-	uint LightShadowUVBias;
-	uint CustomData;
-};
-
 struct FInstanceSceneData
 {
 	FLWCMatrix LocalToWorld;
@@ -400,7 +370,7 @@ struct FInstanceSceneData
 #if 1//USES_PER_INSTANCE_RANDOM
 	float    RandomID;
 #endif
-#if ENABLE_PER_INSTANCE_CUSTOM_DATA
+#if USES_PER_INSTANCE_CUSTOM_DATA
 	uint     CustomDataOffset;
 	uint     CustomDataCount;
 #endif
@@ -456,31 +426,6 @@ float4 LoadInstancePayloadDataElement(uint Index)
 #endif
 }
 
-float4 LoadInstanceCustomDataElement(FInstanceSceneData SceneData, uint Float4Index)
-{
-#if ENABLE_PER_INSTANCE_CUSTOM_DATA
-	const uint NumCustomFloat4s = (SceneData.CustomDataCount + 3u) >> 2u;
-	if (SceneData.CustomDataOffset != 0xFFFFFFFFu && Float4Index < NumCustomFloat4s)
-	{
-		return LoadInstancePayloadDataElement(SceneData.CustomDataOffset + Float4Index);
-	}
-#endif
-
-	return (float4)0.0f;
-}
-
-float LoadInstanceCustomDataFloat(FInstanceSceneData SceneData, uint FloatIndex)
-{
-#if ENABLE_PER_INSTANCE_CUSTOM_DATA
-	const uint Float4Index = FloatIndex >> 2u;
-	const uint ComponentIndex = FloatIndex % 4u;
-	const float4 Element = LoadInstanceCustomDataElement(SceneData, Float4Index);
-	return Element[ComponentIndex];
-#else
-	return 0.0f;
-#endif
-}
-
 // [Frisvad 2012, "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"]
 void GetHemiOrthoBasis( inout float3 BasisX, inout float3 BasisY, float3 BasisZ )
 {
@@ -488,107 +433,6 @@ void GetHemiOrthoBasis( inout float3 BasisX, inout float3 BasisY, float3 BasisZ 
 	float B = -BasisZ.x * BasisZ.y * A;
 	BasisX = float3( 1.0f - BasisZ.x * BasisZ.x * A, B, -BasisZ.x );
 	BasisY = float3( B, 1.0f - BasisZ.y * BasisZ.y * A, -BasisZ.y );
-}
-
-uint4 EncodeScaleAndRotation(float3 Scale, float3x3 Axis)
-{
-	const uint ExpBits			= 8;
-	const uint ExpBias			= ( 1u << (ExpBits - 1) ) - 1;
-	const uint SignMantissaBits	= 16;
-	const uint SignMantissaMask	= (1u << SignMantissaBits) - 1;
-	const uint MantissaBits		= SignMantissaBits - 1;
-	const float Sqrt2 			= 1.41421356f;
-
-	uint4 Output;
-
-	// Rotation
-	{
-		if( Axis[2].z < 0.0f )
-		{
-			Axis[2] *= -1.0f;
-			Scale.z *= -1.0f;
-		}
-
-		float2 OctZ = UnitVectorToHemiOctahedron( Axis[2] );
-
-		float3 BasisX, BasisY;
-		GetHemiOrthoBasis( BasisX, BasisY, Axis[2] );
-
-		float X = dot(Axis[0], BasisX);
-		float Y = dot(Axis[0], BasisY);
-
-		float aX = abs( X );
-		float aY = abs( Y );
-
-		bool bSpinIsX = aX < aY;
-		float Spin0 = bSpinIsX ? X : Y;
-		float Spin1 = bSpinIsX ? Y : X;
-		float Sign1 = Spin1 < 0.0f ? -1.0f : 1.0f;
-	
-		//Axis[0]	*= Sign1;
-		Scale.x *= Sign1;
-		Spin0	*= Sign1;
-
-		float3 GeneratedY = cross(Axis[2], Axis[0]);
-		Scale.y *= dot( Axis[1], GeneratedY ) < 0.0f ? -Sign1 : Sign1;
-
-		// Avoid sign extension in shader by biasing
-		Output.x  = (((int)round( OctZ.x * 32767.0f ) + 32768) & 0xFFFF) <<  0;
-		Output.x |= (((int)round( OctZ.y * 32767.0f ) + 32768) & 0xFFFF) << 16;
-
-		// NOTE: Masking the bits with `& 0x7FFF` below causes the whole int to be optimized to 0 on some shader platforms.
-		// This is okay, as long as Spin0 is in [0, 1], which it should be.
-		Output.y  = ((int)round( Spin0 * 16383.0f * Sqrt2 ) + 16384); // & 0x7FFF;
-		Output.y |=	bSpinIsX ? (1u << 15) : 0;
-	}
-
-	// Scale
-	{
-		float MaxComponent = max3(abs(Scale.x), abs(Scale.y), abs(Scale.z));
-		uint MaxComponentExponent = (asuint(MaxComponent) & 0x7f800000u) >> 23;
-
-		// Need +1 because of losing the implicit leading bit of mantissa
-		// TODO assumes ExpBits == 8
-		// TODO clamp to expressable range
-		uint SharedExp = MaxComponentExponent + 1;
-
-		float ExpScale = asfloat(((127 + ExpBias + MantissaBits - SharedExp) & 0xFFu) << 23);
-
-		if( (uint)round( MaxComponent * ExpScale ) == (1u << MantissaBits) )
-		{
-			// Mantissa rounded up
-			SharedExp++;
-			ExpScale *= 0.5f;
-		}
-
-		Output.z  = (((int)round( Scale.x * ExpScale ) + (1u << MantissaBits)) & 0xFFFFu) <<  0;
-		Output.z |= (((int)round( Scale.y * ExpScale ) + (1u << MantissaBits)) & 0xFFFFu) << 16;
-		Output.w  = (((int)round( Scale.z * ExpScale ) + (1u << MantissaBits)) & 0xFFFFu) <<  0;
-		Output.w |= SharedExp << 16;		
-	}
-
-	return Output;
-}
-
-uint4 EncodeScaleAndRotation( float3x3 InTransform )
-{
-	float3 Scale = {
-		length(InTransform[0]),
-		length(InTransform[1]),
-		length(InTransform[2])
-	};
-	float3x3 Axis = {
-		InTransform[0] / Scale.x,
-		InTransform[1] / Scale.y,
-		InTransform[2] / Scale.z
-	};
-	return EncodeScaleAndRotation(Scale, Axis);
-}
-
-void EncodeTransform( float4x4 InTransform, inout uint4 OutRotationScale, inout float3 OutTranslation )
-{
-	OutRotationScale = EncodeScaleAndRotation((float3x3)InTransform);
-	OutTranslation = InTransform[3].xyz;
 }
 
 float4x4 DecodeTransform( uint4 RotationScale, float3 Translation, inout float3 Scale )
@@ -666,145 +510,24 @@ float4x4 DecodeTransform( uint4 RotationScale, float3 Translation, inout float3 
 	return M;
 }
 
-// Helpers to pack/unpack the primitive ID and flags for the specified instance, which are packed together in a uint
-void UnpackPrimitiveIdAndInstanceFlags(uint PackedPrimitiveIdAndFlags, inout uint OutPrimitiveId, inout uint OutInstanceFlags)
-{
-	OutPrimitiveId		= BitFieldExtractU32(PackedPrimitiveIdAndFlags, PRIMITIVE_ID_NUM_BITS,  0);
-	OutInstanceFlags	= BitFieldExtractU32(PackedPrimitiveIdAndFlags, INSTANCE_SCENE_DATA_FLAGS_NUM_BITS, PRIMITIVE_ID_NUM_BITS);	
-}
-
-uint PackPrimitiveIdAndInstanceFlags(uint PrimitiveId, uint InstanceFlags)
-{
-	return (PrimitiveId & PRIMITIVE_ID_MASK) | (InstanceFlags << PRIMITIVE_ID_NUM_BITS);
-}
-
-void LoadInstancePrimitiveIdAndFlags(uint InstanceId, uint SOAStride, inout uint OutPrimitiveId, inout uint OutInstanceFlags)
-{
-	const uint PackedPrimitiveIdAndFlags = asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).x);
-	UnpackPrimitiveIdAndInstanceFlags(PackedPrimitiveIdAndFlags, OutPrimitiveId, OutInstanceFlags);
-}
-
-// Helpers to pack/unpack the instance relative ID and custom data count for the specified instance, which are packed together in a uint
-void UnpackInstanceRelativeIdAndCustomDataCount(uint PackedRelativeIdAndCustomDataCount, inout uint OutRelativeId, inout uint OutCustomDataCount)
-{
-	OutRelativeId		= BitFieldExtractU32(PackedRelativeIdAndCustomDataCount, INSTANCE_RELATIVE_ID_NUM_BITS,  0);
-	OutCustomDataCount	= BitFieldExtractU32(PackedRelativeIdAndCustomDataCount, INSTANCE_CUSTOM_DATA_COUNT_NUM_BITS, INSTANCE_RELATIVE_ID_NUM_BITS);
-}
-
-uint PackInstanceRelativeIdAndCustomDataCount(uint RelativeId, uint CustomDataCount)
-{
-	return (RelativeId & INSTANCE_RELATIVE_ID_MASK) | (CustomDataCount << INSTANCE_RELATIVE_ID_NUM_BITS);
-}
-
-void LoadInstanceRelativeIdAndCustomDataCount(uint InstanceId, uint SOAStride, inout uint OutPrimitiveId, inout uint OutInstanceFlags)
-{
-	const uint PackedRelativeIdAndCustomDataCount = asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).y);
-	UnpackInstanceRelativeIdAndCustomDataCount(PackedRelativeIdAndCustomDataCount, OutPrimitiveId, OutInstanceFlags);
-}
-
-// Helpers for getting/setting the instance determinant sign from instance data flags
-float GetInstanceDeterminantSignFromFlags(uint Flags)
-{
-	// Scale.x * Scale.y * Scale.z < 0.0 ? -1.0 : 1.0;
-	return CondMask(Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
-}
-
-void SetInstanceDeterminantSignFlag(float Determinant, inout uint Flags)
-{
-	if (Determinant < 0.0f)
-	{
-		Flags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
-	}
-	else
-	{
-		Flags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
-	}
-}
-
-// Determine the offsets into the payload data buffer for the given instance
-FInstancePayloadDataOffsets GetInstancePayloadDataOffsets(uint PrimitiveId, uint Flags, uint InstanceRelativeId)
-{
-	const uint PayloadDataRelativeOffset	= InstanceRelativeId * GetPrimitiveData(PrimitiveId).InstancePayloadDataStride;
-	const uint PayloadDataGlobalOffset		= PayloadDataRelativeOffset + GetPrimitiveData(PrimitiveId).InstancePayloadDataOffset;
-
-	const bool bHasHierarchyOffset			= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
-	const bool bHasLocalBounds				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
-	const bool bHasDynamicData				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
-	const bool bHasLightShadowUVBias		= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
-	const bool bHasCustomData				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
-#if USE_EDITOR_SHADERS
-	const bool bHasEditorData				= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
-#else
-	const bool bHasEditorData				= false;
-#endif
-
-	uint CurOffset = PayloadDataGlobalOffset;
-
-	// Offsets are in float4s
-	FInstancePayloadDataOffsets Offsets;
-	Offsets.HierarchyOffset 	= INVALID_INSTANCE_PAYLOAD_OFFSET;
-	Offsets.EditorData 			= INVALID_INSTANCE_PAYLOAD_OFFSET;
-	Offsets.LocalBounds 		= INVALID_INSTANCE_PAYLOAD_OFFSET;
-	Offsets.DynamicData 		= INVALID_INSTANCE_PAYLOAD_OFFSET;
-	Offsets.LightShadowUVBias 	= INVALID_INSTANCE_PAYLOAD_OFFSET;
-	Offsets.CustomData 			= INVALID_INSTANCE_PAYLOAD_OFFSET;
-	
-	// Hierarchy Offset -> float0.x
-	if (bHasHierarchyOffset)
-	{
-		Offsets.HierarchyOffset = CurOffset;
-	}
-	// EditorData -> float0.y
-	if (bHasEditorData)
-	{
-		Offsets.EditorData = CurOffset;
-	}
-	// LocalBounds -> float0.zw & float1.xyzw
-	if (bHasLocalBounds)
-	{
-		Offsets.LocalBounds = CurOffset;
-	}
-	CurOffset += CondMask(bHasLocalBounds, 2u, CondMask(bHasHierarchyOffset || bHasEditorData, 1u, 0u));
-
-	if (bHasDynamicData)
-	{
-		Offsets.DynamicData = CurOffset;
-		CurOffset += InstanceTransformSizeFloat4Count;
-	}
-
-	if (bHasLightShadowUVBias)
-	{
-		Offsets.LightShadowUVBias = CurOffset;
-		++CurOffset;
-	}
-
-	if (bHasCustomData)
-	{
-		Offsets.CustomData = CurOffset;
-	}
-
-	return Offsets;
-}
-
 void ComputeInstanceDerivedData(inout FInstanceSceneData InstanceData, float3 TilePosition, float4x4 LocalToRelativeWorld)
 {
 	//
 	// Do not put any load operations here!
 	//
 
-#if (VF_USE_PRIMITIVE_SCENE_DATA == 2) || !INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-	// Non-uniform scale must be computed from the transform because it was not already computed when decoding it (see below in GetInstanceSceneData)
+#if !INSTANCE_COMPRESSED_TRANSFORM
 	float3 Scale2;
 	Scale2.x = length2(LocalToRelativeWorld[0].xyz);
 	Scale2.y = length2(LocalToRelativeWorld[1].xyz);
 	Scale2.z = length2(LocalToRelativeWorld[2].xyz);
 
 	InstanceData.InvNonUniformScale							= rsqrt(Scale2);
+	InstanceData.DeterminantSign							= CondMask(InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN, -1.0f, 1.0f);
 	InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScale;
 #endif
 
 	InstanceData.NonUniformScale.w							= max3( InstanceData.NonUniformScale.x, InstanceData.NonUniformScale.y, InstanceData.NonUniformScale.z );
-	InstanceData.DeterminantSign							= GetInstanceDeterminantSignFromFlags(InstanceData.Flags);
 
 	float4x4 RelativeWorldToLocal							= LocalToRelativeWorld;
 	RelativeWorldToLocal[0].xyz							   *= Pow2(InstanceData.InvNonUniformScale.x);
@@ -814,6 +537,14 @@ void ComputeInstanceDerivedData(inout FInstanceSceneData InstanceData, float3 Ti
 	RelativeWorldToLocal								    = transpose(RelativeWorldToLocal);
 	RelativeWorldToLocal[3].xyz						        = mul(float4(-LocalToRelativeWorld[3].xyz, 0.0f), RelativeWorldToLocal).xyz;
 	InstanceData.WorldToLocal								= MakeLWCInverseMatrix(TilePosition, RelativeWorldToLocal);
+
+// See defines in FInstanceSceneData
+#if 0
+	InstanceData.HasRandomID								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM);
+	InstanceData.HasCustomData								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA);
+	InstanceData.HasDynamicData								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA);
+	InstanceData.HasLightShadowUVBias						= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS);
+#endif
 }
 
 // Fetch from scene primitive buffer
@@ -827,8 +558,11 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 	//
 
 	// Only process valid instances
-	LoadInstancePrimitiveIdAndFlags(InstanceId, SOAStride, InstanceData.PrimitiveId, InstanceData.Flags);
-	InstanceData.ValidInstance = InstanceData.PrimitiveId != INVALID_PRIMITIVE_ID;
+	// Note: keep primitive ID packing in sync with GPUSceneWriter.ush
+	const uint FlagsAndPrimitiveId	= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).x);
+	InstanceData.PrimitiveId		= BitFieldExtractU32(FlagsAndPrimitiveId,  20, 0);  // Max of 1,048,576 primitives
+	InstanceData.Flags				= BitFieldExtractU32(FlagsAndPrimitiveId,  12, 20); // Max of 12 instance flags
+	InstanceData.ValidInstance		= InstanceData.PrimitiveId != INVALID_PRIMITIVE_ID;
 
 	// Payload Data Layout
 	// NOTE: Per-instance local bounds and hierarchy offset are always mutually inclusive, so pack together.
@@ -838,7 +572,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 	// LocalBounds Center		float0.yzw
 	// LocalBounds Extent		float1.xyz
 	// __UNUSED					float1.w
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if INSTANCE_COMPRESSED_TRANSFORMS
 	// Previous Transform[0]	float2.xyzw
 	// Previous Transform[1]	float3.xyzw
 	// LM/SM Scale Bias			float4.xyzw
@@ -851,26 +585,28 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 	// Custom Data Float4s		float6.xyzw ... floatN.xyzw
 #endif
 
+#if INSTANCE_COMPRESSED_TRANSFORMS
+	const uint TransformSizeFloat4Count = 2u;
+#else
+	const uint TransformSizeFloat4Count = 3u;
+#endif
+
 	BRANCH
 	if (!bCheckValid || InstanceData.ValidInstance)
 	{
-		uint CustomDataCount;
-		LoadInstanceRelativeIdAndCustomDataCount(InstanceId, SOAStride, InstanceData.RelativeId, CustomDataCount);
-
-		FInstancePayloadDataOffsets Offsets 	= GetInstancePayloadDataOffsets(InstanceData.PrimitiveId, InstanceData.Flags, InstanceData.RelativeId);
-	
-	#if ENABLE_PER_INSTANCE_CUSTOM_DATA
-		InstanceData.CustomDataCount			= CustomDataCount;
-		InstanceData.CustomDataOffset			= Offsets.CustomData;
+		const uint RelativeIdAndCustomDataCount					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).y);
+		InstanceData.RelativeId									= BitFieldExtractU32(RelativeIdAndCustomDataCount, 24, 0); // Max of 16,777,216 instances per primitive
+	#if USES_PER_INSTANCE_CUSTOM_DATA
+		InstanceData.CustomDataCount							= BitFieldExtractU32(RelativeIdAndCustomDataCount, 8, 24); // Max of 255 custom data floats per instance
 	#endif
-		InstanceData.LastUpdateSceneFrameNumber	= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).z);
+		InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).z);
 	#if 1//USES_PER_INSTANCE_RANDOM
-		InstanceData.RandomID					= LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w;
+		InstanceData.RandomID									= LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w;
 	#endif
 
 		float3 TilePosition 									= GetPrimitiveData(InstanceData.PrimitiveId).TilePosition;
 
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+#if INSTANCE_COMPRESSED_TRANSFORMS
 		uint4  RotationScale									= asuint(LoadInstanceSceneDataElement(1 * SOAStride + InstanceId));
 		float3 Translation										= LoadInstanceSceneDataElement(2 * SOAStride + InstanceId).xyz;
 		float3 Scale = 0;
@@ -901,35 +637,60 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		InstanceData.PrevLocalToWorld	= MakeLWCMatrix(TilePosition, PrevLocalToRelativeWorld);
 		ComputeInstanceDerivedData(InstanceData, TilePosition, LocalToRelativeWorld);
 
+		const uint PayloadDataRelativeOffset	= InstanceData.RelativeId   * GetPrimitiveData(InstanceData.PrimitiveId).InstancePayloadDataStride;
+		const uint PayloadDataGlobalOffset		= PayloadDataRelativeOffset + GetPrimitiveData(InstanceData.PrimitiveId).InstancePayloadDataOffset;
+
+		const bool bHasHierarchyOffset			= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET) != 0u;
+		const bool bHasLocalBounds				= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LOCAL_BOUNDS) != 0u;
+		const bool bHasDynamicData				= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0u;
+		const bool bHasLightShadowUVBias		= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0u;
+		const bool bHasCustomData				= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0u;
+		const bool bHasRandomID					= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0u;
+#if USE_EDITOR_SHADERS
+		const bool bHasEditorData				= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_EDITOR_DATA) != 0u;
+#else //
+		const bool bHasEditorData				= false;
+#endif
+
+		// Offsets are in float4s
+		const uint Offset_HierarchyOffset		= PayloadDataGlobalOffset + 0u; // float0.x
+		const uint Offset_EditorData			= PayloadDataGlobalOffset + 0u; // float0.y
+		const uint Offset_LocalBounds			= Offset_HierarchyOffset; // float0.zw + float1.xyzw
+		const uint Offset_DynamicData			= CondMask(bHasLocalBounds, 2u, CondMask(bHasHierarchyOffset || bHasEditorData, 1u, 0u)) + PayloadDataGlobalOffset;
+		const uint Offset_LightShadowUVBias		= CondMask(bHasDynamicData, TransformSizeFloat4Count, 0u) + Offset_DynamicData;
+	#if USES_PER_INSTANCE_CUSTOM_DATA
+		InstanceData.CustomDataOffset			= CondMask(bHasCustomData, CondMask(bHasLightShadowUVBias, 1u, 0u) + Offset_LightShadowUVBias, 0xFFFFFFFFu);
+	#endif
+
 		InstanceData.NaniteRuntimeResourceID	= GetPrimitiveData(InstanceData.PrimitiveId).NaniteResourceID;
 		InstanceData.NaniteHierarchyOffset		= GetPrimitiveData(InstanceData.PrimitiveId).NaniteHierarchyOffset;
 
 		BRANCH
-		if (Offsets.HierarchyOffset != INVALID_INSTANCE_PAYLOAD_OFFSET)
+		if (bHasHierarchyOffset)
 		{
-			const uint HierarchyRootOffset = asuint(LoadInstancePayloadDataElement(Offsets.HierarchyOffset)).x;
+			const uint HierarchyRootOffset = asuint(LoadInstancePayloadDataElement(Offset_HierarchyOffset)).x;
 
 			// Combine this instance's hierarchy offset with the primitive's root hierarchy offset
 			InstanceData.NaniteHierarchyOffset += HierarchyRootOffset;
 		}
 
-	#if USE_EDITOR_SHADERS
+#if USE_EDITOR_SHADERS
 		BRANCH
-		if (Offsets.EditorData != INVALID_INSTANCE_PAYLOAD_OFFSET)
+		if (bHasEditorData)
 		{
-			const uint PackedEditorData = asuint(LoadInstancePayloadDataElement(Offsets.EditorData)).y;
+			const uint PackedEditorData = asuint(LoadInstancePayloadDataElement(Offset_EditorData)).y;
 
 			InstanceData.EditorData.bIsSelected    = (PackedEditorData >> 24u) != 0;
 			InstanceData.EditorData.HitProxyPacked =  PackedEditorData & 0x00FFFFFFu;
 			InstanceData.EditorData.HitProxyId = UnpackHitProxyId(InstanceData.EditorData.HitProxyPacked);
 		}
-	#endif
+#endif
 
 		BRANCH
-		if (Offsets.LocalBounds != INVALID_INSTANCE_PAYLOAD_OFFSET)
+		if (bHasLocalBounds)
 		{
-			InstanceData.LocalBoundsCenter = float3(LoadInstancePayloadDataElement(Offsets.LocalBounds + 0).zw, LoadInstancePayloadDataElement(Offsets.LocalBounds + 1).x);
-			InstanceData.LocalBoundsExtent = LoadInstancePayloadDataElement(Offsets.LocalBounds + 1).yzw;
+			InstanceData.LocalBoundsCenter = float3(LoadInstancePayloadDataElement(Offset_LocalBounds + 0).zw, LoadInstancePayloadDataElement(Offset_LocalBounds + 1).x);
+			InstanceData.LocalBoundsExtent = LoadInstancePayloadDataElement(Offset_LocalBounds + 1).yzw;
 		}
 		else
 		{
@@ -938,17 +699,17 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		}
 
 		BRANCH
-		if (Offsets.DynamicData != INVALID_INSTANCE_PAYLOAD_OFFSET)
+		if (bHasDynamicData)
 		{
-		#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
-			uint4  PrevRotationScale			= asuint(LoadInstancePayloadDataElement(Offsets.DynamicData + 0));
-			float3 PrevTranslation				= LoadInstancePayloadDataElement(Offsets.DynamicData + 1).xyz;
+		#if INSTANCE_COMPRESSED_TRANSFORMS
+			uint4  PrevRotationScale			= asuint(LoadInstancePayloadDataElement(Offset_DynamicData + 0));
+			float3 PrevTranslation				= LoadInstancePayloadDataElement(Offset_DynamicData + 1).xyz;
 			float3 PrevScale					= 0;
 			float4x4 PrevLocalToRelativeWorld	= DecodeTransform(PrevRotationScale, PrevTranslation, PrevScale);
 		#else
-			float4x4 PrevLocalToRelativeWorld	= transpose(float4x4(LoadInstancePayloadDataElement(Offsets.DynamicData + 0),
-																 LoadInstancePayloadDataElement(Offsets.DynamicData + 1),
-																 LoadInstancePayloadDataElement(Offsets.DynamicData + 2),
+			float4x4 PrevLocalToRelativeWorld	= transpose(float4x4(LoadInstancePayloadDataElement(Offset_DynamicData + 0),
+																 LoadInstancePayloadDataElement(Offset_DynamicData + 1),
+																 LoadInstancePayloadDataElement(Offset_DynamicData + 2),
 																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
 		#endif
 
@@ -957,7 +718,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		}
 		else
 		{
-		#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+		#if INSTANCE_COMPRESSED_TRANSFORMS
 			// TODO: Temporary PrevVelocityHack
 			uint4  PrevRotationScale			= asuint(LoadInstanceSceneDataElement(3 * SOAStride + InstanceId));
 			float3 PrevTranslation				= LoadInstanceSceneDataElement(4 * SOAStride + InstanceId).xyz;
@@ -973,9 +734,9 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 
 	#if 1 //NEEDS_LIGHTMAP_COORDINATE
 		BRANCH
-		if (Offsets.LightShadowUVBias != INVALID_INSTANCE_PAYLOAD_OFFSET)
+		if (bHasLightShadowUVBias)
 		{
-			InstanceData.LightMapAndShadowMapUVBias = LoadInstancePayloadDataElement(Offsets.LightShadowUVBias);
+			InstanceData.LightMapAndShadowMapUVBias = LoadInstancePayloadDataElement(Offset_LightShadowUVBias);
 		}
 	#endif
 	}
@@ -1089,6 +850,10 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	
 #if USES_PER_INSTANCE_RANDOM
 	InstanceData.RandomID = InstanceTransform3.w;
+#endif
+
+#if INSTANCE_COMPRESSED_TRANSFORM
+	#error Compressed instance transform is not supported on mobile path
 #endif
 
 	ComputeInstanceDerivedData(InstanceData, TilePosition, LocalToRelativeWorld);

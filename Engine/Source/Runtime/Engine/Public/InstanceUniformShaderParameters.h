@@ -25,8 +25,7 @@
 
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
-#define INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS	1
-
+#define INSTANCE_COMPRESSED_TRANSFORM	0
 // TODO: Rename to FInstanceSceneData
 struct FPrimitiveInstance
 {
@@ -84,11 +83,12 @@ struct FPrimitiveInstanceDynamicData
 struct FInstanceSceneShaderData
 {
 	// Must match GetInstanceSceneData() in SceneData.ush
-#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
+	// TODO: Global setting/define for INSTANCE_COMPRESSED_TRANSFORMS
+#if INSTANCE_COMPRESSED_TRANSFORM
+	enum { DataStrideInFloat4s = 4 };
+#else
 	// Compressed transform
 	enum { DataStrideInFloat4s = 5 }; // TODO: Temporary PrevVelocityHack
-#else
-	enum { DataStrideInFloat4s = 4 };
 #endif
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
