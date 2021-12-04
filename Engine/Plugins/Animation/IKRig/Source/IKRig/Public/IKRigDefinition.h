@@ -11,6 +11,7 @@
 #endif
 #include "IKRigDefinition.generated.h"
 
+class IPropertyHandle;
 class UIKRigSolver;
 
 #if WITH_EDITORONLY_DATA

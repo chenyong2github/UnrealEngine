@@ -57,6 +57,7 @@ TOptional<FTransform> UIKRigBoneDetails::GetTransform(EIKRigTransformType::Type 
 			break;
 		}
 	}
+	checkSlow(IsRelative);
 
 	FTransform Transform = LocalTransform;
 	if(!IsRelative[0]) Transform.SetLocation(GlobalTransform.GetLocation());

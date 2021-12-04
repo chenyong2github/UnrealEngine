@@ -6,7 +6,10 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
 
 namespace ESlateTransformComponent
 {
