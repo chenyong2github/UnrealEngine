@@ -13,7 +13,7 @@
 class FAsyncIODelete;
 class IPlugin;
 class ITargetPlatform;
-struct FPackageNameCache;
+namespace UE::Cook { struct FPackageDatas; }
 
 /** A CookedPackageWriter that saves cooked packages in separate .uasset,.uexp,.ubulk files in the Saved\Cooked\[Platform] directory. */
 class FLooseCookedPackageWriter : public TPackageWriterToSharedBuffer<ICookedPackageWriter>
@@ -21,8 +21,9 @@ class FLooseCookedPackageWriter : public TPackageWriterToSharedBuffer<ICookedPac
 public:
 	using Super = TPackageWriterToSharedBuffer<ICookedPackageWriter>;
 
-	FLooseCookedPackageWriter(const FString& OutputPath, const FString& MetadataDirectoryPath, const ITargetPlatform* TargetPlatform,
-		FAsyncIODelete& InAsyncIODelete, const FPackageNameCache& InPackageNameCache, const TArray<TSharedRef<IPlugin>>& InPluginsToRemap);
+	FLooseCookedPackageWriter(const FString& OutputPath, const FString& MetadataDirectoryPath,
+		const ITargetPlatform* TargetPlatform, FAsyncIODelete& InAsyncIODelete,
+		UE::Cook::FPackageDatas& InPackageDatas, const TArray<TSharedRef<IPlugin>>& InPluginsToRemap);
 	~FLooseCookedPackageWriter();
 
 	virtual FCookCapabilities GetCookCapabilities() const override
@@ -120,7 +121,7 @@ private:
 	FString OutputPath;
 	FString MetadataDirectoryPath;
 	const ITargetPlatform& TargetPlatform;
-	const FPackageNameCache& PackageNameCache;
+	UE::Cook::FPackageDatas& PackageDatas;
 	FPackageStoreManifest PackageStoreManifest;
 	const TArray<TSharedRef<IPlugin>>& PluginsToRemap;
 	FAsyncIODelete& AsyncIODelete;

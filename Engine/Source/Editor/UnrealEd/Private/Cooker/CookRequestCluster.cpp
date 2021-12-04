@@ -12,7 +12,6 @@
 #include "Cooker/CookProfiling.h"
 #include "Cooker/CookRequests.h"
 #include "Cooker/CookTypes.h"
-#include "Cooker/PackageNameCache.h"
 #include "Cooker/PackageTracker.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "DerivedDataCache.h"
@@ -32,7 +31,6 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& COTFS, TArray<const ITarge
 	: Platforms(MoveTemp(InPlatforms))
 	, PackageDatas(*COTFS.PackageDatas)
 	, AssetRegistry(*IAssetRegistry::Get())
-	, PackageNameCache(COTFS.GetPackageNameCache())
 	, PackageTracker(*COTFS.PackageTracker)
 	, BuildDefinitions(*COTFS.BuildDefinitions)
 {
@@ -42,7 +40,6 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& COTFS, TConstArrayView<con
 	: Platforms(InPlatforms)
 	, PackageDatas(*COTFS.PackageDatas)
 	, AssetRegistry(*IAssetRegistry::Get())
-	, PackageNameCache(COTFS.GetPackageNameCache())
 	, PackageTracker(*COTFS.PackageTracker)
 	, BuildDefinitions(*COTFS.BuildDefinitions)
 {
@@ -156,10 +153,8 @@ void FRequestCluster::AddClusters(UCookOnTheFlyServer& COTFS, FPackageDataSet& U
 		// they are hard dependencies, avoid the work of creating a cluster just for them,
 		// by checking non-cookable and sending the package to idle instead of adding to
 		// a cluster
-		FName FileName = PackageData->GetFileName();
 		PackageData->GetRequestedPlatforms(RequestedPlatforms);
-		if (!IsRequestCookable(PackageData->GetPackageName(), FileName, PackageData,
-			COTFS.GetPackageNameCache(), *COTFS.PackageDatas, *COTFS.PackageTracker,
+		if (!IsRequestCookable(PackageData->GetPackageName(), PackageData, *COTFS.PackageDatas, *COTFS.PackageTracker,
 			DLCPath, bErrorOnEngineContentUse, RequestedPlatforms))
 		{
 			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
@@ -298,9 +293,8 @@ void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& b
 #if DEBUG_COOKONTHEFLY
 		UE_LOG(LogCook, Display, TEXT("Processing request for package %s"), *OriginalName.ToString());
 #endif
-		const FName* PackageName = PackageNameCache.GetCachedPackageNameFromStandardFileName(OriginalName,
-			/* bExactMatchRequired */ false, &Request.FileName);
-		if (!PackageName)
+		FPackageData* PackageData = PackageDatas.TryAddPackageDataByStandardFileName(OriginalName);
+		if (!PackageData)
 		{
 			LogCookerMessage(FString::Printf(TEXT("Could not find package at file %s!"),
 				*OriginalName.ToString()), EMessageSeverity::Error);
@@ -313,14 +307,13 @@ void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& b
 		}
 		else
 		{
-			FPackageData& PackageData = PackageDatas.FindOrAddPackageData(*PackageName, Request.FileName);
-			if (TryTakeOwnership(PackageData, Request.bUrgent, MoveTemp(Request.CompletionCallback), Request.Instigator))
+			if (TryTakeOwnership(*PackageData, Request.bUrgent, MoveTemp(Request.CompletionCallback), Request.Instigator))
 			{
 				bool bAlreadyExists;
-				OwnedPackageDatas.Add(&PackageData, &bAlreadyExists);
+				OwnedPackageDatas.Add(PackageData, &bAlreadyExists);
 				if (!bAlreadyExists)
 				{
-					Requests.Add(&PackageData);
+					Requests.Add(PackageData);
 				}
 			}
 		}
@@ -846,11 +839,10 @@ FRequestCluster::FVertexData::FVertexData(EAsyncType, int32 NumPlatforms)
 
 FRequestCluster::FVertexData::FVertexData(ESkipDependenciesType, FPackageData& InPackageData, FRequestCluster& Cluster)
 {
-	FName FileName = InPackageData.GetFileName();
 	PackageName = InPackageData.GetPackageName();
 	PackageData = &InPackageData;
 	bInitialRequest = true;
-	bCookable = Cluster.IsRequestCookable(PackageData->GetPackageName(), FileName, PackageData);
+	bCookable = Cluster.IsRequestCookable(PackageData->GetPackageName(), PackageData);
 	bExploreDependencies = false;
 }
 
@@ -897,12 +889,7 @@ FPackageData* FRequestCluster::FGraphSearch::FindOrAddVertex(FName PackageName, 
 	}
 	VisitStatus.bVisited = true;
 
-	FName FileName = NAME_None;
-	if (PackageData)
-	{
-		FileName = PackageData->GetFileName();
-	}
-	bool bCookable = Cluster.IsRequestCookable(PackageName, FileName, PackageData);
+	bool bCookable = Cluster.IsRequestCookable(PackageName, PackageData);
 	if (!bInitialRequest)
 	{
 		if (!bCookable)
@@ -1126,14 +1113,14 @@ TMap<FPackageData*, TArray<FPackageData*>>& FRequestCluster::FGraphSearch::GetGr
 	return GraphEdges;
 }
 
-bool FRequestCluster::IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData)
+bool FRequestCluster::IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData)
 {
-	return IsRequestCookable(PackageName, InOutFileName, PackageData, PackageNameCache, PackageDatas, PackageTracker,
+	return IsRequestCookable(PackageName, InOutPackageData, PackageDatas, PackageTracker,
 		DLCPath, bErrorOnEngineContentUse, GetPlatforms());
 }
 
-bool FRequestCluster::IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData,
-	const FPackageNameCache& InPackageNameCache, FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
+bool FRequestCluster::IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData,
+	FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
 	FStringView InDLCPath, bool bInErrorOnEngineContentUse, TConstArrayView<const ITargetPlatform*> RequestPlatforms)
 {
 	TStringBuilder<256> NameBuffer;
@@ -1145,33 +1132,30 @@ bool FRequestCluster::IsRequestCookable(FName PackageName, FName& InOutFileName,
 		return false;
 	}
 
-	if (InOutFileName.IsNone())
+	if (!InOutPackageData)
 	{
-		InOutFileName = InPackageNameCache.GetCachedStandardFileName(PackageName);
-		if (InOutFileName.IsNone())
+		InOutPackageData = InPackageDatas.TryAddPackageDataByPackageName(PackageName);
+		if (!InOutPackageData)
 		{
 			// Package does not exist on disk
 			return false;
 		}
 	}
 
-	if (InPackageTracker.NeverCookPackageList.Contains(InOutFileName))
+	FName FileName = InOutPackageData->GetFileName();
+	if (InPackageTracker.NeverCookPackageList.Contains(FileName))
 	{
 		UE_LOG(LogCook, Verbose, TEXT("Package %s is referenced but is in the never cook package list, discarding request"), *NameBuffer);
 		return false;
 	}
 
-	if (!PackageData)
-	{
-		PackageData = &InPackageDatas.FindOrAddPackageData(PackageName, InOutFileName);
-	}
 
 	if (bInErrorOnEngineContentUse && !InDLCPath.IsEmpty())
 	{
-		InOutFileName.ToString(NameBuffer);
+		FileName.ToString(NameBuffer);
 		if (!FStringView(NameBuffer).StartsWith(InDLCPath))
 		{
-			if (!PackageData->HasAllCookedPlatforms(RequestPlatforms, true /* bIncludeFailed */))
+			if (!InOutPackageData->HasAllCookedPlatforms(RequestPlatforms, true /* bIncludeFailed */))
 			{
 				UE_LOG(LogCook, Error, TEXT("Uncooked Engine or Game content %s is being referenced by DLC!"), *NameBuffer);
 			}

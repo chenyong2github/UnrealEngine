@@ -201,6 +201,7 @@ namespace Cook
 		FThreadSafeUnsolicitedPackagesList UnsolicitedCookedPackages;
 		FThreadSafeQueue<FRecompileShaderRequest> RecompileRequests;
 
+		/** Packages to never cook - entries are localpaths in FPaths::MakeStandardFilename format. */
 		FThreadSafeSet<FName> NeverCookPackageList;
 		FThreadSafeSet<FName> UncookedEditorOnlyPackages; // set of packages that have been rejected due to being referenced by editor-only properties
 		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;

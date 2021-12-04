@@ -3,12 +3,12 @@
 #include "CookRequests.h"
 
 #include "Algo/Find.h"
+#include "CookPackageData.h"
 #include "CookPlatformManager.h"
 #include "HAL/Event.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/CoreMiscDefines.h"
 #include "Misc/ScopeLock.h"
-#include "PackageNameCache.h"
 #include "Templates/UnrealTemplate.h"
 
 namespace UE
@@ -76,7 +76,7 @@ namespace Cook
 
 	void FFilePlatformRequest::SetFilename(FString InFilename)
 	{
-		Filename = FPackageNameCache::GetStandardFileName(InFilename);
+		Filename = FPackageDatas::GetStandardFileName(InFilename);
 	}
 
 	const FName& FFilePlatformRequest::GetFilename() const

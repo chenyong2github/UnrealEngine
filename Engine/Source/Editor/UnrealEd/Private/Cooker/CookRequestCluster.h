@@ -18,9 +18,9 @@ class IAssetRegistry;
 class ITargetPlatform;
 class FEvent;
 class UCookOnTheFlyServer;
-struct FPackageNameCache;
 namespace UE::Cook { class FRequestQueue; }
 namespace UE::Cook { struct FFilePlatformRequest; }
+namespace UE::Cook { struct FPackageDatas; }
 namespace UE::Cook { struct FPackageTracker; }
 
 namespace UE::Cook
@@ -295,9 +295,9 @@ private:
 	void StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete);
 	bool TryTakeOwnership(FPackageData& PackageData, bool bUrgent, FCompletionCallback&& CompletionCallback,
 		const FInstigator& InInstigator);
-	bool IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData);
-	static bool IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData,
-		const FPackageNameCache& InPackageNameCache, FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
+	bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData);
+	static bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData,
+		FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
 		FStringView InDLCPath, bool bInErrorOnEngineContentUse, TConstArrayView<const ITargetPlatform*> RequestPlatforms);
 
 	TArray<FFileNameRequest> InRequests;
@@ -310,7 +310,6 @@ private:
 	TUniquePtr<FGraphSearch> GraphSearch; // Needs to be dynamic-allocated because of large alignment
 	FPackageDatas& PackageDatas;
 	IAssetRegistry& AssetRegistry;
-	const FPackageNameCache& PackageNameCache;
 	FPackageTracker& PackageTracker;
 	FBuildDefinitions& BuildDefinitions;
 	int32 NextRequest = 0;
