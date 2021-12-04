@@ -161,12 +161,11 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 			}
 
 			// For interpolated warping, guarantee that PreviousOrientationAngle is respect to the current frame's root motion direction 
-			const FVector RootMotionCrossProduct = RootMotionDeltaDirection.Cross(PreviousRootMotionDeltaDirection);
-			float RootMotionDeltaAngle = FMath::Acos(RootMotionDeltaDirection.Dot(PreviousRootMotionDeltaDirection));
-			RootMotionDeltaAngle *= FMath::Sign(RotationAxisVector.Dot(RootMotionCrossProduct));
+			float RootMotionDeltaAngleDifference = FMath::Acos(RootMotionDeltaDirection.Dot(PreviousRootMotionDeltaDirection));
+			RootMotionDeltaAngleDifference *= FMath::Sign(RotationAxisVector.Dot(RootMotionDeltaDirection.Cross(PreviousRootMotionDeltaDirection)));
 
 			PreviousRootMotionDeltaDirection = RootMotionDeltaDirection;
-			PreviousOrientationAngle += RootMotionDeltaAngle;
+			PreviousOrientationAngle += RootMotionDeltaAngleDifference;
 
 			// Rotate the root motion delta fully by the warped angle
 			const FVector WarpedRootMotionTranslationDelta = WarpedRotation.RotateVector(RootMotionDeltaTranslation);

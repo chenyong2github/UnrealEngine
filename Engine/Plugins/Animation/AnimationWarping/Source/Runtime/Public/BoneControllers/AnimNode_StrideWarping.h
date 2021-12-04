@@ -40,14 +40,14 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_StrideWarping : public FAnimNode_Sk
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(PinShownByDefault))
 	FVector StrideDirection = FVector::ForwardVector;
 
-	// Stride scale, specifying the amount of warping applied to the IK foot definitions
+	// Stride scale, specifying the amount of warping applied to the foot definitions
 	// Example: A value of 0.5 will decrease the effective leg stride by half, while a value of 2.0 will double it
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(ClampMin="0.0", PinShownByDefault))
 	float StrideScale = 1.f;
 
 	// Locomotion speed, specifying the current speed of the character
 	// This will be used in the following equation for computing the stride scale: [StrideScale = (LocomotionSpeed / RootMotionSpeed)]
-	// Note: Both speeds should be relative to the delta time of the animation system
+	// Note: This speed should be relative to the delta time of the animation graph
 	// 
 	// Stride scale is a value specifying the amount of warping applied to the IK foot definitions
 	// Example: A value of 0.5 will decrease the effective leg stride by half, while a value of 2.0 will double it

@@ -20,14 +20,14 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 	float OrientationAngle = 0.f;
 
 	// The character locomotion angle (in degrees) relative to the specified RotationAxis
-	// This will be used in the following equation to compute the effective orientation warping angle: [Orientation = RotationBetween(RootMotionDirection, LocomotionDirection)]
+	// This will be used in the following equation for computing the orientation angle: [Orientation = RotationBetween(RootMotionDirection, LocomotionDirection)]
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(PinShownByDefault))
 	float LocomotionAngle = 0.f;
 
 	// Specifies an angle threshold to prevent erroneous over-rotation of the character, disabled with a value of 0
 	//
 	// When the effective orientation warping angle is detected to be greater than this value (default: 90 degrees) the locomotion direction will be inverted prior to warping
-	// This will result in the following equation: [Orientation = RotationBetween(RootMotionDirection, -LocomotionDirection)]
+	// This will be used in the following equation: [Orientation = RotationBetween(RootMotionDirection, -LocomotionDirection)]
 	//
 	// Example: Playing a forward running animation while the motion is going backward 
 	// Rather than orientation warping by 180 degrees, the system will warp by 0 degrees 
@@ -35,7 +35,7 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 	float LocomotionAngleDeltaThreshold = 90.f;
 
 	// Spine bone definitions
-	// Used to counter the rotation of the body to keep the character facing towards the specified angle (Orientation Angle, Locomotion Angle)
+	// Used to counter rotate the body in order to keep the character facing forward
 	// The amount of counter rotation applied is driven by DistributedBoneOrientationAlpha
 	UPROPERTY(EditAnywhere, Category=Settings)
 	TArray<FBoneReference> SpineBones;
@@ -48,16 +48,16 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_OrientationWarping : public FAnimNo
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(DisplayName="IK Foot Bones"))
 	TArray<FBoneReference> IKFootBones;
 
-	// Specifies how much rotation is applied to the character body versus IK feet
-	UPROPERTY(EditAnywhere, Category=Settings, meta=(ClampMin="0.0", ClampMax="1.0"))
-	float DistributedBoneOrientationAlpha = 0.5f;
-
 	// Rotation axis used when rotating the character body
 	UPROPERTY(EditAnywhere, Category=Settings)
 	TEnumAsByte<EAxis::Type> RotationAxis = EAxis::Z;
 
+	// Specifies how much rotation is applied to the character body versus IK feet
+	UPROPERTY(EditAnywhere, Category=Settings, meta=(ClampMin="0.0", ClampMax="1.0"))
+	float DistributedBoneOrientationAlpha = 0.5f;
+
 	// Specifies the interpolation speed (in Alpha per second) towards reaching the final warped rotation angle
-	// A value of 0 will cause instantaneous warping, while a greater value will introduce smoothing
+	// A value of 0 will cause instantaneous rotation, while a greater value will introduce smoothing
 	UPROPERTY(EditAnywhere, Category=Settings, meta=(ClampMin="0.0"))
 	float RotationInterpSpeed = 10.f;
 
