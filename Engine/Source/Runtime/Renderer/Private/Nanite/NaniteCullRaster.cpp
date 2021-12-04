@@ -1823,7 +1823,7 @@ FRasterContext InitRasterContext(
 	{
 		// Determine what is providing support for atomics.
 #if PLATFORM_WINDOWS
-		if (!FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(GShaderPlatformForFeatureLevel[FeatureLevel]))
+		if (!FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(GShaderPlatformForFeatureLevel[SharedContext.FeatureLevel]))
 		{
 			RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
 		}
