@@ -6,8 +6,8 @@
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Cooker/AsyncIODelete.h"
+#include "Cooker/CookPackageData.h"
 #include "Cooker/CookTypes.h"
-#include "Cooker/PackageNameCache.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
@@ -28,12 +28,13 @@
 #include "UObject/Package.h"
 #include "PackageStoreOptimizer.h"
 
-FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath, const FString& InMetadataDirectoryPath, const ITargetPlatform* InTargetPlatform,
-	FAsyncIODelete& InAsyncIODelete, const FPackageNameCache& InPackageNameCache, const TArray<TSharedRef<IPlugin>>& InPluginsToRemap)
+FLooseCookedPackageWriter::FLooseCookedPackageWriter(const FString& InOutputPath,
+	const FString& InMetadataDirectoryPath, const ITargetPlatform* InTargetPlatform, FAsyncIODelete& InAsyncIODelete,
+	UE::Cook::FPackageDatas& InPackageDatas, const TArray<TSharedRef<IPlugin>>& InPluginsToRemap)
 	: OutputPath(InOutputPath)
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
 	, TargetPlatform(*InTargetPlatform)
-	, PackageNameCache(InPackageNameCache)
+	, PackageDatas(InPackageDatas)
 	, PackageStoreManifest(InOutputPath)
 	, PluginsToRemap(InPluginsToRemap)
 	, AsyncIODelete(InAsyncIODelete)
@@ -423,7 +424,7 @@ TUniquePtr<FAssetRegistryState> FLooseCookedPackageWriter::LoadPreviousAssetRegi
 		{
 			FName PackageName = Pair.Key;
 			const FAssetPackageData* PackageData = Pair.Value;
-			const FName UncookedFilename = PackageNameCache.GetCachedStandardFileName(PackageName);
+			const FName UncookedFilename = PackageDatas.GetFileNameByPackageName(PackageName);
 			bool bExistsOnDisk = false;
 			if (!UncookedFilename.IsNone())
 			{
@@ -467,18 +468,23 @@ void FLooseCookedPackageWriter::RemoveCookedPackages(TArrayView<const FName> Pac
 		// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
 		UPackage::WaitForAsyncFileWrites();
 
-		// PackageNameCache is read-game-thread-only, so we have to read it before calling parallel-for
-		TArray<FName> UncookedFileNamesToRemove;
-		UncookedFileNamesToRemove.Reserve(PackageNamesToRemove.Num());
-		for (FName PackageName : PackageNamesToRemove)
+		auto DeletePackageLambda = [&PackageNamesToRemove, this](int32 PackageIndex)
 		{
-			const FName UncookedFileName = PackageNameCache.GetCachedStandardFileName(PackageName);
-			if (!UncookedFileName.IsNone())
+			const FName PackageName = PackageNamesToRemove[PackageIndex];
+			const FName UncookedFileName = PackageDatas.GetFileNameByPackageName(PackageName);
+			if (UncookedFileName.IsNone())
 			{
-				UncookedFileNamesToRemove.Add(UncookedFileName);
+				return;
 			}
-		}
-		RemoveCookedPackagesByUncookedFilename(UncookedFileNamesToRemove);
+			FName* CookedFileName = UncookedPathToCookedPath.Find(UncookedFileName);
+			if (CookedFileName)
+			{
+				TStringBuilder<256> FilePath;
+				CookedFileName->ToString(FilePath);
+				IFileManager::Get().Delete(*FilePath, true, true, true);
+			}
+		};
+		ParallelFor(PackageNamesToRemove.Num(), DeletePackageLambda);
 	}
 
 	// We no longer have a use for UncookedPathToCookedPath, after the RemoveCookedPackages call at the beginning of the cook.
@@ -645,7 +651,7 @@ FName FLooseCookedPackageWriter::ConvertCookedPathToUncookedPath(
 		BuildUncookedPath(FullCookedFilename, SandboxRootDir, RelativeRootDir);
 	}
 
-	// Convert to a standard filename as required by FPackageNameCache where this path is used.
+	// Convert to a standard filename as required by PackageDatas where this path is used.
 	FPaths::MakeStandardFilename(OutUncookedPath);
 
 	return FName(*OutUncookedPath);

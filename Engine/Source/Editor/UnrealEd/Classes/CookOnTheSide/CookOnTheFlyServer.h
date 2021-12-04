@@ -30,7 +30,6 @@ class IAssetRegistry;
 class ICookedPackageWriter;
 class IPlugin;
 class ITargetPlatform;
-struct FPackageNameCache;
 struct FPropertyChangedEvent;
 
 enum class ECookInitializationFlags
@@ -117,6 +116,7 @@ namespace UE::Cook
 	class FRequestCluster;
 	class FSaveCookedPackageContext;
 	class ICookOnTheFlyRequestManager;
+	struct FConstructPackageData;
 	struct FCookerTimer;
 	struct FCookSavePackageContext;
 	struct FGeneratorPackage;
@@ -748,10 +748,11 @@ private:
 	*
 	* @param AssetRegistryPath path of the assetregistry.bin file to read
 	* @param bVerifyPackagesExist whether or not we should verify the packages exist on disk.
-	* @param OutPackageNames out list of uncooked package filenames which were contained in the asset registry file
+	* @param OutPackageDatas out list of packagename/filenames for packages contained in the asset registry file
 	* @return true if successfully read false otherwise
 	*/
-	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist, TArray<FName>& OutPackageFilenames ) const;
+	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist,
+		TArray<UE::Cook::FConstructPackageData>& OutPackageDatas) const;
 
 	/**
 	* BuildMapDependencyGraph
@@ -1046,9 +1047,6 @@ private:
 
 	/** Generates long package names for all files to be cooked */
 	void GenerateLongPackageNames(TArray<FName>& FilesInPath, TMap<FName, UE::Cook::FInstigator>& Instigators);
-
-	/** Return the PackageNameCache that is caching FileNames on disk for this CookOnTheFlyServer. */
-	const FPackageNameCache& GetPackageNameCache() const;
 
 	/**
 	* Try to find a registered CookPackageSplitter to split the given package.

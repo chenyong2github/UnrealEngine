@@ -13,9 +13,9 @@
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "Engine/ICookInfo.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "Misc/EnumClassFlags.h"
-#include "PackageNameCache.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 #include "UObject/NameTypes.h"
@@ -588,8 +588,7 @@ public:
 	void ClearGeneratedPackages();
 
 	/** Call the Splitter's GetGenerateList and create the PackageDatas */
-	bool TryGenerateList(UObject* OwnerObject, const FPackageNameCache& PackageNameCache,
-		FPackageDatas& PackageDatas);
+	bool TryGenerateList(UObject* OwnerObject, FPackageDatas& PackageDatas);
 
 	/** Accessor for the packages to generate */
 	TArrayView<FGeneratedStruct> GetPackagesToGenerate() { return PackagesToGenerate; }
@@ -839,6 +838,13 @@ public:
 	FPackageDataQueue EntryQueue;
 };
 
+/** Data necessary to create an FPackageData without checking the disk, for e.g. AddExistingPackageDatasForPlatform */
+struct FConstructPackageData
+{
+	FName PackageName;
+	FName NormalizedFileName;
+};
+
 /*
  * Class that manages the list of all PackageDatas for a CookOnTheFlyServer. PackageDatas is an associative
  * array for extra data about a package (e.g. the requested platforms) that is needed by the CookOnTheFlyServer.
@@ -852,6 +858,8 @@ struct FPackageDatas : public FGCObject
 public:
 	FPackageDatas(UCookOnTheFlyServer& InCookOnTheFlyServer);
 	~FPackageDatas();
+	/** Called when the initial AssetRegistry search is done and it can be used to determine package existence. */
+	static void OnAssetRegistryGenerated(IAssetRegistry& InAssetRegistry);
 
 	/** Called each time BeginCook is called, for deferred intialization steps. */
 	void BeginCook();
@@ -864,8 +872,6 @@ public:
 	 */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	/** Return the PackageNameCache that is caching FileNames on disk for the CookOnTheFlyServer. */
-	const FPackageNameCache& GetPackageNameCache() const;
 	/** Return the Monitor used to report aggregated information about FPackageDatas. */
 	FPackageDataMonitor& GetMonitor();
 	/** Return the backpointer to the CookOnTheFlyServer */
@@ -901,39 +907,102 @@ public:
 	FPackageData* FindPackageDataByPackageName(const FName& PackageName);
 	/**
 	 * Return a pointer to the PackageData for the given PackageName. If one does not already exist,
-	 * find its FileName on disk and create the PackageData. If no filename exists, return nullptr.
+	 * find its FileName on disk and create the PackageData.  Will fail if the path is not mounted,
+	 * or if the file does not exist and bRequireExists is true. If it fails, returns nullptr.
+	 * 
+	 * @param bRequireExists If true, returns nullptr if the PackageData does not already exist and the
+	 *                       package does not exist on disk in the Workspace Domain.
+	 *                       If false, creates the PackageData so long as the package path is mounted.
+	 * @param bCreateAsMap Only used if the PackageData does not already exist, the package does not exist
+	 *                     on disk and bRequireExists is false. If true the extension is set to .umap,
+	 *                     if false, it is set to .uasset.
 	 */
-	FPackageData* TryAddPackageDataByPackageName(const FName& PackageName);
+	FPackageData* TryAddPackageDataByPackageName(const FName& PackageName, bool bRequireExists = true,
+		bool bCreateAsMap = false);
 	/**
 	 * Return a reference to the PackageData for the given PackageName. If one does not already exist,
-	 * find its FileName on disk and create the PackageData. Asserts if FileName does not exist;
-	 * caller is claiming it does.
+	 * find its FileName on disk and create the PackageData. Will fail if the path is not mounted,
+	 * or if the file does not exist and bRequireExists is true. If it fails, this function will assert.
+	 *
+	 * @param bRequireExists If true, asserts if the PackageData does not already exist and the
+	 *                       package does not exist on disk in the Workspace Domain.
+	 *                       If false, creates the PackageData so long as the package path is mounted.
+	 * @param bCreateAsMap Only used if the PackageData does not already exist, the package does not exist
+	 *                     on disk and bRequireExists is false. If true the extension is set to .umap,
+	 *                     if false, it is set to .uasset.
 	 */
-	FPackageData& AddPackageDataByPackageNameChecked(const FName& PackageName);
+	FPackageData& AddPackageDataByPackageNameChecked(const FName& PackageName, bool bRequireExists = true,
+		bool bCreateAsMap = false);
 
 	/**
-	 * Return the PackageData with the given FileName (or that has been marked as having the given FileName as an
-	 * alias) if one exists, otherwise return nullptr.
+	 * Return the PackageData with the given FileName if one exists, otherwise return nullptr.
 	 */
 	FPackageData* FindPackageDataByFileName(const FName& InFileName);
 	/**
-	 * Return a pointer to the PackageData for the given FileName (whether the actual name or an alias).
+	 * Return a pointer to the PackageData for the given FileName.
 	 * If one does not already exist, verify the FileName on disk and create the PackageData.
 	 * If no filename exists for the package on disk, return nullptr.
 	 */
 	FPackageData* TryAddPackageDataByFileName(const FName& InFileName);
 	/**
-	 * Return a reference to the PackageData for the given FileName (whether the actual name or an alias).
+	 * Return a pointer to the PackageData for the given FileName.
+	 * If one does not already exist, verify the FileName on disk and create the PackageData.
+	 * If no filename exists for the package on disk, return nullptr.
+	 * FileName must have been normalized by FPackageDatas::GetStandardFileName.
+	 */
+	FPackageData* TryAddPackageDataByStandardFileName(const FName& InFileName);
+	/**
+	 * Return a reference to the PackageData for the given FileName.
 	 * If one does not already exist, verify the FileName on disk and create the PackageData. Asserts if FileName
 	 * does not exist; caller is claiming it does.
 	 */
 	FPackageData& AddPackageDataByFileNameChecked(const FName& FileName);
 
 	/**
-	 * Optimized version of TryAddPackageDataByFileName for use by DLC when loading up the shipped packages.
-	 * This expects the PackageNameCache to have already been updated (for instance with AppendCacheResults)
+	 * Return the local path for the given packagename.
+	 * 
+	 * @param PackageName The LongPackageName of the Package
+	 * @param bRequireExists If true, fails if the package does not exist on disk in the Workspace Domain.
+	 *                       If false, returns the filename it would have so long as the package path is mounted.
+	 * @param bCreateAsMap Only used if bRequireExists is false and the path does not exist. If true
+	 *                     the extension is set to .umap, if false, it is set to .uasset.
+	 * @return Local WorkspaceDomain path in FPaths::MakeStandardFilename form, or NAME_None if it does not exist.
 	 */
-	void AddExistingPackageDatasForPlatform(const TArray<FName>& ExistingPackages,
+	FName GetFileNameByPackageName(FName PackageName, bool bRequireExists = true, bool bCreateAsMap = false);
+
+	/**
+	 * Return the local path for the given LongPackageName or unnormalized localpath.
+	 *
+	 * @param PackageName The name or local path for the package.
+	 * @param bRequireExists If true, fails if the package does not exist on disk in the Workspace Domain.
+	 *                       If false, returns the filename it would have so long as the package path is mounted.
+	 * @param bCreateAsMap Only used if bRequireExists is false and the path does not exist. If true
+	 *                     the extension is set to .umap, if false, it is set to .uasset.
+	 * @return Local WorkspaceDomain path in FPaths::MakeStandardFilename form, or NAME_None if it does not exist.
+	 */
+	FName GetFileNameByFlexName(FName PackageOrFileName, bool bRequireExists = true, bool bCreateAsMap = false);
+
+	/**
+	 * Uncached; reads the AssetRegistry and disk to find the filename for the given PackageName.
+	 * This is the same function that the other caching lookup functions use internally.
+	 * It can be called from multiple threads on a batch of files to accelerate the lookup, and
+	 * the results passed to FindOrAddPackageData(PackageName, FileName) which will then skip the lookup.
+	 * 
+	 * @param bRequireExists If true, fails if the package does not exist on disk in the Workspace Domain.
+	 *                       If false, returns the filename it would have so long as the package path is mounted.
+	 * @param bCreateAsMap Only used if bRequireExists is false and the path does not exist. If true
+	 *                     the extension is set to .umap, if false, it is set to .uasset.
+	 * @return The FPaths::MakeStandardFilename format of the localpath for the packagename, or NAME_None if
+	 *         it does not exist.
+	 */
+	static FName LookupFileNameOnDisk(FName PackageName, bool bRequireExists = true, bool bCreateAsMap = false);
+	/** Normalize the given FileName for use in looking up the cached data associated with the FileName. */
+	static FName GetStandardFileName(FName FileName);
+	/** Normalize the given FileName for use in looking up the cached data associated with the FileName. */
+	static FName GetStandardFileName(FStringView FileName);
+
+	/** Create and mark-cooked a batch of PackageDatas, used by DLC for cooked-in-earlier-release packages. */
+	void AddExistingPackageDatasForPlatform(TConstArrayView<FConstructPackageData> ExistingPackages,
 		const ITargetPlatform* TargetPlatform);
 
 	/**
@@ -943,21 +1012,15 @@ public:
 	 * and got redirected to another FileName.
 	 * Returns the PackageData if it exists.
 	 */
-	FPackageData* UpdateFileName(const FName& PackageName);
-	/**
-	 * Mark that the give PackageData should also be returned for searches for the given FileName in addition to
-	 * searches for its own FileName.
-	 * This is used for e.g. mapping AssetName.umap to AssetName.uasset.
-	 */
-	void RegisterFileNameAlias(FPackageData& PackageData, FName FileName);
+	FPackageData* UpdateFileName(FName PackageName);
 
 	/** Report the number of packages that have cooked any platform. Used by cook commandlet progress reporting. */
 	int32 GetNumCooked();
 	/**
-	 * Add onto CookedFiles the list of all packages that have cooked any package, either successfully if
+	 * Append to CookedPackages all packages that have cooked any platform, either successfully if
 	 * bGetSuccessfulCookedPackages is true and/or unsuccessfully if bGetFailedCookedPackages is true.
 	 */
-	void GetCookedFileNamesForPlatform(const ITargetPlatform* Platform, TArray<FName>& CookedFiles,
+	void GetCookedPackagesForPlatform(const ITargetPlatform* Platform, TArray<FPackageData*>& CookedPackages,
 		bool bGetFailedCookedPackages, bool bGetSuccessfulCookedPackages);
 
 	/**
@@ -997,11 +1060,14 @@ private:
 	 * New FPackageData are always created in the Idle state.
 	 */
 	FPackageData& CreatePackageData(FName PackageName, FName FileName);
+	/** Return whether a filename exists for the package on disk, and return it, unnormalized. */
+	static bool TryLookupFileNameOnDisk(FName PackageName, FString& OutFileName);
+	/** Return the corresponding PackageName if the normalized filename exists on disk. */
+	static FName LookupPackageNameOnDisk(FName NormalizedFileName);
 
 	/** Collection of pointers to all FPackageData that have been constructed by *this. */
 	TArray<FPackageData*> PackageDatas;
 	FPackageDataMonitor Monitor;
-	FPackageNameCache PackageNameCache;
 	TMap<FName, FPackageData*> PackageNameToPackageData;
 	TMap<FName, FPackageData*> FileNameToPackageData;
 	TArray<FPendingCookedPlatformData> PendingCookedPlatformDatas;
@@ -1010,9 +1076,12 @@ private:
 	FPackageDataQueue LoadReadyQueue;
 	FPackageDataQueue SaveQueue;
 	UCookOnTheFlyServer& CookOnTheFlyServer;
+	FRWLock ExistenceLock;
 	FPackageData* ShowInstigatorPackageData = nullptr;
 	double LastPollAsyncTime;
 	bool bLogDiscoveredPackages = false;
+
+	static IAssetRegistry* AssetRegistry;
 };
 
 /**
