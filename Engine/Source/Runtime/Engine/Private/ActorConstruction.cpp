@@ -653,7 +653,7 @@ void AActor::RerunConstructionScripts()
 				}
 			}
 #if WITH_EDITORONLY_DATA
-			if (OwningWorld->GetWorldPartition() != nullptr)
+			if (OwningWorld && OwningWorld->GetWorldPartition() != nullptr)
 			{
 				if (USceneComponent* OldSceneComponent = Cast<USceneComponent>(ComponentData.OldComponent))
 				{
