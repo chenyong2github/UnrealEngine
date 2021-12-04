@@ -16,93 +16,77 @@ ParticleVertexFactory.h: Particle vertex factory definitions.
 #include "SceneManagement.h"
 #include "VertexFactory.h"
 
-// This is temporarily disabled because of some outstanding issues that will require some upcoming work
-#define NIAGARA_ENABLE_GPU_SCENE_MESHES 0
+
 
 class FMaterial;
 class FVertexBuffer;
 struct FDynamicReadBuffer;
 struct FShaderCompilerEnvironment;
 
-/**
- * Common shader parameters for mesh particle renderers (used by multiple shaders)
- */
-BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraMeshCommonParameters, NIAGARAVERTEXFACTORIES_API)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
-	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataHalf)
-	SHADER_PARAMETER_SRV(Buffer<int>, NiagaraParticleDataInt)
-	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
-	SHADER_PARAMETER(uint32, NiagaraIntDataStride)
-
-	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
-	SHADER_PARAMETER(int, SortedIndicesOffset)
-	
-	SHADER_PARAMETER(FVector3f, SystemLWCTile)
-	SHADER_PARAMETER(int, bLocalSpace)
-	SHADER_PARAMETER(float, DeltaSeconds)
-	SHADER_PARAMETER(uint32, FacingMode)
-
-	SHADER_PARAMETER(FVector3f, MeshScale)
-	SHADER_PARAMETER(FVector3f, MeshOffset)
-	SHADER_PARAMETER(int, bMeshOffsetIsWorldSpace)
-
-	SHADER_PARAMETER(uint32, bLockedAxisEnable)
-	SHADER_PARAMETER(FVector3f, LockedAxis)
-	SHADER_PARAMETER(uint32, LockedAxisSpace)
-	
-	SHADER_PARAMETER(int, ScaleDataOffset)
-	SHADER_PARAMETER(int, RotationDataOffset)
-	SHADER_PARAMETER(int, PositionDataOffset)
-	SHADER_PARAMETER(int, VelocityDataOffset)
-	SHADER_PARAMETER(int, CameraOffsetDataOffset)
-	SHADER_PARAMETER(int, PrevScaleDataOffset)
-	SHADER_PARAMETER(int, PrevRotationDataOffset)
-	SHADER_PARAMETER(int, PrevPositionDataOffset)
-	SHADER_PARAMETER(int, PrevVelocityDataOffset)
-	SHADER_PARAMETER(int, PrevCameraOffsetDataOffset)
-
-	SHADER_PARAMETER(FVector3f, DefaultScale)
-	SHADER_PARAMETER(FVector4f, DefaultRotation)
-	SHADER_PARAMETER(FVector3f, DefaultPosition)
-	SHADER_PARAMETER(FVector3f, DefaultVelocity)
-	SHADER_PARAMETER(float, DefaultCameraOffset)
-	SHADER_PARAMETER(FVector3f, DefaultPrevScale)
-	SHADER_PARAMETER(FVector4f, DefaultPrevRotation)
-	SHADER_PARAMETER(FVector3f, DefaultPrevPosition)
-	SHADER_PARAMETER(FVector3f, DefaultPrevVelocity)
-	SHADER_PARAMETER(float, DefaultPrevCameraOffset)	
-END_SHADER_PARAMETER_STRUCT()
 
 /**
 * Uniform buffer for mesh particle vertex factories.
 */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTEXFACTORIES_API)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FNiagaraMeshCommonParameters, Common)
-
+	SHADER_PARAMETER(uint32, bLocalSpace)
+	SHADER_PARAMETER(FVector3f, PivotOffset)
+	SHADER_PARAMETER(int, bPivotOffsetIsWorldSpace)
+	SHADER_PARAMETER(FVector3f, MeshScale)
 	SHADER_PARAMETER(FVector4f, SubImageSize)
 	SHADER_PARAMETER(uint32, TexCoordWeightA)
 	SHADER_PARAMETER(uint32, TexCoordWeightB)
+	SHADER_PARAMETER(float, DeltaSeconds)
 	SHADER_PARAMETER(uint32, MaterialParamValidMask)
+	SHADER_PARAMETER(int, SortedIndicesOffset)
 
-	SHADER_PARAMETER(int, NormalizedAgeDataOffset)
-	SHADER_PARAMETER(int, SubImageDataOffset)
-	SHADER_PARAMETER(int, MaterialRandomDataOffset)
+	SHADER_PARAMETER(int, PositionDataOffset)
+	SHADER_PARAMETER(int, PrevPositionDataOffset)
+	SHADER_PARAMETER(int, VelocityDataOffset)
+	SHADER_PARAMETER(int, PrevVelocityDataOffset)
 	SHADER_PARAMETER(int, ColorDataOffset)
+	SHADER_PARAMETER(int, RotationDataOffset)
+	SHADER_PARAMETER(int, PrevRotationDataOffset)
+	SHADER_PARAMETER(int, ScaleDataOffset)
+	SHADER_PARAMETER(int, PrevScaleDataOffset)
 	SHADER_PARAMETER(int, MaterialParamDataOffset)
 	SHADER_PARAMETER(int, MaterialParam1DataOffset)
 	SHADER_PARAMETER(int, MaterialParam2DataOffset)
 	SHADER_PARAMETER(int, MaterialParam3DataOffset)
+	SHADER_PARAMETER(int, NormalizedAgeDataOffset)
+	SHADER_PARAMETER(int, SubImageDataOffset)
+	SHADER_PARAMETER(int, MaterialRandomDataOffset)
+	SHADER_PARAMETER(int, CameraOffsetDataOffset)
+	SHADER_PARAMETER(int, PrevCameraOffsetDataOffset)
 
-	SHADER_PARAMETER(float, DefaultNormAge)
-	SHADER_PARAMETER(float, DefaultSubImage)
-	SHADER_PARAMETER(float, DefaultMatRandom)
+	SHADER_PARAMETER(FVector4f, DefaultPos)
+	SHADER_PARAMETER(FVector4f, DefaultPrevPos)
+	SHADER_PARAMETER(FVector3f, DefaultVelocity)
+	SHADER_PARAMETER(FVector3f, DefaultPrevVelocity)
 	SHADER_PARAMETER(FVector4f, DefaultColor)
+	SHADER_PARAMETER(FVector4f, DefaultRotation)
+	SHADER_PARAMETER(FVector4f, DefaultPrevRotation)
+	SHADER_PARAMETER(FVector3f, DefaultScale)
+	SHADER_PARAMETER(FVector3f, DefaultPrevScale)
+	SHADER_PARAMETER(FVector3f, SystemLWCTile)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter0)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter1)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter2)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter3)
+	SHADER_PARAMETER(float, DefaultNormAge)
+	SHADER_PARAMETER(float, DefaultSubImage)
+	SHADER_PARAMETER(float, DefaultMatRandom)
+	SHADER_PARAMETER(float, DefaultCamOffset)
+	SHADER_PARAMETER(float, DefaultPrevCamOffset)
 
 	SHADER_PARAMETER(int, SubImageBlendMode)
+	SHADER_PARAMETER(uint32, FacingMode)
+	SHADER_PARAMETER(uint32, bLockedAxisEnable)
+	SHADER_PARAMETER(FVector3f, LockedAxis)
+	SHADER_PARAMETER(uint32, LockedAxisSpace)
+	SHADER_PARAMETER(uint32, NiagaraFloatDataStride)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataFloat)
+	SHADER_PARAMETER_SRV(Buffer<float>, NiagaraParticleDataHalf)
+	SHADER_PARAMETER_SRV(Buffer<int>, SortedIndices)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FNiagaraMeshUniformParameters> FNiagaraMeshUniformBufferRef;
@@ -145,8 +129,15 @@ public:
 	* Modify compile environment to enable instancing
 	* @param OutEnvironment - shader compile environment to modify
 	*/
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNiagaraVertexFactoryBase::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
+		// Set a define so we can tell in MaterialTemplate.usf when we are compiling a mesh particle vertex factory
+		OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_FACTORY"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("NIAGARA_MESH_INSTANCED"), TEXT("1"));
+		OutEnvironment.SetDefine(TEXT("NiagaraVFLooseParameters"), TEXT("NiagaraMeshVF"));
+	}
 
 	/**
 	* An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
@@ -168,6 +159,10 @@ public:
 	{
 		return MeshParticleUniformBuffer;
 	}
+	
+	//uint8* LockPreviousTransformBuffer(uint32 ParticleCount);
+	//void UnlockPreviousTransformBuffer();
+	//FRHIShaderResourceView* GetPreviousTransformBufferSRV() const;
 
 	/**
 	* Copy the data from another vertex factory

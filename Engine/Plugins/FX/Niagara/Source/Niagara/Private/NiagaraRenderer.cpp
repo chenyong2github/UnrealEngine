@@ -322,18 +322,6 @@ FNiagaraDynamicDataBase::~FNiagaraDynamicDataBase()
 	}
 }
 
-bool FNiagaraDynamicDataBase::IsGpuLowLatencyTranslucencyEnabled() const
-{
-	if (SimTarget == ENiagaraSimTarget::CPUSim)
-	{
-		return false;
-	}
-	else
-	{
-		return Data.GPUExecContext ? Data.GPUExecContext->HasTranslucentDataToRender() : false;
-	}
-}
-
 FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bIsLowLatencyTranslucent)const
 {
 	FNiagaraDataBuffer* Ret = nullptr;
