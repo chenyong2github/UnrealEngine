@@ -104,8 +104,8 @@ public:
 		}
 	}
 
-	const TArray<FName>& GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
-	const TArray<FName>& GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
+	TArray<FName> GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
+	TArray<FName> GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
 	
 	void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor);
 
