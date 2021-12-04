@@ -41,8 +41,6 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 
 		if ((!GetTeleportToExplicitTime() || (GetGroupName() != NAME_None) || (GetGroupMethod() == EAnimSyncMethod::Graph)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
 		{
-			DeltaTimeRecord.SetPrevious(InternalTimeAccumulator);
-
 			if (bReinitialized)
 			{
 				switch (GetReinitializationBehavior())
@@ -62,8 +60,6 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 			{
 				InternalTimeAccumulator = CurrentExplicitTime;
 			}
-
-			DeltaTimeRecord.Delta = TimeJump;
 
 			const float DeltaTime = Context.GetDeltaTime();
 			const float RateScale = CurrentSequence->RateScale;

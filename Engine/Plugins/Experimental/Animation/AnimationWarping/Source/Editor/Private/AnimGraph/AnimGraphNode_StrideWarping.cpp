@@ -3,6 +3,7 @@
 #include "AnimGraph/AnimGraphNode_StrideWarping.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "ScopedTransaction.h"
@@ -208,6 +209,92 @@ void UAnimGraphNode_StrideWarping::GetOutputLinkAttributes(FNodeAttributeArray& 
 	{
 		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
+}
+
+void UAnimGraphNode_StrideWarping::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
+{
+	auto HasInvalidBoneName = [](const FName& BoneName) 
+	{ 
+		return BoneName == NAME_None; 
+	};
+
+	auto HasInvalidBoneIndex = [&] (const FName& BoneName) 
+	{ 
+		return ForSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) == INDEX_NONE; 
+	};
+
+	auto InvalidBoneNameMessage = [&](const FName& BoneName) 
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BoneName"), FText::FromName(BoneName));
+		const FText Message = FText::Format(NSLOCTEXT("StrideWarping", "Invalid{BoneName}BoneName", "@@ - {BoneName} bone not found in Skeleton"), Args);
+		MessageLog.Warning(*Message.ToString(), this);
+	};
+
+	auto InvalidBoneIndexMessage = [&](const FName& BoneName) 
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("BoneName"), FText::FromName(BoneName));
+		const FText Message = FText::Format(NSLOCTEXT("StrideWarping", "Invalid{BoneName}BoneInSkeleton", "@@ - {BoneName} bone definition is required"), Args);
+		MessageLog.Warning(*Message.ToString(), this);
+	};
+
+	if (HasInvalidBoneName(Node.PelvisBone.BoneName))
+	{
+		InvalidBoneIndexMessage("Pelvis");
+	}
+	else if (HasInvalidBoneIndex(Node.PelvisBone.BoneName))
+	{
+		InvalidBoneNameMessage(Node.PelvisBone.BoneName);
+	}
+
+	if (HasInvalidBoneName(Node.IKFootRootBone.BoneName))
+	{
+		InvalidBoneIndexMessage("IK Foot Root");
+	}
+	else if (HasInvalidBoneIndex(Node.IKFootRootBone.BoneName))
+	{
+		InvalidBoneNameMessage(Node.IKFootRootBone.BoneName);
+	}
+
+	if (Node.FootDefinitions.IsEmpty())
+	{
+		MessageLog.Warning(*NSLOCTEXT("StrideWarping", "InvalidFootDefinitions", "@@ - Foot definitions are required").ToString(), this);
+	}
+	else
+	{
+		for (const auto& Foot : Node.FootDefinitions)
+		{
+			if (HasInvalidBoneName(Foot.IKFootBone.BoneName))
+			{
+				InvalidBoneIndexMessage("IK Foot");
+			}
+			else if (HasInvalidBoneIndex(Foot.IKFootBone.BoneName))
+			{
+				InvalidBoneNameMessage(Foot.IKFootBone.BoneName);
+			}
+
+			if (HasInvalidBoneName(Foot.FKFootBone.BoneName))
+			{
+				InvalidBoneIndexMessage("FK Foot");
+			}
+			else if (HasInvalidBoneIndex(Foot.FKFootBone.BoneName))
+			{
+				InvalidBoneNameMessage(Foot.FKFootBone.BoneName);
+			}
+
+			if (HasInvalidBoneName(Foot.ThighBone.BoneName))
+			{
+				InvalidBoneIndexMessage("Thigh");
+			}
+			else if (HasInvalidBoneIndex(Foot.ThighBone.BoneName))
+			{
+				InvalidBoneNameMessage(Foot.ThighBone.BoneName);
+			}
+		}
+	}
+
+	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 }
 
 #undef LOCTEXT_NAMESPACE

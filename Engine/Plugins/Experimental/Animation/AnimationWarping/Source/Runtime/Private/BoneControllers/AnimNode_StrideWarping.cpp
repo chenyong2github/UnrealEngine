@@ -7,9 +7,9 @@
 DECLARE_CYCLE_STAT(TEXT("StrideWarping Eval"), STAT_StrideWarping_Eval, STATGROUP_Anim);
 
 #if ENABLE_ANIM_DEBUG
-TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingDebug(TEXT("a.AnimNode.StrideWarping.Debug"), 0, TEXT("Turn on visualization debugging for Stride Warping"));
-TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingVerbose(TEXT("a.AnimNode.StrideWarping.Verbose"), 0, TEXT("Turn on verbose graph debugging for Stride Warping"));
-TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingEnable(TEXT("a.AnimNode.StrideWarping.Enable"), 1, TEXT("Toggle Stride Warping"));
+static TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingDebug(TEXT("a.AnimNode.StrideWarping.Debug"), 0, TEXT("Turn on visualization debugging for Stride Warping"));
+static TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingVerbose(TEXT("a.AnimNode.StrideWarping.Verbose"), 0, TEXT("Turn on verbose graph debugging for Stride Warping"));
+static TAutoConsoleVariable<int32> CVarAnimNodeStrideWarpingEnable(TEXT("a.AnimNode.StrideWarping.Enable"), 1, TEXT("Toggle Stride Warping"));
 #endif
 
 void FAnimNode_StrideWarping::GatherDebugData(FNodeDebugData& DebugData)
@@ -17,13 +17,17 @@ void FAnimNode_StrideWarping::GatherDebugData(FNodeDebugData& DebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 #if ENABLE_ANIM_DEBUG
 	if (CVarAnimNodeStrideWarpingVerbose.GetValueOnAnyThread() == 1)
-	{
+	{ 
 		DebugLine += FString::Printf(TEXT("\n - Evaluation Mode: (%s)"), Mode == EWarpingEvaluationMode::Graph ? TEXT("Graph") : TEXT("Manual"));
-		DebugLine += FString::Printf(TEXT("\n - Stride Scale: (%.3fd)"), StrideScale);
-		DebugLine += FString::Printf(TEXT("\n - Stride Direction: (%s)"), *(StrideDirection.ToCompactString()));
+		DebugLine += FString::Printf(TEXT("\n - Stride Scale: (%.3fd)"), ActualStrideScale);
+		DebugLine += FString::Printf(TEXT("\n - Stride Direction: (%s)"), *(ActualStrideDirection.ToCompactString()));
 		if (Mode == EWarpingEvaluationMode::Graph)
 		{
 			DebugLine += FString::Printf(TEXT("\n - Locomotion Speed: (%.3fd)"), LocomotionSpeed);
+#if WITH_EDITORONLY_DATA
+			DebugLine += FString::Printf(TEXT("\n - Root Motion Direction: (%s)"), *(CachedRootMotionDeltaTranslation.GetSafeNormal().ToCompactString()));
+			DebugLine += FString::Printf(TEXT("\n - Root Motion Speed: (%.3fd)"), CachedRootMotionDeltaSpeed);
+#endif
 			DebugLine += FString::Printf(TEXT("\n - Min Locomotion Speed Threshold: (%.3fd)"), MinLocomotionSpeedThreshold);
 		}
 		DebugLine += FString::Printf(TEXT("\n - Floor Normal: (%s)"), *(FloorNormalDirection.Value.ToCompactString()));
@@ -32,7 +36,7 @@ void FAnimNode_StrideWarping::GatherDebugData(FNodeDebugData& DebugData)
 	else
 #endif
 	{
-		DebugLine += FString::Printf(TEXT("(Stride Scale: %.3fd, Direction: %s)"), StrideScale, *(StrideDirection.ToCompactString()));
+		DebugLine += FString::Printf(TEXT("(Stride Scale: %.3fd, Direction: %s)"), ActualStrideScale, *(ActualStrideDirection.ToCompactString()));
 	}
 	DebugData.AddDebugItem(DebugLine);
 	ComponentPose.GatherDebugData(DebugData);
@@ -41,8 +45,15 @@ void FAnimNode_StrideWarping::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_StrideWarping::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	FAnimNode_SkeletalControlBase::Initialize_AnyThread(Context);
+	
 	AnimInstanceProxy = Context.AnimInstanceProxy;
 	StrideScaleModifierState.Reinitialize();
+	ActualStrideDirection = FVector::ForwardVector;
+	ActualStrideScale = 1.f;
+#if WITH_EDITORONLY_DATA
+	CachedRootMotionDeltaTranslation = FVector::ZeroVector;
+	CachedRootMotionDeltaSpeed = 0.f;
+#endif
 }
 
 void FAnimNode_StrideWarping::UpdateInternal(const FAnimationUpdateContext& Context)
@@ -54,19 +65,39 @@ void FAnimNode_StrideWarping::UpdateInternal(const FAnimationUpdateContext& Cont
 void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	SCOPE_CYCLE_COUNTER(STAT_StrideWarping_Eval);
-	check(OutBoneTransforms.Num() == 0);
+	check(OutBoneTransforms.IsEmpty());
 
-	FTransform RootMotionTransformDelta;
+	ActualStrideDirection = StrideDirection;
+	ActualStrideScale = StrideScale;
+
+	bool bGraphDrivenWarping = false;
 	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
-	bool bGraphDrivenWarping = RootMotionProvider && Mode == EWarpingEvaluationMode::Graph;
 
+	if (Mode == EWarpingEvaluationMode::Graph)
+	{
+		bGraphDrivenWarping = !!RootMotionProvider;
+		ensureMsgf(bGraphDrivenWarping, TEXT("Graph driven Stride Warping expected a valid root motion delta provider interface."));
+	}
+
+	FTransform RootMotionTransformDelta = FTransform::Identity;
+#if !WITH_EDITORONLY_DATA
+	FVector CachedRootMotionDeltaTranslation = FVector::ZeroVector;
+#endif
 	if (bGraphDrivenWarping)
 	{
 		// Graph driven stride warping will override the manual stride direction with the intent of the current animation sub-graph's accumulated root motion
 		bGraphDrivenWarping = RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
-		if (ensure(bGraphDrivenWarping))
+		if (ensureMsgf(bGraphDrivenWarping, TEXT(
+			"Graph driven Stride Warping expected a root motion delta to be present in the attribute stream.\n"
+			"Check that the evaluating Animation Sequence(s) have: \"Enable Root Motion\" enabled.")))
 		{
-			StrideDirection = RootMotionTransformDelta.GetTranslation().GetSafeNormal();
+			CachedRootMotionDeltaTranslation = RootMotionTransformDelta.GetTranslation();
+			ActualStrideDirection = CachedRootMotionDeltaTranslation.GetSafeNormal();
+		}
+		else
+		{
+			// Early exit on broken graph driven behavior 
+			return;
 		}
 	}
 
@@ -77,14 +108,16 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 
 	if (bOrientStrideDirectionUsingFloorNormal)
 	{
-		const FVector StrideWarpingAxis = ResolvedFloorNormal ^ StrideDirection;
-		StrideDirection = StrideWarpingAxis ^ ResolvedFloorNormal;
+		const FVector StrideWarpingAxis = ResolvedFloorNormal ^ ActualStrideDirection;
+		ActualStrideDirection = StrideWarpingAxis ^ ResolvedFloorNormal;
 	}
 
 #if ENABLE_ANIM_DEBUG
 	bool bDebugging = false;
 #if WITH_EDITORONLY_DATA
 	bDebugging = bDebugging || bEnableDebugDraw;
+#else
+	constexpr float DebugDrawScale = 1.f;
 #endif
 	bDebugging = bDebugging || CVarAnimNodeStrideWarpingDebug.GetValueOnAnyThread() == 1;
 	if (bDebugging)
@@ -92,8 +125,8 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// Draw Floor Normal
 		AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
 			AnimInstanceProxy->GetComponentTransform().TransformPosition(IKFootRootTransform.GetLocation()),
-			AnimInstanceProxy->GetComponentTransform().TransformPosition(IKFootRootTransform.GetLocation() + ResolvedFloorNormal * 25.f),
-			40.f, FColor::Blue, false, 0.f, 2.f);
+			AnimInstanceProxy->GetComponentTransform().TransformPosition(IKFootRootTransform.GetLocation() + ResolvedFloorNormal * 25.f * DebugDrawScale),
+			40.f * DebugDrawScale, FColor::Blue, false, 0.f, 2.f * DebugDrawScale);
 	}
 #endif
 
@@ -109,42 +142,32 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		)
 		{
 			const FVector FootWorldLocation = AnimInstanceProxy->GetComponentTransform().TransformPosition(Foot.IKFootBoneTransform.GetLocation());
-			AnimInstanceProxy->AnimDrawDebugSphere(FootWorldLocation, 8.f, 16, FColor::Red);
+			AnimInstanceProxy->AnimDrawDebugSphere(FootWorldLocation, 8.f * DebugDrawScale, 16, FColor::Red);
 		}
 #endif
 	}
 
 	if (bGraphDrivenWarping)
 	{
-		// Early out when stride warping will have minimal pose contribution
-		if (FMath::IsNearlyZero(CachedDeltaTime, KINDA_SMALL_NUMBER))
-		{
-			return;
-		}
-
-		const float RootMotionSpeed = RootMotionTransformDelta.GetTranslation().Size() / CachedDeltaTime;
-
-		if (FMath::IsNearlyZero(RootMotionSpeed, MinLocomotionSpeedThreshold) || FMath::IsNearlyZero(LocomotionSpeed, MinLocomotionSpeedThreshold))
-		{
-			StrideScale = 1.f;
-		}
-		else
-		{
-			// Graph driven stride scale factor will be determined by the ratio of the
-			// locomotion (capsule/physics) speed against the animation root motion speed
-			StrideScale = LocomotionSpeed / RootMotionSpeed;
-		}
+#if WITH_EDITORONLY_DATA
+		CachedRootMotionDeltaSpeed = CachedRootMotionDeltaTranslation.Size() / CachedDeltaTime;
+#else
+		const float CachedRootMotionDeltaSpeed = CachedRootMotionDeltaTranslation.Size() / CachedDeltaTime;
+#endif
+		// Graph driven stride scale factor will be determined by the ratio of the
+		// locomotion (capsule/physics) speed against the animation root motion speed
+		ActualStrideScale = LocomotionSpeed / CachedRootMotionDeltaSpeed;
 	}
 
-	// Allow the opportunity for stride scale clamping and biasing regardless of evaluation mode
-	StrideScale = StrideScaleModifierState.ApplyTo(StrideScaleModifier, StrideScale, CachedDeltaTime);
+	// Allow the opportunity for stride scale clamping and interpolation regardless of evaluation mode
+	ActualStrideScale = StrideScaleModifierState.ApplyTo(StrideScaleModifier, ActualStrideScale, CachedDeltaTime);
 
 	if (bGraphDrivenWarping)
 	{
 		// Forward the side effects of stride warping on the root motion contribution for this sub-graph
-		RootMotionTransformDelta.ScaleTranslation(StrideScale);
+		RootMotionTransformDelta.ScaleTranslation(ActualStrideScale);
 		const bool bRootMotionOverridden = RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
-		ensure(bRootMotionOverridden);
+		ensureMsgf(bRootMotionOverridden, TEXT("Graph driven Stride Warping expected a root motion delta to be present in the attribute stream prior to warping/overriding it."));
 	}
 
 	// Scale IK feet bones along Stride Warping Axis, from the Thigh bone location.
@@ -159,10 +182,10 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		const FVector StrideWarpingPlaneOrigin = (FMath::Abs(ResolvedGravityDirection | ResolvedFloorNormal) > DELTA) ? FMath::LinePlaneIntersection(ThighBoneLocation, ThighBoneLocation + ResolvedGravityDirection, IKFootLocation, ResolvedFloorNormal) : IKFootLocation;
 
 		// Project FK Foot along StrideWarping Plane, this will be our Scale Origin
-		const FVector ScaleOrigin = FVector::PointPlaneProject(IKFootLocation, StrideWarpingPlaneOrigin, StrideDirection);
+		const FVector ScaleOrigin = FVector::PointPlaneProject(IKFootLocation, StrideWarpingPlaneOrigin, ActualStrideDirection);
 
 		// Now the ScaleOrigin and IKFootLocation are forming a line parallel to the floor, and we can scale the IK foot.
-		const FVector WarpedLocation = ScaleOrigin + (IKFootLocation - ScaleOrigin) * StrideScale;
+		const FVector WarpedLocation = ScaleOrigin + (IKFootLocation - ScaleOrigin) * ActualStrideScale;
 		Foot.IKFootBoneTransform.SetLocation(WarpedLocation);
 
 #if ENABLE_ANIM_DEBUG
@@ -173,17 +196,16 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		)
 		{
 			const FVector FootWorldLocation = AnimInstanceProxy->GetComponentTransform().TransformPosition(Foot.IKFootBoneTransform.GetLocation());
-			AnimInstanceProxy->AnimDrawDebugSphere(FootWorldLocation, 8.f, 16, FColor::Green);
+			AnimInstanceProxy->AnimDrawDebugSphere(FootWorldLocation, 8.f * DebugDrawScale, 16, FColor::Green);
 
 			const FVector ScaleOriginWorldLoc = AnimInstanceProxy->GetComponentTransform().TransformPosition(ScaleOrigin);
-			AnimInstanceProxy->AnimDrawDebugSphere(ScaleOriginWorldLoc, 8.f, 16, FColor::Yellow);
+			AnimInstanceProxy->AnimDrawDebugSphere(ScaleOriginWorldLoc, 8.f * DebugDrawScale, 16, FColor::Yellow);
 		}
 #endif
 	}
 
 	FVector PelvisOffset = FVector::ZeroVector;
 	const FCompactPoseBoneIndex PelvisBoneIndex = PelvisBone.GetCompactPoseIndex(RequiredBones);
-	check(PelvisBoneIndex != INDEX_NONE);
 
 	FTransform PelvisTransform = Output.Pose.GetComponentSpaceTransform(PelvisBoneIndex);
 	const FVector InitialPelvisLocation = PelvisTransform.GetLocation();
@@ -214,8 +236,8 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 	)
 	{
 		// Draw Adjustments in Pelvis location
-		AnimInstanceProxy->AnimDrawDebugSphere(AnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation), 8.f, 16, FColor::Red);
-		AnimInstanceProxy->AnimDrawDebugSphere(AnimInstanceProxy->GetComponentTransform().TransformPosition(PelvisTransform.GetLocation()), 8.f, 16, FColor::Blue);
+		AnimInstanceProxy->AnimDrawDebugSphere(AnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation), 8.f * DebugDrawScale, 16, FColor::Red);
+		AnimInstanceProxy->AnimDrawDebugSphere(AnimInstanceProxy->GetComponentTransform().TransformPosition(PelvisTransform.GetLocation()), 8.f * DebugDrawScale, 16, FColor::Blue);
 	}
 
 	if (bDebugging)
@@ -223,8 +245,8 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 		// Draw Stride Direction
 		AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
 			AnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation),
-			AnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation + StrideDirection * StrideScale * 100.f),
-			40.f, FColor::Red, false, 0.f, 2.f);
+			AnimInstanceProxy->GetComponentTransform().TransformPosition(InitialPelvisLocation + ActualStrideDirection * ActualStrideScale * 100.f * DebugDrawScale),
+			40.f * DebugDrawScale, FColor::Red, false, 0.f, 2.f * DebugDrawScale);
 	}
 #endif
 	// Add adjusted pelvis transform
@@ -258,12 +280,12 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 				AnimInstanceProxy->AnimDrawDebugLine(
 					AnimInstanceProxy->GetComponentTransform().TransformPosition(ThighTransform.GetLocation()),
 					AnimInstanceProxy->GetComponentTransform().TransformPosition(FKFootTransform.GetLocation()),
-					FColor::Red, false, 0.f, 2.f);
+					FColor::Red, false, 0.f, 2.f * DebugDrawScale);
 
 				AnimInstanceProxy->AnimDrawDebugLine(
 					AnimInstanceProxy->GetComponentTransform().TransformPosition(AdjustedThighTransform.GetLocation()),
 					AnimInstanceProxy->GetComponentTransform().TransformPosition(Foot.IKFootBoneTransform.GetLocation()),
-					FColor::Green, false, 0.f, 2.f);
+					FColor::Green, false, 0.f, 2.f * DebugDrawScale);
 			}
 #endif
 			// Find Delta Rotation take takes us from Old to New dir
@@ -300,7 +322,7 @@ void FAnimNode_StrideWarping::EvaluateSkeletalControl_AnyThread(FComponentSpaceP
 #endif
 		)
 		{
-			AnimInstanceProxy->AnimDrawDebugSphere(AnimInstanceProxy->GetComponentTransform().TransformPosition(Foot.IKFootBoneTransform.GetLocation()), 8.f, 16, FColor::Blue);
+			AnimInstanceProxy->AnimDrawDebugSphere(AnimInstanceProxy->GetComponentTransform().TransformPosition(Foot.IKFootBoneTransform.GetLocation()), 8.f * DebugDrawScale, 16, FColor::Blue);
 		}
 #endif
 		check(!Foot.IKFootBoneTransform.ContainsNaN());
@@ -319,12 +341,12 @@ bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const
 		return false;
 	}
 #endif
-	if (PelvisBone.GetCompactPoseIndex(RequiredBones) == INDEX_NONE)
+	if (!PelvisBone.IsValidToEvaluate(RequiredBones))
 	{
 		return false;
 	}
-	
-	if (IKFootRootBone.GetCompactPoseIndex(RequiredBones) == INDEX_NONE)
+
+	if (!IKFootRootBone.IsValidToEvaluate(RequiredBones))
 	{
 		return false;
 	}
@@ -343,7 +365,7 @@ bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const
 			}
 		}
 	}
-	
+
 	if (Mode == EWarpingEvaluationMode::Manual)
 	{
 		if (FMath::IsNearlyEqual(StrideScaleModifierState.ApplyTo(StrideScaleModifier, StrideScale, CachedDeltaTime), 1.f, KINDA_SMALL_NUMBER))
@@ -355,6 +377,7 @@ bool FAnimNode_StrideWarping::IsValidToEvaluate(const USkeleton* Skeleton, const
 	{
 		return false;
 	}
+
 	return true;
 }
 

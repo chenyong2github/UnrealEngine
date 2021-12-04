@@ -42,11 +42,12 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_StrideWarping : public FAnimNode_Sk
 
 	// Stride scale, specifying the amount of warping applied to the IK foot definitions
 	// Example: A value of 0.5 will decrease the effective leg stride by half, while a value of 2.0 will double it
-	UPROPERTY(EditAnywhere, Category=Evaluation, meta=(ClampMin="0.0", PinShownByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(ClampMin="0.0", PinShownByDefault))
 	float StrideScale = 1.f;
 
 	// Locomotion speed, specifying the current speed of the character
 	// This will be used in the following equation for computing the stride scale: [StrideScale = (LocomotionSpeed / RootMotionSpeed)]
+	// Note: Both speeds should be relative to the delta time of the animation system
 	// 
 	// Stride scale is a value specifying the amount of warping applied to the IK foot definitions
 	// Example: A value of 0.5 will decrease the effective leg stride by half, while a value of 2.0 will double it
@@ -101,6 +102,10 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_StrideWarping : public FAnimNode_Sk
 	bool bClampIKUsingFKLimits = true;
 
 #if WITH_EDITORONLY_DATA
+	// Scale all debug drawing visualization by a factor
+	UPROPERTY(EditAnywhere, Category=Debug, meta=(ClampMin="0.0"))
+	float DebugDrawScale = 1.f;
+
 	// Enable/Disable stride warping debug drawing
 	UPROPERTY(EditAnywhere, Category=Debug)
 	bool bEnableDebugDraw = false;
@@ -165,9 +170,23 @@ private:
 	// Computed IK, FK, Thigh bone indices for the specified foot definitions
 	TArray<FStrideWarpingFootData> FootData;
 
+	// Internal cached stride scale modifier state
+	FInputClampState StrideScaleModifierState;
+
+	// Internal stride direction
+	FVector ActualStrideDirection = FVector::ForwardVector;
+
+	// Internal stride scale
+	float ActualStrideScale = 1.f;
+
 	// Internal cached delta time used for interpolators
 	float CachedDeltaTime = 0.f;
 
-	// Internal cached stride scale modifier state
-	FInputClampState StrideScaleModifierState;
+#if WITH_EDITORONLY_DATA
+	// Internal cached debug root motion delta translation
+	FVector CachedRootMotionDeltaTranslation = FVector::ZeroVector;
+
+	// Internal cached debug root motion speed
+	float CachedRootMotionDeltaSpeed = 0.f;
+#endif
 };

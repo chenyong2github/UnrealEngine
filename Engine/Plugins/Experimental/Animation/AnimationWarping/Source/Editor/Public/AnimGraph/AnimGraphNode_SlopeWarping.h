@@ -7,7 +7,7 @@
 
 #include "AnimGraphNode_SlopeWarping.generated.h"
 
-UCLASS()
+UCLASS(Experimental)
 class ANIMATIONWARPINGEDITOR_API UAnimGraphNode_SlopeWarping : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_UCLASS_BODY()

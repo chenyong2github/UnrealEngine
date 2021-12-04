@@ -7,9 +7,9 @@
 DECLARE_CYCLE_STAT(TEXT("OrientationWarping Eval"), STAT_OrientationWarping_Eval, STATGROUP_Anim);
 
 #if ENABLE_ANIM_DEBUG
-TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingDebug(TEXT("a.AnimNode.OrientationWarping.Debug"), 0, TEXT("Turn on visualization debugging for Orientation Warping"));
-TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingVerbose(TEXT("a.AnimNode.OrientationWarping.Verbose"), 0, TEXT("Turn on verbose graph debugging for Orientation Warping"));
-TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingEnable(TEXT("a.AnimNode.OrientationWarping.Enable"), 1, TEXT("Toggle Orientation Warping"));
+static TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingDebug(TEXT("a.AnimNode.OrientationWarping.Debug"), 0, TEXT("Turn on visualization debugging for Orientation Warping"));
+static TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingVerbose(TEXT("a.AnimNode.OrientationWarping.Verbose"), 0, TEXT("Turn on verbose graph debugging for Orientation Warping"));
+static TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingEnable(TEXT("a.AnimNode.OrientationWarping.Enable"), 1, TEXT("Toggle Orientation Warping"));
 #endif
 
 namespace UE::Anim
@@ -27,9 +27,10 @@ namespace UE::Anim
 		};
 	}
 
-	static inline bool IsInvalidWarpingAngle(float Angle, float Tolerance)
+	static inline bool IsInvalidWarpingAngleDegrees(float Angle, float Tolerance)
 	{
-		return FMath::IsNearlyZero(Angle, Tolerance) || FMath::IsNearlyEqual(FMath::Abs(Angle), PI, Tolerance);
+		Angle = FRotator::NormalizeAxis(Angle);
+		return FMath::IsNearlyZero(Angle, Tolerance) || FMath::IsNearlyEqual(FMath::Abs(Angle), 180.f, Tolerance);
 	}
 }
 
@@ -42,13 +43,13 @@ void FAnimNode_OrientationWarping::GatherDebugData(FNodeDebugData& DebugData)
 		if (Mode == EWarpingEvaluationMode::Manual)
 		{
 			DebugLine += TEXT("\n - Evaluation Mode: (Manual)");
-			DebugLine += FString::Printf(TEXT("\n - Orientation Angle: (%.3fd)"), FMath::RadiansToDegrees(OrientationAngle));
+			DebugLine += FString::Printf(TEXT("\n - Orientation Angle: (%.3fd)"), FMath::RadiansToDegrees(ActualOrientationAngle));
 		}
 		else
 		{
 			DebugLine += TEXT("\n - Evaluation Mode: (Graph)");
-			DebugLine += FString::Printf(TEXT("\n - Orientation Angle: (%.3fd)"), FMath::RadiansToDegrees(OrientationAngle));
-			DebugLine += FString::Printf(TEXT("\n - Locomotion Angle: (%.3fd)"), LocomotionAngle);
+			DebugLine += FString::Printf(TEXT("\n - Orientation Angle: (%.3fd)"), FMath::RadiansToDegrees(ActualOrientationAngle));
+			DebugLine += FString::Printf(TEXT("\n - Locomotion Angle: (%.3fd)"), FMath::RadiansToDegrees(LocomotionAngle));
 			DebugLine += FString::Printf(TEXT("\n - Locomotion Delta Angle Threshold: (%.3fd)"), LocomotionAngleDeltaThreshold);
 		}
 		DebugLine += FString::Printf(TEXT("\n - Distributed Bone Orientation Alpha: (%.3fd)"), DistributedBoneOrientationAlpha);
@@ -61,7 +62,7 @@ void FAnimNode_OrientationWarping::GatherDebugData(FNodeDebugData& DebugData)
 	else
 #endif
 	{
-		DebugLine += FString::Printf(TEXT("(Orientation Angle: %.3fd)"), FMath::RadiansToDegrees(OrientationAngle));
+	DebugLine += FString::Printf(TEXT("(Orientation Angle: %.3fd)"), FMath::RadiansToDegrees(ActualOrientationAngle));
 	}
 	DebugData.AddDebugItem(DebugLine);
 	ComponentPose.GatherDebugData(DebugData);
@@ -70,6 +71,10 @@ void FAnimNode_OrientationWarping::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_OrientationWarping::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	FAnimNode_SkeletalControlBase::Initialize_AnyThread(Context);
+
+	PreviousRootMotionDeltaDirection = FVector::ZeroVector;
+	PreviousOrientationAngle = 0.f;
+	ActualOrientationAngle = 0.f;
 }
 
 void FAnimNode_OrientationWarping::UpdateInternal(const FAnimationUpdateContext& Context)
@@ -82,8 +87,20 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 	SCOPE_CYCLE_COUNTER(STAT_OrientationWarping_Eval);
 	check(OutBoneTransforms.Num() == 0);
 
+	ActualOrientationAngle = OrientationAngle;
+
+	const FVector RotationAxisVector = UE::Anim::GetAxisVector(RotationAxis);
+	FVector RootMotionDeltaDirection = FVector::ZeroVector;
+	FVector LocomotionForward = FVector::ZeroVector;
+
+	bool bGraphDrivenWarping = false;
 	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
-	const bool bGraphDrivenWarping = RootMotionProvider && Mode == EWarpingEvaluationMode::Graph;
+
+	if (Mode == EWarpingEvaluationMode::Graph)
+	{
+		bGraphDrivenWarping = !!RootMotionProvider;
+		ensureMsgf(bGraphDrivenWarping, TEXT("Graph driven Orientation Warping expected a valid root motion delta provider interface."));
+	}
 
 	// We will likely need to revisit LocomotionAngle participating as an input to orientation warping.
 	// Without velocity information from the motion model (such as the capsule), LocomotionAngle isn't enough
@@ -98,16 +115,16 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 	// The solution may be instead to pass velocity with the actor base rotation, allowing us to retain
 	// speed information about the motion. It may also allow us to do more complex orienting behavior 
 	// when multiple degrees of freedom can be considered.
-	OrientationAngle = FMath::DegreesToRadians(FRotator::NormalizeAxis(bGraphDrivenWarping ? LocomotionAngle : OrientationAngle));
-	const FVector RotationAxisVector = UE::Anim::GetAxisVector(RotationAxis);
 
-	// Graph driven orientation warping will modify the incoming root motion to orient towards the intended locomotion angle
 	if (bGraphDrivenWarping)
 	{
-		FTransform RootMotionTransformDelta;
-		const bool bRootMotionDeltaPresent = RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
+		FTransform RootMotionTransformDelta = FTransform::Identity;
+		bGraphDrivenWarping = RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
 
-		if (ensure(bRootMotionDeltaPresent))
+		// Graph driven orientation warping will modify the incoming root motion to orient towards the intended locomotion angle
+		if (ensureMsgf(bGraphDrivenWarping, TEXT(
+			"Graph driven Orientation Warping expected a root motion delta to be present in the attribute stream.\n"
+			"Check that the evaluating Animation Sequence(s) have: \"Enable Root Motion\" enabled.")))
 		{
 			// In UE, forward is defined as +x; consequently this is also true when sampling an actor's velocity. Historically the skeletal 
 			// mesh component forward will not match the actor, requiring us to correct the rotation before sampling the LocomotionForward.
@@ -117,77 +134,122 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 			// 1. Actor Forward
 			// 2. Actor Velocity
 			// 3. Skeletal Mesh Relative Rotation
+
+			LocomotionAngle = FRotator::NormalizeAxis(LocomotionAngle);
+			LocomotionAngle = FMath::DegreesToRadians(LocomotionAngle);
+			const FQuat LocomotionRotation = FQuat(RotationAxisVector, LocomotionAngle);
+
 			const FTransform SkeletalMeshRelativeTransform = Output.AnimInstanceProxy->GetComponentRelativeTransform();
 			const FQuat SkeletalMeshRelativeRotation = SkeletalMeshRelativeTransform.GetRotation();
-			const FQuat LocomotionRotation = FQuat(RotationAxisVector, OrientationAngle);
-			const FVector LocomotionForwardDir = SkeletalMeshRelativeRotation.UnrotateVector(LocomotionRotation.GetForwardVector());
-			const FVector RootMotionDeltaDir = RootMotionTransformDelta.GetTranslation();
+			LocomotionForward = SkeletalMeshRelativeRotation.UnrotateVector(LocomotionRotation.GetForwardVector()).GetSafeNormal();
+
+			const FVector RootMotionDeltaTranslation = RootMotionTransformDelta.GetTranslation();
+			RootMotionDeltaDirection = RootMotionDeltaTranslation.GetSafeNormal();
 
 			// Capture the delta rotation from the axis of motion we care about
-			FQuat WarpedRotation = FQuat::FindBetween(RootMotionDeltaDir, LocomotionForwardDir);
-			OrientationAngle = WarpedRotation.GetTwistAngle(RotationAxisVector);
+			FQuat WarpedRotation = FQuat::FindBetween(RootMotionDeltaDirection, LocomotionForward);
+			ActualOrientationAngle = WarpedRotation.GetTwistAngle(RotationAxisVector);
 
 			// Motion Matching may return an animation that deviates a lot from the movement direction (e.g movement direction going bwd and motion matching could return the fwd animation for a few frames)
 			// When that happens, since we use the delta between root motion and movement direction, we would be over-rotating the lower body and breaking the pose during those frames
 			// So, when that happens we use the inverse of the movement direction to calculate our target rotation. 
 			// This feels a bit 'hacky' but its the only option I've found so far to mitigate the problem
-			if (LocomotionAngleDeltaThreshold > 0.f && FMath::Abs(FMath::RadiansToDegrees(OrientationAngle)) > LocomotionAngleDeltaThreshold)
+			if (LocomotionAngleDeltaThreshold > 0.f && FMath::Abs(FMath::RadiansToDegrees(ActualOrientationAngle)) > LocomotionAngleDeltaThreshold)
 			{
-				WarpedRotation = FQuat::FindBetween(RootMotionDeltaDir, -LocomotionForwardDir);
-				OrientationAngle = WarpedRotation.GetTwistAngle(RotationAxisVector);
+				WarpedRotation = FQuat::FindBetween(RootMotionDeltaDirection, -LocomotionForward);
+				ActualOrientationAngle = WarpedRotation.GetTwistAngle(RotationAxisVector);
 			}
 
+			// For interpolated warping, guarantee that PreviousOrientationAngle is respect to the current frame's root motion direction 
+			const FVector RootMotionCrossProduct = RootMotionDeltaDirection.Cross(PreviousRootMotionDeltaDirection);
+			float RootMotionDeltaAngle = FMath::Acos(RootMotionDeltaDirection.Dot(PreviousRootMotionDeltaDirection));
+			RootMotionDeltaAngle *= FMath::Sign(RotationAxisVector.Dot(RootMotionCrossProduct));
+
+			PreviousRootMotionDeltaDirection = RootMotionDeltaDirection;
+			PreviousOrientationAngle += RootMotionDeltaAngle;
+
 			// Rotate the root motion delta fully by the warped angle
-			const FVector RootMotionTranslationDelta = RootMotionTransformDelta.GetTranslation();
-			const FVector WarpedRootMotionTranslationDelta = WarpedRotation.RotateVector(RootMotionTranslationDelta);
+			const FVector WarpedRootMotionTranslationDelta = WarpedRotation.RotateVector(RootMotionDeltaTranslation);
 			RootMotionTransformDelta.SetTranslation(WarpedRootMotionTranslationDelta);
 
 			// Forward the side effects of orientation warping on the root motion contribution for this sub-graph
 			const bool bRootMotionOverridden = RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
-			ensure(bRootMotionOverridden);
-#if ENABLE_ANIM_DEBUG
-			bool bDebugging = false;
-#if WITH_EDITORONLY_DATA
-			bDebugging = bDebugging || bEnableDebugDraw;
-#endif
-			bDebugging = bDebugging || CVarAnimNodeOrientationWarpingDebug.GetValueOnAnyThread() == 1;
-
-			if (bDebugging)
-			{
-				const FVector LocomotionDir = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(LocomotionRotation.GetForwardVector()).GetSafeNormal();
-				const FVector RootMotionDir = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(SkeletalMeshRelativeRotation.RotateVector(RootMotionDeltaDir)).GetSafeNormal();
-
-				Output.AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-					Output.AnimInstanceProxy->GetComponentTransform().GetLocation(),
-					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + LocomotionDir * 100.f,
-					40.f, FColor::Red, false, 0.f, 2.f);
-
-				Output.AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
-					Output.AnimInstanceProxy->GetComponentTransform().GetLocation(),
-					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + RootMotionDir * 100.f,
-					40.f, FColor::Blue, false, 0.f, 2.f);
-			}
-#endif
+			ensureMsgf(bRootMotionOverridden, TEXT("Graph driven Orientation Warping expected a root motion delta to be present in the attribute stream prior to warping/overriding it."));
+		}
+		else
+		{
+			// Early exit on broken graph driven behavior 
+			return;
 		}
 	} 
-	else if (UE::Anim::IsInvalidWarpingAngle(OrientationAngle, KINDA_SMALL_NUMBER))
+	else
 	{
-		return;
+		// Manual orientation warping will take the angle directly
+		ActualOrientationAngle = FRotator::NormalizeAxis(ActualOrientationAngle);
+		ActualOrientationAngle = FMath::DegreesToRadians(ActualOrientationAngle);
 	}
 
+	// Optionally interpolate the effective orientation towards the target orientation angle
 	if (RotationInterpSpeed > 0.f)
 	{
-		OrientationAngle = FMath::FInterpTo(PreviousWarpedRotation, OrientationAngle, Output.AnimInstanceProxy->GetDeltaSeconds(), RotationInterpSpeed);
-		PreviousWarpedRotation = OrientationAngle;
+		ActualOrientationAngle = FMath::FInterpTo(PreviousOrientationAngle, ActualOrientationAngle, Output.AnimInstanceProxy->GetDeltaSeconds(), RotationInterpSpeed);
+		PreviousOrientationAngle = ActualOrientationAngle;
 	}
 
 	// Allow the alpha value of the node to affect the final rotation
-	OrientationAngle *= ActualAlpha;
+	ActualOrientationAngle *= ActualAlpha;
 
+#if ENABLE_ANIM_DEBUG
+	bool bDebugging = false;
+#if WITH_EDITORONLY_DATA
+	bDebugging = bDebugging || bEnableDebugDraw;
+#else
+	constexpr float DebugDrawScale = 1.f;
+#endif
+	bDebugging = bDebugging || CVarAnimNodeOrientationWarpingDebug.GetValueOnAnyThread() == 1;
+
+	if (bDebugging)
+	{
+		const FTransform ComponentTransform = Output.AnimInstanceProxy->GetComponentTransform();
+		const FVector ActorForwardDirection = Output.AnimInstanceProxy->GetActorTransform().GetRotation().GetForwardVector();
+
+		const FVector ForwardDirection = bGraphDrivenWarping
+			? ComponentTransform.GetRotation().RotateVector(LocomotionForward)
+			: ActorForwardDirection;
+
+		FVector DebugArrowOffset = FVector::ZAxisVector * DebugDrawScale;
+		Output.AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
+			ComponentTransform.GetLocation() + DebugArrowOffset,
+			ComponentTransform.GetLocation() + DebugArrowOffset + ForwardDirection * 100.f * DebugDrawScale,
+			40.f * DebugDrawScale, FColor::Red, false, 0.f, 2.f * DebugDrawScale);
+
+		const FVector RotationDirection = bGraphDrivenWarping
+			? ComponentTransform.GetRotation().RotateVector(RootMotionDeltaDirection)
+			: ActorForwardDirection.RotateAngleAxis(OrientationAngle, RotationAxisVector);
+
+		DebugArrowOffset += DebugArrowOffset;
+		Output.AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
+			ComponentTransform.GetLocation() + DebugArrowOffset,
+			ComponentTransform.GetLocation() + DebugArrowOffset + RotationDirection * 100.f * DebugDrawScale,
+			40.f * DebugDrawScale, FColor::Blue, false, 0.f, 2.f * DebugDrawScale);
+
+		const float ActualOrientationAngleDegrees = FMath::RadiansToDegrees(ActualOrientationAngle);
+		const FVector WarpedRotationDirection = bGraphDrivenWarping 
+			? RotationDirection.RotateAngleAxis(ActualOrientationAngleDegrees, RotationAxisVector)
+			: ActorForwardDirection.RotateAngleAxis(ActualOrientationAngleDegrees, RotationAxisVector);
+
+		DebugArrowOffset += DebugArrowOffset;
+		Output.AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
+			ComponentTransform.GetLocation() + DebugArrowOffset,
+			ComponentTransform.GetLocation() + DebugArrowOffset + WarpedRotationDirection * 100.f * DebugDrawScale,
+			40.f * DebugDrawScale, FColor::Green, false, 0.f, 2.f * DebugDrawScale);
+	}
+#endif
+		
 	// Rotate Root Bone first, as that cheaply rotates the whole pose with one transformation.
 	if (!FMath::IsNearlyZero(DistributedBoneOrientationAlpha, KINDA_SMALL_NUMBER))
 	{
-		const FQuat RootRotation = FQuat(RotationAxisVector, OrientationAngle * DistributedBoneOrientationAlpha);
+		const FQuat RootRotation = FQuat(RotationAxisVector, ActualOrientationAngle * DistributedBoneOrientationAlpha);
 		const FCompactPoseBoneIndex RootBoneIndex(0);
 
 		FTransform RootBoneTransform(Output.Pose.GetComponentSpaceTransform(RootBoneIndex));
@@ -195,7 +257,7 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		RootBoneTransform.NormalizeRotation();
 		Output.Pose.SetComponentSpaceTransform(RootBoneIndex, RootBoneTransform);
 	}
-		
+
 	const int32 NumSpineBones = SpineBoneDataArray.Num();
 	const bool bSpineOrientationAlpha = !FMath::IsNearlyZero(DistributedBoneOrientationAlpha, KINDA_SMALL_NUMBER);
 	const bool bUpdateSpineBones = (NumSpineBones > 0) && bSpineOrientationAlpha;
@@ -206,7 +268,7 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		for (int32 ArrayIndex = 0; ArrayIndex < NumSpineBones; ArrayIndex++)
 		{
 			const FOrientationWarpingSpineBoneData& BoneData = SpineBoneDataArray[ArrayIndex];
-			const FQuat SpineBoneCounterRotation = FQuat(RotationAxisVector, -OrientationAngle * DistributedBoneOrientationAlpha * BoneData.Weight);
+			const FQuat SpineBoneCounterRotation = FQuat(RotationAxisVector, -ActualOrientationAngle * DistributedBoneOrientationAlpha * BoneData.Weight);
 			check(BoneData.Weight > 0.f);
 
 			FTransform SpineBoneTransform(Output.Pose.GetComponentSpaceTransform(BoneData.BoneIndex));
@@ -222,7 +284,7 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 	// Rotate IK Foot Root
 	if (bUpdateIKFootRoot)
 	{
-		const FQuat BoneRotation = FQuat(RotationAxisVector, OrientationAngle * IKFootRootOrientationAlpha);
+		const FQuat BoneRotation = FQuat(RotationAxisVector, ActualOrientationAngle * IKFootRootOrientationAlpha);
 
 		FTransform IKFootRootTransform(Output.Pose.GetComponentSpaceTransform(IKFootData.IKFootRootBoneIndex));
 		IKFootRootTransform.SetRotation(BoneRotation * IKFootRootTransform.GetRotation());
@@ -237,7 +299,7 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 
 		if (bUpdateIKFootBones)
 		{
-			const FQuat IKFootRotation = FQuat(RotationAxisVector, -OrientationAngle * IKFootRootOrientationAlpha);
+			const FQuat IKFootRotation = FQuat(RotationAxisVector, -ActualOrientationAngle * IKFootRootOrientationAlpha);
 
 			for (int32 ArrayIndex = 0; ArrayIndex < NumIKFootBones; ArrayIndex++)
 			{
@@ -263,6 +325,11 @@ bool FAnimNode_OrientationWarping::IsValidToEvaluate(const USkeleton* Skeleton, 
 	}
 #endif
 	if (RotationAxis == EAxis::None)
+	{
+		return false;
+	}
+
+	if (Mode == EWarpingEvaluationMode::Manual && UE::Anim::IsInvalidWarpingAngleDegrees(OrientationAngle, KINDA_SMALL_NUMBER))
 	{
 		return false;
 	}
