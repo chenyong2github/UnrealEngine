@@ -4,6 +4,7 @@
 
 #include "SAdvancedRotationInputBox.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SButton.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 
