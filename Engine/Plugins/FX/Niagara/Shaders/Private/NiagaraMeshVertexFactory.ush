@@ -7,7 +7,6 @@
 #include "/Engine/Private/VertexFactoryCommon.ush"
 #include "NiagaraCommon.ush"
 #include "NiagaraVFCommon.usf"
-#include "NiagaraMeshParticleUtils.ush"
 
 #if COMPUTESHADER || RAYHITGROUPSHADER
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
@@ -22,10 +21,68 @@
 #define USE_PARTICLE_LOCAL_TO_WORLD (NEEDS_PARTICLE_LOCAL_TO_WORLD || NEEDS_INSTANCE_LOCAL_TO_WORLD_PS)
 #define USE_PARTICLE_WORLD_TO_LOCAL (NEEDS_PARTICLE_WORLD_TO_LOCAL || NEEDS_INSTANCE_WORLD_TO_LOCAL_PS)
 
-
 #ifndef ENABLE_PRECISE_MOTION_VECTORS
 #define ENABLE_PRECISE_MOTION_VECTORS 0
 #endif
+
+float3 LocalToWorldPos(float3 LocalSpacePos, float4x4 LocalToWorld)
+{
+	return
+		LocalToWorld[0].xyz * LocalSpacePos.x +
+		LocalToWorld[1].xyz * LocalSpacePos.y +
+		LocalToWorld[2].xyz * LocalSpacePos.z +
+		LocalToWorld[3].xyz;
+}
+
+float3 SimToWorldPos(float3 SimSpacePos, float4x4 LocalToWorld)
+{
+	if (NiagaraMeshVF.bLocalSpace)
+	{
+		return LocalToWorldPos(SimSpacePos, LocalToWorld);
+	}
+	
+	return SimSpacePos;
+}
+
+float3 LocalToWorldVec(float3 LocalSpaceVec, float4x4 LocalToWorld)
+{
+	const float3 InvScale = GetPrimitiveDataFromUniformBuffer().InvNonUniformScale;
+	return
+		InvScale.x * LocalToWorld[0].xyz * LocalSpaceVec.xxx +
+		InvScale.y * LocalToWorld[1].xyz * LocalSpaceVec.yyy +
+		InvScale.z * LocalToWorld[2].xyz * LocalSpaceVec.zzz;
+}
+
+float3 WorldToLocalVec(float3 WorldSpaceVec, float4x4 LocalToWorld)
+{
+	const float3 InvScale = GetPrimitiveDataFromUniformBuffer().InvNonUniformScale;
+	float3x3 InvRot =
+	{
+		InvScale.x * LocalToWorld[0].xyz,
+		InvScale.y * LocalToWorld[1].xyz,
+		InvScale.z * LocalToWorld[2].xyz
+	};
+	InvRot = transpose(InvRot);
+	return mul(WorldSpaceVec, InvRot);
+}
+
+float3 WorldToSimVec(float3 InVector, float4x4 LocalToWorld)
+{
+	if (NiagaraMeshVF.bLocalSpace)
+	{
+		return WorldToLocalVec(InVector, LocalToWorld);
+	}
+	
+	return InVector;
+}
+#define MESH_FACING_DEFAULT 0
+#define MESH_FACING_VELOCITY 1
+#define MESH_FACING_CAMERA_POSITION 2
+#define MESH_FACING_CAMERA_PLANE 3
+
+#define SPACE_SIMULATION 0
+#define SPACE_WORLD 1
+#define SPACE_LOCAL 2
 
 struct FVertexFactoryInput
 {
@@ -62,10 +119,6 @@ struct FVertexFactoryInput
 	float2	TexCoords0 : ATTRIBUTE4;
 #endif
 
-#if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
-	uint InstanceIdOffset : ATTRIBUTE13;
-#endif
-
 	uint InstanceId	: SV_InstanceID;
 #if PASS_NEEDS_VERTEX_ID
 	uint VertexId : SV_VertexID;
@@ -80,8 +133,8 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4 SubUV0AndTexCoord0 : TEXCOORD1;
 	float4 SubUV1AndLerp : TEXCOORD2;
 #else
-	#if NUM_TEX_COORD_INTERPOLATORS
-		float4	TexCoords[(NUM_TEX_COORD_INTERPOLATORS+1)/2]	: TEXCOORD0;
+	#if  NUM_TEX_COORD_INTERPOLATORS
+		float4	TexCoords[( NUM_TEX_COORD_INTERPOLATORS+1)/2]	: TEXCOORD0;
 	#endif
 #endif
 
@@ -136,17 +189,10 @@ struct FVertexFactoryInterpolantsVSToPS
 #if INSTANCED_STEREO
 	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
 #endif
-
-#if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
-	nointerpolation uint PrimitiveId : PRIMITIVE_ID;
-#endif
 };
 
 struct FVertexFactoryIntermediates
 {
-	/** The index of the particle to use when accessing data buffers */
-	uint ParticleIndex;
-
 	/** The color of the vertex. */
 	float4 VertexColor;
 
@@ -176,6 +222,9 @@ struct FVertexFactoryIntermediates
 	float4 DynamicParameter3;
 #endif
 
+	/** The position of the particle, XYZ: direction. */
+	float3 ParticlePosition;
+
 	/** The velocity of the particle, XYZ: direction, W: speed. */
 	float4 ParticleVelocity;
 
@@ -193,10 +242,13 @@ struct FVertexFactoryIntermediates
 #endif
 
 	float4x4 ParticleToWorld;
-	float4x4 WorldToParticle;
-	float4x4 PrevParticleToWorld;	
-	float3x3 ParticleToWorldNoScale;
+	float4x4 ParticleToWorldNoScale;
+	float4x4 PrevParticleToWorld;
 
+	float4x4 WorldToParticle;
+
+	/** The instance ID when unsorted/culled, otherwise is an index buffer indirection */
+	uint SortedInstanceId;
 	/** Cached primitive and instance data */
 	FSceneDataIntermediates SceneData;
 };
@@ -211,7 +263,7 @@ float4x4 GetParticleTransform(FVertexFactoryIntermediates Inters)
 	return Inters.ParticleToWorld;
 }
 
-float3x3 GetParticleRotationNoScale(FVertexFactoryIntermediates Inters)
+float4x4 GetParticleTransformNoScale(FVertexFactoryIntermediates Inters)
 {
 	return Inters.ParticleToWorldNoScale;
 }
@@ -389,7 +441,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.Particle.WorldToParticle = Result.InstanceWorldToLocal;
 
 	// Use the particle's unscaled transform for rotating normals to match static mesh
-	Result.TangentToWorld = mul(TangentToLocal, GetParticleRotationNoScale(Intermediates));
+	Result.TangentToWorld = mul(TangentToLocal, (float3x3)GetParticleTransformNoScale(Intermediates));
 
 	Result.PrevFrameLocalToWorld = LWCPromote(GetParticlePrevTransform(Intermediates));
 
@@ -403,127 +455,279 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	return Result;
 }
 
-FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
+	float4x4 Transform = GetParticleTransform(Intermediates);
+	float3 WorldPosition = mul(Input.Position, Transform).xyz + LWCHackToFloat(ResolvedView.PreViewTranslation);
+	return float4(WorldPosition, Input.Position.w);
+}
 
-#if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
-	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.InstanceId);
+float4 CalcPrevWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+    float4x4 Transform = GetParticlePrevTransform(Intermediates);
+    float3 WorldPosition = mul(Input.Position, Transform).xyz + LWCHackToFloat(ResolvedView.PrevPreViewTranslation);
+    return float4(WorldPosition, Input.Position.w);
+}
 
-	// Pull the particle index from the custom data for the instance
-	Intermediates.ParticleIndex = asuint(LoadInstanceCustomDataFloat(Intermediates.SceneData.InstanceData, 0));
-#else
-	Intermediates.SceneData = GetSceneDataIntermediates();
+float3x3 GetFacingMatrix(in float3 ParticlePosition, in float4 ParticleVelocity, in float4x4 LocalToWorld, in float3 WorldCamOrigin, in float3 CamViewForward, in float3 CamViewUp)
+{
+	float3 WorldX = float3(1, 0, 0);
+	float3 WorldZ = float3(0, 0, 1);
+	float3 FacingDir = float3(0, 0, 0);
+	const bool bLocalSpace = NiagaraMeshVF.bLocalSpace;
 
-	const uint InstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo	
-	BRANCH
-	if (NiagaraMeshVF.SortedIndicesOffset == -1)
+	// Select facing direction
+	switch (NiagaraMeshVF.FacingMode)
 	{
-		Intermediates.ParticleIndex = InstanceId;
+		case MESH_FACING_VELOCITY:
+		{
+			if (ParticleVelocity.w > 0.0f)
+			{
+				FacingDir = ParticleVelocity.xyz;
+			}
+			else
+			{
+				FacingDir = WorldToSimVec(WorldZ, LocalToWorld);
+			}
+			break;
+		}
+
+		case MESH_FACING_CAMERA_POSITION:
+		{
+			float3 WorldPosition = SimToWorldPos(ParticlePosition, LocalToWorld);
+			float3 CameraVector = WorldCamOrigin - WorldPosition;
+			FacingDir = WorldToSimVec(normalize(CameraVector), LocalToWorld);
+			break;
+		}
+
+		default:
+		case MESH_FACING_CAMERA_PLANE:
+		{
+			FacingDir = WorldToSimVec(-CamViewForward, LocalToWorld);
+			break;
+		}
+	}
+
+	float3 XAxis = { 1, 0, 0 };
+	float3 YAxis = { 0, 1, 0 };
+	float3 ZAxis = { 0, 0, 1 };
+	if (NiagaraMeshVF.bLockedAxisEnable)
+	{
+		// This is a special case where we want to lock the Z-Axis to the locked axis and get the X-Axis as close to facing direction as possible
+		const bool bWorldSpaceAxis = (NiagaraMeshVF.LockedAxisSpace == SPACE_WORLD) || (NiagaraMeshVF.LockedAxisSpace == SPACE_SIMULATION && !bLocalSpace);
+		float3 LockedAxis = NiagaraMeshVF.LockedAxis;
+		if (bWorldSpaceAxis && bLocalSpace)
+		{
+			// Transform the world-space axis to local space
+			LockedAxis = WorldToLocalVec(LockedAxis, LocalToWorld);
+		}
+		else if (!bWorldSpaceAxis && !bLocalSpace)
+		{
+			// Transform the local-space axis to world space
+			LockedAxis = LocalToWorldVec(LockedAxis, LocalToWorld);
+		}
+
+		if (abs(dot(FacingDir, LockedAxis)) > 0.99f)
+		{
+			// The facing dir and locked axis are too similar, choose a reference direction for the facing dir
+			FacingDir = abs(LockedAxis.z) > 0.99f ? float3(1, 0, 0) : float3(0, 0, 1);
+		}
+
+		ZAxis = LockedAxis;
+		YAxis = normalize(cross(ZAxis, FacingDir));
+		XAxis = cross(YAxis, ZAxis);
 	}
 	else
 	{
-		Intermediates.ParticleIndex = NiagaraMeshVF.SortedIndices[NiagaraMeshVF.SortedIndicesOffset + InstanceId];
-	}
-#endif // (VF_USE_PRIMITIVE_SCENE_DATA == 1)
+		// Determine a reference vector to use for up
+		float3 RefVector;
+		if (NiagaraMeshVF.FacingMode == MESH_FACING_CAMERA_PLANE)
+		{
+			// Use the camera upwards direction as a reference vector
+			//-TODO: Add ability to remove HMD roll in VR
+			RefVector = CamViewUp;
+		}
+		else
+		{
+			// Prefer to use world up as a reference vector, fall back to world X-axis when facing up or down
+			float DotWorldZ = dot(FacingDir, WorldZ);
+			RefVector = abs(DotWorldZ) > 0.99f ? (-sign(DotWorldZ) * WorldX) : WorldZ;
+		}
 
-	Intermediates.ParticleColor = SafeGetVec4(NiagaraMeshVF.ColorDataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultColor);
-	Intermediates.ParticleVelocity = NiagaraGetVelocityDirMag(NiagaraMeshVF.VelocityDataOffset, NiagaraMeshVF.DefaultVelocity, Intermediates.ParticleIndex);
+		// rotate the reference direction to simulation space, if necessary
+		RefVector = WorldToSimVec(RefVector, LocalToWorld);
+
+		// Orthonormalize the look-at rotation and generate a matrix
+		XAxis = FacingDir;
+		YAxis = normalize(cross(RefVector, FacingDir));
+		ZAxis = cross(XAxis, YAxis);
+	}
+
+	return float3x3(XAxis, YAxis, ZAxis);
+}
+
+float4 GetVelocityDirMag(int VelocityDataOffset, float3 DefaultVelocity, uint InstanceId)
+{
+	float4 DirMag;
+	DirMag.xyz = SafeGetVec3(VelocityDataOffset, InstanceId, DefaultVelocity);
+	DirMag.w = length(DirMag.xyz);
+	
+	DirMag.xyz = DirMag.w > 0.0f ? DirMag.xyz / DirMag.w : float3(0.0f, 0.0f, 0.0f);
+	
+	return DirMag;
+}
+
+float3 CalculateCameraOffset(float3 ParticlePosition, float3 CamWorldPos, uint InstanceId, int CameraOffsetDataOffset, float DefaultCamOffset, float4x4 LocalToWorld)
+{
+	float3 WorldPosition = SimToWorldPos(ParticlePosition, LocalToWorld);
+	float Offset = SafeGetFloat(CameraOffsetDataOffset, InstanceId, DefaultCamOffset);
+	float3 CameraVector = WorldToSimVec(normalize(CamWorldPos - WorldPosition), LocalToWorld);
+
+	return CameraVector * Offset;
+}
+
+void GetParticleSRT(out float3 Scale, out float3x3 Rotation, out float3 Translation, in uint InstanceId, in int ScaleDataOffset, float3 DefaultScale,
+	in int RotationDataOffset, in float4 DefaultRotation, in int PositionDataOffset, in float3 DefaultPos, in int CamOffsetDataOffset, in float DefaultCamOffset,
+	in float4 VelocityDirMag, in float3 CamViewPos, in float3 CamViewForward, in float3 CamViewUp, in float4x4 LocalToWorld)
+{
+	float3 SimPosition = SafeGetVec3(PositionDataOffset, InstanceId, DefaultPos);
+	float3 ParticlePosition = NiagaraMeshVF.bLocalSpace ? SimPosition : LWCHackToFloat(MakeLWCVector3(NiagaraMeshVF.SystemLWCTile, SimPosition));
+	float4 ParticleRotation = SafeGetVec4(RotationDataOffset, InstanceId, DefaultRotation);
+	float3 ParticleScale = SafeGetVec3(ScaleDataOffset, InstanceId, DefaultScale);
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Scale
+	Scale = ParticleScale * NiagaraMeshVF.MeshScale;
+	
+	////////////////////////////////////////////////////////////////////////////////
+	// Rotation
+	Rotation = NiagaraQuatTo3x3(normalize(ParticleRotation));
+	if (NiagaraMeshVF.FacingMode != MESH_FACING_DEFAULT)
+	{
+		// Factor in facing rotation
+		float3x3 FacingMat = GetFacingMatrix(ParticlePosition, VelocityDirMag, LocalToWorld, CamViewPos, CamViewForward, CamViewUp);
+		Rotation = mul(Rotation, FacingMat);
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
+	// Translation
+	Translation = ParticlePosition;
+
+	// Apply CameraOffset and WS Pivot offset
+	Translation += CalculateCameraOffset(Translation, CamViewPos, InstanceId, CamOffsetDataOffset, DefaultCamOffset, LocalToWorld);
+	if (!NiagaraMeshVF.bPivotOffsetIsWorldSpace)
+	{
+		Translation += mul(NiagaraMeshVF.PivotOffset * ParticleScale, Rotation);
+	}
+}
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
+	Input.InstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo
+
+	Intermediates.SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+	Intermediates.SortedInstanceId = Input.InstanceId;
+	if (NiagaraMeshVF.SortedIndicesOffset != 0xFFFFFFFF)
+	{
+		Intermediates.SortedInstanceId = NiagaraMeshVF.SortedIndices[NiagaraMeshVF.SortedIndicesOffset + Intermediates.SortedInstanceId];
+	}
+
+	Intermediates.ParticleColor = SafeGetVec4(NiagaraMeshVF.ColorDataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultColor);
+	Intermediates.ParticleVelocity = GetVelocityDirMag(NiagaraMeshVF.VelocityDataOffset, NiagaraMeshVF.DefaultVelocity, Intermediates.SortedInstanceId);
 
 #if (DYNAMIC_PARAMETERS_MASK & 1)
-	Intermediates.DynamicParameter = SafeGetVec4(NiagaraMeshVF.MaterialParamDataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultDynamicMaterialParameter0);
+	Intermediates.DynamicParameter = SafeGetVec4(NiagaraMeshVF.MaterialParamDataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultDynamicMaterialParameter0);
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 2)
-	Intermediates.DynamicParameter1 = SafeGetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultDynamicMaterialParameter1);
+	Intermediates.DynamicParameter1 = SafeGetVec4(NiagaraMeshVF.MaterialParam1DataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultDynamicMaterialParameter1);
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 4)
-	Intermediates.DynamicParameter2 = SafeGetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultDynamicMaterialParameter2);	
+	Intermediates.DynamicParameter2 = SafeGetVec4(NiagaraMeshVF.MaterialParam2DataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultDynamicMaterialParameter2);	
 #endif
 #if (DYNAMIC_PARAMETERS_MASK & 8)
-	Intermediates.DynamicParameter3 = SafeGetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultDynamicMaterialParameter3);	
+	Intermediates.DynamicParameter3 = SafeGetVec4(NiagaraMeshVF.MaterialParam3DataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultDynamicMaterialParameter3);	
 #endif
 
 #if NEEDS_PARTICLE_TIME
-	Intermediates.RelativeTime = SafeGetFloat(NiagaraMeshVF.NormalizedAgeDataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultNormAge);	
+	Intermediates.RelativeTime = SafeGetFloat(NiagaraMeshVF.NormalizedAgeDataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultNormAge);	
 #endif
 
 #if NEEDS_PARTICLE_RANDOM
-	Intermediates.ParticleRandom = SafeGetFloat(NiagaraMeshVF.MaterialRandomDataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultMatRandom);	
+	Intermediates.ParticleRandom = SafeGetFloat(NiagaraMeshVF.MaterialRandomDataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultMatRandom);	
 #endif
 
 	// Swizzle vertex color.
 	Intermediates.VertexColor = Input.VertexColor FCOLOR_COMPONENT_SWIZZLE;
 
-	// Compute transforms
-#if (VF_USE_PRIMITIVE_SCENE_DATA == 1)
-	Intermediates.ParticleToWorld = LWCHackToFloat(Intermediates.SceneData.InstanceData.LocalToWorld);
-	Intermediates.WorldToParticle = LWCHackToFloat(Intermediates.SceneData.InstanceData.WorldToLocal);
-	Intermediates.PrevParticleToWorld = LWCHackToFloat(Intermediates.SceneData.InstanceData.PrevLocalToWorld);
+	int InstanceId = Intermediates.SortedInstanceId;
 
-	const float3 InstInvScale = Intermediates.SceneData.InstanceData.InvNonUniformScale;
-	Intermediates.ParticleToWorldNoScale = (float3x3)Intermediates.ParticleToWorld;
-	Intermediates.ParticleToWorldNoScale[0] *= InstInvScale.x;
-	Intermediates.ParticleToWorldNoScale[1] *= InstInvScale.y;
-	Intermediates.ParticleToWorldNoScale[2] *= InstInvScale.z;
-#else
-	const FPrimitiveSceneData PrimitiveData = GetPrimitiveDataFromUniformBuffer();
+	float3 Scale;	
+	float3x3 Rotation;
+	float3 Translation;
+	GetParticleSRT(Scale, Rotation, Translation, InstanceId, NiagaraMeshVF.ScaleDataOffset, NiagaraMeshVF.DefaultScale,
+		NiagaraMeshVF.RotationDataOffset, NiagaraMeshVF.DefaultRotation, NiagaraMeshVF.PositionDataOffset, NiagaraMeshVF.DefaultPos.xyz,
+		NiagaraMeshVF.CameraOffsetDataOffset, NiagaraMeshVF.DefaultCamOffset, Intermediates.ParticleVelocity, LWCHackToFloat(ResolvedView.WorldCameraOrigin),
+		ResolvedView.ViewForward, ResolvedView.ViewUp, LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Compose Transforms
+	Intermediates.ParticleToWorld = NiagaraComposeTransformMatrix(Scale, Rotation, Translation);
+	Intermediates.ParticleToWorldNoScale = NiagaraComposeTransformMatrix((float3)1.0f, Rotation, Translation);
+	Intermediates.WorldToParticle = NiagaraComposeInvTransformMatrix(Scale, Rotation, Translation);	
 	
-	NiagaraMeshParticleTransformsParams Params;
-	Params.ParticleIndex				= Intermediates.ParticleIndex;
-	Params.SystemLWCTile				= NiagaraMeshVF.SystemLWCTile;
-	Params.bLocalSpace					= NiagaraMeshVF.bLocalSpace;
-	#if ENABLE_PRECISE_MOTION_VECTORS
-		Params.bPreciseMotionVectors 	= true;
-	#else
-		Params.bPreciseMotionVectors 	= false;		
-	#endif
-	Params.FacingMode					= NiagaraMeshVF.FacingMode;
-	Params.DeltaSeconds					= NiagaraMeshVF.DeltaSeconds;
-	Params.MeshScale 					= NiagaraMeshVF.MeshScale;
-	Params.MeshOffset 					= NiagaraMeshVF.MeshOffset;
-	Params.bMeshOffsetIsWorldSpace		= NiagaraMeshVF.bMeshOffsetIsWorldSpace;
-	Params.bLockedAxisEnable			= NiagaraMeshVF.bLockedAxisEnable;
-	Params.LockedAxis					= NiagaraMeshVF.LockedAxis;
-	Params.LockedAxisSpace				= NiagaraMeshVF.LockedAxisSpace;
-	Params.ScaleDataOffset 				= NiagaraMeshVF.ScaleDataOffset;
-	Params.RotationDataOffset 			= NiagaraMeshVF.RotationDataOffset;
-	Params.PositionDataOffset 			= NiagaraMeshVF.PositionDataOffset;
-	Params.CameraOffsetDataOffset		= NiagaraMeshVF.CameraOffsetDataOffset;
-	Params.PrevScaleDataOffset 			= NiagaraMeshVF.PrevScaleDataOffset;
-	Params.PrevRotationDataOffset 		= NiagaraMeshVF.PrevRotationDataOffset;
-	Params.PrevPositionDataOffset 		= NiagaraMeshVF.PrevPositionDataOffset;
-	Params.PrevCameraOffsetDataOffset	= NiagaraMeshVF.PrevCameraOffsetDataOffset;
-	Params.DefaultScale 				= NiagaraMeshVF.DefaultScale;
-	Params.DefaultRotation 				= NiagaraMeshVF.DefaultRotation;
-	Params.DefaultPosition 				= NiagaraMeshVF.DefaultPosition;
-	Params.DefaultCameraOffset 			= NiagaraMeshVF.DefaultCameraOffset;
-	Params.DefaultPrevScale 			= NiagaraMeshVF.DefaultPrevScale;
-	Params.DefaultPrevRotation 			= NiagaraMeshVF.DefaultPrevRotation;
-	Params.DefaultPrevPosition 			= NiagaraMeshVF.DefaultPrevPosition;
-	Params.DefaultPrevCameraOffset 		= NiagaraMeshVF.DefaultPrevCameraOffset;
-	Params.VelocityDirMag				= Intermediates.ParticleVelocity;
-	Params.PrevVelocityDirMag			= NiagaraGetVelocityDirMag(NiagaraMeshVF.PrevVelocityDataOffset, NiagaraMeshVF.DefaultPrevVelocity, Intermediates.ParticleIndex);
-	Params.CameraOrigin 				= LWCHackToFloat(ResolvedView.WorldCameraOrigin);
-	Params.CameraForwardDir				= ResolvedView.ViewForward;
-	Params.CameraUpDir					= ResolvedView.ViewUp;
-	Params.PrevCameraOrigin 			= LWCHackToFloat(ResolvedView.PrevWorldCameraOrigin);
-	Params.PrevCameraForwardDir			= ResolvedView.PrevViewToTranslatedWorld[2].xyz;
-	Params.PrevCameraUpDir				= ResolvedView.PrevViewToTranslatedWorld[1].xyz;
-	Params.PrimitiveLocalToWorld		= LWCHackToFloat(PrimitiveData.LocalToWorld);
-	Params.PrimitiveWorldToLocal 		= LWCHackToFloat(PrimitiveData.WorldToLocal);
-	Params.PrimitivePrevLocalToWorld 	= LWCHackToFloat(PrimitiveData.PreviousLocalToWorld);
-	Params.PrimitiveInvNonUniformScale	= PrimitiveData.InvNonUniformScale;
+#if ENABLE_PRECISE_MOTION_VECTORS
+	// Run through the whole process of generating the components of the transform with previous frame data
+	float4 PrevVelocity = GetVelocityDirMag(NiagaraMeshVF.PrevVelocityDataOffset, NiagaraMeshVF.DefaultPrevVelocity, InstanceId);
+	float4x4 PrevViewToWorld = ResolvedView.PrevViewToTranslatedWorld;
+	float3 PrevScale;
+	float3x3 PrevRotation;
+	float3 PrevTranslation;
+	GetParticleSRT(PrevScale, PrevRotation, PrevTranslation, InstanceId, NiagaraMeshVF.PrevScaleDataOffset, NiagaraMeshVF.DefaultPrevScale,
+		NiagaraMeshVF.PrevRotationDataOffset, NiagaraMeshVF.DefaultPrevRotation, NiagaraMeshVF.PrevPositionDataOffset, NiagaraMeshVF.DefaultPrevPos.xyz,
+		NiagaraMeshVF.PrevCameraOffsetDataOffset, NiagaraMeshVF.DefaultPrevCamOffset, PrevVelocity, LWCHackToFloat(ResolvedView.PrevWorldCameraOrigin),
+		PrevViewToWorld[2].xyz, PrevViewToWorld[1].xyz, LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld));
+		
+	Intermediates.PrevParticleToWorld = NiagaraComposeTransformMatrix(PrevScale, PrevRotation, PrevTranslation);
+#else
+	// Do a cheaper means of calculating the previous matrix that just extrapolates based on velocity
+	const float3 ParticleVelocity = Intermediates.ParticleVelocity.xyz * Intermediates.ParticleVelocity.w;
+	Intermediates.PrevParticleToWorld = Intermediates.ParticleToWorld;
+	Intermediates.PrevParticleToWorld[3].xyz -= ParticleVelocity * NiagaraMeshVF.DeltaSeconds;
+#endif
+	
+	// Handle local space by multiplying in the primitive transforms. TODO: Optimize behind define.
+	if (NiagaraMeshVF.bLocalSpace)
+	{
+		Intermediates.PrevParticleToWorld = mul(Intermediates.PrevParticleToWorld, LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld));
+		Intermediates.ParticleToWorld = mul(Intermediates.ParticleToWorld, LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
+		Intermediates.WorldToParticle = mul(LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().WorldToLocal), Intermediates.WorldToParticle);
 
-	NiagaraMeshParticleTransforms Transforms = NiagaraCalculateMeshParticleTransforms(Params);
+		Intermediates.ParticleToWorldNoScale = mul(Intermediates.ParticleToWorldNoScale, LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
+		float3 InvScale = GetPrimitiveDataFromUniformBuffer().InvNonUniformScale;
+		Intermediates.ParticleToWorldNoScale[0].xyz *= InvScale.x;
+		Intermediates.ParticleToWorldNoScale[1].xyz *= InvScale.y;
+		Intermediates.ParticleToWorldNoScale[2].xyz *= InvScale.z;
+	}
 
-	Intermediates.ParticleToWorld 			= Transforms.LocalToWorld;
-	Intermediates.WorldToParticle 			= Transforms.WorldToLocal;
-	Intermediates.PrevParticleToWorld		= Transforms.PrevLocalToWorld;
-	Intermediates.ParticleToWorldNoScale	= Transforms.LocalToWorldNoScale;
-#endif // (VF_USE_PRIMITIVE_SCENE_DATA == 1)
+	// If the pivot offset is in world space, apply it here to both the current and previous transforms
+	if (NiagaraMeshVF.bPivotOffsetIsWorldSpace)
+	{
+		Intermediates.ParticleToWorld[3].xyz += NiagaraMeshVF.PivotOffset;
+		Intermediates.PrevParticleToWorld[3].xyz += NiagaraMeshVF.PivotOffset;
 
-	// Particle translated world position.
-	Intermediates.ParticleTranslatedWorldPosition = Intermediates.ParticleToWorld[3].xyz + LWCHackToFloat(ResolvedView.PreViewTranslation);
+		float4x4 OffsetMtx = float4x4(
+			float4(1, 0, 0, 0),
+			float4(0, 1, 0, 0),
+			float4(0, 0, 1, 0),
+			float4(-NiagaraMeshVF.PivotOffset, 1)
+		);
+		Intermediates.WorldToParticle = mul(OffsetMtx, Intermediates.WorldToParticle);
+	}
+
+	// Particle position and translated world position.
+	Intermediates.ParticlePosition = Intermediates.ParticleToWorld[3].xyz;
+	Intermediates.ParticleTranslatedWorldPosition = Intermediates.ParticlePosition.xyz + LWCHackToFloat(ResolvedView.PreViewTranslation);
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	Intermediates.TexCoords[0] = Input.TexCoords0;
@@ -552,7 +756,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 #if USE_PARTICLE_SUBUVS
 	// SubUV.
-	float SubImageIndex = SafeGetFloat(NiagaraMeshVF.SubImageDataOffset, Intermediates.ParticleIndex, NiagaraMeshVF.DefaultSubImage);
+	float SubImageIndex = SafeGetFloat(NiagaraMeshVF.SubImageDataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultSubImage);
 	float SubImageLerp = frac(SubImageIndex);
 	float SubImageA = SubImageIndex - SubImageLerp;
 	float SubImageB = SubImageA + 1;
@@ -599,10 +803,8 @@ float3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFacto
 
 // @return translated world position
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
-{	
-	float4x4 Transform = GetParticleTransform(Intermediates);
-	float3 WorldPosition = mul(Input.Position, Transform).xyz + LWCHackToFloat(ResolvedView.PreViewTranslation);
-	return float4(WorldPosition, Input.Position.w);
+{
+	return CalcWorldPosition(Input, Intermediates);
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
@@ -622,15 +824,14 @@ float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVer
 
 void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, out float3 TangentToWorld0, out float4 TangentToWorld2)
 {
-	const float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, Intermediates);
+	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, Intermediates);
 
 	// Use the particle's unscaled transform for rotating normals to match static mesh
-	const float3x3 TransformNoScale = GetParticleRotationNoScale(Intermediates);
-	const float3x3 TangentToWorld = mul(TangentToLocal, TransformNoScale);
-	const float DetSign = Intermediates.SceneData.InstanceData.DeterminantSign;
+	float3x3 TransformNoScale = (float3x3)GetParticleTransformNoScale(Intermediates);
+	float3x3 TangentToWorld = mul(TangentToLocal, TransformNoScale);
 
 	TangentToWorld0 = normalize(TangentToWorld[0]);
-	TangentToWorld2 = float4(normalize(TangentToWorld[2]), TangentBias(Input.TangentZ.w) * DetSign);
+	TangentToWorld2 = float4(normalize(TangentToWorld[2]), TangentBias(Input.TangentZ.w) * GetPrimitive_DeterminantSign_FromFlags(GetPrimitiveDataFromUniformBuffer().Flags));
 }
 
 FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
@@ -731,28 +932,18 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.EyeIndex = 0;
 #endif
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	Interpolants.PrimitiveId = Intermediates.SceneData.PrimitiveId;
-#endif
-
 	return Interpolants;
 }
 
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-    float4x4 Transform = GetParticlePrevTransform(Intermediates);
-    float3 WorldPosition = mul(Input.Position, Transform).xyz + LWCHackToFloat(ResolvedView.PrevPreViewTranslation);
-    return float4(WorldPosition, Input.Position.w);
+	return CalcPrevWorldPosition(Input, Intermediates);
 }
 
 uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	return Interpolants.PrimitiveId;
-#else
     return 0;
-#endif
 }
 
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
@@ -840,10 +1031,6 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 		INTERPOLATE_MEMBER(InterpolantsVSToPS.WorldToParticle[2]);
 #endif
 
-#if VF_USE_PRIMITIVE_SCENE_DATA
-		O.InterpolantsVSToPS.PrimitiveId = a.InterpolantsVSToPS.PrimitiveId;
-#endif
-
 		return O;
 	}
 #endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
@@ -864,9 +1051,11 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 		Input.TangentX = 1.0;
 		Input.TangentZ = 0.0;
 		Input.VertexColor = float4(1.0, 1.0, 1.0, 0.5);
+#if NUM_MATERIAL_TEXCOORDS_VERTEX
+UNROLL
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
-		Input.TexCoords0.xy = float2(0.5f, 0.5f);
+	Input.TexCoords0.xy = float2(0.5f, 0.5f);
 	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
 		Input.TexCoords1.xy = float2(0.5f, 0.5f);
 	#endif
@@ -888,6 +1077,8 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
 		Input.TexCoords7.xy = float2(0.5f, 0.5f);
 	#endif
+#endif
+
 #elif USE_PARTICLE_SUBUVS
 		Input.TexCoords0.xy = float2(0.5f, 0.5f);
 #endif
