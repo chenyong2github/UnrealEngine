@@ -21,7 +21,7 @@ FText UAnimGraphNode_OrientationWarping::GetControllerDescription() const
 
 FText UAnimGraphNode_OrientationWarping::GetTooltipText() const
 {
-	return LOCTEXT("OrientationWarpingTooltip", "Warps the root bone, and counter rotates the body, to match locomotion direction.");
+	return LOCTEXT("OrientationWarpingTooltip", "Rotates the root and lower body by the specified angle, while counter rotating the upper body to maintain the forward facing direction.");
 }
 
 FText UAnimGraphNode_OrientationWarping::GetNodeTitle(ENodeTitleType::Type TitleType) const

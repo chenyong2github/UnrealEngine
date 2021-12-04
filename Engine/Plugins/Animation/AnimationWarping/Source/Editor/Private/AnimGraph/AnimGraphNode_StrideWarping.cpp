@@ -21,7 +21,7 @@ FText UAnimGraphNode_StrideWarping::GetControllerDescription() const
 
 FText UAnimGraphNode_StrideWarping::GetTooltipText() const
 {
-	return LOCTEXT("StrideWarpingTooltip", "Warps the pelvis and feet to match the locomotion speed.");
+	return LOCTEXT("StrideWarpingTooltip", "Adjusts the speed of the animation by warping the leg stride with the specified scale and direction.");
 }
 
 FText UAnimGraphNode_StrideWarping::GetNodeTitle(ENodeTitleType::Type TitleType) const

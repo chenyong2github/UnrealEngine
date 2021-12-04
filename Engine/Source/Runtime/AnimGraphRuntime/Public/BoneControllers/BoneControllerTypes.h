@@ -8,14 +8,15 @@
 
 struct FAnimInstanceProxy;
 
+// Specifies the evaluation mode of an animation warping node
 UENUM(BlueprintInternalUseOnly)
 enum class EWarpingEvaluationMode : uint8
 {
-	// Pose warping node parameters are entirely driven by the user
+	// Animation warping evaluation parameters are driven by user settings.
 	Manual,
-	// Pose warping nodes may participate in being graph-driven. This means some
-	// properties of the warp may be automatically configured by the accumulated 
-	// root motion delta contribution of the animation graph leading into the node
+	// Animation warping evaluation parameters are graph-driven. This means some
+	// properties of the node are automatically computed using the accumulated 
+	// root motion delta contribution of the animation graph leading into it.
 	Graph
 };
 
@@ -33,6 +34,7 @@ enum class EWarpingVectorMode : uint8
 	IKFootRootLocalSpaceVector,
 };
 
+// Vector values which may be specified in a configured space
 USTRUCT(BlueprintType)
 struct ANIMGRAPHRUNTIME_API FWarpingVectorValue
 {

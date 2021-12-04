@@ -13,7 +13,7 @@ struct ANIMGRAPHRUNTIME_API FIKFootPelvisPullDownSolver
 	GENERATED_BODY()
 
 	// Specifies the spring interpolation parameters applied during pelvis adjustment
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category=Settings)
 	FVectorRK4SpringInterpolator PelvisAdjustmentInterp;
 
 	// Specifies an alpha between the original and final adjusted pelvis locations
