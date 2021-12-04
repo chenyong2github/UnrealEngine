@@ -1478,8 +1478,8 @@ FMeshDrawCommandPrimitiveIdInfo FMeshPassProcessor::GetDrawCommandPrimitiveId(
 		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData && ViewIfDynamicMeshCommand != nullptr)
 		{
 			// Mark using GPrimIDDynamicFlag (top bit) as we defer this to later.
-			PrimitiveIdInfo.DrawPrimitiveId = BatchElement.DynamicPrimitiveIndex | GPrimIDDynamicFlag;
-			PrimitiveIdInfo.InstanceSceneDataOffset = BatchElement.DynamicPrimitiveInstanceSceneDataOffset;
+			PrimitiveIdInfo.DrawPrimitiveId = BatchElement.DynamicPrimitiveShaderDataIndex | GPrimIDDynamicFlag;
+			PrimitiveIdInfo.InstanceSceneDataOffset = BatchElement.DynamicPrimitiveShaderDataIndex;
 			PrimitiveIdInfo.bIsDynamicPrimitive = 1U;
 		}
 		else

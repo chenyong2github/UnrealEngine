@@ -1337,20 +1337,6 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 	{
 		check(!bHasInstanceCullingDrawParameters);
 		WaitForMeshPassSetupTask();
-
-#if DO_CHECK
-		for (const FVisibleMeshDrawCommand& VisibleMeshDrawCommand : TaskContext.MeshDrawCommands)
-		{
-			if (VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive)
-			{
-				uint32 PrimitiveIndex = VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId & ~GPrimIDDynamicFlag;
-				checkf(TaskContext.View->DynamicPrimitiveCollector.IsPrimitiveProcessed(PrimitiveIndex, GPUScene),
-					TEXT("Dynamic Primitive index %u has not been fully processed. It may be an invalid index for the collector or it has a pending GPU write."),
-					PrimitiveIndex);
-			}
-		}
-#endif
-
 		// 2. Run or queue finalize culling commands pass
 		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), TaskContext.View->DynamicPrimitiveCollector.NumInstances(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams);
 		TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);

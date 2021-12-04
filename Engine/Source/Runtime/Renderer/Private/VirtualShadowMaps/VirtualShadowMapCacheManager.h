@@ -125,21 +125,10 @@ public:
 	class FInvalidatingPrimitiveCollector
 	{
 	public:
-		FInvalidatingPrimitiveCollector(int32 MaxPrimitiveID, FGPUScene& InGPUScene)
+		FInvalidatingPrimitiveCollector(int32 MaxPrimitiveID, const FGPUScene& InGPUScene)
 			: AlreadyAddedPrimitives(false, MaxPrimitiveID)
 			, GPUScene(InGPUScene)
 		{
-			// Add and clear pending invalidations enqueued on the GPU Scene from dynamic primitives added since last invalidation
-			for (const FGPUScene::FInstanceRange& Range : GPUScene.DynamicPrimitiveInstancesToInvalidate)
-			{
-				LoadBalancer.Add(Range.InstanceSceneDataOffset, Range.NumInstanceSceneDataEntries, 0U);
-#if VSM_LOG_INVALIDATIONS
-				RangesStr.Appendf(TEXT("[%6d, %6d), "), Range.InstanceSceneDataOffset, Range.InstanceSceneDataOffset + Range.NumInstanceSceneDataEntries);
-#endif
-				TotalInstanceCount += Range.NumInstanceSceneDataEntries;
-			}
-
-			GPUScene.DynamicPrimitiveInstancesToInvalidate.Reset();
 		}
 
 		/**
@@ -174,9 +163,8 @@ public:
 #if VSM_LOG_INVALIDATIONS
 		FString RangesStr;
 #endif
-		FGPUScene& GPUScene;
+		const FGPUScene& GPUScene;
 	};
-
 	/**
 	 * This must to be executed before the instances are actually removed / updated, otherwise the wrong position will be used. 
 	 * In particular, it must be processed before the Scene primitive IDs are updated/compacted as part of the removal.
