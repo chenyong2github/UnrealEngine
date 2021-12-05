@@ -59,6 +59,11 @@ static TAutoConsoleVariable<int32> CVarHairStrandsSimulation(
 	TEXT("Enable/disable hair simulation"),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarHairStrandsNonVisibleShadowCasting(
+	TEXT("r.HairStrands.Shadow.CastShadowWhenNonVisible"), 0,
+	TEXT("Enable shadow casting for hair strands even when culled out from the primary view"),
+	ECVF_RenderThreadSafe);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair strands instance ref. counting for debug purpose only
 uint32 FHairStrandsInstance::GetRefCount() const
@@ -390,6 +395,54 @@ void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool IsHairStrandsNonVisibleShadowCastingEnable()
+{
+	return CVarHairStrandsNonVisibleShadowCasting.GetValueOnAnyThread() > 0;
+}
+
+bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInstance& Instance)
+{
+	bool bIsVisibleInShadow = false;
+	if (const FHairGroupPublicData* HairData = Instance.GetHairData())
+	{
+		const int32 LODIndex = FMath::CeilToInt(HairData->LODIndex);
+		const bool bIsStrands = LODIndex >= 0 && HairData->IsVisible(LODIndex) && HairData->GetGeometryType(LODIndex) == EHairGeometryType::Strands;
+		if (bIsStrands)
+		{
+			if (const FBoxSphereBounds* Bounds = Instance.GetBounds())
+			{
+				{
+					for (const FLightSceneInfo* LightInfo : View.HairStrandsViewData.VisibleShadowCastingLights)
+					{
+						// Influence radius check
+						if (LightInfo->Proxy->AffectsBounds(*Bounds))
+						{
+							bIsVisibleInShadow = true;
+							break;
+						}
+					}
+				}
+
+				if (!bIsVisibleInShadow)
+				{
+					for (const FSphere& LightBound : View.HairStrandsViewData.VisibleShadowCastingBounds)
+					{
+						// Influence radius check
+						if (Bounds->GetSphere().Intersects(LightBound))
+						{
+							bIsVisibleInShadow = true;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	return bIsVisibleInShadow;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Bookmark API
 THairStrandsBookmarkFunction  GHairStrandsBookmarkFunction = nullptr;
 void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark)
@@ -418,30 +471,53 @@ void RunHairStrandsBookmark(EHairStrandsBookmark Bookmark, FHairStrandsBookmarkP
 
 FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, FViewInfo& View)
 {
+	const int32 ActiveInstanceCount = Scene->HairStrandsSceneData.RegisteredProxies.Num();
+	TBitArray InstancesVisibility(false, ActiveInstanceCount);
+
 	FHairStrandsBookmarkParameters Out;
 	Out.VisibleInstances.Reserve(View.HairStrandsMeshElements.Num());
+
+	// 1. Add all visible strands instances
 	for (const FMeshBatchAndRelevance& MeshBatch : View.HairStrandsMeshElements)
 	{
 		check(MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass());
 		if (MeshBatch.Mesh && MeshBatch.Mesh->Elements.Num() > 0)
 		{
-			FHairGroupPublicData* HairGroupPublicData = HairStrands::GetHairData(MeshBatch.Mesh);
-			if (HairGroupPublicData && HairGroupPublicData->Instance)
+			FHairGroupPublicData* HairData = HairStrands::GetHairData(MeshBatch.Mesh);
+			if (HairData && HairData->Instance)
 			{
-				Out.VisibleInstances.Add(HairGroupPublicData->Instance);
+				Out.VisibleInstances.Add(HairData->Instance);
+				InstancesVisibility[HairData->Instance->RegisteredIndex] = true;
 			}
 		}
 	}
 
+	// 2. Add all visible cards instances
 	for (const FMeshBatchAndRelevance& MeshBatch : View.HairCardsMeshElements)
 	{
 		check(MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass());
 		if (MeshBatch.Mesh && MeshBatch.Mesh->Elements.Num() > 0)
 		{
-			FHairGroupPublicData* HairGroupPublicData = HairStrands::GetHairData(MeshBatch.Mesh);
-			if (HairGroupPublicData && HairGroupPublicData->Instance)
+			FHairGroupPublicData* HairData = HairStrands::GetHairData(MeshBatch.Mesh);
+			if (HairData && HairData->Instance)
 			{
-				Out.VisibleInstances.Add(HairGroupPublicData->Instance);
+				Out.VisibleInstances.Add(HairData->Instance);
+				InstancesVisibility[HairData->Instance->RegisteredIndex] = true;
+			}
+		}
+	}
+
+	// 3. Add all instances non-visible primary view(s) but visible in shadow view(s)
+	if (IsHairStrandsNonVisibleShadowCastingEnable())
+	{
+		for (FHairStrandsInstance* Instance : Scene->HairStrandsSceneData.RegisteredProxies)
+		{
+			if (Instance->RegisteredIndex >= 0 && Instance->RegisteredIndex < ActiveInstanceCount && !InstancesVisibility[Instance->RegisteredIndex])
+			{
+				if (IsHairStrandsVisibleInShadows(View, *Instance))
+				{
+					Out.VisibleInstances.Add(Instance);
+				}
 			}
 		}
 	}
@@ -524,6 +600,32 @@ bool IsHairVisible(const FMeshBatchAndRelevance& MeshBatch)
 FHairGroupPublicData* GetHairData(const FMeshBatch* Mesh)
 {
 	return reinterpret_cast<FHairGroupPublicData*>(Mesh->Elements[0].VertexFactoryUserData);
+}
+
+void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo)
+{
+	for (FViewInfo& View : Views)
+	{
+		// If any hair data are registered, track which lights are visible so that hair strands can cast shadow even if not visibible in primary view
+		if (Scene.HairStrandsSceneData.RegisteredProxies.Num() > 0)
+		{
+			View.HairStrandsViewData.VisibleShadowCastingLights.Add(LightSceneInfo);
+			break;
+		}
+	}
+}
+
+void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FSphere& Bounds)
+{
+	for (FViewInfo& View : Views)
+	{
+		// If any hair data are registered, track which lights are visible so that hair strands can cast shadow even if not visibible in primary view
+		if (Scene.HairStrandsSceneData.RegisteredProxies.Num() > 0)
+		{
+			View.HairStrandsViewData.VisibleShadowCastingBounds.Add(Bounds);
+			break;
+		}
+	}
 }
 
 } // namespace HairStrands

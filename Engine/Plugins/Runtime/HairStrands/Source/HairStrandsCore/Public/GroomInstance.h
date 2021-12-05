@@ -283,8 +283,8 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		return Meshes.IsValid() || Cards.IsValid() || Strands.IsValid();
 	}
 
-	virtual const FBoxSphereBounds* GetBounds() override { return ProxyBounds;  }
-	virtual const FHairGroupPublicData* GetHairData() { return HairGroupPublicData; }
+	virtual const FBoxSphereBounds* GetBounds() const override { return ProxyBounds;  }
+	virtual const FHairGroupPublicData* GetHairData() const { return HairGroupPublicData; }
 
 	/** Get the current local to world transform according to the internal binding type */
 	FORCEINLINE const FTransform& GetCurrentLocalToWorld() const

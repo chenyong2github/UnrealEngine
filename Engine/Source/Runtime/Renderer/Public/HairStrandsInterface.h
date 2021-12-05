@@ -144,8 +144,8 @@ struct RENDERER_API FHairStrandsInstance
 	uint32 AddRef() const;
 	uint32 Release() const;
 	int32 RegisteredIndex = -1;
-	virtual const FBoxSphereBounds* GetBounds() { return nullptr; }
-	virtual const FHairGroupPublicData* GetHairData() { return nullptr; }
+	virtual const FBoxSphereBounds* GetBounds() const { return nullptr; }
+	virtual const FHairGroupPublicData* GetHairData() const { return nullptr; }
 protected:
 	mutable uint32 RefCount = 0;
 };
@@ -194,6 +194,12 @@ public:
 
 	void SetLODVisibilities(const TArray<bool>& InLODVisibility) { LODVisibilities = InLODVisibility; }
 	const TArray<bool>& GetLODVisibilities() const { return LODVisibilities; }
+
+	bool IsVisible(int32 InLODIndex) const
+	{
+		if (InLODIndex < 0 && InLODIndex >= LODVisibilities.Num()) return false;
+		return LODVisibilities[InLODIndex];
+	}
 
 	EHairGeometryType GetGeometryType(int32 InLODIndex) const
 	{

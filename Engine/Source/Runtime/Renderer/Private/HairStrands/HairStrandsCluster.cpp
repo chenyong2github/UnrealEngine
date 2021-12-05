@@ -128,6 +128,9 @@ static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStr
 	return false;
 }
 
+bool IsHairStrandsNonVisibleShadowCastingEnable();
+bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInstance& Instance);
+
 static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int32& MaterialId, FHairGroupPublicData* HairData, const FMeshBatch* Mesh, const FPrimitiveSceneProxy* Proxy)
 {
 	check(HairData);
@@ -231,6 +234,9 @@ void CreateHairStrandsMacroGroups(
 		}
 	};
 
+	// 1. Add all visible hair-strands instances
+	const int32 ActiveInstanceCount = Scene->HairStrandsSceneData.RegisteredProxies.Num();
+	TBitArray InstancesVisibility(false, ActiveInstanceCount);
 	for (const FMeshBatchAndRelevance& MeshBatchAndRelevance : View.HairStrandsMeshElements)
 	{
 		if (HairStrands::IsHairStrandsVF(MeshBatchAndRelevance.Mesh))
@@ -238,10 +244,28 @@ void CreateHairStrandsMacroGroups(
 			if (FHairGroupPublicData* HairData = HairStrands::GetHairData(MeshBatchAndRelevance.Mesh))
 			{
 				UpdateMacroGroup(HairData, MeshBatchAndRelevance.Mesh, MeshBatchAndRelevance.PrimitiveSceneProxy, nullptr);
+				InstancesVisibility[HairData->Instance->RegisteredIndex] = true;
 			}
 		}
 	}
 
+	// 2. Add all hair-strands instances which are non-visible in primary view(s) but visible in shadow view(s)
+	// Slow Linear search
+	if (IsHairStrandsNonVisibleShadowCastingEnable())
+	{
+		for (FHairStrandsInstance* Instance : Scene->HairStrandsSceneData.RegisteredProxies)
+		{
+			if (Instance->RegisteredIndex >= 0 && Instance->RegisteredIndex < ActiveInstanceCount && !InstancesVisibility[Instance->RegisteredIndex])
+			{
+				if (IsHairStrandsVisibleInShadows(View, *Instance))
+				{
+					UpdateMacroGroup(const_cast<FHairGroupPublicData*>(Instance->GetHairData()), nullptr, nullptr, Instance->GetBounds());
+				}
+			}
+		}
+	}
+
+	// Compute the screen size of macro group projection, for allocation purpose
 	for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups)
 	{
 		MacroGroup.ScreenRect = ComputeProjectedScreenRect(MacroGroup.Bounds.GetBox(), View);

@@ -388,6 +388,10 @@ struct FHairStrandsViewData
 	FHairStrandsVoxelResources VirtualVoxelResources;
 	FHairStrandsMacroGroupResources MacroGroupResources;
 	FHairStrandsDebugData DebugData;
+
+	// Transient: store all light visible in primary view(s)
+	TArray<const FLightSceneInfo*> VisibleShadowCastingLights;
+	TArray<FSphere> VisibleShadowCastingBounds;
 };
 
 // View State data (i.e., persistent accross fram)
@@ -443,4 +447,7 @@ namespace HairStrands
 	bool HasHairInstanceInScene(const FScene& Scene);
 	bool HasHairCardsVisible(const TArrayView<FViewInfo>& Views);
 	bool HasHairStrandsVisible(const TArrayView<FViewInfo>& Views);
+
+	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo);
+	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FSphere& Bounds);
 }
