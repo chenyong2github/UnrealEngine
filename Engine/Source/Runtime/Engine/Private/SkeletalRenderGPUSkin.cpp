@@ -2089,7 +2089,10 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	check(!MeshComponentSpaceTransforms.Num());
 	// append instead of equals to avoid alloc
-	MeshComponentSpaceTransforms.Append(InMeshComponent->GetComponentSpaceTransforms());
+	if (InMeshComponent != nullptr)
+	{
+		MeshComponentSpaceTransforms.Append(InMeshComponent->GetComponentSpaceTransforms());
+	}	
 #endif
 	SectionIdsUseByActiveMorphTargets.Empty();
 	// find number of morphs that are currently weighted and will affect the mesh

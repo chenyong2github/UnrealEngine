@@ -235,7 +235,7 @@ public:
 
 	virtual ~FWinDualShockAudioDeviceImpl()
 	{
-		TearDownAudio();
+		TearDownAudioInternal();
 	}
 
 	void SetInputDevice(FWinDualShock* InInputDevice)
@@ -426,26 +426,7 @@ public:
 
 	virtual void TearDownAudio()
 	{
-		if (bAudioIsSetup.load())
-		{
-			bAudioIsSetup.store(false, std::memory_order_release);
-			if (AudioDevice.IsInitialized())
-			{
-				AudioDevice.Shutdown();
-			}
-
-			if (AudioPadSpeakerBuffer)
-			{
-				delete AudioPadSpeakerBuffer;
-				AudioPadSpeakerBuffer = NULL;
-			}
-
-			if (AudioVibrationBuffer)
-			{
-				delete AudioVibrationBuffer;
-				AudioVibrationBuffer = NULL;
-			}
-		}
+		TearDownAudioInternal();
 	}
 
 protected:
@@ -616,6 +597,32 @@ protected:
 	TCircularQueue<float>*	AudioPadSpeakerBuffer;
 	TCircularQueue<float>*	AudioVibrationBuffer;
 	FWinDualShock*			InputDevice = nullptr;
+
+private:
+
+	void TearDownAudioInternal()
+	{
+		if (bAudioIsSetup.load())
+		{
+			bAudioIsSetup.store(false, std::memory_order_release);
+			if (AudioDevice.IsInitialized())
+			{
+				AudioDevice.Shutdown();
+			}
+
+			if (AudioPadSpeakerBuffer)
+			{
+				delete AudioPadSpeakerBuffer;
+				AudioPadSpeakerBuffer = NULL;
+			}
+
+			if (AudioVibrationBuffer)
+			{
+				delete AudioVibrationBuffer;
+				AudioVibrationBuffer = NULL;
+			}
+		}
+	}
 };
 
 template<EWinDualShockPortType PortType>
@@ -707,12 +714,12 @@ private:
 class FWinDualShockPlugin : public IInputDeviceModule
 {
 #if DUALSHOCK4_SUPPORT
+	// audio devices allocated early before FWinDualShock created
+	TMap<FDeviceKey, TSharedRef<FWinDualShockAudioDeviceImpl>>				EarlyDeviceMap;
+
 	// exported endpoints
 	FExternalDualShockEndpointFactory<EWinDualShockPortType::PadSpeakers>	PadSpeakerEndpoint;
 	FExternalDualShockEndpointFactory<EWinDualShockPortType::Vibration>		VibrationEndpoint;
-
-	// audio devices allocated early before FWinDualShock created
-	TMap<FDeviceKey, TSharedRef<FWinDualShockAudioDeviceImpl>>				EarlyDeviceMap;
 
 public:
 	FWinDualShockPlugin()

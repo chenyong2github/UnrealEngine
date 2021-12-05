@@ -2083,7 +2083,7 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 	UMaterial* BaseMaterial = GetMaterial();
 #if WITH_EDITOR
 	check(!HasAnyFlags(RF_NeedPostLoad));
-	check(!BaseMaterial->HasAnyFlags(RF_NeedPostLoad));
+	check(BaseMaterial!=nullptr && !BaseMaterial->HasAnyFlags(RF_NeedPostLoad));
 #endif
 
 #if WITH_EDITOR

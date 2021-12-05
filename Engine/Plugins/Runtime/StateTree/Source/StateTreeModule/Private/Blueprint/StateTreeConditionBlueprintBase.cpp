@@ -44,14 +44,20 @@ bool FStateTreeBlueprintConditionWrapper::TestCondition(FStateTreeExecutionConte
 FText FStateTreeBlueprintConditionWrapper::GetDescription(const FGuid& ID, FStateTreeDataView InstanceData, const IStateTreeBindingLookup& BindingLookup) const
 {
 	const UClass* Class = Cast<const UClass>(InstanceData.GetStruct());
-	if (UBlueprint* ClassBP = Cast<UBlueprint>(Class->ClassGeneratedBy))
+
+	if (Class != nullptr)
 	{
-		if (!ClassBP->BlueprintDescription.IsEmpty())
+		if (UBlueprint* ClassBP = Cast<UBlueprint>(Class->ClassGeneratedBy))
 		{
-			return FText::FromString(ClassBP->BlueprintDescription);
+			if (!ClassBP->BlueprintDescription.IsEmpty())
+			{
+				return FText::FromString(ClassBP->BlueprintDescription);
+			}
 		}
+
+		return Class->GetDisplayNameText();
 	}
 	
-	return Class != nullptr ? Class->GetDisplayNameText() : FText::GetEmpty();
+	return FText::GetEmpty();
 }
 #endif
