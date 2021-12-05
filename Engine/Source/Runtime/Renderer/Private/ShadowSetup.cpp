@@ -3804,6 +3804,8 @@ void FSceneRenderer::InitProjectedShadowVisibility()
 	SCOPE_CYCLE_COUNTER(STAT_InitProjectedShadowVisibility);
 	int32 NumBufferedFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(FeatureLevel);
 
+	const bool bHairStrands = HairStrands::HasHairInstanceInScene(*Scene);
+
 	// Initialize the views' ProjectedShadowVisibilityMaps and remove shadows without subjects.
 	for(auto LightIt = Scene->Lights.CreateConstIterator();LightIt;++LightIt)
 	{
@@ -3933,6 +3935,12 @@ void FSceneRenderer::InitProjectedShadowVisibility()
 						}
 					}
 				}
+			}
+
+			// Register visible lights for allowing hair strands to cast shadow (directional light)
+			if (bHairStrands && LightIt->LightType == ELightComponentType::LightType_Directional)
+			{
+				HairStrands::AddVisibleShadowCastingLight(*Scene, Views, ProjectedShadowInfo.ShadowBounds);
 			}
 		}
 	}
@@ -5518,6 +5526,7 @@ FDynamicShadowsTaskData* FSceneRenderer::BeginInitDynamicShadows(bool bRunningEa
 	SCOPED_NAMED_EVENT_TEXT("FSceneRenderer::BeginInitDynamicShadows", FColor::Magenta);
 
 	const bool bMobile = FeatureLevel < ERHIFeatureLevel::SM5;
+	const bool bHairStrands = HairStrands::HasHairInstanceInScene(*Scene);
 
 	const bool bProjectEnablePointLightShadows = Scene->ReadOnlyCVARCache.bEnablePointLightShadows && !bMobile; // Point light shadow is unsupported on mobile for now.
 	const bool bProjectEnableMovableDirectionLightShadows = !bMobile || Scene->ReadOnlyCVARCache.bMobileAllowMovableDirectionalLights;
@@ -5626,6 +5635,12 @@ FDynamicShadowsTaskData* FSceneRenderer::BeginInitDynamicShadows(bool bRunningEa
 						{
 							// Try to create a whole scene projected shadow.
 							CreateWholeSceneProjectedShadow(LightSceneInfo, NumPointShadowCachesUpdatedThisFrame, NumSpotShadowCachesUpdatedThisFrame);
+						}
+
+						// Register visible lights for allowing hair strands to cast shadow (non-directional light)
+						if (bHairStrands && LightSceneInfo->Proxy->GetLightType() != LightType_Directional)
+						{
+							HairStrands::AddVisibleShadowCastingLight(*Scene, Views, LightSceneInfo);
 						}
 
 						// Allow movable and stationary lights to create CSM, or static lights that are unbuilt
