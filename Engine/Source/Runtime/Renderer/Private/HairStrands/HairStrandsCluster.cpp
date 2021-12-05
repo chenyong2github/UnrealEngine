@@ -3,6 +3,7 @@
 
 #include "HairStrandsCluster.h"
 #include "HairStrandsUtils.h"
+#include "HairStrandsData.h"
 #include "SceneRendering.h"
 #include "SceneManagement.h"
 #include "RendererInterface.h"
@@ -10,6 +11,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterStruct.h"
+#include "ScenePrivate.h"
 
 class FHairMacroGroupAABBCS : public FGlobalShader
 {
@@ -126,36 +128,26 @@ static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStr
 	return false;
 }
 
-inline const FHairGroupPublicData* GetHairStrandsPublicData(const FMeshBatch* InMeshBatch)
+static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int32& MaterialId, FHairGroupPublicData* HairData, const FMeshBatch* Mesh, const FPrimitiveSceneProxy* Proxy)
 {
-	 return reinterpret_cast<const FHairGroupPublicData*>(InMeshBatch->Elements[0].VertexFactoryUserData);
-}
+	check(HairData);
 
-static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int32& MaterialId, const FMeshBatchAndRelevance* MeshBatchAndRelevance)
-{
-	if (MeshBatchAndRelevance)
+	if (HairData->VFInput.Strands.bScatterSceneLighting)
 	{
-		check(MeshBatchAndRelevance->Mesh);
-		check(MeshBatchAndRelevance->Mesh->Elements.Num() == 1);
+		MacroGroup.bNeedScatterSceneLighting = true;
+	}
 
-		FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(MeshBatchAndRelevance->Mesh->Elements[0].VertexFactoryUserData);
-		if (HairGroupPublicData->VFInput.Strands.bScatterSceneLighting)
-		{
-			MacroGroup.bNeedScatterSceneLighting = true;
-		}
+	FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo = MacroGroup.PrimitivesInfos.AddZeroed_GetRef();
+	PrimitiveInfo.Mesh = Mesh;
+	PrimitiveInfo.PrimitiveSceneProxy = Proxy;
+	PrimitiveInfo.MaterialId = MaterialId++;
+	PrimitiveInfo.ResourceId = Mesh ? reinterpret_cast<uint64>(Mesh->Elements[0].UserData) : ~0u;
+	PrimitiveInfo.GroupIndex = HairData->GetGroupIndex();
+	PrimitiveInfo.PublicDataPtr = HairData;
 
-		FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo = MacroGroup.PrimitivesInfos.AddZeroed_GetRef();
-		PrimitiveInfo.Mesh = MeshBatchAndRelevance->Mesh;
-		PrimitiveInfo.PrimitiveSceneProxy = MeshBatchAndRelevance->PrimitiveSceneProxy;
-		PrimitiveInfo.MaterialId = MaterialId++;
-		PrimitiveInfo.ResourceId = reinterpret_cast<uint64>(MeshBatchAndRelevance->Mesh->Elements[0].UserData);
-		PrimitiveInfo.GroupIndex = HairGroupPublicData->GetGroupIndex();
-		PrimitiveInfo.PublicDataPtr = HairGroupPublicData;
-
-		if (HairGroupPublicData->DoesSupportVoxelization())
-		{
-			MacroGroup.bSupportVoxelization = true;
-		}
+	if (HairData->DoesSupportVoxelization())
+	{
+		MacroGroup.bSupportVoxelization = true;
 	}
 }
 
@@ -165,12 +157,11 @@ void CreateHairStrandsMacroGroups(
 	const FViewInfo& View, 
 	FHairStrandsViewData& OutHairStrandsViewData)
 {
-	if (!View.Family || View.HairStrandsMeshElements.Num() == 0 || View.bIsPlanarReflection || View.bIsReflectionCapture)
+	const bool bHasHairStrandsElements = View.HairStrandsMeshElements.Num() != 0 || Scene->HairStrandsSceneData.RegisteredProxies.Num() != 0;
+	if (!View.Family || !bHasHairStrandsElements || View.bIsPlanarReflection || View.bIsReflectionCapture)
 	{
 		return;
 	}
-
-	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
 	TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator>& MacroGroups = OutHairStrandsViewData.MacroGroupDatas;
 
@@ -178,19 +169,16 @@ void CreateHairStrandsMacroGroups(
 
 	// Aggregate all hair primitives within the same area into macro groups, for allocating/rendering DOM/voxel
 	uint32 MacroGroupId = 0;
-	auto UpdateMacroGroup = [&MacroGroups, &MacroGroupId, &MaterialId](const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
+	auto UpdateMacroGroup = [&MacroGroups, &MacroGroupId, &MaterialId](FHairGroupPublicData* HairData, const FMeshBatch* Mesh,  const FPrimitiveSceneProxy* Proxy, const FBoxSphereBounds* Bounds)
 	{
-		const bool bIsHairStrandsFactory = MeshBatchAndRelevance->Mesh->VertexFactory->GetType()->GetHashedName() == CompatibleVF->GetHashedName();
-		if (!bIsHairStrandsFactory)
-			return;
+		check(HairData);
 
 		// Ensure that the element has been initialized
-		const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(MeshBatchAndRelevance->Mesh->Elements[0].VertexFactoryUserData);
-		const bool bIsValid = HairGroupPublicData->VFInput.Strands.PositionBufferRHISRV != nullptr;
+		const bool bIsValid = HairData->VFInput.Strands.PositionBufferRHISRV != nullptr;
 		if (!bIsValid)
 			return;
 
-		const FBoxSphereBounds& PrimitiveBounds = Proxy->GetBounds();
+		const FBoxSphereBounds& PrimitiveBounds = Proxy ? Proxy->GetBounds() : *Bounds;
 
 		bool bFound = false;
 		float MinDistance = FLT_MAX;
@@ -207,7 +195,8 @@ void CreateHairStrandsMacroGroups(
 			if (bIntersect)
 			{
 				MacroGroup.Bounds = Union(MacroGroup.Bounds, PrimitiveBounds);
-				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
+
+				InternalUpdateMacroGroup(MacroGroup, MaterialId, HairData, Mesh, Proxy);
 				bFound = true;
 				break;
 			}
@@ -229,13 +218,13 @@ void CreateHairStrandsMacroGroups(
 				FHairStrandsMacroGroupData& MacroGroup = MacroGroups[ClosestMacroGroupId];
 				check(MacroGroup.MacroGroupId == ClosestMacroGroupId);
 				MacroGroup.Bounds = Union(MacroGroup.Bounds, PrimitiveBounds);
-				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
+				InternalUpdateMacroGroup(MacroGroup, MaterialId, HairData, Mesh, Proxy);
 			}
 			else
 			{
 				FHairStrandsMacroGroupData MacroGroup;
 				MacroGroup.MacroGroupId = MacroGroupId++;
-				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
+				InternalUpdateMacroGroup(MacroGroup, MaterialId, HairData, Mesh, Proxy);
 				MacroGroup.Bounds = PrimitiveBounds;
 				MacroGroups.Add(MacroGroup);
 			}
@@ -244,7 +233,13 @@ void CreateHairStrandsMacroGroups(
 
 	for (const FMeshBatchAndRelevance& MeshBatchAndRelevance : View.HairStrandsMeshElements)
 	{
-		UpdateMacroGroup(&MeshBatchAndRelevance, MeshBatchAndRelevance.PrimitiveSceneProxy);
+		if (HairStrands::IsHairStrandsVF(MeshBatchAndRelevance.Mesh))
+		{
+			if (FHairGroupPublicData* HairData = HairStrands::GetHairData(MeshBatchAndRelevance.Mesh))
+			{
+				UpdateMacroGroup(HairData, MeshBatchAndRelevance.Mesh, MeshBatchAndRelevance.PrimitiveSceneProxy, nullptr);
+			}
+		}
 	}
 
 	for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups)
@@ -275,6 +270,6 @@ void CreateHairStrandsMacroGroups(
 
 bool FHairStrandsMacroGroupData::PrimitiveInfo::IsCullingEnable() const
 {
-	const FHairGroupPublicData* HairGroupPublicData = GetHairStrandsPublicData(Mesh);
-	return HairGroupPublicData->GetCullingResultAvailable();
+	const FHairGroupPublicData* HairData = HairStrands::GetHairData(Mesh);
+	return HairData->GetCullingResultAvailable();
 }

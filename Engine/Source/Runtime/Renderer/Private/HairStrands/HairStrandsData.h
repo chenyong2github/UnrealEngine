@@ -430,4 +430,10 @@ namespace HairStrands
 	bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 	void DrawHitProxies(FRDGBuilder& GraphBuilder, const FScene& Scene, const FViewInfo& View, FInstanceCullingManager& InstanceCullingManager, FRDGTextureRef HitProxyTexture, FRDGTextureRef HitProxyDepthTexture);
 	void DrawEditorSelection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SelectionDepthTexture);
+
+	// Mesh batch helpers
+	FHairGroupPublicData* GetHairData(const FMeshBatch* In);
+	bool IsHairStrandsCompatible(const FMeshBatch* Mesh);
+	bool IsHairStrandsVF(const FMeshBatch* Mesh);
+	bool IsHairCardsVF(const FMeshBatch* Mesh);
 }

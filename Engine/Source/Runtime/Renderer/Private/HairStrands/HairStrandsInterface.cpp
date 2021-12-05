@@ -7,6 +7,7 @@
 #include "HairStrandsInterface.h"
 #include "HairStrandsRendering.h"
 #include "HairStrandsMeshProjection.h"
+#include "HairStrandsData.h"
 
 #include "GPUSkinCache.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -430,7 +431,7 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 		check(MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass());
 		if (MeshBatch.Mesh && MeshBatch.Mesh->Elements.Num() > 0)
 		{
-			FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(MeshBatch.Mesh->Elements[0].VertexFactoryUserData);
+			FHairGroupPublicData* HairGroupPublicData = HairStrands::GetHairData(MeshBatch.Mesh);
 			if (HairGroupPublicData && HairGroupPublicData->Instance)
 			{
 				Out.VisibleInstances.Add(HairGroupPublicData->Instance);
@@ -473,23 +474,11 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	return Out;
 }
 
-bool IsHairStrandsCompatible(const FMeshBatch* Mesh)
-{
-	if (Mesh)
-	{
-		static const FHashedName& VFType0 = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"))->GetHashedName();
-		static const FHashedName& VFType1 = FVertexFactoryType::GetVFByName(TEXT("FHairCardsVertexFactory"))->GetHashedName();
-		const FHashedName& VFType = Mesh->VertexFactory->GetType()->GetHashedName();
-		return VFType == VFType0 || VFType == VFType1;
-	}
-	return false;
-}
-
 bool IsHairStrandsVisible(const FMeshBatchAndRelevance& MeshBatch)
 {
 	if (MeshBatch.Mesh && MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass())
 	{
-		const FHairGroupPublicData* Data = reinterpret_cast<const FHairGroupPublicData*>(MeshBatch.Mesh->Elements[0].VertexFactoryUserData);
+		const FHairGroupPublicData* Data = HairStrands::GetHairData(MeshBatch.Mesh);
 		switch (Data->VFInput.GeometryType)
 		{
 			case EHairGeometryType::Strands: return Data->VFInput.Strands.HairLengthScale > 0;
@@ -499,3 +488,40 @@ bool IsHairStrandsVisible(const FMeshBatchAndRelevance& MeshBatch)
 	}
 	return false;
 }
+
+namespace HairStrands
+{
+
+bool IsHairStrandsVF(const FMeshBatch* Mesh)
+{
+	if (Mesh)
+	{
+		static const FHashedName& VFTypeRef = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"))->GetHashedName();
+		const FHashedName& VFType = Mesh->VertexFactory->GetType()->GetHashedName();
+		return VFType == VFTypeRef;
+	}
+	return false;
+}
+
+bool IsHairCardsVF(const FMeshBatch* Mesh)
+{
+	if (Mesh)
+	{
+		static const FHashedName& VFTypeRef = FVertexFactoryType::GetVFByName(TEXT("FHairCardsVertexFactory"))->GetHashedName();
+		const FHashedName& VFType = Mesh->VertexFactory->GetType()->GetHashedName();
+		return VFType == VFTypeRef;
+	}
+	return false;
+}
+
+bool IsHairStrandsCompatible(const FMeshBatch* Mesh)
+{
+	return IsHairStrandsVF(Mesh) || IsHairCardsVF(Mesh);
+}
+
+FHairGroupPublicData* GetHairData(const FMeshBatch* Mesh)
+{
+	return reinterpret_cast<FHairGroupPublicData*>(Mesh->Elements[0].VertexFactoryUserData);
+}
+
+} // namespace HairStrands

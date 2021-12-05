@@ -2857,7 +2857,7 @@ void AddMeshDrawTransitionPass(
 	{
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
 		{
-			FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
+			FHairGroupPublicData* HairGroupPublicData = PrimitiveInfo.PublicDataPtr;
 			check(HairGroupPublicData);
 
 			FRDGResourceAccessFinalizer ResourceAccessFinalizer;
@@ -3099,9 +3099,8 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			PassParameters->OutVisibilityTexture2 = VisibilityTexture2UAV;
 			PassParameters->OutVisibilityTexture3 = VisibilityTexture3UAV;
 			
-			check(PrimitiveInfo.Mesh && PrimitiveInfo.Mesh->Elements.Num() > 0);
-			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
-			check(HairGroupPublicData);
+			check(PrimitiveInfo.PublicDataPtr);
+			const FHairGroupPublicData* HairGroupPublicData = PrimitiveInfo.PublicDataPtr;
 
 			const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
 			PassParameters->HairStrandsVF_PositionBuffer	= VFInput.Strands.PositionBuffer.SRV;
@@ -3176,6 +3175,11 @@ void AddHairStrandsSelectionOutlinePass(
 	FRDGBufferRef VisNodeData,
 	FRDGTextureRef SelectionDepthTexture)
 {
+	if (View.HairStrandsMeshElements.Num() == 0)
+	{
+		return;
+	}
+
 #if WITH_EDITOR
 	// Create mapping table between PrimitiveId and BatchId
 	TArray<uint32> SelectionMaterialId;
@@ -3251,6 +3255,11 @@ void AddHairStrandsHitProxyIdPass(
 	FRDGTextureRef HitProxyDepthTexture)
 {
 #if WITH_EDITOR
+	if (View.HairStrandsMeshElements.Num() == 0)
+	{
+		return;
+	}
+
 	// Create mapping table between PrimitiveId and BatchId
 	TArray<uint32> MaterialIdToHitProxyId;
 	MaterialIdToHitProxyId.Reserve(View.HairStrandsMeshElements.Num());
@@ -3478,7 +3487,7 @@ bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 	TArray<const FHairGroupPublicData*> GroupDatas;
 	for (const FMeshBatchAndRelevance& Batch : View.HairStrandsMeshElements)
 	{
-		FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(Batch.Mesh->Elements[0].VertexFactoryUserData);
+		FHairGroupPublicData* HairGroupPublicData = GetHairData(Batch.Mesh);
 		check(HairGroupPublicData);
 		const int32 LODIndex = FMath::FloorToInt(HairGroupPublicData->LODIndex);
 		const bool bHasSimulationOrSkinning = 
