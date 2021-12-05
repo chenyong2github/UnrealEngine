@@ -7,6 +7,7 @@
 #include "IStageDataProvider.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
+#include "RHIDefinitions.h"
 #include "RenderCore.h"
 #include "StageDataProviderModule.h"
 #include "StageMessages.h"
