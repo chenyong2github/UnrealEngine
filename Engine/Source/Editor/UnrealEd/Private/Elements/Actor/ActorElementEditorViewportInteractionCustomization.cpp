@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 
 #include "Editor.h"
+#include "EditorModeManager.h"
 #include "AI/NavigationSystemBase.h"
 #include "Components/BrushComponent.h"
 #include "Engine/DocumentationActor.h"
