@@ -1113,8 +1113,3 @@ void ProcessHairStrandsBookmark(
 			Parameters.View->ViewUniformBuffer);
 	}
 }
-
-void ProcessHairStrandsParameters(FHairStrandsBookmarkParameters& Parameters)
-{
-	Parameters.bHasElements = Parameters.Instances && Parameters.Instances->Num() > 0;
-}
