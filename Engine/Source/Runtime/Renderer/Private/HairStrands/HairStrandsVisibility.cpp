@@ -816,11 +816,13 @@ static FMaterialPassOutput AddHairMaterialPass(
 	{
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 		{
-			const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
-			if (MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).HasEmissiveColorConnected())
+			if (const FMeshBatch* MeshBatch = PrimitiveInfo.Mesh)
 			{
-				bHasEmissiveMaterial = true;
-				break;
+				if (MeshBatch->MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).HasEmissiveColorConnected())
+				{
+					bHasEmissiveMaterial = true;
+					break;
+				}
 			}
 		}
 	}
@@ -886,18 +888,20 @@ static FMaterialPassOutput AddHairMaterialPass(
 			{
 				for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 				{
-					const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
-					const uint64 BatchElementMask = ~0ull;
-					bool bIsCompatible = true;
-					if (Filter != EHairMaterialPassFilter::All)
+					if (const FMeshBatch* MeshBatch = PrimitiveInfo.Mesh)
 					{
-						const bool bHasEmissive = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).HasEmissiveColorConnected();
-						bIsCompatible = (bHasEmissive && Filter == EHairMaterialPassFilter::EmissiveOnly) || (!bHasEmissive && Filter == EHairMaterialPassFilter::NonEmissiveOnly);
-					}
+						const uint64 BatchElementMask = ~0ull;
+						bool bIsCompatible = true;
+						if (Filter != EHairMaterialPassFilter::All)
+						{
+							const bool bHasEmissive = MeshBatch->MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).HasEmissiveColorConnected();
+							bIsCompatible = (bHasEmissive && Filter == EHairMaterialPassFilter::EmissiveOnly) || (!bHasEmissive && Filter == EHairMaterialPassFilter::NonEmissiveOnly);
+						}
 
-					if (bIsCompatible)
-					{
-						MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
+						if (bIsCompatible)
+						{
+							MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
+						}
 					}
 				}
 			}
@@ -2234,9 +2238,11 @@ static void AddHairVisibilityCommonPass(
 			{
 				for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 				{
-					const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
-					const uint64 BatchElementMask = ~0ull;
-					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId, PrimitiveInfo.IsCullingEnable());
+					if (const FMeshBatch* MeshBatch = PrimitiveInfo.Mesh)
+					{
+						const uint64 BatchElementMask = ~0ull;
+						MeshProcessor.AddMeshBatch(*MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId, PrimitiveInfo.IsCullingEnable());
+					}
 				}
 			}
 		}

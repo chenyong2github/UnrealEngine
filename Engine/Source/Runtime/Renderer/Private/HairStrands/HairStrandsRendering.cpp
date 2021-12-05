@@ -306,4 +306,33 @@ bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views)
 	return false;
 }
 
+bool HasHairStrandsVisible(const TArrayView<FViewInfo>& Views)
+{
+	for (const FViewInfo& View : Views)
+	{
+		if (View.HairStrandsMeshElements.Num() > 0)
+		{
+			return true;
+		}
+	}
+	return false;
 }
+
+bool HasHairCardsVisible(const TArrayView<FViewInfo>& Views)
+{
+	for (const FViewInfo& View : Views)
+	{
+		if (View.HairCardsMeshElements.Num() > 0)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool HasHairInstanceInScene(const FScene& Scene)
+{	
+	return Scene.HairStrandsSceneData.RegisteredProxies.Num() > 0;
+}
+
+} // HairStrands

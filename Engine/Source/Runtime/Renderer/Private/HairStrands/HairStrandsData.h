@@ -16,6 +16,7 @@ class FViewInfo;
 class FScene;
 class FInstanceCullingManager;
 struct FMeshBatch;
+struct FMeshBatchAndRelevance;
 
 ////////////////////////////////////////////////////////////////////////////////////
 // HairStrands uniform buffer
@@ -433,7 +434,13 @@ namespace HairStrands
 
 	// Mesh batch helpers
 	FHairGroupPublicData* GetHairData(const FMeshBatch* In);
-	bool IsHairStrandsCompatible(const FMeshBatch* Mesh);
+	bool IsHairCompatible(const FMeshBatch* Mesh);
 	bool IsHairStrandsVF(const FMeshBatch* Mesh);
 	bool IsHairCardsVF(const FMeshBatch* Mesh);
+	bool IsHairVisible(const FMeshBatchAndRelevance& MeshBatch);
+
+	// Hair helpers
+	bool HasHairInstanceInScene(const FScene& Scene);
+	bool HasHairCardsVisible(const TArrayView<FViewInfo>& Views);
+	bool HasHairStrandsVisible(const TArrayView<FViewInfo>& Views);
 }

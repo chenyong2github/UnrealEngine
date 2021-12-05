@@ -3108,7 +3108,6 @@ static void ComputeAndMarkRelevanceForViewParallel(
 	}
 }
 
-bool IsHairStrandsVisible(const FMeshBatchAndRelevance& MeshBatch);
 void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDensityCommands, const FPrimitiveViewRelevance& ViewRelevance, const FMeshBatchAndRelevance& MeshBatch, FViewInfo& View, FMeshPassMask& PassMask, FPrimitiveSceneInfo* PrimitiveSceneInfo, const FPrimitiveBounds& Bounds)
 {
 	const int32 NumElements = MeshBatch.Mesh->Elements.Num();
@@ -3291,12 +3290,22 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
 	}
 	
-	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform()) && HairStrands::IsHairStrandsCompatible(MeshBatch.Mesh);
-	if (bIsHairStrandsCompatible && IsHairStrandsVisible(MeshBatch))
+	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform());
+	if (bIsHairStrandsCompatible && HairStrands::IsHairVisible(MeshBatch))
 	{
-		View.HairStrandsMeshElements.AddUninitialized(1);
-		FMeshBatchAndRelevance& BatchAndProxy = View.HairStrandsMeshElements.Last();
-		BatchAndProxy = MeshBatch;
+		if (HairStrands::IsHairStrandsVF(MeshBatch.Mesh))
+		{
+			View.HairStrandsMeshElements.AddUninitialized(1);
+			FMeshBatchAndRelevance& BatchAndProxy = View.HairStrandsMeshElements.Last();
+			BatchAndProxy = MeshBatch;
+		}
+
+		if (HairStrands::IsHairCardsVF(MeshBatch.Mesh))
+		{
+			View.HairCardsMeshElements.AddUninitialized(1);
+			FMeshBatchAndRelevance& BatchAndProxy = View.HairCardsMeshElements.Last();
+			BatchAndProxy = MeshBatch;
+		}
 	}
 }
 
