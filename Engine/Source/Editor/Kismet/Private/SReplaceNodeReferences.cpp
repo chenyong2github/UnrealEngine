@@ -690,7 +690,7 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 		}
 	}
 
-	if (HasValidSource() && SelectedTargetReferenceItem.IsValid())
+	if (HasValidSource() && SelectedTargetReferenceItem.IsValid() && SourceProperty!=nullptr )
 	{
 		FMemberReference SourceVariableReference;
 		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourceProperty->GetOwnerClass());
