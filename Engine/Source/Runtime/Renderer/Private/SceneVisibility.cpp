@@ -3488,7 +3488,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 	if (Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
 		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, Views);
-		if (Parameters.bHasElements)
+		if (Parameters.HasInstances())
 		{
 			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessLODSelection, Parameters);
 		}

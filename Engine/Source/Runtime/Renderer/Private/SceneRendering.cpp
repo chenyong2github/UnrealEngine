@@ -4090,7 +4090,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			if (IsHairStrandsEnabled(EHairStrandsShaderType::All, SceneRenderer->Scene->GetShaderPlatform()) && SceneRenderer->Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 			{
 				FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Scene, SceneRenderer->Views);
-				if (Parameters.bHasElements)
+				if (Parameters.HasInstances())
 				{
 					RunHairStrandsBookmark(EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
 				}

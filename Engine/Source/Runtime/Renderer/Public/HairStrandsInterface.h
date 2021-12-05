@@ -450,14 +450,13 @@ struct FHairStrandsBookmarkParameters
 	FRDGTextureRef SceneDepthTexture = nullptr; 
 
 	bool bHzbRequest = false;
-	bool bHasElements = false;
-	bool bStrandsGeometryEnabled = false;
 	uint32 FrameIndex = ~0;
 
 	// Temporary
 	FHairStrandClusterData HairClusterData;
+
+	inline bool HasInstances() const { return Instances != nullptr && Instances->Num() > 0; }
 };
 
-typedef void (*THairStrandsParameterFunction)(FHairStrandsBookmarkParameters& Parameters);
 typedef void (*THairStrandsBookmarkFunction)(FRDGBuilder* GraphBuilder, EHairStrandsBookmark Bookmark, FHairStrandsBookmarkParameters& Parameters);
-RENDERER_API void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark, THairStrandsParameterFunction Parameters);
+RENDERER_API void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark);

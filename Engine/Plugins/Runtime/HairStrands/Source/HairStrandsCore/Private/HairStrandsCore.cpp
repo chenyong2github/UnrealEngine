@@ -17,13 +17,11 @@ void ProcessHairStrandsBookmark(
 	EHairStrandsBookmark Bookmark,
 	FHairStrandsBookmarkParameters& Parameters);
 
-void ProcessHairStrandsParameters(FHairStrandsBookmarkParameters& Parameters);
-
 FHairAssetHelper HairStrandsCore_AssetHelper;
 
 void FHairStrandsCore::StartupModule()
 {
-	RegisterBookmarkFunction(ProcessHairStrandsBookmark, ProcessHairStrandsParameters);
+	RegisterBookmarkFunction(ProcessHairStrandsBookmark);
 
 	// Maps virtual shader source directory /Plugin/FX/Niagara to the plugin's actual Shaders directory.
 	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("HairStrands"))->GetBaseDir(), TEXT("Shaders"));

@@ -392,17 +392,11 @@ void TransitBufferToReadable(FRDGBuilder& GraphBuilder, FBufferTransitionQueue& 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Bookmark API
 THairStrandsBookmarkFunction  GHairStrandsBookmarkFunction = nullptr;
-THairStrandsParameterFunction GHairStrandsParameterFunction = nullptr;
-void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark, THairStrandsParameterFunction Parameter)
+void RegisterBookmarkFunction(THairStrandsBookmarkFunction Bookmark)
 {
 	if (Bookmark)
 	{
 		GHairStrandsBookmarkFunction = Bookmark;
-	}
-
-	if (Parameter)
-	{
-		GHairStrandsParameterFunction = Parameter;
 	}
 }
 
@@ -461,16 +455,10 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	Out.ViewRect				= View.ViewRect;
 	Out.ViewUniqueID			= View.ViewState ? View.ViewState->UniqueID : ~0;
 	Out.SceneColorTexture		= nullptr;
-	Out.bStrandsGeometryEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands, View.GetShaderPlatform());
+	Out.bHzbRequest				= false; // Out.HasInstances() && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, View.GetShaderPlatform());
 
 	// Sanity check
 	check(Out.Instances->Num() >= Out.VisibleInstances.Num());
-
-	if (GHairStrandsParameterFunction)
-	{
-		GHairStrandsParameterFunction(Out);
-	}
-	Out.bHzbRequest = false; // Out.bHasElements&& Out.bStrandsGeometryEnabled;
 
 	return Out;
 }
