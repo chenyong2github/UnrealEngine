@@ -1291,8 +1291,8 @@ static void AddVirtualVoxelizationComputeRasterPass(
 		TShaderMapRef<FVoxelRasterComputeCS> ComputeShader_CullingOn(ViewInfo->ShaderMap, PermutationVector_On);
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : PrimitiveSceneInfos)
 		{
-			check(PrimitiveInfo.Mesh && PrimitiveInfo.Mesh->Elements.Num() > 0);
-			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
+			check(PrimitiveInfo.PublicDataPtr);
+			const FHairGroupPublicData* HairGroupPublicData = PrimitiveInfo.PublicDataPtr;
 
 			if (HairGroupPublicData->DoesSupportVoxelization())
 			{

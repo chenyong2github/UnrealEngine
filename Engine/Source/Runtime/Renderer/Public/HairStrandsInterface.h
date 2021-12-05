@@ -144,6 +144,8 @@ struct RENDERER_API FHairStrandsInstance
 	uint32 AddRef() const;
 	uint32 Release() const;
 	int32 RegisteredIndex = -1;
+	virtual const FBoxSphereBounds* GetBounds() { return nullptr; }
+	virtual const FHairGroupPublicData* GetHairData() { return nullptr; }
 protected:
 	mutable uint32 RefCount = 0;
 };
@@ -394,8 +396,6 @@ enum class EHairStrandsShaderType
 RENDERER_API bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform);
 RENDERER_API bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform = EShaderPlatform::SP_NumPlatforms);
 RENDERER_API void SetHairStrandsEnabled(bool In);
-
-RENDERER_API bool IsHairStrandsCompatible(const FMeshBatch* Mesh);
 
 RENDERER_API bool IsHairRayTracingEnabled();
 

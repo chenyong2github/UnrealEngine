@@ -37,6 +37,7 @@
 #include "TranslucentRendering.h"
 #include "Async/ParallelFor.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "HairStrands/HairStrandsData.h"
 #include "RectLightSceneProxy.h"
 #include "Math/Halton.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
@@ -3290,7 +3291,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		BatchAndProxy.SortKey = MeshBatch.PrimitiveSceneProxy->GetTranslucencySortPriority();
 	}
 	
-	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform()) && IsHairStrandsCompatible(MeshBatch.Mesh);
+	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform()) && HairStrands::IsHairStrandsCompatible(MeshBatch.Mesh);
 	if (bIsHairStrandsCompatible && IsHairStrandsVisible(MeshBatch))
 	{
 		View.HairStrandsMeshElements.AddUninitialized(1);

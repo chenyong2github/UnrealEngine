@@ -11,6 +11,7 @@
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
 #include "HairStrandsTile.h"
+#include "HairStrandsData.h"
 
 #include "Shader.h"
 #include "GlobalShader.h"
@@ -1029,14 +1030,13 @@ static void AddDrawDebugClusterPass(
 				for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 				{
 					check(PrimitiveInfo.Mesh && PrimitiveInfo.Mesh->Elements.Num() > 0);
-					const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
 
 					for (int DataIndex = 0; DataIndex < HairClusterData.HairGroups.Num(); ++DataIndex)
 					{
 						const FHairStrandClusterData::FHairGroup& HairGroupClusters = HairClusterData.HairGroups[DataIndex];
 
 						// Find a better/less hacky way
-						if (HairGroupPublicData != HairGroupClusters.HairGroupPublicPtr)
+						if (PrimitiveInfo.PublicDataPtr != HairGroupClusters.HairGroupPublicPtr)
 							continue;
 
 						if (ShaderDrawDebug::IsEnabled(View) && HairGroupClusters.CulledClusterCountBuffer)
@@ -1119,7 +1119,7 @@ static void InternalRenderHairStrandsDebugInfo(
 		{
 			for (const FMeshBatchAndRelevance& Mesh : View.HairStrandsMeshElements)
 			{
-				const FHairGroupPublicData* GroupData = reinterpret_cast<const FHairGroupPublicData*>(Mesh.Mesh->Elements[0].VertexFactoryUserData);
+				const FHairGroupPublicData* GroupData = HairStrands::GetHairData(Mesh.Mesh);
 				if (GroupData->DebugMode == EHairStrandsDebugMode::RenderHairTangent)
 				{
 					bTangentEnabled = true;
