@@ -9,6 +9,7 @@
 #include "IDetailPropertyRow.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Input/SSegmentedControl.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "IKRigDetailCustomizations"
 

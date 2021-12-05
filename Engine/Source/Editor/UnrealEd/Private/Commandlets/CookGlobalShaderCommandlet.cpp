@@ -15,6 +15,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "DirectoryWatcherModule.h"
 #include "IDirectoryWatcher.h"
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCookGlobalShaders, Log, All);
 
