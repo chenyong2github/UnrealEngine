@@ -437,7 +437,21 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 				Out.VisibleInstances.Add(HairGroupPublicData->Instance);
 			}
 		}
-	}	
+	}
+
+	for (const FMeshBatchAndRelevance& MeshBatch : View.HairCardsMeshElements)
+	{
+		check(MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass());
+		if (MeshBatch.Mesh && MeshBatch.Mesh->Elements.Num() > 0)
+		{
+			FHairGroupPublicData* HairGroupPublicData = HairStrands::GetHairData(MeshBatch.Mesh);
+			if (HairGroupPublicData && HairGroupPublicData->Instance)
+			{
+				Out.VisibleInstances.Add(HairGroupPublicData->Instance);
+			}
+		}
+	}
+
 	Out.ShaderDebugData			= ShaderDrawDebug::IsEnabled(View) ? &View.ShaderDrawData : nullptr;
 	Out.ShaderPrintData			= ShaderPrint::IsEnabled(View) ? &View.ShaderPrintData : nullptr;
 	Out.SkinCache				= View.Family->Scene->GetGPUSkinCache();
@@ -474,21 +488,6 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	return Out;
 }
 
-bool IsHairStrandsVisible(const FMeshBatchAndRelevance& MeshBatch)
-{
-	if (MeshBatch.Mesh && MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass())
-	{
-		const FHairGroupPublicData* Data = HairStrands::GetHairData(MeshBatch.Mesh);
-		switch (Data->VFInput.GeometryType)
-		{
-			case EHairGeometryType::Strands: return Data->VFInput.Strands.HairLengthScale > 0;
-			case EHairGeometryType::Cards  : return true;
-			case EHairGeometryType::Meshes : return true;
-		}
-	}
-	return false;
-}
-
 namespace HairStrands
 {
 
@@ -514,9 +513,24 @@ bool IsHairCardsVF(const FMeshBatch* Mesh)
 	return false;
 }
 
-bool IsHairStrandsCompatible(const FMeshBatch* Mesh)
+bool IsHairCompatible(const FMeshBatch* Mesh)
 {
 	return IsHairStrandsVF(Mesh) || IsHairCardsVF(Mesh);
+}
+
+bool IsHairVisible(const FMeshBatchAndRelevance& MeshBatch)
+{
+	if (MeshBatch.Mesh && MeshBatch.PrimitiveSceneProxy && MeshBatch.PrimitiveSceneProxy->ShouldRenderInMainPass())
+	{
+		const FHairGroupPublicData* Data = HairStrands::GetHairData(MeshBatch.Mesh);
+		switch (Data->VFInput.GeometryType)
+		{
+		case EHairGeometryType::Strands: return Data->VFInput.Strands.HairLengthScale > 0;
+		case EHairGeometryType::Cards: return true;
+		case EHairGeometryType::Meshes: return true;
+		}
+	}
+	return false;
 }
 
 FHairGroupPublicData* GetHairData(const FMeshBatch* Mesh)

@@ -1111,13 +1111,24 @@ static void InternalRenderHairStrandsDebugInfo(
 	}
 
 	// Display tangent vector for strands/cards/meshes
-	if (GHairTangentDebug > 0 || View.HairStrandsMeshElements.Num() > 0)
 	{
 		// Check among the hair instances, if hair tangent debug mode is requested
 		bool bTangentEnabled = GHairTangentDebug > 0;
 		if (!bTangentEnabled)
 		{
 			for (const FMeshBatchAndRelevance& Mesh : View.HairStrandsMeshElements)
+			{
+				const FHairGroupPublicData* GroupData = HairStrands::GetHairData(Mesh.Mesh);
+				if (GroupData->DebugMode == EHairStrandsDebugMode::RenderHairTangent)
+				{
+					bTangentEnabled = true;
+					break;
+				}
+			}
+		}
+		if (!bTangentEnabled)
+		{
+			for (const FMeshBatchAndRelevance& Mesh : View.HairCardsMeshElements)
 			{
 				const FHairGroupPublicData* GroupData = HairStrands::GetHairData(Mesh.Mesh);
 				if (GroupData->DebugMode == EHairStrandsDebugMode::RenderHairTangent)
