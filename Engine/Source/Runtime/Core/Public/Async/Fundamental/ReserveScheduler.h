@@ -30,14 +30,14 @@ namespace LowLevelTasks
 		FORCEINLINE_DEBUGGABLE static FReserveScheduler& Get();
 
 		//start number of reserve workers where 0 is the system default
-		CORE_API void StartWorkers(FScheduler& MainScheduler, uint32 ReserveWorkers = 0, bool bIsForkable = false, EThreadPriority WorkerPriority = EThreadPriority::TPri_Normal);
+		CORE_API void StartWorkers(FScheduler& MainScheduler, uint32 ReserveWorkers = 0, FThread::EForkable IsForkable = FThread::NonForkable, EThreadPriority WorkerPriority = EThreadPriority::TPri_Normal);
 		CORE_API void StopWorkers();
 
 		//tries to yield this thread using the YieldEvent and do busywork on a reserve worker.
 		CORE_API bool DoReserveWorkUntil(FConditional&& Condition);
 
 	private: 
-		TUniquePtr<FThread> CreateWorker(bool bIsForkable = false, FSchedulerTls::FLocalQueueType* WorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal);
+		TUniquePtr<FThread> CreateWorker(FThread::EForkable IsForkable = FThread::NonForkable, FSchedulerTls::FLocalQueueType* WorkerLocalQueue = nullptr, EThreadPriority Priority = EThreadPriority::TPri_Normal);
 
 	private:
 		template<typename ElementType>
