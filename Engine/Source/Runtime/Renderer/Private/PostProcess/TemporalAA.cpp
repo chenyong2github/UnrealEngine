@@ -888,8 +888,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	const FViewInfo& View,
 	const ITemporalUpscaler::FPassInputs& PassInputs);
 
-const ITemporalUpscaler* GTemporalUpscaler = nullptr;
-
 class FDefaultTemporalUpscaler : public ITemporalUpscaler
 {
 public:
