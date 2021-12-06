@@ -131,7 +131,7 @@ namespace HordeServer.Services
 				// Query leases in last interval
 				DateTime MaxTime = DateTime.UtcNow;
 				DateTime MinTime = MaxTime - (SampleTime * NumSamples);
-				List<ILease> Leases = await LeaseCollection.FindLeasesAsync(null, null, MinTime, MaxTime, null, null);
+				List<ILease> Leases = await LeaseCollection.FindLeasesAsync(MinTime, MaxTime);
 
 				// Add all the leases to a data object for each agent
 				Dictionary<AgentId, AgentData> AgentIdToData = Agents.ToDictionary(x => x.Id, x => new AgentData(x));

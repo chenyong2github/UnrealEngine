@@ -313,7 +313,7 @@ namespace HordeServer.Collections.Impl
 			}
 		}
 
-		class DatabaseIndexes
+		class DatabaseIndexes : BaseDatabaseIndexes
 		{
 			public readonly string StreamId;
 			public readonly string Change;
@@ -324,12 +324,9 @@ namespace HordeServer.Collections.Impl
 			public readonly string StartedByUserId;
 			public readonly string TemplateId;
 			public readonly string SchedulePriority;
-			private bool DatabaseReadOnlyMode;
 
-			public DatabaseIndexes(IMongoCollection<JobDocument> Jobs, bool DatabaseReadOnlyMode)
+			public DatabaseIndexes(IMongoCollection<JobDocument> Jobs, bool DatabaseReadOnlyMode) : base(DatabaseReadOnlyMode)
 			{
-				this.DatabaseReadOnlyMode = DatabaseReadOnlyMode;
-				
 				StreamId = CreateOrGetIndex(Jobs, "StreamId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.StreamId));
 				Change = CreateOrGetIndex(Jobs, "Change_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.Change));
 				PreflightChange = CreateOrGetIndex(Jobs, "PreflightChange_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.PreflightChange));
@@ -339,22 +336,6 @@ namespace HordeServer.Collections.Impl
 				StartedByUserId = CreateOrGetIndex(Jobs, "StartedByUserId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.StartedByUserId));
 				TemplateId = CreateOrGetIndex(Jobs, "TemplateId_1", Builders<JobDocument>.IndexKeys.Ascending(x => x.TemplateId));
 				SchedulePriority = CreateOrGetIndex(Jobs, "SchedulePriority_-1", Builders<JobDocument>.IndexKeys.Descending(x => x.SchedulePriority));
-			}
-
-			private string CreateOrGetIndex<T>(IMongoCollection<T> Collection, string Name, IndexKeysDefinition<T> IndexDef)
-			{
-				if (DatabaseReadOnlyMode)
-				{
-					if (Collection.Indexes.List().ToList().Find(x => x.TryGetString("name", out string? n) && n == Name) == null)
-					{
-						throw new ArgumentException("Index with name {Name} not found (running in database read-only mode)");
-					}
-					return Name;
-				}
-
-				CreateIndexOptions IndexOptions = new() { Name = Name, Background = true };
-				Collection.Indexes.CreateOne(new CreateIndexModel<T>(IndexDef, IndexOptions));
-				return Name;
 			}
 		}
 
