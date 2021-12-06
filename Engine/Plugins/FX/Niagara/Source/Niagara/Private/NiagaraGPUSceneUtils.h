@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RHI.h"
 #include "RHIDefinitions.h"
-#include "RHICommandList.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraMeshVertexFactory.h"
