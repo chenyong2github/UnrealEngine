@@ -24,8 +24,8 @@ struct FDenoiserFilterSet
 #endif
 
 	FIntPoint Size;
-	TArray<FVector> InputBuffer;
-	TArray<FVector> OutputBuffer;
+	TArray<FVector3f> InputBuffer;
+	TArray<FVector3f> OutputBuffer;
 
 	FDenoiserFilterSet(FDenoiserContext& Context, FIntPoint NewSize, bool bSHDenoiser = false);
 

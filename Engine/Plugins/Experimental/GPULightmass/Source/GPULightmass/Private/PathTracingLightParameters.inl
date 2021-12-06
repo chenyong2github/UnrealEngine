@@ -74,7 +74,7 @@ void SetupPathTracingLightParameters(
 
 		DestLight.Position = Light.Position;
 		DestLight.Color = FVector(Light.Color);
-		DestLight.Normal = FVector(1, 0, 0);
+		DestLight.Normal = Light.Direction;
 		DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
 		DestLight.dPdv = Light.Tangent;
 

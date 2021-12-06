@@ -244,6 +244,8 @@ FLightShaderParameters FPointLightRenderState::GetLightShaderParameters() const
 	FLightShaderParameters LightParameters;
 
 	LightParameters.Position = Position;
+	LightParameters.Direction = -Direction;
+	LightParameters.Tangent = Tangent;
 	LightParameters.InvRadius = 1.0f / AttenuationRadius;
 	LightParameters.Color = FVector(Color);
 	LightParameters.SourceRadius = SourceRadius;
