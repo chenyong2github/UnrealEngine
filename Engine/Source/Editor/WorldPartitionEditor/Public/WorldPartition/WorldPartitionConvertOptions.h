@@ -38,5 +38,8 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Convert)
 	bool bSkipMiniMapGeneration;
 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Convert)
+	bool bOnlyMergeSubLevels;
+
 	FString LongPackageName;
 };

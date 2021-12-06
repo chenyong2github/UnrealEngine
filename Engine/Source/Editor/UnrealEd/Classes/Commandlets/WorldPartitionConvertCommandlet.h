@@ -40,15 +40,15 @@ public:
 	virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
-	const FString& GetConversionSuffix() const { return ConversionSuffix; }
+	static const FString GetConversionSuffix(const bool bInOnlyMergeSubLevels);
 
 private:
-	void GatherAndPrepareSubLevelsToConvert(const UWorldPartition* WorldPartition, ULevel* Level, TArray<ULevel*>& SubLevels);
+	void GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
 	EActorGridPlacement GetLevelGridPlacement(ULevel* Level, EActorGridPlacement DefaultGridPlacement);
 
 protected:
 	virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
-	virtual bool PrepareStreamingLevelForConversion(const UWorldPartition* WorldPartition, ULevelStreaming* StreamingLevel);
+	virtual bool PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel);
 	virtual bool ShouldConvertStreamingLevel(ULevelStreaming* StreamingLevel);
 	virtual bool ShouldDeleteActor(AActor* Actor, bool bMainLevel) const;
 	virtual void PerformAdditionalWorldCleanup(UWorld* World) const;
@@ -89,6 +89,7 @@ protected:
 	TArray<UPackage*> PackagesToDelete;
 	FPackageSourceControlHelper PackageHelper;
 
+	bool bOnlyMergeSubLevels;
 	bool bDeleteSourceLevels;
 	bool bGenerateIni;
 	bool bReportOnly;
