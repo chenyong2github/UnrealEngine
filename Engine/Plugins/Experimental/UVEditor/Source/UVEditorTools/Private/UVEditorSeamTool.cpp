@@ -477,7 +477,7 @@ void UUVEditorSeamTool::Setup()
 		});
 	}
 
-	GetToolManager()->DisplayMessage(LOCTEXT("OnStartSeamTool", "Click to add seams in 2d/3d view. Click start/end point or hit Enter to confirm."),
+	GetToolManager()->DisplayMessage(LOCTEXT("OnStartSeamTool", "Click to add seams in 2D or 3D viewport. To finish the seam, either click on the last point added, press enter or create a loop by clicking on the first point."),
 		EToolMessageLevel::UserNotification);
 }
 

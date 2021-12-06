@@ -396,7 +396,7 @@ void UUVSelectTool::Setup()
 	// The trees will be updated by the tree store, which listens to the same broadcasts.
 	for (int32 i = 0; i < Targets.Num(); ++i)
 	{
-		Targets[i]->OnCanonicalModified.AddWeakLambda(this, [this, i]
+		Targets[i]->OnCanonicalModified.AddWeakLambda(this, [this]
 		(UUVEditorToolMeshInput* InputObject, const UUVEditorToolMeshInput::FCanonicalModifiedInfo& Info) {
 			if (bIgnoreOnCanonicalChange) // Used to avoid reacting to broadcasts that we ourselves caused
 			{
@@ -464,7 +464,7 @@ void UUVSelectTool::Setup()
 	UpdateGizmo();
 
 	GetToolManager()->DisplayMessage(LOCTEXT("SelectToolStatusBarMessage", 
-		"Select elements in the viewport and then use one of the edit action buttons."), 
+		"Select elements in the viewport and then transform them or use one of the action buttons."), 
 		EToolMessageLevel::UserNotification);
 }
 
@@ -935,7 +935,7 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
 			SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true);
-			bool ActionSuccessful = SewAction->ExecuteAction(*EmitChangeAPI);
+			SewAction->ExecuteAction(*EmitChangeAPI);
 
 			EmitChangeAPI->EndUndoTransaction();
 		}
@@ -949,7 +949,7 @@ void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
 			EmitChangeAPI->BeginUndoTransaction(TransactionName);
 
 			SelectionMechanic->SetSelection(FDynamicMeshSelection(), false, true);
-			bool ActionSuccessful = IslandConformalUnwrapAction->ExecuteAction(*EmitChangeAPI);
+			IslandConformalUnwrapAction->ExecuteAction(*EmitChangeAPI);
 
 			EmitChangeAPI->EndUndoTransaction();
 		}

@@ -128,7 +128,7 @@ public:
 };
 
 UCLASS()
-class UVEDITORTOOLS_API UUVEditorChannelEditCloneProperties : public UInteractiveToolPropertySet
+class UVEDITORTOOLS_API UUVEditorChannelEditCopyProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -220,7 +220,7 @@ protected:
 	TObjectPtr<UUVEditorChannelEditAddProperties> AddActionProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UUVEditorChannelEditCloneProperties> CopyActionProperties = nullptr;
+	TObjectPtr<UUVEditorChannelEditCopyProperties> CopyActionProperties = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UUVEditorChannelEditDeleteProperties> DeleteActionProperties = nullptr;

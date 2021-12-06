@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "MeshOpPreviewHelpers.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Properties/RecomputeUVsProperties.h"
 #include "Polygroups/PolygroupSet.h"
@@ -14,7 +13,7 @@
 #include "UVEditorRecomputeUVsTool.generated.h"
 
 
-// predeclarations
+// Forward declarations
 class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;

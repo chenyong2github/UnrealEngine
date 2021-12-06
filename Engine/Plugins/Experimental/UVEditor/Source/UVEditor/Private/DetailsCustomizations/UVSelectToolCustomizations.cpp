@@ -71,8 +71,8 @@ void FUVSelectToolActionPropertySetDetails::CustomizeDetails(IDetailLayoutBuilde
 	ToolbarBuilder.AddToolBarButton(CommandInfos.SplitAction);
 	ToolbarBuilder.AddToolBarButton(CommandInfos.IslandConformalUnwrapAction);
 
-	DetailBuilder.EditCategory("SelectionActions")
-		.AddCustomRow(LOCTEXT("ActionsSectionFilterString", "Selection Actions"), false)
+	DetailBuilder.EditCategory("EditActions")
+		.AddCustomRow(LOCTEXT("ActionsSectionFilterString", "Edit Actions"), false)
 		[
 			ToolbarBuilder.MakeWidget()
 		];

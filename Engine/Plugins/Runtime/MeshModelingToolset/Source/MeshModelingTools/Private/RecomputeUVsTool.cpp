@@ -110,7 +110,7 @@ void URecomputeUVsTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolNameLocal", "UV Unwrap"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool_Regions", "Generate UVs for Polygroups or existing UV charts of the Mesh using various strategies."),
+		LOCTEXT("OnStartTool_Regions", "Generate UVs for PolyGroups or existing UV islands of the mesh using various strategies."),
 		EToolMessageLevel::UserNotification);
 }
 
