@@ -488,18 +488,34 @@ void USequencerPivotTool::GizmoTransformStarted(UTransformProxy* Proxy)
 			if (SelectedControls.Num() > 0)
 			{
 				ControlRig->Modify();
+
 				for (const FName& Name : SelectedControls)
 				{
-					FTransform Transform = UControlRigSequencerEditorLibrary::GetControlRigWorldTransform(LevelSequence, ControlRig.Get(), Name, FrameNumber,
-						ESequenceTimeUnit::TickResolution);
+					if (FRigControlElement* ControlElement = ControlRig->FindControl(Name))
+					{
+						//if we have a parent that's selected and we are a float/bool/int/enum skip
+						if (FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement)))
+						{
+							if (ControlRig->IsControlSelected(ParentControlElement->GetName()) && (
+								ControlElement->Settings.ControlType == ERigControlType::Bool || 
+								ControlElement->Settings.ControlType == ERigControlType::Float || 
+								ControlElement->Settings.ControlType == ERigControlType::Integer)
+								)
+							{
+								continue;
+							}
+						}
+						FTransform Transform = UControlRigSequencerEditorLibrary::GetControlRigWorldTransform(LevelSequence, ControlRig.Get(), Name, FrameNumber,
+							ESequenceTimeUnit::TickResolution);
 
-					FControlRigSelectionDuringDrag ControlDrag;
-					ControlDrag.LevelSequence = LevelSequence;
-					ControlDrag.ControlName = Name;
-					ControlDrag.ControlRig = ControlRig.Get();
-					ControlDrag.CurrentFrame = FrameNumber;
-					ControlDrag.CurrentTransform = Transform;
-					ControlRigDrags.Add(ControlDrag);
+						FControlRigSelectionDuringDrag ControlDrag;
+						ControlDrag.LevelSequence = LevelSequence;
+						ControlDrag.ControlName = Name;
+						ControlDrag.ControlRig = ControlRig.Get();
+						ControlDrag.CurrentFrame = FrameNumber;
+						ControlDrag.CurrentTransform = Transform;
+						ControlRigDrags.Add(ControlDrag);
+					}
 				}
 			}
 		}
