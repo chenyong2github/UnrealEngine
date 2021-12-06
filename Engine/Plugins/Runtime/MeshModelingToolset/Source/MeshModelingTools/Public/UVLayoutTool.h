@@ -28,7 +28,7 @@ PREDECLARE_GEOMETRY(class FDynamicMesh3);
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVLayoutToolBuilder : public UMultiSelectionMeshEditingToolBuilder
+class MESHMODELINGTOOLS_API UUVLayoutToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ public:
  * The level editor version of the UV layout tool.
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVLayoutTool : public UMultiSelectionMeshEditingTool
+class MESHMODELINGTOOLS_API UUVLayoutTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
