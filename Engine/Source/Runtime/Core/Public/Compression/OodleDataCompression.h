@@ -48,9 +48,12 @@ enum class ECompressor : uint8
 	Selkie = 1,
 	Mermaid = 2,
 	Kraken  = 3,
-	Leviathan = 4
+	Leviathan = 4 // if another added update CompressorNameMap
 };
 
+// If the input is invalid, returns false, and doesn't touch output.
+bool CORE_API ECompressorToString(ECompressor InCompressor, const TCHAR** OutName);
+bool CORE_API ECompressorFromString(const class FString& InName, ECompressor& OutCompressor);
 
 /**
  * ECompressionLevel : Choose the Oodle Compression Level
@@ -97,8 +100,12 @@ enum class ECompressionLevel : int8
 	Optimal1 = 5,
 	Optimal2 = 6,
 	Optimal3 = 7,
-	Optimal4 = 8,
+	Optimal4 = 8, // if another added update CompressionLevelNameMap
 };
+
+// If the input is invalid, returns false, and doesn't touch output.
+bool CORE_API ECompressionLevelFromValue(int8 InValue, ECompressionLevel& OutLevel);
+bool CORE_API ECompressionLevelToString(ECompressionLevel InLevel, const TCHAR** OutName);
 
 enum class ECompressionCommonUsage : uint8
 {
