@@ -1243,9 +1243,10 @@ struct FWatchLineItem : public FLineItemWithChildren
 protected:
 	TWeakObjectPtr< UObject > ParentObjectRef;
 	const FEdGraphPinReference ObjectRef;
-	const TArray<FName> PathToProperty;
 	mutable TSharedPtr<FPropertyInstanceInfo> CachedPropertyInfo = nullptr;
 	mutable FText CachedErrorString;
+	const TArray<FName> PathToProperty;
+
 public:
 	FWatchLineItem(const UEdGraphPin* PinToWatch, UObject* ParentObject)
 		: FLineItemWithChildren(DLT_Watch)
@@ -1312,11 +1313,19 @@ public:
 		return ObjectRef;
 	}
 
+	const TArray<FName>& GetPathToProperty() const
+	{
+		return PathToProperty;
+	}
+
 	virtual FText GetDescription() const override;
 	virtual TSharedRef<SWidget> GenerateNameWidget(TSharedPtr<FString> InSearchString) override;
 	virtual TSharedRef<SWidget> GenerateValueWidget(TSharedPtr<FString> InSearchString) override;
 	virtual TSharedRef<SWidget> GetValueIcon() override;
 	virtual TSharedRef<SWidget> GetNameIcon() override;
+
+	/** Returns a SharedPtr to the debug info for the property being represented by this TreeItem */
+	TSharedPtr<FPropertyInstanceInfo> GetPropertyInfo() const;
 
 protected:
 	virtual FDebugLineItem* Duplicate() const override
@@ -1361,8 +1370,6 @@ protected:
 
 	// Finds the DebugInfo for the property pointed to by PathToProperty from the Pin's debuginfo
 	TSharedPtr<FPropertyInstanceInfo> GetWatchedPropertyDebugInfo(const TSharedPtr<FPropertyInstanceInfo>& InPinInfo) const;
-
-	TSharedPtr<FPropertyInstanceInfo> GetPropertyInfo() const;
 
 private:
 	void AddWatch() const
@@ -1813,12 +1820,28 @@ TSharedPtr<FPropertyInstanceInfo> FWatchLineItem::GetWatchedPropertyDebugInfo(co
 		if (ThisDebugInfo.IsValid())
 		{
 			const FString ChildNameStr = ChildName.ToString();
-			TSharedPtr<FPropertyInstanceInfo>* FoundChild = ThisDebugInfo->Children.FindByPredicate(
-				[&ChildNameStr](const TSharedPtr<FPropertyInstanceInfo>& Child)
-				{
-					return Child->Property->GetAuthoredName() == ChildNameStr;
-				}
-			);
+			FProperty* Property = ThisDebugInfo->Property.Get();
+
+			TSharedPtr<FPropertyInstanceInfo>* FoundChild;
+			
+			if (Property->IsA<FSetProperty>() || Property->IsA<FArrayProperty>() || Property->IsA<FMapProperty>())
+			{
+				FoundChild = ThisDebugInfo->Children.FindByPredicate(
+					[&ChildNameStr](const TSharedPtr<FPropertyInstanceInfo>& Child)
+					{
+						return Child->DisplayName.ToString() == ChildNameStr;
+					}
+				);
+			}
+			else
+			{
+				FoundChild = ThisDebugInfo->Children.FindByPredicate(
+					[&ChildNameStr](const TSharedPtr<FPropertyInstanceInfo>& Child)
+					{
+						return Child->Property->GetAuthoredName() == ChildNameStr;
+					}
+				);
+			}
 
 			if (FoundChild)
 			{
@@ -1954,7 +1977,22 @@ UEdGraphPin* FWatchChildLineItem::BuildPathToProperty(TArray<FName>& OutPathToPr
 {
 	UEdGraphPin* PinToWatch = nullptr;
 	OutPathToProperty.Reset();
-	OutPathToProperty.Emplace(Data->Property->GetAuthoredName());
+
+	auto AddPropertyToPath = [&OutPathToProperty](const TSharedRef<FPropertyInstanceInfo>& InPropertyInfo)
+	{
+		if (InPropertyInfo->bIsInContainer)
+		{
+			// display name of map elements is their key exported to text
+			OutPathToProperty.Emplace(InPropertyInfo->DisplayName.ToString());
+		}
+		else
+		{
+			OutPathToProperty.Emplace(InPropertyInfo->Property->GetAuthoredName());
+		}
+	};
+
+	AddPropertyToPath(Data);
+
 	FDebugTreeItemPtr Parent = ParentTreeItem.Pin();
 	while (Parent.IsValid())
 	{
@@ -1963,6 +2001,14 @@ UEdGraphPin* FWatchChildLineItem::BuildPathToProperty(TArray<FName>& OutPathToPr
 			// this is a FWatchLineItem
 			TSharedPtr<FWatchLineItem> ParentAsWatch = StaticCastSharedPtr<FWatchLineItem>(Parent);
 			PinToWatch = ParentAsWatch->GetPin().Get();
+
+			// Add the original path to the front of ours (we're still constructing it backwards) 
+			const TArray<FName>& ParentPath = ParentAsWatch->GetPathToProperty();
+			for (int32 PathIndex = ParentPath.Num() - 1; PathIndex >= 0; --PathIndex)
+			{
+				OutPathToProperty.Emplace(ParentPath[PathIndex]);
+			}
+
 			break;
 		}
 
@@ -1970,7 +2016,9 @@ UEdGraphPin* FWatchChildLineItem::BuildPathToProperty(TArray<FName>& OutPathToPr
 		{
 			// This is a FWatchChildLineItem
 			TSharedPtr<FWatchChildLineItem> ParentAsChild = StaticCastSharedPtr<FWatchChildLineItem>(Parent);
-			OutPathToProperty.Emplace(ParentAsChild->Data->Property->GetAuthoredName());
+
+			AddPropertyToPath(ParentAsChild->Data);
+
 			Parent = ParentAsChild->ParentTreeItem.Pin();
 		}
 		else
