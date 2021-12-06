@@ -180,22 +180,22 @@ class FWorldPartitionStreamingGenerator
 
 						if (ActorDescView.GetGridPlacement() != EActorGridPlacement::AlwaysLoaded)
 						{						
-							ActorDescView.SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
-
 							if (ErrorHandler)
 							{
 								ErrorHandler->OnInvalidReferenceLevelScriptStreamed(ActorDescView);
 							}
+
+							ActorDescView.SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
 						}
 
 						if (ActorDescView.GetDataLayers().Num())
 						{
-							ActorDescView.SetInvalidDataLayers();
-
 							if (ErrorHandler)
 							{
 								ErrorHandler->OnInvalidReferenceLevelScriptDataLayers(ActorDescView);
 							}
+
+							ActorDescView.SetInvalidDataLayers();
 						}
 					}
 				}
@@ -223,13 +223,13 @@ class FWorldPartitionStreamingGenerator
 
 						if (bIsActorDescAlwaysLoaded != bIsActorDescRefAlwaysLoaded)
 						{
-							ActorDescView.SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
-							ReferenceActorDescView->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
-
 							if (ErrorHandler)
 							{
 								ErrorHandler->OnInvalidReferenceGridPlacement(ActorDescView, *ReferenceActorDescView);
 							}
+
+							ActorDescView.SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
+							ReferenceActorDescView->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
 						}
 
 						// Validate data layers
@@ -248,13 +248,13 @@ class FWorldPartitionStreamingGenerator
 
 						if (!IsReferenceDataLayersValid(ActorDescView, *ReferenceActorDescView))
 						{
-							ActorDescView.SetInvalidDataLayers();
-							ReferenceActorDescView->SetInvalidDataLayers();
-
 							if (ErrorHandler)
 							{
 								ErrorHandler->OnInvalidReferenceDataLayers(ActorDescView, *ReferenceActorDescView);
 							}
+
+							ActorDescView.SetInvalidDataLayers();
+							ReferenceActorDescView->SetInvalidDataLayers();
 						}
 					}
 					else if (ErrorHandler)
