@@ -46,6 +46,7 @@ public:
 	static const FColor SelectionHoverTriangleWireframeColor;
 
 	static const float LivePreviewHighlightThickness;
+	static const float LivePreviewHighlightPointSize;
 	static const float LivePreviewHighlightDepthOffset;
 
 	static const float SelectionLineThickness;
