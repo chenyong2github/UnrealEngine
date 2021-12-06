@@ -15,19 +15,19 @@ class FSkyLightImportanceSamplingData;
 
 struct FLightShaderConstants
 {
-	FVector Position;
-	float InvRadius;
-	FVector Color;
-	float FalloffExponent;
-	FVector   Direction;
-	float     SpecularScale;
-	FVector   Tangent;
-	float     SourceRadius;
-	FVector2D   SpotAngles;
-	float      SoftSourceRadius;
-	float      SourceLength;
-	float      RectLightBarnCosAngle;
-	float      RectLightBarnLength;
+	FVector3f	Position;
+	float		InvRadius;
+	FVector3f	Color;
+	float		FalloffExponent;
+	FVector3f	Direction;
+	float		SpecularScale;
+	FVector3f	Tangent;
+	float		SourceRadius;
+	FVector2f	SpotAngles;
+	float		SoftSourceRadius;
+	float		SourceLength;
+	float		RectLightBarnCosAngle;
+	float		RectLightBarnLength;
 
 	FLightShaderConstants() = default;
 

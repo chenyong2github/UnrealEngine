@@ -2640,7 +2640,15 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							Registry, InstanceGroup.ComponentUObject->LODData[LODIndex].MapBuildDataId, InstanceGroup.ComponentUObject->Bounds, PaddingType, LMF_Streamed);
 
 						MeshBuildData.LightMap = NewLightMap;
-
+						
+						for (auto It = InstancedShadowMapData.CreateIterator(); It; It++)
+						{
+							if (It->Num() == 0)
+							{
+								It.RemoveCurrent();
+							}
+						}
+						
 						if (InstancedShadowMapData.Num() > 0 && !bUseVirtualTextures)
 						{
 							TRefCountPtr<FShadowMap2D> NewShadowMap = FShadowMap2D::AllocateInstancedShadowMap(Registry, InstanceGroup.ComponentUObject,

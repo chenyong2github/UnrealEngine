@@ -281,7 +281,7 @@ const FLightComponentMapBuildData* FGPULightmass::GetLightComponentMapBuildData(
 
 const FPrecomputedVolumetricLightmap* FGPULightmass::GetPrecomputedVolumetricLightmap()
 {
-	check(IsInRenderingThread() || IsInParallelRenderingThread());
+	check(IsInParallelRenderingThread());
 
 	return Scene.RenderState.VolumetricLightmapRenderer->GetPrecomputedVolumetricLightmapForPreview();
 }

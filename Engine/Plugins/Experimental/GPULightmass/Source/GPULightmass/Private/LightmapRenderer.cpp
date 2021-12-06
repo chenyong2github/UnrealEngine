@@ -1011,10 +1011,10 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				ScratchBufferCreateInfo);
 
 			FRWBufferStructured InstanceBuffer;
-			InstanceBuffer.Initialize(TEXT("LightmassRayTracingInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, 1);
+			InstanceBuffer.Initialize(TEXT("LightmassRayTracingInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, SceneInitializer.NumNativeInstances);
 
 			FByteAddressBuffer AccelerationStructureAddressesBuffer;
-			AccelerationStructureAddressesBuffer.Initialize(TEXT("LightmassRayTracingAccelerationStructureAddressesBuffer"), sizeof(FRayTracingAccelerationStructureAddress), BUF_Volatile);
+			AccelerationStructureAddressesBuffer.Initialize(TEXT("LightmassRayTracingAccelerationStructureAddressesBuffer"), SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress), BUF_Volatile);
 
 			const uint32 InstanceUploadBufferSize = SceneInitializer.NumNativeInstances * sizeof(FRayTracingInstanceDescriptorInput);
 			FBufferRHIRef InstanceUploadBuffer;
@@ -1050,10 +1050,10 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				RHICmdList.UnlockBuffer(InstanceUploadBuffer);
 			}
 
-			RHICmdList.EnqueueLambda([&AccelerationStructureAddressesBuffer, &SceneInitializer](FRHICommandListImmediate& RHICmdList)
+			RHICmdList.EnqueueLambda([BufferRHIRef = AccelerationStructureAddressesBuffer.Buffer, &SceneInitializer](FRHICommandListImmediate& RHICmdList)
 				{
 					FRayTracingAccelerationStructureAddress* AddressesPtr = (FRayTracingAccelerationStructureAddress*)RHICmdList.LockBuffer(
-						AccelerationStructureAddressesBuffer.Buffer,
+						BufferRHIRef,
 						0,
 						SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress), RLM_WriteOnly);
 
@@ -1063,7 +1063,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 						AddressesPtr[GeometryIndex] = SceneInitializer.ReferencedGeometries[GeometryIndex]->GetAccelerationStructureAddress(RHICmdList.GetGPUMask().ToIndex());
 					}
 
-					RHICmdList.UnlockBuffer(AccelerationStructureAddressesBuffer.Buffer);
+					RHICmdList.UnlockBuffer(BufferRHIRef);
 				});
 
 			BuildRayTracingInstanceBuffer(
