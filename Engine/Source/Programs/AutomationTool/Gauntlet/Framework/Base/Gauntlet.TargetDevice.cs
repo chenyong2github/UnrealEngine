@@ -146,6 +146,15 @@ namespace Gauntlet
 	}
 
 	/// <summary>
+	/// Represents a class that can provides virtual local devices 
+	/// </summary>
+	public interface IVirtualLocalDevice : IDeviceSource
+	{
+		bool CanRunVirtualFromPlatform(UnrealTargetPlatform? Platfrom);
+		UnrealTargetPlatform? GetPlatform();
+	}
+
+	/// <summary>
 	/// Represents a class that tell what build the device support
 	/// </summary>
 	public interface IDeviceBuildSupport : IDeviceSource

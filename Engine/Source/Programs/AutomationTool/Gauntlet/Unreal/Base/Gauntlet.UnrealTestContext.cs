@@ -100,6 +100,18 @@ namespace Gauntlet
 		public string DeviceURL;
 
 		/// <summary>
+		/// Maximum number of available local(host platform) devices
+		/// </summary>
+		[AutoParam(10)]
+		public int MaxLocalDevices;
+
+		/// <summary>
+		/// Maximum number of available virtual devices of each type (supported on the host platform)
+		/// </summary>
+		[AutoParam(2)]
+		public int MaxVirtualDevices;
+
+		/// <summary>
 		/// Details for current job (example: link to CIS, etc)
 		/// </summary>
 		[AutoParam("")]

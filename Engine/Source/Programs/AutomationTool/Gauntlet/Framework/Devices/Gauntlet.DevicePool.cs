@@ -557,21 +557,42 @@ namespace Gauntlet
 			DeviceURL = InDeviceURL;
 		}
 
-		public void AddLocalDevices(int Count)
+		public void AddLocalDevices(int MaxCount)
 		{
-			// todo - default per platform?
-
-			UnrealTargetPlatform LocalPlat = UnrealTargetPlatform.Win64;
+			UnrealTargetPlatform LocalPlat = BuildHostPlatform.Current.Platform;
 
 			int NumDevices = GetAvailableDeviceCount(new UnrealDeviceTargetConstraint(LocalPlat));
 
-			// add local PCs (todo - some max number?)
-			for (int i = NumDevices; i < Count + NumDevices; i++)
+			for (int i = NumDevices; i < MaxCount; i++)
 			{
 				DeviceDefinition Def = new DeviceDefinition();
 				Def.Name = string.Format("LocalDevice{0}", i);
-				Def.Platform = BuildHostPlatform.Current.Platform;
+				Def.Platform = LocalPlat;
 				UnprovisionedDevices.Add(Def);
+			}
+		}
+
+		public void AddVirtualDevices(int MaxCount)
+		{
+			UnrealTargetPlatform LocalPlat = BuildHostPlatform.Current.Platform;
+
+			IEnumerable<IVirtualLocalDevice> VirtualDevices = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IVirtualLocalDevice>()
+					.Where(F => F.CanRunVirtualFromPlatform(LocalPlat));
+
+			foreach (IVirtualLocalDevice Device in VirtualDevices)
+			{
+				UnrealTargetPlatform? DevicePlatform = Device.GetPlatform();
+				if (DevicePlatform != null)
+				{
+					int NumDevices = GetAvailableDeviceCount(new UnrealDeviceTargetConstraint(DevicePlatform));
+					for (int i = NumDevices; i < MaxCount; i++)
+					{
+						DeviceDefinition Def = new DeviceDefinition();
+						Def.Name = string.Format("Virtual{0}{1}", DevicePlatform.ToString(), i);
+						Def.Platform = DevicePlatform;
+						UnprovisionedDevices.Add(Def);
+					}
+				}
 			}
 		}
 
