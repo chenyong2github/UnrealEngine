@@ -916,7 +916,7 @@ namespace EpicGames.Perforce.Managed
 			List<WhereRecord> WriteFiles = new List<WhereRecord>();
 			foreach(DescribeFileRecord FileRecord in LastRecord.Files)
 			{
-				WhereRecord? WhereRecord = WhereRecords.First(x => x.DepotFile.Equals(FileRecord.DepotFile, StringComparison.OrdinalIgnoreCase));
+				WhereRecord? WhereRecord = WhereRecords.FirstOrDefault(x => x.DepotFile.Equals(FileRecord.DepotFile, StringComparison.OrdinalIgnoreCase));
 				if (WhereRecord == null)
 				{
 					Logger.LogInformation("Unable to get location of {File} in current workspace; ignoring.", FileRecord.DepotFile);
