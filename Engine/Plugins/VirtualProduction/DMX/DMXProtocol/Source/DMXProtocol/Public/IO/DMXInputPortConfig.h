@@ -50,6 +50,8 @@ struct DMXPROTOCOL_API FDMXInputPortConfigParams
 	int32 LocalUniverseStart;
 	int32 NumUniverses;
 	int32 ExternUniverseStart;
+	EDMXPortPriorityStrategy PriorityStrategy;
+	int32 Priority;
 };
 
 /** 

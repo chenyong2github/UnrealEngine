@@ -41,6 +41,9 @@ protected:
 public:
 	virtual ~FDMXInputPort();
 
+	/** Creates a dmx input port config that corresponds to the port */
+	FDMXInputPortConfig MakeInputPortConfig() const;
+
 	/** Updates the Port to use the config of the InputPortConfig. Makes the config valid if it's invalid. */
 	void UpdateFromConfig(FDMXInputPortConfig& InputPortConfig);
 
@@ -99,9 +102,6 @@ public:
 private:
 	/** Called to set if receive DMX should be enabled */
 	void OnSetReceiveDMXEnabled(bool bEnabled);
-
-	/** Returns the port config that corresponds to the guid of this port. */
-	FDMXInputPortConfig* FindInputPortConfigChecked() const;
 
 	/** The default buffer, which is being read on tick */
 	TQueue<FDMXSignalSharedPtr> DefaultInputQueue;

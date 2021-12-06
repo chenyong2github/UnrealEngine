@@ -9,11 +9,231 @@
 #include "IO/DMXPortManager.h"
 #include "IO/DMXRawListener.h"
 
+#include "HAL/IConsoleManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Input Port Tick"), STAT_DMXInputPortTick, STATGROUP_DMX);
 
 
 #define LOCTEXT_NAMESPACE "DMXInputPort"
+
+/** Helper to override a member variable of an Input Port */
+#define DMX_OVERRIDE_INPUTPORT_VAR(MemberName, PortName, Value) \
+{ \
+	const FDMXInputPortSharedRef* InputPortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([PortName](const FDMXInputPortSharedPtr& InputPort) \
+		{ \
+			return InputPort->GetPortName() == PortName; \
+		}); \
+	if (InputPortPtr) \
+	{ \
+		const FDMXInputPortConfig OldInputPortConfig = (*InputPortPtr)->MakeInputPortConfig(); \
+		FDMXInputPortConfigParams InputPortConfigParams = FDMXInputPortConfigParams(OldInputPortConfig); \
+		InputPortConfigParams.MemberName = Value; \
+		FDMXInputPortConfig NewInputPortConfig((*InputPortPtr)->GetPortGuid(), InputPortConfigParams); \
+		(*InputPortPtr)->UpdateFromConfig(NewInputPortConfig); \
+	} \
+}
+
+static FAutoConsoleCommand GDMXSetInputPortProtocolCommand(
+	TEXT("DMX.SetInputPortProtocol"),
+	TEXT("DMX.SetInputPortProtocol [PortName][ProtocolName]. Sets the protocol used by the input port. Example: DMX.SetInputPortProtocol MyInputPort sACN"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 2)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FName ProtocolNameValue = FName(Args[1]);
+
+			if (IDMXProtocol::GetProtocolNames().Contains(ProtocolNameValue))
+			{
+				DMX_OVERRIDE_INPUTPORT_VAR(ProtocolName, PortName, ProtocolNameValue);
+			}
+		})
+);
+
+static FAutoConsoleCommand GDMXSetInputPortDeviceAddressCommand(
+	TEXT("DMX.SetInputPortDeviceAddress"),
+	TEXT("DMX.SetInputPortDeviceAddress [PortName][DeviceAddress]. Sets the Device Address of an input port, usually the network interface card IP address. Example: DMX.SetInputPortDeviceAddress MyInputPort 123.45.67.89"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 2)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FString& DeviceAddressValue = Args[1];
+
+			DMX_OVERRIDE_INPUTPORT_VAR(DeviceAddress, PortName, DeviceAddressValue);
+		})
+);
+
+static FAutoConsoleCommand GDMXSetInputPortLocalUniverseStartCommand(
+	TEXT("DMX.SetInputPortLocalUniverseStart"),
+	TEXT("DMX.SetInputPortLocalUniverseStart [PortName][Universe]. Sets the local universe start of the input port. Example: DMX.SetInputPortLocalUniverseStart MyInputPort 5"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 2)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FString& LocalUniverseStartValueString = Args[1];
+			int32 LocalUniverseStartValue;
+			if (LexTryParseString<int32>(LocalUniverseStartValue, *LocalUniverseStartValueString))
+			{
+				if (LocalUniverseStartValue >= 0 && LocalUniverseStartValue <= DMX_MAX_UNIVERSE)
+				{
+					DMX_OVERRIDE_INPUTPORT_VAR(LocalUniverseStart, PortName, LocalUniverseStartValue);
+				}
+			}
+		})
+);
+
+static FAutoConsoleCommand GDMXSetInputPortNumUniversesCommand(
+	TEXT("DMX.SetInputPortNumUniverses"),
+	TEXT("DMX.SetInputPortNumUniverses [PortName][Universe]. Sets the num universes of the input port. Example: DMX.SetInputPortNumUniverses MyInputPort 10"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 2)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FString& NumUniversesValueString = Args[1];
+			int32 NumUniversesValue;
+			if (LexTryParseString<int32>(NumUniversesValue, *NumUniversesValueString))
+			{
+				if (NumUniversesValue >= 0 && NumUniversesValue <= DMX_MAX_UNIVERSE)
+				{
+					DMX_OVERRIDE_INPUTPORT_VAR(NumUniverses, PortName, NumUniversesValue);
+				}
+			}
+		})
+);
+
+static FAutoConsoleCommand GDMXSetInputPortExternUniverseStartCommand(
+	TEXT("DMX.SetInputPortExternUniverseStart"),
+	TEXT("DMX.SetInputPortExternUniverseStart [PortName][Universe]. Sets the extern universe start of the input port. Example: DMX.SetInputPortExternUniverseStart MyInputPort 7"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 2)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FString& ExternUniverseStartValueString = Args[1];
+			int32 ExternUniverseStartValue;
+			if (LexTryParseString<int32>(ExternUniverseStartValue, *ExternUniverseStartValueString))
+			{
+				if (ExternUniverseStartValue >= 0 && ExternUniverseStartValue <= DMX_MAX_UNIVERSE)
+				{
+					DMX_OVERRIDE_INPUTPORT_VAR(ExternUniverseStart, PortName, ExternUniverseStartValue);
+				}
+			}
+		})
+);
+
+static FAutoConsoleCommand GDMXSetInputPortPriorityStrategyCommand(
+	TEXT("DMX.SetInputPortPriorityStrategy"),
+	TEXT("DMX.SetInputPortPriorityStrategy [PortName][PriorityStrategy (0 = None, 1 = Lowest, 2 = LowerThan, 3 = Equal, 4 = Higher Than, 5 = Highest)]. Example: DMX.SetInputPortPriorityStrategy MyInputPort 1"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 2)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FString& PriorityStrategyValueString = Args[1];
+			uint8 PriorityStrategyValue;
+			if (LexTryParseString<uint8>(PriorityStrategyValue, *PriorityStrategyValueString))
+			{
+				const EDMXPortPriorityStrategy PriorityStrategyEnumValue = static_cast<EDMXPortPriorityStrategy>(PriorityStrategyValue);
+
+				if (PriorityStrategyEnumValue == EDMXPortPriorityStrategy::None ||
+					PriorityStrategyEnumValue == EDMXPortPriorityStrategy::Lowest ||
+					PriorityStrategyEnumValue == EDMXPortPriorityStrategy::LowerThan ||
+					PriorityStrategyEnumValue == EDMXPortPriorityStrategy::Equal ||
+					PriorityStrategyEnumValue == EDMXPortPriorityStrategy::HigherThan ||
+					PriorityStrategyEnumValue == EDMXPortPriorityStrategy::Highest)
+				{
+					DMX_OVERRIDE_INPUTPORT_VAR(PriorityStrategy, PortName, PriorityStrategyEnumValue);
+				}
+			}
+		})
+);
+
+static FAutoConsoleCommand GDMXSetInputPortPriorityCommand(
+	TEXT("DMX.SetInputPortPriority"),
+	TEXT("DMX.SetInputPortPriority [PortName][Universe]. Sets the priority of the input port. Example: DMX.SetInputPortPriority MyInputPort 100"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 2)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FString& PriorityValueString = Args[1];
+			int32 PriorityValue;
+			if (LexTryParseString<int32>(PriorityValue, *PriorityValueString))
+			{
+				DMX_OVERRIDE_INPUTPORT_VAR(Priority, PortName, PriorityValue);
+			}
+		})
+);
+
+static FAutoConsoleCommand GDMXResetInputPortToProjectSettings(
+	TEXT("DMX.ResetInputPortToProjectSettings"),
+	TEXT("DMX.ResetInputPortToProjectSettings [PortName]. Resets the input port to how it is defined in project settings. Example: DMX.ResetInputPortToProjectSettings MyInputPort"),
+	FConsoleCommandWithArgsDelegate::CreateStatic(
+		[](const TArray<FString>& Args)
+		{
+			if (Args.Num() < 1)
+			{
+				return;
+			}
+
+			const FString& PortName = Args[0];
+			const FDMXInputPortSharedRef* PortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([PortName](const FDMXInputPortSharedPtr& InputPort)
+				{
+					return InputPort->GetPortName() == PortName;
+				});
+
+			if (PortPtr)
+			{
+				const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+				if (ProtocolSettings)
+				{
+					const FDMXInputPortConfig* PortConfigPtr = ProtocolSettings->InputPortConfigs.FindByPredicate([PortPtr](const FDMXInputPortConfig& InputPortConfig)
+						{
+							return InputPortConfig.GetPortGuid() == (*PortPtr)->GetPortGuid();
+						});
+
+					if (PortConfigPtr)
+					{
+						FDMXInputPortConfig PortConfig = *PortConfigPtr;
+						(*PortPtr)->UpdateFromConfig(PortConfig);
+					}
+				}
+			}
+		})
+);
+
+#undef DMX_OVERRIDE_INPUTPORT_VAR
 
 
 FDMXInputPortSharedRef FDMXInputPort::CreateFromConfig(FDMXInputPortConfig& InputPortConfig)
@@ -52,43 +272,31 @@ FDMXInputPort::~FDMXInputPort()
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed input port %s"), *PortName);
 }
 
-bool FDMXInputPort::CheckPriority(const int32 InPriority)
+FDMXInputPortConfig FDMXInputPort::MakeInputPortConfig() const
 {
-	if (InPriority > HighestReceivedPriority)
-	{
-		HighestReceivedPriority = InPriority;
-	}
-	
-	if (InPriority < LowestReceivedPriority)
-	{
-		LowestReceivedPriority = InPriority;
-	}
-	
-	switch (PriorityStrategy)
-	{
-	case(EDMXPortPriorityStrategy::None):
-		return true;
-	case(EDMXPortPriorityStrategy::HigherThan):
-		return InPriority > Priority;
-	case(EDMXPortPriorityStrategy::Equal):
-		return InPriority == Priority;
-	case(EDMXPortPriorityStrategy::LowerThan):
-		return InPriority < Priority;
-	case(EDMXPortPriorityStrategy::Highest):
-		return InPriority >= HighestReceivedPriority;
-	case(EDMXPortPriorityStrategy::Lowest):
-		return InPriority <= LowestReceivedPriority;
-	default:
-		break;
-	}
+	FDMXInputPortConfigParams Params;
+	Params.PortName = PortName;
+	Params.ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
+	Params.CommunicationType = CommunicationType;
+	Params.DeviceAddress = DeviceAddress;
+	Params.LocalUniverseStart = LocalUniverseStart;
+	Params.NumUniverses = NumUniverses;
+	Params.ExternUniverseStart = ExternUniverseStart;
 
-	return false;
+	return FDMXInputPortConfig(PortGuid, Params);
 }
 
 void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
 	// Need a valid config for the port
 	InputPortConfig.MakeValid();
+
+	// Can only use configs that correspond to project settings
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	const bool bConfigIsInProjectSettings = ProtocolSettings->InputPortConfigs.ContainsByPredicate([&InputPortConfig](const FDMXInputPortConfig& Other) {
+		return InputPortConfig.GetPortGuid() == Other.GetPortGuid();
+		});
+	checkf(bConfigIsInProjectSettings, TEXT("Can only use configs with a guid that corresponds to a config in project settings"));
 
 	// Find if the port needs update its registration with the protocol
 	const bool bNeedsUpdateRegistration = [this, &InputPortConfig]()
@@ -143,15 +351,48 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 	OnPortUpdated.Broadcast();
 }
 
+bool FDMXInputPort::IsRegistered() const
+{
+	return bRegistered;
+}
+
 const FGuid& FDMXInputPort::GetPortGuid() const
 {
 	check(PortGuid.IsValid());
 	return PortGuid;
 }
 
-bool FDMXInputPort::IsRegistered() const
+bool FDMXInputPort::CheckPriority(const int32 InPriority)
 {
-	return bRegistered;
+	if (InPriority > HighestReceivedPriority)
+	{
+		HighestReceivedPriority = InPriority;
+	}
+
+	if (InPriority < LowestReceivedPriority)
+	{
+		LowestReceivedPriority = InPriority;
+	}
+
+	switch (PriorityStrategy)
+	{
+	case(EDMXPortPriorityStrategy::None):
+		return true;
+	case(EDMXPortPriorityStrategy::HigherThan):
+		return InPriority > Priority;
+	case(EDMXPortPriorityStrategy::Equal):
+		return InPriority == Priority;
+	case(EDMXPortPriorityStrategy::LowerThan):
+		return InPriority < Priority;
+	case(EDMXPortPriorityStrategy::Highest):
+		return InPriority >= HighestReceivedPriority;
+	case(EDMXPortPriorityStrategy::Lowest):
+		return InPriority <= LowestReceivedPriority;
+	default:
+		break;
+	}
+
+	return false;
 }
 
 void FDMXInputPort::AddRawListener(TSharedRef<FDMXRawListener> InRawListener)
@@ -321,25 +562,8 @@ void FDMXInputPort::OnSetReceiveDMXEnabled(bool bEnabled)
 {
 	bReceiveDMXEnabled = bEnabled;
 
-	UpdateFromConfig(*FindInputPortConfigChecked());
-}
-
-FDMXInputPortConfig* FDMXInputPort::FindInputPortConfigChecked() const
-{
-	UDMXProtocolSettings* ProjectSettings = GetMutableDefault<UDMXProtocolSettings>();
-
-	for (FDMXInputPortConfig& InputPortConfig : ProjectSettings->InputPortConfigs)
-	{
-		if (InputPortConfig.GetPortGuid() == PortGuid)
-		{
-			return &InputPortConfig;
-		}
-	}
-
-	// Check failed, no config found
-	checkNoEntry();
-
-	return nullptr;
+	FDMXInputPortConfig InputPortConfig = MakeInputPortConfig();
+	UpdateFromConfig(InputPortConfig);
 }
 
 #undef LOCTEXT_NAMESPACE

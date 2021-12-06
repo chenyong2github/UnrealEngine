@@ -22,6 +22,7 @@ FDMXOutputPortConfigParams::FDMXOutputPortConfigParams(const FDMXOutputPortConfi
 	, ExternUniverseStart(OutputPortConfig.GetExternUniverseStart())
 	, Priority(OutputPortConfig.GetPriority())
 	, DelaySeconds(OutputPortConfig.GetDelaySeconds())
+	, DelayFrameRate(OutputPortConfig.GetDelayFrameRate())
 {}
 
 
@@ -30,23 +31,24 @@ FDMXOutputPortConfig::FDMXOutputPortConfig()
 	, PortGuid(FGuid::NewGuid())
 {}
 
-FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
-	: DelayFrameRate(FFrameRate(1.0, 1.0)) // Default delay frame rate to 1.0 (default to Seconds)
-	, PortGuid(InPortGuid)
-{
-	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
-	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
-	check(PortGuid.IsValid());
+	FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
+		: DelayFrameRate(FFrameRate(1.0, 1.0)) // Default delay frame rate to 1.0 (default to Seconds)
+		, PortGuid(InPortGuid)
+	{
+		// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
+		check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
+		check(PortGuid.IsValid());
 
-	GenerateUniquePortName();
+		GenerateUniquePortName();
 
-	MakeValid();
-}
+		MakeValid();
+	}
 
 FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOutputPortConfigParams& InitializationData)
 	: PortName(InitializationData.PortName)
 	, ProtocolName(InitializationData.ProtocolName)
 	, CommunicationType(InitializationData.CommunicationType)
+	, DeviceAddress(InitializationData.DeviceAddress)
 	, DestinationAddresses(InitializationData.DestinationAddresses)
 	, bLoopbackToEngine(InitializationData.bLoopbackToEngine)
 	, LocalUniverseStart(InitializationData.LocalUniverseStart)
@@ -54,7 +56,7 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOu
 	, ExternUniverseStart(InitializationData.ExternUniverseStart)
 	, Priority(InitializationData.Priority)
 	, Delay(InitializationData.DelaySeconds)
-	, DelayFrameRate(FFrameRate(1.0, 1.0))
+	, DelayFrameRate(InitializationData.DelayFrameRate)
 	, PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).

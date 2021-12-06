@@ -95,6 +95,7 @@ public:
 	FORCEINLINE int32 GetPriority() const { return Priority; }
 	FORCEINLINE const FGuid& GetPortGuid() const { return PortGuid; }
 	int32 GetDelaySeconds() const;
+	FORCEINLINE const FFrameRate& GetDelayFrameRate() const { return DelayFrameRate; }
 
 	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Use FDMXOutputPortConfig::GetDestinationAddresses instead. ")
 	FORCEINLINE const FString& GetDestinationAddress() const { return DestinationAddress; }
