@@ -364,7 +364,7 @@ void FBuildWorkerProgram::ResolveInputData(const FBuildAction& Action, IRequestO
 		if (TUniquePtr<FArchive> Ar = OpenInput(Action.GetName(), RawHash))
 		{
 			InputKeys.Emplace(Key);
-			Inputs.Add({InputKeys.Last(), FCompressedBuffer::FromCompressed(*Ar)});
+			Inputs.Add({InputKeys.Last(), FCompressedBuffer::Load(*Ar)});
 		}
 		else
 		{
