@@ -11,6 +11,9 @@ namespace Metasound
 		// Base category for all conversion functions.
 		const FText Conversions  = LOCTEXT("Metasound_ConversionsCategory", "Conversions");
 
+		// Category for enum conversions. A subcategory of conversion functions to prevent cluttering up the action menu. 
+		const FText EnumConversions = LOCTEXT("Metasound_EnumConversionsCategory", "EnumConversions");
+
 		// Base category for all standard MetaSound functions.
 		const FText Functions = LOCTEXT("Metasound_FunctionsCategory", "Functions");
 

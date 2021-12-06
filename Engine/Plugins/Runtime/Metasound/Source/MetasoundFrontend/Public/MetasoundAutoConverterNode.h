@@ -21,12 +21,28 @@
 
 namespace Metasound
 {
-	// This convenience node can be registered and will invoke static_cast<ToDataType>(FromDataType) every time it is executed.
+	// Determines whether an auto converter node will be registered to convert 
+	// between two types. 
+	template<typename TFromDataType, typename TToDataType>
+	struct TIsAutoConvertible
+	{
+		static constexpr bool bIsConvertible = std::is_convertible<TFromDataType, TToDataType>::value;
+
+		// Handle case of converting enums to/from integers.
+		static constexpr bool bIsIntToEnumConversion = std::is_same<int32, TFromDataType>::value && TEnumTraits<TToDataType>::bIsEnum;
+		static constexpr bool bIsEnumToIntConversion = TEnumTraits<TFromDataType>::bIsEnum && std::is_same<int32, TToDataType>::value;
+
+		static constexpr bool Value = bIsConvertible || bIsIntToEnumConversion || bIsEnumToIntConversion;
+	};
+
+	// This convenience node can be registered and will invoke static_cast<ToDataType>(FromDataType) every time it is executed, 
+	// with a special case for enum <-> int32 conversions. 
 	template<typename FromDataType, typename ToDataType>
 	class TAutoConverterNode : public FNode
 	{
-		static_assert(std::is_convertible<FromDataType, ToDataType>::value, "Tried to create an auto converter node between two types we can't static_cast between.");
-
+		static_assert(TIsAutoConvertible<FromDataType, ToDataType>::Value,
+		"Tried to create an auto converter node between two types we can't static_cast between.");
+		
 	public:
 		static const FVertexName& GetInputName()
 		{
@@ -42,12 +58,15 @@ namespace Metasound
 
 		static FVertexInterface DeclareVertexInterface()
 		{
+			static const FText InputDesc = FText::Format(LOCTEXT("AutoConvDisplayNamePatternFrom", "Input {0} value."), GetMetasoundDataTypeDisplayText<FromDataType>());
+			static const FText OutputDesc = FText::Format(LOCTEXT("AutoConvDisplayNamePatternTo", "Output {0} value."), GetMetasoundDataTypeDisplayText<ToDataType>());
+
 			return FVertexInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FromDataType>(GetInputName(), FText::GetEmpty())
+					TInputDataVertexModel<FromDataType>(GetInputName(), InputDesc)
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<ToDataType>(GetOutputName(), FText::GetEmpty())
+					TOutputDataVertexModel<ToDataType>(GetOutputName(), OutputDesc)
 				)
 			);
 		}
@@ -58,26 +77,35 @@ namespace Metasound
 			{
 				FNodeDisplayStyle DisplayStyle;
 				DisplayStyle.bShowName = false;
+				DisplayStyle.ImageName = TEXT("MetasoundEditor.Graph.Node.Conversion");
 				DisplayStyle.bShowInputNames = false;
 				DisplayStyle.bShowOutputNames = false;
+
+				const FText FromTypeText = GetMetasoundDataTypeDisplayText<FromDataType>();
+				const FText ToTypeText = GetMetasoundDataTypeDisplayText<ToDataType>();
 
 				FNodeClassMetadata Info;
 				Info.ClassName = { TEXT("Convert"), GetMetasoundDataTypeName<ToDataType>(), GetMetasoundDataTypeName<FromDataType>() };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = FText::Format(LOCTEXT("Metasound_AutoConverterNodeDisplayNameFormat", "{0} to {1}"), FText::FromName(GetMetasoundDataTypeName<FromDataType>()), FText::FromName(GetMetasoundDataTypeName<ToDataType>()));
-				Info.Description = LOCTEXT("Metasound_ConverterNodeDescription", "Converts between two different data types.");
+				Info.DisplayName = FText::Format(LOCTEXT("Metasound_AutoConverterNodeDisplayNameFormat", "{0} to {1}"), FromTypeText, ToTypeText);
+				Info.Description = FText::Format(LOCTEXT("Metasound_AutoConverterNodeDescriptionNameFormat", "Converts from {0} to {1}."), FromTypeText, ToTypeText);
 				Info.Author = PluginAuthor;
 				Info.DisplayStyle = DisplayStyle;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
 
 				Info.CategoryHierarchy.Emplace(NodeCategories::Conversions);
+				if (TEnumTraits<FromDataType>::bIsEnum || TEnumTraits<ToDataType>::bIsEnum)
+				{
+					Info.CategoryHierarchy.Emplace(NodeCategories::EnumConversions);
+				}
+				
 				Info.Keywords =
 				{
 					LOCTEXT("MetasoundConvertKeyword", "Convert"),
-					FText::FromName(GetMetasoundDataTypeName<FromDataType>()),
-					FText::FromName(GetMetasoundDataTypeName<ToDataType>())
+					GetMetasoundDataTypeDisplayText<FromDataType>(),
+					GetMetasoundDataTypeDisplayText<ToDataType>()
 				};
 
 				return Info;
@@ -90,42 +118,88 @@ namespace Metasound
 
 	private:
 		/** FConverterOperator converts from "FromDataType" to "ToDataType" using
-		 * a implicit conversion operators. 
+		 * a implicit conversion operators.
 		 */
 		class FConverterOperator : public TExecutableOperator<FConverterOperator>
 		{
-			public:
+		public:
 
-				FConverterOperator(TDataReadReference<FromDataType> InFromDataReference, TDataWriteReference<ToDataType> InToDataReference)
-					: FromData(InFromDataReference)
-					, ToData(InToDataReference) 
+			FConverterOperator(TDataReadReference<FromDataType> InFromDataReference, TDataWriteReference<ToDataType> InToDataReference)
+				: FromData(InFromDataReference)
+				, ToData(InToDataReference)
+			{
+			}
+
+			virtual ~FConverterOperator() {}
+
+			virtual FDataReferenceCollection GetInputs() const override
+			{
+				FDataReferenceCollection Inputs;
+				Inputs.AddDataReadReference<FromDataType>(GetInputName(), FromData);
+				return Inputs;
+			}
+
+			virtual FDataReferenceCollection GetOutputs() const override
+			{
+				FDataReferenceCollection Outputs;
+				Outputs.AddDataReadReference<ToDataType>(GetOutputName(), ToData);
+				return Outputs;
+			}
+
+			void Execute()
+			{
+				// enum -> int32
+				if constexpr (TIsAutoConvertible<FromDataType, ToDataType>::bIsEnumToIntConversion)
 				{
+					// Convert from enum wrapper to inner enum type, then to int
+					typename TEnumTraits<FromDataType>::InnerType InnerEnum = static_cast<typename TEnumTraits<FromDataType>::InnerType>(*FromData);
+					*ToData = static_cast<ToDataType>(InnerEnum);
 				}
-
-				virtual ~FConverterOperator() {}
-
-				virtual FDataReferenceCollection GetInputs() const override
+				// int32 -> enum
+				else if constexpr (TIsAutoConvertible<FromDataType, ToDataType>::bIsIntToEnumConversion)
 				{
-					FDataReferenceCollection Inputs;
-					Inputs.AddDataReadReference<FromDataType>(GetInputName(), FromData);
-					return Inputs;
-				}
+					const int32 FromInt = *FromData;
+					// Convert from int to inner enum type
+					typename TEnumTraits<ToDataType>::InnerType InnerEnum = static_cast<typename TEnumTraits<ToDataType>::InnerType>(FromInt);
 
-				virtual FDataReferenceCollection GetOutputs() const override
-				{
-					FDataReferenceCollection Outputs;
-					Outputs.AddDataReadReference<ToDataType>(GetOutputName(), ToData);
-					return Outputs;
-				}
+					// Update tracking for previous int value we tried to convert, used to prevent log spam if it's an invalid enum value
+					if (FromInt != PreviousIntValueForEnumConversion)
+					{
+						PreviousIntValueForEnumConversion = FromInt;
+						bHasLoggedInvalidEnum = false;
+					}
 
-				void Execute()
+					// If int value is invalid for this enum, return enum default value
+					TOptional<FName> EnumName = ToDataType::ToName(InnerEnum);
+					if (!EnumName.IsSet())
+					{
+						if (!bHasLoggedInvalidEnum)
+						{
+							UE_LOG(LogMetaSound, Warning, TEXT("Cannot convert int32 value '%d' to enum type '%s'. No valid corresponding enum value exists, so returning enum default value instead."), FromInt, *GetMetasoundDataTypeDisplayText<ToDataType>().ToString());
+							bHasLoggedInvalidEnum = true;
+						}
+						*ToData = static_cast<ToDataType>(TEnumTraits<ToDataType>::DefaultValue);
+					}
+					else
+					{
+						// Convert from inner enum type to int
+						*ToData = static_cast<ToDataType>(InnerEnum);
+					}
+				}
+				else
 				{
 					*ToData = static_cast<ToDataType>(*FromData);
 				}
+			}
 
 			private:
 				TDataReadReference<FromDataType> FromData;
 				TDataWriteReference<ToDataType> ToData;
+
+				// To prevent log spam, keep track of whether we've logged an invalid enum value being converted already
+				// and the previous int value (need both bool and int for the initial case)
+				bool bHasLoggedInvalidEnum = false;
+				int32 PreviousIntValueForEnumConversion = 0;
 		};
 
 		/** FConverterOperatorFactory creates an operator which converts from 

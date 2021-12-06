@@ -89,13 +89,6 @@ namespace Metasound
 			static constexpr bool Value = TIsTransmittable<TElementType>::Value;
 		};
 
-		// Determines whether an auto converter node will be registered to convert 
-		// between two types. 
-		template<typename TFromDataType, typename TToDataType>
-		struct TIsAutoConvertible
-		{
-			static constexpr bool Value = std::is_convertible<TFromDataType, TToDataType>::value;
-		};
 		// Returns the Array version of a literal type if it exists.
 		template<ELiteralType LiteralType>
 		struct TLiteralArrayEnum 

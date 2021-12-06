@@ -9,18 +9,18 @@
 
 namespace Metasound
 {
-	// Disable registration of converter nodes which convert to enums
+	// Enable registration of converter nodes which convert from int32 to enums
 	template<typename FromDataType, typename EnumType, EnumType DefaultValue>
 	struct TEnableAutoConverterNodeRegistration<FromDataType, TEnum<EnumType, DefaultValue>>
 	{
-		static constexpr bool Value = false;
+		static constexpr bool Value = std::is_same<int32, FromDataType>::value;
 	};
 
-	// Disable registration of converter nodes which convert from enums
+	// Enable registration of converter nodes which convert from enums to int32
 	template<typename ToDataType, typename EnumType, EnumType DefaultValue>
 	struct TEnableAutoConverterNodeRegistration<TEnum<EnumType, DefaultValue>, ToDataType>
 	{
-		static constexpr bool Value = false;
+		static constexpr bool Value = std::is_same<int32, ToDataType>::value;
 	};
 
 	// Disable arrays of enums
