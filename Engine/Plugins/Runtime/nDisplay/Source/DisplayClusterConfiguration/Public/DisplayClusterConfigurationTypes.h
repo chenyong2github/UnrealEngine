@@ -285,7 +285,14 @@ public:
 public:
 	UDisplayClusterConfigurationClusterNode();
 
+	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
+	void GetViewportIds(TArray<FString>& OutViewportIds) const;
+
+	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
+	UDisplayClusterConfigurationViewport* GetViewport(const FString& ViewportId) const;
+
 	// Return all references to meshes from policy, and other
+	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 	
 private:
@@ -429,7 +436,15 @@ protected:
 
 public:
 	// Return all references to meshes from policy, and other
+	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
+
+	// Nodes API
+	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
+	void GetNodeIds(TArray<FString>& OutNodeIds) const;
+
+	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
+	UDisplayClusterConfigurationClusterNode* GetNode(const FString& NodeId) const;
 };
 
 USTRUCT(Blueprintable)
@@ -466,16 +481,10 @@ public:
 	UDisplayClusterConfigurationData();
 
 public:
-	// Facade API
-	const UDisplayClusterConfigurationClusterNode* GetClusterNode(const FString& NodeId) const;
-	const UDisplayClusterConfigurationViewport*    GetViewport(const FString& NodeId, const FString& ViewportId) const;
-
-	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
-	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& NodeId, const FString& ViewportId);
-
-	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
-	UDisplayClusterConfigurationClusterNode* GetClusterNodeConfiguration(const FString& NodeId) const;
-
+	// Viewports API
+	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
+	UDisplayClusterConfigurationViewport* GetViewport(const FString& NodeId, const FString& ViewportId) const;
+	
 	/**
 	* Update\Create node postprocess
 	*
@@ -489,20 +498,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
 	bool AssignPostprocess(const FString& NodeId, const FString& PostprocessId, const FString& Type, TMap<FString, FString> Parameters, int32 Order = -1);
 
-	/**
-	* Delet node postprocess
-	*
-	* @param PostprocessId - Unique postprocess name
-	*
-	* @return - true, if success
-	*/
 	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
 	bool RemovePostprocess(const FString& NodeId, const FString& PostprocessId);
 
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
 	bool GetPostprocess(const FString& NodeId, const FString& PostprocessId, FDisplayClusterConfigurationPostprocess& OutPostprocess) const;
+
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
 	bool GetProjectionPolicy(const FString& NodeId, const FString& ViewportId, FDisplayClusterConfigurationProjection& OutProjection) const;
 
 	// Return all references to meshes from policy, and other
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Configuration")
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 
 public:

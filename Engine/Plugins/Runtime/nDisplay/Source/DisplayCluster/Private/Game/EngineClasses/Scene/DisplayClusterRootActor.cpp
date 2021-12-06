@@ -268,16 +268,6 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 #endif
 }
 
-UDisplayClusterConfigurationViewport* ADisplayClusterRootActor::GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID)
-{
-	if (CurrentConfigData)
-	{
-		return CurrentConfigData->GetViewportConfiguration(ClusterNodeID, ViewportID);
-	}
-
-	return nullptr;
-}
-
 void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigurationData* ConfigDataTemplate, bool bForceRecreate)
 {
 	if (ConfigDataTemplate == nullptr)
@@ -918,12 +908,33 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 		return false;
 	}
 
-	const FString NodeId = Display.GetClusterMgr()->GetNodeId();
-	const UDisplayClusterConfigurationClusterNode* Node = ConfigData->GetClusterNode(NodeId);
-
-	if (Node)
+	if (!ConfigData->Cluster)
 	{
-		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
+		UE_LOG(LogDisplayClusterGame, Warning, TEXT("ConfigData's Cluster was null"));
+		return false;
+	}
+
+	const FString NodeId = Display.GetClusterMgr()->GetNodeId();
+	const UDisplayClusterConfigurationClusterNode* Node = ConfigData->Cluster->GetNode(NodeId);
+
+	
+	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
+	{
+		if (ViewportItem.Value)
+		{
+			ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
+		}
+	}
+	
+	
+	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
+	{
+		if (!NodeItem.Value)
+		{
+			continue;
+		}
+
+		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : NodeItem.Value->Viewports)
 		{
 			if (ViewportItem.Value)
 			{
@@ -931,29 +942,8 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 			}
 		}
 	}
-	else if (ConfigData->Cluster)
-	{
-		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
-		{
-			if (!NodeItem.Value)
-			{
-				continue;
-			}
-
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : NodeItem.Value->Viewports)
-			{
-				if (ViewportItem.Value)
-				{
-					ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
-				}
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogDisplayClusterGame, Warning, TEXT("ConfigData's Cluster was null"));
-		return false;
-	}
+	
+	
 
 	return true;
 }

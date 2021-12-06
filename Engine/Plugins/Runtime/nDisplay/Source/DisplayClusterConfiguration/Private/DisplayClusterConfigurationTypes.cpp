@@ -41,6 +41,20 @@ UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 {
 }
 
+UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationData::GetViewport(const FString& NodeId, const FString& ViewportId) const
+{
+	UDisplayClusterConfigurationClusterNode* Node = Cluster->GetNode(NodeId);
+	if (Node)
+	{
+		UDisplayClusterConfigurationViewport** Viewport = Node->Viewports.Find(ViewportId);
+		if (Viewport)
+		{
+			return *Viewport;
+		}
+	}
+	return nullptr;
+}
+
 bool UDisplayClusterConfigurationData::AssignPostprocess(const FString& NodeId, const FString& PostprocessId, const FString& Type, TMap<FString, FString> Parameters, int32 Order)
 {
 	if (Cluster && Cluster->Nodes.Contains(NodeId))
@@ -75,44 +89,15 @@ bool UDisplayClusterConfigurationData::RemovePostprocess(const FString& NodeId, 
 	return false;
 }
 
-UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNodeConfiguration(const FString& NodeId) const
-{
-	return Cluster->Nodes.Contains(NodeId) ? Cluster->Nodes[NodeId] : nullptr;
-}
-
-const UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNode(const FString& NodeId) const
-{
-	return Cluster->Nodes.Contains(NodeId) ? Cluster->Nodes[NodeId] : nullptr;
-}
-
-UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationData::GetViewportConfiguration(const FString& NodeId, const FString& ViewportId)
-{
-	const UDisplayClusterConfigurationClusterNode* Node = GetClusterNode(NodeId);
-	if (Node)
-	{
-		if (Node->Viewports.Contains(ViewportId))
-		{
-			return Node->Viewports[ViewportId];
-		}
-	}
-
-	return nullptr;
-}
-
-const UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationData::GetViewport(const FString& NodeId, const FString& ViewportId) const
-{
-	const UDisplayClusterConfigurationClusterNode* Node = GetClusterNode(NodeId);
-	if (Node)
-	{
-		return Node->Viewports.Contains(ViewportId) ? Node->Viewports[ViewportId] : nullptr;
-	}
-
-	return nullptr;
-}
-
 bool UDisplayClusterConfigurationData::GetPostprocess(const FString& NodeId, const FString& PostprocessId, FDisplayClusterConfigurationPostprocess& OutPostprocess) const
 {
-	const UDisplayClusterConfigurationClusterNode* Node = GetClusterNode(NodeId);
+	if (!Cluster)
+	{
+		return false;
+	}
+
+	const UDisplayClusterConfigurationClusterNode* Node = Cluster->GetNode(NodeId);
+
 	if (Node)
 	{
 		const FDisplayClusterConfigurationPostprocess* PostprocessOperation = Node->Postprocess.Find(PostprocessId);
@@ -174,7 +159,7 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 
 FDisplayClusterConfigurationPostprocess::FDisplayClusterConfigurationPostprocess()
 {
-	
+
 }
 
 const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;
@@ -325,6 +310,17 @@ void UDisplayClusterConfigurationViewport::GetReferencedMeshNames(TArray<FString
 	}
 }
 
+void UDisplayClusterConfigurationClusterNode::GetViewportIds(TArray<FString>& OutViewportIds) const
+{
+	Viewports.GenerateKeyArray(OutViewportIds);
+}
+
+UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationClusterNode::GetViewport(const FString& ViewportId) const
+{
+	UDisplayClusterConfigurationViewport* const* Viewport = Viewports.Find(ViewportId);
+	return Viewport ? *Viewport : nullptr;
+}
+
 void UDisplayClusterConfigurationClusterNode::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
 {
 	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& It : Viewports)
@@ -336,6 +332,17 @@ void UDisplayClusterConfigurationClusterNode::GetReferencedMeshNames(TArray<FStr
 		}
 		It.Value->GetReferencedMeshNames(OutMeshNames);
 	}
+}
+
+void UDisplayClusterConfigurationCluster::GetNodeIds(TArray<FString>& OutNodeIds) const
+{
+	Nodes.GenerateKeyArray(OutNodeIds);
+}
+
+UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationCluster::GetNode(const FString& NodeId) const
+{
+	UDisplayClusterConfigurationClusterNode* const* Node = Nodes.Find(NodeId);
+	return Node ? *Node : nullptr;
 }
 
 void UDisplayClusterConfigurationCluster::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const

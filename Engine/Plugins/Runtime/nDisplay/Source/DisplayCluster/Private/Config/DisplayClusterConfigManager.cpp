@@ -54,12 +54,12 @@ FString FDisplayClusterConfigManager::GetMasterNodeId() const
 
 const UDisplayClusterConfigurationClusterNode* FDisplayClusterConfigManager::GetMasterNode() const
 {
-	return ConfigData ? ConfigData->GetClusterNode(GetMasterNodeId()) : nullptr;
+	return ConfigData ? ConfigData->Cluster->GetNode(GetMasterNodeId()) : nullptr;
 }
 
 const UDisplayClusterConfigurationClusterNode* FDisplayClusterConfigManager::GetLocalNode() const
 {
-	return ConfigData ? ConfigData->GetClusterNode(GetLocalNodeId()) : nullptr;
+	return ConfigData ? ConfigData->Cluster->GetNode(GetLocalNodeId()) : nullptr;
 }
 
 const UDisplayClusterConfigurationViewport* FDisplayClusterConfigManager::GetLocalViewport(const FString& ViewportId) const

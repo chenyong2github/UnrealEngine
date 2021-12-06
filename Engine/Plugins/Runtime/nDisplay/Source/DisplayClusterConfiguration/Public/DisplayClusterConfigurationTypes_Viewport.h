@@ -158,7 +158,7 @@ public:
 	FString Camera;
 
 	/** Specify your Projection Policy Settings */
-	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Configuration")
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 
 	/** Enable or disable compatibility with inter process GPU Texture share */

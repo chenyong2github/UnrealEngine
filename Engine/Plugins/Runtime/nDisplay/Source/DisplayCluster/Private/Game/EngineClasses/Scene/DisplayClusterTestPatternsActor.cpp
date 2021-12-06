@@ -109,14 +109,17 @@ void ADisplayClusterTestPatternsActor::Tick(float DeltaSeconds)
 
 			for (auto it = ViewportPPSettings.CreateConstIterator(); it; ++it)
 			{
-				UDisplayClusterConfigurationViewport* ViewportCfg = RootActor->GetViewportConfiguration(LocalNodeId, it->Key);
-				if (ViewportCfg)
+				if (RootActor->CurrentConfigData != nullptr)
 				{
-					// Assign current post-process settigns for each viewport
-					FDisplayClusterConfigurationViewport_CustomPostprocessSettings& DstPostProcess = ViewportCfg->RenderSettings.CustomPostprocess.Override;
-					DstPostProcess.bIsEnabled = true;
-					DstPostProcess.bIsOneFrame = true;
-					DstPostProcess.PostProcessSettings = it->Value;
+					UDisplayClusterConfigurationViewport* ViewportCfg = RootActor->CurrentConfigData->GetViewport(LocalNodeId, it->Key);
+					if (ViewportCfg)
+					{
+						// Assign current post-process settigns for each viewport
+						FDisplayClusterConfigurationViewport_CustomPostprocessSettings& DstPostProcess = ViewportCfg->RenderSettings.CustomPostprocess.Override;
+						DstPostProcess.bIsEnabled = true;
+						DstPostProcess.bIsOneFrame = true;
+						DstPostProcess.PostProcessSettings = it->Value;
+					}
 				}
 			}
 		}
