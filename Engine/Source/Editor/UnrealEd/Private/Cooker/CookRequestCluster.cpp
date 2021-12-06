@@ -293,7 +293,11 @@ void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& b
 #if DEBUG_COOKONTHEFLY
 		UE_LOG(LogCook, Display, TEXT("Processing request for package %s"), *OriginalName.ToString());
 #endif
-		FPackageData* PackageData = PackageDatas.TryAddPackageDataByStandardFileName(OriginalName);
+		// The input filenames are normalized, but might be missing their extension, so allow PackageDatas
+		// to correct the filename if the package is found with a different filename
+		bool bExactMatchRequired = false;
+		FPackageData* PackageData = PackageDatas.TryAddPackageDataByStandardFileName(OriginalName, bExactMatchRequired,
+			&Request.FileName);
 		if (!PackageData)
 		{
 			LogCookerMessage(FString::Printf(TEXT("Could not find package at file %s!"),
