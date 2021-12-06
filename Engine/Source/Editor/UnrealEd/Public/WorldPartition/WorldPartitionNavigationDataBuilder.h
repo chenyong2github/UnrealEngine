@@ -5,6 +5,8 @@
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionNavigationDataBuilder.generated.h"
 
+class UWorldPartition;
+
 UCLASS()
 class UWorldPartitionNavigationDataBuilder : public UWorldPartitionBuilder
 {
@@ -19,6 +21,8 @@ protected:
 	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
+
+	bool GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds);
 
 	bool SavePackages(const TArray<UPackage*>& PackagesToSave);
 

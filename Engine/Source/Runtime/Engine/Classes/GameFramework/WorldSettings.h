@@ -563,6 +563,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Foliage)
 	uint32 InstancedFoliageGridSize;
 
+	/** Size of the grid for navigation data chunk actors*/
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	uint32 NavigationDataChunkGridSize;
+	
 	/** Default size of the grid for placed elements from the editor */
 	UPROPERTY(EditAnywhere, Category=Editor)
 	uint32 DefaultPlacementGridSize;

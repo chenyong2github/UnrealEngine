@@ -2,6 +2,7 @@
 
 #include "WorldPartition/NavigationData/NavigationDataChunkActor.h"
 #include "AI/NavigationSystemBase.h"
+#include "GameFramework/WorldSettings.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -57,6 +58,11 @@ void ANavigationDataChunkActor::BeginDestroy()
 	}
 
 	Super::BeginDestroy();
+}
+
+uint32 ANavigationDataChunkActor::GetDefaultGridSize(UWorld* InWorld) const
+{
+	return InWorld->GetWorldSettings()->NavigationDataChunkGridSize;
 }
 
 void ANavigationDataChunkActor::AddNavigationDataChunkInEditor(const UNavigationSystemBase& NavSys)

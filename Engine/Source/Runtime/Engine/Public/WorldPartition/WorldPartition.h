@@ -136,7 +136,6 @@ public:
 	FBox GetWorldBounds() const;
 	FBox GetEditorWorldBounds() const;
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly);
-	void GenerateNavigationData(const FBox& LoadedBounds);
 
 	// Debugging Methods
 	void DrawRuntimeHashPreview();

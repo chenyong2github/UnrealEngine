@@ -6,9 +6,11 @@
 #include "EngineUtils.h"
 #include "FileHelpers.h"
 #include "StaticMeshCompiler.h"
+#include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Logging/LogMacros.h"
 #include "UObject/SavePackage.h"
 #include "Commandlets/Commandlet.h"
+#include "AI/NavigationSystemBase.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -19,17 +21,21 @@ DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionNavigationDataBuilder, Log, All);
 UWorldPartitionNavigationDataBuilder::UWorldPartitionNavigationDataBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Size of loaded cell. Set as big as your hardware can afford.
-	// @todo: move to a config file.
-	IterativeCellSize = 204800;
-	
-	// Extra padding around loaded cell.
-	// @todo: set value programatically.
-	IterativeCellOverlapSize = 2000 + 51200;	// tile size + data chunk actor half size (because chunks are currently centered)
 }
 
 bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
+	const TSubclassOf<APartitionActor>& NavigationDataActorClass = ANavigationDataChunkActor::StaticClass();
+	const uint32 GridSize = NavigationDataActorClass->GetDefaultObject<APartitionActor>()->GetDefaultGridSize(World);
+	
+	// Size of loaded cell. Set as big as your hardware can afford.
+	// @todo: move to a config file.
+	IterativeCellSize = 2*GridSize;
+	
+	// Extra padding around loaded cell.
+	// @todo: set value programatically.
+	IterativeCellOverlapSize = 2000; // navmesh tile size
+
 	TArray<FString> Tokens, Switches;
 	UCommandlet::ParseCommandLine(FCommandLine::Get(), Tokens, Switches);
 
@@ -62,7 +68,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 
 	// Destroy any existing navigation data chunk actors within bounds we are generating, we will make new ones.
 	int32 Count = 0;
-	FBox GeneratingBounds = InCellInfo.Bounds.ExpandBy(-IterativeCellOverlapSize);
+	const FBox GeneratingBounds = InCellInfo.Bounds.ExpandBy(-IterativeCellOverlapSize);
 
 	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   GeneratingBounds %s"), *GeneratingBounds.ToString());
 	
@@ -118,7 +124,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	FStaticMeshCompilingManager::Get().FinishAllCompilation();
 	
 	// Rebuild ANavigationDataChunkActor in loaded bounds
-	WorldPartition->GenerateNavigationData(InCellInfo.Bounds);
+	GenerateNavigationData(WorldPartition, InCellInfo.Bounds, GeneratingBounds);
 
 	// Gather all packages again to include newly created ANavigationDataChunkActor actors
 	for (TActorIterator<ANavigationDataChunkActor> ItActor(World); ItActor; ++ItActor)
@@ -223,6 +229,122 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 		UPackage::WaitForAsyncFileWrites();
 	}
 
+	return true;
+}
+
+FName GetCellName(UWorldPartition* WorldPartition, const UActorPartitionSubsystem::FCellCoord& InCellCoord)
+{
+	const FString PackageName = FPackageName::GetShortName(WorldPartition->GetPackage());
+	const FString PackageNameNoPIEPrefix = UWorld::RemovePIEPrefix(PackageName);
+	return FName(*FString::Printf(TEXT("%s_%i_%i"), *PackageNameNoPIEPrefix, InCellCoord.X, InCellCoord.Y));
+}
+
+bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartition* WorldPartition, const FBox& LoadedBounds, const FBox& GeneratingBounds)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionNavigationDataBuilder::GenerateNavigationData);
+
+	static int32 CallCount = 0;
+	CallCount++;
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("%i. GenerateNavigationData for LoadedBounds %s"), CallCount, *LoadedBounds.ToString());
+
+	UWorld* World = WorldPartition->World;
+
+	// Generate navmesh
+	// Make sure navigation is added and initialized in EditorMode
+	FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+
+	UNavigationSystemBase* NavSystem = World->GetNavigationSystem();
+	if (NavSystem == nullptr)
+	{
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("No navigation system to generate navigation data."));
+		return false;
+	}
+
+	// First check if there is any intersection with the nav bounds.
+	const FBox NavBounds = NavSystem->GetNavigableWorldBounds();
+	if (!LoadedBounds.Intersect(NavBounds))
+	{
+		// No intersections, early out
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("GenerateNavigationData finished (no intersection with nav bounds)."));
+		return true;
+	}
+
+	// Invoke navigation data generator
+	NavSystem->SetBuildBounds(LoadedBounds);
+	FNavigationSystem::Build(*World);
+
+	// Compute navdata bounds from tiles
+	const FBox NavDataBounds = NavSystem->ComputeNavDataBounds();
+	if (!LoadedBounds.Intersect(NavDataBounds))
+	{
+		// No intersections, early out
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("GenerateNavigationData finished (no intersection with generated navigation data)."));
+		return true;
+	}
+
+	// For each cell, gather navmesh and generate a datachunk actor
+	const FBox WorldBounds = WorldPartition->GetWorldBounds();
+
+	int32 ActorCount = 0;
+
+	// Keep track of all valid navigation data chunk actors
+	TSet<ANavigationDataChunkActor*> ValidNavigationDataChunkActors;
+
+	// A DataChunkActor will be generated for each tile touching the generating bounds.
+	const TSubclassOf<APartitionActor>& NavigationDataActorClass = ANavigationDataChunkActor::StaticClass();
+	FIntRect GeneratingBounds2D(GeneratingBounds.Min.X, GeneratingBounds.Min.Y, GeneratingBounds.Max.X, GeneratingBounds.Max.Y);
+	FActorPartitionGridHelper::ForEachIntersectingCell(NavigationDataActorClass, GeneratingBounds2D, World->PersistentLevel,
+		[&WorldPartition, &ActorCount, World, &ValidNavigationDataChunkActors, &NavDataBounds, this](const UActorPartitionSubsystem::FCellCoord& InCellCoord, const FIntRect& InCellBounds)->bool
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(MakeNavigationDataChunkActorForGridCell);
+		
+			const FBox2D CellBounds(FVector2D(InCellBounds.Min), FVector2D(InCellBounds.Max));
+			
+			if (CellBounds.GetExtent().X < 1.f || CellBounds.GetExtent().Y < 1.f)
+			{
+				// Safety, since we reduce by 1.f below.
+				UE_LOG(LogWorldPartitionNavigationDataBuilder, Warning, TEXT("%s: grid cell too small."), ANSI_TO_TCHAR(__FUNCTION__));
+				return false;
+			}
+
+			constexpr float HalfHeight = HALF_WORLD_MAX;
+			const FBox QueryBounds(FVector(CellBounds.Min.X, CellBounds.Min.Y, -HalfHeight), FVector(CellBounds.Max.X, CellBounds.Max.Y, HalfHeight));
+
+			if (!NavDataBounds.IsValid || !NavDataBounds.Intersect(QueryBounds))
+			{
+				// Skip if there is no navdata for this cell
+				return true;
+			}
+
+			//@todo_ow: Properly handle data layers
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.bDeferConstruction = true;
+			SpawnParams.bCreateActorPackage = true;
+			ANavigationDataChunkActor* DataChunkActor = World->SpawnActor<ANavigationDataChunkActor>(SpawnParams);
+			ActorCount++;
+
+			const FVector2D CellCenter = CellBounds.GetCenter();
+			DataChunkActor->SetActorLocation(FVector(CellCenter.X, CellCenter.Y, 0.f));
+
+			FBox TilesBounds(EForceInit::ForceInit);
+			DataChunkActor->CollectNavData(QueryBounds, TilesBounds);
+
+			FBox ChunkActorBounds(FVector(QueryBounds.Min.X, QueryBounds.Min.Y, TilesBounds.Min.Z), FVector(QueryBounds.Max.X, QueryBounds.Max.Y, TilesBounds.Max.Z));
+			ChunkActorBounds = ChunkActorBounds.ExpandBy(FVector(-1.f, -1.f, 1.f)); //reduce XY by 1cm to avoid precision issues causing potential overflow on neighboring cell, add 1cm in Z to have a minimum of volume.
+			UE_LOG(LogWorldPartitionNavigationDataBuilder, VeryVerbose, TEXT("Setting ChunkActorBounds to %s"), *ChunkActorBounds.ToString());
+			DataChunkActor->SetDataChunkActorBounds(ChunkActorBounds);
+
+			const FName CellName = GetCellName(WorldPartition, InCellCoord);
+			DataChunkActor->SetActorLabel(FString::Printf(TEXT("NavDataChunkActor_%s"), *CellName.ToString()));
+
+			ValidNavigationDataChunkActors.Add(DataChunkActor);
+
+			UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("%i) %s added."), ActorCount, *DataChunkActor->GetName());
+
+			return true;
+		});
+
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("GenerateNavigationData finished (%i actors added)."), ActorCount);
 	return true;
 }
 
