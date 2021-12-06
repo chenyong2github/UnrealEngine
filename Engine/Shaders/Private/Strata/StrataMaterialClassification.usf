@@ -37,6 +37,10 @@ RWBuffer<uint> ComplexTileListDataBuffer;
 groupshared uint s_IsComplexIsMaterialTile[GROUP_THREAD_COUNT];
 #endif
 
+#if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
+RWTexture2D<uint2> SSSTextureUAV;
+#endif
+
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
 void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 {
@@ -52,6 +56,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	// Pixels outside of the view area are considered simple to enable screen borders to receive the simple permutation when not aligned to shader group size.
 	bool bContainsComplexMaterial = false;
 	bool bContainsStrataMaterial = false;
+	bool bHasScreenSpaceSubsurfaceScattering = false;
 	if (all(PixelCoord < uint2(ViewResolution)))
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
@@ -60,7 +65,18 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		const bool bIsSimple = IsSimpleMaterial(StrataPixelHeader) || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
 		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
 		bContainsComplexMaterial = !bIsSimple;
+		bHasScreenSpaceSubsurfaceScattering = HasSubsurface(StrataPixelHeader);
 	}
+
+#if PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION
+	BRANCH
+	if (!bHasScreenSpaceSubsurfaceScattering)
+	{
+		// We must fill all the pixel which doe not hav subsurface scattering with default so that the SSS code is not executed where it should not.
+		FStrataSubsurfaceData StrataSubsurfaceData = (FStrataSubsurfaceData)0;
+		SSSTextureUAV[DispatchThreadId.xy] = StrataPackSSSData(StrataSubsurfaceData);
+	}
+#endif
 
 #if PERMUTATION_WAVE_OPS
 

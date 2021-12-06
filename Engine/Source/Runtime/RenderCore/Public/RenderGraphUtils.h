@@ -73,24 +73,24 @@ struct FTextureRenderTargetBinding
 {
 	FRDGTextureRef Texture;
 	int16 ArraySlice;
-	ERenderTargetLoadAction OverrideLoadAction;
+	bool bNeverClear;
 
 	FTextureRenderTargetBinding()
 		: Texture(nullptr)
 		, ArraySlice(-1)
-		, OverrideLoadAction(ERenderTargetLoadAction::Num)
+		, bNeverClear(false)
 	{}
 
-	FTextureRenderTargetBinding(FRDGTextureRef InTexture, ERenderTargetLoadAction InOverrideLoadAction)
+	FTextureRenderTargetBinding(FRDGTextureRef InTexture, bool bInNeverClear)
 		: Texture(InTexture)
 		, ArraySlice(-1)
-		, OverrideLoadAction(InOverrideLoadAction)
+		, bNeverClear(bInNeverClear)
 	{}
 
-	FTextureRenderTargetBinding(FRDGTextureRef InTexture, int16 InArraySlice = -1, ERenderTargetLoadAction InOverrideLoadAction = ERenderTargetLoadAction::Num)
+	FTextureRenderTargetBinding(FRDGTextureRef InTexture, int16 InArraySlice = -1, bool bInNeverClear = false)
 		: Texture(InTexture)
 		, ArraySlice(InArraySlice)
-		, OverrideLoadAction(InOverrideLoadAction)
+		, bNeverClear(bInNeverClear)
 	{}
 };
 inline FRenderTargetBindingSlots GetRenderTargetBindings(ERenderTargetLoadAction ColorLoadAction, TArrayView<FTextureRenderTargetBinding> ColorTextures)
@@ -102,9 +102,9 @@ inline FRenderTargetBindingSlots GetRenderTargetBindings(ERenderTargetLoadAction
 	{
 		check(ColorTextures[Index].Texture);
 		BindingSlots[Index] = FRenderTargetBinding(ColorTextures[Index].Texture, ColorLoadAction, 0, ColorTextures[Index].ArraySlice);
-		if (ColorTextures[Index].OverrideLoadAction != ERenderTargetLoadAction::Num)
+		if (ColorLoadAction == ERenderTargetLoadAction::EClear && ColorTextures[Index].bNeverClear)
 		{
-			BindingSlots[Index].SetLoadAction(ColorTextures[Index].OverrideLoadAction);
+			BindingSlots[Index].SetLoadAction(ERenderTargetLoadAction::ELoad);
 		}
 	}
 	return BindingSlots;
