@@ -244,13 +244,18 @@ inline int32 FViewElementPDI::DrawMesh(const FMeshBatch& Mesh)
 					{
 						for (int32 Index = 0; Index < NewMesh->Elements.Num(); ++Index)
 						{
-							const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource = NewMesh->Elements[Index].PrimitiveUniformBufferResource;
+							FMeshBatchElement& Element = NewMesh->Elements[Index];
+							const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource = Element.PrimitiveUniformBufferResource;
 
 							if (PrimitiveUniformBufferResource)
 							{
-								const int32 DataIndex = DynamicPrimitiveCollectorForRT->Add(reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()), 1);
-								NewMesh->Elements[Index].PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
-								NewMesh->Elements[Index].DynamicPrimitiveShaderDataIndex = DataIndex;
+								Element.PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
+								DynamicPrimitiveCollectorForRT->Add(
+									Element.DynamicPrimitiveData,
+									*reinterpret_cast<const FPrimitiveUniformShaderParameters*>(PrimitiveUniformBufferResource->GetContents()),
+									Element.NumInstances,
+									Element.DynamicPrimitiveIndex,
+									Element.DynamicPrimitiveInstanceSceneDataOffset);
 							}
 						}
 					}

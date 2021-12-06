@@ -279,7 +279,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 				for (auto& MeshBatch : MeshBatches)
 				{
-					MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex = InstanceIndex;
+					MeshBatch.Elements[0].DynamicPrimitiveIndex = InstanceIndex;
 					MeshProcessor.AddMeshBatch(MeshBatch, ~0ull, nullptr);
 				};
 			}
@@ -305,7 +305,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 				for (auto& MeshBatch : MeshBatches)
 				{
-					MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex = Scene->StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupIndex;
+					MeshBatch.Elements[0].DynamicPrimitiveIndex = Scene->StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupIndex;
 					MeshProcessor.AddMeshBatch(MeshBatch, ~0ull, nullptr);
 				};
 			}
@@ -331,7 +331,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 				for (auto& MeshBatch : MeshBatches)
 				{
-					MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex = Scene->StaticMeshInstanceRenderStates.Elements.Num() + Scene->InstanceGroupRenderStates.Elements.Num() + LandscapeIndex;
+					MeshBatch.Elements[0].DynamicPrimitiveIndex = Scene->StaticMeshInstanceRenderStates.Elements.Num() + Scene->InstanceGroupRenderStates.Elements.Num() + LandscapeIndex;
 					MeshProcessor.AddMeshBatch(MeshBatch, ~0ull, nullptr);
 				};
 			}

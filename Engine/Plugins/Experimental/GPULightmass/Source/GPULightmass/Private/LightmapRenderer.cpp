@@ -896,9 +896,9 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 							MeshBatches[0].Elements[0].MinVertexIndex = 0;
 							MeshBatches[0].Elements[0].MaxVertexIndex = 0;
 
-							MeshBatches[0].Elements[0].DynamicPrimitiveShaderDataIndex = LandscapeIndex;
-							MeshBatches[0].Elements[0].DynamicPrimitiveShaderDataIndex += StaticMeshInstanceRenderStates.Elements.Num();
-							MeshBatches[0].Elements[0].DynamicPrimitiveShaderDataIndex += InstanceGroupRenderStates.Elements.Num();
+							MeshBatches[0].Elements[0].DynamicPrimitiveIndex = LandscapeIndex;
+							MeshBatches[0].Elements[0].DynamicPrimitiveIndex += StaticMeshInstanceRenderStates.Elements.Num();
+							MeshBatches[0].Elements[0].DynamicPrimitiveIndex += InstanceGroupRenderStates.Elements.Num();
 
 							FRayTracingDynamicGeometryUpdateParams UpdateParams
 							{
@@ -1301,7 +1301,7 @@ void FLightmapRenderer::RenderMeshBatchesIntoGBuffer(
 	for (auto& MeshBatch : MeshBatches)
 	{
 		FMeshBatchElement& Element = MeshBatch.Elements[0];
-		Element.DynamicPrimitiveShaderDataIndex = GPUScenePrimitiveId;
+		Element.DynamicPrimitiveIndex = GPUScenePrimitiveId;
 		if (Element.UserIndex == INDEX_NONE)
 		{
 			MeshBatchesToDrawImmediately.Add(MeshBatch);
@@ -1350,7 +1350,7 @@ void FLightmapRenderer::RenderMeshBatchesIntoGBuffer(
 
 		for (FVisibleMeshDrawCommand& Cmd : VisibleMeshDrawCommands)
 		{
-			Cmd.PrimitiveIdInfo.DrawPrimitiveId = Scene->CachedRayTracingScene->InstanceDataOriginalOffsets[MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex] + MeshBatch.Elements[0].UserIndex;
+			Cmd.PrimitiveIdInfo.DrawPrimitiveId = Scene->CachedRayTracingScene->InstanceDataOriginalOffsets[MeshBatch.Elements[0].DynamicPrimitiveIndex] + MeshBatch.Elements[0].UserIndex;
 		}
 
 		SortAndMergeDynamicPassMeshDrawCommands(*View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, nullptr);
