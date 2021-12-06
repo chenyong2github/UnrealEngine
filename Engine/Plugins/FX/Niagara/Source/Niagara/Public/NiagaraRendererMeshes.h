@@ -8,6 +8,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraRenderer.h"
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraMeshVertexFactory.h"
+#include "NiagaraGPUSceneUtils.h"
 
 class FNiagaraDataSet;
 struct FNiagaraDynamicDataMesh;
@@ -39,14 +40,16 @@ public:
 protected:
 	struct FParticleMeshRenderData
 	{
+		class FMeshElementCollector*	Collector = nullptr;
 		const FNiagaraDynamicDataMesh*	DynamicDataMesh = nullptr;
 		class FNiagaraDataBuffer*		SourceParticleData = nullptr;
 
+		bool 							bUseGPUScene = false;
 		bool							bHasTranslucentMaterials = false;
-		bool							bAllTranslucentMaterials = false;
 		bool							bSortCullOnGpu = false;
 		bool							bNeedsSort = false;
 		bool							bNeedsCull = false;
+		bool							bIsGpuLowLatencyTranslucency = false;
 
 		const FNiagaraRendererLayout*	RendererLayout = nullptr;
 		ENiagaraMeshVFLayout::Type		SortVariable = ENiagaraMeshVFLayout::Type(INDEX_NONE);
@@ -76,7 +79,6 @@ protected:
 		ENiagaraMeshPivotOffsetSpace PivotOffsetSpace = ENiagaraMeshPivotOffsetSpace::Mesh;
 		FVector Scale = FVector(1.0f, 1.0f, 1.0f);
 		FBox LocalBounds = FBox(ForceInitToZero);
-		FSphere LocalCullingSphere = FSphere(ForceInitToZero);
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};
 
@@ -102,17 +104,50 @@ protected:
 	using FMeshCollectorResources = TMeshCollectorResources<FNiagaraMeshVertexFactory>;
 	using FMeshCollectorResourcesEx = TMeshCollectorResources<FNiagaraMeshVertexFactoryEx>;
 
+	struct FEmitterSourceInstanceData
+	{
+		FPrimitiveInstance InstanceSceneData;
+		FPrimitiveInstanceDynamicData InstanceDynamicData;
+		float CustomData;
+	};
+
+	class FGPUSceneUpdateResource : public FOneFrameResource
+	{
+	public:
+		ERHIFeatureLevel::Type FeatureLevel;
+		bool bPreciseMotionVectors;
+		FMeshBatchDynamicPrimitiveData DynamicPrimitiveData;
+		FNiagaraGPUSceneUtils::FUpdateMeshParticleInstancesParams GPUWriteParams;
+		FEmitterSourceInstanceData EmitterSourceData;
+
+		FGPUSceneUpdateResource(ERHIFeatureLevel::Type InFeatureLevel, bool bInPreciseMotionVectors) : FeatureLevel(InFeatureLevel), bPreciseMotionVectors(bInPreciseMotionVectors) {}
+		virtual ~FGPUSceneUpdateResource() {}
+	};
+
 	int32 GetLODIndex(int32 MeshIndex) const;
 
-	void PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const;
+	void PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, FMeshElementCollector* Collector, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const;
 	void PrepareParticleRenderBuffers(FParticleMeshRenderData& ParticleMeshRenderData, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
-	void InitializeSortInfo(FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FSceneView& View, int32 ViewIndex, bool bIsInstancedStereo, FNiagaraGPUSortInfo& OutSortInfo) const;
+	void InitializeSortInfo(const FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FSceneView& View, int32 ViewIndex, bool bIsInstancedStereo, FNiagaraGPUSortInfo& OutSortInfo) const;
 	void PreparePerMeshData(FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FMeshData& MeshData) const;
 	uint32 PerformSortAndCull(FParticleMeshRenderData& ParticleMeshRenderData, FGlobalDynamicReadBuffer& ReadBuffer, FNiagaraGPUSortInfo& SortInfo, class FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, int32 MeshIndex) const;
-	FNiagaraMeshUniformBufferRef CreatePerViewUniformBuffer(FParticleMeshRenderData& ParticleMeshRenderData, const FSceneView& View, const FMeshData& MeshData, const FNiagaraSceneProxy& SceneProxy) const;
+	FNiagaraMeshCommonParameters CreateCommonShaderParams(const FParticleMeshRenderData& ParticleMeshRenderData, const FSceneView& View, const FMeshData& MeshData, const FNiagaraSceneProxy& SceneProxy) const;
+	FNiagaraMeshUniformBufferRef CreateVFUniformBuffer(const FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraMeshCommonParameters& CommonParams) const;
+
+	void SetupElementForGPUScene(
+		const FParticleMeshRenderData& ParticleMeshRenderData,
+		const FNiagaraMeshCommonParameters& CommonParameters,
+		const FNiagaraSceneProxy& SceneProxy,
+		const FMeshData& MeshData,
+		const FSceneView& View,
+		uint32 NumInstances,
+		bool bNeedsPrevTransform,
+		FMeshBatchElement& OutMeshBatchElement
+	) const;
 
 	void CreateMeshBatchForSection(
 		const FParticleMeshRenderData& ParticleMeshRenderData,
+		const FNiagaraMeshCommonParameters& CommonParams,
 		FMeshBatch& MeshBatch,
 		FVertexFactory& VertexFactory,
 		FMaterialRenderProxy& MaterialProxy,
@@ -125,7 +160,8 @@ protected:
 		uint32 NumInstances,
 		uint32 GPUCountBufferOffset,
 		bool bIsWireframe,
-		bool bIsInstancedStereo
+		bool bIsInstancedStereo,
+		bool bNeedsPrevTransform
 	) const;
 
 private:
