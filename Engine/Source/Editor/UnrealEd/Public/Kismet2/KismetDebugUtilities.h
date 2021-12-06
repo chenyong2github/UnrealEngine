@@ -85,6 +85,7 @@ struct FPropertyInstanceInfo
 	TWeakObjectPtr<UObject> Object = nullptr; // only filled if property is a UObject
 	TFieldPath<FProperty> Property;
 	TArray<TSharedPtr<FPropertyInstanceInfo>> Children;
+	bool bIsInContainer = false;
 };
 
 inline uint32 GetTypeHash(const FPropertyInstanceInfo::FPropertyInstance& PropertyInstance)

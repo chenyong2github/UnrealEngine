@@ -2111,6 +2111,7 @@ void FPropertyInstanceInfo::PopulateChildren(FPropertyInstance PropertyInstance,
 			
 			// overwrite the display name with the array index for the current element
 			ChildInfo->DisplayName = FText::Format(LOCTEXT("ArrayIndexName", "[{0}]"), FText::AsNumber(i));
+			ChildInfo->bIsInContainer = true;
 			Children.Add(ChildInfo);
 		}
 	}
@@ -2154,6 +2155,7 @@ void FPropertyInstanceInfo::PopulateChildren(FPropertyInstance PropertyInstance,
 				);
 				NameStr += TEXT("] ");
 				ChildInfo->DisplayName = FText::FromString(NameStr);
+				ChildInfo->bIsInContainer = true;
 				
 				Children.Add(ChildInfo);
 				--Count;
@@ -2177,6 +2179,7 @@ void FPropertyInstanceInfo::PopulateChildren(FPropertyInstance PropertyInstance,
 				const TSharedPtr<FPropertyInstanceInfo> ChildInfo = FindOrMake(ChildProperty, VisitedNodes);
 				
 				ChildInfo->DisplayName = FText::Format(LOCTEXT("SetIndexName", "[{0}]"), FText::AsNumber(Index));
+				ChildInfo->bIsInContainer = true;
 
 				Children.Add(ChildInfo);
 
