@@ -26,9 +26,6 @@ enum class EDownsampleQuality : uint8
 	MAX
 };
 
-// Returns the global downsample quality specified by the r.Downsample.Quality CVar.
-EDownsampleQuality GetDownsampleQuality();
-
 // The set of inputs needed to add a downsample pass to RDG.
 struct FDownsamplePassInputs
 {
@@ -54,6 +51,8 @@ struct FDownsamplePassInputs
 };
 
 FScreenPassTexture AddDownsamplePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FDownsamplePassInputs& Inputs);
+
+void AddDownsampleComputePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture Input, FScreenPassTexture Output, EDownsampleQuality Quality, ERDGPassFlags PassFlags);
 
 class FSceneDownsampleChain
 {

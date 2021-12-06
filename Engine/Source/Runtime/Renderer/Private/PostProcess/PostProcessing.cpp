@@ -96,6 +96,20 @@ TAutoConsoleVariable<int32> CVarPostProcessingQuarterResolutionDownsample(
 	TEXT("Uses quarter resolution downsample instead of half resolution to feed into exposure / bloom."),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarDownsampleQuality(
+	TEXT("r.PostProcessing.DownsampleQuality"), 0,
+	TEXT("Defines the quality used for downsampling to half or quarter res the scene color in post processing chain.\n")
+	TEXT(" 0: low quality (default)\n")
+	TEXT(" 1: high quality\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarDownsampleChainQuality(
+	TEXT("r.PostProcessing.DownsampleChainQuality"), 1,
+	TEXT("Defines the quality used for downsampling to the scene color in scene color chains.\n")
+	TEXT(" 0: low quality\n")
+	TEXT(" 1: high quality (default)\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 #if !(UE_BUILD_SHIPPING)
 TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 	TEXT("r.PostProcessing.ForceAsyncDispatch"),
@@ -106,6 +120,12 @@ TAutoConsoleVariable<int32> CVarPostProcessingForceAsyncDispatch(
 #endif
 
 } //! namespace
+
+EDownsampleQuality GetDownsampleQuality(const TAutoConsoleVariable<int32>& CVar)
+{
+	const int32 DownsampleQuality = FMath::Clamp(CVar.GetValueOnRenderThread(), 0, 1);
+	return static_cast<EDownsampleQuality>(DownsampleQuality);
+}
 
 bool IsPostProcessingWithComputeEnabled(ERHIFeatureLevel::Type FeatureLevel)
 {
@@ -535,7 +555,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
 		const EAntiAliasingMethod AntiAliasingMethod = !bVisualizeDepthOfField ? View.AntiAliasingMethod : AAM_None;
-		const EDownsampleQuality DownsampleQuality = GetDownsampleQuality();
+		const EDownsampleQuality DownsampleQuality = GetDownsampleQuality(CVarDownsampleQuality);
+		const EDownsampleQuality DownsampleChainQuality = GetDownsampleQuality(CVarDownsampleChainQuality);
 		const EPixelFormat DownsampleOverrideFormat = PF_FloatRGB;
 
 		// Previous transforms are nonsensical on camera cuts, unless motion vector simulation is enabled (providing FrameN+1 transforms to FrameN+0)
@@ -611,17 +632,15 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		const bool bProcessQuarterResolution = IsPostProcessingQuarterResolutionDownsampleEnabled();
 		const bool bMotionBlurNeedsHalfResInput = PassSequence.IsEnabled(EPass::MotionBlur) && DoesMotionBlurNeedsHalfResInput() && !bVisualizeMotionBlur;
 
-		const bool bIsFullResFFT = bFFTBloomEnabled && IsFFTBloomFullResolutionEnabled();
-		const bool bIsHalfResFFT = bFFTBloomEnabled && !IsFFTBloomFullResolutionEnabled() && !IsFFTBloomQuarterResolutionEnabled();
-		const bool bIsQuarterResFFT = bFFTBloomEnabled && IsFFTBloomQuarterResolutionEnabled();
+		const float FFTBloomResolutionFraction = GetFFTBloomResolutionFraction();
 
 		const bool bProduceSceneColorChain = (
 			bBasicEyeAdaptationEnabled ||
 			(bBloomEnabled && !bFFTBloomEnabled) ||
 			(bLensFlareEnabled && bFFTBloomEnabled) ||
 			bLocalExposureBlurredLum);
-		const bool bNeedPostMotionBlurHalfRes = !bProcessQuarterResolution || bIsHalfResFFT;
-		const bool bNeedPostMotionBlurQuarterRes = bProcessQuarterResolution || bIsQuarterResFFT;
+		const bool bNeedPostMotionBlurHalfRes = !bProcessQuarterResolution || (bFFTBloomEnabled && FFTBloomResolutionFraction > 0.25f && FFTBloomResolutionFraction <= 0.5f);
+		const bool bNeedPostMotionBlurQuarterRes = bProcessQuarterResolution || (bFFTBloomEnabled && FFTBloomResolutionFraction <= 0.25f);
 
 		// Post Process Material Chain - Before Translucency
 		{
@@ -819,8 +838,8 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		// Generate post motion blur lower res scene color if they have not been generated.
 		{
-			if ((bNeedPostMotionBlurHalfRes ||
-				(bNeedPostMotionBlurQuarterRes && !QuarterResSceneColor.IsValid())) && !HalfResSceneColor.IsValid())
+			if ((bNeedPostMotionBlurHalfRes && !HalfResSceneColor.IsValid()) ||
+				(bNeedPostMotionBlurQuarterRes && !QuarterResSceneColor.IsValid() && !HalfResSceneColor.IsValid()))
 			{
 				FDownsamplePassInputs PassInputs;
 				PassInputs.Name = TEXT("PostProcessing.SceneColor.HalfRes");
@@ -878,7 +897,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				GraphBuilder, View,
 				EyeAdaptationParameters,
 				bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor,
-				DownsampleQuality,
+				DownsampleChainQuality,
 				bLogLumaInAlpha);
 		}
 
@@ -918,23 +937,26 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			{
 				LensFlareSceneDownsampleChain = &SceneDownsampleChain;
 
-				FScreenPassTexture HalfResolution;
-				if (IsFFTBloomQuarterResolutionEnabled())
+				float InputResolutionFraction;
+				FScreenPassTexture InputSceneColor;
+
+				if (FFTBloomResolutionFraction <= 0.25f)
 				{
-					HalfResolution = QuarterResSceneColor;
+					InputSceneColor = QuarterResSceneColor;
+					InputResolutionFraction = 0.25f;
+				}
+				else if (FFTBloomResolutionFraction <= 0.5f)
+				{
+					InputSceneColor = HalfResSceneColor;
+					InputResolutionFraction = 0.5f;
 				}
 				else
 				{
-					HalfResolution = HalfResSceneColor;
+					InputSceneColor = SceneColor;
+					InputResolutionFraction = 1.0f;
 				}
 
-				FFFTBloomInputs PassInputs;
-				PassInputs.FullResolutionTexture = SceneColor.Texture;
-				PassInputs.FullResolutionViewRect = SceneColor.ViewRect;
-				PassInputs.HalfResolutionTexture = HalfResolution.Texture;
-				PassInputs.HalfResolutionViewRect = HalfResolution.ViewRect;
-
-				FFFTBloomOutput Outputs = AddFFTBloomPass(GraphBuilder, View, PassInputs);
+				FFFTBloomOutput Outputs = AddFFTBloomPass(GraphBuilder, View, InputSceneColor, InputResolutionFraction);
 				Bloom = Outputs.BloomTexture;
 				SceneColorApplyParameters = Outputs.SceneColorApplyParameters;
 			}
@@ -966,7 +988,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 					}
 
 					const bool bLogLumaInAlpha = false;
-					BloomDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampleInput, DownsampleQuality, bLogLumaInAlpha);
+					BloomDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampleInput, DownsampleChainQuality, bLogLumaInAlpha);
 
 					LensFlareSceneDownsampleChain = &BloomDownsampleChain;
 				}

@@ -11,7 +11,7 @@ const int32 GBloomSetupComputeTileSizeX = 8;
 const int32 GBloomSetupComputeTileSizeY = 8;
 
 TAutoConsoleVariable<float> CVarBloomCross(
-	TEXT("r.Bloom.Cross"),
+	TEXT("r.GaussianBloom.Cross"),
 	0.0f,
 	TEXT("Experimental feature to give bloom kernel a more bright center sample (values between 1 and 3 work without causing aliasing)\n")
 	TEXT("Existing bloom get lowered to match the same brightness\n")
