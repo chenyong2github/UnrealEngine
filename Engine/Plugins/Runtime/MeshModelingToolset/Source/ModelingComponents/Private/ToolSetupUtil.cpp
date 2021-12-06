@@ -109,6 +109,16 @@ UMaterialInstanceDynamic* ToolSetupUtil::GetDefaultBrushVolumeMaterial(UInteract
 	return nullptr;
 }
 
+UMaterialInstanceDynamic* ToolSetupUtil::GetDefaultBrushAlphaMaterial(UInteractiveToolManager* ToolManager)
+{
+	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/BrushAlphaIndicatorMaterial"));
+	if (Material != nullptr)
+	{
+		UMaterialInstanceDynamic* MatInstance = UMaterialInstanceDynamic::Create(Material, ToolManager);
+		return MatInstance;
+	}
+	return nullptr;
+}
 
 
 UMaterialInterface* ToolSetupUtil::GetDefaultSculptMaterial(UInteractiveToolManager* ToolManager)

@@ -217,13 +217,18 @@ public:
 
 protected:
 	// UMeshSculptToolBase API
-	virtual UBaseDynamicMeshComponent* GetSculptMeshComponent() { return DynamicMeshComponent; }
-	virtual FDynamicMesh3* GetBaseMesh() { return &BaseMesh; }
-	virtual const FDynamicMesh3* GetBaseMesh() const { return &BaseMesh; }
+	virtual void InitializeIndicator() override;
+	virtual UPreviewMesh* MakeBrushIndicatorMesh(UObject* Parent, UWorld* World) override;
+
+	virtual UBaseDynamicMeshComponent* GetSculptMeshComponent() override { return DynamicMeshComponent; }
+	virtual FDynamicMesh3* GetBaseMesh() override{ return &BaseMesh; }
+	virtual const FDynamicMesh3* GetBaseMesh() const override{ return &BaseMesh; }
 
 	virtual int32 FindHitSculptMeshTriangle(const FRay3d& LocalRay) override;
 	virtual int32 FindHitTargetMeshTriangle(const FRay3d& LocalRay) override;
 	bool IsHitTriangleBackFacing(int32 TriangleID, const FDynamicMesh3* QueryMesh);
+
+	virtual void UpdateHoverStamp(const FFrame3d& StampFrame) override;
 
 	virtual void OnBeginStroke(const FRay& WorldRay) override;
 	virtual void OnEndStroke() override;

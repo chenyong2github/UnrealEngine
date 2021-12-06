@@ -42,6 +42,11 @@ public:
 	 */
 	virtual void Update(float Radius, const FVector& Position, const FVector& Normal, float Falloff);
 
+	/**
+	* Update the Radius, Transform and Falloff of the Stamp Indicator
+	*/
+	virtual void Update(float Radius, const FTransform& WorldTransform, float Falloff);
+
 public:
 
 	/** Controls whether Gizmo will draw visual elements. Does not currently affect AttachedComponent. */

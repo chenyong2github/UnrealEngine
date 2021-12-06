@@ -83,3 +83,29 @@ void UBrushStampIndicator::Update(float Radius, const FVector& Position, const F
 		AttachedComponent->SetWorldTransform(Transform);
 	}
 }
+
+
+
+void UBrushStampIndicator::Update(float Radius, const FTransform& WorldTransform, float Falloff)
+{
+	BrushRadius = Radius;
+	BrushPosition = WorldTransform.GetLocation();
+	BrushNormal = WorldTransform.GetRotation().GetAxisZ();
+	BrushFalloff = Falloff;
+
+	if (AttachedComponent != nullptr)
+	{
+		FTransform Transform = WorldTransform;
+
+		if (ScaleInitializedComponent != AttachedComponent)
+		{
+			InitialComponentScale = AttachedComponent->GetComponentTransform().GetScale3D();
+			InitialComponentScale *= 1.0f / InitialComponentScale.Z;
+			ScaleInitializedComponent = AttachedComponent;
+		}
+
+		Transform.SetScale3D(Radius * InitialComponentScale);
+
+		AttachedComponent->SetWorldTransform(Transform);
+	}
+}

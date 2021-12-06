@@ -522,9 +522,11 @@ protected:
 	// subclasses should call this to create indicator in their ::Setup()
 	virtual void InitializeIndicator();
 
-	virtual bool GetIsVolumetricIndicator();
+	// Called by InitializeIndicator to create a mesh for the brush ROI indicator. Default is sphere.
+	virtual UPreviewMesh* MakeBrushIndicatorMesh(UObject* Parent, UWorld* World);
 
 	virtual void ConfigureIndicator(bool bVolumetric);
+	virtual bool GetIsVolumetricIndicator();
 
 	virtual void SetIndicatorVisibility(bool bVisible);
 	virtual bool GetIndicatorVisibility() const;
@@ -542,10 +544,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UPreviewMesh> BrushIndicatorMesh;
-
-	// creates default sphere indicator
-	UPreviewMesh* MakeDefaultIndicatorSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
-
 
 
 
