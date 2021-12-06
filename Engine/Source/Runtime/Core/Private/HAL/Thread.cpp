@@ -21,11 +21,11 @@ public:
 		uint32 StackSize,
 		EThreadPriority ThreadPriority,
 		FThreadAffinity ThreadAffinity,
-		bool bIsForkable
+		FThread::EForkable IsForkable
 	)
 		: ThreadFunction(MoveTemp(InThreadFunction))
 		, SingleThreadTickFunction(MoveTemp(InSingleThreadTickFunction))
-		, RunnableThread(bIsForkable ? FForkProcessHelper::CreateForkableThread(this, ThreadName, StackSize, ThreadPriority, ThreadAffinity.ThreadAffinityMask)
+		, RunnableThread(IsForkable == FThread::Forkable ? FForkProcessHelper::CreateForkableThread(this, ThreadName, StackSize, ThreadPriority, ThreadAffinity.ThreadAffinityMask)
 			: FRunnableThread::Create(this, ThreadName, StackSize, ThreadPriority, ThreadAffinity.ThreadAffinityMask))
 	{
 		RunnableThread->SetThreadAffinity(ThreadAffinity);
@@ -112,9 +112,9 @@ FThread::FThread(
 	uint32 StackSize/* = 0*/,
 	EThreadPriority ThreadPriority/* = TPri_Normal*/,
 	FThreadAffinity ThreadAffinity/* = FThreadAffinity()*/,
-	bool bIsForkable/* = false*/
+	EForkable IsForkable/* = NonForkable*/
 )
-	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), [] {}, StackSize, ThreadPriority, ThreadAffinity, bIsForkable))
+	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), [] {}, StackSize, ThreadPriority, ThreadAffinity, IsForkable))
 {
 	Impl->Initialize(Impl);
 }
@@ -126,9 +126,9 @@ FThread::FThread(
 	uint32 StackSize/* = 0*/,
 	EThreadPriority ThreadPriority/* = TPri_Normal*/,
 	FThreadAffinity ThreadAffinity/* = FThreadAffinity()*/,
-	bool bIsForkable/* = false*/
+	EForkable IsForkable/* = NonForkable*/
 )
-	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), MoveTemp(SingleThreadTickFunction), StackSize, ThreadPriority, ThreadAffinity, bIsForkable))
+	: Impl(MakeShared<FThreadImpl, ESPMode::ThreadSafe>(ThreadName, MoveTemp(ThreadFunction), MoveTemp(SingleThreadTickFunction), StackSize, ThreadPriority, ThreadAffinity, IsForkable))
 {
 	Impl->Initialize(Impl);
 }
