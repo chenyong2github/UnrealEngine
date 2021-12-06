@@ -76,21 +76,4 @@ void DumpSceneSnapshot(FSceneSnapshot& SceneSnapshot, const FString& BaseFileNam
 	}
 }
 
-FMD5Hash GenerateSceneSnapshotHash(const FSceneSnapshot& SceneSnapshot)
-{
-	FMD5Hash Hash;
-	FMD5 SceneMD5Hash;
-
-	SceneMD5Hash.Update((uint8*)&SceneSnapshot.SceneId, sizeof(FSceneGraphId));
-	for (const TPair<FSceneGraphId, TSharedRef<FElementSnapshot>>& ElementPair : SceneSnapshot.Elements)
-	{
-		FElementHash ElementHash(ElementPair.Value->GetHash());
-		SceneMD5Hash.Update((uint8*)&ElementPair.Key, sizeof(FSceneGraphId));
-		SceneMD5Hash.Update((uint8*)&ElementHash, sizeof(FElementHash));
-	}
-
-	Hash.Set(SceneMD5Hash);
-	return Hash;
-}
-
 } // namespace DirectLink

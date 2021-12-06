@@ -9,7 +9,9 @@
 #include "Async/Async.h"
 #include "DirectLinkEndpoint.h"
 #include "DirectLinkDeltaConsumer.h"
+#include "DirectLinkElementSnapshot.h"
 #include "DirectLinkMisc.h"
+#include "DirectLinkSceneSnapshot.h"
 #include "Misc/AsyncTaskNotification.h"
 
 #define LOCTEXT_NAMESPACE "DirectLinkExternalSource"
@@ -32,12 +34,31 @@ namespace UE::DatasmithImporter
 			SceneReceiver->FinalSnapshot(SceneSnapshot);
 			if (TSharedPtr<FDirectLinkExternalSource> PinnedExternalSource = DirectLinkExternalSource.Pin())
 			{
-				PinnedExternalSource->CachedHash = DirectLink::GenerateSceneSnapshotHash(SceneSnapshot);
+				PinnedExternalSource->CachedHash = GenerateSceneSnapshotHash(SceneSnapshot);
 				PinnedExternalSource->TriggerOnExternalSourceChanged();
 			}
 		}
 
 	private:
+
+		FMD5Hash GenerateSceneSnapshotHash(const DirectLink::FSceneSnapshot& SceneSnapshot)
+		{
+			using namespace DirectLink;
+			FMD5Hash Hash;
+			FMD5 SceneMD5Hash;
+
+			SceneMD5Hash.Update((uint8*)&SceneSnapshot.SceneId, sizeof(FSceneGraphId));
+			for (const TPair<FSceneGraphId, TSharedRef<FElementSnapshot>>& ElementPair : SceneSnapshot.Elements)
+			{
+				FElementHash ElementHash(ElementPair.Value->GetHash());
+				SceneMD5Hash.Update((uint8*)&ElementPair.Key, sizeof(FSceneGraphId));
+				SceneMD5Hash.Update((uint8*)&ElementHash, sizeof(FElementHash));
+			}
+
+			Hash.Set(SceneMD5Hash);
+			return Hash;
+		}
+
 		TSharedRef<DirectLink::ISceneReceiver> SceneReceiver;
 		TWeakPtr<FDirectLinkExternalSource> DirectLinkExternalSource;
 	};
