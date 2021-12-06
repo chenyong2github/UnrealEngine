@@ -14,10 +14,9 @@
 
 class NEURALNETWORKINFERENCESHADERS_API FCopyCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FCopyCS, Global);
+	DECLARE_GLOBAL_SHADER(FCopyCS);
 	SHADER_USE_PARAMETER_STRUCT(FCopyCS, FGlobalShader)
 
-public:
 	static const uint32 THREADGROUP_SIZE_X;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);

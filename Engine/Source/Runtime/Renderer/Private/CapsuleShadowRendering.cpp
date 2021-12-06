@@ -301,8 +301,7 @@ IMPLEMENT_GLOBAL_SHADER(FCapsuleShadowingCS, "/Engine/Private/CapsuleShadowShade
 
 class FCapsuleShadowingUpsampleVS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FCapsuleShadowingUpsampleVS, Global);
-public:
+	DECLARE_GLOBAL_SHADER(FCapsuleShadowingUpsampleVS);
 	SHADER_USE_PARAMETER_STRUCT(FCapsuleShadowingUpsampleVS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

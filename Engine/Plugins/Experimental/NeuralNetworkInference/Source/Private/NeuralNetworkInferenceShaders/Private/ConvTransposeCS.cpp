@@ -25,4 +25,4 @@ void FConvTransposeCS::ModifyCompilationEnvironment(const FGlobalShaderPermutati
 /* Shader implementation
  *****************************************************************************/
 
-IMPLEMENT_SHADER_TYPE(, FConvTransposeCS, TEXT("/Plugins/NeuralNetworkInference/Private/ConvTransposeOperator.usf"), TEXT("XToXWithZerosCS"), SF_Compute) // Path defined in NeuralNetworkInferenceShadersModule.cpp
+IMPLEMENT_GLOBAL_SHADER(FConvTransposeCS, "/Plugins/NeuralNetworkInference/Private/ConvTransposeOperator.usf", "XToXWithZerosCS", SF_Compute); // Path defined in NeuralNetworkInferenceShadersModule.cpp

@@ -14,10 +14,9 @@
 
 class NEURALNETWORKINFERENCESHADERS_API FBatchNormalizationCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FBatchNormalizationCS, Global);
+	DECLARE_GLOBAL_SHADER(FBatchNormalizationCS);
 	SHADER_USE_PARAMETER_STRUCT(FBatchNormalizationCS, FGlobalShader)
 
-public:
 	class FBatchNormalizationMode : SHADER_PERMUTATION_ENUM_CLASS("BATCH_NORMALIZATION_MODE", EBatchNormalizationMode);
 	class FIsInlined : SHADER_PERMUTATION_BOOL("IS_INLINED");
 	using FPermutationDomain = TShaderPermutationDomain<FBatchNormalizationMode, FIsInlined>;

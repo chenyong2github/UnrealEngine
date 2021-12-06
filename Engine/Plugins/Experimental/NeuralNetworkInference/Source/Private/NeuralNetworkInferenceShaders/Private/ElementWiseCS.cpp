@@ -112,4 +112,4 @@ uint32 FElementWiseCS::GetNumberAttributes(const EElementWiseOperator InType)
 /* Shader implementation
  *****************************************************************************/
 
-IMPLEMENT_SHADER_TYPE(, FElementWiseCS, TEXT("/Plugins/NeuralNetworkInference/Private/ElementWiseOperator.usf"), TEXT("ElementWiseCS"), SF_Compute) // Path defined in NeuralNetworkInferenceShadersModule.cpp
+IMPLEMENT_GLOBAL_SHADER(FElementWiseCS, "/Plugins/NeuralNetworkInference/Private/ElementWiseOperator.usf", "ElementWiseCS", SF_Compute); // Path defined in NeuralNetworkInferenceShadersModule.cpp

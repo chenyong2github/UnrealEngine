@@ -24,4 +24,4 @@ const uint32 FGemmCS::THREADGROUP_SIZE_Y = 1;
 /* Shader implementation
  *****************************************************************************/
 
-IMPLEMENT_SHADER_TYPE(, FGemmCS, TEXT("/Plugins/NeuralNetworkInference/Private/GemmOperator.usf"), TEXT("GemmCS"), SF_Compute) // Path defined in NeuralNetworkInferenceShadersModule.cpp
+IMPLEMENT_GLOBAL_SHADER(FGemmCS, "/Plugins/NeuralNetworkInference/Private/GemmOperator.usf", "GemmCS", SF_Compute); // Path defined in NeuralNetworkInferenceShadersModule.cpp

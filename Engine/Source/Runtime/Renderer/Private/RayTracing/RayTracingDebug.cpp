@@ -65,7 +65,7 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTrac
 
 class FRayTracingDebugCHS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FRayTracingDebugCHS, Global);
+	DECLARE_GLOBAL_SHADER(FRayTracingDebugCHS);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{

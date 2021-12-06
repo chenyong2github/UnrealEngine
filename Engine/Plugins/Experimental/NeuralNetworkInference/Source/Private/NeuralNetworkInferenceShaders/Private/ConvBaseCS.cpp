@@ -27,4 +27,4 @@ void FConvBaseCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationPar
 /* Shader implementation
  *****************************************************************************/
 
-IMPLEMENT_SHADER_TYPE(, FConvBaseCS, TEXT("/Plugins/NeuralNetworkInference/Private/ConvBaseOperator.usf"), TEXT("ConvBaseCS"), SF_Compute) // Path defined in NeuralNetworkInferenceShadersModule.cpp
+IMPLEMENT_GLOBAL_SHADER(FConvBaseCS, "/Plugins/NeuralNetworkInference/Private/ConvBaseOperator.usf", "ConvBaseCS", SF_Compute); // Path defined in NeuralNetworkInferenceShadersModule.cpp

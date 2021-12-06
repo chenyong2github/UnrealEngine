@@ -32,14 +32,12 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingBarycentricsRGS, "/Engine/Private/RayTracing/
 // Example closest hit shader
 class FRayTracingBarycentricsCHS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FRayTracingBarycentricsCHS, Global);
+	DECLARE_GLOBAL_SHADER(FRayTracingBarycentricsCHS);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
-
-public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{

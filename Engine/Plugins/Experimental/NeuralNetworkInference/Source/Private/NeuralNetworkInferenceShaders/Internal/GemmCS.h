@@ -14,10 +14,9 @@
 
 class NEURALNETWORKINFERENCESHADERS_API FGemmCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FGemmCS, Global);
+	DECLARE_GLOBAL_SHADER(FGemmCS);
 	SHADER_USE_PARAMETER_STRUCT(FGemmCS, FGlobalShader)
 
-public:
 	class FGemmMode : SHADER_PERMUTATION_ENUM_CLASS("GEMM_MODE", EGemmMode);
 	using FPermutationDomain = TShaderPermutationDomain<FGemmMode>;
 

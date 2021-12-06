@@ -33,8 +33,7 @@ static FAutoConsoleVariableRef CVarNiagaraGpuComputeDebug_FourComponentMode(
 
 class NIAGARASHADER_API FNiagaraVisualizeTexturePS : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(FNiagaraVisualizeTexturePS, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraVisualizeTexturePS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraVisualizeTexturePS, FGlobalShader);
 
 	class FIntegerTexture : SHADER_PERMUTATION_BOOL("TEXTURE_INTEGER");
@@ -75,8 +74,7 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraVisualizeTexturePS, "/Plugin/FX/Niagara/Private/
 
 class NIAGARASHADER_API FNiagaraClearUAVCS : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(FNiagaraClearUAVCS, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraClearUAVCS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraClearUAVCS, FGlobalShader);
 
 	static constexpr uint32 ThreadGroupSize = 32;
@@ -111,8 +109,7 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraClearUAVCS, "/Plugin/FX/Niagara/Private/NiagaraD
 
 class NIAGARASHADER_API FNiagaraDebugDrawLineVS : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(FNiagaraDebugDrawLineVS, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraDebugDrawLineVS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraDebugDrawLineVS, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -134,8 +131,7 @@ public:
 
 class NIAGARASHADER_API FNiagaraDebugDrawLinePS : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(FNiagaraDebugDrawLinePS, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraDebugDrawLinePS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraDebugDrawLinePS, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

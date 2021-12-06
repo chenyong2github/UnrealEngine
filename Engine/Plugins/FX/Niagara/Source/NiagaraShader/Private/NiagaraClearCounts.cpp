@@ -14,8 +14,7 @@
 
 class NIAGARASHADER_API FNiagaraClearCountsIntCS : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(FNiagaraClearCountsIntCS, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraClearCountsIntCS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraClearCountsIntCS, FGlobalShader);
 
 	static constexpr uint32 ThreadGroupSize = 64;

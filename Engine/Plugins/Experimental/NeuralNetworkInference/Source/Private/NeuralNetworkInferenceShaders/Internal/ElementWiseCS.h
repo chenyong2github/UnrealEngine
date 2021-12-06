@@ -14,10 +14,9 @@
 
 class NEURALNETWORKINFERENCESHADERS_API FElementWiseCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FElementWiseCS, Global);
+	DECLARE_GLOBAL_SHADER(FElementWiseCS);
 	SHADER_USE_PARAMETER_STRUCT(FElementWiseCS, FGlobalShader)
 
-public:
 	static const uint32 THREADGROUP_SIZE_X;
 
 	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHADER_FUNCTION", EElementWiseOperator);
