@@ -157,12 +157,6 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
 				ValidateData(Values, ExpectedValues, OffsetCount);
 			}
-			{
-				const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-				TestEqual("UncompressedCount", Values.Num(), Count);
-				ValidateData(Values, ExpectedValues, OffsetCount);
-			}
 		};
 
 		constexpr uint64 BlockSize = 64 * sizeof(uint64);
@@ -204,19 +198,14 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 		{
 			FSharedBuffer Buffer = Compressed.GetCompressed().ToShared();
 			FBufferReader Ar(const_cast<void*>(Buffer.GetData()), int64(Buffer.GetSize()), /*bFreeOnClose*/ false, /*bIsPersistent*/ true);
-			Reader.SetSource(Ar);
+			FCompressedBufferReaderSourceScope Source(Reader, Ar);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64));
 			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
 			ValidateData(Values, ExpectedValues, OffsetCount);
 		}
 		{
-			Reader.SetSource(Compressed);
+			FCompressedBufferReaderSourceScope Source(Reader, Compressed);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
-		}
-		{
-			const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64));
 			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
 			ValidateData(Values, ExpectedValues, OffsetCount);
 		}
@@ -239,19 +228,14 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 		{
 			FSharedBuffer Buffer = Compressed.GetCompressed().ToShared();
 			FBufferReader Ar(const_cast<void*>(Buffer.GetData()), int64(Buffer.GetSize()), /*bFreeOnClose*/ false, /*bIsPersistent*/ true);
-			Reader.SetSource(Ar);
+			FCompressedBufferReaderSourceScope Source(Reader, Ar);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
 			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
 			ValidateData(Values, ExpectedValues, OffsetCount);
 		}
 		{
-			Reader.SetSource(Compressed);
+			FCompressedBufferReaderSourceScope Source(Reader, Compressed);
 			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-			ValidateData(Values, ExpectedValues, OffsetCount);
-		}
-		{
-			const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
 			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
 			ValidateData(Values, ExpectedValues, OffsetCount);
 		}
@@ -266,37 +250,22 @@ bool FCompressedBufferDecompressTest::RunTest(const FString& Parameters)
 			FSharedBuffer::MakeView(MakeMemoryView(ExpectedValues)),
 			FOodleDataCompression::ECompressor::NotSet,
 			FOodleDataCompression::ECompressionLevel::None);
+		Reader.SetSource(Compressed);
 
 		{
 			constexpr uint64 OffsetCount = 0;
 			constexpr uint64 Count = N;
-			{
-				Reader.SetSource(Compressed);
-				const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-				ValidateData(Values, ExpectedValues, OffsetCount);
-			}
-			{
-				const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-				ValidateData(Values, ExpectedValues, OffsetCount);
-			}
+			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
 		}
 
 		{
 			constexpr uint64 OffsetCount = 21;
 			constexpr uint64 Count = 999;
-			{
-				Reader.SetSource(Compressed);
-				const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-				ValidateData(Values, ExpectedValues, OffsetCount);
-			}
-			{
-				const FSharedBuffer Uncompressed = Compressed.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
-				const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
-				ValidateData(Values, ExpectedValues, OffsetCount);
-			}
+			const FSharedBuffer Uncompressed = Reader.Decompress(OffsetCount * sizeof(uint64), Count * sizeof(uint64));
+			const TConstArrayView<uint64> Values = CastToArrayView(Uncompressed);
+			ValidateData(Values, ExpectedValues, OffsetCount);
 		}
 	}
 

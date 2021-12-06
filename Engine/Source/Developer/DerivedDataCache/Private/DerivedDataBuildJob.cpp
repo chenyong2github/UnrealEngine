@@ -1236,7 +1236,7 @@ void FBuildJob::ExportBuild() const
 			FPathViews::Append(ExportPath, FIoHash(Buffer.GetRawHash()));
 			if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileWriter(*ExportPath)})
 			{
-				*Ar << const_cast<FCompressedBuffer&>(Buffer);
+				Buffer.Save(*Ar);
 			}
 			ExportPath.RemoveSuffix(ExportPath.Len() - ExportRootLen);
 		});

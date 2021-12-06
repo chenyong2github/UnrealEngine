@@ -1671,7 +1671,7 @@ void FFileSystemCacheStore::GetChunks(
 					FSharedBuffer Buffer;
 					if (Payload.HasData() && !bExistsOnly)
 					{
-						Buffer = Payload.GetData().Decompress(RawOffset, RawSize);
+						Buffer = FCompressedBufferReader(Payload.GetData()).Decompress(RawOffset, RawSize);
 					}
 					OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
 						RawSize, Payload.GetRawHash(), MoveTemp(Buffer), PayloadStatus});
@@ -1953,7 +1953,7 @@ bool FFileSystemCacheStore::PutCacheContent(const FCompressedBuffer& Content, co
 	BuildCacheContentPath(RawHash, Path);
 	if (!FileExists(Path))
 	{
-		if (!SaveFile(Path, Context, [&Content](FArchive& Ar) { Ar << const_cast<FCompressedBuffer&>(Content); }))
+		if (!SaveFile(Path, Context, [&Content](FArchive& Ar) { Content.Save(Ar); }))
 		{
 			return false;
 		}

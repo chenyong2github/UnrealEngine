@@ -474,20 +474,22 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogUri(FStringBuilderBase& Chu
 			uint64 CompressedOffset = 0;
 			if (Offset > 0)
 			{
-				uint32 BlockSize = 0;
-				if  (!Compressed.TryGetBlockSize(BlockSize))
+				uint64 BlockSize = 0;
+				ECompressedBufferCompressor Compressor;
+				ECompressedBufferCompressionLevel CompressionLevel;
+				if  (!Compressed.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize))
 				{
 					return FIoStatus(EIoErrorCode::CompressionError);
 				}
 
 				if (BlockSize > 0)
 				{
-					CompressedOffset = Offset % uint64(BlockSize);
+					CompressedOffset = Offset % BlockSize;
 				}
 			}
 
 			FIoBuffer Decompressed(Compressed.GetRawSize());
-			if (!Compressed.TryDecompressTo(Decompressed.GetMutableView(), CompressedOffset))
+			if (!FCompressedBufferReader(Compressed).TryDecompressTo(Decompressed.GetMutableView(), CompressedOffset))
 			{
 				return FIoStatus(EIoErrorCode::CompressionError);
 			}

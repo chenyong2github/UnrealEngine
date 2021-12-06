@@ -190,7 +190,8 @@ FCompressionSettings::FCompressionSettings(const FCompressedBuffer& Buffer)
 {
 	// Note that if the buffer is using a non-oodle format we consider it
 	// as not set.
-	if (!Buffer.TryGetCompressParameters(Compressor, CompressionLevel))
+	uint64 BlockSize;
+	if (!Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize))
 	{
 		Reset();
 	}
@@ -877,10 +878,10 @@ FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromDisk() const
 			FCompressedBuffer AssetBuffer = LoadFromPackageFile();
 
 			FPayloadId SidecarId(SidecarBuffer.Decompress());
-			FPayloadId AssetId(SidecarBuffer.Decompress());
+			FPayloadId AssetId(AssetBuffer.Decompress());
 
 			UE_CLOG(SidecarId != PayloadContentId, LogVirtualization, Error, TEXT("Sidecar content did not hash correctly! Found '%s' Expected '%s'"), *SidecarId.ToString(), *PayloadContentId.ToString());
-			UE_CLOG(AssetId != PayloadContentId, LogVirtualization, Error, TEXT("Asset content did not hash correctly! Found '%s' Expected '%s'"), *SidecarId.ToString(), *PayloadContentId.ToString())
+			UE_CLOG(AssetId != PayloadContentId, LogVirtualization, Error, TEXT("Asset content did not hash correctly! Found '%s' Expected '%s'"), *AssetId.ToString(), *PayloadContentId.ToString())
 
 			return SidecarBuffer;
 		}

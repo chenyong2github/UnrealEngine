@@ -614,19 +614,29 @@ void FMemoryDerivedDataBackend::GetChunks(
 	IRequestOwner& Owner,
 	FOnCacheGetChunkComplete&& OnComplete)
 {
+	FPayload Payload;
+	FCacheKey PayloadKey;
+	FCompressedBufferReader Reader;
 	for (const FCacheChunkRequest& Chunk : Chunks)
 	{
 		const bool bExistsOnly = EnumHasAnyFlags(Chunk.Policy, ECachePolicy::SkipValue);
 		COOK_STAT(auto Timer = bExistsOnly ? UsageStats.TimeProbablyExists() : UsageStats.TimeGet());
-		FPayload Payload;
 		if (ShouldSimulateMiss(Chunk.Key))
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 				*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());
 		}
+		else if (PayloadKey == Chunk.Key && Payload.GetId() == Chunk.Id)
+		{
+			// Payload matches the request.
+		}
 		else if (FWriteScopeLock ScopeLock(SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(Chunk.Key))
 		{
+			Reader.ResetSource();
+			Payload.Reset();
 			Payload = Record->GetAttachmentPayload(Chunk.Id);
+			PayloadKey = Chunk.Key;
+			Reader.SetSource(Payload.GetData());
 		}
 		if (Payload && Chunk.RawOffset <= Payload.GetRawSize())
 		{
@@ -634,15 +644,14 @@ void FMemoryDerivedDataBackend::GetChunks(
 			COOK_STAT(Timer.AddHit(RawSize));
 			if (OnComplete)
 			{
-				FUniqueBuffer Buffer;
+				FSharedBuffer Buffer;
 				if (Payload.HasData() && !bExistsOnly)
 				{
-					Buffer = FUniqueBuffer::Alloc(RawSize);
-					Payload.GetData().DecompressToComposite().CopyTo(Buffer, Chunk.RawOffset);
+					Buffer = Reader.Decompress(Chunk.RawOffset, RawSize);
 				}
 				const EStatus Status = bExistsOnly || Buffer ? EStatus::Ok : EStatus::Error;
 				OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
-					RawSize, Payload.GetRawHash(), Buffer.MoveToShared(), Status});
+					RawSize, Payload.GetRawHash(), MoveTemp(Buffer), Status});
 			}
 		}
 		else

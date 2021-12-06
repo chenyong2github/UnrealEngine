@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/StringBuilder.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinarySerialization.h"
@@ -51,11 +52,13 @@ static uint64 GetCompressedOffset(const FCompressedBuffer& Buffer, uint64 RawOff
 {
 	if (RawOffset > 0)
 	{
-		uint32 BlockSize = 0;
-		const bool bOk = Buffer.TryGetBlockSize(BlockSize);
+		uint64 BlockSize = 0;
+		ECompressedBufferCompressor Compressor;
+		ECompressedBufferCompressionLevel CompressionLevel;
+		const bool bOk = Buffer.TryGetCompressParameters(Compressor, CompressionLevel, BlockSize);
 		check(bOk);
 
-		return BlockSize > 0 ? RawOffset % uint64(BlockSize) : 0;
+		return BlockSize > 0 ? RawOffset % BlockSize : 0;
 	}
 
 	return 0;
@@ -342,10 +345,11 @@ int64 FStorageServerResponse::SerializeChunk(FStorageServerSerializationContext&
 
 		if (FCompressedBuffer Compressed = FCompressedBuffer::FromCompressed(FSharedBuffer::MakeView(Context.CompressedBuffer.GetData(), ContentLength)))
 		{
+			FCompressedBufferReaderSourceScope Source(Context.Decoder, Compressed);
 			const uint64 ChunkSize = FMath::Min(Compressed.GetRawSize(), RawSize);
 			OutChunk = TargetVa ? FIoBuffer(FIoBuffer::Wrap, TargetVa, ChunkSize) : FIoBuffer(ChunkSize);
 			const uint64 CompressedOffset = GetCompressedOffset(Compressed, RawOffset);
-			if (Context.Decoder.TryDecompressTo(Compressed, OutChunk.GetMutableView(), CompressedOffset))
+			if (Context.Decoder.TryDecompressTo(OutChunk.GetMutableView(), CompressedOffset))
 			{
 				return ChunkSize;
 			}
@@ -381,7 +385,7 @@ int64 FStorageServerResponse::SerializeChunkTo(FMutableMemoryView Memory, uint64
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ZenClient::SerializeCompressedChunk);
 		
-		TArray<uint8> CompressedBuffer;
+		TArray64<uint8> CompressedBuffer;
 		CompressedBuffer.Reset(ContentLength);
 		Serialize(CompressedBuffer.GetData(), ContentLength);
 		
@@ -389,7 +393,7 @@ int64 FStorageServerResponse::SerializeChunkTo(FMutableMemoryView Memory, uint64
 		{
 			FMutableMemoryView Dst = Memory.Left(FMath::Min(Memory.GetSize(), Compressed.GetRawSize()));
 			const uint64 CompressedOffset = GetCompressedOffset(Compressed, RawOffset);
-			if (Compressed.TryDecompressTo(Dst, CompressedOffset))
+			if (FCompressedBufferReader(Compressed).TryDecompressTo(Dst, CompressedOffset))
 			{
 				return Dst.GetSize();
 			}

@@ -173,7 +173,7 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 		return FCompressedBuffer();
 	}
 
-	return FCompressedBuffer::FromCompressed(*FileAr);
+	return FCompressedBuffer::Load(*FileAr);
 }
 
 bool FFileSystemBackend::DoesPayloadExist(const FPayloadId& Id)
