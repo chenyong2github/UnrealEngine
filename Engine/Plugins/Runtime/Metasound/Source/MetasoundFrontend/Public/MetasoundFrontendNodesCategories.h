@@ -9,6 +9,7 @@ namespace Metasound
 	namespace NodeCategories
 	{
 		extern const FText METASOUNDFRONTEND_API Conversions;
+		extern const FText METASOUNDFRONTEND_API EnumConversions;
 		extern const FText METASOUNDFRONTEND_API Functions;
 		extern const FText METASOUNDFRONTEND_API Graphs;
 		extern const FText METASOUNDFRONTEND_API Inputs;

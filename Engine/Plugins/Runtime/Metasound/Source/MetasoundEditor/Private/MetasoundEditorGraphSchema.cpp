@@ -1219,13 +1219,14 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 		const FText Tooltip = Metadata.GetAuthor().IsEmpty()
 			? Metadata.GetDescription()
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.GetDescription(), Metadata.GetAuthor());
-
 		if (!Metadata.GetCategoryHierarchy().IsEmpty() && !Metadata.GetCategoryHierarchy()[0].CompareTo(NodeCategories::Conversions))
 		{
 			FText KeywordsText = FText::Join(SchemaPrivate::KeywordDelim, Metadata.GetKeywords());
+			const FText CategoryText = FText::Join(SchemaPrivate::CategoryDelim, Metadata.GetCategoryHierarchy());
+
 			TSharedPtr<FMetasoundGraphSchemaAction_NewNode> NewNodeAction = MakeShared<FMetasoundGraphSchemaAction_NewNode>
 			(
-				NodeCategories::Conversions,
+				CategoryText,
 				Metadata.GetDisplayName(),
 				Tooltip,
 				EPrimaryContextGroup::Conversions,
