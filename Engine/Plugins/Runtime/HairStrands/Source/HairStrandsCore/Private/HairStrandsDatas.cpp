@@ -18,6 +18,11 @@ void FHairStrandsCurves::SetNum(const uint32 NumCurves)
 	CurvesCount.SetNum(NumCurves);
 	CurvesLength.SetNum(NumCurves);
 	CurvesRootUV.SetNum(NumCurves);
+
+	// Curves clossest guide are not initialized to track if the curves 
+	// data contains or not precomputed weights
+	// CurvesClosestGuideIDs.SetNum(0);
+	// CurvesClosestGuideWeights.SetNum(0);
 }
 
 void FHairStrandsPoints::SetNum(const uint32 NumPoints)
@@ -43,6 +48,8 @@ void FHairStrandsCurves::Reset()
 	CurvesCount.Reset();
 	CurvesLength.Reset();
 	CurvesRootUV.Reset();
+	CurvesClosestGuideIDs.Reset();
+	CurvesClosestGuideWeights.Reset();
 }
 
 void FHairStrandsPoints::Reset()

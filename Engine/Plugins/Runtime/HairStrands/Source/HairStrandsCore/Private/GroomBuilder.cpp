@@ -15,7 +15,6 @@
 DEFINE_LOG_CATEGORY_STATIC(LogGroomBuilder, Log, All);
 
 #define LOCTEXT_NAMESPACE "GroomBuilder"
-#define ENABLE_EXTERNAL_INTERPOLATION_DATA 0
 
 // For debug purpose
 static float GHairInterpolationMetric_Distance = 1;
@@ -1286,97 +1285,63 @@ namespace HairInterpolationBuilder
 	}
 
 	/** Fill the GroomAsset with the interpolation data that exists in the HairDescription */
-	#if ENABLE_EXTERNAL_INTERPOLATION_DATA
-	void FillInterpolationData(UGroomAsset* GroomAsset, const FHairDescription& HairDescription)
+	void FillInterpolationData(
+		const FHairStrandsDatas& RenData,
+		const FHairStrandsDatas& SimData,
+		FHairStrandsInterpolationDatas& OutInterpolation)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::FillInterpolationData);
 
-		TStrandAttributesConstRef<FVector3f> ClosestGuides = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides);
-		TStrandAttributesConstRef<FVector3f> GuideWeights = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights);
+		check(RenData.StrandsCurves.CurvesClosestGuideIDs.Num() != 0);
+		check(RenData.StrandsCurves.CurvesClosestGuideWeights.Num() != 0);
+		check(SimData.GetNumCurves() > 0);
+		int32 SimCurveCount = SimData.GetNumCurves();
 
-		if (!GroomAsset || !ClosestGuides.IsValid() || !GuideWeights.IsValid())
+		OutInterpolation.SetNum(RenData.GetNumPoints());
+		for (uint32 CurveIndex = 0; CurveIndex < RenData.GetNumCurves(); ++CurveIndex)
 		{
-			return;
-		}
+			const uint32 CurveOffset = RenData.StrandsCurves.CurvesOffset[CurveIndex];
+			const uint16 CurveNumVertices = RenData.StrandsCurves.CurvesCount[CurveIndex];
 
-		const int32 NumGroups = GroomAsset->HairGroupsData.Num();
-		for (int32 GroupID = 0; GroupID < NumGroups; ++GroupID)
-		{
-			FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupID];
-
-			const FHairStrandsDatas& RenderData = GroupData.Strands.Data;
-			const FHairStrandsDatas& SimulationData = GroupData.Guides.Data;
-			FHairStrandsInterpolationDatas& InterpolationData = GroupData.Strands.InterpolationData;
-
-			// Group must include imported guides data for imported interpolation data to be meaningful
-			// Otherwise, interpolation data will be built from generated guide data
-			if (SimulationData.GetNumCurves() == 0)
+			const FIntVector StrandClosestGuides = RenData.StrandsCurves.CurvesClosestGuideIDs[CurveIndex];
+			const FVector StrandGuideWeights  = RenData.StrandsCurves.CurvesClosestGuideWeights[CurveIndex];
+			for (uint16 VertexIndex = 0; VertexIndex < CurveNumVertices; ++VertexIndex)
 			{
-				continue;
-			}
+				const uint32 PointGlobalIndex = VertexIndex + CurveOffset;
+				const FVector& RenPointPosition = RenData.StrandsPoints.PointsPosition[PointGlobalIndex];
+				const float RenPointDistance = RenData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenData.StrandsCurves.CurvesLength[CurveIndex] * RenData.StrandsCurves.MaxLength;
 
-			InterpolationData.SetNum(RenderData.GetNumPoints());
-			for (uint32 CurveIndex = 0; CurveIndex < RenderData.GetNumCurves(); ++CurveIndex)
-			{
-				const uint32 CurveOffset = RenderData.StrandsCurves.CurvesOffset[CurveIndex];
-				const uint16 CurveNumVertices = RenderData.StrandsCurves.CurvesCount[CurveIndex];
-
-				const FStrandID StrandID(RenderData.StrandsCurves.StrandIDs[CurveIndex]);
-				const FVector StrandClosestGuides = ClosestGuides[StrandID];
-				const FVector StrandGuideWeights = GuideWeights[StrandID];
-				for (uint16 VertexIndex = 0; VertexIndex < CurveNumVertices; ++VertexIndex)
+				float TotalWeight = 0;
+				for (uint32 GuideIndex = 0; GuideIndex < FClosestGuides::Count; ++GuideIndex)
 				{
-					const uint32 PointGlobalIndex = VertexIndex + CurveOffset;
-					const FVector& RenPointPosition = RenderData.StrandsPoints.PointsPosition[PointGlobalIndex];
-					const float RenPointDistance = RenderData.StrandsPoints.PointsCoordU[PointGlobalIndex] * RenderData.StrandsCurves.CurvesLength[CurveIndex] * RenderData.StrandsCurves.MaxLength;
+					int32 ImportedGroomID = StrandClosestGuides[GuideIndex];
+					const int* SimCurveIndex = SimData.StrandsCurves.GroomIDToIndex.Find(ImportedGroomID);
 
-					float TotalWeight = 0;
-					for (uint32 GuideIndex = 0; GuideIndex < FClosestGuides::Count; ++GuideIndex)
+					if (SimCurveIndex && *SimCurveIndex >= 0 && *SimCurveIndex < SimCurveCount)
 					{
-						int32 ImportedGroomID = StrandClosestGuides[GuideIndex];
-						const int* SimCurveIndex = SimulationData.StrandsCurves.GroomIDToIndex.Find(ImportedGroomID);
+						// Fill the interpolation data using the ParametricDistance algorithm with a constant weight for all vertices along the strand
+						const uint32 SimOffset = SimData.StrandsCurves.CurvesOffset[*SimCurveIndex];
+						const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimData, *SimCurveIndex);
 
-						if (SimCurveIndex && *SimCurveIndex >= 0)
-						{
-							// Fill the interpolation data using the ParametricDistance algorithm with a constant weight for all vertices along the strand
-							const uint32 SimOffset = SimulationData.StrandsCurves.CurvesOffset[*SimCurveIndex];
-							const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimulationData, *SimCurveIndex);
-
-							InterpolationData.PointsSimCurvesIndex[PointGlobalIndex][GuideIndex] = *SimCurveIndex;
-							InterpolationData.PointsSimCurvesVertexIndex[PointGlobalIndex][GuideIndex] = Desc.Index0 + SimOffset;
-							InterpolationData.PointsSimCurvesVertexLerp[PointGlobalIndex][GuideIndex] = Desc.T;
-							InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][GuideIndex] = StrandGuideWeights[GuideIndex];
-							TotalWeight += InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][GuideIndex];
-						}
+						OutInterpolation.PointsSimCurvesIndex[PointGlobalIndex][GuideIndex] = *SimCurveIndex;
+						OutInterpolation.PointsSimCurvesVertexIndex[PointGlobalIndex][GuideIndex] = Desc.Index0 + SimOffset;
+						OutInterpolation.PointsSimCurvesVertexLerp[PointGlobalIndex][GuideIndex] = Desc.T;
+						OutInterpolation.PointsSimCurvesVertexWeights[PointGlobalIndex][GuideIndex] = StrandGuideWeights[GuideIndex];
+						TotalWeight += OutInterpolation.PointsSimCurvesVertexWeights[PointGlobalIndex][GuideIndex];
 					}
+				}
 
-					// Normalize the weights
-					if (TotalWeight > 0.f)
+				// Normalize the weights
+				if (TotalWeight > 0.f)
+				{
+					for (int32 GuideIndex = 0; GuideIndex < FClosestGuides::Count; ++GuideIndex)
 					{
-						for (int32 GuideIndex = 0; GuideIndex < FClosestGuides::Count; ++GuideIndex)
-						{
-							InterpolationData.PointsSimCurvesVertexWeights[PointGlobalIndex][GuideIndex] /= TotalWeight;
-						}
+						OutInterpolation.PointsSimCurvesVertexWeights[PointGlobalIndex][GuideIndex] /= TotalWeight;
 					}
 				}
 			}
 		}
-
-		// Deallocate the memory used for indices mapping since it's not needed anymore
-		for (int32 GroupID = 0; GroupID < NumGroups; ++GroupID)
-		{
-			FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupID];
-
-			FHairStrandsDatas& RenderData = GroupData.Strands.Data;
-			RenderData.StrandsCurves.GroomIDToIndex.Empty();
-			RenderData.StrandsCurves.StrandIDs.Empty();
-
-			FHairStrandsDatas& SimulationData = GroupData.Guides.Data;
-			SimulationData.StrandsCurves.GroomIDToIndex.Empty();
-			SimulationData.StrandsCurves.StrandIDs.Empty();
-		}
 	}
-	#endif // ENABLE_EXTERNAL_INTERPOLATION_DATA
 }
 
 class FGroomDataRandomizer
@@ -1420,6 +1385,11 @@ private:
 	TArray<uint8> SimCurveSeeds;
 	TArray<FIntVector> GuideIndices;
 };
+
+FORCEINLINE FIntVector VectorToIntVector(const FVector& Index)
+{
+	return FIntVector(Index.X, Index.Y, Index.Z);
+}
 
 bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescription, FHairDescriptionGroups& Out)
 {
@@ -1492,12 +1462,19 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 
 	bool bImportGuides = true;
 
-	TStrandAttributesConstRef<FVector3f> ClosestGuides = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides);
-	TStrandAttributesConstRef<FVector3f> GuideWeights = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights);
+	// For precomputed weights, there is two variants with single or triplet IDs/weights
+	// Single
+	TStrandAttributesConstRef<int> ClosestGuide		  = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::ClosestGuides);
+	TStrandAttributesConstRef<float> GuideWeight	  = HairDescription.StrandAttributes().GetAttributesRef<float>(HairAttribute::Strand::GuideWeights);
+	// Triplet
+	TStrandAttributesConstRef<FVector3f> ClosestGuides  = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::ClosestGuides);
+	TStrandAttributesConstRef<FVector3f> GuideWeights	  = HairDescription.StrandAttributes().GetAttributesRef<FVector3f>(HairAttribute::Strand::GuideWeights);
 
 	// To use ClosestGuides and GuideWeights attributes, guides must be imported from HairDescription and
 	// must include StrandID attribute since ClosestGuides references those IDs
-	const bool bCanUseClosestGuidesAndWeights = bImportGuides && StrandIDs.IsValid() && ClosestGuides.IsValid() && GuideWeights.IsValid();
+	const bool bPrecomputedWeight1 = ClosestGuide.IsValid()  && GuideWeight.IsValid();
+	const bool bPrecomputedWeight3 = ClosestGuides.IsValid() && GuideWeights.IsValid();
+	const bool bCanUseClosestGuidesAndWeights = bImportGuides && StrandIDs.IsValid() && (bPrecomputedWeight1 || bPrecomputedWeight3);
 
 	auto FindOrAdd = [&Out](int32 GroupID, FName GroupName) -> FHairDescriptionGroup&
 	{
@@ -1585,6 +1562,20 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 			const int ImportedGroomID = StrandIDs[StrandID];
 			const int StrandCurveIndex = CurrentHairStrandsDatas->StrandsCurves.CurvesCount.Num() - 1;
 			CurrentHairStrandsDatas->StrandsCurves.GroomIDToIndex.Add(ImportedGroomID, StrandCurveIndex);
+
+			if (!bIsGuide)
+			{
+				if (bPrecomputedWeight3)
+				{
+					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideIDs.Add(VectorToIntVector(ClosestGuides[StrandID]));
+					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideWeights.Add(GuideWeights[StrandID]);
+				}
+				else
+				{
+					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideIDs.Add(FIntVector(ClosestGuide[StrandID]));
+					CurrentHairStrandsDatas->StrandsCurves.CurvesClosestGuideWeights.Add(FVector(GuideWeight[StrandID]));
+				}
+			}
 		}
 
 		if (bHasUVData)
@@ -1772,15 +1763,6 @@ void FGroomBuilder::BuildData(
 			check(OutGroupInfo.NumGuideVertices > 0);
 		}
 	}
-
-	// If there's usable closest guides and guide weights attributes, fill them into the asset
-	// This step requires the HairSimulationData (guides) to be filled prior to this
-#if ENABLE_EXTERNAL_INTERPOLATION_DATA
-	if (InHairDescriptionGroup.bCanUseClosestGuidesAndWeights)
-	{
-		HairInterpolationBuilder::FillInterpolationData(GroomAsset, HairDescription);
-	}
-#endif
 }
 
 void FGroomBuilder::BuildBulkData(
@@ -1814,22 +1796,35 @@ void FGroomBuilder::BuildInterplationData(
 	// Skip building if interpolation data was provided by the source file
 	if (OutInterpolationData.Num() == 0)
 	{
-		// This randomization makes certain strands being affected by 1, 2, or 3 guides
-		FRandomStream Random;
-		Random.Initialize(InInfo.GroupID);
-		const int32 NumRenderCurves = InRenData.GetNumCurves();
-		TArray<FIntVector> GuideIndices;
-		GuideIndices.SetNumUninitialized(NumRenderCurves);
-		for (int32 Index = 0; Index < NumRenderCurves; ++Index)
+		// If there's usable closest guides and guide weights attributes, fill them into the asset
+		// This step requires the HairSimulationData (guides) to be filled prior to this
+		const bool bUsePrecomputedWeights = !InInterpolationSettings.bOverrideGuides && InRenData.StrandsCurves.CurvesClosestGuideIDs.Num() > 0 && InRenData.StrandsCurves.CurvesClosestGuideWeights.Num() > 0;
+		if (bUsePrecomputedWeights)
 		{
-			FIntVector& RandomIndices = GuideIndices[Index];
-			for (int GuideIndex = 0; GuideIndex < HairInterpolationBuilder::FMetrics::Count; ++GuideIndex)
+			FHairStrandsInterpolationDatas OutInterpolation;
+			HairInterpolationBuilder::FillInterpolationData(InRenData, InSimData, OutInterpolationData);
+		}
+		else
+		{
+			// This randomization makes certain strands being affected by 1, 2, or 3 guides
+			FRandomStream Random;
+			Random.Initialize(InInfo.GroupID);
+			const int32 NumRenderCurves = InRenData.GetNumCurves();
+			TArray<FIntVector> GuideIndices;
+			GuideIndices.SetNumUninitialized(NumRenderCurves);
+			for (int32 Index = 0; Index < NumRenderCurves; ++Index)
 			{
-				RandomIndices[GuideIndex] = Random.RandRange(0, HairInterpolationBuilder::FMetrics::Count - 1);
+				FIntVector& RandomIndices = GuideIndices[Index];
+				for (int GuideIndex = 0; GuideIndex < HairInterpolationBuilder::FMetrics::Count; ++GuideIndex)
+				{
+					RandomIndices[GuideIndex] = Random.RandRange(0, HairInterpolationBuilder::FMetrics::Count - 1);
+				}
 			}
+
+			HairInterpolationBuilder::BuildInterpolationData(OutInterpolationData, InSimData, InRenData, InInterpolationSettings, GuideIndices);
 		}
 
-		HairInterpolationBuilder::BuildInterpolationData(OutInterpolationData, InSimData, InRenData, InInterpolationSettings, GuideIndices);
+
 	}
 }
 
@@ -1901,6 +1896,7 @@ void Decimate(
 	// Divide strands in buckets and pick randomly one stand per bucket
 	const uint32 InCurveCount = InData.StrandsCurves.Num();
 	const uint32 OutCurveCount = FMath::Clamp(uint32(InCurveCount * CurveDecimationPercentage), 1u, InCurveCount);
+	const bool bHasPrecomputedWeights = InData.StrandsCurves.CurvesClosestGuideIDs.Num() > 0 && InData.StrandsCurves.CurvesClosestGuideWeights.Num() > 0;
 
 	TArray<uint32> CurveIndices;
 	CurveIndices.SetNum(OutCurveCount);
@@ -1999,6 +1995,11 @@ void Decimate(
 		OutData.StrandsCurves.CurvesRootUV[OutCurveIndex] = InData.StrandsCurves.CurvesRootUV[InCurveIndex];
 		OutData.StrandsCurves.CurvesOffset[OutCurveIndex] = OutPointOffset;
 		OutData.StrandsCurves.CurvesLength[OutCurveIndex] = InData.StrandsCurves.CurvesLength[InCurveIndex];
+		if (bHasPrecomputedWeights)
+		{
+			OutData.StrandsCurves.CurvesClosestGuideIDs[OutCurveIndex] = InData.StrandsCurves.CurvesClosestGuideIDs[InCurveIndex];
+			OutData.StrandsCurves.CurvesClosestGuideWeights[OutCurveIndex] = InData.StrandsCurves.CurvesClosestGuideWeights[InCurveIndex];
+		}
 		OutData.StrandsCurves.MaxLength = InData.StrandsCurves.MaxLength;
 		OutData.StrandsCurves.MaxRadius = InData.StrandsCurves.MaxRadius;
 		OutPointOffset += OutPointCount;
