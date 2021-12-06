@@ -599,7 +599,7 @@ void UControlRigSequencerEditorLibrary::SetControlRigWorldTransform(ULevelSequen
 	TArray<FTransform> WorldTransforms;
 	WorldTransforms.Add(WorldTransform);
 
-	LocalSetControlRigWorldTransforms(LevelSequence, ControlRig, ControlName, EControlRigSetKey::Always, Frames, WorldTransforms, TimeUnit);
+	LocalSetControlRigWorldTransforms(LevelSequence, ControlRig, ControlName, SetKey, Frames, WorldTransforms, TimeUnit);
 
 }
 
