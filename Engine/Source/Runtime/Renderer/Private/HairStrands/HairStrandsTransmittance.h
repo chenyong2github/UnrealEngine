@@ -25,6 +25,7 @@ void RenderHairStrandsShadowMask(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
+	const bool bProjectingForForwardShading,
 	FRDGTextureRef ScreenShadowMaskTexture); 
 
 /// Write opaque hair shadow onto screen shadow mask to have fine hair details cast onto opaque geometries (deep shadow caster only)
@@ -39,6 +40,7 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const class FLightSceneInfo* LightSceneInfo,
+	const bool bProjectingForForwardShading,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture);
 
 /// Output hair transmittance per hair sample for all lights using the forward cluster lights

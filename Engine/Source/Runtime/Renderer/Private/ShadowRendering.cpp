@@ -2329,7 +2329,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 		}
 		if (bNeedHairShadowMaskPass)
 		{
-			RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, ScreenShadowMaskTexture);
+			RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, false /*bForward*/, ScreenShadowMaskTexture);
 		}
 	}
 }

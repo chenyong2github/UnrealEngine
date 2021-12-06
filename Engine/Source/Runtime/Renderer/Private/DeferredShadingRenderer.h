@@ -734,7 +734,8 @@ private:
 		const FLightSceneInfo* LightSceneInfo,
 		FRDGTextureRef ScreenShadowMaskSubPixelTexture,
 		FRDGTextureRef LightingChannelsTexture,
-		const FHairStrandsTransmittanceMaskData& InTransmittanceMaskData);
+		const FHairStrandsTransmittanceMaskData& InTransmittanceMaskData,
+		const bool bForwardRendering);
 
 	/** Renders an array of simple lights using standard deferred shading. */
 	void RenderSimpleLightsStandardDeferred(
