@@ -43,14 +43,17 @@ struct FDMXOutputPortCommunicationDeterminator
 	/** Sets if there is a valid sender obj */
 	FORCEINLINE void SetHasValidSender(bool bInHasValidSender) { bHasValidSender = bInHasValidSender; }
 
-	/** Determinates if loopback to engine is needed. If true, loopback is needed */
+	/** Determinates if loopback to engine is needed (may be true even is loopback to engine is not enabled) */
 	FORCEINLINE bool NeedsLoopbackToEngine() const { return bLoopbackToEngine || !bReceiveEnabled || !bSendEnabled; }
 
-	/** Determinates if loopback to engine is needed. If true, loopback is needed */
+	/** Determinates if dmx needs to be sent (may be false even if send is enabled) */
 	FORCEINLINE bool NeedsSendDMX() const { return bSendEnabled && bHasValidSender; }
 
-	/** Determinates if loopback to engine is needed. If true, loopback is needed */
+	/** Determinates if send dmx is enabled */
 	FORCEINLINE bool IsSendDMXEnabled() const { return bSendEnabled; }
+
+	/** Returns true if loopback to engine is enabled (only true if loopback to engine is set enabled) */
+	FORCEINLINE bool IsLoopbackToEngineEnabled() const { return bLoopbackToEngine; }
 
 private:
 	bool bLoopbackToEngine;
@@ -110,6 +113,9 @@ protected:
 public:
 	virtual ~FDMXOutputPort();
 
+	/** Creates a dmx output port config that corresponds to the port */
+	FDMXOutputPortConfig MakeOutputPortConfig() const;
+
 	/** Updates the Port to use the config of the OutputPortConfig */
 	void UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
@@ -165,9 +171,6 @@ protected:
 	/** Called to set if DMX should be enabled */
 	void OnSetReceiveDMXEnabled(bool bEnabled);
 
-	/** Returns the port config that corresponds to the guid of this port. */
-	FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
-
 	//~ Begin FRunnable implementation
 	virtual bool Init() override;
 	virtual uint32 Run() override;
@@ -213,6 +216,9 @@ private:
 
 	/** Delay to apply on packets being sent */
 	double DelaySeconds = 0.0;
+
+	/** The frame rate of the delay */
+	FFrameRate DelayFrameRate;
 
 	/** Critical section required to be used when the SignalFragments are accessed across threads */
 	FCriticalSection AccessExternUniverseToLatestSignalMapCriticalSection;
