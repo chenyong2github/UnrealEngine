@@ -162,7 +162,7 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		{
 			for (UIKRig_FBIKEffector* Effector : Effectors)
 			{
-				if (Effector->GoalName == InEffector->GoalName)
+				if (Effector && Effector->GoalName == InEffector->GoalName)
 				{
 					Effector->CopySettings(InEffector);
 					break;
@@ -175,7 +175,7 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		{
 			for (UIKRig_PBIKBoneSettings* BoneSetting : BoneSettings)
 			{
-				if (BoneSetting->Bone == InBoneSetting->Bone)
+				if (BoneSetting && BoneSetting->Bone == InBoneSetting->Bone)
 				{
 					BoneSetting->CopySettings(InBoneSetting);
 					break;	
