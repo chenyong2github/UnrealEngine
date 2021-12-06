@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
+#include "RHIDefinitions.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRendererCore, Log, All);
 
