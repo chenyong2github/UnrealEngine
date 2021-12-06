@@ -1892,6 +1892,34 @@ void PackStrataOut(
 	// We clamp the layer count to the maximum one according to our byte per pixel budget (removing the bottom layer first)
 	Strata.LayerCount = min(Strata.LayerCount, STRATA_CLAMPED_LAYER_COUNT);
 
+	// Evaluate the bottom layer index programmatically according to coverage.
+	// This is needed for instance when doing legacy to strata material conversion: a static topology with 2 layers is used for the compiler to
+	// successfully unroll the loops below. Typically the BSDF is set as the top layer. 
+	// SSS would not work if not the bottom layer so that is why we recover the bottom layer index this way.
+	int BottomLayerIndex = Strata.LayerCount - 1;
+#if STRATA_INLINE_SHADING
+	{
+		STRATA_UNROLL_N(STRATA_CLAMPED_LAYER_COUNT)
+		for (int l = BottomLayerIndex; l > 0; --l)	// Skipping layer 0 to process one less layer when there are two.
+		{
+			float TotalWeight = 0.0f;
+			STRATA_UNROLL_N(STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER)
+			for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
+			{
+				TotalWeight += /*Throughput * */(Strata.Layers[l].BSDFs[i].bPremultipliedCoverage ? 1.0 : Strata.Layers[l].BSDFs[i].Coverage);
+			}
+			if (TotalWeight == 0.0f)
+			{
+				BottomLayerIndex--;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+#endif
+
 	// For each of the BSDF, we evaluated their combined coverage/throughput according to the material operation performed (layering, mixing, etc.).
 	{
 		STRATA_UNROLL_N(STRATA_CLAMPED_LAYER_COUNT)
@@ -1901,7 +1929,7 @@ void PackStrataOut(
 			float3 LayerCoverage = 0.0f;
 
 			const bool bTopLayer = l == 0;
-			const bool bBottomLayer = l == (Strata.LayerCount - 1);
+			const bool bBottomLayer = l == BottomLayerIndex;
 
 			STRATA_UNROLL_N(STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER)
 			for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
