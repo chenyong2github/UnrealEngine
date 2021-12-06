@@ -4,13 +4,6 @@
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveSceneInfo.h"
 
-// TODO: Global setting/define
-#ifndef INSTANCE_COMPRESSED_TRANSFORMS
-#define INSTANCE_COMPRESSED_TRANSFORMS 1
-#else
-#error "Should not be defined yet"
-#endif
-
 void FInstanceSceneShaderData::Build
 (
 	uint32 PrimitiveId,
@@ -59,7 +52,7 @@ void FInstanceSceneShaderData::BuildInternal
 	const FRenderTransform& PrevLocalToWorld // Assumes shear has been removed already // TODO: Temporary PrevVelocityHack
 )
 {
-	// Note: layout must match GetInstanceData in SceneData.ush
+	// Note: layout must match GetInstanceData in SceneData.ush and InitializeInstanceSceneData in GPUSceneWriter.ush
 
 	uint32 InstanceFlags = PayloadDataFlags;
 	if (LocalToWorld.RotDeterminant() < 0.0f)
@@ -85,7 +78,7 @@ void FInstanceSceneShaderData::BuildInternal
 	Data[0].W  = *(const float*)&RandomID;
 
 	// TODO: Temporary PrevVelocityHack
-#if INSTANCE_COMPRESSED_TRANSFORMS
+#if INSTANCE_SCENE_DATA_COMPRESSED_TRANSFORMS
 	FCompressedTransform CompressedLocalToWorld(LocalToWorld);
 	Data[1] = *(const FVector4f*)&CompressedLocalToWorld.Rotation[0];
 	Data[2] = *(const FVector3f*)&CompressedLocalToWorld.Translation;
