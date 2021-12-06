@@ -20,24 +20,24 @@ FUVEditorCommands::FUVEditorCommands()
 void FUVEditorCommands::RegisterCommands()
 {
 	// These are part of the asset editor UI
-	UI_COMMAND(OpenUVEditor, "Open UV Editor", "Open the UV Editor window", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(ApplyChanges, "Apply Changes", "Apply changes without yet saving the assets", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenUVEditor, "UV Editor", "Open the UV Editor window.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ApplyChanges, "Apply", "Apply changes to original meshes", EUserInterfaceActionType::Button, FInputChord());
 
 	// These get linked to various tool buttons.
-	UI_COMMAND(BeginSelectTool, "Edit", "Switch to selection-based edit tool", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(BeginLayoutTool, "Layout", "Switch to layout tool", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(BeginParameterizeMeshTool, "Auto UV", "Switch to Auto UV tool", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(BeginChannelEditTool, "Channel Edit", "Switch to Channel Edit tool", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(BeginSeamTool, "Seam", "Switch to Seam tool", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(BeginRecomputeUVsTool, "Unwrap", "Switch to Unwrap tool", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(BeginSelectTool, "Edit", "Selection-based UV editing", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(BeginLayoutTool, "Layout", "Transform and pack existing UVs", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(BeginParameterizeMeshTool, "AutoUV", "Auto-unwrap and pack UVs", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(BeginChannelEditTool, "Channels", "Modify UV channels", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(BeginSeamTool, "Seam", "Add UV seams", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(BeginRecomputeUVsTool, "Unwrap", "Perform UV unwrapping", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	// These currently get linked to actions inside the select tool, but will eventually have their own buttons among the tools
 	// once selection is pulled out to mode-level.
-	UI_COMMAND(SewAction, "Sew", "Sew edges. The red edges will be sewn to the green edges", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(SplitAction, "Split", 
-		"Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie verts.", 
-		EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(IslandConformalUnwrapAction, "IsdUw", "Apply a conformal unwrap to the selected UV islands", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SewAction, "Sew", "Sew edges highlighted in red to edges highlighted in green", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(SplitAction, "Split",
+	           "Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices.",
+	           EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(IslandConformalUnwrapAction, "IslUnw", "Apply a conformal unwrap to selected UV islands", EUserInterfaceActionType::Button, FInputChord());
 
 	// These allow us to link up to pressed keys
 	UI_COMMAND(AcceptOrCompleteActiveTool, "Accept", "Accept the active tool", EUserInterfaceActionType::Button, FInputChord(EKeys::Enter));
@@ -47,12 +47,13 @@ void FUVEditorCommands::RegisterCommands()
 	UI_COMMAND(VertexSelection, "Vertex Selection", "Select vertices", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::One));
 	UI_COMMAND(EdgeSelection, "Edge Selection", "Select edges", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Two));
 	UI_COMMAND(TriangleSelection, "Triangle Selection", "Select triangles", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Three));
-	UI_COMMAND(IslandSelection, "Island Selection", "Select connected islands", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Four));
-	UI_COMMAND(FullMeshSelection, "Full Mesh Selection", "Select whole mesh", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Five));
+	UI_COMMAND(IslandSelection, "Island Selection", "Select islands", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Four));
+	UI_COMMAND(FullMeshSelection, "Mesh Selection", "Select meshes", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Five));
 
-	UI_COMMAND(EnableOrbitCamera, "Orbit", "Enable Orbit Camera", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(EnableFlyCamera, "Fly", "Enable Fly Camera", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ToggleBackground, "Toggle Background", "Toggle the display of the background", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::B));
+	UI_COMMAND(EnableOrbitCamera, "Orbit", "Enable orbit camera", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(EnableFlyCamera, "Fly", "Enable fly camera", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ToggleBackground, "Toggle Background", "Toggle background display", EUserInterfaceActionType::ToggleButton,
+	           FInputChord(EModifierKey::Alt, EKeys::B));
 }
 
 

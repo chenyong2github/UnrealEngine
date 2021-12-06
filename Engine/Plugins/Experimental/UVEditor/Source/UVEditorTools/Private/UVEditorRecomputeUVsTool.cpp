@@ -5,14 +5,11 @@
 #include "ToolBuilderUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Polygroups/PolygroupUtil.h"
-#include "FaceGroupUtil.h"
-#include "ToolSetupUtil.h"
-#include "ModelingToolTargetUtil.h"
 #include "ParameterizationOps/RecomputeUVsOp.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
-#include "Properties/MeshMaterialProperties.h"
 #include "UVToolContextObjects.h"
 #include "ContextObjectStore.h"
+#include "MeshOpPreviewHelpers.h"
 
 using namespace UE::Geometry;
 
@@ -83,14 +80,13 @@ void UUVEditorRecomputeUVsTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolNameLocal", "UV Unwrap"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool_Regions", "Generate UVs for Polygroups or existing UV charts of the Mesh using various strategies."),
+		LOCTEXT("OnStartTool_Regions", "Generate UVs for PolyGroups or existing UV islands of the mesh using various strategies."),
 		EToolMessageLevel::UserNotification);
 }
 
 
 void UUVEditorRecomputeUVsTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	bool bForceMaterialUpdate = false;
 	if (PropertySet == Settings )
 	{
 		// One of the UV generation properties must have changed.  Dirty the result to force a recompute
@@ -98,9 +94,7 @@ void UUVEditorRecomputeUVsTool::OnPropertyModified(UObject* PropertySet, FProper
 		{
 			Target->AppliedPreview->InvalidateResult();
 		}
-		bForceMaterialUpdate = true;
 	}
-
 }
 
 
@@ -195,7 +189,7 @@ void UUVEditorRecomputeUVsTool::UpdateActiveGroupLayer()
 		{
 			FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
 			FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*Targets[0]->AppliedCanonical, SelectedName);
-			ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
+			ensureMsgf(FoundAttrib, TEXT("Selected attribute not found! Falling back to Default group layer."));
 			ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(Targets[0]->AppliedCanonical.Get(), FoundAttrib);
 		}
 	}

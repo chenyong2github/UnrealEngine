@@ -62,7 +62,7 @@ void UUVEditorLayoutTool::Setup()
 	}
 
 	SetToolDisplayName(LOCTEXT("ToolName", "UV Layout"));
-	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVLayoutTool", "Transform/Rotate/Scale existing UV Charts using various strategies"),
+	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVLayoutTool", "Translate, rotate or scale existing UV Charts using various strategies"),
 		EToolMessageLevel::UserNotification);
 }
 

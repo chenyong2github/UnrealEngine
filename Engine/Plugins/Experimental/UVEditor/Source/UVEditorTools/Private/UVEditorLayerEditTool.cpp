@@ -22,7 +22,7 @@ using namespace UE::Geometry;
 namespace UUVEditorChannelEditLocals
 {
 	const FText UVChannelAddTransactionName = LOCTEXT("UVChannelAddTransactionName", "Add UV Channel");
-	const FText UVChannelCloneTransactionName = LOCTEXT("UVChannelCloneTransactionName", "Clone UV Channel");
+	const FText UVChannelCopyTransactionName = LOCTEXT("UVChannelCopyTransactionName", "Copy UV Channel");
 	const FText UVChannelDeleteTransactionName = LOCTEXT("UVChannelDeleteTransactionName", "Delete UV Channel");
 
 	void DeleteChannel(UUVEditorToolMeshInput* Target, int32 DeletedUVChannelIndex, 
@@ -119,10 +119,11 @@ namespace UUVEditorChannelEditLocals
 		int32 AddedUVChannelIndex;		
 	};
 
-	class FInputObjectUVChannelClone : public FToolCommandChange
+	class FInputObjectUVChannelCopy : public FToolCommandChange
 	{
 	public:
-		FInputObjectUVChannelClone(const TObjectPtr<UUVEditorToolMeshInput>& TargetIn, int32 SourceUVChannelIndexIn, int32 TargetUVChannelIndexIn, const FDynamicMeshUVOverlay& OriginalUVChannelIn)
+		FInputObjectUVChannelCopy(const TObjectPtr<UUVEditorToolMeshInput>& TargetIn, int32 SourceUVChannelIndexIn, int32 TargetUVChannelIndexIn,
+		                          const FDynamicMeshUVOverlay& OriginalUVChannelIn)
 			: Target(TargetIn)			
 			, SourceUVChannelIndex(SourceUVChannelIndexIn)
 			, TargetUVChannelIndex(TargetUVChannelIndexIn)
@@ -137,7 +138,6 @@ namespace UUVEditorChannelEditLocals
 			{
 				return;
 			}
-			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), TargetUVChannelIndex, false);
 			DynamicMeshUVEditor.CopyUVLayer(Target->AppliedCanonical->Attributes()->GetUVLayer(SourceUVChannelIndex));
@@ -151,7 +151,6 @@ namespace UUVEditorChannelEditLocals
 			{
 				return;
 			}
-			UUVToolAssetAndChannelAPI* AssetAndChannelAPI = InteractiveToolManager->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
 
 			FDynamicMeshUVEditor DynamicMeshUVEditor(Target->AppliedCanonical.Get(), TargetUVChannelIndex, false);
 			DynamicMeshUVEditor.CopyUVLayer(&OriginalUVChannel);
@@ -165,7 +164,7 @@ namespace UUVEditorChannelEditLocals
 
 		virtual FString ToString() const override
 		{
-			return TEXT("UVEditorModeLocals::FInputObjectUVChannelClone");
+			return TEXT("UVEditorModeLocals::FInputObjectUVChannelCopy");
 		}
 
 	protected:
@@ -375,8 +374,7 @@ bool UUVEditorChannelEditTargetProperties::ValidateUVChannelSelection(bool bUpda
 		return true;
 	};
 
-	bValid = CheckAndUpdateChannel(TargetChannel);
-	bValid = bValid && CheckAndUpdateChannel(TargetChannel);
+	bValid &= CheckAndUpdateChannel(TargetChannel);
 
 	return bValid;
 }
@@ -490,7 +488,7 @@ void UUVEditorChannelEditTool::Setup()
 	AddActionProperties = NewObject<UUVEditorChannelEditAddProperties>(this);
 	AddToolPropertySource(AddActionProperties);
 
-	CopyActionProperties = NewObject<UUVEditorChannelEditCloneProperties>(this);
+	CopyActionProperties = NewObject<UUVEditorChannelEditCopyProperties>(this);
 	AddToolPropertySource(CopyActionProperties);
 
 	DeleteActionProperties = NewObject<UUVEditorChannelEditDeleteProperties>(this);
@@ -501,7 +499,7 @@ void UUVEditorChannelEditTool::Setup()
 	AddToolPropertySource(ToolActions);
 
 	SetToolDisplayName(LOCTEXT("ToolName", "UV Channel Edit"));
-	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVChannelEditTool", "Add/Copy/Delete Asset UV Channels"),
+	GetToolManager()->DisplayMessage(LOCTEXT("OnStartUVChannelEditTool", "Add, copy or delete UV channels"),
 		EToolMessageLevel::UserNotification);
 
 	for (int32 i = 0; i < Targets.Num(); ++i)
@@ -641,12 +639,10 @@ void UUVEditorChannelEditTool::AddChannel()
 
 void UUVEditorChannelEditTool::CopyChannel()
 {
-	UUVToolAssetAndChannelAPI* AssetAndChannelAPI = GetToolManager()->GetContextObjectStore()->FindContext<UUVToolAssetAndChannelAPI>();
-
 	EmitChangeAPI->EmitToolIndependentChange(this,
-		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelClone>(Targets[ActiveAsset], ReferenceChannel, ActiveChannel, 
+		MakeUnique<UUVEditorChannelEditLocals::FInputObjectUVChannelCopy>(Targets[ActiveAsset], ReferenceChannel, ActiveChannel, 
 			*Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ActiveChannel)),
-		UUVEditorChannelEditLocals::UVChannelCloneTransactionName);
+		UUVEditorChannelEditLocals::UVChannelCopyTransactionName);
 
 	FDynamicMeshUVEditor DynamicMeshUVEditor(Targets[ActiveAsset]->AppliedCanonical.Get(), ActiveChannel, false);
 	DynamicMeshUVEditor.CopyUVLayer(Targets[ActiveAsset]->AppliedCanonical->Attributes()->GetUVLayer(ReferenceChannel));

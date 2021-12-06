@@ -82,7 +82,7 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 		);
 		
 	// Add any extenders specified by the UStaticMeshEditorUISubsystem
-    // The extenders provide defined locations for FModeTookit to attach
+    // The extenders provide defined locations for FModeToolkit to attach
     // tool palette tabs and detail panel tabs
 	LayoutExtender = MakeShared<FLayoutExtender>();
 	FUVEditorModule* UVEditorModule = &FModuleManager::LoadModuleChecked<FUVEditorModule>("UVEditor");
@@ -213,7 +213,6 @@ bool FUVEditorToolkit::OnRequestClose()
 		return true; 
 	}
 
-	bool bAllowClose = true;
 	// Warn the user of any unapplied changes.
 	if (UVMode->HaveUnappliedChanges())
 	{
@@ -227,17 +226,14 @@ bool FUVEditorToolkit::OnRequestClose()
 		{
 		case EAppReturnType::Yes:
 			UVMode->ApplyChanges();
-			bAllowClose = true;
 			break;
 
 		case EAppReturnType::No:
 			// exit
-			bAllowClose = true;
 			break;
 
 		case EAppReturnType::Cancel:
 			// don't exit
-			bAllowClose = false;
 			return false;
 		}
 	}
@@ -246,10 +242,7 @@ bool FUVEditorToolkit::OnRequestClose()
     // This is super important to do, otherwise currently opened tabs won't be marked as "closed".
     // This results in tabs not being properly recycled upon reopening the editor and tab
     // duplication for each opening event.
-	if (bAllowClose)
-	{
-		GetEditorModeManager().ActivateDefaultMode();
-	}
+	GetEditorModeManager().ActivateDefaultMode();
 
 	return FAssetEditorToolkit::OnRequestClose();
 }
@@ -433,7 +426,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 			return UVModeToolkit->CreateChannelMenu();
 		}),
 		LOCTEXT("UVEditorChannelMenu_Label", "Channels"),
-		LOCTEXT("UVEditorChannelMenu_ToolTip", "Change the selected UV Channel for each asset."),
+		LOCTEXT("UVEditorChannelMenu_ToolTip", "Select the current UV Channel for each mesh"),
 		FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.ChannelSettings")
 	));
 
@@ -446,7 +439,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 			return UVModeToolkit->CreateBackgroundSettingsWidget();
 		}),
 		LOCTEXT("UVEditorBackgroundSettings_Label", "Display"),
-		LOCTEXT("UVEditorBackgroundSettings_ToolTip", "Change the background and other viewport display settings."),
+		LOCTEXT("UVEditorBackgroundSettings_ToolTip", "Change the background display settings"),
 		FSlateIcon(FUVEditorStyle::Get().GetStyleSetName(), "UVEditor.BackgroundSettings")
 	));
 
