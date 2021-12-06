@@ -3,24 +3,23 @@
 #include "PostProcess/PostProcessFFTBloom.h"
 #include "PostProcess/PostProcessBloomSetup.h"
 #include "PostProcess/PostProcessTonemap.h"
+#include "PostProcess/PostProcessDownsample.h"
 #include "GPUFastFourierTransform.h"
 #include "RendererModule.h"
 #include "Rendering/Texture2DResource.h"
 
 namespace
 {
+
+TAutoConsoleVariable<float> CVarBloomScreenPercentage(
+	TEXT("r.Bloom.ScreenPercentage"), 100.0f,
+	TEXT("Controles the axis resolution of the FFT convolution for bloom.\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<int32> CVarBloomCacheKernel(
 	TEXT("r.Bloom.CacheKernel"), 1,
 	TEXT("Whether to cache the kernel in spectral domain."),
 	ECVF_RenderThreadSafe);
-
-TAutoConsoleVariable<int32> CVarHalfResFFTBloom(
-	TEXT("r.Bloom.HalfResolutionFFT"), 0,
-	TEXT("Experimental half-resolution FFT Bloom convolution. \n")
-	TEXT(" 0: Standard full resolution convolution bloom;")
-	TEXT(" 1: Half-resolution convolution;\n")
-	TEXT(" 2: Quarter-resolution convolution.\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarAsynComputeFFTBloom(
 	TEXT("r.Bloom.AsyncCompute"), 0,
@@ -198,14 +197,9 @@ IMPLEMENT_GLOBAL_SHADER(FBloomFinalizeApplyConstantsCS,     "/Engine/Private/Blo
 
 } //! namespace
 
-bool IsFFTBloomFullResolutionEnabled()
+float GetFFTBloomResolutionFraction()
 {
-	return CVarHalfResFFTBloom.GetValueOnRenderThread() == 0;
-}
-
-bool IsFFTBloomQuarterResolutionEnabled()
-{
-	return CVarHalfResFFTBloom.GetValueOnRenderThread() == 2;
+	return FMath::Clamp(CVarBloomScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.1f, 1.0f);
 }
 
 bool IsFFTBloomEnabled(const FViewInfo& View)
@@ -269,14 +263,9 @@ FRDGTextureRef TransformKernelFFT(
 
 struct FFFTBloomIntermediates
 {
-	FRDGTextureRef InputTexture;
-
-	// The size of the input buffer.
-	FIntPoint InputBufferSize;
-
 	// The sub-domain of the Input/Output buffers 
 	// where the image lives, i.e. the region of interest
-	FIntRect  ImageRect;
+	FIntPoint ImageSize;
 
 	// Image space, padded by black for kernel and  rounded up to powers of two
 	// this defines the size of the FFT in each direction.
@@ -293,94 +282,6 @@ struct FFFTBloomIntermediates
 
 	ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute;
 };
-
-FFFTBloomIntermediates GetFFTBloomIntermediates(
-	const FViewInfo& View,
-	const FFFTBloomInputs& Inputs)
-{
-	FSceneViewState* ViewState = (FSceneViewState*)View.State;
-	check(ViewState);
-
-	const auto& PPSettings = View.FinalPostProcessSettings;
-
-	// The kernel parameters on the FinalPostProcess.
-
-	const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
-	const float KernelSupportScaleClamp = FMath::Clamp(PPSettings.BloomConvolutionBufferScale, 0.f, 1.f);
-
-	// Clip the Kernel support (i.e. bloom size) to 100% the screen width 
-	const float MaxBloomSize = 1.f;
-	const float KernelSupportScale = FMath::Clamp(BloomConvolutionSize, 0.f, MaxBloomSize);
-
-	// We padd by 1/2 the number of pixels the kernel needs in the x-direction
-	// so if the kernel is being applied on the edge of the image it will see padding and not periodicity
-	// NB:  If the kernel padding would force a transform buffer that is too big for group shared memory (> 4096)
-	//      we clamp it.  This could result in a wrap-around in the bloom (from one side of the screen to the other),
-	//      but since the amplitude of the bloom kernel tails is usually very small, this shouldn't be too bad.
-	auto KernelRadiusSupportFunctor = [KernelSupportScale, KernelSupportScaleClamp](const FIntPoint& Size) ->int32
-	{
-		float ClampedKernelSupportScale = (KernelSupportScaleClamp > 0) ? FMath::Min(KernelSupportScale, KernelSupportScaleClamp) : KernelSupportScale;
-		int32 FilterRadius = FMath::CeilToInt(0.5 * ClampedKernelSupportScale * Size.X);
-		const int32 MaxFFTSize = GPUFFT::MaxScanLineLength();
-		int32 MaxDim = FMath::Max(Size.X, Size.Y);
-		if (MaxDim + FilterRadius > MaxFFTSize && MaxDim < MaxFFTSize) FilterRadius = MaxFFTSize - MaxDim;
-
-		return FilterRadius;
-	};
-
-	const bool bHalfResolutionFFT = !IsFFTBloomFullResolutionEnabled();
-
-	FFFTBloomIntermediates Intermediates;
-	if (bHalfResolutionFFT)
-	{
-		Intermediates.InputTexture = Inputs.HalfResolutionTexture;
-		Intermediates.InputBufferSize = Inputs.HalfResolutionViewRect.Size();
-		Intermediates.ImageRect = Inputs.HalfResolutionViewRect;
-	}
-	else
-	{
-		Intermediates.InputTexture = Inputs.FullResolutionTexture;
-		Intermediates.InputBufferSize = Inputs.FullResolutionViewRect.Size();
-		Intermediates.ImageRect = Inputs.FullResolutionViewRect;
-	}
-
-	Intermediates.KernelSupportScale = KernelSupportScale;
-	Intermediates.KernelSupportScaleClamp = KernelSupportScaleClamp;
-
-	// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
-	Intermediates.PreFilter = FVector(PPSettings.BloomConvolutionPreFilterMin, PPSettings.BloomConvolutionPreFilterMax, PPSettings.BloomConvolutionPreFilterMult);
-
-	// Capture the region of interest
-	const FIntPoint ImageSize = Intermediates.ImageRect.Size();
-
-	// The length of the a side of the square kernel image in pixels
-
-	const int32 KernelSize = FMath::CeilToInt(KernelSupportScale * FMath::Max(ImageSize.X, ImageSize.Y));
-
-	const int32 SpectralPadding = KernelRadiusSupportFunctor(ImageSize);
-
-	// The following are mathematically equivalent
-	// 1) Horizontal FFT / Vertical FFT / Filter / Vertical InvFFT / Horizontal InvFFT
-	// 2) Vertical FFT / Horizontal FFT / Filter / Horizontal InvFFT / Vertical InvFFT
-	// but we choose the one with the smallest intermediate buffer size
-
-	// The size of the input image plus padding that accounts for
-	// the width of the kernel.  The ImageRect is virtually padded
-	// with black to account for the gather action of the convolution.
-	FIntPoint PaddedImageSize = ImageSize + FIntPoint(SpectralPadding, SpectralPadding);
-	PaddedImageSize.X = FMath::Max(PaddedImageSize.X, KernelSize);
-	PaddedImageSize.Y = FMath::Max(PaddedImageSize.Y, KernelSize);
-
-	Intermediates.FrequencySize = FIntPoint(FMath::RoundUpToPowerOfTwo(PaddedImageSize.X), FMath::RoundUpToPowerOfTwo(PaddedImageSize.Y));
-
-	// Choose to do to transform in the direction that results in writing the least amount of data to main memory.
-
-	Intermediates.bDoHorizontalFirst = ((Intermediates.FrequencySize.Y * PaddedImageSize.X) > (Intermediates.FrequencySize.X * PaddedImageSize.Y));
-
-	Intermediates.ComputePassFlags = (GSupportsEfficientAsyncCompute && CVarAsynComputeFFTBloom.GetValueOnRenderThread() != 0) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
-
-	return Intermediates;
-}
 
 void InitDomainAndGetKernel(
 	FRDGBuilder& GraphBuilder,
@@ -427,7 +328,7 @@ void InitDomainAndGetKernel(
 			&& TransformDesc.Extent == PrevCachedSpectralKernel->Desc.Extent;
 
 		const bool bSameKernelSize = FMath::IsNearlyEqual(FFTKernel.Scale, BloomConvolutionSize, float(1.e-6) /*tol*/);
-		const bool bSameImageSize = (Intermediates.ImageRect.Size() == FFTKernel.ImageSize);
+		const bool bSameImageSize = (Intermediates.ImageSize == FFTKernel.ImageSize);
 		const bool bSameMipLevel = bSameTexture && FFTKernel.PhysicalMipLevel == BloomConvolutionTextureResource->GetCurrentMipCount();
 
 		if (bSameTexture && bSameSpectralBuffer && bSameKernelSize && bSameImageSize && bSameMipLevel)
@@ -475,7 +376,7 @@ void InitDomainAndGetKernel(
 	{
 		const int32 SurveyTileSize = 8;
 
-		float KernelSizeInDstPixels = FMath::Max(float(Intermediates.ImageRect.Width()) * Intermediates.KernelSupportScale, 1.0f);
+		float KernelSizeInDstPixels = FMath::Max(float(Intermediates.ImageSize.X) * Intermediates.KernelSupportScale, 1.0f);
 
 		// Diameter of a view texel in the kernel.
 		float ViewTexelDiameterInKernelTexels = FMath::Max(SpatialKernelTexture->Desc.Extent.X / KernelSizeInDstPixels, 1.0f);
@@ -683,7 +584,7 @@ void InitDomainAndGetKernel(
 
 			FBloomResizeKernelCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomResizeKernelCS::FParameters>();
 			PassParameters->DstExtent = Intermediates.FrequencySize;
-			PassParameters->ImageExtent = Intermediates.ImageRect.Size();
+			PassParameters->ImageExtent = Intermediates.ImageSize;
 			PassParameters->KernelSpatialTextureInvSize.X = 1.0f / float(SpatialKernelTexture->Desc.Extent.X);
 			PassParameters->KernelSpatialTextureInvSize.Y = 1.0f / float(SpatialKernelTexture->Desc.Extent.Y);
 			PassParameters->DstBufferExtent = Intermediates.FrequencySize;
@@ -717,7 +618,7 @@ void InitDomainAndGetKernel(
 	if (ViewState && CVarBloomCacheKernel.GetValueOnRenderThread() != 0)
 	{
 		ViewState->BloomFFTKernel.Scale = BloomConvolutionSize;
-		ViewState->BloomFFTKernel.ImageSize = Intermediates.ImageRect.Size();
+		ViewState->BloomFFTKernel.ImageSize = Intermediates.ImageSize;
 		ViewState->BloomFFTKernel.Physical = View.FinalPostProcessSettings.BloomConvolutionTexture;
 		ViewState->BloomFFTKernel.PhysicalRHI = PhysicalSpaceKernelTextureRef;
 		ViewState->BloomFFTKernel.PhysicalMipLevel = BloomConvolutionTextureResource->GetCurrentMipCount();
@@ -735,16 +636,105 @@ void InitDomainAndGetKernel(
 	*OutKernelConstantsBuffer = KernelConstantsBuffer;
 }
 
-FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFFTBloomInputs& Inputs)
+FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& InputSceneColor, float InputResolutionFraction)
 {
-	check(Inputs.FullResolutionTexture);
-	check(!Inputs.FullResolutionViewRect.IsEmpty());
-	check(Inputs.HalfResolutionTexture);
-	check(!Inputs.HalfResolutionViewRect.IsEmpty());
+	check(InputSceneColor.IsValid());
 
-	FFFTBloomIntermediates Intermediates = GetFFTBloomIntermediates(View, Inputs);
+	const float ResolutionFraction = GetFFTBloomResolutionFraction();
+	const float DownscaleResolutionFraction = ResolutionFraction / InputResolutionFraction;
+	check(DownscaleResolutionFraction <= 1.0f);
 
-	RDG_EVENT_SCOPE(GraphBuilder, "FFTBloom %dx%d", Intermediates.ImageRect.Width(), Intermediates.ImageRect.Height());
+	FFFTBloomIntermediates Intermediates;
+	{
+		FSceneViewState* ViewState = (FSceneViewState*)View.State;
+		check(ViewState);
+
+		const auto& PPSettings = View.FinalPostProcessSettings;
+
+		// The kernel parameters on the FinalPostProcess.
+
+		const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
+		const float KernelSupportScaleClamp = FMath::Clamp(PPSettings.BloomConvolutionBufferScale, 0.f, 1.f);
+
+		// Clip the Kernel support (i.e. bloom size) to 100% the screen width 
+		const float MaxBloomSize = 1.f;
+		const float KernelSupportScale = FMath::Clamp(BloomConvolutionSize, 0.f, MaxBloomSize);
+
+		// We padd by 1/2 the number of pixels the kernel needs in the x-direction
+		// so if the kernel is being applied on the edge of the image it will see padding and not periodicity
+		// NB:  If the kernel padding would force a transform buffer that is too big for group shared memory (> 4096)
+		//      we clamp it.  This could result in a wrap-around in the bloom (from one side of the screen to the other),
+		//      but since the amplitude of the bloom kernel tails is usually very small, this shouldn't be too bad.
+		auto KernelRadiusSupportFunctor = [KernelSupportScale, KernelSupportScaleClamp](const FIntPoint& Size) ->int32
+		{
+			float ClampedKernelSupportScale = (KernelSupportScaleClamp > 0) ? FMath::Min(KernelSupportScale, KernelSupportScaleClamp) : KernelSupportScale;
+			int32 FilterRadius = FMath::CeilToInt(0.5 * ClampedKernelSupportScale * Size.X);
+			const int32 MaxFFTSize = GPUFFT::MaxScanLineLength();
+			int32 MaxDim = FMath::Max(Size.X, Size.Y);
+			if (MaxDim + FilterRadius > MaxFFTSize && MaxDim < MaxFFTSize) FilterRadius = MaxFFTSize - MaxDim;
+
+			return FilterRadius;
+		};
+
+		Intermediates.ImageSize.X = FMath::CeilToInt(InputSceneColor.ViewRect.Width() * DownscaleResolutionFraction);
+		Intermediates.ImageSize.Y = FMath::CeilToInt(InputSceneColor.ViewRect.Height() * DownscaleResolutionFraction);
+
+		Intermediates.KernelSupportScale = KernelSupportScale;
+		Intermediates.KernelSupportScaleClamp = KernelSupportScaleClamp;
+
+		// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
+		Intermediates.PreFilter = FVector(PPSettings.BloomConvolutionPreFilterMin, PPSettings.BloomConvolutionPreFilterMax, PPSettings.BloomConvolutionPreFilterMult);
+
+		// The length of the a side of the square kernel image in pixels
+		const int32 KernelSize = FMath::CeilToInt(KernelSupportScale * FMath::Max(Intermediates.ImageSize.X, Intermediates.ImageSize.Y));
+
+		const int32 SpectralPadding = KernelRadiusSupportFunctor(Intermediates.ImageSize);
+
+		// The following are mathematically equivalent
+		// 1) Horizontal FFT / Vertical FFT / Filter / Vertical InvFFT / Horizontal InvFFT
+		// 2) Vertical FFT / Horizontal FFT / Filter / Horizontal InvFFT / Vertical InvFFT
+		// but we choose the one with the smallest intermediate buffer size
+
+		// The size of the input image plus padding that accounts for
+		// the width of the kernel.  The ImageRect is virtually padded
+		// with black to account for the gather action of the convolution.
+		FIntPoint PaddedImageSize = Intermediates.ImageSize + FIntPoint(SpectralPadding, SpectralPadding);
+		PaddedImageSize.X = FMath::Max(PaddedImageSize.X, KernelSize);
+		PaddedImageSize.Y = FMath::Max(PaddedImageSize.Y, KernelSize);
+
+		Intermediates.FrequencySize = FIntPoint(FMath::RoundUpToPowerOfTwo(PaddedImageSize.X), FMath::RoundUpToPowerOfTwo(PaddedImageSize.Y));
+
+		// Choose to do to transform in the direction that results in writing the least amount of data to main memory.
+
+		Intermediates.bDoHorizontalFirst = ((Intermediates.FrequencySize.Y * PaddedImageSize.X) > (Intermediates.FrequencySize.X * PaddedImageSize.Y));
+
+		Intermediates.ComputePassFlags = (GSupportsEfficientAsyncCompute && CVarAsynComputeFFTBloom.GetValueOnRenderThread() != 0) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
+	}
+
+	RDG_EVENT_SCOPE(GraphBuilder, "Bloom %dx%d", Intermediates.ImageSize.X, Intermediates.ImageSize.Y);
+
+	// Downscale the input to the final resolution fraction
+	FScreenPassTexture FFTInputSceneColor;
+	if (ResolutionFraction != InputResolutionFraction)
+	{
+		FIntPoint Extent;
+		QuantizeSceneBufferSize(Intermediates.ImageSize, Extent);
+
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			Extent,
+			InputSceneColor.Texture->Desc.Format,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV);
+
+		FFTInputSceneColor.Texture = GraphBuilder.CreateTexture(Desc, TEXT("Bloom.FFT.Input"));
+		FFTInputSceneColor.ViewRect = FIntRect(FIntPoint::ZeroValue, Intermediates.ImageSize);
+
+		AddDownsampleComputePass(GraphBuilder, View, InputSceneColor, FFTInputSceneColor, EDownsampleQuality::Low, Intermediates.ComputePassFlags);
+	}
+	else
+	{
+		FFTInputSceneColor = InputSceneColor;
+	}
 
 	// Init the domain data update the cached kernel if needed.
 	FRDGTextureRef SpectralKernelTexture;
@@ -785,13 +775,13 @@ FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 	}
 
 	FRDGTextureDesc OutputSceneColorDesc = FRDGTextureDesc::Create2D(
-		Intermediates.InputTexture->Desc.Extent,
-		Intermediates.InputTexture->Desc.Format,
+		FFTInputSceneColor.Texture->Desc.Extent,
+		FFTInputSceneColor.Texture->Desc.Format,
 		FClearValueBinding::None,
 		TexCreate_ShaderResource | TexCreate_UAV);
 		
 	BloomOutput.BloomTexture.Texture = GraphBuilder.CreateTexture(OutputSceneColorDesc, TEXT("Bloom.FFT.ScatterDispersion"));
-	BloomOutput.BloomTexture.ViewRect = Intermediates.ImageRect;
+	BloomOutput.BloomTexture.ViewRect = FFTInputSceneColor.ViewRect;
 
 	GPUFFT::ConvolutionWithTextureImage2D(
 		GraphBuilder,
@@ -800,7 +790,7 @@ FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 		Intermediates.FrequencySize,
 		Intermediates.bDoHorizontalFirst,
 		SpectralKernelTexture,
-		Intermediates.InputTexture, Intermediates.ImageRect,
+		FFTInputSceneColor.Texture, FFTInputSceneColor.ViewRect,
 		BloomOutput.BloomTexture.Texture, BloomOutput.BloomTexture.ViewRect,
 		Intermediates.PreFilter,
 		FFTMulitplyParameters);

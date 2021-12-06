@@ -68,6 +68,8 @@ float4 DownsampleCommon(float2 UV)
 }
 
 // pixel shader entry point
+#if PIXELSHADER
+
 void MainPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
 	const float2 UV = SvPosition.xy * Output_ExtentInverse;
@@ -75,20 +77,22 @@ void MainPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 	OutColor = DownsampleCommon(UV);
 }
 
-#if COMPUTESHADER
+#elif COMPUTESHADER
+
+FScreenTransform DispatchThreadIdToInputUV;
 
 RWTexture2D<float4> OutComputeTexture;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint2 iPixelPos = DispatchThreadId + Output_ViewportMin;
-	float2 PixelPos = float2(iPixelPos);
-	float2 UV = (PixelPos + 0.5) * Output_ExtentInverse;
+	float2 InputUV = ApplyScreenTransform(float2(DispatchThreadId), DispatchThreadIdToInputUV);
+	uint2 OutputPixelPos = DispatchThreadId + Output_ViewportMin;
 
-	if (!IsComputeUVOutOfBounds(UV))
+	if (all(OutputPixelPos < Output_ViewportMax))
 	{
-		OutComputeTexture[PixelPos] = DownsampleCommon(UV);
+		OutComputeTexture[OutputPixelPos] = DownsampleCommon(InputUV);
 	}
 }
+
 #endif 
