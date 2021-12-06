@@ -1819,13 +1819,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 
 		SCOPED_NAMED_EVENT(EnqueueFrame, FColor::Red);
 
-		{
-			FReadScopeLock Lock(SessionHandleMutex);
-			for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-			{
-				Module->OnAcquireSwapchainImage(Session);
-			}
-		}
 		// Reset the update flag on all layers
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
 		{
