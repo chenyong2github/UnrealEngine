@@ -52,6 +52,7 @@ Texture2D MiniFontTexture;
 #define _DOT_ 46
 #define _PLUS_ 43
 #define _SPC_ 32
+#define _QUESTIONMARK_ 63
 
 // sample from the MiniFont texture
 // @param CharacterID - the character to print
