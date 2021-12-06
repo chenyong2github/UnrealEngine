@@ -2003,8 +2003,8 @@ bool ULevel::GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds)
 		{
 			FVector LevelBoundsLocation;
 			FVector LevelBoundsExtent;
-			if (LevelBoundsLocation.InitFromString(LevelBoundsLocationStr) &&
-				LevelBoundsExtent.InitFromString(LevelBoundsExtentStr))
+			if (LevelBoundsLocation.InitFromCompactString(LevelBoundsLocationStr) &&
+				LevelBoundsExtent.InitFromCompactString(LevelBoundsExtentStr))
 			{
 				OutLevelBounds = FBox(LevelBoundsLocation - LevelBoundsExtent, LevelBoundsLocation + LevelBoundsExtent);
 				return true;

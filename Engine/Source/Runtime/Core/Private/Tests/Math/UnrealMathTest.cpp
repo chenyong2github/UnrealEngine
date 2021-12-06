@@ -3995,4 +3995,38 @@ bool FMathWrapTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInitVectorTest, "System.Core.Math.InitVector", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FInitVectorTest::RunTest(const FString& Parameters)
+{
+	auto TestInitFromCompactString = [this](const FString& InTestName, const FVector& InExpected)
+	{
+		FVector Actual(13.37, 13.37, 13.37);
+		const bool bIsInitialized = Actual.InitFromCompactString(InExpected.ToCompactString());
+
+		TestTrue(*(InTestName + " return value"), bIsInitialized);
+		TestEqual(*InTestName, Actual, InExpected, KINDA_SMALL_NUMBER);
+	};
+
+	TestInitFromCompactString(TEXT("InitFromCompactString Simple"), FVector(1.2, 2.3, 3.4));
+	TestInitFromCompactString(TEXT("InitFromCompactString Zero"), FVector(0, 0, 0));
+	TestInitFromCompactString(TEXT("InitFromCompactString Int"), FVector(1, 2, 3));
+	
+	TestInitFromCompactString(TEXT("InitFromCompactString X == 0"), FVector(0, 2, 3));
+	TestInitFromCompactString(TEXT("InitFromCompactString Y == 0"), FVector(1.3, 0, 3.7));
+	TestInitFromCompactString(TEXT("InitFromCompactString Z == 0"), FVector(1.2, 2.5, 0));
+	
+	TestInitFromCompactString(TEXT("InitFromCompactString X < 0"), FVector(-433.2, 6.5, 0));
+	TestInitFromCompactString(TEXT("InitFromCompactString Y < 0"), FVector(43.2, -6.5, 98));
+	TestInitFromCompactString(TEXT("InitFromCompactString Z < 0"), FVector(33.8, 0, -76));
+	
+	TestInitFromCompactString(TEXT("InitFromCompactString X == 0 && Y == 0"), FVector(0, 0, 32.8));
+	TestInitFromCompactString(TEXT("InitFromCompactString X == 0 && Z == 0"), FVector(0, 61.3, 0));
+	TestInitFromCompactString(TEXT("InitFromCompactString Y == 0 && Z == 0"), FVector(65.3, 0, 0));
+
+	TestFalse(TEXT("InitFromCompactString BadString1"), FVector().InitFromCompactString(TEXT("W(0)")));
+	TestFalse(TEXT("InitFromCompactString BadString2"), FVector().InitFromCompactString(TEXT("V(XYZ)")));
+	
+	return true;
+}
+
 #endif //WITH_DEV_AUTOMATION_TESTS

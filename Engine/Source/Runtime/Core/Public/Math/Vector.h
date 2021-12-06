@@ -860,6 +860,16 @@ public:
      */
     bool InitFromString(const FString& InSourceString);
 
+	/**
+	 * Initialize this Vector based on an FString. The String is expected to contain V(0)
+	 * or at least one value X=, Y=, Z=, previously produced by ToCompactString()
+	 * The TVector<T> will be bogus when InitFromString returns false.
+	 *
+	 * @param	InSourceString	FString containing the vector values.
+	 * @return true if any of the X,Y,Z values were read successfully; false otherwise.
+	 */
+	bool InitFromCompactString(const FString& InSourceString);
+
     /** 
      * Converts a Cartesian unit vector into spherical coordinates on the unit sphere.
      * @return Output Theta will be in the range [0, PI], and output Phi will be in the range [-PI, PI]. 
@@ -2267,14 +2277,31 @@ FORCEINLINE FString TVector<T>::ToCompactString() const
 }
 
 template<typename T>
+FORCEINLINE bool TVector<T>::InitFromCompactString(const FString& InSourceString)
+{
+	bool bAxisFound = false;
+	
+	X = Y = Z = 0;
+
+	if (FCString::Strifind(*InSourceString, TEXT("V(0)")) != nullptr)
+	{
+		return true;
+	}
+
+	const bool bSuccessful = FParse::Value(*InSourceString, TEXT("X="), X) | FParse::Value(*InSourceString, TEXT("Y="), Y) | FParse::Value(*InSourceString, TEXT("Z="), Z);
+
+	return bSuccessful;
+}
+
+template<typename T>
 FORCEINLINE bool TVector<T>::InitFromString(const FString& InSourceString)
 {
-    X = Y = Z = 0;
+	X = Y = Z = 0;
 
-    // The initialization is only successful if the X, Y, and Z values can all be parsed from the string
-    const bool bSuccessful = FParse::Value(*InSourceString, TEXT("X=") , X) && FParse::Value(*InSourceString, TEXT("Y="), Y) && FParse::Value(*InSourceString, TEXT("Z="), Z);
+	// The initialization is only successful if the X, Y, and Z values can all be parsed from the string
+	const bool bSuccessful = FParse::Value(*InSourceString, TEXT("X=") , X) && FParse::Value(*InSourceString, TEXT("Y="), Y) && FParse::Value(*InSourceString, TEXT("Z="), Z);
 
-    return bSuccessful;
+	return bSuccessful;
 }
 
 template<typename T>
