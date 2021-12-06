@@ -31,6 +31,7 @@
 #include "Folder.h"
 #include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -747,6 +748,28 @@ bool AActor::SetIsHiddenEdLayer(bool bIsHiddenEdLayer)
 		return true;
 	}
 	return false;
+}
+
+bool AActor::SupportsLayers() const
+{
+	const bool bIsHidden = (GetClass()->GetDefaultObject<AActor>()->bHiddenEd == true);
+	const bool bIsInEditorWorld = (GetWorld()->WorldType == EWorldType::Editor);
+	const bool bIsPartitionedActor = GetLevel()->bIsPartitioned;
+	const bool bIsValid = !bIsHidden && bIsInEditorWorld && !bIsPartitionedActor;
+
+	if (bIsValid)
+	{
+		// Actors part of Level Instance are not valid for layers
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
+		{
+			if (ALevelInstance* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(this))
+			{
+				return false;
+			}
+		}
+	}
+
+	return bIsValid;
 }
 
 bool AActor::IsEditable() const

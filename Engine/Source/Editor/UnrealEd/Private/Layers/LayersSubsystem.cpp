@@ -176,18 +176,7 @@ void ULayersSubsystem::RemoveLevelLayerInformation(ULevel* Level)
 
 bool ULayersSubsystem::IsActorValidForLayer(AActor* Actor)
 {
-	if (!Actor || Actor->GetClass() == nullptr || Actor->GetWorld() == nullptr)
-	{
-		return false;
-	}
-
-	const bool bIsBuilderBrush = FActorEditorUtils::IsABuilderBrush(Actor);
-	const bool bIsHidden = (Actor->GetClass()->GetDefaultObject<AActor>()->bHiddenEd == true);
-	const bool bIsInEditorWorld = (Actor->GetWorld()->WorldType == EWorldType::Editor);
-	const bool bIsPartitionedActor = Actor->GetLevel()->bIsPartitioned;
-	const bool bIsValid = !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld && !bIsPartitionedActor;
-
-	return bIsValid;
+	return Actor && Actor->GetClass() && Actor->GetWorld() && Actor->SupportsLayers();
 }
 
 bool ULayersSubsystem::InitializeNewActorLayers(AActor* Actor)
@@ -851,15 +840,7 @@ bool ULayersSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutSelectionC
 	// If the actor doesn't belong to any layers
 	if( Actor->Layers.Num() == 0)
 	{
-		// If the actor is also hidden
-		if( Actor->bHiddenEdLayer )
-		{
-			// Actors that don't belong to any layer shouldn't be hidden
-			Actor->bHiddenEdLayer = false;
-			Actor->MarkComponentsRenderStateDirty();
-			bOutActorModified = true;
-		}
-
+		bOutActorModified = Actor->SetIsHiddenEdLayer(false);
 		return bOutActorModified;
 	}
 
@@ -875,10 +856,8 @@ bool ULayersSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutSelectionC
 
 		if( Actor->Layers.Contains( Layer->GetLayerName() ) )
 		{
-			if ( Actor->bHiddenEdLayer )
+			if (Actor->SetIsHiddenEdLayer(false))
 			{
-				Actor->bHiddenEdLayer = false;
-				Actor->MarkComponentsRenderStateDirty();
 				bOutActorModified = true;
 
 				if (ABrush* Brush = Cast<ABrush>(Actor))
@@ -897,10 +876,8 @@ bool ULayersSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutSelectionC
 	// If the actor isn't part of a visible layer, hide and de-select it.
 	if( !bActorBelongsToVisibleLayer )
 	{
-		if ( !Actor->bHiddenEdLayer )
+		if (Actor->SetIsHiddenEdLayer(true))
 		{
-			Actor->bHiddenEdLayer = true;
-			Actor->MarkComponentsRenderStateDirty();
 			bOutActorModified = true;
 
 			if (ABrush* Brush = Cast<ABrush>(Actor))

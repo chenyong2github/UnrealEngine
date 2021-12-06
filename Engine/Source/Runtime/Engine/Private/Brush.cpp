@@ -213,6 +213,11 @@ bool ABrush::SetIsHiddenEdLayer(bool bIsHiddenEdLayer)
 	return false;
 }
 
+bool ABrush::SupportsLayers() const
+{
+	return !FActorEditorUtils::IsABuilderBrush(this) && Super::SupportsLayers();
+}
+
 bool ABrush::SupportsExternalPackaging() const
 {
 	// Base class ABrush actors do not support OFPA

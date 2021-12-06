@@ -178,6 +178,7 @@ public:
 	virtual void CheckForErrors() override;
 	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden ) override;
 	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
+	virtual bool SupportsLayers() const override;
 	virtual bool SupportsExternalPackaging() const override;
 public:
 
