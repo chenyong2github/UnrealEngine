@@ -342,7 +342,7 @@ private:
  */
 class FNetPropertyHook : public FProperty
 {
-	DECLARE_FIELD(FNetPropertyHook, FProperty, (CASTCLASS_FMulticastSparseDelegateProperty << 1))
+	DECLARE_FIELD(FNetPropertyHook, FProperty, CASTCLASS_None)
 
 private:
 	virtual bool NetSerializeItem(FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8>* MetaData /*=nullptr*/) const override;

@@ -92,7 +92,8 @@ public:
 	}
 	inline bool IsChildOf(const FFieldClass* InClass) const
 	{
-		return !!(CastFlags & InClass->GetId());
+		const uint64 OtherClassId = InClass->GetId();
+		return OtherClassId ? !!(CastFlags & OtherClassId) : IsChildOf_Walk(InClass);
 	}
 	FString GetDescription() const;
 	FText GetDisplayNameText() const;
@@ -101,7 +102,7 @@ public:
 		return ConstructFn(InOwner, InName, InFlags);
 	}
 
-	FFieldClass* GetSuperClass()
+	FFieldClass* GetSuperClass() const
 	{
 		return SuperClass;
 	}
@@ -132,6 +133,19 @@ public:
 		return Ar;
 	}
 	COREUOBJECT_API friend FArchive& operator << (FArchive& Ar, FFieldClass*& InOutFieldClass);
+
+private:
+	bool IsChildOf_Walk(const FFieldClass* InBaseClass) const
+	{
+		for (const FFieldClass* TempField = this; TempField; TempField = TempField->GetSuperClass())
+		{
+			if (TempField == InBaseClass)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 };
 
 #if !CHECK_PUREVIRTUALS
@@ -158,11 +172,11 @@ public: \
 	} \
 	static FFieldClass* StaticClass(); \
 	static FField* Construct(const FFieldVariant& InOwner, const FName& InName, EObjectFlags InObjectFlags); \
-	inline static uint64 StaticClassCastFlagsPrivate() \
+	inline static constexpr uint64 StaticClassCastFlagsPrivate() \
 	{ \
 		return uint64(TStaticFlags); \
 	} \
-	inline static uint64 StaticClassCastFlags() \
+	inline static constexpr uint64 StaticClassCastFlags() \
 	{ \
 		return uint64(TStaticFlags) | Super::StaticClassCastFlags(); \
 	} \
@@ -386,11 +400,11 @@ public:
 
 	static FFieldClass* StaticClass();
 
-	inline static uint64 StaticClassCastFlagsPrivate()
+	inline static constexpr uint64 StaticClassCastFlagsPrivate()
 	{
 		return uint64(CASTCLASS_UField);
 	}
-	inline static uint64 StaticClassCastFlags()
+	inline static constexpr uint64 StaticClassCastFlags()
 	{
 		return uint64(CASTCLASS_UField);
 	}
@@ -508,20 +522,29 @@ public:
 	inline bool IsA(const FFieldClass* FieldType) const
 	{
 		check(FieldType);
-		return !!(GetCastFlags() & FieldType->GetId());
+		return GetClass()->IsChildOf(FieldType);
 	}
 
 	template<typename T>
 	bool IsA() const
 	{
-		return !!(GetCastFlags() & T::StaticClassCastFlagsPrivate());
+		if constexpr (!!(T::StaticClassCastFlagsPrivate()))
+		{
+			return !!(GetCastFlags() & T::StaticClassCastFlagsPrivate());
+		}
+		else
+		{
+			return GetClass()->IsChildOf(T::StaticClass());
+		}
 	}
 
+	UE_DEPRECATED(5.0, "HasAnyCastFlags is deprecated. Not all FField has CastFlag. Use IsA instead.")
 	inline bool HasAnyCastFlags(const uint64 InCastFlags) const
 	{
 		return !!(GetCastFlags() & InCastFlags);
 	}
 
+	UE_DEPRECATED(5.0, "HasAllCastFlags is deprecated. Not all FField has CastFlag. Use IsA instead.")
 	inline bool HasAllCastFlags(const uint64 InCastFlags) const
 	{
 		return (GetCastFlags() & InCastFlags) == InCastFlags;
@@ -840,13 +863,13 @@ public:
 template<typename FieldType>
 FORCEINLINE FieldType* CastField(FField* Src)
 {
-	return Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<FieldType*>(Src) : nullptr;
+	return Src && Src->IsA<FieldType>() ? static_cast<FieldType*>(Src) : nullptr;
 }
 
 template<typename FieldType>
 FORCEINLINE const FieldType* CastField(const FField* Src)
 {
-	return Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? static_cast<const FieldType*>(Src) : nullptr;
+	return Src && Src->IsA<FieldType>() ? static_cast<const FieldType*>(Src) : nullptr;
 }
 
 template<typename FieldType>
@@ -863,7 +886,7 @@ FUNCTION_NON_NULL_RETURN_END
 #if !DO_CHECK
 	return (FieldType*)Src;
 #else
-	FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (FieldType*)Src : nullptr;
+	FieldType* CastResult = Src && Src->IsA<FieldType>() ? static_cast<FieldType*>(Src) : nullptr;
 	checkf(CastResult, TEXT("CastFieldChecked failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
@@ -877,7 +900,7 @@ FUNCTION_NON_NULL_RETURN_END
 #if !DO_CHECK
 	return (const FieldType*)Src;
 #else
-	const FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (const FieldType*)Src : nullptr;
+	const FieldType* CastResult = Src && Src->IsA<FieldType>() ? static_cast<const FieldType*>(Src) : nullptr;
 	checkf(CastResult, TEXT("CastFieldChecked failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
@@ -889,7 +912,7 @@ FORCEINLINE FieldType* CastFieldCheckedNullAllowed(FField* Src)
 #if !DO_CHECK
 	return (FieldType*)Src;
 #else
-	FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (FieldType*)Src : nullptr;
+	FieldType* CastResult = Src && Src->IsA<FieldType>() ? static_cast<FieldType*>(Src) : nullptr;
 	checkf(CastResult || !Src, TEXT("CastFieldCheckedNullAllowed failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
@@ -901,7 +924,7 @@ FORCEINLINE const FieldType* CastFieldCheckedNullAllowed(const FField* Src)
 #if !DO_CHECK
 	return (const FieldType*)Src;
 #else
-	const FieldType* CastResult = Src && Src->HasAnyCastFlags(FieldType::StaticClassCastFlagsPrivate()) ? (const FieldType*)Src : nullptr;
+	const FieldType* CastResult = Src && Src->IsA<FieldType>() ? static_cast<const FieldType*>(Src) : nullptr;
 	checkf(CastResult || !Src, TEXT("CastFieldCheckedNullAllowed failed with 0x%016llx"), (int64)(PTRINT)Src);
 	return CastResult;
 #endif // !DO_CHECK
