@@ -31,6 +31,7 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 	: GroupID(0)
 	, CurveCount(0)
 	, GuideCount(0)
+	, bHasPrecomputedWeights(false)
 	, InterpolationSettings()
 	{}
 
