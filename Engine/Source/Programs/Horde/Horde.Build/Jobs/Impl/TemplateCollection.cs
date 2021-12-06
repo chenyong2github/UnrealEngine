@@ -42,6 +42,9 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public string? SubmitNewChange { get; set; }
 
+			[BsonIgnoreIfNull]
+			public string? SubmitDescription { get; set; }
+
 			public List<string> Arguments { get; private set; } = new List<string>();
 			public List<Parameter> Parameters { get; private set; } = new List<Parameter>();
 
@@ -54,7 +57,7 @@ namespace HordeServer.Collections.Impl
 				Name = null!;
 			}
 
-			public TemplateDocument(string Name, Priority? Priority, bool bAllowPreflights, bool UpdateIssues, string? InitialAgentType, string? SubmitNewChange, List<string>? Arguments, List<Parameter>? Parameters)
+			public TemplateDocument(string Name, Priority? Priority, bool bAllowPreflights, bool UpdateIssues, string? InitialAgentType, string? SubmitNewChange, string? SubmitDescription, List<string>? Arguments, List<Parameter>? Parameters)
 			{
 				this.Name = Name;
 				this.Priority = Priority;
@@ -62,6 +65,7 @@ namespace HordeServer.Collections.Impl
 				this.UpdateIssues = UpdateIssues;
 				this.InitialAgentType = InitialAgentType;
 				this.SubmitNewChange = SubmitNewChange;
+				this.SubmitDescription = SubmitDescription;
 				this.Arguments = Arguments ?? new List<string>();
 				this.Parameters = Parameters ?? new List<Parameter>();
 
@@ -105,9 +109,9 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITemplate> AddAsync(string Name, Priority? Priority, bool bAllowPreflights, bool bUpdateIssues, string? InitialAgentType, string? SubmitNewChange, List<string>? Arguments, List<Parameter>? Parameters)
+		public async Task<ITemplate> AddAsync(string Name, Priority? Priority, bool bAllowPreflights, bool bUpdateIssues, string? InitialAgentType, string? SubmitNewChange, string? SubmitDescription, List<string>? Arguments, List<Parameter>? Parameters)
 		{
-			TemplateDocument Template = new TemplateDocument(Name, Priority, bAllowPreflights, bUpdateIssues, InitialAgentType, SubmitNewChange, Arguments, Parameters);
+			TemplateDocument Template = new TemplateDocument(Name, Priority, bAllowPreflights, bUpdateIssues, InitialAgentType, SubmitNewChange, SubmitDescription, Arguments, Parameters);
 			if (await GetAsync(Template.Id) == null)
 			{
 				await Templates.ReplaceOneAsync(x => x.Id == Template.Id, Template, new ReplaceOptions { IsUpsert = true });

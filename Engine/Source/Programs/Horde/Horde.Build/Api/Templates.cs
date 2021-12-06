@@ -426,6 +426,11 @@ namespace HordeServer.Api
 		public string? SubmitNewChange { get; set; }
 
 		/// <summary>
+		/// Description for new changelists
+		/// </summary>
+		public string? SubmitDescription { get; set; }
+
+		/// <summary>
 		/// Fixed arguments for the new job
 		/// </summary>
 		public List<string> Arguments { get; set; } = new List<string>();

@@ -132,8 +132,9 @@ namespace HordeServer.Services
 		/// <param name="ClusterName">Name of the Perforce cluster</param>
 		/// <param name="StreamName">The stream to query</param>
 		/// <param name="Path">Path for the file to submit</param>
+		/// <param name="Description">Description for the changelist</param>
 		/// <returns>New changelist number</returns>
-		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path);
+		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path, string Description);
 
 		/// <summary>
 		/// Gets the code change corresponding to an actual change submitted to a stream
@@ -276,14 +277,16 @@ namespace HordeServer.Services
 		/// <returns>New changelist number</returns>
 		public static Task<int> CreateNewChangeForTemplateAsync(this IPerforceService Perforce, IStream Stream, ITemplate Template)
 		{
+			string Description = (Template.SubmitDescription ?? "[Horde] New change for $(TemplateName)").Replace("$(TemplateName)", Template.Name, StringComparison.OrdinalIgnoreCase);
+
 			Match Match = Regex.Match(Template.SubmitNewChange!, @"^(//[^/]+/[^/]+)/(.+)$");
 			if (Match.Success)
 			{
-				return Perforce.CreateNewChangeAsync(Stream.ClusterName, Match.Groups[1].Value, Match.Groups[2].Value);
+				return Perforce.CreateNewChangeAsync(Stream.ClusterName, Match.Groups[1].Value, Match.Groups[2].Value, Description);
 			}
 			else
 			{
-				return Perforce.CreateNewChangeAsync(Stream.ClusterName, Stream.Name, Template.SubmitNewChange!);
+				return Perforce.CreateNewChangeAsync(Stream.ClusterName, Stream.Name, Template.SubmitNewChange!, Description);
 			}
 		}
 

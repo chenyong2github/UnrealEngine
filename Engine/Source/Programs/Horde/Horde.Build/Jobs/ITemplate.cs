@@ -457,6 +457,11 @@ namespace HordeServer.Models
 		public string? SubmitNewChange { get; }
 
 		/// <summary>
+		/// Description for new changelists
+		/// </summary>
+		public string? SubmitDescription { get; }
+
+		/// <summary>
 		/// Optional predefined user-defined properties for this job
 		/// </summary>
 		public IReadOnlyList<string> Arguments { get; }

@@ -461,6 +461,17 @@ namespace HordeServer.Services
 
 		}
 
+		static void ResetClient(P4.Repository Repository)
+		{
+			Repository.Connection.Client.RevertFiles(new P4.Options(), new P4.DepotPath("//..."));
+
+			IList<P4.Changelist> Changes = Repository.GetChangelists(new P4.ChangesCmdOptions(P4.ChangesCmdFlags.None, Repository.Connection.Client.Name, 100, P4.ChangeListStatus.Pending, null));
+			foreach (P4.Changelist Change in Changes)
+			{
+				Repository.DeleteChangelist(Change, new P4.Options());
+			}
+		}
+
 		static P4.Client GetOrCreateClient(string? ServiceUserName, P4.Repository Repository, string? Stream, string? Username = null, bool ReadOnly = true, bool CreateChange = false, int? ClientFromChange = null, bool UseClientFromChange = false, bool UsePortFromChange = false)
 		{
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetOrCreateClient").StartActive();
@@ -1223,7 +1234,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public async Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string FilePath)
+		public async Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string FilePath, string Description)
 		{
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("PerforceService.CreateNewChangeAsync").StartActive();
 			Scope.Span.SetTag("ClusterName", ClusterName);
@@ -1247,11 +1258,13 @@ namespace HordeServer.Services
 				P4.Changelist? SubmitChangelist = null;
 				P4.DepotPath? DepotPath = null;
 
-				const int MaxRetries = 10;
+				const int MaxRetries = 5;
 				int Retry = 0;
 
 				for (; ; )
 				{
+					ResetClient(Repository);
+
 					DepotPath = null;
 
 					if (Retry == MaxRetries)
@@ -1333,17 +1346,14 @@ namespace HordeServer.Services
 						}
 
 						// create a new change
+						P4.Changelist Changelist = new P4.Changelist();
+						Changelist.Description = Description;
+						Changelist.Files.Add(new P4.FileMetaData(new P4.FileSpec(DepotPath)));
+						SubmitChangelist = Repository.CreateChangelist(Changelist);
+
 						if (SubmitChangelist == null)
 						{
-							P4.Changelist Changelist = new P4.Changelist();
-							Changelist.Description = "New change for Horde job";
-							Changelist.Files.Add(new P4.FileMetaData(new P4.FileSpec(DepotPath)));
-							SubmitChangelist = Repository.CreateChangelist(Changelist);
-
-							if (SubmitChangelist == null)
-							{
-								throw new Exception($"Unable to create a changelist for: {DepotPath}");
-							}
+							throw new Exception($"Unable to create a changelist for: {DepotPath}");
 						}
 
 						SubmitResults = SubmitChangelist.Submit(null);
@@ -1358,9 +1368,6 @@ namespace HordeServer.Services
 					catch
 					{
 						Retry++;
-
-						Client.RevertFiles(new P4.Options(), WorkspaceFileSpec);
-
 						continue;
 					}
 
