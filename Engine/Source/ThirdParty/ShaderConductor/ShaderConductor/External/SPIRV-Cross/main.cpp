@@ -1392,7 +1392,7 @@ static string compile_iteration(const CLIArguments &args, std::vector<uint32_t> 
 
 	if (combined_image_samplers)
 	{
-		compiler->build_combined_image_samplers();
+		compiler->build_combined_image_samplers(false);
 		if (args.combined_samplers_inherit_bindings)
 			spirv_cross_util::inherit_combined_sampler_bindings(*compiler);
 
@@ -1407,12 +1407,7 @@ static string compile_iteration(const CLIArguments &args, std::vector<uint32_t> 
 	if (args.hlsl)
 	{
 		auto *hlsl_compiler = static_cast<CompilerHLSL *>(compiler.get());
-		uint32_t new_builtin = hlsl_compiler->remap_num_workgroups_builtin();
-		if (new_builtin)
-		{
-			hlsl_compiler->set_decoration(new_builtin, DecorationDescriptorSet, 0);
-			hlsl_compiler->set_decoration(new_builtin, DecorationBinding, 0);
-		}
+		hlsl_compiler->remap_num_workgroups_builtin();
 	}
 
 	if (args.hlsl)
