@@ -377,65 +377,65 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 {
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		FName ChangedPropName = PropertyChangedEvent.Property->GetFName();
-
-		bool bUpdateSubmixGain = false;
-
-		if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolume))
-		{
-			OutputVolumeDB = Audio::ConvertToDecibels(OutputVolume);
-			bUpdateSubmixGain = true;
-		}
-		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevel))
-		{
-			WetLevelDB = Audio::ConvertToDecibels(OutputVolume);
-			bUpdateSubmixGain = true;
-		}
-		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevel))
-		{
-			DryLevelDB = Audio::ConvertToDecibels(DryLevel);
-			bUpdateSubmixGain = true;
-		}
-		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolumeDB))
-		{
-			if (OutputVolumeDB <= -160.f)
-			{
-				OutputVolume = 0.0f;
-			}
-			else
-			{
-				OutputVolume = Audio::ConvertToLinear(OutputVolumeDB);
-			}
-			bUpdateSubmixGain = true;
-		}
-		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevelDB))
-		{
-			if (WetLevelDB <= -120.f)
-			{
-				WetLevel = 0.0f;
-			}
-			else
-			{
-				WetLevel = Audio::ConvertToLinear(WetLevelDB);
-			}
-			bUpdateSubmixGain = true;
-		}
-		else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevelDB))
-		{
-			if (DryLevelDB <= -120.0f)
-			{
-				DryLevel = 0.0f;
-			}
-			else
-			{
-				DryLevel = Audio::ConvertToLinear(DryLevelDB);
-			}
-			bUpdateSubmixGain = true;
-		}
-
 		// Force the properties to be initialized for this SoundSubmix on all active audio devices
 		if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
 		{
+			FName MemberName = PropertyChangedEvent.MemberProperty->GetFName();
+
+			bool bUpdateSubmixGain = false;
+
+			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolume))
+			{
+				OutputVolumeDB = Audio::ConvertToDecibels(OutputVolume);
+				bUpdateSubmixGain = true;
+			}
+			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevel))
+			{
+				WetLevelDB = Audio::ConvertToDecibels(OutputVolume);
+				bUpdateSubmixGain = true;
+			}
+			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevel))
+			{
+				DryLevelDB = Audio::ConvertToDecibels(DryLevel);
+				bUpdateSubmixGain = true;
+			}
+			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolumeDB))
+			{
+				if (OutputVolumeDB <= -160.f)
+				{
+					OutputVolume = 0.0f;
+				}
+				else
+				{
+					OutputVolume = Audio::ConvertToLinear(OutputVolumeDB);
+				}
+				bUpdateSubmixGain = true;
+			}
+			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevelDB))
+			{
+				if (WetLevelDB <= -120.f)
+				{
+					WetLevel = 0.0f;
+				}
+				else
+				{
+					WetLevel = Audio::ConvertToLinear(WetLevelDB);
+				}
+				bUpdateSubmixGain = true;
+			}
+			else if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, DryLevelDB))
+			{
+				if (DryLevelDB <= -120.0f)
+				{
+					DryLevel = 0.0f;
+				}
+				else
+				{
+					DryLevel = Audio::ConvertToLinear(DryLevelDB);
+				}
+				bUpdateSubmixGain = true;
+			}
+
 			if (bUpdateSubmixGain)
 			{
 				const float NewOutputVolume = OutputVolume;
@@ -448,7 +448,25 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 				});
 			}
 
-			FName MemberName = PropertyChangedEvent.MemberProperty->GetFName();
+			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, bAutoDisable))
+			{
+				const bool NewAutoDisable = bAutoDisable;
+				USoundSubmix* SoundSubmix = this;
+				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, NewAutoDisable](Audio::FDeviceId Id, FAudioDevice* Device)
+				{
+					Device->SetSubmixAutoDisable(SoundSubmix, NewAutoDisable);
+				});
+			}
+
+			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, AutoDisableTime))
+			{
+				const float NewAutoDisableTime = AutoDisableTime;
+				USoundSubmix* SoundSubmix = this;
+				AudioDeviceManager->IterateOverAllDevices([SoundSubmix, NewAutoDisableTime](Audio::FDeviceId Id, FAudioDevice* Device)
+				{
+					Device->SetSubmixAutoDisableTime(SoundSubmix, NewAutoDisableTime);
+				});
+			}
 
 			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, OutputVolumeModulation)
 				|| MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, WetLevelModulation)
@@ -475,7 +493,7 @@ void USoundSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Property
 				});
 			}
 
-			if (ChangedPropName == GET_MEMBER_NAME_CHECKED(USoundSubmix, SubmixEffectChain))
+			if (MemberName == GET_MEMBER_NAME_CHECKED(USoundSubmix, SubmixEffectChain))
 			{
 				AudioDeviceManager->RegisterSoundSubmix(this);
 			}

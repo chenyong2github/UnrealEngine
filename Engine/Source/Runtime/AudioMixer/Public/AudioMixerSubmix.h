@@ -295,6 +295,15 @@ namespace Audio
 		//Returns true if this is an endpoint type that should no-op for this platform
 		bool IsDummyEndpointSubmix() const;
 
+		// Returns true if the submix is currently rendering audio. The current rendering time is passed in.
+		bool IsRenderingAudio() const;
+
+		// Set whether or not this submix is told to auto disable. 
+		void SetAutoDisable(bool bInAutoDisable);
+
+		// Sets the auto-disable time
+		void SetAutoDisableTime(float InAutoDisableTime);
+
 		// Get a unique key for this submix's format and settings.
 		// If another submix has an identical format and settings it will have an equivalent key.
 		FSoundfieldEncodingKey GetKeyForSubmixEncoding();
@@ -560,6 +569,24 @@ namespace Audio
 
 		// Whether or not this submix is muted.
 		uint8 bIsBackgroundMuted : 1;
+
+		// Whether or not auto-disablement is enabled. If true, the submix will disable itself.
+		uint8 bAutoDisable : 1;
+
+		// Whether or not the submix is currently rendering audio. I.e. audio was sent to it and mixing it, or any of its child submixes are rendering audio.
+		uint8 bIsSilent : 1;
+
+		// Whether or not we're currently disabled (i.e. the submix has been silent)
+		uint8 bIsCurrentlyDisabled : 1;
+
+		// The time to wait to disable the submix if the auto-disablement is active.
+		double AutoDisableTime;
+
+		// The time that the first full silent buffer was detected in the submix. Submix will auto-disable if the timeout is reached and the submix has bAutoDisable set to true.
+		double SilenceTimeStartSeconds;
+
+		// The name of this submix (the owning USoundSubmix)
+		FString SubmixName;
 
 		// Bool set to true when envelope following is enabled
 		FThreadSafeBool bIsEnvelopeFollowing;

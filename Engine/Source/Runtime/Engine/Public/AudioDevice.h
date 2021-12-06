@@ -1402,6 +1402,18 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
 	}
 
+	/** Set whether or not a submix is auto-disabled. */
+	virtual void SetSubmixAutoDisable(USoundSubmix* InSoundSubmix, bool bInAutoDisable)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Set what the auto-disable time is. */
+	virtual void SetSubmixAutoDisableTime(USoundSubmix* InSoundSubmix, float InDisableTime)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
 	virtual void UpdateSubmixModulationSettings(USoundSubmix* InSoundSubmix, USoundModulatorBase* InOutputModulation, USoundModulatorBase* InWetLevelModulation, USoundModulatorBase* InDryLevelModulation)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));

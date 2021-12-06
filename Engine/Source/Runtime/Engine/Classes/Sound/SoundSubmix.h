@@ -169,6 +169,14 @@ public:
 	UEdGraph* SoundSubmixGraph;
 #endif
 
+	// Automatically disable the submix if no sound is rendering in the submix. If false, the submix will remain on regardless of if audio is playing in the submix.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AutoDisablement)
+	bool bAutoDisable = true;
+
+	/** The minimum amount of time to wait before automatically disabling a submix once no audio is rendering in it. Actual silence time may be slightly higher than this value. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AutoDisablement, meta = (EditCondition = "bAutoDisable"))
+	float AutoDisableTime = 0.01f;
+
 	// Child submixes to this sound mix
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SoundSubmix)
 	TArray<TObjectPtr<USoundSubmixBase>> ChildSubmixes;

@@ -6,6 +6,7 @@
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceVoice.h"
 #include "AudioThread.h"
+#include "DSP/FloatArrayMath.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSubmix.h"
 #include "Sound/SoundModulationDestination.h"
@@ -31,6 +32,14 @@ FAutoConsoleVariableRef CVarBypassAllSubmixEffects(
 	BypassAllSubmixEffectsCVar,
 	TEXT("When set to 1, all submix effects will be bypassed.\n")
 	TEXT("1: Submix Effects are disabled."),
+	ECVF_Default);
+
+static int32 LogSubmixEnablementCVar = 1;
+FAutoConsoleVariableRef CVarLogSubmixEnablement(
+	TEXT("au.LogSubmixEnablement"),
+	LogSubmixEnablementCVar,
+	TEXT("Enables logging of submix enablement state.\n")
+	TEXT("1: Submix enablement logging is on. 0: Submix enablement logging is off."),
 	ECVF_Default);
 
 // Define profiling categories for submixes. 
@@ -179,6 +188,11 @@ namespace Audio
 		, NumSubmixEffects(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
+		, bAutoDisable(true)
+		, bIsSilent(false)
+		, bIsCurrentlyDisabled(false)
+		, AutoDisableTime(0.01)
+		, SilenceTimeStartSeconds(-1.0)
 		, bIsSpectrumAnalyzing(false)
 	{
 	}
@@ -204,6 +218,8 @@ namespace Audio
 		check(IsInAudioThread());
 		if (InSoundSubmix != nullptr)
 		{
+			SubmixName = InSoundSubmix->GetName();
+
 			// This is a first init and needs to be synchronous
 			if (!OwningSubmixObject.IsValid())
 			{
@@ -227,6 +243,12 @@ namespace Audio
 		// Loop through the submix's presets and make new instances of effects in the same order as the presets
 		ClearSoundEffectSubmixes();
 
+		// Copy any base data
+		bAutoDisable = OwningSubmixObject->bAutoDisable;
+		AutoDisableTime = (double)OwningSubmixObject->AutoDisableTime;
+		bIsSilent = false;
+		bIsCurrentlyDisabled = false;
+		SilenceTimeStartSeconds = -1.0;
 
 		if (const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
 		{
@@ -1031,6 +1053,46 @@ namespace Audio
 		return OwningSubmixObject.IsValid();
 	}
 
+	bool FMixerSubmix::IsRenderingAudio() const
+	{
+		// If this submix is not rendering any sources directly and silence has been detected, we need to check it's children submixes
+		if (MixerSourceVoices.Num() == 0 && SilenceTimeStartSeconds >= 0.0)
+		{
+			// Use the audio clock to check against the disablement timeout
+			double AudioClock = MixerDevice->GetAudioClock();
+			double TimeSinceSilent = AudioClock - SilenceTimeStartSeconds;
+
+			// If we're past the threshold for disablement, do one last check of any child submixes. Maybe they are now rendering audio.
+			if (TimeSinceSilent > AutoDisableTime)
+			{
+				for (auto& ChildSubmixEntry : ChildSubmixes)
+				{
+					TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> ChildSubmix = ChildSubmixEntry.Value.SubmixPtr.Pin();
+
+					// If any of the submix's children are rendering audio then this submix is also rendering audio
+					if (ChildSubmix->IsRenderingAudio())
+					{
+						return true;
+					}
+				}
+
+				// We're past the auto-disablement threshold and no child submixes are rendering audio, we're now silent
+				return false;
+			}
+		}
+		return true;
+	}
+
+	void FMixerSubmix::SetAutoDisable(bool bInAutoDisable)
+	{
+		bAutoDisable = bInAutoDisable;
+	}
+
+	void FMixerSubmix::SetAutoDisableTime(float InAutoDisableTime)
+	{
+		AutoDisableTime = InAutoDisableTime;
+	}
+
 	void FMixerSubmix::ProcessAudio(FAlignedFloatBuffer& OutAudioBuffer)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
@@ -1052,6 +1114,39 @@ namespace Audio
 		if (!ensure(NumChannels != 0 && NumChannels <= AUDIO_MIXER_MAX_OUTPUT_CHANNELS))
 		{
 			return;
+		}
+
+		// As an optimization, early out if we're set to auto-disable and we're not rendering audio
+		if (bAutoDisable && !IsRenderingAudio())
+		{
+			if (!bIsCurrentlyDisabled)
+			{
+				bIsCurrentlyDisabled = true;
+
+				if (LogSubmixEnablementCVar == 1)
+				{
+					double AudioClock = MixerDevice->GetAudioClock();
+					double TimeSinceSilent = AudioClock - SilenceTimeStartSeconds;
+
+					UE_LOG(LogAudioMixer, Log, 
+						TEXT("Submix Disabled. Num Sources: %d, Time Silent: %.2f, Disablement Threshold: %.2f, Submix Name: %s"), 
+						MixerSourceVoices.Num(),
+						(float)TimeSinceSilent,
+						AutoDisableTime,
+						*SubmixName);
+				}
+			}
+
+			return;
+		}
+
+		if (bIsCurrentlyDisabled)
+		{
+			bIsCurrentlyDisabled = false;
+			if (LogSubmixEnablementCVar == 1)
+			{
+				UE_LOG(LogAudioMixer, Log, TEXT("Submix Enabled: %s"), *SubmixName);
+			}
 		}
 
 		// If this is a Soundfield Submix, process our soundfield and decode it to a OutAudioBuffer.
@@ -1097,9 +1192,7 @@ namespace Audio
 			// Pump pending command queues. For Soundfield Submixes this occurs in ProcessAudio(ISoundfieldAudioPacket&).
 			PumpCommandQueue();
 		}
-
-		
-
+	
 		const int32 NumOutputFrames = OutAudioBuffer.Num() / NumChannels;
 		NumSamples = NumChannels * NumOutputFrames;
 
@@ -1123,7 +1216,10 @@ namespace Audio
 				// forcibly deleted in editor, so submix validity (in addition to pointer validity) is checked before processing
 				if (ChildSubmix.IsValid() && ChildSubmix->IsValid())
 				{
-					ChildSubmix->ProcessAudio(InputBuffer);
+					if (ChildSubmix->IsRenderingAudio())
+					{
+						ChildSubmix->ProcessAudio(InputBuffer);
+					}
 				}
 				else
 				{
@@ -1387,6 +1483,26 @@ namespace Audio
 
 		// Mix the audio buffer of this submix with the audio buffer of the output buffer (i.e. with other submixes)
 		Audio::MixInBufferFast(InputBuffer, OutAudioBuffer);
+
+		// Once we've finished rendering submix audio, check if the output buffer is silent if we are auto-disabling
+		if (bAutoDisable)
+		{
+			// Get the mean squared value of the buffer. If the value is very small, then it's counted as "silent".
+			float BufferMean = 0.0f;
+			Audio::ArrayMeanSquared(OutAudioBuffer, BufferMean);
+
+			// If this is the first time we're silent track when it happens
+			if (BufferMean <= KINDA_SMALL_NUMBER && !bIsSilent)
+			{
+				bIsSilent = true;
+				SilenceTimeStartSeconds = MixerDevice->GetAudioClock();
+			}
+			else
+			{
+				bIsSilent = false;
+				SilenceTimeStartSeconds = -1.0;
+			}
+		}
 
 		// Now loop through any buffer listeners and feed the listeners the result of this audio callback
 		if(const USoundSubmix* SoundSubmix = Cast<const USoundSubmix>(OwningSubmixObject))
