@@ -20,6 +20,7 @@ class APreviewGeometryActor;
 class FToolCommandChange;
 class ULineSetComponent;
 class UMeshSelectionMechanic;
+class UPointSetComponent;
 class UToolTargetManager;
 class UCombinedTransformGizmo;
 class UTransformProxy;
@@ -169,6 +170,9 @@ protected:
 	TObjectPtr<ULineSetComponent> LivePreviewLineSet = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UPointSetComponent> LivePreviewPointSet = nullptr;
+
+	UPROPERTY()
 	TObjectPtr<UUVToolEmitChangeAPI> EmitChangeAPI = nullptr;
 
 	UPROPERTY()
@@ -191,7 +195,8 @@ protected:
 	TArray<int32> SelectedTids;
 	TArray<FVector3d> MovingVertOriginalPositions;
 	int32 SelectionTargetIndex;
-	TArray<int32> LivePreviewBoundaryEids;
+	TSet<int32> LivePreviewEids;
+	TSet<int32> LivePreviewVids;
 	
 	// When selecting edges, used to hold the edges as pairs of vids, because the eids change
 	// during undo/redo and other topological operations.

@@ -61,8 +61,15 @@ public:
 	/** Reserve enough memory for up to the given ID */
 	void ReservePoints(const int32 MaxID);
 
-	/** Add a point to the set */
+	/** Add a point to be rendered using the component. */
 	int32 AddPoint(const FRenderablePoint& OverlayPoint);
+
+	/** Create and add a point to be rendered using the component. */
+	int32 AddPoint(const FVector& InPosition, const FColor& InColor, const float InSize, const float InDepthBias = 0.0f)
+	{
+		// This is just a convenience function to avoid client code having to know about FRenderablePoint.
+		return AddPoint(FRenderablePoint(InPosition, InColor, InSize, InDepthBias));
+	}
 
 	/** Insert a point with the given ID into the set. */
 	void InsertPoint(const int32 ID, const FRenderablePoint& OverlayPoint);

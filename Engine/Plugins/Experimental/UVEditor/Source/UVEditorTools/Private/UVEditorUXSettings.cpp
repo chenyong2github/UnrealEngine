@@ -50,6 +50,7 @@ const FColor FUVEditorUXSettings::GridMinorColor(FColor::FromHex("#777777"));
 
 // Thicknesses
 const float FUVEditorUXSettings::LivePreviewHighlightThickness(2.0);
+const float FUVEditorUXSettings::LivePreviewHighlightPointSize(4);
 const float FUVEditorUXSettings::SelectionLineThickness(1.5);
 const float FUVEditorUXSettings::SelectionPointThickness(6);
 const float FUVEditorUXSettings::SewLineHighlightThickness(3.0f);

@@ -8,6 +8,7 @@
 #include "ContextObjectStore.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/MeshElementsVisualizer.h"
+#include "Drawing/PointSetComponent.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMesh/MeshIndexUtil.h"
@@ -447,6 +448,12 @@ void UUVSelectTool::Setup()
 	LivePreviewLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetToolManager(), /*bDepthTested*/ true));
 
+	LivePreviewPointSet = NewObject<UPointSetComponent>(LivePreviewGeometryActor);
+	LivePreviewPointSet->AttachToComponent(LivePreviewLineSet, FAttachmentTransformRules::KeepWorldTransform);
+	LivePreviewPointSet->RegisterComponent();
+	LivePreviewPointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(
+		GetToolManager(), /*bDepthTested*/ true));
+
 	SewAction = NewObject<UUVSeamSewAction>();
 	SewAction->Setup(this);
 	SewAction->SetTargets(Targets);
@@ -492,6 +499,8 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		LivePreviewGeometryActor->Destroy();
 		LivePreviewGeometryActor = nullptr;
+		LivePreviewPointSet = nullptr;
+		LivePreviewLineSet = nullptr;
 	}
 
 	if (SewAction)
@@ -631,7 +640,8 @@ void UUVSelectTool::OnSelectionChanged()
 	SelectionTargetIndex = -1;
 	MovingVids.Reset();
 	SelectedTids.Reset();
-	LivePreviewBoundaryEids.Reset();
+	LivePreviewEids.Reset();
+	LivePreviewVids.Reset();
 
 	if (!Selection.IsEmpty())
 	{
@@ -646,6 +656,9 @@ void UUVSelectTool::OnSelectionChanged()
 		}
 		check(SelectionTargetIndex >= 0);
 
+		UUVEditorToolMeshInput* Target = Targets[SelectionTargetIndex];
+		const FDynamicMesh3* LivePreviewMesh = Target->AppliedCanonical.Get();
+
 		// Note the selected vids
 		TSet<int32> VidSet;
 		TSet<int32> TidSet;
@@ -653,7 +666,6 @@ void UUVSelectTool::OnSelectionChanged()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Triangle);
 
-			const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
 			for (int32 Tid : Selection.SelectedIDs)
 			{
 				FIndex3i TriVids = Selection.Mesh->GetTriangle(Tid);
@@ -680,7 +692,7 @@ void UUVSelectTool::OnSelectionChanged()
 					{
 						if (EdgeTids[j] != Tid && !Selection.SelectedIDs.Contains(EdgeTids[j]))
 						{
-							LivePreviewBoundaryEids.Add(TriEids[i]);
+							LivePreviewEids.Add(TriEids[i]);
 							break;
 						}
 					}
@@ -713,6 +725,11 @@ void UUVSelectTool::OnSelectionChanged()
 						}
 					}
 				}
+
+				// Add the edge highlight in the live preview
+				LivePreviewEids.Add(LivePreviewMesh->FindEdge(
+					Target->UnwrapVidToAppliedVid(EdgeVids.A),
+					Target->UnwrapVidToAppliedVid(EdgeVids.B)));
 			}
 		}
 		else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
@@ -738,6 +755,7 @@ void UUVSelectTool::OnSelectionChanged()
 					}
 				}
 
+				LivePreviewVids.Add(Target->UnwrapVidToAppliedVid(Vid));
 			}
 		}
 		else
@@ -763,6 +781,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 	TRACE_CPUPROFILER_EVENT_SCOPE(UVSelectTool_UpdateLivePreviewLines);
 	
 	LivePreviewLineSet->Clear();
+	LivePreviewPointSet->Clear();
 
 	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
 	if (!Selection.IsEmpty())
@@ -770,7 +789,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 		FTransform MeshTransform = Targets[SelectionTargetIndex]->AppliedPreview->PreviewMesh->GetTransform();
 		const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
 
-		for (int32 Eid : LivePreviewBoundaryEids)
+		for (int32 Eid : LivePreviewEids)
 		{
 			FVector3d Vert1, Vert2;
 			LivePreviewMesh->GetEdgeV(Eid, Vert1, Vert2);
@@ -781,7 +800,17 @@ void UUVSelectTool::UpdateLivePreviewLines()
 				FUVEditorUXSettings::SelectionTriangleWireframeColor,
 				FUVEditorUXSettings::LivePreviewHighlightThickness,
 				FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
-		}	
+		}
+
+		for (int32 Vid : LivePreviewVids)
+		{
+			FVector3d Position = LivePreviewMesh->GetVertex(Vid);
+
+			LivePreviewPointSet->AddPoint(Position, 
+				FUVEditorUXSettings::SelectionTriangleWireframeColor,
+				FUVEditorUXSettings::LivePreviewHighlightPointSize,
+				FUVEditorUXSettings::LivePreviewHighlightDepthOffset);
+		}
 	}
 }
 
