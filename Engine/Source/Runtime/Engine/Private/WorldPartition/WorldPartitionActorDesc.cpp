@@ -144,6 +144,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		bActorIsHLODRelevant == Other->bActorIsHLODRelevant && 
 		HLODLayer == Other->HLODLayer && 
 		FolderPath == Other->FolderPath &&
+		ParentActor == Other->ParentActor &&
 		DataLayers.Num() == Other->DataLayers.Num() &&
 		References.Num() == Other->References.Num())
 	{
