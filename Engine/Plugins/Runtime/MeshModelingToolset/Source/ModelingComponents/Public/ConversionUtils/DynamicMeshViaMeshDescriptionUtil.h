@@ -11,6 +11,7 @@
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 class IMeshDescriptionCommitter;
 class IMeshDescriptionProvider;
+struct FMeshDescription;
 
 namespace UE {
 namespace Geometry {
