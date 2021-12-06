@@ -252,7 +252,7 @@ public:
 				FPathViews::Append(Path, SandboxRoot, TEXT("Outputs"), FIoHash(Payload.GetRawHash()));
 				if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*Path, FILEREAD_Silent)})
 				{
-					BufferForPayload = FCompressedBuffer::FromCompressed(*Ar);
+					BufferForPayload = FCompressedBuffer::Load(*Ar);
 				}
 
 				if (BufferForPayload.IsNull())

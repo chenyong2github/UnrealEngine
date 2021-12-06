@@ -63,8 +63,8 @@ inline EStorageServerContentType GetMimeType(const FAnsiStringView& ContentType)
 
 struct FStorageServerSerializationContext
 {
-	TArray<uint8> CompressedBuffer;
-	FCompressedBufferDecoder Decoder;
+	TArray64<uint8> CompressedBuffer;
+	FCompressedBufferReader Decoder;
 };
 
 class FStorageServerRequest

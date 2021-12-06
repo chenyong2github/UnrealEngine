@@ -87,9 +87,9 @@ void FEditorDerivedDataCompressedBuffer::Read(IoStore::FDerivedDataIoRequest Req
 	const uint64 RequestSize = FMath::Min(Request.GetSize(), RequestOffset <= DataSize ? DataSize - RequestOffset : 0);
 	if (RequestSize)
 	{
-		if (const FSharedBuffer Buffer = Data.Decompress())
+		const FMutableMemoryView View = Request.CreateBuffer(RequestSize);
+		if (FCompressedBufferReader(Data).TryDecompressTo(View, RequestOffset))
 		{
-			Request.CreateBuffer(RequestSize).CopyFrom(Buffer.GetView().Mid(RequestOffset, RequestSize));
 			Request.SetComplete();
 		}
 		else

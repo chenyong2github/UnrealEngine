@@ -305,7 +305,7 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 		{
 			if (TUniquePtr<FArchive> Ar = OpenOutput(Output.GetName(), Payload.GetRawHash()))
 			{
-				*Ar << const_cast<FCompressedBuffer&>(Payload.GetData());
+				Payload.GetData().Save(*Ar);
 				if (Ar->Close())
 				{
 					continue;

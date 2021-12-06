@@ -821,7 +821,7 @@ void FZenDerivedDataBackend::GetChunks(
 				else if (const FCbAttachment* Attachment = BatchResponse.FindAttachment(HashView.AsHash()))
 				{
 					const FCompressedBuffer& CompressedBuffer = Attachment->AsCompressedBinary();
-					FSharedBuffer Buffer = CompressedBuffer.Decompress(Chunk.RawOffset, Chunk.RawSize);
+					FSharedBuffer Buffer = FCompressedBufferReader(CompressedBuffer).Decompress(Chunk.RawOffset, Chunk.RawSize);
 					
 					UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit for '%s' from '%.*s'"),
 						*GetName(), *WriteToString<96>(Chunk.Key, '/', Chunk.Id), Context.Len(), Context.GetData());

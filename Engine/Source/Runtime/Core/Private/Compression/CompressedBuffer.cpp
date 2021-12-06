@@ -9,9 +9,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/Crc.h"
-#include "Misc/ScopeExit.h"
 #include "Serialization/Archive.h"
-#include "Templates/Function.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "Compression/lz4.h"
@@ -166,9 +164,8 @@ class FDecoder
 {
 public:
 	virtual uint64 GetHeaderSize(const FHeader& Header) const = 0;
-	virtual void DecodeHeader(FMutableMemoryView HeaderView) const = 0;
-	virtual bool TryDecompressTo(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, uint64 RawOffset, FMutableMemoryView RawView) const = 0;
-	virtual FCompositeBuffer DecompressToComposite(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, uint64 RawOffset, uint64 RawSize) const =0;
+	virtual bool TryDecompressTo(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, FMemoryView HeaderView, uint64 RawOffset, FMutableMemoryView RawView) const = 0;
+	virtual FCompositeBuffer DecompressToComposite(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, const FMemoryView HeaderView, uint64 RawOffset, uint64 RawSize) const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,20 +196,18 @@ public:
 		return sizeof(FHeader);
 	}
 
-	void DecodeHeader(FMutableMemoryView HeaderView) const final
-	{
-		FHeader& Header = *static_cast<FHeader*>(HeaderView.GetData());
-		Header.ByteSwap();
-	}
-
 	bool TryDecompressTo(
 		FDecoderContext& Context,
 		const FDecoderSource& Source,
 		const FHeader& Header,
-		uint64 RawOffset,
-		FMutableMemoryView RawView) const final
+		const FMemoryView HeaderView,
+		const uint64 RawOffset,
+		const FMutableMemoryView RawView) const final
 	{
-		if (Header.Method == EMethod::None && RawOffset + RawView.GetSize() <= Header.TotalRawSize)
+		if (Header.Method == EMethod::None &&
+			RawOffset <= Header.TotalRawSize &&
+			RawView.GetSize() <= Header.TotalRawSize - RawOffset &&
+			Header.TotalCompressedSize == Header.TotalRawSize + sizeof(FHeader))
 		{
 			return Source.Read(sizeof(FHeader) + RawOffset, RawView);
 		}
@@ -223,10 +218,13 @@ public:
 		FDecoderContext& Context,
 		const FDecoderSource& Source,
 		const FHeader& Header,
-		uint64 RawOffset,
-		uint64 RawSize) const final
+		const FMemoryView HeaderView,
+		const uint64 RawOffset,
+		const uint64 RawSize) const final
 	{
 		if (Header.Method == EMethod::None &&
+			RawOffset <= Header.TotalRawSize &&
+			RawSize <= Header.TotalRawSize - RawOffset &&
 			Header.TotalCompressedSize == Header.TotalRawSize + sizeof(FHeader))
 		{
 			return Source.ReadToComposite(sizeof(FHeader) + RawOffset, RawSize);
@@ -269,11 +267,11 @@ FCompositeBuffer FBlockEncoder::Compress(const FCompositeBuffer& RawData, const 
 	FBlake3 RawHash;
 
 	const uint64 BlockCount = FMath::DivideAndRoundUp(RawSize, BlockSize);
-	checkf(BlockCount <= MAX_uint32, TEXT("Raw data of size %" UINT64_FMT " with block size %" UINT64_FMT " requires ")
+	checkf(BlockCount < MAX_uint32, TEXT("Raw data of size %" UINT64_FMT " with block size %" UINT64_FMT " requires ")
 		TEXT("%" UINT64_FMT " blocks, but the limit is %u."), RawSize, BlockSize, BlockCount, MAX_uint32);
 
 	// Allocate the buffer for the header, metadata, and compressed blocks.
-	const uint64 MetaSize = BlockCount * sizeof(uint32);
+	const uint64 MetaSize = sizeof(uint32) * BlockCount;
 	const uint64 CompressedDataSize = sizeof(FHeader) + MetaSize + GetCompressedBlocksBound(BlockCount, BlockSize, RawSize);
 	FUniqueBuffer CompressedData = FUniqueBuffer::Alloc(CompressedDataSize);
 
@@ -347,16 +345,8 @@ public:
 		return sizeof(FHeader) + sizeof(uint32) * uint64(Header.BlockCount);
 	}
 
-	void DecodeHeader(FMutableMemoryView HeaderView) const final
-	{
-		FHeader& Header = *static_cast<FHeader*>(HeaderView.GetData());
-		Header.ByteSwap();
-		TArrayView<uint32> CompressedBlockSizes(reinterpret_cast<uint32*>(&Header + 1), Header.BlockCount);
-		Algo::ForEach(CompressedBlockSizes, [](uint32& Size) { Size = NETWORK_ORDER32(Size); });
-	}
-
-	bool TryDecompressTo(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, uint64 RawOffset, FMutableMemoryView RawView) const final;
-	FCompositeBuffer DecompressToComposite(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, uint64 RawOffset, uint64 RawSize) const final;
+	bool TryDecompressTo(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, FMemoryView HeaderView, uint64 RawOffset, FMutableMemoryView RawView) const final;
+	FCompositeBuffer DecompressToComposite(FDecoderContext& Context, const FDecoderSource& Source, const FHeader& Header, const FMemoryView HeaderView, uint64 RawOffset, uint64 RawSize) const final;
 
 protected:
 	virtual bool DecompressBlock(FMutableMemoryView RawData, FMemoryView CompressedData) const = 0;
@@ -366,6 +356,7 @@ bool FBlockDecoder::TryDecompressTo(
 	FDecoderContext& Context,
 	const FDecoderSource& Source,
 	const FHeader& Header,
+	const FMemoryView HeaderView,
 	const uint64 RawOffset,
 	FMutableMemoryView RawView) const
 {
@@ -375,21 +366,22 @@ bool FBlockDecoder::TryDecompressTo(
 	}
 
 	const uint64 BlockSize = uint64(1) << Header.BlockSizeExponent;
-	const uint64 FirstBlockIndex = uint64(RawOffset / BlockSize);
-	const uint64 LastBlockIndex = uint64((RawOffset + RawView.GetSize() - 1) / BlockSize);
-	const uint64 LastBlockSize = BlockSize - ((Header.BlockCount * BlockSize) - Header.TotalRawSize);
+	const uint64 LastBlockSize = BlockSize - (BlockSize * Header.BlockCount - Header.TotalRawSize);
+	const uint32 FirstBlockIndex = uint32(RawOffset / BlockSize);
+	const uint32 LastBlockIndex = uint32((RawOffset + RawView.GetSize() - 1) / BlockSize);
 
 	uint64 RawBlockOffset = RawOffset % BlockSize;
 
-	const TConstArrayView64<uint32> CompressedBlockSizes(reinterpret_cast<const uint32*>(&Header + 1), Header.BlockCount);
-	uint64 CompressedOffset = sizeof(FHeader) + uint64(Header.BlockCount) * sizeof(uint32);
-	CompressedOffset += Algo::Accumulate(CompressedBlockSizes.Left(FirstBlockIndex), uint64(0));
+	const uint32* const CompressedBlockSizes = static_cast<const uint32*>(HeaderView.RightChop(sizeof(FHeader)).GetData());
+	uint64 CompressedOffset = sizeof(FHeader) + sizeof(uint32) * uint32(Header.BlockCount) +
+		Algo::TransformAccumulate(MakeArrayView(CompressedBlockSizes, FirstBlockIndex),
+			[](uint32 Size) -> uint64 { return NETWORK_ORDER32(Size); }, uint64(0));
 
-	for (uint64 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; BlockIndex++)
+	for (uint32 BlockIndex = FirstBlockIndex; BlockIndex <= LastBlockIndex; BlockIndex++)
 	{
 		const uint64 RawBlockSize = BlockIndex == Header.BlockCount - 1 ? LastBlockSize : BlockSize;
 		const uint64 RawBlockReadSize = FMath::Min(RawView.GetSize(), RawBlockSize - RawBlockOffset);
-		const uint32 CompressedBlockSize = CompressedBlockSizes[BlockIndex];
+		const uint32 CompressedBlockSize = NETWORK_ORDER32(CompressedBlockSizes[BlockIndex]);
 		const bool bIsCompressed = CompressedBlockSize < RawBlockSize;
 
 		if (bIsCompressed)
@@ -444,11 +436,12 @@ FCompositeBuffer FBlockDecoder::DecompressToComposite(
 	FDecoderContext& Context,
 	const FDecoderSource& Source,
 	const FHeader& Header,
+	const FMemoryView HeaderView,
 	const uint64 RawOffset,
 	const uint64 RawSize) const
 {
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(RawSize);
-	if (TryDecompressTo(Context, Source, Header, RawOffset, Buffer))
+	if (TryDecompressTo(Context, Source, Header, HeaderView, RawOffset, Buffer))
 	{
 		return FCompositeBuffer(Buffer.MoveToShared());
 	}
@@ -603,21 +596,24 @@ bool FHeader::IsValid(const FCompositeBuffer& CompressedData)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static const FHeader* TryReadHeader(FDecoderContext& Context, FArchive& Ar)
+static bool TryReadHeader(FDecoderContext& Context, FArchive& Ar, FHeader& OutHeader, FMemoryView& OutHeaderView)
 {
 	if (Context.HeaderOffset != MAX_uint64)
 	{
-		return static_cast<const FHeader*>(Context.Header.GetData());
+		OutHeaderView = Context.Header.GetView().Left(Context.HeaderSize);
+		MakeMemoryView(&OutHeader, &OutHeader + 1).CopyFrom(OutHeaderView.Left(sizeof(FHeader)));
+		OutHeader.ByteSwap();
+		return true;
 	}
 
 	check(Ar.IsLoading());
 	const int64 Offset = Ar.Tell();
 	if (Offset == INDEX_NONE)
 	{
-		return nullptr;
+		return false;
 	}
 
-	FHeader Header;
+	FHeader& Header = OutHeader;
 	Ar.Serialize(&Header, sizeof(FHeader));
 	Header.ByteSwap();
 
@@ -631,57 +627,63 @@ static const FHeader* TryReadHeader(FDecoderContext& Context, FArchive& Ar)
 
 		const FMutableMemoryView HeaderView = Context.Header.GetView().Left(HeaderSize);
 		const FMutableMemoryView HeaderTail = HeaderView.CopyFrom(MakeMemoryView(&Header, &Header + 1));
-		Ar.Serialize(HeaderTail.GetData(), static_cast<int64>(HeaderTail.GetSize()));
+		Ar.Serialize(HeaderTail.GetData(), int64(HeaderTail.GetSize()));
 
 		FHeader* const HeaderCopy = static_cast<FHeader*>(HeaderView.GetData());
 		HeaderCopy->ByteSwap();
 		if (Header.Crc32 == FHeader::CalculateCrc32(HeaderView))
 		{
 			Context.HeaderOffset = uint64(Offset);
-			Decoder->DecodeHeader(HeaderView);
-			return HeaderCopy;
+			Context.HeaderSize = HeaderSize;
+			Context.HeaderCrc32 = Header.Crc32;
+			Context.RawBlockIndex = MAX_uint32;
+			OutHeaderView = HeaderView;
+			return true;
 		}
 	}
 
-	return nullptr;
+	return false;
 }
 
-static const FHeader* TryReadHeader(FDecoderContext& Context, const FCompositeBuffer& Buffer)
+static bool TryReadHeader(FDecoderContext& Context, const FCompositeBuffer& Buffer, FHeader& OutHeader, FMemoryView& OutHeaderView)
 {
 	if (Context.HeaderOffset != MAX_uint64)
 	{
-		return static_cast<const FHeader*>(Context.Header.GetData());
+		OutHeaderView = Buffer.ViewOrCopyRange(Context.HeaderOffset, Context.HeaderSize, Context.Header);
+		MakeMemoryView(&OutHeader, &OutHeader + 1).CopyFrom(OutHeaderView.Left(sizeof(FHeader)));
+		OutHeader.ByteSwap();
+		return true;
 	}
 
 	if (Buffer.GetSize() < sizeof(FHeader))
 	{
-		return nullptr;
+		return false;
 	}
 
-	FHeader Header;
+	FHeader& Header = OutHeader;
 	Buffer.CopyTo(MakeMemoryView(&Header, &Header + 1));
 	Header.ByteSwap();
 
 	if (const FDecoder* const Decoder = GetDecoder(Header.Method); Decoder && Header.Magic == FHeader::ExpectedMagic)
 	{
 		const uint64 HeaderSize = Decoder->GetHeaderSize(Header);
-		if (Context.Header.GetSize() < HeaderSize)
-		{
-			Context.Header = FUniqueBuffer::Alloc(FMath::Max(FMath::RoundUpToPowerOfTwo64(HeaderSize), DefaultHeaderSize));
-		}
-
-		const FMutableMemoryView HeaderView = Context.Header.GetView().Left(HeaderSize);
-		Buffer.CopyTo(HeaderView);
-
+		const FMemoryView HeaderView = Buffer.ViewOrCopyRange(0, HeaderSize, Context.Header,
+			[](uint64 Size) { return FUniqueBuffer::Alloc(FMath::Max(FMath::RoundUpToPowerOfTwo64(Size), DefaultHeaderSize)); });
 		if (Header.Crc32 == FHeader::CalculateCrc32(HeaderView))
 		{
 			Context.HeaderOffset = 0;
-			Decoder->DecodeHeader(HeaderView);
-			return static_cast<FHeader*>(HeaderView.GetData());
+			Context.HeaderSize = HeaderSize;
+			if (Context.HeaderCrc32 != Header.Crc32)
+			{
+				Context.HeaderCrc32 = Header.Crc32;
+				Context.RawBlockIndex = MAX_uint32;
+			}
+			OutHeaderView = HeaderView;
+			return true;
 		}
 	}
 
-	return nullptr;
+	return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -838,7 +840,7 @@ FCompressedBuffer FCompressedBuffer::FromCompressed(FSharedBuffer&& InCompressed
 	return Local;
 }
 
-FCompressedBuffer FCompressedBuffer::FromCompressed(FArchive& Ar)
+FCompressedBuffer FCompressedBuffer::Load(FArchive& Ar)
 {
 	using namespace UE::CompressedBuffer::Private;
 	check(Ar.IsLoading());
@@ -861,6 +863,15 @@ FCompressedBuffer FCompressedBuffer::FromCompressed(FArchive& Ar)
 		Ar.SetError();
 	}
 	return Local;
+}
+
+void FCompressedBuffer::Save(FArchive& Ar) const
+{
+	check(Ar.IsSaving());
+	for (const FSharedBuffer& Segment : CompressedData.GetSegments())
+	{
+		Ar.Serialize(const_cast<void*>(Segment.GetData()), int64(Segment.GetSize()));
+	}
 }
 
 uint64 FCompressedBuffer::GetCompressedSize() const
@@ -891,27 +902,26 @@ bool FCompressedBuffer::TryGetCompressParameters(
 	return false;
 }
 
-bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset) const
+bool FCompressedBuffer::TryDecompressTo(const FMutableMemoryView RawView) const
 {
-	if (CompressedData)
+	if (CompressedData && RawView.GetSize() == GetRawSize())
 	{
-		return FCompressedBufferReader(*this).TryDecompressTo(RawView, RawOffset);
+		return FCompressedBufferReader(*this).TryDecompressTo(RawView);
 	}
 	return false;
 }
 
-FSharedBuffer FCompressedBuffer::Decompress(uint64 RawOffset, uint64 RawSize) const
+FSharedBuffer FCompressedBuffer::Decompress() const
 {
 	if (CompressedData)
 	{
-		return FCompressedBufferReader(*this).Decompress(RawOffset, RawSize);
+		return FCompressedBufferReader(*this).Decompress();
 	}
 	return FSharedBuffer();
 }
 
 FCompositeBuffer FCompressedBuffer::DecompressToComposite() const
 {
-	using namespace UE::CompressedBuffer::Private;
 	if (CompressedData)
 	{
 		return FCompressedBufferReader(*this).DecompressToComposite();
@@ -925,14 +935,11 @@ FArchive& operator<<(FArchive& Ar, FCompressedBuffer& Buffer)
 {
 	if (Ar.IsLoading())
 	{
-		Buffer = FCompressedBuffer::FromCompressed(Ar);
+		Buffer = FCompressedBuffer::Load(Ar);
 	}
 	else
 	{
-		for (const FSharedBuffer& Segment : Buffer.GetCompressed().GetSegments())
-		{
-			Ar.Serialize(const_cast<void*>(Segment.GetData()), static_cast<int64>(Segment.GetSize()));
-		}
+		Buffer.Save(Ar);
 	}
 	return Ar;
 }
@@ -962,7 +969,6 @@ void FCompressedBufferReader::ResetBuffers()
 void FCompressedBufferReader::ResetSource()
 {
 	Context.HeaderOffset = MAX_uint64;
-	Context.RawBlockIndex = MAX_uint64;
 	SourceArchive = nullptr;
 	SourceBuffer = nullptr;
 }
@@ -974,7 +980,6 @@ void FCompressedBufferReader::SetSource(FArchive& Archive)
 		return;
 	}
 	Context.HeaderOffset = MAX_uint64;
-	Context.RawBlockIndex = MAX_uint64;
 	SourceArchive = &Archive;
 	SourceBuffer = nullptr;
 }
@@ -986,7 +991,6 @@ void FCompressedBufferReader::SetSource(const FCompressedBuffer& Buffer)
 		return;
 	}
 	Context.HeaderOffset = MAX_uint64;
-	Context.RawBlockIndex = MAX_uint64;
 	SourceArchive = nullptr;
 	SourceBuffer = &Buffer;
 }
@@ -994,13 +998,11 @@ void FCompressedBufferReader::SetSource(const FCompressedBuffer& Buffer)
 uint64 FCompressedBufferReader::GetCompressedSize()
 {
 	using namespace UE::CompressedBuffer::Private;
-	if (const FCompressedBuffer* const Buffer = SourceBuffer)
+	FHeader Header;
+	FMemoryView HeaderView;
+	if (TryReadHeader(Header, HeaderView))
 	{
-		return Buffer->GetCompressedSize();
-	}
-	if (const FHeader* const Header = TryReadHeader())
-	{
-		return Header->TotalCompressedSize;
+		return Header.TotalCompressedSize;
 	}
 	return 0;
 }
@@ -1008,13 +1010,11 @@ uint64 FCompressedBufferReader::GetCompressedSize()
 uint64 FCompressedBufferReader::GetRawSize()
 {
 	using namespace UE::CompressedBuffer::Private;
-	if (const FCompressedBuffer* const Buffer = SourceBuffer)
+	FHeader Header;
+	FMemoryView HeaderView;
+	if (TryReadHeader(Header, HeaderView))
 	{
-		return Buffer->GetRawSize();
-	}
-	if (const FHeader* const Header = TryReadHeader())
-	{
-		return Header->TotalRawSize;
+		return Header.TotalRawSize;
 	}
 	return 0;
 }
@@ -1022,13 +1022,11 @@ uint64 FCompressedBufferReader::GetRawSize()
 FBlake3Hash FCompressedBufferReader::GetRawHash()
 {
 	using namespace UE::CompressedBuffer::Private;
-	if (const FCompressedBuffer* const Buffer = SourceBuffer)
+	FHeader Header;
+	FMemoryView HeaderView;
+	if (TryReadHeader(Header, HeaderView))
 	{
-		return Buffer->GetRawHash();
-	}
-	if (const FHeader* const Header = TryReadHeader())
-	{
-		return Header->RawHash;
+		return Header.RawHash;
 	}
 	return FBlake3Hash();
 }
@@ -1039,32 +1037,32 @@ bool FCompressedBufferReader::TryGetCompressParameters(
 	uint64& OutBlockSize)
 {
 	using namespace UE::CompressedBuffer::Private;
-	if (const FCompressedBuffer* const Buffer = SourceBuffer)
+	FHeader Header;
+	FMemoryView HeaderView;
+	if (TryReadHeader(Header, HeaderView))
 	{
-		return Buffer->TryGetCompressParameters(OutCompressor, OutCompressionLevel, OutBlockSize);
-	}
-	if (const FHeader* const Header = TryReadHeader())
-	{
-		return Header->TryGetCompressParameters(OutCompressor, OutCompressionLevel, OutBlockSize);
+		return Header.TryGetCompressParameters(OutCompressor, OutCompressionLevel, OutBlockSize);
 	}
 	return false;
 }
 
-bool FCompressedBufferReader::TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset)
+bool FCompressedBufferReader::TryDecompressTo(const FMutableMemoryView RawView, const uint64 RawOffset)
 {
 	using namespace UE::CompressedBuffer::Private;
-	if (const FHeader* const Header = TryReadHeader())
+	FHeader Header;
+	FMemoryView HeaderView;
+	if (TryReadHeader(Header, HeaderView))
 	{
-		const uint64 TotalRawSize = Header->TotalRawSize;
+		const uint64 TotalRawSize = Header.TotalRawSize;
 		if (RawOffset <= TotalRawSize && RawView.GetSize() <= TotalRawSize - RawOffset)
 		{
-			if (const FDecoder* const Decoder = GetDecoder(Header->Method))
+			if (const FDecoder* const Decoder = GetDecoder(Header.Method))
 			{
 				if (Decoder->TryDecompressTo(Context,
 					SourceArchive
 						? ImplicitConv<const FDecoderSource&>(FArchiveDecoderSource(*SourceArchive, Context.HeaderOffset))
 						: ImplicitConv<const FDecoderSource&>(FBufferDecoderSource(SourceBuffer->GetCompressed())),
-					*Header, RawOffset, RawView))
+					Header, HeaderView, RawOffset, RawView))
 				{
 					return true;
 				}
@@ -1077,20 +1075,22 @@ bool FCompressedBufferReader::TryDecompressTo(FMutableMemoryView RawView, uint64
 FSharedBuffer FCompressedBufferReader::Decompress(const uint64 RawOffset, const uint64 RawSize)
 {
 	using namespace UE::CompressedBuffer::Private;
-	if (const FHeader* const Header = TryReadHeader())
+	FHeader Header;
+	FMemoryView HeaderView;
+	if (TryReadHeader(Header, HeaderView))
 	{
-		const uint64 TotalRawSize = Header->TotalRawSize;
+		const uint64 TotalRawSize = Header.TotalRawSize;
 		const uint64 RawSizeToCopy = RawSize == MAX_uint64 ? TotalRawSize - RawOffset : RawSize;
 		if (RawOffset <= TotalRawSize && RawSizeToCopy <= TotalRawSize - RawOffset)
 		{
-			if (const FDecoder* const Decoder = GetDecoder(Header->Method))
+			if (const FDecoder* const Decoder = GetDecoder(Header.Method))
 			{
 				FUniqueBuffer RawData = FUniqueBuffer::Alloc(RawSizeToCopy);
 				if (Decoder->TryDecompressTo(Context,
 					SourceArchive
 						? ImplicitConv<const FDecoderSource&>(FArchiveDecoderSource(*SourceArchive, Context.HeaderOffset))
 						: ImplicitConv<const FDecoderSource&>(FBufferDecoderSource(SourceBuffer->GetCompressed())),
-					*Header, RawOffset, RawData))
+					Header, HeaderView, RawOffset, RawData))
 				{
 					return RawData.MoveToShared();
 				}
@@ -1103,68 +1103,39 @@ FSharedBuffer FCompressedBufferReader::Decompress(const uint64 RawOffset, const 
 FCompositeBuffer FCompressedBufferReader::DecompressToComposite(const uint64 RawOffset, const uint64 RawSize)
 {
 	using namespace UE::CompressedBuffer::Private;
-	if (const FHeader* const Header = TryReadHeader())
+	FHeader Header;
+	FMemoryView HeaderView;
+	if (TryReadHeader(Header, HeaderView))
 	{
-		const uint64 TotalRawSize = Header->TotalRawSize;
+		const uint64 TotalRawSize = Header.TotalRawSize;
 		const uint64 RawSizeToCopy = RawSize == MAX_uint64 ? TotalRawSize - RawOffset : RawSize;
 		if (RawOffset <= TotalRawSize && RawSizeToCopy <= TotalRawSize - RawOffset)
 		{
-			if (const FDecoder* const Decoder = GetDecoder(Header->Method))
+			if (const FDecoder* const Decoder = GetDecoder(Header.Method))
 			{
 				return Decoder->DecompressToComposite(Context,
 					SourceArchive
 						? ImplicitConv<const FDecoderSource&>(FArchiveDecoderSource(*SourceArchive, Context.HeaderOffset))
 						: ImplicitConv<const FDecoderSource&>(FBufferDecoderSource(SourceBuffer->GetCompressed())),
-					*Header, RawOffset, RawSizeToCopy);
+					Header, HeaderView, RawOffset, RawSizeToCopy);
 			}
 		}
 	}
 	return FCompositeBuffer();
 }
 
-const UE::CompressedBuffer::Private::FHeader* FCompressedBufferReader::TryReadHeader()
+bool FCompressedBufferReader::TryReadHeader(UE::CompressedBuffer::Private::FHeader& OutHeader, FMemoryView& OutHeaderView)
 {
 	using namespace UE::CompressedBuffer;
 	if (FArchive* const Archive = SourceArchive)
 	{
-		return Private::TryReadHeader(Context, *Archive);
+		return Private::TryReadHeader(Context, *Archive, OutHeader, OutHeaderView);
 	}
 	if (const FCompressedBuffer* const Buffer = SourceBuffer)
 	{
-		return Private::TryReadHeader(Context, Buffer->GetCompressed());
+		return Private::TryReadHeader(Context, Buffer->GetCompressed(), OutHeader, OutHeaderView);
 	}
-	return nullptr;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FCompressedBufferDecoder::FImpl
-{
-public:
-	bool TryDecompressTo(const FCompressedBuffer& CompressedBuffer, FMutableMemoryView RawView, uint64 RawOffset)
-	{
-		using namespace UE::CompressedBuffer::Private;
-		Reader.SetSource(CompressedBuffer);
-		ON_SCOPE_EXIT { Reader.ResetSource(); };
-		return Reader.TryDecompressTo(RawView, RawOffset);
-	}
-
-private:
-	FCompressedBufferReader Reader;
-};
-
-FCompressedBufferDecoder::FCompressedBufferDecoder()
-: Impl(new FImpl())
-{
-}
-
-FCompressedBufferDecoder::~FCompressedBufferDecoder()
-{
-}
-
-bool FCompressedBufferDecoder::TryDecompressTo(const FCompressedBuffer& CompressedBuffer, FMutableMemoryView RawView, uint64 RawOffset)
-{
-	return Impl->TryDecompressTo(CompressedBuffer, RawView, RawOffset);
+	return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

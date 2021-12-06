@@ -5,7 +5,6 @@
 #include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/SharedBuffer.h"
-#include "Templates/UniquePtr.h"
 
 class FArchive;
 struct FBlake3Hash;
@@ -23,6 +22,10 @@ using ECompressedBufferCompressor = FOodleDataCompression::ECompressor;
  *
  * A buffer is self-contained in the sense that it can be decompressed without external knowledge
  * of the compression format or the size of the raw data.
+ *
+ * The buffer may be partially decompressed using FCompressedBufferReader.
+ *
+ * @see FCompressedBufferReader
  */
 class FCompressedBuffer
 {
@@ -68,7 +71,20 @@ public:
 	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(FCompositeBuffer&& CompressedData);
 	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(const FSharedBuffer& CompressedData);
 	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(FSharedBuffer&& CompressedData);
-	[[nodiscard]] CORE_API static FCompressedBuffer FromCompressed(FArchive& Ar);
+
+	/**
+	 * Load a compressed buffer from an archive, as saved by Save().
+	 *
+	 * The entire compressed buffer will be loaded from the archive before this function returns.
+	 * Prefer to use FCompressedBufferReader to stream from an archive when the compressed buffer
+	 * does not need to be fully loaded into memory.
+	 *
+	 * @return A compressed buffer, or null on error. Ar.IsError() will be true on error.
+	 */
+	[[nodiscard]] CORE_API static FCompressedBuffer Load(FArchive& Ar);
+
+	/** Save the compressed buffer to an archive. */
+	CORE_API void Save(FArchive& Ar) const;
 
 	/** Reset this to null. */
 	inline void Reset() { CompressedData.Reset(); }
@@ -113,46 +129,19 @@ public:
 		ECompressedBufferCompressionLevel& OutCompressionLevel,
 		uint64& OutBlockSize) const;
 
-	[[nodiscard]] inline bool TryGetCompressParameters(
-		ECompressedBufferCompressor& OutCompressor,
-		ECompressedBufferCompressionLevel& OutCompressionLevel) const
-	{
-		uint64 BlockSize;
-		return TryGetCompressParameters(OutCompressor, OutCompressionLevel, BlockSize);
-	}
-
-	[[nodiscard]] inline bool TryGetBlockSize(uint32& OutBlockSize) const
-	{
-		ECompressedBufferCompressor Compressor;
-		ECompressedBufferCompressionLevel CompressionLevel;
-		uint64 BlockSize64;
-		if (TryGetCompressParameters(Compressor, CompressionLevel, BlockSize64))
-		{
-			OutBlockSize = uint32(BlockSize64);
-			return true;
-		}
-		return false;
-	}
-
 	/**
-	 * Decompress into a memory view that is less or equal to the raw size.
+	 * Decompress into a memory view that is exactly equal to the raw size.
 	 *
 	 * @return True if the requested range was decompressed, otherwise false.
 	 */
-	[[nodiscard]] CORE_API bool TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset = 0) const;
+	[[nodiscard]] CORE_API bool TryDecompressTo(FMutableMemoryView RawView) const;
 
 	/**
 	 * Decompress into an owned buffer.
 	 *
 	 * @return An owned buffer containing the raw data, or null on error.
 	 */
-	[[nodiscard]] CORE_API FSharedBuffer Decompress(uint64 RawOffset = 0, uint64 RawSize = MAX_uint64) const;
-
-	/**
-	 * Decompress into an owned composite buffer.
-	 *
-	 * @return An owned buffer containing the raw data, or null on error.
-	 */
+	[[nodiscard]] CORE_API FSharedBuffer Decompress() const;
 	[[nodiscard]] CORE_API FCompositeBuffer DecompressToComposite() const;
 
 	/** A null compressed buffer. */
@@ -172,10 +161,14 @@ namespace UE::CompressedBuffer::Private
 /** A reusable context for the compressed buffer decoder. */
 struct FDecoderContext
 {
-	/** Offset at which the compressed buffer begins, otherwise MAX_uint64. */
+	/** The offset in the source at which the compressed buffer begins, otherwise MAX_uint64. */
 	uint64 HeaderOffset = MAX_uint64;
-	/** Index of the block stored in RawBlock, otherwise MAX_uint64. */
-	uint64 RawBlockIndex = MAX_uint64;
+	/** The size of the header if known, otherwise 0. */
+	uint64 HeaderSize = 0;
+	/** The CRC-32 from the header, otherwise 0. */
+	uint32 HeaderCrc32 = 0;
+	/** Index of the block stored in RawBlock, otherwise MAX_uint32. */
+	uint32 RawBlockIndex = MAX_uint32;
 
 	/** A buffer used to store the header when HeaderOffset is not MAX_uint64. */
 	FUniqueBuffer Header;
@@ -220,10 +213,13 @@ public:
 	CORE_API void SetSource(FArchive& Archive);
 	CORE_API void SetSource(const FCompressedBuffer& Buffer);
 
+	/** Returns the size of the compressed data. Zero on error. */
 	[[nodiscard]] CORE_API uint64 GetCompressedSize();
+
+	/** Returns the size of the raw data. Zero on error. */
 	[[nodiscard]] CORE_API uint64 GetRawSize();
 
-	/** Returns the hash of the raw data. Zero on error or if this is null. */
+	/** Returns the hash of the raw data. Zero on error. */
 	[[nodiscard]] CORE_API FBlake3Hash GetRawHash();
 
 	/**
@@ -241,8 +237,10 @@ public:
 		uint64& OutBlockSize);
 
 	/**
-	 * Decompress into a memory view that is less or equal to the raw size.
+	 * Decompress into a memory view that is less than or equal to the available raw size.
 	 *
+	 * @param RawView     The view to write to. The size to read is equal to the view size.
+	 * @param RawOffset   The offset into the raw data from which to decompress.
 	 * @return True if the requested range was decompressed, otherwise false.
 	 */
 	[[nodiscard]] CORE_API bool TryDecompressTo(FMutableMemoryView RawView, uint64 RawOffset = 0);
@@ -250,41 +248,45 @@ public:
 	/**
 	 * Decompress into an owned buffer.
 	 *
+	 * RawOffset must be at most the raw buffer size. RawSize may be MAX_uint64 to read the whole
+	 * buffer from RawOffset, and must otherwise fit within the bounds of the buffer.
+	 *
+	 * @param RawOffset   The offset into the raw data from which to decompress.
+	 * @param RawSize     The size of the raw data to read from the offset.
 	 * @return An owned buffer containing the raw data, or null on error.
 	 */
 	[[nodiscard]] CORE_API FSharedBuffer Decompress(uint64 RawOffset = 0, uint64 RawSize = MAX_uint64);
-
-	/**
-	 * Decompress into an owned composite buffer.
-	 *
-	 * @return An owned buffer containing the raw data, or null on error.
-	 */
 	[[nodiscard]] CORE_API FCompositeBuffer DecompressToComposite(uint64 RawOffset = 0, uint64 RawSize = MAX_uint64);
 
 private:
-	const UE::CompressedBuffer::Private::FHeader* TryReadHeader();
+	bool TryReadHeader(UE::CompressedBuffer::Private::FHeader& OutHeader, FMemoryView& OutHeaderView);
 
 	FArchive* SourceArchive = nullptr;
 	const FCompressedBuffer* SourceBuffer = nullptr;
 	UE::CompressedBuffer::Private::FDecoderContext Context;
 };
 
-/**
- * A stateful decoder that reuses temporary buffers between decompression calls.
- */
-class FCompressedBufferDecoder
+/** A type that sets the source of a reader upon construction and resets it upon destruction. */
+class FCompressedBufferReaderSourceScope
 {
-	UE_NONCOPYABLE(FCompressedBufferDecoder);
 public:
-	CORE_API FCompressedBufferDecoder();
-	CORE_API ~FCompressedBufferDecoder();
+	inline FCompressedBufferReaderSourceScope(FCompressedBufferReader& InReader, FArchive& InArchive)
+		: Reader(InReader)
+	{
+		Reader.SetSource(InArchive);
+	}
 
-	/**
-	 * Decompress into a memory view that is less or equal to GetRawSize()
-	 */
-	[[nodiscard]] CORE_API bool TryDecompressTo(const FCompressedBuffer& CompressedBuffer, FMutableMemoryView RawView, uint64 RawOffset = 0);
+	inline FCompressedBufferReaderSourceScope(FCompressedBufferReader& InReader, const FCompressedBuffer& InBuffer)
+		: Reader(InReader)
+	{
+		Reader.SetSource(InBuffer);
+	}
+
+	inline ~FCompressedBufferReaderSourceScope()
+	{
+		Reader.ResetSource();
+	}
 
 private:
-	class FImpl;
-	TUniquePtr<FImpl> Impl;
+	FCompressedBufferReader& Reader;
 };

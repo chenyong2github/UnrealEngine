@@ -555,6 +555,7 @@ void FPakFileDerivedDataBackend::GetChunks(
 	SortedChunks.StableSort(TChunkLess());
 
 	FOptionalCacheRecord Record;
+	FCompressedBufferReader Reader;
 	for (const FCacheChunkRequest& Chunk : SortedChunks)
 	{
 		constexpr ECachePolicy SkipFlag = ECachePolicy::SkipValue;
@@ -585,7 +586,8 @@ void FPakFileDerivedDataBackend::GetChunks(
 					FSharedBuffer Buffer;
 					if (Payload.HasData() && !bExistsOnly)
 					{
-						Buffer = Payload.GetData().Decompress(RawOffset, RawSize);
+						FCompressedBufferReaderSourceScope Source(Reader, Payload.GetData());
+						Buffer = Reader.Decompress(RawOffset, RawSize);
 					}
 					OnComplete({Chunk.Key, Chunk.Id, Chunk.RawOffset,
 						RawSize, Payload.GetRawHash(), MoveTemp(Buffer), PayloadStatus});
@@ -839,7 +841,7 @@ bool FPakFileDerivedDataBackend::PutCacheContent(const FCompressedBuffer& Conten
 	FPathViews::Append(Path, TEXT("Content"), RawHash);
 	if (!FileExists(Path))
 	{
-		if (!SaveFile(Path, Context, [&Content](FArchive& Ar) { Ar << const_cast<FCompressedBuffer&>(Content); }))
+		if (!SaveFile(Path, Context, [&Content](FArchive& Ar) { Content.Save(Ar); }))
 		{
 			return false;
 		}

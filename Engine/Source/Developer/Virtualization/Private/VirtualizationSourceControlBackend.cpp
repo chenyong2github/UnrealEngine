@@ -159,7 +159,7 @@ EPushResult FSourceControlBackend::PushData(const FPayloadId& Id, const FCompres
 			return EPushResult::Failed;
 		}
 
-		*FileAr << const_cast<FCompressedBuffer&>(Payload);
+		Payload.Save(*FileAr);
 
 		if (!FileAr->Close())
 		{
