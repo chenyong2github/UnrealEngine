@@ -512,6 +512,11 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	ViewportWidget->GetCommandList()->Append(ToolkitCommands);
 }
 
+const FSlateBrush* FUVEditorToolkit::GetDefaultTabIcon() const
+{
+	return FUVEditorStyle::Get().GetBrush("UVEditor.OpenUVEditor");
+}
+
 void FUVEditorToolkit::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
 {
 	ModeUILayer->OnToolkitHostingStarted(Toolkit);
