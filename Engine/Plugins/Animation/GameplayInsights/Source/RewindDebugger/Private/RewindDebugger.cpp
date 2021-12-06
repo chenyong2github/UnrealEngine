@@ -673,28 +673,31 @@ void FRewindDebugger::Tick(float DeltaTime)
 						
 						// until we have actor transforms traced out, the first skeletal mesh component transform on the target actor be used as as the actor position 
 						uint64 TargetActorId = GetTargetActorId();
-						if(UObject* ObjectInstance = FObjectTrace::GetObjectFromId(TargetActorId))
+						if (TargetActorId != 0)
 						{
-							if (AActor* TargetActor = Cast<AActor>(ObjectInstance))
+							if (UObject* ObjectInstance = FObjectTrace::GetObjectFromId(TargetActorId))
 							{
-								TInlineComponentArray<USkeletalMeshComponent*> SkeletalMeshComponents;
-								TargetActor->GetComponents(SkeletalMeshComponents);
-
-								if (SkeletalMeshComponents.Num() > 0)
+								if (AActor* TargetActor = Cast<AActor>(ObjectInstance))
 								{
-									int64 ObjectId = FObjectTrace::GetObjectId(SkeletalMeshComponents[0]);
+									TInlineComponentArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+									TargetActor->GetComponents(SkeletalMeshComponents);
 
-									AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, Frame, ObjectId, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
+									if (SkeletalMeshComponents.Num() > 0)
 									{
-										TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
-											[this](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& PoseMessage)
+										int64 ObjectId = FObjectTrace::GetObjectId(SkeletalMeshComponents[0]);
+
+										AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, Frame, ObjectId, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
 											{
-												bTargetActorPositionValid = true;
-												TargetActorPosition = PoseMessage.ComponentToWorld.GetTranslation();
-										
-												return TraceServices::EEventEnumerate::Stop;
+												TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime,
+													[this](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& PoseMessage)
+													{
+														bTargetActorPositionValid = true;
+														TargetActorPosition = PoseMessage.ComponentToWorld.GetTranslation();
+
+														return TraceServices::EEventEnumerate::Stop;
+													});
 											});
-									});
+									}
 								}
 							}
 						}
