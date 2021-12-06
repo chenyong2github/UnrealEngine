@@ -537,6 +537,10 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 			(ViewportExtentForDepth.Y * 0.5f + ViewportOffsetForDepth.Y) * InvBufferSizeY);
 	}
 
+	FScreenPassTextureViewportParameters PrevSceneColorParameters = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(InputColor, FIntRect(ViewportOffset, ViewportOffset + ViewportExtent)));
+	Parameters.PrevSceneColorBilinearUVMin = PrevSceneColorParameters.UVViewportBilinearMin;
+	Parameters.PrevSceneColorBilinearUVMax = PrevSceneColorParameters.UVViewportBilinearMax;
+
 	Parameters.PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
 
 	Parameters.PrevSceneColorTexture = InputColor;

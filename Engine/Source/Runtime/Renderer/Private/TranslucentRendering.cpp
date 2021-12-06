@@ -777,30 +777,39 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 			BasePassParameters.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			FRDGTextureRef PrevSceneColorTexture = SystemTextures.Black;
+			FIntRect PrevSceneColorViewRect = FIntRect(0, 0, 1, 1);
 
 			if (View.PrevViewInfo.CustomSSRInput.IsValid())
 			{
 				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.CustomSSRInput.RT[0]);
+				PrevSceneColorViewRect = View.PrevViewInfo.CustomSSRInput.ViewportRect;
 				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
 			else if (View.PrevViewInfo.TSRHistory.IsValid())
 			{
 				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.TSRHistory.LowFrequency);
+				PrevSceneColorViewRect = View.PrevViewInfo.TSRHistory.OutputViewportRect;
 				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
 			else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 			{
 				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.TemporalAAHistory.RT[0]);
+				PrevSceneColorViewRect = View.PrevViewInfo.TemporalAAHistory.ViewportRect;
 				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
 			else if (View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
 			{
 				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.ScreenSpaceRayTracingInput);
+				PrevSceneColorViewRect = View.PrevViewInfo.ViewRect;
 				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
 
 			BasePassParameters.PrevSceneColor = PrevSceneColorTexture;
 			BasePassParameters.PrevSceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+			FScreenPassTextureViewportParameters PrevSceneColorParameters = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(PrevSceneColorTexture, PrevSceneColorViewRect));
+			BasePassParameters.PrevSceneColorBilinearUVMin = PrevSceneColorParameters.UVViewportBilinearMin;
+			BasePassParameters.PrevSceneColorBilinearUVMax = PrevSceneColorParameters.UVViewportBilinearMax;
 
 			const FVector2D HZBUvFactor(
 				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
@@ -821,6 +830,8 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 			BasePassParameters.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			BasePassParameters.PrevSceneColor = SystemTextures.Black;
 			BasePassParameters.PrevSceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			BasePassParameters.PrevSceneColorBilinearUVMin = FVector2f(0.0f, 0.0f);
+			BasePassParameters.PrevSceneColorBilinearUVMax = FVector2f(1.0f, 1.0f);
 		}
 
 		BasePassParameters.ApplyVolumetricCloudOnTransparent = 0.0f;

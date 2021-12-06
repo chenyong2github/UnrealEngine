@@ -37,6 +37,8 @@ float MaxTraceDistance;
 
 Texture2D PrevSceneColorTexture;
 Texture2D HistorySceneDepth;
+float2 PrevSceneColorBilinearUVMin;
+float2 PrevSceneColorBilinearUVMax;
 float4 PrevScreenPositionScaleBias;
 float4 PrevScreenPositionScaleBiasForDepth;
 float PrevSceneColorPreExposureCorrection;
@@ -147,6 +149,7 @@ void ReflectionTraceScreenTexturesCS(
 				if (bHit)
 				{
 					float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+					HitHistoryScreenUV = clamp(HitHistoryScreenUV, PrevSceneColorBilinearUVMin, PrevSceneColorBilinearUVMax);
 					float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
 
 					float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);

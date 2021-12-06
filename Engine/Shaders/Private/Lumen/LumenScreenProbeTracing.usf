@@ -39,6 +39,8 @@ Texture2D FurthestHZBTexture;
 #define FurthestHZBTextureSampler GlobalPointClampedSampler
 
 Texture2D PrevSceneColorTexture;
+float2 PrevSceneColorBilinearUVMin;
+float2 PrevSceneColorBilinearUVMax;
 float4 PrevScreenPositionScaleBias;
 float4 PrevScreenPositionScaleBiasForDepth;
 Texture2D HistorySceneDepth;
@@ -277,6 +279,7 @@ void ScreenProbeTraceScreenTexturesCS(
 					if (bHit)
 					{
 						float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+						HitHistoryScreenUV = clamp(HitHistoryScreenUV, PrevSceneColorBilinearUVMin, PrevSceneColorBilinearUVMax);
 						float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
 
 						#if DEBUG_VISUALIZE_TRACE_TYPES
