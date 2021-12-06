@@ -22,14 +22,12 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "BaseGizmos/IntervalGizmo.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "ModelingToolTargetUtil.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "CoreMinimal.h"
 #include "Math/Matrix.h"
 
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -140,7 +138,7 @@ void UMeshSpaceDeformerTool::Setup()
 	{
 		OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalDynamicMesh);
+		Converter.Convert(UE::ToolTarget::GetMeshDescription(Target), *OriginalDynamicMesh);
 	}
 
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
@@ -335,12 +333,7 @@ void UMeshSpaceDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			check(DynamicMeshResult != nullptr);
 
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-			{
-				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
-			});
-
+			UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Target, *DynamicMeshResult, true);
 
 			GetToolManager()->EndUndoTransaction();
 		}

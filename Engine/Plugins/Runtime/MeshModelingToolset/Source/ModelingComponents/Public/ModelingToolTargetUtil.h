@@ -132,6 +132,24 @@ MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitMeshDescriptionUpdate(
 	const FComponentMaterialSet* UpdatedMaterials = nullptr);
 
 /**
+* Update the Mesh in a ToolTarget based on the provided MeshDescription, and optional material set
+* @return EDynamicMeshUpdateResult::Ok on success
+*/
+MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitMeshDescriptionUpdate(
+	UToolTarget* Target, 
+	FMeshDescription&& UpdatedMesh);
+
+/**
+* Update the Mesh in a ToolTarget based on the provided MeshDescription, and optional material set
+* @return EDynamicMeshUpdateResult::Ok on success
+*/
+MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitMeshDescriptionUpdateViaDynamicMesh(
+	UToolTarget* Target, 
+	const UE::Geometry::FDynamicMesh3& UpdatedMesh,
+	bool bHaveModifiedTopology);
+
+
+/**
  * Update the Mesh in a ToolTarget based on the provided DynamicMesh, and optional material set
  * @param bHaveModifiedTopology If the update only changes vertex or attribute values (but not counts), then in some cases a more efficient and/or less destructive update can be applied to the Target
  * @param ConversionOptions if the commit to the Target involves conversion to MeshDescription, these options can configure that conversion
@@ -151,6 +169,12 @@ MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUpdate(
  * @return EDynamicMeshUpdateResult::Ok on success, or Ok_ForcedFullUpdate if any dependent mesh topology was modified
  */
 MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUVUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh);
+
+/**
+* Update the Normals/Tangents of the ToolTarget's mesh (assuming it has one) based on the provided UpdatedMesh.
+* @return EDynamicMeshUpdateResult::Ok on success, or Ok_ForcedFullUpdate if any dependent mesh topology was modified
+*/
+MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshNormalsUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh, bool bUpdateTangents = false);
 
 /**
  * FCreateMeshObjectParams::TypeHint is used by the ModelingObjectsCreationAPI to suggest what type of mesh object to create

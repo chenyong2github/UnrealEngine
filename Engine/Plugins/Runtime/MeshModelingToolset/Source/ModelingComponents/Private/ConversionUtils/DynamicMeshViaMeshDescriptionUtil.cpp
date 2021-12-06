@@ -18,6 +18,7 @@ FDynamicMesh3 UE::Geometry::GetDynamicMeshViaMeshDescription(
 }
 
 void UE::Geometry::CommitDynamicMeshViaMeshDescription(
+	FMeshDescription&& CurrentMeshDescription,
 	IMeshDescriptionCommitter& MeshDescriptionCommitter, 
 	const FDynamicMesh3& Mesh, const IDynamicMeshCommitter::FDynamicMeshCommitInfo& CommitInfo)
 {
@@ -30,18 +31,16 @@ void UE::Geometry::CommitDynamicMeshViaMeshDescription(
 	ConversionOptions.bUpdateVtxColors = CommitInfo.bVertexColorsChanged;
 	ConversionOptions.bTransformVtxColorsSRGBToLinear = CommitInfo.bTransformVertexColorsSRGBToLinear;
 
-	MeshDescriptionCommitter.CommitMeshDescription([&CommitInfo, &ConversionOptions, &Mesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+	FDynamicMeshToMeshDescription Converter(ConversionOptions);
+	if (!CommitInfo.bTopologyChanged)
 	{
-		FDynamicMeshToMeshDescription Converter(ConversionOptions);
+		Converter.UpdateUsingConversionOptions(&Mesh, CurrentMeshDescription);
+	}
+	else
+	{
+		// Do a full conversion.
+		Converter.Convert(&Mesh, CurrentMeshDescription);
+	}
 
-		if (!CommitInfo.bTopologyChanged)
-		{
-			Converter.UpdateUsingConversionOptions(&Mesh, *CommitParams.MeshDescriptionOut);
-		}
-		else
-		{
-			// Do a full conversion.
-			Converter.Convert(&Mesh, *CommitParams.MeshDescriptionOut);
-		}
-	});
+	MeshDescriptionCommitter.CommitMeshDescription(MoveTemp(CurrentMeshDescription));
 }

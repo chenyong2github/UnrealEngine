@@ -21,8 +21,8 @@
 #include "Modules/ModuleManager.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
@@ -99,15 +99,15 @@ void UGenerateLODMeshesTool::Setup()
 #else
 		auto EnterProgressFrame = [](int Progress) {};
 #endif
-		IMeshDescriptionProvider* TargetMeshProvider = Cast<IMeshDescriptionProvider>(Target);
-		OriginalMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>(*TargetMeshProvider->GetMeshDescription());
+		const FMeshDescription* TargetMeshDescription = UE::ToolTarget::GetMeshDescription(Target);
+		OriginalMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>(*TargetMeshDescription);
 		EnterProgressFrame(1);
 		// aux-data isn't deep copied - by default it is built during initial evaluation (not thread safe)  
 		// so force aux-data rebuild now before multiple UE4 simplifiers try to use it in parallel.
 		OriginalMeshDescription->BuildIndexers();   
 		OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(TargetMeshProvider->GetMeshDescription(), *OriginalMesh);
+		Converter.Convert(TargetMeshDescription, *OriginalMesh);
 		EnterProgressFrame(2);
 		OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);
 	}

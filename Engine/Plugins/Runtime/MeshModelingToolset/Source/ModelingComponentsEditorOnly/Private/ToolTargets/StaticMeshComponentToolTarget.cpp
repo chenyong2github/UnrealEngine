@@ -183,7 +183,8 @@ FDynamicMesh3 UStaticMeshComponentToolTarget::GetDynamicMesh()
 
 void UStaticMeshComponentToolTarget::CommitDynamicMesh(const FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo)
 {
-	CommitDynamicMeshViaMeshDescription(*this, Mesh, CommitInfo);
+	FMeshDescription CurrentMeshDescription = *GetMeshDescription();
+	CommitDynamicMeshViaMeshDescription(MoveTemp(CurrentMeshDescription), *this, Mesh, CommitInfo);
 }
 
 UStaticMesh* UStaticMeshComponentToolTarget::GetStaticMesh() const

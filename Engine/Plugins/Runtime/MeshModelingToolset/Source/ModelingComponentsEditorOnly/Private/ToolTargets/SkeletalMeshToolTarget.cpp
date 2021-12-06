@@ -217,7 +217,8 @@ void USkeletalMeshToolTarget::CommitMeshDescription(USkeletalMesh* SkeletalMeshI
 
 void USkeletalMeshToolTarget::CommitDynamicMesh(const FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo)
 {
-	CommitDynamicMeshViaMeshDescription(*this, Mesh, CommitInfo);
+	FMeshDescription CurrentMeshDescription = *GetMeshDescription();
+	CommitDynamicMeshViaMeshDescription(MoveTemp(CurrentMeshDescription), *this, Mesh, CommitInfo);
 }
 
 

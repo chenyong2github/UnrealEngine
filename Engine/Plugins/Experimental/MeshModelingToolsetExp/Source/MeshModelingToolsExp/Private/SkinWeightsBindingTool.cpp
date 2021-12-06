@@ -11,15 +11,14 @@
 #include "SkeletalMeshAttributes.h"
 #include "ToolSetupUtil.h"
 #include "ToolTargetManager.h"
-#include "ModelingToolTargetUtil.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Spatial/FastWinding.h"
 #include "Spatial/MeshWindingNumberGrid.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "ModelingToolTargetUtil.h"
+
 
 // #pragma optimize( "", off )
 
@@ -1007,13 +1006,7 @@ void USkinWeightsBindingTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("SkinWeightsBindingToolTransactionName", "Create Rigid Binding"));
 
 	check(Result.Mesh.Get() != nullptr);
-	Cast<IMeshDescriptionCommitter>(Targets[0])->CommitMeshDescription([&Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-	{
-		FDynamicMeshToMeshDescription Converter;
-
-		// full conversion if normal topology changed or faces were inverted
-		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescriptionOut);
-	});
+	UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Targets[0], *Result.Mesh.Get(), true);
 
 	GetToolManager()->EndUndoTransaction();	
 }

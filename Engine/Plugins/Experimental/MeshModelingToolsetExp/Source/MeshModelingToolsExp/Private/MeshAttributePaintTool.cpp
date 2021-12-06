@@ -9,9 +9,8 @@
 
 #include "MeshDescription.h"
 
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -227,7 +226,7 @@ void UMeshAttributePaintTool::Setup()
 	ColorMapper = MakeUnique<FFloatAttributeColorMapper>();
 
 	EditedMesh = MakeUnique<FMeshDescription>();
-	*EditedMesh = *Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription();
+	*EditedMesh = *UE::ToolTarget::GetMeshDescription(Target);
 
 	AttributeSource = MakeUnique<FMeshDescriptionVertexAttributeSource>(EditedMesh.Get());
 	AttribProps->Initialize(AttributeSource->GetAttributeList(), true);
@@ -684,10 +683,8 @@ void UMeshAttributePaintTool::OnShutdown(EToolShutdownType ShutdownType)
 		// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshAttributePaintTool", "Edit Attributes"));
 
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			*CommitParams.MeshDescriptionOut = *EditedMesh;
-		});
+		UE::ToolTarget::CommitMeshDescriptionUpdate(Target, EditedMesh.Get());
+
 		GetToolManager()->EndUndoTransaction();
 	}
 }

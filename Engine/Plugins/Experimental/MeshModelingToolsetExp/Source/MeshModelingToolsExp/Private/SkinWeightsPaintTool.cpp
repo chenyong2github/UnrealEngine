@@ -8,8 +8,9 @@
 #include "SkeletalDebugRendering.h"
 #include "Math/UnrealMathUtility.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
+
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "MeshDescription.h"
 
@@ -128,7 +129,7 @@ void USkinWeightsPaintTool::Setup()
 		EToolMessageLevel::UserNotification);
 
 	EditedMesh = MakeUnique<FMeshDescription>();
-	*EditedMesh = *Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription();
+	*EditedMesh = *UE::ToolTarget::GetMeshDescription(Target);
 
 	InitializeSkinWeights();
 
@@ -448,13 +449,13 @@ void USkinWeightsPaintTool::OnShutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		UpdateEditedSkinWeightsMesh();
+
 		// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("SkinWeightsPaintTool", "Paint Skin Weights"));
 
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-			{
-				CommitSkinWeights(CommitParams);
-			});
+		UE::ToolTarget::CommitMeshDescriptionUpdate(Target, EditedMesh.Get());
+
 		GetToolManager()->EndUndoTransaction();
 	}
 }
@@ -680,7 +681,7 @@ void USkinWeightsPaintTool::InitializeSkinWeights()
 }
 
 
-void USkinWeightsPaintTool::CommitSkinWeights(const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+void USkinWeightsPaintTool::UpdateEditedSkinWeightsMesh()
 {
 	using namespace UE::AnimationCore;
 	
@@ -717,8 +718,6 @@ void USkinWeightsPaintTool::CommitSkinWeights(const IMeshDescriptionCommitter::F
 
 		VertexSkinWeights.Set(FVertexID(VertexIndex), FBoneWeights::Create(SourceBoneWeights, Settings));
 	}
-
-	*CommitParams.MeshDescriptionOut = *EditedMesh;
 }
 
 
