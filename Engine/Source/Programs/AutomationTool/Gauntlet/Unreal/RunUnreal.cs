@@ -417,7 +417,8 @@ namespace Gauntlet
 			Reservation.ReservationDetails = Options.JobDetails;
 
 			DevicePool.Instance.SetLocalOptions(Options.TempDir, Options.Parallel > 1, Options.DeviceURL);
-			DevicePool.Instance.AddLocalDevices(10);
+			DevicePool.Instance.AddLocalDevices(Options.MaxLocalDevices);
+			DevicePool.Instance.AddVirtualDevices(Options.MaxVirtualDevices);
 
 			foreach (var DeviceWithParams in Options.DeviceList)
 			{
