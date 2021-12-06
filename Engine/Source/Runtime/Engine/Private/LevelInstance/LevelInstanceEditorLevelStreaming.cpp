@@ -33,6 +33,16 @@ ULevelStreamingLevelInstanceEditor::ULevelStreamingLevelInstanceEditor(const FOb
 }
 
 #if WITH_EDITOR
+TOptional<FFolder::FRootObject> ULevelStreamingLevelInstanceEditor::GetFolderRootObject() const
+{
+	if (ALevelInstance* LevelInstance = GetLevelInstanceActor())
+	{
+		return FFolder::FRootObject(LevelInstance);
+	}
+
+	return TOptional<FFolder::FRootObject>();
+}
+
 ALevelInstance* ULevelStreamingLevelInstanceEditor::GetLevelInstanceActor() const
 {
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())

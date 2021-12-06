@@ -168,8 +168,6 @@ private:
 	TUniquePtr<FLevelInstanceEdit> LevelInstanceEdit;
 	bool bCreatingLevelInstance = false;
 
-	TMap<FObjectKey, FFolder::FRootObject> UnregisteringLevelInstanceLevels;
-	TMap<FFolder::FRootObject, FObjectKey > UnregisteringLevelInstances;
 	TMap<FLevelInstanceID, int32> ChildEdits;
 #endif
 };

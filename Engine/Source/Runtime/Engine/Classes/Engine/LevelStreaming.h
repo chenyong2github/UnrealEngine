@@ -11,6 +11,11 @@
 #include "LatentActions.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 
+#if WITH_EDITOR
+#include "Folder.h"
+#include "Misc/Optional.h"
+#endif
+
 class ALevelScriptActor;
 class ALevelStreamingVolume;
 class ULevel;
@@ -471,6 +476,8 @@ public:
 
 	/** Sets the folder path for this level in the world browser. Only available in editor builds */
 	void SetFolderPath(const FName& InFolderPath);
+
+	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const { return FFolder::GetDefaultRootObject(); }
 #endif	// WITH_EDITOR
 
 	//~==============================================================================================

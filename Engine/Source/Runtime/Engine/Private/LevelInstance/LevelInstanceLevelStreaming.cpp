@@ -35,6 +35,16 @@ ALevelInstance* ULevelStreamingLevelInstance::GetLevelInstanceActor() const
 }
 
 #if WITH_EDITOR
+TOptional<FFolder::FRootObject> ULevelStreamingLevelInstance::GetFolderRootObject() const
+{
+	if (ALevelInstance* LevelInstance = GetLevelInstanceActor())
+	{
+		return FFolder::FRootObject(LevelInstance);
+	}
+
+	return TOptional<FFolder::FRootObject>();
+}
+
 FBox ULevelStreamingLevelInstance::GetBounds() const
 {
 	check(GetLoadedLevel());
