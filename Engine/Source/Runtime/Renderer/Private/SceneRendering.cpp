@@ -73,6 +73,7 @@
 #include "Lumen/Lumen.h"
 #include "Nanite/Nanite.h"
 #include "DistanceFieldLightingShared.h"
+#include "RendererOnScreenNotification.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Rendering/NaniteStreamingManager.h"
 
@@ -4135,6 +4136,11 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			SET_MEMORY_STAT(STAT_RenderingMemStackMemory, FMemStack::Get().GetByteCount());
 			SET_MEMORY_STAT(STAT_LightInteractionMemory, FLightPrimitiveInteraction::GetMemoryPoolSize());
 		}
+#endif
+
+#if !UE_BUILD_SHIPPING
+		// Update on screen notifications.
+		FRendererOnScreenNotification::Get().Broadcast();
 #endif
 
 		GRenderTargetPool.SetEventRecordingActive(false);
