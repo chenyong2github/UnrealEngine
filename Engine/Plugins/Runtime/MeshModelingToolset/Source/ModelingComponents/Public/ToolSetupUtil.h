@@ -66,6 +66,20 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetDefaultBrushVolumeMaterial(UInteractiveToolManager* ToolManager);
 
+	/**
+	 * Get a Material to use with a square brush plane/ROI indicator that has an analytic falloff function combined w/ an alpha mask texture.
+	 * Falloff value will be used for both color and opacity, rendered as Additive with depth-testing disabled
+	 * Material Parameters:
+	 *  "BrushAlpha" - Texture2D Parameter for brush alpha texture map
+	 *  "AlphaPower" - configure whether BrushAlpha texture is multiplied w/ analytic falloff (0 -> disabled, 1 -> enabled)
+	 *  "FalloffRatio" - float in range [0,1] that corresponds to width of brush falloff region
+	 *  "FalloffMode" - float in range [0,1] used to interpolate between Smooth (0) -> Linear (0.3333) -> Inverse (0.6666) -> Round (1.0)
+	 *  "FalloffShape" - float in range [0,1] used to interpolate between Circular (0.0) and Square (1.0) 
+	 *  "IntensityScale" - float in range [0,1], multiplier on brightness of falloff highlight (default 0.2)
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetDefaultBrushAlphaMaterial(UInteractiveToolManager* ToolManager);
+
+
 
 	/**
 	 * @return Sculpt Material 1

@@ -249,10 +249,16 @@ void UMeshSculptToolBase::OnTick(float DeltaTime)
 
 	UpdateHoverStamp(GetBrushFrameWorld());
 
-	// update brush position here?
-	BrushIndicator->Update((float)GetCurrentBrushRadius(),
-		(FVector)HoverStamp.WorldFrame.Origin, (FVector)HoverStamp.WorldFrame.Z(),
-		1.0f - (float)GetCurrentBrushFalloff());
+	if (bInStroke)
+	{
+		BrushIndicator->Update((float)GetCurrentBrushRadius(),
+			CurrentStamp.WorldFrame.ToFTransform(), 1.0f - (float)GetCurrentBrushFalloff());
+	}
+	else
+	{
+		BrushIndicator->Update((float)GetCurrentBrushRadius(),
+			HoverStamp.WorldFrame.ToFTransform(), 1.0f - (float)GetCurrentBrushFalloff());
+	}
 
 	UpdateWorkPlane();
 }
@@ -1129,7 +1135,7 @@ void UMeshSculptToolBase::InitializeIndicator()
 	// register and spawn brush indicator gizmo
 	GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(VertexSculptIndicatorGizmoType, NewObject<UBrushStampIndicatorBuilder>());
 	BrushIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(VertexSculptIndicatorGizmoType, FString(), this);
-	BrushIndicatorMesh = MakeDefaultIndicatorSphereMesh(this, TargetWorld);
+	BrushIndicatorMesh = MakeBrushIndicatorMesh(this, TargetWorld);
 	BrushIndicator->AttachedComponent = BrushIndicatorMesh->GetRootComponent();
 	BrushIndicator->LineThickness = 1.0;
 	BrushIndicator->bDrawIndicatorLines = true;
@@ -1174,12 +1180,12 @@ bool UMeshSculptToolBase::GetIndicatorVisibility() const
 	return BrushIndicator->bVisible;
 }
 
-UPreviewMesh* UMeshSculptToolBase::MakeDefaultIndicatorSphereMesh(UObject* Parent, UWorld* World, int Resolution /*= 32*/)
+UPreviewMesh* UMeshSculptToolBase::MakeBrushIndicatorMesh(UObject* Parent, UWorld* World)
 {
 	UPreviewMesh* SphereMesh = NewObject<UPreviewMesh>(Parent);
 	SphereMesh->CreateInWorld(World, FTransform::Identity);
 	FSphereGenerator SphereGen;
-	SphereGen.NumPhi = SphereGen.NumTheta = Resolution;
+	SphereGen.NumPhi = SphereGen.NumTheta = 32;
 	SphereGen.Generate();
 	FDynamicMesh3 Mesh(&SphereGen);
 	SphereMesh->UpdatePreview(&Mesh);

@@ -12,6 +12,11 @@
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "Util/BufferUtil.h"
 #include "AssetUtils/Texture2DUtil.h"
+#include "ToolSetupUtil.h"
+
+#include "BaseGizmos/BrushStampIndicator.h"
+#include "PreviewMesh.h"
+#include "Generators/RectangleMeshGenerator.h"
 
 #include "Changes/MeshVertexChange.h"
 
@@ -302,6 +307,44 @@ void UMeshVertexSculptTool::Shutdown(EToolShutdownType ShutdownType)
 void UMeshVertexSculptTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	CalculateBrushRadius();
+}
+
+
+
+UPreviewMesh* UMeshVertexSculptTool::MakeBrushIndicatorMesh(UObject* Parent, UWorld* World)
+{
+	UPreviewMesh* PlaneMesh = NewObject<UPreviewMesh>(Parent);
+	PlaneMesh->CreateInWorld(World, FTransform::Identity);
+
+	FRectangleMeshGenerator RectGen;
+	RectGen.Width = RectGen.Height = 2.0;
+	RectGen.WidthVertexCount = RectGen.HeightVertexCount = 1;
+	FDynamicMesh3 Mesh(&RectGen.Generate());
+	FDynamicMeshUVOverlay* UVOverlay = Mesh.Attributes()->PrimaryUV();
+	// configure UVs to be in same space as texture pixels when mapped into brush frame (??)
+	for (int32 eid : UVOverlay->ElementIndicesItr())
+	{
+		FVector2f UV = UVOverlay->GetElement(eid);
+		UV.X = 1.0 - UV.X;
+		UV.Y = 1.0 - UV.Y;
+		UVOverlay->SetElement(eid, UV);
+	}
+	PlaneMesh->UpdatePreview(&Mesh);
+
+	BrushIndicatorMaterial = ToolSetupUtil::GetDefaultBrushAlphaMaterial(GetToolManager());
+	if (BrushIndicatorMaterial)
+	{
+		PlaneMesh->SetMaterial(BrushIndicatorMaterial);
+	}
+
+	return PlaneMesh;
+}
+
+void UMeshVertexSculptTool::InitializeIndicator()
+{
+	UMeshSculptToolBase::InitializeIndicator();
+	// want to draw radius
+	BrushIndicator->bDrawRadiusCircle = true;
 }
 
 void UMeshVertexSculptTool::SetActiveBrushType(int32 Identifier)
@@ -749,6 +792,16 @@ bool UMeshVertexSculptTool::UpdateBrushPosition(const FRay& WorldRay)
 
 
 
+void UMeshVertexSculptTool::UpdateHoverStamp(const FFrame3d& StampFrame)
+{
+	FFrame3d HoverFrame = StampFrame;
+	if (bHaveBrushAlpha && (AlphaProperties->RotationAngle != 0))
+	{
+		HoverFrame.Rotate(FQuaterniond(HoverFrame.Z(), AlphaProperties->RotationAngle, true));
+	}
+	UMeshSculptToolBase::UpdateHoverStamp(HoverFrame);
+}
+
 bool UMeshVertexSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	// 4.26 HOTFIX: update LastWorldRay position so that we have it for updating WorkPlane position
@@ -758,7 +811,51 @@ bool UMeshVertexSculptTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	if(ensure(InStroke() == false))
 	{
 		UpdateBrushPosition(DevicePos.WorldRay);
+
+		if (BrushIndicatorMaterial)
+		{
+			BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffRatio"), GetCurrentBrushFalloff());
+
+			switch (SculptProperties->PrimaryFalloffType)
+			{
+			default:
+			case EMeshSculptFalloffType::Smooth:
+			case EMeshSculptFalloffType::BoxSmooth:
+				BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffMode"), 0.0f);
+				break;
+			case EMeshSculptFalloffType::Linear:
+			case EMeshSculptFalloffType::BoxLinear:
+				BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffMode"), 0.3333333f);
+				break;
+			case EMeshSculptFalloffType::Inverse:
+			case EMeshSculptFalloffType::BoxInverse:
+				BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffMode"), 0.6666666f);
+				break;
+			case EMeshSculptFalloffType::Round:
+			case EMeshSculptFalloffType::BoxRound:
+				BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffMode"), 1.0f);
+				break;
+			}
+
+			switch (SculptProperties->PrimaryFalloffType)
+			{
+			default:
+			case EMeshSculptFalloffType::Smooth:
+			case EMeshSculptFalloffType::Linear:
+			case EMeshSculptFalloffType::Inverse:
+			case EMeshSculptFalloffType::Round:
+				BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffShape"), 0.0f);
+				break;
+			case EMeshSculptFalloffType::BoxSmooth:
+			case EMeshSculptFalloffType::BoxLinear:
+			case EMeshSculptFalloffType::BoxInverse:
+			case EMeshSculptFalloffType::BoxRound:
+				BrushIndicatorMaterial->SetScalarParameterValue(TEXT("FalloffShape"), 1.0f);
+			}
+			
+		}
 	}
+
 	return true;
 }
 
@@ -1010,12 +1107,19 @@ void UMeshVertexSculptTool::UpdateBrushAlpha(UTexture2D* NewAlpha)
 				BrushAlphaValues = MoveTemp(AlphaValues);
 				BrushAlphaDimensions = AlphaValues.GetDimensions();
 				bHaveBrushAlpha = true;
+
+				BrushIndicatorMaterial->SetTextureParameterValue(TEXT("BrushAlpha"), NewAlpha);
+				BrushIndicatorMaterial->SetScalarParameterValue(TEXT("AlphaPower"), 1.0);
+
 				return;
 			}
 		}
 		bHaveBrushAlpha = false;
 		BrushAlphaValues = TImageBuilder<FVector4f>();
 		BrushAlphaDimensions = FImageDimensions();
+
+		BrushIndicatorMaterial->SetTextureParameterValue(TEXT("BrushAlpha"), nullptr);
+		BrushIndicatorMaterial->SetScalarParameterValue(TEXT("AlphaPower"), 0.0);
 	}
 }
 
