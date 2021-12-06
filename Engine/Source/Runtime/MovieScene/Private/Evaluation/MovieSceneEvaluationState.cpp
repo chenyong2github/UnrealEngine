@@ -351,13 +351,6 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 					for (UObject* Object : FoundObjects)
 					{
 						Bindings->Objects.Add(Object);
-
-#if WITH_EDITORONLY_DATA
-						if (!Object->GetClass()->IsChildOf(Possessable->GetPossessedObjectClass()))
-						{
-							UE_LOG(LogMovieScene, Error, TEXT("Mismatch in %s with posssessed object class for: %s, Expected: %s, but was: %s"), *GetNameSafe(Sequence), *Possessable->GetName(), *GetNameSafe(Possessable->GetPossessedObjectClass()), *GetNameSafe(Object->GetClass()));
-						}
-#endif
 					}
 				}
 			}
@@ -369,13 +362,6 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 				for (UObject* Object : FoundObjects)
 				{
 					Bindings->Objects.Add(Object);
-
-#if WITH_EDITORONLY_DATA
-					if (!Object->GetClass()->IsChildOf(Possessable->GetPossessedObjectClass()))
-					{
-						UE_LOG(LogMovieScene, Error, TEXT("Mismatch in %s with posssessed object class for: %s, Expected: %s, but was: %s"), *GetNameSafe(Sequence), *Possessable->GetName(), *GetNameSafe(Possessable->GetPossessedObjectClass()), *GetNameSafe(Object->GetClass()));
-					}
-#endif
 				}
 			}
 		}
