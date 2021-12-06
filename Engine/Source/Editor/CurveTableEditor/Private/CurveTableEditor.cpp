@@ -439,8 +439,15 @@ void FCurveTableEditor::ExtendToolbar()
 		GetToolkitCommands(),
 		FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ParentToolbarBuilder)
 		{
-
 			ParentToolbarBuilder.BeginSection("CurveTable");
+
+			ParentToolbarBuilder.AddToolBarButton(
+				FUIAction(FExecuteAction::CreateSP(this, &FCurveTableEditor::Reimport_Execute, GetEditingObject())),
+				NAME_None,
+				FText::GetEmpty(),
+				LOCTEXT("Reimport_Tooltip", "Reimport the Curve Table from the source file.  All changes will be lost.  This action cannot be undone."),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Toolbar.Import")
+			);
 
 			bool HasRichCurves = GetCurveTable()->HasRichCurves();
 			ParentToolbarBuilder.AddWidget(
@@ -483,7 +490,6 @@ void FCurveTableEditor::ExtendToolbar()
 	);
 
 	AddToolbarExtender(ToolbarExtender);
-
 }
 
 FName FCurveTableEditor::GetToolkitFName() const
