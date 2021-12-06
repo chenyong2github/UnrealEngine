@@ -61,6 +61,7 @@ class IExporter
 	virtual bool ToggleAutoSync() = 0;
 	virtual bool IsAutoSyncEnabled() = 0;
 	virtual void SetAutoSyncDelay(float Seconds) = 0;
+	virtual void SetAutoSyncIdleDelay(float Seconds) = 0;
 };
 
 
@@ -212,16 +213,19 @@ public:
 	FNotifications(IExporter& InExporter);
 	~FNotifications();
 
+	void RegisterForSystemNotifications();
+
+	void StartSceneChangeTracking();
+	void StopSceneChangeTracking();
+
 	void AddNode(INode*);
 
-	void Reset();
-
-	void RegisterForNotifications();
 	FString ConvertNotificationCodeToString(int code);
 
 	static void On3dsMaxNotification(void* param, NotifyInfo* info);
 
-	bool bRegistered = false; // Whether notification are being processed
+	bool bSceneChangeTracking = false;
+
 	IExporter& Exporter;
 	TMap<int, FString> NotificationCodetoString; // todo: remove, just for debug to output strings for notification codes
 	TArray<int> NotificationCodesRegistered;
