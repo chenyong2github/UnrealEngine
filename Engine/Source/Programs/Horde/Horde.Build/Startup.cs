@@ -83,6 +83,8 @@ using HordeServer.Compute;
 using System.Net.Http.Headers;
 using Serilog.Events;
 using HordeServer.Jobs;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace HordeServer
 {
@@ -642,6 +644,27 @@ namespace HordeServer
 			{
 				Config.SwaggerDoc("v1", new OpenApiInfo { Title = "Horde Server API", Version = "v1" });
 				Config.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+			});
+
+			Services.Configure<ApiBehaviorOptions>(Options =>
+			{
+				Options.InvalidModelStateResponseFactory = Context =>
+				{
+					foreach(KeyValuePair<string, ModelStateEntry> Pair in Context.ModelState)
+					{
+						ModelError? Error = Pair.Value.Errors.FirstOrDefault();
+						if (Error != null)
+						{
+							string Message = Error.ErrorMessage;
+							if (String.IsNullOrEmpty(Message))
+							{
+								Message = Error.Exception?.Message ?? "Invalid error object";
+							}
+							return new BadRequestObjectResult(EpicGames.Core.LogEvent.Create(LogLevel.Error, KnownLogEvents.None, Error.Exception, "Invalid value for {Name}: {Message}", Pair.Key, Message));
+						}
+					}
+					return new BadRequestObjectResult(Context.ModelState);
+				};
 			});
 
 			DirectoryReference DashboardDir = DirectoryReference.Combine(Program.AppDir, "DashboardApp");
