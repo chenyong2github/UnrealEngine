@@ -23,6 +23,7 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/PreloadableFile.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
 #include "ShaderCompiler.h"
 #include "UObject/Object.h"
@@ -1710,8 +1711,11 @@ FPackageData* FPackageDatas::TryAddPackageDataByFileName(const FName& InFileName
 	return TryAddPackageDataByStandardFileName(GetStandardFileName(InFileName));
 }
 
-FPackageData* FPackageDatas::TryAddPackageDataByStandardFileName(const FName& FileName)
+FPackageData* FPackageDatas::TryAddPackageDataByStandardFileName(const FName& FileName, bool bExactMatchRequired,
+	FName* OutFoundFileName)
 {
+	FName FoundFileName = FileName;
+	ON_SCOPE_EXIT{ if (OutFoundFileName) { *OutFoundFileName = FoundFileName; } };
 	if (FileName.IsNone())
 	{
 		return nullptr;
@@ -1726,12 +1730,14 @@ FPackageData* FPackageDatas::TryAddPackageDataByStandardFileName(const FName& Fi
 		}
 	}
 
-	FName PackageName = LookupPackageNameOnDisk(FileName);
+	FName ExistingFileName;
+	FName PackageName = LookupPackageNameOnDisk(FileName, bExactMatchRequired, ExistingFileName);
 	if (PackageName.IsNone())
 	{
 		return nullptr;
 	}
-	return &CreatePackageData(PackageName, FileName);
+	FoundFileName = ExistingFileName;
+	return &CreatePackageData(PackageName, ExistingFileName);
 }
 
 FPackageData& FPackageDatas::CreatePackageData(FName PackageName, FName FileName)
@@ -1861,8 +1867,9 @@ bool FPackageDatas::TryLookupFileNameOnDisk(FName PackageName, FString& OutFileN
 	}
 }
 
-FName FPackageDatas::LookupPackageNameOnDisk(FName NormalizedFileName)
+FName FPackageDatas::LookupPackageNameOnDisk(FName NormalizedFileName, bool bExactMatchRequired, FName& FoundFileName)
 {
+	FoundFileName = NormalizedFileName;
 	if (NormalizedFileName.IsNone())
 	{
 		return NAME_None;
@@ -1875,13 +1882,14 @@ FName FPackageDatas::LookupPackageNameOnDisk(FName NormalizedFileName)
 	FName PackageName = FName(*Buffer);
 
 	FName DiscoveredFileName = LookupFileNameOnDisk(PackageName, true /* bRequireExists */, false /* bCreateAsMap */);
-	if (DiscoveredFileName == NormalizedFileName)
+	if (DiscoveredFileName == NormalizedFileName || !bExactMatchRequired)
 	{
+		FoundFileName = DiscoveredFileName;
 		return PackageName;
 	}
 	else
 	{
-		// Either the file does not exist on disk or the input FileName was not in normalized format
+		// Either the file does not exist on disk or NormalizedFileName did not match its format or extension
 		return NAME_None;
 	}
 }

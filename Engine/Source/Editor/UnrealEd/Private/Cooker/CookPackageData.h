@@ -949,8 +949,13 @@ public:
 	 * If one does not already exist, verify the FileName on disk and create the PackageData.
 	 * If no filename exists for the package on disk, return nullptr.
 	 * FileName must have been normalized by FPackageDatas::GetStandardFileName.
+	 * 
+	 * @param bExactMatchRequired If true, returns true even if the FileName is not an exact match, e.g.
+	 *                            because it is missing the extension.
+	 * @param FoundFileName If non-null, will be set to the discovered FileName, only useful if !bExactMatchRequired
 	 */
-	FPackageData* TryAddPackageDataByStandardFileName(const FName& InFileName);
+	FPackageData* TryAddPackageDataByStandardFileName(const FName& InFileName, bool bExactMatchRequired=true,
+		FName* OutFoundFileName=nullptr);
 	/**
 	 * Return a reference to the PackageData for the given FileName.
 	 * If one does not already exist, verify the FileName on disk and create the PackageData. Asserts if FileName
@@ -1063,7 +1068,7 @@ private:
 	/** Return whether a filename exists for the package on disk, and return it, unnormalized. */
 	static bool TryLookupFileNameOnDisk(FName PackageName, FString& OutFileName);
 	/** Return the corresponding PackageName if the normalized filename exists on disk. */
-	static FName LookupPackageNameOnDisk(FName NormalizedFileName);
+	static FName LookupPackageNameOnDisk(FName NormalizedFileName, bool bExactMatchRequired, FName& FoundFileName);
 
 	/** Collection of pointers to all FPackageData that have been constructed by *this. */
 	TArray<FPackageData*> PackageDatas;
