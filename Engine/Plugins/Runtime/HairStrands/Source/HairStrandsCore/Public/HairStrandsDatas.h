@@ -366,6 +366,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	/** Get the number of Curves */
 	uint32 Num() const { return CurvesCount.Num(); }
 
+	bool HasPrecomputedWeights() const { return CurvesClosestGuideIDs.Num() > 0 && CurvesClosestGuideWeights.Num() > 0; }
+
 	/** Number of points per rod */
 	TArray<uint16> CurvesCount;
 
@@ -383,6 +385,12 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 
 	/** Mapping of imported Groom ID to index */
 	TMap<int, int> GroomIDToIndex;
+
+	/** Custom guide IDs (indexed with StrandID) */
+	TArray<FIntVector> CurvesClosestGuideIDs;
+
+	/** Custom guid weights (indexed with StrandID) */
+	TArray<FVector> CurvesClosestGuideWeights;
 
 	/** Max strands Curves length */
 	float MaxLength = 0;

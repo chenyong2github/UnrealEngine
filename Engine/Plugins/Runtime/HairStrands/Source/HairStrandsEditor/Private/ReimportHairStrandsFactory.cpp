@@ -371,9 +371,11 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 			for (const FHairDescriptionGroup& Group : OutDescription.HairGroups)
 			{
 				FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
+				OutGroup.GroupName  = Group.Info.GroupName;
 				OutGroup.GroupID	= Group.Info.GroupID;
 				OutGroup.CurveCount = Group.Info.NumCurves;
 				OutGroup.GuideCount = Group.Info.NumGuides;
+				OutGroup.bHasPrecomputedWeights = Group.Strands.StrandsCurves.HasPrecomputedWeights();
 
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
 				{

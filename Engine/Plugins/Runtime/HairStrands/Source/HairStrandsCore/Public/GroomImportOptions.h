@@ -35,6 +35,9 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 	{}
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	FName GroupName;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
 	int32 GroupID;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
@@ -42,6 +45,9 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
 	int32 GuideCount;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
+	bool bHasPrecomputedWeights;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Preview)
 	FHairGroupsInterpolation InterpolationSettings;
