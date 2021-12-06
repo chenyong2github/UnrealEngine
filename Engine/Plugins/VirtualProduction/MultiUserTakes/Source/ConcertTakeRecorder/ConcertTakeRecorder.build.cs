@@ -27,6 +27,7 @@ public class ConcertTakeRecorder : ModuleRules
 				"SlateCore",
 				"TakesCore",
 				"TakeRecorder",
+				"UnrealEd"
 			}
         );
     }
