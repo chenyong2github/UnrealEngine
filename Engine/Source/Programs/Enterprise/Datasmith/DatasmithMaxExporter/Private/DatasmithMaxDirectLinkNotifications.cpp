@@ -400,11 +400,19 @@ FNotifications::FNotifications(IExporter& InExporter)
 	: Exporter(InExporter)
 	, NodeObserver(MakeUnique<FNodeObserver>())
 	, MaterialObserver(MakeUnique<FMaterialObserver>())
-{}
+{
+	RegisterForSystemNotifications(); // Always follow system events like file reset, new, open and others. But some system notifications also track changes within scene.
+}
 
 FNotifications::~FNotifications()
 {
-	Reset();
+	for (int Code: NotificationCodesRegistered)
+	{
+		UnRegisterNotification(On3dsMaxNotification, this, Code);
+	}
+	NotificationCodesRegistered.Reset();
+
+	StopSceneChangeTracking();
 }
 
 void FNotifications::AddNode(INode* Node)
@@ -412,36 +420,8 @@ void FNotifications::AddNode(INode* Node)
 	NodeObserver->AddItem(Node);
 }
 
-void FNotifications::Reset()
+void FNotifications::RegisterForSystemNotifications()
 {
-	if (NodeObserver)
-	{
-		NodeObserver->Reset();
-	}
-	if (MaterialObserver)
-	{
-		MaterialObserver->Reset();
-	}
-
-	for (int Code: NotificationCodesRegistered)
-	{
-		UnRegisterNotification(On3dsMaxNotification, this, Code);
-	}
-	NotificationCodesRegistered.Reset();
-	if (NodeEventCallback)
-	{
-		GetISceneEventManager()->UnRegisterCallback(NodeEventCallback->CallbackKey);
-		NodeEventCallback.Reset();
-	}
-	bRegistered = false;
-}
-
-void FNotifications::RegisterForNotifications()
-{
-	if (bRegistered)
-	{
-		return;
-	}
 	// Build todo: remove strings, for debug/logging
 #pragma warning(push)
 #pragma warning(disable:4995) // disable error on deprecated events, we just assign handlers not firing them
@@ -475,13 +455,35 @@ void FNotifications::RegisterForNotifications()
 		NotificationCodesRegistered.Add(Code);
 		++i;
 	}
+}
+
+void FNotifications::StartSceneChangeTracking()
+{
+	if (bSceneChangeTracking)
+	{
+		return;
+	}
+	bSceneChangeTracking = true;
 
 	NodeEventCallback = MakeUnique<FNodeEventCallback>(Exporter.GetSceneTracker());
 	// Setup Node Event System callback
 	// https://help.autodesk.com/view/3DSMAX/2018/ENU/?guid=__files_GUID_7C91D285_5683_4606_9F7C_B8D3A7CA508B_htm
 	NodeEventCallback->CallbackKey = GetISceneEventManager()->RegisterCallback(NodeEventCallback.Get());
+}
 
-	bRegistered = true;
+void FNotifications::StopSceneChangeTracking()
+{
+	if (!bSceneChangeTracking)
+	{
+		return;
+	}
+	bSceneChangeTracking = false;
+
+	GetISceneEventManager()->UnRegisterCallback(NodeEventCallback->CallbackKey);
+	NodeEventCallback.Reset();
+
+	NodeObserver->Reset();
+	MaterialObserver->Reset();
 }
 
 FString FNotifications::ConvertNotificationCodeToString(int code)
@@ -492,12 +494,12 @@ FString FNotifications::ConvertNotificationCodeToString(int code)
 
 void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 {
-	FNotifications& NotificationsHandler = *reinterpret_cast<FNotifications*>(param);
+	FNotifications& NotificationsHandler = *static_cast<FNotifications*>(param);
 	IExporter* Exporter = &NotificationsHandler.Exporter;
 
 	switch (info->intcode)
 	{
-		// Skip some events to display(spamming tests)
+	// Skip some events to display(spamming tests)
 	case NOTIFY_VIEWPORT_CHANGE:
 	case NOTIFY_PRE_RENDERER_CHANGE:
 	case NOTIFY_POST_RENDERER_CHANGE:
@@ -514,38 +516,45 @@ void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 		LOG_DEBUG_HEAVY(FString(TEXT("Notify: ")) + NotificationsHandler.ConvertNotificationCodeToString(info->intcode));
 	};
 
+	if (NotificationsHandler.bSceneChangeTracking)
+	{
+		ISceneTracker& SceneTracker = Exporter->GetSceneTracker();
+		switch (info->intcode)
+		{
+		case NOTIFY_NODE_POST_MTL:
+			// Event - node got a new material
+			break;
 
-	ISceneTracker& SceneTracker = Exporter->GetSceneTracker();
+		case NOTIFY_SCENE_ADDED_NODE:
+		{
+			// note: INodeEventCallback::Added/Deleted is not used because there's a test case when it fails:
+			//   When a box is being created(dragging corners using mouse interface) and then cancelled during creation(RMB pressed)
+			//   INodeEventCallback::Deleted event is not fired by Max, although Added was called(along with other change events during creation)
+
+			INode* Node = reinterpret_cast<INode*>(info->callParam);
+
+			LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
+			SceneTracker.NodeAdded(Node);
+
+			break;
+		}
+
+		case NOTIFY_SCENE_PRE_DELETED_NODE:
+		{
+			// note: INodeEventCallback::Deleted is not called when object creation was cancelled in the process
+
+			INode* Node = reinterpret_cast<INode*>(info->callParam);
+			LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
+
+			SceneTracker.NodeDeleted(reinterpret_cast<INode*>(info->callParam));
+			break;
+		}
+		}
+	}
+
+	// Handle events not related to tracking scene changes
 	switch (info->intcode)
 	{
-	case NOTIFY_NODE_POST_MTL:
-		// todo: Event - node got a new material
-		break;
-
-	case NOTIFY_SCENE_ADDED_NODE:
-	{
-		// note: INodeEventCallback::Added/Deleted is not used because there's a test case when it fails:
-		//   When a box is being created(dragging corners using mouse interface) and then cancelled during creation(RMB pressed)
-		//   INodeEventCallback::Deleted event is not fired by Max, although Added was called(along with other change events during creation)
-
-		INode* Node = reinterpret_cast<INode*>(info->callParam);
-
-		LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
-		SceneTracker.NodeAdded(Node);
-
-		break;
-	}
-
-	case NOTIFY_SCENE_PRE_DELETED_NODE:
-	{
-		// note: INodeEventCallback::Deleted is not called when object creation was cancelled in the process
-
-		INode* Node = reinterpret_cast<INode*>(info->callParam);
-		LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
-
-		SceneTracker.NodeDeleted(reinterpret_cast<INode*>(info->callParam));
-		break;
-	}
 	// Handle New/Reset events - reset tracking immediately when "Pre events are received - after this point all nodes are invalid, don't wait for "Post" event
 	case NOTIFY_SYSTEM_PRE_NEW:  // Sent when File>New>New All is selected 
 	case NOTIFY_SYSTEM_PRE_RESET:  // Sent when Reset OR File>New>New From Template is selected

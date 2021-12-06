@@ -193,9 +193,22 @@ Value* ToggleAutoSync_cf(Value** arg_list, int count)
 }
 Primitive ToggleAutoSync_pf(_M("Datasmith_ToggleAutoSync"), ToggleAutoSync_cf);
 
+Value* IsAutoSyncEnabled_cf(Value** arg_list, int count) 
+{
+	check_arg_count(IsAutoSyncEnabled, 0, count);
+
+	if (GetExporter())
+	{
+		return bool_result(GetExporter()->IsAutoSyncEnabled());
+	}
+
+	return &false_value;
+}
+Primitive IsAutoSyncEnabled_pf(_M("Datasmith_IsAutoSyncEnabled"), IsAutoSyncEnabled_cf);
+
 Value* SetAutoSyncDelay_cf(Value** arg_list, int count) 
 {
-	check_arg_count(ToggleAutoSync, 1, count);
+	check_arg_count(SetAutoSyncDelay, 1, count);
 
 	if (GetExporter())
 	{
@@ -206,6 +219,20 @@ Value* SetAutoSyncDelay_cf(Value** arg_list, int count)
 	return &false_value;
 }
 Primitive SetAutoSyncDelay_pf(_M("Datasmith_SetAutoSyncDelay"), SetAutoSyncDelay_cf);
+
+Value* SetAutoSyncIdleDelay_cf(Value** arg_list, int count) 
+{
+	check_arg_count(SetAutoSyncIdleDelay, 1, count);
+
+	if (GetExporter())
+	{
+		GetExporter()->SetAutoSyncIdleDelay(arg_list[0]->to_float());
+		return &true_value;
+	}
+
+	return &false_value;
+}
+Primitive SetAutoSyncIdleDelay_pf(_M("Datasmith_SetAutoSyncIdleDelay"), SetAutoSyncIdleDelay_cf);
 
 Value* OpenDirectlinkUi_cf(Value** arg_list, int count) 
 {

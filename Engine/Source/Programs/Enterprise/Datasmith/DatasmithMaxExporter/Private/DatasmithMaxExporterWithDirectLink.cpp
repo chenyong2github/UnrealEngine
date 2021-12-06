@@ -84,9 +84,14 @@ public:
 		SceneExporterRef.Reset();
 		SceneExporterRef = MakeShared<FDatasmithSceneExporter>();
 
-		// todo: compute or pass from script
+
+		MSTR Renderer;
+		FString Host;
+		Host = TEXT("Autodesk 3dsmax ") + FString::FromInt(MAX_VERSION_MAJOR) + TEXT(".") + FString::FromInt(MAX_VERSION_MINOR) + TEXT(".") + FString::FromInt(MAX_VERSION_POINT);
+		GetCOREInterface()->GetCurrentRenderer()->GetClassName(Renderer);
+
 		DatasmithSceneRef->SetProductName(TEXT("3dsmax"));
-		DatasmithSceneRef->SetHost(TEXT("3dsmax"));
+		DatasmithSceneRef->SetHost( *( Host + Renderer ) );
 
 		// Set the vendor name of the application used to build the scene.
 		DatasmithSceneRef->SetVendor(TEXT("Autodesk"));
@@ -103,6 +108,10 @@ public:
 		//  ---- PreInitPreStartupScreen
 		//  ----- FTaskGraphInterface::Startup
 		PreExport();
+
+		SetOutputPath(GetDirectlinkCacheDirectory());
+		FString SceneName = FPaths::GetCleanFilename(GetCOREInterface()->GetCurFileName().data());
+		SetName(*SceneName);
 	}
 
 	TSharedRef<IDatasmithScene> GetDatasmithScene()
@@ -205,7 +214,7 @@ public:
 class FUpdateProgress
 {
 	TUniquePtr<FDatasmithMaxProgressManager> ProgressManager;
-	int32 StageIndex;
+	int32 StageIndex = 0;
 	int32 StageCount;
 public:
 	FUpdateProgress(bool bShowProgressBar, int32 InStageCount) : StageCount(InStageCount)
@@ -229,6 +238,7 @@ public:
 
 	void ProgressEvent(float Progress, const TCHAR* Message)
 	{
+		LogDebug(FString::Printf(TEXT("%f %s"), Progress, Message));
 		if (ProgressManager)
 		{
 			ProgressManager->ProgressEvent(Progress, Message);
@@ -1758,7 +1768,7 @@ public:
 			int32 IdlePeriod = GetTickCount() - LastInputInfo.dwTime;
 			LogDebug(FString::Printf(TEXT("CurrentTime: %ld, Idle time: %ld, IdlePeriod: %ld"), CurrentTime, LastInputInfo.dwTime, IdlePeriod));
 
-			if (IdlePeriod > FMath::RoundToInt(AutoSyncDelaySeconds*1000))
+			if (IdlePeriod > FMath::RoundToInt(AutoSyncIdleDelaySeconds*1000))
 			{
 				// Don't create progress bar for autosync - it steals focus, closes listener and what else
 				// todo: consider creating progress when a big change in scene is detected, e.g. number of nodes?
@@ -1801,10 +1811,15 @@ public:
 		AutoSyncDelaySeconds = Seconds;
 	}
 
+	virtual void SetAutoSyncIdleDelay(float Seconds) override
+	{
+		AutoSyncIdleDelaySeconds = Seconds;
+	}
+
 	// Install change notification systems
 	virtual void StartSceneChangeTracking() override
 	{
-		NotificationsHandler.RegisterForNotifications();
+		NotificationsHandler.StartSceneChangeTracking();
 	}
 
 	virtual bool UpdateScene(bool bQuiet) override
@@ -1814,16 +1829,13 @@ public:
 
 	virtual void Reset() override
 	{
-		ExportedScene.Reset();
-
-		// todo: control output path from somewhere else?
-		if (!OutputPath.IsEmpty())
+		NotificationsHandler.StopSceneChangeTracking();
+		if (IsAutoSyncEnabled())
 		{
-			ExportedScene.SetOutputPath(*OutputPath);
+			ToggleAutoSync();
 		}
 
-		FString SceneName = FPaths::GetCleanFilename(GetCOREInterface()->GetCurFileName().data());
-		ExportedScene.SetName(*SceneName);
+		ExportedScene.Reset();
 
 		SceneTracker.Reset();
 
@@ -1834,7 +1846,6 @@ public:
 			DirectLinkImpl->InitializeForScene(ExportedScene.GetDatasmithScene());
 		}
 
-		NotificationsHandler.Reset();
 	}
 
 	virtual ISceneTracker& GetSceneTracker() override
@@ -1850,7 +1861,8 @@ public:
 	FSceneTracker SceneTracker;
 
 	bool bAutoSyncEnabled = false;
-	float AutoSyncDelaySeconds = 0.5f;
+	float AutoSyncDelaySeconds = 0.5f; // AutoSync is attempted periodically using this interval
+	float AutoSyncIdleDelaySeconds = 0.5f; // Time period user should be idle to run AutoSync
 };
 
 static TUniquePtr<IExporter> Exporter;
