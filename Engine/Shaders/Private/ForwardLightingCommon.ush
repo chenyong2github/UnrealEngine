@@ -473,6 +473,8 @@ half3 GetImageBasedReflectionSpecular(FMaterialPixelParameters MaterialParameter
 			float Vignette;
 			ReprojectHit(TranslucentBasePass.PrevScreenPositionScaleBias, HitUVz, SampleUV, Vignette);
 
+			SampleUV = clamp(SampleUV, TranslucentBasePass.PrevSceneColorBilinearUVMin, TranslucentBasePass.PrevSceneColorBilinearUVMax);
+
 			float4 SSR = SampleScreenColor( 
 				TranslucentBasePass.PrevSceneColor, 
 				TranslucentBasePass.PrevSceneColorSampler,  

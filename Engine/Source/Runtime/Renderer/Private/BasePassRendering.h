@@ -102,6 +102,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	// Material SSR
 	SHADER_PARAMETER(FVector4f, HZBUvFactorAndInvFactor)
 	SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
+	SHADER_PARAMETER(FVector2f, PrevSceneColorBilinearUVMin)
+	SHADER_PARAMETER(FVector2f, PrevSceneColorBilinearUVMax)
 	SHADER_PARAMETER(float, PrevSceneColorPreExposureInv)
 	SHADER_PARAMETER(int32, SSRQuality)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
