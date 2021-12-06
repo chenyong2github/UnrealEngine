@@ -432,6 +432,19 @@ public:
 
 		return nullptr;
 	}
+
+	virtual void SwapSubstructure(ISpatialAccelerationCollection<TPayloadType, T, d>& InOther, FSpatialAccelerationIdx Idx) override
+	{
+		using ThisType = decltype(this);
+		ThisType Other = static_cast<ThisType>(&InOther);
+
+		check(Idx.Bucket < MaxBuckets);
+		check(Idx.Bucket < Other->MaxBuckets);
+		check(Buckets[Idx.Bucket].Objects.Num() > Idx.InnerIdx);
+		check(Other->Buckets[Idx.Bucket].Objects.Num() > Idx.InnerIdx);
+
+		std::swap(Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration, Other->Buckets[Idx.Bucket].Objects[Idx.InnerIdx].Acceleration);
+	}
 	
 	virtual void Reset() override
 	{
