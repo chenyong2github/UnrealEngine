@@ -33,6 +33,32 @@ export class JobDetails {
         return this.jobdata?.name;
     }
 
+    get targets(): string[] {
+
+        const detailArgs = this?.jobdata?.arguments;
+
+        if (!detailArgs) {
+            return [];
+        }
+
+        const targets: string[] = [];
+
+        if (detailArgs && detailArgs.length) {
+
+            const targetArgs = detailArgs.map(arg => arg.trim()).filter(arg => arg.toLowerCase().startsWith("-target="));
+
+            targetArgs.forEach(t => {
+                const target = t.split("=")[1]?.trim();
+                if (target) {
+                    targets.push(target);
+                }
+            });
+        }
+
+        return targets;
+
+    }
+
     async set(id: string, logId: string | undefined = undefined, stepId: string | undefined = undefined, labelIdx: number | undefined, updateMS = defaultUpdateMS, callback?: (details: JobDetails) => void, eventsCallback?: (details: JobDetails) => void) {
 
         if (this.id === id) {
@@ -330,7 +356,7 @@ export class JobDetails {
 
     }
 
-    getStepName(stepId: string | undefined, includeRetry:boolean = true): string {
+    getStepName(stepId: string | undefined, includeRetry: boolean = true): string {
 
         if (!stepId) {
             return "";
@@ -734,7 +760,7 @@ export class JobDetails {
                 this.updateTimingInfo++;
                 this.updateTimingInfo %= 3;
             }
-            
+
             if (doTiming) {
                 requests.push(backend.getJobTiming(this.id));
             }

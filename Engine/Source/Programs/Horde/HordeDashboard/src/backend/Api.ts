@@ -1867,6 +1867,9 @@ export enum ParameterType {
 /**Base class for template parameters */
 export type ParameterData = {
 	type: ParameterType;
+
+	// client side key, with group encoding
+	parameterKey?: string;
 }
 
 /**Used to group a number of other parameters */

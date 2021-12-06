@@ -21,7 +21,7 @@ export type FetchResponse = {
     status: number;
 }
 
-function handleError(errorIn: ErrorInfo, force?:boolean) {
+function handleError(errorIn: ErrorInfo, force?: boolean) {
 
     const e = { ...errorIn, hordeError: true } as ErrorInfo;
 
@@ -56,7 +56,7 @@ export class Fetch {
                 const challenge = await this.challenge();
 
                 if (challenge === ChallengeStatus.Unauthorized) {
-                    
+
                     this.login(window.location.toString());
                     return;
                 }
@@ -181,6 +181,8 @@ export class Fetch {
 
         if (!response.ok) {
 
+            let message = response.statusText;
+
             if (response.url?.indexOf("AccessDenied") !== -1) {
 
                 handleError({
@@ -193,15 +195,34 @@ export class Fetch {
 
                 if (response.status !== 404 || !config?.suppress404) {
 
-                    handleError({
+                    let errorInfo: ErrorInfo = {
                         response: response,
                         url: url
-                    });
+                    }
+
+                    let json: any = undefined;
+
+                    try {
+                        json = await response.json();
+                    } catch {
+
+                    }
+
+                    // dynamic detection of horde formatted error
+                    if (json && json.time && json.message && json.level) {
+                        errorInfo.format = json;
+                        message = json.message;
+                        if (json.id) {
+                            message = `(Error ${json.id}) - ${message}`;
+                        }
+                    }
+
+                    handleError(errorInfo);
 
                 }
             }
 
-            reject(response.statusText);
+            reject(message);
             return;
         }
 
@@ -354,7 +375,7 @@ export class Fetch {
                         url: url
                     });
                 }
-        
+
                 return ChallengeStatus.Unauthorized;
             }
         } catch (reason) {
@@ -375,7 +396,7 @@ export class Fetch {
         if (!token) {
 
             this.debugToken = undefined;
-            this.setAuthorization(undefined);    
+            this.setAuthorization(undefined);
             return;
         }
 
@@ -391,10 +412,10 @@ export class Fetch {
             return;
         }
 
-        this.baseUrl = url;        
+        this.baseUrl = url;
     }
 
-    logout:boolean = false;
+    logout: boolean = false;
 
     private baseUrl = "";
     private debugToken?: string;
