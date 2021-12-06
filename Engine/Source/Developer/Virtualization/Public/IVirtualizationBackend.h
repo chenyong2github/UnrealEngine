@@ -7,11 +7,13 @@
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
 #include "Templates/UniquePtr.h"
-#include "Virtualization/PayloadId.h"
-#include "Virtualization/VirtualizationSystem.h"
+
+class FPackagePath;
 
 namespace UE::Virtualization
 {
+
+class FPayloadId;
 
 /** Describes the result of a IVirtualizationBackend::Push operation */
 enum class EPushResult
@@ -84,21 +86,7 @@ public:
 	 * @param Payload	A potentially compressed buffer representing the payload
 	 * @return			The result of the push operation
 	 */
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FString& PackageContext) = 0;
-
-	virtual EPushResult PushData(TArrayView<FPushRequest> Requests)
-	{
-		// TODO: Sort return codes
-		for (const FPushRequest& Request : Requests)
-		{
-			if (PushData(Request.Identifier, Request.Payload, Request.Context) == EPushResult::Failed)
-			{
-				return EPushResult::Failed;
-			}
-		}
-
-		return EPushResult::Success;
-	}
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext) = 0;
 
 	/** 
 	 * The backend will attempt to retrieve the given payload by what ever method the backend uses.
