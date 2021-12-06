@@ -10,8 +10,7 @@
 
 class FNiagaraSimpleElement2DArrayAttribute : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(FNiagaraSimpleElement2DArrayAttribute, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraSimpleElement2DArrayAttribute);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraSimpleElement2DArrayAttribute, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -77,8 +76,7 @@ void FBatchedElementNiagara2DArrayAttribute::BindShaders(FRHICommandList& RHICmd
 
 class FNiagaraSimpleElementPS : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(FNiagaraSimpleElementPS, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraSimpleElementPS);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraSimpleElementPS, FGlobalShader);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

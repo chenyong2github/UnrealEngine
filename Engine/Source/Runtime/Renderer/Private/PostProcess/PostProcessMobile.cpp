@@ -1785,7 +1785,7 @@ class TMobileHistogramCS : public FMobileHistogram
 {
 public:
 	typedef TMobileHistogramCS< LowSharedComputeMemory > ClassName; // typedef is only so that we can use in DECLARE_SHADER_TYPE macro
-	DECLARE_SHADER_TYPE(ClassName, Global);
+	DECLARE_GLOBAL_SHADER(ClassName);
 
 	// The number of texels on each axis processed by a single thread group.
 	static const FIntPoint TexelsPerThreadGroup;

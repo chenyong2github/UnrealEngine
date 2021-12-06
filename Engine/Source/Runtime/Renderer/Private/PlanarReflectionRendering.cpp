@@ -135,8 +135,7 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPlanarReflectionUniformParameters, "Pl
 template< bool bEnablePlanarReflectionPrefilter >
 class TPrefilterPlanarReflectionPS : public FGlobalShader
 {
-public:
-	DECLARE_SHADER_TYPE(TPrefilterPlanarReflectionPS, Global);
+	DECLARE_GLOBAL_SHADER(TPrefilterPlanarReflectionPS);
 	SHADER_USE_PARAMETER_STRUCT(TPrefilterPlanarReflectionPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

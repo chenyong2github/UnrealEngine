@@ -14,10 +14,9 @@
 
 class NEURALNETWORKINFERENCESHADERS_API FMultidirectionalBroadcastCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FMultidirectionalBroadcastCS, Global);
+	DECLARE_GLOBAL_SHADER(FMultidirectionalBroadcastCS);
 	SHADER_USE_PARAMETER_STRUCT(FMultidirectionalBroadcastCS, FGlobalShader)
 
-public:
 	static const uint32 THREADGROUP_SIZE_X;
 	static const uint32 MAX_NUMBER_DIMENSIONS;
 

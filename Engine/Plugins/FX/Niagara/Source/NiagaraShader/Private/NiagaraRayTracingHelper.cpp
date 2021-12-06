@@ -113,7 +113,7 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 
 class FNiagaraCollisionRayTraceCH : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FNiagaraCollisionRayTraceCH, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraCollisionRayTraceCH);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -134,7 +134,7 @@ class FNiagaraCollisionRayTraceCH : public FGlobalShader
 
 class FNiagaraCollisionRayTraceMiss : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FNiagaraCollisionRayTraceMiss, Global);
+	DECLARE_GLOBAL_SHADER(FNiagaraCollisionRayTraceMiss);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{

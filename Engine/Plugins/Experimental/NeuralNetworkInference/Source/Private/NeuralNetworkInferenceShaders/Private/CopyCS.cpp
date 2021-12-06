@@ -22,4 +22,4 @@ const uint32 FCopyCS::THREADGROUP_SIZE_X = 128;
 /* Shader implementation
  *****************************************************************************/
 
-IMPLEMENT_SHADER_TYPE(, FCopyCS, TEXT("/Plugins/NeuralNetworkInference/Private/Copy.usf"), TEXT("CopyCS"), SF_Compute) // Path defined in NeuralNetworkInferenceShadersModule.cpp
+IMPLEMENT_GLOBAL_SHADER(FCopyCS, "/Plugins/NeuralNetworkInference/Private/Copy.usf", "CopyCS", SF_Compute); // Path defined in NeuralNetworkInferenceShadersModule.cpp

@@ -55,4 +55,4 @@ FString FMultidirectionalBroadcastCS::GetFunctionString(const EMultidirectionalB
 /* Shader implementation
  *****************************************************************************/
 
-IMPLEMENT_SHADER_TYPE(, FMultidirectionalBroadcastCS, TEXT("/Plugins/NeuralNetworkInference/Private/MultidirectionalBroadcastOperator.usf"), TEXT("MultidirectionalBroadcastCS"), SF_Compute) // Path defined in NeuralNetworkInferenceShadersModule.cpp
+IMPLEMENT_GLOBAL_SHADER(FMultidirectionalBroadcastCS, "/Plugins/NeuralNetworkInference/Private/MultidirectionalBroadcastOperator.usf", "MultidirectionalBroadcastCS", SF_Compute); // Path defined in NeuralNetworkInferenceShadersModule.cpp

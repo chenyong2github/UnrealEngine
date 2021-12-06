@@ -14,10 +14,9 @@
 
 class NEURALNETWORKINFERENCESHADERS_API FConvTransposeCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FConvTransposeCS, Global);
+	DECLARE_GLOBAL_SHADER(FConvTransposeCS);
 	SHADER_USE_PARAMETER_STRUCT(FConvTransposeCS, FGlobalShader)
 
-public:
 	class FConvMode : SHADER_PERMUTATION_ENUM_CLASS("CONV_MODE", EConvMode);
 	using FPermutationDomain = TShaderPermutationDomain<FConvMode>;
 

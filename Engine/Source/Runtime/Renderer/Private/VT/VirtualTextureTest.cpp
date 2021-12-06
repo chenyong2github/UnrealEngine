@@ -115,7 +115,7 @@ bool FVirtualTextureTest::RequestPageData( uint8 vLevel, uint64 vAddress, void* 
 
 class FVirtualTextureTestPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FVirtualTextureTestPS, Global);
+	DECLARE_GLOBAL_SHADER(FVirtualTextureTestPS);
 
 	static bool ShouldCache( EShaderPlatform Platform )
 	{

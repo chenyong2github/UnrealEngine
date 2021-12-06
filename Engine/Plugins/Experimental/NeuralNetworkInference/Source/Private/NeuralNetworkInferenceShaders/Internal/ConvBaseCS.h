@@ -14,10 +14,9 @@
 
 class NEURALNETWORKINFERENCESHADERS_API FConvBaseCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FConvBaseCS, Global);
+	DECLARE_GLOBAL_SHADER(FConvBaseCS);
 	SHADER_USE_PARAMETER_STRUCT(FConvBaseCS, FGlobalShader)
 
-public:
 	class FHasBias : SHADER_PERMUTATION_BOOL("HAS_BIAS");
 	class FConvMode : SHADER_PERMUTATION_ENUM_CLASS("CONV_MODE", EConvMode);
 	using FPermutationDomain = TShaderPermutationDomain<FHasBias, FConvMode>;
