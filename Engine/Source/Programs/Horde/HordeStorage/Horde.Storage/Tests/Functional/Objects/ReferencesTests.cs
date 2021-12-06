@@ -79,7 +79,6 @@ namespace Horde.Storage.FunctionalTests.References
                 localKeyspace.ExecuteAsync(new SimpleStatement("DROP TABLE IF EXISTS replication_namespace;"))
             );
 
-            await Task.CompletedTask;
         }
     }
 

@@ -94,7 +94,7 @@ namespace Horde.Storage.Implementation
 
             if (missingReferences.Length == 0)
             {
-                await _referencesStore.Finalize(ns, bucket, key, blobHash);
+                await _referencesStore.Finalize(ns, bucket, key);
                 await _replicationLog.InsertAddEvent(ns, bucket, key, blobHash);
             }
 
@@ -106,6 +106,9 @@ namespace Horde.Storage.Implementation
             (ObjectRecord o, BlobContents blob) = await Get(ns, bucket, key);
             byte[] blobContents = await blob.Stream.ToByteArray();
             CompactBinaryObject payload = CompactBinaryObject.Load(blobContents);
+
+            if (!o.BlobIdentifier.Equals(blobHash))
+                throw new ObjectHashMismatchException(ns, bucket, key, blobHash, o.BlobIdentifier);
 
             bool hasReferences = payload.GetAllFields().Any(field => field.IsAttachment());
 
@@ -126,7 +129,7 @@ namespace Horde.Storage.Implementation
 
             if (missingReferences.Length == 0)
             {
-                await _referencesStore.Finalize(ns, bucket, key, blobHash);
+                await _referencesStore.Finalize(ns, bucket, key);
                 await _replicationLog.InsertAddEvent(ns, bucket, key, blobHash);
             }
 

@@ -11,7 +11,7 @@ namespace Horde.Storage.Implementation
     {
         Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey key);
         Task Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, byte[] blob, bool isFinalized);
-        Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash);
+        Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey key);
 
 
         Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime newLastAccessTime);

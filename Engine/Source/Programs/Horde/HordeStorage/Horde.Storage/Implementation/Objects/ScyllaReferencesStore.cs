@@ -89,13 +89,13 @@ namespace Horde.Storage.Implementation
         }
 
 
-        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name, BlobIdentifier blobHash)
+        public async Task Finalize(NamespaceId ns, BucketId bucket, IoHashKey name)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.finalize");
 
-            AppliedInfo<ScyllaObject> info = await _mapper.UpdateIfAsync<ScyllaObject>("SET is_finalized=true WHERE namespace=? AND bucket=? AND name=? IF payload_hash=?", ns.ToString(), bucket.ToString(), name.ToString(), blobHash.ToString());
+            AppliedInfo<ScyllaObject> info = await _mapper.UpdateIfAsync<ScyllaObject>("SET is_finalized=true WHERE namespace=? AND bucket=? AND name=?", ns.ToString(), bucket.ToString(), name.ToString());
             if (!info.Applied)
-                throw new ObjectHashMismatchException(ns, bucket, name, blobHash, info.Existing.PayloadHash!.AsBlobIdentifier());
+                throw new Exception($"Failed to finalize object in namespace {ns} {bucket} {name}");
         }
 
         private async Task CreateTTLRecord(NamespaceId ns, BucketId bucket, IoHashKey name, sbyte partitionIndex)
