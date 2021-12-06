@@ -66,6 +66,12 @@ static TAutoConsoleVariable<int32> CVarMaterialRoughDiffuse(
 	TEXT("Enable rough diffuse material."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+// STRATA_TODO we keep this for now and can remove it once battletested.
+static TAutoConsoleVariable<int32> CVarClearDuringCategorization(
+	TEXT("r.strata.ClearDuringCategorization"),
+	1,
+	TEXT("TEST."),
+	ECVF_RenderThreadSafe);
 
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata");
@@ -196,7 +202,7 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// SSS texture
 		{
-			StrataSceneData.SSSTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.SSSTexture"));
+			StrataSceneData.SSSTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_DisableDCC | TexCreate_NoFastClear | TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.SSSTexture"));
 			StrataSceneData.SSSTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.SSSTexture);
 		}
 	}
@@ -427,8 +433,9 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FStrataMaterialTileClassificationPassCS);
 	SHADER_USE_PARAMETER_STRUCT(FStrataMaterialTileClassificationPassCS, FGlobalShader);
 
+	class FStrataClearDuringCategorization : SHADER_PERMUTATION_BOOL("PERMUTATION_STRATA_CLEAR_DURING_CATEGORIZATION");
 	class FWaveOps : SHADER_PERMUTATION_BOOL("PERMUTATION_WAVE_OPS");
-	using FPermutationDomain = TShaderPermutationDomain<FWaveOps>;
+	using FPermutationDomain = TShaderPermutationDomain<FWaveOps, FStrataClearDuringCategorization>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -442,6 +449,7 @@ class FStrataMaterialTileClassificationPassCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, SimpleTileListDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, ComplexTileListDataBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -648,18 +656,20 @@ void ApprendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount,
 	{
 		// If this function changes, update Strata::SetBasePassRenderTargetOutputFormat()
 		 
-		// Add 2 uint for Strata fast path
-		auto AddStrataOutputTarget = [&](int16 StrataMaterialArraySlice)
+		// Add 2 uint for Strata fast path. 
+		// - We must clear the first uint to 0 to identify pixels that have not been written to.
+		// - We must never clear the second uint, it will only be written/read if needed.
+		auto AddStrataOutputTarget = [&](int16 StrataMaterialArraySlice, bool bNeverClear = false)
 		{
-			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.MaterialTextureArrayMRTs, StrataMaterialArraySlice, ERenderTargetLoadAction::ELoad);
+			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.MaterialTextureArrayMRTs, StrataMaterialArraySlice, bNeverClear);
 			RenderTargetCount++;
 		};
 		AddStrataOutputTarget(0);
-		AddStrataOutputTarget(1);
+		AddStrataOutputTarget(1, true); // Never clear that target
 
-		// Add another MRT for Strata top layer information
+		// Add another MRT for Strata top layer information. We want to follow the usual clear process which can leverage fast clear.
 		{
-			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.TopLayerTexture, ERenderTargetLoadAction::ELoad);
+			RenderTargets[RenderTargetCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.TopLayerTexture);
 			RenderTargetCount++;
 		};
 	}
@@ -759,6 +769,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 		#endif
 
 			FStrataMaterialTileClassificationPassCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FStrataMaterialTileClassificationPassCS::FStrataClearDuringCategorization >(CVarClearDuringCategorization.GetValueOnRenderThread() > 0);
 			PermutationVector.Set< FStrataMaterialTileClassificationPassCS::FWaveOps >(bWaveOps);
 			TShaderMapRef<FStrataMaterialTileClassificationPassCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FStrataMaterialTileClassificationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataMaterialTileClassificationPassCS::FParameters>();
@@ -773,6 +784,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			PassParameters->SimpleTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::ESimple];
 			PassParameters->ComplexTileListDataBuffer = View.StrataSceneData->ClassificationTileListBufferUAV[EStrataTileMaterialType::EComplex];
 			PassParameters->ComplexTileIndirectDataBuffer = View.StrataSceneData->ClassificationTileIndirectBufferUAV[EStrataTileMaterialType::EComplex];
+			PassParameters->SSSTextureUAV = View.StrataSceneData->SSSTextureUAV;
 
 			const uint32 GroupSize = 8;
 			FComputeShaderUtils::AddPass(
@@ -793,6 +805,11 @@ static void AddStrataClearMaterialBufferPass(
 	uint32 MaxBytesPerPixel,
 	FIntPoint TiledViewBufferResolution)
 {
+	if (CVarClearDuringCategorization.GetValueOnRenderThread() > 0)
+	{
+		return;
+	}
+
 	TShaderMapRef<FStrataClearMaterialBufferCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 	FStrataClearMaterialBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataClearMaterialBufferCS::FParameters>();
 	PassParameters->MaterialTextureArrayUAV = MaterialTextureArrayUAV;
