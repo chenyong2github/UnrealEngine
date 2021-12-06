@@ -296,7 +296,7 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 				FString MapToLoad = InLongPackageName;
 				if (!DefaultConvertOptions->bInPlace)
 				{
-					MapToLoad += UWorldPartitionConvertCommandlet::StaticClass()->GetDefaultObject<UWorldPartitionConvertCommandlet>()->GetConversionSuffix();
+					MapToLoad += UWorldPartitionConvertCommandlet::GetConversionSuffix(DefaultConvertOptions->bOnlyMergeSubLevels);
 				}
 				
 				AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
@@ -445,6 +445,11 @@ FString UWorldPartitionConvertOptions::ToCommandletArgs() const
 	if (bVerbose)
 	{
 		CommandletArgsBuilder.Append(TEXT(" -Verbose"));
+	}
+
+	if (bOnlyMergeSubLevels)
+	{
+		CommandletArgsBuilder.Append(TEXT(" -OnlyMergeSubLevels"));
 	}
 	
 	return CommandletArgsBuilder.ToString();

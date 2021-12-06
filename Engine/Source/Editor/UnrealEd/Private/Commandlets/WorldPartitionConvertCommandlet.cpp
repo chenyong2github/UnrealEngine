@@ -232,7 +232,7 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 	return WorldPartition;
 }
 
-void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(const UWorldPartition* WorldPartition, ULevel* Level, TArray<ULevel*>& SubLevels)
+void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert);
 
@@ -259,7 +259,7 @@ void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(const 
 	
 	for(ULevelStreaming* StreamingLevel: StreamingLevels)
 	{
-		if (PrepareStreamingLevelForConversion(WorldPartition, StreamingLevel))
+		if (PrepareStreamingLevelForConversion(StreamingLevel))
 		{
 			ULevel* SubLevel = StreamingLevel->GetLoadedLevel();
 			check(SubLevel);
@@ -267,7 +267,7 @@ void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(const 
 			SubLevels.Add(SubLevel);
 
 			// Recursively obtain sub levels to convert
-			GatherAndPrepareSubLevelsToConvert(WorldPartition, SubLevel, SubLevels);
+			GatherAndPrepareSubLevelsToConvert(SubLevel, SubLevels);
 		}
 	}
 }
@@ -282,14 +282,14 @@ EActorGridPlacement UWorldPartitionConvertCommandlet::GetLevelGridPlacement(ULev
 	return DefaultGridPlacement;
 }
 
-bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(const UWorldPartition* WorldPartition, ULevelStreaming* StreamingLevel)
+bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion);
 
 	ULevel* SubLevel = StreamingLevel->GetLoadedLevel();
 	check(SubLevel);
 
-	if (StreamingLevel->ShouldBeAlwaysLoaded() || StreamingLevel->bDisableDistanceStreaming)
+	if (bOnlyMergeSubLevels || StreamingLevel->ShouldBeAlwaysLoaded() || StreamingLevel->bDisableDistanceStreaming)
 	{
 		FString WorldPath = SubLevel->GetPackage()->GetName();
 		if (!LevelsGridPlacement.Contains(*WorldPath))
@@ -713,10 +713,13 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
+	bOnlyMergeSubLevels = Switches.Contains(TEXT("OnlyMergeSubLevels"));
 	bDeleteSourceLevels = Switches.Contains(TEXT("DeleteSourceLevels"));
 	bGenerateIni = Switches.Contains(TEXT("GenerateIni"));
 	bReportOnly = bGenerateIni || Switches.Contains(TEXT("ReportOnly"));
 	bVerbose = Switches.Contains(TEXT("Verbose"));
+
+	ConversionSuffix = GetConversionSuffix(bOnlyMergeSubLevels);
 
 	if (!Switches.Contains(TEXT("AllowCommandletRendering")))
 	{
@@ -821,9 +824,10 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	// Setup the world partition object
-	UWorldPartition* WorldPartition = CreateWorldPartition(MainWorldSettings);
-	if (!WorldPartition)
+	// Setup the world partition object, do not create world partition object if only merging sublevels
+	UWorldPartition* WorldPartition = bOnlyMergeSubLevels ? nullptr : CreateWorldPartition(MainWorldSettings);
+	
+	if (!bOnlyMergeSubLevels && !WorldPartition)
 	{
 		return 1;
 	}
@@ -844,7 +848,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	UPackage* MainPackage = MainLevel->GetPackage();
 	AWorldDataLayers* MainWorldDataLayers = MainWorld->GetWorldDataLayers();
-	check(MainWorldDataLayers);
+	// DataLayers are only needed if converting to WorldPartition
+	check(bOnlyMergeSubLevels || MainWorldDataLayers);
 
 	OnWorldLoaded(MainWorld);
 
@@ -1015,8 +1020,11 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 							Actor->AddDataLayer(DataLayer);
 						}
 					}
-					// Clear actor layers as they are not supported yet in world partition
-					Actor->Layers.Empty();
+					// Clear actor layers as they are not supported yet in world partition, keep them if only merging
+					if (!bOnlyMergeSubLevels)
+					{
+						Actor->Layers.Empty();
+					}
 				}
 			}
 		}
@@ -1045,7 +1053,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	// Gather and load sublevels
 	TArray<ULevel*> SubLevelsToConvert;
-	GatherAndPrepareSubLevelsToConvert(WorldPartition, MainLevel, SubLevelsToConvert);
+	GatherAndPrepareSubLevelsToConvert(MainLevel, SubLevelsToConvert);
 
 	if (!GetAdditionalLevelsToConvert(MainLevel, SubLevelsToConvert))
 	{
@@ -1309,8 +1317,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	bool bForceInitializeWorld = false;
 	bool bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(MainWorld, bForceInitializeWorld);
 
-	// Create the world's minimap
-	if (!Switches.Contains(TEXT("SkipMiniMapGeneration")))
+	// Create the world's minimap, do not create the minimap if only merging
+	if (!bOnlyMergeSubLevels && !Switches.Contains(TEXT("SkipMiniMapGeneration")))
 	{
 		CreateWorldMiniMapTexture(MainWorld);
 	}
@@ -1344,7 +1352,10 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	ActorList.Append(ChildActorList);
 	ChildActorList.Empty();
 
-	WorldPartition->AddToRoot();
+	if (!bOnlyMergeSubLevels)
+	{
+		WorldPartition->AddToRoot();
+	}
 
 	if (!bReportOnly)
 	{
@@ -1394,7 +1405,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		MainLevel->bUseExternalActors = true;
 		MainWorld->WorldComposition = nullptr;
-		MainLevel->bIsPartitioned = true;
+		MainLevel->bIsPartitioned = !bOnlyMergeSubLevels;
 
 		if (bDeleteSourceLevels)
 		{
@@ -1483,8 +1494,12 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		if (bGenerateIni || !FPlatformFileManager::Get().GetPlatformFile().FileExists(*LevelConfigFilename))
 		{
 			SaveConfig(CPF_Config, *LevelConfigFilename);
-			WorldPartition->EditorHash->SaveConfig(CPF_Config, *LevelConfigFilename);
-			WorldPartition->RuntimeHash->SaveConfig(CPF_Config, *LevelConfigFilename);
+
+			if (!bOnlyMergeSubLevels)
+			{
+				WorldPartition->EditorHash->SaveConfig(CPF_Config, *LevelConfigFilename);
+				WorldPartition->RuntimeHash->SaveConfig(CPF_Config, *LevelConfigFilename);
+			}
 			
 			for(const auto& Pair : HLODLayers)
 			{
@@ -1498,6 +1513,11 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	OutputConversionReport();
 
 	return 0;
+}
+
+const FString UWorldPartitionConvertCommandlet::GetConversionSuffix(const bool bInOnlyMergeSubLevels)
+{
+	return bInOnlyMergeSubLevels ? TEXT("_OFPA") : TEXT("_WP");
 }
 
 bool UWorldPartitionConvertCommandlet::ShouldConvertStreamingLevel(ULevelStreaming* StreamingLevel)
