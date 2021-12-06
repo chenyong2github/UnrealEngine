@@ -29,9 +29,8 @@
 #include "Editor.h"
 #include "EditorActorFolders.h"
 #include "Folder.h"
+#include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "LevelInstance/LevelInstanceSubsystem.h"
-#include "LevelInstance/LevelInstanceActor.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -953,31 +952,28 @@ FFolder AActor::GetFolder() const
 	return FFolder(GetFolderPath(), GetFolderRootObject());
 }
 
-static bool IsActorFolderValid(const AActor* InActor)
+static TOptional<FFolder::FRootObject> GetOptionalFolderRootObject(const AActor* Actor)
 {
-	const ULevel* Level = InActor->GetLevel();
-	const bool bIsBeingRemoved = Level && Level->IsBeingRemoved();
-	return !bIsBeingRemoved;
+	if (ULevel* Level = Actor->GetLevel())
+	{
+		if (ULevelStreaming* LevelStreaming = ULevelStreaming::FindStreamingLevel(Level))
+		{
+			return LevelStreaming->GetFolderRootObject();
+		}
+	}
+
+	return FFolder::GetDefaultRootObject();
 }
 
 FFolder::FRootObject AActor::GetFolderRootObject() const
 {
-	if (IsActorFolderValid(this))
-	{
-		UWorld* World = GetWorld();
-		if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = World ? World->GetSubsystem<ULevelInstanceSubsystem>() : nullptr)
-		{
-			ALevelInstance* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(this);
-			return FFolder::FRootObject(LevelInstance);
-		}
-	}
-	return FFolder::GetDefaultRootObject();
+	return GetOptionalFolderRootObject(this).Get(FFolder::GetDefaultRootObject());
 }
 
 const FName& AActor::GetFolderPath() const
 {
 	static const FName EmptyPath = NAME_None;
-	return IsActorFolderValid(this) ? FolderPath : EmptyPath;
+	return GetOptionalFolderRootObject(this) ? FolderPath : EmptyPath;
 }
 
 void AActor::SetFolderPath(const FName& NewFolderPath)

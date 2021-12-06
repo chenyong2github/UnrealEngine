@@ -858,10 +858,6 @@ ULevelStreaming* ULevelStreaming::FindStreamingLevel(const ULevel* Level)
 
 void ULevelStreaming::SetLoadedLevel(ULevel* Level)
 { 
-#if WITH_EDITORONLY_DATA
-	check(!Level || !Level->IsBeingRemoved());
-#endif
-
 	// Pending level should be unloaded at this point
 	check(PendingUnloadLevel == nullptr);
 	PendingUnloadLevel = LoadedLevel;

@@ -867,7 +867,6 @@ void UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 		InLevel->OwningWorld->RemoveFromWorld(InLevel);
 		check(InLevel->bIsVisible == false);
 	}
-	InLevel->bIsEditorBeingRemoved = true;
 
 	InLevel->ReleaseRenderingResources();
 

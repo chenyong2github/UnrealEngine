@@ -22,6 +22,7 @@ public:
 	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }
 	FBox GetBounds() const;
 
+	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const override;
 protected:
 	void OnLevelActorAdded(AActor* InActor);
 

@@ -131,33 +131,12 @@ FLevelInstanceID ULevelInstanceSubsystem::RegisterLevelInstance(ALevelInstance* 
 	check(GIsReinstancing || Value == nullptr || Value == LevelInstanceActor);
 	Value = LevelInstanceActor;
 
-#if WITH_EDITOR
-	FObjectKey Level;
-	if (UnregisteringLevelInstances.RemoveAndCopyValue(LevelInstanceActor, Level))
-	{
-		if (ULevel* LevelPtr = Cast<ULevel>(Level.ResolveObjectPtr()))
-		{
-			LevelPtr->bIsEditorBeingRemoved = false;
-		}
-		ensure(UnregisteringLevelInstanceLevels.Remove(Level));
-	}
-#endif
-
 	return LevelInstanceID;
 }
 
 void ULevelInstanceSubsystem::UnregisterLevelInstance(ALevelInstance* LevelInstanceActor)
 {
 	RegisteredLevelInstances.Remove(LevelInstanceActor->GetLevelInstanceID());
-
-#if WITH_EDITOR
-	if (ULevel* Level = GetLevelInstanceLevel(LevelInstanceActor))
-	{
-		Level->bIsEditorBeingRemoved = true;
-		UnregisteringLevelInstanceLevels.Add(Level, LevelInstanceActor);
-		UnregisteringLevelInstances.Add(LevelInstanceActor, Level);
-	}
-#endif
 }
 
 void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInstanceActor, bool bForce /* = false */)
@@ -169,13 +148,6 @@ void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInst
 		if (!IsEditingLevelInstance(LevelInstanceActor))
 #endif
 		{
-#if WITH_EDITOR
-			if (ULevel* Level = GetLevelInstanceLevel(LevelInstanceActor))
-			{
-				Level->bIsEditorBeingRemoved = false;
-			}
-#endif
-			
 			LevelInstancesToUnload.Remove(LevelInstanceActor->GetLevelInstanceID());
 
 			bool* bForcePtr = LevelInstancesToLoadOrUpdate.Find(LevelInstanceActor);
@@ -200,13 +172,6 @@ void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInst
 
 void ULevelInstanceSubsystem::RequestUnloadLevelInstance(ALevelInstance* LevelInstanceActor)
 {
-#if WITH_EDITOR
-	if (ULevel* Level = GetLevelInstanceLevel(LevelInstanceActor))
-	{
-		Level->bIsEditorBeingRemoved = true;
-	}
-#endif
-
 	const FLevelInstanceID& LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
 	if (LevelInstances.Contains(LevelInstanceID))
 	{
@@ -330,10 +295,6 @@ void ULevelInstanceSubsystem::UnloadLevelInstance(const FLevelInstanceID& LevelI
 	{
 		if (ULevel* LoadedLevel = LevelInstance.LevelStreaming->GetLoadedLevel())
 		{
-#if WITH_EDITOR
-			LoadedLevel->bIsEditorBeingRemoved = true;
-#endif
-
 			ForEachActorInLevel(LoadedLevel, [this](AActor* LevelActor)
 			{
 				if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(LevelActor))
@@ -1213,44 +1174,6 @@ void ULevelInstanceSubsystem::RemoveLevelsFromWorld(const TArray<ULevel*>& InLev
 	}
 	else
 	{
-		TSet<ULevel*> LevelInstanceLevels;
-		for (ULevel* Level : InLevels)
-		{
-			bool bIsAlreadyInSet = false;
-			LevelInstanceLevels.Add(Level, &bIsAlreadyInSet);
-
-			if (!bIsAlreadyInSet)
-			{
-				ForEachActorInLevel(Level, [this, &LevelInstanceLevels](AActor* LevelActor)
-				{
-					if (const ALevelInstance* ChildLevelInstanceActor = Cast<ALevelInstance>(LevelActor))
-					{
-						ForEachLevelInstanceChild(ChildLevelInstanceActor, /*bRecursive*/true, [this, &LevelInstanceLevels](const ALevelInstance* ChildLevelInstanceActor)
-						{
-							if (ULevel* ChildLevel = GetLevelInstanceLevel(ChildLevelInstanceActor))
-							{
-								LevelInstanceLevels.Add(ChildLevel);
-							}
-							return true;
-						});
-					}
-					return true;
-				});
-			}
-		}
-
-		// Flag all levels as bEditorBeingDestroyed. This way, even if child level instances are still pending to be unloaded, TActorIterator won't iterate on them.
-		for (ULevel* Level : LevelInstanceLevels)
-		{
-			Level->bIsEditorBeingRemoved = true;
-			FFolder::FRootObject RootObject;
-			if (UnregisteringLevelInstanceLevels.RemoveAndCopyValue(Level, RootObject))
-			{
-				ensure(UnregisteringLevelInstances.Remove(RootObject));
-				FActorFolders::Get().OnFolderRootObjectRemoved(*GetWorld(), RootObject);
-			}
-		}
-
 		// No need to clear the whole editor selection since actor of this level will be removed from the selection by: UEditorEngine::OnLevelRemovedFromWorld
 		EditorLevelUtils::RemoveLevelsFromWorld(InLevels, /*bClearSelection*/false, bResetTrans);
 	}
