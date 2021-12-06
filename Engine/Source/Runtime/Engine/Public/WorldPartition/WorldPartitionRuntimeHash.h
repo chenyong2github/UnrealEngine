@@ -37,7 +37,6 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const FActorClusterContext& ActorClusterContext, TArray<FString>* OutPackagesToGenerate) { return false; }
 	virtual void FlushStreaming() {}
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, FActorClusterContext& ActorClusterContext, bool bCreateActorsOnly) { return false; }
-	virtual bool GenerateNavigationData(const FBox& LoadedBounds) { return false; }
 	virtual void DrawPreview() const {}
 
 	// PIE/Game methods

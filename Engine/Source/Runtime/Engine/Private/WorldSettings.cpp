@@ -92,6 +92,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 	InstancedFoliageGridSize = DefaultPlacementGridSize = 25600;
+	NavigationDataChunkGridSize = 102400;
 	bIncludeGridSizeInNameForFoliageActors = false;
 	bIncludeGridSizeInNameForPartitionedActors = false;
 #endif

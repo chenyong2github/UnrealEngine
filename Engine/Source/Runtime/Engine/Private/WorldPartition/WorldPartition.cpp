@@ -1301,11 +1301,6 @@ void UWorldPartition::SavePerUserSettings()
 	}
 }
 
-void UWorldPartition::GenerateNavigationData(const FBox& LoadedBounds)
-{
-	RuntimeHash->GenerateNavigationData(LoadedBounds);
-}
-
 void UWorldPartition::DumpActorDescs(const FString& Path)
 {
 	if (FArchive* LogFile = IFileManager::Get().CreateFileWriter(*Path))

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "GameFramework/Actor.h"
+#include "ActorPartition/PartitionActor.h"
 #include "Containers/Array.h"
 #include "NavigationDataChunkActor.generated.h"
 
@@ -10,7 +10,7 @@ class UNavigationDataChunk;
 class UNavigationSystemBase;
 
 UCLASS(NotPlaceable)
-class ENGINE_API ANavigationDataChunkActor : public AActor
+class ENGINE_API ANavigationDataChunkActor : public APartitionActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -21,6 +21,10 @@ public:
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
+	//~ Begin APartitionActor Interface
+	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override;
+	//~ End APartitionActor Interface
+	
 	void AddNavigationDataChunkInEditor(const UNavigationSystemBase& NavSys);
 #endif // WITH_EDITOR
 
