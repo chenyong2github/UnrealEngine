@@ -20,6 +20,9 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRi
 
 	// ok, lets try to initialize
 	bTriedToInitialize = true;
+
+	// copy skeleton data from the actual skeleton we want to run on
+	Skeleton.SetInputSkeleton(InputSkeleton, InRigAsset->Skeleton.ExcludedBones);
 	
 	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
 	{
@@ -32,9 +35,6 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const FIKRi
 		UE_LOG(LogTemp, Error, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. %s"), *InRigAsset->GetName());
 		return;
 	}
-
-	// copy skeleton data from the actual skeleton we want to run on
-	Skeleton.SetInputSkeleton(InputSkeleton, InRigAsset->Skeleton.ExcludedBones);
 	
 	// initialize goals based on source asset
 	GoalContainer.Empty();
@@ -297,7 +297,6 @@ const FIKRigGoalContainer& UIKRigProcessor::GetGoalContainer() const
 
 FIKRigSkeleton& UIKRigProcessor::GetSkeleton()
 {
-	check(bInitialized);
 	return Skeleton;
 }
 

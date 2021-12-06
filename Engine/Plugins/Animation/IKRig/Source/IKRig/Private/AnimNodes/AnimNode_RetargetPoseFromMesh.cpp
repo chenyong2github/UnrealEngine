@@ -34,17 +34,15 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 	{
 		return;
 	}
-	
-	if (!Processor->IsInitialized())
+
+	const bool bIsInitialized = Processor->IsInitialized();
+	const bool bInitializedWithSameMesh = Processor->GetTargetSkeleton().SkeletalMesh == Output.AnimInstanceProxy->GetSkelMeshComponent()->SkeletalMesh;
+	// it's possible in editor to have anim instances initialized before PreUpdate() is called
+	// which results in trying to run the retargeter without an source pose to copy from
+	const bool bSourceMeshBonesCopied = !SourceMeshComponentSpaceBoneTransforms.IsEmpty();
+	if (!(bIsInitialized && bInitializedWithSameMesh && bSourceMeshBonesCopied))
 	{
 		Output.ResetToRefPose();
-		return;
-	}
-
-	if (SourceMeshComponentSpaceBoneTransforms.IsEmpty())
-	{
-		// it's possible in editor to have anim instances initialized before PreUpdate() is called
-		// which results in trying to run the retargeter without an source pose to copy from
 		return;
 	}
 
