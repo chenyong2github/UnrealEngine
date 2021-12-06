@@ -144,6 +144,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.TLAS = TLAS;
 	Context.RayCone = RayCone;
 	Context.TraceCoord = TraceCoord;
+	Context.LinearCoord = LinearCoord;
 	Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
 	Context.FarFieldMaxTraceDistance = -1.0;
