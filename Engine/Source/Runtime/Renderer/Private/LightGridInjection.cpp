@@ -899,7 +899,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 
 				if (bIsHairEnable)
 				{
-					RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, ForwardScreenSpaceShadowMask.Target);
+					RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, bProjectingForForwardShading, ForwardScreenSpaceShadowMask.Target);
 				}
 			}
 

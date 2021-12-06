@@ -360,6 +360,7 @@ struct FRenderLightParams
 	FShaderResourceViewRHIRef DeepShadow_TransmittanceMaskBuffer = nullptr;
 	uint32 DeepShadow_TransmittanceMaskBufferMaxCount = 0;
 	FRHITexture* ScreenShadowMaskSubPixelTexture = nullptr;
+	FVector4f ShadowChannelMask = FVector4f(1,1,1,1);
 
 	// Cloud shadow data
 	FMatrix Cloud_WorldToLightClipShadowMatrix;
@@ -539,6 +540,7 @@ class FDeferredLightPS : public FGlobalShader
 		ScreenShadowMaskSubPixelTexture.Bind(Initializer.ParameterMap, TEXT("ScreenShadowMaskSubPixelTexture")); // TODO hook the shader itself
 
 		HairShadowMaskValid.Bind(Initializer.ParameterMap, TEXT("HairShadowMaskValid"));
+		ShadowChannelMask.Bind(Initializer.ParameterMap, TEXT("ShadowChannelMask"));
 		HairStrandsParameters.Bind(Initializer.ParameterMap, FHairStrandsViewUniformParameters::StaticStructMetadata.GetShaderVariableName());
 
 		DummyRectLightTextureForCapsuleCompilerWarning.Bind(Initializer.ParameterMap, TEXT("DummyRectLightTextureForCapsuleCompilerWarning"));
@@ -670,6 +672,12 @@ private:
 					ShaderRHI,
 					HairShadowMaskValid,
 					InHairShadowMaskValid);
+
+				SetShaderValue(
+					RHICmdList,
+					ShaderRHI,
+					ShadowChannelMask,
+					RenderLightParams->ShadowChannelMask);
 			}
 		}
 
@@ -730,6 +738,7 @@ private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, HairStrandsParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, ScreenShadowMaskSubPixelTexture);
 	LAYOUT_FIELD(FShaderParameter, HairShadowMaskValid);
+	LAYOUT_FIELD(FShaderParameter, ShadowChannelMask);
 
 	LAYOUT_FIELD(FShaderResourceParameter, DummyRectLightTextureForCapsuleCompilerWarning);
 	LAYOUT_FIELD(FShaderResourceParameter, DummyRectLightSamplerForCapsuleCompilerWarning);
@@ -1274,7 +1283,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						{
 							const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 							const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
-							RenderLightForHair(GraphBuilder, View, SceneTextures.UniformBuffer, LightSceneInfo, NullScreenShadowMaskSubPixelTexture, LightingChannelsTexture, DummyTransmittanceMaskData);
+							RenderLightForHair(GraphBuilder, View, SceneTextures.UniformBuffer, LightSceneInfo, NullScreenShadowMaskSubPixelTexture, LightingChannelsTexture, DummyTransmittanceMaskData, false /*bForwardRendering*/);
 						}
 					}
 				}
@@ -1772,7 +1781,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						// Inject deep shadow mask if the light supports it
 						if (bUseHairDeepShadow)
 						{
-							RenderHairStrandsShadowMask(GraphBuilder, Views, &LightSceneInfo, ScreenShadowMaskTexture);
+							RenderHairStrandsShadowMask(GraphBuilder, Views, &LightSceneInfo, false /*bForwardShading*/, ScreenShadowMaskTexture);
 						}
 					}
 					else // (OcclusionType == FOcclusionType::Shadowmap)
@@ -1905,7 +1914,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 					{
 						if (bDrawHairShadow && HairStrands::HasViewHairStrandsData(View))
 						{
-							FHairStrandsTransmittanceMaskData TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, &LightSceneInfo, ScreenShadowMaskSubPixelTexture);							
+							FHairStrandsTransmittanceMaskData TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, &LightSceneInfo, false, ScreenShadowMaskSubPixelTexture);
 							if (TransmittanceMaskData.TransmittanceMask == nullptr)
 							{
 								TransmittanceMaskData = DummyTransmittanceMaskData;
@@ -1913,7 +1922,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 							// Note: ideally the light should still be evaluated for hair when not casting shadow, but for preserving the old behavior, and not adding 
 							// any perf. regression, we disable this light for hair rendering 
-							RenderLightForHair(GraphBuilder, View, SceneTextures.UniformBuffer, &LightSceneInfo, ScreenShadowMaskSubPixelTexture, LightingChannelsTexture, TransmittanceMaskData);
+							RenderLightForHair(GraphBuilder, View, SceneTextures.UniformBuffer, &LightSceneInfo, ScreenShadowMaskSubPixelTexture, LightingChannelsTexture, TransmittanceMaskData, false /*bForwardRendering*/);
 						}
 					}
 				}
@@ -2443,7 +2452,8 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef HairShadowMaskTexture,
 	FRDGTextureRef LightingChannelsTexture,
-	const FHairStrandsTransmittanceMaskData& InTransmittanceMaskData)
+	const FHairStrandsTransmittanceMaskData& InTransmittanceMaskData,
+	const bool bForwardRendering)
 {
 	const bool bHairRenderingEnabled = HairStrands::HasViewHairStrandsData(View);
 	if (!bHairRenderingEnabled)
@@ -2476,6 +2486,13 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			return;
 		}
 
+		FVector4f ShadowChannelMask = FVector4f(1, 1, 1, 1);
+		if (bForwardRendering)
+		{
+			ShadowChannelMask = FVector4f(0, 0, 0, 0);
+			ShadowChannelMask[FMath::Clamp(LightSceneInfo->GetDynamicShadowMapChannel(), 0, 3)] = 1.f;
+		}
+
 		FRenderLightForHairParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightForHairParameters>();
 		GetRenderLightParameters(
 			View,
@@ -2500,7 +2517,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			{},
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &HairVisibilityData, &View, PassParameters, LightSceneInfo, MaxTransmittanceElementCount, HairShadowMaskTexture, LightingChannelsTexture, bIsShadowMaskValid](FRHICommandList& RHICmdList)
+			[this, &HairVisibilityData, &View, PassParameters, LightSceneInfo, MaxTransmittanceElementCount, HairShadowMaskTexture, LightingChannelsTexture, bIsShadowMaskValid, ShadowChannelMask](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(0, 0, 0.0f, HairVisibilityData.SampleLightingViewportResolution.X, HairVisibilityData.SampleLightingViewportResolution.Y, 1.0f);
 
@@ -2508,6 +2525,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 			RenderLightParams.DeepShadow_TransmittanceMaskBufferMaxCount = MaxTransmittanceElementCount;
 			RenderLightParams.ScreenShadowMaskSubPixelTexture = bIsShadowMaskValid ? PassParameters->Light.ShadowMaskTexture->GetRHI() : GSystemTextures.WhiteDummy->GetShaderResourceRHI();
 			RenderLightParams.DeepShadow_TransmittanceMaskBuffer = PassParameters->HairTransmittanceMaskSRV->GetRHI();
+			RenderLightParams.ShadowChannelMask = ShadowChannelMask;
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -2612,7 +2630,7 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 					FHairStrandsTransmittanceMaskData TransmittanceMaskData = DummyTransmittanceMaskData;
 					if (bDrawHairShadow)
 					{
-						TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, &LightSceneInfo, ScreenShadowMaskSubPixelTexture);
+						TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, &LightSceneInfo, true, ScreenShadowMaskSubPixelTexture);
 					}
 
 					RenderLightForHair(
@@ -2622,7 +2640,8 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 						&LightSceneInfo,
 						ScreenShadowMaskSubPixelTexture,
 						LightingChannelsTexture,
-						TransmittanceMaskData);
+						TransmittanceMaskData,
+						true /*bForwardRendering*/);
 				}
 			}
 		}

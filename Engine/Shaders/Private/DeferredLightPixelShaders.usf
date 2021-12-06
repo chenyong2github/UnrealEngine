@@ -321,6 +321,7 @@ Texture2D<float4> ScreenShadowMaskSubPixelTexture;
 uint HairTransmittanceBufferMaxCount;
 Buffer<uint> HairTransmittanceBuffer;
 uint HairShadowMaskValid;
+float4 ShadowChannelMask;
 
 void DeferredLightPixelMain(
 	float4 SVPos : SV_POSITION,
@@ -400,6 +401,10 @@ void DeferredLightPixelMain(
 
 	const float Dither = InterleavedGradientNoise(PixelCoord, View.StateFrameIndexMod8);
 	float4 LightAttenuation = HairShadowMaskValid ? ScreenShadowMaskSubPixelTexture.Load(uint3(PixelCoord,0)) : 1;
+	if (any(ShadowChannelMask < 1.0f))
+	{
+		LightAttenuation = dot(LightAttenuation, ShadowChannelMask).xxxx;
+	}
 	LightAttenuation = min(LightAttenuation, LightData.HairTransmittance.OpaqueVisibility.xxxx);
 
 	FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);

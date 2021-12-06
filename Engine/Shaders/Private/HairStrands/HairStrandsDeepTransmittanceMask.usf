@@ -52,6 +52,7 @@ uint2				DeepShadow_Resolution;
 float4x4			DeepShadow_CPUWorldToLightTransforms[MAX_HAIR_MACROGROUP_COUNT];
 float3				LightDirection;
 uint				LightChannelMask;
+float4				ShadowChannelMask;
 float4				LightPosition;
 float				DeepShadow_DepthBiasScale;
 float				DeepShadow_DensityScale;
@@ -339,6 +340,7 @@ float				LightRadius;
 Texture2D<uint> 	ShadowMaskBitsTexture;
 #else
 Texture2D<float4> 	RayMarchMaskTexture;
+float4				ShadowChannelMask;
 #endif
 Buffer<uint4>		IndirectArgsBuffer;
 RWBuffer<uint>		OutTransmittanceMask;
@@ -518,11 +520,10 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 
 	const uint2 PixelCoord = HairStrands.HairSampleCoords[SampleIndex];
-	if (RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r == 0.0f)
+	if (dot(RayMarchMaskTexture.Load(uint3(PixelCoord, 0)), ShadowChannelMask) == 0)
 	{
 		// This pixel is already fully shadowed opaque. (RayMarchMaskTexture is computed using the closest sample as of today)
-		const FHairTransmittanceMask DefaultMask = InitHairTransmittanceMask();
-		OutTransmittanceMask[SampleIndex] = PackTransmittanceMask(DefaultMask);
+		OutTransmittanceMask[SampleIndex] = InitNullPackedHairTransmittanceMask();
 		return;
 	}
 
