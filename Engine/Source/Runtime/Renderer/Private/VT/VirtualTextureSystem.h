@@ -177,14 +177,9 @@ private:
 
 #if !UE_BUILD_SHIPPING
 	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
-	FCoreDelegates::FSeverityMessageMap OnScreenMessages;
-	FCriticalSection OnScreenMessageLock;
-
-	void UpdateNotifications();
-	void UpdateResidencyNotifications();
-	void UpdateCsvStats();
-
+	FDelegateHandle OnScreenMessageDelegateHandle;
 	void DrawResidencyHud(class UCanvas*, class APlayerController*);
 	FDelegateHandle	DrawResidencyHudDelegateHandle;
+	void UpdateCsvStats();
 #endif
 };
