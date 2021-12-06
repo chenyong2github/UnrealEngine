@@ -115,6 +115,11 @@ namespace HordeServerTests.Stubs.Services
 			return Task.FromResult(Results);
 		}
 
+		public Task<CheckShelfResult> CheckShelfAsync(string ClusterName, string StreamName, int ChangeNumber, string? ImpersonateUser)
+		{
+			throw new NotImplementedException();
+		}
+
 		public Task<PerforceUserInfo?> GetUserInfoAsync(string ClusterName, string UserName)
 		{
 			return Task.FromResult<PerforceUserInfo?>(new PerforceUserInfo { Login = UserName, FullName = UserName, Email = $"{UserName}@epicgames.com" });

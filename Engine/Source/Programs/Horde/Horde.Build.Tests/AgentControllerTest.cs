@@ -18,16 +18,16 @@ namespace HordeServerTests
 			Fixture Fixture = await CreateFixtureAsync();
 	        IAgent FixtureAgent = Fixture.Agent1;
 
-	        ActionResult<object> Obj = await AgentsController.GetAgentAsync(FixtureAgent.Id.ToString());
+	        ActionResult<object> Obj = await AgentsController.GetAgentAsync(FixtureAgent.Id);
 	        GetAgentResponse GetRes = (Obj.Value as GetAgentResponse)!;
 	        Assert.AreEqual(Fixture!.Agent1Name.ToUpper(), GetRes.Name);
 	        Assert.IsNull(GetRes.Comment);
 	        
 	        UpdateAgentRequest UpdateReq = new UpdateAgentRequest();
 	        UpdateReq.Comment = "foo bar baz";
-	        await AgentsController.UpdateAgentAsync(FixtureAgent.Id.ToString(), UpdateReq);
+	        await AgentsController.UpdateAgentAsync(FixtureAgent.Id, UpdateReq);
 	        
-	        Obj = await AgentsController.GetAgentAsync(FixtureAgent.Id.ToString());
+	        Obj = await AgentsController.GetAgentAsync(FixtureAgent.Id);
 	        GetRes = (Obj.Value as GetAgentResponse)!;
 	        Assert.AreEqual("foo bar baz", GetRes.Comment);
         }

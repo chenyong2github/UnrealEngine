@@ -122,12 +122,14 @@ namespace HordeServerTests
 		{
 			Fixture Fixture = await CreateFixtureAsync();
 
+			ObjectId<ISession> SessionId1 = new (ObjectId.GenerateNewId());
 			await JobCollection.TryAssignLeaseAsync(Fixture.Job1, 0, new PoolId("foo"), Fixture.Agent1.Id,
-				ObjectId.GenerateNewId(), LeaseId.GenerateNewId(), LogId.GenerateNewId());
+				SessionId1, LeaseId.GenerateNewId(), LogId.GenerateNewId());
 			
+			ObjectId<ISession> SessionId2 = new (ObjectId.GenerateNewId());
 			IJob Job = (await JobCollection.GetAsync(Fixture.Job1.Id))!;
 			await JobCollection.TryAssignLeaseAsync(Job, 0, new PoolId("foo"), Fixture.Agent1.Id,
-				ObjectId.GenerateNewId(), LeaseId.GenerateNewId(), LogId.GenerateNewId());
+				SessionId2, LeaseId.GenerateNewId(), LogId.GenerateNewId());
 			
 			// Manually verify the log output
 		}

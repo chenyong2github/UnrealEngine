@@ -231,7 +231,7 @@ namespace HordeServerTests
 			// Will implicitly test GetLogFileAsync(), AddCachedLogFile()
 			JobId JobId = JobId.GenerateNewId();
             ObjectId SessionId = ObjectId.GenerateNewId();
-            ILogFile A = await LogFileService.CreateLogFileAsync(JobId, SessionId, LogType.Text);
+            ILogFile A = await LogFileService.CreateLogFileAsync(JobId, new ObjectId<ISession>(SessionId), LogType.Text);
             ILogFile B = (await LogFileService.GetCachedLogFileAsync(A.Id))!;
             Assert.AreEqual(A.JobId, B.JobId);
             Assert.AreEqual(A.SessionId, B.SessionId);
@@ -240,7 +240,7 @@ namespace HordeServerTests
             ILogFile? NotFound = await LogFileService.GetCachedLogFileAsync(LogId.GenerateNewId());
             Assert.IsNull(NotFound);
 
-            await LogFileService.CreateLogFileAsync(JobId.GenerateNewId(), ObjectId.GenerateNewId(), LogType.Text);
+            await LogFileService.CreateLogFileAsync(JobId.GenerateNewId(), new ObjectId<ISession>(ObjectId.GenerateNewId()), LogType.Text);
             Assert.AreEqual(2, (await LogFileService.GetLogFilesAsync()).Count);
         }
 
@@ -249,7 +249,7 @@ namespace HordeServerTests
         {
 			JobId JobId = JobId.GenerateNewId();
             ObjectId SessionId = ObjectId.GenerateNewId();
-            ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, SessionId, LogType.Text);
+            ILogFile LogFile = await LogFileService.CreateLogFileAsync(JobId, new ObjectId<ISession>(SessionId), LogType.Text);
             ILogFile LogFileNoSession = await LogFileService.CreateLogFileAsync(JobId, null, LogType.Text);
 
             var HasClaim = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
