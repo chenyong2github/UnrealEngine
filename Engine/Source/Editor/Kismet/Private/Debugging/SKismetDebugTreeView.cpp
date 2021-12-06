@@ -76,7 +76,7 @@ namespace
 			TSharedPtr<FPropertyInstanceInfo> Data = PropertyInfo.Get();
 			if (Data.IsValid())
 			{
-				if (Data->Property->IsA<FObjectProperty>())
+				if (Data->Property->IsA<FObjectProperty>() || Data->Property->IsA<FInterfaceProperty>())
 				{
 					ChildSlot
 						[
