@@ -55,7 +55,6 @@ FAutoConsoleVariableRef CVarFlushRenderTargetsOnWorldCleanup(TEXT("r.bFlushRende
 void FRendererModule::StartupModule()
 {
 	GScreenSpaceDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
-	GTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
 
 	FRendererOnScreenNotification::Get();
 	FVirtualTextureSystem::Initialize();

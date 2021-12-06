@@ -217,6 +217,3 @@ public:
 
 	static EMainTAAPassConfig GetMainTAAPassConfig(const FViewInfo& View);
 }; 
-
-extern RENDERER_API const ITemporalUpscaler* GTemporalUpscaler;
-
