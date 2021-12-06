@@ -27,6 +27,7 @@ namespace Gauntlet
 		EditorServer,
 		Client,
 		Server,
+		CookedEditor,
 	};
 
     /// <summary>
@@ -72,17 +73,17 @@ namespace Gauntlet
 
 		public static bool IsClient(this UnrealTargetRole Type)
 		{
-			return Type == UnrealTargetRole.EditorGame || Type == UnrealTargetRole.Client;
+			return Type == UnrealTargetRole.EditorGame || Type == UnrealTargetRole.Client || Type == UnrealTargetRole.CookedEditor;
 		}
 
 		public static bool IsEditor(this UnrealTargetRole Type)
 		{
-			return Type == UnrealTargetRole.Editor;
+			return Type == UnrealTargetRole.Editor || Type == UnrealTargetRole.CookedEditor;
 		}
 
 		public static bool RunsLocally(this UnrealTargetRole Type)
 		{
-			return UsesEditor(Type) || IsServer(Type);
+			return UsesEditor(Type) || IsServer(Type) || Type == UnrealTargetRole.CookedEditor;
 		}
 	}
 
@@ -267,7 +268,7 @@ namespace Gauntlet
 			// So we need to search for the project name minus 'Game', with the form, build-type, and platform all optional :(
 			// FortniteClient and EngineTest should match
 			// FortniteCustomName should not match.
-			string RegExMatch = string.Format(@"(({0}(Game|Client|Server))|{1})(?:-(.+?)-(Debug|Test|Shipping))?", ShortName, InProjectName);
+			string RegExMatch = string.Format(@"(({0}(Game|Client|Server|CookedEditor))|{1})(?:-(.+?)-(Debug|Test|Shipping))?", ShortName, InProjectName);
 
 			// Format should be something like
 			// FortniteClient
@@ -281,7 +282,11 @@ namespace Gauntlet
 				string PlatformName = NameMatch.Groups[4].ToString();
 				string ConfigType = NameMatch.Groups[5].ToString();
 
-				if (ModuleType.Length == 0 || ModuleType == "game")
+				if (ModuleType == "cookededitor" || (ModuleType.Length == 0 && Globals.Params.ParseParam("cookededitor")))
+				{
+					Config.RoleType = UnrealTargetRole.CookedEditor;
+				}
+				else if (ModuleType.Length == 0 || ModuleType == "game")
 				{
 					// how to express client&server?
 					Config.RoleType = UnrealTargetRole.Client;

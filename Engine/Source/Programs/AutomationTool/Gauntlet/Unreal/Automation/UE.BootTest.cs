@@ -214,7 +214,7 @@ namespace UE
 			UnrealTestConfiguration Config = base.GetConfiguration();
 			// currently needed as BootTest isn't an abstract class. Can be changed for 4.27
 			Config.ClearRoles();
-			UnrealTestRole EditorRole = Config.RequireRole(UnrealTargetRole.Editor);
+			UnrealTestRole EditorRole = Config.RequireRole(Config.CookedEditor ? UnrealTargetRole.CookedEditor : UnrealTargetRole.Editor);
 			EditorRole.CommandLineParams.Add("execcmds", "QUIT_EDITOR");
 			return Config;
 		}

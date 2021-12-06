@@ -197,7 +197,7 @@ namespace UE
 
 			bool HasNoOtherRole = !OtherRoles.Any();
 			// If there's only one role and it's the editor then tests are running under the editor with no target
-			if (ConfigRole.RoleType == UnrealTargetRole.Editor && HasNoOtherRole)
+			if (ConfigRole.RoleType.IsEditor() && HasNoOtherRole)
 			{ 
 				AppConfig.CommandLine += string.Format(" -ExecCmds=\"Automation {0}\"", AutomationTestArgument);		
 			}
@@ -217,7 +217,7 @@ namespace UE
 				}
 			}
 
-			if ((ConfigRole.RoleType == UnrealTargetRole.Editor && HasNoOtherRole) || ConfigRole.RoleType.IsClient())
+			if ((ConfigRole.RoleType.IsEditor() && HasNoOtherRole) || ConfigRole.RoleType.IsClient())
 			{
 				// These are flags that are required only on the main role that is going to execute the tests. ie raytracing is required only on the client or if it is an editor test.
 				if (DisableFrameTraceCapture || RayTracing)
@@ -304,7 +304,7 @@ namespace UE
 			AutomationTestConfig Config = base.GetConfiguration();
 
 			// Tests in the editor only require a single role
-			UnrealTestRole EditorRole = Config.RequireRole(UnrealTargetRole.Editor);
+			UnrealTestRole EditorRole = Config.RequireRole(Config.CookedEditor ? UnrealTargetRole.CookedEditor : UnrealTargetRole.Editor);
 			EditorRole.CommandLineParams.AddRawCommandline("-NoWatchdog -stdout -FORCELOGFLUSH -CrashForUAT -log");
 
 			return Config;

@@ -638,6 +638,12 @@ namespace Gauntlet
 		[AutoParam]
 		public int ForceVerticalRes = 0;
 
+		/// <summary>
+		/// Consider the package as CookedEditor
+		/// </summary>
+		[AutoParam(false)]
+		public bool CookedEditor { get; set; }
+
 		// Member variables 
 
 		/// <summary>
