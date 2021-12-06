@@ -159,7 +159,7 @@ public:
 #endif
 };
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationProjection
 	: public FDisplayClusterConfigurationPolymorphicEntity
 {
@@ -169,7 +169,7 @@ public:
 	FDisplayClusterConfigurationProjection();
 };
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostprocess
 	: public FDisplayClusterConfigurationPolymorphicEntity
 {

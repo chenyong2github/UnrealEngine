@@ -20,7 +20,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InC
 	// Get render viewports
 	for (const FString& NodeIt : InClusterNodeIds)
 	{
-		const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.GetClusterNode(NodeIt);
+		const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.Cluster->GetNode(NodeIt);
 		if (ClusterNode)
 		{
 			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportIt : ClusterNode->Viewports)
@@ -71,7 +71,7 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InC
 
 void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(const FString& InClusterNodeId)
 {
-	const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.GetClusterNode(InClusterNodeId);
+	const UDisplayClusterConfigurationClusterNode* ClusterNode = ConfigurationData.Cluster->GetNode(InClusterNodeId);
 	if (ClusterNode)
 	{
 		TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PPManager = ViewportManager.GetPostProcessManager();

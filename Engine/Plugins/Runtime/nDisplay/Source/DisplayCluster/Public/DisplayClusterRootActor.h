@@ -95,8 +95,6 @@ public:
 	const FDisplayClusterConfigurationICVFX_StageSettings& GetStageSettings() const;
 	const FDisplayClusterConfigurationRenderFrame& GetRenderFrameSettings() const;
 
-	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID);
-
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// AActor
@@ -217,12 +215,6 @@ private:
 	FName ConfigDataName;
 
 	/**
-	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
-	 */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category = "NDisplay", meta = (AllowPrivateAccess = "true"))
-	UDisplayClusterConfigurationData* CurrentConfigData;
-
-	/**
 	 * The root component for our hierarchy.
 	 * Must have CPF_Edit(such as VisibleDefaultsOnly) on property for Live Link.
 	 * nDisplay details panel will hide this from actually being visible.
@@ -256,6 +248,12 @@ public:
 	/** Set the priority for inner frustum rendering if there is any overlap when enabling multiple ICVFX cameras. */
 	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera VFX", meta = (TitleProperty = "Name", DisplayAfter = "ViewportAllowInnerFrustumRef"))
 	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
+
+	/**
+	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category = "NDisplay", meta = (AllowPrivateAccess = "true"))
+	UDisplayClusterConfigurationData* CurrentConfigData;
 
 public:
 	bool IsInnerFrustumEnabled(const FString& InnerFrustumID) const;
