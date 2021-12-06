@@ -144,10 +144,10 @@ public:
 		bool fixup_layout_locations = false;
 		// UE Change End: Fixup layout locations to include padding for arrays.
 
-		// UE Change Begin: Enable buffer blocks to be named after block alias
+		// UE Change Begin: Enable buffer blocks to be named after block alias.
 		// Use "type_"+NAME for SSBO block names instead of their original type name.
 		bool emit_ssbo_alias_type_name = false;
-		// UE Change End: Enable buffer blocks to be named after block alias
+		// UE Change End: Enable buffer blocks to be named after block alias.
 
 		// UE Change Begin: Enable separate texture types via extensions.
 		bool separate_texture_types = false;
@@ -616,13 +616,14 @@ protected:
 		bool needs_row_major_load_workaround = false;
 		bool support_pointer_to_pointer = false;
 		bool support_precise_qualifier = false;
+		bool support_64bit_switch = false;
 	} backend;
 
 	void emit_struct(SPIRType &type);
 	void emit_resources();
 	void emit_extension_workarounds(spv::ExecutionModel model);
 	void emit_buffer_block_native(const SPIRVariable &var);
-	void emit_buffer_reference_block(SPIRType &type, bool forward_declaration);
+	void emit_buffer_reference_block(uint32_t type_id, bool forward_declaration);
 	void emit_buffer_block_legacy(const SPIRVariable &var);
 	void emit_buffer_block_flattened(const SPIRVariable &type);
 	void fixup_implicit_builtin_block_names();
@@ -933,8 +934,8 @@ protected:
 	// Builtins in GLSL are always specific signedness, but the SPIR-V can declare them
 	// as either unsigned or signed.
 	// Sometimes we will need to automatically perform casts on load and store to make this work.
-	virtual void cast_to_builtin_store(uint32_t target_id, std::string &expr, const SPIRType &expr_type);
-	virtual void cast_from_builtin_load(uint32_t source_id, std::string &expr, const SPIRType &expr_type);
+	virtual void cast_to_variable_store(uint32_t target_id, std::string &expr, const SPIRType &expr_type);
+	virtual void cast_from_variable_load(uint32_t source_id, std::string &expr, const SPIRType &expr_type);
 	void unroll_array_from_complex_load(uint32_t target_id, uint32_t source_id, std::string &expr);
 	bool unroll_array_to_complex_store(uint32_t target_id, uint32_t source_id);
 	void convert_non_uniform_expression(std::string &expr, uint32_t ptr_id);
