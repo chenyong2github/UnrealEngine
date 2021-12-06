@@ -18,7 +18,10 @@ namespace Geometry {
 	MODELINGCOMPONENTS_API FDynamicMesh3 GetDynamicMeshViaMeshDescription(
 		IMeshDescriptionProvider& MeshDescriptionProvider);
 
-	MODELINGCOMPONENTS_API void CommitDynamicMeshViaMeshDescription(IMeshDescriptionCommitter& MeshDescriptionCommitter,
-		const UE::Geometry::FDynamicMesh3& Mesh, const IDynamicMeshCommitter::FDynamicMeshCommitInfo& CommitInfo);
+	MODELINGCOMPONENTS_API void CommitDynamicMeshViaMeshDescription(
+		FMeshDescription&& CurrentMeshDescription,
+		IMeshDescriptionCommitter& MeshDescriptionCommitter,
+		const UE::Geometry::FDynamicMesh3& Mesh, 
+		const IDynamicMeshCommitter::FDynamicMeshCommitInfo& CommitInfo);
 
 }}

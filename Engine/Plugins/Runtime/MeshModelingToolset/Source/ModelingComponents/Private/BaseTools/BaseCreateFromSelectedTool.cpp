@@ -13,8 +13,6 @@
 #include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
@@ -245,11 +243,7 @@ void UBaseCreateFromSelectedTool::UpdateAsset(const FDynamicMeshOpResult& Result
 	MeshTransforms::ApplyTransform(*Result.Mesh, ResultTransform);
 	MeshTransforms::ApplyTransformInverse(*Result.Mesh, TargetToWorld);
 
-	Cast<IMeshDescriptionCommitter>(UpdateTarget)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-	{
-		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescriptionOut);
-	});
+	UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(UpdateTarget, *Result.Mesh, true);
 
 	FComponentMaterialSet MaterialSet;
 	MaterialSet.Materials = GetOutputMaterials();

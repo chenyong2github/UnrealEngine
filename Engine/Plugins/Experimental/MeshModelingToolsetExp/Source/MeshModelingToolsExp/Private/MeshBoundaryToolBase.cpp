@@ -9,8 +9,8 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Selection/PolygonSelectionMechanic.h"
 
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -28,7 +28,7 @@ void UMeshBoundaryToolBase::Setup()
 	// create mesh to operate on
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
+	Converter.Convert( UE::ToolTarget::GetMeshDescription(Target), *OriginalMesh);
 
 	// initialize hit query
 	MeshSpatial.SetMesh(OriginalMesh.Get());

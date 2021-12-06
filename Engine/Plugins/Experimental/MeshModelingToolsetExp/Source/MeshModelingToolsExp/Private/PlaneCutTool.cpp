@@ -33,7 +33,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -474,11 +474,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			}
 		}
 
-		Cast<IMeshDescriptionCommitter>(Targets[OrigMeshIdx])->CommitMeshDescription([&UseMesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(UseMesh, *CommitParams.MeshDescriptionOut);
-		});
+		UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Targets[OrigMeshIdx], *UseMesh, true);
 	}
 
 	if (bNeedToAdd)

@@ -237,14 +237,48 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitMeshDescriptionUp
 		CommitMaterialSetUpdate(Target, *UpdatedMaterials, true);
 	}
 
-	EDynamicMeshUpdateResult Result = EDynamicMeshUpdateResult::Failed;
-	MeshDescriptionCommitter->CommitMeshDescription([UpdatedMesh, &Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-	{
-		*CommitParams.MeshDescriptionOut = *UpdatedMesh;
-		Result = EDynamicMeshUpdateResult::Ok;
-	});
-	return Result;
+	bool bOK = MeshDescriptionCommitter->CommitMeshDescription(*UpdatedMesh);
+	return (bOK) ? EDynamicMeshUpdateResult::Ok : EDynamicMeshUpdateResult::Failed;
 }
+
+
+UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitMeshDescriptionUpdate(UToolTarget* Target, FMeshDescription&& UpdatedMesh)
+{
+	if (IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target))
+	{
+		bool bOK = MeshDescriptionCommitter->CommitMeshDescription(MoveTemp(UpdatedMesh));
+		return (bOK) ? EDynamicMeshUpdateResult::Ok : EDynamicMeshUpdateResult::Failed;
+	}
+	return EDynamicMeshUpdateResult::Failed;
+}
+
+
+UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(
+	UToolTarget* Target, 
+	const UE::Geometry::FDynamicMesh3& UpdatedMesh, 
+	bool bHaveModifiedTopology)
+{
+	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
+	if (!ensure(MeshDescriptionCommitter))
+	{
+		return EDynamicMeshUpdateResult::Failed;
+	}
+
+	FMeshDescription ConvertedMesh;
+	FDynamicMeshToMeshDescription Converter;
+	if (bHaveModifiedTopology)
+	{
+		Converter.Convert(&UpdatedMesh, ConvertedMesh);
+	}
+	else
+	{
+		Converter.Update(&UpdatedMesh, ConvertedMesh);
+	}
+
+	bool bOK = MeshDescriptionCommitter->CommitMeshDescription(MoveTemp(ConvertedMesh));
+	return (bOK) ? EDynamicMeshUpdateResult::Ok : EDynamicMeshUpdateResult::Failed;
+}
+
 
 
 void UE::ToolTarget::Internal::CommitDynamicMeshViaIPersistentDynamicMeshSource(
@@ -311,24 +345,19 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
 	if (MeshDescriptionCommitter)
 	{
-		EDynamicMeshUpdateResult Result = EDynamicMeshUpdateResult::Failed;
-		MeshDescriptionCommitter->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		FMeshDescription ConvertedMesh;
+		FDynamicMeshToMeshDescription Converter(ConversionOptions);
+		if (!bHaveModifiedTopology)
 		{
-			FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
+			Converter.UpdateUsingConversionOptions(&UpdatedMesh, ConvertedMesh);
+		}
+		else
+		{
+			Converter.Convert(&UpdatedMesh, ConvertedMesh);
+		}
 
-			FDynamicMeshToMeshDescription Converter(ConversionOptions);
-			if (!bHaveModifiedTopology)
-			{
-				Converter.UpdateUsingConversionOptions(&UpdatedMesh, *MeshDescription);
-				Result = EDynamicMeshUpdateResult::Ok;
-			}
-			else
-			{
-				Converter.Convert(&UpdatedMesh, *MeshDescription);
-				Result = EDynamicMeshUpdateResult::Ok;
-			}
-		});
-		return Result;
+		bool bOK = MeshDescriptionCommitter->CommitMeshDescription(MoveTemp(ConvertedMesh));
+		return (bOK) ? EDynamicMeshUpdateResult::Ok : EDynamicMeshUpdateResult::Failed;
 	}
 
 	ensure(false);
@@ -366,29 +395,76 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUVUpda
 		return EDynamicMeshUpdateResult::Failed;
 	}
 
-	EDynamicMeshUpdateResult Result = EDynamicMeshUpdateResult::Failed;
-	MeshDescriptionCommitter->CommitMeshDescription([UpdatedMesh, &Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+	FMeshDescription NewMeshDescription = UE::ToolTarget::GetMeshDescriptionCopy(Target);
+	bool bVerticesOnly = false;
+	bool bAttributesOnly = true;
+	if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(UpdatedMesh, &NewMeshDescription, bVerticesOnly, bAttributesOnly))
 	{
-		FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
+		FDynamicMeshToMeshDescription Converter;
+		Converter.UpdateAttributes(UpdatedMesh, NewMeshDescription, false, false, true/*update uvs*/);
+	}
+	else
+	{
+		// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert 
+		FDynamicMeshToMeshDescription Converter;
+		Converter.Convert(UpdatedMesh, NewMeshDescription);
+	}
 
-		bool bVerticesOnly = false;
-		bool bAttributesOnly = true;
-		if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(UpdatedMesh, MeshDescription, bVerticesOnly, bAttributesOnly))
-		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.UpdateAttributes(UpdatedMesh, *MeshDescription, false, false, true/*update uvs*/);
-			Result = EDynamicMeshUpdateResult::Ok;
-		}
-		else
-		{
-			// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert 
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(UpdatedMesh, *MeshDescription);
-			Result = EDynamicMeshUpdateResult::Ok_ForcedFullUpdate;
-		}
-	});
-	return Result;
+	bool bOK = MeshDescriptionCommitter->CommitMeshDescription(MoveTemp(NewMeshDescription));
+	return (bOK) ? EDynamicMeshUpdateResult::Ok : EDynamicMeshUpdateResult::Failed;
 }
+
+
+
+
+
+UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshNormalsUpdate(
+	UToolTarget* Target, 
+	const UE::Geometry::FDynamicMesh3* UpdatedMesh,
+	bool bUpdateTangents)
+{
+	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
+	if (DynamicMeshSource)
+	{
+		// just do a full mesh update for now
+		return CommitDynamicMeshUpdate(Target, *UpdatedMesh, true);
+	}
+
+	IDynamicMeshCommitter* DynamicMeshCommitter = Cast<IDynamicMeshCommitter>(Target);
+	if (DynamicMeshCommitter)
+	{
+		IDynamicMeshCommitter::FDynamicMeshCommitInfo CommitInfo(false);
+		CommitInfo.bNormalsChanged = true;
+		CommitInfo.bTangentsChanged = bUpdateTangents;
+		DynamicMeshCommitter->CommitDynamicMesh(*UpdatedMesh, CommitInfo);
+		return EDynamicMeshUpdateResult::Ok;
+	}
+
+	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
+	if (!ensure(MeshDescriptionCommitter))
+	{
+		return EDynamicMeshUpdateResult::Failed;
+	}
+
+	FMeshDescription NewMeshDescription = UE::ToolTarget::GetMeshDescriptionCopy(Target);
+	bool bVerticesOnly = false;
+	bool bAttributesOnly = true;
+	if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(UpdatedMesh, &NewMeshDescription, bVerticesOnly, bAttributesOnly))
+	{
+		FDynamicMeshToMeshDescription Converter;
+		Converter.UpdateAttributes(UpdatedMesh, NewMeshDescription, true, bUpdateTangents, false);
+	}
+	else
+	{
+		// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert 
+		FDynamicMeshToMeshDescription Converter;
+		Converter.Convert(UpdatedMesh, NewMeshDescription);
+	}
+
+	bool bOK = MeshDescriptionCommitter->CommitMeshDescription(MoveTemp(NewMeshDescription));
+	return (bOK) ? EDynamicMeshUpdateResult::Ok : EDynamicMeshUpdateResult::Failed;
+}
+
 
 
 

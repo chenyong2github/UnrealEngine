@@ -28,7 +28,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -505,11 +505,7 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 			continue;
 		}
 
-		Cast<IMeshDescriptionCommitter>(Targets[ComponentIdx])->CommitMeshDescription([&Results, &PreviewIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(Results[PreviewIdx].Mesh.Get(), *CommitParams.MeshDescriptionOut);
-		});
+		UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Targets[ComponentIdx], *Results[PreviewIdx].Mesh, true);
 	}
 
 	GetToolManager()->EndUndoTransaction();

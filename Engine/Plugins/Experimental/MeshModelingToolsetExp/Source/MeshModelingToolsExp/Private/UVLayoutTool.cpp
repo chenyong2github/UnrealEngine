@@ -16,10 +16,8 @@
 #include "Properties/UVLayoutProperties.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -292,26 +290,9 @@ void UUVLayoutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 	
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		Cast<IMeshDescriptionCommitter>(Targets[ComponentIdx])->CommitMeshDescription([&Results, &ComponentIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			const FDynamicMesh3* DynamicMesh = Results[ComponentIdx].Mesh.Get();
-			FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
-			
-			constexpr bool bVerticesOnly = false;
-			constexpr bool bAttributesOnly = true;
-			if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(DynamicMesh, MeshDescription, bVerticesOnly, bAttributesOnly))
-			{
-				FDynamicMeshToMeshDescription Converter;
-				Converter.UpdateAttributes(DynamicMesh, *MeshDescription, false, false, true/*update uvs*/);
-			}
-			else
-			{
-				// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert
-				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMesh, *MeshDescription);
-			}
-		});
+		const FDynamicMesh3* DynamicMesh = Results[ComponentIdx].Mesh.Get();
+		check(DynamicMesh != nullptr);
+		UE::ToolTarget::CommitDynamicMeshUVUpdate(Targets[ComponentIdx], DynamicMesh);
 	}
 
 	GetToolManager()->EndUndoTransaction();

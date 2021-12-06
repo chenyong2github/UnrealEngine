@@ -13,9 +13,8 @@
 #include "Drawing/PreviewGeometryActor.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -161,7 +160,7 @@ void USubdividePolyTool::Setup()
 	bool bWantVertexNormals = false;
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(bWantVertexNormals, false, false, false);
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
+	Converter.Convert(UE::ToolTarget::GetMeshDescription(Target), *OriginalMesh);
 
 	FText ErrorMessage;
 	bool bCatmullClarkOK = CheckGroupTopology(ErrorMessage);
@@ -396,11 +395,7 @@ void USubdividePolyTool::Shutdown(EToolShutdownType ShutdownType)
 			UDynamicMeshComponent* PreviewDynamicMeshComponent = (UDynamicMeshComponent*)PreviewMesh->GetRootComponent();
 			FDynamicMesh3* DynamicMeshResult = PreviewDynamicMeshComponent->GetRenderMesh();
 
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-			{
-				FDynamicMeshToMeshDescription Converter;
-				Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
-			});
+			UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Target, *DynamicMeshResult, true);
 
 			GetToolManager()->EndUndoTransaction();
 		}

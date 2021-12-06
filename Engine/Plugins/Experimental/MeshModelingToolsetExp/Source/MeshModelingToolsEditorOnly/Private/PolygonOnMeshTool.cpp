@@ -16,9 +16,8 @@
 #include "DynamicMeshToMeshDescription.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -130,7 +129,7 @@ void UPolygonOnMeshTool::Setup()
 	// Convert input mesh description to dynamic mesh
 	OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalDynamicMesh);
+	Converter.Convert( UE::ToolTarget::GetMeshDescription(Target), *OriginalDynamicMesh);
 	// TODO: consider adding an AABB tree construction here?  tradeoff vs doing a raycast against full every time a param change happens ...
 
 	LastDrawnPolygon = FPolygon2d();
@@ -406,11 +405,7 @@ void UPolygonOnMeshTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Resul
 	
 	check(Results.Num() > 0);
 	check(Results[0].Mesh.Get() != nullptr);
-	Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([&Results](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-	{
-		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(Results[0].Mesh.Get(), *CommitParams.MeshDescriptionOut);
-	});
+	UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Target, *Results[0].Mesh.Get(), true);
 
 	GetToolManager()->EndUndoTransaction();
 }

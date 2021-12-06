@@ -17,7 +17,6 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
-#include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
@@ -356,11 +355,7 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 			{
 				MeshTransforms::ApplyTransform(*OpResult.Mesh, OpResult.Transform);
 				MeshTransforms::ApplyTransformInverse(*OpResult.Mesh, TargetToWorld);
-				Cast<IMeshDescriptionCommitter>(Targets[0])->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-				{
-					FDynamicMeshToMeshDescription Converter;
-					Converter.Convert(OpResult.Mesh.Get(), *CommitParams.MeshDescriptionOut);
-				});
+				UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Targets[0], *OpResult.Mesh, true);
 				Cast<IMaterialProvider>(Targets[0])->CommitMaterialSetUpdate(MaterialSet, true);
 			}
 		}

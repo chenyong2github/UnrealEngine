@@ -24,6 +24,7 @@
 
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -113,11 +114,7 @@ void USeamSculptTool::OnShutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("SeamSculptTransactionName", "UV Seam Edit"));
 
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([&ResultMesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(&ResultMesh, *CommitParams.MeshDescriptionOut);
-		});
+		UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Target, ResultMesh, true);
 
 		GetToolManager()->EndUndoTransaction();
 	}

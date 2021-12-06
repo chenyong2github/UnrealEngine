@@ -17,13 +17,11 @@
 #include "InteractiveGizmoManager.h"
 
 #include "AssetUtils/MeshDescriptionUtil.h"
-#include "Engine/Classes/Engine/StaticMesh.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
 
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -262,25 +260,9 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 			}
 		}
 
-		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		Cast<IMeshDescriptionCommitter>(Targets[ComponentIdx])->CommitMeshDescription([&Results, &ComponentIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			FDynamicMeshToMeshDescription Converter;
-			
-			if (BasicProperties->WillTopologyChange() || !FDynamicMeshToMeshDescription::HaveMatchingElementCounts(Results[ComponentIdx].Mesh.Get(), CommitParams.MeshDescriptionOut, false, true))
-			{
-				// full conversion if normal topology changed or faces were inverted
-				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescriptionOut);
-			}
-			else
-			{
-				// otherwise just copy attributes
-				const bool bUpdateNormals = true;
-				const bool bCopyOverlayTangents = false;
-				const bool bCopyOverlayUVs = false;
-				Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescriptionOut, bUpdateNormals, bCopyOverlayTangents, bCopyOverlayUVs);
-			}
-		});
+		const FDynamicMesh3* NewDynamicMesh = Results[ComponentIdx].Mesh.Get();
+		check(NewDynamicMesh != nullptr);
+		UE::ToolTarget::CommitDynamicMeshNormalsUpdate(Targets[ComponentIdx], NewDynamicMesh, false);
 	}
 
 	GetToolManager()->EndUndoTransaction();

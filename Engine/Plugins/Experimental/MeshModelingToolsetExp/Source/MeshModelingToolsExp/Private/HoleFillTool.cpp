@@ -15,9 +15,8 @@
 #include "Selection/PolygonSelectionMechanic.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ModelingToolTargetUtil.h"
 
 using namespace UE::Geometry;
 
@@ -125,7 +124,7 @@ void UHoleFillTool::Setup()
 	// create mesh to operate on
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
+	Converter.Convert(UE::ToolTarget::GetMeshDescription(Target), *OriginalMesh);
 
 	// initialize properties
 	Properties = NewObject<UHoleFillToolProperties>(this, TEXT("Hole Fill Settings"));
@@ -271,13 +270,7 @@ void UHoleFillTool::Shutdown(EToolShutdownType ShutdownType)
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("HoleFillToolTransactionName", "Hole Fill Tool"));
 
 		check(Result.Mesh.Get() != nullptr);
-		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([&Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-		{
-			FDynamicMeshToMeshDescription Converter;
-
-			// full conversion if normal topology changed or faces were inverted
-			Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescriptionOut);
-		});
+		UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Target, *Result.Mesh.Get(), true);
 
 		GetToolManager()->EndUndoTransaction();
 	}

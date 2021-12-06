@@ -19,6 +19,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #define LOCTEXT_NAMESPACE "UBaseMeshProcessingTool"
 
@@ -82,7 +83,7 @@ void UBaseMeshProcessingTool::Setup()
 
 	// populate the BaseMesh with a conversion of the input mesh.
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), InitialMesh);
+	Converter.Convert(UE::ToolTarget::GetMeshDescription(Target), InitialMesh);
 
 	if (RequiresScaleNormalization())
 	{
@@ -238,19 +239,7 @@ void UBaseMeshProcessingTool::Shutdown(EToolShutdownType ShutdownType)
 			}
 
 			bool bTopologyChanged = HasMeshTopologyChanged();
-			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult, bTopologyChanged](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
-			{
-				FDynamicMeshToMeshDescription Converter;
-				if (bTopologyChanged)
-				{
-					Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
-				}
-				else
-				{
-					Converter.Update(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
-				}
-			});
-
+			UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Target, *DynamicMeshResult, bTopologyChanged);
 
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -372,7 +361,7 @@ void UBaseMeshProcessingTool::SetupWeightMapPropertySet(UWeightMapSetProperties*
 	WeightMapPropertySet = Properties;
 
 	// initialize property list
-	Properties->InitializeFromMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
+	Properties->InitializeFromMesh(UE::ToolTarget::GetMeshDescription(Target));
 
 	Properties->WatchProperty(Properties->WeightMap,
 		[&](FName) { OnSelectedWeightMapChanged(true); });
@@ -388,7 +377,7 @@ void UBaseMeshProcessingTool::OnSelectedWeightMapChanged(bool bInvalidate)
 	TSharedPtr<FIndexedWeightMap1f> NewWeightMap = MakeShared<FIndexedWeightMap1f>();
 
 	// this will return all-ones weight map if None is selected
-	bool bFound = UE::WeightMaps::GetVertexWeightMap(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), WeightMapPropertySet->WeightMap, *NewWeightMap, 1.0f);
+	bool bFound = UE::WeightMaps::GetVertexWeightMap(UE::ToolTarget::GetMeshDescription(Target), WeightMapPropertySet->WeightMap, *NewWeightMap, 1.0f);
 	if (bFound && WeightMapPropertySet->bInvertWeightMap)
 	{
 		NewWeightMap->InvertWeightMap();

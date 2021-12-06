@@ -167,5 +167,5 @@ protected:
 	friend class FMeshSkinWeightsChange;
 	void ExternalUpdateValues(const FName &BoneName, const TMap<int32, float>& IndexValues);
 
-	void CommitSkinWeights(const IMeshDescriptionCommitter::FCommitterParams& CommitParams);
+	void UpdateEditedSkinWeightsMesh();
 };
