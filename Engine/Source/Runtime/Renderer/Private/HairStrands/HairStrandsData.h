@@ -11,6 +11,7 @@
 #include "RHIGPUReadback.h"
 #include "Shader.h"
 
+class FLightSceneInfo;
 class FPrimitiveSceneProxy;
 class FViewInfo;
 class FScene;
