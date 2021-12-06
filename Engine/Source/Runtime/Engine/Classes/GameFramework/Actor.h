@@ -2209,6 +2209,9 @@ public:
 	/** Changes bHiddenEdLayer flag and returns true if flag changed. */
 	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer);
 
+	/** Returns true if the actor supports modifications to its Layers property */
+	virtual bool SupportsLayers() const;
+
 	/** Returns if level should keep a reference to the external actor for PIE (used for always loaded actors). */
 	bool IsForceExternalActorLevelReferenceForPIE() const
 	{
