@@ -316,6 +316,14 @@ bool UEditorUtilityLibrary::GetCurrentContentBrowserPath(FString& OutPath)
 	}
 }
 
+TArray<FString> UEditorUtilityLibrary::GetSelectedFolderPaths()
+{
+	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+	TArray<FString> Paths;
+	ContentBrowser.GetSelectedFolders(Paths);
+	return Paths;
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

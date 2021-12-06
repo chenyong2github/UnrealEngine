@@ -165,5 +165,9 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Development|Editor")
 	static bool GetCurrentContentBrowserPath(FString& OutPath);
+
+	// Gets the path to the currently selected folder in the content browser
+	UFUNCTION(BlueprintPure, Category = "Development|Editor")
+	static TArray<FString> GetSelectedFolderPaths();
 #endif
 };
