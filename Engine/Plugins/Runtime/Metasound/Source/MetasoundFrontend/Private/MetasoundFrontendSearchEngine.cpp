@@ -41,11 +41,9 @@ namespace Metasound
 						const FMetasoundFrontendClassMetadata& Metadata = InEntry.Value.Get<FMetasoundFrontendClass>().Metadata;
 						return FMapClassToFullClassNameAndMajorVersion::GetKey(Metadata.GetClassName(), Metadata.GetVersion().Major);
 					}
-
 					return FFrontendQueryKey();
 				}
 			};
-
 
 			class FInterfaceRegistryTransactionSource : public IFrontendQueryStreamStep
 			{
@@ -141,48 +139,6 @@ namespace Metasound
 				}
 			};
 
-			class FFilterInterfaceRegistryTransactionsBySupportedClassName : public IFrontendQueryFilterStep
-			{
-				FName UClassName;
-
-			public:
-				FFilterInterfaceRegistryTransactionsBySupportedClassName(FName InUClassName)
-					: UClassName(InUClassName)
-				{
-				}
-
-				virtual bool Filter(const FFrontendQueryEntry& InEntry) const override
-				{
-					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
-					{
-						FInterfaceRegistryKey RegistryKey = InEntry.Value.Get<FInterfaceRegistryTransaction>().GetInterfaceRegistryKey();
-						const IInterfaceRegistryEntry* RegEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
-						if (ensure(RegEntry))
-						{
-							return RegEntry->UClassIsSupported(UClassName);
-						}
-					}
-					return false;
-				}
-			};
-
-			class FFilterInterfaceRegistryTransactionsByDefault : public IFrontendQueryFilterStep
-			{
-			public:
-				virtual bool Filter(const FFrontendQueryEntry& InEntry) const override
-				{
-					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
-					{
-						FInterfaceRegistryKey RegistryKey = InEntry.Value.Get<FInterfaceRegistryTransaction>().GetInterfaceRegistryKey();
-						const IInterfaceRegistryEntry* RegEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
-						if (ensure(RegEntry))
-						{
-							return RegEntry->IsDefault();
-						}
-					}
-					return false;
-				}
-			};
 
 			class FTransformInterfaceRegistryTransactionToInterface : public IFrontendQueryTransformStep
 			{
@@ -254,73 +210,6 @@ namespace Metasound
 				}
 			};
 
-			class FFilterInterfaceRegistryTransactionsByName : public IFrontendQueryFilterStep
-			{
-			public:
-				FFilterInterfaceRegistryTransactionsByName(FName InName)
-				: Name(InName)
-				{
-				}
-
-				virtual bool Filter(const FFrontendQueryEntry& InEntry) const override
-				{
-					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
-					{
-						return Name == InEntry.Value.Get<FInterfaceRegistryTransaction>().GetInterfaceVersion().Name;
-					}
-					return false;
-				}
-
-			private:
-				FName Name;
-			};
-
-
-			class FFilterNodeRegistrationEventsByClassName : public IFrontendQueryFilterStep
-			{
-			public:
-				FFilterNodeRegistrationEventsByClassName(const FMetasoundFrontendClassName& InName)
-				: Name(InName)
-				{
-				}
-
-				virtual bool Filter(const FFrontendQueryEntry& InEntry) const override
-				{
-					if (ensure(InEntry.Value.IsType<FNodeRegistryTransaction>()))
-					{
-						return Name == InEntry.Value.Get<FNodeRegistryTransaction>().GetNodeClassInfo().ClassName;
-					}
-					return false;
-				}
-			private:
-				FMetasoundFrontendClassName Name;
-			};
-
-			class FFilterInterfaceRegistryTransactionsByNameAndMajorVersion : public IFrontendQueryFilterStep
-			{
-			public:
-				FFilterInterfaceRegistryTransactionsByNameAndMajorVersion(const FName& InName, int32 InMajorVersion)
-				: Name(InName)
-				, MajorVersion(InMajorVersion)
-				{
-				}
-
-				virtual bool Filter(const FFrontendQueryEntry& InEntry) const override
-				{
-					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
-					{
-						const FMetasoundFrontendVersion& Version = InEntry.Value.Get<FInterfaceRegistryTransaction>().GetInterfaceVersion();
-
-						return (Name == Version.Name) && (MajorVersion == Version.Number.Major);
-					}
-					return false;
-				}
-
-			private:
-				FName Name;
-				int32 MajorVersion;
-			};
-
 			class FMapInterfaceToInterfaceName : public IFrontendQueryMapStep
 			{
 			public:
@@ -350,34 +239,451 @@ namespace Metasound
 			};
 		}
 
+		// Base interface for a search engine query. This allows the query to be
+		// primed to improve execution performance in critical call-stacks.
+		struct ISearchEngineQuery
+		{
+			// Prime the query to improve execution performance during subsequent 
+			// queries. 
+			virtual void Prime() = 0;
+			virtual ~ISearchEngineQuery() = default;
+		};
+
+		// TSearchEngineQuery provides a base for all queries used in the search
+		// engine. It requires a `QueryPolicy` as a template parameter. 
+		//
+		// A `QueryPolicy` is a struct containing a static function to create the 
+		// query, a static function to build a result from the query selection, 
+		// and query result type.
+		//
+		// Example:
+		//
+		// struct FQueryPolicyExample
+		// {
+		//		using ResultType = FMetasoundFrontendClass;
+		//
+		//		static FFrontendQuery CreateQuery()
+		//		{
+		//			using namespace SearchEngineQuerySteps;
+		//			FFrontendQuery Query;
+		//			Query.AddStep<FNodeClassRegistrationEvents>()
+		//				.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+		//				.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+		//				.AddStep<FTransformRegistrationEventsToClasses>();
+		//			return Query;
+		//		}
+		//
+		//		static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+		//		{
+		//			FMetasoundFrontendClass MetaSoundClass;
+		//			if (ensureMsgf(InPartition.Num() > 0, TEXT("Cannot retrieve class from empty partition")))
+		//			{
+		//				MetaSoundClass = InPartition.CreateConstIterator()->Value.Get<FMetasoundFrontendClass>();
+		//			}
+		//			return MetaSoundClass;
+		//		}
+		// };
+		template<typename QueryPolicy>
+		struct TSearchEngineQuery : public ISearchEngineQuery
+		{
+			using ResultType = typename QueryPolicy::ResultType;
+
+			TSearchEngineQuery()
+			: Query(QueryPolicy::CreateQuery())
+			{
+			}
+
+			virtual void Prime() override
+			{
+				FScopeLock Lock(&QueryCriticalSection);
+				Update();
+			}
+
+			// Updates the query to the most recent value and returns the
+			// result.
+			ResultType UpdateAndFindResult(const FFrontendQueryKey& InKey)
+			{
+				FScopeLock Lock(&QueryCriticalSection);
+
+				Update();
+				if (const ResultType* Result = ResultCache.Find(InKey))
+				{
+					return *Result;
+				}
+				return ResultType();
+			}
+
+			// Updates the query to the most recent value and assigns the value 
+			// to OutResult. Returns true on success, false on failure. 
+			bool UpdateAndFindResult(const FFrontendQueryKey& InKey, ResultType& OutResult)
+			{
+				FScopeLock Lock(&QueryCriticalSection);
+
+				Update();
+				if (const ResultType* Result = ResultCache.Find(InKey))
+				{
+					OutResult = *Result;
+					return true;
+				}
+				return false;
+			}
+
+		private:
+			void Update()
+			{
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::SearchEngineQuery::Update);
+
+				TSet<FFrontendQueryKey> UpdatedKeys;
+				const FFrontendQuerySelection& Selection = Query.Update(UpdatedKeys);
+
+				if (UpdatedKeys.Num() > 0)
+				{
+					METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::SearchEngineQuery::BuildResult);
+
+					for (const FFrontendQueryKey& Key : UpdatedKeys)
+					{
+						const FFrontendQueryPartition* Partition = Query.GetSelection().Find(Key);
+						if (nullptr != Partition)
+						{
+							ResultCache.Add(Key, QueryPolicy::BuildResult(*Partition));
+						}
+						else
+						{
+							ResultCache.Remove(Key);
+						}
+					}
+				}
+			}
+
+			FCriticalSection QueryCriticalSection;
+			FFrontendQuery Query;
+			TMap<FFrontendQueryKey, ResultType> ResultCache;
+		};
+
+		TArray<FMetasoundFrontendClass> BuildArrayOfClassesFromPartition(const FFrontendQueryPartition& InPartition)
+		{
+			TArray<FMetasoundFrontendClass> Result;
+			for (const FFrontendQueryEntry& Entry : InPartition)
+			{
+				check(Entry.Value.IsType<FMetasoundFrontendClass>());
+				Result.Add(Entry.Value.Get<FMetasoundFrontendClass>());
+			}
+			return Result;
+		}
+
+		FMetasoundFrontendClass BuildSingleClassFromPartition(const FFrontendQueryPartition& InPartition)
+		{
+			FMetasoundFrontendClass MetaSoundClass;
+			if (ensureMsgf(InPartition.Num() > 0, TEXT("Cannot retrieve class from empty partition")))
+			{
+				MetaSoundClass = InPartition.CreateConstIterator()->Value.Get<FMetasoundFrontendClass>();
+			}
+			return MetaSoundClass;
+		}
+
+		TArray<FMetasoundFrontendInterface> BuildArrayOfInterfacesFromPartition(const FFrontendQueryPartition& InPartition)
+		{
+			TArray<FMetasoundFrontendInterface> Result;
+			for (const FFrontendQueryEntry& Entry : InPartition)
+			{
+				check(Entry.Value.IsType<FMetasoundFrontendInterface>());
+				Result.Add(Entry.Value.Get<FMetasoundFrontendInterface>());
+			}
+			return Result;
+		}
+
+		FMetasoundFrontendInterface BuildSingleInterfaceFromPartition(const FFrontendQueryPartition& InPartition)
+		{
+			FMetasoundFrontendInterface MetaSoundInterface;
+			if (ensureMsgf(InPartition.Num() > 0, TEXT("Cannot retrieve class from empty partition")))
+			{
+				MetaSoundInterface = InPartition.CreateConstIterator()->Value.Get<FMetasoundFrontendInterface>();
+			}
+			return MetaSoundInterface;
+		}
+
+		TArray<FMetasoundFrontendVersion> BuildArrayOfVersionsFromPartition(const FFrontendQueryPartition& InPartition)
+		{
+			TArray<FMetasoundFrontendVersion> Result;
+			for (const FFrontendQueryEntry& Entry : InPartition)
+			{
+				check(Entry.Value.IsType<FMetasoundFrontendVersion>());
+				Result.Add(Entry.Value.Get<FMetasoundFrontendVersion>());
+			}
+			return Result;
+		}
+
+		// Policy for finding all registered metasound classes. 
+		struct FFindAllClassesQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendClass>;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FMapToNull>();
+				return Query;
+			}
+
+			static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildArrayOfClassesFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding all registered metasound classes, including deprecated classes. 
+		struct FFindAllClassesIncludingDeprecatedQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendClass>;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FMapToNull>();
+				return Query;
+			}
+
+			static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildArrayOfClassesFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding all registered metasound classes sorted by version 
+		// and indexed by name.
+		struct FFindClassesWithNameSortedQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendClass>;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FMapClassesToClassName>()
+					.AddStep<FSortClassesByVersion>();
+				return Query;
+			}
+
+			static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildArrayOfClassesFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding all registered metasound classes indexed by name.
+		struct FFindClassesWithNameUnsortedQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendClass>;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FMapClassesToClassName>();
+				return Query;
+			}
+
+			static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildArrayOfClassesFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding highest versioned metasound class by name.
+		struct FFindClassWithHighestVersionQueryPolicy
+		{
+			using ResultType = FMetasoundFrontendClass;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FMapToFullClassName>()
+					.AddStep<FReduceClassesToHighestVersion>();
+				return Query;
+			}
+
+			static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildSingleClassFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding highest versioned metasound class by name and major version.
+		struct FFindClassWithMajorVersionQueryPolicy
+		{
+			using ResultType = FMetasoundFrontendClass;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FNodeClassRegistrationEvents>()
+					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
+					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
+					.AddStep<FTransformRegistrationEventsToClasses>()
+					.AddStep<FMapClassToFullClassNameAndMajorVersion>();
+				return Query;
+			}
+
+			static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildSingleClassFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding all registered interfaces. 
+		struct FFindAllInterfacesQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendInterface>;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+					.AddStep<FMapInterfaceToInterfaceNameAndMajorVersion>()
+					.AddStep<FReduceInterfacesToHighestVersion>()
+					.AddStep<FMapToNull>();
+				return Query;
+			}
+
+			static ResultType BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildArrayOfInterfacesFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding all registered interfaces (including deprecated). 
+		struct FFindAllInterfacesIncludingDeprecatedQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendInterface>;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+					.AddStep<FMapToNull>();
+				return Query;
+			}
+
+			static TArray<FMetasoundFrontendInterface> BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildArrayOfInterfacesFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding all registered interface versions (name & version number)
+		// by name.
+		struct FFindAllRegisteredInterfacesWithNameQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendVersion>;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FMapInterfaceRegistryTransactionToInterfaceName>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterfaceVersion>();
+				return Query;
+			}
+
+			static TArray<FMetasoundFrontendVersion> BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildArrayOfVersionsFromPartition(InPartition);
+			}
+		};
+
+		// Policy for finding the highest version registered interfaces by name.
+		struct FFindInterfaceWithHighestVersionQueryPolicy
+		{
+			using ResultType = FMetasoundFrontendInterface;
+
+			static FFrontendQuery CreateQuery()
+			{
+				using namespace SearchEngineQuerySteps;
+				FFrontendQuery Query;
+				Query.AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+					.AddStep<FMapInterfaceToInterfaceName>()
+					.AddStep<FReduceInterfacesToHighestVersion>();
+				return Query;
+			}
+
+			static FMetasoundFrontendInterface BuildResult(const FFrontendQueryPartition& InPartition)
+			{
+				return BuildSingleInterfaceFromPartition(InPartition);
+			}
+		};
+
 		class FSearchEngine : public ISearchEngine
 		{
-				FSearchEngine(const FSearchEngine&) = delete;
-				FSearchEngine(FSearchEngine&&) = delete;
-				FSearchEngine& operator=(const FSearchEngine&) = delete;
-				FSearchEngine& operator=(FSearchEngine&&) = delete;
+			FSearchEngine(const FSearchEngine&) = delete;
+			FSearchEngine(FSearchEngine&&) = delete;
+			FSearchEngine& operator=(const FSearchEngine&) = delete;
+			FSearchEngine& operator=(FSearchEngine&&) = delete;
 
-			public:
-				FSearchEngine() = default;
-				virtual ~FSearchEngine() = default;
+		public:
+			FSearchEngine() = default;
+			virtual ~FSearchEngine() = default;
 
-				virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeDeprecated) override;
-				virtual TArray<FMetasoundFrontendClass> FindClassesWithName(const FMetasoundFrontendClassName& InName, bool bInSortByVersion) override;
-				virtual bool FindClassWithHighestVersion(const FMetasoundFrontendClassName& InName, FMetasoundFrontendClass& OutClass) override;
-				virtual bool FindClassWithMajorVersion(const FMetasoundFrontendClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) override;
+			virtual void Prime() override;
+			virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeDeprecated) override;
+			virtual TArray<FMetasoundFrontendClass> FindClassesWithName(const FMetasoundFrontendClassName& InName, bool bInSortByVersion) override;
+			virtual bool FindClassWithHighestVersion(const FMetasoundFrontendClassName& InName, FMetasoundFrontendClass& OutClass) override;
+			virtual bool FindClassWithMajorVersion(const FMetasoundFrontendClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) override;
 
-				virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeDeprecated) override;
-				virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) override;
-				virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredInterfacesWithName(FName InInterfaceName) override;
-				virtual bool FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface) override;
-				virtual bool FindInterfaceWithMajorVersion(FName InInterfaceName, int32 InMajorVersion, FMetasoundFrontendInterface& OutInterface) override;
+			virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeDeprecated) override;
+			virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) override;
+			virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredInterfacesWithName(FName InInterfaceName) override;
+			virtual bool FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface) override;
 
-			private:
-				FFrontendQuery* FindQuery(const FString& InQueryName);
-				FFrontendQuery* AddQuery(const FString& InQueryName, TUniquePtr<FFrontendQuery>&& InQuery);
+		private:
 
-				// Store of queries indexed by unique strings.
-				TMap<FString, TUniquePtr<FFrontendQuery>> QueryCache;
+			TSearchEngineQuery<FFindAllClassesQueryPolicy> FindAllClassesQuery;
+			TSearchEngineQuery<FFindAllClassesIncludingDeprecatedQueryPolicy> FindAllClassesIncludingDeprecatedQuery;
+			TSearchEngineQuery<FFindClassesWithNameUnsortedQueryPolicy> FindClassesWithNameUnsortedQuery;
+			TSearchEngineQuery<FFindClassesWithNameSortedQueryPolicy> FindClassesWithNameSortedQuery;
+			TSearchEngineQuery<FFindClassWithHighestVersionQueryPolicy> FindClassWithHighestVersionQuery;
+			TSearchEngineQuery<FFindClassWithMajorVersionQueryPolicy> FindClassWithMajorVersionQuery;
+			TSearchEngineQuery<FFindAllInterfacesQueryPolicy> FindAllInterfacesQuery;
+			TSearchEngineQuery<FFindAllInterfacesIncludingDeprecatedQueryPolicy> FindAllInterfacesIncludingDeprecatedQuery;
+			TSearchEngineQuery<FFindAllRegisteredInterfacesWithNameQueryPolicy> FindAllRegisteredInterfacesWithNameQuery;
+			TSearchEngineQuery<FFindInterfaceWithHighestVersionQueryPolicy> FindInterfaceWithHighestVersionQuery;
 		};
 
 		ISearchEngine& ISearchEngine::Get()
@@ -386,142 +692,58 @@ namespace Metasound
 			return SearchEngine;
 		}
 
+		void FSearchEngine::Prime()
+		{
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::Prime);
+
+			FindAllClassesQuery.Prime();
+			FindAllClassesIncludingDeprecatedQuery.Prime();
+			FindClassesWithNameUnsortedQuery.Prime();
+			FindClassesWithNameSortedQuery.Prime();
+			FindClassWithHighestVersionQuery.Prime();
+			FindClassWithMajorVersionQuery.Prime();
+			FindAllInterfacesIncludingDeprecatedQuery.Prime();
+			FindAllInterfacesQuery.Prime();
+			FindAllRegisteredInterfacesWithNameQuery.Prime();
+			FindInterfaceWithHighestVersionQuery.Prime();
+		}
+
 		TArray<FMetasoundFrontendClass> FSearchEngine::FindAllClasses(bool bInIncludeDeprecated)
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindAllClasses);
-			using namespace SearchEngineQuerySteps;
 
-			FString QueryName = FString(TEXT("FindAllClasses"));
+			FFrontendQueryKey NullKey;
 			if (bInIncludeDeprecated)
 			{
-				QueryName += TEXT("IncludingDeprecated");
+				return FindAllClassesIncludingDeprecatedQuery.UpdateAndFindResult(NullKey);
 			}
-
-			FFrontendQuery* Query = FindQuery(QueryName);
-			if (!Query)
+			else
 			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-
-				NewQuery->AddStep<FNodeClassRegistrationEvents>()
-					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
-					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
-					.AddStep<FTransformRegistrationEventsToClasses>();
-
-				if (!bInIncludeDeprecated)
-				{
-					NewQuery->AddStep<FMapToFullClassName>()
-						.AddStep<FReduceClassesToHighestVersion>();
-				}
-
-				NewQuery->AddStep<FMapToNull>();
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
+				return FindAllClassesQuery.UpdateAndFindResult(NullKey);
 			}
-
-			TArray<FMetasoundFrontendClass> Result;
-
-			if (ensure(Query))
-			{
-				// TODO: cache result and only rebuild if query actually updates. 
-				const FFrontendQuerySelection& Selection = Query->Update();
-				if (const FFrontendQueryPartition* Entries = Selection.Find(FFrontendQueryKey()))
-				{
-					for (const FFrontendQueryEntry& Entry : *Entries)
-					{
-						check(Entry.Value.IsType<FMetasoundFrontendClass>());
-						Result.Add(Entry.Value.Get<FMetasoundFrontendClass>());
-					}
-				}
-			}
-
-			return Result;
 		}
 
 		TArray<FMetasoundFrontendClass> FSearchEngine::FindClassesWithName(const FMetasoundFrontendClassName& InName, bool bInSortByVersion)
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindClassesWithName);
-			using namespace SearchEngineQuerySteps;
 
-			FString QueryName = FString(TEXT("FindClassesWithName"));
+			const FFrontendQueryKey Key(InName.GetFullName());
 			if (bInSortByVersion)
 			{
-				QueryName += TEXT("_SortedByVersion");
+				return FindClassesWithNameSortedQuery.UpdateAndFindResult(Key);
 			}
-			FFrontendQuery* Query = FindQuery(QueryName);
-
-			if (!Query)
+			else 
 			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-				NewQuery->AddStep<FNodeClassRegistrationEvents>()
-					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
-					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
-					.AddStep<FTransformRegistrationEventsToClasses>()
-					.AddStep<FMapClassesToClassName>();
-
-				if (bInSortByVersion)
-				{
-					NewQuery->AddStep<FSortClassesByVersion>();
-				}
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
+				return FindClassesWithNameUnsortedQuery.UpdateAndFindResult(Key);
 			}
-
-			TArray<FMetasoundFrontendClass> Result;
-
-			if (ensure(nullptr != Query))
-			{
-				const FFrontendQuerySelection& Selection = Query->Update();
-				const FFrontendQueryKey Key(InName.GetFullName());
-				if (const FFrontendQueryPartition* Entries = Selection.Find(Key))
-				{
-					for (const FFrontendQueryEntry& Entry : *Entries)
-					{
-						check(Entry.Value.IsType<FMetasoundFrontendClass>());
-						Result.Add(Entry.Value.Get<FMetasoundFrontendClass>());
-					}
-				}
-			}
-
-			return Result;
 		}
 
 		bool FSearchEngine::FindClassWithHighestVersion(const FMetasoundFrontendClassName& InName, FMetasoundFrontendClass& OutClass)
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindClassWithHighestVersion);
-			using namespace SearchEngineQuerySteps;
 
-			const FString QueryName = FString(TEXT("FindHighestVersion"));
-			FFrontendQuery* Query = FindQuery(QueryName);
-			if (!Query)
-			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-
-				NewQuery->AddStep<FNodeClassRegistrationEvents>()
-					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
-					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
-					.AddStep<FTransformRegistrationEventsToClasses>()
-					.AddStep<FMapToFullClassName>()
-					.AddStep<FReduceClassesToHighestVersion>();
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
-			}
-
-			if (ensure(Query))
-			{
-				const FFrontendQuerySelection& Selection = Query->Update();
-				const FFrontendQueryKey Key(InName.GetFullName());
-
-				if (const FFrontendQueryPartition* Entries = Selection.Find(Key))
-				{
-					if (ensure(Entries->Num() == 1))
-					{
-						OutClass = Entries->CreateConstIterator()->Value.Get<FMetasoundFrontendClass>();
-						return true;
-					}
-				}
-			}
-
-			return false;
+			const FFrontendQueryKey Key{InName.GetFullName()};
+			return FindClassWithHighestVersionQuery.UpdateAndFindResult(Key, OutClass);
 		}
 
 		bool FSearchEngine::FindClassWithMajorVersion(const FMetasoundFrontendClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass)
@@ -529,100 +751,49 @@ namespace Metasound
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindClassWithMajorVersion);
 			using namespace SearchEngineQuerySteps;
 
-			const FString QueryName = FString(TEXT("FindClassWithMajorVersion"));
-			FFrontendQuery* Query = FindQuery(QueryName);
-
-			if (!Query)
-			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-
-				NewQuery->AddStep<FNodeClassRegistrationEvents>()
-					.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
-					.AddStep<FReduceRegistrationEventsToCurrentStatus>()
-					.AddStep<FTransformRegistrationEventsToClasses>()
-					.AddStep<FMapToFullClassName>()
-					.AddStep<FMapClassToFullClassNameAndMajorVersion>();
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
-			}
-
-
-			if (ensure(Query))
-			{
-				const FFrontendQueryKey Key = FMapClassToFullClassNameAndMajorVersion::GetKey(InName, InMajorVersion);
-				const FFrontendQuerySelection& Selection = Query->Update();
-
-				if (const FFrontendQueryPartition* Entries = Selection.Find(Key))
-				{
-					if (ensure(Entries->Num() == 1))
-					{
-						OutClass = Entries->CreateConstIterator()->Value.Get<FMetasoundFrontendClass>();
-						return true;
-					}
-				}
-			}
-
-			return false;
+			const FFrontendQueryKey Key = FMapClassToFullClassNameAndMajorVersion::GetKey(InName, InMajorVersion);
+			return FindClassWithMajorVersionQuery.UpdateAndFindResult(Key, OutClass);
 		}
 
 		TArray<FMetasoundFrontendInterface> FSearchEngine::FindAllInterfaces(bool bInIncludeDeprecated)
 		{
-			using namespace SearchEngineQuerySteps;
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindAllInterfaces);
 
-			const FString QueryName = FString::Format(TEXT("FindAllInterfaces_IncludeDeprecated:{0}"), { bInIncludeDeprecated });
-
-			FFrontendQuery* Query = FindQuery(QueryName);
-			if (!Query)
+			const FFrontendQueryKey NullKey;
+			if (bInIncludeDeprecated)
 			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-
-				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
-					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
-					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
-					.AddStep<FTransformInterfaceRegistryTransactionToInterface>();
-
-				if (!bInIncludeDeprecated)
-				{
-					NewQuery->AddStep<FMapInterfaceToInterfaceNameAndMajorVersion>()
-					.AddStep<FReduceInterfacesToHighestVersion>();
-				}
-				NewQuery->AddStep<FMapToNull>();
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
+				return FindAllInterfacesIncludingDeprecatedQuery.UpdateAndFindResult(NullKey);
 			}
-
-			TArray<FMetasoundFrontendInterface> Result;
-
-			if (ensure(Query))
+			else
 			{
-				const FFrontendQuerySelection& Selection = Query->Update();
-				if (const FFrontendQueryPartition* Entries = Selection.Find(FFrontendQueryKey()))
-				{
-					for (const FFrontendQueryEntry& Entry : *Entries)
-					{
-						if (ensure(Entry.Value.IsType<FMetasoundFrontendInterface>()))
-						{
-							Result.Add(Entry.Value.Get<FMetasoundFrontendInterface>());
-						}
-					}
-				}
+				return FindAllInterfacesQuery.UpdateAndFindResult(NullKey);
 			}
-
-			return Result;
 		}
 
 		TArray<FMetasoundFrontendInterface> FSearchEngine::FindUClassDefaultInterfaces(FName InUClassName)
 		{
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindUClassDefaultInterfaces);
 			constexpr bool bIncludeDeprecated = false;
 			TArray<FMetasoundFrontendInterface> AllInterfaces = FindAllInterfaces(bIncludeDeprecated);
 
+
+			// All interfaces are filtered here because a UClass name cannot effectively 
+			// be used as a "Key" for this query.
+			//
+			// We cannot know all the UClasses associated with each default interface given only a UClassName
+			// because we need to inspect UClass inheritance to handle derived UClasses
+			// which should be compatible with their parent's default interfaces. 
+			//
+			// This module does not have access to the UClass inheritance structure.
+			// Instead, this information is accessed in the IInterfaceRegistryEntry
+			// concrete implementation. 
 			auto DoesNotSupportUClass = [&InUClassName](const FMetasoundFrontendInterface& InInterface)
 			{
 				FInterfaceRegistryKey RegistryKey = GetInterfaceRegistryKey(InInterface);
 				const IInterfaceRegistryEntry* RegEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
 				if (ensure(RegEntry))
 				{
-					return RegEntry->UClassIsSupported(InUClassName);
+					return !RegEntry->UClassIsSupported(InUClassName);
 				}
 
 				return true;
@@ -635,138 +806,18 @@ namespace Metasound
 
 		TArray<FMetasoundFrontendVersion> FSearchEngine::FindAllRegisteredInterfacesWithName(FName InInterfaceName)
 		{
-			using namespace SearchEngineQuerySteps;
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindAllRegisteredInterfacesWithName);
 
-			const FString QueryName = FString::Format(TEXT("FindAllRegisteredInterfacesWithName_Name:{0}"), { InInterfaceName.ToString() });
-
-			FFrontendQuery* Query = FindQuery(QueryName);
-			if (!Query)
-			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-
-				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
-					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
-					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
-					.AddStep<FMapInterfaceRegistryTransactionToInterfaceName>()
-					.AddStep<FTransformInterfaceRegistryTransactionToInterfaceVersion>();
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
-			}
-
-			TArray<FMetasoundFrontendVersion> Result;
-
-			if (ensure(Query))
-			{
-				const FFrontendQueryKey Key{InInterfaceName};
-				const FFrontendQuerySelection& Selection = Query->Update();
-				if (const FFrontendQueryPartition* Entries = Selection.Find(Key))
-				{
-					for (const FFrontendQueryEntry& Entry : *Entries)
-					{
-						if (ensure(Entry.Value.IsType<FMetasoundFrontendVersion>()))
-						{
-							Result.Add(Entry.Value.Get<FMetasoundFrontendVersion>());
-						}
-					}
-				}
-			}
-
-			return Result;
+			const FFrontendQueryKey Key{InInterfaceName};
+			return FindAllRegisteredInterfacesWithNameQuery.UpdateAndFindResult(Key);
 		}
 
 		bool FSearchEngine::FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface)
 		{
-			using namespace SearchEngineQuerySteps;
-			const FString QueryName = TEXT("FindInterfaceWithHighestVersion");
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngine::FindInterfaceWithHighestVersion);
 
-			FFrontendQuery* Query = FindQuery(QueryName);
-			if (!Query)
-			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-
-				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
-					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
-					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
-					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
-					.AddStep<FMapInterfaceToInterfaceName>()
-					.AddStep<FReduceInterfacesToHighestVersion>();
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
-			}
-
-			if (ensure(Query))
-			{
-				const FFrontendQueryKey Key{InInterfaceName};
-				const FFrontendQuerySelection& Selection = Query->Update();
-				if (const FFrontendQueryPartition* Entries = Selection.Find(Key))
-				{
-					if (ensure(Entries->Num() == 1))
-					{
-						OutInterface = Entries->CreateConstIterator()->Value.Get<FMetasoundFrontendInterface>();
-						return true;
-					}
-				}
-			}
-
-			return false;
-		}
-
-		bool FSearchEngine::FindInterfaceWithMajorVersion(FName InInterfaceName, int32 InMajorVersion, FMetasoundFrontendInterface& OutInterface)
-		{
-			using namespace SearchEngineQuerySteps;
-			const FString QueryName = TEXT("FindInterfaceWithMajorVersion");
-
-			FFrontendQuery* Query = FindQuery(QueryName);
-			if (!Query)
-			{
-				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
-
-				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
-					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
-					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
-					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
-					.AddStep<FMapInterfaceToInterfaceNameAndMajorVersion>()
-					.AddStep<FReduceInterfacesToHighestVersion>();
-
-				Query = AddQuery(QueryName, MoveTemp(NewQuery));
-			}
-
-			if (ensure(Query))
-			{
-				const FFrontendQueryKey Key = FMapInterfaceToInterfaceNameAndMajorVersion::GetKey(InInterfaceName.ToString(), InMajorVersion);
-				const FFrontendQuerySelection& Selection = Query->Update();
-				if (const FFrontendQueryPartition* Entries = Selection.Find(Key))
-				{
-					if (ensure(Entries->Num() == 1))
-					{
-						OutInterface = Entries->CreateConstIterator()->Value.Get<FMetasoundFrontendInterface>();
-						return true;
-					}
-				}
-			}
-
-			return false;
-		}
-
-		FFrontendQuery* FSearchEngine::FindQuery(const FString& InQueryName)
-		{
-			if (ClearMetaSoundFrontendSearchEngineCacheCVar)
-			{
-				ClearMetaSoundFrontendSearchEngineCacheCVar = 0;
-				QueryCache.Reset();
-			}
-
-			if (TUniquePtr<FFrontendQuery>* Query = QueryCache.Find(InQueryName))
-			{
-				return Query->Get();
-			}
-
-			return nullptr;
-		}
-
-		FFrontendQuery* FSearchEngine::AddQuery(const FString& InQueryName, TUniquePtr<FFrontendQuery>&& InQuery)
-		{
-			return QueryCache.Add(InQueryName, MoveTemp(InQuery)).Get();
+			const FFrontendQueryKey Key{InInterfaceName};
+			return FindInterfaceWithHighestVersionQuery.UpdateAndFindResult(Key, OutInterface);
 		}
 	}
 }
