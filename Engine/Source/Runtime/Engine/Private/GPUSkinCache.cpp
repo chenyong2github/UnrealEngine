@@ -962,7 +962,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		// currently only implemented and tested on Window SM5 (needs Compute, Atomics, SRV for index buffers, UAV for VertexBuffers)
-		return DoesPlatformSupportGPUSkinCache(Parameters.Platform) && IsGPUSkinCacheAvailable(Parameters.Platform);
+		return IsGPUSkinCacheAvailable(Parameters.Platform);
 	}
 
 	static const uint32 ThreadGroupSizeX = 64;
@@ -1091,7 +1091,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		// currently only implemented and tested on Window SM5 (needs Compute, Atomics, SRV for index buffers, UAV for VertexBuffers)
-		return DoesPlatformSupportGPUSkinCache(Parameters.Platform) && IsGPUSkinCacheAvailable(Parameters.Platform);
+		return IsGPUSkinCacheAvailable(Parameters.Platform);
 	}
 
 	static const uint32 ThreadGroupSizeX = 64;
