@@ -881,13 +881,14 @@ namespace HordeAgent.Services
 			ConformLogger.LogInformation("Conforming, lease {LeaseId}", LeaseId);
 			TerminateProcesses(ConformLogger, CancellationToken);
 
+			bool RemoveUntrackedFiles = ConformTask.RemoveUntrackedFiles;
 			IList<AgentWorkspace> PendingWorkspaces = ConformTask.Workspaces;
 			for (; ;)
 			{
 				// Run the conform task
 				if (Settings.Executor == ExecutorType.Perforce && Settings.PerforceExecutor.RunConform)
 				{
-					await PerforceExecutor.ConformAsync(WorkingDir, PendingWorkspaces, ConformLogger, CancellationToken);
+					await PerforceExecutor.ConformAsync(WorkingDir, PendingWorkspaces, RemoveUntrackedFiles, ConformLogger, CancellationToken);
 				}
 				else
 				{
@@ -898,6 +899,7 @@ namespace HordeAgent.Services
 				UpdateAgentWorkspacesRequest Request = new UpdateAgentWorkspacesRequest();
 				Request.AgentId = AgentId;
 				Request.Workspaces.AddRange(PendingWorkspaces);
+				Request.RemoveUntrackedFiles = RemoveUntrackedFiles;
 
 				UpdateAgentWorkspacesResponse Response = await RpcConnection.InvokeAsync(x => x.UpdateAgentWorkspacesAsync(Request, null, null, CancellationToken), new RpcContext(), CancellationToken);
 				if (!Response.Retry)
@@ -908,6 +910,7 @@ namespace HordeAgent.Services
 
 				ConformLogger.LogInformation("Pending workspaces have changed - running conform again...");
 				PendingWorkspaces = Response.PendingWorkspaces;
+				RemoveUntrackedFiles = Response.RemoveUntrackedFiles;
 			}
 
 			return LeaseResult.Success;

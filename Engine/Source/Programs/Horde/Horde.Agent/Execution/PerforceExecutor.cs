@@ -212,7 +212,7 @@ namespace HordeAgent.Execution
 			await Workspace.CleanAsync(CancellationToken);
 		}
 
-		public static async Task ConformAsync(DirectoryReference RootDir, IList<AgentWorkspace> PendingWorkspaces, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task ConformAsync(DirectoryReference RootDir, IList<AgentWorkspace> PendingWorkspaces, bool bRemoveUntrackedFiles, ILogger Logger, CancellationToken CancellationToken)
 		{
 			// Print out all the workspaces we're going to sync
 			Logger.LogInformation("Workspaces:");
@@ -302,8 +302,11 @@ namespace HordeAgent.Execution
 
 				// Build a set of directories to protect
 				HashSet<DirectoryReference> ProtectDirs = new HashSet<DirectoryReference>();
-				ProtectDirs.Add(DirectoryReference.Combine(RootDir, "Temp"));
-				ProtectDirs.Add(DirectoryReference.Combine(RootDir, "Saved"));
+				if (!bRemoveUntrackedFiles)
+				{
+					ProtectDirs.Add(DirectoryReference.Combine(RootDir, "Temp"));
+					ProtectDirs.Add(DirectoryReference.Combine(RootDir, "Saved"));
+				}
 				ProtectDirs.UnionWith(Workspaces.Select(x => x.MetadataDir));
 
 				// Delete all the directories which aren't a workspace root
@@ -343,9 +346,18 @@ namespace HordeAgent.Execution
 					PopulateRequests.Add(new PopulateRequest(PerforceClient, Workspace.StreamName, Workspace.View));
 				}
 
-				ManagedWorkspace Repository = WorkspaceGroup.First().Repository;
-				Tuple<int, StreamSnapshot>[] StreamStates = await Repository.PopulateCleanAsync(PopulateRequests, false, CancellationToken);
-				SyncFuncs.Add(() => Repository.PopulateSyncAsync(PopulateRequests, StreamStates, false, CancellationToken));
+				WorkspaceInfo? FirstWorkspace = WorkspaceGroup.First();
+				if (PopulateRequests.Count == 1 && !FirstWorkspace.bRemoveUntrackedFiles && !bRemoveUntrackedFiles)
+				{
+					await FirstWorkspace.CleanAsync(CancellationToken);
+					SyncFuncs.Add(() => FirstWorkspace.SyncAsync(-1, -1, null, Logger, CancellationToken));
+				}
+				else
+				{
+					ManagedWorkspace Repository = FirstWorkspace.Repository;
+					Tuple<int, StreamSnapshot>[] StreamStates = await Repository.PopulateCleanAsync(PopulateRequests, false, CancellationToken);
+					SyncFuncs.Add(() => Repository.PopulateSyncAsync(PopulateRequests, StreamStates, false, CancellationToken));
+				}
 			}
 			foreach (Func<Task> SyncFunc in SyncFuncs)
 			{

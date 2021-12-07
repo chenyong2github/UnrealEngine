@@ -87,6 +87,11 @@ namespace HordeServer.Api
 		public bool? RequestConform { get; set; }
 
 		/// <summary>
+		/// Request that a full conform be performed, removing all intermediate files
+		/// </summary>
+		public bool? RequestFullConform { get; set; }
+
+		/// <summary>
 		/// Request the machine be restarted
 		/// </summary>
 		public bool? RequestRestart { get; set; }

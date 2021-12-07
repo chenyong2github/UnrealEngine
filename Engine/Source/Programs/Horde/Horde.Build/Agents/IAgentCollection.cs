@@ -83,6 +83,7 @@ namespace HordeServer.Collections
 		/// <param name="Agent">Agent instance</param>
 		/// <param name="bEnabled">Whether the agent is enabled or not</param>
 		/// <param name="bRequestConform">Whether to request a conform job be run</param>
+		/// <param name="bRequestFullConform">Whether to request a full conform job be run</param>
 		/// <param name="bRequestRestart">Whether to request the machine be restarted</param>
 		/// <param name="bRequestShutdown">Whether to request the machine be shut down</param>
 		/// <param name="Channel">Override for the desired software channel</param>
@@ -90,7 +91,7 @@ namespace HordeServer.Collections
 		/// <param name="Acl">New ACL for this agent</param>
 		/// <param name="Comment">New comment</param>
 		/// <returns>Version of the software that needs to be installed on the agent. Null if the agent is running the correct version.</returns>
-		Task<IAgent?> TryUpdateSettingsAsync(IAgent Agent, bool? bEnabled = null, bool? bRequestConform = null, bool? bRequestRestart = null, bool? bRequestShutdown = null, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null, Acl? Acl = null, string? Comment = null);
+		Task<IAgent?> TryUpdateSettingsAsync(IAgent Agent, bool? bEnabled = null, bool? bRequestConform = null, bool? bRequestFullConform = null, bool? bRequestRestart = null, bool? bRequestShutdown = null, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null, Acl? Acl = null, string? Comment = null);
 
 		/// <summary>
 		/// Update the current workspaces for an agent.

@@ -271,7 +271,7 @@ namespace HordeServer.Services
 
 				// Get the set of workspaces that are currently required
 				HashSet<AgentWorkspace> ConformWorkspaces = await PoolService.GetWorkspacesAsync(Agent, DateTime.UtcNow);
-				bool bPendingConform = !ConformWorkspaces.SetEquals(NewWorkspaces);
+				bool bPendingConform = !ConformWorkspaces.SetEquals(NewWorkspaces) || (Agent.RequestFullConform && !Request.RemoveUntrackedFiles);
 
 				// Update the workspaces
 				if (await AgentService.TryUpdateWorkspacesAsync(Agent, NewWorkspaces, bPendingConform))
@@ -280,6 +280,7 @@ namespace HordeServer.Services
 					if (bPendingConform)
 					{
 						Response.Retry = await ConformTaskSource.GetWorkspacesAsync(Agent, Response.PendingWorkspaces);
+						Response.RemoveUntrackedFiles = Request.RemoveUntrackedFiles || Agent.RequestFullConform;
 					}
 					return Response;
 				}

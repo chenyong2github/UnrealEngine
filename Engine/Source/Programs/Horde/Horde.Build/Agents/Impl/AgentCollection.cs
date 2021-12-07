@@ -91,12 +91,17 @@ namespace HordeServer.Collections.Impl
 
 			public List<PoolId> DynamicPools { get; set; } = new List<PoolId>();
 			public List<PoolId> Pools { get; set; } = new List<PoolId>();
+
+			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
 			public bool RequestConform { get; set; }
 
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
+			public bool RequestFullConform { get; set; }
+
+			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
 			public bool RequestRestart { get; set; }
 
-			[BsonIgnoreIfNull]
+			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
 			public bool RequestShutdown { get; set; }
 
 			public List<AgentWorkspace> Workspaces { get; set; } = new List<AgentWorkspace>();
@@ -249,7 +254,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryUpdateSettingsAsync(IAgent AgentInterface, bool? Enabled = null, bool? RequestConform = null, bool? RequestRestart = null, bool? RequestShutdown = null, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null, Acl? Acl = null, string? Comment = null)
+		public async Task<IAgent?> TryUpdateSettingsAsync(IAgent AgentInterface, bool? Enabled = null, bool? RequestConform = null, bool? RequestFullConform = null, bool? RequestRestart = null, bool? RequestShutdown = null, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null, Acl? Acl = null, string? Comment = null)
 		{
 			AgentDocument Agent = (AgentDocument)AgentInterface;
 
@@ -268,6 +273,11 @@ namespace HordeServer.Collections.Impl
 			if (RequestConform != null)
 			{
 				Updates.Add(UpdateBuilder.Set(x => x.RequestConform, RequestConform.Value));
+				Updates.Add(UpdateBuilder.Unset(x => x.ConformAttemptCount));
+			}
+			if (RequestFullConform != null)
+			{
+				Updates.Add(UpdateBuilder.Set(x => x.RequestFullConform, RequestFullConform.Value));
 				Updates.Add(UpdateBuilder.Unset(x => x.ConformAttemptCount));
 			}
 			if (RequestRestart != null)
@@ -420,7 +430,11 @@ namespace HordeServer.Collections.Impl
 			UpdateDefinition<AgentDocument> Update = Builders<AgentDocument>.Update.Set(x => x.Workspaces, Workspaces);
 			Update = Update.Set(x => x.LastConformTime, LastConformTime);
 			Update = Update.Unset(x => x.ConformAttemptCount);
-			Update = Update.Set(x => x.RequestConform, RequestConform);
+			if (!RequestConform)
+			{
+				Update = Update.Unset(x => x.RequestConform);
+				Update = Update.Unset(x => x.RequestFullConform);
+			}
 
 			// Update the agent
 			return await TryUpdateAsync(Agent, Update);

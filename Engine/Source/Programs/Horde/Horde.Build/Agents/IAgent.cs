@@ -323,6 +323,7 @@ namespace HordeServer.Models
 				{
 					Details["Type"] = "Conform";
 					Details["LogId"] = ConformTask.LogId;
+					Details["Full"] = ConformTask.RemoveUntrackedFiles.ToString();
 				}
 
 				ExecuteJobTask JobTask;
@@ -474,6 +475,11 @@ namespace HordeServer.Models
 		/// Whether a conform is requested
 		/// </summary>
 		public bool RequestConform { get; }
+
+		/// <summary>
+		/// Whether a full conform is requested
+		/// </summary>
+		public bool RequestFullConform { get; }
 
 		/// <summary>
 		/// Whether a machine restart is requested

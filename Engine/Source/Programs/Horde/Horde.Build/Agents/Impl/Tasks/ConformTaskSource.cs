@@ -185,6 +185,7 @@ namespace HordeServer.Tasks.Impl
 
 					ILogFile Log = await LogService.CreateLogFileAsync(JobId.Empty, Agent.SessionId, LogType.Json);
 					Task.LogId = Log.Id.ToString();
+					Task.RemoveUntrackedFiles = Agent.RequestFullConform;
 
 					byte[] Payload = Any.Pack(Task).ToByteArray();
 
@@ -192,7 +193,7 @@ namespace HordeServer.Tasks.Impl
 				}
 			}
 
-			if (Agent.RequestConform)
+			if (Agent.RequestConform || Agent.RequestFullConform)
 			{
 				return AgentLease.Drain;
 			}
@@ -321,7 +322,7 @@ namespace HordeServer.Tasks.Impl
 		private async Task<bool> IsConformPendingAsync(IAgent Agent, DateTime UtcNow)
 		{
 			// If a conform was manually requested, allow it to run even if the agent is disabled
-			if (Agent.RequestConform)
+			if (Agent.RequestConform || Agent.RequestFullConform)
 			{
 				return !IsConformCoolDownPeriod(Agent, UtcNow);
 			}
