@@ -54,6 +54,7 @@ FAnimBlueprintCompilerContext::FAnimBlueprintCompilerContext(UAnimBlueprint* Sou
 	, NewAnimBlueprintMutables(nullptr)
 	, NewMutablesProperty(nullptr)
 	, AnimBlueprint(SourceSketch)
+	, OldSparseClassDataStruct(nullptr)
 	, bIsDerivedAnimBlueprint(false)
 {
 	// Add the animation graph schema to skip default function processing on them
@@ -1255,8 +1256,6 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 {
 	UAnimBlueprintGeneratedClass* NewAnimBlueprintClass = GetNewAnimBlueprintClass();
 
-	UScriptStruct* OldSparseClassDataStruct = NewAnimBlueprintClass->GetSparseClassDataStruct();
-	
 	// Set up our sparse class data struct
 	if (bIsDerivedAnimBlueprint)
 	{
@@ -1381,6 +1380,10 @@ void FAnimBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedCla
 	UAnimBlueprint* RootAnimBP = UAnimBlueprint::FindRootAnimBlueprint(AnimBlueprint);
 	bIsDerivedAnimBlueprint = RootAnimBP != NULL;
 
+	// Cleanup sparse class data & stash a reference to patch the linker later in RecreateSparseClassData
+	OldSparseClassDataStruct = AnimBlueprintClassToClean->GetSparseClassDataStruct();
+	AnimBlueprintClassToClean->ClearSparseClassDataStruct();
+	
 	FAnimBlueprintGeneratedClassCompiledData CompiledData(AnimBlueprintClassToClean);
 	FAnimBlueprintCompilationBracketContext CompilerContext(this);
 	UAnimBlueprintExtension::ForEachExtension(AnimBlueprint, [this, &CompiledData, &CompilerContext, AnimBlueprintClassToClean](UAnimBlueprintExtension* InExtension)

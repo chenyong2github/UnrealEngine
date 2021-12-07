@@ -44,11 +44,15 @@ namespace PropertyAccess
 		int32 Id;
 	};
 
+
+	UE_DEPRECATED(5.0, "Please use PatchPropertyOffsets instead")
+	ENGINE_API extern void PostLoadLibrary(FPropertyAccessLibrary& InLibrary);
+
 	/** 
-	 * Called to patch up library after it is loaded.
+	 * Called to patch up library after it is loaded or linked
 	 * This converts all FName-based paths into node-based paths that provide an optimized way of accessing properties.
 	 */
-	ENGINE_API extern void PostLoadLibrary(FPropertyAccessLibrary& InLibrary);
+	ENGINE_API extern void PatchPropertyOffsets(FPropertyAccessLibrary& InLibrary);
 
 	/** 
 	 * Process a 'tick' of a property access instance. 

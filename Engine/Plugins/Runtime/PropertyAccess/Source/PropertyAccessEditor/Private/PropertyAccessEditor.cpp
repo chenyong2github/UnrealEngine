@@ -748,7 +748,7 @@ bool FPropertyAccessLibraryCompiler::FinishCompilation()
 
 		// Always rebuild the library even if we detected a 'failure'. Otherwise we could fail to copy data for both
 		// valid and invalid copies 
-		PropertyAccess::PostLoadLibrary(*Library);
+		PropertyAccess::PatchPropertyOffsets(*Library);
 
 		return bResult;
 	}

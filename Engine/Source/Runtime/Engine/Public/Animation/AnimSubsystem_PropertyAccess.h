@@ -40,6 +40,9 @@ struct ENGINE_API FAnimSubsystem_PropertyAccess : public FAnimSubsystem
 	virtual void OnPreUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const override;
 	virtual void OnPostUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const override;
 	virtual void OnPostLoad(FAnimSubsystemPostLoadContext& InContext) override;
+#if WITH_EDITORONLY_DATA
+	virtual void OnLink(FAnimSubsystemLinkContext& InContext) override;
+#endif
 
 	/** Access the property access library */
 	const FPropertyAccessLibrary& GetLibrary() const { return Library; }
