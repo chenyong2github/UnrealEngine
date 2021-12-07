@@ -41,7 +41,6 @@ namespace LumenRadianceCache
 class FRenderLightParameters;
 
 struct FSceneWithoutWaterTextures;
-struct FHeightFogRenderingParameters;
 struct FRayTracingReflectionOptions;
 struct FHairStrandsTransmittanceMaskData;
 struct FVolumetricFogLocalLightFunctionInfo;

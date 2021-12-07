@@ -4,16 +4,16 @@
 	HeightFogCommon.usf: 
 =============================================================================*/
 
-#ifndef SUPPORT_FOG_INSCATTERING_TEXTURE
-#define SUPPORT_FOG_INSCATTERING_TEXTURE (FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
+#ifndef PERMUTATION_SUPPORT_FOG_INSCATTERING_TEXTURE
+#define PERMUTATION_SUPPORT_FOG_INSCATTERING_TEXTURE (FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
 #endif
 
-#ifndef SUPPORT_FOG_DIRECTIONAL_LIGHT_INSCATTERING
-#define SUPPORT_FOG_DIRECTIONAL_LIGHT_INSCATTERING 1
+#ifndef PERMUTATION_SUPPORT_FOG_DIRECTIONAL_LIGHT_INSCATTERING
+#define PERMUTATION_SUPPORT_FOG_DIRECTIONAL_LIGHT_INSCATTERING 1
 #endif
 
-#ifndef SUPPORT_VOLUMETRIC_FOG
-#define SUPPORT_VOLUMETRIC_FOG (FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
+#ifndef PERMUTATION_SUPPORT_VOLUMETRIC_FOG
+#define PERMUTATION_SUPPORT_VOLUMETRIC_FOG (FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
 #endif
 
 #if INSTANCED_STEREO
@@ -37,7 +37,7 @@ float3 ComputeInscatteringColor(float3 CameraToReceiver, float CameraToReceiverL
 {
 	half3 Inscattering = FogStruct.ExponentialFogColorParameter.xyz;
 
-#if SUPPORT_FOG_INSCATTERING_TEXTURE
+#if PERMUTATION_SUPPORT_FOG_INSCATTERING_TEXTURE
 	BRANCH
 	if (FogStruct.ExponentialFogParameters3.z > 0)
 	{
@@ -136,11 +136,11 @@ half4 GetExponentialHeightFog(float3 WorldPositionRelativeToCamera, float Exclud
 	half3 InscatteringColor = ComputeInscatteringColor(CameraToReceiver, CameraToReceiverLength);
 	half3 DirectionalInscattering = 0;
 
-#if SUPPORT_FOG_DIRECTIONAL_LIGHT_INSCATTERING
+#if PERMUTATION_SUPPORT_FOG_DIRECTIONAL_LIGHT_INSCATTERING
 	// if InscatteringLightDirection.w is negative then it's disabled, otherwise it holds directional inscattering start distance
 	BRANCH
 	if (FogStruct.InscatteringLightDirection.w >= 0
-	#if SUPPORT_FOG_INSCATTERING_TEXTURE
+	#if PERMUTATION_SUPPORT_FOG_INSCATTERING_TEXTURE
 		&& FogStruct.ExponentialFogParameters3.z == 0
 	#endif
 	)
@@ -200,7 +200,7 @@ half4 CalculateHeightFog(float3 WorldPositionRelativeToCamera)
 	
 	float ExcludeDistance = 0;
 
-#if SUPPORT_VOLUMETRIC_FOG
+#if PERMUTATION_SUPPORT_VOLUMETRIC_FOG
 	float InvCosAngle = length(WorldPositionRelativeToCamera) / dot(WorldPositionRelativeToCamera, View.ViewForward);
 	// Volumetric fog covers up to MaxDistance along ViewZ, exclude analytical fog from this range
 	ExcludeDistance = max(View.VolumetricFogMaxDistance * InvCosAngle, 0);
@@ -220,7 +220,7 @@ float4 CombineVolumetricFog(float4 GlobalFog, float3 VolumeUV, uint EyeIndex)
 {
 	float4 VolumetricFogLookup = float4(0, 0, 0, 1);
 
-#if SUPPORT_VOLUMETRIC_FOG
+#if PERMUTATION_SUPPORT_VOLUMETRIC_FOG
 	if (FogStruct.ApplyVolumetricFog > 0)
 	{
 	#if INSTANCED_STEREO
