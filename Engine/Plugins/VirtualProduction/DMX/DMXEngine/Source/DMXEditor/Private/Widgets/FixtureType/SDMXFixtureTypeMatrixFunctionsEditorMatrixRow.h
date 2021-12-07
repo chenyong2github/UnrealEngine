@@ -36,7 +36,7 @@ protected:
 
 private:
 	/** Called when the delete Cell Attribute Button was clicked */
-	FReply OnDeleteCellAttributeClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	FReply OnDeleteCellAttributeClicked();
 
 	/** Returns true if the Attribute Name exists and is not None */
 	bool HasInvalidCellAttributeName() const;

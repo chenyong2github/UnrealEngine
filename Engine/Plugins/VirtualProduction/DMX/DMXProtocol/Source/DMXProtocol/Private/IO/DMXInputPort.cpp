@@ -177,7 +177,7 @@ static FAutoConsoleCommand GDMXSetInputPortPriorityStrategyCommand(
 
 static FAutoConsoleCommand GDMXSetInputPortPriorityCommand(
 	TEXT("DMX.SetInputPortPriority"),
-	TEXT("DMX.SetInputPortPriority [PortName][Universe]. Sets the priority of the input port. Example: DMX.SetInputPortPriority MyInputPort 100"),
+	TEXT("DMX.SetInputPortPriority [PortName][Priority]. Sets the priority of the input port. Example: DMX.SetInputPortPriority MyInputPort 100"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
