@@ -51,6 +51,10 @@ bool FSourceControlBackend::Initialize(const FString& ConfigEntry)
 		return false;
 	}
 
+	// Optional config values
+	FParse::Bool(*ConfigEntry, TEXT("UsePartitionedClient="), bUsePartitionedClient);
+	UE_LOG(LogVirtualization, Log, TEXT("[%s] Using partitioned clients: '%s'"), *GetDebugName(), bUsePartitionedClient ? TEXT("true") : TEXT("false"));
+
 	ISourceControlModule& SSCModule = ISourceControlModule::Get();
 
 	// We require perforce as the source control provider as it is currently the only one that has the virtualization functionality implemented
@@ -193,6 +197,11 @@ EPushResult FSourceControlBackend::PushData(const FPayloadId& Id, const FCompres
 		ClientMapping << TEXT("//") << WorkspaceName << TEXT("/...");
 
 		CreateWorkspaceCommand->AddNativeClientViewMapping(DepotMapping, ClientMapping);
+
+		if (bUsePartitionedClient)
+		{
+			CreateWorkspaceCommand->SetType(FCreateWorkspace::EType::Partitioned);
+		}
 
 		if (SCCProvider.Execute(CreateWorkspaceCommand) != ECommandResult::Succeeded)
 		{

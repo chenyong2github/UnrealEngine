@@ -20,6 +20,12 @@ namespace UE::Virtualization
  * 'Name'=(Type=SourceControl, DepotRoot="//XXX/")
  * Where 'Name' is the backend name in the hierarchy and 'XXX' is the path in the source control
  * depot where the payload files are being stored.
+ * 
+ * Optional Values:
+ * UsePartitionedClient:	When true the temporary workspace client created to submit payloads 
+ *							from will be created as a partitioned workspace which is less overhead
+ *							on the source control server. If your server does not support this then
+  *							use false. [Default=True]
  */
 class FSourceControlBackend final : public IVirtualizationBackend
 {
@@ -46,6 +52,10 @@ private:
 
 	/** The root where the virtualized payloads are stored in source control */
 	FString DepotRoot;
+
+	/** Should we try to make the temp client partitioned or not? */
+	bool bUsePartitionedClient = true;
+
 };
 
 } // namespace UE::Virtualization
