@@ -906,15 +906,6 @@ FString UsdUtils::GetAssetPathFromPrimPath( const FString& RootContentPath, cons
 }
 #endif // #if USE_USD_SDK
 
-bool UsdUtils::IsAnimated( const UE::FUsdPrim& Prim )
-{
-#if USE_USD_SDK
-	return IsAnimated( static_cast< const pxr::UsdPrim& >( Prim ) );
-#else
-	return false;
-#endif // #if USE_USD_SDK
-}
-
 TArray< UE::FUsdPrim > UsdUtils::GetAllPrimsOfType( const UE::FUsdPrim& StartPrim, const TCHAR* SchemaName )
 {
 	return GetAllPrimsOfType( StartPrim, SchemaName, []( const UE::FUsdPrim& ) { return false; } );

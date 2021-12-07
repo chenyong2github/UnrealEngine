@@ -339,10 +339,12 @@ namespace UsdStageImporterImpl
 				Component->RegisterComponent();
 			}
 
+#if USE_USD_SDK
 			if (UsdUtils::IsAnimated(Prim))
 			{
 				ImportAnimation(ImportContext, Prim, Component);
 			}
+#endif // USE_USD_SDK
 		}
 	}
 
