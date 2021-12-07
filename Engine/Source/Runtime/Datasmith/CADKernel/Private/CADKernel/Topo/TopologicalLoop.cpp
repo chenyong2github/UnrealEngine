@@ -195,12 +195,17 @@ bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& Lo
  *
  * In this case, the orientation of the next segment is compare to the bounding box
  *
- * The last very difficult case is a sharp case at the previous case i.e.
+ * The last very difficult case is a sharp case i.e.
+ * The slop is closed to 0 or 8, so it could be a pick in self intersecting. 
+ * We try to recompute the slop a the closed point
+ *     ___________                 _______
+ *    |       o---O    			  |       O  
+ *    |     /         			  |     /        
+ *    |    o               => 	  |    o         
+ *    |    |					  |    |
  *
- *     ______
- *    |   ---O
- *    |   |
- * Not yet cover as if there is 4 sharp case in a loop should be very rare and the loop should be a very bad loop...
+ * If the slop is still closed to 0 or 8, the point is "UndefinedOrientation"
+ * This case was found in the shape of char '1'
  */
 void FTopologicalLoop::Orient()
 {
@@ -273,19 +278,58 @@ void FTopologicalLoop::Orient()
 	int32 WrongOrientationCount = 0;
 	int32 GoodOrientationCount = 0;
 	int32 UndefinedOrientationCount = 0;
-	TFunction<void(const int32)> CompareOrientation = [&](const int32 Index)
+	TFunction<void(const int32)> CompareOrientation = [&](int32 Index)
 	{
-		int32 Index1 = Index + 1;
-		if (Index1 == PointCount)
+		int32 NextIndex = Index + 1;
+		if (NextIndex == PointCount)
 		{
-			Index1 = 0;
+			NextIndex = 0;
 		}
-		int32 Index2 = Index == 0 ? PointCount - 1 : Index - 1;
+		int32 PreviousIndex = Index == 0 ? PointCount - 1 : Index - 1;
 
 		// if the slop of the selected segments is not close to the BBox side (closed of 0 or 4), so the angle between the neighboring segments of the local extrema is not closed to 4 and allows to defined the orientation
 		// Pic case: the slop is compute between previous and next segment of the extrema 
-		double Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[Index1], LoopSampling[Index2]);
-		if (Slop > 4.2)
+		//     if the slop is closed to 0 or 8, it could be pick in self intersecting. We try to recompute the slop a the closed point
+		//          if the slop is still closed to 0 or 8, the pic is not used
+		double Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
+
+		if(Slop > 7.9 || Slop < 0.1)
+		{
+			double SquareLengthBefore = LoopSampling[Index].SquareDistance(LoopSampling[PreviousIndex]);
+			double SquareLengthAfter = LoopSampling[Index].SquareDistance(LoopSampling[NextIndex]);
+			if(SquareLengthBefore < SquareLengthAfter)
+			{
+				Index = PreviousIndex;
+				PreviousIndex = Index == 0 ? PointCount - 1 : Index - 1;
+			}
+			else
+			{
+				Index = NextIndex;
+				NextIndex = Index + 1;
+				if (NextIndex == PointCount)
+				{
+					NextIndex = 0;
+				}
+			}
+
+			Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
+
+#ifdef DEBUG_ORIENT
+			{
+				F3DDebugSession _(*FString::Printf(TEXT("Fix Pic Node %f"), Slop));
+				DisplayPoint(LoopSampling[Index], EVisuProperty::BluePoint, Index);
+				DisplaySegment(LoopSampling[PreviousIndex], LoopSampling[Index], EVisuProperty::GreenCurve);
+				DisplaySegment(LoopSampling[NextIndex], LoopSampling[Index], EVisuProperty::GreenCurve);
+			}
+#endif
+		}
+
+
+		if (Slop > 7.9 || Slop < 0.1)
+		{
+			UndefinedOrientationCount++;
+		}
+		else if (Slop > 4.2)
 		{
 			WrongOrientationCount++;
 		}
@@ -322,7 +366,7 @@ void FTopologicalLoop::Orient()
 				ReferenceSlop = 4;
 			}
 
-			Slop = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[Index1], ReferenceSlop);
+			Slop = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[NextIndex], ReferenceSlop);
 			// slop should be closed to [0, 0.2] or [3.8, 4]
 			if (Slop > 3.8)
 			{
@@ -342,7 +386,7 @@ void FTopologicalLoop::Orient()
 				}
 				{
 					F3DDebugSession _(*FString::Printf(TEXT("Next")));
-					DisplaySegment(LoopSampling[Index1], LoopSampling[Index], EVisuProperty::YellowCurve);
+					DisplaySegment(LoopSampling[NextIndex], LoopSampling[Index], EVisuProperty::YellowCurve);
 				}
 				{
 					F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));
@@ -364,11 +408,11 @@ void FTopologicalLoop::Orient()
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Next")));
-				DisplaySegment(LoopSampling[Index1], LoopSampling[Index], EVisuProperty::YellowCurve);
+				DisplaySegment(LoopSampling[NextIndex], LoopSampling[Index], EVisuProperty::YellowCurve);
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Previous")));
-				DisplaySegment(LoopSampling[Index2], LoopSampling[Index], EVisuProperty::YellowCurve);
+				DisplaySegment(LoopSampling[PreviousIndex], LoopSampling[Index], EVisuProperty::YellowCurve);
 			}
 			{
 				F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));

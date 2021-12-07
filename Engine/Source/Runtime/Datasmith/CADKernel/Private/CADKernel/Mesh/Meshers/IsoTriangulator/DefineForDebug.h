@@ -2,21 +2,19 @@
 // Refactor in progress
 #pragma once
 
-
 static int32 FaceToDebug = 0;
-#define DEBUG_ONLY_SURFACE_TO_DEBUG
 
-//#define SURFACE_TO_DEBUG SurfaceToDebug
-//#define SURFACE_TO_DEBUG 0
+//#define ADD_TRIANGLE_2D
+//#define DEBUG_ISOTRIANGULATOR
+//
+//#define DEBUG_LOOP_INTERSECTION_AND_FIX_IT		
+//#define DEBUG_REMOVE_LOOP_INTERSECTIONS
+//#define DEBUG_REMOVE_UNIQUE_INTERSECTION
+//#define DEBUG_SWAP_SEGMENTS_OR_REMOVE
+//#define DEBUG_FIND_LOOP_INTERSECTION_AND_FIX_IT
+//#define DEBUG_FIND_LOOP_INTERSECTIONS		
+
+
+#define DEBUG_ONLY_SURFACE_TO_DEBUG
 static bool BoolDisplayDebugMeshStep=false;
 
-//#define DisplayDebugMeshSurfaceBySurfaceStep
-
-//#define DISPLAY_CRITERIA_GRID
-
-//#define FIND_CYCLE
-//#define DEBUG_FIND_CYCLE
-
-
-//#define DEBUG_MESH_EDGE
-//#define DEBUG_GetPreferredUVCoordinatesFromNeighbours

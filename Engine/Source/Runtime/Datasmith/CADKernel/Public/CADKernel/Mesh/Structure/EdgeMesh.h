@@ -34,6 +34,11 @@ namespace CADKernel
 			}
 			EdgeVerticesIndex.Add(EndVertexNodeIndex);
 		}
+
+		int32 GetNodeCount() const
+		{
+			return EdgeVerticesIndex.Num();
+		}
 	};
 }
 

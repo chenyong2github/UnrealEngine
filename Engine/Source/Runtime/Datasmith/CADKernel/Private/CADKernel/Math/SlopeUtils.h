@@ -168,6 +168,14 @@ namespace CADKernel
 	}
 
 	/**
+	 * return a slop between [0, 4] i.e. an angle between [0, Pi]
+	 */
+	inline double ComputeUnorientedSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint1, const FPoint2D& EndPoint2)
+	{
+		return FMath::Abs(ComputeOrientedSlope(StartPoint, EndPoint1, EndPoint2));
+	}
+
+	/**
 	 *                         P1
 	 *          inside        /
 	 *                       /   inside
