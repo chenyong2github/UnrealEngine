@@ -50,8 +50,8 @@ public:
 		ChildSlot
 		[
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-			.TextStyle(FEditorStyle::Get(), "NormalText")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+			.TextStyle(FAppStyle::Get(), "NormalText")
 			.HAlign(HAlign_Center)
 			.ForegroundColor(FSlateColor::UseForeground())
 			.ToolTipText(Action->GetTooltipDescription())
@@ -488,11 +488,11 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 					{
 						if ( Binding.Kind == EBindingKind::Function )
 						{
-							return FEditorStyle::GetBrush(FunctionIcon);
+							return FAppStyle::Get().GetBrush(FunctionIcon);
 						}
 						else // Property
 						{
-							return FEditorStyle::GetBrush(PropertyIcon);
+							return FAppStyle::Get().GetBrush(PropertyIcon);
 						}
 					}
 				}
@@ -586,7 +586,7 @@ void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuild
 			.Padding(0,0,5,0)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("GraphEditor.Event_16x"))
+				.Image(FAppStyle::Get().GetBrush("GraphEditor.Event_16x"))
 			]
 
 			+ SHorizontalBox::Slot()
@@ -695,7 +695,7 @@ void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLay
 	IDetailCategoryBuilder& EventCategory = DetailLayout.EditCategory(TEXT("Events"), LOCTEXT("Events", "Events"), ECategoryPriority::Uncommon);
 
 	EventCategory.AddCustomRow(EventText)
-		.NameContent()
+		.WholeRowContent()
 		[
 			SNew(SHorizontalBox)
 			.ToolTipText(DelegateProperty->GetToolTipText())
@@ -705,39 +705,42 @@ void FBlueprintWidgetCustomization::CreateMulticastEventCustomization(IDetailLay
 			.Padding(0, 0, 5, 0)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("GraphEditor.Event_16x"))
+				.Image(FAppStyle::Get().GetBrush("GraphEditor.Event_16x"))
 			]
 
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 				.Text(EventText)
 			]
-		]
-		.ValueContent()
-		.MinDesiredWidth(150)
-		.MaxDesiredWidth(200)
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-			.HAlign(HAlign_Center)
-			.OnClicked(this, &FBlueprintWidgetCustomization::HandleAddOrViewEventForVariable, EventName, PropertyName, MakeWeakObjectPtr(PropertyClass))
-			.ForegroundColor(FSlateColor::UseForeground())
+
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(0)
 			[
-				SNew(SWidgetSwitcher)
-				.WidgetIndex(this, &FBlueprintWidgetCustomization::HandleAddOrViewIndexForButton, EventName, PropertyName)
-				+ SWidgetSwitcher::Slot()
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "DetailsView.CalloutButton")
+				.ContentPadding(FMargin(3.0, 2.0))
+				.OnClicked(this, &FBlueprintWidgetCustomization::HandleAddOrViewEventForVariable, EventName, PropertyName, MakeWeakObjectPtr(PropertyClass))
 				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::GetFontStyle(TEXT("BoldFont")))
-					.Text(LOCTEXT("ViewEvent", "View"))
-				]
-				+ SWidgetSwitcher::Slot()
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Plus"))
+					SNew(SWidgetSwitcher)
+					.WidgetIndex(this, &FBlueprintWidgetCustomization::HandleAddOrViewIndexForButton, EventName, PropertyName)
+					+ SWidgetSwitcher::Slot()
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("Icons.SelectInViewport"))
+					]
+					+ SWidgetSwitcher::Slot()
+					[
+						SNew(SImage)
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
+					]
 				]
 			]
 		];
