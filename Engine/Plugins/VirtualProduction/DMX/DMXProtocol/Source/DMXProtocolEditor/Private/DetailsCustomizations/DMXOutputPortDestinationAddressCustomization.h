@@ -30,8 +30,11 @@ private:
 	/** Sets the IP Adderss */
 	void SetIPAddress(const FString& NewIPAddress);
 
-	/** Called when an IP Address was selcted */
-	void OnIPAddressSelected();
+	/** Called when a destination Address was selected */
+	void OnDestinationAddressSelected();
+
+	/** Called when a destination address wants to be deleted */
+	FReply OnDeleteDestinationAddressClicked();
 
 	/** Widget to enter an IP address */
 	TSharedPtr<SDMXIPAddressEditWidget> IPAddressEditWidget;

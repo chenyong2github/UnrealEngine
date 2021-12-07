@@ -62,7 +62,8 @@ void SDMXFixtureTypeMatrixFunctionsEditor::Construct(const FArguments& InArgs, c
 
 TSharedRef<SHeaderRow> SDMXFixtureTypeMatrixFunctionsEditor::GenerateHeaderRow()
 {
-	const float StatusColumnWidth = FMath::Max(FEditorStyle::GetBrush("Icons.Warning")->GetImageSize().X + 6.f, FEditorStyle::GetBrush("Icons.Error")->GetImageSize().X + 6.f);
+	const float StatusColumnWidth = FMath::Max(FEditorStyle::GetBrush("Icons.Warning")->GetImageSize().X + 8.f, FEditorStyle::GetBrush("Icons.Error")->GetImageSize().X + 8.f);
+	const float DeleteAttributeColumnWidth = FEditorStyle::GetBrush("Icons.Delete")->GetImageSize().X + 8.f;
 
 	TAttribute<EVisibility> HeaderRowVisiblityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]()
 		{
@@ -97,7 +98,7 @@ TSharedRef<SHeaderRow> SDMXFixtureTypeMatrixFunctionsEditor::GenerateHeaderRow()
 		SHeaderRow::FColumn::FArguments()
 		.ColumnId(FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::DeleteAttribute)
 		.DefaultLabel(LOCTEXT("DeleteAttributeColumnLabel", ""))
-		.FixedWidth(42.f)
+		.FixedWidth(DeleteAttributeColumnWidth)
 	);
 
 	return HeaderRow;

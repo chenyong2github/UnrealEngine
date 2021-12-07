@@ -31,18 +31,18 @@ FDMXOutputPortConfig::FDMXOutputPortConfig()
 	, PortGuid(FGuid::NewGuid())
 {}
 
-	FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
-		: DelayFrameRate(FFrameRate(1.0, 1.0)) // Default delay frame rate to 1.0 (default to Seconds)
-		, PortGuid(InPortGuid)
-	{
-		// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
-		check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
-		check(PortGuid.IsValid());
+FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
+	: DelayFrameRate(FFrameRate(1.0, 1.0)) // Default delay frame rate to 1.0 (default to Seconds)
+	, PortGuid(InPortGuid)
+{
+	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
+	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
+	check(PortGuid.IsValid());
 
-		GenerateUniquePortName();
+	GenerateUniquePortName();
 
-		MakeValid();
-	}
+	MakeValid();
+}
 
 FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOutputPortConfigParams& InitializationData)
 	: PortName(InitializationData.PortName)

@@ -92,22 +92,26 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 	else if (ColumnName == FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::DeleteAttribute)
 	{
 		return
-			SNew(SBorder)
+			SNew(SButton)
+			.ContentPadding(2.0f)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.OnClicked(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::OnDeleteCellAttributeClicked)
+			.ToolTipText(LOCTEXT("RemoveCellAttributeTooltip", "Removes the Cell Attribute"))
+			.ForegroundColor(FSlateColor::UseForeground())
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.Content()
 			[
 				SNew(SImage)
-				.Image(FDMXEditorStyle::Get().GetBrush("DMXEditor.FixtureTypesEditor.DeleteCellAttribute"))
-				.DesiredSizeOverride(FVector2D(20.f, 20.f))
-				.OnMouseButtonDown(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::OnDeleteCellAttributeClicked)
+				.Image(FEditorStyle::GetBrush("Icons.Delete"))
+				.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
 			];
 	}
 
 	return SNullWidget::NullWidget;
 }
 
-FReply SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::OnDeleteCellAttributeClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::OnDeleteCellAttributeClicked()
 {
 	OnRequestDelete.ExecuteIfBound();
 
