@@ -83,11 +83,16 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 		}
 	}
 
-	if (bCacheValid)
+	bool bRadiusMatches = (ViewRadiusZ == Clipmap.ViewRadiusZ);
+	if (!bRadiusMatches)
+	{
+		// These really should be exact by construction currently
+		UE_LOG(LogRenderer, Warning, TEXT("Invalidated clipmap level (VSM %d) due to Z radius mismatch"), VirtualShadowMapId);
+	}
+
+	if (bCacheValid && bRadiusMatches)
 	{
 		PrevVirtualShadowMapId = CurrentVirtualShadowMapId;
-		// These really should be exact by construction
-		check(ViewRadiusZ == Clipmap.ViewRadiusZ);
 	}
 	else
 	{

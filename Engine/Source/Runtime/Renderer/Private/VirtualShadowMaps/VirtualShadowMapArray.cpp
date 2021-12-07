@@ -51,7 +51,7 @@ TAutoConsoleVariable<int32> CVarMaxPhysicalPages(
 	TEXT("r.Shadow.Virtual.MaxPhysicalPages"),
 	2048,
 	TEXT("Maximum number of physical pages in the pool."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarCacheStaticSeparate(
@@ -81,7 +81,7 @@ static TAutoConsoleVariable<float> CVarResolutionLodBiasLocal(
 	TEXT("r.Shadow.Virtual.ResolutionLodBiasLocal"),
 	0.0f,
 	TEXT("Bias applied to LOD calculations for local lights. -1.0 doubles resolution, 1.0 halves it and so on."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarPageDilationBorderSizeDirectional(
@@ -112,7 +112,7 @@ TAutoConsoleVariable<int32> CVarMarkCoarsePagesDirectional(
 	1,
 	TEXT("Marks coarse pages in directional light virtual shadow maps so that low resolution data is available everywhere.")
 	TEXT("Ability to disable is primarily for profiling and debugging."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarMarkCoarsePagesLocal(
@@ -120,7 +120,7 @@ TAutoConsoleVariable<int32> CVarMarkCoarsePagesLocal(
 	1,
 	TEXT("Marks coarse pages in local light virtual shadow maps so that low resolution data is available everywhere.")
 	TEXT("Ability to disable is primarily for profiling and debugging."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarCoarsePagesIncludeNonNanite(
@@ -128,7 +128,7 @@ TAutoConsoleVariable<int32> CVarCoarsePagesIncludeNonNanite(
 	1,
 	TEXT("Include non-nanite geometry in coarse pages.")
 	TEXT("Rendering non-nanite geometry into large coarse pages can be expensive; disabling this can be a significant performance win."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarShowClipmapStats(
@@ -179,7 +179,7 @@ TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjectionMaxLights(
 	16,
 	TEXT("Maximum lights per pixel that get full filtering when using one pass projection and clustered shading.")
 	TEXT("Generally set to 8 (32bpp), 16 (64bpp) or 32 (128bpp). Lower values require less transient VRAM during the lighting pass."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarDoNonNaniteBatching(
