@@ -85,7 +85,8 @@ public:
 	// Receiving Results (possibly while tick is running)
 
 	/** Gets search results from the data gatherer. */
-	void GetAndTrimSearchResults(bool& bOutIsSearching, TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FString>& OutPathResults,
+	void GetAndTrimSearchResults(bool& bOutIsSearching, bool& bOutAbleToProgress,
+		TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FString>& OutPathResults,
 		TRingBuffer<FPackageDependencyData>& OutDependencyResults, TRingBuffer<FString>& OutCookedPackageNamesWithoutAssetDataResults,
 		TArray<double>& OutSearchTimes, int32& OutNumFilesToSearch, int32& OutNumPathsToSearch, bool& OutIsDiscoveringFiles);
 	/** Gets just the AssetResults and DependencyResults from the data gatherer. */

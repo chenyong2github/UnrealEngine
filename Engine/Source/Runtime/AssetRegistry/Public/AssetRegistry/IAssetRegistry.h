@@ -446,7 +446,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual bool IsSearchAsync() const = 0;
 
-	/** Wait for scan to be complete */
+	/**
+	 * Wait for scan to be complete. If called during editor startup before OnPostEngineInit, and there are any assets that use classes in 
+	 * not-yet-loaded plugin modules, WaitForCompletion will return silently with those assets still ungathered.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual void WaitForCompletion() = 0;
 

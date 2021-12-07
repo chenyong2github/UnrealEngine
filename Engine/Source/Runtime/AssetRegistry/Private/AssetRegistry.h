@@ -208,7 +208,7 @@ private:
 #if WITH_EDITOR
 	/** Create FAssetData from any loaded UObject assets and store the updated AssetData in the state */
 	void ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Impl::FEventContext& EventContext,
-		const double TickStartTime, bool bIsIdle);
+		const double TickStartTime, UE::AssetRegistry::Impl::EGatherStatus Status);
 #endif
 	/**
 	 * Remain under the given lock and return an InheritanceContext based on the appropriate choice of the persistent
