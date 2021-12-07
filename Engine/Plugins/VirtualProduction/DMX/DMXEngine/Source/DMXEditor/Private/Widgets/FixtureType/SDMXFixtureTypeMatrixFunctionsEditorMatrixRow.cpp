@@ -10,6 +10,7 @@
 #include "Widgets/FixtureType/SDMXFixtureTypeMatrixFunctionsEditor.h"
 
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SPopUpErrorText.h"
 
 
