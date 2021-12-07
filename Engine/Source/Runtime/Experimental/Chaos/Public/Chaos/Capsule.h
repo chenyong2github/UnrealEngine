@@ -125,6 +125,17 @@ namespace Chaos
 			return Box;
 		}
 
+		virtual FAABB3 CalculateTransformedBounds(const FRigidTransform3& Transform) const override
+		{
+			const FVec3 X1 = Transform.TransformPositionNoScale(MSegment.GetX1());
+			const FVec3 X2 = Transform.TransformPositionNoScale(MSegment.GetX2());
+			const FVec3 MinSegment = X1.ComponentwiseMin(X2);
+			const FVec3 MaxSegment = X1.ComponentwiseMax(X2);
+
+			const FVec3 RadiusV = FVec3(GetRadius());
+			return FAABB3(MinSegment - RadiusV, MaxSegment + RadiusV);
+		}
+
 		static bool RaycastFast(FReal MRadius, FReal MHeight, const FVec3& MVector, const FVec3& X1, const FVec3& X2, const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex)
 		{
 			ensure(FMath::IsNearlyEqual(MVector.SizeSquared(), (FReal)1, (FReal)KINDA_SMALL_NUMBER));
