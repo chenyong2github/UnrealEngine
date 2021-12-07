@@ -787,8 +787,8 @@ class DevicenDisplay(DeviceUnreal):
         # fill in fixed arguments
         args = [
             f'"{uproject}"',
-            f'{map_name}',                # map to open
             "-game",                      # render nodes run in -game
+            f'{map_name}',                # map to open
             "-messaging",                 # enables messaging, needed for
                                           # MultiUser
             "-dc_cluster",                # this is a cluster node
