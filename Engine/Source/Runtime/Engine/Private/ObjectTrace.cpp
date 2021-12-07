@@ -38,6 +38,16 @@ UE_TRACE_EVENT_BEGIN(Object, Object)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Path)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Object, ObjectLifetimeBegin)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, Id)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Object, ObjectLifetimeEnd)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, Id)
+UE_TRACE_EVENT_END()
+
 UE_TRACE_EVENT_BEGIN(Object, ObjectEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
@@ -418,6 +428,56 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 		<< ObjectEvent.Cycle(FPlatformTime::Cycles64())
 		<< ObjectEvent.Id(GetObjectId(InObject))
 		<< ObjectEvent.Event(InEvent);
+}
+
+void FObjectTrace::OutputObjectLifetimeBegin(const UObject* InObject)
+{
+	const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InObject == nullptr)
+	{
+		return;
+	}
+
+	if(InObject->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	if (CANNOT_TRACE_OBJECT(InObject->GetWorld()))
+	{
+		return;
+	}
+
+	TRACE_OBJECT(InObject);
+
+	UE_TRACE_LOG(Object, ObjectLifetimeBegin, ObjectChannel)
+		<< ObjectLifetimeBegin.Cycle(FPlatformTime::Cycles64())
+		<< ObjectLifetimeBegin.Id(GetObjectId(InObject));
+}
+
+void FObjectTrace::OutputObjectLifetimeEnd(const UObject* InObject)
+{
+	const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InObject == nullptr)
+	{
+		return;
+	}
+
+	if(InObject->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	if (CANNOT_TRACE_OBJECT(InObject->GetWorld()))
+	{
+		return;
+	}
+
+	TRACE_OBJECT(InObject);
+
+	UE_TRACE_LOG(Object, ObjectLifetimeEnd, ObjectChannel)
+		<< ObjectLifetimeEnd.Cycle(FPlatformTime::Cycles64())
+		<< ObjectLifetimeEnd.Id(GetObjectId(InObject));
 }
 
 void FObjectTrace::OutputPawnPossess(const UObject* InController, const UObject* InPawn)

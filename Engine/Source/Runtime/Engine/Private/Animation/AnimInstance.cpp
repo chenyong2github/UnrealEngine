@@ -196,13 +196,13 @@ UWorld* UAnimInstance::GetWorld() const
 
 void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 {
-	TRACE_OBJECT_EVENT(this, InitializeAnimation);
-
 	FScopeCycleCounterUObject ContextScope(this);
 	SCOPE_CYCLE_COUNTER(STAT_AnimInitTime);
 	LLM_SCOPE(ELLMTag::Animation);
 
 	UninitializeAnimation();
+	
+	TRACE_OBJECT_LIFETIME_BEGIN(this);
 
 	// make sure your skeleton is initialized
 	// you can overwrite different skeleton
@@ -253,8 +253,6 @@ void UAnimInstance::InitializeAnimation(bool bInDeferRootNodeInitialization)
 
 void UAnimInstance::UninitializeAnimation()
 {
-	TRACE_OBJECT_EVENT(this, UninitializeAnimation);
-
 	NativeUninitializeAnimation();
 
 	GetProxyOnGameThread<FAnimInstanceProxy>().Uninitialize(this);
@@ -312,6 +310,8 @@ void UAnimInstance::UninitializeAnimation()
 	NotifyQueue.Reset(SkelMeshComp);
 
 	SlotGroupInertializationRequestMap.Reset();
+	
+	TRACE_OBJECT_LIFETIME_END(this);
 }
 
 #if WITH_EDITORONLY_DATA

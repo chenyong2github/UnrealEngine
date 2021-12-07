@@ -189,16 +189,19 @@ bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDe
 
 	bool bChanged = false;
 
-	GameplayProvider->EnumerateObjects([this, &bChanged, ParentId, GameplayProvider, &ComponentList](const FObjectInfo& InObjectInfo)
-	{
-		// todo: filter components based on creation/destruction frame, and the current scrubbing time (so dynamically created and destroyed components won't add up)
+	double Time = CurrentTraceTime();
 
+	TArray<uint64, TInlineAllocator<32>> FoundObjects;
+
+	GameplayProvider->EnumerateObjects(Time, Time, [this, &bChanged, ParentId, GameplayProvider, &ComponentList, &FoundObjects](const FObjectInfo& InObjectInfo)
+	{
 		if (InObjectInfo.OuterId == ParentId)
 		{
 			const int32 FoundIndex = ComponentList.FindLastByPredicate([&InObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == InObjectInfo.Name; });
 
 			if (FoundIndex >= 0 && ComponentList[FoundIndex]->ObjectName == InObjectInfo.Name)
 			{
+				// we need to make sure we reusing existing FDebugObjectInfo instances for the treeview selection to be stable
 				ComponentList[FoundIndex]->ObjectId = InObjectInfo.Id; // there is an issue with skeletal mesh components changing ids
 				bChanged = bChanged || UpdateComponentList(InObjectInfo.Id, ComponentList[FoundIndex]->Children);
 			}
@@ -208,6 +211,8 @@ bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDe
 				ComponentList.Add(MakeShared<FDebugObjectInfo>(InObjectInfo.Id,InObjectInfo.Name));
 				UpdateComponentList(InObjectInfo.Id, ComponentList.Last()->Children);
 			}
+			
+			FoundObjects.Add(InObjectInfo.Id);
 		}
 	});
 
@@ -230,6 +235,18 @@ bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDe
 				ComponentList.Add(MakeShared<FDebugObjectInfo>(ObjectInfo.Id,ObjectInfo.Name));
 				UpdateComponentList(ObjectInfo.Id, ComponentList.Last()->Children);
 			}
+			
+			FoundObjects.Add(ControllerId);
+		}
+	}
+	
+	// remove any components previously in the list that were not found in this time range.
+	for(int Index=ComponentList.Num()-1; Index>=0; Index--)
+	{
+		if (!FoundObjects.Contains(ComponentList[Index]->ObjectId))
+		{
+			bChanged = true;
+			ComponentList.RemoveAt(Index);
 		}
 	}
 	
@@ -255,7 +272,8 @@ uint64 FRewindDebugger::GetTargetActorId() const
 	{
 		if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
 		{
-			GameplayProvider->EnumerateObjects([this,&TargetActorId](const FObjectInfo& InObjectInfo)
+			double Time = CurrentTraceTime();
+			GameplayProvider->EnumerateObjects(Time, Time, [this,&TargetActorId](const FObjectInfo& InObjectInfo)
 			{
 				if (DebugTargetActor.Get() == InObjectInfo.Name)
 				{

@@ -122,7 +122,7 @@ void UControlRig::BeginDestroy()
 	}
 #endif
 
-	TRACE_OBJECT_EVENT(this, DestroyControlRig);
+	TRACE_OBJECT_LIFETIME_END(this);
 }
 
 UWorld* UControlRig::GetWorld() const
@@ -153,7 +153,7 @@ UWorld* UControlRig::GetWorld() const
 
 void UControlRig::Initialize(bool bInitRigUnits)
 {
-	TRACE_OBJECT_EVENT(this, InitializeControlRig);
+	TRACE_OBJECT_LIFETIME_BEGIN(this);
 
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Initialize);
