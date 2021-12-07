@@ -1384,10 +1384,6 @@ namespace OculusHMD
 		{
 			SpectatorScreenController->RenderSpectatorScreen_RenderThread(RHICmdList, BackBuffer, SrcTexture, WindowSize);
 		}
-
-#if OCULUS_STRESS_TESTS_ENABLED
-		FStressTester::TickGPU_RenderThread(RHICmdList, BackBuffer, SrcTexture);
-#endif
 	}
 
 	FVector2D FOculusHMD::GetEyeCenterPoint_RenderThread(int32 ViewIndex) const

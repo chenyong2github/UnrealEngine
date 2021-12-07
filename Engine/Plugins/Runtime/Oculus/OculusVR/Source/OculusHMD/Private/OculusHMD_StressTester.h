@@ -64,19 +64,8 @@ public:
 		}
 	}
 
-	static void TickGPU_RenderThread(FRHICommandListImmediate& RHICmdList, class FRHITexture2D* BackBuffer, class FRHITexture2D* SrcTexture)
-	{
-		CheckInRenderThread();
-
-		if (SharedInstance.IsValid())
-		{
-			SharedInstance->DoTickGPU_RenderThread(RHICmdList, BackBuffer, SrcTexture);
-		}
-	}
-
 protected:
 	void DoTickCPU_GameThread(class FOculusHMD* pPlugin);
-	void DoTickGPU_RenderThread(FRHICommandListImmediate& RHICmdList, class FRHITexture2D* BackBuffer, class FRHITexture2D* SrcTexture);
 
 	FStressTester();
 
