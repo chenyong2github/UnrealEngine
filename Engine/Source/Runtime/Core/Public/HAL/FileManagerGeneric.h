@@ -224,7 +224,7 @@ private:
 class CORE_API FArchiveFileReaderGeneric : public FArchive
 {
 public:
-	FArchiveFileReaderGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InSize, uint32 InBufferSize = PLATFORM_FILE_READER_BUFFER_SIZE );
+	FArchiveFileReaderGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InSize, uint32 InBufferSize = PLATFORM_FILE_READER_BUFFER_SIZE, uint32 InFlags = FILEREAD_None );
 	~FArchiveFileReaderGeneric();
 
 	virtual void Seek( int64 InPos ) final;
@@ -264,6 +264,12 @@ protected:
 	**/
 	virtual void ReadLowLevel(uint8* Dest, int64 CountToRead, int64& OutBytesRead);
 
+	/** Returns true if the archive should suppress logging in case of error */
+	bool IsSilent() const
+	{
+		return !!(Flags & FILEREAD_Silent);
+	}
+
 	/** Filename for debugging purposes. */
 	FString Filename;
 	int64 Size;
@@ -276,6 +282,7 @@ protected:
 	 */
 	TArray64<uint8> BufferArray;
 	int64 BufferSize;
+	uint32 Flags;
 	bool bFirstReadAfterSeek;
 
 	enum
