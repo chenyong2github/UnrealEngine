@@ -4,7 +4,6 @@
 
 #include "SkeletalMeshTypes.h"
 #include "Chaos/AABBTree.h"
-#include "Chaos/GeometryParticlesfwd.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingMeshUtils, Log, All);
 
@@ -13,53 +12,14 @@ struct FPointWeightMap;
 
 namespace ClothingMeshUtils
 {
-	struct CLOTHINGSYSTEMRUNTIMECOMMON_API ClothMeshDesc
+	class CLOTHINGSYSTEMRUNTIMECOMMON_API ClothMeshDesc
 	{
-		struct FClothBvEntry
-		{
-			ClothMeshDesc* TmData;
-			int32 Index;
-
-			bool HasBoundingBox() const { return true; }
-
-			Chaos::FAABB3 BoundingBox() const
-			{
-				int32 TriBaseIdx = Index * 3;
-
-				const uint32 IA = TmData->Indices[TriBaseIdx + 0];
-				const uint32 IB = TmData->Indices[TriBaseIdx + 1];
-				const uint32 IC = TmData->Indices[TriBaseIdx + 2];
-
-				const FVector3f& A = TmData->Positions[IA];
-				const FVector3f& B = TmData->Positions[IB];
-				const FVector3f& C = TmData->Positions[IC];
-
-				Chaos::FAABB3 Bounds(A, A);
-
-				Bounds.GrowToInclude(B);
-				Bounds.GrowToInclude(C);
-
-				return Bounds;
-			}
-
-			template<typename TPayloadType>
-			int32 GetPayload(int32 Idx) const
-			{
-				return Idx;
-			}
-
-			Chaos::FUniqueIdx UniqueIdx() const
-			{
-				return Chaos::FUniqueIdx(Index);
-			}
-		};
-
+	public:
 		ClothMeshDesc(TConstArrayView<FVector3f> InPositions, TConstArrayView<FVector3f> InNormals, TConstArrayView<uint32> InIndices)
 			: Positions(InPositions)
 			, Normals(InNormals)
 			, Indices(InIndices)
 			, bHasValidBVH(false)
-			, bHasValidMaxEdgeLengths(false)
 		{
 		}
 
@@ -69,7 +29,6 @@ namespace ClothingMeshUtils
 			, Tangents(InTangents)
 			, Indices(InIndices)
 			, bHasValidBVH(false)
-			, bHasValidMaxEdgeLengths(false)
 		{
 		}
 
@@ -78,49 +37,53 @@ namespace ClothingMeshUtils
 			: Positions(InPositions)
 			, Indices(InIndices)
 			, bHasValidBVH(false)
-			, bHasValidMaxEdgeLengths(false)
 		{
 			ComputeAveragedNormals();
-			Normals = AveragedNormals;
+			Normals = TConstArrayView<FVector3f>(AveragedNormals);
 		}
 
-		bool HasValidMesh() const
-		{
-			return Positions.Num() == Normals.Num() && Indices.Num() % 3 == 0;
-		}
+		const TConstArrayView<FVector3f>& GetPositions() const { return Positions; }
+		const TConstArrayView<FVector3f>& GetNormals() const { return Normals; }
+		const TConstArrayView<FVector3f>& GetTangents() const { return Tangents; }
+		const TConstArrayView<uint32>& GetIndices() const { return Indices; }
 
-		bool HasTangents() const
-		{
-			return Positions.Num() == Tangents.Num();
-		}
+		/** Return whether the mesh descriptor has a valid number of normals and triangle indices. */
+		bool HasValidMesh() const { return Positions.Num() == Normals.Num() && Indices.Num() % 3 == 0; }
 
-		TArray<int32> FindCandidateTriangles(const FVector& InPoint, float InTolerance = KINDA_SMALL_NUMBER);
+		/** Return whether this descriptor has been initialized with tangent information. */
+		bool HasTangents() const { return Positions.Num() == Tangents.Num(); }
+
+		/** Return whether this descriptor has been initialized with the normals generated from the averaged triangle normals. */
+		bool HasAveragedNormals() const { return Normals.Num() == AveragedNormals.Num(); }
+
+		/** Find the distance to the specified triangle from a point. */
+		float DistanceToTriangle(const FVector& Position, int32 TriangleBaseIndex) const;
+
+		/** Find the closest triangles from the specified point. */
+		TArray<int32> FindCandidateTriangles(const FVector& InPoint, float InTolerance = KINDA_SMALL_NUMBER) const;
 
 		/**
-		 * Compute the max edge length for each edge coming out of a mesh vertex.
+		 * Return the max edge length for each edge coming out of a mesh vertex.
 		 * Useful for guiding the search radius when searching for nearest triangles.
-		 * Declared const for convenience since it doesn't change the descriptor itself.
 		 */
-		void ComputeMaxEdgeLengths() const;
+		TConstArrayView<float> GetMaxEdgeLengths() const;
 
-		/**
-		 * Compute the face averaged normals.
-		 * For when (cloth deformer), the same normal calculation than the solver outputs are required.
-		 * Declared const for convenience since it doesn't change the descriptor itself.
-		 */
-		void ComputeAveragedNormals() const;
+	private:
+		void ComputeAveragedNormals();
+
+		struct FClothBvEntry;
 
 		TConstArrayView<FVector3f> Positions;
 		TConstArrayView<FVector3f> Normals;
 		TConstArrayView<FVector3f> Tangents;
 		TConstArrayView<uint32> Indices;
 
-		bool bHasValidBVH;
-		Chaos::TAABBTree<int32, Chaos::TAABBTreeLeafArray<int32, false>, false> BVH;
+		TArray<FVector3f> AveragedNormals;
 
-		mutable bool bHasValidMaxEdgeLengths;
+		mutable bool bHasValidBVH;
+		mutable Chaos::TAABBTree<int32, Chaos::TAABBTreeLeafArray<int32, false>, false> BVH;
+
 		mutable TArray<float> MaxEdgeLengths;
-		mutable TArray<FVector3f> AveragedNormals;
 	};
 
 	/**
@@ -180,8 +143,7 @@ namespace ClothingMeshUtils
 	UE_DEPRECATED(5.0, "Superseded by GenerateMeshToMeshVertData.")
 	inline void ComputeMaxEdgeLength(const ClothMeshDesc& TargetMesh, TArray<float>& OutMaxEdgeLength)
 	{
-		TargetMesh.ComputeMaxEdgeLengths();
-		OutMaxEdgeLength = TargetMesh.MaxEdgeLengths;
+		OutMaxEdgeLength = TargetMesh.GetMaxEdgeLengths();
 	}
 
 	/**
