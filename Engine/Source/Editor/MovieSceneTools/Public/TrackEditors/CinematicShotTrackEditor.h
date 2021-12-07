@@ -23,8 +23,7 @@ class UMovieSceneSubSection;
 /**
  * Tools for cinematic shots.
  */
-class FCinematicShotTrackEditor
-	: public FMovieSceneTrackEditor
+class MOVIESCENETOOLS_API FCinematicShotTrackEditor : public FMovieSceneTrackEditor
 {
 public:
 
@@ -121,40 +120,43 @@ private:
 	 * @return The new shot.
 	 */
 	UMovieSceneSubSection* CreateShotInternal(FString& NewShotName, FFrameNumber NewShotStartTime, UMovieSceneCinematicShotSection* ShotToDuplicate = nullptr);
-
-
-private:
-
+	
 	/** Callback for determining whether the "Add Shot" menu entry can execute. */
 	bool HandleAddCinematicShotTrackMenuEntryCanExecute() const;
 
 	/** Callback for executing the "Add Shot Track" menu entry. */
 	void HandleAddCinematicShotTrackMenuEntryExecute();
+	
+protected:
 
 	/** Callback for generating the menu of the "Add Shot" combo button. */
-	TSharedRef<SWidget> HandleAddCinematicShotComboButtonGetMenuContent();
+	virtual TSharedRef<SWidget> HandleAddCinematicShotComboButtonGetMenuContent();
+	
+	/** Find or create a cinematic shot track in the currently focused movie scene. */
+	virtual UMovieSceneCinematicShotTrack* FindOrCreateCinematicShotTrack();
+
+private:
 
 	/** Callback for executing a menu entry in the "Add Shot" combo button. */
-	void HandleAddCinematicShotComboButtonMenuEntryExecute(const FAssetData& AssetData);
+	virtual void HandleAddCinematicShotComboButtonMenuEntryExecute(const FAssetData& AssetData);
 
 	/** Callback for executing a menu entry in the "Add Shot" combo button when enter pressed. */
-	void HandleAddCinematicShotComboButtonMenuEntryEnterPressed(const TArray<FAssetData>& AssetData);
-
-	/** Find or create a cinematic shot track in the currently focused movie scene. */
-	UMovieSceneCinematicShotTrack* FindOrCreateCinematicShotTrack();
+	virtual void HandleAddCinematicShotComboButtonMenuEntryEnterPressed(const TArray<FAssetData>& AssetData);
 
 	/** Delegate for AnimatablePropertyChanged in AddKey */
-	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, int32 RowIndex);
+	virtual FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, int32 RowIndex);
 
 	/** Delegate for shots button lock state */
-	ECheckBoxState AreShotsLocked() const; 
+	ECheckBoxState AreShotsLocked() const;
 
 	/** Delegate for locked shots button */
 	void OnLockShotsClicked(ECheckBoxState CheckBoxState);
-
+	
 	/** Delegate for shots button lock tooltip */
-	FText GetLockShotsToolTip() const; 
+	FText GetLockShotsToolTip() const;
 
+protected:
+	
 	/**
 	 * Check whether the given sequence can be added as a sub-sequence.
 	 *
@@ -165,7 +167,9 @@ private:
 	 * @return true if the sequence can be added as a sub-sequence, false otherwise.
 	 */
 	bool CanAddSubSequence(const UMovieSceneSequence& Sequence) const;
-
+	
+private:
+	
 	/** Called when our sequencer wants to switch cameras */
 	void OnUpdateCameraCut(UObject* CameraObject, bool bJumpCut);
 

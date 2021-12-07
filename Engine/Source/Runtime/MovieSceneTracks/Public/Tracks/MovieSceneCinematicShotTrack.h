@@ -13,10 +13,10 @@ class UMovieSceneSequence;
 class UMovieSceneSubSection;
 
 /**
- * A track that holds consecutive sub sequences.
- */
-UCLASS(MinimalAPI)
-class UMovieSceneCinematicShotTrack
+* A track that holds consecutive sub sequences.
+*/
+UCLASS()
+class MOVIESCENETRACKS_API UMovieSceneCinematicShotTrack
 	: public UMovieSceneSubTrack
 {
 	GENERATED_BODY()
@@ -25,15 +25,14 @@ public:
 
 	UMovieSceneCinematicShotTrack(const FObjectInitializer& ObjectInitializer);
 
-	MOVIESCENETRACKS_API void SortSections();
+	void SortSections();
 
 	// UMovieSceneSubTrack interface
+	virtual UMovieSceneSubSection* AddSequence(UMovieSceneSequence* Sequence, FFrameNumber StartTime, int32 Duration) { return AddSequenceOnRow(Sequence, StartTime, Duration, INDEX_NONE); }
 
-	MOVIESCENETRACKS_API virtual UMovieSceneSubSection* AddSequence(UMovieSceneSequence* Sequence, FFrameNumber StartTime, int32 Duration) { return AddSequenceOnRow(Sequence, StartTime, Duration, INDEX_NONE); }
-	MOVIESCENETRACKS_API virtual UMovieSceneSubSection* AddSequenceOnRow(UMovieSceneSequence* Sequence, FFrameNumber StartTime, int32 Duration, int32 RowIndex);
-
+	virtual UMovieSceneSubSection* AddSequenceOnRow(UMovieSceneSequence* Sequence, FFrameNumber StartTime, int32 Duration, int32 RowIndex);
+	
 	// UMovieSceneTrack interface
-
 	virtual void AddSection(UMovieSceneSection& Section) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;

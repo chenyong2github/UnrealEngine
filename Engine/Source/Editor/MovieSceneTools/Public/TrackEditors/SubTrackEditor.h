@@ -59,8 +59,8 @@ public:
 	/** Switch the selected sub section's take */
 	void SwitchTake(UObject* TakeObject);
 
-protected:
-
+public:
+	
 	/**
 	 * Check whether the given sequence can be added as a sub-sequence.
 	 *
