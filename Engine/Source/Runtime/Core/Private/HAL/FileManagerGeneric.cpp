@@ -906,6 +906,11 @@ void FArchiveFileReaderGeneric::FlushCache()
 	{
 		Handle->ShrinkBuffers();
 	}
+
+	BufferArray.Empty();
+	// Make sure the underlying system file has the right position for any read that comes after a flushed cache.
+	SeekLowLevel(Pos);
+	BufferBase = Pos;
 }
 
 FArchiveFileWriterGeneric::FArchiveFileWriterGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InPos, uint32 InBufferSize, uint32 InFlags )
