@@ -25,11 +25,6 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "UnrealEngine.h"
 #if WITH_EDITOR
 #include "Misc/Crc.h"
-#include "Engine/Texture2D.h"
-#include "Engine/Texture2DArray.h"
-#include "Engine/VolumeTexture.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
 #endif
 
 
@@ -72,7 +67,7 @@ static uint32 ComputeHashTextureStreamingDataForActor(AActor* InActor)
 	return Hash;
 }
 
-void BuildActorTextureStreamingData(AActor* InActor, EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel)
+ENGINE_API void BuildActorTextureStreamingData(AActor* InActor, EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel)
 {
 	if (!InActor || InActor->IsTemplate())
 	{
@@ -107,7 +102,7 @@ void BuildActorTextureStreamingData(AActor* InActor, EMaterialQualityLevel::Type
 	}
 }
 
-bool BuildLevelTextureStreamingComponentDataFromActors(ULevel* InLevel)
+ENGINE_API bool BuildLevelTextureStreamingComponentDataFromActors(ULevel* InLevel)
 {
 	// If Level already contains texture streaming built data, keep it as it was built in the editor.
 	if (!InLevel->StreamingTextureGuids.IsEmpty())
@@ -152,36 +147,6 @@ bool BuildLevelTextureStreamingComponentDataFromActors(ULevel* InLevel)
 		}
 	}
 	return true;
-}
-
-bool GetTextureIsStreamable(const UTexture& Texture)
-{
-	const ITargetPlatform& CurrentPlatform = *GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-
-	bool bStreamable = GetTextureIsStreamableOnPlatform(Texture, CurrentPlatform);
-	return bStreamable;
-}
-
-bool GetTextureIsStreamableOnPlatform(const UTexture& Texture, const ITargetPlatform& TargetPlatform)
-{
-	const bool bPlatformSupportsTextureStreaming = TargetPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
-	
-	bool bStreamable = false;
-	if (Texture.IsA(UTexture2DArray::StaticClass()))
-	{
-		bStreamable = GSupportsTexture2DArrayStreaming;
-	}
-	else if (Texture.IsA(UVolumeTexture::StaticClass()))
-	{
-		bStreamable = GSupportsVolumeTextureStreaming;
-	}
-	else if (Texture.IsA(UTexture2D::StaticClass()))
-	{
-		bStreamable = true;
-	}
-
-	bStreamable &= Texture.IsCandidateForTextureStreaming(&TargetPlatform);
-	return bStreamable;
 }
 
 #else
@@ -669,7 +634,7 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 
 	for (UTexture* Texture : Textures)
 	{
-		if (!GetTextureIsStreamable(*Texture))
+		if (!Texture->IsStreamable())
 		{
 			continue;
 		}

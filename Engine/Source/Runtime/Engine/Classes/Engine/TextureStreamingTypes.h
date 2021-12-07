@@ -304,12 +304,6 @@ ENGINE_API void BuildActorTextureStreamingData(AActor* InActor, EMaterialQuality
 
 /** Build the texture streaming component data for a level based on actor's UActorTextureStreamingBuildDataComponent. */
 ENGINE_API bool BuildLevelTextureStreamingComponentDataFromActors(ULevel* InLevel);
-
-/** Resolves whether a texture is streamable independent of compression speed, and avoids unnecessary build settings generation work. */
-ENGINE_API bool GetTextureIsStreamable(const UTexture& Texture);
-
-/** Resolves whether a texture is streamable on the given platform, independent of compression speed, and avoids unnecessary build settings generation work. */
-ENGINE_API bool GetTextureIsStreamableOnPlatform(const UTexture& Texture, const ITargetPlatform& TargetPlatform);
 #endif
 
 /** Build the shaders required for the texture streaming build. Returns whether or not the action was successful. */
