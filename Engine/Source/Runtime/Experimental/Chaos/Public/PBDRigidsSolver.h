@@ -206,6 +206,20 @@ namespace Chaos
 		void SetTrailingFilterSettings(const FSolverTrailingFilterSettings& InTrailingFilterSettings) { GetEventFilters()->GetTrailingFilter()->UpdateFilterSettings(InTrailingFilterSettings); }
 		void SetRemovalFilterSettings(const FSolverRemovalFilterSettings& InRemovalFilterSettings) { GetEventFilters()->GetRemovalFilter()->UpdateFilterSettings(InRemovalFilterSettings); }
 
+		/**
+		 * @brief True if the simulation is running in deterministic mode
+		 * This will be true if determinism is explicitly requested (via SetIsDeterministic()) or if required
+		 * by some otyher system like Rewind/Resim support.
+		*/
+		bool IsDetemerministic() const;
+
+		/**
+		 * @brief Request that the sim be determinitic (or not)
+		 * @note Even if set to false, the sim may still be deterministic if some other feature is enabled and requires it.
+		 * @see IsDetemerministic()
+		*/
+		void SetIsDeterministic(const bool bInIsDeterministic);
+
 		/**/
 		FJointConstraints& GetJointConstraints() { return MEvolution->GetJointConstraints(); }
 		const FJointConstraints& GetJointConstraints() const { return MEvolution->GetJointConstraints(); }
@@ -311,6 +325,8 @@ namespace Chaos
 		virtual void PushPhysicsState(const FReal ExternalDt, const int32 NumSteps, const int32 NumExternalSteps) override;
 		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) override;
 
+		void UpdateIsDeterministic();
+
 		//
 		// Solver Data
 		//
@@ -320,6 +336,7 @@ namespace Chaos
 		bool bHasFloor;
 		bool bIsFloorAnalytic;
 		FReal FloorHeight;
+		bool bIsDeterministic;
 
 		FParticleUniqueIndicesMultithreaded UniqueIndices;
 		FParticlesType Particles;

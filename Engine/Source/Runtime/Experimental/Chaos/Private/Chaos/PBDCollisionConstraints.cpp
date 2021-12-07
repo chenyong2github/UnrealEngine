@@ -119,6 +119,7 @@ namespace Chaos
 		, bEnableCollisions(true)
 		, bEnableRestitution(true)
 		, bHandlesEnabled(true)
+		, bIsDeterministic(false)
 		, bCanDisableContacts(true)
 		, GravityDirection(FVec3(0,0,-1))
 		, GravitySize(980)
@@ -282,6 +283,11 @@ namespace Chaos
 
 		// Prune the unused contacts
 		ConstraintAllocator.EndDetectCollisions();
+
+		if (bIsDeterministic)
+		{
+			ConstraintAllocator.SortConstraintsHandles();
+		}
 
 		// Initialize container properties
 		for (FPBDCollisionConstraint* Contact : GetConstraints())

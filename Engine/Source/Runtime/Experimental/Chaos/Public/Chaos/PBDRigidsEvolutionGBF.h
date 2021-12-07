@@ -147,6 +147,8 @@ namespace Chaos
 			}
 		}
 
+		void SetIsDeterministic(const bool bInIsDeterministic);
+
 		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
 		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FSubStepInfo& SubStepInfo = FSubStepInfo());
 
@@ -367,6 +369,8 @@ namespace Chaos
 		const TArray<ISimCallbackObject*>* CollisionModifiers;
 
 		FCCDManager CCDManager;
+
+		bool bIsDeterministic;
 	};
 
 }
