@@ -9,6 +9,41 @@
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "Misc/TVariant.h"
 
+/** MetaSound Frontend Query
+ *
+ * MetaSound Frontend Query provides a way to systematically organize and update
+ * streaming data associated with the MetaSound Frontend. It is a streaming MapReduce 
+ * framework for querying streams of data (https://en.wikipedia.org/wiki/MapReduce) 
+ *
+ * While it does not support the computational parallelism commonly found in MapReduce 
+ * frameworks, it does offer:
+ * 	- An encapsulated and reusable set of methods for manipulating streamed data.
+ *  - Support for incremental updates (a.k.a. streamed data).
+ * 	- An indexed output for efficient lookup. 
+ *
+ * Data within MetaSound Frontend Query is organized similarly to a NoSQL database
+ * (https://en.wikipedia.org/wiki/NoSQL). Each object (FFrontendQueryEntry) is 
+ * assigned a unique ID. Keys (FFrontendQueryKey) are associated with sets of entries
+ * (FFrontendQueryPartition) and allow partitions to be retrieved efficiently. 
+ * Each partition holds a set of entries which is determined by the steps in the 
+ * query (FFrontendQuery). A FFrontendQueryKey or FFrontendQueryValue represent
+ * one of multiple types by using a TVariant<>.
+ *
+ * A query contains a sequence of steps that get executed on streaming data. The 
+ * various types of steps reflect common operations performed in MapReduce and 
+ * NoSQL database queries. 
+ *
+ * Step Types
+ * 	Stream: 	Produce a stream of FFrontendQueryValues.
+ * 	Map:		Map a FFrontendQueryEntry to a partition associated with a FFrontendQueryKey.
+ * 	Reduce: 	Apply an incremental summarization of a FFrontendQueryPartition.
+ * 	Transform:	Alter a FFrontendQueryValue.
+ * 	Filter:		Remove FFrontendQueryValues with a test function.
+ * 	Score:		Calculate a score for a FFrontendQueryValue.
+ * 	Sort:		Sort a FFrontendQueryPartition.
+ * 	Limit:		Limit the size of a FFrontendQueryPartition.
+ */
+
 namespace Metasound
 {
 	/** FFrontendQueryKey allows entries to be partitioned by their key. A key
@@ -31,171 +66,39 @@ namespace Metasound
 		friend bool operator<(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS);
 		friend uint32 GetTypeHash(const FFrontendQueryKey& InKey);
 		
-		bool IsValid() const;
+		bool IsNull() const;
 
 	private:
-		struct FInvalid {};
+		struct FNull{};
 
-		using FKeyType = TVariant<FInvalid, int32, FString, FName>;
+		using FKeyType = TVariant<FNull, int32, FString, FName>;
 		FKeyType Key;
 		uint32 Hash;
 	};
 
-	/** FFrontendQueryEntry represents one value in the query. It contains a key,
-	 * value and score. 
-	 */
+	/** A FFrontendQueryValue contains data of interest. */
+	using FFrontendQueryValue = TVariant<FMetasoundFrontendVersion, Frontend::FNodeRegistryTransaction, FMetasoundFrontendClass, Frontend::FInterfaceRegistryTransaction, FMetasoundFrontendInterface>;
+
+	/** FFrontendQueryEntry represents one value in the query. It contains an ID,
+	 * value and score.  */
 	struct METASOUNDFRONTEND_API FFrontendQueryEntry
 	{
-		using FValue = TVariant<Frontend::FNodeRegistryTransaction, FMetasoundFrontendVersion, FMetasoundFrontendClass, Frontend::FInterfaceRegistryTransaction, FMetasoundFrontendInterface>;
-		using FKey = FFrontendQueryKey;
+		using FValue = FFrontendQueryValue;
 
-		FKey Key;
+		FGuid ID;
 		FValue Value;
 		float Score = 0.f;
 
-		FFrontendQueryEntry(const FFrontendQueryEntry&) = default;
-		FFrontendQueryEntry& operator=(const FFrontendQueryEntry&) = default;
-
-		FFrontendQueryEntry(FValue&& InValue)
-		:	Value(MoveTemp(InValue))
-		{
-		}
-
-		FFrontendQueryEntry(const FValue& InValue)
-		:	Value(InValue)
-		{
-		}
+		friend uint32 GetTypeHash(const FFrontendQueryEntry& InEntry);
+		friend bool operator==(const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS);
 	};
 
-	/** FFrontendQuerySelection represents a selection utilized during a query.
-	 *
-	 * Note: FFrontendQuerySelection owns the memory for the related entries. 
-	 */
-	class METASOUNDFRONTEND_API FFrontendQuerySelection
-	{
-	public:
-		/** FReduceOutputView provides an interface for storing results during
-		 * a "Reduce" query step.  It is primarily used to only expose operations
-		 * which are acceptable to call on a FFrontendQuerySelection during a 
-		 * call to "Reduce".
-		 */
-		class FReduceOutputView
-		{
-			// deleted constructors
-			FReduceOutputView(const FReduceOutputView&) = delete;
-			FReduceOutputView(FReduceOutputView&&) = delete;
+	/** A FFrontendQueryPartition represents a set of entries associated with a 
+	 * single FFrontendQueryKey. */
+	using FFrontendQueryPartition = TSet<FFrontendQueryEntry>;
 
-			// deleted operators
-			FReduceOutputView& operator=(const FReduceOutputView&) = delete;
-			FReduceOutputView& operator=(FReduceOutputView&&) = delete;
-
-		public:
-			// Set initial entries which are stored elsewhere
-			FReduceOutputView(TArrayView<FFrontendQueryEntry* const> InEntries);
-			~FReduceOutputView() = default;
-
-			/** Add a result to the selection */
-			void Add(FFrontendQueryEntry& InResult);
-
-
-
-		private:
-			friend class FFrontendQuerySelection;
-
-			TArray<FFrontendQueryEntry*> InitialEntries;
-
-			TArray<FFrontendQueryEntry*> SelectedExistingEntries;
-			TArray<TUniquePtr<FFrontendQueryEntry>> SelectedNewEntries;
-		};
-
-		FFrontendQuerySelection() = default;
-		FFrontendQuerySelection(const FFrontendQuerySelection&);
-		FFrontendQuerySelection& operator=(const FFrontendQuerySelection&);
-
-		/** Get an array of all entries selected. */
-		TArrayView<FFrontendQueryEntry*> GetSelection();
-
-		/** Get an array of all entries selected. */
-		TArrayView<const FFrontendQueryEntry * const> GetSelection() const;
-
-		/** Add entries to both storage and current selection. */
-		void AppendToStorageAndSelection(const FFrontendQuerySelection& InSelection);
-
-		/** Add entries to both storage and current selection. */
-		void AppendToStorageAndSelection(FFrontendQuerySelection&& InSelection);
-
-		/** Add entries to both storage and current selection. */
-		void AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry> InEntries);
-
-		/** Add entries to both storage and current selection. */
-		void AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry* const> InEntries);
-
-		/** Add entries to both storage and current selection. */
-		void AppendToStorageAndSelection(FReduceOutputView&& InReduceView);
-
-
-		/** Reset both storage and selection. */
-		void ResetStorageAndSelection();
-
-		/** Reset selection, but keep storage. */
-		void ResetSelection();
-
-		/** Filters the selection by calling Func on each entry. If Func returns
-		 * false, the entry is removed.
-		 */
-		template<typename FilterFuncType>
-		int32 FilterSelection(FilterFuncType Func)
-		{
-			auto InvertedFilter = [&](const FFrontendQueryEntry* InEntry) -> bool
-			{
-				return !Func(InEntry);
-			};
-			return Selection.RemoveAll(InvertedFilter);
-		}
-
-		/** Set selection. All entries must already be in storage. */
-		void SetSelection(TArrayView<FFrontendQueryEntry*> InEntries);
-
-		/** Add to selection. The entry must already be in storage. */
-		void AddToSelection(FFrontendQueryEntry* InEntry);
-
-		/** Append entries to selection. Each selection must already be in storage. */
-		void AppendToSelection(TArrayView<FFrontendQueryEntry * const> InEntries);
-
-	private:
-		void AppendToStorageAndSelection(TArray<TUniquePtr<FFrontendQueryEntry>>&& InEntries);
-		void ShrinkStorageToSelection();
-
-		TArray<FFrontendQueryEntry*> Selection;
-		TArray<TUniquePtr<FFrontendQueryEntry>> Storage;
-	};
-
-	/** FFrontendQuerySelectionView holds the result of query. */
-	class METASOUNDFRONTEND_API FFrontendQuerySelectionView
-	{
-		FFrontendQuerySelectionView() = delete;
-	public:
-
-		/** The FFrontendQuerySelectionView is constructed with an existing
-		 * FFrontendQuerySelection.
-		 */
-		FFrontendQuerySelectionView(TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> InResult);
-
-		/** Get the selected results. */
-		TArrayView<const FFrontendQueryEntry* const> GetSelection() const;
-
-	private:
-		TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> Result;
-	};
-
-	class IFrontendQuerySource
-	{
-		public:
-			virtual ~IFrontendQuerySource() = default;
-
-			virtual void Stream(TArray<FFrontendQueryEntry>& OutEntries) = 0;
-			virtual void Reset() = 0;
-	};
+	/** A FFrontendQuerySelection holds a map of keys to partitions. */
+	using FFrontendQuerySelection = TMap<FFrontendQueryKey, FFrontendQueryPartition>;
 
 	/** Interface for an individual step in a query */
 	class IFrontendQueryStep
@@ -209,7 +112,7 @@ namespace Metasound
 	{
 		public:
 			virtual ~IFrontendQueryStreamStep() = default;
-			virtual void Stream(TArray<FFrontendQueryEntry>& OutEntries) = 0;
+			virtual void Stream(TArray<FFrontendQueryValue>& OutEntries) = 0;
 	};
 
 	/** Interface for a query step which transforms an entry's value. */
@@ -225,17 +128,15 @@ namespace Metasound
 	{
 		public:
 			virtual ~IFrontendQueryMapStep() = default;
-			virtual FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const = 0;
+			virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const = 0;
 	};
 
 	/** Interface for a query step which reduces entries with the same key. */
 	class IFrontendQueryReduceStep : public IFrontendQueryStep
 	{
 		public:
-			using FReduceOutputView = FFrontendQuerySelection::FReduceOutputView;
-
 			virtual ~IFrontendQueryReduceStep() = default;
-			virtual void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const = 0;
+			virtual void Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const = 0;
 	};
 
 	/** Interface for a query step which filters entries. */
@@ -277,44 +178,51 @@ namespace Metasound
 		FFrontendQueryStep() = delete;
 
 	public:
-		enum class EResultModificationState : uint8
+		// Represents an incremental update to the existing data.
+		struct FIncremental
 		{
-			Modified,
-			Unmodified,
+			// Keys that are affected by this incremental update.
+			TSet<FFrontendQueryKey> ActiveKeys;
+			// The selection being manipulated in the incremental update.
+			FFrontendQuerySelection ActiveSelection;
+
+			// Keys that contain active removals.
+			TSet<FFrontendQueryKey> ActiveRemovalKeys;
+			// Selection containing entries to remove during a merge.
+			FFrontendQuerySelection ActiveRemovalSelection;
 		};
 
 		/* Interface for executing a step in the query. */
 		struct IStepExecuter
 		{
-			using EResultModificationState = FFrontendQueryStep::EResultModificationState;
-
 			virtual ~IStepExecuter() = default;
 
-			// Perform an incremental step. Assume a previous result already exists. 
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) = 0;
+			// Merge new result with the existing result from this step.
+			virtual void Merge(FIncremental& InOutIncremental, FFrontendQuerySelection& InOutSelection) const = 0;
 
-			// Merge an incremental result with the prior result from this step.
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) = 0;
+			// Execute step. 
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const = 0;
 
-			// Execute step. Assume not other prior results exist.
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) = 0;
+			// Returns true if a steps result is conditioned on the composition of a partition.
+			//
+			// Most steps are only dependent upon individual entries, but some
+			// (Reduce, Limit, Sort) are specifically dependent upon the composition
+			// of the Partition. They require special handling during incremental
+			// updates.
+			virtual bool IsDependentOnPartitionComposition() const = 0;
 
-			// Reset internal state.
-			virtual void Reset() = 0;
+			// Return true if the step can be used to process downstream removals.
+			virtual bool CanProcessRemovals() const = 0;
 
-			// Returns true if a merge is required for a modified incremental update.
-			// 
-			// If this is true, Merge() will be called after Incremental() if Incremental
-			// returns EResultModificationState::Modified. 
-			virtual bool IsMergeRequiredForIncremental() const = 0;
+			// Return true if the step can produce new entries. This information
+			// is used to early-out on queries with no new entries. 
+			virtual bool CanProduceEntries() const = 0;
 		};
 
-		using FReduceOutputView = FFrontendQuerySelection::FReduceOutputView;
-
-		using FStreamFunction = TUniqueFunction<void (TArray<FFrontendQueryEntry>&)>;
+		using FStreamFunction = TUniqueFunction<void (TArray<FFrontendQueryValue>&)>;
 		using FTransformFunction = TFunction<void (FFrontendQueryEntry::FValue&)>;
-		using FMapFunction = TFunction<FFrontendQueryEntry::FKey (const FFrontendQueryEntry&)>;
-		using FReduceFunction = TFunction<void (FFrontendQueryEntry::FKey, TArrayView<FFrontendQueryEntry * const>, FReduceOutputView& )>;
+		using FMapFunction = TFunction<FFrontendQueryKey (const FFrontendQueryEntry&)>;
+		using FReduceFunction = TFunction<void (const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries)>;
 		using FFilterFunction = TFunction<bool (const FFrontendQueryEntry&)>;
 		using FScoreFunction = TFunction<float (const FFrontendQueryEntry&)>;
 		using FSortFunction = TFunction<bool (const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS)>;
@@ -330,8 +238,7 @@ namespace Metasound
 		FFrontendQueryStep(FSortFunction&& InSort);
 		FFrontendQueryStep(FLimitFunction&& InLimit);
 
-		/** Create a query step using a IFrotnedQueryStep */
-		FFrontendQueryStep(TUniquePtr<IFrontendQuerySource>&& InSource);
+		/** Create a query step using a IFrontedQueryStep */
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryStreamStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryTransformStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryMapStep>&& InStep);
@@ -342,37 +249,36 @@ namespace Metasound
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryLimitStep>&& InStep);
 
 
-		// Perform an incremental step. Assume a previous result already exists. 
-		EResultModificationState Increment(FFrontendQuerySelection& InOutResult);
-
 		// Merge an incremental result with the prior result from this step.
-		EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult);
+		void Merge(FIncremental& InIncremental, FFrontendQuerySelection& InOutSelection) const;
 
 		// Execute step. Assume not other prior results exist.
-		EResultModificationState Execute(FFrontendQuerySelection& InOutResult);
+		void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const;
 
-		// Returns true if a merge is required for a modified incremental update.
-		// 
-		// If this is true, Merge() will be called after Incremental() if Incremental
-		// returns EResultModificationState::Modified. 
-		bool IsMergeRequiredForIncremental() const;
+		// Returns true if a steps result is conditioned on the composition of a partition.
+		//
+		// Most steps are only dependent upon individual entries, but some
+		// (Reduce, Limit, Sort) are specifically dependent upon the composition
+		// of the Partition. They require special handling during incremental
+		// updates.
+		bool IsDependentOnPartitionComposition() const;
 
-		// Reset internal state.
-		void Reset();
+		// Return true if the step can be used to process downstream removals.
+		bool CanProcessRemovals() const;
+
+		// Return true if the step can produce new entries. This information
+		// is used to early-out on queries with no new entries. 
+		bool CanProduceEntries() const;
 
 	private:
-
 		TUniquePtr<IStepExecuter> StepExecuter;
 	};
 
-	/** FFrontendQuery contains a set of query steps which can be executed 
-	 * to produce a FFrontendQuerySelectionView
-	 */
+	/** FFrontendQuery contains a set of query steps which produce a FFrontendQuerySelectionView */
 	class METASOUNDFRONTEND_API FFrontendQuery
 	{
 	public:
 
-		using EResultModificationState = FFrontendQueryStep::EResultModificationState;
 		using FStreamFunction = FFrontendQueryStep::FStreamFunction;
 		using FTransformFunction = FFrontendQueryStep::FTransformFunction;
 		using FMapFunction = FFrontendQueryStep::FMapFunction;
@@ -383,12 +289,12 @@ namespace Metasound
 		using FLimitFunction = FFrontendQueryStep::FLimitFunction;
 
 		FFrontendQuery();
+		FFrontendQuery(FFrontendQuery&&) = default;
+		FFrontendQuery& operator=(FFrontendQuery&&) = default;
 
 		FFrontendQuery(const FFrontendQuery&) = delete;
 		FFrontendQuery& operator=(const FFrontendQuery&) = delete;
 
-		/** Return all steps in a query. */
-		const TArray<TUniquePtr<FFrontendQueryStep>>& GetSteps() const;
 
 		/** Add a step to the query. */
 		template<typename StepType, typename... ArgTypes>
@@ -416,22 +322,31 @@ namespace Metasound
 		FFrontendQuery& AddStep(TUniquePtr<FFrontendQueryStep>&& InStep);
 
 		/** Calls all steps in the query and returns the selection. */
-		FFrontendQuerySelectionView Execute();
-
-		/** Resets the query result by removing all entries. */
-		FFrontendQuerySelectionView Reset();
+		const FFrontendQuerySelection& Update(TSet<FFrontendQueryKey>& OutUpdatedKeys);
+		const FFrontendQuerySelection& Update();
 
 		/** Returns the current result. */
-		FFrontendQuerySelectionView GetSelection() const;
+		const FFrontendQuerySelection& GetSelection() const;
 
 	private:
+		using FIncremental = FFrontendQueryStep::FIncremental;
 
-		void UpdateResult();
-		void ExecuteSteps(int32 InStartStepIndex);
+		void UpdateInternal(TSet<FFrontendQueryKey>& OutUpdatedKeys);
+		void MergeInternal(FFrontendQueryStep& Step, FIncremental& InOutIncremental, FFrontendQuerySelection& InOutMergedSelection);
 
 		TSharedRef<FFrontendQuerySelection, ESPMode::ThreadSafe> Result;
 
-		TArray<TUniquePtr<FFrontendQueryStep>> Steps;
-		TMap<int32, FFrontendQuerySelection> StepResultCache;
+		struct FStepInfo
+		{
+			TUniquePtr<FFrontendQueryStep> Step;
+			FFrontendQuerySelection OutputCache;
+			bool bMergeAndCacheOutput = false;
+			bool bProcessRemovals = false;
+		};
+
+		void AppendPartitions(const TSet<FFrontendQueryKey>& InKeysToAppend, const FFrontendQuerySelection& InSelection, TSet<FFrontendQueryKey>& OutKeysModified, FFrontendQuerySelection& OutSelection) const;
+
+		TArray<FStepInfo> Steps;
+		int32 FinalEntryProducingStepIndex = INDEX_NONE;
 	};
 }

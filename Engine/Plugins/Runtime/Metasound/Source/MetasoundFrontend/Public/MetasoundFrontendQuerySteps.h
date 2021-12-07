@@ -9,14 +9,23 @@
 
 namespace Metasound
 {
+	class FMapToNull : public IFrontendQueryMapStep
+	{
+	public:
+		virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const override
+		{
+			return FFrontendQueryKey();
+		}
+	};
+
 	/** Streams node classes that have been newly registered or unregistered since last call to Stream()
 	 */
-	class METASOUNDFRONTEND_API FNodeClassRegistrationEvents : public IFrontendQuerySource
+	class METASOUNDFRONTEND_API FNodeClassRegistrationEvents : public IFrontendQueryStreamStep
 	{
 	public:
 		FNodeClassRegistrationEvents();
-		void Stream(TArray<FFrontendQueryEntry>& OutEntries) override;
-		void Reset() override;
+		virtual void Stream(TArray<FFrontendQueryValue>& OutValues) override;
+		//void Reset() override;
 
 	private:
 		Frontend::FRegistryTransactionID CurrentTransactionID;
@@ -26,7 +35,7 @@ namespace Metasound
 	class METASOUNDFRONTEND_API FMapRegistrationEventsToNodeRegistryKeys : public IFrontendQueryMapStep
 	{
 	public:
-		FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override;
+		virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const override;
 	};
 
 	/** Reduces registration events mapped to the same key by inspecting their add/remove state in
@@ -35,7 +44,7 @@ namespace Metasound
 	class METASOUNDFRONTEND_API FReduceRegistrationEventsToCurrentStatus: public IFrontendQueryReduceStep
 	{
 	public:
-		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override;
+		virtual void Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const override;
 	};
 
 	/** Transforms a registration event into a FMetasoundFrontendClass. */
@@ -56,7 +65,7 @@ namespace Metasound
 
 		FFilterClassesByInputVertexDataType(const FName& InTypeName);
 
-		bool Filter(const FFrontendQueryEntry& InEntry) const override;
+		virtual bool Filter(const FFrontendQueryEntry& InEntry) const override;
 
 	private:
 		FName InputVertexTypeName;
@@ -73,21 +82,17 @@ namespace Metasound
 
 		FFilterClassesByOutputVertexDataType(const FName& InTypeName);
 
-		bool Filter(const FFrontendQueryEntry& InEntry) const override;
+		virtual bool Filter(const FFrontendQueryEntry& InEntry) const override;
 
 	private:
 		FName OutputVertexTypeName;
 	};
 
-	class METASOUNDFRONTEND_API FFilterClassesByClassName : public IFrontendQueryFilterStep
+	class METASOUNDFRONTEND_API FMapClassesToClassName : public IFrontendQueryMapStep
 	{
 	public: 
-		FFilterClassesByClassName(const FMetasoundFrontendClassName& InClassName);
+		virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const override;
 
-		bool Filter(const FFrontendQueryEntry& InEntry) const override;
-
-	private:
-		FMetasoundFrontendClassName ClassName;
 	};
 
 	class METASOUNDFRONTEND_API FFilterClassesByClassID : public IFrontendQueryFilterStep
@@ -95,7 +100,7 @@ namespace Metasound
 	public:
 		FFilterClassesByClassID(const FGuid InClassID);
 
-		bool Filter(const FFrontendQueryEntry& InEntry) const override;
+		virtual bool Filter(const FFrontendQueryEntry& InEntry) const override;
 
 	private:
 		FGuid ClassID;
@@ -104,29 +109,18 @@ namespace Metasound
 	class METASOUNDFRONTEND_API FMapToFullClassName : public IFrontendQueryMapStep
 	{
 	public:
-		FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override;
+		virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const override;
 	};
 
 	class METASOUNDFRONTEND_API FReduceClassesToHighestVersion : public IFrontendQueryReduceStep
 	{
 	public:
-		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override;
-	};
-
-	class METASOUNDFRONTEND_API FReduceClassesToMajorVersion : public IFrontendQueryReduceStep
-	{
-	public:
-		FReduceClassesToMajorVersion(int32 InMajorVersion);
-
-		void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override;
-
-	private:
-		int32 MajorVersion = -1;
+		virtual void Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const override;
 	};
 
 	class METASOUNDFRONTEND_API FSortClassesByVersion : public IFrontendQuerySortStep
 	{
 	public:
-		bool Sort(const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS) const override;
+		virtual bool Sort(const FFrontendQueryEntry& InEntryLHS, const FFrontendQueryEntry& InEntryRHS) const override;
 	};
 }
