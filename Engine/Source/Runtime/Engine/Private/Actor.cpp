@@ -2499,7 +2499,7 @@ void AActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (ActorHasBegunPlay == EActorBeginPlayState::HasBegunPlay)
 	{
-		TRACE_OBJECT_EVENT(this, EndPlay);
+		TRACE_OBJECT_LIFETIME_END(this);
 
 		ActorHasBegunPlay = EActorBeginPlayState::HasNotBegunPlay;
 
@@ -3782,7 +3782,7 @@ void AActor::DispatchBeginPlay(bool bFromLevelStreaming)
 
 void AActor::BeginPlay()
 {
-	TRACE_OBJECT_EVENT(this, BeginPlay);
+	TRACE_OBJECT_LIFETIME_BEGIN(this);
 
 	ensureMsgf(ActorHasBegunPlay == EActorBeginPlayState::BeginningPlay, TEXT("BeginPlay was called on actor %s which was in state %d"), *GetPathName(), (int32)ActorHasBegunPlay);
 	SetLifeSpan( InitialLifeSpan );

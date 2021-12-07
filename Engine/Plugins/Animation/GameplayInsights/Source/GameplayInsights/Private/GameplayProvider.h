@@ -24,6 +24,7 @@ public:
 	virtual bool ReadObjectPropertiesTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectPropertiesTimeline&)> Callback) const override;
 	virtual void EnumerateObjectPropertyValues(uint64 InObjectId, const FObjectPropertiesMessage& InMessage, TFunctionRef<void(const FObjectPropertyValue&)> Callback) const override;
 	virtual void EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const override;
+	virtual void EnumerateObjects(double StartTime, double EndTime, TFunctionRef<void(const FObjectInfo&)> Callback) const override;
 	virtual const FClassInfo* FindClassInfo(uint64 InClassId) const override;
 	virtual const FClassInfo* FindClassInfo(const TCHAR* InClassPath) const override;
 	virtual const FObjectInfo* FindObjectInfo(uint64 InObjectId) const override;
@@ -43,6 +44,12 @@ public:
 
 	/** Add an object message */
 	void AppendObject(uint64 InObjectId, uint64 InOuterId, uint64 InClassId, const TCHAR* InObjectName, const TCHAR* InObjectPathName);
+
+	/** Add an object create message */
+	void AppendObjectLifetimeBegin(uint64 InObjectId, double InTime);
+	
+	/** Add an object destroy message */
+	void AppendObjectLifetimeEnd(uint64 InObjectId, double InTime);	
 
 	/** Add an object event message */
 	void AppendObjectEvent(uint64 InObjectId, double InTime, const TCHAR* InEvent);
@@ -110,6 +117,11 @@ private:
 		uint64 ControllerId = 0;
 		uint64 PawnId = 0;
 	};
+	
+	struct FObjectExistsMessage
+	{
+		uint64 ObjectId = 0;
+	};
 
 	struct FObjectPropertiesStorage
 	{
@@ -142,9 +154,16 @@ private:
 
 	// Timeline containing intervals where a controller is attached to a pawn
 	TraceServices::TIntervalTimeline<FPawnPossessMessage> PawnPossession;
+	
+	// Timeline containing intervals where an object exists
+	TraceServices::TIntervalTimeline<FObjectExistsMessage> ObjectLifetimes;
+
 
 	// map from controller id to index in the PawnPossession timeline, for lookup when ending events
 	TMap<uint64, uint64> ActivePawnPossession;
+
+	// map from object id to index in ObjectLifetimes, for lookup when objects are destroyed
+	TMap<uint64, uint64> ActiveObjectLifetimes;
 
 	/** Whether we have any data */
 	bool bHasAnyData;

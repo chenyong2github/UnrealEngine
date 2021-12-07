@@ -54,6 +54,12 @@ struct FObjectTrace
 
 	/** Helper function to output an object */
 	ENGINE_API static void OutputObject(const UObject* InObject);
+	
+	/** Helper function to output object create event */
+	ENGINE_API static void OutputObjectLifetimeBegin(const UObject* InObject);
+	
+	/** Helper function to output object create event */
+	ENGINE_API static void OutputObjectLifetimeEnd(const UObject* InObject);
 
 	/** Helper function to output camera information for a player */
 	ENGINE_API static void OutputView(const UObject* LocalPlayer, const FSceneView* View);
@@ -109,6 +115,12 @@ struct FObjectTrace
 
 #define TRACE_OBJECT_EVENT(Object, Event) \
 	if(CAN_TRACE_OBJECT(Object)) { UNCONDITIONAL_TRACE_OBJECT_EVENT(Object, Event); }
+	
+#define TRACE_OBJECT_LIFETIME_BEGIN(Object) \
+	if(CAN_TRACE_OBJECT(Object)) { FObjectTrace::OutputObjectLifetimeBegin(Object); }
+
+#define TRACE_OBJECT_LIFETIME_END(Object) \
+	if(CAN_TRACE_OBJECT(Object)) { FObjectTrace::OutputObjectLifetimeEnd(Object); }
 
 #define TRACE_PAWN_POSSESS(Controller, Pawn)\
 	if(CAN_TRACE_OBJECT(Controller) && (Pawn==nullptr || (CAN_TRACE_OBJECT(Pawn)))) FObjectTrace::OutputPawnPossess(Controller, Pawn);
@@ -117,6 +129,12 @@ struct FObjectTrace
 
 #define TRACE_OBJECT_EVENT(Object, Event) \
 	UNCONDITIONAL_TRACE_OBJECT_EVENT(Object, Event);
+
+#define TRACE_OBJECT_LIFETIME_BEGIN(Object) \
+	FObjectTrace::OutputObjectLifetimeBegin(Object);
+	
+#define TRACE_OBJECT_LIFETIME_END(Object) \
+	FObjectTrace::OutputObjectLifetimeEnd(Object);
 	
 #define TRACE_PAWN_POSSESS(Controller, Pawn)\
 	FObjectTrace::OutputPawnPossess(Controller, Pawn);
@@ -138,5 +156,7 @@ struct FObjectTrace
 #define TRACE_WORLD(World)
 #define TRACE_PAWN_POSSESS(Controller, Pawn)
 #define TRACE_VIEW(Player, View)
+#define TRACE_OBJECT_LIFETIME_BEGIN(Object)
+#define TRACE_OBJECT_LIFETIME_END(Object)
 
 #endif

@@ -1022,7 +1022,7 @@ void UActorComponent::UninitializeComponent()
 
 void UActorComponent::BeginPlay()
 {
-	TRACE_OBJECT_EVENT(this, BeginPlay);
+	TRACE_OBJECT_LIFETIME_BEGIN(this);
 
 	check(bRegistered);
 	check(!bHasBegunPlay);
@@ -1038,7 +1038,7 @@ void UActorComponent::BeginPlay()
 
 void UActorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	TRACE_OBJECT_EVENT(this, EndPlay);
+	TRACE_OBJECT_LIFETIME_END(this);
 
 	check(bHasBegunPlay);
 

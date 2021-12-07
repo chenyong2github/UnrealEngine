@@ -12,6 +12,7 @@ FGameplayProvider::FGameplayProvider(TraceServices::IAnalysisSession& InSession)
 	: Session(InSession)
 	, EndPlayEvent(nullptr)
 	, PawnPossession(InSession.GetLinearAllocator())
+	, ObjectLifetimes(InSession.GetLinearAllocator())
 	, bHasAnyData(false)
 	, bHasObjectProperties(false)
 {
@@ -90,6 +91,19 @@ void FGameplayProvider::EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> 
 	{
 		Callback(ObjectInfo);
 	}
+}
+
+void FGameplayProvider::EnumerateObjects(double StartTime, double EndTime, TFunctionRef<void(const FObjectInfo&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	ObjectLifetimes.EnumerateEvents(StartTime, EndTime,
+		[this, Callback](double InStartTime, double InEndTime, uint32 InDepth, const FObjectExistsMessage& ExistsMessage)
+		{
+			checkSlow(ObjectIdToIndexMap.Contains(ExistsMessage.ObjectId));
+			Callback(ObjectInfos[ObjectIdToIndexMap[ExistsMessage.ObjectId]]);
+			return TraceServices::EEventEnumerate::Continue;
+		});
 }
 
 const FClassInfo* FGameplayProvider::FindClassInfo(uint64 InClassId) const
@@ -274,6 +288,36 @@ void FGameplayProvider::AppendObject(uint64 InObjectId, uint64 InOuterId, uint64
 
 		int32 NewObjectInfoIndex = ObjectInfos.Add(NewObjectInfo);
 		ObjectIdToIndexMap.Add(InObjectId, NewObjectInfoIndex);
+	}
+}
+
+void FGameplayProvider::AppendObjectLifetimeBegin(uint64 InObjectId, double InTime)
+{
+	Session.WriteAccessCheck();
+	bHasAnyData = true;
+
+	if (InObjectId)
+	{
+		FObjectExistsMessage Message;
+		Message.ObjectId = InObjectId;
+		ActiveObjectLifetimes.Add(InObjectId, ObjectLifetimes.AppendBeginEvent(InTime, Message));
+	}
+}
+
+void FGameplayProvider::AppendObjectLifetimeEnd(uint64 InObjectId, double InTime)
+{
+	Session.WriteAccessCheck();
+	bHasAnyData = true;
+
+	if (const uint64 *FoundIndex = ActiveObjectLifetimes.Find(InObjectId))
+	{
+		ObjectLifetimes.EndEvent(*FoundIndex, InTime);
+		ActiveObjectLifetimes.Remove(InObjectId);
+	}
+
+	if(int32* ObjectInfoIndex = ObjectIdToIndexMap.Find(InObjectId))
+	{
+		OnObjectEndPlayDelegate.Broadcast(InObjectId, InTime, ObjectInfos[*ObjectInfoIndex]);
 	}
 }
 
