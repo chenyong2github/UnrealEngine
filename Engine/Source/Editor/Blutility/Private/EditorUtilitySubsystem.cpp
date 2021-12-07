@@ -50,6 +50,9 @@ void UEditorUtilitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UEditorUtilitySubsystem::Tick), 0);
+
+	FEditorDelegates::BeginPIE.AddUObject(this, &UEditorUtilitySubsystem::HandleOnBeginPIE);
+	FEditorDelegates::EndPIE.AddUObject(this, &UEditorUtilitySubsystem::HandleOnEndPIE);
 }
 
 void UEditorUtilitySubsystem::Deinitialize()
@@ -62,6 +65,9 @@ void UEditorUtilitySubsystem::Deinitialize()
 	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 
 	IConsoleManager::Get().UnregisterConsoleObject(RunTaskCommandObject);
+
+	FEditorDelegates::BeginPIE.RemoveAll(this);
+	FEditorDelegates::EndPIE.RemoveAll(this);
 }
 
 void UEditorUtilitySubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -481,6 +487,16 @@ UClass* UEditorUtilitySubsystem::FindBlueprintClass(const FString& TargetNameRaw
 	});
 
 	return FoundClass;
+}
+
+void UEditorUtilitySubsystem::HandleOnBeginPIE(const bool bIsSimulating)
+{
+	OnBeginPIE.Broadcast(bIsSimulating);
+}
+
+void UEditorUtilitySubsystem::HandleOnEndPIE(const bool bIsSimulating)
+{
+	OnEndPIE.Broadcast(bIsSimulating);
 }
 
 #undef LOCTEXT_NAMESPACE
