@@ -20,6 +20,9 @@ namespace Metasound
 				/** Return an instance of a search engine. */
 				static ISearchEngine& Get();
 
+				/** Updates internal state to speed up queries. */
+				virtual void Prime() = 0;
+
 				/** Find all FMetasoundFrontendClasses.
 				  * (Optional) Include deprecated classes (i.e. versions of classes that are not the highest major version).
 				  */
@@ -43,8 +46,6 @@ namespace Metasound
 				virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredInterfacesWithName(FName InInterfaceName) = 0;
 
 				virtual bool FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface) = 0;
-
-				virtual bool FindInterfaceWithMajorVersion(FName InInterfaceName, int32 InMajorVersion, FMetasoundFrontendInterface& OutInterface) = 0;
 
 				virtual ~ISearchEngine() = default;
 

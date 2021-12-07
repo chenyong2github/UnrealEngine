@@ -6,15 +6,15 @@
 #include "CoreMinimal.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistryTransaction.h"
+#include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundLog.h"
 #include "MetasoundRouter.h"
+#include "MetasoundTrace.h"
 #include "Misc/ScopeLock.h"
-#include "HAL/PlatformTime.h"
 
 #ifndef WITH_METASOUND_FRONTEND
 #define WITH_METASOUND_FRONTEND 0
 #endif
-
 
 namespace Metasound
 {
@@ -69,8 +69,6 @@ namespace Metasound
 						return InvalidType;
 				}
 			}
-
-
 
 			// Registry container private implementation.
 			class FRegistryContainerImpl : public FMetasoundFrontendRegistryContainer
@@ -160,24 +158,25 @@ namespace Metasound
 
 			void FRegistryContainerImpl::RegisterPendingNodes()
 			{
-				FScopeLock ScopeLock(&LazyInitCommandCritSection);
-
-				UE_LOG(LogMetaSound, Display, TEXT("Processing %i Metasounds Frontend Registration Requests."), LazyInitCommands.Num());
-				uint64 CurrentTime = FPlatformTime::Cycles64();
-
-				for (TUniqueFunction<void()>& Command : LazyInitCommands)
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FRegistryContainerImpl::RegisterPendingNodes);
 				{
-					Command();
+					FScopeLock ScopeLock(&LazyInitCommandCritSection);
+
+					for (TUniqueFunction<void()>& Command : LazyInitCommands)
+					{
+						Command();
+					}
+
+					LazyInitCommands.Empty();
 				}
 
-				LazyInitCommands.Empty();
-
-				uint64 CyclesUsed = FPlatformTime::Cycles64() - CurrentTime;
-				UE_LOG(LogMetaSound, Display, TEXT("Initializing Metasounds Frontend took %f seconds."), FPlatformTime::ToSeconds64(CyclesUsed));
+				// Prime search engine after bulk registration.
+				ISearchEngine::Get().Prime();
 			}
 
 			bool FRegistryContainerImpl::EnqueueInitCommand(TUniqueFunction<void()>&& InFunc)
 			{
+
 				FScopeLock ScopeLock(&LazyInitCommandCritSection);
 				if (LazyInitCommands.Num() >= MaxNumNodesAndDatatypesToInitialize)
 				{
