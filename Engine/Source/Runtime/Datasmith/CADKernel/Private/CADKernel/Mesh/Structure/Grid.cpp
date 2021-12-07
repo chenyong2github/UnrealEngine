@@ -19,13 +19,14 @@ FGrid::FGrid(TSharedRef<FTopologicalFace>& InFace, TSharedRef<FModelMesh>& InMes
 	: Face(InFace)
 	, FaceTolerance(InFace->GetIsoTolerances())
 	, Tolerance3D(InFace->GetCarrierSurface()->Get3DTolerance())
-	, MinimumElementSize(Tolerance3D * 10.)
+	, MinimumElementSize(Tolerance3D * 2.)
 	, MeshModel(InMeshModel)
 	, ThinZoneFinder(*this)
 	, CuttingCoordinates(Face->GetCuttingPointCoordinates())
 {
 #ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
 	bDisplay = (Face->GetId() == FaceToDebug);
+	Open3DDebugSession(bDisplay, FString::Printf(TEXT("Grid %d"), Face->GetId()));
 #endif
 }
 
@@ -943,6 +944,7 @@ void SlightlyDisplacedPolyline(TArray<FPoint2D>& D2Points, const FSurfacicBounda
 	D2Points.Last() += Normal;
 }
 
+//#define DEBUG_GET_BOUNDARY_MESH
 bool FGrid::GetMeshOfLoops()
 {
 	int32 ThinZoneNum = 0;
@@ -1038,9 +1040,31 @@ bool FGrid::GetMeshOfLoops()
 			}
 
 			TArray<int32> EdgeVerticesIndex;
-			if (ActiveEdge->IsDegenerated())
+			if (Edge->IsDegenerated())
 			{
 				EdgeVerticesIndex.Init(ActiveEdge->GetStartVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh(), CuttingPolyline.Coordinates.Num());
+			}
+			else if (Edge->IsVirtuallyMeshed())
+			{
+				// @see FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
+				int32 NodeCount = CuttingPolyline.Coordinates.Num();
+				EdgeVerticesIndex.Reserve(NodeCount);
+				int32 MiddleNodeIndex = NodeCount / 2;
+				int32 Index = 0;
+				{
+					int32 StartVertexMeshId = Edge->GetStartVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh();
+					for (; Index < MiddleNodeIndex; ++Index)
+					{
+						EdgeVerticesIndex.Add(StartVertexMeshId);
+					}
+				}
+				{
+					int32 EndVertexMeshId = Edge->GetEndVertex()->GetLinkActiveEntity()->GetOrCreateMesh(MeshModel)->GetMesh();
+					for (; Index < NodeCount; ++Index)
+					{
+						EdgeVerticesIndex.Add(EndVertexMeshId);
+					}
+				}
 			}
 			else
 			{
@@ -1049,7 +1073,7 @@ bool FGrid::GetMeshOfLoops()
 
 #ifdef DEBUG_GET_BOUNDARY_MESH
 			{
-				F3DDebugSession _(FString::Printf(TEXT("Edge cutting points on surface %d"), ActiveEdge->GetId()));
+				F3DDebugSession _(FString::Printf(TEXT("Edge %d cutting points on surface"), ActiveEdge->GetId()));
 				for (const FPoint2D& Point2D : CuttingPolyline.Points2D)
 				{
 					DisplayPoint(Point2D);
@@ -1798,27 +1822,29 @@ void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
 		return;
 	}
 	int32 NbNum = 0;
-	Open3DDebugSession(TEXT("FGrid::FindInnerDomainPoints Inside Point"));
-	for (int32 Index = 0; Index < CuttingSize; ++Index)
 	{
-		if (IsInsideFace[Index])
+		F3DDebugSession _(TEXT("FGrid::FindInnerDomainPoints Inside Point"));
+		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
-			DisplayPoint(Points2D[DisplaySpace][Index], Index);
-			NbNum++;
+			if (IsInsideFace[Index])
+			{
+				DisplayPoint(Points2D[DisplaySpace][Index], Index);
+				NbNum++;
+			}
 		}
 	}
-	Close3DDebugSession();
 	ensureCADKernel(NbNum == CountOfInnerNodes);
 
-	Open3DDebugSession(TEXT("FGrid::FindInnerDomainPoints Outside Point"));
-	for (int32 Index = 0; Index < CuttingSize; ++Index)
 	{
-		if (!IsInsideFace[Index])
+		F3DDebugSession _(TEXT("FGrid::FindInnerDomainPoints Outside Point"));
+		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
-			DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::OrangePoint, Index);
+			if (!IsInsideFace[Index])
+			{
+				DisplayPoint(Points2D[DisplaySpace][Index], EVisuProperty::OrangePoint, Index);
+			}
 		}
 	}
-	Close3DDebugSession();
 }
 
 void FGrid::DisplayGridNormal() const
@@ -1828,36 +1854,37 @@ void FGrid::DisplayGridNormal() const
 		return;
 	}
 
-	Open3DDebugSession(TEXT("FGrid::Inner Normal"));
 	double NormalLength = FSystem::Get().GetVisu()->GetParameters()->NormalLength;
-
-	for (int32 Index = 0; Index < CuttingSize; ++Index)
 	{
-		F3DDebugSegment GraphicSegment(Index);
-		FVector Normal = Normals[Index];
-		Normal.Normalize();
-		Normal *= NormalLength;
-		DrawSegment(Points3D[Index], Points3D[Index] + Normal, EVisuProperty::GreenCurve);
-	}
+		F3DDebugSession _(TEXT("FGrid::Inner Normal"));
 
-	Close3DDebugSession();
-
-	Open3DDebugSession(TEXT("FGrid::Loop Normal"));
-	for (int32 LoopIndex = 0; LoopIndex < FaceLoops3D.Num(); ++LoopIndex)
-	{
-		const TArray<FPoint>& LoopPoints = FaceLoops3D[LoopIndex];
-		const TArray<FVector>& LoopNormals = NormalsOfFaceLoops[LoopIndex];
-
-		for (int32 Index = 0; Index < LoopPoints.Num(); ++Index)
+		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
 			F3DDebugSegment GraphicSegment(Index);
-			FVector Normal = LoopNormals[Index];
+			FVector Normal = Normals[Index];
 			Normal.Normalize();
 			Normal *= NormalLength;
-			DrawSegment(LoopPoints[Index], LoopPoints[Index] + Normal, EVisuProperty::YellowCurve);
+			DrawSegment(Points3D[Index], Points3D[Index] + Normal, EVisuProperty::GreenCurve);
 		}
 	}
-	Close3DDebugSession();
+
+	{
+		F3DDebugSession _(TEXT("FGrid::Loop Normal"));
+		for (int32 LoopIndex = 0; LoopIndex < FaceLoops3D.Num(); ++LoopIndex)
+		{
+			const TArray<FPoint>& LoopPoints = FaceLoops3D[LoopIndex];
+			const TArray<FVector>& LoopNormals = NormalsOfFaceLoops[LoopIndex];
+
+			for (int32 Index = 0; Index < LoopPoints.Num(); ++Index)
+			{
+				F3DDebugSegment GraphicSegment(Index);
+				FVector Normal = LoopNormals[Index];
+				Normal.Normalize();
+				Normal *= NormalLength;
+				DrawSegment(LoopPoints[Index], LoopPoints[Index] + Normal, EVisuProperty::YellowCurve);
+			}
+		}
+	}
 }
 
 

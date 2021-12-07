@@ -33,7 +33,7 @@ namespace CADKernel
 		inline PointType LinearInterpolation(const TArray<PointType>& Array, const int32 Index, const double Coordinate)
 		{
 			ensureCADKernel(Index + 1 < Array.Num());
-			return Array[Index] + (Array[Index + 1] - Array[Index]) * Coordinate;
+			return PointOnSegment(Array[Index], Array[Index + 1], Coordinate);
 		}
 
 		inline double SectionCoordinate(const TArray<double>& Array, const int32 Index, const double Coordinate)

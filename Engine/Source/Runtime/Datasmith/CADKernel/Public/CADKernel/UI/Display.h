@@ -40,9 +40,17 @@ namespace CADKernel
 #ifdef CADKERNEL_DEV
 	void Wait(bool bMakeWait = true);
 	void Open3DDebugSession(FString name, const TArray<FIdent>& idList = TArray<FIdent>());
+	inline void Open3DDebugSession(bool bIsDisplayed, FString name, const TArray<FIdent>& idList = TArray<FIdent>()) 
+	{
+		if (bIsDisplayed)
+		{
+			Open3DDebugSession(name, idList);
+		}
+	};
 	void Close3DDebugSession(bool bIsDisplayed = true);
 #else
 	inline void Wait(bool bMakeWait = true) {};
+	inline void Open3DDebugSession(bool bIsDisplayed, FString name, const TArray<FIdent>& idList = TArray<FIdent>()) {};
 	inline void Open3DDebugSession(FString name, const TArray<FIdent>& idList = TArray<FIdent>()) {};
 	inline void Close3DDebugSession(bool bIsDisplayed = true) {};
 #endif
@@ -134,6 +142,22 @@ namespace CADKernel
 	{
 		F3DDebugSegment G(Ident);
 		DrawPoint(Point, Property);
+	}
+
+	template<typename TPoint>
+	void DisplayPoints(FString Message, const TArray<TPoint>& Points, EVisuProperty Property = EVisuProperty::BluePoint, bool bDisplay = true)
+	{
+		if (!bDisplay)
+		{
+			return;
+		}
+
+		Open3DDebugSession(Message);
+		for (int32 Index = 0; Index < Points.Num(); ++Index)
+		{
+			DisplayPoint(Points[Index], Property);
+		}
+		Close3DDebugSession();
 	}
 
 	CADKERNEL_API void DisplayProductTree(const FEntity& RootId);

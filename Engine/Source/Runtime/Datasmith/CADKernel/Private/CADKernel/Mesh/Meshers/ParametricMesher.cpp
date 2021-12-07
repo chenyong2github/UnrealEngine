@@ -150,14 +150,12 @@ void FParametricMesher::MeshEntities()
 	//      Mesh surfaces 
 	// ============================================================================================================
 
-	FMessage::Printf(Log, TEXT("  Mesh Surfaces\n"));
-
 	FTimePoint MeshStartTime = FChrono::Now();
 	MeshSurfaceByFront(QuadTrimmedSurfaceSet);
 	Chronos.GlobalMeshDuration = FChrono::Elapse(MeshStartTime);
 	Chronos.GlobalDuration = FChrono::Elapse(StartTime);
 
-	Chronos.PrintTimeElapse();
+	//Chronos.PrintTimeElapse();
 }
 
 void FParametricMesher::ApplyFaceCriteria(TSharedRef<FTopologicalFace> Face)
@@ -177,7 +175,7 @@ void FParametricMesher::ApplyFaceCriteria(TSharedRef<FTopologicalFace> Face)
 void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
 {
 	FTopologicalEdge& ActiveEdge = *Edge.GetLinkActiveEdge();
-	ensureCADKernel(!ActiveEdge.IsApplyCriteria());
+	ensureCADKernel(Edge.IsVirtuallyMeshed() || !ActiveEdge.IsApplyCriteria());
 
 	Edge.ComputeCrossingPointCoordinates();
 	Edge.InitDeltaUs();
@@ -208,6 +206,10 @@ void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
 
 void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 {
+#ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
+	bDisplay = (Face->GetId() == FaceToDebug);
+#endif
+
 	ensureCADKernel(!Face->IsDeleted());
 	ensureCADKernel(!Face->IsMeshed());
 
@@ -265,6 +267,8 @@ void FParametricMesher::Mesh(TSharedRef<FTopologicalFace> Face)
 	Chronos.GlobalDelaunayDuration += IsoTrianguler.Chronos.FindSegmentToLinkLoopToLoopByDelaunayDuration;
 	Chronos.GlobalMeshDuration += Duration;
 #endif
+
+	FChrono::PrintClockElapse(EVerboseLevel::Debug, TEXT("   "), TEXT("Meshing"), Duration);
 
 	if (BoolDisplayDebugMeshStep)
 	{
@@ -406,7 +410,17 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
 		FTopologicalEdge& ActiveEdge = *InEdge.GetLinkActiveEntity();
 		if (ActiveEdge.IsMeshed())
 		{
-			return;
+			if (ActiveEdge.GetMesh()->GetNodeCount() > 0)
+			{
+				return;
+			}
+
+			// In some case the 2d curve is a smooth curve and the 3d curve is a line and vice versa
+			// In the particular case where the both case are opposed, we can have the 2d line sampled with 4 points, and the 2d curve sampled with 2 points (because in 3d, the 2d curve is a 3d line)
+			// In this case, the loop is flat i.e. in 2d the meshes of the 2d line and 2d curve are coincident
+			// So the grid is degenerated and the surface is not meshed
+			// to avoid this case, the Edge is virtually meshed i.e. the nodes inside the edge has the is of the mesh of the vertices.
+			InEdge.SetAsVirtuallyMeshed();
 		}
 
 		if (ActiveEdge.IsThinPeak())
@@ -431,12 +445,10 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
 	ApplyEdgeCriteria(InEdge);
 
 #ifdef DEBUG_MESH_EDGE
+	if(bDisplay)
 	{
-		F3DDebugSession _(FString::Printf(TEXT("EdgePointsOnDomain %d"), ActiveEdge.GetId()));
-		for (const FPoint& Point : EdgeCrossingPoints2D)
-		{
-			DisplayPoint(Point);
-		}
+		F3DDebugSession _(FString::Printf(TEXT("EdgePointsOnDomain %d"), InEdge.GetId()));
+		Display2D(InEdge);
 		Wait();
 	}
 #endif
@@ -495,14 +507,15 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
 	}
 
 #ifdef DEBUG_MESH_EDGE
+	if (bDisplay)
 	{
 		F3DDebugSession _(FString::Printf(TEXT("Edge %d"), InEdge.GetId()));
-		for (int32 Index = 0; Index < ActiveEdge.GetImposedCuttingPoints().Num(); ++Index)
+		for (int32 Index = 0; Index < InEdge.GetImposedCuttingPoints().Num(); ++Index)
 		{
-			const FImposedCuttingPoint& CuttingPoint = ActiveEdge.GetImposedCuttingPoints()[Index];
+			const FImposedCuttingPoint& CuttingPoint = InEdge.GetImposedCuttingPoints()[Index];
 			ImposedIsoCuttingPoints.Emplace(CuttingPoint.Coordinate, ECoordinateType::ImposedCoordinate, CuttingPoint.OppositNodeIndex, MinDeltaU * AThird);
 			FCurvePoint Point;
-			ActiveEdge.EvaluatePoint(CuttingPoint.Coordinate, 0, Point);
+			InEdge.EvaluatePoint(CuttingPoint.Coordinate, 0, Point);
 			DisplayPoint(Point.Point);
 		}
 	}
@@ -651,8 +664,13 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, FTopologicalFace& Face)
 	}
 #endif
 
-	if (InEdge.IsDegenerated())
+	if (InEdge.IsDegenerated() || InEdge.IsVirtuallyMeshed())
 	{
+		if (ImposedIsoCuttingPoints.Num() == 2)
+		{
+			ImposedIsoCuttingPoints.EmplaceAt(1, (ImposedIsoCuttingPoints[0].Coordinate + ImposedIsoCuttingPoints[1].Coordinate) * 0.5, ECoordinateType::OtherCoordinate);
+		}
+
 		for (FCuttingPoint CuttingPoint : ImposedIsoCuttingPoints)
 		{
 			FinalEdgeCuttingPointCoordinates.Emplace(CuttingPoint.Coordinate, ECoordinateType::OtherCoordinate);
@@ -731,6 +749,7 @@ void FParametricMesher::GenerateEdgeElements(FTopologicalEdge& Edge)
 	}
 
 #ifdef DEBUG_MESH_EDGE
+	if (bDisplay)
 	{
 		F3DDebugSession _(FString::Printf(TEXT("Edge Mesh %d"), Edge.GetId()));
 		TArray<FPoint2D> Mesh2D;
@@ -1053,7 +1072,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 		const TSharedPtr<FTopologicalLoop> Loop = Face->GetLoops()[0];
 		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 		{
-			const TSharedPtr<FTopologicalEdge>& Edge = OrientedEdge.Entity;
+			const TSharedPtr<FTopologicalEdge> Edge = OrientedEdge.Entity;
 			Edge->SetMarker1(); // tmp for debug
 			for (FTopologicalEdge* NextEdge : Edge->GetTwinsEntities())
 			{

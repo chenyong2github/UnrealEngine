@@ -673,6 +673,21 @@ namespace CADKernel
 			States &= ~EHaveStates::ThinPeak;
 		}
 
+		bool IsVirtuallyMeshed() const
+		{
+			return ((States & EHaveStates::IsVirtuallyMeshed) == EHaveStates::IsVirtuallyMeshed);
+		}
+
+		virtual void SetAsVirtuallyMeshed() const
+		{
+			States |= EHaveStates::IsVirtuallyMeshed;
+		}
+
+		virtual void ResetVirtuallyMeshed() const
+		{
+			States &= ~EHaveStates::IsVirtuallyMeshed;
+		}
+		
 		/**
 		 * @return true if the edge is adjacent to only one surface (its carrier surface)
 		 */

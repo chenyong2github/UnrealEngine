@@ -42,6 +42,8 @@ enum class EIsoNodeStates : uint16
 	NearlyIsoU = 0x1000u,  // Loop nodes
 	NearlyIsoV = 0x2000u,  // Loop nodes
 
+	Delete = 0x8000u,
+
 	All = 0xFFFFu
 };
 
@@ -76,6 +78,19 @@ public:
 
 	virtual ~FIsoNode() = default;
 
+	virtual void Delete()
+	{
+		ConnectedSegments.Empty();
+		FaceIndex = -1;
+
+		States = EIsoNodeStates::Delete;
+	}
+
+	bool IsDelete() const 
+	{
+		return (States & EIsoNodeStates::Delete) == EIsoNodeStates::Delete;
+	}
+
 	const int32 GetIndex() const
 	{
 		return Index;
@@ -98,23 +113,14 @@ public:
 
 	FIsoSegment* GetSegmentConnectedTo(const FIsoNode* Node) const;
 
-	void RemoveSegment(FIsoSegment* const Segment)
+	void ConnectSegment(FIsoSegment& Segment)
 	{
-		int32 SegmentIndex = 0;
-		if (ConnectedSegments.Find(Segment, SegmentIndex))
-		{
-			ConnectedSegments.RemoveAt(SegmentIndex);
-		}
+		ConnectedSegments.Add(&Segment);
 	}
 
-	void ConnectSegment(FIsoSegment* Segment)
+	void DisconnectSegment(FIsoSegment& Segment)
 	{
-		ConnectedSegments.Add(Segment);
-	}
-
-	void DisconnectSegment(FIsoSegment* Segment)
-	{
-		ConnectedSegments.Remove(Segment);
+		ConnectedSegments.RemoveSingle(&Segment);
 	}
 
 	const virtual bool IsALoopNode() const = 0;
@@ -230,6 +236,9 @@ public:
 	virtual bool operator==(const FIsoNode& OtherNode) const = 0;
 	virtual bool IsEqualTo(const FLoopNode& OtherNode) const = 0;
 	virtual bool IsEqualTo(const FIsoInnerNode& OtherNode) const = 0;
+
+	virtual uint32 GetTypeHash() const = 0;
+
 };
 
 /**
@@ -248,6 +257,15 @@ public:
 		, ConnectedLoopNodes{ nullptr, nullptr }
 	{
 	};
+
+	virtual void Delete() override
+	{
+		FIsoNode::Delete();
+
+		//LoopIndex = -1;
+		ConnectedLoopNodes[0] = nullptr;
+		ConnectedLoopNodes[1] = nullptr;
+	}
 
 	virtual bool IsEqualTo(const FLoopNode& OtherNode) const
 	{
@@ -291,6 +309,16 @@ public:
 	FLoopNode& GetNextNode() const
 	{
 		return *ConnectedLoopNodes[1];
+	}
+
+	FIsoSegment& GetPreviousSegment() const
+	{
+		return *GetSegmentConnectedTo(ConnectedLoopNodes[0]);
+	}
+
+	FIsoSegment& GetNextSegment() const
+	{
+		return *GetSegmentConnectedTo(ConnectedLoopNodes[1]);
 	}
 
 	/**
@@ -395,7 +423,16 @@ public:
 		}
 	}
 
+	virtual uint32 GetTypeHash() const override
+	{
+		return HashCombine(GetIndex(), GetLoopIndex() + 1);
+	}
 };
+
+inline uint32 GetTypeHash(const FIsoNode& Node)
+{
+	return Node.GetTypeHash();
+}
 
 class FIsoInnerNode : public FIsoNode
 {
@@ -501,6 +538,10 @@ public:
 		Id += StartId;
 	}
 
+	virtual uint32 GetTypeHash() const override
+	{
+		return ::GetTypeHash(GetIndex());
+	}
 };
 
 

@@ -5,6 +5,7 @@
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Geometry.h"
 #include "CADKernel/UI/Message.h"
+#include "CADKernel/UI/Visu.h"
 
 namespace CADKernel
 {
@@ -85,14 +86,61 @@ namespace CADKernel
 			Segments.Reserve(InMaxNum);
 		}
 
-		void SetNum(int32 NewMaxNum)
+		void RemoveLast()
 		{
-			Segments.Reserve(NewMaxNum);
+			ensureCADKernel(!bSegmentsAreSorted);
+			Segments.RemoveAt(Segments.Num() - 1);
+			bSegmentsAreSorted = false;
+		}
+
+		void SetCount(int32 NewCount)
+		{
+			ensureCADKernel(NewCount < Segments.Num() && !bSegmentsAreSorted);
+			while(NewCount != Segments.Num())
+			{
+				Segments.RemoveAt(Segments.Num() - 1);
+			}
+		}
+
+		/**
+		 * @return true if the segment is found and removed
+		 */
+		bool Remove(const FIsoSegment* Segment)
+		{
+			int32 SegmentIndex = Segments.IndexOfByPredicate([Segment](const FSegment4IntersectionTools& SegmentIter)
+				{
+					return SegmentIter.IsoSegment == Segment;
+				});
+
+			if (SegmentIndex != INDEX_NONE)
+			{
+				Segments.RemoveAt(SegmentIndex);
+				return true;
+			}
+			return false;
 		}
 
 		int32 Count()
 		{
 			return Segments.Num();
+		}
+
+		bool Update(const FIsoSegment* Segment)
+		{
+			int32 SegmentIndex = Segments.IndexOfByPredicate([Segment](const FSegment4IntersectionTools& SegmentIter)
+				{
+					return SegmentIter.IsoSegment == Segment;
+				});
+
+			if (SegmentIndex != INDEX_NONE)
+			{
+				Segments.RemoveAt(SegmentIndex);
+				Segments.EmplaceAt(SegmentIndex, Grid, *Segment);
+				bSegmentsAreSorted = false;
+				return true;
+			}
+			return false;
+
 		}
 
 		void AddSegments(FIsoSegment** InNewSegments, int32 Count)
@@ -129,6 +177,7 @@ namespace CADKernel
 		}
 
 		const FIsoSegment* DoesIntersect(const FIsoSegment& Segment) const;
+		FIsoSegment* DoesIntersect(const FIsoSegment& Segment);
 
 		/**
 		 * WARNING StartPoint, EndPoint must be defined in EGridSpace::UniformScaled
@@ -146,6 +195,8 @@ namespace CADKernel
 		 */
 		const FIsoSegment* DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const;
 
+		bool FindIntersections(const FIsoNode& StartNode, const FIsoNode& EndNode, TArray<const FIsoSegment*>& OutIntersections) const;
+
 		/**
 		 * segments are sorted by DMin increasing
 		 */
@@ -156,8 +207,9 @@ namespace CADKernel
 		}
 
 #ifdef CADKERNEL_DEV
-		void Display(const TCHAR* Message) const;
+		void Display(const TCHAR* Message, EVisuProperty Property = EVisuProperty::BlueCurve) const;
 #endif
+
 	};
 } // namespace CADKernel
 

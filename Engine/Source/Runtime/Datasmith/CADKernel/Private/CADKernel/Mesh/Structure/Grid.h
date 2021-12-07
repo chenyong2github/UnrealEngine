@@ -156,7 +156,14 @@ namespace CADKernel
 	public:
 		FGrid(TSharedRef<FTopologicalFace>& InFace, TSharedRef<FModelMesh>& InShellMesh);
 
+#ifndef CADKERNEL_DEV
 		virtual ~FGrid() = default;
+#else
+		virtual ~FGrid()
+		{
+			Close3DDebugSession(bDisplay);
+		}
+#endif
 
 		// ======================================================================================================================================================================================================================
 		// Meshing tools =========================================================================================================================================================================================================
@@ -525,6 +532,15 @@ namespace CADKernel
 		}
 
 		/**
+		 * @return the Index of the position in the arrays of a point [IndexU, IndexV] of the grid
+		 */
+		void UVIndexFromGlobalIndex(int32 GLobalIndex, int32& OutIndexU, int32& OutIndexV) const
+		{
+			OutIndexU = GLobalIndex % CuttingCount[EIso::IsoU];
+			OutIndexV = GLobalIndex / CuttingCount[EIso::IsoU];
+		}
+
+		/**
 		 * @return the maximum difference of coordinate along the specified axis of two two successive points
 		 */
 		double GetMaxDeltaU(EIso Iso) const
@@ -551,22 +567,6 @@ namespace CADKernel
 		void DisplayGridNormal() const;
 
 		template<typename TPoint>
-		void DisplayPoints(FString Message, const TArray<TPoint>& Points) const
-		{
-			if (!bDisplay)
-			{
-				return;
-			}
-
-			Open3DDebugSession(Message);
-			for (int32 Index = 0; Index < Points.Num(); ++Index)
-			{
-				DisplayPoint(Points[Index], Index);
-			}
-			Close3DDebugSession();
-		}
-
-		template<typename TPoint>
 		void DisplayInnerDomainPoints(FString Message, const TArray<TPoint>& Points) const
 		{
 			if (!bDisplay)
@@ -574,7 +574,7 @@ namespace CADKernel
 				return;
 			}
 
-			Open3DDebugSession(Message);
+			F3DDebugSession _(Message);
 			for (int32 Index = 0; Index < Points.Num(); ++Index)
 			{
 				if (IsInsideFace[Index])
@@ -589,7 +589,6 @@ namespace CADKernel
 					}
 				}
 			}
-			Close3DDebugSession();
 		}
 
 		template<typename TPoint>
@@ -600,7 +599,7 @@ namespace CADKernel
 				return;
 			}
 
-			Open3DDebugSession(*Message);
+			F3DDebugSession _(*Message);
 			int32 LoopIndex = 0;
 			for (const TArray<TPoint>& Loop : Loops)
 			{
@@ -631,7 +630,6 @@ namespace CADKernel
 					Close3DDebugSession();
 				}
 			}
-			Close3DDebugSession();
 		}
 
 		void DisplayFindPointsCloseToLoop(EGridSpace DisplaySpace) const;

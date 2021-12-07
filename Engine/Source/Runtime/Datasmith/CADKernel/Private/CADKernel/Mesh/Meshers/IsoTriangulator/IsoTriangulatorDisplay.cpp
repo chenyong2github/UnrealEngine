@@ -41,6 +41,21 @@ void FIsoTriangulator::Display(EGridSpace Space, const FIsoNode& Node, FIdent Id
 	return DisplayPoint(Node.GetPoint(Space, Grid), Property, Ident);
 }
 
+void FIsoTriangulator::Display(FString Message, EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property) const
+{
+	if (!bDisplay)
+	{
+		return;
+	}
+
+	Open3DDebugSession(Message);
+	for (int32 Index = 0; Index < Nodes.Num(); ++Index)
+	{
+		Display(Space, *Nodes[Index], Nodes[Index]->GetIndex(), Property);
+	}
+	Close3DDebugSession();
+}
+
 void FIsoTriangulator::Display(EGridSpace Space, const TCHAR* Message, const TArray<FIsoSegment*>& Segments, bool bDisplayNode, bool bDisplayOrientation, EVisuProperty Property) const
 {
 	if (!bDisplay)
@@ -72,14 +87,14 @@ void FIsoTriangulator::Display(EGridSpace Space, const TCHAR* Message, const TAr
 	{
 		for (FIsoSegment* Segment : Segments)
 		{
-			Display(Space, Segment->GetFirstNode(), Segment->GetFirstNode().GetFaceIndex());
-			Display(Space, Segment->GetSecondNode(), Segment->GetSecondNode().GetFaceIndex());
+			Display(Space, Segment->GetFirstNode(), Segment->GetFirstNode().GetId(), (EVisuProperty)(Property - 1));
+			Display(Space, Segment->GetSecondNode(), Segment->GetSecondNode().GetId(), (EVisuProperty)(Property - 1));
 		}
 	}
 	//Wait();
 }
 
-void FIsoTriangulator::DisplayLoops(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode>& Nodes, bool bDisplayNode, EVisuProperty Property) const
+void FIsoTriangulator::DisplayLoops(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode>& Nodes, bool bDisplayNode, EVisuProperty NodeVisuProperty) const
 {
 	if (!bDisplay)
 	{
@@ -90,8 +105,9 @@ void FIsoTriangulator::DisplayLoops(EGridSpace Space, const TCHAR* Message, cons
 
 	for (const FLoopNode& Node : Nodes)
 	{
+		if (!Node.IsDelete())
 		{
-			Display(Space, Node, Node.GetNextNode(), 0, Property);
+			Display(Space, Node, Node.GetNextNode(), 0, NodeVisuProperty);
 		}
 	}
 
@@ -99,7 +115,48 @@ void FIsoTriangulator::DisplayLoops(EGridSpace Space, const TCHAR* Message, cons
 	{
 		for (const FLoopNode& Node : Nodes)
 		{
-			Display(Space, Node, Node.GetFaceIndex());
+			if (Node.IsDelete())
+			{
+				Display(Space, Node, Node.GetFaceIndex(), EVisuProperty::PurplePoint);
+			}
+			else
+			{
+				Display(Space, Node, Node.GetFaceIndex(), (EVisuProperty) ((int32)NodeVisuProperty + 1));
+			}
+		}
+	}
+}
+
+void FIsoTriangulator::DisplayLoop(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode*>& Nodes, bool bDisplayNode, EVisuProperty NodeVisuProperty) const
+{
+	if (!bDisplay)
+	{
+		return;
+	}
+
+	F3DDebugSession _(Message);
+
+	int32 Index = 0;
+	for (const FLoopNode* Node : Nodes)
+	{
+		if (!Node->IsDelete())
+		{
+			Display(Space, *Node, Node->GetNextNode(), Index++, (EVisuProperty)((int32)NodeVisuProperty + 1));
+		}
+	}
+
+	if (bDisplayNode)
+	{
+		for (const FLoopNode* Node : Nodes)
+		{
+			if (Node->IsDelete())
+			{
+				Display(Space, *Node, Node->GetFaceIndex(), EVisuProperty::PurplePoint);
+			}
+			else
+			{
+				Display(Space, *Node, Node->GetFaceIndex(), (EVisuProperty)((int32)NodeVisuProperty));
+			}
 		}
 	}
 }
@@ -164,6 +221,61 @@ void FIsoTriangulator::DisplayCycle(const TArray<FIsoSegment*>& Cycle, const TCH
 	}
 }
 
+void FIsoTriangulator::DisplayLoops(const TCHAR* Message, bool bOneNode, bool bSplitBySegment, bool bDisplayNext, bool bDisplayPrevious) const
+{
+	if (bDisplay)
+	{
+		F3DDebugSession _(Message);
+		{
+			{
+				F3DDebugSession A(!bOneNode, TEXT("Node Cloud"));
+				int32 Index = 0;
+				for (const FLoopNode& Node : LoopNodes)
+				{
+					if (Node.IsDelete())
+					{
+						Display(EGridSpace::UniformScaled, Node, Index++, EVisuProperty::PurplePoint);
+					}
+					Display(EGridSpace::UniformScaled, Node, Index++, EVisuProperty::BluePoint);
+				}
+			}
+
+			{
+				F3DDebugSession C(!bOneNode, TEXT("Segment"));
+				int32 Index = 0;
+				for (FIsoSegment* Segment : LoopSegments)
+				{
+					F3DDebugSession D(bSplitBySegment, TEXT("Segment"));
+					Display(EGridSpace::UniformScaled, Segment->GetFirstNode(), Segment->GetSecondNode(), Index++, EVisuProperty::BlueCurve);
+				}
+			}
+
+			if(bDisplayNext)
+			{
+				F3DDebugSession A(TEXT("Node Next"));
+				int32 Index = 0;
+				for (FIsoSegment* Segment : LoopSegments)
+				{
+					F3DDebugSession B(bSplitBySegment, TEXT("Segment"));
+					Display(EGridSpace::UniformScaled, Segment->GetFirstNode(), ((const FLoopNode&) Segment->GetFirstNode()).GetNextNode(), Index++, EVisuProperty::BlueCurve);
+				}
+			}
+
+			if(bDisplayPrevious)
+			{
+				F3DDebugSession C(TEXT("Node Forward"));
+				int32 Index = 0;
+				for (FIsoSegment* Segment : LoopSegments)
+				{
+					F3DDebugSession B(bSplitBySegment, TEXT("Segment"));
+					Display(EGridSpace::UniformScaled, Segment->GetSecondNode(), ((const FLoopNode&)Segment->GetSecondNode()).GetPreviousNode(), Index++, EVisuProperty::BlueCurve);
+				}
+			}
+
+		}
+		Wait(false);
+	}
+}
 
 void FIsoTriangulator::DisplayCells(const TArray<FCell>& Cells) const
 {
@@ -180,6 +292,24 @@ void FIsoTriangulator::DisplayCells(const TArray<FCell>& Cells) const
 	}
 }
 
+void FIsoTriangulator::DrawCellBoundary(int32 Index, EVisuProperty Property) const
+{
+	int32 IndexU;
+	int32 IndexV;
+	Grid.UVIndexFromGlobalIndex(Index, IndexU, IndexV);
+
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV), Property, Index);
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1), Property, Index);
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV), Property, Index);
+	DisplayPoint(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1), Property, Index);
+
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1), Index, EVisuProperty(Property + 1));
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1), Index, EVisuProperty(Property + 1));
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV), Index, EVisuProperty(Property + 1));
+	DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU, IndexV + 1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexU + 1, IndexV + 1), Index, EVisuProperty(Property + 1));
+}
+
+
 void FIsoTriangulator::DisplayCell(const FCell& Cell) const
 {
 	if (!bDisplay)
@@ -187,27 +317,32 @@ void FIsoTriangulator::DisplayCell(const FCell& Cell) const
 		return;
 	}
 
+
 	F3DDebugSession _(FString::Printf(TEXT("Cell %d"), Cell.Id));
+
+	DrawCellBoundary(Cell.Id, EVisuProperty::YellowPoint);
 	for (const TArray<FLoopNode*>& Nodes : Cell.SubLoops)
 	{
 		for (const FLoopNode* Node : Nodes)
 		{
-			DisplayPoint(Node->GetPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::OrangePoint, Cell.Id);
+			DisplayPoint(Node->GetPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::BluePoint, Cell.Id);
 		}
 	}
 }
 
-void FIntersectionSegmentTool::Display(const TCHAR* Message) const
+void FIntersectionSegmentTool::Display(const TCHAR* Message, EVisuProperty Property) const
 {
 	if (!Grid.bDisplay)
 	{
 		return;
 	}
-	
+
+	int32 Index = 0;
+
 	Open3DDebugSession(Message);
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
-		DisplaySegment(Segment.Segment2D[0], Segment.Segment2D[1]);
+		DisplaySegment(Segment.Segment2D[0], Segment.Segment2D[1], Index++, Property);
 	}
 	Close3DDebugSession();
 }

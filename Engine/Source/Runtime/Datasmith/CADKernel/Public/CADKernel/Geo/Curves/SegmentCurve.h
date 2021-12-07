@@ -66,6 +66,20 @@ namespace CADKernel
 			return EndPoint;
 		}
 
+		virtual void ExtendTo(const FPoint& DesiredPosition) override
+		{
+			double DistanceToStartPoint = DesiredPosition.SquareDistance(StartPoint);
+			double DistanceToEndPoint = DesiredPosition.SquareDistance(EndPoint);
+			if (DistanceToEndPoint < DistanceToStartPoint)
+			{
+				EndPoint = DesiredPosition;
+			}
+			else
+			{
+				StartPoint = DesiredPosition;
+			}
+		}
+
 	private:
 		template <typename CurvePointType, typename PointType>
 		void Evaluate(double Coordinate, CurvePointType& OutPoint, int32 DerivativeOrder) const

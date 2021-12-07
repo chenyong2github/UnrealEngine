@@ -25,7 +25,8 @@ enum class EHaveStates : uint16
 	Degenerated         = 0x0010u,  // used for FEdge, FGrid
 								    
 	IsDeleted           = 0x0020u,  // used for all class
-								    
+	IsVirtuallyMeshed   = 0x0040u,  // used for FEdge
+
 	HasMarker1          = 0x1000u,  // used for all class
 	HasMarker2          = 0x2000u,  // used for all class
 	HasMarker3          = 0x4000u,  // used for all class
