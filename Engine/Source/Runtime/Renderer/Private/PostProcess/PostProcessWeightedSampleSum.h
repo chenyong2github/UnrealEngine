@@ -30,4 +30,4 @@ struct FGaussianBlurInputs
 
 using FGaussianBlurOutputs = FScreenPassTexture;
 
-FGaussianBlurOutputs AddGaussianBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FGaussianBlurInputs& Inputs);
+extern RENDERER_API FGaussianBlurOutputs AddGaussianBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FGaussianBlurInputs& Inputs);
