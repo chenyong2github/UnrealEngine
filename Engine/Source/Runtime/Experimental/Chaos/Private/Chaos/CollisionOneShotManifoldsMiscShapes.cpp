@@ -164,8 +164,11 @@ namespace Chaos
 
 			if (FMath::Abs(ADotB) < AxisDotMinimum || AHalfLen < KINDA_SMALL_NUMBER || BHalfLen < KINDA_SMALL_NUMBER)
 			{
-				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, Constraint.GetCullDistance());
-				Constraint.AddOneshotManifoldContact(ContactPoint);
+				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, FReal(0));
+				if (ContactPoint.Phi < Constraint.GetCullDistance())
+				{
+					Constraint.AddOneshotManifoldContact(ContactPoint);
+				}
 				return;
 			}
 			
@@ -185,8 +188,11 @@ namespace Chaos
 
 			if (DeltaLen < KINDA_SMALL_NUMBER)
 			{
-				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, Constraint.GetCullDistance());
-				Constraint.AddOneshotManifoldContact(ContactPoint);
+				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, FReal(0));
+				if (ContactPoint.Phi < Constraint.GetCullDistance())
+				{
+					Constraint.AddOneshotManifoldContact(ContactPoint);
+				}
 				return;
 			}
 			
@@ -205,8 +211,11 @@ namespace Chaos
 			const FReal Clipped2Coord = FMath::Min(ProjA2OntoB, BHalfLen);
 			if (Clipped1Coord > Clipped2Coord) // No overlap
 			{
-				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, Constraint.GetCullDistance());
-				Constraint.AddOneshotManifoldContact(ContactPoint);
+				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, FReal(0));
+				if (ContactPoint.Phi < Constraint.GetCullDistance())
+				{
+					Constraint.AddOneshotManifoldContact(ContactPoint);
+				}
 				return;
 			}
 
@@ -225,12 +234,15 @@ namespace Chaos
 				// Note location A is calculated by rotation (effectively) instead of the usual plane clipping
 				FVec3 LocationA = (ClippedCoord - ProjCentreAOntoB) * CapsuleADirection + ACenter - Normal * (CapsuleA.GetRadius());
 
-				ContactPoint.ShapeContactPoints[0] = CapsuleATransform.InverseTransformPosition(LocationA);
-				ContactPoint.ShapeContactPoints[1] = CapsuleBTransform.InverseTransformPosition(LocationB);
-				ContactPoint.Location = 0.5f * (LocationA + LocationB);
-				ContactPoint.Phi = FVec3::DotProduct(LocationA - LocationB, Normal);
-
-				Constraint.AddOneshotManifoldContact(ContactPoint);
+				const FReal Phi = FVec3::DotProduct(LocationA - LocationB, Normal);
+				if (Phi < Constraint.GetCullDistance())
+				{
+					ContactPoint.ShapeContactPoints[0] = CapsuleATransform.InverseTransformPosition(LocationA);
+					ContactPoint.ShapeContactPoints[1] = CapsuleBTransform.InverseTransformPosition(LocationB);
+					ContactPoint.Location = 0.5f * (LocationA + LocationB);
+					ContactPoint.Phi = Phi;
+					Constraint.AddOneshotManifoldContact(ContactPoint);
+				}
 			};
 
 			AddManifoldPoint(Clipped1Coord);
