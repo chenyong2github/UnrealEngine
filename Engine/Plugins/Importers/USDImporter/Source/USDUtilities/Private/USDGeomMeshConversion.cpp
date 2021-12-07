@@ -509,7 +509,7 @@ namespace UE
 				const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
 				FMeshDescription& OutMeshDescription,
 				UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
-				bool bParseTransform
+				bool bIsFirstPrim
 			)
 			{
 				// Ignore meshes from disabled purposes
@@ -518,19 +518,41 @@ namespace UE
 					return true;
 				}
 
-				// Ignore invisible prims
-				if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( Prim ) )
-				{
-					if ( UsdGeomImageable.ComputeVisibility() == pxr::UsdGeomTokens->invisible )
-					{
-						return true;
-					}
-				}
-
 				FTransform ChildTransform = CurrentTransform;
 
-				if ( bParseTransform )
+				if ( !bIsFirstPrim )
 				{
+					// Ignore invisible child meshes.
+					//
+					// We used to compute visibility here and flat out ignore any invisible meshes. However, it could be that this mesh is invisible
+					// due to the first prim (the parentmost prim of the recursive calls) being invisible. If the first is invisible but animated
+					// then its possible it will become visible later, so if the child meshes are all invisible due to that fact alone then we should still
+					// consider them. If the first is invisible but *not* animated then we should still consider it in the same way, because that's sort
+					// of what you'd expect by calling ConvertGeomMeshHierarchy: We shouldn't just return nothing if the prim happens to be invisible.
+					// Besides, it could be that first is invisible due to itself having a parent that is invisible but has visibility animations:
+					// In that case we'd also want to generate meshes even if first is effectively invisible, since those parents can become visible
+					// later as well. The only case left is if first is invisible due having parents that are invisible and not animated: Checking for
+					// this would involve checking visibility and animations of all of its parents though, which is probably a bit too much, and like
+					// in the case where first itself is invisible and not animated, the caller may still expect to receive a valid mesh even if the
+					// prim's parents are invisible.
+					//
+					// The only case in which we'll truly discard invisible submeshes now is if they're invisible *by themselves*. If we're collapsing
+					// them then we know they're not animated either, so they will basically never be visible at all, at any time code.
+					//
+					// Note that if we were to ever manually set any of these back to visible again via the editor, the visibility changes are
+					// now resyncs and we'll reparse this entire asset, which will give us the chance to add them back to the collapsed mesh.
+					if ( pxr::UsdGeomImageable UsdGeomImageable = pxr::UsdGeomImageable( Prim ) )
+					{
+						if ( pxr::UsdAttribute VisibilityAttr = UsdGeomImageable.GetVisibilityAttr() )
+						{
+							pxr::TfToken VisibilityToken;
+							if ( VisibilityAttr.Get( &VisibilityToken ) && VisibilityToken == pxr::UsdGeomTokens->invisible )
+							{
+								return true;
+							}
+						}
+					}
+
 					if ( pxr::UsdGeomXformable Xformable = pxr::UsdGeomXformable( Prim ) )
 					{
 						FTransform LocalChildTransform;
@@ -553,7 +575,7 @@ namespace UE
 						break;
 					}
 
-					const bool bChildParseTransform = true;
+					const bool bChildIsFirstPrim = false;
 
 					bSuccess &= RecursivelyCollapseChildMeshes(
 						ChildPrim,
@@ -564,7 +586,7 @@ namespace UE
 						MaterialToPrimvarToUVIndex,
 						OutMeshDescription,
 						OutMaterialAssignments,
-						bChildParseTransform
+						bChildIsFirstPrim
 					);
 				}
 
@@ -980,7 +1002,7 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 
 	// Skip the first transform, because if we're parsing Prim's mesh we don't want to bake its own transform into the vertices,
 	// as that transform will be used on components instead
-	const bool bParseTransform = false;
+	const bool bIsFirstPrim = true;
 
 	return UE::UsdGeomMeshConversion::Private::RecursivelyCollapseChildMeshes(
 		Prim,
@@ -991,7 +1013,7 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 		MaterialToPrimvarToUVIndex,
 		OutMeshDescription,
 		OutMaterialAssignments,
-		bParseTransform
+		bIsFirstPrim
 	);
 }
 
