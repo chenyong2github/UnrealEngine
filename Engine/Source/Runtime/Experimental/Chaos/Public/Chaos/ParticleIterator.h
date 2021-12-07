@@ -65,7 +65,7 @@ void ParticlesParallelForImp(const TArray<TParticle>& Particles, const Lambda& F
 	// When ParticlesParallelFor is called with a plain old TArray,
 	// just do normal parallelization.
 	const int32 Num = Particles.Num();
-	::ParallelFor(Num, [&Func, &Particles](const int32 Index)
+	PhysicsParallelFor(Num, [&Func, &Particles](const int32 Index)
 	{
 		Func(Particles[Index], Index);
 	});
@@ -697,7 +697,7 @@ void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Us
 		{
 			// Do a regular parallel for over the handles in this SOA view
 			const int32 HandleCount = CurHandlesArray->Num();
-			::ParallelFor(HandleCount, [&Func, CurHandlesArray, ParticleIdxOff](const int32 HandleIdx)
+			PhysicsParallelFor(HandleCount, [&Func, CurHandlesArray, ParticleIdxOff](const int32 HandleIdx)
 			{
 				// Reconstruct the TransientHandle so that it has a chance to update
 				// other data members, like the particle type in the case of geometry 
@@ -711,7 +711,7 @@ void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Us
 		else
 		{
 			// Do a regular parallel for over the particles in this SOA view
-			::ParallelFor(ParticleCount, [&Func, &SOAView, ParticleIdxOff](const int32 ParticleIdx)
+			PhysicsParallelFor(ParticleCount, [&Func, &SOAView, ParticleIdxOff](const int32 ParticleIdx)
 			{
 				// Reconstruct the TransientHandle so that it has a chance to update
 				// other data members, like the particle type in the case of geometry 
@@ -731,7 +731,7 @@ void HandleViewParallelForImp(const THandleView& HandleView, const Lambda& Func)
 
 	using THandle = typename THandleView::THandle;
 	const int32 HandleCount = HandleView.Handles.Num();
-	::ParallelFor(HandleCount, [&HandleView, &Func](const int32 Index)
+	PhysicsParallelFor(HandleCount, [&HandleView, &Func](const int32 Index)
 	{
 		if (!HandleView.Handles[Index]->LightWeightDisabled())
 		{
