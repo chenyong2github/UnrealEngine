@@ -2,6 +2,7 @@
 
 #include "PostProcess/PostProcessAA.h"
 #include "PostProcess/PostProcessing.h"
+#include "PixelShaderUtils.h"
 
 TAutoConsoleVariable<int32> CVarFXAAQuality(
 	TEXT("r.FXAA.Quality"), 4,
@@ -13,36 +14,6 @@ TAutoConsoleVariable<int32> CVarFXAAQuality(
 	TEXT(" 4: PC low-dither 12-sample (Default)\n")
 	TEXT(" 5: PC extrem quality 12-samples"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
-
-BEGIN_SHADER_PARAMETER_STRUCT(FFXAAParameters, )
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureInput, Input)
-	SHADER_PARAMETER(FVector4f, fxaaConsoleRcpFrameOpt)
-	SHADER_PARAMETER(FVector4f, fxaaConsoleRcpFrameOpt2)
-	SHADER_PARAMETER(float, fxaaQualitySubpix)
-	SHADER_PARAMETER(float, fxaaQualityEdgeThreshold)
-	SHADER_PARAMETER(float, fxaaQualityEdgeThresholdMin)
-	SHADER_PARAMETER(float, fxaaConsoleEdgeSharpness)
-	SHADER_PARAMETER(float, fxaaConsoleEdgeThreshold)
-	SHADER_PARAMETER(float, fxaaConsoleEdgeThresholdMin)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-class FFXAAVS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FFXAAVS);
-	// FDrawRectangleParameters is filled by DrawScreenPass.
-	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FFXAAVS, FGlobalShader);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
-
-	using FParameters = FFXAAParameters;
-};
-
-IMPLEMENT_GLOBAL_SHADER(FFXAAVS, "/Engine/Private/FXAAShader.usf", "FxaaVS", SF_Vertex);
 
 class FFXAAPS : public FGlobalShader
 {
@@ -57,7 +28,20 @@ public:
 
 	class FQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("FXAA_PRESET", EFXAAQuality);
 	using FPermutationDomain = TShaderPermutationDomain<FQualityDimension>;
-	using FParameters = FFXAAParameters;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureInput, Input)
+		SHADER_PARAMETER(FScreenTransform, SvPositionToInputTextureUV)
+		SHADER_PARAMETER(FVector4f, fxaaConsoleRcpFrameOpt)
+		SHADER_PARAMETER(FVector4f, fxaaConsoleRcpFrameOpt2)
+		SHADER_PARAMETER(float, fxaaQualitySubpix)
+		SHADER_PARAMETER(float, fxaaQualityEdgeThreshold)
+		SHADER_PARAMETER(float, fxaaQualityEdgeThresholdMin)
+		SHADER_PARAMETER(float, fxaaConsoleEdgeSharpness)
+		SHADER_PARAMETER(float, fxaaConsoleEdgeThreshold)
+		SHADER_PARAMETER(float, fxaaConsoleEdgeThresholdMin)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 };
 
 IMPLEMENT_GLOBAL_SHADER(FFXAAPS, "/Engine/Private/FXAAShader.usf", "FxaaPS", SF_Pixel);
@@ -83,9 +67,12 @@ FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 
 	FRHISamplerState* BilinearClampSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	FFXAAParameters* PassParameters = GraphBuilder.AllocParameters<FFXAAParameters>();
+	FFXAAPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFXAAPS::FParameters>();
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 	PassParameters->Input = GetScreenPassTextureInput(Inputs.SceneColor, BilinearClampSampler);
+	PassParameters->SvPositionToInputTextureUV = (
+		FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(Output), FScreenTransform::ETextureBasis::TexelPosition, FScreenTransform::ETextureBasis::ViewportUV) *
+		FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(Inputs.SceneColor), FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TextureUV));
 
 	{
 		float N = 0.5f;
@@ -109,25 +96,16 @@ FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 	FFXAAPS::FPermutationDomain PixelPermutationVector;
 	PixelPermutationVector.Set<FFXAAPS::FQualityDimension>(Inputs.Quality);
 
-	TShaderMapRef<FFXAAVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FFXAAPS> PixelShader(View.ShaderMap, PixelPermutationVector);
 
-	const FScreenPassTextureViewport OutputViewport(Output);
-
-	AddDrawScreenPass(
+	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("FXAA(Quality=%d) %dx%d PS", Inputs.Quality, OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
-		View,
-		OutputViewport,
-		FScreenPassTextureViewport(Inputs.SceneColor),
-		FScreenPassPipelineState(VertexShader, PixelShader),
+		View.ShaderMap,
+		RDG_EVENT_NAME("FXAA(Quality=%d) %dx%d PS",
+			Inputs.Quality, Output.ViewRect.Width(), Output.ViewRect.Height()),
+		PixelShader,
 		PassParameters,
-		EScreenPassDrawFlags::AllowHMDHiddenAreaMask,
-		[VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
-	{
-		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
-		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-	});
+		Output.ViewRect);
 
 	return MoveTemp(Output);
 }
