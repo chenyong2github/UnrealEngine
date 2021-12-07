@@ -2,12 +2,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringView.h"
 #include "Serialization/MemoryLayout.h"
+
+class FMemStackBase;
 
 namespace UE
 {
 namespace Shader
 {
+
+struct FStructType;
 
 enum class EValueComponentType : uint8
 {
@@ -17,6 +23,9 @@ enum class EValueComponentType : uint8
 	Int,
 	Bool,
 };
+
+uint32 GetComponentTypeSizeInBytes(EValueComponentType Type);
+EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
 
 struct FValueTypeDescription
 {
@@ -55,13 +64,117 @@ enum class EValueType : uint8
 	Struct,
 };
 
-uint32 GetComponentTypeSizeInBytes(EValueComponentType Type);
 FValueTypeDescription GetValueTypeDescription(EValueType Type);
 EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
 EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
 EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents);
 EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
+
+struct FType
+{
+	FType() : StructType(nullptr), ValueType(EValueType::Void) {}
+	FType(EValueType InValueType) : StructType(nullptr), ValueType(InValueType) {}
+	FType(const FStructType* InStruct) : StructType(InStruct), ValueType(InStruct ? EValueType::Struct : EValueType::Void) {}
+
+	const TCHAR* GetName() const;
+	bool IsVoid() const { return ValueType == EValueType::Void; }
+	bool IsStruct() const { return ValueType == EValueType::Struct; }
+	bool IsNumeric() const { return !IsVoid() && !IsStruct(); }
+	int32 GetNumComponents() const;
+	EValueComponentType GetComponentType(int32 Index) const;
+	bool Merge(const FType& OtherType);
+
+	inline operator EValueType() const { return ValueType; }
+	inline operator bool() const { return !IsVoid(); }
+	inline bool operator!() const { return IsVoid(); }
+
+	const FStructType* StructType;
+	EValueType ValueType;
+};
+
+inline bool operator==(const FType& Lhs, const FType& Rhs)
+{
+	if (Lhs.ValueType != Rhs.ValueType) return false;
+	if (Lhs.ValueType == EValueType::Struct && Lhs.StructType != Rhs.StructType) return false;
+	return true;
+}
+inline bool operator!=(const FType& Lhs, const FType& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+inline bool operator==(const FType& Lhs, const EValueType& Rhs)
+{
+	return !Lhs.IsStruct() && Lhs.ValueType == Rhs;
+}
+inline bool operator!=(const FType& Lhs, const EValueType& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+inline bool operator==(const EValueType& Lhs, const FType& Rhs)
+{
+	return !Rhs.IsStruct() && Lhs == Rhs.ValueType;
+}
+inline bool operator!=(const EValueType& Lhs, const FType& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+struct FStructField
+{
+	const TCHAR* Name;
+	FType Type;
+	int32 ComponentIndex;
+
+	int32 GetNumComponents() const { return Type.GetNumComponents(); }
+};
+
+struct FStructType
+{
+	uint64 Hash;
+	const TCHAR* Name;
+	TArrayView<const FStructField> Fields;
+
+	/**
+	 * Most code working with HLSLTree views struct types as a flat list of components
+	 * Fields with basic types are represented directly. Fields with struct types are recursively flattened into this list
+	 */
+	TArrayView<const EValueComponentType> ComponentTypes;
+
+	const FStructField* FindFieldByName(const TCHAR* InName) const;
+};
+
+struct FStructFieldInitializer
+{
+	FStructFieldInitializer() = default;
+	FStructFieldInitializer(const FStringView& InName, const FType& InType) : Name(InName), Type(InType) {}
+
+	FStringView Name;
+	FType Type;
+};
+
+struct FStructTypeInitializer
+{
+	FStringView Name;
+	TArrayView<const FStructFieldInitializer> Fields;
+};
+
+class FStructTypeRegistry
+{
+public:
+	explicit FStructTypeRegistry(FMemStackBase& InAllocator);
+
+	void EmitDeclarationsCode(FStringBuilderBase& OutCode) const;
+
+	const FStructType* NewType(const FStructTypeInitializer& Initializer);
+	const FStructType* FindType(uint64 Hash) const;
+
+private:
+	FMemStackBase* Allocator;
+	TMap<uint64, const FStructType*> Types;
+};
 
 template<typename T>
 struct TValue
@@ -112,135 +225,136 @@ static_assert(sizeof(FValueComponent) == sizeof(uint64), "bad packing");
 
 struct FValue
 {
-	inline FValue() : ComponentType(EValueComponentType::Void), NumComponents(0) {}
+	FValue() = default;
 
-	explicit FValue(EValueType InType)
+	explicit FValue(const FType& InType) : Type(InType)
 	{
-		const FValueTypeDescription TypeDesc = GetValueTypeDescription(InType);
-		ComponentType = TypeDesc.ComponentType;
-		NumComponents = TypeDesc.NumComponents;
+		Component.AddDefaulted(InType.GetNumComponents());
 	}
 
-	inline FValue(EValueComponentType InComponentType, int8 InNumComponents) : ComponentType(InComponentType), NumComponents(InNumComponents) {}
-
-	inline FValue(float v) : ComponentType(EValueComponentType::Float), NumComponents(1)
+	inline FValue(EValueComponentType InComponentType, int8 InNumComponents) : Type(MakeValueType(InComponentType, InNumComponents))
 	{
-		Component[0] = v;
+		Component.AddDefaulted(InNumComponents);
 	}
 
-	inline FValue(float X, float Y) : ComponentType(EValueComponentType::Float), NumComponents(2)
+	inline FValue(float v) : Type(EValueType::Float1)
 	{
-		Component[0] = X;
-		Component[1] = Y;
+		Component.Add(v);
 	}
 
-	inline FValue(float X, float Y, float Z) : ComponentType(EValueComponentType::Float), NumComponents(3)
+	inline FValue(float X, float Y) : Type(EValueType::Float2)
 	{
-		Component[0] = X;
-		Component[1] = Y;
-		Component[2] = Z;
+		Component.Add(X);
+		Component.Add(Y);
 	}
 
-	inline FValue(float X, float Y, float Z, float W) : ComponentType(EValueComponentType::Float), NumComponents(4)
+	inline FValue(float X, float Y, float Z) : Type(EValueType::Float3)
 	{
-		Component[0] = X;
-		Component[1] = Y;
-		Component[2] = Z;
-		Component[3] = W;
+		Component.Add(X);
+		Component.Add(Y);
+		Component.Add(Z);
 	}
 
-	inline FValue(double v) : ComponentType(EValueComponentType::Double), NumComponents(1)
+	inline FValue(float X, float Y, float Z, float W) : Type(EValueType::Float4)
 	{
-		Component[0] = v;
+		Component.Add(X);
+		Component.Add(Y);
+		Component.Add(Z);
+		Component.Add(W);
 	}
 
-	inline FValue(double X, double Y) : ComponentType(EValueComponentType::Double), NumComponents(2)
+	inline FValue(double v) : Type(EValueType::Double1)
 	{
-		Component[0] = X;
-		Component[1] = Y;
+		Component.Add(v);
 	}
 
-	inline FValue(double X, double Y, double Z) : ComponentType(EValueComponentType::Double), NumComponents(3)
+	inline FValue(double X, double Y) : Type(EValueType::Double2)
 	{
-		Component[0] = X;
-		Component[1] = Y;
-		Component[2] = Z;
+		Component.Add(X);
+		Component.Add(Y);
 	}
 
-	inline FValue(double X, double Y, double Z, double W) : ComponentType(EValueComponentType::Double), NumComponents(4)
+	inline FValue(double X, double Y, double Z) : Type(EValueType::Double3)
 	{
-		Component[0] = X;
-		Component[1] = Y;
-		Component[2] = Z;
-		Component[3] = W;
+		Component.Add(X);
+		Component.Add(Y);
+		Component.Add(Z);
 	}
 
-	inline FValue(const FLinearColor& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
+	inline FValue(double X, double Y, double Z, double W) : Type(EValueType::Double4)
 	{
-		Component[0] = Value.R;
-		Component[1] = Value.G;
-		Component[2] = Value.B;
-		Component[3] = Value.A;
+		Component.Add(X);
+		Component.Add(Y);
+		Component.Add(Z);
+		Component.Add(W);
 	}
 
-	inline FValue(const FVector2f& Value) : ComponentType(EValueComponentType::Float), NumComponents(2)
+	inline FValue(const FLinearColor& Value) : Type(EValueType::Float4)
 	{
-		Component[0] = Value.X;
-		Component[1] = Value.Y;
+		Component.Add(Value.R);
+		Component.Add(Value.G);
+		Component.Add(Value.B);
+		Component.Add(Value.A);
 	}
 
-	inline FValue(const FVector3f& Value) : ComponentType(EValueComponentType::Float), NumComponents(3)
+	inline FValue(const FVector2f& Value) : Type(EValueType::Float2)
 	{
-		Component[0] = Value.X;
-		Component[1] = Value.Y;
-		Component[2] = Value.Z;
+		Component.Add(Value.X);
+		Component.Add(Value.Y);
 	}
 
-	inline FValue(const FVector3d& Value) : ComponentType(EValueComponentType::Double), NumComponents(3)
+	inline FValue(const FVector3f& Value) : Type(EValueType::Float3)
 	{
-		Component[0] = Value.X;
-		Component[1] = Value.Y;
-		Component[2] = Value.Z;
+		Component.Add(Value.X);
+		Component.Add(Value.Y);
+		Component.Add(Value.Z);
 	}
 
-	inline FValue(const FVector4f& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
+	inline FValue(const FVector3d& Value) : Type(EValueType::Double3)
 	{
-		Component[0] = Value.X;
-		Component[1] = Value.Y;
-		Component[2] = Value.Z;
-		Component[3] = Value.W;
+		Component.Add(Value.X);
+		Component.Add(Value.Y);
+		Component.Add(Value.Z);
 	}
 
-	inline FValue(const FVector4d& Value) : ComponentType(EValueComponentType::Double), NumComponents(4)
+	inline FValue(const FVector4f& Value) : Type(EValueType::Float4)
 	{
-		Component[0] = Value.X;
-		Component[1] = Value.Y;
-		Component[2] = Value.Z;
-		Component[3] = Value.W;
+		Component.Add(Value.X);
+		Component.Add(Value.Y);
+		Component.Add(Value.Z);
+		Component.Add(Value.W);
 	}
 
-	inline FValue(bool v) : ComponentType(EValueComponentType::Bool), NumComponents(1)
+	inline FValue(const FVector4d& Value) : Type(EValueType::Double4)
 	{
-		Component[0] = v;
+		Component.Add(Value.X);
+		Component.Add(Value.Y);
+		Component.Add(Value.Z);
+		Component.Add(Value.W);
 	}
 
-	inline FValue(bool X, bool Y, bool Z, bool W) : ComponentType(EValueComponentType::Bool), NumComponents(4)
+	inline FValue(bool v) : Type(EValueType::Bool1)
 	{
-		Component[0] = X;
-		Component[1] = Y;
-		Component[2] = Z;
-		Component[3] = W;
+		Component.Add(v);
 	}
 
-	inline FValue(int32 v) : ComponentType(EValueComponentType::Int), NumComponents(1)
+	inline FValue(bool X, bool Y, bool Z, bool W) : Type(EValueType::Bool4)
 	{
-		Component[0] = v;
+		Component.Add(X);
+		Component.Add(Y);
+		Component.Add(Z);
+		Component.Add(W);
 	}
 
-	inline EValueType GetType() const { return MakeValueType(ComponentType, NumComponents); }
+	inline FValue(int32 v) : Type(EValueType::Int1)
+	{
+		Component.Add(v);
+	}
+
+	inline const FType& GetType() const { return Type; }
 	inline const FValueComponent& GetComponent(int32 i) const
 	{
-		checkf(i >= 0 && i < NumComponents, TEXT("Invalid component %d/%d, of type '%s'"), i, NumComponents, GetValueTypeDescription(GetType()).Name);
+		checkf(Component.IsValidIndex(i), TEXT("Invalid component %d, of type '%s'"), i, Type.GetName());
 		return Component[i];
 	}
 
@@ -259,13 +373,13 @@ struct FValue
 
 	const TCHAR* ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const;
 
-	FValueComponent Component[4];
-	EValueComponentType ComponentType;
-	int8 NumComponents;
+	FType Type;
+	TArray<FValueComponent, TInlineAllocator<8>> Component;
 };
 
 ENGINE_API bool operator==(const FValue& Lhs, const FValue& Rhs);
 inline bool operator!=(const FValue& Lhs, const FValue& Rhs) { return !operator==(Lhs, Rhs); }
+ENGINE_API uint32 GetTypeHash(const FType& Type);
 ENGINE_API uint32 GetTypeHash(const FValue& Value);
 
 ENGINE_API FValue Abs(const FValue& Value);

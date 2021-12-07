@@ -41,15 +41,14 @@ FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op);
 class FExpressionConstant : public FExpression
 {
 public:
-	explicit FExpressionConstant(const FConstantValue& InValue)
+	explicit FExpressionConstant(const Shader::FValue& InValue)
 		: Value(InValue)
 	{}
 
-	FConstantValue Value;
+	Shader::FValue Value;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
-	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 class FExpressionMaterialParameter : public FExpression
@@ -63,8 +62,8 @@ public:
 	Shader::FValue DefaultValue;
 	EMaterialParameterType ParameterType;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 enum class EExternalInputType
@@ -95,8 +94,8 @@ public:
 
 	EExternalInputType InputType;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override { OutResult.SetType(Context, EExpressionEvaluationType::Shader, GetInputExpressionType(InputType)); }
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override { OutResult.SetType(Context, RequestedType, EExpressionEvaluationType::Shader, GetInputExpressionType(InputType)); }
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
 };
 
 class FExpressionTextureSample : public FExpression
@@ -114,35 +113,50 @@ public:
 	ESamplerSourceMode SamplerSource;
 	ETextureMipValueMode MipValueMode;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
 };
 
 class FExpressionGetStructField : public FExpression
 {
 public:
-	FExpressionGetStructField() {}
+	FExpressionGetStructField(const Shader::FStructType* InStructType, const TCHAR* InFieldName, FExpression* InStructExpression)
+		: StructType(InStructType)
+		, Field(InStructType->FindFieldByName(InFieldName))
+		, StructExpression(InStructExpression)
+	{
+		check(Field);
+	}
 
-	const FStructType* StructType;
-	const TCHAR* FieldName;
+	const Shader::FStructType* StructType;
+	const Shader::FStructField* Field;
 	FExpression* StructExpression;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 class FExpressionSetStructField : public FExpression
 {
 public:
-	FExpressionSetStructField() {}
+	FExpressionSetStructField(const Shader::FStructType* InStructType, const TCHAR* InFieldName, FExpression* InStructExpression, FExpression* InFieldExpression)
+		: StructType(InStructType)
+		, Field(InStructType->FindFieldByName(InFieldName))
+		, StructExpression(InStructExpression)
+		, FieldExpression(InFieldExpression)
+	{
+		check(Field);
+	}
 
-	const FStructType* StructType;
-	const TCHAR* FieldName;
+	const Shader::FStructType* StructType;
+	const Shader::FStructField* Field;
 	FExpression* StructExpression;
 	FExpression* FieldExpression;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 class FExpressionSelect : public FExpression
@@ -158,9 +172,9 @@ public:
 	FExpression* TrueExpression;
 	FExpression* FalseExpression;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
-	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 class FExpressionBinaryOp : public FExpression
@@ -176,15 +190,18 @@ public:
 	FExpression* Lhs;
 	FExpression* Rhs;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
-	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 struct FSwizzleParameters
 {
 	FSwizzleParameters() : NumComponents(0) { ComponentIndex[0] = ComponentIndex[1] = ComponentIndex[2] = ComponentIndex[3] = INDEX_NONE; }
 	FSwizzleParameters(int8 IndexR, int8 IndexG, int8 IndexB, int8 IndexA);
+
+	FRequestedType GetRequestedInputType(const FRequestedType& RequestedType) const;
+	bool HasSwizzle() const;
 
 	int8 ComponentIndex[4];
 	int32 NumComponents;
@@ -202,9 +219,9 @@ public:
 	FSwizzleParameters Parameters;
 	FExpression* Input;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
-	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 class FExpressionAppend : public FExpression
@@ -218,16 +235,16 @@ public:
 	FExpression* Lhs;
 	FExpression* Rhs;
 
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
-	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
 class FExpressionReflectionVector : public FExpression
 {
 public:
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
 };
 
 class FStatementReturn : public FStatement

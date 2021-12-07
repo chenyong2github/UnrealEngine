@@ -143,7 +143,7 @@ FMaterialUniformExpressionType::FMaterialUniformExpressionType(const TCHAR* InNa
 void FMaterialUniformExpression::WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const
 {
 	UE_LOG(LogMaterial, Warning, TEXT("Missing WriteNumberOpcodes impl for %s"), GetType()->GetName());
-	OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::ConstantZero);
+	OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::ConstantZero).Write(UE::Shader::FType(UE::Shader::EValueType::Float1));
 }
 
 void FUniformParameterOverrides::SetNumericOverride(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, const UE::Shader::FValue& Value, bool bOverride)
@@ -541,11 +541,13 @@ FUniformExpressionSet::FVTPackedStackAndLayerIndex FUniformExpressionSet::GetVTS
 
 void FMaterialUniformExpression::GetNumberValue(const struct FMaterialRenderContext& Context, FLinearColor& OutValue) const
 {
-	UE::Shader::FPreshaderData PreshaderData;
+	using namespace UE::Shader;
+
+	FPreshaderData PreshaderData;
 	WriteNumberOpcodes(PreshaderData);
-	UE::Shader::FValue Value;
-	PreshaderData.Evaluate(nullptr, Context, Value);
-	OutValue = Value.AsLinearColor();
+	FPreshaderStack Stack;
+	const FPreshaderValue Value = PreshaderData.Evaluate(nullptr, Context, Stack);
+	OutValue = Value.AsShaderValue().AsLinearColor();
 }
 
 int32 FUniformExpressionSet::FindOrAddTextureParameter(EMaterialTextureParameterType Type, const FMaterialTextureParameterInfo& Info)
@@ -641,6 +643,7 @@ void FUniformExpressionSet::GetTextureValue(int32 Index, const FMaterialRenderCo
 
 void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, const FRHIUniformBufferLayout* UniformBufferLayout, uint8* TempBuffer, int TempBufferSize) const
 {
+	using namespace UE::Shader;
 	check(IsInParallelRenderingThread());
 
 	if (UniformBufferLayout->ConstantBufferSize > 0)
@@ -714,26 +717,25 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 
 		// Dump preshader results into buffer.
 		float* PreshaderBuffer = (float*)BufferCursor;
-		UE::Shader::FPreshaderStack PreshaderStack;
-		UE::Shader::FPreshaderDataContext PreshaderBaseContext(UniformPreshaderData);
+		FPreshaderStack PreshaderStack;
+		FPreshaderDataContext PreshaderBaseContext(UniformPreshaderData);
 		for (const FMaterialUniformPreshaderHeader& Preshader : UniformPreshaders)
 		{
-			UE::Shader::FValue Result;
-			UE::Shader::FPreshaderDataContext PreshaderContext(PreshaderBaseContext, Preshader.OpcodeOffset, Preshader.OpcodeSize);
-			UE::Shader::EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderContext, Result);
+			FPreshaderDataContext PreshaderContext(PreshaderBaseContext, Preshader.OpcodeOffset, Preshader.OpcodeSize);
+			const FPreshaderValue Result = EvaluatePreshader(this, MaterialRenderContext, PreshaderStack, PreshaderContext);
 
 			float* DestAddress = PreshaderBuffer + Preshader.BufferOffset;
-			if(Preshader.ComponentType == UE::Shader::EValueComponentType::Float)
+			if(Preshader.ComponentType == EValueComponentType::Float)
 			{
-				const UE::Shader::FFloatValue FloatValue = Result.AsFloat();
+				const FFloatValue FloatValue = Result.AsShaderValue().AsFloat();
 				for (uint32 i = 0u; i < Preshader.NumComponents; ++i)
 				{
 					*DestAddress++ = FloatValue[i];
 				}
 			}
-			else if (Preshader.ComponentType == UE::Shader::EValueComponentType::Double)
+			else if (Preshader.ComponentType == EValueComponentType::Double)
 			{
-				const UE::Shader::FDoubleValue DoubleValue = Result.AsDouble();
+				const FDoubleValue DoubleValue = Result.AsShaderValue().AsDouble();
 				float TileValue[4];
 				float OffsetValue[4];
 				for (uint32 i = 0u; i < Preshader.NumComponents; ++i)

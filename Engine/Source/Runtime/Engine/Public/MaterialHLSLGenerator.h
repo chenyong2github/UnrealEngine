@@ -35,6 +35,10 @@ class FExpressionExternalInput;
 class FExpressionSwizzle;
 class FExpressionLocalPHI;
 }
+namespace Shader
+{
+struct FStructType;
+}
 }
 
 enum class EMaterialNewScopeFlag : uint8
@@ -56,7 +60,9 @@ struct TMaterialHLSLGeneratorType;
 class FMaterialHLSLGenerator
 {
 public:
-	FMaterialHLSLGenerator(UMaterial* InTargetMaterial, const FMaterialCompileTargetParameters& InCompilerTarget,
+	FMaterialHLSLGenerator(UMaterial* InTargetMaterial,
+		const FMaterialCompileTargetParameters& InCompilerTarget,
+		UE::Shader::FStructTypeRegistry& InOutTypeRegistry,
 		UE::HLSLTree::FTree& InOutTree);
 
 	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
@@ -136,8 +142,8 @@ public:
 		return Data;
 	}
 
-	const UE::HLSLTree::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
-	const UE::HLSLTree::FConstantValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
+	const UE::Shader::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
+	const UE::Shader::FValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
 
 private:
 	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;
@@ -215,10 +221,11 @@ private:
 	const FMaterialCompileTargetParameters& CompileTarget;
 	UMaterial* TargetMaterial;
 
-	const UE::HLSLTree::FStructType* MaterialAttributesType;
-	UE::HLSLTree::FConstantValue MaterialAttributesDefaultValue;
+	const UE::Shader::FStructType* MaterialAttributesType;
+	UE::Shader::FValue MaterialAttributesDefaultValue;
 
 	UE::HLSLTree::FTree* HLSLTree;
+	UE::Shader::FStructTypeRegistry* TypeRegistry;
 	UE::HLSLTree::FExpression* ResultExpression = nullptr;
 	UE::HLSLTree::FStatement* ResultStatement = nullptr;
 

@@ -8,11 +8,109 @@
 #include "ExternalTexture.h"
 
 IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderData);
+IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderStructType);
 
 namespace UE
 {
 namespace Shader
 {
+
+FPreshaderType::FPreshaderType(const FType& InType) : ValueType(InType.ValueType)
+{
+	if (InType.IsStruct())
+	{
+		StructTypeHash = InType.StructType->Hash;
+		StructComponentTypes = InType.StructType->ComponentTypes;
+	}
+}
+
+EValueComponentType FPreshaderType::GetComponentType(int32 Index) const
+{
+	if (IsStruct())
+	{
+		return StructComponentTypes.IsValidIndex(Index) ? StructComponentTypes[Index] : EValueComponentType::Void;
+	}
+	else
+	{
+		const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
+		return (Index >= 0 && Index < TypeDesc.NumComponents) ? TypeDesc.ComponentType : EValueComponentType::Void;
+	}
+}
+
+void FPreshaderStack::PushValue(const FValue& InValue)
+{
+	check(InValue.Component.Num() == InValue.Type.GetNumComponents());
+	Values.Emplace(InValue.Type);
+	Components.Append(InValue.Component);
+}
+
+void FPreshaderStack::PushValue(const FPreshaderValue& InValue)
+{
+	check(InValue.Component.Num() == InValue.Type.GetNumComponents());
+	Values.Add(InValue.Type);
+	Components.Append(InValue.Component.GetData(), InValue.Component.Num());
+}
+
+void FPreshaderStack::PushValue(const FPreshaderType& InType, TArrayView<const FValueComponent> InComponents)
+{
+	check(InComponents.Num() == InType.GetNumComponents());
+	Values.Add(InType);
+	Components.Append(InComponents.GetData(), InComponents.Num());
+}
+
+TArrayView<FValueComponent> FPreshaderStack::PushEmptyValue(const FPreshaderType& InType)
+{
+	Values.Add(InType);
+	const int32 NumComponents = InType.GetNumComponents();
+	const int32 ComponentIndex = Components.AddZeroed(NumComponents);
+	return MakeArrayView(Components.GetData() + ComponentIndex, NumComponents);
+}
+
+FPreshaderValue FPreshaderStack::PopValue()
+{
+	FPreshaderValue Value;
+	Value.Type = Values.Pop(false);
+
+	const int32 NumComponents = Value.Type.GetNumComponents();
+	const int32 ComponentIndex = Components.Num() - NumComponents;
+
+	Value.Component = MakeArrayView(Components.GetData() + ComponentIndex, NumComponents);
+	Components.RemoveAt(ComponentIndex, NumComponents, false);
+
+	return Value;
+}
+
+FPreshaderValue FPreshaderStack::PeekValue()
+{
+	FPreshaderValue Value;
+	Value.Type = Values.Last();
+
+	const int32 NumComponents = Value.Type.GetNumComponents();
+	const int32 ComponentIndex = Components.Num() - NumComponents;
+	Value.Component = MakeArrayView(Components.GetData() + ComponentIndex, NumComponents);
+	return Value;
+}
+
+FValue FPreshaderValue::AsShaderValue(const FStructTypeRegistry* TypeRegistry) const
+{
+	FValue Result;
+	if (!Type.IsStruct())
+	{
+		Result.Type = Type.ValueType;
+		Result.Component.Append(Component.GetData(), Component.Num());
+	}
+	else if (ensure(TypeRegistry))
+	{
+		Result.Type = TypeRegistry->FindType(Type.StructTypeHash);
+		if (Result.Type.IsStruct())
+		{
+			check(Result.Type.GetNumComponents() == Component.Num());
+			Result.Component.Append(Component.GetData(), Component.Num());
+		}
+	}
+
+	return Result;
+}
 
 void FPreshaderData::WriteData(const void* Value, uint32 Size)
 {
@@ -26,57 +124,80 @@ void FPreshaderData::WriteName(const FScriptName& Name)
 	{
 		Index = Names.Add(Name);
 	}
+
 	check(Index >= 0 && Index <= 0xffff);
-	const uint32 Offset = Data.Num();
-	NameOffsets.Add(Offset);
 	Write((uint16)Index);
 }
 
-void FPreshaderData::Append(const FPreshaderData& InPreshader)
+void FPreshaderData::WriteType(const FType& Type)
 {
-	const uint32 BaseOffset = Data.Num();
-	Data.Append(InPreshader.Data);
-
-	TArray<uint16> NameIndexRemap;
-	NameIndexRemap.Empty(InPreshader.Names.Num());
-	for (const FScriptName& Name : InPreshader.Names)
+	Write(Type.ValueType);
+	if (Type.IsStruct())
 	{
-		const int32 Index = Names.AddUnique(Name);
+		const uint64 Hash = Type.StructType->Hash;
+		int32 Index = INDEX_NONE;
+		for (int32 PrevIndex = 0; PrevIndex < StructTypes.Num(); ++PrevIndex)
+		{
+			if (StructTypes[PrevIndex].Hash == Hash)
+			{
+				Index = PrevIndex;
+				break;
+			}
+		}
+		if (Index == INDEX_NONE)
+		{
+			Index = StructTypes.Num();
+			FPreshaderStructType& PreshaderStructType = StructTypes.AddDefaulted_GetRef();
+			PreshaderStructType.Hash = Hash;
+			PreshaderStructType.ComponentTypeIndex = StructComponentTypes.Num();
+			PreshaderStructType.NumComponents = Type.StructType->ComponentTypes.Num();
+			StructComponentTypes.Append(Type.StructType->ComponentTypes.GetData(), Type.StructType->ComponentTypes.Num());
+		}
+
 		check(Index >= 0 && Index <= 0xffff);
-		NameIndexRemap.Add(Index);
+		Write((uint16)Index);
 	}
+}
 
-	for (uint32 PrevOffset : InPreshader.NameOffsets)
+void FPreshaderData::WriteValue(const FValue& Value)
+{
+	WriteType(Value.Type);
+	for (int32 Index = 0; Index < Value.Component.Num(); ++Index)
 	{
-		const uint32 Offset = BaseOffset + PrevOffset;
-		uint16* PrevNameIndex = (uint16*)(Data.GetData() + Offset);
-		const uint16 RemapIndex = NameIndexRemap[*PrevNameIndex];
-		*PrevNameIndex = RemapIndex;
-		NameOffsets.Add(Offset);
+		const EValueComponentType ComponentType = Value.Type.GetComponentType(Index);
+		const int32 ComponentSize = GetComponentTypeSizeInBytes(ComponentType);
+		WriteData(&Value.Component[Index].Packed, ComponentSize);
 	}
 }
 
 FPreshaderDataContext::FPreshaderDataContext(const FPreshaderData& InData)
 	: Ptr(InData.Data.GetData())
 	, EndPtr(Ptr + InData.Data.Num())
-	, Names(InData.Names.GetData())
-	, NumNames(InData.Names.Num())
+	, Names(InData.Names)
+	, StructTypes(InData.StructTypes)
+	, StructComponentTypes(InData.StructComponentTypes)
 {}
 
 FPreshaderDataContext::FPreshaderDataContext(const FPreshaderDataContext& InContext, uint32 InOffset, uint32 InSize)
 	: Ptr(InContext.Ptr + InOffset)
 	, EndPtr(Ptr + InSize)
 	, Names(InContext.Names)
-	, NumNames(InContext.NumNames)
+	, StructTypes(InContext.StructTypes)
+	, StructComponentTypes(InContext.StructComponentTypes)
 {}
+
+static inline void ReadPreshaderData(FPreshaderDataContext& RESTRICT Data, int32 Size, void* Result)
+{
+	FMemory::Memcpy(Result, Data.Ptr, Size);
+	Data.Ptr += Size;
+	checkSlow(Data.Ptr <= Data.EndPtr);
+}
 
 template<typename T>
 static inline T ReadPreshaderValue(FPreshaderDataContext& RESTRICT Data)
 {
 	T Result;
-	FMemory::Memcpy(&Result, Data.Ptr, sizeof(T));
-	Data.Ptr += sizeof(T);
-	checkSlow(Data.Ptr <= Data.EndPtr);
+	ReadPreshaderData(Data, sizeof(T), &Result);
 	return Result;
 }
 
@@ -91,8 +212,22 @@ template<>
 FScriptName ReadPreshaderValue<FScriptName>(FPreshaderDataContext& RESTRICT Data)
 {
 	const int32 Index = ReadPreshaderValue<uint16>(Data);
-	check(Index >= 0 && Index < Data.NumNames);
 	return Data.Names[Index];
+}
+
+template<>
+FPreshaderType ReadPreshaderValue<FPreshaderType>(FPreshaderDataContext& RESTRICT Data)
+{
+	FPreshaderType Result;
+	Result.ValueType = ReadPreshaderValue<EValueType>(Data);
+	if (Result.ValueType == EValueType::Struct)
+	{
+		const uint16 Index = ReadPreshaderValue<uint16>(Data);
+		const FPreshaderStructType& PreshaderStruct = Data.StructTypes[Index];
+		Result.StructTypeHash = PreshaderStruct.Hash;
+		Result.StructComponentTypes = MakeArrayView(Data.StructComponentTypes.GetData() + PreshaderStruct.ComponentTypeIndex, PreshaderStruct.NumComponents);
+	}
+	return Result;
 }
 
 template<>
@@ -107,18 +242,57 @@ FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(FP
 	return FHashedMaterialParameterInfo(Name, Association, Index);
 }
 
-template<>
-FValue ReadPreshaderValue<FValue>(FPreshaderDataContext& RESTRICT Data)
+static void EvaluateConstantZero(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
-	const EValueType Type = (EValueType)ReadPreshaderValue<uint8>(Data);
-	uint32 Size = 0u;
-	FValue Result = FValue::FromMemoryImage(Type, Data.Ptr, &Size);
-	Data.Ptr += Size;
-	checkSlow(Data.Ptr <= Data.EndPtr);
-	return Result;
+	const FPreshaderType Type = ReadPreshaderValue<FPreshaderType>(Data);
+	Stack.PushEmptyValue(Type); // Leave the empty value zero-initialized
 }
 
-static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context, FValue& OutValue)
+static void EvaluateConstant(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
+{
+	const FPreshaderType Type = ReadPreshaderValue<FPreshaderType>(Data);
+	TArrayView<FValueComponent> Component = Stack.PushEmptyValue(Type);
+	for (int32 Index = 0; Index < Component.Num(); ++Index)
+	{
+		const EValueComponentType ComponentType = Type.GetComponentType(Index);
+		const int32 ComponmentSizeInBytes = GetComponentTypeSizeInBytes(ComponentType);
+		ReadPreshaderData(Data, ComponmentSizeInBytes, &Component[Index].Packed);
+	}
+}
+
+static void EvaluateSetField(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
+{
+	const FPreshaderValue Value = Stack.PopValue();
+	const FPreshaderValue StructValue = Stack.PeekValue();
+
+	const int32 ComponentIndex = ReadPreshaderValue<int32>(Data);
+	const int32 ComponentNum = ReadPreshaderValue<int32>(Data);
+	
+	// Modify the struct value in-place
+	for (int32 Index = 0; Index < ComponentNum; ++Index)
+	{
+		StructValue.Component[ComponentIndex + Index] = Value.Component[Index];
+	}
+}
+
+static void EvaluateGetField(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
+{
+	const FPreshaderValue StructValue = Stack.PopValue();
+	const FPreshaderType FieldType = ReadPreshaderValue<FPreshaderType>(Data);
+	const int32 ComponentIndex = ReadPreshaderValue<int32>(Data);
+	const int32 ComponentNum = FieldType.GetNumComponents();
+
+	// Need to make a local copy of components, since StructValue.Component is only valid until we push the result
+	TArray<FValueComponent, TInlineAllocator<64>> FieldComponents;
+	FieldComponents.Empty(ComponentNum);
+	for (int32 Index = 0; Index < ComponentNum; ++Index)
+	{
+		FieldComponents.Add(StructValue.Component[ComponentIndex + Index]);
+	}
+	Stack.PushValue(FieldType, FieldComponents);
+}
+
+static void EvaluateParameter(FPreshaderStack& Stack, const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context)
 {
 	const FMaterialNumericParameterInfo& Parameter = UniformExpressionSet.GetNumericParameter(ParameterIndex);
 	bool bFoundParameter = false;
@@ -129,7 +303,7 @@ static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet,
 		FMaterialParameterValue ParameterValue;
 		if (Context.MaterialRenderProxy->GetParameterValue(Parameter.ParameterType, Parameter.ParameterInfo, ParameterValue, Context))
 		{
-			OutValue = ParameterValue.AsShaderValue();
+			Stack.PushValue(ParameterValue.AsShaderValue());
 			bFoundParameter = true;
 		}
 	}
@@ -138,39 +312,44 @@ static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet,
 #if WITH_EDITOR
 	if (!bFoundParameter)
 	{
-		bFoundParameter = Context.Material.TransientOverrides.GetNumericOverride(Parameter.ParameterType, Parameter.ParameterInfo, OutValue);
+		FValue OverrideValue;
+		if (Context.Material.TransientOverrides.GetNumericOverride(Parameter.ParameterType, Parameter.ParameterInfo, OverrideValue))
+		{
+			Stack.PushValue(OverrideValue);
+			bFoundParameter = true;
+		}
 	}
 #endif // WITH_EDITOR
 
 	// Default value
 	if (!bFoundParameter)
 	{
-		OutValue = UniformExpressionSet.GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset);
+		Stack.PushValue(UniformExpressionSet.GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset));
 	}
 }
 
 template<typename Operation>
 static inline void EvaluateUnaryOp(FPreshaderStack& Stack, const Operation& Op)
 {
-	const FValue Value = Stack.Pop(false);
-	Stack.Add(Op(Value));
+	const FValue Value = Stack.PopValue().AsShaderValue();
+	Stack.PushValue(Op(Value));
 }
 
 template<typename Operation>
 static inline void EvaluateBinaryOp(FPreshaderStack& Stack, const Operation& Op)
 {
-	const FValue Value1 = Stack.Pop(false);
-	const FValue Value0 = Stack.Pop(false);
-	Stack.Add(Op(Value0, Value1));
+	const FValue Value1 = Stack.PopValue().AsShaderValue();
+	const FValue Value0 = Stack.PopValue().AsShaderValue();
+	Stack.PushValue(Op(Value0, Value1));
 }
 
 template<typename Operation>
 static inline void EvaluateTernaryOp(FPreshaderStack& Stack, const Operation& Op)
 {
-	const FValue Value2 = Stack.Pop(false);
-	const FValue Value1 = Stack.Pop(false);
-	const FValue Value0 = Stack.Pop(false);
-	Stack.Add(Op(Value0, Value1, Value2));
+	const FValue Value2 = Stack.PopValue().AsShaderValue();
+	const FValue Value1 = Stack.PopValue().AsShaderValue();
+	const FValue Value0 = Stack.PopValue().AsShaderValue();
+	Stack.PushValue(Op(Value0, Value1, Value2));
 }
 
 static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
@@ -181,11 +360,8 @@ static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataConte
 	const uint8 IndexB = ReadPreshaderValue<uint8>(Data);
 	const uint8 IndexA = ReadPreshaderValue<uint8>(Data);
 
-	FValue Value = Stack.Pop(false);
-	FValue Result;
-	Result.ComponentType = Value.ComponentType;
-	Result.NumComponents = NumElements;
-
+	FValue Value = Stack.PopValue().AsShaderValue();
+	FValue Result(MakeValueType(Value.Type, NumElements));
 	switch (NumElements)
 	{
 	case 4:
@@ -204,7 +380,7 @@ static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataConte
 		UE_LOG(LogMaterial, Fatal, TEXT("Invalid number of swizzle elements: %d"), NumElements);
 		break;
 	}
-	Stack.Add(Result);
+	Stack.PushValue(Result);
 }
 
 static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
@@ -225,11 +401,11 @@ static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshade
 		const uint32 SizeX = Texture->GetResource()->GetSizeX();
 		const uint32 SizeY = Texture->GetResource()->GetSizeY();
 		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
-		Stack.Add(FValue((float)SizeX, (float)SizeY, (float)SizeZ));
+		Stack.PushValue(FValue((float)SizeX, (float)SizeY, (float)SizeZ));
 	}
 	else
 	{
-		Stack.Add(FValue(0.0f, 0.0f, 0.0f));
+		Stack.PushValue(FValue(0.0f, 0.0f, 0.0f));
 	}
 }
 
@@ -241,11 +417,11 @@ static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderS
 		const uint32 SizeX = Texture->GetResource()->GetSizeX();
 		const uint32 SizeY = Texture->GetResource()->GetSizeY();
 		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
-		Stack.Add(FValue(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f)));
+		Stack.PushValue(FValue(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f)));
 	}
 	else
 	{
-		Stack.Add(FValue(0.0f, 0.0f, 0.0f));
+		Stack.PushValue(FValue(0.0f, 0.0f, 0.0f));
 	}
 }
 
@@ -265,7 +441,7 @@ static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRender
 	{
 		FExternalTextureRegistry::Get().GetExternalTextureCoordinateScaleRotation(GuidToLookup, Result);
 	}
-	Stack.Add(Result);
+	Stack.PushValue(Result);
 }
 
 static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
@@ -276,7 +452,7 @@ static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext
 	{
 		FExternalTextureRegistry::Get().GetExternalTextureCoordinateOffset(GuidToLookup, Result);
 	}
-	Stack.Add(Result);
+	Stack.PushValue(Result);
 }
 
 static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
@@ -292,15 +468,15 @@ static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& C
 	}
 	if (Texture != nullptr && VectorIndex != INDEX_NONE)
 	{
-		Stack.Add(FValue(Texture->GetUniformParameter(VectorIndex)));
+		Stack.PushValue(FValue(Texture->GetUniformParameter(VectorIndex)));
 	}
 	else
 	{
-		Stack.Add(FValue(0.f, 0.f, 0.f, 0.f));
+		Stack.PushValue(FValue(0.f, 0.f, 0.f, 0.f));
 	}
 }
 
-void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data, FValue& OutValue)
+FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	uint8 const* const DataEnd = Data.EndPtr;
 
@@ -310,15 +486,13 @@ void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const 
 		const EPreshaderOpcode Opcode = (EPreshaderOpcode)ReadPreshaderValue<uint8>(Data);
 		switch (Opcode)
 		{
-		case EPreshaderOpcode::ConstantZero:
-			Stack.Add(FValue(0.0f));
-			break;
-		case EPreshaderOpcode::Constant:
-			Stack.Add(ReadPreshaderValue<FValue>(Data));
-			break;
+		case EPreshaderOpcode::ConstantZero: EvaluateConstantZero(Stack, Data); break;
+		case EPreshaderOpcode::Constant: EvaluateConstant(Stack, Data); break;
+		case EPreshaderOpcode::GetField: EvaluateGetField(Stack, Data); break;
+		case EPreshaderOpcode::SetField: EvaluateSetField(Stack, Data); break;
 		case EPreshaderOpcode::Parameter:
 			check(UniformExpressionSet);
-			EvaluateParameter(*UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context, Stack.AddDefaulted_GetRef());
+			EvaluateParameter(Stack, *UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context);
 			break;
 		case EPreshaderOpcode::Add: EvaluateBinaryOp(Stack, Add); break;
 		case EPreshaderOpcode::Sub: EvaluateBinaryOp(Stack, Sub); break;
@@ -366,24 +540,24 @@ void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const 
 	}
 	check(Data.Ptr == DataEnd);
 
-	ensure(Stack.Num() <= 1);
+	FPreshaderValue Result;
 	if (Stack.Num() > 0)
 	{
-		OutValue = Stack.Last();
+		Result = Stack.PopValue();
 	}
+	Stack.CheckEmpty();
+	return Result;
 }
 
-void FPreshaderData::Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FValue& OutValue)
+FPreshaderValue FPreshaderData::Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FPreshaderStack& Stack)
 {
-	FPreshaderStack Stack;
 	FPreshaderDataContext PreshaderContext(*this);
-	EvaluatePreshader(UniformExpressionSet, Context, Stack, PreshaderContext, OutValue);
+	return EvaluatePreshader(UniformExpressionSet, Context, Stack, PreshaderContext);
 }
 
 void FPreshaderData::AppendHash(FSHA1& OutHasher) const
 {
 	OutHasher.Update((uint8*)Names.GetData(), Names.Num() * Names.GetTypeSize());
-	OutHasher.Update((uint8*)NameOffsets.GetData(), NameOffsets.Num() * NameOffsets.GetTypeSize());
 	OutHasher.Update((uint8*)Data.GetData(), Data.Num() * Data.GetTypeSize());
 }
 

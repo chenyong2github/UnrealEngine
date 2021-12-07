@@ -14,8 +14,6 @@ namespace Shader
 
 class FPreshaderData;
 
-using FPreshaderStack = TArray<FValue, TInlineAllocator<64u>>;
-
 struct FPreshaderDataContext
 {
 	explicit FPreshaderDataContext(const FPreshaderData& InData);
@@ -23,11 +21,12 @@ struct FPreshaderDataContext
 
 	const uint8* RESTRICT Ptr;
 	const uint8* RESTRICT EndPtr;
-	const FScriptName* RESTRICT Names;
-	int32 NumNames;
+	TArrayView<const FScriptName> Names;
+	TArrayView<const FPreshaderStructType> StructTypes;
+	TArrayView<const EValueComponentType> StructComponentTypes;
 };
 
-ENGINE_API void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data, FValue& OutValue);
+ENGINE_API FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data);
 
 } // namespace Shader
 } // namespace UE

@@ -33,53 +33,12 @@ namespace HLSLTree
 
 class FNode;
 class FScope;
+class FExpressionLocalPHI;
+class FRequestedType;
 struct FEmitShaderValue;
+struct FShaderValue;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
-
-struct FType
-{
-	FType() : StructType(nullptr), ValueType(Shader::EValueType::Void) {}
-	FType(Shader::EValueType InValueType) : StructType(nullptr), ValueType(InValueType) {}
-	FType(const FStructType* InStruct) : StructType(InStruct), ValueType(Shader::EValueType::Struct) { check(InStruct); }
-
-	const TCHAR* GetName() const;
-	bool IsStruct() const { return (bool)StructType; }
-	int32 GetNumComponents() const;
-	bool Merge(const FType& OtherType);
-
-	inline operator Shader::EValueType() const { return ValueType; }
-	inline operator bool() const { return ValueType != Shader::EValueType::Void; }
-	inline bool operator!() const { return ValueType == Shader::EValueType::Void; }
-
-	const FStructType* StructType;
-	Shader::EValueType ValueType;
-};
-
-inline bool operator==(const FType& Lhs, const FType& Rhs)
-{
-	if (Lhs.ValueType != Rhs.ValueType) return false;
-	if (Lhs.ValueType == Shader::EValueType::Struct && Lhs.StructType != Rhs.StructType) return false;
-	return true;
-}
-inline bool operator!=(const FType& Lhs, const FType& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
-
-struct FConstantValue
-{
-	FConstantValue() = default;
-	FConstantValue(const Shader::FValue& InValue);
-
-	FType Type;
-
-	/**
-	 * For basic types, this will include 1-4 components
-	 * For struct types, will match the flattened list of struct component types
-	 */
-	TArray<Shader::FValueComponent, TInlineAllocator<16>> Component;
-};
 
 struct FError
 {
@@ -134,7 +93,7 @@ struct FEmitShaderValueContext
 class FEmitContext
 {
 public:
-	explicit FEmitContext(FMemStackBase& InAllocator);
+	explicit FEmitContext(FMemStackBase& InAllocator, const Shader::FStructTypeRegistry& InTypeRegistry);
 	~FEmitContext();
 
 	void Finalize();
@@ -142,12 +101,15 @@ public:
 	/** Get a unique local variable name */
 	const TCHAR* AcquireLocalDeclarationCode();
 
-	const TCHAR* CastShaderValue(const FNode* Node, const TCHAR* Code, const FType& SourceType, const FType& DestType, ECastFlags Flags);
+	FEmitShaderValue* AcquireShader(FScope* Scope, const FShaderValue& Shader, TArrayView<FEmitShaderValue*> Dependencies);
+	FEmitShaderValue* AcquirePreshader(const FRequestedType& RequestedType, FScope* Scope, FExpression* Expression);
 
-	const TCHAR* AcquirePreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader);
+	FEmitShaderValue* CastShaderValue(FNode* Node, FScope* Scope, FEmitShaderValue* ShaderValue, const Shader::FType& DestType);
 
 	FMemStackBase* Allocator = nullptr;
+	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
 	TMap<FSHAHash, FEmitShaderValue*> ShaderValueMap;
+	TArray<const FExpressionLocalPHI*> LocalPHIs;
 	FErrors Errors;
 
 	// TODO - remove preshader material dependency
@@ -155,14 +117,13 @@ public:
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
-	TMap<FSHAHash, const TCHAR*> Preshaders;
+	TMap<FSHAHash, FEmitShaderValue*> Preshaders;
 	TArray<FScope*, TInlineAllocator<16>> ScopeStack;
 	TArray<FEmitShaderValueContext, TInlineAllocator<16>> ShaderValueStack;
 	uint32 UniformPreshaderOffset = 0u;
 	bool bReadMaterialNormal = false;
 
 	int32 NumExpressionLocals = 0;
-	int32 NumLocalPHIs = 0;
 	int32 NumTexCoords = 0;
 };
 
@@ -175,59 +136,6 @@ public:
 	FNode* NextNode = nullptr;
 };
 
-struct FStructField
-{
-	const TCHAR* Name;
-	FType Type;
-	int32 ComponentIndex;
-};
-
-struct FStructFieldRef
-{
-	FStructFieldRef() = default;
-	FStructFieldRef(const FType& InType, int32 InIndex, int32 InNum) : Type(InType), ComponentIndex(InIndex), ComponentNum(InNum) {}
-
-	FType Type;
-	int32 ComponentIndex = INDEX_NONE;
-	int32 ComponentNum = 0;
-
-	inline operator bool() const { return ComponentNum > 0; }
-	inline bool operator!() const { return ComponentNum <= 0; }
-};
-
-class FStructType : public FNode
-{
-public:
-	FStructType* NextType;
-	const TCHAR* Name;
-	TArrayView<const FStructField> Fields;
-
-	/**
-	 * Most code working with HLSLTree views struct types as a flat list of components
-	 * Fields with basic types are represented directly. Fields with struct types are recursively flattened into this list
-	 */
-	TArrayView<const Shader::EValueComponentType> ComponentTypes;
-
-	FStructFieldRef FindFieldByName(const TCHAR* InName) const;
-
-	void WriteHLSL(FStringBuilderBase& OutWriter) const;
-};
-
-struct FStructFieldInitializer
-{
-	FStructFieldInitializer() = default;
-	FStructFieldInitializer(const FStringView& InName, const FType& InType) : Name(InName), Type(InType) {}
-
-	FStringView Name;
-	FType Type;
-};
-
-struct FStructTypeInitializer
-{
-	FStringView Name;
-	TArrayView<const FStructFieldInitializer> Fields;
-};
-
 /**
  * Represents an HLSL statement.  This is a piece of code that doesn't evaluate to any value, but instead should be executed sequentially, and likely has side-effects.
  * Examples include assigning a value, or various control flow structures (if, for, while, etc)
@@ -236,9 +144,6 @@ struct FStructTypeInitializer
 class FStatement : public FNode
 {
 public:
-	//static constexpr bool MarkScopeLive = false;
-	//static constexpr bool MarkScopeLiveRecursive = false;
-
 	virtual void Reset() override;
 	virtual void Prepare(FEmitContext& Context) const = 0;
 	virtual void EmitShader(FEmitContext& Context) const = 0;
@@ -247,92 +152,164 @@ public:
 	bool bEmitShader = false;
 };
 
+/**
+ * Like Shader::FType, but tracks which individual components are needed
+ */
 class FRequestedType
 {
 public:
 	FRequestedType() = default;
 	FRequestedType(int32 NumComponents, bool bDefaultRequest = true) : RequestedComponents(bDefaultRequest, NumComponents) {}
-	FRequestedType(const FType& InType, bool bDefaultRequest = true) : StructType(InType.StructType), RequestedComponents(bDefaultRequest, InType.GetNumComponents()) {}
+	FRequestedType(const Shader::FType& InType, bool bDefaultRequest = true);
+	FRequestedType(const Shader::EValueType& InType, bool bDefaultRequest = true);
+	
+	const TCHAR* GetName() const { return GetType().GetName(); }
+	bool IsStruct() const { return StructType != nullptr; }
+	const Shader::FStructType* GetStructType() const { return StructType; }
+	const Shader::FType GetType() const;
 
-	bool IsStruct() const { return (bool)StructType; }
-	const FStructType* GetStructType() const { return StructType; }
-	int32 GetNumComponents() const { return RequestedComponents.Num(); }
-	int32 GetRequestedNumComponents() const { const int32 LastIndex = RequestedComponents.FindLast(true); return LastIndex + 1; }
+	int32 GetNumComponents() const;
 	bool IsComponentRequested(int32 Index) const { return RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false; }
 	bool IsVoid() const { return RequestedComponents.Find(true) == INDEX_NONE; }
+
+	bool Merge(const FRequestedType& OtherType);
 
 	void Reset()
 	{
 		StructType = nullptr;
+		ValueComponentType = Shader::EValueComponentType::Void;
 		RequestedComponents.Reset();
 	}
 
-	/** Marks the given field as requested (or not) */
-	void SetFieldRequested(const FStructFieldRef& FieldRef, bool bRequested = true)
+	void SetComponentRequested(int32 Index, bool bRequested = true)
 	{
-		RequestedComponents.SetRange(FieldRef.ComponentIndex, FieldRef.ComponentNum, bRequested);
+		if (bRequested)
+		{
+			RequestedComponents.PadToNum(Index + 1, false);
+		}
+		if (RequestedComponents.IsValidIndex(Index))
+		{
+			RequestedComponents[Index] = bRequested;
+		}
 	}
 
-	void ClearFieldRequested(const FStructFieldRef& FieldRef)
+	/** Marks the given field as requested (or not) */
+	void SetFieldRequested(const Shader::FStructField* Field, bool bRequested = true)
 	{
-		SetFieldRequested(FieldRef, false);
+		RequestedComponents.SetRange(Field->ComponentIndex, Field->GetNumComponents(), bRequested);
+	}
+
+	void ClearFieldRequested(const Shader::FStructField* Field)
+	{
+		SetFieldRequested(Field, false);
 	}
 
 	/** Marks the given field as requested, based on the input request type (which should match the field type) */
-	void SetField(const FStructFieldRef& FieldRef, const FRequestedType& InRequest)
+	void SetField(const Shader::FStructField* Field, const FRequestedType& InRequest)
 	{
-		ensure(InRequest.GetNumComponents() == FieldRef.ComponentNum);
-		RequestedComponents.SetRangeFromRange(FieldRef.ComponentIndex, FieldRef.ComponentNum, InRequest.RequestedComponents, 0);
+		ensure(InRequest.GetNumComponents() == Field->GetNumComponents());
+		RequestedComponents.SetRangeFromRange(Field->ComponentIndex, InRequest.GetNumComponents(), InRequest.RequestedComponents, 0);
 	}
 
 	/** Returns the requested type of the given field */
-	FRequestedType GetField(const FStructFieldRef& FieldRef) const
+	FRequestedType GetField(const Shader::FStructField* Field) const
 	{
-		FRequestedType Result(FieldRef.Type);
-		Result.RequestedComponents.SetRangeFromRange(0, FieldRef.ComponentNum, RequestedComponents, FieldRef.ComponentIndex);
+		FRequestedType Result(Field->Type);
+		Result.RequestedComponents.SetRangeFromRange(0, Field->GetNumComponents(), RequestedComponents, Field->ComponentIndex);
 		return Result;
 	}
 
-	/** The struct type we're requesting, or nullptr if we're requesting a basic type */
-	const FStructType* StructType = nullptr;
+	/**
+	 * If either StructType or ValueComponentType are set, then the request is for an explicit type
+	 * Otherwise, the request is for any type with the given components
+	 */
+	const Shader::FStructType* StructType = nullptr;
+	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
 
 	/** 1 bit per component, a value of 'true' means the specified component is requsted */
 	TBitArray<> RequestedComponents;
 };
+
+/**
+ * Like FRequestedType, but tracks an EExpressionEvaluationType per component, rather than a simple requested flag
+ */
+class FPreparedType
+{
+public:
+	FPreparedType() = default;
+	FPreparedType(Shader::EValueComponentType InComponentType) : ValueComponentType(InComponentType) {}
+	FPreparedType(const Shader::FStructType* InStructType) : StructType(InStructType) {}
+	FPreparedType(const Shader::FType& InType);
+
+	void SetEvaluationType(EExpressionEvaluationType EvaluationType);
+
+	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
+	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
+
+	int32 GetNumComponents() const;
+	FRequestedType GetRequestedType() const;
+	Shader::FType GetType() const;
+	bool IsStruct() const { return !IsVoid() && StructType != nullptr; }
+	bool IsNumeric() const { return !IsVoid() && ValueComponentType != Shader::EValueComponentType::Void; }
+	bool IsInitialized() const { return StructType != nullptr || ValueComponentType != Shader::EValueComponentType::Void; }
+	bool IsVoid() const;
+	EExpressionEvaluationType GetEvaluationType(const FRequestedType& RequestedType) const;
+
+	EExpressionEvaluationType GetComponentEvaluationType(int32 Index) const
+	{
+		return ComponentEvaluationType.IsValidIndex(Index) ? ComponentEvaluationType[Index] : EExpressionEvaluationType::None;
+	}
+
+	void SetComponentEvaluationType(int32 Index, EExpressionEvaluationType EvaluationType);
+
+	/** Unlike FRequestedType, one of these should be set */
+	const Shader::FStructType* StructType = nullptr;
+	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
+
+	/** Evaluation type for each component, may be 'None' for components that are unused */
+	TArray<EExpressionEvaluationType, TInlineAllocator<16>> ComponentEvaluationType;
+};
+
+FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& Rhs);
 
 struct FShaderValue
 {
 	explicit FShaderValue(FStringBuilderBase& InCode) : Code(InCode) {}
 
 	FStringBuilderBase& Code;
+	Shader::FType Type;
 	bool bInline = false;
-	bool bHasDependencies = false;
 };
 
-struct FPrepareValueResult
+class FPrepareValueResult
 {
+public:
+	const FPreparedType& GetPreparedType() const { return PreparedType; }
+
+	void SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluationType EvaluationType, const Shader::FType& Type);
+	void SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluationType EvaluationType, Shader::EValueComponentType ComponentType);
+	void SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type);
+	void SetForwardValue(FEmitContext& Context, const FRequestedType& RequestedType, FExpression* InValue);
+
+private:
+	bool TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType);
+
 	FExpression* ForwardValue = nullptr;
-	FType Type;
-	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
-	Shader::FValue ConstantValue;
+	FPreparedType PreparedType;
 
-	void SetConstant(FEmitContext& Context, const Shader::FValue& InValue);
-	void SetType(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, const FType& InType);
-	void SetForwardValue(FEmitContext& Context, FExpression* InValue, const FRequestedType& RequestedType);
-
-	inline bool IsValid() const { return EvaluationType != EExpressionEvaluationType::None; }
+	friend class FExpression;
 };
 
 struct FEmitShaderValue
 {
-	FEmitShaderValue(FExpression* InExpression, FScope* InScope) : Expression(InExpression), Scope(InScope) {}
+	FEmitShaderValue(FScope* InScope, const Shader::FType& InType) : Scope(InScope), Type(InType) {}
 
 	inline bool IsInline() const { return Value == nullptr; }
 
-	FExpression* Expression = nullptr;
 	FScope* Scope = nullptr;
 	const TCHAR* Reference = nullptr;
 	const TCHAR* Value = nullptr;
+	Shader::FType Type;
 	TArrayView<FEmitShaderValue*> Dependencies;
 	FSHAHash Hash;
 };
@@ -346,26 +323,26 @@ struct FEmitShaderValue
 class FExpression : public FNode
 {
 public:
-	const FType& GetType() const { return PrepareValueResult.Type; }
-	EExpressionEvaluationType GetEvaluationType() const { return PrepareValueResult.EvaluationType; }
+	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
+	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
+	EExpressionEvaluationType GetEvaluationType(const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluationType(RequestedType); }
 
 	virtual void Reset() override;
 
-	friend const FPrepareValueResult& PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
+	friend const FPreparedType& PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
+
+	const TCHAR* GetValueShader(FEmitContext& Context, const FRequestedType& RequestedType);
+	void GetValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader);
+	Shader::FValue GetValueConstant(FEmitContext& Context, const FRequestedType& RequestedType);
 
 	const TCHAR* GetValueShader(FEmitContext& Context);
-	const TCHAR* GetValueShader(FEmitContext& Context, const FType& InType);
-	void GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader);
-	Shader::FValue GetValueConstant(FEmitContext& Context);
 
 protected:
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) = 0;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const;
-	virtual void EmitShaderDependencies(FEmitContext& Context, const FShaderValue& Shader) const;
-	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const;
+	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const;
 
 private:
-	FEmitShaderValue* ShaderValue = nullptr;
 	FRequestedType CurrentRequestedType;
 	FPrepareValueResult PrepareValueResult;
 	bool bReentryFlag = false;
@@ -382,9 +359,8 @@ private:
 class FExpressionLocalPHI final : public FExpression
 {
 public:
-	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) override;
-	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
-	virtual void EmitShaderDependencies(FEmitContext& Context, const FShaderValue& Shader) const override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const override;
 
 	FName LocalName;
 	FScope* Scopes[MaxNumPreviousScopes];
@@ -548,8 +524,6 @@ public:
 
 	void ResetNodes();
 
-	void EmitDeclarationsCode(FStringBuilderBase& OutCode) const;
-
 	bool EmitShader(FEmitContext& Context, FStringBuilderBase& OutCode) const;
 
 	FScope& GetRootScope() const { return *RootScope; }
@@ -575,8 +549,6 @@ public:
 
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 
-	const FStructType* NewStructType(const FStructTypeInitializer& Initializer);
-
 private:
 	template<typename T, typename... ArgTypes>
 	inline T* NewNode(ArgTypes&&... Args)
@@ -592,8 +564,6 @@ private:
 
 	FMemStackBase* Allocator = nullptr;
 	FNode* Nodes = nullptr;
-	FExpression* ExpressionsToDeclare = nullptr;
-	FStructType* StructTypes = nullptr;
 	FScope* RootScope = nullptr;
 };
 

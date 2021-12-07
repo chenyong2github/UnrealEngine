@@ -35,10 +35,14 @@ static UE::Shader::EValueType GetShaderType(EMaterialValueType MaterialType)
 	}
 }
 
-FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial, const FMaterialCompileTargetParameters& InCompileTarget, UE::HLSLTree::FTree& InOutTree)
+FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial,
+	const FMaterialCompileTargetParameters& InCompileTarget,
+	UE::Shader::FStructTypeRegistry& InOutTypeRegistry,
+	UE::HLSLTree::FTree& InOutTree)
 	: CompileTarget(InCompileTarget)
 	, TargetMaterial(InTargetMaterial)
 	, HLSLTree(&InOutTree)
+	, TypeRegistry(&InOutTypeRegistry)
 	, bGeneratedResult(false)
 {
 	const EMaterialShadingModel DefaultShadingModel = InTargetMaterial->GetShadingModels().GetFirstShadingModel();
@@ -46,7 +50,7 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial, cons
 	FFunctionCallEntry* RootFunctionEntry = new(InOutTree.GetAllocator()) FFunctionCallEntry();
 	FunctionCallStack.Add(RootFunctionEntry);
 
-	TArray<UE::HLSLTree::FStructFieldInitializer, TInlineAllocator<MP_MAX>> MaterialAttributeFields;
+	TArray<UE::Shader::FStructFieldInitializer, TInlineAllocator<MP_MAX>> MaterialAttributeFields;
 
 	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
 	for (const FGuid& AttributeID : OrderedVisibleAttributes)
@@ -68,19 +72,17 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial, cons
 			else
 			{
 				const UE::Shader::FValue DefaultValue = UE::Shader::Cast(FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID), ValueType);
-				for (int32 i = 0; i < DefaultValue.NumComponents; ++i)
-				{
-					MaterialAttributesDefaultValue.Component.Add(DefaultValue.Component[i]);
-				}
+				MaterialAttributesDefaultValue.Component.Append(DefaultValue.Component);
 			}
 		}
 	}
 
-	UE::HLSLTree::FStructTypeInitializer MaterialAttributesInitializer;
+	UE::Shader::FStructTypeInitializer MaterialAttributesInitializer;
 	MaterialAttributesInitializer.Name = TEXT("FMaterialAttributes");
 	MaterialAttributesInitializer.Fields = MaterialAttributeFields;
-	MaterialAttributesType = InOutTree.NewStructType(MaterialAttributesInitializer);
+	MaterialAttributesType = InOutTypeRegistry.NewType(MaterialAttributesInitializer);
 
+	check(MaterialAttributesDefaultValue.Component.Num() == MaterialAttributesType->ComponentTypes.Num());
 	MaterialAttributesDefaultValue.Type = MaterialAttributesType;
 }
 

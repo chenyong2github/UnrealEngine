@@ -22,7 +22,7 @@ class FTree;
 
 /**
  * Describes how a given expression needs to be evaluated */
-enum class EExpressionEvaluationType
+enum class EExpressionEvaluationType : uint8
 {
 	/** Invalid/uninitialized */
 	None,

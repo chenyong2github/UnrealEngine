@@ -59,6 +59,16 @@ enum class EPreshaderOpcode : uint8
 	ExternalTextureCoordinateScaleRotation,
 	ExternalTextureCoordinateOffset,
 	RuntimeVirtualTextureUniform,
+	GetField,
+	SetField,
+};
+
+struct FPreshaderStructType
+{
+	DECLARE_TYPE_LAYOUT(FPreshaderStructType, NonVirtual);
+	LAYOUT_FIELD(uint64, Hash);
+	LAYOUT_FIELD(int32, ComponentTypeIndex);
+	LAYOUT_FIELD(int32, NumComponents);
 };
 
 class FPreshaderData
@@ -78,14 +88,14 @@ public:
 	FSHAHash GetHash() const;
 	void AppendHash(FSHA1& OutHasher) const;
 
-	void Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FValue& OutValue);
-
-	void Append(const FPreshaderData& InPreshader);
+	FPreshaderValue Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FPreshaderStack& Stack);
 
 	const int32 Num() const { return Data.Num(); }
 
 	void WriteData(const void* Value, uint32 Size);
 	void WriteName(const FScriptName& Name);
+	void WriteType(const FType& Type);
+	void WriteValue(const FValue& Value);
 
 	template<typename T>
 	FPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
@@ -94,7 +104,10 @@ public:
 	FPreshaderData& Write<FScriptName>(const FScriptName& Value) { WriteName(Value); return *this; }
 
 	template<>
-	FPreshaderData& Write<FValue>(const FValue& Value);
+	FPreshaderData& Write<FType>(const FType& Value) { WriteType(Value); return *this; }
+
+	template<>
+	FPreshaderData& Write<FValue>(const FValue& Value) { WriteValue(Value); return *this; }
 
 	/** Can't write FName, use FScriptName instead */
 	template<>
@@ -106,22 +119,10 @@ public:
 	inline FPreshaderData& WriteOpcode(EPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
 
 	LAYOUT_FIELD(TMemoryImageArray<FScriptName>, Names);
-	LAYOUT_FIELD(TMemoryImageArray<uint32>, NameOffsets);
+	LAYOUT_FIELD(TMemoryImageArray<FPreshaderStructType>, StructTypes);
+	LAYOUT_FIELD(TMemoryImageArray<EValueComponentType>, StructComponentTypes);
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
 };
-
-template<>
-inline FPreshaderData& FPreshaderData::Write<FValue>(const FValue& Value)
-{
-	const EValueType Type = Value.GetType();
-	FMemoryImageValue MemoryValue = Value.AsMemoryImage();
-	Data.Add((uint8)Type);
-	if (MemoryValue.Size > 0u)
-	{
-		Data.Append(MemoryValue.Bytes, MemoryValue.Size);
-	}
-	return *this;
-}
 
 } // namespace Shader
 } // namespace UE

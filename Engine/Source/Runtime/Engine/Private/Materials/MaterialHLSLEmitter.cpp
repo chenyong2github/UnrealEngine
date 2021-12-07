@@ -693,6 +693,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment)
 {
 	using namespace UE::HLSLTree;
+	using namespace UE::Shader;
 
 	FMemory::Memzero(SharedPixelProperties);
 	SharedPixelProperties[MP_Normal] = true;
@@ -717,8 +718,9 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	UMaterialInterface* MaterialInterface = InOutMaterial.GetMaterialInterface();
 	UMaterial* BaseMaterial = MaterialInterface->GetMaterial();
 
+	FStructTypeRegistry TypeRegistry(Allocator);
 	FTree* HLSLTree = FTree::Create(Allocator);
-	FMaterialHLSLGenerator Generator(BaseMaterial, InCompilerTarget, *HLSLTree);
+	FMaterialHLSLGenerator Generator(BaseMaterial, InCompilerTarget, TypeRegistry, *HLSLTree);
 	FScope& RootScope = HLSLTree->GetRootScope();
 
 	bool bGenerateResult = false;
@@ -743,13 +745,13 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		return false;
 	}
 
-	FEmitContext EmitContext(Allocator);
+	FEmitContext EmitContext(Allocator, TypeRegistry);
 	EmitContext.Material = &InOutMaterial;
 	EmitContext.StaticParameters = &InStaticParameters;
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;
 
-	const FStructFieldRef NormalFieldRef = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
-	check(NormalFieldRef);
+	const FStructField* NormalField = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
+	check(NormalField);
 
 	if (!PrepareScope(EmitContext, Generator.GetResultStatement()->ParentScope))
 	{
@@ -758,7 +760,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 	// Prepare all fields *except* normal
 	FRequestedType RequestedMaterialAttributesType(Generator.GetMaterialAttributesType());
-	RequestedMaterialAttributesType.ClearFieldRequested(NormalFieldRef);
+	RequestedMaterialAttributesType.ClearFieldRequested(NormalField);
 	PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType);
 
 	const bool bReadMaterialNormal = EmitContext.bReadMaterialNormal;
@@ -767,7 +769,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	if (!bReadMaterialNormal)
 	{
 		// No access to material normal, can execute everything in phase0
-		RequestedMaterialAttributesType.SetFieldRequested(NormalFieldRef);
+		RequestedMaterialAttributesType.SetFieldRequested(NormalField);
 		PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialAttributesType);
 		HLSLTree->EmitShader(EmitContext, CodePhase0);
 	}
@@ -785,7 +787,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 		// Prepare code for just the normal
 		FRequestedType RequestedMaterialNormal(Generator.GetMaterialAttributesType(), false);
-		RequestedMaterialNormal.SetFieldRequested(NormalFieldRef);
+		RequestedMaterialNormal.SetFieldRequested(NormalField);
 		PrepareExpressionValue(EmitContext, Generator.GetResultExpression(), RequestedMaterialNormal);
 
 		// Execute the normal in phase0
@@ -793,7 +795,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	}
 
 	FStringBuilderMemstack Declarations(Allocator, 64 * 1024);
-	HLSLTree->EmitDeclarationsCode(Declarations);
+	TypeRegistry.EmitDeclarationsCode(Declarations);
 
 	FString MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform,
 		InOutMaterial,

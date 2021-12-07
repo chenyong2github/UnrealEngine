@@ -280,12 +280,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionGetMaterialAttributes::GenerateHL
 
 	const FGuid& AttributeID = AttributeGetTypes[AttributeIndex];
 	const FString& AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
-
-	UE::HLSLTree::FExpressionGetStructField* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionGetStructField>();
-	SetAttributeExpression->StructType = Generator.GetMaterialAttributesType();
-	SetAttributeExpression->StructExpression = AttributesExpression;
-	SetAttributeExpression->FieldName = *AttributeName;
-	OutExpression = SetAttributeExpression;
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionGetStructField>(Generator.GetMaterialAttributesType(), *AttributeName, AttributesExpression);
 
 	return EMaterialGenerateHLSLStatus::Success;
 
@@ -317,12 +312,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetMaterialAttributes::GenerateHL
 				UE::HLSLTree::FExpression* ValueExpression = AttributeInput.AcquireHLSLExpression(Generator, Scope);
 				if (ValueExpression)
 				{
-					UE::HLSLTree::FExpressionSetStructField* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSetStructField>();
-					SetAttributeExpression->StructType = Generator.GetMaterialAttributesType();
-					SetAttributeExpression->FieldName = *AttributeName;
-					SetAttributeExpression->StructExpression = AttributesExpression;
-					SetAttributeExpression->FieldExpression = ValueExpression;
-					AttributesExpression = SetAttributeExpression;
+					AttributesExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSetStructField>(Generator.GetMaterialAttributesType(), *AttributeName, AttributesExpression, ValueExpression);
 				}
 			}
 		}

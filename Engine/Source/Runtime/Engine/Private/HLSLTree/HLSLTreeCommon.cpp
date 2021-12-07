@@ -62,6 +62,23 @@ FSwizzleParameters::FSwizzleParameters(int8 InR, int8 InG, int8 InB, int8 InA) :
 	++NumComponents;
 }
 
+FRequestedType FSwizzleParameters::GetRequestedInputType(const FRequestedType& RequestedType) const
+{
+	FRequestedType RequestedInputType;
+	RequestedInputType.ValueComponentType = RequestedType.ValueComponentType;
+
+	for (int32 Index = 0; Index < NumComponents; ++Index)
+	{
+		if (RequestedType.IsComponentRequested(Index))
+		{
+			const int32 SwizzledComponentIndex = ComponentIndex[Index];
+			RequestedInputType.SetComponentRequested(SwizzledComponentIndex);
+		}
+	}
+	
+	return RequestedInputType;
+}
+
 FSwizzleParameters MakeSwizzleMask(bool bInR, bool bInG, bool bInB, bool bInA)
 {
 	int8 ComponentIndex[4] = { INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE };
@@ -85,57 +102,23 @@ FSwizzleParameters MakeSwizzleMask(bool bInR, bool bInG, bool bInB, bool bInA)
 	return FSwizzleParameters(ComponentIndex[0], ComponentIndex[1], ComponentIndex[2], ComponentIndex[3]);
 }
 
-void FExpressionConstant::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionConstant::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	if (Value.Type.IsStruct())
-	{
-		if (Value.Type.StructType != RequestedType.GetStructType())
-		{
-			return Context.Errors.AddError(this, TEXT("Type mismatch"));
-		}
-
-		// TODO - Support for preshader structs?
-		OutResult.SetType(Context, EExpressionEvaluationType::Shader, Value.Type);
-	}
-	else
-	{
-		OutResult.SetType(Context, EExpressionEvaluationType::Constant, Shader::MakeValueTypeWithRequestedNumComponents(Value.Type, RequestedType.GetRequestedNumComponents()));
-	}
+	OutResult.SetType(Context, RequestedType, EExpressionEvaluationType::Constant, Value.Type);
 }
 
-void FExpressionConstant::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionConstant::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
-	const TArrayView<const Shader::EValueComponentType> ComponentTypes = Value.Type.StructType->ComponentTypes;
-	OutShader.Code.Append(TEXT("{ "));
-	for (int32 ComponentIndex = 0; ComponentIndex < Value.Component.Num(); ++ComponentIndex)
-	{
-		if (ComponentIndex > 0)
-		{
-			OutShader.Code.Append(TEXT(", "));
-		}
-		Value.Component[ComponentIndex].ToString(ComponentTypes[ComponentIndex], OutShader.Code);
-	}
-	OutShader.Code.Append(TEXT(" }"));
+	OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Value);
 }
 
-void FExpressionConstant::EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const
+void FExpressionMaterialParameter::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	Shader::FValue BaseValue(Value.Type.ValueType);
-	for (int32 ComponentIndex = 0; ComponentIndex < Value.Component.Num(); ++ComponentIndex)
-	{
-		BaseValue.Component[ComponentIndex] = Value.Component[ComponentIndex];
-	}
-	OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(BaseValue);
-}
-
-void FExpressionMaterialParameter::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
-{
-	const Shader::EValueType CurrentType = Shader::MakeValueTypeWithRequestedNumComponents(GetShaderValueType(ParameterType), RequestedType.GetRequestedNumComponents());
 	const EExpressionEvaluationType EvaluationType = IsStaticMaterialParameter(ParameterType) ? EExpressionEvaluationType::Constant : EExpressionEvaluationType::Preshader;
-	OutResult.SetType(Context, EvaluationType, CurrentType);
+	OutResult.SetType(Context, RequestedType, EvaluationType, GetShaderValueType(ParameterType));
 }
 
-void FExpressionMaterialParameter::EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const
+void FExpressionMaterialParameter::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
 	if (ParameterType == EMaterialParameterType::StaticSwitch)
 	{
@@ -170,11 +153,12 @@ void FExpressionMaterialParameter::EmitValuePreshader(FEmitContext& Context, Sha
 	}
 }
 
-void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
 	const int32 TypeIndex = (int32)InputType;
 	const int32 TexCoordIndex = TypeIndex - (int32)EExternalInputType::TexCoord0;
 
+	OutShader.Type = GetInputExpressionType(InputType);
 	if (TexCoordIndex >= 0 && TexCoordIndex < 8)
 	{
 		Context.NumTexCoords = FMath::Max(Context.NumTexCoords, TexCoordIndex + 1);
@@ -187,13 +171,13 @@ void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, FShaderVal
 	}
 }
 
-void FExpressionTextureSample::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionTextureSample::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	PrepareExpressionValue(Context, TexCoordExpression, 2);
-	OutResult.SetType(Context, EExpressionEvaluationType::Shader, Shader::EValueType::Float4);
+	OutResult.SetType(Context, RequestedType, EExpressionEvaluationType::Shader, Shader::EValueType::Float4);
 }
 
-void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
 	const FTextureDescription& Desc = Declaration->Description;
 	const EMaterialValueType MaterialValueType = Desc.Texture->GetMaterialType();
@@ -319,6 +303,7 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FShaderVal
 		}
 	}
 
+	OutShader.Type = Shader::EValueType::Float4;
 	OutShader.Code.Appendf(TEXT("%s(%s(%s, %s, %s))"),
 		SamplerTypeFunction,
 		SampleFunctionName,
@@ -327,171 +312,225 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FShaderVal
 		TexCoordExpression->GetValueShader(Context, Shader::EValueType::Float2));
 }
 
-void FExpressionGetStructField::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionGetStructField::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FStructFieldRef FieldRef = StructType->FindFieldByName(FieldName);
-	if (!FieldRef)
-	{
-		return Context.Errors.AddErrorf(this, TEXT("Invalid field %s"), FieldName);
-	}
-
 	FRequestedType RequestedStructType(StructType, false);
-	RequestedStructType.SetField(FieldRef, RequestedType);
+	RequestedStructType.SetField(Field, RequestedType);
 
-	const FPrepareValueResult& StructResult = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
-	if (StructResult.IsValid() && StructResult.Type != FType(StructType))
+	const FPreparedType& StructPreparedType = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
+	if (!StructPreparedType.IsVoid() && StructPreparedType.StructType != StructType)
 	{
 		return Context.Errors.AddErrorf(this, TEXT("Expected type %s"), StructType->Name);
 	}
 
-	// TODO - preshader structs
-	OutResult.SetType(Context, EExpressionEvaluationType::Shader, FieldRef.Type);
+	OutResult.SetType(Context, RequestedType, StructPreparedType.GetFieldType(Field));
 }
 
-void FExpressionGetStructField::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionGetStructField::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
+	FRequestedType RequestedStructType(StructType, false);
+	RequestedStructType.SetField(Field, RequestedType);
+
 	OutShader.bInline = true;
+	OutShader.Type = Field->Type;
 	OutShader.Code.Appendf(TEXT("%s.%s"),
-		StructExpression->GetValueShader(Context, StructType),
-		FieldName);
+		StructExpression->GetValueShader(Context, RequestedStructType),
+		Field->Name);
 }
 
-void FExpressionSetStructField::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionGetStructField::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
-	const FStructFieldRef FieldRef = StructType->FindFieldByName(FieldName);
-	if (!FieldRef)
-	{
-		return Context.Errors.AddErrorf(this, TEXT("Invalid field %s"), FieldName);
-	}
+	FRequestedType RequestedStructType(StructType, false);
+	RequestedStructType.SetField(Field, RequestedType);
 
+	StructExpression->GetValuePreshader(Context, RequestedStructType, OutPreshader);
+	OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::GetField).Write(Field->Type).Write(Field->ComponentIndex);
+}
+
+void FExpressionSetStructField::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
 	FRequestedType RequestedStructType(RequestedType);
-	RequestedStructType.ClearFieldRequested(FieldRef);
+	RequestedStructType.ClearFieldRequested(Field);
 
-	const FPrepareValueResult& StructResult = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
-	if (StructResult.IsValid() && StructResult.Type != FType(StructType))
+	const FPreparedType& StructPreparedType = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
+	if (!StructPreparedType.IsVoid() && StructPreparedType.StructType != StructType)
 	{
 		return Context.Errors.AddErrorf(this, TEXT("Expected type %s"), StructType->Name);
 	}
 
-	const FPrepareValueResult& FieldResult = PrepareExpressionValue(Context, FieldExpression, RequestedType.GetField(FieldRef));
-	if (!FieldResult.IsValid())
+	const FPreparedType& FieldPreparedType = PrepareExpressionValue(Context, FieldExpression, RequestedType.GetField(Field));
+	if (FieldPreparedType.IsVoid())
 	{
-		OutResult.SetForwardValue(Context, StructExpression, RequestedType);
+		OutResult.SetForwardValue(Context, RequestedType, StructExpression);
 	}
 	else
 	{
-		// TODO - preshader structs
-		OutResult.SetType(Context, EExpressionEvaluationType::Shader, StructType);
+		FPreparedType ResultType(StructPreparedType);
+		if (ResultType.IsVoid())
+		{
+			ResultType = StructType;
+		}
+		ResultType.SetField(Field, FieldPreparedType);
+		OutResult.SetType(Context, RequestedType, ResultType);
 	}
 }
 
-void FExpressionSetStructField::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionSetStructField::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
-	const FStructFieldRef FieldRef = StructType->FindFieldByName(FieldName);
-	check(FieldRef);
-	if (StructExpression->GetEvaluationType() != EExpressionEvaluationType::None)
+	FRequestedType RequestedStructType(RequestedType);
+	RequestedStructType.ClearFieldRequested(Field);
+	const EExpressionEvaluationType StructEvaluationType = StructExpression->GetEvaluationType(RequestedStructType);
+
+	const FRequestedType RequestedFieldType = RequestedType.GetField(Field);
+	const EExpressionEvaluationType FieldEvaluationType = FieldExpression->GetEvaluationType(RequestedFieldType);
+
+	OutShader.Type = StructType;
+	if (StructEvaluationType == EExpressionEvaluationType::None)
 	{
-		OutShader.Code.Appendf(TEXT("%s_Set%s(%s, %s)"),
-			StructType->Name,
-			FieldName,
-			StructExpression->GetValueShader(Context, StructType),
-			FieldExpression->GetValueShader(Context, FieldRef.Type));
-	}
-	else
-	{
+		check(FieldEvaluationType != EExpressionEvaluationType::None);
+
 		// StructExpression is not used, so default to a zero-initialized struct
 		// This will happen if all the accessed struct fields are explicitly defined
 		OutShader.Code.Appendf(TEXT("%s_Set%s((%s)0, %s)"),
 			StructType->Name,
-			FieldName,
+			Field->Name,
 			StructType->Name,
-			FieldExpression->GetValueShader(Context, FieldRef.Type));
+			FieldExpression->GetValueShader(Context, RequestedFieldType));
+	}
+	else
+	{
+		OutShader.Code.Appendf(TEXT("%s_Set%s(%s, %s)"),
+			StructType->Name,
+			Field->Name,
+			StructExpression->GetValueShader(Context, RequestedStructType),
+			FieldExpression->GetValueShader(Context, RequestedFieldType));
 	}
 }
 
-void FExpressionSelect::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionSetStructField::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
-	const FPrepareValueResult& ConditionResult = PrepareExpressionValue(Context, ConditionExpression, 1);
-	if (ConditionResult.EvaluationType == EExpressionEvaluationType::Constant)
+	FRequestedType RequestedStructType(RequestedType);
+	RequestedStructType.ClearFieldRequested(Field);
+	const EExpressionEvaluationType StructEvaluationType = StructExpression->GetEvaluationType(RequestedStructType);
+
+	const FRequestedType RequestedFieldType = RequestedType.GetField(Field);
+	const EExpressionEvaluationType FieldEvaluationType = FieldExpression->GetEvaluationType(RequestedFieldType);
+
+	if (StructEvaluationType != EExpressionEvaluationType::None)
 	{
-		const bool bCondition = ConditionResult.ConstantValue.AsBoolScalar();
-		return OutResult.SetForwardValue(Context, bCondition ? TrueExpression : FalseExpression, RequestedType);
+		StructExpression->GetValuePreshader(Context, RequestedStructType, OutPreshader);
+	}
+	else
+	{
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ConstantZero).Write(Shader::FType(StructType));
 	}
 
-	const FPrepareValueResult& LhsResult = PrepareExpressionValue(Context, FalseExpression, RequestedType);
-	const FPrepareValueResult& RhsResult = PrepareExpressionValue(Context, TrueExpression, RequestedType);
-	if (!ConditionResult.IsValid() || !LhsResult.IsValid() || !RhsResult.IsValid())
+	FieldExpression->GetValuePreshader(Context, RequestedFieldType, OutPreshader);
+	OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::SetField).Write(Field->ComponentIndex).Write(Field->GetNumComponents());
+}
+
+void FExpressionSelect::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	const FPreparedType& ConditionType = PrepareExpressionValue(Context, ConditionExpression, 1);
+	if (ConditionType.GetEvaluationType(Shader::EValueType::Bool1) == EExpressionEvaluationType::Constant)
 	{
-		return;
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Shader::EValueType::Bool1).AsBoolScalar();
+		return OutResult.SetForwardValue(Context, RequestedType, bCondition ? TrueExpression : FalseExpression);
 	}
 
-	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsResult.Type);
-	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsResult.Type);
-	if (LhsTypeDesc.ComponentType != RhsTypeDesc.ComponentType)
+	const FPreparedType& LhsType = PrepareExpressionValue(Context, FalseExpression, RequestedType);
+	const FPreparedType& RhsType = PrepareExpressionValue(Context, TrueExpression, RequestedType);
+	
+	if (LhsType.ValueComponentType != RhsType.ValueComponentType ||
+		LhsType.StructType != RhsType.StructType)
 	{
 		return Context.Errors.AddError(this, TEXT("Type mismatch"));
 	}
 
-	if (LhsResult.Type.IsStruct())
-	{
-		OutResult.SetType(Context, EExpressionEvaluationType::Shader, LhsResult.Type);
-	}
-	else
-	{
-		const int8 NumComponents = FMath::Max(LhsTypeDesc.NumComponents, RhsTypeDesc.NumComponents);
-		OutResult.SetType(Context, EExpressionEvaluationType::Shader, Shader::MakeValueType(LhsTypeDesc.ComponentType, NumComponents));
-	}
+	OutResult.SetType(Context, RequestedType, MergePreparedTypes(LhsType, RhsType));
 }
 
-void FExpressionSelect::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionSelect::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
+	OutShader.Type = RequestedType.GetType();
 	OutShader.Code.Appendf(TEXT("(%s ? %s : %s)"),
 		ConditionExpression->GetValueShader(Context, Shader::EValueType::Bool1),
-		TrueExpression->GetValueShader(Context, GetType()),
-		FalseExpression->GetValueShader(Context, GetType()));
+		TrueExpression->GetValueShader(Context, RequestedType),
+		FalseExpression->GetValueShader(Context, RequestedType));
 }
 
-void FExpressionSelect::EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const
+void FExpressionSelect::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
 	check(false); // TODO
 }
 
-void FExpressionBinaryOp::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionBinaryOp::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPrepareValueResult& LhsResult = PrepareExpressionValue(Context, Lhs, RequestedType);
-	const FPrepareValueResult& RhsResult = PrepareExpressionValue(Context, Rhs, RequestedType);
-	if (!LhsResult.IsValid() || !RhsResult.IsValid())
+	const FPreparedType& LhsType = PrepareExpressionValue(Context, Lhs, RequestedType);
+	const FPreparedType& RhsType = PrepareExpressionValue(Context, Rhs, RequestedType);
+	if (LhsType.IsVoid() || RhsType.IsVoid())
 	{
 		return;
 	}
 
-	FString ErrorMessage;
-	Shader::EValueType ResultType;
-	switch (Op)
+	if (!LhsType.IsNumeric() || !RhsType.IsNumeric())
 	{
-	case EBinaryOp::Less:
-		ResultType = Shader::MakeComparisonResultType(LhsResult.Type, RhsResult.Type, ErrorMessage);
-		break;
-	default:
-		ResultType = Shader::MakeArithmeticResultType(LhsResult.Type, RhsResult.Type, ErrorMessage);
-		break;
+		return Context.Errors.AddError(this, TEXT("Invalid arithmetic between non-numeric types"));
 	}
-	if (!ErrorMessage.IsEmpty())
+
+	FPreparedType ResultType = MergePreparedTypes(LhsType, RhsType);
+	if (Op == EBinaryOp::Less)
 	{
-		return Context.Errors.AddError(this, ErrorMessage);
+		ResultType.ValueComponentType = Shader::EValueComponentType::Bool;
 	}
 
 	const FBinaryOpDescription OpDesc = GetBinaryOpDesription(Op);
-	const EExpressionEvaluationType EvaluationType = OpDesc.PreshaderOpcode != Shader::EPreshaderOpcode::Nop
-		? CombineEvaluationTypes(LhsResult.EvaluationType, RhsResult.EvaluationType)
-		: EExpressionEvaluationType::Shader;
-	OutResult.SetType(Context, EvaluationType, ResultType);
+	if (OpDesc.PreshaderOpcode == Shader::EPreshaderOpcode::Nop)
+	{
+		// No preshader support
+		ResultType.SetEvaluationType(EExpressionEvaluationType::Shader);
+	}
+
+	OutResult.SetType(Context, RequestedType, ResultType);
 }
 
-void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+namespace Private
 {
-	const TCHAR* LhsCode = Lhs->GetValueShader(Context);
-	const TCHAR* RhsCode = Rhs->GetValueShader(Context);
+struct FBinaryOpTypes
+{
+	Shader::FType ResultType;
+	FRequestedType LhsType;
+	FRequestedType RhsType;
+};
+FBinaryOpTypes GetBinaryOpTypes(const FRequestedType& RequestedType, EBinaryOp Op, const FRequestedType& LhsType, const FRequestedType& RhsType)
+{
+	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
+	const Shader::EValueComponentType InputComponentType = Shader::CombineComponentTypes(LhsType.ValueComponentType, RhsType.ValueComponentType);
+	FBinaryOpTypes Result;
+	switch (Op)
+	{
+	case EBinaryOp::Less:
+		Result.LhsType = Shader::MakeValueType(InputComponentType, NumRequestedComponents);
+		Result.RhsType = Shader::MakeValueType(InputComponentType, NumRequestedComponents);
+		Result.ResultType = Shader::MakeValueType(Shader::EValueComponentType::Bool, NumRequestedComponents);
+		break;
+	default:
+		Result.LhsType = RequestedType;
+		Result.RhsType = RequestedType;
+		Result.ResultType = RequestedType.GetType();
+		break;
+	}
+	return Result;
+}
+} // namespace Private
+
+void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
+{
+	const Private::FBinaryOpTypes Types = Private::GetBinaryOpTypes(RequestedType, Op, Lhs->GetRequestedType(), Rhs->GetRequestedType());
+	const TCHAR* LhsCode = Lhs->GetValueShader(Context, Types.LhsType);
+	const TCHAR* RhsCode = Rhs->GetValueShader(Context, Types.RhsType);
+
+	OutShader.Type = Types.ResultType;
 	switch (Op)
 	{
 	case EBinaryOp::Add: OutShader.Code.Appendf(TEXT("(%s + %s)"), LhsCode, RhsCode); break;
@@ -503,71 +542,69 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, FShaderValue& O
 	}
 }
 
-void FExpressionBinaryOp::EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const
+void FExpressionBinaryOp::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
+	const Private::FBinaryOpTypes Types = Private::GetBinaryOpTypes(RequestedType, Op, Lhs->GetRequestedType(), Rhs->GetRequestedType());
 	const FBinaryOpDescription OpDesc = GetBinaryOpDesription(Op);
 	check(OpDesc.PreshaderOpcode != Shader::EPreshaderOpcode::Nop);
 
-	Lhs->GetValuePreshader(Context, OutPreshader);
-	Rhs->GetValuePreshader(Context, OutPreshader);
+	Lhs->GetValuePreshader(Context, Types.LhsType, OutPreshader);
+	Rhs->GetValuePreshader(Context, Types.RhsType, OutPreshader);
 	OutPreshader.WriteOpcode(OpDesc.PreshaderOpcode);
 }
 
-void FExpressionSwizzle::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionSwizzle::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	FRequestedType RequestedInputType(4, false);
-	int32 MaxComponentIndex = 0;
+	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
+	const FPreparedType& InputType = PrepareExpressionValue(Context, Input, RequestedInputType);
+
+	FPreparedType ResultType(InputType.ValueComponentType);
 	for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
 	{
-		if (RequestedType.IsComponentRequested(ComponentIndex))
-		{
-			const int32 SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
-			RequestedInputType.RequestedComponents[SwizzledComponentIndex] = true;
-			MaxComponentIndex = ComponentIndex;
-		}
+		const int32 SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
+		ResultType.SetComponentEvaluationType(ComponentIndex, InputType.GetComponentEvaluationType(SwizzledComponentIndex));
 	}
 
-	const FPrepareValueResult& InputResult = PrepareExpressionValue(Context, Input, RequestedInputType);
-	OutResult.SetType(Context, InputResult.EvaluationType, Shader::MakeValueType(InputResult.Type, MaxComponentIndex + 1));
+	OutResult.SetType(Context, RequestedType, ResultType);
 }
 
-void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
-	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(GetType());
-	const int32 NumSwizzleComponents = FMath::Min<int32>(TypeDesc.NumComponents, Parameters.NumComponents);
+	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
 
 	static const TCHAR ComponentName[] = { 'x', 'y', 'z', 'w' };
 	TCHAR Swizzle[5] = TEXT("");
 	bool bHasSwizzleReorder = false;
 
-	for (int32 i = 0; i < NumSwizzleComponents; ++i)
+	for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
 	{
-		const int32 ComponentIndex = Parameters.ComponentIndex[i];
-		check(ComponentIndex >= 0 && ComponentIndex < 4);
-		Swizzle[i] = ComponentName[ComponentIndex];
-		if (ComponentIndex != i)
+		const int32 SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
+		Swizzle[ComponentIndex] = ComponentName[SwizzledComponentIndex];
+		if (SwizzledComponentIndex != ComponentIndex)
 		{
 			bHasSwizzleReorder = true;
 		}
 	}
 
+	OutShader.Type = RequestedType.GetType();
 	OutShader.bInline = true;
 	if (bHasSwizzleReorder)
 	{
 		OutShader.Code.Appendf(TEXT("%s.%s"),
-			Input->GetValueShader(Context),
+			Input->GetValueShader(Context, RequestedInputType),
 			Swizzle);
 	}
 	else
 	{
-		const Shader::EValueType InputType = Shader::MakeValueType(GetType(), NumSwizzleComponents);
-		OutShader.Code.Appendf(TEXT("%s"), Input->GetValueShader(Context, InputType));
+		OutShader.Code.Appendf(TEXT("%s"), Input->GetValueShader(Context, RequestedInputType));
 	}
 }
 
-void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const
+void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
-	Input->GetValuePreshader(Context, OutPreshader);
+	const FRequestedType RequestedInputType = Parameters.GetRequestedInputType(RequestedType);
+
+	Input->GetValuePreshader(Context, RequestedInputType, OutPreshader);
 	OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::ComponentSwizzle)
 		.Write((uint8)Parameters.NumComponents)
 		.Write((uint8)Parameters.ComponentIndex[0])
@@ -576,58 +613,104 @@ void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, Shader::FPres
 		.Write((uint8)Parameters.ComponentIndex[3]);
 }
 
-void FExpressionAppend::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionAppend::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
-	const FPrepareValueResult& LhsResult = PrepareExpressionValue(Context, Lhs, 4);
-	const FPrepareValueResult& RhsResult = PrepareExpressionValue(Context, Rhs, 4);
-	if (!LhsResult.IsValid() || !RhsResult.IsValid())
-	{
-		return;
-	}
+	// TODO - better handling of requested types for inputs
+	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
+	const FPreparedType& LhsType = PrepareExpressionValue(Context, Lhs, NumRequestedComponents);
+	const int32 NumLhsComponents = FMath::Min(LhsType.GetNumComponents(), NumRequestedComponents);
 
-	if (LhsResult.Type.IsStruct() || RhsResult.Type.IsStruct())
-	{
-		return Context.Errors.AddError(this, TEXT("Not supported for structs"));
-	}
+	const FPreparedType& RhsType = PrepareExpressionValue(Context, Rhs, NumRequestedComponents - NumLhsComponents);
+	const int32 NumRhsComponents = FMath::Min(RhsType.GetNumComponents(), NumRequestedComponents - NumLhsComponents);
 
-	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsResult.Type);
-	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsResult.Type);
-	if (LhsTypeDesc.ComponentType != RhsTypeDesc.ComponentType)
+	if (LhsType.ValueComponentType != RhsType.ValueComponentType)
 	{
 		return Context.Errors.AddError(this, TEXT("Type mismatch"));
 	}
 
-	const EExpressionEvaluationType EvaluationType = CombineEvaluationTypes(LhsResult.EvaluationType, RhsResult.EvaluationType);
-	const int32 NumComponents = FMath::Min<int32>(LhsTypeDesc.NumComponents + RhsTypeDesc.NumComponents, RequestedType.GetRequestedNumComponents());
-	OutResult.SetType(Context, EvaluationType, Shader::MakeValueType(LhsTypeDesc.ComponentType, NumComponents));
+	FPreparedType ResultType(LhsType.ValueComponentType);
+	for (int32 Index = 0; Index < NumLhsComponents; ++Index)
+	{
+		ResultType.SetComponentEvaluationType(Index, LhsType.GetComponentEvaluationType(Index));
+	}
+	for (int32 Index = 0; Index < NumRhsComponents; ++Index)
+	{
+		ResultType.SetComponentEvaluationType(NumLhsComponents + Index, LhsType.GetComponentEvaluationType(Index));
+	}
+
+	OutResult.SetType(Context, RequestedType, ResultType);
 }
 
-void FExpressionAppend::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+namespace Private
 {
-	const Shader::FValueTypeDescription ResultTypeDesc = Shader::GetValueTypeDescription(GetType());
+struct FAppendTypes
+{
+	Shader::FType ResultType;
+	FRequestedType LhsType;
+	FRequestedType RhsType;
+};
+FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, const FRequestedType& LhsType, const FRequestedType& RhsType)
+{
+	const int32 NumResultComponents = RequestedType.GetNumComponents();
+	const int32 NumLhsComponents = FMath::Min<int32>(NumResultComponents, LhsType.GetNumComponents());
+	const int32 NumRhsComponents = FMath::Min<int32>(NumResultComponents - NumLhsComponents, RhsType.GetNumComponents());
+
+	FAppendTypes Types;
+	Types.ResultType = Shader::MakeValueType(RequestedType.ValueComponentType, NumLhsComponents + NumRhsComponents);
+	Types.LhsType.ValueComponentType = RequestedType.ValueComponentType;
+	Types.RhsType.ValueComponentType = RequestedType.ValueComponentType;
+	for (int32 Index = 0; Index < NumLhsComponents; ++Index)
+	{
+		Types.LhsType.SetComponentRequested(Index, RequestedType.IsComponentRequested(Index));
+	}
+	for (int32 Index = 0; Index < NumRhsComponents; ++Index)
+	{
+		Types.RhsType.SetComponentRequested(Index, RequestedType.IsComponentRequested(NumLhsComponents + Index));
+	}
+	return Types;
+}
+} // namespace Private
+
+void FExpressionAppend::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
+{
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Lhs->GetRequestedType(), Rhs->GetRequestedType());
+
 	OutShader.bInline = true;
-	OutShader.Code.Appendf(TEXT("%s(%s, %s)"),
-		ResultTypeDesc.Name,
-		Lhs->GetValueShader(Context),
-		Rhs->GetValueShader(Context));
+	OutShader.Type = Types.ResultType;
+	if (Types.RhsType.IsVoid())
+	{
+		OutShader.Code.Appendf(TEXT("%s"), Lhs->GetValueShader(Context, Types.LhsType));
+	}
+	else
+	{
+		OutShader.Code.Appendf(TEXT("%s(%s, %s)"),
+			RequestedType.GetName(),
+			Lhs->GetValueShader(Context, Types.LhsType),
+			Rhs->GetValueShader(Context, Types.RhsType));
+	}
 }
 
-void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const
+void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
-	Lhs->GetValuePreshader(Context, OutPreshader);
-	Rhs->GetValuePreshader(Context, OutPreshader);
-	OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::AppendVector);
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Lhs->GetRequestedType(), Rhs->GetRequestedType());
+	Lhs->GetValuePreshader(Context, Types.LhsType, OutPreshader);
+	if (Types.RhsType.IsVoid())
+	{
+		Rhs->GetValuePreshader(Context, Types.RhsType, OutPreshader);
+		OutPreshader.WriteOpcode(Shader::EPreshaderOpcode::AppendVector);
+	}
 }
 
-void FExpressionReflectionVector::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult)
+void FExpressionReflectionVector::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	Context.bReadMaterialNormal = true;
-	OutResult.SetType(Context, EExpressionEvaluationType::Shader, Shader::EValueType::Float3);
+	OutResult.SetType(Context, RequestedType, EExpressionEvaluationType::Shader, Shader::EValueType::Float3);
 }
 
-void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const
+void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
 	OutShader.bInline = true;
+	OutShader.Type = Shader::EValueType::Float3;
 	OutShader.Code.Append(TEXT("Parameters.ReflectionVector"));
 }
 
@@ -651,10 +734,10 @@ void FStatementReturn::EmitShader(FEmitContext& Context) const
 
 void FStatementIf::Prepare(FEmitContext& Context) const
 {
-	const FPrepareValueResult& ConditionResult = PrepareExpressionValue(Context, ConditionExpression, 1);
-	if (ConditionResult.EvaluationType == EExpressionEvaluationType::Constant)
+	const FPreparedType& ConditionType = PrepareExpressionValue(Context, ConditionExpression, 1);
+	if (ConditionType.GetEvaluationType(Shader::EValueType::Bool1) == EExpressionEvaluationType::Constant)
 	{
-		const bool bCondition = ConditionResult.ConstantValue.AsBoolScalar();
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Shader::EValueType::Bool1).AsBoolScalar();
 		if (bCondition)
 		{
 			MarkScopeLive(ThenScope);
@@ -666,7 +749,7 @@ void FStatementIf::Prepare(FEmitContext& Context) const
 			MarkScopeLive(ElseScope);
 		}
 	}
-	else if(ConditionResult.IsValid())
+	else if(!ConditionType.IsVoid())
 	{
 		MarkScopeLive(ThenScope);
 		MarkScopeLive(ElseScope);
@@ -675,9 +758,9 @@ void FStatementIf::Prepare(FEmitContext& Context) const
 
 void FStatementIf::EmitShader(FEmitContext& Context) const
 {
-	if (ConditionExpression->GetEvaluationType() == EExpressionEvaluationType::Constant)
+	if (ConditionExpression->GetEvaluationType(Shader::EValueType::Bool1) == EExpressionEvaluationType::Constant)
 	{
-		const bool bCondition = ConditionExpression->GetValueConstant(Context).AsBoolScalar();
+		const bool bCondition = ConditionExpression->GetValueConstant(Context, Shader::EValueType::Bool1).AsBoolScalar();
 		if (bCondition && IsScopeLive(ThenScope))
 		{
 			ParentScope->EmitScope(Context, ThenScope);

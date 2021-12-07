@@ -1,12 +1,89 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Shader/ShaderTypes.h"
 #include "Misc/StringBuilder.h"
+#include "Misc/SecureHash.h"
+#include "Misc/MemStackUtility.h"
 #include "Misc/LargeWorldRenderPosition.h"
 
 namespace UE
 {
 namespace Shader
 {
+
+const TCHAR* FType::GetName() const
+{
+	if (StructType)
+	{
+		check(ValueType == EValueType::Struct);
+		return StructType->Name;
+	}
+
+	check(ValueType != EValueType::Struct);
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
+	return TypeDesc.Name;
+}
+
+int32 FType::GetNumComponents() const
+{
+	if (StructType)
+	{
+		check(ValueType == EValueType::Struct);
+		return StructType->ComponentTypes.Num();
+	}
+
+	check(ValueType != EValueType::Struct);
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
+	return TypeDesc.NumComponents;
+}
+
+EValueComponentType FType::GetComponentType(int32 Index) const
+{
+	if (StructType)
+	{
+		check(ValueType == EValueType::Struct);
+		return StructType->ComponentTypes.IsValidIndex(Index) ? StructType->ComponentTypes[Index] : EValueComponentType::Void;
+	}
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
+	return (Index >= 0 && Index < TypeDesc.NumComponents) ? TypeDesc.ComponentType : EValueComponentType::Void;
+}
+
+bool FType::Merge(const FType& OtherType)
+{
+	if (ValueType == EValueType::Void)
+	{
+		ValueType = OtherType.ValueType;
+		StructType = OtherType.StructType;
+		return true;
+	}
+
+	if (IsStruct() || OtherType.IsStruct())
+	{
+		return StructType == OtherType.StructType;
+	}
+
+	if (ValueType != OtherType.ValueType)
+	{
+		const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
+		const FValueTypeDescription OtherTypeDesc = GetValueTypeDescription(OtherType);
+		const EValueComponentType ComponentType = CombineComponentTypes(TypeDesc.ComponentType, OtherTypeDesc.ComponentType);
+		const int8 NumComponents = FMath::Max(TypeDesc.NumComponents, OtherTypeDesc.NumComponents);
+		ValueType = MakeValueType(ComponentType, NumComponents);
+	}
+	return true;
+}
+
+const FStructField* FStructType::FindFieldByName(const TCHAR* InName) const
+{
+	for (const FStructField& Field : Fields)
+	{
+		if (FCString::Strcmp(Field.Name, InName) == 0)
+		{
+			return &Field;
+		}
+	}
+
+	return nullptr;
+}
 
 namespace Private
 {
@@ -78,11 +155,10 @@ template<typename Operation, typename ResultType>
 void AsType(const Operation& Op, const FValue& Value, ResultType& OutResult)
 {
 	using FComponentType = typename Operation::FComponentType;
-	const EValueComponentType ComponentType = Value.ComponentType;
-	const int32 NumComponents = Value.NumComponents;
-	if (NumComponents == 1)
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Value.Type);
+	if (TypeDesc.NumComponents == 1)
 	{
-		const FComponentType Component = Op(ComponentType, Value.Component[0]);
+		const FComponentType Component = Op(TypeDesc.ComponentType, Value.Component[0]);
 		for (int32 i = 0; i < 4; ++i)
 		{
 			OutResult[i] = Component;
@@ -90,11 +166,11 @@ void AsType(const Operation& Op, const FValue& Value, ResultType& OutResult)
 	}
 	else
 	{
-		for (int32 i = 0; i < NumComponents; ++i)
+		for (int32 i = 0; i < TypeDesc.NumComponents; ++i)
 		{
-			OutResult[i] = Op(ComponentType, Value.Component[i]);
+			OutResult[i] = Op(TypeDesc.ComponentType, Value.Component[i]);
 		}
-		for (int32 i = NumComponents; i < 4; ++i)
+		for (int32 i = TypeDesc.NumComponents; i < 4; ++i)
 		{
 			OutResult[i] = (FComponentType)0;
 		}
@@ -105,19 +181,20 @@ template<typename Operation>
 void Cast(const Operation& Op, const FValue& Value, FValue& OutResult)
 {
 	using FComponentType = typename Operation::FComponentType;
-	const EValueComponentType ComponentType = Value.ComponentType;
-	const int32 NumResultComponents = OutResult.NumComponents;
-	const int32 NumCopyComponents = FMath::Min<int32>(Value.NumComponents, NumResultComponents);
+	const FValueTypeDescription ValueTypeDesc = GetValueTypeDescription(Value.Type);
+	const FValueTypeDescription ResultTypeDesc = GetValueTypeDescription(OutResult.Type);
+	const int32 NumCopyComponents = FMath::Min<int32>(ValueTypeDesc.NumComponents, ResultTypeDesc.NumComponents);
 	for (int32 i = 0; i < NumCopyComponents; ++i)
 	{
-		OutResult.Component[i] = Op(ComponentType, Value.Component[i]);
+		OutResult.Component.Add(Op(ValueTypeDesc.ComponentType, Value.Component[i]));
 	}
 
-	if (NumCopyComponents == 1 && NumResultComponents > 1)
+	if (NumCopyComponents == 1 && ResultTypeDesc.NumComponents > 1)
 	{
-		for (int32 i = 1; i < NumResultComponents; ++i)
+		const FValueComponent Component = OutResult.Component[0];
+		for (int32 i = 1; i < ResultTypeDesc.NumComponents; ++i)
 		{
-			OutResult.Component[i] = OutResult.Component[0];
+			OutResult.Component.Add(Component);
 		}
 	}
 }
@@ -133,10 +210,10 @@ void FormatComponent_Double(double Value, int32 NumComponents, EValueStringForma
 		// Shorter format for more components
 		switch (NumComponents)
 		{
-		case 4: OutResult.Appendf(TEXT("%.2g"), Value); break;
+		default: OutResult.Appendf(TEXT("%.2g"), Value); break;
 		case 3: OutResult.Appendf(TEXT("%.3g"), Value); break;
 		case 2: OutResult.Appendf(TEXT("%.3g"), Value); break;
-		default: OutResult.Appendf(TEXT("%.4g"), Value); break;
+		case 1: OutResult.Appendf(TEXT("%.4g"), Value); break;
 		}
 	}
 }
@@ -145,12 +222,14 @@ void FormatComponent_Double(double Value, int32 NumComponents, EValueStringForma
 
 FValue FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes)
 {
-	FValue Result(Type);
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+
+	FValue Result(TypeDesc.ComponentType, TypeDesc.NumComponents);
 	const uint8* Bytes = static_cast<const uint8*>(Data);
-	const uint32 ComponentSizeInBytes = GetComponentTypeSizeInBytes(Result.ComponentType);
+	const uint32 ComponentSizeInBytes = GetComponentTypeSizeInBytes(TypeDesc.ComponentType);
 	if (ComponentSizeInBytes > 0u)
 	{
-		for (int32 i = 0u; i < Result.NumComponents; ++i)
+		for (int32 i = 0u; i < TypeDesc.NumComponents; ++i)
 		{
 			FMemory::Memcpy(&Result.Component[i].Packed, Bytes, ComponentSizeInBytes);
 			Bytes += ComponentSizeInBytes;
@@ -165,12 +244,15 @@ FValue FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSiz
 
 FMemoryImageValue FValue::AsMemoryImage() const
 {
+	check(!Type.IsStruct());
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+
 	FMemoryImageValue Result;
 	uint8* Bytes = Result.Bytes;
-	const uint32 ComponentSizeInBytes = GetComponentTypeSizeInBytes(ComponentType);
+	const uint32 ComponentSizeInBytes = GetComponentTypeSizeInBytes(TypeDesc.ComponentType);
 	if (ComponentSizeInBytes > 0u)
 	{
-		for (int32 i = 0u; i < NumComponents; ++i)
+		for (int32 i = 0u; i < TypeDesc.NumComponents; ++i)
 		{
 			FMemory::Memcpy(Bytes, &Component[i].Packed, ComponentSizeInBytes);
 			Bytes += ComponentSizeInBytes;
@@ -231,7 +313,7 @@ float FValue::AsFloatScalar() const
 bool FValue::AsBoolScalar() const
 {
 	const FBoolValue Result = AsBool();
-	for (int32 i = 0; i < NumComponents; ++i)
+	for (int32 i = 0; i < 4; ++i)
 	{
 		if (Result.Component[i])
 		{
@@ -254,6 +336,34 @@ uint32 GetComponentTypeSizeInBytes(EValueComponentType Type)
 	}
 }
 
+EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs)
+{
+	if (Lhs == Rhs)
+	{
+		return Lhs;
+	}
+	else if (Lhs == EValueComponentType::Void)
+	{
+		return Rhs;
+	}
+	else if (Rhs == EValueComponentType::Void)
+	{
+		return Lhs;
+	}
+	else if (Lhs == EValueComponentType::Double || Rhs == EValueComponentType::Double)
+	{
+		return EValueComponentType::Double;
+	}
+	else if (Lhs == EValueComponentType::Float || Rhs == EValueComponentType::Float)
+	{
+		return EValueComponentType::Float;
+	}
+	else
+	{
+		return EValueComponentType::Int;
+	}
+}
+
 const TCHAR* FValueComponent::ToString(EValueComponentType Type, FStringBuilderBase& OutString) const
 {
 	switch (Type)
@@ -268,7 +378,54 @@ const TCHAR* FValueComponent::ToString(EValueComponentType Type, FStringBuilderB
 
 const TCHAR* FValue::ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const
 {
-	if (Format == EValueStringFormat::HLSL && ComponentType == EValueComponentType::Double)
+	const int32 NumComponents = Type.GetNumComponents();
+	const TCHAR* TypeName = Type.GetName();
+	const TCHAR* ClosingSuffix = nullptr;
+
+	if (Format == EValueStringFormat::HLSL)
+	{
+		if (Type.IsStruct())
+		{
+			OutString.Append(TEXT("{ "));
+			ClosingSuffix = TEXT(" }");
+		}
+		else
+		{
+			const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type.ValueType);
+			if (TypeDesc.ComponentType != EValueComponentType::Double)
+			{
+				OutString.Appendf(TEXT("%s("), TypeDesc.Name);
+				ClosingSuffix = TEXT(")");
+			}
+		}
+	}
+
+	for (int32 Index = 0; Index < NumComponents; ++Index)
+	{
+		if (Index > 0)
+		{
+			OutString.Append(TEXT(", "));
+		}
+		const EValueComponentType ComponentType = Type.GetComponentType(Index);
+		switch (ComponentType)
+		{
+		case EValueComponentType::Int: OutString.Appendf(TEXT("%d"), Component[Index].Int); break;
+		case EValueComponentType::Bool: OutString.Append(Component[Index].Bool ? TEXT("true") : TEXT("false")); break;
+		case EValueComponentType::Float: Private::FormatComponent_Double((double)Component[Index].Float, NumComponents, Format, OutString); break;
+		case EValueComponentType::Double: Private::FormatComponent_Double(Component[Index].Double, NumComponents, Format, OutString); break;
+		default: checkNoEntry(); break;
+		}
+	}
+
+	if (ClosingSuffix)
+	{
+		OutString.Append(ClosingSuffix);
+	}
+
+
+
+
+	/*if (Format == EValueStringFormat::HLSL && ComponentType == EValueComponentType::Double)
 	{
 		// Construct an HLSL LWC Vector
 		TStringBuilder<256> TileValue;
@@ -338,7 +495,7 @@ const TCHAR* FValue::ToString(EValueStringFormat Format, FStringBuilderBase& Out
 		{
 			OutString.Append(TEXT(")"));
 		}
-	}
+	}*/
 
 	return OutString.ToString();
 }
@@ -510,6 +667,112 @@ EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& Out
 	return EValueType::Void;
 }
 
+FStructTypeRegistry::FStructTypeRegistry(FMemStackBase& InAllocator)
+	: Allocator(&InAllocator)
+{
+}
+
+void FStructTypeRegistry::EmitDeclarationsCode(FStringBuilderBase& OutCode) const
+{
+	for (const auto& It : Types)
+	{
+		const FStructType* StructType = It.Value;
+
+		OutCode.Appendf(TEXT("struct %s\n"), StructType->Name);
+		OutCode.Append(TEXT("{\n"));
+		for (const FStructField& Field : StructType->Fields)
+		{
+			OutCode.Appendf(TEXT("\t%s %s;\n"), Field.Type.GetName(), Field.Name);
+		}
+		OutCode.Append(TEXT("};\n"));
+
+		for (const FStructField& Field : StructType->Fields)
+		{
+			OutCode.Appendf(TEXT("%s %s_Set%s(%s Self, %s Value) { Self.%s = Value; return Self; }\n"),
+				StructType->Name, StructType->Name, Field.Name, StructType->Name, Field.Type.GetName(), Field.Name);
+		}
+		OutCode.Append(TEXT("\n"));
+	}
+}
+
+namespace Private
+{
+void SetComponentTypes(EValueComponentType* ComponentTypes, int32 ComponentIndex, const FType& Type)
+{
+	if (Type.IsStruct())
+	{
+		for (const FStructField& Field : Type.StructType->Fields)
+		{
+			SetComponentTypes(ComponentTypes, ComponentIndex + Field.ComponentIndex, Field.Type);
+		}
+	}
+	else
+	{
+		const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+		for (int32 i = 0; i < TypeDesc.NumComponents; ++i)
+		{
+			ComponentTypes[ComponentIndex + i] = TypeDesc.ComponentType;
+		}
+	}
+}
+} // namespace Private
+
+const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& Initializer)
+{
+	FSHA1 Hasher;
+	Hasher.UpdateWithString(Initializer.Name.GetData(), Initializer.Name.Len());
+
+	const int32 NumFields = Initializer.Fields.Num();
+	int32 ComponentIndex = 0;
+	FStructField* Fields = new(*Allocator) FStructField[NumFields];
+	for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
+	{
+		const FStructFieldInitializer& FieldInitializer = Initializer.Fields[FieldIndex];
+		const FType& FieldType = FieldInitializer.Type;
+
+		Hasher.UpdateWithString(FieldInitializer.Name.GetData(), FieldInitializer.Name.Len());
+		if (FieldType.IsStruct())
+		{
+			Hasher.Update((uint8*)&FieldType.StructType->Hash, sizeof(FieldType.StructType->Hash));
+		}
+		else
+		{
+			Hasher.Update((uint8*)&FieldType.ValueType, sizeof(FieldType.ValueType));
+		}
+
+		FStructField& Field = Fields[FieldIndex];
+		Field.Name = MemStack::AllocateString(*Allocator, FieldInitializer.Name);
+		Field.Type = FieldType;
+		Field.ComponentIndex = ComponentIndex;
+		ComponentIndex += FieldType.GetNumComponents();
+	}
+
+	EValueComponentType* ComponentTypes = new(*Allocator) EValueComponentType[ComponentIndex];
+	for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
+	{
+		const FStructField& Field = Fields[FieldIndex];
+		Private::SetComponentTypes(ComponentTypes, Field.ComponentIndex, Field.Type);
+	}
+
+	const FSHAHash Hash = Hasher.Finalize();
+
+	FStructType* StructType = new(*Allocator) FStructType();
+	StructType->Name = MemStack::AllocateString(*Allocator, Initializer.Name);
+	StructType->Hash = *reinterpret_cast<const uint64*>(Hash.Hash);
+	StructType->Fields = MakeArrayView(Fields, NumFields);
+	StructType->ComponentTypes = MakeArrayView(ComponentTypes, ComponentIndex);
+
+	Types.Add(StructType->Hash, StructType);
+
+	return StructType;
+}
+
+const FStructType* FStructTypeRegistry::FindType(uint64 Hash) const
+{
+	FStructType const* const* PrevType = Types.Find(Hash);
+	return PrevType ? *PrevType : nullptr;
+}
+
 namespace Private
 {
 
@@ -594,20 +857,23 @@ struct FOpAtan2 : public FOpBaseNoInt { template<typename T> T operator()(T Lhs,
 template<typename Operation>
 inline FValue UnaryOp(const Operation& Op, const FValue& Value)
 {
-	const int8 NumComponents = Value.NumComponents;
+	if (Value.Type.IsStruct())
+	{
+		return FValue();
+	}
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Value.Type);
+	const int8 NumComponents = TypeDesc.NumComponents;
 	
 	FValue Result;
-	Result.NumComponents = NumComponents;
-
 	if constexpr (Operation::SupportsDouble)
 	{
-		if (Value.ComponentType == EValueComponentType::Double)
+		if (TypeDesc.ComponentType == EValueComponentType::Double)
 		{
-			Result.ComponentType = EValueComponentType::Double;
+			Result.Type = MakeValueType(EValueComponentType::Double, NumComponents);
 			const FDoubleValue Cast = Value.AsDouble();
 			for (int32 i = 0; i < NumComponents; ++i)
 			{
-				Result.Component[i].Double = Op(Cast.Component[i]);
+				Result.Component.Add(Op(Cast.Component[i]));
 			}
 			return Result;
 		}
@@ -615,23 +881,23 @@ inline FValue UnaryOp(const Operation& Op, const FValue& Value)
 
 	if constexpr (Operation::SupportsInt)
 	{
-		if (Value.ComponentType != EValueComponentType::Float)
+		if (TypeDesc.ComponentType != EValueComponentType::Float)
 		{
-			Result.ComponentType = EValueComponentType::Int;
+			Result.Type = MakeValueType(EValueComponentType::Int, NumComponents);
 			const FIntValue Cast = Value.AsInt();
 			for (int32 i = 0; i < NumComponents; ++i)
 			{
-				Result.Component[i].Int = Op(Cast.Component[i]);
+				Result.Component.Add(Op(Cast.Component[i]));
 			}
 			return Result;
 		}
 	}
 
-	Result.ComponentType = EValueComponentType::Float;
+	Result.Type = MakeValueType(EValueComponentType::Float, NumComponents);
 	const FFloatValue Cast = Value.AsFloat();
 	for (int32 i = 0; i < NumComponents; ++i)
 	{
-		Result.Component[i].Float = Op(Cast.Component[i]);
+		Result.Component.Add(Op(Cast.Component[i]));
 	}
 	return Result;
 }
@@ -646,21 +912,25 @@ inline int8 GetNumComponentsResult(int8 Lhs, int8 Rhs)
 template<typename Operation>
 inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs)
 {
-	const int8 NumComponents = GetNumComponentsResult(Lhs.NumComponents, Rhs.NumComponents);
+	if (Lhs.Type.IsStruct() || Rhs.Type.IsStruct())
+	{
+		return FValue();
+	}
+	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs.Type);
+	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs.Type);
+	const int8 NumComponents = GetNumComponentsResult(LhsDesc.NumComponents, RhsDesc.NumComponents);
 	
 	FValue Result;
-	Result.NumComponents = NumComponents;
-
 	if constexpr (Operation::SupportsDouble)
 	{
-		if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
+		if (LhsDesc.ComponentType == EValueComponentType::Double || RhsDesc.ComponentType == EValueComponentType::Double)
 		{
-			Result.ComponentType = EValueComponentType::Double;
+			Result.Type = MakeValueType(EValueComponentType::Double, NumComponents);
 			const FDoubleValue LhsCast = Lhs.AsDouble();
 			const FDoubleValue RhsCast = Rhs.AsDouble();
 			for (int32 i = 0; i < NumComponents; ++i)
 			{
-				Result.Component[i].Double = Op(LhsCast.Component[i], RhsCast.Component[i]);
+				Result.Component.Add(Op(LhsCast.Component[i], RhsCast.Component[i]));
 			}
 			return Result;
 		}
@@ -668,25 +938,25 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 
 	if constexpr (Operation::SupportsInt)
 	{
-		if (Lhs.ComponentType != EValueComponentType::Float && Rhs.ComponentType != EValueComponentType::Float)
+		if (LhsDesc.ComponentType != EValueComponentType::Float && RhsDesc.ComponentType != EValueComponentType::Float)
 		{
-			Result.ComponentType = EValueComponentType::Int;
+			Result.Type = MakeValueType(EValueComponentType::Int, NumComponents);
 			const FIntValue LhsCast = Lhs.AsInt();
 			const FIntValue RhsCast = Rhs.AsInt();
 			for (int32 i = 0; i < NumComponents; ++i)
 			{
-				Result.Component[i].Int = Op(LhsCast.Component[i], RhsCast.Component[i]);
+				Result.Component.Add(Op(LhsCast.Component[i], RhsCast.Component[i]));
 			}
 			return Result;
 		}
 	}
 
-	Result.ComponentType = EValueComponentType::Float;
+	Result.Type = MakeValueType(EValueComponentType::Float, NumComponents);
 	const FFloatValue LhsCast = Lhs.AsFloat();
 	const FFloatValue RhsCast = Rhs.AsFloat();
 	for (int32 i = 0; i < NumComponents; ++i)
 	{
-		Result.Component[i].Float = Op(LhsCast.Component[i], RhsCast.Component[i]);
+		Result.Component.Add(Op(LhsCast.Component[i], RhsCast.Component[i]));
 	}
 	return Result;
 }
@@ -695,11 +965,13 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 
 bool operator==(const FValue& Lhs, const FValue& Rhs)
 {
-	if (Lhs.ComponentType != Rhs.ComponentType || Lhs.NumComponents != Rhs.NumComponents)
+	if (Lhs.Type != Rhs.Type)
 	{
 		return false;
 	}
-	for (int32 i = 0u; i < Lhs.NumComponents; ++i)
+
+	check(Lhs.Component.Num() == Rhs.Component.Num());
+	for (int32 i = 0u; i < Lhs.Component.Num(); ++i)
 	{
 		if (Lhs.Component[i].Packed != Rhs.Component[i].Packed)
 		{
@@ -709,20 +981,29 @@ bool operator==(const FValue& Lhs, const FValue& Rhs)
 	return true;
 }
 
+uint32 GetTypeHash(const FType& Type)
+{
+	uint32 Result = ::GetTypeHash(Type.ValueType);
+	if (Type.IsStruct())
+	{
+		Result = HashCombine(Result, ::GetTypeHash(Type.StructType));
+	}
+	return Result;
+}
+
 uint32 GetTypeHash(const FValue& Value)
 {
-	uint32 Result = ::GetTypeHash(Value.ComponentType);
-	Result = HashCombine(Result, ::GetTypeHash(Value.NumComponents));
-	for (int32 i = 0u; i < Value.NumComponents; ++i)
+	uint32 Result = GetTypeHash(Value.Type);
+	const int32 NumComponents = Value.Type.GetNumComponents();
+	for(int32 Index = 0; Index < NumComponents; ++Index)
 	{
-		const FValueComponent& Component = Value.Component[i];
 		uint32 ComponentHash = 0u;
-		switch (Value.ComponentType)
+		switch (Value.Type.GetComponentType(Index))
 		{
-		case EValueComponentType::Float: ComponentHash = ::GetTypeHash(Component.Float); break;
-		case EValueComponentType::Double: ComponentHash = ::GetTypeHash(Component.Double); break;
-		case EValueComponentType::Int: ComponentHash = ::GetTypeHash(Component.Int); break;
-		case EValueComponentType::Bool: ComponentHash = ::GetTypeHash(Component.Bool); break;
+		case EValueComponentType::Float: ComponentHash = ::GetTypeHash(Value.Component[Index].Float); break;
+		case EValueComponentType::Double: ComponentHash = ::GetTypeHash(Value.Component[Index].Double); break;
+		case EValueComponentType::Int: ComponentHash = ::GetTypeHash(Value.Component[Index].Int); break;
+		case EValueComponentType::Bool: ComponentHash = ::GetTypeHash(Value.Component[Index].Bool); break;
 		default: checkNoEntry(); break;
 		}
 		Result = HashCombine(Result, ComponentHash);
@@ -872,14 +1153,18 @@ FValue Clamp(const FValue& Value, const FValue& Low, const FValue& High)
 
 FValue Dot(const FValue& Lhs, const FValue& Rhs)
 {
-	const int8 NumComponents = Private::GetNumComponentsResult(Lhs.NumComponents, Rhs.NumComponents);
+	if (Lhs.Type.IsStruct() || Rhs.Type.IsStruct())
+	{
+		return FValue();
+	}
+	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs.Type);
+	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs.Type);
+	const int8 NumComponents = Private::GetNumComponentsResult(LhsDesc.NumComponents, RhsDesc.NumComponents);
 
 	FValue Result;
-	Result.NumComponents = 1;
-
-	if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
+	if (LhsDesc.ComponentType == EValueComponentType::Double || RhsDesc.ComponentType == EValueComponentType::Double)
 	{
-		Result.ComponentType = EValueComponentType::Double;
+		Result.Type = EValueType::Double1;
 		const FDoubleValue LhsValue = Lhs.AsDouble();
 		const FDoubleValue RhsValue = Rhs.AsDouble();
 		double ComponentValue = 0.0;
@@ -887,11 +1172,11 @@ FValue Dot(const FValue& Lhs, const FValue& Rhs)
 		{
 			ComponentValue += LhsValue.Component[i] * RhsValue.Component[i];
 		}
-		Result.Component[0].Double = ComponentValue;
+		Result.Component.Add(ComponentValue);
 	}
-	else if (Lhs.ComponentType == EValueComponentType::Float || Rhs.ComponentType == EValueComponentType::Float)
+	else if (LhsDesc.ComponentType == EValueComponentType::Float || RhsDesc.ComponentType == EValueComponentType::Float)
 	{
-		Result.ComponentType = EValueComponentType::Float;
+		Result.Type = EValueType::Float1;
 		const FFloatValue LhsValue = Lhs.AsFloat();
 		const FFloatValue RhsValue = Rhs.AsFloat();
 		float ComponentValue = 0.0f;
@@ -899,11 +1184,11 @@ FValue Dot(const FValue& Lhs, const FValue& Rhs)
 		{
 			ComponentValue += LhsValue.Component[i] * RhsValue.Component[i];
 		}
-		Result.Component[0].Float = ComponentValue;
+		Result.Component.Add(ComponentValue);
 	}
 	else
 	{
-		Result.ComponentType = EValueComponentType::Int;
+		Result.Type = EValueType::Int1;
 		const FIntValue LhsValue = Lhs.AsInt();
 		const FIntValue RhsValue = Rhs.AsInt();
 		int32 ComponentValue = 0;
@@ -911,110 +1196,122 @@ FValue Dot(const FValue& Lhs, const FValue& Rhs)
 		{
 			ComponentValue += LhsValue.Component[i] * RhsValue.Component[i];
 		}
-		Result.Component[0].Int = ComponentValue;
+		Result.Component.Add(ComponentValue);
 	}
 	return Result;
 }
 
 FValue Cross(const FValue& Lhs, const FValue& Rhs)
 {
-	FValue Result;
-	Result.NumComponents = 3;
-
-	if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
+	if (Lhs.Type.IsStruct() || Rhs.Type.IsStruct())
 	{
-		Result.ComponentType = EValueComponentType::Double;
+		return FValue();
+	}
+	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs.Type);
+	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs.Type);
+
+	FValue Result;
+	if (LhsDesc.ComponentType == EValueComponentType::Double || RhsDesc.ComponentType == EValueComponentType::Double)
+	{
+		Result.Type = EValueType::Double3;
 		const FDoubleValue LhsValue = Lhs.AsDouble();
 		const FDoubleValue RhsValue = Rhs.AsDouble();
 
-		Result.Component[0].Double = LhsValue.Component[1] * RhsValue.Component[2] - LhsValue.Component[2] * RhsValue.Component[1];
-		Result.Component[1].Double = LhsValue.Component[2] * RhsValue.Component[0] - LhsValue.Component[0] * RhsValue.Component[2];
-		Result.Component[2].Double = LhsValue.Component[0] * RhsValue.Component[1] - LhsValue.Component[1] * RhsValue.Component[0];
+		Result.Component.Add(LhsValue.Component[1] * RhsValue.Component[2] - LhsValue.Component[2] * RhsValue.Component[1]);
+		Result.Component.Add(LhsValue.Component[2] * RhsValue.Component[0] - LhsValue.Component[0] * RhsValue.Component[2]);
+		Result.Component.Add(LhsValue.Component[0] * RhsValue.Component[1] - LhsValue.Component[1] * RhsValue.Component[0]);
 	}
-	else if (Lhs.ComponentType == EValueComponentType::Float || Rhs.ComponentType == EValueComponentType::Float)
+	else if (LhsDesc.ComponentType == EValueComponentType::Float || RhsDesc.ComponentType == EValueComponentType::Float)
 	{
-		Result.ComponentType = EValueComponentType::Float;
+		Result.Type = EValueType::Float3;
 		const FFloatValue LhsValue = Lhs.AsFloat();
 		const FFloatValue RhsValue = Rhs.AsFloat();
 		
-		Result.Component[0].Float = LhsValue.Component[1] * RhsValue.Component[2] - LhsValue.Component[2] * RhsValue.Component[1];
-		Result.Component[1].Float = LhsValue.Component[2] * RhsValue.Component[0] - LhsValue.Component[0] * RhsValue.Component[2];
-		Result.Component[2].Float = LhsValue.Component[0] * RhsValue.Component[1] - LhsValue.Component[1] * RhsValue.Component[0];
+		Result.Component.Add(LhsValue.Component[1] * RhsValue.Component[2] - LhsValue.Component[2] * RhsValue.Component[1]);
+		Result.Component.Add(LhsValue.Component[2] * RhsValue.Component[0] - LhsValue.Component[0] * RhsValue.Component[2]);
+		Result.Component.Add(LhsValue.Component[0] * RhsValue.Component[1] - LhsValue.Component[1] * RhsValue.Component[0]);
 	}
 	else
 	{
-		Result.ComponentType = EValueComponentType::Int;
+		Result.Type = EValueType::Int3;
 		const FIntValue LhsValue = Lhs.AsInt();
 		const FIntValue RhsValue = Rhs.AsInt();
 
-		Result.Component[0].Int = LhsValue.Component[1] * RhsValue.Component[2] - LhsValue.Component[2] * RhsValue.Component[1];
-		Result.Component[1].Int = LhsValue.Component[2] * RhsValue.Component[0] - LhsValue.Component[0] * RhsValue.Component[2];
-		Result.Component[2].Int = LhsValue.Component[0] * RhsValue.Component[1] - LhsValue.Component[1] * RhsValue.Component[0];
+		Result.Component.Add(LhsValue.Component[1] * RhsValue.Component[2] - LhsValue.Component[2] * RhsValue.Component[1]);
+		Result.Component.Add(LhsValue.Component[2] * RhsValue.Component[0] - LhsValue.Component[0] * RhsValue.Component[2]);
+		Result.Component.Add(LhsValue.Component[0] * RhsValue.Component[1] - LhsValue.Component[1] * RhsValue.Component[0]);
 	}
 	return Result;
 }
 
 FValue Append(const FValue& Lhs, const FValue& Rhs)
 {
+	if (Lhs.Type.IsStruct() || Rhs.Type.IsStruct())
+	{
+		return FValue();
+	}
+	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs.Type);
+	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs.Type);
+
 	FValue Result;
-	int32 NumComponents = 0;
-	if (Lhs.ComponentType == Rhs.ComponentType)
+	const int32 NumComponents = FMath::Min<int32>(LhsDesc.NumComponents + RhsDesc.NumComponents, 4);
+	if (LhsDesc.ComponentType == RhsDesc.ComponentType)
 	{
 		// If both values have the same component type, use as-is
 		// (otherwise will need to convert)
-		Result.ComponentType = Lhs.ComponentType;
-		for (int32 i = 0; i < Lhs.NumComponents; ++i)
+		
+		Result.Type = MakeValueType(LhsDesc.ComponentType, NumComponents);
+		for (int32 i = 0; i < LhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++] = Lhs.Component[i];
+			Result.Component.Add(Lhs.Component[i]);
 		}
-		for (int32 i = 0; i < Rhs.NumComponents && NumComponents < 4; ++i)
+		for (int32 i = 0; i < RhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++] = Rhs.Component[i];
+			Result.Component.Add(Rhs.Component[i]);
 		}
 	}
-	else if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
+	else if (LhsDesc.ComponentType == EValueComponentType::Double || RhsDesc.ComponentType == EValueComponentType::Double)
 	{
-		Result.ComponentType = EValueComponentType::Double;
+		Result.Type = MakeValueType(EValueComponentType::Double, NumComponents);
 		const FDoubleValue LhsValue = Lhs.AsDouble();
 		const FDoubleValue RhsValue = Rhs.AsDouble();
-		for (int32 i = 0; i < Lhs.NumComponents; ++i)
+		for (int32 i = 0; i < LhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++].Double = LhsValue.Component[i];
+			Result.Component.Add(LhsValue.Component[i]);
 		}
-		for (int32 i = 0; i < Rhs.NumComponents && NumComponents < 4; ++i)
+		for (int32 i = 0; i < RhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++].Double = RhsValue.Component[i];
+			Result.Component.Add(RhsValue.Component[i]);
 		}
 	}
-	else if (Lhs.ComponentType == EValueComponentType::Float || Rhs.ComponentType == EValueComponentType::Float)
+	else if (LhsDesc.ComponentType == EValueComponentType::Float || RhsDesc.ComponentType == EValueComponentType::Float)
 	{
-		Result.ComponentType = EValueComponentType::Float;
+		Result.Type = MakeValueType(EValueComponentType::Float, NumComponents);
 		const FFloatValue LhsValue = Lhs.AsFloat();
 		const FFloatValue RhsValue = Rhs.AsFloat();
-		for (int32 i = 0; i < Lhs.NumComponents; ++i)
+		for (int32 i = 0; i < LhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++].Float = LhsValue.Component[i];
+			Result.Component.Add(LhsValue.Component[i]);
 		}
-		for (int32 i = 0; i < Rhs.NumComponents && NumComponents < 4; ++i)
+		for (int32 i = 0; i < RhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++].Float = RhsValue.Component[i];
+			Result.Component.Add(RhsValue.Component[i]);
 		}
 	}
 	else
 	{
-		Result.ComponentType = EValueComponentType::Int;
+		Result.Type = MakeValueType(EValueComponentType::Int, NumComponents);
 		const FIntValue LhsValue = Lhs.AsInt();
 		const FIntValue RhsValue = Rhs.AsInt();
-		for (int32 i = 0; i < Lhs.NumComponents; ++i)
+		for (int32 i = 0; i < LhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++].Int = LhsValue.Component[i];
+			Result.Component.Add(LhsValue.Component[i]);
 		}
-		for (int32 i = 0; i < Rhs.NumComponents && NumComponents < 4; ++i)
+		for (int32 i = 0; i < RhsDesc.NumComponents && Result.Component.Num() < NumComponents; ++i)
 		{
-			Result.Component[NumComponents++].Int = RhsValue.Component[i];
+			Result.Component.Add(RhsValue.Component[i]);
 		}
 	}
-	Result.NumComponents = NumComponents;
 	return Result;
 }
 
@@ -1026,8 +1323,10 @@ FValue Cast(const FValue& Value, EValueType Type)
 		return Value;
 	}
 
-	FValue Result(Type);
-	switch (Result.ComponentType)
+	FValue Result;
+	Result.Type = Type;
+
+	switch (GetValueTypeDescription(Type).ComponentType)
 	{
 	case EValueComponentType::Float: Private::Cast(Private::FCastFloat(), Value, Result); break;
 	case EValueComponentType::Double: Private::Cast(Private::FCastDouble(), Value, Result); break;

@@ -199,10 +199,10 @@ public:
 		switch (ValueType)
 		{
 		case MCT_Float:
-		case MCT_Float1: ConstantValue.NumComponents = 1; break;
-		case MCT_Float2: ConstantValue.NumComponents = 2; break;
-		case MCT_Float3: ConstantValue.NumComponents = 3; break;
-		case MCT_Float4: ConstantValue.NumComponents = 4; break;
+		case MCT_Float1: ConstantValue.Type = UE::Shader::EValueType::Float1; break;
+		case MCT_Float2: ConstantValue.Type = UE::Shader::EValueType::Float2; break;
+		case MCT_Float3: ConstantValue.Type = UE::Shader::EValueType::Float3; break;
+		case MCT_Float4: ConstantValue.Type = UE::Shader::EValueType::Float4; break;
 		default: checkNoEntry(); break;
 		}
 		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Constant);
