@@ -83,6 +83,15 @@ FString ToLogString(const TOptional<T> Optional)
 	}
 }
 
+template <typename... Ts>
+FString ToLogString(const TVariant<Ts...>& Variant)
+{
+	return Visit([](const auto& Value)
+	{
+		return ToLogString(Value);
+	}, Variant);
+}
+
 template <typename T, ESPMode Mode>
 FString ToLogString(const TSharedRef<T, Mode>& Ref)
 {

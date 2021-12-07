@@ -34,6 +34,8 @@ public:
 	// TODO: Other fields
 };
 
+using FCredentialsToken = TVariant<FString, TArray<uint8>>;
+
 struct FAuthLogin
 {
 	static constexpr TCHAR Name[] = TEXT("Login");
@@ -43,7 +45,7 @@ struct FAuthLogin
 		int32 LocalUserNum;
 		FString CredentialsType;
 		FString CredentialsId;
-		FString CredentialsToken;
+		FCredentialsToken CredentialsToken;
 		TArray<FString> Scopes;
 	};
 

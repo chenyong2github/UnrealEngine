@@ -67,6 +67,21 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FString& Value)
 	return true;
 }
 
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint8& Value)
+{
+	FString Token;
+	if (FParse::Token(Cmd, Token, true))
+	{
+		Value = static_cast<uint8>(FCString::Strtoui64(Cmd, nullptr, 10));
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+}
+
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, int32& Value)
 {
 	FString Token;
@@ -150,6 +165,13 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TArray<T>& Array)
 	{
 		return false;
 	}
+	return true;
+}
+
+template <typename... Ts>
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant)
+{
+	// TODO: This is a temporary stub implementation
 	return true;
 }
 
