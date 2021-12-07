@@ -1470,7 +1470,7 @@ void AWaterBrushManager::UpdateBrushCacheKeys()
 			// If no cache entry, create one and associate it to the actor : 
 			if (WaterBrushCacheContainer == nullptr)
 			{
-				WaterBrushCacheContainer = NewObject<UWaterBodyBrushCacheContainer>(this);
+				WaterBrushCacheContainer = NewObject<UWaterBodyBrushCacheContainer>(this, TEXT("WaterBodyBrushCacheContainer"), RF_Transactional);
 				check(!WaterBrushCacheContainer->Cache.CacheIsValid);
 				SetActorCache(Actor, WaterBrushCacheContainer);
 			}
