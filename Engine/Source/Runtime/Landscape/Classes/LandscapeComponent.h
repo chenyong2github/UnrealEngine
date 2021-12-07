@@ -1057,6 +1057,8 @@ public:
 	 */
 	static FString GetLayerAllocationKey(const TArray<FWeightmapLayerAllocationInfo>& Allocations, UMaterialInterface* LandscapeMaterial, bool bMobile = false);
 
+	bool ValidateCombinationMaterial(UMaterialInstanceConstant* InCombinationMaterial) const;
+
 	/** @todo document */
 	void GetLayerDebugColorKey(int32& R, int32& G, int32& B) const;
 

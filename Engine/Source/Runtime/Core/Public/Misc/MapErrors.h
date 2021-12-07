@@ -108,16 +108,19 @@ struct CORE_API FMapErrors
 
     /**  Landscape */
 
-	/** {LandscapeComponent} : Fixed up deleted layer weightmap: **TODO** */
+	/** {LandscapeComponent} : Fixed up deleted layer weightmap: */
     static FLazyName FixedUpDeletedLayerWeightmap;
     
-	/** {LandscapeComponent} : Fixed up incorrect layer weightmap texture index: **TODO** */
+	/** {LandscapeComponent} : Fixed up incorrect layer weightmap texture index: */
     static FLazyName FixedUpIncorrectLayerWeightmap;
     
-	/** Fixed up shared weightmap texture for layer {Layer} in component {Component} (shares with {Name}): **TODO** */
+	/** {LandscapeComponent} : Fixed up invalid material instances for a landscape component when its weightmap allocations don't match the material's layer configuration : */
+	static FLazyName FixedUpInvalidLandscapeMaterialInstances;
+
+	/** Fixed up shared weightmap texture for layer {Layer} in component {Component} (shares with {Name}): */
     static FLazyName FixedUpSharedLayerWeightmap;
 
-	/** Landscape ({ProxyName}) has overlapping render components at location ({X, Y}): **TODO** */
+	/** Landscape ({ProxyName}) has overlapping render components at location ({X, Y}): */
 	static FLazyName LandscapeComponentPostLoad_Warning;
 
 

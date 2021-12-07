@@ -213,6 +213,52 @@ ULandscapeMaterialInstanceConstant* ALandscapeProxy::GetLayerThumbnailMIC(UMater
 	return MaterialInstance;
 }
 
+bool ULandscapeComponent::ValidateCombinationMaterial(UMaterialInstanceConstant* InCombinationMaterial) const
+{
+	if (InCombinationMaterial == nullptr)
+	{
+		return false;
+	}
+
+	const TArray<FStaticTerrainLayerWeightParameter>& TerrainLayerWeightParameters = InCombinationMaterial->GetStaticParameters().TerrainLayerWeightParameters;
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapAllocations = GetWeightmapLayerAllocations();
+
+	if (TerrainLayerWeightParameters.Num() != ComponentWeightmapAllocations.Num())
+	{
+		UE_LOG(LogLandscape, Display, TEXT("Material instance %s in landscape component %s doesn't match the expected shader combination: different number of allocations (expected: %i, found: %i)"),
+			*InCombinationMaterial->GetName(), *GetPathName(), ComponentWeightmapAllocations.Num(), TerrainLayerWeightParameters.Num());
+
+		return false;
+	}
+
+	for (const FWeightmapLayerAllocationInfo& Allocation : ComponentWeightmapAllocations)
+	{
+		if (Allocation.LayerInfo == nullptr)
+		{
+			UE_LOG(LogLandscape, Display, TEXT("Material instance %s in landscape component %s doesn't match the expected shader combination: invalid layer info"),
+				*InCombinationMaterial->GetName(), *GetPathName(), ComponentWeightmapAllocations.Num(), TerrainLayerWeightParameters.Num());
+
+			return false;
+		}
+
+		// Each weightmap allocation must have its equivalent in the material's TerrainLayerWeightParameters : 
+		if (!TerrainLayerWeightParameters.FindByPredicate([&](const FStaticTerrainLayerWeightParameter& TerrainLayerWeightParameter)
+			{
+				return ((TerrainLayerWeightParameter.LayerName == Allocation.LayerInfo->LayerName)
+					&& (TerrainLayerWeightParameter.WeightmapIndex == Allocation.WeightmapTextureIndex)
+					&& (TerrainLayerWeightParameter.bWeightBasedBlend == !Allocation.LayerInfo->bNoWeightBlend));
+			}))
+		{
+			UE_LOG(LogLandscape, Display, TEXT("Material instance %s in landscape component %s doesn't match the expected shader combination: missing layer %s"),
+				*InCombinationMaterial->GetName(), *GetPathName(), *Allocation.LayerInfo->LayerName.ToString());
+
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /**
 * Generate a key for this component's layer allocations to use with MaterialInstanceConstantMap.
 */
@@ -309,8 +355,7 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 			{
 				if (Allocation.LayerInfo)
 				{
-					const FName LayerName = (Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer) ? UMaterialExpressionLandscapeVisibilityMask::ParameterName : Allocation.LayerInfo->LayerName;
-					StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerName, Allocation.WeightmapTextureIndex, !Allocation.LayerInfo->bNoWeightBlend));
+					StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(Allocation.GetLayerName(), Allocation.WeightmapTextureIndex, !Allocation.LayerInfo->bNoWeightBlend));
 				}
 			}
 
@@ -398,8 +443,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 			{
 				const FWeightmapLayerAllocationInfo& Allocation = WeightmapBaseLayerAllocation[AllocIdx];
 
-				FName LayerName = Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer ? UMaterialExpressionLandscapeVisibilityMask::ParameterName : Allocation.LayerInfo ? Allocation.LayerInfo->LayerName : NAME_None;
-				MaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *LayerName.ToString())), Masks[Allocation.WeightmapTextureChannel]);
+				MaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *Allocation.GetLayerName().ToString())), Masks[Allocation.WeightmapTextureChannel]);
 			}
 
 			// Set the weightmaps
@@ -481,8 +525,13 @@ void ULandscapeComponent::UpdateMaterialInstances(FMaterialUpdateContext& InOutM
 	UpdateMaterialInstances_Internal(InOutMaterialContext);
 }
 
-void ALandscapeProxy::UpdateAllComponentMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext)
+void ALandscapeProxy::UpdateAllComponentMaterialInstances(FMaterialUpdateContext& InOutMaterialContext, TArray<FComponentRecreateRenderStateContext>& InOutRecreateRenderStateContext, bool bInInvalidateCombinationMaterials)
 {
+	if (bInInvalidateCombinationMaterials)
+	{
+		MaterialInstanceConstantMap.Reset();
+	}
+
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
 		Component->UpdateMaterialInstances(InOutMaterialContext, InOutRecreateRenderStateContext);
@@ -490,8 +539,13 @@ void ALandscapeProxy::UpdateAllComponentMaterialInstances(FMaterialUpdateContext
 
 }
 
-void ALandscapeProxy::UpdateAllComponentMaterialInstances()
+void ALandscapeProxy::UpdateAllComponentMaterialInstances(bool bInInvalidateCombinationMaterials)
 {
+	if (bInInvalidateCombinationMaterials)
+{
+		MaterialInstanceConstantMap.Reset();
+	}
+
 	// we're not having the material update context recreate render states because we will manually do it for only our components
 	TArray<FComponentRecreateRenderStateContext> RecreateRenderStateContexts;
 	RecreateRenderStateContexts.Reserve(LandscapeComponents.Num());
@@ -646,6 +700,17 @@ void ALandscapeProxy::FixupWeightmaps()
 {
 	WeightmapUsageMap.Empty();
 
+	// We've just reinitialized the weightmap usages map and FixupWeightmaps will reconstruct it component by component, but we might in the process delete invalid layers (e.g. those whose landscape info has been deleted),
+	//  in which case ValidateProxyLayersWeightmapUsage() on the entire proxy will be called and, because of WeightmapUsageMap's cleanup above, might report missing weightmap usages. 
+	//  To avoid triggering asserts, we simply disable validation until the fixup operation is done : 
+	bTemporarilyDisableWeightmapUsagesValidation = true;
+	ON_SCOPE_EXIT
+	{
+		bTemporarilyDisableWeightmapUsagesValidation = false;
+		// Now that the job is done, weightmap usages should be valid again
+		ValidateProxyLayersWeightmapUsage();
+	};
+
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
 		if (Component != nullptr)
@@ -654,7 +719,6 @@ void ALandscapeProxy::FixupWeightmaps()
 		}
 	}
 
-	ValidateProxyLayersWeightmapUsage();
 }
 
 void ALandscapeProxy::RepairInvalidTextures()
@@ -4280,11 +4344,11 @@ void ULandscapeInfo::ClearDirtyData()
 	}
 }
 
-void ULandscapeInfo::UpdateAllComponentMaterialInstances()
+void ULandscapeInfo::UpdateAllComponentMaterialInstances(bool bInInvalidateCombinationMaterials)
 {
-	ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([=](ALandscapeProxy* Proxy)
 	{
-		Proxy->UpdateAllComponentMaterialInstances();
+		Proxy->UpdateAllComponentMaterialInstances(bInInvalidateCombinationMaterials);
 	});
 }
 
@@ -4933,38 +4997,6 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	// Remove any null landscape components
 	LandscapeComponents.RemoveAll([](const ULandscapeComponent* Component) { return Component == nullptr; });
-
-	ULandscapeInfo* Info = GetLandscapeInfo();
-	bool bRemovedAnyLayers = false;
-	for (ULandscapeComponent* Component : LandscapeComponents)
-	{
-		const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(false);
-
-		int32 NumNullLayers = Algo::CountIf(ComponentWeightmapLayerAllocations, [](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.LayerInfo == nullptr; });
-		if (NumNullLayers > 0)
-		{
-			FLandscapeEditDataInterface LandscapeEdit(Info);
-			for (int32 i = 0; i < NumNullLayers; ++i)
-			{
-				// DeleteLayer doesn't expect duplicates, so we need to call it once for each null
-				Component->DeleteLayer(nullptr, LandscapeEdit);
-			}
-			bRemovedAnyLayers = true;
-		}
-	}
-	if (bRemovedAnyLayers)
-	{
-		ALandscape* LandscapeActor = GetLandscapeActor();
-
-		if(LandscapeActor != nullptr && LandscapeActor->HasLayersContent())
-		{
-			LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
-		}
-		else
-		{
-			ALandscapeProxy::InvalidateGeneratedComponentData(LandscapeComponents);
-		}
-	}
 
 	// Must do this *after* correcting the scale or reattaching the landscape components will crash!
 	// Must do this *after* clamping values / propogating values to components
@@ -6306,7 +6338,7 @@ void ULandscapeComponent::GenerateMobileWeightmapLayerAllocations()
 	GetAllMobileRelevantLayerNames(LayerNames, GetLandscapeMaterial()->GetMaterial());
 	MobileWeightmapLayerAllocations = WeightmapLayerAllocations.FilterByPredicate([&](const FWeightmapLayerAllocationInfo& Allocation) -> bool 
 		{
-			return Allocation.LayerInfo && LayerNames.Contains(Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer ? UMaterialExpressionLandscapeVisibilityMask::ParameterName : Allocation.GetLayerName());
+			return Allocation.LayerInfo && LayerNames.Contains(Allocation.GetLayerName());
 		}
 	);
 	MobileWeightmapLayerAllocations.StableSort(([&](const FWeightmapLayerAllocationInfo& A, const FWeightmapLayerAllocationInfo& B) -> bool
@@ -6447,8 +6479,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 			{
 				if (Allocation.LayerInfo)
 				{
-					FName LayerName = Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer ? UMaterialExpressionLandscapeVisibilityMask::ParameterName : Allocation.LayerInfo->LayerName;
-					NewMobileMaterialInstance->SetVectorParameterValue(FName(*FString::Printf(TEXT("LayerMask_%s"), *LayerName.ToString())), Masks[Allocation.WeightmapTextureChannel]);
+					NewMobileMaterialInstance->SetVectorParameterValue(FName(*FString::Printf(TEXT("LayerMask_%s"), *Allocation.GetLayerName().ToString())), Masks[Allocation.WeightmapTextureChannel]);
 				}
 			}
 
@@ -6504,8 +6535,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 			{
 				if (Allocation.LayerInfo)
 				{
-					FName LayerName = Allocation.LayerInfo == ALandscapeProxy::VisibilityLayer ? UMaterialExpressionLandscapeVisibilityMask::ParameterName : Allocation.LayerInfo->LayerName;
-					NewMobileMaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *LayerName.ToString())), Masks[Allocation.WeightmapTextureChannel]);
+					NewMobileMaterialInstance->SetVectorParameterValueEditorOnly(FName(*FString::Printf(TEXT("LayerMask_%s"), *Allocation.GetLayerName().ToString())), Masks[Allocation.WeightmapTextureChannel]);
 				}
 			}
 
