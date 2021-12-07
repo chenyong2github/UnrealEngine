@@ -21,10 +21,57 @@ class IAssetRegistry;
 class UObject;
 class UPackage;
 struct FAssetData;
+
 namespace UE::EditorDomain
 {
-	typedef FIoHash FPackageDigest;
+
+/** Flags for whether a package is allowed to be loaded/saved in the EditorDomain. */
+enum class EDomainUse : uint8
+{
+	None = 0x0,
+	/** The package can be loaded from the EditorDomain. */
+	LoadEnabled = 0x1,
+	/** The package can be saved to the EditorDomain. */
+	SaveEnabled = 0x2,
+};
+ENUM_CLASS_FLAGS(EDomainUse);
+
+/** Information about a package's loading from the EditorDomain. */
+struct FPackageDigest
+{
+	enum class EStatus : uint8
+	{
+		NotYetRequested,
+		Successful,
+		InvalidPackageName,
+		DoesNotExistInAssetRegistry,
+		MissingClass,
+		MissingCustomVersion,
+	};
+
+	FPackageDigest() = default;
+	FPackageDigest(EStatus InStatus, FName InStatusArg = NAME_None);
+	bool IsSuccessful() const;
+	FString GetStatusString() const;
+
+	/**
+	 * Hash used to lookup the resaved package in the cache;
+	 * created from properties that change if the saved version would change (package bytes, serialization versions).
+	 */
+	FIoHash Hash;
+	/** Allow flags for whether the package can be saved/loaded from EditorDomain. */
+	EDomainUse DomainUse = EDomainUse::None;
+	/** Status for creation of this digest. Either Success or an error code for why it couldn't be created. */
+	EStatus Status = EStatus::NotYetRequested;
+	/** Extended information for the status description (e.g. missing class name). */
+	FName StatusArg;
+	/** List of CustomVersions used to save the package. */
+	UE::AssetRegistry::FPackageCustomVersionsHandle CustomVersions;
+};
+
 }
+
+extern FString LexToString(UE::EditorDomain::FPackageDigest::EStatus Status, FName StatusArg);
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomain, Log, All);
 
@@ -93,7 +140,13 @@ public:
 	virtual TStatId GetStatId() const override { return TStatId(); }
 
 	// EditorDomain interface
+	/** Fetch data from game-thread sources that is required to calculate the PackageDigest of the given PackageName. */
 	void PrecachePackageDigest(FName PackageName);
+	/**
+	 * Calculate the PackageDigest for the given PackageName.
+	 * Callable from any thread, but will fail if game-thread data is required and not cached.
+	 */
+	UE::EditorDomain::FPackageDigest GetPackageDigest(FName PackageDigest);
 
 private:
 	/**
@@ -127,7 +180,8 @@ private:
 	FEditorDomain(FEditorDomain&& Other) = delete;
 
 	/** Read the PackageSource data from PackageSources, or from the asset registry if not in PackageSources. */
-	bool TryFindOrAddPackageSource(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& OutSource);
+	bool TryFindOrAddPackageSource(FName PackageName, TRefCountPtr<FPackageSource>& OutSource,
+		UE::EditorDomain::FPackageDigest* OutErrorDigest=nullptr);
 	/** Return the PackageSource data in PackageSources, if it exists */
 	TRefCountPtr<FPackageSource> FindPackageSource(const FPackagePath& PackagePath);
 	/** Mark that we had to load the Package from the workspace domain, and schedule its save into the EditorDomain. */

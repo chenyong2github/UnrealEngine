@@ -162,8 +162,8 @@ private:
 	 * Read-only, *pointer requires EditorDomainLocks.Lock.
 	 */
 	TRefCountPtr<FEditorDomain::FPackageSource> PackageSource;
-	/** PackageDigest for requesting payloads, copied from PackageSource. Read-only. */
-	UE::EditorDomain::FPackageDigest PackageDigest;
+	/** EditorDomainHash for requesting payloads, copied from PackageSource. Read-only. */
+	FIoHash EditorDomainHash;
 
 	/**
 	 * Data read from the EditorDomain; each Segment is requested individually.

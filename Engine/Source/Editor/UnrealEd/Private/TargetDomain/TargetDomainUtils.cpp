@@ -82,29 +82,34 @@ bool TryCreateKey(FName PackageName, TConstArrayView<FName> SortedBuildDependenc
 		if (OutErrorMessage) *OutErrorMessage = TEXT("AssetRegistry is unavailable.");
 		return false;
 	}
-	FBlake3 KeyBuilder;
-	UE::EditorDomain::EPackageDigestResult Result;
-	FString ErrorMessage;
-	UE::EditorDomain::EDomainUse EditorDomainUse;
-	Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, PackageName, KeyBuilder, EditorDomainUse, ErrorMessage);
-	if (Result != UE::EditorDomain::EPackageDigestResult::Success)
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (!EditorDomain)
 	{
-		if (OutErrorMessage) *OutErrorMessage = MoveTemp(ErrorMessage);
+		if (OutErrorMessage) *OutErrorMessage = TEXT("EditorDomain is unavailable.");
 		return false;
 	}
+	FBlake3 KeyBuilder;
+	UE::EditorDomain::FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	if (!PackageDigest.IsSuccessful())
+	{
+		if (OutErrorMessage) *OutErrorMessage = PackageDigest.GetStatusString();
+		return false;
+	}
+	KeyBuilder.Update(&PackageDigest.Hash, sizeof(PackageDigest.Hash));
 
 	for (FName DependencyName : SortedBuildDependencies)
 	{
-		Result = UE::EditorDomain::AppendPackageDigest(*AssetRegistry, DependencyName, KeyBuilder, EditorDomainUse, ErrorMessage);
-		if (Result != UE::EditorDomain::EPackageDigestResult::Success)
+		PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+		if (!PackageDigest.IsSuccessful())
 		{
 			if (OutErrorMessage)
 			{
 				*OutErrorMessage = FString::Printf(TEXT("Could not create PackageDigest for %s: %s"),
-					*DependencyName.ToString(), *ErrorMessage);
+					*DependencyName.ToString(), *PackageDigest.GetStatusString());
 			}
 			return false;
 		}
+		KeyBuilder.Update(&PackageDigest.Hash, sizeof(PackageDigest.Hash));
 	}
 
 	if (OutHash)
@@ -122,17 +127,22 @@ bool TryCollectKeyAndDependencies(UPackage* Package, const ITargetPlatform* Targ
 		if (OutErrorMessage) *OutErrorMessage = TEXT("Invalid null package.");
 		return false;
 	}
-
-	FName PackageName = Package->GetFName();
-	TSet<FName> BuildDependencies;
-	TSet<FName> RuntimeOnlyDependencies;
-
 	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
 	if (!AssetRegistry)
 	{
 		if (OutErrorMessage) *OutErrorMessage = TEXT("AssetRegistry is unavailable.");
 		return false;
 	}
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (!EditorDomain)
+	{
+		if (OutErrorMessage) *OutErrorMessage = TEXT("EditorDomain is unavailable.");
+		return false;
+	}
+
+	FName PackageName = Package->GetFName();
+	TSet<FName> BuildDependencies;
+	TSet<FName> RuntimeOnlyDependencies;
 
 	TArray<FName> AssetDependencies;
 	AssetRegistry->GetDependencies(PackageName, AssetDependencies, UE::AssetRegistry::EDependencyCategory::Package,

@@ -145,20 +145,14 @@ FEditorDomain::FLocks::FLocks(FEditorDomain& InOwner)
 {
 }
 
-bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& OutSource)
+bool FEditorDomain::TryFindOrAddPackageSource(FName PackageName,
+	TRefCountPtr<FPackageSource>& OutSource, UE::EditorDomain::FPackageDigest* OutErrorDigest)
 {
 	// Called within Locks.Lock
 	using namespace UE::EditorDomain;
 
 	// EDITOR_DOMAIN_TODO: Need to delete entries from PackageSources when the assetregistry reports the package is
 	// resaved on disk.
-	FName PackageName = PackagePath.GetPackageFName();
-	if (PackageName.IsNone())
-	{
-		OutSource.SafeRelease();
-		return false;
-	}
-
 	TRefCountPtr<FPackageSource>& PackageSource = PackageSources.FindOrAdd(PackageName);
 	if (PackageSource)
 	{
@@ -167,25 +161,27 @@ bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, T
 	}
 
 	FString ErrorMessage;
-	FPackageDigest PackageDigest;
-	EDomainUse EditorDomainUseForPackage;
-	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, EditorDomainUseForPackage, ErrorMessage);
-	switch (Result)
+	FPackageDigest PackageDigest = CalculatePackageDigest(*AssetRegistry, PackageName);
+	switch (PackageDigest.Status)
 	{
-	case EPackageDigestResult::Success:
+	case FPackageDigest::EStatus::Successful:
 		PackageSource = new FPackageSource();
-		PackageSource->Digest = PackageDigest;
+		PackageSource->Digest = MoveTemp(PackageDigest);
 		OutSource = PackageSource;
-		if (!bEditorDomainReadEnabled || !EnumHasAnyFlags(EditorDomainUseForPackage, EDomainUse::LoadEnabled))
+		if (!bEditorDomainReadEnabled || !EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
 		{
 			PackageSource->Source = EPackageSource::Workspace;
 		}
 		return true;
-	case EPackageDigestResult::FileDoesNotExist:
+	case FPackageDigest::EStatus::DoesNotExistInAssetRegistry:
 		OutSource.SafeRelease();
 		// Remove the entry in PackageSources that we added; we added it to avoid a double lookup for new packages,
 		// but for non-existent packages we want it not to be there to avoid wasting memory on it
 		PackageSources.Remove(PackageName);
+		if (OutErrorDigest)
+		{
+			*OutErrorDigest = MoveTemp(PackageDigest);
+		}
 		return false;
 	default:
 		UE_LOG(LogEditorDomain, Warning,
@@ -196,6 +192,20 @@ bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, T
 		OutSource = PackageSource;
 		return true;
 	}
+}
+
+UE::EditorDomain::FPackageDigest FEditorDomain::GetPackageDigest(FName PackageName)
+{
+	using namespace UE::EditorDomain;
+
+	TRefCountPtr<FPackageSource> PackageSource;
+	FPackageDigest ErrorDigest;
+	FScopeLock ScopeLock(&Locks->Lock);
+	if (!TryFindOrAddPackageSource(PackageName, PackageSource, &ErrorDigest))
+	{
+		return ErrorDigest;
+	}
+	return PackageSource->Digest;
 }
 
 void FEditorDomain::PrecachePackageDigest(FName PackageName)
@@ -253,7 +263,13 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 	{
 		FScopeLock ScopeLock(&Locks->Lock);
 		TRefCountPtr<FPackageSource> PackageSource;
-		if (!TryFindOrAddPackageSource(PackagePath, PackageSource) || PackageSource->Source == EPackageSource::Workspace)
+		FName PackageName = PackagePath.GetPackageFName();
+		if (PackageName.IsNone())
+		{
+			return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
+		}
+
+		if (!TryFindOrAddPackageSource(PackageName, PackageSource) || PackageSource->Source == EPackageSource::Workspace)
 		{
 			return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 		}
@@ -292,7 +308,8 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		// Fetch meta-data only
 		ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
 		Owner.Emplace(EPriority::Highest);
-		RequestEditorDomainPackage(PackagePath, PackageSource->Digest, SkipFlags, *Owner, MoveTemp(MetaDataGetComplete));
+		RequestEditorDomainPackage(PackagePath, PackageSource->Digest.Hash, SkipFlags,
+			*Owner, MoveTemp(MetaDataGetComplete));
 	}
 	Owner->Wait();
 	return FileSize;
@@ -309,8 +326,13 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	{
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}
+	FName PackageName = PackagePath.GetPackageFName();
+	if (PackageName.IsNone())
+	{
+		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
+	}
 	TRefCountPtr<FPackageSource> PackageSource;
-	if (!TryFindOrAddPackageSource(PackagePath, PackageSource) || (PackageSource->Source == EPackageSource::Workspace))
+	if (!TryFindOrAddPackageSource(PackageName, PackageSource) || (PackageSource->Source == EPackageSource::Workspace))
 	{
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}
@@ -319,7 +341,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	// and don't need to block on the result before exiting this function
 	EPriority Priority = EPriority::Blocking;
 	FEditorDomainReadArchive* Result = new FEditorDomainReadArchive(Locks, PackagePath, PackageSource, Priority);
-	const FPackageDigest PackageSourceDigest = PackageSource->Digest;
+	const FIoHash PackageEditorHash = PackageSource->Digest.Hash;
 	const bool bHasEditorSource = (PackageSource->Source == EPackageSource::Editor);
 
 	// Unlock before requesting the package because the completion callback takes the lock.
@@ -327,7 +349,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 
 	// Fetch only meta-data in the initial request
 	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
-	RequestEditorDomainPackage(PackagePath, PackageSourceDigest,
+	RequestEditorDomainPackage(PackagePath, PackageEditorHash,
 		SkipFlags, Result->GetRequestOwner(),
 		[Result](FCacheGetCompleteParams&& Params)
 		{
@@ -360,8 +382,13 @@ FOpenAsyncPackageResult FEditorDomain::OpenAsyncReadPackage(const FPackagePath& 
 		return Workspace->OpenAsyncReadPackage(PackagePath, PackageSegment);
 	}
 
+	FName PackageName = PackagePath.GetPackageFName();
+	if (PackageName.IsNone())
+	{
+		return Workspace->OpenAsyncReadPackage(PackagePath, PackageSegment);
+	}
 	TRefCountPtr<FPackageSource> PackageSource;
-	if (!TryFindOrAddPackageSource(PackagePath, PackageSource) ||
+	if (!TryFindOrAddPackageSource(PackageName, PackageSource) ||
 		(PackageSource->Source == EPackageSource::Workspace))
 	{
 		return Workspace->OpenAsyncReadPackage(PackagePath, PackageSegment);
@@ -373,14 +400,14 @@ FOpenAsyncPackageResult FEditorDomain::OpenAsyncReadPackage(const FPackagePath& 
 	FEditorDomainAsyncReadFileHandle* Result =
 		new FEditorDomainAsyncReadFileHandle(Locks, PackagePath, PackageSource, Priority);
 	const bool bHasEditorSource = (PackageSource->Source == EPackageSource::Editor);
+	FIoHash EditorDomainHash = PackageSource->Digest.Hash;
 
 	// Unlock before requesting the package because the completion callback takes the lock.
 	ScopeLock.Unlock();
 
 	// Fetch meta-data only in the initial request
 	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
-	RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-		SkipFlags, Result->GetRequestOwner(),
+	RequestEditorDomainPackage(PackagePath, EditorDomainHash, SkipFlags, Result->GetRequestOwner(),
 		[Result](FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainAsyncReadFileHandle waits for this callback to be called, so Result cannot dangle
@@ -565,4 +592,50 @@ void FEditorDomain::OnAssetUpdatedOnDisk(const FAssetData& AssetData)
 	}
 	FScopeLock ScopeLock(&Locks->Lock);
 	PackageSources.Remove(PackageName);
+}
+
+namespace UE::EditorDomain
+{
+
+FPackageDigest::FPackageDigest(EStatus InStatus, FName InStatusArg)
+ : Status(InStatus)
+ , StatusArg(InStatusArg)
+{
+}
+
+bool FPackageDigest::IsSuccessful() const
+{
+	return Status == EStatus::Successful;
+}
+
+FString FPackageDigest::GetStatusString() const
+{
+	return LexToString(Status, StatusArg);
+}
+
+}
+
+FString LexToString(UE::EditorDomain::FPackageDigest::EStatus Status, FName StatusArg)
+{
+	using namespace UE::EditorDomain;
+
+	switch (Status)
+	{
+	case FPackageDigest::EStatus::NotYetRequested:
+		return TEXT("Has not been requested.");
+	case FPackageDigest::EStatus::Successful:
+		return TEXT("Successful.");
+	case FPackageDigest::EStatus::InvalidPackageName:
+		return TEXT("PackageName is not a valid LongPackageName.");
+	case FPackageDigest::EStatus::DoesNotExistInAssetRegistry:
+		return TEXT("Does not exist in AssetRegistry.");
+	case FPackageDigest::EStatus::MissingClass:
+		return FString::Printf(TEXT("Uses class %s that is not loaded."), *StatusArg.ToString());
+	case FPackageDigest::EStatus::MissingCustomVersion:
+		return FString::Printf(
+			TEXT("Uses CustomVersion guid %s but that guid is not available in FCurrentCustomVersions."),
+			*StatusArg.ToString());
+	default:
+		return TEXT("Unknown result code.");
+	}
 }
