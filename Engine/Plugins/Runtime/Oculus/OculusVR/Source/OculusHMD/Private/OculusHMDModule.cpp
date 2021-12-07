@@ -34,8 +34,6 @@ FOculusHMDModule::FOculusHMDModule()
 void FOculusHMDModule::StartupModule()
 {
 	IHeadMountedDisplayModule::StartupModule();
-	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("OculusVR"))->GetBaseDir(), TEXT("Shaders"));
-	AddShaderSourceDirectoryMapping(TEXT("/Plugin/OculusVR"), PluginShaderDir);
 }
 
 void FOculusHMDModule::ShutdownModule()
