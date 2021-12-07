@@ -158,6 +158,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.NaniteResourceID(NaniteResourceID)
 		.NaniteHierarchyOffset(NaniteHierarchyOffset)
 		.NaniteImposterIndex(NaniteImposterIndex)
+		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor())
 		.VisibleInRaster(Proxy->IsVisibleInRaster());
 
 	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
@@ -238,13 +239,18 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[28].Z = PrimitiveUniformShaderParameters.InstanceLocalBoundsExtent.Z;
 	Data[28].W = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataStride;
 	
-	Data[29].X = 0.0f;
-	Data[29].Y = 0.0f;
-	Data[29].Z = 0.0f;
+	Data[29].X = PrimitiveUniformShaderParameters.WireframeColor.X;
+	Data[29].Y = PrimitiveUniformShaderParameters.WireframeColor.Y;
+	Data[29].Z = PrimitiveUniformShaderParameters.WireframeColor.Z;
 	Data[29].W = *(const float*)&PrimitiveUniformShaderParameters.NaniteImposterIndex;
 
+	Data[30].X = PrimitiveUniformShaderParameters.LevelColor.X;
+	Data[30].Y = PrimitiveUniformShaderParameters.LevelColor.Y;
+	Data[30].Z = PrimitiveUniformShaderParameters.LevelColor.Z;
+	Data[30].W = 0.0f; // Unused
+
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 30;
+	const int32 CustomPrimitiveDataStartIndex = 31;
 	for (int32 DataIndex = 0; DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; ++DataIndex)
 	{
 		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];

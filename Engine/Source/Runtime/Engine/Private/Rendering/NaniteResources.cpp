@@ -386,6 +386,10 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Indicates if 1 or more materials contain settings not supported by Nanite.
 	bHasMaterialErrors = false;
 
+	SetLevelColor(FLinearColor::White);
+	SetPropertyColor(FLinearColor::White);
+	SetWireframeColor(Component->GetWireframeColor());
+
 	const bool bHasSurfaceStaticLighting = MeshInfo.GetLightMap() != nullptr || MeshInfo.GetShadowMap() != nullptr;
 
 	const uint32 FirstLODIndex = 0; // Only data from LOD0 is used.

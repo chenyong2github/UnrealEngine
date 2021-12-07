@@ -8,6 +8,7 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "PixelShaderUtils.h"
 #include "SceneTextureReductions.h"
+#include "SceneManagement.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "DebugViewModeHelpers.h"
 
@@ -146,12 +147,17 @@ public:
 	DECLARE_GLOBAL_SHADER(FExportDebugViewPS);
 	SHADER_USE_PARAMETER_STRUCT(FExportDebugViewPS, FNaniteShader);
 
+	class FSearchBufferCountDim : SHADER_PERMUTATION_INT("EDITOR_SELECTED_BUFFER_COUNT_LOG_2", 25);
+	using FPermutationDomain = TShaderPermutationDomain<FSearchBufferCountDim>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(FIntVector4, ViewRect)
 		SHADER_PARAMETER(float, InvShaderBudget)
+		SHADER_PARAMETER(FVector3f, SelectionColor)
+		SHADER_PARAMETER(uint32, DebugViewMode)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
@@ -159,8 +165,10 @@ public:
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialEditorTable)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialHitProxyTable)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
+
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -170,9 +178,14 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		uint32 SelectedBufferCount = 1u << (uint32)PermutationVector.Get<FSearchBufferCountDim>();
+		OutEnvironment.SetDefine(TEXT("EDITOR_SELECTED_BUFFER_COUNT"), SelectedBufferCount);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FExportDebugViewPS, "/Engine/Private/Nanite/MaterialComplexity.usf", "ExportDebugViewPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FExportDebugViewPS, "/Engine/Private/Nanite/DebugViews.usf", "ExportDebugViewPS", SF_Pixel);
 
 // TODO: Move to common location outside of Nanite
 class FHTileVisualizeCS : public FNaniteShader
@@ -497,40 +510,16 @@ void DrawVisualization(
 
 void RenderDebugViewMode(
 	FRDGBuilder& GraphBuilder,
-	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands,
-	const FSceneRenderer& SceneRenderer,
-	const FSceneTextures& SceneTextures,
-	const FDBufferTextures& DBufferTextures,
+	EDebugViewMode DebugViewMode,
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FSceneViewFamily& ViewFamily,
 	const FRasterResults& RasterResults,
-	FRDGTextureRef QuadOverdrawTexture,
-	const FRenderTargetBindingSlots& RenderTargets
+	FRDGTextureRef OutputColorTexture,
+	FRDGTextureRef InputDepthTexture,
+	FRDGTextureRef QuadOverdrawTexture
 )
 {
-	const EDebugViewShaderMode DebugViewMode = ViewFamily.GetDebugViewShaderMode();
-
-	// TODO: Support more than shader complexity
-	bool bSupportedMode = false;
-	switch (DebugViewMode)
-	{
-	case DVSM_ShaderComplexity:							// Default shader complexity viewmode
-	case DVSM_ShaderComplexityContainedQuadOverhead:	// Show shader complexity with quad overdraw scaling the PS instruction count.
-	case DVSM_ShaderComplexityBleedingQuadOverhead:		// Show shader complexity with quad overdraw bleeding the PS instruction count over the quad.
-	case DVSM_QuadComplexity:							// Show quad overdraw only.
-		bSupportedMode = true;
-		break;
-
-	default:
-		break;
-	}
-
-	if (!bSupportedMode)
-	{
-		return;
-	}
-
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::DebugView");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteDebug);
@@ -540,22 +529,44 @@ void RenderDebugViewMode(
 	// Increase the shader budget for Nanite meshes to account for baseline ALU overhead.
 	const uint32 NaniteShaderBudget = GlobalShaderBudget + uint32(GNaniteVisualizeComplexityOverhead);
 
+	const FLinearColor SelectionColor = GetSelectionColor(FLinearColor::White, true /* selected */, false /* hovered */, false /* use overlay intensity */);
+
+	// TODO: Need to apply hover intensity to per-primitive wireframe color, not white
+	//const FLinearColor HoveredColor = GetSelectionColor(FLinearColor::White, false /* selected */, true /* hovered */);
+
 	FExportDebugViewPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FExportDebugViewPS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
 	PassParameters->PageConstants = RasterResults.PageConstants;
 	PassParameters->ViewRect = FIntVector4(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y);
 	PassParameters->InvShaderBudget = 1.0f / float(NaniteShaderBudget);
+	PassParameters->SelectionColor = FVector3f(SelectionColor.R, SelectionColor.G, SelectionColor.B);
+	PassParameters->DebugViewMode = uint32(DebugViewMode);
 	PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
 	PassParameters->VisBuffer64 = RasterResults.VisBuffer64;
-	PassParameters->SceneDepth = SceneTextures.Depth.Target;
+	PassParameters->SceneDepth = InputDepthTexture;
 	PassParameters->MaterialResolve = RasterResults.MaterialResolve;
 	PassParameters->MaterialSlotTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 	PassParameters->MaterialDepthTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 	PassParameters->MaterialEditorTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialEditorSRV();
-	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad, 0);
+#if WITH_EDITOR
+	PassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
+#endif
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputColorTexture, ERenderTargetLoadAction::ELoad, 0);
 
-	auto PixelShader = View.ShaderMap->GetShader<FExportDebugViewPS>();
+#if WITH_EDITOR
+	const uint32 HitProxyIdCount = View.EditorSelectedHitProxyIds.Num();
+#else
+	const uint32 HitProxyIdCount = 0;
+#endif
+
+	const uint32 SelectionCount = FMath::RoundUpToPowerOfTwo(HitProxyIdCount);
+	const uint32 SearchBufferCountDim = FMath::Min(uint32(FExportDebugViewPS::FSearchBufferCountDim::MaxValue), FMath::FloorLog2(SelectionCount));
+
+	FExportDebugViewPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FExportDebugViewPS::FSearchBufferCountDim>(SearchBufferCountDim);
+
+	auto PixelShader = View.ShaderMap->GetShader<FExportDebugViewPS>(PermutationVector.ToDimensionValueId());
 
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,

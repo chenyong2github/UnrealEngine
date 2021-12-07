@@ -129,6 +129,8 @@ struct FPrimitiveSceneData
 	uint		InstancePayloadDataStride; // TODO: Use 16 bits? 8 bits?
 	float3		InstanceLocalBoundsCenter;
 	float3		InstanceLocalBoundsExtent;
+	float3		WireframeColor; // TODO: Should refactor out all editor data into a separate buffer
+	float3		LevelColor; // TODO: Should refactor out all editor data into a separate buffer
 	uint		NaniteImposterIndex;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
@@ -166,7 +168,8 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.ObjectBoundsZ					= Primitive.ObjectBoundsZ;
 	PrimitiveData.InstancePayloadDataOffset		= Primitive.InstancePayloadDataOffset;
 	PrimitiveData.InstancePayloadDataStride		= Primitive.InstancePayloadDataStride;
-	
+	PrimitiveData.WireframeColor				= Primitive.WireframeColor;
+	PrimitiveData.LevelColor					= Primitive.LevelColor;
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
@@ -184,7 +187,7 @@ RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
 #endif
 
 // Stride of a single primitive's data in float4's, must match C++
-#define PRIMITIVE_SCENE_DATA_STRIDE 39
+#define PRIMITIVE_SCENE_DATA_STRIDE 40
 
 float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
@@ -273,13 +276,15 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.InstancePayloadDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 27).w);
 	PrimitiveData.InstanceLocalBoundsExtent		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).xyz;
 	PrimitiveData.InstancePayloadDataStride		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).w);
+	PrimitiveData.WireframeColor				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).xyz;
 	PrimitiveData.NaniteImposterIndex			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
+	PrimitiveData.LevelColor					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xyz;
 
-	// TODO: Move to associated array to shrink primitive data and better pack cachelines
+	// TODO: Move to associated array (and editor data) to shrink primitive data and better pack cachelines
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
-		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  30 + DataIndex);
+		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  31 + DataIndex);
 	}
 	return PrimitiveData;
 #endif

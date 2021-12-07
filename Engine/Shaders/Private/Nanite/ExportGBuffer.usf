@@ -318,28 +318,6 @@ void EmitHitProxyIdPS(
 	}
 }
 
-uint LowerBound(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
-{
-	uint Index = 0;
-	uint Width = BufferCount >> 1;
-	
-	UNROLL
-	while (Width > 0)
-	{
-		Index += (Key < SearchBuffer[Index + Width]) ? 0 : Width;
-		Width = Width >> 1;
-	}
-	
-	return Index;
-}
-
-bool BinarySearch(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
-{
-	uint Index = LowerBound(SearchBuffer, BufferCount, Key);
-	return SearchBuffer[Index] == Key;
-}
-
-
 #if EDITOR_SELECTED_BUFFER_COUNT > 0 || EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
 float2 OutputToInputScale;
 float2 OutputToInputBias;

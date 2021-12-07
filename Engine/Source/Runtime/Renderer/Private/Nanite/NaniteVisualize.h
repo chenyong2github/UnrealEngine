@@ -21,18 +21,24 @@ void AddVisualizationPasses(
 
 #if WITH_DEBUG_VIEW_MODES
 
+enum class EDebugViewMode : uint8
+{
+	None = 0,
+	Wireframe = 1,
+	ShaderComplexity = 2,
+	LightmapDensity = 3,
+};
+
 void RenderDebugViewMode(
 	FRDGBuilder& GraphBuilder,
-	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& NaniteMaterialPassCommands,
-	const FSceneRenderer& SceneRenderer,
-	const FSceneTextures& SceneTextures,
-	const FDBufferTextures& DBufferTextures,
+	EDebugViewMode DebugViewMode,
 	const FScene& Scene,
 	const FViewInfo& View,
 	const FSceneViewFamily& ViewFamily,
 	const FRasterResults& RasterResults,
-	FRDGTextureRef QuadOverdrawTexture,
-	const FRenderTargetBindingSlots& RenderTargets
+	FRDGTextureRef OutputColorTexture,
+	FRDGTextureRef InputDepthTexture,
+	FRDGTextureRef QuadOverdrawTexture
 );
 
 #endif
