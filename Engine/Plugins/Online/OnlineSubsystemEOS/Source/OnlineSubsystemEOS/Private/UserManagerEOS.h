@@ -449,6 +449,8 @@ private:
 
 	/** Id map to keep track of which friends have been processed during async user info queries */
 	TMap<int32, TArray<EOS_EpicAccountId>> IsFriendQueryUserInfoOngoingForLocalUserMap;
+	/** Id map to keep track of which players still need their external id synced */
+	TMap<int32, TArray<FString>> IsPlayerQueryExternalMappingsOngoingForLocalUserMap;
 
 	/** Cache for the info passed on to ReadFriendsList, kept while user info queries complete */
 	struct ReadUserListInfo

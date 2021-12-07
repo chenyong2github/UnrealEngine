@@ -505,6 +505,27 @@ private:
 	}
 };
 
+namespace OSSInternalCallback
+{
+	/** Create a callback for a non-SDK function that is tied to the lifetime of an arbitrary shared pointer. */
+	template <typename DelegateType, typename OwnerType, typename... CallbackArgs>
+	UE_NODISCARD DelegateType Create(const TSharedPtr<OwnerType, ESPMode::ThreadSafe>& InOwner,
+		const TFunction<void(CallbackArgs...)>& InUserCallback)
+	{
+		const DelegateType& CheckOwnerThenExecute = DelegateType::CreateLambda(
+			[WeakOwner = TWeakPtr<OwnerType, ESPMode::ThreadSafe>(InOwner), InUserCallback](CallbackArgs... Payload) {
+				check(IsInGameThread());
+				TSharedPtr<OwnerType, ESPMode::ThreadSafe> Owner = WeakOwner.Pin();
+				if (Owner.IsValid())
+				{
+					InUserCallback(Payload...);
+				}
+		});
+
+		return CheckOwnerThenExecute;
+	}
+}
+
 /**
  * Class to handle nested callbacks (callbacks that are tied to an external callback's lifetime,
  * e.g. file chunkers) generically using a lambda to process callback results
