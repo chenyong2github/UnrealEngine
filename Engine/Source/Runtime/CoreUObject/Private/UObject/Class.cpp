@@ -5197,7 +5197,8 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 { 
 	if (SparseClassDataStruct != InSparseClassDataStruct)
 	{
-		if (SparseClassDataStruct && InSparseClassDataStruct)
+		// Passing nullptr as InSparseClassDataStruct is a valid way to clear sparse class data
+		if (SparseClassDataStruct)
 		{
 			// Find all subclasses and point the SuperClass of their SparseClassDataStruct to point to this new SparseClassDataStruct.
 			// We have to do this when compilation creates a new SparseClassDataStruct that has already loaded subclasses.
@@ -5212,6 +5213,9 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 				UScriptStruct* SubClassSparseClassDataStruct = SubClass->GetSparseClassDataStruct();
 				if (SubClassSparseClassDataStruct && SubClassSparseClassDataStruct->GetSuperStruct() == SparseClassDataStruct)
 				{
+					// As we are potentialy completely changing the struct layout, we need to cleanup any data we have 
+					// before the superstruct link gets set
+					SubClass->CleanupSparseClassData();
 					SubClassSparseClassDataStruct->SetSuperStruct(InSparseClassDataStruct);
 				}
 			}
@@ -5222,6 +5226,30 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 		SparseClassDataStruct = InSparseClassDataStruct;
 	}
 }
+
+void UClass::ClearSparseClassDataStruct()
+{ 
+	if (SparseClassDataStruct != nullptr)
+	{
+		// Find all subclasses and clear their sparse class data struct as well.
+		TArray<UClass*> SubClasses;
+		GetDerivedClasses(this, SubClasses, true /* bRecursive */);
+		for (UClass* SubClass : SubClasses)
+		{
+			UScriptStruct* SubClassSparseClassDataStruct = SubClass->GetSparseClassDataStruct();
+			if (SubClassSparseClassDataStruct && SubClassSparseClassDataStruct->GetSuperStruct() == SparseClassDataStruct)
+			{
+				SubClass->CleanupSparseClassData();
+				SubClassSparseClassDataStruct->SetSuperStruct(nullptr);
+			}
+		}
+
+		CleanupSparseClassData();
+
+		SparseClassDataStruct = nullptr;
+	}
+}
+
 
 #if WITH_RELOAD
 

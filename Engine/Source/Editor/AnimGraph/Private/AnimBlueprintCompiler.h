@@ -85,6 +85,9 @@ protected:
 	FStructProperty* NewMutablesProperty;
 	UAnimBlueprint* AnimBlueprint;
 
+	// Old sparse class data stored to patchup linker when doing a full compile
+	UScriptStruct* OldSparseClassDataStruct;
+	
 	UAnimationGraphSchema* AnimSchema;
 
 	// Map of allocated v3 nodes that are members of the class

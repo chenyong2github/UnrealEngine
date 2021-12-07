@@ -469,6 +469,23 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	{
 		MutablesStruct->Link(Ar, bRelinkExistingProperties);
 	}
+
+	// Link in sparse class data - it must mirror the generated class hierarchy
+	if(UAnimBlueprintGeneratedClass* ParentClass = Cast<UAnimBlueprintGeneratedClass>(GetSuperClass()))
+	{
+		if(UScriptStruct* ParentSparseClassDataStruct = ParentClass->GetSparseClassDataStruct())
+		{
+			if(SparseClassDataStruct && ParentSparseClassDataStruct != SparseClassDataStruct)
+			{
+				// Ensure parent is linked before setting super
+				ParentSparseClassDataStruct->Link(Ar, bRelinkExistingProperties);
+				SparseClassDataStruct->SetSuperStruct(ParentSparseClassDataStruct);
+
+				// Link sparse class data now it is correctly parented
+				SparseClassDataStruct->Link(Ar, bRelinkExistingProperties);
+			}
+		}
+	}
 #endif	
 	
 	Super::Link(Ar, bRelinkExistingProperties);
@@ -528,6 +545,18 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 			}
 		}
 	}
+
+	// Must build constant properties to be able to iterate subsystems
+	BuildConstantProperties();
+	
+	ForEachSubsystem([this](const FAnimSubsystemContext& InContext)
+	{
+		Subsystems.Add(&InContext.Subsystem);
+
+		FAnimSubsystemLinkContext Context(InContext, *this);
+		const_cast<FAnimSubsystem&>(InContext.Subsystem).OnLink(Context);
+		return EAnimSubsystemEnumeration::Continue;
+	});	
 }
 
 void UAnimBlueprintGeneratedClass::PurgeClass(bool bRecompilingOnLoad)

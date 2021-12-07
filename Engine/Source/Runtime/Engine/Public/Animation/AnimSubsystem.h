@@ -84,6 +84,17 @@ struct FAnimSubsystemPostLoadDefaultsContext
 	UObject* DefaultAnimInstance;
 };
 
+struct FAnimSubsystemLinkContext
+{
+	FAnimSubsystemLinkContext(const FAnimSubsystemContext& InContext, IAnimClassInterface& InAnimClassInterface)
+		: InnerContext(InContext)
+		, AnimClassInterface(InAnimClassInterface)
+	{}
+
+	const FAnimSubsystemContext& InnerContext;
+	IAnimClassInterface& AnimClassInterface;
+};
+
 /** Base structure for all anim subsystem class data */
 USTRUCT()
 struct FAnimSubsystem
@@ -110,4 +121,7 @@ struct FAnimSubsystem
 	
 	/** Override point to perform subsystem class data initialization post-load */
 	virtual void OnPostLoad(FAnimSubsystemPostLoadContext& InContext) {}
+
+	/** Override point to perform subsystem class data initialization on class link */
+	virtual void OnLink(FAnimSubsystemLinkContext& InContext) {}
 };

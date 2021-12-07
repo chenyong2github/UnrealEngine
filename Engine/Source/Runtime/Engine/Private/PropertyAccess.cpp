@@ -212,7 +212,7 @@ struct FPropertyAccessSystem
 		return true;
 	}
 
-	static void PostLoadLibrary(FPropertyAccessLibrary& InLibrary)
+	static void PatchPropertyOffsets(FPropertyAccessLibrary& InLibrary)
 	{
 		InLibrary.Indirections.Reset();
 
@@ -395,7 +395,7 @@ struct FPropertyAccessSystem
 		InFunction->Invoke(InObject, Stack, OutRetValue);
 	}
 
-	static void IterateAccess(void* InContainer, const FPropertyAccessLibrary& InLibrary, const FPropertyAccessIndirectionChain& InAccess, TFunctionRef<void(void*)> InAddressFunction, TFunctionRef<void(UObject*)> InPerObjectFunction)
+	static void IterateAccess(void* InContainer, const FPropertyAccessLibrary& InLibrary, const FPropertyAccessIndirectionChain& InAccess, TFunctionRef<void(void*)> InAddressFunction)
 	{
 		void* Address = InContainer;
 
@@ -416,10 +416,6 @@ struct FPropertyAccessSystem
 				{
 					UObject* Object = *reinterpret_cast<UObject**>(static_cast<uint8*>(Address) + Indirection.Offset);
 					Address = static_cast<void*>(Object);
-					if(Object != nullptr)
-					{
-						InPerObjectFunction(Object);
-					}
 					break;
 				}
 				case EPropertyAccessObjectType::WeakObject:
@@ -427,10 +423,6 @@ struct FPropertyAccessSystem
 					TWeakObjectPtr<UObject>& WeakObjectPtr = *reinterpret_cast<TWeakObjectPtr<UObject>*>(static_cast<uint8*>(Address) + Indirection.Offset);
 					UObject* Object = WeakObjectPtr.Get();
 					Address = static_cast<void*>(Object);
-					if(Object != nullptr)
-					{
-						InPerObjectFunction(Object);
-					}
 					break;
 				}
 				case EPropertyAccessObjectType::SoftObject:
@@ -438,10 +430,6 @@ struct FPropertyAccessSystem
 					FSoftObjectPtr& SoftObjectPtr = *reinterpret_cast<FSoftObjectPtr*>(static_cast<uint8*>(Address) + Indirection.Offset);
 					UObject* Object = SoftObjectPtr.Get();
 					Address = static_cast<void*>(Object);
-					if(Object != nullptr)
-					{
-						InPerObjectFunction(Object);
-					}
 					break;
 				}
 				default:
@@ -499,10 +487,6 @@ struct FPropertyAccessSystem
 					{
 						UObject* Object = *static_cast<UObject**>(Address);
 						Address = static_cast<void*>(Object);
-						if(Object != nullptr)
-						{
-							InPerObjectFunction(Object);
-						}
 						break;
 					}
 					case EPropertyAccessObjectType::WeakObject:
@@ -510,10 +494,6 @@ struct FPropertyAccessSystem
 						TWeakObjectPtr<UObject>& WeakObjectPtr = *static_cast<TWeakObjectPtr<UObject>*>(Address);
 						UObject* Object = WeakObjectPtr.Get();
 						Address = static_cast<void*>(Object);
-						if(Object != nullptr)
-						{
-							InPerObjectFunction(Object);
-						}
 						break;
 					}
 					case EPropertyAccessObjectType::SoftObject:
@@ -521,10 +501,6 @@ struct FPropertyAccessSystem
 						FSoftObjectPtr& SoftObjectPtr = *reinterpret_cast<FSoftObjectPtr*>(Address);
 						UObject* Object = SoftObjectPtr.Get();
 						Address = static_cast<void*>(Object);
-						if(Object != nullptr)
-						{
-							InPerObjectFunction(Object);
-						}
 						break;
 					}
 					default:
@@ -547,19 +523,13 @@ struct FPropertyAccessSystem
 			InAddressFunction(Address);
 		}
 	}
-
-	// Iterates all the objects in an access path/indirection graph.
-	static void ForEachObjectInAccess(void* InContainer, const FPropertyAccessLibrary& InLibrary, const FPropertyAccessIndirectionChain& InAccess, TFunctionRef<void(UObject*)> InPerObjectFunction)
-	{
-		IterateAccess(InContainer, InLibrary, InAccess, [](void*){}, InPerObjectFunction);
-	}
-
+	
 	// Gets the address that corresponds to a property access.
 	// Forwards the address onto the passed-in function. This callback-style approach is used because in some cases 
 	// (e.g. functions), the address may be memory allocated on the stack.
 	static void GetAccessAddress(void* InContainer, const FPropertyAccessLibrary& InLibrary, const FPropertyAccessIndirectionChain& InAccess, TFunctionRef<void(void*)> InAddressFunction)
 	{
-		IterateAccess(InContainer, InLibrary, InAccess, InAddressFunction, [](UObject*){});
+		IterateAccess(InContainer, InLibrary, InAccess, InAddressFunction);
 	}
 
 	// Process a single copy
@@ -571,18 +541,18 @@ struct FPropertyAccessSystem
 			{
 				const FPropertyAccessCopy& Copy = InLibrary.CopyBatchArray[InBatchId].Copies[InCopyIndex];
 				const FPropertyAccessIndirectionChain& SrcAccess = InLibrary.SrcAccesses[Copy.AccessIndex];
-				if(SrcAccess.Property.Get())
+				if(FProperty* SourceProperty = SrcAccess.Property.Get())
 				{
-					GetAccessAddress(InContainer, InLibrary, SrcAccess, [InContainer, &InLibrary, &Copy, &SrcAccess, &InPostCopyOperation](void* InSrcAddress)
+					GetAccessAddress(InContainer, InLibrary, SrcAccess, [InContainer, &InLibrary, &Copy, SourceProperty, &InPostCopyOperation](void* InSrcAddress)
 					{
 						for(int32 DestAccessIndex = Copy.DestAccessStartIndex; DestAccessIndex < Copy.DestAccessEndIndex; ++DestAccessIndex)
 						{
 							const FPropertyAccessIndirectionChain& DestAccess = InLibrary.DestAccesses[DestAccessIndex];
-							if(DestAccess.Property.Get())
+							if(FProperty* DestProperty = DestAccess.Property.Get())
 							{
-								GetAccessAddress(InContainer, InLibrary, DestAccess, [&InSrcAddress, &Copy, &SrcAccess, &DestAccess, &InPostCopyOperation](void* InDestAddress)
+								GetAccessAddress(InContainer, InLibrary, DestAccess, [&InSrcAddress, &Copy, SourceProperty, DestProperty, &InPostCopyOperation](void* InDestAddress)
 								{
-									PerformCopy(Copy, SrcAccess.Property.Get(), InSrcAddress, DestAccess.Property.Get(), InDestAddress, InPostCopyOperation);
+									PerformCopy(Copy, SourceProperty, InSrcAddress, DestProperty, InDestAddress, InPostCopyOperation);
 								});
 							}
 						}
@@ -616,7 +586,12 @@ namespace PropertyAccess
 {
 	void PostLoadLibrary(FPropertyAccessLibrary& InLibrary)
 	{
-		::FPropertyAccessSystem::PostLoadLibrary(InLibrary);
+		::FPropertyAccessSystem::PatchPropertyOffsets(InLibrary);
+	}
+
+	void PatchPropertyOffsets(FPropertyAccessLibrary& InLibrary)
+	{
+		::FPropertyAccessSystem::PatchPropertyOffsets(InLibrary);
 	}
 
 	void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType)

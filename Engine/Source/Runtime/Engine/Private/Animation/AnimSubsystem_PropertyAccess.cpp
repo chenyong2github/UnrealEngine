@@ -31,5 +31,13 @@ void FAnimSubsystem_PropertyAccess::OnPostUpdate_WorkerThread(FAnimSubsystemPara
 void FAnimSubsystem_PropertyAccess::OnPostLoad(FAnimSubsystemPostLoadContext& InContext)
 {
 	// Patch the library on load to fixup property offsets
-	PropertyAccess::PostLoadLibrary(Library);
+	PropertyAccess::PatchPropertyOffsets(Library);
 }
+
+#if WITH_EDITORONLY_DATA
+void FAnimSubsystem_PropertyAccess::OnLink(FAnimSubsystemLinkContext& InContext)
+{
+	// Patch the library on load to fixup property offsets
+	PropertyAccess::PatchPropertyOffsets(Library);
+}
+#endif

@@ -34,6 +34,7 @@
 #include "UObject/UObjectHash.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "BlueprintEditorModule.h"
+#include "Animation/AnimBlueprint.h"
 #include "Stats/StatsHierarchical.h"
 
 extern UNREALED_API UUnrealEdEngine* GUnrealEd;
@@ -1009,6 +1010,14 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 						return false;
 					}
 
+					// Anim BPs cannot skip un-needed dependency compilation as their property access bytecode
+					// will need refreshing due to external class layouts changing (they require at least a bytecode recompile or a relink)
+					const bool bIsAnimBlueprintClass = !!Cast<UAnimBlueprint>(Data.BP);
+					if(bIsAnimBlueprintClass)
+					{
+						return false;
+					}
+					
 					// if our parent is still being compiled, then we still need to be compiled:
 					UClass* Iter = Data.BP->ParentClass;
 					while(Iter)
