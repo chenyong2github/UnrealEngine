@@ -16,6 +16,9 @@ class SWindow;
 class UEditorUtilityWidget;
 class UEditorUtilityTask;
 
+/** Delegate for a PIE event exposed via Editor Utility (begin, end, pause/resume, etc) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEditorUtilityPIEEvent, const bool, bIsSimulating);
+
 UCLASS(config = EditorPerProjectUserSettings)
 class BLUTILITY_API UEditorUtilitySubsystem : public UEditorSubsystem
 {
@@ -84,6 +87,14 @@ public:
 	void RegisterReferencedObject(UObject* ObjectToReference);
 	void UnregisterReferencedObject(UObject* ObjectToReference);
 
+	/** Expose Begin PIE to blueprints.*/
+	UPROPERTY(BlueprintAssignable)
+	FOnEditorUtilityPIEEvent OnBeginPIE;
+
+	/** Expose End PIE to blueprints.*/
+	UPROPERTY(BlueprintAssignable)
+	FOnEditorUtilityPIEEvent OnEndPIE;
+
 protected:
 	UEditorUtilityTask* GetActiveTask() { return ActiveTaskStack.Num() > 0 ? ActiveTaskStack[ActiveTaskStack.Num() - 1] : nullptr; };
 
@@ -98,6 +109,12 @@ protected:
 
 	UClass* FindClassByName(const FString& RawTargetName);
 	UClass* FindBlueprintClass(const FString& TargetNameRaw);
+
+	/** Called when Play in Editor begins. */
+	void HandleOnBeginPIE(const bool bIsSimulating);
+
+	/** Called when Play in Editor stops. */
+	void HandleOnEndPIE(const bool bIsSimulating);
 
 private:
 	IConsoleObject* RunTaskCommandObject = nullptr;
