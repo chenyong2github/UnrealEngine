@@ -199,8 +199,11 @@ void FIsoTriangulator::FindLoopIntersections(const TArray<FLoopNode*>& NodesOfLo
 	GetSegmentToNodeMethod GetFirst = bForward ? GetFirstNode : GetSecondNode;
 	GetSegmentToNodeMethod GetSecond = bForward ? GetSecondNode : GetFirstNode;
 
-	FLoopNode *const* StartNodePtr = NodesOfLoop.FindByPredicate([](const FLoopNode* Node) { return !Node->IsDelete(); });
-	ensureCADKernel(*StartNodePtr);
+	FLoopNode *const*const StartNodePtr = NodesOfLoop.FindByPredicate([](const FLoopNode* Node) { return !Node->IsDelete(); });
+	if(!*StartNodePtr)
+	{
+		return;
+	}
 
 	FLoopNode* StartNode = *StartNodePtr;
 
@@ -214,7 +217,10 @@ void FIsoTriangulator::FindLoopIntersections(const TArray<FLoopNode*>& NodesOfLo
 	TFunction<void()> FindSegmentIntersection = [&]()
 	{
 		FIsoSegment* Segment = Node->GetSegmentConnectedTo(NextNode);
-		ensureCADKernel(Segment);
+		if(Segment)
+		{
+			return;
+		}
 
 		if (LoopSegmentsIntersectionTool.FindIntersections(*Node, *NextNode, IntersectedSegments))
 		{
@@ -2016,7 +2022,10 @@ bool FIsoTriangulator::RemoveNodeOfLoop(FLoopNode& NodeToRemove)
 		IsoSegmentFactory.DeleteEntity(Segment);
 
 		FIsoSegment* ThirdSegment = PreviousNode.GetSegmentConnectedTo(&NextNode);
-		ensureCADKernel(ThirdSegment);
+		if(!ThirdSegment)
+		{
+			return false;
+		}
 
 		NextNode.DisconnectSegment(*ThirdSegment);
 		PreviousNode.DisconnectSegment(*ThirdSegment);

@@ -31,6 +31,11 @@ bool FIntersectionSegmentTool::FindIntersections(const FIsoNode& StartNode, cons
 
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
+		if (!Segment.IsoSegment)
+		{
+			continue;
+		}
+
 		if (&Segment.IsoSegment->GetFirstNode() == &StartNode || &Segment.IsoSegment->GetSecondNode() == &StartNode)
 		{
 			continue;
@@ -60,6 +65,11 @@ const FIsoSegment* FIntersectionSegmentTool::DoesIntersect(const FIsoNode& Start
 
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
+		if (!Segment.IsoSegment)
+		{
+			continue;
+		}
+
 		if (Segment.IsoSegment != nullptr && Segment.IsoSegment->IsDelete())
 		{
 			continue;
@@ -99,6 +109,11 @@ bool FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FP
 
 	for (const FSegment4IntersectionTools& Segment : Segments)
 	{
+		if (!Segment.IsoSegment)
+		{
+			continue;
+		}
+
 		if (bSegmentsAreSorted && DMax < Segment.AxisMin)
 		{
 			break;
