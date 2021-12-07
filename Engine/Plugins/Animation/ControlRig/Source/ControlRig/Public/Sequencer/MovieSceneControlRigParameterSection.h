@@ -137,10 +137,11 @@ struct CONTROLRIG_API FChannelMapInfo
 
 	FChannelMapInfo() = default;
 
-	FChannelMapInfo(int32 InControlIndex, int32 InTotalChannelIndex,  int32 InChannelIndex, int32 InParentControlIndex = INDEX_NONE, FName InChannelTypeName = NAME_None) :
-		ControlIndex(InControlIndex),TotalChannelIndex(InTotalChannelIndex), ChannelIndex(InChannelIndex), ParentControlIndex(InParentControlIndex), ChannelTypeName(InChannelTypeName) {};
+	FChannelMapInfo(int32 InControlIndex, int32 InTotalChannelIndex, int32 InChannelIndex, int32 InParentControlIndex = INDEX_NONE, FName InChannelTypeName = NAME_None,
+		int32 InMaskIndex = INDEX_NONE, int32 InCategoryIndex = INDEX_NONE) :
+		ControlIndex(InControlIndex),TotalChannelIndex(InTotalChannelIndex), ChannelIndex(InChannelIndex), ParentControlIndex(InParentControlIndex), ChannelTypeName(InChannelTypeName),MaskIndex(InMaskIndex),CategoryIndex(InCategoryIndex) {};
 	UPROPERTY()
-	int32 ControlIndex = 0;
+	int32 ControlIndex = 0; 
 	UPROPERTY()
 	int32 TotalChannelIndex = 0;
 	UPROPERTY()
@@ -153,7 +154,11 @@ struct CONTROLRIG_API FChannelMapInfo
 	bool bDoesHaveSpace = false;
 	UPROPERTY()
 	int32 SpaceChannelIndex = -1; //if it has space what's the space channel index
-	
+	UPROPERTY()
+	int32 MaskIndex = -1; //index for the mask
+	UPROPERTY()
+	int32 CategoryIndex = -1; //index for the Sequencer category node
+
 	int32 GeneratedKeyIndex = -1; //temp index set by the ControlRigParameterTrack, not saved
 
 
@@ -288,7 +293,11 @@ public:
 		ControlsMask.Init(Val, ControlsMask.Num());
 		ReconstructChannelProxy();
 	}
-
+	/**
+	* This function returns the active category index of the control, based upon what controls are active/masked or not
+	* If itself is masked it returns INDEX_NONE
+	*/
+	int32 GetActiveCategoryIndex(FName ControlName) const;
 	/**
 	* Access the transform mask that defines which channels this track should animate
 	*/
