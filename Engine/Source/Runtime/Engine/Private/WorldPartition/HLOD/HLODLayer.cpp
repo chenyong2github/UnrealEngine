@@ -26,6 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
 UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
+	, bIsSpatiallyLoaded(true)
 	, CellSize(3200)
 	, LoadingRange(12800)
 #endif
@@ -103,6 +104,11 @@ void UHLODLayer::PostLoad()
 			HLODBuilderSettings = WPHLODUtilities->CreateHLODBuilderSettings(this);
 		}
 	}
+
+	if (bAlwaysLoaded_DEPRECATED)
+	{
+		bIsSpatiallyLoaded = false;
+	}
 }
 
 void UHLODLayer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -131,13 +137,13 @@ FName UHLODLayer::GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, double
 
 FName UHLODLayer::GetRuntimeGrid(uint32 InHLODLevel) const
 {
-	return IsAlwaysLoaded() ? NAME_None : GetRuntimeGridName(InHLODLevel, CellSize, LoadingRange);
+	return !IsSpatiallyLoaded() ? NAME_None : GetRuntimeGridName(InHLODLevel, CellSize, LoadingRange);
 }
 
 const TSoftObjectPtr<UHLODLayer>& UHLODLayer::GetParentLayer() const
 {
 	static const TSoftObjectPtr<UHLODLayer> NullLayer;
-	return IsAlwaysLoaded() ? NullLayer : ParentLayer;
+	return !IsSpatiallyLoaded() ? NullLayer : ParentLayer;
 }
 
 #endif // WITH_EDITOR
