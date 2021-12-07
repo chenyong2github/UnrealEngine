@@ -200,7 +200,7 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 				case EDataLayerRuntimeState::Loaded:
 					return FColorList::NeonBlue;
 				case EDataLayerRuntimeState::Unloaded:
-					return FColorList::Red;
+					return FColorList::DarkSlateGrey;
 				}
 			}
 			else
