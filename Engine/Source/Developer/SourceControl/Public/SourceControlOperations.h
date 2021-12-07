@@ -768,6 +768,16 @@ private:
 class FCreateWorkspace : public FSourceControlOperationBase
 {
 public:
+	enum class EType
+	{
+		/* Default */
+		Writeable = 0,
+		/* Has a short life span and can only query/read/sync files */
+		ReadOnly,
+		/* Has a short life span but is allowed full functionality */
+		Partitioned
+	};
+
 	using FClientViewMapping = TPair<FString,FString>;
 
 	FCreateWorkspace() = delete;
@@ -792,6 +802,11 @@ public:
 		ClientView.Emplace(DepotPath, ClientPath);
 	}
 
+	void SetType(EType InType)
+	{
+		Type = InType;
+	}
+
 	const FString& GetWorkspaceName() const
 	{
 		return WorkspaceName;
@@ -805,6 +820,11 @@ public:
 	const TArray<FClientViewMapping> GetClientView() const
 	{
 		return ClientView;
+	}
+
+	EType GetType() const
+	{
+		return Type;
 	}
 
 	// ISourceControlOperation interface
@@ -823,6 +843,9 @@ protected:
 
 	FString WorkspaceName;
 	FString WorkspaceRoot;
+
+	EType Type = EType::Writeable;
+
 	TArray<FClientViewMapping> ClientView;
 };
 
