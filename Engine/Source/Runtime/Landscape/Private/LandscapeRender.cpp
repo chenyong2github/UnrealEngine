@@ -1282,11 +1282,9 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		bShouldNotifyOnWorldAddRemove = true;
 	}
 
-	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
-	// GPUCULL_TODO: Move to base proxy
-	// Vertex shaders on mobile may still use PrimitiveUB with GPUScene enabled
-	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) || (FeatureLevel == ERHIFeatureLevel::ES3_1);
+	EnableGPUSceneSupportFlags();
 	
+	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		if (InComponent->GetLandscapeProxy()->bUseDynamicMaterialInstance)

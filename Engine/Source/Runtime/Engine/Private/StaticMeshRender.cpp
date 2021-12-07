@@ -306,9 +306,8 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	bCastDynamicShadow = bCastDynamicShadow && bCastShadow;
 
 	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer = true;
-	// We always use local vertex factory, which gets its primitive data from GPUScene, so we can skip expensive primitive uniform buffer updates
-	// Vertex shaders on mobile may still use PrimitiveUB with GPUScene enabled
-	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) || (FeatureLevel == ERHIFeatureLevel::ES3_1);
+
+	EnableGPUSceneSupportFlags();
 
 #if STATICMESH_ENABLE_DEBUG_RENDERING
 	if( GIsEditor )

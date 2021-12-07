@@ -166,6 +166,9 @@ struct FPrimitiveFlagsCompact
 	/** True if the primitive is a Nanite mesh. */
 	uint8 bIsNaniteMesh : 1;
 
+	/** True if the primitive draws only meshes that support GPU-Scene. */
+	uint8 bSupportsGPUScene : 1;
+
 	FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy);
 };
 

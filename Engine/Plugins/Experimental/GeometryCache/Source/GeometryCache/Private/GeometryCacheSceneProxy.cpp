@@ -75,7 +75,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 	
 	UpdatedFrameNum = 0;
 
-	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) || (FeatureLevel == ERHIFeatureLevel::ES3_1);
+	EnableGPUSceneSupportFlags();
 
 	bCanSkipRedundantTransformUpdates = false;
 
