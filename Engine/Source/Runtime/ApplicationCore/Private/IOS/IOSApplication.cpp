@@ -71,6 +71,10 @@ void FIOSApplication::SetMessageHandler( const TSharedRef< FGenericApplicationMe
 void FIOSApplication::SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler)
 {
 	GenericApplication::SetAccessibleMessageHandler(InAccessibleMessageHandler);
+	// This user is what IOS Voiceover will interact with
+	FGenericAccessibleUserRegistry& UserRegistry = InAccessibleMessageHandler->GetAccessibleUserRegistry();
+	// We failed to register the primary user, this should only happen if another user with the 0th index has already been registered.
+	ensure(UserRegistry.RegisterUser(MakeShared<FGenericAccessibleUser>(FGenericAccessibleUserRegistry::GetPrimaryUserIndex())));
 	InAccessibleMessageHandler->SetAccessibleEventDelegate(FGenericAccessibleMessageHandler::FAccessibleEvent::CreateRaw(this, &FIOSApplication::OnAccessibleEventRaised));
 	InAccessibleMessageHandler->SetActive(UIAccessibilityIsVoiceOverRunning());
 }
@@ -268,7 +272,7 @@ FAutoConsoleVariableRef IOSAccessibleAnnouncementDealyRef(
 );
 
 
-void FIOSApplication::OnAccessibleEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args)
+void FIOSApplication::OnAccessibleEventRaised(const FAccessibleEventArgs& Args)
 {
 	// This should only be triggered by the accessible message handler which initiates from the Slate thread.
 	check(IsInGameThread());

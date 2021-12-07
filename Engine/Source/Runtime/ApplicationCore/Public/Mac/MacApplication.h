@@ -322,7 +322,7 @@ private:
 #endif
 
 #if WITH_ACCESSIBILITY
-	void OnAccessibleEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args);
+	void OnAccessibleEventRaised(const FAccessibleEventArgs& Args);
 	#endif
 
 private:

@@ -153,20 +153,46 @@ bool FSlateAccessibleWidget::IsHidden() const
 
 bool FSlateAccessibleWidget::SupportsFocus() const
 {
-	// all widgets that support accessibility support accessibility focus right now 
+	if (Widget.IsValid())
+	{
+		return Widget.Pin()->SupportsKeyboardFocus();
+	}
+	return false;
+}
+
+bool FSlateAccessibleWidget::SupportsAccessibleFocus() const
+{
+	// all widgets that support accessibility support accessible focus right now
 	// This check is analogous to Widget.Pin()->IsAccessible()
-	// By definition all FSlateAccessibleWidgets are accessible. So we just return true 
+	// By definition all FSlateAccessibleWidgets are accessible. So we just return true
 	return true;
 }
 
-bool FSlateAccessibleWidget::HasFocus() const
+bool FSlateAccessibleWidget::CanCurrentlyAcceptAccessibleFocus() const
 {
-	TSharedPtr<FSlateAccessibleWidget> AccessibilityFocusedWidget = FSlateApplicationBase::Get().GetAccessibleMessageHandler()->GetAccessibilityFocusedWidget();
-	return AccessibilityFocusedWidget == AsShared();
+	return IsEnabled() && !IsHidden();
 }
 
-void FSlateAccessibleWidget::SetFocus()
+bool FSlateAccessibleWidget::HasUserFocus(const FAccessibleUserIndex UserIndex) const
 {
+	FGenericAccessibleUserRegistry& UserManager = FSlateApplicationBase::Get().GetAccessibleMessageHandler()->GetAccessibleUserRegistry();
+	TSharedPtr<FGenericAccessibleUser> User = UserManager.GetUser(UserIndex);
+	if (User)
+	{
+		return (User->GetFocusedAccessibleWidget()) == AsShared();
+	}
+	return false;
+}
+
+bool FSlateAccessibleWidget::SetUserFocus(const FAccessibleUserIndex UserIndex)
+{
+	// Most likely a mistake to set focus on a widget that cannot currently accept focus
+	if (!CanCurrentlyAcceptAccessibleFocus())
+	{
+		// @TODOAccessibility: Log information about the widget when we create a ToString() function.
+		UE_LOG(LogAccessibility, Warning, TEXT("Attempting to set accessible focus on an accessible widget that currently cannot be focused. Focus not changed."));
+		return false;
+	}
 	if (SupportsFocus())
 	{
 		TSharedPtr<SWindow> WidgetWindow = GetSlateWindow();
@@ -177,14 +203,19 @@ void FSlateAccessibleWidget::SetFocus()
 			FWidgetPath WidgetPath;
 			if (FSlateWindowHelper::FindPathToWidget(WindowArray, Widget.Pin().ToSharedRef(), WidgetPath))
 			{
-				// From FSlateApplication::SetUserFocus(), it seems that 
-				// no focus change will occur if we pass in a widget that cannot accept keyboard focus.
-				// this behavior is fine for widgets that don't support keyboard focus but do support accessibility focus 
-//@TODOAccessibility: Possible early out if not keyboard focusable 				
-				FSlateApplicationBase::Get().SetKeyboardFocus(WidgetPath, EFocusCause::SetDirectly);
+				// Focus accessible events are already raised from this function call
+				return FSlateApplicationBase::Get().SetUserFocus(UserIndex, WidgetPath, EFocusCause::SetDirectly);
 			}
 		}
 	}
+	// The widget is not keyboard/gamepad focusable but supports accessible focus
+	else if (SupportsAccessibleFocus())
+	{
+		// we manually raise an accessible focus event 
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(FSlateAccessibleMessageHandler::FSlateWidgetAccessibleEventArgs(Widget.Pin().ToSharedRef(), EAccessibleEvent::FocusChange, false, true, UserIndex));
+		return true;
+	}
+	return false;
 }
 
 void FSlateAccessibleWidget::UpdateParent(TSharedPtr<IAccessibleWidget> NewParent)
@@ -192,7 +223,7 @@ void FSlateAccessibleWidget::UpdateParent(TSharedPtr<IAccessibleWidget> NewParen
 	if (Parent != NewParent)
 	{
 		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->RaiseEvent(
-			FGenericAccessibleMessageHandler::FAccessibleEventArgs(AsShared(), EAccessibleEvent::ParentChanged,
+			FAccessibleEventArgs(AsShared(), EAccessibleEvent::ParentChanged,
 			Parent.IsValid() ? Parent.Pin()->GetId() : IAccessibleWidget::InvalidAccessibleWidgetId,
 			NewParent.IsValid() ? NewParent->GetId() : IAccessibleWidget::InvalidAccessibleWidgetId));
 		Parent = StaticCastSharedPtr<FSlateAccessibleWidget>(NewParent);
@@ -320,9 +351,10 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 	return HitWidget;
 }
 
-TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetFocusedWidget() const
+TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetUserFocusedWidget(const FAccessibleUserIndex UserIndex) const
 {
-	return FSlateApplicationBase::Get().GetAccessibleMessageHandler()->GetAccessibilityFocusedWidget();
+	TSharedPtr<FGenericAccessibleUser> User = FSlateApplicationBase::Get().GetAccessibleMessageHandler()->GetAccessibleUserRegistry().GetUser(UserIndex);
+	return User ? User->GetFocusedAccessibleWidget() : nullptr;
 }
 
 FString FSlateAccessibleWindow::GetWidgetName() const

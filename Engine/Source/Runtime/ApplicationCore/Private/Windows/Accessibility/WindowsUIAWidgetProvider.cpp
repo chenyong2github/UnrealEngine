@@ -560,7 +560,8 @@ HRESULT STDCALL FWindowsUIAWidgetProvider::GetPropertyValue(PROPERTYID propertyI
 		case UIA_HasKeyboardFocusPropertyId:
 		{
 			pRetVal->vt = VT_BOOL;
-			pRetVal->boolVal = Widget->HasFocus() ? VARIANT_TRUE : VARIANT_FALSE;
+			// UIA only recognizes 1 user, the primary accessible user
+			pRetVal->boolVal = Widget->HasUserFocus(FGenericAccessibleUserRegistry::GetPrimaryUserIndex()) ? VARIANT_TRUE : VARIANT_FALSE;
 		}
 			break;
 		case UIA_HelpTextPropertyId:
@@ -806,7 +807,8 @@ HRESULT STDCALL FWindowsUIAWidgetProvider::SetFocus()
 		{
 			if (Widget->SupportsFocus())
 			{
-				Widget->SetFocus();
+				// UIA only recognizes 1 user, the primary accessible user for the application
+				Widget->SetUserFocus(FGenericAccessibleUserRegistry::GetPrimaryUserIndex());
 				ReturnValue = S_OK;
 				return;
 			}
@@ -958,7 +960,8 @@ HRESULT STDCALL FWindowsUIAWindowProvider::GetFocus(IRawElementProviderFragment*
 		*pRetVal = nullptr;
 		if (IsValid())
 		{
-			TSharedPtr<IAccessibleWidget> Focus = Widget->AsWindow()->GetFocusedWidget();
+			// UIA only assumes 1 user so we always assume that the primary user (the keyboard user) is using the accessibility services
+			TSharedPtr<IAccessibleWidget> Focus = Widget->AsWindow()->GetUserFocusedWidget(0);
 			if (Focus.IsValid())
 			{
 				*pRetVal = static_cast<IRawElementProviderFragment*>(&UIAManager->GetWidgetProvider(Focus.ToSharedRef()));

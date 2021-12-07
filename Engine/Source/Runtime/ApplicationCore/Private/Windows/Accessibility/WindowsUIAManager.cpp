@@ -86,7 +86,14 @@ FWindowsUIAManager::FWindowsUIAManager(const FWindowsApplication& InApplication)
 
 void FWindowsUIAManager::OnAccessibleMessageHandlerChanged()
 {
-	WindowsApplication.GetAccessibleMessageHandler()->SetAccessibleEventDelegate(FGenericAccessibleMessageHandler::FAccessibleEvent::CreateRaw(this, &FWindowsUIAManager::OnEventRaised));
+	TSharedRef<FGenericAccessibleMessageHandler> MessageHandler = WindowsApplication.GetAccessibleMessageHandler();
+	// We register the primary user (keyboard) 
+	// This user is what UIA will interact with
+	FGenericAccessibleUserRegistry& UserRegistry = MessageHandler->GetAccessibleUserRegistry();
+	// We failed to register the primary user, this should only happen if another user with the 0th index has already been registered.
+	ensure(UserRegistry.RegisterUser(MakeShared<FGenericAccessibleUser>(FGenericAccessibleUserRegistry::GetPrimaryUserIndex())));
+
+	MessageHandler->SetAccessibleEventDelegate(FGenericAccessibleMessageHandler::FAccessibleEvent::CreateRaw(this, &FWindowsUIAManager::OnEventRaised));
 }
 
 FWindowsUIAManager::~FWindowsUIAManager()
@@ -173,7 +180,7 @@ void FWindowsUIAManager::OnAccessibilityDisabled()
 	}
 }
 
-void FWindowsUIAManager::OnEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args)
+void FWindowsUIAManager::OnEventRaised(const FAccessibleEventArgs& Args)
 {
 	if (UiaClientsAreListening())
 	{
@@ -185,7 +192,7 @@ void FWindowsUIAManager::OnEventRaised(const FGenericAccessibleMessageHandler::F
 		{
 			// On focus change, emit a generic FocusChanged event as well as a per-Provider PropertyChanged event
 			// todo: handle difference between any focus vs keyboard focus
-			if (Args.Widget->HasFocus())
+			if (Args.Widget->HasUserFocus(0))
 			{
 				UiaRaiseAutomationEvent(&ScopedProvider.Provider, UIA_AutomationFocusChangedEventId);
 			}

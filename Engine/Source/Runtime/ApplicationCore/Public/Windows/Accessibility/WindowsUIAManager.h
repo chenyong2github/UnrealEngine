@@ -86,7 +86,7 @@ public:
 
 private:
 	/** Callback function for processing events raised from the AccessibleMessageHandler */
-	void OnEventRaised(const FGenericAccessibleMessageHandler::FAccessibleEventArgs& Args);
+	void OnEventRaised(const FAccessibleEventArgs& Args);
 
 	/** Called when the first window widget provider is requested. */
 	void OnAccessibilityEnabled(); 

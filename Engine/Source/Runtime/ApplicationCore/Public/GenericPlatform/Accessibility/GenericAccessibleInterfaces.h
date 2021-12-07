@@ -86,6 +86,138 @@ enum class EAccessibleEvent : uint8
 	WidgetRemoved
 };
 
+/** An index that uniquely identifies every registered accessible user in the application. */
+typedef int32 FAccessibleUserIndex;
+
+/**
+ * An accessible user is an input source that can interact with the application and needs to provide accessibility services such as a screen reader.
+ * This base class provides the basic information all accessible users need to implement to ensure accessibility services function properly.
+ * Users should subclass this class to provide additional functionality for their custom accessible users.
+ * All accessible users must be registered with an FGenericAccessibleUserRegistry for the users to be retrieved and interacted with.
+ * @see FGenericAccessibleUserRegistry
+ */
+class APPLICATIONCORE_API FGenericAccessibleUser
+{
+	friend class FGenericAccessibleUserRegistry;
+public:
+	FGenericAccessibleUser(const FAccessibleUserIndex InUserIndex)
+		: UserIndex(InUserIndex)
+	{
+		
+	}
+	virtual ~FGenericAccessibleUser() = default;
+	/** Returns the unique index that identifies this accessible user.*/
+	FAccessibleUserIndex GetIndex() const
+	{
+		return UserIndex;
+	}
+	/**
+	 * Returns the accessible widget the accessible user is currently focused on. If no accessible widget is focused, nullptr is returned.
+	 * @see IAccessibleWidget
+	 */
+	TSharedPtr<IAccessibleWidget> GetFocusedAccessibleWidget() const
+	{
+		return FocusedAccessibleWidget.IsValid() ? FocusedAccessibleWidget.Pin() : nullptr;
+	}
+	/**
+	 * Sets which accessible widget the accessible user is currently focused on.
+	 *
+	 * Note: This function is meant to directly set the widget an accessible user is focused on, bypassing all of the focus change accessible events.
+	 * This should only be used by FGenericAccessibleMessageHandler and its subclasses to update the  the accessible focus for an accessible user.
+	 * Most of the time, you want to use IAccessibleWidget::SetUserFocus to request an accessible widget be focused on by a user. It raises the appropriate accessible events
+	 * so listeners for accessible events can do the appropriate event handling for the focus change event.
+	 * @param InWidget The widget this accessible user will be focused on.
+	 * @return True if the passed in widget was successfully set. Else returns false.
+	 */
+	bool SetFocusedAccessibleWidget(const TSharedRef<IAccessibleWidget>& InWidget)
+	{
+		FocusedAccessibleWidget = InWidget;
+		return true;
+	}
+	/** Clear the accessible focused widget. */
+	void ClearFocusedAccessibleWidget()
+	{
+		FocusedAccessibleWidget.Reset();
+	}
+protected:
+	/**
+	 * Called by FGenericAccessibleUserRegistry::RegisterUser.
+	 * @see FGenericAccessibleUserRegistry
+	 */
+	virtual void OnRegistered() {}
+	/**
+	 * Called by FGenericAccessibleUserRegistry::UnregisterUser.
+	 * @see FGenericAccessibleUserRegistry
+	 */
+	virtual void OnUnregistered() {}
+	
+private:
+	/** The unique index for this accessible user */
+	FAccessibleUserIndex UserIndex;
+	/** The focused accessible widget widget associated with this user. */
+	TWeakPtr<IAccessibleWidget> FocusedAccessibleWidget;
+};
+
+/**
+ * The base class for an accessible user registry that all accessible users must register with.
+ * The registry controls the lifetime of all accessible users.
+ * All created accessible users must be registered with an accessible user registry. This should be the only means
+ * of retrieving and interacting with accessible users in other parts of the application.
+ * Users can subclass this class to provide additional functionality for their custom use cases.
+ * @see FGenericAccessibleUser, FGenericAccessibleMessageHandler
+ */
+class APPLICATIONCORE_API FGenericAccessibleUserRegistry
+{
+public:
+	virtual ~FGenericAccessibleUserRegistry() = default;
+	/**
+	 * Registers an accessible user with the accessible registry.
+	 * It is up to the caller to ensure that the passed in user has the correct user index.
+	 * The passed in user will not be registered if another user with the same user index has already been registered.
+	 * This function calls FGenericAccessibleUser::OnRegistered if the passed in user is successfully registered.
+	 * Once an accessible user has been successfully registered, it can be retrieved and interacted with by the rest of the application.
+	 * @param User An accessible user you want to register with the accessible user registry.
+	 * @return True if the passed in user was successfully registered. Else, returns false.
+	 */
+	bool RegisterUser(const TSharedRef<FGenericAccessibleUser>& User);
+	/**
+	 * Unregisters an accessible user from the accessible registry.
+	 * If the passed in user index is not associated with a registered accessible user, nothing will happen.
+	 * This function calls FGenericAccessibleUser::OnUnregistered if the passed in user is successfully unregistered.
+	 * Once an accessible user has been unregistered, the rest of the application should have no way of retrieving or interacting with the accessible user.
+	 * @param UserIndex The index of the accessible user you want to unregister.
+	 * @return True if the accessible user with the associated user index is successfully unregistered. Else, returns false.
+	 */
+	bool UnregisterUser(const FAccessibleUserIndex UserIndex);
+	/**
+	 * Unregisters all accessible users from the accessible registry.
+	 * This function calls FGenericAccessibleUser::OnUnregistered when each registered user is successfully unregistered.
+	 */
+	void UnregisterAllUsers();
+	/** Returns true if the passed in user index is associated with a registered accessible user. Else, returns false. */
+	bool IsUserRegistered(const FAccessibleUserIndex UserIndex) const;
+	/** Returns the accessible user associated with the passed in user index. If the passed in user index is not associated with any accessible user, nullptr is returned. */
+	TSharedPtr<FGenericAccessibleUser> GetUser(const FAccessibleUserIndex UserIndex) const;
+	/** Returns the number of accessible users registered with the accessible user registry. */
+	int32 GetNumberofUsers() const;
+	/** Returns an array of all accessible users that are currently registered with the accessible registry. */
+	TArray<TSharedRef<FGenericAccessibleUser>> GetAllUsers() const;
+	/**
+	 * Returns the index of the primary accessible user.
+	 * The primary accessible user should correspond to the default input source that every application should have. This user should also be the primary cursor user.
+	 * E.g On desktop platforms, that would correspond to the keyboard user.
+	 */
+	static FAccessibleUserIndex GetPrimaryUserIndex()
+	{
+		// @TODOAccessibility: Consider allowing remapping of primary user index
+		static const FAccessibleUserIndex PrimaryUserIndex = 0;
+		return PrimaryUserIndex;
+	}
+protected:
+	/** A map of accessible user indices to their associated accessible users. */
+	TMap<FAccessibleUserIndex, TSharedRef<FGenericAccessibleUser>> UsersMap;
+};
+
 /**
  * An accessible window corresponds to a native OS window. Fake windows that are embedded
  * within other widgets that simply look and feel like windows are not IAccessibleWindows.
@@ -120,11 +252,13 @@ public:
 	 */
 	virtual TSharedPtr<IAccessibleWidget> GetChildAtPosition(int32 X, int32 Y) = 0;
 	/**
-	 * Retrieves the currently accessibilit focused widget
+	 * Retrieves the focused accessible widget for a user.
+	 * If the passed in user index is not registered with an accessible user registry, nullptr will be returned.
 	 *
-	 * @return The widget that has accessibility focus.
+	 * @param UserIndex The user index of the accessible user to query for its accessible focus widget.
+	 * @return The accessible widget that is focused by the accessible user. Returns nullptr if the accessible user index does not correspond to a registered accessible user.
 	 */
-	virtual TSharedPtr<IAccessibleWidget> GetFocusedWidget() const = 0;
+	virtual TSharedPtr<IAccessibleWidget> GetUserFocusedWidget(const FAccessibleUserIndex UserIndex) const = 0;
 	/**
 	 * Request that the window closes itself. This may not happen immediately.
 	 */
@@ -432,21 +566,37 @@ public:
 	 */
 	virtual bool IsHidden() const = 0;
 	/**
-	 * Whether the widget supports accessibility focus or not.
+	 * Whether the widget can ever support keyboard/gamepad focus.
 	 *
-	 * @return true if the widget can receive accessibility focus.
+	 * @return true if the widget can ever receive keyboard/gamepad focus. Else, returns false.
 	 */
 	virtual bool SupportsFocus() const = 0;
 	/**
-	 * Whether the widget has accessibility focus or not.
+	 * Whether the widget can ever support accessible focus.
 	 *
-	 * @return true if the widget currently has accessibility focus.
+	 * @return true if the widget can ever receive accessible focus. Else, returns false.
 	 */
-	virtual bool HasFocus() const = 0;
-	/** Assign keyboard/gamepad focus to this widget, if it supports it. If not, focus should not be affected. 
-	* Note: For widgets that support accessibility focus but not keyboard/gamepad focus, this should NOT repreplace the widget with accessibility focus. 
+	virtual bool SupportsAccessibleFocus() const = 0;
+	/**
+	 * Whether the widget can currently support accessible focus.
+	 *
+	 * @return true if the widget can currently receive accessible focus. Else, returns false.
+	 */
+	virtual bool CanCurrentlyAcceptAccessibleFocus() const = 0;
+	/**
+	 * Whether the widget has accessible focus or not by a particular user .
+	 *
+	 * @param UserIndex The user index associated with the accessible user to query if this accessible widget is currently being focused.
+	 * @return true if the widget currently has accessible focus by the user. Else, returns false.
+	 */
+	virtual bool HasUserFocus(const FAccessibleUserIndex UserIndex) const = 0;
+	/**
+	 * Assign accessible focus to the widget. Also sets keyboard/gamepad focus if the widget supports it.
+	*
+	 * @param UserIndex The user index associated with the accessible user that requested focus for this accessible widget.
+	 * @return True if focus was successfully set to this widget for the requested user. Else false.
 	*/
-	virtual void SetFocus() = 0;
+	virtual bool SetUserFocus(const FAccessibleUserIndex UserIndex) = 0;
 
 	/**
 	 * Attempt to cast this to an IAccessibleWindow
@@ -489,55 +639,58 @@ public:
 };
 
 /**
+ * The arguments for an accessible event that is raised by accessible widgets to be
+ * passed to an accessibility event handler such as a native OS.
+ * It is up to the client to create an instance of this struct and fill in the appropriate data members.
+ * @see FGenericAccessibleMessageHandler::RaiseEvent
+ */
+struct APPLICATIONCORE_API FAccessibleEventArgs
+{
+	FAccessibleEventArgs(TSharedRef<IAccessibleWidget> InWidget, EAccessibleEvent InEvent, FVariant InOldValue = FVariant(), FVariant InNewValue = FVariant(), FAccessibleUserIndex InUserIndex = 0)
+		: Widget(InWidget)
+		, Event(InEvent)
+		, OldValue(InOldValue)
+		, NewValue(InNewValue)
+		, UserIndex(InUserIndex)
+	{}
+	
+	/** The accessible widget that generated the event */
+	TSharedRef<IAccessibleWidget> Widget;
+	/** The type of event generated */
+	EAccessibleEvent Event;
+	/** If this was a property changed event, the 'before' value */
+	FVariant OldValue;
+	/** If this was a property changed event, the 'after' value. This may also be set for other events such as Notification. */
+	FVariant NewValue;
+	/** The Id of the user this event is intended for. Think of a hardware device such as a controller or keyboard/mouse. */
+	FAccessibleUserIndex UserIndex;
+};
+
+/**
  * Platform and application-agnostic messaging system for accessible events. The message handler
  * lives in GenericApplication and any subclass that wishes to support accessibility should subclass
  * this and use GenericAppliation::SetAccessibleMessageHandler to enable functionality.
  *
- * GetAccessibleWindow() is tne entry point to all accessible widgets. Once the window is retrieved, it
+ * GetAccessibleWindow() is the entry point to all accessible widgets. Once the window is retrieved, it
  * can be queried for children in various ways. RaiseEvent() allows messages to bubble back up to the
  * native OS through anything bound to the AccessibleEventDelegate.
  *
  * Callers can use ApplicationIsAccessible() to see if accessibility is supported or not. Alternatively,
  * calling GetAccessibleWindow and seeing if the result is valid should provide the same information.
+ *
+ * Callers should also use GetAccessibleUserRegistry() to register and interact with accessible users. Accessible users must be registered
+ * with the set accessible user registry for the rest of the application to be able to retrieve and interact with the accessible users.
  */
-class FGenericAccessibleMessageHandler
+class APPLICATIONCORE_API FGenericAccessibleMessageHandler
 {
 public:
-	/**
-	 * The arguments for an accessible event that is raised by accessible widgets to be
-	 * passed to an accessibility event handler such as a native OS.
-	 * It is up to the client to create an instance of this struct and fill in the appropriate data members.
-	 * @see RaiseEvent
-	 */
-	struct FAccessibleEventArgs
-	{
-		FAccessibleEventArgs(TSharedRef<IAccessibleWidget> InWidget, EAccessibleEvent InEvent, FVariant InOldValue = FVariant(), FVariant InNewValue = FVariant(), int32 InUserId = 0)
-			: Widget(InWidget)
-			, Event(InEvent)
-			, OldValue(InOldValue)
-			, NewValue(InNewValue)
-			, UserId(InUserId)
-		{}
-		
-		/** The accessible widget that generated the event */
-		TSharedRef<IAccessibleWidget> Widget;
-		/** The type of event generated */
-		EAccessibleEvent Event;
-		/** If this was a property changed event, the 'before' value */
-		FVariant OldValue;
-		/** If this was a property changed event, the 'after' value. This may also be set for other events such as Notification. */
-		FVariant NewValue;
-		/** The Id of the user this event is intended for. Think of a hardware device such as a controller or keyboard/mouse. */
-		int32 UserId;
-	};
 	/**
 	 * A delegate accessible event handlers such as platform accessibility APIs can
 	 * listen for accessibility events raised by widgets.  .
 	 */
 	DECLARE_DELEGATE_OneParam(FAccessibleEvent, const FAccessibleEventArgs&);
 
-	FGenericAccessibleMessageHandler() : bApplicationIsAccessible(false), bIsActive(false) {}
-
+	FGenericAccessibleMessageHandler();
 	virtual ~FGenericAccessibleMessageHandler()
 	{
 		UnbindAccessibleEventDelegate();
@@ -636,12 +789,37 @@ public:
 	 * earlier announcement requests will get stomped by later announcements on certain platforms.
 	 */
 	virtual void MakeAccessibleAnnouncement(const FString& AnnouncementString) { }
+
+	/**
+	 * Retrieves the accessible user registry. This is the means of retrieving, registering and interacting with accessible useres in the rest of the application.
+	 */
+	FGenericAccessibleUserRegistry& GetAccessibleUserRegistry()
+	{
+		return *AccessibleUserRegistry;
+	}
+	/**
+	 * Retrieves the accessible user registry. This is the means of retrieving, registering and interacting with accessible useres in the rest of the application.
+	 */
+	const FGenericAccessibleUserRegistry& GetAccessibleUserRegistry() const
+	{
+		return *AccessibleUserRegistry;
+	}
+	/**
+	 * Sets a new accessible user registry for the application.
+	 * Note: As of now, none of the registered users will carry over to the new accessible user manager. It is up to the caller to unregister all currently registered users and
+	 * register them with the new accessible user registry.   .
+	 */
+	void SetAccessibleUserRegistry(const TSharedRef<FGenericAccessibleUserRegistry>& InAccessibleUserRegistry)
+	{
+		// @TODOAccessibility: Have some means of storing a default manager
+		AccessibleUserRegistry = InAccessibleUserRegistry;
+	}
 protected:
 	/** Triggered when bIsActive changes from false to true. */
 	virtual void OnActivate() {}
 	/** Triggered when bIsActive changes from true to false. */
 	virtual void OnDeactivate() {}
-
+	
 	/** Subclasses should override this to indicate that they support accessibility. */
 	bool bApplicationIsAccessible;
 
@@ -650,6 +828,11 @@ private:
 	bool bIsActive;
 	/** Delegate for the platform layer to listen to widget events */
 	FAccessibleEvent AccessibleEventDelegate;
+	/**
+	 * Registry for all accessible users in the application.
+	 * Accessible users must be registered with the accessible user registry to allow other parts of the application to retrieve and interact with the accessible users.
+	 */
+	TSharedRef<FGenericAccessibleUserRegistry> AccessibleUserRegistry;
 };
 
 #endif

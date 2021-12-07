@@ -48,12 +48,12 @@ public:
 	 */
 	struct FSlateWidgetAccessibleEventArgs
 	{
-		FSlateWidgetAccessibleEventArgs(TSharedRef<SWidget> InWidget, EAccessibleEvent InEvent, FVariant InOldValue = FVariant(), FVariant InNewValue = FVariant(), int32 InSlateUserId = 0)
+		FSlateWidgetAccessibleEventArgs(TSharedRef<SWidget> InWidget, EAccessibleEvent InEvent, FVariant InOldValue = FVariant(), FVariant InNewValue = FVariant(), FAccessibleUserIndex InSlateUserIndex = 0)
 			: Widget(InWidget)
 			, Event(InEvent)
 			, OldValue(InOldValue)
 			, NewValue(InNewValue)
-			, SlateUserId(InSlateUserId)
+			, SlateUserIndex(InSlateUserIndex)
 		{}
 			
 		/** The widget that's raising the accessible event */
@@ -63,9 +63,9 @@ public:
 		/** The value of the property being changed before the change took place. */
 		FVariant OldValue;
 		/** The value of the property being changed after the change took place. Alternatively, can contain any miscellaneous data for the accessible event. */
-				FVariant NewValue;
+		FVariant NewValue;
 		/** The index of the Slate user that feedback for the accessible event should be directed towards. */
-		int32 SlateUserId;
+		FAccessibleUserIndex SlateUserIndex;
 	};
 	/**
 	 * Callback for a Slate widget indicating that a property change occurred. This may also be used by certain events
@@ -92,25 +92,9 @@ public:
 	 */
 	void Tick();
 
-	/**
-	* Returns the Widget that currently has accessibility focus in the application.
-	* accessibility focusable widgets are a superset of keyboard/gamepad focusable widgetes.
-	* i.e A widget can support accessibility focus but NOT keyboard/gamepad focus.
-	* Can return nullptr if no widget has accessibility focus. Up to caller to do validity check.
-	* @return  The widget that currently has accessible focus.
-	*/
-	TSharedPtr<FSlateAccessibleWidget> GetAccessibilityFocusedWidget() const;
 
-	/**
-	* Sets the currently accessibility focused widget in the application.
-	* If you're trying to clear the accessibility focus, use ClearAccessibilityFocus() 
-	* @param NewAccessibleFocusedWidget The widget that  now has accessible focus
-	*/
-	void SetAccessibilityFocusedWidget(const TSharedRef<FSlateAccessibleWidget>& NewAccessibilityFocusedWidget);
-
-	/** Reset the accessibility focused widget to nullptr*/
-	void ClearAccessibilityFocus();
 private:
+	void HandleAccessibleWidgetFocusChangeEvent(const TSharedRef<IAccessibleWidget>& FocusWidget, bool bIsWidgetGainingFocus, FAccessibleUserIndex UserIndex);
 	/**
 	*  A helper class that wraps an accessibility task and the event to be triggered when the task finishes executing. 
 	*/
@@ -179,14 +163,7 @@ private:
 
 #if ACCESSIBILITY_DEBUG_RESPONSIVENESS
 	FEvent* EnqueueEvent;
-#endif 
-
-	/** 
-	* The widget tht currently has accessibility focus 
-	* @see GetAccessibilityFocusedWidget, SetAccessibilityFocusedWidget
-	*/
-	TWeakPtr<FSlateAccessibleWidget> AccessibilityFocusedWidget;
-
+#endif
 	/** If true, Tick() will begin the update process to the accessible widget tree. Use MarkDirty() to set. */
 	bool bDirty;
 };

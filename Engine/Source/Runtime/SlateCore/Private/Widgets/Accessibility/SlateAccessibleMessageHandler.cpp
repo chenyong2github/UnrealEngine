@@ -167,21 +167,6 @@ void FSlateAccessibleMessageHandler::ProcessAccessibleTasks()
 #endif 
 }
 
-TSharedPtr<FSlateAccessibleWidget> FSlateAccessibleMessageHandler::GetAccessibilityFocusedWidget() const
-{
-	return AccessibilityFocusedWidget.Pin();
-}
-
-void FSlateAccessibleMessageHandler::SetAccessibilityFocusedWidget(const TSharedRef<FSlateAccessibleWidget>& NewAccessibilityFocusedWidget)
-{
-	AccessibilityFocusedWidget = NewAccessibilityFocusedWidget;
-}
-
-void FSlateAccessibleMessageHandler::ClearAccessibilityFocus()
-{
-	AccessibilityFocusedWidget.Reset();
-}
-
 void FSlateAccessibleMessageHandler::OnWidgetRemoved(SWidget* Widget)
 {
 	if (IsActive())
@@ -189,16 +174,50 @@ void FSlateAccessibleMessageHandler::OnWidgetRemoved(SWidget* Widget)
 		TSharedPtr<FSlateAccessibleWidget> RemovedWidget = FSlateAccessibleWidgetCache::RemoveWidget(Widget);
 		if (RemovedWidget.IsValid())
 		{
-			RaiseEvent(FGenericAccessibleMessageHandler::FAccessibleEventArgs(RemovedWidget.ToSharedRef(), EAccessibleEvent::WidgetRemoved));
+			RaiseEvent(FAccessibleEventArgs(RemovedWidget.ToSharedRef(), EAccessibleEvent::WidgetRemoved));
 			// If this ensure fails, bDirty = true must be called to ensure the tree is kept up to date.
 			ensureMsgf(!Widget->GetParentWidget().IsValid(), TEXT("A widget was unexpectedly deleted before detaching from its parent."));
 		}
 	}
 }
 
+void FSlateAccessibleMessageHandler::HandleAccessibleWidgetFocusChangeEvent(const TSharedRef<IAccessibleWidget>& Widget, bool bIsWidgetGainingFocus, FAccessibleUserIndex UserIndex)
+{
+	// we should have already checked that the user index is registered before this function is called
+	check(GetAccessibleUserRegistry().IsUserRegistered(UserIndex));
+	if (bIsWidgetGainingFocus)
+	{
+		TSharedPtr<FGenericAccessibleUser> AccessibleUser = GetAccessibleUserRegistry().GetUser(UserIndex);
+		// For widgets that are non-keyboard focusable but support accessibility,
+		// we have to manually raise a focus change event
+		// to signal the platform that the currently accessible focused widget is losing focus
+		// As regular navigation focus in FSlateApplication doesn't apply to these widgets
+		if (!Widget->SupportsFocus() && Widget->SupportsAccessibleFocus())
+		{
+			TSharedPtr<IAccessibleWidget> CurrentAccessibilityFocusedWidget = AccessibleUser->GetFocusedAccessibleWidget();
+			if (CurrentAccessibilityFocusedWidget && (Widget != CurrentAccessibilityFocusedWidget))
+			{
+				// let the currently focused widget lose focus 
+				HandleAccessibleWidgetFocusChangeEvent(CurrentAccessibilityFocusedWidget.ToSharedRef(), false, UserIndex);
+			}
+		}
+		// Update the widget that currently has accessible focus for the user
+		AccessibleUser->SetFocusedAccessibleWidget(Widget);
+	}
+	// if the widget is losing focus and is not focusable by keyboard/gamepad
+	else if (!Widget->SupportsFocus())
+	{
+		// We manually raise a focus change event here   to allow modules listening to FAccessibleEventDelegate
+		// to do additional processing to unfocus from the widget
+		// E.g Platforms need this information to unfocus in the platform accessibility API
+		RaiseEvent(FAccessibleEventArgs(Widget, EAccessibleEvent::FocusChange, true, false, UserIndex));
+	}
+}
+
 void FSlateAccessibleMessageHandler::OnWidgetEventRaised(const FSlateWidgetAccessibleEventArgs& Args)
 {
-	if (IsActive())
+	// we only process events for accessible users that have been registered
+	if (IsActive() && GetAccessibleUserRegistry().IsUserRegistered(Args.SlateUserIndex))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AccessibilitySlateEventRaised);
 		// todo: not sure what to do for a case like focus changed to not-accessible widget. maybe pass through a nullptr?
@@ -206,35 +225,22 @@ void FSlateAccessibleMessageHandler::OnWidgetEventRaised(const FSlateWidgetAcces
 		{
 			TSharedRef<FSlateAccessibleWidget> AccessibleWidget = FSlateAccessibleWidgetCache::GetAccessibleWidget(Args.Widget);
 			// Perform FSlateAccessibleMessageHandler preprocessing here  before platform processing
-			// Most of the time, accessibility focus is the same as Slate focus. We sync them here
+			// Most of the time, accessible focus is the same as Slate focus. We sync them here
 			// as a focus event is raised from SlateApplication for keyboard/gamepad focusable widgets.
 			// However, we can also raise a focus change event manually on non-Slate focusable widgets e.g STableRow
-			// That's where accessibility focus and Slate focus can diverge
+			// That's where accessible focus and Slate focus can diverge
 			if (Args.Event == EAccessibleEvent::FocusChange)
 			{
+				// The old focus value is the same as the new focus value.
+				// This is most likely a user error when raising the event.
+				ensure(Args.OldValue.GetValue<bool>() != Args.NewValue.GetValue<bool>());
 				// If the Widget is gaining focus
 				if (Args.NewValue.GetValue<bool>())
 				{
-					// For widgets that are non-keyboard focusable but support accessibility,
-					// we ened to manually raise a focus change event
-					// to signal the platform that the currently accessibility focused widget is losing focus
-					// As regular navigation focus in FSlateApplication doesn't apply to these widgets
-					if (!Args.Widget->SupportsKeyboardFocus())
-					{
-						TSharedPtr<IAccessibleWidget> CurrentAccessibilityFocusedWidget = GetAccessibilityFocusedWidget();
-						if (CurrentAccessibilityFocusedWidget.IsValid())
-						{
-							// We manually raise a focus change event here   to allow platforms to unfocus
-							// from the currently focused widget
-							//FSlateAccessibleMessageHandler::RaiseEvent(CurrentAccessibilityFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false);
-							FSlateAccessibleMessageHandler::RaiseEvent(FGenericAccessibleMessageHandler::FAccessibleEventArgs(CurrentAccessibilityFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false, Args.SlateUserId));
-						}
-					}
-					// Update the widget that currently has accessibility focus
-					SetAccessibilityFocusedWidget(AccessibleWidget);
+					HandleAccessibleWidgetFocusChangeEvent(AccessibleWidget, true, Args.SlateUserIndex);
 				}
 			}
-			FSlateAccessibleMessageHandler::RaiseEvent(FGenericAccessibleMessageHandler::FAccessibleEventArgs(AccessibleWidget, Args.Event, Args.OldValue, Args.NewValue, Args.SlateUserId));
+			RaiseEvent(FAccessibleEventArgs(AccessibleWidget, Args.Event, Args.OldValue, Args.NewValue, Args.SlateUserIndex));
 		}
 	}
 }
@@ -321,7 +327,7 @@ void FSlateAccessibleMessageHandler::MakeAccessibleAnnouncement(const FString& A
 		TSharedPtr<SWidget> ActiveTopLevelWindow = FSlateApplicationBase::Get().GetActiveTopLevelWindow();
 		if(ActiveTopLevelWindow.IsValid())
 		{
-			RaiseEvent(FGenericAccessibleMessageHandler::FAccessibleEventArgs(FSlateAccessibleWidgetCache::GetAccessibleWidget(ActiveTopLevelWindow.ToSharedRef()), EAccessibleEvent::Notification, FString(), AnnouncementString));
+			RaiseEvent(FAccessibleEventArgs(FSlateAccessibleWidgetCache::GetAccessibleWidget(ActiveTopLevelWindow.ToSharedRef()), EAccessibleEvent::Notification, FString(), AnnouncementString));
 		}
 	}
 }
