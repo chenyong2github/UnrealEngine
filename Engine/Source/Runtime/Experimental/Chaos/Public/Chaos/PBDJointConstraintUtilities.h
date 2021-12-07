@@ -145,6 +145,18 @@ namespace Chaos
 			const FReal MinRatio);
 
 		static CHAOS_API void ConditionInverseMassAndInertia(
+			const FReal& InInvMParent,
+			const FReal& InInvMChild,
+			const FVec3& InInvIParent,
+			const FVec3& InInvIChild,
+			const FReal MinParentMassRatio,
+			const FReal MaxInertiaRatio,
+			FReal& OutInvMParent,
+			FReal& OutInvMChild,
+			FVec3& OutInvIParent,
+			FVec3& OutInvIChild);
+
+		static CHAOS_API void ConditionInverseMassAndInertia(
 			FReal& InOutInvMParent,
 			FReal& InOutInvMChild,
 			FVec3& InOutInvIParent,
