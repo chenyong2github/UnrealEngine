@@ -29,7 +29,7 @@ static TAutoConsoleVariable<float> CVarContactShadowLength(
 	TEXT( "r.Shadow.Virtual.ContactShadowLength" ),
 	0.02f,
 	TEXT( "Length of the screen space contact shadow trace (smart shadow bias) before the virtual shadow map lookup." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarNormalBias(
@@ -37,28 +37,28 @@ static TAutoConsoleVariable<float> CVarNormalBias(
 	0.5f,
 	TEXT( "Receiver offset along surface normal for shadow lookup. Scaled by distance to camera." )
 	TEXT( "Higher values avoid artifacts on surfaces nearly parallel to the light, but also visibility offset shadows and increase the chance of hitting unmapped pages." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
 	TEXT("r.Shadow.Virtual.OnePassProjection"),
 	0,
 	TEXT("Single pass projects all local VSMs culled with the light grid. Used in conjunction with clustered deferred shading."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTRayCountLocal(
 	TEXT( "r.Shadow.Virtual.SMRT.RayCountLocal" ),
 	7,
 	TEXT( "Ray count for shadow map tracing of local lights. 0 = disabled." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayLocal(
 	TEXT( "r.Shadow.Virtual.SMRT.SamplesPerRayLocal" ),
 	8,
 	TEXT( "Shadow map samples per ray for local lights" ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarSMRTMaxRayAngleFromLight(
@@ -74,14 +74,14 @@ static TAutoConsoleVariable<int32> CVarSMRTRayCountDirectional(
 	TEXT( "r.Shadow.Virtual.SMRT.RayCountDirectional" ),
 	7,
 	TEXT( "Ray count for shadow map tracing of directional lights. 0 = disabled." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayDirectional(
 	TEXT( "r.Shadow.Virtual.SMRT.SamplesPerRayDirectional" ),
 	8,
 	TEXT( "Shadow map samples per ray for directional lights" ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarSMRTRayLengthScaleDirectional(
@@ -97,7 +97,7 @@ static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
 	TEXT( "r.Shadow.Virtual.SMRT.AdaptiveRayCount" ),
 	1,
 	TEXT( "Shoot fewer rays in fully shadowed and unshadowed regions. Currently only supported with OnePassProjection. " ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarSMRTTexelDitherScale(
@@ -105,7 +105,7 @@ static TAutoConsoleVariable<float> CVarSMRTTexelDitherScale(
 	2.0f,
 	TEXT( "Applies a dither to the shadow map ray casts to help hide aliasing due to insufficient shadow resolution.\n" )
 	TEXT( "This is usually desirable, but it can occasionally cause shadows from thin geometry to separate from their casters at shallow light angles." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 

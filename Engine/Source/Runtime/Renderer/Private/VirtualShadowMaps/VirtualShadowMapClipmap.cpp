@@ -15,33 +15,33 @@ static TAutoConsoleVariable<float> CVarVirtualShadowMapResolutionLodBiasDirectio
 	TEXT( "r.Shadow.Virtual.ResolutionLodBiasDirectional" ),
 	-0.5f,
 	TEXT( "Bias applied to LOD calculations for directional lights. -1.0 doubles resolution, 1.0 halves it and so on." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
 	TEXT( "r.Shadow.Virtual.Clipmap.FirstLevel" ),
 	6,
 	TEXT( "First level of the virtual clipmap. Lower values allow higher resolution shadows closer to the camera." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapLastLevel(
 	TEXT( "r.Shadow.Virtual.Clipmap.LastLevel" ),
 	22,
 	TEXT( "Last level of the virtual climap. Indirectly determines radius the clipmap can cover." ),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstCoarseLevel(
 	TEXT("r.Shadow.Virtual.Clipmap.FirstCoarseLevel"),
 	15,
 	TEXT("First level of the clipmap to mark coarse pages for. Lower values allow higher resolution coarse pages near the camera but increase total page counts."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapLastCoarseLevel(
 	TEXT("r.Shadow.Virtual.Clipmap.LastCoarseLevel"),
 	18,
 	TEXT("Last level of the clipmap to mark coarse pages for. Higher values provide dense clipmap data for a longer radius but increase total page counts."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 // "Virtual" clipmap level to clipmap radius
@@ -143,8 +143,10 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 		// We expand the depth range of the clipmap level to allow for camera movement without having to invalidate cached shadow data
 		// (See VirtualShadowMapCacheManager::UpdateClipmap for invalidation logic.)
-		// Hard-coded constant currently; should probably always be at least 2.0f, otherwise the cache will be frequently invalidated.
-		const float ViewRadiusZMultiplier = 5.0f;
+		// This also better accomodates SMRT where we want to avoid stepping outside of the Z bounds of a given clipmap
+		// NOTE: It's tempting to use a single global Z range for the entire clipmap (which avoids some SMRT overhead too)
+		// but this can cause precision issues with cached pages very near the camera.
+		const float ViewRadiusZMultiplier = 1000.0f;
 
 		float ViewRadiusZ = RawLevelRadius * ViewRadiusZMultiplier;
 		float ViewCenterDeltaZ = 0.0f;
