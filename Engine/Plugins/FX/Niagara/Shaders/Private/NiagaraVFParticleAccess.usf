@@ -5,8 +5,9 @@
  *********************************************************************************/
 
 // These lines set up access to Niagara particle data buffers for Vertex Factories
-Buffer<float> NiagaraGetFloatBuffer() { return NiagaraVFLooseParameters.NiagaraParticleDataFloat; }
-Buffer<float> NiagaraGetHalfBuffer() { return NiagaraVFLooseParameters.NiagaraParticleDataHalf; }
+// NOTE: the buffer accessors have to be macros to appease certain shader platforms
+#define NiagaraGetFloatBuffer() (NiagaraVFLooseParameters.NiagaraParticleDataFloat)
+#define NiagaraGetHalfBuffer() (NiagaraVFLooseParameters.NiagaraParticleDataHalf)
 uint NiagaraGetFloatDataStride() { return NiagaraVFLooseParameters.NiagaraFloatDataStride; }
 #define USE_GLOBAL_NIAGARA_DATA_BUFFERS 0 // We provided the buffer accessors above
 #define ENABLE_NIAGARA_INT_DATA_ACCESS 0 // Currently, ints not supported in VFs (but could be)
