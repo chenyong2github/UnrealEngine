@@ -158,11 +158,6 @@ namespace UnrealGameSync
             // numericUpDownNumRetries
             // 
             this.numericUpDownNumRetries.Location = new System.Drawing.Point(260, 22);
-            this.numericUpDownNumRetries.Maximum = new decimal(new int[] {
-            10,
-            0,
-            0,
-            0});
             this.numericUpDownNumRetries.Name = "numericUpDownNumRetries";
             this.numericUpDownNumRetries.Size = new System.Drawing.Size(180, 23);
             this.numericUpDownNumRetries.TabIndex = 2;
