@@ -179,7 +179,7 @@ FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const
 FNeuralTensor::FNeuralTensor(const FNeuralTensor& InTensor)
 	: FNeuralTensor(InTensor.DataType, InTensor.Sizes, InTensor.Name)
 {
-	SetTensorTypeGPU(InTensor.TensorType);
+	SetTensorType(InTensor.TensorType);
 	UnderlyingUInt8ArrayData = InTensor.UnderlyingUInt8ArrayData;
 	bEnableGPU = InTensor.bEnableGPU;
 	PooledBuffer = InTensor.PooledBuffer;
@@ -191,7 +191,7 @@ FNeuralTensor& FNeuralTensor::operator=(const FNeuralTensor& InTensor)
 {
 	Name = InTensor.Name;
 	SetNumUninitialized(InTensor.Sizes, InTensor.DataType);
-	SetTensorTypeGPU(InTensor.TensorType);
+	SetTensorType(InTensor.TensorType);
 	UnderlyingUInt8ArrayData = InTensor.UnderlyingUInt8ArrayData;
 	bEnableGPU = InTensor.bEnableGPU;
 	PooledBuffer = InTensor.PooledBuffer;
@@ -205,7 +205,7 @@ FNeuralTensor::FNeuralTensor(FNeuralTensor&& InTensor)
 	: FNeuralTensor(InTensor.DataType, InTensor.Sizes, TEXT(""))
 {
 	Swap(Name, InTensor.Name);
-	SetTensorTypeGPU(InTensor.TensorType);
+	SetTensorType(InTensor.TensorType);
 	Swap(UnderlyingUInt8ArrayData, InTensor.UnderlyingUInt8ArrayData);
 	bEnableGPU = InTensor.bEnableGPU;
 	Swap(PooledBuffer, InTensor.PooledBuffer);
@@ -217,7 +217,7 @@ FNeuralTensor& FNeuralTensor::operator=(FNeuralTensor&& InTensor)
 {
 	Swap(Name, InTensor.Name);
 	SetNumUninitialized(InTensor.Sizes, InTensor.DataType);
-	SetTensorTypeGPU(InTensor.TensorType);
+	SetTensorType(InTensor.TensorType);
 	Swap(UnderlyingUInt8ArrayData, InTensor.UnderlyingUInt8ArrayData);
 	bEnableGPU = InTensor.bEnableGPU;
 	Swap(PooledBuffer, InTensor.PooledBuffer);
@@ -253,7 +253,7 @@ int64 FNeuralTensor::GetSize(const int32 InDimension) const
 	return (InDimension < GetNumberDimensions() ? Sizes[InDimension] : 1u);
 }
 
-void FNeuralTensor::SetTensorTypeGPU(const ENeuralTensorType InTensorType)
+void FNeuralTensor::SetTensorType(const ENeuralTensorType InTensorType)
 {
 	// Sanity check
 	if (PooledBuffer.IsValid() || BufferSRVRef.IsValid() || BufferUAVRef.IsValid())

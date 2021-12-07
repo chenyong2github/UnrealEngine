@@ -785,7 +785,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 	{
 		for (int32 TensorIndex = 0; TensorIndex < TensorNumber; ++TensorIndex)
 		{
-			OutTensors[TensorIndex].SetTensorTypeGPU(InTensorGPUTypes[TensorIndex]);
+			OutTensors[TensorIndex].SetTensorType(InTensorGPUTypes[TensorIndex]);
 		}
 	}
 
@@ -992,7 +992,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionImpl(const ENeuralDeviceTyp
 
 		for (auto& InputTensor : InputTensors)
 		{
-			if (InputTensor.GetTensorTypeGPU() != ENeuralTensorType::Input)
+			if (InputTensor.GetTensorType() != ENeuralTensorType::Input)
 				continue;
 
 			bNeedsGPUCopy = true;

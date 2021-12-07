@@ -253,7 +253,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			{
 				UE_LOG(LogNeuralNetworkInference, Display, TEXT("Flipping FConvTranspose weights. This is a temporary measurement but it will keep the weights flipped for now."));
 				// Sanity check
-				if (OperatorInputTensors.Num() > 1 && OperatorInputTensors[1]->GetTensorTypeGPU() != ENeuralTensorType::Weight)
+				if (OperatorInputTensors.Num() > 1 && OperatorInputTensors[1]->GetTensorType() != ENeuralTensorType::Weight)
 				{
 					UE_LOG(LogNeuralNetworkInference, Warning,
 						TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): For now, %s operators require a constant InputTensor[0] (i.e., a fixed weight tensor), it cannot change."), *NodeProto.OperatorType);
@@ -314,7 +314,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 						if (InOutputNameDummyIndexMap.Find(OutputTensorName))
 						{
 							OutputNameIndexMap.Add(OutputTensorName, *ExistingTensorIndex);
-							InOutTensors[*ExistingTensorIndex].SetTensorTypeGPU(ENeuralTensorType::Output);
+							InOutTensors[*ExistingTensorIndex].SetTensorType(ENeuralTensorType::Output);
 						}
 					}
 					// Subcases 2 and 3: FNeuralTensor not found, it must be defined now (i.e., intermediate tensor of the UNeuralNetworkLegacy)
@@ -352,7 +352,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 						if (InOutputNameDummyIndexMap.Find(OutputTensorName))
 						{
 							OutputNameIndexMap.Add(OutputTensorName, InlinedTensorGlobalIndex);
-							InOutTensors[InlinedTensorGlobalIndex].SetTensorTypeGPU(ENeuralTensorType::Output);
+							InOutTensors[InlinedTensorGlobalIndex].SetTensorType(ENeuralTensorType::Output);
 						}
 					}
 				}
