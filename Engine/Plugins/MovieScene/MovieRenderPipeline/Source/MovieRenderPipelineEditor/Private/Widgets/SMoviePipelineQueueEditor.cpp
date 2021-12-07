@@ -311,6 +311,16 @@ public:
 		return false;
 	}
 
+	bool IsConfigEditingEnabled() const
+	{
+		// Don't allow editing the UI while a job is running as it will change job parameters mid-job!
+		UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+		check(Subsystem);
+		const bool bNotRendering = !Subsystem->IsRendering();
+
+		return IsEnabled() && bNotRendering;
+	}
+
 	TOptional<float> GetProgressPercent() const
 	{
 		UMoviePipelineExecutorJob* Job = WeakJob.Get();
@@ -422,7 +432,7 @@ TSharedRef<SWidget> SQueueJobListRow::GenerateWidgetForColumn(const FName& Colum
 	else if (ColumnName == NAME_Settings)
 	{
 		return SNew(SHorizontalBox)
-		.IsEnabled(Item.Get(), &FMoviePipelineQueueJobTreeItem::IsEnabled)
+		.IsEnabled(Item.Get(), &FMoviePipelineQueueJobTreeItem::IsConfigEditingEnabled)
 
 		// Preset Label
 		+ SHorizontalBox::Slot()
@@ -640,6 +650,16 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 		return false;
 	}
 
+	bool IsConfigEditingEnabled() const
+	{
+		// Don't allow editing the UI while a job is running as it will change job parameters mid-job!
+		UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+		check(Subsystem);
+		const bool bNotRendering = !Subsystem->IsRendering();
+
+		return IsEnabled() && bNotRendering;
+	}
+
 	TOptional<float> GetProgressPercent() const
 	{
 		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
@@ -769,7 +789,7 @@ TSharedRef<SWidget> SQueueShotListRow::GenerateWidgetForColumn(const FName& Colu
 	else if (ColumnName == SQueueJobListRow::NAME_Settings)
 	{
 		return SNew(SHorizontalBox)
-		.IsEnabled(Item.Get(), &FMoviePipelineShotItem::IsEnabled)
+		.IsEnabled(Item.Get(), &FMoviePipelineShotItem::IsConfigEditingEnabled)
 
 		// Preset Label
 		+ SHorizontalBox::Slot()
