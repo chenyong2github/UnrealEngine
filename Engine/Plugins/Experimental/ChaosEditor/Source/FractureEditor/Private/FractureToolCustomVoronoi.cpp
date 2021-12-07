@@ -111,7 +111,7 @@ TArray<UObject*> UFractureToolCustomVoronoi::GetSettingsObjects() const
 	return Settings;
 }
 
-void UFractureToolCustomVoronoi::GenerateLivePattern(int32 RandomSeed)
+void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolContext>& FractureContexts, int32 RandomSeed)
 {
 	if (!ensure(CombinedWorldBounds.IsValid))
 	{
@@ -191,11 +191,103 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(int32 RandomSeed)
 
 			FMeshDescription* MeshDescription = CustomVoronoiSettings->ReferenceMesh->GetStaticMeshComponent()->GetStaticMesh()->GetMeshDescription(0);
 			TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescription->GetVertexPositions();
-			// copy vertex positions
+			TArray<FVector3f> Normals; // Per-vertex normals for offsets
+			float NormalOffset = CustomVoronoiSettings->NormalOffset;
+			if (NormalOffset > 0)
+			{
+				Normals.SetNumZeroed(VertexPositions.GetNumElements());
+
+				FStaticMeshConstAttributes Attributes(*MeshDescription);
+				TVertexInstanceAttributesConstRef<FVector3f> InstanceNormals = Attributes.GetVertexInstanceNormals();
+				for (const FVertexInstanceID InstanceID : MeshDescription->VertexInstances().GetElementIDs())
+				{
+					FVector3f Normal = InstanceNormals.Get(InstanceID);
+					FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(InstanceID);
+					Normals[VertexID] += Normal;
+				}
+				for (FVector3f& Normal : Normals)
+				{
+					Normal.Normalize();
+				}
+			}
 			for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
-				const FVector Position = VertexPositions.Get(VertexID);
+				FVector Position = VertexPositions.Get(VertexID);
+				if (Normals.Num() > 0)
+				{
+					Position += Normals[VertexID] * NormalOffset;
+				}
 				Sites.Add(VerticesTransform.TransformPosition(Position));
+			}
+		}
+	}
+	else if (CustomVoronoiSettings->VoronoiPattern == EVoronoiPattern::SelectedBones)
+	{
+		for (const FFractureToolContext& Context : FractureContexts)
+		{
+			FGeometryCollection& Collection = *Context.GetGeometryCollection();
+			for (int32 Bone : Context.GetSelection())
+			{
+				int32 GeometryIdx = Collection.TransformToGeometryIndex[Bone];
+				if (GeometryIdx == INDEX_NONE)
+				{
+					continue;
+				}
+				int32 Start = Collection.VertexStart[GeometryIdx];
+				int32 Count = Collection.VertexCount[GeometryIdx];
+				// for now, always exclude vertices that are not used by any triangles
+				// (by convention, these are always at the end of their section of the array)
+				constexpr bool bIncludeCollisionSampleVerts = false;
+				if (!bIncludeCollisionSampleVerts)
+				{
+					int32 MaxUsedIdx = Start;
+					int32 FStart = Collection.FaceStart[GeometryIdx];
+					int32 FCount = Collection.FaceCount[GeometryIdx];
+					for (int32 FIdx = FStart; FIdx < FStart + FCount; FIdx++)
+					{
+						MaxUsedIdx = FMath::Max(MaxUsedIdx, Collection.Indices[FIdx].GetMax());
+					}
+					Count = MaxUsedIdx - Start + 1;
+				}
+				float NormalOffset = CustomVoronoiSettings->NormalOffset;
+				if (NormalOffset > 0)
+				{
+					TArray<FVector3f> Normals;
+					Normals.SetNumZeroed(Count);
+					TMap<FVector, int32> VertexHash;
+
+					// merge exact duplicate points and average their normals
+					for (int32 VIdx = Start; VIdx < Start + Count; VIdx++)
+					{
+						const FVector& Position = Collection.Vertex[VIdx];
+						int32& Idx = VertexHash.FindOrAdd(Position);
+						if (Idx - 1 == INDEX_NONE)
+						{
+							Idx = VIdx + 1 - Start;
+						}
+						Normals[Idx - 1] += Collection.Normal[VIdx];
+					}
+					for (FVector3f& Normal : Normals)
+					{
+						Normal.Normalize();
+					}
+					for (TPair<FVector, int32>& Point : VertexHash)
+					{
+						const FVector OffsetPosition = Point.Key + Normals[Point.Value - 1] * NormalOffset;
+						const FVector LocalPos = Collection.Transform[Bone].TransformPosition(OffsetPosition);
+						Sites.Add(Context.GetTransform().TransformPosition(LocalPos));
+					}
+				}
+				else
+				{
+					// if no normal offset, allow Voronoi diagram to drop the duplicate points automatically
+					for (int32 VIdx = Start; VIdx < Start + Count; VIdx++)
+					{
+						const FVector& Position = Collection.Vertex[VIdx];
+						const FVector LocalPos = Collection.Transform[Bone].TransformPosition(Position);
+						Sites.Add(Context.GetTransform().TransformPosition(LocalPos));
+					}
+				}
 			}
 		}
 	}
@@ -271,7 +363,7 @@ void UFractureToolCustomVoronoi::FractureContextChanged()
 
 	if (CombinedWorldBounds.IsValid && LiveSites.Num() == 0 && FractureContexts.Num() > 0)
 	{
-		GenerateLivePattern(FractureContexts[0].GetSeed());
+		GenerateLivePattern(FractureContexts, FractureContexts[0].GetSeed());
 	}
 
 	UpdateVisualizations(FractureContexts);
