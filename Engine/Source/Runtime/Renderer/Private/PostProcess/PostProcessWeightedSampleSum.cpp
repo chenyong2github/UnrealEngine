@@ -61,7 +61,7 @@ void GetFilterParameters(
 	FFilterParameters& OutParameters,
 	const FScreenPassTextureInput& Filter,
 	const FScreenPassTextureInput& Additive,
-	TArrayView<const FVector2D> SampleOffsets,
+	TArrayView<const FVector2f> SampleOffsets,
 	TArrayView<const FLinearColor> SampleWeights)
 {
 	OutParameters.Filter = Filter;
@@ -143,7 +143,7 @@ int GetIntegerKernelRadius(uint32 SampleCountMax, float KernelRadius)
 	return FMath::Min<int32>(FMath::CeilToInt(GetClampedKernelRadius(SampleCountMax, KernelRadius)), SampleCountMax - 1);
 }
 
-uint32 Compute1DGaussianFilterKernel(FVector2D OutOffsetAndWeight[MAX_FILTER_SAMPLES], uint32 SampleCountMax,	float KernelRadius, float CrossCenterWeight)
+uint32 Compute1DGaussianFilterKernel(FVector2f OutOffsetAndWeight[MAX_FILTER_SAMPLES], uint32 SampleCountMax,	float KernelRadius, float CrossCenterWeight)
 {
 	const float FilterSizeScale = FMath::Clamp(CVarFilterSizeScale.GetValueOnRenderThread(), 0.1f, 10.0f);
 
@@ -342,7 +342,7 @@ FScreenPassTexture AddGaussianBlurPass(
 	FScreenPassTextureViewport OutputViewport,
 	FScreenPassTexture Filter,
 	FScreenPassTexture Additive,
-	TArrayView<const FVector2D> SampleOffsets,
+	TArrayView<const FVector2f> SampleOffsets,
 	TArrayView<const FLinearColor> SampleWeights,
 	bool UseMirrorAddressMode)
 {
@@ -470,7 +470,7 @@ FScreenPassTexture AddGaussianBlurPass(
 
 	const uint32 SampleCountMax = GetSampleCountMax(View.GetFeatureLevel(), View.GetShaderPlatform());
 
-	const FVector2D InverseFilterTextureExtent(
+	const FVector2f InverseFilterTextureExtent(
 		1.0f / static_cast<float>(FilterViewport.Extent.X),
 		1.0f / static_cast<float>(FilterViewport.Extent.Y));
 
@@ -485,9 +485,9 @@ FScreenPassTexture AddGaussianBlurPass(
 
 	// Horizontal Pass
 	{
-		FVector2D OffsetAndWeight[MAX_FILTER_SAMPLES];
+		FVector2f OffsetAndWeight[MAX_FILTER_SAMPLES];
 		FLinearColor SampleWeights[MAX_FILTER_SAMPLES];
-		FVector2D SampleOffsets[MAX_FILTER_SAMPLES];
+		FVector2f SampleOffsets[MAX_FILTER_SAMPLES];
 
 		const uint32 SampleCount = Compute1DGaussianFilterKernel(OffsetAndWeight, SampleCountMax, BlurRadius, Inputs.CrossCenterWeight.X);
 
@@ -503,7 +503,7 @@ FScreenPassTexture AddGaussianBlurPass(
 		{
 			const float Offset = OffsetAndWeight[i].X;
 
-			SampleOffsets[i] = FVector2D(InverseFilterTextureExtent.X * Offset, 0.0f);
+			SampleOffsets[i] = FVector2f(InverseFilterTextureExtent.X * Offset, 0.0f);
 		}
 
 		// Horizontal pass doesn't use additive combine.
@@ -516,16 +516,16 @@ FScreenPassTexture AddGaussianBlurPass(
 			HorizontalOutputViewport,
 			Inputs.Filter,
 			Additive,
-			TArrayView<const FVector2D>(SampleOffsets, SampleCount),
+			TArrayView<const FVector2f>(SampleOffsets, SampleCount),
 			TArrayView<const FLinearColor>(SampleWeights, SampleCount),
 			Inputs.UseMirrorAddressMode);
 	}
 
 	// Vertical Pass
 	{
-		FVector2D OffsetAndWeight[MAX_FILTER_SAMPLES];
+		FVector2f OffsetAndWeight[MAX_FILTER_SAMPLES];
 		FLinearColor SampleWeights[MAX_FILTER_SAMPLES];
-		FVector2D SampleOffsets[MAX_FILTER_SAMPLES];
+		FVector2f SampleOffsets[MAX_FILTER_SAMPLES];
 
 		const uint32 SampleCount = Compute1DGaussianFilterKernel(OffsetAndWeight, SampleCountMax, BlurRadius, Inputs.CrossCenterWeight.Y);
 
@@ -541,7 +541,7 @@ FScreenPassTexture AddGaussianBlurPass(
 		{
 			const float Offset = OffsetAndWeight[i].X;
 
-			SampleOffsets[i] = FVector2D(0, InverseFilterTextureExtent.Y * Offset);
+			SampleOffsets[i] = FVector2f(0, InverseFilterTextureExtent.Y * Offset);
 		}
 
 		return AddGaussianBlurPass(
@@ -551,7 +551,7 @@ FScreenPassTexture AddGaussianBlurPass(
 			FilterViewport,
 			HorizontalOutput,
 			Inputs.Additive,
-			TArrayView<const FVector2D>(SampleOffsets, SampleCount),
+			TArrayView<const FVector2f>(SampleOffsets, SampleCount),
 			TArrayView<const FLinearColor>(SampleWeights, SampleCount),
 			Inputs.UseMirrorAddressMode);
 	}

@@ -308,7 +308,7 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 		OutputDeviceValue = ETonemapperOutputDevice::ExplicitGammaMapping;
 	}
 
-	FVector InvDisplayGammaValue;
+	FVector3f InvDisplayGammaValue;
 	InvDisplayGammaValue.X = 1.0f / Family.RenderTarget->GetDisplayGamma();
 	InvDisplayGammaValue.Y = 2.2f / Family.RenderTarget->GetDisplayGamma();
 	InvDisplayGammaValue.Z = 1.0f / FMath::Max(Gamma, 1.0f);
@@ -725,12 +725,12 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		int32 RandomSequenceLength = CVarFilmGrainSequenceLength.GetValueOnRenderThread();
 		int32 RandomSequenceIndex = (View.ViewState ? View.ViewState->FrameIndex : 0) % RandomSequenceLength;
 
-		FVector2D RandomGrainTextureUVOffset;
+		FVector2f RandomGrainTextureUVOffset;
 		RandomGrainTextureUVOffset.X = Halton(RandomSequenceIndex + 1, 2);
 		RandomGrainTextureUVOffset.Y = Halton(RandomSequenceIndex + 1, 3);
 
-		FVector2D TextureSize(View.FilmGrainTexture->GetSizeX(), View.FilmGrainTexture->GetSizeY());
-		FVector2D OutputSizeF(1920.0f, 1920.0f * float(OutputViewport.Rect.Height()) / float(OutputViewport.Rect.Width()));
+		FVector2f TextureSize(View.FilmGrainTexture->GetSizeX(), View.FilmGrainTexture->GetSizeY());
+		FVector2f OutputSizeF(1920.0f, 1920.0f * float(OutputViewport.Rect.Height()) / float(OutputViewport.Rect.Width()));
 
 		CommonParameters.FilmGrain.ScreenPosToFilmGrainTextureUV = 
 			FScreenTransform::ScreenPosToViewportUV *
@@ -833,8 +833,8 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		else
 		{
 			CommonParameters.ColorToBloom = FScreenTransform::Identity;
-			CommonParameters.BloomUVViewportBilinearMin = FVector2D::ZeroVector;
-			CommonParameters.BloomUVViewportBilinearMax = FVector2D::UnitVector;
+			CommonParameters.BloomUVViewportBilinearMin = FVector2f::ZeroVector;
+			CommonParameters.BloomUVViewportBilinearMax = FVector2f::UnitVector;
 			CommonParameters.BloomTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 			CommonParameters.BloomSampler = BilinearClampSampler;
 		}

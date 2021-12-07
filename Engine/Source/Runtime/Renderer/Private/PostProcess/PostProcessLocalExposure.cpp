@@ -94,7 +94,7 @@ FRDGTextureRef AddLocalExposureBlurredLogLuminancePass(
 		GaussianBlurInputs.NameY = TEXT("LocalExposureGaussianY");
 		GaussianBlurInputs.Filter = FScreenPassTexture(GaussianLumSetupTexture, InputTexture.ViewRect);
 		GaussianBlurInputs.TintColor = FLinearColor::White;
-		GaussianBlurInputs.CrossCenterWeight = FVector2D::ZeroVector;
+		GaussianBlurInputs.CrossCenterWeight = FVector2f::ZeroVector;
 		GaussianBlurInputs.KernelSizePercent = View.FinalPostProcessSettings.LocalExposureBlurredLuminanceKernelSizePercent;
 		GaussianBlurInputs.UseMirrorAddressMode = true;
 

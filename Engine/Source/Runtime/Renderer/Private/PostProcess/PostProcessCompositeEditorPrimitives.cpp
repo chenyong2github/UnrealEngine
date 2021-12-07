@@ -337,7 +337,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 		NumSamples);
 
 	FScreenPassTexture SceneDepth = Inputs.SceneDepth;
-	FVector2D SceneDepthJitter = View.TemporalJitterPixels;
+	FVector2f SceneDepthJitter = View.TemporalJitterPixels;
 
 	// The editor primitive composition pass is also used when rendering VMI_WIREFRAME in order to use MSAA.
 	// So we need to check whether the editor primitives are enabled inside this function.
@@ -427,7 +427,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 				}
 
 				SceneDepth = History;
-				SceneDepthJitter = FVector2D::ZeroVector;
+				SceneDepthJitter = FVector2f::ZeroVector;
 			}
 
 			// Populate the MSAA depth buffer from depth buffer or temporally upscaled depth buffer

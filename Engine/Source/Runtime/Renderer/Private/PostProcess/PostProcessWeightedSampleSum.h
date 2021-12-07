@@ -20,7 +20,7 @@ struct FGaussianBlurInputs
 	FLinearColor TintColor;
 
 	// Controls the cross shape of the blur, in both X / Y directions. See r.Bloom.Cross.
-	FVector2D CrossCenterWeight = FVector2D::ZeroVector;
+	FVector2f CrossCenterWeight = FVector2f::ZeroVector;
 
 	// The filter kernel size in percentage of the screen.
 	float KernelSizePercent = 0.0f;

@@ -271,7 +271,7 @@ FScreenPassTexture AddLensFlaresPass(
 
 	const FIntRect OutputViewRect = BloomViewport.Rect;
 
-	const FVector2D OutputCenter = FVector2D(OutputViewRect.Min + OutputViewRect.Max) / 2;
+	const FVector2f OutputCenter = FVector2f(OutputViewRect.Min + OutputViewRect.Max) / 2;
 
 	// Scales normalized flare tint alpha to a viewport scale factor.
 	const float AlphaScale = static_cast<float>(Inputs.LensFlareCount - 1);
@@ -296,9 +296,9 @@ FScreenPassTexture AddLensFlaresPass(
 		// Alpha of the tint color is used to derive a scale of the flare quad.
 		const float FinalOutputScale = (LensFlareTint.A * AlphaScale + AlphaBias) * GuardBandScale;
 
-		const FVector2D QuadSize = FVector2D(OutputViewRect.Size()) * FinalOutputScale;
+		const FVector2f QuadSize = FVector2f(OutputViewRect.Size()) * FinalOutputScale;
 
-		const FVector2D QuadOffset = OutputCenter - 0.5f * QuadSize;
+		const FVector2f QuadOffset = OutputCenter - 0.5f * QuadSize;
 
 		TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
 		TShaderMapRef<FLensFlareCompositePS> PixelShader(View.ShaderMap);

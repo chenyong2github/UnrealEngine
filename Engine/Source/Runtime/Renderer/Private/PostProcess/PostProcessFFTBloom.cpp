@@ -271,7 +271,7 @@ struct FFFTBloomIntermediates
 	// this defines the size of the FFT in each direction.
 	FIntPoint FrequencySize;
 
-	FVector PreFilter;
+	FVector3f PreFilter;
 
 	float KernelSupportScale = 0.0f;
 	float KernelSupportScaleClamp = 0.0f;
@@ -301,7 +301,7 @@ void InitDomainAndGetKernel(
 	check(BloomConvolutionTextureResource && PhysicalSpaceKernelTextureRef);
 
 	const float BloomConvolutionSize = PPSettings.BloomConvolutionSize;
-	const FVector2D CenterUV = PPSettings.BloomConvolutionCenterUV; // TODO: remove
+	const FVector2f CenterUV = PPSettings.BloomConvolutionCenterUV; // TODO: remove
 
 	// Our frequency storage layout adds two elements to the first transform direction. 
 	const FIntPoint FrequencyPadding = (Intermediates.bDoHorizontalFirst) ? FIntPoint(2, 0) : FIntPoint(0, 2);
@@ -683,7 +683,7 @@ FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 		Intermediates.KernelSupportScaleClamp = KernelSupportScaleClamp;
 
 		// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
-		Intermediates.PreFilter = FVector(PPSettings.BloomConvolutionPreFilterMin, PPSettings.BloomConvolutionPreFilterMax, PPSettings.BloomConvolutionPreFilterMult);
+		Intermediates.PreFilter = FVector3f(PPSettings.BloomConvolutionPreFilterMin, PPSettings.BloomConvolutionPreFilterMax, PPSettings.BloomConvolutionPreFilterMult);
 
 		// The length of the a side of the square kernel image in pixels
 		const int32 KernelSize = FMath::CeilToInt(KernelSupportScale * FMath::Max(Intermediates.ImageSize.X, Intermediates.ImageSize.Y));
