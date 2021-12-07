@@ -3,7 +3,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-class FToolWidgetsModule
+class FAnimationWidgetsModule
 	: public IModuleInterface
 {
 public:
@@ -15,4 +15,4 @@ public:
 };
 
 
-IMPLEMENT_MODULE(FToolWidgetsModule, ToolWidgets);
+IMPLEMENT_MODULE(FAnimationWidgetsModule, AnimationWidgets);
