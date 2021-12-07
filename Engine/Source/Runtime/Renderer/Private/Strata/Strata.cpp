@@ -645,7 +645,7 @@ void AddStrataStencilPass(
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void ApprendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount, TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& RenderTargets)
+void AppendStrataMRTs(FSceneRenderer& SceneRenderer, uint32& RenderTargetCount, TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& RenderTargets)
 {
 	if (Strata::IsStrataEnabled() && SceneRenderer.Scene)
 	{
