@@ -189,7 +189,7 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedPtr<SRigHierarchyTreeView> InTreeView);
  	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
-	static const FSlateBrush* GetBrushForElementType(const URigHierarchy* InHierarchy, const FRigElementKey& InKey);
+	static TPair<const FSlateBrush*, FSlateColor> GetBrushForElementType(const URigHierarchy* InHierarchy, const FRigElementKey& InKey);
 
 private:
 	TWeakPtr<FRigTreeElement> WeakRigTreeElement;

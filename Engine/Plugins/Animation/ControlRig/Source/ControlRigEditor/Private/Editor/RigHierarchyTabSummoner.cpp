@@ -16,7 +16,7 @@ FRigHierarchyTabSummoner::FRigHierarchyTabSummoner(const TSharedRef<FControlRigE
 	, ControlRigEditor(InControlRigEditor)
 {
 	TabLabel = LOCTEXT("RigHierarchyTabLabel", "Rig Hierarchy");
-	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.TabIcon");
+	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "RigHierarchy.TabIcon");
 
 	ViewMenuDescription = LOCTEXT("RigHierarchy_ViewMenu_Desc", "Rig Hierarchy");
 	ViewMenuTooltip = LOCTEXT("RigHierarchy_ViewMenu_ToolTip", "Show the Rig Hierarchy tab");

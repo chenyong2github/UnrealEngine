@@ -14,6 +14,25 @@
 class FControlRigEditorStyle final
 	: public FSlateStyleSet
 {
+	class FContentRootBracket
+	{
+	public:
+		FContentRootBracket(FControlRigEditorStyle* InStyle, const FString& NewContentRoot)
+			: Style(InStyle)
+			, PreviousContentRoot(InStyle->GetContentRootDir())
+		{
+			Style->SetContentRoot(NewContentRoot);
+		}
+
+		~FContentRootBracket()
+		{
+			Style->SetContentRoot(PreviousContentRoot);
+		}
+	private:
+		FControlRigEditorStyle* Style;
+		FString PreviousContentRoot;
+	};
+	
 public:
 	FControlRigEditorStyle()
 		: FSlateStyleSet("ControlRigEditorStyle")
@@ -25,16 +44,17 @@ public:
 		const FVector2D Icon24x24(24.0f, 24.0f);
 		const FVector2D Icon32x32(32.0f, 32.0f);
 		const FVector2D Icon40x40(40.0f, 40.0f);
-		const FString PluginContentDir = FPaths::EnginePluginsDir() / TEXT("Animation/ControlRig/Content");
+		const FString ControlRigPluginContentDir = FPaths::EnginePluginsDir() / TEXT("Animation/ControlRig/Content");
 		const FString EngineEditorSlateDir = FPaths::EngineContentDir() / TEXT("Editor/Slate");
-		SetContentRoot(PluginContentDir);
+		SetContentRoot(ControlRigPluginContentDir);
 
 		const FSlateColor DefaultForeground(FLinearColor(0.72f, 0.72f, 0.72f, 1.f));
 
 		// Class Icons
 		{
 			Set("ClassIcon.ControlRigSequence", new IMAGE_BRUSH("Slate/ControlRigSequence_16x", Icon16x16));
-			Set("ClassIcon.ControlRigBlueprint", new IMAGE_BRUSH("Slate/ControlRigBlueprint_16x", Icon16x16));
+			Set("ClassIcon.ControlRigBlueprint", new IMAGE_BRUSH("Slate/ControlRig_16", Icon16x16));
+			Set("ClassIcon.ControlRigPose", new IMAGE_BRUSH("Slate/ControlRigPose_16", Icon16x16));
 		}
 
 		// Edit mode styles
@@ -66,28 +86,29 @@ public:
 
 		// Control Rig Editor styles
 		{
+			// tab icons
 			Set("ControlRig.TabIcon", new IMAGE_BRUSH("Slate/ControlRigTab_16x", Icon16x16));
+			Set("ExecutionStack.TabIcon", new IMAGE_BRUSH_SVG("Slate/ExecutionStack", Icon16x16));
+			Set("RigHierarchy.TabIcon", new IMAGE_BRUSH_SVG("Slate/RigHierarchy", Icon16x16));
+			Set("RigValidation.TabIcon", new IMAGE_BRUSH_SVG("Slate/RigValidation", Icon16x16));
+			Set("CurveContainer.TabIcon", new IMAGE_BRUSH_SVG("Slate/CurveContainer", Icon16x16));
+			Set("HierarchicalProfiler.TabIcon", new IMAGE_BRUSH_SVG("Slate/HierarchicalProfiler", Icon16x16));
+			
+			// icons for control units
 			Set("ControlRig.RigUnit", new IMAGE_BRUSH("Slate/ControlRigUnit_16x", Icon16x16));
 
-			Set("HierarchicalProfiler.TabIcon", new IMAGE_BRUSH_SVG("Slate/HierarchicalProfiler", Icon16x16));
-
-			// icons for control units
-			Set("ControlRig.ControlUnitOn", new IMAGE_BRUSH("Slate/ControlUnit_On", Icon32x32));
-			Set("ControlRig.ControlUnitOff", new IMAGE_BRUSH("Slate/ControlUnit_Off", Icon32x32));
-
-			Set("ControlRig.ExecuteGraph", new IMAGE_BRUSH("Slate/ExecuteGraph", Icon40x40));
-			Set("ControlRig.ExecuteGraph.Small", new IMAGE_BRUSH("Slate/ExecuteGraph", Icon20x20));
-
-			Set("ControlRig.AutoCompileGraph", new IMAGE_BRUSH("Slate/AutoCompile", Icon40x40));
+			Set("ControlRig.AutoCompileGraph", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));
 			Set("ControlRig.AutoCompileGraph.Small", new IMAGE_BRUSH("Slate/AutoCompile", Icon20x20));
 
-			Set("ControlRig.SetupMode", new IMAGE_BRUSH("Slate/SetupMode", Icon40x40));
-			Set("ControlRig.SetupMode.Small", new IMAGE_BRUSH("Slate/SetupMode", Icon20x20));
-
-			Set("ControlRig.UpdateEvent", new IMAGE_BRUSH("Slate/UpdateEvent", Icon40x40));
-			Set("ControlRig.InverseEvent", new IMAGE_BRUSH("Slate/InverseEvent", Icon40x40));
-			Set("ControlRig.UpdateAndInverse", new IMAGE_BRUSH("Slate/UpdateAndInverse", Icon40x40));
-			Set("ControlRig.InverseAndUpdate", new IMAGE_BRUSH("Slate/InverseAndUpdate", Icon40x40));
+			{
+				FContentRootBracket Bracket(this, EngineEditorSlateDir);
+				Set("ControlRig.SetupMode", new IMAGE_BRUSH_SVG("Starship/Common/Adjust", Icon40x40));
+				Set("ControlRig.SetupMode.Small", new IMAGE_BRUSH_SVG("Starship/Common/Adjust", Icon20x20));
+				Set("ControlRig.UpdateEvent", new IMAGE_BRUSH("Icons/diff_next_40x", Icon40x40));
+				Set("ControlRig.InverseEvent", new IMAGE_BRUSH("Icons/diff_prev_40x", Icon40x40));
+				Set("ControlRig.UpdateAndInverse", new IMAGE_BRUSH("Icons/Loop_40x", Icon40x40));
+				Set("ControlRig.InverseAndUpdate", new IMAGE_BRUSH("Icons/Loop_40x", Icon40x40));
+			}
 
 			Set("ControlRig.Bug.Dot", new IMAGE_BRUSH("Slate/ControlRig_BugDot_32x", Icon16x16));
 			Set("ControlRig.Bug.Normal", new IMAGE_BRUSH("Slate/ControlRig_Bug_28x", Icon14x14));
@@ -97,21 +118,13 @@ public:
 			Set("ControlRig.ResumeExecution", new IMAGE_BRUSH_SVG("Slate/simulate", Icon40x40));
 			Set("ControlRig.ReleaseMode", new IMAGE_BRUSH_SVG("Slate/animation", Icon40x40));
 			Set("ControlRig.DebugMode", new IMAGE_BRUSH_SVG("Slate/Bug", Icon40x40));
-			
-			Set( "ControlRig.StepOut", new IMAGE_BRUSH("Slate/icon_DebugStepOut_40x", Icon40x40));
-			Set( "ControlRig.StepInto", new IMAGE_BRUSH( "Slate/icon_DebugStepIn_40x", Icon40x40 ) );
-			Set( "ControlRig.StepOver", new IMAGE_BRUSH( "Slate/icon_DebugStepOver_40x", Icon40x40 ) );
 
 			{
-				const FString PreviousContentRoot = GetContentRootDir();
-				// Common/RoundedSelection_16x lives in the editor slate folder, change the root temporarily
-				SetContentRoot(EngineEditorSlateDir);
+				FContentRootBracket Bracket(this, EngineEditorSlateDir);
 				// similar style to "LevelViewport.StartingPlayInEditorBorder"
 				Set( "ControlRig.Viewport.Border", new BOX_BRUSH( "Old/Window/ViewportDebugBorder", 0.8f, FLinearColor(1.0f,1.0f,1.0f,1.0f) ) );
 				// similar style to "AnimViewport.Notification.Warning"
 				Set( "ControlRig.Viewport.Notification.ChangeShapeTransform", new BOX_BRUSH("Common/RoundedSelection_16x", 4.0f/16.0f, FLinearColor(FColor(169, 0, 148))));
-				// restore the previous content root
-				SetContentRoot(PreviousContentRoot);
 			}
 		}
 
@@ -132,9 +145,9 @@ public:
 
 		// Tree styles
 		{
-			Set("ControlRig.Tree.BoneUser", new IMAGE_BRUSH("Slate/BoneUser_16x", Icon16x16));
-			Set("ControlRig.Tree.BoneImported", new IMAGE_BRUSH("Slate/BoneImported_16x", Icon16x16));
-			Set("ControlRig.Tree.Control", new IMAGE_BRUSH("Slate/Control_16x", Icon16x16));
+			Set("ControlRig.Tree.BoneUser", new IMAGE_BRUSH("Slate/BoneNonWeighted_16x", Icon16x16));
+			Set("ControlRig.Tree.BoneImported", new IMAGE_BRUSH("Slate/Bone_16x", Icon16x16));
+			Set("ControlRig.Tree.Control", new IMAGE_BRUSH("Slate/RigControlCircle_16x", Icon16x16));
 			Set("ControlRig.Tree.Null", new IMAGE_BRUSH("Slate/Null_16x", Icon16x16));
 			Set("ControlRig.Tree.RigidBody", new IMAGE_BRUSH("Slate/RigidBody_16x", Icon16x16));
 			Set("ControlRig.Tree.Socket", new IMAGE_BRUSH("Slate/Socket_16x", Icon16x16));

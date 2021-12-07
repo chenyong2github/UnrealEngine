@@ -95,6 +95,7 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 			ESpacePickerType_Parent,
 			URigHierarchy::GetDefaultParentKey(),
 			FAppStyle::Get().GetBrush("Icons.Transform"),
+			FSlateColor::UseForeground(),
 			LOCTEXT("Parent", "Parent"),
 			FOnClicked::CreateSP(this, &SRigSpacePickerWidget::HandleParentSpaceClicked)
 		);
@@ -104,6 +105,7 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 			ESpacePickerType_World,
 			URigHierarchy::GetWorldSpaceReferenceKey(),
 			FEditorStyle::GetBrush("EditorViewport.RelativeCoordinateSystem_World"),
+			FSlateColor::UseForeground(),
 			LOCTEXT("World", "World"),
 			FOnClicked::CreateSP(this, &SRigSpacePickerWidget::HandleWorldSpaceClicked)
 		);
@@ -379,6 +381,7 @@ void SRigSpacePickerWidget::AddSpacePickerRow(
 	ESpacePickerType InType,
 	const FRigElementKey& InKey,
 	const FSlateBrush* InBush,
+	const FSlateColor& InColor,
 	const FText& InTitle,
     FOnClicked OnClickedDelegate)
 {
@@ -414,10 +417,11 @@ void SRigSpacePickerWidget::AddSpacePickerRow(
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
-					.Padding(0)
+					.Padding(FMargin(0.f, 0.f, 3.f, 0.f))
 					[
 						SNew(SImage)
 						.Image(InBush)
+						.ColorAndOpacity(InColor)
 					]
 
 					+ SHorizontalBox::Slot()
@@ -944,11 +948,14 @@ void SRigSpacePickerWidget::RepopulateItemSpaces()
 
 	for(const FRigElementKey& Key : Keys)
 	{
+		TPair<const FSlateBrush*, FSlateColor> IconAndColor = SRigHierarchyItem::GetBrushForElementType(Hierarchy, Key);
+		
 		AddSpacePickerRow(
 			ItemSpacesListBox,
 			ESpacePickerType_Item,
 			Key,
-			SRigHierarchyItem::GetBrushForElementType(Hierarchy, Key),
+			IconAndColor.Key,
+			IconAndColor.Value,
 			FText::FromName(Key.Name),
 			FOnClicked::CreateSP(this, &SRigSpacePickerWidget::HandleElementSpaceClicked, Key)
 		);

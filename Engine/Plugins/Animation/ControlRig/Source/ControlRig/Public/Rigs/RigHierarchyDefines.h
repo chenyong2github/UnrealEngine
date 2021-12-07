@@ -22,7 +22,7 @@ enum class ERigElementType : uint8
 	Space = Null UMETA(Hidden),
 	Control = 0x004,
 	Curve = 0x008,
-	RigidBody = 0x010,
+	RigidBody = 0x010 UMETA(Hidden), 
 	Reference = 0x020,
 	Last = 0x040 UMETA(Hidden),
 	All = Bone | Null | Control | Curve | RigidBody | Reference,
