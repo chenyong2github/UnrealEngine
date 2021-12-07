@@ -164,6 +164,9 @@ private:
 	/** Bake To Control Rig Sub Menu*/
 	void BakeToControlRig(UClass* InClass, FGuid ObjectBinding,UObject* BoundObject, USkeletalMeshComponent* SkelMeshComp, USkeleton* Skeleton);
 
+	/** Set Up EditMode for Specified Control Rig*/
+	void SetUpEditModeIfNeeded(UControlRig* ControlRig);
+
 private:
 
 	/** Command Bindings added by the Transform Track Editor to Sequencer and curve editor. */
