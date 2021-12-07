@@ -259,7 +259,7 @@ float CatmullRom(float x)
 		return (1.5f * ax - 2.5f) * ax*ax + 1.0f;
 }
 
-void SetupSampleWeightParameters(FTemporalAACS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
+void SetupSampleWeightParameters(FTemporalAACS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2f TemporalJitterPixels)
 {
 	float JitterX = TemporalJitterPixels.X;
 	float JitterY = TemporalJitterPixels.Y;
@@ -626,7 +626,7 @@ FTAAOutputs AddTemporalAAPass(
 			if (bCameraCut)
 			{
 				PassParameters->ScreenPosToHistoryBufferUV = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
-				PassParameters->ScreenPosAbsMax = FVector2D(0.0f, 0.0f);
+				PassParameters->ScreenPosAbsMax = FVector2f(0.0f, 0.0f);
 				PassParameters->HistoryBufferUVMinMax = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 				PassParameters->HistoryBufferSize = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -657,7 +657,7 @@ FTAAOutputs AddTemporalAAPass(
 				FIntPoint ViewportExtent = FIntPoint::DivideAndRoundUp(ReferenceViewportExtent, Inputs.ResolutionDivisor);
 				FIntPoint BufferSize = ReferenceBufferSize / Inputs.ResolutionDivisor;
 
-				PassParameters->ScreenPosAbsMax = FVector2D(1.0f - 1.0f / float(ViewportExtent.X), 1.0f - 1.0f / float(ViewportExtent.Y));
+				PassParameters->ScreenPosAbsMax = FVector2f(1.0f - 1.0f / float(ViewportExtent.X), 1.0f - 1.0f / float(ViewportExtent.Y));
 
 				float InvBufferSizeX = 1.f / float(BufferSize.X);
 				float InvBufferSizeY = 1.f / float(BufferSize.Y);
@@ -725,7 +725,7 @@ FTAAOutputs AddTemporalAAPass(
 			PassParameters->TemporalJitterPixels = InputViewSizeScale * View.TemporalJitterPixels;
 			PassParameters->ScreenPercentage = float(InputViewRect.Width()) / float(OutputViewRect.Width());
 			PassParameters->UpscaleFactor = float(OutputViewRect.Width()) / float(InputViewRect.Width());
-			PassParameters->InputViewMin = InputViewSizeScale * FVector2D(InputViewRect.Min.X, InputViewRect.Min.Y);
+			PassParameters->InputViewMin = InputViewSizeScale * FVector2f(InputViewRect.Min.X, InputViewRect.Min.Y);
 			PassParameters->InputViewSize = FVector4f(
 				InputViewSizeScale * InputViewRect.Width(), InputViewSizeScale * InputViewRect.Height(),
 				InputViewSizeInvScale / InputViewRect.Width(), InputViewSizeInvScale / InputViewRect.Height());

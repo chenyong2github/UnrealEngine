@@ -390,15 +390,15 @@ const TCHAR* GetEventName(EDiaphragmDOFDilateCocMode e)
 }
 
 // Returns X and Y for F(M) = saturate(M * X + Y) so that F(LowM) = 0 and F(HighM) = 1
-FVector2D GenerateSaturatedAffineTransformation(float LowM, float HighM)
+FVector2f GenerateSaturatedAffineTransformation(float LowM, float HighM)
 {
 	float X = 1.0f / (HighM - LowM);
-	return FVector2D(X, -X * LowM);
+	return FVector2f(X, -X * LowM);
 }
 
 // Affine transformtations that always return 0 or 1.
-const FVector2D kContantlyPassingAffineTransformation(0, 1);
-const FVector2D kContantlyBlockingAffineTransformation(0, 0);
+const FVector2f kContantlyPassingAffineTransformation(0, 1);
+const FVector2f kContantlyBlockingAffineTransformation(0, 0);
 
 
 /** Base shader class for diaphragm DOF. */
@@ -1570,7 +1570,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->CommonParameters = CommonParameters;
 			SetCocModelParameters(&PassParameters->CocModel, CocModel, CocRadiusBasis);
 			PassParameters->ViewportRect = FIntRect(FIntPoint::ZeroValue, PassViewSize);
-			PassParameters->CocRadiusBasis = FVector2D(GatheringViewSize.X, PreprocessViewSize.X);
+			PassParameters->CocRadiusBasis = FVector2f(GatheringViewSize.X, PreprocessViewSize.X);
 			PassParameters->SceneColorTexture = InputSceneColor;
 			PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
 		
@@ -1670,10 +1670,10 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FDiaphragmDOFCocFlattenCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFCocFlattenCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->ViewportRect = FIntRect(0, 0, GatheringViewSize.X, GatheringViewSize.Y);
-			PassParameters->ThreadIdToBufferUV = FVector2D(
+			PassParameters->ThreadIdToBufferUV = FVector2f(
 				PreprocessViewSize.X / float(GatheringViewSize.X * SrcSize.X),
 				PreprocessViewSize.Y / float(GatheringViewSize.Y * SrcSize.Y));
-			PassParameters->MaxBufferUV = FVector2D(
+			PassParameters->MaxBufferUV = FVector2f(
 				(PreprocessViewSize.X - 1.0f) / float(SrcSize.X),
 				(PreprocessViewSize.Y - 1.0f) / float(SrcSize.Y));
 			PassParameters->GatherInput = HalfResGatherInputTextures;
@@ -1898,7 +1898,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			FDiaphragmDOFDownsampleCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFDownsampleCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
 			PassParameters->ViewportRect = FIntRect(0, 0, PassViewSize.X, PassViewSize.Y);
-			PassParameters->MaxBufferUV = FVector2D(
+			PassParameters->MaxBufferUV = FVector2f(
 				(PreprocessViewSize.X - 0.5f) / float(SrcSize.X),
 				(PreprocessViewSize.Y - 0.5f) / float(SrcSize.Y));
 			PassParameters->OutputCocRadiusMultiplier = PreProcessingToProcessingCocRadiusFactor;
@@ -1946,7 +1946,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 			FDiaphragmDOFReduceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFReduceCS::FParameters>();
 			PassParameters->ViewportRect = FIntRect(0, 0, PassViewSize.X, PassViewSize.Y);
-			PassParameters->MaxInputBufferUV = FVector2D(
+			PassParameters->MaxInputBufferUV = FVector2f(
 				(PreprocessViewSize.X - 0.5f) / SrcSize.X,
 				(PreprocessViewSize.Y - 0.5f) / SrcSize.Y);
 			PassParameters->MaxScatteringGroupCount = MaxScatteringGroupCount;
@@ -2010,7 +2010,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 			FDiaphragmDOFReduceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFReduceCS::FParameters>();
 			PassParameters->ViewportRect = FIntRect(0, 0, PassViewSize.X, PassViewSize.Y);
-			PassParameters->MaxInputBufferUV = FVector2D(
+			PassParameters->MaxInputBufferUV = FVector2f(
 				(PreprocessViewSize.X - 0.5f) / SrcSize.X,
 				(PreprocessViewSize.Y - 0.5f) / SrcSize.Y);
 
@@ -2229,9 +2229,9 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PermutationVector = FDiaphragmDOFGatherCS::RemapPermutation(PermutationVector);
 
 			// Affine transformtation to control whether a CocRadius is considered or not.
-			FVector2D ConsiderCocRadiusAffineTransformation0 = kContantlyPassingAffineTransformation;
-			FVector2D ConsiderCocRadiusAffineTransformation1 = kContantlyPassingAffineTransformation;
-			FVector2D ConsiderAbsCocRadiusAffineTransformation = kContantlyPassingAffineTransformation;
+			FVector2f ConsiderCocRadiusAffineTransformation0 = kContantlyPassingAffineTransformation;
+			FVector2f ConsiderCocRadiusAffineTransformation1 = kContantlyPassingAffineTransformation;
+			FVector2f ConsiderAbsCocRadiusAffineTransformation = kContantlyPassingAffineTransformation;
 			{
 				// Gathering scalability.
 				const float GatheringScalingDownFactor = float(PreprocessViewSize.X) / float(GatheringViewSize.X);
@@ -2275,13 +2275,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->ViewportSize = FVector4f(GatheringViewSize.X, GatheringViewSize.Y, 1.0f / GatheringViewSize.X, 1.0f / GatheringViewSize.Y);
 			PassParameters->ViewportRect = FIntRect(0, 0, GatheringViewSize.X, GatheringViewSize.Y);
 			PassParameters->TemporalJitterPixels = View.TemporalJitterPixels;
-			PassParameters->DispatchThreadIdToInputBufferUV = FVector2D(
+			PassParameters->DispatchThreadIdToInputBufferUV = FVector2f(
 				float(PreprocessViewSize.X) / float(GatheringViewSize.X * SrcSize.X),
 				float(PreprocessViewSize.Y) / float(GatheringViewSize.Y * SrcSize.Y));;
 			PassParameters->ConsiderCocRadiusAffineTransformation0 = ConsiderCocRadiusAffineTransformation0;
 			PassParameters->ConsiderCocRadiusAffineTransformation1 = ConsiderCocRadiusAffineTransformation1;
 			PassParameters->ConsiderAbsCocRadiusAffineTransformation = ConsiderAbsCocRadiusAffineTransformation;
-			PassParameters->InputBufferUVToOutputPixel = FVector2D(
+			PassParameters->InputBufferUVToOutputPixel = FVector2f(
 				float(SrcSize.X * GatheringViewSize.X) / float(PreprocessViewSize.X),
 				float(SrcSize.Y * GatheringViewSize.Y) / float(PreprocessViewSize.Y));
 			PassParameters->MipBias = FMath::Log2(float(PreprocessViewSize.X) / float(GatheringViewSize.X));
@@ -2292,7 +2292,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->CommonParameters = CommonParameters;
 		
 			PassParameters->GatherInputSize = FVector4f(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
-			PassParameters->GatherInputViewportSize = FVector2D(PreprocessViewSize.X, PreprocessViewSize.Y);
+			PassParameters->GatherInputViewportSize = FVector2f(PreprocessViewSize.X, PreprocessViewSize.Y);
 			PassParameters->GatherInput = ReducedGatherInputTextures;
 		
 			PassParameters->TileClassification = TileClassificationTextures;
@@ -2365,7 +2365,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 			FDiaphragmDOFPostfilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiaphragmDOFPostfilterCS::FParameters>();
 			PassParameters->ViewportRect = FIntRect(0, 0, GatheringViewSize.X, GatheringViewSize.Y);
-			PassParameters->MaxInputBufferUV = FVector2D(
+			PassParameters->MaxInputBufferUV = FVector2f(
 				(GatheringViewSize.X - 0.5f) / float(RefBufferSize.X),
 				(GatheringViewSize.Y - 0.5f) / float(RefBufferSize.Y));
 			PassParameters->TileDecisionParameters.MinGatherRadius = MaxRecombineAbsCocRadius - 1;
@@ -2631,7 +2631,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		PassParameters->ViewportRect = PassViewRect;
 		PassParameters->ViewportSize = FVector4f(PassViewRect.Width(), PassViewRect.Height(), 1.0f / PassViewRect.Width(), 1.0f / PassViewRect.Height());
 		PassParameters->TemporalJitterPixels = View.TemporalJitterPixels;
-		PassParameters->DOFBufferUVMax = FVector2D(
+		PassParameters->DOFBufferUVMax = FVector2f(
 			(GatheringViewSize.X - 0.5f) / float(RefBufferSize.X),
 			(GatheringViewSize.Y - 0.5f) / float(RefBufferSize.Y));
 
@@ -2657,7 +2657,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		PassParameters->FullResDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(SceneTextures.SceneDepthTexture, ERDGTextureMetaDataAccess::Depth));
 		PassParameters->LowResDepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMetaData(SeparateTranslucencyDepth, ERDGTextureMetaDataAccess::Depth));
 		const FIntPoint LowResExtent = SeparateTranslucency->Desc.Extent;
-		PassParameters->SeparateTranslucencyTextureLowResExtentInverse = FVector2D(1.0f / LowResExtent.X, 1.0f / LowResExtent.Y);
+		PassParameters->SeparateTranslucencyTextureLowResExtentInverse = FVector2f(1.0f / LowResExtent.X, 1.0f / LowResExtent.Y);
 
 		if (!bGatherForeground && !bGatherBackground)
 		{

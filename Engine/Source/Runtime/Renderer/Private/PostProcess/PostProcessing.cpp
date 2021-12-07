@@ -271,15 +271,15 @@ FRDGTextureRef AddTranslucencyCompositionPass(
 			bPostMotionBlur ? TEXT("PostMotionBlurTranslucency.SceneColor") : TEXT("PostDOFTranslucency.SceneColor"));
 	}
 
-	const FVector2D SceneColorSize(SceneColor.ViewRect.Size());
-	const FVector2D SceneColorSizeInv = FVector2D(1.0f, 1.0f) / SceneColorSize;	
-	const FVector2D SceneColorExtent(NewSceneColor->Desc.Extent);
-	const FVector2D SceneColorExtentInv = FVector2D(1.0f, 1.0f) / SceneColorExtent;
+	const FVector2f SceneColorSize(SceneColor.ViewRect.Size());
+	const FVector2f SceneColorSizeInv = FVector2f(1.0f, 1.0f) / SceneColorSize;	
+	const FVector2f SceneColorExtent(NewSceneColor->Desc.Extent);
+	const FVector2f SceneColorExtentInv = FVector2f(1.0f, 1.0f) / SceneColorExtent;
 	
 	const FIntRect SeparateTranslucencyRect = SeparateTranslucencyTextures.GetDimensions().GetViewport(View.ViewRect).Rect;
-	const FVector2D SeparateTranslucencySize(SeparateTranslucencyRect.Size());
-	const FVector2D SeparateTranslucencyExtent((bApplyModulateOnly ? SeparateModulationTexture : SeparateTranslucencyTexture)->Desc.Extent);
-	const FVector2D SeparateTranslucencyExtentInv = FVector2D(1.0f, 1.0f) / SeparateTranslucencyExtent;
+	const FVector2f SeparateTranslucencySize(SeparateTranslucencyRect.Size());
+	const FVector2f SeparateTranslucencyExtent((bApplyModulateOnly ? SeparateModulationTexture : SeparateTranslucencyTexture)->Desc.Extent);
+	const FVector2f SeparateTranslucencyExtentInv = FVector2f(1.0f, 1.0f) / SeparateTranslucencyExtent;
 
 	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 	const FScreenPassTextureViewport TranslucencyViewport = SeparateTranslucencyTextures.GetDimensions().GetViewport(View.ViewRect);
@@ -2090,7 +2090,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 							GaussianBlurInputs.NameY = BlurDebugY;
 							GaussianBlurInputs.Filter = DOFSetup;
 							GaussianBlurInputs.TintColor = FLinearColor::White;
-							GaussianBlurInputs.CrossCenterWeight = FVector2D::ZeroVector;
+							GaussianBlurInputs.CrossCenterWeight = FVector2f::ZeroVector;
 							GaussianBlurInputs.KernelSizePercent = KernelSizePercent;
 
 							return AddGaussianBlurPass(GraphBuilder, View, GaussianBlurInputs);
@@ -2159,7 +2159,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 				FMobileBloomUpInputs BloomUpInputs;
 				BloomUpInputs.BloomUpSourceA = BloomUpSourceA;
 				BloomUpInputs.BloomUpSourceB = BloomUpSourceB;
-				BloomUpInputs.ScaleAB = FVector2D(BloomSourceScale, BloomSourceScale);
+				BloomUpInputs.ScaleAB = FVector2f(BloomSourceScale, BloomSourceScale);
 				BloomUpInputs.TintA = TintA;
 				BloomUpInputs.TintB = TintB;
 

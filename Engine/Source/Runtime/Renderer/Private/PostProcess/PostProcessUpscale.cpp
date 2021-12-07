@@ -51,7 +51,7 @@ TAutoConsoleVariable<int32> CVarUpscaleQuality(
 	TEXT(" 5: 36-tap Gaussian-filtered unsharp mask (very expensive, but good for extreme upsampling).\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-FVector2D PaniniProjection(FVector2D OM, float d, float s)
+FVector2f PaniniProjection(FVector2f OM, float d, float s)
 {
 	float PaniniDirectionXZInvLength = 1.0f / FMath::Sqrt(1.0f + OM.X * OM.X);
 	float SinPhi = OM.X * PaniniDirectionXZInvLength;
@@ -59,7 +59,7 @@ FVector2D PaniniProjection(FVector2D OM, float d, float s)
 	float CosPhi = FMath::Sqrt(1.0f - SinPhi * SinPhi);
 	float S = (d + 1.0f) / (d + CosPhi);
 
-	return S * FVector2D(SinPhi, FMath::Lerp(TanTheta, TanTheta / CosPhi, s));
+	return S * FVector2f(SinPhi, FMath::Lerp(TanTheta, TanTheta / CosPhi, s));
 }
 } //! namespace
 
@@ -85,10 +85,10 @@ END_SHADER_PARAMETER_STRUCT()
 
 FPaniniProjectionParameters GetPaniniProjectionParameters(FPaniniProjectionConfig InPaniniConfig, const FViewInfo& View)
 {
-	const FVector2D FOVPerAxis = View.ViewMatrices.ComputeHalfFieldOfViewPerAxis();
-	const FVector2D ScreenPosToPaniniFactor = FVector2D(FMath::Tan(FOVPerAxis.X), FMath::Tan(FOVPerAxis.Y));
-	const FVector2D PaniniDirection = FVector2D(1.0f, 0.0f) * ScreenPosToPaniniFactor;
-	const FVector2D PaniniPosition = PaniniProjection(PaniniDirection, InPaniniConfig.D, InPaniniConfig.S);
+	const FVector2f FOVPerAxis = View.ViewMatrices.ComputeHalfFieldOfViewPerAxis();
+	const FVector2f ScreenPosToPaniniFactor = FVector2f(FMath::Tan(FOVPerAxis.X), FMath::Tan(FOVPerAxis.Y));
+	const FVector2f PaniniDirection = FVector2f(1.0f, 0.0f) * ScreenPosToPaniniFactor;
+	const FVector2f PaniniPosition = PaniniProjection(PaniniDirection, InPaniniConfig.D, InPaniniConfig.S);
 
 	const float WidthFit = ScreenPosToPaniniFactor.X / PaniniPosition.X;
 	const float ScreenPosScale = FMath::Lerp(1.0f, WidthFit, InPaniniConfig.ScreenFit);
