@@ -160,56 +160,52 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		}
 	}
 
+	const float CellArea = PartitionedActors.GetLowestLevel().CellSize * PartitionedActors.GetLowestLevel().CellSize;
 	for (const FActorClusterInstance* ClusterInstance : GridActors)
 	{
 		const FActorCluster* ActorCluster = ClusterInstance->Cluster;
 		const FBox2D ClusterBounds(FVector2D(ClusterInstance->Bounds.Min), FVector2D(ClusterInstance->Bounds.Max));
 		check(ActorCluster && ActorCluster->Actors.Num() > 0);
-		EActorGridPlacement GridPlacement = ActorCluster->GridPlacement;		
 		FSquare2DGridHelper::FGridLevel::FGridCell* GridCell = nullptr;
 
-		switch (GridPlacement)
+		if (ActorCluster->bIsSpatiallyLoaded)
 		{
-		case EActorGridPlacement::Location:
-		{
-			FIntVector2 CellCoords;
-			if (PartitionedActors.GetLowestLevel().GetCellCoords(ClusterBounds.GetCenter(), CellCoords))
+			if (ClusterBounds.GetArea() <= CellArea)
 			{
-				GridCell = &PartitionedActors.GetLowestLevel().GetCell(CellCoords);
-			}
-			break;
-		}
-		case EActorGridPlacement::Bounds:
-		{
-			// Find grid level cell that encompasses the actor cluster and put actors in it.
-			const FVector2D ClusterSize = ClusterBounds.GetSize();
-			const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
-			const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
-
-			for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
-			{
-				FSquare2DGridHelper::FGridLevel& GridLevel = PartitionedActors.Levels[GridLevelIndex];
-
-				if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
+				// Find grid level cell that copntains the actor cluster pivot and put actors in it.
+				FIntVector2 CellCoords;
+				if (PartitionedActors.GetLowestLevel().GetCellCoords(ClusterBounds.GetCenter(), CellCoords))
 				{
-					GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FIntVector2& Coords)
-					{
-						check(!GridCell);
-						GridCell = &GridLevel.GetCell(Coords);
-					});
-
-					break;
+					GridCell = &PartitionedActors.GetLowestLevel().GetCell(CellCoords);
 				}
 			}
-			break;
+			else
+			{
+				// Find grid level cell that encompasses the actor cluster bounding box and put actors in it.
+				const FVector2D ClusterSize = ClusterBounds.GetSize();
+				const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
+				const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
+
+				for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
+				{
+					FSquare2DGridHelper::FGridLevel& GridLevel = PartitionedActors.Levels[GridLevelIndex];
+
+					if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
+					{
+						GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &GridCell](const FIntVector2& Coords)
+						{
+							check(!GridCell);
+							GridCell = &GridLevel.GetCell(Coords);
+						});
+
+						break;
+					}
+				}
+			}
 		}
-		case EActorGridPlacement::AlwaysLoaded:
+		else
 		{
 			GridCell = &PartitionedActors.GetAlwaysLoadedCell();
-			break;
-		}
-		default:
-			check(0);
 		}
 
 		if (!GridCell)
@@ -226,7 +222,6 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 				UE_LOG(LogWorldPartition, Warning, TEXT("         Container (%s): %s"), *ClusterInstance->ContainerInstance->ID.ToString(), *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
 			}
 
-			GridPlacement = EActorGridPlacement::AlwaysLoaded;
 			GridCell = &PartitionedActors.GetAlwaysLoadedCell();
 		}
 
@@ -237,9 +232,8 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		{
 			if (ActorCluster->Actors.Num() > 1)
 			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors (%s), generated shared BV of [%d x %d] (meters)"),
+				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors, generated shared BV of [%d x %d] (meters)"),
 					ActorCluster->Actors.Num(),
-					*StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)GridPlacement),
 					(int)(0.01f * ClusterInstance->Bounds.GetSize().X),
 					(int)(0.01f * ClusterInstance->Bounds.GetSize().Y));
 

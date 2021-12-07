@@ -62,7 +62,7 @@ APlayerStart::APlayerStart(const FObjectInitializer& ObjectInitializer)
 		}
 	}
 
-	GridPlacement = EActorGridPlacement::AlwaysLoaded;
+	bIsSpatiallyLoaded = false;
 #endif // WITH_EDITORONLY_DATA
 }
 

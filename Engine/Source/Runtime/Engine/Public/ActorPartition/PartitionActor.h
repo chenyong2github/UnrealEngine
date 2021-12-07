@@ -20,7 +20,7 @@ public:
 
 	//~ Begin AActor Interface
 #if WITH_EDITOR	
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::Bounds; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
 	virtual bool ShouldIncludeGridSizeInName(UWorld * InWorld) const;

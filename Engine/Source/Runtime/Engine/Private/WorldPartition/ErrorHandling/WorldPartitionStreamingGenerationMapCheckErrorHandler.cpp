@@ -21,17 +21,14 @@ void FStreamingGenerationMapCheckErrorHandler::OnInvalidReference(const FWorldPa
 
 void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceGridPlacement(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 {
-	const bool bIsActorDescAlwaysLoaded = ActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
-	const bool bIsActorDescRefAlwaysLoaded = ReferenceActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
-
-	const FText StreamedActor(LOCTEXT("MapCheck_WorldPartition_StreamedActor", "Streamed actor"));
-	const FText AlwaysLoadedActor(LOCTEXT("MapCheck_WorldPartition_AlwaysLoadedActor", "Always loaded actor"));
+	const FText SpatiallyLoadedActor(LOCTEXT("MapCheck_WorldPartition_SpatiallyLoadedActor", "Spatially loaded actor"));
+	const FText NonSpatiallyLoadedActor(LOCTEXT("MapCheck_WorldPartition_NonSpatiallyLoadedActor", "Non-spatially loaded actor"));
 
 	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
-		->AddToken(FTextToken::Create(bIsActorDescAlwaysLoaded ? AlwaysLoadedActor : StreamedActor))
+		->AddToken(FTextToken::Create(ActorDescView.GetIsSpatiallyLoaded() ? SpatiallyLoadedActor : NonSpatiallyLoadedActor))
 		->AddToken(FAssetNameToken::Create(ActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_References", "references")))
-		->AddToken(FTextToken::Create(bIsActorDescRefAlwaysLoaded ? AlwaysLoadedActor : StreamedActor)								)
+		->AddToken(FTextToken::Create(ReferenceActorDescView.GetIsSpatiallyLoaded() ? SpatiallyLoadedActor : NonSpatiallyLoadedActor))
 		->AddToken(FAssetNameToken::Create(ReferenceActorDescView.GetActorLabelOrName().ToString()))
 		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_StreamedActorReferenceAlwaysLoadedActor_CheckForErrors"))));
 }

@@ -756,49 +756,6 @@ FName UWorldPartitionRuntimeSpatialHash::GetCellName(FName InGridName, const FIn
 	return UWorldPartitionRuntimeSpatialHash::GetCellName(WorldPartition, InGridName, InCellGlobalCoord, InDataLayerID);
 }
 
-void UWorldPartitionRuntimeSpatialHash::UpdateActorDescViewMap(TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateActorDescViewMap);
-
-	Super::UpdateActorDescViewMap(ActorDescViewMap);
-
-	TMap<FName, int32> GridsMapping;
-	GridsMapping.Add(NAME_None, 0);
-	for (int32 i = 0; i < Grids.Num(); i++)
-	{
-		const FSpatialHashRuntimeGrid& Grid = Grids[i];
-		check(!GridsMapping.Contains(Grid.GridName));
-		GridsMapping.Add(Grid.GridName, i);
-	}
-
-	for (auto& ActorDescViewPair : ActorDescViewMap)
-	{
-		FWorldPartitionActorDescView& ActorDescView = ActorDescViewPair.Value;
-
-		if (ActorDescView.GetActorClass()->GetDefaultObject<AActor>()->GetDefaultGridPlacement() == EActorGridPlacement::None)
-		{
-			if (ActorDescView.GetGridPlacement() != EActorGridPlacement::AlwaysLoaded)
-			{
-				const int32* GridIndexPtr = GridsMapping.Find(ActorDescView.GetRuntimeGrid());
-				const int32 GridIndex = GridIndexPtr ? *GridIndexPtr : 0;
-				const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
-				const float CellArea = RuntimeGrid.CellSize * RuntimeGrid.CellSize;
-				const FBox2D ActorBounds2D = FBox2D(FVector2D(ActorDescView.GetBounds().Min), FVector2D(ActorDescView.GetBounds().Max));
-				const float ActorBoundsArea = ActorBounds2D.GetArea();
-
-				if (ActorBoundsArea < 1.0f)
-				{
-					ActorDescView.SetGridPlacement(EActorGridPlacement::Location);
-				}
-				else if (ActorBoundsArea > CellArea)
-				{
-					ActorDescView.SetGridPlacement(EActorGridPlacement::Bounds);
-				}
-			}
-		}
-	}
-}
-
 bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateStreamingGrid);

@@ -94,19 +94,12 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 	}
 }
 
-// In the editor, actors are always using their bounds for grid placement, which makes more sense from a user standpoint.
 FBox UWorldPartitionEditorSpatialHash::GetActorBounds(const FWorldPartitionHandle& InActorHandle) const
 {
 	FBox ActorBounds;
-
-	switch(InActorHandle->GetGridPlacement())
-	{
-	case EActorGridPlacement::Location:
-	case EActorGridPlacement::Bounds:
+	if (InActorHandle->GetIsSpatiallyLoaded())
 	{
 		ActorBounds = InActorHandle->GetBounds();
-		break;
-	}
 	}
 
 	check(ActorBounds.IsValid);
@@ -115,7 +108,7 @@ FBox UWorldPartitionEditorSpatialHash::GetActorBounds(const FWorldPartitionHandl
 
 bool UWorldPartitionEditorSpatialHash::IsActorAlwaysLoaded(const FWorldPartitionHandle& InActorHandle) const
 {
-	if (InActorHandle->GetGridPlacement() == EActorGridPlacement::AlwaysLoaded)
+	if (!InActorHandle->GetIsSpatiallyLoaded())
 	{
 		return true;
 	}

@@ -151,11 +151,6 @@ void ANavigationDataChunkActor::GetActorBounds(bool bOnlyCollidingComponents, FV
 }
 
 #if WITH_EDITOR
-EActorGridPlacement ANavigationDataChunkActor::GetDefaultGridPlacement() const
-{
-	return EActorGridPlacement::Bounds;
-}
-
 FBox ANavigationDataChunkActor::GetStreamingBounds() const
 {
 	return DataChunkActorBounds;

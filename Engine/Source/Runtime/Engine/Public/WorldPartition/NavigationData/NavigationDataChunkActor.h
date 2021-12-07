@@ -37,7 +37,7 @@ public:
 	void SetDataChunkActorBounds(const FBox& InBounds);
 
 	//~ Begin AActor Interface.
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	virtual FBox GetStreamingBounds() const override;
 	//~ End AActor Interface.
 #endif // WITH_EDITOR

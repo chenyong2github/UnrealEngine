@@ -23,7 +23,7 @@ public:
 #if WITH_EDITOR
 	void LoadIntersectingCells(bool bIsFromUserChange);
 	void UnloadIntersectingCells(bool bIsFromUserChange);
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 
 private:
 	virtual bool SupportsDataLayer() const override { return false; }

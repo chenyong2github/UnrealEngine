@@ -164,7 +164,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 	struct FSubActorsInfo
 	{
 		TArray<FGuid>			SubActors;
-		EActorGridPlacement		GridPlacement = EActorGridPlacement::Location;
+		bool					bIsSpatiallyLoaded;
 	};
 	TMap<UHLODLayer*, FSubActorsInfo> SubActorsInfos;
 
@@ -179,9 +179,9 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 				FSubActorsInfo& SubActorsInfo = SubActorsInfos.FindOrAdd(HLODLayer);
 
 				SubActorsInfo.SubActors.Add(ActorInstance.Actor);
-				if (ActorDescView.GetGridPlacement() == EActorGridPlacement::Bounds)
+				if (ActorDescView.GetIsSpatiallyLoaded())
 				{
-					SubActorsInfo.GridPlacement = EActorGridPlacement::Bounds;
+					SubActorsInfo.bIsSpatiallyLoaded = true;
 				}
 			}
 		}
@@ -267,12 +267,12 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			bIsDirty = true;
 		}
 
-		// Runtime grid placement
+		// Spatially loaded
 		// HLOD that are always loaded will not take the SubActorsInfo.GridPlacement into account
-		EActorGridPlacement ExpectedGridPlacement = HLODLayer->IsAlwaysLoaded() ? EActorGridPlacement::AlwaysLoaded : SubActorsInfo.GridPlacement;
-		if (HLODActor->GetGridPlacement() != ExpectedGridPlacement)
+		bool bExpectedIsSpatiallyLoaded = HLODLayer->IsAlwaysLoaded() ? false : SubActorsInfo.bIsSpatiallyLoaded;
+		if (HLODActor->GetIsSpatiallyLoaded() != bExpectedIsSpatiallyLoaded)
 		{
-			HLODActor->SetGridPlacement(ExpectedGridPlacement);
+			HLODActor->SetIsSpatiallyLoaded(bExpectedIsSpatiallyLoaded);
 			bIsDirty = true;
 		}
 

@@ -195,16 +195,13 @@ void UWorldPartitionChangelistValidator::OnInvalidReferenceGridPlacement(const F
 {
 	if (Filter(ActorDescView) || Filter(ReferenceActorDescView))
 	{
-		const FString StreamedActor(TEXT("Streamed actor"));
-		const FString AlwaysLoadedActor(TEXT("Always loaded actor"));
-
-		const bool bIsActorDescAlwaysLoaded = ActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
-		const bool bIsActorDescRefAlwaysLoaded = ReferenceActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
+		const FString SpatiallyLoadedActor(TEXT("Spatially loaded actor"));
+		const FString NonSpatiallyLoadedActor(TEXT("Non-spatially loaded loaded actor"));
 
 		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.InvalidReferenceGridPlacement", "{0} {1} is referencing {2} {3}."),
-											FText::FromString(bIsActorDescAlwaysLoaded ? *AlwaysLoadedActor : *StreamedActor),
+											FText::FromString(ActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor),
 											FText::FromString(GetPrettyPackageName(ActorDescView)),
-											FText::FromString(bIsActorDescRefAlwaysLoaded ? *AlwaysLoadedActor : *StreamedActor),
+											FText::FromString(ReferenceActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor),
 											FText::FromString(GetPrettyPackageName(ReferenceActorDescView)));
 
 		Errors->Add(CurrentError);

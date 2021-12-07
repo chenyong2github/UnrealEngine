@@ -32,6 +32,11 @@ ALevelBounds::ALevelBounds(const FObjectInitializer& ObjectInitializer)
 	bLevelBoundsDirty = true;
 	bUsingDefaultBounds = false;
 #endif
+
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
+
 }
 
 void ALevelBounds::PostLoad()

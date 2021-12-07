@@ -66,12 +66,12 @@ struct FActorContainerID
 
 #if WITH_EDITOR
 /**
- * List of actors bound together based on clustering rules. (mainly object references)
+ * List of actors bound together based on clustering rules (mainly object references)
  */
 struct FActorCluster
 {
 	TSet<FGuid>					Actors;
-	EActorGridPlacement			GridPlacement;
+	bool						bIsSpatiallyLoaded;
 	FName						RuntimeGrid;
 	FBox						Bounds;
 	TSet<const UDataLayer*>		DataLayers;
@@ -80,8 +80,6 @@ struct FActorCluster
 	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView);
 	void Add(const FActorCluster& InActorCluster, const TMap<FGuid, FWorldPartitionActorDescView>& InActorDescViewMap);
 };
-
-struct FActorClusterInstance;
 
 /**
  * Instance of a container (level) with specific instance properties (transform, id, datalayers) 

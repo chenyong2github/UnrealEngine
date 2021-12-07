@@ -683,15 +683,6 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 	LevelToSpawnIn->Actors.Add( Actor );
 	LevelToSpawnIn->ActorsForGC.Add(Actor);
 
-#if WITH_EDITOR
-	// Set actor's partition placement
-	EActorGridPlacement DefaultGridPlacement = Class->GetDefaultObject<AActor>()->GetDefaultGridPlacement();
-	if (DefaultGridPlacement != EActorGridPlacement::None)
-	{
-		Actor->SetGridPlacement(DefaultGridPlacement);
-	}
-#endif
-
 #if PERF_SHOW_MULTI_PAWN_SPAWN_FRAMES
 	if( Cast<APawn>(Actor) )
 	{

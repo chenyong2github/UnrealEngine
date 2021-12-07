@@ -44,7 +44,6 @@ public:
 
 private:
 	void GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
-	EActorGridPlacement GetLevelGridPlacement(ULevel* Level, EActorGridPlacement DefaultGridPlacement);
 
 protected:
 	virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
@@ -102,9 +101,6 @@ protected:
 
 	UPROPERTY(Config)
 	TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass;
-
-	UPROPERTY(Config)
-	TMap<FName, EActorGridPlacement> LevelsGridPlacement;
 
 	// Levels excluded from conversion.
 	UPROPERTY(Config)

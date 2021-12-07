@@ -92,17 +92,6 @@ void AWorldPartitionHLOD::RerunConstructionScripts()
 
 #if WITH_EDITOR
 
-EActorGridPlacement AWorldPartitionHLOD::GetGridPlacement() const
-{
-	return SubActorsHLODLayer && SubActorsHLODLayer->IsAlwaysLoaded() ? EActorGridPlacement::AlwaysLoaded : Super::GetGridPlacement();
-}
-
-EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
-{
-	// Overriden as AActor::GetDefaultGridPlacement() will mark all actors that are not placeable as AlwaysLoaded...
-	return EActorGridPlacement::None;
-}
-
 TUniquePtr<FWorldPartitionActorDesc> AWorldPartitionHLOD::CreateClassActorDesc() const
 {
 	return TUniquePtr<FWorldPartitionActorDesc>(new FHLODActorDesc());

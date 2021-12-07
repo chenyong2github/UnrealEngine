@@ -21,6 +21,10 @@ AZoneGraphData::AZoneGraphData(const FObjectInitializer& ObjectInitializer)
 	RenderingComp->SetVisibility(bEnableDrawing);
 	RootComponent = RenderingComp;
 #endif
+
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
 }
 
 

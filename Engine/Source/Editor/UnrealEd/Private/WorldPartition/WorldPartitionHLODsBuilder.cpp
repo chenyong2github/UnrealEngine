@@ -586,7 +586,7 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 	{
 		FString				Name;
 		FName				RuntimeGrid;
-		EActorGridPlacement GridPlacement = EActorGridPlacement::None;
+		bool				bIsSpatiallyLoaded = false;
 		uint64				GridLocationZ = 0;
 		uint64				GridLocationX = 0;
 		uint64				GridLocationY = 0;
@@ -612,7 +612,7 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 
 		static FString GetHeaderCSVString()
 		{
-			return TEXT("Name, RuntimeGrid, GridPlacement, GridLocationZ, GridLocationX, GridLocationY, DataLayers, HLODType, InstanceCount, NaniteTriangleCount, NaniteVertexCount, TriangleCount, VertexCount, UVChannelCount, BaseColorTextureSize, NormalTextureSize, MRSTextureSize, EmissiveTextureSize, MeshResourceSize, TexturesResourceSize, DiskSize");
+			return TEXT("Name, RuntimeGrid, SpatiallyLoaded, GridLocationZ, GridLocationX, GridLocationY, DataLayers, HLODType, InstanceCount, NaniteTriangleCount, NaniteVertexCount, TriangleCount, VertexCount, UVChannelCount, BaseColorTextureSize, NormalTextureSize, MRSTextureSize, EmissiveTextureSize, MeshResourceSize, TexturesResourceSize, DiskSize");
 		}
 
 		FString ToCSVString() const
@@ -620,7 +620,7 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 			return FString::Printf(TEXT("%s, %s, %s, %d, %d, %d, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d"), 
 				*Name, 
 				*RuntimeGrid.ToString(),
-				*StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)GridPlacement),
+				bIsSpatiallyLoaded ? TEXT("true") : TEXT("false"),
 				GridLocationZ, GridLocationX, GridLocationY,
 				*DataLayers,
 				*StaticEnum<EHLODLayerType>()->GetNameStringByValue((int64)HLODType),
@@ -644,7 +644,7 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 
 		HLODStat.Name = HLODActor->GetActorLabel();
 		HLODStat.RuntimeGrid = HLODActor->GetRuntimeGrid();
-		HLODStat.GridPlacement = HLODActor->GetGridPlacement();
+		HLODStat.bIsSpatiallyLoaded = HLODActor->GetIsSpatiallyLoaded();
 		HLODActor->GetGridIndices(HLODStat.GridLocationX, HLODStat.GridLocationY, HLODStat.GridLocationZ);
 		HLODStat.DataLayers = *FString::JoinBy(HLODActor->GetDataLayerObjects(), TEXT("| "), [](const UDataLayer* DataLayer) { return DataLayer->GetDataLayerLabel().ToString(); });
 		HLODStat.HLODType = HLODActor->GetSubActorsHLODLayer()->GetLayerType();

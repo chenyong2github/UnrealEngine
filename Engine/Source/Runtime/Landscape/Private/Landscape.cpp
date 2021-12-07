@@ -1094,8 +1094,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITORONLY_DATA
 	LandscapeProxies.Add(this);
-
-	GridPlacement = EActorGridPlacement::Location;
 #endif
 }
 
@@ -1122,6 +1120,7 @@ ALandscape::ALandscape(const FObjectInitializer& ObjectInitializer)
 	bLandscapeLayersAreInitialized = false;
 	LandscapeEdMode = nullptr;
 	bGrassUpdateEnabled = true;
+	bIsSpatiallyLoaded = false;
 #endif // WITH_EDITORONLY_DATA
 }
 

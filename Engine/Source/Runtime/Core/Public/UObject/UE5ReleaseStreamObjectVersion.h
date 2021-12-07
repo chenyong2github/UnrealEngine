@@ -63,6 +63,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Add support for linking to the attached parent actor in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeAttachParent,
 
+		// Converted AActor GridPlacement to bIsSpatiallyLoaded flag
+		ConvertedActorGridPlacementToSpatiallyLoadedFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

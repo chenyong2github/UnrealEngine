@@ -60,8 +60,7 @@ public:
 	void BuildHLOD(bool bForceBuild = false);
 	uint32 GetHLODHash() const;
 
-	virtual EActorGridPlacement GetGridPlacement() const override;
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif // WITH_EDITOR
 
 protected:

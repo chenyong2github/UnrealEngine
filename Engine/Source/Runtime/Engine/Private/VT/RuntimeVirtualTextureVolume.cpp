@@ -22,6 +22,8 @@ ARuntimeVirtualTextureVolume::ARuntimeVirtualTextureVolume(const FObjectInitiali
 	Box->CanCharacterStepUpOn = ECanBeCharacterBase::ECB_No;
 	Box->SetGenerateOverlapEvents(false);
 	Box->SetupAttachment(VirtualTextureComponent);
+
+	bIsSpatiallyLoaded = false;
 #endif
 }
 

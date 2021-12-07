@@ -272,16 +272,6 @@ void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(ULevel
 	}
 }
 
-EActorGridPlacement UWorldPartitionConvertCommandlet::GetLevelGridPlacement(ULevel* Level, EActorGridPlacement DefaultGridPlacement)
-{
-	FString WorldPath = Level->GetPackage()->GetName();
-	if (EActorGridPlacement* CustomLevelGridPlacement = LevelsGridPlacement.Find(*WorldPath))
-	{
-		return *CustomLevelGridPlacement;
-	}
-	return DefaultGridPlacement;
-}
-
 bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion);
@@ -292,16 +282,13 @@ bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(ULevel
 	if (bOnlyMergeSubLevels || StreamingLevel->ShouldBeAlwaysLoaded() || StreamingLevel->bDisableDistanceStreaming)
 	{
 		FString WorldPath = SubLevel->GetPackage()->GetName();
-		if (!LevelsGridPlacement.Contains(*WorldPath))
-		{
-			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s streaming level %s"), StreamingLevel->bDisableDistanceStreaming ? TEXT("non distance-based") : TEXT("always loaded"), *StreamingLevel->GetWorldAssetPackageName());
+		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s streaming level %s"), StreamingLevel->bDisableDistanceStreaming ? TEXT("non distance-based") : TEXT("always loaded"), *StreamingLevel->GetWorldAssetPackageName());
 
-			for (AActor* Actor: SubLevel->Actors)
+		for (AActor* Actor: SubLevel->Actors)
+		{
+			if (Actor)
 			{
-				if (Actor)
-				{
-					Actor->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
-				}
+				Actor->SetIsSpatiallyLoaded(false);
 			}
 		}
 	}
@@ -960,7 +947,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		}
 	};
 
-	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, TArray<AActor*>& Actors, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
+	auto PrepareLevelActors = [this, PartitionFoliage, PartitionLandscape, MainWorldDataLayers](ULevel* Level, TArray<AActor*>& Actors, bool bMainLevel)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareLevelActors);
 
@@ -990,18 +977,14 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 						check(LandscapeInfo);
 						LandscapeInfos.Add(LandscapeInfo);
 					}
-					// Only override default grid placement on actors that are not marked as always loaded
-					else if (Actor->GetGridPlacement() != EActorGridPlacement::AlwaysLoaded)
+					// Only override default grid placement on actors that are spatially loaded
+					else if (Actor->GetIsSpatiallyLoaded())
 					{
 						const FBox ActorBounds = Actor->GetStreamingBounds();
 
 						if (!WorldBounds.IsInside(ActorBounds))
 						{
-							Actor->SetGridPlacement(EActorGridPlacement::AlwaysLoaded);
-						}
-						else
-						{
-							Actor->SetGridPlacement(DefaultGridPlacement);
+							Actor->SetIsSpatiallyLoaded(false);
 						}
 					}
 
@@ -1083,7 +1066,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	// Prepare levels for conversion
 	DetachDependantLevelPackages(MainLevel);
-	PrepareLevelActors(MainLevel, MainLevel->Actors, true, GetLevelGridPlacement(MainLevel, SubLevelsToConvert.Num() ? EActorGridPlacement::AlwaysLoaded : EActorGridPlacement::Bounds));
+	PrepareLevelActors(MainLevel, MainLevel->Actors, true);
 	PackagesToSave.Add(MainLevel->GetPackage());
 
 	if (bConversionSuffix)
@@ -1227,7 +1210,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s"), *SubWorld->GetName());
 
-		PrepareLevelActors(SubLevel, ActorsToConvert, false, GetLevelGridPlacement(SubLevel, EActorGridPlacement::Bounds));
+		PrepareLevelActors(SubLevel, ActorsToConvert, false);
 
 		for(AActor* Actor: ActorsToConvert)
 		{

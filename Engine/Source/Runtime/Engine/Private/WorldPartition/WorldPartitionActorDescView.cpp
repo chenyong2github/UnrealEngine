@@ -8,13 +8,13 @@
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView()
 	: ActorDesc(nullptr)
-	, GridPlacement(EActorGridPlacement::None)
+	, bIsForcedNonSpatiallyLoaded(false)
 	, bInvalidDataLayers(false)
 {}
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc)
 	: ActorDesc(InActorDesc)
-	, GridPlacement(InActorDesc->GetGridPlacement())
+	, bIsForcedNonSpatiallyLoaded(false)
 	, bInvalidDataLayers(false)
 {}
 
@@ -38,11 +38,6 @@ FVector FWorldPartitionActorDescView::GetOrigin() const
 	return ActorDesc->GetOrigin();
 }
 
-EActorGridPlacement FWorldPartitionActorDescView::GetGridPlacement() const
-{
-	return GridPlacement;
-}
-
 FName FWorldPartitionActorDescView::GetRuntimeGrid() const
 {
 	return ActorDesc->GetRuntimeGrid();
@@ -51,6 +46,11 @@ FName FWorldPartitionActorDescView::GetRuntimeGrid() const
 bool FWorldPartitionActorDescView::GetActorIsEditorOnly() const
 {
 	return ActorDesc->GetActorIsEditorOnly();
+}
+
+bool FWorldPartitionActorDescView::GetIsSpatiallyLoaded() const
+{
+	return bIsForcedNonSpatiallyLoaded ? false : ActorDesc->GetIsSpatiallyLoaded();
 }
 
 bool FWorldPartitionActorDescView::GetLevelBoundsRelevant() const
@@ -130,12 +130,12 @@ FName FWorldPartitionActorDescView::GetActorLabelOrName() const
 	return ActorDesc->GetActorLabelOrName();
 }
 
-void FWorldPartitionActorDescView::SetGridPlacement(EActorGridPlacement InGridPlacement)
+void FWorldPartitionActorDescView::SetForcedNonSpatiallyLoaded()
 {
-	if (GridPlacement != InGridPlacement)
+	if (!bIsForcedNonSpatiallyLoaded)
 	{
-		GridPlacement = InGridPlacement;
-		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' grid placement changed to %s"), *GetActorLabel().ToString(), *StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)InGridPlacement));
+		bIsForcedNonSpatiallyLoaded = true;
+		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' forced to be non-spatially loaded"), *GetActorLabel().ToString());
 	}
 }
 
