@@ -130,10 +130,16 @@ namespace Chaos
 
 		static float CalculateSlipAngle(float Y, float X)
 		{
-			float Value = FMath::Abs(FMath::Atan2(Y, X));
-			if (Value > HALF_PI)
+			float Value = 0.0f;
+
+			float LateralSpeedThreshold = 0.05f;
+			if (FMath::Abs(Y) > LateralSpeedThreshold)
 			{
-				Value = PI - Value;
+				Value = FMath::Abs(FMath::Atan2(Y, X));
+				if (Value > HALF_PI)
+				{
+					Value = PI - Value;
+				}
 			}
 
 			return Value;
