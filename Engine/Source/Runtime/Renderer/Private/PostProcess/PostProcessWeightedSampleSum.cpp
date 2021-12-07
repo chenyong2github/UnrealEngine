@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessWeightedSampleSum.h"
+#include "PixelShaderUtils.h"
 
 // maximum number of sample using the shader that has the dynamic loop
 #define MAX_FILTER_SAMPLES	128
@@ -252,16 +253,37 @@ public:
 	{}
 };
 
+class FFilterPS : public FFilterShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FFilterPS);
+	SHADER_USE_PARAMETER_STRUCT(FFilterPS, FFilterShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<FStaticSampleCount, FCombineAdditive, FManualUVBorder>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FFilterParameters, Filter)
+		SHADER_PARAMETER(FScreenTransform, SvPositionToTextureUV)
+		SHADER_PARAMETER(FScreenTransform, ViewportUVToTextureUV)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		return FFilterShader::ShouldCompilePermutation(Parameters.Platform, PermutationVector.Get<FStaticSampleCount>());
+	}
+};
+
 class FFilterVS : public FFilterShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FFilterVS);
-
-	// FDrawRectangleParameters is filled by DrawScreenPass.
-	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FFilterVS, FFilterShader);
+	SHADER_USE_PARAMETER_STRUCT(FFilterVS, FFilterShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<FStaticSampleCount>;
-	using FParameters = FFilterParameters;
+	using FParameters = FFilterPS::FParameters;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -281,28 +303,6 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FFilterVS, "/Engine/Private/FilterVertexShader.usf", "MainVS", SF_Vertex);
-
-class FFilterPS : public FFilterShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FFilterPS);
-	SHADER_USE_PARAMETER_STRUCT(FFilterPS, FFilterShader);
-
-	using FPermutationDomain = TShaderPermutationDomain<FStaticSampleCount, FCombineAdditive, FManualUVBorder>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FFilterParameters, Filter)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		const FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-		return FFilterShader::ShouldCompilePermutation(Parameters.Platform, PermutationVector.Get<FStaticSampleCount>());
-	}
-};
-
 IMPLEMENT_GLOBAL_SHADER(FFilterPS, "/Engine/Private/FilterPixelShader.usf", "MainPS", SF_Pixel);
 
 class FFilterCS : public FFilterShader
@@ -413,6 +413,11 @@ FScreenPassTexture AddGaussianBlurPass(
 	{
 		FFilterPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFilterPS::FParameters>();
 		GetFilterParameters(PassParameters->Filter, FilterInput, AdditiveInput, SampleOffsets, SampleWeights);
+		PassParameters->ViewportUVToTextureUV = (
+			FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(Filter), FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TextureUV));
+		PassParameters->SvPositionToTextureUV = (
+			FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(Output), FScreenTransform::ETextureBasis::TexelPosition, FScreenTransform::ETextureBasis::ViewportUV) *
+			PassParameters->ViewportUVToTextureUV);
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
 		FFilterPS::FPermutationDomain PixelPermutationVector;
@@ -437,20 +442,19 @@ FScreenPassTexture AddGaussianBlurPass(
 				PassParameters,
 				[VertexShader, PixelShader, PassParameters] (FRHICommandList& RHICmdList)
 			{
-				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->Filter);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 			});
 		}
 		else
 		{
-			AddDrawScreenPass(
+			FPixelShaderUtils::AddFullscreenPass(
 				GraphBuilder,
+				View.ShaderMap,
 				RDG_EVENT_NAME("GaussianBlur.%s %dx%d (PS, Dynamic)", Name, OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
-				View,
-				OutputViewport,
-				FScreenPassTextureViewport(Filter),
 				PixelShader,
-				PassParameters);
+				PassParameters,
+				Output.ViewRect);
 		}
 	}
 

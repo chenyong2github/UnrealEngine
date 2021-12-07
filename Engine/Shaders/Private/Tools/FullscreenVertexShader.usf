@@ -7,9 +7,9 @@
 #include "../Common.ush"
 
 void MainVS(
-	float2 InPosition : ATTRIBUTE0,
-	float2 InUV       : ATTRIBUTE1, // TODO: kill
-	out float4 Position : SV_POSITION)
+	float2 ViewportUV : ATTRIBUTE0,
+	float2 UV         : ATTRIBUTE1, // TODO: kill
+	out float4 OutPosition : SV_POSITION)
 {
-	Position = float4(InPosition.x * 2.0 - 1.0, 1.0 - 2.0 * InPosition.y, 0, 1);
+	OutPosition = float4(ViewportUVToScreenPos(ViewportUV), 0, 1);
 }

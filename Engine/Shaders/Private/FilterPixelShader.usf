@@ -29,6 +29,7 @@
 #define USE_DYNAMIC_LOOP (STATIC_SAMPLE_COUNT == 0)
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Filter)
+
 SamplerState Filter_Sampler;
 Texture2D Filter_Texture; 
 
@@ -68,12 +69,18 @@ float4 SampleAdditiveTexture(float2 UV)
 
 #if USE_DYNAMIC_LOOP
 
+FScreenTransform SvPositionToTextureUV;
+
 float4 SampleOffsets[PACKED_SAMPLE_COUNT_MAX];
 float4 SampleWeights[SAMPLE_COUNT_MAX];
 int SampleCount;
 
-void MainPS(noperspective float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
+void MainPS(
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
 {
+	float2 InUV = ApplyScreenTransform(SvPosition.xy, SvPositionToTextureUV);
+
 	float4 Color = 0;
 
 	int SampleIndex = 0;
