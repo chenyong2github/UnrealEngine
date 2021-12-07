@@ -501,6 +501,11 @@ namespace Chaos
 		FMatrix33 InvI() const { return State.InvMassScale * Body->InvI(); }
 
 		/**
+		 * @brief The scaled local space inverse inertia
+		*/
+		FVec3 InvILocal() const { return State.InvMassScale * Body->InvILocal(); }
+
+		/**
 		 * @brief Whether the body is dynamic (i.e., has a finite mass) after InvMassScale is applied
 		*/
 		inline bool IsDynamic() const { return (Body->InvM() != 0) && (InvMScale() != 0); }

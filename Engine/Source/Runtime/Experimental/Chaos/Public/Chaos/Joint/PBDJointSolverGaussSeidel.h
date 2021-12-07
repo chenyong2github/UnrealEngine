@@ -104,12 +104,12 @@ namespace Chaos
 
 		inline FReal InvM(int32 BodyIndex) const
 		{
-			return Body(BodyIndex).InvM();
+			return ConditionedInvMs[BodyIndex];
 		}
 
 		inline FMatrix33 InvI(int32 BodyIndex) const
 		{
-			return Body(BodyIndex).InvI();
+			return ConditionedInvIs[BodyIndex];
 		}
 
 		inline const FVec3& GetNetLinearImpulse() const
@@ -704,6 +704,10 @@ namespace Chaos
 		// XPBD Initial iteration world-space body state
 		FVec3 InitConnectorXs[MaxConstrainedBodies];		// World-space joint connector positions
 		FRotation3 InitConnectorRs[MaxConstrainedBodies];	// World-space joint connector rotations
+
+		// Conditioned InvM and InvI
+		FReal ConditionedInvMs[MaxConstrainedBodies];
+		FMatrix33 ConditionedInvIs[MaxConstrainedBodies];
 
 		// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
 		FVec3 NetLinearImpulse;
