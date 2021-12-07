@@ -5,7 +5,6 @@
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Animation/MorphTarget.h"
 
-extern int32 GForceRecomputeTangents;
 extern int32 GSkinCacheRecomputeTangents;
 
 void FMorphTargetVertexInfoBuffers::InitRHI()
@@ -215,7 +214,7 @@ void FMorphTargetVertexInfoBuffers::InitMorphResources(EShaderPlatform ShaderPla
 	MinimumValuePerMorph.Empty(MorphTargets.Num());
 
 	// Mark vertices that are in a section that doesn't recompute tangents as needing tangents
-	const int32 RecomputeTangentsMode = GForceRecomputeTangents > 0 ? 1 : GSkinCacheRecomputeTangents;
+	const int32 RecomputeTangentsMode = GSkinCacheRecomputeTangents;
 	TBitArray<> VertexNeedsTangents;
 	VertexNeedsTangents.Init(false, NumVertices);
 	for (const FSkelMeshRenderSection& RenderSection : RenderSections)
