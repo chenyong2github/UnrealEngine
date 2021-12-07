@@ -213,7 +213,6 @@ void StencilMainPS(
 #if SHADER_CLEAR_MATERIAL_BUFFER
 
 RWTexture2DArray<uint> MaterialTextureArrayUAV;
-RWTexture2D<uint> TopLayerTextureUAV;
 RWTexture2D<uint2> SSSTextureUAV;
 uint MaxBytesPerPixel;
 int2 TiledViewBufferResolution;
@@ -235,8 +234,6 @@ void ClearMaterialBufferMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	const uint FirstSlice = 0;
 	MaterialTextureArrayUAV[uint3(DispatchThreadId.xy, FirstSlice)] = PackedStrataHeader;
-
-	TopLayerTextureUAV[DispatchThreadId.xy] = 0;
 
 	FStrataSubsurfaceData StrataSubsurfaceData = (FStrataSubsurfaceData)0;
 	SSSTextureUAV[DispatchThreadId.xy] = StrataPackSSSData(StrataSubsurfaceData);
