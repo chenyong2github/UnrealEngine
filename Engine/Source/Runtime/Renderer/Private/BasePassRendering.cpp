@@ -1050,98 +1050,94 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderBasePass);
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderBasePass, FColor::Emerald);
 
-	const bool bDebugViewActive = bRenderLightmapDensity || ViewFamily.UseDebugViewPS();
-
-    if (bRenderLightmapDensity)
+#if WITH_DEBUG_VIEW_MODES
+	Nanite::EDebugViewMode NaniteDebugViewMode = Nanite::EDebugViewMode::None;
+	if (ViewFamily.EngineShowFlags.Wireframe)
 	{
-		// Override the base pass with the lightmap density pass if the viewmode is enabled.
-		RenderLightMapDensities(GraphBuilder, Views, BasePassRenderTargets);
+		NaniteDebugViewMode = Nanite::EDebugViewMode::Wireframe;
+	}
+	else if (bRenderLightmapDensity)
+	{
+		NaniteDebugViewMode = Nanite::EDebugViewMode::LightmapDensity;
 	}
 	else if (ViewFamily.UseDebugViewPS())
 	{
-		// Override the base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
-		RenderDebugViewMode(GraphBuilder, Views, SceneTextures.QuadOverdraw, BasePassRenderTargets);
-	}
-
-	// Emit Nanite depth if Nanite is enabled and there was not an earlier pre-pass
-	const bool bEmitNaniteDepth = bNaniteEnabled && !ShouldRenderPrePass();
-	if (bEmitNaniteDepth)
-	{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			FViewInfo& View = Views[ViewIndex];
-			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-            Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
-            
-		    // Emit velocity with depth if not writing it in base pass.
-		    FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
-    
-		    const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
-    
-		    Nanite::EmitDepthTargets(
-			    GraphBuilder,
-			    *Scene,
-			    View,
-			    RasterResults.PageConstants,
-			    RasterResults.VisibleClustersSWHW,
-			    RasterResults.ViewsBuffer,
-			    SceneTextures.Depth.Target,
-			    RasterResults.VisBuffer64,
-			    VelocityBuffer,
-			    RasterResults.MaterialDepth,
-			    RasterResults.MaterialResolve,
-			    ShouldRenderPrePass(),
-			    bEmitStencilMask
-		    );
-		}
-	}
-
-	// Override the Nanite base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
-	if (bDebugViewActive)
-	{
-		// TODO: Nanite support for bRenderLightmapDensity
-	    if (bNaniteEnabled && ViewFamily.UseDebugViewPS())
+	    switch (ViewFamily.GetDebugViewShaderMode())
 	    {
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-			{
-				FViewInfo& View = Views[ViewIndex];
-				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-				#if WITH_DEBUG_VIEW_MODES
-				Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
-				Nanite::RenderDebugViewMode(
-					GraphBuilder,
-					View.NaniteMaterialPassCommands,
-					*this,
-					SceneTextures,
-					DBufferTextures,
-					*Scene,
-					View,
-					ViewFamily,
-					RasterResults,
-					SceneTextures.QuadOverdraw,
-					BasePassRenderTargets
-				);
-				#endif
-			}
-		}
+	    case DVSM_ShaderComplexity:							// Default shader complexity viewmode
+	    case DVSM_ShaderComplexityContainedQuadOverhead:	// Show shader complexity with quad overdraw scaling the PS instruction count.
+	    case DVSM_ShaderComplexityBleedingQuadOverhead:		// Show shader complexity with quad overdraw bleeding the PS instruction count over the quad.
+	    case DVSM_QuadComplexity:							// Show quad overdraw only.
+		    NaniteDebugViewMode = Nanite::EDebugViewMode::ShaderComplexity;
+		    break;
+    
+	    default:
+		    break;
+	    }
 	}
-	else
-	{
-		SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
-		RDG_EVENT_SCOPE(GraphBuilder, "BasePass");
-		RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
+#endif
 
-		// Nanite materials do not currently support most debug view modes.
-		const bool bShouldDrawNaniteBasePass = bNaniteEnabled && !ViewFamily.EngineShowFlags.ShaderComplexity && !ViewFamily.EngineShowFlags.Wireframe;
-		const bool bNeedsPrePass = ShouldRenderPrePass();
-		auto RenderNaniteBasePass = [&](FViewInfo& View, int32 ViewIndex)
+	FRDGTextureRef NaniteColorTarget = SceneTextures.Color.Target;
+	FRDGTextureRef NaniteDepthTarget = SceneTextures.Depth.Target;
+#if WITH_EDITOR && WITH_DEBUG_VIEW_MODES
+	if (NaniteDebugViewMode == Nanite::EDebugViewMode::Wireframe)
+	{
+		NaniteColorTarget = SceneTextures.EditorPrimitiveColor;
+		NaniteDepthTarget = SceneTextures.EditorPrimitiveDepth;
+	}
+#endif
+
+	auto RenderNaniteDepthPass = [&](FViewInfo& View, int32 ViewIndex)
+	{
+		// Emit Nanite depth if there was not an earlier depth pre-pass
+		if (!ShouldRenderPrePass())
 		{
 			Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
 
+			// Emit velocity with depth if not writing it in base pass.
+			FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
+
+			const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
+
+			Nanite::EmitDepthTargets(
+				GraphBuilder,
+				*Scene,
+				View,
+				RasterResults.PageConstants,
+				RasterResults.VisibleClustersSWHW,
+				RasterResults.ViewsBuffer,
+				SceneTextures.Depth.Target,
+				RasterResults.VisBuffer64,
+				VelocityBuffer,
+				RasterResults.MaterialDepth,
+				RasterResults.MaterialResolve,
+				ShouldRenderPrePass(),
+				bEmitStencilMask
+			);
+		}
+	};
+
+	auto RenderNaniteBasePass = [&](FViewInfo& View, int32 ViewIndex)
+	{
+		Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
+	#if WITH_DEBUG_VIEW_MODES
+		if (NaniteDebugViewMode != Nanite::EDebugViewMode::None)
+		{
+			Nanite::RenderDebugViewMode(
+				GraphBuilder,
+				NaniteDebugViewMode,
+				*Scene,
+				View,
+				ViewFamily,
+				RasterResults,
+				NaniteColorTarget,
+				NaniteDepthTarget,
+				SceneTextures.QuadOverdraw
+			);
+		}
+		else
+	#endif
+		{
 			Nanite::DrawBasePass(
 				GraphBuilder,
 				View.NaniteMaterialPassCommands,
@@ -1152,7 +1148,43 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				View,
 				RasterResults
 			);
-		};
+		}
+	};
+
+    if (bRenderLightmapDensity || ViewFamily.UseDebugViewPS())
+	{
+		if (bRenderLightmapDensity)
+		{
+			// Override the base pass with the lightmap density pass if the viewmode is enabled.
+			RenderLightMapDensities(GraphBuilder, Views, BasePassRenderTargets);
+		}
+		else if (ViewFamily.UseDebugViewPS())
+		{
+			// Override the base pass with one of the debug view shader mode (see EDebugViewShaderMode) if required.
+			RenderDebugViewMode(GraphBuilder, Views, SceneTextures.QuadOverdraw, BasePassRenderTargets);
+		}
+
+		// Debug view support for Nanite
+		if (bNaniteEnabled)
+		{
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+				RenderNaniteDepthPass(View, ViewIndex);
+				RenderNaniteBasePass(View, ViewIndex);
+			}
+		}
+	}
+	else
+	{
+		SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
+		RDG_EVENT_SCOPE(GraphBuilder, "BasePass");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
+
+		const bool bNeedsPrePass = ShouldRenderPrePass();
 
 		if (bParallelBasePass)
 		{
@@ -1190,8 +1222,9 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 					});
 				}				
 
-				if (bShouldDrawNaniteBasePass)
+				if (bNaniteEnabled)
 				{
+					RenderNaniteDepthPass(View, ViewIndex);
 					RenderNaniteBasePass(View, ViewIndex);
 				}
 
@@ -1247,14 +1280,16 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						PassParameters,
 						ERDGPassFlags::Raster,
 						[this, &View, PassParameters](FRHICommandList& RHICmdList)
-					{
-						SetStereoViewport(RHICmdList, View, 1.0f);
-						View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
-					});
+						{
+							SetStereoViewport(RHICmdList, View, 1.0f);
+							View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+						}
+					);
 				}
 
-				if (bShouldDrawNaniteBasePass)
+				if (bNaniteEnabled)
 				{
+					RenderNaniteDepthPass(View, ViewIndex);
 					RenderNaniteBasePass(View, ViewIndex);
 				}
 
@@ -1275,10 +1310,11 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 						SkyPassParameters,
 						ERDGPassFlags::Raster,
 						[this, &View, SkyPassParameters](FRHICommandList& RHICmdList)
-					{
-						SetStereoViewport(RHICmdList, View, 1.0f);
-						View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList, &SkyPassParameters->InstanceCullingDrawParams);
-					});
+						{
+							SetStereoViewport(RHICmdList, View, 1.0f);
+							View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList, &SkyPassParameters->InstanceCullingDrawParams);
+						}
+					);
 				}
 			}
 		}

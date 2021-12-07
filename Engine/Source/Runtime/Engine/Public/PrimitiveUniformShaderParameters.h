@@ -50,8 +50,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,		InstancePayloadDataOffset)
 	SHADER_PARAMETER(FVector3f,		InstanceLocalBoundsExtent)
 	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
-	SHADER_PARAMETER(FVector3f,		Padding)
+	SHADER_PARAMETER(FVector3f,		WireframeColor)											// Only needed for editor/development
 	SHADER_PARAMETER(uint32,		NaniteImposterIndex)
+	SHADER_PARAMETER(FVector3f,		LevelColor)												// Only needed for editor/development
+	SHADER_PARAMETER(uint32,		Padding)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -95,6 +97,10 @@ public:
 		bHasPreSkinnedLocalBounds					= false;
 		bHasPreviousLocalToWorld					= false;
 		bHasInstanceLocalBounds						= false;
+
+		// Default colors
+		Parameters.WireframeColor					= FVector3f(1.0f, 1.0f, 1.0f);
+		Parameters.LevelColor						= FVector3f(1.0f, 1.0f, 1.0f);
 
 		// Invalid indices
 		Parameters.LightmapDataIndex				= INDEX_NONE;
@@ -214,6 +220,13 @@ public:
 		return *this;
 	}
 
+	inline FPrimitiveUniformShaderParametersBuilder& EditorColors(const FLinearColor& InWireframeColor, const FLinearColor& InLevelColor)
+	{
+		Parameters.WireframeColor = FVector3f(InWireframeColor.R, InWireframeColor.G, InWireframeColor.B);
+		Parameters.LevelColor = FVector3f(InLevelColor.R, InLevelColor.G, InLevelColor.B);
+		return *this;
+	}
+
 	inline FPrimitiveUniformShaderParametersBuilder& CustomPrimitiveData(const FCustomPrimitiveData* InCustomPrimitiveData)
 	{
 		// If this primitive has custom primitive data, set it
@@ -326,6 +339,7 @@ private:
 	FMatrix AbsolutePreviousLocalToWorld;
 	FVector AbsoluteObjectWorldPosition;
 	FVector AbsoluteActorWorldPosition;
+
 	float ObjectRadius;
 
 	uint32 LightingChannels : 3;
@@ -402,7 +416,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match PRIMITIVE_SCENE_DATA_STRIDE in SceneData.ush
-	enum { DataStrideInFloat4s = 39 };
+	enum { DataStrideInFloat4s = 40 };
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 

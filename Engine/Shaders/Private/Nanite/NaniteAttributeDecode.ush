@@ -493,3 +493,26 @@ FTexCoord GetTexCoord(
 
 	return InterpolateTexCoord(TexCoord0, TexCoord1, TexCoord2, Barycentrics);	
 }
+
+// TODO: Move to an appropriate common location outside of Nanite
+uint LowerBound(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
+{
+	uint Index = 0;
+	uint Width = BufferCount >> 1;
+	
+	UNROLL
+	while (Width > 0)
+	{
+		Index += (Key < SearchBuffer[Index + Width]) ? 0 : Width;
+		Width = Width >> 1;
+	}
+	
+	return Index;
+}
+
+// TODO: Move to an appropriate common location outside of Nanite
+bool BinarySearch(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
+{
+	uint Index = LowerBound(SearchBuffer, BufferCount, Key);
+	return SearchBuffer[Index] == Key;
+}
