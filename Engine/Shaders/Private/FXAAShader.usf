@@ -5,6 +5,8 @@
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Input)
 
+FScreenTransform SvPositionToInputTextureUV;
+
 Texture2D Input_Texture;
 SamplerState Input_Sampler;
 
@@ -38,21 +40,6 @@ SamplerState Input_Sampler;
 	#define FXAA_360_OPT 0
 #endif
 
-/*-----------------------------------------------------------------------------
-	FXAA vertex shader
------------------------------------------------------------------------------*/
-void FxaaVS(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 UV : ATTRIBUTE1,
-	out noperspective float2 OutCenterUV : TEXCOORD0,
-	out noperspective float4 OutCornersUV : TEXCOORD1,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	DrawRectangle(InPosition, UV, OutPosition, OutCenterUV);
-	OutCornersUV = float4(OutCenterUV.xy - 0.5f * Input_ExtentInverse, OutCenterUV.xy + 0.5f * Input_ExtentInverse);
-}
-
 
 /*-----------------------------------------------------------------------------
 	FXAA pixel shader
@@ -82,12 +69,17 @@ void FxaaVS(
 	// include NVIDIA FXAA source
 	#include "Fxaa3_11.ush"
 
-	void FxaaPS(noperspective float2 TexCenter : TEXCOORD0, noperspective float4 TexCorners : TEXCOORD1, out float4 OutColor : SV_Target0)
+	void FxaaPS(
+		float4 SvPosition : SV_POSITION,
+		out float4 OutColor : SV_Target0)
 	{
 		FxaaTex TextureAndSampler;
 		TextureAndSampler.tex = Input_Texture;
 		TextureAndSampler.smpl = Input_Sampler;
 		TextureAndSampler.UVMinMax = float4(Input_UVViewportBilinearMin, Input_UVViewportBilinearMax);
+		
+		float2 TexCenter = ApplyScreenTransform(SvPosition.xy, SvPositionToInputTextureUV);
+		float4 TexCorners = float4(TexCenter - 0.5f * Input_ExtentInverse, TexCenter + 0.5f * Input_ExtentInverse);
 
 		OutColor = FxaaPixelShader(
 			TexCenter, TexCorners,
