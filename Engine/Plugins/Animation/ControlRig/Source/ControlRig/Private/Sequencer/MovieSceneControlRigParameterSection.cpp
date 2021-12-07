@@ -2614,7 +2614,7 @@ void UMovieSceneControlRigParameterSection::ClearAllParameters()
 int32 UMovieSceneControlRigParameterSection::GetActiveCategoryIndex(FName ControlName) const
 {
 	int32 CategoryIndex = INDEX_NONE;
-	FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ControlName);
+	const FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ControlName);
 	if (pChannelIndex != nullptr && ControlsMask[pChannelIndex->MaskIndex])
 	{
 		CategoryIndex = pChannelIndex->CategoryIndex;
