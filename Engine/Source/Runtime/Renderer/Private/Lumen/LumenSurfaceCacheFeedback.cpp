@@ -381,9 +381,9 @@ FRHIGPUBufferReadback* FLumenSurfaceCacheFeedback::GetLatestReadbackBuffer()
 	FRHIGPUBufferReadback* LatestReadbackBuffer = nullptr;
 
 	// Find latest buffer that is ready
-	uint32 Index = (ReadbackBuffersWriteIndex + MaxReadbackBuffers - ReadbackBuffersNumPending) % MaxReadbackBuffers;
 	while (ReadbackBuffersNumPending > 0)
 	{
+		uint32 Index = (ReadbackBuffersWriteIndex + MaxReadbackBuffers - ReadbackBuffersNumPending) % MaxReadbackBuffers;
 		if (ReadbackBuffers[Index]->IsReady())
 		{
 			--ReadbackBuffersNumPending;

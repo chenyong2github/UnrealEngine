@@ -729,9 +729,10 @@ FRHIGPUTextureReadback* FSceneViewState::FEyeAdaptationManager::GetLatestReadbac
 	FRHIGPUTextureReadback* LatestReadbackTexture = nullptr;
 
 	// Find latest texture that is ready
-	uint32 Index = (ReadbackBuffersWriteIndex + MAX_READBACK_BUFFERS - ReadbackBuffersNumPending) % MAX_READBACK_BUFFERS;
 	while (ReadbackBuffersNumPending > 0)
 	{
+		uint32 Index = (ReadbackBuffersWriteIndex + MAX_READBACK_BUFFERS - ReadbackBuffersNumPending) % MAX_READBACK_BUFFERS;
+
 		if (ExposureReadbackTextures[Index]->IsReady())
 		{
 			--ReadbackBuffersNumPending;
@@ -854,9 +855,10 @@ FRHIGPUBufferReadback* FSceneViewState::FEyeAdaptationManager::GetLatestReadback
 	FRHIGPUBufferReadback* LatestReadbackBuffer = nullptr;
 
 	// Find latest buffer that is ready
-	uint32 Index = (ReadbackBuffersWriteIndex + MAX_READBACK_BUFFERS - ReadbackBuffersNumPending) % MAX_READBACK_BUFFERS;
 	while (ReadbackBuffersNumPending > 0)
 	{
+		uint32 Index = (ReadbackBuffersWriteIndex + MAX_READBACK_BUFFERS - ReadbackBuffersNumPending) % MAX_READBACK_BUFFERS;
+
 		if (ExposureReadbackBuffers[Index]->IsReady())
 		{
 			--ReadbackBuffersNumPending;
