@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualizationJupiterBackend.h"
+#include "Virtualization/PayloadId.h"
 
 // TODO: Our libcurl implementation does not currently support MacOS
 // (not registering this will cause a fatal log error if the backend is actually used)
@@ -13,7 +14,6 @@
 #if WITH_MIRAGE_JUPITER_BACKEND
 
 #include "Async/TaskGraphInterfaces.h"
-#include "Virtualization/PayloadId.h"
 #include "Compression/CompressedBuffer.h"
 #include "Containers/StringConv.h"
 #include "Containers/Ticker.h"
