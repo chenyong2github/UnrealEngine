@@ -72,7 +72,9 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+constexpr int32 TRACE_TAG = 257;
 
+////////////////////////////////////////////////////////////////////////////////
 #define UE_MEMSCOPE(InTag)				FMemScope PREPROCESSOR_JOIN(MemScope,__LINE__)(InTag);
 #define UE_MEMSCOPE_PTR(InPtr)			FMemScopePtr PREPROCESSOR_JOIN(MemPtrScope,__LINE__)((uint64)InPtr);
 
