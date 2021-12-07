@@ -1638,9 +1638,9 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 	// Find latest most recent ready readback buffer
 	{
 		// Find latest buffer that is ready
-		uint32 Index = (ReadbackBuffersWriteIndex + MaxStreamingReadbackBuffers - ReadbackBuffersNumPending) % MaxStreamingReadbackBuffers;
 		while (ReadbackBuffersNumPending > 0)
 		{
+			uint32 Index = (ReadbackBuffersWriteIndex + MaxStreamingReadbackBuffers - ReadbackBuffersNumPending) % MaxStreamingReadbackBuffers;
 			if (StreamingRequestReadbackBuffers[Index]->IsReady())	//TODO: process all buffers or just the latest?
 			{
 				ReadbackBuffersNumPending--;

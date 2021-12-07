@@ -647,9 +647,9 @@ void FDistanceFieldSceneData::ProcessStreamingRequestsFromGPU(
 
 	{
 		// Find latest buffer that is ready
-		uint32 Index = (ReadbackBuffersWriteIndex + MaxStreamingReadbackBuffers - ReadbackBuffersNumPending) % MaxStreamingReadbackBuffers;
 		while (ReadbackBuffersNumPending > 0)
 		{
+			uint32 Index = (ReadbackBuffersWriteIndex + MaxStreamingReadbackBuffers - ReadbackBuffersNumPending) % MaxStreamingReadbackBuffers;
 			if (StreamingRequestReadbackBuffers[Index]->IsReady())	
 			{
 				ReadbackBuffersNumPending--;
