@@ -4537,7 +4537,7 @@ void UEditorEngine::OnPostSaveWorld(UWorld* World, FObjectPostSaveContext Object
 			{
 				// Put the map into the MRU and mark it as not dirty.
 
-				if ( bIsPersistentLevel )
+				if ( bIsPersistentLevel && FPackageName::IsValidLongPackageName(WorldPackage->GetName()))
 				{
 					// Set the map filename.
 					const FString Filename = FPackageName::LongPackageNameToFilename(WorldPackage->GetName(), FPackageName::GetMapPackageExtension());
