@@ -32,15 +32,16 @@
 	Buffer<float> NiagaraParticleDataHalf;
 	uint NiagaraFloatDataStride;
 
-	Buffer<float> NiagaraGetFloatBuffer() { return NiagaraParticleDataFloat; }
-	Buffer<float> NiagaraGetHalfBuffer() { return NiagaraParticleDataHalf; }
+	// NOTE: NiagarGet*Buffer have to be macros (not functions) to appease certain shader platforms
+	#define NiagaraGetFloatBuffer() (NiagaraParticleDataFloat)
+	#define NiagaraGetHalfBuffer() (NiagaraParticleDataHalf)
 	uint NiagaraGetFloatDataStride() { return NiagaraFloatDataStride; }
 	
 	#if ENABLE_NIAGARA_INT_DATA_ACCESS
 		Buffer<int> NiagaraParticleDataInt;
 		uint NiagaraIntDataStride;
 
-		Buffer<int> NiagaraGetIntBuffer() { return NiagaraParticleDataInt; }
+		#define NiagaraGetIntBuffer() (NiagaraParticleDataInt)
 		uint NiagaraGetIntDataStride() { return NiagaraIntDataStride; }
 	#endif
 #endif
