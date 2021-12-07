@@ -331,6 +331,7 @@ bool USequencerPivotTool::SetGizmoBasedOnSelection(bool bUseSaved)
 	GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
 	for (AActor* SelectedActor : SelectedActors)
 	{
+		bHaveSomethingSelected = true;
 		FActorMappings* Mappings = SavedPivotLocations.ActorMappings.Find(SelectedActor);
 		if (bUseSaved && Mappings)
 		{
