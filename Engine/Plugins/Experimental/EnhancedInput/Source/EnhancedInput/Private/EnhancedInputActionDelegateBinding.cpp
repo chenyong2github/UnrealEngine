@@ -9,7 +9,7 @@ UEnhancedInputActionDelegateBinding::UEnhancedInputActionDelegateBinding(const F
 {
 }
 
-void UEnhancedInputActionDelegateBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UEnhancedInputActionDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 	UEnhancedInputComponent* Component = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!Component)
@@ -19,8 +19,7 @@ void UEnhancedInputActionDelegateBinding::BindToInputComponent(UInputComponent* 
 
 	for(const FBlueprintEnhancedInputActionBinding& Binding : InputActionDelegateBindings)
 	{
-		UObject* Owner = CastChecked<UObject>(Component->GetOwner());
-		Component->BindAction(Binding.InputAction, Binding.TriggerEvent, Owner, Binding.FunctionNameToBind);
+		Component->BindAction(Binding.InputAction, Binding.TriggerEvent, ObjectToBindTo, Binding.FunctionNameToBind);
 	}
 }
 
@@ -29,7 +28,7 @@ UEnhancedInputActionValueBinding::UEnhancedInputActionValueBinding(const FObject
 {
 }
 
-void UEnhancedInputActionValueBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UEnhancedInputActionValueBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 	UEnhancedInputComponent* Component = Cast<UEnhancedInputComponent>(InputComponent);
 	if (!Component)

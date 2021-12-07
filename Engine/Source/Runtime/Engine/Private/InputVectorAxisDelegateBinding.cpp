@@ -10,7 +10,7 @@ UInputVectorAxisDelegateBinding::UInputVectorAxisDelegateBinding(const FObjectIn
 {
 }
 
-void UInputVectorAxisDelegateBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UInputVectorAxisDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 	TArray<FInputVectorAxisBinding> BindsToAdd;
 
@@ -21,7 +21,7 @@ void UInputVectorAxisDelegateBinding::BindToInputComponent(UInputComponent* Inpu
 		FInputVectorAxisBinding VAB( Binding.AxisKey );
 		VAB.bConsumeInput = Binding.bConsumeInput;
 		VAB.bExecuteWhenPaused = Binding.bExecuteWhenPaused;
-		VAB.AxisDelegate.BindDelegate(InputComponent->GetOwner(), Binding.FunctionNameToBind);
+		VAB.AxisDelegate.BindDelegate(ObjectToBindTo, Binding.FunctionNameToBind);
 
 		if (Binding.bOverrideParentBinding)
 		{

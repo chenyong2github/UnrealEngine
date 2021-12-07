@@ -463,9 +463,8 @@ void APawn::PawnClientRestart()
 				if (UInputDelegateBinding::SupportsInputDelegate(GetClass()))
 				{
 					InputComponent->bBlockInput = bBlockInput;
-					UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent);
+					UInputDelegateBinding::BindInputDelegatesWithSubojects(this, InputComponent);
 				}
-
 			}
 		}
 	}

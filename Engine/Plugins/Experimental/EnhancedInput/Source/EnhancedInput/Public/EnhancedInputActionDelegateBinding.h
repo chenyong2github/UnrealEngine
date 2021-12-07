@@ -39,7 +39,7 @@ class ENHANCEDINPUT_API UEnhancedInputActionDelegateBinding : public UInputDeleg
 	TArray<FBlueprintEnhancedInputActionBinding> InputActionDelegateBindings;
 
 	//~ Begin UInputDelegateBinding Interface
-	virtual void BindToInputComponent(UInputComponent* InputComponent) const override;
+	virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
 	//~ End UInputDelegateBinding Interface
 };
 
@@ -52,6 +52,6 @@ class ENHANCEDINPUT_API UEnhancedInputActionValueBinding : public UInputDelegate
 	TArray<FBlueprintEnhancedInputActionBinding> InputActionValueBindings;
 
 	//~ Begin UInputDelegateBinding Interface
-	virtual void BindToInputComponent(UInputComponent* InputComponent) const override;
+	virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
 	//~ End UInputDelegateBinding Interface
 };

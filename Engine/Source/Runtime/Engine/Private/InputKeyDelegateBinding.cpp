@@ -9,7 +9,7 @@ UInputKeyDelegateBinding::UInputKeyDelegateBinding(const FObjectInitializer& Obj
 {
 }
 
-void UInputKeyDelegateBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UInputKeyDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 	TArray<FInputKeyBinding> BindsToAdd;
 
@@ -20,7 +20,7 @@ void UInputKeyDelegateBinding::BindToInputComponent(UInputComponent* InputCompon
 		FInputKeyBinding KB( Binding.InputChord, Binding.InputKeyEvent );
 		KB.bConsumeInput = Binding.bConsumeInput;
 		KB.bExecuteWhenPaused = Binding.bExecuteWhenPaused;
-		KB.KeyDelegate.BindDelegate(InputComponent->GetOwner(), Binding.FunctionNameToBind);
+		KB.KeyDelegate.BindDelegate(ObjectToBindTo, Binding.FunctionNameToBind);
 
 		if (Binding.bOverrideParentBinding)
 		{

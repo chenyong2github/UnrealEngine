@@ -2522,8 +2522,8 @@ void APlayerController::SetupInputComponent()
 
 	if (UInputDelegateBinding::SupportsInputDelegate(GetClass()))
 	{
-		InputComponent->bBlockInput = bBlockInput;
-		UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent);
+		InputComponent->bBlockInput = bBlockInput;		
+		UInputDelegateBinding::BindInputDelegatesWithSubojects(this, InputComponent);
 	}
 }
 
