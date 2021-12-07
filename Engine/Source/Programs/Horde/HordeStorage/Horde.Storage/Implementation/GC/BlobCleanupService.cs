@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Jupiter;
 using Microsoft.Extensions.Options;
 using Datadog.Trace;
+using Jupiter.Implementation;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -39,6 +40,14 @@ namespace Horde.Storage.Implementation
                 OrphanBlobCleanup orphanBlobCleanup = provider.GetService<OrphanBlobCleanup>()!;
                 RegisterCleanup(orphanBlobCleanup);
             }
+
+            
+            if (settings.CurrentValue.CleanOldBlobs)
+            {
+                OrphanBlobCleanupRefs orphanBlobCleanupRefs = provider.GetService<OrphanBlobCleanupRefs>()!;
+                RegisterCleanup(orphanBlobCleanupRefs);
+            }
+            
         }
 
         public void RegisterCleanup(IBlobCleanup cleanup)
@@ -63,9 +72,9 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async Task<List<RemovedBlobs>> Cleanup(BlobCleanupState state, CancellationToken cancellationToken)
+        public async Task<List<BlobIdentifier>> Cleanup(BlobCleanupState state, CancellationToken cancellationToken)
         {
-            List<RemovedBlobs> removedBlobs = new List<RemovedBlobs>();
+            List<BlobIdentifier> removedBlobs = new List<BlobIdentifier>();
             
             foreach (IBlobCleanup blobCleanup in state.BlobCleanups)
             {
@@ -77,7 +86,7 @@ namespace Horde.Storage.Implementation
                 _logger.Information("Attempting to run Blob Cleanup {BlobCleanup}. ", type);
                 try
                 {
-                    List<RemovedBlobs> tempBlobs = await blobCleanup.Cleanup(cancellationToken);
+                    List<BlobIdentifier> tempBlobs = await blobCleanup.Cleanup(cancellationToken);
                     _logger.Information("Ran blob cleanup {BlobCleanup}. Deleted {CountBlobRecords}", type, tempBlobs.Count);
                     removedBlobs.AddRange(tempBlobs);
                 }

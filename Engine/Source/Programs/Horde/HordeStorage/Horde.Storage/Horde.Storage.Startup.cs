@@ -216,6 +216,7 @@ namespace Horde.Storage
             services.AddSingleton<MemoryBlobStore>();
 
             services.AddSingleton<OrphanBlobCleanup>();
+            services.AddSingleton<OrphanBlobCleanupRefs>();
 
             services.AddSingleton(typeof(IBlobService), typeof(BlobService));
 

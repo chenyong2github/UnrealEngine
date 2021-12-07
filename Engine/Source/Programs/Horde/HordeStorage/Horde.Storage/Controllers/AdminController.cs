@@ -73,23 +73,7 @@ namespace Horde.Storage.Controllers
                 records.Select(r => new RemovedRefRecordsResponse.RemovedRecord(r.RefName, r.Bucket))
             ));
         }
-
-        /// <summary>
-        /// Manually run the blob cleanup
-        /// </summary>
-        /// <remarks>
-        /// Manually triggers a cleanup of unused blobs not referenced in the transaction log. This is done automatically so the only reason to use this endpoint is for debugging purposes.
-        /// </remarks>
-        /// <returns></returns>
-        [HttpPost("blobCleanup/{ns}")]
-        public async Task<IActionResult> BlobCleanup([FromRoute] [Required] NamespaceId ns)
-        {
-            List<RemovedBlobs> records = await _blobCleanupService.Cleanup(_blobCleanupService.State, CancellationToken.None);
-            return Ok(new RemovedBlobRecords(
-                records.Select(r => r.BlobIdentifier)
-            ));
-        }
-
+        
         /// <summary>
         /// Dumps all settings currently in use
         /// </summary>

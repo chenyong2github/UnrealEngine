@@ -185,7 +185,7 @@ namespace Horde.Storage.Implementation
             }
         }
         
-        public async Task<List<RemovedBlobs>> Cleanup(CancellationToken cancellationToken)
+        public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
         {
             return await CleanupInternal(cancellationToken);
         }
@@ -198,13 +198,13 @@ namespace Horde.Storage.Implementation
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="batchSize">Number of files to scan for clean up. A higher number is recommended since blob store can contain many small blobs</param>
         /// <returns></returns>
-        public async Task<List<RemovedBlobs>> CleanupInternal(CancellationToken cancellationToken, int batchSize = 100000)
+        public async Task<List<BlobIdentifier>> CleanupInternal(CancellationToken cancellationToken, int batchSize = 100000)
         {
             long size = await CalculateDiskSpaceUsed();
             ulong maxSizeBytes = _settings.CurrentValue.MaxSizeBytes;
             long triggerSize = (long) (maxSizeBytes * _settings.CurrentValue.TriggerThresholdPercentage);
             long targetSize = (long) (maxSizeBytes * _settings.CurrentValue.TargetThresholdPercentage); // Target to shrink to if triggered
-            List<RemovedBlobs> blobsRemoved = new List<RemovedBlobs>(batchSize);
+            List<BlobIdentifier> blobsRemoved = new List<BlobIdentifier>(batchSize);
 
             if (size < triggerSize)
             {
@@ -231,7 +231,7 @@ namespace Horde.Storage.Implementation
                     {
                         totalBytesDeleted += fi.Length;
                         fi.Delete();
-                        blobsRemoved.Add(new RemovedBlobs(new BlobIdentifier(fi.Name)));
+                        blobsRemoved.Add(new BlobIdentifier(fi.Name));
 
                         long currentSize = size - totalBytesDeleted;
                         if (currentSize <= targetSize || cancellationToken.IsCancellationRequested)

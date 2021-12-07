@@ -17,19 +17,9 @@ using Serilog;
 
 namespace Horde.Storage.Implementation
 {
-    public class RemovedBlobs
-    {
-        public RemovedBlobs(BlobIdentifier blobIdentifier)
-        {
-            BlobIdentifier = blobIdentifier;
-        }
-
-        public BlobIdentifier BlobIdentifier { get; set; }
-    }
-
     public interface IBlobCleanup
     {
-        Task<List<RemovedBlobs>> Cleanup(CancellationToken none);
+        Task<List<BlobIdentifier>> Cleanup(CancellationToken none);
     }
 
     public class OrphanBlobCleanup : IBlobCleanup
@@ -76,12 +66,12 @@ namespace Horde.Storage.Implementation
 
         }
 
-        public async Task<List<RemovedBlobs>> Cleanup(CancellationToken cancellationToken)
+        public async Task<List<BlobIdentifier>> Cleanup(CancellationToken cancellationToken)
         {
             if (!_leaderElection.IsThisInstanceLeader())
             {
                 _logger.Information("Skipped orphan blob cleanup run as this instance is not the leader");
-                return new List<RemovedBlobs>();
+                return new List<BlobIdentifier>();
             }
 
             List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
@@ -93,7 +83,7 @@ namespace Horde.Storage.Implementation
             }, cancellationToken);
 
             List<BlobIdentifier> blobsToRemove = new List<BlobIdentifier>();
-            List<RemovedBlobs> removedBlobs = new List<RemovedBlobs>();
+            List<BlobIdentifier> removedBlobs = new List<BlobIdentifier>();
 
             // enumerate all namespaces, and check if the old blob is valid in any of them to allow for a blob store to just store them in a single pile if it wants to
             foreach (NamespaceId @namespace in namespaces)
@@ -156,7 +146,7 @@ namespace Horde.Storage.Implementation
                 }
                 if (deleted)
                 {
-                    removedBlobs.Add(new RemovedBlobs(blob));
+                    removedBlobs.Add(blob);
                 }
             }
 

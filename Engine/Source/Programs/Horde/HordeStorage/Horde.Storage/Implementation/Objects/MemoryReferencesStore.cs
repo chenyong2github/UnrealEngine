@@ -66,7 +66,7 @@ namespace Horde.Storage.Implementation
             return Task.CompletedTask;
         }
 
-        public async IAsyncEnumerator<ObjectRecord> GetOldestRecords(NamespaceId ns)
+        public async IAsyncEnumerable<ObjectRecord> GetOldestRecords(NamespaceId ns)
         {
             foreach (MemoryStoreObject o in _objects.Values.Where(o => o.Namespace == ns).OrderBy(o => o.LastAccessTime))
             {
@@ -75,9 +75,9 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public IAsyncEnumerator<NamespaceId> GetNamespaces()
+        public IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
-            return _namespaces.GetAsyncEnumerator();
+            return _namespaces.ToAsyncEnumerable();
         }
 
         public Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key)

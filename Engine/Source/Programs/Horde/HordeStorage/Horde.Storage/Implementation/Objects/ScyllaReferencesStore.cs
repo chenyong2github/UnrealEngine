@@ -141,7 +141,7 @@ namespace Horde.Storage.Implementation
             await updateObjectTracking;
         }
 
-        public async IAsyncEnumerator<ObjectRecord> GetOldestRecords(NamespaceId ns)
+        public async IAsyncEnumerable<ObjectRecord> GetOldestRecords(NamespaceId ns)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.get_records");
             for (sbyte partitionIndex = sbyte.MinValue; partitionIndex < sbyte.MaxValue; partitionIndex++)
@@ -187,7 +187,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async IAsyncEnumerator<NamespaceId> GetNamespaces()
+        public async IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.get_namespaces");
             RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT DISTINCT namespace FROM buckets"));

@@ -19,7 +19,7 @@ namespace Horde.Storage.Implementation
         Task<PutObjectResult> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CompactBinaryObject payload);
         Task<BlobIdentifier[]> Finalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash);
 
-        IAsyncEnumerator<NamespaceId> GetNamespaces();
+        IAsyncEnumerable<NamespaceId> GetNamespaces();
 
         Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);
         Task<long> DropNamespace(NamespaceId ns);
@@ -136,7 +136,7 @@ namespace Horde.Storage.Implementation
             return missingReferences;
         }
 
-        public IAsyncEnumerator<NamespaceId> GetNamespaces()
+        public IAsyncEnumerable<NamespaceId> GetNamespaces()
         {
             return _referencesStore.GetNamespaces();
         }
