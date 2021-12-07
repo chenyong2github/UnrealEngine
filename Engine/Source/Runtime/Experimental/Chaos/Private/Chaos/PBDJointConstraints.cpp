@@ -358,7 +358,7 @@ namespace Chaos
 		: FPBDIndexedConstraintContainer(FConstraintContainerHandle::StaticType())
 		, Settings(InSettings)
 		, bJointsDirty(false)
-		, SolverType(EConstraintSolverType::GbfPbd)
+		, SolverType(EConstraintSolverType::QuasiPbd)
 	{
 	}
 

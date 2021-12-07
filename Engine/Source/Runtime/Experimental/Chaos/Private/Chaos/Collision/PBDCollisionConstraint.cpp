@@ -350,10 +350,10 @@ namespace Chaos
 		// @todo(chaos): Remove this when we don't need to support incremental manifolds (this will only be called on creation/restore)
 		if ((GetSolverBody0() != nullptr) && (GetSolverBody1() != nullptr))
 		{
-			P0 = GetSolverBody0()->P();
-			Q0 = GetSolverBody0()->Q();
-			P1 = GetSolverBody1()->P();
-			Q1 = GetSolverBody1()->Q();
+			P0 = GetSolverBody0()->CorrectedP();
+			Q0 = GetSolverBody0()->CorrectedQ();
+			P1 = GetSolverBody1()->CorrectedP();
+			Q1 = GetSolverBody1()->CorrectedQ();
 		}
 		else
 		{

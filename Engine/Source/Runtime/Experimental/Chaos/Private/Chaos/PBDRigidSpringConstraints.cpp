@@ -182,19 +182,23 @@ namespace Chaos
 		check(ConstraintSolverBodies[ConstraintIndex][1] != nullptr);
 		FSolverBody& Body0 = *ConstraintSolverBodies[ConstraintIndex][0];
 		FSolverBody& Body1 = *ConstraintSolverBodies[ConstraintIndex][1];
+		const FVec3 BodyP0 = Body0.CorrectedP();
+		const FRotation3 BodyQ0 = Body0.CorrectedQ();
+		const FVec3 BodyP1 = Body1.CorrectedP();
+		const FRotation3 BodyQ1 = Body1.CorrectedQ();
 
 		if (!Body0.IsDynamic() && !Body1.IsDynamic())
 		{
 			return;
 		}
 
-		const FVec3 WorldSpaceX1 = Body0.Q().RotateVector(Distances[ConstraintIndex][0]) + Body0.P();
-		const FVec3 WorldSpaceX2 = Body1.Q().RotateVector(Distances[ConstraintIndex][1]) + Body1.P();
+		const FVec3 WorldSpaceX1 = BodyQ0.RotateVector(Distances[ConstraintIndex][0]) + BodyP0;
+		const FVec3 WorldSpaceX2 = BodyQ1.RotateVector(Distances[ConstraintIndex][1]) + BodyP1;
 		const FVec3 Delta = GetDelta(ConstraintIndex, WorldSpaceX1, WorldSpaceX2);
 
 		if (Body0.IsDynamic())
 		{
-			const FVec3 Radius = WorldSpaceX1 - Body0.P();
+			const FVec3 Radius = WorldSpaceX1 - BodyP0;
 			const FVec3 DX = Body0.InvM() * Delta;
 			const FVec3 DR = Body0.InvI() * FVec3::CrossProduct(Radius, Delta);
 			Body0.ApplyTransformDelta(DX, DR);
@@ -203,7 +207,7 @@ namespace Chaos
 
 		if (Body1.IsDynamic())
 		{
-			const FVec3 Radius = WorldSpaceX2 - Body1.P();
+			const FVec3 Radius = WorldSpaceX2 - BodyP1;
 			const FVec3 DX = Body1.InvM() * -Delta;
 			const FVec3 DR = Body1.InvI() * FVec3::CrossProduct(Radius, -Delta);
 			Body1.ApplyTransformDelta(DX, DR);

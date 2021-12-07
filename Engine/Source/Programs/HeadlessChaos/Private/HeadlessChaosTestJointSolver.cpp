@@ -92,6 +92,7 @@ namespace ChaosTest
 				FVec3 A0 = Gravity;
 				Body0.ApplyLinearVelocityDelta(A0 * Dt);
 				Body0.ApplyTransformDelta(Body0.V() * Dt, Body0.W() * Dt);
+				Body1.ApplyCorrections();
 				Body0.UpdateRotationDependentState();
 			}
 
@@ -101,6 +102,7 @@ namespace ChaosTest
 				FVec3 AngAcc1 = ExtAngAcc1;
 				Body1.ApplyVelocityDelta(Acc1 * Dt, AngAcc1 * Dt);
 				Body1.ApplyTransformDelta(Body1.V() * Dt, Body1.W() * Dt);
+				Body1.ApplyCorrections();
 				Body1.UpdateRotationDependentState();
 			}
 
@@ -126,11 +128,13 @@ namespace ChaosTest
 			if (Mass0 > 0)
 			{
 				Body0.SetImplicitVelocity(Dt);
+				Body0.ApplyCorrections();
 			}
 
 			if (Mass1 > 0)
 			{
 				Body1.SetImplicitVelocity(Dt);
+				Body1.ApplyCorrections();
 			}
 
 		}

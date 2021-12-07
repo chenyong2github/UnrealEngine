@@ -38,7 +38,7 @@ namespace ChaosTest {
 		Test.Create();
 		Test.AddParticleBox(FVec3(0, 30, 50), FRotation3::Identity, FVec3(10.f), 100.f);
 
-		FReal Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
+		FReal Angle = Test.Evolution.GetJointConstraints().GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, (FReal)0.));
 
 		// Run the sim
@@ -48,11 +48,11 @@ namespace ChaosTest {
 			Test.Evolution.AdvanceOneTimeStep(Dt);
 			Test.Evolution.EndFrame(Dt);
 
-			//FReal Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
+			//FReal Angle = Test.Evolution.GetJointConstraints().GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 			//FVec3 Pos = Test.SOAs.GetDynamicParticles().X(0);
 			//std::cout << "["<< Angle <<"]" << Pos.X << "," << Pos.Y << "," << Pos.Z << std::endl;
 		}
-		Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
+		Angle = Test.Evolution.GetJointConstraints().GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 
 		// Nothing should have been reset
 		EXPECT_TRUE(FMath::IsNearlyEqual(Angle, (FReal)0.));
@@ -94,7 +94,7 @@ namespace ChaosTest {
 		Test.Create();
 		Test.AddParticleBox(FVec3(0, 30, 50), FRotation3::Identity, FVec3(10.f), 100.f);
 
-		FReal Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
+		FReal Angle = Test.Evolution.GetJointConstraints().GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 		EXPECT_NEAR(Angle, (FReal)0., (FReal)KINDA_SMALL_NUMBER);
 
 		// Run the sim
@@ -104,7 +104,7 @@ namespace ChaosTest {
 			Test.Evolution.AdvanceOneTimeStep(Dt);
 			Test.Evolution.EndFrame(Dt);
 
-			//FReal Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
+			//FReal Angle = Test.Evolution.GetJointConstraints().GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 			//FVec3 Pos = Test.SOAs.GetDynamicParticles().X(0);
 			//std::cout << "["<< Angle <<"]" << Pos.X << "," << Pos.Y << "," << Pos.Z << std::endl;
 		}
@@ -112,7 +112,7 @@ namespace ChaosTest {
 		Test.Evolution.AdvanceOneTimeStep(Dt);
 		Test.Evolution.EndFrame(Dt);
 
-		Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
+		Angle = Test.Evolution.GetJointConstraints().GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 
 		// The angle should have reset. 
 		EXPECT_GE(Angle, PlasticityAngle);

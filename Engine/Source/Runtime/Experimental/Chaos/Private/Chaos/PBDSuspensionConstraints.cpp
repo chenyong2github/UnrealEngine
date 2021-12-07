@@ -132,9 +132,11 @@ namespace Chaos
 			const FVec3 SuspensionCoMOffset = Particle->RotationOfMass().UnrotateVector(SuspensionActorOffset - Particle->CenterOfMass());
 			const FVec3 SuspensionCoMAxis = Particle->RotationOfMass().UnrotateVector(Setting.Axis);
 
-			const FVec3 WorldSpaceX = Body.Q().RotateVector(SuspensionCoMOffset) + Body.P();
+			const FRotation3 BodyQ = Body.CorrectedQ();
+			const FVec3 BodyP = Body.CorrectedP();
+			const FVec3 WorldSpaceX = BodyQ.RotateVector(SuspensionCoMOffset) + BodyP;
 
-			FVec3 AxisWorld = Body.Q().RotateVector(SuspensionCoMAxis);
+			FVec3 AxisWorld = BodyQ.RotateVector(SuspensionCoMAxis);
 
 			const float MPHToCmS = 100000.f / 2236.94185f;
 			const float SpeedThreshold = 10.0f * MPHToCmS;
@@ -167,7 +169,7 @@ namespace Chaos
 			FVec3 DX = FVec3::ZeroVector;
 
 			// Require the velocity at the WorldSpaceX position - not the velocity of the particle origin
-			const FVec3 Diff = WorldSpaceX - Body.P();
+			const FVec3 Diff = WorldSpaceX - BodyP;
 			FVec3 ArmVelocity = Body.V() - FVec3::CrossProduct(Diff, Body.W());
 
 			// This constraint is causing considerable harm to the steering effect from the tires, using only the z component for damping
@@ -210,7 +212,7 @@ namespace Chaos
 				}
 			}
 
-			const FVec3 Arm = WorldSpaceX - Body.P();
+			const FVec3 Arm = WorldSpaceX - BodyP;
 
 			const FVec3 DP = Body.InvM() * DX;
 			const FVec3 DR = Body.InvI() * FVec3::CrossProduct(Arm, DX);

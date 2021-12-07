@@ -9,6 +9,7 @@ namespace Chaos
 	class FSolverBody;
 	class FSolverBodyContainer;
 
+
 	// A pair of pointers so solver bodies
 	// @note Pointers are only valid for the Constraint Solving phase of the tick
 	using FSolverBodyPtrPair = TVector<FSolverBody*, 2>;
@@ -120,10 +121,10 @@ namespace Chaos
 		*/
 		inline void SetImplicitVelocity(FReal Dt)
 		{
-			if (IsDynamic())
+			if (IsDynamic() && (Dt != FReal(0)))
 			{
-				State.V = FVec3::CalculateVelocity(State.X, State.P, Dt);
-				State.W = FRotation3::CalculateAngularVelocity(State.R, State.Q, Dt);
+				State.V += State.DP / Dt;
+				State.W += State.DQ / Dt;
 			}
 		}
 
@@ -179,13 +180,17 @@ namespace Chaos
 		inline void SetR(const FRotation3& InR) { State.R = InR; }
 
 		/**
-		 * @brief World-space center of mass position
+		 * @brief Predicted (post-integrate) world-space center of mass position
+		 * @note This does not get updated as we iterate
+		 * @see DP(), CorrectedP()
 		*/
 		inline const FVec3& P() const { return State.P; }
 		inline void SetP(const FVec3& InP) { State.P = InP; }
 
 		/**
-		 * @brief World-space center of mass rotation
+		 * @brief Predicted (post-integrate) world-space center of mass rotation
+		 * @note This does not get updated as we iterate
+		 * @see DQ(), CorrectedQ()
 		*/
 		inline const FRotation3& Q() const { return State.Q; }
 		inline void SetQ(const FRotation3& InQ) { State.Q = InQ; }
@@ -209,16 +214,51 @@ namespace Chaos
 		inline void SetRoM(const FRotation3& InRoM) { State.RoM = InRoM; }
 
 		/**
-		 * @brief Get the current world-space Actor position 
-		 * @note This is recalculated from the current CoM transform.
+		 * @brief Net world-space position correction applied by the constraints
 		*/
-		inline FVec3 ActorP() const { return P() - ActorQ().RotateVector(CoM()); }
+		inline const FVec3& DP() const { return State.DP; }
+
+		/**
+		 * @brief Net world-space rotation correction applied by the constraints (axis-angle vector equivalent to angular velocity but for position)
+		*/
+		inline const FVec3& DQ() const { return State.DQ; }
+
+		/**
+		 * @brief World-space position after applying the net correction DP()
+		 * @note Calculated on demand from P() and DP() (only requires vector addition)
+		*/
+		inline FVec3 CorrectedP() const { return State.P + State.DP; }
+
+		/**
+		 * @brief World-space rotation after applying the net correction DQ()
+		 * @note Calculated on demand from Q() and DQ() (requires quaternion multiply and normalization)
+		*/
+		inline FRotation3 CorrectedQ() const { return IsModified() ? FRotation3::IntegrateRotationWithAngularVelocity(State.Q, State.DQ, FReal(1)) : State.Q; }
+
+		/**
+		 * @brief Apply the accumulated position and rotation corrections to the predicted P and Q
+		 * This is only used by unit tests that reuse solver bodies between ticks
+		 * @todo(chaos): fix the unit tests (FJointSolverTest::Tick) and remove this
+		*/
+		void ApplyCorrections()
+		{
+			State.P = CorrectedP();
+			State.Q = CorrectedQ();
+			State.DP = FVec3(0);
+			State.DQ = FVec3(0);
+		}
+
+		/**
+		 * @brief Get the current world-space Actor position 
+		 * @note This is recalculated from the current CoM transform including the accumulated position and rotation corrections.
+		*/
+		inline FVec3 ActorP() const { return CorrectedP() - ActorQ().RotateVector(CoM()); }
 
 		/**
 		 * @brief Get the current world-space Actor rotation
-		 * @note This is recalculated from the current CoM transform.
+		 * @note This is recalculated from the current CoM transform including the accumulated position and rotation corrections.
 		*/
-		inline FRotation3 ActorQ() const { return Q() * RoM().Inverse(); }
+		inline FRotation3 ActorQ() const { return CorrectedQ() * RoM().Inverse(); }
 
 		/**
 		 * @brief Contact graph level. This is used in shock propagation to determine which of two bodies should have its inverse mass scaled
@@ -252,7 +292,7 @@ namespace Chaos
 		*/
 		inline void ApplyPositionDelta(const FVec3 DP)
 		{
-			State.P += DP;
+			State.DP += DP;
 			++State.LastChangeEpoch;
 		}
 
@@ -261,7 +301,7 @@ namespace Chaos
 		*/
 		inline void ApplyRotationDelta(const FVec3 DR)
 		{
-			State.Q = SolverQuaternionApplyAngularDeltaApprox(State.Q, DR);
+			State.DQ += DR;
 			++State.LastChangeEpoch;
 		}
 
@@ -306,6 +346,11 @@ namespace Chaos
 			return State.LastChangeEpoch;
 		}
 
+		inline bool IsModified() const
+		{
+			return State.LastChangeEpoch != 0;
+		}
+
 		/**
 		 * @brief Update cached state that depends on rotation (i.e., world space inertia)
 		*/
@@ -329,6 +374,8 @@ namespace Chaos
 				, W(0)
 				, CoM(0)
 				, RoM(FRotation3::Identity)
+				, DP(0)
+				, DQ(0)
 				, Level(0)
 				, LastChangeEpoch(0)
 				, bHasActiveCollision(false)
@@ -347,13 +394,13 @@ namespace Chaos
 			// World-space center of mass state at start of sub step
 			FVec3 X;
 
-			// World-space rotation of mass
+			// World-space rotation of mass at start of sub step
 			FRotation3 R;
 
-			// World-space center of mass position
+			// Predicted world-space center of mass position (post-integration, pre-constraint-solve)
 			FVec3 P;
 
-			// World-space center of mass rotation
+			// Predicted world-space center of mass rotation (post-integration, pre-constraint-solve)
 			FRotation3 Q;
 
 			// World-space center of mass velocity
@@ -367,6 +414,12 @@ namespace Chaos
 
 			// Actor-space center of mass rotation
 			FRotation3 RoM;
+
+			// Net position delta applied by all constraints (constantly changing as we iterate over constraints)
+			FVec3 DP;
+
+			// Net rotation delta applied by all constraints (constantly changing as we iterate over constraints)
+			FVec3 DQ;
 
 			// Distance to a kinmatic body (through the contact graph). Used by collision shock propagation
 			int32 Level;
@@ -467,6 +520,10 @@ namespace Chaos
 		inline const FVec3& V() const { return Body->V(); }
 		inline const FVec3& W() const { return Body->W(); }
 		inline int32 Level() const { return Body->Level(); }
+		inline const FVec3& DP() const { return Body->DP(); }
+		inline const FVec3& DQ() const { return Body->DQ(); }
+		inline FVec3 CorrectedP() const { return Body->CorrectedP(); }
+		inline FRotation3 CorrectedQ() const { return Body->CorrectedQ(); }
 
 		inline void ApplyTransformDelta(const FVec3 DP, const FVec3 DR) { Body->ApplyTransformDelta(DP, DR); }
 		inline void ApplyPositionDelta(const FVec3 DP) { Body->ApplyPositionDelta(DP); }

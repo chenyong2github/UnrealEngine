@@ -1576,7 +1576,7 @@ namespace Chaos
 				if (Constraint.GetSolverBody0() != nullptr)
 				{
 					const FRigidTransform3 CoMToParticleTransform = FParticleUtilities::ParticleLocalToCoMLocal(Particle0, FRigidTransform3::Identity);
-					ParticlesTM = CoMToParticleTransform * FRigidTransform3(Constraint.GetSolverBody0()->P(), Constraint.GetSolverBody0()->Q());
+					ParticlesTM = CoMToParticleTransform * FRigidTransform3(Constraint.GetSolverBody0()->CorrectedP(), Constraint.GetSolverBody0()->CorrectedQ());
 				}
 				else
 				{

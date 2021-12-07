@@ -39,14 +39,10 @@ namespace Chaos
 	{
 		if (Particle.IsValid())
 		{
-			if (SolverBody.IsDynamic())
+			if (SolverBody.IsDynamic() && SolverBody.IsModified())
 			{
-				// NOTE: we use a quaternion normalization approximation in the solver
-				// but the integrator asserts that the quaternion is normalized more accurately
-				const FRotation3 Q = SolverBody.Q().GetNormalized();
-
 				// Set the particle state
-				FParticleUtilities::SetCoMWorldTransform(Particle, SolverBody.P(), Q);
+				FParticleUtilities::SetCoMWorldTransform(Particle, SolverBody.CorrectedP(), SolverBody.CorrectedQ());
 				Particle->SetV(SolverBody.V());
 				Particle->SetW(SolverBody.W());
 
