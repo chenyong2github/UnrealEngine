@@ -242,7 +242,12 @@ namespace ShaderPrint
 	class FShaderDrawSymbols : public FGlobalShader
 	{
 	public:
-		SHADER_USE_PARAMETER_STRUCT(FShaderDrawSymbols, FGlobalShader);
+		FShaderDrawSymbols()
+		{}
+
+		FShaderDrawSymbols(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+			: FGlobalShader(Initializer)
+		{}
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			RENDER_TARGET_BINDING_SLOTS()
@@ -260,30 +265,16 @@ namespace ShaderPrint
 
 	class FShaderDrawSymbolsVS : public FShaderDrawSymbols
 	{
-	public:
 		DECLARE_GLOBAL_SHADER(FShaderDrawSymbolsVS);
-
-		FShaderDrawSymbolsVS()
-		{}
-
-		FShaderDrawSymbolsVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FShaderDrawSymbols(Initializer)
-		{}
+		SHADER_USE_PARAMETER_STRUCT(FShaderDrawSymbolsVS, FShaderDrawSymbols);
 	};
 
 	IMPLEMENT_GLOBAL_SHADER(FShaderDrawSymbolsVS, "/Engine/Private/ShaderPrintDraw.usf", "DrawSymbolsVS", SF_Vertex);
 
 	class FShaderDrawSymbolsPS : public FShaderDrawSymbols
 	{
-	public:
 		DECLARE_GLOBAL_SHADER(FShaderDrawSymbolsPS);
-
-		FShaderDrawSymbolsPS()
-		{}
-
-		FShaderDrawSymbolsPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-			: FShaderDrawSymbols(Initializer)
-		{}
+		SHADER_USE_PARAMETER_STRUCT(FShaderDrawSymbolsPS, FShaderDrawSymbols);
 	};
 
 	IMPLEMENT_GLOBAL_SHADER(FShaderDrawSymbolsPS, "/Engine/Private/ShaderPrintDraw.usf", "DrawSymbolsPS", SF_Pixel);
