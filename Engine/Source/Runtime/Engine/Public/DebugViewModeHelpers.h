@@ -37,12 +37,14 @@ enum EDebugViewShaderMode
 	DVSM_MAX
 };
 
+ENGINE_API const TCHAR* DebugViewShaderModeToString(EDebugViewShaderMode InShaderMode);
+
 #if WITH_DEBUG_VIEW_MODES
 /** Returns true if the vertex shader (and potential hull and domain) should be compiled on the given platform. */
 ENGINE_API bool AllowDebugViewVSDSHS(EShaderPlatform Platform);
 /** Returns true if the shader mode can be enabled. This is only for UI elements as no shader platform is actually passed. */
 ENGINE_API bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel);
-ENGINE_API bool ShouldCompileDebugViewModeShader(EDebugViewShaderMode ShaderMode, const FMeshMaterialShaderPermutationParameters& Parameters);
+ENGINE_API bool ShouldCompileDebugViewModeShader(const FMeshMaterialShaderPermutationParameters& Parameters);
 #else
 FORCEINLINE bool AllowDebugViewVSDSHS(EShaderPlatform Platform)  { return false; }
 FORCEINLINE bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel) { return false; }

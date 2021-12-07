@@ -4215,8 +4215,8 @@ FRendererModule::FRendererModule()
 	CVarVertexDeformationOutputsVelocity->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	void InitDebugViewModeInterfaces();
-	InitDebugViewModeInterfaces();
+	void InitDebugViewModeInterface();
+	InitDebugViewModeInterface();
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 }
 

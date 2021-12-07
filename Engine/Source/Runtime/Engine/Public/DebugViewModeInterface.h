@@ -39,16 +39,7 @@ public:
 		FRHIDepthStencilState*	DepthStencilState;
 	};
 
-	FDebugViewModeInterface(
-		const TCHAR* InPixelShaderName,		// Shader class name implementing the PS
-		bool InNeedsOnlyLocalVertexFactor,  // Whether this viewmode will only be used with the local vertex factory (for draw tiled mesh).
-		bool InNeedsMaterialProperties,		// Whether the PS use any of the material properties (otherwise default material will be used, reducing shader compilation).
-		bool InNeedsInstructionCount		// Whether FDebugViewModePS::GetDebugViewModeShaderBindings() will use the num of instructions.
-	)
-		: PixelShaderName(InPixelShaderName)
-		, bNeedsOnlyLocalVertexFactor(InNeedsOnlyLocalVertexFactor)
-		, bNeedsMaterialProperties(InNeedsMaterialProperties)
-		, bNeedsInstructionCount(InNeedsInstructionCount)
+	FDebugViewModeInterface()
 	{}
 
 	virtual ~FDebugViewModeInterface() {}
@@ -57,7 +48,7 @@ public:
 		const FVertexFactoryType* InVertexFactoryType,
 		FMaterialShaderTypes& OutShaderTypes) const = 0;
 
-	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
+	virtual void SetDrawRenderState(EDebugViewShaderMode DebugViewMode, EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& Shader,
@@ -75,26 +66,14 @@ public:
 		FMeshDrawSingleShaderBindings& ShaderBindings
 	) const {}
 
-	/** The shader class name, used to filter out shaders that need to be compiled. */
-	const TCHAR* PixelShaderName;
-
-	/** Whether only tiled mesh draw will be required. */
-	const bool bNeedsOnlyLocalVertexFactor;
-
-	/** Whether the viewmode any of material properties (otherwise it can fallback to using the default material) */
-	const bool bNeedsMaterialProperties;
-
-	/** Whether FDebugViewModePS::GetDebugViewModeShaderBindings() will use the num of instructions. */
-	const bool bNeedsInstructionCount;
-
 	/** Return the interface object for the given viewmode. */
 	static const FDebugViewModeInterface* GetInterface(EDebugViewShaderMode InDebugViewMode) 
 	{
-		return (uint32)InDebugViewMode < DVSM_MAX ? Singletons[InDebugViewMode] : nullptr;
+		return (uint32)InDebugViewMode < DVSM_MAX ? Singleton : nullptr;
 	}
 
 	/** Return the interface object for the given viewmode. */
-	static void SetInterface(EDebugViewShaderMode InDebugViewMode, FDebugViewModeInterface* Interface);
+	static void SetInterface(FDebugViewModeInterface* Interface);
 	
 	/** Whether this material can be substituted by the default material. */
 	static bool AllowFallbackToDefaultMaterial(const FMaterial* InMaterial);
@@ -102,7 +81,7 @@ public:
 
 private:
 	
-	static FDebugViewModeInterface* Singletons[DVSM_MAX];
+	static FDebugViewModeInterface* Singleton;
 };
 
 #endif // ENABLE_DRAW_DEBUG
