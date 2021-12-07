@@ -294,7 +294,7 @@ public:
 	LANDSCAPE_API void MoveSplines(ULandscapeSplinesComponent* InSplineComponent, TScriptInterface<ILandscapeSplineInterface> InNewOwner);
 
 	/** Will call UpdateAllComponentMaterialInstances on all LandscapeProxies */
-	LANDSCAPE_API void UpdateAllComponentMaterialInstances();
+	LANDSCAPE_API void UpdateAllComponentMaterialInstances(bool bInInvalidateCombinationMaterials = false);
 
 	/** Returns LandscapeStreamingProxy Cell Size in WorldPartition */
 	LANDSCAPE_API uint32 GetGridSize(uint32 InGridSizeInComponents) const;

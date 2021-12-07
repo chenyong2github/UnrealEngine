@@ -1077,6 +1077,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 		// This layer should be no weight blending
 		VisibilityLayer->bNoWeightBlend = true;
 #endif
+		VisibilityLayer->LayerName = UMaterialExpressionLandscapeVisibilityMask::ParameterName;
 		VisibilityLayer->LayerUsageDebugColor = FLinearColor(0, 0, 0, 0);
 		VisibilityLayer->AddToRoot();
 	}
@@ -2536,19 +2537,37 @@ void ALandscapeProxy::PostLoad()
 		EditorCachedLayerInfos_DEPRECATED.Empty();
 	}
 
+	bool bFixedUpInvalidMaterialInstances = false;
+
 	for (ULandscapeComponent* Comp : LandscapeComponents)
 	{
 		if (Comp)
 		{
-			// Store the layer combination in the MaterialInstanceConstantMap
+			// Validate the layer combination and store it in the MaterialInstanceConstantMap
 			if (UMaterialInstance* MaterialInstance = Comp->GetMaterialInstance(0, false))
 			{
-				if(UMaterialInstanceConstant* CombinationMaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstance->Parent))
+				UMaterialInstanceConstant* CombinationMaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstance->Parent);
+				if (Comp->ValidateCombinationMaterial(CombinationMaterialInstance))
 				{
 					MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
 				}
+				else
+				{
+					// There was a problem with the loaded material : it doesn't match the expected material combination, we need to regenerate the material instances : 
+					Comp->UpdateMaterialInstances();
+					bFixedUpInvalidMaterialInstances = true;
+				}
 			}
 		}
+	}
+
+	if (bFixedUpInvalidMaterialInstances)
+	{
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("LandscapeName"), FText::FromString(GetPathName()));
+		FMessageLog("MapCheck").Warning()
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_FixedUpInvalidLandscapeMaterialInstances", "{LandscapeName} : Fixed up invalid landscape material instances. Please re-save the landscape package."), Arguments)))
+			->AddToken(FMapErrorToken::Create(FMapErrors::FixedUpInvalidLandscapeMaterialInstances));
 	}
 
 	// track feature level change to flush grass cache

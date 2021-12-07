@@ -1151,7 +1151,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnRebuildMICs(const TShared
 {
 	if (Target->LandscapeInfo.IsValid())
 	{
-		Target->LandscapeInfo.Get()->UpdateAllComponentMaterialInstances();
+		Target->LandscapeInfo.Get()->UpdateAllComponentMaterialInstances(/*bInvalidateCombinationMaterials = */true);
 	}
 }
 
