@@ -43,8 +43,8 @@ public:
 	 * @param Time of the simulation to use for this update
 	 * @return bool return if the chunk should be tick this frame
 	 */
-	template <typename TLODFragment>
-	bool UpdateTickRateFromLOD(FMassExecutionContext& Context, TArrayView<TLODFragment>& LODList, const float Time);
+	template <typename TLODFragment, typename TVariableTickRateFragment>
+	bool UpdateTickRateFromLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TArrayView<TVariableTickRateFragment> TickRateList, const float Time);
 
 protected:
 
@@ -59,7 +59,6 @@ template <typename TVariableTickChunkFragment, typename FLODLogic>
 void TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::Initialize(const float InTickRates[EMassLOD::Max], const bool bInShouldSpreadFirstUpdate/* = false*/)
 {
 	checkf(InTickRates, TEXT("You need to provide tick rate values to use this class."));
-	checkf(FLODLogic::bDoVariableTickRate, TEXT("You need to enalbe bDoVariableTickRate to use this class."));
 
 	// Make a copy of all the settings
 	for (int x = 0; x < EMassLOD::Max; x++)
@@ -87,10 +86,9 @@ bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::ShouldAd
 }
 
 template <typename TVariableTickChunkFragment, typename FLODLogic>
-template <typename TLODFragment>
-bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTickRateFromLOD(FMassExecutionContext& Context, TArrayView<TLODFragment>& LODList, const float Time)
+template <typename TLODFragment, typename TVariableTickRateFragment>
+bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTickRateFromLOD(FMassExecutionContext& Context, TConstArrayView<TLODFragment> LODList, TArrayView<TVariableTickRateFragment> TickRateList, const float Time)
 {
-
 	bool bShouldTickThisFrame = true;
 	bool bWasChunkTicked = true;
 	const float DeltaTime = Context.GetDeltaTimeSeconds();
@@ -148,11 +146,10 @@ bool TMassLODTickRateController<TVariableTickChunkFragment, FLODLogic>::UpdateTi
 		const int32 NumEntities = Context.GetNumEntities();
 		for (int32 Index = 0; Index < NumEntities; ++Index)
 		{
-			TLODFragment& EntityLOD = LODList[Index];
-			const float LastTickedTime = GetLastTickedTime<FLODLogic::bDoVariableTickRate>(EntityLOD, 0.0f);
-			const float NewDeltaTime = LastTickedTime != 0.0f ? Time - LastTickedTime : DeltaTime;
-			SetDeltaTime<FLODLogic::bDoVariableTickRate>(EntityLOD, NewDeltaTime);
-			SetLastTickedTime<FLODLogic::bDoVariableTickRate>(EntityLOD, Time);
+			const TLODFragment& EntityLOD = LODList[Index];
+			TVariableTickRateFragment& TickRate = TickRateList[Index];
+			TickRate.DeltaTime = TickRate.LastTickedTime != 0.0f ? Time - TickRate.LastTickedTime : DeltaTime;
+			TickRate.LastTickedTime = Time;
 			if (EntityLOD.LOD != ChunkLOD)
 			{
 				FMassEntityHandle Entity = Context.GetEntity(Index);

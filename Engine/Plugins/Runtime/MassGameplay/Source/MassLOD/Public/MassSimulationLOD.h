@@ -61,6 +61,12 @@ struct MASSLOD_API FMassSimulationLODFragment : public FMassFragment
 
 	/** Previous LOD information*/
 	TEnumAsByte<EMassLOD::Type> PrevLOD = EMassLOD::Max;
+};
+
+USTRUCT()
+struct MASSLOD_API FMassSimulationVariableTickFragment : public FMassFragment
+{
+	GENERATED_BODY()
 
 	/** Accumulated delta time to use upon next tick */
 	float LastTickedTime = 0.0f;
@@ -98,26 +104,37 @@ struct FMassSimulationLODConfig : public FMassSharedFragment
 	FMassSimulationLODConfig();
 
 	/** Distance where each LOD becomes relevant */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	UPROPERTY(EditAnywhere, Category = "LOD", config)
 	float LODDistance[EMassLOD::Max];
 
 	/** Hysteresis percentage on delta between the LOD distances */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	UPROPERTY(EditAnywhere, Category = "LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
 	float BufferHysteresisOnDistancePercentage = 10.0f;
 
 	/** Maximum limit of entity per LOD */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	UPROPERTY(EditAnywhere, Category = "LOD", config)
 	int32 LODMaxCount[EMassLOD::Max];
 
+	/** If true, will set the associated LOD tag on the entity */
+	UPROPERTY(EditAnywhere, Category = "LOD", config)
+	bool bSetLODTags = false;
+};
+
+USTRUCT()
+struct FMassSimulationVariableTickConfig : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	FMassSimulationVariableTickConfig();
+
 	/** Rate in seconds at which entities should update when in this LOD */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	UPROPERTY(EditAnywhere, Category = "VariableTick", config)
 	float TickRates[EMassLOD::Max];
 
 	/** If true, will spread the first simulation update over TickRate period */
-	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
+	UPROPERTY(EditAnywhere, Category = "VariableTick", config)
 	bool bSpreadFirstSimulationUpdate = false;
 };
-
 
 USTRUCT()
 struct FMassSimulationLODSharedFragment : public FMassSharedFragment
@@ -127,10 +144,39 @@ struct FMassSimulationLODSharedFragment : public FMassSharedFragment
 	FMassSimulationLODSharedFragment() = default;
 	FMassSimulationLODSharedFragment(const FMassSimulationLODConfig& Config);
 
-	/** Runtime data for matching the LOD config */
-	bool bHasAdjustedDistancesFromCount = false;
+	/** Runtime data for matching the simulation LOD config */
 	TMassLODCalculator<FMassSimulationLODLogic> LODCalculator;
+	bool bHasAdjustedDistancesFromCount = false;
+};
+
+USTRUCT()
+struct FMassSimulationVariableTickSharedFragment : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	FMassSimulationVariableTickSharedFragment() = default;
+	FMassSimulationVariableTickSharedFragment(const FMassSimulationVariableTickConfig& Config);
+
+	/** Runtime data for matching the simulation tick rate config */
 	TMassLODTickRateController<FMassSimulationVariableTickChunkFragment, FMassSimulationLODLogic> LODTickRateController;
+
+	static bool ShouldCalculateLODForChunk(const FMassExecutionContext& Context)
+	{
+		if (const FMassSimulationVariableTickSharedFragment* TickRateSharedFragment = Context.GetSharedFragmentPtr<FMassSimulationVariableTickSharedFragment>())
+		{
+			return TickRateSharedFragment->LODTickRateController.ShouldCalculateLODForChunk(Context);
+		}
+		return true;
+	}
+
+	static bool ShouldAdjustLODFromCountForChunk(const FMassExecutionContext& Context)
+	{
+		if (const FMassSimulationVariableTickSharedFragment* TickRateSharedFragment = Context.GetSharedFragmentPtr<FMassSimulationVariableTickSharedFragment>())
+		{
+			return TickRateSharedFragment->LODTickRateController.ShouldAdjustLODFromCountForChunk(Context);
+		}
+		return true;
+	}
 };
 
 UCLASS(meta = (DisplayName = "Simulation LOD"))
@@ -151,4 +197,6 @@ protected:
 	FMassEntityQuery EntityQuery;
 	FMassEntityQuery EntityQueryCalculateLOD;
 	FMassEntityQuery EntityQueryAdjustDistances;
+	FMassEntityQuery EntityQueryVariableTick;
+	FMassEntityQuery EntityQuerySetLODTag;
 };

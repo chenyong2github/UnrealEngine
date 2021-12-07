@@ -10,10 +10,14 @@ void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 {
 	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_Transform>();
 	BuildContext.AddFragmentWithDefaultInitializer<FMassViewerInfoFragment>();
-	BuildContext.AddFragmentWithDefaultInitializer<FMassSimulationLODFragment>();
-	BuildContext.AddFragmentWithDefaultInitializer<FDataFragment_MassSimulationLODInfo>();
-	BuildContext.AddTag<FMassOffLODTag>();
-	BuildContext.AddChunkFragment<FMassSimulationVariableTickChunkFragment>();
+	FMassSimulationLODFragment& LODFragment = BuildContext.AddFragment_GetRef<FMassSimulationLODFragment>();
+
+	// Start all simulation LOD in the Off 
+	if(Config.bSetLODTags || bEnableVariableTicking)
+	{
+		LODFragment.LOD = EMassLOD::Off;
+		BuildContext.AddTag<FMassOffLODTag>();
+	}
 
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 
@@ -22,4 +26,17 @@ void UMassSimulationLODTrait::BuildTemplate(FMassEntityTemplateBuildContext& Bui
 	BuildContext.AddConstSharedFragment(ConfigFragment);
 	FSharedStruct SharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassSimulationLODSharedFragment>(ConfigHash, Config);
 	BuildContext.AddSharedFragment(SharedFragment);
+
+	// Variable ticking from simulation LOD
+	if(bEnableVariableTicking)
+	{
+		BuildContext.AddFragmentWithDefaultInitializer<FMassSimulationVariableTickFragment>();
+		BuildContext.AddChunkFragment<FMassSimulationVariableTickChunkFragment>();
+
+		uint32 VariableTickConfigHash = UE::StructUtils::GetStructCrc32(FConstStructView::Make(VariableTickConfig));
+		FConstSharedStruct VariableTickConfigFragment = EntitySubsystem->GetOrCreateConstSharedFragment(VariableTickConfigHash, VariableTickConfig);
+		BuildContext.AddConstSharedFragment(VariableTickConfigFragment);
+		FSharedStruct VariableTickSharedFragment = EntitySubsystem->GetOrCreateSharedFragment<FMassSimulationVariableTickSharedFragment>(VariableTickConfigHash, VariableTickConfig);
+		BuildContext.AddSharedFragment(VariableTickSharedFragment);
+	}
 }
