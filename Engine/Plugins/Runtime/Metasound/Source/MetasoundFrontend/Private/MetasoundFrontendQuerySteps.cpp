@@ -14,13 +14,13 @@ namespace Metasound
 	{
 	}
 
-	void FNodeClassRegistrationEvents::Stream(TArray<FFrontendQueryEntry>& OutEntries)
+	void FNodeClassRegistrationEvents::Stream(TArray<FFrontendQueryValue>& OutValues)
 	{
 		using namespace Frontend;
 
-		auto AddEntry = [&OutEntries](const FNodeRegistryTransaction& InTransaction)
+		auto AddEntry = [&OutValues](const FNodeRegistryTransaction& InTransaction)
 		{
-			OutEntries.Emplace(FFrontendQueryEntry::FValue(TInPlaceType<FNodeRegistryTransaction>(), InTransaction));
+			OutValues.Emplace(TInPlaceType<FNodeRegistryTransaction>(), InTransaction);
 		};
 		
 		if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
@@ -29,12 +29,7 @@ namespace Metasound
 		}
 	}
 
-	void FNodeClassRegistrationEvents::Reset()
-	{
-		CurrentTransactionID = Frontend::GetOriginRegistryTransactionID();
-	}
-
-	FFrontendQueryEntry::FKey FMapRegistrationEventsToNodeRegistryKeys::Map(const FFrontendQueryEntry& InEntry) const 
+	FFrontendQueryKey FMapRegistrationEventsToNodeRegistryKeys::Map(const FFrontendQueryEntry& InEntry) const 
 	{
 		using namespace Frontend;
 
@@ -45,27 +40,27 @@ namespace Metasound
 			RegistryKey = InEntry.Value.Get<FNodeRegistryTransaction>().GetNodeRegistryKey();
 		}
 
-		return FFrontendQueryEntry::FKey(RegistryKey);
+		return FFrontendQueryKey(RegistryKey);
 	}
 
-	void FReduceRegistrationEventsToCurrentStatus::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const
+	void FReduceRegistrationEventsToCurrentStatus::Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const
 	{
 		using namespace Frontend;
 
 		int32 State = 0;
 		FFrontendQueryEntry* FinalEntry = nullptr;
 
-		for (FFrontendQueryEntry* Entry : InEntries)
+		for (FFrontendQueryEntry& Entry : InOutEntries)
 		{
-			if (ensure(Entry->Value.IsType<FNodeRegistryTransaction>()))
+			if (ensure(Entry.Value.IsType<FNodeRegistryTransaction>()))
 			{
-				const FNodeRegistryTransaction& Transaction = Entry->Value.Get<FNodeRegistryTransaction>();
+				const FNodeRegistryTransaction& Transaction = Entry.Value.Get<FNodeRegistryTransaction>();
 				
 				switch (Transaction.GetTransactionType())
 				{
 					case FNodeRegistryTransaction::ETransactionType::NodeRegistration:
 						State++;
-						FinalEntry = Entry;
+						FinalEntry = &Entry;
 						break;
 
 					case FNodeRegistryTransaction::ETransactionType::NodeUnregistration:
@@ -80,7 +75,13 @@ namespace Metasound
 
 		if ((nullptr != FinalEntry) && (State > 0))
 		{
-			OutResult.Add(*FinalEntry);
+			FFrontendQueryEntry Entry = *FinalEntry;
+			InOutEntries.Reset();
+			InOutEntries.Add(Entry);
+		}
+		else
+		{
+			InOutEntries.Reset();
 		}
 	}
 
@@ -133,14 +134,9 @@ namespace Metasound
 		);
 	}
 
-	FFilterClassesByClassName::FFilterClassesByClassName(const FMetasoundFrontendClassName& InClassName)
-	: ClassName(InClassName)
+	FFrontendQueryKey FMapClassesToClassName::Map(const FFrontendQueryEntry& InEntry) const 
 	{
-	}
-
-	bool FFilterClassesByClassName::Filter(const FFrontendQueryEntry& InEntry) const 
-	{
-		return InEntry.Value.Get<FMetasoundFrontendClass>().Metadata.GetClassName() == ClassName;
+		return FFrontendQueryKey(InEntry.Value.Get<FMetasoundFrontendClass>().Metadata.GetClassName().GetFullName());
 	}
 
 	FFilterClassesByClassID::FFilterClassesByClassID(const FGuid InClassID)
@@ -153,49 +149,33 @@ namespace Metasound
 		return InEntry.Value.Get<FMetasoundFrontendClass>().ID == ClassID;
 	}
 
-	FFrontendQueryEntry::FKey FMapToFullClassName::Map(const FFrontendQueryEntry& InEntry) const
+	FFrontendQueryKey FMapToFullClassName::Map(const FFrontendQueryEntry& InEntry) const
 	{
 		const FMetasoundFrontendClass& FrontendClass = InEntry.Value.Get<FMetasoundFrontendClass>();
-		return FFrontendQueryEntry::FKey(FrontendClass.Metadata.GetClassName().GetFullName());
+		return FFrontendQueryKey(FrontendClass.Metadata.GetClassName().GetFullName());
 	}
 
-	void FReduceClassesToHighestVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const
+	void FReduceClassesToHighestVersion::Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const
 	{
 		FFrontendQueryEntry* HighestVersionEntry = nullptr;
-		int32 HighestMajorVersion = -1;
+		FMetasoundFrontendVersionNumber HighestVersion;
 
-		for (FFrontendQueryEntry* Entry : InEntries)
+		for (FFrontendQueryEntry& Entry : InOutEntries)
 		{
-			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.GetVersion().Major;
+			const FMetasoundFrontendVersionNumber& Version = Entry.Value.Get<FMetasoundFrontendClass>().Metadata.GetVersion();
 
-			if (!HighestVersionEntry || HighestMajorVersion < EntryMajorVersion)
+			if (!HighestVersionEntry || HighestVersion < Version)
 			{
-				HighestVersionEntry = Entry;
-				HighestMajorVersion = EntryMajorVersion;
+				HighestVersionEntry = &Entry;
+				HighestVersion = Version;
 			}
 		}
 
 		if (HighestVersionEntry)
 		{
-			OutResult.Add(*HighestVersionEntry);
-		}
-	}
-
-	FReduceClassesToMajorVersion::FReduceClassesToMajorVersion(int32 InMajorVersion)
-		: MajorVersion(InMajorVersion)
-	{
-	}
-
-	void FReduceClassesToMajorVersion::Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const
-	{
-		for (FFrontendQueryEntry* Entry : InEntries)
-		{
-			const int32 EntryMajorVersion = Entry->Value.Get<FMetasoundFrontendClass>().Metadata.GetVersion().Major;
-			if (MajorVersion == EntryMajorVersion)
-			{
-				OutResult.Add(*Entry);
-				return;
-			}
+			FFrontendQueryEntry Entry = *HighestVersionEntry;
+			InOutEntries.Reset();
+			InOutEntries.Add(Entry);
 		}
 	}
 

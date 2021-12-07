@@ -2,11 +2,10 @@
 
 #include "MetasoundFrontendQuery.h"
 
-#include "Algo/IsSorted.h"
-#include "Algo/Sort.h"
-#include "Algo/Transform.h"
-#include "CoreMinimal.h"
+#include "Algo/AnyOf.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundTrace.h"
+#include "Misc/Guid.h"
 #include "Templates/TypeHash.h"
 
 namespace Metasound
@@ -23,9 +22,9 @@ namespace Metasound
 			{
 			}
 
-			void Stream(TArray<FFrontendQueryEntry>& OutEntries) override
+			void Stream(TArray<FFrontendQueryValue>& OutValues) override
 			{
-				Func(OutEntries);
+				Func(OutValues);
 			}
 
 			private:
@@ -61,7 +60,7 @@ namespace Metasound
 			{
 			}
 
-			FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override
+			FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const override
 			{
 				return Func(InEntry);
 			}
@@ -78,10 +77,9 @@ namespace Metasound
 			:	Func(InFunc)
 			{
 			}
-
-			void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override
+			void Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const override
 			{
-				return Func(InKey, InEntries, OutResult);
+				return Func(InKey, InOutEntries);
 			}
 
 			FReduceFunction Func;
@@ -159,553 +157,436 @@ namespace Metasound
 			FLimitFunction Func;
 		};
 
-		// Base implementation of a query step execution.
-		struct FStepExecuterBase : public FFrontendQueryStep::IStepExecuter
-		{
-
-			// Appends incremental results to the output results.
-			EResultModificationState Append(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) const
-			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
-				if (InIncremental.GetSelection().Num() > 0)
-				{
-					InOutResult.AppendToStorageAndSelection(InIncremental);
-					ResultState = EResultModificationState::Modified;
-				}
-
-				return ResultState;
-			}
-		};
-
-		// Implements execution of a source
-		struct FSourceStepExecuter : public FStepExecuterBase
-		{
-			FSourceStepExecuter(TUniquePtr<IFrontendQuerySource>&& InSource)
-			: Source(MoveTemp(InSource))
-			{
-			}
-
-			// Get the latest entries from the source
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
-			{
-				if (Source.IsValid())
-				{
-					TArray<FFrontendQueryEntry> NewEntries;
-					Source->Stream(NewEntries);
-
-					if (NewEntries.Num() > 0)
-					{
-						InOutResult.AppendToStorageAndSelection(NewEntries);
-						return EResultModificationState::Modified;
-					}
-				}
-
-				return EResultModificationState::Unmodified;
-			}
-
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				return Append(InIncremental, InOutResult);
-			}
-
-			virtual bool IsMergeRequiredForIncremental() const override
-			{
-				return false;
-			}
-
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
-			{
-				Reset(); // Reset source to original state.
-				return Increment(InOutResult);
-			}
-
-			virtual void Reset() override
-			{
-				if (Source.IsValid())
-				{
-					Source->Reset();
-				}
-			}
-
-		private:
-
-			TUniquePtr<IFrontendQuerySource> Source;
-		};
-
+		// Base step executer for all step types.
 		template<typename StepType>
-		struct TStepExecuter : public FStepExecuterBase
+		struct TStepExecuterBase : public FFrontendQueryStep::IStepExecuter
 		{
-			TStepExecuter(TUniquePtr<StepType>&& InStep)
+			using FIncremental = FFrontendQueryStep::FIncremental;
+
+			TStepExecuterBase(TUniquePtr<StepType>&& InStep)
 			:	Step(MoveTemp(InStep))
 			{
 			}
 
-			virtual void Reset() override { }
+			virtual void Merge(FIncremental& InOutIncremental, FFrontendQuerySelection& InOutSelection) const override
+			{
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::BaseQueryStep::Merge);
+				MergePartitionCompositionIndependent(InOutIncremental, InOutSelection);
+			}
 
-			virtual bool IsMergeRequiredForIncremental() const override { return false; }
+			virtual bool IsDependentOnPartitionComposition() const override { return false; }
+			virtual bool CanProcessRemovals() const override { return true; }
+			virtual bool CanProduceEntries() const override { return false; }
 
 		protected:
+
+			void MergePartitionCompositionIndependent(FIncremental& InOutIncremental, FFrontendQuerySelection& InOutSelection) const
+			{
+				checkf(!IsDependentOnPartitionComposition(), TEXT("Incorrect merge function called on step which is dependent upon merge composition"));
+				Remove(InOutIncremental.ActiveRemovalKeys, InOutIncremental.ActiveRemovalSelection, InOutSelection);
+				Append(InOutIncremental.ActiveKeys, InOutIncremental.ActiveSelection, InOutSelection);
+			}
+
+			// Appends incremental results to the output results.
+			void Append(const TSet<FFrontendQueryKey>& InActiveKeys, const FFrontendQuerySelection& InIncrementalSelection, FFrontendQuerySelection& InOutSelection) const
+			{
+				for (const FFrontendQueryKey& Key : InActiveKeys)
+				{
+					if (const FFrontendQueryPartition* Partition = InIncrementalSelection.Find(Key))
+					{
+						if (Partition->Num() > 0)
+						{
+							InOutSelection.FindOrAdd(Key).Append(*Partition);
+						}
+					}
+				}
+			}
+
+			void Remove(const TSet<FFrontendQueryKey>& InRemovalActiveKeys, const FFrontendQuerySelection& InRemovalSelection, FFrontendQuerySelection& InOutSelection) const
+			{
+				for (const FFrontendQueryKey& Key : InRemovalActiveKeys)
+				{
+					if (FFrontendQueryPartition* Entries = InOutSelection.Find(Key))
+					{
+						if (const FFrontendQueryPartition* EntriesToRemove = InRemovalSelection.Find(Key))
+						{
+							for (const FFrontendQueryEntry& EntryToRemove : *EntriesToRemove)
+							{
+								Entries->Remove(EntryToRemove);
+							}
+						}
+
+						if (Entries->Num() == 0)
+						{
+							InOutSelection.Remove(Key);
+						}
+					}
+				}
+			}
 
 			TUniquePtr<StepType> Step;
 		};
 
-		struct FStreamStepExecuter : TStepExecuter<IFrontendQueryStreamStep>
+		struct FStreamStepExecuter : TStepExecuterBase<IFrontendQueryStreamStep>
 		{
-			using TStepExecuter<IFrontendQueryStreamStep>::TStepExecuter;
+			using TStepExecuterBase<IFrontendQueryStreamStep>::TStepExecuterBase;
 
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::StreamQueryStep::Execute);
+				InOutUpdatedKeys.Reset();
 
 				if (Step.IsValid())
 				{
-					TArray<FFrontendQueryEntry> NewEntries;
-					Step->Stream(NewEntries);
+					// Retrieve new values from step
+					TArray<FFrontendQueryValue> NewValues;
+					Step->Stream(NewValues);
 
-					if (NewEntries.Num() > 0)
+					const int32 Num = NewValues.Num();
+					if (NewValues.Num() > 0)
 					{
-						ResultState = EResultModificationState::Modified;
-						InOutResult.AppendToStorageAndSelection(NewEntries);
+						FFrontendQueryKey NullKey;
+						InOutUpdatedKeys.Add(NullKey);
+						FFrontendQueryPartition& NullPartition = InOutResult.FindOrAdd(NullKey);
+
+						for (FFrontendQueryValue& Value : NewValues)
+						{
+							FFrontendQueryEntry Entry;
+							Entry.ID = FGuid::NewGuid();
+							Entry.Value = MoveTemp(Value);
+							NullPartition.Add(MoveTemp(Entry));
+						}
 					}
 				}
-
-				return ResultState;
 			}
 
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				return Append(InIncremental, InOutResult);
+			virtual bool CanProcessRemovals() const override 
+			{ 
+				// Cannot process removals since streams only add information.
+				return false; 
 			}
 
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
-			{
-				return Increment(InOutResult);
+			virtual bool CanProduceEntries() const override 
+			{ 
+				return true; 
 			}
 		};
 
-		struct FTransformStepExecuter : TStepExecuter<IFrontendQueryTransformStep>
+		struct FTransformStepExecuter : TStepExecuterBase<IFrontendQueryTransformStep>
 		{
-			using TStepExecuter<IFrontendQueryTransformStep>::TStepExecuter;
+			using TStepExecuterBase<IFrontendQueryTransformStep>::TStepExecuterBase;
 
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::TransformQueryStep::Execute);
 				if (Step.IsValid())
 				{
-					if (InOutResult.GetSelection().Num() > 0)
+					for (const FFrontendQueryKey& Key : InOutUpdatedKeys)
 					{
-						ResultState = EResultModificationState::Modified;
-					}
-
-					for (FFrontendQueryEntry* Entry : InOutResult.GetSelection())
-					{
-						if (nullptr != Entry)
+						if (FFrontendQueryPartition* Partition = InOutResult.Find(Key))
 						{
-							Step->Transform(Entry->Value);
+							if (Partition->Num() > 0)
+							{
+								for (FFrontendQueryEntry& Entry : *Partition)
+								{
+									Step->Transform(Entry.Value);
+								}
+							}
 						}
 					}
 				}
-
-				return ResultState;
-			}
-
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				return Append(InIncremental, InOutResult);
-			}
-
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
-			{
-				return Increment(InOutResult);
 			}
 		};
 
-		struct FMapStepExecuter : TStepExecuter<IFrontendQueryMapStep>
+		struct FMapStepExecuter : TStepExecuterBase<IFrontendQueryMapStep>
 		{
-			using TStepExecuter<IFrontendQueryMapStep>::TStepExecuter;
+			using TStepExecuterBase<IFrontendQueryMapStep>::TStepExecuterBase;
 
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::MapQueryStep::Execute);
 				if (Step.IsValid())
 				{
-					if (InOutResult.GetSelection().Num() > 0)
+					if (InOutUpdatedKeys.Num() > 0)
 					{
-						ResultState = EResultModificationState::Modified;
-					}
+						FFrontendQuerySelection Result;
 
-					for (FFrontendQueryEntry* Entry : InOutResult.GetSelection())
-					{
-						if (nullptr != Entry)
+						for (const FFrontendQueryKey& Key : InOutUpdatedKeys)
 						{
-							Entry->Key = Step->Map(*Entry);
+							if (FFrontendQueryPartition* Partition = InOutResult.Find(Key))
+							{
+								// Map all entries associated with the key to a new key.
+								if (Partition->Num() > 0)
+								{
+									for (FFrontendQueryEntry& Entry : *Partition)
+									{
+										FFrontendQueryKey NewKey = Step->Map(Entry);
+										Result.FindOrAdd(NewKey).Add(Entry);
+									}
+								}
+
+								// Remove entries since they have been mapped to a new key
+								Partition->Reset();
+							}
 						}
+
+						// Get the updated set of keys in the output.
+						InOutUpdatedKeys.Reset();
+						Result.GetKeys(InOutUpdatedKeys);
+
+						// Append the new values to the final result.
+						Append(InOutUpdatedKeys, Result, InOutResult);
 					}
 				}
-
-				return ResultState;
-			}
-
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				return Append(InIncremental, InOutResult);
-			}
-
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
-			{
-				return Increment(InOutResult);
 			}
 		};
 
-		struct FReduceStepExecuter : TStepExecuter<IFrontendQueryReduceStep>
+		struct FReduceStepExecuter : TStepExecuterBase<IFrontendQueryReduceStep>
 		{
-			using FKey = FFrontendQueryEntry::FKey;
-
-		private:
-			static const FKey InvalidKey;
-
-			static const FFrontendQueryEntry::FKey& GetKey(const FFrontendQueryEntry* InEntry)
-			{
-				if (nullptr != InEntry)
-				{
-					return InEntry->Key;
-				}
-				else
-				{
-					return InvalidKey;
-				}
-			}
-
-			// Reduce entries.
-			//
-			// @parma InKey - The key associated with InEntriesToReduce
-			// @parma InEntriesToReduce - Entries to either append or reduce.
-			// @param OutResult - The output query selection to append to.
-			void Reduce(const FFrontendQueryEntry::FKey& InKey, TArrayView<FFrontendQueryEntry* const> InEntriesToReduce, FFrontendQuerySelection& OutResult)
-			{
-				check(Step.IsValid());
-
-				// Note: InEntriesToReduce is has valid storage in OutResult.
-				FFrontendQuerySelection::FReduceOutputView ReduceResult(InEntriesToReduce);
-				Step->Reduce(InKey, InEntriesToReduce, ReduceResult);
-				OutResult.AppendToStorageAndSelection(MoveTemp(ReduceResult));
-			}
-
-			// Iterate over sorted entries.
-			template<typename FuncType>
-			void IterSortedEntries(TArrayView<FFrontendQueryEntry* const> SortedSelection, FuncType InFunc)
-			{
-				// input selection must be sorted by key.
-				check(Algo::IsSortedBy(SortedSelection, FReduceStepExecuter::GetKey));
-
-				if (SortedSelection.Num() > 0)
-				{
-					int32 StartIndex = 0;
-					
-					FFrontendQueryEntry::FKey CurrentKey = GetKey(SortedSelection[0]);
-
-					const int32 Num = SortedSelection.Num();
-					for (int32 EndIndex = 1; EndIndex < Num; EndIndex++)
-					{
-						FFrontendQueryEntry::FKey ThisKey = GetKey(SortedSelection[EndIndex]);
-						if (CurrentKey != ThisKey)
-						{
-							InFunc(CurrentKey, SortedSelection.Slice(StartIndex, EndIndex - StartIndex));
-
-							CurrentKey = ThisKey;
-							StartIndex = EndIndex;
-						}
-					}
-
-					InFunc(CurrentKey, SortedSelection.Slice(StartIndex, SortedSelection.Num() - StartIndex));
-				}
-			}
-
-			TArray<FFrontendQueryEntry*> GetSortedSelection(TArrayView<FFrontendQueryEntry* const> InSelection)
-			{
-				TArray<FFrontendQueryEntry*> SortedSelection(InSelection.GetData(), InSelection.Num()); 
-				Algo::SortBy(SortedSelection, GetKey);
-				return SortedSelection;
-			}
+			using FKey = FFrontendQueryKey;
 
 		public:
 
-			using TStepExecuter<IFrontendQueryReduceStep>::TStepExecuter;
+			using TStepExecuterBase<IFrontendQueryReduceStep>::TStepExecuterBase;
 
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			virtual void Merge(FIncremental& InOutIncremental, FFrontendQuerySelection& InOutSelection) const override
 			{
-				check(IsMergeRequiredForIncremental());
-				return Execute(InOutResult);
-			}
-
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::ReduceQueryStep::Merge);
+				Remove(InOutIncremental.ActiveRemovalKeys, InOutIncremental.ActiveRemovalSelection, InOutSelection);
+				
 				if (Step.IsValid())
 				{
-					if (InIncremental.GetSelection().Num() > 0)
+					for (const FFrontendQueryKey& Key : InOutIncremental.ActiveKeys)
 					{
-						TSet<FKey> NewKeys;
-
-						Algo::Transform(InIncremental.GetSelection(), NewKeys, GetKey);
-
-						InOutResult.AppendToStorageAndSelection(InIncremental);
-						TArray<FFrontendQueryEntry*> SortedSelection = GetSortedSelection(InOutResult.GetSelection());
-						InOutResult.ResetSelection();
-
-						IterSortedEntries(SortedSelection, [&](const FKey& InKey, TArrayView<FFrontendQueryEntry* const> InEntriesToReduce)
+						if (const FFrontendQueryPartition* NewPartition = InOutIncremental.ActiveSelection.Find(Key))
 						{
-							if (NewKeys.Contains(InKey))
+							if (NewPartition->Num() > 0)
 							{
-								// Some of the entries re new. Need to re-reduce.
-								this->Reduce(InKey, InEntriesToReduce, InOutResult);
-							}
-							else
-							{
-								// All these entries are owned by the result already.
-								InOutResult.AppendToSelection(InEntriesToReduce);
-							}
-						});
+								FFrontendQueryPartition& Partition = InOutSelection.FindOrAdd(Key);
+								FFrontendQueryPartition OriginalPartition = Partition;
+								Partition.Append(*NewPartition);
 
-						ResultState = EResultModificationState::Modified;
+								Step->Reduce(Key, Partition);
+
+								FFrontendQueryPartition Removed = OriginalPartition.Difference(Partition);
+								if (Removed.Num() > 0)
+								{
+									InOutIncremental.ActiveRemovalSelection.FindOrAdd(Key).Append(Removed);
+									InOutIncremental.ActiveRemovalKeys.Add(Key);
+								}
+							}
+						}
 					}
 				}
-
-				return ResultState;
 			}
 
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::ReduceQueryStep::Execute);
 				if (Step.IsValid())
 				{
-					if (InOutResult.GetSelection().Num() > 0)
+					for (const FFrontendQueryKey& Key : InOutUpdatedKeys)
 					{
-						TArray<FFrontendQueryEntry*> SortedSelection = GetSortedSelection(InOutResult.GetSelection());
-						InOutResult.ResetSelection();
-
-						IterSortedEntries(SortedSelection, [&](const FKey& InKey, TArrayView<FFrontendQueryEntry* const> InEntriesToReduce)
+						if (FFrontendQueryPartition* Partition = InOutResult.Find(Key))
 						{
-							this->Reduce(InKey, InEntriesToReduce, InOutResult);
-						});
-
-						ResultState = EResultModificationState::Modified;
+							if (Partition->Num() > 0)
+							{
+								Step->Reduce(Key, *Partition);
+							}
+						}
 					}
 				}
-
-				return ResultState;
 			}
 
 
-			virtual bool IsMergeRequiredForIncremental() const override
+			virtual bool IsDependentOnPartitionComposition() const override
 			{
-				// Merge is required during an incremental update because
-				// existing results and new results may share the same key and
-				// need re-reducing.
+				// Results may change depending on what is in the partition.
 				return true;
 			}
 		};
 
-		const FReduceStepExecuter::FKey FReduceStepExecuter::InvalidKey;
-
-		struct FFilterStepExecuter : TStepExecuter<IFrontendQueryFilterStep>
+		struct FFilterStepExecuter : TStepExecuterBase<IFrontendQueryFilterStep>
 		{
-			using TStepExecuter<IFrontendQueryFilterStep>::TStepExecuter;
+			using TStepExecuterBase<IFrontendQueryFilterStep>::TStepExecuterBase;
 
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::FilterQueryStep::Execute);
 				if (Step.IsValid())
 				{
-					if (InOutResult.GetSelection().Num() > 0)
+					for (const FFrontendQueryKey& Key : InOutUpdatedKeys)
 					{
-						ResultState = EResultModificationState::Modified;
-						auto FilterFunc = [&](const FFrontendQueryEntry* Entry)
+						if (FFrontendQueryPartition* Partition = InOutResult.Find(Key))
 						{
-							return (nullptr != Entry) && Step->Filter(*Entry);
-						};
-
-						InOutResult.FilterSelection(FilterFunc);
-					}
-				}
-
-				return ResultState;
-			}
-
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				return Append(InIncremental, InOutResult);
-			}
-
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
-			{
-				return Increment(InOutResult);
-			}
-		};
-
-		struct FScoreStepExecuter : TStepExecuter<IFrontendQueryScoreStep>
-		{
-			using TStepExecuter<IFrontendQueryScoreStep>::TStepExecuter;
-
-			virtual EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
-			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
-				if (Step.IsValid())
-				{
-					if (InOutResult.GetSelection().Num() > 0)
-					{
-						ResultState = EResultModificationState::Modified;
-					}
-
-					for (FFrontendQueryEntry* Entry : InOutResult.GetSelection())
-					{
-						if (nullptr != Entry)
-						{
-							Entry->Score = Step->Score(*Entry);
+							for (FFrontendQueryPartition::TIterator Iter = Partition->CreateIterator(); Iter; ++Iter)
+							{
+								const bool bKeepEntry = Step->Filter(*Iter);
+								if (!bKeepEntry)
+								{
+									Iter.RemoveCurrent();
+								}
+							}
 						}
 					}
 				}
-
-				return ResultState;
 			}
+		};
 
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				return Append(InIncremental, InOutResult);
-			}
+		struct FScoreStepExecuter : TStepExecuterBase<IFrontendQueryScoreStep>
+		{
+			using TStepExecuterBase<IFrontendQueryScoreStep>::TStepExecuterBase;
 
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				return Increment(InOutResult);
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::ScoreQueryStep::Execute);
+				if (Step.IsValid())
+				{
+					for (const FFrontendQueryKey& Key : InOutUpdatedKeys)
+					{
+						if (FFrontendQueryPartition* Partition = InOutResult.Find(Key))
+						{
+							for (FFrontendQueryEntry& Entry : *Partition)
+							{
+								Entry.Score = Step->Score(Entry);
+							}
+						}
+					}
+				}
 			}
 		};
 		
-		struct FSortStepExecuter : TStepExecuter<IFrontendQuerySortStep>
+		struct FSortStepExecuter : TStepExecuterBase<IFrontendQuerySortStep>
 		{
-			using TStepExecuter<IFrontendQuerySortStep>::TStepExecuter;
+			using TStepExecuterBase<IFrontendQuerySortStep>::TStepExecuterBase;
 
-			EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			virtual void Merge(FIncremental& InOutIncremental, FFrontendQuerySelection& InOutSelection) const override
 			{
-				check(IsMergeRequiredForIncremental());
-				return Execute(InOutResult);
-			}
-
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::SortQueryStep::Merge);
+				Remove(InOutIncremental.ActiveRemovalKeys, InOutIncremental.ActiveRemovalSelection, InOutSelection);
 
 				if (Step.IsValid())
 				{
-					const bool bIncrementalHasNonEmptySelection = InIncremental.GetSelection().Num() > 0;
-
-					if (bIncrementalHasNonEmptySelection)
+					auto SortFunc =  [&](const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
 					{
-						// Append incremental data to this result
-						InOutResult.AppendToStorageAndSelection(InIncremental);
+						return Step->Sort(InLHS, InRHS);
+					};
 
-						InOutResult.GetSelection().Sort(
-							[&](const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
+					for (const FFrontendQueryKey& Key : InOutIncremental.ActiveKeys)
+					{
+						if (const FFrontendQueryPartition* NewPartition = InOutIncremental.ActiveSelection.Find(Key))
+						{
+							if (FFrontendQueryPartition* OrigPartition = InOutSelection.Find(Key))
 							{
-								return Step->Sort(InLHS, InRHS);
+								// Need to re-sort if merging two arrays
+								OrigPartition->Append(*NewPartition);
+								OrigPartition->Sort(SortFunc);
 							}
-						);
-
-						ResultState = EResultModificationState::Modified;
+							else
+							{
+								// New key entries are already sorted. 
+								InOutSelection.Add(Key, *NewPartition);
+							}
+						}
 					}
 				}
-
-				return ResultState;
 			}
 
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::SortQueryStep::Execute);
 				if (Step.IsValid())
 				{
-					if (InOutResult.GetSelection().Num() > 0)
+					auto SortFunc = [&](const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
 					{
-						InOutResult.GetSelection().Sort(
-							[&](const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
-							{
-								return Step->Sort(InLHS, InRHS);
-							}
-						);
+						return Step->Sort(InLHS, InRHS);
+					};
 
-						ResultState = EResultModificationState::Modified;
+					for (const FFrontendQueryKey& Key : InOutUpdatedKeys)
+					{
+						if (FFrontendQueryPartition* OrigPartition = InOutResult.Find(Key))
+						{
+							OrigPartition->Sort(SortFunc);
+						}
 					}
 				}
-
-				return ResultState;
 			}
 
-			virtual bool IsMergeRequiredForIncremental() const 
+			virtual bool IsDependentOnPartitionComposition() const 
 			{
-				// Merging is required during incremental update because sort
-				// order may change after merge.
+				// Results may change depending on what is in the partition.
 				return true;
 			}
 		};
 
-		struct FLimitStepExecuter : TStepExecuter<IFrontendQueryLimitStep>
+		struct FLimitStepExecuter : TStepExecuterBase<IFrontendQueryLimitStep>
 		{
-			using TStepExecuter<IFrontendQueryLimitStep>::TStepExecuter;
+			using TStepExecuterBase<IFrontendQueryLimitStep>::TStepExecuterBase;
 
-			EResultModificationState Increment(FFrontendQuerySelection& InOutResult) override
+			virtual void Merge(FIncremental& InOutIncremental, FFrontendQuerySelection& InOutSelection) const override
 			{
-				check(IsMergeRequiredForIncremental());
-				return Execute(InOutResult);
-			}
-
-			virtual EResultModificationState Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult) override
-			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::LimitQueryStep::Merge);
+				Remove(InOutIncremental.ActiveRemovalKeys, InOutIncremental.ActiveRemovalSelection, InOutSelection);
 
 				if (Step.IsValid())
 				{
-					int32 Limit = Step->Limit();
+					TSet<FFrontendQueryKey> UpdatedKeys;
 
-					if (InIncremental.GetSelection().Num() > 0)
+					const int32 Limit = Step->Limit();
+
+					for (const FFrontendQueryKey& Key : InOutIncremental.ActiveKeys)
 					{
-						ResultState = EResultModificationState::Modified;
-						InOutResult.AppendToStorageAndSelection(InIncremental);
-
-						if (InOutResult.GetSelection().Num() > Limit)
+						if (const FFrontendQueryPartition* NewPartition = InOutIncremental.ActiveSelection.Find(Key))
 						{
-							InOutResult.SetSelection(InOutResult.GetSelection().Slice(0, Limit));
+							FFrontendQueryPartition& ExistingPartition = InOutSelection.FindOrAdd(Key);
+
+							const int32 NumToAdd = FMath::Min(Limit - ExistingPartition.Num(), NewPartition->Num());
+							if (NumToAdd > 0)
+							{
+								UpdatedKeys.Add(Key);
+								for (FFrontendQueryPartition::TConstIterator Iter = NewPartition->CreateConstIterator(); Iter; ++Iter)
+								{
+									ExistingPartition.Add(*Iter);
+								}
+							}
 						}
 					}
 				}
-
-				return ResultState;
 			}
 
-			virtual EResultModificationState Execute(FFrontendQuerySelection& InOutResult) override
+			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				EResultModificationState ResultState = EResultModificationState::Unmodified;
-
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::LimitQueryStep::Execute);
 				if (Step.IsValid())
 				{
-					int32 Limit = Step->Limit();
+					const int32 Limit = Step->Limit();
 
-					if (InOutResult.GetSelection().Num() > Limit)
+					for (const FFrontendQueryKey& Key : InOutUpdatedKeys)
 					{
-						ResultState = EResultModificationState::Modified;
-						InOutResult.SetSelection(InOutResult.GetSelection().Slice(0, Limit));
+						if (FFrontendQueryPartition* Partition = InOutResult.Find(Key))
+						{
+							const int32 Num = Partition->Num();
+							if (Num > Limit)
+							{
+								// Create a new partition and fill with desired number
+								// of objects. 
+								FFrontendQueryPartition NewPartition;
+								FFrontendQueryPartition::TConstIterator Iter = Partition->CreateConstIterator();
+								for (int32 i = 0; (i < Limit) && Iter; i++)
+								{
+									NewPartition.Add(*Iter);
+									++Iter;
+								}
+
+								// Replace the old partition with a new one.
+								InOutResult[Key] = NewPartition;
+							}
+						}
 					}
 				}
-
-				return ResultState;
 			}
 
-			virtual bool IsMergeRequiredForIncremental() const 
+			virtual bool IsDependentOnPartitionComposition() const 
 			{
 				// Merge is required because values under limit may be different
 				// after merge.
@@ -715,7 +596,7 @@ namespace Metasound
 	}
 
 	FFrontendQueryKey::FFrontendQueryKey()
-	: Key(TInPlaceType<FFrontendQueryKey::FInvalid>())
+	: Key(TInPlaceType<FFrontendQueryKey::FNull>())
 	, Hash(INDEX_NONE)
 	{}
 
@@ -737,34 +618,34 @@ namespace Metasound
 	{
 	}
 
-	bool FFrontendQueryKey::IsValid() const
+	bool FFrontendQueryKey::IsNull() const
 	{
-		return Key.GetIndex() != FKeyType::IndexOfType<FFrontendQueryKey::FInvalid>();
+		return Key.GetIndex() != FKeyType::IndexOfType<FFrontendQueryKey::FNull>();
 	}
 
 	bool operator==(const FFrontendQueryKey& InLHS, const FFrontendQueryKey& InRHS)
 	{
 		if (InLHS.Hash == InRHS.Hash)
 		{
-			if (InLHS.IsValid() && InRHS.IsValid())
+			if (InLHS.Key.GetIndex() == InRHS.Key.GetIndex())
 			{
-				if (InLHS.Key.GetIndex() == InRHS.Key.GetIndex())
+				switch(InLHS.Key.GetIndex())
 				{
-					switch(InLHS.Key.GetIndex())
-					{
-						case FFrontendQueryKey::FKeyType::IndexOfType<int32>():
-							return InLHS.Key.Get<int32>() == InRHS.Key.Get<int32>();
+					case FFrontendQueryKey::FKeyType::IndexOfType<FFrontendQueryKey::FNull>():
+						return true;
 
-						case FFrontendQueryKey::FKeyType::IndexOfType<FString>():
-							return InLHS.Key.Get<FString>() == InRHS.Key.Get<FString>();
+					case FFrontendQueryKey::FKeyType::IndexOfType<int32>():
+						return InLHS.Key.Get<int32>() == InRHS.Key.Get<int32>();
 
-						case FFrontendQueryKey::FKeyType::IndexOfType<FName>():
-							return InLHS.Key.Get<FName>() == InRHS.Key.Get<FName>();
+					case FFrontendQueryKey::FKeyType::IndexOfType<FString>():
+						return InLHS.Key.Get<FString>() == InRHS.Key.Get<FString>();
 
-						default:
-							// Unhandled case type.
-							checkNoEntry();
-					}
+					case FFrontendQueryKey::FKeyType::IndexOfType<FName>():
+						return InLHS.Key.Get<FName>() == InRHS.Key.Get<FName>();
+
+					default:
+						// Unhandled case type.
+						checkNoEntry();
 				}
 			}
 		}
@@ -791,6 +672,9 @@ namespace Metasound
 
 		switch(InLHS.Key.GetIndex())
 		{
+			case FFrontendQueryKey::FKeyType::IndexOfType<FFrontendQueryKey::FNull>():
+				return false;
+
 			case FFrontendQueryKey::FKeyType::IndexOfType<int32>():
 				return InLHS.Key.Get<int32>() < InRHS.Key.Get<int32>();
 
@@ -813,199 +697,14 @@ namespace Metasound
 		return InKey.Hash;
 	}
 
-	FFrontendQuerySelection::FFrontendQuerySelection(const FFrontendQuerySelection& InOther)
+	uint32 GetTypeHash(const FFrontendQueryEntry& InEntry)
 	{
-		AppendToStorageAndSelection(InOther);
+		return GetTypeHash(InEntry.ID);
 	}
 
-	FFrontendQuerySelection& FFrontendQuerySelection::operator=(const FFrontendQuerySelection& InOther)
+	bool operator==(const FFrontendQueryEntry& InLHS, const FFrontendQueryEntry& InRHS)
 	{
-		ResetStorageAndSelection();
-		AppendToStorageAndSelection(InOther);
-
-		return *this;
-	}
-
-	FFrontendQuerySelection::FReduceOutputView::FReduceOutputView(TArrayView<FFrontendQueryEntry* const> InEntries)
-	:	InitialEntries(InEntries)
-	{
-	}
-
-	void FFrontendQuerySelection::FReduceOutputView::Add(FFrontendQueryEntry& InResult)
-	{
-		if (!InitialEntries.Contains(&InResult))
-		{
-			SelectedNewEntries.Add(MakeUnique<FFrontendQueryEntry>(InResult));
-		}
-		else
-		{
-			SelectedExistingEntries.Add(&InResult);
-		}
-	}
-
-
-	TArrayView<FFrontendQueryEntry*> FFrontendQuerySelection::GetSelection()
-	{
-		return Selection;
-	}
-
-	TArrayView<const FFrontendQueryEntry * const> FFrontendQuerySelection::GetSelection() const
-	{
-		return MakeArrayView(Selection);
-	}
-
-	void FFrontendQuerySelection::AppendToStorageAndSelection(const FFrontendQuerySelection& InSelection)
-	{
-		TArrayView<const FFrontendQueryEntry* const> InEntries = InSelection.GetSelection();
-		AppendToStorageAndSelection(InSelection.GetSelection());
-	}
-
-	void FFrontendQuerySelection::AppendToStorageAndSelection(FFrontendQuerySelection&& InSelection)
-	{
-		InSelection.ShrinkStorageToSelection();
-		AppendToStorageAndSelection(MoveTemp(InSelection.Storage));
-	}
-
-	void FFrontendQuerySelection::AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry> InEntries)
-	{
-		const int32 Num = InEntries.Num();
-
-		if (Num >  0)
-		{
-			int32 StorageIndex = Storage.Num();
-			int32 SelectionIndex = Selection.Num();
-
-			for (const FFrontendQueryEntry& Entry : InEntries)
-			{
-				Storage.Add(MakeUnique<FFrontendQueryEntry>(Entry));
-			}
-			Selection.AddZeroed(Num);
-
-			for (int32 i = 0; i < Num; i++)
-			{
-				Selection[SelectionIndex] = Storage[StorageIndex].Get();
-				SelectionIndex++;
-				StorageIndex++;
-			}
-		}
-	}
-
-	void FFrontendQuerySelection::AppendToStorageAndSelection(TArrayView<const FFrontendQueryEntry* const> InEntries)
-	{
-		if (InEntries.Num() >  0)
-		{
-			int32 StorageIndex = Storage.Num();
-			int32 SelectionIndex = Selection.Num();
-
-			int32 NumAdded = 0;
-			for (const FFrontendQueryEntry* Entry : InEntries)
-			{
-				if (nullptr != Entry)
-				{
-					Storage.Add(MakeUnique<FFrontendQueryEntry>(*Entry));
-					NumAdded++;
-				}
-			}
-
-			if (NumAdded > 0)
-			{
-				Selection.AddZeroed(NumAdded);
-
-				for (int32 i = 0; i < NumAdded; i++)
-				{
-					Selection[SelectionIndex] = Storage[StorageIndex].Get();
-					SelectionIndex++;
-					StorageIndex++;
-				}
-			}
-		}
-	}
-
-	void FFrontendQuerySelection::AppendToStorageAndSelection(FReduceOutputView&& InReduceView)
-	{
-		AppendToStorageAndSelection(MoveTemp(InReduceView.SelectedNewEntries));
-		AppendToSelection(InReduceView.SelectedExistingEntries);
-	}
-
-	void FFrontendQuerySelection::AppendToStorageAndSelection(TArray<TUniquePtr<FFrontendQueryEntry>>&& InEntries)
-	{
-		if (InEntries.Num() >  0)
-		{
-			int32 StorageIndex = Storage.Num();
-			int32 SelectionIndex = Selection.Num();
-
-			int32 NumAdded = 0;
-			for (TUniquePtr<FFrontendQueryEntry>& Entry : InEntries)
-			{
-				if (Entry.IsValid())
-				{
-					Storage.Add(MoveTemp(Entry));
-					NumAdded++;
-				}
-			}
-
-			if (NumAdded > 0)
-			{
-				Selection.AddZeroed(NumAdded);
-
-				for (int32 i = 0; i < NumAdded; i++)
-				{
-					Selection[SelectionIndex] = Storage[StorageIndex].Get();
-					SelectionIndex++;
-					StorageIndex++;
-				}
-			}
-		}
-
-	}
-
-	void FFrontendQuerySelection::ResetStorageAndSelection()
-	{
-		Storage.Reset();
-		Selection.Reset();
-	}
-
-	void FFrontendQuerySelection::ResetSelection()
-	{
-		Selection.Reset();
-	}
-
-	void FFrontendQuerySelection::SetSelection(TArrayView<FFrontendQueryEntry*> InEntries)
-	{
-		Selection = InEntries;
-	}
-
-	void FFrontendQuerySelection::AddToSelection(FFrontendQueryEntry* InEntry)
-	{
-		if (nullptr != InEntry)
-		{
-			Selection.Add(InEntry);
-		}
-	}
-
-	void FFrontendQuerySelection::AppendToSelection(TArrayView<FFrontendQueryEntry * const> InEntries)
-	{
-		Selection.Append(InEntries.GetData(), InEntries.Num());
-	}
-
-	void FFrontendQuerySelection::ShrinkStorageToSelection()
-	{
-		TSet<FFrontendQueryEntry*> SelectionSet(Selection);
-		Storage.RemoveAll([&](const TUniquePtr<FFrontendQueryEntry>& InEntry)
-		{
-			return !SelectionSet.Contains(InEntry.Get());
-		});
-	}
-
-
-	FFrontendQuerySelectionView::FFrontendQuerySelectionView(TSharedRef<const FFrontendQuerySelection, ESPMode::ThreadSafe> InResult)
-	:	Result(InResult)
-	{
-	}
-
-	TArrayView<const FFrontendQueryEntry* const> FFrontendQuerySelectionView::GetSelection() const
-	{
-		return Result->GetSelection();
+		return InLHS.ID == InRHS.ID;
 	}
 
 	FFrontendQueryStep::FFrontendQueryStep(FStreamFunction&& InFunc)
@@ -1045,11 +744,6 @@ namespace Metasound
 
 	FFrontendQueryStep::FFrontendQueryStep(FLimitFunction&& InFunc)
 	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FLimitStepExecuter>(MakeUnique<FrontendQueryPrivate::FLimitFunctionFrontendQueryStep>(MoveTemp(InFunc))))
-	{
-	}
-
-	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQuerySource>&& InSource)
-	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FSourceStepExecuter>(MoveTemp(InSource)))
 	{
 	}
 
@@ -1093,64 +787,56 @@ namespace Metasound
 	{
 	}
 
-	FFrontendQueryStep::EResultModificationState FFrontendQueryStep::Execute(FFrontendQuerySelection& InOutResult)
+	void FFrontendQueryStep::Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const
 	{
 		if (StepExecuter.IsValid())
 		{
-			return StepExecuter->Execute(InOutResult);
+			StepExecuter->Execute(InOutUpdatedKeys, InOutResult);
 		}
-
-		return EResultModificationState::Unmodified;
 	}
 
-	FFrontendQueryStep::EResultModificationState FFrontendQueryStep::Increment(FFrontendQuerySelection& InOutResult)
+	void FFrontendQueryStep::Merge(FIncremental& InOutIncremental, FFrontendQuerySelection& InOutSelection) const
 	{
 		if (StepExecuter.IsValid())
 		{
-			return StepExecuter->Increment(InOutResult);
+			StepExecuter->Merge(InOutIncremental, InOutSelection);
 		}
-
-		return EResultModificationState::Unmodified;
 	}
 
-	FFrontendQueryStep::EResultModificationState FFrontendQueryStep::Merge(const FFrontendQuerySelection& InIncremental, FFrontendQuerySelection& InOutResult)
+	bool FFrontendQueryStep::IsDependentOnPartitionComposition() const
 	{
 		if (StepExecuter.IsValid())
 		{
-			return StepExecuter->Merge(InIncremental, InOutResult);
-		}
-
-		return EResultModificationState::Unmodified;
-	}
-
-	bool FFrontendQueryStep::IsMergeRequiredForIncremental() const
-	{
-		if (StepExecuter.IsValid())
-		{
-			return StepExecuter->IsMergeRequiredForIncremental();
+			return StepExecuter->IsDependentOnPartitionComposition();
 		}
 
 		return false;
 	}
 
-	void FFrontendQueryStep::Reset()
+	bool FFrontendQueryStep::CanProcessRemovals() const
 	{
 		if (StepExecuter.IsValid())
 		{
-			StepExecuter->Reset();
+			return StepExecuter->CanProcessRemovals();
 		}
-	}
+
+		return true;
+	} 
+
+	bool FFrontendQueryStep::CanProduceEntries() const
+	{
+		if (StepExecuter.IsValid())
+		{
+			return StepExecuter->CanProduceEntries();
+		}
+
+		return true;
+	} 
 
 	FFrontendQuery::FFrontendQuery()
 	: Result(MakeShared<FFrontendQuerySelection, ESPMode::ThreadSafe>())
 	{
 	}
-
-	const TArray<TUniquePtr<FFrontendQueryStep>>& FFrontendQuery::GetSteps() const
-	{
-		return Steps;
-	}
-
 
 	FFrontendQuery& FFrontendQuery::AddStreamLambdaStep(FStreamFunction&& InFunc)
 	{
@@ -1196,120 +882,124 @@ namespace Metasound
 	{
 		if (ensure(InStep.IsValid()))
 		{
-			int32 StepIndex = Steps.Num();
-			if (InStep->IsMergeRequiredForIncremental())
+			FStepInfo StepInfo;
+			StepInfo.Step = MoveTemp(InStep);
+			StepInfo.bProcessRemovals = StepInfo.Step->CanProcessRemovals();
+
+			// Determine if this step is the last step which can produce entries. 
+			if (StepInfo.Step->CanProduceEntries())
 			{
-				StepResultCache.Add(StepIndex);
+				FinalEntryProducingStepIndex = Steps.Num();
+			}
+			
+			// If any prior steps have the ability to remove a previously existing 
+			// entry, and this step requires an incremental merge, then we need to 
+			// cache the input to this step. If an entry is deleted from the input 
+			// to this step, all inputs associated with a given key will be reevaluated.
+			//
+			// To cache the input to a step, we can equivalently cache the output 
+			// of prior step.
+			const bool bCacheAncestorStepOutput = Algo::AnyOf(Steps, [](const FStepInfo& Info) { return Info.Step->IsDependentOnPartitionComposition(); });
+			if (bCacheAncestorStepOutput && StepInfo.Step->IsDependentOnPartitionComposition())
+			{
+				Steps.Last().bMergeAndCacheOutput = true;
+			}
+			else if (StepInfo.Step->IsDependentOnPartitionComposition())
+			{
+				// If the step is dependent upon the partition composition, and
+				// input is not a merged partition, then the incremental must be merged
+				// with the prior result for the step so that downstream steps are
+				// provided the correct input data.
+				StepInfo.bMergeAndCacheOutput = true;
 			}
 
-			Steps.Add(MoveTemp(InStep));
+			Steps.Add(MoveTemp(StepInfo));
 		}
+
 		return *this;
 	}
 
-	FFrontendQuerySelectionView FFrontendQuery::Execute()
+	const FFrontendQuerySelection& FFrontendQuery::Update()
 	{
-		UpdateResult();
-
-		return FFrontendQuerySelectionView(Result);
+		TSet<FFrontendQueryKey> UpdatedKeys;
+		return Update(UpdatedKeys);
 	}
 
-	FFrontendQuerySelectionView FFrontendQuery::Reset()
+	const FFrontendQuerySelection& FFrontendQuery::Update(TSet<FFrontendQueryKey>& OutUpdatedKeys)
 	{
-		Result->ResetStorageAndSelection();
+		UpdateInternal(OutUpdatedKeys);
 
-		for (int32 StepIndex = 0; StepIndex < Steps.Num(); StepIndex++)
-		{
-			if (Steps[StepIndex].IsValid())
-			{
-				Steps[StepIndex]->Reset();
-			}
-		}
-		
-		return FFrontendQuerySelectionView(Result);
+		return *Result;
 	}
 
-	FFrontendQuerySelectionView FFrontendQuery::GetSelection() const
+	const FFrontendQuerySelection& FFrontendQuery::GetSelection() const
 	{
-		return FFrontendQuerySelectionView(Result);
+		return *Result;
 	}
 
-	void FFrontendQuery::UpdateResult()
+	void FFrontendQuery::MergeInternal(FFrontendQueryStep& Step, FFrontendQuery::FIncremental& InOutIncremental, FFrontendQuerySelection& InOutMergedSelection)
 	{
-		FFrontendQuerySelection IncrementalResult;
+		Step.Merge(InOutIncremental, InOutMergedSelection);
+	}
 
-		EResultModificationState IncrementalResultState = EResultModificationState::Unmodified;
+	void FFrontendQuery::UpdateInternal(TSet<FFrontendQueryKey>& OutUpdatedKeys)
+	{
+		FIncremental Incremental;
+
+		const int32 LastStepIndex = Steps.Num() - 1;
 
 		// Perform incremental update sequentially
 		for (int32 StepIndex = 0; StepIndex < Steps.Num(); StepIndex++)
 		{
-			if (ensure(Steps[StepIndex].IsValid()))
+			FStepInfo& StepInfo = Steps[StepIndex];
+
+			StepInfo.Step->Execute(Incremental.ActiveKeys, Incremental.ActiveSelection);
+
+			if (StepInfo.bProcessRemovals)
 			{
-				FFrontendQueryStep& Step = *Steps[StepIndex];
+				StepInfo.Step->Execute(Incremental.ActiveRemovalKeys, Incremental.ActiveRemovalSelection);
+			}
 
-				const bool bMergeIncrementalResults = Step.IsMergeRequiredForIncremental();
-				if (bMergeIncrementalResults)
+			const bool bIsLastProducingStep = StepIndex == FinalEntryProducingStepIndex;
+			if (bIsLastProducingStep)
+			{
+				const bool bIsIncrementalEmpty = (Incremental.ActiveKeys.Num() == 0) && (Incremental.ActiveRemovalKeys.Num() == 0);
+				if (bIsIncrementalEmpty)
 				{
-					const bool bIsResultCacheEmpty = StepResultCache[StepIndex].GetSelection().Num() == 0;
-					if (bIsResultCacheEmpty)
-					{
-						// If the prior result for this step is empty, continue using the incremental path.
-						IncrementalResultState = Step.Increment(IncrementalResult);
-						if (EResultModificationState::Modified == IncrementalResultState)
-						{
-							StepResultCache[StepIndex] = IncrementalResult;
-						}
-					}
-					else
-					{
-						Step.Merge(IncrementalResult, StepResultCache[StepIndex]);
-
-						IncrementalResultState = Step.Execute(StepResultCache[StepIndex]);
-						*Result = StepResultCache[StepIndex];
-
-						// After results are merged, downstream steps can no longer 
-						// work on incremental data. Run downstream steps on full
-						// result set.
-						ExecuteSteps(StepIndex + 1);
-						return;
-					}
-				}
-				else
-				{
-					IncrementalResultState = Step.Increment(IncrementalResult);
+					// Early out if following steps will not produce any new outputs.
+					return;
 				}
 			}
-		}
 
-		if (Steps.Num() > 0)
-		{
-			if (ensure(Steps.Last().IsValid()))
+			// Determine if incremental results need to be merged because it's 
+			// the last step, or because the step requires merging.
+			const bool bIsLastStep = StepIndex == LastStepIndex;
+			if (bIsLastStep)
 			{
-				FFrontendQueryStep& Step = *Steps.Last();
-				if (EResultModificationState::Modified == IncrementalResultState)
-				{
-					// If all incremental steps are performed and result is modified,
-					// merge the incremental result with the output result.
-					Step.Merge(IncrementalResult, *Result);
-				}
+				StepInfo.Step->Merge(Incremental, *Result);
+				OutUpdatedKeys = Incremental.ActiveKeys.Union(Incremental.ActiveRemovalKeys);
+			}
+			else if (StepInfo.bMergeAndCacheOutput)
+			{
+				StepInfo.Step->Merge(Incremental, StepInfo.OutputCache);
+				// If entries were removed during a merge, the subsequent step 
+				// needs to re-evaluate the entire partition. The entire partition 
+				// is added to the active set for each removed key.
+				AppendPartitions(Incremental.ActiveRemovalKeys, StepInfo.OutputCache, Incremental.ActiveKeys, Incremental.ActiveSelection);
 			}
 		}
 	}
 
-	void FFrontendQuery::ExecuteSteps(int32 InStartStepIndex)
+	void FFrontendQuery::AppendPartitions(const TSet<FFrontendQueryKey>& InKeysToAppend, const FFrontendQuerySelection& InSelection, TSet<FFrontendQueryKey>& OutKeysModified, FFrontendQuerySelection& OutSelection) const
 	{
-		for (int32 StepIndex = InStartStepIndex; StepIndex < Steps.Num(); StepIndex++)
+		for (const FFrontendQueryKey& Key : InKeysToAppend)
 		{
-			if (ensure(Steps[StepIndex].IsValid()))
+			if (const FFrontendQueryPartition* Partition = InSelection.Find(Key))
 			{
-				FFrontendQueryStep& Step = *Steps[StepIndex];
-
-				EResultModificationState ExecuteResultState = Step.Execute(*Result);
-
-				const bool bNeedsStepResultCached = (EResultModificationState::Modified == ExecuteResultState) && Step.IsMergeRequiredForIncremental();
-				if (bNeedsStepResultCached)
+				if (Partition->Num() > 0)
 				{
-					StepResultCache[StepIndex] = *Result;
+					OutKeysModified.Add(Key);
+					OutSelection.FindOrAdd(Key) = *Partition;
 				}
 			}
 		}
