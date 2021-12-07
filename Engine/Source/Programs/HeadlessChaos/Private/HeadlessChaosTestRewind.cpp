@@ -3938,6 +3938,7 @@ namespace ChaosTest {
 		// Make a solver
 		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
+		Solver->SetIsDeterministic(true);
 
 		TArray<FPhysicsActorHandle> Storage = InitFunc(Solver, Mapping);
 

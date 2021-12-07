@@ -178,7 +178,7 @@ namespace Chaos
 		// These override the engine config if >= 0
 
 		int32 ChaosSolverIterations = -1;
-		FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iterations"), ChaosSolverIterations, TEXT("Override umber of solver iterations (-1 to use config)"));
+		FAutoConsoleVariableRef CVarChaosSolverIterations(TEXT("p.Chaos.Solver.Iterations"), ChaosSolverIterations, TEXT("Override number of solver iterations (-1 to use config)"));
 
 		int32 ChaosSolverCollisionIterations = -1;
 		FAutoConsoleVariableRef CVarChaosSolverCollisionIterations(TEXT("p.Chaos.Solver.Collision.Iterations"), ChaosSolverCollisionIterations, TEXT("Override number of collision iterations per solver iteration (-1 to use config)"));
@@ -194,6 +194,9 @@ namespace Chaos
 
 		int32 ChaosSolverJointPushOutPairIterations = -1;
 		FAutoConsoleVariableRef CVarChaosSolverJointPushOutPairIterations(TEXT("p.Chaos.Solver.Joint.PushOutPairIterations"), ChaosSolverJointPushOutPairIterations, TEXT("Override number of push out iterations per joint during a solver iteration (-1 to use config)"));
+
+		int32 ChaosSolverDeterministic = -1;
+		FAutoConsoleVariableRef CVarChaosSolverDeterministic(TEXT("p.Chaos.Solver.Deterministic"), ChaosSolverDeterministic, TEXT("Override determinism. 0: disabled; 1: enabled; -1: default(disabled)"));
 
 		// Copied from RBAN
 		Chaos::FRealSingle ChaosSolverJointPositionTolerance = 0.025f;
@@ -429,6 +432,7 @@ namespace Chaos
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
+		, bIsDeterministic(false)
 		, Particles(UniqueIndices)
 		, MEvolution(new FPBDRigidsEvolution(Particles, SimMaterials, &ContactModifiers, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MEventManager(new FEventManager(BufferingModeIn))
@@ -697,6 +701,8 @@ namespace Chaos
 		MRewindCallback = MoveTemp(RewindCallback);
 		MarshallingManager.SetHistoryLength_Internal(NumFrames);
 		MEvolution->SetRewindData(GetRewindData());
+		
+		UpdateIsDeterministic();
 	}
 
 	void FPBDRigidsSolver::Reset()
@@ -834,6 +840,10 @@ namespace Chaos
 			if (ChaosSolverMaxPushOutVelocity >= 0.0f)
 			{
 				SetCollisionMaxPushOutVelocity(ChaosSolverMaxPushOutVelocity);
+			}
+			if (ChaosSolverDeterministic >= 0)
+			{
+				UpdateIsDeterministic();
 			}
 		}
 
@@ -1602,6 +1612,26 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 	{
 		GetEvolution()->UpdateExternalAccelerationStructure_External(ExternalStructure,*PendingSpatialOperations_External);
 	}
+
+	bool FPBDRigidsSolver::IsDetemerministic() const
+	{
+		return bIsDeterministic || (MRewindData != nullptr) || (ChaosSolverDeterministic >= 1);
+	}
+
+	void FPBDRigidsSolver::SetIsDeterministic(const bool bInIsDeterministic)
+	{
+		if (bIsDeterministic != bInIsDeterministic)
+		{
+			bIsDeterministic = bInIsDeterministic;
+			UpdateIsDeterministic();
+		}
+	}
+
+	void FPBDRigidsSolver::UpdateIsDeterministic()
+	{
+		GetEvolution()->SetIsDeterministic(IsDetemerministic());
+	}
+
 
 	Chaos::FClusterCreationParameters::EConnectionMethod ToInternalConnectionMethod(EClusterUnionMethod InMethod)
 	{
