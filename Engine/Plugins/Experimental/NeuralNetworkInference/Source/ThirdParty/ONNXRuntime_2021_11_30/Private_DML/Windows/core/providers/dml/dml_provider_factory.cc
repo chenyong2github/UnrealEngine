@@ -1,9 +1,13 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "ThirdPartyWarningDisabler.h"
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
 #include <DirectML.h>
 #include <dxgi1_4.h>
-
+NNI_THIRD_PARTY_INCLUDES_END
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
