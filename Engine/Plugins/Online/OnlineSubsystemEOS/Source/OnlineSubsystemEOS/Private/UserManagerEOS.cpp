@@ -1032,7 +1032,18 @@ bool FUserManagerEOS::IsFriendQueryUserInfoOngoing(int32 LocalUserNum)
 	// If we have an entry for this user and the corresponding array has any element, users are still being processed
 	if (IsFriendQueryUserInfoOngoingForLocalUserMap.Contains(LocalUserNum))
 	{
-		return IsFriendQueryUserInfoOngoingForLocalUserMap[LocalUserNum].Num() > 0;
+		if(IsFriendQueryUserInfoOngoingForLocalUserMap[LocalUserNum].Num() > 0)
+		{
+			return true;
+		}
+	}
+	
+	if (IsPlayerQueryExternalMappingsOngoingForLocalUserMap.Contains(LocalUserNum))
+	{
+		if(IsPlayerQueryExternalMappingsOngoingForLocalUserMap[LocalUserNum].Num() > 0)
+		{
+			return true;
+		}
 	}
 
 	return false;
@@ -1694,14 +1705,6 @@ void FUserManagerEOS::AddRemotePlayer(int32 LocalUserNum, const FString& NetId, 
 
 	// Read the user info for this player
 	ReadUserInfo(LocalUserNum, EpicAccountId);
-	// Get their product id mapping
-	FUniqueNetIdEOSPtr LocalNetId = GetLocalUniqueNetIdEOS(DefaultLocalUser);
-	if (LocalNetId.IsValid())
-	{
-		TArray<FString> ExternalIds;
-		ExternalIds.Add(NetId);
-		QueryExternalIdMappings(*LocalNetId, FExternalIdQueryOptions(), ExternalIds, IgnoredMappingDelegate);
-	}
 }
 
 void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountId, EOS_ProductUserId UserId)
@@ -1806,7 +1809,6 @@ bool FUserManagerEOS::ReadFriendsList(int32 LocalUserNum, const FString& ListNam
 			Result = EOS_EResult::EOS_InvalidUser;
 		}
 
-		FString ErrorString;
 		bool bWasSuccessful = Result == EOS_EResult::EOS_Success;
 		if (bWasSuccessful)
 		{
@@ -1817,6 +1819,8 @@ bool FUserManagerEOS::ReadFriendsList(int32 LocalUserNum, const FString& ListNam
 
 			LocalUserNumToFriendsListMap[LocalUserNum]->Empty(FriendCount);
 
+			TArray<FString> FriendEasIds;
+			FriendEasIds.Reserve(FriendCount);
 			// Process each friend returned
 			for (int32 Index = 0; Index < FriendCount; Index++)
 			{
@@ -1828,16 +1832,26 @@ bool FUserManagerEOS::ReadFriendsList(int32 LocalUserNum, const FString& ListNam
 				if (FriendEpicAccountId != nullptr)
 				{
 					AddFriend(LocalUserNum, FriendEpicAccountId);
+					FriendEasIds.Add(LexToString(FriendEpicAccountId));
 				}
 			}
+
+			const TFunction<FOnQueryExternalIdMappingsComplete::TFuncType>& OnExternalIdMappingsQueriedLambda = 
+				[this, LocalUserNum](bool bWasSuccessful, const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions,
+					const TArray<FString>& ExternalIds, const FString& Error) {
+						ProcessReadFriendsListComplete(LocalUserNum, bWasSuccessful, Error);
+				};
+
+			const auto& ExternalMappingsCallback = OSSInternalCallback::Create<FOnQueryExternalIdMappingsComplete>(EOSSubsystem->UserManager, OnExternalIdMappingsQueriedLambda);
+			
+			QueryExternalIdMappings(*GetLocalUniqueNetIdEOS(DefaultLocalUser), FExternalIdQueryOptions(), FriendEasIds, ExternalMappingsCallback);
+			
 		}
 		else
 		{
-			ErrorString = FString::Printf(TEXT("ReadFriendsList(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+			const FString ErrorString = FString::Printf(TEXT("ReadFriendsList(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+			ProcessReadFriendsListComplete(LocalUserNum, false, ErrorString);
 		}
-
-		// Then evaluate the current state of the query to see what to do next
-		ProcessReadFriendsListComplete(LocalUserNum, bWasSuccessful, ErrorString);
 	};
 	EOS_Friends_QueryFriends(EOSSubsystem->FriendsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 
@@ -1862,6 +1876,7 @@ void FUserManagerEOS::ProcessReadFriendsListComplete(int32 LocalUserNum, bool bW
 		TriggerOnFriendsChangeDelegates(LocalUserNum);
 
 		IsFriendQueryUserInfoOngoingForLocalUserMap.Remove(LocalUserNum);
+		IsPlayerQueryExternalMappingsOngoingForLocalUserMap.Remove(LocalUserNum);
 	}
 }
 
@@ -2516,6 +2531,9 @@ EOnlineCachedResult::Type FUserManagerEOS::GetCachedPresenceForApp(const FUnique
 
 bool FUserManagerEOS::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef>& UserIds)
 {
+	TArray<FString> UserEasIdsNeedingExternalMappings;
+	UserEasIdsNeedingExternalMappings.Reserve(UserIds.Num());
+	
 	// Trigger a query for each user in the list
 	for (const FUniqueNetIdRef& NetId : UserIds)
 	{
@@ -2537,11 +2555,17 @@ bool FUserManagerEOS::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetI
 			EOS_EpicAccountId AccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*EOSID.EpicAccountIdStr));
 			if (EOS_EpicAccountId_IsValid(AccountId) == EOS_TRUE)
 			{
+				UserEasIdsNeedingExternalMappings.Add(EOSID.EpicAccountIdStr);
+				
 				// Registering the player will also query the user info data
 				AddRemotePlayer(LocalUserNum, EOSID.UniqueNetIdStr, AccountId);
 			}
 		}
 	}
+
+	const FUniqueNetIdEOSPtr LocalId = GetLocalUniqueNetIdEOS(LocalUserNum);
+	QueryExternalIdMappings(*LocalId, FExternalIdQueryOptions(), UserEasIdsNeedingExternalMappings, IgnoredMappingDelegate);
+	
 	return true;
 }
 
@@ -2559,7 +2583,7 @@ void FUserManagerEOS::ReadUserInfo(int32 LocalUserNum, EOS_EpicAccountId EpicAcc
 		}
 
 		// We mark this player as processed
-		IsFriendQueryUserInfoOngoingForLocalUserMap[LocalUserNum].Remove(EpicAccountId);
+		IsFriendQueryUserInfoOngoingForLocalUserMap[LocalUserNum].RemoveSwap(EpicAccountId, false);
 
 		ProcessReadFriendsListComplete(LocalUserNum, true, TEXT(""));
 	};
@@ -2722,6 +2746,9 @@ bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const 
 	}
 	int32 LocalUserNum = GetLocalUserNumFromUniqueNetId(UserId);
 
+	// Mark the queries as in progress
+	IsPlayerQueryExternalMappingsOngoingForLocalUserMap.FindOrAdd(LocalUserNum).Append(ExternalIds);
+
 	EOS_ProductUserId LocalUserId = StringToProductUserIdMap[EOSID.UniqueNetIdStr];
 	const int32 NumBatches = (ExternalIds.Num() / EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_MAX_ACCOUNT_IDS) + 1;
 	int32 QueryStart = 0;
@@ -2772,7 +2799,16 @@ bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const 
 			{
 				ErrorString = FString::Printf(TEXT("EOS_Connect_QueryExternalAccountMappings() failed with result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 			}
-			Delegate.ExecuteIfBound(false, *EOSID, QueryOptions, BatchIds, ErrorString);
+
+			// Mark all queries as complete
+			TArray<FString>& OngoingQueries = IsPlayerQueryExternalMappingsOngoingForLocalUserMap[LocalUserNum];
+			for (const FString& StringId : BatchIds)
+			{
+				OngoingQueries.RemoveSwap(StringId, false);
+			}
+			
+			const bool bWasSuccessful = Result == EOS_EResult::EOS_Success;
+			Delegate.ExecuteIfBound(bWasSuccessful, *EOSID, QueryOptions, BatchIds, ErrorString);
 		};
 
 		EOS_Connect_QueryExternalAccountMappings(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
