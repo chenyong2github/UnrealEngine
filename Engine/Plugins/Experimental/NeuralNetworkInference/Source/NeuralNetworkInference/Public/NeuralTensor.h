@@ -15,11 +15,14 @@
 /**
  * For a general overview of NeuralNetworkInference (NNI), including documentation and code samples, @see UNeuralNetwork, the main class of NNI.
  *
- * FNeuralTensor is an auxiliary class of UNeuralNetwork which represents a tensor of the UNeuralNetwork model. It is Unreal Engine's equivalent of
- * torch.Tensor (PyTorch) or caffe::Blob.
+ * NNI's users should not directly create or modify instances of FNeuralTensor. Instead, they should only interact with FNeuralNetwork and its input
+ * and output functions. E.g., @see FNeuralNetwork::GetInputTensor, FNeuralNetwork::SetInputFromArrayCopy, FNeuralNetwork::GetOutputTensor, etc.
  *
- * Most of its functions run on the CPU, so `ToGPU_RenderThread()` must be called before running on GPU and after running any FNeuralTensor function
- * that modifies the CPU memory. In addition, FNeuralTensor's CPU functions are very similar to those of TArray<T>.
+ * FNeuralTensor is an auxiliary class of UNeuralNetwork which represents a tensor of the UNeuralNetwork model. It is Unreal Engine's equivalent of
+ * torch.Tensor (PyTorch) or caffe::Blob (Caffe).
+ *
+ * Most of FNeuralTensor's functions run on the CPU, so `ToGPU_RenderThread()` must be called before running on GPU and after running any
+ * FNeuralTensor function that modifies the CPU memory. In addition, FNeuralTensor's CPU functions are very similar to those of TArray<T>.
  */
 USTRUCT()
 struct NEURALNETWORKINFERENCE_API FNeuralTensor
@@ -141,11 +144,6 @@ public:
 	 * It returns a copy of the name string.
 	 */
 	FORCEINLINE const FString& GetName() const;
-
-	/**
-	 * It returns a TCHAR pointer of the name string.
-	 */
-	FORCEINLINE const TCHAR* GetNameData() const;
 
 	FORCEINLINE ENeuralDataType GetDataType() const;
 
@@ -402,11 +400,6 @@ const T* const FNeuralTensor::GetDataCasted() const
 const FString& FNeuralTensor::GetName() const
 {
 	return Name;
-}
-
-const TCHAR* FNeuralTensor::GetNameData() const
-{
-	return Name.GetCharArray().GetData();
 }
 
 ENeuralDataType FNeuralTensor::GetDataType() const
