@@ -19,12 +19,12 @@ namespace TaskTrace
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Created)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Launched)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 		UE_TRACE_EVENT_FIELD(UE::Trace::WideString, DebugName)
 		UE_TRACE_EVENT_FIELD(bool, Tracked)
 		UE_TRACE_EVENT_FIELD(int32, ThreadToExecuteOn)
@@ -32,39 +32,39 @@ namespace TaskTrace
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Scheduled)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, SubsequentAdded)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
-		UE_TRACE_EVENT_FIELD(uint32, SubsequentId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, SubsequentId)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Started)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, NestedAdded)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
-		UE_TRACE_EVENT_FIELD(uint32, NestedId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, NestedId)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Finished)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, Completed)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32, TaskId)
+		UE_TRACE_EVENT_FIELD(uint64, TaskId)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, WaitingStarted)
 		UE_TRACE_EVENT_FIELD(uint64, Timestamp)
-		UE_TRACE_EVENT_FIELD(uint32[], Tasks)
+		UE_TRACE_EVENT_FIELD(uint64[], Tasks)
 	UE_TRACE_EVENT_END()
 
 	UE_TRACE_EVENT_BEGIN(TaskTrace, WaitingFinished)

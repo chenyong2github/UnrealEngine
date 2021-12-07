@@ -23,7 +23,7 @@ namespace TaskTrace
 {
 	UE_TRACE_CHANNEL_EXTERN(TaskChannel);
 
-	using FId = uint32;
+	using FId = uint64;
 
 	const FId InvalidId = ~FId(0);
 

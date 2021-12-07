@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/TaskTrace.h"
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
@@ -96,7 +97,7 @@ public:
 	void OnSessionChanged();
 
 	void ShowTaskRelations(const FThreadTrackEvent* InSelectedEvent, uint32 ThreadId);
-	void ShowTaskRelations(uint32 TaskId);
+	void ShowTaskRelations(TaskTrace::FId TaskId);
 	void AddRelation(const FThreadTrackEvent* InSelectedEvent, double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, ETaskEventType Type);
 	void AddRelation(const FThreadTrackEvent* InSelectedEvent, double SourceTimestamp, uint32 SourceThreadId, int32 SourceDepth, double TargetTimestamp, uint32 TargetThreadId, int32 TargetDepth, ETaskEventType Type);
 	void ClearTaskRelations();

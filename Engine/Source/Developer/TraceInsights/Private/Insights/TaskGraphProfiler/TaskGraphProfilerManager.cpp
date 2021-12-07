@@ -429,7 +429,7 @@ void FTaskGraphProfilerManager::ShowTaskRelations(const FThreadTrackEvent* InSel
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskGraphProfilerManager::ShowTaskRelations(uint32 TaskId)
+void FTaskGraphProfilerManager::ShowTaskRelations(TaskTrace::FId TaskId)
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 	if (!Session.IsValid())
@@ -600,7 +600,7 @@ void FTaskGraphProfilerManager::SetShowRelations(bool bInValue)
 	bShowRelations = bInValue;
 	if (!bShowRelations)
 	{
-		TaskTimingSharedState->SetTaskId(FTaskTimingTrack::InvalidTaskId);
+		TaskTimingSharedState->SetTaskId(TaskTrace::InvalidId);
 	}
 }
 

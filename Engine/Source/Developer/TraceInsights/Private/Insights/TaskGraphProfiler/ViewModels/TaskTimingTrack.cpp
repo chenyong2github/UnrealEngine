@@ -145,7 +145,7 @@ void FTaskTimingSharedState::Tick(Insights::ITimingViewSession& InSession, const
 		if (!TimingView->GetSelectedEvent().IsValid() && 
 			(!TimingView->GetSelectedTrack().IsValid() || TimingView->GetSelectedTrack().Get() != TaskTrack.Get()))
 		{
-			SetTaskId(FTaskTimingTrack::InvalidTaskId);
+			SetTaskId(TaskTrace::InvalidId);
 			FTaskGraphProfilerManager::Get()->ClearTaskRelations();
 		}
 	}
@@ -163,7 +163,7 @@ void FTaskTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSe
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTaskTimingSharedState::SetTaskId(uint32 InTaskId)
+void FTaskTimingSharedState::SetTaskId(TaskTrace::FId InTaskId)
 {
 	if (TaskTrack.IsValid())
 	{
@@ -426,7 +426,7 @@ void FTaskTimingSharedState::OnTaskSettingsChanged()
 		return;
 	}
 
-	if (TaskTrack->GetTaskId() == FTaskTimingTrack::InvalidTaskId)
+	if (TaskTrack->GetTaskId() == TaskTrace::InvalidId)
 	{
 		FTaskGraphProfilerManager::Get()->ClearTaskRelations();
 	}
@@ -440,7 +440,7 @@ void FTaskTimingSharedState::OnTaskSettingsChanged()
 		return;
 	}
 
-	if(TaskTrack->GetTaskId() != FTaskTimingTrack::InvalidTaskId)
+	if(TaskTrack->GetTaskId() != TaskTrace::InvalidId)
 	{
 		FTaskGraphProfilerManager::Get()->ShowTaskRelations(TaskTrack->GetTaskId());
 	}
@@ -454,12 +454,9 @@ INSIGHTS_IMPLEMENT_RTTI(FTaskTimingTrack)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const uint32 FTaskTimingTrack::InvalidTaskId = ~0;
-
-
 void FTaskTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context)
 {
-	if (TaskId == InvalidTaskId)
+	if (TaskId == TaskTrace::InvalidId)
 	{
 		return;
 	}
@@ -527,9 +524,9 @@ void FTaskTimingTrack::OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSe
 
 	if (!InSelectedEvent.IsValid() || !InSelectedEvent->Is<FThreadTrackEvent>())
 	{
-		if (TaskId != InvalidTaskId)
+		if (TaskId != TaskTrace::InvalidId)
 		{
-			TaskId = InvalidTaskId;
+			TaskId = TaskTrace::InvalidId;
 			FTaskGraphProfilerManager::Get()->ClearTaskRelations();
 			SetDirtyFlag();
 		}
@@ -563,7 +560,7 @@ void FTaskTimingTrack::OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSe
 	}
 	else
 	{
-		TaskId = InvalidTaskId;
+		TaskId = TaskTrace::InvalidId;
 	}
 
 	SetDirtyFlag();
@@ -575,7 +572,7 @@ const TSharedPtr<const ITimingEvent> FTaskTimingTrack::GetEvent(float InPosX, fl
 {
 	TSharedPtr<FTaskTrackEvent> TimingEvent;
 
-	if (TaskId == InvalidTaskId)
+	if (TaskId == TaskTrace::InvalidId)
 	{
 		return TimingEvent;
 	}
