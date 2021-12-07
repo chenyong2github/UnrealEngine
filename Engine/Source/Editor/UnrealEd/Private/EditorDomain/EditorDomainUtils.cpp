@@ -181,11 +181,21 @@ void FKnownCustomVersions::FindGuidsChecked(TArray<FGuid>& OutGuids, TConstArray
 	}
 }
 
-EPackageDigestResult AppendPackageDigest(FBlake3& Writer, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage,
-	const FAssetPackageData& PackageData, FName PackageName, TArray<FGuid>* OutCustomVersions)
+FPackageDigest CalculatePackageDigest(IAssetRegistry& AssetRegistry, FName PackageName)
 {
-	OutEditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
-	
+	AssetRegistry.WaitForPackage(PackageName.ToString());
+	TOptional<FAssetPackageData> PackageDataOptional = AssetRegistry.GetAssetPackageDataCopy(PackageName);
+	if (!PackageDataOptional)
+	{
+		return FPackageDigest(FPackageDigest::EStatus::DoesNotExistInAssetRegistry);
+	}
+	FAssetPackageData& PackageData = *PackageDataOptional;
+	FPackageDigest Result;
+	Result.DomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;;
+	EnumSetFlagsAnd(Result.DomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
+		Result.DomainUse, ~MapFindRef(GPackageBlockedUses, PackageName, EDomainUse::None));
+
+	FBlake3 Writer;
 	FStringView ProjectName(FApp::GetProjectName());
 	Writer.Update(ProjectName.GetData(), ProjectName.Len() * sizeof(ProjectName[0]));
 	Writer.Update(EditorDomainVersion, FCString::Strlen(EditorDomainVersion)*sizeof(EditorDomainVersion[0]));
@@ -212,9 +222,7 @@ EPackageDigestResult AppendPackageDigest(FBlake3& Writer, EDomainUse& OutEditorD
 			// EDITORDOMAIN_TODO: Remove this !IsInGameThread check once FindObject no longer asserts if GIsSavingPackage
 			if (Attempt > 1 || !IsInGameThread())
 			{
-				OutErrorMessage = FString::Printf(TEXT("Package %s uses Class %s but that class is not loaded"),
-					*PackageName.ToString(), *PackageData.ImportedClasses[NextClass].ToString());
-				return EPackageDigestResult::MissingClass;
+				return FPackageDigest(FPackageDigest::EStatus::MissingClass, PackageData.ImportedClasses[NextClass]);
 			}
 			TConstArrayView<FName> RemainingClasses(PackageData.ImportedClasses);
 			RemainingClasses = RemainingClasses.Slice(NextClass, PackageData.ImportedClasses.Num() - NextClass);
@@ -234,8 +242,8 @@ EPackageDigestResult AppendPackageDigest(FBlake3& Writer, EDomainUse& OutEditorD
 				Writer.Update(&ExistingData->SchemaHash, sizeof(ExistingData->SchemaHash));
 			}
 			CustomVersionHandles.Append(ExistingData->CustomVersionHandles);
-			EnumSetFlagsAnd(OutEditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
-				OutEditorDomainUse, ExistingData->EditorDomainUse);
+			EnumSetFlagsAnd(Result.DomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
+				Result.DomainUse, ExistingData->EditorDomainUse);
 		}
 	}
 
@@ -244,28 +252,28 @@ EPackageDigestResult AppendPackageDigest(FBlake3& Writer, EDomainUse& OutEditorD
 	CustomVersionHandles.Sort();
 	CustomVersionHandles.SetNum(Algo::Unique(CustomVersionHandles));
 
-	TArray<FGuid> CustomVersionGuidBuffer;
-	TArray<FGuid>& CustomVersionGuids(OutCustomVersions ? *OutCustomVersions : CustomVersionGuidBuffer);
+	TArray<UE::AssetRegistry::FPackageCustomVersion> CustomVersions;
+	TArray<FGuid> CustomVersionGuids;
 	FKnownCustomVersions::FindGuidsChecked(CustomVersionGuids, CustomVersionHandles);
 	CustomVersionGuids.Sort();
+	CustomVersions.Reserve(CustomVersionGuids.Num());
 
 	for (const FGuid& CustomVersionGuid : CustomVersionGuids)
 	{
 		Writer.Update(&CustomVersionGuid, sizeof(CustomVersionGuid));
 		TOptional<FCustomVersion> CurrentVersion = FCurrentCustomVersions::Get(CustomVersionGuid);
-		if (CurrentVersion.IsSet())
+		if (!CurrentVersion.IsSet())
 		{
-			Writer.Update(&CurrentVersion->Version, sizeof(CurrentVersion->Version));
+			return FPackageDigest(FPackageDigest::EStatus::MissingCustomVersion, FName(CustomVersionGuid.ToString()));
 		}
-		else
-		{
-			OutErrorMessage = FString::Printf(TEXT("Package %s uses CustomVersion guid %s but that guid is not available in FCurrentCustomVersions"),
-				*PackageName.ToString(), *CustomVersionGuid.ToString());
-			return EPackageDigestResult::MissingCustomVersion;
-		}
+		Writer.Update(&CurrentVersion->Version, sizeof(CurrentVersion->Version));
+		CustomVersions.Emplace(CustomVersionGuid, CurrentVersion->Version);
 	}
 
-	return EPackageDigestResult::Success;
+	Result.Hash = Writer.Finalize();
+	Result.Status = FPackageDigest::EStatus::Successful;
+	Result.CustomVersions = UE::AssetRegistry::FPackageCustomVersionsHandle::FindOrAdd(CustomVersions);
+	return Result;
 }
 
 /**
@@ -880,63 +888,26 @@ void UtilsPostEngineInit()
 	}
 }
 
-EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FPackageDigest& OutPackageDigest, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage,
-	TArray<FGuid>* OutCustomVersions)
-{
-	FBlake3 Builder;
-	EPackageDigestResult Result = AppendPackageDigest(AssetRegistry, PackageName, Builder, OutEditorDomainUse, 
-		OutErrorMessage, OutCustomVersions);
-	if (Result == EPackageDigestResult::Success)
-	{
-		OutPackageDigest = Builder.Finalize();
-	}
-	return Result;
-}
-
-EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FBlake3& Builder, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage, TArray<FGuid>* OutCustomVersions)
-{
-	AssetRegistry.WaitForPackage(PackageName.ToString());
-	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
-	if (!PackageData)
-	{
-		OutErrorMessage = FString::Printf(TEXT("Package %s does not exist in the AssetRegistry"),
-			*PackageName.ToString());
-		OutEditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
-		if (OutCustomVersions)
-		{
-			OutCustomVersions->Reset();
-		}
-		return EPackageDigestResult::FileDoesNotExist;
-	}
-	EPackageDigestResult Result = AppendPackageDigest(Builder, OutEditorDomainUse, OutErrorMessage, *PackageData,
-		PackageName, OutCustomVersions);
-	EnumSetFlagsAnd(OutEditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
-		OutEditorDomainUse, ~MapFindRef(GPackageBlockedUses, PackageName, EDomainUse::None));
-	return Result;
-}
-
-UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest)
+UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FIoHash& EditorDomainHash)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainPackageCacheBucket(EditorDomainPackageBucketName);
-	return UE::DerivedData::FCacheKey{EditorDomainPackageCacheBucket, PackageDigest};
+	return UE::DerivedData::FCacheKey{EditorDomainPackageCacheBucket, EditorDomainHash };
 }
 
-UE::DerivedData::FCacheKey GetBulkDataListKey(const FPackageDigest& PackageDigest)
+UE::DerivedData::FCacheKey GetBulkDataListKey(const FIoHash& EditorDomainHash)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainBulkDataListBucket(EditorDomainBulkDataListBucketName);
-	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataListBucket, PackageDigest };
+	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataListBucket, EditorDomainHash };
 }
 
-UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidDigest)
+UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidHash)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainBulkDataPayloadIdBucket(EditorDomainBulkDataPayloadIdBucketName);
-	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidDigest };
+	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidHash };
 }
 
 void RequestEditorDomainPackage(const FPackagePath& PackagePath,
-	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePolicy SkipFlags, UE::DerivedData::IRequestOwner& Owner,
+	const FIoHash& EditorDomainHash, UE::DerivedData::ECachePolicy SkipFlags, UE::DerivedData::IRequestOwner& Owner,
 	UE::DerivedData::FOnCacheGetComplete&& Callback)
 {
 	using namespace UE::DerivedData;
@@ -950,7 +921,7 @@ void RequestEditorDomainPackage(const FPackagePath& PackagePath,
 	// But set the CachePolicy to store into remote. This will cause the CacheStore to push
 	// any existing local value into upstream storage and refresh the last-used time in the upstream.
 	ECachePolicy CachePolicy = SkipFlags | ECachePolicy::Local | ECachePolicy::StoreRemote;
-	Cache.Get({ GetEditorDomainPackageKey(PackageDigest) }, PackagePath.GetDebugName(),
+	Cache.Get({ GetEditorDomainPackageKey(EditorDomainHash) }, PackagePath.GetDebugName(),
 		CachePolicy, Owner, MoveTemp(Callback));
 }
 
@@ -1109,24 +1080,24 @@ private:
 bool TrySavePackage(UPackage* Package)
 {
 	using namespace UE::DerivedData;
-
-	FString ErrorMessage;
-	FPackageDigest PackageDigest;
-	EDomainUse EditorDomainUse;
-	TArray<FGuid> CustomVersionGuids;
-	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), Package->GetFName(), PackageDigest,
-		EditorDomainUse, ErrorMessage, &CustomVersionGuids);
-	switch (FindHashResult)
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (!EditorDomain)
 	{
-	case EPackageDigestResult::Success:
-		break;
-	default:
-		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package to EditorDomain: %s."), *ErrorMessage)
 		return false;
 	}
-	if (!EnumHasAnyFlags(EditorDomainUse, EDomainUse::SaveEnabled))
+
+	FString ErrorMessage;
+	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(Package->GetFName());
+	if (!PackageDigest.IsSuccessful())
 	{
-		UE_LOG(LogEditorDomain, Verbose, TEXT("Skipping save of blocked package to EditorDomain: %s."), *Package->GetName())
+		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package to EditorDomain: %s."),
+			*PackageDigest.GetStatusString());
+		return false;
+	}
+	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::SaveEnabled))
+	{
+		UE_LOG(LogEditorDomain, Verbose, TEXT("Skipping save of blocked package to EditorDomain: %s."),
+			*Package->GetName());
 		return false;
 	}
 	UE_LOG(LogEditorDomain, Verbose, TEXT("Saving to EditorDomain: %s."), *Package->GetName())
@@ -1192,11 +1163,12 @@ bool TrySavePackage(UPackage* Package)
 			*Package->GetName());
 		return false;
 	}
+	TConstArrayView<UE::AssetRegistry::FPackageCustomVersion> KnownCustomVersions = PackageDigest.CustomVersions.Get();
 	TSet<FGuid> KnownGuids;
-	KnownGuids.Reserve(CustomVersionGuids.Num());
-	for (const FGuid& CustomVersionGuid : CustomVersionGuids)
+	KnownGuids.Reserve(KnownCustomVersions.Num());
+	for (const UE::AssetRegistry::FPackageCustomVersion& CustomVersion : KnownCustomVersions)
 	{
-		KnownGuids.Add(CustomVersionGuid);
+		KnownGuids.Add(CustomVersion.Key);
 	}
 	TArray<FGuid> UnknownGuids;
 	for (const FCustomVersion& CustomVersion : SavedCustomVersions.GetAllVersions())
@@ -1287,7 +1259,7 @@ bool TrySavePackage(UPackage* Package)
 	MetaData << "FileSize" << FileSize;
 	MetaData.EndObject();
 
-	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest));
+	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest.Hash));
 	for (const FEditorDomainPackageWriter::FAttachment& Attachment : PackageWriter->GetAttachments())
 	{
 		RecordBuilder.AddAttachment(Attachment.Buffer, Attachment.PayloadId);
@@ -1314,22 +1286,21 @@ bool TrySavePackage(UPackage* Package)
 
 void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
 {
-	FString ErrorMessage;
-	FPackageDigest PackageDigest;
-	EDomainUse EditorDomainUse;
-	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), PackageName, PackageDigest,
-		EditorDomainUse, ErrorMessage);
-	switch (FindHashResult)
-	{
-	case EPackageDigestResult::Success:
-		break;
-	default:
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (!EditorDomain)
 	{
 		Callback(FSharedBuffer());
 		return;
 	}
+
+	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	if (!PackageDigest.IsSuccessful())
+	{
+		Callback(FSharedBuffer());
+		return;
 	}
-	if (!EnumHasAnyFlags(EditorDomainUse, EDomainUse::LoadEnabled))
+
+	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
 	{
 		Callback(FSharedBuffer());
 		return;
@@ -1337,7 +1308,7 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
-	Cache.Get({ GetBulkDataListKey(PackageDigest) },
+	Cache.Get({ GetBulkDataListKey(PackageDigest.Hash) },
 		WriteToString<128>(PackageName), ECachePolicy::Default, Owner,
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 		{
@@ -1348,21 +1319,19 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 
 void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 {
-	FString ErrorMessage;
-	FPackageDigest PackageDigest;
-	EDomainUse EditorDomainUse;
-	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), PackageName, PackageDigest,
-		EditorDomainUse, ErrorMessage);
-	switch (FindHashResult)
-	{
-	case EPackageDigestResult::Success:
-		break;
-	default:
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (!EditorDomain)
 	{
 		return;
 	}
+
+	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	if (!PackageDigest.IsSuccessful())
+	{
+		return;
 	}
-	if (!EnumHasAnyFlags(EditorDomainUse, EDomainUse::SaveEnabled))
+
+	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::SaveEnabled))
 	{
 		return;
 	}
@@ -1370,14 +1339,16 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
 	FRequestOwner Owner(EPriority::Normal);
-	FCacheRecordBuilder RecordBuilder(GetBulkDataListKey(PackageDigest));
+	FCacheRecordBuilder RecordBuilder(GetBulkDataListKey(PackageDigest.Hash));
 	RecordBuilder.SetValue(Buffer);
 	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
 	Owner.KeepAlive();
 }
 
-FIoHash GetPackageAndGuidDigest(FBlake3& Builder, const FGuid& BulkDataId)
+FIoHash GetPackageAndGuidHash(FIoHash& EditorDomainHash, const FGuid& BulkDataId)
 {
+	FBlake3 Builder;
+	Builder.Update(&EditorDomainHash, sizeof(EditorDomainHash));
 	Builder.Update(&BulkDataId, sizeof(BulkDataId));
 	return Builder.Finalize();
 }
@@ -1385,30 +1356,30 @@ FIoHash GetPackageAndGuidDigest(FBlake3& Builder, const FGuid& BulkDataId)
 void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::DerivedData::IRequestOwner& Owner,
 	TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
 {
-	FString ErrorMessage;
-	FBlake3 Builder;
-	EDomainUse EditorDomainUse;
-	EPackageDigestResult FindHashResult = AppendPackageDigest(*IAssetRegistry::Get(), PackageName, Builder, EditorDomainUse, ErrorMessage);
-	switch (FindHashResult)
-	{
-	case EPackageDigestResult::Success:
-		break;
-	default:
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (!EditorDomain)
 	{
 		Callback(FSharedBuffer());
 		return;
 	}
-	}
-	if (!EnumHasAnyFlags(EditorDomainUse, EDomainUse::LoadEnabled))
+
+	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	if (!PackageDigest.IsSuccessful())
 	{
 		Callback(FSharedBuffer());
 		return;
 	}
-	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
+
+	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
+	{
+		Callback(FSharedBuffer());
+		return;
+	}
+	FIoHash PackageAndGuidHash = GetPackageAndGuidHash(PackageDigest.Hash, BulkDataId);
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
-	Cache.Get({ GetBulkDataPayloadIdKey(PackageAndGuidDigest) },
+	Cache.Get({ GetBulkDataPayloadIdKey(PackageAndGuidHash) },
 		WriteToString<192>(PackageName, TEXT("/"), BulkDataId), ECachePolicy::Default, Owner,
 		[InnerCallback = MoveTemp(Callback)](FCacheGetCompleteParams&& Params)
 	{
@@ -1419,29 +1390,28 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 
 void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer)
 {
-	FString ErrorMessage;
-	FBlake3 Builder;
-	EDomainUse EditorDomainUse;
-	EPackageDigestResult FindHashResult = AppendPackageDigest(*IAssetRegistry::Get(), PackageName, Builder, EditorDomainUse, ErrorMessage);
-	switch (FindHashResult)
-	{
-	case EPackageDigestResult::Success:
-		break;
-	default:
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (!EditorDomain)
 	{
 		return;
 	}
-	}
-	if (!EnumHasAnyFlags(EditorDomainUse, EDomainUse::SaveEnabled))
+
+	FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageName);
+	if (!PackageDigest.IsSuccessful())
 	{
 		return;
 	}
-	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
+
+	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::SaveEnabled))
+	{
+		return;
+	}
+	FIoHash PackageAndGuidHash = GetPackageAndGuidHash(PackageDigest.Hash, BulkDataId);
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
 	FRequestOwner Owner(EPriority::Normal);
-	FCacheRecordBuilder RecordBuilder(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
+	FCacheRecordBuilder RecordBuilder(GetBulkDataPayloadIdKey(PackageAndGuidHash));
 	RecordBuilder.SetValue(Buffer);
 	Cache.Put({RecordBuilder.Build()}, WriteToString<128>(PackageName), ECachePolicy::Default, Owner);
 	Owner.KeepAlive();

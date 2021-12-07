@@ -389,7 +389,8 @@ void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComp
 		return;
 	}
 
-	if (FEditorDomain::Get())
+	FEditorDomain* EditorDomain = FEditorDomain::Get();
+	if (EditorDomain)
 	{
 		// Disable BatchDownload until cache storage implements fetch-head requests in response to a Get with SkipData
 		bool bBatchDownloadEnabled = true;
@@ -398,17 +399,13 @@ void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComp
 		{
 			// If the EditorDomain is active, then batch-download all packages to cook from remote cache into local
 			TArray<UE::DerivedData::FCacheKey> CacheKeys;
-			FString ErrorMessage;
 			CacheKeys.Reserve(Requests.Num());
 			for (FPackageData* PackageData : Requests)
 			{
-				FPackageDigest PackageDigest;
-				EDomainUse EditorDomainUse;
-				EPackageDigestResult Result = GetPackageDigest(AssetRegistry, PackageData->GetPackageName(),
-					PackageDigest, EditorDomainUse, ErrorMessage);
-				if (Result == EPackageDigestResult::Success && EnumHasAnyFlags(EditorDomainUse, EDomainUse::LoadEnabled))
+				FPackageDigest PackageDigest = EditorDomain->GetPackageDigest(PackageData->GetPackageName());
+				if (PackageDigest.IsSuccessful() && EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
 				{
-					CacheKeys.Add(GetEditorDomainPackageKey(PackageDigest));
+					CacheKeys.Add(GetEditorDomainPackageKey(PackageDigest.Hash));
 				}
 			}
 
