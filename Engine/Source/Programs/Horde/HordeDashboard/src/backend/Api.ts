@@ -388,6 +388,9 @@ export type UpdateAgentRequest = {
 	/**Boolean to request a conform */
 	requestConform?: boolean;
 
+	/** Request that a full conform be performed, removing all intermediate files */
+	requestFullConform?: boolean;
+
 	requestRestart?: boolean;
 
 	/**Per-agent override for the desired client version */
