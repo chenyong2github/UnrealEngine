@@ -1,0 +1,53 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../ShadingCommon.ush"
+#include "../ColorMap.ush"
+
+#include "RayTracingCommon.ush"
+#include "RayTracingDeferredMaterials.ush"
+
+#include "/Engine/Shared/RayTracingDebugDefinitions.h"
+
+#include "TraceRayInline.ush"
+
+RWTexture2D<float4> Output;
+RaytracingAccelerationStructure TLAS;
+
+uint VisualizationMode;
+float TraversalBoxScale;
+float TraversalTriangleScale;
+
+[numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
+void RayTracingDebugTraversalCS(uint3 DispatchThread : SV_DispatchThreadID)
+{
+	uint2 PixelCoord = DispatchThread.xy + View.ViewRectMin;
+
+	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
+
+	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
+
+	uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_FORCE_OPAQUE;
+
+	FTraceRayInlineTraversalStatistics TraversalStatistics;
+	FTraceRayInlineResult TraceResult = TraceRayInline(TLAS, RayFlags, RAY_TRACING_MASK_ALL, Ray, TraversalStatistics, 0xFFFFFFFF);
+
+	float4 Result = 0;
+
+	const uint Intersections = TraversalStatistics.NodeIntersectionCount + TraversalStatistics.TriangleIntersectionCount;
+	switch (VisualizationMode)
+	{
+	default:
+	case RAY_TRACING_DEBUG_VIZ_TRAVERSAL_ALL:
+		Result.rgb = ColorMapTurbo(Intersections / (TraversalBoxScale + TraversalTriangleScale));
+		break;
+	case RAY_TRACING_DEBUG_VIZ_TRAVERSAL_NODE:
+		Result.rgb = ColorMapTurbo(TraversalStatistics.NodeIntersectionCount / TraversalBoxScale);
+		break;
+	case RAY_TRACING_DEBUG_VIZ_TRAVERSAL_TRIANGLE:
+		Result.rgb = ColorMapTurbo(TraversalStatistics.TriangleIntersectionCount / TraversalTriangleScale);
+		break;
+	}
+
+	Output[PixelCoord] = Result;
+}

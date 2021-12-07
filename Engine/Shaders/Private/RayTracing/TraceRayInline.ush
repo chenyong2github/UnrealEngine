@@ -25,7 +25,8 @@
 FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure AccelerationStructure,
 	uint RayFlags,
 	uint InstanceInclusionMask,
-	RayDesc Ray)
+	RayDesc Ray,
+	uint MaxIterations = INLINE_RAY_TRACING_MAX_ITERATIONS)
 {
 	FTraceRayInlineResult TraceRayResult = (FTraceRayInlineResult)0;
 	TraceRayResult.SetMiss();
@@ -52,6 +53,19 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 		TraceRayResult.Bookmark[0] = asuint(TraceRayResult.HitT);
 		TraceRayResult.Bookmark[1] = asuint(TraceRayResult.HitT);
 	}
+
+	return TraceRayResult;
+}
+
+FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure AccelerationStructure,
+	uint RayFlags,
+	uint InstanceInclusionMask,
+	RayDesc Ray,
+	inout FTraceRayInlineTraversalStatistics Statistics,
+	uint MaxIterations = INLINE_RAY_TRACING_MAX_ITERATIONS)
+{
+	Statistics = (FTraceRayInlineTraversalStatistics)0;
+	FTraceRayInlineResult TraceRayResult = TraceRayInline(AccelerationStructure, RayFlags, InstanceInclusionMask, Ray, MaxIterations);
 
 	return TraceRayResult;
 }
