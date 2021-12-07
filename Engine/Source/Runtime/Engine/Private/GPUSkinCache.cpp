@@ -51,8 +51,7 @@ static TAutoConsoleVariable<int32> CVarEnableGPUSkinCache(
 	TEXT("This will perform skinning on a compute job and not skin on the vertex shader.\n")
 	TEXT("Requires r.SkinCache.CompileShaders=1\n")
 	TEXT(" 0: off\n")
-	TEXT(" 1: on(default)\n")
-	TEXT(" 2: only use skin cache for skinned meshes that ticked the Recompute Tangents checkbox (unavailable in shipping builds)"),
+	TEXT(" 1: on(default)\n"),
 	ECVF_RenderThreadSafe
 );
 

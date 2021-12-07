@@ -705,19 +705,6 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 					//INC_DWORD_STAT(STAT_GPUSkinCache_SkippedForZeroInfluences);
 					bUseSkinCache = false;
 				}
-
-				{
-#if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
-					// In this mode the SkinCache should only be used for RecomputeTangent meshes
-					if (GEnableGPUSkinCache == 2)
-					{
-						if (!Section.bRecomputeTangent)
-						{
-							bUseSkinCache = false;
-						}
-					}
-#endif
-				}
 			}
 
 		#if RHI_RAYTRACING
