@@ -32,16 +32,11 @@ struct FLODDefaultLogic
 		bDoVisibilityLogic = false, // Enable to calculate visibility and apply its own LOD distances. Requires a valid InVisibleLODDistance parameter during initialization of TMassLODCalculator.
 		bCalculateLODSignificance = false, // Enable to calculate and set the a more precise LOD floating point significance in member FMassLODResultInfo::LODSignificance.
 		bLocalViewersOnly = false, // Enable to calculate LOD from LocalViewersOnly, otherwise will be done on all viewers.
-		bDoVariableTickRate = false, // Enable to update entity variable tick rate calculation
 	};
 };
 
 struct FMassSimulationLODLogic : public FLODDefaultLogic
 {
-	enum
-	{
-		bDoVariableTickRate = true,
-	};
 };
 
 struct FMassRepresentationLODLogic : public FLODDefaultLogic
@@ -58,7 +53,6 @@ struct FMassCombinedLODLogic : public FLODDefaultLogic
 {
 	enum
 	{
-		bDoVariableTickRate = true,
 		bDoVisibilityLogic = true,
 		bCalculateLODSignificance = true,
 		bLocalViewersOnly = true,
@@ -112,9 +106,15 @@ struct FMassViewerInfoFragment
 	// Visibility information per viewer (Only when FLODLogic::bDoVisibilityLogic is enabled)
 	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bIsVisibleByViewer;
 	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bWasVisibleByViewer;
+}
+*/
 
-	// @Todo move to its own fragment remove the FLODLogic::bDoVariableTickRate
-	// Accumulated DeltaTime (Required only when FLODLogic::bDoVariableTickRate is enalbed)
+/**
+ * TMassLODTickRateController outputs
+ *
+ struct FMassVariableTickFragment
+{
+	// Accumulated DeltaTime
 	float DeltaTime = 0.0f;
 	float LastTickedTime = 0.0f;
 };
@@ -165,11 +165,6 @@ protected:
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, float, DistanceToFrustum);
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, bool, bIsVisibleByViewer);
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, bool, bWasVisibleByViewer);
-
-	// @todo, there should be a fragment dedicated to this and it would remove the need to this
-	// Tick controller conditional fragment accessors,=
-	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, DeltaTime);
-	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, LastTickedTime);
 
 	TArray<FViewerLODInfo> Viewers;
 };
