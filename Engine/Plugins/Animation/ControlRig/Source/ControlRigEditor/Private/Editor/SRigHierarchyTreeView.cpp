@@ -87,8 +87,18 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 
 	TSharedPtr< SInlineEditableTextBlock > InlineWidget;
 
-	const FSlateBrush* Brush = GetBrushForElementType(Delegates.GetHierarchy(), InRigTreeElement->Key);
-	FSlateColor Color = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f); 
+	TPair<const FSlateBrush*, FSlateColor> Result = GetBrushForElementType(Delegates.GetHierarchy(), InRigTreeElement->Key);
+	const FSlateBrush* Brush = Result.Key;
+	FSlateColor IconColor = Result.Value;
+	if(IconColor.IsColorSpecified())
+	{
+		IconColor = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? Result.Value : FSlateColor(Result.Value.GetSpecifiedColor() * 0.5f);
+	}
+	else
+	{
+		IconColor = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
+	}
+	const FSlateColor TextColor = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
 
 	STableRow<TSharedPtr<FRigTreeElement>>::Construct(
 		STableRow<TSharedPtr<FRigTreeElement>>::FArguments()
@@ -104,10 +114,11 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 			.FillWidth(1.0)
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.f, 0.f, 3.f, 0.f))
 			[
 				SNew(SImage)
 				.Image(Brush)
-				.ColorAndOpacity(Color)
+				.ColorAndOpacity(IconColor)
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -118,7 +129,7 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.OnVerifyTextChanged(this, &SRigHierarchyItem::OnVerifyNameChanged)
 				.OnTextCommitted(this, &SRigHierarchyItem::OnNameCommitted)
 				.MultiLine(false)
-				.ColorAndOpacity(Color)
+				.ColorAndOpacity(TextColor)
 			]
 		], OwnerTable);
 
@@ -612,14 +623,19 @@ bool SRigHierarchyItem::OnVerifyNameChanged(const FText& InText, FText& OutError
 	return Delegates.HandleVerifyElementNameChanged(OldKey, NewName, OutErrorMessage);
 }
 
-const FSlateBrush* SRigHierarchyItem::GetBrushForElementType(const URigHierarchy* InHierarchy, const FRigElementKey& InKey)
+TPair<const FSlateBrush*, FSlateColor> SRigHierarchyItem::GetBrushForElementType(const URigHierarchy* InHierarchy, const FRigElementKey& InKey)
 {
 	const FSlateBrush* Brush = nullptr;
+	FSlateColor Color = FSlateColor::UseForeground();
 	switch (InKey.Type)
 	{
 		case ERigElementType::Control:
 		{
 			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
+			if(const FRigControlElement* Control = InHierarchy->Find<FRigControlElement>(InKey))
+			{
+				Color = FSlateColor(Control->Settings.ShapeColor);
+			}
 			break;
 		}
 		case ERigElementType::Null:
@@ -673,7 +689,7 @@ const FSlateBrush* SRigHierarchyItem::GetBrushForElementType(const URigHierarchy
 		}
 	}
 
-	return Brush;
+	return TPair<const FSlateBrush*, FSlateColor>(Brush, Color);
 }
 
 void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const

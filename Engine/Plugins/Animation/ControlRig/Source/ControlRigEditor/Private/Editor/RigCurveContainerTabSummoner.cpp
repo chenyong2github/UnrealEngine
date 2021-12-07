@@ -14,7 +14,7 @@ FRigCurveContainerTabSummoner::FRigCurveContainerTabSummoner(const TSharedRef<FC
 	, ControlRigEditor(InControlRigEditor)
 {
 	TabLabel = LOCTEXT("RigCurveContainerTabLabel", "Curve Container");
-	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.TabIcon");
+	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "CurveContainer.TabIcon");
 
 	bIsSingleton = true;
 

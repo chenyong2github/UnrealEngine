@@ -14,7 +14,7 @@ FRigStackTabSummoner::FRigStackTabSummoner(const TSharedRef<FControlRigEditor>& 
 	, ControlRigEditor(InControlRigEditor)
 {
 	TabLabel = LOCTEXT("RigStackTabLabel", "Execution Stack");
-	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.TabIcon");
+	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ExecutionStack.TabIcon");
 
 	bIsSingleton = true;
 

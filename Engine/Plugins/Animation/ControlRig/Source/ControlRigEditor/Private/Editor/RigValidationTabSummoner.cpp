@@ -16,7 +16,7 @@ FRigValidationTabSummoner::FRigValidationTabSummoner(const TSharedRef<FControlRi
 	, WeakControlRigEditor(InControlRigEditor)
 {
 	TabLabel = LOCTEXT("RigValidationTabLabel", "Rig Validation");
-	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.TabIcon");
+	TabIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "RigValidation.TabIcon");
 
 	bIsSingleton = true;
 

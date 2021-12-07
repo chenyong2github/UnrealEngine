@@ -129,6 +129,7 @@ private:
 		ESpacePickerType InType,
 		const FRigElementKey& InKey,
 		const FSlateBrush* InBush,
+		const FSlateColor& InColor,
 		const FText& InTitle,
 		FOnClicked OnClickedDelegate);
 
