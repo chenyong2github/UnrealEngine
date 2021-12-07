@@ -1069,7 +1069,7 @@ class DeviceUnreal(Device):
                         QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
 
                     if mb_ret == QtWidgets.QMessageBox.Yes:
-                        DeviceUnreal.mu_server.terminate()
+                        DeviceUnreal.mu_server.terminate(bypolling=True)
 
                 puuid_dependency = self._build_mu_server(
                     puuid_dependency=puuid_dependency)
