@@ -19,7 +19,9 @@ enum class EVoronoiPattern
 	// Add a regular grid of points
 	Grid,
 	// Add a point at every mesh vertex
-	MeshVertices
+	MeshVertices,
+	// Add a point per vertex of the selected bones
+	SelectedBones
 };
 
 UCLASS(config = EditorPerProjectUserSettings)
@@ -36,6 +38,10 @@ public:
 	/** Method to generate next group of voronoi sites */
 	UPROPERTY(EditAnywhere, Category = LiveVoronoiSites, meta = (DisplayName = "Pattern"))
 	EVoronoiPattern VoronoiPattern = EVoronoiPattern::Uniform;
+	
+	/** Offset point samples in the vertex normal directions */
+	UPROPERTY(EditAnywhere, Category = LiveVoronoiSites, meta = (EditCondition = "VoronoiPattern == EVoronoiPattern::MeshVertices || VoronoiPattern == EVoronoiPattern::SelectedBones"))
+	float NormalOffset = 0.0f;
 
 	/** Randomness of sites distribution */
 	UPROPERTY(EditAnywhere, Category = LiveVoronoiSites, meta = (DisplayName = "Variability", UIMin = "0.0", ClampMin = "0.0"))
@@ -153,7 +159,7 @@ public:
 	}
 
 	// Re-calculate the "live transformed" voronoi sites based on current settings
-	void GenerateLivePattern(int32 RandomSeed);
+	void GenerateLivePattern(const TArray<FFractureToolContext>& FractureContexts, int32 RandomSeed);
 
 	void FractureContextChanged() override;
 
