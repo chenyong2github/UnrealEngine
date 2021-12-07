@@ -179,7 +179,7 @@ void UWaterBodyRiverComponent::GenerateMeshes()
 		for (int32 SplinePtIndex = 0; SplinePtIndex < NumberOfMeshComponentsNeeded; ++SplinePtIndex)
 		{
 			FString Name = FString::Printf(TEXT("SplineMeshComponent_%d"), SplinePtIndex);
-			USplineMeshComponent* MeshComp = NewObject<USplineMeshComponent>(Owner, *Name);
+			USplineMeshComponent* MeshComp = NewObject<USplineMeshComponent>(Owner, *Name, RF_Transactional);
 			MeshComp->SetNetAddressable(); // it's deterministically named so it's addressable over network (needed for collision)
 			SplineMeshComponents.Add(MeshComp);
 			MeshComp->SetMobility(Owner->GetRootComponent()->Mobility);

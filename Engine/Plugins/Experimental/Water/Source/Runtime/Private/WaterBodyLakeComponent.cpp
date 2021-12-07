@@ -73,7 +73,7 @@ void UWaterBodyLakeComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	
 	if (!LakeMeshComp)
 	{
-		LakeMeshComp = NewObject<UStaticMeshComponent>(OwnerActor, TEXT("LakeMeshComponent"));
+		LakeMeshComp = NewObject<UStaticMeshComponent>(OwnerActor, TEXT("LakeMeshComponent"), RF_Transactional);
 		LakeMeshComp->SetupAttachment(this);
 		LakeMeshComp->RegisterComponent();
 	}
@@ -82,7 +82,7 @@ void UWaterBodyLakeComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	{
 		if (!LakeCollision)
 		{
-			LakeCollision = NewObject<ULakeCollisionComponent>(OwnerActor, TEXT("LakeCollisionComponent"));
+			LakeCollision = NewObject<ULakeCollisionComponent>(OwnerActor, TEXT("LakeCollisionComponent"), RF_Transactional);
 			LakeCollision->SetNetAddressable(); // it's deterministically named so it's addressable over network (needed for collision)
 			LakeCollision->SetupAttachment(this);
 			LakeCollision->RegisterComponent();

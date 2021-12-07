@@ -153,7 +153,7 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			}
 			else
 			{
-				BoxComponent = NewObject<UOceanBoxCollisionComponent>(OwnerActor, Name);
+				BoxComponent = NewObject<UOceanBoxCollisionComponent>(OwnerActor, Name, RF_Transactional);
 				BoxComponent->SetupAttachment(this);
 				CollisionBoxes.Add(BoxComponent);
 			}
@@ -191,7 +191,7 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			}
 			else
 			{
-				CollisionComponent = NewObject<UOceanCollisionComponent>(OwnerActor, Name);
+				CollisionComponent = NewObject<UOceanCollisionComponent>(OwnerActor, Name, RF_Transactional);
 				CollisionComponent->SetupAttachment(this);
 				CollisionHullSets.Add(CollisionComponent);
 			}
