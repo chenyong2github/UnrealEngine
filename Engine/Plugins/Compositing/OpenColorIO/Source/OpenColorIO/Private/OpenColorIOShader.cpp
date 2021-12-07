@@ -60,7 +60,7 @@ void FOpenColorIOPixelShader::BindParams(const FShaderParameterMap& ParameterMap
 	InputTextureSampler.Bind(ParameterMap, TEXT("InputTextureSampler"));
 
 	OCIO3dTexture.Bind(ParameterMap, OpenColorIOShader::OCIOLut3dName);
-	OCIO3dTextureSampler.Bind(ParameterMap, TEXT("Ociolut3dSampler"));
+	OCIO3dTextureSampler.Bind(ParameterMap, OpenColorIOShader::OCIOLut3dSamplerName);
 
 	Gamma.Bind(ParameterMap, TEXT("Gamma"));
 }

@@ -21,16 +21,17 @@ class UClass;
 BEGIN_SHADER_PARAMETER_STRUCT(FOpenColorIOPixelShaderParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, InputTextureSampler)
-	SHADER_PARAMETER_TEXTURE(Texture3D, Ociolut3d)
-	SHADER_PARAMETER_SAMPLER(SamplerState, Ociolut3dSampler)
 	SHADER_PARAMETER(float, Gamma)
+	SHADER_PARAMETER_TEXTURE(Texture3D, Ocio_lut3d_0)
+	SHADER_PARAMETER_SAMPLER(SamplerState, Ocio_lut3d_0Sampler)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
 namespace OpenColorIOShader
 {
 	static const TCHAR* OpenColorIOShaderFunctionName = TEXT("OCIOConvert");
-	static const TCHAR* OCIOLut3dName = TEXT("Ociolut3d");
+	static const TCHAR* OCIOLut3dName = TEXT("Ocio_lut3d_0");
+	static const TCHAR* OCIOLut3dSamplerName = TEXT("Ocio_lut3d_0Sampler");
 	static const uint32 MaximumTextureNumber = 10;
 	static const uint32 Lut3dEdgeLength = 65;
 }
@@ -97,10 +98,10 @@ public:
 protected:
 	LAYOUT_FIELD(FShaderResourceParameter, InputTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, InputTextureSampler)
+	LAYOUT_FIELD(FShaderParameter, Gamma)
 
 	LAYOUT_FIELD(FShaderResourceParameter, OCIO3dTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, OCIO3dTextureSampler)
-	LAYOUT_FIELD(FShaderParameter, Gamma)
 
 private:
 	LAYOUT_FIELD(FMemoryImageString, DebugDescription)

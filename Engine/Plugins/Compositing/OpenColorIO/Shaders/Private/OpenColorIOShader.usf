@@ -11,9 +11,6 @@
 Texture2D		InputTexture;
 SamplerState	InputTextureSampler;
 
-Texture3D Ociolut3d;
-SamplerState Ociolut3dSampler;
-
 float Gamma;
 
 /*=============================================================================
@@ -42,5 +39,5 @@ void MainPS(float4 InPosition : SV_POSITION,
 	float4 InputColor = InputTexture.Sample(InputTextureSampler, InUV.xy);
 	InputColor = max(0.0, InputColor);
 	InputColor = pow(InputColor, Gamma);
-	OutColor = float4(OCIOConvert(InputColor, Ociolut3dSampler).xyz, InputColor.w);
+	OutColor = float4(OCIOConvert(InputColor).xyz, InputColor.w);
 }

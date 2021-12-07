@@ -231,9 +231,9 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 			Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
 			if (CachedResourcesRenderThread.LUT3dResource)
 			{
-				Parameters->Ociolut3d = CachedResourcesRenderThread.LUT3dResource->TextureRHI;
+				Parameters->Ocio_lut3d_0 = CachedResourcesRenderThread.LUT3dResource->TextureRHI;
 			}
-			Parameters->Ociolut3dSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			Parameters->Ocio_lut3d_0Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 			// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
 			// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.

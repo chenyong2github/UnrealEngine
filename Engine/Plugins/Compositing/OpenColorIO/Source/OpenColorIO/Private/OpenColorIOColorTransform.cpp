@@ -207,23 +207,31 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 				OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = CurrentConfig->getProcessor(StringCast<ANSICHAR>(*SourceColorSpace).Get(), StringCast<ANSICHAR>(*DestinationColorSpace).Get());
 				if (TransformProcessor)
 				{
-					OCIO_NAMESPACE::GpuShaderDesc ShaderDescription;
-					ShaderDescription.setLanguage(OCIO_NAMESPACE::GPU_LANGUAGE_CG);
-					ShaderDescription.setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
-					ShaderDescription.setLut3DEdgeLen(OpenColorIOShader::Lut3dEdgeLength);
+					OCIO_NAMESPACE::GpuShaderDescRcPtr ShaderDescription = OCIO_NAMESPACE::GpuShaderDesc::CreateShaderDesc();
+					ShaderDescription->setLanguage(OCIO_NAMESPACE::GPU_LANGUAGE_HLSL_DX11);
+					ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
+					ShaderDescription->setResourcePrefix("Ocio");
 
-					FString Lut3dIdentifier = StringCast<TCHAR>(TransformProcessor->getGpuLut3DCacheID(ShaderDescription)).Get();
-					if (Lut3dIdentifier != TEXT("<NULL>"))
+					OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(OCIO_NAMESPACE::OptimizationFlags::OPTIMIZATION_DEFAULT, OpenColorIOShader::Lut3dEdgeLength);
+					GPUProcessor->extractGpuShaderInfo(ShaderDescription);
+
+					FString Lut3dIdentifier = StringCast<TCHAR>(GPUProcessor->getCacheID()).Get();
+					if (Lut3dIdentifier != TEXT("<NULL>") && ShaderDescription->getNum3DTextures() > 0 )
 					{
-						std::vector<float> Lut3dData;
-						const uint32 LutLength = OpenColorIOShader::Lut3dEdgeLength;
-						const uint32 TotalItemCount = LutLength * LutLength * LutLength;
-						Lut3dData.resize(3 * TotalItemCount);
-						TransformProcessor->getGpuLut3D(&Lut3dData[0], ShaderDescription);
+						const char* TextureName = nullptr;
+						const char* SamplerName = nullptr;
+						unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOShader::Lut3dEdgeLength);
+						OCIO_NAMESPACE::Interpolation Interpolation = OCIO_NAMESPACE::INTERP_BEST;
+						ShaderDescription->get3DTexture(0, TextureName, SamplerName, EdgeLength, Interpolation);
+						checkf(TextureName && *TextureName && SamplerName && *SamplerName && EdgeLength > 0, TEXT("Invalid OCIO texture or sampler."));
+
+						const float* Lut3dData = 0x0;
+						ShaderDescription->get3DTextureValues(0, Lut3dData);
+						checkf(Lut3dData, TEXT("Failed to read OCIO 3d LUT data."));
 
 						//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
 						//that OCIO library has on board. The texture will be serialized only when cooking.
-						Update3dLutTexture(Lut3dIdentifier, &Lut3dData[0]);
+						Update3dLutTexture(Lut3dIdentifier, Lut3dData);
 					}
 				}
 				else
@@ -388,21 +396,19 @@ bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FS
 			OCIO_NAMESPACE::ConstProcessorRcPtr TransformProcessor = CurrentConfig->getProcessor(StringCast<ANSICHAR>(*SourceColorSpace).Get(), StringCast<ANSICHAR>(*DestinationColorSpace).Get());
 			if (TransformProcessor)
 			{
-				OCIO_NAMESPACE::GpuShaderDesc ShaderDescription;
-				ShaderDescription.setLanguage(OCIO_NAMESPACE::GPU_LANGUAGE_CG);
-				ShaderDescription.setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
-				ShaderDescription.setLut3DEdgeLen(OpenColorIOShader::Lut3dEdgeLength);
+				OCIO_NAMESPACE::GpuShaderDescRcPtr ShaderDescription = OCIO_NAMESPACE::GpuShaderDesc::CreateShaderDesc();
+				ShaderDescription->setLanguage(OCIO_NAMESPACE::GPU_LANGUAGE_HLSL_DX11);
+				ShaderDescription->setFunctionName(StringCast<ANSICHAR>(OpenColorIOShader::OpenColorIOShaderFunctionName).Get());
+				ShaderDescription->setResourcePrefix("Ocio");
 
-				OutShaderCodeHash = StringCast<TCHAR>(TransformProcessor->getGpuShaderTextCacheID(ShaderDescription)).Get();
-				FString GLSLShaderCode = StringCast<TCHAR>(TransformProcessor->getGpuShaderText(ShaderDescription)).Get();
+				OCIO_NAMESPACE::ConstGPUProcessorRcPtr GPUProcessor = TransformProcessor->getOptimizedLegacyGPUProcessor(OCIO_NAMESPACE::OptimizationFlags::OPTIMIZATION_DEFAULT, OpenColorIOShader::Lut3dEdgeLength);
+				GPUProcessor->extractGpuShaderInfo(ShaderDescription);
+
+				FString GLSLShaderCode = StringCast<TCHAR>(ShaderDescription->getShaderText()).Get();
+
+				OutShaderCodeHash = StringCast<TCHAR>(ShaderDescription->getCacheID()).Get();
+				OutShaderCode = StringCast<TCHAR>(ShaderDescription->getShaderText()).Get();
 				OutRawConfigHash = StringCast<TCHAR>(CurrentConfig->getCacheID()).Get();
-
-				//CG language works with HLSL. Just update texture sampling to work with newest method
-				const FString SamplerString = FString::Printf(TEXT("%s.Sample"), OpenColorIOShader::OCIOLut3dName);
-				GLSLShaderCode = GLSLShaderCode.Replace(TEXT("tex3D"), *SamplerString, ESearchCase::CaseSensitive);
-				GLSLShaderCode = GLSLShaderCode.Replace(TEXT("sampler3D"), TEXT("SamplerState"), ESearchCase::CaseSensitive);
-
-				OutShaderCode = GLSLShaderCode;
 				return true;
 			}
 			else
