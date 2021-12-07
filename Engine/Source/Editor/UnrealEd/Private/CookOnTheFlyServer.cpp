@@ -3476,7 +3476,7 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 		if (GEngine && !bPerformedObjListWhenNearMaxObjects)
 		{
 			UE_LOG(LogCook, Display, TEXT("Performing 'obj list' to show counts of types of objects due to low availability of UObject indices."));
-			GEngine->Exec(nullptr, TEXT("OBJ LIST -COUNTSORT"));
+			GEngine->Exec(nullptr, TEXT("OBJ LIST -COUNTSORT -SKIPMEMORYSIZE"));
 			bPerformedObjListWhenNearMaxObjects = true;
 		}
 		return true;
