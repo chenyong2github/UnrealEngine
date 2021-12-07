@@ -14,8 +14,6 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-
-//#define DEBUG_CURVE_SAMPLING
 namespace CADKernel
 {
 
