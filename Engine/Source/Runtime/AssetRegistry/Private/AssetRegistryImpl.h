@@ -54,6 +54,14 @@ namespace Impl
 		/** Report size of dynamic allocations. */
 		uint32 GetAllocatedSize() const;
 	};
+
+	/** Status of gathering, returned from the Tick function */
+	enum EGatherStatus : uint8
+	{
+		Active,
+		Complete,
+		UnableToProgress,
+	};
 }
 
 /**
@@ -125,8 +133,8 @@ public:
 	void TickDeletes();
 	/** Callback type for TickGatherer */
 	typedef TFunctionRef<void(const TRingBuffer<FAssetData*>&)> FAssetsFoundCallback;
-	/** Read any results from the gatherer, if it is running asynchronously */
-	void TickGatherer(Impl::FEventContext& EventContext, const double TickStartTime, bool& bOutIdle, bool& bOutInterrupted,
+	/** Consume any results from the gatherer and return its status */
+	Impl::EGatherStatus TickGatherer(Impl::FEventContext& EventContext, const double TickStartTime, bool& bOutInterrupted,
 		TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
 	/** Look for and load a single AssetData result from the gatherer. */
 	void TickGatherPackage(Impl::FEventContext& EventContext, const FString& PackageName, const FString& LocalPath);
@@ -288,8 +296,8 @@ private:
 	bool bInitialSearchStarted;
 	/** Flag to indicate if the initial background search has completed */
 	bool bInitialSearchCompleted;
-	/** Flag that indicates the background search is idle, so we can take actions when idle changes */
-	bool bGatherIdle;
+	/** Status of the background search, so we can take actions when it changes to or from idle */
+	Impl::EGatherStatus GatherStatus;
 
 	/**
 	 * Enables extra check to make sure path still mounted before adding.
@@ -402,7 +410,7 @@ struct FScanPathContext
 	int32 NumFoundAssets = 0;
 	bool bForceRescan = false;
 	bool bIgnoreDenyListScanFilters = false;
-	bool bIdle = false;
+	EGatherStatus Status = EGatherStatus::Active;
 };
 
 }
