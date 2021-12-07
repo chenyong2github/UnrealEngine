@@ -626,6 +626,32 @@ static ETextureEncodeSpeed GetDesiredEncodeSpeed()
 	return FThreadSafeInitializer.CachedEncodeSpeedOption;
 }
 
+//
+// Resolves whether the texture is streamable independent of compression speed, and avoids
+// unnecessary build settings generation work.
+//
+static bool GetTextureIsStreamable(const UTexture& Texture, const ITargetPlatform& CurrentPlatform)
+{
+	const bool bPlatformSupportsTextureStreaming = CurrentPlatform.SupportsFeature(ETargetPlatformFeatures::TextureStreaming);
+
+	bool bStreamable = false;
+	if (Texture.IsA(UTexture2DArray::StaticClass()))
+	{
+		bStreamable = GSupportsTexture2DArrayStreaming;
+	}
+	else if (Texture.IsA(UVolumeTexture::StaticClass()))
+	{
+		bStreamable = GSupportsVolumeTextureStreaming;
+	}
+	else if (Texture.IsA(UTexture2D::StaticClass()))
+	{
+		bStreamable = true;
+	}
+
+	bStreamable &= bPlatformSupportsTextureStreaming && !Texture.NeverStream && (Texture.LODGroup != TEXTUREGROUP_UI);
+	return bStreamable;
+}
+
 /**
  * Sets texture build settings.
  * @param Texture - The texture for which to build compressor settings.
@@ -736,7 +762,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.CompositePower = Texture.CompositePower;
 	OutBuildSettings.LODBias = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, Texture.NumCinematicMipLevels, Texture.MipGenSettings, bVirtualTextureStreaming);
 	OutBuildSettings.LODBiasWithCinematicMips = TextureLODSettings.CalculateLODBias(SourceSize.X, SourceSize.Y, Texture.MaxTextureSize, Texture.LODGroup, Texture.LODBias, 0, Texture.MipGenSettings, bVirtualTextureStreaming);
-	OutBuildSettings.bStreamable = GetTextureIsStreamableOnPlatform(Texture, CurrentPlatform);
+	OutBuildSettings.bStreamable = GetTextureIsStreamable(Texture, CurrentPlatform);
 	OutBuildSettings.bVirtualStreamable = bVirtualTextureStreaming;
 	OutBuildSettings.PowerOfTwoMode = Texture.PowerOfTwoMode;
 	OutBuildSettings.PaddingColor = Texture.PaddingColor;
@@ -2869,7 +2895,7 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				}
 
 				// Pass streamable flag for inlining mips
-				bool bTextureIsStreamable = GetTextureIsStreamableOnPlatform(*this, *Ar.CookingTarget());
+				bool bTextureIsStreamable = GetTextureIsStreamable(*this, *Ar.CookingTarget());
 				PlatformDataToSave->SerializeCooked(Ar, this, bTextureIsStreamable);
 
 				SkipOffset = Ar.Tell() - SkipOffsetLoc;
