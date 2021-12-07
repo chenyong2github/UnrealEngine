@@ -69,7 +69,7 @@ private:
 
 		void* Allocate(uint64 Size)
 		{
-			uint64 AllocationSize = (Size + (16 - 1)) / 16;
+			uint64 AllocationSize = Align(Size, 16);
 			if (!CurrentSlab || CurrentSlabAllocatedSize + AllocationSize > SlabSize)
 			{
 				TotalAllocatedSize += SlabSize;
