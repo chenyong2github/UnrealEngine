@@ -943,11 +943,43 @@ namespace Chaos
 		return FMath::Clamp(IterationStiffness, 0.0f, 1.0f);
 	}
 
+
+	bool FPBDJointConstraints::CanEvaluate(const int32 ConstraintIndex) const
+	{
+		if (!IsConstraintEnabled(ConstraintIndex))
+		{
+			return false;
+		}
+
+		int32 Index0, Index1;
+		GetConstrainedParticleIndices(ConstraintIndex, Index0, Index1);
+		const FGenericParticleHandle Particle0 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index0]);
+		const FGenericParticleHandle Particle1 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][Index1]);
+
+		// check for valid and enabled particles
+		if (Particle0->Handle() == nullptr || Particle0->Disabled()
+			|| Particle1->Handle() == nullptr || Particle1->Disabled())
+		{
+			return false;
+		}
+
+		// check valid particle and solver state
+		const FPBDJointSolver& Solver = ConstraintSolvers[ConstraintIndex];
+		if ((Particle0->Sleeping() && Particle1->Sleeping())
+			|| (Particle0->IsKinematic() && Particle1->Sleeping())
+			|| (Particle0->Sleeping() && Particle1->IsKinematic())
+			|| (FMath::IsNearlyZero(Solver.InvM(0)) && FMath::IsNearlyZero(Solver.InvM(1))))
+		{
+			return false;
+		}
+		return true;
+	}
+
 	// This position solver iterates over each of the inner constraints (position, twist, swing) and solves them independently.
 	// This will converge slowly in some cases, particularly where resolving angular constraints violates position constraints and vice versa.
 	bool FPBDJointConstraints::ApplyPhase1Single(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
-		if (!IsConstraintEnabled(ConstraintIndex))
+		if (!CanEvaluate(ConstraintIndex))
 		{
 			return false;
 		}
@@ -1013,7 +1045,7 @@ namespace Chaos
 
 	bool FPBDJointConstraints::ApplyPhase2Single(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts)
 	{
-		if (!IsConstraintEnabled(ConstraintIndex))
+		if (!CanEvaluate(ConstraintIndex))
 		{
 			return false;
 		}
