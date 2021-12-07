@@ -11,6 +11,9 @@
 AWorldPartitionVolume::AWorldPartitionVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
 }
 
 #if WITH_EDITOR

@@ -9,7 +9,6 @@ class FWorldPartitionActorDesc;
 class UActorDescContainer;
 class UWorldPartition;
 enum class EContainerClusterMode : uint8;
-enum class EActorGridPlacement : uint8;
 
 /**
  * A view on top of an actor desc, used to cache information that can be (potentially) different than the actor desc
@@ -27,8 +26,8 @@ public:
 	FName GetClass() const;
 	UClass* GetActorClass() const;
 	FVector GetOrigin() const;
-	EActorGridPlacement GetGridPlacement() const;
 	FName GetRuntimeGrid() const;
+	bool GetIsSpatiallyLoaded() const;
 	bool GetActorIsEditorOnly() const;
 	bool GetLevelBoundsRelevant() const;
 	bool GetActorIsHLODRelevant() const;
@@ -48,7 +47,7 @@ public:
 
 	FName GetActorLabelOrName() const;
 
-	void SetGridPlacement(EActorGridPlacement InGridPlacement);
+	void SetForcedNonSpatiallyLoaded();
 
 	void SetInvalidDataLayers();
 
@@ -64,7 +63,7 @@ public:
 
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;
-	EActorGridPlacement GridPlacement;
+	bool bIsForcedNonSpatiallyLoaded;
 	bool bInvalidDataLayers;
 };
 #endif

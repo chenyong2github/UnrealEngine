@@ -166,6 +166,10 @@ ANavigationData::ANavigationData(const FObjectInitializer& ObjectInitializer)
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComp"));
 	RootComponent = SceneComponent;
 	RootComponent->Mobility = EComponentMobility::Static;
+
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
 }
 
 uint16 ANavigationData::GetNextUniqueID()

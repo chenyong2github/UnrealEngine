@@ -31,9 +31,10 @@ AInfo::AInfo(const FObjectInitializer& ObjectInitializer)
 		SpriteComponent->Sprite = ConstructorStatics.SpriteTexture.Get();
 		SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Info;
 		SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Info;
-		SpriteComponent->bIsScreenSizeScaled = true;	
-
+		SpriteComponent->bIsScreenSizeScaled = true;
 	}
+
+	bIsSpatiallyLoaded = false;
 #endif // WITH_EDITORONLY_DATA
 
 	PrimaryActorTick.bCanEverTick = false;

@@ -233,7 +233,7 @@ public:
 	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;

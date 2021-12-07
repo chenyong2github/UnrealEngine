@@ -47,9 +47,6 @@ public:
 		
 	void SetPackedVersion(const FGuid& Version) { PackedVersion = Version; }
 
-	// AActor overrides
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::None; }
-
 	virtual bool IsHiddenEd() const override;
 	virtual bool IsHLODRelevant() const override;
 

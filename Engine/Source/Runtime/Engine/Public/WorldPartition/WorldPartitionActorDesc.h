@@ -61,8 +61,8 @@ public:
 	inline FName GetClass() const { return Class; }
 	inline UClass* GetActorClass() const { return ActorClass; }
 	inline FVector GetOrigin() const { return GetBounds().GetCenter(); }
-	inline EActorGridPlacement GetGridPlacement() const { return GridPlacement; }
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
+	inline bool GetIsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
 	inline bool GetActorIsEditorOnly() const { return bActorIsEditorOnly; }
 	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
@@ -173,8 +173,8 @@ protected:
 	FName							ActorLabel;
 	FVector							BoundsLocation;
 	FVector							BoundsExtent;
-	EActorGridPlacement				GridPlacement;
 	FName							RuntimeGrid;
+	bool							bIsSpatiallyLoaded;
 	bool							bActorIsEditorOnly;
 	bool							bLevelBoundsRelevant;
 	bool							bActorIsHLODRelevant;

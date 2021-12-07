@@ -236,8 +236,6 @@ public:
 
 	FName GetCellName(FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID) const;
 	static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID);
-
-	virtual void UpdateActorDescViewMap(TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap) const override;
 #endif
 
 	// streaming interface

@@ -259,6 +259,8 @@ ADirectionalLight::ADirectionalLight(const FObjectInitializer& ObjectInitializer
 		ArrowComponent->bLightAttachment = true;
 		ArrowComponent->bIsScreenSizeScaled = true;
 	}
+
+	bIsSpatiallyLoaded = false;
 #endif // WITH_EDITORONLY_DATA
 
 }

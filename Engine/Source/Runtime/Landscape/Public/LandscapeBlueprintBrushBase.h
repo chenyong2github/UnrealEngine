@@ -77,6 +77,6 @@ public:
 
 	virtual void PushDeferredLayersContentUpdate();
 
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif
 };

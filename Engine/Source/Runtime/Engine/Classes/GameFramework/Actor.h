@@ -62,7 +62,7 @@ enum class EActorUpdateOverlapsMethod : uint8
 #if WITH_EDITORONLY_DATA
 /** Enum defining how actor will be placed in the partition */
 UENUM()
-enum class EActorGridPlacement : uint8
+enum class UE_DEPRECATED(5.0, "EActorGridPlacement is deprecated.") EActorGridPlacement : uint8
 {
 	// Actor uses its bounds to determine in which runtime cells it's going to be placed.
 	Bounds,
@@ -72,18 +72,6 @@ enum class EActorGridPlacement : uint8
 	AlwaysLoaded,
 	None UMETA(Hidden)
 };
-
-inline const TCHAR* GetActorGridPlacementName(EActorGridPlacement ActorGridPlacement)
-{
-	switch(ActorGridPlacement)
-	{
-	case EActorGridPlacement::Bounds: return TEXT("Bounds");
-	case EActorGridPlacement::Location: return TEXT("Location");
-	case EActorGridPlacement::AlwaysLoaded: return TEXT("AlwaysLoaded");
-	default: check(0);
-	}
-	return TEXT("Invalid");
-}
 #endif
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogActor, Log, Warning);
@@ -591,12 +579,11 @@ public:
 
 protected:
 #if WITH_EDITORONLY_DATA
-	/** 
-	 * Determine how this actor will be placed in the partition (if the world is partitioned). This value is not taken into account
-	 * if the function ActorClass->GetDefaultGridPlacement returns other than EActorGridPlacement::None.
-	 */
-	UPROPERTY(EditAnywhere, Category=WorldPartition)
-	EActorGridPlacement GridPlacement;
+	/** @deprecated Use bIsSpatiallyLoaded instead */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY()
+	EActorGridPlacement GridPlacement_DEPRECATED;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** 
 	 * Determine in which partition grid this actor will be placed in the partition (if the world is partitioned).
@@ -866,17 +853,6 @@ public:
 
 	FActorOnPackagingModeChanged OnPackagingModeChanged;
 
-	/**
-	 * Determine how this actor should be placed in the partition (meant to be called on the default object).
-	 / @return EActorGridPlacement::None if the placement should be on a per-instance basis, otherwise the default value wins.
-	 */
-	virtual EActorGridPlacement GetDefaultGridPlacement() const;
-	
-	/** Returns this actor's current grid placement. */
-	virtual EActorGridPlacement GetGridPlacement() const { return GridPlacement; }
-
-	/** Sets this actor's current grid placement. */
-	void SetGridPlacement(EActorGridPlacement InGridPLacement) { GridPlacement = InGridPLacement; }
 
 	/** Returns this actor's current target runtime grid. */
 	virtual FName GetRuntimeGrid() const { return RuntimeGrid; }
@@ -1001,6 +977,15 @@ protected:
 	/** Whether the actor can be used as a PlayFromHere origin (OnPlayFromHere() will be called on that actor) */
 	UPROPERTY()
 	uint8 bCanPlayFromHere : 1;
+
+	/** 
+	 * Determine if this actor is spatially loaded when placed in a partitioned world.
+	 *	If true, this actor will be loaded when in the range of any streaming sources and if (1) in no data layers, or (2) one or more of its data layers are enabled.
+	 *	If false, this actor will be loaded if (1) in no data layers, or (2) one or more of its data layers are enabled.
+	 */
+	UPROPERTY(EditAnywhere, Category=WorldPartition)
+	uint8 bIsSpatiallyLoaded : 1;
+
 private:
 	/** Whether this actor is temporarily hidden within the editor; used for show/hide/etc functionality w/o dirtying the actor. */
 	UPROPERTY(Transient)
@@ -2225,6 +2210,19 @@ public:
 			bForceExternalActorLevelReferenceForPIE = bValue;
 		}
 	}
+
+	/** Returns true if this actor is spatially loaded. */
+	bool GetIsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
+	
+	/** Set if this actor should be spatially loaded or not. */
+	void SetIsSpatiallyLoaded(bool bInIsSpatiallyLoaded)
+	{
+		check(CanChangeIsSpatiallyLoadedFlag());
+		bIsSpatiallyLoaded = bInIsSpatiallyLoaded;
+	}
+
+	/** Returns true if this actor allows changing the spatially loaded flag.  */
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const { return true; }
 
 	/**
 	 * Returns whether or not this actor was explicitly hidden in the editor for the duration of the current editor session

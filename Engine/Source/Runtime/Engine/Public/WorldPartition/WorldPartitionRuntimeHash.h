@@ -70,11 +70,6 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 protected:
 	virtual EWorldPartitionStreamingPerformance GetStreamingPerformanceForCell(const UWorldPartitionRuntimeCell* Cell) const { return EWorldPartitionStreamingPerformance::Good; }
 
-#if WITH_EDITOR
-public:
-	virtual void UpdateActorDescViewMap(TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap) const {}
-#endif
-
 private:
 #if WITH_EDITOR
 	void ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE);

@@ -13,4 +13,8 @@ AZoneShape::AZoneShape(const FObjectInitializer& ObjectInitializer)
 
 	SetHidden(true);
 	SetCanBeDamaged(false);
+
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
 }

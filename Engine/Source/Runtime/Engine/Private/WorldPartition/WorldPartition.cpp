@@ -1349,19 +1349,9 @@ FBox UWorldPartition::GetWorldBounds() const
 	FBox WorldBounds(ForceInit);
 	for (UActorDescContainer::TConstIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{
-		switch (ActorDescIterator->GetGridPlacement())
+		if (ActorDescIterator->GetIsSpatiallyLoaded())
 		{
-			case EActorGridPlacement::Location:
-			{
-				FVector Location = ActorDescIterator->GetOrigin();
-				WorldBounds += FBox(Location, Location);
-			}
-			break;
-			case EActorGridPlacement::Bounds:
-			{
-				WorldBounds += ActorDescIterator->GetBounds();
-			}
-			break;
+			WorldBounds += ActorDescIterator->GetBounds();
 		}
 	}
 	return WorldBounds;

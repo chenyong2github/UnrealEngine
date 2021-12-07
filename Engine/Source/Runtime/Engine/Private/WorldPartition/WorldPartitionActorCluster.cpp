@@ -32,12 +32,10 @@ TSet<const UDataLayer*> GetDataLayers(UWorld* InWorld, const LayerNameContainer&
 }
 
 FActorCluster::FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView)
-	: GridPlacement(InActorDescView.GetGridPlacement())
+	: bIsSpatiallyLoaded(InActorDescView.GetIsSpatiallyLoaded())
 	, RuntimeGrid(InActorDescView.GetRuntimeGrid())
 	, Bounds(InActorDescView.GetBounds())
 {
-	check(GridPlacement != EActorGridPlacement::None);
-
 	Actors.Add(InActorDescView.GetGuid());
 	DataLayers = GetDataLayers(InWorld, InActorDescView.GetDataLayers());
 	DataLayersID = FDataLayersID(DataLayers.Array());
@@ -47,19 +45,13 @@ void FActorCluster::Add(const FActorCluster& InActorCluster, const TMap<FGuid, F
 {
 	check(RuntimeGrid == InActorCluster.RuntimeGrid);
 	check(DataLayersID == InActorCluster.DataLayersID);
-	check((GridPlacement == EActorGridPlacement::AlwaysLoaded) == (InActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded));
+	check(bIsSpatiallyLoaded == InActorCluster.bIsSpatiallyLoaded);
 
 	// Merge bounds
 	Bounds += InActorCluster.Bounds;
 
 	// Merge Actors
 	Actors.Append(InActorCluster.Actors);
-
-	// Set grid placement
-	if (GridPlacement != EActorGridPlacement::AlwaysLoaded)
-	{
-		GridPlacement = EActorGridPlacement::Bounds;
-	}
 }
 
 FActorClusterInstance::FActorClusterInstance(const FActorCluster* InCluster, const FActorContainerInstance* InContainerInstance)

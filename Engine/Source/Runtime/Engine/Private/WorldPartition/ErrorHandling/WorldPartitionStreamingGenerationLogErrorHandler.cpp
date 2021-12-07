@@ -12,11 +12,10 @@ void FStreamingGenerationLogErrorHandler::OnInvalidReference(const FWorldPartiti
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceGridPlacement(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 {
-	const FString StreamedActor(TEXT("Streamed actor"));
-	const FString AlwaysLoadedActor(TEXT("Always loaded actor"));
-	const bool bIsActorDescAlwaysLoaded = ActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
-	const bool bIsActorDescRefAlwaysLoaded = ReferenceActorDescView.GetGridPlacement() == EActorGridPlacement::AlwaysLoaded;
-	UE_LOG(LogWorldPartition, Log, TEXT("%s %s reference %s %s"), bIsActorDescAlwaysLoaded ? *AlwaysLoadedActor : *StreamedActor, *ActorDescView.GetActorLabelOrName().ToString(), bIsActorDescRefAlwaysLoaded ? *AlwaysLoadedActor : *StreamedActor, *ReferenceActorDescView.GetActorLabelOrName().ToString());
+	const FString SpatiallyLoadedActor(TEXT("Spatially loaded actor"));
+	const FString NonSpatiallyLoadedActor(TEXT("Non-spatially loaded loaded actor"));
+
+	UE_LOG(LogWorldPartition, Log, TEXT("%s %s reference %s %s"), ActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor, *ActorDescView.GetActorLabelOrName().ToString(), ReferenceActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor, *ReferenceActorDescView.GetActorLabelOrName().ToString());
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceDataLayers(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)

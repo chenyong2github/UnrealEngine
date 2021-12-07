@@ -67,8 +67,7 @@ class ENGINE_API ALevelBounds
 	/** Update level bounds immediately so the bounds are accurate when returning. Use only when needed because updating the bounds is slow */
 	void UpdateLevelBoundsImmediately();
 
-	/** Make the level bounds always loaded for partitioned worlds */
-	virtual EActorGridPlacement GetDefaultGridPlacement() const { return EActorGridPlacement::AlwaysLoaded; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	
 protected:
 	/** FTickableGameObject interface */

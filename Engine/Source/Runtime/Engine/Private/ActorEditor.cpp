@@ -68,12 +68,12 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 		return false;
 	}
 
-	const bool bIsGridPlacement = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, GridPlacement);
-	const bool bIsRuntimeGrid = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, RuntimeGrid);
-	const bool bIsDataLayers = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, DataLayers);
-	const bool bIsHLODLayer = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, HLODLayer);
+	const bool bIsSpatiallyLoadedProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, bIsSpatiallyLoaded);
+	const bool bIsRuntimeGridProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, RuntimeGrid);
+	const bool bIsDataLayersProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, DataLayers);
+	const bool bIsHLODLayerProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, HLODLayer);
 
-	if (bIsGridPlacement || bIsRuntimeGrid || bIsDataLayers || bIsHLODLayer)
+	if (bIsSpatiallyLoadedProperty || bIsRuntimeGridProperty || bIsDataLayersProperty || bIsHLODLayerProperty)
 	{
 		if (!IsTemplate())
 		{
@@ -88,12 +88,12 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 		}
 	}
 
-	if (bIsGridPlacement && (GetDefaultGridPlacement() != EActorGridPlacement::None))
+	if (bIsSpatiallyLoadedProperty && !CanChangeIsSpatiallyLoadedFlag())
 	{
 		return false;
 	}
 
-	if (bIsDataLayers && !SupportsDataLayer())
+	if (bIsDataLayersProperty && !SupportsDataLayer())
 	{
 		return false;
 	}
@@ -843,15 +843,6 @@ void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
 	
 	// Mark the new actor package dirty
 	MarkPackageDirty();
-}
-
-EActorGridPlacement AActor::GetDefaultGridPlacement() const
-{
-	if (GetClass()->GetClassFlags() & CLASS_NotPlaceable)
-	{
-		return EActorGridPlacement::AlwaysLoaded;
-	}
-	return EActorGridPlacement::None;
 }
 
 void AActor::OnPlayFromHere()

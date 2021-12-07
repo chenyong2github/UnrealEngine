@@ -37,8 +37,7 @@ namespace UE::LevelSnapshots::Private::Internal
 		{
 			if (Params.LeafProperty == GridPlacementProperty)
 			{
-				const bool bIsEditable = Params.InspectedClass->GetDefaultObject<AActor>()->GetDefaultGridPlacement() == EActorGridPlacement::None;
-				return bIsEditable ? EPropertyComparison::CheckNormally : EPropertyComparison::TreatEqual;
+				return EPropertyComparison::CheckNormally;
 			}
 
 			return EPropertyComparison::CheckNormally;

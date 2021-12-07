@@ -33,7 +33,7 @@ public:
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 
 #if WITH_EDITOR
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	virtual bool SupportsDataLayer() const override { return false; }
 #endif
 

@@ -20,7 +20,7 @@ public:
 	const UZoneShapeComponent* GetShape() const { return ShapeComponent; }
 
 #if WITH_EDITOR
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif
 
 protected:

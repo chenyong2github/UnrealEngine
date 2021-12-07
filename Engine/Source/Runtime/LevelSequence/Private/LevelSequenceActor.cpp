@@ -57,6 +57,8 @@ ALevelSequenceActor::ALevelSequenceActor(const FObjectInitializer& Init)
 			SpriteComponent->bHiddenInGame = true;
 		}
 	}
+
+	bIsSpatiallyLoaded = false;
 #endif //WITH_EDITORONLY_DATA
 
 	BindingOverrides = Init.CreateDefaultSubobject<UMovieSceneBindingOverrides>(this, "BindingOverrides");

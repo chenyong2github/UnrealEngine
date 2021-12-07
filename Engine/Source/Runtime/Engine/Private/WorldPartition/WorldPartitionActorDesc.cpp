@@ -45,17 +45,8 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	const FBox StreamingBounds = InActor->GetStreamingBounds();
 	StreamingBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 
-	const EActorGridPlacement DefaultGridPlacement = InActor->GetDefaultGridPlacement();
-	if (DefaultGridPlacement != EActorGridPlacement::None)
-	{
-		GridPlacement = DefaultGridPlacement;
-	}
-	else
-	{
-		GridPlacement = InActor->GetGridPlacement();
-	}
-
 	RuntimeGrid = InActor->GetRuntimeGrid();
+	bIsSpatiallyLoaded = InActor->GetIsSpatiallyLoaded();
 	bActorIsEditorOnly = InActor->IsEditorOnly();
 	bLevelBoundsRelevant = InActor->IsLevelBoundsRelevant();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
@@ -69,10 +60,6 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	if (AttachParentActor)
 	{
 		ParentActor = AttachParentActor->GetActorGuid();
-	}
-	else
-	{
-		ParentActor = FGuid();
 	}
 	
 	TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences((AActor*)InActor);
@@ -113,13 +100,6 @@ void FWorldPartitionActorDesc::Init(UActorDescContainer* InContainer, const FWor
 	
 	// Serialize metadata payload
 	Serialize(MetadataAr);
-
-	// Override grid placement by default class value
-	const EActorGridPlacement DefaultGridPlacement = ActorClass->GetDefaultObject<AActor>()->GetDefaultGridPlacement();
-	if (DefaultGridPlacement != EActorGridPlacement::None)
-	{
-		GridPlacement = DefaultGridPlacement;
-	}
 
 	// Only set ActorPtr/Container on WorldPartition ActorDescs
 	if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(InContainer))
@@ -192,18 +172,18 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 FString FWorldPartitionActorDesc::ToString() const
 {
 	return FString::Printf(
-		TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s Bounds:%s GridPlacement:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s"), 
+		TEXT("Guid:%s Class:%s Name:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s LevelBoundsRelevant:%s HLODRelevant:%s FolderPath:%s Parent:%s"), 
 		*Guid.ToString(), 
 		*Class.ToString(), 
-		*FPaths::GetExtension(ActorPath.ToString()), 
-		(GridPlacement != EActorGridPlacement::AlwaysLoaded) ? TEXT("True") : TEXT("False"),
+		*GetActorName().ToString(),
+		bIsSpatiallyLoaded ? TEXT("true") : TEXT("false"),
 		*GetBounds().ToString(),
-		GetActorGridPlacementName(GridPlacement),
 		*RuntimeGrid.ToString(),
 		bActorIsEditorOnly ? TEXT("true") : TEXT("false"),
 		bLevelBoundsRelevant ? TEXT("true") : TEXT("false"),
 		bActorIsHLODRelevant ? TEXT("true") : TEXT("false"),
-		*FolderPath.ToString()
+		*FolderPath.ToString(),
+		*ParentActor.ToString()
 	);
 }
 
@@ -214,7 +194,22 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	Ar << Class << Guid << BoundsLocation << BoundsExtent << GridPlacement << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant;
+	Ar << Class << Guid << BoundsLocation << BoundsExtent;
+	
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ConvertedActorGridPlacementToSpatiallyLoadedFlag)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		EActorGridPlacement GridPlacement;
+		Ar << (__underlying_type(EActorGridPlacement)&)GridPlacement;
+		bIsSpatiallyLoaded = GridPlacement != EActorGridPlacement::AlwaysLoaded;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	else
+	{
+		Ar << bIsSpatiallyLoaded;
+	}
+		
+	Ar << RuntimeGrid << bActorIsEditorOnly << bLevelBoundsRelevant;
 	
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeDataLayers)
 	{
@@ -269,10 +264,7 @@ FBox FWorldPartitionActorDesc::GetBounds() const
 
 FName FWorldPartitionActorDesc::GetActorName() const
 {
-	FString ActorName;
-	FString ActorContext;
-	verify(GetActorPath().ToString().Split(TEXT("."), &ActorContext, &ActorName, ESearchCase::CaseSensitive, ESearchDir::FromEnd));
-	return *ActorName;
+	return *FPaths::GetExtension(ActorPath.ToString());
 }
 
 FName FWorldPartitionActorDesc::GetActorLabelOrName() const

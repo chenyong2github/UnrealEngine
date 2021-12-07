@@ -175,7 +175,7 @@ void AActor::InitializeDefaults()
 #endif // (CSV_PROFILER && !UE_BUILD_SHIPPING)
 
 #if WITH_EDITORONLY_DATA
-	GridPlacement = EActorGridPlacement::Location;
+	bIsSpatiallyLoaded = true;
 	CopyPasteId = INDEX_NONE;
 #endif
 }
@@ -889,6 +889,13 @@ void AActor::PostLoad()
 	// Fixup DataLayers
 	FixupDataLayers();
 
+	// Deprecate GridPlacement
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (GridPlacement_DEPRECATED != EActorGridPlacement::None)
+	{
+		bIsSpatiallyLoaded = GridPlacement_DEPRECATED != EActorGridPlacement::AlwaysLoaded;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
 
 	// Since the actor is being loading, it finished spawning by definition when it was originally spawned, so set to true now
