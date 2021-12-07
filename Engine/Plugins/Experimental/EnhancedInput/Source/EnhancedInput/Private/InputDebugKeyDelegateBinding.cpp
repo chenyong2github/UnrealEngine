@@ -4,7 +4,7 @@
 #include "EnhancedInputComponent.h"
 #include "GameFramework/Actor.h"
 
-void UInputDebugKeyDelegateBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UInputDebugKeyDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 #if DEV_ONLY_KEY_BINDINGS_AVAILABLE
 	UEnhancedInputComponent* Component = Cast<UEnhancedInputComponent>(InputComponent);
@@ -15,8 +15,7 @@ void UInputDebugKeyDelegateBinding::BindToInputComponent(UInputComponent* InputC
 
 	for(const FBlueprintInputDebugKeyDelegateBinding& Binding : InputDebugKeyDelegateBindings)
 	{
-		UObject* Owner = CastChecked<UObject>(Component->GetOwner());
-		Component->BindDebugKey(Binding.InputChord, Binding.InputKeyEvent, Owner, Binding.FunctionNameToBind, Binding.bExecuteWhenPaused);
+		Component->BindDebugKey(Binding.InputChord, Binding.InputKeyEvent, ObjectToBindTo, Binding.FunctionNameToBind, Binding.bExecuteWhenPaused);
 	}
 #endif
 }

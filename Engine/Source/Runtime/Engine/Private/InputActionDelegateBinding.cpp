@@ -9,7 +9,7 @@ UInputActionDelegateBinding::UInputActionDelegateBinding(const FObjectInitialize
 {
 }
 
-void UInputActionDelegateBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UInputActionDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 	TArray<FInputActionBinding> BindsToAdd;
 
@@ -20,7 +20,7 @@ void UInputActionDelegateBinding::BindToInputComponent(UInputComponent* InputCom
 		FInputActionBinding AB( Binding.InputActionName, Binding.InputKeyEvent );
 		AB.bConsumeInput = Binding.bConsumeInput;
 		AB.bExecuteWhenPaused = Binding.bExecuteWhenPaused;
-		AB.ActionDelegate.BindDelegate(InputComponent->GetOwner(), Binding.FunctionNameToBind);
+		AB.ActionDelegate.BindDelegate(ObjectToBindTo, Binding.FunctionNameToBind);
 
 		if (Binding.bOverrideParentBinding)
 		{

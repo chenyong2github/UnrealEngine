@@ -9,7 +9,7 @@ UInputAxisKeyDelegateBinding::UInputAxisKeyDelegateBinding(const FObjectInitiali
 {
 }
 
-void UInputAxisKeyDelegateBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UInputAxisKeyDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 	TArray<FInputAxisKeyBinding> BindsToAdd;
 
@@ -20,7 +20,7 @@ void UInputAxisKeyDelegateBinding::BindToInputComponent(UInputComponent* InputCo
 		FInputAxisKeyBinding AB( Binding.AxisKey );
 		AB.bConsumeInput = Binding.bConsumeInput;
 		AB.bExecuteWhenPaused = Binding.bExecuteWhenPaused;
-		AB.AxisDelegate.BindDelegate(InputComponent->GetOwner(), Binding.FunctionNameToBind);
+		AB.AxisDelegate.BindDelegate(ObjectToBindTo, Binding.FunctionNameToBind);
 
 		if (Binding.bOverrideParentBinding)
 		{

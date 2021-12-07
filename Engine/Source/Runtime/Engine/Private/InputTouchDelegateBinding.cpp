@@ -9,7 +9,7 @@ UInputTouchDelegateBinding::UInputTouchDelegateBinding(const FObjectInitializer&
 {
 }
 
-void UInputTouchDelegateBinding::BindToInputComponent(UInputComponent* InputComponent) const
+void UInputTouchDelegateBinding::BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const
 {
 	TArray<FInputTouchBinding> BindsToAdd;
 
@@ -20,7 +20,7 @@ void UInputTouchDelegateBinding::BindToInputComponent(UInputComponent* InputComp
 		FInputTouchBinding TB( Binding.InputKeyEvent );
 		TB.bConsumeInput = Binding.bConsumeInput;
 		TB.bExecuteWhenPaused = Binding.bExecuteWhenPaused;
-		TB.TouchDelegate.BindDelegate(InputComponent->GetOwner(), Binding.FunctionNameToBind);
+		TB.TouchDelegate.BindDelegate(ObjectToBindTo, Binding.FunctionNameToBind);
 
 		if (Binding.bOverrideParentBinding)
 		{
