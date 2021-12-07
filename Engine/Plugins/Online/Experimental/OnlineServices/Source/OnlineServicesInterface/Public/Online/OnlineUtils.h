@@ -103,6 +103,26 @@ inline FString ToLogString(const FString& String)
 	return String;
 }
 
+inline FString ToLogString(uint8 Value)
+{
+	return FString::Printf(TEXT("%hhu"), Value);
+}
+
+inline FString ToLogString(int8 Value)
+{
+	return FString::Printf(TEXT("%hhi"), Value);
+}
+
+inline FString ToLogString(uint16 Value)
+{
+	return FString::Printf(TEXT("%hu"), Value);
+}
+
+inline FString ToLogString(int16 Value)
+{
+	return FString::Printf(TEXT("%hi"), Value);
+}
+
 inline FString ToLogString(uint32 Value)
 {
 	return FString::Printf(TEXT("%u"), Value);
