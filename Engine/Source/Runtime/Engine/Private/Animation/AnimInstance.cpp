@@ -1540,13 +1540,14 @@ void UAnimInstance::TriggerSingleAnimNotify(FAnimNotifyEventReference& EventRefe
 
 				if (InAnimInstance == this || InAnimInstance->bReceiveNotifiesFromLinkedInstances)
 				{
+					TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Event);
+					
 					UFunction* Function = InAnimInstance->FindFunction(FuncName);
 					if (Function)
 					{
 						// if parameter is none, add event
 						if (Function->NumParms == 0)
 						{
-							TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Event);
 							InAnimInstance->ProcessEvent(Function, nullptr);
 						}
 						else if ((Function->NumParms == 1) && (CastField<FObjectProperty>(Function->PropertyLink) != nullptr))
@@ -1558,7 +1559,6 @@ void UAnimInstance::TriggerSingleAnimNotify(FAnimNotifyEventReference& EventRefe
 
 							FAnimNotifierHandler_Parms Parms;
 							Parms.Notify = AnimNotifyEvent->Notify;
-							TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Event);
 							InAnimInstance->ProcessEvent(Function, &Parms);
 						}
 						else
