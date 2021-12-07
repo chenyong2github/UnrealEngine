@@ -240,6 +240,8 @@ namespace HordeServer
 				{
 					WebBuilder.ConfigureKestrel(Options =>
 					{
+						Options.Limits.MaxRequestBodySize = 100 * 1024 * 1024;
+
 						if (ServerSettings.HttpPort != 0)
 						{
 							Options.ListenAnyIP(ServerSettings.HttpPort, Configure => { Configure.Protocols = HttpProtocols.Http1AndHttp2; });
