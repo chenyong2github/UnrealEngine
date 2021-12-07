@@ -114,12 +114,12 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="Stream">The stream to update</param>
 		/// <param name="TemplateRefId">The template ref id</param>
-		/// <param name="LastTriggerTime"></param>
+		/// <param name="LastTriggerTimeUtc"></param>
 		/// <param name="LastTriggerChange"></param>
 		/// <param name="AddJobs">Jobs to add</param>
 		/// <param name="RemoveJobs">Jobs to remove</param>
 		/// <returns>True if the stream was updated</returns>
-		public async Task<IStream?> UpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTimeOffset? LastTriggerTime, int? LastTriggerChange, List<JobId> AddJobs, List<JobId> RemoveJobs)
+		public async Task<IStream?> UpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTime? LastTriggerTimeUtc = null, int? LastTriggerChange = null, List<JobId>? AddJobs = null, List<JobId>? RemoveJobs = null)
 		{
 			IStream? NewStream = Stream;
 			while (NewStream != null)
@@ -134,9 +134,17 @@ namespace HordeServer.Services
 					break;
 				}
 
-				List<JobId> NewActiveJobs = TemplateRef.Schedule.ActiveJobs.Except(RemoveJobs).Union(AddJobs).ToList();
+				IEnumerable<JobId> NewActiveJobs = TemplateRef.Schedule.ActiveJobs;
+				if (RemoveJobs != null)
+				{
+					NewActiveJobs = NewActiveJobs.Except(RemoveJobs);
+				}
+				if (AddJobs != null)
+				{
+					NewActiveJobs = NewActiveJobs.Union(AddJobs);
+				}
 
-				NewStream = await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, LastTriggerTime, LastTriggerChange, NewActiveJobs);
+				NewStream = await Streams.TryUpdateScheduleTriggerAsync(NewStream, TemplateRefId, LastTriggerTimeUtc, LastTriggerChange, NewActiveJobs.ToList());
 
 				if (NewStream != null)
 				{

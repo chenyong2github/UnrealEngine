@@ -25,6 +25,9 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using TimeZoneConverter;
+using StackExchange.Redis;
+using EpicGames.Redis;
+using EpicGames.Serialization;
 
 namespace HordeServer.Services
 {
@@ -35,62 +38,49 @@ namespace HordeServer.Services
 	/// <summary>
 	/// Manipulates schedule instances
 	/// </summary>
-	public class ScheduleService : ElectedBackgroundService
+	public sealed class ScheduleService : IHostedService, IDisposable
 	{
-		/// <summary>
-		/// The downtime service instance
-		/// </summary>
+		[RedisConverter(typeof(RedisCbConverter<QueueItem>))]
+		class QueueItem
+		{
+			[CbField("sid")]
+			public StreamId StreamId { get; set; }
+
+			[CbField("tid")]
+			public TemplateRefId TemplateId { get; set; }
+
+			public QueueItem()
+			{
+			}
+
+			public QueueItem(StreamId StreamId, TemplateRefId TemplateId)
+			{
+				this.StreamId = StreamId;
+				this.TemplateId = TemplateId;
+			}
+
+			public static DateTime GetTimeFromScore(double Score) => DateTime.UnixEpoch + TimeSpan.FromSeconds(Score);
+			public static double GetScoreFromTime(DateTime Time) => (Time.ToUniversalTime() - DateTime.UnixEpoch).TotalSeconds;
+		}
+
 		IDowntimeService DowntimeService;
-
-		/// <summary>
-		/// Collection of graph documents
-		/// </summary>
 		IGraphCollection Graphs;
-
-		/// <summary>
-		/// The perforce service singleton
-		/// </summary>
 		IPerforceService Perforce;
-
-		/// <summary>
-		/// Collection of job documents
-		/// </summary>
 		IJobCollection JobCollection;
-
-		/// <summary>
-		/// The job service
-		/// </summary>
 		JobService JobService;
-
-		/// <summary>
-		/// The stream service
-		/// </summary>
 		StreamService StreamService;
-
-		/// <summary>
-		/// The template service
-		/// </summary>
 		ITemplateCollection TemplateCollection;
-
-		/// <summary>
-		/// The timezone to use for schedules
-		/// </summary>
 		TimeZoneInfo TimeZone;
-
-		/// <summary>
-		/// The clock instance
-		/// </summary>
 		IClock Clock;
-
-		/// <summary>
-		/// The logging instance
-		/// </summary>
 		ILogger Logger;
+		RedisService Redis;
+		RedisSortedSet<QueueItem> Queue;
+		BackgroundTask BackgroundTask;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">Database service instance</param>
+		/// <param name="Redis"></param>
 		/// <param name="Graphs">Collection of graph documents</param>
 		/// <param name="DowntimeService">The downtime service</param>
 		/// <param name="Perforce">The Perforce service</param>
@@ -101,8 +91,7 @@ namespace HordeServer.Services
 		/// <param name="Clock"></param>
 		/// <param name="Settings">Settings for the server</param>
 		/// <param name="Logger">Logging instance</param>
-		public ScheduleService(DatabaseService DatabaseService, IGraphCollection Graphs, IDowntimeService DowntimeService, IPerforceService Perforce, IJobCollection JobCollection, JobService JobService, StreamService StreamService, ITemplateCollection TemplateCollection, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ScheduleService> Logger)
-			: base(DatabaseService, new ObjectId("6035593e6d721d80fb9efa5c"), Logger)
+		public ScheduleService(RedisService Redis, IGraphCollection Graphs, IDowntimeService DowntimeService, IPerforceService Perforce, IJobCollection JobCollection, JobService JobService, StreamService StreamService, ITemplateCollection TemplateCollection, IClock Clock, IOptionsMonitor<ServerSettings> Settings, ILogger<ScheduleService> Logger)
 		{
 			this.Graphs = Graphs;
 			this.DowntimeService = DowntimeService;
@@ -117,94 +106,223 @@ namespace HordeServer.Services
 			this.TimeZone = (ScheduleTimeZone == null) ? TimeZoneInfo.Local : TZConvert.GetTimeZoneInfo(ScheduleTimeZone);
 
 			this.Logger = Logger;
+
+			this.Redis = Redis;
+			this.Queue = new RedisSortedSet<QueueItem>(Redis.Database, "scheduler/queue");
+			this.BackgroundTask = new BackgroundTask(RunAsync);
 		}
 
-		/// <summary>
-		/// Execute any scheduled tasks
-		/// </summary>
-		/// <param name="StoppingToken">Cancellation token for stopping the service</param>
-		/// <returns>Async task</returns>
-		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
+		/// <inheritdoc/>
+		public async Task StartAsync(CancellationToken CancellationToken)
 		{
-			DateTime NextTickTime = DateTime.UtcNow.AddMinutes(1.0);
-			if (!DowntimeService.IsDowntimeActive)
+			await RefreshSchedulesAsync(Clock.UtcNow);
+			BackgroundTask.Start();
+		}
+
+		/// <inheritdoc/>
+		public async Task StopAsync(CancellationToken CancellationToken)
+		{
+			await BackgroundTask.StopAsync();
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			BackgroundTask?.Dispose();
+		}
+
+		async Task RunAsync(CancellationToken CancellationToken)
+		{
+			await RefreshSchedulesAsync(Clock.UtcNow);
+
+			for(; ;)
 			{
-				Logger.LogInformation("Updating scheduled triggers...");
-				Stopwatch Stopwatch = Stopwatch.StartNew();
-				using (IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService Tick").StartActive())
+				TimeSpan DelayTime = await TickAsync(CancellationToken);
+				if (CancellationToken.IsCancellationRequested)
 				{
-					NextTickTime = await UpdateSchedulesAsync();
+					break;
 				}
-				Stopwatch.Stop();
-				Logger.LogInformation("Scheduling triggers took {ElapsedTime} ms", Stopwatch.ElapsedMilliseconds);
+				await Task.Delay(DelayTime, CancellationToken);
 			}
-			return NextTickTime;
+		}
+
+		async Task<TimeSpan> TickAsync(CancellationToken CancellationToken)
+		{
+			DateTime UtcNow = Clock.UtcNow;
+
+			// Keep updating schedules
+			while (!CancellationToken.IsCancellationRequested)
+			{
+				// Get the item with the lowest score (ie. the one that hasn't been updated in the longest time)
+				SortedSetEntry<QueueItem>[] Entries = await Queue.RangeByScoreWithScoresAsync(Take: 1);
+				if (Entries.Length == 0)
+				{
+					await RefreshSchedulesAsync(UtcNow);
+					return TimeSpan.FromSeconds(10.0);
+				}
+
+				SortedSetEntry<QueueItem> Entry = Entries[0];
+				QueueItem Item = Entry.Element;
+				DateTime ScheduledTime = QueueItem.GetTimeFromScore(Entry.Score);
+
+				// Check if the first entry is due to run
+				if (UtcNow < ScheduledTime)
+				{
+					TimeSpan Delay = (ScheduledTime - UtcNow).Add(TimeSpan.FromSeconds(1.0));
+					return Delay;
+				}
+
+				// If the stream id is null, it's a request to update the schedules
+				if (Item.StreamId == StreamId.Empty)
+				{
+					await RefreshSchedulesAsync(UtcNow);
+					continue;
+				}
+
+				// Get the stream and template
+				IStream? Stream = await StreamService.GetStreamAsync(Item.StreamId);
+				if (Stream == null || !Stream.Templates.TryGetValue(Item.TemplateId, out TemplateRef? TemplateRef) || TemplateRef.Schedule == null)
+				{
+					await Queue.RemoveAsync(Item);
+					continue;
+				}
+
+				// Calculate the next trigger time for this schedule; it may have changed since the queue item was created.
+				DateTime? NextUpdateTimeUtc = TemplateRef.Schedule.GetNextTriggerTimeUtc(TimeZone);
+				if (NextUpdateTimeUtc == null)
+				{
+					await Queue.RemoveAsync(Item);
+					continue;
+				}
+
+				// Check if we're ready to trigger now
+				if (UtcNow < NextUpdateTimeUtc)
+				{
+					await TrySetNextUpdateTime(Entry, NextUpdateTimeUtc.Value);
+					continue;
+				}
+
+				// Try to prevent any updates being done for 5 minutes, but keep extending that again every minute. This
+				// creates a reservation for the stream update that will expire if the pod is terminated.
+				TimeSpan ReservationTime = TimeSpan.FromMinutes(5.0);
+				if (!await TrySetNextUpdateTime(Entry, DateTime.UtcNow + ReservationTime))
+				{
+					continue;
+				}
+
+				// Try to do the update
+				try
+				{
+					Task TriggerTask = Task.Run(() => TriggerAsync(Stream, Item.TemplateId, TemplateRef, UtcNow));
+					for (; ; )
+					{
+						Task DelayTask = Task.Delay(TimeSpan.FromMinutes(1.0));
+						if (await Task.WhenAny(DelayTask, TriggerTask) == TriggerTask)
+						{
+							break;
+						}
+						await SetNextUpdateTime(Item, Clock.UtcNow + ReservationTime);
+					}
+					await TriggerTask;
+				}
+				catch (OperationCanceledException)
+				{
+					throw;
+				}
+				catch (Exception Ex)
+				{
+					Logger.LogError(Ex, "Error while updating schedule for {StreamId}/{TemplateId}", Item.StreamId, Item.TemplateId);
+				}
+
+				// Update the next trigger time
+				DateTime? NextTime = TemplateRef.Schedule.GetNextTriggerTimeUtc(UtcNow, TimeZone);
+				if (NextTime == null)
+				{
+					await Queue.RemoveAsync(Item);
+				}
+				else
+				{
+					await SetNextUpdateTime(Item, NextTime.Value);
+				}
+			}
+			return TimeSpan.Zero;
+		}
+
+		internal async Task ResetAsync()
+		{
+			await Redis.Database.KeyDeleteAsync(Queue.Key);
+		}
+
+		internal async Task TickForTestingAsync()
+		{
+			await RefreshSchedulesAsync(Clock.UtcNow);
+			await TickAsync(CancellationToken.None);
+		}
+
+		Task<bool> TrySetNextUpdateTime(SortedSetEntry<QueueItem> Entry, DateTime NextTimeUtc)
+		{
+			ITransaction Transaction = Redis.Database.CreateTransaction();
+			Transaction.AddCondition(Condition.SortedSetEqual(Queue.Key, Entry.ElementValue, Entry.Score));
+			_ = Transaction.With(Queue).AddAsync(Entry.Element, QueueItem.GetScoreFromTime(NextTimeUtc));
+			return Transaction.ExecuteAsync();
+		}
+
+		async Task SetNextUpdateTime(QueueItem Item, DateTime NextTimeUtc)
+		{
+			await Queue.AddAsync(Item, QueueItem.GetScoreFromTime(NextTimeUtc));
 		}
 
 		/// <summary>
-		/// Update all the schedules
+		/// Get the current set of streams and ensure there's an entry for each item
 		/// </summary>
-		/// <returns>Next time that checkes need to be updated</returns>
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-		async Task<DateTime> UpdateSchedulesAsync()
+		public async Task RefreshSchedulesAsync(DateTime UtcNow)
 		{
-			// Find the next time at which each schedule should run
-			DateTimeOffset Now = Clock.UtcNow;
-			DateTimeOffset NextUpdateTime = Now.AddMinutes(1.0);
+			List<SortedSetEntry<QueueItem>> QueueItems = new List<SortedSetEntry<QueueItem>>();
 
-			// Find all the enabled schedules
 			List<IStream> Streams = await StreamService.GetStreamsAsync();
 			foreach (IStream Stream in Streams)
 			{
-				if (Stream.IsPaused(Clock.UtcNow))
+				foreach ((TemplateRefId TemplateId, TemplateRef TemplateRef) in Stream.Templates)
 				{
-					Logger.LogDebug("Skipping schedule update for stream {StreamId}. It has been paused until {PausedUntil} with comment '{PauseComment}'.", Stream.Id, Stream.PausedUntil, Stream.PauseComment);
-					continue;
-				}
-				
-				foreach ((TemplateRefId TemplateRefId, TemplateRef TemplateRef) in Stream.Templates)
-				{
-					Schedule? Schedule = TemplateRef.Schedule;
-					if (Schedule != null && Schedule.Enabled)
+					if (TemplateRef.Schedule != null)
 					{
-						using IDisposable Scope = Logger.BeginScope("Updating schedule {StreamId}/{TemplateRefId}", Stream.Id, TemplateRefId);
-
-						DateTimeOffset? NextTriggerTime = await UpdateScheduleAsync(Stream, TemplateRefId, TemplateRef, Schedule, Now);
-						if (NextTriggerTime.HasValue && NextTriggerTime.Value < NextUpdateTime)
+						DateTime? NextTriggerTimeUtc = TemplateRef.Schedule.GetNextTriggerTimeUtc(TimeZone);
+						if (NextTriggerTimeUtc != null)
 						{
-							NextUpdateTime = NextTriggerTime.Value;
+							double Score = GetQueueItemScore(NextTriggerTimeUtc.Value);
+							QueueItems.Add(new SortedSetEntry<QueueItem>(new QueueItem(Stream.Id, TemplateId), Score));
 						}
 					}
 				}
 			}
+			QueueItems.Add(new SortedSetEntry<QueueItem>(new QueueItem(StreamId.Empty, TemplateRefId.Empty), GetQueueItemScore(UtcNow.AddMinutes(1.0))));
 
-			return NextUpdateTime.UtcDateTime;
+			await Queue.AddAsync(QueueItems.ToArray());
 		}
 
 		/// <summary>
-		/// Updates a schedule
+		/// Trigger a schedule to run
 		/// </summary>
-		/// <returns>Next time to trigger the schedule</returns>
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-		private async Task<DateTimeOffset?> UpdateScheduleAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, DateTimeOffset Now)
+		/// <param name="Stream">Stream for the schedule</param>
+		/// <param name="TemplateId"></param>
+		/// <param name="TemplateRef"></param>
+		/// <param name="UtcNow"></param>
+		/// <returns>Async task</returns>
+		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateId, TemplateRef TemplateRef, DateTime UtcNow)
 		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService.UpdateScheduleAsync").StartActive();
-			Scope.Span.SetTag("Stream.Id", Stream.Id);
-			Scope.Span.SetTag("Stream.Name", Stream.Name);
-			
-			// Check if we can run the trigger
-			DateTimeOffset? NextTriggerTime = Schedule.GetNextTriggerTime(TimeZone);
-			if (!NextTriggerTime.HasValue)
+			using IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService.TriggerAsync").StartActive();
+			Scope.Span.SetTag("StreamId", Stream.Id);
+			Scope.Span.SetTag("TemplateId", TemplateId);
+
+			Stopwatch Stopwatch = Stopwatch.StartNew();
+			Logger.LogInformation("Updating schedule for {StreamId} template {TemplateId}", Stream.Id, TemplateId);
+
+			// Make sure the schedule is valid
+			Schedule? Schedule = TemplateRef.Schedule;
+			if(Schedule == null)
 			{
-				Logger.LogInformation("Schedule {StreamId}/{TemplateRefId} is disabled", Stream.Id, TemplateRefId);
-				return NextTriggerTime;
+				return;
 			}
-			if (NextTriggerTime.Value > Now)
-			{
-				Logger.LogDebug("Schedule {StreamId}/{TemplateRefId} will next trigger at {NextTriggerTime}", Stream.Id, TemplateRefId, NextTriggerTime.Value);
-				return NextTriggerTime;
-			}
-			Logger.LogInformation("Schedule {StreamId}/{TemplateRefId} is ready to trigger (last: {Change} at {Time})", Stream.Id, TemplateRefId, Schedule.LastTriggerChange, Schedule.LastTriggerTime);
 
 			// Get a list of jobs that we need to remove
 			List<JobId> RemoveJobIds = new List<JobId>();
@@ -217,23 +335,28 @@ namespace HordeServer.Services
 					RemoveJobIds.Add(ActiveJobId);
 				}
 			}
-			if (RemoveJobIds.Count > 0)
+			await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateId, RemoveJobs: RemoveJobIds);
+
+			// If the stream is paused, bail out
+			if (Stream.IsPaused(Clock.UtcNow))
 			{
-				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, null, new List<JobId>(), RemoveJobIds);
+				Logger.LogDebug("Skipping schedule update for stream {StreamId}. It has been paused until {PausedUntil} with comment '{PauseComment}'.", Stream.Id, Stream.PausedUntil, Stream.PauseComment);
+				return;
 			}
 
 			// Trigger this schedule
 			try
 			{
-				await TriggerAsync(Stream, TemplateRefId, TemplateRef, Schedule, Schedule.ActiveJobs.Count - RemoveJobIds.Count, Now);
+				await TriggerAsync(Stream, TemplateId, TemplateRef, Schedule, Schedule.ActiveJobs.Count - RemoveJobIds.Count, UtcNow);
 			}
 			catch (Exception Ex)
 			{
-				Logger.LogError(Ex, "Failed to start schedule {StreamId}/{TemplateRefId}", Stream.Id, TemplateRefId);
+				Logger.LogError(Ex, "Failed to start schedule {StreamId}/{TemplateRefId}", Stream.Id, TemplateId);
 			}
 
-			// Return the next update time
-			return Schedule.GetNextTriggerTime(Now, TimeZone);
+			// Print some timing info
+			Stopwatch.Stop();
+			Logger.LogInformation("Updated schedule for {StreamId} template {TemplateId} in {TimeSeconds}ms", Stream.Id, TemplateId, (long)Stopwatch.Elapsed.TotalMilliseconds);
 		}
 
 		/// <summary>
@@ -244,15 +367,10 @@ namespace HordeServer.Services
 		/// <param name="TemplateRef"></param>
 		/// <param name="Schedule"></param>
 		/// <param name="NumActiveJobs"></param>
-		/// <param name="Now"></param>
+		/// <param name="UtcNow">The current time</param>
 		/// <returns>Async task</returns>
-		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, int NumActiveJobs, DateTimeOffset Now)
+		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, int NumActiveJobs, DateTime UtcNow)
 		{
-			using IScope Scope = GlobalTracer.Instance.BuildSpan("ScheduleService.TriggerAsync").StartActive();
-			Scope.Span.SetTag("Stream.Id", Stream.Id);
-			Scope.Span.SetTag("Stream.Name", Stream.Name);
-			Scope.Span.SetTag("TemplateRefId", TemplateRefId);
-			
 			// Check we're not already at the maximum number of allowed jobs
 			if (Schedule.MaxActive != 0 && NumActiveJobs >= Schedule.MaxActive)
 			{
@@ -377,7 +495,7 @@ namespace HordeServer.Services
 				List<string> DefaultArguments = Template.GetDefaultArguments();
 				IJob NewJob = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Template.Name, Change, CodeChange, null, null, null, Template.Priority, null, null, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, DefaultArguments);
 				Logger.LogInformation("Started new job for {StreamName} template {TemplateName} at CL {Change} (Code CL {CodeChange}): {JobId}", Stream.Id, TemplateRef.Name, Change, CodeChange, NewJob.Id);
-				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, Change, new List<JobId> { NewJob.Id }, new List<JobId>());
+				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, UtcNow, Change, new List<JobId> { NewJob.Id }, new List<JobId>());
 			}
 		}
 

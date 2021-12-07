@@ -32,12 +32,14 @@ namespace HordeCommon
 	/// </summary>
 	public class FakeClock : IClock
 	{
+		DateTime UtcNowPrivate;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		public FakeClock()
 		{
-			UtcNow = DateTime.UtcNow;
+			UtcNowPrivate = DateTime.UtcNow;
 		}
 
 		/// <summary>
@@ -47,10 +49,14 @@ namespace HordeCommon
 		/// <param name="Period">Time span to advance</param>
 		public void Advance(TimeSpan Period)
 		{
-			UtcNow = UtcNow.Add(Period);
+			UtcNowPrivate = UtcNowPrivate.Add(Period);
 		}
 
 		/// <inheritdoc/>
-		public DateTime UtcNow { get; set; }
+		public DateTime UtcNow
+		{ 
+			get => UtcNowPrivate;
+			set => UtcNowPrivate = value.ToUniversalTime(); 
+		}
 	}
 }

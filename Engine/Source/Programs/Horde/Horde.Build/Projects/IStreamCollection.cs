@@ -78,11 +78,11 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Stream">The stream to update</param>
 		/// <param name="TemplateRefId">The template ref id</param>
-		/// <param name="LastTriggerTime">New last trigger time for the schedule</param>
+		/// <param name="LastTriggerTimeUtc">New last trigger time for the schedule</param>
 		/// <param name="LastTriggerChange">New last trigger changelist for the schedule</param>
 		/// <param name="NewActiveJobs">New list of active jobs</param>
 		/// <returns>The updated stream if successful, null otherwise</returns>
-		Task<IStream?> TryUpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTimeOffset? LastTriggerTime, int? LastTriggerChange, List<JobId> NewActiveJobs);
+		Task<IStream?> TryUpdateScheduleTriggerAsync(IStream Stream, TemplateRefId TemplateRefId, DateTime? LastTriggerTimeUtc, int? LastTriggerChange, List<JobId> NewActiveJobs);
 
 		/// <summary>
 		/// Delete a stream

@@ -19,6 +19,7 @@ using System.Linq;
 using HordeServerTests.Stubs.Services;
 using HordeServer.Collections;
 using HordeServer.Utilities;
+using System.Threading;
 
 namespace HordeServerTests
 {
@@ -54,6 +55,8 @@ namespace HordeServerTests
 
 		async Task<IStream> SetScheduleAsync(CreateScheduleRequest Schedule)
 		{
+			await ScheduleService.ResetAsync();
+
 			IStream? Stream = await StreamService.GetStreamAsync(StreamId);
 
 			StreamConfig Config = new StreamConfig();
@@ -88,7 +91,7 @@ namespace HordeServerTests
 			await SetScheduleAsync(Schedule);
 
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			return await GetNewJobs();
 		}
@@ -128,19 +131,19 @@ namespace HordeServerTests
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = StartTime;
 
-			Schedule Schedule = new Schedule(RequireSubmittedChange: false);
+			Schedule Schedule = new Schedule(Clock.UtcNow, RequireSubmittedChange: false);
 			Schedule.Patterns.Add(new SchedulePattern(new List<DayOfWeek> { DayOfWeek.Friday, DayOfWeek.Sunday }, 13 * 60, null, null));
 
-			DateTimeOffset? NextTime = Schedule.GetNextTriggerTime(StartTime, TimeZoneInfo.Utc);
+			DateTime? NextTime = Schedule.GetNextTriggerTimeUtc(StartTime, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.0), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.0 + 24.0 * 2.0), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.0 + 24.0 * 7.0), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.0 + 24.0 * 9.0), NextTime!.Value);
 		}
 
@@ -150,25 +153,25 @@ namespace HordeServerTests
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Utc); // Friday Jan 1, 2021 
 			Clock.UtcNow = StartTime;
 
-			Schedule Schedule = new Schedule(RequireSubmittedChange: false);
+			Schedule Schedule = new Schedule(Clock.UtcNow, RequireSubmittedChange: false);
 			Schedule.Patterns.Add(new SchedulePattern(null, 13 * 60, 14 * 60, 15));
 
-			DateTimeOffset? NextTime = Schedule.GetNextTriggerTime(StartTime, TimeZoneInfo.Utc);
+			DateTime? NextTime = Schedule.GetNextTriggerTimeUtc(StartTime, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.0), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.25), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.5), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.75), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(2.0), NextTime!.Value);
 
-			NextTime = Schedule.GetNextTriggerTime(NextTime.Value, TimeZoneInfo.Utc);
+			NextTime = Schedule.GetNextTriggerTimeUtc(NextTime.Value, TimeZoneInfo.Utc);
 			Assert.AreEqual(StartTime + TimeSpan.FromHours(1.0 + 24.0), NextTime!.Value);
 		}
 
@@ -185,14 +188,14 @@ namespace HordeServerTests
 			await SetScheduleAsync(Schedule);
 
 			// Initial tick
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs1 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger a job
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs2.Count);
@@ -212,14 +215,14 @@ namespace HordeServerTests
 			IStream Stream = await SetScheduleAsync(Schedule);
 
 			// Initial tick
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs1 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs1.Count);
 
 			// Trigger a job
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs2.Count);
@@ -233,7 +236,7 @@ namespace HordeServerTests
 
 			// Trigger another job
 			Clock.Advance(TimeSpan.FromHours(0.5));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs3.Count);
@@ -253,7 +256,7 @@ namespace HordeServerTests
 			await SetScheduleAsync(Schedule);
 
 			// Initial tick
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs1 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs1.Count);
@@ -266,7 +269,7 @@ namespace HordeServerTests
 			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new string[] { "foo.cpp" });
 
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(2, Jobs2.Count);
@@ -291,7 +294,7 @@ namespace HordeServerTests
 
 			// Trigger a job
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs2.Count);
@@ -300,7 +303,7 @@ namespace HordeServerTests
 
 			// Test that another job does not trigger
 			Clock.Advance(TimeSpan.FromHours(0.5));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs3.Count);
@@ -310,7 +313,7 @@ namespace HordeServerTests
 
 			// Test that another job does not trigger
 			Clock.Advance(TimeSpan.FromHours(0.5));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs4 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs4.Count);
@@ -331,7 +334,7 @@ namespace HordeServerTests
 
 			// Trigger a job
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs2.Count);
@@ -340,7 +343,7 @@ namespace HordeServerTests
 
 			// Check another job does not trigger due to the change above
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs3.Count);
@@ -359,7 +362,7 @@ namespace HordeServerTests
 
 			ITemplate? NewTemplate2 = await TemplateCollection.AddAsync("Test template 2");
 			TemplateRef NewTemplateRef2 = new TemplateRef(NewTemplate2);
-			NewTemplateRef2.Schedule = new Schedule();
+			NewTemplateRef2.Schedule = new Schedule(Clock.UtcNow);
 			NewTemplateRef2.Schedule.Gate = new ScheduleGate(NewTemplateRefId1, "TriggerNext");
 			NewTemplateRef2.Schedule.Patterns.Add(new SchedulePattern(null, 0, null, 10));
 			NewTemplateRef2.Schedule.LastTriggerTime = StartTime;
@@ -379,7 +382,7 @@ namespace HordeServerTests
 			GraphA = await GraphCollection.AppendAsync(GraphA, new List<NewGroup> { GroupA });
 
 			// Tick the schedule and make sure it doesn't trigger
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs2.Count);
 
@@ -392,7 +395,7 @@ namespace HordeServerTests
 
 			// Tick the schedule and make sure it doesn't trigger
 			Clock.Advance(TimeSpan.FromMinutes(30.0));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs3.Count);
 
@@ -402,7 +405,7 @@ namespace HordeServerTests
 			Assert.IsNotNull(await JobService.UpdateStepAsync(Job2, Job2.Batches[0].Id, Job2.Batches[0].Steps[0].Id, JobStepState.Completed, JobStepOutcome.Success));
 
 			// Tick the schedule and make sure it does trigger
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 			List<IJob> Jobs4 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs4.Count);
 			Assert.AreEqual(1234, Jobs4[0].Change);
@@ -423,7 +426,7 @@ namespace HordeServerTests
 			await SetScheduleAsync(Schedule);
 
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs1 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs1.Count);
@@ -462,13 +465,13 @@ namespace HordeServerTests
 			
 			// Try trigger a job. No job should be scheduled as the stream is paused
 			Clock.Advance(TimeSpan.FromHours(1.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 			List<IJob> Jobs2 = await GetNewJobs();
 			Assert.AreEqual(0, Jobs2.Count);
 
 			// Advance time beyond the pause period. A build should now trigger
 			Clock.Advance(TimeSpan.FromHours(5.25));
-			await ScheduleService.TickSharedOnlyForTestingAsync();
+			await ScheduleService.TickForTestingAsync();
 
 			List<IJob> Jobs3 = await GetNewJobs();
 			Assert.AreEqual(1, Jobs3.Count);

@@ -189,8 +189,7 @@ namespace HordeServer.Collections.Impl
 				Schedule? Schedule = null;
 				if (Request.Schedule != null)
 				{
-					Schedule = Request.Schedule.ToModel();
-					Schedule.LastTriggerTime = Clock.UtcNow;
+					Schedule = Request.Schedule.ToModel(Clock.UtcNow);
 				}
 
 				// Add it to the list
@@ -330,18 +329,18 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryUpdateScheduleTriggerAsync(IStream StreamInterface, TemplateRefId TemplateRefId, DateTimeOffset? LastTriggerTime, int? LastTriggerChange, List<JobId> NewActiveJobs)
+		public async Task<IStream?> TryUpdateScheduleTriggerAsync(IStream StreamInterface, TemplateRefId TemplateRefId, DateTime? LastTriggerTimeUtc, int? LastTriggerChange, List<JobId> NewActiveJobs)
 		{
 			StreamDocument Stream = (StreamDocument)StreamInterface;
 			Schedule Schedule = Stream.Templates[TemplateRefId].Schedule!;
 
 			// Build the updates. MongoDB driver cannot parse TemplateRefId in expression tree; need to specify field name explicitly
 			List<UpdateDefinition<StreamDocument>> Updates = new List<UpdateDefinition<StreamDocument>>();
-			if (LastTriggerTime.HasValue && LastTriggerTime.Value != Schedule.LastTriggerTime)
+			if (LastTriggerTimeUtc.HasValue && LastTriggerTimeUtc.Value != Schedule.LastTriggerTime)
 			{
 				FieldDefinition<StreamDocument, DateTimeOffset> LastTriggerTimeField = $"{nameof(Stream.Templates)}.{TemplateRefId}.{nameof(Schedule)}.{nameof(Schedule.LastTriggerTime)}";
-				Updates.Add(Builders<StreamDocument>.Update.Set(LastTriggerTimeField, LastTriggerTime.Value));
-				Schedule.LastTriggerTime = LastTriggerTime.Value;
+				Updates.Add(Builders<StreamDocument>.Update.Set(LastTriggerTimeField, LastTriggerTimeUtc.Value));
+				Schedule.LastTriggerTimeUtc = LastTriggerTimeUtc.Value;
 			}
 			if (LastTriggerChange.HasValue && LastTriggerChange.Value > Schedule.LastTriggerChange)
 			{

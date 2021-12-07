@@ -21,6 +21,11 @@ namespace EpicGames.Redis
 		public readonly T Element { get; }
 
 		/// <summary>
+		/// The encoded element value
+		/// </summary>
+		public readonly RedisValue ElementValue { get; }
+
+		/// <summary>
 		/// Score for the entry
 		/// </summary>
 		public readonly double Score;
@@ -32,6 +37,7 @@ namespace EpicGames.Redis
 		public SortedSetEntry(SortedSetEntry Entry)
 		{
 			this.Element = RedisSerializer.Deserialize<T>(Entry.Element);
+			this.ElementValue = Entry.Element;
 			this.Score = Entry.Score;
 		}
 
@@ -43,7 +49,19 @@ namespace EpicGames.Redis
 		public SortedSetEntry(T Element, double Score)
 		{
 			this.Element = Element;
+			this.ElementValue = RedisSerializer.Serialize<T>(Element);
 			this.Score = Score;
+		}
+
+		/// <summary>
+		/// Deconstruct this item into a tuple
+		/// </summary>
+		/// <param name="OutElement"></param>
+		/// <param name="OutScore"></param>
+		public void Deconstruct(out T OutElement, out double OutScore)
+		{
+			OutElement = Element;
+			OutScore = Score;
 		}
 	}
 
@@ -79,7 +97,7 @@ namespace EpicGames.Redis
 		/// <inheritdoc cref="IDatabaseAsync.SortedSetAddAsync(RedisKey, RedisValue, double, When, CommandFlags)"/>
 		public Task<long> AddAsync(SortedSetEntry<TElement>[] Values, When When = When.Always, CommandFlags Flags = CommandFlags.None)
 		{
-			SortedSetEntry[] Untyped = Array.ConvertAll(Values, x => new SortedSetEntry(RedisSerializer.Serialize(x.Element), x.Score));
+			SortedSetEntry[] Untyped = Array.ConvertAll(Values, x => new SortedSetEntry(x.ElementValue, x.Score));
 			return Database.SortedSetAddAsync(Key, Untyped, When, Flags);
 		}
 

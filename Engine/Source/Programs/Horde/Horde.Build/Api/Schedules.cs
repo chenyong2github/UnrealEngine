@@ -136,10 +136,11 @@ namespace HordeServer.Api
 		/// <summary>
 		/// Constructs a model object
 		/// </summary>
+		/// <param name="CurrentTimeUtc">The current time</param>
 		/// <returns>New model object</returns>
-		public Schedule ToModel()
+		public Schedule ToModel(DateTime CurrentTimeUtc)
 		{
-			return new Schedule(Enabled, MaxActive, MaxChanges, RequireSubmittedChange, Gate?.ToModel(), Filter, Files, TemplateParameters, Patterns.ConvertAll(x => x.ToModel()));
+			return new Schedule(CurrentTimeUtc, Enabled, MaxActive, MaxChanges, RequireSubmittedChange, Gate?.ToModel(), Filter, Files, TemplateParameters, Patterns.ConvertAll(x => x.ToModel()));
 		}
 	}
 
@@ -285,7 +286,7 @@ namespace HordeServer.Api
 			this.TemplateParameters = Schedule.TemplateParameters;
 			this.Patterns = Schedule.Patterns.ConvertAll(x => new GetSchedulePatternResponse(x));
 			this.LastTriggerChange = Schedule.LastTriggerChange;
-			this.LastTriggerTime = Schedule.LastTriggerTime;
+			this.LastTriggerTime = Schedule.GetLastTriggerTimeUtc();
 			this.ActiveJobs = Schedule.ActiveJobs.ConvertAll(x => x.ToString());
 		}
 	}

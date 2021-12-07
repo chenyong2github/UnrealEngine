@@ -65,13 +65,13 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Calculates the trigger index based on the given time in minutes
 		/// </summary>
-		/// <param name="LastTime">Time in minutes for the last trigger</param>
+		/// <param name="LastTimeUtc">Time for the last trigger</param>
 		/// <param name="TimeZone">The timezone for running the schedule</param>
 		/// <returns>Index of the trigger</returns>
-		public DateTimeOffset GetNextTriggerTime(DateTimeOffset LastTime, TimeZoneInfo TimeZone)
+		public DateTime GetNextTriggerTimeUtc(DateTime LastTimeUtc, TimeZoneInfo TimeZone)
 		{
 			// Convert last time into the correct timezone for running the scheule
-			LastTime = TimeZoneInfo.ConvertTime(LastTime, TimeZone);
+			DateTimeOffset LastTime = TimeZoneInfo.ConvertTime((DateTimeOffset)LastTimeUtc, TimeZone);
 
 			// Get the base time (ie. the start of this day) for anchoring the schedule
 			DateTimeOffset BaseTime = new DateTimeOffset(LastTime.Year, LastTime.Month, LastTime.Day, 0, 0, 0, LastTime.Offset);
@@ -85,7 +85,7 @@ namespace HordeServer.Models
 					// Get the time of the first trigger of this day. If the last time is less than this, this is the next trigger.
 					if (LastTimeMinutes < MinTime)
 					{
-						return BaseTime.AddMinutes(MinTime);
+						return BaseTime.AddMinutes(MinTime).UtcDateTime;
 					}
 
 					// Otherwise, get the time for the last trigger in the day.
@@ -100,7 +100,7 @@ namespace HordeServer.Models
 							int NextTimeMinutes = MinTime + (NextIndex * Interval.Value);
 							if (NextTimeMinutes <= ActualMaxTime)
 							{
-								return BaseTime.AddMinutes(NextTimeMinutes);
+								return BaseTime.AddMinutes(NextTimeMinutes).UtcDateTime;
 							}
 						}
 					}
@@ -205,7 +205,14 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Last time that the schedule was triggered
 		/// </summary>
-		public DateTimeOffset LastTriggerTime { get; set; }
+		[BsonIgnoreIfNull]
+		public DateTimeOffset? LastTriggerTime { get; set; }
+
+		/// <summary>
+		/// Gets the last trigger time, in UTC
+		/// </summary>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1721:Property names should not match get methods", Justification = "<Pending>")]
+		public DateTime LastTriggerTimeUtc { get; set; }
 
 		/// <summary>
 		/// List of jobs that are currently active
@@ -225,6 +232,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="CurrentTimeUtc">The current time. This will be used to seed the last trigger time.</param>
 		/// <param name="Enabled">Whether the schedule is currently enabled</param>
 		/// <param name="MaxActive">Maximum number of builds that may be active at once</param>
 		/// <param name="MaxChanges">Maximum number of changes the schedule can fall behind head revision</param>
@@ -234,7 +242,7 @@ namespace HordeServer.Models
 		/// <param name="Files">Files that should trigger the schedule</param>
 		/// <param name="TemplateParameters">Parameters for the template to run</param>
 		/// <param name="Patterns">List of patterns for the schedule</param>
-		public Schedule(bool Enabled = true, int MaxActive = 0, int MaxChanges = 0, bool RequireSubmittedChange = true, ScheduleGate? Gate = null, List<ChangeContentFlags>? Filter = null, List<string>? Files = null, Dictionary<string, string>? TemplateParameters = null, List<SchedulePattern>? Patterns = null)
+		public Schedule(DateTime CurrentTimeUtc, bool Enabled = true, int MaxActive = 0, int MaxChanges = 0, bool RequireSubmittedChange = true, ScheduleGate? Gate = null, List<ChangeContentFlags>? Filter = null, List<string>? Files = null, Dictionary<string, string>? TemplateParameters = null, List<SchedulePattern>? Patterns = null)
 		{
 			this.Enabled = Enabled;
 			this.MaxActive = MaxActive;
@@ -245,7 +253,7 @@ namespace HordeServer.Models
 			this.Files = Files;
 			this.TemplateParameters = TemplateParameters ?? new Dictionary<string, string>();
 			this.Patterns = Patterns ?? new List<SchedulePattern>();
-			this.LastTriggerTime = DateTimeOffset.Now;
+			this.LastTriggerTimeUtc = CurrentTimeUtc;
 		}
 
 		/// <summary>
@@ -279,36 +287,50 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
-		/// Get the next time that the schedule will trigger
+		/// Gets the last time that the schedule triggered
 		/// </summary>
-		/// <param name="TimeZone">Timezone to evaluate the trigger</param>
-		/// <returns>Next time at which the schedule will trigger</returns>
-		public DateTimeOffset? GetNextTriggerTime(TimeZoneInfo TimeZone)
+		/// <returns>Last trigger time</returns>
+		public DateTime GetLastTriggerTimeUtc()
 		{
-			return GetNextTriggerTime(LastTriggerTime, TimeZone);
+			if (LastTriggerTime != null)
+			{
+				LastTriggerTimeUtc = LastTriggerTime.Value.UtcDateTime;
+				LastTriggerTime = null;
+			}
+			return LastTriggerTimeUtc;
 		}
 
 		/// <summary>
 		/// Get the next time that the schedule will trigger
 		/// </summary>
-		/// <param name="LastTime">Last time at which the schedule triggered</param>
 		/// <param name="TimeZone">Timezone to evaluate the trigger</param>
 		/// <returns>Next time at which the schedule will trigger</returns>
-		public DateTimeOffset? GetNextTriggerTime(DateTimeOffset LastTime, TimeZoneInfo TimeZone)
+		public DateTime? GetNextTriggerTimeUtc(TimeZoneInfo TimeZone)
 		{
-			DateTimeOffset? NextTriggerTime = null;
+			return GetNextTriggerTimeUtc(GetLastTriggerTimeUtc(), TimeZone);
+		}
+
+		/// <summary>
+		/// Get the next time that the schedule will trigger
+		/// </summary>
+		/// <param name="LastTimeUtc">Last time at which the schedule triggered</param>
+		/// <param name="TimeZone">Timezone to evaluate the trigger</param>
+		/// <returns>Next time at which the schedule will trigger</returns>
+		public DateTime? GetNextTriggerTimeUtc(DateTime LastTimeUtc, TimeZoneInfo TimeZone)
+		{
+			DateTime? NextTriggerTimeUtc = null;
 			if (Enabled)
 			{
 				foreach (SchedulePattern Pattern in Patterns)
 				{
-					DateTimeOffset PatternTriggerTime = Pattern.GetNextTriggerTime(LastTime, TimeZone);
-					if (NextTriggerTime == null || NextTriggerTime < PatternTriggerTime)
+					DateTime PatternTriggerTime = Pattern.GetNextTriggerTimeUtc(LastTimeUtc, TimeZone);
+					if (NextTriggerTimeUtc == null || NextTriggerTimeUtc < PatternTriggerTime)
 					{
-						NextTriggerTime = PatternTriggerTime;
+						NextTriggerTimeUtc = PatternTriggerTime;
 					}
 				}
 			}
-			return NextTriggerTime;
+			return NextTriggerTimeUtc;
 		}
 	}
 }
