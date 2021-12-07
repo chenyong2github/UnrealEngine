@@ -446,7 +446,7 @@ bool FNeuralTensor::InitPooledBuffer(void** NativeResource)
 			BufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
 			BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
 
-			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, GetNameData());
+			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, *GetName());
 
 			// Recreate PooledBuffer for future runs
 			PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
