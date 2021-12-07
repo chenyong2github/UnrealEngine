@@ -917,6 +917,11 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 	const FString NodeId = Display.GetClusterMgr()->GetNodeId();
 	const UDisplayClusterConfigurationClusterNode* Node = ConfigData->Cluster->GetNode(NodeId);
 
+	if (!Node)
+	{
+		UE_LOG(LogDisplayClusterGame, Warning, TEXT("NodeId '%s' not found in ConfigData"), *NodeId);
+		return false;
+	}
 	
 	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
 	{
@@ -925,7 +930,6 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 			ViewportItem.Value->RenderSettings.Replace.bAllowReplace = bReplace;
 		}
 	}
-	
 	
 	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
 	{
@@ -942,8 +946,6 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 			}
 		}
 	}
-	
-	
 
 	return true;
 }
