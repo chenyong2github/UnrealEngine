@@ -47,17 +47,22 @@ float4 BloomSetupCommon(float2 UV, float ExposureScale)
 	return float4(BloomAmount * LinearColor, 0) * View.PreExposure;
 }
 
+#if PIXELSHADER
+
+FScreenTransform SvPositionToInputTextureUV;
+
 void BloomSetupPS(
-	noperspective float4 UVAndScreenPos : TEXCOORD0,
-	nointerpolation float InExposureScale : TEXCOORD1,
+	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 UV = UVAndScreenPos.xy;
+	float2 UV = ApplyScreenTransform(SvPosition.xy, SvPositionToInputTextureUV);
+	
+	float ExposureScale = EyeAdaptationLookup();
 
-	OutColor = BloomSetupCommon(UV, InExposureScale);
+	OutColor = BloomSetupCommon(UV, ExposureScale);
 }
 
-#if COMPUTESHADER
+#elif COMPUTESHADER
 
 RWTexture2D<float4> RWOutputTexture;
 
