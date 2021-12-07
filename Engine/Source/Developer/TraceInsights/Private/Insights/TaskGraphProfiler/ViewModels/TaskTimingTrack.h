@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/TaskTrace.h"
 #include "CoreMinimal.h"
 
 // Insights
@@ -46,7 +47,7 @@ public:
 	void ShowTaskTrack() { SetTaskTrackToggle(true); }
 	void HideTaskTrack() { SetTaskTrackToggle(false); }
 
-	void SetTaskId(uint32 InTaskId);
+	void SetTaskId(TaskTrace::FId InTaskId);
 
 	void SetResetOnNextTick(bool bInValue) { bResetOnNextTick = bInValue; }
 
@@ -95,8 +96,6 @@ class FTaskTimingTrack : public FTimingEventsTrack
 	INSIGHTS_DECLARE_RTTI(FTaskTimingTrack, FTimingEventsTrack)
 
 public:
-	static const uint32 InvalidTaskId;
-
 	explicit FTaskTimingTrack(FTaskTimingSharedState& InSharedState, const FString& InName, uint32 InTimelineIndex)
 		: FTimingEventsTrack(InName)
 		, TimelineIndex(InTimelineIndex)
@@ -119,8 +118,8 @@ public:
 
 	virtual const TSharedPtr<const ITimingEvent> GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const override;
 
-	void SetTaskId(uint32 InTaskId) { TaskId = InTaskId; SetDirtyFlag(); }
-	uint32 GetTaskId() { return TaskId; }
+	void SetTaskId(TaskTrace::FId InTaskId) { TaskId = InTaskId; SetDirtyFlag(); }
+	TaskTrace::FId GetTaskId() { return TaskId; }
 	
 	void OnTimingEventSelected(TSharedPtr<const ITimingEvent> InSelectedEvent);
 	void GetEventRelations(const FThreadTrackEvent& InSelectedEvent);
@@ -130,7 +129,7 @@ private:
 
 	FTaskTimingSharedState& SharedState;
 
-	uint32 TaskId = InvalidTaskId;
+	TaskTrace::FId TaskId = TaskTrace::InvalidId;
 
 	FVector2D MousePositionOnButtonDown;
 };
