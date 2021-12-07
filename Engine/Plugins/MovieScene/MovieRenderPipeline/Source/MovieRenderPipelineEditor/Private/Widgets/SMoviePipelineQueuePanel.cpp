@@ -279,6 +279,7 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 	const bool bHasExecutor = ProjectSettings->DefaultLocalExecutor != nullptr;
 	const bool bNotRendering = !Subsystem->IsRendering();
+	const bool bConfigWindowIsOpen = WeakEditorWindow.IsValid();
 
 	bool bAtLeastOneJobAvailable = false;
 	for (UMoviePipelineExecutorJob* Job : Subsystem->GetQueue()->GetJobs())
@@ -291,7 +292,7 @@ bool SMoviePipelineQueuePanel::IsRenderLocalEnabled() const
 	}
 
 	const bool bWorldIsActive = GEditor->IsPlaySessionInProgress();
-	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable && !bWorldIsActive;
+	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable && !bWorldIsActive && !bConfigWindowIsOpen;
 }
 
 FReply SMoviePipelineQueuePanel::OnRenderRemoteRequested()
@@ -314,6 +315,7 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 	const UMovieRenderPipelineProjectSettings* ProjectSettings = GetDefault<UMovieRenderPipelineProjectSettings>();
 	const bool bHasExecutor = ProjectSettings->DefaultRemoteExecutor != nullptr;
 	const bool bNotRendering = !Subsystem->IsRendering();
+	const bool bConfigWindowIsOpen = WeakEditorWindow.IsValid();
 
 	bool bAtLeastOneJobAvailable = false;
 	for (UMoviePipelineExecutorJob* Job : Subsystem->GetQueue()->GetJobs())
@@ -325,7 +327,7 @@ bool SMoviePipelineQueuePanel::IsRenderRemoteEnabled() const
 		}
 	}
 
-	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable;
+	return bHasExecutor && bNotRendering && bAtLeastOneJobAvailable && !bConfigWindowIsOpen;
 }
 
 void SMoviePipelineQueuePanel::OnJobPresetChosen(TWeakObjectPtr<UMoviePipelineExecutorJob> InJob, TWeakObjectPtr<UMoviePipelineExecutorShot> InShot)
