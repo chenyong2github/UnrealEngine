@@ -2,14 +2,13 @@
 
 #include "String/ParseLines.h"
 
-#include "Containers/StringView.h"
-
-namespace UE
-{
-namespace String
+namespace UE::String
 {
 
-void ParseLines(const FStringView& View, const TFunctionRef<void(FStringView)>& Visitor)
+void ParseLines(
+	const FStringView View,
+	const TFunctionRef<void (FStringView)> Visitor,
+	const EParseLinesOptions Options)
 {
 	const TCHAR* ViewIt = View.GetData();
 	const TCHAR* ViewEnd = ViewIt + View.Len();
@@ -36,10 +35,17 @@ void ParseLines(const FStringView& View, const TFunctionRef<void(FStringView)>& 
 			}
 		}
 
-		Visitor(FStringView(LineStart, static_cast<FStringView::SizeType>(LineEnd - LineStart)));
+		FStringView Line(LineStart, static_cast<FStringView::SizeType>(LineEnd - LineStart));
+		if (EnumHasAnyFlags(Options, EParseLinesOptions::Trim))
+		{
+			Line = Line.TrimStartAndEnd();
+		}
+		if (!EnumHasAnyFlags(Options, EParseLinesOptions::SkipEmpty) || !Line.IsEmpty())
+		{
+			Visitor(Line);
+		}
 	}
 	while (ViewIt != ViewEnd);
 }
 
-}
-}
+} // UE::String

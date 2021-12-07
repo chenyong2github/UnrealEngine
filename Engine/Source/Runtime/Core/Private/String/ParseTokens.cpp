@@ -5,46 +5,100 @@
 #include "Algo/AllOf.h"
 #include "Algo/Find.h"
 #include "Algo/NoneOf.h"
+#include "Algo/Transform.h"
+#include "Containers/Array.h"
 #include "Containers/BitArray.h"
-#include "Containers/StringView.h"
 
-namespace UE
+namespace UE::String
 {
-namespace String
+
+inline static void ParseTokensVisitToken(
+	const TFunctionRef<void (FStringView)>& Visitor,
+	const EParseTokensOptions Options,
+	FStringView Token)
 {
+	if (EnumHasAnyFlags(Options, EParseTokensOptions::Trim))
+	{
+		Token = Token.TrimStartAndEnd();
+	}
+	if (!EnumHasAnyFlags(Options, EParseTokensOptions::SkipEmpty) || !Token.IsEmpty())
+	{
+		Visitor(Token);
+	}
+}
 
 /** Parse tokens with one single-character delimiter. */
-inline static void ParseTokens1Delim1Char(const FStringView& View, const TCHAR Delimiter, TFunctionRef<void(FStringView)> Visitor)
+inline static void ParseTokens1Delim1Char(
+	const FStringView View,
+	const TCHAR Delimiter,
+	const TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
 {
 	const TCHAR* ViewIt = View.GetData();
 	const TCHAR* const ViewEnd = ViewIt + View.Len();
 	const TCHAR* NextToken = ViewIt;
 
-	for (;;)
+	if (EnumHasAnyFlags(Options, EParseTokensOptions::IgnoreCase))
 	{
-		if (ViewIt == ViewEnd)
+		const TCHAR LowerDelimiter = FChar::ToLower(Delimiter);
+		for (;;)
 		{
-			break;
+			if (ViewIt == ViewEnd)
+			{
+				break;
+			}
+			if (FChar::ToLower(*ViewIt) != Delimiter)
+			{
+				++ViewIt;
+				continue;
+			}
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			NextToken = ++ViewIt;
 		}
-		if (*ViewIt != Delimiter)
+	}
+	else
+	{
+		for (;;)
 		{
-			++ViewIt;
-			continue;
+			if (ViewIt == ViewEnd)
+			{
+				break;
+			}
+			if (*ViewIt != Delimiter)
+			{
+				++ViewIt;
+				continue;
+			}
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			NextToken = ++ViewIt;
 		}
-		Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
-		NextToken = ++ViewIt;
 	}
 
-	Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 }
 
 /** Parse tokens with multiple single-character Basic Latin delimiters. */
-inline static void ParseTokensNDelim1CharBasicLatin(const FStringView& View, TArrayView<const TCHAR> Delimiters, TFunctionRef<void(FStringView)> Visitor)
+inline static void ParseTokensNDelim1CharBasicLatin(
+	const FStringView View,
+	const TConstArrayView<TCHAR> Delimiters,
+	const TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
 {
 	TBitArray<> DelimiterMask(false, 128);
-	for (uint32 Delimiter : Delimiters)
+	if (EnumHasAnyFlags(Options, EParseTokensOptions::IgnoreCase))
 	{
-		DelimiterMask[Delimiter] = true;
+		for (TCHAR Delimiter : Delimiters)
+		{
+			DelimiterMask[FChar::ToUnsigned(FChar::ToLower(Delimiter))] = true;
+			DelimiterMask[FChar::ToUnsigned(FChar::ToUpper(Delimiter))] = true;
+		}
+	}
+	else
+	{
+		for (TCHAR Delimiter : Delimiters)
+		{
+			DelimiterMask[FChar::ToUnsigned(Delimiter)] = true;
+		}
 	}
 
 	const TCHAR* ViewIt = View.GetData();
@@ -63,45 +117,75 @@ inline static void ParseTokensNDelim1CharBasicLatin(const FStringView& View, TAr
 			++ViewIt;
 			continue;
 		}
-		Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+		ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 		NextToken = ++ViewIt;
 	}
 
-	Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 }
 
 /** Parse tokens with multiple single-character delimiters in the Basic Multilingual Plane. */
-inline static void ParseTokensNDelim1Char(const FStringView& View, TArrayView<const TCHAR> Delimiters, TFunctionRef<void(FStringView)> Visitor)
+inline static void ParseTokensNDelim1Char(
+	const FStringView View,
+	const TConstArrayView<TCHAR> Delimiters,
+	TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
 {
 	if (Algo::AllOf(Delimiters, [](TCHAR Delimiter) { return Delimiter < 128; }))
 	{
-		return ParseTokensNDelim1CharBasicLatin(View, Delimiters, Visitor);
+		return ParseTokensNDelim1CharBasicLatin(View, Delimiters, MoveTemp(Visitor), Options);
 	}
 
 	const TCHAR* ViewIt = View.GetData();
 	const TCHAR* const ViewEnd = ViewIt + View.Len();
 	const TCHAR* NextToken = ViewIt;
 
-	for (;;)
+	if (EnumHasAnyFlags(Options, EParseTokensOptions::IgnoreCase))
 	{
-		if (ViewIt == ViewEnd)
+		TArray<TCHAR, TInlineAllocator<16>> LowerDelimiters;
+		Algo::Transform(Delimiters, LowerDelimiters, FChar::ToLower);
+		for (;;)
 		{
-			break;
+			if (ViewIt == ViewEnd)
+			{
+				break;
+			}
+			if (!Algo::Find(Delimiters, FChar::ToLower(*ViewIt)))
+			{
+				++ViewIt;
+				continue;
+			}
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			NextToken = ++ViewIt;
 		}
-		if (!Algo::Find(Delimiters, *ViewIt))
+	}
+	else
+	{
+		for (;;)
 		{
-			++ViewIt;
-			continue;
+			if (ViewIt == ViewEnd)
+			{
+				break;
+			}
+			if (!Algo::Find(Delimiters, *ViewIt))
+			{
+				++ViewIt;
+				continue;
+			}
+			ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+			NextToken = ++ViewIt;
 		}
-		Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
-		NextToken = ++ViewIt;
 	}
 
-	Visitor(FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
+	ParseTokensVisitToken(Visitor, Options, FStringView(NextToken, static_cast<FStringView::SizeType>(ViewIt - NextToken)));
 }
 
 /** Parse tokens with multiple multi-character delimiters. */
-inline static void ParseTokensNDelimNChar(const FStringView& View, TArrayView<const FStringView> Delimiters, TFunctionRef<void(FStringView)> Visitor)
+inline static void ParseTokensNDelimNChar(
+	const FStringView View,
+	const TConstArrayView<FStringView> Delimiters,
+	const TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
 {
 	// This is a naive implementation that takes time proportional to View.Len() * TotalDelimiterLen.
 	// If this function becomes a bottleneck, it can be specialized separately for one and many delimiters.
@@ -110,13 +194,14 @@ inline static void ParseTokensNDelimNChar(const FStringView& View, TArrayView<co
 	const FStringView::SizeType ViewLen = View.Len();
 	FStringView::SizeType NextTokenIndex = 0;
 
+	const ESearchCase::Type SearchCase = EnumHasAnyFlags(Options, EParseTokensOptions::IgnoreCase) ? ESearchCase::IgnoreCase : ESearchCase::CaseSensitive;
 	for (FStringView::SizeType ViewIndex = 0; ViewIndex != ViewLen;)
 	{
 		const FStringView RemainingView(View.GetData() + ViewIndex, ViewLen - ViewIndex);
-		auto MatchDelimiter = [&RemainingView](const FStringView& Delimiter) { return RemainingView.StartsWith(Delimiter, ESearchCase::CaseSensitive); };
+		auto MatchDelimiter = [RemainingView, SearchCase](FStringView Delimiter) { return RemainingView.StartsWith(Delimiter, SearchCase); };
 		if (const FStringView* Delimiter = Algo::FindByPredicate(Delimiters, MatchDelimiter))
 		{
-			Visitor(FStringView(View.GetData() + NextTokenIndex, ViewIndex - NextTokenIndex));
+			ParseTokensVisitToken(Visitor, Options, FStringView(View.GetData() + NextTokenIndex, ViewIndex - NextTokenIndex));
 			ViewIndex += Delimiter->Len();
 			NextTokenIndex = ViewIndex;
 		}
@@ -126,22 +211,26 @@ inline static void ParseTokensNDelimNChar(const FStringView& View, TArrayView<co
 		}
 	}
 
-	Visitor(FStringView(View.GetData() + NextTokenIndex, ViewLen - NextTokenIndex));
+	ParseTokensVisitToken(Visitor, Options, FStringView(View.GetData() + NextTokenIndex, ViewLen - NextTokenIndex));
 }
 
-void ParseTokensMultiple(const FStringView& View, TArrayView<const FStringView> Delimiters, TFunctionRef<void(FStringView)> Visitor)
+void ParseTokensMultiple(
+	const FStringView View,
+	const TConstArrayView<FStringView> Delimiters,
+	TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
 {
 	check(Algo::NoneOf(Delimiters, &FStringView::IsEmpty));
 	switch (Delimiters.Num())
 	{
 	case 0:
-		return Visitor(View);
+		return ParseTokensVisitToken(Visitor, Options, View);
 	case 1:
 		if (Delimiters[0].Len() == 1)
 		{
-			return ParseTokens1Delim1Char(View, Delimiters[0][0], MoveTemp(Visitor));
+			return ParseTokens1Delim1Char(View, Delimiters[0][0], MoveTemp(Visitor), Options);
 		}
-		return ParseTokensNDelimNChar(View, Delimiters, MoveTemp(Visitor));
+		return ParseTokensNDelimNChar(View, Delimiters, MoveTemp(Visitor), Options);
 	default:
 		if (Algo::AllOf(Delimiters, [](const FStringView& Delimiter) { return Delimiter.Len() == 1; }))
 		{
@@ -151,27 +240,52 @@ void ParseTokensMultiple(const FStringView& View, TArrayView<const FStringView> 
 			{
 				DelimiterChars.Add(Delimiter[0]);
 			}
-			return ParseTokensNDelim1Char(View, DelimiterChars, MoveTemp(Visitor));
+			return ParseTokensNDelim1Char(View, DelimiterChars, MoveTemp(Visitor), Options);
 		}
 		else
 		{
-			return ParseTokensNDelimNChar(View, Delimiters, MoveTemp(Visitor));
+			return ParseTokensNDelimNChar(View, Delimiters, MoveTemp(Visitor), Options);
 		}
 	}
 }
 
-void ParseTokensMultiple(const FStringView& View, TArrayView<const TCHAR> Delimiters, TFunctionRef<void(FStringView)> Visitor)
+void ParseTokensMultiple(
+	const FStringView View,
+	const TConstArrayView<TCHAR> Delimiters,
+	TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
 {
 	switch (Delimiters.Num())
 	{
 	case 0:
-		return Visitor(View);
+		return ParseTokensVisitToken(Visitor, Options, View);
 	case 1:
-		return ParseTokens1Delim1Char(View, Delimiters[0], MoveTemp(Visitor));
+		return ParseTokens1Delim1Char(View, Delimiters[0], MoveTemp(Visitor), Options);
 	default:
-		return ParseTokensNDelim1Char(View, Delimiters, MoveTemp(Visitor));
+		return ParseTokensNDelim1Char(View, Delimiters, MoveTemp(Visitor), Options);
 	}
 }
 
+void ParseTokens(
+	const FStringView View,
+	const FStringView Delimiter,
+	TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
+{
+	if (Delimiter.Len() == 1)
+	{
+		return ParseTokens1Delim1Char(View, Delimiter[0], MoveTemp(Visitor), Options);
+	}
+	return ParseTokensNDelimNChar(View, MakeArrayView(&Delimiter, 1), MoveTemp(Visitor), Options);
 }
+
+void ParseTokens(
+	const FStringView View,
+	const TCHAR Delimiter,
+	TFunctionRef<void (FStringView)> Visitor,
+	const EParseTokensOptions Options)
+{
+	return ParseTokens1Delim1Char(View, Delimiter, MoveTemp(Visitor), Options);
 }
+
+} // UE::String
