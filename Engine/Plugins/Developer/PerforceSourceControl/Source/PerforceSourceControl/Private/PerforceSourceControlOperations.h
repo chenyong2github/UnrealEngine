@@ -368,6 +368,9 @@ public:
 	virtual FName GetName() const override;
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
+
+private:
+	void AddType(const class FCreateWorkspace& Operation, FStringBuilderBase& ClientDesc);
 };
 
 class FPerforceDeleteWorkspaceWorker : public IPerforceSourceControlWorker
