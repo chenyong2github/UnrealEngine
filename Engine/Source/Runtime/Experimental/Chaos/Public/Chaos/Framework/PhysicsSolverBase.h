@@ -28,6 +28,8 @@ namespace Chaos
 	class FRewindData;
 	class IRewindCallback;
 
+	extern CHAOS_API int32 GSingleThreadedPhysics;
+
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
 	extern CHAOS_API FRealSingle AsyncInterpolationMultiplier;
@@ -252,6 +254,8 @@ namespace Chaos
 
 		void SetThreadingMode_External(EThreadingModeTemp InThreadingMode)
 		{
+			if (!!GSingleThreadedPhysics) { InThreadingMode = EThreadingModeTemp::SingleThread; }
+
 			if(InThreadingMode != ThreadingMode)
 			{
 				if(InThreadingMode == EThreadingModeTemp::SingleThread)
