@@ -1060,6 +1060,15 @@ void FAnimTrace::OutputAnimNotify(UAnimInstance* InAnimInstance, const FAnimNoti
 		NotifyObject = InNotifyEvent.NotifyStateClass;
 		NotifyAsset = NotifyObject->GetOuter();
 	}
+	else
+	{
+        NotifyAsset = InNotifyEvent.GetLinkedSequence();
+		if (NotifyAsset == nullptr)
+		{
+			NotifyAsset = InNotifyEvent.GetLinkedMontage();
+		}
+	}
+	
 
 	TRACE_OBJECT(NotifyAsset);
 	TRACE_OBJECT(NotifyObject);
