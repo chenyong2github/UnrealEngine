@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RestSharp;
 using Serilog;
@@ -73,8 +74,14 @@ namespace Horde.Storage.FunctionalTests.GC
                 {
                     collection.AddSingleton<IBlobCleanup>(provider =>
                     {
+                        GCSettings gcSettings = new GCSettings()
+                        {
+                            CleanOldBlobs = true
+                        };
+                        IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
+
                         IBlobService blobService = provider.GetService<IBlobService>()!;
-                        return new OrphanBlobCleanup(blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object);
+                        return new OrphanBlobCleanup(blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon);
                     });
 
                 })
@@ -156,7 +163,14 @@ namespace Horde.Storage.FunctionalTests.GC
         [TestMethod]
         public async Task RunBlobCleanup()
         {
-            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object);
+            GCSettings gcSettings = new GCSettings()
+            {
+                CleanOldBlobs = true,
+                CleanNamespacesV1 = new List<string> { TestNamespace.ToString() }
+            };
+            IOptionsMonitor<GCSettings> gcSettingsMon = Mock.Of<IOptionsMonitor<GCSettings>>(_ => _.CurrentValue == gcSettings);
+
+            OrphanBlobCleanup cleanup = new OrphanBlobCleanup(_blobService!, new LeaderElectionStub(true), _callistoBlobMock.Object, gcSettingsMon);
             List<NamespaceId> namespaces = await cleanup.ListNamespaces().ToListAsync();
             Assert.AreEqual(1, namespaces.Count);
 

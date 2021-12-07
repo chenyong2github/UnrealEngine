@@ -246,5 +246,6 @@ namespace Horde.Storage
 
         public TimeSpan BlobCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
         public TimeSpan RefCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
+        public List<string> CleanNamespacesV1 { get; set; } = new List<string>();
     }
 }

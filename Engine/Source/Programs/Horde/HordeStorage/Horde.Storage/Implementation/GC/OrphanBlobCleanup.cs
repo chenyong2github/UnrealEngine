@@ -36,14 +36,16 @@ namespace Horde.Storage.Implementation
     {
         private readonly IBlobService _blobService;
         private readonly ILeaderElection _leaderElection;
+        private readonly IOptionsMonitor<GCSettings> _gcSettings;
         private readonly IRestClient _client;
         private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanup>();
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IOptionsMonitor<CallistoTransactionLogSettings> callistoSettings, IServiceCredentials serviceCredentials)
+        public OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IOptionsMonitor<CallistoTransactionLogSettings> callistoSettings, IOptionsMonitor<GCSettings> gcSettings, IServiceCredentials serviceCredentials)
         {
             _blobService = blobService;
             _leaderElection = leaderElection;
+            _gcSettings = gcSettings;
 
             _client = new RestClient(callistoSettings.CurrentValue.ConnectionString)
             {
@@ -51,11 +53,12 @@ namespace Horde.Storage.Implementation
             }.UseSerializer(() => new JsonNetSerializer());
         }
 
-        internal OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IRestClient callistoClient)
+        internal OrphanBlobCleanup(IBlobService blobService, ILeaderElection leaderElection, IRestClient callistoClient, IOptionsMonitor<GCSettings> gcSettings)
         {
             _blobService = blobService;
             _leaderElection = leaderElection;
             _client = callistoClient;
+            _gcSettings = gcSettings;
         }
 
         private struct GCRootState
@@ -81,7 +84,7 @@ namespace Horde.Storage.Implementation
                 return new List<RemovedBlobs>();
             }
 
-            List<NamespaceId> namespaces = await ListNamespaces().ToListAsync();
+            List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
             ConcurrentDictionary<NamespaceId, GCRootState> perNamespaceRoots = new();
             await namespaces.ParallelForEachAsync(async ns =>
             {
@@ -158,6 +161,11 @@ namespace Horde.Storage.Implementation
             }
 
             return removedBlobs;
+        }
+
+        private bool NamespaceShouldBeCleaned(NamespaceId ns)
+        {
+            return _gcSettings.CurrentValue.CleanNamespacesV1.Contains(ns.ToString());
         }
 
         public virtual async IAsyncEnumerable<NamespaceId> ListNamespaces()
