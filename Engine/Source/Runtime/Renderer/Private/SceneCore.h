@@ -42,6 +42,11 @@ public:
 	bool HasInsetObjectShadow() const { return bHasInsetObjectShadow; }
 	bool CastsSelfShadowOnly() const { return bSelfShadowOnly; }
 	bool IsMobileDynamicPointLight() const { return bMobileDynamicPointLight; }
+
+	FORCEINLINE bool IsNaniteMeshProxy() const { return bNaniteMeshProxy; }
+	FORCEINLINE bool ProxySupportsGPUScene() const { return bProxySupportsGPUScene; }
+
+
 	FLightSceneInfo* GetLight() const { return LightSceneInfo; }
 	int32 GetLightId() const { return LightId; }
 	FPrimitiveSceneInfo* GetPrimitiveSceneInfo() const { return PrimitiveSceneInfo; }
@@ -109,6 +114,12 @@ private:
 
 	/** True this is a mobile dynamic point light interaction. */
 	uint32 bMobileDynamicPointLight : 1;
+
+	/** If true then all meshes drawn by the primitive scene proxy are Nanite meshes. Caches the result of FPrimitiveSceneProxy::IsNaniteMesh() */
+	uint32 bNaniteMeshProxy : 1;
+
+	/** If true then all meshes drawn by the primitive scene proxy supports GPU-Scene (and thus VSM shadows). */
+	uint32 bProxySupportsGPUScene : 1;
 
 	/** Initialization constructor. */
 	FLightPrimitiveInteraction(FLightSceneInfo* InLightSceneInfo,FPrimitiveSceneInfo* InPrimitiveSceneInfo,

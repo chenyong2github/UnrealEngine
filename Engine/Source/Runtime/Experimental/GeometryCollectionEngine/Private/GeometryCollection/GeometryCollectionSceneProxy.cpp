@@ -160,9 +160,7 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 		}
 	}
 
-	// Vertex shaders on mobile may still use PrimitiveUB with GPUScene enabled
-	const auto FeatureLevel = GetScene().GetFeatureLevel();
-	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) || (FeatureLevel == ERHIFeatureLevel::ES3_1);
+	EnableGPUSceneSupportFlags();
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	// Init HitProxy array with the maximum number of subsections
@@ -1395,8 +1393,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// Use fast path that does not update static draw lists.
 	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer = true;
 
-	// We always use local vertex factory, which gets its primitive data from
-	// GPUScene, so we can skip expensive primitive uniform buffer updates.
+	// Nanite always uses GPUScene, so we can skip expensive primitive uniform buffer updates.
 	bVFRequiresPrimitiveUniformBuffer = false;
 
 	// Indicates if 1 or more materials contain settings not supported by Nanite.

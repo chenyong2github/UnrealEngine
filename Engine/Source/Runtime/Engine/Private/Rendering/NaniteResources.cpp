@@ -380,8 +380,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Use fast path that does not update static draw lists.
 	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer = true;
 
-	// We always use local vertex factory, which gets its primitive data from
-	// GPUScene, so we can skip expensive primitive uniform buffer updates.
+	// Nanite always uses GPUScene, so we can skip expensive primitive uniform buffer updates.
 	bVFRequiresPrimitiveUniformBuffer = false;
 
 	// Indicates if 1 or more materials contain settings not supported by Nanite.

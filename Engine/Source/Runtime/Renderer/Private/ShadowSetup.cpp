@@ -1608,6 +1608,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 		bool bOpaque = false;
 		bool bTranslucentRelevance = false;
 		bool bShadowRelevance = false;
+		bool bDynamicRelevance = false;
 
 		int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
 
@@ -1657,6 +1658,7 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 			bOpaque |= ViewRelevance.bOpaque || ViewRelevance.bMasked;
 			bTranslucentRelevance |= ViewRelevance.HasTranslucency();
 			bShadowRelevance |= ViewRelevance.bShadowRelevance;
+			bDynamicRelevance = bDynamicRelevance || ViewRelevance.bDynamicRelevance;
 		}
 
 		if (bShadowRelevance)
@@ -1721,7 +1723,9 @@ void FProjectedShadowInfo::AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSce
 					DependentView->VisibleLightInfos[GetLightSceneInfo().Id].MobileCSMSubjectPrimitives.AddSubjectPrimitive(PrimitiveSceneInfo, PrimitiveId);
 				}
 			}
-			else
+			// EShadowMeshSelection::All is intentional because ProxySupportsGPUScene being false may indicate that some VFs (e.g., some LODs) support GPUScene while others don't
+			// thus we have to leave the final decision until the mesh batches are produced.
+			else if (bDynamicRelevance && EnumHasAnyFlags(MeshSelectionMask, Proxy->SupportsGPUScene() ? EShadowMeshSelection::VSM : EShadowMeshSelection::All))
 			{
 				// Add the primitive to the subject primitive list.
 				DynamicSubjectPrimitives.Add(PrimitiveSceneInfo);
@@ -1830,6 +1834,7 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 		bool bStaticRelevance = false;
 		bool bMayBeFading = false;
 		bool bNeedUpdateStaticMeshes = false;
+		bool bDynamicRelevance = false;
 
 		const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
 		FPrimitiveViewRelevance& ViewRelevance = CurrentView->PrimitiveViewRelevanceMap[PrimitiveId];
@@ -1884,6 +1889,7 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 		bTranslucentRelevance = ViewRelevance.HasTranslucency();
 		bShadowRelevance = ViewRelevance.bShadowRelevance;
 		bStaticRelevance = ViewRelevance.bStaticRelevance;
+		bDynamicRelevance = ViewRelevance.bDynamicRelevance;
 
 		if (!bShadowRelevance)
 		{
@@ -1942,7 +1948,9 @@ uint64 FProjectedShadowInfo::AddSubjectPrimitive_AnyThread(
 				}
 			}
 
-			if (!bDrawingStaticMeshes)
+			// EShadowMeshSelection::All is intentional because bSupportsGPUScene being false may indicate that some VFs (e.g., some LODs) support GPUScene while others don't
+			// thus we have to leave the final decision until the mesh batches are produced.
+			if (!bDrawingStaticMeshes && bDynamicRelevance && EnumHasAnyFlags(MeshSelectionMask, PrimitiveSceneInfoCompact.PrimitiveFlagsCompact.bSupportsGPUScene ? EShadowMeshSelection::VSM : EShadowMeshSelection::All))
 			{
 				Result.bDynamicSubjectPrimitive = true;
 				++OutStats.NumDynamicSubs;
@@ -3656,11 +3664,13 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 							&& (!bStaticSceneOnly || Interaction->GetPrimitiveSceneInfo()->Proxy->HasStaticLighting())
 							&& !Interaction->HasInsetObjectShadow())
 						{
-							if (Interaction->GetPrimitiveSceneInfo()->Proxy->IsNaniteMesh())
+							if (Interaction->IsNaniteMeshProxy())
 							{
 								bContainsNaniteSubjectsOut = true;
 							}
-							else
+							// EShadowMeshSelection::All is intentional because ProxySupportsGPUScene being false may indicate that some VFs (e.g., some LODs) support GPUScene while others don't
+							// thus we have to leave the final decision until the mesh batches are produced.
+							else if (EnumHasAnyFlags(ProjectedShadowInfo->MeshSelectionMask, Interaction->ProxySupportsGPUScene() ? EShadowMeshSelection::VSM : EShadowMeshSelection::All))
 							{
 								FBoxSphereBounds const& Bounds = Interaction->GetPrimitiveSceneInfo()->Proxy->GetBounds();
 								if (IntersectsConvexHulls(LightViewFrustumConvexHulls, Bounds))
@@ -4708,7 +4718,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 					if (LightSceneInfo.Proxy->GetViewDependentWholeSceneProjectedShadowInitializer(View, LocalIndex, LightSceneInfo.IsPrecomputedLightingValid(), ProjectedShadowInitializer))
 					{
-						if (!ProjectedShadowInitializer.CascadeSettings.bFarShadowCascade)
+						if (!ProjectedShadowInitializer.CascadeSettings.bFarShadowCascade && !ProjectedShadowInitializer.bRayTracedDistanceField)
 						{
 							MaxNonFarCascadeDistance = FMath::Max(MaxNonFarCascadeDistance, ProjectedShadowInitializer.CascadeSettings.SplitFar);
 						}
@@ -4761,6 +4771,8 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 							{
 								// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
 								ProjectedShadowInfo->bNaniteGeometry = false;
+								// Note: the default is all types
+								ProjectedShadowInfo->MeshSelectionMask = EShadowMeshSelection::SM;
 							}
 
 							// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling needed
@@ -4956,6 +4968,11 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 				{
 					bShadowIsVisible = false;
 				}
+			}
+			// If uncached and no primitives, skip allocations etc
+			else if (ProjectedShadowInfo->CacheMode == SDCM_Uncached && !ProjectedShadowInfo->HasSubjectPrims() && !ProjectedShadowInfo->IsWholeSceneDirectionalShadow())
+			{
+				bShadowIsVisible = false;
 			}
 
 			if (IsForwardShadingEnabled(ShaderPlatform)

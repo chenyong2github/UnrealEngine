@@ -163,6 +163,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer(false)
 ,	bVFRequiresPrimitiveUniformBuffer(true)
 ,	bIsNaniteMesh(false)
+,	bSupportsGPUScene(false)
 ,	bSupportsInstanceDataBuffer(false)
 ,	bShouldUpdateGPUSceneTransforms(true)
 ,	bAlwaysHasVelocity(false)
@@ -980,6 +981,17 @@ bool FPrimitiveSceneProxy::DrawInVirtualTextureOnly(bool bEditor) const
 	const uint8 bHideMask = bEditor ? bHideMaskEditor : bHideMaskGame;
 	const uint8 RuntimeVirtualTextureMask = GetPrimitiveSceneInfo()->GetRuntimeVirtualTextureFlags().RuntimeVirtualTextureMask;
 	return (RuntimeVirtualTextureMask & bHideMask) != 0;
+}
+
+void FPrimitiveSceneProxy::EnableGPUSceneSupportFlags()
+{
+	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
+	const bool bUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
+
+	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
+	// Vertex shaders on mobile may still use PrimitiveUB with GPUScene enabled
+	bVFRequiresPrimitiveUniformBuffer = !bUseGPUScene || (FeatureLevel == ERHIFeatureLevel::ES3_1);
+	bSupportsGPUScene = bUseGPUScene;
 }
 
 /**

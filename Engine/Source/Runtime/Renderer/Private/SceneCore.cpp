@@ -191,6 +191,8 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 	{
 		bCastShadow = LightSceneInfo->Proxy->CastsDynamicShadow() && PrimitiveSceneInfo->Proxy->CastsDynamicShadow();
 	}
+	bNaniteMeshProxy = PrimitiveSceneInfo->Proxy->IsNaniteMesh();
+	bProxySupportsGPUScene = PrimitiveSceneInfo->Proxy->SupportsGPUScene();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if(bCastShadow && bIsDynamic)

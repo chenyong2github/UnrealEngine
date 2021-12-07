@@ -758,6 +758,14 @@ public:
 	}
 
 	/**
+	 * Returns true if all meshes drawn by this proxy support GPU scene. 
+	 */
+	inline bool SupportsGPUScene() const
+	{
+		return bSupportsGPUScene;
+	}
+
+	/**
 	 *	Returns whether the proxy utilizes custom occlusion bounds or not
 	 *
 	 *	@return	bool		true if custom occlusion bounds are used, false if not;
@@ -989,6 +997,11 @@ protected:
 
 	void SetForceHidden(bool bForceHiddenIn) {bForceHidden = bForceHiddenIn;}
 
+	/** 
+	 * Call during setup to set flags to indicate GPU-Scene support for the proxy if GPU-Scene is enabled & supported for the current feature level.
+	 */
+	ENGINE_API void EnableGPUSceneSupportFlags();
+
 private:
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	FLinearColor WireframeColor;
@@ -1172,6 +1185,9 @@ protected:
 
 	/** Whether this proxy is a Nanite mesh. */
 	uint8 bIsNaniteMesh : 1;
+
+	/** True if all meshes (AKA all vertex factories) drawn by this proxy support GPU scene (default is false). */
+	uint8 bSupportsGPUScene : 1;
 
 	/** Whether the primitive supports the GPUScene instance data buffer. */
 	uint8 bSupportsInstanceDataBuffer : 1;
