@@ -48,10 +48,10 @@ public:
 	const TSubclassOf<UHLODBuilder> GetHLODBuilderClass() const { return HLODBuilderClass; }
 	const UHLODBuilderSettings* GetHLODBuilderSettings() const { return HLODBuilderSettings; }
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
-	int32 GetCellSize() const { return bAlwaysLoaded ? 0 : CellSize; }
-	float GetLoadingRange() const { return bAlwaysLoaded ? WORLD_MAX : LoadingRange; }
+	int32 GetCellSize() const { return !bIsSpatiallyLoaded ? 0 : CellSize; }
+	float GetLoadingRange() const { return !bIsSpatiallyLoaded ? WORLD_MAX : LoadingRange; }
 	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
-	bool IsAlwaysLoaded() const { return bAlwaysLoaded; }
+	bool IsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
 
 	bool DoesRequireWarmup() const;
 
@@ -79,20 +79,23 @@ private:
 	UPROPERTY(VisibleAnywhere, Export, NoClear, Category=HLOD, meta = (EditInline, NoResetToDefault))
 	TObjectPtr<UHLODBuilderSettings> HLODBuilderSettings;
 
-	/** Whether HLOD actors generated for this layer will be always loaded */
+	/** Whether HLOD actors generated for this layer will be spatially loaded */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD)
-	uint32 bAlwaysLoaded : 1;
+	uint32 bIsSpatiallyLoaded : 1;
+
+	UPROPERTY()
+	uint32 bAlwaysLoaded_DEPRECATED : 1;
 
 	/** Cell size of the runtime grid created to encompass HLOD actors generated for this HLOD Layer */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
 	int32 CellSize;
 
 	/** Loading range of the runtime grid created to encompass HLOD actors generated for this HLOD Layer */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
 	double LoadingRange;
 
 	/** HLOD Layer to assign to the generated HLOD actors */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
 	TSoftObjectPtr<UHLODLayer> ParentLayer;
 
 public:

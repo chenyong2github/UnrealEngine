@@ -269,7 +269,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 
 		// Spatially loaded
 		// HLOD that are always loaded will not take the SubActorsInfo.GridPlacement into account
-		bool bExpectedIsSpatiallyLoaded = HLODLayer->IsAlwaysLoaded() ? false : SubActorsInfo.bIsSpatiallyLoaded;
+		bool bExpectedIsSpatiallyLoaded = !HLODLayer->IsSpatiallyLoaded() ? false : SubActorsInfo.bIsSpatiallyLoaded;
 		if (HLODActor->GetIsSpatiallyLoaded() != bExpectedIsSpatiallyLoaded)
 		{
 			HLODActor->SetIsSpatiallyLoaded(bExpectedIsSpatiallyLoaded);

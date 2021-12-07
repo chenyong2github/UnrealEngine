@@ -299,8 +299,8 @@ static TMap<FName, FSpatialHashRuntimeGrid> CreateHLODGrids(TMap<UHLODLayer*, in
 	{
 		UHLODLayer* HLODLayer = HLODLayerLevel.Key;
 
-		// No need to create a runtime grid if the HLOD layer is set to be always loaded
-		if (!HLODLayer->IsAlwaysLoaded())
+		// No need to create a runtime grid if the HLOD layer is set to be non spatially loaded
+		if (HLODLayer->IsSpatiallyLoaded())
 		{
 			int32 HLODLevel = HLODLayerLevel.Value;
 
