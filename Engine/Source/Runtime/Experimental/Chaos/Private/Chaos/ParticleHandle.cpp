@@ -292,6 +292,19 @@ namespace Chaos
 	template <>
 	void TPBDRigidParticleHandleImp<FReal, 3, true>::SetDynamicMisc(const FParticleDynamicMisc& DynamicMisc, FPBDRigidsEvolutionBase& Evolution)
 	{
+	
+		if (Disabled() != DynamicMisc.Disabled())
+		{
+			if (DynamicMisc.Disabled())
+			{
+				Evolution.DisableParticle(this);
+			}
+			else
+			{
+				Evolution.EnableParticle(this, nullptr);
+			}
+		}		
+
 		SetLinearEtherDrag(DynamicMisc.LinearEtherDrag());
 		SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
 		SetMaxLinearSpeedSq(DynamicMisc.MaxLinearSpeedSq());
@@ -305,18 +318,6 @@ namespace Chaos
 
 		Evolution.SetParticleObjectState(this, DynamicMisc.ObjectState());
 		Evolution.SetParticleSleepType(this, DynamicMisc.SleepType());
-
-		if (Disabled() != DynamicMisc.Disabled())
-		{
-			if (DynamicMisc.Disabled())
-			{
-				Evolution.DisableParticle(this);
-			}
-			else
-			{
-				Evolution.EnableParticle(this, nullptr);
-			}
-		}
 	}
 
 }
