@@ -15,6 +15,12 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
+// Set to 0 to use a linearized error calculation, and set to 1 to use a non-linear error calculation in collision detection. 
+// In principle nonlinear is more accurate when large rotation corrections occur, but this is not too important for collisions because 
+// when the bodies settle the corrections are small. The linearized version is significantly faster than the non-linear version because 
+// the non-linear version requires a quaternion multiply and renormalization whereas the linear version is just a cross product.
+#define CHAOS_NONLINEAR_COLLISIONS_ENABLED 0
+
 DEFINE_LOG_CATEGORY(LogChaosCollision);
 
 namespace Chaos
@@ -224,7 +230,7 @@ namespace Chaos
 		// Update the particle state based on the pushout
 		if (Body0.IsDynamic())
 		{
-			const FVec3 AngularPushOut = FVec3::CrossProduct(ManifoldPoint.WorldRelativeImpulsePoint0, PushOut);
+			const FVec3 AngularPushOut = FVec3::CrossProduct(ManifoldPoint.WorldContactPosition - Body0.P(), PushOut);
 			const FVec3 DX0 = Body0.InvM() * PushOut;
 			const FVec3 DR0 = Body0.InvI() * AngularPushOut;
 			//if (!DX0.IsNearlyZero(Chaos_PBDCollisionSolver_Position_PositionSolverTolerance))
@@ -238,7 +244,7 @@ namespace Chaos
 		}
 		if (Body1.IsDynamic())
 		{
-			const FVec3 AngularPushOut = FVec3::CrossProduct(ManifoldPoint.WorldRelativeImpulsePoint1, PushOut);
+			const FVec3 AngularPushOut = FVec3::CrossProduct(ManifoldPoint.WorldContactPosition - Body1.P(), PushOut);
 			const FVec3 DX1 = -(Body1.InvM() * PushOut);
 			const FVec3 DR1 = -(Body1.InvI() * AngularPushOut);
 			//if (!DX1.IsNearlyZero(Chaos_PBDCollisionSolver_Position_PositionSolverTolerance))
@@ -335,12 +341,12 @@ namespace Chaos
 		// Calculate the velocity deltas from the impulse
 		if (Body0.IsDynamic())
 		{
-			const FVec3 AngularImpulse = FVec3::CrossProduct(ManifoldPoint.WorldRelativeImpulsePoint0, Impulse);
+			const FVec3 AngularImpulse = FVec3::CrossProduct(ManifoldPoint.WorldContactPosition - Body0.P(), Impulse);
 			Body0.ApplyVelocityDelta(Body0.InvM() * Impulse, Body0.InvI() * AngularImpulse);
 		}
 		if (Body1.IsDynamic())
 		{
-			const FVec3 AngularImpulse = FVec3::CrossProduct(ManifoldPoint.WorldRelativeImpulsePoint1, Impulse);
+			const FVec3 AngularImpulse = FVec3::CrossProduct(ManifoldPoint.WorldContactPosition - Body1.P(), Impulse);
 			Body1.ApplyVelocityDelta(Body1.InvM() * -Impulse, Body1.InvI() * -AngularImpulse);
 		}
 	}
@@ -395,23 +401,25 @@ namespace Chaos
 		const FVec3& InWorldContactNormal)
 	{
 		// The contact points on each body
-		LocalRelativeAnchorPoint0 = InCoMAnchorPoint0;
-		LocalRelativeAnchorPoint1 = InCoMAnchorPoint1;
+		const FVec3 WorldRelativeAnchorPoint0 = Body0.Q() * InCoMAnchorPoint0;
+		const FVec3 WorldRelativeAnchorPoint1 = Body1.Q() * InCoMAnchorPoint1;
+		const FVec3 WorldAnchorPoint0 = Body0.P() + WorldRelativeAnchorPoint0;
+		const FVec3 WorldAnchorPoint1 = Body1.P() + WorldRelativeAnchorPoint1;
 
 		// The world-space point where we apply impulses/corrections (same world-space point for momentum conservation)
-		const FVec3 WorldContactPoint = FReal(0.5) * (Body0.P() + Body0.Q() * LocalRelativeAnchorPoint0 + Body1.P() + Body1.Q() * LocalRelativeAnchorPoint1);
-		WorldRelativeImpulsePoint0 = WorldContactPoint - Body0.P();
-		WorldRelativeImpulsePoint1 = WorldContactPoint - Body1.P();
+		WorldContactPosition = FReal(0.5) * (WorldAnchorPoint0 + WorldAnchorPoint1);
 
 		// The world-space contact normal
 		WorldContactNormal = InWorldContactNormal;
+
+		WorldContactDelta = WorldAnchorPoint0 - WorldAnchorPoint1;
 	}
 
 	inline void FPBDCollisionSolver::FSolverManifoldPoint::UpdateMass(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1)
 	{
 		const FMatrix33 ContactMassInv =
-			(Body0.IsDynamic() ? Collisions::ComputeFactorMatrix3(WorldRelativeImpulsePoint0, Body0.InvI(), Body0.InvM()) : FMatrix33(0)) +
-			(Body1.IsDynamic() ? Collisions::ComputeFactorMatrix3(WorldRelativeImpulsePoint1, Body1.InvI(), Body1.InvM()) : FMatrix33(0));
+			(Body0.IsDynamic() ? Collisions::ComputeFactorMatrix3(WorldContactPosition - Body0.P(), Body0.InvI(), Body0.InvM()) : FMatrix33(0)) +
+			(Body1.IsDynamic() ? Collisions::ComputeFactorMatrix3(WorldContactPosition - Body1.P(), Body1.InvI(), Body1.InvM()) : FMatrix33(0));
 		const FMatrix33 ContactMass = ContactMassInv.Inverse();
 		const FReal ContactMassInvNormal = FVec3::DotProduct(WorldContactNormal, Utilities::Multiply(ContactMassInv, WorldContactNormal));
 		const FReal ContactMassNormal = (ContactMassInvNormal > FReal(SMALL_NUMBER)) ? FReal(1) / ContactMassInvNormal : FReal(0);
@@ -421,14 +429,27 @@ namespace Chaos
 
 	FVec3 FPBDCollisionSolver::FSolverManifoldPoint::CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const
 	{
-		const FVec3 ContactVelocity0 = Body0.V() + FVec3::CrossProduct(Body0.W(), WorldRelativeImpulsePoint0);
-		const FVec3 ContactVelocity1 = Body1.V() + FVec3::CrossProduct(Body1.W(), WorldRelativeImpulsePoint1);
+		const FVec3 ContactVelocity0 = Body0.V() + FVec3::CrossProduct(Body0.W(), WorldContactPosition - Body0.P());
+		const FVec3 ContactVelocity1 = Body1.V() + FVec3::CrossProduct(Body1.W(), WorldContactPosition - Body1.P());
 		return ContactVelocity0 - ContactVelocity1;
 	}
 
 	inline void FPBDCollisionSolver::FSolverManifoldPoint::CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal MaxPushOut, FVec3& OutContactDelta, FReal& OutContactDeltaNormal) const
 	{
-		OutContactDelta = (Body0.P() + Body0.Q() * LocalRelativeAnchorPoint0) - (Body1.P() + Body1.Q() * LocalRelativeAnchorPoint1);
+		const FVec3 WorldRelativeContactPosition0 = WorldContactPosition - Body0.P();
+		const FVec3 WorldRelativeContactPosition1 = WorldContactPosition - Body1.P();
+#if CHAOS_NONLINEAR_COLLISIONS_ENABLED
+		// Non-linear version: calculate the contact delta after we have converted the current positional impulses into position and rotation corrections.
+		// We could precalculate and store the LocalContactPositions if we really want to use this nonlinear version
+		const FVec3 LocalContactPosition0 = Body0.Q().Inverse() * WorldRelativeContactPosition0;
+		const FVec3 LocalContactPosition1 = Body1.Q().Inverse() * WorldRelativeContactPosition1;
+		OutContactDelta = (Body0.CorrectedP() + Body0.CorrectedQ() * LocalContactPosition0) - (Body1.CorrectedP() + Body1.CorrectedQ() * LocalContactPosition1);
+#else
+		// Linear version: calculate the contact delta assuming linear motion after applying a positional impulse at the contact point. There will be an error that depends on the size of the rotation.
+		const FVec3 ContactDelta0 = Body0.DP() + FVec3::CrossProduct(Body0.DQ(), WorldRelativeContactPosition0);
+		const FVec3 ContactDelta1 = Body1.DP() + FVec3::CrossProduct(Body1.DQ(), WorldRelativeContactPosition1);
+		OutContactDelta = WorldContactDelta + ContactDelta0 - ContactDelta1;
+#endif
 		OutContactDeltaNormal = FVec3::DotProduct(OutContactDelta, WorldContactNormal);
 
 		// NOTE: OutContactDeltaNormal is negative for penetration
@@ -443,8 +464,8 @@ namespace Chaos
 
 	inline void FPBDCollisionSolver::FSolverManifoldPoint::CalculateContactVelocityError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal DynamicFriction, const FReal Dt, FVec3& OutContactVelocityDelta, FReal& OutContactVelocityDeltaNormal) const
 	{
-		const FVec3 ContactVelocity0 = Body0.V() + FVec3::CrossProduct(Body0.W(), WorldRelativeImpulsePoint0);
-		const FVec3 ContactVelocity1 = Body1.V() + FVec3::CrossProduct(Body1.W(), WorldRelativeImpulsePoint1);
+		const FVec3 ContactVelocity0 = Body0.V() + FVec3::CrossProduct(Body0.W(), WorldContactPosition - Body0.P());
+		const FVec3 ContactVelocity1 = Body1.V() + FVec3::CrossProduct(Body1.W(), WorldContactPosition - Body1.P());
 		const FVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
 		const FReal ContactVelocityNormal = FVec3::DotProduct(ContactVelocity, WorldContactNormal);
 
@@ -612,8 +633,7 @@ namespace Chaos
 		}
 
 		// We are solved if we did not move the bodies within some tolerance
-		// NOTE: we can't claim to be solved until we have done at least one friction iteration because we can't early out
-		// before friction has been applied.
+		// NOTE: we can't claim to be solved until we have done at least one friction iteration so we can't early out before friction has been applied.
 		// @todo(chaos): better early-out system
 		State.bIsSolved = bApplyStaticFriction && (Body0.LastChangeEpoch() == State.BodyEpochs[0]) && (Body1.LastChangeEpoch() == State.BodyEpochs[1]);
 		State.BodyEpochs[0] = Body0.LastChangeEpoch();

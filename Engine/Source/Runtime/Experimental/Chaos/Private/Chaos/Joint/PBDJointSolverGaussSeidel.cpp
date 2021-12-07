@@ -54,15 +54,17 @@ namespace Chaos
 		// Kinematic bodies will not be moved, so we don't update derived state during iterations
 		if (InvM(0) > SMALL_NUMBER)
 		{
-			ConnectorXs[0] = P(0) + Q(0) * LocalConnectorXs[0].GetTranslation();
-			ConnectorRs[0] = Q(0) * LocalConnectorXs[0].GetRotation();
-			//SolverBodies[0].UpdateRotationDependentState();
+			const FVec3 BodyP0 = P(0);
+			const FRotation3 BodyQ0 = Q(0);
+			ConnectorXs[0] = BodyP0 + BodyQ0 * LocalConnectorXs[0].GetTranslation();
+			ConnectorRs[0] = BodyQ0 * LocalConnectorXs[0].GetRotation();
 		}
 		if (InvM(1) > SMALL_NUMBER)
 		{
-			ConnectorXs[1] = P(1) + Q(1) * LocalConnectorXs[1].GetTranslation();
-			ConnectorRs[1] = Q(1) * LocalConnectorXs[1].GetRotation();
-			//SolverBodies[1].UpdateRotationDependentState();
+			const FVec3 BodyP1 = P(1);
+			const FRotation3 BodyQ1 = Q(1);
+			ConnectorXs[1] = BodyP1 + BodyQ1 * LocalConnectorXs[1].GetTranslation();
+			ConnectorRs[1] = BodyQ1 * LocalConnectorXs[1].GetRotation();
 		}
 		ConnectorRs[1].EnforceShortestArcWith(ConnectorRs[0]);
 	}
@@ -70,11 +72,11 @@ namespace Chaos
 
 	void FPBDJointSolver::UpdateDerivedState(const int32 BodyIndex)
 	{
-		ConnectorXs[BodyIndex] = P(BodyIndex) + Q(BodyIndex) * LocalConnectorXs[BodyIndex].GetTranslation();
-		ConnectorRs[BodyIndex] = Q(BodyIndex) * LocalConnectorXs[BodyIndex].GetRotation();
+		const FVec3 BodyP = P(BodyIndex);
+		const FRotation3 BodyQ = Q(BodyIndex);
+		ConnectorXs[BodyIndex] = BodyP + BodyQ * LocalConnectorXs[BodyIndex].GetTranslation();
+		ConnectorRs[BodyIndex] = BodyQ * LocalConnectorXs[BodyIndex].GetRotation();
 		ConnectorRs[1].EnforceShortestArcWith(ConnectorRs[0]);
-		
-		//SolverBodies[BodyIndex].UpdateRotationDependentState();
 	}
 
 	bool FPBDJointSolver::UpdateIsActive(
@@ -1067,7 +1069,6 @@ namespace Chaos
 		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      Apply DR%d %f %f %f"), BodyIndex, DR.X, DR.Y, DR.Z);
 
 		Body(BodyIndex).ApplyRotationDelta(DR);
-		Body(1).EnforceShortestRotationTo(Q(0));
 
 		UpdateDerivedState(BodyIndex);
 	}
@@ -1096,7 +1097,6 @@ namespace Chaos
 			{
 				Body(1).ApplyRotationDelta(DR1);
 			}
-			Body(1).EnforceShortestRotationTo(Q(0));
 
 			UpdateDerivedState();
 		}
@@ -1111,7 +1111,6 @@ namespace Chaos
 		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      Apply DR%d %f %f %f"), BodyIndex, DR.X, DR.Y, DR.Z);
 
 		Body(BodyIndex).ApplyTransformDelta(DP, DR);
-		Body(1).EnforceShortestRotationTo(Q(0));
 
 		UpdateDerivedState(BodyIndex);
 	}

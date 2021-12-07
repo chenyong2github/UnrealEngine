@@ -202,7 +202,7 @@ namespace Chaos
 			FSolverBody* Body = ConstraintSolverBodies[ConstraintIndex];
 			if (Body != nullptr)
 			{
-				const FVec3& P1 = Body->P();
+				const FVec3& P1 = Body->CorrectedP();
 				const FVec3& P2 = Targets[ConstraintIndex];
 				const FVec3 Difference = P1 - P2;
 				Body->ApplyPositionDelta(-Stiffness * Difference);

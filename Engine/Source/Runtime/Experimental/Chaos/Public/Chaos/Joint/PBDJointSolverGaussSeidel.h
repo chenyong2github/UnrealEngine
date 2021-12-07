@@ -78,14 +78,18 @@ namespace Chaos
 			return Body(BodyIndex).R();
 		}
 
-		inline const FVec3& P(int BodyIndex) const
+		inline const FVec3 P(int BodyIndex) const
 		{
-			return Body(BodyIndex).P();
+			// NOTE: Joints always use the latest post-correction position and rotation. This makes the joint error calculations non-linear and more robust against explosion
+			// but adds a cost because we need to apply the latest correction each time we request the latest transform
+			return Body(BodyIndex).CorrectedP();
 		}
 
-		inline const FRotation3& Q(int BodyIndex) const
+		inline const FRotation3 Q(int BodyIndex) const
 		{
-			return Body(BodyIndex).Q();
+			// NOTE: Joints always use the latest post-correction position and rotation. This makes the joint error calculations non-linear and more robust against explosion
+			// but adds a cost because we need to apply the latest correction each time we request the latest transform
+			return Body(BodyIndex).CorrectedQ();
 		}
 
 		inline const FVec3& V(int BodyIndex) const

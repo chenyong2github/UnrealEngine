@@ -88,20 +88,18 @@ namespace Chaos
 		public:
 			friend class FPBDCollisionSolver;
 
-			// Contact points on the surface of each shape
-			FVec3 LocalRelativeAnchorPoint0;
-			FVec3 LocalRelativeAnchorPoint1;
+			// World-space contact point
+			FVec3 WorldContactPosition;
 
-			// The body-relative point at which impulses/position corrections will be applied
-			FVec3 WorldRelativeImpulsePoint0;
-			FVec3 WorldRelativeImpulsePoint1;
-
-			// Contact normal
+			// World-space contact normal
 			FVec3 WorldContactNormal;
 
 			// Contact mass
 			FMatrix33 WorldContactMass;
 			FReal WorldContactMassNormal;
+
+			// World-space contact separation that we are trying to correct
+			FVec3 WorldContactDelta;
 
 			// Desired final normal velocity, taking Restitution into account
 			FReal WorldContactVelocityTargetNormal;

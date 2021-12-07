@@ -123,7 +123,7 @@ namespace Chaos
 		, GravityDirection(FVec3(0,0,-1))
 		, GravitySize(980)
 		, MaxPushOutVelocity(0)
-		, SolverType(EConstraintSolverType::GbfPbd)
+		, SolverType(EConstraintSolverType::QuasiPbd)
 	{
 #if INTEL_ISPC
 		if (bRealTypeCompatibleWithISPC && bChaos_Collision_ISPC_Enabled)

@@ -22,7 +22,7 @@ namespace ChaosTest {
 		FPBDJointSolverSettings JointSolverSettings;
 		JointSolverSettings.ApplyPairIterations = 1;
 		JointSolverSettings.ApplyPushOutPairIterations = 1;
-		Test.Joints.SetSettings(JointSolverSettings);
+		Test.Evolution.GetJointConstraints().SetSettings(JointSolverSettings);
 
 		Test.InitChain(2, FVec3(1,0,0));
 
@@ -72,7 +72,7 @@ namespace ChaosTest {
 
 	}
 
-	GTEST_TEST(AllEvolutions, JointRestitutionTests_Cone)
+	GTEST_TEST(AllEvolutions, DISABLED_JointRestitutionTests_Cone)
 	{
 		JointRestitution_Cone<FPBDRigidsEvolutionGBF>();
 	}

@@ -28,9 +28,11 @@ namespace ChaosTest
 
 		FSolverBody SolverBody0;
 		SolverBody0.SetX(X0);
-		SolverBody0.SetP(X0 + V0 * Dt);
+		SolverBody0.SetP(X0);
 		SolverBody0.SetInvM(1.0f / M0);
 		SolverBody0.SetInvI(1.0f / I0);
+
+		SolverBody0.ApplyPositionDelta(V0 * Dt);
 
 		SolverBody0.SetImplicitVelocity(Dt);
 

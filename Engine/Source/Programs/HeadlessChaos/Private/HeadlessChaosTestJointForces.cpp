@@ -32,7 +32,7 @@ namespace ChaosTest {
 			Test.Evolution.EndFrame(Dt);
 		}
 
-		for (int32 JointIndex = 0; JointIndex < Test.Joints.NumConstraints(); ++JointIndex)
+		for (int32 JointIndex = 0; JointIndex < Test.Evolution.GetJointConstraints().NumConstraints(); ++JointIndex)
 		{
 			FReal ChildMass = 0.0f;
 			for (int32 ChildBodyIndex = JointIndex + 1; ChildBodyIndex < Test.ParticleMasses.Num(); ++ChildBodyIndex)
@@ -41,7 +41,7 @@ namespace ChaosTest {
 			}
 
 			FVec3 ExpectedLinearImpulse = FVec3(0.0f, 0.0f, -ChildMass * Gravity * Dt);
-			FVec3 LinearImpulse = Test.Joints.GetConstraintLinearImpulse(JointIndex);
+			FVec3 LinearImpulse = Test.Evolution.GetJointConstraints().GetConstraintLinearImpulse(JointIndex);
 			EXPECT_NEAR(LinearImpulse.X, ExpectedLinearImpulse.X, ExpectedLinearImpulse.Size() / 100.0f);
 			EXPECT_NEAR(LinearImpulse.Y, ExpectedLinearImpulse.Y, ExpectedLinearImpulse.Size() / 100.0f);
 			EXPECT_NEAR(LinearImpulse.Z, ExpectedLinearImpulse.Z, ExpectedLinearImpulse.Size() / 100.0f);
@@ -86,7 +86,7 @@ namespace ChaosTest {
 
 		FReal L = Test.ParticlePositions[1].X - Test.ParticlePositions[0].X;
 
-		for (int32 JointIndex = 0; JointIndex < Test.Joints.NumConstraints(); ++JointIndex)
+		for (int32 JointIndex = 0; JointIndex < Test.Evolution.GetJointConstraints().NumConstraints(); ++JointIndex)
 		{
 			FReal ChildMass = 0.0f;
 			FReal ChildMoment = 0.0f;
@@ -98,13 +98,13 @@ namespace ChaosTest {
 			}
 
 			FVec3 ExpectedLinearImpulse = FVec3(0.0f, 0.0f, -ChildMass * Gravity * Dt);
-			FVec3 LinearImpulse = Test.Joints.GetConstraintLinearImpulse(JointIndex);
+			FVec3 LinearImpulse = Test.Evolution.GetJointConstraints().GetConstraintLinearImpulse(JointIndex);
 			EXPECT_NEAR(LinearImpulse.X, ExpectedLinearImpulse.X, ExpectedLinearImpulse.Size() / 100.0f);
 			EXPECT_NEAR(LinearImpulse.Y, ExpectedLinearImpulse.Y, ExpectedLinearImpulse.Size() / 100.0f);
 			EXPECT_NEAR(LinearImpulse.Z, ExpectedLinearImpulse.Z, ExpectedLinearImpulse.Size() / 100.0f);
 
 			FVec3 ExpectedAngularImpulse = FVec3(0.0f, ChildMoment * Gravity * Dt, 0.0f);
-			FVec3 AngularImpulse = Test.Joints.GetConstraintAngularImpulse(JointIndex);
+			FVec3 AngularImpulse = Test.Evolution.GetJointConstraints().GetConstraintAngularImpulse(JointIndex);
 			EXPECT_NEAR(AngularImpulse.X, ExpectedAngularImpulse.X, ExpectedAngularImpulse.Size() / 100.0f);
 			EXPECT_NEAR(AngularImpulse.Y, ExpectedAngularImpulse.Y, ExpectedAngularImpulse.Size() / 100.0f);
 			EXPECT_NEAR(AngularImpulse.Z, ExpectedAngularImpulse.Z, ExpectedAngularImpulse.Size() / 100.0f);
@@ -151,7 +151,7 @@ namespace ChaosTest {
 			Test.Evolution.EndFrame(Dt);
 		}
 
-		for (int32 JointIndex = 0; JointIndex < Test.Joints.NumConstraints(); ++JointIndex)
+		for (int32 JointIndex = 0; JointIndex < Test.Evolution.GetJointConstraints().NumConstraints(); ++JointIndex)
 		{
 			FReal ChildMass = 0.0f;
 			for (int32 ChildBodyIndex = JointIndex + 1; ChildBodyIndex < Test.ParticleMasses.Num(); ++ChildBodyIndex)
@@ -160,7 +160,7 @@ namespace ChaosTest {
 			}
 
 			FVec3 ExpectedAngularImpulse = Torque * Dt;
-			FVec3 AngularImpulse = Test.Joints.GetConstraintAngularImpulse(JointIndex);
+			FVec3 AngularImpulse = Test.Evolution.GetJointConstraints().GetConstraintAngularImpulse(JointIndex);
 			EXPECT_NEAR(AngularImpulse.X, ExpectedAngularImpulse.X, ExpectedAngularImpulse.Size() / 100.0f);
 			EXPECT_NEAR(AngularImpulse.Y, ExpectedAngularImpulse.Y, ExpectedAngularImpulse.Size() / 100.0f);
 			EXPECT_NEAR(AngularImpulse.Z, ExpectedAngularImpulse.Z, ExpectedAngularImpulse.Size() / 100.0f);

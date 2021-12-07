@@ -130,7 +130,7 @@ namespace ChaosTest
 		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Solver->GetEvolution()->GetCollisionConstraints().SetSolverType(EConstraintSolverType::GbfPbd);
+		//Solver->GetEvolution()->GetCollisionConstraints().SetSolverType(EConstraintSolverType::GbfPbd);
 
 		// create a static floor and two boxes falling onto it.
 		// One box has separation modified to float 5 units above floor.
@@ -205,9 +205,9 @@ namespace ChaosTest
 			Solver->UpdateGameThreadStructures();
 		}
 
-		const float PositionTolerance = 1.e-3f;
+		const float PositionTolerance = 1.e-2f;
 
-		// Modified cube should be resting SeparationPadding above floor, as we added 5 penetration through contact mod.
+		// Modified cube should be resting SeparationPadding above floor, as we added that penetration through contact mod.
 		EXPECT_NEAR(ModifiedCubeParticle.X().Z, 100.f + SeparationPadding, PositionTolerance);
 
 		// Colliding cube should be resting on floor.
@@ -229,7 +229,7 @@ namespace ChaosTest
 		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		Solver->GetEvolution()->GetCollisionConstraints().SetSolverType(EConstraintSolverType::GbfPbd);
+		//Solver->GetEvolution()->GetCollisionConstraints().SetSolverType(EConstraintSolverType::GbfPbd);
 
 		// create a static floor and two boxes falling onto it.
 		// One box has normal modified to be parallel to floor, should fall through floor due to non-upward normal.

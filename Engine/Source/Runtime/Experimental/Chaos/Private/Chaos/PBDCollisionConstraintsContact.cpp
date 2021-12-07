@@ -112,8 +112,12 @@ namespace Chaos
 				// add the padding to the Phi (since it was from pre-padded collision detection).
 				if (bApplyResitution && !bHaveRestitutionPadding)
 				{
-					FVec3 CV0 = Body0.V() + FVec3::CrossProduct(Body0.W(), VectorToPoint0);
-					FVec3 CV1 = Body1.V() + FVec3::CrossProduct(Body1.W(), VectorToPoint1);
+					const FVec3 BodyV0 = Body0.V() + (Body0.DP() / IterationParameters.Dt);
+					const FVec3 BodyW0 = Body0.W() + (Body0.DQ() / IterationParameters.Dt);
+					const FVec3 BodyV1 = Body1.V() + (Body1.DP() / IterationParameters.Dt);
+					const FVec3 BodyW1 = Body1.W() + (Body1.DQ() / IterationParameters.Dt);
+					FVec3 CV0 = BodyV0 + FVec3::CrossProduct(BodyW0, VectorToPoint0);
+					FVec3 CV1 = BodyV1 + FVec3::CrossProduct(BodyW1, VectorToPoint1);
 					FVec3 CV = CV0 - CV1;
 					FReal CVNormal = FVec3::DotProduct(CV, Contact.Normal);
 
@@ -140,10 +144,10 @@ namespace Chaos
 				if (bApplyFriction)
 				{
 					// @todo(ccaulfield): use initial velocity (as for restitution) and accumulate friction force per contact point
-					FVec3 V0 = FVec3::CalculateVelocity(Body0.X(), Body0.P(), IterationParameters.Dt);
-					FVec3 W0 = FRotation3::CalculateAngularVelocity(Body0.R(), Body0.Q(), IterationParameters.Dt);
-					FVec3 V1 = FVec3::CalculateVelocity(Body1.X(), Body1.P(), IterationParameters.Dt);
-					FVec3 W1 = FRotation3::CalculateAngularVelocity(Body1.R(), Body1.Q(), IterationParameters.Dt);
+					FVec3 V0 = FVec3::CalculateVelocity(Body0.X(), Body0.CorrectedP(), IterationParameters.Dt);
+					FVec3 W0 = FRotation3::CalculateAngularVelocity(Body0.R(), Body0.CorrectedQ(), IterationParameters.Dt);
+					FVec3 V1 = FVec3::CalculateVelocity(Body1.X(), Body1.CorrectedP(), IterationParameters.Dt);
+					FVec3 W1 = FRotation3::CalculateAngularVelocity(Body1.R(), Body1.CorrectedQ(), IterationParameters.Dt);
 					FVec3 CV0 = V0 + FVec3::CrossProduct(W0, VectorToPoint0);
 					FVec3 CV1 = V1 + FVec3::CrossProduct(W1, VectorToPoint1);
 					FVec3 CV = CV0 - CV1;
@@ -176,14 +180,14 @@ namespace Chaos
 					FVec3 DP0 = Body0.InvM() * DX;
 					FVec3 DR0 = Utilities::Multiply(Body0.InvI(), FVec3::CrossProduct(VectorToPoint0, DX));
 					Body0.ApplyTransformDelta(DP0, DR0);
-					Body0.UpdateRotationDependentState();
+					//Body0.UpdateRotationDependentState();
 				}
 				if (Body1.IsDynamic())
 				{
 					FVec3 DP1 = Body1.InvM() * -DX;
 					FVec3 DR1 = Utilities::Multiply(Body1.InvI(), FVec3::CrossProduct(VectorToPoint1, -DX));
 					Body1.ApplyTransformDelta(DP1, DR1);
-					Body1.UpdateRotationDependentState();
+					//Body1.UpdateRotationDependentState();
 				}
 			}
 			return AccumulatedImpulse;
@@ -239,6 +243,7 @@ namespace Chaos
 				{
 				case EConstraintSolverType::GbfPbd:
 					{
+						ensure(false);	// not currently working
 						ApplyContactManifold(Constraint, IterationParameters, ParticleParameters);
 					}
 					break;
@@ -249,7 +254,7 @@ namespace Chaos
 					break;
 				case EConstraintSolverType::QuasiPbd:
 					{
-						check(false);
+						check(false);	// does not use this path
 					}
 					break;
 				default:
@@ -354,6 +359,7 @@ namespace Chaos
 					{
 					case EConstraintSolverType::GbfPbd:
 						{
+							ensure(false);	// not currently working
 							ApplyPushOutManifold(Constraint, IterationParameters, ParticleParameters);
 						}
 						break;
