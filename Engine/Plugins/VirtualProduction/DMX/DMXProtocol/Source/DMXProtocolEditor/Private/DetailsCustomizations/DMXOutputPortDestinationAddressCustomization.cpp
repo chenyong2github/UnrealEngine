@@ -9,6 +9,7 @@
 #include "IDetailPropertyRow.h" 
 #include "DetailWidgetRow.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXOutputPortDestinationAddressCustomization"
