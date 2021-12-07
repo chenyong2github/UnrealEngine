@@ -18,6 +18,41 @@
 
 #define LOCTEXT_NAMESPACE "LogDebugViewMode"
 
+const TCHAR* DebugViewShaderModeToString(EDebugViewShaderMode InShaderMode)
+{
+	switch (InShaderMode)
+	{
+	case DVSM_None:
+		return TEXT("DVSM_None");
+	case DVSM_ShaderComplexity:
+		return TEXT("DVSM_ShaderComplexity");
+	case DVSM_ShaderComplexityContainedQuadOverhead:
+		return TEXT("DVSM_ShaderComplexityContainedQuadOverhead");
+	case DVSM_ShaderComplexityBleedingQuadOverhead:
+		return TEXT("DVSM_ShaderComplexityBleedingQuadOverhead");
+	case DVSM_QuadComplexity:
+		return TEXT("DVSM_QuadComplexity");
+	case DVSM_PrimitiveDistanceAccuracy:
+		return TEXT("DVSM_PrimitiveDistanceAccuracy");
+	case DVSM_MeshUVDensityAccuracy:
+		return TEXT("DVSM_MeshUVDensityAccuracy");
+	case DVSM_MaterialTextureScaleAccuracy:
+		return TEXT("DVSM_MaterialTextureScaleAccuracy");
+	case DVSM_OutputMaterialTextureScales:
+		return TEXT("DVSM_OutputMaterialTextureScales");
+	case DVSM_RequiredTextureResolution:
+		return TEXT("DVSM_RequiredTextureResolution");
+	case DVSM_VirtualTexturePendingMips:
+		return TEXT("DVSM_VirtualTexturePendingMips");
+	case DVSM_RayTracingDebug:
+		return TEXT("DVSM_RayTracingDebug");
+	case DVSM_LODColoration:
+		return TEXT("DVSM_LODColoration");
+	default:
+		return TEXT("DVSM_None");
+	}
+}
+
 #if WITH_DEBUG_VIEW_MODES
 
 static bool PlatformSupportsDebugViewShaders(EShaderPlatform Platform)
@@ -68,32 +103,21 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 #endif
 }
 
-bool ShouldCompileDebugViewModeShader(EDebugViewShaderMode ShaderMode, const FMeshMaterialShaderPermutationParameters& Parameters)
+bool ShouldCompileDebugViewModeShader(const FMeshMaterialShaderPermutationParameters& Parameters)
 {
+	if (!PlatformSupportsDebugViewShaders(Parameters.Platform))
+	{
+		return false;
+	}
+
+	if (Parameters.MaterialParameters.FeatureLevel < ERHIFeatureLevel::SM5)
+	{
+		return false;
+	}
+
 	if (!EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData))
 	{
 		// Debug view shaders only in editor
-		return false;
-	}
-
-	if (!AllowDebugViewShaderMode(ShaderMode, Parameters.Platform, Parameters.MaterialParameters.FeatureLevel))
-	{
-		// Don't support this mode
-		return false;
-	}
-
-	const FDebugViewModeInterface* DebugViewModeInterface = FDebugViewModeInterface::GetInterface(ShaderMode);
-	if (!DebugViewModeInterface->bNeedsMaterialProperties &&
-		!Parameters.MaterialParameters.bIsDefaultMaterial &&
-		FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.MaterialParameters.bHasVertexPositionOffsetConnected, Parameters.MaterialParameters.bHasPixelDepthOffsetConnected))
-	{
-		// We can replace this material with the default material
-		return false;
-	}
-
-	if (DebugViewModeInterface->bNeedsOnlyLocalVertexFactor && Parameters.VertexFactoryType->GetFName() != TEXT("FLocalVertexFactory"))
-	{
-		// This debug view mode only needed for local vertex factory
 		return false;
 	}
 
@@ -303,13 +327,6 @@ bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQuali
 			bool bMaterialFinished = true;
 			if (Material && Material->GetGameThreadShaderMap())
 			{
-				if (!DebugViewModeInterface->bNeedsMaterialProperties &&
-					FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Material))
-				{
-					Material = UMaterial::GetDefaultMaterial(MD_Surface)->GetMaterialResource(FeatureLevel, QualityLevel);
-					check(Material);
-				}
-
 				FMaterialShaderTypes ShaderTypes;
 				DebugViewModeInterface->AddShaderTypes(FeatureLevel, LocalVertexFactory, ShaderTypes);
 				if (Material->ShouldCacheShaders(ShaderTypes, LocalVertexFactory) && !Material->HasShaders(ShaderTypes, LocalVertexFactory))

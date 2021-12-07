@@ -15,6 +15,7 @@ DebugViewModeRendering.h: Contains definitions for rendering debug viewmodes.
 #include "MeshMaterialShader.h"
 #include "ShaderBaseClasses.h"
 #include "MeshPassProcessor.h"
+#include "DebugViewModeInterface.h"
 
 class FPrimitiveSceneProxy;
 struct FMeshBatchElement;
@@ -135,10 +136,49 @@ public:
 class FDebugViewModePS : public FMeshMaterialShader
 {
 public:
+	DECLARE_SHADER_TYPE(FDebugViewModePS, MeshMaterial);
+
 	FDebugViewModePS() = default;
 	FDebugViewModePS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
-	{}
+	{
+		OneOverCPUTexCoordScalesParameter.Bind(Initializer.ParameterMap, TEXT("OneOverCPUTexCoordScales"));
+		TexCoordIndicesParameter.Bind(Initializer.ParameterMap, TEXT("TexCoordIndices"));
+		CPUTexelFactorParameter.Bind(Initializer.ParameterMap, TEXT("CPUTexelFactor"));
+		NormalizedComplexity.Bind(Initializer.ParameterMap, TEXT("NormalizedComplexity"));
+		AnalysisParamsParameter.Bind(Initializer.ParameterMap, TEXT("AnalysisParams"));
+		PrimitiveAlphaParameter.Bind(Initializer.ParameterMap, TEXT("PrimitiveAlpha"));
+		TexCoordAnalysisIndexParameter.Bind(Initializer.ParameterMap, TEXT("TexCoordAnalysisIndex"));
+		CPULogDistanceParameter.Bind(Initializer.ParameterMap, TEXT("CPULogDistance"));
+		ShowQuadOverdraw.Bind(Initializer.ParameterMap, TEXT("bShowQuadOverdraw"));
+		OutputQuadOverdrawParameter.Bind(Initializer.ParameterMap, TEXT("bOutputQuadOverdraw"));
+		LODIndexParameter.Bind(Initializer.ParameterMap, TEXT("LODIndex"));
+		VisualizeModeParameter.Bind(Initializer.ParameterMap, TEXT("VisualizeMode"));
+		QuadBufferUAV.Bind(Initializer.ParameterMap, TEXT("RWQuadBuffer"));
+	}
+
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters);
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("UNDEFINED_ACCURACY"), UndefinedStreamingAccuracyIntensity);
+		OutEnvironment.SetDefine(TEXT("MAX_NUM_TEX_COORD"), (uint32)TEXSTREAM_MAX_NUM_UVCHANNELS);
+		OutEnvironment.SetDefine(TEXT("INITIAL_GPU_SCALE"), (uint32)TEXSTREAM_INITIAL_GPU_SCALE);
+		OutEnvironment.SetDefine(TEXT("TILE_RESOLUTION"), (uint32)TEXSTREAM_TILE_RESOLUTION);
+		OutEnvironment.SetDefine(TEXT("MAX_NUM_TEXTURE_REGISTER"), (uint32)TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL);
+		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
+		TCHAR BufferRegister[] = { 'u', '0', 0 };
+		BufferRegister[1] += GetQuadOverdrawUAVIndex(Parameters.Platform, Parameters.MaterialParameters.FeatureLevel);
+		OutEnvironment.SetDefine(TEXT("QUAD_BUFFER_REGISTER"), BufferRegister);
+		OutEnvironment.SetDefine(TEXT("OUTPUT_QUAD_OVERDRAW"), 1);
+
+		for (int i = 0; i < DVSM_MAX; ++i)
+		{
+			OutEnvironment.SetDefine(DebugViewShaderModeToString(static_cast<EDebugViewShaderMode>(i)), i);
+		}
+
+		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
 
 	void GetElementShaderBindings(
 		const FShaderMapPointerTable& PointerTable,
@@ -153,6 +193,20 @@ public:
 		const FDebugViewModeShaderElementData& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
+
+	LAYOUT_FIELD(FShaderParameter, OneOverCPUTexCoordScalesParameter);
+	LAYOUT_FIELD(FShaderParameter, TexCoordIndicesParameter);
+	LAYOUT_FIELD(FShaderParameter, CPUTexelFactorParameter);
+	LAYOUT_FIELD(FShaderParameter, NormalizedComplexity);
+	LAYOUT_FIELD(FShaderParameter, AnalysisParamsParameter);
+	LAYOUT_FIELD(FShaderParameter, PrimitiveAlphaParameter);
+	LAYOUT_FIELD(FShaderParameter, TexCoordAnalysisIndexParameter);
+	LAYOUT_FIELD(FShaderParameter, CPULogDistanceParameter);
+	LAYOUT_FIELD(FShaderParameter, ShowQuadOverdraw);
+	LAYOUT_FIELD(FShaderParameter, LODIndexParameter);
+	LAYOUT_FIELD(FShaderParameter, OutputQuadOverdrawParameter);
+	LAYOUT_FIELD(FShaderParameter, VisualizeModeParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, QuadBufferUAV);
 };
 
 class FDebugViewModeMeshProcessor : public FMeshPassProcessor
@@ -172,9 +226,31 @@ private:
 	const FDebugViewModeInterface* DebugViewModeInterface;
 };
 
-void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
-	const FVertexFactoryType* VertexFactoryType,
-	FMaterialShaderTypes& OutShaderTypes);
+class FDebugViewModeImplementation : public FDebugViewModeInterface
+{
+public:
+	FDebugViewModeImplementation() : FDebugViewModeInterface() {}
+
+	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
+		const FVertexFactoryType* InVertexFactoryType,
+		FMaterialShaderTypes& OutShaderTypes) const override;
+
+	virtual void GetDebugViewModeShaderBindings(
+		const FDebugViewModePS& BaseShader,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
+		const FMaterial& RESTRICT Material,
+		EDebugViewShaderMode DebugViewMode,
+		const FVector& ViewOrigin,
+		int32 VisualizeLODIndex,
+		int32 VisualizeElementIndex,
+		int32 NumVSInstructions,
+		int32 NumPSInstructions,
+		int32 ViewModeParam,
+		FName ViewModeParamName,
+		FMeshDrawSingleShaderBindings& ShaderBindings
+	) const override;
+};
 
 #endif // WITH_DEBUG_VIEW_MODES
 

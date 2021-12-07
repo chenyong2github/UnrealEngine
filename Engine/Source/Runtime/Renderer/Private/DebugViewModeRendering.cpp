@@ -6,12 +6,6 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 
 #include "DebugViewModeRendering.h"
 #include "Materials/Material.h"
-#include "ShaderComplexityRendering.h"
-#include "PrimitiveDistanceAccuracyRendering.h"
-#include "MeshTexCoordSizeAccuracyRendering.h"
-#include "MaterialTexCoordScalesRendering.h"
-#include "RequiredTextureResolutionRendering.h"
-#include "ViewMode/LODColorationRendering.h"
 #include "PrimitiveSceneInfo.h"
 #include "ScenePrivate.h"
 #include "PostProcessing.h"
@@ -29,6 +23,64 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDebugViewModeUniformParameters, "Debug
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDebugViewModePassUniformParameters, "DebugViewModePass", SceneTextures);
 
 #if WITH_DEBUG_VIEW_MODES
+
+int32 GCacheShaderComplexityShaders = 0;
+static FAutoConsoleVariableRef CVarCacheShaderComplexityShaders(
+	TEXT("r.ShaderComplexity.CacheShaders"),
+	GCacheShaderComplexityShaders,
+	TEXT("If non zero, store the shader complexity shaders in the material shader map, to prevent compile on-the-fly lag. (default=0)"),
+	ECVF_ReadOnly
+);
+
+int32 GShaderComplexityBaselineForwardVS = 134;
+static FAutoConsoleVariableRef CVarShaderComplexityBaselineForwardVS(
+	TEXT("r.ShaderComplexity.Baseline.Forward.VS"),
+	GShaderComplexityBaselineForwardVS,
+	TEXT("Minimum number of instructions for vertex shaders in forward shading (default=134)"),
+	ECVF_Default
+);
+
+int32 GShaderComplexityBaselineForwardPS = 635;
+static FAutoConsoleVariableRef CVarShaderComplexityBaselineForwardPS(
+	TEXT("r.ShaderComplexity.Baseline.Forward.PS"),
+	GShaderComplexityBaselineForwardPS,
+	TEXT("Minimum number of instructions for pixel shaders in forward shading (default=635)"),
+	ECVF_Default
+);
+
+int32 GShaderComplexityBaselineForwardUnlitPS = 47;
+static FAutoConsoleVariableRef CVarShaderComplexityBaselineForwardUnlitPS(
+	TEXT("r.ShaderComplexity.Baseline.Forward.UnlitPS"),
+	GShaderComplexityBaselineForwardUnlitPS,
+	TEXT("Minimum number of instructions for unlit material pixel shaders in forward shading (default=47)"),
+	ECVF_Default
+);
+
+int32 GShaderComplexityBaselineDeferredVS = 41;
+static FAutoConsoleVariableRef CVarShaderComplexityBaselineDeferredVS(
+	TEXT("r.ShaderComplexity.Baseline.Deferred.VS"),
+	GShaderComplexityBaselineDeferredVS,
+	TEXT("Minimum number of instructions for vertex shaders in deferred shading (default=41)"),
+	ECVF_Default
+);
+
+int32 GShaderComplexityBaselineDeferredPS = 111;
+static FAutoConsoleVariableRef CVarShaderComplexityBaselineDeferredPS(
+	TEXT("r.ShaderComplexity.Baseline.Deferred.PS"),
+	GShaderComplexityBaselineDeferredPS,
+	TEXT("Minimum number of instructions for pixel shaders in deferred shading (default=111)"),
+	ECVF_Default
+);
+
+int32 GShaderComplexityBaselineDeferredUnlitPS = 33;
+static FAutoConsoleVariableRef CVarShaderComplexityBaselineDeferredUnlitPS(
+	TEXT("r.ShaderComplexity.Baseline.Deferred.UnlitPS"),
+	GShaderComplexityBaselineDeferredUnlitPS,
+	TEXT("Minimum number of instructions for unlit material pixel shaders in deferred shading (default=33)"),
+	ECVF_Default
+);
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FDebugViewModePS, TEXT("/Engine/Private/DebugViewModePixelShader.usf"), TEXT("Main"), SF_Pixel);
 
 int32 GetQuadOverdrawUAVIndex(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
 {
@@ -146,6 +198,11 @@ void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views,
 	}
 }
 
+bool FDebugViewModePS::ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+{
+	return ShouldCompileDebugViewModeShader(Parameters);
+}
+
 void FDebugViewModePS::GetElementShaderBindings(
 	const FShaderMapPointerTable& PointerTable,
 	const FScene* Scene,
@@ -210,13 +267,6 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 	}
 }
 
-void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
-	const FVertexFactoryType* VertexFactoryType,
-	FMaterialShaderTypes& OutShaderTypes)
-{
-	OutShaderTypes.AddShaderType<FDebugViewModeVS>();
-}
-
 void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	if (!DebugViewModeInterface)
@@ -232,12 +282,6 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 	}
 
 	const FMaterial* Material = BatchMaterial;
-	if (!DebugViewModeInterface->bNeedsMaterialProperties && FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Material))
-	{
-		MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
-		Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
-		check(Material);
-	}
 
 	FVertexFactoryType* VertexFactoryType = MeshBatch.VertexFactory->GetType();
 
@@ -265,7 +309,7 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 	FMeshPassProcessorRenderState DrawRenderState;
 
 	FDebugViewModeInterface::FRenderState InterfaceRenderState;
-	DebugViewModeInterface->SetDrawRenderState(BatchMaterial->GetBlendMode(), InterfaceRenderState, Scene ? (Scene->GetShadingPath() == EShadingPath::Deferred && Scene->EarlyZPassMode != DDM_NonMaskedOnly) : false);
+	DebugViewModeInterface->SetDrawRenderState(DebugViewMode, BatchMaterial->GetBlendMode(), InterfaceRenderState, Scene ? (Scene->GetShadingPath() == EShadingPath::Deferred && Scene->EarlyZPassMode != DDM_NonMaskedOnly) : false);
 	DrawRenderState.SetBlendState(InterfaceRenderState.BlendState);
 	DrawRenderState.SetDepthStencilState(InterfaceRenderState.DepthStencilState);
 
@@ -279,10 +323,7 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 		ViewModeParamName);
 
 	// Shadermap can be null while shaders are compiling.
-	if (DebugViewModeInterface->bNeedsInstructionCount)
-	{
-		UpdateInstructionCount(ShaderElementData, BatchMaterial, VertexFactoryType);
-	}
+	UpdateInstructionCount(ShaderElementData, BatchMaterial, VertexFactoryType);
 
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
 
@@ -359,6 +400,163 @@ void FDebugViewModeMeshProcessor::UpdateInstructionCount(FDebugViewModeShaderEle
 	}
 }
 
+void FDebugViewModeImplementation::AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
+	const FVertexFactoryType* InVertexFactoryType,
+	FMaterialShaderTypes& OutShaderTypes) const
+{
+	OutShaderTypes.AddShaderType<FDebugViewModeVS>();
+	OutShaderTypes.AddShaderType<FDebugViewModePS>();
+}
+
+void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
+	const FDebugViewModePS& Shader,
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material,
+	EDebugViewShaderMode DebugViewMode,
+	const FVector& ViewOrigin,
+	int32 VisualizeLODIndex,
+	int32 VisualizeElementIndex,
+	int32 NumVSInstructions,
+	int32 NumPSInstructions,
+	int32 ViewModeParam,
+	FName ViewModeParamName,
+	FMeshDrawSingleShaderBindings& ShaderBindings) const
+{
+	FVector4f OneOverCPUTexCoordScales[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
+	FIntVector4 TexCoordIndices[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
+	FVector4 WorldUVDensities;
+	FVector4f NormalizedComplexityValue;
+	FIntVector AnalysisParameter;
+	const float PrimitiveAlpha = (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f;
+	const int32 TexCoordAnalysisIndex = ViewModeParam >= 0 ? FMath::Clamp<int32>(ViewModeParam, 0, MAX_TEXCOORDS - 1) : -1;
+	float CPULogDistance = -1.0f;
+	int32 bShowQuadOverdraw = 0;
+	const int32 boolOutputQuadOverdraw = (DebugViewMode == DVSM_QuadComplexity) || (DebugViewMode == DVSM_ShaderComplexityContainedQuadOverhead) ? 1 : 0;
+	const int32 LODIndex = FMath::Clamp(VisualizeLODIndex, 0, NumLODColorationColors - 1);
+	const int32 AnalysisType = DebugViewMode == DVSM_VirtualTexturePendingMips ? 1 : 0;
+
+	FMemory::Memzero(OneOverCPUTexCoordScales); // 0 remap to irrelevant data.
+	FMemory::Memzero(TexCoordIndices);
+	FMemory::Memzero(WorldUVDensities);
+
+	// Gather Data
+#if WITH_EDITORONLY_DATA
+	if (PrimitiveSceneProxy)
+	{
+		PrimitiveSceneProxy->GetMaterialTextureScales(VisualizeLODIndex, VisualizeElementIndex, nullptr, OneOverCPUTexCoordScales, TexCoordIndices);
+		PrimitiveSceneProxy->GetMeshUVDensities(VisualizeLODIndex, VisualizeElementIndex, WorldUVDensities);
+
+		float Distance = 0;
+		if (PrimitiveSceneProxy->GetPrimitiveDistance(VisualizeLODIndex, VisualizeElementIndex, ViewOrigin, Distance))
+		{
+			// Because the streamer use FMath::FloorToFloat, here we need to use -1 to have a useful result.
+			CPULogDistance = FMath::Max<float>(0.f, FMath::Log2(FMath::Max<float>(1.f, Distance)));
+		}
+	}
+#endif
+
+	if (DebugViewMode == DVSM_OutputMaterialTextureScales || DebugViewMode == DVSM_MaterialTextureScaleAccuracy)
+	{
+		const bool bOutputScales = DebugViewMode == DVSM_OutputMaterialTextureScales;
+		const int32 AnalysisIndex = ViewModeParam >= 0 ? FMath::Clamp<int32>(ViewModeParam, 0, TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL - 1) : -1;
+		AnalysisParameter = FIntVector(bOutputScales ? -1 : AnalysisIndex, bOutputScales ? 1 : 0, AnalysisType);
+	}
+	else if (DebugViewMode == DVSM_RequiredTextureResolution || DebugViewMode == DVSM_VirtualTexturePendingMips)
+	{
+		int32 AnalysisIndex = INDEX_NONE;
+		int32 TextureResolution = 64;
+		FMaterialRenderContext MaterialContext(&MaterialRenderProxy, Material, nullptr);
+		const FUniformExpressionSet& UniformExpressions = Material.GetUniformExpressions();
+		EMaterialTextureParameterType TextureTypes[] = { EMaterialTextureParameterType::Standard2D, EMaterialTextureParameterType::Virtual };
+		if (ViewModeParam != INDEX_NONE && ViewModeParamName == NAME_None) // If displaying texture per texture indices
+		{
+			for (EMaterialTextureParameterType TextureType : TextureTypes)
+			{
+				for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(TextureType); ++ParameterIndex)
+				{
+					const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(TextureType, ParameterIndex);
+					if (Parameter.TextureIndex == ViewModeParam)
+					{
+						const UTexture* Texture = nullptr;
+						UniformExpressions.GetTextureValue(TextureType, ParameterIndex, MaterialContext, Material, Texture);
+						if (Texture && Texture->GetResource())
+						{
+							AnalysisIndex = ViewModeParam;
+
+							if (Texture->IsStreamable())
+							{
+								TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
+							}
+							else
+							{
+								TextureResolution = FMath::Max(Texture->GetResource()->GetSizeX(), Texture->GetResource()->GetSizeY());
+							}
+						}
+					}
+				}
+			}
+		}
+		else if (ViewModeParam != INDEX_NONE) // Otherwise show only texture matching the given name
+		{
+			for (EMaterialTextureParameterType TextureType : TextureTypes)
+			{
+				for (int32 ParameterIndex = 0; ParameterIndex < UniformExpressions.GetNumTextures(TextureType); ++ParameterIndex)
+				{
+					const UTexture* Texture = nullptr;
+					UniformExpressions.GetTextureValue(TextureType, ParameterIndex, MaterialContext, Material, Texture);
+					if (Texture && Texture->GetResource() && Texture->GetFName() == ViewModeParamName)
+					{
+						const FMaterialTextureParameterInfo& Parameter = UniformExpressions.GetTextureParameter(TextureType, ParameterIndex);
+						AnalysisIndex = Parameter.TextureIndex;
+
+						if (Texture->IsStreamable())
+						{
+							TextureResolution = 1 << (Texture->GetResource()->GetCurrentMipCount() - 1);
+						}
+						else
+						{
+							TextureResolution = FMath::Max(Texture->GetResource()->GetSizeX(), Texture->GetResource()->GetSizeY());
+						}
+					}
+				}
+			}
+		}
+
+		AnalysisParameter = FIntVector(AnalysisIndex, TextureResolution, AnalysisType);
+	}
+
+	if (DebugViewMode == DVSM_QuadComplexity)
+	{
+		NormalizedComplexityValue = FVector4f(NormalizedQuadComplexityValue);
+		bShowQuadOverdraw = true;
+	}
+	else
+	{
+		// normalize the complexity so we can fit it in a low precision scene color which is necessary on some platforms
+		// late value is for overdraw which can be problematic with a low precision float format, at some point the precision isn't there any more and it doesn't accumulate
+		const float NormalizeMul = 1.0f / GetMaxShaderComplexityCount(Material.GetFeatureLevel());
+		NormalizedComplexityValue = FVector4f(NumPSInstructions * NormalizeMul, NumVSInstructions * NormalizeMul, 1 / 32.0f);
+		ShaderBindings.Add(Shader.ShowQuadOverdraw, DebugViewMode != DVSM_ShaderComplexity ? 1 : 0);
+
+		bShowQuadOverdraw = DebugViewMode != DVSM_ShaderComplexity ? 1 : 0;
+	}
+
+	// Bind Data
+	ShaderBindings.Add(Shader.OneOverCPUTexCoordScalesParameter, OneOverCPUTexCoordScales);
+	ShaderBindings.Add(Shader.TexCoordIndicesParameter, TexCoordIndices);
+	ShaderBindings.Add(Shader.CPUTexelFactorParameter, FVector4f(WorldUVDensities));
+	ShaderBindings.Add(Shader.NormalizedComplexity, NormalizedComplexityValue);
+	ShaderBindings.Add(Shader.AnalysisParamsParameter, AnalysisParameter);
+	ShaderBindings.Add(Shader.PrimitiveAlphaParameter, PrimitiveAlpha);
+	ShaderBindings.Add(Shader.TexCoordAnalysisIndexParameter, TexCoordAnalysisIndex);
+	ShaderBindings.Add(Shader.CPULogDistanceParameter, CPULogDistance);
+	ShaderBindings.Add(Shader.ShowQuadOverdraw, bShowQuadOverdraw);
+	ShaderBindings.Add(Shader.LODIndexParameter, LODIndex);
+	ShaderBindings.Add(Shader.OutputQuadOverdrawParameter, boolOutputQuadOverdraw);
+	ShaderBindings.Add(Shader.VisualizeModeParameter, DebugViewMode);
+}
+
 FMeshPassProcessor* CreateDebugViewModePassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = Scene ? Scene->GetFeatureLevel() : (InViewIfDynamicMeshCommand ? InViewIfDynamicMeshCommand->GetFeatureLevel() : GMaxRHIFeatureLevel);
@@ -368,21 +566,9 @@ FMeshPassProcessor* CreateDebugViewModePassProcessor(const FScene* Scene, const 
 FRegisterPassProcessorCreateFunction RegisterDebugViewModeMobilePass(&CreateDebugViewModePassProcessor, EShadingPath::Mobile, EMeshPass::DebugViewMode, EMeshPassFlags::MainView);
 FRegisterPassProcessorCreateFunction RegisterDebugViewModePass(&CreateDebugViewModePassProcessor, EShadingPath::Deferred, EMeshPass::DebugViewMode, EMeshPassFlags::MainView);
 
-void InitDebugViewModeInterfaces()
+void InitDebugViewModeInterface()
 {
-	FDebugViewModeInterface::SetInterface(DVSM_ShaderComplexity, new FComplexityAccumulateInterface(true, false));
-	FDebugViewModeInterface::SetInterface(DVSM_ShaderComplexityContainedQuadOverhead, new FComplexityAccumulateInterface(true, false));
-	FDebugViewModeInterface::SetInterface(DVSM_ShaderComplexityBleedingQuadOverhead, new FComplexityAccumulateInterface(true, true));
-	FDebugViewModeInterface::SetInterface(DVSM_QuadComplexity, new FComplexityAccumulateInterface(false, false));
-
-	FDebugViewModeInterface::SetInterface(DVSM_PrimitiveDistanceAccuracy, new FPrimitiveDistanceAccuracyInterface());
-	FDebugViewModeInterface::SetInterface(DVSM_MeshUVDensityAccuracy, new FMeshTexCoordSizeAccuracyInterface());
-	FDebugViewModeInterface::SetInterface(DVSM_MaterialTextureScaleAccuracy, new FMaterialTexCoordScaleAccuracyInterface());
-	FDebugViewModeInterface::SetInterface(DVSM_OutputMaterialTextureScales, new FOutputMaterialTexCoordScaleInterface());
-	FDebugViewModeInterface::SetInterface(DVSM_RequiredTextureResolution, new FRequiredTextureResolutionInterface());
-	FDebugViewModeInterface::SetInterface(DVSM_VirtualTexturePendingMips, new FRequiredTextureResolutionInterface());
-
-	FDebugViewModeInterface::SetInterface(DVSM_LODColoration, new FLODColorationInterface());
+	FDebugViewModeInterface::SetInterface(new FDebugViewModeImplementation());
 }
 
 #else // !WITH_DEBUG_VIEW_MODES

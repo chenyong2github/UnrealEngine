@@ -7,7 +7,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ShaderComplexityRendering.h"
 #include "Async/ParallelFor.h"
 #include "DeferredShadingRenderer.h"
 #include "DynamicPrimitiveDrawing.h"
