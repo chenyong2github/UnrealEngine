@@ -5,45 +5,50 @@ rem Copyright Epic Games, Inc. All Rights Reserved.
 rem Setup part
 setlocal
 
-set OCIO_LIB_NAME=OpenColorIO-v1.1.0
+set OCIO_VERSION=2.1.0
+set OCIO_LIB_NAME=OpenColorIO-%OCIO_VERSION%
+set DEPLOY_FOLDER=..\Deploy\%OCIO_LIB_NAME%
+set WITH_PYTHON=false
 
-
-IF NOT EXIST .\build GOTO NO_BUILD_DIR
-rd /S /Q .\build
-
-:NO_BUILD_DIR
-mkdir build
-
-IF NOT EXIST %OCIO_LIB_NAME% (
-        echo Extracting %OCIO_LIB_NAME%.zip...
-    powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('%OCIO_LIB_NAME%.zip', '.\build')"
+rem Download library source if not present
+if not exist %OCIO_LIB_NAME%.zip (
+    powershell -Command "Invoke-WebRequest https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.1.0.zip -OutFile %OCIO_LIB_NAME%.zip"
 )
 
+rem Remove previously extracted build library folder
+if exist .\%OCIO_LIB_NAME% (
+    rd /S /Q .\%OCIO_LIB_NAME%
+)
+    
+echo Extracting %OCIO_LIB_NAME%.zip...
+powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('%OCIO_LIB_NAME%.zip', '.')"
 
-cd /d .\build
-
-set OCIO_ROOT_FOLDER=.\%OCIO_LIB_NAME%
-set DISTRIBUTION_ROOT_FOLDER=..\distribution
-
+cd /d .\%OCIO_LIB_NAME%
 
 rem Configure OCIO cmake and launch a release build
 echo Configuring x64 build...
-cmake  -G "Visual Studio 15 2017 Win64" -DOCIO_BUILD_SHARED=ON -DOCIO_BUILD_STATIC=OFF -DOCIO_BUILD_TRUELIGHT=OFF -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_NUKE=OFF -DOCIO_BUILD_DOCS=OFF -DOCIO_BUILD_TESTS=OFF -DOCIO_BUILD_PYGLUE=OFF -DOCIO_BUILD_JNIGLUE=OFF -DOCIO_STATIC_JNIGLUE=OFF -DOCIO_USE_BOOST_PTR=OFF -DOCIO_PYGLUE_LINK=OFF -DCMAKE_INSTALL_PREFIX:PATH=.\install .\%OCIO_ROOT_FOLDER%
-
-rem Remove previous distribution file
-IF NOT EXIST %DISTRIBUTION_ROOT_FOLDER% GOTO NO_DISTRIBUTION_DIR
-rd /S /Q %DISTRIBUTION_ROOT_FOLDER%
-
-:NO_DISTRIBUTION_DIR
-
+if %WITH_PYTHON% equ true (
+    rem NOTE: Assumes a local python installation matching the engine's version is available (currently 3.7.7).
+    cmake -S . -B build -G "Visual Studio 16 2019" -A x64 -DBUILD_SHARED_LIBS=ON -DOCIO_BUILD_STATIC=OFF -DOCIO_BUILD_TRUELIGHT=OFF -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_GPU_TESTS=OFF -DOCIO_BUILD_NUKE=OFF -DOCIO_BUILD_DOCS=OFF -DOCIO_BUILD_TESTS=OFF -DOCIO_BUILD_PYGLUE=OFF -DOCIO_BUILD_JNIGLUE=OFF -DOCIO_STATIC_JNIGLUE=OFF -DOCIO_USE_BOOST_PTR=OFF -DOCIO_PYGLUE_LINK=OFF -DCMAKE_INSTALL_PREFIX:PATH=.\install
+) else (
+    cmake -S . -B build -G "Visual Studio 16 2019" -A x64 -DBUILD_SHARED_LIBS=ON -DOCIO_BUILD_STATIC=OFF -DOCIO_BUILD_TRUELIGHT=OFF -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_GPU_TESTS=OFF -DOCIO_BUILD_NUKE=OFF -DOCIO_BUILD_DOCS=OFF -DOCIO_BUILD_TESTS=OFF -DOCIO_BUILD_PYGLUE=OFF -DOCIO_BUILD_JNIGLUE=OFF -DOCIO_STATIC_JNIGLUE=OFF -DOCIO_USE_BOOST_PTR=OFF -DOCIO_PYGLUE_LINK=OFF -DOCIO_BUILD_PYTHON=OFF -DCMAKE_INSTALL_PREFIX:PATH=.\install
+)
 echo Building x64 Release build...
-cmake --build .\ --config Release --target INSTALL
+cmake --build build --config Release --target INSTALL
 
-echo Copying distribution files...
-xcopy .\install\install\bin\OpenColorIO.dll %DISTRIBUTION_ROOT_FOLDER%\..\..\..\..\Binaries\ThirdParty\Win64\* /Y
-xcopy .\install\install\include\OpenColorIO\* %DISTRIBUTION_ROOT_FOLDER%\include\OpenColorIO\* /Y
-xcopy .\install\install\lib\OpenColorIO.lib %DISTRIBUTION_ROOT_FOLDER%\lib\Win64\* /Y
+rem Remove previous deployment file
+if exist %DEPLOY_FOLDER% (
+    rd /S /Q %DEPLOY_FOLDER%
+)
 
+echo Copying deploy files...
+xcopy .\build\install\bin\OpenColorIO_2_1.dll %DEPLOY_FOLDER%\..\..\..\..\..\Binaries\ThirdParty\Win64\* /Y
+xcopy .\build\install\include\OpenColorIO\* %DEPLOY_FOLDER%\include\OpenColorIO\* /Y
+xcopy .\build\install\lib\OpenColorIO.lib %DEPLOY_FOLDER%\lib\Win64\* /Y
+if %WITH_PYTHON% equ true (
+    xcopy .\build\install\lib\site-packages\* %DEPLOY_FOLDER%\..\..\..\..\..\Content\Python\Lib\Win64\site-packages\* /Y
+)
 
+endlocal
 pause
 
