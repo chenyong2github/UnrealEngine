@@ -6,7 +6,7 @@
 #include "PropertyNode.h"
 #include "PropertyEditorHelpers.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogEditCondition, Log, All);
+DEFINE_LOG_CATEGORY(LogEditCondition);
 
 FEditConditionContext::FEditConditionContext(FPropertyNode& InPropertyNode)
 {
