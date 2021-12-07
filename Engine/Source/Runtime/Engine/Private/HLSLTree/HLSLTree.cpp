@@ -694,7 +694,7 @@ int32 FRequestedType::GetNumComponents() const
 
 bool FRequestedType::Merge(const FRequestedType& OtherType)
 {
-	if (StructType || OtherType.StructType && (StructType != OtherType.StructType))
+	if ((StructType || OtherType.StructType) && StructType != OtherType.StructType)
 	{
 		return false;
 	}
