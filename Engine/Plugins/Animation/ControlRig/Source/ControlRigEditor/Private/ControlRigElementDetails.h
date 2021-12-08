@@ -245,11 +245,18 @@ public:
 	FText GetDisplayName() const;
 	void SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType);
 
+	void OnCopyShapeProperties();
+	void OnPasteShapeProperties();
+
 private:
 	TArray<TSharedPtr<FString>> ShapeNameList;
 	static TArray<TSharedPtr<FString>> ControlTypeList;
 	TSharedPtr<FRigInfluenceEntryModifier> InfluenceModifier;
 	TSharedPtr<FStructOnScope> InfluenceModifierStruct;
+
+	TSharedPtr<IPropertyHandle> ShapeNameHandle;
+	TSharedPtr<IPropertyHandle> ShapeColorHandle;
+	TSharedPtr<IPropertyHandle> ShapeTransformHandle;
 };
 
 class FRigNullElementDetails : public FRigTransformElementDetails
