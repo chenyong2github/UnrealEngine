@@ -439,13 +439,19 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(cons
 			SNew(SHorizontalBox)
 			.ToolTipText_Lambda([this, PinnedItem] ()
 			{
-				return FText::Format(
-							ValueWidgetToolTipFormatText,
-							FText::FromString(ValueChildInputWidget->GetCachedValue()),
-							FText::FromString(PinnedItem->GetPresetValue()),
-							FText::FromString(PinnedItem->GetCommandInfo().Pin()->StartupValueAsString),
-							FConsoleVariablesEditorCommandInfo::ConvertConsoleVariableSetByFlagToText(PinnedItem->GetCommandInfo().Pin()->StartupSource)
-				);
+				if (const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedCommand = PinnedItem->GetCommandInfo().Pin();
+					PinnedCommand.IsValid())
+				{
+					return FText::Format(
+								ValueWidgetToolTipFormatText,
+								FText::FromString(ValueChildInputWidget->GetCachedValue()),
+								FText::FromString(PinnedItem->GetPresetValue()),
+								FText::FromString(PinnedCommand->StartupValueAsString),
+								FConsoleVariablesEditorCommandInfo::ConvertConsoleVariableSetByFlagToText(PinnedCommand->StartupSource)
+					);
+				}
+
+				return FText::GetEmpty();
 			});
 
 		FinalValueWidget->AddSlot()
