@@ -271,7 +271,7 @@ namespace Chaos
 				// Run the narrow phase
 				if (!bUseCCD)
 				{
-					Collisions::UpdateConstraint(*Constraint.Get(), Shape0->GetLeafWorldTransform(), Shape1->GetLeafWorldTransform(), Dt);
+					Collisions::UpdateConstraint(*Constraint.Get(), ShapeWorldTransform0, ShapeWorldTransform1, Dt);
 				}
 				else
 				{
