@@ -56,6 +56,22 @@ public:
 	static const float SelectionHoverWireframeDepthBias;
 	static const float SelectionHoverTriangleDepthBias;
 
+	static const FColor LivePreviewExistingSeamColor;
+	static const float LivePreviewExistingSeamThickness;
+	static const float LivePreviewExistingSeamDepthBias;
+
+	// These are currently used by the seam tool but can be generally used by
+	// tools for displaying paths.
+	static const FColor ToolLockedPathColor;
+	static const float ToolLockedPathThickness;
+	static const float ToolLockedPathDepthBias;
+	static const FColor ToolExtendPathColor;
+	static const float ToolExtendPathThickness;
+	static const float ToolExtendPathDepthBias;
+	static const FColor ToolCompletionPathColor;
+
+	static const float ToolPointSize;
+
 	// Sew Action styling
 	static const float SewLineHighlightThickness;
 	static const float SewLineDepthOffset;
