@@ -173,6 +173,13 @@ enum class EUsdInitialLoadSet : uint8
 	LoadNone
 };
 
+UENUM()
+enum class EUsdInterpolationType : uint8
+{
+	Held,
+	Linear
+};
+
 class IUnrealUSDWrapperModule : public IModuleInterface
 {
 };

@@ -44,6 +44,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
 	EUsdInitialLoadSet InitialLoadSet;
 
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD" )
+	EUsdInterpolationType InterpolationType;
+
 	/**
 	 * Whether to try to combine individual assets and components of the same type on a kind-per-kind basis,
 	 * like multiple Mesh prims into a single Static Mesh
@@ -68,6 +71,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet );
+
+	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
+	USDSTAGE_API void SetInterpolationType( EUsdInterpolationType NewType );
 
 	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
 	USDSTAGE_API void SetKindsToCollapse( int32 NewKindsToCollapse );

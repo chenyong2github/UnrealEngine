@@ -614,6 +614,11 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT( "Collapsing", "Collapsing" ),
 			LOCTEXT( "Collapsing_ToolTip", "Whether to try to combine individual assets and components of the same type on a Kind-per-Kind basis, like multiple Mesh prims into a single Static Mesh" ),
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillCollapsingSubMenu ) );
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT( "InterpolationType", "Interpolation type" ),
+			LOCTEXT( "InterpolationType_ToolTip", "Whether to interpolate between time samples linearly or with 'held' (i.e. constant) interpolation" ),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillInterpolationTypeSubMenu ) );
 	}
 	MenuBuilder.EndSection();
 
@@ -923,6 +928,77 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 		{
 			return ViewModel.UsdStageActor.Get() != nullptr;
 		})
+	);
+}
+
+void SUsdStage::FillInterpolationTypeSubMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("LinearType", "Linear"),
+		LOCTEXT("LinearType_ToolTip", "Attribute values are linearly interpolated between authored values"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
+				{
+					FScopedTransaction Transaction(FText::Format(
+						LOCTEXT("SetLinearInterpolationType", "Set USD stage actor '{0}' to linear interpolation"),
+						FText::FromString(StageActor->GetActorLabel())
+					));
+
+					StageActor->SetInterpolationType( EUsdInterpolationType::Linear );
+				}
+			}),
+			FCanExecuteAction::CreateLambda([this]()
+			{
+				return ViewModel.UsdStageActor.Get() != nullptr;
+			}),
+			FIsActionChecked::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
+				{
+					return StageActor->InterpolationType == EUsdInterpolationType::Linear;
+				}
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::RadioButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("HeldType", "Held"),
+		LOCTEXT("HeldType_ToolTip", "Attribute values are held constant between authored values. An attribute's value will be equal to the nearest preceding authored value. If there is no preceding authored value, the value will be equal to the nearest subsequent value."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
+				{
+					FScopedTransaction Transaction(FText::Format(
+						LOCTEXT("SetHeldInterpolationType", "Set USD stage actor '{0}' to held interpolation"),
+						FText::FromString(StageActor->GetActorLabel())
+					));
+
+					StageActor->SetInterpolationType( EUsdInterpolationType::Held );
+				}
+			}),
+			FCanExecuteAction::CreateLambda([this]()
+			{
+				return ViewModel.UsdStageActor.Get() != nullptr;
+			}),
+			FIsActionChecked::CreateLambda([this]()
+			{
+				if(AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get())
+				{
+					return StageActor->InterpolationType == EUsdInterpolationType::Held;
+				}
+				return false;
+			})
+		),
+		NAME_None,
+		EUserInterfaceActionType::RadioButton
 	);
 }
 
