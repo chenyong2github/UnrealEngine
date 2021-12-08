@@ -1239,7 +1239,7 @@ namespace HordeServer.Services
 					TemplateRef? TemplateRef;
 					if (!Stream.Templates.TryGetValue(JobTrigger.TemplateRefId, out TemplateRef))
 					{
-						Logger.LogWarning("Cannot find template {TemplateRefId} in stream {StreamId}", JobTrigger.TemplateRefId, NewJob.StreamId);
+						Logger.LogWarning("Cannot find template {TemplateId} in stream {StreamId}", JobTrigger.TemplateRefId, NewJob.StreamId);
 						break;
 					}
 

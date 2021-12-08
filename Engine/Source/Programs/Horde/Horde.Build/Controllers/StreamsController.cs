@@ -268,13 +268,13 @@ namespace HordeServer.Controllers
 		/// Gets all the templates for a stream
 		/// </summary>
 		/// <param name="StreamId">Unique id of the stream to query</param>
-		/// <param name="TemplateRefId">Unique id of the template to query</param>
+		/// <param name="TemplateId">Unique id of the template to query</param>
 		/// <param name="Filter">Filter for properties to return</param>
 		/// <returns>Information about all the templates</returns>
 		[HttpGet]
-		[Route("/api/v1/streams/{StreamId}/templates/{TemplateRefId}")]
+		[Route("/api/v1/streams/{StreamId}/templates/{TemplateId}")]
 		[ProducesResponseType(typeof(List<GetTemplateResponse>), 200)]
-		public async Task<ActionResult<object>> GetTemplateAsync(StreamId StreamId, TemplateRefId TemplateRefId, [FromQuery] PropertyFilter? Filter = null)
+		public async Task<ActionResult<object>> GetTemplateAsync(StreamId StreamId, TemplateRefId TemplateId, [FromQuery] PropertyFilter? Filter = null)
 		{
 			IStream? Stream = await StreamService.GetStreamAsync(StreamId);
 			if (Stream == null)
@@ -283,9 +283,9 @@ namespace HordeServer.Controllers
 			}
 
 			TemplateRef? TemplateRef;
-			if (!Stream.Templates.TryGetValue(TemplateRefId, out TemplateRef))
+			if (!Stream.Templates.TryGetValue(TemplateId, out TemplateRef))
 			{
-				return NotFound(StreamId, TemplateRefId);
+				return NotFound(StreamId, TemplateId);
 			}
 			if (!await StreamService.AuthorizeAsync(Stream, TemplateRef, AclAction.ViewTemplate, User, null))
 			{

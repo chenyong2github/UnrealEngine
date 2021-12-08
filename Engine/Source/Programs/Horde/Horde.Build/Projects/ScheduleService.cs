@@ -206,7 +206,7 @@ namespace HordeServer.Services
 				// Try to prevent any updates being done for 5 minutes, but keep extending that again every minute. This
 				// creates a reservation for the stream update that will expire if the pod is terminated.
 				TimeSpan ReservationTime = TimeSpan.FromMinutes(5.0);
-				if (!await TrySetNextUpdateTime(Entry, DateTime.UtcNow + ReservationTime))
+				if (!await TrySetNextUpdateTime(Entry, Clock.UtcNow + ReservationTime))
 				{
 					continue;
 				}
@@ -352,7 +352,7 @@ namespace HordeServer.Services
 			}
 			catch (Exception Ex)
 			{
-				Logger.LogError(Ex, "Failed to start schedule {StreamId}/{TemplateRefId}", Stream.Id, TemplateId);
+				Logger.LogError(Ex, "Failed to start schedule {StreamId}/{TemplateId}", Stream.Id, TemplateId);
 			}
 
 			// Print some timing info
@@ -364,21 +364,21 @@ namespace HordeServer.Services
 		/// Trigger a schedule to run
 		/// </summary>
 		/// <param name="Stream">Stream for the schedule</param>
-		/// <param name="TemplateRefId"></param>
+		/// <param name="TemplateId"></param>
 		/// <param name="TemplateRef"></param>
 		/// <param name="Schedule"></param>
 		/// <param name="NumActiveJobs"></param>
 		/// <param name="UtcNow">The current time</param>
 		/// <returns>Async task</returns>
-		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateRefId, TemplateRef TemplateRef, Schedule Schedule, int NumActiveJobs, DateTime UtcNow)
+		private async Task TriggerAsync(IStream Stream, TemplateRefId TemplateId, TemplateRef TemplateRef, Schedule Schedule, int NumActiveJobs, DateTime UtcNow)
 		{
 			// Check we're not already at the maximum number of allowed jobs
 			if (Schedule.MaxActive != 0 && NumActiveJobs >= Schedule.MaxActive)
 			{
-				Logger.LogInformation("Skipping trigger of {StreamId} template {TemplateRefId} - already have maximum number of jobs running ({NumJobs})", Stream.Id, TemplateRefId, Schedule.MaxActive);
+				Logger.LogInformation("Skipping trigger of {StreamId} template {TemplateId} - already have maximum number of jobs running ({NumJobs})", Stream.Id, TemplateId, Schedule.MaxActive);
 				foreach (JobId JobId in Schedule.ActiveJobs)
 				{
-					Logger.LogInformation("Active job for {StreamId} template {TemplateRefId}: {JobId}", Stream.Id, TemplateRefId, JobId);
+					Logger.LogInformation("Active job for {StreamId} template {TemplateId}: {JobId}", Stream.Id, TemplateId, JobId);
 				}
 				return;
 			}
@@ -423,7 +423,7 @@ namespace HordeServer.Services
 				int Change, CodeChange;
 				if (Schedule.Gate != null)
 				{
-					(Change, CodeChange) = await GetNextChangeForGateAsync(Stream.Id, TemplateRefId, Schedule.Gate, MinChangeNumber, MaxChangeNumber);
+					(Change, CodeChange) = await GetNextChangeForGateAsync(Stream.Id, TemplateId, Schedule.Gate, MinChangeNumber, MaxChangeNumber);
 				}
 				else
 				{
@@ -467,7 +467,7 @@ namespace HordeServer.Services
 			// Early out if there's nothing to do
 			if (TriggerChanges.Count == 0)
 			{
-				Logger.LogInformation("Skipping trigger of {StreamName} template {TemplateRefId} - no candidate changes after CL {LastTriggerChange}", Stream.Id, TemplateRefId, Schedule.LastTriggerChange);
+				Logger.LogInformation("Skipping trigger of {StreamName} template {TemplateId} - no candidate changes after CL {LastTriggerChange}", Stream.Id, TemplateId, Schedule.LastTriggerChange);
 				return;
 			}
 
@@ -475,7 +475,7 @@ namespace HordeServer.Services
 			ITemplate? Template = await TemplateCollection.GetAsync(TemplateRef.Hash);
 			if (Template == null)
 			{
-				Logger.LogWarning("Unable to find template '{TemplateHash}' for '{TemplateRefId}'", TemplateRef.Hash, TemplateRefId);
+				Logger.LogWarning("Unable to find template '{TemplateHash}' for '{TemplateId}'", TemplateRef.Hash, TemplateId);
 				return;
 			}
 
@@ -494,9 +494,9 @@ namespace HordeServer.Services
 			foreach ((int Change, int CodeChange) in TriggerChanges.OrderBy(x => x.Change))
 			{
 				List<string> DefaultArguments = Template.GetDefaultArguments();
-				IJob NewJob = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Template.Name, Change, CodeChange, null, null, null, Template.Priority, null, null, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, DefaultArguments);
+				IJob NewJob = await JobService.CreateJobAsync(null, Stream, TemplateId, Template.Id, Graph, Template.Name, Change, CodeChange, null, null, null, Template.Priority, null, null, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, DefaultArguments);
 				Logger.LogInformation("Started new job for {StreamName} template {TemplateName} at CL {Change} (Code CL {CodeChange}): {JobId}", Stream.Id, TemplateRef.Name, Change, CodeChange, NewJob.Id);
-				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, UtcNow, Change, new List<JobId> { NewJob.Id }, new List<JobId>());
+				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateId, UtcNow, Change, new List<JobId> { NewJob.Id }, new List<JobId>());
 			}
 		}
 
@@ -578,7 +578,7 @@ namespace HordeServer.Services
 						{
 							return (Job.Change, Job.CodeChange);
 						}
-						Logger.LogInformation("Skipping trigger of {StreamName} template {TemplateRefId} - last {OtherTemplateRefId} job ({JobId}) ended with errors", StreamId, TemplateRefId, Gate.TemplateRefId, Job.Id);
+						Logger.LogInformation("Skipping trigger of {StreamName} template {TemplateId} - last {OtherTemplateRefId} job ({JobId}) ended with errors", StreamId, TemplateRefId, Gate.TemplateRefId, Job.Id);
 					}
 				}
 

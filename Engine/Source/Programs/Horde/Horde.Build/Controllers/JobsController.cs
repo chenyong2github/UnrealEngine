@@ -219,12 +219,12 @@ namespace HordeServer.Controllers
 			IList<IJob> Jobs = await JobService.FindJobsAsync(StreamId: Stream.Id, Templates: new[] { TemplateId }, Target: Target, State: new[] { JobStepState.Completed }, Outcome: Outcomes.ToArray(), Count: 1);
 			if (Jobs.Count == 0)
 			{
-				Logger.LogInformation("Unable to find successful build of {TemplateRefId} target {Target}. Using latest change instead", TemplateId, Target);
+				Logger.LogInformation("Unable to find successful build of {TemplateId} target {Target}. Using latest change instead", TemplateId, Target);
 				return await Perforce.GetLatestChangeAsync(Stream.ClusterName, Stream.Name, null);
 			}
 			else
 			{
-				Logger.LogInformation("Last successful build of {TemplateRefId} target {Target} was job {JobId} at change {Change}", TemplateId, Target, Jobs[0].Id, Jobs[0].Change);
+				Logger.LogInformation("Last successful build of {TemplateId} target {Target} was job {JobId} at change {Change}", TemplateId, Target, Jobs[0].Id, Jobs[0].Change);
 				return Jobs[0].Change;
 			}
 		}
