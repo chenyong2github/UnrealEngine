@@ -90,7 +90,7 @@ namespace HordeServer.Services.Impl
 				{
 					for (IAgent? NewAgent = Agent; NewAgent != null; NewAgent = await AgentCollection.GetAsync(Agent.Id))
 					{
-						if (await AgentCollection.TryUpdateSettingsAsync(NewAgent, bRequestShutdown: true) != null)
+						if (await AgentCollection.TryUpdateSettingsAsync(NewAgent, bRequestShutdown: true, ShutdownReason: "Autoscaler") != null)
 						{
 							AgentCollection.GetLogger(Agent.Id).LogInformation("Marked for shutdown due to autoscalar (currently {NumLeases} leases outstanding)", NewAgent.Leases.Count);
 							Count--;

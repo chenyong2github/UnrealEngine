@@ -159,7 +159,7 @@ namespace HordeServer.Controllers
 					return Forbid(AclAction.ChangePermissions, AgentId);
 				}
 
-				IAgent? NewAgent = await AgentService.Agents.TryUpdateSettingsAsync(Agent, Update.Enabled, Update.RequestConform, Update.RequestFullConform, Update.RequestRestart, Update.RequestShutdown, Channel, Update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(Agent.Acl, Update.Acl), Update.Comment);
+				IAgent? NewAgent = await AgentService.Agents.TryUpdateSettingsAsync(Agent, Update.Enabled, Update.RequestConform, Update.RequestFullConform, Update.RequestRestart, Update.RequestShutdown, $"Manual ({UserName})", Channel, Update.Pools?.ConvertAll(x => new PoolId(x)), Acl.Merge(Agent.Acl, Update.Acl), Update.Comment);
 				if (NewAgent == null)
 				{
 					continue;

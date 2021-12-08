@@ -363,6 +363,11 @@ namespace HordeServer.Api
 		public bool PendingShutdown { get; set; }
 
 		/// <summary>
+		/// The reason for the last shutdown
+		/// </summary>
+		public string LastShutdownReason { get; set; }
+
+		/// <summary>
 		/// Last time a conform was attempted
 		/// </summary>
 		public DateTime LastConformTime { get; set; }
@@ -450,6 +455,7 @@ namespace HordeServer.Api
 			this.PendingConform = Agent.RequestConform;
 			this.PendingRestart = Agent.RequestRestart;
 			this.PendingShutdown = Agent.RequestShutdown;
+			this.LastShutdownReason = Agent.LastShutdownReason ?? "Unknown";
 			this.LastConformTime = Agent.LastConformTime;
 			this.NextConformTime =   Agent.LastConformTime;
 			this.ConformAttemptCount = Agent.ConformAttemptCount;

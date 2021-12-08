@@ -104,6 +104,9 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfDefault, BsonDefaultValue(false)]
 			public bool RequestShutdown { get; set; }
 
+			[BsonIgnoreIfNull]
+			public string? LastShutdownReason { get; set; }
+
 			public List<AgentWorkspace> Workspaces { get; set; } = new List<AgentWorkspace>();
 			public DateTime LastConformTime { get; set; }
 
@@ -254,7 +257,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IAgent?> TryUpdateSettingsAsync(IAgent AgentInterface, bool? Enabled = null, bool? RequestConform = null, bool? RequestFullConform = null, bool? RequestRestart = null, bool? RequestShutdown = null, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null, Acl? Acl = null, string? Comment = null)
+		public async Task<IAgent?> TryUpdateSettingsAsync(IAgent AgentInterface, bool? Enabled = null, bool? RequestConform = null, bool? RequestFullConform = null, bool? RequestRestart = null, bool? RequestShutdown = null, string? ShutdownReason = null, AgentSoftwareChannelName? Channel = null, List<PoolId>? Pools = null, Acl? Acl = null, string? Comment = null)
 		{
 			AgentDocument Agent = (AgentDocument)AgentInterface;
 
@@ -302,6 +305,12 @@ namespace HordeServer.Collections.Impl
 					Updates.Add(UpdateBuilder.Unset(x => x.RequestShutdown));
 				}
 			}
+
+			if (ShutdownReason != null)
+			{
+				Updates.Add(UpdateBuilder.Set(x => x.LastShutdownReason, ShutdownReason));
+			}
+
 			if (Channel != null)
 			{
 				if (Channel.Value == AgentSoftwareService.DefaultChannelName)
@@ -463,6 +472,7 @@ namespace HordeServer.Collections.Impl
 			Updates.Add(UpdateBuilder.Set(x => x.Version, Version));
 			Updates.Add(UpdateBuilder.Unset(x => x.RequestRestart));
 			Updates.Add(UpdateBuilder.Unset(x => x.RequestShutdown));
+			Updates.Add(UpdateBuilder.Set(x => x.LastShutdownReason, "Unexpected"));
 
 			// Apply the update
 			return await TryUpdateAsync(Agent, UpdateBuilder.Combine(Updates));

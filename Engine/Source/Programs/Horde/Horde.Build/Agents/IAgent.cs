@@ -492,6 +492,11 @@ namespace HordeServer.Models
 		public bool RequestShutdown { get; }
 
 		/// <summary>
+		/// The reason for the last agent shutdown
+		/// </summary>
+		public string? LastShutdownReason { get; }
+
+		/// <summary>
 		/// List of workspaces currently synced to this machine
 		/// </summary>
 		public IReadOnlyList<AgentWorkspace> Workspaces { get; }
