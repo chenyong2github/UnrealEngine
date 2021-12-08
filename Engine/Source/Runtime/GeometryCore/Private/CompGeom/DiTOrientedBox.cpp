@@ -152,11 +152,9 @@ namespace
 
 	// implementation of the DiTO algorithm
 	template <typename RealType>
-	UE::Geometry::TOrientedBox3<RealType> ComputeDiTOImpl(const UE::Geometry::EDiTO DiTOType, const int32 NumPoints, TFunctionRef<UE::Math::TVector<RealType>(int32)> GetPointFunc)
+	UE::Geometry::TOrientedBox3<RealType> ComputeDiTOImpl(const TArray<UE::Math::TVector<RealType>>& SampleDirections, const int32 NumPoints, TFunctionRef<UE::Math::TVector<RealType>(int32)> GetPointFunc)
 	{
 		typedef UE::Math::TVector<RealType> VectorType;
-
-		const TArray<VectorType>  SampleDirections = DiTODirections<RealType>(DiTOType);
 		
 		const int32 NumSampleDir    = SampleDirections.Num();
 		const int32 NumSamplePoints = 2 * NumSampleDir;
@@ -169,6 +167,12 @@ namespace
 																			 ExpandBoxToContain(AABB, GetPointFunc, NumPoints);
 																			 return AABB;
 																		 }();
+		// if no sample directions were provided, just return the AABB
+		if (NumSampleDir == 0)
+		{
+			return UE::Geometry::TOrientedBox3<RealType>(ReferenceAABBox);
+		}
+
 		struct FIntervalBounds
 		{
 			RealType Upper = -TMathUtilConstants<RealType>::MaxReal;
@@ -399,16 +403,28 @@ namespace
 template <typename RealType>
 UE::Geometry::TOrientedBox3<RealType> UE::Geometry::ComputeOrientedBBox(const UE::Geometry::EDiTO DiTOType, const int32 NumPoints, TFunctionRef<UE::Math::TVector<RealType>(int32)> GetPointFunc)
 {
-	return ComputeDiTOImpl(DiTOType, NumPoints, GetPointFunc);
+	typedef UE::Math::TVector<RealType> VectorType;
+	
+	const TArray<VectorType> SampleDirections = DiTODirections<RealType>(DiTOType);
+	return ComputeDiTOImpl(SampleDirections, NumPoints, GetPointFunc);
 }
 
+template <typename RealType>
+UE::Geometry::TOrientedBox3<RealType> UE::Geometry::ComputeOrientedBBox(const TArray<UE::Math::TVector<RealType>>& SampleDirections, const int32 NumPoints, TFunctionRef<UE::Math::TVector<RealType>(int32)> GetPointFunc)
+{
+	return ComputeDiTOImpl(SampleDirections, NumPoints, GetPointFunc);
+}
 
 // explicit instantiations
 namespace UE
 {
 	namespace Geometry
 	{
-		template TOrientedBox3<float> GEOMETRYCORE_API ComputeOrientedBBox(const UE::Geometry::EDiTO DiTOType, const int32 NumPoints, TFunctionRef<UE::Math::TVector<float>(int32)> GetPointFunc);
-		template TOrientedBox3<double> GEOMETRYCORE_API ComputeOrientedBBox(const UE::Geometry::EDiTO DiTOType, const int32 NumPoints, TFunctionRef<UE::Math::TVector<double>(int32)> GetPointFunc);
+		template TOrientedBox3<float> GEOMETRYCORE_API ComputeOrientedBBox<float>(const UE::Geometry::EDiTO DiTOType, const int32 NumPoints, TFunctionRef<UE::Math::TVector<float>(int32)> GetPointFunc);
+		template TOrientedBox3<double> GEOMETRYCORE_API ComputeOrientedBBox<double>(const UE::Geometry::EDiTO DiTOType, const int32 NumPoints, TFunctionRef<UE::Math::TVector<double>(int32)> GetPointFunc);
+		
+		template TOrientedBox3<float> GEOMETRYCORE_API ComputeOrientedBBox<float>(const TArray<UE::Math::TVector<float>>& SampleDirections, const int32 NumPoints, TFunctionRef<UE::Math::TVector<float>(int32)> GetPointFunc);
+		template TOrientedBox3<double> GEOMETRYCORE_API ComputeOrientedBBox<double>(const TArray<UE::Math::TVector<double>>& SampleDirections, const int32 NumPoints, TFunctionRef<UE::Math::TVector<double>(int32)> GetPointFunc);
+	
 	}
 }
