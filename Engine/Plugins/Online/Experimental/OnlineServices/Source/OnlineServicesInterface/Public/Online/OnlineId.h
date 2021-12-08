@@ -126,6 +126,6 @@ private:
 
 	FOnlineIdRegistryRegistry() = default;
 	~FOnlineIdRegistryRegistry() = default;
-	friend FLazySingleton;
+	friend class FLazySingleton;
 };
 /* UE::Online */ }
