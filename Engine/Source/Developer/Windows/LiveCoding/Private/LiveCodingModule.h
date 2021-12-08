@@ -40,6 +40,7 @@ public:
 	virtual bool HasStarted() const override;
 	virtual void ShowConsole() override;
 	virtual void Compile() override;
+	virtual bool Compile(ELiveCodingCompileFlags CompileFlags, ELiveCodingCompileResult* Result) override;
 	virtual bool IsCompiling() const override;
 	virtual void Tick() override;
 	virtual FOnPatchCompleteDelegate& GetOnPatchCompleteDelegate() override;
@@ -59,6 +60,7 @@ private:
 	bool bUpdateModulesInTick = false;
 	bool bHasReinstancingOccurred = false;
 	bool bHasPatchBeenLoaded = false;
+	ELiveCodingCompileResult LastResults = ELiveCodingCompileResult::Success;
 	TSet<FName> ConfiguredModules;
 	TArray<void*> LppPendingTokens;
 
