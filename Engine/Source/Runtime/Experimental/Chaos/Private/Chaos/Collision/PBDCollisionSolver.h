@@ -20,6 +20,93 @@ namespace Chaos
 	class FPBDCollisionConstraint;
 
 	/**
+	 * @brief A single contact point in a FPBDCollisionSolver
+	*/
+	class FPBDCollisionSolverManifoldPoint
+	{
+	public:
+		/**
+		 * @brief Initialize the geometric data for the contact
+		*/
+		void InitContact(
+			const FConstraintSolverBody& Body0,
+			const FConstraintSolverBody& Body1,
+			const FVec3& InCoMAnchorPoint0,
+			const FVec3& InCoMAnchorPoint1,
+			const FVec3& InWorldContactNormal);
+
+		/**
+		 * @brief Initialize the material related properties of the contact
+		*/
+		void InitMaterial(
+			const FReal InWorldContactVelocityTargetNormal,
+			const bool bInEnableStaticFriction,
+			const FReal InStaticFrictionMax);
+
+		/**
+		 * @brief Update the world-space relative contact points based on current body transforms and body-space contact positions
+		*/
+		void UpdateContact(
+			const FConstraintSolverBody& Body0,
+			const FConstraintSolverBody& Body1,
+			const FVec3& CoMAnchorPoint0,
+			const FVec3& CoMAnchorPoint1,
+			const FVec3& WorldContactNormal);
+
+		/**
+		 * @brief Update the cached mass properties based on the current body transforms
+		*/
+		void UpdateMass(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1);
+
+		/**
+		 * @brief Calculate the relative velocity at the contact point
+		 * @note InitContact must be called before calling this function
+		*/
+		FVec3 CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const;
+
+		/**
+		 * @brief Calculate the position error at the current transforms
+		 * @param MaxPushOut a limit on the position error for this iteration to prevent initial-penetration explosion (a common PBD problem)
+		*/
+		void CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal MaxPushOut, FVec3& OutContactDelta, FReal& OutContactDeltaNormal) const;
+
+		/**
+		 * @brief Calculate the velocity error at the current transforms
+		*/
+		void CalculateContactVelocityError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal DynamicFriction, const FReal Dt, FVec3& OutContactVelocityDelta, FReal& OutContactVelocityDeltaNormal) const;
+
+		// @todo(chaos): make private
+	public:
+		friend class FPBDCollisionSolver;
+
+		// World-space contact point
+		FVec3 WorldContactPosition;
+
+		// World-space contact normal
+		FVec3 WorldContactNormal;
+
+		// Contact mass
+		FMatrix33 WorldContactMass;
+		FReal WorldContactMassNormal;
+
+		// World-space contact separation that we are trying to correct
+		FVec3 WorldContactDelta;
+
+		// Desired final normal velocity, taking Restitution into account
+		FReal WorldContactVelocityTargetNormal;
+
+		// Solver outputs
+		FVec3 NetPushOut;
+		FVec3 NetImpulse;
+
+		// A smoothed NetImpulse along the normal, used for clipping to the static friction cone
+		FReal StaticFrictionMax;
+
+		// Whether we are still in the static friction cone
+		bool bInsideStaticFrictionCone;
+	};
+
+	/**
 	 * @brief 
 	 * @todo(chaos): Make this solver operate on a single contact point rather than all points in a manifold.
 	 * This would be beneficial if we have many contacts with less than 4 points in the manifold. However this
@@ -30,90 +117,6 @@ namespace Chaos
 	public:
 		static const int32 MaxConstrainedBodies = 2;
 		static const int32 MaxPointsPerConstraint = 4;
-
-		class FSolverManifoldPoint
-		{
-		public:
-			/**
-			 * @brief Initialize the geometric data for the contact
-			*/
-			void InitContact(
-				const FConstraintSolverBody& Body0,
-				const FConstraintSolverBody& Body1,
-				const FVec3& InCoMAnchorPoint0,
-				const FVec3& InCoMAnchorPoint1,
-				const FVec3& InWorldContactNormal);
-
-			/**
-			 * @brief Initialize the material related properties of the contact
-			*/
-			void InitMaterial(
-				const FReal InWorldContactVelocityTargetNormal,
-				const bool bInEnableStaticFriction,
-				const FReal InStaticFrictionMax);
-
-			/**
-			 * @brief Update the world-space relative contact points based on current body transforms and body-space contact positions
-			*/
-			void UpdateContact(
-				const FConstraintSolverBody& Body0,
-				const FConstraintSolverBody& Body1,
-				const FVec3& CoMAnchorPoint0,
-				const FVec3& CoMAnchorPoint1,
-				const FVec3& WorldContactNormal);
-
-			/**
-			 * @brief Update the cached mass properties based on the current body transforms
-			*/
-			void UpdateMass(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1);
-
-			/**
-			 * @brief Calculate the relative velocity at the contact point
-			 * @note InitContact must be called before calling this function
-			*/
-			FVec3 CalculateContactVelocity(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1) const;
-
-			/**
-			 * @brief Calculate the position error at the current transforms
-			 * @param MaxPushOut a limit on the position error for this iteration to prevent initial-penetration explosion (a common PBD problem)
-			*/
-			void CalculateContactPositionError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal MaxPushOut, FVec3& OutContactDelta, FReal& OutContactDeltaNormal) const;
-
-			/**
-			 * @brief Calculate the velocity error at the current transforms
-			*/
-			void CalculateContactVelocityError(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FReal DynamicFriction, const FReal Dt, FVec3& OutContactVelocityDelta, FReal& OutContactVelocityDeltaNormal) const;
-
-		// @todo(chaos): make private
-		public:
-			friend class FPBDCollisionSolver;
-
-			// World-space contact point
-			FVec3 WorldContactPosition;
-
-			// World-space contact normal
-			FVec3 WorldContactNormal;
-
-			// Contact mass
-			FMatrix33 WorldContactMass;
-			FReal WorldContactMassNormal;
-
-			// World-space contact separation that we are trying to correct
-			FVec3 WorldContactDelta;
-
-			// Desired final normal velocity, taking Restitution into account
-			FReal WorldContactVelocityTargetNormal;
-
-			// Solver outputs
-			FVec3 NetPushOut;
-			FVec3 NetImpulse;
-
-			// A smoothed NetImpulse along the normal, used for clipping to the static friction cone
-			FReal StaticFrictionMax;
-
-			// Whether we are still in the static friction cone
-			bool bInsideStaticFrictionCone;
-		};
 
 		FPBDCollisionSolver();
 
@@ -148,12 +151,13 @@ namespace Chaos
 			return State.NumManifoldPoints;
 		}
 
-		void SetNumManifoldPoints(const int32 InNumManifoldPoints)
+		int32 SetNumManifoldPoints(const int32 InNumManifoldPoints)
 		{
-			State.NumManifoldPoints = InNumManifoldPoints;
+			State.NumManifoldPoints = FMath::Min(InNumManifoldPoints, MaxPointsPerConstraint);
+			return State.NumManifoldPoints;
 		}
 
-		const FSolverManifoldPoint& GetManifoldPoint(const int32 ManifoldPointIndex) const
+		const FPBDCollisionSolverManifoldPoint& GetManifoldPoint(const int32 ManifoldPointIndex) const
 		{
 			check(ManifoldPointIndex < NumManifoldPoints());
 			return State.ManifoldPoints[ManifoldPointIndex];
@@ -237,10 +241,22 @@ namespace Chaos
 
 		struct FState
 		{
-			FState();
+			FState()
+				: SolverBodies()
+				, ManifoldPoints()
+				, NumManifoldPoints(0)
+				, StaticFriction(0)
+				, DynamicFriction(0)
+				, Stiffness(1)
+				, BodyEpochs{ INDEX_NONE, INDEX_NONE }
+				, NumPositionSolves(0)
+				, NumVelocitySolves(0)
+				, bIsSolved(false)
+			{
+			}
 
 			FConstraintSolverBody SolverBodies[MaxConstrainedBodies];
-			FSolverManifoldPoint ManifoldPoints[MaxPointsPerConstraint];
+			FPBDCollisionSolverManifoldPoint ManifoldPoints[MaxPointsPerConstraint];
 			int32 NumManifoldPoints;
 			FReal StaticFriction;
 			FReal DynamicFriction;

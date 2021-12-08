@@ -17,6 +17,7 @@ namespace Chaos
 	class FPBDCollisionConstraint;
 	class FPBDCollisionSolver;
 	class FPBDCollisionSolverAdapter;
+	class FPBDCollisionSolverManifoldPoint;
 	class FSolverBodyContainer;
 
 	/**
