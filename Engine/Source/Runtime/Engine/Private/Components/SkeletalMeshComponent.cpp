@@ -631,16 +631,6 @@ void USkeletalMeshComponent::OnRegister()
 
 	RecreateClothingActors();
 #endif  // #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-
-#if WITH_CHAOS_CLOTHING
-	// TODO: Add missing Chaos Cloth collision with environment
-	if (bCollideWithEnvironment && ClothingSimulationFactory && ClothingSimulationFactory->GetName() == TEXT("ChaosClothingSimulationFactory"))
-	{
-		UE_LOG(LogSkeletalMesh, Display, TEXT("OnRegister[%s]: "
-			"Chaos Cloth does not currently support bCollideWithEnvironment."),
-			*GetPathNameSafe(SkeletalMesh));
-	}
-#endif  // #if WITH_CHAOS_CLOTHING
 }
 
 void USkeletalMeshComponent::OnUnregister()
@@ -2117,18 +2107,23 @@ void USkeletalMeshComponent::UpdateClothSimulationContext(float InDeltaTime)
 	//Do the teleport cloth test here on the game thread
 	CheckClothTeleport();
 
-	if(bPendingClothTransformUpdate)	//it's possible we want to update cloth collision based on a pending transform
+	bool bMustUpdateClothTransform = bForceCollisionUpdate;
+
+	if (bPendingClothTransformUpdate)	//it's possible we want to update cloth collision based on a pending transform
 	{
 		bPendingClothTransformUpdate = false;
-		if(PendingTeleportType == ETeleportType::TeleportPhysics)	//If the pending transform came from a teleport, make sure to teleport the cloth in this upcoming simulation
+		if (PendingTeleportType == ETeleportType::TeleportPhysics)	//If the pending transform came from a teleport, make sure to teleport the cloth in this upcoming simulation
 		{
 			ClothTeleportMode = (ClothTeleportMode == EClothingTeleportMode::TeleportAndReset) ? ClothTeleportMode : EClothingTeleportMode::Teleport;
 		}
-		else if(PendingTeleportType == ETeleportType::ResetPhysics)
+		else if (PendingTeleportType == ETeleportType::ResetPhysics)
 		{
 			ClothTeleportMode = EClothingTeleportMode::TeleportAndReset;
 		}
-
+		bMustUpdateClothTransform = true;
+	}
+	if (bMustUpdateClothTransform)
+	{
 		UpdateClothTransformImp();
 	}
 
