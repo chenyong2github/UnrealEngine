@@ -7,6 +7,9 @@
 #include "Misc/EnumClassFlags.h"
 #include "Serialization/CompactBinary.h"
 
+class FCbAttachment;
+class FCbPackage;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Flags for validating compact binary data. */
@@ -183,5 +186,18 @@ CORE_API ECbValidateError ValidateCompactBinaryAttachment(FMemoryView View, ECbV
  * @return None on success, otherwise the flags for the types of errors that were detected.
  */
 CORE_API ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode Mode);
+
+/**
+ * Validate the compact binary data for one value as specified by the mode flags.
+ *
+ * Validation recurses into attachments, objects, arrays, and fields within the top-level value.
+ *
+ * @return None on success, otherwise the flags for the types of errors that were detected.
+ */
+CORE_API ECbValidateError ValidateCompactBinary(const FCbField& Value, ECbValidateMode Mode);
+CORE_API ECbValidateError ValidateCompactBinary(const FCbArray& Value, ECbValidateMode Mode);
+CORE_API ECbValidateError ValidateCompactBinary(const FCbObject& Value, ECbValidateMode Mode);
+CORE_API ECbValidateError ValidateCompactBinary(const FCbPackage& Value, ECbValidateMode Mode);
+CORE_API ECbValidateError ValidateCompactBinary(const FCbAttachment& Value, ECbValidateMode Mode);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
