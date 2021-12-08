@@ -29,6 +29,12 @@ namespace Chaos
 	extern bool bChaos_Collision_Manifold_FixNormalsInWorldSpace;
 
 
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 	/**
 	 * @brief A wrapper for FPBDCollisionSolver which binds to a Collision Constraint and adds Gather/Scatter from/to the constraint
 	*/
@@ -75,17 +81,15 @@ namespace Chaos
 
 			GatherManifoldPoints(Dt);
 
-			// We should try to remove this
+			// We should try to remove this - the Constraint should need to know about solver objects
 			Constraint->SetSolverBodies(Body0, Body1);
 		}
 
 		void GatherManifoldPoints(const FReal Dt)
 		{
-			// We handle incremental manifolds by just colecting any new contacts
+			// We handle incremental manifolds by just collecting any new contacts
 			const int32 BeginPointIndex = Solver.NumManifoldPoints();
-			const int32 EndPointIndex = FMath::Min(Constraint->GetManifoldPoints().Num(), FPBDCollisionSolver::MaxPointsPerConstraint);
-
-			Solver.SetNumManifoldPoints(EndPointIndex);
+			const int32 EndPointIndex = Solver.SetNumManifoldPoints(Constraint->GetManifoldPoints().Num());
 
 			const FReal RestitutionVelocityThreshold = Constraint->Manifold.RestitutionThreshold * Dt;
 			const FReal Restitution = Constraint->Manifold.Restitution;
@@ -95,22 +99,19 @@ namespace Chaos
 				TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
 				const FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
 
-				// The world-space contact normal
-				const FVec3& WorldContactNormal = ManifoldPoint.ContactPoint.Normal;
-
 				// Initialize the structural data in the contact (relative contact points, contact mass etc)
 				Solver.InitContact(
 					ManifoldPointIndex,
 					ManifoldPoint.CoMContactPoints[0],
 					ManifoldPoint.CoMContactPoints[1],
-					WorldContactNormal);
+					ManifoldPoint.ContactPoint.Normal);
 
 				// Calculate the target normal velocity based on restitution
 				FReal WorldContactVelocityTargetNormal = FReal(0);
 				if (Restitution > FReal(0))
 				{
 					const FVec3 ContactVelocity = Solver.GetManifoldPoint(ManifoldPointIndex).CalculateContactVelocity(Solver.SolverBody0(), Solver.SolverBody1());
-					const FReal ContactVelocityNormal = FVec3::DotProduct(ContactVelocity, WorldContactNormal);
+					const FReal ContactVelocityNormal = FVec3::DotProduct(ContactVelocity, ManifoldPoint.ContactPoint.Normal);
 					if (ContactVelocityNormal < -RestitutionVelocityThreshold)
 					{
 						WorldContactVelocityTargetNormal = -Restitution * ContactVelocityNormal;
@@ -136,7 +137,7 @@ namespace Chaos
 
 			for (int32 PointIndex = 0; PointIndex < Solver.NumManifoldPoints(); ++PointIndex)
 			{
-				const FPBDCollisionSolver::FSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(PointIndex);
+				const FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(PointIndex);
 
 				TArrayView<FManifoldPoint> ManifoldPoints = Constraint->GetManifoldPoints();
 				FManifoldPoint& ManifoldPoint = ManifoldPoints[PointIndex];
@@ -162,6 +163,12 @@ namespace Chaos
 		FPBDCollisionSolver Solver;
 		FPBDCollisionConstraint* Constraint;
 	};
+
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 	FPBDCollisionSolverContainer::FPBDCollisionSolverContainer()
