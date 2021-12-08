@@ -607,11 +607,11 @@ void FNeuralTensor::RDGBuilderToCPU_RenderThread(FRDGBuilder* InOutGraphBuilder)
 	});
 }
 
-bool FNeuralTensor::InitPooledBuffer(void** InOutNativeResource)
+bool FNeuralTensor::InitPooledBufferForUEAndORTBackEnd(void** InOutNativeResource)
 {
 	if (!bEnableGPU)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::InitPooledBuffer(): bEnableGPU is false."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::InitPooledBufferForUEAndORTBackEnd(): bEnableGPU is false."));
 		return false;
 	}
 

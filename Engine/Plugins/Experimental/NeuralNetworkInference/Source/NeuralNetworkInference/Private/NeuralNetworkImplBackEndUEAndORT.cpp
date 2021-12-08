@@ -792,7 +792,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 			// @todo: This requires SetNumUnitialized() to be run, otherwise Size and Volume will be set to 0
 			void* D3DResource = nullptr;
 
-			if (!OutTensors[TensorIndex].InitPooledBuffer(&D3DResource))
+			if (!OutTensors[TensorIndex].InitPooledBufferForUEAndORTBackEnd(&D3DResource))
 			{
 				UE_LOG(LogNeuralNetworkInference, Warning,
 					TEXT("FImplBackEndUEAndORT::SetTensorsFromNetwork(): Failed to initialize the pooled buffer."));

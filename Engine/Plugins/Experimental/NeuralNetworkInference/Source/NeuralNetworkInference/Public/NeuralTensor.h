@@ -312,7 +312,7 @@ public:
 	 * @param InOutNativeResource Pointer to the ID3D12Resource obtained from PooledBuffer. This resource can be shared with the DirectML execution
 	 * provider.
 	 */
-	bool InitPooledBuffer(void** InOutNativeResource = nullptr);
+	bool InitPooledBufferForUEAndORTBackEnd(void** InOutNativeResource = nullptr);
 
 	/**
 	 * It returns a constant reference of PooledBuffer. @see PooledBuffer for more details.
