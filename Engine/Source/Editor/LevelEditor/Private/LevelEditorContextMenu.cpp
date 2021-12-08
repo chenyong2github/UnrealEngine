@@ -326,18 +326,18 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 					/*bInOpenSubMenuOnClick*/ false,
 					FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Adjust"));
 
-				Section.AddMenuEntry(
-					FLevelEditorCommands::Get().CopyActorFilePathtoClipboard,
-					TAttribute<FText>(), // use command's label
-					TAttribute<FText>(), // use command's tooltip
-					FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy")
-				);
-
 				// This is an invisible entry used as an extension point for "Convert SomeActor To SomeType" entries
 				FUIAction Action;
 				Action.IsActionVisibleDelegate = FIsActionButtonVisible::CreateLambda([]() { return false; });
 				Section.AddMenuEntry("ActorConvert", TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Convert"), Action, EUserInterfaceActionType::None);
 			}
+
+			Section.AddMenuEntry(
+				FLevelEditorCommands::Get().CopyActorFilePathtoClipboard,
+				TAttribute<FText>(), // use command's label
+				TAttribute<FText>(), // use command's tooltip
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCommands.Copy")
+			);
 
 			LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(Section, LevelEditorContext);
 		}
