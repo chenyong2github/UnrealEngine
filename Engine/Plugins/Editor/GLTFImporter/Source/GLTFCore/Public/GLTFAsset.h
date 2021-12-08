@@ -21,6 +21,8 @@ namespace GLTF
 		KHR_MaterialsTransmission,
 		KHR_MaterialsSheen,
 		KHR_MaterialsVariants,
+		KHR_MaterialsIOR,
+		KHR_MaterialsSpecular,
 		KHR_TextureTransform,
 		KHR_DracoMeshCompression,
 		KHR_LightsPunctual,

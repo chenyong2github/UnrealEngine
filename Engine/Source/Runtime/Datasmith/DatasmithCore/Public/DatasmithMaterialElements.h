@@ -221,6 +221,8 @@ public:
 	virtual IDatasmithExpressionInput& GetNormal() = 0;
 	virtual IDatasmithExpressionInput& GetRefraction() = 0;
 	virtual IDatasmithExpressionInput& GetAmbientOcclusion() = 0;
+	virtual IDatasmithExpressionInput& GetClearCoat() = 0;
+	virtual IDatasmithExpressionInput& GetClearCoatRoughness() = 0;
 	virtual IDatasmithExpressionInput& GetMaterialAttributes() = 0;
 
 	virtual int GetBlendMode() const = 0;

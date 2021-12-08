@@ -42,6 +42,8 @@ namespace GLTF
 		void HandleClearCoat(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
 		void HandleTransmission(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
 		void HandleSheen(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
+		void HandleIOR(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
+		void HandleSpecular(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement);
 
 
 	private:
@@ -119,6 +121,8 @@ namespace GLTF
 			HandleClearCoat(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
 			HandleTransmission(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
 			HandleSheen(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
+			HandleIOR(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
+			HandleSpecular(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
 
 			// Additional maps
 			HandleOcclusion(Asset.Textures, GLTFMaterial, MapFactory, *MaterialElement);
@@ -135,7 +139,7 @@ namespace GLTF
 
 	void FMaterialFactoryImpl::HandleOpacity(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FMaterialElement& MaterialElement)
 	{
-		if (GLTFMaterial.IsOpaque())
+		if (GLTFMaterial.IsOpaque() || GLTFMaterial.bHasTransmission) // With transmission, we handle opacity different
 		{
 			return;
 		}
@@ -145,56 +149,58 @@ namespace GLTF
 		FMaterialExpressionTexture* BaseColorMap = FindExpression<FMaterialExpressionTexture>(TEXT("BaseColor Map"), MaterialElement);
 		switch (GLTFMaterial.AlphaMode)
 		{
-		case FMaterial::EAlphaMode::Mask:
-		{
-			FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
-
-			FMaterialExpressionGeneric* MultiplyExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-			MultiplyExpression->SetExpressionName(TEXT("Multiply"));
-			BaseColorFactor->ConnectExpression(*MultiplyExpression->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
-			BaseColorMap->ConnectExpression(*MultiplyExpression->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
-
-			FMaterialExpressionFunctionCall* CuttofExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionFunctionCall>();
-			CuttofExpression->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/SmoothStep.SmoothStep"));
-
-			FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
-			ValueExpression->SetName(TEXT("Alpha Cuttof"));
-			ValueExpression->SetGroupName(GroupName);
-			ValueExpression->GetScalar() = GLTFMaterial.AlphaCutoff;
-
-			MultiplyExpression->ConnectExpression(*CuttofExpression->GetInput(0), 0);
-			ValueExpression->ConnectExpression(*CuttofExpression->GetInput(1), 0);
-			ValueExpression->ConnectExpression(*CuttofExpression->GetInput(2), 0);
-
-			CuttofExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
-			break;
-		}
-		case FMaterial::EAlphaMode::Blend:
-		{
-			FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
-			ValueExpression->SetName(TEXT("IOR"));
-			ValueExpression->SetGroupName(GroupName);
-			ValueExpression->GetScalar() = 1.f;
-			ValueExpression->ConnectExpression(MaterialElement.GetRefraction(), 0);
-
-			FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
-			if (BaseColorMap)
+			case FMaterial::EAlphaMode::Mask:
 			{
+				FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
+
 				FMaterialExpressionGeneric* MultiplyExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
 				MultiplyExpression->SetExpressionName(TEXT("Multiply"));
+
 				BaseColorFactor->ConnectExpression(*MultiplyExpression->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
 				BaseColorMap->ConnectExpression(*MultiplyExpression->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
-				MultiplyExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
+
+				FMaterialExpressionFunctionCall* CuttofExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionFunctionCall>();
+				CuttofExpression->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/SmoothStep.SmoothStep"));
+
+				FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+				ValueExpression->SetName(TEXT("Alpha Cuttof"));
+				ValueExpression->SetGroupName(GroupName);
+				ValueExpression->GetScalar() = GLTFMaterial.AlphaCutoff;
+
+				MultiplyExpression->ConnectExpression(*CuttofExpression->GetInput(0), 0);
+				ValueExpression->ConnectExpression(*CuttofExpression->GetInput(1), 0);
+				ValueExpression->ConnectExpression(*CuttofExpression->GetInput(2), 0);
+
+				CuttofExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
+				break;
 			}
-			else
+			case FMaterial::EAlphaMode::Blend:
 			{
-				BaseColorFactor->ConnectExpression(MaterialElement.GetOpacity(), (int)FPBRMapFactory::EChannel::Alpha);
+				FMaterialExpressionScalar* ValueExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+				ValueExpression->SetName(TEXT("IOR"));
+				ValueExpression->SetGroupName(GroupName);
+				ValueExpression->GetScalar() = 1.f;
+				ValueExpression->ConnectExpression(MaterialElement.GetRefraction(), 0);
+
+				FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
+				if (BaseColorMap)
+				{
+					FMaterialExpressionGeneric* MultiplyExpression = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+					MultiplyExpression->SetExpressionName(TEXT("Multiply"));
+
+					BaseColorFactor->ConnectExpression(*MultiplyExpression->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
+					BaseColorMap->ConnectExpression(*MultiplyExpression->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
+					MultiplyExpression->ConnectExpression(MaterialElement.GetOpacity(), 0);
+				}
+				else
+				{
+					BaseColorFactor->ConnectExpression(MaterialElement.GetOpacity(), (int)FPBRMapFactory::EChannel::Alpha);
+				}
+				break;
 			}
-			break;
-		}
-		default:
-			check(false);
-			break;
+			default:
+				check(false);
+				break;
 		}
 	}
 
@@ -342,6 +348,8 @@ namespace GLTF
 			return;
 		}
 
+		MaterialElement.SetShadingModel(EGLTFMaterialShadingModel::ClearCoat);
+
 		FMaterialExpressionScalar* ClearCoatFactor = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
 		ClearCoatFactor->GetScalar() = GLTFMaterial.ClearCoat.ClearCoatFactor;
 		ClearCoatFactor->SetName(TEXT("ClearCoatFactor"));
@@ -367,6 +375,7 @@ namespace GLTF
 		{
 			FMaterialExpressionGeneric* MultiplyExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
 			MultiplyExpr->SetExpressionName(TEXT("Multiply"));
+
 			ClearCoatFactor->ConnectExpression(*MultiplyExpr->GetInput(0), 0);
 			ClearCoatTexture->ConnectExpression(*MultiplyExpr->GetInput(1), (int)FPBRMapFactory::EChannel::Red);
 			ClearCoatExpr = MultiplyExpr;
@@ -377,6 +386,7 @@ namespace GLTF
 		{
 			FMaterialExpressionGeneric* MultiplyExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
 			MultiplyExpr->SetExpressionName(TEXT("Multiply"));
+
 			ClearCoatRoughnessFactor->ConnectExpression(*MultiplyExpr->GetInput(0), 0);
 			ClearCoatRoughnessTexture->ConnectExpression(*MultiplyExpr->GetInput(1), (int)FPBRMapFactory::EChannel::Green);
 			ClearCoatRougnessExpr = MultiplyExpr;
@@ -393,8 +403,22 @@ namespace GLTF
 
 		if (ClearCoatNormalTexture)
 		{
+			FMaterialExpressionScalar* UVScale = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+			UVScale->GetScalar() = GLTFMaterial.ClearCoat.NormalMapUVScale;
+			UVScale->SetName(TEXT("NormalMapUVScale"));
+
+			FMaterialExpressionGeneric* Mult = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			Mult->SetExpressionName(TEXT("Multiply"));
+
+			FMaterialExpressionTextureCoordinate* TexCoord = MaterialElement.AddMaterialExpression<FMaterialExpressionTextureCoordinate>();
+			TexCoord->SetCoordinateIndex(GLTFMaterial.ClearCoat.NormalMap.TexCoord);
+			
 			FMaterialExpressionGeneric* ClearCoatNormalCustomOutput = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
 			ClearCoatNormalCustomOutput->SetExpressionName(TEXT("ClearCoatNormalCustomOutput"));
+			
+			UVScale->ConnectExpression(*Mult->GetInput(0), 0);
+			TexCoord->ConnectExpression(*Mult->GetInput(1), 0);
+			Mult->ConnectExpression(*ClearCoatNormalTexture->GetInput(0), 0);
 			ClearCoatNormalTexture->ConnectExpression(*ClearCoatNormalCustomOutput->GetInput(0), 0);
 		}
 	}
@@ -409,52 +433,159 @@ namespace GLTF
 		MaterialElement.SetBlendMode(ConvertAlphaMode(GLTF::FMaterial::EAlphaMode::Blend));
 		MaterialElement.SetShadingModel(GLTF::EGLTFMaterialShadingModel::ThinTranslucent);
 		MaterialElement.SetTranslucencyLightingMode(ETranslucencyLightingMode::TLM_SurfacePerPixelLighting);
+		MaterialElement.SetTwoSided(GLTFMaterial.bIsDoubleSided);
 
 		FMaterialExpressionGeneric* ThinTranslucentOutput = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
 		ThinTranslucentOutput->SetExpressionName(TEXT("ThinTranslucentMaterialOutput"));
-
-		// Connect whatever base color we have to the ThinTranslucentMaterialOutput node
-		FMaterialExpression* BaseColorExpr = MaterialElement.GetBaseColor().GetExpression();
-		BaseColorExpr->ConnectExpression(*ThinTranslucentOutput->GetInput(0), MaterialElement.GetBaseColor().GetOutputIndex());
 
 		FMaterialExpressionScalar* TransmissionFactorExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
 		TransmissionFactorExpr->GetScalar() = GLTFMaterial.Transmission.TransmissionFactor;
 		TransmissionFactorExpr->SetName(TEXT("TransmissionFactor"));
 
-		FMaterialExpression* TransmissionExpr = TransmissionFactorExpr;
-
 		FMaterialExpressionTexture* TransmissionTexture = MapFactory.CreateTextureMap(
-			GetTexture(GLTFMaterial.Transmission.TransmissionMap, Textures), 
-			GLTFMaterial.Transmission.TransmissionMap.TexCoord, 
-			TEXT("Transmission"), 
+			GetTexture(GLTFMaterial.Transmission.TransmissionMap, Textures),
+			GLTFMaterial.Transmission.TransmissionMap.TexCoord,
+			TEXT("Transmission"),
 			ETextureMode::Color);
 
-		if (TransmissionTexture)
-		{
-			FMaterialExpressionGeneric* MultiplyExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-			MultiplyExpr->SetExpressionName(TEXT("Multiply"));
-			TransmissionFactorExpr->ConnectExpression(*MultiplyExpr->GetInput(0), 0);
-			TransmissionTexture->ConnectExpression(*MultiplyExpr->GetInput(1), (int)FPBRMapFactory::EChannel::Red);
-			TransmissionExpr = MultiplyExpr;
-		}
+		FMaterialExpressionTexture* BaseColorMap = FindExpression<FMaterialExpressionTexture>(TEXT("BaseColor Map"), MaterialElement);
 
-		// Connect to opacity
-		if (FMaterialExpression* OpacityInputExpr = MaterialElement.GetOpacity().GetExpression())
+		if (GLTFMaterial.AlphaMode == FMaterial::EAlphaMode::Mask)
 		{
-			const int32 OutputIndex = MaterialElement.GetOpacity().GetOutputIndex();
-			FMaterialExpressionGeneric* MultiplyExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
-			MultiplyExpr->SetExpressionName(TEXT("Multiply"));
-			OpacityInputExpr->ConnectExpression(*MultiplyExpr->GetInput(0), OutputIndex);
-			TransmissionExpr->ConnectExpression(*MultiplyExpr->GetInput(1), 0);
-			TransmissionExpr = MultiplyExpr;
-		}
+			// Build opacity mask graph
 
-		if (TransmissionExpr == TransmissionFactorExpr)
+			FMaterialExpressionColor* BaseColorFactor = FindExpression<FMaterialExpressionColor>(TEXT("BaseColor"), MaterialElement);
+
+			FMaterialExpression* BaseColor1 = nullptr;
+			FMaterialExpression* BaseColor2 = nullptr;
+
+			if (BaseColorMap)
+			{
+				BaseColor1 = BaseColorMap;
+			}
+			else
+			{
+				FMaterialExpressionColor* DefaultColor = MaterialElement.AddMaterialExpression<FMaterialExpressionColor>();
+				DefaultColor->GetColor() = FLinearColor::White;
+				BaseColor1 = DefaultColor;
+			}
+
+			if (BaseColorFactor)
+			{
+				BaseColor2 = BaseColorFactor;
+			}
+			else
+			{
+				FMaterialExpressionColor* DefaultColor = MaterialElement.AddMaterialExpression<FMaterialExpressionColor>();
+				DefaultColor->GetColor() = FLinearColor::White;
+				BaseColor2 = DefaultColor;
+			}
+
+			FMaterialExpressionGeneric* Mult1 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			Mult1->SetExpressionName(TEXT("Multiply"));
+
+			BaseColor1->ConnectExpression(*Mult1->GetInput(0), 0);
+			BaseColor2->ConnectExpression(*Mult1->GetInput(1), 0);
+
+			FMaterialExpressionGeneric* Step1 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			Step1->SetExpressionName(TEXT("Step"));
+			Step1->SetFloatProperty(TEXT("ConstX"), 0.333f);
+
+			FMaterialExpressionGeneric* OneMinus1 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			OneMinus1->SetExpressionName(TEXT("OneMinus"));
+			
+			BaseColor1->ConnectExpression(*Step1->GetInput(0), (int)FPBRMapFactory::EChannel::Alpha);
+			Step1->ConnectExpression(*OneMinus1->GetInput(0), 0);
+			Step1->ConnectExpression(MaterialElement.GetSpecular(), 0);
+
+			FMaterialExpressionGeneric* Lerp1 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			Lerp1->SetExpressionName(TEXT("LinearInterpolate"));
+			OneMinus1->ConnectExpression(*Lerp1->GetInput(2), 0);
+
+			FMaterialExpressionGeneric* Mult2 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			Mult2->SetExpressionName(TEXT("Multiply"));
+
+			Mult2->ConnectExpression(MaterialElement.GetOpacity(), 0);
+
+			if (TransmissionTexture)
+			{
+				FMaterialExpressionGeneric* Mult3 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				Mult3->SetExpressionName(TEXT("Multiply"));
+
+				FMaterialExpressionGeneric* Mult4 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				Mult4->SetExpressionName(TEXT("Multiply"));
+
+				FMaterialExpressionGeneric* OneMinus2 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				OneMinus2->SetExpressionName(TEXT("OneMinus"));
+
+				Mult1->ConnectExpression(*Mult3->GetInput(0), 0);
+
+				Mult3->ConnectExpression(*Mult4->GetInput(0), 0);
+				Mult3->ConnectExpression(*OneMinus2->GetInput(0), 0);
+				Mult1->ConnectExpression(*Mult4->GetInput(1), 0);
+				Mult4->ConnectExpression(*Lerp1->GetInput(0), 0);
+
+				Step1->ConnectExpression(*Mult2->GetInput(0), 0);
+				OneMinus2->ConnectExpression(*Mult2->GetInput(1), 0);
+				
+				TransmissionTexture->ConnectExpression(*Mult3->GetInput(0), 1);
+				TransmissionFactorExpr->ConnectExpression(*Mult3->GetInput(1), 0);
+				Lerp1->ConnectExpression(*ThinTranslucentOutput->GetInput(0), 0);
+			}
+			else
+			{
+				FMaterialExpressionScalar* Const1 = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+				Const1->GetScalar() = 0;
+
+				Step1->ConnectExpression(*Mult2->GetInput(1), 0);
+				Const1->ConnectExpression(*Mult2->GetInput(0), 0);
+
+				Mult1->ConnectExpression(*Lerp1->GetInput(0), 0);
+
+				FMaterialExpressionGeneric* Mult3 = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				Mult3->SetExpressionName(TEXT("Multiply"));
+
+				Lerp1->ConnectExpression(*Mult3->GetInput(0), 0);
+				TransmissionFactorExpr->ConnectExpression(*Mult3->GetInput(1), 0);
+
+				Mult3->ConnectExpression(*ThinTranslucentOutput->GetInput(0), 0);
+			}
+
+			BaseColor2->ConnectExpression(MaterialElement.GetBaseColor(), 0);
+		}
+		else
 		{
-			TransmissionFactorExpr->GetScalar() = 1.0f - GLTFMaterial.Transmission.TransmissionFactor;
-		}
+			FMaterialExpressionGeneric* BaseColorMult = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			BaseColorMult->SetExpressionName(TEXT("Multiply"));
 
-		TransmissionExpr->ConnectExpression(MaterialElement.GetOpacity(), 0);
+			BaseColorMult->ConnectExpression(*ThinTranslucentOutput->GetInput(0), 0);
+
+			FMaterialExpressionGeneric* OpacitySubtract = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			OpacitySubtract->SetExpressionName(TEXT("Subtract"));
+
+			FMaterialExpression* BaseColorExpr = MaterialElement.GetBaseColor().GetExpression();
+			if (BaseColorExpr)
+			{
+				BaseColorExpr->ConnectExpression(*BaseColorMult->GetInput(0), MaterialElement.GetBaseColor().GetOutputIndex());
+			}
+
+			if (TransmissionTexture)
+			{
+				FMaterialExpressionGeneric* TransmissionMult = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+				TransmissionMult->SetExpressionName(TEXT("Multiply"));
+				TransmissionFactorExpr->ConnectExpression(*TransmissionMult->GetInput(0), 0);
+				TransmissionTexture->ConnectExpression(*TransmissionMult->GetInput(1), (int)FPBRMapFactory::EChannel::Red);
+				TransmissionMult->ConnectExpression(*BaseColorMult->GetInput(1), 0);
+				TransmissionMult->ConnectExpression(*OpacitySubtract->GetInput(1), 0);
+			}
+			else
+			{
+				TransmissionFactorExpr->ConnectExpression(*BaseColorMult->GetInput(1), 0);
+				TransmissionFactorExpr->ConnectExpression(*OpacitySubtract->GetInput(1), 0);
+			}
+
+			OpacitySubtract->ConnectExpression(MaterialElement.GetOpacity(), 0);
+		}
 	}
 	
 	void FMaterialFactoryImpl::HandleSheen(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
@@ -492,6 +623,72 @@ namespace GLTF
 		{
 			NormalExpr->ConnectExpression(*FuzzyShadingCall->GetInput(1), MaterialElement.GetNormal().GetOutputIndex());
 		}
+	}
+
+	void FMaterialFactoryImpl::HandleIOR(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
+	{
+		if (!GLTFMaterial.bHasIOR || GLTFMaterial.ShadingModel == FMaterial::EShadingModel::SpecularGlossiness || GLTFMaterial.bIsUnlitShadingModel)
+		{
+			// As per glTF 2.0 spec, IOR extension is not compatible with specular-glossiness workflow or unlit shading model
+			return;
+		}
+
+		if (!GLTFMaterial.bHasTransmission)
+		{
+			MaterialElement.SetBlendMode(ConvertAlphaMode(GLTF::FMaterial::EAlphaMode::Blend));
+			MaterialElement.SetTranslucencyLightingMode(ETranslucencyLightingMode::TLM_Surface);
+			MaterialElement.SetTwoSided(GLTFMaterial.bIsDoubleSided);
+		}
+
+		FMaterialExpressionGeneric* LerpExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+		LerpExpr->SetExpressionName(TEXT("LinearInterpolate"));
+
+		FMaterialExpressionScalar* ConstExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+		ConstExpr->GetScalar() = 1.f;
+
+		FMaterialExpressionScalar* IORExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+		IORExpr->SetName(TEXT("IOR"));
+		IORExpr->GetScalar() = GLTFMaterial.IOR;
+
+		FMaterialExpressionGeneric* FresnelExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+		FresnelExpr->SetExpressionName(TEXT("Fresnel"));
+
+		ConstExpr->ConnectExpression(*LerpExpr->GetInput(0), 0);
+		IORExpr->ConnectExpression(*LerpExpr->GetInput(1), 0);
+		FresnelExpr->ConnectExpression(*LerpExpr->GetInput(2), 0);
+
+		LerpExpr->ConnectExpression(MaterialElement.GetRefraction(), 0);
+	}
+
+	void FMaterialFactoryImpl::HandleSpecular(const TArray<GLTF::FTexture>& Textures, const GLTF::FMaterial& GLTFMaterial, FPBRMapFactory& MapFactory, FMaterialElement& MaterialElement)
+	{
+		if (!GLTFMaterial.bHasSpecular || GLTFMaterial.ShadingModel == FMaterial::EShadingModel::SpecularGlossiness || GLTFMaterial.bIsUnlitShadingModel)
+		{
+			// As per glTF 2.0 spec, specular extension is not compatible with specular-glossiness workflow or unlit shading model
+			return;
+		}
+
+		FMaterialExpressionScalar* SpecularFactorExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionScalar>();
+		SpecularFactorExpr->SetName(TEXT("SpecularFactor"));
+		SpecularFactorExpr->GetScalar() = GLTFMaterial.Specular.SpecularFactor;
+
+		FMaterialExpressionTexture* SpecularTextureExpr = MapFactory.CreateTextureMap(
+			GetTexture(GLTFMaterial.Specular.SpecularMap, Textures), GLTFMaterial.Specular.SpecularMap.TexCoord, TEXT("SpecularMap"), ETextureMode::Color);
+
+		FMaterialExpression* SpecularExpr = SpecularFactorExpr;
+
+		if (SpecularTextureExpr)
+		{
+			FMaterialExpressionGeneric* MultiplyExpr = MaterialElement.AddMaterialExpression<FMaterialExpressionGeneric>();
+			MultiplyExpr->SetExpressionName(TEXT("Multiply"));
+			
+			SpecularFactorExpr->ConnectExpression(*MultiplyExpr->GetInput(0), 0);
+			SpecularTextureExpr->ConnectExpression(*MultiplyExpr->GetInput(1), (int)FPBRMapFactory::EChannel::Alpha);
+
+			SpecularExpr = MultiplyExpr;
+		}
+
+		SpecularExpr->ConnectExpression(MaterialElement.GetSpecular(), 0);
 	}
 
 	FMaterialFactory::FMaterialFactory(IMaterialElementFactory* MaterialElementFactory, ITextureFactory* TextureFactory)

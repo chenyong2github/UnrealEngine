@@ -271,7 +271,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TMap< FString, TSharedRef < IDatasmithBaseMaterialElement > > ImportedMaterialFunctionsByName;
 
 	/** List of potential parent materials with their hash. Used to create material instances from. */
-	TMap< int32, UMaterialInterface* > ImportedParentMaterials;
+	TMap< uint32, UMaterialInterface* > ImportedParentMaterials;
 
 	/** Map of imported level sequences for each level sequence element */
 	TMap< TSharedRef< IDatasmithLevelSequenceElement >, ULevelSequence* > ImportedLevelSequences;

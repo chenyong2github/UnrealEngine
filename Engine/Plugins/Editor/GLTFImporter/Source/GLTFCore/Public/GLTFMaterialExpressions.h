@@ -369,7 +369,8 @@ namespace GLTF
 
 		TArray<FMaterialExpression*> Expressions;
 
-		FMaterialExpression* ThinTranslucentMaterialOutput;
+		GLTF::FMaterialExpression* ThinTranslucentMaterialOutput;
+		GLTF::FMaterialExpression* ClearCoatBottomNormalOutput;
 
 		bool bIsFinal;
 

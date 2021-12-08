@@ -114,11 +114,13 @@ namespace GLTF
 			KHR_materials_clearcoat,
 			KHR_materials_transmission,
 			KHR_materials_sheen,
+			KHR_materials_ior,
+			KHR_materials_specular,
 			MSFT_packing_occlusionRoughnessMetallic,
 			MSFT_packing_normalRoughnessMetallic,
 		};
 		static const TArray<FString> Extensions = {TEXT("KHR_materials_pbrSpecularGlossiness"), TEXT("KHR_materials_unlit"), TEXT("KHR_materials_clearcoat"),
-												   TEXT("KHR_materials_transmission"), TEXT("KHR_materials_sheen"),
+												   TEXT("KHR_materials_transmission"), TEXT("KHR_materials_sheen"), TEXT("KHR_materials_ior"), TEXT("KHR_materials_specular"),
 		                                           TEXT("MSFT_packing_occlusionRoughnessMetallic"), TEXT("MSFT_packing_normalRoughnessMetallic")};
 
 		const FJsonObject& ExtensionsObj = *Object.GetObjectField(TEXT("extensions"));
@@ -164,7 +166,7 @@ namespace GLTF
 					Material.ClearCoat.Roughness = GetScalar(ClearCoat, TEXT("clearcoatRoughnessFactor"), 0.0f);
 					GLTF::SetTextureMap(ClearCoat, TEXT("clearcoatRoughnessTexture"), nullptr, Asset->Textures, Material.ClearCoat.RoughnessMap);
 
-					GLTF::SetTextureMap(ClearCoat, TEXT("clearcoatNormalTexture"), nullptr, Asset->Textures, Material.ClearCoat.NormalMap);
+					Material.ClearCoat.NormalMapUVScale = GLTF::SetTextureMap(ClearCoat, TEXT("clearcoatNormalTexture"), TEXT("scale"), Asset->Textures, Material.ClearCoat.NormalMap);
 
 					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsClearCoat);
 				}
@@ -189,6 +191,29 @@ namespace GLTF
 					Material.Sheen.SheenColorFactor = GetVec3(Sheen, TEXT("sheenColorFactor"));
 
 					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsSheen);
+				}
+				break;
+				case KHR_materials_ior:
+				{
+					const FJsonObject& IOR = ExtObj;
+
+					Material.bHasIOR = true;
+					Material.IOR = GetScalar(IOR, TEXT("ior"), 1.0f);
+
+					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsIOR);
+				}
+				break;
+				case KHR_materials_specular:
+				{
+					const FJsonObject& Specular = ExtObj;
+
+					Material.bHasSpecular = true;
+					Material.Specular.SpecularFactor = GetScalar(Specular, TEXT("specularFactor"), 1.0f);
+					Material.Specular.SpecularColorFactor = GetVec3(Specular, TEXT("specularColorFactor"));
+					GLTF::SetTextureMap(Specular, TEXT("specularTexture"), nullptr, Asset->Textures, Material.Specular.SpecularMap);
+					GLTF::SetTextureMap(Specular, TEXT("specularColorTexture"), nullptr, Asset->Textures, Material.Specular.SpecularColorMap);
+
+					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsSpecular);
 				}
 				break;
 				case MSFT_packing_occlusionRoughnessMetallic:

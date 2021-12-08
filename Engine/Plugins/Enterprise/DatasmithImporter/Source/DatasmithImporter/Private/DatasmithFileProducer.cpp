@@ -457,7 +457,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< int32, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedParentMaterials )
+	for ( TPair< uint32, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedParentMaterials )
 	{
 		if(AssetPair.Value)
 		{
