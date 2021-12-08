@@ -17,6 +17,11 @@ void FSubsurfaceTilePassVS::ModifyCompilationEnvironment(const FGlobalShaderPerm
 	OutEnvironment.SetDefine(TEXT("SUBSURFACE_TILE_SIZE"), FSubsurfaceTiles::TileSize);
 }
 
+bool FSubsurfaceTileFallbackScreenPassVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+}
+
 FSubsurfaceTilePassVS::FParameters GetSubsurfaceTileParameters(const FViewInfo& InView,const FSubsurfaceTiles& InTile, FSubsurfaceTiles::ETileType TileType, FIntPoint BufferExtent)
 {
 	FSubsurfaceTilePassVS::FParameters Out;
@@ -132,6 +137,7 @@ void AddConditionalClearBlackUAVPass(FRDGBuilder& GraphBuilder, FRDGEventName&& 
 }
 
 IMPLEMENT_GLOBAL_SHADER(FSubsurfaceTilePassVS, "/Engine/Private/PostProcessSubsurfaceTile.usf", "MainVS", SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FSubsurfaceTileFallbackScreenPassVS, "/Engine/Private/PostProcessSubsurfaceTile.usf", "SubsurfaceTileFallbackScreenPassVS", SF_Vertex);
 
 const TCHAR* ToString(FSubsurfaceTiles::ETileType Type)
 {

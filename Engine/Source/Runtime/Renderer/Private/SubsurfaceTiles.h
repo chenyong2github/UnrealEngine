@@ -76,6 +76,20 @@ class FSubsurfaceTilePassVS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
+class FSubsurfaceTileFallbackScreenPassVS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FSubsurfaceTileFallbackScreenPassVS);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+
+	FSubsurfaceTileFallbackScreenPassVS() = default;
+	FSubsurfaceTileFallbackScreenPassVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
+};
+
+
 FSubsurfaceTilePassVS::FParameters GetSubsurfaceTileParameters(const FViewInfo& InView, const FSubsurfaceTiles& InTile, FSubsurfaceTiles::ETileType TileType, FIntPoint BufferExtent);
 
 template <typename FSubsurfacePassPS, typename FSubsurfacePassVS>
@@ -94,7 +108,7 @@ void AddSubsurfaceTiledScreenPass(
 {
 	if (bShouldFallbackToFullScreenPass)
 	{
-		TShaderMapRef<FScreenPassVS> FallBackVertexShader(View.ShaderMap);
+		TShaderMapRef<FSubsurfaceTileFallbackScreenPassVS> FallBackVertexShader(View.ShaderMap);
 		AddDrawScreenPass(GraphBuilder,
 			Forward<FRDGEventName>(Name),
 			View,
