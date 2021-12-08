@@ -770,7 +770,6 @@ class FDeferredLightOverlapPS : public FGlobalShader
 	DECLARE_SHADER_TYPE(FDeferredLightOverlapPS,Global)
 
 	class FRadialAttenuation : SHADER_PERMUTATION_BOOL("RADIAL_ATTENUATION");
-
 	using FPermutationDomain = TShaderPermutationDomain<FRadialAttenuation>;
 
 public:
@@ -808,7 +807,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, HasValidChannel);
 };
 
-IMPLEMENT_GLOBAL_SHADER(FDeferredLightOverlapPS, "/Engine/Private/StationaryLightOverlapShaders.usf", "OverlapRadialPixelMain", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FDeferredLightOverlapPS, "/Engine/Private/StationaryLightOverlapShaders.usf", "OverlapPixelMain", SF_Pixel);
 
 static void SplitSimpleLightsByView(TArrayView<const FViewInfo> Views, const FSimpleLightArray& SimpleLights, TArrayView<FSimpleLightArray> SimpleLightsByView)
 {
