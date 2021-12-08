@@ -39,4 +39,17 @@ public:
 	 * @return True if the class is a StateTree item Blueprint base class.
 	 */
 	bool IsChildOfBlueprintBase(const UClass* InClass) const;
+
+#if WITH_EDITOR
+	
+	/** @return True if enter conditions are allowed. */
+	virtual bool AllowEnterConditions() const { return true; }
+
+	/** @return True if evaluators are allowed. */
+	virtual bool AllowEvaluators() const { return true; }
+
+	/** @return True if multiple tasks are allowed. */
+	virtual bool AllowMultipleTasks() const { return true; }
+	
+#endif // WITH_EDITOR
 };

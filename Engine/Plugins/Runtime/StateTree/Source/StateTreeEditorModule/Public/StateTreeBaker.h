@@ -12,6 +12,8 @@ class UStateTreeState;
 class UStateTreeEditorData;
 struct FStateTreeCondition;
 struct FStateTreeConditionItem;
+struct FStateTreeTaskItem;
+struct FStateTreeEvaluatorItem;
 struct FStateTreeStateLink;
 
 /**
@@ -40,7 +42,9 @@ private:
 	bool CreateCondition(const FStateTreeConditionItem& CondItem);
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
-
+	bool CreateTask(const FStateTreeTaskItem& TaskItem);
+	bool CreateEvaluator(const FStateTreeEvaluatorItem& EvalItem);
+	
 	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;
 	UStateTreeEditorData* TreeData = nullptr;

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
 
 class IDetailLayoutBuilder;
 class IDetailChildrenBuilder;
