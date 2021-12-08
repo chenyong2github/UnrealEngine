@@ -1845,6 +1845,14 @@ namespace EpicGames.Perforce.Managed
 
 						// Wait for anything to complete
 						Task CompleteTask = await Task.WhenAny(Tasks.Keys);
+						try
+						{
+							await CompleteTask; // Make sure we re-throw any exceptions from the task that completed
+						}
+						finally
+						{
+							await Task.WhenAll(Tasks.Keys);
+						}
 						int BatchIdx = Tasks[CompleteTask];
 						Tasks.Remove(CompleteTask);
 
