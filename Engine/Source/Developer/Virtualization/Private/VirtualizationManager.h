@@ -93,7 +93,8 @@ private:
 
 	virtual bool IsEnabled() const override;
 	
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& PackageContext) override;
+	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override;
+	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override;
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
 
@@ -125,7 +126,8 @@ private:
 	void CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
 
 	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
-	bool TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext);
+	bool TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
+
 	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id);
 
 	/** 

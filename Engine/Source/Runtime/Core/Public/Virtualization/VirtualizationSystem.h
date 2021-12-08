@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Compression/CompressedBuffer.h"
+#include "Containers/StringFwd.h"
 #include "Features/IModularFeature.h"
 #include "Features/IModularFeatures.h"
 #include "Virtualization/PayloadId.h"
@@ -39,6 +40,7 @@ enum class EStorageType : int8
 	Persistent
 };
 
+/** Describes the status of a payload in regards to a backend storage system */
 enum class FPayloadStatus : int8
 {
 	/** The payload id was not value */
@@ -51,10 +53,52 @@ enum class FPayloadStatus : int8
 	FoundAll
 };
 
+/** Data structure representing a request to push a payload to a backend storage system */
+struct FPushRequest
+{
+	enum class EStatus
+	{
+		/** The request failed, or was not reached because of the failure of an earlier request */
+		Failed,
+		/** The payload does not have a valid identifier or is empty */
+		Invalid,
+		/** The payload is below the minimum length required for virtualization */
+		BelowMinSize,
+		/** The payload in the request is now present in all backends */
+		Success
+	};
+
+	FPushRequest(const FPayloadId& InIdentifier, const FCompressedBuffer& InPayload, const FString& InContext)
+		: Identifier(InIdentifier)
+		, Payload(InPayload)
+		, Context(InContext)
+	{
+
+	}
+
+	FPushRequest(const FPayloadId& InIdentifier, FCompressedBuffer&& InPayload, FString&& InContext)
+		: Identifier(InIdentifier)
+		, Payload(InPayload)
+		, Context(InContext)
+	{
+
+	}
+
+	/** The identifier of the payload */
+	FPayloadId Identifier;
+	/** The payload data */
+	FCompressedBuffer Payload;
+	/** A string containing context for the payload, typically a package name */
+	FString Context;
+
+	/** Once the request has been processed this value will contains the results */
+	EStatus Status = EStatus::Failed;
+};
+
 /**
  * Creates the global IVirtualizationSystem if it has not already been set up. This can be called explicitly
  * during process start up but it will also be called by IVirtualizationSystem::Get if it detects that the
- * IVirtualizationSystem has not yet bene set up.
+ * IVirtualizationSystem has not yet been set up.
  */
 CORE_API void Initialize();
 
@@ -91,11 +135,27 @@ public:
 	 * @param	Payload			The payload itself in FCompressedBuffer form, it is assumed that if the buffer is to 
 	 *							be compressed that it will have been done by the caller.
 	 * @param	StorageType		The type of storage to push the payload to, @See EStorageType for details.
-	 * @param	PackageContext	Name of the owning package, which can be used to provide context about the payload.
+	 * @param	PackageContext	Context for the payload being submitted, typically the name from the UPackage that owns it.
 	 * 
 	 * @return	True if at least one backend now contains the payload, otherwise false.
 	 */
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& PackageContext) = 0;
+	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) = 0;
+	
+	/**
+	 * Push one or more payloads to a backend storage system. @See FPushRequest.
+	 * 
+	 * @param	Requests	A list of one or more payloads
+	 * @param	StorageType	The type of storage to push the payload to, @See EStorageType for details.
+	 * 
+	 * @return	When StorageType is Local, this method will return true assuming at least one backend
+	 *			managed to push all of the payloads. 
+	 *			When StorageType is Persistent, this method will only return true if ALL backends
+	 *			manage to push all of the payloads.
+	 * 			If this returns true then you can check the Status member of each request for more info 
+	 *			about each payloads push operation.
+	 *			If this returns false then you can assume that the payloads are not safely virtualized.
+	 */
+	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) = 0;
 
 	/**
 	 * Pull a payload from the virtualization backends.

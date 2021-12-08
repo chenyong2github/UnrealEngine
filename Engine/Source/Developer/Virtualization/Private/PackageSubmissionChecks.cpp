@@ -24,6 +24,10 @@
 // removed.
 #define UE_VALIDATE_TRUNCATED_PACKAGE 1
 
+// When enabled we will check the payloads to see if they already exist in the persistent storage
+// backends before trying to push them.
+#define UE_PRECHECK_PAYLOAD_STATUS 1
+
 namespace UE::Virtualization
 {
 
@@ -154,7 +158,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		bool bWasTrailerUpdated = false;
 	};
 
-	UE_LOG(LogVirtualization, Display, TEXT("Considering %d files for virtualization"), FilesToSubmit.Num());
+	UE_LOG(LogVirtualization, Display, TEXT("Considering %d file(s) for virtualization"), FilesToSubmit.Num());
 
 	TArray<FPackageInfo> Packages;
 	Packages.Reserve(FilesToSubmit.Num());
@@ -194,7 +198,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		}
 	}
 
-	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " payloads in %d packages that need to be checked for virtualization"), TotalPayloadsToCheck, Packages.Num());
+	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " payload(s) in %d package(s) that need to be examined for virtualization"), TotalPayloadsToCheck, Packages.Num());
 
 	TArray<FPayloadStatus> PayloadStatuses;
 	if (!System.DoPayloadsExist(AllLocalPayloads, EStorageType::Persistent, PayloadStatuses))
@@ -211,6 +215,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 	{
 		check(PackageInfo.LocalPayloads.IsEmpty() || PackageInfo.PayloadIndex != INDEX_NONE); // If we have payloads we should have an index
 
+#if UE_PRECHECK_PAYLOAD_STATUS
 		for (int32 Index = 0; Index < PackageInfo.LocalPayloads.Num(); ++Index)
 		{
 			if (PayloadStatuses[PackageInfo.PayloadIndex + Index] == FPayloadStatus::FoundAll)
@@ -220,7 +225,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 					PackageInfo.bWasTrailerUpdated = true;
 				}
 				else
-					{
+				{
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
 													FText::FromString(PackageInfo.LocalPayloads[Index].ToString()),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
@@ -235,13 +240,18 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		{
 			PackageInfo.LocalPayloads = PackageInfo.Trailer.GetPayloads(EPayloadFilter::Local);
 		}
+#endif
 
+		PackageInfo.PayloadIndex = INDEX_NONE;
 		TotalPayloadsToVirtualize += PackageInfo.LocalPayloads.Num();
 	}
 
-	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " payloads that need to be pushed to persistent virtualized storage"), TotalPayloadsToVirtualize);
+	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " payload(s) that need to be pushed to persistent virtualized storage"), TotalPayloadsToVirtualize);
 
 	// TODO Optimization: In theory we could have many packages sharing the same payload and we only need to push once
+	
+	TArray<Virtualization::FPushRequest> PayloadsToSubmit;
+	PayloadsToSubmit.Reserve(TotalPayloadsToVirtualize);
 
 	// Push any remaining local payload to the persistent backends
 	for (FPackageInfo& PackageInfo : Packages)
@@ -261,6 +271,8 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 			return;
 		}
 
+		PackageInfo.PayloadIndex = PayloadsToSubmit.Num();
+
 		for (const FPayloadId& PayloadId : PackageInfo.LocalPayloads)
 		{
 			checkf(PayloadId.IsValid(), TEXT("PackageTrailer for package '%s' should not contain invalid FPayloadIds"), *PackageInfo.Path.GetDebugName());
@@ -277,37 +289,49 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 				return;
 			}
 
-			if (Payload)
-			{
-				if (!System.PushData(PayloadId, Payload, EStorageType::Persistent, PackageInfo.Path))
-				{
-					FText Message = FText::Format(	LOCTEXT("Virtualization_PushFailure", "Failed to push payload '{0}' from the package '{1}'"),
-													FText::FromString(PayloadId.ToString()),
-													FText::FromString(PackageInfo.Path.GetDebugName()));
-					Errors.Add(Message);
-					return;
-				}
-			}
-			else
+			if (!Payload)
 			{
 				FText Message = FText::Format(	LOCTEXT("Virtualization_MissingPayload", "Unable to find the payload '{0}' in the local storage of package '{1}'"),
 												FText::FromString(PayloadId.ToString()),
 												FText::FromString(PackageInfo.Path.GetDebugName()));
 				Errors.Add(Message);
 				return;
+
 			}
 
-			if (PackageInfo.Trailer.UpdatePayloadAsVirtualized(PayloadId))
+			PayloadsToSubmit.Emplace(PayloadId, MoveTemp(Payload), PackageInfo.Path.GetDebugName());
+		}
+	}
+
+	if (!System.PushData(PayloadsToSubmit, EStorageType::Persistent))
+	{
+		FText Message = LOCTEXT("Virtualization_PushFailure", "Failed to push payloads");
+		Errors.Add(Message);
+		return;
+	}
+
+	// Update the package info for the submitted payloads
+	for (FPackageInfo& PackageInfo : Packages)
+	{
+		for (int32 Index = 0; Index < PackageInfo.LocalPayloads.Num(); ++Index)
+		{
+			const Virtualization::FPushRequest& Request = PayloadsToSubmit[PackageInfo.PayloadIndex + Index];
+			check(Request.Identifier == PackageInfo.LocalPayloads[Index]);
+
+			if (Request.Status == Virtualization::FPushRequest::EStatus::Success)
 			{
-				PackageInfo.bWasTrailerUpdated = true;
-			}
-			else
-			{
-				FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
-												FText::FromString(PayloadId.ToString()),
-												FText::FromString(PackageInfo.Path.GetDebugName()));
-				Errors.Add(Message);
-				return;
+				if (PackageInfo.Trailer.UpdatePayloadAsVirtualized(Request.Identifier))
+				{
+					PackageInfo.bWasTrailerUpdated = true;
+				}
+				else
+					{
+					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
+													FText::FromString(Request.Identifier.ToString()),
+													FText::FromString(PackageInfo.Path.GetDebugName()));
+					Errors.Add(Message);
+					return;
+				}
 			}
 		}
 	}
@@ -376,7 +400,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		PackagesToReplace.Emplace(PackagePath, TempFilePath);
 	}
 
-	UE_LOG(LogVirtualization, Display, TEXT("%d packages had their trailer container modified and need to be updated"), PackagesToReplace.Num());
+	UE_LOG(LogVirtualization, Display, TEXT("%d package(s) had their trailer container modified and need to be updated"), PackagesToReplace.Num());
 
 	if (NumErrors == Errors.Num())
 	{
@@ -418,7 +442,7 @@ void OnPrePackageSubmission(const TArray<FString>& FilesToSubmit, TArray<FText>&
 		DescriptionTags.Add(Tag);
 	}
 
-	const double TimeInSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Seconds() - StartTime);
+	const double TimeInSeconds = FPlatformTime::Seconds() - StartTime;
 	UE_LOG(LogVirtualization, Verbose, TEXT("Virtualization pre submit check took %.3f(s)"), TimeInSeconds);
 }
 

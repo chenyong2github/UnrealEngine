@@ -24,7 +24,12 @@ public:
 		return false;
 	}
 
-	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& Package) override
+	virtual bool PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
+	{
+		return false;
+	}
+
+	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override
 	{
 		return false;
 	}

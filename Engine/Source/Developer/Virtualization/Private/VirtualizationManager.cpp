@@ -288,48 +288,64 @@ bool FVirtualizationManager::IsEnabled() const
 	return !AllBackends.IsEmpty();
 }
 
-bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FPackagePath& PackageContext)
+bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
+{
+	FPushRequest Request(Id, Payload, Context);
+	return FVirtualizationManager::PushData(MakeArrayView(&Request, 1), StorageType);
+}
+
+bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PushData);
 
-	if (!Id.IsValid())
+	TArray<FPushRequest> ValidatedRequests;
+	ValidatedRequests.Reserve(Requests.Num());
+
+	TArray<int32> OriginalToValidatedRequest; // Builds a mapping between Requests and ValidatedRequests for later
+	OriginalToValidatedRequest.SetNum(Requests.Num());
+
+	// Create a new list of FPushRequest, excluding the requests that should not be processed for what ever reason.
+	for (int32 Index = 0; Index < Requests.Num(); ++Index)
 	{
-		// TODO: Should an invalid FPayloadId be an expected input, if so demote this from Warning->Verbose
-		UE_LOG(LogVirtualization, Warning, TEXT("Attempting to push a virtualized payload with an invalid FPayloadId"));
+		OriginalToValidatedRequest[Index] = INDEX_NONE;
+
+		FPushRequest& Request = Requests[Index];
+		if (!Request.Identifier.IsValid() || Request.Payload.GetCompressedSize() == 0)
+		{
+			Request.Status = FPushRequest::EStatus::Invalid;
+			continue;
+		}
+
+		if ((int64)Request.Payload.GetCompressedSize() < MinPayloadLength)
+		{
+			UE_LOG(	LogVirtualization, Verbose, TEXT("Attempting to push a virtualized payload (id: %s) that is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"),
+					*Request.Identifier.ToString(), 
+					Request.Payload.GetCompressedSize(),
+					MinPayloadLength);
+
+			Request.Status = FPushRequest::EStatus::BelowMinSize;
+			continue;
+		}
+
+		OriginalToValidatedRequest[Index] = ValidatedRequests.Num();
+		ValidatedRequests.Add(Request);
+	}
+	
+	// Filtering by package name is currently disabled
+#if 0
+	if (!ShouldVirtualizePackage(PackageContext))
+	{
+		UE_LOG(LogVirtualization, Verbose, TEXT("Payload '%s' for package '%s' will not be virtualized due to filtering"),
+			*Id.ToString(), *PackageContext.GetDebugName());
 		return false;
 	}
+#endif
 
 	FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
 
 	// Early out if there are no backends or if the pushing of payloads has been disabled
 	if (!IsEnabled() || bEnablePayloadPushing == false)
 	{
-		return false;
-	}
-
-	// Early out if we have no payload
-	if (Payload.GetCompressedSize() == 0)
-	{
-		// TODO: Should an invalid payload be an expected input, if so demote this from Warning->Verbose
-		UE_LOG(LogVirtualization, Warning, TEXT("Attempting to push an invalid virtualized payload (id: %s)"), *Id.ToString());
-		return false;
-	}
-
-	// Early out if the payload length is below our minimum required length
-	if ((int64)Payload.GetCompressedSize() < MinPayloadLength)
-	{
-		UE_LOG(	LogVirtualization, 
-				Verbose, 
-				TEXT("Attempting to push a virtualized payload (id: %s) that is smaller (%" UINT64_FMT ") than the MinPayloadLength (%" INT64_FMT ")"), 
-				*Id.ToString(), Payload.GetCompressedSize(), MinPayloadLength);
-
-		return false;
-	}
-
-	if (!ShouldVirtualizePackage(PackageContext))
-	{
-		UE_LOG(	LogVirtualization, Verbose, TEXT("Payload '%s' for package '%s' will not be virtualized due to filtering"), 
-				*Id.ToString(), *PackageContext.GetDebugName());
 		return false;
 	}
 
@@ -343,29 +359,42 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 
 	for (IVirtualizationBackend* Backend : Backends)
 	{
-		const EPushResult Result = TryPushDataToBackend(*Backend, Id, Payload, PackageContext) ? EPushResult::Success : EPushResult::Failed;
+		const bool bResult = TryPushDataToBackend(*Backend, ValidatedRequests);
 
-		UE_CLOG(Result != EPushResult::Failed, LogVirtualization, Verbose, TEXT("[%s] Pushed the payload '%s'"), *Backend->GetDebugName(), *Id.ToString());
-		UE_CLOG(Result == EPushResult::Failed, LogVirtualization, Error, TEXT("[%s] Failed to push the payload '%s'"), *Backend->GetDebugName(), *Id.ToString());
+		UE_CLOG(bResult == true, LogVirtualization, Verbose, TEXT("[%s] Pushed '%d' payload(s)"), *Backend->GetDebugName(), ValidatedRequests.Num());
+		UE_CLOG(bResult == false, LogVirtualization, Error, TEXT("[%s] Failed to push '%d' payload(s)"), *Backend->GetDebugName(), ValidatedRequests.Num());
 
-		if (Result == EPushResult::Failed)
+		if (!bResult)
 		{
 			ErrorCount++;
 		}
 		
 		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
 		// that the pulled payload is the same as the original
-		if (bValidateAfterPushOperation && Result != EPushResult::Failed && Backend->SupportsPullOperations())
+		if (bValidateAfterPushOperation && bResult == true && Backend->SupportsPullOperations())
 		{
-			FCompressedBuffer PulledPayload = PullDataFromBackend(*Backend, Id);
-			checkf(	Payload.GetRawHash() == PulledPayload.GetRawHash(), 
-					TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"), 
-					*Backend->GetDebugName(), 
-					*Id.ToString());
+			for (FPushRequest& Request : ValidatedRequests)
+			{
+				FCompressedBuffer ValidationPayload = PullDataFromBackend(*Backend, Request.Identifier);
+				checkf(	Request.Payload.GetRawHash() == ValidationPayload.GetRawHash(),
+						TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"),
+						*Backend->GetDebugName(),
+						*Request.Identifier.ToString());
+			}
 		}
 	}
 
-	UE_CLOG(ErrorCount == Backends.Num(), LogVirtualization, Error, TEXT("Payload '%s' failed to be pushed to any backend'"), *Id.ToString());
+	UE_CLOG(ErrorCount == Backends.Num(), LogVirtualization, Error, TEXT("Failed to push '%d' payload(s) to any backend'"), ValidatedRequests.Num());
+
+	// Now we need to update the statuses of the original list of requests with those from our validated list
+	for (int32 Index = 0; Index < Requests.Num(); ++Index)
+	{
+		const int32 MappingIndex = OriginalToValidatedRequest[Index];
+		if (MappingIndex != INDEX_NONE)
+		{
+			Requests[Index].Status = ValidatedRequests[MappingIndex].Status;
+		}
+	}
 
 	// For local storage we consider the push to have failed only if ALL backends gave an error, if at least one backend succeeded then the operation succeeded.
 	// For persistent storage we require that all backends succeeded, so any errors will fail the push operation.
@@ -848,7 +877,7 @@ void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompresse
 bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetCacheStats(Backend)));
-	const EPushResult Result = Backend.PushData(Id, Payload, FPackagePath());
+	const EPushResult Result = Backend.PushData(Id, Payload, FString());
 
 	if (Result == EPushResult::Success)
 	{
@@ -858,17 +887,24 @@ bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backe
 	return Result != EPushResult::Failed;
 }
 
-bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext)
+bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests)
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetPushStats(Backend)));
-	const EPushResult Result = Backend.PushData(Id, Payload, PackageContext);
+	const bool bResult = Backend.PushData(Requests);
 
-	if (Result == EPushResult::Success)
+	if (bResult)
 	{
-		COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+		for (FPushRequest& Request : Requests)
+		{
+			// TODO: Don't add a hit if the payload was already uploaded
+			if (Request.Status == FPushRequest::EStatus::Success)
+			{
+				COOK_STAT(Timer.AddHit(Request.Payload.GetCompressedSize()));
+			}
+		}
 	}
-
-	return Result != EPushResult::Failed;
+	
+	return bResult;
 }
 
 FCompressedBuffer FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id)
