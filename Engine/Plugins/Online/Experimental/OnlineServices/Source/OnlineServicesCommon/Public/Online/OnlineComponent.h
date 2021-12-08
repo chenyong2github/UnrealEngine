@@ -42,7 +42,7 @@ public:
 	template <typename StructType>
 	bool LoadConfig(StructType& Struct, const FString& OperationName = FString()) const
 	{
-		return static_cast<const ComponentType*>(this)->GetServices()->LoadConfig(Struct, GetConfigName(), OperationName);
+		return GetServices().LoadConfig(Struct, GetConfigName(), OperationName);
 	}
 
 	const FString& GetConfigName() const { return InterfaceName; }
@@ -69,6 +69,12 @@ public:
 	ServicesType& GetServices()
 	{
 		return static_cast<ServicesType&>(Services);
+	}
+
+	template <typename ServicesType = FOnlineServicesCommon>
+	const ServicesType& GetServices() const
+	{
+		return static_cast<const ServicesType&>(Services);
 	}
 
 	/* Queue for executing tasks in serial */
