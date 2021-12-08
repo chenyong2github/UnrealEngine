@@ -57,7 +57,9 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			uint8 CharSize = EventData.GetValue<uint8>("CharSize");
 			if (CharSize == sizeof(ANSICHAR))
 			{
-				TimerName = StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get();
+				const ANSICHAR* AnsiName = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
+				Name = StringCast<TCHAR>(AnsiName).Get();
+				TimerName = *Name;
 			}
 			else if (CharSize == 0 || CharSize == sizeof(TCHAR)) // 0 for backwards compatibility
 			{
