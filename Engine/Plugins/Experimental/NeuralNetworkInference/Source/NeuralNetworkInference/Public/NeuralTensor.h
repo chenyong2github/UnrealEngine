@@ -139,10 +139,11 @@ public:
 	FORCEINLINE void SetEnableGPU(const bool bInEnableGPU);
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), which represent all the functions that can access/modify
-	 *  the CPU memory. These functions could result in undefined behavior in not used properly:
-	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), these reference/pointer returned
-	 *   by any of these functions will no longer be valid (except GetUnderlyingUInt8ArrayRef()).
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
+	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
+	 * could result in undefined behavior in not used properly:
+	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
+	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
 	 *
 	 * At() returns a reference to the desired indexed element of the underlying CPU data (UnderlyingUInt8ArrayData). There are 2 variations of this
@@ -156,10 +157,11 @@ public:
 	const T& At(const TInput InIndex) const;
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), which represent all the functions that can access/modify
-	 *  the CPU memory. These functions could result in undefined behavior in not used properly:
-	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), these reference/pointer returned
-	 *   by any of these functions will no longer be valid (except GetUnderlyingUInt8ArrayRef()).
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
+	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
+	 * could result in undefined behavior in not used properly:
+	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
+	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
 	 *
 	 * GetArrayCopy and GetUnderlyingUInt8ArrayRef allow accessing the tensor data as a TArray, but they cannot modify the data values:
@@ -171,10 +173,11 @@ public:
 	FORCEINLINE const TArray<uint8>& GetUnderlyingUInt8ArrayRef() const;
 
 	/**
-	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), which represent all the functions that can access/modify
-	 *  the CPU memory. These functions could result in undefined behavior in not used properly:
-	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), these reference/pointer returned
-	 *   by any of these functions will no longer be valid (except GetUnderlyingUInt8ArrayRef()).
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
+	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
+	 * could result in undefined behavior in not used properly:
+	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
+	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
 	 *
 	 * GetArrayCopy and GetUnderlyingUInt8ArrayRef allow accessing and optionally modifying the tensor data as a pointer:
@@ -194,7 +197,14 @@ public:
 	FORCEINLINE const T* const GetDataCasted() const;
 
 	/**
-	 * It resizes the tensor to the desired new size (i.e., modiying DataType, Sizes, Volume, UnderlyingUInt8ArrayData, etc.).
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
+	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
+	 * could result in undefined behavior in not used properly:
+	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
+	 *   references/pointers will no longer be valid.
+	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
+	 *
+	 * SetNumUninitialized resizes the tensor to the desired new size (i.e., modiying DataType, Sizes, Volume, UnderlyingUInt8ArrayData, etc.).
 	 * @param InDataType It sets DataType. If None, it will keep its current value. @see DataType for more details.
 	 * @param InSizes It sets Sizes and Volume. Set to empty (or omit this argument) if memory allocation is not required or the final tensor size is
 	 *  unknown. @see Sizes, Volume for more details.
@@ -208,51 +218,78 @@ public:
 	FORCEINLINE void SetNumUninitialized(const ENeuralDataType InDataType, const int64 InVolume, const bool bInAllowShrinking = true);
 
 	/**
-	 * This will replace the TArray with the input one, by deeply copying the array (safer and easier to use).
-	 * For maximum performance:
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
+	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
+	 * could result in undefined behavior in not used properly:
+	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
+	 *   references/pointers will no longer be valid.
+	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
+	 *
+	 * SetFromUnderlyingUInt8ArrayCopy/SetFromArrayCopy will replace the contents of the underlying CPU TArray with the input one, by deeply copying
+	 * the array (safer and easier to use). For maximum performance:
 	 * - If you are given an input TArray (or a FNeuralTensor with different Sizes) that cannot be moved, use SetFromArrayCopy().
-	 * - If you are initializing the FNeuralTensor iteratively (and to avoid a copy), fill the tensor with GetDataCasted().
-	 * Modifying the array InArray after calling this function will not modify the internal FNeuralTensor array.
-	 * The size of both (InArray and current FNeuralTensor) must match, i.e., Num() must match InArray.Num().
+	 * - If you are initializing the FNeuralTensor iteratively (and to avoid a copy), fill the tensor with GetData()/GetDataCasted<T>().
+	 * Modifying InArray after calling this function will not modify the data of this FNeuralTensor.
+	 * The size of InArray and this tensor must match, i.e., NumInBytes() must match TArray<uint8>::Num() or Num() match TArray<T>.Num().
 	 */
 	void SetFromUnderlyingUInt8ArrayCopy(const TArray<uint8>& InArray);
 	template<typename T>
 	void SetFromArrayCopy(const TArray<T>& InArray);
 
 	/**
-	 * It sets all the elements of the FNeuralTensor to InValue.
-	 * It use a double typename to avoid the mistake of SetTo(0) for a double or float (because that 0 would be an int otherwise).
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
+	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
+	 * could result in undefined behavior in not used properly:
+	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
+	 *   references/pointers will no longer be valid.
+	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
+	 *
+	 * SetTo() sets all the elements of the FNeuralTensor to the same value (InValue).
+	 * It uses a double typename to avoid the mistake of SetTo(0) for a non-32-byte type (because that 0 would be an int32 otherwise).
 	 */
 	template<typename T, typename TInput>
 	void SetTo(const TInput InValue);
 
 	/**
-	 * It will fill the current neural tensor with the input FTensorProto.
+	 * @see At(), GetArrayCopy(), GetUnderlyingUInt8ArrayRef(), GetData(), GetDataCasted(), SetNumUninitialized, SetFromUnderlyingUInt8ArrayCopy,
+	 * SetFromArrayCopy, SetTo, SetFromTensorProto, which represent all the functions that can access/modify the CPU memory. Some of these functions
+	 * could result in undefined behavior in not used properly:
+	 * - If FNeuralTensor goes out of scope, it is destructed, or its memory is reset (constructor, SetNum(), etc.), the functions returning
+	 *   references/pointers will no longer be valid.
+	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
+	 *
+	 * SetFromTensorProto() fills the current neural tensor with the input FTensorProto.
 	 * @return Whether the conversion was successful.
 	 */
 	bool SetFromTensorProto(const struct FTensorProto* const InTensorProto, const FString& InTensorName, const ENeuralTensorType InTensorType);
 
 	/**
-	 * It flips the InDimension dimension of the tensor.
-	 * @return Whether the flip was successful.
+	 * It reverses/flips the order of elements in an array along the given axis. It is needed for applications such as convolution.
+	 * - If 1 argument, it flips the InDimension dimension of the tensor.
+	 * - If 2 arguments, it flips all the dimensions of the tensor in the range [InDimensionFirst, InDimensionLast).
+	 * E.g., for the following [2x2x2] tensor:
+	 *   - Tensor    = [[[0, 1], [2, 3]], [[4, 5], [6, 7]]]
+	 *   - Flip(0)   = [[[4, 5], [6, 7]], [0, 1], [2, 3]]]
+	 *   - Flip(1)   = [[[2, 3], [0, 1]], [[6, 7], [4, 5]]]
+	 *   - Flip(0,3) = [[[7, 6], [5, 4]], [[3, 2], [1, 0]]]
+	 * @return Whether the flip was successful. It could only fail if the given arguments are not valid.
+	 * @see https://numpy.org/doc/stable/reference/generated/numpy.flip.html for more information.
 	 */
 	bool Flip(const int32 InDimension);
-
-	/**
-	 * It flips all the dimensions of the tensor in the range [InDimensionFirst, InDimensionLast). Needed for efficient convolution.
-	 * @return Whether the flip was successful.
-	 */
 	bool Flip(const int32 InDimensionFirst, const int32 InDimensionLast);
 
 	/**
-	 * It transposes the matrix (if the tensor has up to 2 dimensions).
-	 * @return Whether the transpose was successful.
+	 * It transposes the matrix if the tensor has up to 2 dimensions. Otherwise, it will return false and do nothing.
+	 * @return Whether the transpose was successful. E.g., it will fail if GetNumberDimensions() > 2.
+	 * @see https://numpy.org/doc/stable/reference/generated/numpy.transpose.html for more information.
 	 */
 	bool Transpose();
 
 	/**
-	 * If Num() is constant, it reshapes the current tensor. I.e., it just updates Sizes with InSizes.
+	 * If the number of elements is preserved (i.e., Prod(Sizes) == Prod(InSizes)), it reshapes the current tensor, meaning it updates Sizes with
+	 * InSizes. No other internal variable is modified.
 	 * Reshape() copies and ReshapeMove() moves InSizes.
+	 * @return Whether the reshape was successful. It would fail if and only if Prod(Sizes) != Prod(InSizes).
 	 */
 	bool Reshape(const TArray<int64>& InSizes);
 	bool ReshapeMove(TArray<int64>& InSizes);
@@ -293,10 +330,11 @@ public:
 	FRDGBufferUAVRef GetBufferUAVRef();
 
 	/**
-	 * It returns a FString with up to InMaxNumberElementsToDisplay elements displayed. If InMaxNumberElementsToDisplay <= 0, it displays them all.
-	 * @param bInReturnOnlyData If false (default), it will print all information.
-	 * E.g., "FNeuralTensor: Int64, Generic, volume=3, sizes={3}, data=[1 2 3]".
-	 * If false, it will simply print the data. I.e., "[1 2 3]" for the previous example.
+	 * It returns a FString with all the tensor information (underlying CPU data and optionally DataType, Sizes, Volume, etc.).
+	 * @param InMaxNumberElementsToDisplay The maximum number of elements to display. If Volume <= InMaxNumberElementsToDisplay or
+	 * InMaxNumberElementsToDisplay < 1, all elements are displayed. Otherwise, only the first and last InMaxNumberElementsToDisplay/2 are displayed.
+	 * @param bInReturnOnlyData If false (default), it will print other information such as DataType, Sizes, Volume, etc. If true, it will only print
+	 * the underlying CPU data values. E.g., "FNeuralTensor: Int64, Generic, volume=3, sizes={3}, data=[1 2 3]" vs. "[1 2 3]", respectively.
 	 */
 	FString ToString(const int64 InMaxNumberElementsToDisplay = -1, const bool bInReturnOnlyData = false) const;
 
@@ -324,15 +362,18 @@ protected:
 
 private:
 	/**
-	 * The array containing the CPU data. It is pre-allocated based on the combination of DataType and Sizes/Volume (if Sizes/Volume are not
-	 * empty/zero): UnderlyingUInt8ArrayData.Num() == sizeof(data type) x Volume.
+	 * The array containing the underlying CPU data. It is pre-allocated based on the combination of DataType and Sizes/Volume (if Sizes/Volume are
+	 * not empty/zero): UnderlyingUInt8ArrayData.Num() == sizeof(data type) x Volume.
 	 */
 	UPROPERTY()
 	TArray<uint8> UnderlyingUInt8ArrayData;
 	/**
-	 * GPU-based variables that are transient (do not need to be serialized) and initialized on the fly (with ToGPU/ToCPU).
-	 * - bEnableGPU: By default false, meaning all GPU memory will be disabled and those functions will not do anything. Enable to allow using the
-	 *   GPU functions and variables of the tensor.
+	 * GPU-related variables that are transient. They are not serialized and are re-configured every time a tensor is loaded.
+	 * - bEnableGPU: By default false, meaning all GPU memory allocation will be disabled and GPU functions will do nothing. Enable to allow using
+	 *   the GPU capabilities of the tensor.
+	 * - PooledBuffer: FRDGPooledBuffer containing the GPU memory of this tensor.
+	 * - BufferSRVRef: Casting of the PooledBuffer into a read-only SRV.
+	 * - BufferUAVRef: Casting of the PooledBuffer into a read-write UAV.
 	 */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Neural Network Inference")
 	bool bEnableGPU;
@@ -341,27 +382,31 @@ private:
 	TSharedPtr<FRDGBufferUAVRef> BufferUAVRef;
 
 	/**
-	 * Auxiliary for the templated constructor FNeuralTensor(const ENeuralDataType InDataType, const TArray<T>& InArray, ...).
+	 * Auxiliary constructor for the templated constructor that takes a TArray<T>& InArray.
 	 * InSizeOfT and sizeof(InDataType) should match, as well as the volume of InValueNum and InSizes.
+	 * It simply moves as much code as possible from the template constructor to the cpp file.
 	 */
 	FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum,
 		const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorType);
 
 	/**
-	 * Auxiliary for the templated SetFromArrayCopy().
+	 * Auxiliary function for the templated SetFromArrayCopy().
+	 * It simply moves as much code as possible from the template function to the cpp file.
 	 */
 	void SetFromPointer(const void* const InData, const int64 InSizeOfT, const int64 InDataSize);
 
 	/**
-	 * Checks and warns whether the current data type T is incompatible with DataType.
+	 * Checks and warns whether the current data type T is the same than the one defined by DataType.
+	 * CheckTAndDataTypeEquivalent() is the function to be used and CheckTAndDataTypeEquivalentAuxiliary its just its auxiliary and moves as much
+	 * code as possible from the template function to the cpp file
 	 */
 	template<typename T>
 	bool CheckTAndDataTypeEquivalent() const;
-	bool CheckTAndDataTypeResult(const bool bInCheckTAndDataTypeResult, const int64 InSizeOfT) const;
+	bool CheckTAndDataTypeEquivalentAuxiliary(const bool bInCheckTAndDataTypeResult, const int64 InSizeOfT) const;
 
 	/**
-	 * This function has total control over the buffer flags (and ignores the TensorType flag). Thus, it is kept private and it should only be used
-	 * by its public analog.
+	 * This function has total control over the buffer flags (and ignores the TensorType flag). Conceptually speaking, it should be a static
+	 * function, but that would add a lot of arguments to it. Thus, it is kept private and it should only be used by its public equivalent.
 	 * Depending on the value of InBufferUsageFlags, it can perform GPU allocation, CPU-to-GPU upload, apply different settings, etc.
 	 * @see CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder).
 	 */
@@ -510,5 +555,5 @@ void FNeuralTensor::SetTo(const TInput InValue)
 template<typename T>
 bool FNeuralTensor::CheckTAndDataTypeEquivalent() const
 {
-	return CheckTAndDataTypeResult(FNeuralDataTypeUtils::GetDataType<T>() == DataType, sizeof(T));
+	return CheckTAndDataTypeEquivalentAuxiliary(FNeuralDataTypeUtils::GetDataType<T>() == DataType, sizeof(T));
 }
