@@ -40,6 +40,11 @@ FVector FWorldPartitionActorDescView::GetOrigin() const
 
 FName FWorldPartitionActorDescView::GetRuntimeGrid() const
 {
+	if (bInvalidRuntimeGrid)
+	{
+		return FName();
+	}
+
 	return ActorDesc->GetRuntimeGrid();
 }
 
@@ -137,6 +142,11 @@ void FWorldPartitionActorDescView::SetForcedNonSpatiallyLoaded()
 		bIsForcedNonSpatiallyLoaded = true;
 		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' forced to be non-spatially loaded"), *GetActorLabel().ToString());
 	}
+}
+
+void FWorldPartitionActorDescView::SetInvalidRuntimeGrid()
+{
+	bInvalidRuntimeGrid = true;	
 }
 
 void FWorldPartitionActorDescView::SetInvalidDataLayers()

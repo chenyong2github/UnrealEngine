@@ -32,6 +32,7 @@
 		HLOD Generation
 */
 
+
 class FWorldPartitionStreamingGenerator
 {
 	void CreateActorDescViewMap(const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap, const FActorContainerID& InContainerID)
@@ -162,6 +163,21 @@ class FWorldPartitionStreamingGenerator
 	 */
 	void ValidateActorDescriptorViews()
 	{
+
+		// Validate data layers
+		auto IsReferenceDataLayersValid = [](const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
+		{
+			if (ActorDescView.GetDataLayers().Num() == ReferenceActorDescView.GetDataLayers().Num())
+			{
+				const TSet<FName> ActorDescDataLayers(ActorDescView.GetDataLayers());
+				const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView.GetDataLayers());
+
+				return ActorDescDataLayers.Includes(ReferenceActorDescDataLayers);
+			}
+
+			return false;
+		};
+
 		for (auto It = ContainerDescriptorsMap.CreateIterator(); It; ++It)
 		{
 			const FActorContainerID& ContainerID = It.Key();
@@ -201,62 +217,152 @@ class FWorldPartitionStreamingGenerator
 				}
 			}
 
-			// Perform various adjustements based on validations and errors
-			for (auto ActorDescIt = ContainerDescriptor.ActorDescViewMap.CreateIterator(); ActorDescIt; ++ActorDescIt)
+			// Perform various adjustements based on validations and report errors
+			//
+			// The first validation pass is used to report errors, subsequent passes are used to make corrections to the FWorldPartitionActorDescView
+			// Since the references can form cycles/long chains in the data fixes might need to be propagated in multiple passes.
+			// 
+			// This works because fixes are deterministic and always apply the same way to both Actors being modified, so there's no ordering issues possible
+			uint32 NbValidationPasses = 0;
+
+			while(true)
 			{
-				FWorldPartitionActorDescView& ActorDescView = ActorDescIt.Value();
+				uint32 NbErrorsDetected = 0;
 
-				// Validate references
-				for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
+				for (auto ActorDescIt = ContainerDescriptor.ActorDescViewMap.CreateIterator(); ActorDescIt; ++ActorDescIt)
 				{
-					if (FWorldPartitionActorDescView* ReferenceActorDescView = ContainerDescriptor.ActorDescViewMap.Find(ReferenceGuid))
+					FWorldPartitionActorDescView& ActorDescView = ActorDescIt.Value();
+
+					struct ActorReferenceInfo
 					{
-						// Validate grid placement
-						const bool bIsActorDescSpatiallyLoaded = ActorDescView.GetIsSpatiallyLoaded();
-						const bool bIsActorDescRefSpatiallyLoaded = ReferenceActorDescView->GetIsSpatiallyLoaded();
+						FGuid								ActorGuid;
+						FWorldPartitionActorDescView*		ActorDesc;
+						FGuid								ReferenceGuid;
+						FWorldPartitionActorDescView*		ReferenceActorDesc;
+					};
 
-						if (bIsActorDescSpatiallyLoaded != bIsActorDescRefSpatiallyLoaded)
+					TArray<ActorReferenceInfo, TInlineAllocator<8>> References;
+					
+					// Build References List
+
+					// Add normal Actore references
+					for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
+					{
+						if (ReferenceGuid != ActorDescView.GetParentActor()) // References to the parent are inversed in their handling 
 						{
-							if (ErrorHandler)
-							{
-								ErrorHandler->OnInvalidReferenceGridPlacement(ActorDescView, *ReferenceActorDescView);
-							}
+							// Filter out parent back references
+							FWorldPartitionActorDescView* ReferenceActorDesc = ContainerDescriptor.ActorDescViewMap.Find(ReferenceGuid);
+							if (ReferenceActorDesc && ReferenceActorDesc->GetParentActor() == ActorDescView.GetGuid())
+								continue;
 
-							ActorDescView.SetForcedNonSpatiallyLoaded();
-							ReferenceActorDescView->SetForcedNonSpatiallyLoaded();
-						}
-
-						// Validate data layers
-						auto IsReferenceDataLayersValid = [](const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
-						{
-							if (ActorDescView.GetDataLayers().Num() == ReferenceActorDescView.GetDataLayers().Num())
-							{
-								const TSet<FName> ActorDescDataLayers(ActorDescView.GetDataLayers());
-								const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView.GetDataLayers());
-
-								return ActorDescDataLayers.Includes(ReferenceActorDescDataLayers);
-							}
-
-							return false;
-						};
-
-						if (!IsReferenceDataLayersValid(ActorDescView, *ReferenceActorDescView))
-						{
-							if (ErrorHandler)
-							{
-								ErrorHandler->OnInvalidReferenceDataLayers(ActorDescView, *ReferenceActorDescView);
-							}
-
-							ActorDescView.SetInvalidDataLayers();
-							ReferenceActorDescView->SetInvalidDataLayers();
+							References.Emplace(ActorReferenceInfo{ ActorDescView.GetGuid(), &ActorDescView, ReferenceGuid, ReferenceActorDesc });
 						}
 					}
-					else if (ErrorHandler)
+
+					// Add attach reference for the topmost parent, this reference is inverted since we consider the top most existing 
+					// parent to be refering to us, not the child to be referering the parent
+					FGuid ParentGuid = ActorDescView.GetParentActor();
+					FWorldPartitionActorDescView* TopParentDescView = nullptr;
+
+					while (ParentGuid.IsValid())
 					{
-						ErrorHandler->OnInvalidReference(ActorDescView, ReferenceGuid);
+						FWorldPartitionActorDescView* ParentDescView = ContainerDescriptor.ActorDescViewMap.Find(ParentGuid);
+					
+						if (ParentDescView)
+						{
+							TopParentDescView = ParentDescView;
+							ParentGuid = ParentDescView->GetParentActor();
+						}
+						else
+						{
+							// we had a guid but parent cannot be found, this will be a missing reference
+							break; 
+						}
 					}
-				}
-			}
+
+					if (TopParentDescView)
+					{
+						References.Emplace(ActorReferenceInfo{ TopParentDescView->GetGuid(), TopParentDescView, ActorDescView.GetGuid(), &ActorDescView });
+					}
+
+					if (ParentGuid.IsValid())
+					{
+						// In case of missing parent add a missing reference 
+						References.Emplace(ActorReferenceInfo{ ActorDescView.GetGuid(), &ActorDescView, ParentGuid, nullptr });
+					}
+
+					for (ActorReferenceInfo& Info : References)
+					{
+						FWorldPartitionActorDescView* RefererActorDescView = Info.ActorDesc;
+						FWorldPartitionActorDescView* ReferenceActorDescView = Info.ReferenceActorDesc;
+
+						if (ReferenceActorDescView)
+						{
+							// Validate grid placement
+							const bool bIsActorDescSpatiallyLoaded = RefererActorDescView->GetIsSpatiallyLoaded();
+							const bool bIsActorDescRefSpatiallyLoaded = ReferenceActorDescView->GetIsSpatiallyLoaded();
+
+							if (bIsActorDescSpatiallyLoaded != bIsActorDescRefSpatiallyLoaded)
+							{
+								if (ErrorHandler && !NbValidationPasses)
+								{
+									ErrorHandler->OnInvalidReferenceGridPlacement(*RefererActorDescView, *ReferenceActorDescView);									
+								}
+								NbErrorsDetected++;
+
+								if (NbValidationPasses)
+								{
+									RefererActorDescView->SetForcedNonSpatiallyLoaded();
+									ReferenceActorDescView->SetForcedNonSpatiallyLoaded();
+								}
+							}
+
+							if (!IsReferenceDataLayersValid(*RefererActorDescView, *ReferenceActorDescView))
+							{
+								if (ErrorHandler && !NbValidationPasses)
+								{
+									ErrorHandler->OnInvalidReferenceDataLayers(*RefererActorDescView, *ReferenceActorDescView);									
+								}
+								NbErrorsDetected++;
+
+								if (NbValidationPasses)
+								{
+									RefererActorDescView->SetInvalidDataLayers();
+									ReferenceActorDescView->SetInvalidDataLayers();
+								}
+							}
+
+							if (ReferenceActorDescView->GetRuntimeGrid() != RefererActorDescView->GetRuntimeGrid())
+							{
+								if (ErrorHandler && !NbValidationPasses)
+								{
+									ErrorHandler->OnInvalidReferenceRuntimeGrid(*RefererActorDescView, *ReferenceActorDescView);
+								}
+								NbErrorsDetected++;
+
+								if  (NbValidationPasses)
+								{
+									RefererActorDescView->SetInvalidRuntimeGrid();
+									ReferenceActorDescView->SetInvalidRuntimeGrid();
+								}
+							}
+
+						}
+						else if (ErrorHandler)
+						{
+							if (!NbValidationPasses)
+							{
+								ErrorHandler->OnInvalidReference(*RefererActorDescView, Info.ReferenceGuid);
+							}
+							// Do not increment NbErrorsDetected since it won't be fixed and thus will always occur
+						}
+					}				
+				}		
+
+				NbValidationPasses++;
+				if (NbErrorsDetected == 0)
+					break;
+			} 
 		}
 	}
 

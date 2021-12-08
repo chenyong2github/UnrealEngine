@@ -25,6 +25,11 @@ public:
 	 */
 	virtual void OnInvalidReferenceDataLayers(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView) = 0;
 
+	/**
+	 * Called when an actor references an actor using a different RuntimeGrid.
+	 */
+	virtual void OnInvalidReferenceRuntimeGrid(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView) = 0;
+
 	/** 
 	 * Called when the level script references a streamed actor.
 	 */

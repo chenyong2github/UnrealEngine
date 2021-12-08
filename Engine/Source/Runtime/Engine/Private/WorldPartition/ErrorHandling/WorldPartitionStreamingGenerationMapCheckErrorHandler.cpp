@@ -43,6 +43,16 @@ void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceDataLayers(cons
 		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_ActorReferenceActorInAnotherDataLayer_CheckForErrors"))));
 }
 
+void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceRuntimeGrid(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
+{
+	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
+		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_Actor", "Actor")))
+		->AddToken(FAssetNameToken::Create(ActorDescView.GetActorLabelOrName().ToString()))
+		->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_ReferenceActorInOtherRuntimeGrid", "references an actor in a different runtime grid")))
+		->AddToken(FAssetNameToken::Create(ReferenceActorDescView.GetActorLabelOrName().ToString()))
+		->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_ActorReferenceActorInAnotherRuntimeGrid_CheckForErrors"))));
+}
+
 void FStreamingGenerationMapCheckErrorHandler::OnInvalidReferenceLevelScriptStreamed(const FWorldPartitionActorDescView& ActorDescView)
 {
 	TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
