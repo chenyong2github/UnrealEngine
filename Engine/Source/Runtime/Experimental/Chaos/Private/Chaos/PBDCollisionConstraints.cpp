@@ -289,12 +289,15 @@ namespace Chaos
 			ConstraintAllocator.SortConstraintsHandles();
 		}
 
-		// Initialize container properties
+		// Bind the constraints to this container and initialize other properties
+		// @todo(chaos): this could be set on creation if the midphase knew about the container
 		for (FPBDCollisionConstraint* Contact : GetConstraints())
 		{
-			// @todo(chaos): this could be set on creation if the allocator knew about the container
-			Contact->SetContainer(this);
-			UpdateConstraintMaterialProperties(*Contact);
+			if (Contact->GetContainer() == nullptr)
+			{
+				Contact->SetContainer(this);
+				UpdateConstraintMaterialProperties(*Contact);
+			}
 		}
 	}
 
