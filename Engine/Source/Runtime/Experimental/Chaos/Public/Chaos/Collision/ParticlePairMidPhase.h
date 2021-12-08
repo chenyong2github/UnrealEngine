@@ -348,7 +348,7 @@ namespace Chaos
 		*/
 		bool ShouldEnableCCD(const FReal Dt);
 
-		void InitRestoreThresholds();
+		void InitThresholds();
 
 		/**
 		 * @brief Whether we should reuse the constraint as-is and skip the narrow phase
@@ -385,5 +385,8 @@ namespace Chaos
 		FVec3 RestoreParticleP1;
 		FRotation3 RestoreParticleQ0;
 		FRotation3 RestoreParticleQ1;
+
+		// A number based on the size of the dynamic objects used to scale cull distance
+		FReal CullDistanceScale;
 	};
 }
