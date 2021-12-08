@@ -238,21 +238,31 @@ bool FAnisotropyMeshProcessor::Process(
 	return true;
 }
 
-bool FDeferredShadingSceneRenderer::ShouldRenderAnisotropyPass() const
+bool ShouldRenderAnisotropyPass(const FViewInfo& View)
 {
-	if (!SupportsAnisotropicMaterials(FeatureLevel, ShaderPlatform))
+	if (!SupportsAnisotropicMaterials(View.FeatureLevel, View.GetShaderPlatform()))
 	{
 		return false;
 	}
 
-	if (IsAnyForwardShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)))
+	if (IsAnyForwardShadingEnabled(GetFeatureLevelShaderPlatform(View.FeatureLevel)))
 	{
 		return false;
 	}
 
-	for (auto& View : Views)
+	if (View.ShouldRenderView() && View.ParallelMeshDrawCommandPasses[EMeshPass::AnisotropyPass].HasAnyDraw())
 	{
-		if (View.ShouldRenderView() && View.ParallelMeshDrawCommandPasses[EMeshPass::AnisotropyPass].HasAnyDraw())
+		return true;
+	}
+
+	return false;
+}
+
+bool ShouldRenderAnisotropyPass(const TArray<FViewInfo>& Views)
+{
+	for (const FViewInfo& View : Views)
+	{
+		if (ShouldRenderAnisotropyPass(View))
 		{
 			return true;
 		}

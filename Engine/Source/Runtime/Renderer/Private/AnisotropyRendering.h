@@ -49,3 +49,6 @@ protected:
 		ERasterizerCullMode MeshCullMode
 		);
 };
+
+bool ShouldRenderAnisotropyPass(const FViewInfo& Views);
+bool ShouldRenderAnisotropyPass(const TArray<FViewInfo>& Views);

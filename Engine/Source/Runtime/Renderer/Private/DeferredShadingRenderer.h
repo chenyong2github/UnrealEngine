@@ -214,8 +214,6 @@ public:
 		bool bNaniteEnabled,
 		const TArrayView<Nanite::FRasterResults>& NaniteRasterResults);
 
-	bool ShouldRenderAnisotropyPass() const;
-
 	void RenderAnisotropyPass(
 		FRDGBuilder& GraphBuilder,
 		FSceneTextures& SceneTextures,
@@ -698,25 +696,6 @@ private:
 		bool bProjectingForForwardShading,
 		bool bRenderingPreviewShadowsIndicator, 
 		bool bUseHairStrands);
-
-	/** Used by RenderLights to render a light to the scene color buffer. */
-	void RenderLight(
-		FRHICommandList& RHICmdList,
-		const FViewInfo& View,
-		const FLightSceneInfo* LightSceneInfo,
-		FRenderLightParameters* PassParameters,
-		FRHITexture* ScreenShadowMaskTexture,
-		FRHITexture* LightingChannelTexture,
-		bool bRenderOverlap,
-		bool bIssueDrawEvent);
-
-	void RenderLight(
-		FRDGBuilder& GraphBuilder,
-		const FMinimalSceneTextures& SceneTextures,
-		const FLightSceneInfo* LightSceneInfo,
-		FRDGTextureRef ScreenShadowMaskTexture,
-		FRDGTextureRef LightingChannelsTexture,
-		bool bRenderOverlap);
 
 	void RenderLightsForHair(
 		FRDGBuilder& GraphBuilder,
