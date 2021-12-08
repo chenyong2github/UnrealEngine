@@ -32,4 +32,13 @@ const FCommonFrameRateInfo* FCommonFrameRates::Find(FFrameRate InFrameRate)
 	return Algo::FindBy(AllFrameRates, InFrameRate, &FCommonFrameRateInfo::FrameRate);
 }
 
+const FCommonFrameRateInfo* FCommonFrameRates::Find(const double InFrameRateAsDecimal, const double Tolerance)
+{
+	return Algo::FindByPredicate(AllFrameRates,
+		[InFrameRateAsDecimal, Tolerance](const FCommonFrameRateInfo& CommonFrameRateInfo) -> bool
+		{
+			return FMath::IsNearlyEqual(CommonFrameRateInfo.FrameRate.AsDecimal(), InFrameRateAsDecimal, Tolerance);
+		});
+}
+
 #undef LOCTEXT_NAMESPACE

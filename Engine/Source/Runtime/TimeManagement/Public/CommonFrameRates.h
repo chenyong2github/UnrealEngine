@@ -61,6 +61,14 @@ struct TIMEMANAGEMENT_API FCommonFrameRates
 
 	static const FCommonFrameRateInfo* Find(FFrameRate InFrameRate);
 
+	/** Find a common frame rate that matches the given frame rate as a decimal number of frames per second.
+	 *
+	 *  @param InFrameRateAsDecimal: Frame rate (in frames per second) to search for.
+	 *  @param Tolerance: Numerical tolerance to use when searching for a frame rate match.
+	 *  @return: a pointer to the matching common frame rate if a match was found, or nullptr otherwise.
+	 */
+	static const FCommonFrameRateInfo* Find(const double InFrameRateAsDecimal, const double Tolerance = DOUBLE_KINDA_SMALL_NUMBER);
+
 private:
 	static const FCommonFrameRateInfo AllFrameRates[(int32)ECommonFrameRate::Private_Num];
 };
