@@ -19,6 +19,7 @@
 #include "ClearQuad.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "DebugProbeRendering.h"
+#include "AnisotropyRendering.h"
 #include "Nanite/NaniteVisualize.h"
 
 // Changing this causes a full shader recompile
@@ -889,7 +890,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		ClearGBufferAtMaxZ(GraphBuilder, Views, BasePassRenderTargets, SceneColorClearValue);
 	}
 
-	if (ShouldRenderAnisotropyPass())
+	if (ShouldRenderAnisotropyPass(Views))
 	{
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AnisotropyPass));
 		RenderAnisotropyPass(GraphBuilder, SceneTextures, bEnableParallelBasePasses);
