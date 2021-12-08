@@ -1374,7 +1374,7 @@ bool FJupiterBackend::Initialize(const FString& ConfigEntry)
 	return true;
 }
 
-EPushResult FJupiterBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FPackagePath& PackageContext)
+EPushResult FJupiterBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext)
 {
 	using namespace Utility;
 

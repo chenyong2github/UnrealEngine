@@ -38,8 +38,9 @@ private:
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 	
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext) override;
-	
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FString& Context) override;
+	virtual bool PushData(TArrayView<FPushRequest> Requests) override;
+
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
 
 	virtual bool DoesPayloadExist(const FPayloadId& Id) override;
