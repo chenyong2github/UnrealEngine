@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
-#include "Render/Synchronization/DisplayClusterVBlankMonitor.h"
+#include "Render/Synchronization/DisplayClusterVblankMonitor.h"
 
 
 /**
