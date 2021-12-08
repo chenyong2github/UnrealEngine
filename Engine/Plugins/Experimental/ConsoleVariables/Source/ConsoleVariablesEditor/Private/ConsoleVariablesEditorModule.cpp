@@ -92,7 +92,7 @@ void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 				const FDelegateHandle Handle =
 					AsVariable->OnChangedDelegate().AddRaw(this, &FConsoleVariablesEditorModule::OnConsoleVariableChanged);
 				const TSharedRef<FConsoleVariablesEditorCommandInfo> Info =
-					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, AsVariable->GetString(), Handle);
+					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, Handle);
 				Info->StartupSource = Info->GetSource();
 				ConsoleVariablesMasterReference.Add(Info);
 			}
@@ -162,7 +162,7 @@ void FConsoleVariablesEditorModule::RegisterMenuItem()
 	BrowserSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory());
 }
 
-bool FConsoleVariablesEditorModule::RegisterProjectSettings()
+void FConsoleVariablesEditorModule::RegisterProjectSettings()
 {
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
@@ -173,11 +173,7 @@ bool FConsoleVariablesEditorModule::RegisterProjectSettings()
 			NSLOCTEXT("ConsoleVariables", "ConsoleVariablesSettingsDescription",
 			          "Configure the Console Variables Editor user settings"),
 			GetMutableDefault<UConsoleVariablesEditorProjectSettings>());
-
-		return true;
 	}
-
-	return false;
 }
 
 void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* ChangedVariable)
@@ -188,18 +184,34 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 		FindCommandInfoByConsoleVariableReference(ChangedVariable); CommandInfo.IsValid())
 	{
 		FString OutValue;
-		const FString& Key = CommandInfo.Pin()->Command;
-		if (GetMutableDefault<UConsoleVariablesEditorProjectSettings>()->bAddAllChangedConsoleVariablesToCurrentPreset &&
-			!EditingAsset->FindSavedValueByCommandString(Key, OutValue) &&
-			CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(CommandInfo.Pin()->StartupValueAsString))
+		const TSharedPtr<FConsoleVariablesEditorCommandInfo>& PinnedCommand = CommandInfo.Pin();
+		const FString& Key = PinnedCommand->Command;
+		
+		const bool bIsVariableCurrentlyTracked = EditingAsset->FindSavedValueByCommandString(Key, OutValue);
+		
+		if (!bIsVariableCurrentlyTracked)
 		{
-			EditingAsset->AddOrSetConsoleVariableSavedValue(Key, ChangedVariable->GetString());
+			// If not yet tracked and we want to track variable changes from outside the dialogue,
+			// Check if the changed value differs from the startup value before tracking it
+			if (GetMutableDefault<UConsoleVariablesEditorProjectSettings>()->bAddAllChangedConsoleVariablesToCurrentPreset
+				&& PinnedCommand->IsCurrentValueDifferentFromInputValue(PinnedCommand->StartupValueAsString))
+			{
+				EditingAsset->AddOrSetConsoleVariableSavedValue(Key, ChangedVariable->GetString());
+				if (MainPanel.IsValid())
+				{
+					MainPanel->RebuildList();
+				}
 
+				SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
+			}
+		}
+		else // If it's already being tracked, refreshed the list to update show filters and other possibly stale elements
+		{
 			if (MainPanel.IsValid())
 			{
 				MainPanel->RefreshList();
 			}
-
+			
 			SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
 		}
 	}
@@ -224,7 +236,7 @@ TSharedRef<SDockTab> FConsoleVariablesEditorModule::SpawnMainPanelTab(const FSpa
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab).TabRole(ETabRole::NomadTab);
 	DockTab->SetContent(MainPanel->GetOrCreateWidget());
-	MainPanel->RefreshList();
+	MainPanel->RebuildList();
 			
 	return DockTab;
 }

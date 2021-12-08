@@ -49,7 +49,7 @@ private:
 	void OnFEngineLoopInitComplete();
 
 	void RegisterMenuItem();
-	bool RegisterProjectSettings();
+	void RegisterProjectSettings();
 
 	void OnConsoleVariableChanged(IConsoleVariable* ChangedVariable);
 

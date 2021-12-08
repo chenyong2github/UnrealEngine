@@ -3,9 +3,11 @@
 #include "SConsoleVariablesEditorList.h"
 
 #include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_SourceText.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "SConsoleVariablesEditorListRow.h"
 
+#include "Algo/Find.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
@@ -30,6 +32,8 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 				.CanSelectGeneratedColumn(true).Visibility(EVisibility::Visible);
 	
 	GenerateHeaderRow();
+
+	SetupFilters();
 	
 	ChildSlot
 	[
@@ -104,14 +108,18 @@ void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 
 			// For when no rows exist in view
 			+ SWidgetSwitcher::Slot()
-			.HAlign(HAlign_Center)
+			.HAlign(HAlign_Fill)
 			.Padding(2.0f, 24.0f, 2.0f, 2.0f)
 			[
 				SNew(STextBlock)
+				.AutoWrapText(true)
+				.Justification(ETextJustify::Center)
 				.Text(LOCTEXT("ConsoleVariablesEditorList_NoList", "No List to show. Try clearing the active search or adding some console variables to the list."))
 			]
 		]
-	]; 
+	];
+
+	EvaluateIfRowsPassFilters();
 }
 
 SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
@@ -128,30 +136,63 @@ SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
 	TreeViewPtr.Reset();
 }
 
+void SConsoleVariablesEditorList::SetupFilters()
+{
+	TArray<FString> SourceFilterTypes =
+	{
+		"Constructor",
+		"Scalability",
+		"Game Setting",
+		"Project Setting",
+		"System Settings ini",
+		"Device Profile",
+		"Game Override",
+		"Console Variables ini",
+		"Command line",
+		"Code",
+		"Console"
+	};
+
+	for (const FString& Type : SourceFilterTypes)
+	{
+		ShowFilters.Add(MakeShared<FConsoleVariablesEditorListFilter_SourceText>(Type));
+	}
+}
+
 TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 {
 	FMenuBuilder ShowOptionsMenuBuilder = FMenuBuilder(true, nullptr);
 
-	ShowOptionsMenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowHeading", "Show"));
+	ShowOptionsMenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowOptionsShowSectionHeading", "Show"));
 	{
 		// Add mode filters
-		auto AddFiltersLambda = [&ShowOptionsMenuBuilder](const FText& FilterTitle, const FText& FilterTooltip)
+		auto AddFiltersLambda = [this, &ShowOptionsMenuBuilder](const TSharedRef<IConsoleVariablesEditorListFilter>& InFilter)
 		{
+			const FString& FilterName = InFilter->GetFilterName();
+			
 			ShowOptionsMenuBuilder.AddMenuEntry(
-			   FilterTitle,
-			   FilterTooltip,
+			   InFilter->GetFilterButtonLabel(),
+			   InFilter->GetFilterButtonToolTip(),
 			   FSlateIcon(),
 			   FUIAction(
-				   //FExecuteAction::CreateRaw( this, &SConsoleVariablesEditorList::ToggleFilterActive ),
-				   //FCanExecuteAction(),
-				   //FIsActionChecked::CreateRaw( this, &SConsoleVariablesEditorList::IsFilterActive )
+				   FExecuteAction::CreateLambda(
+				   	[this, FilterName]()
+					   {
+						   ToggleFilterActive(FilterName);
+					   }
+					),
+				   FCanExecuteAction(),
+				   FIsActionChecked::CreateSP( InFilter, &IConsoleVariablesEditorListFilter::GetIsFilterActive )
 			   ),
 			   NAME_None,
 			   EUserInterfaceActionType::ToggleButton
 		   );
 		};
 
-		//for (Filter : Filters) { AddFiltersLambda(Filter.Title, Filter.TooltipText); }
+		for (const TSharedRef<IConsoleVariablesEditorListFilter>& Filter : ShowFilters)
+		{
+			AddFiltersLambda(Filter);
+		}
 	}
 	ShowOptionsMenuBuilder.EndSection();
 	
@@ -159,6 +200,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorList::BuildShowOptionsMenu()
 	{
 		// Add commands
 
+		// Save this for later when folders are added
 		/*ShowOptionsMenuBuilder.AddMenuEntry(
 			LOCTEXT("CollapseAll", "Collapse All"),
 			LOCTEXT("ConsoleVariablesEditorList_CollapseAll_Tooltip", "Collapse all expanded actor groups in the Modified Actors list."),
@@ -194,18 +236,11 @@ void SConsoleVariablesEditorList::FlushMemory(const bool bShouldKeepMemoryAlloca
 	}
 }
 
-void SConsoleVariablesEditorList::RefreshScroll() const
-{
-	TreeViewPtr->RequestListRefresh();
-}
-
-void SConsoleVariablesEditorList::RefreshList(const FString& InConsoleCommandToScrollTo)
+void SConsoleVariablesEditorList::RebuildList(const FString& InConsoleCommandToScrollTo)
 {
 	GenerateTreeView();
 
-	// Enforce Sort
-	const FName& SortingName = GetActiveSortingColumnName();
-	ExecuteSort(SortingName, GetSortModeForColumn(SortingName));
+	RefreshList();
 
 	if (!InConsoleCommandToScrollTo.IsEmpty())
 	{
@@ -225,6 +260,24 @@ void SConsoleVariablesEditorList::RefreshList(const FString& InConsoleCommandToS
 			ScrollToItem->SetShouldFlashOnScrollIntoView(true);
 			TreeViewPtr->RequestScrollIntoView(ScrollToItem);
 		}
+	}
+}
+
+void SConsoleVariablesEditorList::RefreshList()
+{
+	if (TreeViewRootObjects.Num() > 0)
+	{
+		// Apply last search
+		ExecuteListViewSearchOnAllRows(GetSearchStringFromSearchInputField());
+
+		// Enforce Sort
+		const FName& SortingName = GetActiveSortingColumnName();
+		ExecuteSort(SortingName, GetSortModeForColumn(SortingName));
+
+		// Show/Hide rows based on SetBy changes and filter settings
+		EvaluateIfRowsPassFilters();
+
+		TreeViewPtr->RequestTreeRefresh();
 	}
 }
 
@@ -307,13 +360,7 @@ void SConsoleVariablesEditorList::GenerateTreeView()
 		}
 	}
 
-	if (TreeViewRootObjects.Num() > 0)
-	{
-		TreeViewPtr->RequestListRefresh();
-
-		// Apply last search
-		ExecuteListViewSearchOnAllRows(GetSearchStringFromSearchInputField());
-	}
+	TreeViewPtr->RequestTreeRefresh();
 }
 
 TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
@@ -519,6 +566,40 @@ void SConsoleVariablesEditorList::OnListItemCheckBoxStateChange(const ECheckBoxS
 	}
 }
 
+void SConsoleVariablesEditorList::ToggleFilterActive(const FString& FilterName)
+{
+	if (const TSharedRef<IConsoleVariablesEditorListFilter>* Match =
+		Algo::FindByPredicate(ShowFilters,
+		[&FilterName](TSharedRef<IConsoleVariablesEditorListFilter> Comparator)
+		{
+			return Comparator->GetFilterName().Equals(FilterName);
+		}))
+	{
+		const TSharedRef<IConsoleVariablesEditorListFilter> Filter = *Match;
+		Filter->ToggleFilterActive();
+
+		EvaluateIfRowsPassFilters();
+	}
+}
+
+void SConsoleVariablesEditorList::EvaluateIfRowsPassFilters()
+{
+	for (const FConsoleVariablesEditorListRowPtr& Row : TreeViewRootObjects)
+	{
+		if (Row.IsValid() && Row->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
+		{
+			Row->SetDoesRowPassFilters(Algo::FindByPredicate(
+				ShowFilters,
+				[&Row](const TSharedRef<IConsoleVariablesEditorListFilter>& Filter)
+				{
+					return Filter->GetIsFilterActive() && Filter->DoesItemPassFilter(Row);
+				}) != nullptr);
+		}
+	}
+
+	TreeViewPtr->RequestTreeRefresh();
+}
+
 EColumnSortMode::Type SConsoleVariablesEditorList::GetSortModeForColumn(FName InColumnName) const
 {
 	EColumnSortMode::Type ColumnSortMode = EColumnSortMode::None;
@@ -627,4 +708,3 @@ void SConsoleVariablesEditorList::SetChildExpansionRecursively(const FConsoleVar
 };
 
 #undef LOCTEXT_NAMESPACE
-

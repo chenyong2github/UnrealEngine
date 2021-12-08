@@ -79,6 +79,9 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 	void ExecuteSearchOnChildNodes(const FString& SearchString) const;
 	void ExecuteSearchOnChildNodes(const TArray<FString>& Tokens) const;
 
+	[[nodiscard]] bool GetDoesRowPassFilters() const;
+	void SetDoesRowPassFilters(const bool bPass);
+
 	[[nodiscard]] bool GetIsSelected() const;
 	void SetIsSelected(const bool bNewSelected);
 
@@ -124,6 +127,7 @@ private:
 	int32 SortOrder = -1;
 
 	bool bDoesRowMatchSearchTerms = true;
+	bool bDoesRowPassFilters = true;
 
 	bool bIsSelected = false;
 	TWeakPtr<FConsoleVariablesEditorListRow> DirectParentRow;

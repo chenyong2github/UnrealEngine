@@ -61,15 +61,23 @@ void FConsoleVariablesEditorMainPanel::AddConsoleVariable(
 
 		Asset->AddOrSetConsoleVariableSavedValue(InConsoleCommand, InValue);
 
-		RefreshList(bScrollToNewRow ? InConsoleCommand : "");
+		RebuildList(bScrollToNewRow ? InConsoleCommand : "");
 	}
 }
 
-void FConsoleVariablesEditorMainPanel::RefreshList(const FString& InConsoleCommandToScrollTo) const
+void FConsoleVariablesEditorMainPanel::RebuildList(const FString& InConsoleCommandToScrollTo) const
 {
 	if (EditorList.IsValid())
 	{
-		EditorList->RefreshList(InConsoleCommandToScrollTo);
+		EditorList->RebuildList(InConsoleCommandToScrollTo);
+	}
+}
+
+void FConsoleVariablesEditorMainPanel::RefreshList() const
+{
+	if (EditorList.IsValid())
+	{
+		EditorList->RefreshList();
 	}
 }
 
@@ -141,7 +149,7 @@ void FConsoleVariablesEditorMainPanel::ImportPreset(const FAssetData& InPresetAs
 
 	if (EditingAsset && ImportPreset_Impl(InPresetAsset, EditingAsset))
 	{
-		EditorList->RefreshList();
+		EditorList->RebuildList();
 	}
 }
 
