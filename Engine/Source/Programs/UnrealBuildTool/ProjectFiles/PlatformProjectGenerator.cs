@@ -73,6 +73,19 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Return the VisualStudio platform name for this build platform
+		/// </summary>
+		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
+		/// <param name="InConfiguration"> The UnrealTargetConfiguration being built</param>
+		/// <param name="InProjectDir">  The root directory for the current project</param>
+		/// <returns>string    The name of the platform that VisualStudio recognizes</returns>
+		public virtual string GetVisualStudioPlatformName(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, DirectoryReference InProjectDir)
+		{
+			// By default, return the project-independent platform string
+			return GetVisualStudioPlatformName(InPlatform, InConfiguration);
+		}
+
+		/// <summary>
 		/// Return project configuration settings that must be included before the default props file
 		/// </summary>
 		/// <param name="Platform">The UnrealTargetPlatform being built</param>
