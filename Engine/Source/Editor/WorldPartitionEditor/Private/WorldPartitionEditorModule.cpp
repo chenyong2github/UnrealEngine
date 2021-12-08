@@ -326,10 +326,6 @@ void FWorldPartitionEditorModule::OnMapChanged(uint32 MapFlags)
 		FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>("LevelEditor");
 	
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule ? LevelEditorModule->GetLevelEditorTabManager() : nullptr;
-		if(LevelEditorTabManager)
-		{
-			UpdateTabPermissions(LevelEditorTabManager);
-		}
 
 		// If the world opened is a world partition world spawn the world partition tab if not open.
 		UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
@@ -348,12 +344,6 @@ void FWorldPartitionEditorModule::OnMapChanged(uint32 MapFlags)
 	}
 }
 
-bool FWorldPartitionEditorModule::CanSpawnWorldPartitionTab(const FSpawnTabArgs& Args)
-{
-	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-	return EditorWorld && EditorWorld->IsPartitionedWorld();
-}
-
 TSharedRef<SDockTab> FWorldPartitionEditorModule::SpawnWorldPartitionTab(const FSpawnTabArgs& Args)
 {
 	TSharedRef<SDockTab> NewTab =
@@ -367,30 +357,14 @@ TSharedRef<SDockTab> FWorldPartitionEditorModule::SpawnWorldPartitionTab(const F
 	return NewTab;
 }
 
-void FWorldPartitionEditorModule::UpdateTabPermissions(TSharedPtr<FTabManager> InTabManager)
-{
-	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-	if(EditorWorld && EditorWorld->IsPartitionedWorld())
-	{
-		InTabManager->GetTabPermissionList()->RemoveDenyListItem(WorldPartitionEditorTabId, WorldPartitionEditorTabId);
-	}
-	else
-	{
-		InTabManager->GetTabPermissionList()->AddDenyListItem(WorldPartitionEditorTabId, WorldPartitionEditorTabId);
-	}
-}
-
 void FWorldPartitionEditorModule::RegisterWorldPartitionTabs(TSharedPtr<FTabManager> InTabManager)
 {
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 
 	const FSlateIcon WorldPartitionIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.WorldPartition");
 
-	UpdateTabPermissions(InTabManager);
-
 	InTabManager->RegisterTabSpawner(WorldPartitionEditorTabId,
-		FOnSpawnTab::CreateRaw(this, &FWorldPartitionEditorModule::SpawnWorldPartitionTab),
-		FCanSpawnTab::CreateRaw(this, &FWorldPartitionEditorModule::CanSpawnWorldPartitionTab))
+		FOnSpawnTab::CreateRaw(this, &FWorldPartitionEditorModule::SpawnWorldPartitionTab))
 		.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "WorldPartitionEditor", "World Partition Editor"))
 		.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "WorldPartitionEditorTooltipText", "Open the World Partition Editor."))
 		.SetGroup(MenuStructure.GetLevelEditorWorldPartitionCategory())

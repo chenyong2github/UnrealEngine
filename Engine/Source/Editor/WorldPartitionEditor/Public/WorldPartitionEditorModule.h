@@ -51,13 +51,9 @@ private:
 	/** Inserts world partition tabs into the level editor layout */
 	void RegisterWorldPartitionLayout(FLayoutExtender& Extender);
 	
-	/** Determines if ia world partition tab can be spawned */	
-	bool CanSpawnWorldPartitionTab(const FSpawnTabArgs& Args);
-
 	/** Spawns the world partition tab */
 	TSharedRef<SDockTab> SpawnWorldPartitionTab(const FSpawnTabArgs& Args);
 
-	void UpdateTabPermissions(TSharedPtr<FTabManager> InTabManager);
 private:
 	void OnConvertMap();
 
