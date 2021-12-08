@@ -1737,6 +1737,11 @@ FFrameTime FSequencerTimeSliderController::SnapTimeToNearestKey(const FPointerEv
 			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchKeys);
 		}
 
+		if (WeakSequencer.Pin()->GetSequencerSettings()->GetSnapPlayTimeToSections() || MouseEvent.IsShiftDown())
+		{
+			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchSections);
+		}
+
 		if (WeakSequencer.Pin()->GetSequencerSettings()->GetSnapPlayTimeToMarkers() || MouseEvent.IsShiftDown())
 		{
 			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchMarkers);

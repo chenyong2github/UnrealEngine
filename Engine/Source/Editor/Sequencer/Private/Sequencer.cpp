@@ -3341,6 +3341,11 @@ void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode)
 			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchKeys);
 		}
 
+		if (Settings->GetSnapPlayTimeToSections() || FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+		{
+			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchSections);
+		}
+
 		if (Settings->GetSnapPlayTimeToMarkers() || FSlateApplication::Get().GetModifierKeys().IsShiftDown())
 		{
 			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchMarkers);
@@ -5345,7 +5350,7 @@ void FSequencer::OnClampRangeChanged( TRange<double> NewClampRange )
 
 FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, ENearestKeyOption NearestKeyOption)
 {
-	FFrameNumber NearestKeyTime = InTime.FloorToFrame();
+	const FFrameNumber CurrentTime = InTime.FloorToFrame();
 
 	if (EnumHasAnyFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchAllTracks))
 	{
@@ -5356,18 +5361,22 @@ FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, ENearestKeyOption Ne
 		GetKeysFromSelection(SelectedKeyCollection, SMALL_NUMBER);
 	}
 
+	TOptional<FFrameNumber> NearestTime;
+
 	if (EnumHasAnyFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchKeys) && SelectedKeyCollection.IsValid())
 	{
-		TRange<FFrameNumber> FindRangeBackwards(TRangeBound<FFrameNumber>::Open(), NearestKeyTime);
+		TOptional<FFrameNumber> NearestKeyTime;
+
+		TRange<FFrameNumber> FindRangeBackwards(TRangeBound<FFrameNumber>::Open(), CurrentTime);
 		TOptional<FFrameNumber> NewTimeBackwards = SelectedKeyCollection->FindFirstKeyInRange(FindRangeBackwards, EFindKeyDirection::Backwards);
 
-		TRange<FFrameNumber> FindRangeForwards(NearestKeyTime, TRangeBound<FFrameNumber>::Open());
+		TRange<FFrameNumber> FindRangeForwards(CurrentTime, TRangeBound<FFrameNumber>::Open());
 		TOptional<FFrameNumber> NewTimeForwards = SelectedKeyCollection->FindFirstKeyInRange(FindRangeForwards, EFindKeyDirection::Forwards);
 		if (NewTimeForwards.IsSet())
 		{
 			if (NewTimeBackwards.IsSet())
 			{
-				if (FMath::Abs(NewTimeForwards.GetValue() - NearestKeyTime) < FMath::Abs(NewTimeBackwards.GetValue() - NearestKeyTime))
+				if (FMath::Abs(NewTimeForwards.GetValue() - CurrentTime) < FMath::Abs(NewTimeBackwards.GetValue() - CurrentTime))
 				{
 					NearestKeyTime = NewTimeForwards.GetValue();
 				}
@@ -5385,38 +5394,90 @@ FFrameNumber FSequencer::OnGetNearestKey(FFrameTime InTime, ENearestKeyOption Ne
 		{
 			NearestKeyTime = NewTimeBackwards.GetValue();
 		}
+
+		if (NearestKeyTime.IsSet())
+		{
+			NearestTime = NearestKeyTime.GetValue();
+		}
 	}
 
+	if (EnumHasAnyFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchSections) && SelectedKeyCollection.IsValid())
+	{
+		TOptional<FFrameNumber> NearestSectionTime;
+
+		TRange<FFrameNumber> FindRangeBackwards(TRangeBound<FFrameNumber>::Open(), CurrentTime);
+		TOptional<FFrameNumber> NewTimeBackwards = SelectedKeyCollection->FindFirstSectionKeyInRange(FindRangeBackwards, EFindKeyDirection::Backwards);
+
+		TRange<FFrameNumber> FindRangeForwards(CurrentTime, TRangeBound<FFrameNumber>::Open());
+		TOptional<FFrameNumber> NewTimeForwards = SelectedKeyCollection->FindFirstSectionKeyInRange(FindRangeForwards, EFindKeyDirection::Forwards);
+		if (NewTimeForwards.IsSet())
+		{
+			if (NewTimeBackwards.IsSet())
+			{
+				if (FMath::Abs(NewTimeForwards.GetValue() - CurrentTime) < FMath::Abs(NewTimeBackwards.GetValue() - CurrentTime))
+				{
+					NearestSectionTime = NewTimeForwards.GetValue();
+				}
+				else
+				{
+					NearestSectionTime = NewTimeBackwards.GetValue();
+				}
+			}
+			else
+			{
+				NearestSectionTime = NewTimeForwards.GetValue();
+			}
+		}
+		else if (NewTimeBackwards.IsSet())
+		{
+			NearestSectionTime = NewTimeBackwards.GetValue();
+		}
+
+		if (NearestSectionTime.IsSet())
+		{
+			if (!NearestTime.IsSet())
+			{
+				NearestTime = NearestSectionTime.GetValue();
+			}
+			else if (FMath::Abs(NearestSectionTime.GetValue() - CurrentTime) < FMath::Abs(NearestTime.GetValue() - CurrentTime))
+			{
+				NearestTime = NearestSectionTime.GetValue();
+			}
+		}
+	}
+	
 	if (EnumHasAnyFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchMarkers))
 	{
-		FFrameNumber MinDiff = FMath::Abs(NearestKeyTime - InTime.FloorToFrame());
-
 		TArray<FMovieSceneMarkedFrame> MarkedFrames = GetMarkedFrames();
 		for (const FMovieSceneMarkedFrame& MarkedFrame : MarkedFrames)
 		{
-			FFrameNumber Diff = FMath::Abs(MarkedFrame.FrameNumber - InTime.FloorToFrame());
-
-			if (Diff < MinDiff)
+			if (!NearestTime.IsSet())
 			{
-				MinDiff = Diff;
-				NearestKeyTime = MarkedFrame.FrameNumber;
+				NearestTime = MarkedFrame.FrameNumber;
+			}
+			else if (FMath::Abs(MarkedFrame.FrameNumber - CurrentTime) < FMath::Abs(NearestTime.GetValue() - CurrentTime))
+			{
+				NearestTime = MarkedFrame.FrameNumber;
 			}
 		}
 
 		TArray<FMovieSceneMarkedFrame> GlobalMarkedFrames = GetGlobalMarkedFrames();
 		for (const FMovieSceneMarkedFrame& GlobalMarkedFrame : GlobalMarkedFrames)
 		{
-			FFrameNumber Diff = FMath::Abs(GlobalMarkedFrame.FrameNumber - InTime.FloorToFrame());
+			FFrameNumber Diff = FMath::Abs(GlobalMarkedFrame.FrameNumber - CurrentTime);
 
-			if (Diff < MinDiff)
+			if (!NearestTime.IsSet())
 			{
-				MinDiff = Diff;
-				NearestKeyTime = GlobalMarkedFrame.FrameNumber;
+				NearestTime = GlobalMarkedFrame.FrameNumber;
 			}
-		}		
+			else if (FMath::Abs(GlobalMarkedFrame.FrameNumber - CurrentTime) < FMath::Abs(NearestTime.GetValue() - CurrentTime))
+			{
+				NearestTime = GlobalMarkedFrame.FrameNumber;
+			}
+		}
 	}
 
-	return NearestKeyTime;
+	return NearestTime.IsSet() ? NearestTime.GetValue() : CurrentTime;
 }
 
 void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScrubbing )
@@ -13066,6 +13127,12 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateLambda( [this]{ Settings->SetSnapPlayTimeToKeys( !Settings->GetSnapPlayTimeToKeys() ); } ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ),
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetSnapPlayTimeToKeys(); } ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.ToggleSnapPlayTimeToSections,
+		FExecuteAction::CreateLambda( [this]{ Settings->SetSnapPlayTimeToSections( !Settings->GetSnapPlayTimeToSections() ); } ),
+		FCanExecuteAction::CreateLambda( []{ return true; } ),
+		FIsActionChecked::CreateLambda( [this]{ return Settings->GetSnapPlayTimeToSections(); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleSnapPlayTimeToMarkers,

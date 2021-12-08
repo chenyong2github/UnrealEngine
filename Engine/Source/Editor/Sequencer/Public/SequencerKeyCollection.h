@@ -80,6 +80,7 @@ public:
 	 * @return (Optional) the time of the key that matched the range
 	 */
 	SEQUENCER_API TOptional<FFrameNumber> FindFirstKeyInRange(const TRange<FFrameNumber>& Range, EFindKeyDirection Direction) const;
+	SEQUENCER_API TOptional<FFrameNumber> FindFirstSectionKeyInRange(const TRange<FFrameNumber>& Range, EFindKeyDirection Direction) const;
 
 	/**
 	 * Get a view of all key times that reside within the specified range
@@ -88,6 +89,7 @@ public:
 	 * @return A (possibly empty) array view of all the times that lie within the range
 	 */
 	SEQUENCER_API TArrayView<const FFrameNumber> GetKeysInRange(const TRange<FFrameNumber>& Range) const;
+	SEQUENCER_API TArrayView<const FFrameNumber> GetSectionKeysInRange(const TRange<FFrameNumber>& Range) const;
 
 	/**
 	* Search forwards or backwards for the next key from the specified frame number
@@ -96,6 +98,7 @@ public:
 	* @return (Optional)  Frame number of the key that's next or previous from that time 
 	*/
 	SEQUENCER_API TOptional<FFrameNumber> GetNextKey(FFrameNumber FrameNumber, EFindKeyDirection Direction) const;
+	SEQUENCER_API TOptional<FFrameNumber> GetNextSectionKey(FFrameNumber FrameNumber, EFindKeyDirection Direction) const;
 
 	/**
 	 * Access the signature this collection was generated with
@@ -121,6 +124,9 @@ private:
 
 	/** Times grouped by the supplied threshold */
 	TArray<FFrameNumber> GroupedTimes;
+
+	/** Section times grouped by the supplied threshold */
+	TArray<FFrameNumber> GroupedSectionTimes;
 
 	/** The signature with which the above array was generated */
 	FSequencerKeyCollectionSignature Signature;

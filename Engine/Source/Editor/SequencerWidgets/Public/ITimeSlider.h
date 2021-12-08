@@ -32,11 +32,14 @@ enum class ENearestKeyOption : uint8
 	/* Search keys */
 	NKO_SearchKeys = 0x01,
 
+	/* Search sections */
+	NKO_SearchSections = 0x02,
+
 	/* Search markers */
-	NKO_SearchMarkers = 0x02,
+	NKO_SearchMarkers = 0x04,
 
 	/** Search all tracks */
-	NKO_SearchAllTracks = 0x04
+	NKO_SearchAllTracks = 0x08
 };
 ENUM_CLASS_FLAGS(ENearestKeyOption);
 
