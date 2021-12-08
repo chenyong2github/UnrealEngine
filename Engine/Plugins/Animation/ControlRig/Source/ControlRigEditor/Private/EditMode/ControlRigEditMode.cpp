@@ -227,7 +227,7 @@ bool FControlRigEditMode::IsInLevelEditor() const
 }
 void FControlRigEditMode::SetUpDetailPanel()
 {
-	if (IsInLevelEditor())
+	if (IsInLevelEditor() && Toolkit)
 	{
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(WeakSequencer.Pin());
 #if USE_LOCAL_DETAILS
