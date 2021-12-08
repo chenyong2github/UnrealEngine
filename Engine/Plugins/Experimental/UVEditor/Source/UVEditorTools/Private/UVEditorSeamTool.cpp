@@ -15,6 +15,7 @@
 #include "Parameterization/MeshDijkstra.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "ToolSceneQueriesUtil.h"
+#include "UVEditorUXSettings.h"
 #include "UVToolContextObjects.h"
 
 #define LOCTEXT_NAMESPACE "UUVEditorSeamTool"
@@ -35,22 +36,6 @@ namespace UVEditorSeamToolLocals
 	const FString& StartPointSetID(TEXT("StartPointSet"));
 	
 	const FString& ExistingSeamsID(TEXT("SeamLineSet"));
-
-	const FColor ExistingSeamColor = FColor::Green;
-	const FColor LockedColor = FColor::Green;
-	const FColor CompletionColor = FColor::Orange;
-	const FColor HoverColor = FColor::Green;
-
-	float ExistingSeamThickness = 2;
-	float ExistingSeamDepthBias = 0.1;
-
-	float LockedThickness = 3;
-	float LockedDepthBias = 1.0;
-
-	float HoverThickness = 3;
-	float HoverDepthBias = 1.1;
-
-	const float PointSize = 7;
 
 	void GetVidPath(FDynamicMesh3* Mesh, const TArray<int32>& StartVids, int32 EndVid, TArray<int32>& VidPathOut)
 	{
@@ -89,11 +74,11 @@ namespace UVEditorSeamToolLocals
 
 		FTransform AppliedTransform = InputObject->AppliedPreview->PreviewMesh->GetTransform();
 		AppliedPointSet->AddPoint(FRenderablePoint(
-			InputObject->AppliedCanonical->GetVertex(AppliedVid), Color, PointSize, DepthBias));
+			InputObject->AppliedCanonical->GetVertex(AppliedVid), Color, FUVEditorUXSettings::ToolPointSize, DepthBias));
 		for (int32 UnwrapVid : UnwrapVids)
 		{
 			UnwrapPointSet->AddPoint(FRenderablePoint(
-				InputObject->UnwrapCanonical->GetVertex(UnwrapVid), Color, PointSize, DepthBias));
+				InputObject->UnwrapCanonical->GetVertex(UnwrapVid), Color, FUVEditorUXSettings::ToolPointSize, DepthBias));
 		}
 	}
 
@@ -500,7 +485,9 @@ void UUVEditorSeamTool::ReconstructExistingSeamsVisualization()
 				FIndex2i EdgeVids = Mesh->GetEdgeV(Eid);
 				SeamLines->AddLine((FVector)Transform.TransformPosition(Mesh->GetVertex(EdgeVids.A)),
 					(FVector)Transform.TransformPosition(Mesh->GetVertex(EdgeVids.B)),
-					ExistingSeamColor, ExistingSeamThickness, ExistingSeamDepthBias);
+					FUVEditorUXSettings::LivePreviewExistingSeamColor,
+					FUVEditorUXSettings::LivePreviewExistingSeamThickness,
+					FUVEditorUXSettings::LivePreviewExistingSeamDepthBias);
 			}
 		}
 	}
@@ -531,15 +518,19 @@ void UUVEditorSeamTool::ReconstructLockedPathVisualization()
 		UUVEditorToolMeshInput* ClickedTarget = Targets[ClickedMeshIndex];
 
 		AddDisplayedPath(ClickedTarget, UnwrapLineSet, AppliedLineSet, LockedPath,
-			false, LockedColor, LockedThickness, LockedDepthBias);
+			false, FUVEditorUXSettings::ToolLockedPathColor,
+			FUVEditorUXSettings::ToolLockedPathThickness,
+			FUVEditorUXSettings::ToolLockedPathDepthBias);
 
 		TArray<int32> UnwrapVids;
 		ClickedTarget->AppliedVidToUnwrapVids(LastLockedAppliedVid, UnwrapVids);
-		AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, LastLockedAppliedVid, UnwrapVids, LockedColor, LockedDepthBias);
+		AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, LastLockedAppliedVid, UnwrapVids, 
+			FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
 
 		UnwrapVids.Reset();
 		ClickedTarget->AppliedVidToUnwrapVids(SeamStartAppliedVid, UnwrapVids);
-		AddDisplayedPoints(ClickedTarget, UnwrapStartPoints, AppliedStartPoints, SeamStartAppliedVid, UnwrapVids, LockedColor, LockedDepthBias);
+		AddDisplayedPoints(ClickedTarget, UnwrapStartPoints, AppliedStartPoints, SeamStartAppliedVid, UnwrapVids,
+			FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
 	}
 }
 
@@ -654,7 +645,7 @@ void UUVEditorSeamTool::UpdateHover()
 	{
 		// Just draw the point and finish
 		AddDisplayedPoints(Targets[HoverMeshIndex], UnwrapPointSet, AppliedPointSet,
-			AppliedVid, UnwrapVids, HoverColor, HoverDepthBias);
+			AppliedVid, UnwrapVids, FUVEditorUXSettings::ToolExtendPathColor, FUVEditorUXSettings::ToolExtendPathDepthBias);
 		return;
 	}
 
@@ -681,7 +672,8 @@ void UUVEditorSeamTool::UpdateHover()
 		ULineSetComponent* UnwrapLineSet = UnwrapGeometry->FindLineSet(HoverLineSetID);
 		ULineSetComponent* AppliedLineSet = LivePreviewGeometry->FindLineSet(HoverLineSetID);
 		AddDisplayedPath(Targets[HoverMeshIndex], UnwrapLineSet, AppliedLineSet,
-			NewPathVids, bHoverVidIsFromUnwrap, HoverColor, HoverThickness, HoverDepthBias);
+			NewPathVids, bHoverVidIsFromUnwrap, FUVEditorUXSettings::ToolExtendPathColor,
+			FUVEditorUXSettings::ToolExtendPathThickness, FUVEditorUXSettings::ToolExtendPathDepthBias);
 	}
 
 	// See if we would apply the seam on click
@@ -696,7 +688,7 @@ void UUVEditorSeamTool::UpdateHover()
 		// there because that turns out to be confusing, esp when we have overlapping islands and
 		// the point is on another island.
 		AddDisplayedPoints(Targets[HoverMeshIndex], UnwrapPointSet, AppliedPointSet,
-			AppliedVid, UnwrapVids, HoverColor, HoverDepthBias);
+			AppliedVid, UnwrapVids, FUVEditorUXSettings::ToolExtendPathColor, FUVEditorUXSettings::ToolExtendPathDepthBias);
 	}
 }
 
@@ -728,14 +720,16 @@ void UUVEditorSeamTool::ResetPreviewColors()
 {
 	using namespace UVEditorSeamToolLocals;
 
-	FColor Color = bCompletionColorOverride ? CompletionColor : HoverColor;
+	FColor Color = bCompletionColorOverride ? FUVEditorUXSettings::ToolCompletionPathColor 
+		: FUVEditorUXSettings::ToolExtendPathColor;
 
 	UnwrapGeometry->FindPointSet(HoverPointSetID)->SetAllPointsColor(Color);
 	LivePreviewGeometry->FindPointSet(HoverPointSetID)->SetAllPointsColor(Color);
 	UnwrapGeometry->FindLineSet(HoverLineSetID)->SetAllLinesColor(Color);
 	LivePreviewGeometry->FindLineSet(HoverLineSetID)->SetAllLinesColor(Color);
 
-	Color = bCompletionColorOverride ? CompletionColor : LockedColor;
+	Color = bCompletionColorOverride ? FUVEditorUXSettings::ToolCompletionPathColor 
+		: FUVEditorUXSettings::ToolLockedPathColor;
 
 	UnwrapGeometry->FindPointSet(LockedPointSetID)->SetAllPointsColor(Color);
 	LivePreviewGeometry->FindPointSet(LockedPointSetID)->SetAllPointsColor(Color);
@@ -767,7 +761,8 @@ void UUVEditorSeamTool::ApplyClick()
 
 		UPointSetComponent* UnwrapPointSet = UnwrapGeometry->FindPointSet(StartPointSetID);
 		UPointSetComponent* AppliedPointSet = LivePreviewGeometry->FindPointSet(StartPointSetID);
-		AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, AppliedVid, UnwrapVids, LockedColor, LockedDepthBias);
+		AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, AppliedVid, UnwrapVids, 
+			FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
 
 		LockedPath.Add(AppliedVid);
 		EmitChangeAPI->EmitToolDependentChange(this, 
@@ -835,10 +830,13 @@ void UUVEditorSeamTool::ApplyClick()
 	ULineSetComponent* UnwrapLineSet = UnwrapGeometry->FindLineSet(LockedLineSetID);
 	ULineSetComponent* AppliedLineSet = LivePreviewGeometry->FindLineSet(LockedLineSetID);
 	AddDisplayedPath(ClickedTarget, UnwrapLineSet, AppliedLineSet, VidPath,
-		bClickWasInUnwrap, LockedColor, LockedThickness, LockedDepthBias);
+		bClickWasInUnwrap, FUVEditorUXSettings::ToolLockedPathColor,
+		FUVEditorUXSettings::ToolLockedPathThickness,
+		FUVEditorUXSettings::ToolLockedPathDepthBias);
 	UnwrapPointSet->Clear();
 	AppliedPointSet->Clear();
-	AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, AppliedVid, UnwrapVids, LockedColor, LockedDepthBias);
+	AddDisplayedPoints(ClickedTarget, UnwrapPointSet, AppliedPointSet, AppliedVid, UnwrapVids, 
+		FUVEditorUXSettings::ToolLockedPathColor, FUVEditorUXSettings::ToolLockedPathDepthBias);
 	
 	EmitChangeAPI->EmitToolDependentChange(this, 
 		MakeUnique<FPathChange>(*AppliedVidPath, false, ClickedMeshIndex, true),

@@ -3,12 +3,14 @@
 #include "UVEditorUXSettings.h"
 
 const float FUVEditorUXSettings::CameraFarPlaneWorldZ(-10.0);
+const float FUVEditorUXSettings::CameraNearPlaneProportionZ(0.8); // Top layer, equivalent to depth bias 80
 
 // 2D Viewport Depth Offsets (Organized by "layers" from the camera's perspective, descending order
 // Note: While these are floating point values, they represent percentages and should be separated
 // by at least integer amounts, as they serve double duty in certain cases for translucent primitive
 // sorting order.
-const float FUVEditorUXSettings::CameraNearPlaneProportionZ(8); // Top layer
+const float FUVEditorUXSettings::ToolLockedPathDepthBias(6.0);
+const float FUVEditorUXSettings::ToolExtendPathDepthBias(6.0);
 const float FUVEditorUXSettings::SewLineDepthOffset(5.0f);
 const float FUVEditorUXSettings::SelectionHoverWireframeDepthBias(6);
 const float FUVEditorUXSettings::SelectionHoverTriangleDepthBias(5);
@@ -16,6 +18,8 @@ const float FUVEditorUXSettings::SelectionWireframeDepthBias(4.0);
 const float FUVEditorUXSettings::SelectionTriangleDepthBias(3.0);
 const float FUVEditorUXSettings::WireframeDepthOffset(2.0);
 const float FUVEditorUXSettings::UnwrapTriangleDepthOffset(1.0);
+
+const float FUVEditorUXSettings::LivePreviewExistingSeamDepthBias(1.0);
 
 // Note: that this offset can only be applied when we use our own background material
 // for a user-supplied texture, and we can't use it for a user-provided material.
@@ -46,6 +50,13 @@ const FColor FUVEditorUXSettings::SelectionHoverTriangleFillColor(FColor::FromHe
 const FColor FUVEditorUXSettings::SelectionHoverTriangleWireframeColor(FColor::FromHex("#0E86FF"));
 const FColor FUVEditorUXSettings::SewSideLeftColor(FColor::Red);
 const FColor FUVEditorUXSettings::SewSideRightColor(FColor::Green);
+
+const FColor FUVEditorUXSettings::ToolLockedPathColor(FColor::Green);
+const FColor FUVEditorUXSettings::ToolExtendPathColor(FColor::Green);
+const FColor FUVEditorUXSettings::ToolCompletionPathColor(FColor::Orange);
+
+const FColor FUVEditorUXSettings::LivePreviewExistingSeamColor(FColor::Green);
+
 const FColor FUVEditorUXSettings::XAxisColor(FColor::Red);
 const FColor FUVEditorUXSettings::YAxisColor(FColor::Green);
 const FColor FUVEditorUXSettings::GridMajorColor(FColor::FromHex("#888888"));
@@ -54,11 +65,16 @@ const FColor FUVEditorUXSettings::GridMinorColor(FColor::FromHex("#777777"));
 // Thicknesses
 const float FUVEditorUXSettings::LivePreviewHighlightThickness(2.0);
 const float FUVEditorUXSettings::LivePreviewHighlightPointSize(4);
+const float FUVEditorUXSettings::LivePreviewExistingSeamThickness(2.0);
 const float FUVEditorUXSettings::SelectionLineThickness(1.5);
+const float FUVEditorUXSettings::ToolLockedPathThickness(3.0f);
+const float FUVEditorUXSettings::ToolExtendPathThickness(3.0f);
 const float FUVEditorUXSettings::SelectionPointThickness(6);
 const float FUVEditorUXSettings::SewLineHighlightThickness(3.0f);
 const float FUVEditorUXSettings::AxisThickness(2.0);
 const float FUVEditorUXSettings::GridMajorThickness(1.0);
+
+const float FUVEditorUXSettings::ToolPointSize(6);
 
 // Grid
 const int32 FUVEditorUXSettings::GridSubdivisionsPerLevel(4);
