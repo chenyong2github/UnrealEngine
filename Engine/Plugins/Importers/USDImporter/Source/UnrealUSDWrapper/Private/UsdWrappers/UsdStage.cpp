@@ -483,6 +483,35 @@ namespace UE
 	}
 
 	template<typename PtrType>
+	void FUsdStageBase<PtrType>::SetInterpolationType( EUsdInterpolationType InterpolationType )
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			FScopedUsdAllocs Allocs;
+
+			Ptr->SetInterpolationType( InterpolationType == EUsdInterpolationType::Held ? pxr::UsdInterpolationTypeHeld : pxr::UsdInterpolationTypeLinear );
+		}
+#endif
+	}
+
+	template<typename PtrType>
+	EUsdInterpolationType FUsdStageBase<PtrType>::GetInterpolationType() const
+	{
+#if USE_USD_SDK
+		if ( PtrType& Ptr = Impl->GetInner() )
+		{
+			if ( Ptr->GetInterpolationType() == pxr::UsdInterpolationTypeHeld )
+			{
+				return EUsdInterpolationType::Held;
+			}
+		}
+#endif
+
+		return EUsdInterpolationType::Linear;
+	}
+
+	template<typename PtrType>
 	void FUsdStageBase<PtrType>::SetDefaultPrim( const FUsdPrim & Prim )
 	{
 #if USE_USD_SDK

@@ -552,6 +552,7 @@ struct FUsdStageActorImpl
 			TArray<FAnalyticsEventAttribute> EventAttributes;
 
 			EventAttributes.Emplace( TEXT( "InitialLoadSet" ), LexToString( (uint8)StageActor->InitialLoadSet ) );
+			EventAttributes.Emplace( TEXT( "InterpolationType" ), LexToString( (uint8)StageActor->InterpolationType) );
 			EventAttributes.Emplace( TEXT( "KindsToCollapse" ), LexToString( StageActor->KindsToCollapse ) );
 			EventAttributes.Emplace( TEXT( "PurposesToLoad" ), LexToString( StageActor->PurposesToLoad ) );
 			EventAttributes.Emplace( TEXT( "NaniteTriangleThreshold" ), LexToString( StageActor->NaniteTriangleThreshold ) );
@@ -632,6 +633,7 @@ TMap<UBlueprint*, FDelegateHandle> FRecompilationTracker::RecompilingBlueprints;
 
 AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
+	, InterpolationType( EUsdInterpolationType::Linear )
 	, KindsToCollapse( ( int32 ) ( EUsdDefaultKind::Component | EUsdDefaultKind::Subcomponent ) )
 	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
 	, NaniteTriangleThreshold( (uint64) 1000000 )
@@ -1252,6 +1254,14 @@ void AUsdStageActor::SetInitialLoadSet( EUsdInitialLoadSet NewLoadSet )
 	LoadUsdStage();
 }
 
+void AUsdStageActor::SetInterpolationType( EUsdInterpolationType NewType )
+{
+	Modify();
+
+	InterpolationType = NewType;
+	LoadUsdStage();
+}
+
 void AUsdStageActor::SetKindsToCollapse( int32 NewKindsToCollapse )
 {
 	Modify();
@@ -1412,6 +1422,8 @@ void AUsdStageActor::OpenUsdStage()
 	if ( UsdStage )
 	{
 		UsdStage.SetEditTarget( UsdStage.GetRootLayer() );
+
+		UsdStage.SetInterpolationType( InterpolationType );
 
 		UsdListener.Register( UsdStage );
 
@@ -1607,6 +1619,8 @@ void AUsdStageActor::LoadUsdStage()
 		OnStageChanged.Broadcast();
 		return;
 	}
+
+	UsdStage.SetInterpolationType( InterpolationType );
 
 	ReloadAnimations();
 
@@ -2369,6 +2383,10 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InitialLoadSet ) )
 	{
 		SetInitialLoadSet( InitialLoadSet );
+	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, InterpolationType ) )
+	{
+		SetInterpolationType( InterpolationType );
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, KindsToCollapse ) )
 	{

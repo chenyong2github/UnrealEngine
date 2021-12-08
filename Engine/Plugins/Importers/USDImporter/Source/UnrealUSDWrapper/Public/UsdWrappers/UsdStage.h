@@ -4,6 +4,7 @@
 
 #include "Templates/UniquePtr.h"
 
+#include "UnrealUsdWrapper.h"
 #include "UsdWrappers/ForwardDeclarations.h"
 
 namespace UE
@@ -87,6 +88,9 @@ namespace UE
 		void SetTimeCodesPerSecond( double TimeCodesPerSecond );
 		double GetFramesPerSecond() const;
 		void SetFramesPerSecond( double FramesPerSecond );
+
+		void SetInterpolationType( EUsdInterpolationType InterpolationType );
+		EUsdInterpolationType GetInterpolationType() const;
 
 		void SetDefaultPrim( const FUsdPrim& Prim );
 
