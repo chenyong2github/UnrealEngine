@@ -322,10 +322,13 @@ namespace DatasmithSolidworks
 			// Export component children
 			object[] Children = (object[])InComponent.GetChildren();
 
-			foreach (object Obj in Children)
+			if (Children != null)
 			{
-				Component2 Child = (Component2)Obj;
-				ExportComponentRecursive(Child, InComponent, ref OutMeshesToExportMap);
+				foreach (object Obj in Children)
+				{
+					Component2 Child = (Component2)Obj;
+					ExportComponentRecursive(Child, InComponent, ref OutMeshesToExportMap);
+				}
 			}
 		}
 
