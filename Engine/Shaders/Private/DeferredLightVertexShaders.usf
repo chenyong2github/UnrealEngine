@@ -16,7 +16,7 @@ float3 StencilingPreViewTranslation;
 
 #if defined(SHADER_RADIAL_LIGHT) && SHADER_RADIAL_LIGHT == 0
 /** Vertex shader for rendering a directional light using a full screen quad. */
-void DirectionalVertexMain(
+void VertexMain(
 	in float2 InPosition : ATTRIBUTE0,
 	in float2 InUV       : ATTRIBUTE1,
 	out float2 OutTexCoord : TEXCOORD0,
@@ -29,9 +29,9 @@ void DirectionalVertexMain(
 }
 #endif
 
-#if SHADER_RADIAL_LIGHT == 1
+#if defined(SHADER_RADIAL_LIGHT) && SHADER_RADIAL_LIGHT == 1
 /** Vertex shader for rendering a point or spot light using approximate bounding geometry. */
-void RadialVertexMain(
+void VertexMain(
 	in uint InVertexId : SV_VertexID,
 	in float3 InPosition : ATTRIBUTE0,
 	out float4 OutScreenPosition : TEXCOORD0,

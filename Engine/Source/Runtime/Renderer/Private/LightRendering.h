@@ -435,15 +435,18 @@ private:
 
 
 /** A vertex shader for rendering the light in a deferred pass. */
-template<bool bRadialLight>
-class TDeferredLightVS : public FGlobalShader
+class FDeferredLightVS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(TDeferredLightVS,Global);
-public:
+	DECLARE_SHADER_TYPE(FDeferredLightVS,Global);
 
+	class FRadialLight : SHADER_PERMUTATION_BOOL("SHADER_RADIAL_LIGHT");
+	using FPermutationDomain = TShaderPermutationDomain<FRadialLight>;
+
+public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (bRadialLight)
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FRadialLight>())
 		{
 			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || IsMobileDeferredShadingEnabled(Parameters.Platform);
 		}
@@ -454,11 +457,10 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_RADIAL_LIGHT"), bRadialLight ? 1 : 0);
 	}
 
-	TDeferredLightVS()	{}
-	TDeferredLightVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
+	FDeferredLightVS()	{}
+	FDeferredLightVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FGlobalShader(Initializer)
 	{
 		StencilingGeometryParameters.Bind(Initializer.ParameterMap);
