@@ -389,8 +389,7 @@ namespace DatasmithSceneElementUtil
 							}
 
 							// Copy AssetsContext - to assign static meshes to actors
-							//ImportContext.AssetsContext = AssetsImportContext.AssetsContext;
-							checkf(false, TEXT("Above line commented out to allow compiles during staging testing.  Needs to be fixed by Datasmith team"));
+							ImportContext.AssetsContext = AssetsImportContext.AssetsContext;
 						}
 
 						// CreateSceneAsset

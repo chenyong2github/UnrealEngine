@@ -10,6 +10,7 @@
 #include "DatasmithVariantElements.h"
 #include "IDatasmithSceneElements.h"
 
+#include "Algo/Sort.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Math/UnrealMath.h"
@@ -1508,6 +1509,54 @@ void FDatasmithSceneUtils::CleanUpScene(TSharedRef<IDatasmithScene> Scene, bool 
 	}
 }
 
+FDatasmithUniqueNameProviderBase::FDatasmithUniqueNameProviderBase(const FDatasmithUniqueNameProviderBase& Other)
+{
+	FScopeLock LockOther(&Other.CriticalSection);
+
+	FrequentlyUsedNames = Other.FrequentlyUsedNames;
+}
+
+FDatasmithUniqueNameProviderBase::FDatasmithUniqueNameProviderBase(FDatasmithUniqueNameProviderBase&& Other)
+{
+	FScopeLock LockOther(&Other.CriticalSection);
+
+	FrequentlyUsedNames = MoveTemp(Other.FrequentlyUsedNames);
+}
+
+FDatasmithUniqueNameProviderBase* FDatasmithUniqueNameProviderBase::operator=(const FDatasmithUniqueNameProviderBase& Other)
+{
+	// Guarantee lock order
+	TArray< FCriticalSection*, TInlineAllocator<2> > OrderedCriticalSections;
+	OrderedCriticalSections.Add( &CriticalSection );
+	OrderedCriticalSections.Add( &Other.CriticalSection );
+
+	Algo::Sort( OrderedCriticalSections );
+
+	FScopeLock LockFirst( OrderedCriticalSections[0] );
+	FScopeLock LockSecond( OrderedCriticalSections[1] );
+
+	FrequentlyUsedNames = Other.FrequentlyUsedNames;
+
+	return this;
+}
+
+FDatasmithUniqueNameProviderBase* FDatasmithUniqueNameProviderBase::operator=(FDatasmithUniqueNameProviderBase&& Other)
+{
+	// Guarantee lock order
+	TArray< FCriticalSection*, TInlineAllocator<2> > OrderedCriticalSections;
+	OrderedCriticalSections.Add( &CriticalSection );
+	OrderedCriticalSections.Add( &Other.CriticalSection );
+
+	Algo::Sort( OrderedCriticalSections );
+
+	FScopeLock LockFirst( OrderedCriticalSections[0] );
+	FScopeLock LockSecond( OrderedCriticalSections[1] );
+
+	FrequentlyUsedNames = MoveTemp(Other.FrequentlyUsedNames);
+
+	return this;
+}
+
 FString FDatasmithUniqueNameProviderBase::GenerateUniqueName(const FString& InBaseName, int32 CharBudget)
 {
 	FScopeLock Lock( &CriticalSection );
@@ -1563,6 +1612,11 @@ FString FDatasmithUniqueNameProviderBase::GenerateUniqueName(const FString& InBa
 	return {};
 }
 
+void FDatasmithUniqueNameProviderBase::Clear()
+{
+	FScopeLock Lock( &CriticalSection );
+	FrequentlyUsedNames.Empty();
+}
 
 FTransform FDatasmithUtils::ConvertTransform(EModelCoordSystem SourceCoordSystem, const FTransform& LocalTransform)
 {

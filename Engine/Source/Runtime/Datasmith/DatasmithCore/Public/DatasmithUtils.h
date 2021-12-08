@@ -235,7 +235,14 @@ public:
 class DATASMITHCORE_API FDatasmithUniqueNameProviderBase
 {
 public:
+	FDatasmithUniqueNameProviderBase() = default;
+	FDatasmithUniqueNameProviderBase(const FDatasmithUniqueNameProviderBase& Other);
+	FDatasmithUniqueNameProviderBase(FDatasmithUniqueNameProviderBase&& Other);
+
 	virtual ~FDatasmithUniqueNameProviderBase() = default;
+
+	FDatasmithUniqueNameProviderBase* operator=(const FDatasmithUniqueNameProviderBase& Other);
+	FDatasmithUniqueNameProviderBase* operator=(FDatasmithUniqueNameProviderBase&& Other);
 
 	/**
 	 * Generates a unique name
@@ -260,7 +267,7 @@ public:
 	/**
 	 * Flushes all known names
 	 */
-	virtual void Clear() { FrequentlyUsedNames.Empty(); }
+	virtual void Clear();
 
 protected:
 
@@ -274,7 +281,7 @@ protected:
 
 private:
 	TMap<FString, int32> FrequentlyUsedNames;
-	FCriticalSection CriticalSection;
+	mutable FCriticalSection CriticalSection;
 };
 
 /**
