@@ -53,7 +53,7 @@ bool FReshapeOperator::ConfigureOutputAndInternalVariablesAndSanityChecks()
 		FNeuralTensor& OutputTensor = GetOutputTensorNoConst();
 		// Initialize OutputTensor
 		const TArray<int64> OutputShape = FReshapeOperator::Remove0sAndMinus1sFromShape(ShapeTensor, InputTensor);
-		OutputTensor.SetNumUninitialized(OutputShape, InputTensor.GetDataType());
+		OutputTensor.SetNumUninitialized(InputTensor.GetDataType(), OutputShape);
 	}
 	// Return true
 	bIsLoaded = true;

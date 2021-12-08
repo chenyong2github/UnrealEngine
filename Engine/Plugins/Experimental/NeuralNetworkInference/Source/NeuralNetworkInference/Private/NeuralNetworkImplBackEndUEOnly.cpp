@@ -135,11 +135,11 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 						{
 							for (const int32 InputIndex : TensorManager.GetInputIndexes())
 							{
-								Tensors[InputIndex].ToGPU_RenderThread(&GraphBuilder);
+								Tensors[InputIndex].CPUToRDGBuilder_RenderThread(&GraphBuilder);
 							}
 							for (const int32 NonInputIndex : TensorManager.GetNonInputIndexes())
 							{
-								Tensors[NonInputIndex].UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
+								Tensors[NonInputIndex].GPUToRDGBuilder_RenderThread(&GraphBuilder);
 							}
 						}
 						// If input is already on GPU, just refresh all w.r.t. GraphBuilder
@@ -147,7 +147,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 						{
 							for (FNeuralTensor& Tensor : Tensors)
 							{
-								Tensor.UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
+								Tensor.GPUToRDGBuilder_RenderThread(&GraphBuilder);
 							}
 						}
 					}
@@ -161,7 +161,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 							// Move tensors to GPU
 							for (FNeuralTensor& Tensor : Tensors)
 							{
-								Tensor.ToGPU_RenderThread(&GraphBuilder);
+								Tensor.CPUToRDGBuilder_RenderThread(&GraphBuilder);
 							}
 						}
 						// If input is already on GPU, just refresh inputs
@@ -169,11 +169,11 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 						{
 							for (const int32 InputIndex : TensorManager.GetInputIndexes())
 							{
-								Tensors[InputIndex].UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
+								Tensors[InputIndex].GPUToRDGBuilder_RenderThread(&GraphBuilder);
 							}
 							for (const int32 NonInputIndex : TensorManager.GetNonInputIndexes())
 							{
-								Tensors[NonInputIndex].ToGPU_RenderThread(&GraphBuilder);
+								Tensors[NonInputIndex].CPUToRDGBuilder_RenderThread(&GraphBuilder);
 							}
 						}
 						// Operators->ToGPU()
@@ -203,7 +203,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 					{
 						for (const int32 OutputIndex : TensorManager.GetOutputIndexes())
 						{
-							Tensors[OutputIndex].ToCPU_RenderThread(&GraphBuilder);
+							Tensors[OutputIndex].RDGBuilderToCPU_RenderThread(&GraphBuilder);
 						}
 					}
 

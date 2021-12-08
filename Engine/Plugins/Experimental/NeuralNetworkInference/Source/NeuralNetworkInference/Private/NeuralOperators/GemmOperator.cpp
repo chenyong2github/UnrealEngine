@@ -81,7 +81,7 @@ bool FGemmOperator::ConfigureOutputAndInternalVariablesAndSanityChecks()
 	const int64 M = InputTensors[0]->GetSize(bTransA ? 1 : 0);
 	const int64 N = InputTensors[1]->GetSize(bTransB ? 0 : 1);
 	FNeuralTensor& OutputTensor = GetOutputTensorNoConst();
-	OutputTensor.SetNumUninitialized(TArray<int64>({ M, N }), InputTensors[0]->GetDataType());
+	OutputTensor.SetNumUninitialized(InputTensors[0]->GetDataType(), TArray<int64>({ M, N }));
 	// Output sanity checks
 	if (!FNeuralNetworkInferenceUtils::SizeSanityChecks(GetOutputTensorsNoConst(), 1, 1, 2, 3))
 	{

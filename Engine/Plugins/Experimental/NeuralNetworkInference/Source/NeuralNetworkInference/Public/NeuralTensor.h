@@ -21,7 +21,7 @@
  * FNeuralTensor is an auxiliary class of UNeuralNetwork which represents a tensor of the UNeuralNetwork model. It is Unreal Engine's equivalent of
  * torch.Tensor (PyTorch) or caffe::Blob (Caffe).
  *
- * Most of FNeuralTensor's functions run on the CPU, so `ToGPU_RenderThread()` must be called before running on GPU and after running any
+ * Most of FNeuralTensor's functions run on the CPU, so `CPUToRDGBuilder_RenderThread()` must be called before running on GPU and after running any
  * FNeuralTensor function that modifies the CPU memory. In addition, FNeuralTensor's CPU functions are very similar to those of TArray<T>.
  */
 USTRUCT()
@@ -53,7 +53,6 @@ public:
 		const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorType InTensorType = ENeuralTensorType::Generic);
 	FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName = TEXT("FNeuralTensor"),
 		const ENeuralTensorType InTensorType = ENeuralTensorType::Generic);
-	FNeuralTensor(const FString& InName, const ENeuralTensorType InTensorType = ENeuralTensorType::Generic);
 	template <typename T>
 	FNeuralTensor(const TArray<T>& InArray, const TArray<int64>& InSizes = TArray<int64>(), const FString& InName = TEXT("FNeuralTensor"),
 		const ENeuralTensorType InTensorType = ENeuralTensorType::Generic);
@@ -159,7 +158,7 @@ public:
 	FORCEINLINE int32 GetNumberDimensions() const;
 
 	/**
-	 * It returns Volume, and it is equivalent to TArray<T>::Num().
+	 * It returns Volume, i.e., the number of elements of the tensor.
 	 */
 	FORCEINLINE int64 Num() const;
 
@@ -170,7 +169,7 @@ public:
 	FORCEINLINE int64 NumInBytes() const;
 
 	/**
-	 * It returns whether the tensor is empty (i.e., Volume is 0 and/or Sizes is empty). It is equivalent to TArray<T>::IsEmpty().
+	 * It returns whether the tensor is empty (i.e., Volume is 0 and/or Sizes is empty).
 	 */
 	FORCEINLINE bool IsEmpty() const;
 
@@ -190,43 +189,60 @@ public:
 	void SetTensorType(const ENeuralTensorType InTensorType);
 
 	/**
-	 * NEXT ONE TO MODIFY
+	 * It sets bEnableGPU. @see bEnableGPU for more details.
 	 */
 	FORCEINLINE void SetEnableGPU(const bool bInEnableGPU);
 
 	/**
-	 * It uploads/downloads the memory from/to the CPU to/from the GPU based on TensorType (which sets a preset of EBufferUsageFlags flags).
-	 * @param InEBufferUsageFlags gives the user total control over the buffer flags (and ignores the TensorType flag). This is meant to be filled
-	 * with a combination of EBufferUsageFlags values.
+	 * There are different functions to upload/download memory from/to CPU to/from GPU:
+	 * - CPUToRDGBuilder_RenderThread either uploads the memory from the CPU to the GPU (if bInShouldCopyFromCPU) or simply allocates the desired GPU
+	 *   memory. Then, it registers that GPU memory on the input FRDGBuilder.
+	 * - GPUToRDGBuilder_RenderThread implies that the memory is already on the GPU, and simply registers that GPU memory on the input FRDGBuilder.
+	 * - RDGBuilderToCPU_RenderThread downloads the memory from the GPU to the CPU. It is the opposite operation than CPUToRDGBuilder_RenderThread.
+	 *
+	 * @see CPUToRDGBuilder_RenderThread, GPUToRDGBuilder_RenderThread, RDGBuilderToCPU_RenderThread
 	 */
-	void ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder);
-	void ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBufferUsageFlags InEBufferUsageFlags, const bool bInShouldCopyFromCPU);
-	void UpdateSRVAndOrUAV_RenderThread(FRDGBuilder* InOutGraphBuilder);
-	void ToCPU_RenderThread(FRDGBuilder* InOutGraphBuilder);
+	void CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder);
+	void GPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder);
+	void RDGBuilderToCPU_RenderThread(FRDGBuilder* InOutGraphBuilder);
 
 	/**
-	 * Allocate data for GPU pooled buffer.
-	 * NativeResource is a pointer to ID3D12Resource obtained from PooledBuffer and that one can be shared by DirectML execution provider
+	 * It allocates the GPU data, in particular the pooled buffer.
+	 * @param InOutNativeResource Pointer to the ID3D12Resource obtained from PooledBuffer. This resource can be shared with the DirectML execution
+	 * provider.
 	 */
-	bool InitPooledBuffer(void** NativeResource = nullptr);
+	bool InitPooledBuffer(void** InOutNativeResource = nullptr);
 
-	TRefCountPtr<FRDGPooledBuffer>& GetPooledBuffer() const;
+	/**
+	 * It returns a constant reference of PooledBuffer. @see PooledBuffer for more details.
+	 */
+	const TRefCountPtr<FRDGPooledBuffer>& GetPooledBuffer() const;
+
+	/**
+	 * It returns a const reference of BufferSRVRef. @see BufferSRVRef for more details.
+	 */
 	const FRDGBufferSRVRef GetBufferSRVRef() const;
+
+	/**
+	 * It returns a reference of BufferUAVRef. @see BufferUAVRef for more details.
+	 */
 	FRDGBufferUAVRef GetBufferUAVRef();
 
 	/**
-	 * Resize the FNeuralTensor to the desired new size.
-	 * Analog to TArray<T>::SetNumUninitialized().
-	 * @param InTensor Set Sizes and DataType from the input InTensor.
-	 * @param InVolume Set InVolume to 0 if memory allocation is not required or the final size is unknown,
-	 * SetNumUninitialized(InVolume) == SetNumUninitialized({InVolume}).
-	 * @param InSizes Set InSizes to empty if memory allocation is not required or the final size is unknown.
-	 * @param InDataType set to None means that it will maintain the previous type.
+	 * It resizes the tensor to the desired new size (i.e., modiying DataType, Sizes, Volume, UnderlyingUInt8ArrayData, etc.).
+	 * @param InDataType It sets DataType. If None, it will keep its current value. @see DataType for more details.
+	 * @param InSizes It sets Sizes and Volume. Set to empty (or omit this argument) if memory allocation is not required or the final tensor size is
+	 *  unknown. @see Sizes, Volume for more details.
+	 * @param InVolume Alternative to InSizes which also sets Sizes and Volume. Using InVolume is equivalent to using
+	 *  InSizes = TArray<int64>({InVolume}). I.e., it behaves like InSizes, but assumes Sizes.Num() == 1 and sets Sizes[0] = Volume = InVolume. Set
+	 *  to 0 or a negative value if memory allocation is not required or the final size is unknown.
+	 * @param bInAllowShrinking This boolean is used when calling UnderlyingUInt8ArrayData.SetNumUninitialized(NumInBytes(), bInAllowShrinking).
+	 * @see TArray::SetNumUninitialized for more information about bInAllowShrinking.
 	 */
-	void SetNumUninitialized(const FNeuralTensor& InTensor, const bool bInAllowShrinking = true);
-	FORCEINLINE void SetNumUninitialized(const int64 InVolume, const ENeuralDataType InDataType, const bool bInAllowShrinking = true);
-	void SetNumUninitialized(const TArray<int64>& InSizes, const ENeuralDataType InDataType, const bool bInAllowShrinking = true);
+	void SetNumUninitialized(const ENeuralDataType InDataType, const TArray<int64>& InSizes, const bool bInAllowShrinking = true);
+	FORCEINLINE void SetNumUninitialized(const ENeuralDataType InDataType, const int64 InVolume, const bool bInAllowShrinking = true);
 
+// CONTINUE HERE
 	/**
 	 * This will replace the TArray with the input one, by deeply copying the array (safer and easier to use).
 	 * For maximum performance:
@@ -343,6 +359,14 @@ private:
 	template<typename T>
 	bool CheckTAndDataTypeEquivalent() const;
 	bool CheckTAndDataTypeResult(const bool bInCheckTAndDataTypeResult, const int64 InSizeOfT) const;
+
+	/**
+	 * This function has total control over the buffer flags (and ignores the TensorType flag). Thus, it is kept private and it should only be used
+	 * by its public analog.
+	 * Depending on the value of InBufferUsageFlags, it can perform GPU allocation, CPU-to-GPU upload, apply different settings, etc.
+	 * @see CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder).
+	 */
+	void CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBufferUsageFlags InBufferUsageFlags, const bool bInShouldCopyFromCPU);
 };
 
 
@@ -461,9 +485,9 @@ void FNeuralTensor::SetEnableGPU(const bool bInEnableGPU)
 	bEnableGPU = bInEnableGPU;
 }
 
-void FNeuralTensor::SetNumUninitialized(const int64 InVolume, const ENeuralDataType InDataType, const bool bInAllowShrinking)
+void FNeuralTensor::SetNumUninitialized(const ENeuralDataType InDataType, const int64 InVolume, const bool bInAllowShrinking)
 {
-	SetNumUninitialized((InVolume > 0 ? TArray<int64>({ InVolume }) : TArray<int64>({})), InDataType, bInAllowShrinking);
+	SetNumUninitialized(InDataType, (InVolume > 0 ? TArray<int64>({ InVolume }) : TArray<int64>({})), bInAllowShrinking);
 }
 
 template<typename T>

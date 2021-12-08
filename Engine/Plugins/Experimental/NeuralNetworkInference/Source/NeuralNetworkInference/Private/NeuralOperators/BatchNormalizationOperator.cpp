@@ -103,7 +103,7 @@ bool FBatchNormalizationOperator::ConfigureOutputAndInternalVariablesAndSanityCh
 		FNeuralTensor& OutputTensor = GetOutputTensorNoConst();
 		if (OutputTensor.GetSizes() != InputTensors[0]->GetSizes())
 		{
-			OutputTensor.SetNumUninitialized(*InputTensors[0]);
+			OutputTensor.SetNumUninitialized(InputTensors[0]->GetDataType(), InputTensors[0]->GetSizes());
 		}
 	}
 	// Return true
