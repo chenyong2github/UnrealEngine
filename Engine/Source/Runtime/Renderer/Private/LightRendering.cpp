@@ -360,11 +360,8 @@ TGlobalResource<StencilingGeometry::FStencilConeVertexBuffer> StencilingGeometry
 /** The stencil cone index buffer. */
 TGlobalResource<StencilingGeometry::FStencilConeIndexBuffer> StencilingGeometry::GStencilConeIndexBuffer;
 
-
 // Implement a version for directional lights, and a version for point / spot lights
-IMPLEMENT_SHADER_TYPE(template<>,TDeferredLightVS<false>,TEXT("/Engine/Private/DeferredLightVertexShaders.usf"),TEXT("DirectionalVertexMain"),SF_Vertex);
-IMPLEMENT_SHADER_TYPE(template<>,TDeferredLightVS<true>,TEXT("/Engine/Private/DeferredLightVertexShaders.usf"),TEXT("RadialVertexMain"),SF_Vertex);
-
+IMPLEMENT_GLOBAL_SHADER(FDeferredLightVS, "/Engine/Private/DeferredLightVertexShaders.usf", "VertexMain", SF_Vertex);
 
 struct FRenderLightParams
 {
@@ -420,8 +417,7 @@ private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, HairStrandsParameters);
 };
 
-IMPLEMENT_SHADER_TYPE(, FDeferredLightHairVS, TEXT("/Engine/Private/DeferredLightVertexShaders.usf"), TEXT("HairVertexMain"), SF_Vertex);
-
+IMPLEMENT_GLOBAL_SHADER(FDeferredLightHairVS, "/Engine/Private/DeferredLightVertexShaders.usf", "HairVertexMain", SF_Vertex);
 
 enum class ELightSourceShape
 {
@@ -2185,7 +2181,9 @@ static void InternalRenderLight(
 	{
 		// Turn DBT back off
 		GraphicsPSOInit.bDepthBounds = false;
-		TShaderMapRef<TDeferredLightVS<false> > VertexShader(View.ShaderMap);
+		FDeferredLightVS::FPermutationDomain PermutationVectorVS;
+		PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(false);
+		TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
 
 		Strata::FStrataTilePassVS::FParameters VSParameters;
 		Strata::FStrataTilePassVS::FPermutationDomain VSPermutationVector;
@@ -2276,7 +2274,9 @@ static void InternalRenderLight(
 		// Disable depth bound when hair rendering is enabled as this rejects partially covered pixel write (with opaque background)
 		GraphicsPSOInit.bDepthBounds = GSupportsDepthBoundsTest && GAllowDepthBoundsTest != 0;
 
-		TShaderMapRef<TDeferredLightVS<true> > VertexShader(View.ShaderMap);
+		FDeferredLightVS::FPermutationDomain PermutationVectorVS;
+		PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
+		TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
 
 		const bool bCameraInsideLightGeometry = ((FVector)View.ViewMatrices.GetViewOrigin() - LightBounds.Center).SizeSquared() < FMath::Square(LightBounds.W * 1.05f + View.NearClippingDistance * 2.0f)
 		//const bool bCameraInsideLightGeometry = LightProxy->AffectsBounds( FSphere( View.ViewMatrices.GetViewOrigin(), View.NearClippingDistance * 2.0f ) )
@@ -2704,7 +2704,9 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 				// Set the device viewport for the view.
 				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
-				TShaderMapRef<TDeferredLightVS<true> > VertexShader(View.ShaderMap);
+				FDeferredLightVS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FDeferredLightVS::FRadialLight>(true);
+				TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVector);
 
 				const bool bCameraInsideLightGeometry = ((FVector)View.ViewMatrices.GetViewOrigin() - LightBounds.Center).SizeSquared() < FMath::Square(LightBounds.W * 1.05f + View.NearClippingDistance * 2.0f)
 								// Always draw backfaces in ortho

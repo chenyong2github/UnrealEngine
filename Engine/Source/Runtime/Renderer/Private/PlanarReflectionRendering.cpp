@@ -205,7 +205,9 @@ void PrefilterPlanarReflection(
 		PassParameters->SceneColorInputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(ViewFamilyTexture, RTLoadAction);
 
-		TShaderMapRef<TDeferredLightVS<false> > VertexShader(View.ShaderMap);
+		FDeferredLightVS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FDeferredLightVS::FRadialLight>(false);
+		TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVector);
 		TShaderMapRef<FPrefilterPlanarReflectionPS> PixelShader(View.ShaderMap);
 
 		const FIntPoint SceneColorExtent = SceneColorTexture->Desc.Extent;
@@ -837,7 +839,9 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 
 			SCOPED_DRAW_EVENTF(RHICmdList, PlanarReflection, *ReflectionSceneProxy->OwnerName.ToString());
 
-			TShaderMapRef<TDeferredLightVS<false> > VertexShader(View.ShaderMap);
+			FDeferredLightVS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FDeferredLightVS::FRadialLight>(false);
+			TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVector);
 			TShaderMapRef<FPlanarReflectionPS> PixelShader(View.ShaderMap);
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;

@@ -363,8 +363,10 @@ static void RenderLocalLight_StencilMask(FRHICommandListImmediate& RHICmdList, c
 		true, CF_Always, SO_Keep, SO_Replace, SO_Keep,		
 		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 		0x00, STENCIL_SANDBOX_MASK>::GetRHI();
-	   	
-	TShaderMapRef<TDeferredLightVS<true> > VertexShader(View.ShaderMap);
+
+	FDeferredLightVS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FDeferredLightVS::FRadialLight>(true);
+	TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVector);
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = nullptr;
@@ -430,7 +432,9 @@ static void RenderLocalLight(
 		SetLocalLightRasterizerAndDepthState(GraphicsPSOInit, View, LightBounds);
 	}
 
-	TShaderMapRef<TDeferredLightVS<true>> VertexShader(View.ShaderMap);
+	FDeferredLightVS::FPermutationDomain PermutationVectorVS;
+	PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
+	TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
 		
 	const FMaterialRenderProxy* LightFunctionMaterialProxy = nullptr;
 	if (View.Family->EngineShowFlags.LightFunctions)
@@ -483,7 +487,7 @@ static void RenderLocalLight(
 static void SetupSimpleLightPSO(
 	FRHICommandListImmediate& RHICmdList, 
 	const FViewInfo& View,
-	const TShaderMapRef<TDeferredLightVS<true>>& VertexShader,
+	const TShaderMapRef<FDeferredLightVS>& VertexShader,
 	const TShaderRef<FMobileRadialLightFunctionPS>& PixelShader, 
 	FGraphicsPipelineStateInitializer& GraphicsPSOInit)
 {
@@ -508,7 +512,9 @@ static void RenderSimpleLights(
 {
 	const FSimpleLightArray& SimpleLights = SortedLightSet.SimpleLights;
 
-	TShaderMapRef<TDeferredLightVS<true>> VertexShader(View.ShaderMap);
+	FDeferredLightVS::FPermutationDomain PermutationVectorVS;
+	PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
+	TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
 	TShaderRef<FMobileRadialLightFunctionPS> PixelShaders[2];
 	{
 		const FMaterialShaderMap* MaterialShaderMap = DefaultMaterial.Material->GetRenderingThreadShaderMap();
