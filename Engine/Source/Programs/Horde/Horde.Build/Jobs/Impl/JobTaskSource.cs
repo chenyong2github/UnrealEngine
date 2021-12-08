@@ -995,6 +995,8 @@ namespace HordeServer.Tasks.Impl
 		/// <inheritdoc/>
 		public override async Task OnLeaseFinishedAsync(IAgent Agent, LeaseId LeaseId, ExecuteJobTask Task, LeaseOutcome Outcome, ReadOnlyMemory<byte> Output, ILogger Logger)
 		{
+			await base.OnLeaseFinishedAsync(Agent, LeaseId, Task, Outcome, Output, Logger);
+
 			if (Outcome != LeaseOutcome.Success)
 			{
 				AgentId AgentId = Agent.Id;
