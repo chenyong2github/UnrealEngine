@@ -4,8 +4,9 @@
 
 #include "ConcertMessages.h"
 #include "ConsoleVariablesAsset.h"
-#include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorCommandInfo.h"
+#include "ConsoleVariablesEditorLog.h"
+#include "ConsoleVariablesEditorModule.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/MainPanel/SConsoleVariablesEditorMainPanel.h"
 
@@ -188,11 +189,7 @@ void FConsoleVariablesEditorMainPanel::OnConnectionChanged(EConcertConnectionSta
 
 void FConsoleVariablesEditorMainPanel::OnRemoteCvarChange(const FString InName, const FString InValue)
 {
-	UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
-	if (GetMutableDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
-	{
-		GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
-					  *FString::Printf(TEXT("%s %s"), *InName, *InValue));
-	}
+	ConsoleVariablesEditorModule.OnRemoteCvarChanged(InName, InValue);
 }
