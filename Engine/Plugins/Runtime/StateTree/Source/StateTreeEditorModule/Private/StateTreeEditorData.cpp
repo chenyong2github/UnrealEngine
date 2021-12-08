@@ -186,6 +186,18 @@ void UStateTreeEditorData::VisitHierarchy(TFunctionRef<bool(const UStateTreeStat
 			}
 			if (bContinue)
 			{
+				if (const FStateTreeTaskBase* Task = State->SingleTask.Item.GetPtr<FStateTreeTaskBase>())
+				{
+					if (!InFunc(*State, State->SingleTask.ID, Task->Name, EStateTreeItemType::Task, State->SingleTask.Item.GetScriptStruct(), Task->GetInstanceDataType()))
+					{
+						bContinue = false;
+						break;
+					}
+				}
+
+			}
+			if (bContinue)
+			{
 				// Transitions
 				for (const FStateTreeTransition& Transition : State->Transitions)
 				{

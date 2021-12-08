@@ -522,6 +522,13 @@ FText FStateTreeBindableItemDetails::GetName() const
 
 EVisibility FStateTreeBindableItemDetails::IsNameVisible() const
 {
+	const UStateTreeSchema* Schema = StateTree ? StateTree->GetSchema() : nullptr;
+	if (Schema && Schema->AllowMultipleTasks() == false)
+	{
+		// Single task states use the state name as task name.
+		return EVisibility::Collapsed;
+	}
+	
 	const UScriptStruct* ScriptStruct = nullptr;
 	if (const FStateTreeItem* Item = GetCommonItem())
 	{

@@ -44,7 +44,25 @@ TSharedRef<IDetailCustomization> FStateTreeStateDetails::MakeInstance()
 
 void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	// Find StateTree associated with this panel.
+	UStateTree* StateTree = nullptr;
+	TArray<TWeakObjectPtr<UObject>> Objects;
+	DetailBuilder.GetObjectsBeingCustomized(Objects);
+	for (TWeakObjectPtr<UObject>& WeakObject : Objects)
+	{
+		if (UObject* Object = WeakObject.Get())
+		{
+			if (UStateTree* OuterStateTree = Object->GetTypedOuter<UStateTree>())
+			{
+				StateTree = OuterStateTree;
+				break;
+			}
+		}
+	}
+	const UStateTreeSchema* Schema = StateTree ? StateTree->GetSchema() : nullptr;
+
 	TSharedPtr<IPropertyHandle> TasksProperty = DetailBuilder.GetProperty(TEXT("Tasks"));
+	TSharedPtr<IPropertyHandle> SingleTaskProperty = DetailBuilder.GetProperty(TEXT("SingleTask"));
 	TSharedPtr<IPropertyHandle> EnterConditionsProperty = DetailBuilder.GetProperty(TEXT("EnterConditions"));
 	TSharedPtr<IPropertyHandle> EvaluatorsProperty = DetailBuilder.GetProperty(TEXT("Evaluators"));
 	TSharedPtr<IPropertyHandle> TransitionsProperty = DetailBuilder.GetProperty(TEXT("Transitions"));
@@ -52,11 +70,43 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	IDetailCategoryBuilder& StateCategory = DetailBuilder.EditCategory(TEXT("State"), LOCTEXT("StateDetailsState", "State"));
 	StateCategory.SetSortOrder(0);
 
-	MakeArrayCategory(DetailBuilder, "Evaluators", LOCTEXT("StateDetailsEvaluators", "Evaluators"), 1, EvaluatorsProperty);
+	const FName EvalCategoryName(TEXT("Evaluators"));
+	if (Schema && Schema->AllowEvaluators())
+	{
+		MakeArrayCategory(DetailBuilder, EvalCategoryName, LOCTEXT("StateDetailsEvaluators", "Evaluators"), 1, EvaluatorsProperty);
+	}
+	else
+	{
+		DetailBuilder.EditCategory(EvalCategoryName).SetCategoryVisibility(false);
+	}
 
-	MakeArrayCategory(DetailBuilder, "Enter Conditions", LOCTEXT("StateDetailsEnterConditions", "Enter Conditions"), 2, EnterConditionsProperty);
+	const FName EnterConditionsCategoryName(TEXT("Enter Conditions"));
+	if (Schema && Schema->AllowEnterConditions())
+	{
+		MakeArrayCategory(DetailBuilder, EnterConditionsCategoryName, LOCTEXT("StateDetailsEnterConditions", "Enter Conditions"), 2, EnterConditionsProperty);
+	}
+	else
+	{
+		DetailBuilder.EditCategory(EnterConditionsCategoryName).SetCategoryVisibility(false);
+	}
 
-	MakeArrayCategory(DetailBuilder, "Tasks", LOCTEXT("StateDetailsTasks", "Tasks"), 3, TasksProperty);
+	if (Schema && Schema->AllowMultipleTasks())
+	{
+		const FName TasksCategoryName(TEXT("Tasks"));
+		MakeArrayCategory(DetailBuilder, TasksCategoryName, LOCTEXT("StateDetailsTasks", "Tasks"), 3, TasksProperty);
+		SingleTaskProperty->MarkHiddenByCustomization();
+	}
+	else
+	{
+		const FName TaskCategoryName(TEXT("Task"));
+		IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TaskCategoryName);
+		Category.SetSortOrder(3);
+		
+		IDetailPropertyRow& Row = Category.AddProperty(SingleTaskProperty);
+		Row.ShouldAutoExpand(true);
+		
+		TasksProperty->MarkHiddenByCustomization();
+	}
 
 	MakeArrayCategory(DetailBuilder, "Transitions", LOCTEXT("StateDetailsTransitions", "Transitions"), 4, TransitionsProperty);
 }
@@ -85,6 +135,5 @@ void FStateTreeStateDetails::GenerateArrayElementWidget(TSharedRef<IPropertyHand
 {
 	ChildrenBuilder.AddProperty(PropertyHandle);
 };
-
 
 #undef LOCTEXT_NAMESPACE

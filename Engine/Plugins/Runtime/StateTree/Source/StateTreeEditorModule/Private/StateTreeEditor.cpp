@@ -10,14 +10,13 @@
 #include "StateTreeEditorData.h"
 #include "StateTreeDelegates.h"
 #include "StateTreeState.h"
-#include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeBaker.h"
+#include "StateTreeTypes.h"
 #include "IDetailsView.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Customizations/StateTreeBindingExtension.h"
-#include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 
 #include "Developer/MessageLog/Public/IMessageLogListing.h"
@@ -375,6 +374,8 @@ void FStateTreeEditor::OnSchemaChanged(const UStateTree& InStateTree)
 {
 	if (StateTree == &InStateTree)
 	{
+		UpdateAsset();
+		
 		if (StateTreeViewModel)
 		{
 			StateTreeViewModel->NotifyAssetChangedExternally();
@@ -533,6 +534,83 @@ namespace UE::StateTree::Editor::Internal
 		}
 	}
 
+	void ApplySchema(UStateTree& StateTree)
+	{
+		UStateTreeEditorData* TreeData = Cast<UStateTreeEditorData>(StateTree.EditorData);
+		if (!TreeData)
+		{
+			return;
+		}
+		
+		const UStateTreeSchema* Schema = StateTree.GetSchema();
+		if (!Schema)
+		{
+			return;
+		}
+
+		TArray<UStateTreeState*> Stack;
+
+		for (UStateTreeState* Routine : TreeData->Routines)
+		{
+			if (Routine)
+			{
+				Stack.Reset();
+				Stack.Add(Routine);
+				while (Stack.Num() > 0)
+				{
+					UStateTreeState* CurState = Stack.Pop();
+
+					// Clear enter conditions if not allowed.
+					if (Schema->AllowEnterConditions() == false && CurState->EnterConditions.Num() > 0)
+					{
+						UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Enter Conditions in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
+						CurState->EnterConditions.Reset();
+					}
+
+					// Clear evaluators if not allowed.
+					if (Schema->AllowEvaluators() == false && CurState->Evaluators.Num() > 0)
+					{
+						UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Evaluators in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
+						CurState->Evaluators.Reset();
+					}
+
+					// Keep single and many tasks based on what is allowed.
+					if (Schema->AllowMultipleTasks() == false)
+					{
+						if (CurState->Tasks.Num() > 0)
+						{
+							CurState->Tasks.Reset();
+							UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Tasks in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
+						}
+						
+						// Task name is the same as state name.
+						if (FStateTreeTaskBase* Task = CurState->SingleTask.Item.GetMutablePtr<FStateTreeTaskBase>())
+						{
+							Task->Name = CurState->Name;
+						}
+					}
+					else
+					{
+						if (CurState->SingleTask.Item.IsValid())
+						{
+							CurState->SingleTask.Reset();
+							UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Single Task in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
+						}
+					}
+					
+					for (UStateTreeState* ChildState : CurState->Children)
+					{
+						if (ChildState)
+						{
+							Stack.Append(CurState->Children);
+						}
+					}
+				}
+			}
+		}
+
+	}
+
 	void RemoveUnusedBindings(UStateTree& StateTree)
 	{
 		UStateTreeEditorData* TreeData = Cast<UStateTreeEditorData>(StateTree.EditorData);
@@ -555,6 +633,7 @@ void FStateTreeEditor::UpdateAsset()
 	}
 
 	UE::StateTree::Editor::Internal::UpdateParents(*StateTree);
+	UE::StateTree::Editor::Internal::ApplySchema(*StateTree);
 	UE::StateTree::Editor::Internal::RemoveUnusedBindings(*StateTree);
 	UE::StateTree::Editor::Internal::ValidateLinkedStates(*StateTree);
 

@@ -348,6 +348,182 @@ bool FStateTreeBaker::GetAndValidateBindings(const FStateTreeBindableStructDesc&
 	return true;
 }
 
+bool FStateTreeBaker::CreateTask(const FStateTreeTaskItem& TaskItem)
+{
+	// Silently ignore empty items.
+	if (!TaskItem.Item.IsValid())
+	{
+		return true;
+	}
+	
+	// Create binding source struct descriptor.
+	FStateTreeBindableStructDesc StructDesc;
+	StructDesc.ID = TaskItem.ID;
+	StructDesc.Name = TaskItem.Item.GetScriptStruct()->GetFName();
+
+	// Check that item has valid instance initialized.
+	if (!TaskItem.Instance.IsValid() && TaskItem.InstanceObject == nullptr)
+	{
+		Log.Reportf(EMessageSeverity::Error, StructDesc,
+			TEXT("Malformed evaluator, missing instance value."));
+		return false;
+	}
+
+	// Copy the task
+	FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+	Item = TaskItem.Item;
+	
+	FStateTreeTaskBase& Task = Item.GetMutable<FStateTreeTaskBase>();
+
+	if (TaskItem.Instance.IsValid())
+	{
+		// Struct Instance
+		FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
+		const int32 InstanceIndex = StateTree->Instances.Num() - 1;
+
+		Instance = TaskItem.Instance;
+
+		// Create binding source struct descriptor.
+		StructDesc.Struct = Instance.GetScriptStruct();
+		StructDesc.Name = Task.Name;
+
+		check(InstanceIndex <= int32(MAX_uint16));
+		Task.InstanceIndex = uint16(InstanceIndex);
+		Task.bInstanceIsObject = false;
+	}
+	else
+	{
+		// Object Instance
+		check(TaskItem.InstanceObject != nullptr);
+
+		UObject* Instance = DuplicateObject(TaskItem.InstanceObject, StateTree);
+
+		StateTree->InstanceObjects.Add(Instance);
+		const int32 InstanceIndex = StateTree->InstanceObjects.Num() - 1;
+
+		// Create binding source struct descriptor.
+		StructDesc.Struct = Instance->GetClass();
+		StructDesc.Name = Task.Name;
+
+		check(InstanceIndex <= int32(MAX_uint16));
+		Task.InstanceIndex = uint16(InstanceIndex);
+		Task.bInstanceIsObject = true;
+	}
+
+	// Mark the instance as binding source.
+	const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
+
+	// Check that the bindings for this struct are still all valid.
+	TArray<FStateTreeEditorPropertyBinding> Bindings;
+	if (!GetAndValidateBindings(StructDesc, Bindings))
+	{
+		return false;
+	}
+
+	// Compile batch copy for this struct, we pass in all the bindings, the compiler will pick up the ones for the target structs.
+	int32 BatchIndex = INDEX_NONE;
+	if (!BindingsCompiler.CompileBatch(StructDesc, Bindings, BatchIndex))
+	{
+		return false;
+	}
+	
+	check(BatchIndex < int32(MAX_uint16));
+	Task.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
+	
+	check(SourceStructIndex <= int32(MAX_uint16));
+	Task.DataViewIndex = uint16(SourceStructIndex);
+
+	return true;
+}
+
+bool FStateTreeBaker::CreateEvaluator(const FStateTreeEvaluatorItem& EvaluatorItem)
+{
+	// Silently ignore empty items.
+	if (!EvaluatorItem.Item.IsValid())
+	{
+		return true;
+	}
+	
+	// Create binding source struct descriptor.
+	FStateTreeBindableStructDesc StructDesc;
+    StructDesc.ID = EvaluatorItem.ID;
+    StructDesc.Name = EvaluatorItem.Item.GetScriptStruct()->GetFName();
+
+    // Check that item has valid instance initialized.
+    if (!EvaluatorItem.Instance.IsValid() && EvaluatorItem.InstanceObject == nullptr)
+    {
+        Log.Reportf(EMessageSeverity::Error, StructDesc,
+        	TEXT("Malformed evaluator, missing instance value."));
+        return false;
+    }
+
+	// Copy the evaluator
+	FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
+	Item = EvaluatorItem.Item;
+
+	FStateTreeEvaluatorBase& Eval = Item.GetMutable<FStateTreeEvaluatorBase>();
+
+	if (EvaluatorItem.Instance.IsValid())
+	{
+		// Struct Instance
+		FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
+		const int32 InstanceIndex = StateTree->Instances.Num() - 1;
+
+		Instance = EvaluatorItem.Instance;
+
+		// Create binding source struct descriptor.
+		StructDesc.Struct = Instance.GetScriptStruct();
+		StructDesc.Name = Eval.Name;
+
+		check(InstanceIndex <= int32(MAX_uint16));
+		Eval.InstanceIndex = uint16(InstanceIndex);
+		Eval.bInstanceIsObject = false;
+	}
+	else
+	{
+		// Object Instance
+		check(EvaluatorItem.InstanceObject != nullptr);
+
+		UObject* Instance = DuplicateObject(EvaluatorItem.InstanceObject, StateTree);
+
+		StateTree->InstanceObjects.Add(Instance);
+		const int32 InstanceIndex = StateTree->InstanceObjects.Num() - 1;
+
+		// Create binding source struct descriptor.
+		StructDesc.Struct = Instance->GetClass();
+		StructDesc.Name = Eval.Name;
+
+		check(InstanceIndex <= int32(MAX_uint16));
+		Eval.InstanceIndex = uint16(InstanceIndex);
+		Eval.bInstanceIsObject = true;
+	}
+		
+	// Mark the instance as binding source.
+	const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
+
+	// Check that the bindings for this struct are still all valid.
+	TArray<FStateTreeEditorPropertyBinding> Bindings;
+	if (!GetAndValidateBindings(StructDesc, Bindings))
+	{
+		return false;
+	}
+
+	// Compile batch copy for this struct, we pass in all the bindings, the compiler will pick up the ones for the target structs.
+	int32 BatchIndex = INDEX_NONE;
+	if (!BindingsCompiler.CompileBatch(StructDesc, Bindings, BatchIndex))
+	{
+		return false;
+	}
+	
+	check(BatchIndex < int32(MAX_uint16));
+	Eval.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
+	
+	check(SourceStructIndex <= int32(MAX_uint16));
+	Eval.DataViewIndex = uint16(SourceStructIndex);
+
+	return true;
+}
+
 bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent)
 {
 	FStateTreeCompilerLogStateScope LogStateScope(&State, Log);
@@ -360,7 +536,6 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 	SourceStates.Add(&State);
 	IDToState.Add(State.ID, StateIdx);
 
-
 	check(StateTree->Instances.Num() <= int32(MAX_uint16));
 
 	// Collect evaluators
@@ -369,88 +544,10 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 
 	for (FStateTreeEvaluatorItem& EvaluatorItem : State.Evaluators)
 	{
-		// Silently ignore empty items.
-		if (!EvaluatorItem.Item.IsValid())
-		{
-			continue;
-		}
-		
-		// Create binding source struct descriptor.
-		FStateTreeBindableStructDesc StructDesc;
-        StructDesc.ID = EvaluatorItem.ID;
-        StructDesc.Name = EvaluatorItem.Item.GetScriptStruct()->GetFName();
-    
-        // Check that item has valid instance initialized.
-        if (!EvaluatorItem.Instance.IsValid() && EvaluatorItem.InstanceObject == nullptr)
-        {
-        	Log.Reportf(EMessageSeverity::Error, StructDesc,
-        		TEXT("Malformed evaluator, missing instance value."));
-        	return false;
-        }
-
-		// Copy the evaluator
-		FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
-		Item = EvaluatorItem.Item;
-
-		FStateTreeEvaluatorBase& Eval = Item.GetMutable<FStateTreeEvaluatorBase>();
-
-		if (EvaluatorItem.Instance.IsValid())
-		{
-			// Struct Instance
-			FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
-			const int32 InstanceIndex = StateTree->Instances.Num() - 1;
-	
-			Instance = EvaluatorItem.Instance;
-
-			// Create binding source struct descriptor.
-			StructDesc.Struct = Instance.GetScriptStruct();
-			StructDesc.Name = Eval.Name;
-
-			check(InstanceIndex <= int32(MAX_uint16));
-			Eval.InstanceIndex = uint16(InstanceIndex);
-			Eval.bInstanceIsObject = false;
-		}
-		else
-		{
-			// Object Instance
-			check(EvaluatorItem.InstanceObject != nullptr);
-	
-			UObject* Instance = DuplicateObject(EvaluatorItem.InstanceObject, StateTree);
-	
-			StateTree->InstanceObjects.Add(Instance);
-			const int32 InstanceIndex = StateTree->InstanceObjects.Num() - 1;
-	
-			// Create binding source struct descriptor.
-			StructDesc.Struct = Instance->GetClass();
-			StructDesc.Name = Eval.Name;
-
-			check(InstanceIndex <= int32(MAX_uint16));
-			Eval.InstanceIndex = uint16(InstanceIndex);
-			Eval.bInstanceIsObject = true;
-		}
-			
-		// Mark the instance as binding source.
-		const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
-
-		// Check that the bindings for this struct are still all valid.
-		TArray<FStateTreeEditorPropertyBinding> Bindings;
-		if (!GetAndValidateBindings(StructDesc, Bindings))
+		if (!CreateEvaluator(EvaluatorItem))
 		{
 			return false;
 		}
-
-		// Compile batch copy for this struct, we pass in all the bindings, the compiler will pick up the ones for the target structs.
-		int32 BatchIndex = INDEX_NONE;
-		if (!BindingsCompiler.CompileBatch(StructDesc, Bindings, BatchIndex))
-		{
-			return false;
-		}
-		
-		check(BatchIndex < int32(MAX_uint16));
-		Eval.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
-		
-		check(SourceStructIndex <= int32(MAX_uint16));
-		Eval.DataViewIndex = uint16(SourceStructIndex);
 	}
 	
 	const int32 EvaluatorsNum = StateTree->Items.Num() - int32(BakedState.EvaluatorsBegin);
@@ -463,88 +560,15 @@ bool FStateTreeBaker::CreateStateRecursive(UStateTreeState& State, const FStateT
 
 	for (FStateTreeTaskItem& TaskItem : State.Tasks)
 	{
-		// Silently ignore empty items.
-		if (!TaskItem.Item.IsValid())
-		{
-			continue;
-		}
-		
-		// Create binding source struct descriptor.
-		FStateTreeBindableStructDesc StructDesc;
-		StructDesc.ID = TaskItem.ID;
-		StructDesc.Name = TaskItem.Item.GetScriptStruct()->GetFName();
-    
-		// Check that item has valid instance initialized.
-		if (!TaskItem.Instance.IsValid() && TaskItem.InstanceObject == nullptr)
-		{
-			Log.Reportf(EMessageSeverity::Error, StructDesc,
-				TEXT("Malformed evaluator, missing instance value."));
-			return false;
-		}
-
-		// Copy the task
-		FInstancedStruct& Item = StateTree->Items.AddDefaulted_GetRef();
-		Item = TaskItem.Item;
-		
-		FStateTreeTaskBase& Task = Item.GetMutable<FStateTreeTaskBase>();
-
-		if (TaskItem.Instance.IsValid())
-		{
-			// Struct Instance
-			FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
-			const int32 InstanceIndex = StateTree->Instances.Num() - 1;
-	
-			Instance = TaskItem.Instance;
-
-			// Create binding source struct descriptor.
-			StructDesc.Struct = Instance.GetScriptStruct();
-			StructDesc.Name = Task.Name;
-
-			check(InstanceIndex <= int32(MAX_uint16));
-			Task.InstanceIndex = uint16(InstanceIndex);
-			Task.bInstanceIsObject = false;
-		}
-		else
-		{
-			// Object Instance
-			check(TaskItem.InstanceObject != nullptr);
-	
-			UObject* Instance = DuplicateObject(TaskItem.InstanceObject, StateTree);
-	
-			StateTree->InstanceObjects.Add(Instance);
-			const int32 InstanceIndex = StateTree->InstanceObjects.Num() - 1;
-	
-			// Create binding source struct descriptor.
-			StructDesc.Struct = Instance->GetClass();
-			StructDesc.Name = Task.Name;
-
-			check(InstanceIndex <= int32(MAX_uint16));
-			Task.InstanceIndex = uint16(InstanceIndex);
-			Task.bInstanceIsObject = true;
-		}
-
-		// Mark the instance as binding source.
-		const int32 SourceStructIndex = BindingsCompiler.AddSourceStruct(StructDesc);
-
-		// Check that the bindings for this struct are still all valid.
-		TArray<FStateTreeEditorPropertyBinding> Bindings;
-		if (!GetAndValidateBindings(StructDesc, Bindings))
+		if (!CreateTask(TaskItem))
 		{
 			return false;
 		}
+	}
 
-		// Compile batch copy for this struct, we pass in all the bindings, the compiler will pick up the ones for the target structs.
-		int32 BatchIndex = INDEX_NONE;
-		if (!BindingsCompiler.CompileBatch(StructDesc, Bindings, BatchIndex))
-		{
-			return false;
-		}
-		
-		check(BatchIndex < int32(MAX_uint16));
-		Task.BindingsBatch = BatchIndex == INDEX_NONE ? FStateTreeHandle::Invalid : FStateTreeHandle(uint16(BatchIndex));
-		
-		check(SourceStructIndex <= int32(MAX_uint16));
-		Task.DataViewIndex = uint16(SourceStructIndex);
+	if (!CreateTask(State.SingleTask))
+	{
+		return false;
 	}
 	
 	const int32 TasksNum = StateTree->Items.Num() - int32(BakedState.TasksBegin);
