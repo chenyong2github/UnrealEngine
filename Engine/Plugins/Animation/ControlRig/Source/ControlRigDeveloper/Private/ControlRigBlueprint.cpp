@@ -460,6 +460,8 @@ void UControlRigBlueprint::PostLoad()
 			for (URigVMGraph* GraphToDetach : GraphsToDetach)
 			{
 				URigVMController* Controller = GetOrCreateController(GraphToDetach);
+				// temporarily disable default value validation during load time, serialized values should always be accepted
+				TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
 				Controller->DetachLinksFromPinObjects();
 				TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
 				for (URigVMNode* Node : Nodes)
