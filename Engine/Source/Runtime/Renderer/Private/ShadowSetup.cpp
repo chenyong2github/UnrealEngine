@@ -3545,7 +3545,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 				// directional lights are not handled here
 				checkf(false, TEXT("Unexpected LightType %d appears in CreateWholeSceneProjectedShadow %s"),
 					(int32)LightSceneInfo->Proxy->GetLightType(),
-					*LightSceneInfo->Proxy->GetComponentName().ToString());
+					*LightSceneInfo->Proxy->GetOwnerNameOrLabel());
 			}
 
 			// Compute FadeAlpha before ShadowResolutionScale contribution (artists want to modify the softness of the shadow, not change the fade ranges)
@@ -5645,7 +5645,7 @@ FDynamicShadowsTaskData* FSceneRenderer::BeginInitDynamicShadows(bool bRunningEa
 						const bool bPointLightWholeSceneShadow = (bShouldCreateShadowForMovableLight || bShouldCreateShadowForOverflowStaticShadowing || bShouldCreateShadowToPreviewStaticLight) && bPointLightShadow;
 						if (bPointLightWholeSceneShadow)
 						{
-							UsedWholeScenePointLightNames.Add(LightSceneInfoCompact.LightSceneInfo->Proxy->GetComponentName());
+							UsedWholeScenePointLightNames.Add(LightSceneInfoCompact.LightSceneInfo->Proxy->GetOwnerNameOrLabel());
 						}
 
 						if (bCreateShadowForMovableLight || bCreateShadowToPreviewStaticLight || bCreateShadowForOverflowStaticShadowing)

@@ -3330,9 +3330,9 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 
-							for (FName LightName : UsedWholeScenePointLightNames)
+							for (const FString &LightName : UsedWholeScenePointLightNames)
 							{
-								Canvas.DrawShadowedText(10, Y, FText::FromString(LightName.ToString()), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+								Canvas.DrawShadowedText(10, Y, FText::FromString(LightName), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 								Y += 14;
 							}
 						}
@@ -3342,9 +3342,9 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 
-							for (FName LightName : Scene->OverflowingDynamicShadowedLights)
+							for (const FString& LightName : Scene->OverflowingDynamicShadowedLights)
 							{
-								Canvas.DrawShadowedText(10, Y, FText::FromString(LightName.ToString()), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+								Canvas.DrawShadowedText(10, Y, FText::FromString(LightName), GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 								Y += 14;
 							}
 						}

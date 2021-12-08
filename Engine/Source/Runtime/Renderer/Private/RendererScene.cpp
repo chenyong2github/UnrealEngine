@@ -1761,7 +1761,7 @@ void FScene::AssignAvailableShadowMapChannelForLight(FLightSceneInfo* LightScene
 	else
 	{
 		LightSceneInfo->SetDynamicShadowMapChannel(INDEX_NONE);
-		OverflowingDynamicShadowedLights.AddUnique(LightSceneInfo->Proxy->GetComponentName());
+		OverflowingDynamicShadowedLights.AddUnique(LightSceneInfo->Proxy->GetOwnerNameOrLabel());
 	}
 }
 
@@ -3056,7 +3056,7 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 			&& LightSceneInfo->Proxy->CastsDynamicShadow()
 			&& LightSceneInfo->GetDynamicShadowMapChannel() == -1)
 		{
-			OverflowingDynamicShadowedLights.Remove(LightSceneInfo->Proxy->GetComponentName());
+			OverflowingDynamicShadowedLights.Remove(LightSceneInfo->Proxy->GetOwnerNameOrLabel());
 		}
 	}
 	else
@@ -3742,7 +3742,7 @@ void FScene::DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const
 
 		if (bLightHasUnbuiltInteractions)
 		{
-			LightsWithUnbuiltInteractions.Add(LightSceneInfo->Proxy->GetComponentName().ToString());
+			LightsWithUnbuiltInteractions.Add(LightSceneInfo->Proxy->GetOwnerNameOrLabel());
 		}
 	}
 

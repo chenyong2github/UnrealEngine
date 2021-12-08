@@ -943,15 +943,7 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualSmFeedbackStatusCS, "/Engine/Private/VirtualShad
 
 static FString GetLightNameForDebug(const FLightSceneProxy* Proxy)
 {
-	// TODO: ActorLabel is editor-only... need a better solution that goes right into Proxy->GetComponentName()
-#if WITH_EDITOR
-	const ULightComponent* Component = Proxy->GetLightComponent();
-	const AActor* Owner = Component->GetOwner();
-	// TODO: Sometimes Owner is null... not sure why but best we can do for now
-	return Owner ? Owner->GetActorLabel() : Proxy->GetComponentName().ToString();
-#else
-	return Proxy->GetComponentName().ToString();
-#endif
+	return Proxy->GetOwnerNameOrLabel();
 }
 
 #if !UE_BUILD_SHIPPING

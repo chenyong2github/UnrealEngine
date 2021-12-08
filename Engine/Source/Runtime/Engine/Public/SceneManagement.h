@@ -1528,7 +1528,19 @@ public:
 	inline bool IsTiledDeferredLightingSupported() const { return bTiledDeferredLightingSupported;  }
 	inline uint8 GetLightType() const { return LightType; }
 	inline uint8 GetLightingChannelMask() const { return LightingChannelMask; }
+	inline FName GetComponentFName() const { return ComponentName; }
+	UE_DEPRECATED(5.0, "Use GetComponentFName() OR GetOwnerNameOrLabel instead depending on what you need. Note: GetComponentName no longer returns the owner name.")
 	inline FName GetComponentName() const { return ComponentName; }
+	/**
+	 * Use to get the owning actor label (or component name as fallback, if the owner is null or ENABLE_DEBUG_LABELS is off) for diagnostic messages, debug or profiling.
+	 * The actor label is what is shown in the UI (as opposed to the the FName).
+	 */
+#if ACTOR_HAS_LABELS
+	inline const FString &GetOwnerNameOrLabel() const { return OwnerNameOrLabel; }
+#else 
+	inline FString GetOwnerNameOrLabel() const { return ComponentName.ToString(); }
+#endif 
+
 	inline FName GetLevelName() const { return LevelName; }
 	FORCEINLINE TStatId GetStatId() const 
 	{ 
@@ -1807,6 +1819,12 @@ protected:
 
 	/** Updates the light's color. */
 	void SetColor(const FLinearColor& InColor);
+
+private:
+#if ACTOR_HAS_LABELS
+	// May store the label or name of the actor containing the component or if there is no actor the name of the component itself
+	FString OwnerNameOrLabel;
+#endif
 };
 
 extern ENGINE_API void ComputeShadowCullingVolume(bool bReverseCulling, const FVector* CascadeFrustumVerts, const FVector& LightDirection, FConvexVolume& ConvexVolumeOut, FPlane& NearPlaneOut, FPlane& FarPlaneOut);
