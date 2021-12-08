@@ -148,8 +148,6 @@
 #include "VectorStructCustomization.h"
 #include "WindowsTargetSettingsDetails.h"
 #include "WorldSettingsDetails.h"
-#include "MaterialInstanceDynamicDetails.h"
-#include "CustomPrimitiveDataCustomization.h"
 
 IMPLEMENT_MODULE( FDetailCustomizationsModule, DetailCustomizations );
 
