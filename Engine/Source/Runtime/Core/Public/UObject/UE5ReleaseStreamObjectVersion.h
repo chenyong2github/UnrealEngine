@@ -66,6 +66,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Converted AActor GridPlacement to bIsSpatiallyLoaded flag
 		ConvertedActorGridPlacementToSpatiallyLoadedFlag,
 
+		// Fixup for bad default value for GridPlacement_DEPRECATED
+		ActorGridPlacementDeprecateDefaultValueFixup,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

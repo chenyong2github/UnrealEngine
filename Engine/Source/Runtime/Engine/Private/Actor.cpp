@@ -17,6 +17,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -177,6 +178,10 @@ void AActor::InitializeDefaults()
 #if WITH_EDITORONLY_DATA
 	bIsSpatiallyLoaded = true;
 	CopyPasteId = INDEX_NONE;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GridPlacement_DEPRECATED = EActorGridPlacement::None;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -726,6 +731,7 @@ void AActor::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 #if WITH_EDITOR
 	// Prior to load, map natively-constructed component instances for Blueprint-generated class types to any serialized properties that might reference them.
@@ -823,6 +829,11 @@ void AActor::Serialize(FArchive& Ar)
 		else if ((Ar.GetPortFlags() & PPF_Duplicate) || (Ar.IsPersistent() && !ActorGuid.IsValid()))
 		{
 			ActorGuid = FGuid::NewGuid();
+		}
+
+		if (!CanChangeIsSpatiallyLoadedFlag() && (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ActorGridPlacementDeprecateDefaultValueFixup))
+		{
+			bIsSpatiallyLoaded = GetClass()->GetDefaultObject<AActor>()->bIsSpatiallyLoaded;
 		}
 	}
 #endif
