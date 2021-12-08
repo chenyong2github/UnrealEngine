@@ -352,7 +352,7 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, LightType(InLightComponent->GetLightType())	
 	, LightingChannelMask(GetLightingChannelMaskForStruct(InLightComponent->LightingChannels))
 	, StatId(InLightComponent->GetStatID(true))
-	, ComponentName(InLightComponent->GetOwner() ? InLightComponent->GetOwner()->GetFName() : InLightComponent->GetFName())
+	, ComponentName(InLightComponent->GetFName())
 	, LevelName(InLightComponent->GetOwner() ? InLightComponent->GetOwner()->GetLevel()->GetOutermost()->GetFName() : NAME_None)
 	, FarShadowDistance(0)
 	, FarShadowCascadeCount(0)
@@ -363,6 +363,9 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, bMobileMovablePointLightShouldBeRender(false)
 	, bMobileMovablePointLightShouldCastShadow(false)
 	, MobileMovablePointLightShadowmapMinMax()
+#if ACTOR_HAS_LABELS
+	, OwnerNameOrLabel(InLightComponent->GetOwner() ? InLightComponent->GetOwner()->GetActorNameOrLabel() : InLightComponent->GetName())
+#endif
 {
 	check(SceneInterface);
 

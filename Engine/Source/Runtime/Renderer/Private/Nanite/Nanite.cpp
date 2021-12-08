@@ -312,7 +312,7 @@ FString GetFilterNameForLight(const FLightSceneProxy* LightProxy)
 			FullLevelName.MidInline(LastSlashIndex + 1, FullLevelName.Len() - (LastSlashIndex + 1), false);
 		}
 
-		LightFilterName = FullLevelName + TEXT(".") + LightProxy->GetComponentName().ToString();
+		LightFilterName = FullLevelName + TEXT(".") + LightProxy->GetOwnerNameOrLabel();
 	}
 
 	return LightFilterName;

@@ -2777,7 +2777,7 @@ public:
 	TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>> InvisibleLights;
 
 	/** Shadow casting lights that couldn't get a shadowmap channel assigned and therefore won't have valid dynamic shadows, forward renderer only. */
-	TArray<FName> OverflowingDynamicShadowedLights;
+	TArray<FString> OverflowingDynamicShadowedLights;
 
 	/** Early Z pass mode. */
 	EDepthDrawingMode EarlyZPassMode;

@@ -875,7 +875,7 @@ void FSceneRenderer::GetLightNameForDrawEvent(const FLightSceneProxy* LightProxy
 			FullLevelName.MidInline(LastSlashIndex + 1, FullLevelName.Len() - (LastSlashIndex + 1), false);
 		}
 
-		LightNameWithLevel = FullLevelName + TEXT(".") + LightProxy->GetComponentName().ToString();
+		LightNameWithLevel = FullLevelName + TEXT(".") + LightProxy->GetOwnerNameOrLabel();
 	}
 #endif
 }

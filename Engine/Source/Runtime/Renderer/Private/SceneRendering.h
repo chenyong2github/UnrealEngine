@@ -1883,7 +1883,7 @@ public:
 	bool bUsedPrecomputedVisibility;
 
 	/** Lights added if wholescenepointlight shadow would have been rendered (ignoring r.SupportPointLightWholeSceneShadows). Used for warning about unsupported features. */	
-	TArray<FName, SceneRenderingAllocator> UsedWholeScenePointLightNames;
+	TArray<FString, SceneRenderingAllocator> UsedWholeScenePointLightNames;
 
 	/** Feature level being rendered */
 	ERHIFeatureLevel::Type FeatureLevel;

@@ -43,7 +43,7 @@ class AWorldDataLayers;
 
 // By default, debug and development builds (even cooked) will keep actor labels. Manually define this if you want to make a local build
 // that keep actor labels for Test or Shipping builds.
-#define ACTOR_HAS_LABELS (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
+#define ACTOR_HAS_LABELS (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT || WITH_PROFILEGPU)
 
 /** Chooses a method for actors to update overlap state (objects it is touching) on initialization, currently only used during level streaming. */
 UENUM(BlueprintType)
