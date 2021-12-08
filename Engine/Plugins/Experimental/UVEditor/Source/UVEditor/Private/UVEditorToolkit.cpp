@@ -457,6 +457,11 @@ void FUVEditorToolkit::PostInitAssetEditor()
 
 		// Disable the dithering of occluded portions of gizmos.
 		Client->EngineShowFlags.SetOpaqueCompositeEditorPrimitives(true);
+
+		// Disable hardware occlusion queries, which make it harder to use vertex shaders to pull materials
+		// toward camera for z ordering because non-translucent materials start occluding themselves (once
+		// the component bounds are behind the displaced geometry).
+		Client->EngineShowFlags.SetDisableOcclusionQueries(true);
 	};
 	SetCommonViewportClientOptions(ViewportClient.Get());
 
