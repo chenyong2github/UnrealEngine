@@ -14,6 +14,8 @@ template <bool Condition, typename TemplateClass> static FORCEINLINE void Set##M
 template <bool Condition, typename TemplateClass> static FORCEINLINE void Set##MemberName(TemplateClass& Obj, typename TEnableIf<!Condition, MemberType>::Type Value) {}
 
 #define DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS( Condition, MemberType, MemberName ) \
+template <bool Condition, typename TemplateClass> static FORCEINLINE void Set##MemberName##Num(TemplateClass& Obj, typename TEnableIf< Condition, int32>::Type Num) { Obj.MemberName.SetNum(Num); } \
+template <bool Condition, typename TemplateClass> static FORCEINLINE void Set##MemberName##Num(TemplateClass& Obj, typename TEnableIf<!Condition, int32>::Type Num) {} \
 template <bool Condition, typename TemplateClass> static FORCEINLINE typename TEnableIf< Condition, MemberType>::Type Get##MemberName(TemplateClass& Obj, int32 Index, MemberType DefaultValue) { return Obj.MemberName[Index]; } \
 template <bool Condition, typename TemplateClass> static FORCEINLINE typename TEnableIf<!Condition, MemberType>::Type Get##MemberName(TemplateClass& Obj, int32 Index, MemberType DefaultValue) { return DefaultValue; } \
 template <bool Condition, typename TemplateClass> static FORCEINLINE void Set##MemberName(TemplateClass& Obj, int32 Index, typename TEnableIf< Condition, MemberType>::Type Value) { Obj.MemberName[Index] = Value; } \
@@ -27,7 +29,7 @@ struct FLODDefaultLogic
 	enum
 	{
 		bStoreInfoPerViewer = false, // Enable to store all calculated information per viewer
-		bCalculateLODPerViewer = false, // Enable to calculate and store the result LOD per viewer in the FMassLODResultInfo::LODPerViewer and FMassLODResultInfo::PrevLODPerViewer.
+		bCalculateLODPerViewer = false, // Enable to calculate and store the result LOD per viewer in the FMassLODResultInfo::LODPerViewer and FMassLODResultInfo::PrevLODPerViewer, requires bStoreInfoPerViewer to be true as well.
 		bMaximizeCountPerViewer = false, // Enable to maximize count per viewer, requires a valid InLODMaxCountPerViewer parameter during initialization of TMassLODCalculator.
 		bDoVisibilityLogic = false, // Enable to calculate visibility and apply its own LOD distances. Requires a valid InVisibleLODDistance parameter during initialization of TMassLODCalculator.
 		bCalculateLODSignificance = false, // Enable to calculate and set the a more precise LOD floating point significance in member FMassLODResultInfo::LODSignificance.
@@ -67,16 +69,14 @@ struct FMassViewerInfoFragment
 	// Closest viewer distance  (Always needed)
 	float ClosestViewerDistanceSq;
 
-	// Square distances to each valid viewers (Always needed)
-	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToViewerSq;
+	// Square distances to each valid viewers (Required when FLODLogic::bStoreInfoPerViewer is enabled)
+	TArray<float> DistanceToViewerSq;
 
-	// @Todo optimize by adding a boolean in the FLODLogic to enable the storing store that only when wanted
-	// Closest distance to frustum (Required only when FLODLogic::bDoVisibilityLogic is enabled)
+	// Closest distance to frustum (Required when FLODLogic::bDoVisibilityLogic is enabled)
 	float ClosestDistanceToFrustum;
 
-	// @Todo optimize by adding a boolean in the FLODDefaultLogic to enable the storing store that only when wanted
-	// Distances to each valid viewers frustums (Required only when FLODLogic::bDoVisibilityLogic)
-	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToFrustum;
+	// Distances to each valid viewers frustums (Required when FLODLogic::bDoVisibilityLogic and FLODLogic::bStoreInfoPerViewer are enabled)
+	TArray<float> DistanceToFrustum;
 };
 */
 
@@ -89,23 +89,23 @@ struct FMassViewerInfoFragment
 	TEnumAsByte<EMassLOD::Type> LOD;
 	TEnumAsByte<EMassLOD::Type> PrevLOD;
 
-	// Per viewer LOD information (Required only when FLODLogic::bStoreLODPerViewer is enabled)
-	TStaticArray<EMassLOD::Type, UE::MassLOD::MaxNumOfViewers> LODPerViewer;
-	TStaticArray<EMassLOD::Type, UE::MassLOD::MaxNumOfViewers> PrevLODPerViewer;
+	// Per viewer LOD information (Required when FLODLogic::bCalculateLODPerViewer is enabled)
+	TArray<EMassLOD::Type> LODPerViewer;
+	TArray<EMassLOD::Type> PrevLODPerViewer;
 
 	// Floating point LOD value, scaling from 0 to 3, 0 highest LOD and 3 being completely off LOD 
 	// (Required only when FLODLogic::bCalculateLODSignificance is enabled)
 	float LODSignificance = 0.0f; // 
 
-	// Visibility information (Required only when FLODLogic::bDoVisibilityLogic is enabled)
+	// Visibility information (Required when FLODLogic::bDoVisibilityLogic is enabled)
 	bool bIsVisibleByAViewer;
 	bool bWasVisibleByAViewer;
 	bool bIsInVisibleRange;
 	bool bWasInVisibleRange;
 
-	// Visibility information per viewer (Only when FLODLogic::bDoVisibilityLogic is enabled)
-	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bIsVisibleByViewer;
-	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bWasVisibleByViewer;
+	// Visibility information per viewer (Required when FLODLogic::bDoVisibilityLogic and FLODLogicbStoreInfoPerViewer are enabled)
+	TArray<bool> bIsVisibleByViewer;
+	TArray<bool> bWasVisibleByViewer;
 }
 */
 

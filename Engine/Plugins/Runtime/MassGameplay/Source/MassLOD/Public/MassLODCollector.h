@@ -49,6 +49,9 @@ void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context
 		float ClosestDistanceToFrustum = FLT_MAX;
 		const TTransformFragment& EntityTransform = TranformList[EntityIdx];
 		TViewerInfoFragment& EntityViewerInfo = ViewersInfoList[EntityIdx];
+
+		SetDistanceToViewerSqNum<FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, Viewers.Num());
+		SetDistanceToFrustumNum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, Viewers.Num());
 		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 		{
 			const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
