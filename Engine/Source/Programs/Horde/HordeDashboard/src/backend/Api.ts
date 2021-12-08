@@ -393,6 +393,8 @@ export type UpdateAgentRequest = {
 
 	requestRestart?: boolean;
 
+	requestShutdown?: boolean;
+
 	/**Per-agent override for the desired client version */
 	forceVersion?: string;
 
@@ -646,6 +648,12 @@ export type GetAgentResponse = {
 
 	/** Next conform attempt time */
 	nextConformTime?: Date | string;
+
+	/** The reason for the last shutdown */
+	lastShutdownReason: string;
+
+	/** Whether a shutdown is pending */
+	pendingShutdown: boolean;
 
 	/** agent workspaces */
 	workspaces: GetAgentWorkspaceResponse[];
