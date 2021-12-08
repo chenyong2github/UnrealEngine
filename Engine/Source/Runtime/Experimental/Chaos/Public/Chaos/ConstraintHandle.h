@@ -100,6 +100,16 @@ namespace Chaos
 			return (ConstraintContainer != nullptr) && IsEnabled();
 		}
 
+		FPBDConstraintContainer* GetContainer()
+		{
+			return ConstraintContainer;
+		}
+
+		const FPBDConstraintContainer* GetContainer() const 
+		{
+			return ConstraintContainer;
+		}
+
 		int32 ConstraintGraphIndex() const
 		{
 			return GraphIndex;
