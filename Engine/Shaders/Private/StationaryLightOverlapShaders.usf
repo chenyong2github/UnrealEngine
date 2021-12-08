@@ -11,7 +11,8 @@
 /** 1 if the light has a valid shadowmap channel. */
 float HasValidChannel;
 
-void OverlapDirectionalPixelMain(
+#if RADIAL_ATTENUATION == 0
+void OverlapPixelMain(
 	float2 InUV : TEXCOORD0,
 	float3 ScreenVector : TEXCOORD1,
 	out float4 OutColor : SV_Target0
@@ -34,8 +35,10 @@ void OverlapDirectionalPixelMain(
 		}
 	}
 }
+#endif
 
-void OverlapRadialPixelMain(
+#if RADIAL_ATTENUATION == 1
+void OverlapPixelMain(
 	float4 InScreenPosition : TEXCOORD0,
 	in float4 SvPosition : SV_Position,		// after all interpolators
 	out float4 OutColor : SV_Target0
@@ -53,16 +56,9 @@ void OverlapRadialPixelMain(
 {
 		float3 WorldPosition = LWCHackToFloat(SvPositionToWorld(SvPosition));
 
-		float3 ToLight = DeferredLightUniforms.Direction;
+		float3 ToLight = DeferredLightUniforms.Position - WorldPosition;
 
-		#if RADIAL_ATTENUATION
-			ToLight = DeferredLightUniforms.Position - WorldPosition;
-		#endif
-
-		float SpotFalloff = 1;
-		#if RADIAL_ATTENUATION
-			SpotFalloff = SpotAttenuation(normalize(ToLight), -DeferredLightUniforms.Direction, DeferredLightUniforms.SpotAngles);
-		#endif
+		float SpotFalloff = SpotAttenuation(normalize(ToLight), -DeferredLightUniforms.Direction, DeferredLightUniforms.SpotAngles);
 
 		float RadialAttenuationRatio = length(WorldPosition - DeferredLightUniforms.Position) * DeferredLightUniforms.InvRadius;
 
@@ -79,3 +75,4 @@ void OverlapRadialPixelMain(
 		}
 	}
 }
+#endif 
