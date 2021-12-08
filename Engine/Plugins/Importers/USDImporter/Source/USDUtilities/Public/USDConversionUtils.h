@@ -9,6 +9,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDMemory.h"
 #include "UsdWrappers/ForwardDeclarations.h"
+#include "UsdWrappers/SdfLayer.h"
 
 #if USE_USD_SDK
 #include "USDIncludesStart.h"
@@ -245,7 +246,11 @@ namespace UsdUtils
 	 * meaning the prim may still be left on the stage. Note that it's even possible to have both of those specs at the same time:
 	 * for example when we have a prim inside a variant set, but outside of it we have overrides to the same prim. This function
 	 * will remove both.
+	 *
+	 * @param Prim - Prim to remove
+	 * @param Layer - Layer to remove prim specs from. This can be left with the invalid layer (default) in order to remove all
+	 *				  specs from the entire stage's local layer stack.
 	 */
-	USDUTILITIES_API void RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer );
+	USDUTILITIES_API void RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer = UE::FSdfLayer{} );
 }
 

@@ -730,7 +730,7 @@ void SUsdStageTreeView::OnRemovePrim()
 	{
 		UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
 
-		UsdUtils::RemoveAllPrimSpecs( SelectedItem->UsdPrim, Stage.GetEditTarget() );
+		UsdUtils::RemoveAllPrimSpecs( SelectedItem->UsdPrim );
 	}
 }
 
