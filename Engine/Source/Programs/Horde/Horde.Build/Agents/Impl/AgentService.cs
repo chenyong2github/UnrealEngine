@@ -411,7 +411,7 @@ namespace HordeServer.Services
 								Result = TaskResult;
 								CancellationSource.Cancel();
 							}
-							else
+							else if (TaskResult.Value.Item2 != AgentLease.Drain)
 							{
 								(ITaskSource TaskSource, AgentLease TaskLease) = TaskResult.Value;
 								await TaskSource.CancelLeaseAsync(Agent, TaskLease.Id, Any.Parser.ParseFrom(TaskLease.Payload));
