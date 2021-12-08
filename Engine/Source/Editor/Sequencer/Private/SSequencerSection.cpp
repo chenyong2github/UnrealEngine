@@ -241,12 +241,6 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 	void CalculateSelectionColor()
 	{
-		// Don't draw selected if infinite
-		if (Section.GetRange() == TRange<FFrameNumber>::All())
-		{
-			return;
-		}
-
 		FSequencerSelection& Selection = Sequencer.GetSelection();
 		FSequencerSelectionPreview& SelectionPreview = Sequencer.GetSelectionPreview();
 
