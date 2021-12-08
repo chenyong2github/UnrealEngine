@@ -199,27 +199,29 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-				.TextStyle(FAppStyle::Get(), "DialogButtonText")
-				.Text(LOCTEXT("OverlayComplete", "Complete"))
-				.ToolTipText(LOCTEXT("OverlayCompleteTooltip", "Exit the active Tool [Enter]"))
-				.HAlign(HAlign_Center)
-				.OnClicked_Lambda([this]() { 
-					GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); 
-					Cast<UUVEditorMode>(GetScriptableEditorMode())->ActivateDefaultTool();
-					return FReply::Handled(); 
-					})
-				.IsEnabled_Lambda([this]() {
-					UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
-					return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool();
-				})
-				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })
-			]
+			// For now we've decided not to use a "Complete" button for complete-style tools, instead requiring
+			// users to just select a different tool. Uncomment the below if we want to put it back.
+			//+ SHorizontalBox::Slot()
+			//.AutoWidth()
+			//.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
+			//[
+			//	SNew(SButton)
+			//	.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+			//	.TextStyle(FAppStyle::Get(), "DialogButtonText")
+			//	.Text(LOCTEXT("OverlayComplete", "Complete"))
+			//	.ToolTipText(LOCTEXT("OverlayCompleteTooltip", "Exit the active Tool [Enter]"))
+			//	.HAlign(HAlign_Center)
+			//	.OnClicked_Lambda([this]() { 
+			//		GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); 
+			//		Cast<UUVEditorMode>(GetScriptableEditorMode())->ActivateDefaultTool();
+			//		return FReply::Handled(); 
+			//		})
+			//	.IsEnabled_Lambda([this]() {
+			//		UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+			//		return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool();
+			//	})
+			//	.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })
+			//]
 		]	
 	];
 
@@ -355,9 +357,11 @@ void FUVEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInte
 		Mode->GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(
 			Mode, MakeUnique<UVEditorModeToolkitLocals::FUVEditorBeginToolChange>(), LOCTEXT("ActivateTool", "Activate Tool"));
 
-		// Add the accept/cancel overlay. Again, unless we're in the default tool, which we don't leave
-		// except by activating another tool.
-		GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+		if (Mode->GetInteractiveToolsContext()->ActiveToolHasAccept())
+		{
+			// Add the accept/cancel overlay only if the tool has accept/cancel.
+			GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+		}
 	}
 }
 

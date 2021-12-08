@@ -210,6 +210,17 @@ void UUVEditorMode::RegisterTools()
 	RegisterTool(CommandInfos.BeginRecomputeUVsTool, TEXT("BeginRecomputeUVsTool"), UVEditorRecomputeUVsToolBuilder);
 }
 
+bool UUVEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
+{
+	// For now we've decided to disallow switch-away on accept/cancel tools in the UV editor.
+	if (GetInteractiveToolsContext()->ActiveToolHasAccept())
+	{
+		return false;
+	}
+	
+	return Super::ShouldToolStartBeAllowed(ToolIdentifier);
+}
+
 void UUVEditorMode::CreateToolkit()
 {
 	Toolkit = MakeShared<FUVEditorModeToolkit>();

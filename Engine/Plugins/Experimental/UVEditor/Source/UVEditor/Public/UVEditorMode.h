@@ -103,6 +103,7 @@ public:
 
 	// UEdMode overrides
 	virtual void Enter() override;
+	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
 	virtual void Exit() override;
 	virtual void ModeTick(float DeltaTime) override;
 	// We're changing visibility of this one to public here so that we can call it from the toolkit
