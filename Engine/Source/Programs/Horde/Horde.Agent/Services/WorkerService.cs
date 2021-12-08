@@ -945,6 +945,7 @@ namespace HordeAgent.Services
 			{
 				if (CancellationToken.IsCancellationRequested && IsCancellationException(Ex))
 				{
+					Logger.LogError("Step was aborted");
 					throw;
 				}
 				else
