@@ -35,6 +35,10 @@ namespace Chaos
 	CHAOS_API int32 AccelerationStructureUseDynamicTree = 0;
 	FAutoConsoleVariableRef CVarAccelerationStructureUseDynamicTree(TEXT("p.Chaos.AccelerationStructureUseDynamicTree"), AccelerationStructureUseDynamicTree, TEXT("Use a dynamic BVH tree structure for dynamic objects"));
 
+	/** Console variable to enable the caching of the overlapping leaves if the dynamic tree is enable */
+	CHAOS_API int32 GAccelerationStructureCacheOverlappingLeaves = 1;
+	FAutoConsoleVariableRef CVarAccelerationStructureCacheOverlappingLeaves(TEXT("p.Chaos.AccelerationStructureCacheOverlappingLeaves"), GAccelerationStructureCacheOverlappingLeaves, TEXT("Set to 1: Cache the overlapping leaves for faster overlap query, any other value will disable the feature"));
+
 	CHAOS_API int32 AccelerationStructureTimeSlicingMaxQueueSizeBeforeForce = 1000;
 	FAutoConsoleVariableRef CVarAccelerationStructureTimeSlicingMaxQueueSizeBeforeForce(TEXT("p.Chaos.AccelerationStructureTimeSlicingMaxQueueSizeBeforeForce"), AccelerationStructureTimeSlicingMaxQueueSizeBeforeForce, TEXT("If the update queue reaches this limit, time slicing will be disabled, and the acceleration structure will be built at once"));
 
@@ -349,7 +353,7 @@ namespace Chaos
 		bool IsTimeSlicingProgressing = false;
 		bool CreatingNewTimeSlicedStructures = bNeedsReset;
 
-		if (CreatingNewTimeSlicedStructures)
+		if (CreatingNewTimeSlicedStructures && AccelerationStructureCopy)
 		{
 			// Cannot assume all substructures that exist are in cache!!
 			// Make sure AccelerationStructureCopy is completely reset and does not have dirty substructures that will be ignored below.
@@ -421,7 +425,9 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_AccelerationStructureTimeSliceCopy);
 				AccelerationSUBStructureCopy->ProgressCopyTimeSliced(*SubStructure, IsForceFullBuild ? -1 : AccelerationStructureTimeSlicingMaxBytesCopy);
 				if (!AccelerationSUBStructureCopy->IsAsyncTimeSlicingComplete())
+				{
 					IsTimeSlicingProgressing = true;
+				}
 			}
 			else
 			{
@@ -472,7 +478,6 @@ namespace Chaos
 				AccelerationStructure->AddSubstructure(MoveTemp(NewStruct), SpatialAccIdx.Bucket, SpatialAccIdx.InnerIdx);
 			}
 		}
-
 		// If it's not progressing then it is finished so we can perform the final copy if required
 		AccelerationStructure->SetAllAsyncTasksComplete(!IsTimeSlicingProgressing);
 
@@ -757,8 +762,13 @@ namespace Chaos
 				{
 					// Dynamic Acceleration structures were not built by the async task, so copy them where required
 					CopyUnBuiltDynamicAccelerationStructures(SpatialAccelerationCache, InternalAcceleration, AsyncInternalAcceleration, AsyncExternalAcceleration);
-				}
 
+					if(GAccelerationStructureCacheOverlappingLeaves)
+					{
+						// Caching of the overlapping leaves
+						InternalAcceleration->CacheOverlappingLeaves();
+					}
+				}
 				if (AccelerationStructureSplitStaticAndDynamic == 1)
 				{
 					// If the new InternalAcceleration structure have constituents with no changes, we can copy it to the  AsyncInternalAcceleration for reuse

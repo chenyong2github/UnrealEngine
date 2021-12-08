@@ -126,6 +126,12 @@ struct FTriangleMeshRaycastVisitor
 	{
 		return nullptr;
 	}
+	
+	/** Return a pointer to the payload on which we are querying the acceleration structure */
+	const void* GetQueryPayload() const
+	{
+		return nullptr;
+	}
 
 	template <ERaycastType SQType>
 	bool Visit(int32 TriIdx, FQueryFastData& CurData)
@@ -849,6 +855,12 @@ struct FTriangleMeshSweepVisitor
 
 	const void* GetQueryData() const { return nullptr; }
 	const void* GetSimData() const { return nullptr; }
+
+	/** Return a pointer to the payload on which we are querying the acceleration structure */
+	const void* GetQueryPayload() const
+	{
+		return nullptr;
+	}
 
 	bool VisitOverlap(const TSpatialVisitorData<int32>& VisitData)
 	{

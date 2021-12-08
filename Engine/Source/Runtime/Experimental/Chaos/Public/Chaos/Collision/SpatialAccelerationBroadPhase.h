@@ -26,10 +26,11 @@ namespace Chaos
 	struct FSimOverlapVisitor
 	{
 		TArray<FAccelerationStructureHandle>& Intersections;
-		FSimOverlapVisitor(FUniqueIdx InParticleUniqueIdx, const FCollisionFilterData& InSimFilterData, TArray<FAccelerationStructureHandle>& InIntersections)
+		FSimOverlapVisitor(FGeometryParticleHandle* ParticleHandle, const FCollisionFilterData& InSimFilterData, TArray<FAccelerationStructureHandle>& InIntersections)
 			: Intersections(InIntersections)
 			, SimFilterData(InSimFilterData)
-			, ParticleUniqueIdx(InParticleUniqueIdx)
+			, ParticleUniqueIdx(ParticleHandle ? ParticleHandle->UniqueIdx() : FUniqueIdx(0))
+			, AccelerationHandle(ParticleHandle)
 		{
 		}
 
@@ -59,10 +60,18 @@ namespace Chaos
 		{
 			return Instance.Payload.UniqueIdx() == ParticleUniqueIdx;
 		}
+		/** Return a pointer to the payload on which we are querying the acceleration structure */
+		const void* GetQueryPayload() const
+		{
+			return &AccelerationHandle;
+		}
 
 	private:
 		FCollisionFilterData SimFilterData;
 		FUniqueIdx ParticleUniqueIdx; // unique id of the particle visiting, used to skip self intersection as early as possible
+
+		/** Handle to be stored to retrieve the payload on which we are querying the acceleration structure*/
+		FAccelerationStructureHandle AccelerationHandle;
 	};
 
 	/**
@@ -136,10 +145,10 @@ namespace Chaos
 		void ComputeParticlesOverlaps(ViewType& OverlapView, FReal Dt,
 			const SpatialAccelerationType& InSpatialAcceleration, FNarrowPhase& NarrowPhase)
 		{
-			OverlapView.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
-			{
-				FGenericParticleHandleImp GenericHandle(Particle1.Handle());
-				ProduceParticleOverlaps<bNeedsResim,bOnlyRigid>(Dt,GenericHandle, InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
+			 OverlapView.ParallelFor([&](auto& Particle1,int32 ActiveIdxIdx)
+			 {
+			 	FGenericParticleHandleImp GenericHandle(Particle1.Handle());
+			 	ProduceParticleOverlaps<bNeedsResim,bOnlyRigid>(Dt,GenericHandle, InSpatialAcceleration,NarrowPhase,ActiveIdxIdx);
 			},bDisableCollisionParallelFor);
 		}
 
@@ -208,7 +217,7 @@ namespace Chaos
 
 						{
 							PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_BroadPhase);
-							FSimOverlapVisitor OverlapVisitor(Particle1.UniqueIdx(), ParticleSimData, PotentialIntersections);
+							FSimOverlapVisitor OverlapVisitor(Particle1.Handle() , ParticleSimData, PotentialIntersections);
 							InSpatialAcceleration.Overlap(Box1, OverlapVisitor);
 						}
 						
@@ -363,7 +372,7 @@ namespace Chaos
 					{
 						Swap(ParticleA, ParticleB);
 					}
-
+					
 					NarrowPhase.GenerateCollisions(Dt, ParticleA, ParticleB, false);
 				}
 

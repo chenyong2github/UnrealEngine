@@ -315,6 +315,24 @@ struct TSpatialAccelerationCollectionHelper
 		}
 	}
 
+	/** Compute the overlapping leaves for each leaf */
+	static void CacheOverlappingLeaves(const Tuple& Types)
+	{
+		auto& Accelerations = GetAccelerationsPerType<TypeIdx>(Types).Objects;
+		for (auto& Accelerator : Accelerations)
+		{
+			if (Accelerator)
+			{
+				Accelerator->CacheOverlappingLeaves();
+			}
+		}
+		constexpr int NextType = TypeIdx + 1;
+		if (NextType < NumTypes)
+		{
+			TSpatialAccelerationCollectionHelper < NextType < NumTypes ? NextType : 0, NumTypes, Tuple, TPayloadType, T, d>::CacheOverlappingLeaves(Types);
+		}
+	}
+	
 	static uint16 FindTypeIdx(const Tuple& Types, SpatialAccelerationType Type)
 	{
 		using AccelType = typename std::remove_pointer<typename decltype(GetAccelerationsPerType<TypeIdx>(Types).Objects)::ElementType>::type;
@@ -393,6 +411,12 @@ public:
 		Buckets[BucketIdx].UpdateOrAddAt(BucketInnerIdx, MoveTemp(BucketEntry));
 		
 		return Result;
+	}
+
+	/** Dispatch the compute the overlapping leaves for each collection helper */
+	virtual void CacheOverlappingLeaves() override
+	{
+		TSpatialAccelerationCollectionHelper<0, NumTypes, decltype(Types), TPayloadType, T, d>::CacheOverlappingLeaves(Types);
 	}
 
 	virtual TUniquePtr <ISpatialAcceleration<TPayloadType, T, d>> RemoveSubstructure(FSpatialAccelerationIdx Idx) override
