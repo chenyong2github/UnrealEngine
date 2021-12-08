@@ -1456,9 +1456,11 @@ public:
 
 private:
 	/**
-	 * Flush existing resource shader maps and resets the material resource's Ids.
+	 * Flush existing resource shader maps and combines the material resource's Ids with another unique guid that represent the transformation applied so we can stay deterministic.
+	 * If the guid given is non-valid (default value) we generate an entirely new guid for the resource.
+	 * @param	TransformationId	If valid, combine this guid with the current material resource's Ids yielding a new but deterministic Ids.
 	 */
-	ENGINE_API virtual void ReleaseResourcesAndMutateDDCKey();
+	ENGINE_API virtual void ReleaseResourcesAndMutateDDCKey(const FGuid& TransformationId = FGuid());
 	
 	/** 
 	 * Cache resource shaders for rendering. 
