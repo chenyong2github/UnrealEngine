@@ -92,7 +92,7 @@ namespace HordeServer.Services.Impl
 					{
 						if (await AgentCollection.TryUpdateSettingsAsync(NewAgent, bRequestShutdown: true) != null)
 						{
-							AgentCollection.GetLogger(Agent.Id).LogInformation("Shutting down due to autoscaler");
+							AgentCollection.GetLogger(Agent.Id).LogInformation("Marked for shutdown due to autoscalar (currently {NumLeases} leases outstanding)", NewAgent.Leases.Count);
 							Count--;
 							break;
 						}

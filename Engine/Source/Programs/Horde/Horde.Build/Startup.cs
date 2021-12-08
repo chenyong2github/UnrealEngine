@@ -107,36 +107,55 @@ namespace HordeServer
 			}
 
 			[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-			IDisposable? RequestContext<TRequest>(TRequest Request)
+			public override Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest Request, ServerCallContext Context, UnaryServerMethod<TRequest, TResponse> Continuation)
 			{
-				try
+				return Guard(Context, Context.Method, () => base.UnaryServerHandler(Request, Context, Continuation));
+			}
+
+			public override Task<TResponse> ClientStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> RequestStream, ServerCallContext Context, ClientStreamingServerMethod<TRequest, TResponse> Continuation) where TRequest : class where TResponse : class
+			{
+				return Guard(Context, Context.Method, () => base.ClientStreamingServerHandler(RequestStream, Context, Continuation));
+			}
+
+			public override Task ServerStreamingServerHandler<TRequest, TResponse>(TRequest Request, IServerStreamWriter<TResponse> ResponseStream, ServerCallContext Context, ServerStreamingServerMethod<TRequest, TResponse> Continuation) where TRequest : class where TResponse : class
+			{
+				return Guard(Context, Context.Method, () => base.ServerStreamingServerHandler(Request, ResponseStream, Context, Continuation));
+			}
+
+			public override Task DuplexStreamingServerHandler<TRequest, TResponse>(IAsyncStreamReader<TRequest> RequestStream, IServerStreamWriter<TResponse> ResponseStream, ServerCallContext Context, DuplexStreamingServerMethod<TRequest, TResponse> Continuation) where TRequest : class where TResponse : class
+			{
+				return Guard(Context, Context.Method, () => base.DuplexStreamingServerHandler(RequestStream, ResponseStream, Context, Continuation));
+			}
+
+			async Task<T> Guard<T>(ServerCallContext Context, string Method, Func<Task<T>> CallFunc) where T : class
+			{
+				T Result = null!;
+				await Guard(Context, Method, async () => { Result = await CallFunc(); });
+				return Result;
+			}
+
+			async Task Guard(ServerCallContext Context, string Method, Func<Task> CallFunc)
+			{
+				HttpContext HttpContext = Context.GetHttpContext();
+
+				AgentId? AgentId = AclService.GetAgentId(HttpContext.User);
+				if (AgentId != null)
 				{
-					return Logger.BeginScope("Request: {Request}", JsonSerializer.Serialize<TRequest>(Request));
+					using IDisposable Scope = Logger.BeginScope("Agent: {AgentId}, RemoteIP: {RemoteIP}, Method: {Method}", AgentId.Value, HttpContext.Connection.RemoteIpAddress, Method);
+					await GuardInner(Method, CallFunc);
 				}
-				catch
+				else
 				{
-					return null;
+					using IDisposable Scope = Logger.BeginScope("RemoteIP: {RemoteIP}, Method: {Method}", HttpContext.Connection.RemoteIpAddress, Method);
+					await GuardInner(Method, CallFunc);
 				}
 			}
 
-			[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-			IDisposable? ConnectionContext(ConnectionInfo Connection)
+			async Task GuardInner(string Method, Func<Task> CallFunc)
 			{
 				try
 				{
-					return Logger.BeginScope("Client: {ClientIp}", Connection.RemoteIpAddress);
-				}
-				catch
-				{
-					return null;
-				}
-			}
-
-			public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(ClientInterceptorContext<TRequest, TResponse> Context, AsyncClientStreamingCallContinuation<TRequest, TResponse> Continuation)
-			{
-				try
-				{
-					return base.AsyncClientStreamingCall(Context, Continuation);
+					await CallFunc();
 				}
 				catch (StructuredRpcException Ex)
 				{
@@ -145,69 +164,7 @@ namespace HordeServer
 				}
 				catch (Exception Ex)
 				{
-					Logger.LogError(Ex, "Exception in call to {Method}", Context.Method);
-					throw new RpcException(new Status(StatusCode.Internal, $"An exception was thrown on the server: {Ex}"));
-				}
-			}
-
-			public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(ClientInterceptorContext<TRequest, TResponse> Context, AsyncDuplexStreamingCallContinuation<TRequest, TResponse> Continuation)
-			{
-				try
-				{
-					return base.AsyncDuplexStreamingCall(Context, Continuation);
-				}
-				catch (StructuredRpcException Ex)
-				{
-					Logger.LogError(Ex, Ex.Format, Ex.Args);
-					throw;
-				}
-				catch (Exception Ex)
-				{
-					Logger.LogError(Ex, "Exception in call to {Method}", Context.Method);
-					throw new RpcException(new Status(StatusCode.Internal, $"An exception was thrown on the server: {Ex}"));
-				}
-			}
-
-			[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-			public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(TRequest Request, ClientInterceptorContext<TRequest, TResponse> Context, AsyncServerStreamingCallContinuation<TRequest, TResponse> Continuation)
-			{
-				try
-				{
-					return base.AsyncServerStreamingCall(Request, Context, Continuation);
-				}
-				catch (StructuredRpcException Ex)
-				{
-					using IDisposable? Scope = RequestContext(Request); 
-					Logger.LogError(Ex, Ex.Format, Ex.Args);
-					throw;
-				}
-				catch (Exception Ex)
-				{
-					using IDisposable? Scope = RequestContext(Request);
-					Logger.LogError(Ex, "Exception in call to {Method}", Context.Method);
-					throw new RpcException(new Status(StatusCode.Internal, $"An exception was thrown on the server: {Ex}"));
-				}
-			}
-
-			[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-			public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(TRequest Request, ServerCallContext Context, UnaryServerMethod<TRequest, TResponse> Continuation)
-			{
-				try
-				{
-					return await base.UnaryServerHandler(Request, Context, Continuation);
-				}
-				catch (StructuredRpcException Ex)
-				{
-					using IDisposable? ConnectionScope = ConnectionContext(Context.GetHttpContext().Connection);
-					using IDisposable? Scope = RequestContext(Request);
-					Logger.LogError(Ex, Ex.Format, Ex.Args);
-					throw;
-				}
-				catch (Exception Ex)
-				{
-					using IDisposable? ConnectionScope = ConnectionContext(Context.GetHttpContext().Connection);
-					using IDisposable? Scope = RequestContext(Request);
-					Logger.LogError(Ex, "Exception in call to {Method}", Context.Method);
+					Logger.LogError(Ex, "Exception in call to {Method}", Method);
 					throw new RpcException(new Status(StatusCode.Internal, $"An exception was thrown on the server: {Ex}"));
 				}
 			}

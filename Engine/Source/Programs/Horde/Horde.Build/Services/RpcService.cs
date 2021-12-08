@@ -369,7 +369,7 @@ namespace HordeServer.Services
 			Response.AgentId = Agent.Id.ToString();
 			Response.SessionId = Agent.SessionId.ToString();
 			Response.ExpiryTime = Timestamp.FromDateTime(Agent.SessionExpiresAt!.Value);
-			Response.Token = AgentService.IssueSessionToken(Agent.SessionId!.Value);
+			Response.Token = AgentService.IssueSessionToken(Agent.Id, Agent.SessionId!.Value);
 			return Response;
 		}
 

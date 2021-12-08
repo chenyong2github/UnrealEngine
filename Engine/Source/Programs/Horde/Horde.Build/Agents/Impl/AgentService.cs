@@ -144,12 +144,14 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Issues a bearer token for the given session id
 		/// </summary>
+		/// <param name="AgentId">The agent id</param>
 		/// <param name="SessionId">The session id</param>
 		/// <returns>Bearer token for the agent</returns>
-		public string IssueSessionToken(SessionId SessionId)
+		public string IssueSessionToken(AgentId AgentId, SessionId SessionId)
 		{
 			List<AclClaim> Claims = new List<AclClaim>();
-			Claims.Add(AclService.AgentClaim);
+			Claims.Add(AclService.AgentRoleClaim);
+			Claims.Add(AclService.GetAgentClaim(AgentId));
 			Claims.Add(AclService.GetSessionClaim(SessionId));
 			return AclService.IssueBearerToken(Claims, null);
 		}

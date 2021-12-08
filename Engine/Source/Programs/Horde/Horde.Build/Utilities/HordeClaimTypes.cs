@@ -36,6 +36,11 @@ namespace HordeServer.Utilities
 		/// <summary>
 		/// Claim for a particular session
 		/// </summary>
+		public const string AgentId = Prefix + "agent";
+
+		/// <summary>
+		/// Claim for a particular session
+		/// </summary>
 		public const string AgentSessionId = Prefix + "session";
 
 		/// <summary>

@@ -67,7 +67,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Role for all agents
 		/// </summary>
-		public static AclClaim AgentClaim { get; } = new AclClaim(HordeClaimTypes.Role, "agent");
+		public static AclClaim AgentRoleClaim { get; } = new AclClaim(HordeClaimTypes.Role, "agent");
 
 		/// <summary>
 		/// The default permissions
@@ -110,7 +110,7 @@ namespace HordeServer.Services
 			DefaultAcl = new Acl();
 			DefaultAcl.Entries.Add(new AclEntry(new AclClaim(ClaimTypes.Role, "internal:AgentRegistration"), new[] { AclAction.CreateAgent, AclAction.CreateSession }));
 			DefaultAcl.Entries.Add(new AclEntry(AgentRegistrationClaim, new[] { AclAction.CreateAgent, AclAction.CreateSession, AclAction.UpdateAgent, AclAction.DownloadSoftware }));
-			DefaultAcl.Entries.Add(new AclEntry(AgentClaim, new[] { AclAction.ViewProject, AclAction.ViewStream, AclAction.CreateEvent, AclAction.DownloadSoftware }));
+			DefaultAcl.Entries.Add(new AclEntry(AgentRoleClaim, new[] { AclAction.ViewProject, AclAction.ViewStream, AclAction.CreateEvent, AclAction.DownloadSoftware }));
 			DefaultAcl.Entries.Add(new AclEntry(DownloadSoftwareClaim, new[] { AclAction.DownloadSoftware }));
 			DefaultAcl.Entries.Add(new AclEntry(UploadSoftwareClaim, new[] { AclAction.UploadSoftware }));
 			DefaultAcl.Entries.Add(new AclEntry(ConfigureProjectsClaim, new[] { AclAction.CreateProject, AclAction.UpdateProject, AclAction.ViewProject, AclAction.CreateStream, AclAction.UpdateStream, AclAction.ViewStream, AclAction.ChangePermissions }));
@@ -213,7 +213,35 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
-		/// Gets the role for a specific user
+		/// Gets the agent id associated with a particular user
+		/// </summary>
+		/// <param name="User"></param>
+		/// <returns></returns>
+		public static AgentId? GetAgentId(ClaimsPrincipal User)
+		{
+			Claim? Claim = User.Claims.FirstOrDefault(x => x.Type == HordeClaimTypes.AgentId);
+			if (Claim == null)
+			{
+				return null;
+			}
+			else
+			{
+				return new AgentId(Claim.Value);
+			}
+		}
+
+		/// <summary>
+		/// Gets the role for a specific agent
+		/// </summary>
+		/// <param name="AgentId">The session id</param>
+		/// <returns>New claim instance</returns>
+		public static AclClaim GetAgentClaim(AgentId AgentId)
+		{
+			return new AclClaim(HordeClaimTypes.AgentId, AgentId.ToString());
+		}
+
+		/// <summary>
+		/// Gets the role for a specific agent session
 		/// </summary>
 		/// <param name="SessionId">The session id</param>
 		/// <returns>New claim instance</returns>
