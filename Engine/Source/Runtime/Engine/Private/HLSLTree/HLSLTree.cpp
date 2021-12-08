@@ -2,6 +2,7 @@
 #include "HLSLTree/HLSLTree.h"
 #include "Misc/StringBuilder.h"
 #include "Misc/MemStack.h"
+#include "Misc/MemStackUtility.h"
 #include "Shader/ShaderTypes.h"
 #include "MaterialShared.h" // TODO - split preshader out into its own module
 
