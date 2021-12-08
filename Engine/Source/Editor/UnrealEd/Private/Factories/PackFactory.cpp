@@ -683,7 +683,19 @@ UObject* UPackFactory::FactoryCreateBinary
 					ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
 					if (LiveCoding != nullptr && LiveCoding->IsEnabledForSession())
 					{
-						FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "CannotCompileWithLiveCoding", "Unable to compile source code while Live Coding is enabled. Please close the editor and build from your IDE."));
+						if (bProjectHadSourceFiles)
+						{
+							if (!LiveCoding->Compile(ELiveCodingCompileFlags::WaitForCompletion, nullptr))
+							{
+								FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "LiveCodingFailedToCompile", "Failed to compile sources, please close the editor and build from your IDE."));
+							}
+						}
+						else
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "LiveCodingNoSources", "Project now includes sources, please close the editor and build from your IDE."));
+						}
+
+						// Don't allow hot-reload to try to compile
 						bCompileSource = false;
 					}
 				}

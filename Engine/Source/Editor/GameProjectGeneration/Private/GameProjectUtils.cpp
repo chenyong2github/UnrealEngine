@@ -4135,9 +4135,15 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 	ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
 	if (LiveCoding != nullptr && LiveCoding->IsEnabledForSession())
 	{
-		if (bProjectHadCodeFiles && LiveCoding->AutomaticallyCompileNewClasses())
+		if (!bProjectHadCodeFiles)
 		{
-			LiveCoding->Compile();
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("LiveCodingNoSources", "Project now includes sources, please close the editor and build from your IDE."));
+			return EAddCodeToProjectResult::Succeeded;
+		}
+
+		if (LiveCoding->AutomaticallyCompileNewClasses())
+		{
+			LiveCoding->Compile(ELiveCodingCompileFlags::None, nullptr);
 			OutReloadStatus = EReloadStatus::Reloaded;
 		}
 		return EAddCodeToProjectResult::Succeeded;

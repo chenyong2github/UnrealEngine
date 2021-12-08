@@ -10,6 +10,24 @@
 
 class FText;
 
+enum class ELiveCodingCompileFlags : uint8
+{
+	None = 0,
+	WaitForCompletion = 1 << 0,
+};
+ENUM_CLASS_FLAGS(ELiveCodingCompileFlags)
+
+enum class ELiveCodingCompileResult : uint8
+{
+	Success,			// Compile completed and there were changes 
+	NoChanges,			// Compile completed and there were no changes
+	InProgress,			// Compile started but wait for completion was not specified
+	CompileStillActive,	// A prior compile request is still active
+	NotStarted,			// Live coding monitor could not be started
+	Failure,			// Complete completed but there was an error
+	Cancelled,			// Compile was cancelled
+};
+
 class ILiveCodingModule : public IModuleInterface
 {
 public:
@@ -26,6 +44,7 @@ public:
 
 	virtual void ShowConsole() = 0;
 	virtual void Compile() = 0;
+	virtual bool Compile(ELiveCodingCompileFlags CompileFlags, ELiveCodingCompileResult* Result) = 0;
 	virtual bool IsCompiling() const = 0;
 	virtual void Tick() = 0;
 

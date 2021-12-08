@@ -13,6 +13,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/ScopedSlowTask.h"
 #include "LiveCodingSettings.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
@@ -164,7 +165,7 @@ void FLiveCodingModule::StartupModule()
 	CompileCommand = ConsoleManager.RegisterConsoleCommand(
 		TEXT("LiveCoding.Compile"),
 		TEXT("Initiates a live coding compile"),
-		FConsoleCommandDelegate::CreateRaw(this, &FLiveCodingModule::Compile),
+		FConsoleCommandDelegate::CreateLambda([this] { Compile(ELiveCodingCompileFlags::None, nullptr); }),
 		ECVF_Cheat
 	);
 
@@ -332,16 +333,63 @@ void FLiveCodingModule::ShowConsole()
 
 void FLiveCodingModule::Compile()
 {
-	if(!GIsCompileActive)
+	Compile(ELiveCodingCompileFlags::None, nullptr);
+}
+
+inline bool ReturnResults(ELiveCodingCompileResult InResult, ELiveCodingCompileResult* OutResult)
+{
+	if (OutResult != nullptr)
 	{
-		EnableForSession(true);
-		if(bStarted)
-		{
-			UpdateModules(); // Need to do this immediately rather than waiting until next tick
-			LppTriggerRecompile();
-			GIsCompileActive = true;
-		}
+		*OutResult = InResult;
 	}
+	return InResult == ELiveCodingCompileResult::Success || InResult == ELiveCodingCompileResult::NoChanges || InResult == ELiveCodingCompileResult::InProgress;
+}
+
+bool FLiveCodingModule::Compile(ELiveCodingCompileFlags CompileFlags, ELiveCodingCompileResult* Result)
+{
+	if (GIsCompileActive)
+	{
+		return ReturnResults(ELiveCodingCompileResult::CompileStillActive, Result);
+	}
+
+	EnableForSession(true);
+	if (!bStarted)
+	{
+		return ReturnResults(ELiveCodingCompileResult::NotStarted, Result);
+	}
+
+	// Need to do this immediately rather than waiting until next tick
+	UpdateModules(); 
+
+	// Trigger the recompile
+	GIsCompileActive = true;
+	LastResults = ELiveCodingCompileResult::Failure;
+	LppTriggerRecompile();
+
+	// If we aren't waiting, just return now
+	if (!EnumHasAnyFlags(CompileFlags, ELiveCodingCompileFlags::WaitForCompletion))
+	{
+		return ReturnResults(ELiveCodingCompileResult::InProgress, Result);
+	}
+
+	// Wait until we are no longer compiling.  Cancellation is handled via other mechanisms and
+	// need not be detected in this loop.  GIsCompileActive will be cleared.
+	FText StatusUpdate = LOCTEXT("CompileStatusMessage", "Compiling...");
+	FScopedSlowTask SlowTask(0, StatusUpdate, GIsSlowTask);
+	SlowTask.MakeDialog();
+
+	// Wait until the compile completes
+	while (GIsCompileActive)
+	{
+		SlowTask.EnterProgressFrame(0.0f);
+		AttemptSyncLivePatching();
+		FPlatformProcess::Sleep(0.01f);
+	}
+
+	// A final sync to get the result and complete the process
+	AttemptSyncLivePatching();
+
+	return ReturnResults(LastResults, Result);
 }
 
 bool FLiveCodingModule::IsCompiling() const
@@ -488,6 +536,7 @@ void FLiveCodingModule::AttemptSyncLivePatching()
 		{
 			LppSyncPoint();
 		}
+
 		if (!GIsCompileActive)
 		{
 			static const FString Success("Live coding succeeded");
@@ -498,6 +547,7 @@ void FLiveCodingModule::AttemptSyncLivePatching()
 			switch (GPostCompileResult)
 			{
 			case commands::PostCompileResult::Success:
+				LastResults = ELiveCodingCompileResult::Success;
 				if (bHasReinstancingOccurred)
 				{
 					if (!IsReinstancingEnabled())
@@ -519,15 +569,19 @@ void FLiveCodingModule::AttemptSyncLivePatching()
 				}
 				break;
 			case commands::PostCompileResult::NoChanges:
+				LastResults = ELiveCodingCompileResult::NoChanges;
 				UE_LOG(LogLiveCoding, Display, TEXT("%s, %s"), *Success, TEXT("no code changes detected"));
 				break;
 			case commands::PostCompileResult::Cancelled:
-				UE_LOG(LogLiveCoding, Error, TEXT("Live coding cancelled"));
+				LastResults = ELiveCodingCompileResult::Cancelled;
+				UE_LOG(LogLiveCoding, Error, TEXT("Live coding canceled"));
 				break;
 			case commands::PostCompileResult::Failure:
+				LastResults = ELiveCodingCompileResult::Failure;
 				UE_LOG(LogLiveCoding, Error, TEXT("Live coding failed, please see Live console for more information"));
 				break;
 			default:
+				LastResults = ELiveCodingCompileResult::Failure;
 				check(false);
 			}
 
