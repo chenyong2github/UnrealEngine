@@ -319,7 +319,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
 
-				FInstanceSceneShaderData& SceneData = InstanceSceneData.Emplace_GetRef();
+				FInstanceSceneShaderData& SceneData = InstanceSceneData[InstanceIndex];
 				SceneData.BuildInternal
 				(
 					InstanceIndex, /* Primitive Id */
