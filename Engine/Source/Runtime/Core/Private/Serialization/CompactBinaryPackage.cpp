@@ -57,6 +57,7 @@ static bool TryLoadAttachmentFromArchive(FCbAttachment& OutAttachment, FCbField&
 			return true;
 		}
 	}
+	Ar.SetError();
 	return false;
 }
 
