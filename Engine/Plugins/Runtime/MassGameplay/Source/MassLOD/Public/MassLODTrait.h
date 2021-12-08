@@ -18,7 +18,7 @@ class MASSLOD_API UMassSimulationLODTrait : public UMassEntityTraitBase
 	UPROPERTY(Category = "Config", EditAnywhere)
 	bool bEnableVariableTicking = false;
 
-	UPROPERTY(Category = "Config", EditAnywhere, meta = (EditCondition = "bEnableVariableTicking"))
+	UPROPERTY(Category = "Config", EditAnywhere, meta = (EditCondition = "bEnableVariableTicking", EditConditionHides))
 	FMassSimulationVariableTickConfig VariableTickConfig;
 
 protected:
