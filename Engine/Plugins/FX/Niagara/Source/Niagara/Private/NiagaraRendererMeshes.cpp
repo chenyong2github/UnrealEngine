@@ -592,7 +592,7 @@ void FNiagaraRendererMeshes::InitializeSortInfo(const FParticleMeshRenderData& P
 	}
 }
 
-void FNiagaraRendererMeshes::PreparePerMeshData(FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FMeshData& MeshData) const
+void FNiagaraRendererMeshes::PreparePerMeshData(FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraMeshVertexFactory& VertexFactory, const FNiagaraSceneProxy& SceneProxy, const FMeshData& MeshData) const
 {
 	// Calculate pivot offset / culling sphere
 	FBox MeshLocalBounds = MeshData.LocalBounds;
@@ -615,6 +615,24 @@ void FNiagaraRendererMeshes::PreparePerMeshData(FParticleMeshRenderData& Particl
 			// The offset is in local space, transform it to world
 			ParticleMeshRenderData.WorldSpacePivotOffset = SceneProxy.GetLocalToWorld().TransformVector(ParticleMeshRenderData.WorldSpacePivotOffset);
 		}
+	}
+
+	if (RHISupportsManualVertexFetch(GShaderPlatformForFeatureLevel[FeatureLevel]))
+	{
+		const int32 NumTexCoords = VertexFactory.GetNumTexcoords();
+		const int32 ColorIndexMask = VertexFactory.GetColorIndexMask();
+
+		ParticleMeshRenderData.VertexFetch_Parameters = { ColorIndexMask, NumTexCoords, INDEX_NONE, INDEX_NONE };
+		ParticleMeshRenderData.TexCoordBufferSrv = VertexFactory.GetTextureCoordinatesSRV();
+		ParticleMeshRenderData.PackedTangentsBufferSrv = VertexFactory.GetTangentsSRV();
+		ParticleMeshRenderData.ColorComponentsBufferSrv = VertexFactory.GetColorComponentsSRV();
+	}
+	else
+	{
+		ParticleMeshRenderData.VertexFetch_Parameters = FIntVector4(INDEX_NONE);
+		ParticleMeshRenderData.TexCoordBufferSrv = FNiagaraRenderer::GetDummyFloat2Buffer();
+		ParticleMeshRenderData.PackedTangentsBufferSrv = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ParticleMeshRenderData.ColorComponentsBufferSrv = FNiagaraRenderer::GetDummyFloat4Buffer();
 	}
 }
 
@@ -871,6 +889,11 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreateVFUniformBuffer(const
 		// Unsupported source data mode detected
 		check(SourceMode <= ENiagaraRendererSourceDataMode::Emitter);
 	}
+
+	Params.VertexFetch_Parameters = ParticleMeshRenderData.VertexFetch_Parameters;
+	Params.VertexFetch_TexCoordBuffer = ParticleMeshRenderData.TexCoordBufferSrv;
+	Params.VertexFetch_PackedTangentsBuffer = ParticleMeshRenderData.PackedTangentsBufferSrv;
+	Params.VertexFetch_ColorComponentsBuffer = ParticleMeshRenderData.ColorComponentsBufferSrv;
 
 	if (bSetAnyBoundVars)
 	{
@@ -1238,7 +1261,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				VertexFactory.InitResource();
 				SetupVertexFactory(VertexFactory, LODModel);
 
-				PreparePerMeshData(ParticleMeshRenderData, *SceneProxy, MeshData);
+				PreparePerMeshData(ParticleMeshRenderData, VertexFactory, *SceneProxy, MeshData);
 
 				// Sort/Cull particles if needed.
 				const uint32 NumInstances = PerformSortAndCull(ParticleMeshRenderData, Collector.GetDynamicReadBuffer(), SortInfo, ComputeDispatchInterface, MeshData.SourceMeshIndex);
@@ -1398,7 +1421,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		VertexFactory.InitResource();
 		SetupVertexFactory(VertexFactory, LODModel);
 
-		PreparePerMeshData(ParticleMeshRenderData, *SceneProxy, MeshData);
+		PreparePerMeshData(ParticleMeshRenderData, VertexFactory, *SceneProxy, MeshData);
 
 		// Sort/Cull particles if needed.
 		FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = SceneProxy->GetComputeDispatchInterface();

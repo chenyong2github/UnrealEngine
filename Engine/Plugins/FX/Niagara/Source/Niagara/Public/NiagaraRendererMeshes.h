@@ -63,6 +63,11 @@ protected:
 		FRHIShaderResourceView*			ParticleSortedIndicesSRV = nullptr;
 		uint32							ParticleSortedIndicesOffset = 0xffffffff;
 
+		FIntVector4						VertexFetch_Parameters = FIntVector4(INDEX_NONE);
+		FRHIShaderResourceView*			TexCoordBufferSrv = nullptr;
+		FRHIShaderResourceView*			PackedTangentsBufferSrv = nullptr;
+		FRHIShaderResourceView*			ColorComponentsBufferSrv = nullptr;
+
 		uint32							RendererVisTagOffset = INDEX_NONE;
 		uint32							MeshIndexOffset = INDEX_NONE;
 
@@ -129,7 +134,7 @@ protected:
 	void PrepareParticleMeshRenderData(FParticleMeshRenderData& ParticleMeshRenderData, FMeshElementCollector* Collector, FNiagaraDynamicDataBase* InDynamicData, const FNiagaraSceneProxy* SceneProxy) const;
 	void PrepareParticleRenderBuffers(FParticleMeshRenderData& ParticleMeshRenderData, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 	void InitializeSortInfo(const FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FSceneView& View, int32 ViewIndex, bool bIsInstancedStereo, FNiagaraGPUSortInfo& OutSortInfo) const;
-	void PreparePerMeshData(FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraSceneProxy& SceneProxy, const FMeshData& MeshData) const;
+	void PreparePerMeshData(FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraMeshVertexFactory& VertexFactory, const FNiagaraSceneProxy& SceneProxy, const FMeshData& MeshData) const;
 	uint32 PerformSortAndCull(FParticleMeshRenderData& ParticleMeshRenderData, FGlobalDynamicReadBuffer& ReadBuffer, FNiagaraGPUSortInfo& SortInfo, class FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, int32 MeshIndex) const;
 	FNiagaraMeshCommonParameters CreateCommonShaderParams(const FParticleMeshRenderData& ParticleMeshRenderData, const FSceneView& View, const FMeshData& MeshData, const FNiagaraSceneProxy& SceneProxy) const;
 	FNiagaraMeshUniformBufferRef CreateVFUniformBuffer(const FParticleMeshRenderData& ParticleMeshRenderData, const FNiagaraMeshCommonParameters& CommonParams) const;
