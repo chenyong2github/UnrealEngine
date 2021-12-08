@@ -496,6 +496,7 @@ bool FPythonScriptPlugin::ExecPythonCommandEx(FPythonCommandEx& InOutPythonComma
 		//   C:\My Scripts\Test.py -param1 -param2     -> Ok
 		//   "C:\My Scripts\Test.py  " -param1 -param2 -> Ok
 		//   "C:\My Scripts\Test.py"-param1 -param2    -> Ok
+		//   C:\My Scripts\Test.py "param with spaces" -> OK
 		//   C:\My Scripts\Test.py-param1 -param2      -> Error missing a space between .py and -param1
 		//   "C:\My Scripts\Test.py                    -> Error missing closing quote.
 		//   C:\My Scripts\Test.py  "                  -> Error missing opening quote.

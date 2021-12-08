@@ -202,8 +202,43 @@ namespace InternalEditorPythonRunner
 
 void FEditorPythonExecuter::OnStartupModule()
 {
-	FString FileValue;
-	if (FParse::Value(FCommandLine::Get(), TEXT("ExecutePythonScript="), FileValue))
+	const TCHAR* Match = TEXT("-ExecutePythonScript=");
+	const TCHAR* Found = FCString::Strifind(FCommandLine::Get(), Match, true);
+	if (!Found)
+	{
+		return;
+	}
+
+	// The code needs to manage spaces and quotes. The scripts pathname and the script arguments are passed to the 'PY'
+	// command which are passed to Python plugin for execution. Below shows how to quotes the script pathname
+	// and the scripts arguments when they contain spaces.
+	// +-----------------------------------------------------------------------------------+---------------------------------------------------+
+	// | Command Line Parameters                                                           | Resulting "PY" command                            |
+	// +-----------------------------------------------------------------------------------+---------------------------------------------------+
+	// | -ExecutePythonScript=script.py                                                    | PY script.py                                      |
+	// | -ExecutePythonScript="script.py"                                                  | PY script.py                                      |
+	// | -ExecutePythonScript="C:/With Space/with space.py"                                | PY C:/With Space/with space.py                    |
+	// | -ExecutePythonScript="script.py arg1"                                             | PY script.py arg1                                 |
+	// | -ExecutePythonScript="script.py arg1 \\\"args with space\\\""                     | PY script.py arg1 "args with space"               |
+	// | -ExecutePythonScript="C:\With Space\with space.py \\\"arg with space\\\""         | PY C:/With Space/with space.py "arg with space"   | NOTE: The Python plugin parses up the ".py" and manages the spaces in the pathname.
+	// | -ExecutePythonScript="\\\"C:/With Space/with space.py\\\" \\\"arg with space\\\"" | PY "C:/With Space/with space.py" "arg with space" |
+	// +-----------------------------------------------------------------------------------+---------------------------------------------------+
+
+	int32 MatchLen = FCString::Strlen(Match);
+	const TCHAR* ScriptAndArgsBegin = Found + MatchLen;
+	FString ScriptAndArgs;
+
+	// If the value passed with '-ExecutePythonScript=' is not quoted, use spaces as delimiter.
+	if (*ScriptAndArgsBegin != TEXT('"'))
+	{
+		FParse::Token(ScriptAndArgsBegin, ScriptAndArgs, false);
+	}
+	else // The value is quoted.
+	{
+		FParse::QuotedString(ScriptAndArgsBegin, ScriptAndArgs);
+	}
+
+	if (!ScriptAndArgs.IsEmpty())
 	{
 		if (!GIsEditor)
 		{
@@ -215,7 +250,7 @@ void FEditorPythonExecuter::OnStartupModule()
 		}
 		else
 		{
-			InternalEditorPythonRunner::Executer = new InternalEditorPythonRunner::FExecuterTickable(MoveTemp(FileValue));
+			InternalEditorPythonRunner::Executer = new InternalEditorPythonRunner::FExecuterTickable(MoveTemp(ScriptAndArgs));
 			InternalEditorPythonRunner::SExecutingDialog::OpenDialog();
 		}
 	}
