@@ -25,7 +25,7 @@ public:
 /**
  * Account id registry specifically for EOS id's which are segmented.
  */
-class FOnlineAccountIdRegistryEOS
+class FOnlineAccountIdRegistryEOS : public IOnlineAccountIdRegistry
 {
 public:
 	static FOnlineAccountIdRegistryEOS& Get();
@@ -37,6 +37,10 @@ public:
 	// Return copies as it is not thread safe to return pointers/references to array elements, in case the array is grown+relocated on another thread.
 	FOnlineAccountIdDataEOS GetIdData(const FOnlineAccountIdHandle& Handle) const;
 
+	// Begin IOnlineAccountIdRegistry
+	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) const override;
+	// End IOnlineAccountIdRegistry
+
 private:
 	mutable FRWLock Lock;
 
@@ -44,6 +48,8 @@ private:
 
 	TMap<EOS_EpicAccountId, FOnlineAccountIdHandle> EpicAccountIdToHandle; // Map of EOS_EpicAccountId to the associated handle.
 	TMap<EOS_ProductUserId, FOnlineAccountIdHandle> ProductUserIdToHandle; // Map of EOS_ProductUserId to the associated handle.
+
+	virtual ~FOnlineAccountIdRegistryEOS() = default;
 };
 
 EOS_EpicAccountId GetEpicAccountId(const FOnlineAccountIdHandle& Handle);

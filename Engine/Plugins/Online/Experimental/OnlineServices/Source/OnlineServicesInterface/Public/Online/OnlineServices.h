@@ -47,11 +47,6 @@ public:
 	 *
 	 */
 	virtual IExternalUIPtr GetExternalUIInterface() = 0;
-
-	/**
-	 * 
-	 */
-	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) = 0;
 };
 
 /**
@@ -82,16 +77,5 @@ TSharedPtr<ServicesClass> GetServices(FName InstanceName = NAME_None)
  * @param InstanceName Name of the services instance to destroy
  */
 ONLINESERVICESINTERFACE_API void DestroyServices(EOnlineServices OnlineServices = EOnlineServices::Default, FName InstanceName = NAME_None);
-
-template<typename IdType>
-inline FString ToLogString(const TOnlineIdHandle<IdType>& Id)
-{
-	FString Result;
-	if (TSharedPtr<IOnlineServices> Services = GetServices(Id.GetOnlineServicesType()))
-	{
-		Result = Services->ToLogString(Id);
-	}
-	return Result;
-}
 
 /* UE::Online */ }

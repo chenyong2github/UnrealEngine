@@ -146,6 +146,22 @@ FOnlineAccountIdDataEOS FOnlineAccountIdRegistryEOS::GetIdData(const FOnlineAcco
 	return FOnlineAccountIdDataEOS();
 }
 
+FString FOnlineAccountIdRegistryEOS::ToLogString(const FOnlineAccountIdHandle& Handle) const
+{
+	FString Result;
+	if (ValidateOnlineId(Handle))
+	{
+		const FOnlineAccountIdDataEOS& IdData = GetIdData(Handle);
+		Result = FString::Printf(TEXT("EAS=[%s] EOS=[%s]"), *LexToString(IdData.EpicAccountId), *LexToString(IdData.ProductUserId));
+	}
+	else
+	{
+		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
+		Result = TEXT("Invalid");
+	}
+	return Result;
+}
+
 EOS_EpicAccountId GetEpicAccountId(const FOnlineAccountIdHandle& Handle)
 {
 	return FOnlineAccountIdRegistryEOS::Get().GetIdData(Handle).EpicAccountId;

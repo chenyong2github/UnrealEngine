@@ -6,6 +6,7 @@
 
 #include "Online/OnlineServicesRegistry.h"
 #include "OnlineServicesEOS.h"
+#include "OnlineIdEOS.h"
 
 namespace UE::Online
 {
@@ -31,6 +32,7 @@ protected:
 void FOnlineServicesEOSModule::StartupModule()
 {
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOS>());
+	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOS::Get());
 }
 
 /* UE::Online */ }

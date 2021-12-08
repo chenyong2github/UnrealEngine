@@ -25,8 +25,6 @@ public:
 	static EOnlineServices GetServicesProvider() { return EOnlineServices::Epic; }
 
 	EOS_HPlatform GetEOSPlatformHandle() const;
-
-	virtual FString ToLogString(const FOnlineAccountIdHandle& Handle) override;
 protected:
 	IEOSPlatformHandlePtr EOSPlatformHandle;
 };

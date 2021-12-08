@@ -88,21 +88,6 @@ void FOnlineServicesEOS::Initialize()
 	FOnlineServicesCommon::Initialize();
 }
 
-FString FOnlineServicesEOS::ToLogString(const FOnlineAccountIdHandle& Handle)
-{
-	FString Result;
-	if (Handle.IsValid())
-	{
-		const FOnlineAccountIdDataEOS& AccountIdData = FOnlineAccountIdRegistryEOS::Get().GetIdData(Handle);
-		Result = FString::Printf(TEXT("EAS=[%s] EOS=[%s]"), *LexToString(AccountIdData.EpicAccountId), *LexToString(AccountIdData.ProductUserId));
-	}
-	else
-	{
-		Result = TEXT("Invalid");
-	}
-	return Result;
-}
-
 EOS_HPlatform FOnlineServicesEOS::GetEOSPlatformHandle() const
 {
 	if (EOSPlatformHandle)
