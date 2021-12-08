@@ -1436,11 +1436,13 @@ namespace DatasmithRevitExporter
 
 			CurrentMaterialName = FMaterialData.GetMaterialName(InMaterialNode, CurrentMaterial);
 
-			if (!MaterialDataMap.ContainsKey(CurrentMaterialName))
+			if (!MaterialDataMap.ContainsKey(CurrentMaterialName) || (CurrentMaterial != null && DirectLink != null && DirectLink.IsMaterialDirty(CurrentMaterial)))
 			{
 				// Keep track of a new Datasmith master material.
 				MaterialDataMap[CurrentMaterialName] = new FMaterialData(InMaterialNode, CurrentMaterial, InExtraTexturePaths);
 				NewMaterialsMap[CurrentMaterialName] = MaterialDataMap[CurrentMaterialName];
+
+				DirectLink?.SetMaterialClean(CurrentMaterial);
 
 				// A new Datasmith master material was created.
 				return true;

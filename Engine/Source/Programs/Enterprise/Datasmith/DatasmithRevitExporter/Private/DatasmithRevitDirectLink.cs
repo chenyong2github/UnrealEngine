@@ -371,6 +371,22 @@ namespace DatasmithRevitExporter
 			ModifiedLinkedDocuments.Clear();
 		}
 
+		public bool IsMaterialDirty(Material InMaterial)
+		{
+			if (InMaterial != null)
+			{
+				return RootCache.ModifiedElements.Contains(InMaterial.Id);
+			}
+			return false;
+		}
+
+		public void SetMaterialClean(Material InMaterial)
+		{
+			if (InMaterial != null)
+			{
+				RootCache.ModifiedElements.Remove(InMaterial.Id);
+			}
+		}
 		public void MarkForExport(Element InElement)
 		{
 			if (InElement.GetType() == typeof(RevitLinkInstance))
