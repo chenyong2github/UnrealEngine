@@ -33,7 +33,6 @@ namespace DisplayClusterRenderSyncPolicyEthernet_Data_Windows
 {
 	FRHIViewport*   Viewport  = nullptr;
 	IDXGISwapChain* SwapChain = nullptr;
-	IDXGIOutput*    DXOutput  = nullptr;
 }
 
 
@@ -61,20 +60,15 @@ bool FDisplayClusterRenderSyncPolicyEthernet::SynchronizeClusterRendering(int32&
 		return true;
 	}
 
-	DXOutput = nullptr;
-	SwapChain->GetContainingOutput(&DXOutput);
-	if (!DXOutput)
-	{
-		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("nDisplay SYNC: Couldn't get DXOutput"));
-		return true;
-	}
-
 	bool bNeedEnginePresent = false;
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay SYNC);
+
 		if (bSimpleSync)
 		{
+			// Wait unless the frame is rendered
+			WaitForFrameCompletion();
 			// Barrier sync only
 			SyncBarrierRenderThread();
 			// Let the engine present this frame
@@ -159,7 +153,7 @@ void FDisplayClusterRenderSyncPolicyEthernet::Procedure_SynchronizePresent()
 		// Since it's not 100% safe to present frame now, we need to decide either we present now or
 		// postpone presentation until next V-blank. Depending on the timings based math, we might
 		// sleep here for some small time to skip V-blank and present frame after it.
-		Step_SkipPresentationOnClosestVblank();
+		Step_SkipPresentationOnClosestVBlank();
 	}
 
 	{
@@ -242,7 +236,7 @@ void FDisplayClusterRenderSyncPolicyEthernet::Step_WaitForEthernetBarrierSignal_
 	B1A = FPlatformTime::Seconds();
 }
 
-void FDisplayClusterRenderSyncPolicyEthernet::Step_SkipPresentationOnClosestVblank()
+void FDisplayClusterRenderSyncPolicyEthernet::Step_SkipPresentationOnClosestVBlank()
 {
 	// Here we calculate how much time left before the next VBlank
 	const double CurTime = FPlatformTime::Seconds();
@@ -303,14 +297,7 @@ void FDisplayClusterRenderSyncPolicyEthernet::Step_FinalizeFrameSynchronization(
 
 double FDisplayClusterRenderSyncPolicyEthernet::GetVBlankTimestamp()
 {
-	using namespace DisplayClusterRenderSyncPolicyEthernet_Data_Windows;
-
-	if (DXOutput)
-	{
-		// Get timestamp right after the VBlank
-		DXOutput->WaitForVBlank();
-		return FPlatformTime::Seconds();
-	}
+	WaitForVBlank();
 
 	return FPlatformTime::Seconds();
 }

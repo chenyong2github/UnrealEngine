@@ -34,7 +34,7 @@ protected:
 	virtual void Step_InitializeFrameSynchronization();
 	virtual void Step_WaitForFrameCompletion();
 	virtual void Step_WaitForEthernetBarrierSignal_1();
-	virtual void Step_SkipPresentationOnClosestVblank();
+	virtual void Step_SkipPresentationOnClosestVBlank();
 	virtual void Step_WaitForEthernetBarrierSignal_2();
 	virtual void Step_Present();
 	virtual void Step_FinalizeFrameSynchronization();
