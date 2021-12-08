@@ -4,7 +4,7 @@
 
 #include "Templates/UniquePtr.h"
 
-#include "UnrealUsdWrapper.h"
+#include "UnrealUSDWrapper.h"
 #include "UsdWrappers/ForwardDeclarations.h"
 
 namespace UE
