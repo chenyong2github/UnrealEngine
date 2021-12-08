@@ -151,7 +151,8 @@ protected:
 
 	virtual float GetSpawnPriority(const FMassRepresentationLODFragment& Representation)
 	{
-		return Representation.LODSignificance;
+		// Bump up the spawning priority on the visible entities
+		return Representation.LODSignificance - (Representation.Visibility == EMassVisibility::CanBeSeen ? 1.0f : 0.0f);
 	}
 
 	/*

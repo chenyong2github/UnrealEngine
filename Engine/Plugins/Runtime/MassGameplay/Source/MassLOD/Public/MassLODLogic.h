@@ -98,14 +98,12 @@ struct FMassViewerInfoFragment
 	float LODSignificance = 0.0f; // 
 
 	// Visibility information (Required when FLODLogic::bDoVisibilityLogic is enabled)
-	bool bIsVisibleByAViewer;
-	bool bWasVisibleByAViewer;
-	bool bIsInVisibleRange;
-	bool bWasInVisibleRange;
+	EMassVisibility Visibility;
+	EMassVisibility PrevVisibility
 
 	// Visibility information per viewer (Required when FLODLogic::bDoVisibilityLogic and FLODLogicbStoreInfoPerViewer are enabled)
-	TArray<bool> bIsVisibleByViewer;
-	TArray<bool> bWasVisibleByViewer;
+	TArray<EMassVisibility> VisibilityPerViewer;
+	TArray<EMassVisibility> PrevVisibilityPerViewer;
 }
 */
 
@@ -153,18 +151,16 @@ protected:
 
 	// Visibility conditional fragment accessors
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, ClosestDistanceToFrustum);
-	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bIsVisibleByAViewer);
-	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bWasVisibleByAViewer);
-	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bIsInVisibleRange);
-	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bWasInVisibleRange);
+	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, EMassVisibility, Visibility);
+	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, EMassVisibility, PrevVisibility);
 
 	// Per viewer distance conditional fragment accessors
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, float, DistanceToViewerSq);
 
 	// Per viewer visibility conditional fragment accessors
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, float, DistanceToFrustum);
-	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, bool, bIsVisibleByViewer);
-	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, bool, bWasVisibleByViewer);
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassVisibility, VisibilityPerViewer);
+	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassVisibility, PrevVisibilityPerViewer);
 
 	TArray<FViewerLODInfo> Viewers;
 };

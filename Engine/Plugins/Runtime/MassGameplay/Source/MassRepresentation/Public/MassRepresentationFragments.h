@@ -20,10 +20,8 @@ struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FMassFragm
 	TEnumAsByte<EMassLOD::Type> PrevLOD = EMassLOD::Max;
 
 	/** Visibility Info */
-	bool bIsVisibleByAViewer = false;
-	bool bWasVisibleByAViewer = false;
-	bool bIsInVisibleRange = false;
-	bool bWasInVisibleRange = false;
+	EMassVisibility Visibility = EMassVisibility::Max;
+	EMassVisibility PrevVisibility = EMassVisibility::Max;
 
 	/** Value scaling from 0 to 3, 0 highest LOD we support and 3 being completely off LOD */
 	float LODSignificance = 0.0f;
