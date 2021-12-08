@@ -28,6 +28,7 @@ using TimeZoneConverter;
 using StackExchange.Redis;
 using EpicGames.Redis;
 using EpicGames.Serialization;
+using System.Text.RegularExpressions;
 
 namespace HordeServer.Services
 {
@@ -510,9 +511,13 @@ namespace HordeServer.Services
 		/// <returns></returns>
 		private async Task<bool> ShouldBuildChangeAsync(string ClusterName, string StreamName, int Change, ChangeContentFlags? FilterFlags, FileFilter? FileFilter)
 		{
+			ChangeDetails Details = await Perforce.GetChangeDetailsAsync(ClusterName, StreamName, Change, null);
+			if (Regex.IsMatch(Details.Description, @"^\s*#\s*skipci", RegexOptions.Multiline))
+			{
+				return false;
+			}
 			if (FilterFlags != null && FilterFlags.Value != 0)
 			{
-				ChangeDetails Details = await Perforce.GetChangeDetailsAsync(ClusterName, StreamName, Change, null);
 				if ((Details.GetContentFlags() & FilterFlags.Value) == 0)
 				{
 					Logger.LogDebug("Not building change {Change} ({ChangeFlags}) due to filter flags ({FilterFlags})", Change, Details.GetContentFlags().ToString(), FilterFlags.Value.ToString());
@@ -521,7 +526,6 @@ namespace HordeServer.Services
 			}
 			if (FileFilter != null)
 			{
-				ChangeDetails Details = await Perforce.GetChangeDetailsAsync(ClusterName, StreamName, Change, null);
 				if (!Details.Files.Any(x => FileFilter.Matches(x.Path)))
 				{
 					Logger.LogDebug("Not building change {Change} due to file filter", Change);

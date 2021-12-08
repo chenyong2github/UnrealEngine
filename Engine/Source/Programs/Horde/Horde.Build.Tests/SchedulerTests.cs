@@ -280,6 +280,43 @@ namespace HordeServerTests
 		}
 
 		[TestMethod]
+		public async Task SkipCiTestAsync()
+		{
+			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
+			Clock.UtcNow = StartTime;
+
+			CreateScheduleRequest Schedule = new CreateScheduleRequest();
+			Schedule.Enabled = true;
+			Schedule.Patterns.Add(new CreateSchedulePatternRequest { MinTime = 13 * 60, MaxTime = 14 * 60, Interval = 15 });
+			Schedule.MaxChanges = 2;
+			Schedule.Filter = new List<ChangeContentFlags> { ChangeContentFlags.ContainsCode };
+			await SetScheduleAsync(Schedule);
+
+			// Initial tick
+			await ScheduleService.TickForTestingAsync();
+
+			List<IJob> Jobs1 = await GetNewJobs();
+			Assert.AreEqual(0, Jobs1.Count);
+
+			// Trigger some jobs
+			IUser Bob = UserCollection.FindOrAddUserByLoginAsync("Bob").Result;
+			PerforceService.AddChange("//UE5/Main", 103, Bob, "", new string[] { "foo.cpp" });
+			PerforceService.AddChange("//UE5/Main", 104, Bob, "Don't build this change!\n#skipci", new string[] { "foo.cpp" });
+			PerforceService.AddChange("//UE5/Main", 105, Bob, "", new string[] { "foo.uasset" });
+			PerforceService.AddChange("//UE5/Main", 106, Bob, "", new string[] { "foo.cpp" });
+
+			Clock.Advance(TimeSpan.FromHours(1.25));
+			await ScheduleService.TickForTestingAsync();
+
+			List<IJob> Jobs2 = await GetNewJobs();
+			Assert.AreEqual(2, Jobs2.Count);
+			Assert.AreEqual(103, Jobs2[0].Change);
+			Assert.AreEqual(103, Jobs2[0].CodeChange);
+			Assert.AreEqual(106, Jobs2[1].Change);
+			Assert.AreEqual(106, Jobs2[1].CodeChange);
+		}
+
+		[TestMethod]
 		public async Task MaxActiveTestAsync()
 		{
 			DateTime StartTime = new DateTime(2021, 1, 1, 12, 0, 0, DateTimeKind.Local); // Friday Jan 1, 2021 
