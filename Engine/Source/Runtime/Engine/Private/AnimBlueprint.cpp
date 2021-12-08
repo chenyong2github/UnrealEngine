@@ -348,3 +348,39 @@ FAnimBlueprintDebugData* UAnimBlueprint::GetDebugData() const
 	return nullptr;
 #endif // WITH_EDITORONLY_DATA
 }
+
+#if WITH_EDITORONLY_DATA
+bool UAnimBlueprint::IsCompatible(const UAnimBlueprint* InAnimBlueprint) const
+{
+	if(InAnimBlueprint->bIsTemplate)
+	{
+		// Directionality here, templates are compatible with all anim BPs, but not necessarily vice versa
+		return true;
+	}
+	
+	if(InAnimBlueprint->BlueprintType == BPTYPE_Interface)
+	{
+		// Interfaces dont bother with skeleton checks - assume compatibility is driven by the interface machinery
+		return true;
+	}
+
+	return (TargetSkeleton != nullptr && TargetSkeleton->IsCompatible(InAnimBlueprint->TargetSkeleton));
+}
+
+bool UAnimBlueprint::IsCompatibleByAssetString(const FString& InSkeletonAsset, bool bInIsTemplate, bool bInIsInterface) const
+{
+	if(bInIsTemplate)
+	{
+		// Directionality here, templates are compatible with all anim BPs, but not necessarily vice versa
+		return true;
+	}
+	
+	if(bInIsInterface)
+	{
+		// Interfaces dont bother with skeleton checks - assume compatibility is driven by the interface machinery
+		return true;
+	}
+
+	return (TargetSkeleton != nullptr && TargetSkeleton->IsCompatibleSkeletonByAssetString(InSkeletonAsset));
+}
+#endif

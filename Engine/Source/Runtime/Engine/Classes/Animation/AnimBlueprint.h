@@ -210,6 +210,20 @@ public:
 	// Queue a refresh of the set of anim blueprint extensions that this anim blueprint hosts.
 	// Usually called from anim graph nodes to ensure that extensions that are no longer required are cleaned up.
 	void RequestRefreshExtensions() { bRefreshExtensions = true; }
+
+	// Check if the anim BP is compatible with this one (for linked instancing). Checks target skeleton, template flags
+	// blueprint type.
+	// Note compatibility is directional - e.g. template anim BPs can be instanced within any 'regular' anim BP, but not
+	// vice versa
+	// @param	InAnimBlueprint		The anim blueprint to check for compatibility
+	bool IsCompatible(const UAnimBlueprint* InAnimBlueprint) const;
+	
+	// Check if the asset path of a skeleton, template and interface flags are compatible with this anim blueprint
+	// (for linked instancing)
+	// @param	InSkeletonAsset		The asset path of the skeleton asset used by the anim blueprint
+	// @param	bInIsTemplate		Whether the anim blueprint to check is a template
+	// @param	bInIsInterface		Whether the anim blueprint to check is an interface
+	bool IsCompatibleByAssetString(const FString& InSkeletonAsset, bool bInIsTemplate, bool bInIsInterface) const;
 	
 public:
 	// Array of overrides to asset containing nodes in the parent that have been overridden
