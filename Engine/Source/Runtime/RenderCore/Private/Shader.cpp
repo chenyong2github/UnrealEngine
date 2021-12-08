@@ -242,7 +242,7 @@ FShaderType::FShaderType(
 {
 	FTypeLayoutDesc::Register(InTypeLayout);
 
-	bCachedUniformBufferStructDeclarations = false;
+	CachedUniformBufferPlatform = SP_NumPlatforms;
 
 	// This will trigger if an IMPLEMENT_SHADER_TYPE was in a module not loaded before InitializeShaderTypes
 	// Shader types need to be implemented in modules that are loaded before that
