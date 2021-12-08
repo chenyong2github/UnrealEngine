@@ -125,7 +125,7 @@ float4 MinMaxLengthPolar(float4 v0, float4 v1)
 float2 CartesianToPolar(float2 Velocity)
 {
 	float Length = length(Velocity);
-	float Angle = atan2Fast(Velocity.y, Velocity.x);
+	float Angle = Length > 0.0 ? atan2Fast(Velocity.y, Velocity.x) : 0.0;
 	return float2(Length, Angle);
 }
 

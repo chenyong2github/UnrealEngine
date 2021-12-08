@@ -627,7 +627,7 @@ void AddMotionBlurVelocityPass(
 				FClearValueBinding::None,
 				GFastVRamConfig.VelocityFlat | TexCreate_ShaderResource | TexCreate_UAV);
 
-			VelocityFlatTexture = GraphBuilder.CreateTexture(Desc, TEXT("MotionBlur.VelocityTile"));
+			VelocityFlatTexture = GraphBuilder.CreateTexture(Desc, TEXT("MotionBlur.VelocityFlatten"));
 		}
 
 		VelocityTileTexturesSetup = CreateVecocityTileTextures(
