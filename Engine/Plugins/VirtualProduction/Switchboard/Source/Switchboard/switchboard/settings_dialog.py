@@ -11,6 +11,7 @@ from PySide2 import QtWidgets
 from switchboard import config
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.config import CONFIG, SETTINGS
+from switchboard.settings_search import SettingsSearch
 
 RELATIVE_PATH = os.path.dirname(__file__)
 
@@ -22,6 +23,8 @@ class SettingsDialog(QtCore.QObject):
         # Set the UI object
         loader = QtUiTools.QUiLoader()
         self.ui = loader.load(os.path.join(RELATIVE_PATH, "ui/settings.ui"))
+
+        self.settings_search = SettingsSearch([self.ui.scrollAreaWidgetContents], self.ui.scrollArea)
 
         self.ui.setWindowTitle("Settings")
 
@@ -37,6 +40,9 @@ class SettingsDialog(QtCore.QObject):
         # existing config.
         self._config_paths = config.list_config_paths()
         self.set_config_path(SETTINGS.CONFIG)
+
+        self.ui.searchBar.textChanged.connect(
+            self._on_search_text_edited)
 
         self.ui.config_path_line_edit.textChanged.connect(
             self.config_path_text_changed)
@@ -87,9 +93,8 @@ class SettingsDialog(QtCore.QObject):
         # the close button as opposed to ok/cancel buttons, so we intercept the
         # close to issue a warning if the config path was changed and we're
         # about to overwrite some other existing config file.
-        if (self._changed_config_path and
-                self._changed_config_path in self._config_paths and
-                self._changed_config_path != self._current_config_path):
+        if (self._changed_config_path in self._config_paths 
+                and self._changed_config_path != self._current_config_path):
             # Show the confirmation dialog using a relative path to the config.
             rel_config_path = config.get_relative_config_path(
                 self._changed_config_path)
@@ -103,6 +108,9 @@ class SettingsDialog(QtCore.QObject):
                 # Clear the changed config path so that the dialog returns the
                 # originally specified path when queried via config_path().
                 self._changed_config_path = None
+
+    def _on_search_text_edited(self, search_string: str):
+        self.settings_search.search(search_string)
 
     def config_path(self):
         if self._changed_config_path:
@@ -295,7 +303,7 @@ class SettingsDialog(QtCore.QObject):
 
     # Devices
     def add_section_for_plugin(
-            self, plugin_name, plugin_settings, device_settings):
+        self, plugin_name, plugin_settings, device_settings):
         any_device_settings = (
             any([device[1] for device in device_settings]) or
             any([device[2] for device in device_settings]))
@@ -308,6 +316,8 @@ class SettingsDialog(QtCore.QObject):
         if device_override_group_box.parent() is None:
             device_override_group_box.setTitle(f'{plugin_name} Settings')
             device_override_group_box.setLayout(QtWidgets.QVBoxLayout())
+            device_override_group_box.setSizePolicy(
+                QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Maximum))
             self.ui.device_override_layout.addWidget(device_override_group_box)
 
         plugin_layout = QtWidgets.QFormLayout()
