@@ -413,8 +413,8 @@ FMassVisualizationChunkFragment& UMassRepresentationProcessor::UpdateChunkVisibi
 void UMassRepresentationProcessor::UpdateEntityVisibility(const FMassEntityHandle Entity, const FMassRepresentationFragment& Representation, const FMassRepresentationLODFragment& RepresentationLOD, FMassVisualizationChunkFragment& ChunkData, FMassExecutionContext& Context)
 {
 	// Move the visible entities together into same chunks so we can skip entire chunk when not visible as an optimization
-	const EMassVisibility Visibility = Representation.CurrentRepresentation != ERepresentationType::None ? EMassVisibility::CanBeSeen : 
-		(RepresentationLOD.bIsInVisibleRange ? EMassVisibility::CulledByFrustum : EMassVisibility::CulledByDistance);
+	const EMassVisibility Visibility = Representation.CurrentRepresentation != ERepresentationType::None ? 
+		EMassVisibility::CanBeSeen : RepresentationLOD.Visibility;
 	const EMassVisibility ChunkVisibility = ChunkData.GetVisibility();
 	if (ChunkVisibility != Visibility)
 	{
