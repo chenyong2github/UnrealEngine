@@ -156,6 +156,7 @@ namespace GLTF
 		, ClearCoat(TEXT("ClearCoat"))
 		, ClearCoatRoughness(TEXT("ClearCoatRoughness"))
 		, ThinTranslucentMaterialOutput(nullptr)
+		, ClearCoatBottomNormalOutput(nullptr)
 	    , bIsFinal(false)
 	{
 	}

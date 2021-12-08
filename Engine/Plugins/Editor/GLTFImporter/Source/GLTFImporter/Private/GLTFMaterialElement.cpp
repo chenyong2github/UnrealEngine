@@ -15,6 +15,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
+#include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 
 namespace GLTFImporterImpl
 {
@@ -275,24 +276,41 @@ void FGLTFMaterialElement::Finalize()
 	ConnectInput(Refraction, MaterialExpressions, Material->Refraction);
 	ConnectInput(Normal, MaterialExpressions, Material->Normal);
 	ConnectInput(AmbientOcclusion, MaterialExpressions, Material->AmbientOcclusion);
+	ConnectInput(ClearCoat, MaterialExpressions, Material->ClearCoat);
+	ConnectInput(ClearCoatRoughness, MaterialExpressions, Material->ClearCoatRoughness);
 
 	// Handle transmission materials (they add a special output node to the graph)
 	if (ThinTranslucentMaterialOutput)
 	{
-		GLTF::FMaterialExpressionInput* Input = ThinTranslucentMaterialOutput->GetInput(0);
-		check(Input);
-
-		if (GLTF::FMaterialExpression* BaseColorExpr = Input->GetExpression())
+		const int32 ThinTranslucentExpressionIndex = Expressions.Find(ThinTranslucentMaterialOutput);
+		
+		if (ThinTranslucentExpressionIndex != INDEX_NONE && MaterialExpressions[ThinTranslucentExpressionIndex].IsValid())
 		{
-			const int32 ThinTranslucentExpressionIndex = Expressions.Find(ThinTranslucentMaterialOutput);
-			check(ThinTranslucentExpressionIndex != INDEX_NONE);
-			TStrongObjectPtr<UMaterialExpression> ThinTranslucentMaterialExpression = MaterialExpressions[ThinTranslucentExpressionIndex];
+			UMaterialExpression& ThinTranslucentMaterialExpression = *MaterialExpressions[ThinTranslucentExpressionIndex];
 
-			const int32 BaseColorExpressionIndex = Expressions.Find(BaseColorExpr);
-			check(BaseColorExpressionIndex != INDEX_NONE);
-			TStrongObjectPtr<UMaterialExpression> BaseColorMaterialExpression = MaterialExpressions[BaseColorExpressionIndex];
+			GLTF::FMaterialExpressionInput* ThinTranslucentInput = ThinTranslucentMaterialOutput->GetInput(0);
 
-			BaseColorMaterialExpression->ConnectExpression(ThinTranslucentMaterialExpression->GetInput(0), Input->GetOutputIndex());
+			if (ThinTranslucentInput)
+			{
+				ConnectInput(*ThinTranslucentInput, MaterialExpressions, *ThinTranslucentMaterialExpression.GetInput(0));
+			}
+		}
+	}
+
+	if (ClearCoatBottomNormalOutput)
+	{
+		const int32 ClearCoatBottomNormalOutputIndex = Expressions.Find(ClearCoatBottomNormalOutput);
+
+		if (ClearCoatBottomNormalOutputIndex != INDEX_NONE && MaterialExpressions[ClearCoatBottomNormalOutputIndex].IsValid())
+		{
+			UMaterialExpression& ClearCoatBottomNormalMaterialExpression = *MaterialExpressions[ClearCoatBottomNormalOutputIndex];
+
+			GLTF::FMaterialExpressionInput* ClearCoatBottomNormalInput = ClearCoatBottomNormalOutput->GetInput(0);
+
+			if (ClearCoatBottomNormalInput)
+			{
+				ConnectInput(*ClearCoatBottomNormalInput, MaterialExpressions, *ClearCoatBottomNormalMaterialExpression.GetInput(0));
+			}
 		}
 	}
 
@@ -347,6 +365,11 @@ void FGLTFMaterialElement::CreateExpressions(TArray<TStrongObjectPtr<UMaterialEx
 		if (MaterialExpression->GetClass() == UMaterialExpressionThinTranslucentMaterialOutput::StaticClass())
 		{
 			ThinTranslucentMaterialOutput = Expression;
+		}
+
+		if (MaterialExpression->GetClass() == UMaterialExpressionClearCoatNormalCustomOutput::StaticClass())
+		{
+			ClearCoatBottomNormalOutput = Expression;
 		}
 	}
 }

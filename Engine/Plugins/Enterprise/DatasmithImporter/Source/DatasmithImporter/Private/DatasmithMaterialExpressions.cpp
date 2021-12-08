@@ -3155,6 +3155,18 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetNormal().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::NORMAL ), MaterialElement->GetNormal().GetOutputIndex() );
 
+	if ( MaterialElement->GetShadingModel() == EDatasmithShadingModel::ClearCoat )
+	{
+		if ( MaterialElement->GetClearCoat().GetExpression() )
+		{
+			ConnectExpression(MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetClearCoat().GetExpression(), GetMaterialOrFunctionSlot(UnrealMaterialOrFunction, EDatasmithTextureSlot::COATSPECULAR), MaterialElement->GetClearCoat().GetOutputIndex());
+		}
+		if (MaterialElement->GetClearCoatRoughness().GetExpression())
+		{
+			ConnectExpression(MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetClearCoatRoughness().GetExpression(), GetMaterialOrFunctionSlot(UnrealMaterialOrFunction, EDatasmithTextureSlot::COATROUGHNESS), MaterialElement->GetClearCoat().GetOutputIndex());
+		}
+	}
+
 	// Connect expressions to any UMaterialExpressionCustomOutput since these aren't part of the predefined material outputs
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 	{

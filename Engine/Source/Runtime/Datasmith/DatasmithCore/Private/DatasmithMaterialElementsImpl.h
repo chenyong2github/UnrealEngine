@@ -674,6 +674,8 @@ public:
 	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Edit(); }
 	virtual IDatasmithExpressionInput& GetRefraction() override { return *Refraction.Edit(); }
 	virtual IDatasmithExpressionInput& GetAmbientOcclusion() override { return *AmbientOcclusion.Edit(); }
+	virtual IDatasmithExpressionInput& GetClearCoat() override { return *ClearCoat.Edit(); }
+	virtual IDatasmithExpressionInput& GetClearCoatRoughness() override { return *ClearCoatRoughness.Edit(); }
 	virtual IDatasmithExpressionInput& GetMaterialAttributes() override { return *MaterialAttributes.Edit(); }
 
 	virtual int GetBlendMode() const override {return BlendMode; }
@@ -721,6 +723,8 @@ protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > WorldDisplacement;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Refraction;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > AmbientOcclusion;
+	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > ClearCoat;
+	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > ClearCoatRoughness;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > MaterialAttributes;
 
 	TDatasmithReferenceArrayProxy< IDatasmithMaterialExpression > Expressions;
@@ -730,7 +734,7 @@ protected:
 	TReflected<bool> bUseMaterialAttributes;
 	TReflected<bool> bMaterialFunctionOnly;
 	TReflected<float> OpacityMaskClipValue;
-	TReflected<int> TranslucencyLightingMode;
+	TReflected<int32> TranslucencyLightingMode;
 
 	TReflected<FString> ParentLabel;
 	TReflected<EDatasmithShadingModel, uint8> ShadingModel;
