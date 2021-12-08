@@ -22,7 +22,7 @@ class UWorldPartition;
 /**
  * Base class for world partition editors (goes hand in hand with corresponding UWorldPartition class via GetWorldPartitionEditorName)
  */
-class SWorldPartitionEditorGrid : public SPanel
+class SWorldPartitionEditorGrid : public SCompoundWidget
 {
 	friend class SWorldPartitionEditor;
 
@@ -44,16 +44,20 @@ public:
 	// SPanel interface
 	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override
 	{
+		if (!WorldPartition)
+		{
+			SCompoundWidget::OnArrangeChildren(AllottedGeometry, ArrangedChildren);
+		}
 	}
 
-	virtual FVector2D ComputeDesiredSize(float) const override
+	virtual FVector2D ComputeDesiredSize(float Scale) const override
 	{
-		return FVector2D(100.0f, 100.0f);
+		return !WorldPartition ? FVector2D(100.0f, 100.0f) : SCompoundWidget::ComputeDesiredSize(Scale);
 	}
 
 	virtual FChildren* GetChildren() override
 	{
-		return &FNoChildren::NoChildrenInstance;
+		return !WorldPartition ? &ChildSlot : (FChildren*)&FNoChildren::NoChildrenInstance;
 	}
 	
 	bool GetPlayerView(FVector& Location, FRotator& Rotation) const;

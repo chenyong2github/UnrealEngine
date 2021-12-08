@@ -11,11 +11,24 @@
 
 TMap<FName, SWorldPartitionEditorGrid::PartitionEditorGridCreateInstanceFunc> SWorldPartitionEditorGrid::PartitionEditorGridCreateInstanceFactory;
 
+#define LOCTEXT_NAMESPACE "WorldPartitionEditor"
+
 void SWorldPartitionEditorGrid::Construct(const FArguments& InArgs)
 {
 	World = InArgs._InWorld;
 	WorldPartition = World ? World->GetWorldPartition() : nullptr;
 
+	if (!WorldPartition)
+	{
+		ChildSlot
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("WorldPartitionMustBeEnabled", "World Partition is Not Enabled for this Map"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		];
+	}
 	SetClipping(EWidgetClipping::ClipToBounds);
 }
 
@@ -86,3 +99,5 @@ void SWorldPartitionEditorGrid::Refresh()
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
