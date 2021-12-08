@@ -1857,7 +1857,11 @@ void UCookOnTheFlyServer::PumpLoads(UE::Cook::FTickStackData& StackData, uint32 
 	OutNumPushed = 0;
 	bOutBusy = false;
 
-	while (LoadReadyQueue.Num() + LoadPrepareQueue.Num() > static_cast<int32>(DesiredQueueLength))
+	// Process loads until we reduce the queue size down to the desired size or we hit the max number of loads per batch
+	// We do not want to load too many packages without saving because if we hit the memory limit and GC every package
+	// we load will have to be loaded again
+	while (LoadReadyQueue.Num() + LoadPrepareQueue.Num() > static_cast<int32>(DesiredQueueLength) &&
+		OutNumPushed < LoadBatchSize)
 	{
 		if (StackData.Timer.IsTimeUp())
 		{
@@ -4507,6 +4511,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	MaxPreloadAllocated = 16;
 	DesiredSaveQueueLength = 8;
 	DesiredLoadQueueLength = 8;
+	LoadBatchSize = 16;
 	RequestBatchSize = 16;
 
 	MinFreeUObjectIndicesBeforeGC = 100000;
