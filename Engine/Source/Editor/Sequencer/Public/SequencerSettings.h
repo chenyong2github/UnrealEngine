@@ -168,6 +168,11 @@ public:
 	/** Sets whether or not to snap the play time to keys while scrubbing. */
 	void SetSnapPlayTimeToKeys(bool InbSnapPlayTimeToKeys);
 
+	/** Gets whether or not to snap the play time to section bounds while scrubbing. */
+	bool GetSnapPlayTimeToSections() const;
+	/** Sets whether or not to snap the play time to section bounds while scrubbing. */
+	void SetSnapPlayTimeToSections(bool InbSnapPlayTimeToSections);
+
 	/** Gets whether or not to snap the play time to markers while scrubbing. */
 	bool GetSnapPlayTimeToMarkers() const;
 	/** Sets whether or not to snap the play time to markers while scrubbing. */
@@ -425,9 +430,13 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bSnapKeysAndSectionsToPlayRange;
 
-	/** Enable or disable snapping the current time to keys of the selected track while scrubbing. */
+	/** Enable or disable snapping the current time to keys while scrubbing. */
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
 	bool bSnapPlayTimeToKeys;
+
+	/** Enable or disable snapping the current time to section bounds while scrubbing. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	bool bSnapPlayTimeToSections;
 
 	/** Enable or disable snapping the current time to markers while scrubbing. */
 	UPROPERTY( config, EditAnywhere, Category=Snapping )
