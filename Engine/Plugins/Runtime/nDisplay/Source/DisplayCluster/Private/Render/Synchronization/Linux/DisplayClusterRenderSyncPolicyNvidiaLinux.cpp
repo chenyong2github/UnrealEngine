@@ -12,6 +12,11 @@ FDisplayClusterRenderSyncPolicyNvidia::~FDisplayClusterRenderSyncPolicyNvidia()
 {
 }
 
+bool FDisplayClusterRenderSyncPolicyNvidia::Initialize()
+{
+	return true;
+}
+
 bool FDisplayClusterRenderSyncPolicyNvidia::InitializeNvidiaSwapLock()
 {
 	return true;
