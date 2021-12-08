@@ -43,9 +43,13 @@ class DMXRUNTIME_API UDMXEntityFixturePatch
 public:
 	UDMXEntityFixturePatch();
 
-	/** Creates a new fixture patch in the DMX Library using the specified Fixture Type */
+	/** Creates a new Fixture Patch in the DMX Library using the specified Fixture Type */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	static UDMXEntityFixturePatch* CreateFixturePatchInLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef, const FString& DesiredName = TEXT(""));
+
+	/** Removes a fixture patch from the DMX Library */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void RemoveFixturePatchFromLibrary(FDMXEntityFixturePatchRef FixturePatchRef);
 
 	// ~Begin UObject Interface
 #if WITH_EDITOR

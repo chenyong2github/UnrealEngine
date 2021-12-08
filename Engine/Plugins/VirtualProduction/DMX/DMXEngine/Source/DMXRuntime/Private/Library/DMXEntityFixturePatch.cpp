@@ -60,6 +60,21 @@ UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMX
 	return nullptr;
 }
 
+void UDMXEntityFixturePatch::RemoveFixturePatchFromLibrary(FDMXEntityFixturePatchRef FixturePatchRef)
+{
+	if (UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch())
+	{
+		if (UDMXLibrary* DMXLibrary = FixturePatch->GetParentLibrary())
+		{
+			FixturePatch->SetFixtureType(nullptr);
+
+			DMXLibrary->Modify();
+			FixturePatch->Modify();
+			FixturePatch->Destroy();
+		}
+	}
+}
+
 #if WITH_EDITOR
 bool UDMXEntityFixturePatch::Modify(bool bAlwaysMarkDirty)
 {

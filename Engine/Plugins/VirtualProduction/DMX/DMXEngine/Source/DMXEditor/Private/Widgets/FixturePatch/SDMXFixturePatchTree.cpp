@@ -602,10 +602,30 @@ bool SDMXFixturePatchTree::CanDuplicateNodes() const
 
 void SDMXFixturePatchTree::OnDeleteNodes()
 {
+	// Gather Fixture Patches to remove from the DMX Library
 	const TArray<UDMXEntity*> EntitiesToDelete = GetSelectedEntities();
 
-	// Clears references to the Entities and delete them
-	FDMXEditorUtils::RemoveEntities(GetDMXLibrary(), EntitiesToDelete);
+	TArray<UDMXEntityFixturePatch*> FixturePatchesToDelete;
+	for (UDMXEntity* Entity : EntitiesToDelete)
+	{
+		if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
+		{
+			FixturePatchesToDelete.Add(FixturePatch);
+		}
+	}
+
+	// Remove the Fixture Patches from the DMX Library
+	const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
+
+	UDMXLibrary* DMXLibrary = GetDMXLibrary();
+	DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesToDelete)
+	{
+		ensureMsgf(DMXLibrary == FixturePatch->GetParentLibrary(), TEXT("Unexpected DMX Library of Fixture Patch and DMX Library of Editor do not match when removing Fixture Patches."));
+		const FDMXEntityFixturePatchRef FixturePatchRef(FixturePatch);
+		UDMXEntityFixturePatch::RemoveFixturePatchFromLibrary(FixturePatchRef);
+	}
+	DMXLibrary->PostEditChange();
 
 	// Clear selection if no patches remain
 	if (GetSelectedEntities().Num() == 0)

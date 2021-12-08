@@ -188,6 +188,19 @@ UDMXEntityFixtureType* UDMXEntityFixtureType::CreateFixtureTypeInLibrary(UDMXLib
 	return nullptr;
 }
 
+void UDMXEntityFixtureType::RemoveFixtureTypeFromLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef)
+{
+	if (UDMXEntityFixtureType* FixtureType = FixtureTypeRef.GetFixtureType())
+	{
+		if (UDMXLibrary* DMXLibrary = FixtureType->GetParentLibrary())
+		{
+			DMXLibrary->Modify();
+			FixtureType->Modify();
+			FixtureType->Destroy();
+		}
+	}
+}
+
 void UDMXEntityFixtureType::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
