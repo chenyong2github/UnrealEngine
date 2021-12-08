@@ -161,7 +161,7 @@ public:
 	 */
 	const FString& GetConfigName() const { return ConfigName; }
 
-	TArray<FString> GetConfigSectionHeiarchy(const FString& OperationName = FString())
+	TArray<FString> GetConfigSectionHeiarchy(const FString& OperationName = FString()) const
 	{
 		TArray<FString> SectionHeiarchy;
 		FString SectionName = TEXT("OnlineServices");
@@ -191,7 +191,7 @@ public:
 	 * @return true if a value was loaded
 	 */
 	template <typename StructType>
-	bool LoadConfig(StructType& Struct, const FString& InterfaceName = FString(), const FString& OperationName = FString())
+	bool LoadConfig(StructType& Struct, const FString& InterfaceName = FString(), const FString& OperationName = FString()) const
 	{
 		TArray<FString> SectionHeiarchy;
 		FString SectionName = TEXT("OnlineServices");
@@ -218,7 +218,7 @@ public:
 	 * 
 	 * @return Array of the sections with overrides for values to be loaded from
 	 */
-	TArray<FString> GetConfigSectionHeirachWithOverrides(const TArray<FString>& SectionHeiarchy)
+	TArray<FString> GetConfigSectionHeirachWithOverrides(const TArray<FString>& SectionHeiarchy) const
 	{
 		TArray<FString> SectionHeiarchyWithOverrides;
 		for (const FString& Section : SectionHeiarchy)
@@ -243,15 +243,9 @@ public:
 	 * @return true if a value was loaded
 	 */
 	template <typename StructType>
-	bool LoadConfig(StructType& Struct, const TArray<FString>& SectionHeiarchy)
+	bool LoadConfig(StructType& Struct, const TArray<FString>& SectionHeiarchy) const
 	{
 		return ::UE::Online::LoadConfig(*ConfigProvider, GetConfigSectionHeirachWithOverrides(SectionHeiarchy), Struct);
-	}
-
-	template <typename OpType>
-	bool LoadOperationConfig(FOperationConfig& OutConfig, const FString& InterfaceName = FString(), const FString& OperationName = FString())
-	{
-		return false;
 	}
 
 	/* Get op (OnlineServices) */
