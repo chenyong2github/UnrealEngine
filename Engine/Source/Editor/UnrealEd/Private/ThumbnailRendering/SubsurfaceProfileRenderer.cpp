@@ -25,13 +25,13 @@ void USubsurfaceProfileRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 
 	{
 		FLinearColor Col;
 
-		Col = LocalSubsurfaceProfile->Settings.SubsurfaceColor; Col.A = 1;
+		Col = LocalSubsurfaceProfile->Settings.Tint; Col.A = 1;
 		Canvas->DrawTile(0,          0, Width, Height / 2, 0, 0, 1, 1, Col);
-		Col = LocalSubsurfaceProfile->Settings.FalloffColor; Col.A = 1;
+		Col = LocalSubsurfaceProfile->Settings.SurfaceAlbedo; Col.A = 1;
 		Canvas->DrawTile(0, Height / 2, Width, Height / 2, 0, 0, 1, 1, Col);
 
-		FText ScatterRadiusText = FText::AsNumber(LocalSubsurfaceProfile->Settings.ScatterRadius);
-		FCanvasTextItem TextItem(FVector2D(5.0f, 5.0f), ScatterRadiusText, GEngine->GetLargeFont(), FLinearColor::White);
+		FText MeanFreePathDistanceText = FText::AsNumber(LocalSubsurfaceProfile->Settings.MeanFreePathDistance);
+		FCanvasTextItem TextItem(FVector2D(5.0f, 5.0f), MeanFreePathDistanceText, GEngine->GetLargeFont(), FLinearColor::White);
 		TextItem.EnableShadow(FLinearColor::Black);
 		TextItem.Scale = FVector2D(Width / 128.0f, Height / 128.0f);
 		TextItem.Draw(Canvas);

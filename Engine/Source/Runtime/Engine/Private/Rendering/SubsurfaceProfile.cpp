@@ -36,11 +36,37 @@ static TRefCountPtr<IPooledRenderTarget> GSSProfiles;
 // Texture with one or more pre-integrated textures or 0 if there is no user
 static TRefCountPtr<IPooledRenderTarget> GSSProfilesPreIntegratedTexture;
 
+void ConvertSubsurfaceParametersFromSeparableToBurley(const FSubsurfaceProfileStruct& Settings, FLinearColor& SurfaceAlbedo, FLinearColor& MeanFreePathColor, float& MeanFreePathDistance)
+{
+	MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.R, SurfaceAlbedo.R, MeanFreePathColor.R);
+	MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.G, SurfaceAlbedo.G, MeanFreePathColor.G);
+	MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.B, SurfaceAlbedo.B, MeanFreePathColor.B);
+
+	//Normalize mean free path color and set the corresponding dfmp
+	float MaxMeanFreePathColor = FMath::Max3(MeanFreePathColor.R, MeanFreePathColor.G, MeanFreePathColor.B);
+	if (MaxMeanFreePathColor > 1)
+	{
+		MeanFreePathColor /= MaxMeanFreePathColor;
+		MeanFreePathDistance = FMath::Clamp(Settings.ScatterRadius * MaxMeanFreePathColor, 0.1f, 50.0f);	// 50.0f is the ClampMax of MeanFreePathDistance.
+	}
+}
+
+void UpgradeSeparableToBurley(FSubsurfaceProfileStruct& Settings)
+{
+	ConvertSubsurfaceParametersFromSeparableToBurley(Settings, Settings.SurfaceAlbedo, Settings.MeanFreePathColor, Settings.MeanFreePathDistance);
+	Settings.MeanFreePathDistance /= (2.229f * 2.229f);
+	Settings.Tint = Settings.SubsurfaceColor;
+	Settings.bEnableBurley = true;
+}
+
 FSubsurfaceProfileTexture::FSubsurfaceProfileTexture()
 {
 	check(IsInGameThread());
 
 	FSubsurfaceProfileStruct DefaultSkin;
+
+	//The default burley in slot 0 behaves the same as Separable previously
+	UpgradeSeparableToBurley(DefaultSkin);
 
 	// add element 0, it is used as default profile
 	SubsurfaceProfileEntries.Add(FSubsurfaceProfileEntry(DefaultSkin, 0));
@@ -317,21 +343,6 @@ float Pow4(float X)
 	return X * X * X * X;
 }
 
-void ConvertSubsurfaceParametersFromSeparableToBurley(const FSubsurfaceProfileStruct& Settings, FLinearColor& SurfaceAlbedo, FLinearColor& MeanFreePathColor, float& MeanFreePathDistance)
-{
-	MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.R, SurfaceAlbedo.R, MeanFreePathColor.R);
-	MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.G, SurfaceAlbedo.G, MeanFreePathColor.G);
-	MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.B, SurfaceAlbedo.B, MeanFreePathColor.B);
-
-	//Normalize mean free path color and set the corresponding dfmp
-	float MaxMeanFreePathColor = FMath::Max3(MeanFreePathColor.R, MeanFreePathColor.G, MeanFreePathColor.B);
-	if (MaxMeanFreePathColor > 1)
-	{
-		MeanFreePathColor /= MaxMeanFreePathColor;
-		MeanFreePathDistance = FMath::Clamp(Settings.ScatterRadius * MaxMeanFreePathColor, 0.1f, 50.0f);	// 50.0f is the ClampMax of MeanFreePathDistance.
-	}
-}
-
 void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdList)
 {
 	uint32 Height = SubsurfaceProfileEntries.Num();
@@ -456,11 +467,10 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 			const float SamplingCountCompensation = 0.707f;
 			Data.ScatterRadius *= (Data.WorldUnitScale * 10.0f)*2.229f* SamplingCountCompensation;
 
-			// Reset subsurface rgb component to 1. So in the combine pass, we will directly use the subsurface scattering result
-			// in Burley fallback and Burley mode.
-			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].R = 1; 
-			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].G = 1; 
-			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].B = 1; 
+			// To depricate {scatter radius, falloff} in favor of albedo/MFP, need the subsurface color as tint.
+			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].R = Data.Tint.R; 
+			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].G = Data.Tint.G;
+			TextureRow[SSSS_SUBSURFACE_COLOR_OFFSET].B = Data.Tint.B;
 		}
 		else
 		{
@@ -575,18 +585,16 @@ bool FSubsurfaceProfileTexture::GetEntryString(uint32 Index, FString& Out) const
 	const FSubsurfaceProfileStruct& ref = SubsurfaceProfileEntries[Index].Settings;
 
 
-	Out = FString::Printf(TEXT(" %c. %p ScatterRadius=%.1f, SubsurfaceColor=%.1f %.1f %.1f, FalloffColor=%.1f %.1f %.1f, \
-								SurfaceAlbedo=%.1f %.1f %.1f, MeanFreePathColor=%.1f %.1f %.1f, MeanFreePathDistance=%.1f, WorldUnitScale=%.1f,\
-								TransmissionTintColor=%.1f %.1f %.1f, EnableBurley=%.1f"), 
+	Out = FString::Printf(TEXT(" %c. %p SurfaceAlbedo=%.1f %.1f %.1f, MeanFreePathColor=%.1f %.1f %.1f, MeanFreePathDistance=%.1f, WorldUnitScale=%.1f,\
+								Tint=%.1f %.1f %.1f, BoundaryColorBleeding=%.1f %.1f %.1f, TransmissionTintColor=%.1f %.1f %.1f, EnableBurley=%.1f"), 
 		MiniFontCharFromIndex(Index), 
 		SubsurfaceProfileEntries[Index].Profile,
-		ref.ScatterRadius,
-		ref.SubsurfaceColor.R, ref.SubsurfaceColor.G, ref.SubsurfaceColor.B,
-		ref.FalloffColor.R, ref.FalloffColor.G, ref.FalloffColor.B,
 		ref.SurfaceAlbedo.R, ref.SurfaceAlbedo.G, ref.SurfaceAlbedo.B,
 		ref.MeanFreePathColor.R, ref.MeanFreePathColor.G, ref.MeanFreePathColor.B,
 		ref.MeanFreePathDistance,
 		ref.WorldUnitScale,
+		ref.Tint.R, ref.Tint.G, ref.Tint.B,
+		ref.BoundaryColorBleed.R, ref.BoundaryColorBleed.G, ref.BoundaryColorBleed.B, 
 		ref.TransmissionTintColor.R, ref.TransmissionTintColor.G, ref.TransmissionTintColor.B,
 		ref.bEnableBurley?1.0f:0.0f);
 
@@ -618,13 +626,6 @@ void FSubsurfaceProfileTexture::Dump()
 		UE_LOG(LogSubsurfaceProfile, Log, TEXT("  %d. AllocationId=%d, Pointer=%p"), i, i + 1, SubsurfaceProfileEntries[i].Profile);
 
 		{
-			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     ScatterRadius = %f"),
-				SubsurfaceProfileEntries[i].Settings.ScatterRadius);
-			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     SubsurfaceColor=%f %f %f"),
-				SubsurfaceProfileEntries[i].Settings.SubsurfaceColor.R, SubsurfaceProfileEntries[i].Settings.SubsurfaceColor.G, SubsurfaceProfileEntries[i].Settings.SubsurfaceColor.B);
-			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     FalloffColor=%f %f %f"),
-				SubsurfaceProfileEntries[i].Settings.FalloffColor.R, SubsurfaceProfileEntries[i].Settings.FalloffColor.G, SubsurfaceProfileEntries[i].Settings.FalloffColor.B);
-
 			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     SurfaceAlbedo=%f %f %f"),
 				SubsurfaceProfileEntries[i].Settings.SurfaceAlbedo.R, SubsurfaceProfileEntries[i].Settings.SurfaceAlbedo.G, SubsurfaceProfileEntries[i].Settings.SurfaceAlbedo.B);
 			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     MeanFreePathColor=%f %f %f"),
@@ -633,6 +634,10 @@ void FSubsurfaceProfileTexture::Dump()
 				SubsurfaceProfileEntries[i].Settings.MeanFreePathDistance);
 			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     WorldUnitScale=%f"),
 				SubsurfaceProfileEntries[i].Settings.WorldUnitScale);
+			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     Tint=%f %f %f"),
+				SubsurfaceProfileEntries[i].Settings.Tint.R, SubsurfaceProfileEntries[i].Settings.Tint.G, SubsurfaceProfileEntries[i].Settings.Tint.B);
+			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     Boundary Color Bleed=%f %f %f"),
+				SubsurfaceProfileEntries[i].Settings.BoundaryColorBleed.R, SubsurfaceProfileEntries[i].Settings.BoundaryColorBleed.G, SubsurfaceProfileEntries[i].Settings.BoundaryColorBleed.B);
 			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     TransmissionTintColor=%f %f %f"),
 				SubsurfaceProfileEntries[i].Settings.TransmissionTintColor.R, SubsurfaceProfileEntries[i].Settings.TransmissionTintColor.G, SubsurfaceProfileEntries[i].Settings.TransmissionTintColor.B);
 			UE_LOG(LogSubsurfaceProfile, Log, TEXT("     EnableBurley=%.1f"),
@@ -728,9 +733,13 @@ void USubsurfaceProfile::PostLoad()
 	{
 		const bool bUpdateBurleyParametersFromSeparable = CVar->GetValueOnAnyThread() == 1;
 
-		if (bUpdateBurleyParametersFromSeparable)
+		if (!Settings.bEnableBurley
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			|| bUpdateBurleyParametersFromSeparable
+#endif
+			)
 		{
-			ConvertSubsurfaceParametersFromSeparableToBurley(Settings, Settings.SurfaceAlbedo, Settings.MeanFreePathColor, Settings.MeanFreePathDistance);
+			UpgradeSeparableToBurley(Settings);
 		}
 	}
 }
