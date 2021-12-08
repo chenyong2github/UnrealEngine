@@ -193,7 +193,7 @@ namespace ChaosTest {
 
 
 	// 1 Kinematic Body with 2 Dynamic bodies hanging from it by a breakable constraint.
-	// Constraint break force is less than M x G, so joint should break.
+	// Constraint break force is less than M x G, so joint should not break.
 	template <typename TEvolution>
 	void JointBreak_UnderLinearThreshold3()
 	{
@@ -225,7 +225,7 @@ namespace ChaosTest {
 			Test.Evolution.EndFrame(Dt);
 		}
 
-		// Constraint should have broken
+		// Constraint should not have broken
 		EXPECT_FALSE(bBrokenCallbackCalled);
 		EXPECT_TRUE(Test.Evolution.GetJointConstraints().IsConstraintEnabled(0));
 		EXPECT_TRUE(Test.Evolution.GetJointConstraints().IsConstraintEnabled(1));

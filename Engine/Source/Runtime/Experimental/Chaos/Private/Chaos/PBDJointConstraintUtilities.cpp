@@ -700,10 +700,20 @@ namespace Chaos
 			OutInvMParent = (FReal)1 / MParent;
 			OutInvIParent = FVec3((FReal)1 / IParent.X, (FReal)1 / IParent.Y, (FReal)1 / IParent.Z);
 		}
+		else
+		{
+			OutInvMParent = 0.f;
+			OutInvIParent = FVec3(0.f);
+		}
 		if (InInvMChild > 0)
 		{
 			OutInvMChild = (FReal)1 / MChild;
 			OutInvIChild = FVec3((FReal)1 / IChild.X, (FReal)1 / IChild.Y, (FReal)1 / IChild.Z);
+		}
+		else
+		{
+			OutInvMChild = 0.f;
+			OutInvIChild = FVec3(0.f);
 		}
 	}
 
