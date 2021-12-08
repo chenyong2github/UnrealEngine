@@ -83,6 +83,12 @@ protected:
 
 	// Skeleton name used for filtering unloaded classes 
 	FString SkeletonName;
+
+	// Template flag used for filtering unloaded classes
+	bool bIsTemplateAnimBlueprint = false;
+
+	// Interface flag used for filtering unloaded classes
+	bool bIsInterfaceBlueprint = false;
 };
 
 UE_DEPRECATED(4.24, "UAnimGraphNode_SubInstanceBase has been renamed to UAnimGraphNode_LinkedAnimGraphBase")

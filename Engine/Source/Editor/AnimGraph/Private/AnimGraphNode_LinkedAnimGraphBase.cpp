@@ -196,6 +196,15 @@ void UAnimGraphNode_LinkedAnimGraphBase::ValidateAnimNodeDuringCompilation(USkel
 	{
 		MessageLog.Error(TEXT("Linked instance node @@ targets instance class @@ which it is inside, this would cause a loop."), this, AnimBP->GetAnimBlueprintGeneratedClass());
 	}
+
+	// Check for compatibility
+	if(UAnimBlueprint* TargetAnimBP = Cast<UAnimBlueprint>(UBlueprint::GetBlueprintFromClass(GetTargetClass())))
+	{
+		if(!AnimBP->IsCompatible(TargetAnimBP))
+		{
+			MessageLog.Error(TEXT("Linked instance node @@ targets instance class @@ which is incompatible."), this, GetTargetClass());
+		}
+	}
 }
 
 void UAnimGraphNode_LinkedAnimGraphBase::CreateOutputPins()
@@ -417,13 +426,17 @@ bool UAnimGraphNode_LinkedAnimGraphBase::OnShouldFilterInstanceBlueprint(const F
 		return true;
 	}
 
-	// Check skeleton
-	FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag("TargetSkeleton");
-	if (Result.IsSet())
+	// Check skeleton & flags
+	FAssetDataTagMapSharedView::FFindTagResult TargetSkeletonResult = AssetData.TagsAndValues.FindTag("TargetSkeleton");
+	FAssetDataTagMapSharedView::FFindTagResult IsTemplateResult = AssetData.TagsAndValues.FindTag("bIsTemplate");
+	FAssetDataTagMapSharedView::FFindTagResult BlueprintTypeResult = AssetData.TagsAndValues.FindTag("BlueprintType");
+	if (TargetSkeletonResult.IsSet())
 	{
+		const bool bIsTemplate = IsTemplateResult.IsSet() && IsTemplateResult.Equals(TEXT("True"));
+		const bool bIsInterface = BlueprintTypeResult.IsSet() && BlueprintTypeResult.Equals(TEXT("BPTYPE_Interface"));
 		if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
 		{
-			if (!CurrentBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(Result.GetValue()))
+			if (!CurrentBlueprint->IsCompatibleByAssetString(TargetSkeletonResult.GetValue(), bIsTemplate, bIsInterface))
 			{
 				return true;
 			}

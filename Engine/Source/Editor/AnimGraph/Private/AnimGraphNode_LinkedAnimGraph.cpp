@@ -62,6 +62,14 @@ void UAnimGraphNode_LinkedAnimGraph::SetupFromAsset(const FAssetData& InAssetDat
 			SkeletonName.Empty();
 		}
 
+		FString TagTemplateValue;
+		InAssetData.GetTagValue("bIsTemplate", TagTemplateValue);
+		bIsTemplateAnimBlueprint = TagTemplateValue.Equals(TEXT("True"));
+
+		FString BlueprintTypeValue;
+		InAssetData.GetTagValue("BlueprintType", BlueprintTypeValue);
+		bIsInterfaceBlueprint = BlueprintTypeValue.Equals(TEXT("BPTYPE_Interface"));
+		
 		if(!bInIsTemplateNode)
 		{
 			UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(InAssetData.GetAsset());
@@ -140,7 +148,11 @@ bool UAnimGraphNode_LinkedAnimGraph::IsActionFilteredOut(class FBlueprintActionF
 {
 	bool bIsFilteredOut = false;
 
-	if(!SkeletonName.IsEmpty())
+	if(bIsInterfaceBlueprint)
+	{
+		bIsFilteredOut = true;
+	}
+	else if(!SkeletonName.IsEmpty())
 	{
 		FBlueprintActionContext const& FilterContext = Filter.Context;
 
@@ -148,7 +160,7 @@ bool UAnimGraphNode_LinkedAnimGraph::IsActionFilteredOut(class FBlueprintActionF
 		{
 			if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
 			{
-				if(AnimBlueprint->TargetSkeleton != nullptr && !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(SkeletonName))
+				if(!AnimBlueprint->IsCompatibleByAssetString(SkeletonName, bIsTemplateAnimBlueprint, bIsInterfaceBlueprint))
 				{
 					bIsFilteredOut = true;
 					break;
