@@ -315,7 +315,9 @@ void UUVSelectTool::Setup()
 	SelectionMechanic->Setup(this);
 	SelectionMechanic->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UUVSelectTool::OnSelectionChanged);
+	
 	FMeshSelectionMechanicStyle SelectionStyle;
+	
 	SelectionStyle.TriangleColor = FUVEditorUXSettings::SelectionTriangleFillColor;
 	SelectionStyle.LineColor = FUVEditorUXSettings::SelectionTriangleWireframeColor;
 	SelectionStyle.PointColor = FUVEditorUXSettings::SelectionTriangleWireframeColor;
@@ -324,6 +326,15 @@ void UUVSelectTool::Setup()
 	SelectionStyle.PointThickness = FUVEditorUXSettings::SelectionPointThickness;
 	SelectionStyle.LineAndPointDepthBias = FUVEditorUXSettings::SelectionWireframeDepthBias;
 	SelectionStyle.TriangleDepthBias = FUVEditorUXSettings::SelectionTriangleDepthBias;
+	
+	SelectionStyle.HoverLineAndPointDepthBias = FUVEditorUXSettings::SelectionHoverWireframeDepthBias;
+	SelectionStyle.HoverTriangleDepthBias = FUVEditorUXSettings::SelectionHoverTriangleDepthBias;
+	SelectionStyle.HoverPointColor = FUVEditorUXSettings::SelectionHoverTriangleWireframeColor;
+	SelectionStyle.HoverEdgeColor = FUVEditorUXSettings::SelectionHoverTriangleWireframeColor;
+	SelectionStyle.HoverTriangleEdgeColor = FUVEditorUXSettings::SelectionHoverTriangleWireframeColor;
+	SelectionStyle.HoverTriangleFillColor = FUVEditorUXSettings::SelectionHoverTriangleFillColor;
+	SelectionStyle.HoverTriangleOpacity = FUVEditorUXSettings::SelectionHoverTriangleOpacity;
+	
 	SelectionMechanic->SetVisualizationStyle(SelectionStyle);
 		
 	// Make it so that our selection mechanic creates undo/redo transactions that go to a selection

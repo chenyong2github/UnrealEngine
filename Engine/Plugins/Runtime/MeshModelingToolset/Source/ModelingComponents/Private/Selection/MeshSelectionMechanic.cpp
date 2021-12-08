@@ -4,6 +4,7 @@
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
 #include "Drawing/TriangleSetComponent.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/PointSetComponent.h"
@@ -290,9 +291,92 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ClickOrDragBehavior->Modifiers.RegisterModifier(ShiftModifierID, FInputDeviceState::IsShiftKeyDown);
 	ClickOrDragBehavior->Modifiers.RegisterModifier(CtrlModifierID, FInputDeviceState::IsCtrlKeyDown);
 	ParentTool->AddInputBehavior(ClickOrDragBehavior);
+	
+	Settings = NewObject<UMeshSelectionMechanicProperties>(ParentToolIn);
+	Settings->RestoreProperties(ParentToolIn);
+	AddToolPropertySource(Settings);
+
+	ULocalMouseHoverBehavior* HoverBehavior = NewObject<ULocalMouseHoverBehavior>();
+	HoverBehavior->Initialize();
+	HoverBehavior->BeginHitTestFunc = [this](const FInputDeviceRay& Pos)
+	{
+		FInputRayHit Hit;
+		if (Settings->bShowHoveredElements)
+		{
+			EMeshSelectionMechanicMode Mode = SelectionMode;
+			if (Mode != EMeshSelectionMechanicMode::Vertex && Mode != EMeshSelectionMechanicMode::Edge)
+			{
+				Mode = EMeshSelectionMechanicMode::Triangle;
+			}
+
+			// We don't bother with the depth since there aren't competing hover behaviors
+			Hit.bHit = RayCast(Pos, Mode).IsEmpty() == false;
+		}
+		else
+		{
+			// Disable hover behavior
+			Hit.bHit = false;
+		}
+		return Hit;
+	};
+	HoverBehavior->OnUpdateHoverFunc = [this](const FInputDeviceRay& Pos)
+	{
+		EMeshSelectionMechanicMode Mode = SelectionMode;
+		if (SelectionMode != EMeshSelectionMechanicMode::Vertex && SelectionMode != EMeshSelectionMechanicMode::Edge)
+		{
+			Mode = EMeshSelectionMechanicMode::Triangle;
+		}
+		
+		HoverPointSet->Clear();
+		HoverLineSet->Clear();
+		HoverTriangleSet->Clear();
+		
+		TSet<int32> Hovered = RayCast(Pos, Mode);
+		for (int32 Id : Hovered)
+		{
+			if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
+			{
+				const FVector& P = CurrentSelection.Mesh->GetVertexRef(Id);
+				const FRenderablePoint PointToRender(P, VisualizationStyle.HoverPointColor, VisualizationStyle.PointThickness);
+				
+				HoverPointSet->AddPoint(PointToRender);
+			}
+			else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
+			{
+				const FIndex2i EdgeVids = CurrentSelection.Mesh->GetEdgeV(Id);
+				const FVector& A = CurrentSelection.Mesh->GetVertexRef(EdgeVids.A);
+				const FVector& B = CurrentSelection.Mesh->GetVertexRef(EdgeVids.B);
+				
+				HoverLineSet->AddLine(A, B, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
+			}
+			else
+			{
+				const FIndex3i Vids = CurrentSelection.Mesh->GetTriangle(Id);
+				const FVector& A = CurrentSelection.Mesh->GetVertex(Vids[0]);
+				const FVector& B = CurrentSelection.Mesh->GetVertex(Vids[1]);
+				const FVector& C = CurrentSelection.Mesh->GetVertex(Vids[2]);
+
+				HoverLineSet->AddLine(A, B, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
+				HoverLineSet->AddLine(B, C, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
+				HoverLineSet->AddLine(C, A, VisualizationStyle.HoverEdgeColor, VisualizationStyle.LineThickness, VisualizationStyle.HoverLineAndPointDepthBias);
+				HoverTriangleSet->AddTriangle(A, B, C, FVector::ZAxisVector, VisualizationStyle.HoverTriangleFillColor, HoverTriangleSetMaterial);
+			}
+
+			return true;
+		}
+		return false;
+	};
+	HoverBehavior->OnEndHoverFunc = [this]()
+	{
+		HoverPointSet->Clear();
+		HoverLineSet->Clear();
+		HoverTriangleSet->Clear();
+	};
+	ParentTool->AddInputBehavior(HoverBehavior);
 
 	ClearCurrentSelection();
 
+	// Setup selection visualizations
 	TriangleSet = NewObject<UTriangleSetComponent>();
 	// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
 	// where multiple translucent layers are drawn on top of each other but still need depth sorting.
@@ -300,13 +384,19 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(),
 		VisualizationStyle.TriangleColor, VisualizationStyle.TriangleDepthBias, VisualizationStyle.TriangleOpacity);
 	
-	LineSet = NewObject<ULineSetComponent>();
-	LineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
-		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
-
 	PointSet = NewObject<UPointSetComponent>();
-	PointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(
-		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
+	PointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial( GetParentTool()->GetToolManager(), true));
+	LineSet = NewObject<ULineSetComponent>();
+	LineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial( GetParentTool()->GetToolManager(), true));
+
+	// Setup hover visualizations
+	HoverPointSet = NewObject<UPointSetComponent>();
+	HoverPointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(GetParentTool()->GetToolManager(), false));
+	HoverLineSet = NewObject<ULineSetComponent>();
+	HoverLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(GetParentTool()->GetToolManager(), false));
+	HoverTriangleSet = NewObject<UTriangleSetComponent>();
+	HoverTriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(),
+		VisualizationStyle.HoverTriangleFillColor, VisualizationStyle.HoverTriangleDepthBias, VisualizationStyle.HoverTriangleOpacity);
 
 	// Add default selection change emitter if one was not provided.
 	if (!EmitSelectionChange)
@@ -322,6 +412,18 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 void UMeshSelectionMechanic::SetWorld(UWorld* World)
 {
+	auto RegisterComponent = [this](UMeshComponent* Component)
+	{
+		if (Component->IsRegistered())
+		{
+			Component->ReregisterComponent();
+		}
+		else
+		{
+			Component->RegisterComponent();
+		}
+	};
+	
 	// It may be unreasonable to worry about SetWorld being called more than once, but let's be safe anyway
 	if (PreviewGeometryActor)
 	{
@@ -337,36 +439,35 @@ void UMeshSelectionMechanic::SetWorld(UWorld* World)
 	// Attach the rendering component to the actor		
 	TriangleSet->Rename(nullptr, PreviewGeometryActor); // Changes the "outer"
 	PreviewGeometryActor->SetRootComponent(TriangleSet);
-	if (TriangleSet->IsRegistered())
-	{
-		TriangleSet->ReregisterComponent();
-	}
-	else
-	{
-		TriangleSet->RegisterComponent();
-	}
+	RegisterComponent(TriangleSet);
 
 	LineSet->Rename(nullptr, PreviewGeometryActor); // Changes the "outer"
 	LineSet->AttachToComponent(TriangleSet, FAttachmentTransformRules::KeepWorldTransform);
-	if (LineSet->IsRegistered())
-	{
-		LineSet->ReregisterComponent();
-	}
-	else
-	{
-		LineSet->RegisterComponent();
-	}
-
+	RegisterComponent(LineSet);
+	
 	PointSet->Rename(nullptr, PreviewGeometryActor); // Changes the "outer"
 	PointSet->AttachToComponent(TriangleSet, FAttachmentTransformRules::KeepWorldTransform);
-	if (PointSet->IsRegistered())
+	RegisterComponent(PointSet);
+
+	if (HoverGeometryActor)
 	{
-		PointSet->ReregisterComponent();
+		HoverGeometryActor->Destroy();
 	}
-	else
-	{
-		PointSet->RegisterComponent();
-	}
+	
+	HoverGeometryActor = World->SpawnActor<APreviewGeometryActor>(FVector::ZeroVector, Rotation, SpawnInfo);
+	
+	// Attach the rendering component to the actor		
+	HoverTriangleSet->Rename(nullptr, HoverGeometryActor); // Changes the "outer"
+	HoverGeometryActor->SetRootComponent(HoverTriangleSet);
+	RegisterComponent(HoverTriangleSet);
+
+	HoverLineSet->Rename(nullptr, HoverGeometryActor); // Changes the "outer"
+	HoverLineSet->AttachToComponent(HoverTriangleSet, FAttachmentTransformRules::KeepWorldTransform);
+	RegisterComponent(HoverLineSet);
+	
+	HoverPointSet->Rename(nullptr, HoverGeometryActor); // Changes the "outer"
+	HoverPointSet->AttachToComponent(HoverTriangleSet, FAttachmentTransformRules::KeepWorldTransform);
+	RegisterComponent(HoverPointSet);
 }
 
 void UMeshSelectionMechanic::Shutdown()
@@ -403,6 +504,18 @@ void UMeshSelectionMechanic::SetVisualizationStyle(const FMeshSelectionMechanicS
 		TriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), VisualizationStyle.TriangleColor);
 		TriangleSetMaterial->SetScalarParameterValue(TEXT("Opacity"), VisualizationStyle.TriangleOpacity);
 		TriangleSetMaterial->SetScalarParameterValue(TEXT("PercentDepthOffset"), VisualizationStyle.TriangleDepthBias);
+	}
+	
+	if (HoverTriangleSet) {
+		// We are setting the TranslucencySortPriority here to handle the UV editor's use case in 2D
+		// where multiple translucent layers are drawn on top of each other but still need depth sorting.
+		HoverTriangleSet->TranslucencySortPriority = VisualizationStyle.HoverTriangleDepthBias;
+	}
+	
+	if (HoverTriangleSetMaterial) {
+		HoverTriangleSetMaterial->SetVectorParameterValue(TEXT("Color"), VisualizationStyle.HoverTriangleFillColor);
+		HoverTriangleSetMaterial->SetScalarParameterValue(TEXT("Opacity"), VisualizationStyle.HoverTriangleOpacity);
+		HoverTriangleSetMaterial->SetScalarParameterValue(TEXT("PercentDepthOffset"), VisualizationStyle.HoverTriangleDepthBias);
 	}
 }
 
@@ -891,107 +1004,7 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		ClearCurrentSelection();
 	}
 
-	TSet<int32> ClickSelectedIDs; // TODO Maybe using a TVariant would have been better here...
-	{
-		int32 HitTid = IndexConstants::InvalidID;
-		for (int32 MeshIndex = 0; MeshIndex < MeshSpatials.Num(); ++MeshIndex)
-		{
-			FRay3d LocalRay(
-				(FVector3d)MeshTransforms[MeshIndex].InverseTransformPosition(ClickPos.WorldRay.Origin),
-				(FVector3d)MeshTransforms[MeshIndex].InverseTransformVector(ClickPos.WorldRay.Direction));
-
-			double RayT = 0; 
-			if (MeshSpatials[MeshIndex]->FindNearestHitTriangle(LocalRay, RayT, HitTid))
-			{
-				CurrentSelection.Mesh = MeshSpatials[MeshIndex]->GetMesh();
-				CurrentSelection.TopologyTimestamp = CurrentSelection.Mesh->GetTopologyChangeStamp();
-				CurrentSelectionIndex = MeshIndex;
-				break;
-			}
-		}
-
-		if (HitTid != IndexConstants::InvalidID)
-		{
-			if (SelectionMode == EMeshSelectionMechanicMode::Component)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnClicked_Component);
-
-				FMeshConnectedComponents MeshSelectedComponent(CurrentSelection.Mesh);
-				TArray<int32> SeedTriangles;
-				SeedTriangles.Add(HitTid);
-				MeshSelectedComponent.FindTrianglesConnectedToSeeds(SeedTriangles);
-				ensure(MeshSelectedComponent.Components.Num() == 1); // Expect each triangle to only be in a single component
-				ClickSelectedIDs.Append(MoveTemp(MeshSelectedComponent.Components[0].Indices));
-			}
-			else if (SelectionMode == EMeshSelectionMechanicMode::Edge)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnClicked_Edge);
-				// TODO: We'll need the ability to hit occluded triangles to see if there is a better edge to snap to.
-
-				// Try to snap to one of the edges.
-				FIndex3i Eids = CurrentSelection.Mesh->GetTriEdges(HitTid);
-
-				FGeometrySet3 GeometrySet;
-				for (int i = 0; i < 3; ++i)
-				{
-					FIndex2i Vids = CurrentSelection.Mesh->GetEdgeV(Eids[i]);
-					FPolyline3d Polyline(CurrentSelection.Mesh->GetVertex(Vids.A), CurrentSelection.Mesh->GetVertex(Vids.B));
-					GeometrySet.AddCurve(Eids[i], Polyline);
-				}
-				FGeometrySet3::FNearest Result;
-				if (GeometrySet.FindNearestCurveToRay((FRay3d)ClickPos.WorldRay, Result, 
-					[this](const FVector3d& Position1, const FVector3d& Position2) {
-						return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
-							Position1, Position2,
-							ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
-				{
-					ClickSelectedIDs = TSet<int32>{Result.ID};
-				}
-			}
-			else if (SelectionMode == EMeshSelectionMechanicMode::Vertex)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnClicked_Vertex);
-				// TODO: Improve this to handle super narrow, sliver triangles better, where testing near vertices can be difficult.
-
-				// Try to snap to one of the vertices
-				FIndex3i Vids = CurrentSelection.Mesh->GetTriangle(HitTid);
-
-				FGeometrySet3 GeometrySet;
-				for (int i = 0; i < 3; ++i)
-				{
-					GeometrySet.AddPoint(Vids[i], CurrentSelection.Mesh->GetTriVertex(HitTid, i));
-				}
-				FGeometrySet3::FNearest Result;
-				if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Result,
-					[this](const FVector3d& Position1, const FVector3d& Position2) {
-						return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
-							Position1, Position2,
-							ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
-				{
-					ClickSelectedIDs = TSet<int32>{Result.ID};
-				}
-			}
-			else if (SelectionMode == EMeshSelectionMechanicMode::Triangle)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnClicked_Triangle);
-
-				ClickSelectedIDs = TSet<int32>{HitTid};
-			}
-			else if (SelectionMode == EMeshSelectionMechanicMode::Mesh)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(MeshSelectionMechanic_OnClicked_Mesh);
-
-				for (int32 Tid : CurrentSelection.Mesh->TriangleIndicesItr())
-				{
-					ClickSelectedIDs.Add(Tid);
-				}
-			}
-			else
-			{
-				checkNoEntry();
-			}
-		}
-	}
+	TSet<int32> ClickSelectedIDs = RayCast(ClickPos, SelectionMode); // TODO Maybe using a TVariant would have been better here...
 
 	// TODO Perhaps selection clearing should happen only if the click occurs further than some threshold from the meshes
 	UpdateCurrentSelection(ClickSelectedIDs);
@@ -1005,6 +1018,119 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		// Rebuild after broadcast in case the outside world wants to adjust things like color...
 		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
 	}
+}
+
+TSet<int32> UMeshSelectionMechanic::RayCast(const FInputDeviceRay& Pos, EMeshSelectionMechanicMode Mode)
+{
+	// TODO if the selection mode is Vertex, Edge or Triangle we'll return at most one index, if the selection mode is
+	// Component or Mesh we'll return a set of components. Perhaps it would be better to use TVariant here (and maybe
+	// also a TArray rather than a TSet)
+	TSet<int32> Result;
+	
+	int32 HitTid = IndexConstants::InvalidID;
+	for (int32 MeshIndex = 0; MeshIndex < MeshSpatials.Num(); ++MeshIndex)
+	{
+		FRay3d LocalRay(
+			(FVector3d)MeshTransforms[MeshIndex].InverseTransformPosition(Pos.WorldRay.Origin),
+			(FVector3d)MeshTransforms[MeshIndex].InverseTransformVector(Pos.WorldRay.Direction));
+
+		double RayT = 0;
+		if (MeshSpatials[MeshIndex]->FindNearestHitTriangle(LocalRay, RayT, HitTid))
+		{
+			CurrentSelection.Mesh = MeshSpatials[MeshIndex]->GetMesh();
+			CurrentSelection.TopologyTimestamp = CurrentSelection.Mesh->GetTopologyChangeStamp();
+			CurrentSelectionIndex = MeshIndex;
+			break;
+		}
+	}
+
+	if (HitTid != IndexConstants::InvalidID)
+	{
+		if (Mode == EMeshSelectionMechanicMode::Component)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Component);
+
+			FMeshConnectedComponents MeshSelectedComponent(CurrentSelection.Mesh);
+			TArray<int32> SeedTriangles;
+			SeedTriangles.Add(HitTid);
+			MeshSelectedComponent.FindTrianglesConnectedToSeeds(SeedTriangles);
+			ensure(MeshSelectedComponent.Components.Num() == 1); // Expect each triangle to only be in a single component
+			Result.Append(MoveTemp(MeshSelectedComponent.Components[0].Indices));
+		}
+		else if (Mode == EMeshSelectionMechanicMode::Edge)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Edge);
+			// TODO: We'll need the ability to hit occluded triangles to see if there is a better edge to snap to.
+
+			// Try to snap to one of the edges.
+			FIndex3i Eids = CurrentSelection.Mesh->GetTriEdges(HitTid);
+
+			FGeometrySet3 GeometrySet;
+			for (int i = 0; i < 3; ++i)
+			{
+				FIndex2i Vids = CurrentSelection.Mesh->GetEdgeV(Eids[i]);
+				FPolyline3d Polyline(CurrentSelection.Mesh->GetVertex(Vids.A), CurrentSelection.Mesh->GetVertex(Vids.B));
+				GeometrySet.AddCurve(Eids[i], Polyline);
+			}
+
+			FRay3d WorldRay((FVector3d)Pos.WorldRay.Origin, (FVector3d)Pos.WorldRay.Direction);
+			FGeometrySet3::FNearest Nearest;
+			if (GeometrySet.FindNearestCurveToRay(WorldRay, Nearest, 
+				[this](const FVector3d& Position1, const FVector3d& Position2) {
+					return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
+						Position1, Position2,
+						ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
+			{
+				Result = TSet<int32>{Nearest.ID};
+			}
+		}
+		else if (Mode == EMeshSelectionMechanicMode::Vertex)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Vertex);
+			// TODO: Improve this to handle super narrow, sliver triangles better, where testing near vertices can be difficult.
+
+			// Try to snap to one of the vertices
+			FIndex3i Vids = CurrentSelection.Mesh->GetTriangle(HitTid);
+
+			FGeometrySet3 GeometrySet;
+			for (int i = 0; i < 3; ++i)
+			{
+				GeometrySet.AddPoint(Vids[i], CurrentSelection.Mesh->GetTriVertex(HitTid, i));
+			}
+			
+			FRay3d WorldRay((FVector3d)Pos.WorldRay.Origin, (FVector3d)Pos.WorldRay.Direction);
+			FGeometrySet3::FNearest Nearest;
+			if (GeometrySet.FindNearestPointToRay(WorldRay, Nearest,
+				[this](const FVector3d& Position1, const FVector3d& Position2) {
+					return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
+						Position1, Position2,
+						ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD()); }))
+			{
+				Result = TSet<int32>{Nearest.ID};
+			}
+		}
+		else if (Mode == EMeshSelectionMechanicMode::Triangle)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Triangle);
+
+			Result = TSet<int32>{HitTid};
+		}
+		else if (Mode == EMeshSelectionMechanicMode::Mesh)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Mesh);
+
+			for (int32 Tid : CurrentSelection.Mesh->TriangleIndicesItr())
+			{
+				Result.Add(Tid);
+			}
+		}
+		else
+		{
+			checkNoEntry();
+		}
+	}
+
+	return Result;
 }
 
 void UMeshSelectionMechanic::OnDragRectangleStarted()

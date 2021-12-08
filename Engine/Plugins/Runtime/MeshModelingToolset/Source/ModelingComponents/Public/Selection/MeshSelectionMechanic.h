@@ -42,8 +42,14 @@ class MODELINGCOMPONENTS_API UMeshSelectionMechanicProperties : public UInteract
 	GENERATED_BODY()
 
 public:
+	//~ TODO Make this show up with the AdvancedDisplay settings in UUVSelectToolProoperties? Maybe it needs to move there and get passed it to UMeshSelectionMechanic
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	bool bShowHoveredElements = true;
 };
 
+// These values are all overwritten
+// TODO Directly use the values in FUVEditorUXSettings when MeshSelectionMechanic is moved into UV Editor module, we can
+//  also remove the SetVisualizationStyle
 struct MODELINGCOMPONENTS_API FMeshSelectionMechanicStyle
 {
 	FColor TriangleColor = FColor::Yellow;
@@ -52,8 +58,16 @@ struct MODELINGCOMPONENTS_API FMeshSelectionMechanicStyle
 	float TriangleOpacity = 0.3;
 	float LineThickness = 1.5;
 	float PointThickness = 6;
-	float LineAndPointDepthBias = 0.7;
-	float TriangleDepthBias = 0.65;
+	float LineAndPointDepthBias = 4;
+	float TriangleDepthBias = 3;
+	
+	FColor HoverPointColor = FColor::FromHex("0E86FF");
+	FColor HoverEdgeColor = FColor::FromHex("0E86FF");
+	FColor HoverTriangleEdgeColor = FColor::FromHex("0E86FF");
+	FColor HoverTriangleFillColor = FColor::FromHex("4E719B");
+	float HoverTriangleOpacity = 1;
+	float HoverLineAndPointDepthBias = 6;
+	float HoverTriangleDepthBias = 5;
 };
 
 /**
@@ -108,6 +122,8 @@ public:
 
 	// IModifierToggleBehaviorTarget implementation
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+	
+	TSet<int32> RayCast(const FInputDeviceRay& ClickPos, EMeshSelectionMechanicMode Mode);
 
 	FSimpleMulticastDelegate OnSelectionChanged;
 
@@ -131,6 +147,9 @@ protected:
 	bool ShouldRestartSelection() const { return !bCtrlToggle && !bShiftToggle; }
 
 	UPROPERTY()
+	TObjectPtr<UMeshSelectionMechanicProperties> Settings = nullptr;
+
+	UPROPERTY()
 	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic;
 
 	UPROPERTY()
@@ -138,17 +157,26 @@ protected:
 
 	/** The material being displayed for selected triangles */
 	UPROPERTY()
-	TObjectPtr<UMaterialInstanceDynamic> TriangleSetMaterial;
-
+	TObjectPtr<UMaterialInstanceDynamic> TriangleSetMaterial = nullptr;
 	UPROPERTY()
 	TObjectPtr<UTriangleSetComponent> TriangleSet = nullptr;
-
 	UPROPERTY()
 	TObjectPtr<ULineSetComponent> LineSet = nullptr;
-
 	UPROPERTY()
 	TObjectPtr<UPointSetComponent> PointSet = nullptr;
-
+	
+	UPROPERTY()
+	TObjectPtr<APreviewGeometryActor> HoverGeometryActor = nullptr;
+	
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> HoverTriangleSetMaterial = nullptr;
+	UPROPERTY()
+	TObjectPtr<UTriangleSetComponent> HoverTriangleSet = nullptr;
+	UPROPERTY()
+	TObjectPtr<ULineSetComponent> HoverLineSet = nullptr;
+	UPROPERTY()
+	TObjectPtr<UPointSetComponent> HoverPointSet = nullptr;
+	
 
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials;
 	TArray<FTransform> MeshTransforms;

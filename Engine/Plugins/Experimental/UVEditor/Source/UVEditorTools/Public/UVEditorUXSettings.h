@@ -41,7 +41,7 @@ public:
 	static const FColor SelectionTriangleFillColor;
 	static const FColor SelectionTriangleWireframeColor;
 
-	// Todo: Not used yet, for the upcoming pre-selection hover feature
+	static const float SelectionHoverTriangleOpacity;
 	static const FColor SelectionHoverTriangleFillColor;
 	static const FColor SelectionHoverTriangleWireframeColor;
 
@@ -53,6 +53,8 @@ public:
 	static const float SelectionPointThickness;
 	static const float SelectionWireframeDepthBias;
 	static const float SelectionTriangleDepthBias;
+	static const float SelectionHoverWireframeDepthBias;
+	static const float SelectionHoverTriangleDepthBias;
 
 	// Sew Action styling
 	static const float SewLineHighlightThickness;
