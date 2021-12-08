@@ -20,7 +20,8 @@ class FPrivateNeuralTensor
 public:
 	template <typename T>
 	static FString SanitizeFloat(const T InValue);
-	static void ArrayToSanitizedString(FString& InOutTensorString, const int64 InIndexStart, const int64 InIndexEnd, const int64 InOffset, const ENeuralDataType InDataType, const FNeuralTensor& InTensor);
+	static void ArrayToSanitizedString(FString& InOutTensorString, const int64 InIndexStart, const int64 InIndexEnd, const int64 InOffset,
+		const ENeuralDataType InDataType, const FNeuralTensor& InTensor);
 
 	static void NDTensorIndexesPlus1(TArray<int32>& InOutImageAreaIndexes, const TArray<int32>& InSizes);
 
@@ -50,11 +51,13 @@ FString FPrivateNeuralTensor::SanitizeFloat(const T InValue)
 		TensorString += FNumberToStringFunction(InTensor.At<DataType>(Offset + Index)) + TEXT(" "); \
 	}
 
-void FPrivateNeuralTensor::ArrayToSanitizedString(FString& InOutTensorString, const int64 InIndexStart, const int64 InIndexEnd, const int64 InOffset, const ENeuralDataType InDataType, const FNeuralTensor& InTensor)
+void FPrivateNeuralTensor::ArrayToSanitizedString(FString& InOutTensorString, const int64 InIndexStart, const int64 InIndexEnd, const int64 InOffset,
+	const ENeuralDataType InDataType, const FNeuralTensor& InTensor)
 {
 	if (InDataType == ENeuralDataType::Float)
 	{
-		FOR_LOOP_FLOAT_TYPE_TO_SANITIZED_STRING(InOutTensorString, InTensor, InIndexStart, InIndexEnd, InOffset, FPrivateNeuralTensor::SanitizeFloat, float);
+		FOR_LOOP_FLOAT_TYPE_TO_SANITIZED_STRING(InOutTensorString, InTensor, InIndexStart, InIndexEnd, InOffset, FPrivateNeuralTensor::SanitizeFloat,
+			float);
 	}
 	else if (InDataType == ENeuralDataType::Int32)
 	{
@@ -74,7 +77,8 @@ void FPrivateNeuralTensor::ArrayToSanitizedString(FString& InOutTensorString, co
 	}
 	else
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::ArrayToSanitizedString(): Unknown InDataType = %d used."), (int32)InDataType);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::ArrayToSanitizedString(): Unknown InDataType = %d used."),
+			(int32)InDataType);
 	}
 }
 
@@ -122,7 +126,8 @@ ENeuralDataType FPrivateNeuralTensor::GetDataTypeFromTensorProtoDataType(const E
 	{
 		return ENeuralDataType::None;
 	}
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::GetDataTypeFromTensorProtoDataType(): Unknown InTensorProtoDataType = %d used."), (int32)InTensorProtoDataType);
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::GetDataTypeFromTensorProtoDataType(): Unknown InTensorProtoDataType = %d used."),
+		(int32)InTensorProtoDataType);
 	return ENeuralDataType::None;
 }
 
@@ -131,7 +136,8 @@ ENeuralDataType FPrivateNeuralTensor::GetDataTypeFromTensorProtoDataType(const E
 /* FNeuralTensor costructors
  *****************************************************************************/
 
-FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorType)
+FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const TArray<int64>& InSizes, const FString& InName,
+	const ENeuralTensorType InTensorType)
 	: DataType(ENeuralDataType::None)
 	, Name(InName)
 	, TensorType(InTensorType)
@@ -151,7 +157,8 @@ FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const int64 InVol
 /* FNeuralTensor private costructor
  *****************************************************************************/
 
-FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorType)
+FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum,
+	const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorType)
 	: FNeuralTensor(InDataType, InSizes, InName, InTensorType)
 {
 	// Sanity check
@@ -292,8 +299,8 @@ void FNeuralTensor::SetFromUnderlyingUInt8ArrayCopy(const TArray<uint8>& InArray
 {
 	if (NumInBytes() != InArray.Num())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning,
-			TEXT("FNeuralTensor::SetFromUnderlyingUInt8ArrayCopy(): NumInBytes() == InArray.Num() failed, %d != %d."), NumInBytes(), InArray.Num());
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromUnderlyingUInt8ArrayCopy():"
+			" NumInBytes() == InArray.Num() failed, %d != %d."), NumInBytes(), InArray.Num());
 		return;
 	}
 	UnderlyingUInt8ArrayData = InArray;
@@ -307,7 +314,7 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 		return false;
 	}
 
-	// const FString& InExternalDataDirectory = TEXT("") - @param InExternalDataDirectory is only required if InTensorProto->ExternalData is being used.
+	// const FString& InExternalDataDirectory = TEXT(""); // InExternalDataDirectory only required if InTensorProto->ExternalData is being used.
 
 	// Create Tensor
 	Name = InTensorName;
@@ -328,15 +335,18 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 		// // Sanity check
 		// if (InTensorProto->ExternalData[0].Key != TEXT("location") || InTensorProto->ExternalData[0].Value.Len() < 1)
 		// {
-		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): InTensorProto->ExternalData[0].Key = %s != \"location\""
-		// 		" || InTensorProto->ExternalData[0].Value.Len() = %d (should be > 0)."), *InTensorProto->ExternalData[0].Key, InTensorProto->ExternalData[0].Value.Len());
+		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto():"
+		//      " InTensorProto->ExternalData[0].Key = %s != \"location\" || InTensorProto->ExternalData[0].Value.Len() = %d (should be > 0)."),
+		//      *InTensorProto->ExternalData[0].Key, InTensorProto->ExternalData[0].Value.Len());
 		// 	return false;
 		// }
 		// // Read neural tensor from binary data
 		// const FString BinaryWeightFilePath = InExternalDataDirectory / InTensorProto->ExternalData[0].Value;
-		// if (!FModelProtoFileReader::ReadWeightsFromOtxtBinaryFile((char*)GetData(), Num() * FNeuralDataTypeUtils::GetByteSize(NeuralDataType), BinaryWeightFilePath))
+		// if (!FModelProtoFileReader::ReadWeightsFromOtxtBinaryFile((char*)GetData(), Num() * FNeuralDataTypeUtils::GetByteSize(NeuralDataType),
+		//     BinaryWeightFilePath))
 		// {
-		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): Could not read binary file: %s."), *BinaryWeightFilePath);
+		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): Could not read binary file: %s."),
+		//      *BinaryWeightFilePath);
 		// 	return false;
 		// }
 	}
@@ -379,7 +389,7 @@ bool FNeuralTensor::Flip(const int32 InDimension)
 		TensorNDSizes.Init(1, TensorNDSize);
 		for (int32 NDTensorSizeIndex = 0; NDTensorSizeIndex < TensorNDSize; ++NDTensorSizeIndex)
 		{
-			TensorNDSizes[NDTensorSizeIndex] *= Sizes[NDTensorSizeIndex]; // Idea: Sizes=[1, 2, 3, 4], InDimension = 2, then TensorNDSizes = [1, 2x3x4]
+			TensorNDSizes[NDTensorSizeIndex] *= Sizes[NDTensorSizeIndex]; // E.g., Sizes=[1,2,3,4] and InDimension=2 --> TensorNDSizes = [1, 2x3x4]
 		}
 	}
 
@@ -398,7 +408,8 @@ bool FNeuralTensor::Flip(const int32 InDimension)
 		// Remove last index (that makes it a normal index) and replace with its flipped equivalent
 		FlippedTensorIndex = FlippedTensorIndex + Sizes[InDimension] - 1 - 2 * TensorNDIndexes.Last();
 		// Flip TensorIndex value
-		FMemory::Memcpy(&NewArrayOnCPU.GetData()[TensorIndex * BytesPerIndex], &UnderlyingUInt8ArrayData.GetData()[FlippedTensorIndex * DimensionOffsetInBytes], DimensionOffsetInBytes);
+		FMemory::Memcpy(&NewArrayOnCPU.GetData()[TensorIndex * BytesPerIndex],
+			&UnderlyingUInt8ArrayData.GetData()[FlippedTensorIndex * DimensionOffsetInBytes], DimensionOffsetInBytes);
 		// Increase TensorNDIndexes
 		FPrivateNeuralTensor::NDTensorIndexesPlus1(TensorNDIndexes, TensorNDSizes);
 	}
@@ -411,12 +422,14 @@ bool FNeuralTensor::Flip(const int32 InDimensionFirst, const int32 InDimensionLa
 	// Sanity checks
 	if (InDimensionFirst >= InDimensionLast)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::Transpose(): InDimensionFirst < InDimensionLast failed, %d >= %d."), *Name, InDimensionFirst, InDimensionLast);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::Flip(): InDimensionFirst < InDimensionLast failed, %d >= %d."),
+			*Name, InDimensionFirst, InDimensionLast);
 		return false;
 	}
 	else if (InDimensionLast > GetNumberDimensions())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::Transpose(): InDimensionLast < GetNumberDimensions() failed, %d >= %d."), *Name, InDimensionLast, GetNumberDimensions());
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::Flip(): InDimensionLast < GetNumberDimensions() failed, %d >= %d."),
+			*Name, InDimensionLast, GetNumberDimensions());
 		return false;
 	}
 	// Flip
@@ -466,7 +479,8 @@ bool FNeuralTensor::Transpose()
 		}
 		else
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::Transpose(): Unexpected case NumberDimensions = %d != 1 || 2."), *Name, NumberDimensions);
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::Transpose(): Unexpected case NumberDimensions = %d != 1 || 2."),
+				*Name, NumberDimensions);
 			return false;
 		}
 		// Swap W <-> H
@@ -489,7 +503,8 @@ bool FNeuralTensor::ReshapeMove(TArray<int64>& InSizes)
 		Swap(Sizes, InSizes);
 		return true;
 	}
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::ReshapeMove(): Volume == NewVolume failed, %d != %d."), *Name, Volume, NewVolume);
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::ReshapeMove(): Volume == NewVolume failed, %d != %d."), *Name, Volume,
+		NewVolume);
 	return false;
 }
 
@@ -501,12 +516,15 @@ void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder)
 // at D:/P4/private_dh_research_pitt/Engine/Source/Runtime/Windows/D3D11RHI/Private/D3D11VertexBuffer.cpp:109 
 // with error E_INVALIDARG
 	// Idea:
-	// - EBufferUsageFlags::Volatile: Updated multiple times in a frame, but does not imply a lifetime of 1 frame. E.g. a vertex buffer you update every frame with new vertices.
+	// - EBufferUsageFlags::Volatile: Updated multiple times in a frame, but does not imply a lifetime of 1 frame. E.g. a vertex buffer you update
+	//   every frame with new vertices.
 	// - EBufferUsageFlags::Transient: Used during 1 frame. Volatile and transient are not mutually exclusive.
 	// - EBufferUsageFlags::KeepCPUAccessible: Not needed, I can just copy the final GPU memory back to RAM at the very end
-	// - Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor fed into a ReLU, which simply modifies
-	//   the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory from CPU to GPU but rather simply allocates it.
-	// - Output might also become Intermediate(Not)Initialized (e.g., if Output -> ReLU -> Output), so it is kept as ReadWrite rather than written once to account for this.
+	// - Input and Intermediate(Not)Initialized currently share the same attributes because input might become intermediate (e.g., if input tensor
+	//   fed into a ReLU, which simply modifies the input FNeuralTensor). However, Intermediate(Not)Initialized and Output do not copy the memory
+	//   from CPU to GPU but rather simply allocates it.
+	// - Output might also become Intermediate(Not)Initialized (e.g., if Output -> ReLU -> Output), so it is kept as ReadWrite rather than written
+	//   once to account for this.
 	// Call ToGPU_RenderThread with the right flags
 	if (TensorType == ENeuralTensorType::Generic)
 	{
@@ -518,7 +536,8 @@ void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder)
 	}
 	else if (TensorType == ENeuralTensorType::IntermediateNotInitialized)
 	{
-		return CPUToRDGBuilder_RenderThread(InOutGraphBuilder, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::Transient, false);
+		return CPUToRDGBuilder_RenderThread(InOutGraphBuilder,
+			EBufferUsageFlags::ShaderResource | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::Transient, false);
 	}
 	else if (TensorType == ENeuralTensorType::IntermediateInitialized)
 	{
@@ -546,7 +565,8 @@ void FNeuralTensor::GPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder)
 	}
 	// Sanity checks
 	checkf(IsInRenderingThread(), TEXT("FNeuralTensor-%s::GPUToRDGBuilder_RenderThread(): IsInRenderingThread() must be true."), *Name);
-	checkf(PooledBuffer.IsValid() && InOutGraphBuilder, TEXT("FNeuralTensor-%s::GPUToRDGBuilder_RenderThread(): IPooledBuffer and InOutGraphBuilder cannot be nullptrs."), *Name);
+	checkf(PooledBuffer.IsValid() && InOutGraphBuilder, TEXT("FNeuralTensor-%s::GPUToRDGBuilder_RenderThread(): IPooledBuffer and InOutGraphBuilder"
+		" cannot be nullptrs."), *Name);
 	// Register BufferRef
 	FRDGBufferRef BufferRef = InOutGraphBuilder->RegisterExternalBuffer(*PooledBuffer);
 	// Recreate BufferSRVRef
@@ -797,9 +817,9 @@ void FNeuralTensor::SetFromPointer(const void* const InData, const int64 InSizeO
 	// Sanity checks
 	if (Num() != InDataSize || NumInBytes() != InSizeOfT * InDataSize)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::SetFromPointer: Num() == InDataSize failed, %d vs. %d, or NumInBytes() == sizeof(T) x InDataSize failed, %d vs. %d."
-			" If you want to modify the dimensions of FNeuralTensor, call SetNumUninitialized() first."),
-			*Name, Num(), InDataSize, NumInBytes(), InSizeOfT * InDataSize);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::SetFromPointer: Num() == InDataSize failed, %d vs. %d, or"
+			" NumInBytes() == sizeof(T) x InDataSize failed, %d vs. %d. If you want to modify the dimensions of FNeuralTensor, call"
+			" SetNumUninitialized() first."), *Name, Num(), InDataSize, NumInBytes(), InSizeOfT * InDataSize);
 	}
 	else
 	{
@@ -808,7 +828,7 @@ void FNeuralTensor::SetFromPointer(const void* const InData, const int64 InSizeO
 	}
 }
 
-bool FNeuralTensor::CheckTAndDataTypeResult(const bool bInCheckTAndDataTypeResult, const int64 InSizeOfT) const
+bool FNeuralTensor::CheckTAndDataTypeEquivalentAuxiliary(const bool bInCheckTAndDataTypeResult, const int64 InSizeOfT) const
 {
 	const int64 ByteSizeOfDataType = FNeuralDataTypeUtils::GetByteSize(DataType);
 	if (!bInCheckTAndDataTypeResult)
@@ -817,20 +837,21 @@ bool FNeuralTensor::CheckTAndDataTypeResult(const bool bInCheckTAndDataTypeResul
 		// sizeof(T) and DataType do not match
 		if (ByteSizeOfDataType != InSizeOfT)
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::CheckTAndDataTypeResult() failed: DataType = %s, but sizeof(%s) = %d != sizeof(T) = %d."),
-				*Name, *DataTypeString, *DataTypeString, ByteSizeOfDataType, InSizeOfT);
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::CheckTAndDataTypeEquivalentAuxiliary() failed: DataType = %s, but"
+				" sizeof(%s) = %d != sizeof(T) = %d."), *Name, *DataTypeString, *DataTypeString, ByteSizeOfDataType, InSizeOfT);
 		}
 		// sizeof(T) matches, but not the expected DataType
 		else
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::CheckTAndDataTypeResult() failed: DataType = %s, but used a different DataType with the same sizeof(%s) of %d."),
-				*Name, *DataTypeString, *DataTypeString, InSizeOfT);
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::CheckTAndDataTypeEquivalentAuxiliary() failed: DataType = %s, but"
+				" used a different DataType with the same sizeof(%s) of %d."), *Name, *DataTypeString, *DataTypeString, InSizeOfT);
 		}
 	}
 	return bInCheckTAndDataTypeResult;
 }
 
-void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBufferUsageFlags InBufferUsageFlags, const bool bInShouldCopyFromCPU)
+void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBufferUsageFlags InBufferUsageFlags,
+	const bool bInShouldCopyFromCPU)
 {
 	// Sanity checks
 	if (!bEnableGPU || IsEmpty())
@@ -861,7 +882,8 @@ void FNeuralTensor::CPUToRDGBuilder_RenderThread(FRDGBuilder* InOutGraphBuilder,
 		BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
 		
 		BufferRef = bInShouldCopyFromCPU 
-			? CreateVertexBuffer(*InOutGraphBuilder, *Name, BufferDesc, UnderlyingUInt8ArrayData.GetData(), NumInBytes(), ERDGInitialDataFlags::NoCopy)
+			? CreateVertexBuffer(*InOutGraphBuilder, *Name, BufferDesc, UnderlyingUInt8ArrayData.GetData(), NumInBytes(),
+				ERDGInitialDataFlags::NoCopy)
 			: InOutGraphBuilder->CreateBuffer(BufferDesc, *Name);
 
 		// Recreate PooledBuffer for future runs
