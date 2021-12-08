@@ -22,8 +22,20 @@ namespace UnrealBuildTool.Rules
                     "DatasmithCore",
                     "DatasmithTranslator",
 					"Projects",
-                }
-            );
-        }
+				}
+			);
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"DesktopPlatform",
+						"Slate",
+						"UnrealEd",
+					}
+				);
+			}
+		}
     }
 }

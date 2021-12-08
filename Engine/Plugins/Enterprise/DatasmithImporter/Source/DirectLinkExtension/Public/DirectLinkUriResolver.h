@@ -29,6 +29,9 @@ namespace UE::DatasmithImporter
 		virtual TSharedPtr<FExternalSource> GetOrCreateExternalSource(const FSourceUri& Uri) const override;
 		virtual bool CanResolveUri(const FSourceUri& Uri) const override;
 		virtual FName GetScheme() const override { return FName(GetDirectLinkScheme()); }
+#if WITH_EDITOR
+		virtual TSharedPtr<FExternalSource> BrowseExternalSource(const FSourceUri& DefaultSourceUri) const override;
+#endif //WITH_EDITOR
 		// IUriResolver interface end
 
 		/**

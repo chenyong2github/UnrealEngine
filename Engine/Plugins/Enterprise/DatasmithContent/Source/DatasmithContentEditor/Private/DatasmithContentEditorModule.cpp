@@ -135,7 +135,7 @@ public:
 
 	virtual void RegisterSetAssetAutoReimportHandler(FOnSetAssetAutoReimport&& SetAssetAutoReimportDelegate) override
 	{
-		SetAssetAutoReimportHandler = SetAssetAutoReimportDelegate;
+		SetAssetAutoReimportHandler = MoveTemp(SetAssetAutoReimportDelegate);
 	}
 	
 	virtual void UnregisterSetAssetAutoReimportHandler(FDelegateHandle InHandle) override
@@ -167,7 +167,7 @@ public:
 
 	virtual void RegisterIsAssetAutoReimportAvailableHandler(FOnIsAssetAutoReimportAvailable&& IsAssetAutoReimportAvailableDelegate)
 	{
-		IsAssetAutoReimportAvailableHandler = IsAssetAutoReimportAvailableDelegate;
+		IsAssetAutoReimportAvailableHandler = MoveTemp(IsAssetAutoReimportAvailableDelegate);
 	}
 	
 	virtual void UnregisterIsAssetAutoReimportAvailableHandler(FDelegateHandle InHandle)
@@ -190,7 +190,7 @@ public:
 
 	virtual void RegisterIsAssetAutoReimportEnabledHandler(FOnIsAssetAutoReimportEnabled&& IsAssetAutoReimportEnabledDelegate) override
 	{
-		IsAssetAutoReimportEnabledHandler = IsAssetAutoReimportEnabledDelegate;
+		IsAssetAutoReimportEnabledHandler = MoveTemp(IsAssetAutoReimportEnabledDelegate);
 	}
 	
 	virtual void UnregisterIsAssetAutoReimportEnabledHandler(FDelegateHandle InHandle) override
@@ -211,6 +211,51 @@ public:
 		return TOptional<bool>();
 	}
 
+	virtual void RegisterBrowseExternalSourceUriHandler(FOnBrowseExternalSourceUri&& BrowseExternalSourceUriDelegate) override
+	{
+		BrowseExternalSourceUriHandler = MoveTemp(BrowseExternalSourceUriDelegate);
+	}
+
+	virtual void UnregisterBrowseExternalSourceUriHandler(FDelegateHandle InHandle) override
+	{
+		if (BrowseExternalSourceUriHandler.GetHandle() == InHandle)
+		{
+			BrowseExternalSourceUriHandler.Unbind();
+		}
+	}
+
+	virtual bool BrowseExternalSourceUri(FName UriScheme, const FString& DefaultUri, FString& OutSourceUri, FString& OutFallbackFilepath) const override
+	{
+		if (IsAssetAutoReimportEnabledHandler.IsBound())
+		{
+			return BrowseExternalSourceUriHandler.Execute(UriScheme, DefaultUri, OutSourceUri, OutFallbackFilepath);
+		}
+
+		return false;
+	}
+
+	virtual void RegisterGetSupportedUriSchemeHandler(FOnGetSupportedUriSchemes&& GetSupportedUriSchemeDelegate) override
+	{
+		GetSupportedUriSchemeHandler = MoveTemp(GetSupportedUriSchemeDelegate);
+	}
+
+	virtual void UnregisterGetSupportedUriSchemeHandler(FDelegateHandle InHandle) override
+	{
+		if (GetSupportedUriSchemeHandler.GetHandle() == InHandle)
+		{
+			GetSupportedUriSchemeHandler.Unbind();
+		}
+	}
+
+	virtual TOptional<TArray<FName>> GetSupportedUriScheme() const override
+	{
+		if (GetSupportedUriSchemeHandler.IsBound())
+		{
+			return GetSupportedUriSchemeHandler.Execute();
+		}
+
+		return TOptional<TArray<FName>>();
+	}
 
 private:
 	static TSharedPtr<IDataprepImporterInterface> CreateEmptyDatasmithImportHandler()
@@ -268,6 +313,8 @@ private:
 	FOnSetAssetAutoReimport SetAssetAutoReimportHandler;
 	FOnIsAssetAutoReimportAvailable IsAssetAutoReimportAvailableHandler;
 	FOnIsAssetAutoReimportEnabled IsAssetAutoReimportEnabledHandler;
+	FOnBrowseExternalSourceUri BrowseExternalSourceUriHandler;
+	FOnGetSupportedUriSchemes GetSupportedUriSchemeHandler;
 
 	FDelegateHandle OnMapChangeHandle;
 	TSet<TSoftObjectPtr<UObject>> AutoReimportingAssets;

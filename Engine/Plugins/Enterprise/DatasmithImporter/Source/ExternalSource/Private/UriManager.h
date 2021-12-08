@@ -28,7 +28,10 @@ namespace UE::DatasmithImporter
 		virtual bool CanResolveUri(const FSourceUri& URI) const override;
 		virtual void RegisterResolver(FName ResolverName, const TSharedRef<IUriResolver>& UriResolver) override;
 		virtual bool UnregisterResolver(FName ResolverName) override;
-		virtual const TArray<FString>& GetSupportedSchemes() const override;
+		virtual const TArray<FName>& GetSupportedSchemes() const override;
+#if WITH_EDITOR
+		virtual TSharedPtr<FExternalSource> BrowseExternalSource(const FName& UriScheme, const FSourceUri& DefaultSourceUri) const override;
+#endif //WITH_EDITOR
 		// IUriManager interface end
 
 	private:
@@ -38,7 +41,7 @@ namespace UE::DatasmithImporter
 
 		TArray<FUriResolverRegisterInformation> RegisteredResolvers;
 
-		mutable TArray<FString> CachedSchemes;
+		mutable TArray<FName> CachedSchemes;
 	};
 	
 }

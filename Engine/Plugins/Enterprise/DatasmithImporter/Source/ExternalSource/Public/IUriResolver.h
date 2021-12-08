@@ -31,5 +31,12 @@ namespace UE::DatasmithImporter
 		 * Return the URI scheme handled by the UriResolver.
 		 */
 		virtual FName GetScheme() const = 0;
+
+#if WITH_EDITOR
+		/**
+		 * Open a dialog window for browsing ExternalSources associated to this UriResolver
+		 */
+		virtual TSharedPtr<FExternalSource> BrowseExternalSource(const FSourceUri& DefaultUri) const = 0;
+#endif //WITH_EDITOR
 	};
 }
