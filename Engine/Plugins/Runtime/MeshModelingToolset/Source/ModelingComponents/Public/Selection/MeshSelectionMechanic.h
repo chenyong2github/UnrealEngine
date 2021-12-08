@@ -42,8 +42,8 @@ class MODELINGCOMPONENTS_API UMeshSelectionMechanicProperties : public UInteract
 	GENERATED_BODY()
 
 public:
-	//~ TODO Make this show up with the AdvancedDisplay settings in UUVSelectToolProoperties? Maybe it needs to move there and get passed it to UMeshSelectionMechanic
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
+	/** If true, show the currently hovered selectable primitive */
+	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowHoveredElements = true;
 };
 
