@@ -76,7 +76,7 @@ struct FConsoleVariablesEditorCommandInfo
 
 	void ClearSourceFlags() const
 	{
-		for (const FStaticConsoleVariableFlagInfo StaticConsoleVariableFlagInfo : SupportedFlags)
+		for (const FStaticConsoleVariableFlagInfo& StaticConsoleVariableFlagInfo : SupportedFlags)
 		{
 			ConsoleVariablePtr->ClearFlags(StaticConsoleVariableFlagInfo.Flag);
 		}
