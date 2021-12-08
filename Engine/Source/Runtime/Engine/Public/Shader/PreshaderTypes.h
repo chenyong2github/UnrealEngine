@@ -17,6 +17,7 @@ struct FPreshaderType
 {
 	FPreshaderType() = default;
 	FPreshaderType(const FType& InType);
+	FPreshaderType(EValueType InType);
 
 	bool IsStruct() const { return StructTypeHash != 0u; }
 	int32 GetNumComponents() const { return StructTypeHash != 0u ? StructComponentTypes.Num() : GetValueTypeDescription(ValueType).NumComponents; }

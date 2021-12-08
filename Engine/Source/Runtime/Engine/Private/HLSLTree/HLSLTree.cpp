@@ -4,9 +4,6 @@
 #include "Misc/MemStackUtility.h"
 #include "MaterialShared.h" // TODO - split preshader out into its own module
 
-// From MaterialUniformExpressions.cpp
-extern void WriteMaterialUniformAccess(UE::Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult);
-
 static FSHAHash HashString(const TCHAR* String, int32 Length)
 {
 	FSHAHash Hash;
@@ -244,10 +241,7 @@ FEmitShaderValue* FEmitContext::AcquireShader(FScope* Scope, const FShaderValue&
 	{
 		ShaderValue = *PrevShaderValue;
 		check(ShaderValue->Type == Shader.Type);
-		if (!Shader.bInline)
-		{
-			Private::MoveToScope(ShaderValue, Scope);
-		}
+		Private::MoveToScope(ShaderValue, Scope);
 	}
 	else
 	{
@@ -269,78 +263,269 @@ FEmitShaderValue* FEmitContext::AcquireShader(FScope* Scope, const FShaderValue&
 	return ShaderValue;
 }
 
-FEmitShaderValue* FEmitContext::AcquirePreshader(const FRequestedType& RequestedType, FScope* Scope, FExpression* Expression)
+namespace Private
+{
+void WriteMaterialUniformAccess(Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult)
+{
+	static const TCHAR IndexToMask[] = TEXT("xyzw");
+	uint32 RegisterIndex = UniformOffset / 4;
+	uint32 RegisterOffset = UniformOffset % 4;
+	uint32 NumComponentsToWrite = NumComponents;
+	bool bConstructor = false;
+
+	check(ComponentType == Shader::EValueComponentType::Float || ComponentType == Shader::EValueComponentType::Int);
+	const bool bIsInt = (ComponentType == Shader::EValueComponentType::Int);
+
+	while (NumComponentsToWrite > 0u)
+	{
+		const uint32 NumComponentsInRegister = FMath::Min(NumComponentsToWrite, 4u - RegisterOffset);
+		if (NumComponentsInRegister < NumComponents && !bConstructor)
+		{
+			// Uniform will be split across multiple registers, so add the constructor to concat them together
+			OutResult.Appendf(TEXT("%s%d("), Shader::GetComponentTypeName(ComponentType), NumComponents);
+			bConstructor = true;
+		}
+
+		if (bIsInt)
+		{
+			// PreshaderBuffer is typed as float4, so reinterpret as 'int' if needed
+			OutResult.Append(TEXT("asint("));
+		}
+
+		OutResult.Appendf(TEXT("Material.PreshaderBuffer[%u]"), RegisterIndex);
+		// Can skip writing mask if we're taking all 4 components from the register
+		if (NumComponentsInRegister < 4u)
+		{
+			OutResult.Append(TCHAR('.'));
+			for (uint32 i = 0u; i < NumComponentsInRegister; ++i)
+			{
+				OutResult.Append(IndexToMask[RegisterOffset + i]);
+			}
+		}
+
+		if (bIsInt)
+		{
+			OutResult.Append(TEXT(")"));
+		}
+
+		NumComponentsToWrite -= NumComponentsInRegister;
+		RegisterIndex++;
+		RegisterOffset = 0u;
+		if (NumComponentsToWrite > 0u)
+		{
+			OutResult.Append(TEXT(", "));
+		}
+	}
+	if (bConstructor)
+	{
+		OutResult.Append(TEXT(")"));
+	}
+}
+} // namespace Private
+
+FEmitShaderValue* FEmitContext::AcquirePreshaderOrConstant(const FRequestedType& RequestedType, FScope* Scope, FExpression* Expression)
 {
 	Shader::FPreshaderData LocalPreshader;
 	Expression->EmitValuePreshader(*this, RequestedType, LocalPreshader);
 
 	const Shader::FType Type = RequestedType.GetType();
-	check(!Type.IsStruct()); // TODO
 
 	FSHA1 Hasher;
 	Hasher.Update((uint8*)&Type, sizeof(Type));
 	LocalPreshader.AppendHash(Hasher);
 	const FSHAHash Hash = Hasher.Finalize();
-	FEmitShaderValue* const* PrevPreshader = Preshaders.Find(Hash);
-	if (PrevPreshader)
+	FEmitShaderValue* const* PrevShaderValue = PreshaderValueMap.Find(Hash);
+	if (PrevShaderValue)
 	{
-		return *PrevPreshader;
+		FEmitShaderValue* ShaderValue = *PrevShaderValue;
+		check(ShaderValue->Type == Type);
+		Private::MoveToScope(ShaderValue, Scope);
+		return ShaderValue;
 	}
 
-	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
-	Shader::EValueComponentType ComponentType = TypeDesc.ComponentType;
-	if (ComponentType == Shader::EValueComponentType::Bool || ComponentType == Shader::EValueComponentType::Int)
-	{
-		ComponentType = Shader::EValueComponentType::Float; // TODO
-	}
-
-	//ensure(TypeDesc.ComponentType == Shader::EValueComponentType::Float || TypeDesc.ComponentType == Shader::EValueComponentType::Double);
-
-	FUniformExpressionSet& UniformExpressionSet = MaterialCompilationOutput->UniformExpressionSet;
-	FMaterialUniformPreshaderHeader& PreshaderHeader = UniformExpressionSet.UniformPreshaders.AddDefaulted_GetRef();
-
-	const uint32 RegisterOffset = UniformPreshaderOffset % 4;
-	if (ComponentType == Shader::EValueComponentType::Float && RegisterOffset + TypeDesc.NumComponents > 4u)
-	{
-		// If this uniform would span multiple registers, align offset to the next register to avoid this
-		UniformPreshaderOffset = Align(UniformPreshaderOffset, 4u);
-	}
-
-	PreshaderHeader.OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
-	Expression->EmitValuePreshader(*this, RequestedType, UniformExpressionSet.UniformPreshaderData);
-	PreshaderHeader.OpcodeSize = UniformExpressionSet.UniformPreshaderData.Num() - PreshaderHeader.OpcodeOffset;
-	PreshaderHeader.BufferOffset = UniformPreshaderOffset;
-	PreshaderHeader.ComponentType = ComponentType;
-	PreshaderHeader.NumComponents = TypeDesc.NumComponents;
+	Shader::FPreshaderStack Stack;
+	const Shader::FPreshaderValue ConstantValue = LocalPreshader.EvaluateConstant(*Material, Stack);
 
 	TStringBuilder<1024> FormattedCode;
-	if (ComponentType == Shader::EValueComponentType::Double)
+	if (Type.IsStruct())
 	{
-		if (TypeDesc.NumComponents == 1)
+		FormattedCode.Append(TEXT("{ "));
+	}
+
+	FMaterialUniformPreshaderHeader* PreshaderHeader = nullptr;
+	uint32 CurrentBoolUniformOffset = ~0u;
+	uint32 CurrentNumBoolComponents = 32u;
+
+	int32 ComponentIndex = 0;
+	for (int32 FieldIndex = 0; FieldIndex < Type.GetNumFlatFields(); ++FieldIndex)
+	{
+		if (FieldIndex > 0)
 		{
-			FormattedCode.Append(TEXT("MakeLWCScalar("));
+			FormattedCode.Append(TEXT(", "));
+		}
+
+		const Shader::EValueType FieldType = Type.GetFlatFieldType(FieldIndex);
+		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(FieldType);
+		const int32 NumFieldComponents = TypeDesc.NumComponents;
+		const EExpressionEvaluationType FieldEvaluationType = Expression->GetPreparedType().GetFieldEvaluationType(ComponentIndex, NumFieldComponents);
+
+		if (FieldEvaluationType == EExpressionEvaluationType::Preshader)
+		{
+			// Only need to allocate uniform buffer for non-constant components
+			// Constant components can have their value inlined into the shader directly
+			FUniformExpressionSet& UniformExpressionSet = MaterialCompilationOutput->UniformExpressionSet;
+			if (!PreshaderHeader)
+			{
+				// Allocate a preshader header the first time we hit a non-constant field
+				PreshaderHeader = &UniformExpressionSet.UniformPreshaders.AddDefaulted_GetRef();
+				PreshaderHeader->FieldIndex = UniformExpressionSet.UniformPreshaderFields.Num();
+				PreshaderHeader->NumFields = 0u;
+				PreshaderHeader->OpcodeOffset = UniformExpressionSet.UniformPreshaderData.Num();
+				Expression->EmitValuePreshader(*this, RequestedType, UniformExpressionSet.UniformPreshaderData);
+				PreshaderHeader->OpcodeSize = UniformExpressionSet.UniformPreshaderData.Num() - PreshaderHeader->OpcodeOffset;
+			}
+
+			FMaterialUniformPreshaderField& PreshaderField = UniformExpressionSet.UniformPreshaderFields.AddDefaulted_GetRef();
+			PreshaderField.ComponentIndex = ComponentIndex;
+			PreshaderField.Type = FieldType;
+			PreshaderHeader->NumFields++;
+
+			if (TypeDesc.ComponentType == Shader::EValueComponentType::Bool)
+			{
+				// 'Bool' uniforms are packed into bits
+				if (CurrentNumBoolComponents + NumFieldComponents > 32u)
+				{
+					CurrentBoolUniformOffset = UniformPreshaderOffset++;
+					CurrentNumBoolComponents = 0u;
+				}
+
+				const uint32 RegisterIndex = CurrentBoolUniformOffset / 4;
+				const uint32 RegisterOffset = CurrentBoolUniformOffset % 4;
+				FormattedCode.Appendf(TEXT("UnpackUniform_%s(asuint(Material.PreshaderBuffer[%u][%u]), %u)"),
+					TypeDesc.Name,
+					RegisterIndex,
+					RegisterOffset,
+					CurrentNumBoolComponents);
+
+				PreshaderField.BufferOffset = CurrentBoolUniformOffset * 32u + CurrentNumBoolComponents;
+				CurrentNumBoolComponents += NumFieldComponents;
+			}
+			else if (TypeDesc.ComponentType == Shader::EValueComponentType::Double)
+			{
+				// Double uniforms are split into Tile/Offset components to make FLWCScalar/FLWCVectors
+				PreshaderField.BufferOffset = UniformPreshaderOffset;
+
+				if (NumFieldComponents > 1)
+				{
+					FormattedCode.Appendf(TEXT("MakeLWCVector%d("), NumFieldComponents);
+				}
+				else
+				{
+					FormattedCode.Append(TEXT("MakeLWCScalar("));
+				}
+
+				// Write the tile uniform
+				Private::WriteMaterialUniformAccess(Shader::EValueComponentType::Float, NumFieldComponents, UniformPreshaderOffset, FormattedCode);
+				UniformPreshaderOffset += NumFieldComponents;
+				FormattedCode.Append(TEXT(", "));
+
+				// Write the offset uniform
+				Private::WriteMaterialUniformAccess(Shader::EValueComponentType::Float, NumFieldComponents, UniformPreshaderOffset, FormattedCode);
+				UniformPreshaderOffset += NumFieldComponents;
+				FormattedCode.Append(TEXT(")"));
+			}
+			else
+			{
+				// Float/Int uniforms are written directly to the uniform buffer
+				const uint32 RegisterOffset = UniformPreshaderOffset % 4;
+				if (RegisterOffset + NumFieldComponents > 4u)
+				{
+					// If this uniform would span multiple registers, align offset to the next register to avoid this
+					// TODO - we could keep track of this empty padding space, and pack other smaller uniform types here
+					UniformPreshaderOffset = Align(UniformPreshaderOffset, 4u);
+				}
+
+				PreshaderField.BufferOffset = UniformPreshaderOffset;
+				Private::WriteMaterialUniformAccess(TypeDesc.ComponentType, NumFieldComponents, UniformPreshaderOffset, FormattedCode);
+				UniformPreshaderOffset += NumFieldComponents;
+			}
 		}
 		else
 		{
-			FormattedCode.Appendf(TEXT("MakeLWCVector%d("), TypeDesc.NumComponents);
+			// We allow FieldEvaluationType to be 'None', since in that case we still need to fill in a value for the HLSL initializer
+			check(FieldEvaluationType == EExpressionEvaluationType::Constant || FieldEvaluationType == EExpressionEvaluationType::None);
+
+			// The type generated by the preshader might not match the expected type
+			// In the future, with new HLSLTree, preshader could potentially include explicit cast opcodes, and avoid implicit conversions
+			Shader::FValue FieldConstantValue(ConstantValue.Type.GetComponentType(ComponentIndex), NumFieldComponents);
+			for (int32 i = 0; i < NumFieldComponents; ++i)
+			{
+				FieldConstantValue.Component[i] = ConstantValue.Component[ComponentIndex + i];
+			}
+
+			if (TypeDesc.ComponentType == Shader::EValueComponentType::Double)
+			{
+				const Shader::FDoubleValue DoubleValue = FieldConstantValue.AsDouble();
+				TStringBuilder<256> TileValue;
+				TStringBuilder<256> OffsetValue;
+				for (int32 Index = 0; Index < NumFieldComponents; ++Index)
+				{
+					if (Index > 0)
+					{
+						TileValue.Append(TEXT(", "));
+						OffsetValue.Append(TEXT(", "));
+					}
+
+					const FLargeWorldRenderScalar Value(DoubleValue[Index]);
+					TileValue.Appendf(TEXT("%#.9gf"), Value.GetTile());
+					OffsetValue.Appendf(TEXT("%#.9gf"), Value.GetOffset());
+				}
+
+				if (NumFieldComponents > 1)
+				{
+					FormattedCode.Appendf(TEXT("MakeLWCVector%d(float%d(%s), float%d(%s))"), NumFieldComponents, NumFieldComponents, TileValue.ToString(), NumFieldComponents, OffsetValue.ToString());
+				}
+				else
+				{
+					FormattedCode.Appendf(TEXT("MakeLWCScalar(%s, %s)"), TileValue.ToString(), OffsetValue.ToString());
+				}
+			}
+			else
+			{
+				const Shader::FValue CastFieldConstantValue = Shader::Cast(FieldConstantValue, FieldType);
+				if (NumFieldComponents > 1)
+				{
+					FormattedCode.Appendf(TEXT("%s("), TypeDesc.Name);
+				}
+				for (int32 Index = 0; Index < NumFieldComponents; ++Index)
+				{
+					if (Index > 0)
+					{
+						FormattedCode.Append(TEXT(", "));
+					}
+					CastFieldConstantValue.Component[Index].ToString(TypeDesc.ComponentType, FormattedCode);
+				}
+				if (NumFieldComponents > 1)
+				{
+					FormattedCode.Append(TEXT(")"));
+				}
+			}
 		}
-
-		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode); // Tile
-		UniformPreshaderOffset += TypeDesc.NumComponents;
-		FormattedCode.Append(TEXT(","));
-		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode); // Offset
-		UniformPreshaderOffset += TypeDesc.NumComponents;
-		FormattedCode.Append(TEXT(")"));
+		ComponentIndex += NumFieldComponents;
 	}
-	else
+	check(ComponentIndex == Type.GetNumComponents());
+
+	if (Type.IsStruct())
 	{
-		WriteMaterialUniformAccess(ComponentType, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode);
-		UniformPreshaderOffset += TypeDesc.NumComponents;
+		FormattedCode.Append(TEXT(" }"));
 	}
 
-	FEmitShaderValue* ShaderValue = new(*Allocator) FEmitShaderValue(Scope, Shader::MakeValueType(ComponentType, TypeDesc.NumComponents));
-	ShaderValue->Reference = MemStack::AllocateString(*Allocator, FormattedCode);
-	Preshaders.Add(Hash, ShaderValue);
+	FShaderValue Shader(FormattedCode);
+	Shader.Type = Type;
+	Shader.bInline = !Type.IsStruct(); // struct declarations can't be inline, due to HLSL syntax
+	FEmitShaderValue* ShaderValue = AcquireShader(Scope, Shader, TArrayView<FEmitShaderValue*>());
+	PreshaderValueMap.Add(Hash, ShaderValue);
+
 	return ShaderValue;
 }
 
@@ -379,6 +564,7 @@ void FEmitContext::Finalize()
 	}
 
 	ShaderValueMap.Reset();
+	PreshaderValueMap.Reset();
 	LocalPHIs.Reset();
 
 	MaterialCompilationOutput->UniformExpressionSet.UniformPreshaderBufferSize = (UniformPreshaderOffset + 3u) / 4u;
@@ -745,6 +931,15 @@ int32 FPreparedType::GetNumComponents() const
 	return 0;
 }
 
+FRequestedType MakeRequestedType(Shader::EValueComponentType ComponentType, const FRequestedType& RequestedComponents)
+{
+	check(!RequestedComponents.IsStruct());
+	FRequestedType Result;
+	Result.ValueComponentType = ComponentType;
+	Result.RequestedComponents = RequestedComponents.RequestedComponents;
+	return Result;
+}
+
 bool FPreparedType::IsVoid() const
 {
 	return GetNumComponents() == 0;
@@ -793,6 +988,16 @@ EExpressionEvaluationType FPreparedType::GetEvaluationType(const FRequestedType&
 		{
 			Result = CombineEvaluationTypes(Result, ComponentEvaluationType[Index]);
 		}
+	}
+	return Result;
+}
+
+EExpressionEvaluationType FPreparedType::GetFieldEvaluationType(int32 ComponentIndex, int32 NumComponents) const
+{
+	EExpressionEvaluationType Result = EExpressionEvaluationType::None;
+	for (int32 Index = 0; Index < NumComponents; ++Index)
+	{
+		Result = CombineEvaluationTypes(Result, GetComponentEvaluationType(ComponentIndex + Index));
 	}
 	return Result;
 }
@@ -879,10 +1084,13 @@ FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& 
 
 bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shader::FStructType* StructType, Shader::EValueComponentType ComponentType)
 {
-	if (!PreparedType.IsInitialized())
+	// If we previously had a forwarded value set, reset that and start over
+	if (ForwardValue || !PreparedType.IsInitialized())
 	{
+		PreparedType.ComponentEvaluationType.Reset();
 		PreparedType.ValueComponentType = ComponentType;
 		PreparedType.StructType = StructType;
+		ForwardValue = nullptr;
 		return true;
 	}
 
@@ -989,17 +1197,17 @@ const TCHAR* FExpression::GetValueShader(FEmitContext& Context, const FRequested
 	check(IsScopeLive(CurrentScope));
 
 	FEmitShaderValue* ShaderValue = nullptr;
-	if (EvaluationType == EExpressionEvaluationType::Preshader)
+	if (EvaluationType == EExpressionEvaluationType::Constant || EvaluationType == EExpressionEvaluationType::Preshader)
 	{
-		ShaderValue = Context.AcquirePreshader(RequestedType, CurrentScope, this);
+		ShaderValue = Context.AcquirePreshaderOrConstant(RequestedType, CurrentScope, this);
 	}
 	else
 	{
+		check(EvaluationType == EExpressionEvaluationType::Shader);
+
 		TStringBuilder<1024> FormattedCode;
 		FShaderValue ShaderResult(FormattedCode);
 		FEmitShaderValueDependencies Dependencies;
-
-		if (EvaluationType == EExpressionEvaluationType::Shader)
 		{
 			FEmitShaderValueContext& ValueContext = Context.ShaderValueStack.AddDefaulted_GetRef();
 
@@ -1009,15 +1217,6 @@ const TCHAR* FExpression::GetValueShader(FEmitContext& Context, const FRequested
 			Dependencies = MoveTemp(ValueContext.Dependencies);
 			Context.ShaderValueStack.Pop(false);
 		}
-		else
-		{
-			check(EvaluationType == EExpressionEvaluationType::Constant);
-			const Shader::FValue ConstantValue = GetValueConstant(Context, RequestedType);
-			ShaderResult.Type = ConstantValue.Type;
-			ShaderResult.bInline = !ConstantValue.Type.IsStruct(); // 'struct' constants can't be inline, due to HLSL syntax limitations
-			ConstantValue.ToString(Shader::EValueStringFormat::HLSL, ShaderResult.Code);
-		}
-
 		ShaderValue = Context.AcquireShader(CurrentScope, ShaderResult, Dependencies);
 	}
 
@@ -1077,9 +1276,7 @@ Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, const FReque
 
 	// Evaluate the constant preshader and store its value
 	Shader::FPreshaderStack Stack;
-	FMaterialRenderContext RenderContext(nullptr, *Context.Material, nullptr);
-
-	const Shader::FPreshaderValue PreshaderValue = ConstantPreshader.Evaluate(nullptr, RenderContext, Stack);
+	const Shader::FPreshaderValue PreshaderValue = ConstantPreshader.EvaluateConstant(*Context.Material, Stack);
 	Shader::FValue Result = PreshaderValue.AsShaderValue(Context.TypeRegistry);
 
 	const Shader::FType RequestedConstantType = RequestedType.GetType();

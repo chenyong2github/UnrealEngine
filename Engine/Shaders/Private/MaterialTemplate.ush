@@ -530,6 +530,26 @@ FPrimitiveSceneData GetPrimitiveData(FMaterialPixelParameters Parameters)
 	return GetPrimitiveData(Parameters.PrimitiveId);
 }
 
+bool UnpackUniform_bool(uint Packed, uint BitOffset)
+{
+	return (bool)((Packed >> BitOffset) & 0x1);
+}
+
+bool2 UnpackUniform_bool2(uint Packed, uint BitOffset)
+{
+	return bool2(UnpackUniform_bool(Packed, BitOffset), UnpackUniform_bool(Packed, BitOffset + 1));
+}
+
+bool3 UnpackUniform_bool3(uint Packed, uint BitOffset)
+{
+	return bool3(UnpackUniform_bool(Packed, BitOffset), UnpackUniform_bool(Packed, BitOffset + 1), UnpackUniform_bool(Packed, BitOffset + 2));
+}
+
+bool4 UnpackUniform_bool4(uint Packed, uint BitOffset)
+{
+	return bool4(UnpackUniform_bool(Packed, BitOffset), UnpackUniform_bool(Packed, BitOffset + 1), UnpackUniform_bool(Packed, BitOffset + 2), UnpackUniform_bool(Packed, BitOffset + 3));
+}
+
 /**
  * Returns the upper 3x3 portion of the LocalToWorld matrix.
  */

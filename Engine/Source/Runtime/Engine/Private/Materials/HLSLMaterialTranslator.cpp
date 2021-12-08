@@ -3146,13 +3146,19 @@ int32 FHLSLMaterialTranslator::AccessUniformExpression(int32 Index)
 				UniformPreshaderOffset = Align(UniformPreshaderOffset, 4u);
 			}
 
+			const UE::Shader::EValueComponentType ComponentType = bIsLWC ? UE::Shader::EValueComponentType::Double : UE::Shader::EValueComponentType::Float;
+
 			FMaterialUniformPreshaderHeader& Preshader = MaterialCompilationOutput.UniformExpressionSet.UniformPreshaders.AddDefaulted_GetRef();
 			Preshader.OpcodeOffset = MaterialCompilationOutput.UniformExpressionSet.UniformPreshaderData.Num();
 			CodeChunk.UniformExpression->WriteNumberOpcodes(MaterialCompilationOutput.UniformExpressionSet.UniformPreshaderData);
-			Preshader.BufferOffset = UniformPreshaderOffset;
 			Preshader.OpcodeSize = MaterialCompilationOutput.UniformExpressionSet.UniformPreshaderData.Num() - Preshader.OpcodeOffset;
-			Preshader.ComponentType = bIsLWC ? UE::Shader::EValueComponentType::Double : UE::Shader::EValueComponentType::Float;
-			Preshader.NumComponents = NumComponents;
+			Preshader.FieldIndex = MaterialCompilationOutput.UniformExpressionSet.UniformPreshaderFields.Num();
+			Preshader.NumFields = 1;
+
+			FMaterialUniformPreshaderField& PreshaderField = MaterialCompilationOutput.UniformExpressionSet.UniformPreshaderFields.AddDefaulted_GetRef();
+			PreshaderField.BufferOffset = UniformPreshaderOffset;
+			PreshaderField.Type = UE::Shader::MakeValueType(ComponentType, NumComponents);
+			PreshaderField.ComponentIndex = 0;
 
 			CodeChunk.UniformExpression->UniformOffset = UniformPreshaderOffset;
 			UniformPreshaderOffset += bIsLWC ? NumComponents * 2u : NumComponents;

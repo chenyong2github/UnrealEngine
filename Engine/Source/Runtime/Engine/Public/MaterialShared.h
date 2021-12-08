@@ -382,6 +382,15 @@ inline bool operator!=(const FMaterialVirtualTextureStack& Lhs, const FMaterialV
 	return !operator==(Lhs, Rhs);
 }
 
+class FMaterialUniformPreshaderField
+{
+	DECLARE_TYPE_LAYOUT(FMaterialUniformPreshaderField, NonVirtual);
+public:
+	LAYOUT_FIELD(uint32, BufferOffset); /** Offset in the uniform buffer where result will be written */
+	LAYOUT_FIELD(uint32, ComponentIndex);
+	LAYOUT_FIELD(UE::Shader::EValueType, Type);
+};
+
 class FMaterialUniformPreshaderHeader
 {
 	DECLARE_TYPE_LAYOUT(FMaterialUniformPreshaderHeader, NonVirtual);
@@ -390,9 +399,8 @@ public:
 	{
 		return Lhs.OpcodeOffset == Rhs.OpcodeOffset &&
 			Lhs.OpcodeSize == Rhs.OpcodeSize &&
-			Lhs.BufferOffset == Rhs.BufferOffset &&
-			Lhs.ComponentType == Rhs.ComponentType &&
-			Lhs.NumComponents == Rhs.NumComponents;
+			Lhs.FieldIndex == Rhs.FieldIndex &&
+			Lhs.NumFields == Rhs.NumFields;
 	}
 	friend inline bool operator!=(const FMaterialUniformPreshaderHeader& Lhs, const FMaterialUniformPreshaderHeader& Rhs)
 	{
@@ -401,9 +409,8 @@ public:
 
 	LAYOUT_FIELD(uint32, OpcodeOffset); /** Offset of the preshader opcodes, within the material's buffer */
 	LAYOUT_FIELD(uint32, OpcodeSize); /** Size of the preshader opcodes */
-	LAYOUT_FIELD(uint32, BufferOffset); /** Offset in the uniform buffer where result will be written */
-	LAYOUT_FIELD(UE::Shader::EValueComponentType, ComponentType);
-	LAYOUT_FIELD(uint8, NumComponents);
+	LAYOUT_FIELD(uint32, FieldIndex);
+	LAYOUT_FIELD(uint32, NumFields);
 };
 
 class FMaterialNumericParameterInfo
@@ -590,6 +597,7 @@ protected:
 	friend class UE::HLSLTree::FEmitContext;
 
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialUniformPreshaderHeader>, UniformPreshaders);
+	LAYOUT_FIELD(TMemoryImageArray<FMaterialUniformPreshaderField>, UniformPreshaderFields);
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialNumericParameterInfo>, UniformNumericParameters);
 	LAYOUT_ARRAY(TMemoryImageArray<FMaterialTextureParameterInfo>, UniformTextureParameters, NumMaterialTextureParameterTypes);
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialExternalTextureParameterInfo>, UniformExternalTextureParameters);

@@ -17,8 +17,10 @@
 #include "Materials/MaterialExpressionConstant4Vector.h"
 #include "Materials/MaterialExpressionStaticBool.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionDoubleVectorParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticBoolParameter.h"
+#include "Materials/MaterialExpressionWorldPosition.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
@@ -119,6 +121,12 @@ EMaterialGenerateHLSLStatus UMaterialExpressionVectorParameter::GenerateHLSLExpr
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
+EMaterialGenerateHLSLStatus UMaterialExpressionDoubleVectorParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::DoubleVector, ParameterName, DefaultValue);
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
 EMaterialGenerateHLSLStatus UMaterialExpressionScalarParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::Scalar, ParameterName, DefaultValue);
@@ -128,6 +136,22 @@ EMaterialGenerateHLSLStatus UMaterialExpressionScalarParameter::GenerateHLSLExpr
 EMaterialGenerateHLSLStatus UMaterialExpressionStaticBoolParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionMaterialParameter>(EMaterialParameterType::StaticSwitch, ParameterName, (bool)DefaultValue);
+	return EMaterialGenerateHLSLStatus::Success;
+}
+EMaterialGenerateHLSLStatus UMaterialExpressionWorldPosition::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	UE::HLSLTree::EExternalInputType InputType = UE::HLSLTree::EExternalInputType::None;
+
+	switch (WorldPositionShaderOffset)
+	{
+	case WPT_Default: InputType = UE::HLSLTree::EExternalInputType::WorldPosition; break;
+	case WPT_ExcludeAllShaderOffsets: InputType = UE::HLSLTree::EExternalInputType::WorldPosition_NoOffsets; break;
+	case WPT_CameraRelative: InputType = UE::HLSLTree::EExternalInputType::TranslatedWorldPosition; break;
+	case WPT_CameraRelativeNoOffsets: InputType = UE::HLSLTree::EExternalInputType::TranslatedWorldPosition_NoOffsets; break;
+	default: checkNoEntry(); break;
+	}
+
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionExternalInput>(InputType);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 

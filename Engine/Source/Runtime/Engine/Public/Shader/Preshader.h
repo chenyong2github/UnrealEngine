@@ -88,7 +88,8 @@ public:
 	FSHAHash GetHash() const;
 	void AppendHash(FSHA1& OutHasher) const;
 
-	FPreshaderValue Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FPreshaderStack& Stack);
+	FPreshaderValue Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FPreshaderStack& Stack) const;
+	FPreshaderValue EvaluateConstant(const FMaterial& Material, FPreshaderStack& Stack) const;
 
 	const int32 Num() const { return Data.Num(); }
 

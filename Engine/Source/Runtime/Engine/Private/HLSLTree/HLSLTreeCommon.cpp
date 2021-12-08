@@ -155,19 +155,38 @@ void FExpressionMaterialParameter::EmitValuePreshader(FEmitContext& Context, con
 
 void FExpressionExternalInput::EmitValueShader(FEmitContext& Context, const FRequestedType& RequestedType, FShaderValue& OutShader) const
 {
-	const int32 TypeIndex = (int32)InputType;
-	const int32 TexCoordIndex = TypeIndex - (int32)EExternalInputType::TexCoord0;
-
 	OutShader.Type = GetInputExpressionType(InputType);
-	if (TexCoordIndex >= 0 && TexCoordIndex < 8)
+	OutShader.bInline = true;
+
+	if (IsTexCoord(InputType))
 	{
+		const int32 TypeIndex = (int32)InputType;
+		const int32 TexCoordIndex = TypeIndex - (int32)EExternalInputType::TexCoord0;
+
 		Context.NumTexCoords = FMath::Max(Context.NumTexCoords, TexCoordIndex + 1);
-		OutShader.bInline = true;
 		OutShader.Code.Appendf(TEXT("Parameters.TexCoords[%u].xy"), TexCoordIndex);
 	}
 	else
 	{
-		return Context.Errors.AddError(this, TEXT("Invalid texcoord"));
+		// TODO - handle PrevFrame position
+		switch (InputType)
+		{
+		case EExternalInputType::WorldPosition:
+			OutShader.Code.Append(TEXT("GetWorldPosition(Parameters)"));
+			break;
+		case EExternalInputType::WorldPosition_NoOffsets:
+			OutShader.Code.Append(TEXT("GetWorldPosition_NoMaterialOffsets(Parameters)"));
+			break;
+		case EExternalInputType::TranslatedWorldPosition:
+			OutShader.Code.Append(TEXT("GetTranslatedWorldPosition(Parameters)"));
+			break;
+		case EExternalInputType::TranslatedWorldPosition_NoOffsets:
+			OutShader.Code.Append(TEXT("GetTranslatedWorldPosition_NoMaterialOffsets(Parameters)"));
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
 	}
 }
 
@@ -501,23 +520,27 @@ struct FBinaryOpTypes
 	Shader::FType ResultType;
 	FRequestedType LhsType;
 	FRequestedType RhsType;
+	bool bIsLWC;
 };
 FBinaryOpTypes GetBinaryOpTypes(const FRequestedType& RequestedType, EBinaryOp Op, const FRequestedType& LhsType, const FRequestedType& RhsType)
 {
 	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
 	const Shader::EValueComponentType InputComponentType = Shader::CombineComponentTypes(LhsType.ValueComponentType, RhsType.ValueComponentType);
+	const FRequestedType InputType = MakeRequestedType(InputComponentType, RequestedType);
+
 	FBinaryOpTypes Result;
+	Result.bIsLWC = (InputComponentType == Shader::EValueComponentType::Double);
 	switch (Op)
 	{
 	case EBinaryOp::Less:
-		Result.LhsType = Shader::MakeValueType(InputComponentType, NumRequestedComponents);
-		Result.RhsType = Shader::MakeValueType(InputComponentType, NumRequestedComponents);
+		Result.LhsType = InputType;
+		Result.RhsType = InputType;
 		Result.ResultType = Shader::MakeValueType(Shader::EValueComponentType::Bool, NumRequestedComponents);
 		break;
 	default:
-		Result.LhsType = RequestedType;
-		Result.RhsType = RequestedType;
-		Result.ResultType = RequestedType.GetType();
+		Result.LhsType = InputType;
+		Result.RhsType = InputType;
+		Result.ResultType = Shader::MakeValueType(InputComponentType, NumRequestedComponents);
 		break;
 	}
 	return Result;
@@ -533,12 +556,59 @@ void FExpressionBinaryOp::EmitValueShader(FEmitContext& Context, const FRequeste
 	OutShader.Type = Types.ResultType;
 	switch (Op)
 	{
-	case EBinaryOp::Add: OutShader.Code.Appendf(TEXT("(%s + %s)"), LhsCode, RhsCode); break;
-	case EBinaryOp::Sub: OutShader.Code.Appendf(TEXT("(%s - %s)"), LhsCode, RhsCode); break;
-	case EBinaryOp::Mul: OutShader.Code.Appendf(TEXT("(%s * %s)"), LhsCode, RhsCode); break;
-	case EBinaryOp::Div: OutShader.Code.Appendf(TEXT("(%s / %s)"), LhsCode, RhsCode); break;
-	case EBinaryOp::Less: OutShader.Code.Appendf(TEXT("(%s < %s)"), LhsCode, RhsCode); break;
-	default: checkNoEntry(); break;
+	case EBinaryOp::Add:
+		if (Types.bIsLWC)
+		{
+			OutShader.Code.Appendf(TEXT("LWCAdd(%s, %s)"), LhsCode, RhsCode);
+		}
+		else
+		{
+			OutShader.Code.Appendf(TEXT("(%s + %s)"), LhsCode, RhsCode);
+		}
+		break;
+	case EBinaryOp::Sub:
+		if (Types.bIsLWC)
+		{
+			OutShader.Code.Appendf(TEXT("LWCSub(%s, %s)"), LhsCode, RhsCode);
+		}
+		else
+		{
+			OutShader.Code.Appendf(TEXT("(%s - %s)"), LhsCode, RhsCode);
+		}
+		break;
+	case EBinaryOp::Mul:
+		if (Types.bIsLWC)
+		{
+			OutShader.Code.Appendf(TEXT("LWCMultiply(%s, %s)"), LhsCode, RhsCode);
+		}
+		else
+		{
+			OutShader.Code.Appendf(TEXT("(%s * %s)"), LhsCode, RhsCode);
+		}
+		break;
+	case EBinaryOp::Div:
+		if (Types.bIsLWC)
+		{
+			OutShader.Code.Appendf(TEXT("LWCDivide(%s, %s)"), LhsCode, RhsCode);
+		}
+		else
+		{
+			OutShader.Code.Appendf(TEXT("(%s / %s)"), LhsCode, RhsCode);
+		}
+		break;
+	case EBinaryOp::Less:
+		if (Types.bIsLWC)
+		{
+			OutShader.Code.Appendf(TEXT("LWCLess(%s, %s)"), LhsCode, RhsCode);
+		}
+		else
+		{
+			OutShader.Code.Appendf(TEXT("(%s < %s)"), LhsCode, RhsCode);
+		}
+		break;
+	default:
+		checkNoEntry();
+		break;
 	}
 }
 

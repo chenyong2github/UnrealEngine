@@ -102,13 +102,14 @@ public:
 	const TCHAR* AcquireLocalDeclarationCode();
 
 	FEmitShaderValue* AcquireShader(FScope* Scope, const FShaderValue& Shader, TArrayView<FEmitShaderValue*> Dependencies);
-	FEmitShaderValue* AcquirePreshader(const FRequestedType& RequestedType, FScope* Scope, FExpression* Expression);
+	FEmitShaderValue* AcquirePreshaderOrConstant(const FRequestedType& RequestedType, FScope* Scope, FExpression* Expression);
 
 	FEmitShaderValue* CastShaderValue(FNode* Node, FScope* Scope, FEmitShaderValue* ShaderValue, const Shader::FType& DestType);
 
 	FMemStackBase* Allocator = nullptr;
 	const Shader::FStructTypeRegistry* TypeRegistry = nullptr;
 	TMap<FSHAHash, FEmitShaderValue*> ShaderValueMap;
+	TMap<FSHAHash, FEmitShaderValue*> PreshaderValueMap;
 	TArray<const FExpressionLocalPHI*> LocalPHIs;
 	FErrors Errors;
 
@@ -117,7 +118,6 @@ public:
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
-	TMap<FSHAHash, FEmitShaderValue*> Preshaders;
 	TArray<FScope*, TInlineAllocator<16>> ScopeStack;
 	TArray<FEmitShaderValueContext, TInlineAllocator<16>> ShaderValueStack;
 	uint32 UniformPreshaderOffset = 0u;
@@ -230,6 +230,8 @@ public:
 	TBitArray<> RequestedComponents;
 };
 
+FRequestedType MakeRequestedType(Shader::EValueComponentType ComponentType, const FRequestedType& RequestedComponents);
+
 /**
  * Like FRequestedType, but tracks an EExpressionEvaluationType per component, rather than a simple requested flag
  */
@@ -254,6 +256,7 @@ public:
 	bool IsInitialized() const { return StructType != nullptr || ValueComponentType != Shader::EValueComponentType::Void; }
 	bool IsVoid() const;
 	EExpressionEvaluationType GetEvaluationType(const FRequestedType& RequestedType) const;
+	EExpressionEvaluationType GetFieldEvaluationType(int32 ComponentIndex, int32 NumComponents) const;
 
 	EExpressionEvaluationType GetComponentEvaluationType(int32 Index) const
 	{
@@ -323,6 +326,7 @@ struct FEmitShaderValue
 class FExpression : public FNode
 {
 public:
+	const FPreparedType& GetPreparedType() const { return PrepareValueResult.PreparedType; }
 	FRequestedType GetRequestedType() const { return PrepareValueResult.PreparedType.GetRequestedType(); }
 	Shader::FType GetType() const { return PrepareValueResult.PreparedType.GetType(); }
 	EExpressionEvaluationType GetEvaluationType(const FRequestedType& RequestedType) const { return PrepareValueResult.PreparedType.GetEvaluationType(RequestedType); }

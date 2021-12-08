@@ -24,6 +24,10 @@ FPreshaderType::FPreshaderType(const FType& InType) : ValueType(InType.ValueType
 	}
 }
 
+FPreshaderType::FPreshaderType(EValueType InType) : ValueType(InType)
+{
+}
+
 EValueComponentType FPreshaderType::GetComponentType(int32 Index) const
 {
 	if (IsStruct())
@@ -292,9 +296,16 @@ static void EvaluateGetField(FPreshaderStack& Stack, FPreshaderDataContext& REST
 	Stack.PushValue(FieldType, FieldComponents);
 }
 
-static void EvaluateParameter(FPreshaderStack& Stack, const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context)
+static void EvaluateParameter(FPreshaderStack& Stack, const FUniformExpressionSet* UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context)
 {
-	const FMaterialNumericParameterInfo& Parameter = UniformExpressionSet.GetNumericParameter(ParameterIndex);
+	if (!UniformExpressionSet)
+	{
+		// return 0 for parameters if we don't have UniformExpressionSet
+		Stack.PushEmptyValue(EValueType::Float1);
+		return;
+	}
+
+	const FMaterialNumericParameterInfo& Parameter = UniformExpressionSet->GetNumericParameter(ParameterIndex);
 	bool bFoundParameter = false;
 
 	// First allow proxy the chance to override parameter
@@ -324,7 +335,7 @@ static void EvaluateParameter(FPreshaderStack& Stack, const FUniformExpressionSe
 	// Default value
 	if (!bFoundParameter)
 	{
-		Stack.PushValue(UniformExpressionSet.GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset));
+		Stack.PushValue(UniformExpressionSet->GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset));
 	}
 }
 
@@ -365,16 +376,16 @@ static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataConte
 	switch (NumElements)
 	{
 	case 4:
-		Result.Component[3] = Value.GetComponent(IndexA);
+		Result.Component[3] = Value.TryGetComponent(IndexA);
 		// Fallthrough...
 	case 3:
-		Result.Component[2] = Value.GetComponent(IndexB);
+		Result.Component[2] = Value.TryGetComponent(IndexB);
 		// Fallthrough...
 	case 2:
-		Result.Component[1] = Value.GetComponent(IndexG);
+		Result.Component[1] = Value.TryGetComponent(IndexG);
 		// Fallthrough...
 	case 1:
-		Result.Component[0] = Value.GetComponent(IndexR);
+		Result.Component[0] = Value.TryGetComponent(IndexR);
 		break;
 	default:
 		UE_LOG(LogMaterial, Fatal, TEXT("Invalid number of swizzle elements: %d"), NumElements);
@@ -491,8 +502,7 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 		case EPreshaderOpcode::GetField: EvaluateGetField(Stack, Data); break;
 		case EPreshaderOpcode::SetField: EvaluateSetField(Stack, Data); break;
 		case EPreshaderOpcode::Parameter:
-			check(UniformExpressionSet);
-			EvaluateParameter(Stack, *UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context);
+			EvaluateParameter(Stack, UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context);
 			break;
 		case EPreshaderOpcode::Add: EvaluateBinaryOp(Stack, Add); break;
 		case EPreshaderOpcode::Sub: EvaluateBinaryOp(Stack, Sub); break;
@@ -549,15 +559,23 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 	return Result;
 }
 
-FPreshaderValue FPreshaderData::Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FPreshaderStack& Stack)
+FPreshaderValue FPreshaderData::Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FPreshaderStack& Stack) const
 {
 	FPreshaderDataContext PreshaderContext(*this);
 	return EvaluatePreshader(UniformExpressionSet, Context, Stack, PreshaderContext);
 }
 
+FPreshaderValue FPreshaderData::EvaluateConstant(const FMaterial& Material, FPreshaderStack& Stack) const
+{
+	FPreshaderDataContext PreshaderContext(*this);
+	return EvaluatePreshader(nullptr, FMaterialRenderContext(nullptr, Material, nullptr), Stack, PreshaderContext);
+}
+
 void FPreshaderData::AppendHash(FSHA1& OutHasher) const
 {
 	OutHasher.Update((uint8*)Names.GetData(), Names.Num() * Names.GetTypeSize());
+	OutHasher.Update((uint8*)StructTypes.GetData(), StructTypes.Num() * StructTypes.GetTypeSize());
+	OutHasher.Update((uint8*)StructComponentTypes.GetData(), StructComponentTypes.Num() * StructComponentTypes.GetTypeSize());
 	OutHasher.Update((uint8*)Data.GetData(), Data.Num() * Data.GetTypeSize());
 }
 

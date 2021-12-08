@@ -24,6 +24,7 @@ enum class EValueComponentType : uint8
 	Bool,
 };
 
+const TCHAR* GetComponentTypeName(EValueComponentType Type);
 uint32 GetComponentTypeSizeInBytes(EValueComponentType Type);
 EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
 
@@ -82,7 +83,9 @@ struct FType
 	bool IsStruct() const { return ValueType == EValueType::Struct; }
 	bool IsNumeric() const { return !IsVoid() && !IsStruct(); }
 	int32 GetNumComponents() const;
+	int32 GetNumFlatFields() const;
 	EValueComponentType GetComponentType(int32 Index) const;
+	EValueType GetFlatFieldType(int32 Index) const;
 	bool Merge(const FType& OtherType);
 
 	inline operator EValueType() const { return ValueType; }
@@ -127,6 +130,7 @@ struct FStructField
 	const TCHAR* Name;
 	FType Type;
 	int32 ComponentIndex;
+	int32 FlatFieldIndex;
 
 	int32 GetNumComponents() const { return Type.GetNumComponents(); }
 };
@@ -142,6 +146,11 @@ struct FStructType
 	 * Fields with basic types are represented directly. Fields with struct types are recursively flattened into this list
 	 */
 	TArrayView<const EValueComponentType> ComponentTypes;
+
+	/**
+	 * Type may be viewed as a flat list of fields, rather than of individual components
+	 */
+	TArrayView<const EValueType> FlatFieldTypes;
 
 	const FStructField* FindFieldByName(const TCHAR* InName) const;
 };
@@ -356,6 +365,12 @@ struct FValue
 	{
 		checkf(Component.IsValidIndex(i), TEXT("Invalid component %d, of type '%s'"), i, Type.GetName());
 		return Component[i];
+	}
+
+	/** returns 0 for invalid components */
+	inline FValueComponent TryGetComponent(int32 i) const
+	{
+		return Component.IsValidIndex(i) ? Component[i] : FValueComponent();
 	}
 
 	static FValue FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes = nullptr);

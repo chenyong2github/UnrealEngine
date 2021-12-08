@@ -66,8 +66,9 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const override;
 };
 
-enum class EExternalInputType
+enum class EExternalInputType : uint8
 {
+	None,
 	TexCoord0,
 	TexCoord1,
 	TexCoord2,
@@ -76,14 +77,43 @@ enum class EExternalInputType
 	TexCoord5,
 	TexCoord6,
 	TexCoord7,
+	WorldPosition,
+	WorldPosition_NoOffsets,
+	TranslatedWorldPosition,
+	TranslatedWorldPosition_NoOffsets,
 };
+static constexpr int32 NumTexCoords = 8;
+
+inline bool IsTexCoord(EExternalInputType Type)
+{
+	return FMath::IsWithin((int32)Type, (int32)EExternalInputType::TexCoord0, (int32)EExternalInputType::TexCoord0 + NumTexCoords);
+}
+
 inline Shader::EValueType GetInputExpressionType(EExternalInputType Type)
 {
-	return Shader::EValueType::Float2;
+	if (IsTexCoord(Type))
+	{
+		return Shader::EValueType::Float2;
+	}
+
+	switch (Type)
+	{
+	case EExternalInputType::None:
+		return Shader::EValueType::Void;
+	case EExternalInputType::WorldPosition:
+	case EExternalInputType::WorldPosition_NoOffsets:
+		return Shader::EValueType::Double3;
+	case EExternalInputType::TranslatedWorldPosition:
+	case EExternalInputType::TranslatedWorldPosition_NoOffsets:
+		return Shader::EValueType::Float3;
+	default:
+		checkNoEntry();
+		return Shader::EValueType::Void;
+	}
 }
 inline EExternalInputType MakeInputTexCoord(int32 Index)
 {
-	check(Index >= 0 && Index < 8);
+	check(Index >= 0 && Index < NumTexCoords);
 	return (EExternalInputType)((int32)EExternalInputType::TexCoord0 + Index);
 }
 

@@ -36,6 +36,18 @@ int32 FType::GetNumComponents() const
 	return TypeDesc.NumComponents;
 }
 
+int32 FType::GetNumFlatFields() const
+{
+	if (StructType)
+	{
+		check(ValueType == EValueType::Struct);
+		return StructType->FlatFieldTypes.Num();
+	}
+
+	check(ValueType != EValueType::Struct);
+	return 1;
+}
+
 EValueComponentType FType::GetComponentType(int32 Index) const
 {
 	if (StructType)
@@ -45,6 +57,16 @@ EValueComponentType FType::GetComponentType(int32 Index) const
 	}
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
 	return (Index >= 0 && Index < TypeDesc.NumComponents) ? TypeDesc.ComponentType : EValueComponentType::Void;
+}
+
+EValueType FType::GetFlatFieldType(int32 Index) const
+{
+	if (StructType)
+	{
+		check(ValueType == EValueType::Struct);
+		return StructType->FlatFieldTypes.IsValidIndex(Index) ? StructType->FlatFieldTypes[Index] : EValueType::Void;
+	}
+	return (Index == 0) ? ValueType : EValueType::Void;
 }
 
 bool FType::Merge(const FType& OtherType)
@@ -321,6 +343,19 @@ bool FValue::AsBoolScalar() const
 		}
 	}
 	return false;
+}
+
+const TCHAR* GetComponentTypeName(EValueComponentType Type)
+{
+	switch (Type)
+	{
+	case EValueComponentType::Void: return TEXT("void");
+	case EValueComponentType::Float: return TEXT("float");
+	case EValueComponentType::Double: return TEXT("double");
+	case EValueComponentType::Int: return TEXT("int");
+	case EValueComponentType::Bool: return TEXT("bool");
+	default: checkNoEntry() return TEXT("void");
+	}
 }
 
 uint32 GetComponentTypeSizeInBytes(EValueComponentType Type)
@@ -697,18 +732,19 @@ void FStructTypeRegistry::EmitDeclarationsCode(FStringBuilderBase& OutCode) cons
 
 namespace Private
 {
-void SetComponentTypes(EValueComponentType* ComponentTypes, int32 ComponentIndex, const FType& Type)
+void SetFieldType(EValueType* FieldTypes, EValueComponentType* ComponentTypes, int32 FieldIndex, int32 ComponentIndex, const FType& Type)
 {
 	if (Type.IsStruct())
 	{
 		for (const FStructField& Field : Type.StructType->Fields)
 		{
-			SetComponentTypes(ComponentTypes, ComponentIndex + Field.ComponentIndex, Field.Type);
+			SetFieldType(FieldTypes, ComponentTypes, FieldIndex + Field.FlatFieldIndex, ComponentIndex + Field.ComponentIndex, Field.Type);
 		}
 	}
 	else
 	{
-		const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+		FieldTypes[FieldIndex] = Type.ValueType;
+		const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type.ValueType);
 		for (int32 i = 0; i < TypeDesc.NumComponents; ++i)
 		{
 			ComponentTypes[ComponentIndex + i] = TypeDesc.ComponentType;
@@ -724,6 +760,7 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 
 	const int32 NumFields = Initializer.Fields.Num();
 	int32 ComponentIndex = 0;
+	int32 FlatFieldIndex = 0;
 	FStructField* Fields = new(*Allocator) FStructField[NumFields];
 	for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
 	{
@@ -744,14 +781,17 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 		Field.Name = MemStack::AllocateString(*Allocator, FieldInitializer.Name);
 		Field.Type = FieldType;
 		Field.ComponentIndex = ComponentIndex;
+		Field.FlatFieldIndex = FlatFieldIndex;
 		ComponentIndex += FieldType.GetNumComponents();
+		FlatFieldIndex += FieldType.GetNumFlatFields();
 	}
 
 	EValueComponentType* ComponentTypes = new(*Allocator) EValueComponentType[ComponentIndex];
+	EValueType* FlatFieldTypes = new(*Allocator) EValueType[FlatFieldIndex];
 	for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
 	{
 		const FStructField& Field = Fields[FieldIndex];
-		Private::SetComponentTypes(ComponentTypes, Field.ComponentIndex, Field.Type);
+		Private::SetFieldType(FlatFieldTypes, ComponentTypes, Field.FlatFieldIndex, Field.ComponentIndex, Field.Type);
 	}
 
 	const FSHAHash Hash = Hasher.Finalize();
@@ -761,6 +801,7 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 	StructType->Hash = *reinterpret_cast<const uint64*>(Hash.Hash);
 	StructType->Fields = MakeArrayView(Fields, NumFields);
 	StructType->ComponentTypes = MakeArrayView(ComponentTypes, ComponentIndex);
+	StructType->FlatFieldTypes = MakeArrayView(FlatFieldTypes, FlatFieldIndex);
 
 	Types.Add(StructType->Hash, StructType);
 
