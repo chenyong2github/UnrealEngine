@@ -163,7 +163,7 @@ protected:
 	FMassLODRuntimeData RuntimeData;
 
 	/** Runtime data for each viewer specific LOD calculation, used only when bMaximizeCountPerViewer is true */
-	TStaticArray<FMassLODRuntimeData, UE::MassLOD::MaxNumOfViewers> RuntimeDataPerViewer;
+	TArray<FMassLODRuntimeData> RuntimeDataPerViewer;
 };
 
 template <typename FLODLogic>
@@ -240,6 +240,7 @@ void TMassLODCalculator<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo
 
 	if (FLODLogic::bMaximizeCountPerViewer)
 	{
+		RuntimeDataPerViewer.SetNum(Viewers.Num());
 		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 		{
 			// Reset viewer data
@@ -331,6 +332,11 @@ void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context,
 		// Do per viewer logic if asked for
 		if (FLODLogic::bStoreInfoPerViewer)
 		{
+			SetLODPerViewerNum<FLODLogic::bCalculateLODPerViewer>(EntityLOD, Viewers.Num());
+			SetPrevLODPerViewerNum<FLODLogic::bCalculateLODPerViewer>(EntityLOD, Viewers.Num());
+			SetbIsVisibleByViewerNum<FLODLogic::bDoVisibilityLogic&& FLODLogic::bStoreInfoPerViewer>(EntityLOD, Viewers.Num());
+			SetbWasVisibleByViewerNum<FLODLogic::bDoVisibilityLogic&& FLODLogic::bStoreInfoPerViewer>(EntityLOD, Viewers.Num());
+
 			for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 			{
 				const FViewerLODInfo& Viewer = Viewers[ViewerIdx];

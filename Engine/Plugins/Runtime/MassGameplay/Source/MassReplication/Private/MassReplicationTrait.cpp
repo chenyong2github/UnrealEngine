@@ -20,6 +20,6 @@ void UMassReplicationTrait::BuildTemplate(FMassEntityTemplateBuildContext& Build
 
 	BuildContext.AddFragmentWithDefaultInitializer<FMassNetworkIDFragment>();
 	BuildContext.AddFragment<FMassReplicatedAgentFragment>();
-	BuildContext.AddFragment<FMassReplicationLODInfoFragment>();
+	BuildContext.AddFragment<FMassReplicationViewerInfoFragment>();
 	BuildContext.AddFragment<FMassReplicationLODFragment>();
 }

@@ -81,8 +81,11 @@ protected:
 	UPROPERTY()
 	TArray<AMassClientBubbleInfoBase*> BubbleInfos;
 
+	TMassLODCollector<FReplicationLODLogic> LODCollector;
 	TMassLODCalculator<FReplicationLODLogic> LODCalculator;
 
+	FMassEntityQuery CollectViewerInfoQuery;
+	FMassEntityQuery CalculateLODQuery;
 	FMassEntityQuery EntityQuery;
 };
 

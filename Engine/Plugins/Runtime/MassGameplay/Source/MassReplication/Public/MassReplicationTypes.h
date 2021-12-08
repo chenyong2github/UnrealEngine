@@ -199,7 +199,7 @@ struct FReplicationLODLogic : public FLODDefaultLogic
  * Data fragment to store the calculated distances to viewers
  */
 USTRUCT()
-struct MASSREPLICATION_API FMassReplicationLODInfoFragment : public FMassFragment
+struct MASSREPLICATION_API FMassReplicationViewerInfoFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
@@ -207,7 +207,7 @@ struct MASSREPLICATION_API FMassReplicationLODInfoFragment : public FMassFragmen
 	float ClosestViewerDistanceSq;
 
 	/** Distance between each viewer and entity */
-	TStaticArray<float, UE::MassLOD::MaxNumOfViewers> DistanceToViewerSq;
+	TArray<float> DistanceToViewerSq;
 };
 
 USTRUCT()
@@ -222,10 +222,10 @@ struct MASSREPLICATION_API FMassReplicationLODFragment : public FMassFragment
 	TEnumAsByte<EMassLOD::Type> PrevLOD = EMassLOD::Max;
 
 	/** Per viewer LOD information */
-	TStaticArray<TEnumAsByte<EMassLOD::Type>, UE::MassLOD::MaxNumOfViewers> PrevLODPerViewer;
+	TArray<TEnumAsByte<EMassLOD::Type>> LODPerViewer;
 
 	/** Per viewer previous LOD information */
-	TStaticArray<TEnumAsByte<EMassLOD::Type>, UE::MassLOD::MaxNumOfViewers> LODPerViewer;
+	TArray<TEnumAsByte<EMassLOD::Type>> PrevLODPerViewer;
 };
 
 UCLASS()
