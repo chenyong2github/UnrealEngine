@@ -47,9 +47,14 @@ namespace UE::DatasmithImporter
 		/**
 		 * Return an array containing all the scheme supported by the registered URiResolvers.
 		 */
-		virtual const TArray<FString>& GetSupportedSchemes() const = 0;
+		virtual const TArray<FName>& GetSupportedSchemes() const = 0;
 
 #if WITH_EDITOR
+		/**
+		 * Open a dialog window for browsing ExternalSource based on the passed URI Scheme
+		 */
+		virtual TSharedPtr<FExternalSource> BrowseExternalSource(const FName& UriScheme, const FSourceUri& DefaultSourceUri = FSourceUri()) const = 0;
+
 		template<typename ImportDataType>
 		TSharedPtr<FExternalSource> TryGetExternalSourceFromImportData(const ImportDataType& ImportSourceData) const
 		{

@@ -167,6 +167,8 @@ private:
 	FDelegateHandle SetAssetAutoReimportHandle;
 	FDelegateHandle IsAssetAutoReimportSupportedHandle;
 	FDelegateHandle IsAssetAutoReimportEnabledHandle;
+	FDelegateHandle BrowseExternalSourceUriHandle;
+	FDelegateHandle GetSupporedUriSchemeHandle;
 };
 
 void FDatasmithImporterModule::SetupMenuEntry()
@@ -793,6 +795,39 @@ void FDatasmithImporterModule::SetupDatasmithContentDelegates()
 		IsAssetAutoReimportEnabledHandle = IsAssetAutoReimportEnabled.GetHandle();
 		DatasmithContentEditorModule.RegisterIsAssetAutoReimportEnabledHandler(MoveTemp(IsAssetAutoReimportEnabled));
 	}
+
+	{
+		FOnBrowseExternalSourceUri BrowseExternalSourceUri = FOnBrowseExternalSourceUri::CreateLambda(
+			[](FName UriScheme, const FString& DefaultUriString, FString& OutSourceUri, FString& OutFallbackFilepath)
+			{
+				using namespace UE::DatasmithImporter;
+				FSourceUri DefaultUri(DefaultUriString);
+
+				if (TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager().BrowseExternalSource(UriScheme, DefaultUri))
+				{
+					OutSourceUri = ExternalSource->GetSourceUri().ToString();
+					OutFallbackFilepath = ExternalSource->GetFallbackFilepath();
+					return true;
+				}
+
+				return false;
+			});
+
+		BrowseExternalSourceUriHandle = BrowseExternalSourceUri.GetHandle();
+		DatasmithContentEditorModule.RegisterBrowseExternalSourceUriHandler(MoveTemp(BrowseExternalSourceUri));
+	}
+
+	{
+		FOnGetSupportedUriSchemes GetSupporedUriScheme = FOnGetSupportedUriSchemes::CreateLambda(
+			[]() -> const TArray<FName>&
+			{
+				using namespace UE::DatasmithImporter;
+				return IExternalSourceModule::Get().GetManager().GetSupportedSchemes();
+			});
+
+		GetSupporedUriSchemeHandle = GetSupporedUriScheme.GetHandle();
+		DatasmithContentEditorModule.RegisterGetSupportedUriSchemeHandler(MoveTemp(GetSupporedUriScheme));
+	}
 }
 
 void FDatasmithImporterModule::RemoveDatasmithContentDelegates()
@@ -804,6 +839,8 @@ void FDatasmithImporterModule::RemoveDatasmithContentDelegates()
 		DatasmithContentEditorModule.UnregisterSetAssetAutoReimportHandler(SetAssetAutoReimportHandle);
 		DatasmithContentEditorModule.UnregisterIsAssetAutoReimportAvailableHandler(IsAssetAutoReimportSupportedHandle);
 		DatasmithContentEditorModule.UnregisterIsAssetAutoReimportEnabledHandler(IsAssetAutoReimportEnabledHandle);
+		DatasmithContentEditorModule.UnregisterBrowseExternalSourceUriHandler(BrowseExternalSourceUriHandle);
+		DatasmithContentEditorModule.UnregisterGetSupportedUriSchemeHandler(GetSupporedUriSchemeHandle);
 	}
 }
 

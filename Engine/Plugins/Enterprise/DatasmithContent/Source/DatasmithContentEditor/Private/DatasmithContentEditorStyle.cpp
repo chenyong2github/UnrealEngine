@@ -2,13 +2,14 @@
 
 #include "DatasmithContentEditorStyle.h"
 
-//#include "DatasmithContentEditorModule.h"
 #include "DatasmithContentModule.h"
 
 #include "Interfaces/IPluginManager.h"
+#include "Styling/CoreStyle.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/StyleColors.h"
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FDatasmithContentEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 
@@ -16,6 +17,8 @@ TSharedPtr<FSlateStyleSet> FDatasmithContentEditorStyle::StyleSet;
 
 void FDatasmithContentEditorStyle::Initialize()
 {
+	using namespace CoreStyleConstants;
+
 	if (StyleSet.IsValid())
 	{
 		return;
@@ -25,10 +28,6 @@ void FDatasmithContentEditorStyle::Initialize()
 
 	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
-
-	const FVector2D Icon20x16(16.0f, 16.0f);
-	const FVector2D Icon20x20(20.0f, 20.0f);
-	const FVector2D Icon40x40(40.0f, 40.0f);
 
 	StyleSet->Set("DatasmithDataprepEditor.Importer", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithImporterIcon40", Icon40x40));
 	StyleSet->Set("DatasmithDataprepEditor.Importer.Small", new IMAGE_PLUGIN_BRUSH("Icons/DatasmithImporterIcon40", Icon20x20));
@@ -71,6 +70,28 @@ void FDatasmithContentEditorStyle::Initialize()
 	StyleSet->Set("DatasmithDataprepEditor.Jacketing.Small", new IMAGE_PLUGIN_BRUSH("Icons/Jacketing", Icon20x20));
 	StyleSet->Set("DatasmithDataprepEditor.Jacketing.Selected", new IMAGE_PLUGIN_BRUSH("Icons/Jacketing", Icon40x40));
 	StyleSet->Set("DatasmithDataprepEditor.Jacketing.Selected.Small", new IMAGE_PLUGIN_BRUSH("Icons/Jacketing", Icon20x20));
+
+	// Copy the base style, and change the rounding of the left-side borders so that it can be combined with a "right" widget.
+	FButtonStyle ButtonLeftStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>(TEXT("Button"));
+	ButtonLeftStyle.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, FVector4(4.0f, 0.0f, 0.0f, 4.0f), FStyleColors::Input, InputFocusThickness))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, FVector4(4.0f, 0.0f, 0.0f, 4.0f), FStyleColors::Input, InputFocusThickness))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, FVector4(4.0f, 0.0f, 0.0f, 4.0f), FStyleColors::Input, InputFocusThickness))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f), FStyleColors::Recessed, InputFocusThickness));
+
+	StyleSet->Set("DatasmithDataprepEditor.ButtonLeft", ButtonLeftStyle);
+
+	// Copy the base style and tweak the padding and right-side border rounding so that it can be combined with a "left" widget.
+	FComboBoxStyle ComboRightStyle = FAppStyle::Get().GetWidgetStyle<FComboBoxStyle>(TEXT("SimpleComboBox"));
+	FComboButtonStyle& ComboButtonStyle = ComboRightStyle.ComboButtonStyle;
+	ComboButtonStyle.SetDownArrowPadding(1);
+	FButtonStyle& SimpleButtonStyle = ComboButtonStyle.ButtonStyle;
+	SimpleButtonStyle
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, FVector4(0.0f, 4.0f, 4.0f, 0.0f), FStyleColors::Input, InputFocusThickness))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, FVector4(0.0f, 4.0f, 4.0f, 0.0f), FStyleColors::Input, InputFocusThickness))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, FVector4(0.0f, 4.0f, 4.0f, 0.0f), FStyleColors::Input, InputFocusThickness))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f), FStyleColors::Recessed, InputFocusThickness));
+
+	StyleSet->Set("DatasmithDataprepEditor.SimpleComboBoxRight", ComboRightStyle);
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }

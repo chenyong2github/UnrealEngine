@@ -3974,18 +3974,16 @@ namespace ObjectTools
 	}
 
 	/**
-	 * Internal helper function to obtain format descriptions and extensions of formats supported by the provided factory
+	 * Internal helper function to obtain format descriptions and extensions of formats list
 	 *
-	 * @param	InFactory			Factory whose formats should be retrieved
+	 * @param	Formats				List of formats who should be retrieved
 	 * @param	out_Descriptions	Array of format descriptions associated with the current factory; should equal the number of extensions
 	 * @param	out_Extensions		Array of format extensions associated with the current factory; should equal the number of descriptions
 	 */
-	void InternalGetFactoryFormatInfo( const UFactory* InFactory, TArray<FString>& out_Descriptions, TArray<FString>& out_Extensions )
+	void InternalGetFormatInfo(const TArray<FString>& Formats, TArray<FString>& out_Descriptions, TArray<FString>& out_Extensions )
 	{
-		check(InFactory);
-
-		// Iterate over each format the factory accepts
-		for ( TArray<FString>::TConstIterator FormatIter( InFactory->Formats ); FormatIter; ++FormatIter )
+		// Iterate over each formats.
+		for ( TArray<FString>::TConstIterator FormatIter( Formats ); FormatIter; ++FormatIter )
 		{
 			const FString& CurFormat = *FormatIter;
 
@@ -4038,7 +4036,7 @@ namespace ObjectTools
 
 			TArray<FString> Descriptions;
 			TArray<FString> Extensions;
-			InternalGetFactoryFormatInfo( CurFactory, Descriptions, Extensions );
+			InternalGetFormatInfo( CurFactory->Formats, Descriptions, Extensions );
 			check( Descriptions.Num() == Extensions.Num() );
 
 			// Make sure to only store each key, value pair once
@@ -4118,20 +4116,14 @@ namespace ObjectTools
 		}
 	}
 
-	/**
-	 * Generates a list of file types for a given class.
-	 */
-	void AppendFactoryFileExtensions ( UFactory* InFactory, FString& out_Filetypes, FString& out_Extensions )
+	void InternalAppendFileExtensions(const TArray<FString>& InDescriptions, const TArray<FString>& InExtensions, FString& out_Filetypes, FString& out_Extensions)
 	{
-		TArray<FString> Descriptions;
-		TArray<FString> Extensions;
-		InternalGetFactoryFormatInfo( InFactory, Descriptions, Extensions );
-		check( Descriptions.Num() == Extensions.Num() );
+		check(InDescriptions.Num() == InExtensions.Num());
 
-		for ( int32 FormatIndex = 0; FormatIndex < Descriptions.Num() && FormatIndex < Extensions.Num(); ++FormatIndex )
+		for (int32 FormatIndex = 0; FormatIndex < InDescriptions.Num() && FormatIndex < InExtensions.Num(); ++FormatIndex)
 		{
-			const FString& CurDescription = Descriptions[FormatIndex];
-			const FString& CurExtension = Extensions[FormatIndex];
+			const FString& CurDescription = InDescriptions[FormatIndex];
+			const FString& CurExtension = InExtensions[FormatIndex];
 			const FString& CurLine = FString::Printf( TEXT("%s (*.%s)|*.%s"), *CurDescription, *CurExtension, *CurExtension );
 
 			// Only append the extension if it's not already one of the found extensions
@@ -4154,6 +4146,26 @@ namespace ObjectTools
 				out_Filetypes += CurLine;
 			}
 		}
+	}
+
+	void AppendFormatsFileExtensions(const TArray<FString>& InFormats, FString& out_FileTypes, FString& out_Extensions)
+	{
+		TArray<FString> Descriptions;
+		TArray<FString> Extensions;
+		InternalGetFormatInfo(InFormats, Descriptions, Extensions);
+		InternalAppendFileExtensions(Descriptions, Extensions, out_FileTypes, out_Extensions);
+	}
+
+	/**
+	 * Generates a list of file types for a given class.
+	 */
+	void AppendFactoryFileExtensions ( UFactory* InFactory, FString& out_Filetypes, FString& out_Extensions )
+	{
+		check(InFactory);
+		TArray<FString> Descriptions;
+		TArray<FString> Extensions;
+		InternalGetFormatInfo( InFactory->Formats, Descriptions, Extensions );
+		InternalAppendFileExtensions( Descriptions, Extensions, out_Filetypes, out_Extensions);
 	}
 
 	/**

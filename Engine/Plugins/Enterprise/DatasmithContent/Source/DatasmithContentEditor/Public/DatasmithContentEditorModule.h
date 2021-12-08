@@ -41,6 +41,8 @@ DECLARE_DELEGATE_RetVal(TSharedPtr<IDataprepImporterInterface>, FOnCreateDatasmi
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnSetAssetAutoReimport, UObject* /*Asset*/, bool /*bEnabled*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsAssetAutoReimportAvailable, UObject* /*Asset*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsAssetAutoReimportEnabled, UObject* /*Asset*/);
+DECLARE_DELEGATE_RetVal_FourParams(bool, FOnBrowseExternalSourceUri, FName/*UriScheme*/, const FString& /*DefaultUri*/, FString& /*OutSourceUri*/, FString& /*OutFallbackFilepath*/);
+DECLARE_DELEGATE_RetVal(const TArray<FName>&, FOnGetSupportedUriSchemes);
 
 struct FImporterDescription
 {
@@ -126,5 +128,13 @@ public:
 	virtual void RegisterIsAssetAutoReimportEnabledHandler(FOnIsAssetAutoReimportEnabled&& IsAssetAutoReimportEnabledDelegate) = 0;
 	virtual void UnregisterIsAssetAutoReimportEnabledHandler(FDelegateHandle InHandle) = 0;
 	virtual TOptional<bool> IsAssetAutoReimportEnabled(UObject* Asset) const = 0;
+
+	virtual void RegisterBrowseExternalSourceUriHandler(FOnBrowseExternalSourceUri&& BrowseExternalSourceUriDelegate) = 0;
+	virtual void UnregisterBrowseExternalSourceUriHandler(FDelegateHandle InHandle) = 0;
+	virtual bool BrowseExternalSourceUri(FName UriScheme, const FString& DefaultUri, FString& OutSourceUri, FString& OutFallbackFilepath) const = 0;
+
+	virtual void RegisterGetSupportedUriSchemeHandler(FOnGetSupportedUriSchemes&& GetSupportedUriSchemeDelegate) = 0;
+	virtual void UnregisterGetSupportedUriSchemeHandler(FDelegateHandle InHandle) = 0;
+	virtual TOptional<TArray<FName>> GetSupportedUriScheme() const = 0;
 };
 

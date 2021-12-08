@@ -40,7 +40,7 @@ namespace UE::DatasmithImporter
 		return NumberOfEntryRemoved > 0;
 	}
 
-	const TArray<FString>& FUriManager::GetSupportedSchemes() const
+	const TArray<FName>& FUriManager::GetSupportedSchemes() const
 	{
 		if (CachedSchemes.Num() == 0 && RegisteredResolvers.Num() > 0)
 		{
@@ -48,7 +48,7 @@ namespace UE::DatasmithImporter
 
 			for (const FUriResolverRegisterInformation& RegisterInfo : RegisteredResolvers)
 			{
-				CachedSchemes.Add(RegisterInfo.UriResolver->GetScheme().ToString());
+				CachedSchemes.Add(RegisterInfo.UriResolver->GetScheme());
 			}
 		}
 
@@ -72,4 +72,19 @@ namespace UE::DatasmithImporter
 	{
 		CachedSchemes.Reset();
 	}
+
+#if WITH_EDITOR
+	TSharedPtr<FExternalSource> FUriManager::BrowseExternalSource(const FName& UriScheme, const FSourceUri& DefaultSourceUri) const
+	{
+		for (const FUriResolverRegisterInformation& RegisterInfo : RegisteredResolvers)
+		{
+			if (RegisterInfo.UriResolver->GetScheme() == UriScheme)
+			{
+				return RegisterInfo.UriResolver->BrowseExternalSource(DefaultSourceUri);
+			}
+		}
+
+		return nullptr;
+	}
+#endif //WITH_EDITOR
 }

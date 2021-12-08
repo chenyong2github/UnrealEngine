@@ -3,6 +3,8 @@
 #include "DatasmithImportInfoCustomization.h"
 
 #include "DatasmithAssetImportData.h"
+#include "DatasmithContentEditorModule.h"
+#include "DatasmithContentEditorStyle.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -10,13 +12,21 @@
 #include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
-
 #define LOCTEXT_NAMESPACE "AssetImportDataCustomization"
+
+FDatasmithImportInfoCustomization::FDatasmithImportInfoCustomization()
+{
+	if (TOptional<TArray<FName>> SupportedSchemes = IDatasmithContentEditorModule::Get().GetSupportedUriScheme())
+	{
+		AvailableUriSchemes = MoveTemp(SupportedSchemes.GetValue());
+	}
+}
 
 TSharedRef<IPropertyTypeCustomization> FDatasmithImportInfoCustomization::MakeInstance()
 {
@@ -27,15 +37,13 @@ void FDatasmithImportInfoCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 {
 	PropertyHandle = InPropertyHandle;
 
-	FSlateFontInfo Font = IDetailLayoutBuilder::GetDetailFont();
-
-	FDatasmithImportInfo* Info = GetEditStruct();
-	if (Info)
+	if (GetImportInfo() != nullptr)
 	{
-		const FText SourceUriText = LOCTEXT("SourceUri", "Source Uri");
-		const FText SourceHashText = LOCTEXT("SourceHash", "Source Hash");
+		const FSlateFontInfo Font = IDetailLayoutBuilder::GetDetailFont();
+		const FText SourceUriLabel = LOCTEXT("SourceUri", "Source Uri");
 
-		FText SourceUriLabel = SourceUriText;
+		const FButtonStyle* ButtonStyle = &FDatasmithContentEditorStyle::Get()->GetWidgetStyle<FButtonStyle>(TEXT("DatasmithDataprepEditor.ButtonLeft"));
+		const FComboBoxStyle* ComboBoxStyle = &FDatasmithContentEditorStyle::Get()->GetWidgetStyle<FComboBoxStyle>(TEXT("DatasmithDataprepEditor.SimpleComboBoxRight"));
 
 		ChildBuilder.AddCustomRow(SourceUriLabel)
 		.NameContent()
@@ -51,21 +59,75 @@ void FDatasmithImportInfoCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
+			.FillWidth(1.f)
 			[
-				SNew(SEditableTextBox)
-				.IsReadOnly(false)
+				SNew(SEditableText)
+				.IsReadOnly(true)
 				.Text(this, &FDatasmithImportInfoCustomization::GetUriText)
 				.ToolTipText(this, &FDatasmithImportInfoCustomization::GetUriText)
-				.OnTextCommitted(this, &FDatasmithImportInfoCustomization::OnSourceUriChanged)
 				.Font(Font)
+			]
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(ButtonStyle)
+				.OnClicked(this, &FDatasmithImportInfoCustomization::OnBrowseSourceClicked)
+				.ToolTipText(LOCTEXT("ChangePath_Tooltip", "Browse for a new source file path"))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("...", "..."))
+					.Font(Font)
+				]
+			]
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SAssignNew(SchemeComboBox, SComboBox<FName>)
+				.OptionsSource(&AvailableUriSchemes)
+				.OnSelectionChanged(this, &FDatasmithImportInfoCustomization::OnSchemeComboBoxChanged)
+				.OnGenerateWidget_Lambda([](FName InItem) { return SNew(STextBlock).Text(FText::FromName(InItem)); })
+				.ComboBoxStyle(ComboBoxStyle)
+				[
+					// We only need to display the "down arrow" but SComboBox does not accept SNullWidget as valid content.
+					// Use an empty STextBlock instead.
+					SNew(STextBlock)
+				]
 			]
 		];
 	}
 }
 
+FName FDatasmithImportInfoCustomization::GetCurrentScheme() const
+{
+	FName CurrentScheme;
+
+	if (FDatasmithImportInfo* Info = GetImportInfo())
+	{
+		// #ueent_todo Once source URI become part of the core API, update this to FSourceUri::GetScheme();
+		int32 SchemeSeparatorIndex = Info->SourceUri.Find("://");
+		if (SchemeSeparatorIndex != INDEX_NONE)
+		{
+			CurrentScheme = FName(Info->SourceUri.Left(SchemeSeparatorIndex));
+		}
+	}
+
+	if (CurrentScheme.IsNone())
+	{
+		// we should fallback on file selection if we can't determine the scheme.
+		CurrentScheme = FName(TEXT("file"));
+	}
+
+	return CurrentScheme;
+}
+
 FText FDatasmithImportInfoCustomization::GetUriText() const
 {
-	FDatasmithImportInfo* Info = GetEditStruct();
+	FDatasmithImportInfo* Info = GetImportInfo();
 	if (Info)
 	{
 		return FText::FromString(Info->SourceUri);
@@ -73,7 +135,7 @@ FText FDatasmithImportInfoCustomization::GetUriText() const
 	return LOCTEXT("NoUriFound", "No Source Uri Set");
 }
 
-FDatasmithImportInfo* FDatasmithImportInfoCustomization::GetEditStruct() const
+FDatasmithImportInfo* FDatasmithImportInfoCustomization::GetImportInfo() const
 {
 	TArray<FDatasmithImportInfo*> AssetImportInfo;
 
@@ -89,7 +151,6 @@ FDatasmithImportInfo* FDatasmithImportInfoCustomization::GetEditStruct() const
 	return nullptr;
 }
 
-
 UObject* FDatasmithImportInfoCustomization::GetOuterClass() const
 {
 	static TArray<UObject*> OuterObjects;
@@ -99,7 +160,6 @@ UObject* FDatasmithImportInfoCustomization::GetOuterClass() const
 
 	return OuterObjects.Num() ? OuterObjects[0] : nullptr;
 }
-
 
 class FImportDataSourceFileTransactionScope
 {
@@ -133,23 +193,53 @@ private:
 	UObject* OuterObject;
 };
 
-void FDatasmithImportInfoCustomization::OnSourceUriChanged(const FText& NewText, ETextCommit::Type) const
+FReply FDatasmithImportInfoCustomization::OnBrowseSourceClicked() const
 {
-	UObject* OuterObject = GetOuterClass();
-	FDatasmithImportInfo* Info = GetEditStruct();
+	SelectNewSource(GetCurrentScheme());
 
-	if (Info && OuterObject)
+	return FReply::Handled();
+}
+
+bool FDatasmithImportInfoCustomization::SelectNewSource(FName SourceScheme) const
+{
+	UAssetImportData* ImportData = Cast<UAssetImportData>(GetOuterClass());
+	UObject* Obj = ImportData ? ImportData->GetOuter() : nullptr;
+
+	FDatasmithImportInfo* Info = GetImportInfo();
+	if (!Obj || !Info)
 	{
-		FImportDataSourceFileTransactionScope TransactionScope(LOCTEXT("SourceUriChanged", "Change Source URI"), OuterObject);
+		return false;
+	}
 
-		Info->SourceUri = NewText.ToString();
+	FString SourceUri;
+	FString FallbackFilepath;
+	if (IDatasmithContentEditorModule::Get().BrowseExternalSourceUri(SourceScheme, Info->SourceUri, SourceUri, FallbackFilepath))
+	{
+		FImportDataSourceFileTransactionScope TransactionScope(LOCTEXT("SourceUriChanged", "Change Source URI"), ImportData);
+
+		Info->SourceUri = SourceUri;
 		Info->SourceHash.Empty();
+		ImportData->UpdateFilenameOnly(FallbackFilepath);
 
 		// Broadcasting property change to force refresh the asset registry tag and notify systems monitoring the URI.
 		FPropertyChangedEvent EmptyPropertyChangedEvent(nullptr);
-		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(OuterObject, EmptyPropertyChangedEvent);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(ImportData, EmptyPropertyChangedEvent);
+		return true;
 	}
+
+	return false;
 }
 
+void FDatasmithImportInfoCustomization::OnSchemeComboBoxChanged(FName InItem, ESelectInfo::Type InSeletionInfo)
+{
+	if (!InItem.IsNone())
+	{
+		// User must select a new source when changing the scheme (type) of the source.
+		SelectNewSource(InItem);
+
+		// If we don't clear the selection OnSchemeComboBoxChanged() won't be triggered if the used select the same option again.
+		SchemeComboBox->ClearSelection();
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
