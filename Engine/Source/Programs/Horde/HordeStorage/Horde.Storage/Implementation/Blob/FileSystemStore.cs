@@ -7,7 +7,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dasync.Collections;
-using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -21,10 +20,9 @@ namespace Horde.Storage.Implementation
 
         internal const int DefaultBufferSize = 4096;
 
-        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings, BlobCleanupService cleanupService)
+        public FileSystemStore(IOptionsMonitor<FilesystemSettings> settings)
         {
             _settings = settings;
-            cleanupService.RegisterCleanup(this);
         }
 
         public static FileInfo GetFilesystemPath(string rootDir, NamespaceId ns, BlobIdentifier blob)

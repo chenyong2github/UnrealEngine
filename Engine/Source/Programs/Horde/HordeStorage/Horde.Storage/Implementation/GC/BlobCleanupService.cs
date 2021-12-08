@@ -47,7 +47,12 @@ namespace Horde.Storage.Implementation
                 OrphanBlobCleanupRefs orphanBlobCleanupRefs = provider.GetService<OrphanBlobCleanupRefs>()!;
                 RegisterCleanup(orphanBlobCleanupRefs);
             }
-            
+
+            FileSystemStore? fileSystemStore = provider.GetService<FileSystemStore>();
+            if (fileSystemStore != null)
+            {
+                RegisterCleanup(fileSystemStore);
+            }
         }
 
         public void RegisterCleanup(IBlobCleanup cleanup)
