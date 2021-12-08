@@ -12,6 +12,7 @@ public class NiagaraShader : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "NiagaraCore",
+                "NiagaraVertexFactories",
                 "Renderer",
             }
         );
@@ -23,7 +24,8 @@ public class NiagaraShader : ModuleRules
                 "VectorVM",
                 "RHI",
                 "Projects",
-                "NiagaraCore"
+                "NiagaraCore",
+                "NiagaraVertexFactories",
             }
         );
 
