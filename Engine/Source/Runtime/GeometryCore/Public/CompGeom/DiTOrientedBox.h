@@ -37,6 +37,24 @@ namespace Geometry
 	template <typename RealType>
 	TOrientedBox3<RealType>  GEOMETRYCORE_API ComputeOrientedBBox(const EDiTO DiTO_K, const int32 NumPoints, TFunctionRef<UE::Math::TVector<RealType>(int32)>  GetPointFunc);
 
+
+	/**
+	* @return OrientedBox3 that contains the points provided by the given GetPointFunc
+	* 
+	* Heuristic-based computation of an object oriented bounding box that utilizes 
+	* a small number of extremal vertices and an internal Di-Tetrahedron to generate the box orientation.
+	* Based on "Fast Computation of Tight-Fitting Oriented Bounding Boxes" by Larson and Kallberg ( cf., Game Engine Gems 2)
+	*
+	* @param SampleDirections       - array of sample directions, ideally the direction vectors should be of the same length but no length checks are done internally. 
+	* @param NumPoints              - number points used in constructing the OrientedBox
+	* @param GetPointFunc           - returns a point for every index i = [0, NumPoints)  
+	* 
+	* The number of extreme vertices used by the method will be twice the number of sample directions. 
+	*
+	*/
+	template <typename RealType>
+	TOrientedBox3<RealType>  GEOMETRYCORE_API ComputeOrientedBBox(const TArray<TVector<RealType>>& SampleDirections, const int32 NumPoints, TFunctionRef<UE::Math::TVector<RealType>(int32)>  GetPointFunc);
+
 } // end namespace Geometry
 }// end namespace UE
 
