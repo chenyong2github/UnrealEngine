@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ConsoleVariablesEditorListRow.h"
+#include "ConsoleVariablesEditorListFilters/IConsoleVariablesEditorListFilter.h"
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
@@ -28,13 +29,14 @@ public:
 
 	virtual ~SConsoleVariablesEditorList() override;
 
-	TSharedRef<SWidget> BuildShowOptionsMenu();
-	
-	void FlushMemory(const bool bShouldKeepMemoryAllocated);
+	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
+	void RebuildList(const FString& InConsoleCommandToScrollTo = "");
 
-	void RefreshScroll() const;
-
-	void RefreshList(const FString& InConsoleCommandToScrollTo = "");
+	/**
+	 * Refresh filters and sorting.
+	 * Useful for when the list state has gone stale but the variable count has not changed.
+	 */
+	void RefreshList();
 
 	[[nodiscard]] TArray<FConsoleVariablesEditorListRowPtr> GetSelectedTreeViewItems() const;
 
@@ -63,6 +65,9 @@ public:
 	bool DoesListHaveUncheckedMembers() const;
 	
 	void OnListItemCheckBoxStateChange(const ECheckBoxState InNewState);
+
+	void ToggleFilterActive(const FString& FilterName);
+	void EvaluateIfRowsPassFilters();
 
 	// Sorting
 
@@ -94,6 +99,12 @@ private:
 	TSharedPtr<SHeaderRow> HeaderRow;
 	TSharedPtr<SHeaderRow> GenerateHeaderRow();
 	ECheckBoxState HeaderCheckBoxState = ECheckBoxState::Checked;
+
+	void SetupFilters();
+
+	TSharedRef<SWidget> BuildShowOptionsMenu();
+	
+	void FlushMemory(const bool bShouldKeepMemoryAllocated);
 	
 	void SetAllGroupsCollapsed();
 
@@ -113,6 +124,8 @@ private:
 	void OnRowChildExpansionChange(FConsoleVariablesEditorListRowPtr Row, const bool bIsExpanded, const bool bIsRecursive = false) const;
 
 	void SetChildExpansionRecursively(const FConsoleVariablesEditorListRowPtr& InRow, const bool bNewIsExpanded) const;
+
+	TArray<TSharedRef<IConsoleVariablesEditorListFilter>> ShowFilters;
 
 	TSharedPtr<STreeView<FConsoleVariablesEditorListRowPtr>> TreeViewPtr;
 	

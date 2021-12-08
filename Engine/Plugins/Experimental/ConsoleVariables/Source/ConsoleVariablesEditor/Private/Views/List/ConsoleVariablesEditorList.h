@@ -20,7 +20,14 @@ public:
 
 	TSharedRef<SWidget> GetOrCreateWidget();
 
-	void RefreshList(const FString& InConsoleCommandToScrollTo = "") const;
+	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
+	void RebuildList(const FString& InConsoleCommandToScrollTo = "") const;
+
+	/**
+	 * Refresh filters and sorting.
+	 * Useful for when the list state has gone stale but the variable count has not changed.
+	 */
+	void RefreshList() const;
 
 	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
 	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;

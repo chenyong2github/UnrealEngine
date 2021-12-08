@@ -177,6 +177,16 @@ void FConsoleVariablesEditorListRow::ExecuteSearchOnChildNodes(const TArray<FStr
 	}
 }
 
+bool FConsoleVariablesEditorListRow::GetDoesRowPassFilters() const
+{
+	return bDoesRowPassFilters;
+}
+
+void FConsoleVariablesEditorListRow::SetDoesRowPassFilters(const bool bPass)
+{
+	bDoesRowPassFilters = bPass;
+}
+
 bool FConsoleVariablesEditorListRow::GetIsSelected() const
 {
 	return bIsSelected;
@@ -204,7 +214,8 @@ bool FConsoleVariablesEditorListRow::IsRowChecked() const
 
 EVisibility FConsoleVariablesEditorListRow::GetDesiredVisibility() const
 {
-	return bDoesRowMatchSearchTerms || HasVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
+	return (bDoesRowMatchSearchTerms && bDoesRowPassFilters) || HasVisibleChildren() ?
+		EVisibility::Visible : EVisibility::Collapsed;
 }
 
 TArray<FConsoleVariablesEditorListRowPtr> FConsoleVariablesEditorListRow::GetSelectedTreeViewItems() const
@@ -228,7 +239,7 @@ FReply FConsoleVariablesEditorListRow::OnRemoveButtonClicked()
 
 	EditableAsset->RemoveConsoleVariable(CommandInfo.Pin()->Command);
 
-	ListViewPtr.Pin()->RefreshList();
+	ListViewPtr.Pin()->RebuildList();
 
 	return FReply::Handled();
 }

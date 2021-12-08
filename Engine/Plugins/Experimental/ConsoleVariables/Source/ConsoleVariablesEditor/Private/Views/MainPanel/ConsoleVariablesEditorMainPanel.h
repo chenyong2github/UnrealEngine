@@ -23,7 +23,15 @@ public:
 
 	void AddConsoleVariable(const FString& InConsoleCommand, const FString& InValue, const bool bScrollToNewRow = false) const;
 
-	void RefreshList(const FString& InConsoleCommandToScrollTo = "") const;
+	/** Regenerate the list items and refresh the list. Call when adding or removing variables. */
+	void RebuildList(const FString& InConsoleCommandToScrollTo = "") const;
+
+	/**
+	 * Refresh filters and sorting.
+	 * Useful for when the list state has gone stale but the variable count has not changed.
+	 */
+	void RefreshList() const;
+	
 	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
 	void RefreshMultiUserDetails() const;
