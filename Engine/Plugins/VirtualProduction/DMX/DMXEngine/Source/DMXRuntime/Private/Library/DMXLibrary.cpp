@@ -95,7 +95,7 @@ void UDMXLibrary::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	const FProperty* Property = PropertyChangedEvent.Property;
 	const UScriptStruct* InputPortReferenceStruct = FDMXInputPortReference::StaticStruct();
 	const UScriptStruct* OutputPortReferenceStruct = FDMXOutputPortReference::StaticStruct();
@@ -108,6 +108,12 @@ void UDMXLibrary::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	{
 		UpdatePorts();
 	}
+
+	// Remove any null entities from the library
+	Entities.RemoveAll([](UDMXEntity* Entity)
+		{
+			return !IsValid(Entity);
+		});
 }
 #endif // WITH_EDITOR
 

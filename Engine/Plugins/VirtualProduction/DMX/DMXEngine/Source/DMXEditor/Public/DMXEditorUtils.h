@@ -48,7 +48,8 @@ public:
 	/**  Checks if the Entity is being referenced by other objects. */
 	static bool IsEntityUsed(const UDMXLibrary* InLibrary, const UDMXEntity* InEntity);
 
-	/**  Removes the entities and fixes references to it. */
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Replaced with UDMXEntityFixtureType::RemoveFixtureTypeFromLibrary and UDMXEntityFixturePatch::RemoveFixturePatchFromLibrary to support blueprint and runtime changes.")
 	static void RemoveEntities(UDMXLibrary* InLibrary, const TArray<UDMXEntity*>& InEntities);
 
 	/**  Copies Entities to the operating system's clipboard. */

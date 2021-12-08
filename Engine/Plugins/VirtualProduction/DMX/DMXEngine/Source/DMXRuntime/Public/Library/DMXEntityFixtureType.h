@@ -271,9 +271,13 @@ class DMXRUNTIME_API UDMXEntityFixtureType
 	GENERATED_BODY()
 
 public:
-	/** Creates a new fixture patch in the DMX Library using the specified Fixture Type */
+	/** Creates a new Fixture Type in the DMX Library */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	static UDMXEntityFixtureType* CreateFixtureTypeInLibrary(UDMXLibrary* ParentDMXLibrary, const FString& DesiredName = TEXT(""));
+	
+	/** Removes a Fixture Type from a DMX Library */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void RemoveFixtureTypeFromLibrary(FDMXEntityFixtureTypeRef FixtureTypeRef);
 
 	//~ Begin UObject interface
 protected:
