@@ -220,7 +220,7 @@ bool IMultidirectionalBroadcastOperator::ConfigureOutputAndInternalVariablesAndS
 		}
 		// Set and configure output tensor
 		FNeuralTensor& OutputTensor = *OutputTensors.Last();
-		OutputTensor.SetNumUninitialized(ShapesOutput.GetInt64(), InputTensors[0]->GetDataType());
+		OutputTensor.SetNumUninitialized(InputTensors[0]->GetDataType(), ShapesOutput.GetInt64());
 	}
 	// ShapesOutput < MAX_NUMBER_DIMENSIONS
 	if ((uint32)ShapesOutput.Num() > FMultidirectionalBroadcastCS::MAX_NUMBER_DIMENSIONS)

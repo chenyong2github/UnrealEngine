@@ -716,7 +716,7 @@ bool FConvBaseOperator::FillOutputSizesAndPaddedMarginsAndSanityChecks(TArray<in
 	}
 	// Initialize OutputTensor
 	FNeuralTensor& OutputTensor = GetOutputTensorNoConst();
-	OutputTensor.SetNumUninitialized(OutputSizes, XOrXWithZeros.GetDataType());
+	OutputTensor.SetNumUninitialized(XOrXWithZeros.GetDataType(), OutputSizes);
 	// Sanity check
 	if (!FNeuralNetworkInferenceUtils::SizeSanityChecks(GetOutputTensorsConst(), 1, 1, 3, -1))
 	{

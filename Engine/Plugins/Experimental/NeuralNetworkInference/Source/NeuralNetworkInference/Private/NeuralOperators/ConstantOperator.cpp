@@ -129,7 +129,7 @@ void FConstantOperator::ForwardCPU()
 
 	// Fill output tensor
 	FNeuralTensor& OutputTensor = GetOutputTensorNoConst();
-	OutputTensor.SetNumUninitialized(Tensor);
+	OutputTensor.SetNumUninitialized(Tensor.GetDataType(), Tensor.GetSizes());
 	OutputTensor.SetFromUnderlyingUInt8ArrayCopy(Tensor.GetUnderlyingUInt8ArrayRef());
 }
 

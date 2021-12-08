@@ -39,12 +39,12 @@ bool FSqueezeOperator::ConfigureOutputAndInternalVariablesAndSanityChecks()
 		{
 			const FNeuralTensor& AxesTensor = *InputTensors[1];
 			TArray<int64> OutputShape = FSqueezeOperator::Remove1sFromShape(InputTensor, AxesTensor);
-			OutputTensor.SetNumUninitialized(OutputShape, InputTensor.GetDataType());
+			OutputTensor.SetNumUninitialized(InputTensor.GetDataType(), OutputShape);
 		}
 		else
 		{
 			TArray<int64> OutputShape = FSqueezeOperator::Remove1sFromShape(InputTensor);
-			OutputTensor.SetNumUninitialized(OutputShape, InputTensor.GetDataType());
+			OutputTensor.SetNumUninitialized(InputTensor.GetDataType(), OutputShape);
 		}
 		
 	}

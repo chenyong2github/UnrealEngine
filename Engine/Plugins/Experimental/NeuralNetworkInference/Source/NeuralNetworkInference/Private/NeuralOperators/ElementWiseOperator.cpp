@@ -56,7 +56,7 @@ bool IElementWiseOperator::ConfigureOutputAndInternalVariablesAndSanityChecks()
 		}
 		// Set and configure output tensor
 		FNeuralTensor& OutputTensor = *OutputTensors.Last();
-		OutputTensor.SetNumUninitialized(InputTensor);
+		OutputTensor.SetNumUninitialized(InputTensor.GetDataType(), InputTensor.GetSizes());
 	}
 	// Return true
 	bIsLoaded = true;

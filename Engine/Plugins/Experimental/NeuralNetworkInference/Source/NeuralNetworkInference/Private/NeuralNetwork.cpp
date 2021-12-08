@@ -413,7 +413,7 @@ void UNeuralNetwork::InputTensorsToGPU(const TArray<int32>& InTensorIndexes)
 				for (uint32 InputTensorIndex = 0; InputTensorIndex < GetInputTensorNumber(); ++InputTensorIndex)
 				{
 					FNeuralTensor& InputTensor = GetInputTensorMutable(InputTensorIndex);
-					InputTensor.ToGPU_RenderThread(&GraphBuilder);
+					InputTensor.CPUToRDGBuilder_RenderThread(&GraphBuilder);
 				}
 			}
 			// Run for the desired input tensors
@@ -422,7 +422,7 @@ void UNeuralNetwork::InputTensorsToGPU(const TArray<int32>& InTensorIndexes)
 				for (const int32 InputTensorIndex : InTensorIndexes)
 				{
 					FNeuralTensor& InputTensor = GetInputTensorMutable(InputTensorIndex);
-					InputTensor.ToGPU_RenderThread(&GraphBuilder);
+					InputTensor.CPUToRDGBuilder_RenderThread(&GraphBuilder);
 				}
 			}
 			// Execute Render Graph
@@ -455,8 +455,8 @@ void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InTensorIndexes)
 				for (uint32 OutputTensorIndex = 0; OutputTensorIndex < GetOutputTensorNumber(); ++OutputTensorIndex)
 				{
 					FNeuralTensor& OutputTensor = GetOutputTensorMutable(OutputTensorIndex);
-					OutputTensor.UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
-					OutputTensor.ToCPU_RenderThread(&GraphBuilder);
+					OutputTensor.GPUToRDGBuilder_RenderThread(&GraphBuilder);
+					OutputTensor.RDGBuilderToCPU_RenderThread(&GraphBuilder);
 				}
 			}
 			// Run for the desired output tensors
@@ -465,8 +465,8 @@ void UNeuralNetwork::OutputTensorsToCPU(const TArray<int32>& InTensorIndexes)
 				for (const int32 OutputTensorIndex : InTensorIndexes)
 				{
 					FNeuralTensor& OutputTensor = GetOutputTensorMutable(OutputTensorIndex);
-					OutputTensor.UpdateSRVAndOrUAV_RenderThread(&GraphBuilder);
-					OutputTensor.ToCPU_RenderThread(&GraphBuilder);
+					OutputTensor.GPUToRDGBuilder_RenderThread(&GraphBuilder);
+					OutputTensor.RDGBuilderToCPU_RenderThread(&GraphBuilder);
 				}
 			}
 			// Execute Render Graph

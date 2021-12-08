@@ -778,7 +778,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 		for (int32 TensorIndex = 0; TensorIndex < TensorNumber; ++TensorIndex)
 		{
 			const char* TensorName = TensorNames[TensorIndex];
-			OutTensors.Emplace(FNeuralTensor(ANSI_TO_TCHAR(TensorName), InTensorGPUTypes[TensorIndex]));
+			OutTensors.Emplace(FNeuralTensor(/*NeuralDataType unknown yet*/ ENeuralDataType::None, /*Volume unknown yet*/0, ANSI_TO_TCHAR(TensorName), InTensorGPUTypes[TensorIndex]));
 		}
 	}
 	else
@@ -802,16 +802,18 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 
 #ifdef PLATFORM_WIN64
 		if (InTensorGPUTypes[TensorIndex] == ENeuralTensorType::Generic)
+#endif
 		{
 			// Pre-allocate TArray (if size is different)
-			OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);
+			OutTensors[TensorIndex].SetNumUninitialized(InTensorDataTypes[TensorIndex], InSizes[TensorIndex]);
 			// Link tensor with ORT blob
 			LinkTensorToONNXRuntime(OutTensors, OrtTensors, *AllocatorInfo, TensorIndex);
 		}
+#ifdef PLATFORM_WIN64
 		else if (InTensorGPUTypes[TensorIndex] == ENeuralTensorType::Input || InTensorGPUTypes[TensorIndex] == ENeuralTensorType::Output)
 		{
 			// @todo: should we remove this? It's currently used to read memory from GPU to CPU
-			OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);
+			OutTensors[TensorIndex].SetNumUninitialized(InTensorDataTypes[TensorIndex], InSizes[TensorIndex]);
 
 			OutTensors[TensorIndex].SetEnableGPU(true);
 
@@ -821,7 +823,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 			if (!OutTensors[TensorIndex].InitPooledBuffer(&D3DResource))
 			{
 				UE_LOG(LogNeuralNetworkInference, Warning,
-					TEXT("FImplBackEndUEAndORT::SetTensorsFromNetwork(): Failed to initialize pooled buffer"));
+					TEXT("FImplBackEndUEAndORT::SetTensorsFromNetwork(): Failed to initialize the pooled buffer."));
 				return false;
 			}
 
@@ -829,15 +831,10 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 			if (!LinkTensorResourceToONNXRuntime(OutTensors[TensorIndex], OrtTensors[TensorIndex], D3DResource))
 			{
 				UE_LOG(LogNeuralNetworkInference, Warning,
-					TEXT("FImplBackEndUEAndORT::SetTensorsFromNetwork(): Failed to link GPU resource to ONNX runtime"));
+					TEXT("FImplBackEndUEAndORT::SetTensorsFromNetwork(): Failed to link the GPU resource to ONNX Runtime."));
 				return false;
 			}
 		}
-#else
-		// Pre-allocate TArray (if size is different)
-		OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);
-		// Link tensor with ORT blob
-		LinkTensorToONNXRuntime(OutTensors, OrtTensors, *AllocatorInfo, TensorIndex);
 #endif
 	}
 
@@ -990,7 +987,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionImpl(const ENeuralDeviceTyp
 		// Copy data to GPU (if required)
 		bool bNeedsGPUCopy = false;
 
-		for (auto& InputTensor : InputTensors)
+		for (FNeuralTensor& InputTensor : InputTensors)
 		{
 			if (InputTensor.GetTensorType() != ENeuralTensorType::Input)
 				continue;
@@ -1002,8 +999,8 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionImpl(const ENeuralDeviceTyp
 					FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("UploadTensorToGPU"));
 
 					// Set parameters
-					TRefCountPtr< FRDGPooledBuffer >& PooledBuffer = InputTensor.GetPooledBuffer();
-					FRDGBufferRef						InputBufferRef = GraphBuilder.RegisterExternalBuffer(PooledBuffer);
+					const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = InputTensor.GetPooledBuffer();
+					FRDGBufferRef InputBufferRef = GraphBuilder.RegisterExternalBuffer(PooledBuffer);
 
 					FUploadTensorParameters* UploadParameters = GraphBuilder.AllocParameters<FUploadTensorParameters>();
 
