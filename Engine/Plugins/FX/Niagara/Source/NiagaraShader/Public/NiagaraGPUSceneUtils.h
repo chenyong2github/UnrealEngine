@@ -10,10 +10,10 @@
 #include "NiagaraMeshVertexFactory.h"
 #include "SceneView.h"
 
-class FNiagaraGPUSceneUtils
+class NIAGARASHADER_API FNiagaraGPUSceneUtils
 {
 public:	
-	BEGIN_SHADER_PARAMETER_STRUCT(FUpdateMeshParticleInstancesParams, NIAGARA_API)
+	BEGIN_SHADER_PARAMETER_STRUCT(FUpdateMeshParticleInstancesParams, NIAGARASHADER_API)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneWriterParameters, GPUSceneWriterParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FNiagaraMeshCommonParameters, Common)
