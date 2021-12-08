@@ -219,6 +219,7 @@ public:
 			}
 			const void* GetQueryData() const { return nullptr; }
 			const void* GetSimData() const { return nullptr; }
+			const void* GetQueryPayload() const { return nullptr; }
 			bool ShouldIgnore(const TSpatialVisitorData<TPayloadType>& Instance) const { return false; }
 			TArray<TPayloadType>& CollectedResults;
 		};
@@ -357,7 +358,21 @@ public:
 	{
 		OverlapImp<SQVisitor, bPruneDuplicates>(QueryBounds, Visitor);
 	}
-
+	
+	/** Check if the leaf is dirty (if one of the payload have been updated)
+	* @return Dirty boolean that indicates if the leaf is dirty or not
+	*/
+	bool IsLeafDirty() const
+	{
+		return false;
+	}
+	
+	/** Set thye dirty flag onto the leaf 
+	* @param  bDirtyState Disrty flag to set 
+	*/
+	void SetDirtyState(const bool bDirtyState)
+	{}
+	
 	virtual void Serialize(FChaosArchive& Ar) override
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);

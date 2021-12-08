@@ -249,6 +249,22 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 		this->ComputeBounds(Elems);
 	}
 
+	/** Check if the leaf is dirty (if one of the payload have been updated)
+	 * @return Dirty boolean that indicates if the leaf is dirty or not
+ 	 */
+	bool IsLeafDirty() const
+	{
+		return bDirtyLeaf;
+	}
+
+	/** Set thye dirty flag onto the leaf 
+	 * @param  bDirtyState Disrty flag to set 
+	 */
+	void SetDirtyState(const bool bDirtyState)
+	{
+		bDirtyLeaf = bDirtyState;
+	}
+
 	template <typename TSQVisitor, typename TQueryFastData>
 	FORCEINLINE_DEBUGGABLE bool RaycastFast(const TVec3<T>& Start, TQueryFastData& QueryFastData, TSQVisitor& Visitor, const TVec3<T>& Dir, const TVec3<T> InvDir, const bool bParallel[3]) const
 	{
@@ -326,6 +342,7 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 				break;
 			}
 		}
+		bDirtyLeaf = true;
 	}
 
 	void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bHasBounds)
@@ -342,17 +359,20 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 				break;
 			}
 		}
+		bDirtyLeaf = true;
 	}
 
 	void AddElement(const TPayloadBoundsElement<TPayloadType, T>& Element)
 	{
 		Elems.Add(Element);
 		this->ComputeBounds(Elems);
+		bDirtyLeaf = true;
 	}
 
 	void Reset()
 	{
 		Elems.Reset();
+		bDirtyLeaf = true;
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -373,12 +393,28 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, T, bComput
 	}
 #endif
 
+	/** Print leaf information (bounds) for debugging purpose*/
+	void PrintLeaf() const
+	{
+		int32 ElemIndex = 0;
+		for (const auto& Elem : Elems)
+		{
+			UE_LOG(LogChaos, Log, TEXT("Elem[%d] with bounds = %f %f %f | %f %f %f"), ElemIndex, 
+					Elem.Bounds.Min()[0], Elem.Bounds.Min()[1], Elem.Bounds.Min()[2], 
+					Elem.Bounds.Max()[0], Elem.Bounds.Max()[1], Elem.Bounds.Max()[2]);
+			++ElemIndex;
+		}
+	}
+
 	void Serialize(FChaosArchive& Ar)
 	{
 		Ar << Elems;
 	}
 
 	TArray<TPayloadBoundsElement<TPayloadType, T>> Elems;
+
+	/** Flag on the leaf to know if it has been updated */
+	bool bDirtyLeaf = true;
 };
 
 template <typename TPayloadType, bool bComputeBounds, typename T>
@@ -550,7 +586,10 @@ public:
 		TreeExpensiveStats.Reset();
 		GlobalPayloads.Reset();
 		PayloadToInfo.Reset();
-
+		
+		OverlappingLeaves.Reset();
+		OverlappingOffsets.Reset();
+		
 		NumProcessedThisSlice = 0;
 		WorkStack.Reset();
 		WorkPoolFreeList.Reset();
@@ -1568,7 +1607,6 @@ public:
 
 	virtual void PrepareCopyTimeSliced(const  ISpatialAcceleration<TPayloadType, T, 3>& InFrom) override
 	{
-
 		check(this != &InFrom);
 		check(InFrom.GetType() == ESpatialAcceleration::AABBTree);
 		const TAABBTree<TPayloadType, TLeafType, bMutable, T>& From = static_cast<const TAABBTree<TPayloadType, TLeafType, bMutable, T>&>(InFrom);
@@ -1606,10 +1644,12 @@ public:
 		DirtyElementsGridOverflow.Reserve(From.DirtyElementsGridOverflow.Num());
 		GlobalPayloads.Reserve(From.GlobalPayloads.Num());
 		PayloadToInfo.Reserve(From.PayloadToInfo.Num());
+		OverlappingLeaves.Reserve(From.OverlappingLeaves.Num());
+		OverlappingOffsets.Reserve(From.OverlappingOffsets.Num());
 
 		this->SetAsyncTimeSlicingComplete(false);
 	}
-
+	
 	virtual void ProgressCopyTimeSliced(const  ISpatialAcceleration<TPayloadType, T, 3>& InFrom, int MaximumBytesToCopy) override
 	{
 		check(this != &InFrom);
@@ -1645,6 +1685,14 @@ public:
 			return;
 		}
 		if (!ContinueTimeSliceCopy(From.PayloadToInfo, PayloadToInfo, SizeToCopyLeft))
+		{
+			return;
+		}
+		if (!ContinueTimeSliceCopy(From.OverlappingLeaves, OverlappingLeaves, SizeToCopyLeft))
+		{
+			return;
+		}
+		if (!ContinueTimeSliceCopy(From.OverlappingOffsets, OverlappingOffsets, SizeToCopyLeft))
 		{
 			return;
 		}
@@ -1743,6 +1791,87 @@ public:
 		else
 		{
 			ensure(bDynamicTree == false);
+		}
+	}
+	
+	/** Given a first node and a leaf index find the overlapping leaves and update the node stack 
+	 * @param FirstNode First node to be added to the stack
+	 * @param LeafIndex Leaf index for which we want to find the overlapping leaves
+	 * @param Nodestack Node stack that will be used to traverse the tree and find the overlapping leaves
+	 */
+	void FindOverlappingLeaf(const int32 FirstNode, const int32 LeafIndex, TArray<int32>& NodeStack) 
+	{
+		const TAABB<T,3>& LeafBounds = Leaves[LeafIndex].GetBounds();
+				
+		NodeStack.Reset();
+		NodeStack.Add(FirstNode);
+		
+		int32 NodeIndex = INDEX_NONE;
+		while (NodeStack.Num())
+		{
+			NodeIndex = NodeStack.Pop(false);
+			const FNode& Node = Nodes[NodeIndex];
+			
+			// If a leaf directly test the bounds
+			if (Node.bLeaf)
+			{
+				if (LeafBounds.Intersects(Leaves[Node.ChildrenNodes[0]].GetBounds()))
+				{
+					OverlappingLeaves.Add(Node.ChildrenNodes[0]);
+				}
+			}
+			else
+			{
+				// If not loop over all the children nodes to check if they intersect the bounds
+				for(int32 ChildIndex = 0; ChildIndex < 2; ++ChildIndex)
+				{
+					if(LeafBounds.Intersects(Node.ChildrenBounds[ChildIndex]) && Node.ChildrenNodes[ChildIndex] != INDEX_NONE)
+					{
+						NodeStack.Add(Node.ChildrenNodes[ChildIndex]);
+					}
+				}
+			}
+		}
+	}
+
+	/** Cache for each leaves all the overlapping leaves*/
+	virtual void CacheOverlappingLeaves() override
+	{
+		OverlappingOffsets.SetNum(Leaves.Num()+1, false);
+		OverlappingLeaves.Reset();
+
+		if(!bDynamicTree || (bDynamicTree && RootNode == INDEX_NONE)) return;
+
+		TArray<int32> NodeStack;
+		const int32 FirstNode = bDynamicTree ? RootNode : 0;
+		
+		for(int32 LeafIndex = 0, NumLeaves = Leaves.Num(); LeafIndex < NumLeaves; ++LeafIndex)
+		{ 
+			OverlappingOffsets[LeafIndex] = OverlappingLeaves.Num();
+			FindOverlappingLeaf(FirstNode, LeafIndex, NodeStack);
+		}
+		OverlappingOffsets.Last() = OverlappingLeaves.Num();
+		for(int32 LeafIndex = 0, NumLeaves = Leaves.Num(); LeafIndex < NumLeaves; ++LeafIndex)
+		{
+			Leaves[LeafIndex].SetDirtyState(false);
+		}
+	}
+
+	/** Print the overlapping leaves data structure */
+	void PrintOverlappingLeaves()
+	{
+		UE_LOG(LogChaos, Log, TEXT("Num Leaves = %d"), Leaves.Num());
+		for(int32 LeafIndex = 0, NumLeaves = Leaves.Num(); LeafIndex < NumLeaves; ++LeafIndex)
+		{
+			auto& Leaf = Leaves[LeafIndex];
+			UE_LOG(LogChaos, Log, TEXT("Overlapping Count[%d] = %d with bounds = %f %f %f | %f %f %f"), LeafIndex,
+				OverlappingOffsets[LeafIndex+1] - OverlappingOffsets[LeafIndex], Leaf.GetBounds().Min()[0],
+				Leaf.GetBounds().Min()[1], Leaf.GetBounds().Min()[2], Leaf.GetBounds().Max()[0], Leaf.GetBounds().Max()[1], Leaf.GetBounds().Max()[2]);
+			
+			for(int32 OverlappingIndex = OverlappingOffsets[LeafIndex]; OverlappingIndex < OverlappingOffsets[LeafIndex+1]; ++OverlappingIndex)
+			{
+				UE_LOG(LogChaos, Log, TEXT("Overlapping Leaf[%d] = %d"), LeafIndex, OverlappingLeaves[OverlappingIndex]);
+			}
 		}
 	}
 
@@ -1854,7 +1983,45 @@ private:
 		}
 		return true;
 	}
-	
+
+	/** Cached version of the overlap function 
+	 * @param QueryBounds Bounds we want to query the tree on
+	 * @param Visitor Object owning the payload and used in the overlap function to store the result
+	 * @param bOverlapResult Result of the overlap function that will be used in the overlap fast
+	 * @return Boolean to check if we have used or not the cached overlapping leaves (for static we don't have the cache yet)
+	 */
+	template <EAABBQueryType Query, typename SQVisitor>
+	bool OverlapCached(const FAABB3& QueryBounds, SQVisitor& Visitor, bool& bOverlapResult) const
+	{
+		bool bCouldUseCache = false;
+		bOverlapResult = true;
+		// Only the overlap queries could use the caching
+		if (Query == EAABBQueryType::Overlap && Visitor.GetQueryPayload())
+		{
+			// Grab the payload from the visitor (only available on physics thread for now) and retrieve the info
+			const TPayloadType& QueryPayload = *static_cast<const TPayloadType*>(Visitor.GetQueryPayload());
+			if( const FAABBTreePayloadInfo* QueryInfo =  PayloadToInfo.Find(QueryPayload))
+			{
+				const int32 LeafIndex = QueryInfo->LeafIdx;
+				if(LeafIndex != INDEX_NONE && LeafIndex < (OverlappingOffsets.Num()-1))
+				{
+					//Once we have the leaf index we can loop over the overlapping leaves
+					for(int32 OverlappingIndex = OverlappingOffsets[LeafIndex];
+								OverlappingIndex < OverlappingOffsets[LeafIndex+1]; ++OverlappingIndex)
+					{
+						const TLeafType& OverlappingLeaf = Leaves[OverlappingLeaves[OverlappingIndex]];
+						if (OverlappingLeaf.OverlapFast(QueryBounds, Visitor) == false)
+						{
+							bOverlapResult = false;
+							break;
+						}
+					}
+					bCouldUseCache = true;
+				}
+			}
+		}
+		return bCouldUseCache;
+	}
 
 	template <EAABBQueryType Query, typename TQueryFastData, typename SQVisitor>
 	bool QueryImp(const FVec3& RESTRICT Start, TQueryFastData& CurData, const FVec3& QueryHalfExtents, const FAABB3& QueryBounds, SQVisitor& Visitor, const FVec3& Dir, const FVec3& InvDir, const bool bParallel[3]) const
@@ -2014,6 +2181,17 @@ private:
 			FReal TOI;
 		};
 
+		// Caching is for now only available for dyanmic tree
+		if (bDynamicTree && !OverlappingLeaves.IsEmpty())
+		{
+			// For overlap query and dynamic tree we are using the cached overlapping leaves
+			bool bOverlapResult = true;
+			if (OverlapCached<Query, SQVisitor>(QueryBounds, Visitor, bOverlapResult))
+			{
+				return bOverlapResult;
+			}
+		}
+		
 		TArray<FNodeQueueEntry> NodeStack;
 		if (bDynamicTree)
 		{
@@ -2352,7 +2530,7 @@ private:
 
 		NumProcessedThisSlice += LastElem - StartElemIdx;
 	}
-
+	
 	void SplitNode()
 	{
 		const bool WeAreTimeslicing = (MaxNumToProcess > 0);
@@ -2542,6 +2720,13 @@ private:
 
 			const void* GetQueryData() const { return nullptr; }
 			const void* GetSimData() const { return nullptr; }
+
+			/** Return a pointer to the payload on which we are querying the acceleration structure */
+			const void* GetQueryPayload() const 
+			{ 
+				return nullptr; 
+			}
+
 			bool ShouldIgnore(const TSpatialVisitorData<TPayloadType>& Instance) const { return false; }
 			TArray<TPayloadType>& CollectedResults;
 		};
@@ -2659,6 +2844,8 @@ private:
 		, MaxNumToProcess(Other.MaxNumToProcess)
 		, NumProcessedThisSlice(Other.NumProcessedThisSlice)
 		, bShouldRebuild(Other.bShouldRebuild)
+		, OverlappingLeaves(Other.OverlappingLeaves)
+		, OverlappingOffsets(Other.OverlappingOffsets)
 	{
 
 		ensure(bDynamicTree == Other.IsTreeDynamic());
@@ -2755,6 +2942,12 @@ private:
 	TArray<FWorkSnapshot> WorkPool;
 
 	bool bShouldRebuild;  // Contract: this can only ever be cleared by calling the ClearShouldRebuild method
+
+	/** Flat array of overlapping leaves.  */
+	TArray<int32> OverlappingLeaves;
+
+	/** Offset for each leaf in the overlapping leaves (OverlappingOffsets[LeafIndex]/OverlappingOffsets[LeafIndex+1] will be start/end indices of the leaf index in the overallping leaves array )*/
+	TArray<int32> OverlappingOffsets;
 };
 
 template<typename TPayloadType, typename TLeafType, bool bMutable, typename T>

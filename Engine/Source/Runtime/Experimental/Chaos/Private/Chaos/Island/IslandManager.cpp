@@ -312,7 +312,6 @@ void FPBDIslandManager::InitializeGraph(const TParticleView<FPBDRigidParticles>&
 	{
 		if(!IslandSolver->IsSleeping())
 		{
-			IslandSolver->ResetIndices();
 			IslandSolver->ClearConstraints();
 		}
 	}

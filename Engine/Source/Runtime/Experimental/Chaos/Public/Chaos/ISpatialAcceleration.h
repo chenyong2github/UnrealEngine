@@ -145,6 +145,9 @@ public:
 	virtual const void* GetSimData() const { return nullptr; }
 
 	virtual bool ShouldIgnore(const TSpatialVisitorData<TPayloadType>& Instance) const { return false; }
+
+	/** Return a pointer to the payload on which we are querying the acceleration structure */
+	virtual const void* GetQueryPayload() const { return nullptr; }
 };
 
 /**
@@ -268,6 +271,9 @@ public:
 	virtual void ClearShouldRebuild() {}
 	virtual void PrepareCopyTimeSliced(const  ISpatialAcceleration<TPayloadType, T, 3>& InFrom) { check(false); }
 	virtual void ProgressCopyTimeSliced(const  ISpatialAcceleration<TPayloadType, T, 3>& InFrom, int MaximumBytesToCopy) { check(false); }
+
+	/** Cache for each leaves all the overlapping leaves */
+	virtual void CacheOverlappingLeaves() {}
 
 	// IMPORTANT : (LWC) this API should be typed on Freal not T, as we want the query API to be using the highest precision while maintaining arbitrary internal precision for the acceleration structure ( based on T )
 	virtual TArray<TPayloadType> FindAllIntersections(const FAABB3& Box) const { check(false); return TArray<TPayloadType>(); }
@@ -429,6 +435,12 @@ public:
 	FORCEINLINE bool ShouldIgnore(const TSpatialVisitorData<TPayloadType>& Instance) const
 	{
 		return Visitor.ShouldIgnore(Instance);
+	}
+
+	/** Return a pointer to the payload on which we are querying the acceleration structure */
+	FORCEINLINE const void* GetQueryPayload() const
+	{
+		return Visitor.GetQueryPayload();
 	}
 
 private:
@@ -603,7 +615,7 @@ public:
 	}
 
 private:
-
+	
 	struct FEntry
 	{
 		TValue Value;
@@ -615,7 +627,7 @@ private:
 
 		}
 	};
-
+	
 	TArray<FEntry> Entries;
 
 #if CHAOS_SERIALIZE_OUT

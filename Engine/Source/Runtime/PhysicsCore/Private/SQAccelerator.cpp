@@ -186,6 +186,12 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 		return nullptr;
 	}
 
+	/** Return a pointer to the payload on which we are querying the acceleration structure */
+	virtual const void* GetQueryPayload() const override
+	{
+		return nullptr;
+	}
+
 private:
 
 	enum class ESQType
@@ -463,6 +469,12 @@ struct TBPVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 	}
 
 	virtual const void* GetSimData() const override
+	{
+		return nullptr;
+	}
+	
+	/** Return a pointer to the payload on which we are querying the acceleration structure */
+	virtual const void* GetQueryPayload() const override
 	{
 		return nullptr;
 	}
