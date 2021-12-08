@@ -205,13 +205,13 @@ void dtFreeObstacleAvoidanceQuery(dtObstacleAvoidanceQuery* ptr)
 
 
 dtObstacleAvoidanceQuery::dtObstacleAvoidanceQuery() :
-	m_maxPatterns(0),
 	m_customPatterns(0),
-	m_maxCircles(0),
 	m_circles(0),
+	m_segments(0),
+	m_maxPatterns(0),
+	m_maxCircles(0),
 	m_ncircles(0),
 	m_maxSegments(0),
-	m_segments(0),
 	m_nsegments(0)
 {
 }

@@ -1297,8 +1297,8 @@ int dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qm
 		const dtBVNode* end = &tile->bvTree[tile->header->bvNodeCount];
 		const dtReal* tbmin = tile->header->bmin;
 		const dtReal* tbmax = tile->header->bmax;
-		const dtReal qfac = tile->header->bvQuantFactor;
-		
+		const dtReal qfac = m_nav->getBVQuantFactor();
+
 		// Calculate quantized box
 		unsigned short bmin[3], bmax[3];
 		// dtClamp query box to world box.

@@ -893,6 +893,8 @@ protected:
 	TArray<FIntPoint>& GetActiveTiles(); 
 	virtual void RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles) override;
 
+	virtual void OnRegistered() override;
+
 public:
 	/** Whether NavMesh should adjust his tile pool size when NavBounds are changed */
 	bool IsResizable() const;

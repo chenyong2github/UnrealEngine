@@ -33,7 +33,7 @@ static const unsigned int DT_IN_PROGRESS = 1u << 29;		// Operation still in prog
 
 // Detail information for status.
 static const unsigned int DT_STATUS_DETAIL_MASK = 0x0ffffff;
-static const unsigned int DT_WRONG_MAGIC = 1 << 0;		// Input data is not recognized.
+//static const unsigned int DT_WRONG_MAGIC = 1 << 0;		// Input data is not recognized. NOTE: UE magic removed to save memory
 static const unsigned int DT_WRONG_VERSION = 1 << 1;	// Input data is in wrong version.
 static const unsigned int DT_OUT_OF_MEMORY = 1 << 2;	// Operation ran out of memory.
 static const unsigned int DT_INVALID_PARAM = 1 << 3;	// An input parameter was invalid.
