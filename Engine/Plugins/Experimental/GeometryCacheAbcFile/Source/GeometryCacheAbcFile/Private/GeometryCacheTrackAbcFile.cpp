@@ -116,6 +116,7 @@ void UGeometryCacheTrackAbcFile::Reset()
 {
 	AbcFile.Reset();
 	Hash.Empty();
+	AbcStream.Reset();
 
 	EndFrameIndex = 0;
 	Duration = 0.f;
@@ -219,14 +220,14 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 
 		// Register this Track and associated Stream with the GeometryCacheStreamer and prefetch the first frame
 		// The Stream ownership is passed to the Streamer
-		FGeometryCacheAbcStream* Stream = new FGeometryCacheAbcStream(this);
-		Streamer.RegisterTrack(this, Stream);
+		AbcStream.Reset(new FGeometryCacheAbcStream(this));
+		Streamer.RegisterTrack(this, AbcStream.Get());
 
 		const int32 InitialFrameIndex = FindSampleIndexFromTime(InitialTime, bIsLooping);
 		const float LookAhead = GetDefault<UGeometryCacheStreamerSettings>()->LookAheadBuffer;
 		const int32 NumFrames = FMath::CeilToInt(LookAhead / AbcFile->GetSecondsPerFrame());
 
-		Stream->Prefetch(InitialFrameIndex, NumFrames);
+		AbcStream->Prefetch(InitialFrameIndex, NumFrames);
 		GetMeshData(InitialFrameIndex, MeshData);
 
 		if (MeshData.Positions.Num() == 0)
@@ -314,6 +315,15 @@ void UGeometryCacheTrackAbcFile::SetupGeometryCacheMaterials(UGeometryCache* Geo
 FAbcFile& UGeometryCacheTrackAbcFile::GetAbcFile()
 {
 	return *AbcFile.Get();
+}
+
+void UGeometryCacheTrackAbcFile::UpdateTime(float Time, bool bLooping)
+{
+	if (AbcStream)
+	{
+		int32 FrameIndex = FindSampleIndexFromTime(Time, bLooping);
+		AbcStream->UpdateCurrentFrameIndex(FrameIndex);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

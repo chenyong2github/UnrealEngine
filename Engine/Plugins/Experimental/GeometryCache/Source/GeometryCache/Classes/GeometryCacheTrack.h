@@ -125,6 +125,9 @@ class GEOMETRYCACHE_API UGeometryCacheTrack : public UObject
 	/** Return the hash of the mesh data of the track */
 	virtual uint64 GetHash() const { return 0; }
 
+	/** Update the current time of the track */
+	virtual void UpdateTime(float Time, bool bLooping) { }
+
 protected:
 
 	/** The duration of this track's animation. This is an open ended interval [0..Duration[.

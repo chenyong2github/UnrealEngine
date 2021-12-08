@@ -110,7 +110,7 @@ void UGeometryCacheComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 		bool bUpdatedBoundsOrMatrix = false;
 		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 		{
-			bUpdatedBoundsOrMatrix |= UpdateTrackSection(TrackIndex);
+			bUpdatedBoundsOrMatrix |= UpdateTrackSection(TrackIndex, GetAnimationTime());
 		}
 
 		if (bUpdatedBoundsOrMatrix)
@@ -169,7 +169,7 @@ void UGeometryCacheComponent::TickAtThisTime(const float Time, bool bInIsRunning
 		bool bUpdatedBoundsOrMatrix = false;
 		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 		{
-			bUpdatedBoundsOrMatrix |= UpdateTrackSection(TrackIndex);
+			bUpdatedBoundsOrMatrix |= UpdateTrackSection(TrackIndex, Time);
 		}
 
 		if (bUpdatedBoundsOrMatrix)
@@ -268,21 +268,23 @@ void UGeometryCacheComponent::CreateTrackSection(int32 TrackIndex)
 		TrackSections.SetNum(TrackIndex + 1, false);
 	}
 
-	UpdateTrackSection(TrackIndex);
+	UpdateTrackSection(TrackIndex, GetAnimationTime());
 	MarkRenderStateDirty(); // Recreate scene proxy
 }
 
-bool UGeometryCacheComponent::UpdateTrackSection(int32 TrackIndex)
+bool UGeometryCacheComponent::UpdateTrackSection(int32 TrackIndex, float Time)
 {
 	checkf(TrackIndex < TrackSections.Num() && GeometryCache != nullptr && TrackIndex < GeometryCache->Tracks.Num(), TEXT("Invalid SectionIndex") );
 
 	UGeometryCacheTrack* Track = GeometryCache->Tracks[TrackIndex];
 	FTrackRenderData& UpdateSection = TrackSections[TrackIndex];
 
+	Track->UpdateTime(Time, bLooping);
+
 	FMatrix Matrix;
 	FBox TrackBounds;
-	const bool bUpdateMatrix = Track->UpdateMatrixData(GetAnimationTime(), bLooping, UpdateSection.MatrixSampleIndex, Matrix);
-	const bool bUpdateBounds = Track->UpdateBoundsData(GetAnimationTime(), bLooping, (PlayDirection < 0.0f) ? true : false, UpdateSection.BoundsSampleIndex, TrackBounds);
+	const bool bUpdateMatrix = Track->UpdateMatrixData(Time, bLooping, UpdateSection.MatrixSampleIndex, Matrix);
+	const bool bUpdateBounds = Track->UpdateBoundsData(Time, bLooping, (PlayDirection < 0.0f) ? true : false, UpdateSection.BoundsSampleIndex, TrackBounds);
 
 	if (bUpdateBounds)
 	{

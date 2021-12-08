@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AbcFile.h"
+#include "GeometryCacheAbcStream.h"
 #include "GeometryCacheTrack.h"
 #include "GeometryCacheMeshData.h"
 
@@ -26,6 +27,7 @@ public:
 	virtual const bool UpdateBoundsData(const float Time, const bool bLooping, const bool bIsPlayingBackward, int32& InOutBoundsSampleIndex, FBox& OutBounds) override;
 	virtual const FGeometryCacheTrackSampleInfo& GetSampleInfo(float Time, const bool bLooping) override;
 	virtual bool GetMeshDataAtTime(float Time, FGeometryCacheMeshData& OutMeshData) override;
+	virtual void UpdateTime(float Time, bool bLooping) override;
 	//~ End UGeometryCacheTrack Interface.
 
 	bool SetSourceFile(const FString& FilePath, class UAbcImportSettings* AbcSettings, float InitialTime = 0.f, bool bIsLooping = true);
@@ -55,4 +57,6 @@ private:
 	FString Hash;
 
 	int32 EndFrameIndex;
+
+	TUniquePtr<FGeometryCacheAbcStream> AbcStream;
 };

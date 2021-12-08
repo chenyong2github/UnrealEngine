@@ -15,6 +15,7 @@
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
@@ -2331,6 +2332,86 @@ void UsdUtils::ReplaceUnrealMaterialsWithBaked(
 	pxr::UsdPrim Root = Stage.GetPseudoRoot();
 	TOptional<FMaterialScopePrim> Empty;
 	TraverseForMaterialReplacement( UsdStage, Root, Empty, {} );
+}
+
+FString UsdUtils::HashGeomMeshPrim( const UE::FUsdStage& Stage, const FString& PrimPath, double TimeCode )
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE( UsdUtils::HashGeomMeshPrim );
+
+	using namespace pxr;
+
+	FScopedUsdAllocs Allocs;
+
+	UsdPrim UsdPrim = pxr::UsdPrim( Stage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) ) );
+	if ( !UsdPrim )
+	{
+		return {};
+	}
+
+	UsdGeomMesh UsdMesh( UsdPrim );
+	if ( !UsdMesh )
+	{
+		return {};
+	}
+
+	FMD5 MD5;
+
+	if ( UsdAttribute Points = UsdMesh.GetPointsAttr() )
+	{
+		VtArray< GfVec3f > PointsArray;
+		Points.Get( &PointsArray, TimeCode );
+		MD5.Update( ( uint8* ) PointsArray.cdata(), PointsArray.size() * sizeof( GfVec3f ) );
+	}
+
+	if ( UsdAttribute NormalsAttribute = UsdMesh.GetNormalsAttr() )
+	{
+		VtArray< GfVec3f > Normals;
+		NormalsAttribute.Get( &Normals, TimeCode );
+		MD5.Update( ( uint8* ) Normals.cdata(), Normals.size() * sizeof( GfVec3f ) );
+	}
+
+	if ( UsdGeomPrimvar ColorPrimvar = UsdMesh.GetDisplayColorPrimvar() )
+	{
+		VtArray< GfVec3f > UsdColors;
+		ColorPrimvar.ComputeFlattened( &UsdColors, TimeCode );
+		MD5.Update( ( uint8* ) UsdColors.cdata(), UsdColors.size() * sizeof( GfVec3f ) );
+	}
+
+	if ( UsdGeomPrimvar OpacityPrimvar = UsdMesh.GetDisplayOpacityPrimvar() )
+	{
+		VtArray< float > UsdOpacities;
+		OpacityPrimvar.ComputeFlattened( &UsdOpacities );
+		MD5.Update( ( uint8* ) UsdOpacities.cdata(), UsdOpacities.size() * sizeof( float ) );
+	}
+
+	TArray< TUsdStore< UsdGeomPrimvar > > PrimvarsByUVIndex = UsdUtils::GetUVSetPrimvars( UsdMesh );
+	for ( int32 UVChannelIndex = 0; UVChannelIndex < PrimvarsByUVIndex.Num(); ++UVChannelIndex )
+	{
+		if ( !PrimvarsByUVIndex.IsValidIndex( UVChannelIndex ) )
+		{
+			break;
+		}
+
+		UsdGeomPrimvar& Primvar = PrimvarsByUVIndex[ UVChannelIndex ].Get();
+		if ( !Primvar )
+		{
+			continue;
+		}
+
+		VtArray< GfVec2f > UsdUVs;
+		Primvar.Get( &UsdUVs, TimeCode );
+		MD5.Update( ( uint8* ) UsdUVs.cdata(), UsdUVs.size() * sizeof( GfVec2f ) );
+	}
+
+	uint8 Digest[ 16 ];
+	MD5.Final( Digest );
+
+	FString Hash;
+	for ( int32 i = 0; i < 16; ++i )
+	{
+		Hash += FString::Printf( TEXT( "%02x" ), Digest[ i ] );
+	}
+	return Hash;
 }
 
 #undef LOCTEXT_NAMESPACE

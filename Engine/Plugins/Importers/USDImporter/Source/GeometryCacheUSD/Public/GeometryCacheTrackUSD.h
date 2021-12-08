@@ -5,12 +5,11 @@
 #include "CoreMinimal.h"
 #include "GeometryCacheTrack.h"
 #include "GeometryCacheMeshData.h"
-
+#include "GeometryCacheTrackUSDTypes.h"
+#include "GeometryCacheUSDStream.h"
 #include "UsdWrappers/UsdStage.h"
 
 #include "GeometryCacheTrackUSD.generated.h"
-
-typedef TFunction< void( const TWeakObjectPtr<UGeometryCacheTrackUsd>, float Time, FGeometryCacheMeshData& ) > FReadUsdMeshFunction;
 
 /** GeometryCacheTrack for querying USD */
 UCLASS(collapsecategories, hidecategories = Object, BlueprintType, config = Engine)
@@ -39,6 +38,7 @@ public:
 	virtual const bool UpdateMeshData(const float Time, const bool bLooping, int32& InOutMeshSampleIndex, FGeometryCacheMeshData*& OutMeshData) override;
 	virtual const bool UpdateBoundsData(const float Time, const bool bLooping, const bool bIsPlayingBackward, int32& InOutBoundsSampleIndex, FBox& OutBounds) override;
 	virtual const FGeometryCacheTrackSampleInfo& GetSampleInfo(float Time, const bool bLooping) override;
+	virtual void UpdateTime(float Time, bool bLooping) override;
 	//~ End UGeometryCacheTrack Interface.
 
 	const int32 FindSampleIndexFromTime(const float Time, const bool bLooping) const;
@@ -62,4 +62,6 @@ public:
 private:
 	FGeometryCacheMeshData MeshData;
 	TArray<FGeometryCacheTrackSampleInfo> SampleInfos;
+
+	TUniquePtr<FGeometryCacheUsdStream> UsdStream;
 };
