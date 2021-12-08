@@ -20,6 +20,7 @@ struct FPropertyChangedEvent;
 struct FRCFieldPathInfo;
 struct FRemoteControlActor;
 struct FRemoteControlPresetLayout;
+class FTransactionObjectEvent;
 class FRemoteControlPresetRebindingManager;
 class UBlueprint;
 class URemoteControlExposeRegistry;
@@ -831,6 +832,7 @@ private:
 	//~ Keep track of any property change to notify if one of the exposed property has changed
 	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event);
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
+	void OnObjectTransacted(UObject* InObject, const FTransactionObjectEvent& InTransactionEvent);
 
 #if WITH_EDITOR	
 	//~ Handle events that can incur bindings to be modified.
