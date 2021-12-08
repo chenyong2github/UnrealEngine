@@ -24,5 +24,10 @@ public:
 	void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override;
 	void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
 
+	void SetModeMenuCategory(TSharedPtr<FWorkspaceItem> MenuCategoryIn);
 	TSharedPtr<FWorkspaceItem> GetModeMenuCategory() const override;
+
+protected:
+	TSharedPtr<FWorkspaceItem> UVEditorMenuCategory;
+
 };
