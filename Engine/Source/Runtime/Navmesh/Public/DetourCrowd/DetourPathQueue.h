@@ -41,21 +41,20 @@ class dtPathQueue
 		dtReal costLimit;
 		/// Result.
 		dtPolyRef* path;
+		const dtQueryFilter* filter;
+		TSharedPtr<dtQuerySpecialLinkFilter> linkFilter;
 		int npath;
 		/// State.
 		dtStatus status;
 		int keepAlive;
-
-		const dtQueryFilter* filter;
-		TSharedPtr<dtQuerySpecialLinkFilter> linkFilter;
 	};
 	
 	static const int MAX_QUEUE = 8;
 	PathQuery m_queue[MAX_QUEUE];
+	dtNavMeshQuery* m_navquery;
 	dtPathQueueRef m_nextHandle;
 	int m_maxPathSize;
 	int m_queueHead;
-	dtNavMeshQuery* m_navquery;
 	
 	void purge();
 	
