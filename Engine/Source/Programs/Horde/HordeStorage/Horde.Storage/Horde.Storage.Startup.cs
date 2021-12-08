@@ -154,7 +154,7 @@ namespace Horde.Storage
 
             services.AddHttpClient();
 
-            services.AddOptions<HordeStorageSettings>().Bind(Configuration.GetSection("Horde.Storage")).ValidateDataAnnotations();
+            services.AddOptions<HordeStorageSettings>().Bind(Configuration.GetSection("Horde_Storage")).ValidateDataAnnotations();
             services.AddOptions<MongoSettings>().Bind(Configuration.GetSection("Mongo")).ValidateDataAnnotations();
             services.AddOptions<CosmosSettings>().Bind(Configuration.GetSection("Cosmos")).ValidateDataAnnotations();
             services.AddOptions<DynamoDbSettings>().Bind(Configuration.GetSection("DynamoDb")).ValidateDataAnnotations();

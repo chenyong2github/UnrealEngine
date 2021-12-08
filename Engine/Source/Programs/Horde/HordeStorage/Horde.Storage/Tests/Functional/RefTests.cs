@@ -84,7 +84,7 @@ namespace Horde.Storage.FunctionalTests.Ref
         }
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
         {
-            return new[] {new KeyValuePair<string, string>("Horde.Storage:RefDbImplementation", HordeStorageSettings.RefDbImplementations.Mongo.ToString())};
+            return new[] {new KeyValuePair<string, string>("Horde_Storage:RefDbImplementation", HordeStorageSettings.RefDbImplementations.Mongo.ToString())};
         }
     }
 
@@ -97,7 +97,7 @@ namespace Horde.Storage.FunctionalTests.Ref
 
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
         {
-            return new[] {new KeyValuePair<string, string>("Horde.Storage:RefDbImplementation", HordeStorageSettings.RefDbImplementations.DynamoDb.ToString())};
+            return new[] {new KeyValuePair<string, string>("Horde_Storage:RefDbImplementation", HordeStorageSettings.RefDbImplementations.DynamoDb.ToString())};
         }
 
         protected override async Task SeedDb(IServiceProvider provider)

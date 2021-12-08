@@ -30,7 +30,7 @@ namespace Horde.Storage.FunctionalTests.CompressedBlobs
             // Use the S3 storage backend so we can handle large blobs
             return new[]
             {
-                new KeyValuePair<string, string>("Horde.Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.S3.ToString()),
+                new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.S3.ToString()),
                 new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespace}")
             };
         }

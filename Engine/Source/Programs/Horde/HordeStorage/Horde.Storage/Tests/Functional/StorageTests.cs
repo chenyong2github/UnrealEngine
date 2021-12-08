@@ -43,7 +43,7 @@ namespace Horde.Storage.FunctionalTests.Storage
         {
             return new[]
             {
-                new KeyValuePair<string, string>("Horde.Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.S3.ToString()),
+                new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.S3.ToString()),
                 new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespaceName}")
             };
         }
@@ -85,7 +85,7 @@ namespace Horde.Storage.FunctionalTests.Storage
 
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
         {
-            return new[] {new KeyValuePair<string, string>("Horde.Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.Azure.ToString())};
+            return new[] {new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.Azure.ToString())};
         }
 
         protected override async Task Seed(IServiceProvider provider)
@@ -146,7 +146,7 @@ namespace Horde.Storage.FunctionalTests.Storage
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
         {
             return new[] { 
-                new KeyValuePair<string, string>("Horde.Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.FileSystem.ToString()),
+                new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", HordeStorageSettings.StorageBackendImplementations.FileSystem.ToString()),
                 new KeyValuePair<string, string>("Filesystem:RootDir", _localTestDir)
             };
         }

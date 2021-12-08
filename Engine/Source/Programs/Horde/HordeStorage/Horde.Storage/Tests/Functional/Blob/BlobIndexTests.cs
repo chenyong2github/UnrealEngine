@@ -156,7 +156,7 @@ namespace Horde.Storage.FunctionalTests.Storage
     {
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
         {
-            return new[] { new KeyValuePair<string, string>("Horde.Storage:BlobIndexImplementation", HordeStorageSettings.BlobIndexImplementations.Memory.ToString()) };
+            return new[] { new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", HordeStorageSettings.BlobIndexImplementations.Memory.ToString()) };
         }
 
         protected override Task Seed(IServiceProvider serverServices)
@@ -175,7 +175,7 @@ namespace Horde.Storage.FunctionalTests.Storage
     {
         protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
         {
-            return new[] { new KeyValuePair<string, string>("Horde.Storage:BlobIndexImplementation", HordeStorageSettings.BlobIndexImplementations.Scylla.ToString()) };
+            return new[] { new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", HordeStorageSettings.BlobIndexImplementations.Scylla.ToString()) };
         }
 
         protected override Task Seed(IServiceProvider serverServices)

@@ -49,7 +49,7 @@ namespace Horde.Storage.FunctionalTests.GC
                 // we are not reading the base appSettings here as we want exact control over what runs in the tests
                 .AddJsonFile("appsettings.Testing.json", false)
                 .AddEnvironmentVariables()
-                .AddInMemoryCollection(new List<KeyValuePair<string, string>>() { new KeyValuePair<string, string>("Horde.Storage:StorageImplementations:0", "MemoryBlobStore")})
+                .AddInMemoryCollection(new List<KeyValuePair<string, string>>() { new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", "MemoryBlobStore")})
                 .Build();
 
             Logger logger = new LoggerConfiguration()
@@ -233,10 +233,10 @@ namespace Horde.Storage.FunctionalTests.GC
                 .AddEnvironmentVariables()
                 .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
                 {
-                    new KeyValuePair<string, string>("Horde.Storage:StorageImplementations:0", "MemoryBlobStore"),
+                    new KeyValuePair<string, string>("Horde_Storage:StorageImplementations:0", "MemoryBlobStore"),
                     new KeyValuePair<string, string>("GC:CleanNamespaces:0", TestNamespace.ToString()),
                     new KeyValuePair<string, string>("GC:CleanOldBlobs", true.ToString()),
-                    new KeyValuePair<string, string>("Horde.Storage:BlobIndexImplementation", GetImplementation()),
+                    new KeyValuePair<string, string>("Horde_Storage:BlobIndexImplementation", GetImplementation()),
                     
                 })
                 .Build();

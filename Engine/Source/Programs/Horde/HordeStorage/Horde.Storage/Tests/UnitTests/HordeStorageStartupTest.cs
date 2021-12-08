@@ -31,18 +31,18 @@ namespace Horde.Storage.UnitTests
             Assert.IsTrue(blobService.BlobStore.Single() is MemoryCacheBlobStore);
             
             // A single blob store configuration should yield the store itself without a hierarchical wrapper store
-            blobService = GetBlobServiceForConfig(new Dictionary<string, string> {{"Horde.Storage:StorageImplementations:0", "FileSystem"}});
+            blobService = GetBlobServiceForConfig(new Dictionary<string, string> {{"Horde_Storage:StorageImplementations:0", "FileSystem"}});
             Assert.IsTrue(blobService.BlobStore.Single() is FileSystemStore);
             
             // Should not be case-sensitive
-            blobService = GetBlobServiceForConfig(new Dictionary<string, string> {{"Horde.Storage:StorageImplementations:0", "FiLeSYsTEm"}});
+            blobService = GetBlobServiceForConfig(new Dictionary<string, string> {{"Horde_Storage:StorageImplementations:0", "FiLeSYsTEm"}});
             Assert.IsTrue(blobService.BlobStore.Single() is FileSystemStore);
             
             // Two or more blob stores returns a hierarchical store
             blobService = GetBlobServiceForConfig(new Dictionary<string, string>
             {
-                {"Horde.Storage:StorageImplementations:0", "FileSystem"},
-                {"Horde.Storage:StorageImplementations:1", "Memory"},
+                {"Horde_Storage:StorageImplementations:0", "FileSystem"},
+                {"Horde_Storage:StorageImplementations:1", "Memory"},
             });
 
 
