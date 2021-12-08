@@ -639,6 +639,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Clothing)
 	uint8 bCollideWithAttachedChildren:1;
 	/**
+	 * Forces the cloth simulation to constantly update its external collisions, at the expense of performance.
+	 * This will help to prevent missed collisions if the cloth's skeletal mesh component isn't moving,
+	 * and when instead, wind or other moving objects are causing new collision shapes to come into the cloth's vicinity.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Clothing)
+	uint8 bForceCollisionUpdate : 1;
+
+	/**
 	 * It's worth trying this option when you feel that the current cloth simulation is unstable.
 	 * The scale of the actor is maintained during the simulation. 
 	 * It is possible to add the inertia effects to the simulation, through the inertiaScale parameter of the clothing material. 

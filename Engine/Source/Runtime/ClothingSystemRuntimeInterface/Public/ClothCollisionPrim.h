@@ -14,10 +14,10 @@ struct FClothCollisionPrim_Sphere
 {
 	GENERATED_BODY()
 
-	FClothCollisionPrim_Sphere()
-		: BoneIndex(INDEX_NONE)
-		, Radius(0.0f)
-		, LocalPosition(0, 0, 0)
+	FClothCollisionPrim_Sphere(float InRadius = 0.0f, const FVector& InLocalPosition = FVector::ZeroVector, int32 InBoneIndex = INDEX_NONE)
+		: BoneIndex(InBoneIndex)
+		, Radius(InRadius)
+		, LocalPosition(InLocalPosition)
 	{}
 
 	UPROPERTY()
@@ -38,10 +38,10 @@ struct FClothCollisionPrim_SphereConnection
 {
 	GENERATED_BODY()
 
-	FClothCollisionPrim_SphereConnection()
+	FClothCollisionPrim_SphereConnection(int32 SphereIndex0 = INDEX_NONE, int32 SphereIndex1 = INDEX_NONE)
 	{
-		SphereIndices[0] = INDEX_NONE;
-		SphereIndices[1] = INDEX_NONE;
+		SphereIndices[0] = SphereIndex0;
+		SphereIndices[1] = SphereIndex1;
 	}
 
 	UPROPERTY()
@@ -77,11 +77,14 @@ struct CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothCollisionPrim_Convex
 		: BoneIndex(INDEX_NONE)
 	{}
 
-	/** Rebuild the surface point array from the existing planes.
-	 *  This is an expensive function (O(n^4) per number of planes).
-	 */
-	UE_DEPRECATED(4.27, "RebuildSurfacePoints is now deprecated as it doesn't provide enough data to regenerate the indices required by FKConvexElem and FConvex.")
-	void RebuildSurfacePoints();
+	FClothCollisionPrim_Convex(
+		TArray<FClothCollisionPrim_ConvexFace>&& InFaces,
+		TArray<FVector>&& InSurfacePoints,
+		int32 InBoneIndex = INDEX_NONE)
+		: Faces(InFaces)
+		, SurfacePoints(InSurfacePoints)
+		, BoneIndex(InBoneIndex)
+	{}
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -104,11 +107,15 @@ struct FClothCollisionPrim_Box
 {
 	GENERATED_BODY()
 
-	FClothCollisionPrim_Box()
-		: LocalPosition(FVector::ZeroVector)
-		, LocalRotation(FQuat::Identity)
-		, HalfExtents(FVector::ZeroVector)
-		, BoneIndex(INDEX_NONE)
+	FClothCollisionPrim_Box(
+		const FVector& InLocalPosition = FVector::ZeroVector,
+		const FQuat& InLocalRotation = FQuat::Identity,
+		const FVector& InHalfExtents = FVector::ZeroVector,
+		int32 InBoneIndex = INDEX_NONE)
+		: LocalPosition(InLocalPosition)
+		, LocalRotation(InLocalRotation)
+		, HalfExtents(InHalfExtents)
+		, BoneIndex(InBoneIndex)
 	{}
 
 	UPROPERTY()
