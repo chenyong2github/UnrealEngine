@@ -26,6 +26,10 @@ public:
 		return NvidiaPolicy;
 	}
 
+	// Initialization
+	virtual bool Initialize() override;
+
+	// Performs rendering and frame output synchronization
 	virtual bool SynchronizeClusterRendering(int32& InOutSyncInterval) override;
 
 private:

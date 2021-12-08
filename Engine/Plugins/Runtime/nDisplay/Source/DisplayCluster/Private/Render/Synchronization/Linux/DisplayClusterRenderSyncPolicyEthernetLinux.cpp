@@ -29,7 +29,7 @@ void FDisplayClusterRenderSyncPolicyEthernet::Step_WaitForEthernetBarrierSignal_
 {
 }
 
-void FDisplayClusterRenderSyncPolicyEthernet::Step_SkipPresentationOnClosestVblank()
+void FDisplayClusterRenderSyncPolicyEthernet::Step_SkipPresentationOnClosestVBlank()
 {
 }
 

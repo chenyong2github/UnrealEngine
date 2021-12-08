@@ -14,10 +14,17 @@
 
 TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFactoryInternal::Create(const FString& InPolicyType, const FString& InRHIName, const TMap<FString, FString>& Parameters)
 {
+	// None
 	if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::None, ESearchCase::IgnoreCase))
 	{
 		return MakeShared<FDisplayClusterRenderSyncPolicyNone>(Parameters);
 	}
+	// EthernetBarrier
+	else if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier, ESearchCase::IgnoreCase))
+	{
+		return MakeShared<FDisplayClusterRenderSyncPolicyEthernetBarrier>(Parameters);
+	}
+	// Ethernet
 	else if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
@@ -37,6 +44,7 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFacto
 		}
 #endif
 	}
+	// NVIDIA
 	else if (InPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia, ESearchCase::IgnoreCase))
 	{
 #if PLATFORM_WINDOWS
@@ -47,17 +55,22 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFacto
 		}
 		else if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
 		{
-			const FString DefaultPolicy(DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier);
+			UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Sync policy '%s' has not been implemented for '%s' RHI. Default '%s' will be used."),
+				DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia,
+				*InRHIName,
+				DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier);
 
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Sync policy '%s' has not been implemented for '%s' RHI. Default '%s' will be used."),
-				DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia, *InRHIName, *DefaultPolicy);
-
-			return Create(DefaultPolicy, InRHIName, Parameters);
+			return MakeShared<FDisplayClusterRenderSyncPolicyEthernetBarrier>(Parameters);
 		}
 #elif PLATFORM_LINUX
 		if (InRHIName.Equals(DisplayClusterStrings::rhi::Vulkan, ESearchCase::IgnoreCase))
 		{
-			return MakeShared<FDisplayClusterRenderSyncPolicyNvidia>(Parameters);
+			UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Sync policy '%s' has not been implemented for '%s' RHI. Default '%s' will be used."),
+				DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia,
+				*InRHIName,
+				DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier);
+
+			return MakeShared<FDisplayClusterRenderSyncPolicyEthernetBarrier>(Parameters);
 		}
 #endif
 	}

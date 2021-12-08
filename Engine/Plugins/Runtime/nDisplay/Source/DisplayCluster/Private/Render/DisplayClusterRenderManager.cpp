@@ -102,6 +102,10 @@ bool FDisplayClusterRenderManager::StartSession(UDisplayClusterConfigurationData
 	// Create synchronization object
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Instantiating synchronization policy object..."));
 	SyncPolicy = CreateRenderSyncPolicy();
+	if (SyncPolicy)
+	{
+		SyncPolicy->Initialize();
+	}
 
 	// Instantiate render device
 	TSharedPtr<IDisplayClusterRenderDevice, ESPMode::ThreadSafe> NewRenderDevice;
