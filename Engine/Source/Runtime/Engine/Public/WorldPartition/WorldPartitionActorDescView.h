@@ -49,6 +49,8 @@ public:
 
 	void SetForcedNonSpatiallyLoaded();
 
+	void SetInvalidRuntimeGrid();
+
 	void SetInvalidDataLayers();
 
 	bool operator==(const FWorldPartitionActorDescView& Other) const
@@ -65,5 +67,6 @@ protected:
 	const FWorldPartitionActorDesc* ActorDesc;
 	bool bIsForcedNonSpatiallyLoaded;
 	bool bInvalidDataLayers;
+	bool bInvalidRuntimeGrid;
 };
 #endif

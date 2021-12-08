@@ -92,10 +92,11 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsListFrom
 			for (FAssetData& AssetData : PackageAssetsData)
 			{
 				// Check that the asset is an actor
-				if (AssetData.GetClass()->IsChildOf<AActor>())
+				static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
+				if (AssetData.TagsAndValues.Contains(NAME_ActorMetaDataClass)) // Could check AssetData.GetClass()->IsChildOf<AActor>() but this doesn't handle blueprints, all OFPA/WP Actors will have this tag
 				{
 					// WorldPartition actors are all in OFPA mode so they're external
-					// Extract the MapNMame from the ObjectPath (<PathToPackage>.<mapName>:<level>.<actorName>)
+					// Extract the MapName from the ObjectPath (<PathToPackage>.<mapName>:<level>.<actorName>)
 					FSoftObjectPath ActorPath = FSoftObjectPath(AssetData.ObjectPath);
 					FName MapAssetName = ActorPath.GetAssetPathName();
 
@@ -136,9 +137,11 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsListFrom
 		}
 		else
 		{
-			// Find in memory 
+			// Find in memory failed, load the ActorDescContainer
+			FSoftObjectPath MapPath = FSoftObjectPath(MapName);
+
 			ActorDescContainer = NewObject<UActorDescContainer>();
-			ActorDescContainer->Initialize(nullptr, MapName);
+			ActorDescContainer->Initialize(nullptr, MapPath.GetLongPackageFName());
 		}
 
 		// Build a set of Relevant Actor Guids to scope error messages to what's contained in the CL 
@@ -215,6 +218,18 @@ void UWorldPartitionChangelistValidator::OnInvalidReferenceDataLayers(const FWor
 		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.DataLayerError", "{0} is referencing {1} but both Actors are using a different set of DataLayers."),
 											FText::FromString(GetPrettyPackageName(ActorDescView)),
 											FText::FromString(GetPrettyPackageName(ReferenceActorDescView)));
+
+		Errors->Add(CurrentError);
+	}
+}
+
+void UWorldPartitionChangelistValidator::OnInvalidReferenceRuntimeGrid(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
+{
+	if (Filter(ActorDescView) || Filter(ReferenceActorDescView))
+	{
+		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.RuntimeGridError", "{0} is referencing {1} but both Actors are using a different Runtime Grid."),
+			FText::FromString(GetPrettyPackageName(ActorDescView)),
+			FText::FromString(GetPrettyPackageName(ReferenceActorDescView)));
 
 		Errors->Add(CurrentError);
 	}
