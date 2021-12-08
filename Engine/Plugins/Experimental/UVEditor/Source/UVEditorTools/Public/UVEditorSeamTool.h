@@ -84,6 +84,8 @@ protected:
 	void ApplySeam(const TArray<int32>& AppliedVidsIn);
 	void ClearLockedPath(bool bEmitChange = true);
 
+	void UpdateToolMessage();
+
 	enum class EState
 	{
 		WaitingToStart,
