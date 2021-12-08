@@ -364,6 +364,13 @@ bool FNeuralTensor::InitPooledBuffer(void** InOutNativeResource)
 		return false;
 	}
 
+	// Recreate PooledBuffer for future runs
+	PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
+
+	// NOTE: SRV and UAV can be used by callers (for example MLDeformer), look at the GetPooledBuffer()
+	BufferSRVRef.Reset();
+	BufferUAVRef.Reset();
+
 	// Make sure that we wait for Graph builder to finish
 	std::atomic<bool> bIsGraphBuilderDone(false);
 
@@ -381,12 +388,7 @@ bool FNeuralTensor::InitPooledBuffer(void** InOutNativeResource)
 			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, *GetName());
 
 			// Recreate PooledBuffer for future runs
-			PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
 			*PooledBuffer = Builder.ConvertToExternalBuffer(BufferRef);
-
-			// NOTE: SRV and UAV can be used by callers (for example MLDeformer), look at the GetPooledBuffer()
-			BufferSRVRef.Reset();
-			BufferUAVRef.Reset();
 
 			Builder.Execute();
 
@@ -394,7 +396,6 @@ bool FNeuralTensor::InitPooledBuffer(void** InOutNativeResource)
 			if (InOutNativeResource)
 			{
 				FRHIBuffer* Buffer = (*PooledBuffer)->GetRHI();
-
 				InOutNativeResource[0] = FNeuralNetworkInferenceUtilsGPU::GetD3D12Resource(Buffer);
 			}
 #endif
