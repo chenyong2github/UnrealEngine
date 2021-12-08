@@ -47,8 +47,11 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	// are two viewports on the right.
 	// We define explicit ExtensionIds on the stacks to reference them later when the
     // UILayer provides layout extensions. 
-
-	StandaloneDefaultLayout = FTabManager::NewLayout(FName("UVEditorLayout1"))
+	//
+	// Note: Changes to the layout should include a increment to the layout's ID, i.e.
+	// UVEditorLayout[X] -> UVEditorLayout[X+1]. Otherwise, layouts may be messed up
+	// without a full reset to layout defaults inside the editor.
+	StandaloneDefaultLayout = FTabManager::NewLayout(FName("UVEditorLayout2"))
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -59,7 +62,7 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.2f)					
-					->SetExtensionId("ToolbarArea")
+					->SetExtensionId("EditorSidePanelArea")
 					->SetHideTabWell(true)
 				)				
 				->Split
@@ -183,19 +186,21 @@ void FUVEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabM
 	// anything except tabs that we don't want.
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
+	UVEditorMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_UVEditor", "UV Editor"));
+
 	// Here we set up the tabs we referenced in StandaloneDefaultLayout (in the constructor).
 	// We don't deal with the toolbar palette here, since this is handled by existing
     // infrastructure in FModeToolkit. We only setup spawners for our custom tabs, namely
     // the 2D and 3D viewports.
 	InTabManager->RegisterTabSpawner(ViewportTabID, FOnSpawnTab::CreateSP(this, &FUVEditorToolkit::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("2DViewportTabLabel", "2D Viewport"))
-		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+		.SetGroup(UVEditorMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner(LivePreviewTabID, FOnSpawnTab::CreateSP(this, 
 		&FUVEditorToolkit::SpawnTab_LivePreview))
 		.SetDisplayName(LOCTEXT("3DViewportTabLabel", "3D Viewport"))
-		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+		.SetGroup(UVEditorMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Viewports"));
 }
 
@@ -366,7 +371,7 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	TSharedPtr<class IToolkitHost> PinnedToolkitHost = ToolkitHost.Pin();
 	check(PinnedToolkitHost.IsValid());
 	ModeUILayer = MakeShareable(new FUVEditorModeUILayer(PinnedToolkitHost.Get()));
-
+	ModeUILayer->SetModeMenuCategory( UVEditorMenuCategory );
 	// Currently, aside from setting up all the UI elements, the toolkit also kicks off the UV
 	// editor mode, which is the mode that the editor always works in (things are packaged into
 	// a mode so that they can be moved to another asset editor if necessary).

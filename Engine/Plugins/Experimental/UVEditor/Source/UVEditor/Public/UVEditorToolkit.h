@@ -90,4 +90,5 @@ protected:
 	UUVToolViewportButtonsAPI* ViewportButtonsAPI = nullptr;
 
 	TSharedPtr<FUVEditorModeUILayer> ModeUILayer;
+	TSharedPtr<FWorkspaceItem> UVEditorMenuCategory;
 };

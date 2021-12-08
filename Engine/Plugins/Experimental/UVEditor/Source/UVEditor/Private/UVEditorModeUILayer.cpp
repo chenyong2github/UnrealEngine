@@ -19,8 +19,8 @@ void UUVEditorUISubsystem::Deinitialize()
 }
 void UUVEditorUISubsystem::RegisterLayoutExtensions(FLayoutExtender& Extender)
 {
-	FTabManager::FTab NewTab(FTabId(UAssetEditorUISubsystem::TopLeftTabID, ETabIdFlags::SaveLayout), ETabState::ClosedTab);
-	Extender.ExtendStack("ToolbarArea", ELayoutExtensionPosition::After, NewTab);
+	FTabManager::FTab NewTab(FTabId(UAssetEditorUISubsystem::TopLeftTabID), ETabState::ClosedTab);
+	Extender.ExtendStack("EditorSidePanelArea", ELayoutExtensionPosition::After, NewTab);
 }
 
 FUVEditorModeUILayer::FUVEditorModeUILayer(const IToolkitHost* InToolkitHost) :
@@ -50,6 +50,11 @@ void FUVEditorModeUILayer::OnToolkitHostingFinished(const TSharedRef<IToolkit>& 
 
 TSharedPtr<FWorkspaceItem> FUVEditorModeUILayer::GetModeMenuCategory() const
 {
-	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-	return MenuStructure.GetLevelEditorModesCategory();
+	check(UVEditorMenuCategory);
+	return UVEditorMenuCategory;
+}
+
+void FUVEditorModeUILayer::SetModeMenuCategory(TSharedPtr<FWorkspaceItem> MenuCategoryIn)
+{
+	UVEditorMenuCategory = MenuCategoryIn;
 }
