@@ -54,58 +54,57 @@ namespace EDrawDebugItemType
 		OnScreenMessage,
 		CoordinateSystem,
 		Point,
+		Circle,
+		Cone,
 	};
 }
 
-USTRUCT()
 struct FQueuedDrawDebugItem 
 {
-	GENERATED_BODY()
+	struct FVectorEntry
+	{
+		FVectorEntry(const FVector& InVector)
+			: Value(InVector)
+		{}
 
-	UPROPERTY(Transient)
+		FVector Value;
+	};
+
 	TEnumAsByte<EDrawDebugItemType::Type> ItemType = EDrawDebugItemType::DirectionalArrow;
 
-	UPROPERTY(Transient)
-	FVector StartLoc = FVector(0.f);
+	union
+	{
+		FVector StartLoc;
+		struct
+		{
+			float Length;
+			float AngleWidth;
+			float AngleHeight;
+		};
+	};
+	
+	union
+	{
+		FVectorEntry EndLoc;
+		FVectorEntry Direction;
+	};
 
-	UPROPERTY(Transient)
-	FVector EndLoc = FVector(0.f);
-
-	UPROPERTY(Transient)
 	FVector Center = FVector(0.f);
-
-	UPROPERTY(Transient)
 	FRotator Rotation = FRotator(0.f);
-
-	UPROPERTY(Transient)
 	float Radius = 0.f;
-
-	UPROPERTY(Transient)
 	float Size = 0.f;
-
-	UPROPERTY(Transient)
 	int32 Segments = 0;
-
-	UPROPERTY(Transient)
 	FColor Color = FColor(0);
-
-	UPROPERTY(Transient)
 	bool bPersistentLines = false;
-
-	UPROPERTY(Transient)
 	float LifeTime = 0.f;
-
-	UPROPERTY(Transient)
 	float Thickness = 0.f;
-
-	UPROPERTY(Transient)
 	FString Message;
-
-	UPROPERTY(Transient)
 	FVector2D TextScale = FVector2D(0.f);
-
-	UPROPERTY(Transient)
 	TEnumAsByte<ESceneDepthPriorityGroup> DepthPriority = SDPG_World;
+	FQueuedDrawDebugItem() 
+		: StartLoc(FVector(0.f))
+		, EndLoc(FVector(0.f))
+	{};
 };
 
 /** Proxy object passed around during animation tree update in lieu of a UAnimInstance */
@@ -491,6 +490,8 @@ public:
 	void AnimDrawDebugCoordinateSystem(FVector const& AxisLoc, FRotator const& AxisRot, float Scale = 1.f, bool bPersistentLines = false, float LifeTime = -1.f, float Thickness = 0.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World);
 	void AnimDrawDebugPlane(const FTransform& BaseTransform, float Radii, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, float Thickness = 0.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World);
 	void AnimDrawDebugPoint(const FVector& Loc, float Size, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World);
+	void AnimDrawDebugCircle(const FVector& Center, float Radius, int32 Segments, const FColor& Color, const FVector& UpVector = FVector::UpVector, bool bPersistentLines = false, float LifeTime = -1.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World, float Thickness = 0.f);
+	void AnimDrawDebugCone(const FVector& Center, float Radius, const FVector& Direction, float AngleWidth, float AngleHeight, int32 Segments, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World, float Thickness = 0.f);
 #else
 	void AnimDrawDebugOnScreenMessage(const FString& DebugMessage, const FColor& Color, const FVector2D& TextScale = FVector2D::UnitVector, ESceneDepthPriorityGroup DepthPriority = SDPG_World) {}
 	void AnimDrawDebugLine(const FVector& StartLoc, const FVector& EndLoc, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, float Thickness = 0.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World) {}
@@ -499,6 +500,8 @@ public:
 	void AnimDrawDebugCoordinateSystem(FVector const& AxisLoc, FRotator const& AxisRot, float Scale = 1.f, bool bPersistentLines = false, float LifeTime = -1.f, float Thickness = 0.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World) {}
 	void AnimDrawDebugPlane(const FTransform& BaseTransform, float Radii, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, float Thickness = 0.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World) {}
 	void AnimDrawDebugPoint(const FVector& Loc, float Size, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World) {}
+	void AnimDrawDebugCircle(const FVector& Center, float Radius, int32 Segments, const FColor& Color, const FVector& UpVector = FVector::UpVector, bool bPersistentLines = false, float LifeTime=-1.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World, float Thickness = 0.f) {}
+	void AnimDrawDebugCone(const FVector& Center, float Radius, const FVector& Direction, float AngleWidth, float AngleHeight, int32 Segments, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, ESceneDepthPriorityGroup DepthPriority = SDPG_World, float Thickness = 0.f) {}
 #endif // ENABLE_ANIM_DRAW_DEBUG
 
 #if ENABLE_ANIM_LOGGING
