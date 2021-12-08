@@ -6,6 +6,7 @@
 #include "IO/IoHash.h"
 #include "Misc/ByteSwap.h"
 #include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/VarInt.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -529,6 +530,17 @@ static FIoHash ValidateCbPackageObject(FCbFieldView& Value, FMemoryView& View, E
 	return FIoHash();
 }
 
+static ECbValidateError ValidateCbFieldView(FCbFieldView Value, ECbValidateMode Mode)
+{
+	struct FCopy : public FCbFieldView
+	{
+		using FCbFieldView::GetType;
+		using FCbFieldView::GetViewNoType;
+	};
+	const FCopy& Copy = static_cast<const FCopy&>(Value);
+	return ValidateCompactBinary(Copy.GetViewNoType(), Mode, Copy.GetType());
+}
+
 ECbValidateError ValidateCompactBinary(FMemoryView View, ECbValidateMode Mode, ECbFieldType Type)
 {
 	ECbValidateError Error = ECbValidateError::None;
@@ -631,6 +643,76 @@ ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode 
 			}
 		}
 	}
+	return Error;
+}
+
+ECbValidateError ValidateCompactBinary(const FCbField& Value, ECbValidateMode Mode)
+{
+	return ValidateCbFieldView(Value, Mode);
+}
+
+ECbValidateError ValidateCompactBinary(const FCbArray& Value, ECbValidateMode Mode)
+{
+	return ValidateCbFieldView(Value.AsFieldView(), Mode);
+}
+
+ECbValidateError ValidateCompactBinary(const FCbObject& Value, ECbValidateMode Mode)
+{
+	return ValidateCbFieldView(Value.AsFieldView(), Mode);
+}
+
+ECbValidateError ValidateCompactBinary(const FCbPackage& Value, ECbValidateMode Mode)
+{
+	ECbValidateError Error = ValidateCompactBinary(Value.GetObject(), Mode);
+
+	for (const FCbAttachment& Attachment : Value.GetAttachments())
+	{
+		Error |= ValidateCompactBinary(Attachment, Mode);
+	}
+
+	if (EnumHasAnyFlags(Mode, ECbValidateMode::PackageHash) && (Value.GetObjectHash() != Value.GetObject().GetHash()))
+	{
+		AddError(Error, ECbValidateError::InvalidPackageHash);
+	}
+
+	return Error;
+}
+
+ECbValidateError ValidateCompactBinary(const FCbAttachment& Value, ECbValidateMode Mode)
+{
+	ECbValidateError Error = ECbValidateError::None;
+
+	if (Value.IsObject())
+	{
+		Error |= ValidateCompactBinary(Value.AsObject(), Mode);
+	}
+
+	if (EnumHasAnyFlags(Mode, ECbValidateMode::PackageHash))
+	{
+		if (Value.IsObject())
+		{
+			if (Value.GetHash() != Value.AsObject().GetHash())
+			{
+				AddError(Error, ECbValidateError::InvalidPackageHash);
+			}
+		}
+		else if (Value.IsBinary())
+		{
+			if (Value.GetHash() != FIoHash::HashBuffer(Value.AsCompositeBinary()))
+			{
+				AddError(Error, ECbValidateError::InvalidPackageHash);
+			}
+		}
+		else if (Value.IsCompressedBinary())
+		{
+			const FCompressedBuffer& Buffer = Value.AsCompressedBinary();
+			if (Buffer.GetRawHash() != FIoHash::HashBuffer(Buffer.DecompressToComposite()))
+			{
+				AddError(Error, ECbValidateError::InvalidPackageHash);
+			}
+		}
+	}
+
 	return Error;
 }
 
