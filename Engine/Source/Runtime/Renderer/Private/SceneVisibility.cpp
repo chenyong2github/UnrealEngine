@@ -3573,7 +3573,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		const bool bIsHitTesting = ViewFamily.EngineShowFlags.HitProxies;
 		// Don't test occlusion queries in collision viewmode as they can be bigger then the rendering bounds.
 		const bool bCollisionView = ViewFamily.EngineShowFlags.CollisionVisibility || ViewFamily.EngineShowFlags.CollisionPawn;
-		if (GIsHighResScreenshot || !DoOcclusionQueries() || bIsHitTesting || bCollisionView)
+		if (GIsHighResScreenshot || !DoOcclusionQueries() || bIsHitTesting || bCollisionView || ViewFamily.EngineShowFlags.DisableOcclusionQueries)
 		{
 			View.bDisableQuerySubmissions = true;
 			View.bIgnoreExistingQueries = true;
