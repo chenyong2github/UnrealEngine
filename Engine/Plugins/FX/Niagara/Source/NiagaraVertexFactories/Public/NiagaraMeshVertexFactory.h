@@ -79,6 +79,11 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTEXFACTORIES_API)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FNiagaraMeshCommonParameters, Common)
 
+	SHADER_PARAMETER_SRV(Buffer<float2>, VertexFetch_TexCoordBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_PackedTangentsBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>, VertexFetch_ColorComponentsBuffer)
+	SHADER_PARAMETER(FIntVector4, VertexFetch_Parameters)
+
 	SHADER_PARAMETER(FVector4f, SubImageSize)
 	SHADER_PARAMETER(uint32, TexCoordWeightA)
 	SHADER_PARAMETER(uint32, TexCoordWeightB)
@@ -169,6 +174,31 @@ public:
 		return MeshParticleUniformBuffer;
 	}
 
+	FORCEINLINE FRHIShaderResourceView* GetTangentsSRV() const
+	{
+		return Data.TangentsSRV;
+	}
+
+	FORCEINLINE FRHIShaderResourceView* GetTextureCoordinatesSRV() const
+	{
+		return Data.TextureCoordinatesSRV;
+	}
+
+	FORCEINLINE FRHIShaderResourceView* GetColorComponentsSRV() const
+	{
+		return Data.ColorComponentsSRV;
+	}
+
+	FORCEINLINE uint32 GetColorIndexMask() const
+	{
+		return Data.ColorIndexMask;
+	}
+
+	FORCEINLINE int GetNumTexcoords() const
+	{
+		return Data.NumTexCoords;
+	}
+	
 	/**
 	* Copy the data from another vertex factory
 	* @param Other - factory to copy from
