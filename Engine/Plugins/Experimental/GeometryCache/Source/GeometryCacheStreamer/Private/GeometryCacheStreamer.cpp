@@ -14,6 +14,8 @@
 #define LOCTEXT_NAMESPACE "GeometryCacheStreamer"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("GeometryCache Streams: Count"), STAT_GeometryCacheStream_Count, STATGROUP_GeometryCache);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("GeometryCache Streams: Look-Ahead (seconds)"), STAT_GeometryCacheStream_LookAhead, STATGROUP_GeometryCache);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("GeometryCache Streams: Total Bitrate (MB/s)"), STAT_GeometryCacheStream_Bitrate, STATGROUP_GeometryCache);
 DECLARE_MEMORY_STAT(TEXT("GeometryCache Streams: Memory Used"), STAT_GeometryCacheStream_MemoryUsed, STATGROUP_GeometryCache);
 
 static bool GShowGeometryCacheStreamerNotification = true;
@@ -196,14 +198,18 @@ void FGeometryCacheStreamer::BalanceStreams()
 	}
 
 	SET_MEMORY_STAT(STAT_GeometryCacheStream_MemoryUsed, AggregatedStats.MemoryUsed * 1024 * 1024);
+	SET_FLOAT_STAT(STAT_GeometryCacheStream_LookAhead, AggregatedStats.CachedDuration);
+	SET_FLOAT_STAT(STAT_GeometryCacheStream_Bitrate, AggregatedStats.AverageBitrate);
 
 	const UGeometryCacheStreamerSettings* Settings = GetDefault<UGeometryCacheStreamerSettings>();
 	const float MemoryLimit = Settings->MaxMemoryAllowed;
 	const float DurationLimit = Settings->LookAheadBuffer;
 
 	// Apply memory limits if over budget
-	// Might want to also update the limits if under budget
-	if (AggregatedStats.MemoryUsed > MemoryLimit)
+	// Re-balance when under budget only when it's idle as it can naturally go under if it is starving
+	bool bIsOverBudget = AggregatedStats.MemoryUsed > MemoryLimit || AggregatedStats.CachedDuration > DurationLimit;
+	bool bIsUnderBudget = AggregatedStats.MemoryUsed < MemoryLimit * 0.75f || AggregatedStats.CachedDuration < DurationLimit;
+	if (bIsOverBudget || (bIsUnderBudget && NumReads == 0))
 	{
 		// Allocate per-stream budget based on the duration computed from the total bitrate and given memory limit
 		const float AvgDuration = MemoryLimit / AggregatedStats.AverageBitrate;
@@ -233,7 +239,6 @@ void FGeometryCacheStreamer::UnregisterTrack(UGeometryCacheTrack* AbcTrack)
 		int32 NumRequests = (*Stream)->CancelRequests();
 		NumReads -= NumRequests;
 
-		delete *Stream;
 		TracksToStreams.Remove(AbcTrack);
 	}
 }

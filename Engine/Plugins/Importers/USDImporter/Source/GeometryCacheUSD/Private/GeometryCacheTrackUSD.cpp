@@ -19,6 +19,7 @@ void UGeometryCacheTrackUsd::BeginDestroy()
 	CurrentStage = UE::FUsdStage();
 
 	IGeometryCacheStreamer::Get().UnregisterTrack( this );
+	UsdStream.Reset();
 
 	Super::BeginDestroy();
 }
@@ -86,7 +87,7 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackUsd::GetSampleInfo(float
 	if (CurrentSampleInfo.SampleTime == 0.0f && CurrentSampleInfo.NumVertices == 0 && CurrentSampleInfo.NumIndices == 0)
 	{
 		FGeometryCacheMeshData TempMeshData;
-		if ( GetMeshData( SampleIndex, TempMeshData ) )
+		if (GetMeshData(SampleIndex, TempMeshData))
 		{
 			CurrentSampleInfo = FGeometryCacheTrackSampleInfo(
 				Time,
@@ -137,7 +138,16 @@ void UGeometryCacheTrackUsd::Initialize(
 
 	Duration = ( float ) ( EndFrameIndex - StartFrameIndex );
 
-	FGeometryCacheUsdStream* Stream = new FGeometryCacheUsdStream( this, InReadFunc );
-	IGeometryCacheStreamer::Get().RegisterTrack( this, Stream );
-	Stream->Prefetch( StartFrameIndex );
+	UsdStream.Reset(new FGeometryCacheUsdStream(this, InReadFunc));
+	IGeometryCacheStreamer::Get().RegisterTrack(this, UsdStream.Get());
+	UsdStream->Prefetch(StartFrameIndex);
+}
+
+void UGeometryCacheTrackUsd::UpdateTime(float Time, bool bLooping)
+{
+	if (UsdStream)
+	{
+		int32 FrameIndex = FindSampleIndexFromTime(Time, bLooping);
+		UsdStream->UpdateCurrentFrameIndex(FrameIndex);
+	}
 }

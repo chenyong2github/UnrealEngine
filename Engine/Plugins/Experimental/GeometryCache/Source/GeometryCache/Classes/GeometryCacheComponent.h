@@ -233,7 +233,7 @@ protected:
 	*
 	* @param TrackIndex - Index of the track we want to update
 	*/
-	bool UpdateTrackSection(int32 TrackIndex);
+	bool UpdateTrackSection(int32 TrackIndex, float Time);
 
 	/**
 	* CreateTrackSection, Create/replace a track section.

@@ -12,6 +12,7 @@ public class GeometryCacheUSD : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GeometryCache",
+				"GeometryCacheStreamer",
 				"RenderCore",
 				"RHI"
 			}
@@ -20,8 +21,10 @@ public class GeometryCacheUSD : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"UnrealUSDWrapper",
-				"GeometryCacheStreamer"
+				"USDUtilities"
             }
         );
+
+		PrivateIncludePathModuleNames.Add("DerivedDataCache");
 	}
 }

@@ -216,6 +216,12 @@ namespace UsdUtils
 	 *                                 Important because the `unrealMaterial` attributes will be used as a higher priority when determining material assignments
 	 */
 	USDUTILITIES_API void ReplaceUnrealMaterialsWithBaked( const UE::FUsdStage& Stage, const UE::FSdfLayer& LayerToAuthorIn, const TMap<FString, FString>& BakedMaterials, bool bIsAssetLayer, bool bUsePayload, bool bRemoveUnrealMaterials );
+
+	/**
+	 * Hashes the attributes of the GeomMesh at the given prim path on the Stage at TimeCode
+	 * If the prim path is invalid or not a GeomMesh, it will return an empty hash
+	 */
+	USDUTILITIES_API FString HashGeomMeshPrim( const UE::FUsdStage& Stage, const FString& PrimPath, double TimeCode );
 }
 
 #endif // #if USE_USD_SDK
