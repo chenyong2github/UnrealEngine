@@ -904,9 +904,9 @@ void MainIndirectDispatchCS(
  
 // Recombines the half res Subsurface filtered lighting contribution (upsampled and renormalized with the alpha)
 // with the SceneColor.
-void SubsurfaceRecombinePS(noperspective float2 UV : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+void SubsurfaceRecombinePS(in FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
-	const float2 BufferUV  = UV.xy;
+	const float2 BufferUV  = Input.UV.xy;
 
 #if STRATA_ENABLED
 	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
@@ -1010,9 +1010,9 @@ void SubsurfaceRecombinePS(noperspective float2 UV : TEXCOORD0, float4 SvPositio
 	OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 1.0f);
 }
 
-void SubsurfaceRecombineCopyPS(noperspective float2 UV : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+void SubsurfaceRecombineCopyPS(in FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
-	const float2 BufferUV = UV.xy;
+	const float2 BufferUV = Input.UV.xy;
 
 #if STRATA_ENABLED
 	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);

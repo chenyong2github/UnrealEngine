@@ -98,3 +98,11 @@ void MainVS(
 }
 
 #endif //SHADER_TILE_VS
+
+void SubsurfaceTileFallbackScreenPassVS(
+	in float4 InPosition : ATTRIBUTE0,
+	in float2 InTexCoord : ATTRIBUTE1,
+	out FScreenVertexOutput Out)
+{
+	DrawRectangle(InPosition, InTexCoord, Out.Position, Out.UV);
+}
