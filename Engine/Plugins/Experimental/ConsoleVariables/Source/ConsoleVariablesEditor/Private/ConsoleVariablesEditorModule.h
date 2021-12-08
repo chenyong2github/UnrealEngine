@@ -43,6 +43,7 @@ public:
 	void SetEditingAsset(const TObjectPtr<UConsoleVariablesAsset> InEditingAsset);
 
 	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString);
+	void OnRemoteCvarChanged(const FString InName, const FString InValue);
 	
 private:
 

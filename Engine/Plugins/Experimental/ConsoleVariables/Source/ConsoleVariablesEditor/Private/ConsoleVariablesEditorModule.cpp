@@ -217,6 +217,24 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 	}
 }
 
+void FConsoleVariablesEditorModule::OnRemoteCvarChanged(const FString InName, const FString InValue)
+{
+	UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+
+	if (GetMutableDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
+	{
+		if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+			FindCommandInfoByName(InName); CommandInfo.IsValid())
+		{
+			if (CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(InValue))
+			{
+				GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
+					*FString::Printf(TEXT("%s %s"), *InName, *InValue));
+			}
+		}
+	}
+}
+
 TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::AllocateTransientPreset()
 {
 	static const TCHAR* PackageName = TEXT("/Temp/ConsoleVariablesEditor/PendingConsoleVariablesCollections");
