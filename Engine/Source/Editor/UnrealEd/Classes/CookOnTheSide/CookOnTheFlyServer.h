@@ -212,6 +212,8 @@ private:
 	uint32 DesiredLoadQueueLength;
 	/** A knob to tune performance - how many packages to pull off in each call to PumpRequests. */
 	uint32 RequestBatchSize;
+	/** A knob to tune performance - how many packages to load in each call to PumpLoads. */
+	int32 LoadBatchSize;
 
 	ECookInitializationFlags CookFlags = ECookInitializationFlags::None;
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
