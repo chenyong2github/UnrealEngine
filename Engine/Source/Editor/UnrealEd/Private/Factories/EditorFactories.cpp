@@ -7675,7 +7675,14 @@ USubsurfaceProfileFactory::USubsurfaceProfileFactory(const FObjectInitializer& O
 
 UObject* USubsurfaceProfileFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	return NewObject<USubsurfaceProfile>(InParent, InName, Flags);
+	USubsurfaceProfile* Object = NewObject<USubsurfaceProfile>(InParent, InName, Flags);
+	
+	// Enable smooth upgrading from Separable to Burley. This flag change
+	// allows all newly created subsurface profile in Burley, while allowing
+	// the profiles loaded from files to be converted into burley if they
+	// are separable.
+	Object->Settings.bEnableBurley = true;
+	return Object;
 }
 
 /*-----------------------------------------------------------------------------

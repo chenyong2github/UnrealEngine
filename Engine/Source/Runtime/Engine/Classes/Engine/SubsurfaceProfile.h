@@ -40,11 +40,19 @@ struct FSubsurfaceProfileStruct
 	/**
 	* Effective only when Burley subsurface scattering is enabled in cmd.
 	*/
-	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (editcondition = "false", EditConditionHides))
 	bool  bEnableBurley;
 
+	/**
+	* Specifies the how much of the diffuse light gets into the material,
+	* can be seen as a per-channel mix factor between the original image,
+	* and the SSS-filtered image. It introduces Non-PBR looks.
+	*/
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel, editcondition = "bEnableBurley"))
+	FLinearColor Tint;
+
 	/** in world/unreal units (cm) */
-	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "1000.0", editcondition = "!bEnableBurley"))
+	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.1", UIMax = "50.0", ClampMax = "1000.0", DeprecatedProperty, editcondition = "!bEnableBurley", EditConditionHides))
 	float ScatterRadius;
 
 	/**
@@ -52,7 +60,7 @@ struct FSubsurfaceProfileStruct
 	* can be seen as a per-channel mix factor between the original image,
 	* and the SSS-filtered image (called "strength" in SeparableSSS, default there: 0.48, 0.41, 0.28)
 	*/
-	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel, editcondition = "!bEnableBurley"))
+	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel, DeprecatedProperty, editcondition = "!bEnableBurley", EditConditionHides))
 	FLinearColor SubsurfaceColor;
 
 	/**
@@ -60,10 +68,10 @@ struct FSubsurfaceProfileStruct
 	* produced by the subsurface scattering events, can be used to fine tune the color of the gradients
 	* (called "falloff" in SeparableSSS, default there: 1, 0.37, 0.3)
 	*/
-	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel, editcondition = "!bEnableBurley"))
+	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel, DeprecatedProperty, editcondition = "!bEnableBurley", EditConditionHides))
 	FLinearColor FalloffColor;
 
-	UPROPERTY(Category = "SubsurfaceProfileStruct", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel))
+	UPROPERTY(Category = "Burley Normalized", EditAnywhere, BlueprintReadOnly, meta = (HideAlphaChannel))
 	FLinearColor BoundaryColorBleed;
 
 	UPROPERTY(Category = "Transmission", EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "0.01", UIMax = "1.0", ClampMax = "1.0"))
@@ -115,6 +123,7 @@ struct FSubsurfaceProfileStruct
 		MeanFreePathDistance = 1.2f*2.229f;
 		WorldUnitScale = 0.1f;
 		TransmissionTintColor = FLinearColor(1.0f, 1.0f, 1.0f);
+		Tint = FLinearColor(1.0f, 1.0f, 1.0f);
 	}
 
 	void Invalidate()
