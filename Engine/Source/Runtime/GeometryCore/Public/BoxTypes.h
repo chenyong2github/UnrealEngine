@@ -501,6 +501,11 @@ struct TAxisAlignedBox3
 		return Width() * Height() * Depth();
 	}
 
+	RealType SurfaceArea() const
+	{
+		return (RealType)2. * ( Width() * ( Height() + Depth() ) + Height() * Depth() );
+	}
+
 	RealType DiagonalLength() const
 	{
 		return TMathUtil<RealType>::Sqrt((Max.X - Min.X) * (Max.X - Min.X) + (Max.Y - Min.Y) * (Max.Y - Min.Y) + (Max.Z - Min.Z) * (Max.Z - Min.Z));
