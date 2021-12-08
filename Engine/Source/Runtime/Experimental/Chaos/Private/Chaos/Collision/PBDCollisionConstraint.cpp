@@ -383,20 +383,23 @@ namespace Chaos
 
 	void FPBDCollisionConstraint::AddOneshotManifoldContact(const FContactPoint& ContactPoint)
 	{
-		if (ManifoldPoints.Num() == MaxManifoldPoints)
+		if (ContactPoint.IsSet())
 		{
-			return;
+			if (ManifoldPoints.Num() == MaxManifoldPoints)
+			{
+				return;
+			}
+			
+			int32 ManifoldPointIndex = AddManifoldPoint(ContactPoint);
+
+			// Copy currently active point
+			if (ManifoldPoints[ManifoldPointIndex].ContactPoint.Phi < Manifold.Phi)
+			{
+				SetActiveContactPoint(ManifoldPoints[ManifoldPointIndex].ContactPoint);
+			}
+
+			bUseIncrementalManifold = false;
 		}
-
-		int32 ManifoldPointIndex = AddManifoldPoint(ContactPoint);
-
-		// Copy currently active point
-		if (ManifoldPoints[ManifoldPointIndex].ContactPoint.Phi < Manifold.Phi)
-		{
-			SetActiveContactPoint(ManifoldPoints[ManifoldPointIndex].ContactPoint);
-		}
-
-		bUseIncrementalManifold = false;
 	}
 
 	void FPBDCollisionConstraint::AddIncrementalManifoldContact(const FContactPoint& ContactPoint)

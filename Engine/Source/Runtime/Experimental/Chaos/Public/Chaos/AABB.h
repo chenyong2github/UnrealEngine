@@ -459,10 +459,27 @@ namespace Chaos
 			}
 		}
 
+		/**
+		* Scale the AABB relative to the origin
+		* IMPORTANT : this does not support negative scale
+		*/
 		FORCEINLINE TAABB<T, d>& Scale(const TVector<T, d>& InScale)
 		{
 			MMin *= InScale;
 			MMax *= InScale;
+			return *this;
+		}
+
+		/**
+		* Scale the AABB relative to its center
+		* IMPORTANT : this does not support negative scale 
+		*/
+		FORCEINLINE TAABB<T, d>& LocalScale(const TVector<T, d>& InScale)
+		{
+			const TVector<T, d> BoxCenter = Center();
+			const TVector<T, d> ScaledHalfExtents = Extents() * InScale * FReal(0.5);
+			MMin = BoxCenter - ScaledHalfExtents;
+			MMax = BoxCenter + ScaledHalfExtents;
 			return *this;
 		}
 

@@ -358,6 +358,7 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 	bool bResult = false;
 
 	const auto& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
+	const FVec3 InvTriMeshScale = FVec3(FReal(1) / TriMeshScale.X, FReal(1) / TriMeshScale.Y, FReal(1) / TriMeshScale.Z);
 
 	TRigidTransform<FReal, 3> WorldScaleQueryTM;
 	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
@@ -406,12 +407,11 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 		FVec3 LocalContactLocation, LocalContactNormal;
 
 		// NOTE: BVH test is done in tri-mesh local space (whereas collision detection is done in world space becaused you can't non-uniformly scale all shapes)
-		// We must apply the local-space scaled thickness after transforming the world bounds into local space
-		const FVec3 LocalThickness = FVec3(WorldThickness / TriMeshScale.X, WorldThickness / TriMeshScale.Y, WorldThickness / TriMeshScale.Z);
-
-		FAABB3 QueryBounds = QueryGeom.BoundingBox();
+		FAABB3 QueryBounds = WorldScaleGeom.BoundingBox();
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
-		QueryBounds.ThickenSymmetrically(LocalThickness);
+		QueryBounds.ThickenSymmetrically(FVec3(WorldThickness));
+		QueryBounds.LocalScale(InvTriMeshScale);
+
 		const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 
 		// MakeTriangleHelper get rid of the scale wrapper if necessary as MakeTriangle will try to infer properties from it 
@@ -467,6 +467,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 	bool bResult = false;
 
 	const auto& WorldScaleGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
+	const FVec3 InvTriMeshScale = FVec3(FReal(1) / TriMeshScale.X, FReal(1) / TriMeshScale.Y, FReal(1) / TriMeshScale.Z);
 
 	TRigidTransform<FReal, 3> WorldScaleQueryTM;
 	ScaleTransformHelper(TriMeshScale, QueryTM, WorldScaleQueryTM);
@@ -488,7 +489,6 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 			LocalContactNormal = LambdaNormal;
 			LocalContactPhi = -LambdaPenetration;
 		}
-
 		return GJKValidResult;
 	};
 
@@ -499,12 +499,11 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 		FVec3 LocalContactLocation, LocalContactNormal;
 
 		// NOTE: BVH test is done in tri-mesh local space (whereas collision detection is done in world space becaused you can't non-uniformly scale all shapes)
-		// We must apply the local-space scaled thickness after transforming the world bounds into local space
-		const FVec3 LocalThickness = FVec3(WorldThickness / TriMeshScale.X, WorldThickness / TriMeshScale.Y, WorldThickness / TriMeshScale.Z);
-
-		FAABB3 QueryBounds = QueryGeom.BoundingBox();
+		FAABB3 QueryBounds = WorldScaleGeom.BoundingBox();
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
-		QueryBounds.ThickenSymmetrically(LocalThickness);
+		QueryBounds.ThickenSymmetrically(FVec3(WorldThickness));
+		QueryBounds.LocalScale(InvTriMeshScale);
+
 		const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 
 		for (int32 TriIdx : PotentialIntersections)
@@ -523,7 +522,6 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 			}
 
 		}
-
 		return OutContactPhi < WorldThickness;
 	};
 
