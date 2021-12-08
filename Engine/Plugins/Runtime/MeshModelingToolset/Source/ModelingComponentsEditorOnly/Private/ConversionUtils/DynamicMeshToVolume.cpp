@@ -133,10 +133,8 @@ static void OptimizeIntoConvexPolys(ABrush* InOwnerBrush, TArray<FPoly>& InPolyg
 						PolyMerged.Vertices[PolyMainIndex1 + i] = PolyNeighbor->Vertices[NeighborIndex];
 					}
 
-					PolyMerged.CalcNormal(true);
-
-					// Check if the result is valid
-					if (PolyMerged.IsConvex() && PolyMerged.Finalize(InOwnerBrush, 1) == 0)
+					// Check if the result is both coplanar and convex, and then finalize it.
+					if (PolyMerged.IsCoplanar() && PolyMerged.IsConvex() && PolyMerged.Finalize(InOwnerBrush, 1) == 0)
 					{
 						// Remove the original polygons from the list. Uses knowledge that p2 > PolyIndex
 						InPolygons.RemoveAtSwap(p2);
