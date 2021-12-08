@@ -103,6 +103,12 @@ struct TOrientedBox3
 		return (RealType)8 * (Extents.X) * (Extents.Y) * (Extents.Z);
 	}
 
+	/** @return surface area of box */
+	inline RealType SurfaceArea() const
+	{
+		return (RealType)8 * ( Extents.X * Extents.Y + Extents.X * Extents.Z + Extents.Y * Extents.Z);
+	}
+
 	/** @return true if box contains point */
 	inline bool Contains(const TVector<RealType>& Point) const
 	{
