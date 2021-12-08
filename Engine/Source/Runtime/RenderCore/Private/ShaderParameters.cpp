@@ -332,15 +332,15 @@ static FCriticalSection UniformBufferLocks[NumUniformBufferLocks];
 
 void FShaderType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
-	if (bCachedUniformBufferStructDeclarations)
+	if (CachedUniformBufferPlatform != SP_NumPlatforms)
 	{
 		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
 		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (bCachedUniformBufferStructDeclarations)
+		if (CachedUniformBufferPlatform != SP_NumPlatforms)
 		{
 			ReferencedUniformBufferStructsCache.Empty();
 			GenerateReferencedUniformBuffers(SourceFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferStructsCache);
-			bCachedUniformBufferStructDeclarations = false;
+			CachedUniformBufferPlatform = SP_NumPlatforms;
 		}
 	}
 }
@@ -348,14 +348,22 @@ void FShaderType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> 
 void FShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
 {
 	// Cache uniform buffer struct declarations referenced by this shader type's files
-	if (!bCachedUniformBufferStructDeclarations)
+	if (CachedUniformBufferPlatform != Platform)
 	{
 		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
 		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (!bCachedUniformBufferStructDeclarations)
+		if (CachedUniformBufferPlatform != Platform)
 		{
+			// if there is already a cache but for another platform, keep the keys but reset the values
+			if (CachedUniformBufferPlatform != SP_NumPlatforms)
+			{
+				for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TIterator It(ReferencedUniformBufferStructsCache); It; ++It)
+				{
+					It.Value() = FCachedUniformBufferDeclaration();
+				}
+			}
 			CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
-			bCachedUniformBufferStructDeclarations = true;
+			CachedUniformBufferPlatform = Platform;
 		}
 	}
 
@@ -450,15 +458,15 @@ void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
 
 void FVertexFactoryType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
-	if (bCachedUniformBufferStructDeclarations)
+	if (CachedUniformBufferPlatform != SP_NumPlatforms)
 	{
 		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
 		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (bCachedUniformBufferStructDeclarations)
+		if (CachedUniformBufferPlatform != SP_NumPlatforms)
 		{
 			ReferencedUniformBufferStructsCache.Empty();
 			GenerateReferencedUniformBuffers(ShaderFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferStructsCache);
-			bCachedUniformBufferStructDeclarations = false;
+			CachedUniformBufferPlatform = SP_NumPlatforms;
 		}
 	}
 }
@@ -466,15 +474,23 @@ void FVertexFactoryType::FlushShaderFileCache(const TMap<FString, TArray<const T
 void FVertexFactoryType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
 {
 	// Cache uniform buffer struct declarations referenced by this shader type's files
-	if (!bCachedUniformBufferStructDeclarations)
+	if (CachedUniformBufferPlatform != Platform)
 	{
 		const uint32 LockIndex = HashedName.GetHash() % NumUniformBufferLocks;
 		FScopeLock Lock(&UniformBufferLocks[LockIndex]);
-		if (!bCachedUniformBufferStructDeclarations)
+		if (CachedUniformBufferPlatform != Platform)
 		{
+			// if there is already a cache but for another platform, keep the keys but reset the values
+			if (CachedUniformBufferPlatform != SP_NumPlatforms)
+			{
+				for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TIterator It(ReferencedUniformBufferStructsCache); It; ++It)
+				{
+					It.Value() = FCachedUniformBufferDeclaration();
+				}
+			}
 			CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
-			bCachedUniformBufferStructDeclarations = true;
-		}
+			CachedUniformBufferPlatform = Platform;
+		} 
 	}
 
 	FString UniformBufferIncludes;

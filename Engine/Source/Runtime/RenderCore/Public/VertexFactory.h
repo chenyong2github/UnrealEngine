@@ -480,7 +480,7 @@ private:
 	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
 
 	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
-	mutable FThreadSafeBool bCachedUniformBufferStructDeclarations;
+	mutable std::atomic<EShaderPlatform> CachedUniformBufferPlatform;
 };
 
 /**
