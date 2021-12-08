@@ -10,6 +10,8 @@ const float FUVEditorUXSettings::CameraFarPlaneWorldZ(-10.0);
 // sorting order.
 const float FUVEditorUXSettings::CameraNearPlaneProportionZ(8); // Top layer
 const float FUVEditorUXSettings::SewLineDepthOffset(5.0f);
+const float FUVEditorUXSettings::SelectionHoverWireframeDepthBias(6);
+const float FUVEditorUXSettings::SelectionHoverTriangleDepthBias(5);
 const float FUVEditorUXSettings::SelectionWireframeDepthBias(4.0);
 const float FUVEditorUXSettings::SelectionTriangleDepthBias(3.0);
 const float FUVEditorUXSettings::WireframeDepthOffset(2.0);
@@ -28,6 +30,7 @@ const float FUVEditorUXSettings::LivePreviewHighlightDepthOffset(0.5);
 const float FUVEditorUXSettings::UnwrapTriangleOpacity(1.0);
 const float FUVEditorUXSettings::UnwrapTriangleOpacityWithBackground(0.25);
 const float FUVEditorUXSettings::SelectionTriangleOpacity(1.0f);
+const float FUVEditorUXSettings::SelectionHoverTriangleOpacity(1.0f);
 
 // Per Asset Shifts
 const float FUVEditorUXSettings::UnwrapBoundaryHueShift(30);
