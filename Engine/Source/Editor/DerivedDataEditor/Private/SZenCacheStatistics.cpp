@@ -176,7 +176,7 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([ZenStats, TotalUpstreamHitRatio] { return FText::FromString(SingleDecimalFormat( ( ZenStats.CacheStats.HitRatio- TotalUpstreamHitRatio ) * 100.0) + TEXT(" %")); })
+		.Text_Lambda([ZenStats, TotalUpstreamHitRatio] { return FText::FromString(SingleDecimalFormat( ZenStats.CacheStats.HitRatio * 100.0) + TEXT(" %")); })
 	];
 
 	Panel->AddSlot(5, Row)
