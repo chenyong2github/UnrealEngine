@@ -303,13 +303,11 @@ namespace Audio
 				float SquareSaw2 = GetBipolar(NewPhase);
 				SquareSaw2 += PolySmooth(NewPhase, PhaseInc);
 
-				// Subtracting 2 saws creates a square wave!
-				Output = 0.5f * SquareSaw1 - 0.5f * SquareSaw2;
-
-				// Apply DC correction
-				const float Correction = (CurrentPulseWidth < 0.5f) ? (1.0f / (1.0f - CurrentPulseWidth)) : (1.0f / CurrentPulseWidth);
-
-				Output *= Correction;
+				// Subtract 2 saws, then apply DC correction 
+				// Simplified version of 
+				// float Output = 0.5f * SquareSaw1 - 0.5f * SquareSaw2;
+				// Output = 2.0f * (Output + CurrentPulseWidth) - 1.0f;
+				return SquareSaw1 - SquareSaw2 + 2.0f * (CurrentPulseWidth - 0.5f);
 			}
 			break;
 
