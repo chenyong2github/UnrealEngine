@@ -44,7 +44,7 @@ namespace Chaos
 		FManifoldPoint() 
 			: ContactPoint()
 			, InitialShapeContactPoints{ FVec3(0), FVec3(0) }
-			, CoMContactPoints{ FVec3(0), FVec3(0) }
+			, WorldContactPoints{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, NetImpulse(0)
 			, StaticFrictionMax(0)
@@ -55,7 +55,7 @@ namespace Chaos
 		FManifoldPoint(const FContactPoint& InContactPoint) 
 			: ContactPoint(InContactPoint)
 			, InitialShapeContactPoints{ FVec3(0), FVec3(0) }
-			, CoMContactPoints{ FVec3(0), FVec3(0) }
+			, WorldContactPoints{ FVec3(0), FVec3(0) }
 			, NetPushOut(0)
 			, NetImpulse(0)
 			, StaticFrictionMax(0)
@@ -65,7 +65,7 @@ namespace Chaos
 
 		FContactPoint ContactPoint;			// Contact point results of low-level collision detection
 		FVec3 InitialShapeContactPoints[2];	// ShapeContactPoints when the constraint was first initialized. Used to track reusablility
-		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies
+		FVec3 WorldContactPoints[2];		// World-space contact points on the two bodies
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FReal StaticFrictionMax;			// A proxy for the normal impulse used to limit static friction correction. Used for smoothing static friction limits
@@ -89,8 +89,8 @@ namespace Chaos
 		*/
 		inline void Save(const FManifoldPoint& ManifoldPoint)
 		{
-			CoMContactPoints[0] = ManifoldPoint.CoMContactPoints[0];
-			CoMContactPoints[1] = ManifoldPoint.CoMContactPoints[1];
+			ShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
+			ShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
 			StaticFrictionMax = ManifoldPoint.StaticFrictionMax;
 			bInsideStaticFrictionCone = ManifoldPoint.bInsideStaticFrictionCone;
 		}
@@ -100,8 +100,8 @@ namespace Chaos
 		*/
 		inline void Restore(FManifoldPoint& ManifoldPoint) const
 		{
-			ManifoldPoint.CoMContactPoints[0] = CoMContactPoints[0];
-			ManifoldPoint.CoMContactPoints[1] = CoMContactPoints[1];
+			ManifoldPoint.ContactPoint.ShapeContactPoints[0] = ShapeContactPoints[0];
+			ManifoldPoint.ContactPoint.ShapeContactPoints[1] = ShapeContactPoints[1];
 			ManifoldPoint.StaticFrictionMax = StaticFrictionMax;
 		}
 
@@ -113,12 +113,12 @@ namespace Chaos
 			// If the contact point is in the same spot on one of the bodies, assume it is the same contact
 			// @todo(chaos): more robust same-point test. E.g., this won't work for very small or very large objects,
 			// so at least make the tolerance size-dependent
-			const FVec3 DP0 = ManifoldPoint.CoMContactPoints[0] - CoMContactPoints[0];
-			const FVec3 DP1 = ManifoldPoint.CoMContactPoints[1] - CoMContactPoints[1];
+			const FVec3 DP0 = ManifoldPoint.ContactPoint.ShapeContactPoints[0] - ShapeContactPoints[0];
+			const FVec3 DP1 = ManifoldPoint.ContactPoint.ShapeContactPoints[1] - ShapeContactPoints[1];
 			return ((DP0.SizeSquared() < DistanceToleranceSq) || (DP1.SizeSquared() < DistanceToleranceSq));
 		}
 
-		FVec3 CoMContactPoints[2];
+		FVec3 ShapeContactPoints[2];
 		FVec3 NetPushOut;
 		FReal StaticFrictionMax;
 		bool bInsideStaticFrictionCone;
@@ -161,8 +161,8 @@ namespace Chaos
 		FVec3 Location;
 		FReal Phi;
 
-		FReal Friction;
-		FReal AngularFriction;
+		FReal Friction;			// @todo(chaos): rename DynamicFriction
+		FReal AngularFriction;	// @todo(chaos): rename StaticFriction
 		FReal Restitution;
 		FReal RestitutionPadding; // For PBD implementation of resitution, we pad constraints on initial contact to enforce outward velocity
 		FReal RestitutionThreshold;
@@ -402,20 +402,23 @@ namespace Chaos
 		void UpdateManifoldContacts();
 		void ClearManifold();
 
-		bool UpdateAndTryRestoreManifold(const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1);
+		const FRigidTransform3& GetShapeRelativeTransform0() const { return ImplicitTransform[0]; }
+		const FRigidTransform3& GetShapeRelativeTransform1() const { return ImplicitTransform[1]; }
+
+		const FRigidTransform3& GetShapeWorldTransform0() const { return ShapeWorldTransform0; }
+		const FRigidTransform3& GetShapeWorldTransform1() const { return ShapeWorldTransform1; }
+
+		void SetShapeWorldTransforms(const FRigidTransform3& InShapeWorldTransform0, const FRigidTransform3& InShapeWorldTransform1);
+		void SetLastShapeWorldTransforms(const FRigidTransform3& InShapeWorldTransform0, const FRigidTransform3& InShapeWorldTransform1);
+
+		bool UpdateAndTryRestoreManifold();
 		void ResetActiveManifoldContacts();
-		void UpdateLastShapeWorldTransforms(const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1);
-		bool TryAddManifoldContact(const FContactPoint& ContactPoint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1);
-		bool TryInsertManifoldContact(const FContactPoint& ContactPoint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1);
+		bool TryAddManifoldContact(const FContactPoint& ContactPoint);
+		bool TryInsertManifoldContact(const FContactPoint& ContactPoint);
 
 		//@ todo(chaos): These are for the collision forwarding system - this should use the collision modifier system (which should be extended to support adding collisions)
 		void SetManifoldPoints(const TArray<FManifoldPoint>& InManifoldPoints) { ManifoldPoints = InManifoldPoints; }
 		void UpdateManifoldPointFromContact(const int32 ManifoldPointIndex);
-
-		// Helpers for interacting with constraint from world space
-		static void GetWorldSpaceContactPositions(const FManifoldPoint& ManifoldPoint, const FVec3& PCoM0, const FRotation3& QCoM0, const FVec3& PCoM1, const FRotation3& QCoM1, FVec3& OutWorldPosition0, FVec3& OutWorldPosition1);
-		static void GetCoMContactPositionsFromWorld(const FManifoldPoint& ManifoldPoint, const FVec3& PCoM0, const FRotation3& QCoM0, const FVec3& PCoM1, const FRotation3& QCoM1, const FVec3& WorldPoint0, const FVec3& WorldPoint1, FVec3& OutCoMPoint0, FVec3& OutCoMPoint1);
-
 
 		// The GJK warm-start data. This is updated directly in the narrow phase
 		FGJKSimplexData& GetGJKWarmStartData() { return GJKWarmStartData; }
@@ -492,9 +495,7 @@ namespace Chaos
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
 		int32 AddManifoldPoint(const FContactPoint& ContactPoint);
 		void InitManifoldPoint(const int32 ManifoldPointIndex);
-		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
-		void GetWorldSpaceManifoldPoint(const FManifoldPoint& ManifoldPoint, const FVec3& P0, const FRotation3& Q0, const FVec3& P1, const FRotation3& Q1, FVec3& OutContactLocation, FReal& OutContactPhi);
 
 		/**
 		 * @brief Move the current manifold to the previous manifold, and reset the current manifold ready for it to be rebuilt
@@ -547,6 +548,8 @@ namespace Chaos
 		FManifoldPointSavedData ManifoldPointSavedData[MaxManifoldPoints];
 		int32 NumSavedManifoldPoints;
 
+		FRigidTransform3 ShapeWorldTransform0;
+		FRigidTransform3 ShapeWorldTransform1;
 		FRigidTransform3 LastShapeWorldTransform0;
 		FRigidTransform3 LastShapeWorldTransform1;
 		int32 ExpectedNumManifoldPoints;

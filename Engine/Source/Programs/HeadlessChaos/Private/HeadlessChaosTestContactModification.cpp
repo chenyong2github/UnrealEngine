@@ -432,118 +432,6 @@ namespace ChaosTest
 		Module->DestroySolver(Solver);
 	}
 
-	GTEST_TEST(AllTraits, ContactModification_ModifyLocationCoMSpace)
-	{
-		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
-		InitSolverSettings(Solver);
-		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-
-		// create a static floor and two boxes colliding on edge of floor each with center of mass over the edge.
-		// One cube should rotate off side, the other has contact point locations moved under center of mass,
-		// so cube does not rotate and fall, instead remains on floor.
-
-		// simulated cube falling onto floor with center of mass over hanging past edge, should fall under floor,
-		FSingleParticlePhysicsProxy* FallingCubeProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
-		auto& FallingCubeParticle = FallingCubeProxy->GetGameThreadAPI();
-		auto FallingCubeGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100), FVec3(100)));
-		FallingCubeParticle.SetGeometry(FallingCubeGeom);
-		Solver->RegisterObject(FallingCubeProxy);
-		FallingCubeParticle.SetGravityEnabled(true);
-		FallingCubeParticle.SetX(FVec3(550, 0, 110));
-		SetCubeInertiaTensor(FallingCubeParticle, /*Dimension=*/200, /*Mass=*/1);
-		ChaosTest::SetParticleSimDataToCollide({ FallingCubeProxy->GetParticle_LowLevel() });
-
-		// cube with CoM hanging past edge of floor, contact mod moves contact under CoM so it will not tip off edge.
-		FSingleParticlePhysicsProxy* ModifiedCubeProxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
-		auto& ModifiedCubeParticle = ModifiedCubeProxy->GetGameThreadAPI();
-		auto ModifiedCubeGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100), FVec3(100)));
-		ModifiedCubeParticle.SetGeometry(ModifiedCubeGeom);
-		Solver->RegisterObject(ModifiedCubeProxy);
-		ModifiedCubeParticle.SetGravityEnabled(true);
-		ModifiedCubeParticle.SetX(FVec3(-550, 0, 110));
-		SetCubeInertiaTensor(ModifiedCubeParticle, /*Dimension=*/200, /*Mass=*/1);
-		ChaosTest::SetParticleSimDataToCollide({ ModifiedCubeProxy->GetParticle_LowLevel() });
-
-
-		// static floor at origin, X/Y spanning [-500, 500] and Z spanning [-100,0]
-		FSingleParticlePhysicsProxy* FloorProxy = FSingleParticlePhysicsProxy::Create(Chaos::FGeometryParticle::CreateParticle());
-		auto& FloorParticle = FloorProxy->GetGameThreadAPI();
-		auto FloorGeom = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-500, -500, -100), FVec3(500, 500, 0)));
-		FloorParticle.SetGeometry(FloorGeom);
-		Solver->RegisterObject(FloorProxy);
-		FloorParticle.SetX(FVec3(0, 0, 0));
-		ChaosTest::SetParticleSimDataToCollide({ FloorProxy->GetParticle_LowLevel() });
-
-
-		// Save Unique indices of floor and modified cube to disable in contact mod.
-		TVec2<FUniqueIdx> UniqueIndices({ ModifiedCubeParticle.UniqueIdx(), FloorParticle.UniqueIdx() });
-
-		FContactModificationTestCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FContactModificationTestCallback>(true);
-		Callback->TestLambda = [UniqueIndices](Chaos::FCollisionContactModifier& Modifier)
-		{
-			for (FContactPairModifier& PairModifier : Modifier)
-			{
-				TVec2<FGeometryParticleHandle*> Particles = PairModifier.GetParticlePair();
-				FUniqueIdx Idx0 = Particles[0]->UniqueIdx();
-				FUniqueIdx Idx1 = Particles[1]->UniqueIdx();
-
-				// If unique indices match disable the pair.
-				if ((UniqueIndices[0] == Idx0 && UniqueIndices[1] == Idx1) ||
-					(UniqueIndices[0] == Idx1 && UniqueIndices[1] == Idx0))
-				{
-					int32 NumContacts = PairModifier.GetNumContacts();
-					for (int32 PointIdx = 0; PointIdx < NumContacts; ++PointIdx)
-					{
-						// Move contact locations below center of mass
-						FVec3 CoMPos0;
-						FVec3 CoMPos1;
-						PairModifier.GetCoMContactLocations(PointIdx, CoMPos0, CoMPos1);
-
-						int32 DynamicIdx = (UniqueIndices[0] == Idx0) ? 0 : 1;
-						if (DynamicIdx == 0)
-						{
-							// Move point0 under center of mass and move second point under CoM but keep the same distance between bodiesz
-							FVec3 PointUnderCoM0(0, 0, CoMPos0.Z);
-							FVec3 Delta = PointUnderCoM0 - CoMPos0;
-							FVec3 PointUnderCoM1(CoMPos1 + Delta);
-							PairModifier.ModifyCoMContactLocations(PointUnderCoM0, PointUnderCoM1, PointIdx);
-						}
-						else
-						{
-							FVec3 PointUnderCoM1(0, 0, CoMPos1.Z);
-							FVec3 Delta = PointUnderCoM1 - CoMPos1;
-							FVec3 PointUnderCoM0(CoMPos0 + Delta);
-							PairModifier.ModifyCoMContactLocations(PointUnderCoM0, PointUnderCoM1, PointIdx);
-						}
-					}
-				}
-			}
-		};
-
-
-		const float Dt = 0.1f;
-		const int32 Steps = 10;
-		for (int Step = 0; Step < Steps; ++Step)
-		{
-			Solver->AdvanceAndDispatch_External(Dt);
-			Solver->UpdateGameThreadStructures();
-		}
-
-		// Modified contact points to be below CoM, cube should not tip off edge of floor, but rest on it instead.
-		EXPECT_NEAR(ModifiedCubeParticle.X().Z, 100.f, KINDA_SMALL_NUMBER);
-
-		// Expected to tip off edge as CoM hangs off of floor.
-		EXPECT_LT(FallingCubeParticle.X().Z, 0.f);
-
-		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
-		Solver->UnregisterObject(FallingCubeProxy);
-		Solver->UnregisterObject(ModifiedCubeProxy);
-		Solver->UnregisterObject(FloorProxy);
-		Module->DestroySolver(Solver);
-	}
-
-
 	GTEST_TEST(AllTraits, ContactModification_ModifyRestitution)
 	{
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
@@ -704,7 +592,8 @@ namespace ChaosTest
 				if ((UniqueIndices[0] == Idx0 && UniqueIndices[1] == Idx1) ||
 					(UniqueIndices[0] == Idx1 && UniqueIndices[1] == Idx0))
 				{
-					PairModifier.ModifyFriction(1);
+					PairModifier.ModifyDynamicFriction(1);
+					PairModifier.ModifyStaticFriction(1);
 				}
 			}
 		};
@@ -964,6 +853,8 @@ namespace ChaosTest
 				TVec2<FGeometryParticleHandle*> Particles = PairModifier.GetParticlePair();
 				int32 DynamicParticleIdx = (Particles[0]->ObjectState() == EObjectStateType::Dynamic) ? 0 : 1;
 
+				PairModifier.ModifyDynamicFriction(0);
+				PairModifier.ModifyStaticFriction(0);
 				PairModifier.ModifyParticleRotation(ModificationRotation, /*bMaintainVelocity=*/true, DynamicParticleIdx);
 			}
 		};

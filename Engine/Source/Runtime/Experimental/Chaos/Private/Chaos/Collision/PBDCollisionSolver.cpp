@@ -354,13 +354,13 @@ namespace Chaos
 	void FPBDCollisionSolverManifoldPoint::InitContact(
 		const FConstraintSolverBody& Body0,
 		const FConstraintSolverBody& Body1,
-		const FVec3& InCoMAnchorPoint0,
-		const FVec3& InCoMAnchorPoint1,
+		const FVec3& InWorldAnchorPoint0,
+		const FVec3& InWorldAnchorPoint1,
 		const FVec3& InWorldContactNormal)
 	{
 		NetPushOut = FVec3(0);
 		NetImpulse = FVec3(0);
-		UpdateContact(Body0, Body1, InCoMAnchorPoint0, InCoMAnchorPoint1, InWorldContactNormal);
+		UpdateContact(Body0, Body1, InWorldAnchorPoint0, InWorldAnchorPoint1, InWorldContactNormal);
 		UpdateMass(Body0, Body1);
 	}
 
@@ -377,23 +377,18 @@ namespace Chaos
 	inline void FPBDCollisionSolverManifoldPoint::UpdateContact(
 		const FConstraintSolverBody& Body0, 
 		const FConstraintSolverBody& Body1,
-		const FVec3& InCoMAnchorPoint0,
-		const FVec3& InCoMAnchorPoint1, 
+		const FVec3& InWorldAnchorPoint0,
+		const FVec3& InWorldAnchorPoint1, 
 		const FVec3& InWorldContactNormal)
 	{
-		// The contact points on each body
-		const FVec3 WorldRelativeAnchorPoint0 = Body0.Q() * InCoMAnchorPoint0;
-		const FVec3 WorldRelativeAnchorPoint1 = Body1.Q() * InCoMAnchorPoint1;
-		const FVec3 WorldAnchorPoint0 = Body0.P() + WorldRelativeAnchorPoint0;
-		const FVec3 WorldAnchorPoint1 = Body1.P() + WorldRelativeAnchorPoint1;
-
 		// The world-space point where we apply impulses/corrections (same world-space point for momentum conservation)
-		WorldContactPosition = FReal(0.5) * (WorldAnchorPoint0 + WorldAnchorPoint1);
+		WorldContactPosition = FReal(0.5) * (InWorldAnchorPoint0 + InWorldAnchorPoint1);
 
 		// The world-space contact normal
 		WorldContactNormal = InWorldContactNormal;
 
-		WorldContactDelta = WorldAnchorPoint0 - WorldAnchorPoint1;
+		// The contact point error we are trying to correct in this solver
+		WorldContactDelta = InWorldAnchorPoint0 - InWorldAnchorPoint1;
 	}
 
 	inline void FPBDCollisionSolverManifoldPoint::UpdateMass(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1)
@@ -548,11 +543,11 @@ namespace Chaos
 
 	void FPBDCollisionSolver::InitContact(
 		const int32 ManifoldPoiontIndex,
-		const FVec3& InCoMAnchorPoint0,
-		const FVec3& InCoMAnchorPoint1,
+		const FVec3& InWorldAnchorPoint0,
+		const FVec3& InWorldAnchorPoint1,
 		const FVec3& InWorldContactNormal)
 	{
-		State.ManifoldPoints[ManifoldPoiontIndex].InitContact(State.SolverBodies[0], State.SolverBodies[1], InCoMAnchorPoint0, InCoMAnchorPoint1, InWorldContactNormal);
+		State.ManifoldPoints[ManifoldPoiontIndex].InitContact(State.SolverBodies[0], State.SolverBodies[1], InWorldAnchorPoint0, InWorldAnchorPoint1, InWorldContactNormal);
 	}
 
 	void FPBDCollisionSolver::InitMaterial(
@@ -566,11 +561,11 @@ namespace Chaos
 
 	void FPBDCollisionSolver::UpdateContact(
 		const int32 ManifoldPoiontIndex,
-		const FVec3& InCoMAnchorPoint0,
-		const FVec3& InCoMAnchorPoint1,
+		const FVec3& InWorldAnchorPoint0,
+		const FVec3& InWorldAnchorPoint1,
 		const FVec3& InWorldContactNormal)
 	{
-		State.ManifoldPoints[ManifoldPoiontIndex].UpdateContact(State.SolverBodies[0], State.SolverBodies[1], InCoMAnchorPoint0, InCoMAnchorPoint1, InWorldContactNormal);
+		State.ManifoldPoints[ManifoldPoiontIndex].UpdateContact(State.SolverBodies[0], State.SolverBodies[1], InWorldAnchorPoint0, InWorldAnchorPoint1, InWorldContactNormal);
 	}
 
 	bool FPBDCollisionSolver::SolvePosition(const FReal Dt, const FReal MaxPushOut, const bool bApplyStaticFriction)

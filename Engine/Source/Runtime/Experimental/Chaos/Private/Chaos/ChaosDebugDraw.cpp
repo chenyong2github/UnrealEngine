@@ -856,12 +856,9 @@ namespace Chaos
 
 						const int32 ContactPlaneOwner = 1;
 						const int32 ContactPointOwner = 1 - ContactPlaneOwner;
-						const FRigidTransform3& PlaneTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform0 : WorldCoMTransform1;
-						const FRigidTransform3& PointTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform1 : WorldCoMTransform0;
-						const FConstGenericParticleHandle PlaneParticle = (ContactPlaneOwner == 0) ? Particle0 : Particle1;
 						const FVec3 PlaneNormal = ManifoldPoint.ContactPoint.Normal;
-						const FVec3 PointLocation = PointTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPointOwner]);
-						const FVec3 PlaneLocation = PlaneTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPlaneOwner]);
+						const FVec3 PointLocation = ManifoldPoint.WorldContactPoints[ContactPointOwner];
+						const FVec3 PlaneLocation = ManifoldPoint.WorldContactPoints[ContactPlaneOwner];
 						const FVec3 PointPlaneLocation = PointLocation - FVec3::DotProduct(PointLocation - PlaneLocation, PlaneNormal) * PlaneNormal;
 
 						// Dynamic friction, restitution = red
@@ -905,19 +902,6 @@ namespace Chaos
 						// Manifold point
 						FMatrix Axes = FRotationMatrix::MakeFromX(WorldPlaneNormal);
 						FDebugDrawQueue::GetInstance().DrawDebugCircle(WorldPointLocation, 0.5f * Settings.DrawScale * Settings.ContactWidth, 12, DiscColor, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
-
-						// Unfortunately this doesn't work any more - we overwrite the original contacts with the friction contacts
-						// Previous points
-						//const FManifoldPointSavedData* PrevManifoldPoint = Contact.FindManifoldPointSavedData(ManifoldPoint);
-						//if (PrevManifoldPoint != nullptr)
-						//{
-						//	const FVec3 PrevPointLocation = PointTransform.TransformPosition(PrevManifoldPoint->CoMContactPoints[ContactPointOwner]);
-						//	const FVec3 PrevPlaneLocation = PlaneTransform.TransformPosition(PrevManifoldPoint->CoMContactPoints[ContactPlaneOwner]);
-						//	const FVec3 WorldPrevPointLocation = SpaceTransform.TransformPosition(PrevPointLocation);
-						//	const FVec3 WorldPrevPlaneLocation = SpaceTransform.TransformPosition(PrevPlaneLocation);
-						//	FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPointLocation, WorldPointLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-						//	FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPrevPlaneLocation, WorldPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-						//}
 
 						// Whether restored
 						if (Contact.WasManifoldRestored())
@@ -1152,20 +1136,20 @@ namespace Chaos
 		{
 			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraint* Constraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 OrderIndex, bool bIsUsed, const FChaosDebugDrawSettings& Settings)
 			{
-				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[0])) * SpaceTransform;
-				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[1])) * SpaceTransform;
-
 				FVec3 ContactPos = Constraint->GetContactLocation();
 				if (Constraint->GetManifoldPoints().Num() > 0)
 				{
 					ContactPos = FVec3(0);
 					for (const FManifoldPoint& ManifoldPoint : Constraint->GetManifoldPoints())
 					{
-						ContactPos += Transform0.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[0]);
-						ContactPos += Transform1.TransformPositionNoScale(ManifoldPoint.CoMContactPoints[1]);
+						ContactPos += SpaceTransform.TransformPosition(ManifoldPoint.WorldContactPoints[0]);
+						ContactPos += SpaceTransform.TransformPosition(ManifoldPoint.WorldContactPoints[1]);
 					}
 					ContactPos /= (FReal)(2 * Constraint->GetManifoldPoints().Num());
 				}
+
+				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[0])) * SpaceTransform;
+				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(Constraint->GetConstrainedParticles()[1])) * SpaceTransform;
 
 				if ((bChaosDebugDebugDrawContactGraphUsed && bIsUsed) || (bChaosDebugDebugDrawContactGraphUnused && !bIsUsed))
 				{
