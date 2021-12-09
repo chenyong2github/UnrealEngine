@@ -246,6 +246,9 @@ namespace Horde.Storage
             services.AddSingleton<LastAccessService>();
             services.AddHostedService<LastAccessService>(p => p.GetService<LastAccessService>()!);
 
+            services.AddSingleton<LastAccessServiceReferences>();
+            services.AddHostedService<LastAccessServiceReferences>(p => p.GetService<LastAccessServiceReferences>()!);
+
             services.AddSingleton<IServiceCredentials, ServiceCredentials>(p => ActivatorUtilities.CreateInstance<ServiceCredentials>(p));
             
             services.AddSingleton<ReplicationService>();
@@ -635,7 +638,7 @@ namespace Horde.Storage
                 healthChecks.AddCheck<RefCleanupServiceCheck>("RefCleanupCheck", tags: new[] {"services"});
             }
 
-            if (gcSettings.CleanOldBlobs)
+            if (gcSettings.BlobCleanupServiceEnabled)
             {
                 healthChecks.AddCheck<BlobCleanupServiceCheck>("BlobStoreCheck", tags: new[] {"services"});
             }
