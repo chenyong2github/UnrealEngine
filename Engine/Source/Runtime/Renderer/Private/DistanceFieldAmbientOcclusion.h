@@ -90,58 +90,17 @@ inline float GetMaxAOViewDistance()
 	return FMath::Min(GAOMaxViewDistance, 65000.0f);
 }
 
-class FAOParameters
+BEGIN_SHADER_PARAMETER_STRUCT(FAOParameters, )
+	SHADER_PARAMETER(float, AOObjectMaxDistance)
+	SHADER_PARAMETER(float, AOStepScale)
+	SHADER_PARAMETER(float, AOStepExponentScale)
+	SHADER_PARAMETER(float, AOMaxViewDistance)
+	SHADER_PARAMETER(float, AOGlobalMaxOcclusionDistance)
+END_SHADER_PARAMETER_STRUCT()
+
+namespace DistanceField
 {
-	DECLARE_TYPE_LAYOUT(FAOParameters, NonVirtual);
-public:
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		AOObjectMaxDistance.Bind(ParameterMap,TEXT("AOObjectMaxDistance"));
-		AOStepScale.Bind(ParameterMap,TEXT("AOStepScale"));
-		AOStepExponentScale.Bind(ParameterMap,TEXT("AOStepExponentScale"));
-		AOMaxViewDistance.Bind(ParameterMap,TEXT("AOMaxViewDistance"));
-		AOGlobalMaxOcclusionDistance.Bind(ParameterMap,TEXT("AOGlobalMaxOcclusionDistance"));
-	}
-
-	friend FArchive& operator<<(FArchive& Ar,FAOParameters& Parameters)
-	{
-		Ar << Parameters.AOObjectMaxDistance;
-		Ar << Parameters.AOStepScale;
-		Ar << Parameters.AOStepExponentScale;
-		Ar << Parameters.AOMaxViewDistance;
-		Ar << Parameters.AOGlobalMaxOcclusionDistance;
-		return Ar;
-	}
-
-	template<typename ShaderRHIParamRef>
-	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FDistanceFieldAOParameters& Parameters)
-	{
-		SetShaderValue(RHICmdList, ShaderRHI, AOObjectMaxDistance, Parameters.ObjectMaxOcclusionDistance);
-
-		extern float GAOConeHalfAngle;
-		const float AOLargestSampleOffset = Parameters.ObjectMaxOcclusionDistance / (1 + FMath::Tan(GAOConeHalfAngle));
-
-		extern float GAOStepExponentScale;
-		extern uint32 GAONumConeSteps;
-		float AOStepScaleValue = AOLargestSampleOffset / FMath::Pow(2.0f, GAOStepExponentScale * (GAONumConeSteps - 1));
-		SetShaderValue(RHICmdList, ShaderRHI, AOStepScale, AOStepScaleValue);
-
-		SetShaderValue(RHICmdList, ShaderRHI, AOStepExponentScale, GAOStepExponentScale);
-
-		SetShaderValue(RHICmdList, ShaderRHI, AOMaxViewDistance, GetMaxAOViewDistance());
-
-		const float GlobalMaxOcclusionDistance = Parameters.GlobalMaxOcclusionDistance;
-		SetShaderValue(RHICmdList, ShaderRHI, AOGlobalMaxOcclusionDistance, GlobalMaxOcclusionDistance);
-	}
-
-private:
-	
-		LAYOUT_FIELD(FShaderParameter, AOObjectMaxDistance)
-		LAYOUT_FIELD(FShaderParameter, AOStepScale)
-		LAYOUT_FIELD(FShaderParameter, AOStepExponentScale)
-		LAYOUT_FIELD(FShaderParameter, AOMaxViewDistance)
-		LAYOUT_FIELD(FShaderParameter, AOGlobalMaxOcclusionDistance)
-	
+	FAOParameters SetupAOShaderParameters(const FDistanceFieldAOParameters& AOParameters);
 };
 
 class FDFAOUpsampleParameters
