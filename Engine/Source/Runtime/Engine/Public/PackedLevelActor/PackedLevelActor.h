@@ -10,22 +10,19 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #endif
 
-#include "PackedLevelInstanceActor.generated.h"
+#include "PackedLevelActor.generated.h"
 
 class UInstancedStaticMeshComponent;
 class UBlueprint;
 
 /**
- * APackedLevelInstance is the result of packing the source level (WorldAsset base class property) into a single actor. See FPackedLevelInstanceBuilder.
+ * APackedLevelActor is the result of packing the source level (WorldAsset base class property) into a single actor. See FPackedLevelActorBuilder.
  * 
- * Currently supported source components:
- * Packer FLevelInstanceISMPacker : UStaticMeshComponent/UInstancedStaticMeshComponent/UHierarchicalInstancedStaticMeshComponent
- * Packer FRecursiveLevelInstancePacker : Allows packing recursive LevelInstances
  * 
- * Other components are unsupported and will result in an incomplete APackedLevelInstance. In this case using a regular ALevelInstance is recommended.
+ * Other components are unsupported and will result in an incomplete APackedLevelActor. In this case using a regular ALevelInstance is recommended.
  */
 UCLASS()
-class ENGINE_API APackedLevelInstance : public ALevelInstance
+class ENGINE_API APackedLevelActor : public ALevelInstance
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,10 +31,13 @@ public:
 
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
+	static bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+	static bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+
 	static FName GetPackedComponentTag();
 
 	virtual void PostLoad() override;
-	virtual void UpdateLevelInstance() override;
+	virtual void UpdateFromLevel() override;
 	virtual void OnCommit(bool bChanged, bool bPromptForSave) override;
 	virtual void OnCommitChild(bool bChanged) override;
 	virtual void OnEdit() override;
@@ -70,10 +70,10 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = Pack, meta = (DisplayName = "ISM Component Class"))
+	UPROPERTY(EditAnywhere, Category = Packed, meta = (DisplayName = "ISM Component Class"))
 	TSubclassOf<UInstancedStaticMeshComponent> ISMComponentClass;
 
-	UPROPERTY(VisibleAnywhere, Category = Pack)
+	UPROPERTY(VisibleAnywhere, Category = Packed)
 	TSoftObjectPtr<UBlueprint> BlueprintAsset;
 
 	UPROPERTY()

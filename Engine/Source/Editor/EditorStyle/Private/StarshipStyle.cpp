@@ -6081,6 +6081,7 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			{TEXT("Landscape")},
 			{TEXT("LevelBounds")},
 			{TEXT("LevelInstance")},
+			{TEXT("PackedLevelActor")},
 			{TEXT("LevelScriptActor")},
 			{TEXT("LevelSequenceActor")},
 			{TEXT("LevelStreamingVolume")},

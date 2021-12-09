@@ -41,8 +41,7 @@ UENUM()
 enum class ELevelInstanceCreationType : uint8
 {
 	LevelInstance,
-	PackedLevelInstance,
-	PackedLevelInstanceBlueprint
+	PackedLevelActor
 };
 
 UENUM()
@@ -59,7 +58,7 @@ struct FNewLevelInstanceParams
 {
 	GENERATED_USTRUCT_BODY()
 			
-	UPROPERTY(EditAnywhere, Category = Default)
+	UPROPERTY(EditAnywhere, Category = Default, meta = (EditCondition = "!bHideCreationType", EditConditionHides, HideEditConditionToggle))
 	ELevelInstanceCreationType Type = ELevelInstanceCreationType::LevelInstance;
 
 	UPROPERTY(EditAnywhere, Category = Pivot)
@@ -84,7 +83,11 @@ private:
 	UPROPERTY()
 	bool bForceExternalActors = false;
 
+	UPROPERTY()
+	bool bHideCreationType = false;
+
 public:
+	void HideCreationType() { bHideCreationType = true; }
 	void SetForceExternalActors(bool bInForceExternalActors) { bForceExternalActors = bInForceExternalActors; }
 	void SetExternalActors(bool bInExternalActors) { bExternalActors = bInExternalActors; }
 	bool UseExternalActors() const { return bForceExternalActors || bExternalActors; }

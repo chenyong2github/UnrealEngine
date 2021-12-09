@@ -30,7 +30,7 @@ class ENGINE_API ALevelInstance : public AActor
 protected:
 #if WITH_EDITORONLY_DATA
 	/** Level LevelInstance */
-	UPROPERTY(EditAnywhere, Category = LevelInstance, meta = (NoCreate, DisplayName="Level"))
+	UPROPERTY(EditAnywhere, Category = Level, meta = (NoCreate, DisplayName="Level"))
 	TSoftObjectPtr<UWorld> WorldAsset;
 #endif
 
@@ -105,12 +105,12 @@ public:
 	bool CheckForLoop(TSoftObjectPtr<UWorld> WorldAsset, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ALevelInstance** LoopStart = nullptr) const;
 	AActor* FindEditorInstanceActor() const;
 
-	virtual void OnWorldAssetChanged() { UpdateLevelInstance(); }
+	virtual void OnWorldAssetChanged() { UpdateFromLevel(); }
 	virtual void OnEdit() {}
 	virtual void OnEditChild() {}
 	virtual void OnCommit(bool bChanged, bool bPromptForSave) {}
 	virtual void OnCommitChild(bool bChanged) {}
-	virtual void UpdateLevelInstance();
+	virtual void UpdateFromLevel();
 		
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);
 	static FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;

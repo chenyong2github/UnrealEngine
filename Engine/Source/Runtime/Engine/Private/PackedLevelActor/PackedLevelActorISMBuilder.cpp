@@ -1,25 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LevelInstance/Packed/LevelInstanceISMPacker.h"
+#include "PackedLevelActor/PackedLevelActorISMBuilder.h"
 
 #if WITH_EDITOR
 
-#include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
-#include "LevelInstance/Packed/PackedLevelInstanceActor.h"
+#include "PackedLevelActor/PackedLevelActorBuilder.h"
+#include "PackedLevelActor/PackedLevelActor.h"
 
 #include "Templates/TypeHash.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
-FLevelInstancePackerID FLevelInstanceISMPacker::PackerID = 'ISMP';
+FPackedLevelActorBuilderID FPackedLevelActorISMBuilder::BuilderID = 'ISMP';
 
-FLevelInstancePackerID FLevelInstanceISMPacker::GetID() const
+FPackedLevelActorBuilderID FPackedLevelActorISMBuilder::GetID() const
 {
-	return PackerID;
+	return BuilderID;
 }
 
-void FLevelInstanceISMPacker::GetPackClusters(FPackedLevelInstanceBuilderContext& InContext, AActor* InActor) const
+void FPackedLevelActorISMBuilder::GetPackClusters(FPackedLevelActorBuilderContext& InContext, AActor* InActor) const
 {
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
 	InActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
@@ -28,22 +28,22 @@ void FLevelInstanceISMPacker::GetPackClusters(FPackedLevelInstanceBuilderContext
 	{
 		if (InContext.ShouldPackComponent(StaticMeshComponent))
 		{
-			FLevelInstancePackerClusterID ClusterID(MakeUnique<FLevelInstanceISMPackerCluster>(GetID(), StaticMeshComponent));
+			FPackedLevelActorBuilderClusterID ClusterID(MakeUnique<FPackedLevelActorISMBuilderCluster>(GetID(), StaticMeshComponent));
 
 			InContext.FindOrAddCluster(MoveTemp(ClusterID), StaticMeshComponent);
 		}
 	}
 }
 
-void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InContext, APackedLevelInstance* InPackingActor, const FLevelInstancePackerClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const
+void FPackedLevelActorISMBuilder::PackActors(FPackedLevelActorBuilderContext& InContext, APackedLevelActor* InPackingActor, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const
 {
-	check(InClusterID.GetPackerID() == GetID());
+	check(InClusterID.GetBuilderID() == GetID());
 	UInstancedStaticMeshComponent* PackComponent = InPackingActor->AddPackedComponent<UInstancedStaticMeshComponent>();
 	
 	FTransform ActorTransform = InPackingActor->GetActorTransform();
 	PackComponent->AttachToComponent(InPackingActor->GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
 	
-	FLevelInstanceISMPackerCluster* ISMCluster = (FLevelInstanceISMPackerCluster*)InClusterID.GetData();
+	FPackedLevelActorISMBuilderCluster* ISMCluster = (FPackedLevelActorISMBuilderCluster*)InClusterID.GetData();
 	check(ISMCluster);
 
 	ISMCluster->ISMDescriptor.InitComponent(PackComponent);
@@ -77,8 +77,8 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 	PackComponent->RegisterComponent();
 }
 
-FLevelInstanceISMPackerCluster::FLevelInstanceISMPackerCluster(FLevelInstancePackerID InPackerID, UStaticMeshComponent* InComponent)
-	: FLevelInstancePackerCluster(InPackerID)
+FPackedLevelActorISMBuilderCluster::FPackedLevelActorISMBuilderCluster(FPackedLevelActorBuilderID InBuilderID, UStaticMeshComponent* InComponent)
+	: FPackedLevelActorBuilderCluster(InBuilderID)
 {
 	ISMDescriptor.InitFrom(InComponent, /** bInitBodyInstance= */ false);
 	// Component descriptor should be considered hidden if original actor owner was.
@@ -87,15 +87,20 @@ FLevelInstanceISMPackerCluster::FLevelInstanceISMPackerCluster(FLevelInstancePac
 	ISMDescriptor.ComputeHash();
 }
 
-uint32 FLevelInstanceISMPackerCluster::ComputeHash() const
+uint32 FPackedLevelActorISMBuilderCluster::ComputeHash() const
 {
-	return HashCombine(FLevelInstancePackerCluster::ComputeHash(), ISMDescriptor.Hash);
+	return HashCombine(FPackedLevelActorBuilderCluster::ComputeHash(), ISMDescriptor.Hash);
 }
 
-bool FLevelInstanceISMPackerCluster::operator==(const FLevelInstancePackerCluster& InOther) const
+bool FPackedLevelActorISMBuilderCluster::Equals(const FPackedLevelActorBuilderCluster& InOther) const
 {
-	const FLevelInstanceISMPackerCluster& ISMOther = (const FLevelInstanceISMPackerCluster&)InOther;
-	return FLevelInstancePackerCluster::operator==(InOther) && ISMDescriptor == ISMOther.ISMDescriptor;
+	if (!FPackedLevelActorBuilderCluster::Equals(InOther))
+	{
+		return false;
+	}
+
+	const FPackedLevelActorISMBuilderCluster& ISMOther = (const FPackedLevelActorISMBuilderCluster&)InOther;
+	return ISMDescriptor == ISMOther.ISMDescriptor;
 }
 
 #endif
