@@ -520,6 +520,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Params.FacingMode					= NiagaraMeshVF.FacingMode;
 	Params.DeltaSeconds					= NiagaraMeshVF.DeltaSeconds;
 	Params.MeshScale 					= NiagaraMeshVF.MeshScale;
+	Params.MeshRotation					= NiagaraMeshVF.MeshRotation;
 	Params.MeshOffset 					= NiagaraMeshVF.MeshOffset;
 	Params.bMeshOffsetIsWorldSpace		= NiagaraMeshVF.bMeshOffsetIsWorldSpace;
 	Params.bLockedAxisEnable			= NiagaraMeshVF.bLockedAxisEnable;

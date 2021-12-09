@@ -53,6 +53,7 @@ struct NiagaraMeshParticleSRTParams
 
 	// Additional mesh scale and offset to apply to mesh
 	float3 MeshScale;
+	float4 MeshRotation;
 	float3 MeshOffset;
 	bool bMeshOffsetIsWorldSpace;
 
@@ -104,6 +105,7 @@ struct NiagaraMeshParticleTransformsParams
 
 	// Additional scale and offset to apply to mesh
 	float3 MeshScale;
+	float4 MeshRotation;
 	float3 MeshOffset;
 	bool bMeshOffsetIsWorldSpace;
 
@@ -352,7 +354,7 @@ NiagaraMeshParticleSRT NiagaraCalculateMeshParticleSRT(NiagaraMeshParticleSRTPar
 	
 	////////////////////////////////////////////////////////////////////////////////
 	// Rotation
-	SRT.Rotation = NiagaraQuatTo3x3(normalize(ParticleRotation));
+	SRT.Rotation = NiagaraQuatTo3x3(NiagaraQuatMul(normalize(ParticleRotation), Params.MeshRotation));
 	if (Params.FacingMode != MESH_FACING_DEFAULT)
 	{
 		// Factor in facing rotation
@@ -390,6 +392,7 @@ NiagaraMeshParticleTransforms NiagaraCalculateMeshParticleTransforms(NiagaraMesh
 	SRTParams.bLocalSpace 					= Params.bLocalSpace;
 	SRTParams.FacingMode					= Params.FacingMode;
 	SRTParams.MeshScale 					= Params.MeshScale;
+	SRTParams.MeshRotation					= Params.MeshRotation;
 	SRTParams.MeshOffset 					= Params.MeshOffset;
 	SRTParams.bMeshOffsetIsWorldSpace		= Params.bMeshOffsetIsWorldSpace;
 	SRTParams.bLockedAxisEnable				= Params.bLockedAxisEnable;

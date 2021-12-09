@@ -80,9 +80,10 @@ protected:
 		FStaticMeshRenderData* RenderData = nullptr;
 		int32 MinimumLOD = 0;
 		uint32 SourceMeshIndex = INDEX_NONE;
-		FVector PivotOffset = FVector(ForceInitToZero);
+		FVector3f PivotOffset = FVector3f::ZeroVector;
 		ENiagaraMeshPivotOffsetSpace PivotOffsetSpace = ENiagaraMeshPivotOffsetSpace::Mesh;
-		FVector Scale = FVector(1.0f, 1.0f, 1.0f);
+		FVector3f Scale = FVector3f(1.0f, 1.0f, 1.0f);
+		FQuat4f Rotation = FQuat4f::Identity;
 		FBox LocalBounds = FBox(ForceInitToZero);
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};

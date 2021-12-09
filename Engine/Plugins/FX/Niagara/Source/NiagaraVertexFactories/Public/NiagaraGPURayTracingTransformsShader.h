@@ -47,6 +47,7 @@ class NIAGARAVERTEXFACTORIES_API FNiagaraGPURayTracingTransformsCS : public FGlo
 		SHADER_PARAMETER(FVector4f,	DefaultRotation)
 		SHADER_PARAMETER(FVector3f,	DefaultScale)
 		SHADER_PARAMETER(FVector3f,	MeshScale)
+		SHADER_PARAMETER(FVector4f, MeshRotation)
 
 		SHADER_PARAMETER(FMatrix44f,	LocalTransform)
 

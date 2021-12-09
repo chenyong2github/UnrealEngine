@@ -134,6 +134,10 @@ struct NIAGARA_API FNiagaraMeshRendererMeshProperties
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	FVector Scale;
 
+	/** Rotation of the mesh */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	FRotator Rotation;
+
 	/** Offset of the mesh pivot */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	FVector PivotOffset;

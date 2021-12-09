@@ -30,6 +30,7 @@ float3	DefaultPosition;
 float4	DefaultRotation;
 float3	DefaultScale;
 float3	MeshScale;
+float4	MeshRotation;
 
 float4x4	LocalTransform;
 
@@ -87,7 +88,7 @@ void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThread
 	if (InstanceIndex < GPUNumInstances)
 	{
 		float3 InstancePosition = SafeGetVec3(PositionDataOffset, InstanceIndex, DefaultPosition);
-		float4 InstanceRotation = SafeGetVec4(RotationDataOffset, InstanceIndex, DefaultRotation);
+		float4 InstanceRotation = NiagaraQuatMul(SafeGetVec4(RotationDataOffset, InstanceIndex, DefaultRotation), MeshRotation);
 		float3 InstanceScale    = SafeGetVec3(ScaleDataOffset, InstanceIndex, DefaultScale) * MeshScale;
 
 		float4x4 InstanceTransform = NiagaraComposeTransformMatrix(InstanceScale, NiagaraQuatTo3x3(InstanceRotation), InstancePosition);
