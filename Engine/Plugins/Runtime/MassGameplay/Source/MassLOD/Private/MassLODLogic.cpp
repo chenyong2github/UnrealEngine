@@ -4,7 +4,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 
-void FMassLODBaseLogic::CacheViewerInformation(TConstArrayView<FViewerInfo> ViewerInfos, const bool bLocalViewersOnly)
+void FMassLODBaseLogic::CacheViewerInformation(TConstArrayView<FViewerInfo> ViewerInfos)
 {
 	if(Viewers.Num() < ViewerInfos.Num())
 	{
@@ -15,12 +15,13 @@ void FMassLODBaseLogic::CacheViewerInformation(TConstArrayView<FViewerInfo> View
 	for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 	{
 		const FViewerInfo& Viewer =  ViewerInfos.IsValidIndex(ViewerIdx) ? ViewerInfos[ViewerIdx] : FViewerInfo();
-		const FMassViewerHandle ViewerHandle =  Viewer.bEnabled && (!bLocalViewersOnly || Viewer.IsLocal()) ? Viewer.Handle : FMassViewerHandle();
+		const FMassViewerHandle ViewerHandle =  Viewer.bEnabled ? Viewer.Handle : FMassViewerHandle();
 
 		// Check if it is the same client as before
 		FViewerLODInfo& ViewerLOD = Viewers[ViewerIdx];
 		ViewerLOD.bClearData = Viewers[ViewerIdx].Handle != ViewerHandle;
 		ViewerLOD.Handle = ViewerHandle;
+		ViewerLOD.bLocal = Viewer.IsLocal();
 
 		if (ViewerHandle.IsValid())
 		{

@@ -35,7 +35,7 @@ struct TMassLODCollector : public FMassLODBaseLogic
 template <typename FLODLogic>
 void TMassLODCollector<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo> ViewersInfo)
 {
-	CacheViewerInformation(ViewersInfo, FLODLogic::bLocalViewersOnly);
+	CacheViewerInformation(ViewersInfo);
 }
 
 template <typename FLODLogic>
@@ -60,6 +60,13 @@ void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context
 				SetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, ViewerIdx, FLT_MAX);
 				SetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, ViewerIdx, FLT_MAX);
 			}
+
+			// Check to see if we want only local viewer only
+			if (FLODLogic::bLocalViewersOnly && !Viewer.bLocal)
+			{
+				continue;
+			}
+
 			if (Viewer.Handle.IsValid())
 			{
 				const FVector& EntityLocation = EntityTransform.GetTransform().GetLocation();

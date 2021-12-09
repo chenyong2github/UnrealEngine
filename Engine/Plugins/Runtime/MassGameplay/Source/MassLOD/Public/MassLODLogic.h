@@ -120,6 +120,9 @@ struct FMassViewerInfoFragment
 
 struct FViewerLODInfo
 {
+	/* Boolean indicating the viewer is local or not */
+	bool bLocal = false;
+
 	/* Boolean indicating the viewer data needs to be cleared */
 	bool bClearData = false;
 
@@ -140,24 +143,24 @@ struct FViewerLODInfo
 struct MASSLOD_API FMassLODBaseLogic
 {
 protected:
-	void CacheViewerInformation(TConstArrayView<FViewerInfo> ViewerInfos, const bool bLocalViewersOnly);
+	void CacheViewerInformation(TConstArrayView<FViewerInfo> ViewerInfos);
 
-	// Per viewer LOD information conditional fragment accessors
+	/** Per viewer LOD information conditional fragment accessors */
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, LODPerViewer);
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, PrevLODPerViewer);
 
-	// LOD Significance conditional fragment accessors
+	/** LOD Significance conditional fragment accessors */
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, LODSignificance);
 
-	// Visibility conditional fragment accessors
+	/** Visibility conditional fragment accessors */
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, float, ClosestDistanceToFrustum);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, EMassVisibility, Visibility);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, EMassVisibility, PrevVisibility);
 
-	// Per viewer distance conditional fragment accessors
+	/** Per viewer distance conditional fragment accessors */
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, float, DistanceToViewerSq);
 
-	// Per viewer visibility conditional fragment accessors
+	/** Per viewer visibility conditional fragment accessors */
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, float, DistanceToFrustum);
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassVisibility, VisibilityPerViewer);
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassVisibility, PrevVisibilityPerViewer);
