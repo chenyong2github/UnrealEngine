@@ -1245,7 +1245,7 @@ bool UCubeGridTool::GetHitGridFace(const FRay& WorldRay, FCubeGrid::FCubeFace& F
 	if (Settings->bHitUnrelatedGeometry)
 	{
 		FHitResult HitResult;
-		if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, HitResult, WorldRay)
+		if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, HitResult, WorldRay)
 			&& HitResult.Distance < BestHitT)
 		{
 			BestHitT = HitResult.Distance;

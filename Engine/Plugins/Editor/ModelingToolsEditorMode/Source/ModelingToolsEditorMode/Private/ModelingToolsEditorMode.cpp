@@ -995,7 +995,7 @@ void UModelingToolsEditorMode::FocusCameraAtCursorHotkey()
 
 	// cast ray against visible objects
 	FHitResult WorldHitResult;
-	if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(GetWorld(), WorldHitResult, Ray.Origin, Ray.PointAt(HALF_WORLD_MAX)))
+	if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit( USceneSnappingManager::Find(GetToolManager()), WorldHitResult, Ray) )
 	{
 		HitPoint = WorldHitResult.ImpactPoint;
 		NearestHitDist = (double)Ray.GetParameter(HitPoint);

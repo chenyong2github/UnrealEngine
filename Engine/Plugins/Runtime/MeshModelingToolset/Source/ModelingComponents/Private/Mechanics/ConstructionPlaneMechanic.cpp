@@ -7,6 +7,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Drawing/MeshDebugDrawing.h"
 #include "ToolSceneQueriesUtil.h"
+#include "SceneQueries/SceneSnappingManager.h"
 
 using namespace UE::Geometry;
 
@@ -39,7 +40,7 @@ void UConstructionPlaneMechanic::Initialize(UWorld* TargetWorld, const FFrame3d&
 
 	// click to set plane behavior
 	SetPlaneCtrlClickBehaviorTarget = MakeUnique<FSelectClickedAction>();
-	SetPlaneCtrlClickBehaviorTarget->World = TargetWorld;
+	SetPlaneCtrlClickBehaviorTarget->SnapManager = USceneSnappingManager::Find(GetParentTool()->GetToolManager());
 	SetPlaneCtrlClickBehaviorTarget->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
 		SetDrawPlaneFromWorldPos(FVector3d(Hit.ImpactPoint), FVector3d(Hit.ImpactNormal), SetPlaneCtrlClickBehaviorTarget->bShiftModifierToggle);

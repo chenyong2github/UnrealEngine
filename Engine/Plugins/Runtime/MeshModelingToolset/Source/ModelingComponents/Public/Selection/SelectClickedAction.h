@@ -15,11 +15,11 @@ class FSelectClickedAction : public IClickBehaviorTarget
 	FInputRayHit DoRayCast(const FInputDeviceRay& ClickPos, bool callbackOnHit)
 	{
 		FHitResult Result;
-
-		bool bHitWorld = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(
-			World, Result, ClickPos.WorldRay, 
-			VisibleComponentsToIgnore.Num() == 0 ? nullptr : &VisibleComponentsToIgnore,
-			InvisibleComponentsToHitTest.Num() == 0 ? nullptr : &InvisibleComponentsToHitTest);
+		const TArray<const UPrimitiveComponent*>* IgnoreComponents = VisibleComponentsToIgnore.Num() == 0 ? nullptr : &VisibleComponentsToIgnore;
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = InvisibleComponentsToHitTest.Num() == 0 ? nullptr : &InvisibleComponentsToHitTest;
+		bool bHitWorld = (SnapManager != nullptr) ?
+			ToolSceneQueriesUtil::FindNearestVisibleObjectHit(SnapManager, Result, ClickPos.WorldRay, IgnoreComponents, InvisibleComponentsToInclude) :
+			ToolSceneQueriesUtil::FindNearestVisibleObjectHit(World, Result, ClickPos.WorldRay, IgnoreComponents, InvisibleComponentsToInclude);
 
 		if (callbackOnHit && bHitWorld && OnClickedPositionFunc != nullptr)
 		{
@@ -29,7 +29,8 @@ class FSelectClickedAction : public IClickBehaviorTarget
 	}
 
 public:
-	UWorld* World;
+	USceneSnappingManager* SnapManager = nullptr;
+	UWorld* World = nullptr;
 	TFunction<void(const FHitResult&)> OnClickedPositionFunc = nullptr;
 	TUniqueFunction<bool()> ExternalCanClickPredicate = nullptr;
 

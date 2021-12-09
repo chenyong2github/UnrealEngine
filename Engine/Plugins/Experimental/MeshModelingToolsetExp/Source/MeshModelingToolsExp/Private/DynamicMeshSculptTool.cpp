@@ -1517,7 +1517,7 @@ void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 		// raycast into scene and current sculpt and place plane at closest hit point
 		FRay CursorWorldRay = UMeshSurfacePointTool::LastWorldRay;
 		FHitResult Result;
-		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, CursorWorldRay);
+		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, CursorWorldRay);
 		FRay3d LocalRay(CurTargetTransform.InverseTransformPosition((FVector3d)CursorWorldRay.Origin),
 			CurTargetTransform.InverseTransformVector((FVector3d)CursorWorldRay.Direction));
 		UE::Geometry::Normalize(LocalRay.Direction);

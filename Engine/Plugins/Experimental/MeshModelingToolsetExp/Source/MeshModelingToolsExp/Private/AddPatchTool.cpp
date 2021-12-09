@@ -172,7 +172,7 @@ void UAddPatchTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClickPos)
 
 	// cast ray into scene
 	FHitResult Result;
-	bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPosWorldRay);
+	bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, ClickPosWorldRay);
 	if (bHit)
 	{
 		ShapeFrame = FFrame3f((FVector3f)Result.ImpactPoint, (FVector3f)Result.ImpactNormal);
@@ -226,7 +226,7 @@ void UAddPatchTool::UpdatePreviewMesh()
 		FVector RayEnd = RayStart; RayEnd.Z = WorldMinHeight;
 
 		FHitResult Result;
-		bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, RayStart, RayEnd);
+		bool bHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, RayStart, RayEnd);
 		if (bHit)
 		{
 			FVector3d HitPoint = (FVector3d)Result.ImpactPoint + (double)ShapeSettings->Shift * Direction;

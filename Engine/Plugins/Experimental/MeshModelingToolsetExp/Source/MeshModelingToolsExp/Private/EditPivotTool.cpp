@@ -325,7 +325,7 @@ FInputRayHit UEditPivotTool::CanBeginClickDragSequence(const FInputDeviceRay& Pr
 	}
 
 	FHitResult Result;
-	bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, PressPos.WorldRay);
+	bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, PressPos.WorldRay);
 
 	if (!bWorldHit)
 	{
@@ -353,7 +353,7 @@ void UEditPivotTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	float NormalSign = (TransformProps->RotationMode == EEditPivotSnapDragRotationMode::AlignFlipped) ? -1.0f : 1.0f;
 
 	FHitResult Result;
-	bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, DragPos.WorldRay);
+	bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, DragPos.WorldRay);
 	if (bWorldHit == false)
 	{
 		return;
