@@ -753,6 +753,7 @@ public:
 	virtual void ResetPIEAudioSetting(UWorld *CurrentPieWorld) override;
 	virtual class UGameViewportClient* GetNextPIEViewport(UGameViewportClient* CurrentViewport) override;
 	virtual UWorld* CreatePIEWorldByDuplication(FWorldContext &WorldContext, UWorld* InWorld, FString &PlayWorldMapName) override;
+	virtual void PostCreatePIEWorld(UWorld* InWorld) override;
 	virtual bool GetMapBuildCancelled() const override { return false; }
 	virtual void SetMapBuildCancelled(bool InCancelled) override { /* Intentionally empty. */ }
 	virtual void HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString) override;
@@ -3021,9 +3022,6 @@ protected:
 
 	/** Gets the scene viewport for a viewport client */
 	FSceneViewport* GetGameSceneViewport(UGameViewportClient* ViewportClient) const;
-
-	/** Common init shared by CreatePIEWorldByDuplication and CreatePIEWorldBySavingToTemp */
-	void PostCreatePIEWorld(UWorld *InWorld);
 
 	/**
 	 * Toggles PIE to SIE or vice-versa

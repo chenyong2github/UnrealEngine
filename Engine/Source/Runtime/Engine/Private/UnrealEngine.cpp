@@ -13991,22 +13991,23 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	GWorld->bCreateRenderStateForHiddenComponentsWithCollsion = bOldWorldWasShowingCollisionForHiddenComponents;
 #endif
 
-	// Fixme: hacky but we need to set PackageFlags here if we are in a PIE Context.
-	// Also, don't add to root when in PIE, since PIE doesn't remove world from root
+	// PIE worlds are not added to root and are initialized differently
 	if (WorldContext.WorldType == EWorldType::PIE)
 	{
 		check(WorldContext.World()->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor));
 		WorldContext.World()->ClearFlags(RF_Standalone);
+
+		PostCreatePIEWorld(WorldContext.World());
 	}
 	else
 	{
 		WorldContext.World()->AddToRoot();
-	}
 
-	// In the PIE case the world will already have been initialized as part of CreatePIEWorldByDuplication
-	if (!WorldContext.World()->bIsWorldInitialized)
-	{
-		WorldContext.World()->InitWorld();
+		// The world should not have been initialized before this
+		if (ensure(!WorldContext.World()->bIsWorldInitialized))
+		{
+			WorldContext.World()->InitWorld();
+		}
 	}
 
 	// Handle pending level.

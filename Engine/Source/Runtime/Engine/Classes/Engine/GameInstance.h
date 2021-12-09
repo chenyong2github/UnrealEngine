@@ -449,6 +449,16 @@ public:
 	 */
 	virtual void AddUserToReplay(const FString& UserString);
 
+	/** 
+	 * Turns on/off listen server capability for a game instance
+	 * By default this will set up the persistent URL state so it persists across server travels and spawn the appropriate network listener
+	 *
+	 * @param bEnable turn on or off the listen server
+	 * @param PortOverride will use this specific port, or if 0 will use the URL default port
+	 * @return true if desired settings were applied, games can override to deny changes in certain states
+	 */
+	virtual bool EnableListenServer(bool bEnable, int32 PortOverride = 0);
+
 	/** handle a game specific net control message (NMT_GameSpecific)
 	 * this allows games to insert their own logic into the control channel
 	 * the meaning of both data parameters is game-specific
@@ -467,6 +477,9 @@ public:
 
 	/** Call to create the game mode for a given map URL */
 	virtual class AGameModeBase* CreateGameModeForURL(FURL InURL, UWorld* InWorld);
+
+	/** Call to modify the saved url that will be used as a base for future map travels */
+	virtual void SetPersistentTravelURL(FURL InURL);
 
 	/** Return the game mode subclass to use for a given map, options, and portal. By default return passed in one */
 	virtual TSubclassOf<AGameModeBase> OverrideGameModeClass(TSubclassOf<AGameModeBase> GameModeClass, const FString& MapName, const FString& Options, const FString& Portal) const;
