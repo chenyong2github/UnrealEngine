@@ -659,13 +659,19 @@ public:
 // Shaders
 //
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	#define RHI_INCLUDE_SHADER_DEBUG_DATA 1
+#else
+	#define RHI_INCLUDE_SHADER_DEBUG_DATA 0
+#endif
+
 class FRHIShader : public FRHIResource
 {
 public:
 	void SetHash(FSHAHash InHash) { Hash = InHash; }
 	FSHAHash GetHash() const { return Hash; }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
 	// for debugging only e.g. MaterialName:ShaderFile.usf or ShaderFile.usf/EntryFunc
 	FString ShaderName;
 	FORCEINLINE const TCHAR* GetShaderName() const { return *ShaderName; }

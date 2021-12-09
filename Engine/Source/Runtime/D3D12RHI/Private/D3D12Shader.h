@@ -43,6 +43,10 @@ struct FD3D12ShaderData
 
 	FD3D12ShaderResourceTable ShaderResourceTable;
 
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
+	TArray<FName> UniformBuffers;
+#endif
+
 	FShaderCodePackedResourceCounts ResourceCounts{};
 
 	/** The static slot associated with the resource table index in ShaderResourceTable. */

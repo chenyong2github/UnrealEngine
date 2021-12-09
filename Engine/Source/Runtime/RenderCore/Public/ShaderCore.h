@@ -630,6 +630,12 @@ struct FShaderCodeName
 	// We store the straight ANSICHAR zero-terminated string
 };
 
+struct FShaderCodeUniformBuffers
+{
+	static const uint8 Key = 'u';
+	// We store an array of FString objects
+};
+
 // if this changes you need to make sure all shaders get invalidated
 struct FShaderCodeVendorExtension
 {
