@@ -334,6 +334,7 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.refresh_engine_cl_button.clicked.connect(self.refresh_engine_cl_button_clicked)
         self.window.connect_all_button.clicked.connect(self.connect_all_button_clicked)
         self.window.launch_all_button.clicked.connect(self.launch_all_button_clicked)
+        self.window.settings_button.clicked.connect(self.settings_button_clicked)
 
         self.window.additional_settings = DeviceAdditionalSettingsUI("global")
         self.window.additional_settings.assign_button(self.window.device_settings_button, self.window)
@@ -964,6 +965,9 @@ class SwitchboardDialog(QtCore.QObject):
     def launch_all_button_clicked(self, button_state):
         devices = self.device_manager.devices()
         self.set_device_launch_state(devices, button_state)
+
+    def settings_button_clicked(self, button_state):
+        self.menu_update_settings()
 
     def set_device_launch_state(self, devices, launch_state):
         for device in devices:
