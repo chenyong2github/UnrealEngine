@@ -95,6 +95,15 @@ FPrimitiveSceneProxy* UVirtualHeightfieldMeshComponent::CreateSceneProxy()
 	return bIsEnabled ? new FVirtualHeightfieldMeshSceneProxy(this) : nullptr;
 }
 
+void UVirtualHeightfieldMeshComponent::SetMaterial(int32 InElementIndex, class UMaterialInterface* InMaterial)
+{
+	if (ElementIndex == 0 && Material != InMaterial)
+	{
+		Material = InMaterial;
+		MarkRenderStateDirty();
+	}
+}
+
 void UVirtualHeightfieldMeshComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const
 {
 	if (Material != nullptr)
