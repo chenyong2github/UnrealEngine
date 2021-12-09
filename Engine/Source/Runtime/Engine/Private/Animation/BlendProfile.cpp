@@ -40,6 +40,15 @@ void UBlendProfile::SetBoneBlendScale(const FName& InBoneName, float InScale, bo
 	SetBoneBlendScale(BoneIndex, InScale, bRecurse, bCreate);
 }
 
+void UBlendProfile::RemoveEntry(int32 InBoneIdx)
+{
+	Modify();
+	ProfileEntries.RemoveAll([InBoneIdx](const FBlendProfileBoneEntry& Current)
+		{
+			return Current.BoneReference.BoneIndex == InBoneIdx;
+		});
+}
+
 float UBlendProfile::GetBoneBlendScale(int32 InBoneIdx) const
 {
 	const FBlendProfileBoneEntry* FoundEntry = ProfileEntries.FindByPredicate([InBoneIdx](const FBlendProfileBoneEntry& Entry)
