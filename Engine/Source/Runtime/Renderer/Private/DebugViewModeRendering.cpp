@@ -427,14 +427,13 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 	FIntVector4 TexCoordIndices[TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL / 4];
 	FVector4 WorldUVDensities;
 	FVector4f NormalizedComplexityValue;
-	FIntVector AnalysisParameter;
+	FIntPoint AnalysisParameter;
 	const float PrimitiveAlpha = (!PrimitiveSceneProxy || PrimitiveSceneProxy->IsSelected()) ? 1.f : .2f;
 	const int32 TexCoordAnalysisIndex = ViewModeParam >= 0 ? FMath::Clamp<int32>(ViewModeParam, 0, MAX_TEXCOORDS - 1) : -1;
 	float CPULogDistance = -1.0f;
 	int32 bShowQuadOverdraw = 0;
 	const int32 boolOutputQuadOverdraw = (DebugViewMode == DVSM_QuadComplexity) || (DebugViewMode == DVSM_ShaderComplexityContainedQuadOverhead) ? 1 : 0;
 	const int32 LODIndex = FMath::Clamp(VisualizeLODIndex, 0, NumLODColorationColors - 1);
-	const int32 AnalysisType = DebugViewMode == DVSM_VirtualTexturePendingMips ? 1 : 0;
 
 	FMemory::Memzero(OneOverCPUTexCoordScales); // 0 remap to irrelevant data.
 	FMemory::Memzero(TexCoordIndices);
@@ -460,7 +459,7 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 	{
 		const bool bOutputScales = DebugViewMode == DVSM_OutputMaterialTextureScales;
 		const int32 AnalysisIndex = ViewModeParam >= 0 ? FMath::Clamp<int32>(ViewModeParam, 0, TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL - 1) : -1;
-		AnalysisParameter = FIntVector(bOutputScales ? -1 : AnalysisIndex, bOutputScales ? 1 : 0, AnalysisType);
+		AnalysisParameter = FIntPoint(bOutputScales ? -1 : AnalysisIndex, bOutputScales ? 1 : 0);
 	}
 	else if (DebugViewMode == DVSM_RequiredTextureResolution || DebugViewMode == DVSM_VirtualTexturePendingMips)
 	{
@@ -523,7 +522,7 @@ void FDebugViewModeImplementation::GetDebugViewModeShaderBindings(
 			}
 		}
 
-		AnalysisParameter = FIntVector(AnalysisIndex, TextureResolution, AnalysisType);
+		AnalysisParameter = FIntPoint(AnalysisIndex, TextureResolution);
 	}
 
 	if (DebugViewMode == DVSM_QuadComplexity)
