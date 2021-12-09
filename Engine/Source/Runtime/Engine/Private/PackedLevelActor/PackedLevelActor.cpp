@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LevelInstance/Packed/PackedLevelInstanceActor.h"
-#include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
+#include "PackedLevelActor/PackedLevelActor.h"
+#include "PackedLevelActor/PackedLevelActorBuilder.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
-APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectInitializer)
+APackedLevelActor::APackedLevelActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, ISMComponentClass(UInstancedStaticMeshComponent::StaticClass())
@@ -20,7 +20,7 @@ APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectIniti
 #endif
 }
 
-void APackedLevelInstance::Serialize(FArchive& Ar)
+void APackedLevelActor::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	Super::Serialize(Ar);
@@ -34,7 +34,7 @@ void APackedLevelInstance::Serialize(FArchive& Ar)
 #endif
 }
 
-bool APackedLevelInstance::SupportsLoading() const
+bool APackedLevelActor::SupportsLoading() const
 {
 #if WITH_EDITOR
 	return HasChildEdit() || IsLoaded();
@@ -45,7 +45,7 @@ bool APackedLevelInstance::SupportsLoading() const
 
 #if WITH_EDITOR
 
-void APackedLevelInstance::PostLoad()
+void APackedLevelActor::PostLoad()
 {
 	Super::PostLoad();
 
@@ -57,7 +57,7 @@ void APackedLevelInstance::PostLoad()
 	}
 }
 
-void APackedLevelInstance::RerunConstructionScripts()
+void APackedLevelActor::RerunConstructionScripts()
 {
 	bool bShouldRerunConstructionScript = true;
 
@@ -66,39 +66,49 @@ void APackedLevelInstance::RerunConstructionScripts()
 		bShouldRerunConstructionScript = false;
 
 		// Only rerun if version mismatchs
-		if (PackedVersion != GetClass()->GetDefaultObject<APackedLevelInstance>()->PackedVersion)
+		if (PackedVersion != GetClass()->GetDefaultObject<APackedLevelActor>()->PackedVersion)
 		{
 			bShouldRerunConstructionScript = true;
 			UE_LOG(LogLevelInstance, Verbose, TEXT("RerunConstructionScript was executed on %s (%s) because its version (%s) doesn't match latest version (%s). Resaving this actor will fix this"),
 				*GetPathName(),
 				*GetPackage()->GetPathName(),
 				*PackedVersion.ToString(),
-				*GetClass()->GetDefaultObject<APackedLevelInstance>()->PackedVersion.ToString());
+				*GetClass()->GetDefaultObject<APackedLevelActor>()->PackedVersion.ToString());
 		}
 	}
 	
 	if(bShouldRerunConstructionScript)
 	{
 		Super::RerunConstructionScripts();
-		PackedVersion = GetClass()->GetDefaultObject<APackedLevelInstance>()->PackedVersion;
+		PackedVersion = GetClass()->GetDefaultObject<APackedLevelActor>()->PackedVersion;
 	}
 }
 
-FName APackedLevelInstance::GetPackedComponentTag()
+bool APackedLevelActor::CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
+{
+	return FPackedLevelActorBuilder::CreateDefaultBuilder()->CreateOrUpdateBlueprint(InLevelInstance, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
+}
+
+bool APackedLevelActor::CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
+{
+	return FPackedLevelActorBuilder::CreateDefaultBuilder()->CreateOrUpdateBlueprint(InWorldAsset, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
+}
+
+FName APackedLevelActor::GetPackedComponentTag()
 {
 	static FName PackedComponentTag("PackedComponent");
 	return PackedComponentTag;
 }
 
-void APackedLevelInstance::UpdateLevelInstance()
+void APackedLevelActor::UpdateFromLevel()
 {
-	Super::UpdateLevelInstance();
+	Super::UpdateFromLevel();
 
 	if (!Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 	{
 		if (IsLevelInstancePathValid())
 		{
-			TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+			TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
 			Builder->PackActor(this, GetWorldAsset());
 		}
 		else
@@ -108,7 +118,7 @@ void APackedLevelInstance::UpdateLevelInstance()
 	}
 }
 
-void APackedLevelInstance::OnEditChild()
+void APackedLevelActor::OnEditChild()
 {
 	Super::OnEditChild();
 
@@ -116,7 +126,7 @@ void APackedLevelInstance::OnEditChild()
 	MarkComponentsRenderStateDirty();
 }
 
-void APackedLevelInstance::OnCommitChild(bool bChanged)
+void APackedLevelActor::OnCommitChild(bool bChanged)
 {
 	Super::OnCommitChild(bChanged);
 
@@ -130,7 +140,7 @@ void APackedLevelInstance::OnCommitChild(bool bChanged)
 		if (bChildChanged)
 		{
 			// Reflect child changes
-			TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+			TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
 
 			if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 			{
@@ -148,13 +158,13 @@ void APackedLevelInstance::OnCommitChild(bool bChanged)
 	}
 }
 
-void APackedLevelInstance::OnEdit()
+void APackedLevelActor::OnEdit()
 {
 	Super::OnEdit();
 	MarkComponentsRenderStateDirty();
 }
 
-void APackedLevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
+void APackedLevelActor::OnCommit(bool bChanged, bool bPromptForSave)
 {
 	Super::OnCommit(bChanged, bPromptForSave);
 
@@ -164,7 +174,7 @@ void APackedLevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
 		{
 			check(GeneratedBy == BlueprintAsset.Get());
 			const bool bCheckoutAndSave = true;
-			TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+			TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
 			Builder->UpdateBlueprint(GeneratedBy, bCheckoutAndSave, bPromptForSave);
 		}
 	}
@@ -173,18 +183,18 @@ void APackedLevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
 	MarkComponentsRenderStateDirty();
 }
 
-bool APackedLevelInstance::IsHiddenEd() const
+bool APackedLevelActor::IsHiddenEd() const
 {
 	return Super::IsHiddenEd() || IsEditing() || HasChildEdit();
 }
 
-bool APackedLevelInstance::IsHLODRelevant() const
+bool APackedLevelActor::IsHLODRelevant() const
 {
 	// Bypass base class ALevelInstance (because it always returns true). We want the same implementation as AActor.
 	return AActor::IsHLODRelevant();
 }
 
-bool APackedLevelInstance::CanEditChange(const FProperty* InProperty) const
+bool APackedLevelActor::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
 	{
@@ -192,7 +202,7 @@ bool APackedLevelInstance::CanEditChange(const FProperty* InProperty) const
 	}
 
 	// Disallow editing of the World if we are a BP instance
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(APackedLevelInstance, WorldAsset))
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(APackedLevelActor, WorldAsset))
 	{
 		return GetClass()->IsNative();
 	}
@@ -200,7 +210,7 @@ bool APackedLevelInstance::CanEditChange(const FProperty* InProperty) const
 	return true;
 }
 
-void APackedLevelInstance::GetPackedComponents(TArray<UActorComponent*>& OutPackedComponents) const
+void APackedLevelActor::GetPackedComponents(TArray<UActorComponent*>& OutPackedComponents) const
 {
 	const TSet<UActorComponent*>& Components = GetComponents();
 	OutPackedComponents.Reserve(Components.Num());
@@ -214,7 +224,7 @@ void APackedLevelInstance::GetPackedComponents(TArray<UActorComponent*>& OutPack
 	}
 }
 
-void APackedLevelInstance::DestroyPackedComponents()
+void APackedLevelActor::DestroyPackedComponents()
 {
 	Modify();
 	TArray<UActorComponent*> PackedComponents;

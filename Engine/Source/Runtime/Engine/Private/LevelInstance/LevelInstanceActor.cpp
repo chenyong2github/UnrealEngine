@@ -527,7 +527,7 @@ void ALevelInstance::PostEditImport()
 		TGuardValue<bool> LoadUnloadGuard(bGuardLoadUnload, true);
 		Super::PostEditImport();
 	}
-	UpdateLevelInstance();
+	UpdateFromLevel();
 }
 
 bool ALevelInstance::CanDeleteSelectedActor(FText& OutReason) const
@@ -600,7 +600,7 @@ void ALevelInstance::EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActor
 	}
 }
 
-void ALevelInstance::UpdateLevelInstance()
+void ALevelInstance::UpdateFromLevel()
 {
 	if (HasValidLevelInstanceID())
 	{

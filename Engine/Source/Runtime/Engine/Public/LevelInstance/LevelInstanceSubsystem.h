@@ -51,8 +51,8 @@ public:
 	void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
 	void OnPackageDeleted(UPackage* Package);
 	void OnExitEditorMode();
-	void PackLevelInstances();
-	bool CanPackLevelInstances() const;
+	void PackAllLoadedActors();
+	bool CanPackAllLoadedActors() const;
 
 	ALevelInstance* GetEditingLevelInstance() const;
 	bool CanEditLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;

@@ -33,8 +33,8 @@
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/Blueprint.h"
-#include "LevelInstance/Packed/PackedLevelInstanceActor.h"
-#include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
+#include "PackedLevelActor/PackedLevelActor.h"
+#include "PackedLevelActor/PackedLevelActorBuilder.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "EdGraph/EdGraph.h"
 #include "UObject/ObjectSaveContext.h"
@@ -444,34 +444,34 @@ void ULevelInstanceSubsystem::OnExitEditorMode()
 	}
 }
 
-bool ULevelInstanceSubsystem::CanPackLevelInstances() const
+bool ULevelInstanceSubsystem::CanPackAllLoadedActors() const
 {
 	return !LevelInstanceEdit;
 }
 
-void ULevelInstanceSubsystem::PackLevelInstances()
+void ULevelInstanceSubsystem::PackAllLoadedActors()
 {
-	if (!CanPackLevelInstances())
+	if (!CanPackAllLoadedActors())
 	{
 		return;
 	}
 
-	// Add Dependencies first so that we pack the LevelInstances in the proper order (depth first)
-	TFunction<void(APackedLevelInstance*, TArray<UBlueprint*>&, TArray<APackedLevelInstance*>&)> GatherDepencenciesRecursive = [&GatherDepencenciesRecursive](APackedLevelInstance* PackedLevelInstance, TArray<UBlueprint*>& BPsToPack, TArray<APackedLevelInstance*>& ToPack)
+	// Add Dependencies first so that we pack in the proper order (depth first)
+	TFunction<void(APackedLevelActor*, TArray<UBlueprint*>&, TArray<APackedLevelActor*>&)> GatherDepencenciesRecursive = [&GatherDepencenciesRecursive](APackedLevelActor* PackedLevelActor, TArray<UBlueprint*>& BPsToPack, TArray<APackedLevelActor*>& ToPack)
 	{
 		// Early out on already processed BPs or non BP Packed LIs.
-		UBlueprint* Blueprint = Cast<UBlueprint>(PackedLevelInstance->GetClass()->ClassGeneratedBy);
-		if ((Blueprint && BPsToPack.Contains(Blueprint)) || ToPack.Contains(PackedLevelInstance))
+		UBlueprint* Blueprint = Cast<UBlueprint>(PackedLevelActor->GetClass()->ClassGeneratedBy);
+		if ((Blueprint && BPsToPack.Contains(Blueprint)) || ToPack.Contains(PackedLevelActor))
 		{
 			return;
 		}
 		
 		// Recursive deps
-		for (const TSoftObjectPtr<UBlueprint>& Dependency : PackedLevelInstance->PackedBPDependencies)
+		for (const TSoftObjectPtr<UBlueprint>& Dependency : PackedLevelActor->PackedBPDependencies)
 		{
 			if (UBlueprint* LoadedDependency = Dependency.LoadSynchronous())
 			{
-				if (APackedLevelInstance* CDO = Cast<APackedLevelInstance>(LoadedDependency->GeneratedClass ? LoadedDependency->GeneratedClass->GetDefaultObject() : nullptr))
+				if (APackedLevelActor* CDO = Cast<APackedLevelActor>(LoadedDependency->GeneratedClass ? LoadedDependency->GeneratedClass->GetDefaultObject() : nullptr))
 				{
 					GatherDepencenciesRecursive(CDO, BPsToPack, ToPack);
 				}
@@ -485,25 +485,25 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 		}
 		else
 		{
-			ToPack.Add(PackedLevelInstance);
+			ToPack.Add(PackedLevelActor);
 		}
 	};
 
-	TArray<APackedLevelInstance*> PackedLevelInstancesToUpdate;
+	TArray<APackedLevelActor*> PackedLevelActorsToUpdate;
 	TArray<UBlueprint*> BlueprintsToUpdate;
 	for (TObjectIterator<UWorld> It(RF_ClassDefaultObject | RF_ArchetypeObject, true); It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
 		if (IsValid(CurrentWorld) && CurrentWorld->GetSubsystem<ULevelInstanceSubsystem>() != nullptr)
 		{
-			for (TActorIterator<APackedLevelInstance> LevelInstanceIt(CurrentWorld); LevelInstanceIt; ++LevelInstanceIt)
+			for (TActorIterator<APackedLevelActor> PackedLevelActorIt(CurrentWorld); PackedLevelActorIt; ++PackedLevelActorIt)
 			{
-				GatherDepencenciesRecursive(*LevelInstanceIt, BlueprintsToUpdate, PackedLevelInstancesToUpdate);
+				GatherDepencenciesRecursive(*PackedLevelActorIt, BlueprintsToUpdate, PackedLevelActorsToUpdate);
 			}
 		}
 	}
 
-	int32 Count = BlueprintsToUpdate.Num() + PackedLevelInstancesToUpdate.Num();
+	int32 Count = BlueprintsToUpdate.Num() + PackedLevelActorsToUpdate.Num();
 	if (!Count)
 	{
 		return;
@@ -511,18 +511,18 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 	
 	GEditor->SelectNone(true, true);
 
-	FScopedSlowTask SlowTask(Count, (LOCTEXT("LevelInstance_PackLevelInstances", "Packing Level Instances")));
+	FScopedSlowTask SlowTask(Count, (LOCTEXT("TaskPackLevels", "Packing Levels")));
 	SlowTask.MakeDialog();
 		
 	auto UpdateProgress = [&SlowTask]()
 	{
 		if (SlowTask.CompletedWork < SlowTask.TotalAmountOfWork)
 		{
-			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("LevelInstance_PackLevelInstancesProgress", "Packing Level Instance {0} of {1}"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
+			SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("TaskPackLevelProgress", "Packing Level {0} of {1}"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
 		}
 	};
 
-	TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+	TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
 	const bool bCheckoutAndSave = false;
 	for (UBlueprint* Blueprint : BlueprintsToUpdate)
 	{
@@ -530,9 +530,9 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 		UpdateProgress();
 	}
 
-	for (APackedLevelInstance* PackedLevelInstance : PackedLevelInstancesToUpdate)
+	for (APackedLevelActor* PackedLevelActor : PackedLevelActorsToUpdate)
 	{
-		PackedLevelInstance->UpdateLevelInstance();
+		PackedLevelActor->UpdateFromLevel();
 		UpdateProgress();
 	}
 }
@@ -869,36 +869,33 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	{
 		NewLevelInstanceActor = GetWorld()->SpawnActor<ALevelInstance>(ALevelInstance::StaticClass(), SpawnParams);
 	}
-	else if (CreationParams.Type == ELevelInstanceCreationType::PackedLevelInstance)
+	else
 	{
-		NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelInstance>(APackedLevelInstance::StaticClass(), SpawnParams);
-	}
-	else if (CreationParams.Type == ELevelInstanceCreationType::PackedLevelInstanceBlueprint)
-	{
+		check(CreationParams.Type == ELevelInstanceCreationType::PackedLevelActor);
 		FString PackageDir = FPaths::GetPath(WorldPtr.GetLongPackageName());
-		FString AssetName = FPackedLevelInstanceBuilder::GetPackedBPPrefix() + WorldPtr.GetAssetName();
+		FString AssetName = FPackedLevelActorBuilder::GetPackedBPPrefix() + WorldPtr.GetAssetName();
 		FString BPAssetPath = FString::Format(TEXT("{0}/{1}.{1}"), { PackageDir , AssetName });
 		const bool bCompile = true;
 
 		UBlueprint* NewBP = nullptr;
 		if (CreationParams.LevelPackageName.IsEmpty())
 		{
-			NewBP = FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprintWithDialog(TSoftObjectPtr<UBlueprint>(BPAssetPath), WorldPtr, bCompile);
+			NewBP = FPackedLevelActorBuilder::CreatePackedLevelActorBlueprintWithDialog(TSoftObjectPtr<UBlueprint>(BPAssetPath), WorldPtr, bCompile);
 		}
 		else
 		{
-			NewBP = FPackedLevelInstanceBuilder::CreatePackedLevelInstanceBlueprint(TSoftObjectPtr<UBlueprint>(BPAssetPath), WorldPtr, bCompile);
+			NewBP = FPackedLevelActorBuilder::CreatePackedLevelActorBlueprint(TSoftObjectPtr<UBlueprint>(BPAssetPath), WorldPtr, bCompile);
 		}
 				
 		if (NewBP)
 		{
-			NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelInstance>(NewBP->GeneratedClass, SpawnParams);
+			NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelActor>(NewBP->GeneratedClass, SpawnParams);
 		}
 
 		if (!NewLevelInstanceActor)
 		{
 			UE_LOG(LogLevelInstance, Warning, TEXT("Failed to create packed level blueprint. Creating non blueprint packed level instance instead."));
-			NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelInstance>(APackedLevelInstance::StaticClass(), SpawnParams);
+			NewLevelInstanceActor = GetWorld()->SpawnActor<APackedLevelActor>(APackedLevelActor::StaticClass(), SpawnParams);
 		}
 	}
 	
@@ -995,8 +992,8 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 		// Can only break the top level LevelInstance
 		check(LevelInstanceActor->GetLevel() == GetWorld()->GetCurrentLevel());
 
-		// Actors in a packed level instance will not be streamed in unless they are editing. Must force this before moving.
-		if (LevelInstanceActor->IsA<APackedLevelInstance>())
+		// Actors in a packed level actor will not be streamed in unless they are editing. Must force this before moving.
+		if (LevelInstanceActor->IsA<APackedLevelActor>())
 		{
 			BlockLoadLevelInstance(LevelInstanceActor);
 		}
@@ -1009,7 +1006,7 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 		{
 			UE_LOG(LogLevelInstance, Warning, TEXT("Failed to completely break Level Instance because some children have Level Scripts."));
 
-			if (LevelInstanceActor->IsA<APackedLevelInstance>())
+			if (LevelInstanceActor->IsA<APackedLevelActor>())
 			{
 				BlockUnloadLevelInstance(LevelInstanceActor);
 			}
@@ -1077,7 +1074,7 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 			return;
 		}
 
-		if (LevelInstanceActor->IsA<APackedLevelInstance>())
+		if (LevelInstanceActor->IsA<APackedLevelActor>())
 		{
 			BlockUnloadLevelInstance(LevelInstanceActor);
 		}
@@ -1263,7 +1260,7 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 		}
 
 		const bool bIsEditingLevelInstance = IsEditingLevelInstance(LevelInstanceActor);
-		if (!bIsEditingLevelInstance && LevelInstanceActor->IsA<APackedLevelInstance>())
+		if (!bIsEditingLevelInstance && LevelInstanceActor->IsA<APackedLevelActor>())
 		{
 			return;
 		}
@@ -1646,7 +1643,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 		}
 	}
 
-	FScopedSlowTask SlowTask(0, LOCTEXT("EndEditLevelInstance", "Unloading edit Level Instance..."), !GetWorld()->IsGameWorld());
+	FScopedSlowTask SlowTask(0, LOCTEXT("EndEditLevelInstance", "Unloading Level..."), !GetWorld()->IsGameWorld());
 	SlowTask.MakeDialog();
 
 	GEditor->SelectNone(false, true);
@@ -1696,7 +1693,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<
 	{
 		if (ALevelInstance* LevelInstance = GetLevelInstance(LevelInstanceToUpdateID))
 		{
-			LevelInstance->UpdateLevelInstance();
+			LevelInstance->UpdateFromLevel();
 		}
 	}
 
@@ -1747,7 +1744,7 @@ void ULevelInstanceSubsystem::SaveLevelInstanceAs(ALevelInstance* LevelInstanceA
 
 	if (OutObjects.Num() == 0 || OutObjects[0] == EditingWorld)
 	{
-		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to save Level Instance as new asset"));
+		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to save Level as new asset"));
 		return;
 	}
 
