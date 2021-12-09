@@ -52,6 +52,7 @@ FNiagaraMeshRendererMeshProperties::FNiagaraMeshRendererMeshProperties()
 	: Mesh(nullptr)
 	, UserParamBinding(FNiagaraTypeDefinition(UStaticMesh::StaticClass()))
 	, Scale(1.0f, 1.0f, 1.0f)
+	, Rotation(FRotator::ZeroRotator)
 	, PivotOffset(ForceInitToZero)
 	, PivotOffsetSpace(ENiagaraMeshPivotOffsetSpace::Mesh)
 {

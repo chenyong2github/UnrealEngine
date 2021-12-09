@@ -187,6 +187,7 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			MeshData.PivotOffset = MeshProperties.PivotOffset;
 			MeshData.PivotOffsetSpace = MeshProperties.PivotOffsetSpace;
 			MeshData.Scale = MeshProperties.Scale;
+			MeshData.Rotation = FQuat4f(MeshProperties.Rotation.Quaternion());
 			MeshData.LocalBounds = Mesh->GetExtendedBounds().GetBox();
 
 			// Create an index remap from mesh material index to it's index in the master material list
@@ -698,6 +699,7 @@ FNiagaraMeshCommonParameters FNiagaraRendererMeshes::CreateCommonShaderParams(co
 	Params.FacingMode 				= (uint32)FacingMode;	
 
 	Params.MeshScale				= MeshData.Scale;	
+	Params.MeshRotation				= FVector4f(MeshData.Rotation.X, MeshData.Rotation.Y, MeshData.Rotation.Z, MeshData.Rotation.W);
 	if (MeshData.PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Mesh)
 	{
 		Params.MeshOffset 				= MeshData.PivotOffset;
@@ -1617,6 +1619,8 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 				const bool bHasScale = ScaleBaseCompOffset > 0;
 
 				const FMatrix NullInstanceTransform(FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector);
+				const FQuat MeshRotation = FQuat(MeshData.Rotation);
+				const FVector MeshScale = FVector(MeshData.Scale);
 				for (uint32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
 				{
 					if ( RenderVisibilityData && (RenderVisibilityData[InstanceIndex] != RendererVisibility) )
@@ -1631,10 +1635,10 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 					}
 
 					const FVector InstancePosition = bHasPosition ? GetInstancePosition(InstanceIndex) : FVector::ZeroVector;
-					const FQuat InstanceRotation = bHasRotation ? GetInstanceQuat(InstanceIndex).GetNormalized() : FQuat::Identity;
+					const FQuat InstanceRotation = bHasRotation ? GetInstanceQuat(InstanceIndex).GetNormalized() * MeshRotation : MeshRotation;
 					FMatrix InstanceTransform = FQuatRotationTranslationMatrix::Make(InstanceRotation, InstancePosition);
 
-					const FVector InstanceScale = bHasScale ? GetInstanceScale(InstanceIndex) * MeshData.Scale : MeshData.Scale;
+					const FVector InstanceScale = bHasScale ? GetInstanceScale(InstanceIndex) * MeshScale : MeshScale;
 					InstanceTransform = FScaleMatrix(InstanceScale) * InstanceTransform;
 
 					if (bLocalSpace)
@@ -1680,6 +1684,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 					PassParameters->DefaultRotation				= FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
 					PassParameters->DefaultScale				= FVector3f(1.0f, 1.0f, 1.0f);
 					PassParameters->MeshScale					= MeshData.Scale;
+					PassParameters->MeshRotation				= FVector4f(MeshData.Rotation.X, MeshData.Rotation.Y, MeshData.Rotation.Z, MeshData.Rotation.W);
 					PassParameters->ParticleDataFloatBuffer		= ParticleMeshRenderData.ParticleFloatSRV;
 					//PassParameters.ParticleDataHalfBuffer		= ParticleMeshRenderData.ParticleHalfSRV;
 					PassParameters->ParticleDataIntBuffer		= ParticleMeshRenderData.ParticleIntSRV;

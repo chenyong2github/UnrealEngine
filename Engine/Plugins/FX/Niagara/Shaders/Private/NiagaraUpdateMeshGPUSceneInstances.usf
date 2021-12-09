@@ -36,6 +36,7 @@ float3 DefaultPrevVelocity;
 float DefaultPrevCameraOffset;
 
 float3 MeshScale;
+float4 MeshRotation;
 int bMeshOffsetIsWorldSpace;
 float3 MeshOffset;
 
@@ -130,6 +131,7 @@ void UpdateMeshInstancesCS(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_Grou
 	Params.DeltaSeconds					= DeltaSeconds;
 	Params.MeshScale 					= MeshScale;
 	Params.MeshOffset 					= MeshOffset;
+	Params.MeshRotation					= MeshRotation;
 	Params.bMeshOffsetIsWorldSpace		= bMeshOffsetIsWorldSpace;
 	Params.bLockedAxisEnable			= bLockedAxisEnable;
 	Params.LockedAxis					= LockedAxis;

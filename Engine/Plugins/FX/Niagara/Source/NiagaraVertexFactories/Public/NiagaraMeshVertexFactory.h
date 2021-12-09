@@ -44,6 +44,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraMeshCommonParameters, NIAGARAVERTEXFACTORI
 
 	SHADER_PARAMETER(FVector3f, MeshScale)
 	SHADER_PARAMETER(FVector3f, MeshOffset)
+	SHADER_PARAMETER(FVector4f, MeshRotation)
 	SHADER_PARAMETER(int, bMeshOffsetIsWorldSpace)
 
 	SHADER_PARAMETER(uint32, bLockedAxisEnable)
