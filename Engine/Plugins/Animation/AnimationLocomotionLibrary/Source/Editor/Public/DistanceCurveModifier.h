@@ -40,12 +40,16 @@ public:
 	FName CurveName = "Distance";
 
 	/** Root motion speed must be below this threshold to be considered stopped. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(EditCondition="!bStopAtEnd"))
 	float StopSpeedThreshold = 5.0f;
 
 	/** Axes to calculate the distance value from. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EDistanceCurve_Axis Axis = EDistanceCurve_Axis::XY;
+
+	/** Root motion is considered to be stopped at the clip's end */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bStopAtEnd = false;
 
 	virtual void OnApply_Implementation(UAnimSequence* Animation) override;
 	virtual void OnRevert_Implementation(UAnimSequence* Animation) override;

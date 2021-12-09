@@ -26,26 +26,36 @@ void UDistanceCurveModifier::OnApply_Implementation(UAnimSequence* Animation)
 	UAnimationBlueprintLibrary::AddCurve(Animation, CurveName, ERawCurveTrackTypes::RCT_Float, bMetaDataCurve);
 
 	const float AnimLength = Animation->GetPlayLength();
+	float SampleInterval;
+	int32 NumSteps;
+	float TimeOfMinSpeed;
 
-	// Perform a high resolution search to find the sample point with minimum speed.
-	
-	float TimeOfMinSpeed = 0.f;
-	float MinSpeedSq = FMath::Square(StopSpeedThreshold);
-
-	float SampleInterval = 1.f / 120.f;
-	int32 NumSteps = AnimLength / SampleInterval;
-	for (int32 Step = 0; Step < NumSteps; ++Step)
+	if(bStopAtEnd)
+	{ 
+		TimeOfMinSpeed = AnimLength;
+	}
+	else
 	{
-		const float Time = Step * SampleInterval;
+		// Perform a high resolution search to find the sample point with minimum speed.
+		
+		TimeOfMinSpeed = 0.f;
+		float MinSpeedSq = FMath::Square(StopSpeedThreshold);
 
-		const bool bAllowLooping = false;
-		const FVector RootMotionTranslation = Animation->ExtractRootMotion(Time, SampleInterval, bAllowLooping).GetTranslation();
-		const float RootMotionSpeedSq = CalculateMagnitudeSq(RootMotionTranslation, Axis) / SampleInterval;
-
-		if (RootMotionSpeedSq < MinSpeedSq)
+		SampleInterval = 1.f / 120.f;
+		NumSteps = AnimLength / SampleInterval;
+		for (int32 Step = 0; Step < NumSteps; ++Step)
 		{
-			MinSpeedSq = RootMotionSpeedSq;
-			TimeOfMinSpeed = Time;
+			const float Time = Step * SampleInterval;
+
+			const bool bAllowLooping = false;
+			const FVector RootMotionTranslation = Animation->ExtractRootMotion(Time, SampleInterval, bAllowLooping).GetTranslation();
+			const float RootMotionSpeedSq = CalculateMagnitudeSq(RootMotionTranslation, Axis) / SampleInterval;
+
+			if (RootMotionSpeedSq < MinSpeedSq)
+			{
+				MinSpeedSq = RootMotionSpeedSq;
+				TimeOfMinSpeed = Time;
+			}
 		}
 	}
 
