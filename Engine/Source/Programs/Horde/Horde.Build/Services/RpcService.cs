@@ -396,7 +396,7 @@ namespace HordeServer.Services
 				}
 
 				// Get a task for moving to the next item. This will only complete once the call has closed.
-				using CancellationTokenSource CancellationSource = new CancellationTokenSource();
+				using CancellationTokenSource CancellationSource = CancellationTokenSource.CreateLinkedTokenSource(Context.CancellationToken);
 				NextRequestTask = Reader.MoveNext();
 				NextRequestTask = NextRequestTask.ContinueWith(Task => { CancellationSource.Cancel(); return Task.Result; }, TaskScheduler.Current);
 
@@ -429,10 +429,13 @@ namespace HordeServer.Services
 				}
 
 				// Create the new session info
-				UpdateSessionResponse Response = new UpdateSessionResponse();
-				Response.Leases.Add(Agent.Leases.Select(x => x.ToRpcMessage()));
-				Response.ExpiryTime = (Agent.SessionExpiresAt == null) ? new Timestamp() : Timestamp.FromDateTime(Agent.SessionExpiresAt.Value);
-				await Writer.WriteAsync(Response);
+				if (!Context.CancellationToken.IsCancellationRequested)
+				{
+					UpdateSessionResponse Response = new UpdateSessionResponse();
+					Response.Leases.Add(Agent.Leases.Select(x => x.ToRpcMessage()));
+					Response.ExpiryTime = (Agent.SessionExpiresAt == null) ? new Timestamp() : Timestamp.FromDateTime(Agent.SessionExpiresAt.Value);
+					await Writer.WriteAsync(Response);
+				}
 
 				// Wait for the client to close the stream
 				while (await NextRequestTask)
