@@ -49,14 +49,10 @@ UNeuralNetwork::UNeuralNetwork()
 	, InputDeviceType(ENeuralDeviceType::CPU)
 	, OutputDeviceType(ENeuralDeviceType::CPU)
 	, SynchronousMode(ENeuralSynchronousMode::Synchronous)
-	, DelegateThreadMode(ENeuralThreadMode::GameThread)
+	, ThreadModeDelegateForAsyncRunCompleted(ENeuralThreadMode::GameThread)
 	, bIsLoaded(false)
 	, BackEnd(ENeuralBackEnd::Auto)
 	, BackEndForCurrentPlatform(FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd))
-{
-}
-
-UNeuralNetwork::~UNeuralNetwork()
 {
 }
 
@@ -176,15 +172,15 @@ UNeuralNetwork::FOnAsyncRunCompleted& UNeuralNetwork::GetOnAsyncRunCompletedDele
 	return OnAsyncRunCompletedDelegate;
 }
 
-ENeuralThreadMode UNeuralNetwork::GetOnAsyncRunCompletedDelegateMode() const
+ENeuralThreadMode UNeuralNetwork::GetThreadModeDelegateForAsyncRunCompleted() const
 {
-	return DelegateThreadMode;
+	return ThreadModeDelegateForAsyncRunCompleted;
 }
 
-void UNeuralNetwork::SetOnAsyncRunCompletedDelegateMode(const ENeuralThreadMode InDelegateThreadMode)
+void UNeuralNetwork::SetThreadModeDelegateForAsyncRunCompleted(const ENeuralThreadMode InThreadModeDelegateForAsyncRunCompleted)
 {
 	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
-	DelegateThreadMode = InDelegateThreadMode;
+	ThreadModeDelegateForAsyncRunCompleted = InThreadModeDelegateForAsyncRunCompleted;
 }
 
 void UNeuralNetwork::ResetStats()
@@ -539,7 +535,7 @@ bool UNeuralNetwork::Load()
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
 		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType, /*bShouldOpenMessageLog*/true);
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, OnAsyncRunCompletedDelegate, DelegateThreadMode, ResoucesCriticalSection, AreInputTensorSizesVariable,
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, OnAsyncRunCompletedDelegate, ThreadModeDelegateForAsyncRunCompleted, ResoucesCriticalSection, AreInputTensorSizesVariable,
 			ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
 	}
 	// UEOnly
@@ -617,12 +613,12 @@ bool UNeuralNetwork::SetBackEnd(const UNeuralNetwork::ENeuralBackEnd InBackEnd)
 }
 
 #if WITH_EDITOR
-UAssetImportData* UNeuralNetwork::GetAssetImportData() const
+TObjectPtr<UAssetImportData> UNeuralNetwork::GetAssetImportData() const
 {
 	return AssetImportData;
 }
 
-UAssetImportData* UNeuralNetwork::GetAndMaybeCreateAssetImportData()
+TObjectPtr<UAssetImportData> UNeuralNetwork::GetAndMaybeCreateAssetImportData()
 {
 	// An existing import data object was not found, so make one here.
 	if (!AssetImportData)

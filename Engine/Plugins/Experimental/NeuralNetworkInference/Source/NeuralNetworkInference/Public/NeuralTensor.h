@@ -41,13 +41,13 @@ public:
 	 *  to 0 or a negative value if memory allocation is not required or the final size is unknown.
 	 * @param InName It sets Name. @see Name for more details.
 	 * @param InTensorType It sets TensorType. @see TensorType for more details.
-	 * @param InArray Alternative to InSizes/InVolume, and represents the input data to copy from. The templated constructor that uses InArray is a
+	 * @param InArray Alternative to InSizes/InVolume, and represents the input data to copy from. The template constructor that uses InArray is a
 	 *  simple (but not efficient) way of initializing a FNeuralTensor from the existing InArray TArray. It is equivalent to calling
 	 *  FNeuralTensor(..., InSizes/InVolume, ...) and then SetFromArrayCopy(InArray). It is not efficient because it makes a deep copy of the data
 	 *  of InArray. For maximum speed, rather than creating this intermediate InArray TArray, you can avoid the double copy by calling
 	 *  FNeuralTensor(..., InSizes/InVolume, ...) and then filling the tensor memory with GetData()/GetDataCasted().
 	 *
-	 * In addition, UnderlyingUInt8ArrayData is pre-allocated from InDataType and InSizes/InVolume. @see UnderlyingUInt8ArrayData for more details.
+	 * In addition, UnderlyingUInt8ArrayData is preallocated from InDataType and InSizes/InVolume. @see UnderlyingUInt8ArrayData for more details.
 	 */
 	FNeuralTensor(const ENeuralDataType InDataType = ENeuralDataType::None, const TArray<int64>& InSizes = TArray<int64>(),
 		const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorType InTensorType = ENeuralTensorType::Generic);
@@ -204,7 +204,7 @@ public:
 	 *   references/pointers will no longer be valid.
 	 * - These functions only modify the CPU memory, they do not synchronize CPU and GPU memory automatically. The user must do this accordingly.
 	 *
-	 * SetNumUninitialized resizes the tensor to the desired new size (i.e., modiying DataType, Sizes, Volume, UnderlyingUInt8ArrayData, etc.).
+	 * SetNumUninitialized resizes the tensor to the desired new size (i.e., modifying DataType, Sizes, Volume, UnderlyingUInt8ArrayData, etc.).
 	 * @param InDataType It sets DataType. If None, it will keep its current value. @see DataType for more details.
 	 * @param InSizes It sets Sizes and Volume. Set to empty (or omit this argument) if memory allocation is not required or the final tensor size is
 	 *  unknown. @see Sizes, Volume for more details.
@@ -362,7 +362,7 @@ protected:
 
 private:
 	/**
-	 * The array containing the underlying CPU data. It is pre-allocated based on the combination of DataType and Sizes/Volume (if Sizes/Volume are
+	 * The array containing the underlying CPU data. It is preallocated based on the combination of DataType and Sizes/Volume (if Sizes/Volume are
 	 * not empty/zero): UnderlyingUInt8ArrayData.Num() == sizeof(data type) x Volume.
 	 */
 	UPROPERTY()
@@ -382,7 +382,7 @@ private:
 	TSharedPtr<FRDGBufferUAVRef> BufferUAVRef;
 
 	/**
-	 * Auxiliary constructor for the templated constructor that takes a TArray<T>& InArray.
+	 * Auxiliary constructor for the template constructor that takes a TArray<T>& InArray.
 	 * InSizeOfT and sizeof(InDataType) should match, as well as the volume of InValueNum and InSizes.
 	 * It simply moves as much code as possible from the template constructor to the cpp file.
 	 */
@@ -390,7 +390,7 @@ private:
 		const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorType InTensorType);
 
 	/**
-	 * Auxiliary function for the templated SetFromArrayCopy().
+	 * Auxiliary function for the template SetFromArrayCopy().
 	 * It simply moves as much code as possible from the template function to the cpp file.
 	 */
 	void SetFromPointer(const void* const InData, const int64 InSizeOfT, const int64 InDataSize);

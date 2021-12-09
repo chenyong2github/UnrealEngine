@@ -321,12 +321,12 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	const ENeuralDeviceType OriginalInputDeviceType = InOutNetwork->GetInputDeviceType();
 	const ENeuralDeviceType OriginalOutputDeviceType = InOutNetwork->GetOutputDeviceType();
 	const ENeuralSynchronousMode OriginalSynchronousMode = InOutNetwork->GetSynchronousMode();
-	const ENeuralThreadMode OriginalDelegateThreadMode = InOutNetwork->GetOnAsyncRunCompletedDelegateMode();
+	const ENeuralThreadMode OriginalThreadModeDelegateForAsyncRunCompleted = InOutNetwork->GetThreadModeDelegateForAsyncRunCompleted();
 	const UNeuralNetwork::ENeuralBackEnd OriginalBackEnd = InOutNetwork->GetBackEnd();
 	
 	// Set (a)synchronous Mode
 	InOutNetwork->SetSynchronousMode(InSynchronousMode);
-	InOutNetwork->SetOnAsyncRunCompletedDelegateMode(ENeuralThreadMode::AnyThread);
+	InOutNetwork->SetThreadModeDelegateForAsyncRunCompleted(ENeuralThreadMode::AnyThread);
 
 	// Set back end
 	if (!InOutNetwork->SetBackEnd(InBackEnd))
@@ -414,7 +414,7 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	// Reset to original network state
 	InOutNetwork->SetDeviceType(/*DeviceType*/OriginalDeviceType, /*InputDeviceType*/OriginalInputDeviceType, /*OutputDeviceType*/OriginalOutputDeviceType);
 	InOutNetwork->SetSynchronousMode(OriginalSynchronousMode);
-	InOutNetwork->SetOnAsyncRunCompletedDelegateMode(OriginalDelegateThreadMode);
+	InOutNetwork->SetThreadModeDelegateForAsyncRunCompleted(OriginalThreadModeDelegateForAsyncRunCompleted);
 	InOutNetwork->SetBackEnd(OriginalBackEnd);
 	// Test successful
 	return bDidGlobalTestPassed;
