@@ -21,7 +21,6 @@
 #include "Lumen/Lumen.h"
 #include "Strata/Strata.h"
 
-IMPLEMENT_TYPE_LAYOUT(FDFAOUpsampleParameters);
 IMPLEMENT_TYPE_LAYOUT(FScreenGridParameters);
 
 int32 GDistanceFieldAO = 1;
@@ -242,6 +241,8 @@ float GAOConeHalfAngle = FMath::Acos(1 - 1.0f / (float)UE_ARRAY_COUNT(SpacedVect
 // Must match shader code
 uint32 GAONumConeSteps = 10;
 
+extern float GAOViewFadeDistanceScale;
+
 FAOParameters DistanceField::SetupAOShaderParameters(const FDistanceFieldAOParameters& Parameters)
 {
 	const float AOLargestSampleOffset = Parameters.ObjectMaxOcclusionDistance / (1 + FMath::Tan(GAOConeHalfAngle));
@@ -252,6 +253,25 @@ FAOParameters DistanceField::SetupAOShaderParameters(const FDistanceFieldAOParam
 	ShaderParameters.AOStepExponentScale = GAOStepExponentScale;
 	ShaderParameters.AOMaxViewDistance = GetMaxAOViewDistance();
 	ShaderParameters.AOGlobalMaxOcclusionDistance = Parameters.GlobalMaxOcclusionDistance;
+
+	return ShaderParameters;
+}
+
+FDFAOUpsampleParameters DistanceField::SetupAOUpsampleParameters(const FViewInfo& View, FRDGTextureRef DistanceFieldAOBentNormal)
+{
+	const float DistanceFadeScaleValue = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
+
+	const FIntPoint AOBufferSize = GetBufferSizeForAO();
+	const FVector2f UVMax(
+		(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
+		(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
+
+	FDFAOUpsampleParameters ShaderParameters;
+	ShaderParameters.BentNormalAOTexture = DistanceFieldAOBentNormal;
+	ShaderParameters.BentNormalAOSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	ShaderParameters.AOBufferBilinearUVMax = UVMax;
+	ShaderParameters.DistanceFadeScale = DistanceFadeScaleValue;
+	ShaderParameters.AOMaxViewDistance = GetMaxAOViewDistance();
 
 	return ShaderParameters;
 }
