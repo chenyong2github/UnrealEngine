@@ -110,7 +110,7 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 
 	FReply OnRemoveButtonClicked();
 	
-	void ResetToPresetValue() const;
+	void ResetToPresetValue();
 
 private:
 

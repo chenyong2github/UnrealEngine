@@ -254,9 +254,11 @@ FReply FConsoleVariablesEditorListRow::OnRemoveButtonClicked()
 	return FReply::Handled();
 }
 
-void FConsoleVariablesEditorListRow::ResetToPresetValue() const
+void FConsoleVariablesEditorListRow::ResetToPresetValue()
 {
-	GetCommandInfo().Pin()->ExecuteCommand(GetPresetValue());
+	const FString& Value = GetPresetValue();
+	GetCommandInfo().Pin()->ExecuteCommand(Value);
+	SetCachedValue(Value);
 }
 
 bool FConsoleVariablesEditorListRow::GetShouldFlashOnScrollIntoView() const
