@@ -20,6 +20,7 @@ class UOptimusNode_SubGraphReference :
 
 public:
 	// UOptimusNode overrides
+	FName GetNodeCategory() const override { return NAME_None; }
 	FText GetDisplayName() const override;
 	void ConstructNode() override;
 

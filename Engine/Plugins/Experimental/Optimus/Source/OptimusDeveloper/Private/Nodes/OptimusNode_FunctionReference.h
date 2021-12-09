@@ -19,6 +19,7 @@ class UOptimusNode_FunctionReference :
 
 public:
 	// UOptimusNode overrides
+	FName GetNodeCategory() const override { return NAME_None; }
 	FText GetDisplayName() const override;
 	void ConstructNode() override;
 
