@@ -2,6 +2,7 @@
 
 #include "Evaluators/CooldownGuardEvaluator.h"
 #include "StateTreeExecutionContext.h"
+#include "Engine/World.h"
 
 
 bool FCooldownGuardEvaluator::Link(FStateTreeLinker& Linker)
