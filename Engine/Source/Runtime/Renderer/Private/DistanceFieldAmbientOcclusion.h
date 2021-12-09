@@ -98,60 +98,18 @@ BEGIN_SHADER_PARAMETER_STRUCT(FAOParameters, )
 	SHADER_PARAMETER(float, AOGlobalMaxOcclusionDistance)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FDFAOUpsampleParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BentNormalAOTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, BentNormalAOSampler)
+	SHADER_PARAMETER(FVector2f, AOBufferBilinearUVMax)
+	SHADER_PARAMETER(float, DistanceFadeScale)
+	SHADER_PARAMETER(float, AOMaxViewDistance)
+END_SHADER_PARAMETER_STRUCT()
+
 namespace DistanceField
 {
 	FAOParameters SetupAOShaderParameters(const FDistanceFieldAOParameters& AOParameters);
-};
-
-class FDFAOUpsampleParameters
-{
-	DECLARE_TYPE_LAYOUT(FDFAOUpsampleParameters, NonVirtual);
-public:
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		BentNormalAOTexture.Bind(ParameterMap, TEXT("BentNormalAOTexture"));
-		BentNormalAOSampler.Bind(ParameterMap, TEXT("BentNormalAOSampler"));
-		AOBufferBilinearUVMax.Bind(ParameterMap, TEXT("AOBufferBilinearUVMax"));
-		DistanceFadeScale.Bind(ParameterMap, TEXT("DistanceFadeScale"));
-		AOMaxViewDistance.Bind(ParameterMap, TEXT("AOMaxViewDistance"));
-	}
-
-	void Set(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FViewInfo& View, FRHITexture* DistanceFieldAOBentNormal)
-	{
-		FRHITexture* BentNormalAO = DistanceFieldAOBentNormal ? DistanceFieldAOBentNormal : (FRHITexture*)GWhiteTexture->TextureRHI;
-		SetTextureParameter(RHICmdList, ShaderRHI, BentNormalAOTexture, BentNormalAOSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), BentNormalAO);
-
-		FIntPoint const AOBufferSize = GetBufferSizeForAO();
-		FVector2f const UVMax(
-			(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
-			(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
-		SetShaderValue(RHICmdList, ShaderRHI, AOBufferBilinearUVMax, UVMax);
-
-		SetShaderValue(RHICmdList, ShaderRHI, AOMaxViewDistance, GetMaxAOViewDistance());
-
-		extern float GAOViewFadeDistanceScale;
-		const float DistanceFadeScaleValue = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
-		SetShaderValue(RHICmdList, ShaderRHI, DistanceFadeScale, DistanceFadeScaleValue);
-	}
-
-	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar, FDFAOUpsampleParameters& P)
-	{
-		Ar << P.BentNormalAOTexture;
-		Ar << P.BentNormalAOSampler;
-		Ar << P.AOBufferBilinearUVMax;
-		Ar << P.DistanceFadeScale;
-		Ar << P.AOMaxViewDistance;
-
-		return Ar;
-	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, BentNormalAOTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, BentNormalAOSampler);
-	LAYOUT_FIELD(FShaderParameter, AOBufferBilinearUVMax);
-	LAYOUT_FIELD(FShaderParameter, DistanceFadeScale);
-	LAYOUT_FIELD(FShaderParameter, AOMaxViewDistance);
+	FDFAOUpsampleParameters SetupAOUpsampleParameters(const FViewInfo& View, FRDGTextureRef DistanceFieldAOBentNormal);
 };
 
 class FMaxSizedRWBuffers : public FRenderResource
