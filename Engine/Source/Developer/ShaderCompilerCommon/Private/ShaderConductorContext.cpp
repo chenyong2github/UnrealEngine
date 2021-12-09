@@ -406,6 +406,7 @@ namespace CrossCompiler
 		OutOptions.enableFMAPass = InOptions.bEnableFMAPass;
 		OutOptions.forceSubpassImageDepthFalse = InOptions.bForceSubpassImageDepthFalse;
 		OutOptions.enableSeparateSamplers = InOptions.bEnableSeparateSamplersInGlsl;
+		OutOptions.remapAttributeLocations = InOptions.bRemapAttributeLocations;
 		OutOptions.shaderModel = ShaderConductor::Compiler::ShaderModel
 		{
 			static_cast<uint8>(InOptions.ShaderModel.Major),
