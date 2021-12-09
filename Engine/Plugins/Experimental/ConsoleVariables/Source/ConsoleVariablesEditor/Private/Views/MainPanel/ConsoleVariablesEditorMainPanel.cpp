@@ -60,7 +60,13 @@ void FConsoleVariablesEditorMainPanel::AddConsoleVariable(
 	{
 		UConsoleVariablesAsset* Asset = EditingAsset.Get();
 
-		Asset->AddOrSetConsoleVariableSavedValue(InConsoleCommand, InValue);
+		Asset->AddOrSetConsoleVariableSavedData(
+			{
+				InConsoleCommand,
+				InValue,
+				ECheckBoxState::Checked
+			}
+		);
 
 		RebuildList(bScrollToNewRow ? InConsoleCommand : "");
 	}

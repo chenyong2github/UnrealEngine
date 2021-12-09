@@ -183,11 +183,11 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
 		FindCommandInfoByConsoleVariableReference(ChangedVariable); CommandInfo.IsValid())
 	{
-		FString OutValue;
 		const TSharedPtr<FConsoleVariablesEditorCommandInfo>& PinnedCommand = CommandInfo.Pin();
 		const FString& Key = PinnedCommand->Command;
 		
-		const bool bIsVariableCurrentlyTracked = EditingAsset->FindSavedValueByCommandString(Key, OutValue);
+		FConsoleVariablesEditorAssetSaveData FoundData;
+		const bool bIsVariableCurrentlyTracked = EditingAsset->FindSavedDataByCommandString(Key, FoundData);
 		
 		if (!bIsVariableCurrentlyTracked)
 		{
@@ -196,10 +196,9 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* C
 			if (GetMutableDefault<UConsoleVariablesEditorProjectSettings>()->bAddAllChangedConsoleVariablesToCurrentPreset
 				&& PinnedCommand->IsCurrentValueDifferentFromInputValue(PinnedCommand->StartupValueAsString))
 			{
-				EditingAsset->AddOrSetConsoleVariableSavedValue(Key, ChangedVariable->GetString());
 				if (MainPanel.IsValid())
 				{
-					MainPanel->RebuildList();
+					MainPanel->AddConsoleVariable(Key, ChangedVariable->GetString());
 				}
 
 				SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());

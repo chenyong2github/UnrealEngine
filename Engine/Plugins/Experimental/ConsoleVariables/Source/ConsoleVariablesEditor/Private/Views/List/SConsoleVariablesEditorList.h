@@ -49,7 +49,7 @@ public:
 	}
 
 	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
-	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
+	void UpdatePresetValuesForSave(const TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
 	FString GetSearchStringFromSearchInputField() const;
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString) const;

@@ -33,6 +33,11 @@ TSharedRef<SConsoleVariablesEditorListValueInput> SConsoleVariablesEditorListVal
 				return SNew(SConsoleVariablesEditorListValueInput_Float, InRow);
 			}
 
+			if (Variable->IsVariableBool())
+			{
+				return SNew(SConsoleVariablesEditorListValueInput_Bool, InRow);
+			}
+
 			if (Variable->IsVariableInt())
 			{
 				return SNew(SConsoleVariablesEditorListValueInput_Int, InRow);
@@ -45,18 +50,8 @@ TSharedRef<SConsoleVariablesEditorListValueInput> SConsoleVariablesEditorListVal
 		}
 	}
 
-	// bool
-	return SNew(SConsoleVariablesEditorListValueInput_Bool, InRow);
-}
-
-const FString& SConsoleVariablesEditorListValueInput::GetCachedValue() const
-{
-	return CachedValue;
-}
-
-void SConsoleVariablesEditorListValueInput::SetCachedValue(const FString& NewCachedValue)
-{
-	CachedValue = NewCachedValue;
+	// fallback
+	return SNew(SConsoleVariablesEditorListValueInput_String, InRow);
 }
 
 bool SConsoleVariablesEditorListValueInput::IsRowChecked() const
@@ -77,32 +72,35 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 		.MaxFractionalDigits(3)
 		.Value_Lambda([this]
 		{
-			if (Item.IsValid() &&
-				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+			check (Item.IsValid());
+			
+			if ((Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
 					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
 			{
 				return FCString::Atof(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}
 
-			return FCString::Atof(*GetCachedValue());
+			return FCString::Atof(*Item.Pin()->GetCachedValue());
 		})
 		.OnValueChanged_Lambda([this] (const float InValue)
 		{
+			check (Item.IsValid());
+			
 			const FString ValueAsString = FString::SanitizeFloat(InValue);
 			
-			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !GetCachedValue().Equals(ValueAsString))
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !PinnedItem->GetCachedValue().Equals(ValueAsString))
 			{				
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
-			}
 			
-			SetCachedValue(ValueAsString);
+				PinnedItem->SetCachedValue(ValueAsString);
+			}
 		})
 		.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
 	];
 
-	SetCachedValue(GetInputValueAsString());
+	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
 
 void SConsoleVariablesEditorListValueInput_Float::SetInputValue(const FString& InValueAsString)
@@ -132,37 +130,56 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
 		SAssignNew(InputWidget, SSpinBox<int32>)
 		.Value_Lambda([this]
 		{
-			if (Item.IsValid() &&
-				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+			check (Item.IsValid());
+			
+			if ((Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
 					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
 			{
 				return FCString::Atoi(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}
 
-			return FCString::Atoi(*GetCachedValue());
+			return FCString::Atoi(*Item.Pin()->GetCachedValue());
 		})
 		.OnValueChanged_Lambda([this] (const int32 InValue)
 		{
+			check (Item.IsValid());
+			
 			const FString ValueAsString = FString::FromInt(InValue);
 			
-			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !GetCachedValue().Equals(ValueAsString))
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !PinnedItem->GetCachedValue().Equals(ValueAsString))
 			{				
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
-			}
 
-			SetCachedValue(ValueAsString);
+				PinnedItem->SetCachedValue(ValueAsString);
+			}
 		})
 		.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
 	];
 	
-	SetCachedValue(GetInputValueAsString());
+	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
 
 void SConsoleVariablesEditorListValueInput_Int::SetInputValue(const FString& InValueAsString)
 {
-	InputWidget->SetValue(FCString::Atoi(*InValueAsString));
+	if (InValueAsString.IsNumeric())
+	{
+		InputWidget->SetValue(FCString::Atoi(*InValueAsString));
+	}
+	else
+	{
+		InputWidget->SetValue(2);
+		
+		if (InValueAsString.TrimStartAndEnd().ToLower() == "true")
+		{
+			InputWidget->SetValue(1);
+		}
+		else if (InValueAsString.TrimStartAndEnd().ToLower() == "false")
+		{
+			InputWidget->SetValue(0);
+		}
+	}
 }
 
 FString SConsoleVariablesEditorListValueInput_Int::GetInputValueAsString()
@@ -187,32 +204,35 @@ void SConsoleVariablesEditorListValueInput_String::Construct(const FArguments& I
 		SAssignNew(InputWidget, SEditableText)
 		.Text_Lambda([this]
 		{
-			if (Item.IsValid() &&
-				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+			check (Item.IsValid());
+			
+			if ((Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
 					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
 			{
 				return FText::FromString(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}
 
-			return FText::FromString(GetCachedValue());
+			return FText::FromString(Item.Pin()->GetCachedValue());
 		})
 		.OnTextCommitted_Lambda([this] (const FText& InValue, ETextCommit::Type InTextCommitType)
 		{
+			check (Item.IsValid());
+			
 			const FString ValueAsString = InValue.ToString();
 			
-			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !GetCachedValue().Equals(ValueAsString))
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !PinnedItem->GetCachedValue().Equals(ValueAsString))
 			{				
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
-			}
 
-			SetCachedValue(ValueAsString);
+				PinnedItem->SetCachedValue(ValueAsString);
+			}
 		})
 		.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
 	];
 
-	SetCachedValue(GetInputValueAsString());
+	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
 
 void SConsoleVariablesEditorListValueInput_String::SetInputValue(const FString& InValueAsString)
@@ -242,54 +262,41 @@ void SConsoleVariablesEditorListValueInput_Bool::Construct(const FArguments& InA
 		SAssignNew(InputWidget, SSpinBox<int32>)
 		.Value_Lambda([this]
 		{
-			if (Item.IsValid() &&
-				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
-					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
+			check (Item.IsValid());
+			
+			if (Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue))
 			{
 				return FCString::Atoi(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}
 
-			return FCString::Atoi(*GetCachedValue());
+			return FCString::Atoi(*Item.Pin()->GetCachedValue());
 		})
 		.MinSliderValue(0)
 		.MaxSliderValue(2)
 		.OnValueChanged_Lambda([this] (const int32 InValue)
 		{
+			check (Item.IsValid());
+			
 			const FString ValueAsString = FString::FromInt(InValue);
 			
-			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !GetCachedValue().Equals(ValueAsString))
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); !PinnedItem->GetCachedValue().Equals(ValueAsString))
 			{				
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
-			}
 
-			SetCachedValue(ValueAsString);
+				PinnedItem->SetCachedValue(ValueAsString);
+			}
 		})
 		.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
 	];
-	SetCachedValue(GetInputValueAsString());
+	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
 
 void SConsoleVariablesEditorListValueInput_Bool::SetInputValue(const FString& InValueAsString)
 {
-	if (InValueAsString.IsNumeric())
-	{
-		InputWidget->SetValue(FMath::Clamp(FCString::Atoi(*InValueAsString), 0, 2));
-	}
-	else
-	{
-		InputWidget->SetValue(2);
-		
-		if (InValueAsString.TrimStartAndEnd().ToLower() == "true")
-		{
-			InputWidget->SetValue(1);
-		}
-		else if (InValueAsString.TrimStartAndEnd().ToLower() == "false")
-		{
-			InputWidget->SetValue(0);
-		}
-	}
+	
 }
 
 FString SConsoleVariablesEditorListValueInput_Bool::GetInputValueAsString()
@@ -310,6 +317,27 @@ bool SConsoleVariablesEditorListValueInput_Bool::GetInputValueAsBool() const
 FString SConsoleVariablesEditorListValueInput_Bool::GetBoolValueAsString() const
 {
 	return GetInputValueAsBool() ? "true" : "false";
+}
+
+int32 SConsoleVariablesEditorListValueInput_Bool::ConvertBoolValueToInteger(const FString& InValue) const
+{
+	if (InValue.IsNumeric())
+	{
+		return FMath::Clamp(FCString::Atoi(*InValue), 0, 2);
+	}
+	else
+	{		
+		if (InValue.TrimStartAndEnd().ToLower() == "true")
+		{
+			return 1;
+		}
+		else if (InValue.TrimStartAndEnd().ToLower() == "false")
+		{
+			return 0;
+		}
+
+		return 2;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
