@@ -10,14 +10,14 @@ namespace UE::Utility { struct FAccessToken; }
 namespace UE::Virtualization
 {
 /**
-* This backend allows data to be stored in and retrieved from a Jupiter service.
+* This backend allows data to be stored in and retrieved from the Horde storage service.
 *
 * Ini file setup:
-* 'Name'=(Type=Jupiter, Host="", Namespace="", ChunkSize=, OAuthProvider="", OAuthClientId="", OAuthSecret="")
+* 'Name'=(Type=HordeStorage, Host="", Namespace="", ChunkSize=, OAuthProvider="", OAuthClientId="", OAuthSecret="")
 * Host:				The URL of the service, use http://localhost if hosted locally.
-* Namespace:		Jupiter storage is divided into a number of namespaces allowing projects to keep their data separate
+* Namespace:		Horde storage is divided into a number of namespaces allowing projects to keep their data separate
 *					while using the same service. This value controls which name space will be used.
-* ChunkSize:		Each payload can be divided into a number of chunks when being uploaded to Jupiter to improve upload
+* ChunkSize:		Each payload can be divided into a number of chunks when being uploaded to Horde to improve upload
 *					performance, this value sets the max size (in bytes) of each chunk. To disable and attempt to upload
 *					each payload as a single data blob, set this to -1.
 * OAuthProvider:	Url of the OAuth authorization server.
@@ -25,11 +25,11 @@ namespace UE::Virtualization
 * OAuthSecret:		Password for the OAuthClientId
 * (Note that the OAuth entries are not required if hosting locally)
 */
-class FJupiterBackend final : public IVirtualizationBackend
+class FHttpBackend final : public IVirtualizationBackend
 {
 public:
-	explicit FJupiterBackend(FStringView ConfigName, FStringView DebugName);
-	virtual ~FJupiterBackend() = default;
+	explicit FHttpBackend(FStringView ConfigName, FStringView DebugName);
+	virtual ~FHttpBackend() = default;
 
 private:
 	/* IVirtualizationBackend implementation */
@@ -60,7 +60,7 @@ private:
 	bool PullChunk(const FString& Hash, const FPayloadId& PayloadId, uint8* DataPtr, int64 BufferSize);
 	bool DoesChunkExist(const FString& Hash);
 
-	/** Address of the Jupiter service*/
+	/** Address of the service*/
 	FString HostAddress;
 	/** Namespace to connect to */
 	FString Namespace;

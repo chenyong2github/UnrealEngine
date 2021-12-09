@@ -1,17 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VirtualizationJupiterBackend.h"
+#include "VirtualizationHttpBackend.h"
 #include "Virtualization/PayloadId.h"
 
 // TODO: Our libcurl implementation does not currently support MacOS
 // (not registering this will cause a fatal log error if the backend is actually used)
 #if PLATFORM_WINDOWS
-	#define WITH_MIRAGE_JUPITER_BACKEND 1
+	#define UE_USE_HORDESTORAGE_BACKEND 1
 #else
-	#define WITH_MIRAGE_JUPITER_BACKEND 0
+	#define UE_USE_HORDESTORAGE_BACKEND 0
 #endif //PLATFORM_WINDOWS
 
-#if WITH_MIRAGE_JUPITER_BACKEND
+#if UE_USE_HORDESTORAGE_BACKEND
 
 #include "Async/TaskGraphInterfaces.h"
 #include "Compression/CompressedBuffer.h"
@@ -55,19 +55,19 @@
 #endif //WITH_SSL
 
 /** 
- * The min version that the Jupiter service must be in order for us to connect.
+ * The min version that the HordeStorage service must be in order for us to connect.
  * Only increase the minimum required version to ensure that specific features
  * are present that the code cannot run without.
  */
-#define UE_MIRAGE_JUPITER_MIN_MAJOR_VER 0
-#define UE_MIRAGE_JUPITER_MIN_MINOR_VER 27
-#define UE_MIRAGE_JUPITER_MIN_PATCH_VER 5
+#define UE_HORDESTORAGE_MIN_MAJOR_VER 0
+#define UE_HORDESTORAGE_MIN_MINOR_VER 27
+#define UE_HORDESTORAGE_MIN_PATCH_VER 5
 
-/** When enabled we will only attempt to upload a payload if Jupiter claims to not already have it.
+/** When enabled we will only attempt to upload a payload if HordeStorage claims to not already have it.
 	Disabling this is only intended for debug purposes. */
 #define UE_CHECK_FOR_EXISTING_PAYLOADS 1
 
-/** When enabled we will only attempt to upload a chunk if Jupiter claims to not already have it. 
+/** When enabled we will only attempt to upload a chunk if HordeStorage claims to not already have it. 
 	In practice this doesn't really speed up the workflow hence being disabled. */
 #define UE_CHECK_FOR_EXISTING_CHUNKS 0
 
@@ -75,7 +75,7 @@
 	Disabling this is only intended for debug purposes as it is significantly slower. */
 #define UE_ENABLE_ASYNC_CHUNK_ACCESS 1
 
-TRACE_DECLARE_INT_COUNTER(Jupiter_WaitOnRequestPool, TEXT("Jupiter Wait On Request Pool"));
+TRACE_DECLARE_INT_COUNTER(HordeStorage_WaitOnRequestPool, TEXT("HordeStorage Wait On Request Pool"));
 
 namespace UE
 {
@@ -583,7 +583,7 @@ private:
 			{
 			case Head:
 				// TODO: Io returns 404 if the head request is not found, Europa returns 400. Clean this up once 
-				// the inconsistency on the Jupiter server is fixed.
+				// the inconsistency on the HordeStorage server is fixed.
 				bSuccess = (ResponseCode == 400 || ResponseCode == 404 || IsSuccessfulResponse(ResponseCode));
 				VerbStr = TEXT("querying");
 				break;
@@ -915,7 +915,7 @@ struct FRequestPool
 				}
 			}
 
-			TRACE_COUNTER_ADD(Jupiter_WaitOnRequestPool, int64(1));
+			TRACE_COUNTER_ADD(HordeStorage_WaitOnRequestPool, int64(1));
 			FPlatformProcess::Sleep(UE_MIRAGE_REQUEST_POOL_WAIT_INTERVAL);
 		}
 	}
@@ -1000,7 +1000,7 @@ private:
 
 
 /**
-* Adds a checksum (as request header) for a given payload. Jupiter will use this to verify the integrity
+* Adds a checksum (as request header) for a given payload. HordeStorage will use this to verify the integrity
 * of the received data.
 * @param Request Request that the data will be sent with.
 * @param Payload Payload that will be sent.
@@ -1135,7 +1135,7 @@ struct FEuropaDDCCachePUTRequest : public FJsonSerializable
 	TArray<FString> ChunkHashes;
 };
 
-/** Data structure for use with Jupiter Europa DDCCache GET JSON response */
+/** Data structure for use with HordeStorage Europa DDCCache GET JSON response */
 struct FDDCCacheGETResponse : public FJsonSerializable
 {
 	struct FMetaData : public FJsonSerializable
@@ -1174,8 +1174,8 @@ struct FDDCCacheGETResponse : public FJsonSerializable
 	FString PayloadBlob;
 };
 
-/** Data structure for use with Jupiter statuc GET response. Represents the status of the Jupiter service. */
-struct FJupiterServiceStatus : public FJsonSerializable
+/** Data structure for use with HordeStorage static GET response. Represents the status of the HordeStorage service. */
+struct FHttpServiceStatus : public FJsonSerializable
 {
 	/** Returns true if the current version in the object is greater or equal to the version numbers passed in */
 	bool DoesHaveValidVersion(uint32 MinMajorVersion, uint32 MinMinorVersion, uint32 MinPatchVersion) const 
@@ -1192,14 +1192,14 @@ struct FJupiterServiceStatus : public FJsonSerializable
 			}
 			else
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Jupiter service version is too old! Found: '%s' Required: %u.%u.%u"), 
+				UE_LOG(LogVirtualization, Error, TEXT("HordeStorage service version is too old! Found: '%s' Required: %u.%u.%u"), 
 					*Version, MajorVersion, MinorVersion, PatchVersion);
 				return false;
 			}
 		}
 		else
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("Failed to parse valid Jupiter version number from '%s'"), *Version);
+			UE_LOG(LogVirtualization, Error, TEXT("Failed to parse valid HordeStorage version number from '%s'"), *Version);
 			return false;
 		}
 	}
@@ -1234,16 +1234,16 @@ struct FJupiterServiceStatus : public FJsonSerializable
 		return true;
 	}
 
-	/** Returns true if the given capability is supported by the Jupiter service */
+	/** Returns true if the given capability is supported by HordeStorage */
 	bool SupportsCapability(FStringView Capability) const 
 	{
 		return Capabilities.Contains(Capability);
 	}
 
-	/** Prints the status of the Jupiter service to the log */
+	/** Prints the status of the HordeStorage service to the log */
 	void LogStatusInfo() const
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("Jupiter Service Status:"));
+		UE_LOG(LogVirtualization, Log, TEXT("HordeStorage Status:"));
 		UE_LOG(LogVirtualization, Log, TEXT("Version: %s"), *Version);
 		UE_LOG(LogVirtualization, Log, TEXT("Site Id: %s"), *SiteIdentifier);
 		UE_LOG(LogVirtualization, Log, TEXT("GitHash: %s"), *GitHash);		
@@ -1286,15 +1286,15 @@ private:
 
 	/** Version of the service in the format [MAJOR.MINOR.PATCH] */
 	FString Version;
-	/**The git commit hash for the Jupiter service */
+	/**The git commit hash for HordeStorage */
 	FString GitHash;
-	/** An array of which sub-services the Jupiter service supports */
+	/** An array of which sub-services HordeStorage supports */
 	TArray<FString> Capabilities;
 	/** The identifier for the server connected to */
 	FString SiteIdentifier;
 };
 
-FJupiterBackend::FJupiterBackend(FStringView ConfigName, FStringView InDebugName)
+FHttpBackend::FHttpBackend(FStringView ConfigName, FStringView InDebugName)
 	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
 	, Namespace(TEXT("mirage"))
 	, Bucket(TEXT("default"))
@@ -1303,7 +1303,7 @@ FJupiterBackend::FJupiterBackend(FStringView ConfigName, FStringView InDebugName
 {		
 }
 
-bool FJupiterBackend::Initialize(const FString& ConfigEntry)
+bool FHttpBackend::Initialize(const FString& ConfigEntry)
 {
 	using namespace Utility;
 
@@ -1330,7 +1330,7 @@ bool FJupiterBackend::Initialize(const FString& ConfigEntry)
 		UE_LOG(LogVirtualization, Log, TEXT("Payloads will not be chunked!"));
 	}
 
-	// If we are connecting to a locally hosted Jupiter service then we do not need authorization
+	// If we are connecting to a locally hosted HordeStorage then we do not need authorization
 	if (!IsUsingLocalHost())
 	{
 		if (!FParse::Value(*ConfigEntry, TEXT("OAuthProvider="), OAuthProvider))
@@ -1352,7 +1352,7 @@ bool FJupiterBackend::Initialize(const FString& ConfigEntry)
 		}
 	}
 
-	UE_LOG(LogVirtualization, Log, TEXT("Attempting to connect to a Jupiter service at '%s' with namespace '%s'"), *HostAddress, *Namespace);
+	UE_LOG(LogVirtualization, Log, TEXT("Attempting to connect to HordeStorage at '%s' with namespace '%s'"), *HostAddress, *Namespace);
 
 	if (!IsServiceReady())
 	{
@@ -1374,16 +1374,16 @@ bool FJupiterBackend::Initialize(const FString& ConfigEntry)
 	return true;
 }
 
-EPushResult FJupiterBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext)
+EPushResult FHttpBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FString& PackageContext)
 {
 	using namespace Utility;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PushData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PushData);
 
 #if UE_CHECK_FOR_EXISTING_PAYLOADS
 	if (DoesPayloadExist(Id))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("Jupiter already has a copy of the payload '%s'"), *Id.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("HordeStorage already has a copy of the payload '%s'"), *Id.ToString());
 		return EPushResult::PayloadAlreadyExisted;
 	}
 #endif // UE_CHECK_FOR_EXISTING_PAYLOADS
@@ -1443,7 +1443,7 @@ EPushResult FJupiterBackend::PushData(const FPayloadId& Id, const FCompressedBuf
 	PUTRequest.MetaData.ChunkLength = ChunkSize;
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData::WaitOnChunks);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PullData::WaitOnChunks);
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks);
 	}
 
@@ -1492,11 +1492,11 @@ EPushResult FJupiterBackend::PushData(const FPayloadId& Id, const FCompressedBuf
 	return EPushResult::Failed;
 }
 
-FCompressedBuffer FJupiterBackend::PullData(const FPayloadId& Id)
+FCompressedBuffer FHttpBackend::PullData(const FPayloadId& Id)
 {
 	using namespace Utility;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PullData);
 
 	// First we need to get the description of the payload from Europa
 
@@ -1532,7 +1532,7 @@ FCompressedBuffer FJupiterBackend::PullData(const FPayloadId& Id)
 			}
 			else if (ResponseCode == 400)
 			{
-				// Response 400 indicates that the payload does not exist in Jupiter. Note that it is faster to just make the request
+				// Response 400 indicates that the payload does not exist in HordeStorage. Note that it is faster to just make the request
 				// and check for the response rather than call ::DoesPayloadExist prior to requesting the json header because this way 
 				// we will only make a single request if the payload exists or not.
 				UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *Id.ToString());
@@ -1593,7 +1593,7 @@ FCompressedBuffer FJupiterBackend::PullData(const FPayloadId& Id)
 	}
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullData::WaitOnChunks);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PullData::WaitOnChunks);
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks);
 	}
 
@@ -1609,11 +1609,11 @@ FCompressedBuffer FJupiterBackend::PullData(const FPayloadId& Id)
 	}
 }
 
-bool FJupiterBackend::DoesPayloadExist(const FPayloadId& Id)
+bool FHttpBackend::DoesPayloadExist(const FPayloadId& Id)
 {
 	using namespace Utility;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::DoesPayloadExist);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::DoesPayloadExist);
 
 	// Note that the ddc end point is used by both ddc and mirage
 	TStringBuilder<256> Uri;
@@ -1648,15 +1648,15 @@ bool FJupiterBackend::DoesPayloadExist(const FPayloadId& Id)
 	return false;
 }
 
-bool FJupiterBackend::IsUsingLocalHost() const
+bool FHttpBackend::IsUsingLocalHost() const
 {
 	return HostAddress.StartsWith(TEXT("http://localhost"));
 }
 
-bool FJupiterBackend::IsServiceReady() const
+bool FHttpBackend::IsServiceReady() const
 {
 	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::IsServiceReady);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::IsServiceReady);
 
 	using namespace Utility;
 
@@ -1665,20 +1665,20 @@ bool FJupiterBackend::IsServiceReady() const
 
 	if (Result == FRequest::Success && FRequest::IsSuccessfulResponse(Request.GetResponseCode()))
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("Jupiter service status: '%s'."), *Request.GetResponseAsString());
+		UE_LOG(LogVirtualization, Log, TEXT("HordeStorage status: '%s'."), *Request.GetResponseAsString());
 		return true;
 	}
 	else
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Unable to reach Jupiter service at '%s'. Status: %d . Response: '%s'"), *HostAddress, Request.GetResponseCode(), *Request.GetResponseAsString());
+		UE_LOG(LogVirtualization, Error, TEXT("Unable to reach HordeStorage at '%s'. Status: %d . Response: '%s'"), *HostAddress, Request.GetResponseCode(), *Request.GetResponseAsString());
 		return false;
 	}
 }
 
-bool FJupiterBackend::AcquireAccessToken()
+bool FHttpBackend::AcquireAccessToken()
 {
 	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::AcquireAccessToken);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::AcquireAccessToken);
 
 	using namespace Utility;
 
@@ -1793,13 +1793,13 @@ bool FJupiterBackend::AcquireAccessToken()
 	return false;
 }
 
-bool FJupiterBackend::ValidateServiceVersion()
+bool FHttpBackend::ValidateServiceVersion()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::ValidateServiceVersion);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::ValidateServiceVersion);
 
 	using namespace Utility;
 
-	FJupiterServiceStatus Response;
+	FHttpServiceStatus Response;
 
 	int64 ResponseCode = 0;
 	uint32 Attempts = 0;
@@ -1834,14 +1834,14 @@ bool FJupiterBackend::ValidateServiceVersion()
 	}
 
 	// Check version number
-	if (!Response.DoesHaveValidVersion(UE_MIRAGE_JUPITER_MIN_MAJOR_VER, UE_MIRAGE_JUPITER_MIN_MINOR_VER, UE_MIRAGE_JUPITER_MIN_PATCH_VER))
+	if (!Response.DoesHaveValidVersion(UE_HORDESTORAGE_MIN_MAJOR_VER, UE_HORDESTORAGE_MIN_MINOR_VER, UE_HORDESTORAGE_MIN_PATCH_VER))
 	{
 		return false;
 	}
 
 	if (!Response.SupportsCapability(TEXT("ddc")))
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("Jupiter service does not support Europa (ddc) capability"));
+		UE_LOG(LogVirtualization, Error, TEXT("HordeStorage does not support Europa (ddc) capability"));
 		return false;
 	}
 
@@ -1850,7 +1850,7 @@ bool FJupiterBackend::ValidateServiceVersion()
 	return true;
 }
 	
-bool FJupiterBackend::ShouldRetryOnError(int64 ResponseCode)
+bool FHttpBackend::ShouldRetryOnError(int64 ResponseCode)
 {
 	// TODO: Pretty much the same code as in FHttpDerivedDataBackend, another candidate for code sharing
 	// 
@@ -1875,9 +1875,9 @@ bool FJupiterBackend::ShouldRetryOnError(int64 ResponseCode)
 	return false;
 }
 
-bool FJupiterBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const FPayloadId& PayloadId, FString& OutHashAsString)
+bool FHttpBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const FPayloadId& PayloadId, FString& OutHashAsString)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PostChunk);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PostChunk);
 
 	using namespace Utility;
 
@@ -1887,7 +1887,7 @@ bool FJupiterBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const 
 #if UE_CHECK_FOR_EXISTING_CHUNKS
 	if (DoesChunkExist(HashAsString))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("Jupiter already has a copy of the chunk '%s' for payload '%s'"), *HashAsString, *PayloadId.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("HordeStorage already has a copy of the chunk '%s' for payload '%s'"), *HashAsString, *PayloadId.ToString());
 		return true;
 	}
 #endif // UE_CHECK_FOR_EXISTING_CHUNKS
@@ -1924,9 +1924,9 @@ bool FJupiterBackend::PostChunk(const TArrayView<const uint8>& ChunkData, const 
 	return false;
 }
 
-bool FJupiterBackend::PullChunk(const FString& Hash, const FPayloadId& PayloadId, uint8* DataPtr, int64 BufferSize)
+bool FHttpBackend::PullChunk(const FString& Hash, const FPayloadId& PayloadId, uint8* DataPtr, int64 BufferSize)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::PullChunk);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::PullChunk);
 
 	using namespace Utility;
 
@@ -1969,11 +1969,11 @@ bool FJupiterBackend::PullChunk(const FString& Hash, const FPayloadId& PayloadId
 	return false;
 }
 
-bool FJupiterBackend::DoesChunkExist(const FString& Hash)
+bool FHttpBackend::DoesChunkExist(const FString& Hash)
 {
 	using namespace Utility;
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FJupiterBackend::DoesChunkExist);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHttpBackend::DoesChunkExist);
 
 	TStringBuilder<256> Uri;
 	Uri.Appendf(TEXT("api/v1/s/%s/%s"), *Namespace, *Hash);
@@ -2007,9 +2007,9 @@ bool FJupiterBackend::DoesChunkExist(const FString& Hash)
 	return false;
 }
 
-UE_REGISTER_VIRTUALIZATION_BACKEND_FACTORY(FJupiterBackend, Jupiter);
+UE_REGISTER_VIRTUALIZATION_BACKEND_FACTORY(FHttpBackend, HordeStorage);
 
 } // namespace Virtualization
 } // namespace UE
 
-#endif //WITH_MIRAGE_JUPITER_BACKEND
+#endif //UE_USE_HORDESTORAGE_BACKEND
