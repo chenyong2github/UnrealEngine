@@ -5,6 +5,7 @@
 #include "Components/SceneComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "CoreGlobals.h"
 #include "Engine/World.h"
 #include "SceneInterface.h"
 #include "ShaderParameterMetadataBuilder.h"
@@ -100,9 +101,17 @@ FComputeDataProviderRenderProxy* USceneDataProvider::GetRenderProxy()
 
 FSceneDataProviderProxy::FSceneDataProviderProxy(USceneComponent* SceneComponent)
 {
-	GameTime = SceneComponent != nullptr ? SceneComponent->GetWorld()->TimeSeconds : 0;
-	GameTimeDelta = SceneComponent != nullptr ? SceneComponent->GetWorld()->DeltaTimeSeconds : 0;
-	FrameNumber = SceneComponent != nullptr ? SceneComponent->GetScene()->GetFrameNumber() : 0;
+	bool bUseSceneTime = SceneComponent != nullptr;
+#if WITH_EDITOR
+	// Don't tick time in Editor unless in PIE.
+	if (GIsEditor)
+	{
+		bUseSceneTime &= (SceneComponent->GetWorld() != nullptr && SceneComponent->GetWorld()->IsPlayInEditor());
+	}
+#endif
+	GameTime = bUseSceneTime ? SceneComponent->GetWorld()->TimeSeconds : 0;
+	GameTimeDelta = bUseSceneTime ? SceneComponent->GetWorld()->DeltaTimeSeconds : 0;
+	FrameNumber = bUseSceneTime ? SceneComponent->GetScene()->GetFrameNumber() : 0;
 }
 
 void FSceneDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const
