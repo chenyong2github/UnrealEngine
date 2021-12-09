@@ -46,6 +46,7 @@
 #include "IUATHelperModule.h"
 #include "Menus/LayoutsMenu.h"
 #include "TargetReceipt.h"
+#include "IDocumentation.h"
 
 #include "Settings/EditorSettings.h"
 #include "AnalyticsEventAttribute.h"
@@ -179,35 +180,41 @@ void FMainFrameCommands::RegisterCommands()
 	UI_COMMAND(OpenMarketplace, "Open Marketplace", "Opens the Marketplace", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(OpenMarketplace, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::OpenMarketplace));
 
-	UI_COMMAND(VisitOnlineLearning, "Online Learning...", "Learn Unreal Engine for free with easy-to-follow video courses and guided learning paths.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(DocumentationHome, "Documentation Home", "Authoritative, in-depth technical resources for using Unreal Engine", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(DocumentationHome, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::DocumentationHome));
+
+	UI_COMMAND(VisitOnlineLearning, "Online Learning", "Learn Unreal Engine for free with easy-to-follow video courses and guided learning paths", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(VisitOnlineLearning, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitOnlineLearning));
 
-	UI_COMMAND(VisitForums, "Forums...", "Go to the Unreal Engine forums to view announcements and engage in discussions with other developers.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BrowseAPIReference, "C++ API Reference", "Classes, functions, and other elements that make up the C++ API", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(BrowseAPIReference, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::BrowseAPIReference));
+
+	UI_COMMAND(BrowseCVars, "Console Variables", "Reference companion for console variables and commands", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(BrowseCVars, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::BrowseCVars));
+
+	UI_COMMAND(VisitForums, "Forums", "View announcements and engage in discussions with other developers", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(VisitForums, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitForums));
 
-	UI_COMMAND(ReportABug, "Report a Bug...", "Found a bug?  Go here to fill out a bug report", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(VisitSearchForAnswersPage, "AnswerHub", "Search for answers, ask questions, and share your knowledge with other developers", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(VisitSearchForAnswersPage, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitSearchForAnswersPage));
+
+	UI_COMMAND(VisitSupportWebSite, "Support", "Options for personalized technical support", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(VisitSupportWebSite, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitSupportWebSite));
+
+	UI_COMMAND(ReportABug, "Report a Bug", "Found a bug? Let us know about it", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(ReportABug, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::ReportABug));
 
-	UI_COMMAND(OpenIssueTracker, "Issue Tracker", "Go here to view the Unreal Engine bug tracking website", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(OpenIssueTracker, "Issue Tracker", "Check the current status of public bugs and other issues", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(OpenIssueTracker, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::OpenIssueTracker));
 
-	UI_COMMAND( VisitAskAQuestionPage, "Ask a Question...", "Have a question?  Go here to ask about anything and everything related to Unreal.", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( VisitAskAQuestionPage, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::VisitAskAQuestionPage ) );
-
-	UI_COMMAND( VisitSearchForAnswersPage, "Answer Hub...", "Go to the AnswerHub to ask questions, search existing answers, and share your knowledge with other UE developers.", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( VisitSearchForAnswersPage, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::VisitSearchForAnswersPage ) );
-
-	UI_COMMAND( VisitSupportWebSite, "Support...", "Navigates to the Unreal Engine Support web site's main page.", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( VisitSupportWebSite, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::VisitSupportWebSite ) );
-
-	UI_COMMAND( VisitEpicGamesDotCom, "Visit UnrealEngine.com...", "Navigates to UnrealEngine.com where you can learn more about Unreal Technology.", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( VisitEpicGamesDotCom, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::VisitEpicGamesDotCom ) );
-
-	UI_COMMAND( AboutUnrealEd, "About Editor...", "Displays application credits and copyright information", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( AboutUnrealEd, "About Unreal Editor", "Version and copyright information", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction( AboutUnrealEd, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::AboutUnrealEd_Execute ) );
 
-	UI_COMMAND( CreditsUnrealEd, "Credits", "Displays application credits", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( CreditsUnrealEd, "Credits", "Contributors to this version of Unreal Engine", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction( CreditsUnrealEd, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CreditsUnrealEd_Execute) );
+
+	UI_COMMAND(VisitEpicGamesDotCom, "Visit UnrealEngine.com", "Learn more about Unreal technology", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(VisitEpicGamesDotCom, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitEpicGamesDotCom));
 
 	// Layout commands
 	UI_COMMAND(ImportLayout, "Import Layout...", "Import a custom layout (or set of layouts) from a different directory and load it into your current instance of the Unreal Editor UI", EUserInterfaceActionType::Button, FInputChord());
@@ -575,16 +582,6 @@ void FMainFrameActionCallbacks::OpenIssueTracker()
 	}
 }
 
-void FMainFrameActionCallbacks::VisitAskAQuestionPage()
-{
-	FString AskAQuestionURL;
-	if(FUnrealEdMisc::Get().GetURL( TEXT("AskAQuestionURL"), AskAQuestionURL, true ))
-	{
-		FPlatformProcess::LaunchURL( *AskAQuestionURL, NULL, NULL );
-	}
-}
-
-
 void FMainFrameActionCallbacks::VisitSearchForAnswersPage()
 {
 	FString SearchForAnswersURL;
@@ -593,7 +590,6 @@ void FMainFrameActionCallbacks::VisitSearchForAnswersPage()
 		FPlatformProcess::LaunchURL( *SearchForAnswersURL, NULL, NULL );
 	}
 }
-
 
 void FMainFrameActionCallbacks::VisitSupportWebSite()
 {
@@ -604,7 +600,6 @@ void FMainFrameActionCallbacks::VisitSupportWebSite()
 	}
 }
 
-
 void FMainFrameActionCallbacks::VisitEpicGamesDotCom()
 {
 	FString EpicGamesURL;
@@ -614,6 +609,11 @@ void FMainFrameActionCallbacks::VisitEpicGamesDotCom()
 	}
 }
 
+void FMainFrameActionCallbacks::DocumentationHome()
+{
+	IDocumentation::Get()->OpenHome(FDocumentationSourceInfo(TEXT("help_menu")));
+}
+
 void FMainFrameActionCallbacks::VisitOnlineLearning()
 {
 	FString URL;
@@ -621,6 +621,16 @@ void FMainFrameActionCallbacks::VisitOnlineLearning()
 	{
 		FPlatformProcess::LaunchURL(*URL, NULL, NULL);
 	}
+}
+
+void FMainFrameActionCallbacks::BrowseAPIReference()
+{
+	IDocumentation::Get()->OpenAPIHome(FDocumentationSourceInfo(TEXT("help_menu")));
+}
+
+void FMainFrameActionCallbacks::BrowseCVars()
+{
+	GEditor->Exec(GEditor->GetEditorWorldContext().World(), TEXT("help"));
 }
 
 void FMainFrameActionCallbacks::VisitForums()

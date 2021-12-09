@@ -127,11 +127,14 @@ void SStandaloneAssetEditorToolkitHost::CreateDefaultStandaloneMenuBar(UToolMenu
 		{
 			const FName MenuName = *(InMenuBar->GetMenuName().ToString() + TEXT(".") + TEXT("Help"));
 			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(MenuName);
-			FToolMenuSection& Section = Menu->AddSection("HelpBrowse", NSLOCTEXT("MainHelpMenu", "Browse", "Browse"));
-			Section.InsertPosition = FToolMenuInsert("HelpOnline", EToolMenuInsertType::Before);
-			Section.AddDynamicEntry(NAME_None, FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+			Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 			{
-				InSection.FindContext<UAssetEditorToolkitMenuContext>()->Toolkit.Pin()->FillDefaultHelpMenuCommands(InSection);
+				TSharedPtr<FAssetEditorToolkit> Toolkit = InMenu->FindContext<UAssetEditorToolkitMenuContext>()->Toolkit.Pin();
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("Editor"), Toolkit->GetBaseToolkitName());
+				FToolMenuSection& Section = InMenu->AddSection("HelpResources", FText::Format(NSLOCTEXT("MainHelpMenu", "AssetEditorHelpResources", "{Editor} Resources"), Args));
+				Section.InsertPosition = FToolMenuInsert("Learn", EToolMenuInsertType::First);
+				Toolkit->FillDefaultHelpMenuCommands(Section);
 			}));
 		}
 	};

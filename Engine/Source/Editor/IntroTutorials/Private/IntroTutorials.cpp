@@ -48,7 +48,7 @@ FIntroTutorials::FIntroTutorials()
 	: CurrentObjectClass(nullptr)
 	, ContentIntroCurve(nullptr)
 {
-	bDisableTutorials = false;
+	bDisableTutorials = true;
 
 	bDesireResettingTutorialSeenFlagOnLoad = FParse::Param(FCommandLine::Get(), TEXT("ResetTutorials"));
 }
