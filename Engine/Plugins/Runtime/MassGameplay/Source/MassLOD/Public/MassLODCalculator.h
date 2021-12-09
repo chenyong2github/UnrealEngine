@@ -236,7 +236,7 @@ bool TMassLODCalculator<FLODLogic>::CalculateVisibility(const bool bWasVisible, 
 template <typename FLODLogic>
 void TMassLODCalculator<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo> ViewersInfo)
 {
-	CacheViewerInformation(ViewersInfo, FLODLogic::bLocalViewersOnly);
+	CacheViewerInformation(ViewersInfo);
 
 	if (FLODLogic::bMaximizeCountPerViewer)
 	{
@@ -344,6 +344,13 @@ void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context,
 					SetPrevVisibilityPerViewer<FLODLogic::bDoVisibilityLogic&& FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, EMassVisibility::Max);
 					SetVisibilityPerViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, EMassVisibility::Max);
 				}
+
+				// Check to see if we want only local viewer only
+				if (FLODLogic::bLocalViewersOnly && !Viewer.bLocal)
+				{
+					continue;
+				}
+
 				if (Viewer.Handle.IsValid())
 				{
 					const float DistanceToFrustum = GetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewersInfo, ViewerIdx, FLT_MAX);
@@ -527,7 +534,14 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Co
 		{
 			for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 			{
-				if (!Viewers[ViewerIdx].Handle.IsValid())
+				const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
+				if (!Viewer.Handle.IsValid())
+				{
+					continue;
+				}
+
+				// Check to see if we want only local viewer only
+				if (FLODLogic::bLocalViewersOnly && !Viewer.bLocal)
 				{
 					continue;
 				}
