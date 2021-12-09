@@ -3,6 +3,7 @@
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,13 +53,14 @@ namespace EpicGames.Redis.Utility
 		/// Attempts to acquire the lock for the given period of time. The lock will be renewed once half of this interval has elapsed.
 		/// </summary>
 		/// <param name="Duration">Time after which the lock expires</param>
+		/// <param name="ReleaseOnDispose">Whether the lock should be released when disposed. If false, the lock will be held for the given time, but not renewed once disposed.</param>
 		/// <returns>True if the lock was acquired, false if another service already has it</returns>
-		public async ValueTask<bool> AcquireAsync(TimeSpan Duration)
+		public async ValueTask<bool> AcquireAsync(TimeSpan Duration, bool ReleaseOnDispose = true)
 		{
 			if (await Database.StringSetAsync(Key, RedisValue.EmptyString, Duration, When.NotExists))
 			{
 				CancellationSource = new CancellationTokenSource();
-				BackgroundTask = Task.Run(() => RenewAsync(Duration, CancellationSource.Token));
+				BackgroundTask = Task.Run(() => RenewAsync(Duration, ReleaseOnDispose, CancellationSource.Token));
 				return true;
 			}
 			return false;
@@ -68,16 +70,26 @@ namespace EpicGames.Redis.Utility
 		/// Background task which renews the lock while the service is running
 		/// </summary>
 		/// <param name="Duration"></param>
+		/// <param name="ReleaseOnDispose">Whether the lock should be released when the cancellation token is fired</param>
 		/// <param name="CancellationToken"></param>
 		/// <returns></returns>
-		async Task RenewAsync(TimeSpan Duration, CancellationToken CancellationToken)
+		async Task RenewAsync(TimeSpan Duration, bool ReleaseOnDispose, CancellationToken CancellationToken)
 		{
+			Stopwatch Timer = Stopwatch.StartNew();
 			for (; ; )
 			{
 				await Task.Delay(Duration / 2, CancellationToken).ContinueWith(x => { }); // Do not throw
 				if (CancellationToken.IsCancellationRequested)
 				{
-					await Database.StringSetAsync(Key, RedisValue.Null);
+					Timer.Stop();
+					if (ReleaseOnDispose || Timer.Elapsed > Duration)
+					{
+						await Database.StringSetAsync(Key, RedisValue.Null);
+					}
+					else
+					{
+						await Database.StringSetAsync(Key, RedisValue.EmptyString, Duration - Timer.Elapsed, When.Exists);
+					}
 					break;
 				}
 				if (!await Database.StringSetAsync(Key, RedisValue.EmptyString, Duration, When.Exists))
