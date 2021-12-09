@@ -233,9 +233,6 @@ void PrefilterPlanarReflection(
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-			VertexShader->SetSimpleLightParameters(RHICmdList, View, FSphere(0));
-
 			FIntPoint UV = View.ViewRect.Min;
 			FIntPoint UVSize = View.ViewRect.Size();
 
@@ -244,6 +241,16 @@ void PrefilterPlanarReflection(
 				UV.Y = UV.Y + UVSize.Y;
 				UVSize.Y = -UVSize.Y;
 			}
+
+			FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, 
+				0, 0,
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				UV.X, UV.Y,
+				UVSize.X, UVSize.Y,
+				View.ViewRect.Size(),
+				SceneColorExtent);
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
 
 			DrawRectangle(
 				RHICmdList,
@@ -851,7 +858,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredPlanarReflections(FRDGBuilder&
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			VertexShader->SetSimpleLightParameters(RHICmdList, View, FSphere(0));
+			FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
 
 			{
 				FPlanarReflectionUniformParameters PlanarReflectionUniformParameters;
