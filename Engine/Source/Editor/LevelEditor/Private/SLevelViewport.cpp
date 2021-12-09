@@ -238,6 +238,9 @@ void SLevelViewport::Construct(const FArguments& InArgs, const FAssetEditorViewp
 	LevelEditor.OnActorSelectionChanged().AddRaw( this, &SLevelViewport::OnActorSelectionChanged );
 
 	// Tell the level editor we want to be notified when selection changes
+	LevelEditor.OnElementSelectionChanged().AddRaw( this, &SLevelViewport::OnElementSelectionChanged );
+
+	// Tell the level editor we want to be notified when selection changes
 	LevelEditor.OnMapChanged().AddRaw( this, &SLevelViewport::OnMapChanged );
 
 	GEngine->OnLevelActorDeleted().AddRaw( this, &SLevelViewport::OnLevelActorsRemoved );
@@ -2760,6 +2763,12 @@ void SLevelViewport::OnActorSelectionChanged(const TArray<UObject*>& NewSelectio
 	bNeedToUpdatePreviews = true;
 }
 
+void SLevelViewport::OnElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh)
+{
+	// Request preview update. It's possible that the actor currently selected has forbidden default preview.
+	// However, we need to show the preview widget when some of its child components selected.
+	bNeedToUpdatePreviews = true;
+}
 
 void SLevelViewport::PreviewSelectedCameraActors(const bool bPreviewInDesktopViewport)
 {

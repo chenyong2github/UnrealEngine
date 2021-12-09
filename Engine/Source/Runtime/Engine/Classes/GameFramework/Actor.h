@@ -1938,6 +1938,12 @@ public:
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual bool IsSelectedInEditor() const override;
 
+	/** Defines if preview should be shown when you select an actor, but none of its children */
+	virtual bool IsDefaultPreviewEnabled() const
+	{
+		return true;
+	}
+
 	/** Used to know if actor supports some editor operations. (Delete, Replace) */
 	virtual bool IsUserManaged() const { return true; }
 

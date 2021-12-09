@@ -14,7 +14,9 @@
 #include "DisplayClusterICVFXCameraComponent.generated.h"
 
 struct FMinimalViewInfo;
+class SWidget;
 class UCameraComponent;
+
 
 /**
  * nDisplay in-camera VFX camera representation
@@ -35,6 +37,7 @@ public:
 
 #if WITH_EDITOR
 	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut) override;
+	virtual TSharedPtr<SWidget> GetCustomEditorPreviewWidget() override;
 #endif
 
 public:

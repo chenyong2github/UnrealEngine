@@ -6,6 +6,7 @@
 #include "Components/DisplayClusterCameraComponent.h"
 #include "DisplayClusterRootActor.h"
 
+
 void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& DesiredView)
 {
 	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
@@ -19,7 +20,7 @@ void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& Desir
 
 UCameraComponent* UDisplayClusterICVFXCameraComponent::GetCameraComponent()
 {
-	return CameraSettings.ExternalCameraActor.IsValid() ? CameraSettings.ExternalCameraActor->GetCameraComponent() : this;
+	return CameraSettings.ExternalCameraActor.IsValid() ? CameraSettings.ExternalCameraActor->GetCineCameraComponent() : this;
 }
 
 FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const
@@ -30,7 +31,16 @@ FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const
 #if WITH_EDITOR
 bool UDisplayClusterICVFXCameraComponent::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut)
 {
-	return false;
+	return CameraSettings.ExternalCameraActor.IsValid() ?
+		CameraSettings.ExternalCameraActor->GetCineCameraComponent()->GetEditorPreviewInfo(DeltaTime, ViewOut) :
+		UCameraComponent::GetEditorPreviewInfo(DeltaTime, ViewOut);
+}
+
+TSharedPtr<SWidget> UDisplayClusterICVFXCameraComponent::GetCustomEditorPreviewWidget()
+{
+	return CameraSettings.ExternalCameraActor.IsValid() ?
+		CameraSettings.ExternalCameraActor->GetCineCameraComponent()->GetCustomEditorPreviewWidget() :
+		UCameraComponent::GetCustomEditorPreviewWidget();
 }
 #endif
 
