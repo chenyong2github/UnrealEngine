@@ -595,6 +595,16 @@ namespace HordeAgent.Execution
 				}
 			}
 
+			if (Step.EnvVars != null && Step.EnvVars.Count > 0)
+			{
+				Dictionary<string, string> NewEnvVars = new Dictionary<string, string>(EnvVars);
+				foreach (KeyValuePair<string, string> EnvVar in Step.EnvVars)
+				{
+					NewEnvVars[EnvVar.Key] = EnvVar.Value;
+				}
+				EnvVars = NewEnvVars;
+			}
+
 			return await ExecuteAutomationToolAsync(Step, WorkspaceDir, Arguments.ToString(), EnvVars, Step.Credentials, Logger, CancellationToken) == 0;
 		}
 

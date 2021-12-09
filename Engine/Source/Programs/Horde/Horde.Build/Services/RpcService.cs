@@ -48,100 +48,27 @@ namespace HordeServer.Services
 		/// </summary>
 		internal TimeSpan LongPollTimeout = TimeSpan.FromMinutes(9);
 
-		/// <summary>
-		/// Instance of the DatabaseService singleton
-		/// </summary>
 		DatabaseService DatabaseService;
-
-		/// <summary>
-		/// Instance of the AclService singleton
-		/// </summary>
 		AclService AclService;
-
-		/// <summary>
-		/// Instance of the AgentService singleton
-		/// </summary>
 		AgentService AgentService;
-
-		/// <summary>
-		/// The stream service instance
-		/// </summary>
 		StreamService StreamService;
-
-		/// <summary>
-		/// The job service instance
-		/// </summary>
 		JobService JobService;
-
-		/// <summary>
-		/// The software service instance
-		/// </summary>
 		AgentSoftwareService AgentSoftwareService;
-
-		/// <summary>
-		/// The artifact service instance
-		/// </summary>
 		IArtifactCollection ArtifactCollection;
-
-		/// <summary>
-		/// The log file service instance
-		/// </summary>
 		ILogFileService LogFileService;
-
-		/// <summary>
-		/// The credential service instance
-		/// </summary>
 		CredentialService CredentialService;
-
-		/// <summary>
-		/// The pool service instance
-		/// </summary>
 		PoolService PoolService;
-
-		/// <summary>
-		/// The application lifetime interface
-		/// </summary>
 		LifetimeService LifetimeService;
-
-		/// <summary>
-		/// Collection of graph documents
-		/// </summary>
 		IGraphCollection Graphs;
-
-		/// <summary>
-		/// Collection of testdata documents
-		/// </summary>
 		ITestDataCollection TestData;
-
-		/// <summary>
-		/// The conform task source
-		/// </summary>
+		IJobStepRefCollection JobStepRefCollection;
 		ConformTaskSource ConformTaskSource;
-
-		/// <summary>
-		/// Writer for log output
-		/// </summary>
 		ILogger<RpcService> Logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="DatabaseService">Instance of the DatabaseService singleton</param>
-		/// <param name="AclService">Instance of the AclService singleton</param>
-		/// <param name="AgentService">Instance of the AgentService singleton</param>
-		/// <param name="JobService">Instance of the JobService singleton</param>
-		/// <param name="StreamService">Instance of the StreamService singleton</param>
-		/// <param name="LogFileService">Instance of the LogFileService singleton</param>
-		/// <param name="AgentSoftwareService">Instance of the JobService singleton</param>
-		/// <param name="ArtifactCollection">Instance of the ArtifactService singleton</param>
-		/// <param name="CredentialService">Instance of the CredentialsService singleton</param>
-		/// <param name="PoolService">Instance of the PoolService singleton</param>
-		/// <param name="LifetimeService">The application lifetime</param>
-		/// <param name="Graphs">Collection of graph documents</param>
-		/// <param name="TestData">Collection of testdata</param>
-		/// <param name="ConformTaskSource"></param>
-		/// <param name="Logger">Log writer</param>
-		public RpcService(DatabaseService DatabaseService, AclService AclService, AgentService AgentService, StreamService StreamService, JobService JobService, AgentSoftwareService AgentSoftwareService, IArtifactCollection ArtifactCollection, ILogFileService LogFileService, CredentialService CredentialService, PoolService PoolService, LifetimeService LifetimeService, IGraphCollection Graphs, ITestDataCollection TestData, ConformTaskSource ConformTaskSource, ILogger<RpcService> Logger)
+		public RpcService(DatabaseService DatabaseService, AclService AclService, AgentService AgentService, StreamService StreamService, JobService JobService, AgentSoftwareService AgentSoftwareService, IArtifactCollection ArtifactCollection, ILogFileService LogFileService, CredentialService CredentialService, PoolService PoolService, LifetimeService LifetimeService, IGraphCollection Graphs, ITestDataCollection TestData, IJobStepRefCollection JobStepRefCollection, ConformTaskSource ConformTaskSource, ILogger<RpcService> Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.AclService = AclService;
@@ -156,6 +83,7 @@ namespace HordeServer.Services
 			this.LifetimeService = LifetimeService;
 			this.Graphs = Graphs;
 			this.TestData = TestData;
+			this.JobStepRefCollection = JobStepRefCollection;
 			this.ConformTaskSource = ConformTaskSource;
 			this.Logger = Logger;
 		}
@@ -662,6 +590,31 @@ namespace HordeServer.Services
 				Response.StepId = Step.Id.ToString();
 				Response.Name = Node.Name;
 				Response.Credentials.Add(Credentials);
+
+				IJobStepRef? LastStep = await JobStepRefCollection.GetPrevStepForNodeAsync(Job.StreamId, Job.TemplateId, Node.Name, Job.Change);
+				if (LastStep != null)
+				{
+					Response.EnvVars.Add("UE_HORDE_LAST_CL", LastStep.Change.ToString(CultureInfo.InvariantCulture));
+
+					if (LastStep.Outcome == JobStepOutcome.Success)
+					{
+						Response.EnvVars.Add("UE_HORDE_LAST_SUCCESS_CL", LastStep.Change.ToString(CultureInfo.InvariantCulture));
+					}
+					else if (LastStep.LastSuccess != null)
+					{
+						Response.EnvVars.Add("UE_HORDE_LAST_SUCCESS_CL", LastStep.LastSuccess.Value.ToString(CultureInfo.InvariantCulture));
+					}
+
+					if (LastStep.Outcome == JobStepOutcome.Success || LastStep.Outcome == JobStepOutcome.Warnings)
+					{
+						Response.EnvVars.Add("UE_HORDE_LAST_WARNING_CL", LastStep.Change.ToString(CultureInfo.InvariantCulture));
+					}
+					else if (LastStep.LastWarning != null)
+					{
+						Response.EnvVars.Add("UE_HORDE_LAST_WARNING_CL", LastStep.LastWarning.Value.ToString(CultureInfo.InvariantCulture));
+					}
+				}
+
 				if (Node.Properties != null)
 				{
 					Response.Properties.Add(Node.Properties);

@@ -37,11 +37,13 @@ namespace HordeServer.Collections
 		/// <param name="PoolId">The pool id</param>
 		/// <param name="AgentId">The agent id</param>
 		/// <param name="Outcome">Outcome of this step, if known</param>
+		/// <param name="LastSuccess">The last change that completed with success</param>
+		/// <param name="LastWarning">The last change that completed with a warning (or success)</param>
 		/// <param name="WaitTime">Time taken for the batch containing this step to start</param>
 		/// <param name="InitTime">Time taken for the batch containing this step to initializer</param>
 		/// <param name="StartTimeUtc">Start time</param>
 		/// <param name="FinishTimeUtc">Finish time for the step, if known</param>
-		Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId Id, string JobName, string StepName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, float WaitTime, float InitTime, DateTime StartTimeUtc, DateTime? FinishTimeUtc);
+		Task<IJobStepRef> InsertOrReplaceAsync(JobStepRefId Id, string JobName, string StepName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, int? LastSuccess, int? LastWarning, float WaitTime, float InitTime, DateTime StartTimeUtc, DateTime? FinishTimeUtc);
 
 		/// <summary>
 		/// Gets the history of a given node
@@ -78,7 +80,7 @@ namespace HordeServer.Collections
 
 	static class JobStepRefCollectionExtensions
 	{
-		public static Task UpdateAsync(this IJobStepRefCollection JobStepRefs, IJob Job, IJobStepBatch Batch, IJobStep Step, IGraph Graph)
+		public static async Task UpdateAsync(this IJobStepRefCollection JobStepRefs, IJob Job, IJobStepBatch Batch, IJobStep Step, IGraph Graph)
 		{
 			if (Job.PreflightChange == 0)
 			{
@@ -88,11 +90,22 @@ namespace HordeServer.Collections
 				string NodeName = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx].Name;
 				JobStepOutcome? Outcome = Step.IsPending() ? (JobStepOutcome?)null : Step.Outcome;
 
-				return JobStepRefs.InsertOrReplaceAsync(new JobStepRefId(Job.Id, Batch.Id, Step.Id), Job.Name, NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, Batch.PoolId, Batch.AgentId, Outcome, WaitTime, InitTime, Step.StartTimeUtc ?? DateTime.UtcNow, Step.FinishTimeUtc);
-			}
-			else
-			{
-				return Task.CompletedTask;
+				int? LastSuccess = null;
+				int? LastWarning = null;
+				if (Outcome != JobStepOutcome.Success)
+				{
+					IJobStepRef? PrevStep = await JobStepRefs.GetPrevStepForNodeAsync(Job.StreamId, Job.TemplateId, NodeName, Job.Change);
+					if (PrevStep != null)
+					{
+						LastSuccess = PrevStep.LastSuccess;
+						if (Outcome != JobStepOutcome.Warnings)
+						{
+							LastWarning = PrevStep.LastWarning;
+						}
+					}
+				}
+
+				await JobStepRefs.InsertOrReplaceAsync(new JobStepRefId(Job.Id, Batch.Id, Step.Id), Job.Name, NodeName, Job.StreamId, Job.TemplateId, Job.Change, Step.LogId, Batch.PoolId, Batch.AgentId, Outcome, LastSuccess, LastWarning, WaitTime, InitTime, Step.StartTimeUtc ?? DateTime.UtcNow, Step.FinishTimeUtc);
 			}
 		}
 	}

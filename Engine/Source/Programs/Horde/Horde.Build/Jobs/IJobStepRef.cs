@@ -165,6 +165,16 @@ namespace HordeServer.Models
 		public JobStepOutcome? Outcome { get; }
 
 		/// <summary>
+		/// The last change that succeeded. Note that this is only set when the ref is updated; it is not necessarily consistent with steps run later.
+		/// </summary>
+		public int? LastSuccess { get; }
+
+		/// <summary>
+		/// The last change that succeeded, or completed a warning. See <see cref="LastSuccess"/>.
+		/// </summary>
+		public int? LastWarning { get; }
+
+		/// <summary>
 		/// Time taken for the batch containing this batch to start after it became ready
 		/// </summary>
 		public float BatchWaitTime { get; }

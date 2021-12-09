@@ -32,6 +32,8 @@ namespace HordeServerTests.Stubs.Collections
 		public PoolId? PoolId { get; set; }
 		public AgentId? AgentId { get; set; }
 		public JobStepOutcome? Outcome { get; set; }
+		public int? LastSuccess { get; set; }
+		public int? LastWarning { get; set; }
 
 		public virtual float BatchWaitTime => throw new NotImplementedException();
 		public virtual float BatchInitTime => throw new NotImplementedException();
@@ -96,7 +98,7 @@ namespace HordeServerTests.Stubs.Collections
 			throw new NotImplementedException();
 		}
 
-		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId Id, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, float WaitTime, float InitTime, DateTime StartTime, DateTime? FinishTime)
+		Task<IJobStepRef> IJobStepRefCollection.InsertOrReplaceAsync(JobStepRefId Id, string JobName, string NodeName, StreamId StreamId, TemplateRefId TemplateId, int Change, LogId? LogId, PoolId? PoolId, AgentId? AgentId, JobStepOutcome? Outcome, int? LastSuccess, int? LastWarning, float WaitTime, float InitTime, DateTime StartTime, DateTime? FinishTime)
 		{
 			throw new NotImplementedException();
 		}
