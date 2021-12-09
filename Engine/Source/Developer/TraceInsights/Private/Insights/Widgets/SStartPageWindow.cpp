@@ -1523,7 +1523,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
-	MenuBuilder.BeginSection("Misc", LOCTEXT("MiscHeading", "Misc"));
+	MenuBuilder.BeginSection("Misc", LOCTEXT("TraceListMenu_Section_Misc", "Misc"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenFileButtonLabel", "Open File..."),
@@ -1536,7 +1536,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("AvailableTraces", LOCTEXT("AvailableTracesHeading", "Top Most Recently Created Traces"));
+	MenuBuilder.BeginSection("AvailableTraces", LOCTEXT("TraceListMenu_Section_AvailableTraces", "Top Most Recently Created Traces"));
 	{
 		UE::Trace::FStoreClient* StoreClient = FInsightsManager::Get()->GetStoreClient();
 		if (StoreClient != nullptr)
@@ -1571,7 +1571,7 @@ TSharedRef<SWidget> STraceStoreWindow::MakeTraceListMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("DebugOptions", LOCTEXT("OptionsHeading", "Debug Options"));
+	MenuBuilder.BeginSection("DebugOptions", LOCTEXT("TraceListMenu_Section_DebugOptions", "Debug Options"));
 
 	// Enable Automation Tests Option.
 	{

@@ -440,7 +440,7 @@ void FTimeRulerTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		// Sort TimeMarkers by name.
 		VisibleTimeMarkers.Sort([](const TSharedRef<Insights::FTimeMarker>& A, const TSharedRef<Insights::FTimeMarker>& B) -> bool { return A->GetName().Compare(B->GetName()) <= 0; });
 
-		MenuBuilder.BeginSection("TimeMarkers", LOCTEXT("TimeMarkersSection", "Time Markers"));
+		MenuBuilder.BeginSection("TimeMarkers", LOCTEXT("ContextMenu_Section_TimeMarkers", "Time Markers"));
 
 		for (TSharedRef<Insights::FTimeMarker>& TimeMarker : VisibleTimeMarkers)
 		{

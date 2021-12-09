@@ -1191,17 +1191,17 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
 			ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
 
-			const FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource", "Open Source in {0}"), SourceCodeAccessor.GetNameText());
+			const FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_OpenSource", "Open Source in {0}"), SourceCodeAccessor.GetNameText());
 
 			FText ItemToolTip;
 			if (!File.IsEmpty())
 			{
-				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource_Desc1", "Opens the source file of the selected message in {0}.\n{1} ({2})"),
+				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_OpenSource_Desc1", "Opens the source file of the selected message in {0}.\n{1} ({2})"),
 					SourceCodeAccessor.GetNameText(), FText::FromString(File), FText::AsNumber(Line, &FNumberFormattingOptions::DefaultNoGrouping()));
 			}
 			else
 			{
-				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_OpenSource_Desc2", "Opens the source file of the selected message in {0}."),
+				ItemToolTip = FText::Format(LOCTEXT("ContextMenu_OpenSource_Desc2", "Opens the source file of the selected message in {0}."),
 					SourceCodeAccessor.GetNameText());
 			}
 
@@ -1225,7 +1225,7 @@ TSharedRef<SWidget> SLogView::MakeVerbosityThresholdMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
-	MenuBuilder.BeginSection("LogViewVerbosityThreshold"/*, LOCTEXT("VerbosityThresholdHeading", "Verbosity Threshold")*/);
+	MenuBuilder.BeginSection("VerbosityThreshold"/*, LOCTEXT("LogVerbosityThresholdMenu_Section_VerbosityThreshold", "Verbosity Threshold")*/);
 	CreateVerbosityThresholdMenuSection(MenuBuilder);
 	MenuBuilder.EndSection();
 
@@ -1322,7 +1322,7 @@ TSharedRef<SWidget> SLogView::MakeCategoryFilterMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
-	MenuBuilder.BeginSection("LogViewShowAllCategories", LOCTEXT("QuickFilterHeading", "Quick Filter"));
+	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("CategoryFilterMenu_Section_QuickFilter", "Quick Filter"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAllCategories", "Show/Hide All"),
@@ -1337,7 +1337,7 @@ TSharedRef<SWidget> SLogView::MakeCategoryFilterMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("LogViewCategoriesEntries", LOCTEXT("CategoriesHeading", "Categories"));
+	MenuBuilder.BeginSection("Categories", LOCTEXT("CategoryFilterMenu_Section_Categories", "Categories"));
 	CreateCategoriesFilterMenuSection(MenuBuilder);
 	MenuBuilder.EndSection();
 

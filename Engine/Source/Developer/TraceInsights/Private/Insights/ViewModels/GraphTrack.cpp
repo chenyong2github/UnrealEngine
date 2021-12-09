@@ -650,7 +650,7 @@ const TSharedPtr<const ITimingEvent> FGraphTrack::GetEvent(float InPosX, float I
 
 void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("Options", LOCTEXT("OptionsHeading", "Options"));
+	MenuBuilder.BeginSection("Options", LOCTEXT("ContextMenu_Section_Options", "Options"));
 	{
 		if (EnumHasAnyFlags(VisibleOptions, EGraphOptions::ShowDebugInfo)) // debug functionality
 		{
@@ -663,7 +663,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_ShowDebugInfo", "Show Debug Info"),
-				LOCTEXT("ContextMenu_ShowDebugInfo_Desc", "Show Debug Info."),
+				LOCTEXT("ContextMenu_ShowDebugInfo_Desc", "Shows debug info."),
 				FSlateIcon(),
 				Action_ShowDebugInfo,
 				NAME_None,
@@ -682,7 +682,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_ShowPoints", "Show Points"),
-				LOCTEXT("ContextMenu_ShowPoints_Desc", "Show points."),
+				LOCTEXT("ContextMenu_ShowPoints_Desc", "Shows points."),
 				FSlateIcon(),
 				Action_ShowPoints,
 				NAME_None,
@@ -701,7 +701,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_ShowPointsWithBorder", "Show Points with Border"),
-				LOCTEXT("ContextMenu_ShowPointsWithBorder_Desc", "Show border around points."),
+				LOCTEXT("ContextMenu_ShowPointsWithBorder_Desc", "Shows border around points."),
 				FSlateIcon(),
 				Action_ShowPointsWithBorder,
 				NAME_None,
@@ -720,7 +720,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_ShowLines", "Show Connected Lines"),
-				LOCTEXT("ContextMenu_ShowLines_Desc", "Show connected lines. Each event is a single point in time."),
+				LOCTEXT("ContextMenu_ShowLines_Desc", "Shows connected lines. Each event is a single point in time."),
 				FSlateIcon(),
 				Action_ShowLines,
 				NAME_None,
@@ -739,7 +739,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_ShowPolygon", "Show Polygon"),
-				LOCTEXT("ContextMenu_ShowPolygon_Desc", "Show filled polygon under the graph series."),
+				LOCTEXT("ContextMenu_ShowPolygon_Desc", "Shows filled polygon under the graph series."),
 				FSlateIcon(),
 				Action_ShowPolygon,
 				NAME_None,
@@ -758,7 +758,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_UseEventDuration", "Use Event Duration"),
-				LOCTEXT("ContextMenu_UseEventDuration_Desc", "Use duration of timing events (for Connected Lines and Polygon)."),
+				LOCTEXT("ContextMenu_UseEventDuration_Desc", "Uses duration of timing events (for Connected Lines and Polygon)."),
 				FSlateIcon(),
 				Action_UseEventDuration,
 				NAME_None,
@@ -777,7 +777,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("ContextMenu_ShowBars", "Show Bars"),
-				LOCTEXT("ContextMenu_ShowBars_Desc", "Show bars. Width of bars corresponds to duration of timing events."),
+				LOCTEXT("ContextMenu_ShowBars_Desc", "Shows bars. Width of bars corresponds to duration of timing events."),
 				FSlateIcon(),
 				Action_ShowBars,
 				NAME_None,
@@ -787,7 +787,7 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Series", LOCTEXT("ContextMenu_Header_Series", "Series"));
+	MenuBuilder.BeginSection("Series", LOCTEXT("ContextMenu_Section_Series", "Series"));
 	{
 		MenuBuilder.AddWidget(
 			SNew(SBox)
