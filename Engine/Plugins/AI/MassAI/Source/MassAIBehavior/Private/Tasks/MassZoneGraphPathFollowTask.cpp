@@ -116,12 +116,6 @@ EStateTreeRunStatus FMassZoneGraphPathFollowTask::EnterState(FStateTreeExecution
 		MASSBEHAVIOR_LOG(Verbose, TEXT("enterstate."));
 	}
 
-	if (Context.GetEnterStateStatus() == EStateTreeRunStatus::Failed)
-	{
-		MASSBEHAVIOR_LOG(Log, TEXT("Transition to the state has been denied by other tasks. Nothing to do."));
-		return EStateTreeRunStatus::Failed;
-	}
-
 	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
 	const FMassZoneGraphTargetLocation& TargetLocation = Context.GetInstanceData(TargetLocationHandle);
 	

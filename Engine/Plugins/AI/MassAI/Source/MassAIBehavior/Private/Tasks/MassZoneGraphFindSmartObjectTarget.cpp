@@ -30,12 +30,6 @@ EStateTreeRunStatus FMassZoneGraphFindSmartObjectTarget::EnterState(FStateTreeEx
 	FMassZoneGraphTargetLocation& SmartObjectLocation = Context.GetInstanceData(SmartObjectLocationHandle);
 	SmartObjectLocation.Reset();
 
-	if (Context.GetEnterStateStatus() == EStateTreeRunStatus::Failed)
-	{
-		MASSBEHAVIOR_LOG(Log, TEXT("Transition to the state has been denied by other tasks. Nothing to do."));
-		return EStateTreeRunStatus::Failed;
-	}
-
 	if (!SOUser.ClaimHandle.SmartObjectID.IsValid())
 	{
 		MASSBEHAVIOR_LOG(Error, TEXT("Invalid claimed smart object ID."));
