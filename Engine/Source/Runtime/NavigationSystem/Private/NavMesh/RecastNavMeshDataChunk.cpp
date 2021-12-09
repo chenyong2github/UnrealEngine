@@ -86,12 +86,23 @@ void URecastNavMeshDataChunk::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
+		auto CleanUpBadVersion = [&Ar, RecastNavMeshSizePos, RecastNavMeshSizeBytes]()
+		{
+			// incompatible, just skip over this data. Navmesh needs rebuilt.
+			Ar.Seek(RecastNavMeshSizePos + RecastNavMeshSizeBytes);
+		};
+
 		if (NavMeshVersion < NAVMESHVER_MIN_COMPATIBLE)
 		{
 			UE_LOG(LogNavigation, Warning, TEXT("%s: URecastNavMeshDataChunk: Nav mesh version %d < Min compatible %d. Nav mesh needs to be rebuilt. \n"), *GetFullName(), NavMeshVersion, NAVMESHVER_MIN_COMPATIBLE);
 
-			// incompatible, just skip over this data. Navmesh needs rebuilt.
-			Ar.Seek(RecastNavMeshSizePos + RecastNavMeshSizeBytes);
+			CleanUpBadVersion();
+		}
+		else if (NavMeshVersion > NAVMESHVER_LATEST)
+		{
+			UE_LOG(LogNavigation, Warning, TEXT("%s: URecastNavMeshDataChunk: Nav mesh version %d > NAVMESHVER_LATEST %d. Newer nav mesh should not be loaded by older versioned code. At a minimum the nav mesh needs to be rebuilt. \n"), *GetFullName(), NavMeshVersion, NAVMESHVER_LATEST);
+
+			CleanUpBadVersion();
 		}
 #if WITH_RECAST
 		else if (RecastNavMeshSizeBytes > 4)
