@@ -499,6 +499,11 @@ struct FNodeWithTraversalContext
 {
 	const UOptimusNode* Node;
 	FOptimusPinTraversalContext TraversalContext;
+
+	bool operator ==(FNodeWithTraversalContext const& RHS) const
+	{
+		return Node == RHS.Node;
+	}
 };
 
 static void CollectNodes(
@@ -530,12 +535,18 @@ static void CollectNodes(
 					{
 						const UOptimusNode *NextNode = ConnectedPin.NodePin->GetOwningNode();
 						FNodeWithTraversalContext CollectedNode{NextNode, ConnectedPin.TraversalContext};
-						if (!VisitedNodes.Contains(NextNode))
-						{
-							WorkingSet.Enqueue(CollectedNode);
+						WorkingSet.Enqueue(CollectedNode);
+ 						if (!VisitedNodes.Contains(NextNode))
+ 						{
 							VisitedNodes.Add(NextNode);
 							OutCollectedNodes.Add(CollectedNode);
-						}
+ 						}
+ 						else
+ 						{
+							// Push the node to the back because to ensure that it is scheduled  earlier then it's referencing node.
+ 							OutCollectedNodes.RemoveSingle(CollectedNode);
+ 							OutCollectedNodes.Add(CollectedNode);
+ 						}
 					}
 				}
 			}
@@ -827,7 +838,7 @@ void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TA
 		if (ensure(Node))
 		{
 			IOptimusComputeKernelProvider* KernelProvider = Cast<IOptimusComputeKernelProvider>(Node);
-			if (KernelProvider != nullptr)
+			if (ensure(KernelProvider != nullptr))
 			{
 				TArray<FOptimusType_CompilerDiagnostic>  Diagnostics;
 
