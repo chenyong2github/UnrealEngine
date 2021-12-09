@@ -27,7 +27,7 @@ float4 OneOverCPUTexCoordScales[MAX_NUM_TEXTURE_REGISTER / 4];
 int4 TexCoordIndices[MAX_NUM_TEXTURE_REGISTER / 4];
 float4 CPUTexelFactor; // In world space units.
 float4 NormalizedComplexity;
-int3 AnalysisParams; // (TextureAnalysisIndex, bOutputScales) or // (TextureAnalysisIndex, TextureResolution)
+int2 AnalysisParams; // (TextureAnalysisIndex, bOutputScales) or // (TextureAnalysisIndex, TextureResolution)
 float PrimitiveAlpha;
 int TexCoordAnalysisIndex;
 float CPULogDistance;
@@ -41,11 +41,6 @@ int VisualizeMode;
 #define bOutputScales (AnalysisParams.y)
 // Texture resolution if we're analysing a single texture
 #define TextureResolution (AnalysisParams.y)
-// Analysis type will be ANALYSIS_TEXTURE_RESOLUTION or ANALYSIS_VIRTUAL_TEXTURE_PENDING_MIPS
-#define TextureAnalysisType (AnalysisParams.z)
-
-#define ANALYSIS_TEXTURE_RESOLUTION				0
-#define ANALYSIS_VIRTUAL_TEXTURE_PENDING_MIPS	1
 
 // Updated MAX_NUM_TEXTURE_REGISTER to 256 
 
@@ -139,7 +134,7 @@ MaterialFloat StoreTexSample(in out FTexCoordScalesParams Params, float4 C, int 
 
 MaterialFloat StoreVTSampleInfo(in out FTexCoordScalesParams Params, VTPageTableResult PageTableResult, uint LayerIndex, int TextureReferenceIndex)
 {
-	if (TextureAnalysisType == ANALYSIS_VIRTUAL_TEXTURE_PENDING_MIPS)
+	if (VisualizeMode == DVSM_VirtualTexturePendingMips)
 	{
 		uint RequestLevel = GetRequestedLevel(PageTableResult);
 
@@ -427,7 +422,7 @@ float4 VisualizeRequiredTextureResolution(in FDebugPSIn DebugInputs, in bool bIs
 	float3 Result = float3(UNDEFINED_ACCURACY, UNDEFINED_ACCURACY, UNDEFINED_ACCURACY);
 	Result *= saturate(Luminance(BaseColor));
 
-	if (TextureAnalysisType == ANALYSIS_TEXTURE_RESOLUTION)
+	if (VisualizeMode == DVSM_RequiredTextureResolution)
 	{
 		if (MaterialParameters.TexCoordScalesParams.RequiredResolution > 0)
 		{
@@ -436,7 +431,7 @@ float4 VisualizeRequiredTextureResolution(in FDebugPSIn DebugInputs, in bool bIs
 			Result *= MaterialParameters.TexCoordScalesParams.TexSample;
 		}
 	}
-	else if (TextureAnalysisType == ANALYSIS_VIRTUAL_TEXTURE_PENDING_MIPS)
+	else if (VisualizeMode == DVSM_VirtualTexturePendingMips)
 	{
 		if (MaterialParameters.TexCoordScalesParams.VTMissingMipCount >= 0)
 		{
