@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntityUtils.h"
+#include "MassEntityTypes.h"
+#include "MassArchetypeTypes.h"
+#include "MassEntitySubsystem.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
 
@@ -29,6 +32,30 @@ EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 	}
 
 	return ExecutionFlags;
+}
+
+void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Mass_CreateSparseChunks");
+
+	TMap<const FArchetypeHandle, TArray<FMassEntityHandle>> ArchetypeToEntities;
+
+	for (const FMassEntityHandle& Entity : Entities)
+	{
+		FArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntity(Entity);
+		TArray<FMassEntityHandle>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
+		PerArchetypeEntities.Add(Entity);
+	}
+
+	for (auto& Pair : ArchetypeToEntities)
+	{
+		// @todo this is a temporary measure to skip entities we've destroyed without the
+		// UMassSpawnerSubsystem::DestroyEntities' caller knowledge. Should be removed once that's addressed.
+		if (Pair.Key.IsValid())
+		{
+			OutChunkCollections.Add(FArchetypeChunkCollection(Pair.Key, Pair.Value));
+		}
+	}
 }
 
 } // namespace UE::Mass::Utils
