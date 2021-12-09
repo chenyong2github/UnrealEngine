@@ -98,7 +98,7 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 	{
 		LightMapUVScaleBias = GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias;
 		ShadowMapUVScaleBias = GetLightmapData(LightmapDataIndex).ShadowMapCoordinateScaleBias;
-		if (InstanceData.HasLightShadowUVBias)
+		if (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS)
 		{
 			LightMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.xy;
 			ShadowMapUVScaleBias.zw = InstanceData.LightMapAndShadowMapUVBias.zw;
