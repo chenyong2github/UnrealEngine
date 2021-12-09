@@ -45,7 +45,7 @@ bool UNeuralNetworkReimportFactory::CanReimport(UObject* Obj, TArray<FString>& O
 	UNeuralNetwork* Network = Cast<UNeuralNetwork>(Obj);
 	if (Network)
 	{
-		UAssetImportData* AssetImportData = Network->GetAssetImportData();
+		TObjectPtr<UAssetImportData> AssetImportData = Network->GetAssetImportData();
 		if (AssetImportData)
 		{
 			const bool bIsValidFile = UNeuralNetworkFactory::IsValidFile(AssetImportData->GetFirstFilename());
@@ -70,7 +70,7 @@ void UNeuralNetworkReimportFactory::SetReimportPaths(UObject* Obj, const TArray<
 	if (Network && ensure(NewReimportPaths.Num() == 1))
 	{
 		Network->Modify();
-		if (UAssetImportData* AssetImportData = Network->GetAssetImportData())
+		if (TObjectPtr<UAssetImportData> AssetImportData = Network->GetAssetImportData())
 		{
 			AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
 		}

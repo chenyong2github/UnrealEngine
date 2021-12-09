@@ -54,7 +54,7 @@ enum class ENeuralSynchronousMode : uint8
 	 * (e.g., UNeuralNetwork::GetOnAsyncRunCompletedDelegate() for asynchronous UNeuralNetwork::Run()).
 	 *
 	 * Very important: It takes ~1 millisecond to start the background thread. If your operation (e.g., your network inference time) runs
-	 * synchronously faster than 1-2 msec, using asynchronous is not recommended because it will slow down both the main and bakground threads.
+	 * synchronously faster than 1-2 milliseconds, using asynchronous is not recommended because it'd slow down both the main and background threads.
 	 */
 	Asynchronous
 };
