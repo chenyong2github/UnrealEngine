@@ -50,21 +50,19 @@ struct FMovieSceneTimecodeSource
 
 	FMovieSceneTimecodeSource(FTimecode InTimecode)
 		: Timecode(InTimecode)
-		, DeltaFrame(FFrameNumber())
 	{}
 
 	FMovieSceneTimecodeSource()
 		: Timecode(FTimecode())
-		, DeltaFrame(FFrameNumber())
 	{}
 
 	FORCEINLINE bool operator==(const FMovieSceneTimecodeSource& Other) const
 	{
-		return Timecode == Other.Timecode && DeltaFrame == Other.DeltaFrame;
+		return Timecode == Other.Timecode;
 	}
 	FORCEINLINE bool operator!=(const FMovieSceneTimecodeSource& Other) const
 	{
-		return Timecode != Other.Timecode || DeltaFrame != Other.DeltaFrame;
+		return Timecode != Other.Timecode;
 	}
 
 public:
@@ -72,10 +70,6 @@ public:
 	/** The global timecode at which this target is based (ie. the timecode at the beginning of the movie scene section when it was recorded) */
 	UPROPERTY(EditAnywhere, Category="Timecode")
 	FTimecode Timecode;
-
-	/** The delta from the original placement of this target */
-	UPROPERTY(VisibleAnywhere, Category="Timecode")
-	FFrameNumber DeltaFrame;
 };
 
 USTRUCT(BlueprintType)

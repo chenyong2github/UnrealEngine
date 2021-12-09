@@ -219,12 +219,7 @@ void UMovieSceneSection::MoveSection(FFrameNumber DeltaFrame)
 			}
 		}
 	}
-
-#if WITH_EDITORONLY_DATA
-	TimecodeSource.DeltaFrame += DeltaFrame;
-#endif
 }
-
 
 TRange<FFrameNumber> UMovieSceneSection::ComputeEffectiveRange() const
 {
