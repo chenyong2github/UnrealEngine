@@ -173,6 +173,7 @@ public:
 	// TODO(RDG) Hook these up to the shader. They are just informing RDG of transitions ATM.
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOParameters, AOParameters)
 		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVGraphics)
 		RDG_TEXTURE_ACCESS(DistanceFieldAOBentNormal, ERHIAccess::SRVGraphics)
 		RDG_TEXTURE_ACCESS(BentNormalHistoryTexture, ERHIAccess::SRVGraphics)
@@ -197,7 +198,6 @@ public:
 	FUpdateHistoryDepthRejectionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		AOParameters.Bind(Initializer.ParameterMap);
 		GeometryAwareUpsampleParameters.Bind(Initializer.ParameterMap);
 		BentNormalHistoryTexture.Bind(Initializer.ParameterMap, TEXT("BentNormalHistoryTexture"));
 		BentNormalHistorySampler.Bind(Initializer.ParameterMap, TEXT("BentNormalHistorySampler"));
@@ -217,13 +217,11 @@ public:
 		FRHITexture* DistanceFieldNormal, 
 		FRHITexture* DistanceFieldAOBentNormal,
 		FRHITexture* BentNormalHistoryTextureValue, 
-		FRHITexture* VelocityTextureValue,
-		const FDistanceFieldAOParameters& Parameters)
+		FRHITexture* VelocityTextureValue)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		GeometryAwareUpsampleParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal, DistanceFieldAOBentNormal);
 
 		SetTextureParameter(
@@ -273,7 +271,6 @@ public:
 	}
 
 private:
-	LAYOUT_FIELD(FAOParameters, AOParameters);
 	LAYOUT_FIELD(FGeometryAwareUpsampleParameters, GeometryAwareUpsampleParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, BentNormalHistoryTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, BentNormalHistorySampler);
@@ -400,6 +397,7 @@ class FGeometryAwareUpsamplePS : public FGlobalShader
 public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOParameters, AOParameters)
 		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVGraphics)
 		RDG_TEXTURE_ACCESS(BentNormalInterpolation, ERHIAccess::SRVGraphics)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -422,7 +420,6 @@ public:
 	FGeometryAwareUpsamplePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		AOParameters.Bind(Initializer.ParameterMap);
 		GeometryAwareUpsampleParameters.Bind(Initializer.ParameterMap);
 	}
 
@@ -430,19 +427,16 @@ public:
 		FRHICommandList& RHICmdList,
 		const FViewInfo& View,
 		FRHITexture* DistanceFieldNormal,
-		FRHITexture* DistanceFieldAOBentNormal,
-		const FDistanceFieldAOParameters& Parameters)
+		FRHITexture* DistanceFieldAOBentNormal)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		GeometryAwareUpsampleParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal, DistanceFieldAOBentNormal);
 	}
 
 private:
-	LAYOUT_FIELD(FAOParameters, AOParameters);
 	LAYOUT_FIELD(FGeometryAwareUpsampleParameters, GeometryAwareUpsampleParameters);
 };
 
@@ -462,6 +456,7 @@ void AllocateOrReuseAORenderTarget(FRDGBuilder& GraphBuilder, FRDGTextureRef& Te
 void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef DistanceFieldAOBentNormal, FRDGTextureRef DistanceFieldNormal, FRDGTextureRef BentNormalInterpolation, const FDistanceFieldAOParameters& Parameters)
 {
 	auto* PassParameters = GraphBuilder.AllocParameters<FGeometryAwareUpsamplePS::FParameters>();
+	PassParameters->AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
 	PassParameters->DistanceFieldNormal = DistanceFieldNormal;
 	PassParameters->BentNormalInterpolation = BentNormalInterpolation;
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(DistanceFieldAOBentNormal, ERenderTargetLoadAction::ELoad);
@@ -470,7 +465,7 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 		RDG_EVENT_NAME("GeometryAwareUpsample"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, DistanceFieldNormal, BentNormalInterpolation, Parameters](FRHICommandList& RHICmdList)
+		[&View, DistanceFieldNormal, BentNormalInterpolation](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
 
@@ -488,7 +483,7 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 		TShaderMapRef<FGeometryAwareUpsamplePS> PixelShader(View.ShaderMap);
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-		PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), BentNormalInterpolation->GetRHI(), Parameters);
+		PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), BentNormalInterpolation->GetRHI());
 
 		DrawRectangle(
 			RHICmdList,
@@ -551,6 +546,7 @@ void UpdateHistory(
 
 				auto* PassParameters = GraphBuilder.AllocParameters<FUpdateHistoryDepthRejectionPS::FParameters>();
 				PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+				PassParameters->AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
 				PassParameters->DistanceFieldNormal = DistanceFieldNormal;
 				PassParameters->DistanceFieldAOBentNormal = BentNormalInterpolation;
 				PassParameters->BentNormalHistoryTexture = BentNormalHistoryTexture;
@@ -564,7 +560,7 @@ void UpdateHistory(
 					RDG_EVENT_NAME("UpdateHistory"),
 					PassParameters,
 					ERDGPassFlags::Raster,
-					[VertexShader, PixelShader, &View, DistanceFieldNormal, BentNormalInterpolation, BentNormalHistoryTexture, VelocityTexture, PrevHistoryViewRect, Parameters, SceneTextureExtent]
+					[VertexShader, PixelShader, &View, DistanceFieldNormal, BentNormalInterpolation, BentNormalHistoryTexture, VelocityTexture, PrevHistoryViewRect, SceneTextureExtent]
 					(FRHICommandList& RHICmdList)
 				{
 					RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
@@ -585,8 +581,7 @@ void UpdateHistory(
 						DistanceFieldNormal->GetRHI(),
 						BentNormalInterpolation->GetRHI(),
 						BentNormalHistoryTexture->GetRHI(),
-						VelocityTexture ? VelocityTexture->GetRHI() : nullptr,
-						Parameters);
+						VelocityTexture ? VelocityTexture->GetRHI() : nullptr);
 
 					DrawRectangle(
 						RHICmdList,

@@ -21,7 +21,6 @@
 #include "Lumen/Lumen.h"
 #include "Strata/Strata.h"
 
-IMPLEMENT_TYPE_LAYOUT(FAOParameters);
 IMPLEMENT_TYPE_LAYOUT(FDFAOUpsampleParameters);
 IMPLEMENT_TYPE_LAYOUT(FScreenGridParameters);
 
@@ -243,6 +242,20 @@ float GAOConeHalfAngle = FMath::Acos(1 - 1.0f / (float)UE_ARRAY_COUNT(SpacedVect
 // Must match shader code
 uint32 GAONumConeSteps = 10;
 
+FAOParameters DistanceField::SetupAOShaderParameters(const FDistanceFieldAOParameters& Parameters)
+{
+	const float AOLargestSampleOffset = Parameters.ObjectMaxOcclusionDistance / (1 + FMath::Tan(GAOConeHalfAngle));
+
+	FAOParameters ShaderParameters;
+	ShaderParameters.AOObjectMaxDistance = Parameters.ObjectMaxOcclusionDistance;
+	ShaderParameters.AOStepScale = AOLargestSampleOffset / FMath::Pow(2.0f, GAOStepExponentScale * (GAONumConeSteps - 1));
+	ShaderParameters.AOStepExponentScale = GAOStepExponentScale;
+	ShaderParameters.AOMaxViewDistance = GetMaxAOViewDistance();
+	ShaderParameters.AOGlobalMaxOcclusionDistance = Parameters.GlobalMaxOcclusionDistance;
+
+	return ShaderParameters;
+}
+
 bool bListMemoryNextFrame = false;
 
 void OnListMemory(UWorld* InWorld)
@@ -273,11 +286,13 @@ class FComputeDistanceFieldNormalPS : public FGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FComputeDistanceFieldNormalPS);
+	SHADER_USE_PARAMETER_STRUCT(FComputeDistanceFieldNormalPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOParameters, AOParameters)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -293,37 +308,21 @@ public:
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GDistanceFieldAOTileSizeY);
 		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
-
-	FComputeDistanceFieldNormalPS() = default;
-	FComputeDistanceFieldNormalPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		AOParameters.Bind(Initializer.ParameterMap);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FDistanceFieldAOParameters& Parameters)
-	{
-		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
-	}
-
-private:
-	LAYOUT_FIELD(FAOParameters, AOParameters);
 };
 
-IMPLEMENT_SHADER_TYPE(,FComputeDistanceFieldNormalPS,TEXT("/Engine/Private/DistanceFieldScreenGridLighting.usf"),TEXT("ComputeDistanceFieldNormalPS"),SF_Pixel);
-
+IMPLEMENT_GLOBAL_SHADER(FComputeDistanceFieldNormalPS, "/Engine/Private/DistanceFieldScreenGridLighting.usf", "ComputeDistanceFieldNormalPS", SF_Pixel);
 
 class FComputeDistanceFieldNormalCS : public FGlobalShader
 {
 public:
 	DECLARE_GLOBAL_SHADER(FComputeDistanceFieldNormalCS);
+	SHADER_USE_PARAMETER_STRUCT(FComputeDistanceFieldNormalCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOParameters, AOParameters)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWDistanceFieldNormal)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -339,26 +338,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GDistanceFieldAOTileSizeY);
 		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
-
-	FComputeDistanceFieldNormalCS() = default;
-	FComputeDistanceFieldNormalCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		AOParameters.Bind(Initializer.ParameterMap);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FDistanceFieldAOParameters& Parameters)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
-	}
-
-private:
-	LAYOUT_FIELD(FAOParameters, AOParameters);
 };
 
-IMPLEMENT_SHADER_TYPE(,FComputeDistanceFieldNormalCS,TEXT("/Engine/Private/DistanceFieldScreenGridLighting.usf"),TEXT("ComputeDistanceFieldNormalCS"),SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FComputeDistanceFieldNormalCS, "/Engine/Private/DistanceFieldScreenGridLighting.usf", "ComputeDistanceFieldNormalCS", SF_Compute);
 
 void ComputeDistanceFieldNormal(
 	FRDGBuilder& GraphBuilder,
@@ -381,23 +363,12 @@ void ComputeDistanceFieldNormal(
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
 			PassParameters->RWDistanceFieldNormal = GraphBuilder.CreateUAV(DistanceFieldNormal);
 
 			TShaderMapRef<FComputeDistanceFieldNormalCS> ComputeShader(View.ShaderMap);
 
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("ComputeNormalCS"),
-				PassParameters,
-				ERDGPassFlags::Compute,
-				[ComputeShader, PassParameters, Parameters, GroupSizeX, GroupSizeY](FRHICommandList& RHICmdList)
-			{
-				FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
-				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-				ComputeShader->SetParameters(RHICmdList, Parameters);
-				SetShaderParameters(RHICmdList, ComputeShader, ShaderRHI, *PassParameters);
-				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
-				UnsetShaderUAVs(RHICmdList, ComputeShader, ShaderRHI);
-			});
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ComputeNormalCS"), ComputeShader, PassParameters, FIntVector(GroupSizeX, GroupSizeY, 1));
 		}
 	}
 	else
@@ -411,13 +382,14 @@ void ComputeDistanceFieldNormal(
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
+			PassParameters->AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(DistanceFieldNormal, ViewIndex == 0 ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ComputeNormal"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[&View, PassParameters, Parameters](FRHICommandList& RHICmdList)
+				[&View, PassParameters](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(0, 0, 0.0f, View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor, 1.0f);
 
@@ -438,7 +410,6 @@ void ComputeDistanceFieldNormal(
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-				PixelShader->SetParameters(RHICmdList, View, Parameters);
 
 				DrawRectangle(
 					RHICmdList,

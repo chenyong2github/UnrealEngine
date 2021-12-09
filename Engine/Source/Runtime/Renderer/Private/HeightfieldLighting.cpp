@@ -1094,6 +1094,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAOScreenGridParameters, AOScreenGridParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOParameters, AOParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVCompute)
 	END_SHADER_PARAMETER_STRUCT()
@@ -1119,7 +1120,6 @@ public:
 		: FGlobalShader(Initializer)
 	{
 		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		AOParameters.Bind(Initializer.ParameterMap);
 		ScreenGridParameters.Bind(Initializer.ParameterMap);
 		HeightfieldDescriptionParameters.Bind(Initializer.ParameterMap);
 		HeightfieldTextureParameters.Bind(Initializer.ParameterMap);
@@ -1135,13 +1135,11 @@ public:
 		const FViewInfo& View,
 		UTexture2D* HeightfieldTextureValue,
 		int32 NumHeightfieldsValue,
-		FRHITexture* DistanceFieldNormal,
-		const FDistanceFieldAOParameters& Parameters)
+		FRHITexture* DistanceFieldNormal)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
 		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
 		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, nullptr, nullptr);
@@ -1163,8 +1161,6 @@ public:
 	}
 
 private:
-
-	LAYOUT_FIELD(FAOParameters, AOParameters);
 	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
 	LAYOUT_FIELD(FHeightfieldDescriptionParameters, HeightfieldDescriptionParameters);
 	LAYOUT_FIELD(FHeightfieldTextureParameters, HeightfieldTextureParameters);
@@ -1195,6 +1191,7 @@ void FHeightfieldLightingViewInfo::ComputeOcclusionForScreenGrid(
 			{
 				auto* PassParameters = GraphBuilder.AllocParameters<FCalculateHeightfieldOcclusionScreenGridCS::FParameters>();
 				PassParameters->AOScreenGridParameters = AOScreenGridParameters;
+				PassParameters->AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
 				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 				PassParameters->DistanceFieldNormal = DistanceFieldNormal;
 
@@ -1206,7 +1203,7 @@ void FHeightfieldLightingViewInfo::ComputeOcclusionForScreenGrid(
 					RDG_EVENT_NAME("HeightfieldOcclusion"),
 					PassParameters,
 					ERDGPassFlags::Compute,
-					[PassParameters, ComputeShader, &View, Parameters, DistanceFieldNormal, &HeightfieldDescriptions, HeightfieldTexture, DownsampleFactor](FRHICommandListImmediate& RHICmdList)
+					[PassParameters, ComputeShader, &View, DistanceFieldNormal, &HeightfieldDescriptions, HeightfieldTexture, DownsampleFactor](FRHICommandListImmediate& RHICmdList)
 					{
 						UploadHeightfieldDescriptions(HeightfieldDescriptions, FVector2D(1, 1), 1.0f / DownsampleFactor);
 
@@ -1215,7 +1212,7 @@ void FHeightfieldLightingViewInfo::ComputeOcclusionForScreenGrid(
 
 						RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
-						ComputeShader->SetParameters(RHICmdList, View, HeightfieldTexture, HeightfieldDescriptions.Num(), DistanceFieldNormal->GetRHI(), Parameters);
+						ComputeShader->SetParameters(RHICmdList, View, HeightfieldTexture, HeightfieldDescriptions.Num(), DistanceFieldNormal->GetRHI());
 						SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
 
 						DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
