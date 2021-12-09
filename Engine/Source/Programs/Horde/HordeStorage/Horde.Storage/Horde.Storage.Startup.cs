@@ -228,6 +228,10 @@ namespace Horde.Storage
             services.AddSingleton(serviceType: typeof(ILastAccessCache<RefRecord>), lastAccessTracker);
             services.AddSingleton(serviceType: typeof(ILastAccessTracker<RefRecord>), lastAccessTracker);
 
+            LastAccessTrackerReference lastAccessTrackerReferences = new LastAccessTrackerReference();
+            services.AddSingleton(serviceType: typeof(ILastAccessCache<LastAccessRecord>), lastAccessTrackerReferences);
+            services.AddSingleton(serviceType: typeof(ILastAccessTracker<LastAccessRecord>), lastAccessTrackerReferences);
+
             services.AddSingleton(serviceType: typeof(ILeaderElection), CreateLeaderElection);
 
             services.AddSingleton(Configuration);

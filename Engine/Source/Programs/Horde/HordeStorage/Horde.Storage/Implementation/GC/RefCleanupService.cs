@@ -16,6 +16,7 @@ namespace Horde.Storage.Implementation
     {
         private readonly IOptionsMonitor<GCSettings> _settings;
         private readonly ILeaderElection _leaderElection;
+        private readonly IReferencesStore _referencesStore;
         private volatile bool _alreadyPolling;
         private readonly ILogger _logger = Log.ForContext<RefCleanupService>();
 
@@ -32,11 +33,12 @@ namespace Horde.Storage.Implementation
             public IRefCleanup RefCleanup { get; }
         }
 
-        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefsStore store, IRefCleanup refCleanup, ILeaderElection leaderElection) : 
+        public RefCleanupService(IOptionsMonitor<GCSettings> settings, IRefsStore store, IRefCleanup refCleanup, ILeaderElection leaderElection, IReferencesStore referencesStore) : 
             base(serviceName: nameof(RefCleanupService), settings.CurrentValue.RefCleanupPollFrequency, new RefCleanupState(store, refCleanup))
         {
             _settings = settings;
             _leaderElection = leaderElection;
+            _referencesStore = referencesStore;
         }
 
         public override bool ShouldStartPolling()
@@ -58,6 +60,23 @@ namespace Horde.Storage.Implementation
                     return false;
                 }
                 await foreach (NamespaceId ns in state.Refs.GetNamespaces().WithCancellation(cancellationToken))
+                {
+                    using Scope scope = Tracer.Instance.StartActive("gc.refs");
+                    scope.Span.ResourceName = ns.ToString();
+
+                    _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
+                    try
+                    {
+                        List<OldRecord> oldRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
+                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns, oldRecords.Count);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
+                    }
+                }
+
+                await foreach (NamespaceId ns in _referencesStore.GetNamespaces().WithCancellation(cancellationToken))
                 {
                     using Scope scope = Tracer.Instance.StartActive("gc.refs");
                     scope.Span.ResourceName = ns.ToString();

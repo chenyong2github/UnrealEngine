@@ -38,6 +38,10 @@ namespace Horde.Storage.FunctionalTests.GC
                             // we are not reading the base appSettings here as we want exact control over what runs in the tests
                             .AddJsonFile("appsettings.Testing.json", false)
                             .AddEnvironmentVariables()
+                            .AddInMemoryCollection(new List<KeyValuePair<string, string>>()
+                            {
+                                new KeyValuePair<string, string>("GC:CleanNamespacesV1:0", TestNamespace.ToString()),
+                            })
                             .Build();
 
             Logger logger = new LoggerConfiguration()

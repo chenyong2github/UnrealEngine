@@ -33,18 +33,23 @@ namespace Horde.Storage.Implementation
         private readonly IReferenceResolver _referenceResolver;
         private readonly IReplicationLog _replicationLog;
         private readonly IBlobIndex _blobIndex;
+        private readonly ILastAccessTracker<LastAccessRecord> _lastAccessTracker;
 
-        public ObjectService(IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex)
+        public ObjectService(IReferencesStore referencesStore, IBlobService blobService, IReferenceResolver referenceResolver, IReplicationLog replicationLog, IBlobIndex blobIndex, ILastAccessTracker<LastAccessRecord> lastAccessTracker)
         {
             _referencesStore = referencesStore;
             _blobService = blobService;
             _referenceResolver = referenceResolver;
             _replicationLog = replicationLog;
             _blobIndex = blobIndex;
+            _lastAccessTracker = lastAccessTracker;
         }
 
         public async Task<(ObjectRecord, BlobContents)> Get(NamespaceId ns, BucketId bucket, IoHashKey key, string[]? fields = null)
         {
+            // we do not wait for the last access tracking as it does not matter when it completes
+            Task lastAccessTask = _lastAccessTracker.TrackUsed(new LastAccessRecord(ns, bucket, key));
+
             ObjectRecord o = await _referencesStore.Get(ns, bucket, key);
 
             BlobContents blobContents;
