@@ -71,13 +71,17 @@ struct FMassViewerInfoFragment
 
 	// Square distances to each valid viewers (Required when FLODLogic::bStoreInfoPerViewer is enabled)
 	TArray<float> DistanceToViewerSq;
+};
 
-	// Closest distance to frustum (Required when FLODLogic::bDoVisibilityLogic is enabled)
-	float ClosestDistanceToFrustum;
+struct FMassInfoPerViewerFragment
+{
+	// Square distances to each valid viewers (Required when FLODLogic::bStoreInfoPerViewer is enabled)
+	TArray<float> DistanceToViewerSq;
 
 	// Distances to each valid viewers frustums (Required when FLODLogic::bDoVisibilityLogic and FLODLogic::bStoreInfoPerViewer are enabled)
 	TArray<float> DistanceToFrustum;
 };
+
 */
 
 /**
@@ -89,17 +93,17 @@ struct FMassViewerInfoFragment
 	TEnumAsByte<EMassLOD::Type> LOD;
 	TEnumAsByte<EMassLOD::Type> PrevLOD;
 
-	// Per viewer LOD information (Required when FLODLogic::bCalculateLODPerViewer is enabled)
-	TArray<EMassLOD::Type> LODPerViewer;
-	TArray<EMassLOD::Type> PrevLODPerViewer;
+	// Visibility information (Required when FLODLogic::bDoVisibilityLogic is enabled)
+	EMassVisibility Visibility;
+	EMassVisibility PrevVisibility
 
 	// Floating point LOD value, scaling from 0 to 3, 0 highest LOD and 3 being completely off LOD 
 	// (Required only when FLODLogic::bCalculateLODSignificance is enabled)
 	float LODSignificance = 0.0f; // 
 
-	// Visibility information (Required when FLODLogic::bDoVisibilityLogic is enabled)
-	EMassVisibility Visibility;
-	EMassVisibility PrevVisibility
+	// Per viewer LOD information (Required when FLODLogic::bCalculateLODPerViewer is enabled)
+	TArray<EMassLOD::Type> LODPerViewer;
+	TArray<EMassLOD::Type> PrevLODPerViewer;
 
 	// Visibility information per viewer (Required when FLODLogic::bDoVisibilityLogic and FLODLogicbStoreInfoPerViewer are enabled)
 	TArray<EMassVisibility> VisibilityPerViewer;
@@ -166,4 +170,7 @@ protected:
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassVisibility, PrevVisibilityPerViewer);
 
 	TArray<FViewerLODInfo> Viewers;
+
+	/** Optional type to use when the templated parameter is not used */
+	typedef void* FOptionalDefaultType;
 };

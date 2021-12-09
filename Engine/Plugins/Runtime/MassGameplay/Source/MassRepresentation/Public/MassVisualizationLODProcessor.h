@@ -107,7 +107,7 @@ void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& Entit
 		{
 			TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
 			TConstArrayView<TMassViewerLODInfoFragment> ViewerInfoList = Context.GetFragmentView<TMassViewerLODInfoFragment>();
-			LODCalculator.CalculateLOD(Context, RepresentationLODList, ViewerInfoList);
+			LODCalculator.CalculateLOD(Context, ViewerInfoList, RepresentationLODList);
 		};
 		CloseEntityQuery.ForEachEntityChunk(EntitySubsystem, Context, CalculateLOD);
 
@@ -129,7 +129,7 @@ void UMassVisualizationLODProcessor::ExecuteInternal(UMassEntitySubsystem& Entit
 			{
 				TConstArrayView<TMassViewerLODInfoFragment> ViewerInfoList = Context.GetFragmentView<TMassViewerLODInfoFragment>();
 				TArrayView<FMassRepresentationLODFragment> RepresentationLODList = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
-				LODCalculator.AdjustLODFromCount(Context, RepresentationLODList, ViewerInfoList);
+				LODCalculator.AdjustLODFromCount(Context, ViewerInfoList, RepresentationLODList);
 			});
 			// Far entities do not need to maximice count
 		}
