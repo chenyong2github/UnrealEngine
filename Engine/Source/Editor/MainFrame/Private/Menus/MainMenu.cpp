@@ -260,38 +260,43 @@ void FMainMenu::RegisterWindowMenu()
 void FMainMenu::RegisterHelpMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.MainMenu.Help");
+
+	FToolMenuSection& LearnSection = Menu->AddSection("Learn", NSLOCTEXT("MainHelpMenu", "LearnSection", "Learn"));
+	{
+		LearnSection.AddMenuEntry(FMainFrameCommands::Get().DocumentationHome);
+		LearnSection.AddMenuEntry(FMainFrameCommands::Get().VisitOnlineLearning);
+	}
+
+	FToolMenuSection& ReferenceSection = Menu->AddSection("Reference", NSLOCTEXT("MainHelpMenu", "ReferenceSection", "Reference"));
+	{
+		ReferenceSection.AddMenuEntry(FMainFrameCommands::Get().BrowseAPIReference);
+		ReferenceSection.AddMenuEntry(FMainFrameCommands::Get().BrowseCVars);
+	}
+
+	FToolMenuSection& HelpOnlineSection = Menu->AddSection("HelpOnline", NSLOCTEXT("MainHelpMenu", "HelpOnlineSection", "Help"));
+	{
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitForums);
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSearchForAnswersPage);
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSupportWebSite);
+	}
+
 	FToolMenuSection& BugReportingSection = Menu->AddSection("BugReporting", NSLOCTEXT("MainHelpMenu", "BugsReporting", "Bugs"));
 	{
 		BugReportingSection.AddMenuEntry(FMainFrameCommands::Get().ReportABug);
 		BugReportingSection.AddMenuEntry(FMainFrameCommands::Get().OpenIssueTracker);
 	}
 
-	FToolMenuSection& HelpOnlineSection = Menu->AddSection("HelpOnline", NSLOCTEXT("MainHelpMenu", "Online", "Help Online"));
-	{
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSupportWebSite);
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitForums);
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSearchForAnswersPage);
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitOnlineLearning);
-
-
-
-		const FText SupportWebSiteLabel = NSLOCTEXT("MainHelpMenu", "VisitUnrealEngineSupportWebSite", "Unreal Engine Support Web Site...");
-
-		HelpOnlineSection.AddSeparator("EpicGamesHelp");
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitEpicGamesDotCom);
-
-		HelpOnlineSection.AddSeparator("Credits");
-		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().CreditsUnrealEd);
-	}
-
-#if !PLATFORM_MAC // Handled by app's menu in menu bar
 	FToolMenuSection& HelpApplicationSection = Menu->AddSection("HelpApplication", NSLOCTEXT("MainHelpMenu", "Application", "Application"));
 	{
-		const FText AboutWindowTitle = NSLOCTEXT("MainHelpMenu", "AboutUnrealEditor", "About Unreal Editor...");
 
-		HelpApplicationSection.AddMenuEntry(FMainFrameCommands::Get().AboutUnrealEd, AboutWindowTitle);
-	}
+#if !PLATFORM_MAC // Handled by app's menu in menu bar
+		HelpApplicationSection.AddMenuEntry(FMainFrameCommands::Get().AboutUnrealEd);
 #endif
+
+		HelpApplicationSection.AddMenuEntry(FMainFrameCommands::Get().CreditsUnrealEd);
+		HelpApplicationSection.AddSeparator("EpicGamesHelp");
+		HelpApplicationSection.AddMenuEntry(FMainFrameCommands::Get().VisitEpicGamesDotCom);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

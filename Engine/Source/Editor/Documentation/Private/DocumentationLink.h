@@ -15,7 +15,7 @@ public:
 	static FString GetUrlRoot()
 	{
 		FString Url;
-		FUnrealEdMisc::Get().GetURL( TEXT("UDNDocsURL"), Url, true );
+		FUnrealEdMisc::Get().GetURL( TEXT("DocumentationURL"), Url, true );
 
 		if ( !Url.EndsWith( TEXT( "/" ) ) )
 		{
@@ -33,7 +33,7 @@ public:
 	static FString GetHomeUrl(const FCultureRef& Culture)
 	{
 		FString Url;
-		FUnrealEdMisc::Get().GetURL( TEXT("UDNURL"), Url, true );
+		FUnrealEdMisc::Get().GetURL( TEXT("DocumentationURL"), Url, true );
 		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(Url, Culture);
 
 		return Url;

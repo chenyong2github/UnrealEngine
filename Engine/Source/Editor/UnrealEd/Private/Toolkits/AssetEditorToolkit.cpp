@@ -982,11 +982,16 @@ void FAssetEditorToolkit::FillDefaultAssetMenuCommands(FToolMenuSection& InSecti
 
 void FAssetEditorToolkit::FillDefaultHelpMenuCommands(FToolMenuSection& InSection)
 {
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("Editor"), GetBaseToolkitName());
-	const FText ToolTip = FText::Format(LOCTEXT("BrowseDocumentationTooltip", "Browse {Editor} documentation..."), Args);
+	// Only show the documentation menu item if the asset editor has specified a resource.
+	FString DocLink = GetDocumentationLink();
+	if (DocLink != "%ROOT%") 
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Editor"), GetBaseToolkitName());
 
-	InSection.AddMenuEntry(FGlobalEditorCommonCommands::Get().OpenDocumentation, ToolTip);
+		const FText ToolTip = FText::Format(LOCTEXT("BrowseDocumentationTooltip", "Details on using the {Editor}"), Args);
+		InSection.AddMenuEntry(FGlobalEditorCommonCommands::Get().OpenDocumentation, FText::Format(LOCTEXT("AssetEditorDocumentationMenuLabel", "{Editor} Documentation"), Args), ToolTip);
+	}
 }
 
 FName FAssetEditorToolkit::GetToolMenuAppName() const

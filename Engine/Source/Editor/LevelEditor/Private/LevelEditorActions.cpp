@@ -181,16 +181,6 @@ void FLevelEditorActionCallbacks::BrowseDocumentation()
 	IDocumentation::Get()->OpenHome(FDocumentationSourceInfo(TEXT("help_menu")));
 }
 
-void FLevelEditorActionCallbacks::BrowseAPIReference()
-{
-	IDocumentation::Get()->OpenAPIHome(FDocumentationSourceInfo(TEXT("help_menu")));
-}
-
-void FLevelEditorActionCallbacks::BrowseCVars()
-{
-	GEditor->Exec(GetWorld(), TEXT("help"));
-}
-
 void FLevelEditorActionCallbacks::BrowseViewportControls()
 {
 	FString URL;
@@ -3329,10 +3319,8 @@ FLevelEditorCommands::FLevelEditorCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FLevelEditorCommands::RegisterCommands()
 {
-	UI_COMMAND( BrowseDocumentation, "Documentation...", "Opens the main documentation page, and allows you to search across all UE support sites.", EUserInterfaceActionType::Button, FInputChord( EKeys::F1 ) );
-	UI_COMMAND( BrowseAPIReference, "API Reference...", "Opens the API reference documentation", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( BrowseCVars, "Console Variables", "Creates an HTML file to browse the console variables and commands (console command 'help')", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( BrowseViewportControls, "Viewport Controls...", "Opens the viewport controls cheat sheet", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( BrowseDocumentation, "Level Editor Documentation", "Details on how to use the Level Editor", EUserInterfaceActionType::Button, FInputChord( EKeys::F1 ) );
+	UI_COMMAND( BrowseViewportControls, "Viewport Controls", "Ways to move around in the 3D viewport", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( NewLevel, "New Level...", "Create a new level, or choose a level template to start from.", EUserInterfaceActionType::Button, FInputChord( EModifierKey::Control, EKeys::N ) );
 	UI_COMMAND( OpenLevel, "Open Level...", "Loads an existing level", EUserInterfaceActionType::Button, FInputChord( EModifierKey::Control, EKeys::O ) );
 	UI_COMMAND( Save, "Save Current Level", "Saves the current level to disk", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S) );

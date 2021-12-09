@@ -52,9 +52,11 @@ public:
 	TSharedPtr< FUICommandInfo > OpenWidgetReflector;
 	TSharedPtr< FUICommandInfo > OpenMarketplace;
 
+	TSharedPtr< FUICommandInfo > DocumentationHome;
 	TSharedPtr< FUICommandInfo > VisitOnlineLearning;
+	TSharedPtr< FUICommandInfo > BrowseAPIReference;
+	TSharedPtr< FUICommandInfo > BrowseCVars;
 	TSharedPtr< FUICommandInfo > VisitForums;
-	TSharedPtr< FUICommandInfo > VisitAskAQuestionPage;
 	TSharedPtr< FUICommandInfo > VisitSearchForAnswersPage;
 	TSharedPtr< FUICommandInfo > ReportABug;
 	TSharedPtr< FUICommandInfo > OpenIssueTracker;
@@ -147,9 +149,6 @@ public:
 	/** Opens the issue tracker page */
 	static void OpenIssueTracker();
 
-	/** Visits the "ask a question" page on UDN */
-	static void VisitAskAQuestionPage();
-
 	/** Visits the "search for answers" page on UDN */
 	static void VisitSearchForAnswersPage();
 
@@ -159,8 +158,17 @@ public:
 	/** Visits EpicGames.com */
 	static void VisitEpicGamesDotCom();
 
+	/** Opens the documentation home page*/
+	static void DocumentationHome();
+
 	/** Visits The Unreal Online Learning page*/
 	static void VisitOnlineLearning();
+
+	/** Opens the API documentation site */
+	static void BrowseAPIReference();
+
+	/** Creates an HTML file to browse the console variables and commands */
+	static void BrowseCVars();
 
 	static void VisitForums();
 

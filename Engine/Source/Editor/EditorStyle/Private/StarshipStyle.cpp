@@ -4285,30 +4285,30 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 	// Level editor tool bar icons
 #if WITH_EDITOR
 	{
-		Set("LevelEditor.BrowseDocumentation",     new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
-		Set("LevelEditor.BrowseAPIReference",      new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
-		Set("LevelEditor.BrowseCVars",             new IMAGE_BRUSH_SVG("Starship/Common/Console", Icon16x16));
-		Set("LevelEditor.Tutorials",               new IMAGE_BRUSH_SVG("Starship/Common/Tutorials", Icon16x16));
-		Set("LevelEditor.BrowseViewportControls",  new IMAGE_BRUSH_SVG("Starship/Common/ViewportControls", Icon16x16));
+		Set("LevelEditor.BrowseDocumentation",      new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
+		Set("LevelEditor.Tutorials",                new IMAGE_BRUSH_SVG("Starship/Common/Tutorials", Icon16x16));
+		Set("LevelEditor.BrowseViewportControls",   new IMAGE_BRUSH_SVG("Starship/Common/ViewportControls", Icon16x16));
 		Set("LevelEditor.PasteHere",				new IMAGE_BRUSH_SVG("Starship/Actors/paste-here", Icon16x16));
 
-		Set("MainFrame.ToggleFullscreen",          new IMAGE_BRUSH_SVG("Starship/Common/EnableFullscreen", Icon16x16));
-		Set("MainFrame.LoadLayout",                new IMAGE_BRUSH_SVG("Starship/Common/LayoutLoad", Icon16x16));
-		Set("MainFrame.SaveLayout",                new IMAGE_BRUSH_SVG("Starship/Common/LayoutSave", Icon16x16));
-		Set("MainFrame.RemoveLayout",              new IMAGE_BRUSH_SVG("Starship/Common/LayoutRemove", Icon16x16));
+		Set("MainFrame.ToggleFullscreen",           new IMAGE_BRUSH_SVG("Starship/Common/EnableFullscreen", Icon16x16));
+		Set("MainFrame.LoadLayout",                 new IMAGE_BRUSH_SVG("Starship/Common/LayoutLoad", Icon16x16));
+		Set("MainFrame.SaveLayout",                 new IMAGE_BRUSH_SVG("Starship/Common/LayoutSave", Icon16x16));
+		Set("MainFrame.RemoveLayout",               new IMAGE_BRUSH_SVG("Starship/Common/LayoutRemove", Icon16x16));
 
-		Set("MainFrame.OpenIssueTracker",          new IMAGE_BRUSH_SVG("Starship/Common/IssueTracker", Icon16x16));
-		Set("MainFrame.ReportABug",                new IMAGE_BRUSH_SVG("Starship/Common/Bug", Icon16x16));
+		Set("MainFrame.OpenIssueTracker",           new IMAGE_BRUSH_SVG("Starship/Common/IssueTracker", Icon16x16));
+		Set("MainFrame.ReportABug",                 new IMAGE_BRUSH_SVG("Starship/Common/Bug", Icon16x16));
 
-		Set("MainFrame.VisitAskAQuestionPage",     new IMAGE_BRUSH_SVG("Starship/Menus/Bug", Icon16x16));
-		Set("MainFrame.VisitOnlineLearning",	   new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
-		Set("MainFrame.VisitWiki",                 new IMAGE_BRUSH_SVG("Starship/Common/WebBrowser", Icon16x16));
-		Set("MainFrame.VisitForums",               new IMAGE_BRUSH_SVG("Starship/Common/WebBrowser", Icon16x16));
-		Set("MainFrame.VisitSearchForAnswersPage", new IMAGE_BRUSH_SVG("Starship/Common/WebBrowser", Icon16x16));
-		Set("MainFrame.VisitSupportWebSite",       new IMAGE_BRUSH_SVG("Starship/Common/Support", Icon16x16));
-		Set("MainFrame.VisitEpicGamesDotCom",      new IMAGE_BRUSH_SVG("About/EpicGamesLogo", Icon16x16));
-		Set("MainFrame.AboutUnrealEd",             new IMAGE_BRUSH_SVG("About/UnrealLogo", Icon16x16));
-		Set("MainFrame.CreditsUnrealEd",           new IMAGE_BRUSH_SVG("Starship/Common/Credits", Icon16x16));
+		Set("SystemWideCommands.OpenDocumentation", new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
+		Set("MainFrame.DocumentationHome",	        new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
+		Set("MainFrame.VisitOnlineLearning",	    new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
+		Set("MainFrame.BrowseAPIReference",         new IMAGE_BRUSH_SVG("Starship/Common/Documentation", Icon16x16));
+		Set("MainFrame.BrowseCVars",                new IMAGE_BRUSH_SVG("Starship/Common/Console", Icon16x16));
+		Set("MainFrame.VisitForums",                new IMAGE_BRUSH_SVG("Starship/Common/WebBrowser", Icon16x16));
+		Set("MainFrame.VisitSearchForAnswersPage",  new IMAGE_BRUSH_SVG("Starship/Common/WebBrowser", Icon16x16));
+		Set("MainFrame.VisitSupportWebSite",        new IMAGE_BRUSH_SVG("Starship/Common/Support", Icon16x16));
+		Set("MainFrame.VisitEpicGamesDotCom",       new IMAGE_BRUSH_SVG("About/EpicGamesLogo", Icon16x16));
+		Set("MainFrame.AboutUnrealEd",              new IMAGE_BRUSH_SVG("About/UnrealLogo", Icon16x16));
+		Set("MainFrame.CreditsUnrealEd",            new IMAGE_BRUSH_SVG("Starship/Common/Credits", Icon16x16));
 
 		Set( "EditorViewport.SelectMode", new IMAGE_BRUSH_SVG("Starship/EditorViewport/select", Icon16x16) );
 		Set( "EditorViewport.TranslateMode", new IMAGE_BRUSH_SVG( "Starship/EditorViewport/translate", Icon16x16 ) );

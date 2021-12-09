@@ -213,15 +213,9 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 		static void ExtendHelpMenu()
 		{
 			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Help", "MainFrame.MainMenu.Help");
-			FToolMenuSection& Section = Menu->AddSection("HelpBrowse", NSLOCTEXT("MainHelpMenu", "Browse", "Browse"), FToolMenuInsert("BugReporting", EToolMenuInsertType::Before));
+			FToolMenuSection& Section = Menu->AddSection("HelpResources", NSLOCTEXT("MainHelpMenu", "LevelEditorHelpResources", "Level Editor Resources"), FToolMenuInsert("Learn", EToolMenuInsertType::First));
 			{
 				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseDocumentation );
-
-				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseAPIReference );
-
-				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseCVars );
-
-				Section.AddSeparator( "HelpBrowse" );
 
 				Section.AddMenuEntry( FLevelEditorCommands::Get().BrowseViewportControls );
 			}
