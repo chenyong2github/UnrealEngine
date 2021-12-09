@@ -261,8 +261,11 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 		}
 
 		const FDynamicMesh3* NewDynamicMesh = Results[ComponentIdx].Mesh.Get();
-		check(NewDynamicMesh != nullptr);
-		UE::ToolTarget::CommitDynamicMeshNormalsUpdate(Targets[ComponentIdx], NewDynamicMesh, false);
+		if (NewDynamicMesh)
+		{
+			bool bTopologyChanged = BasicProperties->WillTopologyChange();
+			UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Targets[ComponentIdx], *NewDynamicMesh, bTopologyChanged);
+		}
 	}
 
 	GetToolManager()->EndUndoTransaction();
