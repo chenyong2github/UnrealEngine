@@ -143,10 +143,10 @@ FText FUVEditorToolkit::GetToolkitName() const
 	const TArray<UObject*>* Objects = GetObjectsCurrentlyBeingEdited();
 	if (Objects->Num() == 1)
 	{
-		return FText::Format(LOCTEXT("UVEditorTabNameWithObject", "UVs: {0}"), 
+		return FText::Format(LOCTEXT("UVEditorTabNameWithObject", "UV: {0}"), 
 			GetLabelForObject((*Objects)[0]));
 	}
-	return LOCTEXT("UVEditorMultipleTabName", "UVs: Multiple");
+	return LOCTEXT("UVEditorMultipleTabName", "UV: Multiple");
 }
 
 // This gets used multiple places, most notably in GetToolMenuAppName, which gets
@@ -518,6 +518,11 @@ void FUVEditorToolkit::PostInitAssetEditor()
 const FSlateBrush* FUVEditorToolkit::GetDefaultTabIcon() const
 {
 	return FUVEditorStyle::Get().GetBrush("UVEditor.OpenUVEditor");
+}
+
+FLinearColor FUVEditorToolkit::GetDefaultTabColor() const
+{
+	return FLinearColor::White;
 }
 
 void FUVEditorToolkit::OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit)
