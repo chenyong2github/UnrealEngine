@@ -32,7 +32,7 @@ struct FOptimusVariableMetaDataEntry
 
 
 UCLASS()
-class UOptimusVariableDescription : 
+class OPTIMUSDEVELOPER_API UOptimusVariableDescription : 
 	public UObject
 {
 	GENERATED_BODY()

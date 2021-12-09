@@ -2,16 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-
 #include "Containers/Array.h"
-#include "Templates/UniquePtr.h"
-#include "Templates/UnrealTypeTraits.h"
 
 #include "OptimusActionStack.generated.h"
 
-class IOptimusNodeGraphCollectionOwner;
+class IOptimusPathResolver;
 struct FOptimusAction;
 struct FOptimusCompoundAction;
 
@@ -36,7 +31,7 @@ public:
 		return RunAction(MakeShared<T>(Forward<ArgsType>(Args)...));
 	}
 
-	IOptimusNodeGraphCollectionOwner *GetGraphCollectionRoot() const;
+	IOptimusPathResolver *GetGraphCollectionRoot() const;
 
 	void SetTransactionScopeFunctions(
 		TFunction<int32(UObject* TransactObject, const FString& Title)> InBeginScopeFunc,

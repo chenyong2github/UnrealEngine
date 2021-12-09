@@ -2,16 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-
 #include "Containers/Array.h"
-#include "Templates/UniquePtr.h"
-#include "Templates/UnrealTypeTraits.h"
 
 #include "OptimusAction.generated.h"
 
-class IOptimusNodeGraphCollectionOwner;
+class IOptimusPathResolver;
 
 // Base action class. This is a UStruct so that we can use UE's RAII to check for type
 // similarity.
@@ -44,10 +39,10 @@ protected:
 	friend struct FOptimusCompoundAction;
 
 	/// Performs the action as set by the action's constructor.
-	virtual bool Do(IOptimusNodeGraphCollectionOwner* InRoot) PURE_VIRTUAL(FOptimusAction::Do, return false; );
+	virtual bool Do(IOptimusPathResolver* InRoot) PURE_VIRTUAL(FOptimusAction::Do, return false; );
 
 	/// Reverts the action performed by the action's Do function.
-	virtual bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) PURE_VIRTUAL(FOptimusAction::Undo, return false; );
+	virtual bool Undo(IOptimusPathResolver* InRoot) PURE_VIRTUAL(FOptimusAction::Undo, return false; );
 
 private:
 	/// The title of the action. Should be set by the constructor of the derived objects.
@@ -111,8 +106,8 @@ protected:
 		SubActions.Add(InAction);
 	}
 
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	TArray<TSharedPtr<FOptimusAction>> SubActions;

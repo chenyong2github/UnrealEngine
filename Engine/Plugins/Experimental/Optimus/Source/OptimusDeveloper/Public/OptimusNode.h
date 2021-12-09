@@ -18,6 +18,7 @@ class UOptimusActionStack;
 class UOptimusNodeGraph;
 class UOptimusNodePin;
 struct FOptimusDataTypeRef;
+struct FOptimusParameterBinding;
 
 UCLASS(Abstract)
 class OPTIMUSDEVELOPER_API UOptimusNode : public UObject
@@ -48,6 +49,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	virtual FName GetNodeCategory() const PURE_VIRTUAL(, return NAME_None;);
 
+	/** Returns true if the node can be deleted by the user */
+	virtual bool CanUserDeleteNode() const { return true; }
+
 	/// @brief Returns the node class name. This name is immutable for the given node class.
 	/// @return The node class name.
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
@@ -73,11 +77,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	FVector2D GetGraphPosition() const { return GraphPosition; }
 
-	/// @brief Set a new position of the node in the graph UI.
-	/// @param InPosition The coordinates of the new position.
-	/// @return true if the position setting was successful (i.e. the coordinates are valid).
-	bool SetGraphPositionDirect(const FVector2D &InPosition);
-
 	/// @brief Returns the absolute path of the node. This can be passed to the root
 	/// IOptimusNodeGraphCollectionOwner object to resolve to a node object.
 	/// @return The absolute path of this node, rooted within the deformer.
@@ -95,7 +94,7 @@ public:
 	/// Find the pin associated with the given dot-separated pin path.
 	/// @param InPinPath The path of the pin.
 	/// @return The pin object, if found, otherwise nullptr.
-	UOptimusNodePin* FindPin(const FString &InPinPath) const;
+	UOptimusNodePin* FindPin(const FStringView InPinPath) const;
 
 	/// Find the pin from the given path array.
 	UOptimusNodePin* FindPinFromPath(const TArray<FName>& InPinPath) const;
@@ -137,17 +136,15 @@ protected:
 	friend class UOptimusNodePin;
 	friend class UOptimusDeformer;
 	friend struct FOptimusNodeAction_AddRemovePin;
+	friend struct FOptimusNodeAction_MoveNode;
 	friend struct FOptimusNodeAction_SetPinType;
 	friend struct FOptimusNodeAction_SetPinName;
 	friend struct FOptimusNodeAction_SetPinDataDomain;
+	friend struct FOptimusNodeGraphAction_PackageKernelFunction;
+	friend struct FOptimusNodeGraphAction_UnpackageKernelFunction;
 
 	// Return the action stack for this node.
 	UOptimusActionStack* GetActionStack() const;
-
-	// Node layout data
-	// FIXME: Move to private.
-	UPROPERTY(NonTransactional)
-	FVector2D GraphPosition;
 
 	// Called when the node is being constructed
 	virtual void ConstructNode();
@@ -161,7 +158,7 @@ protected:
 		FOptimusDataTypeRef InDataType,
 		UOptimusNodePin* InBeforePin = nullptr
 		);
-	
+
 	/** Create a pin and add it to the node in the location specified. */ 
 	UOptimusNodePin* AddPinDirect(
 		FName InName,
@@ -170,6 +167,13 @@ protected:
 		FOptimusDataTypeRef InDataType,
 		UOptimusNodePin* InBeforePin = nullptr,
 		UOptimusNodePin* InParentPin = nullptr
+		);
+
+	/** Add a new pin based on a parameter binding definition. Only allowed for top-level pins. */
+	UOptimusNodePin* AddPinDirect(
+		const FOptimusParameterBinding& InBinding,
+		EOptimusNodePinDirection InDirection,
+		UOptimusNodePin* InBeforePin = nullptr
 		);
 
 	// Remove a pin.
@@ -205,6 +209,13 @@ protected:
 	    FName InNewName
 		);
 
+	/// @brief Set a new position of the node in the graph UI.
+	/// @param InPosition The coordinates of the new position.
+	/// @return true if the position setting was successful (i.e. the coordinates are valid).
+	bool SetGraphPositionDirect(
+		const FVector2D &InPosition
+		);
+	
 	/** Set the pin's resource context names. */
 	bool SetPinDataDomain(
 		UOptimusNodePin* InPin,
@@ -230,7 +241,7 @@ private:
 	
 	void Notify(
 		EOptimusGraphNotifyType InNotifyType
-	);
+		);
 
 	bool CanNotify() const
 	{
@@ -247,12 +258,16 @@ private:
 	    EOptimusNodePinDirection InDirection,
 		const FProperty* InProperty,
 		UOptimusNodePin* InParentPin = nullptr
-	);
+		);
 
 	// The display name to show. This is non-transactional because it is controlled by our 
 	// action system rather than the transacting system for undo.
 	UPROPERTY(NonTransactional)
 	FText DisplayName;
+
+	// Node layout data
+	UPROPERTY(NonTransactional)
+	FVector2D GraphPosition;
 
 	// The list of pins. Non-transactional for the same reason as above. 
 	UPROPERTY(NonTransactional)

@@ -12,12 +12,12 @@ class FOptimusNameValidator :
 	public INameValidatorInterface
 {
 public:
-	FOptimusNameValidator(const IOptimusNodeGraphCollectionOwner *InRoot, FName InExistingName);
+	FOptimusNameValidator(const UObject *InOuter, const UClass* InObjectClass, FName InExistingName);
 	
 	/// Disallowed characters in a graph/variable/buffer name. Period is disallowed since it's
 	/// a path separator (like with BP), and slash is also disallowed since we use it for 
 	/// constructing name paths for undo.
-	static const TCHAR *InvalidCharacters() { return TEXT("./"); }
+	static const TCHAR *InvalidCharacters() { return TEXT("./$"); }
 
 	// INameValidatorInterface overrides
 	EValidatorResult IsValid(const FName& InName, bool bInOriginal = false) override;
@@ -27,9 +27,6 @@ public:
 private:
 	// Existing names to validate against.
 	TSet<FName> Names;
-
-	// The root object
-	const IOptimusNodeGraphCollectionOwner *Root;
 
 	// The current name.
 	FName ExistingName;

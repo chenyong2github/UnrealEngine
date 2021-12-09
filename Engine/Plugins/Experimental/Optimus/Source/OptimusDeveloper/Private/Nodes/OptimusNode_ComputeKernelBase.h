@@ -30,21 +30,16 @@ struct FOptimus_ShaderBinding
 	}
 };
 
-
+// FIXME: Fold FOptimus_ShaderBinding into this and do a post-load fix in CustomComputeKernel.
+// FIXME: Move to OptimusNode.h
 USTRUCT()
-struct FOptimus_ShaderDataBinding :
+struct FOptimusParameterBinding :
 	public FOptimus_ShaderBinding
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Binding)
 	FOptimusMultiLevelDataDomain DataDomain;
-
-	/** Returns true if the binding is valid and has defined entries */
-	bool IsValid() const
-	{
-		return FOptimus_ShaderBinding::IsValid() && DataDomain.IsValid();
-	}
 };
 
 USTRUCT()
@@ -75,13 +70,13 @@ public:
 	// IOptimusComputeKernelProvider
 	UOptimusKernelSource* CreateComputeKernel(
 		UObject* InKernelSourceOuter,
+		const FOptimusPinTraversalContext& InTraversalContext,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 		const TSet<const UOptimusNode *>& InValueNodeSet,
 		FOptimus_KernelParameterBindingList& OutParameterBindings,
-		FOptimus_InterfaceBindingMap& OutInputDataBindings,
-		FOptimus_InterfaceBindingMap& OutOutputDataBindings
-		) const override;
+		FOptimus_InterfaceBindingMap& OutInputDataBindings, FOptimus_InterfaceBindingMap& OutOutputDataBindings
+	) const override;
 
 	void SetCompilationDiagnostics(
 		const TArray<FOptimusType_CompilerDiagnostic>& InDiagnostics

@@ -16,8 +16,8 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	int32 InThreadCount,
 	FOptimusDataDomain InExecutionDomain,
 	const TArray<FOptimus_ShaderValuedBinding>& InParameters,
-	const TArray<FOptimus_ShaderDataBinding>& InInputBindings,
-	const TArray<FOptimus_ShaderDataBinding>& InOutputBindings,
+	const TArray<FOptimusParameterBinding>& InInputBindings,
+	const TArray<FOptimusParameterBinding>& InOutputBindings,
 	const FString& InShaderSource
 	)
 {
@@ -40,14 +40,14 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 			return nullptr;
 		}
 	}
-	for (const FOptimus_ShaderDataBinding& Binding: InInputBindings)
+	for (const FOptimusParameterBinding& Binding: InInputBindings)
 	{
 		if (!ensure(Binding.IsValid()))
 		{
 			return nullptr;
 		}
 	}
-	for (const FOptimus_ShaderDataBinding& Binding: InOutputBindings)
+	for (const FOptimusParameterBinding& Binding: InOutputBindings)
 	{
 		if (!ensure(Binding.IsValid()))
 		{
@@ -196,12 +196,12 @@ void UOptimusNode_ComputeKernelFunction::ConstructNode()
 	{
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, {}, Binding.DataType);
 	}
-	for (const FOptimus_ShaderDataBinding& Binding: NodeClass->InputBindings)
+	for (const FOptimusParameterBinding& Binding: NodeClass->InputBindings)
 	{
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
 	}
-	for (const FOptimus_ShaderDataBinding& Binding: NodeClass->OutputBindings)
+	for (const FOptimusParameterBinding& Binding: NodeClass->OutputBindings)
 	{
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);

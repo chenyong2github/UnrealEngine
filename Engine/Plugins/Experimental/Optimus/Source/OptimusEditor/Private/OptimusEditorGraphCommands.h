@@ -13,6 +13,10 @@ public:
 	// TCommands<> overrides
 	void RegisterCommands() override;
 	
-	TSharedPtr<FUICommandInfo> PackageNodes;
-	TSharedPtr<FUICommandInfo> UnpackageNodes;
+	TSharedPtr<FUICommandInfo> ConvertToKernelFunction;
+	TSharedPtr<FUICommandInfo> ConvertFromKernelFunction;
+
+	TSharedPtr<FUICommandInfo> CollapseNodesToFunction;
+	TSharedPtr<FUICommandInfo> CollapseNodesToSubGraph;
+	TSharedPtr<FUICommandInfo> ExpandCollapsedNode;
 };

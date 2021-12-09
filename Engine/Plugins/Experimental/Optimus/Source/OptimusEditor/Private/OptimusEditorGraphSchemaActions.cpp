@@ -94,18 +94,6 @@ UEdGraphNode* FOptimusGraphSchemaAction_NewDataInterfaceNode::PerformAction(
 }
 
 
-static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)
-{
-	if (InGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger)
-	{
-		return FText::FromString(TEXT("Triggered Graphs"));
-	}
-	else
-	{
-		return FText::GetEmpty();
-	}
-}
-
 static FText GetGraphTooltip(UOptimusNodeGraph* InGraph)
 {
 	return FText::GetEmpty();
@@ -114,9 +102,10 @@ static FText GetGraphTooltip(UOptimusNodeGraph* InGraph)
 
 FOptimusSchemaAction_Graph::FOptimusSchemaAction_Graph(
 	UOptimusNodeGraph* InGraph,
-	int32 InGrouping) : 
+	int32 InGrouping,
+	const FText& InCategory) : 
 		FEdGraphSchemaAction(
-			GetGraphSubCategory(InGraph), 
+			InCategory, 
 			FText::FromString(InGraph->GetName()), 
 			GetGraphTooltip(InGraph), 
 			InGrouping, 

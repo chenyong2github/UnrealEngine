@@ -144,7 +144,7 @@ bool UOptimusEditorGraphSchema::TryCreateConnection(
 		return false;
 	}
 
-	UOptimusNodeGraph *Graph = OutputModelPin->GetNode()->GetOwningGraph();
+	UOptimusNodeGraph *Graph = OutputModelPin->GetOwningNode()->GetOwningGraph();
 	return Graph->AddLink(OutputModelPin, InputModelPin);
 }
 

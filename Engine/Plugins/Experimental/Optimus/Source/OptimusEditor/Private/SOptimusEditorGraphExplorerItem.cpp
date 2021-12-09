@@ -161,10 +161,11 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 
 	if (ensure(Action) && ensure(Editor))
 	{
+		IOptimusPathResolver* PathResolver = Editor->GetDeformerInterface<IOptimusPathResolver>();
 		if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
 		{
 			FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph*>(Action.Get());
-			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+			UOptimusNodeGraph* NodeGraph = PathResolver->ResolveGraphPath(GraphAction->GraphPath);
 			if (ensure(NodeGraph))
 			{
 				IconWidget = SNew(SImage)
@@ -174,7 +175,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
 		{
 			FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
-			UOptimusResourceDescription* Resource = Editor->GetDeformer()->ResolveResource(ResourceAction->ResourceName);
+			UOptimusResourceDescription* Resource = PathResolver->ResolveResource(ResourceAction->ResourceName);
 			if (ensure(Resource))
 			{
 				
@@ -184,7 +185,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidg
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
 		{
 			FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
-			UOptimusVariableDescription* Variable = Editor->GetDeformer()->ResolveVariable(VariableAction->VariableName);
+			UOptimusVariableDescription* Variable = PathResolver->ResolveVariable(VariableAction->VariableName);
 			if (ensure(Variable))
 			{
 				IconWidget = SNew(SVariableDataTypeSelectorHelper, Variable, InbIsReadOnly);
@@ -271,29 +272,36 @@ bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(
 		FString NameStr = InNewText.ToString();
 
 		FName OriginalName;
+		const UObject* NamespaceObject = nullptr;
+		const UClass* NamespaceClass = nullptr;
 
 		if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
 		{
-			FOptimusSchemaAction_Graph *GraphAction = static_cast<FOptimusSchemaAction_Graph *>(Action.Get());
-			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+			const FOptimusSchemaAction_Graph *GraphAction = static_cast<FOptimusSchemaAction_Graph *>(Action.Get());
+			UOptimusNodeGraph* NodeGraph = Editor->GetDeformerInterface<IOptimusPathResolver>()->ResolveGraphPath(GraphAction->GraphPath);
 			if (ensure(NodeGraph))
 			{
 				OriginalName = NodeGraph->GetFName();
+				NamespaceObject = Cast<UObject>(NodeGraph->GetCollectionOwner());
+				NamespaceClass = UOptimusNodeGraph::StaticClass();
 			}
 		}
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
 		{
-			FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
+			const FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
 			OriginalName = ResourceAction->ResourceName;
+			NamespaceObject = Editor->GetDeformer();
+			NamespaceClass = UOptimusResourceDescription::StaticClass();
 		}
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
 		{
-			FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
+			const FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
 			OriginalName = VariableAction->VariableName;
+			NamespaceObject = Editor->GetDeformer();
+			NamespaceClass = UOptimusVariableDescription::StaticClass();
 		}
 
-
-		TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FOptimusNameValidator(Editor->GetGraphCollectionRoot(), OriginalName));
+		TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FOptimusNameValidator(NamespaceObject, NamespaceClass, OriginalName));
 
 		EValidatorResult ValidatorResult = NameValidator->IsValid(NameStr);
 		switch (ValidatorResult)
@@ -328,16 +336,14 @@ void SOptimusEditorGraphEplorerItem::OnNameTextCommitted(
 	{
 		FString NameStr = InNewText.ToString();
 
-		FName OriginalName;
-
 		if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
 		{
 			FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph*>(Action.Get());
-			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+			UOptimusNodeGraph* NodeGraph = Editor->GetDeformerInterface<IOptimusPathResolver>()->ResolveGraphPath(GraphAction->GraphPath);
 
 			if (ensure(NodeGraph))
 			{
-				NodeGraph->GetOwnerCollection()->RenameGraph(NodeGraph, NameStr);
+				NodeGraph->GetCollectionOwner()->RenameGraph(NodeGraph, NameStr);
 			}
 		}
 		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())

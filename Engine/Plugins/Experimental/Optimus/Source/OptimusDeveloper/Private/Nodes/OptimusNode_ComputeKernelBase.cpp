@@ -39,23 +39,20 @@ static void CopyValueType(FShaderValueTypeHandle InValueType,  FShaderParamTypeD
 // TODO: This belongs on the interface node. 
 static int32 GetPinIndex(const UOptimusNodePin* InPin)
 {
-	return InPin->GetNode()->GetPins().IndexOfByKey(InPin);
+	return InPin->GetOwningNode()->GetPins().IndexOfByKey(InPin);
 }
 
 UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	UObject *InKernelSourceOuter,
+	const FOptimusPinTraversalContext& InTraversalContext,
 	const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 	const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 	const TSet<const UOptimusNode *>& InValueNodeSet,
 	FOptimus_KernelParameterBindingList& OutParameterBindings,
-	FOptimus_InterfaceBindingMap& OutInputDataBindings,
-	FOptimus_InterfaceBindingMap& OutOutputDataBindings
-	) const
+	FOptimus_InterfaceBindingMap& OutInputDataBindings, FOptimus_InterfaceBindingMap& OutOutputDataBindings
+) const
 {
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter);
-	
-	// Figure out bindings for the pins.
-	const UOptimusNodeGraph *Graph = GetOwningGraph();
 
 	// Wrap functions for unconnected resource pins (or value pins) that return default values
 	// (for reads) or do nothing (for writes).
@@ -63,7 +60,12 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 
 	for (const UOptimusNodePin* Pin: GetPins())
 	{
-		TArray<UOptimusNodePin *> ConnectedPins = Graph->GetConnectedPins(Pin);
+		TArray<UOptimusNodePin *> ConnectedPins;
+		for (FOptimusRoutedNodePin ConnectedPin: Pin->GetConnectedPinsWithRouting(InTraversalContext))
+		{
+			ConnectedPins.Add(ConnectedPin.NodePin);
+		}
+
 		if (!ensure(Pin->GetDirection() == EOptimusNodePinDirection::Output || ConnectedPins.Num() <= 1))
 		{
 			continue;
@@ -162,7 +164,7 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
 
 	const FShaderValueTypeHandle ValueType = InInputPin->GetDataType()->ShaderValueType;
-	const UOptimusNode *OutputNode = InOutputPin ? InOutputPin->GetNode() : nullptr;
+	const UOptimusNode *OutputNode = InOutputPin ? InOutputPin->GetOwningNode() : nullptr;
 
 	// For inputs, we only have to deal with a single read, because only one
 	// link can connect into it. 
@@ -338,7 +340,7 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 		
 		for (const UOptimusNodePin* ConnectedPin: InInputPins)
 		{
-			const UOptimusNode *ConnectedNode = ConnectedPin->GetNode();
+			const UOptimusNode *ConnectedNode = ConnectedPin->GetOwningNode();
 
 			// Connected to a data interface node?
 			if(!InNodeDataInterfaceMap.Contains(ConnectedNode))

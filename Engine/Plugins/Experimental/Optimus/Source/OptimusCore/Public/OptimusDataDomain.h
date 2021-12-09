@@ -50,6 +50,12 @@ struct OPTIMUSCORE_API FOptimusMultiLevelDataDomain
 	UPROPERTY(EditAnywhere, Category = Domain)
 	TArray<FName> LevelNames{Optimus::DomainName::Vertex};
 
+	/** Returns true if the multi-level domain is empty */  
+	bool IsEmpty() const
+	{
+		return LevelNames.IsEmpty();
+	}
+	
 	/** Returns true if this multi-level data domain is valid */
 	bool IsValid() const
 	{

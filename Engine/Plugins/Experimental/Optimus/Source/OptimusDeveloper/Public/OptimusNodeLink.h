@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "UObject/Object.h"
 
 #include "OptimusNodeLink.generated.h"
 
@@ -17,10 +16,10 @@ class OPTIMUSDEVELOPER_API UOptimusNodeLink : public UObject
 public:
 	UOptimusNodeLink() = default;
 
-	/// Returns the output pin on the node this link connects from.
+	/** Returns the output pin on the node this link connects from. */
 	UOptimusNodePin* GetNodeOutputPin() const { return NodeOutputPin; }
 
-	/// Returns the input pin on the node that this link connects to.
+	/** Returns the input pin on the node that this link connects to. */
 	UOptimusNodePin* GetNodeInputPin() const { return NodeInputPin; }
 
 protected:

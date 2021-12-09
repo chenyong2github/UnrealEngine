@@ -28,11 +28,11 @@ public:
 		FName InName
 	);
 
-	UOptimusResourceDescription* GetResource(IOptimusNodeGraphCollectionOwner* InRoot);
+	UOptimusResourceDescription* GetResource(IOptimusPathResolver* InRoot) const;
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The name of the resource to create.
@@ -57,8 +57,8 @@ public:
 	);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The name of the resource to re-create
@@ -86,8 +86,8 @@ public:
 		FName InNewName);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The new name to give the resource.

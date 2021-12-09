@@ -10,7 +10,7 @@
 class IEditableSkeleton;
 class FUICommandList;
 class IMessageLogListing;
-class IOptimusNodeGraphCollectionOwner;
+class IOptimusPathResolver;
 class IPersonaPreviewScene;
 class IPersonaToolkit;
 class IPersonaViewport;
@@ -52,7 +52,11 @@ public:
 		return EditorGraph;
 	}
 
-	IOptimusNodeGraphCollectionOwner* GetGraphCollectionRoot() const;
+	template<typename Interface>
+	Interface* GetDeformerInterface()
+	{
+		return Cast<Interface>(DeformerObject);
+	}
 	UOptimusDeformer* GetDeformer() const;
 
 	TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override
@@ -145,6 +149,13 @@ private:
 
 	void UnpackageNodes();
 	bool CanUnpackageNodes() const;
+
+	void CollapseNodesToFunction();
+	void CollapseNodesToSubGraph();
+	bool CanCollapseNodes() const;
+
+	void ExpandCollapsedNode();
+	bool CanExpandCollapsedNode() const;
 	
 	// ----------------------------------------------------------------------------------------
 	// Graph event listeners

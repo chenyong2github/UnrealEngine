@@ -6,7 +6,6 @@
 #include "OptimusHelpers.h"
 #include "OptimusResourceDescription.h"
 
-#include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 
 
@@ -27,7 +26,9 @@ FOptimusResourceAction_AddResource::FOptimusResourceAction_AddResource(
 }
 
 
-UOptimusResourceDescription* FOptimusResourceAction_AddResource::GetResource(IOptimusNodeGraphCollectionOwner* InRoot)
+UOptimusResourceDescription* FOptimusResourceAction_AddResource::GetResource(
+	IOptimusPathResolver* InRoot
+	) const
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 
@@ -35,7 +36,9 @@ UOptimusResourceDescription* FOptimusResourceAction_AddResource::GetResource(IOp
 }
 
 
-bool FOptimusResourceAction_AddResource::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusResourceAction_AddResource::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusDeformer *Deformer = Cast<UOptimusDeformer>(InRoot);
 
@@ -52,21 +55,20 @@ bool FOptimusResourceAction_AddResource::Do(IOptimusNodeGraphCollectionOwner* In
 	Resource->ResourceName = Resource->GetFName();
 	Resource->DataType = DataType;
 
-	if (Deformer->AddResourceDirect(Resource))
-	{
-		ResourceName = Resource->GetFName();
-		return true;
-	}
-	else
+	if (!Deformer->AddResourceDirect(Resource))
 	{
 		Resource->Rename(nullptr, GetTransientPackage());
-		Resource->MarkAsGarbage();
 		return false;
 	}
+	
+	ResourceName = Resource->GetFName();
+	return true;
 }
 
 
-bool FOptimusResourceAction_AddResource::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusResourceAction_AddResource::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusResourceDescription* Resource = GetResource(InRoot);
 	if (!Resource)
@@ -93,7 +95,9 @@ FOptimusResourceAction_RemoveResource::FOptimusResourceAction_RemoveResource(
 }
 
 
-bool FOptimusResourceAction_RemoveResource::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusResourceAction_RemoveResource::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 	
@@ -111,7 +115,9 @@ bool FOptimusResourceAction_RemoveResource::Do(IOptimusNodeGraphCollectionOwner*
 }
 
 
-bool FOptimusResourceAction_RemoveResource::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusResourceAction_RemoveResource::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 	
@@ -129,16 +135,13 @@ bool FOptimusResourceAction_RemoveResource::Undo(IOptimusNodeGraphCollectionOwne
 		Optimus::FBinaryObjectReader ResourceArchive(Resource, ResourceData);
 	}
 
-	if (Deformer->AddResourceDirect(Resource))
-	{
-		return true;
-	}
-	else
+	if (!Deformer->AddResourceDirect(Resource))
 	{
 		Resource->Rename(nullptr, GetTransientPackage());
-		Resource->MarkAsGarbage();
 		return false;
 	}
+	
+	return true;
 }
 
 
@@ -159,33 +162,23 @@ FOptimusResourceAction_RenameResource::FOptimusResourceAction_RenameResource(
 }
 
 
-bool FOptimusResourceAction_RenameResource::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusResourceAction_RenameResource::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 	UOptimusResourceDescription* Resource = Deformer->ResolveResource(OldName);
 	
-	if (Resource)
-	{
-		return Deformer->RenameResourceDirect(Resource, NewName);
-	}
-	else
-	{
-		return false;
-	}
+	return Resource && Deformer->RenameResourceDirect(Resource, NewName);
 }
 
 
-bool FOptimusResourceAction_RenameResource::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusResourceAction_RenameResource::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 	UOptimusResourceDescription* Resource = Deformer->ResolveResource(NewName);
 
-	if (Resource)
-	{
-		return Deformer->RenameResourceDirect(Resource, OldName);
-	}
-	else
-	{
-		return false;
-	}
+	return Resource && Deformer->RenameResourceDirect(Resource, OldName);
 }

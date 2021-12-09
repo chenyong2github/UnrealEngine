@@ -2,9 +2,8 @@
 
 #pragma once
 
+#include "IOptimusNodePinRouter.h"
 #include "OptimusDataType.h"
-
-#include "CoreMinimal.h"
 #include "OptimusDataDomain.h"
 
 #include "OptimusNodePin.generated.h"
@@ -75,7 +74,7 @@ public:
 	const UOptimusNodePin* GetRootPin() const;
 
 	/// Returns the owning node of this pin and all its ancestors and children.
-	UOptimusNode* GetNode() const;
+	UOptimusNode* GetOwningNode() const;
 
 	/// Returns the array of pin names from the root pin to this pin. Can be used to to
 	/// easily traverse the pin hierarchy.
@@ -96,7 +95,7 @@ public:
 	FString GetPinPath() const;
 
 	/// Returns a pin path from a string. Returns an empty array if string is invalid or empty.
-	static TArray<FName> GetPinNamePathFromString(const FString& PinPathString);
+	static TArray<FName> GetPinNamePathFromString(const FStringView InPinPathString);
 
 	/** Return the registered Optimus data type associated with this pin */
 	FOptimusDataTypeHandle GetDataType() const { return DataType.Resolve(); }
@@ -135,9 +134,24 @@ public:
 	/// are listed before their child pins.
 	TArray<UOptimusNodePin *> GetSubPinsRecursively() const;
 
-	/// Returns all pins that have a connection to this pin. If nothing is connected to this
-	/// pin, it returns an empty array.
+	/** Returns all pins that have a _direct_ connection to this pin. If nothing is connected 
+	  * to this pin, it returns an empty array.
+	  */
 	TArray<UOptimusNodePin *> GetConnectedPins() const;
+
+	/** Returns all pins that are connected to working nodes, traversing fully through any 
+	 *  router nodes. This is so that we can get a connection to an actual non-routing,
+	 *  working node. If there are no connections to this pin, it returns an empty array.
+	 *  Any connections that don't lead to a non-routing node are ignored.
+	 *  The routing assumes that we do not go higher up in the graph stack than the level
+	 *  at which we started (i.e. if this is called on a node inside of a sub-graph with
+	 *  an empty traversal context, and the connection leads to a return node and up into the
+	 *  graph that has a reference to that sub-graph, there are no more context levels to peel
+	 *  off and the connection will _not_ be included).
+	 */
+	TArray<FOptimusRoutedNodePin> GetConnectedPinsWithRouting(
+		const FOptimusPinTraversalContext& InContext
+		) const;
 
 	/// Ask this pin if it allows a connection from the other pin. 
 	/// @param InOtherPin The other pin to connect to/from

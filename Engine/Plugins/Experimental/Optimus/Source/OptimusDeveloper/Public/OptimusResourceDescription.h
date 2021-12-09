@@ -12,7 +12,7 @@
 
 
 UCLASS()
-class UOptimusResourceDescription :
+class OPTIMUSDEVELOPER_API UOptimusResourceDescription :
 	public UObject
 {
 	GENERATED_BODY()

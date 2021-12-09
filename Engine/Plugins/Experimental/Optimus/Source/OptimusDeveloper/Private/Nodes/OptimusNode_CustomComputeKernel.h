@@ -55,10 +55,10 @@ public:
 	TArray<FOptimus_ShaderBinding> Parameters;
 	
 	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderDataBinding> InputBindings;
+	TArray<FOptimusParameterBinding> InputBindings;
 
 	UPROPERTY(EditAnywhere, Category=Bindings)
-	TArray<FOptimus_ShaderDataBinding> OutputBindings;
+	TArray<FOptimusParameterBinding> OutputBindings;
 
 	UPROPERTY(EditAnywhere, Category = ShaderSource)
 	FOptimusType_ShaderText ShaderSource;

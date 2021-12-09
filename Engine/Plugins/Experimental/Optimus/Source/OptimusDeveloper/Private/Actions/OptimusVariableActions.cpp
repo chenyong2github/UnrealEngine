@@ -25,14 +25,14 @@ FOptimusVariableAction_AddVariable::FOptimusVariableAction_AddVariable(
 
 
 UOptimusVariableDescription* FOptimusVariableAction_AddVariable::GetVariable(
-	IOptimusNodeGraphCollectionOwner* InRoot
-	)
+	IOptimusPathResolver* InRoot
+	) const
 {
 	return Cast<UOptimusDeformer>(InRoot)->ResolveVariable(VariableName);
 }
 
 
-bool FOptimusVariableAction_AddVariable::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusVariableAction_AddVariable::Do(IOptimusPathResolver* InRoot)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 
@@ -49,21 +49,18 @@ bool FOptimusVariableAction_AddVariable::Do(IOptimusNodeGraphCollectionOwner* In
 	Variable->VariableName = Variable->GetFName();
 	Variable->DataType = DataType;
 
-	if (Deformer->AddVariableDirect(Variable))
-	{
-		VariableName = Variable->GetFName();
-		return true;
-	}
-	else
+	if (!Deformer->AddVariableDirect(Variable))
 	{
 		Variable->Rename(nullptr, GetTransientPackage());
-		Variable->MarkAsGarbage();
 		return false;
 	}
+	
+	VariableName = Variable->GetFName();
+	return true;
 }
 
 
-bool FOptimusVariableAction_AddVariable::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusVariableAction_AddVariable::Undo(IOptimusPathResolver* InRoot)
 {
 	UOptimusVariableDescription* Variable = GetVariable(InRoot);
 	if (!Variable)
@@ -90,7 +87,7 @@ FOptimusVariableAction_RemoveVariable::FOptimusVariableAction_RemoveVariable(
 }
 
 
-bool FOptimusVariableAction_RemoveVariable::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusVariableAction_RemoveVariable::Do(IOptimusPathResolver* InRoot)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 
@@ -108,7 +105,7 @@ bool FOptimusVariableAction_RemoveVariable::Do(IOptimusNodeGraphCollectionOwner*
 }
 
 
-bool FOptimusVariableAction_RemoveVariable::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusVariableAction_RemoveVariable::Undo(IOptimusPathResolver* InRoot)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 
@@ -126,16 +123,13 @@ bool FOptimusVariableAction_RemoveVariable::Undo(IOptimusNodeGraphCollectionOwne
 		Optimus::FBinaryObjectReader VarArchive(Variable, VariableData);
 	}
 
-	if (Deformer->AddVariableDirect(Variable))
-	{
-		return true;
-	}
-	else
+	if (!Deformer->AddVariableDirect(Variable))
 	{
 		Variable->Rename(nullptr, GetTransientPackage());
-		Variable->MarkAsGarbage();
 		return false;
 	}
+	
+	return true;
 }
 
 
@@ -156,33 +150,23 @@ FOptimusVariableAction_RenameVariable::FOptimusVariableAction_RenameVariable(
 }
 
 
-bool FOptimusVariableAction_RenameVariable::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusVariableAction_RenameVariable::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 	UOptimusVariableDescription* Variable = Deformer->ResolveVariable(OldName);
 
-	if (Variable)
-	{
-		return Deformer->RenameVariableDirect(Variable, NewName);
-	}
-	else
-	{
-		return false;
-	}
+	return Variable && Deformer->RenameVariableDirect(Variable, NewName);
 }
 
 
-bool FOptimusVariableAction_RenameVariable::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusVariableAction_RenameVariable::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(InRoot);
 	UOptimusVariableDescription* Variable = Deformer->ResolveVariable(NewName);
 
-	if (Variable)
-	{
-		return Deformer->RenameVariableDirect(Variable, OldName);
-	}
-	else
-	{
-		return false;
-	}
+	return Variable && Deformer->RenameVariableDirect(Variable, OldName);
 }
