@@ -16,8 +16,43 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManagerSettings.h"
+#include "Engine/Engine.h"
 
 DEFINE_LOG_CATEGORY(LogGameFeatures);
+
+void FGameFeatureStateChangeContext::SetRequiredWorldContextHandle(FName Handle)
+{
+	WorldContextHandle = Handle;
+}
+
+bool FGameFeatureStateChangeContext::ShouldApplyToWorldContext(const FWorldContext& WorldContext) const
+{
+	if (WorldContextHandle.IsNone())
+	{
+		return true;
+	}
+	if (WorldContext.ContextHandle == WorldContextHandle)
+	{
+		return true;
+	}
+	return false;
+}
+
+bool FGameFeatureStateChangeContext::ShouldApplyUsingOtherContext(const FGameFeatureStateChangeContext& OtherContext) const
+{
+	if (OtherContext == *this)
+	{
+		return true;
+	}
+
+	// If other context is less restrictive, apply
+	if (OtherContext.WorldContextHandle.IsNone())
+	{
+		return true;
+	}
+
+	return false;
+}
 
 void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -372,7 +407,7 @@ void UGameFeaturesSubsystem::OnGameFeatureLoading(const UGameFeatureData* GameFe
 	}
 }
 
-void UGameFeaturesSubsystem::OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName)
+void UGameFeaturesSubsystem::OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureActivatingContext& Context)
 {
 	check(GameFeatureData);
 
@@ -380,12 +415,12 @@ void UGameFeaturesSubsystem::OnGameFeatureActivating(const UGameFeatureData* Gam
 	{
 		CastChecked<IGameFeatureStateChangeObserver>(Observer)->OnGameFeatureActivating(GameFeatureData);
 	}
-
+	
 	for (UGameFeatureAction* Action : GameFeatureData->GetActions())
 	{
 		if (Action != nullptr)
 		{
-			Action->OnGameFeatureActivating();
+			Action->OnGameFeatureActivating(Context);
 		}
 	}
 }
