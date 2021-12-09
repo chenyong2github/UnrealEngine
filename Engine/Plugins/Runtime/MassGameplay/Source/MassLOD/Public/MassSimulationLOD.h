@@ -11,43 +11,6 @@
 
 #include "MassSimulationLOD.generated.h"
 
-/*
- * Data fragment to store the calculated distances to viewers
- * @todo To be removed and convert to new Simulation LOD stuff
- */
-USTRUCT()
-struct MASSLOD_API FDataFragment_MassSimulationLODInfo : public FMassFragment
-{
-	GENERATED_BODY()
-
-	// Closest viewer distance
-	float ClosestViewerDistanceSq;
-};
-
-struct FSimulationLODLogic : public FLODDefaultLogic
-{
-};
-
-/*
- * Mass processor to calculate square distances from entity to viewers.
- * This is done once per entity and will be used for all subsequent LOD calculation.
- * @todo To be removed and convert to new Simulation LOD stuff
- */
-UCLASS()
-class MASSLOD_API UMassProcessor_MassSimulationLODViewersInfo : public UMassProcessor_LODBase
-{
-	GENERATED_BODY()
-public:
-	UMassProcessor_MassSimulationLODViewersInfo();
-
-protected:
-	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	TMassLODCollector<FSimulationLODLogic> LODCollector;
-	FMassEntityQuery EntityQuery;
-};
-
 USTRUCT()
 struct MASSLOD_API FMassSimulationLODFragment : public FMassFragment
 {

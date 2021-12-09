@@ -9,35 +9,6 @@
 #include "MassLODUtils.h"
 
 //-----------------------------------------------------------------------------
-// UMassProcessor_MassSimulationLODViewersInfo
-//-----------------------------------------------------------------------------
-
-UMassProcessor_MassSimulationLODViewersInfo::UMassProcessor_MassSimulationLODViewersInfo()
-{
-	bAutoRegisterWithProcessingPhases = false;
-}
-
-void UMassProcessor_MassSimulationLODViewersInfo::ConfigureQueries()
-{
-	EntityQuery.AddRequirement<FDataFragment_Transform>(EMassFragmentAccess::ReadOnly);
-	EntityQuery.AddRequirement<FDataFragment_MassSimulationLODInfo>(EMassFragmentAccess::ReadWrite);
-}
-
-void UMassProcessor_MassSimulationLODViewersInfo::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
-{
-	check(LODManager);
-	const TArray<FViewerInfo>& Viewers = LODManager->GetViewers();
-	LODCollector.PrepareExecution(Viewers);
-
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this](FMassExecutionContext& Context)
-	{
-		const TConstArrayView<FDataFragment_Transform> LocationList = Context.GetFragmentView<FDataFragment_Transform>();
-		const TArrayView<FDataFragment_MassSimulationLODInfo> ViewersInfoList = Context.GetMutableFragmentView<FDataFragment_MassSimulationLODInfo>();
-		LODCollector.CollectLODInfo(Context, LocationList, ViewersInfoList);
-	});
-}
-
-//-----------------------------------------------------------------------------
 // FMassSimulationLODConfig
 //-----------------------------------------------------------------------------
 FMassSimulationLODConfig::FMassSimulationLODConfig()
