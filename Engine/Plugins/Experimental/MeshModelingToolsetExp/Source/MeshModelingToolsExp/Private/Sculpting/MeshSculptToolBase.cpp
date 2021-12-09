@@ -1213,7 +1213,7 @@ void UMeshSculptToolBase::UpdateWorkPlane()
 		// raycast into scene and current sculpt and place plane at closest hit point
 		FRay CursorWorldRay = UMeshSurfacePointTool::LastWorldRay;
 		FHitResult Result;
-		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, CursorWorldRay);
+		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, CursorWorldRay);
 		FRay3d LocalRay = GetLocalRay(CursorWorldRay);
 		bool bObjectHit = ( FindHitSculptMeshTriangle(LocalRay) != IndexConstants::InvalidID );
 		if (bWorldHit && 

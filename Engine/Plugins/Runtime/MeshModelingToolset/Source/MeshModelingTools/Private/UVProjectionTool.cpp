@@ -3,6 +3,7 @@
 #include "UVProjectionTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolTargetManager.h"
+#include "SceneQueries/SceneSnappingManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "BaseBehaviors/SingleClickBehavior.h"
@@ -125,7 +126,7 @@ void UUVProjectionTool::Setup()
 
 	// click to set plane behavior
 	SetPlaneCtrlClickBehaviorTarget = MakeUnique<FSelectClickedAction>();
-	SetPlaneCtrlClickBehaviorTarget->World = this->TargetWorld;
+	SetPlaneCtrlClickBehaviorTarget->SnapManager = USceneSnappingManager::Find(GetToolManager());
 	SetPlaneCtrlClickBehaviorTarget->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
 		UpdatePlaneFromClick(FVector3d(Hit.ImpactPoint), FVector3d(Hit.ImpactNormal), SetPlaneCtrlClickBehaviorTarget->bShiftModifierToggle);

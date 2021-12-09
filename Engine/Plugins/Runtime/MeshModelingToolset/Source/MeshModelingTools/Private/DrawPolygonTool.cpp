@@ -20,6 +20,7 @@
 #include "Distance/DistLine3Ray3.h"
 #include "Intersection/IntrSegment2Segment2.h"
 #include "ToolSceneQueriesUtil.h"
+#include "SceneQueries/SceneSnappingManager.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"
 
@@ -91,7 +92,7 @@ void UDrawPolygonTool::Setup()
 
 	// Register a click behavior/action pair, that sets the draw plane to the clicked world position
 	FSelectClickedAction* SetPlaneAction = new FSelectClickedAction();
-	SetPlaneAction->World = this->TargetWorld;
+	SetPlaneAction->SnapManager = USceneSnappingManager::Find(GetToolManager());
 	SetPlaneAction->OnClickedPositionFunc = [this](const FHitResult& Hit) {
 		SetDrawPlaneFromWorldPos((FVector3d)Hit.ImpactPoint, (FVector3d)Hit.ImpactNormal);
 	};
@@ -610,7 +611,7 @@ bool UDrawPolygonTool::FindDrawPlaneHitPoint(const FInputDeviceRay& ClickPos, FV
 	if (SnapProperties->bSnapToSurfaces)
 	{
 		FHitResult Result;
-		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, ClickPos.WorldRay);
+		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, Result, ClickPos.WorldRay);
 		if (bWorldHit)
 		{
 			bHaveSurfaceHit = true;
@@ -969,7 +970,7 @@ void UDrawPolygonTool::BeginInteractiveExtrude()
 	{
 		if (this->bIgnoreSnappingToggle == false)
 		{
-			return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, HitResult, WorldRay);
+			return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(this, HitResult, WorldRay);
 		}
 		return false;
 	};

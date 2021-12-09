@@ -54,7 +54,7 @@ void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
 			bSuccess = true;
 		}
 		// If we failed, try to hit a simple triangle
-		else if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(ParentToolIn->GetWorld(), HitResult, WorldRay, ComponentsToIgnore))
+		else if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(ParentToolIn, HitResult, WorldRay, ComponentsToIgnore))
 		{
 			HitResult.Item = TRIANGLE_HIT_TYPE_ID;
 			bSuccess = true;

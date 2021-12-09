@@ -350,6 +350,8 @@ bool ToolSceneQueriesUtil::FindNearestVisibleObjectHit(USceneSnappingManager* Sn
 	FSceneHitQueryRequest Request;
 	Request.WorldRay = (FRay3d)Ray;
 	Request.bWantHitGeometryInfo = false;
+	Request.VisibilityFilter.ComponentsToIgnore = IgnoreComponents;
+	Request.VisibilityFilter.InvisibleComponentsToInclude = InvisibleComponentsToInclude;
 
 	FSceneHitQueryResult Result;
 	if ( SnapManager->ExecuteSceneHitQuery(Request, Result) )

@@ -234,8 +234,7 @@ EToolActivityStartResult UPolyEditExtrudeActivity::Start()
 	ExtrudeHeightMechanic->Setup(ParentTool.Get());
 	ExtrudeHeightMechanic->WorldHitQueryFunc = [this](const FRay& WorldRay, FHitResult& HitResult)
 	{
-		return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(ActivityContext->Preview->GetWorld(),
-			HitResult, WorldRay);
+		return ToolSceneQueriesUtil::FindNearestVisibleObjectHit(GetParentTool(), HitResult, WorldRay);
 	};
 	ExtrudeHeightMechanic->WorldPointSnapFunc = [this](const FVector3d& WorldPos, FVector3d& SnapPos)
 	{

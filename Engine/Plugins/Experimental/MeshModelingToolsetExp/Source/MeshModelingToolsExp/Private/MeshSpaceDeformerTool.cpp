@@ -3,6 +3,7 @@
 #include "MeshSpaceDeformerTool.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveGizmoManager.h"
+#include "SceneQueries/SceneSnappingManager.h"
 #include "ToolBuilderUtil.h"
 
 #include "SegmentTypes.h"
@@ -192,7 +193,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 	// add click to set plane behavior
 	SetPointInWorldConnector = MakePimpl<FSelectClickedAction>();
-	SetPointInWorldConnector->World = this->TargetWorld;
+	SetPointInWorldConnector->SnapManager = USceneSnappingManager::Find(GetToolManager());
 	SetPointInWorldConnector->InvisibleComponentsToHitTest.Add(TargetComponent->GetOwnerComponent());
 	SetPointInWorldConnector->OnClickedPositionFunc = [this](const FHitResult& Hit)
 	{
