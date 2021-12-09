@@ -31,9 +31,27 @@ struct FPathTracingLight {
 
 static_assert(sizeof(FPathTracingLight) == 128, "Path tracing light structure should be aligned to 128 bytes for optimal access on the GPU");
 
+struct FPathTracingPackedPathState {
+	uint32    PixelIndex;
+	uint32    RandSeqSampleIndex;
+	uint32    RandSeqSampleSeed;
+	FVector3f Radiance;
+	float     BackgroundVisibility;
+	uint16    Albedo[3];
+	uint16    Normal[3];
+	FVector3f RayOrigin;
+	FVector3f RayDirection;
+	uint32    RayCone;
+	FVector3f PathThroughput;
+	uint16    PathRoughness;
+	uint16    SigmaT[3];
+};
+
+static_assert(sizeof(FPathTracingPackedPathState) == 88, "Packed Path State size should be minimized");
+
 #else
 
-// HLSL side of the struct above
+// HLSL side of the structs above
 
 struct FPathTracingLight {
 	float3  Position;
@@ -51,6 +69,20 @@ struct FPathTracingLight {
 	float3  BoundMin;
 	float3  BoundMax;
 	float Padding;
+};
+
+struct FPathTracingPackedPathState {
+	uint      PixelIndex;
+	uint      RandSeqSampleIndex;
+	uint      RandSeqSampleSeed;
+	float3    Radiance;
+	float     BackgroundVisibility;
+	uint3     PackedAlbedoNormal;
+	float3    RayOrigin;
+	float3    RayDirection;
+	uint      PackedRayCone;
+	float3    PathThroughput;
+	uint2     PackedRoughnessSigma;
 };
 
 #endif
