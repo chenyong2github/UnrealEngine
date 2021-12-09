@@ -360,6 +360,16 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 		if (GWheeledVehicleDebugParams.ShowBatchQueryExtents)
 		{
 			Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(QueryBox.GetCenter(), QueryBox.GetExtent(), FQuat::Identity, FColor::Yellow, false, -1.0f, 0, 2.0f);
+
+			// draw all corresponding results bounding boxes
+			for (FOverlapResult OverlapResult : OverlapResults)
+			{
+				if (OverlapResult.bBlockingHit)
+				{
+					const FBoxSphereBounds Bounds = OverlapResult.Component->CalcBounds(OverlapResult.Component->GetComponentTransform());
+					Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.GetBox().GetCenter(), Bounds.GetBox().GetExtent(), FQuat::Identity, FColor::Purple, false, -1.0f, 0, 2.0f);
+				}
+			}
 		}
 	#endif
 
