@@ -1028,9 +1028,9 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptU
 			continue;
 		}
 		const uint8* SourceAddr = Property->ContainerPtrToValuePtr<uint8>(this);
-        uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
+		uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(Result);
 
-        Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+		Property->CopyCompleteValue(DestinationAddr, SourceAddr);
 	}
 	Result->bIsForCompilationOnly = true;
 
@@ -1040,7 +1040,7 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptU
 		It.Value = CastChecked<UNiagaraScriptVariable>(NiagaraEditorModule.GetPooledDuplicateObject(It.Value));
 	}
 
-	// Only add references to nodes which match a complie usage.
+	// Only add references to nodes which match a compile usage.
 	TMap<UEdGraphNode*, UEdGraphNode*> DuplicationMapping;
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	GetNodesOfClass(OutputNodes);
@@ -1054,9 +1054,16 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptU
 		}
 	}
 
+	TSet<const UEdGraphNode*> RerouteNodesToFixup;
 	TArray<UEdGraphNode*> NewNodes;
 	for (UEdGraphNode* Node : Result->Nodes)
 	{
+		if (const UNiagaraNodeReroute* RerouteNode = Cast<const UNiagaraNodeReroute>(Node))
+		{
+			RerouteNodesToFixup.Add(RerouteNode);
+			continue;
+		}
+
 		Node->ClearFlags(RF_Transactional);
 		UEdGraphNode* DupNode = NewNodes.Add_GetRef(DuplicateObject(Node, Result));
 		Node->SetFlags(RF_Transactional);
@@ -1070,7 +1077,32 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptU
 			for (int i = 0; i < Pin->LinkedTo.Num(); i++)
 			{
 				UEdGraphPin* LinkedPin = Pin->LinkedTo[i];
-				UEdGraphNode** NewNodePtr = DuplicationMapping.Find(LinkedPin->GetOwningNode());
+				UEdGraphNode* OwningNode = LinkedPin->GetOwningNode();
+
+				// if the owning node is already in the right graph then no need to adjust it (this can
+				// happen if the pin connection is added as a part of removing the reroute nodes)
+				if (OwningNode->GetGraph() == Result)
+				{
+					continue;
+				}
+
+				UEdGraphNode** NewNodePtr = DuplicationMapping.Find(OwningNode);
+				bool bAddReciprocalLink = false;
+
+				if (NewNodePtr == nullptr)
+				{
+					// check to see if we're dealing with an input pin that is coming from
+					// a reroute node that was trimmed above
+					if (Pin->Direction == EGPD_Input && RerouteNodesToFixup.Contains(OwningNode))
+					{
+						check(LinkedPin->Direction == EGPD_Output);
+						LinkedPin = CastChecked<UNiagaraNodeReroute>(OwningNode)->GetTracedOutputPin(LinkedPin, false);
+						OwningNode = LinkedPin->GetOwningNode();
+						NewNodePtr = DuplicationMapping.Find(OwningNode);
+						bAddReciprocalLink = true;
+					}
+				}
+
 				if (NewNodePtr == nullptr)
 				{
 					// If output pins were connected to another node which wasn't encountered in traversal then it's possible it won't be found here.
@@ -1082,6 +1114,11 @@ UNiagaraGraph* UNiagaraGraph::CreateCompilationCopy(const TArray<ENiagaraScriptU
 					UEdGraphPin** NodePin = (*NewNodePtr)->Pins.FindByPredicate([LinkedPin](UEdGraphPin* Pin) { return Pin->PinId == LinkedPin->PinId; });
 					check(NodePin);
 					Pin->LinkedTo[i] = *NodePin;
+
+					if (bAddReciprocalLink)
+					{
+						(*NodePin)->LinkedTo.AddUnique(Pin);
+					}
 				}
 			}
 			// Remove any null linked pins.
