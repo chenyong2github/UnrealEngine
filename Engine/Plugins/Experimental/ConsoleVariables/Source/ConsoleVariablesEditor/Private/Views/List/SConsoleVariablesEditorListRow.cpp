@@ -419,14 +419,14 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 	{
 		PinnedItem->SetWidgetCheckedState(InNewState, true);
 		
-		if (PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand && ValueChildInputWidget.IsValid())
+		if (PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
 		{									
 			if (PinnedItem->IsRowChecked())
 			{
-				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueChildInputWidget->GetCachedValue());
+				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(PinnedItem->GetCachedValue());
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
-					PinnedItem->GetCommandInfo().Pin()->Command, ValueChildInputWidget->GetCachedValue());
+					PinnedItem->GetCommandInfo().Pin()->Command, PinnedItem->GetCachedValue());
 			}
 			else
 			{
@@ -458,7 +458,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(cons
 				{
 					return FText::Format(
 								ValueWidgetToolTipFormatText,
-								FText::FromString(ValueChildInputWidget->GetCachedValue()),
+								FText::FromString(PinnedItem->GetCachedValue()),
 								FText::FromString(PinnedItem->GetPresetValue()),
 								FText::FromString(PinnedCommand->StartupValueAsString),
 								FConsoleVariablesEditorCommandInfo::ConvertConsoleVariableSetByFlagToText(PinnedCommand->StartupSource)

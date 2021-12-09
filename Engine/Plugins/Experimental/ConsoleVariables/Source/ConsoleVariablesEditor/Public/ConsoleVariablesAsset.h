@@ -8,6 +8,28 @@
 
 struct FConsoleVariablesEditorCommandInfo;
 
+/** Data that will be serialized with this asset */
+USTRUCT()
+struct FConsoleVariablesEditorAssetSaveData
+{
+	GENERATED_BODY()
+
+	FORCEINLINE bool operator==(const FConsoleVariablesEditorAssetSaveData& Comparator) const
+	{
+		return CommandName.Equals(Comparator.CommandName);
+	}
+	
+	UPROPERTY()
+	FString CommandName;
+
+	UPROPERTY()
+	FString CommandValueAsString;
+
+	UPROPERTY()
+	// If Undetermined, we can assume this data was not previously saved
+	ECheckBoxState CheckedState = ECheckBoxState::Undetermined;
+};
+
 /** An asset used to track collections of console variables that can be recalled and edited using the Console Variables Editor. */
 UCLASS(BlueprintType)
 class CONSOLEVARIABLESEDITOR_API UConsoleVariablesAsset : public UObject
@@ -25,30 +47,31 @@ public:
 	}
 
 	/** Returns the saved list of console variable information such as the variable name, the type and the value of the vriable at the time the asset was saved. */
-	const TMap<FString, FString>& GetSavedCommandsAndValues() const
+	const TArray<FConsoleVariablesEditorAssetSaveData>& GetSavedCommands() const
 	{
-		return SavedCommandsAndValues;
+		return SavedCommands;
 	}
 
-	void ReplaceSavedCommandsAndValues(const TMap<FString, FString>& InMap);
+	/** Completely replaces the saved data with new saved data */
+	void ReplaceSavedCommands(const TArray<FConsoleVariablesEditorAssetSaveData>& Replacement);
 
 	/** Returns how many console variables are serialized in this asset */
-	int32 GetSavedCommandsAndValuesCount() const
+	int32 GetSavedCommandsCount() const
 	{
-		return GetSavedCommandsAndValues().Num();
+		return GetSavedCommands().Num();
 	}
 
 	/** Outputs the FConsoleVariablesEditorCommandInfo matching InCommand. Returns whether a match was found. Case sensitive. */
-	bool FindSavedValueByCommandString(const FString& InCommandString, FString& OutValue) const;
+	bool FindSavedDataByCommandString(const FString& InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const;
 
 	/** Set the value of a saved console variable if the name matches; add a new console variable to the list if a match is not found. */
-	void AddOrSetConsoleVariableSavedValue(const FString& InCommandString, const FString& InNewValue);
+	void AddOrSetConsoleVariableSavedData(const FConsoleVariablesEditorAssetSaveData& InData);
 
 	/** Returns true if the element was found and successfully removed. */
 	bool RemoveConsoleVariable(const FString& InCommandString);
 
 	/** Copy data from input asset to this asset */
-	void CopyFrom(UConsoleVariablesAsset* InAssetToCopy);
+	void CopyFrom(const UConsoleVariablesAsset* InAssetToCopy);
 	
 private:
 	
@@ -58,5 +81,5 @@ private:
 
 	/** A saved list of console variable information such as the variable name, the type and the value of the variable at the time the asset was saved. */
 	UPROPERTY()
-	TMap<FString, FString> SavedCommandsAndValues;
+	TArray<FConsoleVariablesEditorAssetSaveData> SavedCommands;
 };

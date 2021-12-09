@@ -218,6 +218,16 @@ EVisibility FConsoleVariablesEditorListRow::GetDesiredVisibility() const
 		EVisibility::Visible : EVisibility::Collapsed;
 }
 
+const FString& FConsoleVariablesEditorListRow::GetCachedValue() const
+{
+	return CachedValue;
+}
+
+void FConsoleVariablesEditorListRow::SetCachedValue(const FString& NewCachedValue)
+{
+	CachedValue = NewCachedValue;
+}
+
 TArray<FConsoleVariablesEditorListRowPtr> FConsoleVariablesEditorListRow::GetSelectedTreeViewItems() const
 {
 	return ListViewPtr.Pin()->GetSelectedTreeViewItems();

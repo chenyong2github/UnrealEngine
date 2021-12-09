@@ -11,14 +11,19 @@ void UConsoleVariablesAsset::SetVariableCollectionDescription(const FString& InV
 	VariableCollectionDescription = InVariableCollectionDescription;
 }
 
-void UConsoleVariablesAsset::ReplaceSavedCommandsAndValues(const TMap<FString, FString>& InMap)
+void UConsoleVariablesAsset::ReplaceSavedCommands(const TArray<FConsoleVariablesEditorAssetSaveData>& Replacement)
 {
-	SavedCommandsAndValues = InMap;
+	SavedCommands = Replacement;
 }
 
-bool UConsoleVariablesAsset::FindSavedValueByCommandString(const FString& InCommandString, FString& OutValue) const
+bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString& InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const
 {
-	if (const FString* Match = SavedCommandsAndValues.Find(InCommandString))
+	if (const auto* Match = Algo::FindByPredicate(
+		SavedCommands,
+		[&InCommandString] (const FConsoleVariablesEditorAssetSaveData& Comparator)
+		{
+			return Comparator.CommandName.Equals(InCommandString);
+		}))
 	{
 		OutValue = *Match;
 		return true;
@@ -27,23 +32,25 @@ bool UConsoleVariablesAsset::FindSavedValueByCommandString(const FString& InComm
 	return false;
 }
 
-void UConsoleVariablesAsset::AddOrSetConsoleVariableSavedValue(const FString& InCommandString, const FString& InNewValue)
+void UConsoleVariablesAsset::AddOrSetConsoleVariableSavedData(const FConsoleVariablesEditorAssetSaveData& InData)
 {
-	SavedCommandsAndValues.Add(InCommandString, InNewValue);
+	RemoveConsoleVariable(InData.CommandName);
+	SavedCommands.Add(InData);
 }
 
 bool UConsoleVariablesAsset::RemoveConsoleVariable(const FString& InCommandString)
 {
-	if (const FString* Match = SavedCommandsAndValues.Find(InCommandString))
+	FConsoleVariablesEditorAssetSaveData ExistingData;
+	if (FindSavedDataByCommandString(InCommandString, ExistingData))
 	{
-		return SavedCommandsAndValues.Remove(InCommandString) > 0;
+		return SavedCommands.Remove(ExistingData) > 0;
 	}
 	
 	return false;
 }
 
-void UConsoleVariablesAsset::CopyFrom(UConsoleVariablesAsset* InAssetToCopy)
+void UConsoleVariablesAsset::CopyFrom(const UConsoleVariablesAsset* InAssetToCopy)
 {
-	VariableCollectionDescription = InAssetToCopy->VariableCollectionDescription;
-	SavedCommandsAndValues = InAssetToCopy->SavedCommandsAndValues;
+	VariableCollectionDescription = InAssetToCopy->GetVariableCollectionDescription();
+	SavedCommands = InAssetToCopy->GetSavedCommands();
 }

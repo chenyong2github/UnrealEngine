@@ -6,6 +6,7 @@
 #include "ConsoleVariablesEditorCommandInfo.h"
 #include "Widgets/Input/SCheckBox.h"
 
+class SConsoleVariablesEditorListValueInput;
 class SConsoleVariablesEditorList;
 
 struct FConsoleVariablesEditorListRow;
@@ -101,6 +102,9 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 	{
 		return ListViewPtr;
 	}
+	
+	[[nodiscard]] const FString& GetCachedValue() const;
+	void SetCachedValue(const FString& CachedValue);
 
 	[[nodiscard]] TArray<FConsoleVariablesEditorListRowPtr> GetSelectedTreeViewItems() const;
 
@@ -118,6 +122,7 @@ private:
 	ECheckBoxState WidgetCheckedState = ECheckBoxState::Checked;
 	
 	TWeakPtr<SConsoleVariablesEditorList> ListViewPtr;
+	FString CachedValue = "";
 	
 	bool bIsTreeViewItemExpanded = false;
 	bool bShouldFlashOnScrollIntoView = false;

@@ -18,16 +18,12 @@ public:
 	
 	virtual void SetInputValue(const FString& InValueAsString) = 0;
 	virtual FString GetInputValueAsString() = 0;
-	
-	[[nodiscard]] const FString& GetCachedValue() const;
-	void SetCachedValue(const FString& CachedValue);
 
 	bool IsRowChecked() const;
 
 protected:
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item = nullptr;
-	FString CachedValue = "";
 
 	TObjectPtr<UConsoleVariablesEditorProjectSettings> ProjectSettingsPtr = nullptr;
 };
@@ -113,6 +109,8 @@ public:
 	bool GetInputValueAsBool() const;
 
 	FString GetBoolValueAsString() const;
+
+	int32 ConvertBoolValueToInteger(const FString& InValue) const;
 
 private:
 	

@@ -298,9 +298,9 @@ void SConsoleVariablesEditorList::SetTreeViewItems(const TArray<FConsoleVariable
 	TreeViewPtr->RequestListRefresh();
 }
 
-void SConsoleVariablesEditorList::UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const
+void SConsoleVariablesEditorList::UpdatePresetValuesForSave(const TObjectPtr<UConsoleVariablesAsset> InAsset) const
 {
-	TMap<FString, FString> NewSavedValueMap;
+	TArray<FConsoleVariablesEditorAssetSaveData> NewSavedCommands;
 	
 	for (const FConsoleVariablesEditorListRowPtr& Item : TreeViewRootObjects)
 	{
@@ -308,14 +308,17 @@ void SConsoleVariablesEditorList::UpdatePresetValuesForSave(TObjectPtr<UConsoleV
 		
 		if (CommandInfo.IsValid())
 		{
-			if (const TObjectPtr<IConsoleVariable> Variable = CommandInfo.Pin()->ConsoleVariablePtr)
-			{
-				NewSavedValueMap.Add(CommandInfo.Pin()->Command, Variable->GetString());
-			}
+			NewSavedCommands.Add(
+				{
+					CommandInfo.Pin()->Command,
+					Item->GetCachedValue(),
+					Item->GetWidgetCheckedState()
+				}
+			);
 		}
 	}
 
-	InAsset->ReplaceSavedCommandsAndValues(NewSavedValueMap);
+	InAsset->ReplaceSavedCommands(NewSavedCommands);
 }
 
 FString SConsoleVariablesEditorList::GetSearchStringFromSearchInputField() const
@@ -338,25 +341,31 @@ void SConsoleVariablesEditorList::GenerateTreeView()
 	const TObjectPtr<UConsoleVariablesAsset> EditableAsset = ConsoleVariablesEditorModule.GetEditingAsset();
 	check(EditableAsset);
 
-	for (const TPair<FString, FString>& CommandAndValue : EditableAsset->GetSavedCommandsAndValues())
+	for (const FConsoleVariablesEditorAssetSaveData& SavedCommand : EditableAsset->GetSavedCommands())
 	{
-		TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = ConsoleVariablesEditorModule.FindCommandInfoByName(CommandAndValue.Key);
-		
-		if (CommandInfo.IsValid())
+		// Get corresponding CommandInfo for tracking
+		if (TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+			ConsoleVariablesEditorModule.FindCommandInfoByName(SavedCommand.CommandName); CommandInfo.IsValid())
 		{
-			if (const TObjectPtr<IConsoleVariable> VariablePtr = CommandInfo.Pin()->ConsoleVariablePtr)
-			{
-				if (!VariablePtr->GetString().Equals(CommandAndValue.Value))
-				{
-					CommandInfo.Pin()->ExecuteCommand(CommandAndValue.Value);
-				}
+			const ECheckBoxState NewCheckedState =
+				SavedCommand.CheckedState == ECheckBoxState::Unchecked ?
+						ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 			
-				FConsoleVariablesEditorListRowPtr NewRow = 
-					MakeShared<FConsoleVariablesEditorListRow>(
-							CommandInfo.Pin(), CommandAndValue.Value, FConsoleVariablesEditorListRow::SingleCommand, 
-							ECheckBoxState::Checked, SharedThis(this), TreeViewRootObjects.Num(), nullptr);
-				TreeViewRootObjects.Add(NewRow);
+			// If the row is checked and the saved value differs from the current value,
+			// execute the command with the saved value 
+			if ( NewCheckedState == ECheckBoxState::Checked &&
+				CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(SavedCommand.CommandValueAsString))
+			{
+				CommandInfo.Pin()->ExecuteCommand(SavedCommand.CommandValueAsString);
 			}
+		
+			FConsoleVariablesEditorListRowPtr NewRow = 
+				MakeShared<FConsoleVariablesEditorListRow>(
+						CommandInfo.Pin(), SavedCommand.CommandValueAsString,
+						FConsoleVariablesEditorListRow::SingleCommand, 
+						NewCheckedState, SharedThis(this), TreeViewRootObjects.Num(), nullptr);
+		
+			TreeViewRootObjects.Add(NewRow);
 		}
 	}
 
