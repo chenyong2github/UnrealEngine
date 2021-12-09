@@ -610,10 +610,10 @@ namespace UnrealBuildTool
 				Rules.bCompileAgainstCoreUObject = true;
 			}
 
-			// Must have editor only data if building the editor.
-			if (Rules.bBuildEditor)
+			if (Rules.Type == TargetType.Editor)
 			{
-				Rules.bBuildWithEditorOnlyData = true;
+				Rules.bBuildWithEditorOnlyData = true; // Must have editor only data if building the editor.
+				Rules.bCompileAgainstEditor = true;
 			}
 
 			// Apply the override to force debug info to be enabled

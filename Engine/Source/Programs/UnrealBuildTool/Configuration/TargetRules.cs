@@ -503,11 +503,11 @@ namespace UnrealBuildTool
 		public bool bCompilePython = true;
 
 		/// <summary>
-		/// Whether to compile the editor or not. Only desktop platforms (Windows or Mac) will use this, other platforms force this to false.
+		/// Whether we are compiling editor code or not. Prefer the more explicit bCompileAgainstEditor instead.
 		/// </summary>
 		public bool bBuildEditor
 		{
-			get { return (Type == TargetType.Editor); }
+			get { return (Type == TargetType.Editor || bCompileAgainstEditor); }
 			set { Log.TraceWarning("Setting {0}.bBuildEditor is deprecated. Set {0}.Type instead.", GetType().Name); }
 		}
 
@@ -606,6 +606,22 @@ namespace UnrealBuildTool
 		public bool bCompileAgainstApplicationCore = true;
 
 		/// <summary>
+		/// Manually specified value for bCompileAgainstEditor.
+		/// </summary>
+		bool? bCompileAgainstEditorOverride;
+
+		/// <summary>
+		/// Enabled for editor builds (TargetType.Editor). Can be overridden for programs (TargetType.Program) that would need to compile against editor code. Not available for other target types.
+		/// Mainly drives the value of WITH_EDITOR.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileAgainstEditor
+		{
+			set { bCompileAgainstEditorOverride = value; }
+			get { return bCompileAgainstEditorOverride ?? (Type == TargetType.Editor); }
+		}
+
+		/// <summary>
 		/// Whether to compile Recast navmesh generation.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -631,7 +647,7 @@ namespace UnrealBuildTool
 		bool? bOverrideCompileSpeedTree;
 
 		/// <summary>
-		/// Whether we should compile in support for Simplygon or not.
+		/// Whether we should compile in support for SpeedTree or not.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bCompileSpeedTree
@@ -687,7 +703,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				return bWithPushModelOverride ?? (bBuildEditor);
+				return bWithPushModelOverride ?? (Type == TargetType.Editor);
 			}
 			set
 			{
@@ -2233,6 +2249,11 @@ namespace UnrealBuildTool
 		public bool bCompileAgainstApplicationCore
 		{
 			get { return Inner.bCompileAgainstApplicationCore; }
+		}
+
+		public bool bCompileAgainstEditor
+		{
+			get { return Inner.bCompileAgainstEditor; }
 		}
 
 		public bool bCompileRecast

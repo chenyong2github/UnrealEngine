@@ -1198,7 +1198,7 @@ namespace UnrealBuildTool
 					PublicDefinitions.Add("WITH_APEX=0");
 					PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
 					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
-					PublicDefinitions.Add(string.Format("WITH_PHYSX_COOKING={0}", Target.bBuildEditor && Target.bCompilePhysX ? 1 : 0));  // without APEX, we only need cooking in editor builds
+					PublicDefinitions.Add(string.Format("WITH_PHYSX_COOKING={0}", Target.Type == TargetType.Editor && Target.bCompilePhysX ? 1 : 0));  // without APEX, we only need cooking in editor builds
 				}
 
 				if (Target.bCompileNvCloth == true)
@@ -1223,7 +1223,7 @@ namespace UnrealBuildTool
 				PublicDefinitions.Add("PHYSICS_INTERFACE_PHYSX=0");
 				PublicDefinitions.Add("WITH_APEX=0");
 				PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
-				PublicDefinitions.Add(string.Format("WITH_PHYSX_COOKING={0}", Target.bBuildEditor && Target.bCompilePhysX ? 1 : 0));  // without APEX, we only need cooking in editor builds
+				PublicDefinitions.Add(string.Format("WITH_PHYSX_COOKING={0}", Target.Type == TargetType.Editor && Target.bCompilePhysX ? 1 : 0));  // without APEX, we only need cooking in editor builds
 				PublicDefinitions.Add("WITH_NVCLOTH=0");
 
 				if(Target.bUseChaos)
