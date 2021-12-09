@@ -303,10 +303,10 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 	NewWorld->SetGameInstance(this);
 	WorldContext->SetCurrentWorld(NewWorld);
 	WorldContext->AddRef(static_cast<UWorld*&>(EditorEngine->PlayWorld));	// Tie this context to this UEngine::PlayWorld*		// @fixme, needed still?
-
-	// make sure we can clean up this world!
-	NewWorld->ClearFlags(RF_Standalone);
 	NewWorld->bKismetScriptError = Params.bAnyBlueprintErrors;
+
+	// Initialize the world after setting world context to be consistent with normal loads
+	EditorEngine->PostCreatePIEWorld(NewWorld);
 
 	// Do a GC pass if necessary to remove any potentially unreferenced objects
 	if(bNeedsGarbageCollection)
@@ -403,6 +403,9 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 			URL = FURL(NULL, *EditorEngine->BuildPlayWorldURL(*PIEMapName, Params.bStartInSpectatorMode, ExtraURLOptions), TRAVEL_Absolute);
 		}
 
+		// Save our URL for later map travels
+		SetPersistentTravelURL(URL);
+
 		// If a start location is specified, spawn a temporary PlayerStartPIE actor at the start location and use it as the portal.
 		AActor* PlayerStart = NULL;
 		if (!EditorEngine->SpawnPlayFromHereStart(PlayWorld, PlayerStart))
@@ -452,14 +455,15 @@ FGameInstancePIEResult UGameInstance::StartPlayInEditorGameInstance(ULocalPlayer
 		if (Params.NetMode == PIE_ListenServer)
 		{
 			// Add port
+			uint32 ListenPort = 0;
 			uint16 ServerPort = 0;
 			if (Params.EditorPlaySettings->GetServerPort(ServerPort))
 			{
-				URL.Port = ServerPort;
+				ListenPort = ServerPort;
 			}
 
-			// start listen server with the built URL
-			PlayWorld->Listen(URL);
+			// Start a listen server
+			ensureMsgf(EnableListenServer(true, ListenPort), TEXT("Starting Listen Server for Play in Editor failed!"));
 		}
 
 		PlayWorld->BeginPlay();
@@ -1074,6 +1078,66 @@ void UGameInstance::AddUserToReplay(const FString& UserString)
 	if (UReplaySubsystem* ReplaySubsystem = GetSubsystem<UReplaySubsystem>())
 	{
 		ReplaySubsystem->AddUserToReplay(UserString);
+	}
+}
+
+void UGameInstance::SetPersistentTravelURL(FURL InURL)
+{
+	check(WorldContext);
+	WorldContext->LastURL = InURL;
+}
+
+bool UGameInstance::EnableListenServer(bool bEnable, int32 PortOverride /*= 0*/)
+{
+	UWorld* World = GetWorld();
+
+	if (!World || !World->IsGameWorld())
+	{
+		return false;
+	}
+
+	ENetMode ExistingMode = World->GetNetMode();
+
+	if (ExistingMode == NM_Client || ExistingMode == NM_DedicatedServer)
+	{
+		// Clients and dedicated servers cannot change to listen!
+		return false;
+	}
+
+	int32 DefaultListenPort = FURL::UrlConfig.DefaultPort;
+	if (bEnable)
+	{
+		// Modify the persistent url
+		if (PortOverride != 0)
+		{
+			WorldContext->LastURL.Port = PortOverride;
+		}
+		WorldContext->LastURL.AddOption(TEXT("Listen"));
+
+		if (ExistingMode == NM_Standalone)
+		{
+			// This actually opens the port
+			FURL ListenURL = WorldContext->LastURL;
+			return World->Listen(ListenURL);
+		}
+		else
+		{
+			// Already listening
+			return true;
+		}
+	}
+	else
+	{
+		WorldContext->LastURL.RemoveOption(TEXT("Listen"));
+		WorldContext->LastURL.Port = FURL::UrlConfig.DefaultPort;
+
+		if (ExistingMode == NM_ListenServer)
+		{
+			// What to do in this case is very game-specific
+			UE_LOG(LogGameSession, Warning, TEXT("Disabling a listen server with active connections does not disconnect existing players by default"));
+		}
+
+		return true;
 	}
 }
 

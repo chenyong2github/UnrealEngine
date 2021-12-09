@@ -2703,6 +2703,7 @@ public:
 
 	// This should only ever be called for a EditorEngine
 	virtual UWorld* CreatePIEWorldByDuplication(FWorldContext &Context, UWorld* InWorld, FString &PlayWorldMapName) { check(false); return nullptr; }
+	virtual void PostCreatePIEWorld(UWorld* InWorld) { check(false); }
 
 	/** 
 	 *	If this function returns true, the DynamicSourceLevels collection will be duplicated for the given map.

@@ -1836,7 +1836,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	bIsWorldInitialized = true;
 	bInitializedAndNeedsCleanup = true;
 
-	//@TODO: Should this happen here, or below here?
+	// Call the general post initialization delegates
 	FWorldDelegates::OnPostWorldInitialization.Broadcast(this, IVS);
 
 	PersistentLevel->PrecomputedVisibilityHandler.UpdateScene(Scene);
@@ -7721,16 +7721,17 @@ ENetMode UWorld::InternalGetNetMode() const
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	ENetMode URLNetMode = AttemptDeriveFromURL();
 #if WITH_EDITOR
-	if (WorldType == EWorldType::PIE)
+	if (WorldType == EWorldType::PIE && URLNetMode == NM_Standalone && !AreActorsInitialized())
 	{
-		// Return the cached NetMode that we were started with. We can't derive this from the Play Settings,
-		// because those can be modified during PIE startup, plus it is not easy for us to tell if we are
-		// a listen server or a client.
+		// If we're too early in startup and it defaults to Standalone, use the mode we were created with
+		// Once the world has been initialized the URL will be correct so we will use that
+		// This is required for dedicated server worlds so it is correct for InitWorld
 		return PlayInEditorNetMode;
 	}
 #endif
-	return AttemptDeriveFromURL();
+	return URLNetMode;
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

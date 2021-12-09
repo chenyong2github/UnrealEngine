@@ -2308,8 +2308,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 
 	check( NewPIEWorld );
 	NewPIEWorld->FeatureLevel = InWorld->FeatureLevel;
-	PostCreatePIEWorld(NewPIEWorld);
-
+	NewPIEWorld->WorldType = EWorldType::PIE;
 	
 	UE_LOG(LogPlayLevel, Log, TEXT("PIE: Created PIE world by copying editor world from %s to %s (%fs)"), *InWorld->GetPathName(), *NewPIEWorld->GetPathName(), float(FPlatformTime::Seconds() - StartTime));
 	return NewPIEWorld;
@@ -2319,8 +2318,12 @@ void UEditorEngine::PostCreatePIEWorld(UWorld *NewPIEWorld)
 {
 	double WorldInitStart = FPlatformTime::Seconds();
 	
+	ensure(!NewPIEWorld->bIsWorldInitialized);
+	
+	// make sure we can clean up this world!
+	NewPIEWorld->ClearFlags(RF_Standalone);
+
 	// Init the PIE world
-	NewPIEWorld->WorldType = EWorldType::PIE;
 	NewPIEWorld->InitWorld();
 	UE_LOG(LogPlayLevel, Log, TEXT("PIE: World Init took: (%fs)"),  float(FPlatformTime::Seconds() - WorldInitStart));
 
@@ -2335,8 +2338,8 @@ UWorld* UEditorEngine::CreatePIEWorldFromEntry(FWorldContext &WorldContext, UWor
 {
 	double StartTime = FPlatformTime::Seconds();
 
-	// Create the world
-	UWorld *LoadedWorld = UWorld::CreateWorld( EWorldType::PIE, false );
+	// Create the world but do not initialize yet
+	UWorld* LoadedWorld = UWorld::CreateWorld(EWorldType::PIE, false, NAME_None, nullptr, false, ERHIFeatureLevel::Num, nullptr, true);
 	check(LoadedWorld);
 	if (LoadedWorld->GetOutermost() != GetTransientPackage())
 	{
