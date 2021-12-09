@@ -30,13 +30,20 @@ FMatrix44f FImposterAtlas::GetLocalToImposter( const FIntPoint& TilePos ) const
 	FVector2D Oct = ( FVector2D( TilePos ) + 0.5f ) / AtlasSize * 2.0f - 1.0f;
 
 	FVector3f ImposterZ = OctahedronToUnitVector( Oct );
-
+	
+#if 0
 	// [Frisvad 2012, "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"]
 	// Invalid for ImposterZ.z == -1
 	float A = 1.0f / ( 1.0f + ImposterZ.Z );
 	float B = -ImposterZ.X * ImposterZ.Y * A;
 	FVector3f ImposterX( 1.0f - FMath::Square( ImposterZ.X ) * A, B, -ImposterZ.X );
 	FVector3f ImposterY( B, 1.0f - FMath::Square( ImposterZ.Y ) * A, -ImposterZ.Y );
+#else
+	FVector3f ImposterX( 0.0f, 0.0f, 1.0f );
+	ImposterX -= ImposterZ.Z * ImposterZ;
+	ImposterX.Normalize();
+	FVector3f ImposterY = ImposterZ ^ ImposterX;
+#endif
 
 	FVector3f ImposterExtent(
 		BoundsExtent | ImposterX.GetAbs(),
