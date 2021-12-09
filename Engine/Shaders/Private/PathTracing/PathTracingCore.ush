@@ -66,10 +66,9 @@ struct FPathState
 	float3 PathThroughput;          // 12 bytes
 	float PathRoughness;            //  2 bytes // half precision
 	float3 SigmaT; // Extinction    //  6 bytes // half precision 
-									// 88 bytes total
-									// 22 words - sync with PATHTRACER_PATHSTATE_NUM_WORDS
+									// 88 bytes total (see FPathTracingPackedPathState)
 
-	void WritePixel(float BlendFactor)
+	void WritePixel()
 	{
 		// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
 		float4 OldPixel  = Iteration > 0 ? RadianceTexture[PixelIndex] : 0;

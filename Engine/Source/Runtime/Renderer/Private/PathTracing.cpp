@@ -34,6 +34,19 @@ TAutoConsoleVariable<int32> CVarPathTracingCompaction(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingIndirectDispatch(
+	TEXT("r.PathTracing.IndirectDispatch"),
+	0,
+	TEXT("Enables indirect dispatch (if supported by the hardware) for compacted path tracing (default: 0 (disabled))"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingDispatchSize(
+	TEXT("r.PathTracing.DispatchSize"),
+	2048,
+	TEXT("Controls the tile size used when rendering the image. Reducing this value may prevent GPU timeouts for heavy renders. (default = 2048)"),
+	ECVF_RenderThreadSafe
+);
 
 TAutoConsoleVariable<int32> CVarPathTracingMaxBounces(
 	TEXT("r.PathTracing.MaxBounces"),
@@ -477,30 +490,19 @@ class FPathTracingRG : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FPathTracingRG)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FPathTracingRG, FGlobalShader)
 
-	class FEnableCompactionDim : SHADER_PERMUTATION_BOOL("PATH_TRACER_USE_COMPACTION");
+	class FCompactionType : SHADER_PERMUTATION_INT("PATH_TRACER_USE_COMPACTION", 2);
 
-	using FPermutationDomain = TShaderPermutationDomain<FEnableCompactionDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FCompactionType>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		const bool bUseCompaction = PermutationVector.Get<FEnableCompactionDim>();
-		if (bUseCompaction && !RHISupportsWaveOperations(Parameters.Platform))
-		{
-			// compaction requires wave operations
-			return false;
-		}
 		return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_RECT_LIGHT_TEXTURES"), 1);
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FEnableCompactionDim>())
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
-		}
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
@@ -533,10 +535,12 @@ class FPathTracingRG : public FGlobalShader
 
 		// extra parameters required for path compacting kernel
 		SHADER_PARAMETER(int, Bounce)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, PathStateData)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FPathTracingPackedPathState>, PathStateData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, ActivePaths)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, NextActivePaths)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, NumPathStates)
+
+		RDG_BUFFER_ACCESS(PathTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FPathTracingRG, "/Engine/Private/PathTracing/PathTracing.usf", "PathTracingMainRG", SF_RayGen);
@@ -1301,10 +1305,10 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& V
 		&& ShouldCompilePathTracingShadersForProject(ViewFamily.GetShaderPlatform()))
 	{
 		// Declare all RayGen shaders that require material closest hit shaders to be bound
-		for (int EnableCompaction = 0; EnableCompaction < 2; EnableCompaction++)
+		for (int CompactionType = 0; CompactionType < FPathTracingRG::FCompactionType::PermutationCount; CompactionType++)
 		{
 			FPathTracingRG::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FPathTracingRG::FEnableCompactionDim>(EnableCompaction != 0);
+			PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
 			FGlobalShaderPermutationParameters Parameters(FPathTracingRG::StaticGetTypeLayout().Name, ViewFamily.GetShaderPlatform(), PermutationVector.ToDimensionValueId());
 			if (!FPathTracingRG::ShouldCompilePermutation(Parameters))
 			{
@@ -1480,98 +1484,146 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	{
 		// Round up to coherent path tracing tile size to simplify pixel shuffling
 		// TODO: be careful not to write extra pixels past the boundary when using multi-gpu
-		const int32 DispatchSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X, PATHTRACER_COHERENT_TILE_SIZE) * PATHTRACER_COHERENT_TILE_SIZE;
-		const int32 DispatchSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y, PATHTRACER_COHERENT_TILE_SIZE) * PATHTRACER_COHERENT_TILE_SIZE;
+
+		const int32 ResX = View.ViewRect.Size().X;
+		const int32 ResY = View.ViewRect.Size().Y;
+
+		const int32 DispatchResX = FMath::DivideAndRoundUp(ResX, PATHTRACER_COHERENT_TILE_SIZE) * PATHTRACER_COHERENT_TILE_SIZE;
+		const int32 DispatchResY = FMath::DivideAndRoundUp(ResY, PATHTRACER_COHERENT_TILE_SIZE) * PATHTRACER_COHERENT_TILE_SIZE;
+
+		int32 DispatchSize = FMath::Max(CVarPathTracingDispatchSize.GetValueOnRenderThread(), 64);
+		DispatchSize = FMath::DivideAndRoundUp(DispatchSize, PATHTRACER_COHERENT_TILE_SIZE) * PATHTRACER_COHERENT_TILE_SIZE;
 
 		// should we use path compaction?
-		const bool bUseCompaction = CVarPathTracingCompaction.GetValueOnRenderThread() != 0 && GRHISupportsWaveOperations && RHISupportsWaveOperations(View.GetShaderPlatform());
+		const int CompactionType = CVarPathTracingCompaction.GetValueOnRenderThread();
+		const bool bUseIndirectDispatch = GRHISupportsRayTracingDispatchIndirect && CVarPathTracingIndirectDispatch.GetValueOnRenderThread() != 0;
 		FRDGBuffer* ActivePaths[2] = {};
-		FRDGBuffer* NumActivePaths = nullptr;
+		FRDGBuffer* NumActivePaths[2] = {};
 		FRDGBuffer* PathStateData = nullptr;
-		if (bUseCompaction)
+		if (CompactionType == 1)
 		{
-			ActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), DispatchSizeX * DispatchSizeY), TEXT("PathTracer.ActivePaths0"));
-			ActivePaths[1] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), DispatchSizeX * DispatchSizeY), TEXT("PathTracer.ActivePaths1"));
-			NumActivePaths = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("PathTracer.NumActivePaths"));
-			PathStateData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32) * PATHTRACER_PATHSTATE_NUM_WORDS, DispatchSizeX * DispatchSizeY), TEXT("PathTracer.PathStateData"));
-			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ActivePaths[0], PF_R32_UINT), 0);
-		}
-		FPathTracingRG::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FPathTracingRG::FEnableCompactionDim>(bUseCompaction);
-		TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap, PermutationVector);
-		FPathTracingRG::FParameters* PreviousPassParameters = nullptr;
-		// When using path compaction, we need to run the path tracer once per bounce
-		// otherwise, the path tracer is the one doing the bounces
-		for (int Bounce = 0, MaxBounces = bUseCompaction ? Config.PathTracingData.MaxBounces : 0; Bounce <= MaxBounces; Bounce++)
-		{
-			FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
-			PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
-			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-			PassParameters->PathTracingData = Config.PathTracingData;
-			if (PreviousPassParameters == nullptr)
+			const int32 NumPaths = FMath::Min(DispatchSize * DispatchSize, DispatchResX * DispatchResY);
+			ActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), NumPaths), TEXT("PathTracer.ActivePaths0"));
+			ActivePaths[1] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), NumPaths), TEXT("PathTracer.ActivePaths1"));
+			if (bUseIndirectDispatch)
 			{
-				// upload sky/lights data
-				SetLightParameters(GraphBuilder, PassParameters, Scene, View, Config.UseMISCompensation);
-				PreviousPassParameters = PassParameters;
+				NumActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<int32>(3), TEXT("PathTracer.NumActivePaths0"));
+				NumActivePaths[1] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<int32>(3), TEXT("PathTracer.NumActivePaths1"));
 			}
 			else
 			{
-				// re-use from last iteration
-				PassParameters->IESTexture = PreviousPassParameters->IESTexture;
-				PassParameters->IESTextureSampler = PreviousPassParameters->IESTextureSampler;
-				PassParameters->LightGridParameters = PreviousPassParameters->LightGridParameters;
-				PassParameters->RectLightTexture = PreviousPassParameters->RectLightTexture;
-				PassParameters->RectLightSampler = PreviousPassParameters->RectLightSampler;
-				PassParameters->SceneLightCount = PreviousPassParameters->SceneLightCount;
-				PassParameters->SceneVisibleLightCount = PreviousPassParameters->SceneVisibleLightCount;
-				PassParameters->SceneLights = PreviousPassParameters->SceneLights;
-				PassParameters->SkylightParameters = PreviousPassParameters->SkylightParameters;
+				NumActivePaths[0] = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 3), TEXT("PathTracer.NumActivePaths"));
 			}
-			if (Config.PathTracingData.EnableDirectLighting == 0)
+			PathStateData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPathTracingPackedPathState), NumPaths), TEXT("PathTracer.PathStateData"));
+		}
+		FPathTracingRG::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FPathTracingRG::FCompactionType>(CompactionType);
+		TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap, PermutationVector);
+		FPathTracingRG::FParameters* PreviousPassParameters = nullptr;
+		for (int32 TileY = 0; TileY < DispatchResY; TileY += DispatchSize)
+		{
+			for (int32 TileX = 0; TileX < DispatchResX; TileX += DispatchSize)
 			{
-				PassParameters->SceneVisibleLightCount = 0;
-			}
+				const int32 DispatchSizeX = FMath::Min(DispatchSize, DispatchResX - TileX);
+				const int32 DispatchSizeY = FMath::Min(DispatchSize, DispatchResY - TileY);
+				if (CompactionType == 1)
+				{
+					AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ActivePaths[0], PF_R32_UINT), 0);
+				}
+				// When using path compaction, we need to run the path tracer once per bounce
+				// otherwise, the path tracer is the one doing the bounces
+				for (int Bounce = 0, MaxBounces = CompactionType == 1 ? Config.PathTracingData.MaxBounces : 0; Bounce <= MaxBounces; Bounce++)
+				{
+					FPathTracingRG::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingRG::FParameters>();
+					PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
+					PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+					PassParameters->PathTracingData = Config.PathTracingData;
+					if (PreviousPassParameters == nullptr)
+					{
+						// upload sky/lights data
+						SetLightParameters(GraphBuilder, PassParameters, Scene, View, Config.UseMISCompensation);
+						PreviousPassParameters = PassParameters;
+					}
+					else
+					{
+						// re-use from last iteration
+						PassParameters->IESTexture = PreviousPassParameters->IESTexture;
+						PassParameters->IESTextureSampler = PreviousPassParameters->IESTextureSampler;
+						PassParameters->LightGridParameters = PreviousPassParameters->LightGridParameters;
+						PassParameters->RectLightTexture = PreviousPassParameters->RectLightTexture;
+						PassParameters->RectLightSampler = PreviousPassParameters->RectLightSampler;
+						PassParameters->SceneLightCount = PreviousPassParameters->SceneLightCount;
+						PassParameters->SceneVisibleLightCount = PreviousPassParameters->SceneVisibleLightCount;
+						PassParameters->SceneLights = PreviousPassParameters->SceneLights;
+						PassParameters->SkylightParameters = PreviousPassParameters->SkylightParameters;
+					}
+					if (Config.PathTracingData.EnableDirectLighting == 0)
+					{
+						PassParameters->SceneVisibleLightCount = 0;
+					}
 
-			PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
-			PassParameters->AlbedoTexture   = GraphBuilder.CreateUAV(AlbedoTexture);
-			PassParameters->NormalTexture   = GraphBuilder.CreateUAV(NormalTexture);
+					PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+					PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
+					PassParameters->AlbedoTexture   = GraphBuilder.CreateUAV(AlbedoTexture);
+					PassParameters->NormalTexture   = GraphBuilder.CreateUAV(NormalTexture);
 
-			// TODO: in multi-gpu case, split image into tiles
-			PassParameters->TileOffset.X = 0;
-			PassParameters->TileOffset.Y = 0;
+					// TODO: in multi-gpu case, assign different tiles to different GPUs
+					PassParameters->TileOffset.X = TileX;
+					PassParameters->TileOffset.Y = TileY;
 
-			if (bUseCompaction)
-			{
-				PassParameters->Bounce = Bounce;
-				PassParameters->ActivePaths = GraphBuilder.CreateSRV(ActivePaths[Bounce & 1], PF_R32_UINT);
-				PassParameters->NextActivePaths = GraphBuilder.CreateUAV(ActivePaths[(Bounce & 1) ^ 1], PF_R32_UINT);
-				PassParameters->PathStateData = GraphBuilder.CreateUAV(PathStateData, PF_R32_UINT);
-				PassParameters->NumPathStates = GraphBuilder.CreateUAV(NumActivePaths, PF_R32_UINT);
-				AddClearUAVPass(GraphBuilder, PassParameters->NextActivePaths, ~0u); // make sure everything is initialized to -1 since paths that go inactive don't write anything
-				AddClearUAVPass(GraphBuilder, PassParameters->NumPathStates, 0); // reset number of active paths to 0
-			}
-			ClearUnusedGraphResources(RayGenShader, PassParameters);
-			GraphBuilder.AddPass(
-				bUseCompaction
-					? RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d Bounce=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount, Bounce)
-					: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount),
-				PassParameters,
-				ERDGPassFlags::Compute,
-				[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeY, &View](FRHIRayTracingCommandList& RHICmdList)
-			{
-				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+					PassParameters->Bounce = Bounce;
+					if (CompactionType == 1)
+					{
+						PassParameters->ActivePaths = GraphBuilder.CreateSRV(ActivePaths[Bounce & 1], PF_R32_SINT);
+						PassParameters->NextActivePaths = GraphBuilder.CreateUAV(ActivePaths[(Bounce & 1) ^ 1], PF_R32_SINT);
+						PassParameters->PathStateData = GraphBuilder.CreateUAV(PathStateData);
+						if (bUseIndirectDispatch)
+						{
+							PassParameters->NumPathStates = GraphBuilder.CreateUAV(NumActivePaths[Bounce & 1], PF_R32_UINT);
+							PassParameters->PathTracingIndirectArgs = NumActivePaths[(Bounce & 1) ^ 1];
+						}
+						else
+						{
+							PassParameters->NumPathStates = GraphBuilder.CreateUAV(NumActivePaths[0], PF_R32_UINT);
+							AddClearUAVPass(GraphBuilder, PassParameters->NextActivePaths, -1); // make sure everything is initialized to -1 since paths that go inactive don't write anything
+						}
+						AddClearUAVPass(GraphBuilder, PassParameters->NumPathStates, 0);
+					}
+					ClearUnusedGraphResources(RayGenShader, PassParameters);
+					GraphBuilder.AddPass(
+						CompactionType == 1
+							? RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Tile=(%d,%d - %dx%d) Sample=%d/%d NumLights=%d (Bounce=%d%s)", ResX, ResY, TileX, TileY, DispatchSizeX, DispatchSizeY, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount, Bounce, bUseIndirectDispatch && Bounce > 0 ? TEXT(" indirect") : TEXT(""))
+							: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Tile=(%d,%d - %dx%d) Sample=%d/%d NumLights=%d", ResX, ResY, TileX, TileY, DispatchSizeX, DispatchSizeY, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount),
+						PassParameters,
+						ERDGPassFlags::Compute,
+						[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeY, bUseIndirectDispatch, &View](FRHIRayTracingCommandList& RHICmdList)
+					{
+						FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			
-				FRayTracingShaderBindingsWriter GlobalResources;
-				SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
-
-				RHICmdList.RayTraceDispatch(
-					View.RayTracingMaterialPipeline,
-					RayGenShader.GetRayTracingShader(),
-					RayTracingSceneRHI, GlobalResources,
-					DispatchSizeX, DispatchSizeY
-				);
-			});
+						FRayTracingShaderBindingsWriter GlobalResources;
+						SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
+						if (bUseIndirectDispatch && PassParameters->Bounce > 0)
+						{
+							PassParameters->PathTracingIndirectArgs->MarkResourceAsUsed();
+							RHICmdList.RayTraceDispatchIndirect(
+								View.RayTracingMaterialPipeline,
+								RayGenShader.GetRayTracingShader(),
+								RayTracingSceneRHI, GlobalResources,
+								PassParameters->PathTracingIndirectArgs->GetIndirectRHICallBuffer(), 0
+							);
+						}
+						else
+						{
+							RHICmdList.RayTraceDispatch(
+								View.RayTracingMaterialPipeline,
+								RayGenShader.GetRayTracingShader(),
+								RayTracingSceneRHI, GlobalResources,
+								DispatchSizeX, DispatchSizeY
+							);
+						}
+					});
+				}
+			}
 		}
 		// After we are done, make sure we remember our texture for next time so that we can accumulate samples across frames
 		GraphBuilder.QueueTextureExtraction(RadianceTexture, &PathTracingState->RadianceRT);
