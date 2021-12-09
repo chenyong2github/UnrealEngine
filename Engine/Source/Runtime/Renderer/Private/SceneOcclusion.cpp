@@ -733,15 +733,14 @@ static uint8 FirstFrameBuffer[] = { 255 };
 
 void FHZBOcclusionTester::ReadbackResults(FRHICommandListImmediate& RHICmdList)
 {
-	int32 CurrentBuffer = ValidFrameNumber % ResultsBufferCount;
-
-	int32 PreviousBuffer = (ValidFrameNumber - 1) % ResultsBufferCount;
+	// The result reading phase is already 1 frame later.
+	int32 PreviousBuffer = (ValidFrameNumber) % ResultsBufferCount;
 	if (ResultsBufferReadback[PreviousBuffer]->IsReady())
 	{
 		// do nothing, only for execute fence poll in rhi thread
 	}
 
-	int32 Previous2Buffer = (ValidFrameNumber - 2) % ResultsBufferCount;
+	int32 Previous2Buffer = (ValidFrameNumber - 1) % ResultsBufferCount;
 	if (ResultsBufferReadback[Previous2Buffer]->IsReady())
 	{
 		// Workaround until FRHIGPUTextureReadback::Lock has multigpu support

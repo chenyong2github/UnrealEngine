@@ -409,7 +409,7 @@ private:
 	enum { SizeY = 256 };
 	enum { FrameNumberMask = 0x7fffffff };
 	enum { InvalidFrameNumber = 0xffffffff };
-	enum { ResultsBufferCount = 3 };
+	enum { ResultsBufferCount = 2 };
 	enum { ResultsBufferDataSize = SizeX * SizeY * 4 };
 
 	TArray< FOcclusionPrimitive, SceneRenderingAllocator >	Primitives;

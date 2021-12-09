@@ -98,7 +98,6 @@ public:
 	uint32 LastConsideredFrameNumber;
 	uint32 HZBTestIndex;
 	uint32 HZBTestIndex_PreviousFrame;
-	uint32 HZBTestIndex_Previous2Frame;
 
 	/** The last time the primitive was visible. */
 	float LastProvenVisibleTime;
@@ -165,7 +164,6 @@ public:
 		, LastConsideredFrameNumber(~0u)
 		, HZBTestIndex(~0u)
 		, HZBTestIndex_PreviousFrame(~0u)
-		, HZBTestIndex_Previous2Frame(~0u)
 		, LastProvenVisibleTime(0.0f)
 		, LastConsideredTime(0.0f)
 		, LastPixelsPercentage(0.0f)
@@ -187,7 +185,6 @@ public:
 		, LastConsideredFrameNumber(~0u)
 		, HZBTestIndex(~0u)
 		, HZBTestIndex_PreviousFrame(~0u)
-		, HZBTestIndex_Previous2Frame(~0u)
 		, LastProvenVisibleTime(0.0f)
 		, LastConsideredTime(0.0f)
 		, LastPixelsPercentage(0.0f)

@@ -987,9 +987,9 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 					{
 						if (HZBOcclusionTests.IsValidFrame(PrimitiveOcclusionHistory->LastTestFrameNumber))
 						{
-							if (PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame != -1)
+							if (PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame != -1)
 							{
-								bIsOccluded = !HZBOcclusionTests.IsVisible(PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame);
+								bIsOccluded = !HZBOcclusionTests.IsVisible(PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame);
 							}
 
 							bOcclusionStateIsDefinite = true;
@@ -1143,7 +1143,6 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 							// Always run
 							if (bSingleThreaded)
 							{
-								PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame = PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame;
 								PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame = PrimitiveOcclusionHistory->HZBTestIndex;
 								PrimitiveOcclusionHistory->HZBTestIndex = HZBOcclusionTests.AddBounds(OcclusionBounds.Origin, OcclusionBounds.BoxExtent);					
 							}
@@ -1228,7 +1227,6 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 					}
 					else
 					{
-						PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame = PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame;
 						PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame = PrimitiveOcclusionHistory->HZBTestIndex;
 						PrimitiveOcclusionHistory->HZBTestIndex = -1;
 
@@ -1490,7 +1488,6 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 				//HZB output
 				for (auto HZBBoundIter = OutHZBBounds[i].CreateIterator(); HZBBoundIter; ++HZBBoundIter)
 				{
-					HZBBoundIter->TargetHistory->HZBTestIndex_Previous2Frame = HZBBoundIter->TargetHistory->HZBTestIndex_PreviousFrame;
 					HZBBoundIter->TargetHistory->HZBTestIndex_PreviousFrame = HZBBoundIter->TargetHistory->HZBTestIndex;
 					HZBBoundIter->TargetHistory->HZBTestIndex = HZBOcclusionTests.AddBounds(HZBBoundIter->BoundsOrigin, HZBBoundIter->BoundsExtent);
 				}
