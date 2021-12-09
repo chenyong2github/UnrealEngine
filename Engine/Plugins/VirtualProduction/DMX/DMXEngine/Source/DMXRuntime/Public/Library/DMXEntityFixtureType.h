@@ -5,6 +5,7 @@
 #include "DMXAttribute.h"
 #include "DMXProtocolTypes.h"
 #include "Library/DMXEntity.h"
+#include "Library/DMXEntityReference.h"
 #include "Modulators/DMXModulator.h"
 
 #include "DMXEntityFixtureType.generated.h"
