@@ -4748,8 +4748,7 @@ void STimingView::CreateCpuThreadTrackColoringModeMenu(FMenuBuilder& MenuBuilder
 		);
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CpuThreadTrackColoringMode_ByDuration", "By Duration"),
-			LOCTEXT("CpuThreadTrackColoringMode_ByDuration_Desc",
-"Assign a color to CPU/GPU timing events based on their duration (inclusive time).\n\t≥ 10ms : red\n\t≥ 1ms : yellow\n\t≥ 100μs : green\n\t≥ 10μs : cyan\n\t≥ 1μs : blue\n\t< 1μs : grey"),
+			LOCTEXT("CpuThreadTrackColoringMode_ByDuration_Desc", "Assign a color to CPU/GPU timing events based on their duration (inclusive time).\n\t≥ 10ms : red\n\t≥ 1ms : yellow\n\t≥ 100μs : green\n\t≥ 10μs : cyan\n\t≥ 1μs : blue\n\t< 1μs : grey"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &STimingView::SetCpuThreadTrackColoringMode, Insights::ETimingEventsColoringMode::ByDuration),

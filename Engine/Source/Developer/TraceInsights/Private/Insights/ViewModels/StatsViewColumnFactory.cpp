@@ -60,8 +60,8 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateNameColumn()
 	FTableColumn& Column = *ColumnRef;
 
 	Column.SetShortName(LOCTEXT("Name_ColumnName", "Name"));
-	Column.SetTitleName(LOCTEXT("Name_ColumnTitle", "Stats or Group Name"));
-	Column.SetDescription(LOCTEXT("Name_ColumnDesc", "Name of stats or group"));
+	Column.SetTitleName(LOCTEXT("Name_ColumnTitle", "Counter or Group Name"));
+	Column.SetDescription(LOCTEXT("Name_ColumnDesc", "Name of counter or group"));
 
 	Column.SetFlags(ETableColumnFlags::ShouldBeVisible |
 					ETableColumnFlags::CanBeFiltered |
@@ -140,7 +140,7 @@ TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateTypeColumn()
 
 	Column.SetShortName(LOCTEXT("Type_ColumnName", "Type"));
 	Column.SetTitleName(LOCTEXT("Type_ColumnTitle", "Type"));
-	Column.SetDescription(LOCTEXT("Type_ColumnDesc", "Type of stats counter or group"));
+	Column.SetDescription(LOCTEXT("Type_ColumnDesc", "Type of counter or group"));
 
 	Column.SetFlags(ETableColumnFlags::CanBeHidden |
 					//ETableColumnFlags::ShouldBeVisible |
