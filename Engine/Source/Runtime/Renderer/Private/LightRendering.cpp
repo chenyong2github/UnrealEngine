@@ -1068,6 +1068,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 /** Shader parameters to use when creating a RenderLight(...) pass. */
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderLightParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
@@ -1093,6 +1094,7 @@ void GetRenderLightParameters(
 	const FVolumetricCloudShadowAOParameters& CloudShadowAOParameters,
 	FRenderLightParameters& Parameters)
 {
+	Parameters.View = View.ViewUniformBuffer;
 	Parameters.SceneTextures = SceneTexturesUniformBuffer;
 	Parameters.HairStrands = HairStrandsUniformBuffer;
 	Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
@@ -2217,7 +2219,8 @@ static void InternalRenderLight(
 
 		if (!bEnableStrataTiledPass)
 		{
-			VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
+			FDeferredLightVS::FParameters VSParameters2 = FDeferredLightVS::GetParameters(View);
+			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSParameters2);
 
 			// Apply the directional light as a full screen quad
 			DrawRectangle(
@@ -2294,7 +2297,8 @@ static void InternalRenderLight(
 			PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, ScreenShadowMaskTexture, LightingChannelsTexture, &RenderLightParams, nullptr);
 		}
 
-		VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
+		FDeferredLightVS::FParameters VSParameters2 = FDeferredLightVS::GetParameters(View, LightSceneInfo);
+		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSParameters2);
 
 		// Use DBT to allow work culling on shadow lights
 		if (GraphicsPSOInit.bDepthBounds)
@@ -2707,7 +2711,8 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 				PixelShader->SetParametersSimpleLight(RHICmdList, View, SimpleLight, SimpleLightPerViewData);
 
-				VertexShader->SetSimpleLightParameters(RHICmdList, View, LightBounds);
+				FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, LightBounds);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
 
 				// Apply the point or spot light with some approximately bounding geometry,
 				// So we can get speedups from depth testing and not processing pixels outside of the light's influence.

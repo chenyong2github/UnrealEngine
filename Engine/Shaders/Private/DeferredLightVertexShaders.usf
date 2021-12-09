@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush" 
-#include "Common.ush"
+#include "Common.ush"  
 
 #if defined(SHADER_RADIAL_LIGHT)
 float4 StencilingGeometryPosAndScale;
@@ -15,6 +15,23 @@ float3 StencilingPreViewTranslation;
 #endif
 
 #if defined(SHADER_RADIAL_LIGHT) && SHADER_RADIAL_LIGHT == 0
+
+float4 PosScaleBias;
+float4 UVScaleBias;
+float4 InvTargetSizeAndTextureSize; 
+
+void DrawFullScreenRect(
+	in float4 InPosition,
+	in float2 InTexCoord,
+	out float4 OutPosition,
+	out float2 OutTexCoord)
+{
+	OutPosition = InPosition;
+	OutPosition.xy = -1.0f + 2.0f * (PosScaleBias.zw + (InPosition.xy * PosScaleBias.xy)) * InvTargetSizeAndTextureSize.xy;
+	OutPosition.xy *= float2(1, -1);
+	OutTexCoord.xy = (UVScaleBias.zw + (InTexCoord.xy * UVScaleBias.xy)) * InvTargetSizeAndTextureSize.zw;
+}
+
 /** Vertex shader for rendering a directional light using a full screen quad. */
 void VertexMain(
 	in float2 InPosition : ATTRIBUTE0,
@@ -24,7 +41,7 @@ void VertexMain(
 	out float4 OutPosition : SV_POSITION
 	)
 {	
-	DrawRectangle(float4(InPosition.xy, 0, 1), InUV, OutPosition, OutTexCoord);
+	DrawFullScreenRect(float4(InPosition.xy, 0, 1), InUV, OutPosition, OutTexCoord);
 	OutScreenVector = mul(float4(OutPosition.xy, 1, 0), View.ScreenToTranslatedWorld).xyz;
 }
 #endif

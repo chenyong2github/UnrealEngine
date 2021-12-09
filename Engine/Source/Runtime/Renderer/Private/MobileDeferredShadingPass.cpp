@@ -372,7 +372,9 @@ static void RenderLocalLight_StencilMask(FRHICommandListImmediate& RHICmdList, c
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = nullptr;
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 1);
-	VertexShader->SetParameters(RHICmdList, View, &LightSceneInfo);
+
+	FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, &LightSceneInfo);
+	SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
 
 	if (LightType == LightType_Point)
 	{
@@ -457,7 +459,8 @@ static void RenderLocalLight(
 	uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
-	VertexShader->SetParameters(RHICmdList, View, &LightSceneInfo);
+	FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, &LightSceneInfo);
+	SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
 
 	FMobileRadialLightFunctionPS::FParameters PassParameters;
 	PassParameters.DeferredLightUniforms = TUniformBufferRef<FDeferredLightUniformStruct>::CreateUniformBufferImmediate(GetDeferredLightParameters(View, LightSceneInfo), EUniformBufferUsage::UniformBuffer_SingleFrame);
@@ -566,7 +569,10 @@ static void RenderSimpleLights(
 
 		// Render light mask
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOLightMask, 1);
-		VertexShader->SetSimpleLightParameters(RHICmdList, View, LightBounds);
+
+		FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, LightBounds);
+		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
+
 		StencilingGeometry::DrawSphere(RHICmdList);
 
 		// Render light
@@ -590,7 +596,6 @@ static void RenderSimpleLights(
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[0], StencilRef);
 			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShaders[0], View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
 		}
-		VertexShader->SetSimpleLightParameters(RHICmdList, View, LightBounds);
 
 		// Apply the point or spot light with some approximately bounding geometry,
 		// So we can get speedups from depth testing and not processing pixels outside of the light's influence.
