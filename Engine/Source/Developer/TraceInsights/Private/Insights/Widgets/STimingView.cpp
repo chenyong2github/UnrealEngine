@@ -4047,7 +4047,7 @@ TSharedRef<SWidget> STimingView::MakeCompactAutoScrollOptionsMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
 
-	MenuBuilder.BeginSection("AutoScrollOptions", LOCTEXT("AutoScrollOptionsHeading", "Auto-Scroll Options"));
+	MenuBuilder.BeginSection("AutoScrollOptions", LOCTEXT("CompactAutoScrollOptionsMenu_Section", "Auto-Scroll Options"));
 	{
 		CreateCompactMenuLine(MenuBuilder,
 			LOCTEXT("FrameAlignment", "Frame Alignment:"),
@@ -4147,7 +4147,7 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
 
-	MenuBuilder.BeginSection("Alignment", LOCTEXT("AlignmentHeading", "Alignment"));
+	MenuBuilder.BeginSection("Alignment", LOCTEXT("AutoScrollOptionsMenu_Section_Alignment", "Alignment"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScrollNoFrameAlignment", "None"),
@@ -4184,7 +4184,7 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("ViewportOffset", LOCTEXT("ViewportOffsetHeading", "Viewport Offset"));
+	MenuBuilder.BeginSection("ViewportOffset", LOCTEXT("AutoScrollOptionsMenu_Section_ViewportOffset", "Viewport Offset"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScrollViewportOffset-10", "-10%"),
@@ -4246,7 +4246,7 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Delay", LOCTEXT("DelayHeading", "Delay"));
+	MenuBuilder.BeginSection("Delay", LOCTEXT("AutoScrollOptionsMenu_Section_Delay", "Delay"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AutoScrollDelay0", "0"),
@@ -4345,7 +4345,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 
 	if (TopDockedTracks.Num() > 0)
 	{
-		MenuBuilder.BeginSection("TopDockedTracks", LOCTEXT("TopDockedTracksHeading", "Top Docked Tracks"));
+		MenuBuilder.BeginSection("TopDockedTracks", LOCTEXT("ContextMenu_Section_TopDockedTracks", "Top Docked Tracks"));
 		//MenuBuilder.AddWidget(
 		//	SNew(STextBlock)
 		//	.Text(LOCTEXT("TopDockedTracks", "Top Docked Tracks")),
@@ -4366,7 +4366,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 
 	if (ScrollableTracks.Num() > 0)
 	{
-		MenuBuilder.BeginSection("ScrollableTracks", LOCTEXT("ScrollableTracksHeading", "Scrollable Tracks"));
+		MenuBuilder.BeginSection("ScrollableTracks", LOCTEXT("ContextMenu_Section_ScrollableTracks", "Scrollable Tracks"));
 		//MenuBuilder.AddWidget(
 		//	SNew(STextBlock)
 		//	.Text(LOCTEXT("ScrollableTracks", "Scrollable Tracks")),
@@ -4388,7 +4388,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 
 	if (BottomDockedTracks.Num() > 0)
 	{
-		MenuBuilder.BeginSection("BottomDockedTracks", LOCTEXT("BottomDockedTracksHeading", "Bottom Docked Tracks"));
+		MenuBuilder.BeginSection("BottomDockedTracks", LOCTEXT("ContextMenu_Section_BottomDockedTracks", "Bottom Docked Tracks"));
 		//MenuBuilder.AddWidget(
 		//	SNew(STextBlock)
 		//	.Text(LOCTEXT("BottomDockedTracks", "Bottom Docked Tracks")),
@@ -4409,7 +4409,7 @@ void STimingView::CreateAllTracksMenu(FMenuBuilder& MenuBuilder)
 
 	if (ForegroundTracks.Num() > 0)
 	{
-		MenuBuilder.BeginSection("ForegroundTracks", LOCTEXT("ForegroundTracksHeading", "Foreground Tracks"));
+		MenuBuilder.BeginSection("ForegroundTracks", LOCTEXT("ContextMenu_Section_ForegroundTracks", "Foreground Tracks"));
 		//MenuBuilder.AddWidget(
 		//	SNew(STextBlock)
 		//	.Text(LOCTEXT("ForegroundTracks", "Foreground Tracks")),
@@ -4458,7 +4458,7 @@ TSharedRef<SWidget> STimingView::MakeOtherTracksFilterMenu()
 
 	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
-	MenuBuilder.BeginSection("GraphTracks", LOCTEXT("GraphTracksHeading", "Main Graph Track"));
+	MenuBuilder.BeginSection("GraphTracks", LOCTEXT("ContextMenu_Section_GraphTracks", "Main Graph Track"));
 	{
 		MenuBuilder.AddMenuEntry(Commands.ShowMainGraphTrack);
 	}
@@ -4510,7 +4510,7 @@ TSharedRef<SWidget> STimingView::MakeViewModeMenu()
 
 	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
-	MenuBuilder.BeginSection("ViewMode", LOCTEXT("ViewModeHeading", "View Mode"));
+	MenuBuilder.BeginSection("ViewMode", LOCTEXT("ContextMenu_Section_ViewMode", "View Mode"));
 	{
 		MenuBuilder.AddMenuEntry(Commands.ToggleCompactMode);
 		MenuBuilder.AddMenuEntry(Commands.AutoHideEmptyTracks);
@@ -4521,7 +4521,7 @@ TSharedRef<SWidget> STimingView::MakeViewModeMenu()
 
 	CreateCpuThreadTrackColoringModeMenu(MenuBuilder);
 
-	MenuBuilder.BeginSection("Misc", LOCTEXT("MiscHeading", "Misc Settings"));
+	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Section_Misc", "Misc Settings"));
 	{
 		MenuBuilder.AddMenuEntry(Commands.PanningOnScreenEdges);
 	}
@@ -4634,7 +4634,7 @@ void AddMenuEntryRadioButton(
 
 void STimingView::CreateDepthLimitMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("DepthLimit", LOCTEXT("DepthLimitHeading", "Depth Limit"));
+	MenuBuilder.BeginSection("DepthLimit", LOCTEXT("ContextMenu_Section_DepthLimit", "Depth Limit"));
 	{
 		AddMenuEntryRadioButton(MenuBuilder,
 			FUIAction(
@@ -4722,7 +4722,7 @@ bool STimingView::CheckEventDepthLimit(uint32 DepthLimit) const
 
 void STimingView::CreateCpuThreadTrackColoringModeMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("CpuThreadTrackColoringMode", LOCTEXT("CpuThreadTrackColoringModeHeading", "Coloring Mode (CPU Thread Tracks)"));
+	MenuBuilder.BeginSection("CpuThreadTrackColoringMode", LOCTEXT("ContextMenu_Section_CpuThreadTrackColoringMode", "Coloring Mode (CPU Thread Tracks)"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CpuThreadTrackColoringMode_ByTimerName", "By Timer Name"),

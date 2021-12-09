@@ -368,11 +368,11 @@ void FFileActivitySharedState::ExtendOtherTracksFilterMenu(Insights::ITimingView
 
 void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 {
-	InOutMenuBuilder.BeginSection("File Activity", LOCTEXT("FileActivityHeading", "File Activity"));
+	InOutMenuBuilder.BeginSection("File Activity", LOCTEXT("ContextMenu_Section_FileActivity", "File Activity"));
 	{
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowIoOverviewTrack", "I/O Overview Track - I"),
-			LOCTEXT("ShowIoOverviewTrack_Tooltip", "Show/hide the I/O Overview track."),
+			LOCTEXT("ShowIoOverviewTrack_Tooltip", "Shows or hides the I/O Overview track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoOverviewTrack),
 				FCanExecuteAction(),
@@ -383,7 +383,7 @@ void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowOnlyErrors", "Only Errors (I/O Overview Track)"),
-			LOCTEXT("ShowOnlyErrors_Tooltip", "Show only the events with errors, in the I/O Overview track."),
+			LOCTEXT("ShowOnlyErrors_Tooltip", "Shows only the events with errors, in the I/O Overview track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleOnlyErrors),
 				FCanExecuteAction(),
@@ -394,7 +394,7 @@ void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowIoActivityTrack", "I/O Activity Track - I"),
-			LOCTEXT("ShowIoActivityTrack_Tooltip", "Show/hide the I/O Activity track."),
+			LOCTEXT("ShowIoActivityTrack_Tooltip", "Shows or hides the I/O Activity track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoActivityTrack),
 				FCanExecuteAction(),
@@ -405,7 +405,7 @@ void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
 
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowBackgroundEvents", "Background Events (I/O Activity Track) - O"),
-			LOCTEXT("ShowBackgroundEvents_Tooltip", "Show background events for file activities, in the I/O Activity track."),
+			LOCTEXT("ShowBackgroundEvents_Tooltip", "Shows background events for file activities, in the I/O Activity track."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleBackgroundEvents),
 				FCanExecuteAction(),

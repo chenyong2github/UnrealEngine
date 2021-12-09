@@ -123,7 +123,7 @@ void FFrameSharedState::ExtendOtherTracksFilterMenu(Insights::ITimingViewSession
 		return;
 	}
 
-	InOutMenuBuilder.BeginSection("FrameTracks", LOCTEXT("FrameTracksHeading", "Frames"));
+	InOutMenuBuilder.BeginSection("FrameTracks", LOCTEXT("ContextMenu_Section_FrameTracks", "Frames"));
 	{
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllFrameTracks);
 		InOutMenuBuilder.AddMenuEntry(

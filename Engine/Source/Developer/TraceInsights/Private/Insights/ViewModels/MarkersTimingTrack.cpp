@@ -258,11 +258,11 @@ FReply FMarkersTimingTrack::OnMouseButtonDoubleClick(const FGeometry& MyGeometry
 
 void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection(TEXT("Content"), LOCTEXT("ContentHeading", "Content"));
+	MenuBuilder.BeginSection(TEXT("Content"), LOCTEXT("ContextMenu_Section_Content", "Content"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ContextMenu_Bookmarks", "Bookmarks"),
-			LOCTEXT("ContextMenu_Bookmarks_Desc", "Change this track to show only the bookmarks."),
+			LOCTEXT("ContextMenu_Bookmarks_Desc", "Changes this track to show only the bookmarks."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetBookmarksTrack),
 						FCanExecuteAction(),
@@ -273,7 +273,7 @@ void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ContextMenu_Logs", "Logs"),
-			LOCTEXT("ContextMenu_Logs_Desc", "Change this track to show all logs."),
+			LOCTEXT("ContextMenu_Logs_Desc", "Changes this track to show all logs."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FMarkersTimingTrack::SetLogsTrack),
 					  FCanExecuteAction(),
@@ -284,7 +284,7 @@ void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection(TEXT("MarkerLines"), LOCTEXT("MarkerLinesHeading", "Marker Lines"));
+	MenuBuilder.BeginSection(TEXT("MarkerLines"), LOCTEXT("ContextMenu_Section_MarkerLines", "Marker Lines"));
 	{
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ContextMenu_ToggleCollapsed", "Collapsed"),

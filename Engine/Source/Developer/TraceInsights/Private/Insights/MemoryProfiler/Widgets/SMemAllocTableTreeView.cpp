@@ -1220,14 +1220,14 @@ ECheckBoxState SMemAllocTableTreeView::CallstackGroupingByFunction_IsChecked() c
 
 void SMemAllocTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("CallstackFrame", LOCTEXT("ContextMenu_Header_CallstackFrame", "Callstack Frame"));
+	MenuBuilder.BeginSection("CallstackFrame", LOCTEXT("ContextMenu_Section_CallstackFrame", "Callstack Frame"));
 	{
 		ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
 		ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
 
-		FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_Header_Open", "Open in {0}"), SourceCodeAccessor.GetNameText());
+		FText ItemLabel = FText::Format(LOCTEXT("ContextMenu_Open", "Open in {0}"), SourceCodeAccessor.GetNameText());
 		FText FileName = GetSelectedCallstackFrameFileName();
-		FText ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Header_Open_Desc", "Open source file of selected callstack frame in {0}.\n{1}"), SourceCodeAccessor.GetNameText(), FileName);
+		FText ItemToolTip = FText::Format(LOCTEXT("ContextMenu_Open_Desc", "Open source file of selected callstack frame in {0}.\n{1}"), SourceCodeAccessor.GetNameText(), FileName);
 
 		FUIAction Action_OpenIDE
 		(

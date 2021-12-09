@@ -180,7 +180,12 @@ bool FTaskTimingSharedState::ExtendGlobalContextMenu(ITimingViewSession& InSessi
 		return false;
 	}
 
-	InMenuBuilder.AddSubMenu(LOCTEXT("Tasks", "Tasks"), LOCTEXT("Task", "Task Graph Insights settings"), FNewMenuDelegate::CreateSP(this, &FTaskTimingSharedState::BuildTasksSubMenu));
+	InMenuBuilder.AddSubMenu
+	(
+		LOCTEXT("ContextMenu_Tasks_SubMenu", "Tasks"),
+		LOCTEXT("ContextMenu_Tasks_SubMenu_Desc", "Task Graph Insights settings"),
+		FNewMenuDelegate::CreateSP(this, &FTaskTimingSharedState::BuildTasksSubMenu)
+	);
 
 	return true;
 }

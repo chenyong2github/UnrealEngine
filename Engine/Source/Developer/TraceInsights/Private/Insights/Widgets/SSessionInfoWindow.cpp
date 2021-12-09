@@ -143,11 +143,11 @@ void SSessionInfoWindow::Construct(const FArguments& InArgs, const TSharedRef<SD
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SSessionInfoWindow::AddSectionLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InSectionName) const
+void SSessionInfoWindow::BeginSection(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InSectionName) const
 {
 	InVerticalBox->AddSlot()
 		.AutoHeight()
-		.Padding(0.0f, 4.0f, 0.0f, 4.0f)
+		.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor(0.03f, 0.03f, 0.03f, 1.0f))
@@ -162,6 +162,20 @@ void SSessionInfoWindow::AddSectionLine(TSharedPtr<SVerticalBox> InVerticalBox, 
 					.ColorAndOpacity(FLinearColor(0.7f, 0.7f, 0.7f, 1.0f))
 				]
 			]
+		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SSessionInfoWindow::EndSection(TSharedPtr<SVerticalBox> InVerticalBox) const
+{
+	InVerticalBox->AddSlot()
+		.AutoHeight()
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(SBox)
+			.Padding(FMargin(0.0f))
+			.HeightOverride(4.0f)
 		];
 }
 
@@ -291,7 +305,7 @@ TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArg
 
 	Image->SetImage(new FSlateColorBrush(FLinearColor(0.015f, 0.015f, 0.015f, 1.0f)));
 
-	AddSectionLine(VerticalBox, LOCTEXT("SessionInfo_SectionText", "Session Info"));
+	BeginSection(VerticalBox, LOCTEXT("SessionInfo_SectionText", "Session Info"));
 	AddInfoLine(VerticalBox, LOCTEXT("SessionName_HeaderText",	"Session Name"),		TAttribute<FText>(this, &SSessionInfoWindow::GetSessionNameText));
 	AddInfoLine(VerticalBox, LOCTEXT("Uri_HeaderText",			"URI"),					TAttribute<FText>(this, &SSessionInfoWindow::GetUriText));
 	//AddInfoLine(VerticalBox, LOCTEXT("FileSize_HeaderText",		"File Size"),			TAttribute<FText>(this, &SSessionInfoWindow::GetFileSizeText));
@@ -303,12 +317,15 @@ TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArg
 	AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",	"Build Config"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildConfigText));
 	AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",	"Build Target"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildTargetText));
 	AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",	"Command Line"),		TAttribute<FText>(this, &SSessionInfoWindow::GetCommandLineText), true);
+	EndSection(VerticalBox);
 
-	AddSectionLine(VerticalBox, LOCTEXT("AnalysisStatus_SectionText", "Analysis Status"));
+	BeginSection(VerticalBox, LOCTEXT("AnalysisStatus_SectionText", "Analysis Status"));
 	AddSimpleInfoLine(VerticalBox, TAttribute<FText>(this, &SSessionInfoWindow::GetStatusText), true);
+	EndSection(VerticalBox);
 
-	AddSectionLine(VerticalBox, LOCTEXT("AnalysisModules_SectionText", "Analysis Modules"));
+	BeginSection(VerticalBox, LOCTEXT("AnalysisModules_SectionText", "Analysis Modules"));
 	AddSimpleInfoLine(VerticalBox, TAttribute<FText>(this, &SSessionInfoWindow::GetModulesText), true);
+	EndSection(VerticalBox);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SSessionInfoWindow::OnSessionInfoTabClosed));
 

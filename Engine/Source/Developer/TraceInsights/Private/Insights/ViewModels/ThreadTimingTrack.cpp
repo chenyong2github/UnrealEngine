@@ -545,7 +545,7 @@ void FThreadTimingSharedState::ExtendGpuTracksFilterMenu(Insights::ITimingViewSe
 		return;
 	}
 
-	InOutMenuBuilder.BeginSection("GpuTracks", LOCTEXT("GpuTracksHeading", "GPU Tracks"));
+	InOutMenuBuilder.BeginSection("GpuTracks", LOCTEXT("ContextMenu_Section_GpuTracks", "GPU Tracks"));
 	{
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
 		InOutMenuBuilder.AddMenuEntry(
@@ -571,7 +571,7 @@ void FThreadTimingSharedState::ExtendCpuTracksFilterMenu(Insights::ITimingViewSe
 		return;
 	}
 
-	InOutMenuBuilder.BeginSection("CpuTracks", LOCTEXT("CpuTracksHeading", "CPU Tracks"));
+	InOutMenuBuilder.BeginSection("CpuTracks", LOCTEXT("ContextMenu_Section_CpuTracks", "CPU Tracks"));
 	{
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
 		InOutMenuBuilder.AddMenuEntry(
@@ -587,7 +587,7 @@ void FThreadTimingSharedState::ExtendCpuTracksFilterMenu(Insights::ITimingViewSe
 	}
 	InOutMenuBuilder.EndSection();
 
-	InOutMenuBuilder.BeginSection("ThreadGroups", LOCTEXT("ThreadGroupsHeading", "CPU Thread Groups"));
+	InOutMenuBuilder.BeginSection("CpuThreadGroups", LOCTEXT("ContextMenu_Section_CpuThreadGroups", "CPU Thread Groups"));
 	CreateThreadGroupsMenu(InOutMenuBuilder);
 	InOutMenuBuilder.EndSection();
 }
@@ -1447,7 +1447,7 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	if (GetGroupName() != nullptr)
 	{
-		MenuBuilder.BeginSection("CpuThread", LOCTEXT("CpuThreadSection", "CPU Thread"));
+		MenuBuilder.BeginSection("CpuThread", LOCTEXT("ContextMenu_Section_CpuThread", "CPU Thread"));
 		{
 			MenuBuilder.AddMenuEntry(
 				FText::Format(LOCTEXT("CpuThreadGroupFmt", "Group: {0}"), FText::FromString(GetGroupName())),
@@ -1476,7 +1476,7 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		ChildTrack->BuildContextMenu(MenuBuilder);
 	}
 
-	MenuBuilder.BeginSection("TimingEvents", LOCTEXT("TimingEventsSection", "Timing Events"));
+	MenuBuilder.BeginSection("TimingEvents", LOCTEXT("ContextMenu_Section_TimingEvents", "Timing Events"));
 	{
 		FExecuteAction FilterTrackAction;
 		FilterTrackAction.BindSP(this, &FThreadTimingTrack::OnFilterTrackClicked);

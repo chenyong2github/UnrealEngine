@@ -118,11 +118,11 @@ void FLoadingSharedState::ExtendOtherTracksFilterMenu(Insights::ITimingViewSessi
 		return;
 	}
 
-	InOutMenuBuilder.BeginSection("Asset Loading", LOCTEXT("AssetLoadingHeading", "Asset Loading"));
+	InOutMenuBuilder.BeginSection("Asset Loading", LOCTEXT("ContextMenu_Section_AssetLoading", "Asset Loading"));
 	{
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAllLoadingTracks", "Asset Loading Tracks - L"),
-			LOCTEXT("ShowAllLoadingTracks_Tooltip", "Show/hide the Asset Loading tracks"),
+			LOCTEXT("ShowAllLoadingTracks_Tooltip", "Shows or hides the Asset Loading tracks."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FLoadingSharedState::ShowHideAllLoadingTracks),
 					  FCanExecuteAction(),

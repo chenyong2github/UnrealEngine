@@ -353,11 +353,11 @@ void FMemorySharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSessio
 		return;
 	}
 
-	InOutMenuBuilder.BeginSection("Memory", LOCTEXT("MemoryHeading", "Memory"));
+	InOutMenuBuilder.BeginSection("Memory", LOCTEXT("ContextMenu_Section_Memory", "Memory"));
 	{
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("AllMemoryTracks", "Memory Tracks - M"),
-			LOCTEXT("AllMemoryTracks_Tooltip", "Show/hide the Memory tracks"),
+			LOCTEXT("AllMemoryTracks_Tooltip", "Shows or hides the Memory tracks."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FMemorySharedState::ShowHideAllMemoryTracks),
 					  FCanExecuteAction(),

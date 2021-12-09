@@ -243,7 +243,7 @@ void FContextSwitchesSharedState::ExtendCpuTracksFilterMenu(Insights::ITimingVie
 
 void FContextSwitchesSharedState::BuildSubMenu(FMenuBuilder& InMenuBuilder)
 {
-	InMenuBuilder.BeginSection("ContextSwitches", LOCTEXT("ContextSwitchesHeading", "Context Switches"));
+	InMenuBuilder.BeginSection("ContextSwitches", LOCTEXT("ContextMenu_Section_ContextSwitches", "Context Switches"));
 	{
 		InMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_ShowCoreTracks);
 		InMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_ShowContextSwitches);

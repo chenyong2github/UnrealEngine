@@ -90,7 +90,7 @@ void STaskTableTreeView::Construct(const FArguments& InArgs, TSharedPtr<Insights
 
 void STaskTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("Node", LOCTEXT("ContextMenu_Header_Task", "Task"));
+	MenuBuilder.BeginSection("Node", LOCTEXT("ContextMenu_Section_Task", "Task"));
 
 	{
 		MenuBuilder.AddMenuEntry
