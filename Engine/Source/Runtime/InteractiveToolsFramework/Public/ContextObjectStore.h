@@ -34,6 +34,11 @@ public:
 			}
 		}
 
+		if (UContextObjectStore* ParentStore = Cast<UContextObjectStore>(GetOuter()))
+		{
+			return ParentStore->FindContext<TObjectType>();
+		}
+
 		return nullptr;
 	}
 

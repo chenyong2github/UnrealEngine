@@ -875,7 +875,15 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 		FText ErrorMsg;
 		if (!CanDeleteActor(ActorToDelete, &ErrorMsg))
 		{
-			UE_LOG(LogEditorActor, Log, TEXT("Cannot delete actor %s: %s"), *ActorToDelete->GetFullName(), *ErrorMsg.ToString());
+			// If this was a temporary editor preview actor, go ahead and delete it now
+			if (ActorToDelete->bIsEditorPreviewActor)
+			{
+				InWorld->DestroyActor(ActorToDelete);
+			}
+			else
+			{
+				UE_LOG(LogEditorActor, Log, TEXT("Cannot delete actor %s: %s"), *ActorToDelete->GetFullName(), *ErrorMsg.ToString());
+			}
 			continue;
 		}
 
