@@ -364,10 +364,10 @@ void duDebugDrawNavMeshNodes(struct duDebugDraw* dd, const dtNavMeshQuery& query
 }
 
 
-static void drawMeshTileBVTree(duDebugDraw* dd, const dtMeshTile* tile, const dtReal bvQuantFactor)
+static void drawMeshTileBVTree(duDebugDraw* dd, const dtMeshTile* tile)
 {
 	// Draw BV nodes.
-	const dtReal cs = 1.0f / bvQuantFactor;
+	const dtReal cs = 1.0f / tile->header->bvQuantFactor;
 	dd->begin(DU_DRAW_LINES, 1.0f);
 	for (int i = 0; i < tile->header->bvNodeCount; ++i)
 	{
@@ -388,22 +388,20 @@ static void drawMeshTileBVTree(duDebugDraw* dd, const dtMeshTile* tile, const dt
 void duDebugDrawNavMeshBVTree(duDebugDraw* dd, const dtNavMesh& mesh)
 {
 	if (!dd) return;
-
-	const dtReal bvQuantFactor = mesh.getBVQuantFactor();
 	
 	for (int i = 0; i < mesh.getMaxTiles(); ++i)
 	{
 		const dtMeshTile* tile = mesh.getTile(i);
 		if (!tile->header) continue;
-		drawMeshTileBVTree(dd, tile, bvQuantFactor);
+		drawMeshTileBVTree(dd, tile);
 	}
 }
 
-static void drawMeshTilePortal(duDebugDraw* dd, const dtMeshTile* tile, const dtNavMesh& mesh)
+static void drawMeshTilePortal(duDebugDraw* dd, const dtMeshTile* tile)
 {
 	// Draw portals
 	const dtReal padx = 0.04f;
-	const dtReal pady = mesh.getWalkableClimb();
+	const dtReal pady = tile->header->walkableClimb;
 
 	dd->begin(DU_DRAW_LINES, 2.0f);
 
@@ -479,7 +477,7 @@ void duDebugDrawNavMeshPortals(duDebugDraw* dd, const dtNavMesh& mesh)
 	{
 		const dtMeshTile* tile = mesh.getTile(i);
 		if (!tile->header) continue;
-		drawMeshTilePortal(dd, tile, mesh);
+		drawMeshTilePortal(dd, tile);
 	}
 }
 

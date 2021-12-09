@@ -3316,6 +3316,7 @@ bool FRecastTileGenerator::RecastBuildTileCache(FNavMeshBuildContext& BuildConte
 
 		// Store header
 		dtTileCacheLayerHeader header;
+		header.magic = DT_TILECACHE_MAGIC;
 		header.version = DT_TILECACHE_VERSION;
 
 		// Tile layer location in the navmesh.
@@ -4722,16 +4723,6 @@ void FRecastNavMeshGenerator::Init()
 			Config.MaxPolysPerTile = SavedNavParams->maxPolys;
 		}
 	}
-
-	// This check can fail when the NavMeshVersion indicates the map needs the nav mesh rebuilt
-	if (DestNavMesh->GetRecastMesh())
-	{
-		DestNavMesh->GetRecastMesh()->setWalkableClimb(Config.AgentMaxClimb);
-		DestNavMesh->GetRecastMesh()->setWalkableHeight(Config.AgentHeight);
-		DestNavMesh->GetRecastMesh()->setWalkableRadius(Config.AgentRadius);
-		DestNavMesh->GetRecastMesh()->setBVQuantFactor(1.f / Config.cs);
-	}
-
 	UpdateNavigationBounds();
 
 	/** setup maximum number of active tile generator*/
