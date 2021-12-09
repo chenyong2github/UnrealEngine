@@ -12,7 +12,7 @@ FIKRigAnimInstanceProxy::FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance, 
 
 void FIKRigAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
-	FAnimInstanceProxy::Initialize(InAnimInstance);
+	FAnimPreviewInstanceProxy::Initialize(InAnimInstance);
 	IKRigNode->Source.SetLinkNode(&SingleNode);
 
 	// force this instance of the IK Rig evaluation to copy setting from the source IK Rig asset
