@@ -12,7 +12,7 @@ FIKRetargetAnimInstanceProxy::FIKRetargetAnimInstanceProxy(UAnimInstance* InAnim
 
 void FIKRetargetAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
-	FAnimInstanceProxy::Initialize(InAnimInstance);
+	FAnimPreviewInstanceProxy::Initialize(InAnimInstance);
 }
 
 bool FIKRetargetAnimInstanceProxy::Evaluate(FPoseContext& Output)
