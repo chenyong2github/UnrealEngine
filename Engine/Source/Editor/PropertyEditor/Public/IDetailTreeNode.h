@@ -167,4 +167,9 @@ public:
 	 * Gets the filter strings for this node in the tree.
 	 */
 	virtual void GetFilterStrings(TArray<FString>& OutFilterStrings) const = 0;
+
+	/**
+	 * Gets if this node should be initially collapsed by default.
+	 */
+	virtual bool GetInitiallyCollapsed() const = 0;
 };

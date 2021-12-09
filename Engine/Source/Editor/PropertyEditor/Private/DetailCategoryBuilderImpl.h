@@ -190,6 +190,7 @@ public:
 	virtual EDetailNodeType GetNodeType() const override { return EDetailNodeType::Category; }
 	virtual TSharedPtr<IPropertyHandle> CreatePropertyHandle() const override { return nullptr; }
 	virtual void GetFilterStrings(TArray<FString>& OutFilterStrings) const override;
+	virtual bool GetInitiallyCollapsed() const override;
 
 	virtual void GetChildren(FDetailNodeList& OutChildren) override;
 	virtual bool ShouldBeExpanded() const override;
@@ -309,6 +310,9 @@ public:
 
 	/** Is this the Favorites category? */
 	bool IsFavoriteCategory() const { return bFavoriteCategory; }
+
+	/** Is this category initially collapsed? */
+	bool GetShouldBeInitiallyCollapsed() const { return bShouldBeInitiallyCollapsed; }
 
 	FDetailLayoutCustomization* GetDefaultCustomization(TSharedRef<FPropertyNode> PropertyNode);
 

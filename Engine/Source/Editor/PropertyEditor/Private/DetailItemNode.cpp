@@ -126,6 +126,15 @@ void FDetailItemNode::GetFilterStrings(TArray<FString>& OutFilterStrings) const
 	}
 }
 
+bool FDetailItemNode::GetInitiallyCollapsed() const
+{
+	if (Customization.IsValidCustomization() && Customization.PropertyRow.IsValid())
+	{
+		return Customization.PropertyRow->GetForceAutoExpansion() == false;
+	}
+	return true;
+}
+
 void FDetailItemNode::InitPropertyEditor()
 {
 	FProperty* NodeProperty = Customization.GetPropertyNode()->GetProperty();
