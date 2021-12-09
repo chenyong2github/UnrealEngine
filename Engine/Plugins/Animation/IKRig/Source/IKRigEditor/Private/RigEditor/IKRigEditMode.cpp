@@ -131,7 +131,7 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 
 	UIKRigController* AssetController = Controller->AssetController;
 	const UIKRigDefinition* IKRigAsset = AssetController->GetAsset();
-	if (!IKRigAsset->DrawGoals)
+	if (!IKRigAsset->DrawBones)
 	{
 		return;
 	}
