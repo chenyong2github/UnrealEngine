@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/World.h"
 #include "GameFeatureAction.h"
+#include "GameFeaturesSubsystem.h"
 
 #include "GameFeatureAction_AddComponents.generated.h"
 
@@ -61,7 +62,7 @@ class UGameFeatureAction_AddComponents final : public UGameFeatureAction
 
 public:
 	//~UGameFeatureAction interface
-	virtual void OnGameFeatureActivating() override;
+	virtual void OnGameFeatureActivating(FGameFeatureActivatingContext& Context) override;
 	virtual void OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context) override;
 #if WITH_EDITORONLY_DATA
 	virtual void AddAdditionalAssetBundleData(FAssetBundleData& AssetBundleData) override;
@@ -79,12 +80,15 @@ public:
 	TArray<FGameFeatureComponentEntry> ComponentList;
 
 private:
-	void AddToWorld(const FWorldContext& WorldContext);
+	struct FContextHandles
+	{
+		FDelegateHandle GameInstanceStartHandle;
+		TArray<TSharedPtr<FComponentRequestHandle>> ComponentRequestHandles;
+	};
 
-	void HandleGameInstanceStart(UGameInstance* GameInstance);
+	void AddToWorld(const FWorldContext& WorldContext, FContextHandles& Handles);
 
-private:
-	FDelegateHandle GameInstanceStartHandle;
+	void HandleGameInstanceStart(UGameInstance* GameInstance, FGameFeatureStateChangeContext ChangeContext);
 
-	TArray<TSharedPtr<FComponentRequestHandle>> ComponentRequestHandles;
+	TMap<FGameFeatureStateChangeContext, FContextHandles> ContextHandles;
 };

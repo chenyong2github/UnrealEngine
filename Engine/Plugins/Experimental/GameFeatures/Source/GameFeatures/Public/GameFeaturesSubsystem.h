@@ -18,8 +18,60 @@ class UGameFeaturesProjectPolicies;
 enum class EGameFeaturePluginState : uint8;
 class IPlugin;
 class FJsonObject;
+struct FWorldContext;
 
-struct FGameFeatureDeactivatingContext
+/** 
+ * Struct that determines if game feature action state changes should be applied for cases where there are multiple worlds or contexts.
+ * The default value means to apply to all possible objects. This can be safely copied and used for later querying.
+ */
+struct GAMEFEATURES_API FGameFeatureStateChangeContext
+{
+public:
+
+	/** Sets a specific world context handle to limit changes to */
+	void SetRequiredWorldContextHandle(FName Handle);
+
+	/** Sees if the specific world context matches the application rules */
+	bool ShouldApplyToWorldContext(const FWorldContext& WorldContext) const;
+
+	/** True if events bound using this context should apply when using other context */
+	bool ShouldApplyUsingOtherContext(const FGameFeatureStateChangeContext& OtherContext) const;
+
+	/** Check if this has the exact same state change application rules */
+	FORCEINLINE bool operator==(const FGameFeatureStateChangeContext& OtherContext) const
+	{
+		if (OtherContext.WorldContextHandle == WorldContextHandle)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	/** Allow this to be used as a map key */
+	FORCEINLINE friend uint32 GetTypeHash(const FGameFeatureStateChangeContext& OtherContext)
+	{
+		return GetTypeHash(OtherContext.WorldContextHandle);
+	}
+
+private:
+	/** Specific world context to limit changes to, if none then it will apply to all */
+	FName WorldContextHandle;
+};
+
+/** Context that provides extra information for activating a game feature */
+struct FGameFeatureActivatingContext : public FGameFeatureStateChangeContext
+{
+public:
+	//@TODO: Add rules specific to activation when required
+
+private:
+
+	friend struct FGameFeaturePluginState_Activating;
+};
+
+/** Context that provides extra information for deactivating a game feature, will use the same change context rules as the activating context */
+struct FGameFeatureDeactivatingContext : public FGameFeatureStateChangeContext
 {
 public:
 	// Call this if your observer has an asynchronous action to complete as part of shutdown, and invoke the returned delegate when you are done (on the game thread!)
@@ -266,7 +318,7 @@ private:
 	void OnGameFeatureUnregistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);
 	friend struct FGameFeaturePluginState_Unregistering;
 
-	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName);
+	void OnGameFeatureActivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureActivatingContext& Context);
 	friend struct FGameFeaturePluginState_Activating;
 
 	void OnGameFeatureDeactivating(const UGameFeatureData* GameFeatureData, const FString& PluginName, FGameFeatureDeactivatingContext& Context);

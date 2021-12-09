@@ -13,25 +13,33 @@
 //////////////////////////////////////////////////////////////////////
 // UGameFeatureAction_AddComponents
 
-void UGameFeatureAction_AddComponents::OnGameFeatureActivating()
+void UGameFeatureAction_AddComponents::OnGameFeatureActivating(FGameFeatureActivatingContext& Context)
 {
-	GameInstanceStartHandle = FWorldDelegates::OnStartGameInstance.AddUObject(this, &UGameFeatureAction_AddComponents::HandleGameInstanceStart);
+	FContextHandles& Handles = ContextHandles.FindOrAdd(Context);
 
-	check(ComponentRequestHandles.Num() == 0);
+	Handles.GameInstanceStartHandle = FWorldDelegates::OnStartGameInstance.AddUObject(this, 
+		&UGameFeatureAction_AddComponents::HandleGameInstanceStart, FGameFeatureStateChangeContext(Context));
+
+	ensure(Handles.ComponentRequestHandles.Num() == 0);
 
 	// Add to any worlds with associated game instances that have already been initialized
 	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 	{
-		AddToWorld(WorldContext);
+		if (Context.ShouldApplyToWorldContext(WorldContext))
+		{
+			AddToWorld(WorldContext, Handles);
+		}
 	}
 }
 
 void UGameFeatureAction_AddComponents::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context)
 {
-	FWorldDelegates::OnStartGameInstance.Remove(GameInstanceStartHandle);
+	FContextHandles& Handles = ContextHandles.FindOrAdd(Context);
+
+	FWorldDelegates::OnStartGameInstance.Remove(Handles.GameInstanceStartHandle);
 
 	// Releasing the handles will also remove the components from any registered actors too
-	ComponentRequestHandles.Empty();
+	Handles.ComponentRequestHandles.Empty();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -81,7 +89,7 @@ EDataValidationResult UGameFeatureAction_AddComponents::IsDataValid(TArray<FText
 }
 #endif
 
-void UGameFeatureAction_AddComponents::AddToWorld(const FWorldContext& WorldContext)
+void UGameFeatureAction_AddComponents::AddToWorld(const FWorldContext& WorldContext, FContextHandles& Handles)
 {
 	UWorld* World = WorldContext.World();
 	UGameInstance* GameInstance = WorldContext.OwningGameInstance;
@@ -106,7 +114,7 @@ void UGameFeatureAction_AddComponents::AddToWorld(const FWorldContext& WorldCont
 						TSubclassOf<UActorComponent> ComponentClass = Entry.ComponentClass.LoadSynchronous();
 						if (ComponentClass)
 						{
-							ComponentRequestHandles.Add(GFCM->AddComponentRequest(Entry.ActorClass, ComponentClass));
+							Handles.ComponentRequestHandles.Add(GFCM->AddComponentRequest(Entry.ActorClass, ComponentClass));
 						}
 						else if (!Entry.ComponentClass.IsNull())
 						{
@@ -119,11 +127,18 @@ void UGameFeatureAction_AddComponents::AddToWorld(const FWorldContext& WorldCont
 	}
 }
 
-void UGameFeatureAction_AddComponents::HandleGameInstanceStart(UGameInstance* GameInstance)
+void UGameFeatureAction_AddComponents::HandleGameInstanceStart(UGameInstance* GameInstance, FGameFeatureStateChangeContext ChangeContext)
 {
 	if (FWorldContext* WorldContext = GameInstance->GetWorldContext())
 	{
-		AddToWorld(*WorldContext);
+		if (ChangeContext.ShouldApplyToWorldContext(*WorldContext))
+		{
+			FContextHandles* Handles = ContextHandles.Find(ChangeContext);
+			if (ensure(Handles))
+			{
+				AddToWorld(*WorldContext, *Handles);
+			}
+		}
 	}
 }
 

@@ -1339,10 +1339,12 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 		check(GEngine);
 		check(StateProperties.GameFeatureData);
 
+		FGameFeatureActivatingContext Context;
+
 		StateProperties.GameFeatureData->InitializeHierarchicalPluginIniFiles(StateProperties.PluginInstalledFilename);
 
 		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, PluginName);
+		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, PluginName, Context);
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Active);
 	}
