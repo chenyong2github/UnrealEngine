@@ -47,8 +47,8 @@ class FLogViewCommands : public TCommands<FLogViewCommands>
 public:
 	FLogViewCommands()
 	: TCommands<FLogViewCommands>(
-		TEXT("FLogViewCommands"),
-		NSLOCTEXT("FLogViewCommands", "Log View Commands", "Log View Commands"),
+		TEXT("LogViewCommands"),
+		NSLOCTEXT("Contexts", "LogViewCommands", "Insights - Log View"),
 		NAME_None,
 		FInsightsStyle::GetStyleSetName())
 	{
@@ -62,16 +62,61 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_HideSelectedCategory, "Hide Category", "Hides the selected log category.", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_ShowOnlySelectedCategory, "Show Only Selected Category", "Shows only the selected log category (hides all other log categories).", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_ShowAllCategories, "Show All Categories", "Resets the category filter (shows all log categories).", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_CopySelected, "Copy", "Copies the selected log (with all its properties) to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::C));
-		UI_COMMAND(Command_CopyMessage, "Copy Message", "Copies the message text of the selected log to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Shift, EKeys::C));
-		UI_COMMAND(Command_CopyRange, "Copy Range", "Copies all the logs in the selected time range (highlighted in blue) to clipboard.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
-		UI_COMMAND(Command_CopyAll, "Copy All", "Copies all the (filtered) logs to clipboard.", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_SaveRange, "Save Range As...", "Saves all the logs in the selected time range (highlighted in blue) to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S));
-		UI_COMMAND(Command_SaveAll, "Save All As...", "Saves all the (filtered) logs to a text file (tab-separated values or comma-separated values).", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(Command_OpenSource, "Open Source", "Opens the source file of the selected message in the registered IDE.", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(Command_HideSelectedCategory,
+			"Hide Category",
+			"Hides the selected log category.",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ShowOnlySelectedCategory,
+			"Show Only Selected Category",
+			"Shows only the selected log category (hides all other log categories).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_ShowAllCategories,
+			"Show All Categories",
+			"Resets the category filter (shows all log categories).",
+			EUserInterfaceActionType::Button,
+			FInputChord());
+
+		UI_COMMAND(Command_CopySelected,
+			"Copy",
+			"Copies the selected log (with all its properties) to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control, EKeys::C));
+
+		UI_COMMAND(Command_CopyMessage,
+			"Copy Message",
+			"Copies the message text of the selected log to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Shift, EKeys::C));
+
+		UI_COMMAND(Command_CopyRange,
+			"Copy Range",
+			"Copies all the logs in the selected time range (highlighted in blue) to clipboard.",
+			EUserInterfaceActionType::Button,
+			FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
+
+		UI_COMMAND(Command_CopyAll,
+			"Copy All",
+			"Copies all the (filtered) logs to clipboard.",
+			EUserInterfaceActionType::Button, FInputChord());
+
+		UI_COMMAND(Command_SaveRange,
+			"Save Range As...",
+			"Saves all the logs in the selected time range (highlighted in blue) to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::S));
+
+		UI_COMMAND(Command_SaveAll,
+			"Save All As...",
+			"Saves all the (filtered) logs to a text file (tab-separated values or comma-separated values).",
+			EUserInterfaceActionType::Button, FInputChord());
+
+		UI_COMMAND(Command_OpenSource,
+			"Open Source",
+			"Opens the source file of the selected message in the registered IDE.",
+			EUserInterfaceActionType::Button, FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 

@@ -1165,7 +1165,7 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_AutoZoom", "Auto Zoom"),
-			LOCTEXT("ContextMenu_AutoZoom_Desc", "Enable auto zoom. Makes the entire session time range to fit into the Frames track's view."),
+			LOCTEXT("ContextMenu_AutoZoom_Desc", "Enables auto zoom. Makes the entire session time range to fit into the Frames track's view."),
 			FSlateIcon(),
 			Action_AutoZoom,
 			NAME_None,
@@ -1181,7 +1181,7 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_ZoomTimingViewOnFrameSelection", "Zoom Timing View on Frame Selection"),
-			LOCTEXT("ContextMenu_ZoomTimingViewOnFrameSelection_Desc", "If enabled, the Timing view will also be zoomed when a frame is selected.\n(This option is persistent to UnrealInsightsSettings.ini file.)"),
+			LOCTEXT("ContextMenu_ZoomTimingViewOnFrameSelection_Desc", "If enabled, the Timing view will also be zoomed when a frame is selected.\n(This option is persistent to the UnrealInsightsSettings.ini file.)"),
 			FSlateIcon(),
 			Action_ZoomTimingViewOnFrameSelection,
 			NAME_None,
