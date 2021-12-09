@@ -127,6 +127,8 @@ namespace Audio
 
 		FQuartzQuantizedRequestData QuantizedRequestData;
 
+		FSharedISourceBufferListenerPtr SourceBufferListener;		
+
 		FName AudioComponentUserID;
 		uint64 AudioComponentID = 0;
 		bool bIs3D = false;
@@ -140,6 +142,7 @@ namespace Audio
 		bool bIsVorbis = false;
 		bool bIsSoundfield = false;
 		bool bIsSeeking = false;
+		bool bShouldSourceBufferListenerZeroBuffer = false;
 	};
 
 	struct FSourceManagerInitParams
@@ -431,6 +434,9 @@ namespace Audio
 			// Quantization data
 			FQuartzQuantizedCommandHandle QuantizedCommandHandle;
 
+			// Optional Source buffer listener.
+			FSharedISourceBufferListenerPtr SourceBufferListener;
+
 			// State management
 			uint8 bIs3D:1;
 			uint8 bIsCenterChannelOnly:1;
@@ -457,6 +463,7 @@ namespace Audio
 			uint8 bIsBypassingHPF:1;
 			uint8 bHasPreDistanceAttenuationSend:1;
 			uint8 bModFiltersUpdated : 1;
+			uint8 bShouldSourceBufferListenerZeroBuffer : 1;
 
 			// Source format info
 			int32 NumInputChannels;

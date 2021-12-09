@@ -397,6 +397,10 @@ namespace Audio
 
 			InitParams.SourceEffectChainId = 0;
 
+			InitParams.SourceBufferListener = WaveInstance->SourceBufferListener;
+			InitParams.bShouldSourceBufferListenerZeroBuffer = WaveInstance->bShouldSourceBufferListenerZeroBuffer;
+
+
 			// Source manager needs to know if this is a vorbis source for rebuilding speaker maps
 			InitParams.bIsVorbis = bIsVorbis;
 

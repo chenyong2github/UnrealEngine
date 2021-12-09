@@ -97,6 +97,7 @@ public class Engine : ModuleRules
 				"SignalProcessing",
 				"AudioExtensions",
 				"DeveloperSettings",
+				"AudioLinkCore",
 				"CookOnTheFly",
 			}
 		);

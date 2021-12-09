@@ -764,6 +764,9 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 	// Pass quantization data to the active sound
 	NewActiveSound.QuantizedRequestData = InPlayRequestData.QuantizedRequestData;
 
+	// Pass down any source buffer listener we have
+	NewActiveSound.SetSourceListener(SourceBufferListener, bShouldSourceBufferListenerZeroBuffer);
+
 	NewActiveSound.MaxDistance = MaxDistance;
 
 	Audio::FVolumeFader& Fader = NewActiveSound.ComponentVolumeFader;
@@ -1291,6 +1294,12 @@ void UAudioComponent::SetIsVirtualized(bool bInIsVirtualized)
 	}
 
 	bIsVirtualized = bInIsVirtualized ? 1 : 0;
+}
+
+void UAudioComponent::SetSourceBufferListener(const FSharedISourceBufferListenerPtr& InPtr, bool bShouldZeroBuffer)
+{
+	SourceBufferListener = InPtr;
+	bShouldSourceBufferListenerZeroBuffer = bShouldZeroBuffer;
 }
 
 void UAudioComponent::SetWaveParameter(FName InName, USoundWave* InWave)

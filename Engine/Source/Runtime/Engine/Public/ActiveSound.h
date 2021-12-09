@@ -334,6 +334,12 @@ public:
 		AudioDevice = InAudioDevice;
 	}
 
+	void SetSourceListener(FSharedISourceBufferListenerPtr InListener, bool bShouldZeroBuffer)
+	{
+		SourceBufferListener = InListener;
+		bShouldSourceBufferListenerZeroBuffer = bShouldZeroBuffer;
+	}
+
 	int32 GetClosestListenerIndex() const { return ClosestListenerIndex; }
 
 	/** Returns whether or not the active sound can be deleted. */
@@ -629,6 +635,10 @@ public:
 
 	/** Quantization information */
 	Audio::FQuartzQuantizedRequestData QuantizedRequestData;
+
+	/** Source buffer listener */
+	FSharedISourceBufferListenerPtr SourceBufferListener;
+	bool bShouldSourceBufferListenerZeroBuffer = false;
 
 	/** Cache what volume settings we had last time so we don't have to search again if we didn't move */
 	FInteriorSettings InteriorSettings;

@@ -151,6 +151,27 @@ ENGINE_API UClass* GetAudioPluginCustomSettingsClass(EAudioPlugin PluginType);
 /** accessor for our Spatialization enabled CVar. */
 ENGINE_API bool IsSpatializationCVarEnabled();
 
+/**
+ * Interface for listening to source buffers being rendered.
+ */
+class ISourceBufferListener
+{
+public:
+	virtual ~ISourceBufferListener() = default;
+
+	struct FOnNewBufferParams
+	{
+		const float* AudioData = nullptr;
+		int32 SourceId = INDEX_NONE;
+		int32 NumSamples = 0;
+		int32 NumChannels = 0;
+		int32 SampleRate = 0;
+	};
+	virtual void OnNewBuffer(const FOnNewBufferParams&) = 0;
+	virtual void OnSourceReleased(const int32 InSourceId) = 0;
+};
+using FSharedISourceBufferListenerPtr = TSharedPtr<ISourceBufferListener, ESPMode::ThreadSafe>;
+
 /** Bus send types */
 enum class EBusSendType : uint8
 {
@@ -194,6 +215,10 @@ struct ENGINE_API FWaveInstance
 
 	/** Quantized Request data */
 	TUniquePtr<Audio::FQuartzQuantizedRequestData> QuantizedRequestData;
+
+	/** Source Buffer listener */
+	FSharedISourceBufferListenerPtr SourceBufferListener;
+	bool bShouldSourceBufferListenerZeroBuffer = false;
 
 private:
 

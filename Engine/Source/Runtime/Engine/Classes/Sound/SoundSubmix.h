@@ -13,6 +13,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "DSP/SpectrumAnalyzer.h"
+#include "AudioLinkSettingsAbstract.h"
 
 #include "SoundSubmix.generated.h"
 
@@ -323,6 +324,10 @@ public:
 	/** Modulation to apply to the submix Dry Level (in dB)*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation, meta = (DisplayName = "Dry Level Modulation", AudioParam = "Volume"))
 	FSoundModulationDestinationSettings DryLevelModulation;
+	
+	/** Optional Audio Link Settings Object */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioLink)
+	TObjectPtr<UAudioLinkSettingsAbstract> AudioLinkSettings;
 
 	// Blueprint delegate for when a recorded file is finished exporting.
 	UPROPERTY(BlueprintAssignable)

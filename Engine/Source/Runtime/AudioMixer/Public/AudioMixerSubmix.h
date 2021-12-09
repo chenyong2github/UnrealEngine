@@ -16,6 +16,7 @@
 #include "AudioDynamicParameter.h"
 #include "Stats/Stats.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "IAudioLinkFactory.h"
 
 // The time it takes to process the submix graph. Process submix effects, mix into the submix buffer, etc.
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph"), STAT_AudioMixerSubmixes, STATGROUP_AudioMixer, AUDIOMIXER_API);
@@ -643,6 +644,8 @@ namespace Audio
 		TWeakObjectPtr<const USoundSubmixBase> OwningSubmixObject;
 
 		Audio::FPatchSplitter PatchSplitter;
+
+		TUniquePtr<IAudioLink> AudioLinkInstance;
 
 		friend class FMixerDevice;
 	};
