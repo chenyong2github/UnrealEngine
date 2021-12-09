@@ -58,7 +58,7 @@ void UMassCrowdServerRepresentationLODProcessor::Execute(UMassEntitySubsystem& E
 		{
 			const TConstArrayView<FMassViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassViewerInfoFragment>();
 			const TArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
-			LODCalculator.CalculateLOD(Context, RepresentationLODFragments, ViewersInfoList);
+			LODCalculator.CalculateLOD(Context, ViewersInfoList, RepresentationLODFragments);
 		});
 	}
 
@@ -71,7 +71,7 @@ void UMassCrowdServerRepresentationLODProcessor::Execute(UMassEntitySubsystem& E
 			{
 				const TConstArrayView<FMassViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassViewerInfoFragment>();
 				const TArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
-				LODCalculator.AdjustLODFromCount(Context, RepresentationLODFragments, ViewersInfoList);
+				LODCalculator.AdjustLODFromCount(Context, ViewersInfoList, RepresentationLODFragments);
 			});
 		}
 	}

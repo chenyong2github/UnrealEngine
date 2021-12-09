@@ -43,11 +43,17 @@ public:
 	/**
 	 * Calculate LOD, called for each entity chunks
 	 * @Param Context of the chunk execution
-	 * @Param LODList is the fragment where calculation are stored
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
+	 * @Param LODList is the fragment where calculation are stored
+	 * @Param InfoPerViewerList is the Per viewer source information (optional parameter required when FLODLogic::bStoreInfoPerViewer is enabled)
 	 */
-	template <typename TLODFragment, typename TViewerInfoFragment>
-	void CalculateLOD(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList);
+	template <typename TViewerInfoFragment,
+			  typename TLODFragment,
+			  typename TPerViewerInfoFragment = FOptionalDefaultType>
+	void CalculateLOD(FMassExecutionContext& Context,
+					  TConstArrayView<TViewerInfoFragment> ViewersInfoList,
+					  TArrayView<TLODFragment> LODList,
+					  TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList = TConstArrayView<TPerViewerInfoFragment>());
 
 	/**
 	 * Adjust LOD distances by clamping them to respect the maximum LOD count
@@ -58,11 +64,17 @@ public:
 	/**
 	 * Adjust LOD from newly adjusted distances, only needed to be called when AdjustDistancesFromCount return true, called for each entity chunks
 	 * @Param Context of the chunk execution
-	 * @Param LODList is the fragment where calculation are stored
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
+	 * @Param LODList is the fragment where calculation are stored
+	 * @Param InfoPerViewerList is the Per viewer source information (optional parameter required when FLODLogic::bStoreInfoPerViewer is enabled)
 	 */
-	template <typename TLODFragment, typename TViewerInfoFragment>
-	void AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList);
+	template <typename TViewerInfoFragment,
+			  typename TLODFragment,
+			  typename TPerViewerInfoFragment = FOptionalDefaultType>
+	void AdjustLODFromCount(FMassExecutionContext& Context,
+							TConstArrayView<TViewerInfoFragment> ViewersInfoList,
+							TArrayView<TLODFragment> LODList,
+							TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList = TConstArrayView<TPerViewerInfoFragment>());
 
 	/**
 	 * Turn Off all LOD, called for each entity chunks
@@ -293,8 +305,11 @@ float TMassLODCalculator<FLODLogic>::AccumulateCountInRuntimeData(const EMassLOD
 }
 
 template <typename FLODLogic>
-template <typename TLODFragment, typename TViewerInfoFragment>
-void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList)
+template <typename TViewerInfoFragment, typename TLODFragment, typename TPerViewerInfoFragment>
+void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context, 
+												 TConstArrayView<TViewerInfoFragment> ViewersInfoList, 
+												 TArrayView<TLODFragment> LODList, 
+												 TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList)
 {
 #if WITH_MASSGAMEPLAY_DEBUG
 	if (UE::MassLOD::Debug::bLODCalculationsPaused)
@@ -329,6 +344,8 @@ void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context,
 		// Do per viewer logic if asked for
 		if (FLODLogic::bStoreInfoPerViewer)
 		{
+			const TPerViewerInfoFragment& EntityPerViewerInfo = PerViewerInfoList[EntityIdx];
+
 			SetLODPerViewerNum<FLODLogic::bCalculateLODPerViewer>(EntityLOD, Viewers.Num());
 			SetPrevLODPerViewerNum<FLODLogic::bCalculateLODPerViewer>(EntityLOD, Viewers.Num());
 			SetVisibilityPerViewerNum<FLODLogic::bDoVisibilityLogic&& FLODLogic::bStoreInfoPerViewer>(EntityLOD, Viewers.Num());
@@ -353,14 +370,14 @@ void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context,
 
 				if (Viewer.Handle.IsValid())
 				{
-					const float DistanceToFrustum = GetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewersInfo, ViewerIdx, FLT_MAX);
+					const float DistanceToFrustum = GetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityPerViewerInfo, ViewerIdx, FLT_MAX);
 					const EMassVisibility PrevVisibilityPerViewer = GetVisibilityPerViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, EMassVisibility::Max);
 					const bool bIsVisibleByViewer = CalculateVisibility(PrevVisibilityPerViewer == EMassVisibility::CanBeSeen, DistanceToFrustum);
 					bool bIsInVisibleRange = false;
 
 					if (FLODLogic::bCalculateLODPerViewer)
 					{
-						const float DistanceToViewerSq = GetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityViewersInfo, ViewerIdx, FLT_MAX);
+						const float DistanceToViewerSq = GetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityPerViewerInfo, ViewerIdx, FLT_MAX);
 						const EMassLOD::Type PrevLODPerViewer = GetLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, EntityLOD.LOD);
 
 						// Find new LOD
@@ -520,8 +537,11 @@ bool TMassLODCalculator<FLODLogic>::AdjustDistancesFromCount()
 }
 
 template <typename FLODLogic>
-template <typename TLODFragment, typename TViewerInfoFragment>
-void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Context, TArrayView<TLODFragment> LODList, TConstArrayView<TViewerInfoFragment> ViewersInfoList)
+template <typename TViewerInfoFragment, typename TLODFragment, typename TPerViewerInfoFragment>
+void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Context,
+													   TConstArrayView<TViewerInfoFragment> ViewersInfoList,
+													   TArrayView<TLODFragment> LODList,
+													   TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList)
 {
 	const int32 NumEntities = Context.GetNumEntities();
 	// Adjust LOD for each viewer and remember the new highest
@@ -532,6 +552,8 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Co
 		EMassLOD::Type HighestViewerLOD = EMassLOD::Off;
 		if (FLODLogic::bMaximizeCountPerViewer)
 		{
+			const TPerViewerInfoFragment& EntityPerViewerInfo = PerViewerInfoList[EntityIdx];
+
 			for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 			{
 				const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
@@ -546,7 +568,7 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Co
 					continue;
 				}
 
-				const float DistanceToViewerSq = GetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityViewersInfo, ViewerIdx, FLT_MAX);
+				const float DistanceToViewerSq = GetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityPerViewerInfo, ViewerIdx, FLT_MAX);
 				// Using the prev visibility here as it was already updated for this frame in the CalculateLOD method and we want the previous one
 				const bool bIsVisibleByViewer = GetPrevVisibilityPerViewer<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityLOD, ViewerIdx, EMassVisibility::Max) == EMassVisibility::CanBeSeen;
 				EMassLOD::Type LODPerViewer = GetLODPerViewer<FLODLogic::bCalculateLODPerViewer>(EntityLOD, ViewerIdx, EntityLOD.LOD);

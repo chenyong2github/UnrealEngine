@@ -26,10 +26,15 @@ struct TMassLODCollector : public FMassLODBaseLogic
 	 * @Param Context of the chunk execution
 	 * @Param TranformList is the fragment transforms of the entities
 	 * @Param ViewersInfoList is the fragment where to store source information for LOD calculation
+	 * @Param InfoPerViewerList is the per viewer information (optional parameter required when FLODLogic::bStoreInfoPerViewer is enabled)
 	 */
-	template <typename TTransformFragment, typename TViewerInfoFragment>
-	void CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<TTransformFragment> TranformList, TArrayView<TViewerInfoFragment> ViewersInfoList);
-
+	template <typename TTransformFragment,
+		typename TViewerInfoFragment,
+		typename TPerViewerInfoFragment = FOptionalDefaultType>
+	void CollectLODInfo(FMassExecutionContext& Context, 
+						TConstArrayView<TTransformFragment> TranformList, 
+						TArrayView<TViewerInfoFragment> ViewersInfoList, 
+						TArrayView<TPerViewerInfoFragment> InfoPerViewerList = TArrayView<TPerViewerInfoFragment>());
 };
 
 template <typename FLODLogic>
@@ -39,9 +44,13 @@ void TMassLODCollector<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo>
 }
 
 template <typename FLODLogic>
-template <typename TTransformFragment, typename TViewerInfoFragment>
-void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<TTransformFragment> TranformList, TArrayView<TViewerInfoFragment> ViewersInfoList)
+template <typename TTransformFragment, typename TViewerInfoFragment, typename TPerViewerInfoFragment>
+void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context, 
+												  TConstArrayView<TTransformFragment> TranformList, 
+												  TArrayView<TViewerInfoFragment> ViewersInfoList, 
+												  TArrayView<TPerViewerInfoFragment> InfoPerViewerList /*= TArrayView<FOptionDefaultType>()*/)
 {
+	static TPerViewerInfoFragment DummyFragment;
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
@@ -49,16 +58,17 @@ void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context
 		float ClosestDistanceToFrustum = FLT_MAX;
 		const TTransformFragment& EntityTransform = TranformList[EntityIdx];
 		TViewerInfoFragment& EntityViewerInfo = ViewersInfoList[EntityIdx];
+		TPerViewerInfoFragment& EntityInfoPerViewer = FLODLogic::bStoreInfoPerViewer ? InfoPerViewerList[EntityIdx] : DummyFragment;
 
-		SetDistanceToViewerSqNum<FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, Viewers.Num());
-		SetDistanceToFrustumNum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, Viewers.Num());
+		SetDistanceToViewerSqNum<FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, Viewers.Num());
+		SetDistanceToFrustumNum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, Viewers.Num());
 		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 		{
 			const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
 			if (Viewer.bClearData)
 			{
-				SetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, ViewerIdx, FLT_MAX);
-				SetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, ViewerIdx, FLT_MAX);
+				SetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, ViewerIdx, FLT_MAX);
+				SetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, ViewerIdx, FLT_MAX);
 			}
 
 			// Check to see if we want only local viewer only
@@ -76,17 +86,16 @@ void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context
 				{
 					ClosestViewerDistanceSq = DistanceToViewerSq;
 				}
-				SetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, ViewerIdx, DistanceToViewerSq);
+				SetDistanceToViewerSq<FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, ViewerIdx, DistanceToViewerSq);
 
 				if (FLODLogic::bDoVisibilityLogic)
 				{
 					const float DistanceToFrustum = Viewer.Frustum.DistanceTo(EntityLocation);
-					SetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityViewerInfo, ViewerIdx, DistanceToFrustum);
+					SetDistanceToFrustum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, ViewerIdx, DistanceToFrustum);
 					if (ClosestDistanceToFrustum > DistanceToFrustum)
 					{
 						ClosestDistanceToFrustum = DistanceToFrustum;
 					}
-
 				}
 			}
 		}
