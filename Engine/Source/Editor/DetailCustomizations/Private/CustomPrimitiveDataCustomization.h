@@ -46,7 +46,7 @@ private:
 	TSharedPtr<IPropertyHandle> DataHandle;
 	TSharedPtr<IPropertyHandleArray> DataArrayHandle;
 
-	TMap<TWeakObjectPtr<UObject>, TSet<TSoftObjectPtr<UMaterial>>> ComponentsToWatch;
+	TMap<TWeakObjectPtr<UPrimitiveComponent>, TSet<TSoftObjectPtr<UMaterial>>> ComponentsToWatch;
 	TSet<TSoftObjectPtr<UMaterialInterface>> MaterialsToWatch;
 
 	TMap<uint8, TArray<FParameterData>> VectorParameterData;
@@ -71,6 +71,7 @@ private:
 
 	template<typename Predicate>
 	void ForEachSelectedComponent(Predicate Pred);
+	bool IsSelected(UPrimitiveComponent* Component) const;
 
 	void Cleanup();
 
