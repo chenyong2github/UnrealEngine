@@ -240,6 +240,11 @@ namespace Chaos
 			const int32 LastEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch() - 1;
 			const bool bWasUpdatedLastTick = IsUsedSince(LastEpoch);
 
+			// Update the world shape transforms on the constraint (we cannot just give it the PerShapeData 
+			// pointer because of Unions - see FMultiShapePairCollisionDetector)
+			// NOTE: these are not used by CCD which continuously moves the particles
+			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 			// If the constraint was not used last frame, it needs to be reset. 
 			// If it was used last frame, its data can be used for static friction etc. (unless CCD is enabled)
 			Constraint->SetCCDEnabled(bUseCCD);
@@ -260,7 +265,7 @@ namespace Chaos
 			{
 				// Update the existing manifold. We can re-use as-is if none of the points have moved much and the bodies have not moved much
 				// NOTE: this can succeed in "restoring" even if we have no manifold points
-				bWasManifoldRestored = Constraint->UpdateAndTryRestoreManifold(ShapeWorldTransform0, ShapeWorldTransform1);
+				bWasManifoldRestored = Constraint->UpdateAndTryRestoreManifold();
 			}
 			else
 			{
@@ -271,7 +276,7 @@ namespace Chaos
 			if (!bWasManifoldRestored)
 			{
 				// We will be updating the manifold, if only partially, so update the restore comparison transforms
-				Constraint->UpdateLastShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+				Constraint->SetLastShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
 				// Run the narrow phase
 				if (!bUseCCD)
@@ -283,7 +288,6 @@ namespace Chaos
 					// Note: This is unusual but we are using a mix of the previous and current transform
 					// This is due to how CCD rewinds the position (not rotation) and then sweeps to find the first contact at the current orientation
 					// NOTE: These are actor transforms, not CoM transforms
-					// @todo(chaos): see if we can easily switch to CoM transforms now in collision loop (shapes are held in actor space)
 					// @todo(chaos): this is broken if both objects are CCD
 					FConstGenericParticleHandle P0 = Particle0;
 					FConstGenericParticleHandle P1 = Particle1;
@@ -314,6 +318,10 @@ namespace Chaos
 		const int32 LastEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch() - 1;
 		if ((Constraint != nullptr) && IsUsedSince(LastEpoch))
 		{
+			const FRigidTransform3& ShapeWorldTransform0 = Shape0->GetLeafWorldTransform();
+			const FRigidTransform3& ShapeWorldTransform1 = Shape1->GetLeafWorldTransform();
+			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 			Constraint->RestoreManifold();
 			if (Constraint->GetPhi() <= CullDistance)
 			{
@@ -483,6 +491,14 @@ namespace Chaos
 			// NOTE: Using InParticle0 and InParticle1 here because the order may be different to what we have stored
 			Constraint = CreateConstraint(InParticle0, Implicit0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, Key);
 		}
+
+		// @todo(chaos): we already have the shape world transforms at the calling site - pass them in
+		const FRigidTransform3 ParticleTransform0 = FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(InParticle0));
+		const FRigidTransform3 ParticleTransform1 = FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(InParticle1));
+		const FRigidTransform3 ShapeWorldTransform0 = ShapeRelativeTransform0 * ParticleTransform0;
+		const FRigidTransform3 ShapeWorldTransform1 = ShapeRelativeTransform1 * ParticleTransform1;
+		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 		NewConstraints.Add(Constraint);
 		return Constraint;
 	}
@@ -545,13 +561,25 @@ namespace Chaos
 
 	int32 FMultiShapePairCollisionDetector::RestoreCollisions(const FReal CullDistance)
 	{
+		if (Constraints.Num() == 0)
+		{
+			return 0;
+		}
+
 		int32 NumRestored = 0;
 		const int32 LastEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch() - 1;
+		const FRigidTransform3 ParticleTransform0 = FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(Particle0));
+		const FRigidTransform3 ParticleTransform1 = FParticleUtilitiesPQ::GetActorWorldTransform(FConstGenericParticleHandle(Particle1));
+
 		for (auto& KVP : Constraints)
 		{
 			TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
 			if ((Constraint != nullptr) && (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch))
 			{
+				const FRigidTransform3 ShapeWorldTransform0 = Constraint->ImplicitTransform[0] * ParticleTransform0;
+				const FRigidTransform3 ShapeWorldTransform1 = Constraint->ImplicitTransform[1] * ParticleTransform1;
+				Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
 				Constraint->RestoreManifold();
 				if (Constraint->GetPhi() < CullDistance)
 				{

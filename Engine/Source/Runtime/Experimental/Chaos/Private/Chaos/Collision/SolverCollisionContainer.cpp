@@ -102,8 +102,8 @@ namespace Chaos
 				// Initialize the structural data in the contact (relative contact points, contact mass etc)
 				Solver.InitContact(
 					ManifoldPointIndex,
-					ManifoldPoint.CoMContactPoints[0],
-					ManifoldPoint.CoMContactPoints[1],
+					ManifoldPoint.WorldContactPoints[0],
+					ManifoldPoint.WorldContactPoints[1],
 					ManifoldPoint.ContactPoint.Normal);
 
 				// Calculate the target normal velocity based on restitution

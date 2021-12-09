@@ -92,16 +92,6 @@ namespace Chaos
 		void ModifyWorldContactLocations(const FVec3& Location0, const FVec3& Location1, int32 ContactPointIdx);
 
 		/**
-		* Get contact location on each body relative to center of mass.
-		*/
-		void GetCoMContactLocations(int32 ContactPointIdx, FVec3& OutLocation0, FVec3& OutLocation1)  const;
-
-		/**
-		* Modify contact location of each body relative to center of mass. If modifying locations and separation, order of operations should be considered.
-		*/
-		void ModifyCoMContactLocations(const FVec3& Location0, const FVec3& Location1, int32 ContactPointIdx);
-
-		/**
 		* @return Restitution of contact.
 		*/
 		FReal GetRestitution() const;
@@ -122,24 +112,24 @@ namespace Chaos
 		void ModifyRestitutionThreshold(FReal Restitution);
 
 		/**
-		* @return Friction coefficient of contact.
+		* @return Dynamic friction coefficient of contact.
 		*/
-		FReal GetFriction() const;
+		FReal GetDynamicFriction() const;
 
 		/**
-		* Modify friction coefficient of contact.
+		* Modify dynamic friction coefficient of contact.
 		*/
-		void ModifyFriction(FReal Friction);
+		void ModifyDynamicFriction(FReal DynamicFriction);
 
 		/**
-		* @return Angular friction coefficient of contact.
+		* @return Static friction coefficient of contact.
 		*/
-		FReal GetAngularFriction() const;
+		FReal GetStaticFriction() const;
 
 		/**
-		* Modify angular friction coefficient of contact.
+		* Modify static friction coefficient of contact.
 		*/
-		void ModifyAngularFriction(FReal Friction);
+		void ModifyStaticFriction(FReal StaticFriction);
 
 		/**
 		* @return Linear velocity of particle.
@@ -209,6 +199,11 @@ namespace Chaos
 		TVec2<FGeometryParticleHandle*> GetParticlePair() const;
 
 	private:
+		/**
+		 * @brief Update cached shape transforms in the constraint after modifying particle positions
+		*/
+		void UpdateConstraintShapeTransforms();
+
 		FPBDCollisionConstraint* Constraint;
 		FCollisionContactModifier* Modifier;
 	};

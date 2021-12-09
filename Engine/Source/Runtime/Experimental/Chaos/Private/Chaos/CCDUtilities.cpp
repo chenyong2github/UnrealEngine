@@ -438,6 +438,19 @@ namespace Chaos
 				}
 			}
 		}
+
+		// We need to update the world-space contact points at the final locations
+		for (int32 i = ConstraintStart; i < ConstraintEnd; i++)
+		{
+			FPBDCollisionConstraint* Constraint = SortedCCDConstraints[i]->SweptConstraint;
+			FRigidTransform3 ShapeWorldTransform0 = Constraint->GetShapeWorldTransform0();
+			FRigidTransform3 ShapeWorldTransform1 = Constraint->GetShapeWorldTransform1();
+			ShapeWorldTransform0.SetTranslation(FConstGenericParticleHandle(Constraint->GetParticle0())->P());
+			ShapeWorldTransform1.SetTranslation(FConstGenericParticleHandle(Constraint->GetParticle1())->P());
+
+			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+			Constraint->UpdateManifoldContacts();
+		}
 	}
 
 

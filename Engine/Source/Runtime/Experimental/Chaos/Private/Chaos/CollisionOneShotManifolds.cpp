@@ -765,7 +765,7 @@ namespace Chaos
 			PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumManifoldsGJKCalled, 1, ECsvCustomStatOp::Accumulate);
 
 			const bool bCanUpdateManifold = bChaos_Collision_EnableManifoldInject;
-			if (bCanUpdateManifold && Constraint.TryAddManifoldContact(GJKContactPoint, Convex1Transform, Convex2Transform))
+			if (bCanUpdateManifold && Constraint.TryAddManifoldContact(GJKContactPoint))
 			{
 				PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumManifoldsMaintained, 1, ECsvCustomStatOp::Accumulate);
 				return;

@@ -31,8 +31,8 @@ namespace Chaos
 		void InitContact(
 			const FConstraintSolverBody& Body0,
 			const FConstraintSolverBody& Body1,
-			const FVec3& InCoMAnchorPoint0,
-			const FVec3& InCoMAnchorPoint1,
+			const FVec3& InWorldAnchorPoint0,
+			const FVec3& InWorldAnchorPoint1,
 			const FVec3& InWorldContactNormal);
 
 		/**
@@ -49,9 +49,9 @@ namespace Chaos
 		void UpdateContact(
 			const FConstraintSolverBody& Body0,
 			const FConstraintSolverBody& Body1,
-			const FVec3& CoMAnchorPoint0,
-			const FVec3& CoMAnchorPoint1,
-			const FVec3& WorldContactNormal);
+			const FVec3& InWorldAnchorPoint0,
+			const FVec3& InWorldAnchorPoint1,
+			const FVec3& InWorldContactNormal);
 
 		/**
 		 * @brief Update the cached mass properties based on the current body transforms
@@ -175,8 +175,8 @@ namespace Chaos
 
 		void InitContact(
 			const int32 ManifoldPoiontIndex,
-			const FVec3& InCoMAnchorPoint0,
-			const FVec3& InCoMAnchorPoint1,
+			const FVec3& InWorldAnchorPoint0,
+			const FVec3& InWorldAnchorPoint1,
 			const FVec3& InWorldContactNormal);
 
 		void InitMaterial(
@@ -187,8 +187,8 @@ namespace Chaos
 
 		void UpdateContact(
 			const int32 ManifoldPoiontIndex,
-			const FVec3& InCoMAnchorPoint0,
-			const FVec3& InCoMAnchorPoint1,
+			const FVec3& InWorldAnchorPoint0,
+			const FVec3& InWorldAnchorPoint1,
 			const FVec3& InWorldContactNormal);
 
 		/**
