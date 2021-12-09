@@ -750,6 +750,11 @@ void FDetailCategoryImpl::GetFilterStrings(TArray<FString>& OutFilterStrings) co
 	OutFilterStrings.Add(GetDisplayName().ToString());
 }
 
+bool FDetailCategoryImpl::GetInitiallyCollapsed() const
+{
+	return bShouldBeInitiallyCollapsed;
+}
+
 void FDetailCategoryImpl::OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState)
 {
 	if (bRestoreExpansionState && bShouldSaveState)

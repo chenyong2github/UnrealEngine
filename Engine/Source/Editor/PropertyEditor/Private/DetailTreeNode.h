@@ -38,6 +38,7 @@ public:
 	virtual void GetChildren(TArray<TSharedRef<IDetailTreeNode>>& OutChildren);
 	virtual TSharedPtr<class IDetailPropertyRow> GetRow() const override { return nullptr; }
 	virtual void GetFilterStrings(TArray<FString>& OutFilterStrings) const override { };
+	virtual bool GetInitiallyCollapsed() const override { return false; }
 
 	/** @return The details view that this node is in */
 	virtual IDetailsViewPrivate* GetDetailsView() const = 0;

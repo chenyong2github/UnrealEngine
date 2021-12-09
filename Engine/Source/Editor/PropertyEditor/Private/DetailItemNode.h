@@ -25,6 +25,7 @@ public:
 	virtual EDetailNodeType GetNodeType() const override;
 	virtual TSharedPtr<IPropertyHandle> CreatePropertyHandle() const override;
 	virtual void GetFilterStrings(TArray<FString>& OutFilterStrings) const override;
+	virtual bool GetInitiallyCollapsed() const override;
 
 	/**
 	 * Initializes this node                                                              
