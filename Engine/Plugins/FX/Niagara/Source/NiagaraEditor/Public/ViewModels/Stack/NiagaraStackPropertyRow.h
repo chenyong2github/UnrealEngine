@@ -22,6 +22,8 @@ public:
 
 	virtual bool HasOverridenContent() const override;
 
+	virtual bool IsExpandedByDefault() const override;
+
 protected:
 	virtual void FinalizeInternal() override;
 

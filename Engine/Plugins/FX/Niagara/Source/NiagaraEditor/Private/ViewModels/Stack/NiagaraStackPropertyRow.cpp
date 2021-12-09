@@ -53,6 +53,11 @@ bool UNiagaraStackPropertyRow::HasOverridenContent() const
 	return false;
 }
 
+bool UNiagaraStackPropertyRow::IsExpandedByDefault() const
+{
+	return DetailTreeNode->GetInitiallyCollapsed() == false;
+}
+
 void UNiagaraStackPropertyRow::FinalizeInternal()
 {
 	Super::FinalizeInternal();
