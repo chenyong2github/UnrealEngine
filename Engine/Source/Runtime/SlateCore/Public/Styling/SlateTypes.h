@@ -1557,6 +1557,21 @@ struct SLATECORE_API FTableRowStyle : public FSlateWidgetStyle
 	FSlateBrush InactiveBrush;
 	FTableRowStyle& SetInactiveBrush( const FSlateBrush& InInactiveBrush ){ InactiveBrush = InInactiveBrush; return *this; }
 
+	/** If using parent row brushes */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	bool bUseParentRowBrush;
+	FTableRowStyle& SetUseParentRowBrush(bool InUseParentRowBrush) { bUseParentRowBrush = InUseParentRowBrush; return *this; }
+
+	/** Brush used for the top parent row  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FSlateBrush ParentRowBackgroundBrush;
+	FTableRowStyle& SetParentRowBackgroundBrush( const FSlateBrush& InParentRowBackgroundBrush ){ ParentRowBackgroundBrush = InParentRowBackgroundBrush; return *this; }
+
+	/** Brush used for the top parent row and row is hovered */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FSlateBrush ParentRowBackgroundHoveredBrush;
+	FTableRowStyle& SetParentRowBackgroundHoveredBrush( const FSlateBrush& InParentRowBackgroundHoveredBrush ){ ParentRowBackgroundHoveredBrush = InParentRowBackgroundHoveredBrush; return *this; }
+
 	/** Brush used when an even row is hovered */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush EvenRowBackgroundHoveredBrush;

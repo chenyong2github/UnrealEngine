@@ -539,7 +539,8 @@ const FTableViewStyle& FTableViewStyle::GetDefault()
 }
 
 FTableRowStyle::FTableRowStyle()
-	: TextColor(FSlateColor::UseForeground())
+	: bUseParentRowBrush(false)
+	, TextColor(FSlateColor::UseForeground())
 	, SelectedTextColor(FLinearColor::White)
 {
 }
@@ -551,6 +552,8 @@ void FTableRowStyle::GetResources( TArray< const FSlateBrush* >& OutBrushes ) co
 	OutBrushes.Add( &ActiveBrush );
 	OutBrushes.Add( &InactiveHoveredBrush );
 	OutBrushes.Add( &InactiveBrush );
+	OutBrushes.Add( &ParentRowBackgroundHoveredBrush );
+	OutBrushes.Add( &ParentRowBackgroundBrush );
 	OutBrushes.Add( &EvenRowBackgroundHoveredBrush );
 	OutBrushes.Add( &EvenRowBackgroundBrush );
 	OutBrushes.Add( &OddRowBackgroundHoveredBrush );

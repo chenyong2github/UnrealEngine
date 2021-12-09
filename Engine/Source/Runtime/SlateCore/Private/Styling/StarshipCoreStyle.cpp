@@ -1757,6 +1757,13 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 
 	Style->Set("SimpleTableView.Row", SimpleTableRowStyle);
 
+	const FTableRowStyle ShowParentsTableRowStyle = FTableRowStyle(DefaultTableRowStyle)
+		.SetUseParentRowBrush(true)
+		.SetParentRowBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Header, 2.f, FStyleColors::Transparent, 1.f))
+		.SetParentRowBackgroundHoveredBrush(FSlateRoundedBoxBrush(FStyleColors::SelectHover, 2.f));
+
+	Style->Set("ShowParentsTableView.Row", ShowParentsTableRowStyle);
+
 	const FTableRowStyle DarkTableRowStyle = FTableRowStyle(DefaultTableRowStyle)
 		.SetEvenRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.0f, 0.0f, 0.0f, 0.1f)))
 		.SetOddRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.0f, 0.0f, 0.0f, 0.1f)));
