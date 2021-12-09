@@ -13,7 +13,6 @@
 
 class UWorld;
 class UMassEntitySubsystem;
-class UMassTranslator;
 
 enum class EFragmentInitialization : uint8
 {
@@ -216,9 +215,6 @@ protected:
 };
 
 /** @todo document 
- *  Note: the Object-Instance entity templates do not support having multiple instances of the same class that differ in
- *  composition (like with dynamically added fragments). The first registered instance will determine the composition 
- *  of the entity template.
  */
 UCLASS()
 class MASSSPAWNER_API UMassEntityTemplateRegistry : public UObject
@@ -227,19 +223,14 @@ class MASSSPAWNER_API UMassEntityTemplateRegistry : public UObject
 public:
 	// @todo consider TFunction instead
 	DECLARE_DELEGATE_ThreeParams(FStructToTemplateBuilderDelegate, const UWorld* /*World*/, const FInstancedStruct& /*InStructInstance*/, FMassEntityTemplateBuildContext& /*BuildContext*/);
-	DECLARE_DELEGATE_FourParams(FClassToTemplateBuilderDelegate, const UWorld* /*World*/, const UClass& /*InClass*/, const UObject* /*ObjectInstance*/, FMassEntityTemplateBuildContext& /*BuildContext*/);
 
 	UMassEntityTemplateRegistry() = default;
 	virtual void BeginDestroy() override;
 	virtual UWorld* GetWorld() const override;
 
 	static FStructToTemplateBuilderDelegate& FindOrAdd(const UScriptStruct& DataType);
-	static FClassToTemplateBuilderDelegate& FindOrAdd(const UClass& Class);
 
 	const FMassEntityTemplate* FindOrBuildStructTemplate(const FInstancedStruct& StructInstance);
-	const FMassEntityTemplate* FindOrBuildInstanceTemplate(const UObject& Instance);
-	const FMassEntityTemplate& FindInstanceTemplateChecked(const UObject& Instance) const;
-	const FMassEntityTemplate* FindOrBuildClassTemplate(const UClass& Class);
 
 	/** Removes all the cached template instances */
 	void DebugReset();
@@ -252,25 +243,15 @@ public:
 	void InitializeEntityTemplate(FMassEntityTemplate& OutTemplate) const;
 
 protected:
-	/** A function implementing common path for UClass and UObject template building 
-	 *	@param Class type of class for which we need to build an entity template
-	 *	@param Instance if given means we're building a template for a runtime UObject instance. It will be passed down to template builder
-	 */
-	const FMassEntityTemplate* BuildClassTemplate(const UClass& Class, const UObject* Instance = nullptr);
-
 	/** @return true if a template has been built, false otherwise */
 	bool BuildTemplateImpl(const FStructToTemplateBuilderDelegate& Builder, const FInstancedStruct& StructInstance, FMassEntityTemplate& OutTemplate);
 
-	static FClassToTemplateBuilderDelegate* GetBuilderForClass(const UClass& Class);
-
 protected:
 	static TMap<const UScriptStruct*, FStructToTemplateBuilderDelegate> StructBasedBuilders;
-	static TMap<const UClass*, FClassToTemplateBuilderDelegate> ClassBasedBuilders;
-	
+
 	/** 
 	 *  Map from a hash to a FMassEntityTemplateID
 	 *  For build from FInstancedStruct it will be the Combined hash of the UScriptStruct FName and FTemplateRegistryHelpers::CalcHash()
-	 *  For build from UClass or UObject it will be the hash of the UClass FName
 	 *  This hash will not be deterministic between server and clients
 	 */
 	TMap<uint32, FMassEntityTemplateID> LookupTemplateIDMap;
