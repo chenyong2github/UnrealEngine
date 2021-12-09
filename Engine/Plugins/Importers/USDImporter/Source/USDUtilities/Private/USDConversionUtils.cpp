@@ -578,13 +578,25 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 		return {};
 	}
 
+	const bool bProvideMaterialIndices = false;
+	UsdUtils::FUsdPrimMaterialAssignmentInfo Info = UsdUtils::GetPrimMaterialAssignments( UsdMesh.GetPrim(), pxr::UsdTimeCode( 0.0 ), bProvideMaterialIndices, RenderContext );
+	return UsdUtils::GetUVSetPrimvars( UsdMesh, MaterialToPrimvarsUVSetNames, Info );
+}
+
+TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr::UsdGeomMesh& UsdMesh, const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames, const UsdUtils::FUsdPrimMaterialAssignmentInfo& UsdMeshMaterialAssignmentInfo )
+{
+	if ( !UsdMesh )
+	{
+		return {};
+	}
+
 	FScopedUsdAllocs Allocs;
 
 	// Collect all primvars that could be used as UV sets
 	TMap<FString, pxr::UsdGeomPrimvar> PrimvarsByName;
 	TMap<int32, TArray<pxr::UsdGeomPrimvar>> UsablePrimvarsByUVIndex;
 	pxr::UsdGeomPrimvarsAPI PrimvarsAPI{ UsdMesh };
-	for (const pxr::UsdGeomPrimvar& Primvar : PrimvarsAPI.GetPrimvars() )
+	for ( const pxr::UsdGeomPrimvar& Primvar : PrimvarsAPI.GetPrimvars() )
 	{
 		if ( !Primvar || !Primvar.HasValue() )
 		{
@@ -609,8 +621,7 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 	TMap<int32, TArray<pxr::UsdGeomPrimvar>> PrimvarsUsedByAssignedMaterialsPerUVIndex;
 	{
 		const bool bProvideMaterialIndices = false;
-		UsdUtils::FUsdPrimMaterialAssignmentInfo Info = UsdUtils::GetPrimMaterialAssignments( UsdMesh.GetPrim(), pxr::UsdTimeCode( 0.0 ), bProvideMaterialIndices, RenderContext );
-		for ( const FUsdPrimMaterialSlot& Slot : Info.Slots )
+		for ( const FUsdPrimMaterialSlot& Slot : UsdMeshMaterialAssignmentInfo.Slots )
 		{
 			if ( Slot.AssignmentType == EPrimAssignmentType::MaterialPrim )
 			{
