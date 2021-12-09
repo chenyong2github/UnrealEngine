@@ -16,15 +16,6 @@ enum class EStateTreeCompare : uint8
 };
 
 /**
- * Base class for all common conditions so that they are easy to single out in the schema.
- */
-USTRUCT(meta = (Hidden))
-struct STATETREEMODULE_API FStateTreeConditionCommonBase : public FStateTreeConditionBase
-{
-	GENERATED_BODY()
-};
-
-/**
  * Condition comparing two integers.
  */
 USTRUCT()

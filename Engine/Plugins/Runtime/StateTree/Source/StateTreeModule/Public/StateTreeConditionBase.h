@@ -67,3 +67,15 @@ struct STATETREEMODULE_API FStateTreeConditionBase
 	UPROPERTY()
 	uint8 bInstanceIsObject : 1;
 };
+
+
+/**
+ * Base class (namespace) for all common Conditions that are generally applicable.
+ * This allows schemas to safely include all conditions child of this struct. 
+ */
+USTRUCT(meta = (Hidden))
+struct STATETREEMODULE_API FStateTreeConditionCommonBase : public FStateTreeConditionBase
+{
+	GENERATED_BODY()
+};
+
