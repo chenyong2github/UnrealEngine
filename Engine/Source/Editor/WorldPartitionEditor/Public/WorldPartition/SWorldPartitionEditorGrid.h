@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Layout/Children.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SPanel.h"
+#include "Widgets/SCompoundWidget.h"
 
 class UWorldPartition;
 
