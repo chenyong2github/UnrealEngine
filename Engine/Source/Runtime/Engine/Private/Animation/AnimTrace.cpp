@@ -1062,10 +1062,10 @@ void FAnimTrace::OutputAnimNotify(UAnimInstance* InAnimInstance, const FAnimNoti
 	}
 	else
 	{
-        NotifyAsset = InNotifyEvent.GetLinkedSequence();
+		NotifyAsset = InNotifyEvent.GetLinkedMontage();
 		if (NotifyAsset == nullptr)
 		{
-			NotifyAsset = InNotifyEvent.GetLinkedMontage();
+			NotifyAsset = InNotifyEvent.GetLinkedSequence();
 		}
 	}
 	
