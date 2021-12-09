@@ -15,6 +15,8 @@
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"
 #include "MassGameplaySettings.h"
+#include "MassSpawnLocationProcessor.h"
+
 
 namespace UE::MassSpawner
 {
@@ -448,15 +450,13 @@ void AMassSpawner::SpawnAtLocations(TConstArrayView<FVector> Locations)
 			{
 				if (const UMassEntityConfigAsset* EntityConfig = EntityType.GetEntityConfig())
 				{
-					FMassSpawnConfigBase SpawnConfig;
-					SpawnConfig.MinNumber = EntityCount;
-					SpawnConfig.MaxNumber = EntityCount;
 					const FMassEntityTemplate* EntityTemplate = EntityConfig->GetConfig().GetOrCreateEntityTemplate(*this, *EntityConfig);
 					if (EntityTemplate && EntityTemplate->IsValid())
 					{
 						FSpawnedEntities& SpawnedEntities = AllSpawnedEntities.AddDefaulted_GetRef();
 						SpawnedEntities.TemplateID = EntityTemplate->GetTemplateID();
-						SpawnerSystem->SpawnEntities(EntityTemplate->GetTemplateID(), SpawnConfig, FStructView::Make(MassSpawnAuxData), SpawnedEntities.Entities);
+						SpawnerSystem->SpawnEntities(EntityTemplate->GetTemplateID(), EntityCount, FStructView::Make(MassSpawnAuxData)
+							, UMassSpawnLocationProcessor::StaticClass(), SpawnedEntities.Entities);
 					}
 				}
 			}

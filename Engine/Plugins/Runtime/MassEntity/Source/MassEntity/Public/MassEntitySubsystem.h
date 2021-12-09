@@ -403,6 +403,7 @@ private:
 	 *  @todo this data should live somewhere else, preferably be just a parameter to Query.ForEachEntityChunk function */
 	FArchetypeChunkCollection ChunkCollection;
 	
+	/** @todo rename to "payload" */
 	FInstancedStruct AuxData;
 	float DeltaTimeSeconds = 0.0f;
 	int32 ChunkSerialModificationNumber = -1;
@@ -594,6 +595,13 @@ public:
 
 	const FInstancedStruct& GetAuxData() const { return AuxData; }
 	FInstancedStruct& GetMutableAuxData() { return AuxData; }
+	
+	template<typename TFragment>
+	bool ValidateAuxDataType() const
+	{
+		const UScriptStruct* FragmentType = GetAuxData().GetScriptStruct();
+		return FragmentType != nullptr && FragmentType == TFragment::StaticStruct();
+	}
 
 	void FlushDeferred(UMassEntitySubsystem& EntitySystem) const;
 

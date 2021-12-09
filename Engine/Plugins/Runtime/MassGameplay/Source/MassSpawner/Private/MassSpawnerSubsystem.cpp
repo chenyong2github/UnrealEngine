@@ -14,6 +14,7 @@
 #include "MassTranslatorRegistry.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "MassSimulationSubsystem.h"
+#include "MassEntityUtils.h"
 
 
 namespace UE::Mass::SpawnerSubsystem 
@@ -102,23 +103,7 @@ void UMassSpawnerSubsystem::PostInitialize()
 	TemplateRegistryInstance = NewObject<UMassEntityTemplateRegistry>(this);
 }
 
-bool UMassSpawnerSubsystem::SpawnEntities(const AActor& ActorInstance, const uint32 NumberToSpawn, TArray<FMassEntityHandle>& OutEntities) const
-{
-	if (NumberToSpawn == 0)
-	{
-		UE_VLOG(this, LogMassSpawner, Warning, TEXT("Trying to spawn 0 entities. This would cause inefficiency. Bailing out with result FALSE."));
-		return false;
-	}
-
-	check(TemplateRegistryInstance);
-	if (const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindOrBuildInstanceTemplate(ActorInstance))
-	{
-		return SpawnEntities(*EntityTemplate, NumberToSpawn, OutEntities);
-	}
-	return false;
-}
-
-bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTemplate, const uint32 NumberToSpawn, TArray<FMassEntityHandle>& OutEntities) const
+void UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTemplate, const uint32 NumberToSpawn, TArray<FMassEntityHandle>& OutEntities)
 {
 	check(EntitySystem);
 	check(EntityTemplate.IsValid());
@@ -126,33 +111,13 @@ bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTempl
 	if (NumberToSpawn == 0)
 	{
 		UE_VLOG(this, LogMassSpawner, Warning, TEXT("Trying to spawn 0 entities. This would cause inefficiency. Bailing out with result FALSE."));
-		return false;
+		return;
 	}
 
-	//TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassSpawnerSubsystem SpawnEntities");
-	
-	OutEntities.Reset();
-	if (EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), NumberToSpawn, OutEntities) > 0)
-	{ 
-		UE_CVLOG(OutEntities.Num() != NumberToSpawn, this, LogMassSpawner, Warning, TEXT("Tried to batch-create %d entities but created %d."), NumberToSpawn, OutEntities.Num());
-
-		TConstArrayView<FInstancedStruct> FragmentInstances = EntityTemplate.GetInitialFragmentValues();
-		const FArchetypeChunkCollection ChunkCollection(EntityTemplate.GetArchetype(), OutEntities);
-		EntitySystem->BatchSetEntityFragmentsValues(ChunkCollection, FragmentInstances);
-
-		if (EntityTemplate.GetInitializationPipeline().Processors.Num())
-		{
-			FMassEntityTemplate& MutableEntityTemplate = const_cast<FMassEntityTemplate&>(EntityTemplate);
-
-			FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
-			UE::Mass::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), ProcessingContext, ChunkCollection);
-		}
-		return true;
-	}
-	return false;
+	DoSpawning(EntityTemplate, NumberToSpawn, FStructView(), TSubclassOf<UMassProcessor>(), OutEntities);
 }
 
-void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, const FMassSpawnConfigBase& SpawnConfig, const FStructView& AuxData, TArray<FMassEntityHandle>& OutEntities)
+void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, const uint32 NumberToSpawn, FConstStructView SpawnData, TSubclassOf<UMassProcessor> InitializerClass, TArray<FMassEntityHandle>& OutEntities)
 {
 	check(TemplateID.IsValid());
 
@@ -162,35 +127,25 @@ void UMassSpawnerSubsystem::SpawnEntities(FMassEntityTemplateID TemplateID, cons
 	}
 
 	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindTemplateFromTemplateID(TemplateID);
-	checkf(EntityTemplate != nullptr, TEXT("TemplateID must have been registered!"));
+	checkf(EntityTemplate && EntityTemplate->IsValid(), TEXT("SpawnEntities: TemplateID must have been registered!"));
 
-	DoSpawning(*EntityTemplate, SpawnConfig, AuxData, OutEntities);
+	DoSpawning(*EntityTemplate, NumberToSpawn, SpawnData, InitializerClass, OutEntities);
 }
 
-
-void UMassSpawnerSubsystem::SpawnCollection(TArrayView<FInstancedStruct> Collection, const int32 Count, const FStructView& AuxData /* = FStructView() */)
+void UMassSpawnerSubsystem::SpawnFromConfig(FStructView Config, const int32 NumToSpawn, FConstStructView SpawnData, TSubclassOf<UMassProcessor> InitializerClass)
 {
+	check(Config.IsValid());
+
 	if (!ensureMsgf(TemplateRegistryInstance, TEXT("UMassSpawnerSubsystem didn\'t get its OnPostWorldInit call yet!")))
 	{
 		return;
 	}
+	
+	const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindOrBuildStructTemplate(Config);
+	checkf(EntityTemplate && EntityTemplate->IsValid(), TEXT("SpawnFromConfig: TemplateID must have been registered!"));
 
-	// @todo totally ignoring "Count" parameter for now. Respecting it will required building spawning model properly
-	// right now the function will just spawn Max allowed by given spawn data
-
-	for (FInstancedStruct& Entry : Collection)
-	{
-		if (Entry.IsValid())
-		{
-			const FMassEntityTemplate* EntityTemplate = TemplateRegistryInstance->FindOrBuildStructTemplate(Entry);
-			if (EntityTemplate && EntityTemplate->IsValid())
-			{
-				TArray<FMassEntityHandle> Entities;
-
-				DoSpawning(*EntityTemplate, Entry.GetMutable<FMassSpawnConfigBase>(), AuxData, Entities);
-			}
-		}
-	}
+	TArray<FMassEntityHandle> Entities;
+	DoSpawning(*EntityTemplate, NumToSpawn, SpawnData, InitializerClass, Entities);
 }
 
 void UMassSpawnerSubsystem::RegisterCollection(TArrayView<FInstancedStruct> Collection)
@@ -284,7 +239,31 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 	}
 }
 
-void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate, const FMassSpawnConfigBase& Data, const FStructView& AuxData, TArray<FMassEntityHandle>& OutEntities) const
+UMassProcessor* UMassSpawnerSubsystem::GetSpawnLocationInitializer(TSubclassOf<UMassProcessor> InitializerClass)
+{	
+	if (!InitializerClass)
+	{
+		return nullptr;
+	}
+
+	UMassProcessor** const Initializer = SpawnLocationInitializers.FindByPredicate([InitializerClass](const UMassProcessor* Processor)
+		{
+			return Processor && Processor->GetClass() == InitializerClass;
+		}
+	);
+
+	if (Initializer == nullptr)
+	{
+		UMassProcessor* NewInitializer = NewObject<UMassProcessor>(this, InitializerClass);
+		NewInitializer->Initialize(*this);
+		SpawnLocationInitializers.Add(NewInitializer);
+		return NewInitializer;
+	}
+
+	return *Initializer;
+}
+
+void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate, const int32 NumToSpawn, FConstStructView SpawnData, TSubclassOf<UMassProcessor> InitializerClass, TArray<FMassEntityHandle>& OutEntities)
 {
 	check(EntitySystem);
 	check(EntityTemplate.GetArchetype().IsValid());
@@ -295,22 +274,29 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	// 1. Create required number of entities with EntityTemplate.Archetype
 	// 2. Copy data from FMassEntityTemplate.Fragments.
 	//		a. @todo, could be done as part of creation?
-	//		b. @todo could be done via an always-first translator in EntityTemplate.Translators
 	// 3. Run all EntityTemplate.Translators to configure remaining values (i.e. not set via FMassEntityTemplate.Fragments).
 
 	TArray<FMassEntityHandle> SpawnedEntities;
-	EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), Data.MaxNumber, SpawnedEntities);
+	EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), NumToSpawn, SpawnedEntities);
 
 	TConstArrayView<FInstancedStruct> FragmentInstances = EntityTemplate.GetInitialFragmentValues();
 	const FArchetypeChunkCollection ChunkCollection(EntityTemplate.GetArchetype(), SpawnedEntities);
 	EntitySystem->BatchSetEntityFragmentsValues(ChunkCollection, FragmentInstances);
 	
+	UMassProcessor* SpawnLocationInitializer = SpawnData.IsValid() ? GetSpawnLocationInitializer(InitializerClass) : nullptr;
+
+	if (SpawnLocationInitializer)
+	{
+		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
+		ProcessingContext.AuxData = SpawnData;
+		UE::Mass::Executor::RunProcessorsView(MakeArrayView(&SpawnLocationInitializer, 1), ProcessingContext, &ChunkCollection);
+	}
+
 	if (EntityTemplate.GetInitializationPipeline().Processors.Num())
 	{
 		FMassEntityTemplate& MutableEntityTemplate = const_cast<FMassEntityTemplate&>(EntityTemplate);
 
 		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
-		ProcessingContext.AuxData = AuxData;
 		UE::Mass::Executor::RunSparse(MutableEntityTemplate.GetMutableInitializationPipeline(), ProcessingContext, ChunkCollection);
 	}
 

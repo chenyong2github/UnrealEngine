@@ -26,29 +26,6 @@ struct FMassSpawnAuxData
 	TArray<FTransform> Transforms;
 };
 
-USTRUCT()
-struct FMassSpawnConfigBase
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (BaseStruct = "MassFragment"))
-	TArray<FInstancedStruct> AdditionalDataFragments;
-
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (ClampMin = 0, UIMin = 0))
-	int32 MinNumber = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (ClampMin = 1, UIMin = 1))
-	int32 MaxNumber = 1;
-
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn", meta = (ClampMin = 0.0, UIMin = 0.0))
-	float Radius = 0.f;
-
-	friend uint32 GetTypeHash(const FMassSpawnConfigBase& Instance)
-	{
-		return HashCombine(HashCombine(GetTypeHash(Instance.MinNumber), GetTypeHash(Instance.MaxNumber)), GetTypeHash(Instance.Radius));
-	}
-};
-
 /**
  * Describes an entity type to spawn.
  */

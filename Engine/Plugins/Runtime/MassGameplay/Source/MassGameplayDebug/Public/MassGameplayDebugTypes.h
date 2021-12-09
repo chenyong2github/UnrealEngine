@@ -101,25 +101,3 @@ struct FAgentDebugVisualization : public FTableRowBase
 	UPROPERTY(EditAnywhere, Category = "Mass|Debug")
 	EMassEntityDebugShape WireShape = EMassEntityDebugShape::Box;
 };
-
-/** @todo comment functionality */
-USTRUCT(DisplayName="MassSpawnProps_Debug")
-struct FMassSpawnProps : public FMassSpawnConfigBase
-{
-	GENERATED_BODY()
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = "Mass|Spawn")
-	FAgentDebugVisualization DebugShape;
-#endif // WITH_EDITORONLY_DATA
-
-	friend uint32 GetTypeHash(const FMassSpawnProps& Instance)
-	{
-#if WITH_EDITORONLY_DATA
-		return HashCombine(GetTypeHash((const FMassSpawnConfigBase&)Instance)
-				, HashCombine(GetTypeHash(Instance.DebugShape.Mesh), GetTypeHash(Instance.DebugShape.MaterialOverride)));
-#else
-		return GetTypeHash((const FMassSpawnConfigBase&)Instance);
-#endif // WITH_EDITORONLY_DATA
-	}
-};
