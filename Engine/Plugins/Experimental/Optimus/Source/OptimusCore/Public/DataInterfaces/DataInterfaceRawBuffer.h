@@ -41,7 +41,7 @@ public:
 	void GetHLSL(FString& OutHLSL) const override;
 	void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
-	UComputeDataProvider* CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const override;
+	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 
 	void Serialize(FArchive& Ar) override

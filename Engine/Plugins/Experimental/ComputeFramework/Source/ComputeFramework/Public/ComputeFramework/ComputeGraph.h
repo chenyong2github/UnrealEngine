@@ -108,6 +108,9 @@ public:
 	 */
 	bool ValidateGraph(FString* OutErrors = nullptr);
 
+	/** Returns true if graph has a full set of compiled shaders. */
+	bool IsCompiled() const;
+
 	/** Get the number of kernel slots in the graph. Note that some of these kernel slots may be empty due to fragmentation in graph edition. */
 	int32 GetNumKernelInvocations() const { return KernelInvocations.Num(); }
 	
@@ -122,13 +125,13 @@ public:
 
 	/** 
 	 * Create UComputeDataProvider objects to match the current UComputeDataInterface objects. 
-	 * If bSetDefaultBindings is true then we attempt to setup bindings.
+	 * If InBindingObject is set then we attempt to setup bindings from that UObject.
 	 * The caller is responsible for any data provider binding not handled by the default behavior.
 	 */
-	void CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
+	void CreateDataProviders(UObject* InBindingObject,TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const;
 
 	/** Returns true if there is a valid DataProvider entry for each of our DataInterfaces. */
-	bool ValidateProviders(TArrayView< TObjectPtr<UComputeDataProvider> > DataProviders) const;
+	bool ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> > const& DataProviders) const;
 
 	/**
 	 * Get unique data interface id.

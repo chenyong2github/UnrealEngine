@@ -79,9 +79,9 @@ void USceneDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) const
 	OutSourceTypes.Add(USceneComponent::StaticClass());
 }
 
-UComputeDataProvider* USceneDataInterface::CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const
+UComputeDataProvider* USceneDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USceneDataProvider* Provider = NewObject<USceneDataProvider>(InOuter);
+	USceneDataProvider* Provider = NewObject<USceneDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{

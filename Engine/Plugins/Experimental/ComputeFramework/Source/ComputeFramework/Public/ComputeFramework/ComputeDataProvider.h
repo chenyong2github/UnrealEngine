@@ -25,7 +25,7 @@ public:
 	
 	/**
 	 * Get an associated render thread proxy object.
-	 * Currently these are created and destroyed per frame by the UComputeGraphComponent.
+	 * Currently these are created and destroyed per frame by the FComputeGraphInstance.
 	 * todo[CF]: Don't destroy FComputeDataProviderRenderProxy objects every frame?
 	 */
 	virtual FComputeDataProviderRenderProxy* GetRenderProxy() { return nullptr; }

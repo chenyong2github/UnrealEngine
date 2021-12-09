@@ -4,15 +4,13 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DataInterfaceSkinCacheWrite.generated.h"
+#include "DataInterfaceSkinnedMeshWrite.generated.h"
 
-class FGPUSkinCache;
-class FSkeletalMeshObject;
-class USkeletalMeshComponent;
+class USkinnedMeshComponent;
 
-/** Compute Framework Data Interface for reading skeletal mesh. */
+/** Compute Framework Data Interface for writing skinned mesh. */
 UCLASS(Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletalMeshSkinCacheDataInterface : public UOptimusComputeDataInterface
+class OPTIMUSCORE_API USkinnedMeshWriteDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -28,19 +26,21 @@ public:
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
-	UComputeDataProvider* CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const override;
+	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 };
 
-/** Compute Framework Data Provider for reading skeletal mesh. */
+/** Compute Framework Data Provider for writing skinned mesh. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class OPTIMUSCORE_API USkeletalMeshSkinCacheDataProvider : public UComputeDataProvider
+class OPTIMUSCORE_API USkinnedMeshWriteDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Binding)
-	TObjectPtr<USkeletalMeshComponent> SkeletalMesh = nullptr;
+	TObjectPtr<USkinnedMeshComponent> SkinnedMesh = nullptr;
+
+	uint64 OutputMask;
 
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -48,18 +48,26 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FSkeletalMeshSkinCacheDataProviderProxy : public FComputeDataProviderRenderProxy
+class FSkinnedMeshWriteDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FSkeletalMeshSkinCacheDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent);
+	FSkinnedMeshWriteDataProviderProxy(USkinnedMeshComponent* InSkinnedMeshComponent, uint64 InOutputMask);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	int32 GetInvocationCount() const override;
 	FIntVector GetDispatchDim(int32 InvocationIndex, FIntVector GroupDim) const override;
+	void AllocateResources(FRDGBuilder& GraphBuilder) override;
 	void GetBindings(int32 InvocationIndex, TCHAR const* UID, FBindings& OutBindings) const override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
 	FSkeletalMeshObject* SkeletalMeshObject;
-	FGPUSkinCache* GPUSkinCache;
+	uint64 OutputMask;
+
+	FRDGBuffer* PositionBuffer = nullptr;
+	FRDGBufferUAV* PositionBufferUAV = nullptr;
+	FRDGBuffer* TangentBuffer = nullptr;
+	FRDGBufferUAV* TangentBufferUAV = nullptr;
+	FRDGBuffer* ColorBuffer = nullptr;
+	FRDGBufferUAV* ColorBufferUAV = nullptr;
 };

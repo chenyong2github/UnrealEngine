@@ -3,14 +3,14 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
+#include "ComputeFramework/ComputeGraphInstance.h"
 #include "ComputeGraphComponent.generated.h"
 
-class UComputeDataProvider;
 class UComputeGraph;
 
 /** 
- * Component which holds an instance of a specific context for a UComputeGraph.
- * This object binds a graph to its data providers, and queues the execution. 
+ * Component which holds a context for a UComputeGraph.
+ * This object binds the graph to its data providers, and queues the execution. 
  */
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent))
 class COMPUTEFRAMEWORK_API UComputeGraphComponent : public UActorComponent
@@ -19,21 +19,22 @@ class COMPUTEFRAMEWORK_API UComputeGraphComponent : public UActorComponent
 
 public:
 	UComputeGraphComponent();
+	~UComputeGraphComponent();
 
 	/** The Compute Graph asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Compute")
 	TObjectPtr<UComputeGraph> ComputeGraph = nullptr;
 
-	/** The bound Data Provider objects. */
-	UPROPERTY(Transient)
-	TArray< TObjectPtr<UComputeDataProvider> > DataProviders;
-
 	/**
 	 * Create the Data Provider objects for the current ComputeGraph.
-	 * @param bSetDefaultBindings Attempt to automate setup of the Data Provider objectss based on the current Actor.
+	 * @param bSetDefaultBindings Attempt to automate setup of the Data Provider objects based on the current Actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Compute")
 	void CreateDataProviders(bool bSetDefaultBindings);
+
+	/** Destroy all associated DataProvider objects. */
+	UFUNCTION(BlueprintCallable, Category = "Compute")
+	void DestroyDataProviders();
 
 	/** Queue the graph for execution at the next render update. */
 	UFUNCTION(BlueprintCallable, Category = "Compute")
@@ -47,5 +48,8 @@ protected:
 	//~ End UActorComponent Interface
 
 private:
+	UPROPERTY()
+	FComputeGraphInstance ComputeGraphInstance;
+
 	bool bValidProviders = false;
 };

@@ -5,11 +5,11 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "GPUSkinCache.h"
 #include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "ShaderParameterMetadataBuilder.h"
+#include "SkeletalMeshDeformerHelpers.h"
 #include "SkeletalRenderPublic.h"
 
 FString USkeletalMeshReadDataInterface::GetDisplayName() const
@@ -288,9 +288,9 @@ void USkeletalMeshReadDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTy
 	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const
+UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	USkeletalMeshReadDataProvider* Provider = NewObject<USkeletalMeshReadDataProvider>(InOuter);
+	USkeletalMeshReadDataProvider* Provider = NewObject<USkeletalMeshReadDataProvider>();
 
 	if (InSourceObjects.Num() == 1)
 	{
@@ -305,9 +305,7 @@ bool USkeletalMeshReadDataProvider::IsValid() const
 {
 	return
 		SkeletalMesh != nullptr &&
-		SkeletalMesh->MeshObject != nullptr &&
-		SkeletalMesh->GetScene() != nullptr &&
-		SkeletalMesh->GetScene()->GetGPUSkinCache() != nullptr;
+		SkeletalMesh->MeshObject != nullptr;
 }
 
 FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
@@ -319,9 +317,6 @@ FComputeDataProviderRenderProxy* USkeletalMeshReadDataProvider::GetRenderProxy()
 FSkeletalMeshReadDataProviderProxy::FSkeletalMeshReadDataProviderProxy(USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	SkeletalMeshObject = SkeletalMeshComponent->MeshObject;
-	
-	// todo[CF]: Remove GPUSkinCache access for this provider. It's only used as a hack to get latest bone matrices.
-	GPUSkinCache = SkeletalMeshComponent->GetScene()->GetGPUSkinCache();
 }
 
 int32 FSkeletalMeshReadDataProviderProxy::GetInvocationCount() const
@@ -365,14 +360,14 @@ void FSkeletalMeshReadDataProviderProxy::GetBindings(int32 InvocationIndex, TCHA
 	FRHIShaderResourceView* MeshTangentBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTangentsSRV();
 	FRHIShaderResourceView* MeshUVBufferSRV = LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetTexCoordsSRV();
 
+	const int32 LodIndex = SkeletalMeshRenderData.GetPendingFirstLODIdx(0);
+	FRHIShaderResourceView* BoneBufferSRV = FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LodIndex, SectionIdx, false);
+
 	FSkinWeightVertexBuffer const* WeightBuffer = LodRenderData->GetSkinWeightVertexBuffer();
 	FRHIShaderResourceView* SkinWeightBufferSRV = WeightBuffer->GetDataVertexBuffer()->GetSRV();
 	const bool bUnlimitedBoneInfluences = WeightBuffer->GetBoneInfluenceType() == GPUSkinBoneInfluenceType::UnlimitedBoneInfluence;
 	FRHIShaderResourceView* InputWeightLookupStreamSRV = bUnlimitedBoneInfluences ? WeightBuffer->GetLookupVertexBuffer()->GetSRV() : nullptr;
 		
-	const TArray<FMatrix44f>& RefToLocals = SkeletalMeshObject->GetReferenceToLocalMatrices();
-	FRHIShaderResourceView* BoneBufferSRV = GPUSkinCache->GetBoneBuffer(SkeletalMeshObject->GetComponentId(), SectionIdx);
-
 	FRHIShaderResourceView* DuplicatedIndicesIndicesSRV = RenderSection.DuplicatedVerticesBuffer.LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV;
 	FRHIShaderResourceView* DuplicatedIndicesSRV = RenderSection.DuplicatedVerticesBuffer.DuplicatedVerticesIndexBuffer.VertexBufferSRV;
 

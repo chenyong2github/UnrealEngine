@@ -2,7 +2,9 @@
 
 #include "OptimusEditorModule.h"
 
-#include "OptimusComputeComponentBroker.h"
+#include "AssetToolsModule.h"
+#include "EdGraphUtilities.h"
+#include "IAssetTools.h"
 #include "OptimusDataType.h"
 #include "OptimusDeformerAssetActions.h"
 #include "OptimusDetailsCustomization.h"
@@ -13,26 +15,20 @@
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
+#include "OptimusMeshDeformerAssetActions.h"
 #include "OptimusResourceDescription.h"
+#include "PropertyEditorModule.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "Types/OptimusType_ShaderText.h"
-
-#include "AssetToolsModule.h"
-#include "ComputeFramework/ComputeGraphComponent.h"
-#include "EdGraphUtilities.h"
-#include "IAssetTools.h"
-#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
 DEFINE_LOG_CATEGORY(LogOptimusEditor);
 
-
 FOptimusEditorModule::FOptimusEditorModule() :
 	Clipboard(MakeShared<FOptimusEditorClipboard>())
 {
 }
-
 
 void FOptimusEditorModule::StartupModule()
 {
@@ -42,9 +38,10 @@ void FOptimusEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(OptimusDeformerAssetAction);
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
 
-	ComputeGraphComponentBroker = MakeShareable(new FOptimusComputeComponentBroker);
-	FComponentAssetBrokerage::RegisterBroker(ComputeGraphComponentBroker, UComputeGraphComponent::StaticClass(), true, true);
-	
+	TSharedRef<IAssetTypeActions> OptimusMeshDeformerAssetAction = MakeShared<FOptimusMeshDeformerAssetActions>();
+	AssetTools.RegisterAssetTypeActions(OptimusMeshDeformerAssetAction);
+	RegisteredAssetTypeActions.Add(OptimusMeshDeformerAssetAction);
+
 	FOptimusEditorCommands::Register();
 	FOptimusEditorGraphCommands::Register();
 	FOptimusEditorGraphExplorerCommands::Register();
@@ -71,11 +68,6 @@ void FOptimusEditorModule::ShutdownModule()
 	FOptimusEditorGraphCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
 	
-	if (UObjectInitialized())
-	{
-		FComponentAssetBrokerage::UnregisterBroker(ComputeGraphComponentBroker);
-	}
-
 	if (FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
 	{
 		IAssetTools& AssetTools = AssetToolsModule->Get();
@@ -94,12 +86,10 @@ TSharedRef<IOptimusEditor> FOptimusEditorModule::CreateEditor(const EToolkitMode
 	return OptimusEditor;
 }
 
-
 FOptimusEditorClipboard& FOptimusEditorModule::GetClipboard() const
 {
 	return Clipboard.Get();
 }
-
 
 void FOptimusEditorModule::RegisterPropertyCustomizations()
 {
@@ -120,7 +110,6 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	RegisterPropertyCustomization(FOptimusType_ShaderText::StaticStruct()->GetFName(), &FOptimusType_ShaderTextCustomization::MakeInstance);
 }
 
-
 void FOptimusEditorModule::UnregisterPropertyCustomizations()
 {
 	if (FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
@@ -132,8 +121,6 @@ void FOptimusEditorModule::UnregisterPropertyCustomizations()
 	}
 }
 
-
 IMPLEMENT_MODULE(FOptimusEditorModule, OptimusEditor)
-
 
 #undef LOCTEXT_NAMESPACE

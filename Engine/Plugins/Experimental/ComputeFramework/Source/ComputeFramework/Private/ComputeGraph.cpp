@@ -80,7 +80,31 @@ bool UComputeGraph::ValidateGraph(FString* OutErrors)
 	return true;
 }
 
-bool UComputeGraph::ValidateProviders(TArrayView< TObjectPtr<UComputeDataProvider> > DataProviders) const
+bool UComputeGraph::IsCompiled() const
+{
+	// todo[CF]: Checking all shader maps is probably slow. Cache and serialize compilation success after each compile instead.
+	for (int32 KernelIndex = 0; KernelIndex < KernelInvocations.Num(); ++KernelIndex)
+	{
+		if (KernelInvocations[KernelIndex] != nullptr)
+		{
+			if (!KernelResources.IsValidIndex(KernelIndex))
+			{
+				return false;
+			}
+			
+			FComputeKernelResource const* Resource = KernelResources[KernelIndex].Get();
+			FComputeKernelShaderMap* ShaderMap = Resource != nullptr ? Resource->GetGameThreadShaderMap() : nullptr;
+			if (ShaderMap == nullptr || !ShaderMap->IsComplete(Resource, true))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool UComputeGraph::ValidateProviders(TArray< TObjectPtr<UComputeDataProvider> > const& DataProviders) const
 {
 	if (DataInterfaces.Num() != DataProviders.Num())
 	{
@@ -100,34 +124,62 @@ bool UComputeGraph::ValidateProviders(TArrayView< TObjectPtr<UComputeDataProvide
 	return true;
 }
 
-void UComputeGraph::CreateDataProviders(UObject* InOuter, bool bSetDefaultBindings, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
+void UComputeGraph::CreateDataProviders(UObject* InBindingObject, TArray< TObjectPtr<UComputeDataProvider> >& OutProviders) const
 {
 	// If we want default bindings then get any associated Actor and look for objects of the requested type.
-	UActorComponent* Component = Cast<UActorComponent>(InOuter);
-	AActor* Actor = bSetDefaultBindings && Component != nullptr ? Component->GetOwner() : nullptr;
+	UActorComponent* Component = Cast<UActorComponent>(InBindingObject);
+	AActor* Actor = (Component != nullptr) ? Component->GetOwner() : nullptr;
 
 	// Iterate DataInterfaces and add a provider for each one.
 	OutProviders.Reserve(DataInterfaces.Num());
-	for (UComputeDataInterface* DataInterface : DataInterfaces)
+	for (int DataInterfaceIndex = 0; DataInterfaceIndex < DataInterfaces.Num(); ++ DataInterfaceIndex)
 	{
 		UComputeDataProvider* DataProvider = nullptr;
+		
+		UComputeDataInterface const* DataInterface = DataInterfaces[DataInterfaceIndex];
 		if (DataInterface != nullptr)
 		{
-			TArray<TObjectPtr<UObject>, TInlineAllocator<8>> Bindings;
-			
-			if (Actor != nullptr)
+			// Gather which input/output bindings are connected in the graph.
+			uint64 InputMask = 0;
+			uint64 OutputMask = 0;
+			for (FComputeGraphEdge const& GraphEdge : GraphEdges)
 			{
-				TArray<UClass*> SourceTypes;
-				DataInterface->GetSourceTypes(SourceTypes);
-				Bindings.Reserve(SourceTypes.Num());
-				for (UClass* SourceType : SourceTypes)
+				if (GraphEdge.DataInterfaceIndex == DataInterfaceIndex)
 				{
-					Bindings.Add(Actor->GetComponentByClass(SourceType));
+					if (GraphEdge.bKernelInput)
+					{
+						InputMask |= 1llu << GraphEdge.DataInterfaceBindingIndex;
+					}
+					else
+					{
+						OutputMask |= 1llu << GraphEdge.DataInterfaceBindingIndex;
+					}
 				}
 			}
 
-			DataProvider = DataInterface->CreateDataProvider(InOuter, Bindings);
+			// Gather automatic bindings for the data interface.
+			TArray<UClass*> SourceTypes;
+			DataInterface->GetSourceTypes(SourceTypes);
+			
+			TArray< TObjectPtr<UObject> > Bindings;
+			Bindings.AddDefaulted(SourceTypes.Num());
+			
+			for (int32 BindingIndex = 0; BindingIndex < SourceTypes.Num(); ++BindingIndex)
+			{
+				UClass* SourceType = SourceTypes[BindingIndex];
+				if (InBindingObject != nullptr && InBindingObject->IsA(SourceType))
+				{
+					Bindings[BindingIndex] = InBindingObject;
+				}
+				else if (Actor != nullptr)
+				{
+					Bindings[BindingIndex] = Actor->GetComponentByClass(SourceType);
+				}
+			}
+
+			DataProvider = DataInterface->CreateDataProvider(Bindings, InputMask, OutputMask);
 		}
+		
 		OutProviders.Add(DataProvider);
 	}
 }
@@ -298,23 +350,26 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex) const
 			for (int32 GraphEdgeIndex : RelevantEdgeIndices)
 			{
 				FComputeGraphEdge const& GraphEdge = GraphEdges[GraphEdgeIndex];
-				TCHAR const* UID = GetDataInterfaceUID(GraphEdge.DataInterfaceIndex);
-				TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride; 
-				if (GraphEdge.bKernelInput)
+				if (DataInterfaces[GraphEdge.DataInterfaceIndex] != nullptr)
 				{
-					TArray<FShaderFunctionDefinition> DataProviderFunctions;
-					DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
-					FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
-					FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalInputs[GraphEdge.KernelBindingIndex];
-					GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
-				}
-				else
-				{
-					TArray<FShaderFunctionDefinition> DataProviderFunctions;
-					DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
-					FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
-					FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalOutputs[GraphEdge.KernelBindingIndex];
-					GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
+					TCHAR const* UID = GetDataInterfaceUID(GraphEdge.DataInterfaceIndex);
+					TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride; 
+					if (GraphEdge.bKernelInput)
+					{
+						TArray<FShaderFunctionDefinition> DataProviderFunctions;
+						DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
+						FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
+						FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalInputs[GraphEdge.KernelBindingIndex];
+						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
+					}
+					else
+					{
+						TArray<FShaderFunctionDefinition> DataProviderFunctions;
+						DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
+						FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
+						FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalOutputs[GraphEdge.KernelBindingIndex];
+						GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
+					}
 				}
 			}
 

@@ -8,6 +8,7 @@ uint DI_LOCAL(OutputStreamStart);
 
 RWBuffer<float> DI_LOCAL(PositionBufferUAV);
 RWBuffer<TANGENT_RWBUFFER_FORMAT> DI_LOCAL(TangentBufferUAV);
+RWBuffer<UNORM float4> DI_LOCAL(ColorBufferUAV);
 
 DI_IMPL_READ(ReadNumVertices, uint, void)
 {
@@ -32,4 +33,10 @@ DI_IMPL_WRITE(WriteTangentZ, uint VertexIndex, float4 TangentZ)
 {
 	uint BufferIndex = (DI_LOCAL(OutputStreamStart) + VertexIndex) * 2;
 	DI_LOCAL(TangentBufferUAV)[BufferIndex + 1] = TangentUnbias_SkinCache(TangentZ);
+}
+
+DI_IMPL_WRITE(WriteColor, uint VertexIndex, float4 Color)
+{
+	uint BufferIndex = DI_LOCAL(OutputStreamStart) + VertexIndex;
+	DI_LOCAL(ColorBufferUAV)[BufferIndex] = Color;
 }

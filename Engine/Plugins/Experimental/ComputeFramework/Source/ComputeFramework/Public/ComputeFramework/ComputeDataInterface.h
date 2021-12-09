@@ -37,5 +37,5 @@ public:
 	/** Get types of UObject required to instantiate a UComputeDataProvider from this interface. */
 	virtual void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const {}
 	/** Instantiate an associated UComputeDataProvider. InSourceObjects provides an optional array of objects to set on the provider. */
-	virtual UComputeDataProvider* CreateDataProvider(UObject *InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const { return nullptr; }
+	virtual UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const { return nullptr; }
 };

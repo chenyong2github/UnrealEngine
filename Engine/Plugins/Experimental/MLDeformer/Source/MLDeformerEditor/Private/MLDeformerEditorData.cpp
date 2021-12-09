@@ -28,8 +28,8 @@
 
 #include "Math/NumericLimits.h"
 #include "Misc/ScopedSlowTask.h"
-#include "ComputeFramework/ComputeGraphComponent.h"
 #include "ComputeFramework/ComputeGraph.h"
+#include "OptimusMeshDeformer.h"
 
 #include "SSimpleTimeSlider.h"
 
@@ -209,13 +209,15 @@ void FMLDeformerEditorData::UpdateTestAnimPlaySpeed()
 void FMLDeformerEditorData::UpdateDeformerGraph()
 {	
 	const FMLDeformerEditorActor& EditorActor = GetEditorActor(EMLDeformerEditorActorIndex::DeformedTest);
-	UComputeGraphComponent* ComputeComponent = EditorActor.Actor->FindComponentByClass<UComputeGraphComponent>();
-	if (ComputeComponent)
+	UDebugSkelMeshComponent* SkelMeshComponent = EditorActor.Actor->FindComponentByClass<UDebugSkelMeshComponent>();
+	if (SkelMeshComponent)
 	{
 		UMLDeformerVizSettings* VizSettings = MLDeformerAsset->GetVizSettings();
 		check(VizSettings);
-		ComputeComponent->ComputeGraph = MLDeformerAsset->GetInferenceNeuralNetwork() ? VizSettings->GetDeformerGraph() : nullptr;
-		ComputeComponent->CreateDataProviders(true);
+		UComputeGraph* ComputeGraph = MLDeformerAsset->GetInferenceNeuralNetwork() ? VizSettings->GetDeformerGraph() : nullptr;
+		UOptimusMeshDeformer* MeshDeformer = NewObject<UOptimusMeshDeformer>(SkelMeshComponent);
+		MeshDeformer->ComputeGraph = ComputeGraph;
+		SkelMeshComponent->SetMeshDeformer(MeshDeformer);
 	}
 }
 

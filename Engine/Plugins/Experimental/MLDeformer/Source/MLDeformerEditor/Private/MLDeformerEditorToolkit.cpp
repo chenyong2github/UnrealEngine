@@ -38,7 +38,7 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "UObject/Object.h"
 #include "Components/TextRenderComponent.h"
-#include "ComputeFramework/ComputeGraphComponent.h"
+#include "OptimusMeshDeformer.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -512,20 +512,20 @@ UMLDeformerComponent* FMLDeformerEditorToolkit::AddMLDeformerComponentToActor(EM
 	return Component;
 }
 
-void FMLDeformerEditorToolkit::AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex ActorIndex, UComputeGraph* ComputeGraph, UMLDeformerComponent* DeformerComponent)
+void FMLDeformerEditorToolkit::AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex ActorIndex, UComputeGraph* ComputeGraph) const
 {
 	FMLDeformerEditorActor& EditorActor = EditorData->GetEditorActor(ActorIndex);
-	AActor* Actor = EditorActor.Actor;
-	UComputeGraphComponent* Component = NewObject<UComputeGraphComponent>(Actor);
-	Component->ComputeGraph = ComputeGraph;
-	Component->CreateDataProviders(true);
-	Component->PrimaryComponentTick.SetTickFunctionEnable(true);
-	if (DeformerComponent)
+	USkinnedMeshComponent* SkelMeshComponent = EditorActor.SkelMeshComponent;
+	if (ComputeGraph == nullptr)
 	{
-		Component->AddTickPrerequisiteComponent(DeformerComponent);
+		SkelMeshComponent->SetMeshDeformer(nullptr);
 	}
-	Component->RegisterComponent();
-	EditorActor.ComputeGraphComponent = Component;
+	else
+	{
+		UOptimusMeshDeformer* MeshDeformer = NewObject<UOptimusMeshDeformer>(SkelMeshComponent);
+		MeshDeformer->ComputeGraph = ComputeGraph;
+		SkelMeshComponent->SetMeshDeformer(MeshDeformer);
+	}
 }
 
 void FMLDeformerEditorToolkit::CreateBaseActor(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene, const FName& Name, FLinearColor LabelColor, FLinearColor WireframeColor)
@@ -639,7 +639,7 @@ void FMLDeformerEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPerso
 	// Create the component with the deformer graph on it.
 	UMLDeformerVizSettings* VizSettings = EditorData->GetDeformerAsset()->GetVizSettings();
 	UComputeGraph* ComputeGraph = VizSettings->GetDeformerGraph();
-	AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex::DeformedTest, ComputeGraph, MLDeformerComponent);
+	AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex::DeformedTest, ComputeGraph);
 
 	// Create the ground truth actor.
 	const FLinearColor GroundTruthLabelColor = FMLDeformerEditorStyle::Get().GetColor("MLDeformer.GroundTruth.LabelColor");
@@ -689,15 +689,8 @@ void FMLDeformerEditorToolkit::OnFinishedChangingDetails(const FPropertyChangedE
 		FMLDeformerEditorActor& DeformedTestActor = EditorData->GetEditorActor(EMLDeformerEditorActorIndex::DeformedTest);
 		USkeletalMeshComponent* SkelMeshComponent = DeformedTestActor.SkelMeshComponent;
 		UMLDeformerComponent* MLDeformerComponent = DeformedTestActor.MLDeformerComponent;
-		UComputeGraphComponent* ComputeComponent = DeformedTestActor.ComputeGraphComponent;
 
 		MLDeformerComponent->SetupComponent(EditorData->GetDeformerAsset(), SkelMeshComponent);
-
-		const bool IsCompatible = MLDeformerComponent->GetDeformerInstance().IsCompatible();	
-		if (ComputeComponent->IsActive() != IsCompatible)
-		{
-			ComputeComponent->SetActive(IsCompatible);
-		}
 
 		EditorData->GetDetailsView()->ForceRefresh();
 	}
@@ -822,12 +815,8 @@ FText FMLDeformerEditorToolkit::GetOverlayText() const
 
 void FMLDeformerEditorToolkit::SetComputeGraphDataProviders() const
 {
-	const FMLDeformerEditorActor& EditorActor = EditorData->GetEditorActor(EMLDeformerEditorActorIndex::DeformedTest);
-	UComputeGraphComponent* Component = EditorActor.ComputeGraphComponent;
-	if (Component != nullptr)
-	{
-		Component->CreateDataProviders(true);
-	}
+	UMLDeformerVizSettings* VizSettings = EditorData->GetDeformerAsset()->GetVizSettings();
+	AddDeformerGraphComponentToActor(EMLDeformerEditorActorIndex::DeformedTest, VizSettings->GetDeformerGraph());
 }
 
 #undef LOCTEXT_NAMESPACE

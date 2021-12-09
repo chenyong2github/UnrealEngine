@@ -21,6 +21,7 @@ FString UMLDeformerDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> UMLDeformerDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({ "DebugScale", "ReadDebugScale" });
 	Defs.Add({ "PositionDelta", "ReadPositionDelta", Optimus::DomainName::Vertex, "ReadNumVertices" });
 	return Defs;
 }
@@ -33,6 +34,15 @@ void UMLDeformerDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefiniti
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(ReturnParam);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadDebugScale");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
 		Fn.ParamTypes.Add(ReturnParam);
 		OutFunctions.Add(Fn);
 	}
@@ -55,6 +65,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSceneDataInterfaceParameters, )
 	SHADER_PARAMETER(FVector3f, VertexDeltaScale)
 	SHADER_PARAMETER(FVector3f, VertexDeltaMean)
 	SHADER_PARAMETER(float, VertexDeltaMultiplier)
+	SHADER_PARAMETER(float, DebugScale)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, PositionDeltaBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, VertexMapBuffer)
 END_SHADER_PARAMETER_STRUCT()
@@ -74,9 +85,9 @@ void UMLDeformerDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTypes) c
 	OutSourceTypes.Add(UMLDeformerComponent::StaticClass());
 }
 
-UComputeDataProvider* UMLDeformerDataInterface::CreateDataProvider(UObject* InOuter, TArrayView<TObjectPtr<UObject>> InSourceObjects) const
+UComputeDataProvider* UMLDeformerDataInterface::CreateDataProvider(TArrayView<TObjectPtr<UObject>> InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	UMLDeformerDataProvider* Provider = NewObject<UMLDeformerDataProvider>(InOuter);
+	UMLDeformerDataProvider* Provider = NewObject<UMLDeformerDataProvider>();
 	if (InSourceObjects.Num() == 1)
 	{
 		Provider->DeformerComponent = Cast<UMLDeformerComponent>(InSourceObjects[0]);
@@ -110,8 +121,7 @@ FMLDeformerDataProviderProxy::FMLDeformerDataProviderProxy(UMLDeformerComponent*
 
 #ifdef WITH_EDITOR
 	VertexDeltaMultiplier = DeformerComponent->GetVertexDeltaMultiplier();
-#else
-	VertexDeltaMultiplier = 1.0f;
+	DebugScale = 5.f; // todo: Route configurable value from to here from UI.
 #endif
 }
 
@@ -139,6 +149,7 @@ void FMLDeformerDataProviderProxy::GetBindings(int32 InvocationIndex, TCHAR cons
 	Parameters.VertexDeltaScale = VertexDeltaScale;
 	Parameters.VertexDeltaMean = VertexDeltaMean;
 	Parameters.VertexDeltaMultiplier = VertexDeltaMultiplier;
+	Parameters.DebugScale = DebugScale;
 	Parameters.PositionDeltaBuffer = BufferSRV;
 	Parameters.VertexMapBuffer = VertexMapBufferSRV;
 
