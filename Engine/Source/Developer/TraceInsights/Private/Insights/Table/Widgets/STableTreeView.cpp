@@ -52,8 +52,8 @@ class FTableTreeViewCommands : public TCommands<FTableTreeViewCommands>
 public:
 	FTableTreeViewCommands()
 	: TCommands<FTableTreeViewCommands>(
-		TEXT("FTableTreeViewCommands"),
-		NSLOCTEXT("FTableTreeViewCommands", "Table Tree View Commands", "Table Tree View Commands"),
+		TEXT("TableTreeViewCommands"),
+		NSLOCTEXT("Contexts", "TableTreeViewCommands", "Insights - Table Tree View"),
 		NAME_None,
 		FInsightsStyle::GetStyleSetName())
 	{
@@ -495,7 +495,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList.ToSharedRef());
 
 	// Selection menu
-	MenuBuilder.BeginSection("Selection", LOCTEXT("ContextMenu_Header_Selection", "Selection"));
+	MenuBuilder.BeginSection("Selection", LOCTEXT("ContextMenu_Section_Selection", "Selection"));
 	{
 		struct FLocal
 		{
@@ -519,7 +519,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Node", LOCTEXT("ContextMenu_Header_Node", "Node"));
+	MenuBuilder.BeginSection("Node", LOCTEXT("ContextMenu_Section_Node", "Node"));
 	{
 		MenuBuilder.AddMenuEntry
 		(
@@ -553,7 +553,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 
 	ExtendMenu(MenuBuilder);
 
-	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Header_Misc", "Miscellaneous"));
+	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Section_Misc", "Miscellaneous"));
 	{
 		MenuBuilder.AddMenuEntry
 		(
@@ -584,63 +584,11 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 
 		MenuBuilder.AddSubMenu
 		(
-			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"),
-			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildSortByMenu),
-			false,
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
-		);
-
-		MenuBuilder.AddSubMenu
-		(
-			LOCTEXT("ContextMenu_Header_Misc_Export", "Export"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Export to file"),
+			LOCTEXT("ContextMenu_Export_SubMenu", "Export"),
+			LOCTEXT("ContextMenu_Export_SubMenu_Desc", "Exports to a file."),
 			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildExportMenu),
 			false,
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
-		);
-	}
-	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection("Columns", LOCTEXT("ContextMenu_Header_Columns", "Columns"));
-	{
-		MenuBuilder.AddSubMenu
-		(
-			LOCTEXT("ContextMenu_Header_Columns_View", "View Column"),
-			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns"),
-			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildViewColumnMenu),
-			false,
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
-		);
-
-		FUIAction Action_ShowAllColumns
-		(
-			FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ShowAllColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ShowAllColumns_CanExecute)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
-			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
-			Action_ShowAllColumns,
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-
-		FUIAction Action_ResetColumns
-		(
-			FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ResetColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ResetColumns_CanExecute)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
-			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default"),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
-			Action_ResetColumns,
-			NAME_None,
-			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -652,9 +600,7 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 
 void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 {
-	// TODO: Refactor later @see TSharedPtr<SWidget> SCascadePreviewViewportToolBar::GenerateViewMenu() const
-
-	MenuBuilder.BeginSection("ColumnName", LOCTEXT("ContextMenu_Header_Misc_ColumnName", "Column Name"));
+	MenuBuilder.BeginSection("SortColumn", LOCTEXT("ContextMenu_Section_SortColumn", "Sort Column"));
 
 	//TODO: for (Sorting : AvailableSortings)
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
@@ -682,9 +628,7 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.EndSection();
 
-	//-----------------------------------------------------------------------------
-
-	MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Header_Misc_Sort_SortMode", "Sort Mode"));
+	MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Section_SortMode", "Sort Mode"));
 	{
 		FUIAction Action_SortAscending
 		(
@@ -694,8 +638,8 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
+			LOCTEXT("ContextMenu_SortAscending", "Sort Ascending"),
+			LOCTEXT("ContextMenu_SortAscending_Desc", "Sorts ascending."),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 			Action_SortAscending,
 			NAME_None,
@@ -710,8 +654,8 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
+			LOCTEXT("ContextMenu_SortDescending", "Sort Descending"),
+			LOCTEXT("ContextMenu_SortDescending_Desc", "Sorts descending."),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 			Action_SortDescending,
 			NAME_None,
@@ -725,11 +669,12 @@ void STableTreeView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 void STableTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("ViewColumn", LOCTEXT("ContextMenu_Header_Columns_View", "View Column"));
+	MenuBuilder.BeginSection("Columns", LOCTEXT("ContextMenu_Section_Columns", "Columns"));
 
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		const FTableColumn& Column = ColumnRef.Get();
+
 		FUIAction Action_ToggleColumn
 		(
 			FExecuteAction::CreateSP(this, &STableTreeView::ToggleColumnVisibility, Column.GetId()),
@@ -754,35 +699,35 @@ void STableTreeView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 
 void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("Export", LOCTEXT("Export", "Export"));
+	MenuBuilder.BeginSection("Export", LOCTEXT("ContextMenu_Section_Export", "Export"));
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FTableTreeViewCommands::Get().Command_ExportToFile,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
 
-	MenuBuilder.AddMenuEntry
-	(
-		FTableTreeViewCommands::Get().Command_ExportToFile,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
-	);
+		MenuBuilder.AddMenuEntry
+		(
+			FTableTreeViewCommands::Get().Command_ExportEntireTreeToFile,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
 
-	MenuBuilder.AddMenuEntry
-	(
-		FTableTreeViewCommands::Get().Command_ExportEntireTreeToFile,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
-	);
-
-	MenuBuilder.AddMenuEntry
-	(
-		FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileNoLeafs,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
-	);
-
+		MenuBuilder.AddMenuEntry
+		(
+			FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileNoLeafs,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Save")
+		);
+	}
 	MenuBuilder.EndSection();
 }
 
@@ -826,39 +771,13 @@ FText STableTreeView::GetColumnHeaderText(const FName ColumnId) const
 
 TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const FTableColumn& Column)
 {
-	bool bIsMenuVisible = false;
-
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
+
+	MenuBuilder.BeginSection("Sorting", LOCTEXT("ContextMenu_Section_Sorting", "Sorting"));
 	{
-		if (Column.CanBeHidden())
-		{
-			MenuBuilder.BeginSection("Column", LOCTEXT("TreeViewHeaderRow_Header_Column", "Column"));
-
-			FUIAction Action_HideColumn
-			(
-				FExecuteAction::CreateSP(this, &STableTreeView::HideColumn, Column.GetId()),
-				FCanExecuteAction::CreateSP(this, &STableTreeView::CanHideColumn, Column.GetId())
-			);
-
-			MenuBuilder.AddMenuEntry
-			(
-				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
-				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
-				FSlateIcon(),
-				Action_HideColumn,
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-			bIsMenuVisible = true;
-
-			MenuBuilder.EndSection();
-		}
-
 		if (Column.CanBeSorted())
 		{
-			MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Header_Misc_Sort_SortMode", "Sort Mode"));
-
 			FUIAction Action_SortAscending
 			(
 				FExecuteAction::CreateSP(this, &STableTreeView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Ascending),
@@ -867,8 +786,8 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			);
 			MenuBuilder.AddMenuEntry
 			(
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
+				FText::Format(LOCTEXT("ContextMenu_SortAscending_Fmt", "Sort Ascending (by {0})"), Column.GetTitleName()),
+				FText::Format(LOCTEXT("ContextMenu_SortAscending_Desc_Fmt", "Sorts ascending by {0}."), Column.GetTitleName()),
 				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 				Action_SortAscending,
 				NAME_None,
@@ -883,27 +802,88 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 			);
 			MenuBuilder.AddMenuEntry
 			(
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
+				FText::Format(LOCTEXT("ContextMenu_SortDescending_Fmt", "Sort Descending (by {0})"), Column.GetTitleName()),
+				FText::Format(LOCTEXT("ContextMenu_SortDescending_Desc_Fmt", "Sorts descending by {0}."), Column.GetTitleName()),
 				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 				Action_SortDescending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
 			);
-			bIsMenuVisible = true;
-
-			MenuBuilder.EndSection();
 		}
 
-		//if (Column.CanBeFiltered())
-		//{
-		//	MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
-		//	bIsMenuVisible = true;
-		//	MenuBuilder.EndSection();
-		//}
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_SortBy_SubMenu", "Sort By"),
+			LOCTEXT("ContextMenu_SortBy_SubMenu_Desc", "Sorts by a column."),
+			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildSortByMenu),
+			false,
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
+		);
 	}
+	MenuBuilder.EndSection();
 
-	return bIsMenuVisible ? MenuBuilder.MakeWidget() : (TSharedRef<SWidget>)SNullWidget::NullWidget;
+	MenuBuilder.BeginSection("ColumnVisibility", LOCTEXT("ContextMenu_Section_ColumnVisibility", "Column Visibility"));
+	{
+		if (Column.CanBeHidden())
+		{
+			FUIAction Action_HideColumn
+			(
+				FExecuteAction::CreateSP(this, &STableTreeView::HideColumn, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &STableTreeView::CanHideColumn, Column.GetId())
+			);
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_HideColumn", "Hide"),
+				LOCTEXT("ContextMenu_HideColumn_Desc", "Hides the selected column."),
+				FSlateIcon(),
+				Action_HideColumn,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_ViewColumn_SubMenu", "View Column"),
+			LOCTEXT("ContextMenu_ViewColumn_SubMenu_Desc", "Hides or shows columns."),
+			FNewMenuDelegate::CreateSP(this, &STableTreeView::TreeView_BuildViewColumnMenu),
+			false,
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
+		);
+
+		FUIAction Action_ShowAllColumns
+		(
+			FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ShowAllColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ShowAllColumns_CanExecute)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ShowAllColumns", "Show All Columns"),
+			LOCTEXT("ContextMenu_ShowAllColumns_Desc", "Resets tree view to show all columns."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
+			Action_ShowAllColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		FUIAction Action_ResetColumns
+		(
+			FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ResetColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ResetColumns_CanExecute)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ResetColumns", "Reset Columns to Default"),
+			LOCTEXT("ContextMenu_ResetColumns_Desc", "Resets columns to default."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
+			Action_ResetColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1821,12 +1801,12 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 	MenuBuilder.BeginSection("InsertOrAdd");
 	{
 		const FText AddGroupingText = (CrumbGroupingDepth == CurrentGroupings.Num() - 1) ? // after last one
-			LOCTEXT("GroupingMenu_Add", "Add Grouping...") :
-			LOCTEXT("GroupingMenu_Insert", "Insert Grouping...");
+			LOCTEXT("GroupingMenu_Add_SubMenu", "Add Grouping...") :
+			LOCTEXT("GroupingMenu_Insert_SubMenu", "Insert Grouping...");
 		MenuBuilder.AddSubMenu
 		(
 			AddGroupingText,
-			LOCTEXT("GroupingMenu_AddOrInsert_Desc", "Add or insert new grouping."),
+			LOCTEXT("GroupingMenu_AddOrInsert_SubMenu_Desc", "Adds or inserts a new grouping."),
 			FNewMenuDelegate::CreateSP(this, &STableTreeView::BuildGroupingSubMenu_Add, CrumbGrouping),
 			false,
 			FSlateIcon()
@@ -1845,8 +1825,8 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 		{
 			MenuBuilder.AddSubMenu
 			(
-				LOCTEXT("GroupingMenu_Change", "Change To..."),
-				LOCTEXT("GroupingMenu_Change_Desc", "Change selected grouping."),
+				LOCTEXT("GroupingMenu_Change_SubMenu", "Change To..."),
+				LOCTEXT("GroupingMenu_Change_SubMenu_Desc", "Changes the selected grouping."),
 				FNewMenuDelegate::CreateSP(this, &STableTreeView::BuildGroupingSubMenu_Change, CrumbGrouping),
 				false,
 				FSlateIcon()
@@ -1862,7 +1842,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("GroupingMenu_MoveLeft", "Move Left"),
-					LOCTEXT("GroupingMenu_MoveLeft_Desc", "Move selected grouping to the left."),
+					LOCTEXT("GroupingMenu_MoveLeft_Desc", "Moves the selected grouping to the left."),
 					FSlateIcon(),
 					Action_MoveLeft,
 					NAME_None,
@@ -1880,7 +1860,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("GroupingMenu_MoveRight", "Move Right"),
-					LOCTEXT("GroupingMenu_MoveRight_Desc", "Move selected grouping to the right."),
+					LOCTEXT("GroupingMenu_MoveRight_Desc", "Moves the selected grouping to the right."),
 					FSlateIcon(),
 					Action_MoveRight,
 					NAME_None,
@@ -1898,7 +1878,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 				MenuBuilder.AddMenuEntry
 				(
 					LOCTEXT("GroupingMenu_Remove", "Remove"),
-					LOCTEXT("GroupingMenu_Remove_Desc", "Remove selected grouping."),
+					LOCTEXT("GroupingMenu_Remove_Desc", "Removes the selected grouping."),
 					FSlateIcon(),
 					Action_Remove,
 					NAME_None,
@@ -1921,7 +1901,7 @@ TSharedRef<SWidget> STableTreeView::GetGroupingCrumbMenuContent(const TSharedPtr
 			MenuBuilder.AddMenuEntry
 			(
 				LOCTEXT("GroupingMenu_Reset", "Reset"),
-				LOCTEXT("GroupingMenu_Reset_Desc", "Reset groupings to default."),
+				LOCTEXT("GroupingMenu_Reset_Desc", "Resets groupings to default."),
 				FSlateIcon(),
 				Action_Reset,
 				NAME_None,
