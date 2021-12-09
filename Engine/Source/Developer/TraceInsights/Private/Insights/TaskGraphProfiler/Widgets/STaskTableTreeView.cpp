@@ -38,11 +38,11 @@ class FTaskTableTreeViewCommands : public TCommands<FTaskTableTreeViewCommands>
 {
 public:
 	FTaskTableTreeViewCommands()
-		: TCommands<FTaskTableTreeViewCommands>(
-			TEXT("FTaskTableTreeViewCommands"),
-			NSLOCTEXT("FTaskTableTreeViewCommands", "Task Table Tree View Commands", "Task Table Tree View Commands"),
-			NAME_None,
-			FInsightsStyle::GetStyleSetName())
+	: TCommands<FTaskTableTreeViewCommands>(
+		TEXT("TaskTableTreeViewCommands"),
+		NSLOCTEXT("Contexts", "TaskTableTreeViewCommands", "Insights - Task Table Tree View"),
+		NAME_None,
+		FInsightsStyle::GetStyleSetName())
 	{
 	}
 

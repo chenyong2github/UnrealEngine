@@ -37,12 +37,11 @@ void FNetworkingProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, con
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FNetworkingProfilerCommands::FNetworkingProfilerCommands()
-	: TCommands<FNetworkingProfilerCommands>(
-		TEXT("NetworkingProfilerCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "NetworkingProfilerCommand", "Networking Insights"), // Localized context name for displaying
-		NAME_None, // Parent
-		FInsightsStyle::GetStyleSetName() // Icon Style Set
-	)
+: TCommands<FNetworkingProfilerCommands>(
+	TEXT("NetworkingProfilerCommands"),
+	NSLOCTEXT("Contexts", "NetworkingProfilerCommands", "Insights - Networking Insights"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
 {
 }
 

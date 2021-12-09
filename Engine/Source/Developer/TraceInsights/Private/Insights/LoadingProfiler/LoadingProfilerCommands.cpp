@@ -37,12 +37,11 @@ void FLoadingProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FLoadingProfilerCommands::FLoadingProfilerCommands()
-	: TCommands<FLoadingProfilerCommands>(
-		TEXT("LoadingProfilerCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "LoadingProfilerCommand", "Asset Loading Insights"), // Localized context name for displaying
-		NAME_None, // Parent
-		FInsightsStyle::GetStyleSetName() // Icon Style Set
-	)
+: TCommands<FLoadingProfilerCommands>(
+	TEXT("LoadingProfilerCommands"),
+	NSLOCTEXT("Contexts", "LoadingProfilerCommands", "Insights - Asset Loading Insights"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
 {
 }
 

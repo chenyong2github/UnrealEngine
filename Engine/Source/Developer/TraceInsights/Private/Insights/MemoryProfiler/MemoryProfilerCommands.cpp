@@ -37,12 +37,11 @@ void FMemoryProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const T
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FMemoryProfilerCommands::FMemoryProfilerCommands()
-	: TCommands<FMemoryProfilerCommands>(
-		TEXT("MemoryProfilerCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "MemoryProfilerCommand", "Memory Insights"), // Localized context name for displaying
-		NAME_None, // Parent
-		FInsightsStyle::GetStyleSetName() // Icon Style Set
-	)
+: TCommands<FMemoryProfilerCommands>(
+	TEXT("MemoryProfilerCommands"),
+	NSLOCTEXT("Contexts", "MemoryProfilerCommands", "Insights - Memory Insights"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
 {
 }
 

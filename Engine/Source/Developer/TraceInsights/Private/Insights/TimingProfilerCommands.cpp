@@ -37,12 +37,11 @@ void FTimingProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const T
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTimingProfilerCommands::FTimingProfilerCommands()
-	: TCommands<FTimingProfilerCommands>(
-		TEXT("TimingProfilerCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "TimingProfilerCommand", "Timing Insights"), // Localized context name for displaying
-		NAME_None, // Parent
-		FInsightsStyle::GetStyleSetName() // Icon Style Set
-	)
+: TCommands<FTimingProfilerCommands>(
+	TEXT("TimingProfilerCommands"),
+	NSLOCTEXT("Contexts", "TimingProfilerCommands", "Insights - Timing Insights"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
 {
 }
 
@@ -68,12 +67,11 @@ PRAGMA_ENABLE_OPTIMIZATION
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTimingViewCommands::FTimingViewCommands()
-	: TCommands<FTimingViewCommands>(
-		TEXT("TimingViewCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "TimingViewCommand", "Timing Insights"), // Localized context name for displaying
-		NAME_None, // Parent
-		FInsightsStyle::GetStyleSetName() // Icon Style Set
-	)
+: TCommands<FTimingViewCommands>(
+	TEXT("TimingViewCommands"),
+	NSLOCTEXT("Contexts", "TimingViewCommands", "Insights - Timing View"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
 {
 }
 
@@ -85,13 +83,13 @@ void FTimingViewCommands::RegisterCommands()
 {
 	UI_COMMAND(AutoHideEmptyTracks,
 		"Auto Hide Empty Tracks",
-		"Auto hide empty tracks (ex.: ones without timing events in the current viewport).\nThis option is persistent to UnrealInsightsSettings.ini file.",
+		"Auto hide empty tracks (ex.: ones without timing events in the current viewport).\nThis option is persistent to the UnrealInsightsSettings.ini file.",
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord(EKeys::V));
 
 	UI_COMMAND(PanningOnScreenEdges,
 		"Allow Panning on Screen Edges",
-		"If enabled, the panning is allowed to continue when mouse cursor reaches the edges of the screen.\nThis option is persistent to UnrealInsightsSettings.ini file.",
+		"If enabled, the panning is allowed to continue when the mouse cursor reaches the edges of the screen.\nThis option is persistent to the UnrealInsightsSettings.ini file.",
 		EUserInterfaceActionType::ToggleButton,
 		FInputChord());
 

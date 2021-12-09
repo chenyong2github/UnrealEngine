@@ -30,11 +30,11 @@ namespace Insights
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FContextSwitchesStateCommands::FContextSwitchesStateCommands()
-	: TCommands<FContextSwitchesStateCommands>(
-		TEXT("FContextSwitchesStateCommands"),
-		NSLOCTEXT("FContextSwitchesStateCommands", "Context Switches State Commands", "Context Switches Commands"),
-		NAME_None,
-		FInsightsStyle::GetStyleSetName())
+: TCommands<FContextSwitchesStateCommands>(
+	TEXT("ContextSwitchesStateCommands"),
+	NSLOCTEXT("Contexts", "ContextSwitchesStateCommands", "Insights - Context Switches"),
+	NAME_None,
+	FInsightsStyle::GetStyleSetName())
 {
 }
 

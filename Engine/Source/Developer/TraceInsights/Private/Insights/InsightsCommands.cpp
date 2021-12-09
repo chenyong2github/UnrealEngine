@@ -20,12 +20,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FInsightsCommands::FInsightsCommands()
-	: TCommands<FInsightsCommands>(
-		TEXT("InsightsCommands"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "InsightsCommand", "Insights Command"), // Localized context name for displaying
-		NAME_None, // Parent
-		FInsightsStyle::GetStyleSetName() // Icon Style Set
-	)
+: TCommands<FInsightsCommands>(
+	TEXT("InsightsCommands"), // Context name for fast lookup
+	NSLOCTEXT("Contexts", "InsightsCommands", "Insights"), // Localized context name for displaying
+	NAME_None, // Parent
+	FInsightsStyle::GetStyleSetName()) // Icon Style Set
 {
 }
 
@@ -35,9 +34,23 @@ FInsightsCommands::FInsightsCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FInsightsCommands::RegisterCommands()
 {
-	UI_COMMAND(InsightsManager_Load, "Load...", "Loads profiler data from a trace file", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::L));
-	UI_COMMAND(ToggleDebugInfo, "Debug", "Toggles the display of debug info", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::D));
-	UI_COMMAND(OpenSettings, "Settings", "Opens the Unreal Insights settings", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::O));
+	UI_COMMAND(InsightsManager_Load,
+		"Load...",
+		"Loads profiler data from a trace file.",
+		EUserInterfaceActionType::Button,
+		FInputChord(EModifierKey::Control, EKeys::L));
+
+	UI_COMMAND(ToggleDebugInfo,
+		"Debug",
+		"Toggles the display of debug info.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EModifierKey::Control, EKeys::D));
+
+	UI_COMMAND(OpenSettings,
+		"Settings",
+		"Opens the Unreal Insights settings.",
+		EUserInterfaceActionType::Button,
+		FInputChord(EModifierKey::Control, EKeys::O));
 }
 PRAGMA_ENABLE_OPTIMIZATION
 

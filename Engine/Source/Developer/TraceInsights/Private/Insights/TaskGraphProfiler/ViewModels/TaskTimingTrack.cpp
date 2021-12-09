@@ -35,11 +35,11 @@ class FTaskTimingStateCommands : public TCommands<FTaskTimingStateCommands>
 {
 public:
 	FTaskTimingStateCommands()
-		: TCommands<FTaskTimingStateCommands>(
-			TEXT("FTaskTimingStateCommands"),
-			NSLOCTEXT("FTaskTimingStateCommands", "Task Timing State Commands", "Task Table Tree View Commands"),
-			NAME_None,
-			FInsightsStyle::GetStyleSetName())
+	: TCommands<FTaskTimingStateCommands>(
+		TEXT("TaskTimingStateCommands"),
+		NSLOCTEXT("Contexts", "TaskTimingStateCommands", "Insights - Task Timing View"),
+		NAME_None,
+		FInsightsStyle::GetStyleSetName())
 	{
 	}
 
