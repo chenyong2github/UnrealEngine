@@ -108,6 +108,11 @@ void FGraphPartitioner::Partition( FGraphData* Graph, int32 InMinPartitionSize, 
 		// Single
 		Ranges.Add( { 0, NumElements } );
 	}
+
+	for( uint32 i = 0; i < NumElements; i++ )
+	{
+		SortedTo[ Indexes[i] ] = i;
+	}
 }
 
 void FGraphPartitioner::BisectGraph( FGraphData* Graph, FGraphData* ChildGraphs[2] )
@@ -386,4 +391,9 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 
 	PartitionIDs.Empty();
 	SwappedWith.Empty();
+
+	for( uint32 i = 0; i < NumElements; i++ )
+	{
+		SortedTo[ Indexes[i] ] = i;
+	}
 }

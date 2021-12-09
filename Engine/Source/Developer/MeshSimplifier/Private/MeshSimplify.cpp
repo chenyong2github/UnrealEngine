@@ -55,6 +55,15 @@ FMeshSimplifier::FMeshSimplifier( float* InVerts, uint32 InNumVerts, uint32* InI
 	}
 }
 
+void FMeshSimplifier::LockPosition( const FVector3f& Position )
+{
+	ForAllCorners( Position,
+		[ this ]( uint32 Corner )
+		{
+			CornerFlags[ Corner ] |= LockedVertMask;
+		} );
+}
+
 bool FMeshSimplifier::AddUniquePair( FPair& Pair, uint32 PairIndex )
 {
 	uint32 Hash0 = HashPosition( Pair.Position0 );
@@ -161,124 +170,19 @@ void FMeshSimplifier::CalcEdgeQuadric( uint32 EdgeIndex )
 		{
 			// Found matching edge.
 			Weight *= 0.5f;
-			break;;
+			break;
 		}
 	}
+
+	const QVec3 p0 = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
+	const QVec3 p1 = GetPosition( Indexes[ TriIndex * 3 + 1 ] );
+	const QVec3 p2 = GetPosition( Indexes[ TriIndex * 3 + 2 ] );
+
+	const QVec3 Normal = ( p2 - p0 ) ^ ( p1 - p0 );
 
 	// Didn't find matching edge. Add edge constraint.
-	EdgeQuadrics[ EdgeIndex ] = FEdgeQuadric( GetPosition( VertIndex0 ), GetPosition( VertIndex1 ), GetNormal( TriIndex ), Weight );
+	EdgeQuadrics[ EdgeIndex ] = FEdgeQuadric( GetPosition( VertIndex0 ), GetPosition( VertIndex1 ), Normal, Weight );
 	EdgeQuadricsValid[ EdgeIndex ] = true;
-}
-
-bool FMeshSimplifier::IsBoundaryEdge( uint32 EdgeIndex ) const
-{
-	uint32 VertIndex0 = Indexes[ EdgeIndex ];
-	uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-	const FVector3f& Position0 = GetPosition( VertIndex0 );
-	const FVector3f& Position1 = GetPosition( VertIndex1 );
-	
-	// Find edge with opposite direction that shares these 2 verts.
-	/*
-		  /\
-		 /  \
-		o-<<-o
-		o->>-o
-		 \  /
-		  \/
-	*/
-	uint32 Hash = HashPosition( Position1 );
-	for( uint32 Corner = CornerHash.First( Hash ); CornerHash.IsValid( Corner ); Corner = CornerHash.Next( Corner ) )
-	{
-		uint32 OtherVertIndex0 = Indexes[ Corner ];
-		uint32 OtherVertIndex1 = Indexes[ Cycle3( Corner ) ];
-			
-		if( Position0 == GetPosition( OtherVertIndex1 ) &&
-			Position1 == GetPosition( OtherVertIndex0 ) )
-		{
-			// Found matching edge.
-			return false;
-		}
-	}
-
-	return true;
-}
-
-void FMeshSimplifier::SetBoundaryLocked( const TBitArray<>& UnlockedBoundaryEdges )
-{
-	check( UnlockedBoundaryEdges.Num() == NumIndexes );
-
-	for( uint32 EdgeIndex = 0; EdgeIndex < NumIndexes; EdgeIndex++ )
-	{
-		if( !UnlockedBoundaryEdges[ EdgeIndex ] && IsBoundaryEdge( EdgeIndex ) )
-		{
-			uint32 VertIndex0 = Indexes[ EdgeIndex ];
-			uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-			const FVector3f& Position0 = GetPosition( VertIndex0 );
-			const FVector3f& Position1 = GetPosition( VertIndex1 );
-
-			CornerFlags[ EdgeIndex ] |= LockedEdgeMask;
-
-			auto LockCorner =
-				[ this ]( uint32 Corner )
-				{
-					CornerFlags[ Corner ] |= LockedVertMask;
-				};
-			ForAllCorners( Position0, LockCorner );
-			ForAllCorners( Position1, LockCorner );
-
-			// Just in case this triangle is removed.
-			LockedEdges.Add( MakeTuple( Position0, Position1 ) );
-		}
-	}
-}
-
-void FMeshSimplifier::GetBoundaryUnlocked( TBitArray<>& UnlockedBoundaryEdges )
-{
-	UnlockedBoundaryEdges.Init( false, RemainingNumTris * 3 );
-
-	uint32 OutputEdgeIndex = 0;
-
-	for( uint32 EdgeIndex = 0; EdgeIndex < NumIndexes; EdgeIndex++ )
-	{
-		if( TriRemoved[ EdgeIndex / 3 ] )
-			continue;
-
-		// TODO move to flags
-		bool bPossibleBoundary = EdgeQuadricsValid[ EdgeIndex ];
-		if( bPossibleBoundary )
-		{
-			uint8 Flag = CornerFlags[ EdgeIndex ];			
-
-			bool bIsEdgeLocked = Flag & LockedEdgeMask;
-			bool bPossibleLost = ( Flag & ( LockedVertMask | LockedEdgeMask ) ) == LockedVertMask;
-
-			// Only possible if both verts are locked
-			if( bPossibleLost )
-				bPossibleLost = CornerFlags[ Cycle3( EdgeIndex ) ] & LockedVertMask;
-
-			if( bPossibleLost )
-			{
-				auto Edge = MakeTuple(
-					GetPosition( Indexes[ EdgeIndex ] ),
-					GetPosition( Indexes[ Cycle3( EdgeIndex ) ] )
-				);
-				if( LockedEdges.Contains( Edge ) )
-				{
-					bIsEdgeLocked = true;
-				}
-			}
-			
-			if( !bIsEdgeLocked && IsBoundaryEdge( EdgeIndex ) )
-			{
-				UnlockedBoundaryEdges[ OutputEdgeIndex ] = true;
-			}
-		}
-
-		OutputEdgeIndex++;
-	}
-	check( OutputEdgeIndex == RemainingNumTris * 3 );
 }
 
 void FMeshSimplifier::GatherAdjTris( const FVector3f& Position, uint32 Flag, TArray< uint32, TInlineAllocator<16> >& AdjTris, int32& VertDegree, uint32& FlagsUnion )
@@ -306,9 +210,9 @@ void FMeshSimplifier::GatherAdjTris( const FVector3f& Position, uint32 Flag, TAr
 			bool bNewTri = true;
 			
 			uint8& RESTRICT FirstCornerFlag = CornerFlags[ TriIndex * 3 ];
-			if( ( FirstCornerFlag & TriMask ) == 0 )
+			if( ( FirstCornerFlag & AdjTriMask ) == 0 )
 			{
-				FirstCornerFlag |= TriMask;
+				FirstCornerFlag |= AdjTriMask;
 				AdjTriIndex = AdjTris.Add( TriIndex );
 				WedgeDisjointSet.AddDefaulted();
 			}
@@ -694,11 +598,12 @@ float FMeshSimplifier::EvaluateMerge( const FVector3f& Position0, const FVector3
 		{
 			uint32 Corner = TriIndex * 3 + CornerIndex;
 
+			// Must be separated from FixUpTri loop because relies on correct indexing
 			if( bMoveVerts )
 				CalcEdgeQuadric( Corner );
 
 			// Clear flags
-			CornerFlags[ Corner ] &= ~( MergeMask | TriMask );
+			CornerFlags[ Corner ] &= ~( MergeMask | AdjTriMask );
 		}
 	}
 
@@ -763,7 +668,7 @@ void FMeshSimplifier::EndMovePositions()
 	MovedPairs.Reset();
 }
 
-bool FMeshSimplifier::TriWillInvert( uint32 TriIndex, const FVector3f& NewPosition )
+uint32 FMeshSimplifier::CornerIndexMoved( uint32 TriIndex ) const
 {
 	uint32 IndexMoved = 3;
 	for( uint32 CornerIndex = 0; CornerIndex < 3; CornerIndex++ )
@@ -778,6 +683,12 @@ bool FMeshSimplifier::TriWillInvert( uint32 TriIndex, const FVector3f& NewPositi
 				IndexMoved = 4;
 		}
 	}
+	return IndexMoved;
+}
+
+bool FMeshSimplifier::TriWillInvert( uint32 TriIndex, const FVector3f& NewPosition ) const
+{
+	uint32 IndexMoved = CornerIndexMoved( TriIndex );
 
 	if( IndexMoved < 3 )
 	{
@@ -815,12 +726,17 @@ void FMeshSimplifier::FixUpTri( uint32 TriIndex )
 	const FVector3f& p0 = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
 	const FVector3f& p1 = GetPosition( Indexes[ TriIndex * 3 + 1 ] );
 	const FVector3f& p2 = GetPosition( Indexes[ TriIndex * 3 + 2 ] );
-	
-	// Remove degenerates
-	bool bRemoveTri =
-		p0 == p1 ||
-		p1 == p2 ||
-		p2 == p0;
+
+	bool bRemoveTri = CornerFlags[ TriIndex * 3 ] & RemoveTriMask;
+
+	if( !bRemoveTri )
+	{
+		// Remove degenerates
+		bRemoveTri =
+			p0 == p1 ||
+			p1 == p2 ||
+			p2 == p0;
+	}
 
 	if( !bRemoveTri )
 	{
@@ -922,16 +838,21 @@ void FMeshSimplifier::RemoveDuplicateVerts( uint32 Corner )
 	}
 }
 
-float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris, float TargetError, uint32 TargetErrorMaxNumTris )
+float FMeshSimplifier::Simplify(
+	uint32 TargetNumVerts, uint32 TargetNumTris, float TargetError,
+	uint32 LimitNumVerts, uint32 LimitNumTris, float LimitError )
 {
-	check( TargetNumVerts < NumVerts || TargetNumTris < NumTris );
+	check( TargetNumVerts < NumVerts || TargetNumTris < NumTris || TargetError > 0.0f );
+	check( TargetNumVerts >= LimitNumVerts );
+	check( TargetNumTris >= LimitNumTris );
+	check( TargetError <= LimitError );
 
 	const uint32 QuadricSize = sizeof( FQuadricAttr ) + NumAttributes * 4 * sizeof( QScalar );
 
 	TriQuadrics.AddUninitialized( NumTris * QuadricSize );
 	for( uint32 TriIndex = 0; TriIndex < NumTris; TriIndex++ )
 	{
-		CalcTriQuadric( TriIndex );
+		FixUpTri( TriIndex );
 	}
 
 	for( uint32 i = 0; i < NumIndexes; i++ )
@@ -954,6 +875,12 @@ float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris, fl
 
 	while( PairHeap.Num() > 0 )
 	{
+		uint32 PrevNumVerts = RemainingNumVerts;
+		uint32 PrevNumTris  = RemainingNumTris;
+
+		if( PairHeap.GetKey( PairHeap.Top() ) > LimitError )
+			break;
+
 		{
 			uint32 PairIndex = PairHeap.Top();
 			PairHeap.Pop();
@@ -967,12 +894,16 @@ float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris, fl
 			MaxError = FMath::Max( MaxError, MergeError );
 		}
 
-		if( RemainingNumVerts <= TargetNumVerts && RemainingNumTris <= TargetNumTris )
+		if( RemainingNumVerts	<= TargetNumVerts &&
+			RemainingNumTris	<= TargetNumTris &&
+			MaxError			>= TargetError )
+		{
 			break;
+		}
 
-		if ( RemainingNumVerts <= TargetNumVerts
-			 && RemainingNumTris <= TargetErrorMaxNumTris
-			 && MaxError >= TargetError)
+		if( RemainingNumVerts	<= LimitNumVerts ||
+			RemainingNumTris	<= LimitNumTris ||
+			MaxError			>= LimitError )
 		{
 			break;
 		}
@@ -986,8 +917,6 @@ float FMeshSimplifier::Simplify( uint32 TargetNumVerts, uint32 TargetNumTris, fl
 		}
 		ReevaluatePairs.Reset();
 	}
-
-	check(RemainingNumVerts <= TargetNumVerts && RemainingNumTris <= FMath::Max(TargetNumTris, TargetErrorMaxNumTris));
 	
 	return MaxError;
 }

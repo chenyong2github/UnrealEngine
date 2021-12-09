@@ -19,8 +19,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 {
 	uint32 LevelOffset	= ClusterRangeStart;
 	
-	TAtomic< uint32 >	NumClusters( Clusters.Num() );
-	uint32				NumExternalEdges = 0;
+	TAtomic< uint32 > NumClusters( Clusters.Num() );
 
 	bool bFirstLevel = true;
 
@@ -28,12 +27,27 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 	{
 		TArrayView< FCluster > LevelClusters( &Clusters[LevelOffset], bFirstLevel ? ClusterRangeNum : (Clusters.Num() - LevelOffset) );
 		bFirstLevel = false;
-		
+
+		bool bSingleThreaded = LevelClusters.Num() <= 32;
+
+		uint32 NumExternalEdges = 0;
+
+		float MinError = +MAX_flt;
+		float MaxError = -MAX_flt;
+		float AvgError = 0.0f;
+
 		for( FCluster& Cluster : LevelClusters )
 		{
 			NumExternalEdges	+= Cluster.NumExternalEdges;
 			MeshBounds			+= Cluster.Bounds;
+
+			MinError = FMath::Min( MinError, Cluster.LODError );
+			MaxError = FMath::Max( MaxError, Cluster.LODError );
+			AvgError += Cluster.LODError;
 		}
+		AvgError /= LevelClusters.Num();
+
+		UE_LOG( LogStaticMesh, Log, TEXT("Num clusters %i. Error %.4f, %.4f, %.4f"), LevelClusters.Num(), MinError, AvgError, MaxError );
 
 		if( LevelClusters.Num() < 2 )
 			break;
@@ -64,7 +78,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		struct FExternalEdge
 		{
 			uint32	ClusterIndex;
-			uint32	EdgeIndex;
+			int32	EdgeIndex;
 		};
 		TArray< FExternalEdge >	ExternalEdges;
 		FHashTable				ExternalEdgeHash;
@@ -73,7 +87,6 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		// We have a total count of NumExternalEdges so we can allocate a hash table without growing.
 		ExternalEdges.AddUninitialized( NumExternalEdges );
 		ExternalEdgeHash.Clear( 1 << FMath::FloorLog2( NumExternalEdges ), NumExternalEdges );
-		NumExternalEdges = 0;
 
 		// Add edges to hash table
 		ParallelFor( LevelClusters.Num(),
@@ -81,25 +94,27 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 			{
 				FCluster& Cluster = LevelClusters[ ClusterIndex ];
 
-				for( TConstSetBitIterator<> SetBit( Cluster.ExternalEdges ); SetBit; ++SetBit )
+				for( int32 EdgeIndex = 0; EdgeIndex < Cluster.ExternalEdges.Num(); EdgeIndex++ )
 				{
-					uint32 EdgeIndex = SetBit.GetIndex();
-
-					uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
-					uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
+					if( Cluster.ExternalEdges[ EdgeIndex ] )
+					{
+						uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
+						uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector3f& Position0 = Cluster.GetPosition( VertIndex0 );
-					const FVector3f& Position1 = Cluster.GetPosition( VertIndex1 );
+						const FVector3f& Position0 = Cluster.GetPosition( VertIndex0 );
+						const FVector3f& Position1 = Cluster.GetPosition( VertIndex1 );
 
-					uint32 Hash0 = HashPosition( Position0 );
-					uint32 Hash1 = HashPosition( Position1 );
-					uint32 Hash = Murmur32( { Hash0, Hash1 } );
+						uint32 Hash0 = HashPosition( Position0 );
+						uint32 Hash1 = HashPosition( Position1 );
+						uint32 Hash = Murmur32( { Hash0, Hash1 } );
 
-					uint32 ExternalEdgeIndex = ExternalEdgeOffset++;
-					ExternalEdges[ ExternalEdgeIndex ] = { ClusterIndex, EdgeIndex };
-					ExternalEdgeHash.Add_Concurrent( Hash, ExternalEdgeIndex );
+						uint32 ExternalEdgeIndex = ExternalEdgeOffset++;
+						ExternalEdges[ ExternalEdgeIndex ] = { ClusterIndex, EdgeIndex };
+						ExternalEdgeHash.Add_Concurrent( Hash, ExternalEdgeIndex );
+					}
 				}
-			});
+			},
+			bSingleThreaded );
 
 		check( ExternalEdgeOffset == ExternalEdges.Num() );
 
@@ -111,39 +126,43 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 			{
 				FCluster& Cluster = LevelClusters[ ClusterIndex ];
 
-				for( TConstSetBitIterator<> SetBit( Cluster.ExternalEdges ); SetBit; ++SetBit )
+				for( int32 EdgeIndex = 0; EdgeIndex < Cluster.ExternalEdges.Num(); EdgeIndex++ )
 				{
-					uint32 EdgeIndex = SetBit.GetIndex();
-
-					uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
-					uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
-	
-					const FVector3f& Position0 = Cluster.GetPosition( VertIndex0 );
-					const FVector3f& Position1 = Cluster.GetPosition( VertIndex1 );
-
-					uint32 Hash0 = HashPosition( Position0 );
-					uint32 Hash1 = HashPosition( Position1 );
-					uint32 Hash = Murmur32( { Hash1, Hash0 } );
-
-					for( uint32 ExternalEdgeIndex = ExternalEdgeHash.First( Hash ); ExternalEdgeHash.IsValid( ExternalEdgeIndex ); ExternalEdgeIndex = ExternalEdgeHash.Next( ExternalEdgeIndex ) )
+					if( Cluster.ExternalEdges[ EdgeIndex ] )
 					{
-						FExternalEdge ExternalEdge = ExternalEdges[ ExternalEdgeIndex ];
+						uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
+						uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
+	
+						const FVector3f& Position0 = Cluster.GetPosition( VertIndex0 );
+						const FVector3f& Position1 = Cluster.GetPosition( VertIndex1 );
 
-						FCluster& OtherCluster = LevelClusters[ ExternalEdge.ClusterIndex ];
+						uint32 Hash0 = HashPosition( Position0 );
+						uint32 Hash1 = HashPosition( Position1 );
+						uint32 Hash = Murmur32( { Hash1, Hash0 } );
 
-						if( OtherCluster.ExternalEdges[ ExternalEdge.EdgeIndex ] )
+						for( uint32 ExternalEdgeIndex = ExternalEdgeHash.First( Hash ); ExternalEdgeHash.IsValid( ExternalEdgeIndex ); ExternalEdgeIndex = ExternalEdgeHash.Next( ExternalEdgeIndex ) )
 						{
-							uint32 OtherVertIndex0 = OtherCluster.Indexes[ ExternalEdge.EdgeIndex ];
-							uint32 OtherVertIndex1 = OtherCluster.Indexes[ Cycle3( ExternalEdge.EdgeIndex ) ];
-			
-							if( Position0 == OtherCluster.GetPosition( OtherVertIndex1 ) &&
-								Position1 == OtherCluster.GetPosition( OtherVertIndex0 ) )
-							{
-								// Found matching edge. Increase it's count.
-								Cluster.AdjacentClusters.FindOrAdd( ExternalEdge.ClusterIndex, 0 )++;
+							FExternalEdge ExternalEdge = ExternalEdges[ ExternalEdgeIndex ];
 
-								// Can't break or a triple edge might be non-deterministically connected.
-								// Need to find all matching, not just first.
+							FCluster& OtherCluster = LevelClusters[ ExternalEdge.ClusterIndex ];
+
+							if( OtherCluster.ExternalEdges[ ExternalEdge.EdgeIndex ] )
+							{
+								uint32 OtherVertIndex0 = OtherCluster.Indexes[ ExternalEdge.EdgeIndex ];
+								uint32 OtherVertIndex1 = OtherCluster.Indexes[ Cycle3( ExternalEdge.EdgeIndex ) ];
+			
+								if( Position0 == OtherCluster.GetPosition( OtherVertIndex1 ) &&
+									Position1 == OtherCluster.GetPosition( OtherVertIndex0 ) )
+								{
+									if( ClusterIndex != ExternalEdge.ClusterIndex )
+									{
+										// Increase it's count
+										Cluster.AdjacentClusters.FindOrAdd( ExternalEdge.ClusterIndex, 0 )++;
+
+										// Can't break or a triple edge might be non-deterministically connected.
+										// Need to find all matching, not just first.
+									}
+								}
 							}
 						}
 					}
@@ -156,7 +175,8 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 					{
 						return LevelClusters[A].GUID < LevelClusters[B].GUID;
 					} );
-			});
+			},
+			bSingleThreaded );
 
 		FDisjointSet DisjointSet( LevelClusters.Num() );
 
@@ -226,7 +246,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 		LOG_CRC( Graph->AdjacencyCost );
 		LOG_CRC( Graph->AdjacencyOffset );
 
-		Partitioner.PartitionStrict( Graph, MinGroupSize, MaxGroupSize, true );
+		Partitioner.PartitionStrict( Graph, MinGroupSize, MaxGroupSize, !bSingleThreaded );
 
 		LOG_CRC( Partitioner.Ranges );
 
@@ -254,10 +274,18 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 				auto& Range = Partitioner.Ranges[ PartitionIndex ];
 
 				TArrayView< uint32 > Children( &Partitioner.Indexes[ Range.Begin ], Range.End - Range.Begin );
+
+				// Force a deterministic order
+				Children.Sort(
+					[&]( uint32 A, uint32 B )
+					{
+						return Clusters[A].GUID < Clusters[B].GUID;
+					} );
+
 				uint32 ClusterGroupIndex = PartitionIndex + Groups.Num() - Partitioner.Ranges.Num();
 
 				DAGReduce( Groups, Clusters, NumClusters, Children, ClusterGroupIndex, MeshIndex );
-			});
+			} );
 
 		// Correct num to atomic count
 		Clusters.SetNum( NumClusters, false );
@@ -268,7 +296,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 	FClusterGroup RootClusterGroup;
 	RootClusterGroup.Children.Add( RootIndex );
 	RootClusterGroup.Bounds = Clusters[ RootIndex ].SphereBounds;
-	RootClusterGroup.LODBounds = FSphere( 0 );
+	RootClusterGroup.LODBounds = FSphere3f( 0 );
 	RootClusterGroup.MaxParentLODError = 1e10f;
 	RootClusterGroup.MinLODError = -1.0f;
 	RootClusterGroup.MipLevel = Clusters[RootIndex].MipLevel + 1;
@@ -282,7 +310,7 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 	check( GroupIndex >= 0 );
 
 	// Merge
-	TArray< const FCluster*, TInlineAllocator<16> > MergeList;
+	TArray< const FCluster*, TInlineAllocator<32> > MergeList;
 	for( int32 Child : Children )
 	{
 		MergeList.Add( &Clusters[ Child ] );
@@ -322,8 +350,10 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 		}
 		else
 		{
+			FAdjacency Adjacency = Merged.BuildAdjacency();
+
 			FGraphPartitioner Partitioner( Merged.Indexes.Num() / 3 );
-			Merged.Split( Partitioner );
+			Merged.Split( Partitioner, Adjacency );
 
 			if( Partitioner.Ranges.Num() <= NumParents )
 			{
@@ -334,17 +364,20 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 				int32 Parent = ParentStart;
 				for( auto& Range : Partitioner.Ranges )
 				{
-					Clusters[ Parent ] = FCluster( Merged, Range.Begin, Range.End, Partitioner.Indexes );
+					Clusters[ Parent ] = FCluster( Merged, Range.Begin, Range.End, Partitioner, Adjacency );
 					Parent++;
 				}
 
 				break;
 			}
 		}
+
+		// Start over from scratch. Continuing from simplified cluster screws up ExternalEdges and LODError.
+		Merged = FCluster( MergeList );
 	}
 
-	TArray< FSphere, TInlineAllocator<32> > Children_LODBounds;
-	TArray< FSphere, TInlineAllocator<32> > Children_SphereBounds;
+	TArray< FSphere3f, TInlineAllocator<32> > Children_LODBounds;
+	TArray< FSphere3f, TInlineAllocator<32> > Children_SphereBounds;
 					
 	// Force monotonic nesting.
 	float ChildMinLODError = MAX_flt;
@@ -363,8 +396,8 @@ static void DAGReduce( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clus
 		check( Groups[ GroupIndex ].Children.Num() <= MAX_CLUSTERS_PER_GROUP_TARGET );
 	}
 	
-	FSphere	ParentLODBounds( Children_LODBounds.GetData(), Children_LODBounds.Num() );
-	FSphere	ParentBounds( Children_SphereBounds.GetData(), Children_SphereBounds.Num() );
+	FSphere3f ParentLODBounds( Children_LODBounds.GetData(), Children_LODBounds.Num() );
+	FSphere3f ParentBounds( Children_SphereBounds.GetData(), Children_SphereBounds.Num() );
 
 	// Force parents to have same LOD data. They are all dependent.
 	for( int32 Parent = ParentStart; Parent < ParentEnd; Parent++ )
@@ -419,7 +452,7 @@ FCluster FindDAGCut(
 			{
 				const FCluster& ChildCluster = Clusters[ Child ];
 
-				check( ChildCluster.MipLevel + 1 == Cluster.MipLevel );
+				check( ChildCluster.MipLevel < Cluster.MipLevel );
 				check( ChildCluster.LODError <= MinError );
 				Heap.Add( -ChildCluster.LODError, Child );
 			}
@@ -427,7 +460,7 @@ FCluster FindDAGCut(
 	}
 
 	// Merge
-	TArray< const FCluster*, TInlineAllocator<16> > MergeList;
+	TArray< const FCluster*, TInlineAllocator<32> > MergeList;
 	MergeList.AddUninitialized( Heap.Num() );
 	for( uint32 i = 0; i < Heap.Num(); i++ )
 	{

@@ -336,30 +336,30 @@ public:
 		}
 		else
 		{
-			uint32 TargetNumTris = FMath::CeilToInt(NumTris * ReductionSettings.PercentTriangles);
-			uint32 TargetNumVerts = FMath::CeilToInt(NumVerts * ReductionSettings.PercentVertices);
+			uint32 TargetNumTris = FMath::CeilToInt( NumTris * ReductionSettings.PercentTriangles );
+			uint32 TargetNumVerts = FMath::CeilToInt( NumVerts * ReductionSettings.PercentVertices );
 
 			// We need a minimum of 2 triangles, to see the object on both side. If we use one, we will end up with zero triangle when we will remove a shared edge
-			TargetNumTris = FMath::Max(TargetNumTris, 2u);
+			TargetNumTris = FMath::Max( TargetNumTris, 2u );
 
-			if (TargetNumVerts < NumVerts || TargetNumTris < NumTris)
+			if( TargetNumVerts < NumVerts || TargetNumTris < NumTris )
 			{
 				using VertType = TVertSimp< NumTexCoords >;
 
-				float TriangleSize = FMath::Sqrt(SurfaceArea / NumTris);
-
-				FFloat32 CurrentSize(FMath::Max(TriangleSize, THRESH_POINTS_ARE_SAME));
-				FFloat32 DesiredSize(0.25f);
-				FFloat32 Scale(1.0f);
+				float TriangleSize = FMath::Sqrt( SurfaceArea / NumTris );
+	
+				FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
+				FFloat32 DesiredSize( 0.25f );
+				FFloat32 Scale( 1.0f );
 
 				// Lossless scaling by only changing the float exponent.
-				int32 Exponent = FMath::Clamp((int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127);
+				int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
 				Scale.Components.Exponent = Exponent + 127;	//ExpBias
 				float PositionScale = Scale.FloatValue;
 
 
-				const uint32 NumAttributes = (sizeof(VertType) - sizeof(FVector3f)) / sizeof(float);
-				float AttributeWeights[NumAttributes] =
+				const uint32 NumAttributes = ( sizeof( VertType ) - sizeof( FVector3f ) ) / sizeof(float);
+				float AttributeWeights[ NumAttributes ] =
 				{
 					1.0f, 1.0f, 1.0f,		// Normal
 					0.006f, 0.006f, 0.006f,	// Tangent[0]
@@ -371,7 +371,7 @@ public:
 				bool bHasColors = true;
 
 				// Set weights if they are used
-				if (bHasColors)
+				if( bHasColors )
 				{
 					ColorWeights[0] = 0.0625f;
 					ColorWeights[1] = 0.0625f;
@@ -379,64 +379,64 @@ public:
 					ColorWeights[3] = 0.0625f;
 				}
 
-				float UVWeight = 1.0f / (32.0f * InVertexUVs.GetNumChannels());
-				for (int32 UVIndex = 0; UVIndex < InVertexUVs.GetNumChannels(); UVIndex++)
+				float UVWeight = 1.0f / ( 32.0f * InVertexUVs.GetNumChannels() );
+				for( int32 UVIndex = 0; UVIndex < InVertexUVs.GetNumChannels(); UVIndex++ )
 				{
 					// Normalize UVWeights using min/max UV range.
 
 					float MinUV = +FLT_MAX;
 					float MaxUV = -FLT_MAX;
 
-					for (int32 VertexIndex = 0; VertexIndex < Verts.Num(); VertexIndex++)
+					for( int32 VertexIndex = 0; VertexIndex < Verts.Num(); VertexIndex++ )
 					{
-						MinUV = FMath::Min(MinUV, Verts[VertexIndex].TexCoords[UVIndex].X);
-						MinUV = FMath::Min(MinUV, Verts[VertexIndex].TexCoords[UVIndex].Y);
-						MaxUV = FMath::Max(MaxUV, Verts[VertexIndex].TexCoords[UVIndex].X);
-						MaxUV = FMath::Max(MaxUV, Verts[VertexIndex].TexCoords[UVIndex].Y);
+						MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
+						MinUV = FMath::Min( MinUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
+						MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].X );
+						MaxUV = FMath::Max( MaxUV, Verts[ VertexIndex ].TexCoords[ UVIndex ].Y );
 					}
 
-					UVWeights[2 * UVIndex + 0] = UVWeight / FMath::Max(1.0f, MaxUV - MinUV);
-					UVWeights[2 * UVIndex + 1] = UVWeight / FMath::Max(1.0f, MaxUV - MinUV);
+					UVWeights[ 2 * UVIndex + 0 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
+					UVWeights[ 2 * UVIndex + 1 ] = UVWeight / FMath::Max( 1.0f, MaxUV - MinUV );
 				}
 
-				for (auto& Vert : Verts)
+				for( auto& Vert : Verts )
 				{
 					Vert.Position *= PositionScale;
 				}
 
-				FMeshSimplifier Simplifier((float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes);
+				FMeshSimplifier Simplifier( (float*)Verts.GetData(), Verts.Num(), Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
 
-				Simplifier.SetAttributeWeights(AttributeWeights);
-				Simplifier.SetCorrectAttributes(CorrectAttributes);
-				Simplifier.SetEdgeWeight(4.0f);
+				Simplifier.SetAttributeWeights( AttributeWeights );
+				Simplifier.SetCorrectAttributes( CorrectAttributes );
+				Simplifier.SetEdgeWeight( 4.0f );
 
-				float MaxErrorSqr = Simplifier.Simplify(TargetNumVerts, TargetNumTris);
+				float MaxErrorSqr = Simplifier.Simplify( TargetNumVerts, TargetNumTris, 0.0f, 0, 0, MAX_flt );
 
-				if (Simplifier.GetRemainingNumVerts() == 0 || Simplifier.GetRemainingNumTris() == 0)
+				if( Simplifier.GetRemainingNumVerts() == 0 || Simplifier.GetRemainingNumTris() == 0 )
 				{
 					// Reduced to nothing so just return the orignial.
 					OutReducedMesh = InMesh;
 					OutMaxDeviation = 0.0f;
 					return;
 				}
-
+		
 				Simplifier.Compact();
 
-				Verts.SetNum(Simplifier.GetRemainingNumVerts());
-				Indexes.SetNum(Simplifier.GetRemainingNumTris() * 3);
-				MaterialIndexes.SetNum(Simplifier.GetRemainingNumTris());
+				Verts.SetNum( Simplifier.GetRemainingNumVerts() );
+				Indexes.SetNum( Simplifier.GetRemainingNumTris() * 3 );
+				MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
 
 				NumVerts = Simplifier.GetRemainingNumVerts();
 				NumTris = Simplifier.GetRemainingNumTris();
 				NumIndexes = NumTris * 3;
 
 				float InvScale = 1.0f / PositionScale;
-				for (auto& Vert : Verts)
+				for( auto& Vert : Verts )
 				{
 					Vert.Position *= InvScale;
 				}
 
-				OutMaxDeviation = FMath::Sqrt(MaxErrorSqr) * InvScale;
+				OutMaxDeviation = FMath::Sqrt( MaxErrorSqr ) * InvScale;
 			}
 			else
 			{

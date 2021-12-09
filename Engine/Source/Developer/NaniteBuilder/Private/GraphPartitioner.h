@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Bounds.h"
+#include "Math/Bounds.h"
 #include "metis.h"
 #include "Async/ParallelFor.h"
 #include "DisjointSet.h"
@@ -31,6 +31,7 @@ public:
 	};
 	TArray< FRange >	Ranges;
 	TArray< uint32 >	Indexes;
+	TArray< uint32 >	SortedTo;
 
 public:
 				FGraphPartitioner( uint32 InNumElements );
@@ -58,7 +59,6 @@ private:
 
 	TArray< idx_t >		PartitionIDs;
 	TArray< int32 >		SwappedWith;
-	TArray< uint32 >	SortedTo;
 
 	TMultiMap< uint32, uint32 >	LocalityLinks;
 };

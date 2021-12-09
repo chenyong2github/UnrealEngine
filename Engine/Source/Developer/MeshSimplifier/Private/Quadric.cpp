@@ -126,13 +126,345 @@ bool LUPSolveIterate( const T* RESTRICT A, const T* RESTRICT LU, const uint32* R
 }
 
 
-
-FQuadric::FQuadric( const FVector3f& fp0, const FVector3f& fp1, const FVector3f& fp2 )
+namespace JacobiSVD
 {
-	const QVec3 p0( fp0 );
-	const QVec3 p1( fp1 );
-	const QVec3 p2( fp2 );
 
+///////////////////////////////////////////////////////////////////////////
+//
+// Copyright (c) 2002-2012, Industrial Light & Magic, a division of Lucas
+// Digital Ltd. LLC
+// 
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+// *       Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+// *       Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+// *       Neither the name of Industrial Light & Magic nor the names of
+// its contributors may be used to endorse or promote products derived
+// from this software without specific prior written permission. 
+// 
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+///////////////////////////////////////////////////////////////////////////
+
+// Jacobi solver is modified version of code from ImathMatricAlgo.cpp
+
+template< typename T >
+inline void Update( T* RESTRICT A, T s, T tau, uint32 d1, uint32 d2 )
+{
+	const T nu1 = A[ d1 ];
+	const T nu2 = A[ d2 ];
+	A[ d1 ] -= s * ( nu2 + tau * nu1 );
+	A[ d2 ] += s * ( nu1 - tau * nu2 );
+}
+
+template< typename T >
+bool Rotation3(
+	T* RESTRICT A,
+	T* RESTRICT V,
+	T* RESTRICT Z,
+	const T tol,
+	int j, int k, int L )
+{
+	const T x = A[ 3*j + j ];
+	const T y = A[ 3*j + k ];
+	const T z = A[ 3*k + k ];
+
+	const T mu1 = z - x;
+	const T mu2 = 2.0 * y;
+
+	if( FMath::Abs( mu2 ) <= tol * FMath::Abs( mu1 ) )
+	{
+		// We've decided that the off-diagonal entries are already small
+		// enough, so we'll set them to zero.  This actually appears to result
+		// in smaller errors than leaving them be, possibly because it prevents
+		// us from trying to do extra rotations later that we don't need.
+		A[ 3*j + k ] = 0.0;
+		return false;
+	}
+
+    const T rho = mu1 / mu2;
+	const T t = ( rho < 0.0 ? -1.0 : 1.0 ) / ( FMath::Abs( rho ) + FMath::Sqrt( 1.0 + rho * rho ) );
+	const T c = 1.0 / FMath::Sqrt( 1.0 + t * t );
+	const T s = c * t;
+	const T tau = s / ( 1.0 + c );
+	const T h = t * y;
+
+	// Update diagonal elements.
+	Z[j] -= h;
+	Z[k] += h;
+	A[ 3*j + j ] -= h;
+	A[ 3*k + k ] += h;
+	A[ 3*j + k ] = 0.0;
+
+	Update( A, s, tau,
+		L < j ? 3*L + j : 3*j + L,
+		L < k ? 3*L + k : 3*k + L );
+
+	// Rotate right
+	for( uint32 i = 0; i < 3; i++ )
+	{
+		Update( V, s, tau,
+			3*i + j,
+			3*i + k );
+	}
+
+    return true;
+}
+
+template< typename T >
+bool Rotation4(
+	T* RESTRICT A,
+	T* RESTRICT V,
+	T* RESTRICT Z,
+	const T tol,
+	int j, int k, int L1, int L2 )
+{
+	const T x = A[ 4*j + j ];
+	const T y = A[ 4*j + k ];
+	const T z = A[ 4*k + k ];
+
+	const T mu1 = z - x;
+	const T mu2 = 2.0 * y;
+
+	// Let's see if rho^(-1) = mu2 / mu1 is less than tol
+	// This test also checks if rho^2 will overflow 
+	// when tol^(-1) < sqrt(limits<T>::max()).
+	if( FMath::Abs( mu2 ) <= tol * FMath::Abs( mu1 ) )
+	{
+		A[ 4*j + k ] = 0.0;
+		return false;
+	}
+
+	const T rho = mu1 / mu2;
+	const T t = ( rho < 0.0 ? -1.0 : 1.0 ) / ( FMath::Abs( rho ) + FMath::Sqrt( 1.0 + rho * rho ) );
+	const T c = 1.0 / FMath::Sqrt( 1.0 + t * t );
+	const T s = c * t;
+	const T tau = s / ( 1.0 + c );
+	const T h = t * y;
+
+	Z[j] -= h;
+	Z[k] += h;
+	A[ 4*j + j ] -= h;
+	A[ 4*k + k ] += h;
+	A[ 4*j + k ] = 0.0;
+
+	Update( A, s, tau,
+		L1 < j ? 4*L1 + j : 4*j + L1,
+		L1 < k ? 4*L1 + k : 4*k + L1 );
+
+	Update( A, s, tau,
+		L2 < j ? 4*L2 + j : 4*j + L2,
+		L2 < k ? 4*L2 + k : 4*k + L2 );
+
+	// Rotate right
+	for( uint32 i = 0; i < 4; i++ )
+	{
+		Update( V, s, tau,
+			4*i + j,
+			4*i + k );
+	}
+
+	return true;
+}
+
+template< typename T >
+inline T MaxOffDiagSymm( T* RESTRICT A, uint32 Size )
+{
+	T Result = 0.0;
+	for( uint32 i = 0; i < Size; i++ )
+		for( uint32 j = i + 1; j < Size; j++ )
+			Result =  FMath::Max( Result,  FMath::Abs( A[ Size * i + j ] ) );
+
+	return Result;
+}
+
+template< typename T >
+void EigenSolver3(
+	T* RESTRICT A,
+	T* RESTRICT S,
+	T* RESTRICT V,
+	const T tol )
+{
+	FMemory::Memzero( V, 9 * sizeof(T) );
+
+	for( int i = 0; i < 3; i++ )
+	{
+		S[i] = A[ 3*i + i ];
+		V[ 3*i + i ] = 1.0;
+	}
+
+	const int maxIter = 20;  // In case we get really unlucky, prevents infinite loops
+	const T absTol = tol * MaxOffDiagSymm( A, 3 );  // Tolerance is in terms of the maximum
+	if( absTol != 0 )                        // _off-diagonal_ entry.
+	{
+		int numIter = 0;
+		do
+		{
+			++numIter;
+			// Z is for accumulating small changes (h) to diagonal entries
+			// of A for one sweep. Adding h's directly to A might cause
+			// a cancellation effect when h is relatively very small to 
+			// the corresponding diagonal entry of A and 
+			// this will increase numerical errors
+			T Z[] = { 0.0, 0.0, 0.0 };
+			bool changed;
+			changed = Rotation3( A, V, Z, tol, 0, 1, 2 );
+			changed = Rotation3( A, V, Z, tol, 0, 2, 1 ) || changed;
+			changed = Rotation3( A, V, Z, tol, 1, 2, 0 ) || changed;
+			// One sweep passed. Add accumulated changes (Z) to singular values (S)
+			// Update diagonal elements of A for better accuracy as well.
+			for( int i = 0; i < 3; i++ )
+			{
+				A[ 3*i + i ] = S[i] += Z[i];
+			}
+			if( !changed )
+				break;
+		}
+		while( MaxOffDiagSymm( A, 3 ) > absTol && numIter < maxIter );
+	}
+}
+
+template< typename T >
+void EigenSolver4(
+	T* RESTRICT A,
+	T* RESTRICT S,
+	T* RESTRICT V,
+	const T tol )
+{
+	FMemory::Memzero( V, 16 * sizeof(T) );
+
+	for( int i = 0; i < 4; i++ )
+	{
+		S[i] = A[ 4*i + i ];
+		V[ 4*i + i ] = 1.0;
+	}
+
+	const int maxIter = 20;  // In case we get really unlucky, prevents infinite loops
+	const T absTol = tol * MaxOffDiagSymm( A, 4 );  // Tolerance is in terms of the maximum
+	if( absTol != 0.0 )                        // _off-diagonal_ entry.
+	{
+		int numIter = 0;
+		do
+		{
+			++numIter;
+			T Z[] = { 0.0, 0.0, 0.0, 0.0 };
+			bool changed;
+			changed = Rotation4( A, V, Z, tol, 0, 1, 2, 3 );
+			changed = Rotation4( A, V, Z, tol, 0, 2, 1, 3 ) || changed;
+			changed = Rotation4( A, V, Z, tol, 0, 3, 1, 2 ) || changed;
+			changed = Rotation4( A, V, Z, tol, 1, 2, 0, 3 ) || changed;
+			changed = Rotation4( A, V, Z, tol, 1, 3, 0, 2 ) || changed;
+			changed = Rotation4( A, V, Z, tol, 2, 3, 0, 1 ) || changed;
+			for( int i = 0; i < 4; i++ )
+			{
+				A[ 4*i + i ] = S[i] += Z[i];
+			}
+			if( !changed )
+				break;
+		}
+		while( MaxOffDiagSymm( A, 4 ) > absTol && numIter < maxIter );
+	}
+}
+
+}
+
+// Moore-Penrose pseudo inverse
+template< typename T >
+void PseudoInverse( T* RESTRICT S, uint32 Size, T Tolerance )
+{
+	QScalar MaxS = 0.0;
+	for( uint32 i = 0; i < Size; i++ )
+		MaxS = FMath::Max( MaxS, FMath::Abs( S[i] ) );
+
+	for( uint32 i = 0; i < Size; i++ )
+	{
+		if( FMath::Abs( S[i] ) > MaxS * Tolerance )
+			S[i] = 1.0 / S[i];
+		else
+			S[i] = 0.0;
+	}
+}
+
+template< typename T >
+void PseudoSolve( const T* RESTRICT V, const T* RESTRICT S, uint32 Size, const T* RESTRICT b, T* RESTRICT x )
+{
+	for( uint32 i = 0; i < Size; i++ )
+		x[i] = 0.0;
+
+	for( uint32 i = 0; i < Size; i++ )
+	{
+		QScalar SVtbi = 0.0;
+		for( uint32 j = 0; j < Size; j++ )
+			SVtbi += V[ Size * j + i ] * b[j];
+
+		SVtbi *= S[i];
+
+		for( uint32 j = 0; j < Size; j++ )
+			x[j] += V[ Size * j + i ] * SVtbi;
+	}
+}
+
+// Newton's method iterative refinement.
+template< typename T >
+bool PseudoSolveIterate( const T* RESTRICT A, const T* RESTRICT V, const T* RESTRICT S, uint32 Size, const T* RESTRICT b, T* RESTRICT x )
+{
+	T* Residual = (T*)FMemory_Alloca( 2 * Size * sizeof(T) );
+	T* Error = Residual + Size;
+
+	PseudoSolve( V, S, Size, b, x );
+
+	bool bCloseEnough = false;
+	for( uint32 k = 0; k < 4; k++ )
+	{
+		for( uint32 i = 0; i < Size; i++ )
+		{
+			Residual[i] = b[i];
+
+			for( uint32 j = 0; j < Size; j++ )
+			{
+				Residual[i] -= A[ Size * i + j ] * x[j];
+			}
+		}
+
+		PseudoSolve( V, S, Size, Residual, Error );
+
+		T MeanSquaredError = 0.0;
+		for( uint32 i = 0; i < Size; i++ )
+		{
+			x[i] += Error[i];
+			MeanSquaredError += Error[i] * Error[i];
+		}
+
+		if( MeanSquaredError < KINDA_SMALL_NUMBER )
+		{
+			bCloseEnough = true;
+			break;
+		}
+	}
+
+	return bCloseEnough;
+}
+
+
+FQuadric::FQuadric( const QVec3 p0, const QVec3 p1, const QVec3 p2 )
+{
 	const QVec3 p01 = p1 - p0;
 	const QVec3 p02 = p2 - p0;
 
@@ -188,54 +520,6 @@ FQuadric::FQuadric( const FVector3f& fp0, const FVector3f& fp1, const FVector3f&
 #endif
 }
 
-FQuadric::FQuadric( const FVector3f& fp0, const FVector3f& fp1, const FVector3f& faceNormal, const float edgeWeight )
-{
-	if( !faceNormal.IsNormalized() )
-	{
-		Zero();
-		return;
-	}
-
-	const QVec3 p0( fp0 );
-	const QVec3 p1( fp1 );
-	const QVec3 Face( faceNormal );
-
-	const QVec3 p01 = p1 - p0;
-
-	// Compute the wedge product, giving the normal direction scaled by 
-	// twice the triangle area.
-	QVec3 n = p01 ^ Face;
-
-	const QScalar Length = sqrt( n | n );
-	if (Length < QScalar(SMALL_NUMBER))
-	{
-		Zero();
-		return;
-	}
-	else
-	{
-		n.x /= Length;
-		n.y /= Length;
-		n.z /= Length;
-	}
-
-	const QScalar weight = edgeWeight * sqrt( p01 | p01 );
-	const QScalar dist = -( n | p0 );
-	
-	nxx = weight * n.x * n.x;
-	nyy = weight * n.y * n.y;
-	nzz = weight * n.z * n.z;
-
-	nxy = weight * n.x * n.y;
-	nxz = weight * n.x * n.z;
-	nyz = weight * n.y * n.z;
-
-	dn = weight * dist * n;
-	d2 = weight * dist * dist;
-
-	a = 0.0;
-}
-
 float FQuadric::Evaluate( const FVector3f& Point ) const
 {
 	// Q(v) = vt*A*v + 2*bt*v + c
@@ -285,14 +569,10 @@ float FQuadric::Evaluate( const FVector3f& Point ) const
 
 
 FQuadricAttr::FQuadricAttr(
-	const FVector3f& fp0, const FVector3f& fp1, const FVector3f& fp2,
+	const QVec3 p0, const QVec3 p1, const QVec3 p2,
 	const float* attr0, const float* attr1, const float* attr2,
 	const float* AttributeWeights, uint32 NumAttributes )
 {
-	const QVec3 p0( fp0 );
-	const QVec3 p1( fp1 );
-	const QVec3 p2( fp2 );
-
 	const QVec3 p01 = p1 - p0;
 	const QVec3 p02 = p2 - p0;
 
@@ -630,9 +910,7 @@ float FQuadricAttr::Evaluate( const FVector3f& Point, const float* RESTRICT Attr
 
 	// c = d2
 
-	QScalar px = Point.X;
-	QScalar py = Point.Y;
-	QScalar pz = Point.Z;
+	QVec3 p = Point;
 
 	QVec3* RESTRICT   g = (QVec3*)( this + 1 );
 	QScalar* RESTRICT d = (QScalar*)( g + NumAttributes );
@@ -647,9 +925,9 @@ float FQuadricAttr::Evaluate( const FVector3f& Point, const float* RESTRICT Attr
 	//       [ Bt*p + a*s ]
 
 	// C*p
-	QScalar x = px * nxx + py * nxy + pz * nxz;
-	QScalar y = px * nxy + py * nyy + pz * nyz;
-	QScalar z = px * nxz + py * nyz + pz * nzz;
+	QScalar x = p | QVec3( nxx, nxy, nxz );
+	QScalar y = p | QVec3( nxy, nyy, nyz );
+	QScalar z = p | QVec3( nxz, nyz, nzz );
 
 	// B*s
 	for( uint32 i = 0; i < NumAttributes; i++ )
@@ -662,16 +940,16 @@ float FQuadricAttr::Evaluate( const FVector3f& Point, const float* RESTRICT Attr
 	// vt*A*v = pt * ( C*p + B*s ) + st * ( Bt*p + a*s )
 
 	// pt * (C*p + B*s)
-	QScalar vAv = px * x + py * y + pz * z;
+	QScalar vAv = p | QVec3( x, y, z );
 
 	// st * ( Bt*p + a*s )
 	for( uint32 i = 0; i < NumAttributes; i++ )
 	{
-		vAv += s[i] * ( a * s[i] - g[i].x * px - g[i].y * py - g[i].z * pz );
+		vAv += s[i] * ( a * s[i] - ( g[i] | QVec3( x, y, z ) ) );
 	}
 
 	// bt*v
-	QScalar btv = px * dn.x + py * dn.y + pz * dn.z;
+	QScalar btv = p | dn;
 	for( uint32 i = 0; i < NumAttributes; i++ )
 	{
 		btv -= d[i] * s[i];
@@ -845,6 +1123,31 @@ bool FQuadricAttrOptimizer::Optimize( FVector3f& Position ) const
 		Mxz, Myz, Mzz
 	};
 	QScalar b[] = { aBddn.x, aBddn.y, aBddn.z };
+
+#if PSEUDO_INVERSE
+	QScalar A[9];
+	QScalar V[9];
+	QScalar S[3];
+	FMemory::Memcpy( A, M );
+
+	JacobiSVD::EigenSolver3( A, S, V, (QScalar)SMALL_NUMBER );
+	PseudoInverse( S, 3, 1e-6 );
+
+	// Rebase
+	for( int i = 0; i < 3; i++ )
+		for( int j = 0; j < 3; j++ )
+			b[i] -= M[ 3*i + j ] * Position[j];
+
+	QScalar x[3];
+	PseudoSolve( V, S, 3, b, x );
+	//if( PseudoSolveIterate( M, V, S, 3, b, x ) )
+	{
+		Position.X += x[0];
+		Position.Y += x[1];
+		Position.Z += x[2];
+		return true;
+	}
+#else
 	uint32 Pivot[3];
 	QScalar LU[9];
 	FMemory::Memcpy( LU, M );
@@ -859,6 +1162,7 @@ bool FQuadricAttrOptimizer::Optimize( FVector3f& Position ) const
 			return true;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -902,7 +1206,7 @@ bool FQuadricAttrOptimizer::OptimizeVolume( FVector3f& Position ) const
 	// Only use the volume constraint if it is well conditioned
 	if( (nv | nv) > 1e-12 )
 	{
-		QScalar M[] =
+		const QScalar M[] =
 		{
 			Mxx, Mxy, Mxz, nv.x,
 			Mxy, Myy, Myz, nv.y,
@@ -910,6 +1214,64 @@ bool FQuadricAttrOptimizer::OptimizeVolume( FVector3f& Position ) const
 			nv.x, nv.y, nv.z, 0.0
 		};
 		QScalar b[] = { aBddn.x, aBddn.y, aBddn.z, -dv };
+
+#if PSEUDO_INVERSE
+		QScalar A[16];
+		QScalar V[16];
+		QScalar S[4];
+		FMemory::Memcpy( A, M );
+
+		JacobiSVD::EigenSolver4( A, S, V, (QScalar)SMALL_NUMBER );
+		PseudoInverse( S, 4, 1e-6 );
+
+		// Rebase
+		for( int i = 0; i < 4; i++ )
+			for( int j = 0; j < 3; j++ )
+				b[i] -= M[ 4*i + j ] * Position[j];
+
+		// Guess for the Lagrange multiplier
+#if 1
+		if( (nv | nv) > 1e-4 )
+		{
+			/*
+			Guessing 0 for position (already rebased)
+			M*0 + lm*nv = b
+			nv * lm = b
+
+			Solved with least squares (same as projection)
+			A*x = b
+			x = (A^T * A)^-1 * A^T * b
+		
+			lm = (nv^T * nv)^-1 * nv^T*b
+			lm = (nv | b ) / (nv | nv);
+			*/
+			QScalar lm = ( nv.x * b[0] + nv.y * b[1] + nv.z * b[2] ) / ( nv | nv );
+			// Rebase Lagrange multiplier
+			for( int i = 0; i < 4; i++ )
+				b[i] -= M[ 4*i + 3 ] * lm;
+		}
+#endif
+		
+		// Newton iterate Lagrange guess
+		QScalar x[4];
+		for( uint32 k = 0; k < 4; k++ )
+		{
+			PseudoSolve( V, S, 4, b, x );
+
+			// Rebase Lagrange multiplier
+			for( int i = 0; i < 4; i++ )
+				b[i] -= M[ 4*i + 3 ] * x[3];
+		}
+
+		PseudoSolve( V, S, 4, b, x );
+		//if( PseudoSolveIterate( M, V, S, 4, b, x ) )
+		{
+			Position.X += x[0];
+			Position.Y += x[1];
+			Position.Z += x[2];
+			return true;
+		}
+#else
 		uint32 Pivot[4];
 		QScalar LU[16];
 		FMemory::Memcpy( LU, M );
@@ -924,6 +1286,7 @@ bool FQuadricAttrOptimizer::OptimizeVolume( FVector3f& Position ) const
 				return true;
 			}
 		}
+#endif
 	}
 #endif
 

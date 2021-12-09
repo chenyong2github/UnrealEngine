@@ -594,7 +594,7 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 	OutCluster.SetPosBitsZ(InCluster.QuantizedPosBits.Z);
 
 	// 2
-	OutCluster.LODBounds				= FVector4f((float)InCluster.LODBounds.Center.X, (float)InCluster.LODBounds.Center.Y, (float)InCluster.LODBounds.Center.Z, (float)InCluster.LODBounds.W);	// LWC_TODO: Precision loss. Nanite packed cluster LODBounds.
+	OutCluster.LODBounds				= FVector4f(InCluster.LODBounds.Center.X, InCluster.LODBounds.Center.Y, InCluster.LODBounds.Center.Z, InCluster.LODBounds.W);
 
 	// 3
 	OutCluster.BoxBoundsCenter			= (InCluster.Bounds.Min + InCluster.Bounds.Max) * 0.5f;
@@ -617,7 +617,7 @@ static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FClust
 
 struct FHierarchyNode
 {
-	FSphere			LODBounds[MAX_BVH_NODE_FANOUT];
+	FSphere3f		LODBounds[MAX_BVH_NODE_FANOUT];
 	FBounds			Bounds[MAX_BVH_NODE_FANOUT];
 	float			MinLODErrors[MAX_BVH_NODE_FANOUT];
 	float			MaxParentLODErrors[MAX_BVH_NODE_FANOUT];
@@ -2094,7 +2094,7 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 			const Nanite::FHierarchyNode& ChildHNode = HierarchyNodes[ChildHierarchyNodeIndex];
 
 			FBounds Bounds;
-			TArray< FSphere, TInlineAllocator<MAX_BVH_NODE_FANOUT> > LODBoundSpheres;
+			TArray< FSphere3f, TInlineAllocator<MAX_BVH_NODE_FANOUT> > LODBoundSpheres;
 			float MinLODError = MAX_flt;
 			float MaxParentLODError = 0.0f;
 			for (uint32 GrandChildIndex = 0; GrandChildIndex < MAX_BVH_NODE_FANOUT && ChildHNode.NumChildren[GrandChildIndex] != 0; GrandChildIndex++)
@@ -2105,7 +2105,7 @@ static uint32 BuildHierarchyRecursive(TArray<Nanite::FHierarchyNode>& HierarchyN
 				MaxParentLODError = FMath::Max(MaxParentLODError, ChildHNode.MaxParentLODErrors[GrandChildIndex]);
 			}
 
-			FSphere LODBounds = FSphere(LODBoundSpheres.GetData(), LODBoundSpheres.Num());
+			FSphere3f LODBounds = FSphere3f(LODBoundSpheres.GetData(), LODBoundSpheres.Num());
 
 			Nanite::FHierarchyNode& HNode = HierarchyNodes[HNodeIndex];
 			HNode.Bounds[ChildIndex] = Bounds;

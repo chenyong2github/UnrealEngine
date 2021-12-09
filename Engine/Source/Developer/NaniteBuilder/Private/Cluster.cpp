@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Cluster.h"
-#include "Bounds.h"
-#include "MeshSimplify.h"
 #include "GraphPartitioner.h"
 
 template< typename T > FORCEINLINE uint32 Min3Index( const T A, const T B, const T C ) { return ( A < B ) ? ( ( A < C ) ? 0 : 2 ) : ( ( B < C ) ? 1 : 2 ); }
@@ -30,8 +28,8 @@ FCluster::FCluster(
 	const TArray< FStaticMeshBuildVertex >& InVerts,
 	const TArrayView< const uint32 >& InIndexes,
 	const TArrayView< const int32 >& InMaterialIndexes,
-	const TBitArray<>& InBoundaryEdges,
-	uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes, uint32 InNumTexCoords, bool bInHasColors )
+	uint32 InNumTexCoords, bool bInHasColors,
+	uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency )
 {
 	GUID = Murmur32( { TriBegin, TriEnd } );
 	
@@ -43,8 +41,9 @@ FCluster::FCluster(
 
 	Verts.Reserve( NumTris * GetVertSize() );
 	Indexes.Reserve( 3 * NumTris );
-	BoundaryEdges.Reserve( 3 * NumTris );
 	MaterialIndexes.Reserve( NumTris );
+	ExternalEdges.Reserve( 3 * NumTris );
+	NumExternalEdges = 0;
 
 	check(InMaterialIndexes.Num() * 3 == InIndexes.Num());
 
@@ -53,7 +52,7 @@ FCluster::FCluster(
 
 	for( uint32 i = TriBegin; i < TriEnd; i++ )
 	{
-		uint32 TriIndex = TriIndexes[i];
+		uint32 TriIndex = Partitioner.Indexes[i];
 
 		for( uint32 k = 0; k < 3; k++ )
 		{
@@ -93,18 +92,30 @@ FCluster::FCluster(
 			}
 
 			Indexes.Add( NewIndex );
-			BoundaryEdges.Add( InBoundaryEdges[ TriIndex * 3 + k ] );
+
+			int32 EdgeIndex = TriIndex * 3 + k;
+			int32 AdjCount = 0;
+			
+			Adjacency.ForAll( EdgeIndex,
+				[ &AdjCount, TriBegin, TriEnd, &Partitioner ]( int32 EdgeIndex, int32 AdjIndex )
+				{
+					uint32 AdjTri = Partitioner.SortedTo[ AdjIndex / 3 ];
+					if( AdjTri < TriBegin || AdjTri >= TriEnd )
+						AdjCount++;
+				} );
+
+			ExternalEdges.Add( AdjCount );
+			NumExternalEdges += AdjCount != 0 ? 1 : 0;
 		}
 
 		MaterialIndexes.Add( InMaterialIndexes[ TriIndex ] );
 	}
 
-	FindExternalEdges();
 	Bound();
 }
 
 // Split
-FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes )
+FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const FGraphPartitioner& Partitioner, const FAdjacency& Adjacency )
 	: MipLevel( SrcCluster.MipLevel )
 {
 	GUID = Murmur32( { SrcCluster.GUID, TriBegin, TriEnd } );
@@ -116,15 +127,16 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 
 	Verts.Reserve( NumTris * GetVertSize() );
 	Indexes.Reserve( 3 * NumTris );
-	BoundaryEdges.Reserve( 3 * NumTris );
 	MaterialIndexes.Reserve( NumTris );
+	ExternalEdges.Reserve( 3 * NumTris );
+	NumExternalEdges = 0;
 
 	TMap< uint32, uint32 > OldToNewIndex;
 	OldToNewIndex.Reserve( NumTris );
 
 	for( uint32 i = TriBegin; i < TriEnd; i++ )
 	{
-		uint32 TriIndex = TriIndexes[i];
+		uint32 TriIndex = Partitioner.Indexes[i];
 
 		for( uint32 k = 0; k < 3; k++ )
 		{
@@ -142,71 +154,99 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 			}
 
 			Indexes.Add( NewIndex );
-			BoundaryEdges.Add( SrcCluster.BoundaryEdges[ TriIndex * 3 + k ] );
+
+			int32 EdgeIndex = TriIndex * 3 + k;
+			int32 AdjCount = SrcCluster.ExternalEdges[ EdgeIndex ];
+			
+			Adjacency.ForAll( EdgeIndex,
+				[ &AdjCount, TriBegin, TriEnd, &Partitioner ]( int32 EdgeIndex, int32 AdjIndex )
+				{
+					uint32 AdjTri = Partitioner.SortedTo[ AdjIndex / 3 ];
+					if( AdjTri < TriBegin || AdjTri >= TriEnd )
+						AdjCount++;
+				} );
+
+			ExternalEdges.Add( AdjCount );
+			NumExternalEdges += AdjCount != 0 ? 1 : 0;
 		}
 
 		const int32 MaterialIndex = SrcCluster.MaterialIndexes[ TriIndex ];
 		MaterialIndexes.Add( MaterialIndex );
 	}
 
-	FindExternalEdges();
 	Bound();
 }
 
 // Merge
-FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<16> >& MergeList )
+FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& MergeList )
 {
 	NumTexCoords = MergeList[0]->NumTexCoords;
 	bHasColors = MergeList[0]->bHasColors;
 
-	// Only need a guess
-	const uint32 NumTriangles = ClusterSize * MergeList.Num();
+	const uint32 NumTrisGuess = ClusterSize * MergeList.Num();
 
-	Verts.Reserve( NumTriangles * GetVertSize() );
-	Indexes.Reserve( 3 * NumTriangles );
-	BoundaryEdges.Reserve( 3 * NumTriangles );
-	MaterialIndexes.Reserve( NumTriangles );
+	Verts.Reserve( NumTrisGuess * GetVertSize() );
+	Indexes.Reserve( 3 * NumTrisGuess );
+	MaterialIndexes.Reserve( NumTrisGuess );
+	ExternalEdges.Reserve( 3 * NumTrisGuess );
+	NumExternalEdges = 0;
 
-	FHashTable HashTable( 1 << FMath::FloorLog2( NumTriangles ), NumTriangles );
+	FHashTable VertHashTable( 1 << FMath::FloorLog2( NumTrisGuess ), NumTrisGuess );
 
 	for( const FCluster* Child : MergeList )
 	{
 		Bounds += Child->Bounds;
+		SurfaceArea += Child->SurfaceArea;
 
 		// Can jump multiple levels but guarantee it steps at least 1.
 		MipLevel = FMath::Max( MipLevel, Child->MipLevel + 1 );
 
 		for( int32 i = 0; i < Child->Indexes.Num(); i++ )
 		{
-			const FVector3f& Position = Child->GetPosition( Child->Indexes[i] );
-
-			uint32 Hash = HashPosition( Position );
-			uint32 NewIndex;
-			for( NewIndex = HashTable.First( Hash ); HashTable.IsValid( NewIndex ); NewIndex = HashTable.Next( NewIndex ) )
-			{
-				if( 0 == FMemory::Memcmp( &GetPosition( NewIndex ), &Position, GetVertSize() * sizeof( float ) ) )
-				{
-					break;
-				}
-			}
-			if( !HashTable.IsValid( NewIndex ) )
-			{
-				Verts.AddUninitialized( GetVertSize() );
-				NewIndex = NumVerts++;
-				HashTable.Add( Hash, NewIndex );
-
-				FMemory::Memcpy( &GetPosition( NewIndex ), &Position, GetVertSize() * sizeof( float ) );
-			}
+			uint32 NewIndex = AddVert( &Child->Verts[ Child->Indexes[i] * GetVertSize() ], VertHashTable );
 
 			Indexes.Add( NewIndex );
-			BoundaryEdges.Add( Child->BoundaryEdges[i] );
+			ExternalEdges.Add( Child->ExternalEdges[i] );
 		}
 
-		for (int32 i = 0; i < Child->MaterialIndexes.Num(); i++)
+		for( int32 i = 0; i < Child->MaterialIndexes.Num(); i++ )
 		{
 			const int32 MaterialIndex = Child->MaterialIndexes[i];
-			MaterialIndexes.Add(MaterialIndex);
+			MaterialIndexes.Add( MaterialIndex );
 		}
+	}
+
+	FAdjacency Adjacency = BuildAdjacency();
+
+	int32 ChildIndex = 0;
+	int32 MinIndex = 0;
+	int32 MaxIndex = MergeList[0]->ExternalEdges.Num();
+
+	for( int32 EdgeIndex = 0; EdgeIndex < ExternalEdges.Num(); EdgeIndex++ )
+	{
+		if( EdgeIndex >= MaxIndex )
+		{
+			ChildIndex++;
+			MinIndex = MaxIndex;
+			MaxIndex += MergeList[ ChildIndex ]->ExternalEdges.Num();
+		}
+
+		int32 AdjCount = ExternalEdges[ EdgeIndex ];
+
+		Adjacency.ForAll( EdgeIndex,
+			[ &AdjCount, MinIndex, MaxIndex ]( int32 EdgeIndex, int32 AdjIndex )
+			{
+				if( AdjIndex < MinIndex || AdjIndex >= MaxIndex )
+					AdjCount--;
+			} );
+
+		// This seems like a sloppy workaround for a bug elsewhere but it is possible an interior edge is moved during simplifiation to
+		// match another cluster and it isn't reflected in this count. Sounds unlikely but any hole closing could do this.
+		// The only way to catch it would be to rebuild full adjacency after every pass which isn't practical.
+		AdjCount = FMath::Max( AdjCount, 0 );
+
+		ExternalEdges[ EdgeIndex ] = AdjCount;
+		NumExternalEdges += AdjCount != 0 ? 1 : 0;
 	}
 
 	NumTris = Indexes.Num() / 3;
@@ -219,7 +259,6 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 Target
 		return 0.0f;
 	}
 
-	float SurfaceArea = 0.0f;
 	float UVArea[ MAX_STATIC_TEXCOORDS ] = { 0.0f };
 
 	for( uint32 TriIndex = 0; TriIndex < NumTris; TriIndex++ )
@@ -227,15 +266,6 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 Target
 		uint32 Index0 = Indexes[ TriIndex * 3 + 0 ];
 		uint32 Index1 = Indexes[ TriIndex * 3 + 1 ];
 		uint32 Index2 = Indexes[ TriIndex * 3 + 2 ];
-
-		const FVector3f& Position0 = GetPosition( Index0 );
-		const FVector3f& Position1 = GetPosition( Index1 );
-		const FVector3f& Position2 = GetPosition( Index2 );
-
-		FVector3f Edge1 = Position1 - Position0;
-		FVector3f Edge2 = Position2 - Position0;
-
-		SurfaceArea += 0.5f * ( Edge1 ^ Edge2 ).Size();
 
 		FVector2f* UV0 = GetUVs( Index0 );
 		FVector2f* UV1 = GetUVs( Index1 );
@@ -303,26 +333,60 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 Target
 
 	FMeshSimplifier Simplifier( Verts.GetData(), NumVerts, Indexes.GetData(), Indexes.Num(), MaterialIndexes.GetData(), NumAttributes );
 
-	Simplifier.SetBoundaryLocked( BoundaryEdges );
+	TMap< TTuple< FVector3f, FVector3f >, int8 > LockedEdges;
+
+	for( int32 EdgeIndex = 0; EdgeIndex < ExternalEdges.Num(); EdgeIndex++ )
+	{
+		if( ExternalEdges[ EdgeIndex ] )
+		{
+			uint32 VertIndex0 = Indexes[ EdgeIndex ];
+			uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
 	
+			const FVector3f& Position0 = GetPosition( VertIndex0 );
+			const FVector3f& Position1 = GetPosition( VertIndex1 );
+
+			Simplifier.LockPosition( Position0 );
+			Simplifier.LockPosition( Position1 );
+
+			LockedEdges.Add( MakeTuple( Position0, Position1 ), ExternalEdges[ EdgeIndex ] );
+		}
+	}
+
 	Simplifier.SetAttributeWeights( AttributeWeights );
 	Simplifier.SetCorrectAttributes( bHasColors ? CorrectAttributesColor : CorrectAttributes );
 	Simplifier.SetEdgeWeight( 2.0f );
 
-	float MaxErrorSqr = Simplifier.Simplify( NumVerts, TargetNumTris, TargetError, TargetErrorMaxNumTris );
+	float MaxErrorSqr = Simplifier.Simplify(
+		NumVerts, TargetNumTris, 0.0f,
+		0, TargetNumTris, MAX_flt );
 
 	check( Simplifier.GetRemainingNumVerts() > 0 );
 	check( Simplifier.GetRemainingNumTris() > 0 );
-	
-	Simplifier.GetBoundaryUnlocked( BoundaryEdges );
+
 	Simplifier.Compact();
 	
 	Verts.SetNum( Simplifier.GetRemainingNumVerts() * GetVertSize() );
 	Indexes.SetNum( Simplifier.GetRemainingNumTris() * 3 );
 	MaterialIndexes.SetNum( Simplifier.GetRemainingNumTris() );
+	ExternalEdges.Init( 0, Simplifier.GetRemainingNumTris() * 3 );
 
 	NumVerts = Simplifier.GetRemainingNumVerts();
 	NumTris = Simplifier.GetRemainingNumTris();
+
+	NumExternalEdges = 0;
+	for( int32 EdgeIndex = 0; EdgeIndex < ExternalEdges.Num(); EdgeIndex++ )
+	{
+		auto Edge = MakeTuple(
+			GetPosition( Indexes[ EdgeIndex ] ),
+			GetPosition( Indexes[ Cycle3( EdgeIndex ) ] )
+		);
+		int8* AdjCount = LockedEdges.Find( Edge );
+		if( AdjCount )
+		{
+			ExternalEdges[ EdgeIndex ] = *AdjCount;
+			NumExternalEdges++;
+		}
+	}
 
 	float InvScale = 1.0f / PositionScale;
 	for( uint32 i = 0; i < NumVerts; i++ )
@@ -340,53 +404,17 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 Target
 	return FMath::Sqrt( MaxErrorSqr ) * InvScale;
 }
 
-void FCluster::Split( FGraphPartitioner& Partitioner ) const
+void FCluster::Split( FGraphPartitioner& Partitioner, const FAdjacency& Adjacency ) const
 {
 	FDisjointSet DisjointSet( NumTris );
-	
-	TArray< int32 > SharedEdge;
-	SharedEdge.AddUninitialized( Indexes.Num() );
-
-	TMultiMap< uint32, int32 > EdgeHashTable;
-	EdgeHashTable.Reserve( Indexes.Num() );
-
-	for( int i = 0; i < Indexes.Num(); i++ )
+	for( int32 EdgeIndex = 0; EdgeIndex < Indexes.Num(); EdgeIndex++ )
 	{
-		uint32 TriI = i / 3;
-		uint32 i0 = Indexes[ 3 * TriI + (i + 0) % 3 ];
-		uint32 i1 = Indexes[ 3 * TriI + (i + 1) % 3 ];
-
-		uint32 Hash0 = HashPosition( GetPosition( i0 ) );
-		uint32 Hash1 = HashPosition( GetPosition( i1 ) );
-		uint32 Hash = Murmur32( { FMath::Min( Hash0, Hash1 ), FMath::Max( Hash0, Hash1 ) } );
-
-		bool bFound = false;
-		for( auto Iter = EdgeHashTable.CreateKeyIterator( Hash ); Iter; ++Iter )
-		{
-			int32 j = Iter.Value();
-			if( SharedEdge[j] == -1 )
+		Adjacency.ForAll( EdgeIndex,
+			[ &DisjointSet ]( int32 EdgeIndex0, int32 EdgeIndex1 )
 			{
-				uint32 TriJ = j / 3;
-				uint32 j0 = Indexes[ 3 * TriJ + (j + 0) % 3 ];
-				uint32 j1 = Indexes[ 3 * TriJ + (j + 1) % 3 ];
-
-				if( GetPosition( i0 ) == GetPosition( j1 ) &&
-					GetPosition( i1 ) == GetPosition( j0 ) )
-				{
-					// Link edges
-					SharedEdge[i] = TriJ;
-					SharedEdge[j] = TriI;
-					DisjointSet.UnionSequential( TriI, TriJ );
-					bFound = true;
-					break;
-				}
-			}
-		}
-		if( !bFound )
-		{
-			EdgeHashTable.Add( Hash, i );
-			SharedEdge[i] = -1;
-		}
+				if( EdgeIndex0 > EdgeIndex1 )
+					DisjointSet.UnionSequential( EdgeIndex0 / 3, EdgeIndex1 / 3 );
+			} );
 	}
 
 	auto GetCenter = [ this ]( uint32 TriIndex )
@@ -411,12 +439,12 @@ void FCluster::Split( FGraphPartitioner& Partitioner ) const
 		// Add shared edges
 		for( int k = 0; k < 3; k++ )
 		{
-			int32 AdjIndex = SharedEdge[ 3 * TriIndex + k ];
-			if( AdjIndex != -1 )
-			{
-				Partitioner.AddAdjacency( Graph, AdjIndex, 4 * 65 );
-			}
-	}
+			Adjacency.ForAll( 3 * TriIndex + k,
+				[ &Partitioner, Graph ]( int32 EdgeIndex, int32 AdjIndex )
+				{
+					Partitioner.AddAdjacency( Graph, AdjIndex / 3, 4 * 65 );
+				} );
+		}
 
 		Partitioner.AddLocalityLinks( Graph, TriIndex, 1 );
 	}
@@ -425,67 +453,53 @@ void FCluster::Split( FGraphPartitioner& Partitioner ) const
 	Partitioner.PartitionStrict( Graph, ClusterSize - 4, ClusterSize, false );
 }
 
-void FCluster::FindExternalEdges()
+FAdjacency FCluster::BuildAdjacency() const
 {
-	ExternalEdges.Init( true, Indexes.Num() );
-	NumExternalEdges = Indexes.Num();
-
-	FHashTable HashTable( 1 << FMath::FloorLog2( Indexes.Num() ), Indexes.Num() );
+	FAdjacency Adjacency( Indexes.Num() );
+	FEdgeHash EdgeHash( Indexes.Num() );
 
 	for( int32 EdgeIndex = 0; EdgeIndex < Indexes.Num(); EdgeIndex++ )
 	{
-		if( BoundaryEdges[ EdgeIndex ] )
-		{
-			ExternalEdges[ EdgeIndex ] = false;
-			NumExternalEdges--;
-			continue;
-		}
+		Adjacency.Direct[ EdgeIndex ] = -1;
 
-		uint32 VertIndex0 = Indexes[ EdgeIndex ];
-		uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-		const FVector3f& Position0 = GetPosition( VertIndex0 );
-		const FVector3f& Position1 = GetPosition( VertIndex1 );
-	
-		// Find edge with opposite direction that shares these 2 verts.
-		/*
-			  /\
-			 /  \
-			o-<<-o
-			o->>-o
-			 \  /
-			  \/
-		*/
-		uint32 Hash0 = HashPosition( Position0 );
-		uint32 Hash1 = HashPosition( Position1 );
-		uint32 Hash = Murmur32( { Hash1, Hash0 } );
-
-		uint32 OtherEdgeIndex;
-		for( OtherEdgeIndex = HashTable.First( Hash ); HashTable.IsValid( OtherEdgeIndex ); OtherEdgeIndex = HashTable.Next( OtherEdgeIndex ) )
-		{
-			if( ExternalEdges[ OtherEdgeIndex ] )
+		EdgeHash.ForAllMatching( EdgeIndex, true,
+			[ this ]( int32 CornerIndex )
 			{
-				uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
-				uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
-			
-				if( Position0 == GetPosition( OtherVertIndex1 ) &&
-					Position1 == GetPosition( OtherVertIndex0 ) )
-				{
-					// Found matching edge.
-					ExternalEdges[ EdgeIndex ] = false;
-					ExternalEdges[ OtherEdgeIndex ] = false;
-					NumExternalEdges -= 2;
-					break;
-				}
-			}
-		}
-		if( !HashTable.IsValid( OtherEdgeIndex ) )
-		{
-			HashTable.Add( Murmur32( { Hash0, Hash1 } ), EdgeIndex );
-		}
+				return GetPosition( Indexes[ CornerIndex ] );
+			},
+			[&]( int32 EdgeIndex, int32 OtherEdgeIndex )
+			{
+				Adjacency.Link( EdgeIndex, OtherEdgeIndex );
+			} );
 	}
+
+	return Adjacency;
 }
 
+uint32 FCluster::AddVert( const float* Vert, FHashTable& HashTable )
+{
+	const FVector3f& Position = *reinterpret_cast< const FVector3f* >( Vert );
+
+	uint32 Hash = HashPosition( Position );
+	uint32 NewIndex;
+	for( NewIndex = HashTable.First( Hash ); HashTable.IsValid( NewIndex ); NewIndex = HashTable.Next( NewIndex ) )
+	{
+		if( 0 == FMemory::Memcmp( &GetPosition( NewIndex ), Vert, GetVertSize() * sizeof( float ) ) )
+		{
+			break;
+		}
+	}
+	if( !HashTable.IsValid( NewIndex ) )
+	{
+		Verts.AddUninitialized( GetVertSize() );
+		NewIndex = NumVerts++;
+		HashTable.Add( Hash, NewIndex );
+
+		FMemory::Memcpy( &GetPosition( NewIndex ), Vert, GetVertSize() * sizeof( float ) );
+	}
+
+	return NewIndex;
+}
 
 
 
@@ -599,8 +613,9 @@ FMatrix44f CovarianceToBasis( const FMatrix44f& Covariance )
 void FCluster::Bound()
 {
 	Bounds = FBounds();
+	SurfaceArea = 0.0f;
 	
-	TArray< FVector, TInlineAllocator<128> > Positions;	//TODO: convert me to FVector3f when FSphere also has a float version
+	TArray< FVector3f, TInlineAllocator<128> > Positions;
 	Positions.SetNum( NumVerts, false );
 
 	for( uint32 i = 0; i < NumVerts; i++ )
@@ -608,17 +623,10 @@ void FCluster::Bound()
 		Positions[i] = GetPosition(i);
 		Bounds += Positions[i];
 	}
-	SphereBounds = FSphere( Positions.GetData(), Positions.Num() );
+	SphereBounds = FSphere3f( Positions.GetData(), Positions.Num() );
 	LODBounds = SphereBounds;
-
-	//auto& Normals = Positions;
-	//Normals.Reset( Cluster.NumTris );
-
-	float SurfaceArea = 0.0f;
-	FVector3f SurfaceMean( 0.0f );
 	
 	float MaxEdgeLength2 = 0.0f;
-	FVector3f AvgNormal = FVector3f::ZeroVector;
 	for( int i = 0; i < Indexes.Num(); i += 3 )
 	{
 		FVector3f v[3];
@@ -634,138 +642,10 @@ void FCluster::Bound()
 		MaxEdgeLength2 = FMath::Max( MaxEdgeLength2, Edge12.SizeSquared() );
 		MaxEdgeLength2 = FMath::Max( MaxEdgeLength2, Edge20.SizeSquared() );
 
-#if 0
-		// Calculate normals
-		FVector3f Normal = Edge01 ^ Edge20;
-		if( Normal.Normalize( 1e-12 ) )
-		{
-			Normals.Add( Normal );
-			AvgNormal += Normal;
-		}
-#endif
-
 		float TriArea = 0.5f * ( Edge01 ^ Edge20 ).Size();
 		SurfaceArea += TriArea;
-		for( int k = 0; k < 3; k++ )
-			SurfaceMean += TriArea * v[k];
 	}
 	EdgeLength = FMath::Sqrt( MaxEdgeLength2 );
-	SurfaceMean /= 3.0f * SurfaceArea;
-
-#if 0
-	// Minimal OBB using eigenvectors of covariance
-	// https://www.geometrictools.com/Documentation/DynamicCollisionDetection.pdf
-	float Covariance[6] = { 0 };
-	for( int i = 0; i < Cluster.Indexes.Num(); i += 3 )
-	{
-		FVector3f v[3];
-		v[0] = Cluster.Verts[ Cluster.Indexes[ i + 0 ] ].Position;
-		v[1] = Cluster.Verts[ Cluster.Indexes[ i + 1 ] ].Position;
-		v[2] = Cluster.Verts[ Cluster.Indexes[ i + 2 ] ].Position;
-
-		float TriArea = 0.5f * ( (v[2] - v[0]) ^ (v[1] - v[0]) ).Size();
-
-		for( int k = 0; k < 3; k++ )
-		{
-			FVector3f Diff = v[k] - SurfaceMean;
-			Covariance[0] += TriArea * Diff[0] * Diff[0];
-			Covariance[1] += TriArea * Diff[0] * Diff[1];
-			Covariance[2] += TriArea * Diff[0] * Diff[2];
-			Covariance[3] += TriArea * Diff[1] * Diff[1];
-			Covariance[4] += TriArea * Diff[1] * Diff[2];
-			Covariance[5] += TriArea * Diff[2] * Diff[2];
-		}
-	}
-	for( int j = 0; j < 6; j++ )
-		Covariance[j] /= 12.0f * SurfaceArea;
-
-	FMatrix44f Axis = CovarianceToBasis( FMatrix44f(
-		{ Covariance[0], Covariance[1], Covariance[2] },
-		{ Covariance[1], Covariance[3], Covariance[4] },
-		{ Covariance[2], Covariance[4], Covariance[5] },
-		FVector3f::ZeroVector ) );
-
-	FMatrix44f InvAxis = Axis.GetTransposed();
-
-	FBounds Bounds;
-	for( int i = 0; i < Cluster.NumVerts; i++ )
-	{
-		Bounds += InvAxis.TransformVector( Cluster.Verts[i].Position );
-	}
-
-	FVector3f Center = 0.5f * ( Bounds[1] + Bounds[0] );
-	FVector3f Extent = 0.5f * ( Bounds[1] - Bounds[0] );
-
-	// Cluster space is [-1,1] cube.
-	FMatrix44f BoundsToLocal = FScaleMatrix( Extent ) * FTranslationMatrix( Center ) * Axis;
-#endif
-
-#if 0
-	FSphere NormalBounds;
-	if( Normals.Num() )
-	{
-		NormalBounds = FSphere( Normals.GetData(), Normals.Num() );
-	}
-
-	FNormalCone SphereCone( NormalBounds.Center );
-	FNormalCone AvgCone( AvgNormal );
-	for( FVector3f& Normal : Normals )
-	{
-		SphereCone.CosAngle	= FMath::Min( Normal | SphereCone.Axis, SphereCone.CosAngle );
-		AvgCone.CosAngle	= FMath::Min( Normal | AvgCone.Axis, AvgCone.CosAngle );
-	}
-
-	FNormalCone NormalCone;
-	if( SphereCone.CosAngle > AvgCone.CosAngle )
-	{
-		NormalCone.Axis		= SphereCone.Axis;
-		NormalCone.CosAngle	= SphereCone.CosAngle;
-	}
-	else
-	{
-		NormalCone.Axis		= AvgCone.Axis;
-		NormalCone.CosAngle	= AvgCone.CosAngle;
-	}
-
-	if( NormalCone.CosAngle > 0.0f )
-	{
-		// Cone of plane normals is different from cone bounding their half spaces.
-		// The half space's cone angle is the complement of the normal cone's angle and the axis is flipped.
-		float SinAngle = FMath::Sqrt( 1.0f - NormalCone.CosAngle * NormalCone.CosAngle );
-
-		Cluster.ConeAxis = -NormalCone.Axis;
-		Cluster.ConeCosAngle = SinAngle;
-		Cluster.ConeStart = FVector2f( -MAX_FLT, MAX_FLT );
-		
-		// Push half space cone outside of every triangle's half space.
-		for( int i = 0; i < Cluster.Indexes.Num(); i += 3 )
-		{
-			FVector3f v[3];
-			v[0] = Cluster.Verts[ Cluster.Indexes[ i + 0 ] ].Position;
-			v[1] = Cluster.Verts[ Cluster.Indexes[ i + 1 ] ].Position;
-			v[2] = Cluster.Verts[ Cluster.Indexes[ i + 2 ] ].Position;
-
-			FVector3f Normal = (v[2] - v[0]) ^ (v[1] - v[0]);
-			if( Normal.Normalize( 1e-12 ) )
-			{
-				FPlane Plane( v[0] - Cluster.Bounds.Center, Normal );
-
-				float CosAngle = Normal | NormalCone.Axis;
-				float DistAlongAxis = Plane.W / CosAngle;
-
-				Cluster.ConeStart.X = FMath::Max( Cluster.ConeStart.X, DistAlongAxis );
-				Cluster.ConeStart.Y = FMath::Min( Cluster.ConeStart.Y, DistAlongAxis );
-			}
-		}
-	}
-	else
-	{
-		// No valid region to backface cull
-		Cluster.ConeAxis = FVector3f( 0.0f, 0.0f, 1.0f );
-		Cluster.ConeCosAngle = 2.0f;
-		Cluster.ConeStart = FVector2f:ZeroVector;
-	}
-#endif
 }
 
 FArchive& operator<<(FArchive& Ar, FMaterialRange& Range)
