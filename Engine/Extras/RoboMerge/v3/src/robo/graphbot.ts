@@ -129,7 +129,9 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		for (const branch of this.branchGraph.branches) {
 			if (branch.enabled) {
 				const persistence = this.settings.getContext(branch.upperName)
-				branch.bot = new NodeBot(branch, this.mailer, this.externalUrl, this.eventTriggers, persistence, ubergraph)
+				branch.bot = new NodeBot(branch, this.mailer, this.externalUrl, this.eventTriggers, persistence, ubergraph,
+					() => this.handleRequestedIntegrationsForAllNodes()
+				)
 
 				if (branch.bot.getNumConflicts() > 0) {
 					hasConflicts = true
@@ -172,14 +174,17 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		postToRobomergeAlerts(msg)
 
 		if (this.branchGraph.branches.length !== 0) {
-			const workspaceNames = this.branchGraph.branches.map(branch => (branch.workspace as Workspace).name || (branch.workspace as string))
+			const workspaces = this.branchGraph.branches.map(branch => 
+				[(branch.workspace as Workspace).name || (branch.workspace as string),
+				branch.rootPath]) as [string, string][]
 			const mirrorWorkspace = AutoBranchUpdater.getMirrorWorkspace(this)
 			if (mirrorWorkspace) {
-				workspaceNames.push(mirrorWorkspace.name)
+				// add /... to match branches' rootPath format
+				workspaces.push([mirrorWorkspace.name, mirrorWorkspace.stream + '/...'])
 			}
 
 			this.botLogger.info('Cleaning all workspaces')
-			await p4util.cleanWorkspaces(this.p4, workspaceNames)
+			await p4util.cleanWorkspaces(this.p4, workspaces)
 		}
 
 		await this.startBotsAsync()
@@ -191,6 +196,20 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		this.botLogger.warn(msg)
 		await postMessageToChannel(msg, this.branchGraph.config.slackChannel)
 		this.crashRequested = msg
+	}
+
+	async handleRequestedIntegrationsForAllNodes() {
+		for (const branchName of this.branchGraph.getBranchNames()) {
+			const node = this.findNode(branchName)!
+			for (;;) {
+				const request = node.popRequestedIntegration()
+				if (!request) {
+					break
+				}
+				await node.processQueuedChange(request)
+				node.persistQueuedChanges()
+			}
+		}
 	}
 
 	private async startBotsAsync() {
@@ -253,10 +272,13 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 				}
 				bot.isActive = false
 
-				if (ticked && bot.tickJournal) {
-					const nodeBot = bot as NodeBot
-					bot.tickJournal.monitored = nodeBot.branch.isMonitored
-					activity.set(nodeBot.branch.upperName, bot.tickJournal)
+				if (ticked) {
+					++bot.tickCount
+					if (bot.tickJournal) {
+						const nodeBot = bot as NodeBot
+						bot.tickJournal.monitored = nodeBot.branch.isMonitored
+						activity.set(nodeBot.branch.upperName, bot.tickJournal)
+					}
 				}
 
 				if (this._shutdownCb) {
@@ -269,6 +291,8 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 
 				await new Promise(done => setTimeout(done, this.waitTime!))
 			}
+
+			await this.handleRequestedIntegrationsForAllNodes()
 
 			roboAnalytics!.reportActivity(this.branchGraph.botname, activity)
 			roboAnalytics!.reportMemoryUsage('main', process.memoryUsage().heapUsed)

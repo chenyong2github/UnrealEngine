@@ -2,18 +2,24 @@
 
 import { BranchDefForStatus, BranchStatus } from "../../src/robo/status-types"
 
-type Branch = {
-	id: string
-	forcedDests: Set<string>
-	defaultDests: Set<string>
-	blockAssetDests: Set<string>
-}
-
-type Info = {
-	id: string
-	tooltip: string
-	name: string
+class Info {
 	graphNodeColor?: string
+
+	forcedDests = new Set<string>()
+	defaultDests = new Set<string>()
+	blockAssetDests = new Set<string>()
+
+	importance = 0
+
+
+	constructor(public id: string, public tooltip: string, public name: string, public sources: BranchStatus[]) {
+	}
+
+	update(branch: BranchStatus, getId: (alias: string) => string) {
+		this.forcedDests = new Set([...this.forcedDests, ...branch.def.forceFlowTo.map(getId)])
+		this.defaultDests = new Set([...this.defaultDests, ...branch.def.defaultFlow.map(getId)])
+		this.blockAssetDests = new Set([...this.blockAssetDests, ...branch.def.blockAssetTargets.map(getId)])
+	}
 }
 
 type NodeInfo = {
@@ -54,68 +60,81 @@ function renderGraph(src: string): Promise<any> {
 function decoratedAlias(bot: string, alias: string) {
 	return bot + ':' + alias
 }
-/** */
+
+function aliasForBranch(branch: BranchStatus) {
+	return decoratedAlias(branch.bot, branch.def.upperName)
+}
+
+
+type Options = {
+	hideDisconnected?: boolean
+	noGroups?: boolean
+	showOnlyForced?: boolean
+	botsToShow?: string[]
+}
+
+function parseOptions(search: string): Options {
+	return {
+		showOnlyForced: !!search.match(/showOnlyForced/i),
+		noGroups: !!search.match(/noGroups/i),
+		hideDisconnected: !!search.match(/hideDisconnected/i)
+	}
+}
+
 class Graph {
 	readonly nodeLabels = new Map<string, Info[]>()
 	readonly links: Link[] = []
 
 	private readonly aliases = new Map<string, Info>()
-	private readonly branchesById = new Map<string, Branch>()
+	private readonly allInfos: Info[] = []
 
 	private readonly linkOutward = new Set<string>()
 	private readonly linkInward = new Set<string>()
 
-	private readonly nodeImportance = new Map<string, number>()
+	private readonly connectedNodes = new Set<string>()
 
 	private branchList: BranchStatus[] = []
 
 	constructor(
 		private allBranches: BranchStatus[],
-		private whitelist: string[] | null = null
+		private options: Options
 	) {
 
 	}
 
 	singleBot(botName: string) {
 		this.branchList = this.allBranches.filter(b => b.bot === botName)
-
-		// special case branches named Main
-		this.nodeImportance.set(this.getIdForBot(botName)('MAIN'), 10)
-
-		for (const branchStatus of this.branchList) {
-			this.addBranch(branchStatus)
-		}
-		this.createIds()
-
-		for (const branchStatus of this.branchList) {
-			const getId = this.getIdForBot(branchStatus.bot)
-			for (const flow of branchStatus.def.flowsTo) {
-				this.addEdge(branchStatus, getId(flow))
-			}
-		}
-
+		this.addNodesAndEdges(false)
 		return this.makeGraph(botName, botName + 'integration paths')
 	}
 
-	allBots(whitelist: string[] | null = null) {
-		this.branchList = whitelist
-			? this.allBranches.filter(b => whitelist.indexOf(b.bot) >= 0)
+	allBots() {
+		this.branchList = this.options.botsToShow
+			? this.allBranches.filter(b => this.options.botsToShow!.indexOf(b.bot) >= 0)
 			: this.allBranches
 
 		this.findSharedNodes()
-		for (const branchStatus of this.branchList) {
-			this.addBranch(branchStatus, branchStatus.bot)
-		}
-		this.createIds()
-
-		for (const branchStatus of this.branchList) {
-			const getId = this.getIdForBot(branchStatus.bot)
-			for (const flow of branchStatus.def.flowsTo) {
-				this.addEdge(branchStatus, getId(flow))
-			}
-		}
+		this.addNodesAndEdges(!this.options.noGroups)
 
 		return this.makeGraph('All bots', 'Flow including shared bots')
+	}
+
+	private addNodesAndEdges(grouped: boolean) {
+		for (const branchStatus of this.branchList) {
+			this.addBranch(branchStatus, grouped ? branchStatus.bot : null)
+		}
+
+		for (const info of this.allInfos) {
+			for (const sourceBranch of info.sources) {
+				info.update(sourceBranch, this.getIdForBot(sourceBranch.bot))
+			}
+		} 
+
+		for (const branchStatus of this.branchList) {
+			for (const flow of branchStatus.def.flowsTo) {
+				this.addEdge(branchStatus, flow)
+			}
+		}
 	}
 
 	private makeGraph(title: string, tooltip: string) {
@@ -134,8 +153,8 @@ class Graph {
 			nodeGroups.push([groupName, nodeInfo])
 
 			for (const info of v) {
-				const {id, tooltip, name} = info
-				let factor = (Math.min(this.nodeImportance.get(id) || 0, 10) - 1) / 9
+				const {id, tooltip, name, importance} = info
+				let factor = (Math.min(importance, 10) - 1) / 9
 				nodeInfo.push({
 					importance: factor,
 					marginX: (.2 * (1 - factor) + .4 * factor).toPrecision(1),
@@ -154,6 +173,9 @@ class Graph {
 			}
 
 			for (const info of nodeInfo) {
+				if (this.options.hideDisconnected && !this.connectedNodes.has(info.info.id)) {
+					continue
+				}
 				const attrs: [string, string][] = [
 					['label', `"${info.info.name}"`],
 					['tooltip', `"${info.info.tooltip}"`],
@@ -181,7 +203,7 @@ class Graph {
 		for (const link of this.links) {
 			// when there's forced/unforced pair, only the former is a constrait
 			// (this makes flow )
-			const combo = link.dst + link.src
+			const combo = link.dst + '->' + link.src
 
 			if (combo && this.linkOutward.has(combo) && this.linkInward.has(combo)) {
 				link.styles.push(['constraint', 'false'])
@@ -204,12 +226,19 @@ class Graph {
 		if (branch.aliases && branch.aliases.length !== 0) {
 			tooltip += ` (${branch.aliases.join(', ')})`
 		}
-		const info: Info = {
-			id: `_${branchStatus.bot}_${branch.upperName.replace(/[^\w]+/g, '_')}`,
-			tooltip, name: branch.name
-		}
+		const info = new Info(
+			`_${branchStatus.bot}_${branch.upperName.replace(/[^\w]+/g, '_')}`,
+			tooltip, branch.name,
+			[branchStatus]
+		)
+		this.allInfos.push(info)
 		if (branch.config.graphNodeColor) {
 			info.graphNodeColor = branch.config.graphNodeColor
+		}
+
+		if (branch.upperName === 'MAIN') {
+			// special case branches named Main
+			info.importance = 10
 		}
 
 		// note: branch.upperName is always in branch.aliases
@@ -221,28 +250,37 @@ class Graph {
 
 	// dstName 
 	private addEdge(srcBranchStatus: BranchStatus, dst: string) {
-		const src = this.getIdForBranch(srcBranchStatus)
-		const branch = this.branchesById.get(src)!
+		const src = aliasForBranch(srcBranchStatus)
+		const srcInfo = this.aliases.get(src)!
 
-		this.nodeImportance.set(src, (this.nodeImportance.get(src) || 0) + 1)
-		this.nodeImportance.set(dst, (this.nodeImportance.get(dst) || 0) + 1)
+		const dstInfo = this.aliases.get(decoratedAlias(srcBranchStatus.bot, dst))!
 
-		const isForced = branch.forcedDests.has(dst)
+		++srcInfo.importance
+		++dstInfo.importance
+
+		const isForced = srcInfo.forcedDests.has(dstInfo.id)
+		if (!isForced && this.options.showOnlyForced) {
+			return
+		}
+
+		this.connectedNodes.add(srcInfo.id)
+		this.connectedNodes.add(dstInfo.id)
+
 		const edgeStyle =
 			srcBranchStatus.def.convertIntegratesToEdits ?	'roboshelf' :
 			isForced ?										'forced' :
-			branch.defaultDests.has(dst) ?					'defaultFlow' :
-			branch.blockAssetDests.has(dst) ?				'blockAssets' : 'onRequest'
+			srcInfo.defaultDests.has(dstInfo.id) ?			'defaultFlow' :
+			srcInfo.blockAssetDests.has(dstInfo.id) ?		'blockAssets' : 'onRequest'
 
 		const styles = [...EDGE_STYLES[edgeStyle]]
 
-		const link: Link = {src, dst, styles}
+		const link: Link = {src: srcInfo.id, dst: dstInfo.id, styles}
 		this.links.push(link)
 		if (isForced) {
-			this.linkOutward.add(src + dst)
+			this.linkOutward.add(link.src + '->' + link.dst)
 		}
 		else if (edgeStyle === 'blockAssets' || edgeStyle === 'onRequest') {
-			this.linkInward.add(dst + src)
+			this.linkInward.add(link.dst + '->' + link.src)
 		}
 	}
 
@@ -261,15 +299,13 @@ class Graph {
 		for (const [k, v] of streamMap) {
 			const [color, streams] = v
 			if (streams.length > 1) {
-				const info: Info = {
-					id: k.replace(/[^\w]+/g, '_'), tooltip: 'tooltip todo', name: k
-				}
+				const info = new Info(k.replace(/[^\w]+/g, '_'), streams.map(s => s.bot).join(', '), k, streams)
+				this.allInfos.push(info)
 				if (color) {
 					info.graphNodeColor = color
 				}
 
 				for (const branchStatus of streams) {
-
 					for (const alias of branchStatus.def.aliases) {
 						this.aliases.set(decoratedAlias(branchStatus.bot, alias), info)
 					}
@@ -280,25 +316,6 @@ class Graph {
 		}
 	}
 
-	private createIds() {
-		for (const branchStatus of this.branchList) {
-			const branch = branchStatus.def
-			const getId = this.getIdForBot(branchStatus.bot)
-			const branchId = getId(branch.upperName)
-			this.branchesById.set(branchId, {
-				id: branchId,
-				forcedDests: new Set<string>(branch.forceFlowTo.map(getId)),
-				defaultDests: new Set<string>(branch.defaultFlow.map(getId)),
-				blockAssetDests: new Set<string>(branch.blockAssetTargets ? branch.blockAssetTargets.map(getId) : [])
-			})
-		}
-	}
-
-	private getIdForBranch(branch: BranchStatus) {
-		// note: branch.upperName is always in branch.aliases
-		return this.getIdForBot(branch.bot)(branch.def.upperName)
-	}
-
 	private getIdForBot(bot: string) {
 		return (alias: string) => {
 			const info = this.aliases.get(decoratedAlias(bot, alias))
@@ -307,24 +324,28 @@ class Graph {
 	}
 }
 
-function makeGraph(data: BranchStatus[], botNameParam: string | string[]) {
+type Args = ({ botNames: string[] } | { singleBotName: string }) & Options
 
-	let whitelist: string[] | null = null
-	let botName: string | null
+function makeGraph(data: BranchStatus[], args: Args) {
 
-	const graph = new Graph(data)
-	if (Array.isArray(botNameParam)) {
-		botName = null
-		if (botNameParam.length > 0) {
-			return graph.allBots(botNameParam.map(s => s.toUpperCase()))
-		}
-		return graph.allBots()
+	let botsToShow: string[] | null = null
+
+	const options: Options = args
+
+	const singleBotName = (args as { singleBotName: string }).singleBotName
+	if (singleBotName) {
+		return (new Graph(data, options)).singleBot(singleBotName)
 	}
-	return graph.singleBot(botNameParam.toUpperCase())
+
+	const botNames = (args as { botNames: string[] }).botNames
+	if (botNames.length > 0) {
+		options.botsToShow = botNames.map(s => s.toUpperCase())
+	}
+	return (new Graph(data, options)).allBots()
 }
 
-export function showFlowGraph(data: BranchStatus[], botNameParam: string | string[]) {
-	const lines = makeGraph(data, botNameParam)
+function showFlowGraph(data: BranchStatus[], args: Args) {
+	const lines = makeGraph(data, args)
 
 	const graphContainer = $('<div class="clearfix">')
 	const flowGraph = $('<div class="flow-graph" style="display:inline-block;">').appendTo(graphContainer)

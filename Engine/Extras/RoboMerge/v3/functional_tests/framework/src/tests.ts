@@ -10,11 +10,12 @@ import { ConfirmTextResolve } from './tests/confirm-text-resolve'
 import { ConfirmTextResolveBinaryStomp } from './tests/confirm-text-resolve-binary-stomp'
 import { CrossDepotStreamIntegration } from './tests/cross-depot-stream-integration'
 import { EdgeIndependence } from './tests/edge-independence'
-import { EdigrateMainRevToRelease } from './tests/edigrate-main-rev-to-release'
 import { ExclusiveCheckout } from './tests/exclusive-checkout'
 import { ExcludeAuthors } from './tests/exclude-authors'
 import { ExcludeAuthorsPerEdge } from './tests/exclude-authors-per-edge'
 import { ForwardCommands, ForwardCommands2 } from './tests/forward-commands'
+import { Ignore } from './tests/ignore'
+import { ImplicitCommands } from './tests/implicit-commands'
 import { IncognitoEdge } from './tests/incognito-edge'
 import { IncognitoTest } from './tests/incognito-test'
 import { IndirectTarget } from './tests/indirect-target'
@@ -30,6 +31,7 @@ import { RequestShelfIndirectTarget } from './tests/request-shelf-indirect-targe
 import { ResolveAfterSkip } from './tests/resolve-after-skip'
 import { RespectStreamPath } from './tests/respect-stream-path'
 import { SyntaxErrorOnUnknownBranch } from './tests/syntax-error-on-unknown-branch'
+import { StompForwardingCommands } from './tests/stomp-forwarding-commands'
 import { StompWithAdd } from './tests/stomp-with-add'
 import { TestChain } from './tests/test-chain'
 import { TestEdgeGate } from './tests/test-edge-gate'
@@ -145,10 +147,10 @@ async function go() {
 		new CrossDepotStreamIntegration(p4),
 		new EdgeIndependence(p4), // 5
 
-		new EdigrateMainRevToRelease(p4),
 		new ExclusiveCheckout(p4),
 		new IncognitoTest(p4),
 		new IndirectTarget(p4),
+		new ImplicitCommands(p4),
 		new MergeMainRevToMultipleRelease(p4), // 10
 
 		new MergeMainRevToRelease(p4),
@@ -191,7 +193,9 @@ async function go() {
 		new TestTerminal(p4),
 		new BlockIgnore(p4), // 40
 
-		new StompWithAdd(p4)
+		new StompWithAdd(p4),
+		new Ignore(p4),
+		new StompForwardingCommands(p4)
 	]
 
 	// const testToDebug = availableTests[30]
@@ -234,9 +238,7 @@ async function go() {
 	await Promise.all(tests.map(test => test.run()))
 
 	// wait for all tests after running, in case tests caused activity in other test streams (cross-bot, I'm looking at you)
-	for (const test of tests) {
-		await test.waitForRobomergeIdle()
-	}
+	await Promise.all(tests.map(test => test.waitForRobomergeIdle()))
 
 	console.log('Verifying tests')
 	let error: Error | null = null

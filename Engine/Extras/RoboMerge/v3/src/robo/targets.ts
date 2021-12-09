@@ -65,6 +65,16 @@ const NEUTER_COMMANDS = [
 	"REVIEW",
 ]
 
+const ROBO_TAGS = [
+	'ROBOMERGE-AUTHOR',
+	'ROBOMERGE-BOT',
+	'ROBOMERGE-COMMAND',
+	'ROBOMERGE-CONFLICT',
+	'ROBOMERGE-EDIGRATE',
+	'ROBOMERGE-OWNER',
+	'ROBOMERGE-SOURCE',
+]
+
 type ChangeFlag = 'review' | 'manual' | 'null' | 'ignore' | 'disregardexcludedauthors'
 
 // mapping of #ROBOMERGE: flags to canonical names
@@ -99,6 +109,60 @@ function parseTargetList(targetString: string) {
 	return targetString.split(/[ ,]/).filter(Boolean)
 }
 
+
+type Token_Command = {
+	bot: string
+	param: string
+}
+
+type Token_Other = {
+	initialWhitespace: string
+	tag: string
+	rest: string
+
+	isRobo: boolean
+}
+
+// don't think this supports bare robomerge command with no args to disable
+//   default flow
+
+// result is whether we found and ignored a bare robomerge command
+function tokenizeLine(line: string): Token_Command[] | Token_Other | null {
+
+	// trim end - keep any initial whitespace
+	const comp = line.replace(/\s+$/, '')
+
+	// check for control hashes
+	const match = comp.match(/^(\s*)#([-\w[\]]+)[:\s]*(.*)$/)
+	if (!match) {
+		return null
+	}
+
+	const initialWhitespace = match[1] 
+	const tag = match[2].toUpperCase()
+	const rest = match[3].trim()
+
+	// check for any non-robomerge # tags we care about
+	if (initialWhitespace || !tag.startsWith('ROBOMERGE')) {
+		return {initialWhitespace, tag, rest, isRobo: false}
+	}
+
+	const bareCommand = tag === 'ROBOMERGE'
+	let botName = ''
+	if (!bareCommand)
+	{
+		const specificBotMatch = tag.match(/ROBOMERGE\[([-_a-z0-9]+)\]/i)
+		if (specificBotMatch) {
+			botName = specificBotMatch[1].toUpperCase()
+		}
+	}
+	if (!bareCommand && !botName) {
+		return {initialWhitespace, tag, rest, isRobo: true}
+	}
+
+	return parseTargetList(rest).map(param => ({bot: botName, param}))
+}
+
 export class DescriptionParser {
 	source = ''
 	owner: string | null = null
@@ -114,10 +178,9 @@ export class DescriptionParser {
 
 	// per target bot arguments
 	arguments: string[] = []
-	otherBotArguments: [string, string][] = []
+	otherBotArguments: Token_Command[] = []
 
 	expandedMacros: string[] = []
-	expandedMacroLines: string[] = []
 
 	errors: string[] = []
 
@@ -142,157 +205,136 @@ export class DescriptionParser {
 		this.errors = other.errors
 	}
 
-	parseLine(line: string) {
-
-		// trim end - keep any initial whitespace
-		const comp = line.replace(/\s+$/, '')
-
-		// check for control hashes
-		const match = comp.match(/^(\s*)#([-\w[\]]+)[:\s]*(.*)$/)
-		if (!match) {
-			// strip beginning blanks
-			if (this.descFinal.length > 0 || comp !== '') {
-				if (comp.indexOf('[NULL MERGE]') !== -1) {
-					this.propagatingNullMerge = true
+	private processNonRoboToken(token: Token_Other) {
+		if (token.isRobo) {
+			if (ROBO_TAGS.indexOf(token.tag) >= 0) {
+				if (token.tag === 'ROBOMERGE-AUTHOR') {
+					// tag intended to be purely for propagating
+					this.authorTag = token.rest
 				}
-				this.descFinal.push(line)
-			}
-			return
-		}
-
-		const ws = match[1] 
-		const command = match[2].toUpperCase()
-		const value = match[3].trim()
-
-		// #robomerge tags are required to be at the start of the line
-		if (ws && command === 'ROBOMERGE' && value.match(/\bnone\b/i)) {
-			// completely skip #robomerge nones that might come in from GraphBot branch integrations, so we don't
-			// get impaled on our own commit hook
-			return
-		}
-
-		// check for any non-robomerge # tags we care about
-		if (ws || !command.startsWith('ROBOMERGE')) {
-			// check for commands to neuter
-			if (NEUTER_COMMANDS.indexOf(command) >= 0) {
-				// neuter codereviews so they don't spam out again
-				this.descFinal.push(`${ws}[${command}] ${value}`)
-			}
-			
-			else if (command.indexOf('REVIEW-') === 0) {
-				// remove swarm review numbers entirely (they can't be neutered and generate emails)
-				if (value !== '') {
-					this.descFinal.push(value)
+				else if (token.tag === 'ROBOMERGE-OWNER') {
+					this.owner = token.rest.toLowerCase()
 				}
-			}
-			else if (command === 'OKFORGITHUB') {
-				this.hasOkForGithubTag = true
-				this.descFinal.push(line)
+				else if (token.tag === 'ROBOMERGE-SOURCE') {
+					this.source = `${token.rest} via CL ${this.cl}`
 				}
-			else {
-
-				// default behavior is to keep any hashes we don't recognize
-				this.descFinal.push(line)
-			}
-			return
-		}
-
-		// Handle commands
-		if (command === 'ROBOMERGE') {
-
-			// ignore bare ROBOMERGE tags if we're not the default bot (should not affect default flow)
-			if (this.isDefaultBot) {
-				this.useDefaultFlow = false
-				this.processTargetList(value)
-			}
-			return
-		}
-		
-		// Look for a specified bot and other defined tags
-		const specificBotMatch = command.match(/ROBOMERGE\[([-_a-z0-9]+)\]/i)
-
-		if (specificBotMatch) {
-			const specificBot = specificBotMatch[1].toUpperCase()
-			if (specificBot === this.graphBotName ||
-				specificBot === this.aliasUpper ||
-				specificBot === 'ALL') {
-				this.useDefaultFlow = false
-
-// @todo 'ALL' with targets should be an error (but don't know at this point ...)
-				this.processTargetList(value)
+				else if (token.tag === 'ROBOMERGE-BOT') {
+					// if matches description written in _mergeCl
+					if (token.rest.startsWith(this.graphBotName + ' (')) {
+						this.useDefaultFlow = false
+					}
+				}
 			}
 			else {
-				// keep a record of commands to forward to other bots - processed later
-				this.otherBotArguments = [
-					...this.otherBotArguments,
-					...(parseTargetList(value).map(arg => [specificBot, arg]) as [string, string][])
-				]
+				// add syntax error for unknown command
+				this.errors.push(`Unknown command '${token.tag}`)
 			}
+			return false
 		}
-		else if (command === 'ROBOMERGE-AUTHOR') {
-			// tag intended to be purely for propagating
-			// currently using it to set owner if not already set
-			this.authorTag = value
+
+		// check for commands to neuter
+		if (NEUTER_COMMANDS.indexOf(token.tag) >= 0) {
+			// neuter codereviews so they don't spam out again
+			this.descFinal.push(`${token.initialWhitespace}[${token.tag}] ${token.rest}`)
+			return false
 		}
-		else if (command === 'ROBOMERGE-OWNER') {
-			this.owner = value.toLowerCase()
-		}
-		else if (command === 'ROBOMERGE-SOURCE') {
-			this.source = `${value} via CL ${this.cl}`
-		}
-		else if (command === 'ROBOMERGE-BOT') {
-			// if matches description written in _mergeCl
-			if (value.startsWith(this.graphBotName + ' (')) {
-				this.useDefaultFlow = false
+		if (token.tag.match(/REVIEW-(\d+)/)) {
+							// remove swarm review numbers entirely (they can't be neutered and generate emails)
+			if (token.rest) {
+				this.descFinal.push(token.rest)
 			}
+			return false
 		}
-		else if (command !== 'ROBOMERGE-EDIGRATE' &&
-				 command !== 'ROBOMERGE-COMMAND' && 
-				 command !== 'ROBOMERGE-CONFLICT') {
-			// add syntax error for unknown command
-			this.errors.push(`Unknown command '${command}`)
+
+		if (token.tag === 'OKFORGITHUB') {
+			this.hasOkForGithubTag = true
 		}
+		return true
 	}
 
-	private processTargetList(targetString: string) {
-		const targetNames = parseTargetList(targetString)
-
-		for (const name of targetNames) {
-			const macroLines = this.macros[name.toLowerCase()]
-			if (macroLines) {
-				this.expandedMacros.push(name)
-				this.expandedMacroLines = [...this.expandedMacroLines, ...macroLines]
+	parse(lines: string[]) {
+		for (const line of lines) {
+			const result = tokenizeLine(line)
+			if (!result) {
+				// strip beginning blanks
+				if (this.descFinal.length > 0 || line.trim()) {
+					if (line.indexOf('[NULL MERGE]') !== -1) {
+						this.propagatingNullMerge = true
+					}
+					this.descFinal.push(line)
+				}
+				continue
 			}
-			else {
-				this.arguments.push(name)
+
+			const otherResult = result as Token_Other
+			if (otherResult.tag) {
+				if (this.processNonRoboToken(otherResult)) {
+					// default behavior is to keep any hashes we don't recognize
+					this.descFinal.push(line)
+				}
+				continue
+			}
+
+			const thisBotNames = ['', this.graphBotName, this.aliasUpper, 'ALL']
+			const commands: Token_Command[] = []
+			for (const tokenCommand of (result as Token_Command[])) {
+				const macroLines = this.macros[tokenCommand.param.toLowerCase()]
+				if (macroLines) {
+
+					// @todo: expand macros when loading config (with limited validation for preview),
+					// can be recursive
+					// for now, run parse line
+					for (const macro of macroLines) {
+						const macroResult = tokenizeLine(macro) as Token_Command[]
+						for (const expanded of macroResult) {
+							if (expanded.bot === undefined) {
+								this.errors.push(`Invalid macro '${tokenCommand.param}'`)
+								return
+							}
+							commands.push(expanded)
+						}
+					}
+					this.expandedMacros.push(tokenCommand.param)
+				}
+				else {
+					commands.push(tokenCommand)
+				}
+			}
+
+			for (const command of commands) {
+				if (thisBotNames.indexOf(command.bot) < 0) {
+					// other bot
+					this.otherBotArguments.push(command)
+					continue
+				}
+
+				// ignore bare ROBOMERGE tags if we're not the default bot (should not affect default flow)
+				if (!command.bot) {
+					if (this.isDefaultBot) {
+						this.useDefaultFlow = false
+					}
+					else {
+						continue
+					}
+				}
+				this.arguments.push(command.param)
 			}
 		}
 	}
 }
 
-export function parseDescriptionLines(
-	lines: string[],
-	isDefaultBot: boolean, 
-	graphBotName: string, 
-	cl: number, 
-	aliasUpper: string,
-	macros: {[name: string]: string[]},
-	logger: ContextualLogger
-	) {
-	const lineParser = new DescriptionParser(isDefaultBot, graphBotName, cl, aliasUpper, macros)
-	let safety = 5
-	while (lines.length > 0) {
-		for (const line of lines) {
-			lineParser.parseLine(line)
-		}
-		lines = lineParser.expandedMacroLines
-		lineParser.expandedMacroLines = []
-
-		if (--safety === 0) {
-			logger.warn('Got stuck in a loop expanding macros in CL#' + cl)
-			break
-		}
+export function parseDescriptionLines(args: {
+		lines: string[],
+		isDefaultBot: boolean, 
+		graphBotName: string, 
+		cl: number, 
+		aliasUpper: string,
+		macros: {[name: string]: string[]},
+		logger: ContextualLogger
 	}
+	) {
+	const lineParser = new DescriptionParser(args.isDefaultBot, args.graphBotName, args.cl, args.aliasUpper, args.macros)
+	lineParser.parse(args.lines)
 	return lineParser
 }
 
@@ -323,7 +365,7 @@ export function processOtherBotTargets(
 	parsedLines: DescriptionParser,
 	sourceBranch: Branch,
 	ubergraph: GraphAPI,
-	actions: MergeAction[],
+	actions: Readonly<Readonly<MergeAction>[]>,
 	errors: string[]
 	) {
 
@@ -356,15 +398,16 @@ export function processOtherBotTargets(
 	// calculate skip set first time we need it
 	let skipNodes: Node[] | null = null
 
-	for (const [bot, arg] of parsedLines.otherBotArguments) {
-		const targetBranchGraph = ubergraph.getBranchGraph(bot.toUpperCase() as BotName)
+	for (const token of parsedLines.otherBotArguments) {
+		const targetBranchGraph = ubergraph.getBranchGraph(token.bot.toUpperCase() as BotName)
 		if (!targetBranchGraph) {
-			errors.push(`Bot '${bot}' not found in ubergraph`)
+			errors.push(`Bot '${token.bot}' not found in ubergraph`)
 			continue
 		}
 
 		const targetBotName = targetBranchGraph.botname as BotName
 
+		const arg = token.param
 		if (isFlag(arg)) {
 			// no further checking for flags
 			botInfo(targetBranchGraph).commands.push(arg)
@@ -376,7 +419,7 @@ export function processOtherBotTargets(
 		if (!branch) {
 			if (!targetBranchGraph.config.macros[target.toLowerCase()] &&
 				targetBranchGraph.config.branchNamesToIgnore.indexOf(target.toUpperCase()) < 0) {
-				errors.push(`Branch '${target}' not found in ${bot}`)
+				errors.push(`Branch '${target}' not found in ${token.bot}`)
 			}
 			continue
 		}
@@ -464,15 +507,7 @@ class RequestedIntegrations {
 	readonly flags = new Set<ChangeFlag>()
 	integrations: [string, MergeMode][] = []
 
-	parse(commandArguments: string[], cl: number, forceStomp: boolean, logger: ContextualLogger) {
-		// If forceStompChanges, add the target as a stomp if it isn't a flagged target
-		if (forceStomp) {
-			this.integrations = commandArguments
-				.filter(arg => '!-$#'.indexOf(arg[0]) < 0)
-				.map(arg => [arg, 'clobber'])
-			return
-		}
-
+	parse(commandArguments: Readonly<string[]>, cl: number, logger: ContextualLogger) {
 		for (const arg of commandArguments) {
 			const argLower = arg.toLowerCase()
 
@@ -526,26 +561,19 @@ type ComputeTargetsResult =
 	, errors: string[] 
 	}
 
-// public so it can be called from unit tests
-export function computeTargetsImpl(
+function computeTargetsImpl(
 	sourceBranch: Branch, 
 	ubergraph: GraphAPI,
 	cl: number,
-	forceStomp: boolean,
-	allowIgnore: boolean,
-	commandArguments: string[],
-	defaultTargets: string[], 
+	commandArguments: Readonly<string[]>,
+	defaultTargets: Readonly<string[]>, 
 	logger: ContextualLogger
 ): ComputeTargetsResult {
 
 	// list of branch names and merge mode (default targets first, so merge mode gets overwritten if added explicitly)
 
 	const ri = new RequestedIntegrations
-	ri.parse(commandArguments, cl, forceStomp, logger)
-
-	if (ri.flags.has('ignore')) {
-		return { computeResult: null, errors: allowIgnore ? [] : ['deadend (ignore) disabled for this stream'] }
-	}
+	ri.parse(commandArguments, cl, logger)
 
 	if (ri.flags.has('null')) {
 		for (const branchName of sourceBranch.forceFlowTo) {
@@ -553,11 +581,9 @@ export function computeTargetsImpl(
 		}
 	}
 
-	const defaultMergeMode: MergeMode = forceStomp ? 'clobber' : 'normal'
-
 	const branchGraph = sourceBranch.parent
 	const requestedMerges = [
-		...defaultTargets.map(name => [name, defaultMergeMode] as [string, MergeMode]),
+		...defaultTargets.map(name => [name, 'normal'] as [string, MergeMode]),
 		...ri.integrations.filter(([name, _]) => branchGraph.config.branchNamesToIgnore.indexOf(name.toUpperCase()) < 0)
 	]
 
@@ -649,34 +675,30 @@ export function computeTargetsImpl(
 
 
 export function computeTargets(
-	sourceBranch: Branch,
+	sourceBranch: Readonly<Branch>,
 	ubergraph: GraphAPI,
 	cl: number,
 	info: TargetInfo,
-	commandArguments: string[],
-	defaultTargets: string[],
+	commandArguments: Readonly<string[]>,
+	defaultTargets: Readonly<string[]>,
 	logger: ContextualLogger,
-	allowIgnore: boolean,
-
 	optTargetBranch?: Branch | null
-) {
-
-
-	const { computeResult, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, info.forceStompChanges, allowIgnore, commandArguments, defaultTargets, logger)
+) : [MergeAction[], Set<ChangeFlag>] | null {
+	const { computeResult, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, commandArguments, defaultTargets, logger)
 
 	if (errors.length > 0) {
 		info.errors = errors
-		return
+		return null
 	}
 
 	if (!computeResult) {
-		return
+		return null
 	}
 
 	let { merges, flags, targets } = computeResult
 	if (!merges) {
 		// shouldn't get here - there will have been errors
-		return
+		return null
 	}
 
 	// Now that all targets from original changelist description are computed, compare to requested target branch, if applicable
@@ -700,7 +722,7 @@ export function computeTargets(
 	}
 
 	// compute final merge modes of all targets
-	const mergeActions: MergeAction[] = []
+	let mergeActions: MergeAction[] = []
 	const allDownstream = new Set<Branch>()
 
 	for (const [direct, indirectTargets] of merges.entries()) {
@@ -719,6 +741,13 @@ export function computeTargets(
 		mergeActions.push({branch: direct, mergeMode, furtherMerges, flags})
 	}
 
+	// If forceStompChanges, add the target as a stomp if it isn't a flagged target
+	if (info.forceStompChanges) {
+		mergeActions = mergeActions
+			.filter(action => action.mergeMode === 'normal')
+			.map(action => ({...action, mergeMode: 'clobber'}))
+	}
+
 	const branchGraph = sourceBranch.parent
 
 	// add indirect forced branches to allDownstream
@@ -731,13 +760,134 @@ export function computeTargets(
 		info.errors = errors
 	}
 
-	// report targets
-	if (mergeActions.length > 0) {
-		info.targets = mergeActions
-	}
-
 	// provide info on all targets that should eventually be merged too
 	if (allDownstream && allDownstream.size !== 0) {
 		info.allDownstream = [...allDownstream]
 	}
+
+	return [mergeActions, flags]
+}
+
+const colors = require('colors')
+colors.enable()
+colors.setTheme(require('colors/themes/generic-logging.js'))
+
+export function runTests(parentLogger: ContextualLogger) {
+	const logger = parentLogger.createChild('Targets')
+
+	const defaultArgs = {
+		isDefaultBot: true,
+		graphBotName: 'test',
+		cl: 1,
+		aliasUpper: '',
+		macros: {'m': ['#robomerge X, Y'], 'otherbot': ['#robomerge[A] B']},
+		logger
+	}
+
+	let fails = 0
+	let assertions = 0
+	let testName = ''
+	const assert = (b: boolean, msg: string, details: string[] = []) => {
+		if (!b) {
+			logger.error(`"${testName}" failed: ${colors.error(msg)}` + 
+				(details || []).map(s => `\t${s}\n`).join(''))
+			++fails
+		}
+		++assertions
+	}
+
+	const parserAssert = (parser: DescriptionParser,
+							descLines: number, commands: number, otherBot: number, macros: number, errors: number,
+							additional: boolean) => {
+		assert(
+			parser.descFinal.length === descLines &&
+			parser.arguments.length === commands &&
+			parser.otherBotArguments.length === otherBot &&
+			parser.expandedMacros.length === macros &&
+			parser.errors.length === errors &&
+			additional, 'Counts mismatch:', [
+				`descLines: got ${parser.descFinal.length}, expected ${descLines}`,
+				`commands: got ${parser.arguments.length}, expected ${commands}`,
+				`otherBot: got ${parser.otherBotArguments.length}, expected ${otherBot}`,
+				`macros: got ${parser.expandedMacros.length}, expected ${macros}`,
+				`errors: got ${parser.errors.length}, expected ${errors}`
+			]
+		)
+	}
+
+	(() => {
+		testName = 'no commands'
+		const parser = parseDescriptionLines({lines: ['no command'], ...defaultArgs})
+		parserAssert(parser, 1, 0, 0, 0, 0, parser.descFinal[0] === 'no command')
+	})();
+
+	(() => {
+		testName = 'multiple targets'
+		const parser = parseDescriptionLines({lines: ['#robomerge A', '#robomerge B'], ...defaultArgs})
+		parserAssert(parser, 0, 2, 0, 0, 0, true)
+	})();
+
+	(() => {
+		testName = 'comma separated targets'
+		const parser = parseDescriptionLines({lines: ['#robomerge A, B'], ...defaultArgs})
+		parserAssert(parser, 0, 2, 0, 0, 0, true)
+	})();
+
+	(() => {
+		testName = 'space separated targets'
+		const parser = parseDescriptionLines({lines: ['#robomerge A B'], ...defaultArgs})
+		parserAssert(parser, 0, 2, 0, 0, 0, true)
+	})();
+
+	(() => {
+		testName = 'macro'
+		const parser = parseDescriptionLines({lines: ['#robomerge M'], ...defaultArgs})
+		parserAssert(parser, 0, 2, 0, 1, 0, true)
+	})();
+
+	(() => {
+		testName = 'other bot'
+		const parser = parseDescriptionLines({lines: ['#robomerge[B] A'], ...defaultArgs})
+		parserAssert(parser, 0, 0, 1, 0, 0, true)
+	})();
+
+	(() => {
+		testName = 'all bots'
+		const parser = parseDescriptionLines({lines: ['#robomerge[ALL] A'], ...defaultArgs})
+		parserAssert(parser, 0, 1, 0, 0, 0, true)
+	})();
+
+	(() => {
+		testName = 'other bot macro'
+		const parser = parseDescriptionLines({lines: ['#robomerge otherbot'], ...defaultArgs})
+		parserAssert(parser, 0, 0, 1, 1, 0, true)
+	})();
+
+	(() => {
+		testName = 'unknown tag'
+		const parser = parseDescriptionLines({lines: ['#unknown blah'], ...defaultArgs})
+		parserAssert(parser, 1, 0, 0, 0, 0, parser.descFinal[0] === '#unknown blah')
+	})();
+
+	(() => {
+		testName = 'sanitize known tag'
+		const parser = parseDescriptionLines({lines: ['#fyi blah'], ...defaultArgs})
+		assert(parser.descFinal.length === 1 &&
+			parser.descFinal[0].indexOf('#') < 0 && parser.descFinal[0].toLowerCase().indexOf('fyi') >= 0,
+			'known tag sanitized')
+	})();
+
+	(() => {
+		testName = 'sanitize swarm tag'
+		const parser = parseDescriptionLines({lines: ['#review-123 blah'], ...defaultArgs})
+		assert(parser.descFinal.length === 1 &&
+			parser.descFinal[0].indexOf('#') < 0 && parser.descFinal[0].toLowerCase().indexOf('blah') >= 0,
+			'swarm tag sanitized')
+	})();
+
+	if (fails === 0) {
+		logger.info(colors.info(`Targets tests succeeded (${assertions} assertions)`))
+	}
+
+	return fails
 }

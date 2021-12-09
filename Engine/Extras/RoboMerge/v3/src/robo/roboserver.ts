@@ -172,6 +172,12 @@ class RoboWebApp implements AppInterface {
 		return this.preview(clStr)
 	}
 
+	@Handler('GET', '/preview.html', {filetype: 'text/html'}) 
+	previewNoBotHtml() {
+		const clStr = this.request.url.searchParams.get('cl')
+		return clStr ? this.preview(clStr) : {statusCode: 400, message: "Query argument cl required"}
+	}
+
 	@Handler('GET', '/preview/*/*', {filetype: 'text/html'}) 
 	async preview(clStr: string, singleBot?: string) {
 
@@ -454,7 +460,7 @@ class RoboWebApp implements AppInterface {
 		return (await this.sendMessage('getp4tasks')).data || []
 	}
 
-	@SecureHandler('GET', '/api/crashserver', {requiredTags: ['admin']})
+	@SecureHandler('POST', '/api/crashserver', {requiredTags: ['admin']})
 	async crashServer() {
 		if (!this.authData) {
 			throw new Error('Secure call but no auth data?')
@@ -466,7 +472,7 @@ class RoboWebApp implements AppInterface {
 		throw new Error(msg)
 	}
 
-	@SecureHandler('GET', '/api/crashapi', {requiredTags: ['admin']})
+	@SecureHandler('POST', '/api/crashapi', {requiredTags: ['admin']})
 	async crashAPI() {
 		if (!this.authData) {
 			throw new Error('Secure call but no auth data?')
@@ -476,7 +482,7 @@ class RoboWebApp implements AppInterface {
 		return this.sendMessage('crashAPI', [this.authData.user])
 	}
 
-	@SecureHandler('GET', '/api/bot/*/crashgraphBot', {requiredTags: ['admin']})
+	@SecureHandler('POST', '/api/bot/*/crashgraphBot', {requiredTags: ['admin']})
 	async crashGraphBot(botname: string) {
 		if (!this.authData) {
 			throw new Error('Secure call but no auth data?')

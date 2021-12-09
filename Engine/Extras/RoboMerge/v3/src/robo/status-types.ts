@@ -1,4 +1,20 @@
-import { NodeOptions } from './branchdefs';
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+type ReconsiderArgs = {
+	additionalFlags: string[]
+	workspace: string
+	targetBranchName: string
+	description: string
+	commandOverride: string
+}
+
+type QueuedChange = Partial<ReconsiderArgs> & {
+	cl: number
+	who: string
+	timestamp: number 
+}
+
+
 
 export type FailureKind =
 	'Integration error' |
@@ -107,6 +123,8 @@ export type NodeStatusFields = BotStatusFields & {
 
 	conflicts: ConflictStatusFields[]
 	edges: { [key: string]: EdgeStatusFields }
+
+	tick_count: number
 }
 
 // only includes stuff directly used by web code
@@ -125,7 +143,7 @@ export type BranchDefForStatus = {
 	aliases: any
 	blockAssetTargets: string[]
 	bot: string
-	config: NodeOptions
+	config: any //NodeOptions
 	convertIntegratesToEdits: boolean
 	defaultFlow: string[]
 	flowsTo: string[]
@@ -168,29 +186,4 @@ export type UserStatusData = {
 	branches: BranchStatus[]
 	botStates: [string, GraphBotState][]
 	insufficientPrivelege?: boolean
-}
-
-
-// queued change vs reconsider:
-
-//  reconsider is the name of user facing 'queue change' operation, but also the top level call to add to the queue,
-//  used by stomp etc.
-
-// slightly sneaky that since NodeBot.reconsider's additional args are optional, it fulfils both of these, i.e.
-// implements the base bot reconsider function, and it also the 'queue change' function.
-
-// ReconsiderArgs are the additional args used by stomp etc. I'm adding commandOverride to them, even thoguh that's a
-// slightly different pattern (unless it breaks something)
-
-export type ReconsiderArgs = {
-	additionalFlags: string[]
-	workspace: string
-	targetBranchName: string
-	description: string
-	commandOverride: string
-}
-
-export type QueuedChange = Partial<ReconsiderArgs> & {
-	cl: number
-	who: string
 }

@@ -935,7 +935,14 @@ function renderNameCell_Common(data, botname) {
 		})
 	}
 
-	if (!data.is_available) {
+	if (data.is_available) {
+		if (data.windowBypass) {
+			$('<div>').addClass('status-msg warning')
+				.appendTo(topInternalDiv)
+				.text('Bypassing window!');
+		}
+	}
+	else {
 		const unpauseTime = data.blockage && data.blockage.endsAt ? new Date(data.blockage.endsAt) : 'never';
 		let msg = '';
 
@@ -952,15 +959,6 @@ function renderNameCell_Common(data, botname) {
 
 		if (data.is_paused || data.is_blocked) {
 			msg += `Will unpause and retry on: ${unpauseTime}.<br />`;
-		}
-		else if (data.gateClosedMessage) {
-			msg = data.gateClosedMessage
-			if (data.nextWindowOpenTime) {
-				const timestamp = Date.parse(data.nextWindowOpenTime)
-				if (!isNaN(timestamp)) {
-					msg += ` (opens: ${(new Date(timestamp)).toLocaleString()})`
-				}
-			}
 		}
 
 		if (msg) {
@@ -1133,7 +1131,7 @@ function preRenderStatusCell_Node(nodeData) {
 }
 function preRenderStatusCell_Edge(nodeData, edgeData) {
 	// Create holder for the stylized status text
-	let statusCell = $('<div class="statuscell">')
+	let statusCell = $('<div>').addClass('statuscell')
 
 	if (edgeData.is_blocked) {
 		$('<div class="blockageinfo">')
@@ -1151,6 +1149,16 @@ function preRenderStatusCell_Edge(nodeData, edgeData) {
 				.addClass('important-status')
 				.css('color', 'ORANGE')
 				.prependTo(statusCell)
+		}
+		else if (edgeData.gateClosedMessage) {
+			let msg = edgeData.gateClosedMessage
+			if (edgeData.nextWindowOpenTime) {
+				const timestamp = Date.parse(edgeData.nextWindowOpenTime)
+				if (!isNaN(timestamp)) {
+					msg += ` (opens: ${(new Date(timestamp)).toLocaleString()})`
+				}
+			}
+			$('<div>').addClass('status-msg').text(msg).appendTo(statusCell)
 		}
 	}
 
@@ -1331,12 +1339,12 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 				'Take ownership of this blockage'
 			)
 		} 
-		// Unackowledge
+		// Unacknowledge
 		else if (robomergeUser && data.blockage.acknowledger === robomergeUser.userName) {
 			specificActionButton = createActionButton(
 				[$('<i class="fas fa-eject" style="color:red">'), '&nbsp;', "Unacknowledge"],
 				unackFunc,
-				'Relinguish control over this conflict'
+				'Back-pedal: someone else should fix this'
 			)
 		}
 		// Take ownership
@@ -1374,7 +1382,7 @@ function renderActionsCell_Common(actionCell, data, operationFunction, operation
 			}, `Retry merge of ${conflict.cl} and create a shelf in a specified P4 workspace`)
 			
 			// Stomp
-			const stompRequest = `/op/stomp?` + queryParams
+			const stompRequest = `/op/stomp?` + queryParams + location.hash
 			const stompOption = createActionOption('Stomp Changes using ' + conflict.cl + toTargetText, function() {
 				window.location.href = stompRequest;
 			}, `Use ${conflict.cl} to stomp binary changes in ${conflict.target}`);
@@ -1568,6 +1576,23 @@ function renderActionsCell_Edge(actionCell, nodeData, edgeData, conflict=null) {
 				`Skip has been disabled.`).addClass("disabled").off('click')
 			)
 		}
+	}
+
+	if (edgeData.nextWindowOpenTime) {
+		const sense = edgeData.windowBypass ? 'false' : 'true'
+
+		const text = edgeData.windowBypass
+			? 'Re-enable gate window'
+			: 'Bypass gate window';
+
+		const tooltip = edgeData.windowBypass
+			? 'Integrations will be delayed until window is open'
+			: 'Integrations will proceed, disregarding specified window';
+
+		const bypassRequest = () => 
+			edgeAPIOp(nodeData.bot, getAPIName(nodeData), edgeData.target, '/bypassgatewindow?sense=' + sense, () => {}, () => {});
+
+		insertFunction(createActionOption(text, bypassRequest, tooltip));
 	}
 }
 

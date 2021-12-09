@@ -296,7 +296,7 @@ export class WebServer {
 			})
 
 			response.writeHead(500)
-			response.end(`Error handling not implemented yet: ${err.toString()}`)
+			response.end(`Error handling not implemented yet: ${err.toString()}\n${err.stack}`)
 			return
 		}
 

@@ -48,6 +48,10 @@ export class BranchState {
 		return !!this.rawBranchData.edges[targetBranchName.toUpperCase()]
 	}
 
+	getEdges(): EdgeState[] {
+		return Object.entries(this.rawBranchData.edges).map(([_, edgeData]) => new EdgeState(edgeData))
+	}
+
 	getLastCL() {
 		return this.rawBranchData.last_cl
 	}
@@ -68,8 +72,11 @@ export class BranchState {
 		return this.rawBranchData.status_msg
 	}
 
-	getEdgeState(targetBranchName: string): EdgeState {
+	getTickCount() {
+		return this.rawBranchData.tick_count
+	}
 
+	getEdgeState(targetBranchName: string): EdgeState {
 		const edgeJson = this.rawBranchData.edges[targetBranchName.toUpperCase()]
 
 		if (!edgeJson) {

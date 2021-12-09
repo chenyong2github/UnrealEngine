@@ -35,6 +35,9 @@ const roboStartupLogger = new ContextualLogger('Robo Startup')
 VersionReader.init(roboStartupLogger)
 
 
+const USER_WORKSPACE_EXCLUDE_PATTERNS: (RegExp | string)[] = [
+	'horde-p4bridge-hordeserver-'
+]
 
 // I seem to have broken this
 const DEBUG_SKIP_BRANCH_SETUP = false;
@@ -217,7 +220,8 @@ export class RoboMerge {
 	}
 
 	async getWorkspacesForUser(user: string) {
-		return await this.p4.find_workspaces(user)
+		return (await this.p4.find_workspaces(user))
+			.filter(ws => !USER_WORKSPACE_EXCLUDE_PATTERNS.some(entry => ws.client.match(entry)))
 	}
 
 	stop() {
@@ -231,7 +235,8 @@ async function _getExistingWorkspaces(user?: string) {
 }
 
 async function _initWorkspacesForGraphBot(graphBot: GraphBot, existingWorkspaces: Set<string>, logger: ContextualLogger) {
-	const workspacesToReset: string[] = []
+	// name and depot root pair
+	const workspacesToReset: [string, string][] = []
 
 	for (const branch of graphBot.branchGraph.branches) {
 		if (branch.workspace !== null) {
@@ -258,7 +263,7 @@ async function _initWorkspacesForGraphBot(graphBot: GraphBot, existingWorkspaces
 
 		// see if we already have this workspace
 		if (existingWorkspaces.has(ws)) {
-			workspacesToReset.push(ws);
+			workspacesToReset.push([ws, branch.rootPath])
 		}
 		else {
 			const params: any = {};

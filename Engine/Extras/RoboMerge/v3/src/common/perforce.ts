@@ -502,11 +502,21 @@ export class PerforceContext {
 	}
 
 	async latestChange(path: string): Promise<Change> {
-		// wait no longer than 5 seconds, retry up to 3 times
-		const args = ['-vnet.maxwait=5', '-r3', 'changes', '-l', '-ssubmitted', '-m1', path]
+
+		// temporarily waiting 30 seconds - filing ticket   - was: wait no longer than 5 seconds, retry up to 3 times
+		const args = ['-vnet.maxwait=30', '-r3', 'changes', '-l', '-ssubmitted', '-m1', path]
+
+		const startTime = Date.now()
+
 		const result = await this.execAndParse(null, args, {quiet: true, trace: true}, changeResultExpectedShape)
 		if (!result || result.length !== 1) {
 			throw new Error("Expected exactly one change")
+		}
+
+		const durationSeconds = (Date.now() - startTime) / 1000;
+
+		if (durationSeconds > 5.0) {
+			this.logger.warn(`p4.latestChange took ${durationSeconds}s`)
 		}
 
 		return result[0] as unknown as Change

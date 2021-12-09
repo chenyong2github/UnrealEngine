@@ -334,3 +334,7 @@ label.workspaceInexactMatch {
 .big-help {
 	margin: 5px;
 }
+
+.warning {
+	color: orange;
+}

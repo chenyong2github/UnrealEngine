@@ -235,7 +235,7 @@ export class Conflicts {
 		const resolvedConflicts: PersistentConflict[] = []
 
 		for (const conflict of this.conflicts) {
-			// If our bot CL is below the conflict CL, we can assume we haven't resolve this conflict
+			// If our bot CL is below the conflict CL, we can assume we haven't resolved this conflict
 			if (!conflict.targetBranchName || conflict.targetBranchName.toUpperCase() !== targetBranchStr || edgeBot.lastCl < conflict.cl) {
 				remainingConflicts.push(conflict)
 				continue

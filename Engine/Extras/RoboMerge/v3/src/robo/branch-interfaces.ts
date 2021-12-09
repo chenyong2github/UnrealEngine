@@ -71,10 +71,10 @@ export interface BranchGraphInterface {
 	_computeReachableFrom(visited: Set<Branch>, flowKey: string, branch: Branch): Set<string>
 
 	getBranch(name: string): Branch | undefined
-	getBranchNames(): string
+	getBranchNames(): string[]
 }
 
-export interface Branch extends BranchBase {
+export interface EditableBranch extends BranchBase {
 	bot?: NodeBotInterface
 	parent: BranchGraphInterface
 	workspace: RoboWorkspace
@@ -96,6 +96,8 @@ export interface Branch extends BranchBase {
 
 	isMonitored: boolean // property
 }
+
+export type Branch = Readonly<EditableBranch>
 
 export interface Target {
 	branchName: string

@@ -2,15 +2,15 @@
 
 import { setDefault } from '../common/helper';
 import { BranchSpec } from '../common/perforce';
-import { Branch, BranchGraphInterface } from './branch-interfaces';
+import { Branch, BranchGraphInterface, EditableBranch } from './branch-interfaces';
 import { BotConfig, BranchDefs, BranchGraphDefinition, EdgeOptions, EdgeProperties, IntegrationMethod } from './branchdefs';
 import { NodeOptions, calculateStream } from './branchdefs';
 
 type ConfigBlendMode = 'override' | 'accumulate'
 
 export class BranchGraph implements BranchGraphInterface {
-
-	branches: Branch[]
+	// would ideally create branch list then assign it to a non-editable
+	branches: EditableBranch[]
 
 // should have separate type for processed edge info, but this will do for now
 	edges: EdgeProperties[]
@@ -48,7 +48,7 @@ if (botname === '__TEST__') {
 		return this.names.get(name.toUpperCase())
 	}
 	getBranchNames() {
-		return [...this.names.keys()].join(',')
+		return [...this.names.keys()]
 	}
 
 	private propagateBotPropertiesToNodes() {
@@ -208,7 +208,7 @@ if (botname === '__TEST__') {
 
 		// make a branch data entry
 		let nameUpper = name.toUpperCase()
-		let branch: Branch = {
+		let branch: EditableBranch = {
 			name: name,
 			parent: this,
 			workspace: options.workspace || null,
@@ -229,7 +229,6 @@ if (botname === '__TEST__') {
 			blockAssetTargets: new Set<string>(),
 			enabled: !options.disabled,
 			allowDeadend: !options.disallowDeadend,
-			whitelist: options.whitelist || [],
 			resolver: options.resolver || null,
 			convertIntegratesToEdits: (options.integrationMethod || this.config.defaultIntegrationMethod) === IntegrationMethod.CONVERT_TO_EDIT,
 			visibility: options.visibility || this.config.visibility,

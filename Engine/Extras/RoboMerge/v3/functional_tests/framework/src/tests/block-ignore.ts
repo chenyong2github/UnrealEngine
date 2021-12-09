@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-import { FunctionalTest, P4Client, P4Util, RobomergeBranchSpec, Stream } from '../framework'
+import { FunctionalTest, P4Util, RobomergeBranchSpec, Stream } from '../framework'
 
 export const streams: Stream[] = [
 	{name: 'Main', streamType: 'mainline'},
@@ -12,19 +12,22 @@ export class BlockIgnore extends FunctionalTest {
 		await this.p4.depot('stream', this.depotSpec())
 		await this.createStreamsAndWorkspaces(streams)
 
-		this.mainClient = this.getClient('Main')
-
-		await P4Util.addFileAndSubmit(this.mainClient, TEXT_FILENAME, 'Initial content')
+		await P4Util.addFileAndSubmit(this.getClient('Main'), TEXT_FILENAME, 'Initial content')
 
 		await this.p4.populate(this.getStreamPath('Release'), 'Initial branch of files from Main')
+		await this.getClient('Release').sync()
 	}
 
 	run() {
-		return P4Util.editFileAndSubmit(this.mainClient, TEXT_FILENAME, 'change', 'deadend')
+		return P4Util.editFileAndSubmit(this.getClient('Release'), TEXT_FILENAME, 'change', 'deadend')
 	}
 
 	verify() {
-		return Promise.all([this.ensureBlocked('Main'), this.ensureNotBlocked('Release')])
+		return Promise.all([
+			this.ensureNotBlocked('Main'),
+			this.ensureBlocked('Release'),
+			this.checkHeadRevision('Main', TEXT_FILENAME, 1)
+		])
 	}
 
 	allowSyntaxErrors() {
@@ -32,12 +35,9 @@ export class BlockIgnore extends FunctionalTest {
 	}
 
 	getBranches() {
-		const main = this.branch('Main', [])
-		main.disallowDeadend = true
-		return [
-			main,
-			this.branch('Release', ['Main'])
-		]
+		const release = this.branch('Release', ['Main'])
+		release.disallowDeadend = true
+		return [this.branch('Main', []), release]
 	}
 
 	private branch(stream: string, to: string[]): RobomergeBranchSpec {
@@ -49,6 +49,4 @@ export class BlockIgnore extends FunctionalTest {
 			forceAll: true
 		}
 	}
-
-	private mainClient: P4Client
 }
