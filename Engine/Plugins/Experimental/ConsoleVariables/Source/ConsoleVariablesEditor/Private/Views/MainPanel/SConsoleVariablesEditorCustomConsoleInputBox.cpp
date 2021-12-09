@@ -11,6 +11,7 @@
 #include "OutputLog/Public/OutputLogModule.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
+#include "Views/Widgets/SConsoleVariablesEditorTooltipWidget.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -71,14 +72,30 @@ void SConsoleVariablesEditorCustomConsoleInputBox::Construct(
 						SanitizedText.ReplaceInline(TEXT("\r"), TEXT(" "), ESearchCase::CaseSensitive);
 						SanitizedText.ReplaceInline(TEXT("\n"), TEXT(" "), ESearchCase::CaseSensitive);
 
+						const FText DisplayText = FText::FromString(SanitizedText);
+						
+						FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
+
+						TSharedPtr<IToolTip> ToolTip;
+
+						if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> MatchingCommand =
+							ConsoleVariablesEditorModule.FindCommandInfoByName(SanitizedText);
+							MatchingCommand.IsValid() && MatchingCommand.Pin()->ConsoleVariablePtr)
+						{
+							ToolTip = SConsoleVariablesEditorTooltipWidget::MakeTooltip(
+								SanitizedText,
+								MatchingCommand.Pin()->ConsoleVariablePtr->GetHelp());
+						}
+
 						return
 							SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
 							[
 								SNew(STextBlock)
-								.Text(FText::FromString(SanitizedText))
+								.Text(DisplayText)
 								.TextStyle(FEditorStyle::Get(), "Log.Normal")
 								.HighlightText(Suggestions.SuggestionsHighlight)
 								.ColorAndOpacity(FSlateColor::UseForeground())
+								.ToolTip(ToolTip.IsValid() ? ToolTip : nullptr)
 							];
 					})
 					.OnSelectionChanged_Lambda([this] (TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)

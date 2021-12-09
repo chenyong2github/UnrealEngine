@@ -5,9 +5,9 @@
 #include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorStyle.h"
 #include "SConsoleVariablesEditorListValueInput.h"
+#include "Views/Widgets/SConsoleVariablesEditorTooltipWidget.h"
 
 #include "Input/DragAndDrop.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -64,6 +64,14 @@ void SConsoleVariablesEditorListRow::Construct(
 
 	Item = InRow;
 	const FConsoleVariablesEditorListRowPtr PinnedItem = Item.Pin();
+	const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedCommand = PinnedItem->GetCommandInfo().Pin();
+	
+	check (PinnedCommand.IsValid());
+
+	if (!PinnedCommand->ConsoleVariablePtr)
+	{
+		return;
+	}
 
 	// Set up flash animation
 	FlashAnimation = FCurveSequence(0.f, FlashAnimationDuration, ECurveEaseFunction::QuadInOut);
@@ -113,8 +121,6 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateWidgetForColumn(cons
 				+SOverlay::Slot()
 				[
 					SNew(SBorder)
-					.ToolTipText(FText::FromString(PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr ?
-						FString(PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr->GetHelp()) : ""))
 					.HAlign(HAlign_Fill)
 					.VAlign(VAlign_Center)
 					.BorderImage(GetBorderImage(PinnedItem->GetRowType()))
@@ -152,6 +158,7 @@ void SConsoleVariablesEditorListRow::OnMouseLeave(const FPointerEvent& MouseEven
 SConsoleVariablesEditorListRow::~SConsoleVariablesEditorListRow()
 {
 	Item.Reset();
+	HoverToolTip.Reset();
 
 	FlashImages.Empty();
 
@@ -229,7 +236,7 @@ TOptional<EItemDropZone> SConsoleVariablesEditorListRow::HandleCanAcceptDrop(con
 			FText::FromString(TargetItem->GetCommandInfo().Pin()->Command)
 		);
 	
-	Operation->SetToolTip(
+		Operation->SetToolTip(
 		DropPermittedText,
 		FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.OK")
 	);
@@ -352,9 +359,16 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::VariableNameColumnName))
 	{
+		if (!HoverToolTip.IsValid())
+		{
+			HoverToolTip = SConsoleVariablesEditorTooltipWidget::MakeTooltip(
+							PinnedItem->GetCommandInfo().Pin()->Command,
+							PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr->GetHelp());
+		}
 		return  SNew(STextBlock)
-				.Visibility(EVisibility::SelfHitTestInvisible)
-				.Text(FText::FromString(PinnedItem->GetCommandInfo().Pin()->Command));
+				.Visibility(EVisibility::Visible)
+				.Text(FText::FromString(PinnedItem->GetCommandInfo().Pin()->Command))
+				.ToolTip(HoverToolTip);
 	}
 	if (InColumnName.IsEqual(SConsoleVariablesEditorList::ValueColumnName))
 	{
