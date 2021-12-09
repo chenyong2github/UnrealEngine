@@ -128,7 +128,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeDataView Externa
 		{
 			// Enter state tasks can fail/succeed, treat it same as tick.
 			Exec.LastTickStatus = EnterState(Storage, Transition);
-			Exec.CurrentState = Transition.Next;
+			
 			// Report state completed immediately.
 			if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
 			{
@@ -158,15 +158,16 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop(FStateTreeDataView External
 	FStateTreeDataView Storage = SelectMutableStorage(ExternalStorage);
 	FStateTreeExecutionState& Exec = GetExecState(Storage);
 
-	// Stop if still running.
-	if (Exec.TreeRunStatus == EStateTreeRunStatus::Running)
+	// Exit states if still in some valid state.
+	if (Exec.CurrentState.IsValid() && (Exec.CurrentState != FStateTreeHandle::Succeeded || Exec.CurrentState != FStateTreeHandle::Failed))
 	{
+		// Transition to Succeeded state.
 		const FStateTreeTransitionResult Transition(FStateTreeStateStatus(Exec.CurrentState, Exec.LastTickStatus), FStateTreeHandle::Succeeded);
 		ExitState(Storage, Transition);
+		Exec.CurrentState = FStateTreeHandle::Succeeded;
 	}
-	
-	Exec.TreeRunStatus = EStateTreeRunStatus::Succeeded;
-	Exec.CurrentState = FStateTreeHandle::Succeeded;
+
+	Exec.TreeRunStatus = Exec.CurrentState == FStateTreeHandle::Succeeded ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
 	Exec.LastTickStatus = EStateTreeRunStatus::Unset;
 
 	return Exec.TreeRunStatus;
@@ -236,7 +237,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 			
 			// Enter state tasks can fail/succeed, treat it same as tick.
 			Exec.LastTickStatus = EnterState(Storage, Transition);
-			Exec.CurrentState = Transition.Next;
+
 			// Report state completed immediately.
 			if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
 			{
@@ -249,6 +250,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 		{
 			break;
 		}
+		
+		// Reset visited states to allow evaluators to update during the next transition selection.
+		VisitedStates.Init(false, StateTree->States.Num());
 	}
 	
 	if (!Exec.CurrentState.IsValid())
@@ -280,6 +284,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 		return EStateTreeRunStatus::Failed;
 	}
 
+	FStateTreeExecutionState& Exec = GetExecState(Storage);
+
 	// Activate evaluators along the active branch.
 	TStaticArray<FStateTreeHandle, 32> States;
 	const int32 NumStates = GetActiveStates(Transition.Next, States);
@@ -299,9 +305,11 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 	FStateTreeTransitionResult CurrentTransition = Transition;
 	
 	EStateTreeRunStatus Result = EStateTreeRunStatus::Running;
-	EnterStateStatus = Result;
 
-	for (int32 Index = 0; Index < NumStates; Index++)
+	Exec.EnterStateFailedTaskIndex = INDEX_NONE;
+	Exec.CurrentState = FStateTreeHandle::Failed;
+	
+	for (int32 Index = 0; Index < NumStates && Result != EStateTreeRunStatus::Failed; Index++)
 	{
 		const FStateTreeHandle CurrentHandle = States[Index];
 		const FBakedStateTreeState& State = StateTree->States[CurrentHandle.Index];
@@ -309,7 +317,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 		const bool bWasActive = PrevStates[Index] == CurrentHandle;
 		if (bWasActive && !bOnTargetBranch)
 		{
-			// States which will keep on begin active and were not part of the transition will not get enter/exit state.
+			// States which will keep on being active and were not part of the transition will not get enter/exit state.
 			// Must update data views.
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
@@ -330,9 +338,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 
 		STATETREE_LOG(Log, TEXT("%*sEnter state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(States, Index), *StaticEnum<EStateTreeStateChangeType>()->GetValueAsString(ChangeType));
 		
-		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
+		for (int32 EvalIndex = State.EvaluatorsBegin; EvalIndex < (int32)(State.EvaluatorsBegin + State.EvaluatorsNum); EvalIndex++)
 		{
-			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
+			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(EvalIndex);
 			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
@@ -346,9 +354,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 		}
 		
 		// Activate tasks on current state.
-		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
+		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (int32)(State.TasksBegin + State.TasksNum); TaskIndex++)
 		{
-			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
+			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(TaskIndex);
 			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
 			DataViews[Task.DataViewIndex] = TaskInstanceView;
 
@@ -360,15 +368,21 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 		
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
 			const EStateTreeRunStatus Status = Task.EnterState(*this, ChangeType, CurrentTransition);
+			
 			if (Status == EStateTreeRunStatus::Failed)
 			{
+				// Store how far in the enter state we got. This will be used to match the ExitState() calls.
+				Exec.EnterStateFailedTaskIndex = TaskIndex;
+				Exec.CurrentState = CurrentHandle;
 				Result = Status;
-				// @todo StateTree: Ideally we should break here, but it is commented out for now in order to keep symmetrical enter/exit calls.
-				// break;
-				// As a workaround, we mark EnterStateStatus as 'failed' in context so remaining calls to EnterState could be aware of the failure and act accordingly.
-				EnterStateStatus = Status;
+				break;
 			}
 		}
+	}
+
+	if (Result != EStateTreeRunStatus::Failed)
+	{
+		Exec.CurrentState = Transition.Next;
 	}
 
 	return Result;
@@ -415,7 +429,7 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 		bOnTargetBranch = bOnTargetBranch || NextHandle == Transition.Target;
 		if (bRemainsActive && !bOnTargetBranch)
 		{
-			// States which will keep on begin active and were not part of the transition will not get enter/exit state.
+			// States which will keep on being active and were not part of the transition will not get enter/exit state.
 			// Must update item views.
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
@@ -436,9 +450,9 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 
 		STATETREE_LOG(Log, TEXT("%*sExit state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(States, Index), *StaticEnum<EStateTreeStateChangeType>()->GetValueAsString(ChangeType));
 
-		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
+		for (int32 EvalIndex = State.EvaluatorsBegin; EvalIndex < (int32)(State.EvaluatorsBegin + State.EvaluatorsNum); EvalIndex++)
 		{
-			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
+			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(EvalIndex);
 			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
@@ -452,20 +466,25 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 		}
 
 		// Deactivate tasks on current State
-		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
+		for (int32 TaskIndex = State.TasksBegin; TaskIndex < (int32)(State.TasksBegin + State.TasksNum); TaskIndex++)
 		{
-			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
-			DataViews[Task.DataViewIndex] = TaskInstanceView;
-
-			// Copy bound properties.
-			if (Task.BindingsBatch.IsValid())
+			// Call task completed only if EnterState() was called. This ensures that we have matching calls to Enter/ExitState.
+			// The task order in the tree (BF) allows us to use the comparison.
+			if (TaskIndex <= (int32)Exec.EnterStateFailedTaskIndex)
 			{
-				StateTree->PropertyBindings.CopyTo(DataViews, Task.BindingsBatch.Index, TaskInstanceView);
-			}
+				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(TaskIndex);
+				const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
+				DataViews[Task.DataViewIndex] = TaskInstanceView;
 
-			STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-			Task.ExitState(*this, ChangeType, CurrentTransition);
+				// Copy bound properties.
+				if (Task.BindingsBatch.IsValid())
+				{
+					StateTree->PropertyBindings.CopyTo(DataViews, Task.BindingsBatch.Index, TaskInstanceView);
+				}
+
+				STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+				Task.ExitState(*this, ChangeType, CurrentTransition);
+			}
 		}
 	}
 }
@@ -480,6 +499,8 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeDataView Storage, cons
 	TStaticArray<FStateTreeHandle, 32> States;
 	const int32 NumStates = GetActiveStates(CurrentState, States);
 
+	FStateTreeExecutionState& Exec = GetExecState(Storage);
+
 	// Call from child towards root to allow to pass results back.
 	// Note: Completed is assumed to be called immediately after tick or enter state, so there's no property copying.
 	for (int32 Index = NumStates - 1; Index >= 0; Index--)
@@ -490,18 +511,23 @@ void FStateTreeExecutionContext::StateCompleted(FStateTreeDataView Storage, cons
 		STATETREE_LOG(Verbose, TEXT("%*sState Completed '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(States, Index), *StaticEnum<EStateTreeRunStatus>()->GetValueAsString(CompletionStatus));
 
 		// Notify Tasks
-		for (int32 TaskIndex = int32(State.TasksNum) - 1; TaskIndex >= 0; TaskIndex--)
+		for (int32 TaskIndex = (int32)(State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
 		{
-			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
+			// Call task completed only if EnterState() was called.
+			// The task order in the tree (BF) allows us to use the comparison.
+			if (TaskIndex <= (int32)Exec.EnterStateFailedTaskIndex)
+			{
+				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(TaskIndex);
 
-			STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
-			Task.StateCompleted(*this, CompletionStatus, CurrentState);
+				STATETREE_LOG(Verbose, TEXT("%*s  Notify Task '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
+				Task.StateCompleted(*this, CompletionStatus, CurrentState);
+			}
 		}
 
 		// Notify evaluators
-		for (int32 EvalIndex = int32(State.EvaluatorsNum) - 1; EvalIndex >= 0; EvalIndex--)
+		for (int32 EvalIndex = (int32)(State.EvaluatorsBegin + State.EvaluatorsNum) - 1; EvalIndex >= State.EvaluatorsBegin; EvalIndex--)
 		{
-			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
+			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(EvalIndex);
 
 			STATETREE_LOG(Verbose, TEXT("%*s  Notify Evaluator '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Eval.Name.ToString());
 			Eval.StateCompleted(*this, CompletionStatus, CurrentState);

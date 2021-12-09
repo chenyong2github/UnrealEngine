@@ -20,6 +20,9 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 	/** Currently active state */
 	FStateTreeHandle CurrentState = FStateTreeHandle::Invalid;
 
+	/** The index of the task that failed during enter state. Exit state uses it to call ExitState() symmetrically. */
+	uint16 EnterStateFailedTaskIndex = INDEX_NONE;
+
 	/** Result of last tick */
 	EStateTreeRunStatus LastTickStatus = EStateTreeRunStatus::Failed;
 
@@ -222,7 +225,6 @@ public:
 	}
 	
 	EStateTreeRunStatus GetLastTickStatus(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
-	EStateTreeRunStatus GetEnterStateStatus() const { return EnterStateStatus; }
 
 #if WITH_GAMEPLAY_DEBUGGER
 	/** @return Debug string describing the current state of the execution */
@@ -384,13 +386,6 @@ protected:
 
 	/** Storage type of the context */
 	EStateTreeStorage StorageType = EStateTreeStorage::Internal;
-
-	/**
-	 * Temporary status held within the context when calling 'EnterState' on multiple tasks.
-	 * Since it is called on all tasks even if a failed status was returned, this allow other tasks to act accordingly.
-	 * Note. This should be replaced by symmetrical unrolling of tasks on failure.
-	 */
-	EStateTreeRunStatus EnterStateStatus = EStateTreeRunStatus::Unset;
 };
 
 template<>
