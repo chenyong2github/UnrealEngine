@@ -34,6 +34,9 @@ namespace Metasound
 
 	using FTriggerCompareNodeFloat = TTriggerCompareNode<float>;
 	METASOUND_REGISTER_NODE(FTriggerCompareNodeFloat)
+
+	using FTriggerCompareNodeBool = TTriggerCompareNode<bool>;
+	METASOUND_REGISTER_NODE(FTriggerCompareNodeBool)
 }
 
 #undef LOCTEXT_NAMESPACE // MetasoundTriggerDelayNode
