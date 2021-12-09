@@ -81,6 +81,9 @@ namespace CrossCompiler
 		/** Enables separate samplers in GLSL via extensions. */
 		bool bEnableSeparateSamplersInGlsl = false;
 
+		/** Enables re-mapping of input/output attribute locations to include padding for arrays. */
+		bool bRemapAttributeLocations = false;
+
 		enum class ETargetEnvironment
 		{
 			Vulkan_1_0,
