@@ -23,8 +23,6 @@
 #include "Detour/DetourCommon.h"
 #include "Detour/DetourAssert.h"
 
-DEFINE_LOG_CATEGORY(LogDetour);
-
 //@UE BEGIN Adding support for memory tracking.
 static dtStatsPostAddTileFunc* sAddTileFunc = nullptr;
 static dtStatsPreRemoveTileFunc* sRemoveTileFunc = nullptr;
@@ -422,11 +420,11 @@ int segmentIntersectionSorter(const void* i1, const void* i2)
 }
 
 static void gatherSegmentIntersections(dtMeshTile* tile,
-	const dtReal* spos, const dtReal* epos,const dtReal radius, const dtReal walkableClimb,
+	const dtReal* spos, const dtReal* epos, const dtReal radius,
 	dtOffMeshSegmentTileIntersection& list)
 {
 	// get all polys intersecting with segment
-	dtReal segBMin[3], segBMax[3], segRad[3] = { radius, walkableClimb, radius };
+	dtReal segBMin[3], segBMax[3], segRad[3] = { radius, tile->header->walkableClimb, radius };
 	dtVcopy(segBMin, spos);
 	dtVcopy(segBMax, spos);
 	dtVmin(segBMin, epos);
@@ -470,7 +468,7 @@ static void gatherSegmentIntersections(dtMeshTile* tile,
 	}
 }
 
-static dtOffMeshSegmentData* initSegmentIntersection(const dtNavMesh& navMesh, dtMeshTile* tile)
+static dtOffMeshSegmentData* initSegmentIntersection(dtMeshTile* tile)
 {
 	const int segCount = tile->header->offMeshSegConCount;
 	if (segCount <= 0)
@@ -486,14 +484,14 @@ static dtOffMeshSegmentData* initSegmentIntersection(const dtNavMesh& navMesh, d
 		dtOffMeshSegmentConnection& con = tile->offMeshSeg[i];
 		
 		CA_SUPPRESS(6385);
-		gatherSegmentIntersections(tile, con.startA, con.endA, con.rad, navMesh.getWalkableClimb(), segs[i].listA);
-		gatherSegmentIntersections(tile, con.startB, con.endB, con.rad, navMesh.getWalkableClimb(), segs[i].listB);
+		gatherSegmentIntersections(tile, con.startA, con.endA, con.rad, segs[i].listA);
+		gatherSegmentIntersections(tile, con.startB, con.endB, con.rad, segs[i].listB);
 	}
 
 	return segs;
 }
 
-static void appendSegmentIntersection(const dtNavMesh& navMesh, dtOffMeshSegmentData* seg, dtMeshTile* tile, dtMeshTile* nei)
+static void appendSegmentIntersection(dtOffMeshSegmentData* seg, dtMeshTile* tile, dtMeshTile* nei)
 {
 	if (seg == NULL)
 		return;
@@ -502,8 +500,8 @@ static void appendSegmentIntersection(const dtNavMesh& navMesh, dtOffMeshSegment
 	{
 		dtOffMeshSegmentConnection& con = tile->offMeshSeg[i];
 
-		gatherSegmentIntersections(nei, con.startA, con.endA, con.rad, navMesh.getWalkableClimb(), seg[i].listA);
-		gatherSegmentIntersections(nei, con.startB, con.endB, con.rad, navMesh.getWalkableClimb(), seg[i].listB);
+		gatherSegmentIntersections(nei, con.startA, con.endA, con.rad, seg[i].listA);
+		gatherSegmentIntersections(nei, con.startB, con.endB, con.rad, seg[i].listB);
 	}
 }
 
@@ -780,10 +778,6 @@ Notes:
 dtNavMesh::dtNavMesh() :
 	m_tileWidth(0),
 	m_tileHeight(0),
-	m_walkableHeight(0),
-	m_walkableRadius(0),
-	m_walkableClimb(0),
-	m_bvQuantFactor(0),
 	m_maxTiles(0),
 	m_tileLutSize(0),
 	m_tileLutMask(0),
@@ -871,6 +865,8 @@ dtStatus dtNavMesh::init(unsigned char* data, const int dataSize, const int flag
 {
 	// Make sure the data is in right format.
 	dtMeshHeader* header = (dtMeshHeader*)data;
+	if (header->magic != DT_NAVMESH_MAGIC)
+		return DT_FAILURE | DT_WRONG_MAGIC;
 	if (header->version != DT_NAVMESH_VERSION)
 		return DT_FAILURE | DT_WRONG_VERSION;
 
@@ -938,7 +934,7 @@ int dtNavMesh::findConnectingPolys(const dtReal* va, const dtReal* vb,
 			calcSlabEndPoints(vc, vd, bmin, bmax, side);
 
 			unsigned char overlapMode = 0;
-			if (!overlapSlabs(amin, amax, bmin, bmax, 0.01f, m_walkableClimb, &overlapMode)) continue;
+			if (!overlapSlabs(amin, amax, bmin, bmax, 0.01f, tile->header->walkableClimb, &overlapMode)) continue;
 
 			// if overlapping with only one side, verify height difference using detailed mesh
 			if (overlapMode == SLABOVERLAP_Max || overlapMode == SLABOVERLAP_Min)
@@ -951,7 +947,7 @@ int dtNavMesh::findConnectingPolys(const dtReal* va, const dtReal* vb,
 				const dtReal aH = getHeightFromDMesh(fromTile, fromPolyIdx, apt);
 				const dtReal bH = getHeightFromDMesh(tile, i, bpt);
 				const dtReal heightDiff = dtAbs(aH - bH);
-				if (heightDiff > m_walkableClimb)
+				if (heightDiff > tile->header->walkableClimb)
 					continue;
 			}
 
@@ -1603,6 +1599,7 @@ int dtNavMesh::queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, c
 		const dtBVNode* end = &tile->bvTree[tile->header->bvNodeCount];
 		const dtReal* tbmin = tile->header->bmin;
 		const dtReal* tbmax = tile->header->bmax;
+		const dtReal qfac = tile->header->bvQuantFactor;
 		
 		// Calculate quantized box
 		unsigned short bmin[3], bmax[3];
@@ -1615,12 +1612,12 @@ int dtNavMesh::queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, c
 		dtReal maxz = dtClamp(qmax[2], tbmin[2], tbmax[2]) - tbmin[2];
 
 		// Quantize
-		bmin[0] = (unsigned short)(m_bvQuantFactor * minx) & 0xfffe;
-		bmin[1] = (unsigned short)(m_bvQuantFactor * miny) & 0xfffe;
-		bmin[2] = (unsigned short)(m_bvQuantFactor * minz) & 0xfffe;
-		bmax[0] = (unsigned short)(m_bvQuantFactor * maxx + 1) | 1;
-		bmax[1] = (unsigned short)(m_bvQuantFactor * maxy + 1) | 1;
-		bmax[2] = (unsigned short)(m_bvQuantFactor * maxz + 1) | 1;
+		bmin[0] = (unsigned short)(qfac * minx) & 0xfffe;
+		bmin[1] = (unsigned short)(qfac * miny) & 0xfffe;
+		bmin[2] = (unsigned short)(qfac * minz) & 0xfffe;
+		bmax[0] = (unsigned short)(qfac * maxx + 1) | 1;
+		bmax[1] = (unsigned short)(qfac * maxy + 1) | 1;
+		bmax[2] = (unsigned short)(qfac * maxz + 1) | 1;
 		
 		// Traverse tree
 		dtPolyRef base = getPolyRefBase(tile);
@@ -1703,6 +1700,8 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 {
 	// Make sure the data is in right format.
 	dtMeshHeader* header = (dtMeshHeader*)data;
+	if (header->magic != DT_NAVMESH_MAGIC)
+		return DT_FAILURE | DT_WRONG_MAGIC;
 	if (header->version != DT_NAVMESH_VERSION)
 		return DT_FAILURE | DT_WRONG_VERSION;
 		
@@ -1842,7 +1841,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	baseOffMeshLinks(tile);
 	
 #if WITH_NAVMESH_SEGMENT_LINKS
-	dtOffMeshSegmentData* segList = initSegmentIntersection(*this, tile);
+	dtOffMeshSegmentData* segList = initSegmentIntersection(tile);
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 
 	// Create connections with neighbour tiles.
@@ -1861,7 +1860,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 			connectExtLinks(tile, neis[j], -1, bHasClusters);
 			connectExtLinks(neis[j], tile, -1, bHasClusters);
 #if WITH_NAVMESH_SEGMENT_LINKS
-			appendSegmentIntersection(*this, segList, tile, neis[j]);
+			appendSegmentIntersection(segList, tile, neis[j]);
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 			connectExtOffMeshLinks(tile, neis[j], -1, bHasClusters);
 		}
@@ -1885,7 +1884,7 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 				connectExtLinks(neis[j], tile, dtOppositeTile(i), bHasClusters);
 			}
 #if WITH_NAVMESH_SEGMENT_LINKS
-			appendSegmentIntersection(*this, segList, tile, neis[j]);
+			appendSegmentIntersection(segList, tile, neis[j]);
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 
 			connectExtOffMeshLinks(tile, neis[j], i, bHasClusters);
@@ -2336,6 +2335,8 @@ dtStatus dtNavMesh::restoreTileState(dtMeshTile* tile, const unsigned char* data
 	const dtPolyState* polyStates = (const dtPolyState*)data; data += dtAlign(sizeof(dtPolyState) * tile->header->polyCount);
 	
 	// Check that the restore is possible.
+	if (tileState->magic != DT_NAVMESH_STATE_MAGIC)
+		return DT_FAILURE | DT_WRONG_MAGIC;
 	if (tileState->version != DT_NAVMESH_STATE_VERSION)
 		return DT_FAILURE | DT_WRONG_VERSION;
 	if (tileState->ref != getTileRef(tile))

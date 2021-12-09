@@ -2678,6 +2678,8 @@ dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompress
 	*layerOut = 0;
 
 	dtTileCacheLayerHeader* compressedHeader = (dtTileCacheLayerHeader*)compressed;
+	if (compressedHeader->magic != DT_TILECACHE_MAGIC)
+		return DT_FAILURE | DT_WRONG_MAGIC;
 	if (compressedHeader->version != DT_TILECACHE_VERSION)
 		return DT_FAILURE | DT_WRONG_VERSION;
 	
@@ -2730,12 +2732,13 @@ bool dtTileCacheHeaderSwapEndian(unsigned char* data, const int dataSize)
 	dtSwapEndian(&swappedMagic);
 	dtSwapEndian(&swappedVersion);
 	
-	if ((header->version != DT_TILECACHE_VERSION) &&
-		(header->version != swappedVersion))
+	if ((header->magic != DT_TILECACHE_MAGIC || header->version != DT_TILECACHE_VERSION) &&
+		(header->magic != swappedMagic || header->version != swappedVersion))
 	{
 		return false;
 	}
 	
+	dtSwapEndian(&header->magic);
 	dtSwapEndian(&header->version);
 	dtSwapEndian(&header->tx);
 	dtSwapEndian(&header->ty);
