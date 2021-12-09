@@ -213,7 +213,17 @@ void FUsdStageViewModel::SaveStage()
 
 			UsdUtils::StartMonitoringErrors();
 
-			pxr::UsdStageRefPtr( UsdStage )->Save();
+			// Save layers manually instead of calling UsdStage::Save(). This is roughly the same implementation anyway, except
+			// that UsdStage::Save() will ignore a layer if it also happens to be added as a sublayer to a session layer, and
+			// we want to ensure we always save dirty layers when we hit SaveStage
+			for ( const pxr::SdfLayerHandle& Handle : pxr::UsdStageRefPtr{ UsdStage }->GetUsedLayers() )
+			{
+				if ( !Handle->IsAnonymous() && Handle->IsDirty() )
+				{
+					Handle->Save();
+				}
+			}
+
 			UsdViewModelImpl::SaveUEStateLayer( UsdStage );
 
 			UsdUtils::ShowErrorsAndStopMonitoring(LOCTEXT("USDSaveError", "Failed to save current USD Stage!\nCheck the Output Log for details."));

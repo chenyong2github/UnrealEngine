@@ -149,7 +149,7 @@ void FUsdLayerViewModel::RefreshData()
 	pxr::SdfLayerRefPtr UsdLayer = UE::FSdfLayer::FindOrOpen( *LayerIdentifier );
 	if ( UsdLayer )
 	{
-		LayerModel->bIsDirty = ( UsdLayer->IsDirty() || UsdLayer->IsAnonymous() ) && !UsdUtils::IsSessionLayerWithinStage( UsdLayer, UsdStage );
+		LayerModel->bIsDirty = UsdLayer->IsDirty() && !UsdLayer->IsAnonymous();
 	}
 
 	const pxr::SdfLayerHandle& EditTargetLayer = UsdStageRef->GetEditTarget().GetLayer();
