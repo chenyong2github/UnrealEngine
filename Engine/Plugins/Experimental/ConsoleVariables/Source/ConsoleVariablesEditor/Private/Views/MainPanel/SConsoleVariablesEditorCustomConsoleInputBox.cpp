@@ -221,6 +221,11 @@ void SConsoleVariablesEditorCustomConsoleInputBox::OnTextChanged(const FText& In
 				return;
 			}
 
+			if (!CVar->AsVariable())
+			{
+				return;
+			}
+
 			AutoCompleteList.Add(Name);
 		};
 
