@@ -10,8 +10,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/IToolTip.h"
 
 class SConsoleVariablesEditorListValueInput;
 class SConsoleVariablesEditorListRowHoverWidgets;
@@ -70,6 +70,8 @@ public:
 private:
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item;
+	
+	TSharedPtr<IToolTip> HoverToolTip;
 
 	TArray<TSharedPtr<SImage>> FlashImages;
 
