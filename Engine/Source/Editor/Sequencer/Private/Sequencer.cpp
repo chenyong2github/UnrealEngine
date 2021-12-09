@@ -2581,7 +2581,7 @@ void FSequencer::SyncSectionsUsingSourceTimecode()
 
 	const UMovieSceneSection* FirstSection = Sections[0];
 	FFrameNumber FirstSectionSourceTimecode = FirstSection->TimecodeSource.Timecode.ToFrameNumber(GetFocusedTickResolution());
-	FFrameNumber FirstSectionCurrentStartFrame = FirstSection->GetInclusiveStartFrame();// - FirstSection->TimecodeSource.DeltaFrame;
+	FFrameNumber FirstSectionCurrentStartFrame = FirstSection->GetInclusiveStartFrame();
 	Sections.RemoveAt(0);
 
 	for (auto Section : Sections)
@@ -2589,7 +2589,7 @@ void FSequencer::SyncSectionsUsingSourceTimecode()
 		if (Section->HasStartFrame())
 		{
 			FFrameNumber SectionSourceTimecode = Section->TimecodeSource.Timecode.ToFrameNumber(GetFocusedTickResolution());
-			FFrameNumber SectionCurrentStartFrame = Section->GetInclusiveStartFrame();// - Section->TimecodeSource.DeltaFrame;
+			FFrameNumber SectionCurrentStartFrame = Section->GetInclusiveStartFrame();
 
 			FFrameNumber TimecodeDelta = SectionSourceTimecode - FirstSectionSourceTimecode;
 			FFrameNumber CurrentDelta = SectionCurrentStartFrame - FirstSectionCurrentStartFrame;
