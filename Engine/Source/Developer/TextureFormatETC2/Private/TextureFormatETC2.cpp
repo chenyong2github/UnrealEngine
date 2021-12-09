@@ -227,38 +227,63 @@ static ITextureFormat* Singleton = NULL;
 
 #if PLATFORM_WINDOWS
 	void*	TextureConverterHandle = NULL;
-	FString QualCommBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/QualComm/Win64/");
+	FString AppLocalBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/AppLocalDependencies/Win64/Microsoft.VC.CRT");
+	FString QualCommBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/QualComm/Win64");
+	FString QualCommBinaryName = TEXT("TextureConverter.dll");
 #endif
 
 
 class FTextureFormatETC2Module : public ITextureFormatModule
 {
 public:
-
-	FTextureFormatETC2Module()
-	{
-#if PLATFORM_WINDOWS
-		TextureConverterHandle = FPlatformProcess::GetDllHandle(*(QualCommBinariesRoot + "TextureConverter.dll"));
-#endif
-	}
-
+	FTextureFormatETC2Module() { }
 	virtual ~FTextureFormatETC2Module()
 	{
-		delete Singleton;
-		Singleton = NULL;
+		ITextureFormat* p = Singleton;
+		Singleton = nullptr;
+		if (p)
+			delete p;
 
 #if PLATFORM_WINDOWS
-		FPlatformProcess::FreeDllHandle(TextureConverterHandle);
+		void* handle = TextureConverterHandle;
+		TextureConverterHandle = nullptr;
+		if (handle)
+			FPlatformProcess::FreeDllHandle(handle);
 #endif
 	}
+
+	virtual void StartupModule() override
+	{
+	}
+
 	virtual ITextureFormat* GetTextureFormat()
 	{
-		if (!Singleton)
-		{
 #if PLATFORM_WINDOWS
-			TextureConverterHandle = FPlatformProcess::GetDllHandle(*(QualCommBinariesRoot + "TextureConverter.dll"));
+		if (TextureConverterHandle == nullptr)
+		{
+			UE_LOG(LogTextureFormatETC2, Display, TEXT("ETC2 Texture loading DLL: %s"), *QualCommBinaryName);
+			FPlatformProcess::PushDllDirectory(*AppLocalBinariesRoot);
+			void* handle = FPlatformProcess::GetDllHandle(*(QualCommBinariesRoot / QualCommBinaryName));
+			FPlatformProcess::PopDllDirectory(*AppLocalBinariesRoot);
+			if (handle == nullptr )
+			{
+				UE_LOG(LogTextureFormatETC2, Warning, TEXT("ETC2 Texture %s requested but could not be loaded"), *QualCommBinaryName);
+				return nullptr;
+			}
+			TextureConverterHandle = handle;
+		}
+
+		if (TextureConverterHandle == nullptr)
+		{
+			UE_LOG(LogTextureFormatETC2, Warning, TEXT("ETC2 Texture %s requested but could not be loaded"), *QualCommBinaryName);
+			return nullptr;
+		}
 #endif
-			Singleton = new FTextureFormatETC2();
+
+		if ( Singleton == nullptr )  // not thread safe
+		{
+			FTextureFormatETC2* ptr = new FTextureFormatETC2();
+			Singleton = ptr;
 		}
 		return Singleton;
 	}
