@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
 #include "PreviewMesh.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "MeshOpPreviewHelpers.h"
@@ -15,7 +13,7 @@
 #include "MeshTangentsTool.generated.h"
 
 
-// predeclarations
+// Forward declarations
 struct FMeshDescription;
 class UDynamicMeshComponent;
 class UMaterialInterface;
@@ -45,31 +43,41 @@ class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsToolProperties : public UInte
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = Options)
-	EMeshTangentsType TangentType = EMeshTangentsType::FastMikkTSpace;
+	/** Method used for calculating the tangents */
+	UPROPERTY(EditAnywhere, Category = TangentsCalculation)
+	EMeshTangentsType CalculationMethod = EMeshTangentsType::FastMikkTSpace;
 
-
-	UPROPERTY(EditAnywhere, Category = Visualization)
+	/** Display the mesh tangents */
+	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowTangents = true;
 
-	UPROPERTY(EditAnywhere, Category = Visualization)
+	/** Display the mesh normals */
+	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowNormals = false;
 
-	UPROPERTY(EditAnywhere, Category = Visualization, AdvancedDisplay)
-	bool bHideDegenerates = true;
+	/** Length of lines used for displaying tangents and/or normals */
+	UPROPERTY(EditAnywhere, Category = Display, meta = (UIMin = "0.01", UIMax = "25.0", ClampMin = "0.01", ClampMax = "10000000.0"))
+	float LineLength = 2.0f;
 
-	UPROPERTY(EditAnywhere, Category = Visualization, AdvancedDisplay, meta = (UIMin = "0.01", UIMax = "25.0", ClampMin = "0.01", ClampMax = "10000000.0"))
-	float LineLength = 2.0;
+	/** Thickness of lines used for displaying tangents and/or normals */
+	UPROPERTY(EditAnywhere, Category = Display, meta = (UIMin = "0", UIMax = "25.0", ClampMin = "0", ClampMax = "1000.0"))
+	float LineThickness = 1.0f;
 
-	UPROPERTY(EditAnywhere, Category = Visualization, AdvancedDisplay, meta = (UIMin = "0", UIMax = "25.0", ClampMin = "0", ClampMax = "1000.0"))
-	float LineThickness = 3.0;
+	/** Display tangents and/or normals for degenerate triangles */
+	UPROPERTY(EditAnywhere, Category = Display, AdvancedDisplay)
+	bool bShowDegenerates = false;
 
-
-	UPROPERTY(EditAnywhere, Category = Visualization, AdvancedDisplay)
+	/** Display difference between the current tangents and tangents calculated with standard MikkTSpace calculation.
+	 * This is only available if a Calculation Method other than MikkTSpace is selected. */
+	UPROPERTY(EditAnywhere, Category = Display, AdvancedDisplay, meta = (DisplayName = "Compare with MikkT",
+		EditCondition = "CalculationMethod != EMeshTangentsType::MikkTSpace"))
 	bool bCompareWithMikkt = false;
 
-	UPROPERTY(EditAnywhere, Category = Visualization, AdvancedDisplay, meta = (UIMin = "0.5", UIMax = "90.0"))
-	float AngleThreshDeg = 5.0;
+	/** Minimum angle difference in degrees for a tangent to be considered different to the standard MikkTSpace calculation
+	 * This is only available if a Compare with MikkT is enabled and a Calculation Method other than MikkTSpace is selected. */
+	UPROPERTY(EditAnywhere, Category = Display, AdvancedDisplay, meta = (DisplayName = "Compare Threshold", UIMin = "0.5", UIMax = "90.0",
+		EditCondition = "CalculationMethod != EMeshTangentsType::MikkTSpace && bCompareWithMikkt"))
+	float CompareWithMikktThreshold = 5.0f;
 
 };
 
@@ -104,7 +112,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMeshTangentsToolProperties> Settings = nullptr;
 
-protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> DefaultMaterial = nullptr;
 
@@ -116,7 +123,6 @@ protected:
 
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshTangentsd>> Compute = nullptr;
 
-protected:
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> InputMeshDescription;
 	TSharedPtr<UE::Geometry::FMeshTangentsf, ESPMode::ThreadSafe> InitialTangents;
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;

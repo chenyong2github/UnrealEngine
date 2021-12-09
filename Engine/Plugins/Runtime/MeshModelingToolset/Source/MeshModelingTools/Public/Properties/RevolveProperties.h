@@ -133,8 +133,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayName = "Path at Midpoint"))
 	bool bPathAtMidpointOfStep = false;
 
-	/** How Polygroups are assigned to shape primitives. If caps are generated, they will always be in separate groups. */
-	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay)
+	/** How PolyGroups are assigned to shape primitives. If caps are generated, they will always be in separate groups. */
+	UPROPERTY(EditAnywhere, Category = Revolve, AdvancedDisplay, meta = (DisplayName = "PolyGroup Mode"))
 	ERevolvePropertiesPolygroupMode PolygroupMode = ERevolvePropertiesPolygroupMode::PerFace;
 
 	/** How generated quads are split into triangles. */
