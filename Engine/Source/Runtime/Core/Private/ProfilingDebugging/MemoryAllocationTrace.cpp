@@ -134,8 +134,6 @@ void FAllocationTrace::Initialize() const
 	check(SystemRootHeap == EMemoryTraceRootHeap::SystemMemory);
 	const HeapId VideoRootHeap = RootHeapSpec(TEXT("Video memory"));
 	check(VideoRootHeap == EMemoryTraceRootHeap::VideoMemory);
-	const HeapId TraceRootHeap = RootHeapSpec(TEXT("Trace"));
-	check(TraceRootHeap == EMemoryTraceRootHeap::TraceMemory);
 
 	static_assert((1 << SizeShift) - 1 <= MIN_ALIGNMENT, "Not enough bits to pack size fields");
 }
@@ -299,7 +297,7 @@ void FAllocationTrace::ReallocFree(void* Address, HeapId RootHeap)
 ////////////////////////////////////////////////////////////////////////////////
 HeapId FAllocationTrace::HeapSpec(HeapId ParentId, const TCHAR* Name, EMemoryTraceHeapFlags Flags) const
 {
-	static std::atomic<HeapId> HeapIdCount(15); //Reserve indexes for root heaps
+	static std::atomic<HeapId> HeapIdCount(EMemoryTraceRootHeap::EndReserved + 1); //Reserve indexes for root heaps
 	const HeapId Id = HeapIdCount.fetch_add(1);
 	const uint32 NameLen = FCString::Strlen(Name);
 	const uint32 DataSize = NameLen * sizeof(TCHAR);
@@ -382,10 +380,12 @@ void* FTraceMalloc::Malloc(SIZE_T Count, uint32 Alignment)
 	const uint32 AlignmentPow2 = uint32(FPlatformMath::CountTrailingZeros(Alignment));
 	const uint32 Alignment_SizeLower = (AlignmentPow2 << SizeShift) | uint32(Size & ((1 << SizeShift) - 1));
 
+	UE_MEMSCOPE(TRACE_TAG);
+	
 	UE_TRACE_LOG(Memory, Alloc, MemAllocChannel)
 		<< Alloc.CallstackId(0)
 		<< Alloc.Address(uint64(NewPtr))
-		<< Alloc.RootHeap(uint8(EMemoryTraceRootHeap::TraceMemory))
+		<< Alloc.RootHeap(uint8(EMemoryTraceRootHeap::SystemMemory))
 		<< Alloc.Size(uint32(Size >> SizeShift))
 		<< Alloc.AlignmentPow2_SizeLower(uint8(Alignment_SizeLower));
 #endif //UE_MEMORY_TRACE_ENABLED
@@ -409,12 +409,14 @@ void* FTraceMalloc::Realloc(void* Original, SIZE_T Count, uint32 Alignment)
 
 	UE_TRACE_LOG(Memory, ReallocFree, MemAllocChannel)
 		<< ReallocFree.Address(uint64(Original))
-		<< ReallocFree.RootHeap(uint8(EMemoryTraceRootHeap::TraceMemory));
+		<< ReallocFree.RootHeap(uint8(EMemoryTraceRootHeap::SystemMemory));
 
+	UE_MEMSCOPE(TRACE_TAG);
+	
 	UE_TRACE_LOG(Memory, ReallocAlloc, MemAllocChannel)
 		<< ReallocAlloc.CallstackId(0)
 		<< ReallocAlloc.Address(uint64(NewPtr))
-		<< ReallocAlloc.RootHeap(uint8(EMemoryTraceRootHeap::TraceMemory))
+		<< ReallocAlloc.RootHeap(uint8(EMemoryTraceRootHeap::SystemMemory))
 		<< ReallocAlloc.Size(uint32(Size >> SizeShift))
 		<< ReallocAlloc.AlignmentPow2_SizeLower(uint8(Alignment_SizeLower));
 #endif //UE_MEMORY_TRACE_ENABLED
@@ -433,7 +435,7 @@ void FTraceMalloc::Free(void* Original)
 #if UE_MEMORY_TRACE_ENABLED
 	UE_TRACE_LOG(Memory, Free, MemAllocChannel)
 		<< Free.Address(uint64(Original))
-		<< Free.RootHeap(uint8(EMemoryTraceRootHeap::TraceMemory));
+		<< Free.RootHeap(uint8(EMemoryTraceRootHeap::SystemMemory));
 #endif //UE_MEMORY_TRACE_ENABLED
 }
 

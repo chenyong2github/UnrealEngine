@@ -32,8 +32,7 @@ enum EMemoryTraceRootHeap : uint8
 {
 	SystemMemory, // RAM
 	VideoMemory, // VRAM
-	TraceMemory, // Memory used by Trace itself
-	EndHardcoded = TraceMemory,
+	EndHardcoded = VideoMemory,
 	EndReserved = 15
 };
 
@@ -140,7 +139,7 @@ CORE_API void MemoryTrace_ReallocAlloc(uint64 Address, uint64 NewSize, uint32 Al
 #else
 
 inline HeapId MemoryTrace_RootHeapSpec(const TCHAR* Name, EMemoryTraceHeapFlags Flags = EMemoryTraceHeapFlags::None) { return ~0; };
-inline HeapId MemoryTrace_HeapSpec(const TCHAR* Name, EMemoryTraceHeapFlags Flags = EMemoryTraceHeapFlags::None) { return ~0; }
+inline HeapId MemoryTrace_HeapSpec(HeapId ParentId, const TCHAR* Name, EMemoryTraceHeapFlags Flags = EMemoryTraceHeapFlags::None) { return ~0; }
 inline void MemoryTrace_MarkAllocAsHeap(uint64 Address, HeapId Heap) {}
 inline void MemoryTrace_UnmarkAllocAsHeap(uint64 Address, HeapId Heap) {}
 inline void MemoryTrace_Alloc(uint64 Address, uint64 Size, uint32 Alignment, HeapId RootHeap = EMemoryTraceRootHeap::SystemMemory) {}
