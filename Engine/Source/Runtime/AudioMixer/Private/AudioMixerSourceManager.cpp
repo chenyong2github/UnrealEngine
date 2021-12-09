@@ -559,6 +559,12 @@ namespace Audio
 		SourceInfo.LowPassFreq = MAX_FILTER_FREQUENCY;
 		SourceInfo.HighPassFreq = MIN_FILTER_FREQUENCY;
 
+		if (SourceInfo.SourceBufferListener)
+		{
+			SourceInfo.SourceBufferListener->OnSourceReleased(SourceId);
+			SourceInfo.SourceBufferListener.Reset();
+		}
+
 		SourceInfo.ResetModulators(MixerDevice->DeviceID);
 
 		SourceInfo.LowPassFilter.Reset();
@@ -843,6 +849,10 @@ namespace Audio
 				MixerDevice->ReverbPluginInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ReverbPluginSettings);
 				SourceInfo.bUseReverbPlugin = true;
 			}
+
+			// Optional Source Buffer listener.
+			SourceInfo.SourceBufferListener = InitParams.SourceBufferListener;
+			SourceInfo.bShouldSourceBufferListenerZeroBuffer = InitParams.bShouldSourceBufferListenerZeroBuffer;
 
 			// Default all sounds to not consider effect chain tails when playing
 			SourceInfo.bEffectTailsDone = true;
@@ -2075,6 +2085,27 @@ namespace Audio
 				InSourceSubmixOutputBuffer.SetPreAttenuationSourceBuffer(&SourceInfo.PreDistanceAttenuationBuffer);
 			}
 			return;
+		}
+
+		// If we have Source Buffer Listener
+		if (SourceInfo.SourceBufferListener.IsValid())
+		{
+			// Pack all our state into a single struct.
+			ISourceBufferListener::FOnNewBufferParams Params;
+			Params.SourceId			= SourceId;
+			Params.AudioData		= SourceInfo.PreDistanceAttenuationBuffer.GetData();
+			Params.NumSamples		= SourceInfo.PreDistanceAttenuationBuffer.Num();
+			Params.NumChannels		= SourceInfo.NumInputChannels;
+			Params.SampleRate		= MixerDevice->GetSampleRate();
+
+			// Fire callback.
+			SourceInfo.SourceBufferListener->OnNewBuffer(Params);
+
+			// Optionally, clear the buffer after we've broadcast it. 
+			if (SourceInfo.bShouldSourceBufferListenerZeroBuffer)
+			{
+				FMemory::Memzero(SourceInfo.PreDistanceAttenuationBuffer.GetData(), SourceInfo.PreDistanceAttenuationBuffer.Num() * sizeof(float));
+			}
 		}
 
 		float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();

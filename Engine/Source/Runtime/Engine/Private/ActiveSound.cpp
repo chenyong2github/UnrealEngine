@@ -795,6 +795,10 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 				// manually deep copy the QuantizedCommandPtr object itself
 				WaveInstance->QuantizedRequestData->QuantizedCommandPtr = QuantizedRequestData.QuantizedCommandPtr->GetDeepCopyOfDerivedObject();
 			}
+			
+			// each wave instance needs its own copy of the source buffer listener.
+			WaveInstance->SourceBufferListener = SourceBufferListener;
+			WaveInstance->bShouldSourceBufferListenerZeroBuffer = bShouldSourceBufferListenerZeroBuffer;
 		}
 
 		// If the concurrency volume is negative (as set by ConcurrencyManager on creation),

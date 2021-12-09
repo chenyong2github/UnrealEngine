@@ -731,6 +731,12 @@ public:
 	/** Sets whether or not sound instance is virtualized */
 	void SetIsVirtualized(bool bInIsVirtualized);
 
+	/** Sets Source Buffer Listener */
+	void SetSourceBufferListener(const FSharedISourceBufferListenerPtr& InSourceBufferListener, bool bShouldZeroBufferAfter);
+	
+	/** Gets  Source Buffer Listener */
+	const FSharedISourceBufferListenerPtr& GetSourceBufferListener() const { return SourceBufferListener; }
+
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -860,6 +866,10 @@ private:
 
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
 	void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
+	
+	/** Source Buffer Listener. */
+	FSharedISourceBufferListenerPtr SourceBufferListener;
+	bool bShouldSourceBufferListenerZeroBuffer = false;
 
 protected:
 

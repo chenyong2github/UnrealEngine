@@ -22,7 +22,8 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
-					"CoreUObject"
+					"CoreUObject",
+					"AudioLinkEngine",
 				}
 			);
 
@@ -37,6 +38,7 @@ namespace UnrealBuildTool.Rules
 					"AudioPlatformConfiguration",
 					"SoundFieldRendering",
 					"AudioExtensions",
+					"AudioLinkEngine"
 				}
 			);
 
