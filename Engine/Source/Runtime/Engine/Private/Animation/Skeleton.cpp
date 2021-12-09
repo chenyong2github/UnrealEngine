@@ -2231,6 +2231,16 @@ void USkeleton::RemoveVirtualBones(const TArray<FName>& BonesToRemove)
 				}
 			}
 			VirtualBones.RemoveAt(Idx,1,false);
+
+			// @todo: This might be a slow operation if there's a large amount of blend profiles and entries
+			int32 BoneIdx = GetReferenceSkeleton().FindBoneIndex(BoneName);
+			if(BoneIdx != INDEX_NONE)
+			{
+				for (UBlendProfile* Profile : BlendProfiles)
+				{
+					Profile->RemoveEntry(BoneIdx);
+				}
+			}
 		}
 	}
 
