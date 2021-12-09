@@ -7,7 +7,6 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescription.h"
-#include "MeshDescriptionToDynamicMesh.h"
 #include "ToolSetupUtil.h"
 #include "ToolDataVisualizer.h"
 
@@ -90,7 +89,7 @@ void UMeshTangentsTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
-	Settings->WatchProperty(Settings->TangentType, [this](EMeshTangentsType) { Compute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->CalculationMethod, [this](EMeshTangentsType) { Compute->InvalidateResult(); });
 	Settings->WatchProperty(Settings->LineLength, [this](float) { bLengthDirty = true; });
 	Settings->WatchProperty(Settings->LineThickness, [this](float) { bThicknessDirty = true; });
 	Settings->WatchProperty(Settings->bShowTangents, [this](float) { bVisibilityChanged = true; });
@@ -170,14 +169,14 @@ void UMeshTangentsTool::Render(IToolsContextRenderAPI* RenderAPI)
 		Visualizer.SetTransform(PreviewMesh->GetTransform());
 		for (const FMikktDeviation& ErrorPt : Deviations)
 		{
-			if (ErrorPt.MaxAngleDeg > Settings->AngleThreshDeg)
+			if (ErrorPt.MaxAngleDeg > Settings->CompareWithMikktThreshold)
 			{
-				Visualizer.DrawPoint(ErrorPt.VertexPos, FLinearColor(0.95, 0.05, 0.05), 6 * Settings->LineThickness, false);
-				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktTangent, FLinearColor(0.95, 0.05, 0.05), 2 * Settings->LineThickness, false);
-				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktBitangent, FLinearColor(0.05, 0.95, 0.05), 2 * Settings->LineThickness, false);
+				Visualizer.DrawPoint(ErrorPt.VertexPos, FLinearColor(0.95f, 0.05f, 0.05f), 6.0f * Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktTangent, FLinearColor(0.95f, 0.05f, 0.05f), 2 * Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + Settings->LineLength * ErrorPt.MikktBitangent, FLinearColor(0.05f, 0.95f, 0.05f), 2 * Settings->LineThickness, false);
 
-				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f*Settings->LineLength) * ErrorPt.OtherTangent, FLinearColor(0.95, 0.50, 0.05), Settings->LineThickness, false);
-				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f*Settings->LineLength) * ErrorPt.OtherBitangent, FLinearColor(0.05, 0.95, 0.95), Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f * Settings->LineLength) * ErrorPt.OtherTangent, FLinearColor(0.95f, 0.50f, 0.05f), Settings->LineThickness, false);
+				Visualizer.DrawLine<FVector3f>(ErrorPt.VertexPos, ErrorPt.VertexPos + (1.1f * Settings->LineLength) * ErrorPt.OtherBitangent, FLinearColor(0.05f, 0.95f, 0.95f), Settings->LineThickness, false);
 			}
 		}
 		Visualizer.EndFrame();
@@ -197,7 +196,7 @@ TUniquePtr<TGenericDataOperator<FMeshTangentsd>> UMeshTangentsTool::MakeNewOpera
 
 	TangentsOp->SourceMesh = InputMesh;
 	TangentsOp->SourceTangents = InitialTangents;
-	TangentsOp->CalculationMethod = Settings->TangentType;
+	TangentsOp->CalculationMethod = Settings->CalculationMethod;
 
 	return TangentsOp;
 }
@@ -214,7 +213,7 @@ void UMeshTangentsTool::UpdateVisualization(bool bThicknessChanged, bool bLength
 
 	if (bThicknessChanged)
 	{
-		float Thickness = (Settings->LineThickness-2.0) / 10.0;
+		float Thickness = Settings->LineThickness;
 		TangentLines->SetAllLinesThickness(Thickness);
 		NormalLines->SetAllLinesThickness(Thickness);
 	}
@@ -233,11 +232,11 @@ void UMeshTangentsTool::UpdateVisualization(bool bThicknessChanged, bool bLength
 
 void UMeshTangentsTool::OnTangentsUpdated(const TUniquePtr<FMeshTangentsd>& NewResult)
 {
-	float LineLength = Settings->LineLength;
-	float Thickness = (Settings->LineThickness-2.0) / 10.0;
+	const float LineLength = Settings->LineLength;
+	const float Thickness = Settings->LineThickness;
 
 	TSet<int32> DegenerateTris;
-	if (Settings->bHideDegenerates || (Settings->bCompareWithMikkt && Settings->TangentType != EMeshTangentsType::MikkTSpace) )
+	if (!Settings->bShowDegenerates || (Settings->bCompareWithMikkt && Settings->CalculationMethod != EMeshTangentsType::MikkTSpace) )
 	{
 		FMeshTangentsd DegenTangents(InputMesh.Get());
 		DegenTangents.ComputeTriangleTangents(InputMesh->Attributes()->GetUVLayer(0));
@@ -282,7 +281,7 @@ void UMeshTangentsTool::OnTangentsUpdated(const TUniquePtr<FMeshTangentsd>& NewR
 
 	// calculate deviation between what we have and MikkT, if necessary
 	Deviations.Reset();
-	if (Settings->bCompareWithMikkt && Settings->TangentType != EMeshTangentsType::MikkTSpace)
+	if (Settings->bCompareWithMikkt && Settings->CalculationMethod != EMeshTangentsType::MikkTSpace)
 	{
 		FProgressCancel TmpCancel;
 		FCalculateTangentsOp MikktOp;
@@ -307,7 +306,8 @@ void UMeshTangentsTool::OnTangentsUpdated(const TUniquePtr<FMeshTangentsd>& NewR
 				{
 					FVector3f TangentMikkt, BitangentMikkt;
 					MikktTangents->GetPerTriangleTangent<FVector3f, float>(Index, j, TangentMikkt, BitangentMikkt);
-					UE::Geometry::Normalize(TangentMikkt); UE::Geometry::Normalize(BitangentMikkt);
+					UE::Geometry::Normalize(TangentMikkt);
+					UE::Geometry::Normalize(BitangentMikkt);
 					FVector3f TangentNew, BitangentNew;
 					NewTangents->GetPerTriangleTangent<FVector3f, float>(Index, j, TangentNew, BitangentNew);
 					UE::Geometry::Normalize(TangentNew); 
