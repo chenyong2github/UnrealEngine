@@ -29,6 +29,7 @@ class UOptimusNode_GraphTerminal :
 public:
 	// UOptimusNode overrides
 	bool CanUserDeleteNode() const override { return false; }
+	FName GetNodeCategory() const override { return NAME_None; }
 	FText GetDisplayName() const override;
 	void ConstructNode() override;
 	
