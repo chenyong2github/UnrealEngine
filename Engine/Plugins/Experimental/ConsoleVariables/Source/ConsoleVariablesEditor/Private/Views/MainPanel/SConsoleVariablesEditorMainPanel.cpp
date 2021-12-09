@@ -86,7 +86,8 @@ FReply SConsoleVariablesEditorMainPanel::ValidateConsoleInput(const FText& Commi
 	}
 	else
 	{
-		UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input %s is not a recognized console command."),
+		UE_LOG(LogConsoleVariablesEditor, Warning,
+			TEXT("%hs: Input %s is not a recognized console variable. Note that only console variables are supported, not console commands."),
 			__FUNCTION__, *CommandString);
 	}
 
