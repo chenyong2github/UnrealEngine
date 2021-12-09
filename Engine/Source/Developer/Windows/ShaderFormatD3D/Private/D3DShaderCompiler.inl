@@ -613,7 +613,7 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 	// Append data that is generate from the shader code and assist the usage, mostly needed for DX12 
 	{
 		Output.ShaderCode.AddOptionalData(PackedResourceCounts);
-		Output.ShaderCode.AddOptionalData('u', UniformBufferNameBytes.GetData(), UniformBufferNameBytes.Num());
+		Output.ShaderCode.AddOptionalData(FShaderCodeUniformBuffers::Key, UniformBufferNameBytes.GetData(), UniformBufferNameBytes.Num());
 		AddOptionalDataCallback(Output.ShaderCode);
 	}
 

@@ -1359,14 +1359,16 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 		if (!Buffer)
 		{
 			FString ShaderUB;
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
 			if (BufferIndex < Shader->UniformBuffers.Num())
 			{
 				Shader->UniformBuffers[BufferIndex].ToString(ShaderUB);
 			}
+#endif
 			UE_LOG(LogD3D11RHI, Fatal, TEXT("Shader expected a uniform buffer at slot %u but got null instead (Shader='%s' UB='%s').  Rendering code needs to set a valid uniform buffer for this slot."), BufferIndex, Shader->GetShaderName(), *ShaderUB);
 		}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
 		// to track down OR-7159 CRASH: Client crashed at start of match in D3D11Commands.cpp
 		{
 			const uint32 LayoutHash = Buffer->GetLayout().GetHash();
@@ -1402,7 +1404,7 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 		}
 #endif
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
 		const TCHAR* LayoutName = *Buffer->GetLayout().GetDebugName();
 #else 
 		const TCHAR* LayoutName = nullptr;
@@ -1437,21 +1439,23 @@ int32 FD3D11DynamicRHI::SetUAVPSResourcesFromTables(const ShaderType* RESTRICT S
 		if (!Buffer)
 		{
 			FString ShaderUB;
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
 			if (BufferIndex < Shader->UniformBuffers.Num())
 			{
 				Shader->UniformBuffers[BufferIndex].ToString(ShaderUB);
 			}
+#endif
 			UE_LOG(LogD3D11RHI, Fatal, TEXT("Shader expected a uniform buffer at slot %u but got null instead (Shader='%s' UB='%s').  Rendering code needs to set a valid uniform buffer for this slot."), BufferIndex, Shader->GetShaderName(), *ShaderUB);
 		}
 
-	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		const TCHAR* LayoutName = *Buffer->GetLayout().GetDebugName();
-	#else
-		const TCHAR* LayoutName = nullptr;
-	#endif
-
 		if ((EShaderFrequency)ShaderType::StaticFrequency == SF_Pixel)
 		{
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
+			const TCHAR* LayoutName = *Buffer->GetLayout().GetDebugName();
+#else
+			const TCHAR* LayoutName = nullptr;
+#endif
+
 			NumChanged += SetShaderResourcesFromBufferUAVPS<(EShaderFrequency)ShaderType::StaticFrequency>(this, &StateCache, Buffer, Shader->ShaderResourceTable.UnorderedAccessViewMap.GetData(), BufferIndex, LayoutName);
 		}
 	}

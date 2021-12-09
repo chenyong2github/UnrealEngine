@@ -16,13 +16,11 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	}
 	OutShader.ResourceCounts = *PackedResourceCounts;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if RHI_INCLUDE_SHADER_DEBUG_DATA
 	OutShader.ShaderName = InShaderCode.FindOptionalData(FShaderCodeName::Key);
 
-#if 0
 	int32 UniformBufferTableSize = 0;
-	const auto* UniformBufferData = InShaderCode.FindOptionalDataAndSize('u', UniformBufferTableSize);
-	//#todo-rco
+	const uint8* UniformBufferData = InShaderCode.FindOptionalDataAndSize(FShaderCodeUniformBuffers::Key, UniformBufferTableSize);
 	if (UniformBufferData && UniformBufferTableSize > 0)
 	{
 		FBufferReader UBReader((void*)UniformBufferData, UniformBufferTableSize, false);
@@ -34,7 +32,6 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 			OutShader.UniformBuffers.Add(FName(*Names[Index]));
 		}
 	}
-#endif
 #endif
 
 #if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
