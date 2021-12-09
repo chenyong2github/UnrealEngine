@@ -70,6 +70,7 @@ protected:
 	// FAssetEditorToolkit
 	virtual void PostInitAssetEditor() override;
 	virtual const FSlateBrush* GetDefaultTabIcon() const override;
+	virtual FLinearColor GetDefaultTabColor() const override;
 
 	/** Scene in which the 2D unwrapped uv meshes live. */
 	TUniquePtr<FPreviewScene> UnwrapScene;
