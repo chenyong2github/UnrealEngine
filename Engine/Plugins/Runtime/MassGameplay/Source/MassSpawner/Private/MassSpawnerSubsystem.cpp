@@ -56,31 +56,6 @@ namespace UE::Mass::SpawnerSubsystem
 
 		return Destructors.Num() > 0;
 	}
-	
-	void CreateSparseChunks(const UMassEntitySubsystem& EntitySystem, const TConstArrayView<FMassEntityHandle> Entities, TArray<FArchetypeChunkCollection>& OutChunkCollections)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_STR("SpawnerSubsystem_CreateSparseChunks");
-
-		TMap<const FArchetypeHandle, TArray<FMassEntityHandle>> ArchetypeToEntities;
-
-		for (const FMassEntityHandle& Entity : Entities)
-		{
-			FArchetypeHandle Archetype = EntitySystem.GetArchetypeForEntity(Entity);
-			TArray<FMassEntityHandle>& PerArchetypeEntities = ArchetypeToEntities.FindOrAdd(Archetype);
-			PerArchetypeEntities.Add(Entity);
-		}
-
-		for (auto& Pair : ArchetypeToEntities)
-		{
-			// @todo this is a temporary measure to skip entities we've destroyed without the
-			// UMassSpawnerSubsystem::DestroyEntities' caller knowledge. Should be removed once that's addressed.
-			if (Pair.Key.IsValid())
-			{
-				OutChunkCollections.Add(FArchetypeChunkCollection(Pair.Key, Pair.Value));
-			}
-		}
-	}
-	
 } // namespace UE::Mass::SpawnerSubsystem
 
 //----------------------------------------------------------------------//
@@ -188,7 +163,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 		// There's no certainty all Entities still belong to the original archetype, the MutableEntityTemplate.GetArchetype().
 		// We need to figure out the separate, per-archetype sparse chunks
 		TArray<FArchetypeChunkCollection> ChunkCollections;
-		UE::Mass::SpawnerSubsystem::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
+		UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
 
 		FMassProcessingContext ProcessingContext(*EntitySystem, /*TimeDelta=*/0.0f);
 
@@ -204,7 +179,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 		if (bDestructorsRun)
 		{
 			ChunkCollections.Reset();
-			UE::Mass::SpawnerSubsystem::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
 		}
 		
 		// Run template deinitializers
@@ -225,7 +200,7 @@ void UMassSpawnerSubsystem::DestroyEntities(const FMassEntityTemplateID Template
 		if (MutableEntityTemplate.GetDeinitializationPipeline().Processors.Num())
 		{
 			ChunkCollections.Reset();
-			UE::Mass::SpawnerSubsystem::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
+			UE::Mass::Utils::CreateSparseChunks(*EntitySystem, Entities, ChunkCollections);
 		}
 
 		for (const FArchetypeChunkCollection& Chunks : ChunkCollections)
