@@ -77,8 +77,8 @@ struct FRasterTri
 
 FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 {
-	FRasterTri Triangle;
-	Triangle.bIsValid = true;
+	FRasterTri Tri;
+	Tri.bIsValid = true;
 	
 	float3 v01 = Verts[1] - Verts[0];
 	float3 v02 = Verts[2] - Verts[0];
@@ -88,7 +88,7 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	{
 		// Backface
 		// If not culling, need to swap verts to correct winding for rest of code
-		Triangle.bIsValid = false;
+		Tri.bIsValid = false;
 	}
 
 	float InvDet = rcp( DetXY );
@@ -109,101 +109,101 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3] )
 	bool2 bMissCenter =	( MinSubpixel & SUBPIXEL_MASK > (SUBPIXEL_SAMPLES / 2) ) &&
 						( MaxSubpixel - ( MinSubpixel & ~SUBPIXEL_MASK ) + (SUBPIXEL_SAMPLES / 2) ) < SUBPIXEL_MASK;
 	if( any( bMissCenter ) )
-		Triangle.bIsValid = false;
+		Tri.bIsValid = false;
 #endif
 
 	// Round to nearest pixel
-	Triangle.MinPixel = (int2)floor( ( MinSubpixel + (SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / SUBPIXEL_SAMPLES) );
-	Triangle.MaxPixel = (int2)floor( ( MaxSubpixel - (SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / SUBPIXEL_SAMPLES) );	// inclusive!
+	Tri.MinPixel = (int2)floor( ( MinSubpixel + (SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / SUBPIXEL_SAMPLES) );
+	Tri.MaxPixel = (int2)floor( ( MaxSubpixel - (SUBPIXEL_SAMPLES / 2) - 1 ) * (1.0 / SUBPIXEL_SAMPLES) );	// inclusive!
 
 	// Clip to viewport
-	Triangle.MinPixel = max( Triangle.MinPixel, Raster.ViewRect.xy );
-	Triangle.MaxPixel = min( Triangle.MaxPixel, Raster.ViewRect.zw - 1 );
+	Tri.MinPixel = max( Tri.MinPixel, Raster.ViewRect.xy );
+	Tri.MaxPixel = min( Tri.MaxPixel, Raster.ViewRect.zw - 1 );
 	
 	// Force 1 pixel
 	//MaxPixel = max( MaxPixel, MinPixel );
 	
 	// Cull when no pixels covered
-	if( any( Triangle.MinPixel > Triangle.MaxPixel ) )
-		Triangle.bIsValid = false;
+	if( any( Tri.MinPixel > Tri.MaxPixel ) )
+		Tri.bIsValid = false;
 
 	// Limit the rasterizer bounds to a sensible max.
-	Triangle.MaxPixel = min( Triangle.MaxPixel, Triangle.MinPixel + 63 );
+	Tri.MaxPixel = min( Tri.MaxPixel, Tri.MinPixel + 63 );
 
 	// 4.8 fixed point
-	Triangle.Edge01 = -v01.xy;
-	Triangle.Edge12 = Vert1 - Vert2;
-	Triangle.Edge20 = v02.xy;
+	Tri.Edge01 = -v01.xy;
+	Tri.Edge12 = Vert1 - Vert2;
+	Tri.Edge20 = v02.xy;
 	
 	// Rebase off MinPixel with half pixel offset
 	// 4.8 fixed point
 	// Max triangle size = 127x127 pixels
-	const float2 BaseSubpixel = (float2)Triangle.MinPixel * SUBPIXEL_SAMPLES + (SUBPIXEL_SAMPLES / 2);
+	const float2 BaseSubpixel = (float2)Tri.MinPixel * SUBPIXEL_SAMPLES + (SUBPIXEL_SAMPLES / 2);
 	Vert0 -= BaseSubpixel;
 	Vert1 -= BaseSubpixel;
 	Vert2 -= BaseSubpixel;
 
 	// Half-edge constants
 	// 8.16 fixed point
-	Triangle.C0 = Triangle.Edge01.y * Vert0.x - Triangle.Edge01.x * Vert0.y;
-	Triangle.C1 = Triangle.Edge12.y * Vert1.x - Triangle.Edge12.x * Vert1.y;
-	Triangle.C2 = Triangle.Edge20.y * Vert2.x - Triangle.Edge20.x * Vert2.y;
+	Tri.C0 = Tri.Edge01.y * Vert0.x - Tri.Edge01.x * Vert0.y;
+	Tri.C1 = Tri.Edge12.y * Vert1.x - Tri.Edge12.x * Vert1.y;
+	Tri.C2 = Tri.Edge20.y * Vert2.x - Tri.Edge20.x * Vert2.y;
 
 	// Correct for fill convention
 	// Top left rule for CCW
 #if 1
-	Triangle.C0 -= saturate( Triangle.Edge01.y + saturate( 1.0f - Triangle.Edge01.x ) );
-	Triangle.C1 -= saturate( Triangle.Edge12.y + saturate( 1.0f - Triangle.Edge12.x ) );
-	Triangle.C2 -= saturate( Triangle.Edge20.y + saturate( 1.0f - Triangle.Edge20.x ) );
+	Tri.C0 -= saturate( Tri.Edge01.y + saturate( 1.0f - Tri.Edge01.x ) );
+	Tri.C1 -= saturate( Tri.Edge12.y + saturate( 1.0f - Tri.Edge12.x ) );
+	Tri.C2 -= saturate( Tri.Edge20.y + saturate( 1.0f - Tri.Edge20.x ) );
 #else
-	Triangle.C0 -= ( Triangle.Edge01.y < 0 || ( Triangle.Edge01.y == 0 && Triangle.Edge01.x > 0 ) ) ? 0 : 1;
-	Triangle.C1 -= ( Triangle.Edge12.y < 0 || ( Triangle.Edge12.y == 0 && Triangle.Edge12.x > 0 ) ) ? 0 : 1;
-	Triangle.C2 -= ( Triangle.Edge20.y < 0 || ( Triangle.Edge20.y == 0 && Triangle.Edge20.x > 0 ) ) ? 0 : 1;
+	Tri.C0 -= ( Tri.Edge01.y < 0 || ( Tri.Edge01.y == 0 && Tri.Edge01.x > 0 ) ) ? 0 : 1;
+	Tri.C1 -= ( Tri.Edge12.y < 0 || ( Tri.Edge12.y == 0 && Tri.Edge12.x > 0 ) ) ? 0 : 1;
+	Tri.C2 -= ( Tri.Edge20.y < 0 || ( Tri.Edge20.y == 0 && Tri.Edge20.x > 0 ) ) ? 0 : 1;
 #endif
 
 	float Z0 = Verts[0].z - ( GradZ.x * Vert0.x + GradZ.y * Vert0.y );
 	GradZ *= SUBPIXEL_SAMPLES;
 	
-	Triangle.DepthPlane = float3( GradZ, Z0 );
+	Tri.DepthPlane = float3( GradZ, Z0 );
 
 #if 0
 	// Step in pixel increments
 	// 8.16 fixed point
-	Triangle.Edge01 *= SUBPIXEL_SAMPLES;
-	Triangle.Edge12 *= SUBPIXEL_SAMPLES;
-	Triangle.Edge20 *= SUBPIXEL_SAMPLES;
+	Tri.Edge01 *= SUBPIXEL_SAMPLES;
+	Tri.Edge12 *= SUBPIXEL_SAMPLES;
+	Tri.Edge20 *= SUBPIXEL_SAMPLES;
 #else
 	// Scale C0/C1/C2 down by SubpixelSamples instead of scaling Edge01/Edge12/Edge20 up. Lossless because SubpixelSamples is a power of two.
-	Triangle.C0 *= (1.0f / SUBPIXEL_SAMPLES);
-	Triangle.C1 *= (1.0f / SUBPIXEL_SAMPLES);
-	Triangle.C2 *= (1.0f / SUBPIXEL_SAMPLES);
+	Tri.C0 *= (1.0f / SUBPIXEL_SAMPLES);
+	Tri.C1 *= (1.0f / SUBPIXEL_SAMPLES);
+	Tri.C2 *= (1.0f / SUBPIXEL_SAMPLES);
 #endif
 
-	return Triangle;
+	return Tri;
 }
 
-void RasterizeTri_Rect( FRaster Raster, FRasterTri Triangle, uint PixelValue )
+void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 {
-	float CY0 = Triangle.C0;
-	float CY1 = Triangle.C1;
-	float CY2 = Triangle.C2;
-	float ZY  = Triangle.DepthPlane.z;
+	float CY0 = Tri.C0;
+	float CY1 = Tri.C1;
+	float CY2 = Tri.C2;
+	float ZY  = Tri.DepthPlane.z;
 
-	int y = Triangle.MinPixel.y;
+	int y = Tri.MinPixel.y;
 	while (true)
 	{
-		int x = Triangle.MinPixel.x;
+		int x = Tri.MinPixel.x;
 		if (min3(CY0, CY1, CY2) >= 0)
 		{
 			WritePixel( PixelValue, uint2(x,y), ZY, Raster );
 		}
 
-		if (x < Triangle.MaxPixel.x)
+		if (x < Tri.MaxPixel.x)
 		{
-			float CX0 = CY0 - Triangle.Edge01.y;
-			float CX1 = CY1 - Triangle.Edge12.y;
-			float CX2 = CY2 - Triangle.Edge20.y;
-			float ZX  = ZY  + Triangle.DepthPlane.x;
+			float CX0 = CY0 - Tri.Edge01.y;
+			float CX1 = CY1 - Tri.Edge12.y;
+			float CX2 = CY2 - Tri.Edge20.y;
+			float ZX  = ZY  + Tri.DepthPlane.x;
 			x++;
 
 			HOIST_DESCRIPTORS
@@ -214,42 +214,42 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Triangle, uint PixelValue )
 					WritePixel( PixelValue, uint2(x,y), ZX, Raster );
 				}
 
-				if (x >= Triangle.MaxPixel.x)
+				if (x >= Tri.MaxPixel.x)
 					break;
 
-				CX0 -= Triangle.Edge01.y;
-				CX1 -= Triangle.Edge12.y;
-				CX2 -= Triangle.Edge20.y;
-				ZX  += Triangle.DepthPlane.x;
+				CX0 -= Tri.Edge01.y;
+				CX1 -= Tri.Edge12.y;
+				CX2 -= Tri.Edge20.y;
+				ZX  += Tri.DepthPlane.x;
 				x++;
 			}
 		}
 
-		if (y >= Triangle.MaxPixel.y)
+		if (y >= Tri.MaxPixel.y)
 			break;
 
-		CY0 += Triangle.Edge01.x;
-		CY1 += Triangle.Edge12.x;
-		CY2 += Triangle.Edge20.x;
-		ZY  += Triangle.DepthPlane.y;
+		CY0 += Tri.Edge01.x;
+		CY1 += Tri.Edge12.x;
+		CY2 += Tri.Edge20.x;
+		ZY  += Tri.DepthPlane.y;
 		y++;
 	}
 }
 
-void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Triangle, uint PixelValue )
+void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 {
-	float CY0 = Triangle.C0;
-	float CY1 = Triangle.C1;
-	float CY2 = Triangle.C2;
-	float ZY  = Triangle.DepthPlane.z;
+	float CY0 = Tri.C0;
+	float CY1 = Tri.C1;
+	float CY2 = Tri.C2;
+	float ZY  = Tri.DepthPlane.z;
 
 	float CX0 = CY0;
 	float CX1 = CY1;
 	float CX2 = CY2;
 	float ZX  = ZY;
 	
-	int x = Triangle.MinPixel.x;
-	int y = Triangle.MinPixel.y;
+	int x = Tri.MinPixel.x;
+	int y = Tri.MinPixel.y;
 
 	HOIST_DESCRIPTORS
 	while( true )
@@ -259,27 +259,27 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Triangle, uint PixelVal
 			WritePixel( PixelValue, uint2(x,y), ZX, Raster );
 		}
 
-		if( x < Triangle.MaxPixel.x )
+		if( x < Tri.MaxPixel.x )
 		{
-			CX0 -= Triangle.Edge01.y;
-			CX1 -= Triangle.Edge12.y;
-			CX2 -= Triangle.Edge20.y;
-			ZX  += Triangle.DepthPlane.x;
+			CX0 -= Tri.Edge01.y;
+			CX1 -= Tri.Edge12.y;
+			CX2 -= Tri.Edge20.y;
+			ZX  += Tri.DepthPlane.x;
 			x++;
 		}
-		else if( y < Triangle.MaxPixel.y )
+		else if( y < Tri.MaxPixel.y )
 		{
-			CY0 += Triangle.Edge01.x;
-			CY1 += Triangle.Edge12.x;
-			CY2 += Triangle.Edge20.x;
-			ZY  += Triangle.DepthPlane.y;
+			CY0 += Tri.Edge01.x;
+			CY1 += Tri.Edge12.x;
+			CY2 += Tri.Edge20.x;
+			ZY  += Tri.DepthPlane.y;
 			y++;
 			
 			CX0 = CY0;
 			CX1 = CY1;
 			CX2 = CY2;
 			ZX  = ZY;
-			x = Triangle.MinPixel.x;
+			x = Tri.MinPixel.x;
 		}
 		else
 		{
@@ -288,18 +288,18 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Triangle, uint PixelVal
 	}
 }
 
-void RasterizeTri_Scanline( FRaster Raster, FRasterTri Triangle, uint PixelValue )
+void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 {
-	float CY0 = Triangle.C0;
-	float CY1 = Triangle.C1;
-	float CY2 = Triangle.C2;
-	float ZY  = Triangle.DepthPlane.z;
+	float CY0 = Tri.C0;
+	float CY1 = Tri.C1;
+	float CY2 = Tri.C2;
+	float ZY  = Tri.DepthPlane.z;
 
-	float3 Edge012 = { Triangle.Edge01.y, Triangle.Edge12.y, Triangle.Edge20.y };
+	float3 Edge012 = { Tri.Edge01.y, Tri.Edge12.y, Tri.Edge20.y };
 	bool3 bOpenEdge = Edge012 < 0;
 	float3 InvEdge012 = Edge012 == 0 ? 1e8 : rcp( Edge012 );
 
-	int y = Triangle.MinPixel.y;
+	int y = Tri.MinPixel.y;
 	while( true )
 	{
 		//float CX0 = CY0 - Edge01.y * (x - MinPixel.x);
@@ -316,28 +316,28 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Triangle, uint PixelValue
 		float3 CrossX = float3( CY0, CY1, CY2 ) * InvEdge012;
 
 		float3 MinX = bOpenEdge ? CrossX : 0;
-		float3 MaxX = bOpenEdge ? Triangle.MaxPixel.x - Triangle.MinPixel.x : CrossX;
+		float3 MaxX = bOpenEdge ? Tri.MaxPixel.x - Tri.MinPixel.x : CrossX;
 
 		float x0 = ceil( max3( MinX.x, MinX.y, MinX.z ) );
 		float x1 = min3( MaxX.x, MaxX.y, MaxX.z );
-		float ZX = ZY + Triangle.DepthPlane.x * x0;
+		float ZX = ZY + Tri.DepthPlane.x * x0;
 
-		x0 += Triangle.MinPixel.x;
-		x1 += Triangle.MinPixel.x;
+		x0 += Tri.MinPixel.x;
+		x1 += Tri.MinPixel.x;
 		for( float x = x0; x <= x1; x++ )
 		{
 			WritePixel( PixelValue, uint2(x,y), ZX, Raster );
 
-			ZX += Triangle.DepthPlane.x;
+			ZX += Tri.DepthPlane.x;
 		}
 
-		if( y >= Triangle.MaxPixel.y )
+		if( y >= Tri.MaxPixel.y )
 			break;
 
-		CY0 += Triangle.Edge01.x;
-		CY1 += Triangle.Edge12.x;
-		CY2 += Triangle.Edge20.x;
-		ZY  += Triangle.DepthPlane.y;
+		CY0 += Tri.Edge01.x;
+		CY1 += Tri.Edge12.x;
+		CY2 += Tri.Edge20.x;
+		ZY  += Tri.DepthPlane.y;
 		y++;
 	}
 }
@@ -419,7 +419,7 @@ int FindSetBit( uint Mask, int Index )
 struct FWorkContext
 {
 	FRaster		Raster;
-	FRasterTri	Triangle;
+	FRasterTri	Tri;
 	
 	uint	PixelValue;
 	int2	TilePos;
@@ -434,7 +434,7 @@ struct FWorkSourceType
 
 uint GenerateWork( inout FWorkContext Context, uint GroupIndex, inout FWorkSourceType WorkSource, inout bool bDone )
 {
-	bDone = bDone || !Context.Triangle.bIsValid;
+	bDone = bDone || !Context.Tri.bIsValid;
 
 	if( !bDone )
 	{
@@ -442,9 +442,9 @@ uint GenerateWork( inout FWorkContext Context, uint GroupIndex, inout FWorkSourc
 		WorkSource.TileID |= Context.TilePos.x << 8;
 		WorkSource.TileID |= Context.TilePos.y << 20;
 
-		WorkSource.TileMask  = EdgeToTileMask( Context.Triangle.Edge01, Context.Triangle.C0, Context.TilePos );
-		WorkSource.TileMask &= EdgeToTileMask( Context.Triangle.Edge12, Context.Triangle.C1, Context.TilePos );
-		WorkSource.TileMask &= EdgeToTileMask( Context.Triangle.Edge20, Context.Triangle.C2, Context.TilePos );
+		WorkSource.TileMask  = EdgeToTileMask( Context.Tri.Edge01, Context.Tri.C0, Context.TilePos );
+		WorkSource.TileMask &= EdgeToTileMask( Context.Tri.Edge12, Context.Tri.C1, Context.TilePos );
+		WorkSource.TileMask &= EdgeToTileMask( Context.Tri.Edge20, Context.Tri.C2, Context.TilePos );
 
 		if( Context.TilePos.x < Context.MaxTile.x )
 		{
@@ -501,22 +501,22 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 //#define GENERATE_WORK
 #include "../WorkDistribution.ush"
 
-void RasterizeTri_Distribute( FRaster Raster, FRasterTri Triangle, uint PixelValue, uint GroupIndex )
+void RasterizeTri_Distribute( FRaster Raster, FRasterTri Tri, uint PixelValue, uint GroupIndex )
 {
 	FWorkContext Context;
 	Context.Raster		= Raster;
-	Context.Triangle	= Triangle;
+	Context.Tri			= Tri;
 	Context.PixelValue	= PixelValue;
 	
 	Context.TilePos = 0;
-	Context.MaxTile = Triangle.MaxPixel - Triangle.MinPixel;
+	Context.MaxTile = Tri.MaxPixel - Tri.MinPixel;
 	
 	GroupMemoryBarrierWithGroupSync();
 	
-	if( Triangle.bIsValid )
+	if( Tri.bIsValid )
 	{
-		uint MinPixel = Triangle.MinPixel.x | ( Triangle.MinPixel.y << 16 );
-		GroupVerts[ GroupIndex ] = Triangle.DepthPlane;
+		uint MinPixel = Tri.MinPixel.x | ( Tri.MinPixel.y << 16 );
+		GroupVerts[ GroupIndex ] = Tri.DepthPlane;
 		GroupVerts[ GroupIndex + 128 ].x = asfloat( MinPixel );
 	}
 
@@ -656,20 +656,20 @@ void MicropolyRasterize(
 		Verts[1] = GroupVerts[ VertIndexes.y ];
 		Verts[2] = GroupVerts[ VertIndexes.z ];
 
-		FRasterTri Triangle = SetupTriangle( Raster, Verts );
+		FRasterTri Tri = SetupTriangle( Raster, Verts );
 
 		uint PixelValue = (VisibleIndex + 1) << 7;
 
 	#if COMPILER_SUPPORTS_WAVE_VOTE
 		uint NumLanes = WaveGetLaneCount();
-		float Work =float( Triangle.MaxPixel.x - Triangle.MinPixel.x + 1.0f ) *
-					float( Triangle.MaxPixel.y - Triangle.MinPixel.y + 1.0f );
+		float Work =float( Tri.MaxPixel.x - Tri.MinPixel.x + 1.0f ) *
+					float( Tri.MaxPixel.y - Tri.MinPixel.y + 1.0f );
 		float MaxWork = WaveActiveMax( Work );
 		float SumWork = WaveActiveSum( Work );
 
 		// Distribute when average < max/2
 		bool bDistribute = SumWork < MaxWork * (0.5 * NumLanes) && MaxWork > 32;
-		bool bScanline = WaveActiveAnyTrue( Triangle.MaxPixel.x - Triangle.MinPixel.x > 4 );
+		bool bScanline = WaveActiveAnyTrue( Tri.MaxPixel.x - Tri.MinPixel.x > 4 );
 	#else
 		bool bDistribute = false;
 		bool bScanline = false;
@@ -679,21 +679,21 @@ void MicropolyRasterize(
 		if( bDistribute )
 		{
 			// Seems like doing the micro triangles immediately instead of distributing them would be faster but apparently not.
-			RasterizeTri_Distribute( Raster, Triangle, PixelValue, GroupIndex );
+			RasterizeTri_Distribute( Raster, Tri, PixelValue, GroupIndex );
 		}
 		else
 	#endif
-		if( Triangle.bIsValid )
+		if( Tri.bIsValid )
 		{
 			PixelValue |= TriIndex;
 
 			if( bScanline )
 			{
-				RasterizeTri_Scanline( Raster, Triangle, PixelValue );
+				RasterizeTri_Scanline( Raster, Tri, PixelValue );
 			}
 			else
 			{
-				RasterizeTri_Rect( Raster, Triangle, PixelValue );
+				RasterizeTri_Rect( Raster, Tri, PixelValue );
 			}
 		}
 	}
