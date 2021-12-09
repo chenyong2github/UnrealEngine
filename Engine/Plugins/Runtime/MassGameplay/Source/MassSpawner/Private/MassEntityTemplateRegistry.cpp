@@ -48,7 +48,6 @@ namespace FTemplateRegistryHelpers
 // UMassEntityTemplateRegistry 
 //----------------------------------------------------------------------//
 TMap<const UScriptStruct*, UMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate> UMassEntityTemplateRegistry::StructBasedBuilders;
-TMap<const UClass*, UMassEntityTemplateRegistry::FClassToTemplateBuilderDelegate> UMassEntityTemplateRegistry::ClassBasedBuilders;
 
 void UMassEntityTemplateRegistry::BeginDestroy()
 {
@@ -67,11 +66,6 @@ UWorld* UMassEntityTemplateRegistry::GetWorld() const
 UMassEntityTemplateRegistry::FStructToTemplateBuilderDelegate& UMassEntityTemplateRegistry::FindOrAdd(const UScriptStruct& DataType)
 {
 	return StructBasedBuilders.FindOrAdd(&DataType);
-}
-
-UMassEntityTemplateRegistry::FClassToTemplateBuilderDelegate& UMassEntityTemplateRegistry::FindOrAdd(const UClass& Class)
-{
-	return ClassBasedBuilders.FindOrAdd(&Class);
 }
 
 const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildStructTemplate(const FInstancedStruct& StructInstance)
@@ -143,106 +137,6 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 		return true;
 	}
 	return false;
-}
-
-const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildInstanceTemplate(const UObject& Instance)
-{
-	checkf(HasAnyFlags(RF_ClassDefaultObject) == false, TEXT("Thou shall not call %s on UMassEntityTemplateRegistry's CDO"), ANSI_TO_TCHAR(__FUNCTION__));
-	check(Instance.GetClass());
-
-	const FMassEntityTemplateID* const TemplateID = LookupTemplateIDMap.Find(GetTypeHash(Instance.GetClass()->GetFName()));
-
-	if (TemplateID != nullptr)
-	{
-		if (const FMassEntityTemplate* TemplateFound = TemplateIDToTemplateMap.Find(*TemplateID))
-		{
-			return TemplateFound;
-		}
-	}
-
-	// TODO this code needs refactoring as its not accounting for instances needing a different hash to classes
-	// 2. If not: build it & store it
-	return BuildClassTemplate(*Instance.GetClass(), &Instance);
-}
-
-const FMassEntityTemplate& UMassEntityTemplateRegistry::FindInstanceTemplateChecked(const UObject& Instance) const
-{
-	checkf(HasAnyFlags(RF_ClassDefaultObject) == false,  TEXT("Thou shall not call %s on UMassEntityTemplateRegistry's CDO"), ANSI_TO_TCHAR(__FUNCTION__));
-	check(Instance.GetClass());
-
-	const FMassEntityTemplateID& TemplateID = LookupTemplateIDMap.FindChecked(GetTypeHash(Instance.GetClass()->GetFName()));
-
-	return TemplateIDToTemplateMap.FindChecked(TemplateID);
-}
-
-const FMassEntityTemplate* UMassEntityTemplateRegistry::FindOrBuildClassTemplate(const UClass& Class)
-{
-	// thou shall not call this function on UMassEntityTemplateRegistry's CDO
-	check(HasAnyFlags(RF_ClassDefaultObject) == false);
-
-	// 1. Check if we already have the template stored.
-	const FMassEntityTemplateID* const TemplateID = LookupTemplateIDMap.Find(GetTypeHash(Class.GetFName()));
-
-	if (TemplateID != nullptr)
-	{
-		if (const FMassEntityTemplate* TemplateFound = TemplateIDToTemplateMap.Find(*TemplateID))
-		{
-			return TemplateFound;
-		}
-	}
-
-	// 2. If not: build it & store it
-	return BuildClassTemplate(Class);
-}
-
-const FMassEntityTemplate* UMassEntityTemplateRegistry::BuildClassTemplate(const UClass& Class, const UObject* Instance)
-{
-	FMassEntityTemplate* EntityTemplate = nullptr;
-	// this function will be called when there's been no EntityTemplate created for Class/Instance just yet
-	// Let's see if we know how to make one	
-	FClassToTemplateBuilderDelegate* Builder = GetBuilderForClass(Class);
-	if (Builder)
-	{
-		TArray<const UMassProcessor*> Initializers;
-		
-		// TODO consider removing the need for strings here
-		// Use the class name string for the hash here, so the hash can be deterministic between client and server
-		const uint32 NameStringHash = GetTypeHash(Class.GetName());
-
-		const EMassEntityTemplateIDType TemplateType = (Instance != nullptr && Instance->HasAnyFlags(RF_ClassDefaultObject) == false) ? EMassEntityTemplateIDType::Instance : EMassEntityTemplateIDType::Class;
-		const FMassEntityTemplateID TemplateID = LookupTemplateIDMap.Add(GetTypeHash(Class.GetFName()), FMassEntityTemplateID(NameStringHash, TemplateType));
-
-		EntityTemplate = &TemplateIDToTemplateMap.Add(TemplateID);
-
-		check(EntityTemplate);
-
-		EntityTemplate->SetTemplateID(TemplateID);
-
-		FMassEntityTemplateBuildContext BuildContext(*EntityTemplate);
-		Builder->Execute(GetWorld(), Class, Instance, BuildContext);
-
-		if (ensureMsgf(!EntityTemplate->IsEmpty(), TEXT("Need at least one fragment to create an Archetype")))
-		{
-			EntityTemplate->SetUpProcessors(BuildContext.Handlers, *this);
-			InitializeEntityTemplate(*EntityTemplate);
-		}
-	}
-	UE_CVLOG_UELOG(Builder == nullptr, this, LogMassSpawner, Warning, TEXT("Attempting to build a MassAgentTemplate for uclass %s (instance %s) while template builder has not been registered for this type")
-		, *Class.GetName(), *GetNameSafe(Instance));
-
-	return EntityTemplate;
-}
-
-UMassEntityTemplateRegistry::FClassToTemplateBuilderDelegate* UMassEntityTemplateRegistry::GetBuilderForClass(const UClass& Class)
-{
-	FClassToTemplateBuilderDelegate* Builder = nullptr;
-	const UClass* TmpClass = &Class;
-	do
-	{ 
-		Builder = ClassBasedBuilders.Find(TmpClass);
-		TmpClass = TmpClass->GetSuperClass();
-	} while (Builder == nullptr && TmpClass != nullptr);
-	return Builder;
 }
 
 void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& OutTemplate) const
