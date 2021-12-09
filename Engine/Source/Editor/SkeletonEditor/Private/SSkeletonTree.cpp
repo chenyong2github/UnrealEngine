@@ -1736,7 +1736,7 @@ void SSkeletonTree::SetSelectedBone( const FName& BoneName, ESelectInfo::Type In
 		{
 			TSharedPtr<ISkeletonTreeItem> SkeletonRow = *(SkeletonRowIt);
 
-			if (SkeletonRow->GetFilterResult() != ESkeletonTreeFilterResult::Hidden && SkeletonRow->IsOfType<FSkeletonTreeBoneItem>() && SkeletonRow->GetRowItemName() == BoneName)
+			if (SkeletonRow->GetFilterResult() != ESkeletonTreeFilterResult::Hidden && (SkeletonRow->IsOfType<FSkeletonTreeBoneItem>() || SkeletonRow->IsOfType<FSkeletonTreeVirtualBoneItem>()) && SkeletonRow->GetRowItemName() == BoneName)
 			{
 				SkeletonTreeView->SetItemSelection(SkeletonRow, true, InSelectInfo);
 				ExpandTreeOnSelection(SkeletonRow);
