@@ -144,6 +144,7 @@ public:
 	void DeepCopyGraphs(UNiagaraEmitter* Emitter);
 	
 	void FinishPrecompileDuplicate(const TArray<FNiagaraVariable>& EncounterableVariables, FCompileConstantResolver ConstantResolver, const TArray<class UNiagaraSimulationStageBase*>* SimStages);
+	void CreateDataInterfaceCDO(TArrayView<UClass*> VariableDataInterfaces);
 
 	virtual int32 GetDependentRequestCount() const override	{ return EmitterData.Num();	}
 	virtual TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> GetDependentRequest(int32 Index) override { return EmitterData[Index];	}

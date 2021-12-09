@@ -677,9 +677,12 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 			PrecompiledHistories.Emplace();
 		}
 	}
+}
 
+void FNiagaraCompileRequestDuplicateData::CreateDataInterfaceCDO(TArrayView<UClass*> VariableDataInterfaces)
+{
 	// Collect classes for any data interfaces found in the duplicated graphs
-	TArray<UClass*> DataInterfaceClasses;
+	TArray<UClass*> DataInterfaceClasses(VariableDataInterfaces);
 	for (const TPair<const UNiagaraGraph*, TArray<FDuplicatedGraphData>>& SourceGraphToDuplicatedGraphs : *(SharedSourceGraphToDuplicatedGraphsMap.Get()))
 	{
 		for (const FDuplicatedGraphData& DuplicatedGraphData : SourceGraphToDuplicatedGraphs.Value)
@@ -693,15 +696,6 @@ void FNiagaraCompileRequestDuplicateData::FinishPrecompileDuplicate(const TArray
 					DataInterfaceClasses.AddUnique(InputNode->Input.GetType().GetClass());
 				}
 			}
-		}
-	}
-
-	// Collect classes for external encounterable variables
-	for (const FNiagaraVariable& EncounterableVariable : EncounterableVariables)
-	{
-		if (EncounterableVariable.IsDataInterface())
-		{
-			DataInterfaceClasses.AddUnique(EncounterableVariable.GetType().GetClass());
 		}
 	}
 
@@ -1029,6 +1023,22 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 	BasePtr->SharedSourceGraphToDuplicatedGraphsMap = MakeShared<TMap<const UNiagaraGraph*, TArray<FNiagaraCompileRequestDuplicateData::FDuplicatedGraphData>>>();
 	BasePtr->SharedNameToDuplicatedDataInterfaceMap = MakeShared<TMap<FName, UNiagaraDataInterface*>>();
 	BasePtr->SharedDataInterfaceClassToDuplicatedCDOMap = MakeShared<TMap<UClass*, UNiagaraDataInterface*>>();
+	BasePtr->OwningSystem = OwningSystem;
+	BasePtr->OwningEmitter = OwningEmitter;
+
+	TArray<UClass*> DataInterfaceClasses;
+
+	auto CollectDataInterfaceClasses = [&](TConstArrayView<FNiagaraVariable> Variables)
+	{
+		// Collect classes for external encounterable variables
+		for (const FNiagaraVariable& EncounterableVariable : Variables)
+		{
+			if (EncounterableVariable.IsDataInterface())
+			{
+				DataInterfaceClasses.AddUnique(EncounterableVariable.GetType().GetClass());
+			}
+		}
+	};
 
 	if (OwningSystem == nullptr)
 	{
@@ -1038,19 +1048,13 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 		TArray<FNiagaraVariable> EncounterableScriptVariables;
 		OwningSystemRequestData->GatherPreCompiledVariables(FString(), EncounterableScriptVariables);
 		BasePtr->FinishPrecompileDuplicate(EncounterableScriptVariables, EmptyResolver, nullptr);
+		CollectDataInterfaceClasses(EncounterableScriptVariables);
 	}
 	else
 	{
 		GetUsagesToDuplicate(TargetScript->GetUsage(), BasePtr->ValidUsages);
 
 		check(OwningSystem->GetSystemSpawnScript()->GetLatestSource() == OwningSystem->GetSystemUpdateScript()->GetLatestSource());
-
-		// Store off the current variables in the exposed parameters list.
-		TArray<FNiagaraVariable> OriginalExposedParams;
-		OwningSystem->GetExposedParameters().GetParameters(OriginalExposedParams);
-
-		// Create an array of variables that we might encounter when traversing the graphs (include the originally exposed vars above)
-		TArray<FNiagaraVariable> EncounterableVars(OriginalExposedParams);
 
 		// First deep copy all the emitter graphs referenced by the system so that we can later hook up emitter handles in the system traversal.
 		BasePtr->EmitterData.Empty();
@@ -1074,27 +1078,41 @@ TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> FNiagar
 
 		// Now deep copy the system graphs, skipping traversal into any emitter references.
 		{
-			FCompileConstantResolver ConstantResolver(OwningSystem, ENiagaraScriptUsage::SystemSpawnScript);
 			UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(OwningSystem->GetSystemSpawnScript()->GetLatestSource());
-			BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, ConstantResolver);
+
 			TArray<FNiagaraVariable> EncounterableSystemVariables;
 			OwningSystemRequestData->GatherPreCompiledVariables(FString(), EncounterableSystemVariables);
-			BasePtr->FinishPrecompileDuplicate(EncounterableSystemVariables, ConstantResolver, nullptr);
+
+			// skip the deep copy if we're not compiling the system scripts
+			if (BasePtr->ValidUsages.Contains(ENiagaraScriptUsage::SystemSpawnScript))
+			{
+				FCompileConstantResolver ConstantResolver(OwningSystem, ENiagaraScriptUsage::SystemSpawnScript);
+				BasePtr->DeepCopyGraphs(Source, ENiagaraScriptUsage::SystemSpawnScript, ConstantResolver);
+				BasePtr->FinishPrecompileDuplicate(EncounterableSystemVariables, ConstantResolver, nullptr);
+			}
+
+			CollectDataInterfaceClasses(EncounterableSystemVariables);
 		}
 
 		// Now we can finish off the emitters.
 		for (int32 i = 0; i < OwningSystem->GetEmitterHandles().Num(); i++)
 		{
 			const FNiagaraEmitterHandle& Handle = OwningSystem->GetEmitterHandle(i);
-			FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
-			if (Handle.GetIsEnabled())
+
+			TArray<FNiagaraVariable> EncounterableEmitterVariables;
+			OwningSystemRequestData->GetDependentRequest(i)->GatherPreCompiledVariables(FString(), EncounterableEmitterVariables);
+
+			if (Handle.GetIsEnabled() && (OwningEmitter == nullptr || OwningEmitter == Handle.GetInstance()))
 			{
-				TArray<FNiagaraVariable> EncounterableEmitterVariables;
-				OwningSystemRequestData->GetDependentRequest(i)->GatherPreCompiledVariables(FString(), EncounterableEmitterVariables);
+				FCompileConstantResolver ConstantResolver(Handle.GetInstance(), ENiagaraScriptUsage::EmitterSpawnScript);
 				BasePtr->EmitterData[i]->FinishPrecompileDuplicate(EncounterableEmitterVariables, ConstantResolver, &Handle.GetInstance()->GetSimulationStages());
 			}
+
+			CollectDataInterfaceClasses(EncounterableEmitterVariables);
 		}
 	}
+
+	BasePtr->CreateDataInterfaceCDO(DataInterfaceClasses);
 
 	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' PrecompileDuplicate took %f sec."), *LogName,
 		(float)(FPlatformTime::Seconds() - StartTime));
