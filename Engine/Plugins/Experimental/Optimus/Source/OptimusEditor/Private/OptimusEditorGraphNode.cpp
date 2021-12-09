@@ -224,6 +224,12 @@ void UOptimusEditorGraphNode::SyncDiagnosticStateWithModelNode()
 }
 
 
+bool UOptimusEditorGraphNode::CanUserDeleteNode() const
+{
+	return Super::CanUserDeleteNode() && (!ModelNode || ModelNode->CanUserDeleteNode());
+}
+
+
 FText UOptimusEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if (ModelNode)
@@ -251,11 +257,15 @@ void UOptimusEditorGraphNode::GetNodeContextMenuActions(
 		Clipboard.AddMenuEntry(FGenericCommands::Get().Cut);
 		Clipboard.AddMenuEntry(FGenericCommands::Get().Paste);
 		Clipboard.AddMenuEntry(FGenericCommands::Get().Duplicate);
-		
+
 		FToolMenuSection& PackagingSection = InMenu->AddSection("OptimusNodePackaging", LOCTEXT("NodeMenuPackagingHeader", "Packaging"));
 
-		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().PackageNodes);
-		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().UnpackageNodes);
+		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().ConvertToKernelFunction);
+		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().ConvertFromKernelFunction);
+
+		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().CollapseNodesToFunction);
+		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().CollapseNodesToSubGraph);
+		PackagingSection.AddMenuEntry(FOptimusEditorGraphCommands::Get().ExpandCollapsedNode);
 
 		// FIXME: Add alignment.
 	}

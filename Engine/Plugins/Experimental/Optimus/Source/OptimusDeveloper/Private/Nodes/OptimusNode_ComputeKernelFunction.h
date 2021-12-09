@@ -20,8 +20,8 @@ public:
 		int32 InThreadCount,
 		FOptimusDataDomain InExecutionDomain,
 		const TArray<FOptimus_ShaderValuedBinding>& InParameters,
-		const TArray<FOptimus_ShaderDataBinding>& InInputBindings,
-		const TArray<FOptimus_ShaderDataBinding>& InOutputBindings,
+		const TArray<FOptimusParameterBinding>& InInputBindings,
+		const TArray<FOptimusParameterBinding>& InOutputBindings,
 		const FString& InShaderSource
 		);
 
@@ -45,10 +45,10 @@ public:
 	TArray<FOptimus_ShaderValuedBinding> Parameters;
 	
 	UPROPERTY()
-	TArray<FOptimus_ShaderDataBinding> InputBindings;
+	TArray<FOptimusParameterBinding> InputBindings;
 
 	UPROPERTY()
-	TArray<FOptimus_ShaderDataBinding> OutputBindings;
+	TArray<FOptimusParameterBinding> OutputBindings;
 
 	UPROPERTY()
 	FString ShaderSource;

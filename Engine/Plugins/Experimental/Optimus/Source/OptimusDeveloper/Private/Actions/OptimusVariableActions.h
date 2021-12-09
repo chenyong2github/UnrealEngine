@@ -28,11 +28,11 @@ public:
 	    FName InName
 		);
 
-	UOptimusVariableDescription* GetVariable(IOptimusNodeGraphCollectionOwner* InRoot);
+	UOptimusVariableDescription* GetVariable(IOptimusPathResolver* InRoot) const;
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The name of the variable to create.
@@ -56,8 +56,8 @@ public:
 	    UOptimusVariableDescription* InVariable);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The name of the variable to remove and re-create on undo.
@@ -85,8 +85,8 @@ public:
 	    FName InNewName);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The new name to give the variable.

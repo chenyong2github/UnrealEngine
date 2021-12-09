@@ -59,12 +59,13 @@ const UOptimusNodePin* UOptimusNodePin::GetRootPin() const
 	return CurrentPin;
 }
 
-// FIXME: Rename to GetOwningNode
-UOptimusNode* UOptimusNodePin::GetNode() const
+
+UOptimusNode* UOptimusNodePin::GetOwningNode() const
 {
 	const UOptimusNodePin* RootPin = GetRootPin();
 	return Cast<UOptimusNode>(RootPin->GetOuter());
 }
+
 
 TArray<FName> UOptimusNodePin::GetPinNamePath() const
 {
@@ -130,15 +131,15 @@ FText UOptimusNodePin::GetTooltipText() const
 
 FString UOptimusNodePin::GetPinPath() const
 {
-	return FString::Printf(TEXT("%s.%s"), *GetNode()->GetNodePath(), *GetUniqueName().ToString());
+	return FString::Printf(TEXT("%s.%s"), *GetOwningNode()->GetNodePath(), *GetUniqueName().ToString());
 }
 
 
-TArray<FName> UOptimusNodePin::GetPinNamePathFromString(const FString& PinPathString)
+TArray<FName> UOptimusNodePin::GetPinNamePathFromString(const FStringView InPinPathString)
 {
 	// FIXME: This should really become a part of FStringView, or a shared algorithm.
 	TArray<FStringView, TInlineAllocator<4>> PinPathParts;
-	FStringView PinPathView(PinPathString);
+	FStringView PinPathView(InPinPathString);
 
 	int32 Index = INDEX_NONE;
 	while(PinPathView.FindChar(TCHAR('.'), Index))
@@ -167,7 +168,7 @@ TArray<FName> UOptimusNodePin::GetPinNamePathFromString(const FString& PinPathSt
 
 FProperty* UOptimusNodePin::GetPropertyFromPin() const
 {
-	UStruct *ScopeStruct = GetNode()->GetClass();
+	UStruct *ScopeStruct = GetOwningNode()->GetClass();
 	TArray<FName> NamePath = GetPinNamePath();
 
 	FProperty* Property = nullptr;
@@ -216,7 +217,7 @@ uint8* UOptimusNodePin::GetPropertyValuePtr() const
 		CurrentPin = CurrentPin->GetParentPin();
 	}
 	
-	UObject* NodeObject = GetNode();
+	UObject* NodeObject = GetOwningNode();
 	uint8 *NodeData = nullptr;
 	for (int32 Index = PropertyHierarchy.Num(); Index-- > 0; /**/)
 	{
@@ -244,7 +245,7 @@ FString UOptimusNodePin::GetValueAsString() const
 	const uint8 *ValueData = GetPropertyValuePtr();
 	if (Property && ValueData)
 	{
-		Property->ExportTextItem(ValueString, ValueData, nullptr, GetNode(), PPF_None);
+		Property->ExportTextItem(ValueString, ValueData, nullptr, GetOwningNode(), PPF_None);
 	}
 
 	return ValueString;
@@ -267,7 +268,7 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 
 	if (ensure(Property) && ValueData)
 	{
-		UOptimusNode* Node = GetNode();
+		UOptimusNode* Node = GetOwningNode();
 
 		FEditPropertyChain PropertyChain;
 		PropertyChain.AddHead(Property);
@@ -357,9 +358,15 @@ TArray<UOptimusNodePin*> UOptimusNodePin::GetSubPinsRecursively() const
 
 TArray<UOptimusNodePin*> UOptimusNodePin::GetConnectedPins() const
 {
-	const UOptimusNodeGraph* Graph = GetNode()->GetOwningGraph();
+	return GetOwningNode()->GetOwningGraph()->GetConnectedPins(this);
+}
 
-	return Graph->GetConnectedPins(this);
+
+TArray<FOptimusRoutedNodePin> UOptimusNodePin::GetConnectedPinsWithRouting(
+	const FOptimusPinTraversalContext& InContext
+	) const
+{
+	return GetOwningNode()->GetOwningGraph()->GetConnectedPinsWithRouting(this, InContext);
 }
 
 
@@ -385,7 +392,7 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	}
 
 	// Check for self-connect.
-	if (GetNode() == InOtherPin->GetNode())
+	if (GetOwningNode() == InOtherPin->GetOwningNode())
 	{
 		if (OutReason)
 		{
@@ -394,7 +401,7 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 		return false;
 	}
 
-	if (GetNode()->GetOwningGraph() != InOtherPin->GetNode()->GetOwningGraph())
+	if (GetOwningNode()->GetOwningGraph() != InOtherPin->GetOwningNode()->GetOwningGraph())
 	{
 		if (OutReason)
 		{
@@ -418,7 +425,7 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	const UOptimusNodePin *OutputPin = Direction == EOptimusNodePinDirection::Output ? this : InOtherPin;
 	const UOptimusNodePin* InputPin = Direction == EOptimusNodePinDirection::Input ? this : InOtherPin;
 
-	if (GetNode()->GetOwningGraph()->DoesLinkFormCycle(OutputPin, InputPin))
+	if (GetOwningNode()->GetOwningGraph()->DoesLinkFormCycle(OutputPin, InputPin))
 	{
 		if (OutReason)
 		{
@@ -461,13 +468,13 @@ void UOptimusNodePin::SetIsExpanded(bool bInIsExpanded)
 {
 	// We store the expansion state on the node, since we don't store the pin data when doing
 	// delete/undo.
-	GetNode()->SetPinExpanded(this, bInIsExpanded);
+	GetOwningNode()->SetPinExpanded(this, bInIsExpanded);
 }
 
 
 bool UOptimusNodePin::GetIsExpanded() const
 {
-	return GetNode()->GetPinExpanded(this);
+	return GetOwningNode()->GetPinExpanded(this);
 }
 
 
@@ -567,7 +574,7 @@ bool UOptimusNodePin::SetName(FName InName)
 
 void UOptimusNodePin::Notify(EOptimusGraphNotifyType InNotifyType)
 {
-	UOptimusNodeGraph *Graph = GetNode()->GetOwningGraph();
+	UOptimusNodeGraph *Graph = GetOwningNode()->GetOwningGraph();
 
 	Graph->Notify(InNotifyType, this);
 }
@@ -575,7 +582,7 @@ void UOptimusNodePin::Notify(EOptimusGraphNotifyType InNotifyType)
 
 UOptimusActionStack* UOptimusNodePin::GetActionStack() const
 {
-	return GetNode()->GetActionStack();
+	return GetOwningNode()->GetActionStack();
 }
 
 #undef LOCTEXT_NAMESPACE

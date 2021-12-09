@@ -8,6 +8,7 @@
 #include "Framework/Commands/Commands.h"
 
 
+class UOptimusNodeGraph;
 class FMenuBuilder;
 class FOptimusEditor;
 class FUICommandList;
@@ -64,6 +65,7 @@ private:
 
 	TSharedRef<SWidget> OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData);
 	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions);
+	void CollectChildGraphActions(FGraphActionListBuilderBase& OutAllActions, const UOptimusNodeGraph* InParentGraph, const FText& InParentGraphCategory);
 	void CollectStaticSections(TArray<int32>& StaticSectionIDs);
 
 	FReply OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent);

@@ -2,7 +2,7 @@
 
 #include "OptimusNodeActions.h"
 
-#include "IOptimusNodeGraphCollectionOwner.h"
+#include "IOptimusPathResolver.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
@@ -22,7 +22,7 @@ FOptimusNodeAction_RenameNode::FOptimusNodeAction_RenameNode(
 }
 
 
-bool FOptimusNodeAction_RenameNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_RenameNode::Do(IOptimusPathResolver* InRoot)
 {
 	UOptimusNode *Node = InRoot->ResolveNodePath(NodePath);
 	if (!Node)
@@ -36,7 +36,7 @@ bool FOptimusNodeAction_RenameNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
 }
 
 
-bool FOptimusNodeAction_RenameNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_RenameNode::Undo(IOptimusPathResolver* InRoot)
 {
 	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
 	if (!Node)
@@ -60,7 +60,7 @@ FOptimusNodeAction_MoveNode::FOptimusNodeAction_MoveNode(
 	OldPosition = InNode->GetGraphPosition();
 }
 
-bool FOptimusNodeAction_MoveNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_MoveNode::Do(IOptimusPathResolver* InRoot)
 {
 	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
 	if (!Node)
@@ -71,7 +71,7 @@ bool FOptimusNodeAction_MoveNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
 	return Node->SetGraphPositionDirect(NewPosition);
 }
 
-bool FOptimusNodeAction_MoveNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_MoveNode::Undo(IOptimusPathResolver* InRoot)
 {
 	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
 	if (!Node)
@@ -99,7 +99,7 @@ FOptimusNodeAction_SetPinValue::FOptimusNodeAction_SetPinValue(
 }
 
 
-bool FOptimusNodeAction_SetPinValue::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinValue::Do(IOptimusPathResolver* InRoot)
 {
 	UOptimusNodePin* Pin = InRoot->ResolvePinPath(PinPath);
 	if (!Pin)
@@ -111,7 +111,7 @@ bool FOptimusNodeAction_SetPinValue::Do(IOptimusNodeGraphCollectionOwner* InRoot
 }
 
 
-bool FOptimusNodeAction_SetPinValue::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinValue::Undo(IOptimusPathResolver* InRoot)
 {
 	UOptimusNodePin* Pin = InRoot->ResolvePinPath(PinPath);
 	if (!Pin)
@@ -137,20 +137,20 @@ FOptimusNodeAction_SetPinName::FOptimusNodeAction_SetPinName(
 }
 
 
-bool FOptimusNodeAction_SetPinName::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinName::Do(IOptimusPathResolver* InRoot)
 {
 	return SetPinName(InRoot, NewPinName);
 }
 
 
-bool FOptimusNodeAction_SetPinName::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinName::Undo(IOptimusPathResolver* InRoot)
 {
 	return SetPinName(InRoot, OldPinName);
 }
 
 
 bool FOptimusNodeAction_SetPinName::SetPinName(
-	IOptimusNodeGraphCollectionOwner* InRoot, 
+	IOptimusPathResolver* InRoot, 
 	FName InName
 	) const
 {
@@ -161,7 +161,7 @@ bool FOptimusNodeAction_SetPinName::SetPinName(
 		return false;
 	}
 	
-	return Pin->GetNode()->SetPinNameDirect(Pin, InName);
+	return Pin->GetOwningNode()->SetPinNameDirect(Pin, InName);
 }
 
 
@@ -179,20 +179,20 @@ FOptimusNodeAction_SetPinType::FOptimusNodeAction_SetPinType(
 }
 
 
-bool FOptimusNodeAction_SetPinType::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinType::Do(IOptimusPathResolver* InRoot)
 {
 	return SetPinType(InRoot, NewDataTypeName);
 }
 
 
-bool FOptimusNodeAction_SetPinType::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinType::Undo(IOptimusPathResolver* InRoot)
 {
 	return SetPinType(InRoot, OldDataTypeName);
 }
 
 
 bool FOptimusNodeAction_SetPinType::SetPinType(
-	IOptimusNodeGraphCollectionOwner* InRoot,
+	IOptimusPathResolver* InRoot,
 	FName InDataType
 	) const
 {
@@ -206,7 +206,7 @@ bool FOptimusNodeAction_SetPinType::SetPinType(
 	FOptimusDataTypeRef DataType;
 	DataType.TypeName = InDataType;
 
-	return Pin->GetNode()->SetPinDataTypeDirect(Pin, DataType);
+	return Pin->GetOwningNode()->SetPinDataTypeDirect(Pin, DataType);
 }
 
 
@@ -224,20 +224,20 @@ FOptimusNodeAction_SetPinDataDomain::FOptimusNodeAction_SetPinDataDomain(
 }
 
 
-bool FOptimusNodeAction_SetPinDataDomain::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinDataDomain::Do(IOptimusPathResolver* InRoot)
 {
 	return SetPinDataDomain(InRoot, NewContextNames);
 }
 
 
-bool FOptimusNodeAction_SetPinDataDomain::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_SetPinDataDomain::Undo(IOptimusPathResolver* InRoot)
 {
 	return SetPinDataDomain(InRoot, OldContextNames);
 }
 
 
 bool FOptimusNodeAction_SetPinDataDomain::SetPinDataDomain(
-	IOptimusNodeGraphCollectionOwner* InRoot,
+	IOptimusPathResolver* InRoot,
 	const TArray<FName>& InContextNames
 	) const
 {
@@ -248,7 +248,7 @@ bool FOptimusNodeAction_SetPinDataDomain::SetPinDataDomain(
 		return false;
 	}
 
-	return Pin->GetNode()->SetPinDataDomainDirect(Pin, InContextNames);
+	return Pin->GetOwningNode()->SetPinDataDomainDirect(Pin, InContextNames);
 }
 
 
@@ -262,7 +262,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(
 	)
 {
 	if (ensure(InNode) &&
-		ensure(!InBeforePin || InBeforePin->GetNode() == InNode) &&
+		ensure(!InBeforePin || InBeforePin->GetOwningNode() == InNode) &&
 		ensure(!InBeforePin || InBeforePin->GetParentPin() == nullptr))
 	{
 		NodePath = InNode->GetNodePath();
@@ -286,7 +286,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(UOptimusNodePin
 {
 	if (ensure(InPin))
 	{
-		NodePath = InPin->GetNode()->GetNodePath();
+		NodePath = InPin->GetOwningNode()->GetNodePath();
 		PinPath = InPin->GetPinPath();
 		PinName = InPin->GetFName();
 		Direction = InPin->GetDirection();
@@ -304,7 +304,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(UOptimusNodePin
 		bExpanded = InPin->GetIsExpanded();
 
 		// Capture the before pin.
-		const TArray<UOptimusNodePin*>& Pins = InPin->GetNode()->GetPins();
+		const TArray<UOptimusNodePin*>& Pins = InPin->GetOwningNode()->GetPins();
 		const int32 PinIndex = Pins.IndexOfByKey(InPin);
 		if (ensure(Pins.IsValidIndex(PinIndex)))
 		{
@@ -318,7 +318,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(UOptimusNodePin
 }
 
 
-bool FOptimusNodeAction_AddRemovePin::AddPin(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeAction_AddRemovePin::AddPin(IOptimusPathResolver* InRoot)
 {
 	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
 	if (!Node)
@@ -354,20 +354,20 @@ bool FOptimusNodeAction_AddRemovePin::AddPin(IOptimusNodeGraphCollectionOwner* I
 }
 
 
-bool FOptimusNodeAction_AddRemovePin::RemovePin(IOptimusNodeGraphCollectionOwner* InRoot) const
+bool FOptimusNodeAction_AddRemovePin::RemovePin(IOptimusPathResolver* InRoot) const
 {
 	UOptimusNodePin *Pin = InRoot->ResolvePinPath(PinPath);
 	if (!Pin)
 	{
 		return false;
 	}
-	UOptimusNode *Node = Pin->GetNode();
+	UOptimusNode *Node = Pin->GetOwningNode();
 
 	return Node->RemovePinDirect(Pin);
 }
 
 
-UOptimusNodePin* FOptimusNodeAction_AddPin::GetPin(IOptimusNodeGraphCollectionOwner* InRoot) const
+UOptimusNodePin* FOptimusNodeAction_AddPin::GetPin(IOptimusPathResolver* InRoot) const
 {
 	return InRoot->ResolvePinPath(PinPath);
 }

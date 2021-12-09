@@ -11,6 +11,7 @@ class UOptimusComputeDataInterface;
 class UOptimusKernelSource;
 class UOptimusNode;
 class UOptimusNodePin;
+struct FOptimusPinTraversalContext;
 struct FOptimusType_CompilerDiagnostic;
 
 
@@ -74,13 +75,14 @@ public:
 	 */
 	virtual UOptimusKernelSource* CreateComputeKernel(
 		UObject* InKernelSourceOuter,
+		const FOptimusPinTraversalContext& InTraversalContext,
 		const FOptimus_NodeToDataInterfaceMap& InNodeDataInterfaceMap,
 		const FOptimus_PinToDataInterfaceMap& InLinkDataInterfaceMap,
 		const TSet<const UOptimusNode *>& InValueNodeSet,
 		FOptimus_KernelParameterBindingList& OutParameterBindings,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
-		) const = 0;
+	) const = 0;
 
 	/** Set the diagnostics resulting from the kernel compilation.
 	 *  @param InDiagnostics The diagnostics to set for the node. 

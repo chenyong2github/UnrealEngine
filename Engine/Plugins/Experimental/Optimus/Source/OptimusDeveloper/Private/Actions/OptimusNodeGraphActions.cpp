@@ -2,8 +2,7 @@
 
 #include "OptimusNodeGraphActions.h"
 
-#include "IOptimusDeveloperModule.h"
-#include "IOptimusNodeGraphCollectionOwner.h"
+#include "IOptimusPathResolver.h"
 #include "Nodes/OptimusNode_ComputeKernelFunction.h"
 #include "Nodes/OptimusNode_CustomComputeKernel.h"
 #include "OptimusHelpers.h"
@@ -25,14 +24,17 @@ FOptimusNodeGraphAction_AddGraph::FOptimusNodeGraphAction_AddGraph(
 	IOptimusNodeGraphCollectionOwner* InGraphOwner, 
 	EOptimusNodeGraphType InGraphType, 
 	FName InGraphName, 
-	int32 InGraphIndex
+	int32 InGraphIndex,
+	TFunction<bool(UOptimusNodeGraph*)> InConfigureGraphFunc
 	)
 {
 	if (ensure(InGraphOwner))
 	{
+		GraphOwnerPath = InGraphOwner->GetCollectionPath();
 		GraphType = InGraphType;
 		GraphName = InGraphName;
 		GraphIndex = InGraphIndex;
+		ConfigureGraphFunc = InConfigureGraphFunc;
 
 		SetTitlef(TEXT("Add graph"));
 	}
@@ -40,34 +42,56 @@ FOptimusNodeGraphAction_AddGraph::FOptimusNodeGraphAction_AddGraph(
 
 
 
-UOptimusNodeGraph* FOptimusNodeGraphAction_AddGraph::GetGraph(IOptimusNodeGraphCollectionOwner* InRoot) const
+UOptimusNodeGraph* FOptimusNodeGraphAction_AddGraph::GetGraph(
+	IOptimusPathResolver* InRoot
+	) const
 {
 	return InRoot->ResolveGraphPath(GraphPath);
 }
 
 
-bool FOptimusNodeGraphAction_AddGraph::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_AddGraph::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
-	UOptimusNodeGraph* Graph = InRoot->CreateGraph(GraphType, GraphName, GraphIndex);
-	if (Graph)
+	IOptimusNodeGraphCollectionOwner* GraphOwner = InRoot->ResolveCollectionPath(GraphOwnerPath);
+	if (!GraphOwner)
 	{
-		if (GraphName == NAME_None)
-		{
-			GraphName = Graph->GetFName();
-		}
-
-		GraphPath = Graph->GetGraphPath();
-		return true;
-	}
-	else
-	{
-		GraphPath.Reset();
 		return false;
 	}
+	
+	UOptimusNodeGraph* Graph = GraphOwner->CreateGraph(GraphType, GraphName, {});
+	if (!Graph)
+	{
+		return false;
+	}
+	
+	if (ConfigureGraphFunc && !ConfigureGraphFunc(Graph))
+	{
+		Graph->Rename(nullptr, GetTransientPackage());
+		return false;
+	}
+
+	// Add the graph to the collection
+	if (!GraphOwner->AddGraph(Graph, GraphIndex))
+	{
+		Graph->Rename(nullptr, GetTransientPackage());
+		return false;
+	}
+	
+	if (GraphName == NAME_None)
+	{
+		GraphName = Graph->GetFName();
+	}
+
+	GraphPath = Graph->GetGraphPath();
+	return true;
 }
 
 
-bool FOptimusNodeGraphAction_AddGraph::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_AddGraph::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (Graph == nullptr)
@@ -75,17 +99,20 @@ bool FOptimusNodeGraphAction_AddGraph::Undo(IOptimusNodeGraphCollectionOwner* In
 		return false;
 	}
 
-	return InRoot->RemoveGraph(Graph);
+	return Graph->GetCollectionOwner()->RemoveGraph(Graph);
 }
 
 
 // ---- Remove graph
 
-FOptimusNodeGraphAction_RemoveGraph::FOptimusNodeGraphAction_RemoveGraph(UOptimusNodeGraph* InGraph)
+FOptimusNodeGraphAction_RemoveGraph::FOptimusNodeGraphAction_RemoveGraph(
+	UOptimusNodeGraph* InGraph
+	)
 {
 	if (ensure(InGraph))
 	{
 		GraphPath = InGraph->GetGraphPath();
+		GraphOwnerPath = InGraph->GetCollectionOwner()->GetCollectionPath();
 		GraphType = InGraph->GetGraphType();
 		GraphName = InGraph->GetFName();
 		GraphIndex = InGraph->GetGraphIndex();
@@ -94,10 +121,16 @@ FOptimusNodeGraphAction_RemoveGraph::FOptimusNodeGraphAction_RemoveGraph(UOptimu
 	}
 }
 
-bool FOptimusNodeGraphAction_RemoveGraph::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_RemoveGraph::Do(IOptimusPathResolver* InRoot)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
+	{
+		return false;
+	}
+
+	IOptimusNodeGraphCollectionOwner* GraphOwner = InRoot->ResolveCollectionPath(GraphOwnerPath);
+	if (!GraphOwner)
 	{
 		return false;
 	}
@@ -106,43 +139,51 @@ bool FOptimusNodeGraphAction_RemoveGraph::Do(IOptimusNodeGraphCollectionOwner* I
 	{
 		Optimus::FBinaryObjectWriter GraphArchive(Graph, GraphData);
 	}
-
-	return InRoot->RemoveGraph(Graph);
+	
+	return GraphOwner->RemoveGraph(Graph);
 }
 
 
-bool FOptimusNodeGraphAction_RemoveGraph::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_RemoveGraph::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
+	IOptimusNodeGraphCollectionOwner* GraphOwner = InRoot->ResolveCollectionPath(GraphOwnerPath);
+	if (!GraphOwner)
+	{
+		return false;
+	}
+	
 	// Create a graph, but don't add it to the list of used graphs. Otherwise interested parties
 	// will be notified with a partially constructed graph.
-	UOptimusNodeGraph* Graph = InRoot->CreateGraph(GraphType, GraphName, TOptional<int32>());
+	UOptimusNodeGraph* Graph = GraphOwner->CreateGraph(GraphType, GraphName, TOptional<int32>());
 	if (Graph == nullptr)
 	{
 		return false;
 	}
 
-	// Unserialize all the stored properties (and sub-objects) back onto the new graph.
+	// Deserialize all the stored properties (and sub-objects) back onto the new graph.
 	{
 		Optimus::FBinaryObjectReader GraphArchive(Graph, GraphData);
 	}
 	
 	// Now add the graph such that interested parties get notified.
-	if (InRoot->AddGraph(Graph, GraphIndex))
-	{
-		return true;
-	}
-	else
+	if (!GraphOwner->AddGraph(Graph, GraphIndex))
 	{
 		Graph->Rename(nullptr, GetTransientPackage());
-		Graph->MarkAsGarbage();
 		return false;
 	}
+	
+	return true;
 }
 
 
 // ---- Rename graph
 
-FOptimusNodeGraphAction_RenameGraph::FOptimusNodeGraphAction_RenameGraph(UOptimusNodeGraph* InGraph, FName InNewName)
+FOptimusNodeGraphAction_RenameGraph::FOptimusNodeGraphAction_RenameGraph(
+	UOptimusNodeGraph* InGraph,
+	FName InNewName
+	)
 {
 	if (ensure(InGraph) && InGraph->GetFName() != InNewName)
 	{
@@ -162,7 +203,9 @@ FOptimusNodeGraphAction_RenameGraph::FOptimusNodeGraphAction_RenameGraph(UOptimu
 }
 
 
-bool FOptimusNodeGraphAction_RenameGraph::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_RenameGraph::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
@@ -174,7 +217,9 @@ bool FOptimusNodeGraphAction_RenameGraph::Do(IOptimusNodeGraphCollectionOwner* I
 }
 
 
-bool FOptimusNodeGraphAction_RenameGraph::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_RenameGraph::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
@@ -189,14 +234,17 @@ bool FOptimusNodeGraphAction_RenameGraph::Undo(IOptimusNodeGraphCollectionOwner*
 // ---- Add node
 
 FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
-    UOptimusNodeGraph* InGraph,
+	const FString& InGraphPath,
     const UClass* InNodeClass,
-    TFunction<bool(UOptimusNode*)> InConfigureNodeFunc)
+	FName InNodeName,
+    TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
+    )
 {
-	if (ensure(InGraph != nullptr) && ensure(InNodeClass != nullptr))
+	if (ensure(InNodeClass != nullptr))
 	{
-		GraphPath = InGraph->GetGraphPath();
+		GraphPath = InGraphPath;
 		NodeClassPath = InNodeClass->GetPathName();
+		NodeName = InNodeName;
 		ConfigureNodeFunc = InConfigureNodeFunc;
 
 		// FIXME: Prettier name.
@@ -205,13 +253,15 @@ FOptimusNodeGraphAction_AddNode::FOptimusNodeGraphAction_AddNode(
 }
 
 
-UOptimusNode* FOptimusNodeGraphAction_AddNode::GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const
+UOptimusNode* FOptimusNodeGraphAction_AddNode::GetNode(
+	IOptimusPathResolver* InRoot
+	) const
 {
 	return InRoot->ResolveNodePath(NodePath);
 }
 
 
-bool FOptimusNodeGraphAction_AddNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_AddNode::Do(IOptimusPathResolver* InRoot)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
@@ -236,7 +286,9 @@ bool FOptimusNodeGraphAction_AddNode::Do(IOptimusNodeGraphCollectionOwner* InRoo
 }
 
 
-bool FOptimusNodeGraphAction_AddNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_AddNode::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
 	if (!Node)
@@ -261,15 +313,15 @@ bool FOptimusNodeGraphAction_AddNode::Undo(IOptimusNodeGraphCollectionOwner* InR
 
 
 FOptimusNodeGraphAction_DuplicateNode::FOptimusNodeGraphAction_DuplicateNode(
-	UOptimusNodeGraph* InTargetGraph,
+	const FString& InTargetGraphPath,
 	UOptimusNode* InSourceNode,
 	FName InNodeName,
 	TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
 	)
 {
-	if (ensure(InTargetGraph != nullptr) && ensure(InSourceNode != nullptr))
+	if (ensure(InSourceNode != nullptr))
 	{
-		GraphPath = InTargetGraph->GetGraphPath();
+		GraphPath = InTargetGraphPath;
 		NodeName = InNodeName;
 		NodeClassPath = InSourceNode->GetClass()->GetPathName();
 		ConfigureNodeFunc = InConfigureNodeFunc;
@@ -286,7 +338,7 @@ FOptimusNodeGraphAction_DuplicateNode::FOptimusNodeGraphAction_DuplicateNode(
 
 
 UOptimusNode* FOptimusNodeGraphAction_DuplicateNode::GetNode(
-	IOptimusNodeGraphCollectionOwner* InRoot
+	IOptimusPathResolver* InRoot
 	) const
 {
 	return InRoot->ResolveNodePath(NodePath);
@@ -294,7 +346,7 @@ UOptimusNode* FOptimusNodeGraphAction_DuplicateNode::GetNode(
 
 
 bool FOptimusNodeGraphAction_DuplicateNode::Do(
-	IOptimusNodeGraphCollectionOwner* InRoot
+	IOptimusPathResolver* InRoot
 	)
 {
 	auto BootstrapNodeFunc = [this](UOptimusNode* InNode) -> bool
@@ -341,7 +393,7 @@ bool FOptimusNodeGraphAction_DuplicateNode::Do(
 
 
 bool FOptimusNodeGraphAction_DuplicateNode::Undo(
-	IOptimusNodeGraphCollectionOwner* InRoot
+	IOptimusPathResolver* InRoot
 	)
 {
 	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
@@ -362,7 +414,9 @@ bool FOptimusNodeGraphAction_DuplicateNode::Undo(
 
 // ---- Remove node
 
-FOptimusNodeGraphAction_RemoveNode::FOptimusNodeGraphAction_RemoveNode(UOptimusNode* InNode)
+FOptimusNodeGraphAction_RemoveNode::FOptimusNodeGraphAction_RemoveNode(
+	UOptimusNode* InNode
+	)
 {
 	if (ensure(InNode != nullptr))
 	{
@@ -378,7 +432,9 @@ FOptimusNodeGraphAction_RemoveNode::FOptimusNodeGraphAction_RemoveNode(UOptimusN
 }
 
 
-bool FOptimusNodeGraphAction_RemoveNode::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_RemoveNode::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
 	if (!Node)
@@ -406,7 +462,9 @@ bool FOptimusNodeGraphAction_RemoveNode::Do(IOptimusNodeGraphCollectionOwner* In
 }
 
 
-bool FOptimusNodeGraphAction_RemoveNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_RemoveNode::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
@@ -445,8 +503,8 @@ FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 	if (ensure(InNodeOutputPin != nullptr) && ensure(InNodeInputPin != nullptr) &&
 		ensure(InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output) && 
 		ensure(InNodeInputPin->GetDirection() == EOptimusNodePinDirection::Input) && 
-		ensure(InNodeOutputPin->GetNode() != InNodeInputPin->GetNode()) &&
-		ensure(InNodeOutputPin->GetNode()->GetOwningGraph() == InNodeInputPin->GetNode()->GetOwningGraph())
+		ensure(InNodeOutputPin->GetOwningNode() != InNodeInputPin->GetOwningNode()) &&
+		ensure(InNodeOutputPin->GetOwningNode()->GetOwningGraph() == InNodeInputPin->GetOwningNode()->GetOwningGraph())
 		)
 	{
 		NodeOutputPinPath = InNodeOutputPin->GetPinPath();
@@ -457,7 +515,8 @@ FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 
 FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 	const FString& InNodeOutputPinPath,
-	const FString& InNodeInputPinPath)
+	const FString& InNodeInputPinPath
+	)
 {
 	if (ensure(!InNodeOutputPinPath.IsEmpty()) && ensure(!InNodeInputPinPath.IsEmpty()))
 	{
@@ -467,7 +526,9 @@ FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 }
 
 
-bool FOptimusNodeGraphAction_AddRemoveLink::AddLink(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_AddRemoveLink::AddLink(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodePin* InNodeOutputPin = InRoot->ResolvePinPath(NodeOutputPinPath);
 	if (InNodeOutputPin == nullptr)
@@ -481,12 +542,14 @@ bool FOptimusNodeGraphAction_AddRemoveLink::AddLink(IOptimusNodeGraphCollectionO
 		return false;
 	}
 
-	UOptimusNodeGraph *Graph = InNodeOutputPin->GetNode()->GetOwningGraph();
+	UOptimusNodeGraph* Graph = InNodeOutputPin->GetOwningNode()->GetOwningGraph();
 	return Graph->AddLinkDirect(InNodeOutputPin, InNodeInputPin);
 }
 
 
-bool FOptimusNodeGraphAction_AddRemoveLink::RemoveLink(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_AddRemoveLink::RemoveLink(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodePin* InNodeOutputPin = InRoot->ResolvePinPath(NodeOutputPinPath);
 	if (InNodeOutputPin == nullptr)
@@ -500,7 +563,7 @@ bool FOptimusNodeGraphAction_AddRemoveLink::RemoveLink(IOptimusNodeGraphCollecti
 		return false;
 	}
 
-	UOptimusNodeGraph* Graph = InNodeOutputPin->GetNode()->GetOwningGraph();
+	UOptimusNodeGraph* Graph = InNodeOutputPin->GetOwningNode()->GetOwningGraph();
 	return Graph->RemoveLinkDirect(InNodeOutputPin, InNodeInputPin);
 }
 
@@ -581,13 +644,17 @@ FOptimusNodeGraphAction_PackageKernelFunction::FOptimusNodeGraphAction_PackageKe
 }
 
 
-UOptimusNode* FOptimusNodeGraphAction_PackageKernelFunction::GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const
+UOptimusNode* FOptimusNodeGraphAction_PackageKernelFunction::GetNode(
+	IOptimusPathResolver* InRoot
+	) const
 {
 	return InRoot->ResolveNodePath(NodePath);
 }
 
 
-bool FOptimusNodeGraphAction_PackageKernelFunction::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_PackageKernelFunction::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph *Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
@@ -605,7 +672,7 @@ bool FOptimusNodeGraphAction_PackageKernelFunction::Do(IOptimusNodeGraphCollecti
 	
 	// Notify the world that we've added a new node class. This updates the node palette, among
 	// other things.
-	Graph->GetOwnerCollection()->GetNotifyDelegate().Broadcast(EOptimusGlobalNotifyType::NodeTypeAdded, PackagedNodeClass);
+	Graph->GlobalNotify(EOptimusGlobalNotifyType::NodeTypeAdded, PackagedNodeClass);
 	
 	// FIXME: This packaging action should only create the class. We need action chaining with
 	// argument piping.
@@ -626,7 +693,9 @@ bool FOptimusNodeGraphAction_PackageKernelFunction::Do(IOptimusNodeGraphCollecti
 }
 
 
-bool FOptimusNodeGraphAction_PackageKernelFunction::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_PackageKernelFunction::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph *Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
@@ -658,7 +727,7 @@ bool FOptimusNodeGraphAction_PackageKernelFunction::Undo(IOptimusNodeGraphCollec
 
 	// Notify the world that we've removed the class. We do this after shuffling it into the transient
 	// package so that it can be filtered out by UOptimusNode::GetAllNodeClasses.
-	Graph->GetOwnerCollection()->GetNotifyDelegate().Broadcast(EOptimusGlobalNotifyType::NodeTypeRemoved, NodeClass);
+	Graph->GlobalNotify(EOptimusGlobalNotifyType::NodeTypeRemoved, NodeClass);
 
 	return true;
 }
@@ -680,14 +749,16 @@ FOptimusNodeGraphAction_UnpackageKernelFunction::FOptimusNodeGraphAction_Unpacka
 
 
 UOptimusNode* FOptimusNodeGraphAction_UnpackageKernelFunction::GetNode(
-	IOptimusNodeGraphCollectionOwner* InRoot
+	IOptimusPathResolver* InRoot
 	) const
 {
 	return InRoot->ResolveNodePath(NodePath);
 }
 
 
-bool FOptimusNodeGraphAction_UnpackageKernelFunction::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_UnpackageKernelFunction::Do(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)
@@ -730,7 +801,9 @@ bool FOptimusNodeGraphAction_UnpackageKernelFunction::Do(IOptimusNodeGraphCollec
 }
 
 
-bool FOptimusNodeGraphAction_UnpackageKernelFunction::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusNodeGraphAction_UnpackageKernelFunction::Undo(
+	IOptimusPathResolver* InRoot
+	)
 {
 	UOptimusNodeGraph *Graph = InRoot->ResolveGraphPath(GraphPath);
 	if (!Graph)

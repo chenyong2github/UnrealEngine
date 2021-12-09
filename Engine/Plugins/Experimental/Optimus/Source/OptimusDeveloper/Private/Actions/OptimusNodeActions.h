@@ -25,8 +25,8 @@ public:
 	);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the node to be renamed.
@@ -55,8 +55,8 @@ public:
 	);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the node to be moved.
@@ -85,8 +85,8 @@ public:
 		);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 	
 private:
 	// The path of the pin to set the value on
@@ -115,12 +115,12 @@ public:
 		);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 	
 private:
 	bool SetPinName(
-		IOptimusNodeGraphCollectionOwner* InRoot,
+		IOptimusPathResolver* InRoot,
 		FName InName) const;
 	
 	// The path of the pin to set the value on
@@ -149,12 +149,12 @@ public:
 		);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 	
 private:
 	bool SetPinType(
-		IOptimusNodeGraphCollectionOwner* InRoot,
+		IOptimusPathResolver* InRoot,
 		FName InDataType) const;
 	
 	// The path of the pin to set the value on
@@ -183,12 +183,12 @@ public:
 		);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 	
 private:
 	bool SetPinDataDomain(
-		IOptimusNodeGraphCollectionOwner* InRoot,
+		IOptimusPathResolver* InRoot,
 		const TArray<FName>& InContextNames
 		) const;
 	
@@ -226,8 +226,8 @@ struct FOptimusNodeAction_AddRemovePin :
 		);
 
 protected:
-	bool AddPin(IOptimusNodeGraphCollectionOwner* InRoot);
-	bool RemovePin(IOptimusNodeGraphCollectionOwner* InRoot) const;
+	bool AddPin(IOptimusPathResolver* InRoot);
+	bool RemovePin(IOptimusPathResolver* InRoot) const;
 	
 	// The path of the node to have the pin added/removed from.
 	FString NodePath;
@@ -286,11 +286,11 @@ struct FOptimusNodeAction_AddPin :
 	}
 
 	// Called to retrieve the pin that was created by Do after it has been called.
-	UOptimusNodePin* GetPin(IOptimusNodeGraphCollectionOwner* InRoot) const;
+	UOptimusNodePin* GetPin(IOptimusPathResolver* InRoot) const;
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddPin(InRoot); }
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemovePin(InRoot); }
+	bool Do(IOptimusPathResolver* InRoot) override { return AddPin(InRoot); }
+	bool Undo(IOptimusPathResolver* InRoot) override { return RemovePin(InRoot); }
 };
 
 
@@ -309,6 +309,6 @@ struct FOptimusNodeAction_RemovePin :
 	}
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemovePin(InRoot); }
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddPin(InRoot); }
+	bool Do(IOptimusPathResolver* InRoot) override { return RemovePin(InRoot); }
+	bool Undo(IOptimusPathResolver* InRoot) override { return AddPin(InRoot); }
 };

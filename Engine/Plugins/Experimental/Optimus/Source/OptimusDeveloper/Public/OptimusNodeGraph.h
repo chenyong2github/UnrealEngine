@@ -2,14 +2,16 @@
 
 #pragma once
 
+#include "IOptimusNodeGraphCollectionOwner.h"
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
-#include "Templates/SubclassOf.h"
 
-#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
 
 #include "OptimusNodeGraph.generated.h"
 
+struct FOptimusPinTraversalContext;
+struct FOptimusRoutedNodePin;
 class UOptimusVariableDescription;
 class UOptimusResourceDescription;
 class UOptimusComputeDataInterface;
@@ -22,31 +24,67 @@ class UOptimusNodePin;
 enum class EOptimusNodePinDirection : uint8;
 template<typename T> class TFunction;
 
+/** The use type of a particular graph */ 
 UENUM()
 enum class EOptimusNodeGraphType
 {
-	Setup,
-	Update,
-	ExternalTrigger,
-	Transient
+	// Execution graphs
+	Setup,					/** Called once during an actor's setup event */
+	Update,					/** Called on every tick */
+	ExternalTrigger,		/** Called when triggered from a blueprint */
+	// Storage graphs
+	Function,				/** Used to store function graphs */
+	SubGraph,				/** Used to store sub-graphs within other graphs */ 
+	Transient				/** Used to store nodes during duplication. Never serialized. */
 };
+
+namespace Optimus
+{
+static bool IsExecutionGraph(EOptimusNodeGraphType InGraphType)
+{
+	return InGraphType == EOptimusNodeGraphType::Setup ||
+		   InGraphType == EOptimusNodeGraphType::Update ||
+		   InGraphType == EOptimusNodeGraphType::ExternalTrigger;
+}
+}
 
 
 UCLASS()
-class OPTIMUSDEVELOPER_API UOptimusNodeGraph
-	: public UObject
+class OPTIMUSDEVELOPER_API UOptimusNodeGraph :
+	public UObject,
+	public IOptimusNodeGraphCollectionOwner
 {
 	GENERATED_BODY()
 
 public:
+	// Reserved names
+	static const FName SetupGraphName;
+	static const FName UpdateGraphName;
+	static const TCHAR* LibraryRoot;
+	
 	FString GetGraphPath() const;
 
-	/// Returns the graph collection that owns this particular graph.
-	IOptimusNodeGraphCollectionOwner* GetOwnerCollection() const;
-
+	/** Verify if the given name is a valid graph name. */
+	static bool IsValidUserGraphName(
+		const FString& InGraphName,
+		FText* OutFailureReason = nullptr
+		);
+	
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	EOptimusNodeGraphType GetGraphType() const { return GraphType; }
 
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool IsExecutionGraph() const
+	{
+		return Optimus::IsExecutionGraph(GraphType); 
+	}
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool IsFunctionGraph() const
+	{
+		return GraphType == EOptimusNodeGraphType::Function; 
+	}
+	
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	int32 GetGraphIndex() const;
 
@@ -158,22 +196,68 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNode* ConvertFunctionToCustomKernel(UOptimusNode *InKernelFunction);
 
+	/** Take a set of nodes and collapse them into a single function, replacing the given nodes
+	 *  with the new function node and returning it. A new function definition is made available
+	 *  as a new Function graph in the package.
+	 */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode *CollapseNodesToFunction(const TArray<UOptimusNode*>& InNodes);
+
+	/** Take a set of nodes and collapse them into a subgraph, replacing the given nodes
+	 *  with a new subgraph node and returning it. 
+	 */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode *CollapseNodesToSubGraph(const TArray<UOptimusNode*>& InNodes);
+	
+	/** Take a function or subgraph node and expand it in-place, replacing the given function 
+	 *  node. The function definition still remains, if a function node was expanded. If a
+	 *  sub-graph was expanded, the sub-graph is deleted.
+	 */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	TArray<UOptimusNode *> ExpandCollapsedNodes(UOptimusNode* InFunctionNode);
+	
 	/** Returns true if the node in question is a custom kernel node that can be converted to
-	  * a kernel function.
+	  * a kernel function with ConvertCustomKernelToFunction.
 	  */
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool IsCustomKernel(UOptimusNode *InNode) const;
 	
 	/** Returns true if the node in question is a kernel function node that can be converted to
-	  * a custom kernel.
+	  * a custom kernel using ConvertFunctionToCustomKernel. 
 	  */
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool IsKernelFunction(UOptimusNode *InNode) const;
 
+	/** Returns true if the node in question is a function reference node that can be expanded 
+	 *  into a group of nodes using ExpandFunctionToNodes.
+	  */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool IsFunctionReference(UOptimusNode *InNode) const;
+
+	/** Returns true if the node in question is a function sub-graph node that can be expanded 
+	 *  into a group of nodes using ExpandFunctionToNodes.
+	  */
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool IsSubGraphReference(UOptimusNode *InNode) const;
 	
 #endif
 
-	TArray<UOptimusNodePin *> GetConnectedPins(const UOptimusNodePin* InNodePin) const;
+	/** Returns all pins that have a _direct_ connection to this pin. If nothing is connected 
+	  * to this pin, it returns an empty array.
+	  */
+	TArray<UOptimusNodePin *> GetConnectedPins(
+		const UOptimusNodePin* InNodePin
+		) const;
+
+	/** See UOptimusNodePin::GetConnectedRoutedPins for information on what this function
+	 *  does.
+	 */
+	TArray<FOptimusRoutedNodePin> GetConnectedPinsWithRouting(
+		const UOptimusNodePin* InNodePin,
+		const FOptimusPinTraversalContext& InContext
+		) const;
+	
+		
 	TArray<const UOptimusNodeLink *> GetPinLinks(const UOptimusNodePin* InNodePin) const;
 
 	/// Check to see if connecting these two pins will form a graph cycle.
@@ -187,7 +271,36 @@ public:
 	const TArray<UOptimusNode*>& GetAllNodes() const { return Nodes; }
 	const TArray<UOptimusNodeLink*>& GetAllLinks() const { return Links; }
 
-	UOptimusActionStack* GetActionStack() const;
+	UOptimusActionStack* GetActionStack() const;      
+
+	/// IOptimusNodeGraphCollectionOwner overrides
+	IOptimusNodeGraphCollectionOwner* GetCollectionOwner() const override;
+	IOptimusNodeGraphCollectionOwner* GetCollectionRoot() const override;
+	FString GetCollectionPath() const override;
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	const TArray<UOptimusNodeGraph*> &GetGraphs() const override { return SubGraphs; }
+
+	UOptimusNodeGraph* CreateGraph(
+		EOptimusNodeGraphType InType,
+		FName InName,
+		TOptional<int32> InInsertBefore) override;
+	bool AddGraph(
+		UOptimusNodeGraph* InGraph,
+		int32 InInsertBefore) override;
+	bool RemoveGraph(
+		UOptimusNodeGraph* InGraph,
+		bool bInDeleteGraph) override;
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool MoveGraph(
+		UOptimusNodeGraph* InGraph,
+		int32 InInsertBefore) override;
+
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool RenameGraph(
+		UOptimusNodeGraph* InGraph,
+		const FString& InNewName) override;
 	
 protected:
 	friend class UOptimusDeformer;
@@ -232,20 +345,23 @@ protected:
 	}
 
 	void Notify(EOptimusGraphNotifyType InNotifyType, UObject *InSubject);
+	void GlobalNotify(EOptimusGlobalNotifyType InNotifyType, UObject *InSubject) const;
 
 	// The type of graph this represents. 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Overview)
 	EOptimusNodeGraphType GraphType = EOptimusNodeGraphType::Transient;
 
 private:
-#if defined(WITH_EDITOR)
+	IOptimusPathResolver* GetPathResolver() const;
+	
+#if WITH_EDITOR
 	UOptimusNode* AddNodeInternal(
 		const TSubclassOf<UOptimusNode> InNodeClass,
 		const FVector2D& InPosition,
 		TFunction<void(UOptimusNode*)> InNodeConfigFunc
 	);
 #endif
-	
+
 	void RemoveLinkByIndex(int32 LinkIndex);
 
 	/// Returns the indexes of all links that connect to the node. If a direction is specified
@@ -276,6 +392,9 @@ private:
 	// FIXME: Use a map.
 	UPROPERTY(NonTransactional)
 	TArray<UOptimusNodeLink*> Links;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UOptimusNodeGraph>> SubGraphs;
 
 	FOptimusGraphNotifyDelegate GraphNotifyDelegate;
 };

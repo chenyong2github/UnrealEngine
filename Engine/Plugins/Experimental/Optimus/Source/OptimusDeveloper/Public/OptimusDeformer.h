@@ -2,11 +2,12 @@
 
 #pragma once
 
+#include "IOptimusNodeFunctionLibraryOwner.h"
 #include "IOptimusNodeGraphCollectionOwner.h"
+#include "IOptimusPathResolver.h"
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
 
-#include "CoreMinimal.h"
 #include "ComputeFramework/ComputeGraph.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "Logging/TokenizedMessage.h"
@@ -53,7 +54,9 @@ UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
 	public UComputeGraph,
 	public IInterface_PreviewMeshProvider,
-	public IOptimusNodeGraphCollectionOwner
+	public IOptimusPathResolver,
+	public IOptimusNodeGraphCollectionOwner,
+	public IOptimusNodeFunctionLibraryOwner 
 {
 	GENERATED_BODY()
 
@@ -62,16 +65,23 @@ public:
 
 	UOptimusActionStack *GetActionStack() const { return ActionStack; }
 
-	/// Add a setup graph. This graph is executed once when the deformer is first run from a
-	/// mesh component. If the graph already exists, this function does nothing and returns 
-	/// nullptr.
+	/** Returns the global delegate used to notify on global operations (e.g. graph, variable,
+	 *  resource lifecycle events).
+	 */
+	FOptimusGlobalNotifyDelegate& GetNotifyDelegate() { return GlobalNotifyDelegate; }
+
+	/** Add a setup graph. This graph is executed once when the deformer is first run from a
+	  * mesh component. If the graph already exists, this function does nothing and returns 
+	  * nullptr.
+	  */
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNodeGraph* AddSetupGraph();
 
-	/// Add a trigger graph. This graph will be scheduled to execute on next tick, prior to the
-	/// update graph being executed, after being triggered from a blueprint.
-	/// @param InName The name to give the graph. The name "Setup" cannot be used, since it's a
-	/// reserved name.
+	/** Add a trigger graph. This graph will be scheduled to execute on next tick, prior to the
+	  * update graph being executed, after being triggered from a blueprint.
+	  * @param InName The name to give the graph. The name "Setup" cannot be used, since it's a
+	  *  reserved name.
+	  */
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNodeGraph* AddTriggerGraph(const FString &InName);
 
@@ -105,7 +115,7 @@ public:
 	
 	UOptimusVariableDescription* ResolveVariable(
 		FName InVariableName
-		);
+		) const override;
 
 	/** Create a resource owned by this deformer but does not add it to the list of known
 	  * resources. Call AddResource for that */
@@ -126,8 +136,6 @@ public:
 	    UOptimusVariableDescription* InVariableDesc,
 		FName InNewName
 		);
-
-
 
 	// Resources
 	UFUNCTION(BlueprintCallable, Category = OptimusResources)
@@ -152,7 +160,7 @@ public:
 	
 	UOptimusResourceDescription* ResolveResource(
 		FName InResourceName
-		);
+		) const override;
 
 	/** Create a resource owned by this deformer but does not add it to the list of known
 	  * resources. Call AddResource for that */
@@ -174,7 +182,6 @@ public:
 		FName InNewName
 		);
 
-
 	/// Graph compilation
 	bool Compile();
 
@@ -195,16 +202,20 @@ public:
 
 	/// IInterface_PreviewMeshProvider overrides
 	void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
-
-	/** Get the preview mesh for this asset */
 	USkeletalMesh* GetPreviewMesh() const override;
 
-	/// IOptimusNodeGraphCollectionOwner overrides
-	FOptimusGlobalNotifyDelegate& GetNotifyDelegate() override { return GlobalNotifyDelegate; }
+	/// IOptimusNodeGraphCollectionRoot overrides
+	IOptimusNodeGraphCollectionOwner* ResolveCollectionPath(const FString& InPath) override;
 	UOptimusNodeGraph* ResolveGraphPath(const FString& InGraphPath) override;
 	UOptimusNode* ResolveNodePath(const FString& InNodePath) override;
 	UOptimusNodePin* ResolvePinPath(const FString& InPinPath) override;
 
+	/// IOptimusNodeGraphCollectionOwner overrides
+	IOptimusNodeGraphCollectionOwner* GetCollectionOwner() const override { return nullptr; }
+	IOptimusNodeGraphCollectionOwner* GetCollectionRoot() const override { return const_cast<UOptimusDeformer*>(this); }
+	FString GetCollectionPath() const override { return FString(); }
+
+	
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	const TArray<UOptimusNodeGraph*> &GetGraphs() const override { return Graphs; }
 
@@ -233,11 +244,16 @@ public:
 	UPROPERTY(EditAnywhere, Category=Preview)
 	USkeletalMesh *Mesh = nullptr;
 
-private:
-	UOptimusNodeGraph* ResolveGraphPath(const FString& InPath, FString& OutRemainingPath);
-	UOptimusNode* ResolveNodePath(const FString& InPath, FString& OutRemainingPath);
+protected:
+	friend class UOptimusNodeGraph;
 	
 	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject) const;
+	
+private:
+	UOptimusNodeGraph* ResolveGraphPath(const FStringView InPath, FStringView& OutRemainingPath) const;
+	UOptimusNode* ResolveNodePath(const FStringView InPath, FStringView& OutRemainingPath) const;
+	int32 GetUpdateGraphIndex() const;
+	
 
 	FOptimusType_CompilerDiagnostic ProcessCompilationMessage(
 		const UOptimusNode* InKernelNode,
@@ -258,10 +274,7 @@ private:
 
 	// Lookup into Graphs array from the UComputeGraph kernel index. 
 	UPROPERTY()
-	TArray<int32> CompilingKernelToGraph;
-	// Lookup into UOptimusNodeGraph::Nodes array from the UComputeGraph kernel index. 
-	UPROPERTY()
-	TArray<int32> CompilingKernelToNode;
+	TArray<TWeakObjectPtr<const UOptimusNode>> CompilingKernelToNode;
 
 	// List of parameter bindings and which value nodes they map to.
 	UPROPERTY()

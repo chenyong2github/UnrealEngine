@@ -38,8 +38,8 @@ UOptimusClipboardContent* UOptimusClipboardContent::Create(
 	{
 		if (ensure(Link->GetNodeOutputPin() != nullptr))
 		{
-			const UOptimusNode *OutputNode = Link->GetNodeOutputPin()->GetNode();
-			const UOptimusNode *InputNode = Link->GetNodeInputPin()->GetNode();
+			const UOptimusNode *OutputNode = Link->GetNodeOutputPin()->GetOwningNode();
+			const UOptimusNode *InputNode = Link->GetNodeInputPin()->GetOwningNode();
 
 			if (NodeIndexMap.Contains(OutputNode) && NodeIndexMap.Contains(InputNode))
 			{

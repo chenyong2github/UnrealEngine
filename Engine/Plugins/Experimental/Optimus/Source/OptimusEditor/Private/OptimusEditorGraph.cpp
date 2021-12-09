@@ -42,8 +42,8 @@ void UOptimusEditorGraph::InitFromNodeGraph(UOptimusNodeGraph* InNodeGraph)
 			continue;
 		}
 
-		UOptimusEditorGraphNode* OutputGraphNode = NodeMap.FindRef(Link->GetNodeOutputPin()->GetNode());
-		UOptimusEditorGraphNode* InputGraphNode = NodeMap.FindRef(Link->GetNodeInputPin()->GetNode());
+		UOptimusEditorGraphNode* OutputGraphNode = NodeMap.FindRef(Link->GetNodeOutputPin()->GetOwningNode());
+		UOptimusEditorGraphNode* InputGraphNode = NodeMap.FindRef(Link->GetNodeInputPin()->GetOwningNode());
 
 		if (OutputGraphNode == nullptr || InputGraphNode == nullptr)
 		{
@@ -184,8 +184,8 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		case EOptimusGraphNotifyType::LinkRemoved:
 		{
 			UOptimusNodeLink *ModelNodeLink = Cast<UOptimusNodeLink>(InSubject);
-			UOptimusEditorGraphNode* OutputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeOutputPin()->GetNode());
-			UOptimusEditorGraphNode* InputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeInputPin()->GetNode());
+			UOptimusEditorGraphNode* OutputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeOutputPin()->GetOwningNode());
+			UOptimusEditorGraphNode* InputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeInputPin()->GetOwningNode());
 
 			if (ensure(OutputGraphNode) && ensure(InputGraphNode))
 			{
@@ -245,7 +245,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 		    if (ensure(ModelPin))
 		    {
-			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
 
 			    if (ensure(GraphNode))
 			    {
@@ -260,7 +260,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 			if (ensure(ModelPin))
 			{
-				UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+				UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
 
 				if (ensure(GraphNode))
 				{
@@ -275,7 +275,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 		    if (ensure(ModelPin))
 		    {
-			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
 
 			    if (ensure(GraphNode))
 			    {
@@ -293,7 +293,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			UOptimusNodePin *ModelPin = Cast<UOptimusNodePin>(InSubject);
 			if (ensure(ModelPin))
 			{
-			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
 
 				if (ensure(GraphNode))
 				{
@@ -310,7 +310,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
 		    if (ensure(ModelPin))
 		    {
-			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetOwningNode());
 
 			    if (ensure(GraphNode))
 			    {

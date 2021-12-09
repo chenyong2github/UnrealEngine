@@ -3,22 +3,24 @@
 #include "OptimusNameValidator.h"
 
 #include "OptimusNodeGraph.h"
-#include "IOptimusNodeGraphCollectionOwner.h"
 
 
 FOptimusNameValidator::FOptimusNameValidator(
-	const IOptimusNodeGraphCollectionOwner* InRoot,
+	const UObject *InOuter,
+	const UClass* InObjectClass,
 	FName InExistingName
 	) :
-	Root(InRoot),
 	ExistingName(InExistingName)
 {
-	if (ensure(InRoot))
+	if (InOuter)
 	{
-		for (const UOptimusNodeGraph* Graph : InRoot->GetGraphs())
+		ForEachObjectWithOuter(InOuter, [this, InObjectClass](const UObject* InObject)
 		{
-			Names.Add(Graph->GetFName());
-		}
+			if (InObject->IsA(InObjectClass))
+			{
+				Names.Add(InObject->GetFName());
+			}
+		}, /* bIncludeNestedObjects= */false);
 	}
 }
 

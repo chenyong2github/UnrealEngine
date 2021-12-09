@@ -23,6 +23,7 @@
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "Nodes/OptimusNode_DataInterface.h"
 #include "IOptimusComputeKernelProvider.h"
+#include "OptimusFunctionNodeGraph.h"
 #include "Misc/UObjectToken.h"
 
 #include "RenderingThread.h"
@@ -34,17 +35,13 @@
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
-static const FName SetupGraphName("SetupGraph");
-static const FName UpdateGraphName("UpdateGraph");
-
 static const FName DefaultResourceName("Resource");
-
 static const FName DefaultVariableName("Variable");
 
 
 UOptimusDeformer::UOptimusDeformer()
 {
-	UOptimusNodeGraph *UpdateGraph = CreateDefaultSubobject<UOptimusNodeGraph>(UpdateGraphName);
+	UOptimusNodeGraph *UpdateGraph = CreateDefaultSubobject<UOptimusNodeGraph>(UOptimusNodeGraph::UpdateGraphName);
 	UpdateGraph->SetGraphType(EOptimusNodeGraphType::Update);
 	Graphs.Add(UpdateGraph);
 
@@ -55,7 +52,7 @@ UOptimusDeformer::UOptimusDeformer()
 UOptimusNodeGraph* UOptimusDeformer::AddSetupGraph()
 {
 	FOptimusNodeGraphAction_AddGraph* AddGraphAction = 
-		new FOptimusNodeGraphAction_AddGraph(this, EOptimusNodeGraphType::Setup, SetupGraphName, 0);
+		new FOptimusNodeGraphAction_AddGraph(this, EOptimusNodeGraphType::Setup, UOptimusNodeGraph::SetupGraphName, 0);
 
 	if (GetActionStack()->RunAction(AddGraphAction))
 	{
@@ -70,15 +67,13 @@ UOptimusNodeGraph* UOptimusDeformer::AddSetupGraph()
 
 UOptimusNodeGraph* UOptimusDeformer::AddTriggerGraph(const FString &InName)
 {
-	FName Name(InName);
-
-	if (Name == SetupGraphName || Name == UpdateGraphName)
+	if (!UOptimusNodeGraph::IsValidUserGraphName(InName))
 	{
 		return nullptr;
 	}
 
 	FOptimusNodeGraphAction_AddGraph* AddGraphAction =
-	    new FOptimusNodeGraphAction_AddGraph(this, EOptimusNodeGraphType::ExternalTrigger, Name, INDEX_NONE);
+	    new FOptimusNodeGraphAction_AddGraph(this, EOptimusNodeGraphType::ExternalTrigger, *InName, INDEX_NONE);
 
 	if (GetActionStack()->RunAction(AddGraphAction))
 	{
@@ -189,7 +184,7 @@ bool UOptimusDeformer::RenameVariable(
 
 UOptimusVariableDescription* UOptimusDeformer::ResolveVariable(
 	FName InVariableName
-	)
+	) const
 {
 	for (UOptimusVariableDescription* Variable : GetVariables())
 	{
@@ -381,7 +376,9 @@ bool UOptimusDeformer::RenameResource(
 }
 
 
-UOptimusResourceDescription* UOptimusDeformer::ResolveResource(FName InResourceName)
+UOptimusResourceDescription* UOptimusDeformer::ResolveResource(
+	FName InResourceName
+	) const
 {
 	for (UOptimusResourceDescription* Resource : GetResources())
 	{
@@ -498,45 +495,46 @@ bool UOptimusDeformer::RenameResourceDirect(
 }
 
 // Do a breadth-first collection of nodes starting from the seed nodes (terminal data interfaces).
+struct FNodeWithTraversalContext
+{
+	const UOptimusNode* Node;
+	FOptimusPinTraversalContext TraversalContext;
+};
+
 static void CollectNodes(
-	const UOptimusNodeGraph* InGraph,
 	const TArray<const UOptimusNode*>& InSeedNodes,
-	TArray<const UOptimusNode*>& OutCollectedNodes
+	TArray<FNodeWithTraversalContext>& OutCollectedNodes
 	)
 {
 	TSet<const UOptimusNode*> VisitedNodes;
-	TQueue<const UOptimusNode*> WorkingSet;
+	TQueue<FNodeWithTraversalContext> WorkingSet;
 
 	for (const UOptimusNode* Node: InSeedNodes)
 	{
-		WorkingSet.Enqueue(Node);
+		WorkingSet.Enqueue({Node, FOptimusPinTraversalContext{}});
 		VisitedNodes.Add(Node);
-		OutCollectedNodes.Add(Node);
+		OutCollectedNodes.Add({Node, FOptimusPinTraversalContext{}});
 	}
 
-	const UOptimusNode* WorkNode;
-	while (WorkingSet.Dequeue(WorkNode))
+	FNodeWithTraversalContext WorkItem;
+	while (WorkingSet.Dequeue(WorkItem))
 	{
 		// Traverse in the direction of input pins (up the graph).
-		for (const UOptimusNodePin* Pin: WorkNode->GetPins())
+		for (const UOptimusNodePin* Pin: WorkItem.Node->GetPins())
 		{
 			if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
 			{
-				for (const UOptimusNodePin* ConnectedPin: InGraph->GetConnectedPins(Pin))
+				for (const FOptimusRoutedNodePin& ConnectedPin: Pin->GetConnectedPinsWithRouting(WorkItem.TraversalContext))
 				{
-					if (ensure(ConnectedPin != nullptr))
+					if (ensure(ConnectedPin.NodePin != nullptr))
 					{
-						const UOptimusNode *NextNode = ConnectedPin->GetNode();
-						WorkingSet.Enqueue(NextNode);
+						const UOptimusNode *NextNode = ConnectedPin.NodePin->GetOwningNode();
+						FNodeWithTraversalContext CollectedNode{NextNode, ConnectedPin.TraversalContext};
 						if (!VisitedNodes.Contains(NextNode))
 						{
+							WorkingSet.Enqueue(CollectedNode);
 							VisitedNodes.Add(NextNode);
-							OutCollectedNodes.Add(NextNode);
-						}
-						else
-						{
-							OutCollectedNodes.RemoveSingle(NextNode);
-							OutCollectedNodes.Add(NextNode);
+							OutCollectedNodes.Add(CollectedNode);
 						}
 					}
 				}
@@ -613,12 +611,11 @@ bool UOptimusDeformer::Compile()
 	KernelInvocations.Reset();
 	DataInterfaces.Reset();
 	GraphEdges.Reset();
-	CompilingKernelToGraph.Reset();
 	CompilingKernelToNode.Reset();
 	AllParameterBindings.Reset();
 
-	TArray<const UOptimusNode *> ConnectedNodes;
-	CollectNodes(UpdateGraph, TerminalNodes, ConnectedNodes);
+	TArray<FNodeWithTraversalContext> ConnectedNodes;
+	CollectNodes(TerminalNodes, ConnectedNodes);
 
 	// Since we now have the connected nodes in a breadth-first list, reverse the list which
 	// will give use the same list but topologically sorted in kernel execution order.
@@ -635,27 +632,27 @@ bool UOptimusDeformer::Compile()
 	// Find all value nodes (constant and variable) 
 	TSet<const UOptimusNode *> ValueNodeSet; 
 	
-	for (const UOptimusNode* Node: ConnectedNodes)
+	for (FNodeWithTraversalContext ConnectedNode: ConnectedNodes)
 	{
-		if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<const UOptimusNode_DataInterface>(Node))
+		if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<const UOptimusNode_DataInterface>(ConnectedNode.Node))
 		{
 			UOptimusComputeDataInterface* DataInterface =
 				NewObject<UOptimusComputeDataInterface>(this, DataInterfaceNode->GetDataInterfaceClass());
 
-			NodeDataInterfaceMap.Add(Node, DataInterface);
+			NodeDataInterfaceMap.Add(ConnectedNode.Node, DataInterface);
 		}
-		else if (Cast<const IOptimusComputeKernelProvider>(Node) != nullptr)
+		else if (Cast<const IOptimusComputeKernelProvider>(ConnectedNode.Node) != nullptr)
 		{
-			for (const UOptimusNodePin* Pin: Node->GetPins())
+			for (const UOptimusNodePin* Pin: ConnectedNode.Node->GetPins())
 			{
 				if (Pin->GetDirection() == EOptimusNodePinDirection::Output &&
 					ensure(Pin->GetStorageType() == EOptimusNodePinStorageType::Resource) &&
 					!LinkDataInterfaceMap.Contains(Pin))
 				{
-					for (const UOptimusNodePin* ConnectedPin: UpdateGraph->GetConnectedPins(Pin))
+					for (const FOptimusRoutedNodePin& ConnectedPin: Pin->GetConnectedPinsWithRouting(ConnectedNode.TraversalContext))
 					{
 						// Make sure it connects to another kernel node.
-						if (Cast<const IOptimusComputeKernelProvider>(ConnectedPin->GetNode()) != nullptr &&
+						if (Cast<const IOptimusComputeKernelProvider>(ConnectedPin.NodePin->GetOwningNode()) != nullptr &&
 							ensure(Pin->GetDataType().IsValid()))
 						{
 							UTransientBufferDataInterface* TransientBufferDI =
@@ -670,7 +667,7 @@ bool UOptimusDeformer::Compile()
 		}
 		// TBD: Add common base class for variable and value nodes that expose a virtual for evaluating the value
 		// and getting the value type.
-		else if (const UOptimusNode_ConstantValue* ValueNode = Cast<const UOptimusNode_ConstantValue>(Node))
+		else if (const UOptimusNode_ConstantValue* ValueNode = Cast<const UOptimusNode_ConstantValue>(ConnectedNode.Node))
 		{
 			ValueNodeSet.Add(ValueNode);
 		}
@@ -686,26 +683,26 @@ bool UOptimusDeformer::Compile()
 	};
 	
 	TArray<FKernelWithDataBindings> BoundKernels;
-	for (const UOptimusNode* Node: ConnectedNodes)
+	for (FNodeWithTraversalContext ConnectedNode: ConnectedNodes)
 	{
-		if (const IOptimusComputeKernelProvider *KernelProvider = Cast<const IOptimusComputeKernelProvider>(Node))
+		if (const IOptimusComputeKernelProvider *KernelProvider = Cast<const IOptimusComputeKernelProvider>(ConnectedNode.Node))
 		{
 			FOptimus_KernelParameterBindingList KernelParameterBindings;
 			FKernelWithDataBindings BoundKernel;
 
-			BoundKernel.KernelNodeIndex = UpdateGraph->Nodes.IndexOfByKey(Node);
+			BoundKernel.KernelNodeIndex = UpdateGraph->Nodes.IndexOfByKey(ConnectedNode.Node);
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
 
 			UComputeKernelSource *KernelSource = KernelProvider->CreateComputeKernel(
-				BoundKernel.Kernel,
-				NodeDataInterfaceMap, LinkDataInterfaceMap, ValueNodeSet,
-				KernelParameterBindings, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
-				);
+				BoundKernel.Kernel, ConnectedNode.TraversalContext,
+				NodeDataInterfaceMap, LinkDataInterfaceMap,
+				ValueNodeSet, KernelParameterBindings, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
+			);
 			if (!KernelSource)
 			{
 				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
 					LOCTEXT("CantCreateKernel", "Unable to create compute kernel from kernel node. Compilation aborted."));
-				Message->AddToken(FUObjectToken::Create(Node));
+				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
 				CompileMessageDelegate.Broadcast(Message);
 				CompileEndDelegate.Broadcast(this);
 				return false;
@@ -715,7 +712,7 @@ bool UOptimusDeformer::Compile()
 			{
 				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
 					LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted."));
-				Message->AddToken(FUObjectToken::Create(Node));
+				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
 				CompileMessageDelegate.Broadcast(Message);
 				CompileEndDelegate.Broadcast(this);
 				return false;
@@ -734,6 +731,9 @@ bool UOptimusDeformer::Compile()
 			}
 
 			BoundKernels.Add(BoundKernel);
+
+			KernelInvocations.Add(BoundKernel.Kernel);
+			CompilingKernelToNode.Add(ConnectedNode.Node);
 		}
 	}
 
@@ -745,14 +745,6 @@ bool UOptimusDeformer::Compile()
 	for (TPair<const UOptimusNodePin *, UOptimusComputeDataInterface *>&Item: LinkDataInterfaceMap)
 	{
 		DataInterfaces.Add(Item.Value);
-	}
-
-	for (FKernelWithDataBindings& BoundKernel: BoundKernels)
-	{
-		KernelInvocations.Add(BoundKernel.Kernel);
-		
-		CompilingKernelToGraph.Add(UpdateGraphIndex);
-		CompilingKernelToNode.Add(BoundKernel.KernelNodeIndex);
 	}
 
 	// Create the graph edges.
@@ -828,33 +820,28 @@ bool UOptimusDeformer::Compile()
 void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors)
 {
 	// Find the Optimus objects from the raw kernel index.
-	if (CompilingKernelToGraph.IsValidIndex(InKernelIndex) && CompilingKernelToNode.IsValidIndex(InKernelIndex))
+	if (CompilingKernelToNode.IsValidIndex(InKernelIndex))
 	{
-		const int32 GraphIndex = CompilingKernelToGraph[InKernelIndex];
-		const int32 NodeIndex = CompilingKernelToNode[InKernelIndex];
+		UOptimusNode* Node = const_cast<UOptimusNode*>(CompilingKernelToNode[InKernelIndex].Get());
 		
-		if (ensure(GraphIndex < Graphs.Num()))
+		if (ensure(Node))
 		{
-			UOptimusNodeGraph const* Graph = Graphs[GraphIndex];
-			if (ensure(Graph != nullptr && NodeIndex < Graph->Nodes.Num()))
+			IOptimusComputeKernelProvider* KernelProvider = Cast<IOptimusComputeKernelProvider>(Node);
+			if (ensure(KernelProvider != nullptr))
 			{
-				IOptimusComputeKernelProvider* KernelProvider = Cast<IOptimusComputeKernelProvider>(Graph->Nodes[NodeIndex]);
-				if (ensure(KernelProvider != nullptr))
+				TArray<FOptimusType_CompilerDiagnostic>  Diagnostics;
+
+				// This is a compute kernel as expected so broadcast the compile errors.
+				for (FString const& CompileError : InCompileErrors)
 				{
-					TArray<FOptimusType_CompilerDiagnostic>  Diagnostics;
-
-					// This is a compute kernel as expected so broadcast the compile errors.
-					for (FString const& CompileError : InCompileErrors)
+					FOptimusType_CompilerDiagnostic Diagnostic = ProcessCompilationMessage(Node, CompileError);
+					if (Diagnostic.Level != EOptimusDiagnosticLevel::None)
 					{
-						FOptimusType_CompilerDiagnostic Diagnostic = ProcessCompilationMessage(Graph->Nodes[NodeIndex], CompileError);
-						if (Diagnostic.Level != EOptimusDiagnosticLevel::None)
-						{
-							Diagnostics.Add(Diagnostic);
-						}
+						Diagnostics.Add(Diagnostic);
 					}
-
-					KernelProvider->SetCompilationDiagnostics(Diagnostics);
 				}
+
+				KernelProvider->SetCompilationDiagnostics(Diagnostics);
 			}
 		}
 	}
@@ -907,37 +894,121 @@ FOptimusType_CompilerDiagnostic UOptimusDeformer::ProcessCompilationMessage(
 	return FOptimusType_CompilerDiagnostic(Level, MessageStr, LineNumber, ColumnStart, ColumnEnd);
 }
 
-
-UOptimusNodeGraph* UOptimusDeformer::ResolveGraphPath(
-	const FString& InPath,
-	FString& OutRemainingPath
+template<typename Allocator>
+static void StringViewSplit(
+	TArray<FStringView, Allocator> &OutResult, 
+	const FStringView InString,
+	const TCHAR* InDelimiter,
+	int32 InMaxSplit = INT32_MAX
 	)
 {
-	FString GraphName;
-
-	if (!InPath.Split(TEXT("/"), &GraphName, &OutRemainingPath))
+	if (!InDelimiter)
 	{
-		GraphName = InPath;
+		OutResult.Add(InString);
+		return;
 	}
 	
-	// FIXME: Once we have encapsulation, we need to do a recursive traversal here.
-	for (UOptimusNodeGraph* Graph : Graphs)
+	const int32 DelimiterLength = FCString::Strlen(InDelimiter); 
+	if (DelimiterLength == 0)
 	{
-		if (Graph->GetName().Equals(GraphName, ESearchCase::IgnoreCase))
+		OutResult.Add(InString);
+		return;
+	}
+
+	InMaxSplit = FMath::Max(0, InMaxSplit);
+
+	int32 StartIndex = 0;
+	for (;;)
+	{
+		const int32 FoundIndex = (InMaxSplit--) ? InString.Find(InDelimiter, StartIndex) : INDEX_NONE;
+		if (FoundIndex == INDEX_NONE)
 		{
-			return Graph;
+			OutResult.Add(InString.SubStr(StartIndex, INT32_MAX));
+			break;
+		}
+
+		OutResult.Add(InString.SubStr(StartIndex, FoundIndex - StartIndex));
+		StartIndex = FoundIndex + DelimiterLength;
+	}
+}
+
+
+UOptimusNodeGraph* UOptimusDeformer::ResolveGraphPath(
+	const FStringView InPath,
+	FStringView& OutRemainingPath
+	) const
+{
+	TArray<FStringView, TInlineAllocator<4>> Path;
+	StringViewSplit<TInlineAllocator<4>>(Path, InPath, TEXT("/"));
+
+	if (Path.Num() == 0)
+	{
+		return nullptr;
+	}
+
+	UOptimusNodeGraph* Graph = nullptr;
+	if (Path[0] == UOptimusNodeGraph::LibraryRoot)
+	{
+		// FIXME: Search the library graphs.
+	}
+	else
+	{
+		for (UOptimusNodeGraph* RootGraph : Graphs)
+		{
+			if (Path[0].Equals(RootGraph->GetName(), ESearchCase::IgnoreCase))
+			{
+				Graph = RootGraph;
+				break;
+			}
 		}
 	}
 
-	return nullptr;
+	if (!Graph)
+	{
+		return nullptr;
+	}
+
+	// See if we need to traverse any sub-graphs
+	int32 GraphIndex = 1;
+	for (; GraphIndex < Path.Num(); GraphIndex++)
+	{
+		bool bFoundSubGraph = false;
+		for (UOptimusNodeGraph* SubGraph: Graph->GetGraphs())
+		{
+			if (Path[GraphIndex].Equals(SubGraph->GetName(), ESearchCase::IgnoreCase))
+			{
+				Graph = SubGraph;
+				bFoundSubGraph = true;
+				break;
+			}
+		}
+		if (!bFoundSubGraph)
+		{
+			break;
+		}
+	}
+
+	if (GraphIndex < Path.Num())
+	{
+		OutRemainingPath = FStringView(
+			Path[GraphIndex].GetData(),
+			static_cast<int32>(Path.Last().GetData() - Path[GraphIndex].GetData()) + Path.Last().Len());
+	}
+	else
+	{
+		OutRemainingPath.Reset();
+	}
+
+	return Graph;
 }
 
+
 UOptimusNode* UOptimusDeformer::ResolveNodePath(
-	const FString& InPath,
-	FString& OutRemainingPath
-	)
+	const FStringView InPath,
+	FStringView& OutRemainingPath
+	) const
 {
-	FString NodePath;
+	FStringView NodePath;
 
 	UOptimusNodeGraph* Graph = ResolveGraphPath(InPath, NodePath);
 	if (!Graph || NodePath.IsEmpty())
@@ -945,16 +1016,20 @@ UOptimusNode* UOptimusDeformer::ResolveNodePath(
 		return nullptr;
 	}
 
-	FString NodeName;
-	if (!NodePath.Split(TEXT("."), &NodeName, &OutRemainingPath))
+	// We only want at most 2 elements (single split)
+	TArray<FStringView, TInlineAllocator<2>> Path;
+	StringViewSplit(Path, NodePath, TEXT("."), 1);
+	if (Path.IsEmpty())
 	{
-		NodeName = NodePath;
+		return nullptr;
 	}
 
+	const FStringView NodeName = Path[0];
 	for (UOptimusNode* Node : Graph->GetAllNodes())
 	{
-		if (Node != nullptr && Node->GetName().Equals(NodeName, ESearchCase::IgnoreCase))
+		if (Node != nullptr && NodeName.Equals(Node->GetName(), ESearchCase::IgnoreCase))
 		{
+			OutRemainingPath = Path.Num() == 2 ? Path[1] : FStringView();
 			return Node;
 		}
 	}
@@ -1044,9 +1119,20 @@ USkeletalMesh* UOptimusDeformer::GetPreviewMesh() const
 }
 
 
+IOptimusNodeGraphCollectionOwner* UOptimusDeformer::ResolveCollectionPath(const FString& InPath)
+{
+	if (InPath.IsEmpty())
+	{
+		return this;
+	}
+
+	return Cast<IOptimusNodeGraphCollectionOwner>(ResolveGraphPath(InPath));
+}
+
+
 UOptimusNodeGraph* UOptimusDeformer::ResolveGraphPath(const FString& InGraphPath)
 {
-	FString PathRemainder;
+	FStringView PathRemainder;
 
 	UOptimusNodeGraph* Graph = ResolveGraphPath(InGraphPath, PathRemainder);
 
@@ -1057,7 +1143,7 @@ UOptimusNodeGraph* UOptimusDeformer::ResolveGraphPath(const FString& InGraphPath
 
 UOptimusNode* UOptimusDeformer::ResolveNodePath(const FString& InNodePath)
 {
-	FString PathRemainder;
+	FStringView PathRemainder;
 
 	UOptimusNode* Node = ResolveNodePath(InNodePath, PathRemainder);
 
@@ -1068,7 +1154,7 @@ UOptimusNode* UOptimusDeformer::ResolveNodePath(const FString& InNodePath)
 
 UOptimusNodePin* UOptimusDeformer::ResolvePinPath(const FString& InPinPath)
 {
-	FString PinPath;
+	FStringView PinPath;
 
 	UOptimusNode* Node = ResolveNodePath(InPinPath, PinPath);
 
@@ -1083,11 +1169,17 @@ UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
 	TOptional<int32> InInsertBefore
 	)
 {
-	if (InType == EOptimusNodeGraphType::Update || InType == EOptimusNodeGraphType::Transient)
+	// Update graphs is a singleton and is created by default. Transient graphs are only used
+	// when duplicating nodes and should never exist as a part of a collection. 
+	if (InType == EOptimusNodeGraphType::Update ||
+		InType == EOptimusNodeGraphType::Transient)
 	{
 		return nullptr;
 	}
-	else if (InType == EOptimusNodeGraphType::Setup)
+
+	UClass* GraphClass = UOptimusNodeGraph::StaticClass();
+	
+	if (InType == EOptimusNodeGraphType::Setup)
 	{
 		// Do we already have a setup graph?
 		if (Graphs.Num() > 1 && Graphs[0]->GetGraphType() == EOptimusNodeGraphType::Setup)
@@ -1096,41 +1188,40 @@ UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
 		}
 
 		// The name of the setup graph is fixed.
-		InName = SetupGraphName;
+		InName = UOptimusNodeGraph::SetupGraphName;
 	}
 	else if (InType == EOptimusNodeGraphType::ExternalTrigger)
 	{
-		if (InName == SetupGraphName || InName == UpdateGraphName)
+		if (!UOptimusNodeGraph::IsValidUserGraphName(InName.ToString()))
 		{
 			return nullptr;
 		}
+
+		// If there's already an object with this name, then attempt to make the name unique.
+		InName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodeGraph::StaticClass(), InName);
+	}
+	else if (InType == EOptimusNodeGraphType::Function)
+	{
+		GraphClass = UOptimusFunctionNodeGraph::StaticClass();
 	}
 
 	// If there's already an object with this name, then attempt to make the name unique.
-	InName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodeGraph::StaticClass(), InName);
-
-	UOptimusNodeGraph* Graph = NewObject<UOptimusNodeGraph>(this, UOptimusNodeGraph::StaticClass(), InName, RF_Transactional);
+	InName = Optimus::GetUniqueNameForScopeAndClass(this, GraphClass, InName);
+	
+	UOptimusNodeGraph* Graph = NewObject<UOptimusNodeGraph>(this, GraphClass, InName, RF_Transactional);
 
 	Graph->SetGraphType(InType);
 
 	if (InInsertBefore.IsSet())
 	{
-		if (AddGraph(Graph, InInsertBefore.GetValue()))
-		{
-			return Graph;
-		}
-		else
+		if (!AddGraph(Graph, InInsertBefore.GetValue()))
 		{
 			Graph->Rename(nullptr, GetTransientPackage());
-			Graph->MarkAsGarbage();
-
 			return nullptr;
 		}
 	}
-	else
-	{
-		return Graph;
-	}
+	
+	return Graph;
 }
 
 
@@ -1139,7 +1230,7 @@ bool UOptimusDeformer::AddGraph(
 	int32 InInsertBefore
 	)
 {
-	if (InGraph == nullptr)
+	if (InGraph == nullptr || InGraph->GetOuter() != this)
 	{
 		return false;
 	}
@@ -1152,46 +1243,41 @@ bool UOptimusDeformer::AddGraph(
 		InInsertBefore = Graphs.Num();
 	}
 		
-
 	switch (InGraph->GetGraphType())
 	{
 	case EOptimusNodeGraphType::Update:
+		// We cannot replace the update graph.
+		return false;
+		
 	case EOptimusNodeGraphType::Setup:
 		// Do we already have a setup graph?
 		if (bHaveSetupGraph)
 		{
 			return false;
 		}
+		// The setup graph is always first, if present.
 		InInsertBefore = 0;
 		break;
 		
 	case EOptimusNodeGraphType::ExternalTrigger:
 		// Trigger graphs are always sandwiched between setup and update.
-		InInsertBefore = FMath::Clamp(InInsertBefore, bHaveSetupGraph ? 1 : 0, Graphs.Num() - 1);
+		InInsertBefore = FMath::Clamp(InInsertBefore, bHaveSetupGraph ? 1 : 0, GetUpdateGraphIndex());
 		break;
+
+	case EOptimusNodeGraphType::Function:
+		// Function graphs always go last.
+		InInsertBefore = Graphs.Num();
+		break;
+
+	case EOptimusNodeGraphType::SubGraph:
+		// We cannot add subgraphs to the root.
+		return false;
+
+	case EOptimusNodeGraphType::Transient:
+		checkNoEntry();
+		return false;
 	}
 	
-	if (InGraph->GetOuter() != this)
-	{
-		IOptimusNodeGraphCollectionOwner* GraphOwner = Cast<IOptimusNodeGraphCollectionOwner>(InGraph->GetOuter());
-		if (GraphOwner)
-		{
-			GraphOwner->RemoveGraph(InGraph, /* bDeleteGraph = */ false);
-		}
-
-		// Ensure that the object has a unique name within our namespace.
-		FName NewName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodeGraph::StaticClass(), InGraph->GetFName());
-
-		if (NewName == InGraph->GetFName())
-		{
-			InGraph->Rename(nullptr, this);
-		}
-		else
-		{
-			InGraph->Rename(*NewName.ToString(), this);
-		}
-	}
-
 	Graphs.Insert(InGraph, InInsertBefore);
 
 	Notify(EOptimusGlobalNotifyType::GraphAdded, InGraph);
@@ -1202,11 +1288,11 @@ bool UOptimusDeformer::AddGraph(
 
 bool UOptimusDeformer::RemoveGraph(
 	UOptimusNodeGraph* InGraph,
-	bool bDeleteGraph
+	bool bInDeleteGraph
 	)
 {
 	// Not ours?
-	int32 GraphIndex = Graphs.IndexOfByKey(InGraph);
+	const int32 GraphIndex = Graphs.IndexOfByKey(InGraph);
 	if (GraphIndex == INDEX_NONE)
 	{
 		return false;
@@ -1221,11 +1307,10 @@ bool UOptimusDeformer::RemoveGraph(
 
 	Notify(EOptimusGlobalNotifyType::GraphRemoved, InGraph);
 
-	if (bDeleteGraph)
+	if (bInDeleteGraph)
 	{
 		// Un-parent this graph to a temporary storage and mark it for kill.
 		InGraph->Rename(nullptr, GetTransientPackage());
-		InGraph->MarkAsGarbage();
 	}
 
 	return true;
@@ -1238,7 +1323,7 @@ bool UOptimusDeformer::MoveGraph(
 	int32 InInsertBefore
 	)
 {
-	int32 GraphOldIndex = Graphs.IndexOfByKey(InGraph);
+	const int32 GraphOldIndex = Graphs.IndexOfByKey(InGraph);
 	if (GraphOldIndex == INDEX_NONE)
 	{
 		return false;
@@ -1251,15 +1336,14 @@ bool UOptimusDeformer::MoveGraph(
 
 	// Less than num graphs, because the index is based on the node being moved not being
 	// in the list.
-	// [S T1 T2 U] -> Move T2 to slot 1 in list [S T1 U]
 	if (InInsertBefore == INDEX_NONE)
 	{
-		InInsertBefore = Graphs.Num() - 1;
+		InInsertBefore = GetUpdateGraphIndex();
 	}
 	else
 	{
 		const bool bHaveSetupGraph = (Graphs.Num() > 1 && Graphs[0]->GetGraphType() == EOptimusNodeGraphType::Setup);
-		InInsertBefore = FMath::Clamp(InInsertBefore, bHaveSetupGraph ? 1 : 0, Graphs.Num() - 1);
+		InInsertBefore = FMath::Clamp(InInsertBefore, bHaveSetupGraph ? 1 : 0, GetUpdateGraphIndex());
 	}
 
 	if (GraphOldIndex == InInsertBefore)
@@ -1292,26 +1376,28 @@ bool UOptimusDeformer::RenameGraph(UOptimusNodeGraph* InGraph, const FString& In
 		return false;
 	}
 
-	// The Setup and Update graph names are reserved.
-	if (InNewName.Compare(SetupGraphName.ToString(), ESearchCase::IgnoreCase) == 0 ||
-		InNewName.Compare(UpdateGraphName.ToString(), ESearchCase::IgnoreCase) == 0)
+	if (!UOptimusNodeGraph::IsValidUserGraphName(InNewName))
 	{
 		return false;
 	}
 
-	// Do some verification on the name. Ideally we ought to be able to sink FOptimusNameValidator down
-	// to here but that would pull in editor dependencies.
-	if (!FName::IsValidXName(InNewName, TEXT("./")))
-	{
-		return false;
-	}
-
-	bool bSuccess = GetActionStack()->RunAction<FOptimusNodeGraphAction_RenameGraph>(InGraph, FName(*InNewName));
+	const bool bSuccess = GetActionStack()->RunAction<FOptimusNodeGraphAction_RenameGraph>(InGraph, FName(*InNewName));
 	if (bSuccess)
 	{
 		Notify(EOptimusGlobalNotifyType::GraphRenamed, InGraph);
 	}
 	return bSuccess;
+}
+
+
+int32 UOptimusDeformer::GetUpdateGraphIndex() const
+{
+	if (const UOptimusNodeGraph* UpdateGraph = GetUpdateGraph(); ensure(UpdateGraph != nullptr))
+	{
+		return UpdateGraph->GetGraphIndex();
+	}
+
+	return INDEX_NONE;
 }
 
 

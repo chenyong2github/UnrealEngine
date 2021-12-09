@@ -110,7 +110,8 @@ struct FOptimusSchemaAction_Graph :
 
 	FOptimusSchemaAction_Graph(
 	    UOptimusNodeGraph* InGraph,
-	    int32 InGrouping);
+	    int32 InGrouping,
+	    const FText& InCategory = FText::GetEmpty());
 
 	// FEdGraphSchemaAction overrides
 	bool IsParentable() const override { return true; }

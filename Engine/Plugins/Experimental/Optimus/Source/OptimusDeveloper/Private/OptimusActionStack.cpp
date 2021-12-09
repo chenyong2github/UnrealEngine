@@ -3,8 +3,8 @@
 #include "OptimusActionStack.h"
 
 #include "Actions/OptimusAction.h"
+#include "IOptimusPathResolver.h"
 
-#include "IOptimusNodeGraphCollectionOwner.h"
 #include "Misc/ITransaction.h"
 
 
@@ -26,13 +26,13 @@ bool UOptimusActionStack::RunAction(TSharedPtr<FOptimusAction> InAction)
 
 	if (ActionScopes.Num() == 0)
 	{
-		IOptimusNodeGraphCollectionOwner* Root = GetGraphCollectionRoot();
+		IOptimusPathResolver* Root = GetGraphCollectionRoot();
 		if (!Root)
 		{
 			return false;
 		}
 
-		bool bTransacted = BeginScopeFunc && EndScopeFunc;
+		const bool bTransacted = BeginScopeFunc && EndScopeFunc;
 
 		if (!InAction->Do(Root))
 		{
@@ -150,9 +150,9 @@ bool UOptimusActionStack::CloseActionScope()
 }
 
 
-IOptimusNodeGraphCollectionOwner* UOptimusActionStack::GetGraphCollectionRoot() const
+IOptimusPathResolver* UOptimusActionStack::GetGraphCollectionRoot() const
 {
-	return Cast<IOptimusNodeGraphCollectionOwner>(GetOuter());
+	return Cast<IOptimusPathResolver>(GetOuter());
 }
 
 

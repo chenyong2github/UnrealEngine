@@ -300,6 +300,17 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnCreateWidgetForAction(FCreate
 	return SNew(SOptimusEditorGraphEplorerItem, InCreateData, OptimusEditor.Pin());
 }
 
+static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)
+{
+	if (InGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger)
+	{
+		return FText::FromString(TEXT("Triggered Graphs"));
+	}
+	else
+	{
+		return FText::GetEmpty();
+	}
+}
 
 void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
@@ -309,13 +320,16 @@ void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase&
 		return;
 	}
 
-	IOptimusNodeGraphCollectionOwner* GraphCollection = Editor->GetGraphCollectionRoot();
-	UOptimusDeformer *Deformer = Cast<UOptimusDeformer>(GraphCollection);
+	// This should be purely interface-based.
+	UOptimusDeformer *Deformer = Editor->GetDeformer();
 
-	for (UOptimusNodeGraph* Graph : GraphCollection->GetGraphs())
+	for (UOptimusNodeGraph* Graph : Deformer->GetGraphs())
 	{
+		FText GraphCategory = GetGraphSubCategory(Graph);
 		TSharedPtr<FOptimusSchemaAction_Graph> GraphAction = MakeShared<FOptimusSchemaAction_Graph>(Graph, /*Grouping=*/1);
 		OutAllActions.AddAction(GraphAction);
+
+		CollectChildGraphActions(OutAllActions, Graph, GraphCategory);
 	}
 
 	if (Deformer)
@@ -331,6 +345,31 @@ void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase&
 			TSharedPtr<FOptimusSchemaAction_Variable> VariableAction = MakeShared<FOptimusSchemaAction_Variable>(Variable, /*Grouping=*/3);
 			OutAllActions.AddAction(VariableAction);
 		}
+	}
+}
+
+
+void SOptimusEditorGraphExplorer::CollectChildGraphActions(
+	FGraphActionListBuilderBase& OutAllActions,
+	const UOptimusNodeGraph* InParentGraph,
+	const FText& InParentGraphCategory
+	)
+{
+	const FText ParentGraphName = FText::FromName(InParentGraph->GetFName());
+	FText Category;
+	if (!InParentGraphCategory.IsEmpty())
+	{
+		Category = FText::Format(FText::FromString(TEXT("{0}|{1}")), InParentGraphCategory, ParentGraphName);
+	}
+	else
+	{
+		Category = ParentGraphName;
+	}
+
+	for (UOptimusNodeGraph* SubGraph: InParentGraph->GetGraphs())
+	{
+		TSharedPtr<FOptimusSchemaAction_Graph> GraphAction = MakeShared<FOptimusSchemaAction_Graph>(SubGraph, /*Grouping=*/1, Category);
+		OutAllActions.AddAction(GraphAction);
 	}
 }
 
@@ -400,7 +439,7 @@ void SOptimusEditorGraphExplorer::OnActionSelected(
 	}
 
     TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
-	TSharedPtr<FEdGraphSchemaAction> Action(InActions.Num() > 0 ? InActions[0] : NULL);
+	TSharedPtr<FEdGraphSchemaAction> Action(InActions.Num() > 0 ? InActions[0] : nullptr);
 
 	if (!ensure(Editor) || !Action.IsValid())
 	{
@@ -410,7 +449,7 @@ void SOptimusEditorGraphExplorer::OnActionSelected(
 	if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
 	{
 		FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph*>(Action.Get());
-		UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+		UOptimusNodeGraph* NodeGraph = Editor->GetDeformerInterface<IOptimusPathResolver>()->ResolveGraphPath(GraphAction->GraphPath);
 
 		if (NodeGraph)
 		{
@@ -451,7 +490,7 @@ void SOptimusEditorGraphExplorer::OnActionDoubleClicked(const TArray<TSharedPtr<
 	if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
 	{
 		FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph *>(Action.Get());
-		UOptimusNodeGraph *NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+		UOptimusNodeGraph *NodeGraph = Editor->GetDeformerInterface<IOptimusPathResolver>()->ResolveGraphPath(GraphAction->GraphPath);
 
 		if (NodeGraph)
 		{
@@ -519,7 +558,7 @@ bool SOptimusEditorGraphExplorer::CanRenameAction(TSharedPtr<FEdGraphSchemaActio
 		if (InAction->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
 		{
 			FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph *>(InAction.Get());
-			UOptimusNodeGraph *NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+			UOptimusNodeGraph *NodeGraph = Editor->GetDeformerInterface<IOptimusPathResolver>()->ResolveGraphPath(GraphAction->GraphPath);
 
 			if (NodeGraph)
 			{
@@ -742,7 +781,7 @@ void SOptimusEditorGraphExplorer::OnOpenGraph()
 	if (Editor)
 	{
 		FOptimusSchemaAction_Graph* GraphAction = SelectionAsType<FOptimusSchemaAction_Graph>();
-		UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+		UOptimusNodeGraph* NodeGraph = Editor->GetDeformerInterface<IOptimusPathResolver>()->ResolveGraphPath(GraphAction->GraphPath);
 
 		if (NodeGraph)
 		{
@@ -763,7 +802,7 @@ void SOptimusEditorGraphExplorer::OnCreateSetupGraph()
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 	if (Editor)
 	{
-		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+		UOptimusDeformer* Deformer = Editor->GetDeformer();
 
 		if (Deformer)
 		{
@@ -778,7 +817,7 @@ bool SOptimusEditorGraphExplorer::CanCreateSetupGraph()
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 	if (Editor)
 	{
-		const TArray<UOptimusNodeGraph *> Graphs = Editor->GetGraphCollectionRoot()->GetGraphs();
+		const TArray<UOptimusNodeGraph *> Graphs = Editor->GetDeformer()->GetGraphs();
 		return Graphs[0]->GetGraphType() != EOptimusNodeGraphType::Setup;
 	}
 
@@ -791,7 +830,7 @@ void SOptimusEditorGraphExplorer::OnCreateTriggerGraph()
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 	if (Editor)
 	{
-		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+		UOptimusDeformer* Deformer = Editor->GetDeformer();
 
 		if (Deformer)
 		{
@@ -812,7 +851,7 @@ void SOptimusEditorGraphExplorer::OnCreateResource()
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 	if (Editor)
 	{
-		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+		UOptimusDeformer* Deformer = Editor->GetDeformer();
 
 		if (Deformer)
 		{
@@ -834,7 +873,7 @@ void SOptimusEditorGraphExplorer::OnCreateVariable()
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 	if (Editor)
 	{
-		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+		UOptimusDeformer* Deformer = Editor->GetDeformer();
 
 		if (Deformer)
 		{
@@ -857,7 +896,7 @@ void SOptimusEditorGraphExplorer::OnDeleteEntry()
 
 	if (Editor)
 	{
-		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+		UOptimusDeformer* Deformer = Editor->GetDeformer();
 
 		if (FOptimusSchemaAction_Graph* GraphAction = SelectionAsType<FOptimusSchemaAction_Graph>())
 		{
@@ -897,7 +936,7 @@ bool SOptimusEditorGraphExplorer::CanDeleteEntry()
 	{
 		if (FOptimusSchemaAction_Graph* GraphAction = SelectionAsType<FOptimusSchemaAction_Graph>())
 		{
-			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+			UOptimusNodeGraph* NodeGraph = Editor->GetDeformerInterface<IOptimusPathResolver>()->ResolveGraphPath(GraphAction->GraphPath);
 
 			if (NodeGraph)
 			{

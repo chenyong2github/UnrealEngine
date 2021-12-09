@@ -23,33 +23,93 @@
 
 #include <limits>
 
+#include "OptimusNodeSubGraph.h"
 #include "Nodes/OptimusNode_ComputeKernelFunction.h"
 #include "Nodes/OptimusNode_CustomComputeKernel.h"
+#include "Nodes/OptimusNode_FunctionReference.h"
+#include "Nodes/OptimusNode_GraphTerminal.h"
+#include "Nodes/OptimusNode_SubGraphReference.h"
+
+
+#define LOCTEXT_NAMESPACE "OptimusNodeGraph"
+
+
+const FName UOptimusNodeGraph::SetupGraphName("SetupGraph");
+const FName UOptimusNodeGraph::UpdateGraphName("UpdateGraph");
+const TCHAR* UOptimusNodeGraph::LibraryRoot = TEXT("@Library");
 
 
 FString UOptimusNodeGraph::GetGraphPath() const
 {
-	// TBD: Remove this once we have function nodes.
-	ensure(GetOuter()->IsA<UOptimusDeformer>());
+	// The path is local to the root of the node graph collection owner hierarchy, excluding the
+	// root collection itself (e.g. the deformer asset).
+	switch(GraphType)
+	{
+	case EOptimusNodeGraphType::Setup:
+	case EOptimusNodeGraphType::Update:
+	case EOptimusNodeGraphType::ExternalTrigger:
+		return GetName();
 
-	return GetName();
+	case EOptimusNodeGraphType::Function:
+		// FIXME: Check if we're internal or external function graph
+		return FString::Printf(TEXT("%s/%s"), LibraryRoot, *GetName());
+		
+	case EOptimusNodeGraphType::SubGraph:
+		{
+			TArray<FString, TInlineAllocator<8>> Ancestry;
+
+			const UOptimusNodeGraph* CurrentGraph = this;
+			while(CurrentGraph)
+			{
+				if (CurrentGraph->GetGraphType() == EOptimusNodeGraphType::SubGraph)
+				{
+					Ancestry.Add(CurrentGraph->GetName());
+				}
+				else
+				{
+					Ancestry.Add(CurrentGraph->GetGraphPath());
+					break;
+				}
+				CurrentGraph = Cast<const UOptimusNodeGraph>(CurrentGraph->GetOuter());
+			}
+			Algo::Reverse(Ancestry);
+
+			TStringBuilder<256> Path;
+			return Path.Join(Ancestry, TEXT('/')).ToString();
+		}
+		
+	case EOptimusNodeGraphType::Transient:
+		return TEXT("Transient");
+	}
+
+	checkNoEntry();
+	return TEXT("<unknown graph type>");
 }
 
 
-IOptimusNodeGraphCollectionOwner* UOptimusNodeGraph::GetOwnerCollection() const
+bool UOptimusNodeGraph::IsValidUserGraphName(
+	const FString& InGraphName,
+	FText* OutFailureReason
+	)
 {
-	return Cast<IOptimusNodeGraphCollectionOwner>(GetOuter());
-}
+	// Reserved names are reserved.
+	if (InGraphName.Equals(SetupGraphName.ToString(), ESearchCase::IgnoreCase) ||
+		InGraphName.Equals(UpdateGraphName.ToString(), ESearchCase::IgnoreCase))
+	{
+		if (OutFailureReason)
+		{
+			*OutFailureReason = FText::Format(LOCTEXT("ReservedName", "'{}' is a reserved name."), FText::FromString(InGraphName));
+		}
+		return false;
+	}
 
+	// '.' and '/' are path separateors. '$' is used for special graphs (e.g. libraries).
+	return FName::IsValidXName(InGraphName, TEXT("./$"), OutFailureReason);
+}
 
 int32 UOptimusNodeGraph::GetGraphIndex() const
 {
-	ensure(GetOuter()->IsA<UOptimusDeformer>());
-	
-	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(GetOuter());
-	const TArray<UOptimusNodeGraph*> &Graphs = Deformer->GetGraphs();
-
-	return Graphs.IndexOfByKey(this);
+	return GetCollectionOwner()->GetGraphs().IndexOfByKey(this);
 }
 
 
@@ -58,14 +118,23 @@ FOptimusGraphNotifyDelegate& UOptimusNodeGraph::GetNotifyDelegate()
 	return GraphNotifyDelegate;
 }
 
+
+IOptimusPathResolver* UOptimusNodeGraph::GetPathResolver() const
+{
+	return Cast<IOptimusPathResolver>(GetCollectionRoot());
+}
+
+
 UOptimusNode* UOptimusNodeGraph::AddNodeInternal(
 	const TSubclassOf<UOptimusNode> InNodeClass,
 	const FVector2D& InPosition,
 	TFunction<void(UOptimusNode*)> InNodeConfigFunc
 	)
 {
+	// FIXME: Need better naming.
+	FName NodeName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNode::StaticClass(), InNodeClass->GetFName());
 	FOptimusNodeGraphAction_AddNode *AddNodeAction = new FOptimusNodeGraphAction_AddNode(
-		this, InNodeClass, 
+		GetGraphPath(), InNodeClass, NodeName,
 		[InNodeConfigFunc, InPosition](UOptimusNode *InNode) {
 			if (InNodeConfigFunc)
 			{
@@ -80,6 +149,7 @@ UOptimusNode* UOptimusNodeGraph::AddNodeInternal(
 
 	return AddNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
 }
+
 
 UOptimusNode* UOptimusNodeGraph::AddNode(
 	const TSubclassOf<UOptimusNode> InNodeClass, 
@@ -229,7 +299,7 @@ UOptimusNode* UOptimusNodeGraph::DuplicateNode(
 	const FName NodeName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNode::StaticClass(), InNode->GetFName());
 	
 	FOptimusNodeGraphAction_DuplicateNode *DuplicateNodeAction = new FOptimusNodeGraphAction_DuplicateNode(
-		this, InNode, NodeName,
+		GetGraphPath(), InNode, NodeName,
 		[InPosition](UOptimusNode *InNode) {
 			return InNode->SetGraphPositionDirect(InPosition); 
 		});
@@ -312,8 +382,8 @@ bool UOptimusNodeGraph::DuplicateNodes(
 	const FString GraphPath = GetGraphPath();
 	for (const UOptimusNodeLink* Link: SourceGraph->GetAllLinks())
 	{
-		const UOptimusNode *OutputNode = Link->GetNodeOutputPin()->GetNode();
-		const UOptimusNode *InputNode = Link->GetNodeInputPin()->GetNode();
+		const UOptimusNode *OutputNode = Link->GetNodeOutputPin()->GetOwningNode();
+		const UOptimusNode *InputNode = Link->GetNodeInputPin()->GetOwningNode();
 
 		if (NewNodeNameMap.Contains(OutputNode) && NewNodeNameMap.Contains(InputNode))
 		{
@@ -342,8 +412,8 @@ bool UOptimusNodeGraph::DuplicateNodes(
 	for (UOptimusNode* Node: InNodes)
 	{
 		FOptimusNodeGraphAction_DuplicateNode *DuplicateNodeAction = new FOptimusNodeGraphAction_DuplicateNode(
-			this, Node, NewNodeNameMap[Node],
-			[InPosition, Node, NodeOffset](UOptimusNode *InNode) {
+			GetGraphPath(), Node, NewNodeNameMap[Node],
+			[Node, NodeOffset](UOptimusNode *InNode) {
 				return InNode->SetGraphPositionDirect(Node->GraphPosition + NodeOffset); 
 		});
 		
@@ -559,6 +629,240 @@ UOptimusNode* UOptimusNodeGraph::ConvertFunctionToCustomKernel(UOptimusNode* InK
 }
 
 
+UOptimusNode* UOptimusNodeGraph::CollapseNodesToFunction(
+	const TArray<UOptimusNode*>& InNodes
+	)
+{
+	return nullptr;
+}
+
+
+UOptimusNode* UOptimusNodeGraph::CollapseNodesToSubGraph(
+	const TArray<UOptimusNode*>& InNodes
+	)
+{
+	const TSet<UOptimusNode*> NodeSet(InNodes);
+	
+	// Collect all links that go to nodes that are not a part of the group and all links that
+	// are within elements of the group. At the same time, collect the bindings that apply.
+	TArray<const UOptimusNodeLink*> InternalLinks;
+	TArray<const UOptimusNodeLink*> InputLinks;			// Links going into the node set
+	TArray<const UOptimusNodeLink*> OutputLinks;		// Links coming from the node set
+	TArray<FOptimusParameterBinding> InputBindings;
+	TArray<FOptimusParameterBinding> OutputBindings;
+
+	// FIXME: The bindings should be ordered by node's Y-coordinate and input number.
+	for (const UOptimusNodeLink* Link: Links)
+	{
+		const bool bInputNodeInSet = NodeSet.Contains(Link->GetNodeInputPin()->GetOwningNode());
+		const bool bOutputNodeInSet = NodeSet.Contains(Link->GetNodeOutputPin()->GetOwningNode());
+
+		if (bInputNodeInSet && bOutputNodeInSet)
+		{
+			InternalLinks.Add(Link);
+		}
+		else if (bInputNodeInSet)
+		{
+			InputLinks.Add(Link);
+
+			// The entry pin on our sub-graph is named after the input pin of the node that's
+			// being collapsed into it.
+			const UOptimusNodePin* InputPin = Link->GetNodeInputPin();
+			FOptimusParameterBinding Binding;
+			Binding.Name = InputPin->GetFName();
+			Binding.DataType = InputPin->GetDataType();
+			if (InputPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+			{
+				Binding.DataDomain = InputPin->GetDataDomainLevelNames();
+			}
+			else
+			{
+				Binding.DataDomain.LevelNames.Reset();
+			}
+			InputBindings.Add(Binding);
+		}
+		else if (bOutputNodeInSet)
+		{
+			OutputLinks.Add(Link);
+			
+			const UOptimusNodePin* OutputPin = Link->GetNodeOutputPin();
+			FOptimusParameterBinding Binding;
+			Binding.Name = OutputPin->GetFName();
+			Binding.DataType = OutputPin->GetDataType();
+			if (OutputPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+			{
+				Binding.DataDomain = OutputPin->GetDataDomainLevelNames();
+			}
+			else
+			{
+				Binding.DataDomain.LevelNames.Reset();
+			}
+			OutputBindings.Add(Binding);
+		}
+	}
+
+	FOptimusCompoundAction *Action = new FOptimusCompoundAction(TEXT("Collapse Nodes to Sub-graph"));
+	IOptimusPathResolver* PathResolver = GetPathResolver();
+
+	FName SubGraphName("SubGraph");
+	SubGraphName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodeSubGraph::StaticClass(), SubGraphName);
+	
+	FOptimusNodeGraphAction_AddGraph* CreateGraph = new FOptimusNodeGraphAction_AddGraph(
+		this, EOptimusNodeGraphType::SubGraph, SubGraphName, INDEX_NONE,
+		[InputBindings, OutputBindings](UOptimusNodeGraph* InGraph) -> bool
+		{
+			UOptimusNodeSubGraph* SubGraph = Cast<UOptimusNodeSubGraph>(InGraph);
+			SubGraph->InputBindings = InputBindings;
+			SubGraph->OutputBindings = OutputBindings;
+			return true;
+		});
+	Action->AddSubAction(CreateGraph);
+
+	FString SubGraphPath = GetGraphPath() + TEXT("/") + SubGraphName.ToString();
+
+	// Create the entry and return nodes.
+	FBox2D NodeBox(ForceInit);
+	for (const UOptimusNode* Node: InNodes)
+	{
+		NodeBox += Node->GetGraphPosition();
+	}
+	
+	Action->AddSubAction<FOptimusNodeGraphAction_AddNode>(
+		SubGraphPath, UOptimusNode_GraphTerminal::StaticClass(), "Entry",
+		[NodeBox, SubGraphPath, PathResolver](UOptimusNode* InNode)
+		{
+			UOptimusNode_GraphTerminal* EntryNode = Cast<UOptimusNode_GraphTerminal>(InNode); 
+			UOptimusNodeSubGraph* SubGraph = Cast<UOptimusNodeSubGraph>(PathResolver->ResolveGraphPath(SubGraphPath));
+
+			SubGraph->EntryNode = EntryNode;
+			
+			EntryNode->TerminalType = EOptimusTerminalType::Entry;
+			EntryNode->OwningGraph = SubGraph;
+			return EntryNode->SetGraphPositionDirect({NodeBox.Min.X - 150.0f, NodeBox.GetCenter().Y});
+		});
+
+	Action->AddSubAction<FOptimusNodeGraphAction_AddNode>(
+		SubGraphPath, UOptimusNode_GraphTerminal::StaticClass(), "Return",
+		[NodeBox, SubGraphPath, PathResolver](UOptimusNode* InNode)
+		{
+			UOptimusNode_GraphTerminal* ReturnNode = Cast<UOptimusNode_GraphTerminal>(InNode); 
+			UOptimusNodeSubGraph* SubGraph = Cast<UOptimusNodeSubGraph>(PathResolver->ResolveGraphPath(SubGraphPath));
+
+			SubGraph->ReturnNode = ReturnNode;
+			
+			ReturnNode->TerminalType = EOptimusTerminalType::Return;
+			ReturnNode->OwningGraph = SubGraph;
+			return ReturnNode->SetGraphPositionDirect({NodeBox.Max.X + 300.0f, NodeBox.GetCenter().Y});
+		});
+	
+	// Duplicate the nodes into the graph.
+	for (UOptimusNode* Node: InNodes)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_DuplicateNode>(
+			SubGraphPath, Node, Node->GetFName(), [](UOptimusNode*) { return true; });
+	}
+
+	// Create the reference node and connect it.
+	FName GraphNodeRefName("SubGraphNode");
+	GraphNodeRefName = Optimus::GetUniqueNameForScopeAndClass(this, UObject::StaticClass(), GraphNodeRefName);
+	FOptimusNodeGraphAction_AddNode* AddSubGraphRefNodeAction = new FOptimusNodeGraphAction_AddNode(
+		GetGraphPath(), UOptimusNode_SubGraphReference::StaticClass(), GraphNodeRefName,
+		[NodeBox, SubGraphPath, PathResolver](UOptimusNode* InNode)
+		{
+			UOptimusNode_SubGraphReference* SubGraphNode = Cast<UOptimusNode_SubGraphReference>(InNode); 
+			UOptimusNodeSubGraph* SubGraph = Cast<UOptimusNodeSubGraph>(PathResolver->ResolveGraphPath(SubGraphPath));
+			
+			SubGraphNode->SubGraph = SubGraph;
+			return SubGraphNode->SetGraphPositionDirect(NodeBox.GetCenter());
+		});
+	
+	Action->AddSubAction(AddSubGraphRefNodeAction);
+	
+	// Remove all existing links in the original graph. This has to be done before we remove 
+	// nodes and add new links, otherwise the node removal and link creation to already-connected
+	// inputs will fail.
+	for (const UOptimusNodeLink* Link: InternalLinks)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Link);
+	}
+	for (const UOptimusNodeLink* Link: InputLinks)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Link);
+	}
+	for (const UOptimusNodeLink* Link: OutputLinks)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Link);
+	}
+	
+	// Create the links in the sub-graph between the duplicated nodes and the entry/return
+	// nodes using the internal/input/output links gathered previously.
+	for (const UOptimusNodeLink* Link: InternalLinks)
+	{
+		FString NodeOutputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+			*SubGraphPath, *Link->NodeOutputPin->GetOwningNode()->GetName(), *Link->NodeOutputPin->GetUniqueName().ToString());
+		FString NodeInputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+			*SubGraphPath, *Link->NodeInputPin->GetOwningNode()->GetName(), *Link->NodeInputPin->GetUniqueName().ToString());
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(NodeOutputPinPath, NodeInputPinPath);
+	}
+	for (const UOptimusNodeLink* Link: InputLinks)
+	{
+		// Once for the Entry -> Sub-graph nodes, and another for Outer graph nodes -> Sub-graph ref node inputs.
+		FString NodeOutputPinPath = FString::Printf(TEXT("%s/Entry.%s"),
+			*SubGraphPath, *Link->NodeInputPin->GetUniqueName().ToString());
+		FString NodeInputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+			*SubGraphPath, *Link->NodeInputPin->GetOwningNode()->GetName(), *Link->NodeInputPin->GetUniqueName().ToString());
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(NodeOutputPinPath, NodeInputPinPath);
+		
+		NodeOutputPinPath = Link->NodeOutputPin->GetPinPath();
+		NodeInputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+			*GetGraphPath(), *GraphNodeRefName.ToString(), *Link->NodeInputPin->GetUniqueName().ToString());
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(NodeOutputPinPath, NodeInputPinPath);
+	}
+	for (const UOptimusNodeLink* Link: OutputLinks)
+	{
+		// Once for the Sub-graph nodes -> Return, and another for Sub-graph ref node outputs -> Outer graph nodes.
+		FString NodeOutputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+			*SubGraphPath, *Link->NodeOutputPin->GetOwningNode()->GetName(), *Link->NodeOutputPin->GetUniqueName().ToString());
+		FString NodeInputPinPath = FString::Printf(TEXT("%s/Return.%s"),
+			*SubGraphPath, *Link->NodeOutputPin->GetUniqueName().ToString());
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(NodeOutputPinPath, NodeInputPinPath);
+		
+		NodeOutputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+			*GetGraphPath(), *GraphNodeRefName.ToString(), *Link->NodeOutputPin->GetUniqueName().ToString());
+		NodeInputPinPath = Link->NodeInputPin->GetPinPath();
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(NodeOutputPinPath, NodeInputPinPath);
+	}
+	
+	// Delete the existing nodes
+	for (UOptimusNode* Node: InNodes)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveNode>(Node);
+	}
+	
+	if (!GetActionStack()->RunAction(Action))
+	{
+		return nullptr;
+	}
+	
+	return AddSubGraphRefNodeAction->GetNode(PathResolver);
+}
+
+
+TArray<UOptimusNode*> UOptimusNodeGraph::ExpandCollapsedNodes(
+	UOptimusNode* InFunctionNode
+	)
+{
+	const bool bIsFunction = IsFunctionReference(InFunctionNode);
+	const bool bIsSubGraph = IsSubGraphReference(InFunctionNode);
+	if (!bIsFunction && !bIsSubGraph)
+	{
+		return {};
+	}
+
+	return {};
+}
+
+
 bool UOptimusNodeGraph::IsCustomKernel(UOptimusNode* InNode) const
 {
 	return Cast<UOptimusNode_CustomComputeKernel>(InNode) != nullptr;
@@ -570,6 +874,17 @@ bool UOptimusNodeGraph::IsKernelFunction(UOptimusNode* InNode) const
 	return Cast<UOptimusNode_ComputeKernelFunction>(InNode) != nullptr;
 }
 
+
+bool UOptimusNodeGraph::IsFunctionReference(UOptimusNode* InNode) const
+{
+	return Cast<UOptimusNode_FunctionReference>(InNode) != nullptr;
+}
+
+
+bool UOptimusNodeGraph::IsSubGraphReference(UOptimusNode* InNode) const
+{
+	return Cast<UOptimusNode_SubGraphReference>(InNode) != nullptr;
+}
 
 
 UOptimusNode* UOptimusNodeGraph::CreateNodeDirect(
@@ -687,7 +1002,7 @@ bool UOptimusNodeGraph::AddLinkDirect(UOptimusNodePin* NodeOutputPin, UOptimusNo
 		return false;
 	}
 
-	if (NodeOutputPin == NodeInputPin || NodeOutputPin->GetNode() == NodeInputPin->GetNode())
+	if (NodeOutputPin == NodeInputPin || NodeOutputPin->GetOwningNode() == NodeInputPin->GetOwningNode())
 	{
 		return false;
 	}
@@ -815,6 +1130,46 @@ TArray<UOptimusNodePin*> UOptimusNodeGraph::GetConnectedPins(
 }
 
 
+TArray<FOptimusRoutedNodePin> UOptimusNodeGraph::GetConnectedPinsWithRouting(
+	const UOptimusNodePin* InNodePin,
+	const FOptimusPinTraversalContext& InContext
+	) const
+{
+	TQueue<FOptimusRoutedNodePin> PinQueue;
+
+	PinQueue.Enqueue({const_cast<UOptimusNodePin*>(InNodePin), InContext});
+
+	TArray<FOptimusRoutedNodePin> RoutedNodePins;
+	FOptimusRoutedNodePin WorkingPin;
+	while (PinQueue.Dequeue(WorkingPin))
+	{
+		for (UOptimusNodePin* ConnectedPin: WorkingPin.NodePin->GetConnectedPins())
+		{
+			const IOptimusNodePinRouter* RouterNode = Cast<IOptimusNodePinRouter>(ConnectedPin->GetOwningNode());
+
+			// If this connection leads to a router node, find the matching pin on the other side and
+			// add it to the queue. Otherwise we're done, and we add the connected pin and the
+			// context to the result (in case the user wants to traverse further via that node through
+			// the given pin).
+			if (RouterNode)
+			{
+				const FOptimusRoutedNodePin RoutedPin = RouterNode->GetPinCounterpart(ConnectedPin, WorkingPin.TraversalContext);
+				if (RoutedPin.NodePin != nullptr)
+				{
+					PinQueue.Enqueue(RoutedPin);
+				}
+			}
+			else
+			{
+				RoutedNodePins.Add({ConnectedPin, WorkingPin.TraversalContext});
+			}
+		}
+	}
+
+	return RoutedNodePins;
+}
+
+
 TArray<const UOptimusNodeLink*> UOptimusNodeGraph::GetPinLinks(
 	const UOptimusNodePin* InNodePin
 	) const
@@ -855,19 +1210,19 @@ bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin
 	if (!ensure(InNodeOutputPin != nullptr && InNodeInputPin != nullptr) ||
 		!ensure(InNodeOutputPin->GetDirection() == EOptimusNodePinDirection::Output) ||
 		!ensure(InNodeInputPin->GetDirection() == EOptimusNodePinDirection::Input) ||
-		!ensure(InNodeOutputPin->GetNode()->GetOwningGraph() == InNodeInputPin->GetNode()->GetOwningGraph()))
+		!ensure(InNodeOutputPin->GetOwningNode()->GetOwningGraph() == InNodeInputPin->GetOwningNode()->GetOwningGraph()))
 	{
 		// Invalid pins -- no cycle.
 		return false;
 	}
 
 	// Self-connection is a cycle.
-	if (InNodeOutputPin->GetNode() == InNodeInputPin->GetNode())
+	if (InNodeOutputPin->GetOwningNode() == InNodeInputPin->GetOwningNode())
 	{
 		return true;
 	}
 
-	const UOptimusNode *CycleNode = InNodeOutputPin->GetNode();
+	const UOptimusNode *CycleNode = InNodeOutputPin->GetOwningNode();
 
 	// Crawl forward from the input pin's node to see if we end up hitting the output pin's node.
 	TSet<const UOptimusNode *> ProcessedNodes;
@@ -882,15 +1237,15 @@ bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin
 	};
 
 	// Enqueue as a work set all links going from the output pins of the node.
-	EnqueueIndexes(GetAllLinkIndexesToNode(InNodeInputPin->GetNode(), EOptimusNodePinDirection::Output));
-	ProcessedNodes.Add(InNodeInputPin->GetNode());
+	EnqueueIndexes(GetAllLinkIndexesToNode(InNodeInputPin->GetOwningNode(), EOptimusNodePinDirection::Output));
+	ProcessedNodes.Add(InNodeInputPin->GetOwningNode());
 
 	int32 LinkIndex;
 	while (QueuedLinks.Dequeue(LinkIndex))
 	{
 		const UOptimusNodeLink *Link = Links[LinkIndex];
 
-		const UOptimusNode *NextNode = Link->GetNodeInputPin()->GetNode();
+		const UOptimusNode *NextNode = Link->GetNodeInputPin()->GetOwningNode();
 
 		if (NextNode == CycleNode)
 		{
@@ -918,6 +1273,17 @@ void UOptimusNodeGraph::Notify(EOptimusGraphNotifyType InNotifyType, UObject* In
 }
 
 
+void UOptimusNodeGraph::GlobalNotify(EOptimusGlobalNotifyType InNotifyType, UObject* InObject) const
+{
+	const UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(GetCollectionRoot());
+	if (Deformer)
+	{
+		Deformer->Notify(InNotifyType, InObject);
+	}
+	
+}
+
+
 TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToNode(
 	const UOptimusNode* InNode,
 	EOptimusNodePinDirection InDirection
@@ -929,8 +1295,8 @@ TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToNode(
 		const UOptimusNodeLink* Link = Links[LinkIndex];
 		if (ensure(Link != nullptr && Link->GetNodeOutputPin() != nullptr))
 		{
-			if ((Link->GetNodeOutputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Input) ||
-				(Link->GetNodeInputPin()->GetNode() == InNode && InDirection != EOptimusNodePinDirection::Output))
+			if ((Link->GetNodeOutputPin()->GetOwningNode() == InNode && InDirection != EOptimusNodePinDirection::Input) ||
+				(Link->GetNodeInputPin()->GetOwningNode() == InNode && InDirection != EOptimusNodePinDirection::Output))
 			{
 				LinkIndexes.Add(LinkIndex);
 			}
@@ -971,7 +1337,7 @@ TArray<int32> UOptimusNodeGraph::GetAllLinkIndexesToPin(
 
 UOptimusActionStack* UOptimusNodeGraph::GetActionStack() const
 {
-	UOptimusDeformer *Deformer = Cast<UOptimusDeformer>(GetOuter());
+	UOptimusDeformer *Deformer = Cast<UOptimusDeformer>(GetCollectionRoot());
 	if (!Deformer)
 	{
 		return nullptr;
@@ -980,3 +1346,152 @@ UOptimusActionStack* UOptimusNodeGraph::GetActionStack() const
 	return Deformer->GetActionStack();
 }
 
+
+IOptimusNodeGraphCollectionOwner* UOptimusNodeGraph::GetCollectionOwner() const
+{
+	return Cast<IOptimusNodeGraphCollectionOwner>(GetOuter());
+}
+
+
+IOptimusNodeGraphCollectionOwner* UOptimusNodeGraph::GetCollectionRoot() const
+{
+	return GetCollectionOwner()->GetCollectionRoot();
+}
+
+
+FString UOptimusNodeGraph::GetCollectionPath() const
+{
+	if (const FString ParentPath = GetCollectionOwner()->GetCollectionPath(); !ParentPath.IsEmpty())
+	{
+		return ParentPath + TEXT("/") + GetName();
+	}
+	return GetName();
+}
+
+
+UOptimusNodeGraph* UOptimusNodeGraph::CreateGraph(
+	EOptimusNodeGraphType InType,
+	FName InName,
+	TOptional<int32> InInsertBefore
+	)
+{
+	if (InType != EOptimusNodeGraphType::SubGraph)
+	{
+		UE_LOG(LogOptimusDeveloper, Warning, TEXT("Only subgraphs can be added to other graphs"));
+		return nullptr;
+	}
+
+	UOptimusNodeSubGraph* Graph = NewObject<UOptimusNodeSubGraph>(this, UOptimusNodeSubGraph::StaticClass(), InName, RF_Transactional);
+
+	Graph->SetGraphType(EOptimusNodeGraphType::SubGraph);
+
+	// The Entry/Return nodes will be added by the action.
+
+	if (InInsertBefore.IsSet())
+	{
+		if (!AddGraph(Graph, InInsertBefore.GetValue()))
+		{
+			Graph->Rename(nullptr, GetTransientPackage());
+			return nullptr;
+		}
+	}
+	
+	return Graph;
+}
+
+
+bool UOptimusNodeGraph::AddGraph(
+	UOptimusNodeGraph* InGraph, 
+	int32 InInsertBefore
+	)
+{
+	if (InGraph == nullptr || InGraph->GetGraphType() != EOptimusNodeGraphType::SubGraph)
+	{
+		return false;
+	}
+
+	// If INDEX_NONE, insert at the end.
+	if (InInsertBefore == INDEX_NONE)
+	{
+		InInsertBefore = SubGraphs.Num();
+	}
+	else
+	{
+		InInsertBefore = FMath::Clamp(InInsertBefore, 0, SubGraphs.Num());
+	}
+
+	SubGraphs.Insert(InGraph, InInsertBefore);
+
+	GlobalNotify(EOptimusGlobalNotifyType::GraphAdded, InGraph);
+
+	return true;
+}
+
+
+bool UOptimusNodeGraph::RemoveGraph(
+	UOptimusNodeGraph* InGraph,
+	bool bInDeleteGraph
+	)
+{
+	// Not ours?
+	const int32 GraphIndex = SubGraphs.IndexOfByKey(InGraph);
+	if (GraphIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (InGraph->GetGraphType() == EOptimusNodeGraphType::Update)
+	{
+		return false;
+	}
+
+	SubGraphs.RemoveAt(GraphIndex);
+
+	GlobalNotify(EOptimusGlobalNotifyType::GraphRemoved, InGraph);
+
+	if (bInDeleteGraph)
+	{
+		// Un-parent this graph to a temporary storage and mark it for kill.
+		InGraph->Rename(nullptr, GetTransientPackage());
+	}
+
+	return true;
+}
+
+
+bool UOptimusNodeGraph::MoveGraph(
+	UOptimusNodeGraph* InGraph,
+	int32 InInsertBefore
+	)
+{
+	return false;
+}
+
+
+bool UOptimusNodeGraph::RenameGraph(
+	UOptimusNodeGraph* InGraph,
+	const FString& InNewName
+	)
+{
+	// Not ours?
+	const int32 GraphIndex = SubGraphs.IndexOfByKey(InGraph);
+	if (GraphIndex == INDEX_NONE)
+	{
+		return false;
+	}
+		
+	if (!IsValidUserGraphName(InNewName))
+	{
+		return false;
+	}
+
+	const bool bSuccess = GetActionStack()->RunAction<FOptimusNodeGraphAction_RenameGraph>(InGraph, FName(*InNewName));
+	if (bSuccess)
+	{
+		GlobalNotify(EOptimusGlobalNotifyType::GraphRenamed, InGraph);
+	}
+	return bSuccess;
+}
+
+
+#undef LOCTEXT_NAMESPACE

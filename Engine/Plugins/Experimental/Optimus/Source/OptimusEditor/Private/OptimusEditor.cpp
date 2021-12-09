@@ -101,8 +101,8 @@ void FOptimusEditor::Construct(
 		RF_Transactional|RF_Transient);
 	EditorGraph->Schema = UOptimusEditorGraphSchema::StaticClass();
 
-	const bool bCreateDefaultStandaloneMenu = true;
-	const bool bCreateDefaultToolbar = true;
+	constexpr bool bCreateDefaultStandaloneMenu = true;
+	constexpr bool bCreateDefaultToolbar = true;
 
 	// This call relies on virtual functions, so cannot be called from the constructor, hence
 	// the dual-construction style.
@@ -172,12 +172,6 @@ void FOptimusEditor::Construct(
 	{
 		HandlePreviewMeshChanged(nullptr, PersonaToolkit->GetPreviewMesh());
 	}
-}
-
-
-IOptimusNodeGraphCollectionOwner* FOptimusEditor::GetGraphCollectionRoot() const
-{
-	return DeformerObject;
 }
 
 
@@ -529,6 +523,58 @@ bool FOptimusEditor::CanUnpackageNodes() const
 }
 
 
+void FOptimusEditor::CollapseNodesToFunction()
+{
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	UOptimusNode* CollapseNode = ModelGraph->CollapseNodesToFunction(GetSelectedModelNodes());
+	InspectObject(CollapseNode);
+}
+
+
+void FOptimusEditor::CollapseNodesToSubGraph()
+{
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	UOptimusNode* CollapseNode = ModelGraph->CollapseNodesToSubGraph(GetSelectedModelNodes());
+	InspectObject(CollapseNode);
+}
+
+
+bool FOptimusEditor::CanCollapseNodes() const
+{
+	return CanCopyNodes();
+}
+
+
+void FOptimusEditor::ExpandCollapsedNode()
+{
+	FOptimusActionScope ActionScope(*GetActionStack(), TEXT("Expand Collapsed Nodes"));
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	TArray<UObject*> NewNodes;
+	for (UOptimusNode* ModelNode: GetSelectedModelNodes())
+	{
+		NewNodes.Append(ModelGraph->ExpandCollapsedNodes(ModelNode));
+	}
+	InspectObjects(NewNodes);
+}
+
+
+bool FOptimusEditor::CanExpandCollapsedNode() const
+{
+	const TArray<UOptimusNode*> ModelNodes = GetSelectedModelNodes();	
+	const UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();	
+	for (UOptimusNode* ModelNode: ModelNodes)
+	{
+		if (!ModelGraph->IsFunctionReference(ModelNode) &&
+			!ModelGraph->IsSubGraphReference(ModelNode))
+		{
+			return false;
+		}
+	}
+
+	return !ModelNodes.IsEmpty();
+}
+
+
 void FOptimusEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
@@ -802,15 +848,31 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 		);
 
 		// Packaging commands
-		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().PackageNodes,
+		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().ConvertToKernelFunction,
 			FExecuteAction::CreateSP(this, &FOptimusEditor::PackageNodes),
 			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanPackageNodes)
 		);
 
-		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().UnpackageNodes,
+		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().ConvertFromKernelFunction,
 			FExecuteAction::CreateSP(this, &FOptimusEditor::UnpackageNodes),
 			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanUnpackageNodes)
 		);
+
+		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().CollapseNodesToFunction,
+			FExecuteAction::CreateSP(this, &FOptimusEditor::CollapseNodesToFunction),
+			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanCollapseNodes)
+		);
+
+		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().CollapseNodesToSubGraph,
+			FExecuteAction::CreateSP(this, &FOptimusEditor::CollapseNodesToSubGraph),
+			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanCollapseNodes)
+		);
+		
+		GraphEditorCommands->MapAction(FOptimusEditorGraphCommands::Get().ExpandCollapsedNode,
+			FExecuteAction::CreateSP(this, &FOptimusEditor::ExpandCollapsedNode),
+			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanExpandCollapsedNode)
+		);
+		
 #if 0
 
 		// Graph Editor Commands

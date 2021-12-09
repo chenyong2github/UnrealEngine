@@ -135,7 +135,7 @@ void UOptimusNode::SetDiagnosticLevel(EOptimusDiagnosticLevel InDiagnosticLevel)
 }
 
 
-UOptimusNodePin* UOptimusNode::FindPin(const FString& InPinPath) const
+UOptimusNodePin* UOptimusNode::FindPin(const FStringView InPinPath) const
 {
 	TArray<FName> PinPath = UOptimusNodePin::GetPinNamePathFromString(InPinPath);
 	if (PinPath.IsEmpty())
@@ -156,7 +156,6 @@ UOptimusNodePin* UOptimusNode::FindPinFromPath(const TArray<FName>& InPinPath) c
 	}
 
 	const TArray<UOptimusNodePin*>* CurrentPins = &Pins;
-	int PathIndex = 0;
 	UOptimusNodePin* FoundPin = nullptr;
 
 	for (FName PinName : InPinPath)
@@ -332,7 +331,7 @@ UOptimusNodePin* UOptimusNode::AddPin(
 
 	if (InBeforePin)
 	{
-		if (InBeforePin->GetNode() != this)
+		if (InBeforePin->GetOwningNode() != this)
 		{
 			UE_LOG(LogOptimusDeveloper, Error, TEXT("Attempting to place a pin before one that does not belong to this node: %s"), *InBeforePin->GetPinPath());
 			return nullptr;
@@ -400,6 +399,23 @@ UOptimusNodePin* UOptimusNode::AddPinDirect(
 	}
 
 	return Pin;
+}
+
+
+UOptimusNodePin* UOptimusNode::AddPinDirect(
+	const FOptimusParameterBinding& InBinding,
+	EOptimusNodePinDirection InDirection,
+	UOptimusNodePin* InBeforePin
+	)
+{
+	FOptimusNodePinStorageConfig StorageConfig;
+	
+	if (!InBinding.DataDomain.IsEmpty())
+	{
+		StorageConfig.Type = EOptimusNodePinStorageType::Resource;
+		StorageConfig.DataDomain = InBinding.DataDomain;
+	}
+	return AddPinDirect(InBinding.Name, InDirection, StorageConfig, InBinding.DataType, InBeforePin);
 }
 
 
@@ -751,7 +767,7 @@ UOptimusActionStack* UOptimusNode::GetActionStack() const
 	{
 		return nullptr;
 	}
-	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Graph->GetOuter());
+	UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Graph->GetCollectionRoot());
 	if (!Deformer)
 	{
 		return nullptr;

@@ -23,7 +23,7 @@ void FOptimusCompoundAction::AddSubAction(FOptimusAction* InAction)
 }
 
 
-bool FOptimusCompoundAction::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusCompoundAction::Do(IOptimusPathResolver* InRoot)
 {
 	for (int32 ActionIndex = 0; ActionIndex < SubActions.Num(); ActionIndex++)
 	{
@@ -45,7 +45,7 @@ bool FOptimusCompoundAction::Do(IOptimusNodeGraphCollectionOwner* InRoot)
 }
 
 
-bool FOptimusCompoundAction::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+bool FOptimusCompoundAction::Undo(IOptimusPathResolver* InRoot)
 {
 	for (int32 ActionIndex = SubActions.Num(); ActionIndex-- > 0; /**/)
 	{

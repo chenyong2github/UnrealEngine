@@ -33,18 +33,21 @@ public:
 	    IOptimusNodeGraphCollectionOwner* InGraphOwner,
 		EOptimusNodeGraphType InGraphType,
 		FName InGraphName,
-		int32 InGraphIndex
+		int32 InGraphIndex,
+		TFunction<bool(UOptimusNodeGraph*)> InConfigureGraphFunc = {}
 		);
 
-	UOptimusNodeGraph* GetGraph(IOptimusNodeGraphCollectionOwner* InRoot) const;
+	UOptimusNodeGraph* GetGraph(IOptimusPathResolver* InRoot) const;
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
-private:
 	// The type of graph to create
 	EOptimusNodeGraphType GraphType;
+
+	// The path to the graph owner
+	FString GraphOwnerPath;
 
 	// The name of the graph being created.
 	FName GraphName;
@@ -52,6 +55,14 @@ private:
 	// The index of this new graph in the graph stack.
 	int32 GraphIndex;
 
+	// An optional function called to configure the graph after it gets created, but before it
+	// gets added to the graph collection. This can only be used to configure properties of the
+	// graph itself and objects owned by the graph, otherwise those modification are unlikely
+	// to survive an undo/redo pass.
+	// The function should return false if the config fails. In that case the rest of the action
+	// gets unwound, leaving the asset in a consistent state.
+	TFunction<bool(UOptimusNodeGraph*)> ConfigureGraphFunc;
+	
 	// The path of the freshly created graph after the first call to Do.
 	FString GraphPath;
 };
@@ -70,13 +81,16 @@ public:
 	    UOptimusNodeGraph* InGraph);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the graph to remove.
 	FString GraphPath;
 
+	// The path of the graph's owner.
+	FString GraphOwnerPath;
+	
 	// The type of graph to reconstruct back to.
 	EOptimusNodeGraphType GraphType;
 
@@ -104,8 +118,8 @@ public:
 		FName InNewName);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the graph to rename. This value will change after each rename.
@@ -129,17 +143,18 @@ public:
 	FOptimusNodeGraphAction_AddNode() = default;
 
 	FOptimusNodeGraphAction_AddNode(
-		UOptimusNodeGraph* InGraph,
+		const FString& InGraphPath,
 		const UClass* InNodeClass,
+		FName InNodeName,
 		TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
 		);
 
 	/// Called to retrieve the node that was created by DoImpl after it has been called.
-	UOptimusNode* GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;
+	UOptimusNode* GetNode(IOptimusPathResolver* InRoot) const;
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the graph the node should be added to.
@@ -171,18 +186,18 @@ public:
 	FOptimusNodeGraphAction_DuplicateNode() = default;
 
 	FOptimusNodeGraphAction_DuplicateNode(
-		UOptimusNodeGraph* InTargetGraph,
+		const FString& InTargetGraphPath,
 		UOptimusNode* InSourceNode,
 		FName InNodeName,
 		TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
 		);
 
 	/// Called to retrieve the node that was created by DoImpl after it has been called.
-	UOptimusNode* GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;
+	UOptimusNode* GetNode(IOptimusPathResolver* InRoot) const;
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the graph the node should be added to.
@@ -221,8 +236,8 @@ public:
 	);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// Path to the node to remove.
@@ -262,8 +277,8 @@ struct FOptimusNodeGraphAction_AddRemoveLink :
 		);
 
 protected:
-	bool AddLink(IOptimusNodeGraphCollectionOwner* InRoot);
-	bool RemoveLink(IOptimusNodeGraphCollectionOwner* InRoot);
+	bool AddLink(IOptimusPathResolver* InRoot);
+	bool RemoveLink(IOptimusPathResolver* InRoot);
 
 	// The path of the output pin on the node to connect/disconnect to/from.
 	FString NodeOutputPinPath;
@@ -305,8 +320,8 @@ struct FOptimusNodeGraphAction_AddLink :
 		);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddLink(InRoot); }
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemoveLink(InRoot); }
+	bool Do(IOptimusPathResolver* InRoot) override { return AddLink(InRoot); }
+	bool Undo(IOptimusPathResolver* InRoot) override { return RemoveLink(InRoot); }
 };
 
 USTRUCT()
@@ -327,8 +342,8 @@ struct FOptimusNodeGraphAction_RemoveLink :
 	);
 
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return RemoveLink(InRoot); }
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddLink(InRoot); }
+	bool Do(IOptimusPathResolver* InRoot) override { return RemoveLink(InRoot); }
+	bool Undo(IOptimusPathResolver* InRoot) override { return AddLink(InRoot); }
 };
 
 
@@ -344,11 +359,11 @@ struct FOptimusNodeGraphAction_PackageKernelFunction :
 		UOptimusNode_CustomComputeKernel* InKernelNode,
 		FName InNodeName);
 
-	UOptimusNode *GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;	
+	UOptimusNode *GetNode(IOptimusPathResolver* InRoot) const;	
 	
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the graph we're creating the packaged node in.
@@ -362,8 +377,8 @@ private:
 	int32 ThreadCount;
 	FOptimusDataDomain ExecutionDomain;
 	TArray<FOptimus_ShaderValuedBinding> Parameters;
-	TArray<FOptimus_ShaderDataBinding> InputBindings;
-	TArray<FOptimus_ShaderDataBinding> OutputBindings;
+	TArray<FOptimusParameterBinding> InputBindings;
+	TArray<FOptimusParameterBinding> OutputBindings;
 	FString ShaderSource;
 
 	// Once we've created the node class, we store it here, in case we need to remove it on
@@ -387,11 +402,11 @@ struct FOptimusNodeGraphAction_UnpackageKernelFunction :
 		UOptimusNode_ComputeKernelFunction* InKernelFunction,
 		FName InNodeName);
 
-	UOptimusNode *GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;	
+	UOptimusNode *GetNode(IOptimusPathResolver* InRoot) const;	
 	
 protected:
-	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
-	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
 
 private:
 	// The path of the graph we're creating the packaged node in.

@@ -231,12 +231,12 @@ void UOptimusNode_CustomComputeKernel::ConstructNode()
 	{
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, {}, Binding.DataType);
 	}
-	for (const FOptimus_ShaderDataBinding& Binding: InputBindings)
+	for (const FOptimusParameterBinding& Binding: InputBindings)
 	{
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
 	}
-	for (const FOptimus_ShaderDataBinding& Binding: OutputBindings)
+	for (const FOptimusParameterBinding& Binding: OutputBindings)
 	{
 		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
 		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
@@ -370,14 +370,14 @@ void UOptimusNode_CustomComputeKernel::UpdatePinDataDomains(
 		{
 			PinDataDomains.Add({});
 		}
-		for (const FOptimus_ShaderDataBinding& Binding: InputBindings)
+		for (const FOptimusParameterBinding& Binding: InputBindings)
 		{
 			PinDataDomains.Add(Binding.DataDomain.LevelNames);
 		}
 	}
 	else if (InPinDirection == EOptimusNodePinDirection::Output)
 	{
-		for (const FOptimus_ShaderDataBinding& Binding: OutputBindings)
+		for (const FOptimusParameterBinding& Binding: OutputBindings)
 		{
 			PinDataDomains.Add(Binding.DataDomain.LevelNames);
 		}
@@ -435,7 +435,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	}
 
 	// FIXME: Lump input/output functions together into single context.
-	auto ContextsPredicate = [](const FOptimus_ShaderDataBinding& A, const FOptimus_ShaderDataBinding &B)
+	auto ContextsPredicate = [](const FOptimusParameterBinding& A, const FOptimusParameterBinding &B)
 	{
 		for (int32 Index = 0; Index < FMath::Min(A.DataDomain.LevelNames.Num(), B.DataDomain.LevelNames.Num()); Index++)
 		{
@@ -448,7 +448,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	};
 	
 	TSet<TArray<FName>> SeenDataDomains;
-	TArray<FOptimus_ShaderDataBinding> Bindings = InputBindings;
+	TArray<FOptimusParameterBinding> Bindings = InputBindings;
 	Bindings.Sort(ContextsPredicate);
 
 	auto AddCountFunctionIfNeeded = [&Declarations, &SeenDataDomains](const TArray<FName>& InContextNames)
@@ -466,7 +466,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 		}
 	};
 	
-	for (const FOptimus_ShaderDataBinding& Binding: Bindings)
+	for (const FOptimusParameterBinding& Binding: Bindings)
 	{
 		AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
 		
@@ -482,7 +482,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 
 	Bindings = OutputBindings;
 	Bindings.Sort(ContextsPredicate);
-	for (const FOptimus_ShaderDataBinding& Binding: Bindings)
+	for (const FOptimusParameterBinding& Binding: Bindings)
 	{
 		AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
 		
