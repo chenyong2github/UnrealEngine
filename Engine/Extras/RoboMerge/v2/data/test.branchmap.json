@@ -1,7 +1,0 @@
-{
-	"defaultStreamDepot": "depot",
-	"isDefaultBot": true,
-	"globalNotify": [""],
-	"checkIntervalSecs": 1,
-	"branches": []
-}
