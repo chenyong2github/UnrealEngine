@@ -80,9 +80,19 @@ namespace HordeAgent.Execution
 
 					int AutoSdkChangeNumber = await AutoSdkWorkspace.GetLatestChangeAsync(CancellationToken);
 
-					FileReference AutoSdkCacheFile = FileReference.Combine(AutoSdkWorkspace.MetadataDir, "Contents.dat");
-					await AutoSdkWorkspace.UpdateLocalCacheMarker(AutoSdkCacheFile, AutoSdkChangeNumber, -1);
-					await AutoSdkWorkspace.SyncAsync(AutoSdkChangeNumber, -1, AutoSdkCacheFile, Logger, CancellationToken);
+					string SyncText = $"Synced to CL {AutoSdkChangeNumber}";
+
+					FileReference SyncFile = FileReference.Combine(AutoSdkWorkspace.MetadataDir, "Synced.txt");
+					if (!FileReference.Exists(SyncFile) || FileReference.ReadAllText(SyncFile) != SyncText)
+					{
+						FileReference.Delete(SyncFile);
+
+						FileReference AutoSdkCacheFile = FileReference.Combine(AutoSdkWorkspace.MetadataDir, "Contents.dat");
+						await AutoSdkWorkspace.UpdateLocalCacheMarker(AutoSdkCacheFile, AutoSdkChangeNumber, -1);
+						await AutoSdkWorkspace.SyncAsync(AutoSdkChangeNumber, -1, AutoSdkCacheFile, Logger, CancellationToken);
+
+						FileReference.WriteAllText(SyncFile, SyncText);
+					}
 				}
 			}
 
