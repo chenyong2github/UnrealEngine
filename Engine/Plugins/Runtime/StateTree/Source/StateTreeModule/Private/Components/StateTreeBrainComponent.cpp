@@ -20,7 +20,8 @@
 
 bool UBrainComponentStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
 {
-	return InScriptStruct->IsChildOf(FStateTreeConditionCommonBase::StaticStruct());
+	return InScriptStruct->IsChildOf(FStateTreeConditionCommonBase::StaticStruct())
+			|| InScriptStruct->IsChildOf(FStateTreeEvaluatorCommonBase::StaticStruct());
 }
 
 bool UBrainComponentStateTreeSchema::IsClassAllowed(const UClass* InClass) const

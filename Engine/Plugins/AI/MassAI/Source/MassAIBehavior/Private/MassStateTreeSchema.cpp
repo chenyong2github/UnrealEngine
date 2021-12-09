@@ -16,6 +16,7 @@ bool UMassStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) 
 {
 	// Only allow Mass evals and tasks,and common conditions.
 	return InScriptStruct->IsChildOf(FMassStateTreeEvaluatorBase::StaticStruct())
+			|| InScriptStruct->IsChildOf(FStateTreeEvaluatorCommonBase::StaticStruct())
 			|| InScriptStruct->IsChildOf(FMassStateTreeTaskBase::StaticStruct())
 			|| InScriptStruct->IsChildOf(FStateTreeConditionBase::StaticStruct());
 }

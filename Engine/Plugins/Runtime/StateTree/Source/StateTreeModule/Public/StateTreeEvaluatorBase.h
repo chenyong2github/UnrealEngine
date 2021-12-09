@@ -91,3 +91,13 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase
 	UPROPERTY()
 	uint8 bInstanceIsObject : 1;
 };
+
+/**
+* Base class (namespace) for all common Evaluators that are generally applicable.
+* This allows schemas to safely include all Evaluators child of this struct. 
+*/
+USTRUCT(Meta=(Hidden))
+struct STATETREEMODULE_API FStateTreeEvaluatorCommonBase : public FStateTreeEvaluatorBase
+{
+	GENERATED_BODY()
+};
