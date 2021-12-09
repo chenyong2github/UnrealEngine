@@ -1159,6 +1159,13 @@ void UEdModeInteractiveToolsContext::InitializeContextFromModeManagerContext(UMo
 
 	ParentModeManagerToolsContext = ModeManagerToolsContext;
 
+
+	SetCreateContextStoreFunc([this, ModeManagerToolsContext](const FContextInitInfo& ContextInfo)
+	{
+		UContextObjectStore* NewContextStore = NewObject<UContextObjectStore>(ModeManagerToolsContext->ContextObjectStore);
+		return NewContextStore;
+	});
+
 	InitializeContextWithEditorModeManager(ModeManager, ModeManagerToolsContext->InputRouter);
 }
 

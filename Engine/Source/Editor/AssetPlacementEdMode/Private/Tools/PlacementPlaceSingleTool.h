@@ -72,7 +72,6 @@ protected:
 	void DestroyPreviewElements();
 	void EnterTweakState(TArrayView<const FTypedElementHandle> InElementHandles);
 	void ExitTweakState(bool bClearSelectionSet);
-	FAssetPlacementInfo UpdatePlacementInfo();
 	void UpdateElementTransforms(TArrayView<const FTypedElementHandle> InElements, const FTransform& InTransform, bool bLocalTransform = false);
 	void NotifyMovementStarted(TArrayView<const FTypedElementHandle> InElements);
 	void NotifyMovementEnded(TArrayView<const FTypedElementHandle> InElements);
