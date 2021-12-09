@@ -10,6 +10,7 @@
 #include "../BRDF.ush"
 
 #define SceneTexturesStruct LumenCardPass.SceneTextures 
+#define EyeAdaptationStruct LumenCardPass
 
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
