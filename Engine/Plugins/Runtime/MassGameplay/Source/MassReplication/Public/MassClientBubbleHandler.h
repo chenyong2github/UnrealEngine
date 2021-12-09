@@ -532,13 +532,9 @@ void TClientBubbleHandlerBase<AgentArrayItem>::PostReplicatedAddEntitiesHelper(c
 		const FMassEntityTemplateID& TemplateID = Item.Key;
 		const TArray <typename AgentArrayItem::FReplicatedAgentType*>& AgentsSpawn = Item.Value;
 
-		FMassSpawnConfigBase Config;
-		Config.MinNumber = AgentsSpawn.Num();
-		Config.MaxNumber = AgentsSpawn.Num();
-
 		TArray<FMassEntityHandle> Entities;
 
-		SpawnerSubsystem->SpawnEntities(TemplateID, Config, FStructView(), Entities);
+		SpawnerSubsystem->SpawnEntities(TemplateID, AgentsSpawn.Num(), FStructView(), TSubclassOf<UMassProcessor>(), Entities);
 
 		const FMassEntityTemplate* MassEntityTemplate = SpawnerSubsystem->GetMassEntityTemplate(TemplateID);
 		check(MassEntityTemplate);

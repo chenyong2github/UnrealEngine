@@ -119,18 +119,3 @@ protected:
 
 	FMassEntityQuery EntityQuery;
 };
-
-UCLASS()
-class MASSACTORS_API UMassFragmentInitializer_Transform : public UMassFragmentInitializer
-{
-	GENERATED_BODY()
-
-public:
-	UMassFragmentInitializer_Transform();
-
-protected:
-	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	FMassEntityQuery EntityQuery;
-};
