@@ -339,15 +339,16 @@ FIntPoint FSkeletonSelectionEditMode::GetDPIUnscaledSize(FViewport* Viewport, FV
 void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+	FReferenceSkeleton& RefSkeleton = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton();
+	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 
 	// Draw name of selected bone
-	if (IsSelectedBoneRequired())
+	if (IsSelectedBoneRequired() || RefSkeleton.GetRequiredVirtualBones().Contains(BoneIndex))
 	{
 		const FIntPoint ViewPortSize = GetDPIUnscaledSize(Viewport, ViewportClient);
 		const int32 HalfX = ViewPortSize.X / 2;
 		const int32 HalfY = ViewPortSize.Y / 2;
 
-		int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 		const FName BoneName = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 
 		FMatrix BoneMatrix = PreviewMeshComponent->GetBoneMatrix(BoneIndex);
@@ -360,6 +361,7 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 			FQuat BoneQuat = PreviewMeshComponent->GetBoneQuaternion(BoneName);
 			FVector Loc = PreviewMeshComponent->GetBoneLocation(BoneName);
 			FCanvasTextItem TextItem(FVector2D(XPos, YPos), FText::FromString(BoneName.ToString()), GEngine->GetSmallFont(), FLinearColor::White);
+			TextItem.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(TextItem);
 		}
 	}
@@ -383,6 +385,7 @@ void FSkeletonSelectionEditMode::DrawHUD(FEditorViewportClient* ViewportClient, 
 			const int32 XPos = HalfX + (HalfX * Proj.X);
 			const int32 YPos = HalfY + (HalfY * (Proj.Y * -1));
 			FCanvasTextItem TextItem(FVector2D(XPos, YPos), FText::FromString(Socket->SocketName.ToString()), GEngine->GetSmallFont(), FLinearColor::White);
+			TextItem.EnableShadow(FLinearColor::Black);
 			Canvas->DrawItem(TextItem);
 		}
 	}
