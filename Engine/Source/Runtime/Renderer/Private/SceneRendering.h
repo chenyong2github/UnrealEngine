@@ -1450,8 +1450,6 @@ public:
 
 	TOptional<FMobileLightShaftInfo> MobileLightShaft;
 
-	FHeightfieldLightingViewInfo HeightfieldLightingViewInfo;
-
 	FGlobalShaderMap* ShaderMap;
 
 	bool bIsSnapshot;

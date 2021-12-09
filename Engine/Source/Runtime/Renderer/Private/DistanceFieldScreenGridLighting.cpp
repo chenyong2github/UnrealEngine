@@ -514,9 +514,6 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 			});
 	}
 
-	// Compute heightfield occlusion after heightfield GI, otherwise it self-shadows incorrectly
-	View.HeightfieldLightingViewInfo.ComputeOcclusionForScreenGrid(GraphBuilder, View, SceneTextures, DistanceFieldNormal, AOScreenGridParameters, Parameters);
-
 	FRDGTextureRef DownsampledBentNormal = nullptr;
 
 	{

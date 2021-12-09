@@ -1041,8 +1041,6 @@ void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool b
 
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
-			View.HeightfieldLightingViewInfo.SetupVisibleHeightfields(View, GraphBuilder);
-
 			if (ShouldPrepareGlobalDistanceField())
 			{
 				float OcclusionMaxDistance = Scene->DefaultMaxDistanceFieldOcclusionDistance;

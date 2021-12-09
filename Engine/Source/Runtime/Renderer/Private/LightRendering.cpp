@@ -1780,14 +1780,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						}
 					}
 					else // (OcclusionType == FOcclusionType::Shadowmap)
-					{
-						for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-						{
-							const FViewInfo& View = Views[ViewIndex];
-							RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-							View.HeightfieldLightingViewInfo.ClearShadowing(GraphBuilder, View, LightSceneInfo);
-						}
-					
+					{					
 						const auto ClearShadowMask = [&](FRDGTextureRef InScreenShadowMaskTexture)
 						{
 							// Clear light attenuation for local lights with a quad covering their extents
@@ -1843,13 +1836,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 					}
 
 					bUsedShadowMaskTexture = true;
-				}
-
-				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-				{
-					const FViewInfo& View = Views[ViewIndex];
-					RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-					View.HeightfieldLightingViewInfo.ComputeLighting(GraphBuilder, View, LightSceneInfo);
 				}
 
 				// Render light function to the attenuation buffer.

@@ -243,8 +243,6 @@ FSceneViewState::FSceneViewState()
 
 	bRoundRobinOcclusionEnabled = false;
 
-	HeightfieldLightingAtlas = NULL;
-
 	for (int32 CascadeIndex = 0; CascadeIndex < UE_ARRAY_COUNT(TranslucencyLightingCacheAllocations); CascadeIndex++)
 	{
 		TranslucencyLightingCacheAllocations[CascadeIndex] = NULL;
@@ -302,8 +300,6 @@ FSceneViewState::~FSceneViewState()
 	{
 		delete TranslucencyLightingCacheAllocations[CascadeIndex];
 	}
-
-	DestroyRenderResource(HeightfieldLightingAtlas);
 
 	HairStrandsViewStateData.Release();
 	ShaderDrawDebugStateData.Release();

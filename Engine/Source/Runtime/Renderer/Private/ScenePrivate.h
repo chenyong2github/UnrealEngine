@@ -964,8 +964,6 @@ public:
 	 */
 	FPreviousViewInfo PrevFrameViewInfo;
 
-	FHeightfieldLightingAtlas* HeightfieldLightingAtlas;
-
 	// Temporal AA result for light shafts of last frame
 	FTemporalAAHistory LightShaftOcclusionHistory;
 	// Temporal AA result for light shafts of last frame
