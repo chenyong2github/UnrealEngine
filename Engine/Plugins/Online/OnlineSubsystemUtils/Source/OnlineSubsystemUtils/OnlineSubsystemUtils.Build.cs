@@ -20,8 +20,6 @@ public class OnlineSubsystemUtils : ModuleRules
         if (bIsWindowsPlatformBuild)
         {
             AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11Audio");
-            PrivateIncludePaths.Add(RuntimePath + "Windows/XAudio2/Public");
-            PrivateIncludePaths.Add(RuntimePath + "Windows/XAudio2/Private");
         }
 
         if (Target.bCompileAgainstEngine)

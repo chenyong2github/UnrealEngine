@@ -81,22 +81,18 @@ public class Launch : ModuleRules
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string[] {
 					"AudioMixerXAudio2",
-					"XAudio2",
 				});
 			}
 			else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				DynamicallyLoadedModuleNames.Add("D3D11RHI");
-				DynamicallyLoadedModuleNames.Add("XAudio2");
 				DynamicallyLoadedModuleNames.Add("AudioMixerXAudio2");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string [] {
 					"AudioMixerCoreAudio",
-					"CoreAudio"
 				});
-				PublicFrameworks.Add("CoreAudio");
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
@@ -226,7 +222,6 @@ public class Launch : ModuleRules
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
 			PrivateDependencyModuleNames.Add("OpenGLDrv");
-			PrivateDependencyModuleNames.Add("AndroidAudio");
 			PrivateDependencyModuleNames.Add("AudioMixerAndroid");
 
 			// these are, for now, only for basic android

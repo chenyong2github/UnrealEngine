@@ -55,7 +55,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "ActorFactories/ActorFactoryTriggerSphere.h"
 #include "ActorFactories/ActorFactoryVectorFieldVolume.h"
 #include "Exporters/AnimSequenceExporterFBX.h"
-#include "Commandlets/AudioTestCommandlet.h"
 #include "Preferences/CascadeOptions.h"
 #include "Settings/ClassViewerSettings.h"
 #include "Commandlets/CompressAnimationsCommandlet.h"

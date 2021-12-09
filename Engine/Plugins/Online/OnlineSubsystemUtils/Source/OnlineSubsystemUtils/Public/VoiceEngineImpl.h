@@ -219,13 +219,6 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 	 */
 	TArray<TUniquePtr<FVoiceEndpoint>> ExternalEndpoints;
 
-// Get Audio Device Changes on Windows
-#if PLATFORM_WINDOWS
-	FThreadSafeBool bAudioDeviceChanged;
-	double TimeDeviceChaned;
-	const double DeviceChangeDelay = 2.0f;
-#endif
-
 protected:
 	/**
 	 * Determines if the specified index is the owner or not
@@ -393,19 +386,7 @@ protected:
 	virtual int32							 GetMaxVoiceRemainderSize();
 	virtual void							 CreateSerializeHelper();
 
-	// Get Audio Device Changes on Windows
-#if PLATFORM_WINDOWS
-	virtual void RegisterDeviceChangedListener();
-	virtual void UnregisterDeviceChangedListener();
-	virtual void HandleDeviceChange();
-
-	//~ Begin IDeviceChangedListener
-	virtual void OnDefaultDeviceChanged() override;
-
-	bool bDeviceChangeListenerRegistered;
-#else
 	virtual void OnDefaultDeviceChanged() override {}
-#endif
 	virtual void OnDeviceRemoved(FString DeviceID) override {}
 	//~ End IDeviceChangedListener
 };

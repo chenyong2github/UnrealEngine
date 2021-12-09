@@ -14,14 +14,6 @@
 /** Largest size allowed to carry over into next buffer */
 #define MAX_VOICE_REMAINDER_SIZE 4 * 1024
 
-#if PLATFORM_WINDOWS
-#include "XAudio2Support.h"
-namespace NotificationClient
-{
-	TSharedPtr<FMMNotificationClient> WindowsNotificationClient;
-}
-#endif 
-
 namespace VoiceEngineUtilities
 {
 	void DownmixBuffer(const float* InAudio, float* OutAudio, int32 NumFrames, int32 InNumChannels, int32 OutNumChannels)
@@ -187,10 +179,6 @@ FVoiceEngineImpl ::FVoiceEngineImpl()
 	, bPendingFinalCapture(false)
 	, bIsCapturing(false)
 	, SerializeHelper(nullptr)
-#if PLATFORM_WINDOWS
-	, bAudioDeviceChanged(false)
-	, bDeviceChangeListenerRegistered(false)
-#endif
 {
 }
 
@@ -205,9 +193,6 @@ FVoiceEngineImpl::FVoiceEngineImpl(IOnlineSubsystem* InSubsystem) :
 	bPendingFinalCapture(false),
 	bIsCapturing(false),
 	SerializeHelper(nullptr)
-#if PLATFORM_WINDOWS
-	, bAudioDeviceChanged(false)
-#endif
 {
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FVoiceEngineImpl::OnPostLoadMap);
 
@@ -231,12 +216,6 @@ FVoiceEngineImpl::~FVoiceEngineImpl()
 
 	delete SerializeHelper;
 
-#if PLATFORM_WINDOWS
-	if (bDeviceChangeListenerRegistered)
-	{
-		UnregisterDeviceChangedListener();
-	}
-#endif
 }
 
 void FVoiceEngineImpl::VoiceCaptureUpdate() const
@@ -309,9 +288,6 @@ bool FVoiceEngineImpl::Init(int32 MaxLocalTalkers, int32 MaxRemoteTalkers)
 			bSuccess = VoiceEncoder.IsValid();
 			if (bSuccess)
 			{
-#if PLATFORM_WINDOWS
-				RegisterDeviceChangedListener();
-#endif
 				CompressedVoiceBuffer.Empty(UVOIPStatics::GetMaxCompressedVoiceDataSize());
 				DecompressedVoiceBuffer.Empty(UVOIPStatics::GetMaxUncompressedVoiceDataSizePerChannel());
 
@@ -688,13 +664,6 @@ void FVoiceEngineImpl::Tick(float DeltaTime)
 
 	// Push any buffered audio to any connected outputs.
 	AllRemoteTalkerAudio.ProcessAudio();
-
-#if PLATFORM_WINDOWS
-	if (bAudioDeviceChanged)
-	{
-		HandleDeviceChange();
-	}
-#endif
 }
 
 void FVoiceEngineImpl::GenerateVoiceData(USoundWaveProcedural* InProceduralWave, int32 SamplesRequired, const FUniqueNetId& TalkerId)
@@ -952,57 +921,6 @@ void FVoiceEngineImpl::CreateSerializeHelper()
 		SerializeHelper = new FVoiceSerializeHelper(this);
 	}
 }
-
-#if PLATFORM_WINDOWS
-void FVoiceEngineImpl::RegisterDeviceChangedListener()
-{
-	if (!NotificationClient::WindowsNotificationClient.IsValid())
-	{
-		NotificationClient::WindowsNotificationClient = TSharedPtr<FMMNotificationClient>(new FMMNotificationClient);
-	}
-
-	NotificationClient::WindowsNotificationClient->RegisterDeviceChangedListener(this);
-
-	bDeviceChangeListenerRegistered = true;
-}
-
-void FVoiceEngineImpl::UnregisterDeviceChangedListener()
-{
-	if (NotificationClient::WindowsNotificationClient.IsValid())
-	{
-		NotificationClient::WindowsNotificationClient->UnRegisterDeviceDeviceChangedListener(this);
-	}
-
-	bDeviceChangeListenerRegistered = false;
-}
-
-void FVoiceEngineImpl::HandleDeviceChange()
-{
-	const double TimeSince = FPlatformTime::Seconds() - TimeDeviceChaned;
-	if (TimeSince >= DeviceChangeDelay)
-	{
-		if (bIsCapturing)
-		{
-			StopLocalVoiceProcessing(OwningUserIndex);
-			StartLocalVoiceProcessing(OwningUserIndex);
-		}
-
-		for (FRemoteTalkerData::TIterator It(RemoteTalkerBuffers); It; ++It)
-		{
-			FRemoteTalkerDataImpl& RemoteData = It.Value();
-			RemoteData.Reset();
-		}
-
-		bAudioDeviceChanged = false;
-	}
-}
-
-void FVoiceEngineImpl::OnDefaultDeviceChanged()
-{
-	bAudioDeviceChanged = true;
-	TimeDeviceChaned = FPlatformTime::Seconds();
-}
-#endif
 
 IOnlineSubsystem* FVoiceEngineImpl::GetOnlineSubSystem()
 {
