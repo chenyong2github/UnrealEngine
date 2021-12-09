@@ -48,11 +48,11 @@ class FStatsViewCommands : public TCommands<FStatsViewCommands>
 {
 public:
 	FStatsViewCommands()
-		: TCommands<FStatsViewCommands>(
-			TEXT("FStatsViewCommands"),
-			NSLOCTEXT("FStatsViewCommands", "Stats View Commands", "Stats View Commands"),
-			NAME_None,
-			FInsightsStyle::GetStyleSetName())
+	: TCommands<FStatsViewCommands>(
+		TEXT("CountersViewCommands"),
+		NSLOCTEXT("Contexts", "CountersViewCommands", "Insights - Counters View"),
+		NAME_None,
+		FInsightsStyle::GetStyleSetName())
 	{
 	}
 
@@ -361,7 +361,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList.ToSharedRef());
 
 	// Selection menu
-	MenuBuilder.BeginSection("Selection", LOCTEXT("ContextMenu_Header_Selection", "Selection"));
+	MenuBuilder.BeginSection("Selection", LOCTEXT("ContextMenu_Section_Selection", "Selection"));
 	{
 		struct FLocal
 		{
@@ -386,7 +386,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 	MenuBuilder.EndSection();
 
 	// Counter options section
-	MenuBuilder.BeginSection("CounterOptions", LOCTEXT("ContextMenu_Header_CounterOptions", "Counter Options"));
+	MenuBuilder.BeginSection("CounterOptions", LOCTEXT("ContextMenu_Section_CounterOptions", "Counter Options"));
 	{
 		auto CanExecute = [NumSelectedNodes, SelectedNode]()
 		{
@@ -407,8 +407,8 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					LOCTEXT("ContextMenu_Header_CounterOptions_RemoveFromGraphTrack", "Remove series from graph track"),
-					LOCTEXT("ContextMenu_Header_CounterOptions_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of this counter from the timing graph track."),
+					LOCTEXT("ContextMenu_RemoveFromGraphTrack", "Remove series from graph track"),
+					LOCTEXT("ContextMenu_RemoveFromGraphTrack_Desc", "Remove the series containing event instances of the selected counter from the timing graph track."),
 					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
 					Action_ToggleCounterInGraphTrack,
 					NAME_None,
@@ -419,8 +419,8 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					LOCTEXT("ContextMenu_Header_CounterOptions_AddToGraphTrack", "Add series to graph track"),
-					LOCTEXT("ContextMenu_Header_CounterOptions_AddToGraphTrack_Desc", "Add a series containing event instances of this counter to the timing graph track."),
+					LOCTEXT("ContextMenu_AddToGraphTrack", "Add series to graph track"),
+					LOCTEXT("ContextMenu_AddToGraphTrack_Desc", "Add a series containing event instances of the selected counter to the timing graph track."),
 					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ToggleShowGraphSeries"),
 					Action_ToggleCounterInGraphTrack,
 					NAME_None,
@@ -431,7 +431,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Header_Misc", "Miscellaneous"));
+	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Section_Misc", "Miscellaneous"));
 	{
 		MenuBuilder.AddMenuEntry
 		(
@@ -444,77 +444,6 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Sorting", LOCTEXT("ContextMenu_Header_Sorting", "Sorting"));
-	{
-		MenuBuilder.AddSubMenu
-		(
-			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column."),
-			FNewMenuDelegate::CreateSP(this, &SStatsView::TreeView_BuildSortByMenu),
-			false,
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
-		);
-	}
-	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection("Columns", LOCTEXT("ContextMenu_Header_Columns", "Columns"));
-	{
-		MenuBuilder.AddSubMenu
-		(
-			LOCTEXT("ContextMenu_Header_Columns_View", "View Column"),
-			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns."),
-			FNewMenuDelegate::CreateSP(this, &SStatsView::TreeView_BuildViewColumnMenu),
-			false,
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
-		);
-
-		FUIAction Action_ShowAllColumns
-		(
-			FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowAllColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowAllColumns_CanExecute)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns", "Show All Columns"),
-			LOCTEXT("ContextMenu_Header_Columns_ShowAllColumns_Desc", "Resets tree view to show all columns."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
-			Action_ShowAllColumns,
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-
-		FUIAction Action_ShowMinMaxMedColumns
-		(
-			FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowMinMaxMedColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowMinMaxMedColumns_CanExecute)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
-			LOCTEXT("ContextMenu_Header_Columns_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
-			Action_ShowMinMaxMedColumns,
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-
-		FUIAction Action_ResetColumns
-		(
-			FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ResetColumns_Execute),
-			FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ResetColumns_CanExecute)
-		);
-		MenuBuilder.AddMenuEntry
-		(
-			LOCTEXT("ContextMenu_Header_Columns_ResetColumns", "Reset Columns to Default"),
-			LOCTEXT("ContextMenu_Header_Columns_ResetColumns_Desc", "Resets columns to default."),
-			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
-			Action_ResetColumns,
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-	}
-	MenuBuilder.EndSection();
-
 	return MenuBuilder.MakeWidget();
 }
 
@@ -522,9 +451,7 @@ TSharedPtr<SWidget> SStatsView::TreeView_GetMenuContent()
 
 void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 {
-	// TODO: Refactor later @see TSharedPtr<SWidget> SCascadePreviewViewportToolBar::GenerateViewMenu() const
-
-	MenuBuilder.BeginSection("ColumnName", LOCTEXT("ContextMenu_Header_Misc_ColumnName", "Column Name"));
+	MenuBuilder.BeginSection("SortColumn", LOCTEXT("ContextMenu_Section_SortColumn", "Sort Column"));
 
 	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
@@ -552,9 +479,7 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.EndSection();
 
-	//-----------------------------------------------------------------------------
-
-	MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Header_Misc_Sort_SortMode", "Sort Mode"));
+	MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Section_SortMode", "Sort Mode"));
 	{
 		FUIAction Action_SortAscending
 		(
@@ -564,8 +489,8 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
+			LOCTEXT("ContextMenu_SortAscending", "Sort Ascending"),
+			LOCTEXT("ContextMenu_SortAscending_Desc", "Sorts ascending."),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 			Action_SortAscending,
 			NAME_None,
@@ -580,8 +505,8 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 		);
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
+			LOCTEXT("ContextMenu_SortDescending", "Sort Descending"),
+			LOCTEXT("ContextMenu_SortDescending_Desc", "Sorts descending."),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 			Action_SortDescending,
 			NAME_None,
@@ -595,7 +520,7 @@ void SStatsView::TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder)
 
 void SStatsView::TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("ViewColumn", LOCTEXT("ContextMenu_Header_Columns_View", "View Column"));
+	MenuBuilder.BeginSection("Columns", LOCTEXT("ContextMenu_Section_Columns", "Columns"));
 
 	for (const TSharedRef<Insights::FTableColumn>& ColumnRef : Table->GetColumns())
 	{
@@ -652,38 +577,13 @@ FText SStatsView::GetColumnHeaderText(const FName ColumnId) const
 
 TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insights::FTableColumn& Column)
 {
-	bool bIsMenuVisible = false;
-
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
+
+	MenuBuilder.BeginSection("Sorting", LOCTEXT("ContextMenu_Section_Sorting", "Sorting"));
 	{
-		if (Column.CanBeHidden())
-		{
-			MenuBuilder.BeginSection("Column", LOCTEXT("TreeViewHeaderRow_Header_Column", "Column"));
-
-			FUIAction Action_HideColumn
-			(
-				FExecuteAction::CreateSP(this, &SStatsView::HideColumn, Column.GetId()),
-				FCanExecuteAction::CreateSP(this, &SStatsView::CanHideColumn, Column.GetId())
-			);
-			MenuBuilder.AddMenuEntry
-			(
-				LOCTEXT("TreeViewHeaderRow_HideColumn", "Hide"),
-				LOCTEXT("TreeViewHeaderRow_HideColumn_Desc", "Hides the selected column"),
-				FSlateIcon(),
-				Action_HideColumn,
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-
-			bIsMenuVisible = true;
-			MenuBuilder.EndSection();
-		}
-
 		if (Column.CanBeSorted())
 		{
-			MenuBuilder.BeginSection("SortMode", LOCTEXT("ContextMenu_Header_Misc_Sort_SortMode", "Sort Mode"));
-
 			FUIAction Action_SortAscending
 			(
 				FExecuteAction::CreateSP(this, &SStatsView::HeaderMenu_SortMode_Execute, Column.GetId(), EColumnSortMode::Ascending),
@@ -692,8 +592,8 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 			);
 			MenuBuilder.AddMenuEntry
 			(
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending", "Sort Ascending"),
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortAscending_Desc", "Sorts ascending"),
+				FText::Format(LOCTEXT("ContextMenu_SortAscending_Fmt", "Sort Ascending (by {0})"), Column.GetTitleName()),
+				FText::Format(LOCTEXT("ContextMenu_SortAscending_Desc_Fmt", "Sorts ascending by {0}."), Column.GetTitleName()),
 				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortUp"),
 				Action_SortAscending,
 				NAME_None,
@@ -708,36 +608,103 @@ TSharedRef<SWidget> SStatsView::TreeViewHeaderRow_GenerateColumnMenu(const Insig
 			);
 			MenuBuilder.AddMenuEntry
 			(
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending", "Sort Descending"),
-				LOCTEXT("ContextMenu_Header_Misc_Sort_SortDescending_Desc", "Sorts descending"),
+				FText::Format(LOCTEXT("ContextMenu_SortDescending_Fmt", "Sort Descending (by {0})"), Column.GetTitleName()),
+				FText::Format(LOCTEXT("ContextMenu_SortDescending_Desc_Fmt", "Sorts descending by {0}."), Column.GetTitleName()),
 				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.SortDown"),
 				Action_SortDescending,
 				NAME_None,
 				EUserInterfaceActionType::RadioButton
 			);
-
-			bIsMenuVisible = true;
-			MenuBuilder.EndSection();
 		}
 
-		//if (Column.CanBeFiltered())
-		//{
-		//	MenuBuilder.BeginSection("FilterMode", LOCTEXT("ContextMenu_Header_Misc_Filter_FilterMode", "Filter Mode"));
-		//	bIsMenuVisible = true;
-		//	MenuBuilder.EndSection();
-		//}
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_SortBy_SubMenu", "Sort By"),
+			LOCTEXT("ContextMenu_SortBy_SubMenu_Desc", "Sorts by a column."),
+			FNewMenuDelegate::CreateSP(this, &SStatsView::TreeView_BuildSortByMenu),
+			false,
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.SortBy")
+		);
 	}
+	MenuBuilder.EndSection();
 
-	/*
-	TODO:
-	- Show top ten
-	- Show top bottom
-	- Filter by list (avg, median, 10%, 90%, etc.)
-	- Text box for filtering for each column instead of one text box used for filtering
-	- Grouping button for flat view modes (show at most X groups, show all groups for names)
-	*/
+	MenuBuilder.BeginSection("ColumnVisibility", LOCTEXT("ContextMenu_Section_ColumnVisibility", "Column Visibility"));
+	{
+		if (Column.CanBeHidden())
+		{
+			FUIAction Action_HideColumn
+			(
+				FExecuteAction::CreateSP(this, &SStatsView::HideColumn, Column.GetId()),
+				FCanExecuteAction::CreateSP(this, &SStatsView::CanHideColumn, Column.GetId())
+			);
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_HideColumn", "Hide"),
+				LOCTEXT("ContextMenu_HideColumn_Desc", "Hides the selected column."),
+				FSlateIcon(),
+				Action_HideColumn,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
 
-	return bIsMenuVisible ? MenuBuilder.MakeWidget() : (TSharedRef<SWidget>)SNullWidget::NullWidget;
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("ContextMenu_ViewColumn_SubMenu", "View Column"),
+			LOCTEXT("ContextMenu_ViewColumn_SubMenu_Desc", "Hides or shows columns."),
+			FNewMenuDelegate::CreateSP(this, &SStatsView::TreeView_BuildViewColumnMenu),
+			false,
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ViewColumn")
+		);
+
+		FUIAction Action_ShowAllColumns
+		(
+			FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowAllColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowAllColumns_CanExecute)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ShowAllColumns", "Show All Columns"),
+			LOCTEXT("ContextMenu_ShowAllColumns_Desc", "Resets tree view to show all columns."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
+			Action_ShowAllColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		FUIAction Action_ShowMinMaxMedColumns
+		(
+			FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowMinMaxMedColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ShowMinMaxMedColumns_CanExecute)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ShowMinMaxMedColumns", "Reset Columns to Min/Max/Median Preset"),
+			LOCTEXT("ContextMenu_ShowMinMaxMedColumns_Desc", "Resets columns to Min/Max/Median preset."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
+			Action_ShowMinMaxMedColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		FUIAction Action_ResetColumns
+		(
+			FExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ResetColumns_Execute),
+			FCanExecuteAction::CreateSP(this, &SStatsView::ContextMenu_ResetColumns_CanExecute)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ContextMenu_ResetColumns", "Reset Columns to Default"),
+			LOCTEXT("ContextMenu_ResetColumns_Desc", "Resets columns to default."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ResetColumn"),
+			Action_ResetColumns,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
