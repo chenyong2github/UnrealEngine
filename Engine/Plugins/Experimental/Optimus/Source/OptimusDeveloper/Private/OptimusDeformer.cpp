@@ -827,7 +827,7 @@ void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TA
 		if (ensure(Node))
 		{
 			IOptimusComputeKernelProvider* KernelProvider = Cast<IOptimusComputeKernelProvider>(Node);
-			if (ensure(KernelProvider != nullptr))
+			if (KernelProvider != nullptr)
 			{
 				TArray<FOptimusType_CompilerDiagnostic>  Diagnostics;
 

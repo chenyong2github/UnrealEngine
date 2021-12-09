@@ -4,35 +4,35 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-    public class MLDeformerEditor : ModuleRules
-    {
-        public MLDeformerEditor(ReadOnlyTargetRules Target) : base(Target)
-        {
-            PublicDependencyModuleNames.AddRange(
-                new string[]
-                {
-	                "Core",
-	                "AdvancedPreviewScene",
-                }
-            );
+	public class MLDeformerEditor : ModuleRules
+	{
+		public MLDeformerEditor(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Core",
+					"AdvancedPreviewScene",
+				}
+			);
 
 			PrivateDependencyModuleNames.AddRange(
-                new string[]
-                {
-                    "InputCore",
-                    "EditorFramework",
-                    "UnrealEd",
-                    "ToolMenus",
-                    "CoreUObject",
-                    "Engine",
-                    "Slate",
-                    "SlateCore",
-                    "EditorWidgets",
-                    "Kismet",
-                    "KismetWidgets",
-                    "EditorStyle",
-                    "Persona",
-                    "SkeletonEditor",
+				new string[]
+				{
+					"InputCore",
+					"EditorFramework",
+					"UnrealEd",
+					"ToolMenus",
+					"CoreUObject",
+					"Engine",
+					"Slate",
+					"SlateCore",
+					"EditorWidgets",
+					"Kismet",
+					"KismetWidgets",
+					"EditorStyle",
+					"Persona",
+					"SkeletonEditor",
 					"GeometryCache",
 
 					"PropertyEditor",
@@ -45,15 +45,15 @@ namespace UnrealBuildTool.Rules
 					"MLDeformer",
 					"ToolWidgets",
 					"ComputeFramework",
+					"OptimusDeveloper",
 				}
-            );
+			);
 
-            PrivateIncludePathModuleNames.AddRange(
-                new string[]
-                {
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
+				{
 				}
-            );
-
-        }
-    }
+			);
+		}
+	}
 }

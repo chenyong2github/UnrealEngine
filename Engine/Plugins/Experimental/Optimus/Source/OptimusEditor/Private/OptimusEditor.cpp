@@ -13,12 +13,12 @@
 #include "OptimusActionStack.h"
 #include "OptimusCoreNotify.h"
 #include "OptimusDeformer.h"
+#include "OptimusMeshDeformer.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimationEditorPreviewActor.h"
-#include "ComputeFramework/ComputeGraphComponent.h"
 #include "Engine/StaticMeshActor.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditor.h"
@@ -315,13 +315,13 @@ void FOptimusEditor::OnCompileMessage(const TSharedRef<FTokenizedMessage>& InMes
 
 void FOptimusEditor::InstallDataProviders()
 {
-	ComputeGraphComponent->CreateDataProviders(true);
+	SkeletalMeshComponent->SetMeshDeformer(MeshDeformer);
 }
 
 
 void FOptimusEditor::RemoveDataProviders()
 {
-	ComputeGraphComponent->DataProviders.Reset();
+	SkeletalMeshComponent->SetMeshDeformer(nullptr);
 }
 
 
@@ -706,18 +706,15 @@ void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewS
 	SkeletalMeshComponent->bSelectable = false;
 	SkeletalMeshComponent->MarkRenderStateDirty();
 
+	MeshDeformer = NewObject<UOptimusMeshDeformer>(SkeletalMeshComponent);
+	MeshDeformer->ComputeGraph = DeformerObject;
+	SkeletalMeshComponent->SetMeshDeformer(MeshDeformer);
+
 	InPreviewScene->AddComponent(SkeletalMeshComponent, FTransform::Identity);
 	InPreviewScene->SetPreviewMeshComponent(SkeletalMeshComponent);
 
 	InPreviewScene->SetAllowMeshHitProxies(false);
 	InPreviewScene->SetAdditionalMeshesSelectable(false);
-	
-	// Create the compute graph component that will drive the deformation.
-	ComputeGraphComponent = NewObject<UComputeGraphComponent>(Actor);
-	ComputeGraphComponent->ComputeGraph = DeformerObject;
-	ComputeGraphComponent->PrimaryComponentTick.SetTickFunctionEnable(true);
-
-	InPreviewScene->AddComponent(ComputeGraphComponent, FTransform::Identity);
 }
 
 

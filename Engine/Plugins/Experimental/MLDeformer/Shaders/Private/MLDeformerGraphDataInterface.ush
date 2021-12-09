@@ -6,6 +6,7 @@ uint DI_LOCAL(NumVertices);
 float3 DI_LOCAL(VertexDeltaScale);
 float3 DI_LOCAL(VertexDeltaMean);
 float DI_LOCAL(VertexDeltaMultiplier);
+float DI_LOCAL(DebugScale);
 
 Buffer<float> DI_LOCAL(PositionDeltaBuffer);
 Buffer<uint> DI_LOCAL(VertexMapBuffer);
@@ -21,4 +22,9 @@ DI_IMPL_READ(ReadPositionDelta, float3, uint VertexIndex)
 	float3 Delta = float3(DI_LOCAL(PositionDeltaBuffer)[BufferIndex], DI_LOCAL(PositionDeltaBuffer)[BufferIndex + 1], DI_LOCAL(PositionDeltaBuffer)[BufferIndex + 2]);
 	float3 FinalDelta = Delta * DI_LOCAL(VertexDeltaScale) + DI_LOCAL(VertexDeltaMean);
 	return FinalDelta * DI_LOCAL(VertexDeltaMultiplier);
+}
+
+DI_IMPL_READ(ReadDebugScale, float, void)
+{
+	return DI_LOCAL(DebugScale);
 }

@@ -10,7 +10,6 @@
 class UAnimInstance;
 class UMLDeformerAsset;
 class UMLDeformerComponent;
-class UComputeGraphComponent;
 class UComputeGraph;
 class IPersonaToolkit;
 class UDebugSkelMeshComponent;
@@ -45,7 +44,6 @@ struct FMLDeformerEditorActor
 	TObjectPtr<UTextRenderComponent> LabelComponent = nullptr;
 	TObjectPtr<UDebugSkelMeshComponent> SkelMeshComponent = nullptr;
 	TObjectPtr<UGeometryCacheComponent> GeomCacheComponent = nullptr;
-	TObjectPtr<UComputeGraphComponent> ComputeGraphComponent = nullptr;
 	TObjectPtr<UMLDeformerComponent> MLDeformerComponent = nullptr;
 };
 

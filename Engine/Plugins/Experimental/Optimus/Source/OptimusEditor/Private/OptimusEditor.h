@@ -18,11 +18,11 @@ class SGraphEditor;
 class SOptimusEditorViewport;
 class SOptimusGraphTitleBar;
 class SOptimusNodePalette;
-class UComputeGraphComponent;
 class UDebugSkelMeshComponent;
 class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusEditorGraph;
+class UOptimusMeshDeformer;
 class UOptimusNode;
 class UOptimusNodeGraph;
 class USkeletalMesh;
@@ -217,8 +217,8 @@ private:
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
 	// Compute Graph Component and data providers.
-	UComputeGraphComponent* ComputeGraphComponent = nullptr;
 	UDebugSkelMeshComponent* SkeletalMeshComponent = nullptr;
+	UOptimusMeshDeformer* MeshDeformer = nullptr;
 
 	// An editability wrapper around USkeleton. Used by the Persona viewport for picking
 	// and manipulation.

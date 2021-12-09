@@ -6,7 +6,6 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DataInterfaceSkeletalMeshRead.generated.h"
 
-class FGPUSkinCache;
 class FSkeletalMeshObject;
 class USkeletalMeshComponent;
 
@@ -28,7 +27,7 @@ public:
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void GetSourceTypes(TArray<UClass*>& OutSourceTypes) const override;
-	UComputeDataProvider* CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const override;
+	UComputeDataProvider* CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 };
 
@@ -62,5 +61,4 @@ public:
 
 private:
 	FSkeletalMeshObject* SkeletalMeshObject;
-	FGPUSkinCache* GPUSkinCache;
 };

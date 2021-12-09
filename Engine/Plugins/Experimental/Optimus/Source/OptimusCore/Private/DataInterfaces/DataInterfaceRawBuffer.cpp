@@ -137,9 +137,9 @@ void UTransientBufferDataInterface::GetSourceTypes(TArray<UClass*>& OutSourceTyp
 	OutSourceTypes.Add(USkeletalMeshComponent::StaticClass());
 }
 
-UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject* InOuter, TArrayView< TObjectPtr<UObject> > InSourceObjects) const
+UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(TArrayView< TObjectPtr<UObject> > InSourceObjects, uint64 InInputMask, uint64 InOutputMask) const
 {
-	UTransientBufferDataProvider *Provider = NewObject<UTransientBufferDataProvider>(InOuter);
+	UTransientBufferDataProvider *Provider = NewObject<UTransientBufferDataProvider>();
 	Provider->ElementStride = ValueType->GetResourceElementSize();
 	Provider->NumElements = 0;
 
