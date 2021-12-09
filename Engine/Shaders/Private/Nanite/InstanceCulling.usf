@@ -56,8 +56,9 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 			if( ImposterPixel.y != 0 )
 			{
 				float Depth = asfloat( ImposterPixel.y );
-				float4 HitClip = mul( float4( 0, 0, Depth, 1 ), NaniteView.ViewToClip );
-				float DeviceZ = HitClip.z / HitClip.w;
+				//float4 HitClip = mul( float4( 0, 0, Depth, 1 ), NaniteView.ViewToClip );
+				//float DeviceZ = HitClip.z / HitClip.w;
+				float DeviceZ = NaniteView.ViewToClip[3][2] / Depth + NaniteView.ViewToClip[2][2];
 				
 				if( bOrtho )
 					DeviceZ = 1 - Depth;

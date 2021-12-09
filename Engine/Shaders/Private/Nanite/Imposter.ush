@@ -44,12 +44,19 @@ uint2 RayIntersectImposter( FRay RayLocal, uint ImposterIndex, float3 BoundsCent
 	Oct = TilePos * (2.0 / ATLAS_SIZE) + ( (1.0 / ATLAS_SIZE) - 1 );
 	float3 ImposterZ = OctahedronToUnitVector( Oct );
 
+#if 0
 	// [Frisvad 2012, "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"]
 	// Invalid for TangentZ.z == -1
 	float A = rcp( 1 + ImposterZ.z );
 	float B = -ImposterZ.x * ImposterZ.y * A;
 	float3 ImposterX = float3( 1 - Pow2( ImposterZ.x ) * A, B, -ImposterZ.x );
 	float3 ImposterY = float3( B, 1 - Pow2( ImposterZ.y ) * A, -ImposterZ.y );
+#else
+	float3 ImposterX = { 0.0f, 0.0f, 1.0f };
+	ImposterX -= ImposterZ.z * ImposterZ;
+	ImposterX = normalize( ImposterX );
+	float3 ImposterY = cross( ImposterZ, ImposterX );
+#endif
 
 	float3 ImposterExtent = float3( 
 		dot( BoundsExtent, abs( ImposterX ) ),
