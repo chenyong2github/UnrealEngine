@@ -40,7 +40,6 @@ void FWindowsPlatformApplicationMisc::PreInit()
 void FWindowsPlatformApplicationMisc::LoadStartupModules()
 {
 #if !UE_SERVER
-	FModuleManager::Get().LoadModule(TEXT("XAudio2"));
 	FModuleManager::Get().LoadModule(TEXT("HeadMountedDisplay"));
 #endif // !UE_SERVER
 

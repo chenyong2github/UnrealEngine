@@ -4,9 +4,6 @@
 
 #include "IAudioExtensionPlugin.h"
 #include "OculusAudioMixer.h"
-#if PLATFORM_WINDOWS
-#include "OculusAudioLegacy.h"
-#endif
 #include "OculusAudioSourceSettings.h"
 #include "OculusAmbisonicSpatializer.h"
 

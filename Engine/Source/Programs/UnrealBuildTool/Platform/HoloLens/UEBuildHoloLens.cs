@@ -511,14 +511,6 @@ namespace UnrealBuildTool
 				Rules.PublicAdditionalLibraries.Remove("XAPOFX.lib");
 				Rules.PrivateDependencyModuleNames.Add("WinPixEventRuntime");
 			}
-			else if (ModuleName == "XAudio2")
-			{
-				Rules.PublicDefinitions.Add("XAUDIO_SUPPORTS_XMA2WAVEFORMATEX=0");
-				Rules.PublicDefinitions.Add("XAUDIO_SUPPORTS_DEVICE_DETAILS=0");
-				Rules.PublicDefinitions.Add("XAUDIO2_SUPPORTS_MUSIC=0");
-				Rules.PublicDefinitions.Add("XAUDIO2_SUPPORTS_SENDLIST=1");
-				Rules.PublicSystemLibraries.Add("XAudio2.lib");
-			}
 			else if (ModuleName == "DX11Audio")
 			{
 				Rules.PublicAdditionalLibraries.Remove("X3DAudio.lib");

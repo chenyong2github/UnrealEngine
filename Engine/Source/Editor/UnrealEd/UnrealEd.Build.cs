@@ -95,7 +95,6 @@ public class UnrealEd : ModuleRules
 				"GameplayDebugger",
 				"BlueprintGraph",
 				"HTTP",
-				"UnrealAudio",
 				"FunctionalTesting",
 				"AutomationController",
 				"Localization",
@@ -334,7 +333,6 @@ public class UnrealEd : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicDependencyModuleNames.Add("XAudio2");
 			PublicDependencyModuleNames.Add("AudioMixerXAudio2");
 
 			PrivateDependencyModuleNames.Add("WindowsPlatformFeatures");
