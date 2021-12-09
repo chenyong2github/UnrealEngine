@@ -23,15 +23,15 @@ public:
 
 	GENERATED_UCLASS_BODY()
 
-	/** Which of the currently enabled spatialization plugins to use on Windows. */
+	/** Which of the currently enabled spatialization plugins to use. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FString SpatializationPlugin;
 
-	/** Which of the currently enabled reverb plugins to use on Windows. */
+	/** Which of the currently enabled reverb plugins to use. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FString ReverbPlugin;
 
-	/** Which of the currently enabled occlusion plugins to use on Windows. */
+	/** Which of the currently enabled occlusion plugins to use. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FString OcclusionPlugin;
 
