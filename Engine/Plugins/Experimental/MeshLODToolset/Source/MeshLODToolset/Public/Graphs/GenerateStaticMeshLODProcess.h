@@ -347,7 +347,7 @@ public:
 	 *  - Read all the Source Texture Images that need to be baked
 	 *  - call InitializeGenerator() to set up the compute graph
 	 */
-	bool Initialize(UStaticMesh* SourceMesh, FProgressCancel* Progress = nullptr);
+	UE_NODISCARD bool Initialize(UStaticMesh* SourceMesh, FProgressCancel* Progress = nullptr);
 
 
 	/** @return the source UStaticMesh passed to Initialize() */

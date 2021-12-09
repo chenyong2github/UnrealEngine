@@ -112,6 +112,11 @@ void CollapseDegenerateEdgesOnVertexPath(FDynamicMesh3& Mesh, TArray<int>& Verte
 
 void FEmbedPolygonsOp::BooleanPath(FProgressCancel* Progress)
 {
+	if (ResultMesh->TriangleCount() == 0 || ResultMesh->VertexCount() == 0)
+	{
+		return;
+	}
+
 	FAxisAlignedBox3d Bounds = OriginalMesh->GetBounds();
 	Bounds.Expand(.01); // expand a little beyond bounds to avoid creating coplanar cases
 	double MeshDiameter = Bounds.MaxDim();

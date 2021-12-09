@@ -120,8 +120,8 @@ public:
 	{
 		checkSlow(TileWidthIn >= 1 && TileHeightIn >= 1);
 		Dimensions = DimensionsIn;
-		TileWidth = FMath::Clamp(TileWidthIn, 1, Dimensions.GetWidth());
-		TileHeight = FMath::Clamp(TileHeightIn, 1, Dimensions.GetHeight());
+		TileWidth = FMath::Clamp(TileWidthIn, 1, FMath::Max(1, Dimensions.GetWidth()));
+		TileHeight = FMath::Clamp(TileHeightIn, 1, FMath::Max(1, Dimensions.GetHeight()));
 	}
 
 	int32 NumTilesX() const

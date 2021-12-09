@@ -10,6 +10,7 @@
 #include "RenderingThread.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "StaticMeshAttributes.h"
 
 using namespace UE::Geometry;
 
@@ -185,10 +186,26 @@ bool UStaticMeshToolTarget::CommitMaterialSetUpdate(UStaticMesh* StaticMeshIn,
 
 const FMeshDescription* UStaticMeshToolTarget::GetMeshDescription()
 {
+	static FMeshDescription EmptyMeshDescription;
+	static bool bFirst = true;
+	if (bFirst)
+	{
+		FStaticMeshAttributes Attributes(EmptyMeshDescription);
+		Attributes.Register();
+		bFirst = false;
+	}
+
 	if (ensure(IsValid()))
 	{
-		return (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
+		FMeshDescription* MeshDescription = (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
 			StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
+
+		if (!MeshDescription)
+		{
+			return &EmptyMeshDescription;
+		}
+
+		return MeshDescription;
 	}
 	return nullptr;
 }

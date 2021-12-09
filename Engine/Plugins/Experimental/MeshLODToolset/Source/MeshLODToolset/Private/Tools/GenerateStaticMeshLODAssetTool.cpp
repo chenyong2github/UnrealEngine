@@ -291,12 +291,23 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 			const FProgressCancel::FMessageInfo& Warning = Progress.Warnings[0];
 			GetToolManager()->DisplayMessage(Warning.MessageText, (EToolMessageLevel)Warning.MessageLevel);
 		}
+
+		if (!bInitializeOK)
+		{
+			GenerateProcess = nullptr;
+			GetToolManager()->DisplayMessage(
+				LOCTEXT("GenerateStaticMeshLODAssetTool_ErrorInitializing", "Error initializing tool process: invalid Static Mesh input"),
+				EToolMessageLevel::UserError);
+			return;
+		}
+
 	}
 	else
 	{
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("GenerateStaticMeshLODAssetTool_NoStaticMesh", "Could not find Static Mesh in selected input"),
 			EToolMessageLevel::UserError);
+		return;
 	}
 
 	FString FullPathWithExtension = UEditorAssetLibrary::GetPathNameForLoadedAsset(StaticMesh);
@@ -436,15 +447,29 @@ void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 
 void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 {
-	OutputProperties->SaveProperties(this);
-	BasicProperties->SaveProperties(this);
-	CollisionVizSettings->SaveProperties(this);
-	PresetProperties->SaveProperties(this);
+	if (OutputProperties)
+	{
+		OutputProperties->SaveProperties(this);
+	}
+	if (BasicProperties)
+	{
+		BasicProperties->SaveProperties(this);
+	}
+	if (CollisionVizSettings)
+	{
+		CollisionVizSettings->SaveProperties(this);
+	}
+	if (PresetProperties)
+	{
+		PresetProperties->SaveProperties(this);
+	}
+	if (CollisionPreview)
+	{
+		CollisionPreview->Disconnect();
+		CollisionPreview = nullptr;
+	}
 
-	CollisionPreview->Disconnect();
-	CollisionPreview = nullptr;
-
-	if (ShutdownType == EToolShutdownType::Accept)
+	if (ShutdownType == EToolShutdownType::Accept && GenerateProcess)
 	{
 		if (OutputProperties->OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset)
 		{
@@ -456,7 +481,10 @@ void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 		}
 	}
 
-	FDynamicMeshOpResult Result = PreviewWithBackgroundCompute->Shutdown();
+	if (PreviewWithBackgroundCompute)
+	{
+		PreviewWithBackgroundCompute->Shutdown();
+	}
 }
 
 
