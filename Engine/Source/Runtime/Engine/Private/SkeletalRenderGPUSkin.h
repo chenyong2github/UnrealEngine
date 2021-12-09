@@ -126,6 +126,9 @@ public:
 
 	// Whether this LOD is allowed to use the skin cache feature
 	uint8 bIsSkinCacheAllowed : 1;
+	
+	// Whether animation is done with a mesh deformer.
+	uint8 bHasMeshDeformer : 1;
 
 #if RHI_RAYTRACING
 	uint8 bAnySegmentUsesWorldPositionOffset : 1;
@@ -418,7 +421,9 @@ public:
 	virtual void SetTransform(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) override;
 	virtual void RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) override;
 	virtual void UpdateSkinWeightBuffer(USkinnedMeshComponent* InMeshComponent) override;
+
 protected:
+	friend class FSkeletalMeshDeformerHelpers;
 
 	/**
 	 * Vertex factories and their matrix arrays

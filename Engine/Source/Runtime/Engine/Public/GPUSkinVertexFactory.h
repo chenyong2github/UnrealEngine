@@ -19,6 +19,8 @@
 #include "Matrix3x4.h"
 #include "SkeletalMeshTypes.h"
 
+class FRDGPooledBuffer;
+
 template <class T> class TConsoleVariableData;
 
 // Uniform buffer for APEX cloth
@@ -366,6 +368,12 @@ public:
 	virtual uint32 GetNumTexCoords() const										{ return Data.IsValid() ? Data->NumTexCoords : 0; }
 	virtual const uint32 GetColorIndexMask() const								{ return Data.IsValid() ? Data->ColorIndexMask : 0; }
 
+	inline const FVertexStreamComponent& GetPositionStreamComponent()
+	{
+		check(Data.IsValid() && Data->PositionComponent.VertexBuffer != nullptr);
+		return Data->PositionComponent;
+	}
+	
 	inline const FVertexStreamComponent& GetTangentStreamComponent(int Index)
 	{
 		check(Data.IsValid() && Data->TangentBasisComponents[Index].VertexBuffer != nullptr);
@@ -440,22 +448,11 @@ class FGPUSkinPassthroughVertexFactory : public FLocalVertexFactory
 	typedef FLocalVertexFactory Super;
 
 public:
-	FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
-		: FLocalVertexFactory(InFeatureLevel, "FGPUSkinPassthroughVertexFactory"), PositionStreamIndex(-1), TangentStreamIndex(-1)
-	{
-		bSupportsManualVertexFetch = true;
-	}
+	FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
+	~FGPUSkinPassthroughVertexFactory();
 
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-
-	inline void UpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, class FRHIShaderResourceView* PreSkinPositionSRV, struct FRWBuffer* TangentRWBuffer)
-	{
-		if (PositionStreamIndex == -1)
-		{
-			InternalUpdateVertexDeclaration(SourceVertexFactory, PositionRWBuffer, PreSkinPositionSRV, TangentRWBuffer);
-		}
-	}
 
 	inline int32 GetPositionStreamIndex() const
 	{
@@ -478,28 +475,84 @@ public:
 	{
 		PositionStreamIndex = -1;
 		TangentStreamIndex = -1;
+		ColorStreamIndex = -1;
 		PositionVBAlias.ReleaseRHI();
 		TangentVBAlias.ReleaseRHI();
+		ColorVBAlias.ReleaseRHI();
 	}
 
-	virtual void ReleaseRHI() override
-	{
-		FLocalVertexFactory::ReleaseRHI();
+	virtual void ReleaseRHI() override;
 
-		//when adding anything else to this function be aware of the bypassing code in InternalUpdateVertexDeclaration
-		PositionVBAlias.ReleaseRHI();
-		TangentVBAlias.ReleaseRHI();
+	/** Poke values into the vertex factory. */
+	inline void UpdateVertexDeclaration(
+		FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+		struct FRWBuffer* PositionRWBuffer, 
+		struct FRWBuffer* TangentRWBuffer)
+	{
+		if (PositionStreamIndex == -1)
+		{
+			InternalUpdateVertexDeclaration(SourceVertexFactory, PositionRWBuffer, TangentRWBuffer);
+		}
+	}
+
+	/** Flags for override bitmask passed to UpdateVertexDeclaration(). */
+	enum class EOverrideFlags
+	{
+		None		= 0,
+		Position	= 1 << 0,
+		Tangent		= 1 << 1,
+		Color		= 1 << 2,
+		All			= 0xff,
+	};
+
+	/** Poke values into the vertex factory. */
+	inline void UpdateVertexDeclaration(
+		EOverrideFlags OverrideFlags,
+		FGPUBaseSkinVertexFactory* SourceVertexFactory,
+		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer,
+		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
+		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)
+	{
+		if (PositionStreamIndex == -1)
+		{
+			InternalUpdateVertexDeclaration(OverrideFlags, SourceVertexFactory, PositionBuffer, TangentBuffer, ColorBuffer);
+		}
 	}
 
 protected:
+	friend class FGPUSkinVertexPassthroughFactoryShaderParameters;
+
+	// Reference holders for RDG buffers
+	TRefCountPtr<FRDGPooledBuffer> PositionRDG;
+	TRefCountPtr<FRDGPooledBuffer> TangentRDG;
+	TRefCountPtr<FRDGPooledBuffer> ColorRDG;
 	// Vertex buffer required for creating the Vertex Declaration
 	FVertexBuffer PositionVBAlias;
 	FVertexBuffer TangentVBAlias;
+	FVertexBuffer ColorVBAlias;
+	// SRVs required for binding
+	FRHIShaderResourceView* PositionSRVAlias;
+	FRHIShaderResourceView* TangentSRVAlias;
+	FRHIShaderResourceView* ColorSRVAlias;
+	// Cached stream indices
 	int32 PositionStreamIndex;
 	int32 TangentStreamIndex;
 
-	void InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, class FRHIShaderResourceView* PreSkinPositionSRV, struct FRWBuffer* TangentRWBuffer);
+	void InternalUpdateVertexDeclaration(
+		FGPUBaseSkinVertexFactory* SourceVertexFactory);
+	void InternalUpdateVertexDeclaration(
+		FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+		struct FRWBuffer* PositionRWBuffer, 
+		struct FRWBuffer* TangentRWBuffer);
+	void InternalUpdateVertexDeclaration(
+		EOverrideFlags OverrideFlags,
+		FGPUBaseSkinVertexFactory* SourceVertexFactory,
+		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer,
+		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
+		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer);
 };
+
+ENUM_CLASS_FLAGS(FGPUSkinPassthroughVertexFactory::EOverrideFlags)
 
 /** Stream component data bound to morph vertex factory */
 struct FGPUSkinMorphDataType : public FGPUSkinDataType

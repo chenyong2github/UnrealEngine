@@ -646,6 +646,7 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 		{
 			TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("SkinnedMeshComponent", "Animation", LOCTEXT("Animation", "Animation"));
 			Section->AddCategory("Skeletal Mesh");
+			Section->AddCategory("Deformer");
 		}
 
 		{

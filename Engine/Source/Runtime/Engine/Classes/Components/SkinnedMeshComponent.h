@@ -26,6 +26,8 @@ class FSkeletalMeshRenderData;
 class FSkeletalMeshLODRenderData;
 struct FSkelMeshRenderSection;
 class FPositionVertexBuffer;
+class UMeshDeformer;
+class UMeshDeformerInstance;
 
 DECLARE_DELEGATE_OneParam(FOnAnimUpdateRateParamsCreated, FAnimUpdateRateParameters*)
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnTickPose, USkinnedMeshComponent* /*SkinnedMeshComponent*/, float /*DeltaTime*/, bool /*bNeedsValidRootMotion*/)
@@ -231,6 +233,14 @@ class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncI
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TArray<ESkinCacheUsage> SkinCacheUsage;
+
+	/** If set then the MeshDeformer will be used instead of the fixed animation pipeline. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer")
+	TObjectPtr<UMeshDeformer> MeshDeformer;
+
+	/** Object containing state for the bound MeshDeformer. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMeshDeformerInstance> MeshDeformerInstance;
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
@@ -605,6 +615,9 @@ protected:
 	/** Whether we have updated bone visibility this tick */
 	uint8 bBoneVisibilityDirty:1;
 
+	/** Whether mesh deformer state is dirty and will need updating at the next tick. */
+	uint8 bUpdateDeformerAtNextTick : 1;
+
 private:
 	/** If true, UpdateTransform will always result in a call to MeshObject->Update. */
 	UPROPERTY(transient)
@@ -779,6 +792,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
 	virtual void SetSkeletalMesh(class USkeletalMesh* NewMesh, bool bReinitPose = true);
 
+	/**
+	 * Change the MeshDeformer that is used for this Component.
+	 *
+	 * @param InMeshDeformer New mesh deformer to set for this component
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
+	void SetMeshDeformer(UMeshDeformer* InMeshDeformer);
+
 	/** 
 	 * Get Parent Bone of the input bone
 	 * 
@@ -817,6 +838,9 @@ public:
 	bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
 
 	bool IsSkinCacheAllowed(int32 LodIdx) const;
+
+	bool HasMeshDeformer() const { return MeshDeformer != nullptr; }
+
 	/**
 	 *	Compute SkeletalMesh MinLOD that will be used by this component
 	 */

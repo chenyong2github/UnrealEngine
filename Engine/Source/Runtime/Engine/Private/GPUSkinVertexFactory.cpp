@@ -16,6 +16,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Logging/LogMacros.h"
 #include "Misc/CoreMisc.h"
+#include "RenderGraphResources.h"
 
 #include "Engine/RendererSettings.h"
 #if INTEL_ISPC
@@ -777,17 +778,66 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const
 	{
-		check(VertexFactory->GetType() == &FGPUSkinPassthroughVertexFactory::StaticType);
+		// todo: Add more context into VertexFactoryUserData about whether this is skin cache/mesh deformer/ray tracing etc.
+		// For now it just holds a skin cache pointer which is null if using other mesh deformers.
 		FGPUSkinBatchElementUserData* BatchUserData = (FGPUSkinBatchElementUserData*)BatchElement.VertexFactoryUserData;
-		check(BatchUserData);
 
-		const auto* LocalVertexFactory = static_cast<const FGPUSkinPassthroughVertexFactory*>(VertexFactory);
+		check(VertexFactory->GetType() == &FGPUSkinPassthroughVertexFactory::StaticType);
+		FGPUSkinPassthroughVertexFactory const* LocalVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory const*>(VertexFactory);
+		
 		FRHIUniformBuffer* VertexFactoryUniformBuffer = nullptr;
 		VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
 
 		// #dxr_todo do we need this call to the base?
 		FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
-		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams, View);
+
+		const bool bUsesSkinCache = BatchUserData != nullptr;
+		if (bUsesSkinCache)
+		{
+			GetElementShaderBindingsSkinCache(View, Shader, LocalVertexFactory, BatchElement, BatchUserData, ShaderBindings, VertexStreams);
+		}
+		else
+		{
+			GetElementShaderBindingsMeshDeformer(View, Shader, LocalVertexFactory, BatchElement, ShaderBindings, VertexStreams);
+		}
+	}
+
+	void GetElementShaderBindingsSkinCache(
+		FSceneView const* View,
+		FMeshMaterialShader const* Shader,
+		FGPUSkinPassthroughVertexFactory const* VertexFactory, 
+		FMeshBatchElement const& BatchElement,
+		FGPUSkinBatchElementUserData* BatchUserData,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const
+	{
+		FGPUSkinCache::GetShaderBindings(
+			BatchUserData->Entry, BatchUserData->Section, 
+			Shader, VertexFactory, BatchElement.MinVertexIndex, 
+			GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, 
+			ShaderBindings, VertexStreams, View);
+	}
+
+	void GetElementShaderBindingsMeshDeformer(
+		FSceneView const* View,
+		FMeshMaterialShader const* Shader,
+		FGPUSkinPassthroughVertexFactory const* VertexFactory,
+		FMeshBatchElement const& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const
+	{
+		if (VertexFactory->PositionRDG.IsValid())
+		{
+			VertexStreams.Add(FVertexInputStream(VertexFactory->GetPositionStreamIndex(), 0, VertexFactory->PositionRDG->GetRHI()));
+			ShaderBindings.Add(GPUSkinCachePositionBuffer, VertexFactory->PositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)));
+		}
+		if (VertexFactory->TangentRDG.IsValid() && VertexFactory->GetTangentStreamIndex() > -1)
+		{
+			VertexStreams.Add(FVertexInputStream(VertexFactory->GetTangentStreamIndex(), 0, VertexFactory->TangentRDG->GetRHI()));
+		}
+
+		// todo: Need to track previous position buffer for mesh deformers
+		ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, VertexFactory->GetPositionsSRV());
 	}
 
 private:
@@ -800,6 +850,16 @@ IMPLEMENT_TYPE_LAYOUT(FGPUSkinVertexPassthroughFactoryShaderParameters);
 /*-----------------------------------------------------------------------------
 FGPUSkinPassthroughVertexFactory
 -----------------------------------------------------------------------------*/
+FGPUSkinPassthroughVertexFactory::FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
+	: FLocalVertexFactory(InFeatureLevel, "FGPUSkinPassthroughVertexFactory"), PositionStreamIndex(-1), TangentStreamIndex(-1)
+{
+	bSupportsManualVertexFetch = true;
+}
+
+FGPUSkinPassthroughVertexFactory::~FGPUSkinPassthroughVertexFactory()
+{
+}
+
 void FGPUSkinPassthroughVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 {
 	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
@@ -820,30 +880,34 @@ bool FGPUSkinPassthroughVertexFactory::ShouldCompilePermutation(const FVertexFac
 		(Parameters.MaterialParameters.bIsUsedWithSkeletalMesh || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
 }
 
-void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, class FRHIShaderResourceView* PreSkinPositionSRV, struct FRWBuffer* TangentRWBuffer)
+void FGPUSkinPassthroughVertexFactory::ReleaseRHI()
 {
-	// Point this vertex buffer to the RWBuffer
-	PositionVBAlias.VertexBufferRHI = PositionRWBuffer->Buffer;
+	FLocalVertexFactory::ReleaseRHI();
 
-	TangentVBAlias.VertexBufferRHI = TangentRWBuffer ? TangentRWBuffer->Buffer : nullptr;
+	// When adding anything else to this function be aware of the bypassing code in InternalUpdateVertexDeclaration.
+	PositionRDG = nullptr;
+	TangentRDG = nullptr;
+	ColorRDG = nullptr;
+	PositionVBAlias.ReleaseRHI();
+	TangentVBAlias.ReleaseRHI();
+	ColorVBAlias.ReleaseRHI();
+}
 
-	// Modify the vertex declaration using the RWBuffer for the position & tangent information
-	Data.PositionComponent.VertexBuffer = &PositionVBAlias;
-	Data.PositionComponent.Offset = 0;
-	Data.PositionComponent.VertexStreamUsage = EVertexStreamUsage::Overridden;
-	Data.PositionComponent.Stride = 3 * sizeof(float);
-
-	
+void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory)
+{
+	if (PositionVBAlias.VertexBufferRHI != nullptr)
 	{
-		Data.TangentsSRV = TangentRWBuffer ? TangentRWBuffer->SRV : SourceVertexFactory->GetTangentsSRV();
-		Data.PositionComponentSRV = PositionRWBuffer->SRV;
-		Data.PreSkinPositionComponentSRV = PreSkinPositionSRV;
+		Data.PositionComponent.VertexBuffer = &PositionVBAlias;
+		Data.PositionComponent.Offset = 0;
+		Data.PositionComponent.VertexStreamUsage = EVertexStreamUsage::Overridden;
+		Data.PositionComponent.Stride = 3 * sizeof(float);
+	}
+	else
+	{
+		Data.PositionComponent = SourceVertexFactory->GetPositionStreamComponent();
 	}
 
-	Data.TangentBasisComponents[0] = SourceVertexFactory->GetTangentStreamComponent(0);
-	Data.TangentBasisComponents[1] = SourceVertexFactory->GetTangentStreamComponent(1);
-
-	if (TangentRWBuffer)
+	if (TangentVBAlias.VertexBufferRHI != nullptr)
 	{
 		Data.TangentBasisComponents[0].VertexBuffer = &TangentVBAlias;
 		Data.TangentBasisComponents[0].Offset = 0;
@@ -857,33 +921,114 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 		Data.TangentBasisComponents[1].Stride = 16;
 		Data.TangentBasisComponents[1].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
 	}
+	else
+	{
+		Data.TangentBasisComponents[0] = SourceVertexFactory->GetTangentStreamComponent(0);
+		Data.TangentBasisComponents[1] = SourceVertexFactory->GetTangentStreamComponent(1);
+	}
 
-	//hack to allow us to release the alias pointers properly in ReleaseRHI.
-	//To be cleaned up in UE-68826
+	if (ColorVBAlias.VertexBufferRHI)
+	{
+		Data.ColorComponent.VertexBuffer = &ColorVBAlias;
+		Data.ColorComponent.Offset = 0;
+		Data.ColorComponent.Type = VET_Color;
+		Data.ColorComponent.Stride = 4;
+		Data.ColorComponent.VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
+		
+		Data.ColorIndexMask = ~0u;
+	}
+
+	Data.PositionComponentSRV = PositionSRVAlias ? PositionSRVAlias : SourceVertexFactory->GetPositionsSRV().GetReference();
+	Data.PreSkinPositionComponentSRV = SourceVertexFactory->GetPositionsSRV().GetReference();
+	Data.TangentsSRV = TangentSRVAlias ? TangentSRVAlias : SourceVertexFactory->GetTangentsSRV().GetReference();
+	Data.ColorComponentsSRV = ColorSRVAlias ? ColorSRVAlias : SourceVertexFactory->GetColorComponentsSRV().GetReference();
+
+	// hack to allow us to release the alias pointers properly in ReleaseRHI.
+	// To be cleaned up in UE-68826
 	FLocalVertexFactory::ReleaseRHI();
 	FLocalVertexFactory::ReleaseDynamicRHI();
 	FLocalVertexFactory::InitDynamicRHI();
 	FLocalVertexFactory::InitRHI();
 
-	// Find the added stream (usually at 0)
+	// Find added streams
 	PositionStreamIndex = -1;
 	TangentStreamIndex = -1;
+	ColorStreamIndex = -1;
+
 	for (int32 Index = 0; Index < Streams.Num(); ++Index)
 	{
-		if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == PositionRWBuffer->Buffer.GetReference())
+		if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == Data.PositionComponent.VertexBuffer->VertexBufferRHI.GetReference())
 		{
 			PositionStreamIndex = Index;
 		}
-
-		if (TangentRWBuffer)
+		if (TangentVBAlias.VertexBufferRHI != nullptr)
 		{
-			if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == TangentRWBuffer->Buffer.GetReference())
+			if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == Data.TangentBasisComponents[0].VertexBuffer->VertexBufferRHI.GetReference())
 			{
 				TangentStreamIndex = Index;
 			}
 		}
+		if (ColorVBAlias.VertexBufferRHI != nullptr)
+		{
+			if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == Data.ColorComponent.VertexBuffer->VertexBufferRHI.GetReference())
+			{
+				ColorStreamIndex = Index;
+			}
+		}
 	}
 	checkf(PositionStreamIndex != -1, TEXT("Unable to find stream for RWBuffer Vertex buffer!"));
+}
+
+void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
+	FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+	struct FRWBuffer* PositionRWBuffer, 
+	struct FRWBuffer* TangentRWBuffer)
+{
+	PositionRDG = nullptr;
+	TangentRDG = nullptr;
+	ColorRDG = nullptr;
+
+	PositionVBAlias.VertexBufferRHI = PositionRWBuffer ? PositionRWBuffer->Buffer : nullptr;
+	TangentVBAlias.VertexBufferRHI = TangentRWBuffer ? TangentRWBuffer->Buffer : nullptr;
+	ColorVBAlias.VertexBufferRHI = nullptr;
+
+	PositionSRVAlias = PositionRWBuffer ? PositionRWBuffer->SRV : nullptr;
+	TangentSRVAlias = TangentRWBuffer ? TangentRWBuffer->SRV : nullptr;
+	ColorSRVAlias = nullptr;
+
+	InternalUpdateVertexDeclaration(SourceVertexFactory);
+}
+
+void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
+	EOverrideFlags OverrideFlags,
+	FGPUBaseSkinVertexFactory* SourceVertexFactory, 
+	TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer, 
+	TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
+	TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)
+{
+	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Position))
+	{
+		PositionRDG = PositionBuffer;
+	}
+	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Tangent))
+	{
+		TangentRDG = TangentBuffer;
+	}
+	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Color))
+	{
+		ColorRDG = ColorBuffer;
+	}
+
+	PositionVBAlias.VertexBufferRHI = PositionRDG.IsValid() ? PositionRDG->GetRHI() : nullptr;
+	TangentVBAlias.VertexBufferRHI = TangentRDG.IsValid() ? TangentRDG->GetRHI() : nullptr;
+	ColorVBAlias.VertexBufferRHI = ColorRDG.IsValid() ? ColorRDG->GetRHI() : nullptr;
+
+	PositionSRVAlias = PositionRDG.IsValid() ? PositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)) : nullptr;
+	const EPixelFormat TangentsFormat = IsOpenGLPlatform(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_SINT : PF_R16G16B16A16_SNORM;
+	TangentSRVAlias = TangentRDG.IsValid() ? TangentRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(TangentsFormat)) : nullptr;
+	ColorSRVAlias = ColorRDG.IsValid() ? ColorRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R8G8B8A8)) : nullptr;
+
+	InternalUpdateVertexDeclaration(SourceVertexFactory);
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_Vertex, FGPUSkinVertexPassthroughFactoryShaderParameters);

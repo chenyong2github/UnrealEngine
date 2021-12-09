@@ -328,14 +328,6 @@ public:
 			return PositionBuffer;
 		}
 
-		inline FRHIShaderResourceView* GetPreSkinPositionSRV()
-		{
-			check(SourceVertexFactory);
-			check(SourceVertexFactory->GetPositionsSRV());
-
-			return SourceVertexFactory->GetPositionsSRV().GetReference();
-		}
-
 		inline FGPUSkinCache::FSkinCacheRWBuffer* GetTangentRWBuffer()
 		{
 			return TangentBuffer;
@@ -355,7 +347,7 @@ public:
 
 		void UpdateVertexFactoryDeclaration()
 		{
-			TargetVertexFactory->UpdateVertexDeclaration(SourceVertexFactory, &GetPositionRWBuffer()->Buffer, GetPreSkinPositionSRV(), &GetTangentRWBuffer()->Buffer);
+			TargetVertexFactory->UpdateVertexDeclaration(SourceVertexFactory, &GetPositionRWBuffer()->Buffer, &GetTangentRWBuffer()->Buffer);
 		}
 	};
 

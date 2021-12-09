@@ -17,6 +17,7 @@
 #include "SkeletalRenderStatic.h"
 #include "Animation/AnimStats.h"
 #include "SkeletalMeshCompiler.h"
+#include "SkeletalMeshDeformerHelpers.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "EngineGlobals.h"
@@ -24,6 +25,8 @@
 #include "Engine/CollisionProfile.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "SkeletalMeshTypes.h"
+#include "Animation/MeshDeformer.h"
+#include "Animation/MeshDeformerInstance.h"
 #include "Animation/MorphTarget.h"
 #include "AnimationRuntime.h"
 #include "Animation/SkinWeightProfileManager.h"
@@ -354,6 +357,8 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	bNeedToFlipSpaceBaseBuffers = false;
 	bBoneVisibilityDirty = false;
 
+	bUpdateDeformerAtNextTick = false;
+
 	bCanEverAffectNavigation = false;
 	MasterBoneMapCacheCount = 0;
 	bSyncAttachParentLOD = true;
@@ -508,6 +513,8 @@ void USkinnedMeshComponent::OnRegister()
 
 	UpdateLODStatus();
 	InvalidateCachedBounds();
+
+	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this) : nullptr;
 }
 
 void USkinnedMeshComponent::OnUnregister()
@@ -520,6 +527,8 @@ void USkinnedMeshComponent::OnUnregister()
 		FAnimUpdateRateManager::CleanupUpdateRateParametersRef(this);
 		AnimUpdateRateParams = nullptr;
 	}
+
+	MeshDeformerInstance = nullptr;
 }
 
 void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
@@ -586,6 +595,9 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 						*GetNameSafe(SkeletalMesh), *FeatureLevelName, MinLODIndex, MaxBonesPerChunk, MaxSupportedGPUSkinBones, NumBoneInfluences);
 				}
 			}
+
+			// After creating the MeshObject we need to run the MeshDeformer at least once to set up the vertex data.
+			bUpdateDeformerAtNextTick |= (MeshDeformerInstance != nullptr);
 
 			//Allow the editor a chance to manipulate it before its added to the scene
 			PostInitMeshObject(MeshObject);
@@ -724,6 +736,20 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 
 			// scene proxy update of material usage based on active morphs
 			UpdateMorphMaterialUsageOnProxy();
+		}
+
+		if (MeshDeformerInstance != nullptr)
+		{
+			if (MeshDeformerInstance->IsActive())
+			{
+				MeshDeformerInstance->EnqueueWork(GetScene(), UMeshDeformerInstance::WorkLoad_Update);
+			}
+			else
+			{
+				// Reset so mesh appears in bind pose.
+				// We could use a fallback mesh deformer instead?
+				FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides_GameThread(MeshObject, UseLOD);
+			}
 		}
 	}
 }
@@ -905,6 +931,12 @@ void USkinnedMeshComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		}
 	}
 #endif // WITH_EDITOR
+
+	if (bUpdateDeformerAtNextTick)
+	{
+		MarkRenderDynamicDataDirty();
+		bUpdateDeformerAtNextTick = false;
+	}
 }
 
 UObject const* USkinnedMeshComponent::AdditionalStatObject() const
@@ -1480,16 +1512,14 @@ bool USkinnedMeshComponent::GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FNam
 bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 {
 	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
+	const bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
 
-	bool bIsRayTracing = FGPUSkinCache::IsGPUSkinCacheRayTracingSupported();
-	if (bIsRayTracing && SkeletalMesh)
+	if (MeshDeformer)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		bIsRayTracing = SkeletalMesh->bSupportRayTracing;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		// Disable skin cache if a mesh deformer is in use.
+		// Any animation buffers are expected to be owned by the MeshDeformer.
+		return false;
 	}
-
-	bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
 
 	if (!SkeletalMesh)
 	{
@@ -1640,6 +1670,13 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 		// UpdateLODStatus needs a valid MeshObject
 		UpdateLODStatus(); 
 	}
+}
+
+void USkinnedMeshComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
+{
+	MeshDeformer = InMeshDeformer;
+	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this) : nullptr;
+	MarkRenderDynamicDataDirty();
 }
 
 FSkeletalMeshRenderData* USkinnedMeshComponent::GetSkeletalMeshRenderData() const
