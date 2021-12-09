@@ -3,7 +3,7 @@
 import { ContextualLogger, isNpmLogLevel, NpmLogLevelCompare, NpmLogLevelValues } from '../common/logger';
 import { getRunningPerforceCommands } from '../common/perforce';
 import { Trace } from '../new/graph';
-import { IPCControls, NodeBotInterface } from './bot-interfaces';
+import { IPCControls, EdgeBotInterface, NodeBotInterface } from './bot-interfaces';
 import { OperationResult } from './branch-interfaces';
 import { GraphBot } from './graphbot';
 import { RoboMerge } from './robo';
@@ -328,12 +328,14 @@ export class IPC {
 		// Some operations are the same for NodeBots and EdgeBots -- we can cheat a little here by
 		// creating a general variable
 		let generalOpTarget: IPCControls = bot
+		let edge: EdgeBotInterface | null = null
 		if (edgeName) {
-			const edge = bot.getEdgeIPCControls(edgeName.toUpperCase())
-			if (!edge) {
+			edge = bot.getImmediateEdge(edgeName)
+			const edgeIPC = edge && edge.ipcControls
+			if (!edgeIPC) {
 				return {statusCode: 400, message: `Node ${nodeName} does not have edge ${edgeName}`}
 			}
-			generalOpTarget = edge
+			generalOpTarget = edgeIPC
 		}
 		
 		let cl = NaN
@@ -346,7 +348,7 @@ export class IPC {
 			return OPERATION_SUCCESS
 
 		case 'unpause':
-			generalOpTarget.unpause()
+			generalOpTarget.unpause(query.who)
 			return OPERATION_SUCCESS
 
 		case 'retry':
@@ -361,7 +363,7 @@ export class IPC {
 				return {statusCode: 400, message: 'Invalid CL parameter: ' + cl}
 			}
 
-			let prevCl = generalOpTarget.forceSetLastClWithContext(cl, query.who, query.reason)
+			let prevCl = generalOpTarget.forceSetLastClWithContext(cl, query.who, query.reason, !!query.unblock && query.unblock === 'true')
 
 			this.ipcLogger.info(`Forcing last CL=${cl} on ${botname} : ${branch.name} (was CL ${prevCl}), ` +
 														`requested by ${query.who} (Reason: ${query.reason})`)
@@ -488,6 +490,13 @@ export class IPC {
 			}
 			this.ipcLogger.error('Error processing stomp: ' + operationResult.message)
 			return { statusCode: 500, message: operationResult.message }
+
+		case 'bypassgatewindow':
+			const sense = query.sense.toLowerCase().startsWith('t');
+			const prefix = sense ? 'en' : 'dis'
+			this.ipcLogger.info(`${query.who} ${prefix}abled gate window bypass on ${nodeName}->${edgeName}`)
+			edge!.bypassGateWindow(sense)
+			return { statusCode: 200, message: 'ok' }
 		}
 
 		return {statusCode: 404, message: 'Unrecognized node op: ' + operation}

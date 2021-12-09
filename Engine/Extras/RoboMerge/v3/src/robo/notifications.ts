@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 import * as fs from 'fs';
+import { DateTimeFormatOptions } from 'intl';
 import { Args } from '../common/args';
 import { Badge } from '../common/badge';
 import { Random } from '../common/helper';
@@ -25,6 +26,7 @@ export const SLACK_MESSAGES_PERSISTENCE_KEY = 'slackMessages'
 const CHANGELIST_FIELD_TITLE = 'Change'
 const ACKNOWLEDGED_FIELD_TITLE = 'Acknowledged'
 const SUNSET_PERSISTED_NOTIFICATIONS_DAYS = 30
+const EPIC_TIME_OPTIONS: DateTimeFormatOptions = {timeZone: 'EST5EDT', timeZoneName: 'short'}
 
 const KNOWN_BOT_NAMES = ['buildmachine', 'robomerge'];
 
@@ -454,6 +456,7 @@ export class BotNotifications implements BotEventHandler {
 		if (DIRECT_MESSAGING_ENABLED && !isBotUser && targetBranch && userEmail) {
 			const dmText = `Your change (${makeClLink(changeInfo.source_cl)}) ` +
 				`hit '${issue}' while merging from *${sourceBranch.name}* to *${targetBranch.name}*.\n\n` +
+				'`' + blockage.change.description.substr(0, 80) + '`\n\n' +
 				"*_Resolving this blockage is time sensitive._ Please select one of the following:*"
 			
 			const urls = this.blockageUrlGenerator(blockage)
@@ -473,7 +476,9 @@ export class BotNotifications implements BotEventHandler {
 			const targetKey = info.targetBranchName || info.kind
 			const title = ACKNOWLEDGED_FIELD_TITLE
 			if (info.acknowledger) {
-				this.tryAddFieldToChannelMessages(info.sourceCl, targetKey, {title, value: info.acknowledger, short: true})
+				// hard code to Epic (!) Standard/Daylight Time
+				const suffix = info.acknowledgedAt ? ' at ' + info.acknowledgedAt.toLocaleTimeString('en-US', EPIC_TIME_OPTIONS) : ''
+				this.tryAddFieldToChannelMessages(info.sourceCl, targetKey, {title, value: info.acknowledger + suffix, short: true})
 			}
 			else {
 				this.tryRemoveFieldFromChannelMessages(info.sourceCl, targetKey, title)

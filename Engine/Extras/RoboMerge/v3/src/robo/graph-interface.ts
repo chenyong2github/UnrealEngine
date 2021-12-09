@@ -9,4 +9,5 @@ export interface GraphInterface {
 
 	ensureStopping(): boolean
 	reinitFromBranchGraphsObject(config: BotConfig, branchGraphs: BranchGraphDefinition): Promise<void>
+	handleRequestedIntegrationsForAllNodes(): Promise<void>
 }

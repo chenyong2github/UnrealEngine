@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { ContextualLogger, NpmLogLevel } from "../common/logger";
 import { Change, ChangelistStatus, PerforceContext } from "../common/perforce";
-import { BotIPC } from "./bot-interfaces";
-import { BlockagePauseInfo, BlockagePauseInfoMinimal, ReconsiderArgs } from "./status-types";
+import { BotIPC, ReconsiderArgs } from "./bot-interfaces";
+import { BlockagePauseInfo, BlockagePauseInfoMinimal } from "./status-types";
 import { Branch, OperationResult } from "./branch-interfaces";
 import { Context } from "./settings";
 import { PauseState } from "./state-interfaces";
-
-export interface PerforceRequestResult {
-	changes?: Change[] | null
-	errors: any[]
-}
 
 export abstract class PerforceStatefulBot implements BotIPC {
 	protected p4: PerforceContext
@@ -28,8 +23,8 @@ export abstract class PerforceStatefulBot implements BotIPC {
 	isRunning = false
 	readonly pauseState: PauseState
 
-	constructor(protected readonly settings: Context, initialCl?: number) {
-		this.pauseState = new PauseState((reason: string) => { this.unblock(reason) }, settings)
+	constructor(protected readonly settings: Context, unblockFunc: (reason: string) => void, initialCl?: number) {
+		this.pauseState = new PauseState(unblockFunc, settings)
 		this._lastClProcessed = this.settings.getInt('lastCl', initialCl || 0)
 
 		if (this.pauseState.isBlocked()) {
@@ -82,13 +77,13 @@ export abstract class PerforceStatefulBot implements BotIPC {
 		this.pauseState.manuallyPause(message, owner)
 		this.logger.info(`Paused ${this.fullName}: ${message}.`)
 	}
-	unpause() {
+	unpause(requester: string) {
 		if (!this.isManuallyPaused) {
 			return
 		}
 
 		this.pauseState.unpause()
-		this.logger.info(`Unpaused ${this.fullName}.`)
+		this.logger.info(`Unpaused ${this.fullName}, requested by ${requester}`)
 	}
 
 	abstract reconsider(instigator: string, changeCl: number, additionalArgs?: Partial<ReconsiderArgs>): void
@@ -128,14 +123,6 @@ export abstract class PerforceStatefulBot implements BotIPC {
 		// set the cache and save it
 		this._forceSetLastCl_NoReset(value);
 	}
-	protected forceSetLastCl(value: number) {
-		const prevValue = this._forceSetLastCl_NoReset(value)
-
-		// When we force set the last CL, we want to unblock
-		this.unblock(`${this.fullNameForLogging} last CL forcibly set to ${value}`)
-
-		return prevValue
-	}
 	protected _forceSetLastCl_NoReset(value: number): number {
 		if (value > this.lastBlockage) {
 			this.lastBlockage = -1
@@ -164,19 +151,15 @@ export abstract class PerforceStatefulBot implements BotIPC {
 		bot.lastCl = change.change;
 	}
 
-	abstract forceSetLastClWithContext(value: number, culprit: string, reason: string): number;
+	abstract forceSetLastClWithContext(value: number, culprit: string, reason: string, unblock: boolean): number;
 
-	async _getChange(changeCl: number, path?: string, status?: ChangelistStatus) : Promise<PerforceRequestResult> {
-		let change: Change | null = null
-		let errors: any[] = []
+	async _getChange(changeCl: number, path?: string, status?: ChangelistStatus) : Promise<Change | string> {
 		try {
-			change = await this.p4.getChange(path || this.branch.rootPath, changeCl, status)
+			return await this.p4.getChange(path || this.branch.rootPath, changeCl, status)
 		}
 		catch (err) {
-			return { errors: [err] }
+			return err.toString()
 		}
-
-		return { changes: [change], errors }
 	}
 
 	protected _log_action(action: string, logLevel: NpmLogLevel = 'info') {
@@ -210,4 +193,5 @@ export abstract class PerforceStatefulBot implements BotIPC {
 	abstract setBotToLatestCl(): Promise<void>
 
 	abstract tick(): Promise<boolean>;
+	tickCount = 0
 }

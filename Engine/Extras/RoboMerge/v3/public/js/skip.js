@@ -179,7 +179,8 @@ function doSkip(fullData, edgeName, branchCl, skipText) {
     let queryData = {
         // If the forced CL is the same as the conflict CL, the conflict will be skipped
         cl: branchCl,
-        reason: skipText
+        reason: skipText,
+        unblock: 'true'
     }
 
     let branchData = fullData.branch

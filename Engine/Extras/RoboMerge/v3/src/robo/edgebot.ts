@@ -2,13 +2,12 @@
 
 import { ContextualLogger } from "../common/logger";
 import { Recipients } from "../common/mailer";
-import { Change, ChangelistStatus, ClientSpec, ConflictedResolveNFile, EditOwnerOpts, IntegrationSource }  from "../common/perforce";
-import { ResolveResult, IntegrationTarget, isExecP4Error, OpenedFileRecord, PerforceContext, EXCLUSIVE_CHECKOUT_REGEX } from "../common/perforce";
-import { convertIntegrateToEdit } from "../common/p4util";
+import { Change, ClientSpec, ConflictedResolveNFile, EditOwnerOpts, IntegrationSource }  from "../common/perforce";
+import { IntegrationTarget, isExecP4Error, OpenedFileRecord, PerforceContext, EXCLUSIVE_CHECKOUT_REGEX } from "../common/perforce";
 import { VersionReader } from "../common/version";
-import { IPCControls } from "./bot-interfaces";
+import { EdgeBotInterface, IPCControls, ReconsiderArgs } from "./bot-interfaces";
 import { PauseState } from "./state-interfaces";
-import { BlockagePauseInfo, ReconsiderArgs } from "./status-types";
+import { BlockagePauseInfo, BlockagePauseInfoMinimal } from "./status-types";
 import { AlreadyIntegrated, Branch, ChangeInfo, ConflictingFile, Failure, MergeAction, MergeMode, PendingChange } from "./branch-interfaces";
 import { PersistentConflict } from "./conflict-interfaces";
 import { BotEventTriggers } from "./events";
@@ -38,9 +37,57 @@ const JIRA_REGEX = /^\s*#jira\s+(.*)/i
 
 const MAX_CONFLICTS_TO_LIST = 5
 
-export type ResolveResultDetail = 'quick' | 'detailed'
+type ResolveResultDetail = 'quick' | 'detailed'
 
-export type EdgeIntegrationResult = string[] | Change
+type EdgeIntegrationResult = 'ok' | 'shelved' | 'nothing to do' | 'skipped' | 'error'
+
+class EdgeIntegrationDetails {
+	result: EdgeIntegrationResult
+	message = ''
+	cl = -1 // either submitted or shelved cl (may need Change in shelved case, let's see)
+
+	constructor(result: EdgeIntegrationResult, arg?: string | number) {
+		this.result = result
+		switch (typeof arg) {
+			case 'string': this.message = arg as string; break
+			case 'number': this.cl = arg as number; break
+		}
+	}
+}
+
+/** results from integrating along available outgoing edges */
+export class EdgeMergeResults {
+	addIntegrationResult(action: MergeAction, result: EdgeIntegrationDetails) {
+		this.edges.set(action.branch.upperName, result)
+		if (result.result === 'error') {
+			this.errors.push(result.message || 'no error message!')
+		}
+	}
+
+	allChanges() {
+		return [...this.edges].map(([_, v]) => v.cl).filter(n => n > 0)
+	}
+
+	markSkipped(target: Branch) {
+		this.edges.set(target.upperName, new EdgeIntegrationDetails('skipped'))
+	}
+
+	wasSkipped(target: Branch) {
+		return this.edges.has(target.upperName) && this.edges.get(target.upperName)!.result === 'skipped'
+	}
+
+	/** shelved or committed cl */
+	getTargetCl(target: Branch) {
+		const val = this.edges.get(target.upperName)
+		return val && val.cl
+	}
+
+	// tuples of target name, result, opt change
+	edges = new Map<string, EdgeIntegrationDetails>()
+	// accumulated errors for all edges
+	errors: string[] = []
+}
+
 
 class EdgeBotImpl extends PerforceStatefulBot {
 	readonly graphBotName: string
@@ -69,7 +116,10 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		settings: Context,
 		matchingNodeConflict?: PersistentConflict) 
 	{
-		super(settings, options.initialCL || defaultLastCl)
+		super(settings, reason => {
+			this.edgeBotLogger.info('Queueing unblock, because ' + reason)
+			this.queueUnblock()
+		}, options.initialCL || defaultLastCl)
 
 		this.sourceBranch = sourceNode.branch
 		this.branch = targetBranch
@@ -120,6 +170,10 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	get doHackyOkForGithubThing() {
 		return !!this.options.doHackyOkForGithubThing
 	}
+	get implicitCommands() {
+		return this.options.implicitCommands || []
+	}
+
 	get isTerminal() {
 		return !!this.options.terminal
 	}
@@ -168,22 +222,27 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 	}
 
-	updateLastCl(changesFetched: Change[], changeIndex: number, targetCl?: number) {
+	private updateLastCl(changesFetched: Change[], changeIndex: number, targetCl?: number) {
 		this.gate.updateLastCl(changesFetched, changeIndex, targetCl)
+		this.logger.verbose(`updating last cl to ${this.gate.lastCl} (${changesFetched.length}, ${changeIndex}, ${targetCl})`)
 		super._forceSetLastCl_NoReset(this.gate.lastCl)
 	}
 
-	private async getPerforceRequestResultFromCL(changelist: number, path?: string, changelistStatus?: ChangelistStatus) : Promise<EdgeIntegrationResult> {
-		const result = await this._getChange(changelist, path, changelistStatus)
-
-		if (!result.changes || !result.changes[0]) {
-			// swallowing actual error! should probably fix
-			return [`Failed to get ${changelistStatus ? changelistStatus : 'submitted'} CL ${changelist} (errors = ${result.errors}`]
+	onNodeProcessedChange(changesFetched: Change[], changeIndex: number, results: EdgeMergeResults) {
+		const change = changesFetched[changeIndex]
+		if (this.isAvailable && this.lastCl < change.change && !results.wasSkipped(this.targetBranch)) {
+			const targetCl = results.getTargetCl(this.targetBranch)
+			this.updateLastCl(changesFetched, changeIndex, targetCl)
 		}
-
-		return result.changes[0]
+		else {
+			this.gate.calcNumChangesRemaining(changesFetched, changeIndex)
+		}
 	}
-	
+
+	block(blockageInfo: BlockagePauseInfoMinimal, pauseDurationSeconds?: number) {
+		super.block(blockageInfo, pauseDurationSeconds)
+	}
+
 	private analyzeConflict(unresolved: ConflictedResolveNFile[]) {
 		const results: ConflictingFile[] = []
 
@@ -275,7 +334,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		this.block(this.createEdgeBlockageInfo(failure, pending), pauseDurationSeconds)
 	}
 
-	performMerge(info: ChangeInfo, target: MergeAction, convertIntegratesToEdits: boolean): Promise<EdgeIntegrationResult> {
+	performMerge(info: ChangeInfo, target: MergeAction, convertIntegratesToEdits: boolean, additionalDescription: string): Promise<EdgeIntegrationDetails> {
 		// make sure we come back in here afterwords
 		this._log_action(`Merging CL ${info.cl} via ${this.fullName} (${target.mergeMode})`)
 
@@ -308,18 +367,21 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		// if the owner is specifically overridden (can be by reconsider, resolver or manual tag)
 		const overriddenOwner = getIntegrationOwner(this.branch, info.owner)
 
-		let authorTag = info.authorTag
 		if (overriddenOwner) {
 			description += `#ROBOMERGE-OWNER: ${overriddenOwner}\n`
-			// put an author tag if the owner is overridden, in case the owner ends up committing in their own name
-			authorTag = authorTag || info.author
 		}
 
-		if (authorTag) {
+		// keep track of author in a tag in case transfering onwership of the changelist fails
+		const authorTag = info.authorTag || info.author
+		if (authorTag !== 'robomerge') {
 			description += `#ROBOMERGE-AUTHOR: ${authorTag}\n`
 		}
 
-		if (this.doHackyOkForGithubThing && !info.hasOkForGithubTag) {
+		if (this.doHackyOkForGithubThing/* && !info.hasOkForGithubTag */) {
+			const descriptionLines = description.split('\n')
+			description = descriptionLines
+				.filter(s => !s.toLowerCase().startsWith('#okforgithub'))
+				.join('\n')
 			description += '#okforgithub ignore\n'
 		}
 
@@ -397,7 +459,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			description += '#ROBOMERGE-EDIGRATE\n'
 		}
 
-		target.description = description
+		target.description = description + additionalDescription
 
 		// do the integration
 		return this.integrate(info, target)
@@ -407,7 +469,16 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		this.currentIntegrationStartTimestamp = -1
 	}
 
-	private async integrate(info: ChangeInfo, target: MergeAction) : Promise<EdgeIntegrationResult> {
+	public bypassGateWindow(sense: boolean) {
+		this.gate.bypass = sense
+		this.gate.persist()
+	}
+
+	queueUnblock() {
+		this.sourceNode.queueEdgeUnblock(this.targetBranch.upperName)
+	}
+
+	private async integrate(info: ChangeInfo, target: MergeAction) : Promise<EdgeIntegrationDetails> {
 		let to_integrate = info.cl
 		this._log_action(`Integrating CL ${to_integrate} to ${this.targetBranch.name}`)
 
@@ -457,7 +528,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				// integration not necessary
 				this.edgeBotLogger.info(msg)
 				await this.p4.deleteCl(this.targetBranch.workspace, changenum)
-				return [ msg ]
+				return new EdgeIntegrationDetails('nothing to do', msg)
 			}
 		}
 
@@ -481,8 +552,10 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		
 		await this.handleIntegrationError(failure, pending)
 		// Send to source node to facilitate notification handling
-		await this.sourceNode.handleMergeFailure(failure, pending)
-		return errors
+		if (this.sourceNode.handleMergeFailure(failure, pending)) {
+			this.gate.onBlockage()
+		}
+		return new EdgeIntegrationDetails('error', errors.join('\n'))
 	}
 
 	private async revertAndDelete(cl: number) {
@@ -508,66 +581,13 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return this.p4.resolve(this.targetBranch.workspace, changelist, mergeMode, detail === 'quick')
 	}
 
-// code restored that was deleted in CL#8057353 (from nodebot.ts) - still needs work
-	private async roboShelve(result: ResolveResult, toShelve: PendingChange) : Promise<EdgeIntegrationResult> {
-		const targetBranch = toShelve.action.branch
-		const targetEdge = this
-		let errorStr: string | null = null
-		let errorDetails: string | null = null
-
-		if (result.hasConflict()) {
-			// @todo Improve resolve result
-			errorStr = 'Unable to RoboShelve due to conflicts',
-			errorDetails = result.getConflictsText()
-		}
-		else {
-			this.edgeBotLogger.info(`Converting integrations in CL ${toShelve.change.cl} into edits`)
-			try {
-				await convertIntegrateToEdit(this.p4, targetBranch.workspace!, toShelve.newCl)
-			}
-			catch (err) {
-				errorStr = 'Conversion from integrates to edits failed'
-				errorDetails = err.toString()
-			}
-		}
-
-		if (errorStr) {
-			// Failed!
-
-			if (toShelve.change.userRequest) {
-				// send email in parallel
-				// this._sendGenericEmail(new Recipients(toShelve.change.owner!), 'RoboShelf error', errorStr, errorDetails!);
-				await targetEdge.revertAndDelete(toShelve.newCl)
-			}
-			else {
-
-				const failure: Failure = {kind: 'Conversion to edits failure', description: errorStr}
-				// should probably have custom handling, but try this for tests 
-				this.handleIntegrationError(failure, toShelve)
-
-				await this.sourceNode.handleMergeFailure(failure, toShelve)
-			}
-			
-			return [`${errorStr}: ${errorDetails}`]
-		}
-		else {
-
-			await targetEdge.submitChangelist(toShelve)
-			return this.getPerforceRequestResultFromCL(toShelve.newCl)
-
-// should shelve if manual or non auto target?
-			// await targetEdge.shelveChangelist(toShelve, 'RoboShelf has prepared this shelf for your consideration')
-			// return this.getPerforceRequestResultFromCL(toShelve.newCl, this.getChangePaths(targetBranch), "shelved")
-
-		}
-	}
 
 	/**
 	 * Perform a resolve of the change described by pending
 	 * @param {PendingChange} pending Pending change to resolve and submit
 	 * @param {number} [submitRetries = 3] number of times 'targetEdge.submitChangelist' can fail gracefully and come back to this method
 	 */
-	async _resolveChangelist(pending: PendingChange, submitRetries  = 3) : Promise<EdgeIntegrationResult> {
+	async _resolveChangelist(pending: PendingChange, submitRetries  = 3) : Promise<EdgeIntegrationDetails> {
 		// do a resolve with P4
 		this._log_action(`Resolving CL ${pending.change.cl} against ${this.targetBranch.name}`)
 		let detail: ResolveResultDetail = 'detailed'
@@ -580,7 +600,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				this.sourceNode.emailShelfRequester(pending)
 			}
 			
-			return this.getPerforceRequestResultFromCL(pending.newCl, pending.action.branch.rootPath, "shelved")
+			return new EdgeIntegrationDetails('shelved', pending.newCl)
 		}
 
 		let failure: Failure | null = null
@@ -603,27 +623,18 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		}
 
 		if (!failure) {
-			if (this.sourceBranch.convertIntegratesToEdits) {
-				return await this.roboShelve(result, pending)
+			const result = await this.submitChangelist(pending, submitRetries)
+			if (result.result !== 'error') {
+				return result
 			}
 
-
-			// No conflicts - let's do this!
-			const error = await this.submitChangelist(pending, submitRetries)
-
-			if (typeof(error) === 'string') {
-				failure = { kind: 'Commit failure', description: error }
-			}
+			failure = { kind: 'Commit failure', description: result.message }
 		}
 
-		if (failure) {
-			await this.handlePostIntegrationFailure(failure, pending)
-			await this.sourceNode.handleMergeFailure(failure, pending, true)
+		await this.handlePostIntegrationFailure(failure, pending)
+		await this.sourceNode.handleMergeFailure(failure, pending, true)
 
-			return [`${failure.kind}: ${failure.description}`]
-		}
-
-		return this.getPerforceRequestResultFromCL(pending.newCl)
+		return new EdgeIntegrationDetails('error', `${failure.kind}: ${failure.description}`)
 	}
 
 	/**
@@ -632,7 +643,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	 * @param {Number} [resolveRetries=3] Number of times to catch non-fatal errors and attempt the resolve -> submit chain again.
 	 * @todo In a perfect world, parameter 'resolveRetries' wouldn't exist and an orchastration method would handle this in a loop.
 	 */
-	async submitChangelist(pending: PendingChange, resolveRetries = 3): Promise<void|string> {
+	async submitChangelist(pending: PendingChange, resolveRetries = 3): Promise<EdgeIntegrationDetails> {
 		const info = pending.change
 		const target = pending.action
 		const changenum = pending.newCl
@@ -640,22 +651,21 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		// try to submit
 		this._log_action(`Submitting CL ${changenum} by ${info.author}`)
 		const result = await this.p4.submit(this.targetBranch.workspace, changenum)
-		if (typeof(result) === "string") {
+		if (typeof result === "string") {
 			// an error occurred while submitting
-			return result;
+			return new EdgeIntegrationDetails('error', result);
 		}
 		const finalCl = result;
 		if (finalCl === 0) {
 			if (resolveRetries >= 1) {
 				// we need to resolve again
 				this.edgeBotLogger.info(`Detected concurrent changes. Re-resolving CL ${changenum}`)
-				await this._resolveChangelist(pending, --resolveRetries)
-				return
+				return await this._resolveChangelist(pending, --resolveRetries)
 			}
 			else {
 				const msg = `Hit maximum number of retries when trying to submit changelists for pending change ${pending.change.cl}`
 				this.edgeBotLogger.warn(msg)
-				return msg
+				return new EdgeIntegrationDetails('error', msg)
 			}
 		}
 
@@ -692,7 +702,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 						if (this.targetBranch.config.additionalSlackChannelForBlockages) {
 							postMessageToChannel(msg, this.targetBranch.config.additionalSlackChannelForBlockages, SlackMessageStyles.WARNING)
 						}
-						return
+						return new EdgeIntegrationDetails('ok', finalCl)
 					}
 					else if (output.match(/You don't have permission for this operation/)) {
 						errPreface += ' (This error is expected in non-prod instances.)'
@@ -702,6 +712,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				this.edgeBotLogger.printException(exception, errPreface);
 			}
 		}
+		return new EdgeIntegrationDetails('ok', finalCl)
 	}
 
 	private async shelveChangelist(pending: PendingChange, reason?: string) {
@@ -817,7 +828,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		if (this.pauseState.isBlocked()) {
 			// see if this change matches our stop CL
 			if (info.source_cl === this.pauseState.blockagePauseInfo!.sourceCl) {
-				this.unblock(`finding CL ${info.source_cl} merged to ${info.branch.name} in CL ${info.cl}`)
+				this.edgeBotLogger.info(`Queueing unblock due to finding CL ${info.source_cl} merged to ${info.branch.name} in CL ${info.cl}`)
+				this.queueUnblock()
 			}
 		}
 	}
@@ -855,6 +867,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		status.rootPath = this.targetBranch.rootPath
 
 		status.last_cl = this.lastCl
+		
+		// if (this.isForceFlow)
 		status.num_changes_remaining = this.gate.numChangesRemaining
 
 		status.is_active = this.isActive
@@ -888,8 +902,12 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return status
 	}
 
-	public forceSetLastClWithContext(value: number, culprit: string, reason: string) {
-		const prevValue = this.forceSetLastCl(value)
+	public forceSetLastClWithContext(value: number, culprit: string, reason: string, unblock?: boolean) {
+		const prevValue = this._forceSetLastCl_NoReset(value)
+
+		if (unblock) {
+			this.unblock(`Also unblocking when skipping to cl ${value}`)
+		}
 
 		// trigger events
 		this.sourceNode.onForcedLastCl(this.displayName, value, prevValue, culprit, reason)
@@ -929,7 +947,10 @@ abstract class EdgeBotEntryPoints implements IPCControls {
 
 /* This wrapper class allows us to control what is accessing the EdgeBotImpl internals, and
  *	allows us to monitor when an edge is active */
-export class EdgeBot extends EdgeBotEntryPoints {
+export class EdgeBot
+	extends EdgeBotEntryPoints
+	implements EdgeBotInterface
+{
 	private impl: EdgeBotImpl
 	displayName: string
 	fullName: string
@@ -1002,8 +1023,16 @@ export class EdgeBot extends EdgeBotEntryPoints {
 		this.impl.preIntegrate(cl)
 	}
 
-	updateLastCl(changesFetched: Change[], changeIndex: number, targetCl?: number) {
-		this.impl.updateLastCl(changesFetched, changeIndex, targetCl)
+	onNodeProcessedChange(changesFetched: Change[], changeIndex: number, results: EdgeMergeResults) {
+		this.impl.onNodeProcessedChange(changesFetched, changeIndex, results)
+	}
+
+	bypassGateWindow(sense: boolean) {
+		this.impl.bypassGateWindow(sense)
+	}
+
+	queueUnblock() {
+		this.impl.queueUnblock()
 	}
 
 	/* Mirrored Variables */
@@ -1026,6 +1055,9 @@ export class EdgeBot extends EdgeBotEntryPoints {
 	}
 	get targetBranch() {
 		return this.impl.targetBranch
+	}
+	get implicitCommands() {
+		return this.impl.implicitCommands
 	}
 
 	get ipcControls(): IPCControls {

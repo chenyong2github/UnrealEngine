@@ -111,6 +111,7 @@ class Watchdog {
 
 	cbMap = new Map<number, Function>()
 	nextCbId = 1
+	lastError = ""
 
 	private readonly watchdogLogger = new ContextualLogger('Watchdog')
 
@@ -250,7 +251,7 @@ class Watchdog {
 		this.child.once('close', (code, signal) => {
 			this.childExited()
 			if (code !== null) {
-				this.watchdogLogger.warn(`Child process exited with code=${code}`)
+				this.watchdogLogger.warn(`Child process exited with code=${code}\n${this.lastError}`);
 				if (code !== 0) {
 					this.respawn()
 				}
@@ -299,6 +300,7 @@ class Watchdog {
 			}
 		})
 		this.child.stderr!.on('data', (chunk) => {
+			this.lastError = chunk.toString();
 			process.stderr.write(chunk)
 		})
 		this.child.stdout!.on('data', (chunk) => {

@@ -115,17 +115,17 @@ for both node and edge.
 |`maxFilesPerIntegration`   |e |`-1`        | |Reject integrations with more files than this| |
 |`notify`                   |e |            | |Additional people to email on blockages  |Also `globalNotify`|
 |`resolver`                 |e |            | |Single designated resolver               |Currently applies to both source and target nodes|
-|`whitelist`                |e |            | |Only specified users can integrate using edge| |
 
 ##### Integration window examples
 
-Pause CIS when catching up to a gate
+###### Pause CIS when catching up to a gate
 
 ```
 { "pauseCISUnlessAtGate": true }
 ```
 
-Specify integration windows when a gate catch-up may begin
+###### Specify integration windows when a gate catch-up may begin
+
 Allow integration between 7pm and 5am UTC
 
 ```
@@ -135,17 +135,11 @@ Allow integration between 7pm and 5am UTC
 Allow integration 2am -> 5am and 9pm -> midnight UTC
 
 ```
-{ "integrationWindow":
-  [ { "startHourUTC": 2, "durationHours": 3 }
-  , { "startHourUTC": 21, "durationHours": 3 }
-  ]
-}
+{ "integrationWindow": [{ "startHourUTC": 2, "durationHours": 3 }, { "startHourUTC": 21, "durationHours": 3 }] }
 ```
 
 Dis-allow integration between 5am and 9pm UTC
 
 ```
-{ "integrationWindow": [{ "startHourUTC": 5, "durationHours": 16 }]
-, "invertIntegrationWindow": true
-}
+{ "integrationWindow": [{ "startHourUTC": 5, "durationHours": 16 }], "invertIntegrationWindow": true }
 ```

@@ -7,6 +7,7 @@ import { P4_FORCE, PerforceContext, Workspace } from '../common/perforce';
 import { Bot } from './bot-interfaces';
 import { BranchDefs } from './branchdefs';
 import { GraphInterface } from './graph-interface';
+import * as p4util from '../common/p4util';
 
 const DISABLE = false
 
@@ -14,6 +15,16 @@ type AutoBranchUpdaterConfig = {
 	rootPath: string		//				process.env('ROBO_BRANCHSPECS_ROOT_PATH')
 	workspace: Workspace	// { directory:	process.env('ROBO_BRANCHSPECS_DIRECTORY')
 }							// , name:		process.env('ROBO_BRANCHSPECS_WORKSPACE') }
+
+type MirrorPaths = {
+	name: string
+	directory: string
+	stream: string
+	depotFolder: string
+	depotpath: string
+	realFilepath: string
+	mirrorFilepath: string
+}
 
 export class AutoBranchUpdater implements Bot {
 
@@ -32,6 +43,8 @@ export class AutoBranchUpdater implements Bot {
 	static p4: PerforceContext
 	static config: AutoBranchUpdaterConfig
 	static initialCl: number
+
+	tickCount = 0
 
 	constructor(private graphBot: GraphInterface, parentLogger: ContextualLogger) {
 		this.p4 = AutoBranchUpdater.p4!
@@ -75,6 +88,19 @@ export class AutoBranchUpdater implements Bot {
 	async start() {
 		this.isRunning = true;
 		this.abuLogger.info(`Began monitoring ${this.graphBot.branchGraph.botname} branch specs at CL ${this.lastCl}`);
+
+// this got lost in the mirror refactor
+
+		// if (!DISABLE && this.mirror) {
+		// 	const workspace = await this.p4.find_workspace_by_name(this.mirror.workspace.name)
+		// 	if (workspace.length === 0) {
+		// 		await this.p4.newWorkspace(this.mirror.workspace.name, {
+		// 			Stream: this.mirror.stream,
+		// 			Root: AutoBranchUpdater.config!.workspace.directory
+		// 		})
+		// 	}
+		// }
+
 	}
 
 	async tick() {
@@ -142,7 +168,29 @@ export class AutoBranchUpdater implements Bot {
 			this.abuLogger.info(`Branch spec change detected: reloading ${botname} from CL#${this.lastCl}`)
 
 			await this.graphBot.reinitFromBranchGraphsObject(result.config, result.branchGraphDef!)
-			await this.updateMirror()
+
+			const mirrorWorkspace = AutoBranchUpdater.getMirrorWorkspace(this.graphBot)
+			if (!mirrorWorkspace) {
+				return
+			}
+
+			for (let retryCount = 0; ; ++retryCount) {
+				try {
+					await this.updateMirror(mirrorWorkspace)
+					return
+				}
+				catch (err) {
+
+					if (retryCount < 5) {
+						this.abuLogger.warn(`Mirror file reloading error (retries ${retryCount}: ${err}`)
+						p4util.cleanWorkspaces(this.p4, [[mirrorWorkspace.name, mirrorWorkspace.depotpath]])
+					}
+					else {
+						this.abuLogger.error('Mirror file reloading failed, retries exhausted')
+						throw err
+					}
+				}
+			}
 		})
 	}
 
@@ -158,12 +206,7 @@ export class AutoBranchUpdater implements Bot {
 		return this.abuLogger.context
 	}
 
-	private async updateMirror() {
-		const workspace = AutoBranchUpdater.getMirrorWorkspace(this.graphBot)
-		if (!workspace) {
-			return
-		}
-
+	private async updateMirror(workspace: MirrorPaths) {
 		this.abuLogger.info("Updating branchmap mirror")
 
 		const stream = this.graphBot.branchGraph.config.mirrorPath[0]
@@ -185,7 +228,7 @@ export class AutoBranchUpdater implements Bot {
 		await this.p4.submit(workspace, cl)
 	}
 
-	static getMirrorWorkspace(bot: GraphInterface) {
+	static getMirrorWorkspace(bot: GraphInterface): MirrorPaths | null {
 		const mirrorPathBits = bot.branchGraph.config.mirrorPath
 		if (mirrorPathBits.length === 0) {
 			return null
@@ -196,12 +239,13 @@ export class AutoBranchUpdater implements Bot {
 		}
 
 		const directory = AutoBranchUpdater.config!.workspace.directory
+		const depotFolder = mirrorPathBits.slice(0, 2).join('/')
 		const depotpath = mirrorPathBits.join('/')
 		const realFilepath = path.join(directory, bot.filename)
 		const mirrorFilepath = path.join(directory, ...mirrorPathBits.slice(1))
 		return {
 			name: `${AutoBranchUpdater.config!.workspace.name}-${bot.branchGraph.botname}-mirror`,
-			depotpath, realFilepath, mirrorFilepath, directory
+			stream: mirrorPathBits[0], depotFolder, depotpath, realFilepath, mirrorFilepath, directory
 		}
 	}
 }

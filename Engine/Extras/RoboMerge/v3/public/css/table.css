@@ -245,6 +245,11 @@
     font-size: 0.75em;
   }
 
+  .statuscell .status-msg {
+    font-style: italic;
+    font-size: .9em;
+  }
+
   .lastchangecell .catchup {
     font-size: 0.75em;
     line-height: 1.1;

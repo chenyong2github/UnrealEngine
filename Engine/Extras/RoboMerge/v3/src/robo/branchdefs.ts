@@ -20,7 +20,6 @@ export interface BotConfig {
 	reportToBuildHealth: boolean
 	mirrorPath: string[]
 	alias: string // alias if we need to mask name of bot in commands
-	emailDomainWhitelist: string[]
 	badgeUrlOverride: string
 	branchNamesToIgnore: string[]
 
@@ -38,7 +37,6 @@ export interface BranchBase {
 	flowsTo: string[]
 	forceFlowTo: string[]
 	defaultFlow: string[]
-	whitelist: string[]
 	resolver: string | null
 	aliases: string[]
 	badgeProject: string | null
@@ -113,6 +111,8 @@ type EdgeOptionFields = CommonOptionFields & {
 
 	terminal: boolean // changes go along terminal edges but no further
 	doHackyOkForGithubThing: boolean
+
+	implicitCommands: string[]
 }
 
 export type NodeOptions = Partial<NodeOptionFields>
@@ -223,7 +223,6 @@ export class BranchDefs {
 			reportToBuildHealth: false,
 			mirrorPath: [],
 			alias: '',
-			emailDomainWhitelist: [],
 			branchNamesToIgnore: [],
 			macros: {},
 			badgeUrlOverride: ''

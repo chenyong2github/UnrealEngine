@@ -169,7 +169,7 @@ export function updateBranchList(graphBotName: string | null = null) {
 				.addClass('btn btn-xs robomerge-crash-buttons')
 				.text("View Logs")
 				.click(function() {
-					window.location.href = "/api/last_crash";
+					window.location.href = "/api/logs";
 				})
 				.appendTo(bl)
 

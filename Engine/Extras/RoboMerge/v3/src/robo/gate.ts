@@ -9,6 +9,7 @@ import { Context } from "./settings"
 
 
 const GATE_INFO_KEY = 'gate-info'
+const BYPASS_KEY = 'bypass'
 
 
 type GateOptions = Partial<CommonOptionFields>
@@ -96,11 +97,20 @@ type EventTriggersAndStuff = GateEventContext & {
 	eventTriggers: BotEventTriggers
 }
 
+type CurrentWindowStats = {
+	targetCl: number
+	pending: number
+	integrated: number
+	blockages: number
+}
+
 export class Gate {
 	constructor(	private eventContext: EventTriggersAndStuff | DummyEventTriggers,
 					private context: GateContext, private persistence?: Context) {
 		this.loadFromPersistence()
 	}
+
+	bypass = false
 
 	private processGateChange(newGate: GateInfo) {
 		// degrees of freedom:
@@ -118,6 +128,8 @@ export class Gate {
 			if (newGate.cl <= this.currentGateInfo.cl) {
 				// report if we were catching up and the replacement gate means we're now caught up
 				if (this.lastCl < this.currentGateInfo.cl && this.lastCl >= newGate.cl) {
+					this.context.logger.info('Caught up due to earlier gate ' +
+						`(previous: ${this.currentGateInfo.cl}, new: ${newGate.cl},lastCl = ${this.lastCl}`)
 					this.reportCaughtUp()
 				}
 				this.currentGateInfo = newGate
@@ -158,50 +170,60 @@ export class Gate {
 			return
 		}
 
-		const mostRecentGate = this.getMostRecentGate()
-
-		const gateInfo = await getRequestedGateCl(this.context, mostRecentGate)
-		if (!gateInfo) {
-			if (this.currentGateInfo) {
-				// we were waiting for a gate, so unpause and clear gate info
-				if (this.isGateOpen()) {
-					this.reportCaughtUp()
-				}
-
-				this.currentGateInfo = null
-				this.queuedGates.length = 0
-				this.persist()
-			}
-
-			return
-		}
-
 		let dirty = false
-		if (!mostRecentGate) {
-			// ooh look, our first gate
-			this.queuedGates.push(gateInfo)
-			dirty = true
-		}
-		else if (!gatesSame(mostRecentGate, gateInfo)) {
-			this.processGateChange(gateInfo)
-			dirty = true
-		}
-
-		// sanity check
-		if (!this.currentGateInfo && this.queuedGates.length === 0) {
-			throw new Error('seem to have ignored gate!')
-		}
-
-		// if no current and in window, kick off new
-		if (!this.currentGateInfo && this.queuedGates.length > 0) {
-			if (this.tryNextGate(this.lastCl)) {
-				this.reportCatchingUp()
+		try {
+			if (this.bypass && this.nowIsWithinAllowedCatchupWindow()) {
+				this.context.logger.info('Clearing bypass on entering an integration window')
+				this.bypass = false
 				dirty = true
 			}
-		}
 
-		if (dirty) {
-			this.persist()
+			const mostRecentGate = this.getMostRecentGate()
+
+			const gateInfo = await getRequestedGateCl(this.context, mostRecentGate)
+			if (!gateInfo) {
+				if (this.currentGateInfo) {
+					// we were waiting for a gate, so unpause and clear gate info
+					if (this.isGateOpen()) {
+						this.context.logger.info(`Gate ${this.currentGateInfo.cl} removed while catching up`)
+						this.reportCaughtUp()
+					}
+
+					this.currentGateInfo = null
+					this.queuedGates.length = 0
+					dirty = true
+				}
+
+				return
+			}
+
+			if (!mostRecentGate) {
+				// ooh look, our first gate
+				this.queuedGates.push(gateInfo)
+				dirty = true
+			}
+			else if (!gatesSame(mostRecentGate, gateInfo)) {
+				this.processGateChange(gateInfo)
+				dirty = true
+			}
+
+			// sanity check
+			if (!this.currentGateInfo && this.queuedGates.length === 0) {
+				throw new Error('seem to have ignored gate!')
+			}
+
+			// if no current and in window, kick off new
+			if (!this.currentGateInfo && this.queuedGates.length > 0) {
+				if (this.tryNextGate(this.lastCl)) {
+					this.reportCatchingUp()
+					dirty = true
+				}
+			}
+		}
+		finally {
+			if (dirty) {
+				this.persist()
+			}
 		}
 	}
 
@@ -210,23 +232,32 @@ export class Gate {
 			this.context.logger.verbose(`${this.lastCl} -> ${cl} ${this.currentGateInfo.cl}`)
 		}
 
-		let adjustedCl: number | null = null
-		if (this.currentGateInfo && cl > this.currentGateInfo.cl && this.currentGateInfo.cl > this.lastCl) {
-			// we're waiting for currentGateInfo.cl but got a higher cl
-			// basically we drag lastCl forward to currentGateInfo.cl so isGateOpen returns false
-			// but if there are queued gates, we should have a go at moving to the next gate instead
-
-			// note tryNextGate can change currentGateInfo or set it to null
-			if (!this.tryNextGate(cl)) {
-				this.reportCaughtUp()
-				if (this.currentGateInfo) {
-					adjustedCl = this.currentGateInfo.cl
-					this.context.logger.info(`Adjusting cl to ${adjustedCl}`)
-					this.setLastCl(adjustedCl)
-				}
-			}
+		if (!this.currentGateInfo || cl <= this.currentGateInfo.cl || this.currentGateInfo.cl <= this.lastCl) {
+			return null
 		}
-		return adjustedCl
+
+		// we're waiting for currentGateInfo.cl but got a higher cl
+
+		// if there are no more gates, basically we drag lastCl forward to
+		// currentGateInfo.cl so isGateOpen returns false
+
+		this.context.logger.verbose(`Current gate info: ${this.currentGateInfo && this.currentGateInfo.cl}`)
+
+		if (this.tryNextGate(cl)) {
+			return null
+		}
+
+		// new gate, check again
+		if (!this.currentGateInfo || cl <= this.currentGateInfo.cl || this.currentGateInfo.cl <= this.lastCl) {
+			return null
+		}
+
+		this.reportCaughtUp()
+		this.context.logger.info(`Adjusting cl from ${this.lastCl} to ${this.currentGateInfo.cl} ` +
+														`to match gate due to encountering CL#${cl}`)
+		this.setLastCl(this.currentGateInfo.cl)
+		this.persist()
+		return this.currentGateInfo.cl
 	}
 
 	/**
@@ -249,7 +280,7 @@ export class Gate {
 			return false
 		}
 
-		if (!this.nowIsWithinAllowedCatchupWindow()) {
+		if (!this.bypass && !this.nowIsWithinAllowedCatchupWindow()) {
 			// want to make this an info log, but would spam every tick at the moment
 			// this.context.logger.verbose('delaying gate catch-up due to configured window')
 
@@ -281,16 +312,31 @@ export class Gate {
 		}
 
 		this.setLastCl(cl)
-		if (notifyCaughtUp) {
-			this.reportCaughtUp(targetCl)
-		}
 
 		this.numChangesRemaining = this.calcNumChangesRemaining(changesFetched, changeIndex)
+
+		if (this.currentWindowStats) {
+			if (targetCl) {
+				this.currentWindowStats.targetCl = targetCl
+				++this.currentWindowStats.integrated
+			}
+			this.currentWindowStats.pending = this.numChangesRemaining
+		}
+
+		if (notifyCaughtUp) {
+			this.reportCaughtUp()
+		}
+	}
+
+	onBlockage() {
+		if (this.currentWindowStats) {
+			++this.currentWindowStats.blockages
+		}
 	}
 
 	numChangesRemaining = 0
 
-	private calcNumChangesRemaining(changesFetched: Change[], changeIndex: number) {
+	calcNumChangesRemaining(changesFetched: Change[], changeIndex: number) {
 		const mostRecentGate = this.getMostRecentGate()
 		if (!mostRecentGate) {
 			return changesFetched.length - changeIndex - 1
@@ -348,9 +394,14 @@ export class Gate {
 		const closedMessage = this.getGateClosedMessage()
 		if (closedMessage) {
 			outStatus.gateClosedMessage = closedMessage
-			if (this.nextWindowOpenTime) {
-				outStatus.nextWindowOpenTime = this.nextWindowOpenTime
-			}
+		}
+
+		if (this.nextWindowOpenTime) {
+			outStatus.nextWindowOpenTime = this.nextWindowOpenTime
+		}
+
+		if (this.bypass) {
+			outStatus.windowBypass = true
 		}
 	}
 
@@ -435,13 +486,15 @@ export class Gate {
 					}
 				}
 				else {
-					consider(now.getUTCDay(), pane)
+					const nowDay = now.getUTCDay()
+					// covers window being before or after now
+					consider(nowDay, pane)
+					consider((nowDay + 1) % 7, pane)
 				}
 			}
 
 			// for now, only provide message if we have one non-inverted window
 			// more general solution to follow
-			// also not taking into account days of the week yet
 			this.nextWindowOpenTime = now
 			this.nextWindowOpenTime.setUTCHours(earliestHour - now.getUTCDay() * 24, 0, 0, 0);
 		}
@@ -461,16 +514,24 @@ export class Gate {
 			info: mostRecent,
 			changesRemaining: this.numChangesRemaining
 		})
+
+		this.currentWindowStats = Gate.newCurrentWindowStats()
 	}
 
-	private reportCaughtUp(targetCl?: number) {
+	private reportCaughtUp() {
+// log stats here for now, but if it works out, use the type in the event
+		this.context.logger.info('Catch-up window stats: ' + (this.currentWindowStats
+			? JSON.stringify(this.currentWindowStats) : '<null>'))
+
 		this.eventContext.eventTriggers.reportEndIntegratingToGate({
 			context: this.eventContext,
-			targetCl: targetCl || -1
+			targetCl: this.currentWindowStats ? this.currentWindowStats.targetCl : -1
 		})
+
+		this.currentWindowStats = null
 	}
 
-	private persist() {
+	persist() {
 		if (!this.persistence) {
 			return
 		}
@@ -484,6 +545,7 @@ export class Gate {
 		}
 		data.lastCl = this.lastCl
 		this.persistence.set(GATE_INFO_KEY, data)
+		this.persistence.set(BYPASS_KEY, this.bypass)
 	}
 
 	private loadFromPersistence() {
@@ -521,6 +583,7 @@ export class Gate {
 				this.queuedGates = saved.queued
 			}
 		}
+		this.bypass = !!this.persistence.get(BYPASS_KEY)
 	}
 
 	getEventContextForTests() {
@@ -537,6 +600,15 @@ export class Gate {
 
 	private currentGateInfo: GateInfo | null = null
 	private queuedGates: GateInfo[] = []
+
+	// info only
+
+	private static newCurrentWindowStats(): CurrentWindowStats
+	{
+		return { targetCl: -1, pending: -1, integrated: 0, blockages: 0 }
+	}
+
+	private currentWindowStats: CurrentWindowStats | null = null
 }
 
 /**
@@ -738,7 +810,9 @@ export async function runTests(parentLogger: ContextualLogger) {
 		if (middleIntegration) {
 			gate.preIntegrate(2); setLastCl(gate, 2); await gate.tick()
 		}
-		gate.preIntegrate(3); setLastCl(gate, 3); await gate.tick()
+		gate.preIntegrate(3);
+		assert(gate.lastCl < 3, 'exact gate cl gets integrated')
+		setLastCl(gate, 3); await gate.tick()
 
 		assert(et.beginCalls === 1 && et.endCalls === 1, 'catch-up notified')
 

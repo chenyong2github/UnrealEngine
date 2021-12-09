@@ -131,7 +131,6 @@ type RobomergeBranchOptions = {
 	flowsTo: string[]
 	forceFlowTo: string[]
 	defaultFlow: string[]
-	whitelist: string[]
 	resolver: string | null
 	aliases: string[]
 	badgeProject: string | null
@@ -192,6 +191,8 @@ type EdgeOptionFields = {
 	// by default, specify when gate catch ups are allowed; can be inverted to disallow
 	integrationWindow: IntegrationWindowPane[]
 	invertIntegrationWindow: boolean
+
+	implicitCommands: string[]
 }
 
 export type EdgeProperties = Partial<EdgeOptionFields> & {
@@ -199,10 +200,11 @@ export type EdgeProperties = Partial<EdgeOptionFields> & {
 	to: string
 }
 
+const NUM_WAIT_INTERVALS = 20
 export async function retryWithBackoff<T extends {}>(desc: string, f: (last: boolean) => Promise<T | null>): Promise<T> {
 	let sleepTime = .5
-	for (let safety = 0; safety < 20; ++safety) {
-		const result = await f(safety === 19)
+	for (let safety = 0; safety < NUM_WAIT_INTERVALS; ++safety) {
+		const result = await f(safety === NUM_WAIT_INTERVALS - 1)
 		if (result) {
 			return result
 		}
@@ -271,6 +273,7 @@ export abstract class FunctionalTest {
 			['Owner', stream.owner || FunctionalTest.dfltStreamOpts.owner],
 			['Name', stream.name],
 			['Parent', stream.parent ? this.getStreamPath(stream.parent, stream.depotName) : FunctionalTest.dfltStreamOpts.parent],
+			['ParentView', 'inherit'], // required by p4 2021.1
 			['Type', stream.streamType],
 			['Description', '\n\tCreated by root.'],
 			// development streams given fromparent - let's see if it matters
@@ -353,7 +356,7 @@ export abstract class FunctionalTest {
 			.replace('<bot>', botName)
 			.replace('<branch>', nodeName.toUpperCase())
 
-		const errorPrefix = "test failure: couldn't query branch info: "
+		const errorPrefix = "couldn't query branch info: "
 
 		let json: { [key: string]: any }
 
@@ -363,15 +366,6 @@ export abstract class FunctionalTest {
 		catch (err) {
 			throw new Error(err.toString() + ': ' + (await err.responseBody))
 		}
-		// if (!body || body.toString().startsWith("No branch found")) {
-		// 	throw new Error(errorPrefix + `no branch found for FUNCTIONALTEST:${nodeName}`)
-		// }
-
-		// if (body.toUpperCase() === "RESOURCE NOT FOUND") {
-		// 	throw new Error(errorPrefix + `URL ${url} returned a "Resource Not Found" error.`)
-		// }
-
-		// const json = JSON.parse(body)
 
 		if (!json.branch) {
 			throw new Error(errorPrefix + `no branch found for ${botName}:${nodeName}`)
@@ -442,7 +436,6 @@ export abstract class FunctionalTest {
 		const key = this.getStreamPath(stream, depotName)
 		const client = allUserClients.get(key)
 
-		//console.log(`${this.testName}: Retrieving ${username}:${key}`)
 		if (!client) {
 			throw new Error(`${username} has no client for stream ${key}`)
 		}
@@ -460,7 +453,6 @@ export abstract class FunctionalTest {
 			throw new Error(`Client list for ${client.user} already contains entry for stream ${key}`)
 		}
 		clientMap.set(key, client)
-		//console.log(`${this.testName}: Adding ${client.user}:${key}:Client`)
 		this.clients.set(client.user, clientMap)
 		return client
 	}
@@ -479,6 +471,17 @@ export abstract class FunctionalTest {
 		})
 
 		await Promise.all(workspaceCreationPromises)
+	}
+
+	populateStreams(streams: Stream[]) {
+		return Promise.all(
+			streams
+				.filter(s => s.streamType !== 'mainline')
+				.map(s => this.p4.populate(
+					this.getStreamPath(s.name),
+					`Initial branch of files from ${s.parent}`
+				))
+		)
 	}
 
 	// for now, all added branches assumed to come from same source branch
@@ -535,7 +538,7 @@ export abstract class FunctionalTest {
 		}
 	}
 
-	async checkDescriptionContainsEdit(stream: string, requiredList?: string[], blacklist?: string[], depotName?: string) {
+	async checkDescriptionContainsEdit(stream: string, requiredList?: string[], unexpectedTerms?: string[], depotName?: string) {
 		this.info('Checking description of last commit to ' + stream)
 		this.getClient(stream, undefined, depotName).changes(1)
 			.then((changes: Change[]) => {
@@ -546,8 +549,8 @@ export abstract class FunctionalTest {
 						throw new Error(`Expected '${required}' to appear in description`)
 					}
 				}
-				if (blacklist) {
-					for (const bawal of blacklist) {
+				if (unexpectedTerms) {
+					for (const bawal of unexpectedTerms) {
 						if (description.indexOf(bawal.toLowerCase()) >= 0) {
 							this.error(description)
 							throw new Error(`Unexpected '${bawal}' in description`)
@@ -716,7 +719,12 @@ export abstract class FunctionalTest {
 		// wait for RoboMerge to process
 		await this.waitForRobomergeIdle()
 
-		return (await targetClient.changes(1, true))[0]!.change
+		const changes = await targetClient.changes(1, true)
+		if (changes.length === 0) {
+			this.error('Failed to create shelf for ' + target)
+			throw new Error('Failed to create shelf!')
+		}
+		return changes[0].change
 	}
 
 	storeNodesAndEdges() {
@@ -730,7 +738,7 @@ export abstract class FunctionalTest {
 		}
 	}
 
-	async isRobomergeIdle(dump?: boolean) {
+	async isRobomergeIdle(dump?: boolean): Promise<Map<string, number> | boolean | null>{
 
 		const latestP4CLs = new Map<string, Promise<number>>()
 		for (const client of this.clients.get('testuser1')!.values()) {
@@ -767,12 +775,6 @@ export abstract class FunctionalTest {
 			}
 
 			throw new Error('Branch state errors:\n' + branchStateErrors.join('\n'))
-			// if (true) {
-			// 	this.warn()
-			// 	console.log()
-			// }
-			// // this.warn('Assuming waiting for branchdefs to load')
-			// return false
 		}
 
 		for (const [node, bs] of unblockedBranchStates) {
@@ -804,8 +806,6 @@ export abstract class FunctionalTest {
 				}
 				return false
 			}
-
-			// console.log(`${node}: ${colors.magenta((await bs).getLastCL())} (${colors.cyan(await latestP4CLs.get(node)!)})`)
 		}
 
 		for (const [source, target] of this.edges) {
@@ -821,7 +821,7 @@ export abstract class FunctionalTest {
 				if (rmCL < p4CL) {
 					const gateClosed = edgeState.getGateClosedMessage()
 					if (gateClosed) {
-						this.verbose(gateClosed)
+						this.verbose(`${target} gate closed: '${gateClosed}'`)
 					}
 					else {
 						if (dump) {
@@ -835,14 +835,37 @@ export abstract class FunctionalTest {
 						return false
 					}
 				}
-				// console.log(`${source} -> ${target}: ${colors.magenta(edgeState.getLastCL())}, ${p4CL} - ${edgeState.isBlocked()}`)
 			}
 		}
-		return true
+
+		// when idle, produce a map of edge names to tick counts for edges neither blocked nor waiting for a gate
+		const ticksToWaitFor = new Map<string, number>([...unblockedBranchStates]
+			.filter(([_, node]) => !node.getEdges().every(e => e.getGateClosedMessage() || e.isBlocked()))
+			.map(([name, node]) => [name, node.getTickCount()]))
+
+		return ticksToWaitFor.size > 0 ? ticksToWaitFor : true
 	}
 
 	waitForRobomergeIdle(dump = false) {
-		return retryWithBackoff('Waiting for idle', async (last: boolean) => this.isRobomergeIdle(dump || last))
+		let tickCountsOnFirstIdle: Map<string, number> | null = null
+		return retryWithBackoff('Waiting for idle', async (last: boolean) => {
+			const tickCounts = await this.isRobomergeIdle(dump || last)
+			if (tickCounts === true) {
+				return true
+			}
+
+			if (!tickCounts) {
+				tickCountsOnFirstIdle = null
+			}
+			else if (!tickCountsOnFirstIdle) {
+				tickCountsOnFirstIdle = tickCounts
+			}
+			else {
+				return [...tickCounts].filter(([k, v]) => v <= (tickCountsOnFirstIdle!.get(k) || 0))
+  					.length === 0
+			}
+			return false
+		});
 	}
 }
 

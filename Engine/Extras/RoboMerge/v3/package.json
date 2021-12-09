@@ -31,14 +31,16 @@
     "marked": "^0.7.0",
     "mustache": "^3.2.1",
     "node-gzip": "^1.1.2",
-    "nodemailer": "^4.6.3",
+    "nodemailer": "^6.7.0",
+    "nomnom": "^1.5.3",
     "request": "^2.88.0",
-    "sanitize-html": "^1.20.0",
+    "sanitize-html": "^2.5.3",
     "semver": "^6.1.0",
     "source-map-support": "^0.5.12",
     "winston": "^3.2.1"
   },
   "devDependencies": {
+    "@types/intl": "^1.2.0",
     "@types/swagger-ui-express": "^3.0.1"
   }
 }
