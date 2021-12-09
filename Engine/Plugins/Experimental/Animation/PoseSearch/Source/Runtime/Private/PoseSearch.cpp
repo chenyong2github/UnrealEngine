@@ -29,10 +29,9 @@
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
 
+DEFINE_LOG_CATEGORY(LogPoseSearch);
 
 namespace UE { namespace PoseSearch {
-
-DEFINE_LOG_CATEGORY(LogPoseSearch);
 
 //////////////////////////////////////////////////////////////////////////
 // Constants and utilities
@@ -835,6 +834,37 @@ const FPoseSearchWeights* FPoseSearchWeightsContext::GetGroupWeights(int32 Weigh
 	return nullptr;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchIndexAsset
+// 
+
+int32 FPoseSearchIndex::FindAssetIndex(const FPoseSearchIndexAsset* Asset) const
+{
+	if (Asset == nullptr || Assets.Num() == 0)
+	{
+		return INDEX_NONE;
+	}
+
+	const FPoseSearchIndexAsset* Start = &Assets[0];
+	int32 Result = Asset - Start;
+
+	if (!Assets.IsValidIndex(Result))
+	{
+		return INDEX_NONE;
+	}
+
+	return Result;
+}
+
+const FPoseSearchIndexAsset* FPoseSearchIndex::FindAssetForPose(int32 PoseIdx) const
+{
+	auto Predicate = [PoseIdx](const FPoseSearchIndexAsset& Asset)
+	{
+		return Asset.IsPoseInRange(PoseIdx);
+	};
+	return Assets.FindByPredicate(Predicate);
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchIndex
@@ -842,7 +872,8 @@ const FPoseSearchWeights* FPoseSearchWeightsContext::GetGroupWeights(int32 Weigh
 bool FPoseSearchIndex::IsValid() const
 {
 	bool bSchemaValid = Schema && Schema->IsValid();
-	bool bSearchIndexValid = bSchemaValid && (NumPoses * Schema->Layout.NumFloats == Values.Num());
+	bool bAssetsValid = Assets.Num() > 0;
+	bool bSearchIndexValid = bSchemaValid && bAssetsValid && (NumPoses * Schema->Layout.NumFloats == Values.Num());
 
 	return bSearchIndexValid;
 }
@@ -950,51 +981,74 @@ bool UPoseSearchSequenceMetaData::IsValidForSearch() const
 	return IsValidForIndexing() && SearchIndex.IsValid();
 }
 
+//////////////////////////////////////////////////////////////////////////
+// FPoseSearchDatabaseSequence
+FFloatInterval FPoseSearchDatabaseSequence::GetEffectiveSamplingRange() const
+{
+	const bool bSampleAll = (SamplingRange.Min == 0.0f) && (SamplingRange.Max == 0.0f);
+	const float SequencePlayLength = Sequence->GetPlayLength();
+	FFloatInterval Range;
+	Range.Min = bSampleAll ? 0.0f : SamplingRange.Min;
+	Range.Max = bSampleAll ? SequencePlayLength : FMath::Min(SequencePlayLength, SamplingRange.Max);
+	return Range;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchDatabase
 
-int32 UPoseSearchDatabase::FindSequenceForPose(int32 PoseIdx) const
+int32 UPoseSearchDatabase::GetPoseIndexFromAssetTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const
 {
-	auto Predicate = [PoseIdx](const FPoseSearchDatabaseSequence& DbSequence)
-	{
-		return (PoseIdx >= DbSequence.FirstPoseIdx) && (PoseIdx < DbSequence.FirstPoseIdx + DbSequence.NumPoses);
-	};
+	const FPoseSearchDatabaseSequence& DbSequence = Sequences[SearchIndexAsset->SourceAssetIdx];
 
-	return Sequences.IndexOfByPredicate(Predicate);
-}
+	FFloatInterval Range = SearchIndexAsset->SamplingInterval;
 
-int32 UPoseSearchDatabase::GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float AssetTime) const
-{
-	const FPoseSearchDatabaseSequence& DbSequence = Sequences[DbSequenceIdx];
-	FFloatInterval Range = UE::PoseSearch::GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
 	if (Range.Contains(AssetTime))
 	{
-		int32 PoseOffset = FMath::FloorToInt(Schema->SampleRate * (AssetTime - Range.Min));
-		if (PoseOffset >= DbSequence.NumPoses)
+		int32 PoseOffset = FMath::RoundToInt(Schema->SampleRate * (AssetTime - Range.Min));
+		if (PoseOffset >= SearchIndexAsset->NumPoses)
 		{
 			if (DbSequence.bLoopAnimation)
 			{
-				PoseOffset -= DbSequence.NumPoses;
+				PoseOffset -= SearchIndexAsset->NumPoses;
 			}
 			else
 			{
-				PoseOffset = DbSequence.NumPoses - 1;
+				PoseOffset = SearchIndexAsset->NumPoses - 1;
 			}
 		}
-		
-		int32 PoseIdx = DbSequence.FirstPoseIdx + PoseOffset;
+		int32 PoseIdx = SearchIndexAsset->FirstPoseIdx + PoseOffset;
 		return PoseIdx;
 	}
-	
+
 	return INDEX_NONE;
 }
 
-FFloatInterval UPoseSearchDatabase::GetEffectiveSamplingRange(int32 DbSequenceIdx) const
+float UPoseSearchDatabase::GetTimeOffset(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const
 {
-	const FPoseSearchDatabaseSequence& DbSequence = Sequences[DbSequenceIdx];
-	FFloatInterval Range = UE::PoseSearch::GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
-	return Range;
+	const FPoseSearchIndexAsset* ValidAsset = Asset;
+	if (!ValidAsset)
+	{
+		ValidAsset = SearchIndex.FindAssetForPose(PoseIdx);
+		if (!ValidAsset)
+		{
+			UE_LOG(LogPoseSearch, Error, TEXT("Couldn't find asset for pose %i in database %s"), PoseIdx, *GetNameSafe(this));
+			return -1.0f;
+		}
+	}
+	if (!ValidAsset->IsPoseInRange(PoseIdx))
+	{
+		UE_LOG(LogPoseSearch, Error, TEXT("Pose %i out of range in database %s"), PoseIdx, *GetNameSafe(this));
+		return -1.0f;
+	}
+	const FPoseSearchDatabaseSequence& DbSequence = Sequences[ValidAsset->SourceAssetIdx];
+	const FFloatInterval SamplingRange = ValidAsset->SamplingInterval;
+	float TimeOffsetSeconds = SamplingRange.Min + Schema->SamplingInterval * (PoseIdx - Asset->FirstPoseIdx);
+	return TimeOffsetSeconds;
+}
+
+const FPoseSearchDatabaseSequence& UPoseSearchDatabase::GetSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const
+{
+	return Sequences[SearchIndexAsset->SourceAssetIdx];
 }
 
 float UPoseSearchDatabase::GetSequenceLength(int32 DbSequenceIdx) const
@@ -1058,6 +1112,71 @@ void UPoseSearchDatabase::CollectSimpleSequences()
 	}
 
 	SimpleSequences.Reset();
+}
+
+void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, TArray<FFloatRange>& ValidRanges)
+{
+	const UAnimSequence* Sequence = DbSequence.Sequence;
+	check(DbSequence.Sequence);
+
+	const float SequenceLength = DbSequence.Sequence->GetPlayLength();
+	const FFloatInterval EffectiveSamplingInterval = DbSequence.GetEffectiveSamplingRange();
+
+	// start from a single interval defined by the database sequence sampling range
+	ValidRanges.Empty();
+	ValidRanges.Add(FFloatRange::Inclusive(EffectiveSamplingInterval.Min, EffectiveSamplingInterval.Max));
+
+	FAnimNotifyContext NotifyContext;
+	Sequence->GetAnimNotifies(0.0f, SequenceLength, NotifyContext);
+
+	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
+	{
+		const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify();
+		if (!NotifyEvent)
+		{
+			continue;
+		}
+
+		const UAnimNotifyState_PoseSearchExcludeFromDatabase* ExclusionNotifyState =
+			Cast<const UAnimNotifyState_PoseSearchExcludeFromDatabase>(NotifyEvent->NotifyStateClass);
+		if (ExclusionNotifyState)
+		{
+			FFloatRange ExclusionRange = 
+				FFloatRange::Inclusive(NotifyEvent->GetTriggerTime(), NotifyEvent->GetEndTriggerTime());
+
+			// Split every valid range based on the exclusion range just found. Because this might increase the 
+			// number of ranges in ValidRanges, the algorithm iterates from end to start.
+			for (int RangeIdx = ValidRanges.Num() - 1; RangeIdx >= 0; --RangeIdx)
+			{
+				FFloatRange EvaluatedRange = ValidRanges[RangeIdx];
+				ValidRanges.RemoveAt(RangeIdx);
+
+				TArray<FFloatRange> Diff = FFloatRange::Difference(EvaluatedRange, ExclusionRange);
+				ValidRanges.Append(Diff);
+			}
+		}
+	}
+}
+
+bool UPoseSearchDatabase::TryInitSearchIndexAssets()
+{
+	SearchIndex.Assets.Empty();
+	bool bAnyMirrored = false;
+	TArray<FFloatRange> ValidRanges;
+	for (int32 SequenceIdx = 0; SequenceIdx < Sequences.Num(); ++SequenceIdx)
+	{
+		ValidRanges.Reset();
+		FindValidSequenceIntervals(Sequences[SequenceIdx], ValidRanges);
+		for (const FFloatRange& Range : ValidRanges)
+		{
+			SearchIndex.Assets.Add(
+				FPoseSearchIndexAsset(
+					SequenceIdx, 
+					FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+		}
+	}
+
+	return true;
 }
 
 void UPoseSearchDatabase::PreSave(FObjectPreSaveContext ObjectSaveContext)
@@ -2157,11 +2276,10 @@ void FSequenceIndexer::Init(const FInput& InSettings)
 
 	Input = InSettings;
 
-	const FFloatInterval SamplingRange = GetEffectiveSamplingRange(Input.MainSequence->Input.Sequence, Input.RequestedSamplingRange);
-
 	Reset();
-	Output.FirstIndexedSample = FMath::FloorToInt(SamplingRange.Min * Input.Schema->SampleRate);
-	Output.LastIndexedSample = FMath::Max(0, FMath::CeilToInt(SamplingRange.Max * Input.Schema->SampleRate));
+	Output.FirstIndexedSample = FMath::FloorToInt(Input.RequestedSamplingRange.Min * Input.Schema->SampleRate);
+	Output.LastIndexedSample = 
+		FMath::Max(0, FMath::CeilToInt(Input.RequestedSamplingRange.Max * Input.Schema->SampleRate));
 	Output.NumIndexedPoses = Output.LastIndexedSample - Output.FirstIndexedSample + 1;
 	Reserve();
 }
@@ -2642,8 +2760,9 @@ void FSequenceIndexer::AddMetadata(int32 SampleIdx)
 	Metadata = FPoseSearchPoseMetadata();
 
 	const bool bBlockTransition =
-		SampleTime < Input.BlockTransitionParameters.SequenceStartInterval ||
-		SampleTime > SequenceLength - Input.BlockTransitionParameters.SequenceEndInterval;
+		!Input.MainSequence->Input.bLoopable &&
+		(SampleTime < Input.BlockTransitionParameters.SequenceStartInterval || 
+		 SampleTime > SequenceLength - Input.BlockTransitionParameters.SequenceEndInterval);
 
 	if (bBlockTransition)
 	{
@@ -3427,6 +3546,14 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 	SequenceMetaData->SearchIndex.NumPoses = Indexer.Output.NumIndexedPoses;
 	SequenceMetaData->SearchIndex.Schema = SequenceMetaData->Schema;
 
+	SequenceMetaData->SearchIndex.Assets.Empty();
+	FPoseSearchIndexAsset SearchIndexAsset;
+	SearchIndexAsset.SourceAssetIdx = 0;
+	SearchIndexAsset.FirstPoseIdx = 0;
+	SearchIndexAsset.NumPoses = Indexer.Output.NumIndexedPoses;
+	SequenceMetaData->SearchIndex.Assets.Add(SearchIndexAsset);
+
+
 	PreprocessSearchIndex(&SequenceMetaData->SearchIndex);
 
 	return true;
@@ -3437,6 +3564,11 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 	check(Database);
 
 	if (!Database->IsValidForIndexing())
+	{
+		return false;
+	}
+
+	if (!Database->TryInitSearchIndexAssets())
 	{
 		return false;
 	}
@@ -3493,20 +3625,25 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 
 	// Prepare animation indexing tasks
 	TArray<FSequenceIndexer> Indexers;
-	Indexers.SetNum(Database->Sequences.Num());
-	for (int32 SequenceIdx = 0; SequenceIdx != Database->Sequences.Num(); ++SequenceIdx)
+	Indexers.Reserve(Database->SearchIndex.Assets.Num());
+	for (int32 AssetIdx = 0; AssetIdx != Database->SearchIndex.Assets.Num(); ++AssetIdx)
 	{
-		const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[SequenceIdx];
-		FSequenceIndexer& Indexer = Indexers[SequenceIdx];
+		const FPoseSearchIndexAsset& SearchIndexAsset = Database->SearchIndex.Assets[AssetIdx];
+		const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[SearchIndexAsset.SourceAssetIdx];
+		const float SequenceLength = DbSequence.Sequence->GetPlayLength();
 
 		FSequenceIndexer::FInput Input;
 		Input.BoneContainer = &BoneContainer;
 		Input.MainSequence = GetSampler(DbSequence.Sequence);
-		Input.LeadInSequence = GetSampler(DbSequence.LeadInSequence);
-		Input.FollowUpSequence = GetSampler(DbSequence.FollowUpSequence);
+		Input.LeadInSequence = 
+			SearchIndexAsset.SamplingInterval.Min == 0.0f ? GetSampler(DbSequence.LeadInSequence) : nullptr;
+		Input.FollowUpSequence = 
+			SearchIndexAsset.SamplingInterval.Max == SequenceLength ? GetSampler(DbSequence.FollowUpSequence) : nullptr;
 		Input.Schema = Database->Schema;
 		Input.BlockTransitionParameters = Database->BlockTransitionParameters;
-		Input.RequestedSamplingRange = DbSequence.SamplingRange;
+		Input.RequestedSamplingRange = SearchIndexAsset.SamplingInterval;
+
+		FSequenceIndexer& Indexer = Indexers.AddDefaulted_GetRef();
 		Indexer.Init(Input);
 	}
 
@@ -3514,15 +3651,18 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 	ParallelFor(Indexers.Num(), [&Indexers](int32 SequenceIdx){ Indexers[SequenceIdx].Process(); });
 
 
+
 	// Write index info to sequence and count up total poses and storage required
 	int32 TotalPoses = 0;
 	int32 TotalFloats = 0;
-	for (int32 SequenceIdx = 0; SequenceIdx != Database->Sequences.Num(); ++SequenceIdx)
+	for (int32 AssetIdx = 0; AssetIdx != Database->SearchIndex.Assets.Num(); ++AssetIdx)
 	{
-		FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[SequenceIdx];
-		const FSequenceIndexer::FOutput& Output = Indexers[SequenceIdx].Output;
-		DbSequence.NumPoses = Output.NumIndexedPoses;
-		DbSequence.FirstPoseIdx = TotalPoses;
+		const FSequenceIndexer::FOutput& Output = Indexers[AssetIdx].Output;
+
+		FPoseSearchIndexAsset& SearchIndexAsset = Database->SearchIndex.Assets[AssetIdx];
+		SearchIndexAsset.NumPoses = Output.NumIndexedPoses;
+		SearchIndexAsset.FirstPoseIdx = TotalPoses;
+
 		TotalPoses += Output.NumIndexedPoses;
 		TotalFloats += Output.FeatureVectorTable.Num();
 	}
@@ -3584,7 +3724,9 @@ static FSearchResult Search(const FPoseSearchIndex& SearchIndex, TArrayView<cons
 
 	Result.Dissimilarity = BestPoseDissimilarity;
 	Result.PoseIdx = BestPoseIdx;
-	// Result.TimeOffsetSeconds is set by caller
+	Result.SearchIndexAsset = SearchIndex.FindAssetForPose(BestPoseIdx);
+	Result.TimeOffsetSeconds = 
+		Result.SearchIndexAsset->SamplingInterval.Min + SearchIndex.Schema->SamplingInterval * (Result.PoseIdx - Result.SearchIndexAsset->FirstPoseIdx);
 
 	return Result;
 }
@@ -3605,9 +3747,6 @@ FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> 
 		return Result;
 	}
 
-	const FFloatInterval SamplingRange = GetEffectiveSamplingRange(Sequence, MetaData->SamplingRange);
-	Result.TimeOffsetSeconds = SamplingRange.Min + (SearchIndex.Schema->SamplingInterval * Result.PoseIdx);
-
 	// Do debug visualization
 	DebugDrawParams.SequenceMetaData = MetaData;
 	DebugDrawParams.PoseVector = Query;
@@ -3617,7 +3756,7 @@ FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> 
 	return Result;
 }
 
-FDbSearchResult Search(
+FSearchResult Search(
 	const UPoseSearchDatabase* Database, 
 	TArrayView<const float> Query, 
 	const FPoseSearchWeightsContext* WeightsContext, 
@@ -3625,29 +3764,22 @@ FDbSearchResult Search(
 {
 	if (!ensure(Database && Database->IsValidForSearch()))
 	{
-		return FDbSearchResult();
+		return FSearchResult();
 	}
 
 	const FPoseSearchIndex& SearchIndex = Database->SearchIndex;
 
-	FDbSearchResult Result = Search(SearchIndex, Query, WeightsContext);
+	FSearchResult Result = Search(SearchIndex, Query, WeightsContext);
 	if (!Result.IsValid())
 	{
-		return FDbSearchResult();
+		return FSearchResult();
 	}
 
-	int32 DbSequenceIdx = Database->FindSequenceForPose(Result.PoseIdx);
-	if (DbSequenceIdx == INDEX_NONE)
+	if (!ensure(Result.TimeOffsetSeconds >= 0.0f))
 	{
-		return FDbSearchResult();
+		return FSearchResult();
 	}
 	
-	const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[DbSequenceIdx];
-	const FFloatInterval SamplingRange = GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
-
-	Result.DbSequenceIdx = DbSequenceIdx;
-	Result.TimeOffsetSeconds = SamplingRange.Min + SearchIndex.Schema->SamplingInterval * (Result.PoseIdx - DbSequence.FirstPoseIdx);
-
 	// Do debug visualization
 	DebugDrawParams.Database = Database;
 	DebugDrawParams.PoseVector = Query;
@@ -3660,7 +3792,10 @@ FDbSearchResult Search(
 float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext)
 {
 	TArrayView<const float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
-	check(PoseValues.Num() == Query.Num());
+	if (!ensure(PoseValues.Num() == Query.Num()))
+	{
+		return MAX_flt;
+	}
 
 	float Dissimilarity;
 	if (WeightsContext)

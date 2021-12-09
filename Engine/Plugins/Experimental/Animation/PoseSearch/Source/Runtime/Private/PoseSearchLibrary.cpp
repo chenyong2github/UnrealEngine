@@ -13,7 +13,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogPoseSearchLibrary, Verbose, All);
 void FMotionMatchingState::InitNewDatabaseSearch(const UPoseSearchDatabase* Database, float SearchThrottleTime)
 {
 	DbPoseIdx = INDEX_NONE;
-	DbSequenceIdx = INDEX_NONE;
+	SearchIndexAssetIdx = INDEX_NONE;
 	ElapsedPoseJumpTime = SearchThrottleTime;
 	AssetPlayerTime = 0.0f;
 	CurrentDatabase = Database;
@@ -34,11 +34,11 @@ void FMotionMatchingState::ComposeQuery(const UPoseSearchDatabase* Database, con
 	ComposedQuery.Normalize(Database->SearchIndex);
 }
 
-void FMotionMatchingState::JumpToPose(const UE::PoseSearch::FDbSearchResult& Result)
+void FMotionMatchingState::JumpToPose(const UE::PoseSearch::FSearchResult& Result)
 {
 	// Remember which pose and sequence we're playing from the database
 	DbPoseIdx = Result.PoseIdx;
-	DbSequenceIdx = Result.DbSequenceIdx;
+	SearchIndexAssetIdx = CurrentDatabase->SearchIndex.FindAssetIndex(Result.SearchIndexAsset);
 
 	ElapsedPoseJumpTime = 0.0f;
 	AssetPlayerTime = Result.TimeOffsetSeconds;
@@ -81,12 +81,14 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		}
 
 		// Step the pose forward
-		UE::PoseSearch::FMotionMatchingContinuityParams ContinuityParameters = InOutMotionMatchingState.ComputeContinuityParameters(Context);
+		UE::PoseSearch::FMotionMatchingContinuityParams ContinuityParameters = 
+			InOutMotionMatchingState.ComputeContinuityParameters(Context);
 		const bool bCanContinue = ContinuityParameters.IsValid();
 		if (bCanContinue)
 		{
 			InOutMotionMatchingState.DbPoseIdx = ContinuityParameters.Result.PoseIdx;
-			InOutMotionMatchingState.DbSequenceIdx = ContinuityParameters.Result.DbSequenceIdx;
+			InOutMotionMatchingState.SearchIndexAssetIdx = 
+				InOutMotionMatchingState.CurrentDatabase->SearchIndex.FindAssetIndex(ContinuityParameters.Result.SearchIndexAsset);
 		}
 
 		// build query
@@ -125,7 +127,7 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 		}
 
 		// Search the database for the nearest match to the updated query vector
-		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(
+		UE::PoseSearch::FSearchResult Result = UE::PoseSearch::Search(
 			Database,
 			InOutMotionMatchingState.ComposedQuery.GetNormalizedValues(),
 			&InOutMotionMatchingState.WeightsContext
@@ -140,19 +142,21 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 			}
 			else
 			{
-				const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
-
 				// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
 				bool bBetterPose = Result.Dissimilarity * (1.0f + (Settings.MinPercentImprovement / 100.0f)) < CurrentDissimilarity;
 
 				// We'll ignore the candidate pose if it is too near to our current pose
 				bool bNearbyPose = false;
-				if (InOutMotionMatchingState.DbSequenceIdx == Result.DbSequenceIdx)
+				const FPoseSearchIndexAsset* StateSearchIndexAsset = 
+					&InOutMotionMatchingState.CurrentDatabase->SearchIndex.Assets[InOutMotionMatchingState.SearchIndexAssetIdx];
+				if (StateSearchIndexAsset == Result.SearchIndexAsset)
 				{
+					const FPoseSearchDatabaseSequence& ResultDbSequence = Database->GetSourceAsset(Result.SearchIndexAsset);
 					bNearbyPose = FMath::Abs(InOutMotionMatchingState.AssetPlayerTime - Result.TimeOffsetSeconds) < Settings.PoseJumpThresholdTime;
 					if (!bNearbyPose && ResultDbSequence.bLoopAnimation)
 					{
-						const float AssetLength = Database->GetSequenceLength(InOutMotionMatchingState.DbSequenceIdx);
+						const FPoseSearchDatabaseSequence& StateDbSequence = Database->GetSourceAsset(StateSearchIndexAsset);
+						const float AssetLength = StateDbSequence.Sequence->GetPlayLength();
 						bNearbyPose = FMath::Abs(AssetLength - InOutMotionMatchingState.AssetPlayerTime - Result.TimeOffsetSeconds) < Settings.PoseJumpThresholdTime;
 					}
 				}
@@ -225,7 +229,8 @@ void UPoseSearchLibrary::UpdateMotionMatchingForSequencePlayer(const FAnimUpdate
 			// If a new pose is requested, jump to the pose by updating the embedded sequence player node
 			if ((InOutMotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 			{
-				const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[InOutMotionMatchingState.DbSequenceIdx];
+				const FPoseSearchIndexAsset* SearchIndexAsset = &Database->SearchIndex.Assets[InOutMotionMatchingState.SearchIndexAssetIdx];
+				const FPoseSearchDatabaseSequence& ResultDbSequence = Database->GetSourceAsset(SearchIndexAsset);
 				SequencePlayerNode->SetSequence(Cast<UAnimSequenceBase>(ResultDbSequence.Sequence));
 				SequencePlayerNode->SetAccumulatedTime(InOutMotionMatchingState.AssetPlayerTime);
 				SequencePlayerNode->SetLoopAnimation(ResultDbSequence.bLoopAnimation);
@@ -249,9 +254,10 @@ UE::PoseSearch::FMotionMatchingContinuityParams FMotionMatchingState::ComputeCon
 
 	if (DbPoseIdx != INDEX_NONE)
 	{
-		check(DbSequenceIdx != INDEX_NONE);
+		check(SearchIndexAssetIdx != INDEX_NONE);
 
-		const FPoseSearchDatabaseSequence& DbSequence = CurrentDatabase->Sequences[DbSequenceIdx];
+		const FPoseSearchIndexAsset* SearchIndexAsset = &CurrentDatabase->SearchIndex.Assets[SearchIndexAssetIdx];
+		const FPoseSearchDatabaseSequence& DbSequence = CurrentDatabase->GetSourceAsset(SearchIndexAsset);
 		const float AssetLength = DbSequence.Sequence->GetPlayLength();
 		const float DeltaTime = Context.GetDeltaTime();
 
@@ -264,11 +270,14 @@ UE::PoseSearch::FMotionMatchingContinuityParams FMotionMatchingState::ComputeCon
 
 		if (ContinuityAdvanceType != ETAA_Finished)
 		{
-			// we can continue ticking the same sequence forward
-			ContinuityParameters.Result.PoseIdx = CurrentDatabase->GetPoseIndexFromAssetTime(DbSequenceIdx,
-																					  ContinuityAssetTime);
-			ContinuityParameters.Result.DbSequenceIdx = DbSequenceIdx;
-			ContinuityParameters.Result.TimeOffsetSeconds = AssetPlayerTime;
+			// if the sampling interval doesn't contain the new time, there's no pose to return.
+			if (SearchIndexAsset->SamplingInterval.Contains(ContinuityAssetTime))
+			{
+				// we can continue ticking the same sequence forward
+				ContinuityParameters.Result.PoseIdx = CurrentDatabase->GetPoseIndexFromAssetTime(ContinuityAssetTime, SearchIndexAsset);
+				ContinuityParameters.Result.SearchIndexAsset = SearchIndexAsset;
+				ContinuityParameters.Result.TimeOffsetSeconds = AssetPlayerTime;
+			}
 		}
 		else
 		{
@@ -278,19 +287,29 @@ UE::PoseSearch::FMotionMatchingContinuityParams FMotionMatchingState::ComputeCon
 			{
 				return Entry.Sequence == DbSequence.FollowUpSequence;
 			});
-			if (FollowUpDbSequenceIdx != INDEX_NONE)
+
+			int32 FollowUpSearchIndexAssetIdx = CurrentDatabase->SearchIndex.Assets.IndexOfByPredicate(
+				[&](const FPoseSearchIndexAsset& Entry)
 			{
-				const FPoseSearchDatabaseSequence& FollowUpDbSequence = CurrentDatabase->Sequences[FollowUpDbSequenceIdx];
+				return Entry.SourceAssetIdx == FollowUpDbSequenceIdx && Entry.SamplingInterval.Contains(0.0f);
+			});
+
+			if (FollowUpSearchIndexAssetIdx != INDEX_NONE)
+			{
+				const FPoseSearchIndexAsset* FollowUpSearchIndexAsset = 
+					&CurrentDatabase->SearchIndex.Assets[FollowUpSearchIndexAssetIdx];
 				const float FollowUpAssetTime = AssetPlayerTime + DeltaTime - AssetLength;
-				const int32 FollowUpPoseIdx = CurrentDatabase->GetPoseIndexFromAssetTime(FollowUpDbSequenceIdx,
-																						 FollowUpAssetTime);
-				const FFloatInterval SamplingRange = CurrentDatabase->GetEffectiveSamplingRange(FollowUpDbSequenceIdx);
+				const int32 FollowUpPoseIdx = CurrentDatabase->GetPoseIndexFromAssetTime(
+					FollowUpAssetTime,
+					FollowUpSearchIndexAsset);
+				const FFloatInterval SamplingRange = FollowUpSearchIndexAsset->SamplingInterval;
 
 				ContinuityParameters.Result.PoseIdx = FollowUpPoseIdx;
-				ContinuityParameters.Result.DbSequenceIdx = FollowUpDbSequenceIdx;
+				ContinuityParameters.Result.SearchIndexAsset = FollowUpSearchIndexAsset;
 				ContinuityParameters.Result.TimeOffsetSeconds =
-					SamplingRange.Min + (CurrentDatabase->Schema->SamplingInterval *
-										 (ContinuityParameters.Result.PoseIdx - FollowUpDbSequence.FirstPoseIdx));
+					SamplingRange.Min + 
+					(CurrentDatabase->Schema->SamplingInterval *
+					 (ContinuityParameters.Result.PoseIdx - FollowUpSearchIndexAsset->FirstPoseIdx));
 				ContinuityParameters.bJumpRequired = true;
 			}
 		}

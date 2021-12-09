@@ -13,6 +13,14 @@ class POSESEARCH_API UAnimNotifyState_PoseSearchBase : public UAnimNotifyState
 	GENERATED_BODY()
 };
 
+// Use this notify state to remove animation segments from the database completely, they will never play or return from
+// a search result
+UCLASS(Blueprintable, meta = (DisplayName = "Pose Matching: Exclude From Database"))
+class POSESEARCH_API UAnimNotifyState_PoseSearchExcludeFromDatabase : public UAnimNotifyState_PoseSearchBase
+{
+	GENERATED_BODY()
+};
+
 // A pose matching search will not return results that overlap this notify, but the animation segment can still play
 // if a previous search result advances into it.
 UCLASS(Blueprintable, meta = (DisplayName = "Pose Matching: Block Transition"))

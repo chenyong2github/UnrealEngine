@@ -24,11 +24,11 @@ struct FCompactPose;
 struct FPoseContext;
 struct FReferenceSkeleton;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
+
 namespace UE { namespace PoseSearch {
 
 class FPoseHistory;
-
-DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
 
 }}
 
@@ -276,6 +276,42 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 };
 
 /**
+* Information about a source animation asset used by a search index.
+* Some source animation entries may generate multiple FPoseSearchIndexAsset entries.
+**/
+USTRUCT()
+struct POSESEARCH_API FPoseSearchIndexAsset
+{
+	GENERATED_BODY()
+public:
+	FPoseSearchIndexAsset()
+	{}
+
+	FPoseSearchIndexAsset(int32 InSourceAssetIdx, const FFloatInterval& InSamplingInterval)
+		: SourceAssetIdx(InSourceAssetIdx)
+		, SamplingInterval(InSamplingInterval)
+	{}
+
+	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
+	UPROPERTY()
+	int32 SourceAssetIdx = INDEX_NONE;
+
+	UPROPERTY()
+	FFloatInterval SamplingInterval;
+
+	UPROPERTY()
+	int32 FirstPoseIdx = INDEX_NONE;
+
+	UPROPERTY()
+	int32 NumPoses = 0;
+
+	bool IsPoseInRange(int32 PoseIdx) const
+	{
+		return (PoseIdx >= FirstPoseIdx) && (PoseIdx < FirstPoseIdx + NumPoses);
+	}
+};
+
+/**
 * A search index for animation poses. The structure of the search index is determined by its UPoseSearchSchema.
 * May represent a single animation (see UPoseSearchSequenceMetaData) or a collection (see UPoseSearchDatabase).
 */
@@ -299,9 +335,15 @@ struct POSESEARCH_API FPoseSearchIndex
 	UPROPERTY()
 	FPoseSearchIndexPreprocessInfo PreprocessInfo;
 
+	UPROPERTY()
+	TArray<FPoseSearchIndexAsset> Assets;
+
 	bool IsValid() const;
 
 	TArrayView<const float> GetPoseValues(int32 PoseIdx) const;
+
+	int32 FindAssetIndex(const FPoseSearchIndexAsset* Asset) const;
+	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
 
 	void Reset();
 
@@ -334,10 +376,12 @@ struct FPoseSearchBlockTransitionParameters
 	GENERATED_BODY()
 
 	// Excluding the beginning of sequences can help ensure an exact past trajectory is used when building the features
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	float SequenceStartInterval = 0.0f;
 
 	// Excluding the end of sequences help ensure an exact future trajectory, and also prevents the selection of
 	// a sequence which will end too soon to be worth selecting.
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	float SequenceEndInterval = 0.2f;
 
 };
@@ -545,11 +589,8 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	bool bLoopFollowUpAnimation = false;
 
-	UPROPERTY()
-	int32 FirstPoseIdx = 0;
-
-	UPROPERTY()
-	int32 NumPoses = 0;
+public:
+	FFloatInterval GetEffectiveSamplingRange() const;
 };
 
 /** A data asset for indexing a collection of animation sequences. */
@@ -582,7 +623,6 @@ public:
 	FPoseSearchIndex SearchIndex;
 
 	int32 FindSequenceForPose(int32 PoseIdx) const;
-	int32 GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float AssetTime) const;
 	float GetSequenceLength(int32 DbSequenceIdx) const;
 	bool DoesSequenceLoop(int32 DbSequenceIdx) const;
 	FFloatInterval GetEffectiveSamplingRange(int32 DbSequenceIdx) const;
@@ -590,7 +630,12 @@ public:
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
 
+	int32 GetPoseIndexFromAssetTime(float AssetTime, const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	float GetTimeOffset(int32 PoseIdx, const FPoseSearchIndexAsset* SearchIndexAsset = nullptr) const;
+	const FPoseSearchDatabaseSequence& GetSourceAsset(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+
 public: // UObject
+
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 #if WITH_EDITOR
@@ -599,6 +644,10 @@ public: // UObject
 
 private:
 	void CollectSimpleSequences();
+
+public:
+	// Populates the FPoseSearchIndex::Assets array by evaluating the data in the Sequences array
+	bool TryInitSearchIndexAssets();
 };
 
 
@@ -787,22 +836,12 @@ struct POSESEARCH_API FDebugDrawParams
 
 struct FSearchResult
 {
-	int32 PoseIdx = -1;
+	int32 PoseIdx = INDEX_NONE;
+	const FPoseSearchIndexAsset* SearchIndexAsset = nullptr;
 	float TimeOffsetSeconds = 0.0f;
 	float Dissimilarity = MAX_flt;
 
 	bool IsValid() const { return PoseIdx >= 0; }
-};
-
-struct FDbSearchResult : public FSearchResult
-{
-	FDbSearchResult() = default;
-
-	FDbSearchResult(const FSearchResult& Result)
-		: FSearchResult(Result)
-	{}
-
-	int32 DbSequenceIdx = INDEX_NONE;
 };
 
 
@@ -859,7 +898,7 @@ POSESEARCH_API FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayVie
 * 
 * @return The pose in the database that most closely matches the Query.
 */
-POSESEARCH_API FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
+POSESEARCH_API FSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr, FDebugDrawParams DrawParams = FDebugDrawParams());
 
 
 /**

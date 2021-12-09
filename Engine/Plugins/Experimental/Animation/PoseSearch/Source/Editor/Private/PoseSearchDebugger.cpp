@@ -525,28 +525,24 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 	UnfilteredDatabaseRows.Reserve(NumPoses);
 
 	// Build database rows
-	for(const FPoseSearchDatabaseSequence& DbSequence : Database.Sequences)
+	for(const FPoseSearchIndexAsset& SearchIndexAsset : Database.SearchIndex.Assets)
 	{
-		const int32 LastPoseIdx = DbSequence.FirstPoseIdx + DbSequence.NumPoses;
-		for (int32 PoseIdx = DbSequence.FirstPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
+		const FPoseSearchDatabaseSequence& DbSequence = Database.GetSourceAsset(&SearchIndexAsset);
+		const int32 LastPoseIdx = SearchIndexAsset.FirstPoseIdx + SearchIndexAsset.NumPoses;
+		for (int32 PoseIdx = SearchIndexAsset.FirstPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
 		{
 			TSharedRef<FDebuggerDatabaseRowData> Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
 			Row->PoseIdx = PoseIdx;
 
 			const FString SequenceName = DbSequence.Sequence->GetName();
 			const float SequenceLength = DbSequence.Sequence->GetPlayLength();
-			FFloatInterval Range = DbSequence.SamplingRange;
-
-			// @TODO: Update this when range is computed natively as part of the sequence class
-			const bool bSampleAll = (Range.Min == 0.0f) && (Range.Max == 0.0f);
-			const float SequencePlayLength = DbSequence.Sequence->GetPlayLength();
-			Range.Min = bSampleAll ? 0.0f : Range.Min;
-			Range.Max = bSampleAll ? SequencePlayLength : FMath::Min(SequencePlayLength, Range.Max);
-			// ---
+			FFloatInterval Range = SearchIndexAsset.SamplingInterval;
 
 			Row->AnimSequenceName = SequenceName;
 			// Cap time in sequence to end of range
-			Row->Time = FGenericPlatformMath::Min(Range.Min + (PoseIdx - DbSequence.FirstPoseIdx) * Database.Schema->SamplingInterval, Range.Max);
+			Row->Time = FGenericPlatformMath::Min(
+				Range.Min + (PoseIdx - SearchIndexAsset.FirstPoseIdx) * Database.Schema->SamplingInterval, 
+				Range.Max);
 			Row->Length = SequenceLength;
 		}
 	}

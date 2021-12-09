@@ -55,7 +55,9 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	// If a new pose is requested, jump to the pose by updating the embedded sequence player node
 	if ((MotionMatchingState.Flags & EMotionMatchingFlags::JumpedToPose) == EMotionMatchingFlags::JumpedToPose)
 	{
-		const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[MotionMatchingState.DbSequenceIdx];
+		const FPoseSearchIndexAsset* SearchIndexAsset = 
+			&MotionMatchingState.CurrentDatabase->SearchIndex.Assets[MotionMatchingState.SearchIndexAssetIdx];
+		const FPoseSearchDatabaseSequence& ResultDbSequence = Database->GetSourceAsset(SearchIndexAsset);
 		SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
 		SequencePlayerNode.SetAccumulatedTime(MotionMatchingState.AssetPlayerTime);
 		SequencePlayerNode.SetLoopAnimation(ResultDbSequence.bLoopAnimation);

@@ -17,7 +17,7 @@ namespace UE::PoseSearch
 {
 	struct FMotionMatchingContinuityParams
 	{
-		FDbSearchResult Result;
+		FSearchResult Result;
 		bool bJumpRequired = false;
 
 		bool IsValid()
@@ -27,7 +27,7 @@ namespace UE::PoseSearch
 
 		void Reset()
 		{
-			Result = UE::PoseSearch::FDbSearchResult();
+			Result = UE::PoseSearch::FSearchResult();
 			bJumpRequired = false;
 		}
 	};
@@ -80,7 +80,7 @@ struct POSESEARCH_API FMotionMatchingState
 	void ComposeQuery(const UPoseSearchDatabase* Database, const FTrajectorySampleRange& Trajectory);
 
 	// Internally stores the 'jump' to a new pose/sequence index and asset time for evaluation
-	void JumpToPose(const UE::PoseSearch::FDbSearchResult& Result);
+	void JumpToPose(const UE::PoseSearch::FSearchResult& Result);
 
 	// Updates DbPoseIdx to track DeltaTime and jumps to a follow-up sequence when available
 	UE::PoseSearch::FMotionMatchingContinuityParams ComputeContinuityParameters(const FAnimationUpdateContext& Context) const;
@@ -91,7 +91,7 @@ struct POSESEARCH_API FMotionMatchingState
 
 	// The current animation we're playing from the database
 	UPROPERTY(Transient)
-	int32 DbSequenceIdx = INDEX_NONE;
+	int32 SearchIndexAssetIdx = INDEX_NONE;
 
 	// The current query feature vector used to search the database for pose candidates
 	UPROPERTY(Transient)
