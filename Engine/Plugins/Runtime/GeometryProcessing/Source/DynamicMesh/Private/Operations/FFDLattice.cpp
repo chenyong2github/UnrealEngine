@@ -13,7 +13,10 @@ FFFDLattice::FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& Mesh, flo
 	check(InDims.X > 1 && InDims.Y > 1 && InDims.Z > 1);
 
 	InitialBounds = Mesh.GetBounds();
-	check(!InitialBounds.IsEmpty());
+	if (InitialBounds.IsEmpty())
+	{
+		InitialBounds = FAxisAlignedBox3d(FVector3d::Zero(), FVector3d::Zero());
+	}
 
 	// Expand the initial bounding box to make the computation of which grid cell a mesh vertex is inside of a little 
 	// less susceptible to numerical error issues.

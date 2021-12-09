@@ -172,6 +172,12 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 	bUsingHiResSource = SourceStaticMesh->IsHiResMeshDescriptionValid();
 	const FMeshDescription* UseSourceMeshDescription =
 		(bUsingHiResSource) ? SourceStaticMesh->GetHiResMeshDescription() : SourceStaticMesh->GetMeshDescription(0);
+
+	if (!UseSourceMeshDescription)
+	{
+		return false;
+	}
+
 	SourceMeshDescription = MakeShared<FMeshDescription>();
 	*SourceMeshDescription = *UseSourceMeshDescription;
 
@@ -929,6 +935,11 @@ void UGenerateStaticMeshLODProcess::UpdateSourceBakeTextureConstraint(UTexture2D
 
 bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData(FProgressCancel* Progress)
 {
+	if (Generator == nullptr)
+	{
+		return false;
+	}
+
 	DerivedTextureImages.Reset();
 
 	Generator->EvaluateResult(

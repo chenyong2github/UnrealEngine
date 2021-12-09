@@ -44,6 +44,11 @@ public:
 
 	void ProcessMesh(const FDynamicMesh3& Mesh, FDynamicMesh3& OutRenderMesh) final
 	{
+		if (Mesh.TriangleCount() == 0 || Mesh.VertexCount() == 0)
+		{
+			return;
+		}
+
 		constexpr bool bAutoCompute = true;
 		FGroupTopology Topo(&Mesh, bAutoCompute);
 		FSubdividePoly Subd(Topo, Mesh, SubdivisionLevel);
@@ -128,7 +133,7 @@ void USubdividePolyTool::CapSubdivisionLevel(ESubdivisionScheme Scheme, int Desi
 		FGroupTopology Topo(OriginalMesh.Get(), bAutoCompute);
 		NumOriginalFaces = Topo.Groups.Num();
 	}
-	int MaxLevel = (int)floor(log2(MaxFaces / NumOriginalFaces) / 2.0);
+	int MaxLevel = (int)floor(log2(MaxFaces / (NumOriginalFaces+1)) / 2.0);
 
 	if (DesiredLevel > MaxLevel)
 	{

@@ -46,6 +46,11 @@ public:
 			return;
 		}
 
+		if (SourceMesh->TriangleCount() == 0 || SourceMesh->VertexCount() == 0)
+		{
+			return;
+		}
+
 		ResultMesh->Copy(*SourceMesh, true, true, true, true);
 	
 		FMergeCoincidentMeshEdges Merger(ResultMesh.Get());

@@ -187,12 +187,15 @@ void FMeshSimpleShapeApproximation::Generate_AlignedBoxes(FSimpleShapeSet3d& Sha
 
 		FAxisAlignedBox3d Bounds = SourceMeshes[idx]->GetBounds();
 
-		FBoxShape3d NewBox;
-		NewBox.Box = FOrientedBox3d(Bounds);
+		if (!Bounds.IsEmpty())
+		{
+			FBoxShape3d NewBox;
+			NewBox.Box = FOrientedBox3d(Bounds);
 
-		GeometryLock.Lock();
-		ShapeSetOut.Boxes.Add(NewBox);
-		GeometryLock.Unlock();
+			GeometryLock.Lock();
+			ShapeSetOut.Boxes.Add(NewBox);
+			GeometryLock.Unlock();
+		}
 	});
 }
 

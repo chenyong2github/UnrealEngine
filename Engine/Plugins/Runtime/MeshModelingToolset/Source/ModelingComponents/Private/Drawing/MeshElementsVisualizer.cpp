@@ -24,7 +24,15 @@ public:
 	virtual FBoxSphereBounds GetBounds() const 
 	{ 
 		FAxisAlignedBox3d Bounds = Mesh.GetBounds();
-		return FBoxSphereBounds((FBox)Bounds);
+
+		if (Bounds.IsEmpty())
+		{
+			return FBoxSphereBounds(EForceInit::ForceInit);
+		}
+		else
+		{
+			return FBoxSphereBounds((FBox)Bounds);
+		}
 	}
 
 	virtual FVector GetVertex(int32 Index) const

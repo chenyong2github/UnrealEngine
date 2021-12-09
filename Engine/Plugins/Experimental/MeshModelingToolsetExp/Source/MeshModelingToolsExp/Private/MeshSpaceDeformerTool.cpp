@@ -162,8 +162,8 @@ void UMeshSpaceDeformerTool::Setup()
 	// with the Z axis (along which the deformation acts) aligned to the longest of the
 	// bounding box dimensions, after scaling them with the transform.
 	FAxisAlignedBox3d BBox = OriginalDynamicMesh->GetBounds();
-	FVector3d Dimensions = BBox.Max - BBox.Min;
-	MeshCenter = (FVector3d)MeshTransform.TransformPosition((FVector)BBox.Center());
+	FVector3d Dimensions = BBox.IsEmpty() ? FVector3d::Zero() : BBox.Max - BBox.Min;
+	MeshCenter = BBox.IsEmpty() ? FVector3d::Zero() : (FVector3d)MeshTransform.TransformPosition((FVector)BBox.Center());
 
 	Dimensions = FVector3d(MeshTransform.GetScale3D().GetAbs()) * Dimensions;
 	double WorldMajorLength = 0;
