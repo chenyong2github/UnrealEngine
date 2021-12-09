@@ -342,6 +342,12 @@ public:
 	virtual bool IsSelectedInEditor() const override;
 	void SetIsSelectedInEditor(bool bValue);
 
+	// Don't show actor preview in the level viewport when DCRA actor is selected, but none of its children are.
+	virtual bool IsDefaultPreviewEnabled() const override
+	{
+		return false;
+	}
+
 protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
 	void RenderPreview_Editor();

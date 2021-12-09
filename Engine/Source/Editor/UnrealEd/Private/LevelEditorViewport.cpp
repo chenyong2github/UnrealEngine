@@ -3638,6 +3638,9 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 		// see if actor has a component with preview capabilities (prioritize camera components)
 		const TSet<UActorComponent*>& Comps = Actor->GetComponents();
 
+		// We need to know if any child component with preview info is selected
+		bool bFoundSelectedComp = false;
+
 		for (UActorComponent* Comp : Comps)
 		{
 			FMinimalViewInfo DummyViewInfo;
@@ -3646,6 +3649,7 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 				if (Comp->IsSelected())
 				{
 					PreviewComponent = Comp;
+					bFoundSelectedComp = true;
 					break;
 				}
 				else if (PreviewComponent)
@@ -3659,6 +3663,12 @@ UActorComponent* FLevelEditorViewportClient::FindViewComponentForActor(AActor co
 				}
 				PreviewComponent = Comp;
 			}
+		}
+
+		// No preview if default preview is forbidden and no children selection found
+		if (!Actor->IsDefaultPreviewEnabled() && !bFoundSelectedComp)
+		{
+			return nullptr;
 		}
 
 		// now see if any actors are attached to us, directly or indirectly, that have an active camera component we might want to use

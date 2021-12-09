@@ -180,6 +180,14 @@ public:
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh=false);
 
 	/**
+	 * Called on all viewports, when element selection changes.
+	 * 
+	 * @param SelectionSet  New selection
+	 * @param bForceRefresh Force refresh
+	 */
+	void OnElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet, bool bForceRefresh);
+
+	/**
 	 * Called when game view should be toggled
 	 */
 	void ToggleGameView() override;
