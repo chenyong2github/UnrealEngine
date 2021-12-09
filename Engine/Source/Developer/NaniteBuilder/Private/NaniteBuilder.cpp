@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("C2B8AABB-2719-4DE5-A2D0-DE9F47AEE07C")
+#define NANITE_DERIVEDDATA_VER TEXT("35BE5CA3-4F92-46B0-8079-59A831459A51")
 
 namespace Nanite
 {
@@ -178,7 +178,7 @@ static void BuildCoarseRepresentation(
 )
 {
 	FCluster CoarseRepresentation = FindDAGCut(Groups, Clusters, TargetErrorMaxNumTris + 4096);
-	CoarseRepresentation.Simplify(TargetNumTris, TargetError, TargetErrorMaxNumTris);
+	CoarseRepresentation.Simplify(TargetErrorMaxNumTris, TargetError, TargetErrorMaxNumTris);
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
@@ -287,123 +287,65 @@ static void ClusterTriangles(
 
 	uint32 NumTriangles = Indexes.Num() / 3;
 
-	TArray< uint32 > SharedEdges;
-	SharedEdges.AddUninitialized( Indexes.Num() );
+	const bool bSingleThreaded = NumTriangles <= 5000;
 
-	TBitArray<> BoundaryEdges;
-	BoundaryEdges.Init( false, Indexes.Num() );
+	FAdjacency Adjacency( Indexes.Num() );
+	FEdgeHash EdgeHash( Indexes.Num() );
 
-	FHashTable EdgeHash( 1 << FMath::FloorLog2( Indexes.Num() ), Indexes.Num() );
+	auto GetPosition = [ &Verts, &Indexes ]( uint32 EdgeIndex )
+	{
+		return Verts[ Indexes[ EdgeIndex ] ].Position;
+	};
 
 	ParallelFor( Indexes.Num(),
 		[&]( int32 EdgeIndex )
 		{
+			EdgeHash.Add_Concurrent( EdgeIndex, GetPosition );
+		},
+		bSingleThreaded );
 
-			uint32 VertIndex0 = Indexes[ EdgeIndex ];
-			uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-			const FVector3f& Position0 = Verts[ VertIndex0 ].Position;
-			const FVector3f& Position1 = Verts[ VertIndex1 ].Position;
-				
-			uint32 Hash0 = HashPosition( Position0 );
-			uint32 Hash1 = HashPosition( Position1 );
-			uint32 Hash = Murmur32( { Hash0, Hash1 } );
-
-			EdgeHash.Add_Concurrent( Hash, EdgeIndex );
-		});
-
-	const int32 NumDwords = FMath::DivideAndRoundUp( BoundaryEdges.Num(), NumBitsPerDWORD );
-
-	ParallelFor( NumDwords,
-		[&]( int32 DwordIndex )
+	ParallelFor( Indexes.Num(),
+		[&]( int32 EdgeIndex )
 		{
-			const int32 NumIndexes = Indexes.Num();
-			const int32 NumBits = FMath::Min( NumBitsPerDWORD, NumIndexes - DwordIndex * NumBitsPerDWORD );
-
-			uint32 Mask = 1;
-			uint32 Dword = 0;
-			for( int32 BitIndex = 0; BitIndex < NumBits; BitIndex++, Mask <<= 1 )
-			{
-				int32 EdgeIndex = DwordIndex * NumBitsPerDWORD + BitIndex;
-
-				uint32 VertIndex0 = Indexes[ EdgeIndex ];
-				uint32 VertIndex1 = Indexes[ Cycle3( EdgeIndex ) ];
-	
-				const FVector3f& Position0 = Verts[ VertIndex0 ].Position;
-				const FVector3f& Position1 = Verts[ VertIndex1 ].Position;
-				
-				uint32 Hash0 = HashPosition( Position0 );
-				uint32 Hash1 = HashPosition( Position1 );
-				uint32 Hash = Murmur32( { Hash1, Hash0 } );
-	
-				// Find edge with opposite direction that shares these 2 verts.
-				/*
-					  /\
-					 /  \
-					o-<<-o
-					o->>-o
-					 \  /
-					  \/
-				*/
-				uint32 FoundEdge = ~0u;
-				for( uint32 OtherEdgeIndex = EdgeHash.First( Hash ); EdgeHash.IsValid( OtherEdgeIndex ); OtherEdgeIndex = EdgeHash.Next( OtherEdgeIndex ) )
+			int32 AdjIndex = -1;
+			int32 AdjCount = 0;
+			EdgeHash.ForAllMatching( EdgeIndex, false, GetPosition,
+				[&]( int32 EdgeIndex, int32 OtherEdgeIndex )
 				{
-					uint32 OtherVertIndex0 = Indexes[ OtherEdgeIndex ];
-					uint32 OtherVertIndex1 = Indexes[ Cycle3( OtherEdgeIndex ) ];
-			
-					if( Position0 == Verts[ OtherVertIndex1 ].Position &&
-						Position1 == Verts[ OtherVertIndex0 ].Position )
-					{
-						// Found matching edge.
-						// Hash table is not in deterministic order. Find stable match not just first.
-						FoundEdge = FMath::Min( FoundEdge, OtherEdgeIndex );
-					}
-				}
-				SharedEdges[ EdgeIndex ] = FoundEdge;
-			
-				if( FoundEdge == ~0u )
-				{
-					Dword |= Mask;
-				}
-			}
-			
-			if( Dword )
-			{
-				BoundaryEdges.GetData()[ DwordIndex ] = Dword;
-			}
-		});
+					AdjIndex = OtherEdgeIndex;
+					AdjCount++;
+				} );
+
+			if( AdjCount > 1 )
+				AdjIndex = -2;
+
+			Adjacency.Direct[ EdgeIndex ] = AdjIndex;
+		},
+		bSingleThreaded );
 
 	FDisjointSet DisjointSet( NumTriangles );
 
-	for( uint32 EdgeIndex = 0, Num = SharedEdges.Num(); EdgeIndex < Num; EdgeIndex++ )
+	for( uint32 EdgeIndex = 0, Num = Indexes.Num(); EdgeIndex < Num; EdgeIndex++ )
 	{
-		uint32 OtherEdgeIndex = SharedEdges[ EdgeIndex ];
-		if( OtherEdgeIndex != ~0u )
+		if( Adjacency.Direct[ EdgeIndex ] == -2 )
 		{
-			// OtherEdgeIndex is smallest that matches EdgeIndex
-			// ThisEdgeIndex is smallest that matches OtherEdgeIndex
-
-			uint32 ThisEdgeIndex = SharedEdges[ OtherEdgeIndex ];
-			check( ThisEdgeIndex != ~0u );
-			check( ThisEdgeIndex <= EdgeIndex );
-
-			if( EdgeIndex > ThisEdgeIndex )
-			{
-				// Previous element points to OtherEdgeIndex
-				SharedEdges[ EdgeIndex ] = ~0u;
-			}
-			else if( EdgeIndex > OtherEdgeIndex )
-			{
-				// Second time seeing this
-				DisjointSet.UnionSequential( EdgeIndex / 3, OtherEdgeIndex / 3 );
-			}
+			EdgeHash.ForAllMatching( EdgeIndex, false, GetPosition,
+				[&]( int32 EdgeIndex0, int32 EdgeIndex1 )
+				{
+					Adjacency.Link( EdgeIndex0, EdgeIndex1 );
+				} );
 		}
+
+		Adjacency.ForAll( EdgeIndex,
+			[&]( int32 EdgeIndex0, int32 EdgeIndex1 )
+			{
+				if( EdgeIndex0 > EdgeIndex1 )
+					DisjointSet.UnionSequential( EdgeIndex0 / 3, EdgeIndex1 / 3 );
+			} );
 	}
 
 	uint32 BoundaryTime = FPlatformTime::Cycles();
-	UE_LOG( LogStaticMesh, Log, TEXT("Boundary [%.2fs], tris: %i, UVs %i%s"), FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f, Indexes.Num() / 3, NumTexCoords, bHasColors ? TEXT(", Color") : TEXT("") );
-
-	LOG_CRC( SharedEdges );
+	UE_LOG( LogStaticMesh, Log, TEXT("Adjacency [%.2fs], tris: %i, UVs %i%s"), FPlatformTime::ToMilliseconds( BoundaryTime - Time0 ) / 1000.0f, Indexes.Num() / 3, NumTexCoords, bHasColors ? TEXT(", Color") : TEXT("") );
 
 	FGraphPartitioner Partitioner( NumTriangles );
 
@@ -430,18 +372,18 @@ static void ClusterTriangles(
 
 			for( int k = 0; k < 3; k++ )
 			{
-				uint32 EdgeIndex = SharedEdges[ 3 * TriIndex + k ];
-				if( EdgeIndex != ~0u )
-				{
-					Partitioner.AddAdjacency( Graph, EdgeIndex / 3, 4 * 65 );
-				}
+				Adjacency.ForAll( 3 * TriIndex + k,
+					[ &Partitioner, Graph ]( int32 EdgeIndex, int32 AdjIndex )
+					{
+						Partitioner.AddAdjacency( Graph, AdjIndex / 3, 4 * 65 );
+					} );
 			}
 
 			Partitioner.AddLocalityLinks( Graph, TriIndex, 1 );
 		}
 		Graph->AdjacencyOffset[ NumTriangles ] = Graph->Adjacency.Num();
 
-		Partitioner.PartitionStrict( Graph, FCluster::ClusterSize - 4, FCluster::ClusterSize, true );
+		Partitioner.PartitionStrict( Graph, FCluster::ClusterSize - 4, FCluster::ClusterSize, !bSingleThreaded );
 		check( Partitioner.Ranges.Num() );
 
 		LOG_CRC( Partitioner.Ranges );
@@ -455,7 +397,6 @@ static void ClusterTriangles(
 	const uint32 BaseCluster = Clusters.Num();
 	Clusters.AddDefaulted( Partitioner.Ranges.Num() );
 
-	const bool bSingleThreaded = Partitioner.Ranges.Num() > 32;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::BuildClusters);
 		ParallelFor( Partitioner.Ranges.Num(),
@@ -463,15 +404,17 @@ static void ClusterTriangles(
 			{
 				auto& Range = Partitioner.Ranges[ Index ];
 
-
-				Clusters[ BaseCluster + Index ] = FCluster( Verts,
-															Indexes,
-															MaterialIndexes,
-															BoundaryEdges, Range.Begin, Range.End, Partitioner.Indexes, NumTexCoords, bHasColors );
+				Clusters[ BaseCluster + Index ] = FCluster(
+					Verts,
+					Indexes,
+					MaterialIndexes,
+					NumTexCoords, bHasColors,
+					Range.Begin, Range.End, Partitioner, Adjacency );
 
 				// Negative notes it's a leaf
 				Clusters[ BaseCluster + Index ].EdgeLength *= -1.0f;
-			}, bSingleThreaded);
+			},
+			bSingleThreaded );
 	}
 
 	uint32 LeavesTime = FPlatformTime::Cycles();
@@ -514,7 +457,6 @@ static bool BuildNaniteData(
 
 	// Don't trust any input. We only have color if it isn't all white.
 	const bool bHasVertexColor = Channel != 255;
-
 	const bool bHasImposter = Resources.NumInputMeshes == 1;
 
 	Resources.ResourceFlags = 0x0;
@@ -538,9 +480,11 @@ static bool BuildNaniteData(
 			uint32 NumClustersBefore = Clusters.Num();
 			if (NumTriangles)
 			{
-				ClusterTriangles(InputMeshData.Vertices, TArrayView< const uint32 >( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
-										TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
-										Clusters, VertexBounds, NumTexCoords, bHasVertexColor);
+				ClusterTriangles(
+					InputMeshData.Vertices,
+					TArrayView< const uint32 >( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
+					TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
+					Clusters, VertexBounds, NumTexCoords, bHasVertexColor);
 			}
 			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
 			BaseTriangle += NumTriangles;

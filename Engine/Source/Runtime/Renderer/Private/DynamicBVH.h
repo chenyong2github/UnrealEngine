@@ -4,57 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-
-struct FBounds
-{
-	FVector4	Min = FVector4(  MAX_flt,  MAX_flt,  MAX_flt );
-	FVector4	Max = FVector4( -MAX_flt, -MAX_flt, -MAX_flt );
-
-	FORCEINLINE FBounds& operator=( const FVector& Other )
-	{
-		Min = Other;
-		Max = Other;
-		return *this;
-	}
-
-	FORCEINLINE FBounds& operator+=( const FVector& Other )
-	{
-		VectorStoreAligned( VectorMin( VectorLoadAligned( &Min ), VectorLoad( &Other ) ), &Min );
-		VectorStoreAligned( VectorMax( VectorLoadAligned( &Max ), VectorLoad( &Other ) ), &Max );
-		return *this;
-	}
-
-	FORCEINLINE FBounds& operator+=( const FBounds& Other )
-	{
-		VectorStoreAligned( VectorMin( VectorLoadAligned( &Min ), VectorLoadAligned( &Other.Min ) ), &Min );
-		VectorStoreAligned( VectorMax( VectorLoadAligned( &Max ), VectorLoadAligned( &Other.Max ) ), &Max );
-		return *this;
-	}
-
-	FORCEINLINE FBounds operator+( const FBounds& Other ) const
-	{
-		return FBounds(*this) += Other;
-	}
-
-	FORCEINLINE float GetSurfaceArea() const
-	{
-		FVector Size = Max - Min;
-		return 0.5f * ( Size.X * Size.Y + Size.X * Size.Z + Size.Y * Size.Z );
-	}
-
-	FORCEINLINE friend FArchive& operator<<( FArchive& Ar, FBounds& Bounds )
-	{
-		Ar << Bounds.Min;
-		Ar << Bounds.Max;
-		return Ar;
-	}
-};
+#include "Math/Bounds.h"
 
 struct FSurfaceAreaHeuristic
 {
 	float operator()( const FBounds& Bounds ) const
 	{
-		FVector Extent = Bounds.Max - Bounds.Min;
+		FVector3f Extent = Bounds.Max - Bounds.Min;
 		return Extent.X * Extent.Y + Extent.X * Extent.Z + Extent.Y * Extent.Z;
 	}
 };
@@ -326,8 +282,8 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_BranchAndBound
 		{
 			for( uint32 i = 0; i < Node.NumChildren; i += 4 )
 			{
-				FVector4 TotalCost;
-				FVector4 ChildCost;
+				FVector4f TotalCost;
+				FVector4f ChildCost;
 				constexpr uint32 Four = MaxChildren < 4 ? MaxChildren : 4;
 				for( uint32 j = 0; j < Four; j++ )
 				{
@@ -444,9 +400,9 @@ uint32 FDynamicBVH< MaxChildren, FCostMetric >::FindBestInsertion_Greedy( const 
 			uint32	BestChildIndex = ~0u;
 			for( uint32 i = 0; i < Node.NumChildren; i += 4 )
 			{
-				FVector4 TotalCost;
-				FVector4 ChildCost;
-				FVector4 Dist;
+				FVector4f TotalCost;
+				FVector4f ChildCost;
+				FVector4f Dist;
 				constexpr uint32 Four = MaxChildren < 4 ? MaxChildren : 4;
 				for( uint32 j = 0; j < Four; j++ )
 				{
@@ -834,7 +790,7 @@ void FDynamicBVH< MaxChildren, FCostMetric >::ForAll( const FPredicate& Predicat
 
 	while( true )
 	{
-		FNode& RESTRICT Node = GetNode( NodeIndex );
+		const FNode& RESTRICT Node = GetNode( NodeIndex );
 
 		for( uint32 i = 0; i < Node.NumChildren; i++ )
 		{

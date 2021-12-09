@@ -17,12 +17,12 @@ FMortonArray::FMortonArray( const TArray< FBounds >& InBounds )
 		TotalBounds += Bounds[i].Min + Bounds[i].Max;
 	}
 
-	FVector Scale = FVector( 1.0f ) / ( TotalBounds.Max - TotalBounds.Min );
-	FVector Bias = -TotalBounds.Min / ( TotalBounds.Max - TotalBounds.Min );
+	FVector3f Scale = FVector3f( 1.0f ) / ( TotalBounds.Max - TotalBounds.Min );
+	FVector3f Bias = -TotalBounds.Min / ( TotalBounds.Max - TotalBounds.Min );
 
 	for( int i = 0; i < Bounds.Num(); i++ )
 	{
-		FVector CenterLocal = ( Bounds[i].Min + Bounds[i].Max ) * Scale + Bias;
+		FVector3f CenterLocal = ( Bounds[i].Min + Bounds[i].Max ) * Scale + Bias;
 
 		uint32 Morton;
 		Morton  = FMath::MortonCode3( CenterLocal.X * 1023 );
@@ -49,14 +49,14 @@ void FMortonArray::RegenerateCodes( const FRange& Range )
 		TotalBounds += Bounds[ Index ].Min + Bounds[ Index ].Max;
 	}
 
-	FVector Scale = FVector( 1.0f ) / ( TotalBounds.Max - TotalBounds.Min );
-	FVector Bias = -TotalBounds.Min / ( TotalBounds.Max - TotalBounds.Min );
+	FVector3f Scale = FVector3f( 1.0f ) / ( TotalBounds.Max - TotalBounds.Min );
+	FVector3f Bias = -TotalBounds.Min / ( TotalBounds.Max - TotalBounds.Min );
 
 	for( int32 i = Range.Begin; i < Range.End; i++ )
 	{
 		uint32 Index = Sorted[i].Index;
 
-		FVector CenterLocal = ( Bounds[ Index ].Min + Bounds[ Index ].Max ) * Scale + Bias;
+		FVector3f CenterLocal = ( Bounds[ Index ].Min + Bounds[ Index ].Max ) * Scale + Bias;
 
 		uint32 Morton;
 		Morton  = FMath::MortonCode3( CenterLocal.X * 1023 );

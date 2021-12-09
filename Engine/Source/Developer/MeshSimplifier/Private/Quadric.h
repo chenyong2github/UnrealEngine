@@ -17,6 +17,7 @@
 #define WEIGHT_BY_AREA		1
 #define VOLUME_CONSTRAINT	1
 #define USE_FMA				0
+#define PSEUDO_INVERSE		0
 
 #if USE_FMA
 // Kahan's algorithm
@@ -145,7 +146,7 @@ struct TVec3
 };
 
 template< typename T >
-FORCEINLINE TVec3<T> operator*( float Scalar, const TVec3<T>& v )
+FORCEINLINE TVec3<T> operator*( T Scalar, const TVec3<T>& v )
 {
 	return v.operator*( Scalar );
 }
@@ -158,7 +159,7 @@ class FEdgeQuadric
 {
 public:
 	FEdgeQuadric() {}
-	FEdgeQuadric( const FVector3f& p0, const FVector3f& p1, const FVector3f& FaceNormal, const float Weight );
+	FEdgeQuadric( const QVec3 p0, const QVec3 p1, const QVec3 FaceNormal, const float Weight );
 	
 	void		Zero();
 
@@ -170,28 +171,16 @@ public:
 	QScalar		nxz;
 	QScalar		nyz;
 	
-	QScalar		nx;
-	QScalar		ny;
-	QScalar		nz;
+	QVec3		n;
 
 	QScalar		a;
 };
 
-inline FEdgeQuadric::FEdgeQuadric( const FVector3f& fp0, const FVector3f& fp1, const FVector3f& FaceNormal, const float Weight )
+inline FEdgeQuadric::FEdgeQuadric( const QVec3 p0, const QVec3 p1, const QVec3 FaceNormal, const float Weight )
 {
-	if( !FaceNormal.IsNormalized() )
-	{
-		Zero();
-		return;
-	}
-
-	const QVec3 p0( fp0 );
-	const QVec3 p1( fp1 );
-	const QVec3 Face( FaceNormal );
-
 	const QVec3 p01 = p1 - p0;
 
-	QVec3 n = p01 ^ Face;
+	n = p01 ^ FaceNormal;
 
 	const QScalar Length = sqrt( n | n );
 	if( Length < (QScalar)SMALL_NUMBER )
@@ -215,10 +204,6 @@ inline FEdgeQuadric::FEdgeQuadric( const FVector3f& fp0, const FVector3f& fp1, c
 	nxy = a * n.x * n.y;
 	nxz = a * n.x * n.z;
 	nyz = a * n.y * n.z;
-
-	nx = n.x;
-	ny = n.y;
-	nz = n.z;
 }
 
 inline void FEdgeQuadric::Zero()
@@ -231,9 +216,7 @@ inline void FEdgeQuadric::Zero()
 	nxz = 0.0;
 	nyz = 0.0;
 
-	nx = 0.0;
-	ny = 0.0;
-	nz = 0.0;
+	n = 0.0;
 	
 	a = 0.0;
 }
@@ -243,12 +226,8 @@ inline void FEdgeQuadric::Zero()
 class FQuadric
 {
 public:
-	FQuadric() {}
-
-	// Quadric for triangle
-	FQuadric( const FVector3f& p0, const FVector3f& p1, const FVector3f& p2 );
-	// Quadric for boundary edge
-	FQuadric( const FVector3f& p0, const FVector3f& p1, const FVector3f& faceNormal, const float edgeWeight );
+				FQuadric() {}
+				FQuadric( const QVec3 p0, const QVec3 p1, const QVec3 p2 );
 	
 	void		Zero();
 
@@ -310,9 +289,8 @@ inline FQuadric& FQuadric::operator+=( const FQuadric& q )
 inline void FQuadric::Add( const FEdgeQuadric& RESTRICT EdgeQuadric, const FVector3f& Point )
 {
 	const QVec3 p0( Point );
-	const QVec3 n( EdgeQuadric.nx, EdgeQuadric.ny, EdgeQuadric.nz );
 	
-	const QScalar Dist = -( n | p0 );
+	const QScalar Dist = -( EdgeQuadric.n | p0 );
 
 	nxx += EdgeQuadric.nxx;
 	nyy += EdgeQuadric.nyy;
@@ -323,7 +301,7 @@ inline void FQuadric::Add( const FEdgeQuadric& RESTRICT EdgeQuadric, const FVect
 	nyz += EdgeQuadric.nyz;
 
 	QScalar aDist = EdgeQuadric.a * Dist;
-	dn += aDist * n;
+	dn += aDist * EdgeQuadric.n;
 	d2 += aDist * Dist;
 }
 
@@ -336,7 +314,7 @@ class FQuadricAttr : public FQuadric
 public:
 				FQuadricAttr() {}
 				FQuadricAttr(
-					const FVector3f& p0, const FVector3f& p1, const FVector3f& p2,
+					const QVec3 p0, const QVec3 p1, const QVec3 p2,
 					const float* a0, const float* a1, const float* a2,
 					const float* AttributeWeights, uint32 NumAttributes
 					);
@@ -368,7 +346,7 @@ class TQuadricAttr : public FQuadricAttr
 public:
 				TQuadricAttr() {}
 				TQuadricAttr(
-					const FVector3f& p0, const FVector3f& p1, const FVector3f& p2,
+					const QVec3 p0, const QVec3 p1, const QVec3 p2,
 					const float* a0, const float* a1, const float* a2,
 					const float* AttributeWeights
 					);
@@ -393,7 +371,7 @@ public:
 
 template< uint32 NumAttributes >
 inline TQuadricAttr< NumAttributes >::TQuadricAttr(
-	const FVector3f& p0, const FVector3f& p1, const FVector3f& p2,
+	const QVec3 p0, const QVec3 p1, const QVec3 p2,
 	const float* a0, const float* a1, const float* a2,
 	const float* AttributeWeights )
 	: FQuadricAttr(

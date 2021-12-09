@@ -54,10 +54,11 @@ public:
 	void		SetEdgeWeight( float Weight )						{ EdgeWeight = Weight; }
 	void		SetCorrectAttributes( void (*Function)( float* ) )	{ CorrectAttributes = Function; }
 
-	QUADRICMESHREDUCTION_API void	SetBoundaryLocked( const TBitArray<>& UnlockedBoundaryEdges );
-	QUADRICMESHREDUCTION_API void	GetBoundaryUnlocked( TBitArray<>& UnlockedBoundaryEdges );
+	QUADRICMESHREDUCTION_API void	LockPosition( const FVector3f& Position );
 
-	QUADRICMESHREDUCTION_API float	Simplify( uint32 TargetNumVerts, uint32 TargetNumTris, float TargetError = 0.0f, uint32 TargetErrorMaxNumTris = 0 );
+	QUADRICMESHREDUCTION_API float	Simplify(
+		uint32 TargetNumVerts, uint32 TargetNumTris, float TargetError,
+		uint32 LimitNumVerts, uint32 LimitNumTris, float LimitError );
 	QUADRICMESHREDUCTION_API void	Compact();
 
 	uint32		GetRemainingNumVerts() const	{ return RemainingNumVerts; }
@@ -107,9 +108,7 @@ protected:
 	TArray< uint32 >	MovedPairs;
 	TArray< uint32 >	ReevaluatePairs;
 
-	TSet< TTuple< FVector3f, FVector3f > >	LockedEdges;
-
-	TArray< uint8 >			TriQuadrics;
+	TArray64< uint8 >		TriQuadrics;
 	TArray< FEdgeQuadric >	EdgeQuadrics;
 	TBitArray<>				EdgeQuadricsValid;
 
@@ -119,17 +118,16 @@ protected:
 	enum ECornerFlags
 	{
 		MergeMask		= 3,		// Merge position 0 or 1
-		TriMask			= (1 << 2),	// Has been added to AdjTris
+		AdjTriMask		= (1 << 2),	// Has been added to AdjTris
 		LockedVertMask	= (1 << 3),	// Vert is locked, disallowing position movement
-		LockedEdgeMask	= (1 << 4),	// Edge is locked, disallowing position movement
+		RemoveTriMask	= (1 << 4),	// Triangle will overlap another after merge and should be removed
 	};
 
 protected:
-	FVector3f&		GetPosition( uint32 VertIndex );
+	FVector3f&			GetPosition( uint32 VertIndex );
 	const FVector3f&	GetPosition( uint32 VertIndex ) const;
-	float*			GetAttributes( uint32 VertIndex );
-	FVector3f			GetNormal( uint32 TriIndex ) const;
-	FQuadricAttr&	GetTriQuadric( uint32 TriIndex );
+	float*				GetAttributes( uint32 VertIndex );
+	FQuadricAttr&		GetTriQuadric( uint32 TriIndex );
 
 	template< typename FuncType >
 	void	ForAllVerts( const FVector3f& Position, FuncType&& Function ) const;
@@ -146,14 +144,13 @@ protected:
 	void	CalcTriQuadric( uint32 TriIndex );
 	void	CalcEdgeQuadric( uint32 EdgeIndex );
 
-	bool	IsBoundaryEdge( uint32 EdgeIndex ) const;
-
 	float	EvaluateMerge( const FVector3f& Position0, const FVector3f& Position1, bool bMoveVerts );
 	
 	void	BeginMovePosition( const FVector3f& Position );
 	void	EndMovePositions();
 
-	bool	TriWillInvert( uint32 TriIndex, const FVector3f& NewPosition );
+	uint32	CornerIndexMoved( uint32 TriIndex ) const;
+	bool	TriWillInvert( uint32 TriIndex, const FVector3f& NewPosition ) const;
 
 	void	FixUpTri( uint32 TriIndex );
 	bool	IsDuplicateTri( uint32 TriIndex ) const;
@@ -175,17 +172,6 @@ FORCEINLINE const FVector3f& FMeshSimplifier::GetPosition( uint32 VertIndex ) co
 FORCEINLINE float* FMeshSimplifier::GetAttributes( uint32 VertIndex )
 {
 	return &Verts[ ( 3 + NumAttributes ) * VertIndex + 3 ];
-}
-
-FORCEINLINE FVector3f FMeshSimplifier::GetNormal( uint32 TriIndex ) const
-{
-	const FVector3f& p0 = GetPosition( Indexes[ TriIndex * 3 + 0 ] );
-	const FVector3f& p1 = GetPosition( Indexes[ TriIndex * 3 + 1 ] );
-	const FVector3f& p2 = GetPosition( Indexes[ TriIndex * 3 + 2 ] );
-
-	FVector3f Normal = ( p2 - p0 ) ^ ( p1 - p0 );
-	Normal.Normalize();
-	return Normal;
 }
 
 FORCEINLINE FQuadricAttr& FMeshSimplifier::GetTriQuadric( uint32 TriIndex )
@@ -769,8 +755,8 @@ FQuadric& TMeshSimplifier<T, NumAttributes>::GetEdgeQuadric( TSimpVert<T>* v )
 			if( faceCount == 1 )
 			{
 				// only one face on this edge
-				FQuadric edgeQuadric( v->GetPos(), vert->GetPos(), face->GetNormal(), EdgeWeight );
-				vertQuadric += edgeQuadric;
+				FEdgeQuadric edgeQuadric( v->GetPos(), vert->GetPos(), face->GetNormal(), EdgeWeight );
+				vertQuadric.Add( edgeQuadric, v->GetPos() );
 			}
 		}
 

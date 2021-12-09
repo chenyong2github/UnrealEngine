@@ -16,8 +16,8 @@ namespace Nanite
 
 struct FClusterGroup
 {
-	FSphere				Bounds;
-	FSphere				LODBounds;
+	FSphere3f			Bounds;
+	FSphere3f			LODBounds;
 	float				MinLODError;
 	float				MaxParentLODError;
 	int32				MipLevel;
