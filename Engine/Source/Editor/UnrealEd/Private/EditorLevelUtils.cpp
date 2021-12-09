@@ -648,38 +648,18 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevel(TSubclassOf<ULevelSt
 	return nullptr;
 }
 
-
-ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWorld, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename /* = TEXT( "" ) */, bool bMoveSelectedActorsIntoNewLevel /* = false */, UWorld* InTemplateWorld /* = nullptr */)
+namespace UE::EditorLevelUtils::Private
 {
-	// Editor modes cannot be active when any level saving occurs.
-	if (!IsRunningCommandlet())
-	{
-		GLevelEditorModeTools().DeactivateAllModes();
-	}
 
-	// This is the world we are adding the new level to
-	UWorld* WorldToAddLevelTo = &InWorld;
+ULevel* GetPersistentLevelForNewStreamingLevel(UWorld* NewLevelWorld, UWorld* InTemplateWorld)
+{
+	check(NewLevelWorld || InTemplateWorld);
+	return NewLevelWorld ? NewLevelWorld->PersistentLevel : InTemplateWorld->PersistentLevel;
+}
 
-	// This is the new streaming level's world not the persistent level world
-	UWorld* NewLevelWorld = nullptr;
-	bool bNewWorldSaved = false;
-	FString NewPackageName = DefaultFilename;
-
-	if (InTemplateWorld)
-	{
-		// Copy and save the new world to disk.
-		bNewWorldSaved = FEditorFileUtils::SaveLevelAs(InTemplateWorld->PersistentLevel, &NewPackageName);
-		if (bNewWorldSaved && !NewPackageName.IsEmpty())
-		{
-			NewPackageName = FPackageName::FilenameToLongPackageName(NewPackageName);
-			UPackage* NewPackage = LoadPackage(nullptr, *NewPackageName, LOAD_None);
-			if (NewPackage)
-			{
-				NewLevelWorld = UWorld::FindWorldInPackage(NewPackage);
-			}
-		}
-	}
-	else
+UWorld* GetWorldForNewStreamingLevel(UWorld* InTemplateWorld)
+{
+	if (!InTemplateWorld)
 	{
 		// Create a new world
 		UWorldFactory* Factory = NewObject<UWorldFactory>();
@@ -689,17 +669,47 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 		UPackage* Pkg = CreatePackage( NULL);
 		FName WorldName(TEXT("Untitled"));
 		EObjectFlags Flags = RF_Public | RF_Standalone;
-		NewLevelWorld = CastChecked<UWorld>(Factory->FactoryCreateNew(UWorld::StaticClass(), Pkg, WorldName, Flags, NULL, GWarn));
+		UWorld* NewLevelWorld = CastChecked<UWorld>(Factory->FactoryCreateNew(UWorld::StaticClass(), Pkg, WorldName, Flags, NULL, GWarn));
 		if (NewLevelWorld)
 		{
 			FAssetRegistryModule::AssetCreated(NewLevelWorld);
 		}
+		return NewLevelWorld;
+	}
+	return nullptr;
+}
+};
 
-		// Save the new world to disk.
-		bNewWorldSaved = FEditorFileUtils::SaveLevel(NewLevelWorld->PersistentLevel, DefaultFilename);
-		if (bNewWorldSaved)
+ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWorld, TSubclassOf<ULevelStreaming> LevelStreamingClass, const FString& DefaultFilename /* = TEXT( "" ) */, bool bMoveSelectedActorsIntoNewLevel /* = false */, UWorld* InTemplateWorld /* = nullptr */)
+{
+	// Editor modes cannot be active when any level saving occurs.
+	if (!IsRunningCommandlet())
+	{
+		GLevelEditorModeTools().DeactivateAllModes();
+	}
+	using namespace UE::EditorLevelUtils::Private;
+
+	// This is the world we are adding the new level to
+	UWorld* WorldToAddLevelTo = &InWorld;
+
+	// This is the new streaming level's world not the persistent level world
+	UWorld* NewLevelWorld = GetWorldForNewStreamingLevel(InTemplateWorld);
+	ULevel* PersistentLevel = GetPersistentLevelForNewStreamingLevel(NewLevelWorld, InTemplateWorld);
+
+	bool bNewWorldSaved = false;
+	FString NewPackageName = DefaultFilename;
+
+	bNewWorldSaved = FEditorFileUtils::SaveLevelAs(PersistentLevel, &NewPackageName);
+	if (bNewWorldSaved && !NewPackageName.IsEmpty())
+	{
+		NewPackageName = FPackageName::FilenameToLongPackageName(NewPackageName);
+		if (!NewLevelWorld)
 		{
-			NewPackageName = NewLevelWorld->GetOutermost()->GetName();
+			UPackage* NewPackage = LoadPackage(nullptr, *NewPackageName, LOAD_None);
+			if (NewPackage)
+			{
+				NewLevelWorld = UWorld::FindWorldInPackage(NewPackage);
+			}
 		}
 	}
 
