@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "AnimCharacterMovementTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "AnimCharacterMovementLibrary.generated.h"
@@ -18,26 +17,6 @@ class ANIMATIONLOCOMOTIONLIBRARYRUNTIME_API UAnimCharacterMovementLibrary : publ
 	GENERATED_BODY()
 
 public:
-
-	/**
-	 * Calculate the closest cardinal direction to the direction the character is currently moving.
-	 * @param PreviousCardinalDirection - The cardinal direction from the previous frame. Typically the animation blueprint holds a EAnimCardinalDirection variable.
-	 * @param DirectionAngleInDegrees - The direction that the character is currently moving.
-	 * @param DirectionDeadZoneAngle - Deadzone to prevent flickering between directions at angle boundaries.
-	 * @return The resulting cardinal direction.
-	 */
-	UFUNCTION(BlueprintPure, Category = "Animation Character Movement", meta = (BlueprintThreadSafe))
-	static EAnimCardinalDirection GetCardinalDirectionFromAngle(EAnimCardinalDirection PreviousCardinalDirection, float DirectionAngleInDegrees, float DeadZoneAngle);
-
-	/**
-	 * Select an animation to play based on the cardinal direction calculated by GetCardinalDirectionFromAngle(). For example, this can pick a start animation
-	 * to play based on the character's movement direction.	    
-	 * @param CardinalDirection - The closest cardinal direction to the character's movement direction.
-	 * @param AnimSet - The set of animations to choose from.
-	 * @return The animation to play.
-	 */
-	UFUNCTION(BlueprintPure, Category = "Animation Character Movement", meta = (BlueprintThreadSafe))
-	static const UAnimSequence* SelectAnimForCardinalDirection(EAnimCardinalDirection CardinalDirection, const FCardinalDirectionAnimSet& AnimSet);
 
 	/**
 	 * Predict where the character will stop based on its current movement properties and parameters from the movement component.
