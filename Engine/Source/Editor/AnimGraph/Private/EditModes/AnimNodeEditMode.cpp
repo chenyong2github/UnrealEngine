@@ -398,7 +398,7 @@ void FAnimNodeEditMode::Exit()
 {
 	IAnimNodeEditMode::Exit();
 
-	ExitMode(); // Editor modes can be destroyed without a call to ExitMode. Calling it here to ensure everything is cleaned up correctly.
+	AnimNodes.Empty();
 }
 
 UAnimGraphNode_Base* FAnimNodeEditMode::GetActiveWidgetAnimNode() const
