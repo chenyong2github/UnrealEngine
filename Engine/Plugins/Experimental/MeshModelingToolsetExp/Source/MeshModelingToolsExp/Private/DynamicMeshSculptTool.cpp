@@ -2197,31 +2197,37 @@ UPreviewMesh* UDynamicMeshSculptTool::MakeDefaultSphereMesh(UObject* Parent, UWo
 void UDynamicMeshSculptTool::IncreaseBrushRadiusAction()
 {	
 	BrushProperties->BrushSize.IncreaseRadius(false);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UDynamicMeshSculptTool::DecreaseBrushRadiusAction()
 {
 	BrushProperties->BrushSize.DecreaseRadius(false);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UDynamicMeshSculptTool::IncreaseBrushRadiusSmallStepAction()
 {
 	BrushProperties->BrushSize.IncreaseRadius(true);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UDynamicMeshSculptTool::DecreaseBrushRadiusSmallStepAction()
 {
 	BrushProperties->BrushSize.DecreaseRadius(true);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UDynamicMeshSculptTool::IncreaseBrushSpeedAction()
 {
 	SculptProperties->PrimaryBrushSpeed = FMath::Clamp(SculptProperties->PrimaryBrushSpeed + 0.05f, 0.0f, 1.0f);
+	NotifyOfPropertyChangeByTool(SculptProperties);
 }
 
 void UDynamicMeshSculptTool::DecreaseBrushSpeedAction()
 {
 	SculptProperties->PrimaryBrushSpeed = FMath::Clamp(SculptProperties->PrimaryBrushSpeed - 0.05f, 0.0f, 1.0f);
+	NotifyOfPropertyChangeByTool(SculptProperties);
 }
 
 

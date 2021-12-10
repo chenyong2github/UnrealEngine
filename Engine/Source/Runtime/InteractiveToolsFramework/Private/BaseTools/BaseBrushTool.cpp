@@ -63,12 +63,14 @@ void UBaseBrushTool::IncreaseBrushSizeAction()
 {
 	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize + 0.025f, 0.0f, 1.0f);
 	RecalculateBrushRadius();
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UBaseBrushTool::DecreaseBrushSizeAction()
 {
 	BrushProperties->BrushSize = FMath::Clamp(BrushProperties->BrushSize - 0.025f, 0.0f, 1.0f);
 	RecalculateBrushRadius();
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 
@@ -79,6 +81,7 @@ void UBaseBrushTool::IncreaseBrushStrengthAction()
 
 	float NewValue = OldValue + ChangeAmount;
 	BrushProperties->BrushStrength = FMath::Clamp(NewValue, 0.f, 1.f);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UBaseBrushTool::DecreaseBrushStrengthAction()
@@ -88,6 +91,7 @@ void UBaseBrushTool::DecreaseBrushStrengthAction()
 
 	float NewValue = OldValue - ChangeAmount;
 	BrushProperties->BrushStrength = FMath::Clamp(NewValue, 0.f, 1.f);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 
@@ -98,6 +102,7 @@ void UBaseBrushTool::IncreaseBrushFalloffAction()
 
 	float NewValue = OldValue + ChangeAmount;
 	BrushProperties->BrushFalloffAmount = FMath::Clamp(NewValue, 0.f, 1.f);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UBaseBrushTool::DecreaseBrushFalloffAction()
@@ -107,6 +112,7 @@ void UBaseBrushTool::DecreaseBrushFalloffAction()
 
 	float NewValue = OldValue - ChangeAmount;
 	BrushProperties->BrushFalloffAmount = FMath::Clamp(NewValue, 0.f, 1.f);
+	NotifyOfPropertyChangeByTool(BrushProperties);
 }
 
 void UBaseBrushTool::RegisterActions(FInteractiveToolActionSet& ActionSet)

@@ -325,24 +325,28 @@ void UMeshGroupPaintTool::IncreaseBrushRadiusAction()
 {
 	Super::IncreaseBrushRadiusAction();
 	FilterProperties->BrushSize = BrushProperties->BrushSize.AdaptiveSize;
+	NotifyOfPropertyChangeByTool(FilterProperties);
 }
 
 void UMeshGroupPaintTool::DecreaseBrushRadiusAction()
 {
 	Super::DecreaseBrushRadiusAction();
 	FilterProperties->BrushSize = BrushProperties->BrushSize.AdaptiveSize;
+	NotifyOfPropertyChangeByTool(FilterProperties);
 }
 
 void UMeshGroupPaintTool::IncreaseBrushRadiusSmallStepAction()
 {
 	Super::IncreaseBrushRadiusSmallStepAction();
 	FilterProperties->BrushSize = BrushProperties->BrushSize.AdaptiveSize;
+	NotifyOfPropertyChangeByTool(FilterProperties);
 }
 
 void UMeshGroupPaintTool::DecreaseBrushRadiusSmallStepAction()
 {
 	Super::DecreaseBrushRadiusSmallStepAction();
 	FilterProperties->BrushSize = BrushProperties->BrushSize.AdaptiveSize;
+	NotifyOfPropertyChangeByTool(FilterProperties);
 }
 
 

@@ -1081,6 +1081,7 @@ void UMeshVertexSculptTool::IncreaseBrushSpeedAction()
 	float CurStrength = UseBrushOp->PropertySet->GetStrength();
 	float NewStrength = FMath::Clamp(CurStrength + 0.05f, 0.0f, 1.0f);
 	UseBrushOp->PropertySet->SetStrength(NewStrength);
+	NotifyOfPropertyChangeByTool(UseBrushOp->PropertySet.Get());
 }
 
 void UMeshVertexSculptTool::DecreaseBrushSpeedAction()
@@ -1089,6 +1090,7 @@ void UMeshVertexSculptTool::DecreaseBrushSpeedAction()
 	float CurStrength = UseBrushOp->PropertySet->GetStrength();
 	float NewStrength = FMath::Clamp(CurStrength - 0.05f, 0.0f, 1.0f);
 	UseBrushOp->PropertySet->SetStrength(NewStrength);
+	NotifyOfPropertyChangeByTool(UseBrushOp->PropertySet.Get());
 }
 
 void UMeshVertexSculptTool::UpdateBrushAlpha(UTexture2D* NewAlpha)
