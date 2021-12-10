@@ -27,6 +27,7 @@ class UAnimSequenceBase;
 class UBlendSpace;
 class UPoseAsset;
 class UMirrorDataTable;
+struct FAnimationUpdateContext;
 
 namespace UE { namespace Anim {
 class IAnimNotifyEventContextDataInterface;
@@ -354,7 +355,8 @@ struct FAnimTickRecord
 	bool bLooping = false;
 	const UMirrorDataTable* MirrorDataTable = nullptr;
 
-	TArray<TSharedPtr<const UE::Anim::IAnimNotifyEventContextDataInterface>> ContextData;	
+	TSharedPtr<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>> ContextData;
+
 	union
 	{
 		struct
@@ -420,6 +422,9 @@ public:
 	// Create a tick record for a pose asset
 	ENGINE_API FAnimTickRecord(UPoseAsset* InPoseAsset, float InFinalBlendWeight);
 
+	// Gather any data from the current update context
+	ENGINE_API void GatherContextData(const FAnimationUpdateContext& InContext);
+	
 	/** This can be used with the Sort() function on a TArray of FAnimTickRecord to sort from higher leader score */
 	ENGINE_API bool operator <(const FAnimTickRecord& Other) const { return LeaderScore > Other.LeaderScore; }
 };

@@ -396,7 +396,7 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 				if (NotifyContext.TickRecord)
 				{
 					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, NotifyContext.TickRecord->MirrorDataTable);
-					NotifyContext.ActiveNotifies.Top().SetContextDataInterfaces(NotifyContext.TickRecord->ContextData);
+					NotifyContext.ActiveNotifies.Top().GatherTickRecordData(*NotifyContext.TickRecord);
 				}
 				else
 				{
@@ -418,7 +418,7 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 				if (NotifyContext.TickRecord)
 				{
 					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, NotifyContext.TickRecord->MirrorDataTable);
-					NotifyContext.ActiveNotifies.Top().SetContextDataInterfaces(NotifyContext.TickRecord->ContextData); 
+					NotifyContext.ActiveNotifies.Top().GatherTickRecordData(*NotifyContext.TickRecord); 
 				}
 				else
 				{

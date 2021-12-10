@@ -11,6 +11,7 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/PoseAsset.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimNodeBase.h"
 
 #define LOCTEXT_NAMESPACE "AnimationAsset"
 
@@ -229,6 +230,24 @@ FAnimTickRecord::FAnimTickRecord(UPoseAsset* InPoseAsset, float InFinalBlendWeig
 {
 	SourceAsset = InPoseAsset;
 	EffectiveBlendWeight = InFinalBlendWeight;
+}
+
+void FAnimTickRecord::GatherContextData(const FAnimationUpdateContext& InContext)
+{
+	if(InContext.GetSharedContext())
+	{
+		TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>> NewContextData;
+		InContext.GetSharedContext()->MessageStack.MakeEventContextData(NewContextData);
+		if(NewContextData.Num())
+		{
+			if(!ContextData.IsValid())
+			{
+				ContextData = MakeShared<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>>();
+			}
+
+			ContextData->Append(MoveTemp(NewContextData));
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

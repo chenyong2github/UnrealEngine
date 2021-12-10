@@ -12,9 +12,9 @@ bool operator==(const FAnimNotifyEventReference& Lhs, const FAnimNotifyEvent& Rh
 	return false;
 }
 
-void FAnimNotifyEventReference::SetContextDataInterfaces(const TArray<TSharedPtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>& InContextData)
+void FAnimNotifyEventReference::GatherTickRecordData(const FAnimTickRecord& InTickRecord)
 {
-	ContextData = InContextData; 
+	ContextData = InTickRecord.ContextData;
 }
 
 bool FAnimNotifyQueue::PassesFiltering(const FAnimNotifyEvent* Notify) const

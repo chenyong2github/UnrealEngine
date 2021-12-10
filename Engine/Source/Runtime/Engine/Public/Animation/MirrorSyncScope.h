@@ -29,7 +29,7 @@ public:
 	FMirrorSyncScope(const FAnimationBaseContext& InContext, const UMirrorDataTable* InMirrorDataTable);
 	virtual ~FMirrorSyncScope();
 	int32 GetMirrorScopeDepth() const;
-	TSharedPtr<const IAnimNotifyEventContextDataInterface> MakeEventContextData() const override;
+	virtual TUniquePtr<const IAnimNotifyEventContextDataInterface> MakeUniqueEventContextData() const override;
 private:
 	const UMirrorDataTable* MirrorDataTable = nullptr;
 	int32 MirrorScopeDepth = 1; 

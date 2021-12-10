@@ -99,10 +99,16 @@ public:
 		return *static_cast<Type*>(this);
 	}
 
+	UE_DEPRECATED(5.0, "No longer in use, please use MakeUniqueEventContextData")
 	virtual TSharedPtr<const IAnimNotifyEventContextDataInterface> MakeEventContextData() const
 	{
 		TSharedPtr<const IAnimNotifyEventContextDataInterface> NullPtr;
 		return NullPtr; 
+	}
+
+	virtual TUniquePtr<const IAnimNotifyEventContextDataInterface> MakeUniqueEventContextData() const
+	{
+		return TUniquePtr<const IAnimNotifyEventContextDataInterface>(); 
 	}
 
 private:
@@ -272,7 +278,7 @@ public:
 
 	// Call MakeEventContextData for the top entry of each MessageType, returning interfaces for types that return event data
 	// @param	ContextData		An array of valid IAnimNotifyEventContextDataInterface.  Only one entry will exist per message type
-	void MakeEventContextData(TArray<TSharedPtr<const IAnimNotifyEventContextDataInterface>>& ContextData) const;
+	void MakeEventContextData(TArray<TUniquePtr<const IAnimNotifyEventContextDataInterface>>& ContextData) const;
 
 private:
 	// Push a message onto the stack

@@ -72,9 +72,9 @@ int32 FMirrorSyncScope::GetMirrorScopeDepth() const
 	return MirrorScopeDepth;
 }
 
-TSharedPtr<const IAnimNotifyEventContextDataInterface> FMirrorSyncScope::MakeEventContextData() const
+TUniquePtr<const IAnimNotifyEventContextDataInterface> FMirrorSyncScope::MakeUniqueEventContextData() const
 {
-	return MakeShared<FAnimNotifyMirrorContext>(MirrorDataTable);
+	return MakeUnique<FAnimNotifyMirrorContext>(MirrorDataTable);
 }
 
 }}	// namespace UE::Anim

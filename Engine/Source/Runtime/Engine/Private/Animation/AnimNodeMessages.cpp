@@ -189,7 +189,7 @@ void FMessageStack::CopyForCachedUpdate(const FMessageStack& InStack)
 	}
 }
 
-void FMessageStack::MakeEventContextData(TArray<TSharedPtr<const IAnimNotifyEventContextDataInterface>>& ContextData) const
+void FMessageStack::MakeEventContextData(TArray<TUniquePtr<const IAnimNotifyEventContextDataInterface>>& ContextData) const
 {
 	ContextData.Empty();
 	for (const TPair<FName, FMessageStackEntry>& MessageStackPair : MessageStacks)
@@ -198,13 +198,12 @@ void FMessageStack::MakeEventContextData(TArray<TSharedPtr<const IAnimNotifyEven
 		if(StackEntry.Num())
 		{
 			const FMessageEntry& MessageEntry = StackEntry.Top();
-			TSharedPtr<const IAnimNotifyEventContextDataInterface> NotifyData = MessageEntry.Message->MakeEventContextData();
-			if(NotifyData)
+			if(TUniquePtr<const IAnimNotifyEventContextDataInterface> NotifyData = MessageEntry.Message->MakeUniqueEventContextData())
 			{
-				ContextData.Emplace(NotifyData);
+				ContextData.Add(MoveTemp(NotifyData));
 			}
 		}
 	}
 }
-	
+
 }}	// namespace UE::Anim
