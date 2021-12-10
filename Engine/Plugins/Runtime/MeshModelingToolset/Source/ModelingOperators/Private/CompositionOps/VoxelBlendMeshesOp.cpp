@@ -69,7 +69,15 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			TFastWindingTree<FDynamicMesh3> Winding(&Spatial);
 			TImplicitSolidify<FDynamicMesh3> Solidify(&TransformedMeshes[MeshIdx], &Spatial, &Winding);
 			Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), 0, InputVoxelCount);
+			Solidify.CancelF = [&Progress]()
+			{
+				return Progress && Progress->Cancelled();
+			};
 			TransformedMeshes[MeshIdx].Copy(&Solidify.Generate());
+			
+			if (Progress && Progress->Cancelled()) {
+				return;
+			};
 
 			if (bRemoveInternalsAfterVoxWrap)
 			{
@@ -93,7 +101,6 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	ImplicitBlend.SetCellSizesAndFalloff(CombinedBounds, BlendFalloff, InputVoxelCount, OutputVoxelCount);
 	ImplicitBlend.BlendPower = BlendPower;
-
 	ImplicitBlend.CancelF = [&Progress]()
 	{
 		return Progress && Progress->Cancelled();
