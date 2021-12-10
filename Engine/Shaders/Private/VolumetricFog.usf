@@ -204,10 +204,6 @@ int VirtualShadowMapId;
 #define HISTORY_MISS_SUPER_SAMPLE_COUNT 1
 #endif
 
-#ifndef INVERSE_SQUARED_FALLOFF
-#define INVERSE_SQUARED_FALLOFF 1
-#endif
-
 #if	USE_LIGHT_FUNCTION
 
 /** Matrix can be either WorldToShadow or WorldToLight depending on light type. */
@@ -291,8 +287,7 @@ void InjectShadowedLocalLightPS(
 		LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
 		LightData.RectLightBarnCosAngle = DeferredLightUniforms.RectLightBarnCosAngle;
 		LightData.RectLightBarnLength = DeferredLightUniforms.RectLightBarnLength;
-
-		LightData.bInverseSquared = INVERSE_SQUARED_FALLOFF;		
+		LightData.bInverseSquared = DeferredLightUniforms.FalloffExponent == 0;
 		LightData.bRadialLight = true;
 		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 		LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;

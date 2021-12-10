@@ -256,6 +256,11 @@ FDeferredLightUniformStruct GetDeferredLightParameters(const FSceneView& View, c
 
 	Out.LightingChannelMask = LightSceneInfo.Proxy->GetLightingChannelMask();
 
+	// Ensure the light falloff exponent is set to 0 so that lighting shaders handle it as inverse-squared attenuated light
+	if (LightSceneInfo.Proxy->IsInverseSquared())
+	{
+		Out.LightParameters.FalloffExponent = 0.0f;
+	}
 	return Out;
 }
 
@@ -413,7 +418,6 @@ class FDeferredLightPS : public FGlobalShader
 	class FSourceShapeDim		: SHADER_PERMUTATION_ENUM_CLASS("LIGHT_SOURCE_SHAPE", ELightSourceShape);
 	class FSourceTextureDim		: SHADER_PERMUTATION_BOOL("USE_SOURCE_TEXTURE");
 	class FIESProfileDim		: SHADER_PERMUTATION_BOOL("USE_IES_PROFILE");
-	class FInverseSquaredDim	: SHADER_PERMUTATION_BOOL("INVERSE_SQUARED_FALLOFF");
 	class FVisualizeCullingDim	: SHADER_PERMUTATION_BOOL("VISUALIZE_LIGHT_CULLING");
 	class FLightingChannelsDim	: SHADER_PERMUTATION_BOOL("USE_LIGHTING_CHANNELS");
 	class FTransmissionDim		: SHADER_PERMUTATION_BOOL("USE_TRANSMISSION");
@@ -427,7 +431,6 @@ class FDeferredLightPS : public FGlobalShader
 		FSourceShapeDim,
 		FSourceTextureDim,
 		FIESProfileDim,
-		FInverseSquaredDim,
 		FVisualizeCullingDim,
 		FLightingChannelsDim,
 		FTransmissionDim,
@@ -465,9 +468,7 @@ class FDeferredLightPS : public FGlobalShader
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if( PermutationVector.Get< FSourceShapeDim >() == ELightSourceShape::Directional && (
-			PermutationVector.Get< FIESProfileDim >() ||
-			PermutationVector.Get< FInverseSquaredDim >() ) )
+		if (PermutationVector.Get< FSourceShapeDim >() == ELightSourceShape::Directional && PermutationVector.Get< FIESProfileDim >())
 		{
 			return false;
 		}
@@ -477,19 +478,9 @@ class FDeferredLightPS : public FGlobalShader
 			return false;
 		}
 
-		if( PermutationVector.Get< FSourceShapeDim >() == ELightSourceShape::Rect )
+		if( PermutationVector.Get< FSourceShapeDim >() != ELightSourceShape::Rect && PermutationVector.Get< FSourceTextureDim >())
 		{
-			if(	!PermutationVector.Get< FInverseSquaredDim >() )
-			{
-				return false;
-			}
-		}
-		else
-		{
-			if( PermutationVector.Get< FSourceTextureDim >() )
-			{
-				return false;
-			}
+			return false;
 		}
 
 		if (PermutationVector.Get< FHairLighting >() && (
@@ -501,6 +492,11 @@ class FDeferredLightPS : public FGlobalShader
 
 		if (PermutationVector.Get<FDeferredLightPS::FAnistropicMaterials>())
 		{
+			if (Strata::IsStrataEnabled())
+			{
+				return false;
+			}
+
 			// Anisotropic materials do not currently support rect lights
 			if (PermutationVector.Get<FSourceShapeDim>() == ELightSourceShape::Rect || PermutationVector.Get<FSourceTextureDim>())
 			{
@@ -2024,6 +2020,7 @@ static void RenderLight(
 	const FSphere LightBounds = LightProxy->GetBoundingSphere();
 	const ELightComponentType LightType = (ELightComponentType)LightProxy->GetLightType();
 	const bool bIsRadial = LightType != LightType_Directional;
+	const bool bSupportAnisotropyPermutation = ShouldRenderAnisotropyPass(View) && !Strata::IsStrataEnabled(); // Strata managed anisotropy differently than legacy path. No need for special permutation.
 
 	// Debug Overlap shader
 	if (bRenderOverlap)
@@ -2099,8 +2096,7 @@ static void RenderLight(
 			PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >(LightProxy->IsRectLight() ? ELightSourceShape::Rect : ELightSourceShape::Capsule);
 			PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >(LightProxy->IsRectLight() && LightProxy->HasSourceTexture());
 			PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(bUseIESTexture);
-			PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >(LightProxy->IsInverseSquared());
-			PermutationVector.Set< FDeferredLightPS::FAnistropicMaterials >(ShouldRenderAnisotropyPass(View) && !LightSceneInfo->Proxy->IsRectLight());
+			PermutationVector.Set< FDeferredLightPS::FAnistropicMaterials >(bSupportAnisotropyPermutation && !LightSceneInfo->Proxy->IsRectLight());
 			PermutationVector.Set < FDeferredLightPS::FAtmosphereTransmittance >(false);
 			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
 		}
@@ -2109,8 +2105,7 @@ static void RenderLight(
 			PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >(ELightSourceShape::Directional);
 			PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >(false);
 			PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(false);
-			PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >(false);
-			PermutationVector.Set< FDeferredLightPS::FAnistropicMaterials >(ShouldRenderAnisotropyPass(View));
+			PermutationVector.Set< FDeferredLightPS::FAnistropicMaterials >(bSupportAnisotropyPermutation);
 			// Only directional lights are rendered in this path, so we only need to check if it is use to light the atmosphere
 			PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(PassParameters->PS.CloudShadow.bAtmospherePerPixelTransmittance > 0);
 			PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(PassParameters->PS.CloudShadow.bCloudPerPixelTransmittance > 0);
@@ -2223,7 +2218,6 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >(ELightSourceShape::Directional);
 		PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >(false);
 		PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(false);
-		PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >(false);
 		PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(PassParameters->PS.CloudShadow.bAtmospherePerPixelTransmittance > 0.f);
 		PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(PassParameters->PS.CloudShadow.bCloudPerPixelTransmittance > 0.f);
 	}
@@ -2233,7 +2227,6 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		PermutationVector.Set< FDeferredLightPS::FSourceShapeDim >(LightSceneInfo->Proxy->IsRectLight() ? ELightSourceShape::Rect : ELightSourceShape::Capsule);
 		PermutationVector.Set< FDeferredLightPS::FSourceTextureDim >(LightSceneInfo->Proxy->IsRectLight() && LightSceneInfo->Proxy->HasSourceTexture());
 		PermutationVector.Set< FDeferredLightPS::FIESProfileDim >(bUseIESTexture);
-		PermutationVector.Set< FDeferredLightPS::FInverseSquaredDim >(LightSceneInfo->Proxy->IsInverseSquared());
 		PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(false);
 		PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
 	}
@@ -2418,13 +2411,7 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 		PermutationVector.Set< FDeferredLightPS::FAtmosphereTransmittance >(false);
 		PermutationVector.Set< FDeferredLightPS::FCloudTransmittance >(false);
 		PermutationVector.Set< FDeferredLightPS::FStrataFastPath>(false);
-
-		FDeferredLightPS::FPermutationDomain PermutationVector_bInverseSquaredFalloff0;
-		FDeferredLightPS::FPermutationDomain PermutationVector_bInverseSquaredFalloff1;
-		PermutationVector_bInverseSquaredFalloff0.Set<FDeferredLightPS::FInverseSquaredDim>(false);
-		PermutationVector_bInverseSquaredFalloff1.Set<FDeferredLightPS::FInverseSquaredDim>(true);
-		TShaderMapRef<FDeferredLightPS> PixelShader0(View.ShaderMap, PermutationVector);
-		TShaderMapRef<FDeferredLightPS> PixelShader1(View.ShaderMap, PermutationVector);
+		TShaderMapRef<FDeferredLightPS> PixelShader(View.ShaderMap, PermutationVector);
 
 		FDeferredLightVS::FPermutationDomain PermutationVectorVS;
 		PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
@@ -2434,7 +2421,7 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 			RDG_EVENT_NAME("StandardDeferredSimpleLights"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View, &SimpleLights, ViewIndex, NumViews, PassParameters, PixelShader0, PixelShader1, VertexShader](FRHICommandList& RHICmdList)
+			[this, &View, &SimpleLights, ViewIndex, NumViews, PassParameters, PixelShader, VertexShader](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -2460,27 +2447,16 @@ void FDeferredShadingSceneRenderer::RenderSimpleLightsStandardDeferred(
 								|| !View.IsPerspectiveProjection();
 
 				SetBoundingGeometryRasterizerAndDepthState(GraphicsPSOInit, View, bCameraInsideLightGeometry);
-
-				const bool bInverseSquaredFalloff = SimpleLight.Exponent == 0;
-
 				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = bInverseSquaredFalloff ? PixelShader1.GetPixelShader() : PixelShader0.GetPixelShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 
 				// Update the light parameters with a custom uniform buffer
 				FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData);
-				if (bInverseSquaredFalloff)
-				{
-					SetShaderParameters(RHICmdList, PixelShader1, PixelShader1.GetPixelShader(), PassParameters->PS);
-					SetUniformBufferParameterImmediate(RHICmdList, RHICmdList.GetBoundPixelShader(), PixelShader0->GetUniformBufferParameter<FDeferredLightUniformStruct>(), DeferredLightUniformsValue);
-				}
-				else
-				{
-					SetShaderParameters(RHICmdList, PixelShader0, PixelShader0.GetPixelShader(), PassParameters->PS);
-					SetUniformBufferParameterImmediate(RHICmdList, RHICmdList.GetBoundPixelShader(), PixelShader0->GetUniformBufferParameter<FDeferredLightUniformStruct>(), DeferredLightUniformsValue);
-				}
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+				SetUniformBufferParameterImmediate(RHICmdList, RHICmdList.GetBoundPixelShader(), PixelShader->GetUniformBufferParameter<FDeferredLightUniformStruct>(), DeferredLightUniformsValue);
 
 				// Update vertex shader parameters with custom parameters/uniform buffer
 				FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, LightBounds);

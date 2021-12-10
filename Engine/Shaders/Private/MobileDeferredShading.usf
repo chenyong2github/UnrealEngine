@@ -30,10 +30,6 @@
 #include "/Engine/Public/Platform/Vulkan/VulkanSubpassSupport.ush"
 #endif
 
-#ifndef INVERSE_SQUARED_FALLOFF 
-#define INVERSE_SQUARED_FALLOFF 0	
-#endif 
-
 #ifndef IS_SPOT_LIGHT 
 #define IS_SPOT_LIGHT 0 
 #endif 
@@ -394,7 +390,7 @@ void MobileRadialLightPS(
 		LightData.Direction = DeferredLightUniforms.Direction;
 		LightData.SpotAngles = DeferredLightUniforms.SpotAngles;
 		LightData.SpecularScale = 1.0;
-		LightData.bInverseSquared = INVERSE_SQUARED_FALLOFF; 
+		LightData.bInverseSquared = DeferredLightUniforms.FalloffExponent == 0;
 		LightData.bSpotLight = IS_SPOT_LIGHT; 
 	}
 
