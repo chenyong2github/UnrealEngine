@@ -34,6 +34,21 @@ namespace DatasmithMaxDirectLink
 class ISceneTracker;
 class FLayerTracker;
 
+
+// Global export options, stored in preferences
+class IPersistentExportOptions
+{
+public:
+	 // Whether to export all visible or selected objects only
+	virtual void SetSelectedOnly(bool) = 0;
+	virtual bool GetSelectedOnly() = 0;
+
+
+	// Whether to export animation or not
+	virtual void SetAnimatedTransforms(bool) = 0;
+	virtual bool GetAnimatedTransforms() = 0;
+};
+
 //---- Main class for export/change tracking
 class IExporter
 {
@@ -64,11 +79,12 @@ class IExporter
 	virtual void SetAutoSyncIdleDelay(float Seconds) = 0;
 };
 
-
 bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath); // Create exporter with ability for DirectLink change tracking
 IExporter* GetExporter();
 void ShutdownExporter();
-bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet); 
+bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet);
+
+IPersistentExportOptions& GetPersistentExportOptions();
 
 // Identifies Max node to track its changes
 class FNodeTracker: FNoncopyable

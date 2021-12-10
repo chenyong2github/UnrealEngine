@@ -52,7 +52,6 @@ Value* OnLoad_cf(Value **arg_list, int count)
 	{
 		return &false_value;
 	}
-	GetExporter()->ParseScene();
 
 	return bool_result(true);
 }
@@ -242,6 +241,30 @@ Value* OpenDirectlinkUi_cf(Value** arg_list, int count)
 }
 Primitive OpenDirectlinkUi_pf(_M("Datasmith_OpenDirectlinkUi"), OpenDirectlinkUi_cf);
 
+#define DefinePersistentExportOption(name) \
+Value* GetExportOption_##name##_cf(Value** arg_list, int count) \
+{ \
+	check_arg_count(GetExportOption_##name, 0, count); \
+ \
+	return bool_result(GetPersistentExportOptions().Get##name##()); \
+} \
+Primitive GetExportOption_##name##_pf(_M("Datasmith_GetExportOption_" #name), GetExportOption_##name##_cf);\
+\
+Value* SetExportOption_##name##_cf(Value** arg_list, int count) \
+{ \
+	check_arg_count(SetExportOption_##name, 1, count); \
+	Value* pValue= arg_list[0]; \
+	GetPersistentExportOptions().Set##name##(pValue->to_bool()); \
+	return &true_value; \
+} \
+Primitive SetExportOption_##name##_pf(_M("Datasmith_SetExportOption_" #name), SetExportOption_##name##_cf);\
+
+//////////////////////////////////////////
+DefinePersistentExportOption(SelectedOnly)
+DefinePersistentExportOption(AnimatedTransforms)
+//////////////////////////////////////////
+
+#undef DefinePersistentExportOption
 
 Value* GetDirectlinkCacheDirectory_cf(Value** arg_list, int count)
 {
@@ -425,31 +448,18 @@ public:
 	{
 		// todo: localization of Name
 
-		static ActionDescription ActionsDescriptions[] = { 
-			ID_SYNC_ACTION_ID, // ID
-			IDS_SYNC_DESC, // Description
-			IDS_SYNC_NAME, // Name
-			IDS_DATASMITH_CATEGORY, // Category name
+#define DATASMITH_ACTION(name) \
+			ID_##name##_ACTION_ID, \
+			IDS_##name##_DESC, \
+			IDS_##name##_NAME, \
+			IDS_DATASMITH_CATEGORY 
 
-			ID_AUTOSYNC_ACTION_ID, // ID
-			IDS_AUTOSYNC_DESC, // Description
-			IDS_AUTOSYNC_NAME, // Name
-			IDS_DATASMITH_CATEGORY, // Category name
-
-			ID_CONNECTIONS_ACTION_ID, // ID
-			IDS_CONNECTIONS_DESC, // Description
-			IDS_CONNECTIONS_NAME, // Name
-			IDS_DATASMITH_CATEGORY, // Category name
-
-			ID_EXPORT_ACTION_ID, // ID
-			IDS_EXPORT_DESC, // Description
-			IDS_EXPORT_NAME, // Name
-			IDS_DATASMITH_CATEGORY, // Category name
-
-			ID_SHOWLOG_ACTION_ID, // ID
-			IDS_SHOWLOG_DESC, // Description
-			IDS_SHOWLOG_NAME, // Name
-			IDS_DATASMITH_CATEGORY, // Category name
+		static ActionDescription ActionsDescriptions[] = {
+			DATASMITH_ACTION(SYNC),
+			DATASMITH_ACTION(AUTOSYNC),
+			DATASMITH_ACTION(CONNECTIONS),
+			DATASMITH_ACTION(EXPORT),
+			DATASMITH_ACTION(SHOWLOG),
 		};
 
 		Table.BuildActionTable(nullptr, sizeof(ActionsDescriptions) / sizeof(ActionsDescriptions[0]), ActionsDescriptions, HInstanceMax);
