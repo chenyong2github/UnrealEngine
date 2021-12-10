@@ -124,35 +124,50 @@
             SeparatorStyle="Spacer"
             ShowText="false"
             UID="918543c4-50dc-4203-bbdf-fe5fa4bd10fe" />
-          <wpfcust:MaxRibbonMenuButton
+
+          <wpfcust:MaxRibbonSplitButton
             IsCheckable="false"
             IsSplit="false"
             IsSynchronizedWithCurrentItem="true"
-            IsToolTipEnabled="false"
-            MinWidth="150"
+            IsToolTipEnabled="true"
+            LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+            ListImageSize="Standard"
+            MaxscriptIndexCallback="Datasmith_ExportOptions_IncludeIndex()"
+            MinWidth="0"
             ResizeStyle="HideText"
-            ShowImage="false"
             ShowText="true"
+            Text=""
             UID="f97d81dd-03f8-4a14-b718-06733fb224f2">
-            <wpfcust:MaxRibbonMenuItem
+            <ads:RibbonCommandItem
               AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_IncludeAllVisibleObjects, MacroCategory=Datasmith}"
+              Id="mOBJPaintMotionTypeRandom"
               IsCheckable="true"
-              IsToolTipEnabled="false"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
               MinWidth="100"
-              ShowImage="false"
-              ShowText="true"
+              Name="Visible Objects"
+              ShowText="false"
               Text="Visible Objects"
               UID="6ef627ea-f1fb-4b7a-9235-6f302d5ac4de" />
-            <wpfcust:MaxRibbonMenuItem
+            <ads:RibbonCommandItem
               AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_IncludeSelectedOnly, MacroCategory=Datasmith}"
+              Id="mOBJPaintMotionTypeConsecutive"
               IsCheckable="true"
-              IsToolTipEnabled="false"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
               MinWidth="100"
-              ShowImage="false"
-              ShowText="true"
+              Name="Selected Objects"
+              ShowText="false"
               Text="Selected Objects"
               UID="9509a5c2-1553-4499-91c3-7b7b0a220cee" />
-          </wpfcust:MaxRibbonMenuButton>
+          </wpfcust:MaxRibbonSplitButton>
+
+
+
+
+
           <ads:RibbonRowBreak
             AllowInToolBar="false"
             IsToolTipEnabled="true"
@@ -176,35 +191,48 @@
             SeparatorStyle="Spacer"
             ShowText="false"
             UID="5308eeb0-047b-4bd0-bb89-56745a049b4a" />
-          <wpfcust:MaxRibbonMenuButton
+
+          <wpfcust:MaxRibbonSplitButton
+            Image="Icons/ObjectPaint/PaintRandom_16.ico"
             IsCheckable="false"
             IsSplit="false"
             IsSynchronizedWithCurrentItem="true"
-            IsToolTipEnabled="false"
-            MinWidth="100"
+            IsToolTipEnabled="true"
+            LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+            ListImageSize="Standard"
+            MaxscriptIndexCallback="Datasmith_ExportOptions_AnimatedTransformsIndex()"
+            MinWidth="0"
             ResizeStyle="HideText"
-            ShowImage="false"
             ShowText="true"
+            Text=""
             UID="59b29aac-ba4b-47bc-beec-31caf1bd6e2b">
-            <wpfcust:MaxRibbonMenuItem
+            <ads:RibbonCommandItem
               AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_AnimatedTransformsCurrentFrameOnly, MacroCategory=Datasmith}"
+              Id="mOBJPaintMotionTypeRandom"
               IsCheckable="true"
-              IsToolTipEnabled="false"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
               MinWidth="100"
-              ShowImage="false"
-              ShowText="true"
+              Name="Current Frame Only"
+              ShowText="false"
               Text="Current Frame Only"
               UID="ef4472c0-fa88-4379-af73-842e4b57f752" />
-            <wpfcust:MaxRibbonMenuItem
+            <ads:RibbonCommandItem
               AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_AnimatedTransformsActiveSegment, MacroCategory=Datasmith}"
+              Id="mOBJPaintMotionTypeConsecutive"
               IsCheckable="true"
-              IsToolTipEnabled="false"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
               MinWidth="100"
-              ShowImage="false"
-              ShowText="true"
+              Name="Active Time Segment"
+              ShowText="false"
               Text="Active Time Segment"
               UID="4097c080-33ee-430d-a47f-ab6e5c06c007" />
-          </wpfcust:MaxRibbonMenuButton>
+          </wpfcust:MaxRibbonSplitButton>
+
+
         </ads:RibbonRowPanel>
       </wpfcust:MaxRibbonPanelSource>
     </wpfcust:MaxModelingRibbonPanel>

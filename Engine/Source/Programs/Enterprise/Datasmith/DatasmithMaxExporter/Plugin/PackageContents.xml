@@ -53,8 +53,14 @@
         <ComponentEntry ModuleName="./UI/pre-start-up.ms" />
     </Components>
 
+    <Components Description="macroscripts parts">
+        <RuntimeRequirements OS="Win64" Platform="3ds Max" SeriesMin="2017" SeriesMax="2022" />
+        <ComponentEntry ModuleName="./UI/DatasmithMacros.mcr" />
+    </Components>
+
     <Components Description="post-start-up scripts parts">
         <RuntimeRequirements OS="Win64" Platform="3ds Max" SeriesMin="2017" SeriesMax="2022" />
         <ComponentEntry ModuleName="./UI/DatasmithDialog.ms" />
     </Components>
+
 </ApplicationPackage>

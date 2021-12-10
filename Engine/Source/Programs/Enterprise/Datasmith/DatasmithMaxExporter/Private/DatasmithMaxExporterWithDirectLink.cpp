@@ -384,12 +384,49 @@ public:
 
 
 
+struct FExportOptions
+{
+	// Default options for DirectLink change-tracking
+	bool bSelectedOnly = false;
+	bool bAnimatedTransforms = false;
+};
+
+// Global export options, stored in preferences
+class FPersistentExportOptions: public IPersistentExportOptions
+{
+public:
+
+	virtual void SetSelectedOnly(bool bValue) override
+	{
+		Options.bSelectedOnly = bValue;
+	}
+	virtual bool GetSelectedOnly() override
+	{
+		return Options.bSelectedOnly;
+	}
+
+	virtual void SetAnimatedTransforms(bool bValue) override
+	{
+		Options.bAnimatedTransforms = bValue;
+	}
+
+	virtual bool GetAnimatedTransforms() override
+	{
+		return Options.bAnimatedTransforms;
+	}
+
+	FExportOptions Options;
+};
 
 // Holds states of entities for syncronization and handles change events
 class FSceneTracker: public ISceneTracker
 {
 public:
-	FSceneTracker(FDatasmith3dsMaxScene& InExportedScene, FNotifications& InNotificationsHandler) : ExportedScene(InExportedScene), NotificationsHandler(InNotificationsHandler), MaterialsCollectionTracker(*this) {}
+	FSceneTracker(const FExportOptions& InOptions, FDatasmith3dsMaxScene& InExportedScene, FNotifications& InNotificationsHandler)
+		: Options(InOptions)
+		, ExportedScene(InExportedScene)
+		, NotificationsHandler(InNotificationsHandler)
+		, MaterialsCollectionTracker(*this) {}
 
 	bool ParseScene()
 	{
@@ -613,7 +650,6 @@ public:
 				ProgressCounter.Next();
 				UpdateNode(*NodeTracker);
 			}
-			InvalidatedNodeTrackers.Reset();
 		}
 		
 		ProgressManager.ProgressStage(TEXT("Process invalidated instances"));
@@ -623,9 +659,17 @@ public:
 			{
 				ProgressCounter.Next();
 				UpdateInstances(*Instances);
+				InvalidatedNodeTrackers.Append(Instances->NodeTrackers);
 			}
 			InvalidatedInstances.Reset();
 		}
+
+		ProgressManager.ProgressStage(TEXT("Reparent Datasmith Actors"));
+		for (FNodeTracker* NodeTracker : InvalidatedNodeTrackers)
+		{
+			AttachNodeToDatasmithScene(*NodeTracker);
+		}
+		InvalidatedNodeTrackers.Reset();
 
 		TSet<Mtl*> ActualMaterialToUpdate;
 		TSet<Texmap*> ActualTexmapsToUpdate;
@@ -989,6 +1033,11 @@ public:
 			return;
 		}
 
+		if (Options.bSelectedOnly && !NodeTracker.Node->Selected())
+		{
+			return;
+		}
+
 		ObjectState ObjState = NodeTracker.Node->EvalWorldState(0);
 		Object* Obj = ObjState.obj;
 
@@ -1089,39 +1138,50 @@ public:
 		NodeDatasmithMetadata.Add(&NodeTracker, MetadataElement);
 	}
 
+	// Find first ansestor node which has DatasmithActor created for it
+	FNodeTracker* GetParentNodeTracker(FNodeTracker& NodeTracker)
+	{
+		FNodeKey ParentNodeKey = NodeEventNamespace::GetKeyByNode(NodeTracker.Node->GetParentNode());
+		FNodeTrackerHandle* ParentNodeTrackerHandle = NodeTrackers.Find(ParentNodeKey);
+		if (!ParentNodeTrackerHandle)
+		{
+			return nullptr; // Max node not known, assume it doesn't exist
+		}
+		
+		return ParentNodeTrackerHandle->GetNodeTracker();
+	}
+
+	// Not all nodes result in creation of DatasmithActor for them(e.g. skipped as invisible), find first ascestor that has it
+	FNodeTracker* GetAncestorNodeTrackerWithDatasmithActor(FNodeTracker& InNodeTracker)
+	{
+		FNodeTracker* NodeTracker = &InNodeTracker;
+		while (FNodeTracker* ParentNodeTracker = GetParentNodeTracker(*NodeTracker))
+		{
+			if (ParentNodeTracker->DatasmithActorElement)
+			{
+				return ParentNodeTracker;
+			}
+			NodeTracker = ParentNodeTracker;
+		}
+		return nullptr;
+	}
+
 	void AttachNodeToDatasmithScene(FNodeTracker& NodeTracker)
 	{
-		// Add to parent
-		FNodeKey ParentNodeKey = NodeEventNamespace::GetKeyByNode(NodeTracker.Node->GetParentNode());
-		if (FNodeTrackerHandle* ParentNodeTrackerHandle = NodeTrackers.Find(ParentNodeKey))
+		if (!NodeTracker.DatasmithActorElement)
 		{
-			// Add to parent Datasmith actor if it has been updated already, if not parent will add it
-			if (!IsNodeInvalidated(*ParentNodeTrackerHandle))
-			{
-				FNodeTracker* ParentNodeTracker = ParentNodeTrackerHandle->GetNodeTracker();
-				ParentNodeTracker->DatasmithActorElement->AddChild(NodeTracker.DatasmithActorElement);
-			}
+			return;
+		}
+
+		if (FNodeTracker* ParentNodeTracker = GetAncestorNodeTrackerWithDatasmithActor(NodeTracker))
+		{
+			ParentNodeTracker->DatasmithActorElement->AddChild(NodeTracker.DatasmithActorElement);
 		}
 		else
 		{
-			// If there's no parent node registered assume it's at root
+			// If there's no ancestor node with DatasmithActor assume node it at root
+			// (node's parent might be node that was skipped - e.g. it was hidden in Max or not selected when exporting only selected objects)
 			ExportedScene.GetDatasmithScene()->AddActor(NodeTracker.DatasmithActorElement);
-		}
-
-		// Add attach datasmith actors of child nodes
-		int32 ChildNum = NodeTracker.Node->NumberOfChildren();
-		for (int32 ChildIndex = 0; ChildIndex < ChildNum; ++ChildIndex)
-		{
-
-			FNodeKey ChildNodeKey = NodeEventNamespace::GetKeyByNode(NodeTracker.Node->GetChildNode(ChildIndex));
-			if (FNodeTrackerHandle* ChildNodeTrackerHandle = NodeTrackers.Find(ChildNodeKey))
-			{
-				// Add child datasmith actor if child is updated, if not child will add itself(it will be updated further in the queue)
-				if (!IsNodeInvalidated(*ChildNodeTrackerHandle))
-				{
-					NodeTracker.DatasmithActorElement->AddChild(ChildNodeTrackerHandle->GetNodeTracker()->DatasmithActorElement);
-				}
-			}
 		}
 	}
 
@@ -1247,7 +1307,6 @@ public:
 		NodeTracker.DatasmithActorElement = DatasmithActorElement;
 		NodeTracker.DatasmithMeshActor = DatasmithMeshActor;
 
-		AttachNodeToDatasmithScene(NodeTracker);
 		UpdateNodeMetadata(NodeTracker);
 		TagsConverter.ConvertNodeTags(NodeTracker);
 		if (NodeTracker.Layer)
@@ -1332,7 +1391,6 @@ public:
 	{
 		NodeTracker.DatasmithActorElement->SetLabel(NodeTracker.Node->GetName());
 
-		AttachNodeToDatasmithScene(NodeTracker);
 		UpdateNodeMetadata(NodeTracker);
 		TagsConverter.ConvertNodeTags(NodeTracker);
 		if (NodeTracker.Layer)
@@ -1668,6 +1726,7 @@ public:
 	
 	///////////////////////////////////////////////
 
+	const FExportOptions& Options;
 	FDatasmith3dsMaxScene& ExportedScene;
 	FNotifications& NotificationsHandler;
 
@@ -1706,11 +1765,10 @@ public:
 	FTagsConverter TagsConverter; // Converts max node information to Datasmith tags
 };
 
-
 class FExporter: public IExporter
 {
 public:
-	FExporter(): NotificationsHandler(*this), SceneTracker(ExportedScene, NotificationsHandler)
+	FExporter(FExportOptions& InOptions): Options(InOptions), NotificationsHandler(*this), SceneTracker(Options, ExportedScene, NotificationsHandler)
 	{
 		Reset();
 	}
@@ -1737,7 +1795,10 @@ public:
 	bool Export(bool bQuiet)
 	{
 		SceneTracker.Update(bQuiet);
-		SceneTracker.ExportAnimations();
+		if (Options.bAnimatedTransforms)
+		{
+			SceneTracker.ExportAnimations();
+		}
 		ExportedScene.GetSceneExporter().Export(ExportedScene.GetDatasmithScene(), false);
 		return true;
 	}
@@ -1851,6 +1912,8 @@ public:
 		return SceneTracker;
 	}
 
+	FExportOptions Options;
+
 	FDatasmith3dsMaxScene ExportedScene;
 	TUniquePtr<FDatasmithDirectLink> DirectLinkImpl;
 	FString OutputPath;
@@ -1863,7 +1926,9 @@ public:
 	float AutoSyncIdleDelaySeconds = 0.5f; // Time period user should be idle to run AutoSync
 };
 
-static TUniquePtr<IExporter> Exporter;
+FPersistentExportOptions PersistentExportOptions;
+
+TUniquePtr<IExporter> Exporter;
 
 bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath)
 {
@@ -1883,7 +1948,8 @@ bool CreateExporter(bool bEnableUI, const TCHAR* EnginePath)
 		return false;
 	}
 
-	Exporter = MakeUnique<FExporter>();
+	static FExportOptions ExporterOptions; // Default options
+	Exporter = MakeUnique<FExporter>(ExporterOptions);
 	return true;
 }
 
@@ -1899,6 +1965,11 @@ IExporter* GetExporter()
 	return Exporter.Get();	
 }
 
+IPersistentExportOptions& GetPersistentExportOptions()
+{
+	return PersistentExportOptions;
+}
+
 void FExporter::Shutdown() 
 {
 	Exporter.Reset();
@@ -1908,7 +1979,7 @@ void FExporter::Shutdown()
 
 bool Export(const TCHAR* Name, const TCHAR* OutputPath, bool bQuiet)
 {
-	FExporter TempExporter;
+	FExporter TempExporter(PersistentExportOptions.Options);
 	TempExporter.ExportedScene.SetName(Name);
 	TempExporter.SetOutputPath(OutputPath);
 
