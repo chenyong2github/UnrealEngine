@@ -31,7 +31,6 @@ public:
 	FVector4f MipWorldToUVBias[GMaxGlobalDistanceFieldClipmaps];
 	float MipFactor;
 	float MipTransition;
-	FVector PageTableScrollOffset[GMaxGlobalDistanceFieldClipmaps];
 	FRHITexture* PageAtlasTexture;
 	FRHITexture* PageTableTexture;
 	FRHITexture* MipTexture;
@@ -42,6 +41,26 @@ public:
 	float MaxDFAOConeDistance;
 	int32 NumGlobalSDFClipmaps;
 };
+
+BEGIN_SHADER_PARAMETER_STRUCT(FGlobalDistanceFieldParameters2, )
+	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldPageAtlasTexture)
+	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, GlobalDistanceFieldPageTableTexture)
+	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldMipTexture)
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalVolumeCenterAndExtent, [GMaxGlobalDistanceFieldClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalVolumeWorldToUVAddAndMul, [GMaxGlobalDistanceFieldClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalDistanceFieldMipWorldToUVScale, [GMaxGlobalDistanceFieldClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalDistanceFieldMipWorldToUVBias, [GMaxGlobalDistanceFieldClipmaps])
+	SHADER_PARAMETER(float, GlobalDistanceFieldMipFactor)
+	SHADER_PARAMETER(float, GlobalDistanceFieldMipTransition)
+	SHADER_PARAMETER(int32, GlobalDistanceFieldClipmapSizeInPages)
+	SHADER_PARAMETER(FVector3f, GlobalDistanceFieldInvPageAtlasSize)
+	SHADER_PARAMETER(float, GlobalVolumeDimension)
+	SHADER_PARAMETER(float, GlobalVolumeTexelSize)
+	SHADER_PARAMETER(float, MaxGlobalDFAOConeDistance)
+	SHADER_PARAMETER(uint32, NumGlobalSDFClipmaps)
+END_SHADER_PARAMETER_STRUCT()
+
+FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData);
 
 class FGlobalDistanceFieldParameters
 {

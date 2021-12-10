@@ -21,8 +21,6 @@
 #include "Lumen/Lumen.h"
 #include "Strata/Strata.h"
 
-IMPLEMENT_TYPE_LAYOUT(FScreenGridParameters);
-
 int32 GDistanceFieldAO = 1;
 FAutoConsoleVariableRef CVarDistanceFieldAO(
 	TEXT("r.DistanceFieldAO"),
@@ -129,8 +127,6 @@ int32 GDistanceFieldAOTileSizeX = 16;
 int32 GDistanceFieldAOTileSizeY = 16;
 
 DEFINE_LOG_CATEGORY(LogDistanceField);
-
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FAOSampleData2,"AOSamples2");
 
 FDistanceFieldAOParameters::FDistanceFieldAOParameters(float InOcclusionMaxDistance, float InContrast)
 {

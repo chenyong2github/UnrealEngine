@@ -28,6 +28,9 @@
 #include "ClearQuad.h"
 #include "VisualizeTexture.h"
 
+/** Number of cone traced directions. */
+static const int32 NumConeSampleDirections = 9;
+
 static int32 GAOUseJitter = 1;
 static FAutoConsoleVariableRef CVarAOUseJitter(
 	TEXT("r.AOUseJitter"),
@@ -59,6 +62,7 @@ FVector2f JitterOffsets[4] =
 	FVector2f(0, .5f)
 };
 
+extern float GAOConeHalfAngle;
 extern int32 GAOUseHistory;
 
 FVector2f GetJitterOffset(int32 SampleIndex)
@@ -71,21 +75,77 @@ FVector2f GetJitterOffset(int32 SampleIndex)
 	return FVector2f(0, 0);
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FAOSampleParameters,)
+	SHADER_PARAMETER_ARRAY(FVector4f,SampleDirections,[NumConeSampleDirections])
+	SHADER_PARAMETER(float, BentNormalNormalizeFactor)
+END_SHADER_PARAMETER_STRUCT()
+
+static FAOSampleParameters SetupAOSampleParameters(uint32 FrameNumber)
+{
+	TArray<FVector, TInlineAllocator<9> > SampleDirections;
+	GetSpacedVectors(FrameNumber, SampleDirections);
+
+	FVector UnoccludedVector(0);
+	for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
+	{
+		UnoccludedVector += SampleDirections[SampleIndex];
+	}
+
+	// LWC_TODO: Was float BentNormalNormalizeFactorValue = 1.0f / (UnoccludedVector / NumConeSampleDirections).Size();
+	// This causes "error C4723: potential divide by 0" in msvc, implying the compiler has managed to evaluate (UnoccludedVector / NumConeSampleDirections).Size() as 0 at compile time.
+	// Ensuring Size() is called in a seperate line stops the warning, but this needs investigating. Clang seems happy with it. Possible compiler bug?
+	const float ConeSampleAverageSize = (UnoccludedVector / NumConeSampleDirections).Size();
+
+	FAOSampleParameters ShaderParameters;
+	ShaderParameters.BentNormalNormalizeFactor = ConeSampleAverageSize ? 1.0f / ConeSampleAverageSize : 0.f;
+
+	for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
+	{
+		ShaderParameters.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
+	}
+
+	return ShaderParameters;
+}
+
+BEGIN_SHADER_PARAMETER_STRUCT(FScreenGridParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistanceFieldNormalTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldNormalSampler)
+	SHADER_PARAMETER(FVector2f, BaseLevelTexelSize)
+	SHADER_PARAMETER(FVector2f, JitterOffset)
+END_SHADER_PARAMETER_STRUCT()
+
+static FScreenGridParameters SetupScreenGridParameters(const FViewInfo& View, FRDGTextureRef DistanceFieldNormal)
+{
+	const FIntPoint DownsampledBufferSize = GetBufferSizeForAO();
+
+	FScreenGridParameters ShaderParameters;
+	ShaderParameters.DistanceFieldNormalTexture = DistanceFieldNormal;
+	ShaderParameters.DistanceFieldNormalSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	ShaderParameters.BaseLevelTexelSize = FVector2f(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
+	ShaderParameters.JitterOffset = GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex());
+
+	return ShaderParameters;
+}
+
 class FConeTraceScreenGridObjectOcclusionCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FConeTraceScreenGridObjectOcclusionCS);
-
 public:
+	DECLARE_GLOBAL_SHADER(FConeTraceScreenGridObjectOcclusionCS);
+	SHADER_USE_PARAMETER_STRUCT(FConeTraceScreenGridObjectOcclusionCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, DistanceFieldCulledObjectBuffers)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTileIntersectionParameters, TileIntersectionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAOScreenGridParameters, AOScreenGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAOParameters, AOParameters)
-		RDG_BUFFER_ACCESS(ObjectTilesIndirectArguments, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenGridParameters, ScreenGridParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGlobalDistanceFieldParameters2, GlobalDistanceFieldParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOSampleParameters, AOSampleParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
-		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVCompute)
+		SHADER_PARAMETER(float, TanConeHalfAngle)
+		RDG_BUFFER_ACCESS(ObjectTilesIndirectArguments, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FUseGlobalDistanceField : SHADER_PERMUTATION_BOOL("USE_GLOBAL_DISTANCE_FIELD");
@@ -105,73 +165,6 @@ public:
 		// To reduce shader compile time of compute shaders with shared memory, doesn't have an impact on generated code with current compiler (June 2010 DX SDK)
 		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
 	}
-
-	FConeTraceScreenGridObjectOcclusionCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		ScreenGridParameters.Bind(Initializer.ParameterMap);
-		GlobalDistanceFieldParameters.Bind(Initializer.ParameterMap);
-		TanConeHalfAngle.Bind(Initializer.ParameterMap, TEXT("TanConeHalfAngle"));
-		BentNormalNormalizeFactor.Bind(Initializer.ParameterMap, TEXT("BentNormalNormalizeFactor"));
-	}
-
-	FConeTraceScreenGridObjectOcclusionCS()
-	{
-	}
-
-	void SetParameters(
-		FRHICommandList& RHICmdList, 
-		const FViewInfo& View, 
-		FRHITexture* DistanceFieldNormal,
-		bool bUseGlobalDistanceField,
-		const FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-
-		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
-
-		if (bUseGlobalDistanceField)
-		{
-			GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, GlobalDistanceFieldInfo.ParameterData);
-		}
-
-		FAOSampleData2 AOSampleData;
-
-		TArray<FVector, TInlineAllocator<9> > SampleDirections;
-		GetSpacedVectors(View.Family->FrameNumber, SampleDirections);
-
-		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
-		{
-			AOSampleData.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
-		}
-
-		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FAOSampleData2>(), AOSampleData);
-
-		extern float GAOConeHalfAngle;
-		SetShaderValue(RHICmdList, ShaderRHI, TanConeHalfAngle, FMath::Tan(GAOConeHalfAngle));
-
-		FVector UnoccludedVector(0);
-
-		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
-		{
-			UnoccludedVector += SampleDirections[SampleIndex];
-		}
-
-		// LWC_TODO: Was float BentNormalNormalizeFactorValue = 1.0f / (UnoccludedVector / NumConeSampleDirections).Size();
-		// This causes "error C4723: potential divide by 0" in msvc, implying the compiler has managed to evaluate (UnoccludedVector / NumConeSampleDirections).Size() as 0 at compile time.
-		// Ensuring Size() is called in a seperate line stops the warning, but this needs investigating. Clang seems happy with it. Possible compiler bug?
-		float ConeSampleAverageSize = (UnoccludedVector / NumConeSampleDirections).Size();
-		float BentNormalNormalizeFactorValue = ConeSampleAverageSize ? 1.0f / ConeSampleAverageSize : 0.f;
-		SetShaderValue(RHICmdList, ShaderRHI, BentNormalNormalizeFactor, BentNormalNormalizeFactorValue);
-	}
-
-private:
-	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
-	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
-	LAYOUT_FIELD(FShaderParameter, TanConeHalfAngle);
-	LAYOUT_FIELD(FShaderParameter, BentNormalNormalizeFactor);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FConeTraceScreenGridObjectOcclusionCS, "/Engine/Private/DistanceFieldScreenGridLighting.usf", "ConeTraceObjectOcclusionCS", SF_Compute);
@@ -180,17 +173,23 @@ const int32 GConeTraceGlobalDFTileSize = 8;
 
 class FConeTraceScreenGridGlobalOcclusionCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FConeTraceScreenGridGlobalOcclusionCS);
 public:
+	DECLARE_GLOBAL_SHADER(FConeTraceScreenGridGlobalOcclusionCS);
+	SHADER_USE_PARAMETER_STRUCT(FConeTraceScreenGridGlobalOcclusionCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, DistanceFieldCulledObjectBuffers)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlas)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAOScreenGridParameters, AOScreenGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAOParameters, AOParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenGridParameters, ScreenGridParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGlobalDistanceFieldParameters2, GlobalDistanceFieldParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOSampleParameters, AOSampleParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector4f>, TileConeDepthRanges)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
-		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVCompute)
+		SHADER_PARAMETER(FIntPoint, TileListGroupSize)
+		SHADER_PARAMETER(float, TanConeHalfAngle)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FConeTraceObjects : SHADER_PERMUTATION_BOOL("CONE_TRACE_OBJECTS");
@@ -212,70 +211,6 @@ public:
 		// To reduce shader compile time of compute shaders with shared memory, doesn't have an impact on generated code with current compiler (June 2010 DX SDK)
 		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
 	}
-
-	FConeTraceScreenGridGlobalOcclusionCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		ScreenGridParameters.Bind(Initializer.ParameterMap);
-		GlobalDistanceFieldParameters.Bind(Initializer.ParameterMap);
-		TileListGroupSize.Bind(Initializer.ParameterMap, TEXT("TileListGroupSize"));
-		TanConeHalfAngle.Bind(Initializer.ParameterMap, TEXT("TanConeHalfAngle"));
-		BentNormalNormalizeFactor.Bind(Initializer.ParameterMap, TEXT("BentNormalNormalizeFactor"));
-	}
-
-	FConeTraceScreenGridGlobalOcclusionCS()
-	{
-	}
-
-	void SetParameters(
-		FRHICommandList& RHICmdList, 
-		const FViewInfo& View,
-		FIntPoint TileListGroupSizeValue, 
-		FRHITexture* DistanceFieldNormal,
-		const FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-
-		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
-		GlobalDistanceFieldParameters.Set(RHICmdList, ShaderRHI, GlobalDistanceFieldInfo.ParameterData);
-
-		FAOSampleData2 AOSampleData;
-
-		TArray<FVector, TInlineAllocator<9> > SampleDirections;
-		GetSpacedVectors(View.Family->FrameNumber, SampleDirections);
-
-		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
-		{
-			AOSampleData.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
-		}
-
-		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FAOSampleData2>(), AOSampleData);
-
-		SetShaderValue(RHICmdList, ShaderRHI, TileListGroupSize, TileListGroupSizeValue);
-
-		extern float GAOConeHalfAngle;
-		SetShaderValue(RHICmdList, ShaderRHI, TanConeHalfAngle, FMath::Tan(GAOConeHalfAngle));
-
-		FVector UnoccludedVector(0);
-
-		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
-		{
-			UnoccludedVector += SampleDirections[SampleIndex];
-		}
-
-		float ConeSampleAverageSize = (UnoccludedVector / NumConeSampleDirections).Size();
-		float BentNormalNormalizeFactorValue = ConeSampleAverageSize ? 1.0f / ConeSampleAverageSize : 0.f;
-		SetShaderValue(RHICmdList, ShaderRHI, BentNormalNormalizeFactor, BentNormalNormalizeFactorValue);
-	}
-
-private:
-	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
-	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
-	LAYOUT_FIELD(FShaderParameter, TileListGroupSize);
-	LAYOUT_FIELD(FShaderParameter, TanConeHalfAngle);
-	LAYOUT_FIELD(FShaderParameter, BentNormalNormalizeFactor);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FConeTraceScreenGridGlobalOcclusionCS, "/Engine/Private/DistanceFieldScreenGridLighting.usf", "ConeTraceGlobalOcclusionCS", SF_Compute);
@@ -284,13 +219,18 @@ const int32 GCombineConesSizeX = 8;
 
 class FCombineConeVisibilityCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FCombineConeVisibilityCS);
 public:
+	DECLARE_GLOBAL_SHADER(FCombineConeVisibilityCS);
+	SHADER_USE_PARAMETER_STRUCT(FCombineConeVisibilityCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FAOScreenGridParameters, AOScreenGridParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenGridParameters, ScreenGridParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FAOSampleParameters, AOSampleParameters)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWDistanceFieldBentNormal)
-		RDG_TEXTURE_ACCESS(DistanceFieldNormal, ERHIAccess::SRVCompute)
+		SHADER_PARAMETER(FIntPoint, ConeBufferMax)
+		SHADER_PARAMETER(FVector2f, DFNormalBufferUVMax)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -307,66 +247,6 @@ public:
 		// To reduce shader compile time of compute shaders with shared memory, doesn't have an impact on generated code with current compiler (June 2010 DX SDK)
 		OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
 	}
-
-	FCombineConeVisibilityCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
-		ScreenGridParameters.Bind(Initializer.ParameterMap);
-		BentNormalNormalizeFactor.Bind(Initializer.ParameterMap, TEXT("BentNormalNormalizeFactor"));
-		ConeBufferMax.Bind(Initializer.ParameterMap, TEXT("ConeBufferMax"));
-		DFNormalBufferUVMax.Bind(Initializer.ParameterMap, TEXT("DFNormalBufferUVMax"));
-	}
-
-	FCombineConeVisibilityCS()
-	{
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FRHITexture* DistanceFieldNormal)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		ScreenGridParameters.Set(RHICmdList, ShaderRHI, View, DistanceFieldNormal);
-
-		FAOSampleData2 AOSampleData;
-
-		TArray<FVector, TInlineAllocator<9> > SampleDirections;
-		GetSpacedVectors(View.Family->FrameNumber, SampleDirections);
-
-		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
-		{
-			AOSampleData.SampleDirections[SampleIndex] = FVector4f(SampleDirections[SampleIndex]);
-		}
-
-		SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, GetUniformBufferParameter<FAOSampleData2>(), AOSampleData);
-
-		FVector UnoccludedVector(0);
-
-		for (int32 SampleIndex = 0; SampleIndex < NumConeSampleDirections; SampleIndex++)
-		{
-			UnoccludedVector += SampleDirections[SampleIndex];
-		}
-
-		float ConeSampleAverageSize = (UnoccludedVector / NumConeSampleDirections).Size();
-		float BentNormalNormalizeFactorValue = ConeSampleAverageSize ? 1.0f / ConeSampleAverageSize : 0.f;
-		SetShaderValue(RHICmdList, ShaderRHI, BentNormalNormalizeFactor, BentNormalNormalizeFactorValue);
-
-		FIntPoint const ConeBufferMaxValue(View.ViewRect.Width() / GAODownsampleFactor / GConeTraceDownsampleFactor - 1, View.ViewRect.Height() / GAODownsampleFactor / GConeTraceDownsampleFactor - 1);
-		SetShaderValue(RHICmdList, ShaderRHI, ConeBufferMax, ConeBufferMaxValue);
-
-		FIntPoint const DFNormalBufferSize = GetBufferSizeForAO();
-		FVector2f const DFNormalBufferUVMaxValue(
-			(View.ViewRect.Width()  / GAODownsampleFactor - 0.5f) / DFNormalBufferSize.X,
-			(View.ViewRect.Height() / GAODownsampleFactor - 0.5f) / DFNormalBufferSize.Y);
-		SetShaderValue(RHICmdList, ShaderRHI, DFNormalBufferUVMax, DFNormalBufferUVMaxValue);
-	}
-
-
-private:
-	LAYOUT_FIELD(FScreenGridParameters, ScreenGridParameters);
-	LAYOUT_FIELD(FShaderParameter, BentNormalNormalizeFactor);
-	LAYOUT_FIELD(FShaderParameter, DFNormalBufferUVMax);
-	LAYOUT_FIELD(FShaderParameter, ConeBufferMax);
 };
 
 IMPLEMENT_GLOBAL_SHADER(FCombineConeVisibilityCS, "/Engine/Private/DistanceFieldScreenGridLighting.usf", "CombineConeVisibilityCS", SF_Compute);
@@ -440,39 +320,28 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		check(View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FConeTraceScreenGridGlobalOcclusionCS::FParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->DistanceFieldCulledObjectBuffers = CulledObjectBufferParameters;
 		PassParameters->DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 		PassParameters->AOScreenGridParameters = AOScreenGridParameters;
 		PassParameters->AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
+		PassParameters->ScreenGridParameters = SetupScreenGridParameters(View, DistanceFieldNormal);
+		PassParameters->GlobalDistanceFieldParameters = SetupGlobalDistanceFieldParameters(View.GlobalDistanceFieldInfo.ParameterData);
+		PassParameters->AOSampleParameters = SetupAOSampleParameters(View.Family->FrameNumber);
 		PassParameters->TileConeDepthRanges = TileIntersectionParameters.TileConeDepthRanges;
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
-		PassParameters->DistanceFieldNormal = DistanceFieldNormal;
+		PassParameters->TileListGroupSize = TileListGroupSize;
+		PassParameters->TanConeHalfAngle = FMath::Tan(GAOConeHalfAngle);
 
 		FConeTraceScreenGridGlobalOcclusionCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FConeTraceScreenGridGlobalOcclusionCS::FConeTraceObjects>(bUseObjectDistanceField);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FConeTraceScreenGridGlobalOcclusionCS>(PermutationVector);
 
-		ClearUnusedGraphResources(ComputeShader, PassParameters);
+		const uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor / GConeTraceDownsampleFactor, GConeTraceGlobalDFTileSize);
+		const uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor / GConeTraceDownsampleFactor, GConeTraceGlobalDFTileSize);
 
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ConeTraceGlobal"),
-			PassParameters,
-			ERDGPassFlags::Compute,
-			[PassParameters, ComputeShader, &View, DistanceFieldNormal, TileListGroupSize, bUseObjectDistanceField](FRHICommandList& RHICmdList)
-			{
-				const uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor / GConeTraceDownsampleFactor, GConeTraceGlobalDFTileSize);
-				const uint32 GroupSizeY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y / GAODownsampleFactor / GConeTraceDownsampleFactor, GConeTraceGlobalDFTileSize);
-
-				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-				ComputeShader->SetParameters(RHICmdList, View, TileListGroupSize, DistanceFieldNormal->GetRHI(), View.GlobalDistanceFieldInfo);
-				SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
-
-				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
-
-				UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
-			});
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ConeTraceGlobal"), ComputeShader, PassParameters, FIntVector(GroupSizeX, GroupSizeY, 1));
 	}
 
 	if (bUseObjectDistanceField)
@@ -480,14 +349,21 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		check(!bUseGlobalDistanceField || View.GlobalDistanceFieldInfo.Clipmaps.Num() > 0);
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FConeTraceScreenGridObjectOcclusionCS::FParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->DistanceFieldCulledObjectBuffers = CulledObjectBufferParameters;
 		PassParameters->DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
 		PassParameters->TileIntersectionParameters = TileIntersectionParameters;
 		PassParameters->AOScreenGridParameters = AOScreenGridParameters;
 		PassParameters->AOParameters = DistanceField::SetupAOShaderParameters(Parameters);
-		PassParameters->ObjectTilesIndirectArguments = ObjectTilesIndirectArguments;
+		PassParameters->ScreenGridParameters = SetupScreenGridParameters(View, DistanceFieldNormal);
+		if (bUseGlobalDistanceField)
+		{
+			PassParameters->GlobalDistanceFieldParameters = SetupGlobalDistanceFieldParameters(View.GlobalDistanceFieldInfo.ParameterData);
+		}
+		PassParameters->AOSampleParameters = SetupAOSampleParameters(View.Family->FrameNumber);
 		PassParameters->SceneTextures = SceneTextures.UniformBuffer;
-		PassParameters->DistanceFieldNormal = DistanceFieldNormal;
+		PassParameters->TanConeHalfAngle = FMath::Tan(GAOConeHalfAngle);
+		PassParameters->ObjectTilesIndirectArguments = ObjectTilesIndirectArguments;
 
 		FConeTraceScreenGridObjectOcclusionCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FConeTraceScreenGridObjectOcclusionCS::FUseGlobalDistanceField>(bUseGlobalDistanceField);
@@ -495,23 +371,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 
 		auto ComputeShader = View.ShaderMap->GetShader<FConeTraceScreenGridObjectOcclusionCS>(PermutationVector);
 
-		ClearUnusedGraphResources(ComputeShader, PassParameters);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ConeTraceObjects"),
-			PassParameters,
-			ERDGPassFlags::Compute,
-			[PassParameters, ComputeShader, &View, DistanceFieldNormal, bUseGlobalDistanceField, ObjectTilesIndirectArguments](FRHICommandList& RHICmdList)
-			{
-				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-				ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), bUseGlobalDistanceField, View.GlobalDistanceFieldInfo);
-				SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
-
-				DispatchIndirectComputeShader(RHICmdList, ComputeShader.GetShader(), ObjectTilesIndirectArguments->GetIndirectRHICallBuffer(), 0);
-
-				UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
-			});
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ConeTraceObjects"), ComputeShader, PassParameters, ObjectTilesIndirectArguments, 0);
 	}
 
 	FRDGTextureRef DownsampledBentNormal = nullptr;
@@ -525,30 +385,23 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		const uint32 GroupSizeX = FMath::DivideAndRoundUp(ConeTraceBufferSize.X, GCombineConesSizeX);
 		const uint32 GroupSizeY = FMath::DivideAndRoundUp(ConeTraceBufferSize.Y, GCombineConesSizeX);
 
+		const FIntPoint DFNormalBufferSize = GetBufferSizeForAO();
+		const FVector2f DFNormalBufferUVMaxValue(
+			(View.ViewRect.Width() / GAODownsampleFactor - 0.5f) / DFNormalBufferSize.X,
+			(View.ViewRect.Height() / GAODownsampleFactor - 0.5f) / DFNormalBufferSize.Y);
+
 		auto* PassParameters = GraphBuilder.AllocParameters<FCombineConeVisibilityCS::FParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->AOScreenGridParameters = AOScreenGridParameters;
+		PassParameters->ScreenGridParameters = SetupScreenGridParameters(View, DistanceFieldNormal);
+		PassParameters->AOSampleParameters = SetupAOSampleParameters(View.Family->FrameNumber);
 		PassParameters->RWDistanceFieldBentNormal = GraphBuilder.CreateUAV(DownsampledBentNormal);
-		PassParameters->DistanceFieldNormal = DistanceFieldNormal;
+		PassParameters->ConeBufferMax = FIntPoint(View.ViewRect.Width() / GAODownsampleFactor / GConeTraceDownsampleFactor - 1, View.ViewRect.Height() / GAODownsampleFactor / GConeTraceDownsampleFactor - 1);
+		PassParameters->DFNormalBufferUVMax = DFNormalBufferUVMaxValue;
 
 		auto ComputeShader = View.ShaderMap->GetShader<FCombineConeVisibilityCS>();
 
-		ClearUnusedGraphResources(ComputeShader, PassParameters);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("CombineCones"),
-			PassParameters,
-			ERDGPassFlags::Compute,
-			[&View, ComputeShader, PassParameters, GroupSizeX, GroupSizeY](FRHICommandList& RHICmdList)
-			{
-				RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-
-				ComputeShader->SetParameters(RHICmdList, View, PassParameters->DistanceFieldNormal->GetRHI());
-				SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
-
-				DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
-
-				UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShader.GetComputeShader());
-			});
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("CombineCones"), ComputeShader, PassParameters, FIntVector(GroupSizeX, GroupSizeY, 1));
 	}
 
 	PostProcessBentNormalAOScreenGrid(

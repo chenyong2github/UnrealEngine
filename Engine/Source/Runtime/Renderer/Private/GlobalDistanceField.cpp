@@ -205,6 +205,35 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldMipFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData)
+{
+	FGlobalDistanceFieldParameters2 ShaderParameters;
+
+	ShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(ParameterData.PageAtlasTexture);
+	ShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DIfNull(ParameterData.PageTableTexture);
+	ShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(ParameterData.MipTexture);
+
+	for (int32 Index = 0; Index < GMaxGlobalDistanceFieldClipmaps; Index++)
+	{
+		ShaderParameters.GlobalVolumeCenterAndExtent[Index] = ParameterData.CenterAndExtent[Index];
+		ShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = ParameterData.WorldToUVAddAndMul[Index];
+		ShaderParameters.GlobalDistanceFieldMipWorldToUVScale[Index] = ParameterData.MipWorldToUVScale[Index];
+		ShaderParameters.GlobalDistanceFieldMipWorldToUVBias[Index] = ParameterData.MipWorldToUVBias[Index];
+	}
+
+	ShaderParameters.GlobalDistanceFieldMipFactor = ParameterData.MipFactor;
+	ShaderParameters.GlobalDistanceFieldMipTransition = ParameterData.MipTransition;
+	ShaderParameters.GlobalDistanceFieldClipmapSizeInPages = ParameterData.ClipmapSizeInPages;
+	ShaderParameters.GlobalDistanceFieldInvPageAtlasSize = ParameterData.InvPageAtlasSize;
+	ShaderParameters.GlobalVolumeDimension = ParameterData.GlobalDFResolution;
+	ShaderParameters.GlobalVolumeTexelSize = 1.0f / ParameterData.GlobalDFResolution;
+	ShaderParameters.MaxGlobalDFAOConeDistance = ParameterData.MaxDFAOConeDistance;
+	ShaderParameters.NumGlobalSDFClipmaps = ParameterData.NumGlobalSDFClipmaps;
+
+	return ShaderParameters;
+}
+
+
 float GetMinMeshSDFRadius(float VoxelWorldSize)
 {
 	float MinRadius = GAOGlobalDistanceFieldMinMeshSDFRadius * (GAOGlobalDistanceFieldFastCameraMode ? 10.0f : 1.0f);
@@ -379,8 +408,6 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 
 				ParameterData.MipWorldToUVScale[ClipmapIndex].Z = ParameterData.MipWorldToUVScale[ClipmapIndex].Z / Clipmaps.Num();
 				ParameterData.MipWorldToUVBias[ClipmapIndex].Z = (ParameterData.MipWorldToUVBias[ClipmapIndex].Z + ClipmapIndex) / Clipmaps.Num();
-
-				ParameterData.PageTableScrollOffset[ClipmapIndex] = Clipmap.ScrollOffset / Clipmap.Bounds.GetSize();
 			}
 			else
 			{
@@ -388,7 +415,6 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 				ParameterData.WorldToUVAddAndMul[ClipmapIndex] = FVector4f(0);
 				ParameterData.MipWorldToUVScale[ClipmapIndex] = FVector(0);
 				ParameterData.MipWorldToUVBias[ClipmapIndex] = FVector(0);
-				ParameterData.PageTableScrollOffset[ClipmapIndex] = FVector(0);
 			}
 		}
 
