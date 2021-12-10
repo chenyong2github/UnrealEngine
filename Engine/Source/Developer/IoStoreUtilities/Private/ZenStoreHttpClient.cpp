@@ -12,7 +12,10 @@
 #include "Async/Async.h"
 #include "HAL/PlatformFileManager.h"
 #include "IO/IoHash.h"
+#include "Misc/App.h"
+#include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/BufferArchive.h"
@@ -761,6 +764,23 @@ const UTF8CHAR* FZenStoreHttpClient::FindAttachmentId(FUtf8StringView Attachment
 		return nullptr;
 	}
 	return Existing;
+}
+
+// Duplicated in StorageServerPlatformFile.cpp to avoid having a public API in a shared module
+static FString GetProjectPathId()
+{
+	FString ProjectFilePath = FPaths::GetProjectFilePath();
+	FPaths::NormalizeFilename(ProjectFilePath);
+	FString AbsProjectFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFilePath);
+	FTCHARToUTF8 AbsProjectFilePathUTF8(*AbsProjectFilePath);
+
+	FString HashString = FMD5::HashBytes((unsigned char*)AbsProjectFilePathUTF8.Get(), AbsProjectFilePathUTF8.Length()).Left(8);
+	return FString::Printf(TEXT("%s.%.8s"), FApp::GetProjectName(), *HashString);
+}
+
+FString FZenStoreHttpClient::GenerateDefaultProjectId()
+{
+	return GetProjectPathId();
 }
 
 }

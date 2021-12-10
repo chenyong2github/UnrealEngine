@@ -60,6 +60,7 @@ public:
 	virtual ~FStorageServerPlatformFile();
 	virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
 	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override;
+	virtual void InitializeAfterProjectFilePath() override;
 
 	virtual IPlatformFile* GetLowerLevel() override
 	{
@@ -113,6 +114,8 @@ private:
 	FStringView ServerProjectDirView = FStringView(TEXT("/{project}/"));
 	TUniquePtr<FStorageServerConnection> Connection;
 	FStorageServerFileSystemTOC ServerToc;
+	FString ServerProject;
+	FString ServerPlatform;
 	mutable TArray<FString> HostAddrs;
 };
 

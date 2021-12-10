@@ -89,6 +89,18 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Gets a short alphanumeric identifier for the project path.
+		/// </summary>
+		/// <param name="RawProjectPath">Full project path.</param>
+		/// <returns>Project path identifier</returns>
+		public static string GetProjectPathId(FileReference RawProjectPath)
+		{
+			string UniformProjectPath = FileReference.FindCorrectCase(RawProjectPath).ToNormalizedPath();
+			string ProjectPathHash = ContentHash.MD5(Encoding.UTF8.GetBytes(UniformProjectPath)).ToString();
+			return String.Format("{0}.{1}", GetShortProjectName(RawProjectPath), ProjectPathHash.Substring(0, 8));
+		}
+
+		/// <summary>
 		/// Gets project properties.
 		/// </summary>
 		/// <param name="RawProjectPath">Full project path.</param>

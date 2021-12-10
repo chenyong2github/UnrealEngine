@@ -267,57 +267,54 @@ bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR*
 bool FStorageServerPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 {
 	LowerLevel = Inner;
-	bool bResult = false;
 	if (HostAddrs.Num() > 0)
 	{
-		Connection.Reset(new FStorageServerConnection());
-		FString StorageServerProject;
-		FParse::Value(CmdLine, TEXT("-ZenStoreProject="), StorageServerProject);
-		const TCHAR* ProjectOverride = StorageServerProject.IsEmpty() ? nullptr : *StorageServerProject;
-		FString StorageServerPlatform;
-		FParse::Value(CmdLine, TEXT("-ZenStorePlatform="), StorageServerPlatform);
-		const TCHAR* PlatformOverride = StorageServerPlatform.IsEmpty() ? nullptr : *StorageServerPlatform;
-		if (Connection->Initialize(HostAddrs, 1337, ProjectOverride, PlatformOverride))
+		// Don't initialize the connection yet because we want to incorporate project file path information into the initialization.
+		FParse::Value(CmdLine, TEXT("-ZenStoreProject="), ServerProject);
+		FParse::Value(CmdLine, TEXT("-ZenStorePlatform="), ServerPlatform);
+		return true;
+	}
+	return false;
+}
+
+void FStorageServerPlatformFile::InitializeAfterProjectFilePath()
+{
+	Connection.Reset(new FStorageServerConnection());
+	const TCHAR* ProjectOverride = ServerProject.IsEmpty() ? nullptr : *ServerProject;
+	const TCHAR* PlatformOverride = ServerPlatform.IsEmpty() ? nullptr : *ServerPlatform;
+	if (Connection->Initialize(HostAddrs, 1337, ProjectOverride, PlatformOverride))
+	{
+		if (SendGetFileListMessage())
 		{
-			if (SendGetFileListMessage())
+			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
+			TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
+			IoDispatcher.Mount(IoDispatcherBackend);
+			FCoreDelegates::CreatePackageStore.BindLambda([this]() -> TSharedPtr<IPackageStore>
 			{
-				FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-				TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
-				IoDispatcher.Mount(IoDispatcherBackend);
-				bResult = true;
-				FCoreDelegates::CreatePackageStore.BindLambda([this]() -> TSharedPtr<IPackageStore>
-				{
 #if WITH_COTF
-					if (IsRunningCookOnTheFly())
-					{
-						UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-						UE::Cook::ICookOnTheFlyServerConnection& CotfConnection = CookOnTheFlyModule.GetServerConnection();
-						CotfConnection.OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
-						return MakeCookOnTheFlyPackageStore(CotfConnection);
-					}
-					else
+				if (IsRunningCookOnTheFly())
+				{
+					UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+					UE::Cook::ICookOnTheFlyServerConnection& CotfConnection = CookOnTheFlyModule.GetServerConnection();
+					CotfConnection.OnMessage().AddRaw(this, &FStorageServerPlatformFile::OnCookOnTheFlyMessage);
+					return MakeCookOnTheFlyPackageStore(CotfConnection);
+				}
+				else
 #endif
-					{
-						return MakeShared<FStorageServerPackageStore>(*Connection.Get());
-					}
-				});
-			}
-			else
-			{
-				UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to get file list from Zen at '%s'"), *Connection->GetHostAddr());
-			}
+				{
+					return MakeShared<FStorageServerPackageStore>(*Connection.Get());
+				}
+			});
 		}
 		else
 		{
-			UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to initialize connection"));
+			UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to get file list from Zen at '%s'"), *Connection->GetHostAddr());
 		}
 	}
-	if (!bResult)
+	else
 	{
-		Connection.Reset(nullptr);
-		return false;
+		UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to initialize connection"));
 	}
-	return true;
 }
 
 bool FStorageServerPlatformFile::FileExists(const TCHAR* Filename)

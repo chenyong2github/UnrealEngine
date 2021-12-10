@@ -104,6 +104,11 @@ public:
 		NewCommitEvent->Trigger();
 	}
 
+	void ResetAdding()
+	{
+		bCompleteAdding = false;
+	}
+
 	void WaitUntilEmpty()
 	{
 		bool bWait = false;
@@ -162,7 +167,7 @@ FZenStoreWriter::FZenStoreWriter(
 {
 	StaticInit();
 
-	FString ProjectId = FApp::GetProjectName();
+	FString ProjectId = FZenStoreHttpClient::GenerateDefaultProjectId();
 	FString OplogId = InTargetPlatform->PlatformName();
 
 	HttpClient = MakeUnique<UE::FZenStoreHttpClient>();
@@ -351,7 +356,7 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 			IFileManager::Get().DeleteDirectory(*OutputPath, bRequireExists, bTree);
 		}
 
-		FString ProjectId = FApp::GetProjectName();
+		FString ProjectId = FZenStoreHttpClient::GenerateDefaultProjectId();
 		FString OplogId = TargetPlatform.PlatformName();
 		bool bOplogEstablished = HttpClient->TryCreateOplog(ProjectId, OplogId, Info.bFullBuild);
 		UE_CLOG(!bOplogEstablished, LogZenStoreWriter, Fatal, TEXT("Failed to establish oplog on the ZenServer"));
@@ -490,6 +495,7 @@ void FZenStoreWriter::BeginCook()
 
 	if (FPlatformProcess::SupportsMultithreading())
 	{
+		CommitQueue->ResetAdding();
 		CommitThread = AsyncThread([this]()
 		{ 
 			for(;;)

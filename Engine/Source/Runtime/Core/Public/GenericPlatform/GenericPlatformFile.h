@@ -253,6 +253,11 @@ public:
 	virtual void		InitializeAfterSetActive() { }
 
 	/**
+	 * Performs initialization of the platform file after the project path has been set.
+	 */
+	virtual void		InitializeAfterProjectFilePath() { }
+
+	/**
 	 * Build an in memory unique pak file from a subset of files in this pak file
 	 */
 	virtual void		MakeUniquePakFilesForTheseFiles(const TArray<TArray<FString>>& InFiles) { }
