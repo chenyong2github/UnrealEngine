@@ -42,18 +42,35 @@ public:
 
 	/**
 	 * Calculate LOD, called for each entity chunks
+	 * Use next method when FLODLogic::bStoreInfoPerViewer is enabled
 	 * @Param Context of the chunk execution
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
 	 * @Param LODList is the fragment where calculation are stored
-	 * @Param InfoPerViewerList is the Per viewer source information (optional parameter required when FLODLogic::bStoreInfoPerViewer is enabled)
+	 */
+	template <typename TViewerInfoFragment, typename TLODFragment>
+	FORCEINLINE void CalculateLOD(FMassExecutionContext& Context,
+					  TConstArrayView<TViewerInfoFragment> ViewersInfoList,
+					  TArrayView<TLODFragment> LODList)
+	{
+		CalculateLOD(Context, ViewersInfoList, LODList, TConstArrayView<void*>());
+	}
+
+	/**
+	 * Calculate LOD, called for each entity chunks
+	 * Use this version when FLODLogic::bStoreInfoPerViewer is enabled
+	 * It calculates a LOD per viewer and needs information per viewer via PerViewerInfoList fragments
+	 * @Param Context of the chunk execution
+	 * @Param ViewersInfoList is the source information fragment for LOD calculation
+	 * @Param LODList is the fragment where calculation are stored
+	 * @Param PerViewerInfoList is the Per viewer source information
 	 */
 	template <typename TViewerInfoFragment,
 			  typename TLODFragment,
-			  typename TPerViewerInfoFragment = FOptionalDefaultType>
+			  typename TPerViewerInfoFragment>
 	void CalculateLOD(FMassExecutionContext& Context,
 					  TConstArrayView<TViewerInfoFragment> ViewersInfoList,
 					  TArrayView<TLODFragment> LODList,
-					  TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList = TConstArrayView<TPerViewerInfoFragment>());
+					  TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList);
 
 	/**
 	 * Adjust LOD distances by clamping them to respect the maximum LOD count
@@ -63,18 +80,37 @@ public:
 
 	/**
 	 * Adjust LOD from newly adjusted distances, only needed to be called when AdjustDistancesFromCount return true, called for each entity chunks
+	 * Use next method when FLODLogic::bStoreInfoPerViewer is enabled
 	 * @Param Context of the chunk execution
 	 * @Param ViewersInfoList is the source information fragment for LOD calculation
 	 * @Param LODList is the fragment where calculation are stored
-	 * @Param InfoPerViewerList is the Per viewer source information (optional parameter required when FLODLogic::bStoreInfoPerViewer is enabled)
+	 */
+	template <typename TViewerInfoFragment, 
+			  typename TLODFragment>
+	FORCEINLINE void AdjustLODFromCount(FMassExecutionContext& Context,
+										TConstArrayView<TViewerInfoFragment> ViewersInfoList,
+										TArrayView<TLODFragment> LODList)
+	{
+		AdjustLODFromCount(Context, ViewersInfoList, LODList, TConstArrayView<void*>());
+	}
+
+
+	/**
+	 * Adjust LOD from newly adjusted distances, only needed to be called when AdjustDistancesFromCount return true, called for each entity chunks
+	 * Use this version when FLODLogic::bStoreInfoPerViewer is enabled
+	 * It calculates a LOD per viewer and needs information per viewer via PerViewerInfoList fragments
+	 * @Param Context of the chunk execution
+	 * @Param ViewersInfoList is the source information fragment for LOD calculation
+	 * @Param LODList is the fragment where calculation are stored
+	 * @Param PerViewerInfoList is the Per viewer source information
 	 */
 	template <typename TViewerInfoFragment,
 			  typename TLODFragment,
-			  typename TPerViewerInfoFragment = FOptionalDefaultType>
+			  typename TPerViewerInfoFragment>
 	void AdjustLODFromCount(FMassExecutionContext& Context,
 							TConstArrayView<TViewerInfoFragment> ViewersInfoList,
 							TArrayView<TLODFragment> LODList,
-							TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList = TConstArrayView<TPerViewerInfoFragment>());
+							TConstArrayView<TPerViewerInfoFragment> PerViewerInfoList);
 
 	/**
 	 * Turn Off all LOD, called for each entity chunks
