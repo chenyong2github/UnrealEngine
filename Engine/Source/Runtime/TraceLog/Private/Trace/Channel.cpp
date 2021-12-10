@@ -217,7 +217,7 @@ FChannel* FChannel::FindChannel(const ANSICHAR* ChannelName)
 	};
 	for (FChannel* Channel : ChannelLists)
 	{
-		for (; Channel != nullptr; Channel = (FChannel*)(Channel->Next))
+		for (; Channel != nullptr; Channel = Channel->Next)
 		{
 			if (Channel->Name.Hash == ChannelNameHash)
 			{
@@ -227,6 +227,24 @@ FChannel* FChannel::FindChannel(const ANSICHAR* ChannelName)
 	}
 
 	return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+void FChannel::EnumerateChannels(ChannelIterFunc Func, void* User) 
+{
+	using namespace Private;
+	FChannel* ChannelLists[] =
+	{
+		AtomicLoadAcquire(&GNewChannelList),
+		AtomicLoadAcquire(&GHeadChannel),
+	};
+	for (FChannel* Channel : ChannelLists)
+	{
+		for (; Channel != nullptr; Channel = Channel->Next)
+		{
+			Func(Channel->Name.Ptr, Channel->IsEnabled(), User);
+		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////

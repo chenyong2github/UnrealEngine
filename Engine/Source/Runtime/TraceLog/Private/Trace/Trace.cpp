@@ -123,7 +123,13 @@ bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
 	ToAnsiCheap(ChannelNameA, ChannelName);
 	return FChannel::Toggle(ChannelNameA, bEnabled);
 }
-	
+
+////////////////////////////////////////////////////////////////////////////////
+void EnumerateChannels(ChannelIterFunc IterFunc, void* User)
+{
+	FChannel::EnumerateChannels(IterFunc, User);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 void StartWorkerThread()
 {

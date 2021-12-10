@@ -10,6 +10,8 @@
 
 namespace UE {
 namespace Trace {
+	
+typedef void ChannelIterFunc(const ANSICHAR*, bool, void*);	
 
 /*
 	A named channel which can be used to filter trace events. Channels can be
@@ -50,6 +52,7 @@ public:
 	static bool			Toggle(const ANSICHAR* ChannelName, bool bEnabled);
 	static void			ToggleAll(bool bEnabled);
 	static FChannel*	FindChannel(const ANSICHAR* ChannelName);
+	static void			EnumerateChannels(ChannelIterFunc Func, void* User);
 	bool				Toggle(bool bEnabled);
 	bool				IsEnabled() const;
 	explicit			operator bool () const;

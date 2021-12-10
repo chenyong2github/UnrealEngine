@@ -534,6 +534,78 @@ static void TraceAuxiliaryResume()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+static void TraceAuxiliaryStatus()
+{
+	UE_LOG(LogConsoleResponse, Display, TEXT("Trace status -------------------------------"));
+	
+	// Status of data connection
+	const TCHAR* Dest = GTraceAuxiliary.GetDest();
+	TStringBuilder<256> ConnectionStr;
+	if (Dest && FCString::Strlen(Dest) > 0)
+	{
+		ConnectionStr.Appendf(TEXT("Tracing to '%s'"), Dest);
+	}
+	else
+	{
+		ConnectionStr.Append(TEXT("Not tracing"));
+	}
+	UE_LOG(LogConsoleResponse, Display, TEXT("- Connection: %.*s"), ConnectionStr.ToView().Len(), ConnectionStr.ToView().GetData());
+	
+	// Stats
+	UE::Trace::FStatistics Stats;
+	UE::Trace::GetStatistics(Stats);
+	constexpr float MbDiv = 1024*1024;
+	UE_LOG(LogConsoleResponse, Display, TEXT("- Memory used: %.02f Mb"),
+		float(Stats.MemoryUsed) / MbDiv);
+	UE_LOG(LogConsoleResponse, Display, TEXT("- Important Events cache: %.02f Mb, waste: %0.02f Mb"),
+		float(Stats.CacheUsed) / MbDiv,
+		float(Stats.CacheWaste) / MbDiv);
+	UE_LOG(LogConsoleResponse, Display, TEXT("- Sent: %.2f Mb"),
+		float(Stats.BytesSent) / MbDiv);
+	
+	// Channels
+	struct EnumerateType
+	{
+		TStringBuilder<128> EnabledChannelsStr;
+		uint32 EnabledChannelsLastLineBreak = 0;
+		TStringBuilder<1024> DisabledChannelsStr;
+		uint32 DisabledChannelsLastLineBreak = 0;
+
+		void InsertLineBreaks()
+		{
+			if ((EnabledChannelsStr.Len() - EnabledChannelsLastLineBreak) > 100)
+			{
+				EnabledChannelsStr << TEXT("\n");
+				EnabledChannelsLastLineBreak = DisabledChannelsStr.Len();
+			}
+			if ((DisabledChannelsStr.Len() - DisabledChannelsLastLineBreak) > 100)
+			{
+				DisabledChannelsStr << TEXT("\n");
+				DisabledChannelsLastLineBreak = DisabledChannelsStr.Len();
+			}
+		}
+	} EnumerateUserData;
+	UE::Trace::EnumerateChannels([](const ANSICHAR* Name, bool bEnabled, void* User)
+	{
+		EnumerateType* EnumerateUser = static_cast<EnumerateType*>(User);
+		FAnsiStringView NameView = FAnsiStringView(Name).LeftChop(7); // Remove "Channel" suffix
+		if (bEnabled)
+		{
+			EnumerateUser->EnabledChannelsStr << NameView << TEXT(", ");
+		}
+		else
+		{
+			EnumerateUser->DisabledChannelsStr << NameView << TEXT(", ");
+		}
+		EnumerateUser->InsertLineBreaks();
+	}, &EnumerateUserData);
+	UE_LOG(LogConsoleResponse, Display, TEXT("- Enabled channels:\n %s"), EnumerateUserData.EnabledChannelsStr.ToString());
+	UE_LOG(LogConsoleResponse, Display, TEXT("- Available channels:\n %s"), EnumerateUserData.DisabledChannelsStr.ToString());
+	
+	UE_LOG(LogConsoleResponse, Display, TEXT("-------------------------------------------"));
+}
+
+////////////////////////////////////////////////////////////////////////////////
 static FAutoConsoleCommand TraceAuxiliarySendCmd(
 	TEXT("Trace.Send"),
 	TEXT("Send trace data to the trace store; Trace.Send <Host> [ChannelSet]"),
@@ -571,6 +643,12 @@ static FAutoConsoleCommand TraceAuxiliaryResumeCmd(
 	FConsoleCommandDelegate::CreateStatic(TraceAuxiliaryResume)
 );
 
+////////////////////////////////////////////////////////////////////////////////
+static FAutoConsoleCommand TraceAuxiliaryStatusCmd(
+	TEXT("Trace.Status"),
+	TEXT("Print Trace status to console"),
+	FConsoleCommandDelegate::CreateStatic(TraceAuxiliaryStatus)
+);
 #endif // UE_TRACE_ENABLED
 
 
