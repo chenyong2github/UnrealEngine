@@ -88,7 +88,8 @@ namespace XGEController
 				break;
 		}
 
-		return !GIsBuildMachine && !IsRunningCommandlet();
+		static bool bForceUsingLocalMachine = !FPlatformMisc::GetEnvironmentVariable(TEXT("UE-XGEControllerForceUsingLocalMachine")).IsEmpty();
+		return !bForceUsingLocalMachine && !GIsBuildMachine && !IsRunningCommandlet();
 	}
 }
 
