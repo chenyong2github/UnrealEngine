@@ -38,7 +38,7 @@ namespace ImmediatePhysics_Chaos
 		void DestroyJoint(FJointHandle* JointHandle);
 
 		/** Sets the number of active bodies. This number is reset any time a new simulated body is created */
-		void SetNumActiveBodies(int32 NumActiveBodies);
+		void SetNumActiveBodies(int32 NumActiveBodies, TArray<int32> ActiveBodyIndices);
 
 		/** An array of actors to ignore. */
 		struct FIgnorePair
