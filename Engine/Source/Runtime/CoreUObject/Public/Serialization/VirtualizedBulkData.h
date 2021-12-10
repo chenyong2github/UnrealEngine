@@ -297,6 +297,14 @@ public:
 	/** Load the payload and set the correct payload id, if the bulkdata has a PlaceholderPayloadId. */
 	void UpdatePayloadId();
 
+	/**
+	 * Register this BulkData with the BulkData registry, if it is valid for registration.
+	 * This function is called automatically when necessary by VirtualizedBulkData internals, 
+	 * but external callers can call it to provide information about the owner if it was previously
+	 * registered anonymously by UpdatePayload.
+	 */
+	void Register(UObject* Owner);
+
 #if UE_ENABLE_VIRTUALIZATION_TOGGLE
 	UE_DEPRECATED(5.0, "SetVirtualizationOptOut is an internal feature for development and will be removed without warning!")
 	void SetVirtualizationOptOut(bool bOptOut);
@@ -331,6 +339,8 @@ private:
 		HasRegistered				= 1 << 6,
 		/** The BulkData object is a copy used only to represent the id and payload; it does not communicate with the BulkDataRegistry, and will point DDC jobs toward the original BulkData */
 		IsTornOff					= 1 << 7,
+		/** The bulkdata object references a pyaload stored in a WorkspaceDomain file  */
+		ReferencesWorkspaceDomain	= 1 << 8,
 
 		TransientFlags				= HasRegistered | IsTornOff,
 	};
@@ -373,7 +383,7 @@ private:
 	void UpdateKeyIfNeeded();
 
 	void RecompressForSerialization(FCompressedBuffer& InOutPayload, EFlags PayloadFlags) const;
-	EFlags BuildFlagsForSerialization(FArchive& Ar, bool bUpgradeLegacyData) const;
+	EFlags BuildFlagsForSerialization(FArchive& Ar, bool bKeepFileDataByReference) const;
 
 	bool IsDataVirtualized() const 
 	{ 
@@ -385,12 +395,33 @@ private:
 		return EnumHasAnyFlags(Flags, EFlags::HasPayloadSidecarFile); 
 	}
 
-	bool IsReferencingOldBulkData() const 
+	bool IsReferencingOldBulkData() const
 	{ 
-		return EnumHasAnyFlags(Flags, EFlags::ReferencesLegacyFile); 
+		return IsReferencingOldBulkData(Flags);
+	}
+	static bool IsReferencingOldBulkData(EFlags InFlags)
+	{
+		return EnumHasAnyFlags(InFlags, EFlags::ReferencesLegacyFile);
 	}
 
-	void Register(UObject* Owner);
+	bool IsReferencingWorkspaceDomain() const
+	{
+		return IsReferencingWorkspaceDomain(Flags);
+	}
+	static bool IsReferencingWorkspaceDomain(EFlags InFlags)
+	{
+		return EnumHasAnyFlags(InFlags, EFlags::ReferencesWorkspaceDomain);
+	}
+
+	bool IsReferencingByPackagePath() const
+	{
+		return IsReferencingByPackagePath(Flags);
+	}
+	static bool IsReferencingByPackagePath(EFlags InFlags)
+	{
+		return EnumHasAnyFlags(InFlags, EFlags::ReferencesLegacyFile | EFlags::ReferencesWorkspaceDomain);
+	}
+
 	void Unregister();
 
 	/** Utility to return an apt error message if a payload loaded from this object is considered corrupt. Handles the formatting depending on the various payload flags etc. */
@@ -455,6 +486,10 @@ class TVirtualizedBulkData final : public FVirtualizedUntypedBulkData
 public:
 	TVirtualizedBulkData() = default;
 	~TVirtualizedBulkData() = default;
+	TVirtualizedBulkData(const TVirtualizedBulkData& Other) = default;
+	TVirtualizedBulkData(TVirtualizedBulkData&& Other) = default;
+	TVirtualizedBulkData& operator=(const TVirtualizedBulkData& Other) = default;
+	TVirtualizedBulkData& operator=(TVirtualizedBulkData&& Other) = default;
 
 	TVirtualizedBulkData<DataType> CopyTornOff() const
 	{
