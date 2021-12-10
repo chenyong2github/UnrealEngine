@@ -11,8 +11,6 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLayoutService, Log, All);
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 const TCHAR* DefaultEditorLayoutsSectionName = TEXT("EditorLayouts");
 
 static const TCHAR* GetEditorLayoutsSectionName()
@@ -440,5 +438,3 @@ bool FLayoutSaveRestore::IsValidConfig(const FString& InConfigFileName, bool bAl
 	const FString JsonFileName = GetLayoutJsonFileName(InConfigFileName);
 	return IFileManager::Get().FileExists(*JsonFileName);
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
