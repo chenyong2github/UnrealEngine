@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #include "ConsoleVariablesAsset.generated.h"
 
