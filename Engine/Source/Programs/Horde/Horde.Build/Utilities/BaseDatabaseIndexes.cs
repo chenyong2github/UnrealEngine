@@ -39,7 +39,7 @@ namespace HordeServer.Utilities
 			{
 				if (Collection.Indexes.List().ToList().Find(x => x.TryGetString("name", out string? n) && n == Name) == null)
 				{
-					throw new ArgumentException("Index with name {Name} not found (running in database read-only mode)");
+					throw new ArgumentException($"Index with name {Name} not found (running in database read-only mode)");
 				}
 				return Name;
 			}
