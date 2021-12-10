@@ -150,19 +150,19 @@ uint32 FInstanceCullingContext::AllocateIndirectArgs(const FMeshDrawCommand *Mes
 // 2.1 Only allocate indirect draw cmd if needed, 
 // 3. 
 
-void FInstanceCullingContext::AddInstancesToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, uint32 NumInstances)
+void FInstanceCullingContext::AddInstancesToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, bool bForceInstanceCulling, uint32 NumInstances)
 {
 	checkSlow(InstanceDataOffset >= 0);
 
 	// We special-case the single-instance (i.e., regular primitives) as they don't need culling (again).
 	// In actual fact this is not 100% true because dynamic path primitives may not have been culled.
-	EBatchProcessingMode Mode = NumInstances == 1 ? SingleInstanceProcessingMode : EBatchProcessingMode::Generic;
+	EBatchProcessingMode Mode = (NumInstances == 1 && !bForceInstanceCulling) ? SingleInstanceProcessingMode : EBatchProcessingMode::Generic;
 	// NOTE: we pack the bDynamicInstanceDataOffset in the lowest bit because the load balancer steals the upper bits of the payload!
 	LoadBalancers[uint32(Mode)]->Add(uint32(InstanceDataOffset), NumInstances, (IndirectArgsOffset << 1U) | uint32(bDynamicInstanceDataOffset));
 	TotalInstances += NumInstances;
 }
 
-void FInstanceCullingContext::AddInstanceRunsToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, const uint32* Runs, uint32 NumRuns)
+void FInstanceCullingContext::AddInstanceRunsToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, bool bForceInstanceCulling, const uint32* Runs, uint32 NumRuns)
 {
 	// Add items to current generic batch as they are instanced for sure.
 	for (uint32 Index = 0; Index < NumRuns; ++Index)
@@ -170,7 +170,7 @@ void FInstanceCullingContext::AddInstanceRunsToDrawCommand(uint32 IndirectArgsOf
 		uint32 RunStart = Runs[Index * 2];
 		uint32 RunEndIncl = Runs[Index * 2 + 1];
 		uint32 NumInstances = (RunEndIncl + 1U) - RunStart;
-		AddInstancesToDrawCommand(IndirectArgsOffset, InstanceDataOffset + RunStart, bDynamicInstanceDataOffset, NumInstances);
+		AddInstancesToDrawCommand(IndirectArgsOffset, InstanceDataOffset + RunStart, bDynamicInstanceDataOffset, bForceInstanceCulling, NumInstances);
 	}
 }
 
@@ -832,7 +832,8 @@ void FInstanceCullingContext::SetupDrawCommands(
 
 		const bool bSupportsGPUSceneInstancing = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
 		const bool bMaterialMayModifyPosition = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition);
-		const bool bUseIndirectDraw = bAlwaysUseIndirectDraws || (VisibleMeshDrawCommand.NumRuns > 0 || MeshDrawCommand->NumInstances > 1);
+		const bool bForceInstanceCulling = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::ForceInstanceCulling);
+		const bool bUseIndirectDraw = bAlwaysUseIndirectDraws || bForceInstanceCulling || (VisibleMeshDrawCommand.NumRuns > 0 || MeshDrawCommand->NumInstances > 1);
 
 		if (bCompactIdenticalCommands && CurrentStateBucketId != -1 && VisibleMeshDrawCommand.StateBucketId == CurrentStateBucketId)
 		{
@@ -846,7 +847,7 @@ void FInstanceCullingContext::SetupDrawCommands(
 			if (DrawCmd.bUseIndirect == 0)
 			{
 				DrawCmd.IndirectArgsOffsetOrNumInstances += 1;
-		}
+			}
 		}
 		else
 		{
@@ -903,11 +904,11 @@ void FInstanceCullingContext::SetupDrawCommands(
 			// This will cause all instances belonging to the Primitive to be added to the command, if they are visible etc (GPU-Scene knows all - sees all)
 			if (VisibleMeshDrawCommand.RunArray)
 			{
-				AddInstanceRunsToDrawCommand(CurrentIndirectArgsOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.InstanceSceneDataOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive, VisibleMeshDrawCommand.RunArray, VisibleMeshDrawCommand.NumRuns);
+				AddInstanceRunsToDrawCommand(CurrentIndirectArgsOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.InstanceSceneDataOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive, bForceInstanceCulling, VisibleMeshDrawCommand.RunArray, VisibleMeshDrawCommand.NumRuns);
 			}
 			else 
 			{
-				AddInstancesToDrawCommand(CurrentIndirectArgsOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.InstanceSceneDataOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive, VisibleMeshDrawCommand.MeshDrawCommand->NumInstances);
+				AddInstancesToDrawCommand(CurrentIndirectArgsOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.InstanceSceneDataOffset, VisibleMeshDrawCommand.PrimitiveIdInfo.bIsDynamicPrimitive, bForceInstanceCulling, VisibleMeshDrawCommand.MeshDrawCommand->NumInstances);
 			}
 		}
 	}

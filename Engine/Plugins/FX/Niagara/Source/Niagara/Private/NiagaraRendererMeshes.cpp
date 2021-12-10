@@ -978,6 +978,13 @@ void FNiagaraRendererMeshes::SetupElementForGPUScene(
 		GPUSceneRes.GPUWriteParams.DistanceCullRangeSquared = DistanceCullRange * DistanceCullRange;
 		GPUSceneRes.GPUWriteParams.bNeedsPrevTransform		= bNeedsPrevTransform ? 1 : 0;
 
+		// We need to set this flag to force the system to always cull individual instances, because we may need to discard instances that are:
+		// * Not tied to any live particles
+		// * Are distance culled
+		// * Are culled because of mismatched MeshIndex
+		// * Are culled because of mismatched VisibilityTag
+		GPUSceneRes.DynamicPrimitiveData.bForceInstanceCulling = true;
+
 		GPUSceneRes.DynamicPrimitiveData.DataWriterGPU = FGPUSceneWriteDelegate::CreateLambda(				
 			[&GPUSceneRes](FRDGBuilder& GraphBuilder, const FGPUSceneWriteDelegateParams& Params)
 			{

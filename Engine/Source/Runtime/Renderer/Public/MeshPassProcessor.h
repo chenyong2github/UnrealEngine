@@ -1261,8 +1261,11 @@ enum class EFVisibleMeshDrawCommandFlags : uint8
 	/** If set, the mesh draw command supports primitive ID steam (required for dynamic instancing and GPU-Scene instance culling). */
 	HasPrimitiveIdStreamIndex = 1U << 1U,
 
-	All = MaterialMayModifyPosition | HasPrimitiveIdStreamIndex,
-	NumBits = 2U
+	/** If set, forces individual instances to always be culled independently from the primitive */
+	ForceInstanceCulling = 1U << 2U,	
+
+	All = MaterialMayModifyPosition | HasPrimitiveIdStreamIndex | ForceInstanceCulling,
+	NumBits = 3U
 };
 ENUM_CLASS_FLAGS(EFVisibleMeshDrawCommandFlags);
 static_assert(uint32(EFVisibleMeshDrawCommandFlags::All) < (1U << uint32(EFVisibleMeshDrawCommandFlags::NumBits)), "EFVisibleMeshDrawCommandFlags::NumBits too small to represent all flags in EFVisibleMeshDrawCommandFlags.");
