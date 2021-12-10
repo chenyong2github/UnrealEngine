@@ -50,7 +50,9 @@ NNI_THIRD_PARTY_INCLUDES_END
 #if defined(PLATFORM_WIN64)
 
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
+NNI_THIRD_PARTY_INCLUDES_START
 	#include "pix3.h"
+NNI_THIRD_PARTY_INCLUDES_END
 	#define NNIGPUProfileMarker(Name) FNNIGPUProfiler::Instance()->Marker(Name)
 #else
 	#define NNIGPUProfileMarker(Name)
