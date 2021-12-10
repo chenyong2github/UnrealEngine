@@ -278,7 +278,7 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-	ClothConstraints.SetMaximumDistanceProperties((FReal)Cloth->MaxDistancesMultiplier);
+	ClothConstraints.SetMaximumDistanceProperties((FReal)Cloth->MaxDistancesMultiplier * MeshScale);
 	ClothConstraints.SetEdgeProperties(FVec2((FReal)Cloth->EdgeStiffness[0], (FReal)Cloth->EdgeStiffness[1]));
 	ClothConstraints.SetBendingProperties(FVec2((FReal)Cloth->BendingStiffness[0], (FReal)Cloth->BendingStiffness[1]));
 	ClothConstraints.SetAreaProperties(FVec2((FReal)Cloth->AreaStiffness[0], (FReal)Cloth->AreaStiffness[1]));
@@ -291,7 +291,7 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 		FVec2((FReal)Cloth->AnimDriveDamping[0], (FReal)Cloth->AnimDriveDamping[1]));
 	ClothConstraints.SetThinShellVolumeProperties((FReal)Cloth->VolumeStiffness);
 	ClothConstraints.SetVolumeProperties((FReal)Cloth->VolumeStiffness);
-	ClothConstraints.SetBackstopProperties(Cloth->bEnableBackstop);
+	ClothConstraints.SetBackstopProperties(Cloth->bEnableBackstop, MeshScale);
 }
 
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
