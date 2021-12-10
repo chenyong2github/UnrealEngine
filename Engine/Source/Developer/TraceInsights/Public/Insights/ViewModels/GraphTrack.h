@@ -146,6 +146,8 @@ protected:
 
 	FGraphValueViewport SharedValueViewport;
 
+	double TimeScaleX;
+
 	// Stats
 	int32 NumAddedEvents; // total event count
 	int32 NumDrawPoints;

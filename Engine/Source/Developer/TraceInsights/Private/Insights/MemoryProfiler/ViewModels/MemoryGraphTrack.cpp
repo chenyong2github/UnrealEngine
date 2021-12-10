@@ -1126,7 +1126,8 @@ void FMemoryGraphTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimi
 			InOutTooltip.AddTitle(SubTitle, Series->GetColor());
 		}
 
-		InOutTooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetStartTime()));
+		const double Precision = FMath::Max(1.0 / TimeScaleX, TimeUtils::Nanosecond);
+		InOutTooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTime(TooltipEvent.GetStartTime(), Precision));
 		if (Series->HasEventDuration())
 		{
 			InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetDuration()));
