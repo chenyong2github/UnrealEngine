@@ -47,10 +47,9 @@ void SetDeferredLightParameters(
 	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, DeferredLightUniformBufferParameter, GetDeferredLightParameters(View, *LightSceneInfo));
 }
 
-extern void SetupSimpleDeferredLightParameters(
+extern FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	const FSimpleLightEntry& SimpleLight,
-	const FSimpleLightPerViewEntry &SimpleLightPerViewData, 
-	FDeferredLightUniformStruct& DeferredLightUniformsValue);
+	const FSimpleLightPerViewEntry &SimpleLightPerViewData);
 
 template<typename ShaderRHIParamRef>
 void SetSimpleDeferredLightParameters(
@@ -61,8 +60,7 @@ void SetSimpleDeferredLightParameters(
 	const FSimpleLightPerViewEntry &SimpleLightPerViewData,
 	const FSceneView& View)
 {
-	FDeferredLightUniformStruct DeferredLightUniformsValue;
-	SetupSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData, DeferredLightUniformsValue);
+	FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData);
 	SetUniformBufferParameterImmediate(RHICmdList, ShaderRHI, DeferredLightUniformBufferParameter, DeferredLightUniformsValue);
 }
 
@@ -537,19 +535,26 @@ public:
 		float U, float V,
 		float SizeU, float SizeV,
 		FIntPoint TargetSize,
-		FIntPoint TextureSize)
+		FIntPoint TextureSize,
+		bool bBindViewUniform = true)
 	{
 		FParameters Out;
-		Out.View = View.ViewUniformBuffer;
+		if (bBindViewUniform)
+		{
+			Out.View = View.ViewUniformBuffer;
+		}
 		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4(0,0,0,0));
 		Out.FullScreenRect = GetFullScreenRectParameters(X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize);
 		return Out;
 	}
 
-	static FParameters GetParameters(const FViewInfo& View)
+	static FParameters GetParameters(const FViewInfo& View, bool bBindViewUniform = true)
 	{
 		FParameters Out;
-		Out.View = View.ViewUniformBuffer;
+		if (bBindViewUniform)
+		{
+			Out.View = View.ViewUniformBuffer;
+		}
 		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4(0, 0, 0, 0));
 		Out.FullScreenRect = GetFullScreenRectParameters(
 			0, 0,
@@ -562,22 +567,28 @@ public:
 		return Out;
 	}
 
-	static FParameters GetParameters(const FViewInfo& View, const FSphere& LightBounds)
+	static FParameters GetParameters(const FViewInfo& View, const FSphere& LightBounds, bool bBindViewUniform = true)
 	{
 		FVector4 StencilingSpherePosAndScale;
 		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, LightBounds, View.ViewMatrices.GetPreViewTranslation());
 
 		FParameters Out;
-		Out.View = View.ViewUniformBuffer;
+		if (bBindViewUniform)
+		{
+			Out.View = View.ViewUniformBuffer;
+		}
 		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(StencilingSpherePosAndScale);
 		Out.FullScreenRect = GetFullScreenRectParameters(0, 0, 0, 0, 0, 0, 0, 0, FIntPoint(1, 1), FIntPoint(1, 1));
 		return Out;
 	}
 
-	static FParameters GetParameters(const FViewInfo& View, const FLightSceneInfo* LightSceneInfo)
+	static FParameters GetParameters(const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, bool bBindViewUniform = true)
 	{
 		FParameters Out;
-		Out.View = View.ViewUniformBuffer;
+		if (bBindViewUniform)
+		{
+			Out.View = View.ViewUniformBuffer;
+		}
 		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(View, LightSceneInfo);
 		Out.FullScreenRect = GetFullScreenRectParameters(0, 0, 0, 0, 0, 0, 0, 0, FIntPoint(1, 1), FIntPoint(1, 1));
 		return Out;

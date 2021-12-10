@@ -577,8 +577,7 @@ static void RenderSimpleLights(
 
 		// Render light
 		FMobileRadialLightFunctionPS::FParameters PassParameters;
-		FDeferredLightUniformStruct DeferredLightUniformsValue;
-		SetupSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData, DeferredLightUniformsValue);
+		FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(SimpleLight, SimpleLightPerViewData);
 		PassParameters.DeferredLightUniforms = TUniformBufferRef<FDeferredLightUniformStruct>::CreateUniformBufferImmediate(DeferredLightUniformsValue, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		PassParameters.IESTexture = GWhiteTexture->TextureRHI;
 		PassParameters.IESTextureSampler = GWhiteTexture->SamplerStateRHI;

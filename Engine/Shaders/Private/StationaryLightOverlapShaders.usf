@@ -6,10 +6,10 @@
 
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"
-#include "DynamicLightingCommon.ush"
+#include "DynamicLightingCommon.ush" 
 
 /** 1 if the light has a valid shadowmap channel. */
-float HasValidChannel;
+float bHasValidChannel;
 
 #if RADIAL_ATTENUATION == 0
 void OverlapPixelMain(
@@ -28,7 +28,7 @@ void OverlapPixelMain(
 		// Output minor complexity to visualize overlap
 		OutColor.rgb = .04f;
 
-		if (HasValidChannel < 1)
+		if (bHasValidChannel < 1)
 		{
 			// Output a huge amount of complexity to make it clear that this light is an error
 			OutColor.rgb = .4f;
@@ -67,7 +67,7 @@ void OverlapPixelMain(
 			// Output minor complexity to visualize overlap
 			OutColor.rgb = .04f;
 
-			if (HasValidChannel < 1)
+			if (bHasValidChannel < 1)
 			{
 				// Output a huge amount of complexity to make it clear that this light is an error
 				OutColor.rgb = .4f;

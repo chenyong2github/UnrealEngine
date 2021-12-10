@@ -2943,7 +2943,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 	else if (HairStrands::HasViewHairStrandsData(Views) && ViewFamily.EngineShowFlags.Lighting)
 	{
-		RenderLightsForHair(GraphBuilder, SceneTextures.UniformBuffer, SortedLightSet, ForwardScreenSpaceShadowMaskHairTexture, LightingChannelsTexture);
+		RenderLightsForHair(GraphBuilder, SceneTextures, SortedLightSet, ForwardScreenSpaceShadowMaskHairTexture, LightingChannelsTexture);
 		RenderDeferredReflectionsAndSkyLightingHair(GraphBuilder);
 	}
 

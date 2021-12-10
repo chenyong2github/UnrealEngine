@@ -938,7 +938,7 @@ static FDefaultTextureKey GetDefaultTextureKey(EPixelFormat Format, const T& In)
 FIntVector4		ToVector(int32 Value)						{ return FIntVector4(Value, Value, Value, Value); }
 FVector4f		ToVector(float Value)						{ return FVector4f(Value, Value, Value, Value); }
 FUintVector4	ToVector(uint32 Value)						{ return FUintVector4(Value, Value, Value, Value); }
-FVector4f		ToVector(const FVector3f & Value)				{ return FVector4f(Value.X, Value.Y, Value.Z, 0); }
+FVector4f		ToVector(const FVector3f & Value)			{ return FVector4f(Value.X, Value.Y, Value.Z, 0); }
 FVector4f		ToVector(const FVector4f & Value)			{ return Value; }
 FVector4f		ToVector(const FVector2D& Value)			{ return FVector4f(Value.X, Value.Y, 0, 0); }
 FIntVector4		ToVector(const FIntPoint& Value)			{ return FIntVector4(Value.X, Value.Y, 0, 0); }
