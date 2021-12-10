@@ -304,6 +304,14 @@ bool FAnimNodeEditMode::InputDelta(FEditorViewportClient* InViewportClient, FVie
 			DoScale(InScale);
 		}
 
+		for (EditorRuntimeNodePair CurrentNodePair : AnimNodes)
+		{
+			if (CurrentNodePair.EditorAnimNode)
+			{
+				CurrentNodePair.EditorAnimNode->PostEditRefreshDebuggedComponent();
+			}
+		}
+
 		InViewport->Invalidate();
 	}
 
