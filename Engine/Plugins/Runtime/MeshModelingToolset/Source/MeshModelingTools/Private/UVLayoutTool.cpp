@@ -233,7 +233,7 @@ void UUVLayoutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property
 	else if (PropertySet == MaterialSettings)
 	{
 		// if we don't know what changed, or we know checker density changed, update checker material
-		UpdateVisualization();
+		UpdatePreviewMaterial();
 	}
 }
 
@@ -252,8 +252,7 @@ void UUVLayoutTool::OnPreviewMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Co
 
 }
 
-
-void UUVLayoutTool::UpdateVisualization()
+void UUVLayoutTool::UpdatePreviewMaterial()
 {
 	MaterialSettings->UpdateMaterials();
 	UpdateNumPreviews();
@@ -262,6 +261,11 @@ void UUVLayoutTool::UpdateVisualization()
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[PreviewIdx];
 		Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	}
+}
+
+void UUVLayoutTool::UpdateVisualization()
+{
+	UpdatePreviewMaterial();
 
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{

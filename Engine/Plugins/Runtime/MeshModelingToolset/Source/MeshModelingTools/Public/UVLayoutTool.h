@@ -87,6 +87,8 @@ protected:
 	void UpdateNumPreviews();
 
 	void UpdateVisualization();
+	
+	void UpdatePreviewMaterial();
 
 	void OnPreviewMeshUpdated(UMeshOpPreviewWithBackgroundCompute* Compute);
 
