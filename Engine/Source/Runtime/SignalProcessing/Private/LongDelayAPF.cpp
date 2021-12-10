@@ -34,6 +34,33 @@ FLongDelayAPF::FLongDelayAPF(float InG, int32 InNumDelaySamples, int32 InMaxNumI
 FLongDelayAPF::~FLongDelayAPF()
 {}
 
+void FLongDelayAPF::ProcessAudio(FAlignedFloatBuffer& Samples)
+{
+	const int32 InNum = Samples.Num();
+
+	float* InData = Samples.GetData();
+	float* OutDelayData = WorkBuffer.GetData();
+
+	// Process audio one block at a time.
+	int32 LeftOver = InNum;
+	int32 BufferIndex = 0;
+	while (LeftOver != 0)
+	{
+		// Determine block size for this loop.
+		int32 NumToProcess = FMath::Min<int32>(NumInternalBufferSamples, LeftOver);
+		const float* InDelayData = DelayLine->InspectSamples(NumToProcess);
+
+		ProcessAudioBlock(&InData[BufferIndex], InDelayData, NumToProcess, &InData[BufferIndex], OutDelayData);
+
+		// Update delay line with new data.
+		DelayLine->RemoveSamples(NumToProcess);
+		DelayLine->AddSamples(OutDelayData, NumToProcess);
+
+		LeftOver -= NumToProcess;
+		BufferIndex += NumToProcess;
+	}
+}
+
 void FLongDelayAPF::ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples)
 {
 	const float* InData = InSamples.GetData();
@@ -102,9 +129,6 @@ void FLongDelayAPF::ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedF
 void FLongDelayAPF::ProcessAudioBlock(const float* InSamples, const float* InDelaySamples, const int32 InNum, float* OutSamples, float* OutDelaySamples)
 {
 	// Calculate new delay line samples. "w[n] = x[n] + gw[n - d]"
-	//WeightedSumBuffer(InDelaySamples, G, InSamples, OutDelaySamples, InNum);
-	
-	
 	int32 NumToSIMD = InNum - (InNum % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER);
 
 	VectorRegister VG = MakeVectorRegister(G, G, G, G);
@@ -127,8 +151,6 @@ void FLongDelayAPF::ProcessAudioBlock(const float* InSamples, const float* InDel
 		// y[n] = -G * w[n] + w[n - D]
 		VectorRegister VOut = VectorMultiplyAdd(VOutDelay, VNG, VInDelay);
 		VectorStoreAligned(VOut, &OutSamples[i]);
-
-
 	}
 
 	// Calculate allpass for remaining samples that we couldn't SIMD
