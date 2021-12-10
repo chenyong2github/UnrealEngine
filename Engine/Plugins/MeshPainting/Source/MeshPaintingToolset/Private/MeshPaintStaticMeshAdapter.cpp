@@ -174,11 +174,9 @@ void FMeshPaintStaticMeshComponentAdapter::OnAdded()
 
 void FMeshPaintStaticMeshComponentAdapter::OnRemoved()
 {
-	check(StaticMeshComponent);
-	
 	// If the referenced static mesh has been destroyed (and nulled by GC), don't try to do anything more.
 	// It should be in the process of removing all global geometry adapters if it gets here in this situation.
-	if (!ReferencedStaticMesh)
+	if (!ReferencedStaticMesh || !StaticMeshComponent)
 	{
 		return;
 	}

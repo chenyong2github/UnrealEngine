@@ -229,11 +229,9 @@ void FMeshPaintSkeletalMeshComponentAdapter::OnAdded()
 
 void FMeshPaintSkeletalMeshComponentAdapter::OnRemoved()
 {
-	checkf(SkeletalMeshComponent, TEXT("Invalid SkeletalMesh Component"));
-	
 	// If the referenced skeletal mesh has been destroyed (and nulled by GC), don't try to do anything more.
 	// It should be in the process of removing all global geometry adapters if it gets here in this situation.
-	if (!ReferencedSkeletalMesh)
+	if (!ReferencedSkeletalMesh || !SkeletalMeshComponent)
 	{
 		return;
 	}
