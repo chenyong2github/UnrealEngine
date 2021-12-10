@@ -170,7 +170,7 @@ UClothingAssetBase* UClothingAssetFactory::Reimport(const FString& Filename, USk
 			AssetName = *FPaths::GetBaseFilename(Filename);
 
 			TArray<ClothingAssetUtils::FClothingAssetMeshBinding> AssetBindings;
-			ClothingAssetUtils::GetMeshClothingAssetBindings(TargetMesh, AssetBindings);
+			ClothingAssetUtils::GetAllMeshClothingAssetBindings(TargetMesh, AssetBindings);
 
 			OldClothingAsset->UnbindFromSkeletalMesh(TargetMesh);
 

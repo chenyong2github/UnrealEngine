@@ -20,7 +20,7 @@ namespace ClothingAssetUtils
 	/**
 	 * Helper struct to hold binding information on a clothing asset, used to 
 	 * enumerate all of the bindings on a skeletal mesh with 
-	 * \c GetMeshClothingAssetBindings() below.
+	 * \c GetAllMeshClothingAssetBindings() below.
 	 */
 	struct FClothingAssetMeshBinding
 	{
@@ -35,6 +35,7 @@ namespace ClothingAssetUtils
 	 * @param InSkelMesh - The skeletal mesh to search
 	 * @param OutBindings - The list of bindings to write to
 	 */
+	UE_DEPRECATED(5.0, "This Handler Is Now Deprecated, use GetAllMeshClothingAssetBindings instead.")
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API 
 	GetMeshClothingAssetBindings(
 		USkeletalMesh* InSkelMesh, 
@@ -43,6 +44,7 @@ namespace ClothingAssetUtils
 	/**
 	 * Similar to above, but only inspects the specified LOD.
 	 */
+	UE_DEPRECATED(5.0, "This Handler Is Now Deprecated, use GetAllLodMeshClothingAssetBindings instead.")
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API 
 	GetMeshClothingAssetBindings(
 		USkeletalMesh* InSkelMesh, 
@@ -50,6 +52,25 @@ namespace ClothingAssetUtils
 		int32 InLodIndex);
 
 #if WITH_EDITOR
+	/**
+	 * Given a skeletal mesh model, find all of the currently bound clothing assets and their binding information
+	 * @param MeshModel - The skeletal mesh imported model to extract binding from
+	 * @param OutBindings - The list of bindings to write to
+	 */
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API
+	GetAllMeshClothingAssetBindings(
+		const USkeletalMesh* InSkelMesh,
+		TArray<FClothingAssetMeshBinding>& OutBindings);
+
+	/**
+	 * Similar to above, but only inspects the specified LOD.
+	 */
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API
+	GetAllLodMeshClothingAssetBindings(
+		const USkeletalMesh* InSkelMesh,
+		TArray<FClothingAssetMeshBinding>& OutBindings,
+		int32 InLodIndex);
+
 	/**
 	 * Clears the clothing tracking struct of a section.
 	 */
