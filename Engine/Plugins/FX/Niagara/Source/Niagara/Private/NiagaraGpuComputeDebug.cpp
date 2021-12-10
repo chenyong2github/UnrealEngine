@@ -222,7 +222,7 @@ void FNiagaraGpuComputeDebug::AddAttributeTexture(FRHICommandList& RHICmdList, F
 	}
 }
 
-FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID, bool bRequiresGpuBuffers)
+FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDrawData(FNiagaraSystemInstanceID SystemInstanceID, bool bRequiresGpuBuffers, uint32 OverrideMaxDebugLines)
 {
 	TUniquePtr<FNiagaraSimulationDebugDrawData>& DebugDrawDataPtr = DebugDrawBuffers.FindOrAdd(SystemInstanceID);
 	if (!DebugDrawDataPtr.IsValid())
@@ -230,12 +230,14 @@ FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDraw
 		DebugDrawDataPtr.Reset(new FNiagaraSimulationDebugDrawData());
 	}
 
-	if (bRequiresGpuBuffers && (DebugDrawDataPtr->GpuLineMaxInstances != GNiagaraGpuComputeDebug_MaxLineInstances))
+	int MaxLineInstancesToUse = FMath::Max3(DebugDrawDataPtr->GpuLineMaxInstances, (uint32) GNiagaraGpuComputeDebug_MaxLineInstances, OverrideMaxDebugLines);
+
+	if (bRequiresGpuBuffers && (DebugDrawDataPtr->GpuLineMaxInstances != MaxLineInstancesToUse))
 	{
 		check(IsInRenderingThread());
 		DebugDrawDataPtr->GpuLineBufferArgs.Release();
 		DebugDrawDataPtr->GpuLineVertexBuffer.Release();
-		DebugDrawDataPtr->GpuLineMaxInstances = GNiagaraGpuComputeDebug_MaxLineInstances;
+		DebugDrawDataPtr->GpuLineMaxInstances = MaxLineInstancesToUse;
 		if (DebugDrawDataPtr->GpuLineMaxInstances > 0)
 		{
 			DebugDrawDataPtr->GpuLineBufferArgs.Initialize(TEXT("NiagaraGpuComputeDebug::DrawLineBufferArgs"), sizeof(uint32), 4, EPixelFormat::PF_R32_UINT, BUF_Static | BUF_DrawIndirect);

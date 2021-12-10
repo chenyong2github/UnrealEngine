@@ -1412,6 +1412,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 struct FNDIDebugDrawInstanceData_RenderThread
 {
 	FNiagaraGpuComputeDebug* GpuComputeDebug = nullptr;
+	uint32 OverrideMaxLineInstances = 0;
 };
 #endif //NIAGARA_COMPUTEDEBUG_ENABLED
 
@@ -2293,7 +2294,7 @@ public:
 		FNiagaraSimulationDebugDrawData* DebugDraw = nullptr;
 		if ( InstanceData->GpuComputeDebug )
 		{
-			DebugDraw = InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(Context.SystemInstanceID, true);
+			DebugDraw = InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(Context.SystemInstanceID, true, InstanceData->OverrideMaxLineInstances);
 		}
 
 		const bool bIsValid =
@@ -2335,7 +2336,7 @@ public:
 		FNiagaraSimulationDebugDrawData* DebugDraw = nullptr;
 		if (InstanceData->GpuComputeDebug)
 		{
-			DebugDraw = InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(Context.SystemInstanceID, true);
+			DebugDraw = InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(Context.SystemInstanceID, true, InstanceData->OverrideMaxLineInstances);
 		}
 
 		const bool bIsValid =
@@ -3214,7 +3215,7 @@ bool UNiagaraDataInterfaceDebugDraw::PerInstanceTickPostSimulate(void* PerInstan
 
 					if (RT_InstanceData && RT_InstanceData->GpuComputeDebug)
 					{
-						if (FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID, false))
+						if (FNiagaraSimulationDebugDrawData* DebugDraw = RT_InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(RT_InstanceID, false, RT_InstanceData->OverrideMaxLineInstances))
 						{
 							if (DebugDraw->LastUpdateTickCount != RT_TickCount)
 							{
@@ -3247,11 +3248,12 @@ bool UNiagaraDataInterfaceDebugDraw::InitPerInstanceData(void* PerInstanceData, 
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	ENQUEUE_RENDER_COMMAND(NDIDebugDrawInit)(
-		[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_ComputeDispatchInterface=SystemInstance->GetComputeDispatchInterface()](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy=GetProxyAs<FNDIDebugDrawProxy>(), RT_InstanceID=SystemInstance->GetId(), RT_ComputeDispatchInterface=SystemInstance->GetComputeDispatchInterface(), RT_OverrideMaxLineInstances = OverrideMaxLineInstances](FRHICommandListImmediate& RHICmdList)
 		{
 			check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(RT_InstanceID));
 			FNDIDebugDrawInstanceData_RenderThread* RT_InstanceData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(RT_InstanceID);
 			RT_InstanceData->GpuComputeDebug = RT_ComputeDispatchInterface->GetGpuComputeDebug();
+			RT_InstanceData->OverrideMaxLineInstances = RT_OverrideMaxLineInstances;
 		}
 	);
 #endif
@@ -3278,4 +3280,29 @@ void UNiagaraDataInterfaceDebugDraw::DestroyPerInstanceData(void* PerInstanceDat
 		}
 	);
 #endif
+}
+
+bool UNiagaraDataInterfaceDebugDraw::Equals(const UNiagaraDataInterface* Other) const
+{
+	if (!Super::Equals(Other))
+	{
+		return false;
+	}
+	const UNiagaraDataInterfaceDebugDraw* OtherTyped = CastChecked<const UNiagaraDataInterfaceDebugDraw>(Other);
+
+	return OtherTyped->OverrideMaxLineInstances == OverrideMaxLineInstances;
+}
+
+bool UNiagaraDataInterfaceDebugDraw::CopyToInternal(UNiagaraDataInterface* Destination) const
+{
+	if (!Super::CopyToInternal(Destination))
+	{
+		return false;
+	}
+
+	UNiagaraDataInterfaceDebugDraw* OtherTyped = CastChecked<UNiagaraDataInterfaceDebugDraw>(Destination);
+
+	OtherTyped->OverrideMaxLineInstances = OverrideMaxLineInstances;	
+
+	return true;
 }
