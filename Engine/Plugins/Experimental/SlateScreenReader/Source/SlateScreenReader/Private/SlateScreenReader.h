@@ -6,8 +6,8 @@
 #include "GenericPlatform/ScreenReaderBase.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 
-class SWidget;
 class iAccessibleWidget;
+struct FAccessibleEventArgs;
 
 
 /**

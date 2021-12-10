@@ -7,6 +7,7 @@ class FGenericApplicationMessageHandler;
 class FScreenReaderApplicationMessageHandlerBase;
 class FScreenReaderUser;
 class GenericApplication;
+struct FAccessibleEventArgs;
 
 
 /**
@@ -97,8 +98,7 @@ protected:
 	 * A sample implementation can be found in FSlateScreenReader.
 	 * @see FSlateScreenReader
 	 */
-virtual void OnAccessibleEventRaised(const FAccessibleEventArgs& Args) = 0;
-	
+	virtual void OnAccessibleEventRaised(const FAccessibleEventArgs& Args) = 0;
 	/** Returns the weak pointer to the platform application. Use this to access the accessible message handler and or retrieve cursor information. */
 	TWeakPtr<GenericApplication> GetPlatformApplicationWeak() const
 	{
