@@ -94,7 +94,7 @@ void FAnimNode_ScaleChainLength::Evaluate_AnyThread(FPoseContext& Output)
 		return;
 	}
 
-	const FVector TargetLocationCompSpace = Output.AnimInstanceProxy->GetSkelMeshCompLocalToWorld().InverseTransformPosition(TargetLocation);
+	const FVector TargetLocationCompSpace = Output.AnimInstanceProxy->GetComponentTransform().InverseTransformPosition(TargetLocation);
 
 	// Allocate transforms to get component space transform of chain start bone.
 	FCSPose<FCompactPose> CSPose;

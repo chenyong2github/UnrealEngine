@@ -374,16 +374,16 @@ public:
 		return LODLevel;
 	}
 
-	// Cached SkeletalMeshComponent LocalToWorld Transform.
+	UE_DEPRECATED(5.0, "Please use GetComponentTransform")
 	const FTransform& GetSkelMeshCompLocalToWorld() const
 	{
-		return SkelMeshCompLocalToWorld;
+		return ComponentTransform;
 	}
 
-	// Cached SkeletalMeshComponent Owner Transform.
+	UE_DEPRECATED(5.0, "Please use GetActorTransform")
 	const FTransform& GetSkelMeshCompOwnerTransform() const
 	{
-		return SkelMeshCompOwnerTransform;
+		return ActorTransform;
 	}
 
 	/** Get the current skeleton we are using. Note that this will return nullptr outside of pre/post update */
@@ -1088,12 +1088,6 @@ private:
 
 	/** Counter used to control CacheBones recursion behavior - makes sure we cache bones correctly when recursing into different subgraphs */
 	int32 CacheBonesRecursionCounter;
-
-	/** Cached SkeletalMeshComponent LocalToWorld transform. */
-	FTransform SkelMeshCompLocalToWorld;
-
-	/** Cached SkeletalMeshComponent Owner Transform */
-	FTransform SkelMeshCompOwnerTransform;
 
 	/** During animation update and eval, records the number of frames we will skip due to URO */
 	int16 NumUroSkippedFrames_Update;

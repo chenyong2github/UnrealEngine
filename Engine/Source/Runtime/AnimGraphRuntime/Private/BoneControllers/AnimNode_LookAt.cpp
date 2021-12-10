@@ -160,7 +160,7 @@ void FAnimNode_LookAt::EvaluateComponentSpaceInternal(FComponentSpacePoseContext
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/*if (bEnableDebug)
 	{
-		const FTransform LocalToWorld = Context.AnimInstanceProxy->GetSkelMeshCompLocalToWorld();
+		const FTransform LocalToWorld = Context.AnimInstanceProxy->GetComponentTransform();
 		FVector TargetWorldLoc = LocalToWorld.TransformPosition(CachedCurrentTargetLocation);
 		FVector SourceWorldLoc = LocalToWorld.TransformPosition(CachedComponentBoneLocation);
 
