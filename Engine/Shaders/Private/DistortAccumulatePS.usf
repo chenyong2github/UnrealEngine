@@ -232,7 +232,7 @@ void Main(
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		Normal, DistortionParams, ScreenUV, Refraction, true, EyeIndex);
+		MaterialParameters.WorldNormal, DistortionParams, ScreenUV, Refraction, true, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;

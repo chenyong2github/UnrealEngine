@@ -73,7 +73,8 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		float2 Refraction = GetMaterialRefraction(PixelMaterialInputs); // X = IOR, Y = Refraction Bias
 		float2 BufferUVDistortion = ComputeBufferUVDistortion(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			GetMaterialNormal(MaterialParameters, PixelMaterialInputs), DistortionParams, ViewportUV, Refraction, false, EyeIndex);
+			MaterialParameters.WorldNormal,
+			DistortionParams, ViewportUV, Refraction, false, EyeIndex);
 		PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, PixelSceneDepth, BufferUVDistortion, Refraction);
 		// Also reduce refraction according to water thickness
 		BufferUVDistortion *= saturate((PixelSceneDepth - WaterDepth) * 1.0 / 30.0f);// *(1 - saturate(WaterDepth * 1.0 / 2000.0f));
