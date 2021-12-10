@@ -195,6 +195,46 @@ namespace AutomationCommon
 		return FrameTrace;
 	}
 
+	SWidget* FindWidgetByTag(const FName Tag)
+	{
+		const FTagMetaData UniqueMetaData(Tag);
+		// Get a list of all the current slate windows
+		TArray<TSharedRef<SWindow>> Windows;
+		FSlateApplication::Get().GetAllVisibleWindowsOrdered(/*OUT*/Windows);
+
+		TArray<SWidget*> Stack;
+		for (const TSharedRef<SWindow>& Window : Windows)
+		{
+			Stack.Push(&Window.Get());
+		}
+
+		while (Stack.Num() > 0)
+		{
+			SWidget* Widget = Stack.Pop();
+			const int32 NumChildren = Widget->GetChildren()->Num();
+			for (int32 ChildIndex = 0; ChildIndex < NumChildren; ChildIndex++)
+			{
+				SWidget& ChildWidget = Widget->GetChildren()->GetChildAt(ChildIndex).Get();
+				const TArray<TSharedRef<FTagMetaData>> AllMetaData = ChildWidget.GetAllMetaData<FTagMetaData>();
+				for (int32 MetaDataIndex = 0; MetaDataIndex < AllMetaData.Num(); ++MetaDataIndex)
+				{
+					TSharedRef<FTagMetaData> MetaData = AllMetaData[MetaDataIndex];
+					if (MetaData->Tag == UniqueMetaData.Tag)
+					{
+						// Done! found the widget
+						return &ChildWidget;
+					}
+				}
+
+				// If we got here we didn't match the widget so push this child on the stack.
+				Stack.Push(&ChildWidget);
+			}
+
+		}
+
+		return nullptr;
+	}
+
 	class FAutomationImageComparisonRequest : public IAutomationLatentCommand
 	{
 	public:

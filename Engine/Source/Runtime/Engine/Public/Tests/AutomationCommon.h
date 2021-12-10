@@ -7,6 +7,7 @@
 
 class AMatineeActor;
 class SWindow;
+class SWidget;
 
 #if WITH_AUTOMATION_TESTS
 
@@ -51,6 +52,13 @@ namespace AutomationCommon
 	}
 
 	ENGINE_API TArray<uint8> CaptureFrameTrace(const FString& MapOrContext, const FString& TestName);
+
+	/**
+	 * Given the FName of a FTagMetaData will find all the corresponding widgets.
+	 * @param Tag the meta data tag searched for
+	 * @return the found widget or nullptr
+	 */
+	ENGINE_API SWidget* FindWidgetByTag(const FName Tag);
 
 #endif
 }

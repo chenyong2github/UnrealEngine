@@ -128,7 +128,7 @@ namespace EpicGame
 		{
 			base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
 
-			if (ConfigRole.RoleType.IsClient() || ConfigRole.RoleType.IsServer())
+			if (ConfigRole.RoleType.IsClient() || ConfigRole.RoleType.IsServer() || RequiresLogin)
 			{
 				string McpString = "";
 				bool bIsBuildMachine = CommandUtils.IsBuildMachine; 

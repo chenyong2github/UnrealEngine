@@ -637,6 +637,13 @@ void SButton::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 	PressMethod = InPressMethod;
 }
 
+#if !UE_BUILD_SHIPPING
+void SButton::SimulateClick()
+{
+	ExecuteOnClick();
+}
+#endif // !UE_BUILD_SHIPPING
+
 FSlateColor SButton::GetDisabledForegroundColor() const
 {
 	return Style->DisabledForeground;
