@@ -245,6 +245,10 @@ void FMediaMovieStreamer::TickPreEngine()
 	{
 		MediaModule->TickPreEngine();
 	}
+	if (MovieStreamerPreEngineTick.IsBound())
+	{
+		MovieStreamerPreEngineTick.Broadcast();
+	}
 }
 
 void FMediaMovieStreamer::TickPostEngine()
@@ -254,6 +258,10 @@ void FMediaMovieStreamer::TickPostEngine()
 	{
 		MediaModule->TickPostEngine();
 	}
+	if (MovieStreamerPostEngineTick.IsBound())
+	{
+		MovieStreamerPostEngineTick.Broadcast();
+	}
 }
 
 void FMediaMovieStreamer::TickPostRender()
@@ -262,6 +270,10 @@ void FMediaMovieStreamer::TickPostRender()
 	if (MediaModule != nullptr)
 	{
 		MediaModule->TickPostRender();
+	}
+	if (MovieStreamerPostRenderTick.IsBound())
+	{
+		MovieStreamerPostRenderTick.Broadcast();
 	}
 }
 

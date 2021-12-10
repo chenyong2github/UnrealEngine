@@ -14,6 +14,8 @@ class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
 
+DECLARE_EVENT(FMediaMovieStreamer, FMovieStreamerExternalTick);
+
 /**
  * Movie streamer that allows you to use MediaFramework during level loading, etc.
  */
@@ -67,6 +69,10 @@ public:
 	 * @param InMediaSource Media source to play.
 	 */
 	MEDIAMOVIESTREAMER_API void SetMediaTexture(UMediaTexture* InMediaTexture);
+
+	FMovieStreamerExternalTick MovieStreamerPostEngineTick;
+	FMovieStreamerExternalTick MovieStreamerPreEngineTick;
+	FMovieStreamerExternalTick MovieStreamerPostRenderTick;
 
 	/**
 	 * Called from UMediaMovieAssets when the media ends.
