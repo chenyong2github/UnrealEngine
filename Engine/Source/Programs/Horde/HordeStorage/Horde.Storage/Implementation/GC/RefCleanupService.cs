@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Dasync.Collections;
 using Datadog.Trace;
 using Jupiter;
 using Jupiter.Implementation;
@@ -76,7 +77,8 @@ namespace Horde.Storage.Implementation
                     }
                 }
 
-                await foreach (NamespaceId ns in _referencesStore.GetNamespaces().WithCancellation(cancellationToken))
+                List<NamespaceId>? namespaces = await _referencesStore.GetNamespaces().ToListAsync(cancellationToken);
+                await foreach (NamespaceId ns in namespaces)
                 {
                     using Scope scope = Tracer.Instance.StartActive("gc.refs");
                     scope.Span.ResourceName = ns.ToString();

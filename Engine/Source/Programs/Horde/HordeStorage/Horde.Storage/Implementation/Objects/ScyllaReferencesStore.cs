@@ -146,17 +146,25 @@ namespace Horde.Storage.Implementation
             using Scope _ = Tracer.Instance.StartActive("scylla.get_records");
             for (sbyte partitionIndex = sbyte.MinValue; partitionIndex < sbyte.MaxValue; partitionIndex++)
             {
-                RowSet rowSetDateBuckets = await _session.ExecuteAsync(new SimpleStatement("SELECT accessed_at FROM object_last_access WHERE namespace = ? AND partition_index = ? ALLOW FILTERING", ns.ToString(), partitionIndex));
+                using Scope scope = Tracer.Instance.StartActive("scylla.get_records_partition");
+                scope.Span.ResourceName = $"partition_{partitionIndex}";
+
                 SortedSet<DateTime> dateBuckets = new SortedSet<DateTime>();
-                foreach (Row row in rowSetDateBuckets)
                 {
-                    if (rowSetDateBuckets.GetAvailableWithoutFetching() == 0)
-                        await rowSetDateBuckets.FetchMoreResultsAsync();
+                    using Scope dateBucketsScope = Tracer.Instance.StartActive("scylla.get_records.date_buckets");
 
-                    LocalDate date = row.GetValue<LocalDate>("accessed_at");
+                    RowSet rowSetDateBuckets = await _session.ExecuteAsync(new SimpleStatement("SELECT accessed_at FROM object_last_access WHERE namespace = ? AND partition_index = ? ALLOW FILTERING", ns.ToString(), partitionIndex));
+                    foreach (Row row in rowSetDateBuckets)
+                    {
+                        if (rowSetDateBuckets.GetAvailableWithoutFetching() == 0)
+                            await rowSetDateBuckets.FetchMoreResultsAsync();
 
-                    dateBuckets.Add(new DateTime(date.Year, date.Month, date.Day));
+                        LocalDate date = row.GetValue<LocalDate>("accessed_at");
+
+                        dateBuckets.Add(new DateTime(date.Year, date.Month, date.Day));
+                    }
                 }
+
 
                 foreach (DateTime dateBucket in dateBuckets)
                 {

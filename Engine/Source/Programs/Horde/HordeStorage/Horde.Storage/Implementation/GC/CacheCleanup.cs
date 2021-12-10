@@ -62,6 +62,8 @@ namespace Horde.Storage.Implementation
                 if (record.LastAccess > cutoffTime)
                     break;
 
+                using Scope scope = Tracer.Instance.StartActive("refCleanup.delete_record");
+                scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.Name}";
                 // delete the old record from the ref refs
                 Task storeDelete = _referencesStore.Delete(record.Namespace, record.Bucket, record.Name);
                 // insert a delete event into the transaction log
