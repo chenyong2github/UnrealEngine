@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Text/STextBlock.h"
 
 struct FConsoleVariablesEditorListRow;
 
@@ -83,7 +85,7 @@ public:
 	
 	virtual void SetInputValue(const FString& InValueAsString) override;
 	virtual FString GetInputValueAsString() override;
-
+	
 	FString GetInputValue() const;
 
 private:
@@ -103,16 +105,23 @@ public:
 	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
 	
 	virtual void SetInputValue(const FString& InValueAsString) override;
+	void SetInputValue(const bool bNewValue);
 	virtual FString GetInputValueAsString() override;
 
-	int32 GetInputValue() const;
-	bool GetInputValueAsBool() const;
+	bool GetInputValue();
 
-	FString GetBoolValueAsString() const;
+	static bool StringToBool(const FString& InString)
+	{
+		return InString.TrimStartAndEnd().ToLower() == "true";
+	}
 
-	int32 ConvertBoolValueToInteger(const FString& InValue) const;
+	static FString BoolToString(const bool bNewBool)
+	{
+		return bNewBool ? "true" : "false";
+	}
 
 private:
 	
-	TSharedPtr<SSpinBox<int32>> InputWidget;
+	TSharedPtr<SButton> InputWidget;
+	TSharedPtr<STextBlock> ButtonText;
 };
