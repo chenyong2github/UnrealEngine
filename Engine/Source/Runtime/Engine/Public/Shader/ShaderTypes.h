@@ -79,6 +79,7 @@ struct FType
 	FType(const FStructType* InStruct) : StructType(InStruct), ValueType(InStruct ? EValueType::Struct : EValueType::Void) {}
 
 	const TCHAR* GetName() const;
+	FType GetDerivativeType() const;
 	bool IsVoid() const { return ValueType == EValueType::Void; }
 	bool IsStruct() const { return ValueType == EValueType::Struct; }
 	bool IsNumeric() const { return !IsVoid() && !IsStruct(); }
@@ -139,6 +140,7 @@ struct FStructType
 {
 	uint64 Hash;
 	const TCHAR* Name;
+	const FStructType* DerivativeType;
 	TArrayView<const FStructField> Fields;
 
 	/**
@@ -168,6 +170,7 @@ struct FStructTypeInitializer
 {
 	FStringView Name;
 	TArrayView<const FStructFieldInitializer> Fields;
+	bool bIsDerivativeType = false;
 };
 
 class FStructTypeRegistry

@@ -22,7 +22,7 @@ class FTree;
 
 /**
  * Describes how a given expression needs to be evaluated */
-enum class EExpressionEvaluationType : uint8
+enum class EExpressionEvaluation : uint8
 {
 	/** Invalid/uninitialized */
 	None,
@@ -37,7 +37,24 @@ enum class EExpressionEvaluationType : uint8
 	Constant,
 };
 
-EExpressionEvaluationType CombineEvaluationTypes(EExpressionEvaluationType Lhs, EExpressionEvaluationType Rhs);
+EExpressionEvaluation CombineEvaluations(EExpressionEvaluation Lhs, EExpressionEvaluation Rhs);
+
+enum class EExpressionDerivative : uint8
+{
+	/** Uninitialized/unknown */
+	None,
+
+	/** Derivative is not valid */
+	Invalid,
+
+	/** Derivative is known to be 0 */
+	Zero,
+
+	/** Derivative is valid */
+	Valid,
+};
+
+EExpressionDerivative CombineDerivatives(EExpressionDerivative Lhs, EExpressionDerivative Rhs);
 
 struct FTextureDescription
 {

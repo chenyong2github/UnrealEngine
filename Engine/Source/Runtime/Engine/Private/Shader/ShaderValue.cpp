@@ -23,6 +23,19 @@ const TCHAR* FType::GetName() const
 	return TypeDesc.Name;
 }
 
+FType FType::GetDerivativeType() const
+{
+	if (StructType)
+	{
+		check(ValueType == EValueType::Struct);
+		return StructType->DerivativeType; // will convert to 'Void' if DerivativeType is nullptr
+	}
+
+	check(ValueType != EValueType::Struct);
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
+	return MakeValueType(EValueComponentType::Float, TypeDesc.NumComponents);
+}
+
 int32 FType::GetNumComponents() const
 {
 	if (StructType)
@@ -563,7 +576,7 @@ FValueTypeDescription GetValueTypeDescription(EValueType Type)
 
 EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 {
-	if (NumComponents == 0)
+	if (ComponentType == EValueComponentType::Void || NumComponents == 0)
 	{
 		return EValueType::Void;
 	}
@@ -758,6 +771,8 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 	FSHA1 Hasher;
 	Hasher.UpdateWithString(Initializer.Name.GetData(), Initializer.Name.Len());
 
+	TArray<FStructFieldInitializer, TInlineAllocator<16>> DerivativeFields;
+
 	const int32 NumFields = Initializer.Fields.Num();
 	int32 ComponentIndex = 0;
 	int32 FlatFieldIndex = 0;
@@ -784,6 +799,15 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 		Field.FlatFieldIndex = FlatFieldIndex;
 		ComponentIndex += FieldType.GetNumComponents();
 		FlatFieldIndex += FieldType.GetNumFlatFields();
+
+		if (!Initializer.bIsDerivativeType)
+		{
+			const FType FieldDerivativeType = FieldType.GetDerivativeType();
+			if (!FieldDerivativeType.IsVoid())
+			{
+				DerivativeFields.Emplace(FieldInitializer.Name, FieldDerivativeType);
+			}
+		}
 	}
 
 	EValueComponentType* ComponentTypes = new(*Allocator) EValueComponentType[ComponentIndex];
@@ -804,6 +828,16 @@ const FStructType* FStructTypeRegistry::NewType(const FStructTypeInitializer& In
 	StructType->FlatFieldTypes = MakeArrayView(FlatFieldTypes, FlatFieldIndex);
 
 	Types.Add(StructType->Hash, StructType);
+
+	if (DerivativeFields.Num() > 0)
+	{
+		const FString DerivativeTypeName = FString(Initializer.Name) + TEXT("_Deriv");
+		FStructTypeInitializer DerivativeTypeInitializer;
+		DerivativeTypeInitializer.Name = DerivativeTypeName;
+		DerivativeTypeInitializer.Fields = DerivativeFields;
+		DerivativeTypeInitializer.bIsDerivativeType = true;
+		StructType->DerivativeType = NewType(DerivativeTypeInitializer);
+	}
 
 	return StructType;
 }
