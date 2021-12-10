@@ -810,10 +810,11 @@ protected:
 	TArray<TObjectPtr<UNiagaraParameterCollectionInstance>> ParameterCollectionOverrides;
 
 #if WITH_EDITORONLY_DATA
+	bool bCompilationReentrantGuard = false;
+
 	UPROPERTY(Transient)
 	TArray<FNiagaraSystemCompileRequest> ActiveCompilations;
 #endif
-
 
 	/** The script which defines the System parameters, and which generates the bindings from System
 		parameter to emitter parameter. */
