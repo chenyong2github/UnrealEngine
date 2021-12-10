@@ -1026,8 +1026,18 @@ namespace HordeServer.Tasks.Impl
 
 					int RunningStepIdx = Batch.Steps.FindIndex(x => x.State == JobStepState.Running);
 
+					JobStepBatchError Error;
+					if (Outcome == LeaseOutcome.Cancelled)
+					{
+						Error = JobStepBatchError.Cancelled;
+					}
+					else
+					{
+						Error = JobStepBatchError.ExecutionError;
+					}
+
 					IGraph Graph = await Graphs.GetAsync(Job.GraphHash);
-					Job = await Jobs.TryFailBatchAsync(Job, BatchIdx, Graph);
+					Job = await Jobs.TryFailBatchAsync(Job, BatchIdx, Graph, Error);
 
 					if (Job != null)
 					{

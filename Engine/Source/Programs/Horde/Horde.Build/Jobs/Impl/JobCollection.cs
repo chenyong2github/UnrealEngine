@@ -1217,7 +1217,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IJob?> TryFailBatchAsync(IJob Job, int BatchIdx, IGraph Graph)
+		public Task<IJob?> TryFailBatchAsync(IJob Job, int BatchIdx, IGraph Graph, JobStepBatchError Error)
 		{
 			JobDocument JobDocument = Clone((JobDocument)Job);
 			JobStepBatchDocument Batch = JobDocument.Batches[BatchIdx];
@@ -1230,7 +1230,7 @@ namespace HordeServer.Collections.Impl
 				Batch.State = JobStepBatchState.Complete;
 				Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].State, Batch.State));
 
-				Batch.Error = JobStepBatchError.LostConnection;
+				Batch.Error = Error;
 				Updates.Add(UpdateBuilder.Set(x => x.Batches[BatchIdx].Error, Batch.Error));
 
 				Batch.FinishTime = DateTimeOffset.UtcNow;

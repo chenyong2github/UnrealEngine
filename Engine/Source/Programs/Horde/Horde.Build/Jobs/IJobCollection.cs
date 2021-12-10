@@ -228,8 +228,9 @@ namespace HordeServer.Collections
 		/// <param name="Job">The job to update</param>
 		/// <param name="BatchIdx">Index of the batch to cancel</param>
 		/// <param name="Graph">Graph for the job</param>
+		/// <param name="Reason">Reason for this batch being failed</param>
 		/// <returns>True if the job is updated</returns>
-		Task<IJob?> TryFailBatchAsync(IJob Job, int BatchIdx, IGraph Graph);
+		Task<IJob?> TryFailBatchAsync(IJob Job, int BatchIdx, IGraph Graph, JobStepBatchError Reason);
 
 		/// <summary>
 		/// Attempt to assign a lease to execute a batch

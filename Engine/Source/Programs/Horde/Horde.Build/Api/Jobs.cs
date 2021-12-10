@@ -661,9 +661,14 @@ namespace HordeServer.Api
 		LostConnection = 8,
 
 		/// <summary>
-		/// Lease terminated prematurely
+		/// Lease terminated prematurely but can be retried.
 		/// </summary>
 		Incomplete = 9,
+
+		/// <summary>
+		/// An error ocurred while executing the lease. Cannot be retried.
+		/// </summary>
+		ExecutionError = 10,
 	}
 
 	/// <summary>
