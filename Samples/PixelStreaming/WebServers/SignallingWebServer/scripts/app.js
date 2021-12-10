@@ -286,7 +286,7 @@ function setupHtmlEvents() {
     let kickButton = document.getElementById('kick-other-players-button');
     if (kickButton) {
         kickButton.onclick = function (event) {
-            console.log(`-> SS: kick`);
+            console.log("%c[Outbound Signalling Server: kick]", "background: lightgreen; color: black", msg);
             ws.send(JSON.stringify({
                 type: 'kick'
             }));
@@ -578,25 +578,24 @@ function setupWebRtcPlayer(htmlElement, config) {
     webRtcPlayerObj.onWebRtcOffer = function(offer) {
         if (ws && ws.readyState === WS_OPEN_STATE) {
             let offerStr = JSON.stringify(offer);
-            console.log(`-> SS: offer:\n${offerStr}`);
+            console.log("%c[Outbound SS message (offer)]", "background: lightgreen; color: black", offer);
             ws.send(offerStr);
         }
     };
 
     webRtcPlayerObj.onWebRtcCandidate = function(candidate) {
         if (ws && ws.readyState === WS_OPEN_STATE) {
-            console.log(`-> SS: iceCandidate\n${JSON.stringify(candidate, undefined, 4)}`);
             ws.send(JSON.stringify({
                 type: 'iceCandidate',
                 candidate: candidate
             }));
         }
     };
-    
+
     webRtcPlayerObj.onWebRtcAnswer = function (answer) {
         if (ws && ws.readyState === WS_OPEN_STATE) {
             let answerStr = JSON.stringify(answer);
-            console.log(`-> SS: answer:\n${answerStr}`);
+            console.log("%c[Outbound SS message (answer)]", "background: lightgreen; color: black", answer);
             ws.send(answerStr);
         }
     };
@@ -772,12 +771,8 @@ function setupWebRtcPlayer(htmlElement, config) {
     return webRtcPlayerObj.video;
 }
 
-function onWebRtcOffer(webRTCData) {
-    webRtcPlayerObj.receiveOffer(webRTCData);
-}
-
-function onWebRtcAnswer(webRTCData) {
-    webRtcPlayerObj.receiveAnswer(webRTCData);
+function setupStats(){
+    webRtcPlayerObj.aggregateStats(1 * 1000 /*Check every 1 second*/ );
 
     let printInterval = 5 * 60 * 1000; /*Print every 5 minutes*/
     let nextPrintDuration = printInterval;
@@ -847,11 +842,11 @@ function onWebRtcAnswer(webRTCData) {
         if (VideoEncoderQP > redQP) {
             color = "red";
             blinkQualityStatus(2);
-            statsText += `<div style="color: ${color}">Bad network connection</div>`;
+            statsText += `<div style="color: ${color}">Very blocky encoding quality</div>`;
         } else if (VideoEncoderQP > orangeQP) {
             color = "orange";
             blinkQualityStatus(1);
-            statsText += `<div style="color: ${color}">Spotty network connection</div>`;
+            statsText += `<div style="color: ${color}">Blocky encoding quality</div>`;
         }
 
         qualityStatus.className = `${color}Status`;
@@ -890,8 +885,6 @@ function onWebRtcAnswer(webRTCData) {
         }
     };
 
-    webRtcPlayerObj.aggregateStats(1 * 1000 /*Check every 1 second*/ );
-
     webRtcPlayerObj.latencyTestTimings.OnAllLatencyTimingsReady = function(timings) {
 
         if (!timings.BrowserReceiptTimeMs) {
@@ -927,9 +920,20 @@ function onWebRtcAnswer(webRTCData) {
     }
 }
 
+function onWebRtcOffer(webRTCData) {
+    webRtcPlayerObj.receiveOffer(webRTCData);
+    setupStats();
+}
+
+function onWebRtcAnswer(webRTCData) {
+    webRtcPlayerObj.receiveAnswer(webRTCData);
+    setupStats();
+}
+
 function onWebRtcIce(iceCandidate) {
-    if (webRtcPlayerObj)
+    if (webRtcPlayerObj){
         webRtcPlayerObj.handleCandidateFromServer(iceCandidate);
+    }
 }
 
 let styleWidth;
@@ -1936,20 +1940,23 @@ function connect() {
     ws = new WebSocket(window.location.href.replace('http://', 'ws://').replace('https://', 'wss://'));
 
     ws.onmessage = function(event) {
-        console.log(`<- SS: ${event.data}`);
         let msg = JSON.parse(event.data);
         if (msg.type === 'config') {
+            console.log("%c[Inbound SS (config)]", "background: lightblue; color: black", msg);
             onConfig(msg);
         } else if (msg.type === 'playerCount') {
+            console.log("%c[Inbound SS (playerCount)]", "background: lightblue; color: black", msg);
             updateKickButton(msg.count - 1);
         } else if (msg.type === 'offer') {
+            console.log("%c[Inbound SS (offer)]", "background: lightblue; color: black", msg);
             onWebRtcOffer(msg);
         } else if (msg.type === 'answer') {
+            console.log("%c[Inbound SS (answer)]", "background: lightblue; color: black", msg);
             onWebRtcAnswer(msg);
         } else if (msg.type === 'iceCandidate') {
             onWebRtcIce(msg.candidate);
         } else {
-            console.log(`invalid SS message type: ${msg.type}`);
+            console.error("Invalid SS message type", msg.type);
         }
     };
 
