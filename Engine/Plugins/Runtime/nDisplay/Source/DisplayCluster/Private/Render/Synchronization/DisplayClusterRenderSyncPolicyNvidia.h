@@ -13,6 +13,9 @@ class FDisplayClusterRenderSyncPolicyNvidia
 	: public FDisplayClusterRenderSyncPolicyBase
 {
 public:
+
+	using Super = FDisplayClusterRenderSyncPolicyBase;
+
 	FDisplayClusterRenderSyncPolicyNvidia(const TMap<FString, FString>& Parameters);
 	virtual ~FDisplayClusterRenderSyncPolicyNvidia();
 

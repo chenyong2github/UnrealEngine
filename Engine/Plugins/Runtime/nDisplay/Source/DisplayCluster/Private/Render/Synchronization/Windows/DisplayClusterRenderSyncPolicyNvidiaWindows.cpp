@@ -127,6 +127,11 @@ FDisplayClusterRenderSyncPolicyNvidia::~FDisplayClusterRenderSyncPolicyNvidia()
 
 bool FDisplayClusterRenderSyncPolicyNvidia::Initialize()
 {
+	if (!Super::Initialize())
+	{
+		return false;
+	}
+
 	const NvAPI_Status NvApiResult = NvAPI_Initialize();
 	if (NvApiResult != NVAPI_OK)
 	{
