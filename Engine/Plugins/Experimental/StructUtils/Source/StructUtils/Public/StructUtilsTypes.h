@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/Class.h"
-#include "InstancedStruct.h"
+#include "StructView.h"
 
 #ifndef WITH_STRUCTUTILS_DEBUG
 #define WITH_STRUCTUTILS_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
@@ -14,11 +14,9 @@ class FReferenceCollector;
 
 namespace UE::StructUtils
 {
-	extern STRUCTUTILS_API void AddStructReferencedObjects(const FConstStructView& StructView, class FReferenceCollector& Collector);
-
 	extern STRUCTUTILS_API uint32 GetStructCrc32(const UScriptStruct& ScriptStruct, const uint8* StructMemory, const uint32 CRC = 0);
 
-	extern STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView& StructView, const uint32 CRC = 0);
+	extern STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView StructView, const uint32 CRC = 0);
 }
 
 /* Predicate useful to find a struct of a specific type in an container */
@@ -26,9 +24,9 @@ struct FStructTypeEqualOperator
 {
 	const UScriptStruct* TypePtr;
 	FStructTypeEqualOperator(const UScriptStruct* InTypePtr) : TypePtr(InTypePtr) {}
-	FStructTypeEqualOperator(const FConstStructView& InRef) : TypePtr(InRef.GetScriptStruct()) {}
+	FStructTypeEqualOperator(const FConstStructView InRef) : TypePtr(InRef.GetScriptStruct()) {}
 
-	bool operator()(const FConstStructView& Other) const { return Other.GetScriptStruct() == TypePtr; }
+	bool operator()(const FConstStructView Other) const { return Other.GetScriptStruct() == TypePtr; }
 };
 
 struct FScriptStructSortOperator
@@ -43,7 +41,7 @@ struct FScriptStructSortOperator
 
 struct FStructTypeSortOperator
 {
-	bool operator()(const FConstStructView& A, const FConstStructView& B) const
+	bool operator()(const FConstStructView A, const FConstStructView B) const
 	{
 		const UScriptStruct* AScriptStruct = A.GetScriptStruct();
 		const UScriptStruct* BScriptStruct = B.GetScriptStruct();

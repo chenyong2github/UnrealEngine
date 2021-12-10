@@ -1,10 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
-#include "InstancedStruct.h"
+#include "StructView.h"
 #include "ChunkedStructBuffer.generated.h"
 
 /**

@@ -1,8 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStruct.h"
-#include "StructUtilsTypes.h"
+#include "StructView.h"
+#include "SharedStruct.h"
 
-///////////////////////////////////////////////////////////////// FInstancedStruct /////////////////////////////////////////////////////////////////
+FInstancedStruct::FInstancedStruct(const FConstStructView InOther)
+{
+	InitializeAs(InOther.GetScriptStruct(), InOther.GetMemory());
+}
+
+FInstancedStruct& FInstancedStruct::operator=(const FConstStructView InOther)
+{
+	if(*this != InOther)
+	{
+		InitializeAs(InOther.GetScriptStruct(), InOther.GetMemory());
+	}
+	return *this;
+}
 
 void FInstancedStruct::InitializeAs(const UScriptStruct* InScriptStruct, const uint8* InStructMemory /*= nullptr*/)
 {
@@ -14,10 +27,9 @@ void FInstancedStruct::InitializeAs(const UScriptStruct* InScriptStruct, const u
 		return;
 	}
 
-	SetScriptStruct(InScriptStruct);
-
 	const int32 RequiredSize = InScriptStruct->GetStructureSize();
-	SetMemory((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize)));
+	const uint8* Memory = ((uint8*)FMemory::Malloc(FMath::Max(1, RequiredSize)));
+	SetStructData(InScriptStruct,Memory);
 
 	InScriptStruct->InitializeStruct(GetMutableMemory());
 
@@ -34,7 +46,7 @@ void FInstancedStruct::Reset()
 		DestroyScriptStruct();
 		FMemory::Free(Memory);
 	}
-	FBaseStruct::Reset();
+	ResetStructData();
 }
 
 bool FInstancedStruct::Serialize(FArchive& Ar)
@@ -209,18 +221,8 @@ bool FInstancedStruct::Identical(const FInstancedStruct* Other, uint32 PortFlags
 
 void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
 {
-	UE::StructUtils::AddStructReferencedObjects(*this, Collector);
-}
-
-///////////////////////////////////////////////////////////////// FConstSharedStruct /////////////////////////////////////////////////////////////////
-
-bool FConstSharedStruct::Identical(const FConstSharedStruct* Other, uint32 PortFlags) const
-{
-	// Only empty is considered equal
-	return Other != nullptr && GetMemory() == nullptr && Other->GetMemory() == nullptr && GetScriptStruct() == nullptr && Other->GetScriptStruct() == nullptr;
-}
-
-void FConstSharedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
-{
-	UE::StructUtils::AddStructReferencedObjects(*this, Collector);
+	if (const UScriptStruct* Struct = GetScriptStruct())
+	{
+		Collector.AddReferencedObjects(Struct, GetMutableMemory());
+	}
 }
