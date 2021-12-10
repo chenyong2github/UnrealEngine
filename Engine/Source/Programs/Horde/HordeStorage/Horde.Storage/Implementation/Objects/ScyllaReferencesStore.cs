@@ -209,6 +209,9 @@ namespace Horde.Storage.Implementation
                 string name = row.GetValue<string>("name");
                 DateTime lastAccessTime = row.GetValue<DateTime>("last_access_time");
 
+                // skip any names that are not conformant to io hash
+                if (name.Length != 40)
+                    continue;
                 yield return (new BucketId(bucket), new IoHashKey(name), lastAccessTime);
             }
         }
