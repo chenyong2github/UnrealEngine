@@ -100,13 +100,13 @@ bool ASmartObjectCollection::RegisterWithSubsystem(const FString& Context)
 {
 	if (bRegistered)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' %s - Failed: already registered"), *GetName(), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' %s - Failed: already registered"), *GetFullName(), *Context);
 		return false;
 	}
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: ignoring default object"), *GetName(), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: ignoring default object"), *GetFullName(), *Context);
 		return false;
 	}
 
@@ -115,12 +115,12 @@ bool ASmartObjectCollection::RegisterWithSubsystem(const FString& Context)
 	{
 		// Collection might attempt to register before the subsystem is created. At its initialization the subsystem gathers
 		// all collections and registers them. For this reason we use a log instead of an error.
-		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: unable to find smart object subsystem"), *GetName(), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: unable to find smart object subsystem"), *GetFullName(), *Context);
 		return false;
 	}
 
 	SmartObjectSubsystem->RegisterCollection(*this);
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Succeeded"), *GetName(), *Context);
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Succeeded"), *GetFullName(), *Context);
 	return true;
 }
 
@@ -128,19 +128,19 @@ bool ASmartObjectCollection::UnregisterWithSubsystem(const FString& Context)
 {
 	if (!bRegistered)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' %s - Failed: not registered"), *GetName(), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: not registered"), *GetFullName(), *Context);
 		return false;
 	}
 
 	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(GetWorld());
 	if (SmartObjectSubsystem == nullptr)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: unable to find smart object subsystem"), *GetName(), *Context);
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Failed: unable to find smart object subsystem"), *GetFullName(), *Context);
 		return false;
 	}
 
 	SmartObjectSubsystem->UnregisterCollection(*this);
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Succeeded"), *GetName(), *Context);
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("'%s' %s - Succeeded"), *GetFullName(), *Context);
 	return true;
 }
 
@@ -150,7 +150,7 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 	if (World == nullptr)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("'%s' can't be registered to collection '%s': no associated world"),
-			*GetNameSafe(SOComponent.GetOwner()), *GetName());
+			*GetNameSafe(SOComponent.GetOwner()), *GetFullName());
 		return false;
 	}
 
@@ -182,7 +182,7 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 	if (ExistingEntry != nullptr)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("'%s[ID=%s]' already registered to collection '%s'"),
-			*GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetName());
+			*GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetFullName());
 		return false;
 	}
 
@@ -190,7 +190,7 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 	ensureMsgf(Definition != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
 	uint32 DefinitionIndex = Definitions.AddUnique(Definition);
 
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding '%s[ID=%s]' to collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetName());
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Adding '%s[ID=%s]' to collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetFullName());
 	CollectionEntries.Emplace(ID, SOComponent, DefinitionIndex);
 	RegisteredIdToObjectMap.Add(ID, ObjectPath);
 	return true;
@@ -204,7 +204,7 @@ bool ASmartObjectCollection::RemoveSmartObject(USmartObjectComponent& SOComponen
 		return false;
 	}
 
-	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing '%s[ID=%s]' from collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetName());
+	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing '%s[ID=%s]' from collection '%s'"), *GetNameSafe(SOComponent.GetOwner()), *ID.Describe(), *GetFullName());
 	const int32 Index = CollectionEntries.IndexOfByPredicate(
 		[&ID](const FSmartObjectCollectionEntry& Entry)
 		{
@@ -233,7 +233,7 @@ const USmartObjectDefinition* ASmartObjectCollection::GetDefinitionForEntry(cons
 	const bool bIsValidIndex = Definitions.IsValidIndex(Entry.GetDefinitionIndex());
 	if (!bIsValidIndex)
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Using invalid index (%d) to retrieve definition from collection '%s'"), Entry.GetDefinitionIndex(), *GetName());
+		UE_VLOG_UELOG(this, LogSmartObject, Error, TEXT("Using invalid index (%d) to retrieve definition from collection '%s'"), Entry.GetDefinitionIndex(), *GetFullName());
 		return nullptr;
 	}
 
@@ -308,7 +308,7 @@ void ASmartObjectCollection::RebuildCollection()
 
 void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjectComponent*> Components)
 {
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Rebuilding collection '%s' from component list"), *GetName());
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Rebuilding collection '%s' from component list"), *GetFullName());
 
 	ResetCollection(Components.Num());
 
@@ -327,7 +327,7 @@ void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjec
 
 void ASmartObjectCollection::ResetCollection(const int32 ExpectedNumElements)
 {
-	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Reseting collection '%s'"), *GetName());
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Reseting collection '%s'"), *GetFullName());
 
 	CollectionEntries.Reset(ExpectedNumElements);
 	RegisteredIdToObjectMap.Empty(ExpectedNumElements);
