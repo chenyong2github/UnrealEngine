@@ -93,7 +93,7 @@ bool CheckSessionBrowserSingleInstance()
 		}
 
 		// Activate the respective window.
-		HWND Window = FindWindowW(0, L"Unreal Insights");
+		HWND Window = FindWindowW(0, L"Unreal Insights Session Browser");
 		if (Window)
 		{
 			ShowWindow(Window, SW_SHOW);
