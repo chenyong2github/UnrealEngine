@@ -286,9 +286,6 @@ public:
 	/** Remove selected nodes from folder. */
 	TSharedPtr< FUICommandInfo > RemoveFromFolder;
 
-	/** Bake transform. */
-	TSharedPtr< FUICommandInfo > BakeTransform;
-
 	/** Sync sections using source timecode. */
 	TSharedPtr< FUICommandInfo > SyncSectionsUsingSourceTimecode;
 

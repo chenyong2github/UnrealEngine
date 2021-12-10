@@ -264,9 +264,6 @@ public:
 	/** Shrink time*/
 	void ShrinkTime(FFrameTime InDeltaTime);
 
-	/** Bake transform */
-	void BakeTransform();
-
 	/** Sync using source timecode */
 	void SyncSectionsUsingSourceTimecode();
 
