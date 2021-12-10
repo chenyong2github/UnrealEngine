@@ -350,12 +350,17 @@ FSceneViewStateReference::~FSceneViewStateReference()
 	Destroy();
 }
 
-void FSceneViewStateReference::Allocate()
+void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel)
 {
 	check(!Reference);
-	Reference = GetRendererModule().AllocateViewState();
+	Reference = GetRendererModule().AllocateViewState(FeatureLevel);
 	GlobalListLink = TLinkedList<FSceneViewStateReference*>(this);
 	GlobalListLink.LinkHead(GetSceneViewStateList());
+}
+
+void FSceneViewStateReference::Allocate()
+{
+	Allocate(GMaxRHIFeatureLevel);
 }
 
 void FSceneViewStateReference::Destroy()
@@ -379,13 +384,18 @@ void FSceneViewStateReference::DestroyAll()
 	}
 }
 
-void FSceneViewStateReference::AllocateAll()
+void FSceneViewStateReference::AllocateAll(ERHIFeatureLevel::Type FeatureLevel)
 {
 	for(TLinkedList<FSceneViewStateReference*>::TIterator ViewStateIt(FSceneViewStateReference::GetSceneViewStateList());ViewStateIt;ViewStateIt.Next())
 	{
 		FSceneViewStateReference* ViewStateReference = *ViewStateIt;
-		ViewStateReference->Reference = GetRendererModule().AllocateViewState();
+		ViewStateReference->Reference = GetRendererModule().AllocateViewState(FeatureLevel);
 	}
+}
+
+void FSceneViewStateReference::AllocateAll()
+{
+	AllocateAll(GMaxRHIFeatureLevel);
 }
 
 TLinkedList<FSceneViewStateReference*>*& FSceneViewStateReference::GetSceneViewStateList()

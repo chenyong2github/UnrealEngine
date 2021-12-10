@@ -162,7 +162,7 @@ void UMoviePipelinePanoramicPass::SetupImpl(const MoviePipeline::FMoviePipelineR
 
 		for (int32 Index = 0; Index < OptionalPaneViewStates.Num(); Index++)
 		{
-			OptionalPaneViewStates[Index].Allocate();
+			OptionalPaneViewStates[Index].Allocate(InPassInitSettings.FeatureLevel);
 		}
 	}
 

@@ -252,7 +252,7 @@ void ULocalPlayer::PostInitProperties()
 		ViewStates.SetNum(NumViews);
 		for (auto& State : ViewStates)
 		{
-			State.Allocate();
+			State.Allocate(GetWorld()->FeatureLevel);
 		}		
 	}
 }
@@ -784,7 +784,7 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 	if (!ViewStates.IsValidIndex(ViewIndex))
 	{
 		ViewStates.EmplaceAt(ViewIndex);
-		ViewStates[ViewIndex].Allocate();
+		ViewStates[ViewIndex].Allocate(GetWorld()->FeatureLevel);
 	}
 
 	ViewInitOptions.SceneViewStateInterface = ViewStates[ViewIndex].GetReference();

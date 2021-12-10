@@ -133,7 +133,7 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 
 	for (int32 Index = 0; Index < StencilLayerViewStates.Num(); Index++)
 	{
-		StencilLayerViewStates[Index].Allocate();
+		StencilLayerViewStates[Index].Allocate(InPassInitSettings.FeatureLevel);
 	}
 
 

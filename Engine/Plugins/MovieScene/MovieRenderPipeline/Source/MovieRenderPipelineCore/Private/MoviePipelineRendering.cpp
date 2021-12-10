@@ -85,10 +85,10 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 	// Note how many tiles we wish to render with.
 	BackbufferTileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 
+	const ERHIFeatureLevel::Type FeatureLevel = InShot->GetWorld()->FeatureLevel;
+
 	// Initialize our render pass. This is a copy of the settings to make this less coupled to the Settings UI.
-	MoviePipeline::FMoviePipelineRenderPassInitSettings RenderPassInitSettings;
-	RenderPassInitSettings.BackbufferResolution = BackbufferResolution;
-	RenderPassInitSettings.TileCount = BackbufferTileCount;
+	const MoviePipeline::FMoviePipelineRenderPassInitSettings RenderPassInitSettings(FeatureLevel, BackbufferResolution, BackbufferTileCount);
 
 	// Code expects at least a 1x1 tile.
 	ensure(RenderPassInitSettings.TileCount.X > 0 && RenderPassInitSettings.TileCount.Y > 0);

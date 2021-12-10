@@ -36,7 +36,7 @@ void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineR
 	Super::SetupImpl(InPassInitSettings);
 
 	// Allocate 
-	ViewState.Allocate();
+	ViewState.Allocate(InPassInitSettings.FeatureLevel);
 }
 
 void UMoviePipelineImagePassBase::TeardownImpl()

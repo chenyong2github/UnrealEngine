@@ -316,7 +316,8 @@ FSceneViewStateInterface* USceneCaptureComponent::GetViewState(int32 ViewIndex)
 	FSceneViewStateInterface* ViewStateInterface = ViewStates[ViewIndex].GetReference();
 	if ((bCaptureEveryFrame || bAlwaysPersistRenderingState) && ViewStateInterface == NULL)
 	{
-		ViewStates[ViewIndex].Allocate();
+		const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : GMaxRHIFeatureLevel;
+		ViewStates[ViewIndex].Allocate(FeatureLevel);
 		ViewStateInterface = ViewStates[ViewIndex].GetReference();
 	}
 	else if (!bCaptureEveryFrame && ViewStateInterface && !bAlwaysPersistRenderingState)
@@ -999,9 +1000,11 @@ void UPlanarReflectionComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 
 	for (int32 ViewIndex = 0; ViewIndex < ViewStates.Num(); ViewIndex++)
 	{
+		const ERHIFeatureLevel::Type FeatureLevel = GetScene() ? GetScene()->GetFeatureLevel() : GMaxRHIFeatureLevel;
+
 		// Recreate the view state to reset temporal history so that property changes can be seen immediately
 		ViewStates[ViewIndex].Destroy();
-		ViewStates[ViewIndex].Allocate();
+		ViewStates[ViewIndex].Allocate(FeatureLevel);
 	}
 
 	if (ProxyMeshComponent)

@@ -191,7 +191,7 @@ TRefCountPtr<IPooledRenderTarget> FPersistentSkyAtmosphereData::GetCurrentCamera
 }
 
 /** Default constructor. */
-FSceneViewState::FSceneViewState()
+FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel)
 	: OcclusionQueryPool(RHICreateRenderQueryPool(RQT_Occlusion))
 	, TimerQueryPool(RHICreateRenderQueryPool(RQT_AbsoluteTime, FLatentGPUTimer::NumBufferedFrames * 2 * 2 * 2))
 	, TranslucencyTimer(TimerQueryPool)
@@ -200,7 +200,7 @@ FSceneViewState::FSceneViewState()
 	, PostMotionBlurTranslucencyTimer(TimerQueryPool)
 {
 	// Set FeatureLevel to a valid value, so we get Init/ReleaseDynamicRHI calls on FeatureLevel changes
-	SetFeatureLevel(GMaxRHIFeatureLevel);
+	SetFeatureLevel(FeatureLevel);
 	
 	UniqueID = FSceneViewState_UniqueID.Increment();
 	OcclusionFrameCounter = 0;
@@ -5299,9 +5299,9 @@ void FRendererModule::UpdateStaticDrawListsForMaterials(const TArray<const FMate
 	UpdateStaticMeshesForMaterials(Materials);
 }
 
-FSceneViewStateInterface* FRendererModule::AllocateViewState()
+FSceneViewStateInterface* FRendererModule::AllocateViewState(ERHIFeatureLevel::Type FeatureLevel)
 {
-	return new FSceneViewState();
+	return new FSceneViewState(FeatureLevel);
 }
 
 void FRendererModule::InvalidatePathTracedOutput()
