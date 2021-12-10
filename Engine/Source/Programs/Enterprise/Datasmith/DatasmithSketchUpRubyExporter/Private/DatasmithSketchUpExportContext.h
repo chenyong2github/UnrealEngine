@@ -180,7 +180,7 @@ namespace DatasmithSketchUp
 		void Update();
 
 		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
-		void CreateMaterial(FMaterialIDType MaterialID);
+		TSharedPtr<FMaterial> CreateMaterial(FMaterialIDType MaterialID);
 		void InvalidateMaterial(SUMaterialRef SMaterialDefinitionRef);
 		bool InvalidateMaterial(FMaterialIDType MateriadId);
 		bool RemoveMaterial(FEntityIDType EntityId);
@@ -188,10 +188,7 @@ namespace DatasmithSketchUp
 		bool InvalidateDefaultMaterial();
 
 
-		TSharedPtr<FMaterial>* Find(FMaterialIDType MaterialID)
-		{
-			return MaterialDefinitionMap.Find(MaterialID);
-		}
+		TSharedPtr<FMaterial> FindOrCreateMaterial(FMaterialIDType MaterialID);
 
 		// Tell that this materials is assigned on the node
 		FMaterialOccurrence* RegisterInstance(FMaterialIDType MaterialID, FNodeOccurence* NodeOccurrence);
