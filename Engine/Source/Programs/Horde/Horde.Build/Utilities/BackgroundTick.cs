@@ -53,16 +53,10 @@ namespace HordeServer.Utilities
 			CancellationToken CancellationToken = CancellationTokenSource.Token;
 			for (; ; )
 			{
+				Stopwatch Timer = Stopwatch.StartNew();
 				try
 				{
-					Stopwatch Timer = Stopwatch.StartNew();
 					await TickFunc(CancellationToken);
-
-					TimeSpan Delay = Interval - Timer.Elapsed;
-					if (Delay > TimeSpan.Zero)
-					{
-						await Task.Delay(Delay, CancellationToken);
-					}
 				}
 				catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested)
 				{
@@ -71,6 +65,12 @@ namespace HordeServer.Utilities
 				catch (Exception Ex)
 				{
 					Logger.LogError(Ex, "Exception while executing background task");
+				}
+
+				TimeSpan Delay = Interval - Timer.Elapsed;
+				if (Delay > TimeSpan.Zero)
+				{
+					await Task.Delay(Delay, CancellationToken);
 				}
 			}
 		}
