@@ -487,6 +487,7 @@ namespace HordeServer.Collections.Impl
 			Update = Update.Unset(x => x.SessionId);
 			Update = Update.Unset(x => x.SessionExpiresAt);
 			Update = Update.Unset(x => x.Leases);
+			Update = Update.Set(x => x.Status, AgentStatus.Stopped);
 
 			bool bDeleted = Agent.Deleted || Agent.Ephemeral;
 			if (bDeleted != Agent.Deleted)
