@@ -5,21 +5,16 @@
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "Announcement/ScreenReaderAnnouncementChannel.h"
 #include "GenericPlatform/ScreenReaderUser.h"
-#include "InputCoreTypes.h"
 #include "SlateScreenReaderLog.h"
 
-// Slate includes
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Application/SlateUser.h"
-#include "Input/Events.h"
-#include "Widgets/Accessibility/SlateAccessibleWidgetCache.h"
-
-#define LOCTEXT_NAMESPACE "SlateScreenReader"
 
 FSlateScreenReader::FSlateScreenReader(const TSharedRef<GenericApplication>& InPlatformApplication)
 	: FScreenReaderBase(InPlatformApplication)
 {
-
+	// if we are creating and using FSlateScreenReader, we assume that other accessibility options (such as platform accessibility) are going to be overridden
+	// We unregister all previously registered users and force registration through the screen reader framework
+	// @TODOAccessibility: It would be better to swap the existing FGenericAccessibleUsers for their FScreenReaderUser counterparts, but we will deal with that later
+	InPlatformApplication->GetAccessibleMessageHandler()->GetAccessibleUserRegistry().UnregisterAllUsers();
 }
 
 FSlateScreenReader::~FSlateScreenReader()
@@ -27,32 +22,40 @@ FSlateScreenReader::~FSlateScreenReader()
 
 }
 
-void FSlateScreenReader::HandleSlateFocusChanging(const FFocusEvent& InFocusEvent, const FWeakWidgetPath& InOldFocusWidgetPath, const TSharedPtr<SWidget>& InOldWidget, const FWidgetPath& InNewWidgetPath, const TSharedPtr<SWidget>& InNewFocusWidget)
+void FSlateScreenReader::OnAccessibleEventRaised(const FAccessibleEventArgs& Args)
 {
-	if (IsActive() && InNewFocusWidget && InNewFocusWidget->IsAccessible())
+	// This should only be triggered by the accessible message handler which initiates from the Slate thread.
+	check(IsInGameThread());
+if (IsActive())
+{
+	switch (Args.Event)
 	{
-		int32 UserId = static_cast<int32>(InFocusEvent.GetUser());
-		if (TSharedPtr<FScreenReaderUser> User = GetUser(UserId))
+		case EAccessibleEvent::FocusChange:
 		{
-			TSharedPtr<IAccessibleWidget> AccessibleWidget = FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(InNewFocusWidget);
-			if (AccessibleWidget)
+			// if the widget is gaining focus
+			if (Args.NewValue.GetValue<bool>())
 			{
-				User->SetAccessibleFocusWidget(AccessibleWidget.ToSharedRef());
-				User->RequestSpeakWidget(AccessibleWidget.ToSharedRef());
+				TSharedPtr<FScreenReaderUser> User = GetUser(Args.UserIndex);
+				if (User)
+				{
+					User->RequestSpeakWidget(Args.Widget);
+				}
 			}
+			break;
 		}
 	}
+}
 }
 
 void FSlateScreenReader::OnActivate()
 {
 	UE_LOG(LogSlateScreenReader, Verbose, TEXT("On activation of Slate screen reader."));
-	// @TODOAccessibility: Consider removing the binding on deactivation 
-	FSlateApplication::Get().OnFocusChanging().AddRaw(this, &FSlateScreenReader::HandleSlateFocusChanging);
+	// @TODOAccessibility: Provide feedback in the form of a tone or something
 }
 
 void FSlateScreenReader::OnDeactivate()
 {
 	UE_LOG(LogSlateScreenReader, Verbose, TEXT("Deactivation of Slate screen reader."));
+	// @TODOAccessibility: Provide feedback in the form of a tone or something
 } 
-#undef LOCTEXT_NAMESPACE
+

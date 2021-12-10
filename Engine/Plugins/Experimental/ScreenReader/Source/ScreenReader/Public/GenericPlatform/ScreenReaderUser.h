@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Announcement/ScreenReaderAnnouncement.h"
 #include "GenericPlatform/ScreenReaderReply.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 
 class IAccessibleWidget;
 class FScreenReaderAnnouncementChannel;
@@ -13,16 +14,16 @@ class FScreenReaderAnnouncementChannel;
 * This class is a facade that acts as a one stop shop for all screen reading services on a per user basis.
 * Multiple screen reader users can exist simultaneoulsy to facilitate local multiplayer and users can opt in or out 
 * of receiving screen reader feedback by registering and unregistering with the screen reader respectively.
-* A screen user is inactive by default when it is first registered with teh screen reader. Users must explicitly activate the screen reader user after successful registration with the screen reader to use its services.
+* A screen user is inactive by default when it is first registered through the screen reader. Users must explicitly activate the screen reader user after successful registration with the screen reader to use its services.
 * Responsibilities of the class are:
 * 1. Text to speech (TTS) requests - Users can request an announcement to be spoken via text to speech to  screen reader user
 * 2. Accessible focus handling - A screen reader user holds information about the accessible widget it is currently focused on
-* @see FScreenReaderBase, FScreenReaderAnnouncement
+* @see FScreenReaderBase, FScreenReaderAnnouncement, FGenericAccessibleUser
 */
-class SCREENREADER_API FScreenReaderUser
+class SCREENREADER_API FScreenReaderUser : public FGenericAccessibleUser
 {
 public:
-	explicit FScreenReaderUser(int32 InUserId);
+	explicit FScreenReaderUser(FAccessibleUserIndex InUserIndex);
 	~FScreenReaderUser();
 	/**
 	* Requests an announcement to be spoken to the screen reader user. This is the main mechanism to provide text to speech auditory feedback
@@ -33,7 +34,7 @@ public:
 	* If the screen reader user is active and no announcements are currently spoken, the announcement will be spoken immediately.
 	* If another announcement is currently being spoken, the passed in announcement could be queued or interrupt the currently spoken announcement.
 	* Examples:
-	* TSharedRef<FScreenReaderUser> MyUser = ScreenReader->GetUser(MyScreenReaderUserId);
+	* TSharedRef<FScreenReaderUser> MyUser = ScreenReader->GetUser(MyScreenReaderUserIndex);
 	* // All announcements to be spoken should be localized to provide language support for the text to speech system.
 	* static const FText MyText = LOCTEXT("ExampleUserFeedback", "Feedback to user.");
 	* // This makes the announcement interrupt any currently spoken announcement with lower priority and is played immediately. The announcement will be uninterruptable and guarantees the user will hear the announcement.
@@ -104,25 +105,15 @@ public:
 	{ 
 		return bActive; 
 	}
-	/** Returns the user Id associated with this screen reader user. */
-	int32 GetUserId() const 
-	{ 
-		return UserId; 
-	}
-	/** Returns the accessible widget the screen reader user is currently focused on. */
-	TSharedPtr<IAccessibleWidget> GetAccessibleFocusWidget() const 
-	{ 
-		return AccessibleFocusWidget.Pin();
-	}
-	/** Sets the accessible widget the screen reader user is currently focused on */
-	void SetAccessibleFocusWidget(const TSharedRef<IAccessibleWidget>& InAccessibleFocusWidget) 
-	{ 
-		AccessibleFocusWidget = InAccessibleFocusWidget;
-	}
+
+protected:
+	//~ Begin FGenericAccessibleUser interface
+	virtual void OnUnregistered() override;
+	//~ End FGenericAccessibleUser interface
+	
 private:
-	int32 UserId;
 	/** Responsible for handling all incoming announcement requests and speaking them via text to speech if possible */
 	TUniquePtr<FScreenReaderAnnouncementChannel> AnnouncementChannel;
-	TWeakPtr<IAccessibleWidget> AccessibleFocusWidget;
 	bool bActive;
 };
+

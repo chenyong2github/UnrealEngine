@@ -10,13 +10,12 @@ class GenericApplication;
 
 
 /**
-* The base class all screen readers must derive from.
+* The abstract base class all screen readers must derive from.
 * The screen reader sets up and tears down the screen reader framework with Activate() and Deactivate() respectively.
 * When active, the screen reader will intercept all application messages, perform necessary input pre-processing and dispatch the accessible events and 
 * inputs to all registered screen reader users.
-* The screen reader contains a registry of screen reader users which can be registered, unregistered and retrieved with corresponding user Ids.
-* Registered users will receive and respond to accessible inputs and accessible events dispatched by the screen reader.
-* Users of this class and its child classes must activate the screen reader to ensure the accessible inputs and accessible events are dispatched properly.
+* Users of derived classes must activate the screen reader to ensure the accessible inputs and accessible events are dispatched properly.
+ * Derived classes must implement the pure virtual OnAccessibleEventRaised function to handle accessible events.
 * @see FScreenReaderUser
 */
 class SCREENREADER_API FScreenReaderBase
@@ -92,16 +91,29 @@ protected:
 	* feedback to alert the user that the screen reader is deactivated. 
 	*/
 	virtual void OnDeactivate() {}
+	/**
+	 * The handler for all accessible events raised from FGenericAccessibleMessageHandler. Is bound to the accessible event delegate in FGenericAccessibleMessageHandler.
+	 * This handler is bound during activation and unbound during deactivation.
+	 * A sample implementation can be found in FSlateScreenReader.
+	 * @see FSlateScreenReader
+	 */
+virtual void OnAccessibleEventRaised(const FAccessibleEventArgs& Args) = 0;
+	
+	/** Returns the weak pointer to the platform application. Use this to access the accessible message handler and or retrieve cursor information. */
+	TWeakPtr<GenericApplication> GetPlatformApplicationWeak() const
+	{
+		return PlatformApplication;
+	}
+
 private:
 	/** 
 	* The screen reader's application message handler. It processes input events before passing them down to the target application message handler
 	* @see FScreenReaderApplicationMessageHandlerBase
 	*/
 	TSharedRef<FScreenReaderApplicationMessageHandlerBase> ScreenReaderApplicationMessageHandler;
-	/** The platform application. Used to access the accessible message handler and swap the application message handler with the screen reader application message handler.. */
+	/** The platform application. Used to access the accessible message handler and swap the application message handler with the screen reader application message handler. */
 	TWeakPtr<GenericApplication> PlatformApplication;
-	/** A map of user Ids to screen reader users. Each entry represents a registered user that can receive and repsond to accessible events and accessible input. */
-	TMap<int32, TSharedRef<FScreenReaderUser>> UsersMap;
 	/** True if the screen reader is active. Else false. */
 	bool bActive;
 };
+

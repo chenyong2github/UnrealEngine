@@ -159,7 +159,7 @@ FScreenReaderReply USlateScreenReaderEngineSubsystem::RequestSpeakFocusedWidget(
 		TSharedPtr<FScreenReaderUser> User = ScreenReader->GetUser(InUserId);
 		if (User)
 		{
-			if (TSharedPtr<IAccessibleWidget> UserFocusedWidget = User->GetAccessibleFocusWidget())
+			if (TSharedPtr<IAccessibleWidget> UserFocusedWidget = User->GetFocusedAccessibleWidget())
 			{
 				return User->RequestSpeakWidget(UserFocusedWidget.ToSharedRef());
 			}

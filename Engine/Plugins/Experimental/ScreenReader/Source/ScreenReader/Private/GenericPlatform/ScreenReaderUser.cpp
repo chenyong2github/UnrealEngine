@@ -4,8 +4,8 @@
 #include "Announcement/ScreenReaderAnnouncementChannel.h"
 #include "TextToSpeech.h"
 
-FScreenReaderUser::FScreenReaderUser(int32 InUserId)
-	: UserId(InUserId)
+FScreenReaderUser::FScreenReaderUser(FAccessibleUserIndex InUserIndex)
+	: FGenericAccessibleUser(InUserIndex)
 	, bActive(false)
 {
 	// @TODOAccessibility: For now, just default it to the platform TTS. Should give a way to allow users to use custom TTS though 
@@ -114,3 +114,9 @@ bool FScreenReaderUser::IsSpeechMuted() const
 {
 	return AnnouncementChannel->IsSpeechMuted();
 }
+
+void FScreenReaderUser::OnUnregistered()
+{
+	Deactivate();
+}
+
