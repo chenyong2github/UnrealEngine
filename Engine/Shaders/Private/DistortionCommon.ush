@@ -6,13 +6,9 @@
 
 float2 ComputeBufferUVDistortion(
 	in FMaterialPixelParameters MaterialParameters, in FPixelMaterialInputs PixelMaterialInputs, in ViewState ResolvedView,
-	in half3 Normal, in float4 DistortionParameters, in float2 ScreenUV, in float2 RefractionIORAndBias, in bool TryToClip, in uint EyeIndex)
+	in half3 WorldNormal, in float4 DistortionParameters, in float2 ScreenUV, in float2 RefractionIORAndBias, in bool TryToClip, in uint EyeIndex)
 {
-#if MATERIAL_TANGENTSPACENORMAL
-	half3 ViewNormal = normalize(TransformTangentVectorToView(MaterialParameters, Normal));
-#else
-	half3 ViewNormal = normalize(TransformWorldVectorToView(Normal));
-#endif
+	half3 ViewNormal = normalize(TransformWorldVectorToView(WorldNormal));
 
 #if REFRACTION_USE_PIXEL_NORMAL_OFFSET
 	half3 ViewVertexNormal = TransformTangentVectorToView(MaterialParameters, float3(0, 0, 1));
