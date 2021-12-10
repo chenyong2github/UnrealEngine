@@ -268,7 +268,7 @@ struct SYNTHESIS_API FModularSynthPreset : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset", meta = (ClampMin = "0.0", ClampMax = "20.0", UIMin = "0.0", UIMax = "20.0"))
 	float ChorusFrequency;
 
-	// The modular synth patch chords to use for the synth. Allows routing the LFO1/LFO2 and Modulation Envelope to any patchable destination. 
+	// The modular synth patch cords to use for the synth. Allows routing the LFO1/LFO2 and Modulation Envelope to any patchable destination. 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth|Preset")
 	TArray<FEpicSynth1Patch> Patches;
 
