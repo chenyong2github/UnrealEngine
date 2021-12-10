@@ -117,19 +117,25 @@ bool FPluginReferenceDescriptor::IsSupportedTargetPlatform(const FString& Platfo
 	}
 }
 
-bool FPluginReferenceDescriptor::Read( const FJsonObject& Object, FText& OutFailReason )
+bool FPluginReferenceDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*= nullptr*/)
 {
 	// Get the name
 	if(!Object.TryGetStringField(TEXT("Name"), Name))
 	{
-		OutFailReason = LOCTEXT("PluginReferenceWithoutName", "Plugin references must have a 'Name' field");
+		if (OutFailReason)
+		{
+			*OutFailReason = LOCTEXT("PluginReferenceWithoutName", "Plugin references must have a 'Name' field");
+		}
 		return false;
 	}
 
 	// Get the enabled field
 	if(!Object.TryGetBoolField(TEXT("Enabled"), bEnabled))
 	{
-		OutFailReason = LOCTEXT("PluginReferenceWithoutEnabled", "Plugin references must have an 'Enabled' field");
+		if (OutFailReason)
+		{
+			*OutFailReason = LOCTEXT("PluginReferenceWithoutEnabled", "Plugin references must have an 'Enabled' field");
+		}
 		return false;
 	}
 
@@ -159,8 +165,12 @@ bool FPluginReferenceDescriptor::Read( const FJsonObject& Object, FText& OutFail
 	return true;
 }
 
+bool FPluginReferenceDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
+{
+	return Read(Object, &OutFailReason);
+}
 
-bool FPluginReferenceDescriptor::ReadArray( const FJsonObject& Object, const TCHAR* Name, TArray<FPluginReferenceDescriptor>& OutPlugins, FText& OutFailReason )
+bool FPluginReferenceDescriptor::ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FPluginReferenceDescriptor>& OutPlugins, FText* OutFailReason /*= nullptr*/)
 {
 	const TArray< TSharedPtr<FJsonValue> > *Array;
 
@@ -187,6 +197,10 @@ bool FPluginReferenceDescriptor::ReadArray( const FJsonObject& Object, const TCH
 	return true;
 }
 
+bool FPluginReferenceDescriptor::ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FPluginReferenceDescriptor>& OutPlugins, FText& OutFailReason)
+{
+	return ReadArray(Object, Name, OutPlugins, &OutFailReason);
+}
 
 void FPluginReferenceDescriptor::Write(TJsonWriter<>& Writer) const
 {

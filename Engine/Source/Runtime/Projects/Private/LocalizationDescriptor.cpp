@@ -75,13 +75,16 @@ FLocalizationTargetDescriptor::FLocalizationTargetDescriptor(FString InName, ELo
 {
 }
 
-bool FLocalizationTargetDescriptor::Read(const FJsonObject& InObject, FText& OutFailReason)
+bool FLocalizationTargetDescriptor::Read(const FJsonObject& InObject, FText* OutFailReason /*= nullptr*/)
 {
 	// Read the target name
 	TSharedPtr<FJsonValue> NameValue = InObject.TryGetField(TEXT("Name"));
 	if (!NameValue.IsValid() || NameValue->Type != EJson::String)
 	{
-		OutFailReason = LOCTEXT("TargetWithoutAName", "Found a 'Localization Target' entry with a missing 'Name' field");
+		if (OutFailReason)
+		{
+			*OutFailReason = LOCTEXT("TargetWithoutAName", "Found a 'Localization Target' entry with a missing 'Name' field");
+		}
 		return false;
 	}
 	Name = NameValue->AsString();
@@ -93,7 +96,10 @@ bool FLocalizationTargetDescriptor::Read(const FJsonObject& InObject, FText& Out
 		LoadingPolicy = ELocalizationTargetDescriptorLoadingPolicy::FromString(*LoadingPolicyValue->AsString());
 		if (LoadingPolicy == ELocalizationTargetDescriptorLoadingPolicy::Max)
 		{
-			OutFailReason = FText::Format(LOCTEXT("TargetWithInvalidLoadingPolicy", "Localization Target entry '{0}' specified an unrecognized target LoadingPolicy '{1}'"), FText::FromString(Name), FText::FromString(LoadingPolicyValue->AsString()));
+			if (OutFailReason)
+			{
+				*OutFailReason = FText::Format(LOCTEXT("TargetWithInvalidLoadingPolicy", "Localization Target entry '{0}' specified an unrecognized target LoadingPolicy '{1}'"), FText::FromString(Name), FText::FromString(LoadingPolicyValue->AsString()));
+			}
 			return false;
 		}
 	}
@@ -101,7 +107,12 @@ bool FLocalizationTargetDescriptor::Read(const FJsonObject& InObject, FText& Out
 	return true;
 }
 
-bool FLocalizationTargetDescriptor::ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText& OutFailReason)
+bool FLocalizationTargetDescriptor::Read(const FJsonObject& InObject, FText& OutFailReason)
+{
+	return Read(InObject, &OutFailReason);
+}
+
+bool FLocalizationTargetDescriptor::ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText* OutFailReason /*= nullptr*/)
 {
 	bool bResult = true;
 
@@ -125,13 +136,21 @@ bool FLocalizationTargetDescriptor::ReadArray(const FJsonObject& InObject, const
 			}
 			else
 			{
-				OutFailReason = LOCTEXT("TargetWithInvalidTargetsArray", "The 'Localization Targets' array has invalid contents and was not able to be loaded.");
+				if (OutFailReason)
+				{
+					*OutFailReason = LOCTEXT("TargetWithInvalidTargetsArray", "The 'Localization Targets' array has invalid contents and was not able to be loaded.");
+				}
 				bResult = false;
 			}
 		}
 	}
 
 	return bResult;
+}
+
+bool FLocalizationTargetDescriptor::ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText& OutFailReason)
+{
+	return ReadArray(InObject, InName, OutTargets, &OutFailReason);
 }
 
 void FLocalizationTargetDescriptor::Write(TJsonWriter<>& Writer) const

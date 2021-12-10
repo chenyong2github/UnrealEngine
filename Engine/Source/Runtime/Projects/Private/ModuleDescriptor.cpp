@@ -157,13 +157,16 @@ FModuleDescriptor::FModuleDescriptor(const FName InName, EHostType::Type InType,
 {
 }
 
-bool FModuleDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
+bool FModuleDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*= nullptr*/)
 {
 	// Read the module name
 	TSharedPtr<FJsonValue> NameValue = Object.TryGetField(TEXT("Name"));
 	if(!NameValue.IsValid() || NameValue->Type != EJson::String)
 	{
-		OutFailReason = LOCTEXT("ModuleWithoutAName", "Found a 'Module' entry with a missing 'Name' field");
+		if (OutFailReason)
+		{
+			*OutFailReason = LOCTEXT("ModuleWithoutAName", "Found a 'Module' entry with a missing 'Name' field");
+		}
 		return false;
 	}
 	Name = FName(*NameValue->AsString());
@@ -172,13 +175,19 @@ bool FModuleDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	TSharedPtr<FJsonValue> TypeValue = Object.TryGetField(TEXT("Type"));
 	if(!TypeValue.IsValid() || TypeValue->Type != EJson::String)
 	{
-		OutFailReason = FText::Format( LOCTEXT( "ModuleWithoutAType", "Found Module entry '{0}' with a missing 'Type' field" ), FText::FromName(Name) );
+		if (OutFailReason)
+		{
+			*OutFailReason = FText::Format( LOCTEXT( "ModuleWithoutAType", "Found Module entry '{0}' with a missing 'Type' field" ), FText::FromName(Name) );
+		}
 		return false;
 	}
 	Type = EHostType::FromString(*TypeValue->AsString());
 	if(Type == EHostType::Max)
 	{
-		OutFailReason = FText::Format( LOCTEXT( "ModuleWithInvalidType", "Module entry '{0}' specified an unrecognized module Type '{1}'" ), FText::FromName(Name), FText::FromString(TypeValue->AsString()) );
+		if (OutFailReason)
+		{
+			*OutFailReason = FText::Format( LOCTEXT( "ModuleWithInvalidType", "Module entry '{0}' specified an unrecognized module Type '{1}'" ), FText::FromName(Name), FText::FromString(TypeValue->AsString()) );
+		}
 		return false;
 	}
 
@@ -189,7 +198,10 @@ bool FModuleDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 		LoadingPhase = ELoadingPhase::FromString(*LoadingPhaseValue->AsString());
 		if(LoadingPhase == ELoadingPhase::Max)
 		{
-			OutFailReason = FText::Format( LOCTEXT( "ModuleWithInvalidLoadingPhase", "Module entry '{0}' specified an unrecognized module LoadingPhase '{1}'" ), FText::FromName(Name), FText::FromString(LoadingPhaseValue->AsString()) );
+			if (OutFailReason)
+			{
+				*OutFailReason = FText::Format( LOCTEXT( "ModuleWithInvalidLoadingPhase", "Module entry '{0}' specified an unrecognized module LoadingPhase '{1}'" ), FText::FromName(Name), FText::FromString(LoadingPhaseValue->AsString()) );
+			}
 			return false;
 		}
 	}
@@ -217,7 +229,12 @@ bool FModuleDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
 	return true;
 }
 
-bool FModuleDescriptor::ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText& OutFailReason)
+bool FModuleDescriptor::Read(const FJsonObject& Object, FText& OutFailReason)
+{
+	return Read(Object, &OutFailReason);
+}
+
+bool FModuleDescriptor::ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText* OutFailReason /*= nullptr*/)
 {
 	bool bResult = true;
 
@@ -242,13 +259,21 @@ bool FModuleDescriptor::ReadArray(const FJsonObject& Object, const TCHAR* Name, 
 			}
 			else
 			{
-				OutFailReason = LOCTEXT( "ModuleWithInvalidModulesArray", "The 'Modules' array has invalid contents and was not able to be loaded." );
+				if (OutFailReason)
+				{
+					*OutFailReason = LOCTEXT( "ModuleWithInvalidModulesArray", "The 'Modules' array has invalid contents and was not able to be loaded." );
+				}
 				bResult = false;
 			}
 		}
 	}
 	
 	return bResult;
+}
+
+bool FModuleDescriptor::ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText& OutFailReason)
+{
+	return ReadArray(Object, Name, OutModules, &OutFailReason);
 }
 
 void FModuleDescriptor::Write(TJsonWriter<>& Writer) const
