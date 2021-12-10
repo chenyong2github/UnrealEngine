@@ -116,7 +116,11 @@ export enum JobStepBatchError {
 	LostConnection = "LostConnection",
 
 	/** Lease terminated prematurely */
-	Incomplete = "Incomplete"
+	Incomplete = "Incomplete",
+
+	/** An error ocurred while executing the lease. Cannot be retried. */
+	ExecutionError = "ExecutionError"
+
 
 }
 
