@@ -2529,6 +2529,23 @@ enum class EConservativeRasterization : uint8
 	Overestimated,
 };
 
+struct FGraphicsPipelineRenderTargetsInfo
+{
+	uint32															RenderTargetsEnabled;
+	TStaticArray<uint8, MaxSimultaneousRenderTargets>				RenderTargetFormats;
+	TStaticArray<ETextureCreateFlags, MaxSimultaneousRenderTargets>	RenderTargetFlags;
+	EPixelFormat													DepthStencilTargetFormat;
+	ETextureCreateFlags												DepthStencilTargetFlag;
+	ERenderTargetLoadAction											DepthTargetLoadAction;
+	ERenderTargetStoreAction										DepthTargetStoreAction;
+	ERenderTargetLoadAction											StencilTargetLoadAction;
+	ERenderTargetStoreAction										StencilTargetStoreAction;
+	FExclusiveDepthStencil											DepthStencilAccess;
+	uint16															NumSamples;
+	uint8															MultiViewCount;
+	bool															bHasFragmentDensityAttachment;
+};
+
 class FGraphicsPipelineStateInitializer
 {
 public:
@@ -3273,6 +3290,57 @@ struct FRHIRenderPassInfo
 	inline bool IsMSAA() const
 	{
 		return bIsMSAA;
+	}
+
+	FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo() const
+	{
+		FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+
+		RenderTargetsInfo.NumSamples = 1;
+		int32 RenderTargetIndex = 0;
+
+		for (; RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
+		{
+			FRHITexture* RenderTarget = ColorRenderTargets[RenderTargetIndex].RenderTarget;
+			if (!RenderTarget)
+			{
+				break;
+			}
+
+			RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = RenderTarget->GetFormat();
+			RenderTargetsInfo.RenderTargetFlags[RenderTargetIndex] = RenderTarget->GetFlags();
+			RenderTargetsInfo.NumSamples |= RenderTarget->GetNumSamples();
+		}
+
+		RenderTargetsInfo.RenderTargetsEnabled = RenderTargetIndex;
+		for (; RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
+		{
+			RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = PF_Unknown;
+		}
+
+		if (DepthStencilRenderTarget.DepthStencilTarget)
+		{
+			RenderTargetsInfo.DepthStencilTargetFormat = DepthStencilRenderTarget.DepthStencilTarget->GetFormat();
+			RenderTargetsInfo.DepthStencilTargetFlag = DepthStencilRenderTarget.DepthStencilTarget->GetFlags();
+			RenderTargetsInfo.NumSamples |= DepthStencilRenderTarget.DepthStencilTarget->GetNumSamples();
+		}
+		else
+		{
+			RenderTargetsInfo.DepthStencilTargetFormat = PF_Unknown;
+		}
+
+		const ERenderTargetActions DepthActions = GetDepthActions(DepthStencilRenderTarget.Action);
+		const ERenderTargetActions StencilActions = GetStencilActions(DepthStencilRenderTarget.Action);
+		RenderTargetsInfo.DepthTargetLoadAction = GetLoadAction(DepthActions);
+		RenderTargetsInfo.DepthTargetStoreAction = GetStoreAction(DepthActions);
+		RenderTargetsInfo.StencilTargetLoadAction = GetLoadAction(StencilActions);
+		RenderTargetsInfo.StencilTargetStoreAction = GetStoreAction(StencilActions);
+		RenderTargetsInfo.DepthStencilAccess = DepthStencilRenderTarget.ExclusiveDepthStencil;
+
+		RenderTargetsInfo.MultiViewCount = MultiViewCount;
+		RenderTargetsInfo.bHasFragmentDensityAttachment = ShadingRateTexture != nullptr;
+
+		return RenderTargetsInfo;
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

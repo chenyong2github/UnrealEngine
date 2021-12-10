@@ -881,7 +881,7 @@ struct FLumenMeshCaptureMaterialPass
 	uint64 SortKey = 0;
 	int32 CommandStateBucketId = INDEX_NONE;
 	uint32 ViewIndexBufferOffset = 0;
-	TArray<uint16, TInlineAllocator<64>> ViewIndices;
+	int32 NumViewIndices = 0;
 
 	inline float GetMaterialDepth() const
 	{
@@ -998,12 +998,31 @@ void DrawLumenMeshCapturePass(
 
 	// Emit GBuffer Values
 	{
+		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
+
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[2] = FRenderTargetBinding(EmissiveAtlasTexture, ERenderTargetLoadAction::ELoad);
+
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+			DepthAtlasTexture,
+			ERenderTargetLoadAction::ELoad,
+			ERenderTargetLoadAction::ELoad,
+			FExclusiveDepthStencil::DepthWrite_StencilRead
+		);
+
 		int32 NumMaterialQuads = 0;
 		TArray<FLumenMeshCaptureMaterialPass, SceneRenderingAllocator> MaterialPasses;
 		MaterialPasses.Reserve(CardPagesToRender.Num());
 
+		using FMaterialPassViewIndices = TArray<uint16, TInlineAllocator<64>>;
+		TArray<FMaterialPassViewIndices> ViewIndicesPerMaterialPass;
+		ViewIndicesPerMaterialPass.Reserve(CardPagesToRender.Num());
+
 		// Build list of unique materials
 		{
+			FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo = ExtractRenderTargetsInfo(FRDGParameterStruct(PassParameters, FNaniteEmitGBufferParameters::FTypeInfo::GetStructMetadata()));
+
 			Experimental::TRobinHoodHashSet<FLumenMeshCaptureMaterialPassIndex> MaterialPassSet;
 
 			for (int32 CardPageIndex = 0; CardPageIndex < CardPagesToRender.Num(); ++CardPageIndex)
@@ -1021,13 +1040,15 @@ void DrawLumenMeshCapturePass(
 						const FMeshDrawCommand& MeshDrawCommand = LumenMaterialCommands.GetCommand(CommandId);
 
 						FLumenMeshCaptureMaterialPass MaterialPass;
-						MaterialPass.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(GraphBuilder.RHICmdList);
+						MaterialPass.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(GraphBuilder.RHICmdList, RenderTargetsInfo);
 						MaterialPass.CommandStateBucketId = CommandInfo.GetStateBucketId();
 						MaterialPass.ViewIndexBufferOffset = 0;
 						MaterialPasses.Add(MaterialPass);
+
+						ViewIndicesPerMaterialPass.AddDefaulted();
 					}
 
-					MaterialPasses[PassIndex.Index].ViewIndices.Add(CardPageIndex);
+					ViewIndicesPerMaterialPass[PassIndex.Index].Add(CardPageIndex);
 					++NumMaterialQuads;
 				}
 			}
@@ -1043,14 +1064,12 @@ void DrawLumenMeshCapturePass(
 		TArray<uint32, SceneRenderingAllocator> ViewIndices;
 		ViewIndices.Reserve(NumMaterialQuads);
 
-		for (FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPasses)
+		for (int32 Index = 0; Index < MaterialPasses.Num(); Index++)
 		{
-			MaterialPass.ViewIndexBufferOffset = ViewIndices.Num();
+			MaterialPasses[Index].ViewIndexBufferOffset = ViewIndices.Num();
+			MaterialPasses[Index].NumViewIndices = ViewIndicesPerMaterialPass[Index].Num();
 
-			for (int32 ViewIndex : MaterialPass.ViewIndices)
-			{
-				ViewIndices.Add(ViewIndex);
-			}
+			ViewIndices.Append(ViewIndicesPerMaterialPass[Index]);
 		}
 		ensure(ViewIndices.Num() > 0);
 
@@ -1103,8 +1122,6 @@ void DrawLumenMeshCapturePass(
 			PackedViews.GetData(),
 			PackedViews.Num() * PackedViews.GetTypeSize());
 
-		FNaniteEmitGBufferParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteEmitGBufferParameters>();
-
 		PassParameters->PageConstants = CullingContext.PageConstants;
 		PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 		PassParameters->MaxNodes = Nanite::FGlobalResources::GetMaxNodes();
@@ -1127,19 +1144,8 @@ void DrawLumenMeshCapturePass(
 		PassParameters->DbgBuffer64 = SystemTextures.Black;
 		PassParameters->DbgBuffer32 = SystemTextures.Black;
 
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(AlbedoAtlasTexture, ERenderTargetLoadAction::ELoad);
-		PassParameters->RenderTargets[1] = FRenderTargetBinding(NormalAtlasTexture, ERenderTargetLoadAction::ELoad);
-		PassParameters->RenderTargets[2] = FRenderTargetBinding(EmissiveAtlasTexture, ERenderTargetLoadAction::ELoad);
-
 		PassParameters->View = Scene.UniformBuffers.LumenCardCaptureViewUniformBuffer;
 		PassParameters->CardPass = GraphBuilder.CreateUniformBuffer(PassUniformParameters);
-
-		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
-			DepthAtlasTexture,
-			ERenderTargetLoadAction::ELoad,
-			ERenderTargetLoadAction::ELoad,
-			FExclusiveDepthStencil::DepthWrite_StencilRead
-		);
 
 		TShaderMapRef<FNaniteMultiViewMaterialVS> NaniteVertexShader(SharedView->ShaderMap);
 
@@ -1193,7 +1199,7 @@ void DrawLumenMeshCapturePass(
 				for (const FLumenMeshCaptureMaterialPass& MaterialPass : MaterialPassArray)
 				{
 					// One instance per card page
-					const uint32 InstanceFactor = MaterialPass.ViewIndices.Num();
+					const uint32 InstanceFactor = MaterialPass.NumViewIndices;
 					const uint32 InstanceBaseOffset = MaterialPass.ViewIndexBufferOffset;
 
 					FNaniteMaterialCommands::FCommandId CommandId(MaterialPass.CommandStateBucketId);

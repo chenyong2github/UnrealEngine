@@ -50,7 +50,7 @@ inline void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphic
 
 namespace PipelineStateCache
 {
-	extern RHI_API uint64					RetrieveGraphicsPipelineStateSortKey(FGraphicsPipelineState* GraphicsPipelineState);
+	extern RHI_API uint64					RetrieveGraphicsPipelineStateSortKey(const FGraphicsPipelineState* GraphicsPipelineState);
 
 	extern RHI_API FComputePipelineState*	GetAndOrCreateComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader, bool bFromFileCache);
 

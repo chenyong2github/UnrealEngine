@@ -1133,7 +1133,7 @@ static bool IsAsyncCompilationAllowed(FRHIComputeCommandList& RHICmdList)
 		GCVarAsyncPipelineCompile.GetValueOnAnyThread() && !RHICmdList.Bypass() && (IsRunningRHIInSeparateThread() && !IsInRHIThread()) && RHICmdList.AsyncPSOCompileAllowed();
 }
 
-uint64 PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(FGraphicsPipelineState* GraphicsPipelineState)
+uint64 PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(const FGraphicsPipelineState* GraphicsPipelineState)
 {
 	return GraphicsPipelineState != nullptr ? GraphicsPipelineState->SortKey : 0;
 }

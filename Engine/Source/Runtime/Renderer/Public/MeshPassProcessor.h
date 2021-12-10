@@ -1164,7 +1164,7 @@ public:
 		uint32 IndirectArgsOverrideByteOffset = 0U);
 
 	/** Returns the pipeline state sort key, which can be used for sorting material draws to reduce context switches. */
-	uint64 GetPipelineStateSortingKey(FRHICommandList& RHICmdList) const;
+	uint64 GetPipelineStateSortingKey(FRHICommandList& RHICmdList, const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const;
 
 	FORCENOINLINE friend uint32 GetTypeHash( const FMeshDrawCommand& Other )
 	{
