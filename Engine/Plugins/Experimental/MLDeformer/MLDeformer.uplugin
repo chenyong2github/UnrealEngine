@@ -38,6 +38,10 @@
 		{
 			"Name": "Optimus",
 			"Enabled": true
+		},
+		{
+			"Name": "PythonFoundationPackages",
+			"Enabled": true
 		}
 	]
 }
