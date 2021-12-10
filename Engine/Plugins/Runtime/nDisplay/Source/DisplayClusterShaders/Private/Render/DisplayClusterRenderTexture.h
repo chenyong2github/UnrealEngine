@@ -90,7 +90,7 @@ public:
 		return TextureResource ? TextureResource->GetPixelFormat() : PF_Unknown;
 	}
 
-	virtual bool IsValid() const override
+	virtual bool IsEnabled() const override
 	{
 		const FDisplayClusterRenderTextureResource* TextureResource = GetResource();
 		if (TextureResource)

@@ -48,7 +48,8 @@ public class DisplayClusterConfigurator : ModuleRules
 				"SubobjectEditor",
 				"SubobjectDataInterface",
 				"ToolWidgets",
-				"VPUtilitiesEditor"
+				"VPUtilitiesEditor",
+				"ProceduralMeshComponent",
 			});
 	}
 }

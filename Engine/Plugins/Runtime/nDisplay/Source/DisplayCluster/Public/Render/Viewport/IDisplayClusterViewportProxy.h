@@ -36,8 +36,9 @@ public:
 	virtual bool GetResourcesWithRects_RenderThread(const EDisplayClusterViewportResourceType InResourceType, TArray<FRHITexture2D*>& OutResources, TArray<FIntRect>& OutRects) const = 0;
 
 	// Resolve resource contexts
-	virtual bool ResolveResources(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const = 0;
+	virtual bool ResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const = 0;
 
-	virtual const class IDisplayClusterViewportManagerProxy& GetOwner() const = 0;
-	virtual EDisplayClusterViewportResourceType   GetOutputResourceType() const = 0;
+	virtual EDisplayClusterViewportResourceType   GetOutputResourceType_RenderThread() const = 0;
+
+	virtual const class IDisplayClusterViewportManagerProxy& GetOwner_RenderThread() const = 0;
 };

@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WarpBlend/DisplayClusterWarpEnums.h"
+#include "WarpBlend\DisplayClusterWarpEnums.h"
+
+#include "Render\Containers\DisplayClusterRender_MeshComponent.h"
 
 class IDisplayClusterRenderTexture;
-class FDisplayClusterRender_MeshComponent;
-class UStaticMeshComponent;
-class USceneComponent;
+class FDisplayClusterRender_MeshComponentProxy;
+
+struct FStaticMeshLODResources;
+struct FProcMeshSection;
 
 class FDisplayClusterWarpBlend_GeometryProxy
 {
@@ -25,13 +28,13 @@ public:
 		switch (TextureType)
 		{
 		case EDisplayClusterWarpBlendTextureType::WarpMap:
-			return WarpMap;
+			return WarpMapTexture.Get();
 
 		case EDisplayClusterWarpBlendTextureType::AlphaMap:
-			return AlphaMap;
+			return AlphaMapTexture.Get();
 
 		case EDisplayClusterWarpBlendTextureType::BetaMap:
-			return BetaMap;
+			return BetaMapTexture.Get();
 
 		default:
 			break;
@@ -39,19 +42,22 @@ public:
 		return nullptr;
 	}
 
+	bool MarkWarpGeometryComponentDirty(const FName& InComponentName);
+
 	bool UpdateGeometry();
 	bool UpdateGeometryLOD(const FIntPoint& InSizeLOD);
 
-	bool AssignWarpMesh(UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent);
+	const FDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const;
+
+	const FStaticMeshLODResources* GetStaticMeshComponentLODResources() const;
+	const FProcMeshSection* GetProceduralMeshComponentSection() const;
 
 private:
 	bool ImplUpdateGeometry_WarpMesh();
+	bool ImplUpdateGeometry_WarpProceduralMesh();
 	bool ImplUpdateGeometry_WarpMap();
 
 public:
-	// for huge warp mesh geometry, change this value, and use LOD geometry in frustum math
-	int32 WarpMeshLODIndex = 0;
-
 	bool bIsGeometryCacheValid = false;
 	bool bIsGeometryValid = false;
 	EDisplayClusterWarpGeometryType GeometryType = EDisplayClusterWarpGeometryType::Invalid;
@@ -61,16 +67,24 @@ private:
 
 public:
 	// Render resources:
-	IDisplayClusterRenderTexture* WarpMap  = nullptr;
-	IDisplayClusterRenderTexture* AlphaMap = nullptr;
-	IDisplayClusterRenderTexture* BetaMap  = nullptr;
+	TUniquePtr<IDisplayClusterRenderTexture> WarpMapTexture;
+	TUniquePtr<IDisplayClusterRenderTexture> AlphaMapTexture;
+	TUniquePtr<IDisplayClusterRenderTexture> BetaMapTexture;
 
-	FDisplayClusterRender_MeshComponent* WarpMesh = nullptr;
+	TUniquePtr<FDisplayClusterRender_MeshComponent> MeshComponent;
+
+	// for huge warp mesh geometry, change this value, and use LOD geometry in frustum math
+	int32 StaticMeshComponentLODIndex = 0;
+	int32 ProceduralMeshComponentSectionIndex = 0;
 
 	float AlphaMapEmbeddedGamma = 1.f;
 
 private:
+	bool bIsMeshComponentLost = false;
+
+private:
 	bool ImplUpdateGeometryCache_WarpMesh();
+	bool ImplUpdateGeometryCache_WarpProceduralMesh();
 	bool ImplUpdateGeometryCache_WarpMap();
 
 public:
@@ -88,8 +102,5 @@ public:
 	};
 
 	FDisplayClusterWarpBlend_GeometryCache GeometryCache;
-
-private:
-	bool bIsWarpMeshComponentLost = false;
 };
 

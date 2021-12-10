@@ -29,12 +29,12 @@ public class DisplayClusterProjection : ModuleRules
 				"Projects",
 				"RenderCore",
 				"RHI",
-				"RHICore"
+				"RHICore",
+				"ProceduralMeshComponent",
 			});
 
 		if (Target.bBuildEditor == true)
 		{
-			PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 

@@ -3,11 +3,14 @@
 #pragma once
 
 #include "Policy/MPCDI/DisplayClusterProjectionMPCDIPolicy.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
 
+class IDisplayClusterViewport;
+class UStaticMeshComponent;
+class UProceduralMeshComponent;
+class USceneComponent;
 
 /**
- * Adapter for the Mesh warp
+ * Adapter for the Mesh and ProceduralMesh warp
  */
 class FDisplayClusterProjectionMeshPolicy
 	: public FDisplayClusterProjectionMPCDIPolicy
@@ -22,16 +25,24 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) override;
+	virtual bool HandleStartScene(IDisplayClusterViewport* InViewport) override;
 	
 	virtual EWarpType GetWarpType() const override
 	{ return EWarpType::mesh; }
 
 	/** Parse the config data for a mesh id and try to retrieve it from the root actor. */
-	bool CreateWarpMeshInterface(class IDisplayClusterViewport* InViewport);
+	bool CreateWarpMeshInterface(IDisplayClusterViewport* InViewport);
 
 private:
-	bool GetWarpMeshAndOrigin(class IDisplayClusterViewport* InViewport, class UStaticMeshComponent* &OutMeshComponent, class USceneComponent* & OutOriginComponent);
+	struct FWarpMeshConfiguration
+	{
+		USceneComponent*          OriginComponent = nullptr;
+		UStaticMeshComponent*     StaticMeshComponent = nullptr;
+		UProceduralMeshComponent* ProceduralMeshComponent = nullptr;
+		int32 SectionIndex = 0;
+	};
+
+	bool GetWarpMeshConfiguration(IDisplayClusterViewport* InViewport, FWarpMeshConfiguration& OutWarpCfg);
 
 #if WITH_EDITOR
 protected:
@@ -43,6 +54,6 @@ protected:
 		return true;
 	}
 
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
 #endif
 };

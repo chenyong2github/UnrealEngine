@@ -54,33 +54,43 @@ struct FMPCDIRegionLoader
 		WarpBlend->GeometryContext.RegionMatrix = RegionMatrix;
 
 		FDisplayClusterWarpBlend_GeometryProxy& Proxy = WarpBlend->GeometryContext.GeometryProxy;
-		Proxy.AlphaMap = AlphaMap;
-		AlphaMap = nullptr;
 
-		Proxy.AlphaMapEmbeddedGamma = AlphaMapGammaEmbedded;
+		if (AlphaMap != nullptr)
+		{
+			Proxy.AlphaMapEmbeddedGamma = AlphaMapGammaEmbedded;
 
-		Proxy.BetaMap = BetaMap;
-		BetaMap = nullptr;
+			Proxy.AlphaMapTexture = TUniquePtr<IDisplayClusterRenderTexture>(AlphaMap);
+			AlphaMap = nullptr;
+		}
 
-		Proxy.WarpMap = WarpMap;
-		WarpMap = nullptr;
+		if (BetaMap != nullptr)
+		{
+			Proxy.BetaMapTexture = TUniquePtr<IDisplayClusterRenderTexture>(BetaMap);
+			BetaMap = nullptr;
+		}
+
+		if (WarpMap != nullptr)
+		{
+			Proxy.WarpMapTexture = TUniquePtr<IDisplayClusterRenderTexture>(WarpMap);
+			WarpMap = nullptr;
+		}
 
 		return WarpBlend;
 	}
 
 	void ReleaseResources()
 	{
-		if (WarpMap)
+		if (WarpMap != nullptr)
 		{
 			delete WarpMap;
 			WarpMap = nullptr;
 		}
-		if (AlphaMap)
+		if (AlphaMap != nullptr)
 		{
 			delete AlphaMap;
 			AlphaMap = nullptr;
 		}
-		if (BetaMap)
+		if (BetaMap != nullptr)
 		{
 			delete BetaMap;
 			BetaMap = nullptr;
@@ -125,7 +135,7 @@ struct FMPCDIRegionLoader
 			{
 				WarpMap = FDisplayClusterWarpBlendLoader_Texture::CreateWarpMap(ProfileType, WarpMapSource);
 
-				if (WarpMap)
+				if (WarpMap != nullptr)
 				{
 					return true;
 				}

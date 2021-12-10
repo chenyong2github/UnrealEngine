@@ -122,6 +122,34 @@ void FDisplayClusterProjectionMPCDIPolicy::ImplRelease()
 	WarpBlendContexts.Empty();
 }
 
+bool FDisplayClusterProjectionMPCDIPolicy::GetWarpBlendInterface(TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterface) const
+{
+	check(IsInGameThread());
+
+	if (WarpBlendInterface.IsValid())
+	{
+		OutWarpBlendInterface = WarpBlendInterface;
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterProjectionMPCDIPolicy::GetWarpBlendInterface_RenderThread(TSharedPtr<class IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterfaceProxy) const
+{
+	check(IsInRenderingThread());
+
+	if (WarpBlendInterface.IsValid())
+	{
+		OutWarpBlendInterfaceProxy = WarpBlendInterface_Proxy;
+
+		return true;
+	}
+
+	return false;
+}
+
 bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(IsInGameThread());
@@ -197,7 +225,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 {
 	check(IsInRenderingThread());
 
-	if (WarpBlendInterface_Proxy.IsValid() == false || WarpBlendContexts_Proxy.Num() == 0)
+	if (InViewportProxy==nullptr || WarpBlendInterface_Proxy.IsValid() == false || WarpBlendContexts_Proxy.Num() == 0)
 	{
 		return;
 	}
@@ -217,7 +245,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 	}
 
 	// Get output resources with rects
-	if (!InViewportProxy->GetResourcesWithRects_RenderThread(InViewportProxy->GetOutputResourceType(), OutputTextures, OutputRects))
+	if (!InViewportProxy->GetResourcesWithRects_RenderThread(InViewportProxy->GetOutputResourceType_RenderThread(), OutputTextures, OutputRects))
 	{
 		return;
 	}
@@ -231,6 +259,8 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 		TArray<FDisplayClusterShaderParametersICVFX_ViewportResource*> ViewportResources;
 		FDisplayClusterShaderParameters_ICVFX ShaderICVFX(SettingsICVFX.ICVFX);
 
+		const IDisplayClusterViewportManagerProxy& RefViewportManagerProxy = InViewportProxy->GetOwner_RenderThread();
+
 		// Collect refs
 		ShaderICVFX.CollectRefViewports(ViewportResources);
 		{
@@ -243,7 +273,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 					// reset prev resource ref
 					It->Texture = nullptr;
 
-					const IDisplayClusterViewportProxy* RefViewportProxy = InViewportProxy->GetOwner().FindViewport_RenderThread(It->ViewportId);
+					const IDisplayClusterViewportProxy* RefViewportProxy = RefViewportManagerProxy.FindViewport_RenderThread(It->ViewportId);
 					if (RefViewportProxy)
 					{
 						TArray<FRHITexture2D*> RefTextures;

@@ -10,6 +10,7 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
 #include "StaticMeshResources.h"
+#include "ProceduralMeshComponent.h"
 
 FMatrix GetProjectionMatrixAssymetric(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, const FDisplayClusterWarpContext& InContext)
 {
@@ -33,8 +34,6 @@ void FDisplayClusterWarpBlendMath_Frustum::ImplBuildFrustum(IDisplayClusterViewp
 		FPlane(0, 1, 0, 0),
 		FPlane(0, 0, 0, 1));
 
-	static const FMatrix Render2Game = Game2Render.Inverse();
-
 	// Compute warp projection matrix
 	Frustum.OutCameraRotation = Local2World.Rotator();
 	Frustum.OutCameraOrigin = Local2World.GetOrigin();
@@ -52,15 +51,15 @@ void FDisplayClusterWarpBlendMath_Frustum::ImplBuildFrustum(IDisplayClusterViewp
 
 bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpMap()
 {
-	if(GeometryContext.GeometryProxy.WarpMap == nullptr)
+	if(!GeometryContext.GeometryProxy.WarpMapTexture.IsValid())
 	{
 		return false;
 	}
 
 	bool bAllPointsInFrustum = true;
 
-	const int32 PointsAmmount = GeometryContext.GeometryProxy.WarpMap->GetTotalPoints();
-	const FVector4f* SourcePts = (FVector4f*)(GeometryContext.GeometryProxy.WarpMap->GetData());
+	const int32 PointsAmmount = GeometryContext.GeometryProxy.WarpMapTexture->GetTotalPoints();
+	const FVector4f* SourcePts = (FVector4f*)(GeometryContext.GeometryProxy.WarpMapTexture->GetData());
 
 	// Search a camera space frustum
 	for (int32 PointIndex = 0; PointIndex < PointsAmmount; ++PointIndex)
@@ -77,20 +76,20 @@ bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpMap()
 
 bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpMesh()
 {
-	if (!GeometryContext.GeometryProxy.WarpMesh)
+	if (!GeometryContext.GeometryProxy.MeshComponent.IsValid())
 	{
 		return false;
 	}
 
 	bool bAllPointsInFrustum = true;
 
-	const FStaticMeshLODResources* WarpMeshResource = GeometryContext.GeometryProxy.WarpMesh->GetStaticMeshLODResource();
-	if (WarpMeshResource == nullptr)
+	const FStaticMeshLODResources* StaticMeshLODResources = GeometryContext.GeometryProxy.GetStaticMeshComponentLODResources();
+	if (StaticMeshLODResources == nullptr)
 	{
 		return false;
 	}
 
-	const FPositionVertexBuffer& VertexPosition = WarpMeshResource->VertexBuffers.PositionVertexBuffer;
+	const FPositionVertexBuffer& VertexPosition = StaticMeshLODResources->VertexBuffers.PositionVertexBuffer;
 	for (uint32 i = 0; i < VertexPosition.GetNumVertices(); i++)
 	{
 		if (GetProjectionClip(FVector4(VertexPosition.VertexPosition(i), 1)) == false)
@@ -102,10 +101,36 @@ bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpMesh()
 	return bAllPointsInFrustum;
 }
 
+bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_FULL_WarpProceduralMesh()
+{
+	if (!GeometryContext.GeometryProxy.MeshComponent.IsValid())
+	{
+		return false;
+	}
+
+	bool bAllPointsInFrustum = true;
+
+	const FProcMeshSection* ProcMeshSection = GeometryContext.GeometryProxy.MeshComponent->GetProceduralMeshComponentSection();
+	if (ProcMeshSection == nullptr)
+	{
+		return false;
+	}
+
+	for (const FProcMeshVertex& VertexIt : ProcMeshSection->ProcVertexBuffer)
+	{
+		if (GetProjectionClip(FVector4(VertexIt.Position, 1)) == false)
+		{
+			bAllPointsInFrustum = false;
+		}
+	}
+
+	return bAllPointsInFrustum;
+}
+
 // Calculate better performance for PFM
 bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_LOD_WarpMap()
 {
-	if (GeometryContext.GeometryProxy.WarpMap == nullptr)
+	if (!GeometryContext.GeometryProxy.WarpMapTexture.IsValid())
 	{
 		return false;
 	}
@@ -121,8 +146,8 @@ bool FDisplayClusterWarpBlendMath_Frustum::ImplCalcFrustum_LOD_WarpMap()
 		GeometryContext.GeometryProxy.UpdateGeometryLOD(FIntPoint(WarpMapLODRatio));
 	}
 
-	const int32 PointsAmmount = GeometryContext.GeometryProxy.WarpMap->GetTotalPoints();
-	const FVector4f* SourcePts = (FVector4f*)(GeometryContext.GeometryProxy.WarpMap->GetData());
+	const int32 PointsAmmount = GeometryContext.GeometryProxy.WarpMapTexture->GetTotalPoints();
+	const FVector4f* SourcePts = (FVector4f*)(GeometryContext.GeometryProxy.WarpMapTexture->GetData());
 
 	// Search a camera space frustum
 	for (const int32& It: IndexLOD)

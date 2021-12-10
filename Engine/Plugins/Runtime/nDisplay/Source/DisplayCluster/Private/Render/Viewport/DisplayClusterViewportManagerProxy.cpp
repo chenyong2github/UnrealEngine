@@ -295,7 +295,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 	// Handle warped viewport projection policy logic:
 	for (uint8 WarpPass = 0; WarpPass < (uint8)EWarpPass::COUNT; WarpPass++)
 	{
-		// Update deffered resources for viewports
+		// Update deferred resources for viewports
 		for (FDisplayClusterViewportProxy* ViewportProxy : SortedViewportProxy)
 		{
 			if (ViewportProxy)
@@ -351,7 +351,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 						{
 						case EWarpPass::Render:
 							// just resolve not warped viewports to frame target texture
-							ViewportProxy->ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, ViewportProxy->GetOutputResourceType());
+							ViewportProxy->ResolveResources_RenderThread(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, ViewportProxy->GetOutputResourceType_RenderThread());
 							
 							// Implement ViewportRemap feature after resolve
 							ViewportProxy->ImplViewportRemap_RenderThread(RHICmdList);

@@ -23,6 +23,8 @@ public:
 	virtual ~FDisplayClusterWarpBlend() override
 	{ }
 
+	virtual bool MarkWarpGeometryComponentDirty(const FName& InComponentName) override;
+
 	virtual bool CalcFrustumContext(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext) override;
 
 	// Access to resources
@@ -37,9 +39,9 @@ public:
 		return GeometryContext.GeometryProxy.AlphaMapEmbeddedGamma; 
 	}
 
-	virtual const class FDisplayClusterRender_MeshComponent* GetWarpMesh() const override
+	virtual const FDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const override
 	{
-		return GeometryContext.GeometryProxy.WarpMesh;
+		return GeometryContext.GeometryProxy.GetWarpMeshProxy_RenderThread();
 	}
 
 	// Return current warp profile type

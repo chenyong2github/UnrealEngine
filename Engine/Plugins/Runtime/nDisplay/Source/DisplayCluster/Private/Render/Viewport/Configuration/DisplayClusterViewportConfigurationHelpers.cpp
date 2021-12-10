@@ -303,7 +303,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(FDispla
 		{
 			if (DstViewport.Owner.IsSceneOpened())
 			{
-				// Try initialize proj policy every tick (mesh deffered load, etc)
+				// Try initialize proj policy every tick (mesh deferred load, etc)
 				DstViewport.HandleStartScene();
 			}
 		}

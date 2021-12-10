@@ -11,7 +11,7 @@ USceneComponent* FDisplayClusterSceneComponentRef::GetOrFindSceneComponent() con
 		return nullptr;
 	}
 
-	if (!ComponentPtr.IsValid() || ComponentPtr.IsStale())
+	if (!IsSceneComponentValid())
 	{
 		ComponentPtr.Reset();
 

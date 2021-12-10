@@ -45,6 +45,7 @@ public class DisplayCluster : ModuleRules
 			"Slate",
 			"SlateCore",
 			"Sockets",
+			"ProceduralMeshComponent",
 		});
 
 		if (Target.bBuildEditor == true)

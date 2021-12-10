@@ -14,6 +14,8 @@
 #include "Components/DisplayClusterScreenComponent.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 
+#include "ProceduralMeshComponent.h"
+
 #include "Camera/CameraComponent.h"
 
 #include "DisplayClusterProjectionStrings.h"
@@ -444,7 +446,14 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMeshPolicy(UDispl
 		DisplayClusterProjectionStrings::cfg::mesh::Component,
 		Blueprint,
 		ConfigurationViewports,
-		TArray<TSubclassOf<UActorComponent>>{ UStaticMeshComponent::StaticClass() }));
+		TArray<TSubclassOf<UActorComponent>>{ UStaticMeshComponent::StaticClass(), UProceduralMeshComponent::StaticClass()}));
+
+	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<int32>>(
+		"SectionIndex",
+		DisplayClusterProjectionStrings::cfg::mesh::SectionIndex,
+		Blueprint,
+		ConfigurationViewports));
+
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateDomePolicy(UDisplayClusterBlueprint* Blueprint)

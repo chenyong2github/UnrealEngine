@@ -7,7 +7,7 @@
 
 bool FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(IDisplayClusterRenderTexture* InWarpMap, struct FMPCDIGeometryExportData& Dst, uint32 InMaxDimension)
 {
-	if (InWarpMap == nullptr || InWarpMap->IsValid() == false)
+	if (InWarpMap == nullptr || !InWarpMap->IsEnabled())
 	{
 		return false;
 	}

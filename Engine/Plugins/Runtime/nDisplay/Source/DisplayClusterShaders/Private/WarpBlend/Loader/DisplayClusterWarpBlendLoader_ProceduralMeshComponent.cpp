@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DisplayClusterWarpBlendLoader_MeshComponent.h"
+#include "DisplayClusterWarpBlendLoader_ProceduralMeshComponent.h"
 
 #include "DisplayClusterShadersLog.h"
 
@@ -12,16 +12,16 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 
-#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
-
 #include "WarpBlend/Loader/DisplayClusterWarpBlendLoader_Texture.h"
 #include "WarpBlend/DisplayClusterWarpBlend.h"
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryContext.h"
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryProxy.h"
 
-bool FDisplayClusterWarpBlendLoader_MeshComponent::Load(const FDisplayClusterWarpBlendConstruct::FAssignWarpMesh& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+
+bool FDisplayClusterWarpBlendLoader_ProceduralMeshComponent::Load(const FDisplayClusterWarpBlendConstruct::FAssignWarpProceduralMesh& InParameters, TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlend)
 {
-	if (InParameters.MeshComponent != nullptr)
+	if (InParameters.ProceduralMeshComponent != nullptr)
 	{
 		//ok, Create and initialize warpblend interface:
 		TSharedPtr<FDisplayClusterWarpBlend, ESPMode::ThreadSafe> WarpBlend = MakeShared<FDisplayClusterWarpBlend, ESPMode::ThreadSafe>();
@@ -29,11 +29,14 @@ bool FDisplayClusterWarpBlendLoader_MeshComponent::Load(const FDisplayClusterWar
 		WarpBlend->GeometryContext.ProfileType = EDisplayClusterWarpProfileType::warp_A3D;
 
 		FDisplayClusterWarpBlend_GeometryProxy& Proxy = WarpBlend->GeometryContext.GeometryProxy;
-		Proxy.MeshComponent = MakeUnique<FDisplayClusterRender_MeshComponent>();
-		Proxy.MeshComponent->AssignStaticMeshComponentRefs(InParameters.MeshComponent, InParameters.OriginComponent, InParameters.StaticMeshComponentLODIndex);
-		Proxy.StaticMeshComponentLODIndex = InParameters.StaticMeshComponentLODIndex;
 
-		Proxy.GeometryType = EDisplayClusterWarpGeometryType::WarpMesh;
+
+		// Assign procedural mesh
+		Proxy.MeshComponent = MakeUnique<FDisplayClusterRender_MeshComponent>();
+		Proxy.MeshComponent->AssignProceduralMeshComponentRefs(InParameters.ProceduralMeshComponent, InParameters.OriginComponent, InParameters.ProceduralMeshComponentSectionIndex);
+		Proxy.ProceduralMeshComponentSectionIndex = InParameters.ProceduralMeshComponentSectionIndex;
+
+		Proxy.GeometryType = EDisplayClusterWarpGeometryType::WarpProceduralMesh;
 
 		OutWarpBlend = WarpBlend;
 		return true;

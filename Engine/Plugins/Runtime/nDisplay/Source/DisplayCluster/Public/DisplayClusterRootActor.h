@@ -34,6 +34,7 @@ class UDisplayClusterCameraComponent;
 class UDisplayClusterOriginComponent;
 class UDisplayClusterPreviewComponent;
 class UDisplayClusterSyncTickComponent;
+class UProceduralMeshComponent;
 
 
 /**
@@ -138,6 +139,14 @@ public:
 
 		return nullptr;
 	}
+
+	/**
+	* Update the geometry of the procedural mesh component(s) referenced inside nDisplay
+	*
+	* @param InProceduralMeshComponent - (optional) Mark the specified procedural mesh component, not all
+	*/
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Update ProceduralMeshComponent data"), Category = "NDisplay|Components")
+	void UpdateProceduralMeshComponentData(const UProceduralMeshComponent* InProceduralMeshComponent = nullptr);
 
 public:
 	IDisplayClusterViewportManager* GetViewportManager() const

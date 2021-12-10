@@ -5,17 +5,18 @@
 #include "CoreMinimal.h"
 #include "Render/Containers/DisplayClusterRender_MeshComponentTypes.h"
 
-class UStaticMesh;
-class UStaticMeshComponent;
+
 class FDisplayClusterRender_MeshGeometry;
+struct FStaticMeshLODResources;
+struct FProcMeshSection;
 
 class DISPLAYCLUSTER_API FDisplayClusterRender_MeshComponentProxyData
 {
 public:
 	// Use channel 1 as default source for chromakey custom markers UV
-	FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMeshComponent& InMeshComponent, const int32 InUVChromakeyIndex = 1);
-	FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int32 InUVChromakeyIndex = 1);
-	FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FDisplayClusterRender_MeshGeometry& InMeshGeometry);
+	FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FStaticMeshLODResources&            InStaticMeshLODResource, const int32 InUVChromakeyIndex = 1);
+	FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FProcMeshSection&                   InProcMeshSection,       const int32 InUVChromakeyIndex = 1);
+	FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FDisplayClusterRender_MeshGeometry& InMeshGeometry);
 
 	const TArray<uint32>& GetIndexData() const
 	{ return IndexData; }
@@ -35,7 +36,7 @@ public:
 	}
 
 private:
-	void UpdateData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc);
+	void UpdateData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc);
 
 	void NormalizeToScreenSpace();
 
@@ -46,7 +47,7 @@ private:
 	bool IsFaceVisible(int32 Face);
 	bool IsUVVisible(int32 UVIndex);
 
-	void ImplInitializeMesh(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int32 InUVChromakeyIndex = 1);
+	void ImplInitializeMesh(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int32 InUVChromakeyIndex = 1);
 
 private:
 	TArray<uint32> IndexData;

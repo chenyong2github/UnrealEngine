@@ -130,6 +130,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		},
+		{
 			"Name": "RemoteControlInterception",
 			"Enabled": true
 		},

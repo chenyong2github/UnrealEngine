@@ -167,6 +167,30 @@ public:
 	virtual void EndWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
 	{ }
 
+	/**
+	* Return warpblend interface of this policy
+	*
+	* @param OutWarpBlendInterface - output interface ref
+	* 
+	* @return - true if output interface valid
+	*/
+	virtual bool GetWarpBlendInterface(TSharedPtr<class IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterface) const
+	{
+		return false;
+	}
+
+	/**
+	* Return warpblend interface proxy of this policy
+	*
+	* @param OutWarpBlendInterfaceProxy - output interface ref
+	*
+	* @return - true if output interface valid
+	*/
+	virtual bool GetWarpBlendInterface_RenderThread(TSharedPtr<class IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterfaceProxy) const
+	{
+		return false;
+	}
+
 #if WITH_EDITOR
 	/**
 	* Ask projection policy instance if it has any mesh based preview

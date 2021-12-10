@@ -57,8 +57,10 @@ FDisplayClusterViewportProxy::~FDisplayClusterViewportProxy()
 {
 }
 
-const IDisplayClusterViewportManagerProxy& FDisplayClusterViewportProxy::GetOwner() const
+const IDisplayClusterViewportManagerProxy& FDisplayClusterViewportProxy::GetOwner_RenderThread() const
 {
+	check(IsInRenderingThread());
+
 	return Owner;
 }
 
@@ -188,6 +190,8 @@ bool FDisplayClusterViewportProxy::GetResources_RenderThread(const EDisplayClust
 
 void FDisplayClusterViewportProxy::ImplViewportRemap_RenderThread(FRHICommandListImmediate& RHICmdList) const
 {
+	check(IsInRenderingThread());
+
 #if WITH_EDITOR
 	if (Owner.GetRenderFrameSettings_RenderThread().RenderMode == EDisplayClusterRenderFrameMode::PreviewMono)
 	{
@@ -198,7 +202,7 @@ void FDisplayClusterViewportProxy::ImplViewportRemap_RenderThread(FRHICommandLis
 
 	if (RemapMesh.IsValid())
 	{
-		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetProxy();
+		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetMeshComponentProxy_RenderThread();
 		if (MeshProxy && MeshProxy->IsValid_RenderThread())
 		{
 			if (AdditionalFrameTargetableResources.Num() != OutputFrameTargetableResources.Num())
@@ -224,7 +228,7 @@ void FDisplayClusterViewportProxy::ImplViewportRemap_RenderThread(FRHICommandLis
 	}
 }
 
-EDisplayClusterViewportResourceType FDisplayClusterViewportProxy::GetOutputResourceType() const
+EDisplayClusterViewportResourceType FDisplayClusterViewportProxy::GetOutputResourceType_RenderThread() const
 {
 	check(IsInRenderingThread());
 
@@ -237,7 +241,7 @@ EDisplayClusterViewportResourceType FDisplayClusterViewportProxy::GetOutputResou
 
 	if (RemapMesh.IsValid())
 	{
-		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetProxy();
+		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = RemapMesh->GetMeshComponentProxy_RenderThread();
 		if (MeshProxy && MeshProxy->IsValid_RenderThread())
 		{
 			// In this case render to additional frame targetable
@@ -325,7 +329,7 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 	}
 
 	// Pass 0: Resolve from RTT region to separated viewport context resource:
-	ImplResolveResources(RHICmdList, SourceProxy, SourceType, EDisplayClusterViewportResourceType::InputShaderResource);
+	ImplResolveResources_RenderThread(RHICmdList, SourceProxy, SourceType, EDisplayClusterViewportResourceType::InputShaderResource);
 
 	// Pass 1: Generate blur postprocess effect for render target texture rect for all contexts
 	if (PostRenderSettings.PostprocessBlur.IsEnabled())
@@ -341,7 +345,7 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 			}
 
 			// Copy result back to input
-			ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::AdditionalTargetableResource, EDisplayClusterViewportResourceType::InputShaderResource);
+			ResolveResources_RenderThread(RHICmdList, EDisplayClusterViewportResourceType::AdditionalTargetableResource, EDisplayClusterViewportResourceType::InputShaderResource);
 		}
 	}
 
@@ -352,7 +356,7 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 		if (GetResources_RenderThread(EDisplayClusterViewportResourceType::MipsShaderResource, InOutMipsResources))
 		{
 			// Copy input image to layer0 on mips texture
-			ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, EDisplayClusterViewportResourceType::MipsShaderResource);
+			ResolveResources_RenderThread(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, EDisplayClusterViewportResourceType::MipsShaderResource);
 
 			// Generate mips
 			for (FRHITexture2D*& ResourceIt : InOutMipsResources)
@@ -478,12 +482,12 @@ void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* In
 }
 
 // Resolve resource contexts
-bool FDisplayClusterViewportProxy::ResolveResources(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const
+bool FDisplayClusterViewportProxy::ResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const
 {
-	return ImplResolveResources(RHICmdList, this, InputResourceType, OutputResourceType);
+	return ImplResolveResources_RenderThread(RHICmdList, this, InputResourceType, OutputResourceType);
 }
 
-bool FDisplayClusterViewportProxy::ImplResolveResources(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const
+bool FDisplayClusterViewportProxy::ImplResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const
 {
 	check(IsInRenderingThread());
 

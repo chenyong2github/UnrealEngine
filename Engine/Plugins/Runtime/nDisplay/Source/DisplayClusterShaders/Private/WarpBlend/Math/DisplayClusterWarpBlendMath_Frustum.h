@@ -355,6 +355,9 @@ private:
 		case EDisplayClusterWarpGeometryType::WarpMesh:
 			return ImplCalcFrustum_FULL_WarpMesh();
 
+		case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
+			return ImplCalcFrustum_FULL_WarpProceduralMesh();
+
 		default:
 			break;
 		}
@@ -369,8 +372,12 @@ private:
 			return ImplCalcFrustum_LOD_WarpMap();
 
 		case EDisplayClusterWarpGeometryType::WarpMesh:
-			// LOD not implemened for WarpMesh, use full
+			// LOD not implemented for WarpMesh, use full
 			return ImplCalcFrustum_FULL_WarpMesh();
+
+		case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
+			// LOD not implemented for WarpProceduralMesh, use full
+			return ImplCalcFrustum_FULL_WarpProceduralMesh();
 		default:
 			break;
 		}
@@ -381,6 +388,7 @@ private:
 	// Frustum build logics:
 	bool ImplCalcFrustum_FULL_WarpMap();
 	bool ImplCalcFrustum_FULL_WarpMesh();
+	bool ImplCalcFrustum_FULL_WarpProceduralMesh();
 
 	bool ImplCalcFrustum_LOD_WarpMap();
 

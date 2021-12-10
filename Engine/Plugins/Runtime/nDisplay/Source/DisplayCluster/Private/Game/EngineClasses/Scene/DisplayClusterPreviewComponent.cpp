@@ -382,7 +382,7 @@ void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDeferredUpdate()
 	check(IsInGameThread());
 
 	//! @todo: integrate to configurator logic
-	//! deffered update flag
+	//! deferred update flag
 	RenderTargetSurfaceChangedCnt = 2;
 }
 
