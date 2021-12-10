@@ -614,6 +614,7 @@ namespace HordeServer.Controllers
 		/// <param name="MinChange">The minimum changelist number</param>
 		/// <param name="MaxChange">The maximum changelist number</param>
 		/// <param name="IncludePreflight">Whether to include preflight jobs</param>
+		/// <param name="PreflightOnly">Whether to only include preflight jobs</param>
 		/// <param name="PreflightChange">The preflighted changelist</param>
 		/// <param name="StartedByUserId">User id for which to include jobs</param>
 		/// <param name="PreflightStartedByUserId">User id for which to include preflight jobs</param>
@@ -639,6 +640,7 @@ namespace HordeServer.Controllers
 			[FromQuery] int? MinChange = null,
 			[FromQuery] int? MaxChange = null,
 			[FromQuery] bool IncludePreflight = true,
+			[FromQuery] bool? PreflightOnly = null,
 			[FromQuery] int? PreflightChange = null,
 			[FromQuery] string? PreflightStartedByUserId = null,
 			[FromQuery] string? StartedByUserId = null,
@@ -681,7 +683,7 @@ namespace HordeServer.Controllers
 			using (IScope _ = GlobalTracer.Instance.BuildSpan("FindJobs").StartActive())
 			{
 				Jobs = await JobService.FindJobsAsync(JobIdValues, StreamIdValue, Name, TemplateRefIds, MinChange,
-					MaxChange, PreflightChange, PreflightStartedByUserIdValue, StartedByUserIdValue, MinCreateTime?.UtcDateTime, MaxCreateTime?.UtcDateTime, Target, State, Outcome,
+					MaxChange, PreflightChange, PreflightOnly, PreflightStartedByUserIdValue, StartedByUserIdValue, MinCreateTime?.UtcDateTime, MaxCreateTime?.UtcDateTime, Target, State, Outcome,
 					ModifiedBefore, ModifiedAfter, Index, Count, false);
 			}
 
