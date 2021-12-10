@@ -42,6 +42,7 @@
 #include "SRCPanelExposedField.h"
 #include "SRCPanelTreeNode.h"
 #include "Subsystems/Subsystem.h"
+#include "SWarningOrErrorBox.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
 #include "Templates/UnrealTypeTraits.h"
@@ -139,12 +140,6 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		[
 			// Top tool bar
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				CreateCPUThrottleButton()
-			]
 
 			+ SHorizontalBox::Slot()
 			.Padding(FMargin(5.0f, 0.0f))
@@ -202,23 +197,28 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 						.Image(FEditorStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
 					]
 				]
-
+				// Edit Mode
 				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f, 0)
 				.AutoWidth()
+				.Padding(2.f, 0.f)
+				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("EditModeLabel", "Edit Mode: "))
+					.Text(LOCTEXT("EditModeLabel", "Edit Mode : "))
 				]
 				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
 				.AutoWidth()
+				.Padding(2.f, 0.f)
+				.VAlign(VAlign_Center)
 				[
 					SNew(SCheckBox)
+					.Style(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Switch")
+					.ToolTipText(LOCTEXT("EditModeTooltip", "Toggle Editing (Ctrl + E)"))
 					.IsChecked_Lambda([this]() { return this->bIsInEditMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.Padding(2.f)
 					.OnCheckStateChanged(this, &SRemoteControlPanel::OnEditModeCheckboxToggle)
 				]
+				// Enable Log
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(4.0f, 0)
@@ -336,6 +336,13 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			[
 				SNew(SRCLogger)
 			]
+		]
+		// Use less CPU Warning
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(FMargin(5.f, 8.f, 5.f, 5.f))
+		[
+			CreateCPUThrottleWarning()
 		]
 	];
 
@@ -484,23 +491,22 @@ FReply SRemoteControlPanel::OnClickDisableUseLessCPU() const
 	return FReply::Handled();
 }
 
-TSharedRef<SWidget> SRemoteControlPanel::CreateCPUThrottleButton() const
+TSharedRef<SWidget> SRemoteControlPanel::CreateCPUThrottleWarning() const
 {
 	FProperty* PerformanceThrottlingProperty = FindFieldChecked<FProperty>(UEditorPerformanceSettings::StaticClass(), GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bThrottleCPUWhenNotForeground));
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("PropertyName"), PerformanceThrottlingProperty->GetDisplayNameText());
 	FText PerformanceWarningText = FText::Format(LOCTEXT("RemoteControlPerformanceWarning", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
 
-	return SNew(SButton)
-		.ButtonStyle(FAppStyle::Get(), "FlatButton")
-		.Visibility_Lambda([]() {return GetDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground ? EVisibility::Visible : EVisibility::Collapsed; } )
-		.OnClicked_Raw(this, &SRemoteControlPanel::OnClickDisableUseLessCPU)
+	return SNew(SWarningOrErrorBox)
+		.Visibility_Lambda([]() { return GetDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground ? EVisibility::Visible : EVisibility::Collapsed; })
+		.MessageStyle(EMessageStyle::Warning)
+		.Message(PerformanceWarningText)
 		[
-			SNew(STextBlock)
-			.ToolTipText(MoveTemp(PerformanceWarningText))
-			.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FEditorFontGlyphs::Exclamation_Triangle)
+			SNew(SButton)
+			.OnClicked(this, &SRemoteControlPanel::OnClickDisableUseLessCPU)
+			.TextStyle(FAppStyle::Get(), "DialogButtonText")
+			.Text(LOCTEXT("RemoteControlPerformanceWarningDisable", "Disable"))
 		];
 }
 

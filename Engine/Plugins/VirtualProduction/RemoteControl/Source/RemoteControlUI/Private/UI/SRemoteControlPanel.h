@@ -89,7 +89,12 @@ public:
 	 * Set the edit mode of the panel.
 	 * @param bEditMode The desired mode.
 	 */
-	void SetEditMode(bool bEditMode) { bIsInEditMode = bEditMode; }
+	void SetEditMode(bool bEditMode)
+	{
+		bIsInEditMode = bEditMode;
+	
+		OnEditModeChange.ExecuteIfBound(SharedThis(this), bIsInEditMode);
+	}
 
 	/**
 	 * Get the exposed entity list.
@@ -100,6 +105,7 @@ public:
 	void Refresh();
 
 private:
+
 	/** Register editor events needed to handle reloading objects and blueprint libraries. */
 	void RegisterEvents();
 	/** Unregister editor events */
@@ -136,7 +142,7 @@ private:
 	FReply OnClickDisableUseLessCPU() const;
 
 	/** Creates a widget that warns the user when CPU throttling is enabled.  */
-	TSharedRef<SWidget> CreateCPUThrottleButton() const;
+	TSharedRef<SWidget> CreateCPUThrottleWarning() const;
 
 	/** Create expose button, allowing to expose blueprints and actor functions. */
 	TSharedRef<SWidget> CreateExposeButton();

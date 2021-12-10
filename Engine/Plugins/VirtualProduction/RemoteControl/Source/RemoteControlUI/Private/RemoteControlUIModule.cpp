@@ -4,11 +4,13 @@
 
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
+#include "Commands/RemoteControlCommands.h"
 #include "EditorStyleSet.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "MaterialEditor/DEditorParameterValue.h"
 #include "PropertyHandle.h"
@@ -93,6 +95,7 @@ namespace RemoteControlUIModule
 void FRemoteControlUIModule::StartupModule()
 {
 	FRemoteControlPanelStyle::Initialize();
+	BindRemoteControlCommands();
 	RegisterAssetTools();
 	RegisterDetailRowExtension();
 	RegisterContextMenuExtender();
@@ -110,6 +113,7 @@ void FRemoteControlUIModule::ShutdownModule()
 	UnregisterContextMenuExtender();
 	UnregisterDetailRowExtension();
 	UnregisterAssetTools();
+	UnbindRemoteControlCommands();
 	FRemoteControlPanelStyle::Shutdown();
 }
 
@@ -229,6 +233,29 @@ void FRemoteControlUIModule::UnregisterEvents()
 	FEditorDelegates::PostUndoRedo.RemoveAll(this);
 }
 
+void FRemoteControlUIModule::ToggleEditMode()
+{
+	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin()) // Check whether the panel is active.
+	{
+		Panel->SetEditMode(Panel->IsInEditMode() ? false : true);
+	}
+}
+
+bool FRemoteControlUIModule::CanToggleEditMode() const
+{
+	return WeakActivePanel.IsValid();
+}
+
+bool FRemoteControlUIModule::IsInEditMode() const
+{
+	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin()) // Check whether the panel is active.
+	{
+		return Panel->IsInEditMode();
+	}
+
+	return false;
+}
+
 URemoteControlPreset* FRemoteControlUIModule::GetActivePreset() const
 {
 	if (const TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
@@ -254,6 +281,39 @@ void FRemoteControlUIModule::UnregisterAssetTools()
 		AssetToolsModule->Get().UnregisterAssetTypeActions(RemoteControlPresetActions.ToSharedRef());
 	}
 	RemoteControlPresetActions.Reset();
+}
+
+void FRemoteControlUIModule::BindRemoteControlCommands()
+{
+	FRemoteControlCommands::Register();
+
+	const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
+
+	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
+
+	FUICommandList& ActionList = *MainFrame.GetMainFrameCommandBindings();
+
+	// Toggle Edit Mode
+
+	ActionList.MapAction(Commands.ToggleEditMode,
+		FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::ToggleEditMode),
+		FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::CanToggleEditMode),
+		FIsActionChecked::CreateRaw(this, &FRemoteControlUIModule::IsInEditMode),
+		FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleEditMode)
+	);
+}
+
+void FRemoteControlUIModule::UnbindRemoteControlCommands()
+{
+	const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
+
+	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
+
+	FUICommandList& ActionList = *MainFrame.GetMainFrameCommandBindings();
+
+	ActionList.UnmapAction(Commands.ToggleEditMode);
+
+	FRemoteControlCommands::Unregister();
 }
 
 void FRemoteControlUIModule::HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, TArray<FPropertyRowExtensionButton>& OutExtensions)
