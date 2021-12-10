@@ -131,9 +131,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FMobileRadialLightFunctionPS, FMaterialShader)
 
 	class FSpotLightDim			: SHADER_PERMUTATION_BOOL("IS_SPOT_LIGHT");
-	class FInverseSquaredDim	: SHADER_PERMUTATION_BOOL("INVERSE_SQUARED_FALLOFF");
 	class FIESProfileDim		: SHADER_PERMUTATION_BOOL("USE_IES_PROFILE");
-	using FPermutationDomain = TShaderPermutationDomain<FSpotLightDim, FInverseSquaredDim, FIESProfileDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FSpotLightDim, FIESProfileDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FMatrix44f, WorldToLight)
@@ -445,7 +444,6 @@ static void RenderLocalLight(
 	}
 	FMobileRadialLightFunctionPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightDim>(bIsSpotLight);
-	PermutationVector.Set<FMobileRadialLightFunctionPS::FInverseSquaredDim>(LightSceneInfo.Proxy->IsInverseSquared());
 	PermutationVector.Set<FMobileRadialLightFunctionPS::FIESProfileDim>(bUseIESTexture);
 	FCachedLightMaterial LightMaterial;
 	TShaderRef<FMobileRadialLightFunctionPS> PixelShader;
@@ -518,23 +516,19 @@ static void RenderSimpleLights(
 	FDeferredLightVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
 	TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
-	TShaderRef<FMobileRadialLightFunctionPS> PixelShaders[2];
+	TShaderRef<FMobileRadialLightFunctionPS> PixelShaders;
 	{
 		const FMaterialShaderMap* MaterialShaderMap = DefaultMaterial.Material->GetRenderingThreadShaderMap();
 		FMobileRadialLightFunctionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightDim>(false);
 		PermutationVector.Set<FMobileRadialLightFunctionPS::FIESProfileDim>(false);
-		PermutationVector.Set<FMobileRadialLightFunctionPS::FInverseSquaredDim>(false);
-		PixelShaders[0] = MaterialShaderMap->GetShader<FMobileRadialLightFunctionPS>(PermutationVector);
-		PermutationVector.Set<FMobileRadialLightFunctionPS::FInverseSquaredDim>(true);
-		PixelShaders[1] = MaterialShaderMap->GetShader<FMobileRadialLightFunctionPS>(PermutationVector);
+		PixelShaders = MaterialShaderMap->GetShader<FMobileRadialLightFunctionPS>(PermutationVector);
 	}
 
 	// Setup PSOs we going to use for light rendering 
-	FGraphicsPipelineStateInitializer GraphicsPSOLight[2];
+	FGraphicsPipelineStateInitializer GraphicsPSOLight;
 	{
-		SetupSimpleLightPSO(RHICmdList, View, VertexShader, PixelShaders[0], GraphicsPSOLight[0]);
-		SetupSimpleLightPSO(RHICmdList, View, VertexShader, PixelShaders[1], GraphicsPSOLight[1]);
+		SetupSimpleLightPSO(RHICmdList, View, VertexShader, PixelShaders, GraphicsPSOLight);
 	}
 	// Setup stencil mask PSO
 	FGraphicsPipelineStateInitializer GraphicsPSOLightMask;
@@ -585,15 +579,9 @@ static void RenderSimpleLights(
 		// Shade only MSM_DefaultLit pixels
 		uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
 
-		if (SimpleLight.Exponent == 0)
 		{
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[1], StencilRef);
-			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShaders[1], View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
-		}
-		else
-		{
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[0], StencilRef);
-			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShaders[0], View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight, StencilRef);
+			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShaders, View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
 		}
 
 		// Apply the point or spot light with some approximately bounding geometry,

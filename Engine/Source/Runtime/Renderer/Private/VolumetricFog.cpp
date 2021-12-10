@@ -293,7 +293,6 @@ class TInjectShadowedLocalLightPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicallyShadowed	: SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
-	class FInverseSquared		: SHADER_PERMUTATION_BOOL("INVERSE_SQUARED_FALLOFF");
 	class FTemporalReprojection : SHADER_PERMUTATION_BOOL("USE_TEMPORAL_REPROJECTION");
 	class FLightFunction		: SHADER_PERMUTATION_BOOL("USE_LIGHT_FUNCTION");
 	class FEnableShadows		: SHADER_PERMUTATION_BOOL("ENABLE_SHADOW_COMPUTATION");
@@ -301,7 +300,6 @@ class TInjectShadowedLocalLightPS : public FGlobalShader
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FDynamicallyShadowed,
-		FInverseSquared,
 		FTemporalReprojection,
 		FLightFunction,
 		FEnableShadows,
@@ -704,7 +702,6 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 					const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 					const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
 
-					const bool bInverseSquared = LightSceneInfo->Proxy->IsInverseSquared();
 					const bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
 					
 					const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
@@ -739,7 +736,6 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 						TInjectShadowedLocalLightPS::FPermutationDomain PermutationVector;
 						PermutationVector.Set< TInjectShadowedLocalLightPS::FDynamicallyShadowed >(bDynamicallyShadowed);
-						PermutationVector.Set< TInjectShadowedLocalLightPS::FInverseSquared >(bInverseSquared);
 						PermutationVector.Set< TInjectShadowedLocalLightPS::FTemporalReprojection >(bUseTemporalReprojection);
 						PermutationVector.Set< TInjectShadowedLocalLightPS::FLightFunction >(bUsesLightFunction);
 						PermutationVector.Set< TInjectShadowedLocalLightPS::FEnableShadows >(bIsShadowed);

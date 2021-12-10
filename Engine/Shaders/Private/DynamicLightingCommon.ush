@@ -86,10 +86,10 @@ float CalcLightAttenuationTWS(float3 TranslatedWorldPosition, out float3 WorldLi
 	
 	float LightRadiusMask = Square( saturate( 1 - Square( DistanceSqr * DeferredLightUniforms.InvRadius * DeferredLightUniforms.InvRadius ) ) );
 	DistanceAttenuation *= LightRadiusMask;
-	
-#if !INVERSE_SQUARED_FALLOFF
-	DistanceAttenuation = RadialAttenuation(WorldLightVector * DeferredLightUniforms.InvRadius, DeferredLightUniforms.FalloffExponent);
-#endif
+	if (DeferredLightUniforms.FalloffExponent > 0.f)
+	{
+		DistanceAttenuation = RadialAttenuation(WorldLightVector * DeferredLightUniforms.InvRadius, DeferredLightUniforms.FalloffExponent);
+	}
 #endif
 
 	float SpotFalloff = 1;

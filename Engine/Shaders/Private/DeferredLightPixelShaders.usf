@@ -94,8 +94,7 @@ FDeferredLightData SetupLightDataForStandardDeferred()
 	LightData.DistanceFadeMAD = DeferredLightUniforms.DistanceFadeMAD;
 	LightData.ShadowMapChannelMask = DeferredLightUniforms.ShadowMapChannelMask;
 	LightData.ShadowedBits = DeferredLightUniforms.ShadowedBits;
-
-	LightData.bInverseSquared = INVERSE_SQUARED_FALLOFF;
+	LightData.bInverseSquared = DeferredLightUniforms.FalloffExponent == 0;
 	LightData.bRadialLight = LIGHT_SOURCE_SHAPE > 0;
 	//@todo - permutation opportunity
 	LightData.bSpotLight = LIGHT_SOURCE_SHAPE > 0;
