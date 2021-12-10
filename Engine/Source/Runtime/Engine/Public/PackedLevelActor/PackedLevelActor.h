@@ -31,6 +31,8 @@ public:
 
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
+	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+	
 	static bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
 	static bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
 
@@ -86,3 +88,6 @@ private:
 	FGuid PackedVersion;
 #endif
 };
+
+
+DEFINE_ACTORDESC_TYPE(APackedLevelActor, FWorldPartitionActorDesc);
