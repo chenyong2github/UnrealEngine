@@ -32,7 +32,7 @@ public:
 	virtual class FRHITexture* GetTexture(EDisplayClusterWarpBlendTextureType TextureType) const = 0;
 	virtual float              GetAlphaMapEmbeddedGamma() const = 0;
 
-	virtual const class FDisplayClusterRender_MeshComponent* GetWarpMesh() const = 0;
+	virtual const class FDisplayClusterRender_MeshComponentProxy* GetWarpMeshProxy_RenderThread() const = 0;
 
 	// Return current warp profile type
 	virtual EDisplayClusterWarpProfileType  GetWarpProfileType() const = 0;
@@ -41,4 +41,13 @@ public:
 	virtual EDisplayClusterWarpGeometryType GetWarpGeometryType() const = 0;
 
 	virtual bool ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData, uint32 InMaxDimension = 0) const = 0;
+
+	/**
+	* Mark internal component ref as dirty for geometry update
+	*
+	* @param InComponentName - (optional) the name of the internal geometry ref component. Empty string for any component name
+	*
+	* @return - true, if there is a marked.
+	*/
+	virtual bool MarkWarpGeometryComponentDirty(const FName& InComponentName) = 0;
 };

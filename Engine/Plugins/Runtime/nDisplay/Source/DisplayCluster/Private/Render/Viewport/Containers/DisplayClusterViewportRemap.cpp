@@ -124,7 +124,7 @@ void FDisplayClusterViewportRemap::ImplUpdateRemapMesh(const FDisplayClusterView
 			RemapMesh = MakeShared<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe>();
 		}
 
-		RemapMesh->UpdateDeffered(RemapGeometry);
+		RemapMesh->AssignMeshGeometry(&RemapGeometry);
 	}
 	else
 	{

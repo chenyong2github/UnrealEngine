@@ -41,8 +41,8 @@ void FDisplayClusterConfiguratorViewportDetailsCustomization::CustomizeDetails(I
 #endif
 
 	const bool bDisplayICVFX =
-		ConfigurationViewportPtr->ProjectionPolicy.Type == DisplayClusterProjectionStrings::projection::Mesh ||
-		ConfigurationViewportPtr->ProjectionPolicy.Type == DisplayClusterProjectionStrings::projection::MPCDI;
+			ConfigurationViewportPtr->ProjectionPolicy.Type.Equals(DisplayClusterProjectionStrings::projection::Mesh, ESearchCase::IgnoreCase)
+		||  ConfigurationViewportPtr->ProjectionPolicy.Type.Equals(DisplayClusterProjectionStrings::projection::MPCDI, ESearchCase::IgnoreCase);
 
 	if (!bDisplayICVFX)
 	{
@@ -53,7 +53,7 @@ void FDisplayClusterConfiguratorViewportDetailsCustomization::CustomizeDetails(I
 	CameraHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, Camera));
 	check(CameraHandle->IsValidHandle());
 
-	if (ConfigurationViewportPtr->ProjectionPolicy.Type == DisplayClusterProjectionStrings::projection::Camera)
+	if (ConfigurationViewportPtr->ProjectionPolicy.Type.Equals(DisplayClusterProjectionStrings::projection::Camera, ESearchCase::IgnoreCase))
 	{
 		CameraHandle->MarkHiddenByCustomization();
 	}

@@ -32,7 +32,7 @@ public:
 	virtual uint32_t GetHeight() const = 0;
 	virtual uint32_t GetTotalPoints() const = 0;
 	virtual EPixelFormat GetPixelFormat() const = 0;
-	virtual bool IsValid() const = 0;
+	virtual bool IsEnabled() const = 0;
 
 	virtual FRHITexture* GetRHITexture() const = 0;
 };

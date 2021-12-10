@@ -26,6 +26,9 @@ enum class EDisplayClusterWarpGeometryType : uint8
 	// Use mesh component as geometry source
 	WarpMesh,
 
+	// Use procedural mesh component as geometry source
+	WarpProceduralMesh,
+
 	// Undefined source
 	Invalid
 };

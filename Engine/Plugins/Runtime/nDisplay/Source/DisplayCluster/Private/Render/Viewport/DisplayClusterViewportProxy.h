@@ -70,17 +70,18 @@ public:
 	virtual bool GetResourcesWithRects_RenderThread(const EDisplayClusterViewportResourceType InResourceType, TArray<FRHITexture2D*>& OutResources, TArray<FIntRect>& OutRects) const override;
 
 	// Resolve resource contexts
-	virtual bool ResolveResources(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const override;
+	virtual bool ResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const override;
 
-	virtual const IDisplayClusterViewportManagerProxy& GetOwner() const override;
-	virtual EDisplayClusterViewportResourceType GetOutputResourceType() const override;
+	virtual EDisplayClusterViewportResourceType GetOutputResourceType_RenderThread() const override;
+
+	virtual const IDisplayClusterViewportManagerProxy& GetOwner_RenderThread() const override;
 
 
 	///////////////////////////////
 	// ~IDisplayClusterViewportProxy
 	///////////////////////////////
 
-	bool ImplResolveResources(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const;
+	bool ImplResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const;
 
 	void ImplViewportRemap_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 

@@ -90,6 +90,7 @@ DECLARE_GPU_STAT_NAMED(nDisplay_PostProcess_OutputRemap, TEXT("nDisplay PostProc
 bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRemap(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InSourceTexture, FRHITexture2D* InRenderTargetableDestTexture, const FDisplayClusterRender_MeshComponentProxy& InMeshProxy)
 {
 	check(IsInRenderingThread());
+
 	if (InSourceTexture == nullptr || InRenderTargetableDestTexture == nullptr)
 	{
 		return false;
@@ -104,16 +105,20 @@ bool FDisplayClusterShadersPostprocess_OutputRemap::RenderPostprocess_OutputRema
 		{
 			// Use simple 1:1 test mesh for shader forwarding
 			static FDisplayClusterRender_MeshComponent TestMesh_Passthrough;
-			if (TestMesh_Passthrough.GetProxy())
+
+			FDisplayClusterRender_MeshComponentProxy* TestMeshMeshComponentProxy = TestMesh_Passthrough.GetMeshComponentProxy_RenderThread();
+			if (TestMeshMeshComponentProxy != nullptr)
 			{
-				if (!TestMesh_Passthrough.GetProxy()->IsValid_RenderThread())
+				if (!TestMeshMeshComponentProxy->IsValid_RenderThread())
 				{
+					// Initialize once:
 					FDisplayClusterRender_MeshGeometry PassthroughMeshGeometry(EDisplayClusterRender_MeshGeometryCreateType::Passthrough);
-					FDisplayClusterRender_MeshComponentProxyData ProxyData(FDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace, PassthroughMeshGeometry);
-					TestMesh_Passthrough.GetProxy()->UpdateRHI_RenderThread(RHICmdList, &ProxyData);
+					FDisplayClusterRender_MeshComponentProxyData ProxyData(EDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace, PassthroughMeshGeometry);
+
+					TestMeshMeshComponentProxy->UpdateRHI_RenderThread(RHICmdList, &ProxyData);
 				}
 
-				MeshProxy = TestMesh_Passthrough.GetProxy();
+				MeshProxy = TestMeshMeshComponentProxy;
 			}
 			break;
 		}

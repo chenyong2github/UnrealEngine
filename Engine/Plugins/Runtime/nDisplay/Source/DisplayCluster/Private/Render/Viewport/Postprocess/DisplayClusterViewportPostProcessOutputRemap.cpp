@@ -93,8 +93,8 @@ bool FDisplayClusterViewportPostProcessOutputRemap::UpdateConfiguration_External
 	bErrorFailLoadFromFileOnce = false;
 
 
-	OutputRemapMesh.DataFunc = FDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace;
-	OutputRemapMesh.UpdateDeffered(MeshGeometry);
+	OutputRemapMesh.SetGeometryFunc(EDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace);
+	OutputRemapMesh.AssignMeshGeometry(&MeshGeometry);
 
 	bIsEnabled = true;
 	ExternalFile = InExternalFile;
@@ -116,8 +116,8 @@ bool FDisplayClusterViewportPostProcessOutputRemap::UpdateConfiguration_StaticMe
 		return true;
 	}
 
-	OutputRemapMesh.DataFunc = FDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace;
-	OutputRemapMesh.UpdateDeffered(InStaticMesh);
+	OutputRemapMesh.SetGeometryFunc(EDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace);
+	OutputRemapMesh.AssignStaticMesh(InStaticMesh);
 
 	bIsEnabled = true;
 	StaticMesh = InStaticMesh;
@@ -131,7 +131,7 @@ void FDisplayClusterViewportPostProcessOutputRemap::UpdateConfiguration_Disabled
 	ExternalFile.Empty();
 	bIsEnabled = false;
 
-	OutputRemapMesh.UpdateDeffered(nullptr);
+	OutputRemapMesh.ReleaseMeshComponent();
 }
 
 void FDisplayClusterViewportPostProcessOutputRemap::PerformPostProcessFrame_RenderThread(FRHICommandListImmediate& RHICmdList, const TArray<FRHITexture2D*>* InFrameTargets, const TArray<FRHITexture2D*>* InAdditionalFrameTargets) const
@@ -140,7 +140,7 @@ void FDisplayClusterViewportPostProcessOutputRemap::PerformPostProcessFrame_Rend
 
 	if (InFrameTargets && InAdditionalFrameTargets)
 	{
-		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = OutputRemapMesh.GetProxy();
+		const FDisplayClusterRender_MeshComponentProxy* MeshProxy = OutputRemapMesh.GetMeshComponentProxy_RenderThread();
 		if (MeshProxy && MeshProxy->IsValid_RenderThread())
 		{
 			const bool bClearOutputRemapFrameTextureEnabled = CVarClearOutputRemapFrameTextureEnabled.GetValueOnRenderThread() != 0;

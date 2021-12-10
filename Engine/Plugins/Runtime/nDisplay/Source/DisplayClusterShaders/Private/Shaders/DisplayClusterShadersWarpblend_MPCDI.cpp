@@ -258,6 +258,7 @@ public:
 			switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
 			{
 				case EDisplayClusterWarpGeometryType::WarpMesh:
+				case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
 				{
 					// Use mesh inseat of warp texture
 					RenderPassData.PSPermutationVector.Set<MpcdiShaderPermutation::FMpcdiShaderMeshWarp>(true);
@@ -345,15 +346,12 @@ public:
 				return true;
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
+			case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
 			{
-				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
-				if (DCWarpMeshComponent)
+				const FDisplayClusterRender_MeshComponentProxy* WarpMeshProxy = WarpBlendParameters.WarpInterface->GetWarpMeshProxy_RenderThread();
+				if (WarpMeshProxy != nullptr)
 				{
-					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
-				if (WarpMesh)
-				{
-					return WarpMesh->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
-				}
+					return WarpMeshProxy->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
 				}
 				break;
 			}
@@ -377,15 +375,12 @@ public:
 				return true;
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
+			case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
 			{
-				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
-				if (DCWarpMeshComponent)
+				const FDisplayClusterRender_MeshComponentProxy* WarpMeshProxy = WarpBlendParameters.WarpInterface->GetWarpMeshProxy_RenderThread();
+				if (WarpMeshProxy != nullptr)
 				{
-					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
-				if (WarpMesh)
-				{
-					return WarpMesh->FinishRender_RenderThread(RHICmdList);
-				}
+					return WarpMeshProxy->FinishRender_RenderThread(RHICmdList);
 				}
 				break;
 			}

@@ -150,7 +150,7 @@ void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<F
 
 							if(bPerformDeferredUpdate)
 							{
-								// handle configurator logic: raise deffered update for preview component RTT
+								// handle configurator logic: raise deferred update for preview component RTT
 								PreviewComponentIt.Value->HandleRenderTargetTextureDeferredUpdate();
 							}
 						}

@@ -63,6 +63,11 @@ static TAutoConsoleVariable<float> CVarMPCDIFrustumCachePrecision(
 	ECVF_RenderThreadSafe
 );
 
+bool FDisplayClusterWarpBlend::MarkWarpGeometryComponentDirty(const FName& InComponentName)
+{
+	return GeometryContext.GeometryProxy.MarkWarpGeometryComponentDirty(InComponentName);
+}
+
 bool FDisplayClusterWarpBlend::CalcFrustumContext(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext)
 {
 	if (!GeometryContext.Update(InEye.WorldScale))
@@ -107,10 +112,12 @@ bool FDisplayClusterWarpBlend::CalcFrustumContext(class IDisplayClusterViewport*
 bool FDisplayClusterWarpBlend::ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData, uint32 InMaxDimension) const
 {
 #if WITH_EDITOR
-	return OutMeshData ? FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(GeometryContext.GeometryProxy.WarpMap, *OutMeshData, InMaxDimension) : false;
-#else
-	return false;
+	if (GeometryContext.GeometryProxy.WarpMapTexture.IsValid())
+	{
+		return OutMeshData ? FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(GeometryContext.GeometryProxy.WarpMapTexture.Get(), *OutMeshData, InMaxDimension) : false;
+	}
 #endif
+	return false;
 }
 
 

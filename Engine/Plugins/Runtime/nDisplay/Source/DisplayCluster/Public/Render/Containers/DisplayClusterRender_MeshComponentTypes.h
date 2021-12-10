@@ -5,10 +5,21 @@
 #include "CoreMinimal.h"
 
 // Support special mesh proxy geometry funcs
-enum class FDisplayClusterRender_MeshComponentProxyDataFunc : uint8
+enum class EDisplayClusterRender_MeshComponentProxyDataFunc : uint8
 {
-	None = 0,
+	Disabled = 0,
 	OutputRemapScreenSpace
+};
+
+// Assigned geometry type
+enum class EDisplayClusterRender_MeshComponentGeometrySource: uint8
+{
+	Disabled = 0,
+	StaticMeshComponentRef,
+	ProceduralMeshComponentRef,
+	ProceduralMeshSection,
+	StaticMeshAsset,
+	MeshGeometry,
 };
 
 /** The vertex data used to filter a texture. */

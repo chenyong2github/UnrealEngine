@@ -6,6 +6,7 @@
 #include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_WarpMesh.h"
+#include "WarpBlend/Math/DisplayClusterWarpBlendMath_WarpProceduralMesh.h"
 #include "WarpBlend/Math/DisplayClusterWarpBlendMath_WarpMap.h"
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -18,8 +19,13 @@ bool FDisplayClusterWarpBlend_GeometryProxy::UpdateGeometry()
 	{
 	case EDisplayClusterWarpGeometryType::WarpMesh:
 		return ImplUpdateGeometry_WarpMesh();
+
+	case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
+		return ImplUpdateGeometry_WarpProceduralMesh();
+
 	case EDisplayClusterWarpGeometryType::WarpMap:
 		return ImplUpdateGeometry_WarpMap();
+
 	default:
 		break;
 	}
@@ -28,11 +34,50 @@ bool FDisplayClusterWarpBlend_GeometryProxy::UpdateGeometry()
 	return false;
 }
 
+const FDisplayClusterRender_MeshComponentProxy* FDisplayClusterWarpBlend_GeometryProxy::GetWarpMeshProxy_RenderThread() const
+{
+	check(IsInRenderingThread());
+
+	switch (GeometryType)
+	{
+	case EDisplayClusterWarpGeometryType::WarpMesh:
+	case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
+		return MeshComponent.IsValid() ? MeshComponent->GetMeshComponentProxy_RenderThread() : nullptr;
+
+	default:
+		break;
+	}
+
+	return nullptr;
+}
+
+bool FDisplayClusterWarpBlend_GeometryProxy::MarkWarpGeometryComponentDirty(const FName& InComponentName)
+{
+	switch (GeometryType)
+	{
+	case EDisplayClusterWarpGeometryType::WarpMesh:
+	case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
+		if (MeshComponent.IsValid())
+		{
+			if (InComponentName == NAME_None || MeshComponent->EqualsMeshComponentName(InComponentName))
+			{
+				MeshComponent->MarkMeshComponentRefGeometryDirty();
+				return true;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpMap()
 {
 	bIsGeometryValid = false;
 
-	if (WarpMap && WarpMap->IsValid())
+	if (WarpMapTexture.IsValid() && WarpMapTexture->IsEnabled())
 	{
 		// Update caches
 		if ((bIsGeometryValid = bIsGeometryCacheValid) == false)
@@ -50,34 +95,28 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpMesh()
 {
 	bIsGeometryValid = false;
 
-	if (WarpMesh == nullptr)
+	if (!MeshComponent.IsValid())
 	{
 		return false;
 	}
 
-	UStaticMeshComponent* MeshComponent = WarpMesh->MeshComponentRef.GetOrFindMeshComponent();
-	USceneComponent*    OriginComponent = WarpMesh->OriginComponentRef.GetOrFindSceneComponent();
+	UStaticMeshComponent* StaticMeshComponent = MeshComponent->GetStaticMeshComponent();
+	USceneComponent*      OriginComponent     = MeshComponent->GetOriginComponent();
 
-	if (MeshComponent == nullptr)
+	const FStaticMeshLODResources* StaticMeshLODResources = (StaticMeshComponent!=nullptr) ? MeshComponent->GetStaticMeshComponentLODResources(StaticMeshComponentLODIndex) : nullptr;
+	if (StaticMeshLODResources == nullptr)
 	{
 		// mesh deleted?
-		WarpMesh->UpdateDefferedRef();
-		bIsWarpMeshComponentLost = true;
+		MeshComponent->ReleaseProxyGeometry();
+		bIsMeshComponentLost = true;
 		return false;
 	};
 
-	UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-	if (StaticMesh == nullptr)
-	{
-		// mesh geometry not assigned?
-		return false;
-	}
-
 	// If StaticMesh geometry changed, update mpcdi math and RHI resources
-	if (WarpMesh->MeshComponentRef.IsMeshComponentChanged() || bIsWarpMeshComponentLost)
+	if (MeshComponent->IsMeshComponentRefGeometryDirty() || bIsMeshComponentLost)
 	{
-		AssignWarpMesh(MeshComponent, OriginComponent);
-		bIsWarpMeshComponentLost = false;
+		MeshComponent->AssignStaticMeshComponentRefs(StaticMeshComponent, OriginComponent, StaticMeshComponentLODIndex);
+		bIsMeshComponentLost = false;
 	}
 	
 	// Update caches
@@ -88,45 +127,93 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpMesh()
 
 	if (OriginComponent)
 	{
-		FMatrix MeshToWorldMatrix = MeshComponent->GetComponentTransform().ToMatrixWithScale();
+		FMatrix MeshToWorldMatrix = StaticMeshComponent->GetComponentTransform().ToMatrixWithScale();
 		FMatrix WorldToOriginMatrix = OriginComponent->GetComponentTransform().ToInverseMatrixWithScale();
 
 		GeometryCache.GeometryToOrigin.SetFromMatrix(MeshToWorldMatrix * WorldToOriginMatrix);
 	}
 	else
 	{
-		GeometryCache.GeometryToOrigin = MeshComponent->GetRelativeTransform();
+		GeometryCache.GeometryToOrigin = StaticMeshComponent->GetRelativeTransform();
 	}
 
 	return bIsGeometryValid;
 }
 
-bool FDisplayClusterWarpBlend_GeometryProxy::AssignWarpMesh(UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
+bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometry_WarpProceduralMesh()
 {
-	check(IsInGameThread());
+	bIsGeometryValid = false;
 
-	GeometryType = EDisplayClusterWarpGeometryType::WarpMesh;
-
-	if (WarpMesh)
+	if (!MeshComponent.IsValid())
 	{
-		WarpMesh->AssignMeshRefs(MeshComponent, OriginComponent);
-
-		return ImplUpdateGeometryCache_WarpMesh();
+		return false;
 	}
 
-	return false;
+	UProceduralMeshComponent* ProceduralMeshComponent = MeshComponent->GetProceduralMeshComponent();
+	USceneComponent*          OriginComponent         = MeshComponent->GetOriginComponent();
+
+	const FProcMeshSection* ProcMeshSection = (ProceduralMeshComponent != nullptr) ? MeshComponent->GetProceduralMeshComponentSection(ProceduralMeshComponentSectionIndex) : nullptr;
+	if (ProcMeshSection == nullptr)
+	{
+		// mesh deleted, lost or section not defined
+		MeshComponent->ReleaseProxyGeometry();
+		bIsMeshComponentLost = true;
+		return false;
+	};
+
+	// If ProceduralMesh geometry changed, update mpcdi math and RHI resources
+	if (MeshComponent->IsMeshComponentRefGeometryDirty() || bIsMeshComponentLost)
+	{
+		MeshComponent->AssignProceduralMeshComponentRefs(ProceduralMeshComponent, OriginComponent, ProceduralMeshComponentSectionIndex);
+		bIsMeshComponentLost = false;
+	}
+
+	// Update caches
+	if ((bIsGeometryValid = bIsGeometryCacheValid) == false)
+	{
+		bIsGeometryValid = ImplUpdateGeometryCache_WarpProceduralMesh();
+	}
+
+	// These matrices were copied from LocalPlayer.cpp.
+	// They change the coordinate system from the Unreal "Game" coordinate system to the Unreal "Render" coordinate system
+	static const FMatrix Game2Render(
+		FPlane(0, 0, 1, 0),
+		FPlane(1, 0, 0, 0),
+		FPlane(0, 1, 0, 0),
+		FPlane(0, 0, 0, 1));
+
+	static const FMatrix Render2Game = Game2Render.Inverse();
+
+	// Procedural mesh coord is render, so convert to game at first
+	FMatrix GeometryToOriginMatrix;// = Render2Game;
+
+	if (OriginComponent)
+	{
+		FMatrix MeshToWorldMatrix = ProceduralMeshComponent->GetComponentTransform().ToMatrixWithScale();
+		FMatrix WorldToOriginMatrix = OriginComponent->GetComponentTransform().ToInverseMatrixWithScale();
+
+		GeometryToOriginMatrix = MeshToWorldMatrix * WorldToOriginMatrix;
+	}
+	else
+	{
+		GeometryToOriginMatrix = ProceduralMeshComponent->GetRelativeTransform().ToMatrixWithScale();
+	}
+
+	GeometryCache.GeometryToOrigin.SetFromMatrix(GeometryToOriginMatrix);
+
+	return bIsGeometryValid;
 }
 
 bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometryCache_WarpMesh()
 {
 	bIsGeometryValid = false;
 
-	if (WarpMesh)
+	if (MeshComponent.IsValid())
 	{
-		const FStaticMeshLODResources* WarpMeshResource = WarpMesh->GetStaticMeshLODResource();
-		if (WarpMeshResource != nullptr)
+		const FStaticMeshLODResources* StaticMeshLODResources = MeshComponent->GetStaticMeshComponentLODResources(StaticMeshComponentLODIndex);
+		if (StaticMeshLODResources != nullptr)
 		{
-			FDisplayClusterWarpBlendMath_WarpMesh MeshHelper(*WarpMeshResource);
+			FDisplayClusterWarpBlendMath_WarpMesh MeshHelper(*StaticMeshLODResources);
 
 			GeometryCache.AABBox = MeshHelper.CalcAABBox();
 			MeshHelper.CalcSurfaceVectors(GeometryCache.SurfaceViewNormal, GeometryCache.SurfaceViewPlane);
@@ -139,23 +226,50 @@ bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometryCache_WarpMesh()
 	return bIsGeometryValid;
 }
 
+bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometryCache_WarpProceduralMesh()
+{
+	bIsGeometryValid = false;
+
+	if (MeshComponent.IsValid())
+	{
+		const FProcMeshSection* ProcMeshSection = MeshComponent->GetProceduralMeshComponentSection(ProceduralMeshComponentSectionIndex);
+		if (ProcMeshSection != nullptr)
+		{
+			FDisplayClusterWarpBlendMath_WarpProceduralMesh ProceduralMeshHelper(*ProcMeshSection);
+
+			GeometryCache.AABBox = ProceduralMeshHelper.CalcAABBox();
+			ProceduralMeshHelper.CalcSurfaceVectors(GeometryCache.SurfaceViewNormal, GeometryCache.SurfaceViewPlane);
+
+			bIsGeometryCacheValid = true;
+			bIsGeometryValid = true;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FDisplayClusterWarpBlend_GeometryProxy::ImplUpdateGeometryCache_WarpMap()
 {
 	// WarpMap must be initialized before, outside
 	bIsGeometryValid = false;
 	
-	if (WarpMap && WarpMap->IsValid())
+	if (WarpMapTexture.IsValid() && WarpMapTexture->IsEnabled())
 	{
-		FDisplayClusterWarpBlendMath_WarpMap DataHelper(*WarpMap);
+		FDisplayClusterWarpBlendMath_WarpMap DataHelper(*(WarpMapTexture.Get()));
+
 		GeometryCache.AABBox = DataHelper.GetAABBox();
 		GeometryCache.SurfaceViewNormal = DataHelper.GetSurfaceViewNormal();
-		GeometryCache.SurfaceViewPlane = DataHelper.GetSurfaceViewPlane();
+		GeometryCache.SurfaceViewPlane  = DataHelper.GetSurfaceViewPlane();
 
 		bIsGeometryCacheValid = true;
 		bIsGeometryValid = true;
+
+		return true;
 	}
 
-	return bIsGeometryValid;
+	return false;
 }
 
 bool FDisplayClusterWarpBlend_GeometryProxy::UpdateGeometryLOD(const FIntPoint& InSizeLOD)
@@ -164,14 +278,14 @@ bool FDisplayClusterWarpBlend_GeometryProxy::UpdateGeometryLOD(const FIntPoint& 
 
 	GeometryCache.IndexLOD.Empty();
 
-	if (WarpMap && WarpMap->IsValid())
+	if (WarpMapTexture.IsValid() && WarpMapTexture->IsEnabled())
 	{
 		switch (GeometryType)
 		{
 		case EDisplayClusterWarpGeometryType::WarpMap:
 		{
 			// Generate valid points for texturebox method:
-			FDisplayClusterWarpBlendMath_WarpMap DataHelper(*WarpMap);
+			FDisplayClusterWarpBlendMath_WarpMap DataHelper(*(WarpMapTexture.Get()));
 			DataHelper.BuildIndexLOD(InSizeLOD.X, InSizeLOD.Y, GeometryCache.IndexLOD);
 
 			return true;
@@ -184,30 +298,20 @@ bool FDisplayClusterWarpBlend_GeometryProxy::UpdateGeometryLOD(const FIntPoint& 
 	return false;
 }
 
-void FDisplayClusterWarpBlend_GeometryProxy::ImplReleaseResources()
+const FStaticMeshLODResources* FDisplayClusterWarpBlend_GeometryProxy::GetStaticMeshComponentLODResources() const
 {
-	if (WarpMap)
-	{
-		delete WarpMap;
-		WarpMap = nullptr;
-	}
-
-	if (AlphaMap)
-	{
-		delete AlphaMap;
-		AlphaMap = nullptr;
-	}
-
-	if (BetaMap)
-	{
-		delete BetaMap;
-		BetaMap = nullptr;
-	}
-
-	if (WarpMesh)
-	{
-		delete WarpMesh;
-		WarpMesh = nullptr;
-	}
+	return MeshComponent.IsValid() ? MeshComponent->GetStaticMeshComponentLODResources(StaticMeshComponentLODIndex) : nullptr;
 }
 
+const FProcMeshSection* FDisplayClusterWarpBlend_GeometryProxy::GetProceduralMeshComponentSection() const
+{
+	return MeshComponent.IsValid() ? MeshComponent->GetProceduralMeshComponentSection(ProceduralMeshComponentSectionIndex) : nullptr;
+}
+
+void FDisplayClusterWarpBlend_GeometryProxy::ImplReleaseResources()
+{
+	WarpMapTexture.Reset();
+	AlphaMapTexture.Reset();
+	BetaMapTexture.Reset();
+	MeshComponent.Reset();
+}

@@ -76,9 +76,8 @@ namespace DisplayClusterProjectionStrings
 		
 		namespace mesh
 		{
-			static constexpr auto FileID    = TEXT("@UESM");
-			static constexpr auto BufferID  = TEXT("@@Buf");
-			static constexpr auto Component = TEXT("mesh_component");
+			static constexpr auto Component    = TEXT("mesh_component");
+			static constexpr auto SectionIndex = TEXT("section_index");
 		}
 
 		namespace mpcdi

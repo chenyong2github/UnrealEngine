@@ -430,6 +430,7 @@ public:
 			switch (WarpBlendParameters.WarpInterface->GetWarpGeometryType())
 			{
 				case EDisplayClusterWarpGeometryType::WarpMesh:
+				case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
 				{
 					// Use mesh inseat of warp texture
 					RenderPassData.PSPermutationVector.Set<IcvfxShaderPermutation::FIcvfxShaderMeshWarp>(true);
@@ -543,8 +544,6 @@ public:
 			FPlane(1, 0, 0, 0),
 			FPlane(0, 1, 0, 0),
 			FPlane(0, 0, 0, 1));
-
-		static const FMatrix Render2Game = Game2Render.Inverse();
 
 		FRotationTranslationMatrix CameraTranslationMatrix(Camera.CameraViewRotation, Camera.CameraViewLocation);
 
@@ -661,15 +660,12 @@ public:
 				return true;
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
+			case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
 			{
-				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
-				if (DCWarpMeshComponent)
+				const FDisplayClusterRender_MeshComponentProxy* WarpMeshProxy = WarpBlendParameters.WarpInterface->GetWarpMeshProxy_RenderThread();
+				if (WarpMeshProxy != nullptr)
 				{
-					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
-				if (WarpMesh)
-				{
-					return WarpMesh->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
-				}
+					return WarpMeshProxy->BeginRender_RenderThread(RHICmdList, GraphicsPSOInit);
 				}
 				break;
 			}
@@ -693,15 +689,12 @@ public:
 				return true;
 
 			case EDisplayClusterWarpGeometryType::WarpMesh:
+			case EDisplayClusterWarpGeometryType::WarpProceduralMesh:
 			{
-				const FDisplayClusterRender_MeshComponent* DCWarpMeshComponent = WarpBlendParameters.WarpInterface->GetWarpMesh();
-				if (DCWarpMeshComponent)
+				const FDisplayClusterRender_MeshComponentProxy* WarpMeshProxy = WarpBlendParameters.WarpInterface->GetWarpMeshProxy_RenderThread();
+				if (WarpMeshProxy != nullptr)
 				{
-					const FDisplayClusterRender_MeshComponentProxy* WarpMesh = DCWarpMeshComponent->GetProxy();
-				if (WarpMesh)
-				{
-					return WarpMesh->FinishRender_RenderThread(RHICmdList);
-				}
+					return WarpMeshProxy->FinishRender_RenderThread(RHICmdList);
 				}
 				break;
 			}

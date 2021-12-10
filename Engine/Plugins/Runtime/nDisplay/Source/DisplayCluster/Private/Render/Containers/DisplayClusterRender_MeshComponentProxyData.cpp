@@ -6,30 +6,22 @@
 #include "Misc/DisplayClusterLog.h"
 
 #include "Engine/StaticMesh.h"
+#include "ProceduralMeshComponent.h"
 #include "StaticMeshResources.h"
 
 //*************************************************************************
 //* FDisaplyClusterMeshComponentProxyData
 //*************************************************************************
-void FDisplayClusterRender_MeshComponentProxyData::ImplInitializeMesh(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int32 InUVChromakeyIndex)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FStaticMeshLODResources& InStaticMeshLODResource, const int32 InUVChromakeyIndex)
 {
-	if (InStaticMesh.bAllowCPUAccess == false)
-	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("If packaging this project, static mesh '%s' requires its AllowCPUAccess flag to be enabled."), *InStaticMesh.GetName());
-#if !WITH_EDITOR
-		// Can't access to cooked data from CPU without this flag
-		return;
-#endif
-	}
+	check(IsInGameThread());
 
-	const FStaticMeshLODResources& SrcMeshResource = InStaticMesh.GetLODForExport(0);
-
-	const FPositionVertexBuffer& PositionBuffer = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
-	const FStaticMeshVertexBuffer& VertexBuffer = SrcMeshResource.VertexBuffers.StaticMeshVertexBuffer;
-	const FRawStaticIndexBuffer& IndexBuffer = SrcMeshResource.IndexBuffer;
+	const FPositionVertexBuffer& PositionBuffer = InStaticMeshLODResource.VertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer& VertexBuffer = InStaticMeshLODResource.VertexBuffers.StaticMeshVertexBuffer;
+	const FRawStaticIndexBuffer& IndexBuffer = InStaticMeshLODResource.IndexBuffer;
 
 	uint32 UVBaseIndex = 0;
-	uint32 UVChromakeyIndex = (InUVChromakeyIndex < SrcMeshResource.GetNumTexCoords()) ? InUVChromakeyIndex : 0;
+	uint32 UVChromakeyIndex = (InUVChromakeyIndex < InStaticMeshLODResource.GetNumTexCoords()) ? InUVChromakeyIndex : 0;
 
 	IndexBuffer.GetCopy(IndexData);
 
@@ -44,25 +36,44 @@ void FDisplayClusterRender_MeshComponentProxyData::ImplInitializeMesh(const FDis
 	UpdateData(InDataFunc);
 }
 
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMeshComponent& InMeshComponent, const int32 InUVChromakeyIndex)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FProcMeshSection& InProcMeshSection, const int32 InUVChromakeyIndex)
 {
-	check(IsInGameThread());
-
-	UStaticMesh* StaticMesh = InMeshComponent.GetStaticMesh();
-	if (StaticMesh)
+	VertexData.AddZeroed(InProcMeshSection.ProcVertexBuffer.Num());
+	for (int32 VertexIdx = 0; VertexIdx < VertexData.Num(); VertexIdx++)
 	{
-		ImplInitializeMesh(InDataFunc, *StaticMesh, InUVChromakeyIndex);
+		const FProcMeshVertex& InVertex = InProcMeshSection.ProcVertexBuffer[VertexIdx];
+
+		VertexData[VertexIdx].Position = InVertex.Position;
+		VertexData[VertexIdx].UV = InVertex.UV0;
+
+		switch (InUVChromakeyIndex)
+		{
+		case 1:
+			VertexData[VertexIdx].UV_Chromakey = InVertex.UV1;
+			break;
+		case 2:
+			VertexData[VertexIdx].UV_Chromakey = InVertex.UV2;
+			break;
+		case 3:
+			VertexData[VertexIdx].UV_Chromakey = InVertex.UV3;
+			break;
+		default:
+			VertexData[VertexIdx].UV_Chromakey = InVertex.UV0;
+			break;
+		}
 	}
+
+	int32 IndexDataIt = 0;
+	IndexData.AddZeroed(InProcMeshSection.ProcIndexBuffer.Num());
+	for (const uint32& ProcIndexBufferIt : InProcMeshSection.ProcIndexBuffer)
+	{
+		IndexData[IndexDataIt++] = ProcIndexBufferIt;
+	}
+
+	UpdateData(InDataFunc);
 }
 
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int32 InUVChromakeyIndex)
-{
-	check(IsInGameThread());
-
-	ImplInitializeMesh(InDataFunc, InStaticMesh, InUVChromakeyIndex);
-}
-
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
 {
 	bool bUseChromakeyUV = InMeshGeometry.ChromakeyUV.Num() > 0;
 
@@ -84,20 +95,20 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	UpdateData(InDataFunc);
 }
 
-void FDisplayClusterRender_MeshComponentProxyData::UpdateData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc)
+void FDisplayClusterRender_MeshComponentProxyData::UpdateData(const EDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc)
 {
 	if (IndexData.Num() > 0 && VertexData.Num() > 0)
 	{
 		switch (InDataFunc)
 		{
-		case FDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace:
+		case EDisplayClusterRender_MeshComponentProxyDataFunc::OutputRemapScreenSpace:
 			// Output remap require normalize mesh to screen space coords:
 			NormalizeToScreenSpace();
 			RemoveInvisibleFaces();
 			break;
 
 		default:
-		case FDisplayClusterRender_MeshComponentProxyDataFunc::None:
+		case EDisplayClusterRender_MeshComponentProxyDataFunc::Disabled:
 			break;
 		}
 	}

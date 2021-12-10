@@ -24,6 +24,7 @@ public class DisplayClusterShaders : ModuleRules
 				"RenderCore",
 				"RHI",
 				"Renderer",
+				"ProceduralMeshComponent",
 			});
 
 		if (Target.bBuildEditor == true)
