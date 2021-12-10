@@ -13,6 +13,10 @@ class NIAGARA_API UNiagaraDataInterfaceDebugDraw : public UNiagaraDataInterface
 
 public:
 	DECLARE_NIAGARA_DI_PARAMETER();
+		
+	// Number of debug lines is set as the max of OverrideMaxLineInstances and fx.Niagara.GpuComputeDebug.MaxLineInstances
+	UPROPERTY(EditAnywhere, Category = "Debug Draw")
+	uint32 OverrideMaxLineInstances = 0;
 
 	//UObject Interface
 	virtual void PostInitProperties() override;
@@ -61,6 +65,12 @@ public:
 
 	virtual bool NeedsGPUContextInit() const override { return true; }
 	virtual bool GPUContextInit(const FNiagaraScriptDataInterfaceCompileInfo& InInfo, void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) const override;
+
+	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+
+protected:
+	/** Copy one niagara DI to this */
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	//UNiagaraDataInterface Interface
 };
