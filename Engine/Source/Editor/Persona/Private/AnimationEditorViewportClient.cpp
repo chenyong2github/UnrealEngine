@@ -1050,7 +1050,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 		}
 		if (ClothingSimulation->IsTeleported())
 		{
-			TextValue = ConcatenateLine(TextValue, LOCTEXT("IsTeleported", "*** Warning ***: Max Delta Time Teleport!"));
+			TextValue = ConcatenateLine(TextValue, LOCTEXT("IsTeleported", "Simulation Teleport Activated"));
 		}
 	}
 

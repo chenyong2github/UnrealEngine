@@ -55,12 +55,6 @@ void FClothingSimulationContextCommon::Fill(const USkeletalMeshComponent* InComp
 	FillTeleportMode(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
 	FillMaxDistanceScale(InComponent);
 
-	// Cloth fills out the reference pose upon initialization, so flag it as teleporting to avoid destabilizing it if another system was animating it before cloth took over
-	if (bIsInitialization && (TeleportMode != EClothingTeleportMode::TeleportAndReset))
-	{
-		TeleportMode = EClothingTeleportMode::Teleport;
-	}
-
 	PredictedLod = InComponent->GetPredictedLODLevel();
 }
 
@@ -119,13 +113,6 @@ void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshCom
 	{
 		BoneTransforms = InComponent->GetComponentSpaceTransforms();
 	}
-}
-
-void FClothingSimulationContextCommon::FillRefToLocals(const USkeletalMeshComponent* InComponent)
-{
-	// Deprecated version always fills RefToLocals with current animation results instead of using reference pose on initialization
-	const bool bIsInitialization = false;
-	FillRefToLocals(InComponent, bIsInitialization);
 }
 
 void FClothingSimulationContextCommon::FillRefToLocals(const USkeletalMeshComponent* InComponent, bool bIsInitialization)

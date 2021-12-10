@@ -520,7 +520,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 #else
 		const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
 #endif
-		const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
+		const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None) || !SimulationTime;
 		bIsTeleported = bNeedsTeleport;
 
 		// Update Solver animatable parameters
