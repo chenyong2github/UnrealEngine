@@ -43,8 +43,9 @@ public:
 	 /**
 	  * Called when a file has been made writable. Adds the file to the Default Uncontrolled Changelist
 	  * @param	InFilename			The file to be added.
+	  * @return True if the file has been added to the Default Uncontrolled Changelist.
 	  */
-	 void OnMakeWritable(const FString& InFilename);
+	 bool OnMakeWritable(const FString& InFilename);
 
 	/**
 	 * Updates the status of Uncontrolled Changelists and files.

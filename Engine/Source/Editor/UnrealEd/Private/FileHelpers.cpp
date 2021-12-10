@@ -1834,9 +1834,13 @@ bool FEditorFileUtils::PromptToCheckoutPackages(bool bCheckDirty, const TArray<U
 						// Knock off the read only flag from the current file attributes
 						if (FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*Filename, false))
 						{
-							UncontrolledChangelistModule.OnMakeWritable(Filename);
+							// Add to PackagesNotToPromptAnyMore only if not added to Uncontrolled Changelist.
+							// If added to Uncontrolled Changelist, we want the checkout prompt to be displayed again if the file is reverted
+							if (!UncontrolledChangelistModule.OnMakeWritable(Filename))
+							{
+								PackagesNotToPromptAnyMore.Add(PackageToMakeWritable->GetName());
+							}
 
-							PackagesNotToPromptAnyMore.Add(PackageToMakeWritable->GetName());
 							if (OutPackagesCheckedOutOrMadeWritable)
 							{
 								OutPackagesCheckedOutOrMadeWritable->Add(PackageToMakeWritable);
