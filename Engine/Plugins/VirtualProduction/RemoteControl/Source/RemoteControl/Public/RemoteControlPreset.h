@@ -735,6 +735,11 @@ public:
 	 * Attempt to rebind all currently unbound properties.
 	 */
 	void RebindUnboundEntities();
+	
+	/**
+	 * Given a RC Entity, rebind all entities with the same owner to a new actor.
+	 */
+	void RebindAllEntitiesUnderSameActor(const FGuid& EntityId, AActor* NewActor);
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntityEvent, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
 	FOnPresetEntityEvent& OnEntityExposed() { return OnEntityExposedDelegate; }

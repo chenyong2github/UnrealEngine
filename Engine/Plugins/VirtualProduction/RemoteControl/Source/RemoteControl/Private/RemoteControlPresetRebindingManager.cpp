@@ -232,6 +232,114 @@ void FRemoteControlPresetRebindingManager::Rebind(URemoteControlPreset* Preset)
 	}
 }
 
+void FRemoteControlPresetRebindingManager::RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor)
+{
+	check(Preset && Entity && NewActor);
+
+	TMap<FName, TSet<URemoteControlBinding*>> ActorsToBindings;
+	ActorsToBindings.Reserve(Preset->Bindings.Num());
+
+	auto GetBindingLastLevel = [](URemoteControlBinding* Binding) -> FSoftObjectPath
+	{
+		FSoftObjectPath LevelPath;
+		if (Binding && Binding->IsA<URemoteControlLevelDependantBinding>())
+		{
+			LevelPath = CastChecked<URemoteControlLevelDependantBinding>(Binding)->LevelWithLastSuccessfulResolve.ToSoftObjectPath();
+		}
+		return LevelPath;
+	};
+
+	auto GetBindingActorName = [](URemoteControlBinding* Binding) -> FName
+	{
+		FName ActorName;
+		if (Binding && Binding->IsA<URemoteControlLevelDependantBinding>())
+		{
+			URemoteControlLevelDependantBinding* LDBinding = CastChecked<URemoteControlLevelDependantBinding>(Binding);
+			FString Path = LDBinding->BoundObjectMap.FindRef(LDBinding->LevelWithLastSuccessfulResolve).ToString();
+			static const TCHAR* PersistentLevel = TEXT("PersistentLevel.");
+			const int32 PersistentLevelStringLength = 16;
+
+			int32 Position = Path.Find(PersistentLevel);
+
+			if (Position != INDEX_NONE)
+			{
+				int32 DotPosition = Path.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, Position + PersistentLevelStringLength);
+				if (DotPosition != INDEX_NONE)
+				{
+					ActorName = *Path.Mid(Position + PersistentLevelStringLength, DotPosition - (Position + PersistentLevelStringLength));
+				}
+			}
+		}
+
+		return ActorName;
+	};
+
+
+	FName InitialBindingActorName;
+	FSoftObjectPath InitialBindingLastLevel;
+
+	const TArray<TWeakObjectPtr<URemoteControlBinding>>& EntityBindings = Entity->GetBindings();
+	if (EntityBindings.Num())
+	{
+		InitialBindingLastLevel = GetBindingLastLevel(EntityBindings[0].Get());
+		InitialBindingActorName = GetBindingActorName(EntityBindings[0].Get());
+	}
+
+	TMap<URemoteControlBinding*, FString> BindingToComponentName;
+
+	// Find bindings with the same actor as the original binding
+	for (URemoteControlBinding* Binding : Preset->Bindings)
+	{
+		FSoftObjectPath BindingItLastLevel = GetBindingLastLevel(Binding);
+		FName BindingItActorName = GetBindingActorName(Binding);
+
+		// To add a binding to the list of bindings to rebind, make sure it had the same level and actor as the initial binding
+		if (BindingItActorName == InitialBindingActorName && BindingItLastLevel == InitialBindingLastLevel)
+		{
+			BindingToComponentName.Add(Binding, BindingItActorName.ToString());
+		}
+	}
+
+	// Gather entities to rebind
+	TArray<TSharedPtr<FRemoteControlEntity>> EntitiesToRebind;
+	for (const TWeakPtr<FRemoteControlEntity>& WeakEntity : Preset->GetExposedEntities<FRemoteControlEntity>())
+	{
+		TSharedPtr<FRemoteControlEntity> RCEntity = WeakEntity.Pin();
+		if (RCEntity && RCEntity->GetBindings().Num())
+		{
+			if (BindingToComponentName.Contains(RCEntity->GetBindings()[0].Get()))
+			{
+				EntitiesToRebind.Add(RCEntity);
+			}
+		}
+	}
+
+	// Find the new binding target, then rebind.
+	for (const TSharedPtr<FRemoteControlEntity>& EntityToRebind : EntitiesToRebind)
+	{
+		URemoteControlBinding* EntityBinding = EntityToRebind->GetBindings()[0].Get();
+		FString ActorName = BindingToComponentName.FindChecked(EntityBinding);
+
+		UObject* RebindTarget = NewActor;
+
+		// If the binding is targetting a component rather than an actor
+		if (ActorName != EntityBinding->Name)
+		{
+			if (UObject* ResolvedComponent = StaticFindObject(UObject::StaticClass(), NewActor, *EntityBinding->Name, false))
+			{
+				RebindTarget = ResolvedComponent;
+			}
+		}
+
+		EntityToRebind->BindObject(RebindTarget);
+
+		if (Preset->GetExposedEntityType(EntityToRebind->GetId()) == FRemoteControlProperty::StaticStruct())
+		{
+			StaticCastSharedPtr<FRemoteControlProperty>(EntityToRebind)->EnableEditCondition();
+		}
+	}
+}
+
 TMap<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>> FRemoteControlPresetRebindingManager::GroupByEntitySupportedOwnerClass(TConstArrayView<TSharedPtr<FRemoteControlEntity>> Entities) const
 {
 	TMap<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>> GroupedEntities;

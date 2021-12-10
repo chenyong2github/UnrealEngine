@@ -46,22 +46,18 @@ void FRemoteControlEntity::BindObject(UObject* InObjectToBind)
 		return;
 	}
 
-	URemoteControlBinding* Binding = nullptr;
+	URemoteControlBinding* Binding = Owner->FindOrAddBinding(InObjectToBind);
 
 	if (Bindings.Num() == 0)
 	{
-		Binding = Owner->FindOrAddBinding(InObjectToBind);
 		Bindings.Emplace(Binding);
 	}
-
-	Binding = Bindings[0].Get();
-	
-	if (Binding)
+	else
 	{
-		Binding->Modify();
-		Binding->SetBoundObject(InObjectToBind);
-		OnEntityModifiedDelegate.ExecuteIfBound(Id);
+		Bindings[0] = Binding;
 	}
+
+	OnEntityModifiedDelegate.ExecuteIfBound(Id);
 }
 
 bool FRemoteControlEntity::IsBound() const

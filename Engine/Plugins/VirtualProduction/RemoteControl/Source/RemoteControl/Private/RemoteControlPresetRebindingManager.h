@@ -61,6 +61,11 @@ public:
 	 */
 	void Rebind(URemoteControlPreset* Preset);
 
+	/**
+	 * Given a RC Entity, rebind all entities with the same owner to a new actor
+	 */
+	void RebindAllEntitiesUnderSameActor(URemoteControlPreset* Preset, const TSharedPtr<FRemoteControlEntity>& Entity, AActor* NewActor);
+
 private:
 	/** Group RC Entities by the entity's supported owner class. */
 	TMap<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>> GroupByEntitySupportedOwnerClass(TConstArrayView<TSharedPtr<FRemoteControlEntity>> Entities) const;

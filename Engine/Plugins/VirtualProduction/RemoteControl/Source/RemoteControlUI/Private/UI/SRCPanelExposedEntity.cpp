@@ -15,6 +15,7 @@
 #include "SceneOutlinerFilters.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
+#include "Styling/SlateIconFinder.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
@@ -57,6 +58,24 @@ TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
 			constexpr bool bNoIndent = true;
 			SubMenuBuilder.AddWidget(CreateRebindMenuContent(), FText::GetEmpty(), bNoIndent);
 		}));
+
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("EntityRebindComponentSubmenuLabel", "Rebind Component"),
+		LOCTEXT("EntityRebindComponentSubmenuToolTip", "Pick a component to rebind this exposed entity."),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
+			{
+				CreateRebindComponentMenuContent(SubMenuBuilder);
+			}));
+
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("EntityRebindAllUnderActorSubmenuLabel", "Rebind all properties for this actor"),
+		LOCTEXT("EntityRebindAllUnderActorSubmenuToolTip", "Pick an actor to rebind."),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
+			{
+				constexpr bool bNoIndent = true;
+				SubMenuBuilder.AddWidget(CreateRebindAllPropertiesForActorMenuContent(), FText::GetEmpty(), bNoIndent);
+			}));
+
 	return MenuBuilder.MakeWidget();
 }
 
@@ -73,6 +92,61 @@ void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPr
 			CachedLabel = RCEntity->GetLabel();
 		}
 	}
+}
+
+void SRCPanelExposedEntity::CreateRebindComponentMenuContent(FMenuBuilder& SubMenuBuilder)
+{
+	TInlineComponentArray<UActorComponent*> ComponentArray;
+
+	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
+	{
+		TArray<UObject*> BoundObjects = Entity->GetBoundObjects();
+		if (BoundObjects.Num() && BoundObjects[0])
+		{
+			if (AActor* OwnerActor = BoundObjects[0]->GetTypedOuter<AActor>())
+			{
+				OwnerActor->GetComponents(Entity->GetSupportedBindingClass(), ComponentArray);
+			}
+		}
+
+		for (UActorComponent* Component : ComponentArray)
+		{
+			SubMenuBuilder.AddMenuEntry(
+				FText::FromString(Component->GetName()),
+				FText::GetEmpty(),
+				FSlateIconFinder::FindIconForClass(Component->GetClass(), TEXT("SCS.Component")),
+				FUIAction(
+					FExecuteAction::CreateLambda([Entity, Component]
+						{
+							if (Entity)
+							{
+								Entity->BindObject(Component);
+							}
+						}),
+					FCanExecuteAction())
+			);
+		}
+	}
+}
+
+TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindAllPropertiesForActorMenuContent()
+{
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+	FSceneOutlinerInitializationOptions Options;
+	Options.bFocusSearchBoxWhenOpened = true;
+	Options.Filters = MakeShared<FSceneOutlinerFilters>();
+
+	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
+	{
+		Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateRaw(this, &SRCPanelExposedEntity::IsActorSelectable));
+	}
+
+	return SNew(SBox)
+		.MaxDesiredHeight(400.0f)
+		.WidthOverride(300.0f)
+		[
+			SceneOutlinerModule.CreateActorPicker(Options, FOnActorPicked::CreateRaw(this, &SRCPanelExposedEntity::OnActorSelectedForRebindAllProperties))
+		];
 }
 
 TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
@@ -237,6 +311,17 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
 	Widget->SetContent(MakeNodeWidget(Args));
 	return Widget;
 }
+
+void SRCPanelExposedEntity::OnActorSelectedForRebindAllProperties(AActor* InActor) const
+{
+	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
+	{
+		Preset->RebindAllEntitiesUnderSameActor(Entity->GetId(), InActor);
+	}
+
+	FSlateApplication::Get().DismissAllMenus();
+}
+
 
 void SRCPanelExposedEntity::HandleUnexposeEntity()
 {
