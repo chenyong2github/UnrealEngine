@@ -27,6 +27,9 @@ namespace Audio
 		// Process InSamples and place filtered data in OutSamples
 		void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples);
 
+		// Process Samples in place
+		void ProcessAudio(FAlignedFloatBuffer& Samples);
+
 		// Process InSamples and place filtered data in OutSamples and delay line samples in OutDelaySamples.
 		// The OutDelaySamples correspond to "w[n] = InSamples[n] + InG * w[n - InDelay]"
 		void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples, FAlignedFloatBuffer& OutDelaySamples);
