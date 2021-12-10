@@ -63,6 +63,7 @@ FGraphTrack::FGraphTrack(const FString& InName)
 	, VisibleOptions(EGraphOptions::DefaultVisibleOptions)
 	, EditableOptions(EGraphOptions::DefaultEditableOptions)
 	, SharedValueViewport()
+	, TimeScaleX(1.0)
 	, NumAddedEvents(0)
 	, NumDrawPoints(0)
 	, NumDrawLines(0)
@@ -103,6 +104,8 @@ void FGraphTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 	{
 		SetHoveredState(false);
 	}
+
+	TimeScaleX = Context.GetViewport().GetScaleX();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -607,7 +610,8 @@ void FGraphTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEven
 
 		InOutTooltip.ResetContent();
 		InOutTooltip.AddTitle(Series->GetName().ToString(), Series->GetColor());
-		InOutTooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetStartTime()));
+		const double Precision = FMath::Max(1.0 / TimeScaleX, TimeUtils::Nanosecond);
+		InOutTooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTime(TooltipEvent.GetStartTime(), Precision));
 		if (Series->HasEventDuration())
 		{
 			InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetDuration()));
