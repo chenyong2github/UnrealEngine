@@ -106,7 +106,7 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 			LOOP
 			for (uint ConeIndex = 0; ConeIndex < NUM_CONE_DIRECTIONS; ConeIndex++)
 			{
-				float3 ConeDirection = AOSamples2.SampleDirections[ConeIndex].xyz;
+				float3 ConeDirection = SampleDirections[ConeIndex].xyz;
 				float3 RotatedConeDirection = ConeDirection.x * TangentX + ConeDirection.y * TangentY + ConeDirection.z * WorldNormal;
 				float3 ScaledLocalConeDirection = mul(RotatedConeDirection, (float3x3) DFObjectData.WorldToVolume).xyz;
 		
@@ -265,7 +265,7 @@ void HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	LOOP
 	for (uint ConeIndex = 0; ConeIndex < NUM_CONE_DIRECTIONS; ConeIndex++)
 	{
-		float3 ConeDirection = AOSamples2.SampleDirections[ConeIndex].xyz;
+		float3 ConeDirection = SampleDirections[ConeIndex].xyz;
 		float3 RotatedConeDirection = ConeDirection.x * TangentX + ConeDirection.y * TangentY + ConeDirection.z * WorldNormal;
 
 		float MinVisibility = 1;
@@ -401,7 +401,7 @@ void CombineConeVisibilityCS(
 	{
 		float ConeVisibility = asfloat(ScreenGridConeVisibility[ConeIndex * ScreenGridConeVisibilitySize.x * ScreenGridConeVisibilitySize.y + InputBaseIndex]);
 		
-		float3 ConeDirection = AOSamples2.SampleDirections[ConeIndex].xyz;
+		float3 ConeDirection = SampleDirections[ConeIndex].xyz;
 		float3 RotatedConeDirection = ConeDirection.x * TangentX + ConeDirection.y * TangentY + ConeDirection.z * WorldNormal;
 		UnoccludedDirection += ConeVisibility * RotatedConeDirection;
 	}

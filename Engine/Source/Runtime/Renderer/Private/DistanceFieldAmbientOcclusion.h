@@ -17,10 +17,6 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "ScenePrivate.h"
 
-const static int32 GAOMaxSupportedLevel = 6;
-/** Number of cone traced directions. */
-const int32 NumConeSampleDirections = 9;
-
 /** Base downsample factor that all distance field AO operations are done at. */
 const int32 GAODownsampleFactor = 2;
 
@@ -57,8 +53,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTileIntersectionParameters, )
 	SHADER_PARAMETER(FIntPoint, TileListGroupSize)
 END_SHADER_PARAMETER_STRUCT()
 
-static int32 CulledTileDataStride = 2;
-static int32 ConeTraceObjectsThreadGroupSize = 64;
+static const int32 CulledTileDataStride = 2;
+static const int32 ConeTraceObjectsThreadGroupSize = 64;
 
 inline void TileIntersectionModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
 {
@@ -77,10 +73,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FAOScreenGridParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 extern void GetSpacedVectors(uint32 FrameNumber, TArray<FVector, TInlineAllocator<9> >& OutVectors);
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FAOSampleData2,)
-	SHADER_PARAMETER_ARRAY(FVector4f,SampleDirections,[NumConeSampleDirections])
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 inline float GetMaxAOViewDistance()
 {
@@ -154,54 +146,6 @@ public:
 
 protected:
 	int32 MaxSize;
-};
-
-class FScreenGridParameters
-{
-	DECLARE_TYPE_LAYOUT(FScreenGridParameters, NonVirtual);
-public:
-	void Bind(const FShaderParameterMap& ParameterMap)
-	{
-		BaseLevelTexelSize.Bind(ParameterMap, TEXT("BaseLevelTexelSize"));
-		JitterOffset.Bind(ParameterMap, TEXT("JitterOffset"));
-		DistanceFieldNormalTexture.Bind(ParameterMap, TEXT("DistanceFieldNormalTexture"));
-		DistanceFieldNormalSampler.Bind(ParameterMap, TEXT("DistanceFieldNormalSampler"));
-	}
-
-	template<typename TParamRef>
-	void Set(FRHICommandList& RHICmdList, const TParamRef& ShaderRHI, const FViewInfo& View, FRHITexture* DistanceFieldNormal)
-	{
-		const FIntPoint DownsampledBufferSize = GetBufferSizeForAO();
-		const FVector2f BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
-		SetShaderValue(RHICmdList, ShaderRHI, BaseLevelTexelSize, BaseLevelTexelSizeValue);
-
-		extern FVector2f GetJitterOffset(int32 SampleIndex);
-		SetShaderValue(RHICmdList, ShaderRHI, JitterOffset, GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex()));
-
-
-		SetTextureParameter(
-			RHICmdList,
-			ShaderRHI,
-			DistanceFieldNormalTexture,
-			DistanceFieldNormalSampler,
-			TStaticSamplerState<SF_Point,AM_Wrap,AM_Wrap,AM_Wrap>::GetRHI(),
-			DistanceFieldNormal
-			);
-	}
-
-	friend FArchive& operator<<(FArchive& Ar,FScreenGridParameters& P)
-	{
-		Ar << P.BaseLevelTexelSize << P.JitterOffset << P.DistanceFieldNormalTexture << P.DistanceFieldNormalSampler;
-		return Ar;
-	}
-
-private:
-	
-		LAYOUT_FIELD(FShaderParameter, BaseLevelTexelSize)
-		LAYOUT_FIELD(FShaderParameter, JitterOffset)
-		LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalTexture)
-		LAYOUT_FIELD(FShaderResourceParameter, DistanceFieldNormalSampler)
-	
 };
 
 extern void TrackGPUProgress(FRHICommandListImmediate& RHICmdList, uint32 DebugId);
