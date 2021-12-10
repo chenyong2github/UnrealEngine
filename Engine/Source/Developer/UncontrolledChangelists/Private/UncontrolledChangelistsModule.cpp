@@ -79,13 +79,13 @@ TArray<FUncontrolledChangelistStateRef> FUncontrolledChangelistsModule::GetChang
 	return UncontrolledChangelistStates;
 }
 
-void FUncontrolledChangelistsModule::OnMakeWritable(const FString& InFilename)
+bool FUncontrolledChangelistsModule::OnMakeWritable(const FString& InFilename)
 {
 	bool bHasStateChanged = false;
 
 	if (!IsEnabled())
 	{
-		return;
+		return false;
 	}
 
 	FUncontrolledChangelist DefaultUncontrolledChangelist(FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_GUID, FUncontrolledChangelist::DEFAULT_UNCONTROLLED_CHANGELIST_NAME.ToString());
@@ -97,6 +97,8 @@ void FUncontrolledChangelistsModule::OnMakeWritable(const FString& InFilename)
 	{
 		OnStateChanged();
 	}
+
+	return bHasStateChanged;
 }
 
 void FUncontrolledChangelistsModule::UpdateStatus()
