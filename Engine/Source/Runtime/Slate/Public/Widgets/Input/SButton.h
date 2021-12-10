@@ -185,6 +185,10 @@ public:
 	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
 	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
 
+#if !UE_BUILD_SHIPPING
+	void SimulateClick();
+#endif // !UE_BUILD_SHIPPING
+
 public:
 
 	//~ SWidget overrides
