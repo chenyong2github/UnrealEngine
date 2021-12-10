@@ -52,6 +52,7 @@ public class FractureEditor : ModuleRules
                 "GeometryCollectionEngine",
                 "GeometryCollectionEditor",
 				"ModelingComponents",
+				"GeometryCore",
 				"MeshDescription",
 				"StaticMeshDescription",
 				"PlanarCut",

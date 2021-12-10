@@ -24,6 +24,17 @@ enum class EVoronoiPattern
 	SelectedBones
 };
 
+UENUM()
+enum class EDownsamplingMode
+{
+	// Downsample points by randomly removing points, without considering spacing
+	Random,
+	// Downsample points so they're spread evenly across space, favoring points on sharp features
+	UniformSpacing,
+	// Downsample points so points on sharp features are the last to be removed
+	KeepSharp
+};
+
 UCLASS(config = EditorPerProjectUserSettings)
 class UFractureCustomVoronoiSettings : public UFractureToolSettings
 {
@@ -67,9 +78,13 @@ public:
 		EditCondition = "VoronoiPattern == EVoronoiPattern::Grid", EditConditionHides))
 	int32 GridZ = 5;
 
-	/** Fraction of points to randomly skip */
+	/** Fraction of points to skip */
 	UPROPERTY(EditAnywhere, Category = LiveVoronoiSites, meta = (ClampMin = "0", ClampMax = "1"))
 	float SkipFraction = 0.0;
+
+	/** Strategy used for skipping points; only used if SkipFraction is greater than 0 */
+	UPROPERTY(EditAnywhere, Category = LiveVoronoiSites)
+	EDownsamplingMode SkipMode;
 
 	//~ TODO: Have reference mesh fall back to the input fracture mesh if not provided here
 	/** Static mesh actor to be used as a reference when adding Voronoi sites */
