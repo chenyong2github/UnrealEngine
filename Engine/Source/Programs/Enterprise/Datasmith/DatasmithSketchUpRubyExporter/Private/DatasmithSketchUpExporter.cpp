@@ -11,6 +11,7 @@
 #include "DatasmithSketchUpString.h"
 #include "DatasmithSketchUpSummary.h"
 
+
 #include "DatasmithSketchUpExportContext.h"
 
 #include "DatasmithDirectLink.h"
@@ -504,7 +505,7 @@ public:
 	
 	bool OnMaterialAdded(DatasmithSketchUp::FEntityIDType EntityId)
 	{
-		Context.Materials.CreateMaterial(EntityId);
+		// Not handling material additon here - materials are created when needed by geometry/components
 		return true;
 	}
 

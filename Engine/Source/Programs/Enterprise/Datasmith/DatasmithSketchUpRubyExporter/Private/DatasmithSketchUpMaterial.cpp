@@ -292,7 +292,27 @@ void FMaterial::Remove(FExportContext& Context)
 {
 
 	MaterialDirectlyAppliedToMeshes.RemoveDatasmithElement(Context);
+
+	// Expecting that SketchUp removes material from geometry/instances prior to removing it from the scene, but in case it doesn't...
+	if (!ensure(MaterialDirectlyAppliedToMeshes.MeshesMaterialDirectlyAppliedTo.IsEmpty()))
+	{
+		for (FEntitiesGeometry* Geom: MaterialDirectlyAppliedToMeshes.MeshesMaterialDirectlyAppliedTo.Array())
+		{
+			UnregisterGeometry(Context, Geom);
+		}
+	}
+
 	MaterialInheritedByNodes.RemoveDatasmithElement(Context);
+
+	// Expecting that SketchUp removes material from geometry/instances prior to removing it from the scene, but in case it doesn't...
+	if (!ensure(MaterialInheritedByNodes.NodesMaterialInheritedBy.IsEmpty()))
+	{
+		for (FNodeOccurence* Node: MaterialDirectlyAppliedToMeshes.NodesMaterialInheritedBy.Array())
+		{
+			UnregisterInstance(Context, Node);
+		}
+	}
+
 
 	Context.Textures.UnregisterMaterial(this);
 }
@@ -500,7 +520,8 @@ void FMaterialOccurrence::UnregisterInstance(FExportContext& Context, FNodeOccur
 
 void FMaterialCollection::Update()
 {
-	// Update usage of textures by materials before updating textures(to only update used textures)
+	// Update usage of materials and textures by materials before updating textures(to only update used textures)
+	TArray<FMaterialIDType> UnusedMaterials;
 	for (TPair<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> IdAndMaterial : MaterialDefinitionMap)
 	{
 		FMaterial& Material = *IdAndMaterial.Value;
@@ -508,6 +529,16 @@ void FMaterialCollection::Update()
 		{
 			Material.UpdateTexturesUsage(Context);
 		}
+		else
+		{
+			UnusedMaterials.Add(IdAndMaterial.Key);
+		}
+	}
+
+	// Remove unused materials(SketchUp material removal notification is unusable but we need to remove unused materials)
+	for (FMaterialIDType MaterialId: UnusedMaterials)
+	{
+		RemoveMaterial(MaterialId);
 	}
 
 	Context.Textures.Update();

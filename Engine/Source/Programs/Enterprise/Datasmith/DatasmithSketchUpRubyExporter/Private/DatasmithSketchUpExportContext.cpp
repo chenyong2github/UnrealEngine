@@ -98,7 +98,6 @@ void FExportContext::Populate()
 	RootNode->DatasmithActorLabel = TEXT("Model");
 
 	// Parse/convert Model
-	Materials.PopulateFromModel(ModelRef);
 	Scenes.PopulateFromModel(ModelRef);
 	ComponentDefinitions.PopulateFromModel(ModelRef);
 
@@ -497,9 +496,8 @@ FMaterialOccurrence* FMaterialCollection::RegisterInstance(FMaterialIDType Mater
 		NodeOccurrence->MaterialOverride->UnregisterInstance(Context, NodeOccurrence);
 	}
 
-	if (const TSharedPtr<DatasmithSketchUp::FMaterial>* Ptr = Find(MaterialID))
+	if (const TSharedPtr<DatasmithSketchUp::FMaterial> Material = FindOrCreateMaterial(MaterialID))
 	{
-		const TSharedPtr<DatasmithSketchUp::FMaterial>& Material = *Ptr;
 		return &Material->RegisterInstance(NodeOccurrence);
 	}
 
@@ -508,10 +506,8 @@ FMaterialOccurrence* FMaterialCollection::RegisterInstance(FMaterialIDType Mater
 
 FMaterialOccurrence* FMaterialCollection::RegisterGeometry(FMaterialIDType MaterialID, DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry)
 {
-	if (const TSharedPtr<DatasmithSketchUp::FMaterial>* Ptr = Find(MaterialID))
+	if (const TSharedPtr<DatasmithSketchUp::FMaterial> Material = FindOrCreateMaterial(MaterialID))
 	{
-		const TSharedPtr<DatasmithSketchUp::FMaterial>& Material = *Ptr;
-
 		EntitiesGeometry->MaterialsUsed.Add(Material.Get());
 		return &Material->RegisterGeometry(EntitiesGeometry);
 	}
@@ -556,7 +552,7 @@ TSharedPtr<FMaterial> FMaterialCollection::CreateMaterial(SUMaterialRef Material
 	return Material;
 }
 
-void FMaterialCollection::CreateMaterial(FMaterialIDType MaterialID)
+TSharedPtr<FMaterial> FMaterialCollection::CreateMaterial(FMaterialIDType MaterialID)
 {
 	// Get the number of material definitions in the SketchUp model.
 	size_t SMaterialDefinitionCount = 0;
@@ -573,9 +569,10 @@ void FMaterialCollection::CreateMaterial(FMaterialIDType MaterialID)
 	{
 		if (MaterialID == DatasmithSketchUpUtils::GetMaterialID(SMaterialDefinitionRef))
 		{
-			CreateMaterial(SMaterialDefinitionRef);
+			return CreateMaterial(SMaterialDefinitionRef);
 		}
 	}
+	return nullptr;
 }
 
 void FMaterialCollection::InvalidateMaterial(SUMaterialRef MaterialDefinitionRef)
@@ -616,5 +613,14 @@ bool FMaterialCollection::InvalidateDefaultMaterial()
 {
 	DefaultMaterial.Invalidate(Context);
 	return true;
+}
+
+TSharedPtr<FMaterial> FMaterialCollection::FindOrCreateMaterial(FMaterialIDType MaterialID)
+{
+	if (TSharedPtr<FMaterial>* Ptr = MaterialDefinitionMap.Find(MaterialID))
+	{
+		return *Ptr;
+	}
+	return CreateMaterial(MaterialID);
 }
 
