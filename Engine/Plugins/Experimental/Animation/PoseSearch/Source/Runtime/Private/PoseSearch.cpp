@@ -36,6 +36,7 @@ namespace UE { namespace PoseSearch {
 //////////////////////////////////////////////////////////////////////////
 // Constants and utilities
 
+// Debug drawing options
 constexpr float DrawDebugLineThickness = 2.0f;
 constexpr float DrawDebugPointSize = 3.0f;
 constexpr float DrawDebugVelocityScale = 0.08f;
@@ -46,20 +47,15 @@ constexpr float DrawDebugGradientStrength = 0.8f;
 constexpr float DrawDebugSampleLabelFontScale = 1.0f;
 static const FVector DrawDebugSampleLabelOffset = FVector(0.0f, 0.0f, -10.0f);
 
+// Stopgap channel indices since schemas don't yet support explicit channels of data
+constexpr int32 ChannelIdxPose = 0;
+constexpr int32 ChannelIdxTrajectoryTime = 1;
+constexpr int32 ChannelIdxTrajectoryDistance = 2;
+constexpr int32 MaxChannels = 3;
+
 static bool IsSamplingRangeValid(FFloatInterval Range)
 {
 	return Range.IsValid() && (Range.Min >= 0.0f);
-}
-
-static FFloatInterval GetEffectiveSamplingRange(const UAnimSequenceBase* Sequence, FFloatInterval SamplingRange)
-{
-	const bool bSampleAll = (SamplingRange.Min == 0.0f) && (SamplingRange.Max == 0.0f);
-	const float SequencePlayLength = Sequence->GetPlayLength();
-
-	FFloatInterval Range;
-	Range.Min = bSampleAll ? 0.0f : SamplingRange.Min;
-	Range.Max = bSampleAll ? SequencePlayLength : FMath::Min(SequencePlayLength, SamplingRange.Max);
-	return Range;
 }
 
 static inline float CompareFeatureVectors(int32 NumValues, const float* A, const float* B, const float* Weights)
@@ -155,12 +151,6 @@ FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueTy
 	return LowerBound(First, Last, Value, FIdentityFunctor(), TLess<>());
 }
 
-
-// Stopgap channel indices since schemas don't yet support explicit channels of data
-constexpr int32 ChannelIdxPose = 0;
-constexpr int32 ChannelIdxTrajectoryTime = 1;
-constexpr int32 ChannelIdxTrajectoryDistance = 2;
-
 static EPoseSearchFeatureDomain FeatureDomainFromChannel (int32 ChannelIdx)
 {
 	switch (ChannelIdx)
@@ -205,6 +195,25 @@ FFeatureTypeTraits GetFeatureTypeTraits(EPoseSearchFeatureType Type)
 	}
 
 	return FFeatureTypeTraits();
+}
+
+static void CalcChannelCosts(const UPoseSearchSchema* Schema, TArrayView<const float> CostVector, TArray<float>& OutChannelCosts)
+{
+	OutChannelCosts.Reset();
+	OutChannelCosts.AddZeroed(MaxChannels);
+	for (int ChannelIdx = 0; ChannelIdx != MaxChannels; ++ChannelIdx)
+	{
+		for (int FeatureIdx = INDEX_NONE; Schema->Layout.EnumerateBy(ChannelIdx, EPoseSearchFeatureType::Invalid, FeatureIdx); /*empty*/)
+		{
+			const FPoseSearchFeatureDesc& Feature = Schema->Layout.Features[FeatureIdx];
+			int32 ValueSize = GetFeatureTypeTraits(Feature.Type).NumFloats;
+			int32 ValueTerm = Feature.ValueOffset + ValueSize;
+			for (int32 ValueIdx = Feature.ValueOffset; ValueIdx != ValueTerm; ++ValueIdx)
+			{
+				OutChannelCosts[ChannelIdx] += CostVector[ValueIdx];
+			}
+		}
+	}
 }
 
 }} // namespace UE::PoseSearch
@@ -553,7 +562,7 @@ void FPoseSearchWeights::Init(const FPoseSearchWeightParams& WeightParams, const
 
 
 	// Setup channel indexable weight params
-	constexpr int ChannelNum = 3;
+	constexpr int ChannelNum = MaxChannels;
 	const FPoseSearchChannelWeightParams* ChannelWeightParams[ChannelNum];
 	const FPoseSearchChannelDynamicWeightParams* ChannelDynamicWeightParams[ChannelNum];
 
@@ -1040,9 +1049,9 @@ float UPoseSearchDatabase::GetTimeOffset(int32 PoseIdx, const FPoseSearchIndexAs
 		UE_LOG(LogPoseSearch, Error, TEXT("Pose %i out of range in database %s"), PoseIdx, *GetNameSafe(this));
 		return -1.0f;
 	}
-	const FPoseSearchDatabaseSequence& DbSequence = Sequences[ValidAsset->SourceAssetIdx];
+
 	const FFloatInterval SamplingRange = ValidAsset->SamplingInterval;
-	float TimeOffsetSeconds = SamplingRange.Min + Schema->SamplingInterval * (PoseIdx - Asset->FirstPoseIdx);
+	float TimeOffsetSeconds = FMath::Min(SamplingRange.Min + Schema->SamplingInterval * (PoseIdx - ValidAsset->FirstPoseIdx), SamplingRange.Max);
 	return TimeOffsetSeconds;
 }
 
@@ -2916,7 +2925,15 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			FLinearColor GradientColor = GetGradientColor(LinearColor, SchemaSubsampleIdx, NumSubsamples, DrawParams.Flags);
 			FColor Color = GradientColor.ToFColor(true);
 
-			FString SampleLabel = FString::Format(TEXT("{0}"), { SchemaSubsampleIdx });
+			FString SampleLabel;
+			if (DrawParams.LabelPrefix.IsEmpty())
+			{
+				SampleLabel = FString::Format(TEXT("{0}"), { SchemaSubsampleIdx });
+			}
+			else
+			{
+				SampleLabel = FString::Format(TEXT("{1}[{0}]"), { SchemaSubsampleIdx, DrawParams.LabelPrefix.GetData() });
+			}
 			DrawDebugString(
 				DrawParams.World,
 				TrajectoryPos + DrawDebugSampleLabelOffset,
@@ -3809,6 +3826,60 @@ float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayVie
 	}
 
 	return Dissimilarity;
+}
+
+float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext, FPoseCostInfo& OutPoseCostInfo)
+{
+	using namespace Eigen;
+
+	TArrayView<const float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
+	const int32 Dims = PoseValues.Num();
+	if (!ensure(PoseValues.Num() == Dims))
+	{
+		return MAX_flt;
+	}
+
+	OutPoseCostInfo.CostVector.SetNum(Dims);
+
+	// Setup Eigen views onto our vectors
+	auto OutCostVector = Map<ArrayXf>(OutPoseCostInfo.CostVector.GetData(), Dims);
+	auto PoseVector = Map<const ArrayXf>(PoseValues.GetData(), Dims);
+	auto QueryVector = Map<const ArrayXf>(Query.GetData(), Dims);
+	
+	// Compute weighted squared difference vector
+	float Dissimilarity;
+	if (WeightsContext)
+	{
+		const FPoseSearchWeights* WeightsSet = WeightsContext->GetGroupWeights(0);
+		check(WeightsSet);
+		check(WeightsSet->Weights.Num() == Dims);
+		auto WeightsVector = Map<const ArrayXf>(WeightsSet->Weights.GetData(), Dims);
+
+		OutCostVector = WeightsVector * (PoseVector - QueryVector).square();
+		Dissimilarity = OutCostVector.sum();
+	}
+	else
+	{
+		OutCostVector = (PoseVector - QueryVector).square();
+		Dissimilarity = OutCostVector.sum();
+	}
+
+	// Verify this math agrees with the runtime pose comparator
+	checkSlow(FMath::IsNearlyEqual(Dissimilarity, ComparePoses(SearchIndex, PoseIdx, Query, WeightsContext), KINDA_SMALL_NUMBER));
+
+	const FPoseSearchPoseMetadata& PoseMetadata = SearchIndex.PoseMetadata[PoseIdx];
+	float TotalDissimilarity = Dissimilarity + PoseMetadata.CostAddend;
+	
+	// Output cost details
+	OutPoseCostInfo.TotalCost = TotalDissimilarity;
+	OutPoseCostInfo.CostAddend = PoseMetadata.CostAddend;
+	CalcChannelCosts(SearchIndex.Schema, OutPoseCostInfo.CostVector, OutPoseCostInfo.ChannelCosts);
+
+	// Verify channel cost decomposition agrees with pose comparator
+	auto OutChannelCosts = Map<const ArrayXf>(OutPoseCostInfo.ChannelCosts.GetData(), OutPoseCostInfo.ChannelCosts.Num());
+	checkSlow(FMath::IsNearlyEqual(Dissimilarity, OutChannelCosts.sum(), KINDA_SMALL_NUMBER));
+
+	return TotalDissimilarity;
 }
 
 

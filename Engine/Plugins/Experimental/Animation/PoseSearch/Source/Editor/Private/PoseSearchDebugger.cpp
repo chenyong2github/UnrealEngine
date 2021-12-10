@@ -39,32 +39,16 @@ class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData
 {
 public:
 	FDebuggerDatabaseRowData() = default;
-	FDebuggerDatabaseRowData(
-	    int32 InPoseIdx, 
-	    const FString& InAnimSequenceName,
-	    float InTime,
-	    float InLength,
-	    float InScore,
-	    float InPoseScore,
-	    float InTrajectoryScore
-	)
-		: PoseIdx(InPoseIdx)
-		, AnimSequenceName(InAnimSequenceName)
-		, Time(InTime)
-		, Length(InLength)
-		, Score(InScore)
-		, PoseScore(InPoseScore)
-		, TrajectoryScore(InTrajectoryScore)
-	{
-	}
+	
+	float GetPoseCost() const { return PoseCostInfo.ChannelCosts.Num() ? PoseCostInfo.ChannelCosts[0] : 0.0f; }
+	float GetTrajectoryCost() const { return PoseCostInfo.ChannelCosts.Num() >= 3 ? PoseCostInfo.ChannelCosts[1] + PoseCostInfo.ChannelCosts[2] : 0.0f; }
 
 	int32 PoseIdx = 0;
 	FString AnimSequenceName = "";
+	int32 DbSequenceIdx = 0;
+	int32 AnimFrame = 0;
 	float Time = 0.0f;
-	float Length = 0.0f;
-	float Score = 0.0f;
-	float PoseScore = 0.0f;
-	float TrajectoryScore = 0.0f;
+	FPoseCostInfo PoseCostInfo;
 };
 
 namespace DebuggerDatabaseColumns
@@ -131,10 +115,10 @@ namespace DebuggerDatabaseColumns
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			return FText::AsNumber(Row->PoseIdx);
+			return FText::AsNumber(Row->PoseIdx, &FNumberFormattingOptions::DefaultNoGrouping());
 		}
 	};
-	const FName FPoseIdx::Name = "PoseIdx";
+	const FName FPoseIdx::Name = "Pose Index";
 
 	struct FAnimSequenceName : IColumn
 	{
@@ -159,9 +143,9 @@ namespace DebuggerDatabaseColumns
 			return FText::FromString(Row->AnimSequenceName);
 		}
 	};
-	const FName FAnimSequenceName::Name = "AnimSequence";
+	const FName FAnimSequenceName::Name = "Sequence";
 
-	struct FTime : IColumn
+	struct FFrame : IColumn
 	{
 		using IColumn::IColumn;
 		static const FName Name;
@@ -181,12 +165,20 @@ namespace DebuggerDatabaseColumns
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			return FText::AsNumber(Row->Time);
+			FNumberFormattingOptions TimeFormattingOptions = FNumberFormattingOptions()
+				.SetUseGrouping(false)
+				.SetMaximumFractionalDigits(2);
+
+			return FText::Format(
+				FText::FromString("{0} ({1})"),
+				FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
+				FText::AsNumber(Row->Time, &TimeFormattingOptions)
+			);
 		}
 	};
-	const FName FTime::Name = "Time";
+	const FName FFrame::Name = "Frame";
 
-	struct FLength : IColumn
+	struct FCost : IColumn
 	{
 		using IColumn::IColumn;
 		static const FName Name;
@@ -194,50 +186,25 @@ namespace DebuggerDatabaseColumns
 		
 		virtual const FSortPredicate& GetSortPredicateAscending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->Length < Row1->Length; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.TotalCost < Row1->PoseCostInfo.TotalCost; };
 			return Predicate;
 		}
 
 		virtual const FSortPredicate& GetSortPredicateDescending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->Length >= Row1->Length; };
-			return Predicate;
-		}
-
-		virtual FText GetRowText(const FRowDataRef& Row) const override
-		{
-			return FText::AsNumber(Row->Length);
-		}
-	};
-	const FName FLength::Name = "Length";
-
-	struct FScore : IColumn
-	{
-		using IColumn::IColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
-		
-		virtual const FSortPredicate& GetSortPredicateAscending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->Score < Row1->Score; };
-			return Predicate;
-		}
-
-		virtual const FSortPredicate& GetSortPredicateDescending() const override
-		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->Score >= Row1->Score; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.TotalCost >= Row1->PoseCostInfo.TotalCost; };
 			return Predicate;
 		}
 		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
         {
-        	return FText::AsNumber(Row->Score);
+        	return FText::AsNumber(Row->PoseCostInfo.TotalCost);
         }
 	};
-	const FName FScore::Name = "Score";
+	const FName FCost::Name = "Cost";
 
 
-	struct FPoseScore : IColumn
+	struct FPoseCost : IColumn
 	{
 		using IColumn::IColumn;
 		static const FName Name;
@@ -245,25 +212,25 @@ namespace DebuggerDatabaseColumns
 		
 		virtual const FSortPredicate& GetSortPredicateAscending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseScore < Row1->PoseScore; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetPoseCost() < Row1->GetPoseCost(); };
 			return Predicate;
 		}
 
 		virtual const FSortPredicate& GetSortPredicateDescending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseScore >= Row1->PoseScore; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetPoseCost() >= Row1->GetPoseCost(); };
 			return Predicate;
 		}
 		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			return FText::AsNumber(Row->PoseScore);
+			return FText::AsNumber(Row->GetPoseCost());
 		}
 	};
-	const FName FPoseScore::Name = "Pose Score";
+	const FName FPoseCost::Name = "Pose Cost";
 
 
-	struct FTrajectoryScore : IColumn
+	struct FTrajectoryCost : IColumn
 	{
 		using IColumn::IColumn;
 		static const FName Name;
@@ -271,22 +238,47 @@ namespace DebuggerDatabaseColumns
 		
 		virtual const FSortPredicate& GetSortPredicateAscending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->TrajectoryScore < Row1->TrajectoryScore; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetTrajectoryCost() < Row1->GetTrajectoryCost(); };
 			return Predicate;
 		}
 
 		virtual const FSortPredicate& GetSortPredicateDescending() const override
 		{
-			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->TrajectoryScore >= Row1->TrajectoryScore; };
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetTrajectoryCost() >= Row1->GetTrajectoryCost(); };
 			return Predicate;
 		}
 		
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			return FText::AsNumber(Row->TrajectoryScore);
+			return FText::AsNumber(Row->GetTrajectoryCost());
         }
 	};
-	const FName FTrajectoryScore::Name = "Trajectory Score";
+	const FName FTrajectoryCost::Name = "Trajectory Cost";
+
+	struct FCostModifier : IColumn
+	{
+		using IColumn::IColumn;
+		static const FName Name;
+		virtual FName GetName() const override { return Name; }
+
+		virtual const FSortPredicate& GetSortPredicateAscending() const override
+		{
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.CostAddend < Row1->PoseCostInfo.CostAddend; };
+			return Predicate;
+		}
+
+		virtual const FSortPredicate& GetSortPredicateDescending() const override
+		{
+			static FSortPredicate Predicate = [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCostInfo.CostAddend >= Row1->PoseCostInfo.CostAddend; };
+			return Predicate;
+		}
+
+		virtual FText GetRowText(const FRowDataRef& Row) const override
+		{
+			return FText::AsNumber(Row->PoseCostInfo.CostAddend);
+		}
+	};
+	const FName FCostModifier::Name = "Cost Modifier";
 }
 
 
@@ -531,19 +523,13 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 		const int32 LastPoseIdx = SearchIndexAsset.FirstPoseIdx + SearchIndexAsset.NumPoses;
 		for (int32 PoseIdx = SearchIndexAsset.FirstPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
 		{
+			float Time = Database.GetTimeOffset(PoseIdx);
+
 			TSharedRef<FDebuggerDatabaseRowData> Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
 			Row->PoseIdx = PoseIdx;
-
-			const FString SequenceName = DbSequence.Sequence->GetName();
-			const float SequenceLength = DbSequence.Sequence->GetPlayLength();
-			FFloatInterval Range = SearchIndexAsset.SamplingInterval;
-
-			Row->AnimSequenceName = SequenceName;
-			// Cap time in sequence to end of range
-			Row->Time = FGenericPlatformMath::Min(
-				Range.Min + (PoseIdx - SearchIndexAsset.FirstPoseIdx) * Database.Schema->SamplingInterval, 
-				Range.Max);
-			Row->Length = SequenceLength;
+			Row->AnimSequenceName = DbSequence.Sequence->GetName();
+			Row->Time = Time;
+			Row->AnimFrame = DbSequence.Sequence->GetFrameAtTime(Time);
 		}
 	}
 
@@ -561,20 +547,6 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	
 	FPoseSearchWeightsContext StateWeights;
 	StateWeights.Update(State.Weights, &Database);
-
-	FPoseSearchWeightsContext PoseWeights;
-	{
-		FPoseSearchDynamicWeightParams WeightParams = State.Weights;
-		WeightParams.TrajectoryDynamicWeights.ChannelWeightScale = 0.0f;
-		PoseWeights.Update(WeightParams, &Database);
-	}
-
-	FPoseSearchWeightsContext TrajectoryWeights;
-	{
-		FPoseSearchDynamicWeightParams WeightParams = State.Weights;
-		WeightParams.PoseDynamicWeights.ChannelWeightScale = 0.0f;
-		TrajectoryWeights.Update(WeightParams, &Database);
-	}
 	
 	const FPoseSearchIndex& SearchIndex = Database.SearchIndex;
 
@@ -582,9 +554,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	{
 		const int32 PoseIdx = Row->PoseIdx;
 		
-		Row->Score = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &StateWeights);
-		Row->PoseScore = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &PoseWeights);
-		Row->TrajectoryScore = ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &TrajectoryWeights);
+		ComparePoses(SearchIndex, PoseIdx, State.QueryVectorNormalized, &StateWeights, Row->PoseCostInfo);
 
 		// If we are on the active pose for the frame
 		if (PoseIdx == State.DbPoseIdx)
@@ -619,12 +589,12 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	// @TODO: Support runtime reordering of these indices
 	// Construct all column types
 	AddColumn(MakeShared<FAnimSequenceName>(0));
-	AddColumn(MakeShared<FPoseIdx>(1));
-	AddColumn(MakeShared<FTime>(2));
-	AddColumn(MakeShared<FLength>(3));
-	AddColumn(MakeShared<FScore>(4));
-	AddColumn(MakeShared<FPoseScore>(5));
-	AddColumn(MakeShared<FTrajectoryScore>(6));
+	AddColumn(MakeShared<FCost>(1));
+	AddColumn(MakeShared<FPoseCost>(2));
+	AddColumn(MakeShared<FTrajectoryCost>(3));
+	AddColumn(MakeShared<FCostModifier>(4));
+	AddColumn(MakeShared<FFrame>(5));
+	AddColumn(MakeShared<FPoseIdx>(6));
 
 	// Active Row
 	ActiveView.HeaderRow = SNew(SHeaderRow);
@@ -753,7 +723,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Fill)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString("Selected Poses"))	
+						.Text(FText::FromString("Pose Database"))	
 					]
 				]
 				.AutoWidth()
@@ -810,7 +780,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 		]
 	];
 	
-	SortColumn = FPoseIdx::Name;
+	SortColumn = FCost::Name;
 	SortMode = EColumnSortMode::Ascending;
 
 	// Active view scroll bar only for indenting the columns to align w/ database
@@ -1194,6 +1164,7 @@ void SDebuggerView::DrawFeatures(
 	// Draw query vector
 	DrawParams.Color = &FLinearColor::Blue;
 	SetDrawFlags(DrawParams, Reflection->QueryDrawOptions);
+	DrawParams.LabelPrefix = TEXT("Q");
 	Draw(DrawParams);
 	DrawParams.PoseVector = {};
 
@@ -1202,6 +1173,7 @@ void SDebuggerView::DrawFeatures(
 
 	// Red for non-active database view
 	DrawParams.Color = &FLinearColor::Red;
+	DrawParams.LabelPrefix = TEXT("S");
 	SetDrawFlags(DrawParams, Reflection->SelectedPoseDrawOptions);
 
 	// Draw any selected database vectors
@@ -1223,6 +1195,7 @@ void SDebuggerView::DrawFeatures(
 		
 		// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
 		DrawParams.PoseIdx = State.DbPoseIdx;
+		DrawParams.LabelPrefix = TEXT("A");
 		Draw(DrawParams);
 	}
 }

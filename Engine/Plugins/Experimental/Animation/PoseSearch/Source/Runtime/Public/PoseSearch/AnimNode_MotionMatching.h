@@ -37,13 +37,13 @@ public:
 	FMotionMatchingSettings Settings;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category=Debug)
+	UPROPERTY(EditAnywhere, Category=Debug, meta = (PinShownByDefault))
 	bool bDebugDraw = false;
 
-	UPROPERTY(EditAnywhere, Category=Debug)
+	UPROPERTY(EditAnywhere, Category=Debug, meta = (PinShownByDefault))
 	bool bDebugDrawQuery = true;
 
-	UPROPERTY(EditAnywhere, Category=Debug)
+	UPROPERTY(EditAnywhere, Category=Debug, meta = (PinShownByDefault))
 	bool bDebugDrawMatch = true;
 #endif
 

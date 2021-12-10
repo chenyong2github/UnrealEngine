@@ -157,7 +157,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	bool bUseTrajectoryPositions = true;
 
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Schema", DisplayName="Use Facing Directions")
 	bool bUseTrajectoryForwardVectors = false;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
@@ -256,7 +256,7 @@ enum class EPoseSearchPoseFlags : uint32
 {
 	None = 0,
 
-	/** Can be returned in a pose search */
+	// Don't return this pose as a search result
 	BlockTransition = 1 << 0,
 };
 ENUM_CLASS_FLAGS(EPoseSearchPoseFlags);
@@ -402,7 +402,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
-	UPROPERTY();
+	UPROPERTY()
 	FPoseSearchIndex SearchIndex;
 
 	bool IsValidForIndexing() const;
@@ -589,7 +589,6 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence
 	UPROPERTY(EditAnywhere, Category="Sequence")
 	bool bLoopFollowUpAnimation = false;
 
-public:
 	FFloatInterval GetEffectiveSamplingRange() const;
 };
 
@@ -625,7 +624,6 @@ public:
 	int32 FindSequenceForPose(int32 PoseIdx) const;
 	float GetSequenceLength(int32 DbSequenceIdx) const;
 	bool DoesSequenceLoop(int32 DbSequenceIdx) const;
-	FFloatInterval GetEffectiveSamplingRange(int32 DbSequenceIdx) const;
 
 	bool IsValidForIndexing() const;
 	bool IsValidForSearch() const;
@@ -710,7 +708,6 @@ private:
 namespace UE { namespace PoseSearch {
 
 /** Records poses over time in a ring buffer. FFeatureVectorBuilder uses this to sample from the present or past poses according to the search schema. */
-// @@@Rename to FPoseQueryContext?
 class POSESEARCH_API FPoseHistory
 {
 public:
@@ -788,22 +785,28 @@ enum class EDebugDrawFlags : uint32
 {
 	None			    = 0,
 
-	/** Draw the entire search index */
+	// Draw the entire search index as a point cloud
 	DrawSearchIndex     = 1 << 0,
 
-	/** Draw pose features for each pose vector */
+	// Draw pose features for each pose vector
 	IncludePose         = 1 << 1,
 
-	/** Draw trajectory features for each pose vector */
+	// Draw trajectory features for each pose vector
 	IncludeTrajectory   = 1 << 2,
 
-	/** Draw all pose vector features */
+	// Draw all pose vector features
 	IncludeAllFeatures  = IncludePose | IncludeTrajectory,
 
+	/**
+	 * Keep rendered data until the next call to FlushPersistentDebugLines().
+	 * Combine with DrawSearchIndex to draw the search index only once.
+	 */
 	Persistent = 1 << 3,
 	
+	// Label samples with their indices
 	DrawSampleLabels = 1 << 4,
 
+	// Fade colors
 	DrawSamplesWithColorGradient = 1 << 5,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
@@ -820,14 +823,17 @@ struct POSESEARCH_API FDebugDrawParams
 
 	FTransform RootTransform = FTransform::Identity;
 
-	/** If set, draw the corresponding pose from the search index */
+	// If set, draw the corresponding pose from the search index
 	int32 PoseIdx = INDEX_NONE;
 
-	/** If set, draw using this uniform color instead of feature-based coloring */
+	// If set, draw using this uniform color instead of feature-based coloring
 	const FLinearColor* Color = nullptr;
 
-	/** If set, interpret the buffer as a pose vector and draw it */
+	// If set, interpret the buffer as a pose vector and draw it
 	TArrayView<const float> PoseVector;
+
+	// Optional prefix for sample labels
+	FStringView LabelPrefix;
 
 	bool CanDraw() const;
 	const FPoseSearchIndex* GetSearchIndex() const;
@@ -911,6 +917,40 @@ POSESEARCH_API FSearchResult Search(const UPoseSearchDatabase* Database, TArrayV
 * 
 * @return Dissimilarity between the two poses
 */
-POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext = nullptr);
+POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext);
+
+
+/**
+ * Cost details for pose analysis in the rewind debugger
+ */
+struct FPoseCostInfo
+{
+	// The dissimilarity of this pose compared to the query
+	float TotalCost = 0.0f;
+
+	// Contribution from ModifyCost anim notify
+	float CostAddend = 0.0f;
+
+	// Cost breakdown per channel (e.g. pose cost, time-based trajectory cost, distance-based trajectory cost, etc.)
+	TArray<float> ChannelCosts;
+
+	// Difference vector computed as W*((P-Q)^2) without the cost modifier applied
+	// Where P is the pose vector, Q is the query vector, W is the weights vector, and multiplication/exponentiation are element-wise operations
+	TArray<float> CostVector;
+};
+
+/**
+* Evaluate pose comparison metric between a pose in the search index and an input query with cost details
+*
+* @param SearchIndex		The search index containing the pose to compare to the query
+* @param PoseIdx			The index of the pose in the search index to compare to the query
+* @param Query				The query to compare against. Must have been built using the same schema as the SearchIndex.
+* @param WeightsContext		Optional weights context used to influence pose comparison
+* &param OutPoseCostInfo	Cost details for analysis in the debugger
+*
+* @return Dissimilarity between the two poses
+*/
+
+POSESEARCH_API float ComparePoses(const FPoseSearchIndex& SearchIndex, int32 PoseIdx, TArrayView<const float> Query, const FPoseSearchWeightsContext* WeightsContext, FPoseCostInfo& OutPoseCostInfo);
 
 }} // namespace UE::PoseSearch
