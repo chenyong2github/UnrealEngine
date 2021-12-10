@@ -10,13 +10,13 @@
 
 #define LOCTEXT_NAMESPACE "PoseWatchManagerStandaloneTypes"
 
-const FLinearColor FPoseWatchManagerCommonLabelData::DarkColor(0.15f, 0.15f, 0.15f);
+const FLinearColor FPoseWatchManagerCommonLabelData::DisabledColor(0.15f, 0.15f, 0.15f);
 
 TOptional<FLinearColor> FPoseWatchManagerCommonLabelData::GetForegroundColor(const IPoseWatchManagerTreeItem& TreeItem) const
 {
 	if (!TreeItem.IsValid() || !TreeItem.IsEnabled())
 	{
-		return DarkColor;
+		return DisabledColor;
 	}
 
 	// Darken items that aren't suitable targets for an active drag and drop action
@@ -28,7 +28,7 @@ TOptional<FLinearColor> FPoseWatchManagerCommonLabelData::GetForegroundColor(con
 		const auto Outliner = WeakPoseWatchManager.Pin();
 		if (Outliner->GetMode()->ParseDragDrop(DraggedObjects, *DragDropOp) && !Outliner->GetMode()->ValidateDrop(TreeItem, DraggedObjects).IsValid())
 		{
-			return DarkColor;
+			return DisabledColor;
 		}
 	}
 

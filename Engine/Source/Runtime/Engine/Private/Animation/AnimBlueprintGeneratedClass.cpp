@@ -20,6 +20,7 @@
 #include "Animation/AnimSubsystem.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Animation/AnimSubsystemInstance.h"
+#include "Engine/PoseWatch.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -228,14 +229,12 @@ void FAnimBlueprintDebugData::RecordBlendSpacePlayer(int32 InNodeID, const UBlen
 	BlendSpacePlayerRecordsThisFrame.Emplace(InNodeID, InBlendSpace, InPosition, InFilteredPosition);
 }
 
-void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, FColor Color, bool bIsVisible)
+void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, UPoseWatch* InPoseWatch)
 {
 	for (FAnimNodePoseWatch& PoseWatch : AnimNodePoseWatch)
 	{
 		if (PoseWatch.NodeID == NodeID)
 		{
-			PoseWatch.PoseDrawColour = Color;
-			PoseWatch.bIsHidden = !bIsVisible;
 			return;
 		}
 	}
@@ -244,8 +243,7 @@ void FAnimBlueprintDebugData::AddPoseWatch(int32 NodeID, FColor Color, bool bIsV
 	AnimNodePoseWatch.Add(FAnimNodePoseWatch());
 	FAnimNodePoseWatch& NewAnimNodePoseWatch = AnimNodePoseWatch.Last();
 	NewAnimNodePoseWatch.NodeID = NodeID;
-	NewAnimNodePoseWatch.PoseDrawColour = Color;
-	NewAnimNodePoseWatch.bIsHidden = !bIsVisible;
+	NewAnimNodePoseWatch.PoseWatch = InPoseWatch;
 	NewAnimNodePoseWatch.PoseInfo = MakeShareable(new FCompactHeapPose());
 	NewAnimNodePoseWatch.Object = nullptr;
 }
@@ -257,30 +255,6 @@ void FAnimBlueprintDebugData::RemovePoseWatch(int32 NodeID)
 		if (AnimNodePoseWatch[PoseWatchIdx].NodeID == NodeID)
 		{
 			AnimNodePoseWatch.RemoveAtSwap(PoseWatchIdx);
-			return;
-		}
-	}
-}
-
-void FAnimBlueprintDebugData::SetPoseWatchVisibility(int32 NodeID, bool bIsVisible)
-{
-	for (FAnimNodePoseWatch& PoseWatch : AnimNodePoseWatch)
-	{
-		if (PoseWatch.NodeID == NodeID)
-		{
-			PoseWatch.bIsHidden = !bIsVisible;
-			return;
-		}
-	}
-}
-
-void FAnimBlueprintDebugData::UpdatePoseWatchColour(int32 NodeID, FColor Color)
-{
-	for (FAnimNodePoseWatch& PoseWatch : AnimNodePoseWatch)
-	{
-		if (PoseWatch.NodeID == NodeID)
-		{
-			PoseWatch.PoseDrawColour = Color;
 			return;
 		}
 	}

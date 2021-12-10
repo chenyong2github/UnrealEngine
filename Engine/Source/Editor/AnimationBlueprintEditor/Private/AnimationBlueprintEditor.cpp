@@ -108,7 +108,7 @@ namespace AnimationBlueprintEditorTabs
 	const FName AssetOverridesTab(TEXT("AnimBlueprintParentPlayerEditor"));
 	const FName SlotNamesTab(TEXT("SkeletonSlotNames"));
 	const FName CurveNamesTab(TEXT("AnimCurveViewerTab"));
-	const FName PoseWatchTab(TEXT("PoseWatchTab"));
+	const FName PoseWatchTab(TEXT("PoseWatchManager"));
 };
 
 /////////////////////////////////////////////////////
@@ -695,64 +695,6 @@ void FAnimationBlueprintEditor::OnRemovePosePin()
 	}
 }
 
-FColor FAnimationBlueprintEditor::ChoosePoseWatchColor() const
-{
-	TArrayView<const FColor> PoseWatchColors = AnimationEditorUtils::GetPoseWatchColorPalette();
-	const int32 NumColors = PoseWatchColors.Num();
-
-	if (NumColors <= 0)
-	{
-		return FColor::Red;
-	}
-
-	struct FColorCount 
-	{ 
-		FColor Color; 
-		int    Count;
-		bool operator<(const FColorCount& Other) const { return Count < Other.Count; }
-	};
-	TArray<FColorCount> ColorCounts;
-	ColorCounts.SetNum(NumColors);
-	for (int ColorIndex = 0 ; ColorIndex != NumColors ; ++ColorIndex)
-	{
-		ColorCounts[ColorIndex].Color = PoseWatchColors[ColorIndex];
-		ColorCounts[ColorIndex].Count = 0;
-	}
-
-	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-	if (FocusedGraphEd.IsValid())
-	{
-		UAnimBlueprint* AnimBP = GetAnimBlueprint();
-		for (UEdGraphNode* Node : FocusedGraphEd->GetCurrentGraph()->Nodes)
-		{
-			UAnimGraphNode_Base* GraphNode = Cast<UAnimGraphNode_Base>(Node);
-			UPoseWatch* PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode, AnimBP);
-			if (PoseWatch)
-			{
-				FColor PoseWatchColor = PoseWatch->GetColor();
-				int32 Index = ColorCounts.IndexOfByPredicate([PoseWatchColor](const FColorCount& CC){return PoseWatchColor == CC.Color;});
-				if (Index != INDEX_NONE)
-				{
-					++ColorCounts[Index].Count;
-				}
-			}
-		}
-	}
-
-	// Pick the colour with the lowest count, preferring the original order if there's a tie (which there normally will be)
-	int BestIndex = 0;
-	for (int ColorIndex = 1 ; ColorIndex < NumColors ; ++ColorIndex)
-	{
-		if (ColorCounts[ColorIndex].Count < ColorCounts[BestIndex].Count)
-		{
-			BestIndex = ColorIndex;
-		}
-	}
-
-	return ColorCounts[BestIndex].Color;
-}
-
-
 void FAnimationBlueprintEditor::OnTogglePoseWatch()
 {
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
@@ -765,12 +707,24 @@ void FAnimationBlueprintEditor::OnTogglePoseWatch()
 			UPoseWatch* ExistingPoseWatch = AnimationEditorUtils::FindPoseWatchForNode(SelectedNode, AnimBP);
 			if (ExistingPoseWatch)
 			{
-				AnimationEditorUtils::RemovePoseWatch(ExistingPoseWatch, AnimBP);
+				// Promote the temporary pose watch to permanent 
+				if (ExistingPoseWatch->GetShouldDeleteOnDeselect())
+				{
+					ExistingPoseWatch->SetShouldDeleteOnDeselect(false);
+				}
+				else if (GetDefault<UAnimationBlueprintEditorSettings>()->bPoseWatchSelectedNodes)
+				{
+					ExistingPoseWatch->SetShouldDeleteOnDeselect(true);
+				}
+				else
+				{
+					AnimationEditorUtils::RemovePoseWatch(ExistingPoseWatch, AnimBP);
+				}
 				AnimationEditorUtils::OnPoseWatchesChanged().Broadcast(AnimBP, ExistingPoseWatch->Node.Get());
 			}
 			else
 			{
-				UPoseWatch* NewPoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, SelectedNode, ChoosePoseWatchColor());
+				UPoseWatch* NewPoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, SelectedNode);
 				AnimationEditorUtils::OnPoseWatchesChanged().Broadcast(AnimBP, NewPoseWatch->Node.Get());
 			}
 		}
@@ -1898,7 +1852,7 @@ void FAnimationBlueprintEditor::HandlePoseWatchSelectedNodes()
 				{
 					if (!PoseWatch)
 					{
-						PoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, GraphNode, ChoosePoseWatchColor());
+						PoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, GraphNode);
 						PoseWatch->SetShouldDeleteOnDeselect(true);
 					}
 				}

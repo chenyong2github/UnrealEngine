@@ -83,7 +83,7 @@ private:
 
 		if (!TreeItem->IsEnabled())
 		{
-			return FPoseWatchManagerCommonLabelData::DarkColor;
+			return FPoseWatchManagerCommonLabelData::DisabledColor;
 		}
 
 		if (IsHovered() && !bIsSelected)

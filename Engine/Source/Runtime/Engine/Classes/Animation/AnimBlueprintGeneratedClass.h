@@ -25,6 +25,7 @@ class UAnimStateAliasNode;
 class UAnimStateTransitionNode;
 class UEdGraph;
 class USkeleton;
+class UPoseWatch;
 struct FAnimSubsystem;
 struct FAnimSubsystemInstance;
 struct FPropertyAccessLibrary;
@@ -303,10 +304,8 @@ public:
 	void RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount);
 	void RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpace* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition);
 
-	void AddPoseWatch(int32 NodeID, FColor Color, bool bIsVisible);
+	void AddPoseWatch(int32 NodeID, UPoseWatch*);
 	void RemovePoseWatch(int32 NodeID);
-	void UpdatePoseWatchColour(int32 NodeID, FColor Color);
-	void SetPoseWatchVisibility(int32 NodeID, bool bIsVisible);
 
 	TArrayView<const FName> GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const;
 #endif

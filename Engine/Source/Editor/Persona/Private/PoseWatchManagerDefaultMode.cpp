@@ -53,85 +53,78 @@ FPoseWatchManagerDragValidationInfo FPoseWatchManagerDefaultMode::ValidateDrop(c
 	check(Payload.DraggedItem.IsValid())
 	TSharedPtr<IPoseWatchManagerTreeItem> PayloadItem = Payload.DraggedItem.Pin();
 	
-	// Support for removing the parent by dragging an item to the bottom of the tree
-	if (!DropTarget.IsValid())
-	{
-		return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Compatible, LOCTEXT("MoveToRoot", "Move to root"));
-	}
-
 	// Pose watches cannot be a parent
 	if (const FPoseWatchManagerPoseWatchTreeItem* PoseWatchDropTarget = DropTarget.CastTo<FPoseWatchManagerPoseWatchTreeItem>())
 	{
-		return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, LOCTEXT("PoseWatchBadParent", "Pose Watches cannot be parents"));
+		return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, LOCTEXT("PoseWatchBadParent", "A pose watch cannot be a parent"));
 	}
 
-	// Folders can be parents as long as the payload is not already a parent of the drop target, otherwise there'll be cycles
-	if (const FPoseWatchManagerFolderTreeItem* FolderItem = DropTarget.CastTo<FPoseWatchManagerFolderTreeItem>())
+	// Drop target must either be a valid UPoseWatchFolder or nullptr denoting the root of the tree
+	UPoseWatchFolder* TargetFolder = nullptr;
+	FText TargetFolderLabel = LOCTEXT("Root", "root");
+	if (DropTarget.IsValid())
 	{
-		if (FolderItem->PoseWatchFolder.IsValid())
+		if (const FPoseWatchManagerFolderTreeItem* DropTargetFolder = DropTarget.CastTo<FPoseWatchManagerFolderTreeItem>())
 		{
-			// Dropping a folder into a folder
-			if (const FPoseWatchManagerFolderTreeItem* FolderPayloadItem = PayloadItem.Get()->CastTo<FPoseWatchManagerFolderTreeItem>())
+			TargetFolder = DropTargetFolder->PoseWatchFolder.Get();
+			if (TargetFolder)
 			{
-				if (FolderPayloadItem->PoseWatchFolder == FolderItem->PoseWatchFolder)
-				{
-					return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, LOCTEXT("FolderInItself", "A folder cannot contain itself"));
-				}
-
-				if (FolderPayloadItem->PoseWatchFolder->IsIn(FolderItem->PoseWatchFolder.Get()))
-				{
-					FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "This folder is already inside {0}"), FolderItem->PoseWatchFolder->GetLabel());
-					return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
-				}
-
-				//if (FolderPayloadItem->PoseWatchFolder->IsDescendantOf(FolderItem->PoseWatchFolder.Get()))
-				if (FolderItem->PoseWatchFolder->IsDescendantOf(FolderPayloadItem->PoseWatchFolder.Get()))
-				{
-					return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, LOCTEXT("ParentFolderNotChildren", "Parent folders cannot be children"));
-				}
-
-				FText OutErrorMessage;
-				FText Label = FolderPayloadItem->PoseWatchFolder->GetLabel();
-				UPoseWatchFolder* ConflictingFolder = nullptr;
-
-				if (FolderPayloadItem->PoseWatchFolder->IsFolderLabelUniqueInFolder(FolderPayloadItem->PoseWatchFolder->GetLabel(), FolderItem->PoseWatchFolder.Get()))
-				{
-					FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "Move into {0}"), FolderItem->PoseWatchFolder->GetLabel());
-					return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Compatible, ValidationText);
-				}
-				else
-				{
-					FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "A folder with that name already exists within {0}"), FolderItem->PoseWatchFolder->GetLabel());
-					return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
-				}
-			}
-
-			// Dropping a pose watch into a folder
-			if (const FPoseWatchManagerPoseWatchTreeItem* PoseWatchPayloadItem = PayloadItem.Get()->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
-			{
-				if (PoseWatchPayloadItem->PoseWatch->IsIn(FolderItem->PoseWatchFolder.Get()))
-				{
-					FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "This pose watch is already inside {0}"), FolderItem->PoseWatchFolder->GetLabel());
-					return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
-				}
-				else
-				{
-					FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "Move into {0}"), FolderItem->PoseWatchFolder->GetLabel());
-					return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Compatible, ValidationText);
-				}
+				TargetFolderLabel = TargetFolder->GetLabel();
 			}
 		}
-		else
+	}
+
+	if (FPoseWatchManagerPoseWatchTreeItem* PayloadPoseWatchItem = PayloadItem->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
+	{
+		// Dropping a pose watch into a folder
+		UPoseWatch* PayloadPoseWatch = PayloadPoseWatchItem->PoseWatch.Get();
+		check(PayloadPoseWatch);
+
+		if (PayloadPoseWatch->IsIn(TargetFolder))
 		{
-			if (PayloadItem.Get()->IsAssignedFolder())
-			{
-				return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Compatible, LOCTEXT("MoveToRoot", "Move to root"));
-			}
-			else
-			{
-				return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, LOCTEXT("FolderAlreadyInRoot", "This item is already in root"));
-			}
+			FText ValidationText = FText::Format(LOCTEXT("PoseWatchAlreadyInDirectory", "This pose watch is already inside {0}"), TargetFolderLabel);
+			return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
 		}
+
+		if (!PayloadPoseWatch->IsPoseWatchLabelUniqueInFolder(PayloadPoseWatch->GetLabel(), TargetFolder))
+		{
+			FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "A pose watch with that name already exists inside {0}"), TargetFolderLabel);
+			return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
+		}
+
+		FText ValidationText = FText::Format(LOCTEXT("MovePoseWatchIntoFolder", "Move {0} into {1}"), PayloadPoseWatch->GetLabel(), TargetFolderLabel);
+		return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Compatible, ValidationText);
+	}
+	else if (FPoseWatchManagerFolderTreeItem* PayloadFolderItem = PayloadItem->CastTo<FPoseWatchManagerFolderTreeItem>())
+	{
+		// Dropping a folder into a folder
+		UPoseWatchFolder* PayloadFolder = PayloadFolderItem->PoseWatchFolder.Get();
+		check(PayloadFolder);
+
+		if (PayloadFolder == TargetFolder)
+		{
+			return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, LOCTEXT("FolderInItself", "A folder cannot contain itself"));
+		}
+
+		if (PayloadFolder->IsIn(TargetFolder))
+		{
+			FText ValidationText = FText::Format(LOCTEXT("FolderAlreadyInDirectory", "This folder is already inside {0}"), TargetFolderLabel);
+			return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
+		}
+
+		if (TargetFolder && TargetFolder->IsDescendantOf(PayloadFolder))
+		{
+			return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, LOCTEXT("ParentFolderNotChildren", "Parent folders cannot be children"));
+		}
+
+		if (!PayloadFolder->IsFolderLabelUniqueInFolder(PayloadFolder->GetLabel(), TargetFolder))
+		{
+			FText ValidationText = FText::Format(LOCTEXT("FolderNameConflictInFolder", "A folder with that name already exists inside {0}"), TargetFolderLabel);
+			return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, ValidationText);
+		}
+
+		FText ValidationText = FText::Format(LOCTEXT("MoveFolderIntoFolder", "Move {0} into {1}"), PayloadFolder->GetLabel(), TargetFolderLabel);
+		return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Compatible, ValidationText);
 	}
 	
 	return FPoseWatchManagerDragValidationInfo(EPoseWatchManagerDropCompatibility::Incompatible, FText());
@@ -187,50 +180,6 @@ TSharedPtr<FDragDropOperation> FPoseWatchManagerDefaultMode::CreateDragDropOpera
 FReply FPoseWatchManagerDefaultMode::OnDragOverItem(const FDragDropEvent& Event, const IPoseWatchManagerTreeItem& Item) const
 {
 	return FReply::Handled();
-}
-
-TSharedPtr<SWidget> FPoseWatchManagerDefaultMode::CreateContextMenu()
-{
-	FPoseWatchManagerTreeItemPtr SelectedItem = PoseWatchManager->GetSelection();
-	return SelectedItem ? SelectedItem->CreateContextMenu() : SNullWidget::NullWidget;
-}
-
-FReply FPoseWatchManagerDefaultMode::OnKeyDown(const FKeyEvent& InKeyEvent)
-{
-	const FPoseWatchManagerTreeItemPtr& Selection = PoseWatchManager->GetSelection();
-
-	if (InKeyEvent.GetKey() == EKeys::F2)
-	{
-		if (Selection)
-		{
-			//FPoseWatchManagerTreeItemPtr ItemToRename = Selection.Get();
-
-			if (Selection.IsValid())
-			{
-				PoseWatchManager->SetPendingRenameItem(Selection);
-				PoseWatchManager->ScrollItemIntoView(Selection);
-			}
-
-			return FReply::Handled();
-		}
-	}
-
-	else if (InKeyEvent.GetKey() == EKeys::F5)
-	{
-		PoseWatchManager->FullRefresh();
-		return FReply::Handled();
-	}
-
-	else if (InKeyEvent.GetKey() == EKeys::Delete || InKeyEvent.GetKey() == EKeys::BackSpace)
-	{
-		if (Selection)
-		{
-			Selection->OnRemoved();
-			return FReply::Handled();
-		}
-	}
-
-	return FReply::Unhandled();
 }
 
 #undef LOCTEXT_NAMESPACE

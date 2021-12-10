@@ -46,6 +46,7 @@
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "SPoseWatchManager"
 
@@ -81,6 +82,8 @@ void SPoseWatchManager::Construct(const FArguments& InArgs, const FPoseWatchMana
 	SortByColumn = FPoseWatchManagerBuiltInColumnTypes::Label();
 	SortMode = EColumnSortMode::Ascending;
 
+	FGenericCommands::Register();
+	BindCommands();
 
 	//Setup the search box
 	{
@@ -494,7 +497,30 @@ void SPoseWatchManager::PopulateSearchStrings(const IPoseWatchManagerTreeItem& I
 
 TSharedPtr<SWidget> SPoseWatchManager::OnOpenContextMenu()
 {
-	return Mode->CreateContextMenu();
+	FMenuBuilder MenuBuilder(true, CommandList);
+
+	MenuBuilder.BeginSection("Hierarchy", LOCTEXT("HierarchyMenuHeader", "Hierarchy"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("CreateFolder", "Create Folder"),
+			LOCTEXT("CreateFolderDescription", "Create a new folder"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"),
+			FUIAction(FExecuteAction::CreateSP(this, &SPoseWatchManager::CreateFolder))
+		);
+	}
+	MenuBuilder.EndSection();
+
+	if (PoseWatchManagerTreeView.Get()->GetNumItemsSelected() > 0)
+	{
+		MenuBuilder.BeginSection("Edit", LOCTEXT("EditMenuHeader", "Edit"));
+		{
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
+		}
+		MenuBuilder.EndSection();
+	}
+
+	return MenuBuilder.MakeWidget();
 }
 
 void SPoseWatchManager::Rename_Execute()
@@ -505,6 +531,16 @@ void SPoseWatchManager::Rename_Execute()
 		PendingRenameItem = ItemToRename->AsShared();
 		ScrollItemIntoView(ItemToRename);
 	}
+}
+
+void SPoseWatchManager::Delete_Execute()
+{
+	if (PoseWatchManagerTreeView.Get()->GetNumItemsSelected() != 1)
+	{
+		return;
+	}
+	FPoseWatchManagerTreeItemPtr SelectedItem = PoseWatchManagerTreeView.Get()->GetSelectedItems()[0];
+	SelectedItem->OnRemoved();
 }
 
 void SPoseWatchManager::SetColumnVisibility(FName ColumnId, bool bIsVisible)
@@ -582,6 +618,21 @@ void SPoseWatchManager::CreateFolder()
 {
 	check(AnimBlueprint);
 	UPoseWatchFolder* NewPoseWatchFolder = NewObject<UPoseWatchFolder>(AnimBlueprint);
+
+	if (PoseWatchManagerTreeView.Get()->GetNumItemsSelected() == 1)
+	{
+		// Create the folder at the same level as the selected item
+		FPoseWatchManagerTreeItemPtr SelectedItem = PoseWatchManagerTreeView.Get()->GetSelectedItems()[0];
+		if (FPoseWatchManagerFolderTreeItem* SelectedFolderItem = SelectedItem->CastTo<FPoseWatchManagerFolderTreeItem>())
+		{
+			NewPoseWatchFolder->SetParent(SelectedFolderItem->PoseWatchFolder.Get(), true /* bForce */);
+		}
+		else if (FPoseWatchManagerPoseWatchTreeItem* SelectedPoseWatchItem = SelectedItem->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
+		{
+			NewPoseWatchFolder->SetParent(SelectedPoseWatchItem->PoseWatch.Get()->GetParent(), true /* bForce */);
+		}
+	}
+
 	NewPoseWatchFolder->SetUniqueDefaultLabel();
 	AnimBlueprint->PoseWatchFolders.Add(NewPoseWatchFolder);
 
@@ -753,7 +804,7 @@ bool SPoseWatchManager::SupportsKeyboardFocus() const
 
 FReply SPoseWatchManager::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	return Mode->OnKeyDown(InKeyEvent);
+	return CommandList->ProcessCommandBindings(InKeyEvent) ? FReply::Handled() : FReply::Unhandled();
 }
 
 void SPoseWatchManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -901,6 +952,16 @@ void SPoseWatchManager::OnManagerTreeDoubleClick(FPoseWatchManagerTreeItemPtr Tr
 		UPoseWatch* PoseWatch = PoseWatchTreeItem->PoseWatch.Get();
 		BlueprintEditor->JumpToHyperlink(PoseWatch->Node.Get(), false);
 	}
+}
+
+void SPoseWatchManager::BindCommands()
+{
+	// This should not be called twice on the same instance
+	check(!CommandList.IsValid());
+	CommandList = MakeShareable(new FUICommandList);
+		
+	CommandList->MapAction(FGenericCommands::Get().Delete, FExecuteAction::CreateSP(this, &SPoseWatchManager::Delete_Execute));
+	CommandList->MapAction(FGenericCommands::Get().Rename, FExecuteAction::CreateSP(this, &SPoseWatchManager::Rename_Execute));
 }
 
 #undef LOCTEXT_NAMESPACE

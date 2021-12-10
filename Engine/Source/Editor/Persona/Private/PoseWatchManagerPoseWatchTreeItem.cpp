@@ -107,7 +107,7 @@ private:
 	{
 		if (!TreeItemPtr.Pin()->IsEnabled())
 		{
-			return LOCTEXT("PoseWatchDisabled", "This pose watch is disabled because it is not connected to the 'Output Pose' node");
+			return LOCTEXT("PoseWatchDisabled", "This pose watch is disabled because it is not being evaluated");
 		}
 		return GetDisplayText();
 	}
