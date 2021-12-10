@@ -8,6 +8,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
+#include "Spatial/PriorityOrderPoints.h"
 
 #define LOCTEXT_NAMESPACE "FractureCustomVoronoi"
 
@@ -127,6 +128,9 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 
 	FBox& Bounds = CombinedWorldBounds; // shorter name for convenience
 	TArray<FVector>& Sites = LiveSites;
+	TArray<float> ImportanceWeights;
+	bool bUseOrderedSkip = CustomVoronoiSettings->SkipFraction > 0 
+		&& (CustomVoronoiSettings->SkipMode == EDownsamplingMode::UniformSpacing || CustomVoronoiSettings->SkipMode == EDownsamplingMode::KeepSharp);
 
 	const FVector Extent(Bounds.Max - Bounds.Min);
 	int32 NumSites = CustomVoronoiSettings->SitesToAdd;
@@ -193,7 +197,7 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 			TVertexAttributesConstRef<FVector3f> VertexPositions = MeshDescription->GetVertexPositions();
 			TArray<FVector3f> Normals; // Per-vertex normals for offsets
 			float NormalOffset = CustomVoronoiSettings->NormalOffset;
-			if (NormalOffset > 0)
+			if (NormalOffset > 0 || bUseOrderedSkip)
 			{
 				Normals.SetNumZeroed(VertexPositions.GetNumElements());
 
@@ -209,11 +213,21 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 				{
 					Normal.Normalize();
 				}
+				if (bUseOrderedSkip)
+				{
+					ImportanceWeights.SetNumZeroed(Normals.Num());
+					for (const FVertexInstanceID InstanceID : MeshDescription->VertexInstances().GetElementIDs())
+					{
+						FVector3f Normal = InstanceNormals.Get(InstanceID);
+						FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(InstanceID);
+						ImportanceWeights[VertexID] = FMath::Max(ImportanceWeights[VertexID], 1 - Normal.Dot(Normals[VertexID]));
+					}
+				}
 			}
 			for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
 				FVector Position = VertexPositions.Get(VertexID);
-				if (Normals.Num() > 0)
+				if (NormalOffset > 0)
 				{
 					Position += Normals[VertexID] * NormalOffset;
 				}
@@ -250,7 +264,7 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 					Count = MaxUsedIdx - Start + 1;
 				}
 				float NormalOffset = CustomVoronoiSettings->NormalOffset;
-				if (NormalOffset > 0)
+				if (NormalOffset > 0 || bUseOrderedSkip)
 				{
 					TArray<FVector3f> Normals;
 					Normals.SetNumZeroed(Count);
@@ -276,6 +290,24 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 						const FVector OffsetPosition = Point.Key + Normals[Point.Value - 1] * NormalOffset;
 						const FVector LocalPos = Collection.Transform[Bone].TransformPosition(OffsetPosition);
 						Sites.Add(Context.GetTransform().TransformPosition(LocalPos));
+					}
+					if (bUseOrderedSkip)
+					{
+						TArray<float> WeightsOnSourceVertices;
+						WeightsOnSourceVertices.SetNumZeroed(Count);
+						for (int32 VIdx = Start; VIdx < Start + Count; VIdx++)
+						{
+							const FVector& Position = Collection.Vertex[VIdx];
+							int32 NIdx = VertexHash[Position] - 1;
+							float& Wt = WeightsOnSourceVertices[NIdx];
+							Wt = FMath::Max(Wt, 1 - Normals[NIdx].Dot(Collection.Normal[VIdx]));
+						}
+						// Now re-order the weights to be 1:1 with the Sites (i.e., order by VertexHash iterator)
+						ImportanceWeights.Reserve(ImportanceWeights.Num() + VertexHash.Num());
+						for (TPair<FVector, int32>& Point : VertexHash)
+						{
+							ImportanceWeights.Add(WeightsOnSourceVertices[Point.Value - 1]);
+						}
 					}
 				}
 				else
@@ -322,10 +354,44 @@ void UFractureToolCustomVoronoi::GenerateLivePattern(const TArray<FFractureToolC
 
 	// randomly remove points based on the skip fraction
 	int32 TargetNumSites = Sites.Num() - int32(Sites.Num() * CustomVoronoiSettings->SkipFraction);
-	while (TargetNumSites < Sites.Num())
+	if (CustomVoronoiSettings->SkipFraction > 0)
 	{
-		int32 ToRemoveIdx = RandStream.RandHelper(Sites.Num());
-		Sites.RemoveAtSwap(ToRemoveIdx, 1, false);
+		if (bUseOrderedSkip)
+		{
+			UE::Geometry::FPriorityOrderPoints Ordering;
+			if (CustomVoronoiSettings->SkipMode == EDownsamplingMode::UniformSpacing)
+			{
+				Ordering.ComputeUniformSpaced(Sites, ImportanceWeights, TargetNumSites);
+			}
+			else // CustomVoronoiSettings->SkipMode == EDownsamplingMode::KeepSharpEDownsamplingMode::KeepSharp
+			{
+				Ordering.ComputeDescendingImportance(ImportanceWeights);
+			}
+
+			// empty ordering can happen if we're in a mode w/ no ImportanceWeights but mode is KeepSharp; just leave default order in that case
+			if (!Ordering.Order.IsEmpty())
+			{
+				TArray<FVector3d> OrderedSites;
+				OrderedSites.SetNumUninitialized(TargetNumSites);
+				for (int32 Idx = 0; Idx < TargetNumSites; Idx++)
+				{
+					OrderedSites[Idx] = Sites[Ordering.Order[Idx]];
+				}
+				Sites = MoveTemp(OrderedSites);
+			}
+			else
+			{
+				Sites.SetNum(TargetNumSites);
+			}
+		}
+		else
+		{
+			while (TargetNumSites < Sites.Num())
+			{
+				int32 ToRemoveIdx = RandStream.RandHelper(Sites.Num());
+				Sites.RemoveAtSwap(ToRemoveIdx, 1, false);
+			}
+		}
 	}
 
 	// Convert newly generated points from world space to local (unscaled) gizmo space
