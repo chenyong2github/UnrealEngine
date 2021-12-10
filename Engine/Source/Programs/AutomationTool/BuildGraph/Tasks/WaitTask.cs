@@ -9,7 +9,7 @@ using System.Xml;
 using AutomationTool;
 using EpicGames.Core;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a wait task

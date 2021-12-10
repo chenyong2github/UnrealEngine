@@ -12,7 +12,7 @@ using EpicGames.Core;
 using UnrealBuildTool;
 using UnrealBuildBase;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a task that strips symbols from a set of files

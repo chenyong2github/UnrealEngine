@@ -14,7 +14,7 @@ using OpenTracing;
 using OpenTracing.Util;
 using UnrealBuildTool;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a task that runs the cooker

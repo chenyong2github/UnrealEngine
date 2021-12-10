@@ -11,7 +11,7 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a zip task

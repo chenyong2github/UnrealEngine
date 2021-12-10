@@ -12,7 +12,7 @@ using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	static class StringExtensions
 	{

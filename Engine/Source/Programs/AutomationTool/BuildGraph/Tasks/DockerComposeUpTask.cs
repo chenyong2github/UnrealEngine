@@ -11,7 +11,7 @@ using AutomationTool;
 using UnrealBuildBase;
 using System.Threading.Tasks;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a Docker-Compose task

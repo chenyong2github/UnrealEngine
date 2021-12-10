@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using UnrealBuildBase;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a AWS ECS deploy task

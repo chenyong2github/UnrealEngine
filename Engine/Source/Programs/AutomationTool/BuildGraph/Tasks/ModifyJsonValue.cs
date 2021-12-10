@@ -13,7 +13,7 @@ using UnrealBuildBase;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a ModifyJsonValue task

@@ -12,7 +12,7 @@ using EpicGames.Core;
 using UnrealBuildBase;
 using UnrealBuildTool;
 
-namespace AutomationTool
+namespace AutomationTool.Tasks
 {
     /// <summary>
     /// Parameters for a task that uploads symbols to a symbol server

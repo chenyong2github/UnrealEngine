@@ -12,7 +12,7 @@ using System.Xml;
 using EpicGames.Core;
 using OpenTracing;
 
-namespace AutomationTool
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a compile task

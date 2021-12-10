@@ -10,7 +10,7 @@ using EpicGames.Core;
 using UnrealBuildTool;
 using System.Threading.Tasks;
 
-namespace Win.Automation
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a task that purges data from a symbol store after a given age

@@ -14,7 +14,7 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
 
-namespace BuildGraph.Tasks
+namespace AutomationTool.Tasks
 {
 	/// <summary>
 	/// Parameters for a task that notarizes a dmg via the apple notarization process
