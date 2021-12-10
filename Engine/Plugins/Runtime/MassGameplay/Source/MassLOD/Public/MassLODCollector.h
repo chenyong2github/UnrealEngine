@@ -23,18 +23,37 @@ struct TMassLODCollector : public FMassLODBaseLogic
 
 	/**
 	 * Collects the information for LOD calculation, called for each entity chunks
+	 * Use next method when FLODLogic::bStoreInfoPerViewer is enabled
 	 * @Param Context of the chunk execution
-	 * @Param TranformList is the fragment transforms of the entities
+	 * @Param TransformList is the fragment transforms of the entities
 	 * @Param ViewersInfoList is the fragment where to store source information for LOD calculation
-	 * @Param InfoPerViewerList is the per viewer information (optional parameter required when FLODLogic::bStoreInfoPerViewer is enabled)
+	 */
+	template <typename TTransformFragment, 
+			  typename TViewerInfoFragment>
+	FORCEINLINE void CollectLODInfo(FMassExecutionContext& Context, 
+									TConstArrayView<TTransformFragment> TransformList, 
+									TArrayView<TViewerInfoFragment> ViewersInfoList)
+	{
+		CollectLODInfo(Context, TransformList, ViewersInfoList, TArrayView<void*>());
+	}
+
+
+	/**
+	 * Collects the information for LOD calculation, called for each entity chunks
+	 * Use this version when FLODLogic::bStoreInfoPerViewer is enabled
+	 * It collects information per viewer into the PerViewerInfoList fragments
+	 * @Param Context of the chunk execution
+	 * @Param TransformList is the fragment transforms of the entities
+	 * @Param ViewersInfoList is the fragment where to store source information for LOD calculation
+	 * @Param PerViewerInfoList is the per viewer information
 	 */
 	template <typename TTransformFragment,
-		typename TViewerInfoFragment,
-		typename TPerViewerInfoFragment = FOptionalDefaultType>
+			  typename TViewerInfoFragment,
+			  typename TPerViewerInfoFragment>
 	void CollectLODInfo(FMassExecutionContext& Context, 
-						TConstArrayView<TTransformFragment> TranformList, 
+						TConstArrayView<TTransformFragment> TransformList, 
 						TArrayView<TViewerInfoFragment> ViewersInfoList, 
-						TArrayView<TPerViewerInfoFragment> InfoPerViewerList = TArrayView<TPerViewerInfoFragment>());
+						TArrayView<TPerViewerInfoFragment> PerViewerInfoList);
 };
 
 template <typename FLODLogic>
@@ -44,11 +63,13 @@ void TMassLODCollector<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo>
 }
 
 template <typename FLODLogic>
-template <typename TTransformFragment, typename TViewerInfoFragment, typename TPerViewerInfoFragment>
+template <typename TTransformFragment, 
+		  typename TViewerInfoFragment, 
+		  typename TPerViewerInfoFragment>
 void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context, 
-												  TConstArrayView<TTransformFragment> TranformList, 
+												  TConstArrayView<TTransformFragment> TransformList, 
 												  TArrayView<TViewerInfoFragment> ViewersInfoList, 
-												  TArrayView<TPerViewerInfoFragment> InfoPerViewerList /*= TArrayView<FOptionDefaultType>()*/)
+												  TArrayView<TPerViewerInfoFragment> PerViewerInfoList)
 {
 	static TPerViewerInfoFragment DummyFragment;
 	const int32 NumEntities = Context.GetNumEntities();
@@ -56,9 +77,9 @@ void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context
 	{
 		float ClosestViewerDistanceSq = FLT_MAX;
 		float ClosestDistanceToFrustum = FLT_MAX;
-		const TTransformFragment& EntityTransform = TranformList[EntityIdx];
+		const TTransformFragment& EntityTransform = TransformList[EntityIdx];
 		TViewerInfoFragment& EntityViewerInfo = ViewersInfoList[EntityIdx];
-		TPerViewerInfoFragment& EntityInfoPerViewer = FLODLogic::bStoreInfoPerViewer ? InfoPerViewerList[EntityIdx] : DummyFragment;
+		TPerViewerInfoFragment& EntityInfoPerViewer = FLODLogic::bStoreInfoPerViewer ? PerViewerInfoList[EntityIdx] : DummyFragment;
 
 		SetDistanceToViewerSqNum<FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, Viewers.Num());
 		SetDistanceToFrustumNum<FLODLogic::bDoVisibilityLogic && FLODLogic::bStoreInfoPerViewer>(EntityInfoPerViewer, Viewers.Num());

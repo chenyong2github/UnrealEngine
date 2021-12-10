@@ -170,7 +170,4 @@ protected:
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassVisibility, PrevVisibilityPerViewer);
 
 	TArray<FViewerLODInfo> Viewers;
-
-	/** Optional type to use when the templated parameter is not used */
-	typedef void* FOptionalDefaultType;
 };
