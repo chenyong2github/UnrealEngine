@@ -579,10 +579,11 @@ void FClothConstraints::SetSelfCollisionProperties(FReal SelfCollisionThickness)
 	}
 }
 
-void FClothConstraints::SetBackstopProperties(bool bEnabled)
+void FClothConstraints::SetBackstopProperties(bool bEnabled, FReal BackstopDistancesMultiplier)
 {
 	if (BackstopConstraints)
 	{
 		BackstopConstraints->SetEnabled(bEnabled);
+		BackstopConstraints->SetSphereRadiiMultiplier(BackstopDistancesMultiplier);
 	}
 }

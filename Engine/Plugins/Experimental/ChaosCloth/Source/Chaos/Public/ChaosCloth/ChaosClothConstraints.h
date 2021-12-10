@@ -71,7 +71,9 @@ namespace Chaos
 		void SetMaximumDistanceProperties(FReal MaxDistancesMultiplier);
 		void SetAnimDriveProperties(const FVec2& AnimDriveStiffness, const FVec2& AnimDriveDamping);
 		void SetSelfCollisionProperties(FReal SelfCollisionThickness);
-		void SetBackstopProperties(bool bEnabled);
+		UE_DEPRECATED(5.0, "Use SetBackstopProperties(bool, FReal) instead.")
+		void SetBackstopProperties(bool bEnabled) { SetBackstopProperties(bEnabled, (FReal)1.); }
+		void SetBackstopProperties(bool bEnabled, FReal BackstopDistancesMultiplier);
 		// ---- End of Cloth interface ----
 
 		// ---- Debug functions ----
