@@ -464,7 +464,8 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 		ModeTools = MakeShared<FAssetEditorModeManager>();
 	}
 
-	ViewState.Allocate();
+	FSceneInterface* Scene = GetScene();
+	ViewState.Allocate(Scene ? Scene->GetFeatureLevel() : GMaxRHIFeatureLevel);
 
 	// NOTE: StereoViewState will be allocated on demand, for viewports than end up drawing in stereo
 
@@ -1196,7 +1197,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 
 		if (StereoViewStates[ViewStateIndex].GetReference() == nullptr)
 		{
-			StereoViewStates[ViewStateIndex].Allocate();
+			FSceneInterface* Scene = GetScene();
+			StereoViewStates[ViewStateIndex].Allocate(Scene ? Scene->GetFeatureLevel() : GMaxRHIFeatureLevel);
 		}
 	}
 

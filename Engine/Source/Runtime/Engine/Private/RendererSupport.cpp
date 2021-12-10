@@ -153,7 +153,10 @@ static void RestoreReferencesToRendererModuleClasses(
 
 	IRendererModule& RendererModule = GetRendererModule();
 
-	FSceneViewStateReference::AllocateAll();
+	TMap<UWorld*, bool>::TConstIterator WorldsIt(WorldsToUpdate);
+	const ERHIFeatureLevel::Type FirstFeatureLevel = WorldsIt ? WorldsIt.Key()->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
+
+	FSceneViewStateReference::AllocateAll(FirstFeatureLevel);
 
 	// Recreate all renderer scenes
 	for (TMap<UWorld*, bool>::TConstIterator It(WorldsToUpdate); It; ++It)

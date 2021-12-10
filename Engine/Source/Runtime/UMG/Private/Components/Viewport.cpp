@@ -96,7 +96,8 @@ FUMGViewportClient::FUMGViewportClient(FPreviewScene* InPreviewScene)
 	, Viewport(nullptr)
 	, EngineShowFlags(ESFIM_Game)
 {
-	ViewState.Allocate();
+	FSceneInterface* Scene = GetScene();
+	ViewState.Allocate(Scene ? Scene->GetFeatureLevel() : GMaxRHIFeatureLevel);
 
 	BackgroundColor = FColor(55, 55, 55);
 }

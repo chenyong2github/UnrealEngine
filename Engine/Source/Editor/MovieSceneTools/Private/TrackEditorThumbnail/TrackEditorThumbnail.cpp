@@ -428,7 +428,7 @@ void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& Tr
 		FSceneViewStateInterface* Ref = ThumbnailSettings->ViewState.GetReference();
 		if (!Ref)
 		{
-			ThumbnailSettings->ViewState.Allocate();
+			ThumbnailSettings->ViewState.Allocate(ViewFamily.GetFeatureLevel());
 		}
 		ViewStateInterface = ThumbnailSettings->ViewState.GetReference();
 		break;

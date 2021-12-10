@@ -1175,7 +1175,7 @@ public:
 	}
 
 	/** Default constructor. */
-	FSceneViewState();
+	FSceneViewState(ERHIFeatureLevel::Type FeatureLevel);
 
 	virtual ~FSceneViewState();
 

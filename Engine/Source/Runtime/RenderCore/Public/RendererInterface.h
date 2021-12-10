@@ -772,7 +772,13 @@ public:
 	virtual void UpdateStaticDrawListsForMaterials(const TArray<const FMaterial*>& Materials) = 0;
 
 	/** Allocates a new instance of the private scene manager implementation of FSceneViewStateInterface */
-	virtual class FSceneViewStateInterface* AllocateViewState() = 0;
+	virtual class FSceneViewStateInterface* AllocateViewState(ERHIFeatureLevel::Type FeatureLevel) = 0;
+
+	UE_DEPRECATED(5.0, "AllocateViewState must be called with an appropriate RHI Feature Level")
+	inline FSceneViewStateInterface* AllocateViewState()
+	{
+		return AllocateViewState(GMaxRHIFeatureLevel);
+	}
 
 	/** @return The number of lights that affect a primitive. */
 	virtual uint32 GetNumDynamicLightsAffectingPrimitive(const class FPrimitiveSceneInfo* PrimitiveSceneInfo,const class FLightCacheInterface* LCI) = 0;

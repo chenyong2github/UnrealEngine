@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RHIDefinitions.h"
 #include "UObject/ObjectMacros.h"
 #include "Templates/RefCounting.h"
 #include "Containers/List.h"
@@ -75,6 +76,9 @@ public:
 	ENGINE_API virtual ~FSceneViewStateReference();
 
 	/** Allocates the Scene view state. */
+	ENGINE_API void Allocate(ERHIFeatureLevel::Type FeatureLevel);
+
+	UE_DEPRECATED(5.0, "Allocate must be called with an appropriate RHI Feature Level")
 	ENGINE_API void Allocate();
 
 	/** Destorys the Scene view state. */
@@ -84,6 +88,9 @@ public:
 	ENGINE_API static void DestroyAll();
 
 	/** Recreates all view states in the global list. */
+	ENGINE_API static void AllocateAll(ERHIFeatureLevel::Type FeatureLevel);
+
+	UE_DEPRECATED(5.0, "AllocateAll must be called with an appropriate RHI Feature Level")
 	ENGINE_API static void AllocateAll();
 
 	FSceneViewStateInterface* GetReference()

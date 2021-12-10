@@ -950,18 +950,27 @@ namespace MoviePipeline
 	struct FMoviePipelineRenderPassInitSettings
 	{
 	public:
+		UE_DEPRECATED(5.0, "FMoviePipelineRenderPassInitSettings must be constructed with arguments")
 		FMoviePipelineRenderPassInitSettings()
-			: BackbufferResolution(0, 0)
-			, TileCount(0, 0)
+		{
+			FeatureLevel = GMaxRHIFeatureLevel;
+		}
+
+		FMoviePipelineRenderPassInitSettings(ERHIFeatureLevel::Type InFeatureLevel, const FIntPoint& InBackbufferResolution, const FIntPoint& InTileCount)
+			:	BackbufferResolution(InBackbufferResolution)
+			,	TileCount(InTileCount)
+			,	FeatureLevel(InFeatureLevel)
 		{
 		}
 
 	public:
 		/** This takes into account any padding needed for tiled rendering overlap. Different than the output resolution of the final image. */
-		FIntPoint BackbufferResolution;
+		FIntPoint BackbufferResolution = FIntPoint(0, 0);
 
 		/** How many tiles (in each direction) are we rendering with. */
-		FIntPoint TileCount;
+		FIntPoint TileCount = FIntPoint(0, 0);
+
+		ERHIFeatureLevel::Type FeatureLevel;
 	};
 
 }
