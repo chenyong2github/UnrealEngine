@@ -1228,7 +1228,27 @@ void FMeshDrawCommand::SubmitDraw(
 	SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList, IndirectArgsOverrideBuffer, IndirectArgsOverrideByteOffset);
 }
 
-uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList) const
+static void ApplyTargetsInfo(FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo)
+{
+	GraphicsPSOInit.RenderTargetsEnabled = RenderTargetsInfo.RenderTargetsEnabled;
+	GraphicsPSOInit.RenderTargetFormats = RenderTargetsInfo.RenderTargetFormats;
+	GraphicsPSOInit.RenderTargetFlags = RenderTargetsInfo.RenderTargetFlags;
+	GraphicsPSOInit.NumSamples = RenderTargetsInfo.NumSamples;
+
+	GraphicsPSOInit.DepthStencilTargetFormat = RenderTargetsInfo.DepthStencilTargetFormat;
+	GraphicsPSOInit.DepthStencilTargetFlag = RenderTargetsInfo.DepthStencilTargetFlag;
+
+	GraphicsPSOInit.DepthTargetLoadAction = RenderTargetsInfo.DepthTargetLoadAction;
+	GraphicsPSOInit.DepthTargetStoreAction = RenderTargetsInfo.DepthTargetStoreAction;
+	GraphicsPSOInit.StencilTargetLoadAction = RenderTargetsInfo.StencilTargetLoadAction;
+	GraphicsPSOInit.StencilTargetStoreAction = RenderTargetsInfo.StencilTargetStoreAction;
+	GraphicsPSOInit.DepthStencilAccess = RenderTargetsInfo.DepthStencilAccess;
+
+	GraphicsPSOInit.MultiViewCount = RenderTargetsInfo.MultiViewCount;
+	GraphicsPSOInit.bHasFragmentDensityAttachment = RenderTargetsInfo.bHasFragmentDensityAttachment;
+}
+
+uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList, const FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo) const
 {
 	// Default fallback sort key
 	uint64 SortKey = CachedPipelineId.GetId();
@@ -1239,8 +1259,9 @@ uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList)
 		const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
 
 		FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::CheckApply);
+		ApplyTargetsInfo(GraphicsPSOInit, RenderTargetsInfo);
+
+		const FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
 		if (PipelineState)
 		{
 			const uint64 StateSortKey = PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(PipelineState);

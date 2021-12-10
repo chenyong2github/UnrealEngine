@@ -6,6 +6,7 @@
 #include "RenderGraphTextureSubresource.h"
 #include "RendererInterface.h"
 #include "RHITransientResourceAllocator.h"
+#include "RHIResources.h"
 
 struct FPooledRenderTarget;
 class FRenderTargetPool;
@@ -1171,5 +1172,7 @@ private:
 	friend FRDGViewRegistry;
 	friend FRDGAllocator;
 };
+
+inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGParameterStruct& ParameterStruct);
 
 #include "RenderGraphResources.inl"

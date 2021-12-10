@@ -572,6 +572,7 @@ public:
 
 static void BuildNaniteMaterialPassCommands(
 	FRHICommandListImmediate& RHICmdList,
+	const FParallelCommandListBindings& ParallelBindings,
 	const FNaniteMaterialCommands& MaterialCommands,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& OutNaniteMaterialPassCommands)
 {
@@ -594,7 +595,7 @@ static void BuildNaniteMaterialPassCommands(
 
 		if (MaterialSortMode == 2)
 		{
-			PassCommand.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(RHICmdList);
+			PassCommand.SortKey = MeshDrawCommand.GetPipelineStateSortingKey(RHICmdList, ParallelBindings.RenderPassInfo.ExtractRenderTargetsInfo());
 		}
 		else if (MaterialSortMode == 3)
 		{
@@ -606,7 +607,7 @@ static void BuildNaniteMaterialPassCommands(
 			// TODO: Remove other sort modes and just use 4 (needs more optimization/profiling)?
 			// Sort by pipeline state, but use hash of MaterialId for randomized tie-breaking.
 			// This spreads out the empty draws inside the pipeline buckets and improves overall utilization.
-			const uint64 PipelineSortKey = MeshDrawCommand.GetPipelineStateSortingKey(RHICmdList);
+			const uint64 PipelineSortKey = MeshDrawCommand.GetPipelineStateSortingKey(RHICmdList, ParallelBindings.RenderPassInfo.ExtractRenderTargetsInfo());
 			const uint32 PipelineSortKeyHash = GetTypeHash(PipelineSortKey);
 			const uint32 MaterialHash = MurmurFinalize32(MaterialId);
 			PassCommand.SortKey = ((uint64)PipelineSortKeyHash << 32) | MaterialHash;
@@ -635,7 +636,7 @@ void DrawNaniteMaterialPasses(
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands
 )
 {
-	BuildNaniteMaterialPassCommands(RHICmdListImmediate, Scene.NaniteMaterials[ENaniteMeshPass::BasePass], MaterialPassCommands);
+	BuildNaniteMaterialPassCommands(RHICmdListImmediate, ParallelBindings, Scene.NaniteMaterials[ENaniteMeshPass::BasePass], MaterialPassCommands);
 
 	if (MaterialPassCommands.Num())
 	{

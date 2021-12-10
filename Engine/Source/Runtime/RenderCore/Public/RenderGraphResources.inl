@@ -246,3 +246,53 @@ inline FRDGBufferUAVDesc::FRDGBufferUAVDesc(FRDGBufferRef InBuffer)
 		checkf(Buffer->Desc.UnderlyingType != FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("VertexBuffer %s requires a type when creating a UAV."), Buffer->Name);
 	}
 }
+
+inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGParameterStruct& ParameterStruct)
+{
+	const FRenderTargetBindingSlots& RDGRenderTargets = ParameterStruct.GetRenderTargets();
+	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;
+	uint32 RenderTargetIndex = 0;
+
+	RenderTargetsInfo.NumSamples = 1;
+
+	RDGRenderTargets.Enumerate([&](FRenderTargetBinding RenderTarget)
+	{
+		FRDGTextureRef Texture = RenderTarget.GetTexture();
+
+		RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = Texture->Desc.Format;
+		RenderTargetsInfo.RenderTargetFlags[RenderTargetIndex] = Texture->Desc.Flags;
+		RenderTargetsInfo.NumSamples |= Texture->Desc.NumSamples;
+		++RenderTargetIndex;
+	});
+
+	RenderTargetsInfo.RenderTargetsEnabled = RenderTargetIndex;
+	for (; RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
+	{
+		RenderTargetsInfo.RenderTargetFormats[RenderTargetIndex] = PF_Unknown;
+	}
+
+	const FDepthStencilBinding& DepthStencil = RDGRenderTargets.DepthStencil;
+	if (FRDGTextureRef DepthTexture = DepthStencil.GetTexture())
+	{
+		RenderTargetsInfo.DepthStencilTargetFormat = DepthTexture->Desc.Format;
+		RenderTargetsInfo.DepthStencilTargetFlag = DepthTexture->Desc.Flags;
+		RenderTargetsInfo.NumSamples |= DepthTexture->Desc.NumSamples;
+
+		RenderTargetsInfo.DepthTargetLoadAction = DepthStencil.GetDepthLoadAction();
+		RenderTargetsInfo.StencilTargetLoadAction = DepthStencil.GetStencilLoadAction();
+
+		RenderTargetsInfo.DepthStencilAccess = DepthStencil.GetDepthStencilAccess();
+		const ERenderTargetStoreAction StoreAction = EnumHasAnyFlags(DepthTexture->Desc.Flags, TexCreate_Memoryless) ? ERenderTargetStoreAction::ENoAction : ERenderTargetStoreAction::EStore;
+		RenderTargetsInfo.DepthTargetStoreAction = RenderTargetsInfo.DepthStencilAccess.IsUsingDepth() ? StoreAction : ERenderTargetStoreAction::ENoAction;
+		RenderTargetsInfo.StencilTargetStoreAction = RenderTargetsInfo.DepthStencilAccess.IsUsingStencil() ? StoreAction : ERenderTargetStoreAction::ENoAction;
+	}
+	else
+	{
+		RenderTargetsInfo.DepthStencilTargetFormat = PF_Unknown;
+	}
+
+	RenderTargetsInfo.MultiViewCount = RDGRenderTargets.MultiViewCount;
+	RenderTargetsInfo.bHasFragmentDensityAttachment = RDGRenderTargets.ShadingRateTexture != nullptr;
+
+	return RenderTargetsInfo;
+}
