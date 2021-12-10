@@ -62,7 +62,13 @@ struct PROJECTS_API FLocalizationTargetDescriptor
 	FLocalizationTargetDescriptor(FString InName = FString(), ELocalizationTargetDescriptorLoadingPolicy::Type InLoadingPolicy = ELocalizationTargetDescriptorLoadingPolicy::Never);
 
 	/** Reads a descriptor from the given JSON object */
+	bool Read(const FJsonObject& InObject, FText* OutFailReason = nullptr);
+
+	/** Reads a descriptor from the given JSON object */
 	bool Read(const FJsonObject& InObject, FText& OutFailReason);
+
+	/** Reads an array of targets from the given JSON object */
+	static bool ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText* OutFailReason = nullptr);
 
 	/** Reads an array of targets from the given JSON object */
 	static bool ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText& OutFailReason);

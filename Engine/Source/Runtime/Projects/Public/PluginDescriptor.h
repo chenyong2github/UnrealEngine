@@ -135,13 +135,25 @@ struct PROJECTS_API FPluginDescriptor
 	FPluginDescriptor();
 
 	/** Loads the descriptor from the given file. */
+	bool Load(const FString& FileName, FText* OutFailReason = nullptr);
+
+	/** Loads the descriptor from the given file. */
 	bool Load(const FString& FileName, FText& OutFailReason);
+
+	/** Reads the descriptor from the given string */
+	bool Read(const FString& Text, FText* OutFailReason = nullptr);
 
 	/** Reads the descriptor from the given string */
 	bool Read(const FString& Text, FText& OutFailReason);
 
 	/** Reads the descriptor from the given JSON object */
+	bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr);
+
+	/** Reads the descriptor from the given JSON object */
 	bool Read(const FJsonObject& Object, FText& OutFailReason);
+
+	/** Saves the descriptor from the given file. */
+	bool Save(const FString& FileName, FText* OutFailReason = nullptr) const;
 
 	/** Saves the descriptor from the given file. */
 	bool Save(const FString& FileName, FText& OutFailReason) const;
@@ -154,6 +166,12 @@ struct PROJECTS_API FPluginDescriptor
 
 	/** Updates the given json object with values in this descriptor */
 	void UpdateJson(FJsonObject& JsonObject) const;
+
+	/**
+	 * Updates the content of the specified plugin file with values in this descriptor
+	 * (hence preserving json fields that the plugin descriptor doesn't know about)
+	 */
+	bool UpdatePluginFile(const FString& FileName, FText* OutFailReason = nullptr) const;
 
 	/**
 	 * Updates the content of the specified plugin file with values in this descriptor

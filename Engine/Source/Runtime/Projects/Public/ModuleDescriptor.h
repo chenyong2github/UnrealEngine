@@ -187,7 +187,13 @@ struct PROJECTS_API FModuleDescriptor
 	FModuleDescriptor(const FName InName = NAME_None, EHostType::Type InType = EHostType::Runtime, ELoadingPhase::Type InLoadingPhase = ELoadingPhase::Default);
 
 	/** Reads a descriptor from the given JSON object */
+	bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr);
+
+	/** Reads a descriptor from the given JSON object */
 	bool Read(const FJsonObject& Object, FText& OutFailReason);
+
+	/** Reads an array of modules from the given JSON object */
+	static bool ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText* OutFailReason = nullptr);
 
 	/** Reads an array of modules from the given JSON object */
 	static bool ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText& OutFailReason);

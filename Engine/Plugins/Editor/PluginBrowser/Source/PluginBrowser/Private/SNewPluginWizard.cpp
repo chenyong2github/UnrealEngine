@@ -660,15 +660,16 @@ FReply SNewPluginWizard::OnCreatePluginClicked()
 		CreationParams.Descriptor.bIsBetaVersion = DescriptorData->bIsBetaVersion;
 	}
 
-	FPluginUtils::FMountPluginParams MountParams;
-	MountParams.bEnablePluginInProject = true;
-	MountParams.bUpdateProjectPluginSearchPath = true;
-	MountParams.bSelectInContentBrowser = ShowPluginContentDirectoryCheckBox->IsChecked();
+	FText FailReason;
+	FPluginUtils::FLoadPluginParams LoadParams;
+	LoadParams.bEnablePluginInProject = true;
+	LoadParams.bUpdateProjectPluginSearchPath = true;
+	LoadParams.bSelectInContentBrowser = ShowPluginContentDirectoryCheckBox->IsChecked();
+	LoadParams.OutFailReason = &FailReason;
 
 	Template->CustomizeDescriptorBeforeCreation(CreationParams.Descriptor);
 	
-	FText FailReason;
-	TSharedPtr<IPlugin> NewPlugin = FPluginUtils::CreateAndMountNewPlugin(PluginName, PluginFolderPath, CreationParams, MountParams, FailReason);
+	TSharedPtr<IPlugin> NewPlugin = FPluginUtils::CreateAndLoadNewPlugin(PluginName, PluginFolderPath, CreationParams, LoadParams);
 	const bool bSucceeded = NewPlugin.IsValid();
 
 
