@@ -6,7 +6,9 @@
 #include "Misc/Paths.h"
 #include "UObject/ObjectKey.h"
 #include "Templates/MaxSizeof.h"
-#include "PoseWatchManagerFwd.h"
+
+struct IPoseWatchManagerTreeItem;
+class IPoseWatchManager;
 
 typedef TSharedPtr<IPoseWatchManagerTreeItem> FPoseWatchManagerTreeItemPtr;
 typedef TSharedRef<IPoseWatchManagerTreeItem> FPoseWatchManagerTreeItemRef;
@@ -22,7 +24,7 @@ enum EPoseWatchTreeItemType
 struct PERSONA_API FPoseWatchManagerCommonLabelData
 {
 	TWeakPtr<IPoseWatchManager> WeakPoseWatchManager;
-	static const FLinearColor DarkColor;
+	static const FLinearColor DisabledColor;
 
 	TOptional<FLinearColor> GetForegroundColor(const IPoseWatchManagerTreeItem& TreeItem) const;
 

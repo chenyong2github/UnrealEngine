@@ -22,6 +22,7 @@ UPoseWatch::UPoseWatch(const FObjectInitializer& ObjectInitializer)
 {
 #if WITH_EDITOR
 	Label = GetDefaultLabel();
+	SetColor(PoseWatchUtil::ChoosePoseWatchColor());
 #endif
 }
 
@@ -61,32 +62,40 @@ TSet<UPoseWatchFolder*> PoseWatchUtil::GetChildrenPoseWatchFoldersOf(const UPose
 }
 
 template <typename T>
-FText PoseWatchUtil::FindUniqueNameInFolder(UPoseWatchFolder* InParent, const T* Item, TArray< TObjectPtr<T>> Collection)
+T* PoseWatchUtil::FindInFolderInCollection(const FName& Label, UPoseWatchFolder* InFolder, const TArray<TObjectPtr<T>>& PoseWatchCollection)
 {
-	static const FTextFormat LabelFormat = FTextFormat::FromString("{0}{1}");
+	for (const TObjectPtr<T>& PoseWatchItem : PoseWatchCollection)
+	{
+		if (PoseWatchItem->IsIn(InFolder) && PoseWatchItem->GetLabel().ToString().Equals(Label.ToString()))
+		{
+			return PoseWatchItem;
+		}
+	}
+	return nullptr;
+}
 
-	uint32 Counter = 1;
-	bool bNameClashes = false;
-	FText NewLabel = Item->GetDefaultLabel();
-	UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(Item->GetOuter());
-
+template <typename T>
+FText PoseWatchUtil::FindUniqueNameInFolder(UPoseWatchFolder* InParent, const T* Item, const TArray<TObjectPtr<T>>& Collection)
+{
+	FName NewName(Item->GetLabel().ToString());
+	FString BaseLabel = Item->GetLabel().ToString();
+	int32 Index = 0;
+	T* ConflictingItem = nullptr;
 	do
 	{
-		bNameClashes = false;
-		NewLabel = FText::Format(LabelFormat, Item->GetLabel(), FText::AsNumber(Counter));
-		for (T* SomeItem : Collection)
-		{
-			if (SomeItem->IsIn(InParent) && SomeItem->GetLabel().ToString().Equals(NewLabel.ToString()))
-			{
-				++Counter;
-				bNameClashes = true;
-				break;
-			}
-		}
-	} while (bNameClashes);
+		++Index;
+		NewName = *FString::Printf(TEXT("%s%d"), *BaseLabel, Index);
+		ConflictingItem = FindInFolderInCollection(NewName, InParent, Collection);
+	} while (ConflictingItem != nullptr && ConflictingItem != Item);
 
-	return NewLabel;
+	return FText::FromName(NewName);
 }
+
+FColor PoseWatchUtil::ChoosePoseWatchColor()
+{
+	return FColor::MakeRandomColor();
+}
+
 
 // UPoseWatchFolder
 
@@ -456,7 +465,6 @@ bool UPoseWatch::SetLabel(const FText& InLabel)
 void UPoseWatch::SetIsVisible(bool bInIsVisible)
 {
 	bIsVisible = bInIsVisible;
-	AnimationEditorUtils::UpdatePoseWatchVisibility(this);
 
 	if (Parent.IsValid())
 	{
@@ -467,7 +475,6 @@ void UPoseWatch::SetIsVisible(bool bInIsVisible)
 void UPoseWatch::SetColor(const FColor& InColor)
 {
 	Color = InColor;
-	AnimationEditorUtils::UpdatePoseWatchColour(this, Color);
 }
 
 void UPoseWatch::SetShouldDeleteOnDeselect(const bool bInDeleteOnDeselection)

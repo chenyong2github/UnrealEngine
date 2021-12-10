@@ -230,6 +230,8 @@ public:
 
 	virtual void Rename_Execute() override;
 
+	virtual void Delete_Execute();
+
 	/** Get the columns to be displayed in this manager */
 	const TMap<FName, TSharedPtr<IPoseWatchManagerColumn>>& GetColumns() const
 	{
@@ -253,16 +255,14 @@ private:
 	/** Map of columns that are shown on this manager. */
 	TMap<FName, TSharedPtr<IPoseWatchManagerColumn>> Columns;
 
-	TArray<FName> HiddenColumnsList;
-
 	/** Set up the columns required for this manager */
 	void SetupColumns(SHeaderRow& HeaderRow);
 
-	/** Refresh the scene manager for when a colum was added or removed */
+	/** Refresh the scene manager for when a column was added or removed */
 	void RefreshColumns();
 
 	/** Populates OutSearchStrings with the strings associated with TreeItem that should be used in searching */
-	void PopulateSearchStrings(const IPoseWatchManagerTreeItem& TreeItem, OUT TArray< FString >& OutSearchStrings) const;
+	void PopulateSearchStrings(const IPoseWatchManagerTreeItem& Item, TArray< FString >& OutSearchStrings) const;
 
 public:
 	/** Scroll the specified item into view */
@@ -309,14 +309,18 @@ private:
 	/** Returns the selection mode*/
 	ESelectionMode::Type GetSelectionMode() const;
 
-public:
+private:
+	/** Called when the user right clicks in the tree view */
 	TSharedPtr<SWidget> OnOpenContextMenu();
 
-private:
 	/** Called when the user has clicked the button to add a new folder */
 	FReply OnCreateFolderClicked();
 
+	/** Requests a new folder be created, confirmation received with OnHierarchyChangedEvent */
 	void CreateFolder();
+
+	/** Binds our UI commands to delegates. */
+	void BindCommands();
 
 private:
 	/** Context menu opening delegate provided by the client */
@@ -337,15 +341,10 @@ private:
 	/** Pending tree items that are yet to be added the tree */
 	FPoseWatchManagerTreeItemMap PendingTreeItemMap;
 
-	/** Folders pending selection */
-	TArray<FName> PendingFoldersSelect;
-
 	/** Root level tree items */
 	TArray<FPoseWatchManagerTreeItemPtr> RootTreeItems;
 
-	/** The button that displays view options */
-	TSharedPtr<SComboButton> ViewOptionsComboButton;
-
+	TSharedPtr<FUICommandList> CommandList;
 private:
 	/** true if the manager  needs to be repopulated at the next appropriate opportunity */
 	uint8 bNeedsRefresh : 1;
@@ -378,8 +377,6 @@ private:
 
 	/** The tree item that is currently pending a rename */
 	TWeakPtr<IPoseWatchManagerTreeItem> PendingRenameItem;
-
-	TMap<FName, const FSlateBrush*> CachedIcons;
 
 	TUniquePtr<FPoseWatchManagerDefaultHierarchy> Hierarchy;
 

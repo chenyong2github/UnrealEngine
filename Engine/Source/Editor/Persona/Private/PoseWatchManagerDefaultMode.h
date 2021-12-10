@@ -15,10 +15,6 @@ public:
 
 	void Rebuild();
 
-	FReply OnKeyDown(const FKeyEvent& InKeyEvent);
-
-	TSharedPtr<SWidget> CreateContextMenu();
-
 	bool ParseDragDrop(FPoseWatchManagerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const;
 	
 	FPoseWatchManagerDragValidationInfo ValidateDrop(const IPoseWatchManagerTreeItem& DropTarget, const FPoseWatchManagerDragDropPayload& Payload) const;

@@ -15,10 +15,9 @@ struct FAnimNodePoseWatch
 {
 	// Object (anim instance) that this pose came from
 	TWeakObjectPtr<const UObject>	Object;
+	TWeakObjectPtr<UPoseWatch>		PoseWatch;
 	TSharedPtr<FCompactHeapPose>	PoseInfo;
-	FColor							PoseDrawColour;
 	int32							NodeID;
-	bool							bIsHidden;
 };
 
 namespace PoseWatchUtil
@@ -29,9 +28,16 @@ namespace PoseWatchUtil
 	/** Gets all pose watches folders that are parented to Folder, if Folder is nullptr then gets orphans */
 	TSet<UPoseWatchFolder*> GetChildrenPoseWatchFoldersOf(const UPoseWatchFolder* Folder, const UAnimBlueprint* AnimBlueprint);
 
+	/** Returns a UPoseWatch/UPoseWatchFolder from PoseWatchCollection that is inside InFolder has has label Label, if one exists */
+	template <typename T>
+	T* FindInFolderInCollection(const FName& Label, UPoseWatchFolder* InFolder, const TArray<TObjectPtr<T>>& PoseWatchCollection);
+
 	/** Finds unique name for a pose watch or folder inside of InParent */
 	template <typename T>
-	FText FindUniqueNameInFolder(UPoseWatchFolder* InParent, const T* Item, TArray<TObjectPtr<T>> Collection);
+	FText FindUniqueNameInFolder(UPoseWatchFolder* InParent, const T* Item, const TArray<TObjectPtr<T>>& Collection);
+
+	/** Returns a color from a palette of predefined colors in round-robin order */
+	FColor ChoosePoseWatchColor();
 }
 
 UCLASS()

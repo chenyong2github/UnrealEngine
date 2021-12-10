@@ -853,8 +853,7 @@ namespace AnimationEditorUtils
 					{
 						// Find the insertion point from the debugging data
 						int32 LinkID = AnimBPGenClass->GetLinkIDForNode<FAnimNode_Base>(TargetNode);
-						PoseWatch->SetIsEnabled(LinkID != INDEX_NONE);
-						AnimBPGenClass->GetAnimBlueprintDebugData().AddPoseWatch(LinkID, PoseWatch->GetColor(), PoseWatch->GetIsVisible());
+						AnimBPGenClass->GetAnimBlueprintDebugData().AddPoseWatch(LinkID, PoseWatch);
 						OnPoseWatchesChangedDelegate.Broadcast(AnimBlueprint, TargetNode);
 					}
 				}
@@ -891,12 +890,11 @@ namespace AnimationEditorUtils
 #endif
 	}
 
-	UPoseWatch* MakePoseWatchForNode(UAnimBlueprint* AnimBlueprint, UEdGraphNode* Node, FColor PoseWatchColour)
+	UPoseWatch* MakePoseWatchForNode(UAnimBlueprint* AnimBlueprint, UEdGraphNode* Node)
 	{
 #if WITH_EDITORONLY_DATA
 		UPoseWatch* NewPoseWatch = NewObject<UPoseWatch>(AnimBlueprint);
 		NewPoseWatch->Node = Node;
-		NewPoseWatch->SetColor(PoseWatchColour);
 		NewPoseWatch->SetUniqueDefaultLabel();
 		AnimBlueprint->PoseWatches.Add(NewPoseWatch);
 		SetPoseWatch(NewPoseWatch, AnimBlueprint);
@@ -956,25 +954,6 @@ namespace AnimationEditorUtils
 		return OnPoseWatchesChangedDelegate;
 	}
 
-	TArrayView<const FColor> GetPoseWatchColorPalette()
-	{
-		static const FColor PoseWatchColors[] = { FColor::Red, FColor::Green, FColor::Blue, FColor::Cyan, FColor::Orange, FColor::Purple, FColor::Yellow, FColor::Black };
-		size_t NumColors = sizeof(PoseWatchColors) / sizeof(PoseWatchColors[0]);
-		return MakeArrayView(PoseWatchColors, NumColors);
-	}
-
-	void UpdatePoseWatchColour(UPoseWatch* PoseWatch, FColor NewPoseWatchColour)
-	{
-#if WITH_EDITORONLY_DATA
-		UAnimBlueprintGeneratedClass* AnimBPGenClass = nullptr;
-		int32 LinkID = GetPoseWatchNodeLinkID(PoseWatch, AnimBPGenClass);
-		if (LinkID != INDEX_NONE)
-		{
-			AnimBPGenClass->GetAnimBlueprintDebugData().UpdatePoseWatchColour(LinkID, NewPoseWatchColour);
-		}
-#endif
-	}
-
 	int32 GetPoseWatchNodeLinkID(UPoseWatch* PoseWatch, UAnimBlueprintGeneratedClass*& OutAnimBPGenClass)
 	{
 #if WITH_EDITORONLY_DATA
@@ -994,18 +973,6 @@ namespace AnimationEditorUtils
 		}
 #endif
 		return INDEX_NONE;
-	}
-
-	void UpdatePoseWatchVisibility(UPoseWatch* PoseWatch)
-	{
-#if WITH_EDITORONLY_DATA
-		UAnimBlueprintGeneratedClass* AnimBPGenClass = nullptr;
-		int32 LinkID = GetPoseWatchNodeLinkID(PoseWatch, AnimBPGenClass);
-		if (LinkID != INDEX_NONE)
-		{
-			AnimBPGenClass->GetAnimBlueprintDebugData().SetPoseWatchVisibility(LinkID, PoseWatch->GetIsVisible());
-		}
-#endif
 	}
 
 	void SetupDebugLinkedAnimInstances(UAnimBlueprint* InAnimBlueprint, UObject* InRootObjectBeingDebugged)
