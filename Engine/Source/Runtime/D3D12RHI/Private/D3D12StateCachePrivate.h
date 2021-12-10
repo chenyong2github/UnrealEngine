@@ -872,17 +872,15 @@ public:
 		return false;
 	}
 
-	D3D12_STATE_CACHE_INLINE bool IsStreamSource(const FD3D12ResourceLocation* VertexBufferLocation) const
+	D3D12_STATE_CACHE_INLINE void ClearVertexBuffer(const FD3D12ResourceLocation* VertexBufferLocation)
 	{
 		for (int32 index = 0; index <= PipelineState.Graphics.VBCache.MaxBoundVertexBufferIndex; ++index)
 		{
 			if (PipelineState.Graphics.VBCache.CurrentVertexBufferResources[index] == VertexBufferLocation)
 			{
-				return true;
+				PipelineState.Graphics.VBCache.CurrentVertexBufferResources[index] = nullptr;
 			}
 		}
-
-		return false;
 	}
 
 public:
