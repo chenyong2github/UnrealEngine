@@ -125,8 +125,8 @@ void FAnimNode_AimOffsetLookAt::UpdateFromLookAtTarget(FPoseContext& LocalPoseCo
 
 		FAnimInstanceProxy* AnimProxy = LocalPoseContext.AnimInstanceProxy;
 		check(AnimProxy);
-		const FTransform SourceWorldTransform = SourceComponentTransform * AnimProxy->GetSkelMeshCompLocalToWorld();
-		const FTransform ActorTransform = AnimProxy->GetSkelMeshCompOwnerTransform();
+		const FTransform SourceWorldTransform = SourceComponentTransform * AnimProxy->GetComponentTransform();
+		const FTransform ActorTransform = AnimProxy->GetActorTransform();
 
 		// Convert Target to Actor Space
 		const FTransform TargetWorldTransform(LookAtLocation);

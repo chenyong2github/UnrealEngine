@@ -366,16 +366,15 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	USkeletalMeshComponent* SkelMeshComp = InAnimInstance->GetSkelMeshComponent();
-	UWorld* World = SkelMeshComp ? SkelMeshComp->GetWorld() : nullptr;
+	InitializeObjects(InAnimInstance);
+
+	UWorld* World = SkeletalMeshComponent ? SkeletalMeshComponent->GetWorld() : nullptr;
 	AWorldSettings* WorldSettings = World ? World->GetWorldSettings() : nullptr;
 
 	CurrentDeltaSeconds = DeltaSeconds;
 	CurrentTimeDilation = WorldSettings ? WorldSettings->GetEffectiveTimeDilation() : 1.0f;
 	RootMotionMode = InAnimInstance->RootMotionMode;
 	bShouldExtractRootMotion = InAnimInstance->ShouldExtractRootMotion();
-
-	InitializeObjects(InAnimInstance);
 
 #if WITH_EDITORONLY_DATA
 	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
@@ -384,7 +383,7 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 	}
 #endif
 
-	if (SkelMeshComp)
+	if (SkeletalMeshComponent)
 	{
 		// Save off LOD level that we're currently using.
 		const int32 PreviousLODLevel = LODLevel;
@@ -393,16 +392,9 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 		{
 			OnPreUpdateLODChanged(PreviousLODLevel, LODLevel);
 		}
-
-		// Cache these transforms, so nodes don't have to pull it off the gamethread manually.
-		SkelMeshCompLocalToWorld = SkelMeshComp->GetComponentTransform();
-		if (const AActor* Owner = SkelMeshComp->GetOwner())
-		{
-			SkelMeshCompOwnerTransform = Owner->GetTransform();
-		}
 	}
 
-	NotifyQueue.Reset(InAnimInstance->GetSkelMeshComponent());
+	NotifyQueue.Reset(SkeletalMeshComponent);
 
 #if ENABLE_ANIM_DRAW_DEBUG
 	QueuedDrawDebugItems.Reset();
