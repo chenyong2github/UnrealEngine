@@ -28,6 +28,7 @@ void FRemoteControlPanelStyle::Initialize()
 	const FVector2D Icon8x8(8.0f, 8.0f);
 	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon20x20(20.0f, 20.0f);
+	const FVector2D Icon28x14(28.0f, 14.0f);
 	const FVector2D Icon64x64(64.0f, 64.0f);
 
 	StyleSet = MakeShared<FSlateStyleSet>(GetStyleSetName());
@@ -102,6 +103,26 @@ void FRemoteControlPanelStyle::Initialize()
 	
 	StyleSet->Set("RemoteControlPanel.GroupRow", GroupRowStyle);
 	
+	// Checkbox for live/edit mode
+	
+	{
+		StyleSet->Set("Switch.ToggleOff", new IMAGE_PLUGIN_BRUSH("Icons/Switch_OFF", Icon28x14));
+		
+		StyleSet->Set("Switch.ToggleOn", new IMAGE_PLUGIN_BRUSH("Icons/Switch_ON", Icon28x14));
+
+		FCheckBoxStyle SwitchStyle = FCheckBoxStyle()
+			.SetForegroundColor(FLinearColor::White)
+			.SetUncheckedImage(*StyleSet->GetBrush("Switch.ToggleOff"))
+			.SetUncheckedHoveredImage(*StyleSet->GetBrush("Switch.ToggleOff"))
+			.SetUncheckedPressedImage(*StyleSet->GetBrush("Switch.ToggleOff"))
+			.SetCheckedImage(*StyleSet->GetBrush("Switch.ToggleOn"))
+			.SetCheckedHoveredImage(*StyleSet->GetBrush("Switch.ToggleOn"))
+			.SetCheckedPressedImage(*StyleSet->GetBrush("Switch.ToggleOn"))
+			.SetPadding(FMargin(1, 1, 1, 1));
+
+		StyleSet->Set("RemoteControlPanel.Switch", SwitchStyle);
+	}
+
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }
 

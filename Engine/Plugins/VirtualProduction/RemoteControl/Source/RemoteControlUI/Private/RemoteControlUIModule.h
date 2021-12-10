@@ -86,6 +86,10 @@ private:
 	void RegisterAssetTools();
 	void UnregisterAssetTools();
 
+	//~ Remote Control Commands
+	void BindRemoteControlCommands();
+	void UnbindRemoteControlCommands();
+
 	//~ Context menu extenders
 	void RegisterContextMenuExtender();
 	void UnregisterContextMenuExtender();
@@ -97,6 +101,11 @@ private:
 	//~ Common Events
 	void RegisterEvents();
 	void UnregisterEvents();
+
+	//~ Toggle Edit Mode RC Command.
+	void ToggleEditMode();
+	bool CanToggleEditMode() const;	
+	bool IsInEditMode() const;
 
 	/** Handle creating the property row extensions.  */
 	void HandleCreatePropertyRowExtension(const FOnGenerateGlobalRowExtensionArgs& InArgs, TArray<FPropertyRowExtensionButton>& OutExtensions);

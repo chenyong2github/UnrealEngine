@@ -24,6 +24,7 @@ public class RemoteControlUI : ModuleRules
 				"Engine",
 				"HotReload",
 				"InputCore",
+				"MainFrame",
 				"MessageLog",
 				"Projects",
 				"PropertyEditor",
@@ -33,6 +34,7 @@ public class RemoteControlUI : ModuleRules
 				"SceneOutliner",
 				"Slate",
 				"SlateCore",
+				"ToolWidgets",
 				"UnrealEd"
 			}
 		);
