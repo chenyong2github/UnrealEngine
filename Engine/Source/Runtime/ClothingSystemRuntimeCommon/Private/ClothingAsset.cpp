@@ -40,6 +40,7 @@ DEFINE_LOG_CATEGORY(LogClothingAsset)
 // ClothingAssetUtils
 //==============================================================================
 
+//Deprecated function
 void ClothingAssetUtils::GetMeshClothingAssetBindings(
 	USkeletalMesh* InSkelMesh, 
 	TArray<FClothingAssetMeshBinding>& OutBindings)
@@ -59,7 +60,9 @@ void ClothingAssetUtils::GetMeshClothingAssetBindings(
 			if (InSkelMesh->GetImportedModel()->LODModels[LODIndex].HasClothData())
 			{
 				TArray<FClothingAssetMeshBinding> LodBindings;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				GetMeshClothingAssetBindings(InSkelMesh, LodBindings, LODIndex);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				OutBindings.Append(LodBindings);
 			}
 		}
@@ -78,13 +81,16 @@ void ClothingAssetUtils::GetMeshClothingAssetBindings(
 		for (int32 LodIndex = 0; LodIndex < NumLods; ++LodIndex)
 		{
 			TArray<FClothingAssetMeshBinding> LodBindings;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			GetMeshClothingAssetBindings(InSkelMesh, LodBindings, LodIndex);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			OutBindings.Append(LodBindings);
 		}
 	}
 }
 
+//Deprecated function
 void ClothingAssetUtils::GetMeshClothingAssetBindings(
 	USkeletalMesh* InSkelMesh, 
 	TArray<FClothingAssetMeshBinding>& OutBindings, 
@@ -164,6 +170,65 @@ void ClothingAssetUtils::GetMeshClothingAssetBindings(
 }
 
 #if WITH_EDITOR
+void ClothingAssetUtils::GetAllMeshClothingAssetBindings(const USkeletalMesh* SkeletalMesh, TArray<FClothingAssetMeshBinding>& OutBindings)
+{
+	OutBindings.Empty();
+	if (!SkeletalMesh)
+	{
+		return;
+	}
+	if (const FSkeletalMeshModel* MeshModel = SkeletalMesh->GetImportedModel())
+	{
+		int32 LODNum = MeshModel->LODModels.Num();
+		for (int32 LODIndex = 0; LODIndex < LODNum; ++LODIndex)
+		{
+			const FSkeletalMeshLODModel& MeshLODModel = MeshModel->LODModels[LODIndex];
+			if (MeshLODModel.HasClothData())
+			{
+				TArray<FClothingAssetMeshBinding> LodBindings;
+				GetAllLodMeshClothingAssetBindings(SkeletalMesh, LodBindings, LODIndex);
+				OutBindings.Append(LodBindings);
+			}
+		}
+	}
+}
+
+void ClothingAssetUtils::GetAllLodMeshClothingAssetBindings(const USkeletalMesh* SkeletalMesh, TArray<FClothingAssetMeshBinding>& OutBindings, int32 InLodIndex)
+{
+	OutBindings.Empty();
+	if (!SkeletalMesh && SkeletalMesh->GetImportedModel())
+	{
+		return;
+	}
+	const FSkeletalMeshModel* MeshModel = SkeletalMesh->GetImportedModel();
+	if (!MeshModel || !MeshModel->LODModels.IsValidIndex(InLodIndex))
+	{
+		return;
+	}
+	const FSkeletalMeshLODModel& MeshLODModel = MeshModel->LODModels[InLodIndex];
+
+	if (MeshLODModel.HasClothData())
+	{
+		TArray<FClothingAssetMeshBinding> LodBindings;
+		int32 SectionNum = MeshLODModel.Sections.Num();
+		for (int32 SectionIndex = 0; SectionIndex < SectionNum; ++SectionIndex)
+		{
+			const FSkelMeshSection& Section = MeshLODModel.Sections[SectionIndex];
+			if (Section.HasClothingData())
+			{
+				UClothingAssetBase* ClothingAsset = SkeletalMesh->GetClothingAsset(Section.ClothingData.AssetGuid);
+				FClothingAssetMeshBinding ClothBinding;
+				ClothBinding.Asset = Cast<UClothingAssetCommon>(ClothingAsset);
+				ClothBinding.AssetInternalLodIndex = Section.ClothingData.AssetLodIndex;// InSkelMesh->GetClothingAssetIndex(Section.ClothingData.AssetGuid);
+				check(ClothBinding.AssetInternalLodIndex == Section.ClothingData.AssetLodIndex);
+				ClothBinding.LODIndex = InLodIndex;
+				ClothBinding.SectionIndex = SectionIndex;
+				OutBindings.Add(ClothBinding);
+			}
+		}
+	}
+}
+
 void ClothingAssetUtils::ClearSectionClothingData(FSkelMeshSection& InSection)
 {
 	InSection.ClothingData.AssetGuid = FGuid();
