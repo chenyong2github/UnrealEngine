@@ -7,6 +7,19 @@
 	<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
 	<link type="text/css" rel="stylesheet" href="player.css">
+	<script type="text/javascript">
+		// This horrible hack is to make Fippo's adapter-latest.js work with Firefox when not on https
+		// because FF does not let you access navigator.mediaDevices when on http.
+		var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+		if(isFirefox){
+			window.navigator.mozGetUserMedia = function(){};
+			if(window.navigator.mediaDevices === undefined) {
+				navigator.mediaDevices = {};
+				navigator.mediaDevices.getSupportedConstraints = function(){ return {}; };
+				navigator.mediaDevices.getUserMedia = function(){ return {}; };
+			}
+		}
+	</script>
     <script type="text/javascript" src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script type="text/javascript" src="scripts/webRtcPlayer.js"></script>
     <script type="text/javascript" src="scripts/app.js"></script>

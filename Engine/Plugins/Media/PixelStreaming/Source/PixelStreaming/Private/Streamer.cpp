@@ -16,7 +16,6 @@
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 
-
 bool FStreamer::CheckPlatformCompatibility()
 {
 	return AVEncoder::FVideoEncoderFactory::Get().HasEncoderForCodec(AVEncoder::ECodecType::H264);
@@ -169,12 +168,17 @@ webrtc::PeerConnectionInterface* FStreamer::CreateSession(FPlayerId PlayerId, bo
 	{
 		if (SupportsDataChannel)
 		{
-			PeerConnection->CreateDataChannel("datachannel", {});
+			webrtc::DataChannelInit DataChannelConfig;
+			DataChannelConfig.reliable = true;
+			DataChannelConfig.ordered = true;
+
+			rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel = PeerConnection->CreateDataChannel("datachannel", &DataChannelConfig);
 
 			// Bind to the on data channel open delegate (we use this as the earliest time peer is ready for freeze frame)
 			FPixelStreamingDataChannelObserver* DataChannelObserver = PlayerSessions.GetDataChannelObserver(PlayerId);
 			check(DataChannelObserver);
 			DataChannelObserver->OnDataChannelOpen.AddRaw(this, &FStreamer::OnDataChannelOpen);
+			DataChannelObserver->Register(DataChannel);
 		}
 
 		AddStreams(PlayerId, PeerConnection);
@@ -254,8 +258,7 @@ void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface*
 	//		PeerConnection.SetLocalDescription(Answer);
 	//		SignallingServerConnection.SendAnswer(Answer);
 
-	FSetSessionDescriptionObserver* SetLocalDescriptionObserver = FSetSessionDescriptionObserver::Create
-	(
+	FSetSessionDescriptionObserver* SetLocalDescriptionObserver = FSetSessionDescriptionObserver::Create(
 		[this, PlayerId, PeerConnection]() // on success
 		{
 			this->GetSignallingServerConnection()->SendAnswer(PlayerId, *PeerConnection->local_description());
@@ -265,23 +268,20 @@ void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface*
 		{
 			UE_LOG(PixelStreamer, Error, TEXT("Failed to set local description: %s"), *Error);
 			this->PlayerSessions.DisconnectPlayer(PlayerId, Error);
-		}
-	);
+		});
 
 	auto OnCreateAnswerSuccess = [this, PlayerId, PeerConnection, SetLocalDescriptionObserver](webrtc::SessionDescriptionInterface* SDP)
 	{
 		SetLocalDescription(PeerConnection, SetLocalDescriptionObserver, SDP);
 	};
 
-	FCreateSessionDescriptionObserver* CreateAnswerObserver = FCreateSessionDescriptionObserver::Create
-	(
+	FCreateSessionDescriptionObserver* CreateAnswerObserver = FCreateSessionDescriptionObserver::Create(
 		MoveTemp(OnCreateAnswerSuccess),
 		[this, PlayerId](const FString& Error) // on failure
 		{
 			UE_LOG(PixelStreamer, Error, TEXT("Failed to create answer: %s"), *Error);
 			this->PlayerSessions.DisconnectPlayer(PlayerId, Error);
-		}
-	);
+		});
 
 	auto OnSetRemoteDescriptionSuccess = [this, PeerConnection, CreateAnswerObserver]()
 	{
@@ -297,8 +297,7 @@ void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface*
 			offer_to_receive_audio,
 			voice_activity_detection,
 			ice_restart,
-			use_rtp_mux
-		};
+			use_rtp_mux};
 		
 		// modify audio transceiver direction based on CVars just before creating answer
 		this->ModifyAudioTransceiverDirection(PeerConnection);
@@ -312,8 +311,7 @@ void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface*
 		{
 			UE_LOG(PixelStreamer, Error, TEXT("Failed to set remote description: %s"), *Error);
 			this->PlayerSessions.DisconnectPlayer(PlayerId, Error);
-		}
-	);
+		});
 
 	PeerConnection->SetRemoteDescription(SetRemoteDescriptionObserver, Sdp.Release());
 }
@@ -372,12 +370,10 @@ void FStreamer::OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel)
 		}
 
 		// observer for creating offer
-		FCreateSessionDescriptionObserver* CreateOfferObserver = FCreateSessionDescriptionObserver::Create
-		(
+		FCreateSessionDescriptionObserver* CreateOfferObserver = FCreateSessionDescriptionObserver::Create(
 			[this, PlayerId, PlayerSession](webrtc::SessionDescriptionInterface* SDP) // on SDP create success
 			{
-				FSetSessionDescriptionObserver* SetLocalDescriptionObserver = FSetSessionDescriptionObserver::Create
-				(
+				FSetSessionDescriptionObserver* SetLocalDescriptionObserver = FSetSessionDescriptionObserver::Create(
 					[this, PlayerId, SDP]() // on SDP set success
 					{
 						GetSignallingServerConnection()->SendOffer(PlayerId, *SDP);
@@ -385,16 +381,14 @@ void FStreamer::OnPlayerConnected(FPlayerId PlayerId, bool SupportsDataChannel)
 					[](const FString& Error) // on SDP set failure
 					{
 						UE_LOG(PixelStreamer, Error, TEXT("Failed to set local description: %s"), *Error);
-					}
-				);
+					});
 
 				SetLocalDescription(PlayerSession, SetLocalDescriptionObserver, SDP);
 			},
 			[](const FString& Error) // on SDP create failure
 			{
 				UE_LOG(PixelStreamer, Error, TEXT("Failed to create offer: %s"), *Error);
-			}
-		);
+			});
 
 		PlayerSession->CreateOffer(CreateOfferObserver, {});
 	}
@@ -533,9 +527,7 @@ void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterf
 		}
 
 		SortedLayers.Sort([](const auto& LayerA, const auto& LayerB)
-		{
-			return LayerA.Scaling > LayerB.Scaling;
-		});
+						  { return LayerA.Scaling > LayerB.Scaling; });
 
 		const int LayerCount = SortedLayers.Num();
 		for (int i = 0; i < LayerCount; ++i)
@@ -583,7 +575,6 @@ void FStreamer::SetupVideoTrack(FPlayerId PlayerId, webrtc::PeerConnectionInterf
 	{
 		UE_LOG(PixelStreamer, Error, TEXT("Failed to add Video transceiver to PeerConnection. Msg=%s"), TCHAR_TO_UTF8(Result.error().message()));
 	}
-
 }
 
 void FStreamer::SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const AudioStreamId, FString const AudioTrackLabel)
