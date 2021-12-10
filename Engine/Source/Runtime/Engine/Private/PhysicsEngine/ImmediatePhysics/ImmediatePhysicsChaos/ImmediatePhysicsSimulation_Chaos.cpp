@@ -39,6 +39,7 @@ int32 ChaosImmediate_Evolution_DeltaTimeCount = 100;
 int32 ChaosImmediate_Evolution_Iterations = -1;
 int32 ChaosImmediate_Evolution_PushOutIterations = -1;
 Chaos::FRealSingle ChaosImmediate_Evolution_BoundsExtension = 0.0f;
+int32 ChaosImmediate_DisableInactiveByIndex = 1;
 FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.Chaos.ImmPhys.StepTime"), ChaosImmediate_Evolution_StepTime, TEXT("Override step time (if not zero)"));
 FAutoConsoleVariableRef CVarChaosImmPhysNumSteps(TEXT("p.Chaos.ImmPhys.NumSteps"), ChaosImmediate_Evolution_NumSteps, TEXT("Override num steps (if not zero)"));
 FAutoConsoleVariableRef CVarChaosImmPhysInitialStepTime(TEXT("p.Chaos.ImmPhys.InitialStepTime"), ChaosImmediate_Evolution_InitialStepTime, TEXT("Initial step time (then calculated from rolling average)"));
@@ -46,6 +47,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysDeltaTimeCount(TEXT("p.Chaos.ImmPhys.Del
 FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterations"), ChaosImmediate_Evolution_Iterations, TEXT("Override number of constraint solver loops in immediate physics (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("Override number of solver push-out loops (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysBoundsExtension(TEXT("p.Chaos.ImmPhys.BoundsExtension"), ChaosImmediate_Evolution_BoundsExtension, TEXT("Bounds are grown by this fraction of their size (should be >= 0.0)"));
+FAutoConsoleVariableRef CVarChaosImmPhysDisableInactiveByIndex(TEXT("p.Chaos.ImmPhys.DisableInactiveByIndex"), ChaosImmediate_DisableInactiveByIndex, TEXT("Disable bodies that are no longer active based on the index, rather than just count."));
 
 Chaos::FRealSingle ChaosImmediate_Evolution_SimSpaceCentrifugalAlpha = 1.0f;
 Chaos::FRealSingle ChaosImmediate_Evolution_SimSpaceCoriolisAlpha = 0.5f;
@@ -503,9 +505,9 @@ namespace ImmediatePhysics_Chaos
 		delete JointHandle;
 	}
 
-	void FSimulation::SetNumActiveBodies(int32 InNumActiveActorHandles)
+	void FSimulation::SetNumActiveBodies(int32 InNumActiveActorHandles, TArray<int32> ActiveBodyIndices)
 	{
-		if (InNumActiveActorHandles == Implementation->NumActiveDynamicActorHandles)
+		if (InNumActiveActorHandles == Implementation->NumActiveDynamicActorHandles && ChaosImmediate_DisableInactiveByIndex == 0)
 		{
 			return;
 		}
@@ -520,18 +522,31 @@ namespace ImmediatePhysics_Chaos
 			{
 				continue;
 			}
-
-			if (Implementation->NumActiveDynamicActorHandles < InNumActiveActorHandles)
+			if (ChaosImmediate_DisableInactiveByIndex != 0)
 			{
-				Handle->SetEnabled(true);
-				++Implementation->NumActiveDynamicActorHandles;
+				if (ActiveBodyIndices.Contains(ActorHandleIndex))
+				{
+					Handle->SetEnabled(true);
+					++Implementation->NumActiveDynamicActorHandles;
+				}
+				else
+				{
+					Handle->SetEnabled(false);
+				}
 			}
 			else
 			{
-				Handle->SetEnabled(false);
+				if (Implementation->NumActiveDynamicActorHandles < InNumActiveActorHandles)
+				{
+					Handle->SetEnabled(true);
+					++Implementation->NumActiveDynamicActorHandles;
+				}
+				else
+				{
+					Handle->SetEnabled(false);
+				}
 			}
 		}
-
 		Implementation->bActorsDirty = true;
 	}
 

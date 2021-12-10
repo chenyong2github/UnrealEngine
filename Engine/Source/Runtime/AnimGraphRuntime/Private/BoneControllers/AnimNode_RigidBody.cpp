@@ -1737,7 +1737,7 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 	OutputBoneData.Empty(NumBodies);
 
 	int32 NumSimulatedBodies = 0;
-
+	TArray<int32> SimulatedBodyIndices;
 	// if no name is entered, use root
 	if (BaseBoneRef.BoneName == NAME_None)
 	{
@@ -1775,6 +1775,7 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 			if (BodyAnimData[BodyIndex].bIsSimulated)
 			{
 				++NumSimulatedBodies;
+				SimulatedBodyIndices.AddUnique(BodyIndex);
 			}
 
 			OutputData->BoneIndicesToParentBody.Add(CompactPoseBoneIndex);
@@ -1825,7 +1826,11 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 
 		if (PhysicsSimulation)
 		{
+#if WITH_CHAOS
+			PhysicsSimulation->SetNumActiveBodies(NumSimulatedBodies, SimulatedBodyIndices);
+#else
 			PhysicsSimulation->SetNumActiveBodies(NumSimulatedBodies);
+#endif
 		}
 
 		// We're switching to a new LOD, this invalidates our captured poses.
