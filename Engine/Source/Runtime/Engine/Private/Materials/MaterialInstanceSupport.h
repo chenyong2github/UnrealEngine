@@ -332,8 +332,12 @@ inline bool GameThread_GetParameterValue(const TArray<ParameterType>& Parameters
 	return false;
 }
 
-template <typename ParameterType>
-inline void GameThread_ApplyParameterOverrides(const TArray<ParameterType>& Parameters, TArrayView<const int32> LayerIndexRemap, bool bSetOverride, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters)
+template <typename ParameterType, typename OverridenParametersType>
+inline void GameThread_ApplyParameterOverrides(const TArray<ParameterType>& Parameters,
+	TArrayView<const int32> LayerIndexRemap,
+	bool bSetOverride,
+	OverridenParametersType& OverridenParameters, // TSet<FMaterialParameterInfo, ...>
+	TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters)
 {
 	for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ParameterIndex++)
 	{
@@ -343,16 +347,21 @@ inline void GameThread_ApplyParameterOverrides(const TArray<ParameterType>& Para
 			FMaterialParameterInfo ParameterInfo;
 			if (Parameter->ParameterInfo.RemapLayerIndex(LayerIndexRemap, ParameterInfo))
 			{
-				FMaterialParameterMetadata* Result = OutParameters.Find(ParameterInfo);
-				if (Result)
+				bool bPreviouslyOverriden = false;
+				OverridenParameters.Add(ParameterInfo, &bPreviouslyOverriden);
+				if (!bPreviouslyOverriden)
 				{
-					Parameter->GetValue(*Result);
-#if WITH_EDITORONLY_DATA
-					if (bSetOverride)
+					FMaterialParameterMetadata* Result = OutParameters.Find(ParameterInfo);
+					if (Result)
 					{
-						Result->bOverride = true;
-					}
+						Parameter->GetValue(*Result);
+#if WITH_EDITORONLY_DATA
+						if (bSetOverride)
+						{
+							Result->bOverride = true;
+						}
 #endif // WITH_EDITORONLY_DATA
+					}
 				}
 			}
 		}
