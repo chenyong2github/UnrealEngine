@@ -70,7 +70,7 @@ void FMassArchetypeData::Initialize(const FMassArchetypeCompositionDescriptor& I
 	for (const UScriptStruct* ChunkFragmentType : ChunkFragmentList)
 	{
 		check(ChunkFragmentType);
-		ChunkFragmentsTemplate.Add(FConstStructView(ChunkFragmentType));
+		ChunkFragmentsTemplate.Emplace(ChunkFragmentType);
 	}
 
 	// Share fragments

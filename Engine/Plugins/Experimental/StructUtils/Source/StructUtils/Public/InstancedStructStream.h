@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
-#include "InstancedStruct.h"
+#include "StructView.h"
 #include "InstancedStructStream.generated.h"
 
 /**

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
-#include "InstancedStruct.h"
+#include "StructView.h"
 #include "StateTreePropertyBindings.generated.h"
 
 class FProperty;
