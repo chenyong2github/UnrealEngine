@@ -75,6 +75,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "WidthMode == EDrawPolyPathWidthMode::Fixed", UIMin = "0.0001", UIMax = "1000", ClampMin = "0", ClampMax = "999999"))
 	float Width = 10.0f;
 
+	/** Use arc segments instead of straight lines in corners */
+	UPROPERTY(EditAnywhere, Category = Path)
+	bool bRoundedCorners = false;
+
+	/** Radius of the corner arcs, as a fraction of path width. This is only available if Rounded Corners is enabled */
+	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "WidthMode == EDrawPolyPathWidthMode::Fixed && bRoundedCorners", UIMin = "0.01", UIMax = "2.0", ClampMin = "0.01", ClampMax = "999999"))
+	float CornerRadius = 0.01f;
+
+	/** Number of radial subdivisions for rounded corners */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Path, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "10000",
+		EditCondition = "bRoundedCorners"))
+	int RadialSlices = 16;
+
 	/** If true, all quads on the path will belong to the same polygon. If false, each quad gets its own polygon. */
 	UPROPERTY(EditAnywhere, Category = Path)
 	bool bSinglePolyGroup = false;
@@ -199,7 +212,8 @@ protected:
 	TArray<double> OffsetScaleFactors;
 	TArray<FVector3d> CurPolyLine;
 	double CurPathLength;
-	double CurOffsetDistance;
+	double CurWidth;
+	double CurRadius;
 	double CurHeight;
 	bool bHasSavedWidth = false;
 	float SavedWidth;
@@ -220,19 +234,28 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UCollectSurfacePathMechanic> SurfacePathMechanic = nullptr;
 
+	bool bSpecifyingRadius = false;
+
 	void InitializeNewSurfacePath();
 	void UpdateSurfacePathPlane();
 	void OnCompleteSurfacePath();
-	void OnCompleteOffsetDistance();
-	void OnCompleteExtrudeHeight();
 
-	void BeginInteractiveOffsetDistance();
-	void BeginConstantOffsetDistance();
-	void UpdatePathPreview();
+	void BeginInteractiveWidth();
+	void BeginConstantWidth();
+	void OnCompleteWidth();
+
+	void BeginInteractiveRadius();
+	void BeginConstantRadius();
+	void OnCompleteRadius();
+
 	void BeginInteractiveExtrudeHeight();
 	void UpdateExtrudePreview();
+	void OnCompleteExtrudeHeight();
+
+	void UpdatePathPreview();
 	void InitializePreviewMesh();
 	void ClearPreview();
+
 	void GeneratePathMesh(UE::Geometry::FDynamicMesh3& Mesh);
 	void GenerateExtrudeMesh(UE::Geometry::FDynamicMesh3& PathMesh);
 	void EmitNewObject();

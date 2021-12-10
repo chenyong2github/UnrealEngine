@@ -42,7 +42,17 @@ namespace DrawPolyPathToolLocals
 	}
 
 
-	void GeneratePathMesh(FDynamicMesh3& Mesh, const TArray<FFrame3d>& InPathPoints, const TArray<double>& InOffsetScaleFactors, double OffsetDistance, bool bPathIsClosed, bool bRampMode, bool bSinglePolyGroup)
+	void GeneratePathMesh(FDynamicMesh3& Mesh, 
+		const TArray<FFrame3d>& InPathPoints, 
+		const TArray<double>& InOffsetScaleFactors, 
+		double OffsetDistance, 
+		bool bPathIsClosed, 
+		bool bRampMode, 
+		bool bSinglePolyGroup,
+		bool bRoundedCorners,
+		double CornerRadiusFraction,
+		bool bLimitCornerRadius,
+		int NumCornerArcPoints)
 	{
 		Mesh.Clear();
 
@@ -62,11 +72,12 @@ namespace DrawPolyPathToolLocals
 
 		TArray<double> ArcLengths;
 		ComputeArcLengths(UsePathPoints, ArcLengths);
-		const double PathLength = ArcLengths.Last();
+		double PathLength = ArcLengths.Last();
 
 		if (bPathIsClosed)
 		{
-			FPolygonEdgeMeshGenerator MeshGen(UsePathPoints, UseOffsetScaleFactors, OffsetDistance, FVector3d::UnitZ());
+			double CornerRadius = 2.0 * CornerRadiusFraction * OffsetDistance;
+			FPolygonEdgeMeshGenerator MeshGen(UsePathPoints, UseOffsetScaleFactors, OffsetDistance, FVector3d::UnitZ(), bRoundedCorners, CornerRadius, bLimitCornerRadius, NumCornerArcPoints);
 			MeshGen.bSinglePolyGroup = bSinglePolyGroup;
 			MeshGen.UVWidth = PathLength;
 			MeshGen.UVHeight = 2 * OffsetDistance;
@@ -74,19 +85,37 @@ namespace DrawPolyPathToolLocals
 			Mesh.Copy(&MeshGen);
 
 			Mesh.EnableVertexUVs(FVector2f::Zero());
-			for (int k = 0; k < NumPoints; ++k)
-			{
-				// Temporarily set vertex UVs to arclengths, for use in interpolating height in ramp mode
-				const float Alpha = (float)ArcLengths[k] / PathLength;
-				Mesh.SetVertexUV(2 * k, FVector2f(Alpha, (float)k));
-				Mesh.SetVertexUV(2 * k + 1, FVector2f(Alpha, (float)k));
-			}
 
 			if (bRampMode)
 			{
-				int NumMeshVertices = 2 * NumPoints;
-				ensure(NumMeshVertices == Mesh.VertexCount());
+				// Temporarily set vertex UVs to arclengths, for use in interpolating height in ramp mode
+
+				if (bRoundedCorners)
+				{
+					// If we added arcs to the corners, recompute arc lengths
+					const int N = Mesh.VertexCount() / 2;
+					ArcLengths.Init(0.0, N);
+					double CurPathLength = 0;
+					for (int k = 1; k < N; ++k)
+					{
+						CurPathLength += Distance(Mesh.GetVertex(2 * k), Mesh.GetVertex(2 * (k - 1)));
+						ArcLengths[k] = CurPathLength;
+					}
+					PathLength = ArcLengths.Last();
+				}
+
+				int NumMeshVertices = Mesh.VertexCount();
 				ensure(NumMeshVertices == Mesh.MaxVertexID());
+				ensure(NumMeshVertices == 2 * ArcLengths.Num());
+
+				for (int k = 0; k < NumMeshVertices/2; ++k)
+				{
+					const float Alpha = (float)ArcLengths[k] / PathLength;
+					Mesh.SetVertexUV(2 * k, FVector2f(Alpha, (float)k));
+					Mesh.SetVertexUV(2 * k + 1, FVector2f(Alpha, (float)k));
+				}
+
+				// Set last vertex positions to match first vertex locations so we can construct the vertical wall
 				Mesh.SetVertex(NumMeshVertices - 2, Mesh.GetVertex(0));
 				Mesh.SetVertex(NumMeshVertices - 1, Mesh.GetVertex(1));
 			}
@@ -305,23 +334,29 @@ void UDrawPolyPathTool::OnClicked(const FInputDeviceRay& ClickPos)
 			if (SurfacePathMechanic->IsDone())
 			{
 				bPathIsClosed = SurfacePathMechanic->LoopWasClosed();
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginOffset", "Set path width"));
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathFinishPath", "Finish path"));
 				OnCompleteSurfacePath();
 			}
 			else
 			{
-				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginPath", "Begin path"));
+				GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathAddToPath", "Add point to path"));
 			}
 		}
 	}
-	else if (CurveDistMechanic != nullptr)
+	else if (CurveDistMechanic != nullptr && !bSpecifyingRadius)
 	{
-		GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginHeight", "Set extrude height"));
-		OnCompleteOffsetDistance();
+		GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginWidth", "Set path width"));
+		OnCompleteWidth();
+	}
+	else if (CurveDistMechanic != nullptr && bSpecifyingRadius)
+	{
+		GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginRadius", "Set corner radius"));
+		OnCompleteRadius();
 	}
 	else if (ExtrudeHeightMechanic != nullptr)
 	{
 		CurHeight = TransformProps->ExtrudeHeight;
+		GetToolManager()->EmitObjectChange(this, MakeUnique<FDrawPolyPathStateChange>(CurrentCurveTimestamp), LOCTEXT("DrawPolyPathBeginExtrude", "Set extrude height"));
 		OnCompleteExtrudeHeight();
 	}
 }
@@ -352,16 +387,22 @@ bool UDrawPolyPathTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	{
 		CurveDistMechanic->UpdateCurrentDistance(DevicePos.WorldRay);
 
+		double CurveDistance = CurveDistMechanic->CurrentDistance;
+
 		if (TransformProps->bSnapToWorldGrid)
 		{
-			double QuantizedDistance = ToolSceneQueriesUtil::SnapDistanceToWorldGridSize(this, CurveDistMechanic->CurrentDistance);
-			TransformProps->Width = QuantizedDistance * 2.0;
-			CurOffsetDistance = QuantizedDistance;
+			CurveDistance = ToolSceneQueriesUtil::SnapDistanceToWorldGridSize(this, CurveDistance);
+		}
+
+		if (bSpecifyingRadius)
+		{
+			TransformProps->CornerRadius = FMath::Clamp(CurveDistance / CurWidth, 0.0, 2.0);
+			CurRadius = TransformProps->CornerRadius;
 		}
 		else
 		{
-			TransformProps->Width = CurveDistMechanic->CurrentDistance * 2.0;
-			CurOffsetDistance = CurveDistMechanic->CurrentDistance;
+			TransformProps->Width = CurveDistance;
+			CurWidth = 0.5 * CurveDistance;
 		}
 		UpdatePathPreview();
 	}
@@ -505,7 +546,7 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 		Line1.Origin += DistOffsetDelta * PlaneNormal.Cross(Line1.Direction);
 		Line2.Origin += DistOffsetDelta * PlaneNormal.Cross(Line2.Direction);
 
-		if (Line1.Direction.Dot(Line2.Direction) > 0.999 )
+		if (FMath::Abs(Line1.Direction.Dot(Line2.Direction)) > 0.999 )
 		{
 			CurPathPoints[j].ConstrainedAlignAxis(0, UE::Geometry::Normalized(Next-Prev), PlaneNormal);
 			OffsetScaleFactors[j] = 1.0;
@@ -530,17 +571,18 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 	SurfacePathMechanic = nullptr;
 	if (TransformProps->WidthMode == EDrawPolyPathWidthMode::Fixed)
 	{
-		BeginConstantOffsetDistance();
+		BeginConstantWidth();
 	}
 	else
 	{
-		BeginInteractiveOffsetDistance();
+		BeginInteractiveWidth();
 	}
 }
 
 
-void UDrawPolyPathTool::BeginInteractiveOffsetDistance()
+void UDrawPolyPathTool::BeginInteractiveWidth()
 {
+	bSpecifyingRadius = false;
 	bHasSavedWidth = true;
 	SavedWidth = TransformProps->Width;
 	
@@ -555,17 +597,57 @@ void UDrawPolyPathTool::BeginInteractiveOffsetDistance()
 }
 
 
-void UDrawPolyPathTool::BeginConstantOffsetDistance()
+void UDrawPolyPathTool::BeginConstantWidth()
 {
+	bSpecifyingRadius = false;
 	InitializePreviewMesh();
-	CurOffsetDistance = TransformProps->Width * 0.5;
+	CurWidth = TransformProps->Width * 0.5;
 	UpdatePathPreview();
-	OnCompleteOffsetDistance();
+	OnCompleteWidth();
+}
+
+void UDrawPolyPathTool::OnCompleteWidth()
+{
+	if (TransformProps->bRoundedCorners)
+	{
+		if (TransformProps->WidthMode == EDrawPolyPathWidthMode::Fixed)
+		{
+			BeginConstantRadius();
+		}
+		else
+		{
+			BeginInteractiveRadius();
+		}
+	}
+	else
+	{
+		BeginConstantRadius();
+	}
 }
 
 
+void UDrawPolyPathTool::BeginConstantRadius()
+{
+	bSpecifyingRadius = true;
+	InitializePreviewMesh();
+	CurRadius = TransformProps->CornerRadius;
+	UpdatePathPreview();
+	OnCompleteRadius();
+}
 
-void UDrawPolyPathTool::OnCompleteOffsetDistance()
+void UDrawPolyPathTool::BeginInteractiveRadius()
+{
+	bSpecifyingRadius = true;
+
+	// begin setting offset distance
+	CurveDistMechanic = NewObject<USpatialCurveDistanceMechanic>(this);
+	CurveDistMechanic->Setup(this);
+	CurveDistMechanic->InitializePolyCurve(CurPolyLine, UE::Geometry::FTransform3d::Identity());
+
+	InitializePreviewMesh();
+}
+
+void UDrawPolyPathTool::OnCompleteRadius()
 {
 	CurveDistMechanic = nullptr;
 
@@ -599,7 +681,6 @@ void UDrawPolyPathTool::OnCompleteExtrudeHeight()
 }
 
 
-
 void UDrawPolyPathTool::UpdatePathPreview()
 {
 	check(EditPreview != nullptr);
@@ -617,7 +698,18 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 	SecondPolyLoop.Reset();
 
 	const bool bRampMode = (TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed) || (TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampInteractive);
-	DrawPolyPathToolLocals::GeneratePathMesh(Mesh, CurPathPoints, OffsetScaleFactors, CurOffsetDistance, bPathIsClosed, bRampMode, TransformProps->bSinglePolyGroup);
+	constexpr bool bLimitCornerRadius = true;
+	DrawPolyPathToolLocals::GeneratePathMesh(Mesh, 
+		CurPathPoints, 
+		OffsetScaleFactors, 
+		CurWidth, 
+		bPathIsClosed, 
+		bRampMode, 
+		TransformProps->bSinglePolyGroup, 
+		TransformProps->bRoundedCorners, 
+		CurRadius,
+		bLimitCornerRadius,
+		TransformProps->RadialSlices);
 
 	FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
 
@@ -824,15 +916,42 @@ void UDrawPolyPathTool::UndoCurrentOperation()
 	}
 	else if (CurveDistMechanic != nullptr)
 	{
-		CurveDistMechanic = nullptr;
-		ClearPreview();
-		InitializeNewSurfacePath();
-		SurfacePathMechanic->HitPath = CurPathPoints;
+		if (!bSpecifyingRadius)
+		{
+			CurveDistMechanic = nullptr;
+			ClearPreview();
+			InitializeNewSurfacePath();
+			SurfacePathMechanic->HitPath = CurPathPoints;
+		}
+		else
+		{
+			BeginInteractiveWidth();
+		}
 	}
 	else if (ExtrudeHeightMechanic != nullptr)
 	{
 		ExtrudeHeightMechanic = nullptr;
-		BeginInteractiveOffsetDistance();
+
+		if (TransformProps->bRoundedCorners && TransformProps->WidthMode == EDrawPolyPathWidthMode::Interactive)
+		{
+			BeginInteractiveRadius();
+		}
+		else
+		{
+			if (TransformProps->WidthMode == EDrawPolyPathWidthMode::Fixed)
+			{
+				// Pop all the way back to initial path creation
+				CurveDistMechanic = nullptr;
+				ClearPreview();
+				InitializeNewSurfacePath();
+				SurfacePathMechanic->HitPath = CurPathPoints;
+			}
+			else
+			{
+				BeginInteractiveWidth();
+			}
+		}
+	
 	}
 }
 
