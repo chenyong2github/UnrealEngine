@@ -24,6 +24,7 @@ void FInstallBundleCache::AddOrUpdateBundle(EInstallBundleSourceType Source, con
 	Info.FullInstallSize = AddInfo.FullInstallSize;
 	Info.CurrentInstallSize = AddInfo.CurrentInstallSize;
 	Info.TimeStamp = AddInfo.TimeStamp;
+	Info.AgeScalar = FMath::Clamp(AddInfo.AgeScalar, 0.1, 1.0);
 
 	UpdateCacheInfoFromSourceInfo(AddInfo.BundleName);
 
@@ -62,6 +63,7 @@ TOptional<FInstallBundleCacheBundleInfo> FInstallBundleCache::GetBundleInfo(EIns
 			OutInfo.FullInstallSize = SourceInfo->FullInstallSize;
 			OutInfo.CurrentInstallSize = SourceInfo->CurrentInstallSize;
 			OutInfo.TimeStamp = SourceInfo->TimeStamp;
+			OutInfo.AgeScalar = SourceInfo->AgeScalar;
 		}
 	}
 
@@ -148,11 +150,14 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 
 	// TODO: Bundles that have BundleSize > 0 or are PendingEvict should be 
 	// sorted to the beginning.  We should be able to stop iterating sooner in that case.
-	CacheInfo.ValueSort([](const FBundleCacheInfo& A, const FBundleCacheInfo& B)
+	CacheInfo.ValueSort([Now=FDateTime::UtcNow()](const FBundleCacheInfo& A, const FBundleCacheInfo& B)
 	{
 		if (A.IsHintRequested() == B.IsHintRequested())
 		{
-			return A.TimeStamp < B.TimeStamp;
+			FTimespan AgeA = (Now > A.TimeStamp) ? Now - A.TimeStamp : FTimespan(0);
+			FTimespan AgeB = (Now > B.TimeStamp) ? Now - B.TimeStamp : FTimespan(0);
+
+			return AgeA * A.AgeScalar > AgeB * B.AgeScalar;
 		}
 		
 		return !A.IsHintRequested() && B.IsHintRequested();
@@ -424,15 +429,24 @@ void FInstallBundleCache::UpdateCacheInfoFromSourceInfo(FName BundleName)
 	}
 
 	FDateTime TimeStamp = FDateTime::MinValue();
+	double AgeScalar = 1.0;
 	uint64 FullInstallSize = 0;
 	uint64 CurrentInstallSize = 0;
 	for (const TPair<EInstallBundleSourceType, FPerSourceBundleCacheInfo>& Pair : *SourcesMap)
 	{
 		FullInstallSize += Pair.Value.FullInstallSize;
 		CurrentInstallSize += Pair.Value.CurrentInstallSize;
-		if (Pair.Value.CurrentInstallSize > 0 && Pair.Value.TimeStamp > TimeStamp)
+		if (Pair.Value.CurrentInstallSize > 0)
 		{
-			TimeStamp = Pair.Value.TimeStamp;
+			if (Pair.Value.TimeStamp > TimeStamp)
+			{
+				TimeStamp = Pair.Value.TimeStamp;
+			}
+
+			if (Pair.Value.AgeScalar < AgeScalar)
+			{
+				AgeScalar = Pair.Value.AgeScalar;
+			}
 		}
 	}
 
@@ -442,4 +456,5 @@ void FInstallBundleCache::UpdateCacheInfoFromSourceInfo(FName BundleName)
 	BundleCacheInfo.FullInstallSize = FullInstallSize;
 	BundleCacheInfo.CurrentInstallSize = CurrentInstallSize;
 	BundleCacheInfo.TimeStamp = TimeStamp;
+	BundleCacheInfo.AgeScalar = AgeScalar;
 }

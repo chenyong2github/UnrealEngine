@@ -31,6 +31,9 @@ public:
 	// Returns the how this source should be weighted when combined with other sources
 	virtual float GetSourceWeight() const { return 1.0f; }
 
+	// Returns a value in the [0.1, 1.0] range that allows bundles using this source to age out of the LRU cache more slowly
+	virtual double GetSourceCacheAgeScalar() const { return 1.0; }
+
 	// Called once by bundle manager after constructing the bundle source
 	// Any non-fallback errors returned will cause bundle manager to fail to initialize
 	virtual FInstallBundleSourceInitInfo Init(
