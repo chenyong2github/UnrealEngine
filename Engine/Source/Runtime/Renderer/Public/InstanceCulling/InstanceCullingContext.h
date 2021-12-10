@@ -95,13 +95,13 @@ public:
 	 * Add command to cull a range of instances for the given mesh draw command index.
 	 * Multiple commands may add to the same slot, ordering is not preserved.
 	 */
-	void AddInstancesToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, uint32 NumInstances);
+	void AddInstancesToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, bool bForceInstanceCulling, uint32 NumInstances);
 
 	/**
 	 * Command that is executed in the per-view, post-cull pass to gather up the instances belonging to this primitive.
 	 * Multiple commands may add to the same slot, ordering is not preserved.
 	 */
-	void AddInstanceRunsToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, const uint32* Runs, uint32 NumRuns);
+	void AddInstanceRunsToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, bool bForceInstanceCulling, const uint32* Runs, uint32 NumRuns);
 
 	/*
 	 * Allocate space for indirect draw call argumens for a given MeshDrawCommand and initialize with draw command data.

@@ -48,12 +48,11 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo = PrimitiveSceneProxy ? PrimitiveSceneProxy->GetPrimitiveSceneInfo() : nullptr;
 
 	FMeshDrawCommand SharedMeshDrawCommand;
-
-	EFVisibleMeshDrawCommandFlags Flags = EFVisibleMeshDrawCommandFlags::Default;
+	EFVisibleMeshDrawCommandFlags SharedFlags = EFVisibleMeshDrawCommandFlags::Default;
 
 	if (MaterialResource.MaterialModifiesMeshPosition_RenderThread())
 	{
-		Flags |= EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition;
+		SharedFlags |= EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition;
 	}
 
 	SharedMeshDrawCommand.SetStencilRef(DrawRenderState.GetStencilRef());
@@ -90,7 +89,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 
 	if (SharedMeshDrawCommand.PrimitiveIdStreamIndex != INDEX_NONE)
 	{
-		Flags |= EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex;
+		SharedFlags |= EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex;
 	}
 
 	int32 DataOffset = 0;
@@ -122,6 +121,12 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 		{
 			const FMeshBatchElement& BatchElement = MeshBatch.Elements[BatchElementIndex];
 			FMeshDrawCommand& MeshDrawCommand = DrawListContext->AddCommand(SharedMeshDrawCommand, NumElements);
+			EFVisibleMeshDrawCommandFlags Flags = SharedFlags;
+
+			if (BatchElement.DynamicPrimitiveData != nullptr && BatchElement.DynamicPrimitiveData->bForceInstanceCulling)
+			{
+				Flags |= EFVisibleMeshDrawCommandFlags::ForceInstanceCulling;
+			}
 
 			DataOffset = 0;
 			if (PassShaders.VertexShader.IsValid())

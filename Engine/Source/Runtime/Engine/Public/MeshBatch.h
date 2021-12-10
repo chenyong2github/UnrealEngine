@@ -76,6 +76,7 @@ struct FMeshBatchDynamicPrimitiveData
 	EGPUSceneGPUWritePass DataWriterGPUPass = EGPUSceneGPUWritePass::None;
 	uint16 PayloadDataFlags = 0;
 	uint32 NumInstanceCustomDataFloats = 0;
+	bool bForceInstanceCulling = false;
 
 	FORCEINLINE void SetPayloadDataFlags(uint16 Flags, bool bValue)
 	{
