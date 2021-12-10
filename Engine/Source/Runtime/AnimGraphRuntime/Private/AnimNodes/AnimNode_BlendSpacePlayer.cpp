@@ -92,10 +92,7 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 		TickRecord.DeltaTimeRecord = &DeltaTimeRecord;
 
 		UE::Anim::FAnimSyncParams SyncParams(GetGroupName(), GetGroupRole(), GetGroupMethod());
-		if(Context.GetSharedContext())
-		{
-			Context.GetSharedContext()->MessageStack.MakeEventContextData(TickRecord.ContextData);
-		}
+		TickRecord.GatherContextData(Context);
 
 		SyncScope.AddTickRecord(TickRecord, SyncParams, UE::Anim::FAnimSyncDebugInfo(Context));
 

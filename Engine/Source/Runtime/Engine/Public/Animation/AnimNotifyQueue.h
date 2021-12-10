@@ -81,20 +81,25 @@ struct FAnimNotifyEventReference
 	template<typename Type> 
 	const Type* GetContextData() const 
 	{
-		for(const TSharedPtr<const UE::Anim::IAnimNotifyEventContextDataInterface>& DataInterface :  ContextData)
-        {
-        	if (DataInterface->Is<Type>())
-        	{
-        		return &(DataInterface->As<Type>()); 
-        	}
-        }
-        return nullptr; 
+		if(ContextData.IsValid())
+		{
+			for(const TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>& DataInterface : *ContextData)
+			{
+				if (DataInterface->Is<Type>())
+				{
+					return &(DataInterface->As<Type>()); 
+				}
+			}
+		}
+		return nullptr; 
 	}
 
-	void SetContextDataInterfaces(const TArray<TSharedPtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>& InContextData);
-private:
+	// Pulls relevant data from the tick record
+	void GatherTickRecordData(const FAnimTickRecord& InTickRecord);
 
-	TArray<TSharedPtr<const UE::Anim::IAnimNotifyEventContextDataInterface>> ContextData;
+private:
+	// Context data gleaned from the tick record
+	TSharedPtr<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>> ContextData;
 	
 	const FAnimNotifyEvent* Notify;
 

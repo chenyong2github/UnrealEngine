@@ -31,8 +31,8 @@ struct ENGINE_API FEncounteredStateMachineStack
 		int32 StateIndex = INDEX_NONE;;
 	};
 	TArray<FStateMachineEntry, TInlineAllocator<4>> StateStack;
-	static TSharedPtr<const FEncounteredStateMachineStack> InitStack(const FEncounteredStateMachineStack& ParentStack, int32 InStateMachineIndex, int32 InStateIndex);
-	static TSharedPtr<const FEncounteredStateMachineStack> InitStack(int32 InStateMachineIndex, int32 InStateIndex);
+	static FEncounteredStateMachineStack InitStack(const FEncounteredStateMachineStack& ParentStack, int32 InStateMachineIndex, int32 InStateIndex);
+	static FEncounteredStateMachineStack InitStack(int32 InStateMachineIndex, int32 InStateIndex);
 };
 
 namespace UE { namespace Anim {
@@ -40,23 +40,23 @@ namespace UE { namespace Anim {
 class ENGINE_API FAnimNotifyStateMachineContext : public UE::Anim::IAnimNotifyEventContextDataInterface
 {
 	DECLARE_NOTIFY_CONTEXT_INTERFACE(FAnimNotifyStateMachineContext)
-	public:
-	FAnimNotifyStateMachineContext(const TSharedPtr<const FEncounteredStateMachineStack>& InEncounteredStateMachines);
+public:
+	FAnimNotifyStateMachineContext(const FEncounteredStateMachineStack& InEncounteredStateMachines);
 	bool IsStateMachineInContext(int32 StateMachineIndex) const;
 	bool IsStateInStateMachineInContext(int32 StateMachineIndex, int32 StateIndex) const; 
-	TSharedPtr<const FEncounteredStateMachineStack> EncounteredStateMachines; 
+	const FEncounteredStateMachineStack EncounteredStateMachines;
 };
 
 class ENGINE_API FActiveStateMachineScope : public UE::Anim::IGraphMessage
 {
 	DECLARE_ANIMGRAPH_MESSAGE(FActiveStateMachineScope);
-	public:
+public:
 	FActiveStateMachineScope(const FAnimationBaseContext& InContext, FAnimNode_StateMachine* StateMachine, int32 InStateIndex);
-	virtual ~FActiveStateMachineScope();
+
 	static int32 GetStateMachineIndex(FAnimNode_StateMachine* StateMachine, const FAnimationBaseContext& Context);
-	virtual TSharedPtr<const IAnimNotifyEventContextDataInterface> MakeEventContextData() const override;
+	virtual TUniquePtr<const IAnimNotifyEventContextDataInterface> MakeUniqueEventContextData() const override;
 	
-	TSharedPtr<const FEncounteredStateMachineStack> ActiveStateMachines; 
+	const FEncounteredStateMachineStack ActiveStateMachines; 
 };
 
 }}	// namespace UE::Anim

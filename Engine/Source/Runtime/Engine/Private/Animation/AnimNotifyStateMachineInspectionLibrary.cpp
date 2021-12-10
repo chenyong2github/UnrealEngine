@@ -72,7 +72,7 @@ bool  UAnimNotifyStateMachineInspectionLibrary::IsTriggeredByState(const FAnimNo
 		const UE::Anim::FAnimNotifyStateMachineContext * StateMachineContext = EventReference.GetContextData<UE::Anim::FAnimNotifyStateMachineContext>();
 		if (StateMachineContext)
 		{
-			for (const FEncounteredStateMachineStack::FStateMachineEntry& Entry: StateMachineContext->EncounteredStateMachines->StateStack)
+			for (const FEncounteredStateMachineStack::FStateMachineEntry& Entry: StateMachineContext->EncounteredStateMachines.StateStack)
 			{
 				const FAnimNode_StateMachine* StateMachineInstance = AnimInstance->GetStateMachineInstance(Entry.StateMachineIndex);
 				if(StateMachineInstance->GetStateInfo(Entry.StateIndex).StateName == StateName)
