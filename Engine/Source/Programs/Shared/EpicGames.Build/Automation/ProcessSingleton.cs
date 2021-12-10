@@ -7,6 +7,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace UnrealBuildBase
 {
@@ -28,8 +29,8 @@ namespace UnrealBuildBase
 		/// Runs the specified delegate checking if this is the only instance of the application.
 		/// </summary>
 		/// <param name="Main"></param>
-		/// <param name="Param"></param>
-		public static ExitCode RunSingleInstance(Func<ExitCode> Main, bool bWaitForUATMutex)
+		/// <param name="bWaitForUATMutex"></param>
+		public static async Task<ExitCode> RunSingleInstanceAsync(Func<Task<ExitCode>> Main, bool bWaitForUATMutex)
 		{
 			bool AllowMultipleInsances = (Environment.GetEnvironmentVariable("uebp_UATMutexNoWait") == "1");
 	
@@ -58,7 +59,7 @@ namespace UnrealBuildBase
 					}
 				}
 
-				ExitCode Result = Main();
+				ExitCode Result = await Main();
 
 				if (IsSoleInstance)
 				{

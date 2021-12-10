@@ -64,12 +64,12 @@ namespace BuildGraph.Tasks
 	/// <summary>
 	/// Base class for tasks that run an external tool
 	/// </summary>
-	public abstract class SpawnTaskBase : CustomTask
+	public abstract class SpawnTaskBase : BgTaskImpl
 	{
 		/// <summary>
 		/// Execute a command
 		/// </summary>
-		protected static IProcessResult Execute(string Exe, string Arguments, string WorkingDir = null, Dictionary<string, string> EnvVars = null, bool LogOutput = true, int ErrorLevel = 1, string Input = null)
+		protected static Task<IProcessResult> ExecuteAsync(string Exe, string Arguments, string WorkingDir = null, Dictionary<string, string> EnvVars = null, bool LogOutput = true, int ErrorLevel = 1, string Input = null)
 		{
 			if (WorkingDir != null)
 			{
@@ -88,7 +88,7 @@ namespace BuildGraph.Tasks
 				throw new AutomationException("{0} terminated with an exit code indicating an error ({1})", Path.GetFileName(Exe), Result.ExitCode);
 			}
 
-			return Result;
+			return Task.FromResult(Result);
 		}
 
 		/// <summary>
@@ -168,9 +168,9 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			Execute(Parameters.Exe, Parameters.Arguments, Parameters.WorkingDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput, ErrorLevel: Parameters.ErrorLevel);
+			await ExecuteAsync(Parameters.Exe, Parameters.Arguments, Parameters.WorkingDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput, ErrorLevel: Parameters.ErrorLevel);
 		}
 
 		/// <summary>

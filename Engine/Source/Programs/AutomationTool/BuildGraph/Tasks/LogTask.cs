@@ -43,7 +43,7 @@ namespace BuildGraph.Tasks
 	/// Print a message (and other optional diagnostic information) to the output log.
 	/// </summary>
 	[TaskElement("Log", typeof(LogTaskParameters))]
-	public class LogTask : CustomTask
+	public class LogTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for the task
@@ -65,7 +65,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Print the message
 			if(!String.IsNullOrEmpty(Parameters.Message))
@@ -89,6 +89,8 @@ namespace BuildGraph.Tasks
 					}
 				}
 			}
+
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

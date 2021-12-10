@@ -92,7 +92,7 @@ namespace BuildGraph.Tasks
 	/// Uploads a set of files to Jupiter for future retrival
 	/// </summary>
 	[TaskElement("Upload", typeof(UploadTaskParameters))]
-	public class UploadTask : CustomTask
+	public class UploadTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -114,7 +114,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Find all the input files
 			List<FileReference> Files;
@@ -160,9 +160,7 @@ namespace BuildGraph.Tasks
 				}
 			}
 			// Upload the tree to Jupiter
-			Task<Dictionary<FileReference, List<string>>> Task = FileTree.UploadToJupiter(Parameters.JupiterUrl, Parameters.JupiterNamespace, Parameters.JupiterKey, Metadata);
-			Task.Wait();
-			Dictionary<FileReference, List<string>> Mapping = Task.Result;
+			Dictionary<FileReference, List<string>> Mapping = await FileTree.UploadToJupiter(Parameters.JupiterUrl, Parameters.JupiterNamespace, Parameters.JupiterKey, Metadata);
 
 			// Debug output of which files mapped to which blobs, can be useful to determine which files are constantly being uploaded
 			// Json.Save(FileReference.Combine(AutomationTool.Unreal.RootDirectory, "JupiterUpload.json"), Mapping);

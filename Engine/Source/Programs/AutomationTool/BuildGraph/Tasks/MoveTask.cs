@@ -54,7 +54,7 @@ namespace BuildGraph.Tasks
 	/// Moves files from one directory to another.
 	/// </summary>
 	[TaskElement("Move", typeof(MoveTaskParameters))]
-	public class MoveTask : CustomTask
+	public class MoveTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -76,7 +76,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Parse all the source patterns
 			FilePattern SourcePattern = new FilePattern(Unreal.RootDirectory, Parameters.From);
@@ -99,7 +99,7 @@ namespace BuildGraph.Tasks
 			if(TargetFileToSourceFile.Count == 0)
 			{
 				CommandUtils.LogInformation("No files found matching '{0}'", SourcePattern);
-				return;
+				return Task.CompletedTask;
 			}
 
 			// Copy them all
@@ -114,6 +114,8 @@ namespace BuildGraph.Tasks
 			{
 				FindOrAddTagSet(TagNameToFileSet, TagName).UnionWith(TargetFileToSourceFile.Keys);
 			}
+
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

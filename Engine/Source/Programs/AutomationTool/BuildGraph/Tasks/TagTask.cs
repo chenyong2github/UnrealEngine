@@ -61,7 +61,7 @@ namespace AutomationTool.Tasks
 	/// parameter. From this list, any files not matched by the 'Filter' parameter are removed, followed by any files matched by the 'Except' parameter.
 	/// </summary>
 	[TaskElement("Tag", typeof(TagTaskParameters))]
-	class TagTask : CustomTask
+	class TagTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters to this task
@@ -83,7 +83,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Get the base directory
 			DirectoryReference BaseDir = Parameters.BaseDir ?? Unreal.RootDirectory;
@@ -134,6 +134,7 @@ namespace AutomationTool.Tasks
 			{
 				FindOrAddTagSet(TagNameToFileSet, TagName).UnionWith(Files);
 			}
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

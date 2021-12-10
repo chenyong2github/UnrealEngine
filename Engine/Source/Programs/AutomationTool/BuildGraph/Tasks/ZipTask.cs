@@ -47,7 +47,7 @@ namespace BuildGraph.Tasks
 	/// Compresses files into a zip archive.
 	/// </summary>
 	[TaskElement("Zip", typeof(ZipTaskParameters))]
-	public class ZipTask : CustomTask
+	public class ZipTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -69,7 +69,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Find all the input files
 			List<FileReference> Files;
@@ -94,6 +94,7 @@ namespace BuildGraph.Tasks
 
 			// Add the archive to the set of build products
 			BuildProducts.Add(Parameters.ZipFile);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

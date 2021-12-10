@@ -10,6 +10,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using OpenTracing.Util;
 using UnrealBuildBase;
+using System.Threading.Tasks;
 
 namespace AutomationTool
 {
@@ -46,7 +47,7 @@ namespace AutomationTool
 		/// Main method.
 		/// </summary>
 		/// <param name="Arguments">Command line</param>
-		public static ExitCode Process(ParsedCommandLine AutomationToolCommandLine, StartupTraceListener StartupListener, HashSet<FileReference> ScriptModuleAssemblies)
+		public static async Task<ExitCode> ProcessAsync(ParsedCommandLine AutomationToolCommandLine, StartupTraceListener StartupListener, HashSet<FileReference> ScriptModuleAssemblies)
 		{
 			GlobalCommandLine.Initialize(AutomationToolCommandLine);
 
@@ -150,7 +151,7 @@ namespace AutomationTool
 				try
 				{
 					// Find and execute commands.
-					ExitCode Result = Execute(AutomationToolCommandLine.CommandsToExecute, ScriptManager.Commands);
+					ExitCode Result = await ExecuteAsync(AutomationToolCommandLine.CommandsToExecute, ScriptManager.Commands);
 					if (TelemetryFile != null)
 					{
 						Directory.CreateDirectory(Path.GetDirectoryName(TelemetryFile));
@@ -234,7 +235,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="CommandsToExecute"></param>
 		/// <param name="Commands"></param>
-		public static ExitCode Execute(List<CommandInfo> CommandsToExecute, Dictionary<string, Type> Commands)
+		public static async Task<ExitCode> ExecuteAsync(List<CommandInfo> CommandsToExecute, Dictionary<string, Type> Commands)
 		{
 			for (int CommandIndex = 0; CommandIndex < CommandsToExecute.Count; ++CommandIndex)
 			{
@@ -250,7 +251,7 @@ namespace AutomationTool
 				Command.Params = CommandInfo.Arguments.ToArray();
 				try
 				{
-					ExitCode Result = Command.Execute();
+					ExitCode Result = await Command.ExecuteAsync();
 					if(Result != ExitCode.Success)
 					{
 						return Result;

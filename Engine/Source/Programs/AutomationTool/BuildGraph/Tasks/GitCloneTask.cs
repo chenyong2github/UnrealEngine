@@ -4,6 +4,7 @@ using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using UnrealBuildBase;
 
@@ -43,7 +44,7 @@ namespace AutomationTool.Tasks
 	/// Spawns Git and waits for it to complete.
 	/// </summary>
 	[TaskElement("Git-Clone", typeof(GitCloneTaskParameters))]
-	public class GitCloneTask : CustomTask
+	public class GitCloneTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -65,7 +66,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			FileReference GitExe = CommandUtils.FindToolInPath("git");
 			if(GitExe == null)
@@ -80,7 +81,7 @@ namespace AutomationTool.Tasks
 				DirectoryReference GitDir = DirectoryReference.Combine(Dir, ".git");
 				if (!FileReference.Exists(FileReference.Combine(GitDir, "HEAD")))
 				{
-					RunGit(GitExe, $"init \"{Dir}\"", Unreal.RootDirectory);
+					await RunGitAsync(GitExe, $"init \"{Dir}\"", Unreal.RootDirectory);
 				}
 
 				if (Parameters.ConfigFile != null)
@@ -90,12 +91,12 @@ namespace AutomationTool.Tasks
 
 				if (Parameters.Remote != null)
 				{
-					RunGit(GitExe, $"remote add origin {Parameters.Remote}", Dir);
+					await RunGitAsync(GitExe, $"remote add origin {Parameters.Remote}", Dir);
 				}
 
-				RunGit(GitExe, "clean -dxf", Dir);
-				RunGit(GitExe, "fetch --all", Dir);
-				RunGit(GitExe, $"reset --hard {Parameters.Branch}", Dir);
+				await RunGitAsync(GitExe, "clean -dxf", Dir);
+				await RunGitAsync(GitExe, "fetch --all", Dir);
+				await RunGitAsync(GitExe, $"reset --hard {Parameters.Branch}", Dir);
 			}
 		}
 
@@ -105,13 +106,14 @@ namespace AutomationTool.Tasks
 		/// <param name="ToolFile"></param>
 		/// <param name="Arguments"></param>
 		/// <param name="WorkingDir"></param>
-		void RunGit(FileReference ToolFile, string Arguments, DirectoryReference WorkingDir)
+		Task RunGitAsync(FileReference ToolFile, string Arguments, DirectoryReference WorkingDir)
 		{
 			IProcessResult Result = CommandUtils.Run(ToolFile.FullName, Arguments, WorkingDir: WorkingDir.FullName);
 			if (Result.ExitCode != 0)
 			{
 				throw new AutomationException("Git terminated with an exit code indicating an error ({0})", Result.ExitCode);
 			}
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

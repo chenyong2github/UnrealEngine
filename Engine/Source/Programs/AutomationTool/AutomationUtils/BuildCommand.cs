@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 
@@ -342,6 +343,14 @@ namespace AutomationTool
 		{
 			ExecuteBuild();
 			return ExitCode.Success;
+		}
+
+		/// <summary>
+		/// Async command entry point.
+		/// </summary>
+		public virtual Task<ExitCode> ExecuteAsync()
+		{
+			return Task.FromResult(Execute());
 		}
 
 		/// <summary>

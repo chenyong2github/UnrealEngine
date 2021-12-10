@@ -79,7 +79,7 @@ namespace BuildGraph.Tasks
 	/// Creates a PAK file from a given set of files.
 	/// </summary>
 	[TaskElement("PakFile", typeof(PakFileTaskParameters))]
-	public class PakFileTask : CustomTask
+	public class PakFileTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for the task
@@ -101,7 +101,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Find the directories we're going to rebase relative to
 			HashSet<DirectoryReference> RebaseDirs = new HashSet<DirectoryReference>{ Unreal.RootDirectory };
@@ -181,6 +181,8 @@ namespace BuildGraph.Tasks
 			{
 				FindOrAddTagSet(TagNameToFileSet, TagName).Add(OutputFile);
 			}
+
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

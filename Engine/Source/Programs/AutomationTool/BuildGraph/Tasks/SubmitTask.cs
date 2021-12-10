@@ -84,7 +84,7 @@ namespace AutomationTool.Tasks
 	/// Creates a new changelist and submits a set of files to a Perforce stream.
 	/// </summary>
 	[TaskElement("Submit", typeof(SubmitTaskParameters))]
-	public class SubmitTask : CustomTask
+	public class SubmitTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for the task
@@ -106,7 +106,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet);
 			if (Files.Count == 0)
@@ -166,7 +166,7 @@ namespace AutomationTool.Tasks
 					if(SubmitP4.TryDeleteEmptyChange(NewCL))
 					{
 						CommandUtils.LogInformation("No files to submit; ignored.");
-						return;
+						return Task.CompletedTask;
 					}
 				}
 
@@ -179,6 +179,7 @@ namespace AutomationTool.Tasks
 				}
 				CommandUtils.LogInformation("Submitted in changelist {0}", SubmittedCL);
 			}
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

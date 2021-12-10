@@ -8,6 +8,7 @@ using System.Linq;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildTool;
+using System.Threading.Tasks;
 
 namespace Win.Automation
 {
@@ -54,7 +55,7 @@ namespace Win.Automation
 	/// difference is that it uses the last modified time rather than last access time to determine which files to delete.
 	/// </summary>
 	[TaskElement("AgeStore", typeof(AgeStoreTaskParameters))]
-	public class AgeStoreTask : CustomTask
+	public class AgeStoreTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -177,7 +178,7 @@ namespace Win.Automation
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Get the list of symbol file name patterns from the platform.
 			Platform TargetPlatform = Platform.GetPlatform(Parameters.Platform);
@@ -220,6 +221,7 @@ namespace Win.Automation
 			{
 				RecurseDirectory(ExpireTimeUtc, new DirectoryInfo(SymbolServerDirectory.FullName), DirectoryStructure, 0, Filter, ExistingBuilds, TargetPlatform.SymbolServerDeleteIndividualFiles);
 			});
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

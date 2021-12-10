@@ -72,7 +72,7 @@ namespace BuildGraph.Tasks
 	/// Stages files listed in a build receipt to an output directory.
 	/// </summary>
 	[TaskElement("Stage", typeof(StageTaskParameters))]
-	public class StageTask : CustomTask
+	public class StageTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for the task
@@ -94,7 +94,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Get the project path, and check it exists
 			FileReference ProjectFile = Parameters.Project;
@@ -169,6 +169,7 @@ namespace BuildGraph.Tasks
 
 			// Add the target file to the list of build products
 			BuildProducts.UnionWith(TargetFiles);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

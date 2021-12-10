@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace AutomationTool.Tasks
@@ -31,7 +32,7 @@ namespace AutomationTool.Tasks
 	/// Spawns Kubectland waits for it to complete.
 	/// </summary>
 	[TaskElement("Kubectl", typeof(KubectlTaskParameters))]
-	public class KubectlTask : CustomTask
+	public class KubectlTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -53,7 +54,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			FileReference KubectlExe = CommandUtils.FindToolInPath("kubectl");
 			if (KubectlExe == null)
@@ -66,6 +67,8 @@ namespace AutomationTool.Tasks
 			{
 				throw new AutomationException("Kubectl terminated with an exit code indicating an error ({0})", Result.ExitCode);
 			}
+
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

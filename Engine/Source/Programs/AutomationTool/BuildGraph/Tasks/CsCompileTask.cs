@@ -78,7 +78,7 @@ namespace AutomationTool.Tasks
 	/// Compiles C# project files, and their dependencies.
 	/// </summary>
 	[TaskElement("CsCompile", typeof(CsCompileTaskParameters))]
-	public class CsCompileTask : CustomTask
+	public class CsCompileTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for the task
@@ -100,7 +100,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Get the project file
 			HashSet<FileReference> ProjectFiles = ResolveFilespec(Unreal.RootDirectory, Parameters.Project, TagNameToFileSet);
@@ -197,6 +197,7 @@ namespace AutomationTool.Tasks
 			// Merge them into the standard set of build products
 			BuildProducts.UnionWith(ProjectBuildProducts);
 			BuildProducts.UnionWith(ProjectReferences);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

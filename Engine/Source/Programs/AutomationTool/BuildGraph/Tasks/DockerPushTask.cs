@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace BuildGraph.Tasks
@@ -80,7 +81,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			Log.TraceInformation("Pushing Docker image");
 			using (LogIndentScope Scope = new LogIndentScope("  "))
@@ -89,13 +90,13 @@ namespace BuildGraph.Tasks
 
 				if (Parameters.AwsEcr)
 				{
-					IProcessResult Result = SpawnTaskBase.Execute("aws", "ecr get-login-password", EnvVars: Environment, LogOutput: false);
-					Execute("docker", $"login {Parameters.Repository} --username AWS --password-stdin", Input: Result.Output);
+					IProcessResult Result = await SpawnTaskBase.ExecuteAsync("aws", "ecr get-login-password", EnvVars: Environment, LogOutput: false);
+					await ExecuteAsync("docker", $"login {Parameters.Repository} --username AWS --password-stdin", Input: Result.Output);
 				}
 
 				string TargetImage = Parameters.TargetImage ?? Parameters.Image;
-				Execute("docker", $"tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
-				Execute("docker", $"push {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
+				await ExecuteAsync("docker", $"tag {Parameters.Image} {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
+				await ExecuteAsync("docker", $"push {Parameters.Repository}/{TargetImage}", EnvVars: Environment);
 			}
 		}
 

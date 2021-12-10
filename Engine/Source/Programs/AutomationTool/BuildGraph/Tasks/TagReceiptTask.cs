@@ -72,7 +72,7 @@ namespace AutomationTool.Tasks
 	/// Task that tags build products and/or runtime dependencies by reading from *.target files.
 	/// </summary>
 	[TaskElement("TagReceipt", typeof(TagReceiptTaskParameters))]
-	class TagReceiptTask : CustomTask
+	class TagReceiptTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters to this task
@@ -113,7 +113,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Output a warning if the project directory is specified
 			if(Parameters.ProjectDir != null)
@@ -190,6 +190,7 @@ namespace AutomationTool.Tasks
 
 			// Apply the tag to all the matching files
 			FindOrAddTagSet(TagNameToFileSet, Parameters.With).UnionWith(Files);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

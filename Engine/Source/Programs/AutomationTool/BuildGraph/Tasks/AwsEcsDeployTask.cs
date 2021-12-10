@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Xml;
 using UnrealBuildBase;
 
@@ -92,7 +93,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			string TaskDefTemplate = File.ReadAllText(ResolveFile(Parameters.TaskDefinitionFile).FullName);
 			string TaskDefRendered = TaskDefTemplate.Replace("%%DOCKER_IMAGE%%", Parameters.DockerImage);
@@ -105,14 +106,14 @@ namespace BuildGraph.Tasks
 			DirectoryReference.CreateDirectory(TempTaskDefFile.Directory);
 			File.WriteAllText(TempTaskDefFile.FullName, TaskDefRendered, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 			
-			IProcessResult CreateTaskDefResult = SpawnTaskBase.Execute("aws", $"ecs register-task-definition --cli-input-json \"file://{TempTaskDefFile.FullName}\"", EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput);
+			IProcessResult CreateTaskDefResult = await SpawnTaskBase.ExecuteAsync("aws", $"ecs register-task-definition --cli-input-json \"file://{TempTaskDefFile.FullName}\"", EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput);
 
 			JsonDocument TaskDefJson = JsonDocument.Parse(CreateTaskDefResult.Output);
 			string TaskDefFamily = TaskDefJson.RootElement.GetProperty("taskDefinition").GetProperty("family").GetString();
 			string TaskDefRevision = TaskDefJson.RootElement.GetProperty("taskDefinition").GetProperty("revision").ToString();
 
 			string Params = $"ecs update-service --cluster {Parameters.Cluster} --service {Parameters.Service} --task-definition {TaskDefFamily}:{TaskDefRevision}";
-			SpawnTaskBase.Execute("aws", Params, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput);
+			await SpawnTaskBase.ExecuteAsync("aws", Params, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile), LogOutput: Parameters.LogOutput);
 
 			Log.TraceInformation($"Service {Parameters.Service} updated to use new task def {TaskDefFamily}:{TaskDefRevision}");
 		}

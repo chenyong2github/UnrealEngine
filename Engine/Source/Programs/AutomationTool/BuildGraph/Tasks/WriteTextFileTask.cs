@@ -8,6 +8,7 @@ using System.Linq;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
+using System.Threading.Tasks;
 
 namespace BuildGraph.Tasks
 {
@@ -51,7 +52,7 @@ namespace BuildGraph.Tasks
 	/// Writes text to a file.
 	/// </summary>
 	[TaskElement("WriteTextFile", typeof(WriteTextFileTaskParameters))]
-	public class WriteTextFileTask : CustomTask
+	public class WriteTextFileTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task.
@@ -73,7 +74,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job.</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include.</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			string FileText = Parameters.Text;
 
@@ -101,12 +102,12 @@ namespace BuildGraph.Tasks
 			if (Parameters.Append)
 			{
 				CommandUtils.LogInformation(string.Format("Appending text to file '{0}': {1}", Parameters.File, FileText));
-				FileReference.AppendAllText(Parameters.File, Environment.NewLine + FileText);
+				await FileReference.AppendAllTextAsync(Parameters.File, Environment.NewLine + FileText);
 			}
 			else
 			{
 				CommandUtils.LogInformation(string.Format("Writing text to file '{0}': {1}", Parameters.File, FileText));
-				FileReference.WriteAllText(Parameters.File, FileText);
+				await FileReference.WriteAllTextAsync(Parameters.File, FileText);
 			}
 		}
 

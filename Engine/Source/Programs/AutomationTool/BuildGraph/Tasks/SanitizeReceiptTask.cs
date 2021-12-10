@@ -35,7 +35,7 @@ namespace AutomationTool.Tasks
 	/// Task that tags build products and/or runtime dependencies by reading from *.target files.
 	/// </summary>
 	[TaskElement("SanitizeReceipt", typeof(SanitizeReceiptTaskParameters))]
-	class SanitizeReceiptTask : CustomTask
+	class SanitizeReceiptTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters to this task
@@ -57,7 +57,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Set the Engine directory
 			DirectoryReference EngineDir = Parameters.EngineDir ?? Unreal.EngineDirectory;
@@ -118,6 +118,7 @@ namespace AutomationTool.Tasks
 					Receipt.Write(TargetFile, EngineDir);
 				}
 			}
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

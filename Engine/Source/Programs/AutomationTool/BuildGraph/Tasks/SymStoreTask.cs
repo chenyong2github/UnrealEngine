@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -53,7 +54,7 @@ namespace AutomationTool
     /// Task that strips symbols from a set of files.
     /// </summary>
     [TaskElement("SymStore", typeof(SymStoreTaskParameters))]
-    public class SymStoreTask : CustomTask
+    public class SymStoreTask : BgTaskImpl
     {
         /// <summary>
         /// Parameters for this task
@@ -75,7 +76,7 @@ namespace AutomationTool
         /// <param name="Job">Information about the current job</param>
         /// <param name="BuildProducts">Set of build products produced by this node.</param>
         /// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-        public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+        public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
         {
 			// Find the matching files
 			List<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.Files, TagNameToFileSet).ToList();
@@ -92,7 +93,9 @@ namespace AutomationTool
 					throw new AutomationException("Failure publishing symbol files.");
 				}
 			});
-        }
+
+			return Task.CompletedTask;
+		}
 
         /// <summary>
         /// Output this task out to an XML writer.

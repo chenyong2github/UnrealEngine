@@ -50,7 +50,7 @@ namespace BuildGraph.Tasks
 	/// Invokes an AutomationTool child process to run the given command.
 	/// </summary>
 	[TaskElement("Command", typeof(CommandTaskParameters))]
-	public class CommandTask : CustomTask
+	public class CommandTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -72,7 +72,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// If we're merging telemetry from the child process, get a temp filename for it
 			FileReference TelemetryFile = null;
@@ -126,6 +126,7 @@ namespace BuildGraph.Tasks
 					Log.TraceWarning("Unable to read UAT telemetry file from {0}", TelemetryFile);
 				}
 			}
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

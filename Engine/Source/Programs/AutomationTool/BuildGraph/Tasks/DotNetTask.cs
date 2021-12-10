@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace BuildGraph.Tasks
@@ -78,7 +79,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			FileReference DotNetFile = Parameters.DotNetPath == null ? HostPlatform.Current.GetDotnetExe() : Parameters.DotNetPath;
 			if(!FileReference.Exists(DotNetFile))
@@ -86,7 +87,7 @@ namespace BuildGraph.Tasks
 				throw new AutomationException("DotNet is missing from {0}", DotNetFile);
 			}
 
-			IProcessResult Result = Execute(DotNetFile.FullName, Parameters.Arguments, WorkingDir: Parameters.BaseDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile));
+			IProcessResult Result = await ExecuteAsync(DotNetFile.FullName, Parameters.Arguments, WorkingDir: Parameters.BaseDir, EnvVars: ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile));
 			if (Result.ExitCode < 0 || Result.ExitCode >= Parameters.ErrorLevel)
 			{
 				throw new AutomationException("Docker terminated with an exit code indicating an error ({0})", Result.ExitCode);

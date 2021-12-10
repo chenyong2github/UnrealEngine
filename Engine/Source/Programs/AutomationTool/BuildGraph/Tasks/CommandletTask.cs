@@ -54,7 +54,7 @@ namespace AutomationTool.Tasks
 	/// Spawns the editor to run a commandlet.
 	/// </summary>
 	[TaskElement("Commandlet", typeof(CommandletTaskParameters))]
-	public class CommandletTask : CustomTask
+	public class CommandletTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -76,7 +76,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Get the full path to the project file
 			FileReference ProjectFile = null;
@@ -114,6 +114,7 @@ namespace AutomationTool.Tasks
 
 			// Run the commandlet
 			CommandUtils.RunCommandlet(ProjectFile, EditorExe.FullName, Parameters.Name, Parameters.Arguments, Parameters.ErrorLevel);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

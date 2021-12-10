@@ -80,7 +80,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Task">Task to add</param>
 		/// <returns>True if the task could be added, false otherwise</returns>
-		bool Add(CustomTask Task);
+		bool Add(BgTaskImpl Task);
 
 		/// <summary>
 		/// Execute all the tasks added to this executor.
@@ -89,13 +89,13 @@ namespace AutomationTool
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		/// <returns>Whether the task succeeded or not. Exiting with an exception will be caught and treated as a failure.</returns>
-		void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet);
+		Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet);
 	}
 
 	/// <summary>
 	/// Base class for all custom build tasks
 	/// </summary>
-	public abstract class CustomTask
+	public abstract class BgTaskImpl
 	{
 		/// <summary>
 		/// Line number in a source file that this task was declared. Optional; used for log messages.
@@ -109,7 +109,7 @@ namespace AutomationTool
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		/// <returns>Whether the task succeeded or not. Exiting with an exception will be caught and treated as a failure.</returns>
-		public abstract void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet);
+		public abstract Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet);
 
 		/// <summary>
 		/// Creates a proxy to execute this node.
@@ -424,5 +424,27 @@ namespace AutomationTool
 		{
 			return Text.Split(';').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
 		}
+	}
+
+	/// <summary>
+	/// Legacy implementation of <see cref="BgTaskImpl"/> which operates synchronously
+	/// </summary>
+	public abstract class CustomTask : BgTaskImpl
+	{
+		/// <inheritdoc/>
+		public sealed override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		{
+			Execute(Job, BuildProducts, TagNameToFileSet);
+			return Task.CompletedTask;
+		}
+
+		/// <summary>
+		/// Execute this node.
+		/// </summary>
+		/// <param name="Job">Information about the current job</param>
+		/// <param name="BuildProducts">Set of build products produced by this node.</param>
+		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
+		/// <returns>Whether the task succeeded or not. Exiting with an exception will be caught and treated as a failure.</returns>
+		public abstract void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet);
 	}
 }

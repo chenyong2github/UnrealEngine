@@ -113,7 +113,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Task">Task to add</param>
 		/// <returns>True if the task could be added, false otherwise</returns>
-		public bool Add(CustomTask Task)
+		public bool Add(BgTaskImpl Task)
 		{
 			CompileTask CompileTask = Task as CompileTask;
 			if(CompileTask == null)
@@ -154,7 +154,7 @@ namespace AutomationTool
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		/// <returns>Whether the task succeeded or not. Exiting with an exception will be caught and treated as a failure.</returns>
-		public void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Create the agenda
 			UnrealBuild.BuildAgenda Agenda = new UnrealBuild.BuildAgenda();
@@ -187,6 +187,7 @@ namespace AutomationTool
 
 			// Add everything to the list of build products
 			BuildProducts.UnionWith(Builder.BuildProductFiles.Select(x => new FileReference(x)));
+			return Task.CompletedTask;
 		}
 	}
 
@@ -194,7 +195,7 @@ namespace AutomationTool
 	/// Compiles a target with UnrealBuildTool.
 	/// </summary>
 	[TaskElement("Compile", typeof(CompileTaskParameters))]
-	public class CompileTask : CustomTask
+	public class CompileTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -249,13 +250,13 @@ namespace AutomationTool
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			//
 			// Don't do any logic here. You have to do it in the ctor or a getter
 			//  otherwise you break the ParallelExecutor pathway, which doesn't call this function!
 			//
-			GetExecutor().Execute(Job, BuildProducts, TagNameToFileSet);
+			return GetExecutor().ExecuteAsync(Job, BuildProducts, TagNameToFileSet);
 		}
 
 		/// <summary>

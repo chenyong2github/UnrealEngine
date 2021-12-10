@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace BuildGraph.Tasks
@@ -92,7 +93,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			StringBuilder Arguments = new StringBuilder("sts assume-role");
 			if(Parameters.Arn != null)
@@ -106,7 +107,7 @@ namespace BuildGraph.Tasks
 			Arguments.Append($" --duration-seconds {Parameters.Duration}");
 
 			Dictionary<string, string> Environment = SpawnTaskBase.ParseEnvVars(Parameters.Environment, Parameters.EnvironmentFile);
-			IProcessResult Result = SpawnTaskBase.Execute("aws", Arguments.ToString(), EnvVars: Environment, LogOutput: false);
+			IProcessResult Result = await SpawnTaskBase.ExecuteAsync("aws", Arguments.ToString(), EnvVars: Environment, LogOutput: false);
 
 			JsonSerializerOptions Options = new JsonSerializerOptions();
 			Options.PropertyNameCaseInsensitive = true;

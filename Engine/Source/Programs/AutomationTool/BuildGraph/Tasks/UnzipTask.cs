@@ -48,7 +48,7 @@ namespace BuildGraph.Tasks
 	/// Extract files from a zip archive.
 	/// </summary>
 	[TaskElement("Unzip", typeof(UnzipTaskParameters))]
-	public class UnzipTask : CustomTask
+	public class UnzipTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -70,7 +70,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names \to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			DirectoryReference ToDir = Parameters.ToDir;
 
@@ -99,6 +99,7 @@ namespace BuildGraph.Tasks
 
 			// Add the archive to the set of build products
 			BuildProducts.UnionWith(OutputFiles);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

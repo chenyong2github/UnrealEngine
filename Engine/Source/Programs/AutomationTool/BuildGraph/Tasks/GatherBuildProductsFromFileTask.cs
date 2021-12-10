@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 
 using EpicGames.Core;
@@ -18,14 +19,14 @@ namespace AutomationTool.Tasks
 	}
 
 	[TaskElement("GatherBuildProductsFromFile", typeof(GatherBuildProductsFromFileTaskParameters))]
-	class GatherBuildProductsFromFileTask : CustomTask
+	class GatherBuildProductsFromFileTask : BgTaskImpl
 	{
 		public GatherBuildProductsFromFileTask(GatherBuildProductsFromFileTaskParameters InParameters)
 		{
 			Parameters = InParameters;
 		}
 
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			List<FileReference> CleanupFiles = new List<FileReference>();
 
@@ -44,6 +45,8 @@ namespace AutomationTool.Tasks
 			{
 				CommandUtils.LogInformation("Failed to gather build products: {0}", Ex.Message);
 			}
+
+			return Task.CompletedTask;
 		}
 		
 		public override void Write(XmlWriter Writer)

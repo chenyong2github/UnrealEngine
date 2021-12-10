@@ -70,7 +70,7 @@ namespace AutomationTool.Tasks
 	/// Updates the local version files (Engine/Source/Runtime/Launch/Resources/Version.h, Engine/Build/Build.version, and Engine/Source/Programs/Shared/Metadata.cs) with the given version information.
 	/// </summary>
 	[TaskElement("SetVersion", typeof(SetVersionTaskParameters))]
-	public class SetVersionTask : CustomTask
+	public class SetVersionTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for the task
@@ -92,7 +92,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Update the version files
 			List<FileReference> VersionFiles = UnrealBuild.StaticUpdateVersionFiles(Parameters.Change, Parameters.CompatibleChange, Parameters.Branch, Parameters.Build, Parameters.Licensee, Parameters.Promoted, !Parameters.SkipWrite);
@@ -105,6 +105,7 @@ namespace AutomationTool.Tasks
 
 			// Add them to the list of build products
 			BuildProducts.UnionWith(VersionFiles);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

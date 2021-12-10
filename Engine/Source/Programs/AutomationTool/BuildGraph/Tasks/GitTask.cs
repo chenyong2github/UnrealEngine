@@ -4,6 +4,7 @@ using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace AutomationTool.Tasks
@@ -36,7 +37,7 @@ namespace AutomationTool.Tasks
 	/// Spawns Git and waits for it to complete.
 	/// </summary>
 	[TaskElement("Git", typeof(GitTaskParameters))]
-	public class GitTask : CustomTask
+	public class GitTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -58,7 +59,7 @@ namespace AutomationTool.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			FileReference ToolFile = CommandUtils.FindToolInPath("git");
 			if(ToolFile == null)
@@ -71,6 +72,8 @@ namespace AutomationTool.Tasks
 			{
 				throw new AutomationException("Git terminated with an exit code indicating an error ({0})", Result.ExitCode);
 			}
+
+			return Task.CompletedTask;
 		}
 
 		/// <summary>

@@ -157,7 +157,7 @@ namespace Turnkey.Commands
 			BCRCommand.Arguments = Arguments.Select(x => x.Substring(1)).ToList();
 
 			// use the BCR's exitcode as Turnkey's exitcode
-			TurnkeyUtils.ExitCode = Automation.Execute(new List<UnrealBuildBase.CommandInfo>() { BCRCommand }, ScriptManager.Commands);
+			TurnkeyUtils.ExitCode = Automation.ExecuteAsync(new List<UnrealBuildBase.CommandInfo>() { BCRCommand }, ScriptManager.Commands).Result;
 		}
 
 		string GetIniSetting(string Spec, DirectoryReference ProjectDir, UnrealTargetPlatform Platform)

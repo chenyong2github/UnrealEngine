@@ -9,6 +9,7 @@ using System.Text;
 using System.Xml;
 using AutomationTool;
 using UnrealBuildBase;
+using System.Threading.Tasks;
 
 namespace BuildGraph.Tasks
 {
@@ -56,7 +57,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			StringBuilder Arguments = new StringBuilder("--ansi never ");
 			if (!String.IsNullOrEmpty(Parameters.File))
@@ -72,7 +73,7 @@ namespace BuildGraph.Tasks
 			Log.TraceInformation("Running docker compose {0}", Arguments.ToString());
 			using (LogIndentScope Scope = new LogIndentScope("  "))
 			{
-				SpawnTaskBase.Execute("docker-compose", Arguments.ToString());
+				await SpawnTaskBase.ExecuteAsync("docker-compose", Arguments.ToString());
 			}
 		}
 

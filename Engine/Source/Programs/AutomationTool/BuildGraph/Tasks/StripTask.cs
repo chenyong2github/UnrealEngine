@@ -53,7 +53,7 @@ namespace BuildGraph.Tasks
 	/// Strips debugging information from a set of files.
 	/// </summary>
 	[TaskElement("Strip", typeof(StripTaskParameters))]
-	public class StripTask : CustomTask
+	public class StripTask : BgTaskImpl
 	{
 		/// <summary>
 		/// Parameters for this task
@@ -75,7 +75,7 @@ namespace BuildGraph.Tasks
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="BuildProducts">Set of build products produced by this node.</param>
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
-		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		public override Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
 			// Get the base directory
 			DirectoryReference BaseDir = Parameters.BaseDir;
@@ -113,6 +113,7 @@ namespace BuildGraph.Tasks
 
 			// Add the target files to the set of build products
 			BuildProducts.UnionWith(TargetFiles);
+			return Task.CompletedTask;
 		}
 
 		/// <summary>
