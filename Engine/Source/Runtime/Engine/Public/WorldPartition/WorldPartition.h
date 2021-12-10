@@ -91,10 +91,8 @@ private:
 
 	// PIE/Game Methods
 	void OnPreBeginPIE(bool bStartSimulate);
-	void OnPrePIEEnded(bool bWasSimulatingInEditor);
+	void OnBeginPlay(bool bIsPIE);
 	void OnCancelPIE();
-	void OnBeginPlay();
-	void OnEndPlay();
 
 	// UActorDescContainer events
 	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc) override;
@@ -126,7 +124,7 @@ public:
 	bool RefreshLoadedEditorCells(bool bIsFromUserChange);
 
 	// PIE/Game/Cook Methods
-	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
+	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr, bool bIsPIE = false);
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
 	// Cook Methods
@@ -174,6 +172,10 @@ public:
 
 	EWorldPartitionStreamingPerformance GetStreamingPerformance() const;
 
+#if WITH_EDITOR
+	void PostDuplicateWorldForPIE();
+#endif
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
@@ -188,13 +190,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=RuntimeHash, NoClear, meta = (NoResetToDefault), Instanced)
 	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
-	bool bIsPIE;
-#endif
 
-#if WITH_EDITORONLY_DATA
 	// Default HLOD layer
 	UPROPERTY(EditAnywhere, Category=HLOD)
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
@@ -205,7 +204,7 @@ public:
 private:
 	EWorldPartitionInitState InitState;
 
-	UPROPERTY()
+	UPROPERTY(NonPIEDuplicateTransient)
 	mutable TObjectPtr<UWorldPartitionStreamingPolicy> StreamingPolicy;
 
 	TArray<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
@@ -217,7 +216,6 @@ private:
 	FWorldPartitionReference WorldDataLayersActor;
 #endif
 
-	bool IsMainWorldPartition() const;
 	void OnWorldMatchStarting();
 
 	void OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot);

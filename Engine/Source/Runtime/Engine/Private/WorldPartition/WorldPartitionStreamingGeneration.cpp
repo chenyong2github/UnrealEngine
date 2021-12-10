@@ -542,7 +542,7 @@ private:
 	TMap<FGuid, FActorContainerID> ActorDescViewsContainersMap;
 };
 
-bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
+bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate, bool bIsPIE)
 {
 	FActorDescList* ModifiedActorsDescList = nullptr;
 
