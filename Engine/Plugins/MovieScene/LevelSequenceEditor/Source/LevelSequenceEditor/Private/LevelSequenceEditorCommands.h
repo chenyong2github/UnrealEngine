@@ -20,7 +20,6 @@ public:
 	TSharedPtr<FUICommandInfo> CreateNewMasterSequenceInLevel;
 	TSharedPtr<FUICommandInfo> ToggleCinematicViewportCommand;
 	
-	/** Attempts to fix broken actor references. */
-	TSharedPtr< FUICommandInfo > FixActorReferences;
-
+	TSharedPtr<FUICommandInfo> BakeTransform;
+	TSharedPtr<FUICommandInfo> FixActorReferences;
 };

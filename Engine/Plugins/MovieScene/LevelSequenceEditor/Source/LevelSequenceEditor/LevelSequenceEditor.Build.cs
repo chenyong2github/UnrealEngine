@@ -12,6 +12,12 @@ public class LevelSequenceEditor : ModuleRules
 				"PlacementMode",
 			}
         );
+
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"SequencerScripting",
+			}
+		);
         
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
