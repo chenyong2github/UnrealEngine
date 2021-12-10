@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
 #include "CoreMinimal.h"
-#include "WarpBlend\DisplayClusterWarpEnums.h"
-
-#include "Render\Containers\DisplayClusterRender_MeshComponent.h"
+#include "WarpBlend/DisplayClusterWarpEnums.h"
+#include "Render/Containers/DisplayClusterRender_MeshComponent.h"
 
 class IDisplayClusterRenderTexture;
 class FDisplayClusterRender_MeshComponentProxy;
