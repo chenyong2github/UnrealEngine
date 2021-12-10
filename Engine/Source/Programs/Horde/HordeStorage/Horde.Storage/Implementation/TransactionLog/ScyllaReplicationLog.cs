@@ -75,12 +75,12 @@ namespace Horde.Storage.Implementation
             return (log.GetReplicationBucketIdentifier(), log.ReplicationId);
         }
 
-        public async Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timestamp)
+        public async Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime? timestamp)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.insert_delete_event");
             Task addNamespaceTask = PotentiallyAddNamespace(ns);
             DateTime timeBucket = timestamp.GetValueOrDefault(DateTime.Now);
-            ScyllaReplicationLogEvent log = new ScyllaReplicationLogEvent(ns.ToString(), bucket.ToString(), key.ToString(), timeBucket, ScyllaReplicationLogEvent.OpType.Deleted, objectBlob);
+            ScyllaReplicationLogEvent log = new ScyllaReplicationLogEvent(ns.ToString(), bucket.ToString(), key.ToString(), timeBucket, ScyllaReplicationLogEvent.OpType.Deleted, null);
             await _mapper.InsertAsync<ScyllaReplicationLogEvent>(log, insertNulls: false,  ttl: (int)_settings.CurrentValue.ReplicationLogTimeToLive.TotalSeconds);
 
             await addNamespaceTask;
@@ -280,7 +280,7 @@ namespace Horde.Storage.Implementation
             Key = null!;
         }
 
-        public ScyllaReplicationLogEvent(string @namespace, string bucket, string key, DateTime lastTimestamp, OpType opType, BlobIdentifier objectIdentifier)
+        public ScyllaReplicationLogEvent(string @namespace, string bucket, string key, DateTime lastTimestamp, OpType opType, BlobIdentifier? objectIdentifier)
         {
             Namespace = @namespace;
             Bucket = bucket;
@@ -288,7 +288,7 @@ namespace Horde.Storage.Implementation
             ReplicationBucket = lastTimestamp.ToHourlyBucket().ToFileTimeUtc();
             ReplicationId = TimeUuid.NewId(lastTimestamp);
             Type = (int)opType;
-            ObjectIdentifier = new ScyllaBlobIdentifier(objectIdentifier);
+            ObjectIdentifier = objectIdentifier != null ? new ScyllaBlobIdentifier(objectIdentifier) : null;
         }
 
         [Cassandra.Mapping.Attributes.PartitionKey]

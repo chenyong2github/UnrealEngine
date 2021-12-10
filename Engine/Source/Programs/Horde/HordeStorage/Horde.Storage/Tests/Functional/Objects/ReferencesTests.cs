@@ -1224,12 +1224,12 @@ namespace Horde.Storage.FunctionalTests.References
                 result.EnsureSuccessStatusCode();
             }
 
-            List<ObjectRecord> records = await ReferencesStore.GetOldestRecords(TestNamespace).ToListAsync();
+            List<(BucketId, IoHashKey, DateTime)> records = await ReferencesStore.GetRecords(TestNamespace).ToListAsync();
 
-            ObjectRecord? oldRecord = records.Find(record => record.Name == key);
+            (BucketId, IoHashKey, DateTime)? oldRecord = records.Find(record => record.Item2 == key);
             Assert.IsNotNull(oldRecord);
-            Assert.AreEqual(key, oldRecord!.Name);
-            Assert.AreEqual("bucket", oldRecord.Bucket.ToString());
+            Assert.AreEqual(key, oldRecord.Value.Item2);
+            Assert.AreEqual("bucket", oldRecord.Value.Item1.ToString());
         }
     }
 }

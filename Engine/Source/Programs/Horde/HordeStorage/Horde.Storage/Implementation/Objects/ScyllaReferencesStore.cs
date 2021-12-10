@@ -141,7 +141,7 @@ namespace Horde.Storage.Implementation
             await updateObjectTracking;
         }
 
-        public async IAsyncEnumerable<ObjectRecord> GetOldestRecords(NamespaceId ns)
+        /*public async IAsyncEnumerable<ObjectRecord> GetRecords(NamespaceId ns)
         {
             using Scope _ = Tracer.Instance.StartActive("scylla.get_records");
             for (sbyte partitionIndex = sbyte.MinValue; partitionIndex < sbyte.MaxValue; partitionIndex++)
@@ -153,7 +153,7 @@ namespace Horde.Storage.Implementation
                 {
                     using Scope dateBucketsScope = Tracer.Instance.StartActive("scylla.get_records.date_buckets");
 
-                    RowSet rowSetDateBuckets = await _session.ExecuteAsync(new SimpleStatement("SELECT accessed_at FROM object_last_access WHERE namespace = ? AND partition_index = ? ALLOW FILTERING", ns.ToString(), partitionIndex));
+                    RowSet rowSetDateBuckets = await _session.ExecuteAsync(new SimpleStatement("SELECT accessed_at FROM object_last_access WHERE namespace = ? AND partition_index = ? PER PARTITION LIMIT 1 ALLOW FILTERING", ns.ToString(), partitionIndex));
                     foreach (Row row in rowSetDateBuckets)
                     {
                         if (rowSetDateBuckets.GetAvailableWithoutFetching() == 0)
@@ -192,6 +192,24 @@ namespace Horde.Storage.Implementation
                     }
                 }
 
+            }
+        }*/
+        
+        public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
+        {
+            using Scope _ = Tracer.Instance.StartActive("scylla.get_records");
+
+            RowSet rowSet = await _session.ExecuteAsync(new SimpleStatement("SELECT bucket, name, last_access_time FROM objects WHERE namespace = ? ALLOW FILTERING", ns.ToString()));
+            foreach (Row row in rowSet)
+            {
+                if (rowSet.GetAvailableWithoutFetching() == 0)
+                    await rowSet.FetchMoreResultsAsync();
+
+                string bucket = row.GetValue<string>("bucket");
+                string name = row.GetValue<string>("name");
+                DateTime lastAccessTime = row.GetValue<DateTime>("last_access_time");
+
+                yield return (new BucketId(bucket), new IoHashKey(name), lastAccessTime);
             }
         }
 

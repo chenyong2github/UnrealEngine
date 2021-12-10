@@ -319,6 +319,12 @@ namespace Horde.Storage.Implementation
                         replicationTasks.Add(currentOffset);
                     }
 
+                    // we do not need to replicate delete events
+                    if (@event.Op == ReplicationLogEvent.OpType.Deleted)
+                        return;
+                    if (@event.Blob == null)
+                        throw new Exception($"Event: {@event.Bucket} {@event.Key} in namespace {@event.Namespace} was missing a blob, unable to replicate it");
+
                     await ReplicateOp(@event.Namespace, @event.Blob, replicationToken);
                     // TODO: Avoid adding to the replication log as we will get into infinite recursion if we do with the remote site
                     // we could add to the replication log only if the op was missing, but that could cause issue for a 3rd site replicating from us

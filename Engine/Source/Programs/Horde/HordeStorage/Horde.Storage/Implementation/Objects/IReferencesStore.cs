@@ -15,7 +15,7 @@ namespace Horde.Storage.Implementation
 
 
         Task UpdateLastAccessTime(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime newLastAccessTime);
-        IAsyncEnumerable<ObjectRecord> GetOldestRecords(NamespaceId ns);
+        IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns);
 
         IAsyncEnumerable<NamespaceId> GetNamespaces();
         Task<long> Delete(NamespaceId ns, BucketId bucket, IoHashKey key);

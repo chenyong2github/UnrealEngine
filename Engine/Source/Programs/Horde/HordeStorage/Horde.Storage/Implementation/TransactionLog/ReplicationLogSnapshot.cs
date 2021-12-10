@@ -118,7 +118,7 @@ namespace Horde.Storage.Implementation.TransactionLog
             switch (entry.Op)
             {
                 case ReplicationLogEvent.OpType.Added:
-                    ProcessAddEvent(entry.Bucket, entry.Key, entry.Blob);
+                    ProcessAddEvent(entry.Bucket, entry.Key, entry.Blob!);
                     break;
                 case ReplicationLogEvent.OpType.Deleted:
                     ProcessDeleteEvent(entry.Bucket, entry.Key);

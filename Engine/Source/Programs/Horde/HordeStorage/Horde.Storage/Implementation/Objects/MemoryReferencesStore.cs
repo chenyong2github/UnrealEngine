@@ -66,12 +66,12 @@ namespace Horde.Storage.Implementation
             return Task.CompletedTask;
         }
 
-        public async IAsyncEnumerable<ObjectRecord> GetOldestRecords(NamespaceId ns)
+        public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
         {
             foreach (MemoryStoreObject o in _objects.Values.Where(o => o.Namespace == ns).OrderBy(o => o.LastAccessTime))
             {
                 await Task.CompletedTask;
-                yield return o.ToObjectRecord();
+                yield return (o.Bucket, o.Name, o.LastAccessTime);
             }
         }
 

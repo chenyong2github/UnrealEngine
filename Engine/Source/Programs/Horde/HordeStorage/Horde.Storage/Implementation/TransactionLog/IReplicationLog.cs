@@ -15,7 +15,7 @@ namespace Horde.Storage.Implementation
         IAsyncEnumerable<NamespaceId> GetNamespaces();
 
         Task<(string, Guid)> InsertAddEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timeBucket = null);
-        Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier objectBlob, DateTime? timeBucket = null);
+        Task<(string, Guid)> InsertDeleteEvent(NamespaceId ns, BucketId bucket, IoHashKey key, DateTime? timeBucket = null);
         IAsyncEnumerable<ReplicationLogEvent> Get(NamespaceId ns, string? lastBucket, Guid? lastEvent);
 
         Task AddSnapshot(SnapshotInfo snapshotHeader);
@@ -40,7 +40,7 @@ namespace Horde.Storage.Implementation
 
     public class ReplicationLogEvent
     {
-        public ReplicationLogEvent(NamespaceId @namespace, BucketId bucket, IoHashKey key, BlobIdentifier blob, Guid eventId, string timeBucket, DateTime timestamp, OpType op)
+        public ReplicationLogEvent(NamespaceId @namespace, BucketId bucket, IoHashKey key, BlobIdentifier? blob, Guid eventId, string timeBucket, DateTime timestamp, OpType op)
         {
             Namespace = @namespace;
             Bucket = bucket;
@@ -66,7 +66,7 @@ namespace Horde.Storage.Implementation
         public DateTime Timestamp { get; }
         public string TimeBucket { get; }
         public Guid EventId { get; }
-        public BlobIdentifier Blob { get; }
+        public BlobIdentifier? Blob { get; }
     }
 
     public class IncrementalLogNotAvailableException : Exception

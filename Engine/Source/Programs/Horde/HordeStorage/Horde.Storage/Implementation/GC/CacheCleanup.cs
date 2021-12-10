@@ -56,18 +56,17 @@ namespace Horde.Storage.Implementation
         {
             List<OldRecord> deletedRecords = new List<OldRecord>();
             DateTime cutoffTime = DateTime.Now.Add(_settings.CurrentValue.LastAccessCutoff);
-            await foreach (ObjectRecord record in _referencesStore.GetOldestRecords(ns).WithCancellation(cancellationToken))
+            await foreach ((BucketId bucket, IoHashKey name, DateTime lastAccessTime) in _referencesStore.GetRecords(ns).WithCancellation(cancellationToken))
             {
-                // the record are returned oldest first, so once we find a record that is newer then our cutoff time we can stop iterating
-                if (record.LastAccess > cutoffTime)
-                    break;
+                if (lastAccessTime > cutoffTime)
+                    continue;
 
                 using Scope scope = Tracer.Instance.StartActive("refCleanup.delete_record");
-                scope.Span.ResourceName = $"{record.Namespace}:{record.Bucket}.{record.Name}";
+                scope.Span.ResourceName = $"{ns}:{bucket}.{name}";
                 // delete the old record from the ref refs
-                Task storeDelete = _referencesStore.Delete(record.Namespace, record.Bucket, record.Name);
+                Task storeDelete = _referencesStore.Delete(ns, bucket, name);
                 // insert a delete event into the transaction log
-                Task<(string, Guid)> transactionLogDelete = _replicationLog.InsertDeleteEvent(record.Namespace, record.Bucket, record.Name, record.BlobIdentifier);
+                Task<(string, Guid)> transactionLogDelete = _replicationLog.InsertDeleteEvent(ns, bucket, name, null);
 
                 try
                 {
@@ -75,10 +74,10 @@ namespace Horde.Storage.Implementation
                 }
                 catch (Exception e)
                 {
-                    _logger.Warning(e, "Exception when attempting to delete record {Record} in {Namespace}", record, ns);
+                    _logger.Warning(e, "Exception when attempting to delete record {Bucket} {Name} in {Namespace}", bucket, name, ns);
                 }
                 // we convert the ObjectRecords key (which is a iohash) to a keyid (which is a generic string) not the prettiest but this result is only used for debugging purposes anyway
-                deletedRecords.Add(new OldRecord(record.Namespace, record.Bucket, new KeyId(record.Name.ToString())));
+                deletedRecords.Add(new OldRecord(ns, bucket, new KeyId(name.ToString())));
             }
 
             return deletedRecords;
