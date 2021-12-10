@@ -8847,11 +8847,11 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 	if (FoundIndex != INDEX_NONE)
 	{
 		FRigVMControllerCompileBracketScope CompileScope(this);
-		FRigVMInverseAction InverseAction;
+		FRigVMBaseAction BaseAction;
 		if (bSetupUndoRedo)
 		{
-			InverseAction.Title = FString::Printf(TEXT("Remove Local Variable %s"), *InVariableName.ToString());
-			ActionStack->BeginAction(InverseAction);			
+			BaseAction.Title = FString::Printf(TEXT("Remove Local Variable %s"), *InVariableName.ToString());
+			ActionStack->BeginAction(BaseAction);			
 		}	
 		
 		const FString VarNameStr = InVariableName.ToString();
@@ -8932,13 +8932,13 @@ bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSe
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->AddAction(FRigVMAddLocalVariableAction(LocalVariables[FoundIndex]));
+			ActionStack->AddAction(FRigVMRemoveLocalVariableAction(LocalVariables[FoundIndex]));
 		}
 		LocalVariables.RemoveAt(FoundIndex);
 
 		if (bSetupUndoRedo)
 		{
-			ActionStack->EndAction(InverseAction);
+			ActionStack->EndAction(BaseAction);
 		}
 
 		if (bPrintPythonCommand)
