@@ -11,7 +11,7 @@
 #include "GenericPlatform/HttpRequestPayload.h"
 
 // Default user agent string
-static const WCHAR USER_AGENT[] = L"UE4HTTPIXML\r\n";
+static const WCHAR USER_AGENT[] = L"UEHTTPIXML\r\n";
 
 
 /**
