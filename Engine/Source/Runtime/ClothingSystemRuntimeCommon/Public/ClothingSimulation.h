@@ -32,8 +32,6 @@ public:
 protected:
 	// Default fill behavior as expected to be used by every simulation
 	virtual void FillBoneTransforms(const USkeletalMeshComponent* InComponent);
-	UE_DEPRECATED(4.27, "Use the version with bIsInitialization instead.")
-	virtual void FillRefToLocals(const USkeletalMeshComponent* InComponent);
 	virtual void FillRefToLocals(const USkeletalMeshComponent* InComponent, bool bIsInitialization);
 	virtual void FillComponentToWorld(const USkeletalMeshComponent* InComponent);
 	virtual void FillWorldGravity(const USkeletalMeshComponent* InComponent);
