@@ -16,12 +16,12 @@ class GEOMETRYCORE_API FPolygonEdgeMeshGenerator : public FMeshShapeGenerator
 
 private:
 
-	// Polygon to triangulate. Assumed to be closed (i.e. last edge is (LastVertex, FirstVertex)). If Polygon has 
+	// Polygon to thicken and triangulate. Assumed to be closed (i.e. last edge is (LastVertex, FirstVertex)). If Polygon has 
 	// self-intersections or degenerate edges, result is undefined.
 	TArray<FFrame3d> Polygon;
 
-	// For each polygon vertex, a scale factor for the patch width at that vertex. Helps keep the width constant
-	// going around acute corners. 
+	// For each polygon vertex, a scale factor for the patch width at that vertex. It's a variable offset in order to keep the overall 
+	// width constant going around acute corners. 
 	TArray<double> OffsetScaleFactors;
 
 	// Width of quads to generate.
@@ -39,10 +39,26 @@ public:
 	/** If true, output mesh has a single polygroup, otherwise each quad gets a separate group */
 	bool bSinglePolyGroup = false;
 
+	/** Use arc segments instead of straight lines in corners */
+	bool bRoundedCorners = false;
+
+	/** Radius of the corner arcs; this is only available if Rounded Corners is enabled */
+	double CornerRadius = 0.0;
+
+	/** Limit corner radius to prevent overlapping */
+	bool bLimitCornerRadius = false;
+
+	/** Number of radial subdivisions for rounded corners */
+	int NumArcVertices;
+
 	FPolygonEdgeMeshGenerator(const TArray<FFrame3d>& InPolygon,
 		const TArray<double>& InOffsetScaleFactors,
 		double InWidth = 1.0,
-		FVector3d InNormal = FVector3d::UnitZ());
+		FVector3d InNormal = FVector3d::UnitZ(),
+		bool bInRoundedCorners = false,
+		double InCornerRadius = 0.0,
+		bool bInLimitCornerRadius = false,
+		int InNumArcVertices = 3);
 
 	// Generate triangulation
 	// TODO: Enable more subdivisions along the width and length dimensions if requested
