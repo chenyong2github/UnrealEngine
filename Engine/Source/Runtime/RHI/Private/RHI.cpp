@@ -2526,6 +2526,30 @@ FPixelFormatInfo    GPixelFormats[PF_MAX] =
 	FPixelFormatInfo(PF_R8_SINT,            TEXT("R8_SINT"),            1,          1,          1,          1,          1,              1),
 };
 
+void RHIInitDefaultPixelFormatCapabilities()
+{
+	for (FPixelFormatInfo& Info : GPixelFormats)
+	{
+		if (Info.Supported)
+		{
+			const EPixelFormat PixelFormat = Info.UnrealFormat;
+			if (IsBlockCompressedFormat(PixelFormat))
+			{
+				// Block compressed formats should have limited capabilities
+				EnumAddFlags(Info.Capabilities, EPixelFormatCapabilities::AnyTexture | EPixelFormatCapabilities::TextureMipmaps | EPixelFormatCapabilities::TextureLoad | EPixelFormatCapabilities::TextureSample | EPixelFormatCapabilities::TextureGather);
+			}
+			else
+			{
+				EnumAddFlags(Info.Capabilities, EPixelFormatCapabilities::AllTextureFlags | EPixelFormatCapabilities::AllBufferFlags | EPixelFormatCapabilities::UAV);
+				if (!IsDepthOrStencilFormat(PixelFormat))
+				{
+					EnumRemoveFlags(Info.Capabilities, EPixelFormatCapabilities::DepthStencil);
+				}
+			}
+		}
+	}
+}
+
 static struct FValidatePixelFormats
 {
 	FValidatePixelFormats()

@@ -29,8 +29,6 @@ bool GIsMetalInitialized = false;
 
 FMetalBufferFormat GMetalBufferFormats[PF_MAX];
 
-static bool GFormatSupportsTypedUAVLoad[PF_MAX] = { false };
-
 static TAutoConsoleVariable<int32> CVarUseIOSRHIThread(
 													TEXT("r.Metal.IOSRHIThread"),
 													0,
@@ -943,31 +941,38 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 #endif
 
+	RHIInitDefaultPixelFormatCapabilities();
+
+	auto AddTypedUAVSupport = [](EPixelFormat InPixelFormat)
+	{
+		EnumAddFlags(GPixelFormats[InPixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVLoad | EPixelFormatCapabilities::TypedUAVStore);
+	};
+
 	switch (Device.GetReadWriteTextureSupport())
 	{
-		case mtlpp::ReadWriteTextureTier::Tier2:
-			GFormatSupportsTypedUAVLoad[PF_A32B32G32R32F]			= true;
-			GFormatSupportsTypedUAVLoad[PF_R32G32B32A32_UINT]		= true;
-			GFormatSupportsTypedUAVLoad[PF_FloatRGBA]				= true;
-			GFormatSupportsTypedUAVLoad[PF_R16G16B16A16_UINT]		= true;
-			GFormatSupportsTypedUAVLoad[PF_R16G16B16A16_SINT]		= true;
-			GFormatSupportsTypedUAVLoad[PF_R8G8B8A8]				= true;
-			GFormatSupportsTypedUAVLoad[PF_R8G8B8A8_UINT]			= true;
-			GFormatSupportsTypedUAVLoad[PF_R16F]					= true;
-			GFormatSupportsTypedUAVLoad[PF_R16_UINT]				= true;
-			GFormatSupportsTypedUAVLoad[PF_R16_SINT]				= true;
-			GFormatSupportsTypedUAVLoad[PF_R8]						= true;
-			GFormatSupportsTypedUAVLoad[PF_R8_UINT]					= true;
-			// Fall through
+	case mtlpp::ReadWriteTextureTier::Tier2:
+		AddTypedUAVSupport(PF_A32B32G32R32F);
+		AddTypedUAVSupport(PF_R32G32B32A32_UINT);
+		AddTypedUAVSupport(PF_FloatRGBA);
+		AddTypedUAVSupport(PF_R16G16B16A16_UINT);
+		AddTypedUAVSupport(PF_R16G16B16A16_SINT);
+		AddTypedUAVSupport(PF_R8G8B8A8);
+		AddTypedUAVSupport(PF_R8G8B8A8_UINT);
+		AddTypedUAVSupport(PF_R16F);
+		AddTypedUAVSupport(PF_R16_UINT);
+		AddTypedUAVSupport(PF_R16_SINT);
+		AddTypedUAVSupport(PF_R8);
+		AddTypedUAVSupport(PF_R8_UINT);
+		// Fall through
 
-		case mtlpp::ReadWriteTextureTier::Tier1:
-			GFormatSupportsTypedUAVLoad[PF_R32_FLOAT]				= true;
-			GFormatSupportsTypedUAVLoad[PF_R32_UINT]				= true;
-			GFormatSupportsTypedUAVLoad[PF_R32_SINT]				= true;
-			// Fall through
+	case mtlpp::ReadWriteTextureTier::Tier1:
+		AddTypedUAVSupport(PF_R32_FLOAT);
+		AddTypedUAVSupport(PF_R32_UINT);
+		AddTypedUAVSupport(PF_R32_SINT);
+		// Fall through
 
-		case mtlpp::ReadWriteTextureTier::None:
-			break;
+	case mtlpp::ReadWriteTextureTier::None:
+		break;
 	};
 
 	// get driver version (todo: share with other RHIs)
@@ -1290,7 +1295,7 @@ void* FMetalDynamicRHI::RHIGetNativeInstance()
 
 bool FMetalDynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
 {
-	return GFormatSupportsTypedUAVLoad[PixelFormat];
+	return EnumHasAnyFlags(GPixelFormats[PixelFormat].Capabilities, EPixelFormatCapabilities::TypedUAVLoad);
 }
 
 uint16 FMetalDynamicRHI::RHIGetPlatformTextureMaxSampleCount()
