@@ -98,6 +98,9 @@ protected:
 	/** Initial object to start the reference search from */
 	UObject* SearchObject = nullptr;
 
+	/** Object that SerializeObject was most recently called on */
+	UObject* SerializingObject = nullptr;
+
 	/** The number of times encountered */
 	int32 Count = 0;
 
@@ -217,17 +220,19 @@ public:
 	 */
 	void SerializeSearchObject()
 	{
-		ReplacedReferences.Empty();
+		ReplacedReferences.Reset();
 
 		if (SearchObject != NULL && !SerializedObjects.Find(SearchObject)
 		&&	(ReplacementMap.Num() > 0 || bNullPrivateReferences))
 		{
 			// start the initial serialization
 			SerializedObjects.Add(SearchObject);
+			SerializingObject = SearchObject;
 			SerializeObject(SearchObject);
 			for (int32 Iter = 0; Iter < PendingSerializationObjects.Num(); Iter++)
 			{
-				SerializeObject(PendingSerializationObjects[Iter]);
+				SerializingObject = PendingSerializationObjects[Iter];
+				SerializeObject(SerializingObject);
 			}
 			PendingSerializationObjects.Reset();
 		}
@@ -246,7 +251,7 @@ public:
 				Obj = *ReplaceWith;
 				if (bTrackReplacedReferences)
 				{
-					ReplacedReferences.FindOrAdd(Obj).AddUnique(GetSerializedProperty());
+					ReplacedReferences.FindOrAdd(SerializingObject).AddUnique(GetSerializedProperty());
 				}
 				Count++;
 			}
