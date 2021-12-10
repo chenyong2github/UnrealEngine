@@ -949,15 +949,7 @@ public:
 		, LockedData(InParent)
 	{
 	}
-	virtual ~FD3D12Buffer()
-	{
-		int64 BufferSize = ResourceLocation.GetSize();
-		bool bTransient = ResourceLocation.IsTransient();
-		if (!bTransient)
-		{
-			UpdateBufferStats((EBufferUsageFlags)GetUsage(), -BufferSize);
-		}
-	}
+	virtual ~FD3D12Buffer();
 
 	virtual uint32 GetParentGPUIndex() const override;
 

@@ -7,6 +7,22 @@ D3D12Buffer.cpp: D3D Common code for buffers.
 #include "D3D12RHIPrivate.h"
 #include "D3D12RHIBridge.h"
 
+FD3D12Buffer::~FD3D12Buffer()
+{
+	if (EnumHasAnyFlags(GetUsage(), EBufferUsageFlags::VertexBuffer) && GetParentDevice())
+	{
+		FD3D12CommandContext& DefaultContext = GetParentDevice()->GetDefaultCommandContext();
+		DefaultContext.StateCache.ClearVertexBuffer(&ResourceLocation);
+	}
+
+	int64 BufferSize = ResourceLocation.GetSize();
+	bool bTransient = ResourceLocation.IsTransient();
+	if (!bTransient)
+	{
+		UpdateBufferStats((EBufferUsageFlags)GetUsage(), -BufferSize);
+	}
+}
+
 struct FRHICommandUpdateBufferString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandUpdateBuffer"); }
