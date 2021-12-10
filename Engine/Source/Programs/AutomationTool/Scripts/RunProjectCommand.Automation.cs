@@ -637,6 +637,7 @@ namespace AutomationScripts
 						{
 							TempCmdLine += "-cookonthefly ";
 						}
+						TempCmdLine += "-zenstoreproject=" + ProjectUtils.GetProjectPathId(SC.RawProjectPath) + " ";
 						TempCmdLine += "-zenstorehost=";
 					}
 					else
