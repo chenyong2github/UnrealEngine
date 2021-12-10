@@ -60,7 +60,8 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
+	void Construct(
+		const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow, const bool bIsShowFlag = false);
 	
 	virtual void SetInputValue(const FString& InValueAsString) override;
 	virtual FString GetInputValueAsString() override;

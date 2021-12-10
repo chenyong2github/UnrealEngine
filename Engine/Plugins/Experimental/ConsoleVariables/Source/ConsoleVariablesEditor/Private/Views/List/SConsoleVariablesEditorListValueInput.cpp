@@ -47,6 +47,12 @@ TSharedRef<SConsoleVariablesEditorListValueInput> SConsoleVariablesEditorListVal
 			{
 				return SNew(SConsoleVariablesEditorListValueInput_String, InRow);
 			}
+
+			// Showflags are not considered to be any of these types, but they should be ints with a min/max of 0/2
+			if (PinnedInfo->Command.Contains("showflag", ESearchCase::IgnoreCase))
+			{
+				return SNew(SConsoleVariablesEditorListValueInput_Int, InRow, true);
+			}
 		}
 	}
 
@@ -124,7 +130,8 @@ float SConsoleVariablesEditorListValueInput_Float::GetInputValue() const
 }
 
 void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InArgs,
-                                                          const TWeakPtr<FConsoleVariablesEditorListRow> InRow)
+                                                          const TWeakPtr<FConsoleVariablesEditorListRow> InRow,
+                                                          const bool bIsShowFlag)
 {
 	check (InRow.IsValid());
 	
@@ -167,6 +174,12 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
 		})
 		.IsEnabled(this, &SConsoleVariablesEditorListValueInput::IsRowChecked)
 	];
+
+	if (bIsShowFlag)
+	{
+		InputWidget->SetMinSliderValue(0);
+		InputWidget->SetMaxSliderValue(2);
+	}
 	
 	Item.Pin()->SetCachedValue(GetInputValueAsString());
 }
