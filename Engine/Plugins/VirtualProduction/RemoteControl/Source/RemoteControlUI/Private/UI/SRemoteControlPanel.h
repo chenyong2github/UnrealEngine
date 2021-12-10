@@ -3,6 +3,7 @@
 
 #include "Engine/EngineTypes.h"
 #include "EditorUndoClient.h"
+#include "Engine/EngineTypes.h"
 #include "IDetailTreeNode.h"
 #include "Styling/SlateTypes.h"
 #include "RemoteControlFieldPath.h"

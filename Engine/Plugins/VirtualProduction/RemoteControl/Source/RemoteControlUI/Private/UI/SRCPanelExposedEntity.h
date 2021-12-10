@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SBorder.h"
 
 class AActor;
+class FMenuBuilder;
 struct FRemoteControlEntity;
 class SInlineEditableTextBlock;
 class SWidget;
@@ -51,10 +52,20 @@ protected:
 private:
 	/** Handles changing the object this entity is bound to upon selecting an actor in the rebinding dropdown. */
 	void OnActorSelected(AActor* InActor) const;
+	
 	/** Get the widget's border. */
 	const FSlateBrush* GetBorderImage() const;
 	/** Create the content of the rebind button.  */
 	TSharedRef<SWidget> CreateRebindMenuContent();
+
+	/** Create the content of the rebind component button. */
+	void CreateRebindComponentMenuContent(FMenuBuilder& SubMenuBuilder);
+
+	/** Create the content for the menu used to rebind all properties for the actor that owns this entity. */
+	TSharedRef<SWidget> CreateRebindAllPropertiesForActorMenuContent();
+
+	/** Handle selecting an actor for a rebind for all properties under an actor. */
+	void OnActorSelectedForRebindAllProperties(AActor* InActor) const;
 	/** Verifies that the entity's label doesn't already exist. */
 	bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage);
 	/** Handles committing a entity label. */

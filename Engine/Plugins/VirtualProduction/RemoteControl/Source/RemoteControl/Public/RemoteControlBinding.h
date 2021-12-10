@@ -132,4 +132,6 @@ private:
 	 */
 	UPROPERTY()
 	mutable TSoftObjectPtr<ULevel> LevelWithLastSuccessfulResolve;
+
+	friend class FRemoteControlPresetRebindingManager;
 };
