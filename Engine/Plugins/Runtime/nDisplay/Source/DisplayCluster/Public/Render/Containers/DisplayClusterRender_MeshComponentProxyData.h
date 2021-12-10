@@ -7,6 +7,7 @@
 
 
 class FDisplayClusterRender_MeshGeometry;
+class UStaticMesh;
 struct FStaticMeshLODResources;
 struct FProcMeshSection;
 
