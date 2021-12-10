@@ -42,6 +42,11 @@ FString ToDebugString(EUserPrivileges::Type UserPrivilege)
 	}
 }
 
+FString ToDebugString(const FControllerPairingChangedUserInfo& ControllerPairingChangedUserInfo)
+{
+	return FString::Printf(TEXT("[%s, %d devices]"), *ControllerPairingChangedUserInfo.User.ToDebugString(), ControllerPairingChangedUserInfo.ControllersRemaining);
+}
+
 FPlatformUserId IOnlineIdentity::GetPlatformUserIdFromLocalUserNum(int32 LocalUserNum) const
 {
 	if (LocalUserNum >= 0 && LocalUserNum < MAX_LOCAL_PLAYERS)

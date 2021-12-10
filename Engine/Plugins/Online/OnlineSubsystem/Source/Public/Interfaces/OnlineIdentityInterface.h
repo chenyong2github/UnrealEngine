@@ -524,3 +524,5 @@ typedef TSharedPtr<IOnlineIdentity, ESPMode::ThreadSafe> IOnlineIdentityPtr;
 ONLINESUBSYSTEM_API FString ToDebugString(IOnlineIdentity::EPrivilegeResults PrivilegeResult);
 
 ONLINESUBSYSTEM_API FString ToDebugString(EUserPrivileges::Type UserPrivilege);
+
+ONLINESUBSYSTEM_API FString ToDebugString(const FControllerPairingChangedUserInfo& ControllerPairingChangedUserInfo);
