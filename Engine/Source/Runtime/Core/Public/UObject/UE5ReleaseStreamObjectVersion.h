@@ -69,6 +69,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Fixup for bad default value for GridPlacement_DEPRECATED
 		ActorGridPlacementDeprecateDefaultValueFixup,
 
+		// PackedLevelActor started using FWorldPartitionActorDesc (not currently checked against but added as a security)
+		PackedLevelActorUseWorldPartitionActorDesc,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
