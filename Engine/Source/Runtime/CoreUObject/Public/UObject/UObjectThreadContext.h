@@ -16,7 +16,7 @@ struct FUObjectSerializeContext;
 class FLinkerLoad;
 class IAsyncPackageLoader;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogUObjectThreadContext, Log, All);
+COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogUObjectThreadContext, Log, All);
 
 class COREUOBJECT_API FUObjectThreadContext : public TThreadSingleton<FUObjectThreadContext>
 {
