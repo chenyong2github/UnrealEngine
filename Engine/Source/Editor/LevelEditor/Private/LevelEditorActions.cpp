@@ -47,6 +47,7 @@
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
+#include "Subsystems/EditorElementSubsystem.h"
 
 #include "LevelEditor.h"
 #include "Engine/LevelScriptBlueprint.h"
@@ -2921,7 +2922,7 @@ void FLevelEditorActionCallbacks::MoveElementsToElement_Clicked(bool InAlign)
 	// TODO: Ideally this would come from some level editor context
 	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
 	{
-		if (const TTypedElement<ITypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<ITypedElementWorldInterface>())
+		if (const TTypedElement<ITypedElementWorldInterface> DestElement = UEditorElementSubsystem::GetLastSelectedEditorManipulableElement(UEditorElementSubsystem::GetEditorNormalizedSelectionSet(*SelectionSet)))
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveElementsToElement", "Snap Origin to Element"));
 			MoveTo_Clicked(SelectionSet, InAlign, /*bPerElement*/false, DestElement);
@@ -3138,7 +3139,7 @@ void FLevelEditorActionCallbacks::SnapElementsToElement_Clicked( bool InAlign, b
 	// TODO: Ideally this would come from some level editor context
 	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
 	{
-		if (const TTypedElement<ITypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<ITypedElementWorldInterface>())
+		if (const TTypedElement<ITypedElementWorldInterface> DestElement = UEditorElementSubsystem::GetLastSelectedEditorManipulableElement(UEditorElementSubsystem::GetEditorNormalizedSelectionSet(*SelectionSet)))
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "SnapElementsToElement", "Snap Elements to Element"));
 			SnapTo_Clicked(SelectionSet, InAlign, InUseLineTrace, InUseBounds, InUsePivot, DestElement);
@@ -3184,7 +3185,7 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSe
 	// Update the pivot location
 	if (bSnappedElements)
 	{
-		if (TTypedElement<ITypedElementWorldInterface> LastElement = InSelectionSet->GetBottomSelectedElement<ITypedElementWorldInterface>())
+		if (TTypedElement<ITypedElementWorldInterface> LastElement = UEditorElementSubsystem::GetLastSelectedEditorManipulableElement(UEditorElementSubsystem::GetEditorNormalizedSelectionSet(*InSelectionSet)))
 		{
 			FTransform LastElementTransform;
 			if (LastElement.GetWorldTransform(LastElementTransform))

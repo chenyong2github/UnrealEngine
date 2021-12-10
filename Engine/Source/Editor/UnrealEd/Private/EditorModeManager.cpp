@@ -41,6 +41,7 @@
 #include "Tools/AssetEditorContextObject.h"
 #include "ContextObjectStore.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "Subsystems/EditorElementSubsystem.h"
 
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 
@@ -962,12 +963,24 @@ FMatrix FEditorModeTools::GetLocalCoordinateSystem()
 		});
 
 	// If there isn't an active mode overriding the local coordinate system, create it by looking at the current selection.
-	if (!CustomCoordinateSystemProvided && GetEditorSelectionSet())
+	if (!CustomCoordinateSystemProvided)
 	{
-		if (TTypedElement<ITypedElementWorldInterface> BottomSelected = GetEditorSelectionSet()->GetBottomSelectedElement<ITypedElementWorldInterface>())
+		TTypedElement<ITypedElementWorldInterface> LastSelected;
+		if (GCurrentLevelEditingViewportClient)
+		{
+			// Use the cache from the viewport when available
+			 LastSelected = GCurrentLevelEditingViewportClient->GetElementsToManipulate()->GetBottomElement<ITypedElementWorldInterface>();
+		}
+		else
+		{
+			LastSelected = UEditorElementSubsystem::GetLastSelectedEditorManipulableElement(UEditorElementSubsystem::GetEditorNormalizedSelectionSet(*GetEditorSelectionSet()));
+		}
+
+		
+		if (LastSelected)
 		{
 			FTransform LocalToWorldTransform;
-			BottomSelected.GetWorldTransform(LocalToWorldTransform);
+			LastSelected.GetWorldTransform(LocalToWorldTransform);
 			Matrix = FQuatRotationMatrix(LocalToWorldTransform.GetRotation());
 		}
 	}

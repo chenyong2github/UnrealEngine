@@ -219,6 +219,28 @@ public:
 	}
 
 	/**
+	 * Get the first element that implement the given interface and pass the predicate
+	 * @Predicate A function that should return true when the element is desirable
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetTopElement(TFunctionRef<bool (const TTypedElement<BaseInterfaceType>&)> Predicate) const
+	{
+		TTypedElement<BaseInterfaceType> TempElement;
+		TTypedElement<BaseInterfaceType> ElementToReturn;
+		for (int32 ElementIndex = 0; ElementIndex < Num(); ++ElementIndex)
+		{
+			GetElementAt(ElementIndex, TempElement);
+			if (TempElement && Predicate(TempElement))
+			{
+				ElementToReturn = MoveTemp(TempElement);
+				break;
+			}
+		}
+		return ElementToReturn;
+	}
+
+
+	/**
 	 * Get the last element implementing the given interface.
 	 */
 	template <typename BaseInterfaceType>
@@ -235,6 +257,28 @@ public:
 		}
 		return TempElement;
 	}
+
+	/**
+	 * Get the last element that implement the given interface and pass the predicate.
+	 * @Predicate A function that return should true when the element is desirable
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetBottomElement(TFunctionRef<bool (const TTypedElement<BaseInterfaceType>&)> Predicate) const
+	{
+		TTypedElement<BaseInterfaceType> TempElement;
+		TTypedElement<BaseInterfaceType> ElementToReturn;
+		for (int32 ElementIndex = Num() - 1; ElementIndex >= 0; --ElementIndex)
+		{
+			GetElementAt(ElementIndex, TempElement);
+			if (TempElement && Predicate(ElementToReturn))
+			{
+				ElementToReturn = MoveTemp(TempElement);
+				break;
+			}
+		}
+		return ElementToReturn;
+	}
+
 
 
 	/**

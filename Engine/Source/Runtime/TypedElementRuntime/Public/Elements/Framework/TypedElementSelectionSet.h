@@ -329,12 +329,32 @@ public:
 	}
 
 	/**
+	 * Get the first element that implement the given interface and pass the predicate
+	 * @Predicate A function that should return true when the element is desirable
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetTopSelectedElement(TFunctionRef<bool (const TTypedElement<BaseInterfaceType>&)> Predicate) const
+	{
+		return ElementList->GetTopElement<BaseInterfaceType>(Predicate);
+	}
+
+	/**
 	 * Get the last selected element implementing the given interface.
 	 */
 	template <typename BaseInterfaceType>
 	TTypedElement<BaseInterfaceType> GetBottomSelectedElement() const
 	{
 		return ElementList->GetBottomElement<BaseInterfaceType>();
+	}
+
+	/**
+	 * Get the last element that implement the given interface and pass the predicate.
+	 * @Predicate A function that return should true when the element is desirable
+	 */
+	template <typename BaseInterfaceType>
+	TTypedElement<BaseInterfaceType> GetBottomSelectedElement(TFunctionRef<bool (const TTypedElement<BaseInterfaceType>&)> Predicate) const
+	{
+		return ElementList->GetBottomElement<BaseInterfaceType>(Predicate);
 	}
 
 	/**
