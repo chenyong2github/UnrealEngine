@@ -82,6 +82,10 @@ void FVoxelSolidifyMeshesOp::CalculateResult(FProgressCancel* Progress)
 	Solidify.SurfaceSearchSteps = SurfaceSearchSteps;
 	Solidify.bSolidAtBoundaries = bSolidAtBoundaries;
 	Solidify.ExtendBounds = ExtendBounds;
+	Solidify.CancelF = [&Progress]()
+	{
+		return Progress && Progress->Cancelled();
+	};
 
 	if (Progress && Progress->Cancelled())
 	{

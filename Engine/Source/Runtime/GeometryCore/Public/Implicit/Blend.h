@@ -174,6 +174,11 @@ protected:
 
 	void GenerateBlendAnalytic(bool bReuseComputed)
 	{
+		if (CancelF())
+		{
+			return;
+		}
+		
 		ComputeSpatials(bReuseComputed);
 
 		if (CancelF())
