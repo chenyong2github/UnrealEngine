@@ -188,7 +188,11 @@ FText UK2Node_EnhancedInputAction::GetTooltipText() const
 	{
 		// FText::Format() is slow, so we cache this to save on performance
 		FString ActionPath = InputAction ? InputAction->GetFullName() : TEXT("");
-		CachedTooltip.SetCachedText(FText::Format(LOCTEXT("EnhancedInputAction_Tooltip", "Event for when '{0}' triggers.\n\nNOTE: This is not guaranteed to fire every frame, only when the Action is triggered."), FText::FromString(ActionPath)), this);
+		CachedTooltip.SetCachedText(
+			FText::Format(
+				LOCTEXT("EnhancedInputAction_Tooltip", "Event for when '{0}' triggers.\n\nNOTE: This is not guaranteed to fire every frame, only when the Action is triggered and the current Input Mode includes 'Game'."),
+			FText::FromString(ActionPath)),
+			this);
 	}
 	return CachedTooltip;
 }
