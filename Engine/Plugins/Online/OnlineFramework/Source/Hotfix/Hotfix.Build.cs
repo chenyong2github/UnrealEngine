@@ -16,7 +16,6 @@ public class Hotfix : ModuleRules
 				"Engine",
                 "HTTP",
 				"MoviePlayerProxy",
-				"OnlineSubsystem",
 				"OnlineSubsystemUtils"
 			}
 			);
@@ -25,6 +24,7 @@ public class Hotfix : ModuleRules
 			new string[] {
 				"PatchCheck",
 				"InstallBundleManager",
+				"OnlineSubsystem",
 			}
 			);
 
