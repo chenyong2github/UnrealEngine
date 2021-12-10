@@ -25,10 +25,6 @@
 #include "ScopedTransaction.h"
 #include "Exporters/AnimSeqExportOption.h"
 
-#include "TemplateSequenceActor.h"
-#include "TemplateSequencePlayer.h"
-#include "TemplateSequence.h"
-
 #include "K2Node_CustomEvent.h"
 #include "BlueprintFunctionNodeSpawner.h"
 #include "BlueprintActionMenuItem.h"
@@ -230,19 +226,6 @@ bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(UWorld* World, ULeve
 	Player->Initialize(Sequence, World->PersistentLevel, Settings, CameraSettings);
 	
 	bool bSuccess = ExportFBXInternal(World, Sequence, InBindings, InMasterTracks, OverrideOptions, InFBXFileName, Player);
-	World->DestroyActor(OutActor);
-
-	return bSuccess;
-}
-
-bool USequencerToolsFunctionLibrary::ExportTemplateSequenceFBX(UWorld* World, UTemplateSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName)
-{
-	ATemplateSequenceActor* OutActor;
-	FMovieSceneSequencePlaybackSettings Settings;
-	UTemplateSequencePlayer* Player = UTemplateSequencePlayer::CreateTemplateSequencePlayer(World, Sequence, Settings, OutActor);
-	Player->Initialize(Sequence, World, Settings);
-	
-	bool bSuccess = ExportFBXInternal(World, Sequence, InBindings, TArray<UMovieSceneTrack*>(), OverrideOptions, InFBXFileName, Player);
 	World->DestroyActor(OutActor);
 
 	return bSuccess;
@@ -489,22 +472,6 @@ bool USequencerToolsFunctionLibrary::ImportLevelSequenceFBX(UWorld* World, ULeve
 	FLevelSequenceCameraSettings CameraSettings;
 	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
 	Player->Initialize(Sequence, World->GetLevel(0), Settings, CameraSettings);
-
-	bool bSuccess = ImportFBXInternal(World, Sequence, InBindings, ImportFBXSettings, ImportFilename, Player);
-	World->DestroyActor(OutActor);
-
-	return bSuccess;
-}
-
-bool USequencerToolsFunctionLibrary::ImportTemplateSequenceFBX(UWorld* World, UTemplateSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* ImportFBXSettings, const FString&  ImportFilename)
-{
-	ImportFBXSettings->bCreateCameras = false;
-	ImportFBXSettings->bMatchByNameOnly = false;
-
-	ATemplateSequenceActor* OutActor;
-	FMovieSceneSequencePlaybackSettings Settings;
-	UTemplateSequencePlayer* Player = UTemplateSequencePlayer::CreateTemplateSequencePlayer(World, Sequence, Settings, OutActor);
-	Player->Initialize(Sequence, World, Settings);
 
 	bool bSuccess = ImportFBXInternal(World, Sequence, InBindings, ImportFBXSettings, ImportFilename, Player);
 	World->DestroyActor(OutActor);
