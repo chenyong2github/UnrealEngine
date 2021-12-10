@@ -87,6 +87,11 @@ void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 	IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(
 		[this] (const TCHAR* Key, IConsoleObject* ConsoleObject)
 		{
+			if (!ConsoleObject || ConsoleObject->TestFlags(ECVF_Unregistered))
+			{
+				return;
+			}
+
 			if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
 			{
 				const FDelegateHandle Handle =
