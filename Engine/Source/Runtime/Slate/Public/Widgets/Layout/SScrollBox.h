@@ -12,6 +12,7 @@
 #include "Input/NavigationReply.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SPanel.h"
+#include "Widgets/SBoxPanel.h"
 #include "Layout/Children.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -307,6 +308,16 @@ private:
 
 	void BeginInertialScrolling();
 
+	/** Padding to the scrollbox */
+	FMargin ScrollBarSlotPadding;
+
+	union
+	{
+		// vertical scroll bar is stored in horizontal box and vice versa
+		SHorizontalBox::FSlot* VerticalScrollBarSlot; // valid when Orientation == Orient_Vertical
+		SVerticalBox::FSlot* HorizontalScrollBarSlot; // valid when Orientation == Orient_Horizontal
+	};
+
 protected:
 	/** Scrolls or begins scrolling a widget into view, only valid to call when we have layout geometry. */
 	bool InternalScrollDescendantIntoView(const FGeometry& MyGeometry, const TSharedPtr<SWidget>& WidgetToFind, bool InAnimateScroll = true, EDescendantScrollDestination InDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
@@ -341,8 +352,11 @@ protected:
 	/** Whether to permit overscroll on this scroll box */
 	EAllowOverscroll AllowOverscroll;
 
+#if WITH_EDITORONLY_DATA
 	/** Padding to the scrollbox */
+	UE_DEPRECATED(5.0, "ScrollBarPadding is deprecated, Use SetScrollBarPadding")
 	FMargin ScrollBarPadding;
+#endif
 
 	/** Whether to back pad this scroll box, allowing user to scroll backward until child contents are no longer visible */
 	bool BackPadScrolling;
