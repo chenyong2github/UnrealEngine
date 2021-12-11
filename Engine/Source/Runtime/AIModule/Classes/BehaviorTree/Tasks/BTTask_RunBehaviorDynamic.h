@@ -33,6 +33,9 @@ class AIMODULE_API UBTTask_RunBehaviorDynamic : public UBTTaskNode
 
 	bool HasMatchingTag(const FGameplayTag& Tag) const;
 	bool SetBehaviorAsset(UBehaviorTree* NewBehaviorAsset);
+	
+	/** @returns subtree asset */
+	UBehaviorTree* GetSubtreeAsset() const;
 
 protected:
 
@@ -58,5 +61,10 @@ protected:
 FORCEINLINE bool UBTTask_RunBehaviorDynamic::HasMatchingTag(const FGameplayTag& Tag) const
 {
 	return InjectionTag == Tag;
+}
+
+FORCEINLINE UBehaviorTree* UBTTask_RunBehaviorDynamic::GetSubtreeAsset() const
+{
+	return BehaviorAsset;
 }
 
