@@ -392,15 +392,19 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				// Flush all pending render commands, as unloading the package may invalidate render resources.
 				FlushRenderingCommands();
 
+				TArray<UObject*> ObjectsInPackage;
+
+				// Can't use ForEachObjectWithPackage here as closing the editor may modify UObject hash tables (known case: renaming objects)
+				GetObjectsWithPackage(PackageBeingUnloaded, ObjectsInPackage, false);
 				// Close any open asset editors.
-				ForEachObjectWithPackage(PackageBeingUnloaded, [](UObject* Obj)
+				for (UObject* Obj : ObjectsInPackage)
 				{
 					if (Obj->IsAsset())
 					{
 						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Obj);
 					}
-					return true;
-				}, false);
+				}
+				ObjectsInPackage.Reset();
 
 				PackageBeingUnloaded->bHasBeenFullyLoaded = false;
 				PackageBeingUnloaded->ClearFlags(RF_WasLoaded);
@@ -409,8 +413,9 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 					bScriptPackageWasUnloaded = true;
 				}
 
+				GetObjectsWithPackage(PackageBeingUnloaded, ObjectsInPackage, true, RF_Transient, EInternalObjectFlags::PendingKill);
 				// Notify any Blueprints that are about to be unloaded, and destroy any leftover worlds.
-				ForEachObjectWithPackage(PackageBeingUnloaded, [](UObject* Obj)
+				for (UObject* Obj : ObjectsInPackage)
 				{
 					if (UBlueprint* BP = Cast<UBlueprint>(Obj))
 					{
@@ -423,12 +428,11 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 							World->CleanupWorld();
 						}
 					}
-					return true;
-				}, true, RF_Transient, EInternalObjectFlags::PendingKill);
+				}
+				ObjectsInPackage.Reset();
 
 				// Clear RF_Standalone flag from objects in the package to be unloaded so they get GC'd.
 				{
-					TArray<UObject*> ObjectsInPackage;
 					GetObjectsWithPackage(PackageBeingUnloaded, ObjectsInPackage);
 					for ( UObject* Object : ObjectsInPackage )
 					{
@@ -438,6 +442,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 							ObjectsThatHadFlagsCleared.Add(Object);
 						}
 					}
+					ObjectsInPackage.Reset();
 				}
 
 				// Reset loaders
