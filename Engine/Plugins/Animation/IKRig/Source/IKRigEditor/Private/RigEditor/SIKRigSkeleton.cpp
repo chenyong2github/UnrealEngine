@@ -446,6 +446,10 @@ void SIKRigSkeleton::BindCommands()
 		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleSetRetargetRoot),
 		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanSetRetargetRoot));
 
+	CommandList->MapAction(Commands.ClearRetargetRoot,
+		FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleClearRetargetRoot),
+		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanClearRetargetRoot));
+
 	CommandList->MapAction(Commands.RenameGoal,
 	FExecuteAction::CreateSP(this, &SIKRigSkeleton::HandleRenameGoal),
 		FCanExecuteAction::CreateSP(this, &SIKRigSkeleton::CanRenameGoal));
@@ -484,6 +488,7 @@ void SIKRigSkeleton::FillContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("Retargeting", LOCTEXT("RetargetingOperations", "Retargeting"));
 	MenuBuilder.AddMenuEntry(Actions.SetRetargetRoot);
+	MenuBuilder.AddMenuEntry(Actions.ClearRetargetRoot);
 	MenuBuilder.AddMenuEntry(Actions.NewRetargetChain);
 	MenuBuilder.EndSection();
 }
@@ -1091,6 +1096,29 @@ bool SIKRigSkeleton::CanSetRetargetRoot()
 	return !SelectedBones.IsEmpty();
 }
 
+void SIKRigSkeleton::HandleClearRetargetRoot()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return;
+	}
+	
+	Controller->AssetController->SetRetargetRoot(NAME_None);
+	Controller->RefreshAllViews();
+}
+
+bool SIKRigSkeleton::CanClearRetargetRoot()
+{
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return false;
+	}
+
+	return Controller->AssetController->GetRetargetRoot() != NAME_None;
+}
+
 bool SIKRigSkeleton::IsBoneInSelection(TArray<TSharedPtr<FIKRigTreeElement>>& SelectedBoneItems, const FName& BoneName)
 {
 	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedBoneItems)
@@ -1504,7 +1532,7 @@ FReply SIKRigSkeleton::OnAcceptDrop(
 	const bool bWasReparented = AssetController->SetGoalBone(DraggedElement.GoalName, TargetItem.Get()->BoneName);
 	if (bWasReparented)
 	{
-		RefreshTreeView();
+		Controller->RefreshAllViews();
 	}
 	
 	return FReply::Handled();

@@ -45,8 +45,10 @@ public:
 
 	/** create retarget chain */
 	TSharedPtr< FUICommandInfo > NewRetargetChain;
-	/** set the root of the retargeting */
+	/** set the retarget root */
 	TSharedPtr< FUICommandInfo > SetRetargetRoot;
+	/** clear the retarget root */
+	TSharedPtr< FUICommandInfo > ClearRetargetRoot;
 
 	/** rename selected goal */
 	TSharedPtr< FUICommandInfo > RenameGoal;

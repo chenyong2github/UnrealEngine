@@ -219,6 +219,8 @@ private:
 	bool CanAddNewRetargetChain();
 	void HandleSetRetargetRoot();
 	bool CanSetRetargetRoot();
+	void HandleClearRetargetRoot();
+	bool CanClearRetargetRoot();
 	/** END retarget chains */
 
 	/** centralized editor controls (facilitate cross-communication between multiple UI elements)*/
