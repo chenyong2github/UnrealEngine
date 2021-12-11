@@ -20,6 +20,7 @@ float GLevelStreamingUnregisterComponentsTimeLimit = 1.0f;
 int32 GLevelStreamingComponentsRegistrationGranularity = 10;
 int32 GLevelStreamingAddPrimitiveGranularity = 120;
 int32 GLevelStreamingComponentsUnregistrationGranularity = 5;
+int32 GLevelStreamingRouteActorInitializationGranularity = 10;
 int32 GLevelStreamingForceGCAfterLevelStreamedOut = 1;
 int32 GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = 1;
 int32 GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeOverride = 0;
@@ -97,6 +98,13 @@ static FAutoConsoleVariableRef CVarLevelStreamingComponentsUnregistrationGranula
 	TEXT("Batching granularity used to unregister actor components during level unstreaming."),
 	ECVF_Default
 	);
+
+static FAutoConsoleVariableRef CVarLevelStreamingRouteActorInitializationGranularity(
+	TEXT("s.LevelStreamingRouteActorInitializationGranularity"),
+	GLevelStreamingRouteActorInitializationGranularity,
+	TEXT("Batching granularity used to initialize actors during level streaming. If this is zero, we process all actors and stages in one pass."),
+	ECVF_Default
+);
 
 static FAutoConsoleVariableRef CVarForceGCAfterLevelStreamedOut(
 	TEXT("s.ForceGCAfterLevelStreamedOut"),

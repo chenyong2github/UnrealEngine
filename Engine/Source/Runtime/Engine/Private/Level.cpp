@@ -91,6 +91,14 @@ static FAutoConsoleVariableRef CVarActorClusteringEnabled(
 	ECVF_Default
 );
 
+bool GUseLegacyRouteActorInitialization = false;
+static FAutoConsoleVariableRef CVarUseLegacyRouteActorInitialization(
+	TEXT("s.UseLegacyRouteActorInitialization"),
+	GUseLegacyRouteActorInitialization,
+	TEXT("Toggle for whether to use the old non-granular implementation of route actor initialization."),
+	ECVF_Default
+);
+
 #if WITH_EDITOR
 FLevelPartitionOperationScope::FLevelPartitionOperationScope(ULevel* InLevel)
 {
@@ -333,6 +341,8 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	,	TickTaskLevel(FTickTaskManagerInterface::Get().AllocateTickTaskLevel())
 	,	PrecomputedLightVolume(new FPrecomputedLightVolume())
 	,	PrecomputedVolumetricLightmap(new FPrecomputedVolumetricLightmap())
+	,	RouteActorInitializationState(ERouteActorInitializationState::Preinitialize)
+	,	RouteActorInitializationIndex(0)
 {
 #if WITH_EDITORONLY_DATA
 	LevelColor = FLinearColor::White;
@@ -2377,30 +2387,28 @@ void ULevel::ReleaseRenderingResources()
 	}
 }
 
-void ULevel::RouteActorInitialize()
+void ULevel::RouteActorInitializeOld()
 {
-	TRACE_OBJECT_EVENT(this, RouteActorInitialize);
-
 	// Send PreInitializeComponents and collect volumes.
-	for( int32 Index = 0; Index < Actors.Num(); ++Index )
+	for (int32 Index = 0; Index < Actors.Num(); ++Index)
 	{
 		AActor* const Actor = Actors[Index];
-		if( Actor && !Actor->IsActorInitialized() )
+		if (Actor && !Actor->IsActorInitialized())
 		{
 			Actor->PreInitializeComponents();
 		}
 	}
 
 	const bool bCallBeginPlay = OwningWorld->HasBegunPlay();
-	TArray<AActor *> ActorsToBeginPlay;
+	TArray<AActor*> ActorsToBeginPlay;
 
 	// Send InitializeComponents on components and PostInitializeComponents.
-	for( int32 Index = 0; Index < Actors.Num(); ++Index )
+	for (int32 Index = 0; Index < Actors.Num(); ++Index)
 	{
 		AActor* const Actor = Actors[Index];
-		if( Actor )
+		if (Actor)
 		{
-			if( !Actor->IsActorInitialized() )
+			if (!Actor->IsActorInitialized())
 			{
 				// Call Initialize on Components.
 				Actor->InitializeComponents();
@@ -2408,7 +2416,7 @@ void ULevel::RouteActorInitialize()
 				Actor->PostInitializeComponents(); // should set Actor->bActorInitialized = true
 				if (!Actor->IsActorInitialized() && IsValidChecked(Actor))
 				{
-					UE_LOG(LogActor, Fatal, TEXT("%s failed to route PostInitializeComponents.  Please call Super::PostInitializeComponents() in your <className>::PostInitializeComponents() function. "), *Actor->GetFullName() );
+					UE_LOG(LogActor, Fatal, TEXT("%s failed to route PostInitializeComponents.  Please call Super::PostInitializeComponents() in your <className>::PostInitializeComponents() function. "), *Actor->GetFullName());
 				}
 
 				if (bCallBeginPlay && !Actor->IsChildActor())
@@ -2425,6 +2433,111 @@ void ULevel::RouteActorInitialize()
 		AActor* Actor = ActorsToBeginPlay[ActorIndex];
 		SCOPE_CYCLE_COUNTER(STAT_ActorBeginPlay);
 		Actor->DispatchBeginPlay(/*bFromLevelStreaming*/ true);
+	}
+
+	bAlreadyRoutedActorInitialize = true;
+}
+
+void ULevel::RouteActorInitialize(int32 NumActorsToProcess)
+{
+	TRACE_OBJECT_EVENT(this, RouteActorInitialize);
+	if (GUseLegacyRouteActorInitialization)
+	{
+		RouteActorInitializeOld();
+		return;
+	}
+
+	const bool bFullProcessing = (NumActorsToProcess <= 0);
+	switch (RouteActorInitializationState)
+	{
+		case ERouteActorInitializationState::Preinitialize:
+		{
+			// Actor pre-initialization may spawn new actors so we need to incrementally process until actor count stabilizes
+			while (RouteActorInitializationIndex < Actors.Num())
+			{
+				AActor* const Actor = Actors[RouteActorInitializationIndex];
+				if (Actor && !Actor->IsActorInitialized())
+				{
+					Actor->PreInitializeComponents();
+				}
+
+				++RouteActorInitializationIndex;
+				if (!bFullProcessing && (--NumActorsToProcess == 0))
+				{
+					return;
+				}
+			}
+
+			RouteActorInitializationIndex = 0;
+			RouteActorInitializationState = ERouteActorInitializationState::Initialize;
+		}
+
+		// Intentional fall-through, proceeding if we haven't expired our actor count budget
+		case ERouteActorInitializationState::Initialize:
+		{
+			while (RouteActorInitializationIndex < Actors.Num())
+			{
+				AActor* const Actor = Actors[RouteActorInitializationIndex];
+				if (Actor)
+				{
+					if (!Actor->IsActorInitialized())
+					{
+						Actor->InitializeComponents();
+						Actor->PostInitializeComponents();
+						if (!Actor->IsActorInitialized() && IsValidChecked(Actor))
+						{
+							UE_LOG(LogActor, Fatal, TEXT("%s failed to route PostInitializeComponents. Please call Super::PostInitializeComponents() in your <className>::PostInitializeComponents() function. "), *Actor->GetFullName());
+						}
+					}
+				}
+
+				++RouteActorInitializationIndex;
+				if (!bFullProcessing && (--NumActorsToProcess == 0))
+				{
+					return;
+				}
+			}
+
+			RouteActorInitializationIndex = 0;
+			RouteActorInitializationState = ERouteActorInitializationState::BeginPlay;
+		}
+
+		// Intentional fall-through, proceeding if we haven't expired our actor count budget
+		case ERouteActorInitializationState::BeginPlay:
+		{
+			if (OwningWorld->HasBegunPlay())
+			{
+				while (RouteActorInitializationIndex < Actors.Num())
+				{
+					// Child actors have play begun explicitly by their parents
+					AActor* const Actor = Actors[RouteActorInitializationIndex];
+					if (Actor && !Actor->IsChildActor())
+					{
+						// This will no-op if the actor has already begun play
+						SCOPE_CYCLE_COUNTER(STAT_ActorBeginPlay);
+						const bool bFromLevelStreaming = true;
+						Actor->DispatchBeginPlay(bFromLevelStreaming);
+					}
+
+					++RouteActorInitializationIndex;
+					if (!bFullProcessing && (--NumActorsToProcess == 0))
+					{
+						return;
+					}
+				}
+			}
+
+			// Should only have to clean up once, so do it at the end of this phase in case this method gets called again after we're done
+			RouteActorInitializationState = ERouteActorInitializationState::Finished;
+			RouteActorInitializationIndex = 0;
+			bAlreadyRoutedActorInitialize = true;
+		}
+
+		// Intentional fall-through if we're done
+		case ERouteActorInitializationState::Finished:
+		{
+			break;
+		}
 	}
 }
 

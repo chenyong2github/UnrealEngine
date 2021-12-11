@@ -2829,12 +2829,15 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_AddToWorldTime_RouteActorInitialize);
 			SCOPE_TIME_TO_VAR(&RouteActorInitializeTime);
+			const int32 NumActorsToProcess = (!bConsiderTimeLimit || !IsGameWorld() || IsRunningCommandlet()) ? 0 : GLevelStreamingRouteActorInitializationGranularity;
 			bStartup = 1;
-			Level->RouteActorInitialize();
-			Level->bAlreadyRoutedActorInitialize = true;
+			do 
+			{
+				Level->RouteActorInitialize(NumActorsToProcess);
+			} while (!Level->bAlreadyRoutedActorInitialize && !IsTimeLimitExceeded(TEXT("routing Initialize on actors"), StartTime, Level, TimeLimit));
 			bStartup = 0;
 
-			bExecuteNextStep = (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("routing Initialize on actors"), StartTime, Level, TimeLimit ));
+			bExecuteNextStep = Level->bAlreadyRoutedActorInitialize && (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("routing Initialize on actors"), StartTime, Level, TimeLimit ));
 		}
 
 		// Sort the actor list; can't do this on save as the relevant properties for sorting might have been changed by code
@@ -4713,10 +4716,11 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegist
 		}
 
 		// Route various initialization functions and set volumes.
-		for( int32 LevelIndex=0; LevelIndex<Levels.Num(); LevelIndex++ )
+		const int32 ProcessAllRouteActorInitializationGranularity = 0;
+		for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); LevelIndex++)
 		{
-			ULevel*	const Level = Levels[LevelIndex];
-			Level->RouteActorInitialize();
+			ULevel* const Level = Levels[LevelIndex];
+			Level->RouteActorInitialize(ProcessAllRouteActorInitializationGranularity);
 		}
 
 		// Let server know client sub-levels visibility state
