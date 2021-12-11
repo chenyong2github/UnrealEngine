@@ -158,9 +158,9 @@ private:
 	struct  FSectionRange;
 
 	/**
-	* Important bones when simplifying
+	* Important bones and sections when simplifying
 	*/
-	struct FImportantBones;
+	struct FPrioritizedFeatures;
 
 private:
 
@@ -191,7 +191,7 @@ private:
 		                         const FBoxSphereBounds& Bounds,
 		                         const FReferenceSkeleton& RefSkeleton,
 		                         FSkeletalMeshOptimizationSettings Settings,
-								 const FImportantBones& ImportantBones,
+								 const FPrioritizedFeatures& PrioritizedFeatures,
 		                         const TArray<FMatrix>& BoneMatrices,
 		                         const int32 LODIndex,
 								 const bool bReducingSourceModel,
@@ -211,11 +211,13 @@ private:
 	* @param BoneMatrices   - define the configuration of the model
 	* @param LODIndex       - target index for the result.
 	* @param OutSkinnedMesh - the posed mesh 
+	* @param VerToSectionMap - if provided, on return this array will allow VertexID to SectionID lookup
 	*/
 	void ConvertToFSkinnedSkeletalMesh( const FSkeletalMeshLODModel& SrcLODModel,
 		                                const TArray<FMatrix>& BoneMatrices,
 		                                const int32 LODIndex,
-		                                SkeletalSimplifier::FSkinnedSkeletalMesh& OutSkinnedMesh ) const;
+		                                SkeletalSimplifier::FSkinnedSkeletalMesh& OutSkinnedMesh,
+										TArray<int32>* VertToSectionMap = nullptr) const;
 
 	/**
 	* Generate a SkeletalMeshLODModel from a SkinnedSkeletalMesh and ReferenceSkeleton
@@ -298,9 +300,11 @@ private:
 	void TrimBonesPerVert( SkeletalSimplifier::FSkinnedSkeletalMesh& Mesh, int32 MaxBonesPerVert ) const ;
 
 	/**
-	* If a vertex has one of the important bones as its' major bone, associated the ImportantBones.Weight
+	* If a vertex has one of the prioritized bones as its' major bone, associated the PrioritizedFeatures.Weight
+	* Likewise if the section ID for the vert is in a prioritized section, associate the prioritized weight 
 	*/
-	void UpdateSpecializedVertWeights(const FImportantBones& ImportantBones, SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedSkeletalMesh) const;
+	void UpdateSpecializedVertWeights(const FPrioritizedFeatures& PrioritizedFeatures, const TArray<int32>& VertToSectionId, SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedSkeletalMesh) const;
+
 
 };
 
@@ -320,10 +324,16 @@ struct FQuadricSkeletalMeshReduction::FSectionRange
 	int32 End;
 };
 
-struct FQuadricSkeletalMeshReduction::FImportantBones
+struct FQuadricSkeletalMeshReduction::FPrioritizedFeatures
 {
-	TArray<int32> Ids;
+	TArray<int32> BoneIds;
+	TArray<int32> SectionIds;
 	float Weight;
+
+	bool HasFeatures() const
+	{
+		return (BoneIds.Num() >0 || SectionIds.Num() > 0);
+	}
 };
 /**
 *  Required MeshReduction Interface.
@@ -477,7 +487,8 @@ bool FQuadricSkeletalMeshReduction::RemoveMeshSection(FSkeletalMeshLODModel& Mod
 void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkeletalMeshLODModel& SrcLODModel,
 	                                                               const TArray<FMatrix>& BoneMatrices,
 	                                                               const int32 LODIndex,
-	                                                               SkeletalSimplifier::FSkinnedSkeletalMesh& OutSkinnedMesh) const
+	                                                               SkeletalSimplifier::FSkinnedSkeletalMesh& OutSkinnedMesh,
+																   TArray<int32>* VertToSectionMap) const
 {
 
 
@@ -796,6 +807,30 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		}
 	}
 
+	// if requested, make a map of the vertex to original section id
+	if (VertToSectionMap != nullptr)
+	{
+		const int32 InvalidSectionId = -1;
+		VertToSectionMap->Empty();
+		VertToSectionMap->Init(InvalidSectionId, VertexCount);
+	
+		TArray<int32>& ToSection = *VertToSectionMap;
+		for (int32 s = 0; s < SectionCount; ++s)
+		{
+			if (SkipSection(s))
+			{
+				continue;
+			}
+			int32 OriginalDataSectionIndex = SrcLODModel.Sections[s].OriginalDataSectionIndex;
+
+			const FSectionRange VertexRange = SectionRangeArray[s];
+
+			for (int32 v = VertexRange.Begin; v < VertexRange.End; ++v)
+			{
+				ToSection[v] = OriginalDataSectionIndex;
+			}
+		}
+	}
 	// Put the vertex in a "correct" state.
 	//    "corrects" normals (ensures that they are orthonormal)
 	//    re-orders the bones by weight (highest to lowest)
@@ -817,21 +852,51 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 
 	// Compact the mesh to remove any unreferenced verts
 	// and fix-up the index buffer
+	TArray<int32> CompactVertMap; 
+	OutSkinnedMesh.Compact(&CompactVertMap);
 
-	OutSkinnedMesh.Compact();
+	// Remap the VertToSectionMap to use the post-compact vert ids.
+	if (VertToSectionMap != nullptr)
+	{
+			const int32 CompactVertCount = OutSkinnedMesh.NumVertices();
+			TArray<int32> TmpVertToSectionMap;
+			const int32 InvalidSectionId = -1;
+			TmpVertToSectionMap.Empty();
+			TmpVertToSectionMap.Init(InvalidSectionId, CompactVertCount);
+			checkSlow(CompactVertCount == CompactVertMap.Num());
+			for (int32 DstID = 0; DstID < CompactVertMap.Num(); DstID++)
+			{
+				const int32 SrcID = CompactVertMap[DstID];
+				TmpVertToSectionMap[DstID] = (*VertToSectionMap)[SrcID];
+			}
+
+			Swap(TmpVertToSectionMap, *VertToSectionMap);
+	}
 }
 
 
-void FQuadricSkeletalMeshReduction::UpdateSpecializedVertWeights(const FImportantBones& ImportantBones, SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedSkeletalMesh) const
+void FQuadricSkeletalMeshReduction::UpdateSpecializedVertWeights(const FPrioritizedFeatures& PrioritizedFeatures, const TArray<int32>& VertToOriginalSectionId, SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedSkeletalMesh) const
 {
-	const float Weight = ImportantBones.Weight;
+
+	if (!PrioritizedFeatures.HasFeatures())
+	{
+		return;
+	}
+	
+	const float Weight = PrioritizedFeatures.Weight;
 
 	int32 NumVerts = SkinnedSkeletalMesh.NumVertices();
+	check(VertToOriginalSectionId.Num() == NumVerts);
 
+	const int32 InvalidSectionId = -1;
 	//If a vertex has one of the important bones as its' major bone, associated the ImportantBones.Weight
 	for (int32 i = 0; i < NumVerts; ++i)
 	{
+		const int32 OriginalSectionId = VertToOriginalSectionId[i];
 		auto& Vert = SkinnedSkeletalMesh.VertexBuffer[i];
+		Vert.SpecializedWeight = 0.f;
+
+		// Test if this vert is associated with a priority bone
 		const auto& Bones = Vert.GetSparseBones();
 		if (!Bones.bIsEmpty())
 		{
@@ -839,15 +904,19 @@ void FQuadricSkeletalMeshReduction::UpdateSpecializedVertWeights(const FImportan
 
 			const int32 FirstBone = CIter.Key(); // Bones are ordered by descending weight
 
-			if (ImportantBones.Ids.Contains(FirstBone))
+			if (PrioritizedFeatures.BoneIds.Contains(FirstBone))
 			{
 				Vert.SpecializedWeight = Weight;
 			}
 		}
-		else
+		
+		// Test if this vert is associated with a priority section
+		if (OriginalSectionId != InvalidSectionId && PrioritizedFeatures.SectionIds.Contains(OriginalSectionId))
 		{
-			Vert.SpecializedWeight = 0.f;
+			//Using += here will make bone and section prioritized verts stronger than only bone or only section prioritized verts
+			Vert.SpecializedWeight += Weight;
 		}
+
 	}
 }
 
@@ -1674,7 +1743,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 	                                                        const FBoxSphereBounds& Bounds,
 	                                                        const FReferenceSkeleton& RefSkeleton,
 	                                                        FSkeletalMeshOptimizationSettings Settings,
-															const FImportantBones& ImportantBones,
+															const FPrioritizedFeatures& PrioritizedFeatures,
 	                                                        const TArray<FMatrix>& BoneMatrices,
 	                                                        const int32 LODIndex,
 															const bool bReducingSourceModel,
@@ -1712,9 +1781,9 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 	}
 	
 	// Generate a single skinned mesh form the SrcModel.  This mesh has per-vertex tangent space.
-
+	TArray<int32> VertToOriginalSectionId; 
 	SkeletalSimplifier::FSkinnedSkeletalMesh SkinnedSkeletalMesh;
-	ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh);
+	ConvertToFSkinnedSkeletalMesh(SrcModel, BoneMatrices, LODIndex, SkinnedSkeletalMesh, &VertToOriginalSectionId);
 
 	int32 IterationNum = 0;
 	//We keep the original MaxNumVerts because if we iterate we want to still compare with the original request.
@@ -1723,11 +1792,10 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 	{
 		if (bOptimizeMesh)
 		{
-			if (ImportantBones.Ids.Num() > 0)
-			{
-				// Add specialized weights for verts associated with "important" bones.
-				UpdateSpecializedVertWeights(ImportantBones, SkinnedSkeletalMesh);
-			}
+
+			// Add specialized weights for verts associated with "important" bones or sections
+			UpdateSpecializedVertWeights(PrioritizedFeatures, VertToOriginalSectionId, SkinnedSkeletalMesh);
+
 
 			// Capture the UV bounds from the source mesh.
 
@@ -1850,18 +1918,28 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	// Struct to identify important bones.  Vertices associated with these bones
 	// will have additional collapse weight added to them.
 
-	FImportantBones  ImportantBones;
+	FPrioritizedFeatures  PrioritizedFeatures;
 	{
-		const TArray<FBoneReference>& BonesToPrioritize = LODInfo->BonesToPrioritize;
-		const float BonePrioritizationWeight = LODInfo->WeightOfPrioritization;
+		
+		const float PrioritizationWeight = LODInfo->WeightOfPrioritization;
+		PrioritizedFeatures.Weight = PrioritizationWeight;
 
-		ImportantBones.Weight = BonePrioritizationWeight;
+		const TArray<FBoneReference>& BonesToPrioritize = LODInfo->BonesToPrioritize;
 		for (const FBoneReference& BoneReference : BonesToPrioritize)
 		{
 			int32 BoneId = SkeletalMesh.GetRefSkeleton().FindRawBoneIndex(BoneReference.BoneName);
 
 			// Q: should we exclude BoneId = 0?
-			ImportantBones.Ids.AddUnique(BoneId);
+			PrioritizedFeatures.BoneIds.AddUnique(BoneId);
+		}
+
+		const TArray<FSectionReference>& SectionsToPrioritize = LODInfo->SectionsToPrioritize;
+		for (const FSectionReference& SectionReference : SectionsToPrioritize)
+		{
+			if (SectionReference.IsValidToEvaluate(SkeletalMeshResource.LODModels[LODIndex]))
+			{
+				PrioritizedFeatures.SectionIds.AddUnique(SectionReference.SectionIndex);
+			}
 		}
 	}
 	// select which mesh we're reducing from
@@ -2153,7 +2231,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	// Reduce LOD model with SrcMesh if src mesh has more then 1 triangle
-	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetPathName(), SkeletalMesh.GetImportedBounds(), SkeletalMesh.GetRefSkeleton(), Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel, TargetPlatform))
+	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetPathName(), SkeletalMesh.GetImportedBounds(), SkeletalMesh.GetRefSkeleton(), Settings, PrioritizedFeatures, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel, TargetPlatform))
 	{
 		FSkeletalMeshLODInfo* ReducedLODInfoPtr = SkeletalMesh.GetLODInfo(LODIndex);
 		check(ReducedLODInfoPtr);

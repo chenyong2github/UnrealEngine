@@ -444,13 +444,47 @@ void FScopedSkeletalMeshPostEditChange::SetSkeletalMesh(USkeletalMesh* InSkeleta
 	}
 }
 
-#endif //WITH_EDITOR
+
+/*-----------------------------------------------------------------------------
+	FSectionReference
+-----------------------------------------------------------------------------*/
+
+bool FSectionReference::IsValidToEvaluate(const FSkeletalMeshLODModel& LodModel) const
+{
+	return GetMeshLodSection(LodModel) != nullptr;
+}
+
+const FSkelMeshSection* FSectionReference::GetMeshLodSection(const FSkeletalMeshLODModel& LodModel) const
+{
+	for (int32 LodModelSectionIndex = 0; LodModelSectionIndex < LodModel.Sections.Num(); ++LodModelSectionIndex)
+	{
+		const FSkelMeshSection& Section = LodModel.Sections[LodModelSectionIndex];
+		if (Section.ChunkedParentSectionIndex == INDEX_NONE && SectionIndex == Section.OriginalDataSectionIndex)
+		{
+			return &Section;
+		}
+	}
+	return nullptr;
+}
+
+int32 FSectionReference::GetMeshLodSectionIndex(const FSkeletalMeshLODModel& LodModel) const
+{
+	for (int32 LodModelSectionIndex = 0; LodModelSectionIndex < LodModel.Sections.Num(); ++LodModelSectionIndex)
+	{
+		const FSkelMeshSection& Section = LodModel.Sections[LodModelSectionIndex];
+		if (Section.ChunkedParentSectionIndex == INDEX_NONE && SectionIndex == Section.OriginalDataSectionIndex)
+		{
+			return LodModelSectionIndex;
+		}
+	}
+	return INDEX_NONE;
+}
+
 
 /*-----------------------------------------------------------------------------
 	FSkeletalMeshAsyncBuildWorker
 -----------------------------------------------------------------------------*/
 
-#if WITH_EDITOR
 
 void FSkeletalMeshAsyncBuildWorker::DoWork()
 {
@@ -5290,6 +5324,7 @@ FSkeletalMeshLODInfo& USkeletalMesh::AddLODInfo()
 			NewLODInfo.BakePoseOverride = LODInfoArray[LastIndex].BakePoseOverride;
 			NewLODInfo.BonesToRemove = LODInfoArray[LastIndex].BonesToRemove;
 			NewLODInfo.BonesToPrioritize = LODInfoArray[LastIndex].BonesToPrioritize;
+			NewLODInfo.SectionsToPrioritize = LODInfoArray[LastIndex].SectionsToPrioritize;
 			// now find reduction setting
 			for (int32 SubLOD = LastIndex; SubLOD >= 0; --SubLOD)
 			{
@@ -5548,6 +5583,7 @@ FGuid FSkeletalMeshLODInfo::ComputeDeriveDataCacheKey(const FSkeletalMeshLODGrou
 
 	Ar << BonesToRemove;
 	Ar << BonesToPrioritize;
+	Ar << SectionsToPrioritize;
 	Ar << WeightOfPrioritization;
 	Ar << MorphTargetPositionErrorTolerance;
 
