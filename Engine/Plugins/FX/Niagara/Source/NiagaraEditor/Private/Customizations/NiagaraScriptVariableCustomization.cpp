@@ -187,7 +187,7 @@ void FNiagaraScriptVariableDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 	// @TODO It seems like all the HideProperties aren't working for values within metadata
 	// generally we want all the inline parameters only available for inputs & static switches
-	if(!Variable->Variable.IsInNameSpace(FNiagaraConstants::ModuleNamespace) && !Variable->Variable.IsInNameSpace(FNiagaraConstants::StaticSwitchNamespace))
+	if(!Variable->Variable.IsInNameSpace(FNiagaraConstants::ModuleNamespace) && !Variable->GetIsStaticSwitch())
 	{
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.bDisplayInOverviewStack));
 		DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraScriptVariable, Metadata.InlineParameterColorOverride));
