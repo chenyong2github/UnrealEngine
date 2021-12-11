@@ -333,7 +333,7 @@ UMovieScene3DTransformSection::UMovieScene3DTransformSection(const FObjectInitia
 }
 
 template<typename BaseBuilderType>
-void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, UMovieSceneEntitySystemLinker* Linker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 
 	using namespace UE::MovieScene;
@@ -390,20 +390,43 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 		RotationChannel[2] = TrackComponents->QuaternionRotationChannel[2];
 	}
 
+	// Let override registry handles overriden channel here
+	int32 ChannelIndex = UMovieSceneSectionChannelOverrideRegistry::ToChannelIndex(Params.EntityID);
+
+	// If we are building the entity of an overriden channel, we pass the partial builder we have at this point (the one with the bindings) and add the tag to it.
+	// Then call into the override repository so it can add a second builder with the override stuff.
+	if (IsChannelOverriden(OverrideRegistry, ChannelIndex))
+	{
+		OutImportedEntity->AddBuilder(InBaseBuilder.AddTag(PropertyTag));
+		OverrideRegistry->ImportEntityImpl(Params, OutImportedEntity);
+		return;
+	}	
+	
+	// Here proceed with the all the normal channels
 	OutImportedEntity->AddBuilder(
 		InBaseBuilder
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[0], &Translation[0], ActiveChannelsMask[0])
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[1], &Translation[1], ActiveChannelsMask[1])
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[2], &Translation[2], ActiveChannelsMask[2])
-		.AddConditional(RotationChannel[0],                      &Rotation[0],    ActiveChannelsMask[3])
-		.AddConditional(RotationChannel[1],                      &Rotation[1],    ActiveChannelsMask[4])
-		.AddConditional(RotationChannel[2],                      &Rotation[2],    ActiveChannelsMask[5])
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[6], &Scale[0],       ActiveChannelsMask[6])
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[7], &Scale[1],       ActiveChannelsMask[7])
-		.AddConditional(BuiltInComponentTypes->DoubleChannel[8], &Scale[2],       ActiveChannelsMask[8])
-		.AddConditional(BuiltInComponentTypes->WeightChannel,    &ManualWeight,   EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData())
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[0], &Translation[0], ActiveChannelsMask[0] && !IsChannelOverriden(OverrideRegistry, 0))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[1], &Translation[1], ActiveChannelsMask[1] && !IsChannelOverriden(OverrideRegistry, 1))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[2], &Translation[2], ActiveChannelsMask[2] && !IsChannelOverriden(OverrideRegistry, 2))
+		.AddConditional(RotationChannel[0],                      &Rotation[0],    ActiveChannelsMask[3] && !IsChannelOverriden(OverrideRegistry, 3))
+		.AddConditional(RotationChannel[1],                      &Rotation[1],    ActiveChannelsMask[4] && !IsChannelOverriden(OverrideRegistry, 4))
+		.AddConditional(RotationChannel[2],                       &Rotation[2],   ActiveChannelsMask[5] && !IsChannelOverriden(OverrideRegistry, 5))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[6], &Scale[0],       ActiveChannelsMask[6] && !IsChannelOverriden(OverrideRegistry, 6))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[7], &Scale[1],       ActiveChannelsMask[7] && !IsChannelOverriden(OverrideRegistry, 7))
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[8], &Scale[2],       ActiveChannelsMask[8] && !IsChannelOverriden(OverrideRegistry, 8))
+		.AddConditional(BuiltInComponentTypes->WeightChannel,    &ManualWeight,   EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData() && !IsChannelOverriden(OverrideRegistry, 9))
 		.AddTag(PropertyTag)
 	);
+}
+
+bool UMovieScene3DTransformSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	if (OverrideRegistry)
+	{
+		return OverrideRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, *this);
+	}
+
+	return false;
 }
 
 void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)

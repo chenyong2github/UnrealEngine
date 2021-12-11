@@ -6,11 +6,11 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "EntitySystem/MovieScenePropertyMetaDataTraits.h"
+#include "EntitySystem/MovieScenePropertyTraits.h"
 #include "Engine/EngineTypes.h"
 #include "EulerTransform.h"
 #include "TransformData.h"
-#include "EntitySystem/MovieScenePropertyTraits.h"
-#include "EntitySystem/MovieScenePropertyMetaDataTraits.h"
 #include "MovieSceneTracksPropertyTypes.h"
 #include "Styling/SlateColor.h"
 #include "MovieSceneTracksComponentTypes.generated.h"
@@ -18,6 +18,39 @@
 class UMovieSceneDataLayerSection;
 class UMovieSceneLevelVisibilitySection;
 struct FMovieSceneObjectBindingID;
+
+
+/** Component data for the Float Perlin Noise Channel */
+USTRUCT()
+struct MOVIESCENETRACKS_API FFloatPerlinNoiseParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float Frequency;
+
+	UPROPERTY()
+	float Amplitude;
+
+	FFloatPerlinNoiseParams();
+	FFloatPerlinNoiseParams(float InFrequency, float InAmplitude);
+};
+
+/** Component data for the Float Perlin Noise Channel */
+USTRUCT()
+struct MOVIESCENETRACKS_API FDoublePerlinNoiseParams
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	double Frequency;
+
+	UPROPERTY()
+	double Amplitude;
+
+	FDoublePerlinNoiseParams();
+	FDoublePerlinNoiseParams(double InFrequency, double InAmplitude);
+};
 
 /** Component data for the level visibility system */
 USTRUCT()
@@ -312,6 +345,8 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<USceneComponent*> AttachParent;
 	TComponentTypeID<FAttachmentComponent> AttachComponent;
 	TComponentTypeID<FMovieSceneObjectBindingID> AttachParentBinding;
+	TComponentTypeID<FFloatPerlinNoiseParams> FloatPerlinNoiseChannel;
+	TComponentTypeID<FDoublePerlinNoiseParams> DoublePerlinNoiseChannel;
 
 	struct
 	{

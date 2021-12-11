@@ -498,6 +498,8 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	ComponentRegistry->NewComponentType(&AttachParent, TEXT("Attach Parent"));
 	ComponentRegistry->NewComponentType(&AttachComponent, TEXT("Attachment Component"));
 	ComponentRegistry->NewComponentType(&AttachParentBinding, TEXT("Attach Parent Binding"));
+	ComponentRegistry->NewComponentType(&FloatPerlinNoiseChannel, TEXT("Float Perlin Noise Channel"));
+	ComponentRegistry->NewComponentType(&DoublePerlinNoiseChannel, TEXT("Double Perlin Noise Channel"));
 
 	ComponentRegistry->NewComponentType(&LevelVisibility, TEXT("Level Visibility"));
 	ComponentRegistry->NewComponentType(&DataLayer, TEXT("Data Layer"));
@@ -668,6 +670,11 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	ComponentRegistry->Factories.DuplicateChildComponent(AttachParentBinding);
 	ComponentRegistry->Factories.DuplicateChildComponent(AttachComponent);
+
+	// --------------------------------------------------------------------------------------------
+	// Set up PerlinNoise components
+	ComponentRegistry->Factories.DuplicateChildComponent(FloatPerlinNoiseChannel);
+	ComponentRegistry->Factories.DuplicateChildComponent(DoublePerlinNoiseChannel);
 }
 
 FMovieSceneTracksComponentTypes::~FMovieSceneTracksComponentTypes()
@@ -690,6 +697,29 @@ FMovieSceneTracksComponentTypes* FMovieSceneTracksComponentTypes::Get()
 	return GMovieSceneTracksComponentTypes.Get();
 }
 
-
 } // namespace MovieScene
 } // namespace UE
+
+FFloatPerlinNoiseParams::FFloatPerlinNoiseParams()
+	: Frequency(4.0f)
+	, Amplitude(1.0f)
+{
+}
+
+FFloatPerlinNoiseParams::FFloatPerlinNoiseParams(float InFrequency, float InAmplitude)
+	: Frequency(InFrequency)
+	, Amplitude(InAmplitude)
+{
+}
+
+FDoublePerlinNoiseParams::FDoublePerlinNoiseParams()
+	: Frequency(4.0)
+	, Amplitude(1.0)
+{
+}
+
+FDoublePerlinNoiseParams::FDoublePerlinNoiseParams(double InFrequency, double InAmplitude)
+	: Frequency(InFrequency)
+	, Amplitude(InAmplitude)
+{
+}

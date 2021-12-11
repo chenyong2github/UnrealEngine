@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tracks/MovieScenePropertyTrack.h"
+#include "Channels/MovieSceneSectionChannelOverrideRegistry.h"
 #include "Algo/Sort.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTracksComponentTypes.h"
@@ -330,9 +331,14 @@ UMovieSceneSection* UMovieScenePropertyTrack::GetSectionToKey() const
 const int32 FMovieScenePropertyTrackEntityImportHelper::SectionPropertyValueImportingID = 0;
 const int32 FMovieScenePropertyTrackEntityImportHelper::SectionEditConditionToggleImportingID = 1;
 
-void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSectionChannelOverrideRegistry* OverridesRegistry/*= nullptr*/)
 {
 	using namespace UE::MovieScene;
+
+	if (OverridesRegistry)
+	{
+		OverridesRegistry->PopulateEvaluationFieldImpl(EffectiveRange, InMetaData, OutFieldBuilder, Section);
+	}
 
 	// Add the default entity for this section.
 	const int32 EntityIndex   = OutFieldBuilder->FindOrAddEntity(&Section, SectionPropertyValueImportingID);
