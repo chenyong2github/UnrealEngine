@@ -421,6 +421,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoUseVerse", Value = "false")]
 		[CommandLine("-UseVerse", Value = "true")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bUseVerse = false;
 
 		/// <summary>
