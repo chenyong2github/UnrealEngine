@@ -1461,6 +1461,7 @@ public:
 	virtual void RHIPollRenderQueryResults() {}
 
 	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) { return true; }
+	virtual bool RHIIsTypedUAVStoreSupported(EPixelFormat PixelFormat) { return true; }
 
 	virtual uint16 RHIGetPlatformTextureMaxSampleCount() { return 8; };
 

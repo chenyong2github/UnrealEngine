@@ -683,6 +683,7 @@ public:
 	virtual void RHICalibrateTimers() override;
 
 	virtual bool RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat) override;
+	virtual bool RHIIsTypedUAVStoreSupported(EPixelFormat PixelFormat) override;
 
 	// Accessors.
 	ID3D11Device* GetDevice() const
