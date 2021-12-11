@@ -2229,7 +2229,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 		FString ProjectIntermediateDir = FPaths::ProjectIntermediateDir();
-		bool bCreateIntermediateSuccess = PlatformFile.CreateDirectory(*ProjectIntermediateDir);
+		bool bCreateIntermediateSuccess = PlatformFile.CreateDirectoryTree(*ProjectIntermediateDir);
 		if (!bCreateIntermediateSuccess)
 		{
 			UE_LOG(LogInit, Fatal, TEXT("Failed to create Intermediate directory '%s'."), *ProjectIntermediateDir);
