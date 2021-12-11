@@ -8207,6 +8207,11 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseClassDeclaration(co
 
 	FString ClassNameWithoutPrefixStr = GetClassNameWithPrefixRemoved(ClassName);
 
+	if (ClassNameWithoutPrefixStr.IsEmpty())
+	{
+		Throwf(TEXT("When compiling class definition for '%s', attempting to strip prefix results in an empty name. Did you leave off a prefix?"), *ClassNameWithoutPrefixStr);
+	}
+
 	// Skip optional final keyword
 	MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
 
@@ -8348,6 +8353,11 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 
 	// The struct name stripped of it's prefix
 	FString StructNameStripped = GetClassNameWithPrefixRemoved(StructNameInScript);
+
+	if (StructNameStripped.IsEmpty())
+	{
+		Throwf(TEXT("When compiling struct definition for '%s', attempting to strip prefix results in an empty name. Did you leave off a prefix?"), *StructNameInScript);
+	}
 
 
 	// Create the structure definition
