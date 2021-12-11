@@ -52,6 +52,9 @@ TAutoConsoleVariable<float> CVarConstraintAngularStiffnessScale(
 bool bEnableSkeletalMeshConstraints = true;
 FAutoConsoleVariableRef CVarEnableSkeletalMeshConstraints(TEXT("p.EnableSkeletalMeshConstraints"), bEnableSkeletalMeshConstraints, TEXT("Enable skeletal mesh constraints defined within the Physics Asset Editor"));
 
+bool bAllowKinematicKinematicConstraints = false;
+FAutoConsoleVariableRef CVarAllowKinematicKinematicConstraints(TEXT("p.AllowKinematicKinematicConstraints"), bAllowKinematicKinematicConstraints, TEXT("Do not create constraints between two rigid kinematics."));
+
 /** Handy macro for setting BIT of VAR based on the bool CONDITION */
 #define SET_DRIVE_PARAM(VAR, CONDITION, BIT)   (VAR) = (CONDITION) ? ((VAR) | (BIT)) : ((VAR) & ~(BIT))
 
@@ -485,6 +488,11 @@ void FConstraintInstance::InitConstraint(FBodyInstance* Body1, FBodyInstance* Bo
 	{
 		const bool bValidActors = GetActorRefs(Body1, Body2, Actor1, Actor2, DebugOwner);
 		if (!bValidActors)
+		{
+			return;
+		}
+
+		if (!bAllowKinematicKinematicConstraints && FPhysicsInterface::IsKinematic(Actor1) && FPhysicsInterface::IsKinematic(Actor2))
 		{
 			return;
 		}
