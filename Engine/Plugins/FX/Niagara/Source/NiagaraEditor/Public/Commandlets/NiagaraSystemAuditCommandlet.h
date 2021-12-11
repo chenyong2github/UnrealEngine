@@ -28,6 +28,15 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 	/** All Niagara systems that use a user requested data interface */
 	TSet<FString> NiagaraSystemsWithUserDataInterface;
 
+	/** Optional list of data interface usage */
+	struct FDataInterfaceUsage
+	{
+		int32			UsageCount = 0;
+		TSet<FName>		Systems;
+	};
+	bool bCaptureDataInterfaceUsage = false;
+	TMap<FName, FDataInterfaceUsage>  NiagaraDataInterfaceUsage;
+
 	/** Detailed renderer information. */
 	bool bRendererDetailed = false;
 	TSet<FString> NiagaraRibbonRenderers;
