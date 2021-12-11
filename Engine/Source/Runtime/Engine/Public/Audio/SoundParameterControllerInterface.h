@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioParameterInterface.h"
-#include "CoreMinimal.h"
+#include "AudioParameterControllerInterface.h"
 #include "UObject/Object.h"
 
-#include "SoundGeneratorParameterInterface.generated.h"
+#include "SoundParameterControllerInterface.generated.h"
 
 
 // Forward Declarations
@@ -14,17 +13,19 @@ class USoundBase;
 struct FActiveSound;
 
 UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
-class ENGINE_API USoundGeneratorParameterInterface : public UAudioParameterInterface
+class ENGINE_API USoundParameterControllerInterface : public UAudioParameterControllerInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class ENGINE_API ISoundGeneratorParameterInterface : public IAudioParameterInterface
+// UObject interface for all object types that are controlling parameter values sent
+// to sound instances (i.e. sources)
+class ENGINE_API ISoundParameterControllerInterface : public IAudioParameterControllerInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
 public:
-	// IAudioParameterInterface
+	// IAudioParameterControllerInterface
 	void ResetParameters() override;
 
 	void SetTriggerParameter(FName InName) override;

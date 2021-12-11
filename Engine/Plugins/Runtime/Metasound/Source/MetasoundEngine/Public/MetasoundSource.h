@@ -145,7 +145,6 @@ public:
 	// Returns Asset Metadata associated with this MetaSoundSource
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
-	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
 
 	virtual bool ConformObjectDataToInterfaces() override;
 
@@ -165,7 +164,7 @@ public:
 	virtual bool IsPlayable() const override;
 	virtual bool SupportsSubtitles() const override;
 	virtual float GetDuration() override;
-	virtual bool ImplementsGeneratorInterface(Audio::FGeneratorInterfacePtr InInterface) const override;
+	virtual bool ImplementsParameterInterface(Audio::FParameterInterfacePtr InInterface) const override;
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const override;

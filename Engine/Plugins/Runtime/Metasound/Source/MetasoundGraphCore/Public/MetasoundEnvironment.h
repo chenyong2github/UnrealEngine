@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Containers/SortedMap.h"
-#include "CoreMinimal.h"
+#include "IAudioParameterInterfaceRegistry.h"
 #include "Misc/Build.h"
+
 #include <type_traits>
 
 #ifndef WITH_METASOUND_DEBUG_ENVIRONMENT
@@ -72,8 +73,8 @@ namespace Metasound
 	private:
 		// Only allow TMetasoundEnvironmentVariable to implement this class
 		// by making constructor private so that casting can be effectively checked. 
-		template<typename Type> 
-        friend class TMetasoundEnvironmentVariable;
+		template<typename Type>
+		friend class TMetasoundEnvironmentVariable;
 
 		IMetasoundEnvironmentVariable() = default;
 
@@ -93,7 +94,7 @@ namespace Metasound
 	template<typename Type>
 	class TMetasoundEnvironmentVariable : public IMetasoundEnvironmentVariable
 	{
-		// Make sure that the `Type` is not a reference or CV qualified. 
+		// Make sure that the `Type` is not a reference or CV qualified.
 		static_assert(std::is_same<Type, typename std::decay<Type>::type>::value, "Type must not change when decayed");
 
 		// Make sure the `Type` has appropriate construction and copy characteristics. 
@@ -178,7 +179,7 @@ namespace Metasound
 	}
 
 	/** FMetasoundEnvironment contains a set of TMetasoundEnvironmentVariables requiring
-	 * that each environment variable has a unique name. 
+	 * that each environment variable has a unique name.
 	 */
 	class METASOUNDGRAPHCORE_API FMetasoundEnvironment
 	{
@@ -193,8 +194,8 @@ namespace Metasound
 		/** Returns true if the environment variable with the given name contains
 		 * the data of the same type as `VarType`
 		 *
-		 * @param InVariableName - Name of environment variable. 
-		 * @tparam VarType - Type of the underlying data stored in the environment variable. 
+		 * @param InVariableName - Name of environment variable.
+		 * @tparam VarType - Type of the underlying data stored in the environment variable.
 		 */
 		template<typename VarType>
 		bool IsType(const FName& InVariableName) const
@@ -206,7 +207,7 @@ namespace Metasound
 		 * and the type `VarType`.
 		 *
 		 * @param InVariableName - Name of environment variable. 
-		 * @tparam VarType - Type of the underlying data stored in the environment variable. 
+		 * @tparam VarType - Type of the underlying data stored in the environment variable.
 		 */
 		template<typename VarType>
 		bool Contains(const FName& InVariableName) const
@@ -218,10 +219,10 @@ namespace Metasound
 			return false;
 		}
 
-		/** Returns the environment variable data. 
+		/** Returns the environment variable data.
 		 *
-		 * @param InVariableName - Name of environment variable. 
-		 * @tparam VarType - Type of the underlying data stored in the environment variable. 
+		 * @param InVariableName - Name of environment variable.
+		 * @tparam VarType - Type of the underlying data stored in the environment variable.
 		 *
 		 * @return copy of the underlying data.
 		 */
@@ -239,8 +240,8 @@ namespace Metasound
 
 		/** Sets the environment variable data
 		 *
-		 * @param InVariableName - Name of environment variable. 
-		 * @tparam VarType - Type of the underlying data stored in the environment variable. 
+		 * @param InVariableName - Name of environment variable.
+		 * @tparam VarType - Type of the underlying data stored in the environment variable.
 		 *
 		 * @return const ref to the underlying data.
 		 */

@@ -673,7 +673,7 @@ public:
 	FColor DebugColor;
 #endif // ENABLE_AUDIO_DEBUG
 
-	void UpdateGeneratorParameters(const TArray<FListener>& InListeners);
+	void UpdateInterfaceParameters(const TArray<FListener>& InListeners);
 
 	// Updates the wave instances to be played.
 	void UpdateWaveInstances(TArray<FWaveInstance*> &OutWaveInstances, const float DeltaTime);

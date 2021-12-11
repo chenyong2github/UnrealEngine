@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AudioParameterInterface.h"
+#include "AudioParameterControllerInterface.h"
 #include "CoreMinimal.h"
 #include "MetasoundLiteral.h"
 

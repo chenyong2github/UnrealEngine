@@ -2,13 +2,14 @@
 #include "Sound/SoundBase.h"
 
 #include "AudioDevice.h"
+#include "AudioParameter.h"
+#include "Engine/AssetUserData.h"
 #include "EngineDefines.h"
-#include "IAudioGeneratorInterfaceRegistry.h"
+#include "IAudioParameterInterfaceRegistry.h"
 #include "IAudioParameterTransmitter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundSubmix.h"
-#include "Engine/AssetUserData.h"
 
 
 USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
@@ -392,13 +393,6 @@ TUniquePtr<Audio::IParameterTransmitter> USoundBase::CreateParameterTransmitter(
 
 			InValue = FAudioParameter();
 			return false;
-		}
-
-		bool SetParameter(FName InInterfaceName, FAudioParameter&& InValue) override
-		{
-			InValue.ParamName = Audio::IGeneratorInterfaceRegistry::GetMemberFullName(InInterfaceName, InValue.ParamName);
-			const FName ParamName = InValue.ParamName;
-			return SetParameter(MoveTemp(InValue));
 		}
 
 		uint64 GetInstanceID() const override

@@ -562,9 +562,9 @@ bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
 	return true;
 }
 
-void FActiveSound::UpdateGeneratorParameters(const TArray<FListener>& InListeners)
+void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListeners)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FActiveSound::UpdateGeneratorParameters);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FActiveSound::UpdateInterfaceParameters);
 
 	using namespace Audio;
 
@@ -583,11 +583,11 @@ void FActiveSound::UpdateGeneratorParameters(const TArray<FListener>& InListener
 		return;
 	}
 
-	FGeneratorInterfacePtr AttenuationInterface = GetAttenuationInterface();
-	FGeneratorInterfacePtr SpatializationInterface = GetSpatializationInterface();
+	FParameterInterfacePtr AttenuationInterface = AttenuationInterface::GetInterface();
+	FParameterInterfacePtr SpatializationInterface = SpatializationInterface::GetInterface();
 
-	const bool bImplementsAttenuation = Sound->ImplementsGeneratorInterface(AttenuationInterface);
-	const bool bImplementsSpatialization = Sound->ImplementsGeneratorInterface(SpatializationInterface);
+	const bool bImplementsAttenuation = Sound->ImplementsParameterInterface(AttenuationInterface);
+	const bool bImplementsSpatialization = Sound->ImplementsParameterInterface(SpatializationInterface);
 
 	if (!bImplementsAttenuation && !bImplementsSpatialization)
 	{
@@ -599,7 +599,7 @@ void FActiveSound::UpdateGeneratorParameters(const TArray<FListener>& InListener
 	if (bImplementsAttenuation)
 	{
 		const float Distance = SourceDirection.Size();
-		InstanceTransmitter->SetParameter(FAttenuationInterface::Name, { FAttenuationInterface::FInputs::Distance, Distance });
+		InstanceTransmitter->SetParameter({ AttenuationInterface::Inputs::Distance, Distance });
 	}
 
 	if (bImplementsSpatialization)
@@ -608,8 +608,8 @@ void FActiveSound::UpdateGeneratorParameters(const TArray<FListener>& InListener
 		const FVector2D SourceAzimuthAndElevation = FMath::GetAzimuthAndElevation(SourceDirectionNormal, FVector::ForwardVector, FVector::RightVector, FVector::UpVector);
 		const float Azimuth = FMath::RadiansToDegrees(SourceAzimuthAndElevation.X);
 		const float Elevation = FMath::RadiansToDegrees(SourceAzimuthAndElevation.Y);
-		InstanceTransmitter->SetParameter(FSpatializationInterface::Name, { FSpatializationInterface::FInputs::Azimuth, Azimuth });
-		InstanceTransmitter->SetParameter(FSpatializationInterface::Name, { FSpatializationInterface::FInputs::Elevation, Elevation });
+		InstanceTransmitter->SetParameter({ SpatializationInterface::Inputs::Azimuth, Azimuth });
+		InstanceTransmitter->SetParameter({ SpatializationInterface::Inputs::Elevation, Elevation });
 	}
 }
 

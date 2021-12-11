@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "Audio/SoundGeneratorParameterInterface.h"
+#include "Audio/SoundParameterControllerInterface.h"
 
 #include "ActiveSound.h"
 #include "Audio.h"
@@ -8,23 +8,23 @@
 #include "IAudioExtensionPlugin.h"
 
 
-namespace SoundGeneratorParameterInterfacePrivate
+namespace SoundParameterControllerInterfacePrivate
 {
-	static const FName ProxyFeatureName("SoundGeneratorParameterInterface");
-} // namespace SoundGeneratorParameterInterfacePrivate
+	static const FName ProxyFeatureName("SoundParameterControllerInterface");
+} // namespace SoundParameterControllerInterfacePrivate
 
-USoundGeneratorParameterInterface::USoundGeneratorParameterInterface(FObjectInitializer const& InObjectInitializer)
+USoundParameterControllerInterface::USoundParameterControllerInterface(FObjectInitializer const& InObjectInitializer)
 	: Super(InObjectInitializer)
 {
 }
 
-void ISoundGeneratorParameterInterface::ResetParameters()
+void ISoundParameterControllerInterface::ResetParameters()
 {
 	if (FAudioDevice* AudioDevice = GetAudioDevice())
 	{
 		if (IsPlaying() && !GetDisableParameterUpdatesWhilePlaying())
 		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundGenerator.ResetParameters"), STAT_AudioResetParameters, STATGROUP_AudioThreadCommands);
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundParameterController.ResetParameters"), STAT_AudioResetParameters, STATGROUP_AudioThreadCommands);
 			AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [] (FActiveSound& ActiveSound)
 			{
 				if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
@@ -36,68 +36,68 @@ void ISoundGeneratorParameterInterface::ResetParameters()
 	}
 }
 
-void ISoundGeneratorParameterInterface::SetTriggerParameter(FName InName)
+void ISoundParameterControllerInterface::SetTriggerParameter(FName InName)
 {
 	// Trigger is just a (true) bool param currently.
 	SetParameterInternal(FAudioParameter(InName, true));
 }
 
-void ISoundGeneratorParameterInterface::SetBoolParameter(FName InName, bool InValue)
+void ISoundParameterControllerInterface::SetBoolParameter(FName InName, bool InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetBoolArrayParameter(FName InName, const TArray<bool>& InValue)
+void ISoundParameterControllerInterface::SetBoolArrayParameter(FName InName, const TArray<bool>& InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetIntParameter(FName InName, int32 InValue)
+void ISoundParameterControllerInterface::SetIntParameter(FName InName, int32 InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetIntArrayParameter(FName InName, const TArray<int32>& InValue)
+void ISoundParameterControllerInterface::SetIntArrayParameter(FName InName, const TArray<int32>& InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetFloatParameter(FName InName, float InValue)
+void ISoundParameterControllerInterface::SetFloatParameter(FName InName, float InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetFloatArrayParameter(FName InName, const TArray<float>& InValue)
+void ISoundParameterControllerInterface::SetFloatArrayParameter(FName InName, const TArray<float>& InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetStringParameter(FName InName, const FString& InValue)
+void ISoundParameterControllerInterface::SetStringParameter(FName InName, const FString& InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetStringArrayParameter(FName InName, const TArray<FString>& InValue)
+void ISoundParameterControllerInterface::SetStringArrayParameter(FName InName, const TArray<FString>& InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetObjectParameter(FName InName, UObject* InValue)
+void ISoundParameterControllerInterface::SetObjectParameter(FName InName, UObject* InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetObjectArrayParameter(FName InName, const TArray<UObject*>& InValue)
+void ISoundParameterControllerInterface::SetObjectArrayParameter(FName InName, const TArray<UObject*>& InValue)
 {
 	SetParameterInternal(FAudioParameter(InName, InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetParameter(FAudioParameter&& InValue)
+void ISoundParameterControllerInterface::SetParameter(FAudioParameter&& InValue)
 {
 	SetParameterInternal(MoveTemp(InValue));
 }
 
-void ISoundGeneratorParameterInterface::SetParameters(TArray<FAudioParameter>&& InValues)
+void ISoundParameterControllerInterface::SetParameters(TArray<FAudioParameter>&& InValues)
 {
 	for (const FAudioParameter& Value : InValues)
 	{
@@ -115,12 +115,12 @@ void ISoundGeneratorParameterInterface::SetParameters(TArray<FAudioParameter>&& 
 			TArray<FAudioParameter> ParamsToSet;
 			if (USoundBase* Sound = GetSound())
 			{
-				Sound->InitParameters(InValues, SoundGeneratorParameterInterfacePrivate::ProxyFeatureName);
+				Sound->InitParameters(InValues, SoundParameterControllerInterfacePrivate::ProxyFeatureName);
 			}
 
 			ParamsToSet = MoveTemp(InValues);
 
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundGenerator.SetParameters"), STAT_AudioSetParameters, STATGROUP_AudioThreadCommands);
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundParameterController.SetParameters"), STAT_AudioSetParameters, STATGROUP_AudioThreadCommands);
 			AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [AudioDevice, Params = MoveTemp(ParamsToSet)](FActiveSound& ActiveSound)
 			{
 				if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
@@ -144,7 +144,7 @@ void ISoundGeneratorParameterInterface::SetParameters(TArray<FAudioParameter>&& 
 	}
 }
 
-void ISoundGeneratorParameterInterface::SetParameterInternal(FAudioParameter&& InParam)
+void ISoundParameterControllerInterface::SetParameterInternal(FAudioParameter&& InParam)
 {
 	if (InParam.ParamName.IsNone())
 	{
@@ -165,7 +165,7 @@ void ISoundGeneratorParameterInterface::SetParameterInternal(FAudioParameter&& I
 			if (USoundBase* Sound = GetSound())
 			{
 				TArray<FAudioParameter> Params = { MoveTemp(InParam) };
-				Sound->InitParameters(Params, SoundGeneratorParameterInterfacePrivate::ProxyFeatureName);
+				Sound->InitParameters(Params, SoundParameterControllerInterfacePrivate::ProxyFeatureName);
 				ParamToSet = MoveTemp(Params[0]);
 			}
 			else
@@ -173,7 +173,7 @@ void ISoundGeneratorParameterInterface::SetParameterInternal(FAudioParameter&& I
 				ParamToSet = MoveTemp(InParam);
 			}
 
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundGenerator.SetParameter"), STAT_AudioSetParameter, STATGROUP_AudioThreadCommands);
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundParameterController.SetParameter"), STAT_AudioSetParameter, STATGROUP_AudioThreadCommands);
 
 			AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [AudioDevice, Param = MoveTemp(ParamToSet)](FActiveSound& ActiveSound)
 			{

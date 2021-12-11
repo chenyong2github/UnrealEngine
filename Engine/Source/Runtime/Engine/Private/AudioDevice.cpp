@@ -3916,7 +3916,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 						UsedDeltaTime = 0.0f;
 					}
 
-					ActiveSound->UpdateGeneratorParameters(Listeners);
+					ActiveSound->UpdateInterfaceParameters(Listeners);
 					ActiveSound->UpdateWaveInstances(WaveInstances, UsedDeltaTime);
 				}
 			}

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundFrontendController.h"
@@ -411,7 +412,7 @@ namespace Metasound
 				virtual FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
 				virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override { return IGraphController::GetInvalidHandle(); }
 
-				virtual const TArray<FMetasoundFrontendVersion>& GetInterfaceVersions() const override { static const TArray<FMetasoundFrontendVersion> EmptyArray; return EmptyArray; }
+				virtual const TSet<FMetasoundFrontendVersion>& GetInterfaceVersions() const override { static const TSet<FMetasoundFrontendVersion> EmptyArray; return EmptyArray; }
 				virtual void AddInterfaceVersion(const FMetasoundFrontendVersion& InVersion) override { }
 				virtual void RemoveInterfaceVersion(const FMetasoundFrontendVersion& InVersion) override { }
 				virtual void ClearInterfaceVersions() override { }

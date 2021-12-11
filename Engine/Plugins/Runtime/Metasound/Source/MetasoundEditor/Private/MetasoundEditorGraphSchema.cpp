@@ -174,8 +174,10 @@ namespace Metasound
 				{
 					if (!InQuery.Filter || InQuery.Filter(NodeHandle))
 					{
+						constexpr bool bIncludeNamespace = true;
+
 						const FText& GroupName = GetContextGroupDisplayName(InQuery.ContextGroup);
-						const FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle);
+						const FText NodeDisplayName = FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
 						const FText Tooltip = FText::Format(InQuery.TooltipFormat, NodeDisplayName);
 						const FText DisplayName = FText::Format(InQuery.DisplayNameFormat, NodeDisplayName);
 						TSharedPtr<TAction> NewNodeAction = MakeShared<TAction>(GroupName, DisplayName, NodeHandle->GetID(), Tooltip, InQuery.ContextGroup);
@@ -1026,7 +1028,8 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 		case EMetasoundFrontendClassType::Input:
 		case EMetasoundFrontendClassType::Output:
 		{
-			return FGraphBuilder::GetDisplayName(*NodeHandle);
+			constexpr bool bIncludeNamespace = true;
+			return FGraphBuilder::GetDisplayName(*NodeHandle, bIncludeNamespace);
 		}
 
 		case EMetasoundFrontendClassType::Literal:
