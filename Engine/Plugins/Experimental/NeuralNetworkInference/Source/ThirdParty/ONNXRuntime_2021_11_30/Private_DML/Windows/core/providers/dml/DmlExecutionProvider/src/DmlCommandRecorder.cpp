@@ -6,6 +6,11 @@
 #include "CommandQueue.h"
 #include "BucketizedBufferAllocator.h"
 
+#include "ThirdPartyWarningDisabler.h"
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
+
 using namespace Dml;
 
 DmlCommandRecorder::DmlCommandRecorder(
@@ -390,3 +395,5 @@ void DmlCommandRecorder::SetDescriptorHeap(ID3D12DescriptorHeap* descriptorHeap)
         m_currentCommandList->SetDescriptorHeaps(ARRAYSIZE(descriptorHeaps), descriptorHeaps);
     }
 }
+
+NNI_THIRD_PARTY_INCLUDES_END

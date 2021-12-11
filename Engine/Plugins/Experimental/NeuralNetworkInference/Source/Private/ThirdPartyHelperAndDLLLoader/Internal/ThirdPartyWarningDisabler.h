@@ -24,6 +24,7 @@ Many third party headers require some care when importing. NNI third party inclu
 	__pragma(warning(disable: 6387)) /* C6387: 'X' could be '0':  this does not adhere to the specification for the function 'memset'. */ \
 	__pragma(warning(disable: 6388)) /* C6388: '*X' might not be '0':  this does not adhere to the specification for the function 'Y'. */ \
 	__pragma(warning(disable: 28020)) /* C28020: The expression '0<=_Param_(1)&&_Param_(1)<=400-1' is not true at this call. */ \
+	__pragma(warning(disable: 28196)) /* C28196: his warning indicates that the function prototype for the function being analyzed has a __notnull, __null or __drv_valueIs on an _Out_ parameter or the return value, but the value returned is inconsistent with that annotation. */ \
 	UE_PUSH_MACRO("check") \
 	UE_PUSH_MACRO("TEXT")
 #else
