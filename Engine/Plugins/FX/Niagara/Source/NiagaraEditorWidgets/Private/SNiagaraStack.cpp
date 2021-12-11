@@ -268,6 +268,7 @@ const float SpacerHeight = 6;
 void SNiagaraStack::Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel)
 {
 	StackViewModel = InStackViewModel;
+	StackViewModel->OnChangeSearchTextExternal().BindSP(this, &SNiagaraStack::UpdateSearchTextFromExternal);
 	StackViewModel->OnStructureChanged().AddSP(this, &SNiagaraStack::StackStructureChanged);
 	StackViewModel->OnExpansionChanged().AddSP(this, &SNiagaraStack::OnStackExpansionChanged);
 	StackViewModel->OnSearchCompleted().AddSP(this, &SNiagaraStack::OnStackSearchComplete); 
@@ -384,6 +385,11 @@ TSharedRef<SWidget> SNiagaraStack::ConstructHeaderWidget()
 				]
 			]
 		];
+}
+
+void SNiagaraStack::UpdateSearchTextFromExternal(FText NewSearchText)
+{
+	SearchBox->SetText(NewSearchText);
 }
 
 void SNiagaraStack::OnSearchTextChanged(const FText& SearchText)

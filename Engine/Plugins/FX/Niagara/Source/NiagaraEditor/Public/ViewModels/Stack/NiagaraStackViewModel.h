@@ -40,6 +40,7 @@ class NIAGARAEDITOR_API UNiagaraStackViewModel : public UObject
 	GENERATED_BODY()
 
 public:
+	DECLARE_DELEGATE_OneParam(FOnChangeSearchTextExternal, FText)
 	DECLARE_MULTICAST_DELEGATE(FOnExpansionChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnStructureChanged, ENiagaraStructureChangedFlags);
 	DECLARE_MULTICAST_DELEGATE(FOnSearchCompleted);
@@ -88,6 +89,8 @@ public:
 
 	TArray<UNiagaraStackEntry*>& GetRootEntryAsArray();
 
+	FOnChangeSearchTextExternal& OnChangeSearchTextExternal();
+
 	FOnExpansionChanged& OnExpansionChanged();
 	FOnExpansionChanged& OnExpansionInOverviewChanged();
 	FOnStructureChanged& OnStructureChanged();
@@ -112,8 +115,9 @@ public:
 	virtual void Tick();
 	//~ stack search stuff
 	void ResetSearchText();
-	void OnSearchTextChanged(const FText& SearchText);
 	FText GetCurrentSearchText() const { return CurrentSearchText; };
+	void OnSearchTextChanged(const FText& SearchText);
+	void SetSearchTextExternal(const FText& NewSearchText);
 	bool IsSearching();
 	const TArray<FSearchResult>& GetCurrentSearchResults();
 	int GetCurrentFocusedMatchIndex() const { return CurrentFocusedSearchMatchIndex; }
@@ -185,6 +189,9 @@ private:
 
 	bool bExternalRootEntry;
 
+	/** Used to forward a programmatic change in search text to a widget representing the search. The widget is responsible for binding to this delegate. */
+	FOnChangeSearchTextExternal OnChangeSearchTextExternalDelegate;
+	
 	FOnExpansionChanged ExpansionChangedDelegate;
 	FOnExpansionChanged ExpansionInOverviewChangedDelegate;
 	FOnStructureChanged StructureChangedDelegate;

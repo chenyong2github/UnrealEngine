@@ -86,6 +86,7 @@ private:
 	TSharedRef<SWidget> ConstructHeaderWidget();
 
 	// ~stack search stuff
+	void UpdateSearchTextFromExternal(FText NewSearchText);
 	void OnSearchTextChanged(const FText& SearchText);
 	FReply ScrollToNextMatch();
 	FReply ScrollToPreviousMatch();
