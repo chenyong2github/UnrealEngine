@@ -444,7 +444,10 @@ void UInheritableComponentHandler::PreloadAllTemplates()
 			{
 				Linker->Preload(Record.ComponentTemplate);
 
-				ForEachObjectWithOuter(Record.ComponentTemplate, [](UObject* SubObj)
+				TArray<UObject*> ComponentTemplateSubobjects;
+				// Can't use ForEachObjectWithOuter here as Preloading may modify UObject hash tables (it will most likely create new objects)
+				GetObjectsWithOuter(Record.ComponentTemplate, ComponentTemplateSubobjects);
+				for (UObject* SubObj : ComponentTemplateSubobjects)
 				{
 					if (SubObj->HasAllFlags(RF_NeedLoad))
 					{
@@ -453,7 +456,7 @@ void UInheritableComponentHandler::PreloadAllTemplates()
 							SubObjLinker->Preload(SubObj);
 						}
 					}
-				});
+				}
 			}
 		}
 	}
