@@ -879,15 +879,10 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraUserParameterBinding::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraUserParameterBindingCustomization::MakeInstance));
-
-
+	
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraMaterialAttributeBinding::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraMaterialAttributeBindingCustomization::MakeInstance));
-
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FNiagaraScriptHighlight::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraScriptHighlightDetails::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 	    FNiagaraVariableDataInterfaceBinding::StaticStruct()->GetFName(),
@@ -1487,48 +1482,6 @@ void FNiagaraEditorModule::InvalidateCachedScriptAssetData()
 	TypeConversionScriptCache.Reset();
 }
 
-const TArray<FNiagaraScriptHighlight>& FNiagaraEditorModule::GetCachedScriptAssetHighlights() const
-{
-	if (CachedScriptAssetHighlights.IsSet() == false)
-	{
-		CachedScriptAssetHighlights = TArray<FNiagaraScriptHighlight>();
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		TArray<FAssetData> ScriptAssets;
-		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraScript::StaticClass()->GetFName(), ScriptAssets);
-		for (const FAssetData& ScriptAsset : ScriptAssets)
-		{
-			if (ScriptAsset.IsAssetLoaded())
-			{
-				UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
-				for (const FNiagaraScriptHighlight& Highlight : Script->GetLatestScriptData()->Highlights)
-				{
-					if (Highlight.IsValid())
-					{
-						CachedScriptAssetHighlights->AddUnique(Highlight);
-					}
-				}
-			}
-			else
-			{
-				FString HighlightsString;
-				if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Highlights), HighlightsString))
-				{
-					TArray<FNiagaraScriptHighlight> Highlights;
-					FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);
-					for (const FNiagaraScriptHighlight& Highlight : Highlights)
-					{
-						if (Highlight.IsValid())
-						{
-							CachedScriptAssetHighlights->AddUnique(Highlight);
-						}
-					}
-				}
-			}
-		}
-	}
-	return CachedScriptAssetHighlights.GetValue();
-}
-
 const TArray<UNiagaraScript*>& FNiagaraEditorModule::GetCachedTypeConversionScripts() const
 {
 	if (!TypeConversionScriptCache.IsSet())
@@ -1554,45 +1507,6 @@ const TArray<UNiagaraScript*>& FNiagaraEditorModule::GetCachedTypeConversionScri
 		TypeConversionScriptCache = AvailableDynamicInputs;
 	}
 	return TypeConversionScriptCache.GetValue();
-}
-
-void FNiagaraEditorModule::GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const
-{
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	TArray<FAssetData> ScriptAssets;
-	AssetRegistryModule.Get().GetAssetsByClass(UNiagaraScript::StaticClass()->GetFName(), ScriptAssets);
-	for (const FAssetData& ScriptAsset : ScriptAssets)
-	{
-		if (ScriptAsset.IsAssetLoaded())
-		{
-			UNiagaraScript* Script = CastChecked<UNiagaraScript>(ScriptAsset.GetAsset());
-			for (const FNiagaraScriptHighlight& Highlight : Script->GetLatestScriptData()->Highlights)
-			{
-				if (Highlight == InHighlight)
-				{
-					OutMatchingScriptAssets.Add(ScriptAsset);
-					break;
-				}
-			}
-		}
-		else
-		{
-			FString HighlightsString;
-			if (ScriptAsset.GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Highlights), HighlightsString))
-			{
-				TArray<FNiagaraScriptHighlight> Highlights;
-				FNiagaraScriptHighlight::JsonToArray(HighlightsString, Highlights);
-				for (const FNiagaraScriptHighlight& Highlight : Highlights)
-				{
-					if (Highlight == InHighlight)
-					{
-						OutMatchingScriptAssets.Add(ScriptAsset);
-						break;
-					}
-				}
-			}
-		}
-	}
 }
 
 FNiagaraClipboard& FNiagaraEditorModule::GetClipboard() const

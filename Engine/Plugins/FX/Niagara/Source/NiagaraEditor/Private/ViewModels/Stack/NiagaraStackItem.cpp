@@ -47,12 +47,6 @@ void UNiagaraStackItem::SetIsEnabled(bool bInIsEnabled)
 	SetIsEnabledInternal(bInIsEnabled);
 }
 
-const TArray<FNiagaraScriptHighlight>& UNiagaraStackItem::GetHighlights() const
-{
-	static TArray<FNiagaraScriptHighlight> Empty;
-	return Empty;
-}
-
 const FSlateBrush* UNiagaraStackItem::GetIconBrush() const
 {
 	return FEditorStyle::GetBrush("NoBrush");

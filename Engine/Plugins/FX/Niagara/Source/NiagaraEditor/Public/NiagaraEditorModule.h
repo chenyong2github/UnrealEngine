@@ -172,11 +172,8 @@ public:
 	NIAGARAEDITOR_API const FNiagaraEditorCommands& GetCommands() const;
 
 	void InvalidateCachedScriptAssetData();
-
-	const TArray<FNiagaraScriptHighlight>& GetCachedScriptAssetHighlights() const;
+	
 	const TArray<UNiagaraScript*>& GetCachedTypeConversionScripts() const;
-
-	void GetScriptAssetsMatchingHighlight(const FNiagaraScriptHighlight& InHighlight, TArray<FAssetData>& OutMatchingScriptAssets) const;
 
 	NIAGARAEDITOR_API FNiagaraClipboard& GetClipboard() const;
 

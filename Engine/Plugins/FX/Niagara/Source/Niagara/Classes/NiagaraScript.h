@@ -594,9 +594,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script)
 	uint32 bCanBeUsedForTypeConversions : 1;
 
-	UPROPERTY(EditAnywhere, Category = Script)
-	TArray<FNiagaraScriptHighlight> Highlights;
-
 	UPROPERTY(EditAnywhere, Category = Script, DisplayName = "Script Metadata", meta = (ToolTip = "Script Metadata"))
 	TMap<FName, FString> ScriptMetaData;
 	
@@ -795,10 +792,6 @@ public:
 	/* Deprecated, use LibraryVisibility instead. */
 	UPROPERTY(meta = (DeprecatedProperty))
 	FText CollapsedViewFormat_DEPRECATED;
-
-	/* Deprecated, use LibraryVisibility instead. */
-	UPROPERTY(meta = (DeprecatedProperty))
-	TArray<FNiagaraScriptHighlight> Highlights_DEPRECATED;
 
 	/* Deprecated, use LibraryVisibility instead. */
 	UPROPERTY(meta = (DeprecatedProperty))

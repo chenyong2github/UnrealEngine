@@ -720,91 +720,9 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 	{
 		UNiagaraStackItem* StackItem = CastChecked<UNiagaraStackItem>(Item);
 		TSharedPtr<SWidget> IndentContent;
-		if (StackItem->SupportsHighlights())
-		{
-			TArray<FNiagaraScriptHighlight> ScriptHighlights;
-			for (const FNiagaraScriptHighlight& ScriptHighlight : StackItem->GetHighlights())
-			{
-				if (ScriptHighlight.IsValid())
-				{
-					ScriptHighlights.Add(ScriptHighlight);
-				}
-			}
 
-			TSharedRef<SHorizontalBox> ToolTipBox = SNew(SHorizontalBox);
-			if (ScriptHighlights.Num() > 0)
-			{
-				for (const FNiagaraScriptHighlight& ScriptHighlight : ScriptHighlights)
-				{
-					ToolTipBox->AddSlot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(0, 0, 5, 0)
-						[
-							SNew(SImage)
-							.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush("NiagaraEditor.Stack.ModuleHighlightLarge"))
-							.ColorAndOpacity(ScriptHighlight.Color)
-						];
-					ToolTipBox->AddSlot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(0, 0, 10, 0)
-						[
-							SNew(STextBlock)
-							.Text(ScriptHighlight.DisplayName)
-						];
-				}
-			}
-
-			TSharedRef<SBox> IndentBox = SNew(SBox)
-				.ToolTip(SNew(SToolTip) [ ToolTipBox ])
-				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
-				.Visibility(EVisibility::Visible)
-				.WidthOverride(IconSize.X)
-				.HeightOverride(IconSize.Y);
-			
-			if (ScriptHighlights.Num() > 0)
-			{
-				IndentBox->SetHAlign(HAlign_Left);
-				IndentBox->SetVAlign(VAlign_Top);
-
-				TSharedPtr<SGridPanel> HighlightsGrid;
-				IndentBox->SetContent(SAssignNew(HighlightsGrid, SGridPanel));
-
-				int32 HighlightsAdded = 0;
-				for (int32 HighlightIndex = 0; HighlightIndex < ScriptHighlights.Num() && HighlightsAdded < 4; HighlightIndex++)
-				{
-					if (ScriptHighlights[HighlightIndex].IsValid())
-					{
-						FName HighlightImageBrushName;
-						FLinearColor HighlightImageColor;
-						if (HighlightIndex < 3)
-						{
-							HighlightImageBrushName = "NiagaraEditor.Stack.ModuleHighlight";
-							HighlightImageColor = ScriptHighlights[HighlightIndex].Color;
-						}
-						else
-						{
-							HighlightImageBrushName = "NiagaraEditor.Stack.ModuleHighlightMore";
-							HighlightImageColor = FLinearColor::White;
-						}
-
-						int32 Column = HighlightIndex % 2;
-						int32 Row = HighlightIndex / 2;
-						HighlightsGrid->AddSlot(Column, Row)
-							.Padding(0, 0, 1 - Column, 1 - Row)
-							[
-								SNew(SImage)
-								.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(HighlightImageBrushName))
-								.ColorAndOpacity(HighlightImageColor)
-							];
-						HighlightsAdded++;
-					}
-				}
-			}
-			IndentContent = IndentBox;
-		}
-		else if (StackItem->SupportsIcon())
+		// we give icons priority for the indent content
+		if (StackItem->SupportsIcon())
 		{
 			IndentContent = SNew(SBox)
 				.IsEnabled_UObject(Item, &UNiagaraStackEntry::GetIsEnabledAndOwnerIsEnabled)
@@ -817,6 +735,15 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 					.Image_UObject(StackItem, &UNiagaraStackItem::GetIconBrush)
 				];
 		}
+		// if we didn't have an icon but we specified a custom indent, we use that instead
+		else if(StackItem->GetCustomOverviewIndent().IsSet())
+		{
+			float IndentValue = StackItem->GetCustomOverviewIndent().GetValue();
+			IndentContent = SNew(SBox)
+				.WidthOverride(IndentValue)
+				.HeightOverride(1.f);
+		}
+		// otherwise, use a default
 		else
 		{
 			IndentContent = SNew(SBox)

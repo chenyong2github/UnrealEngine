@@ -480,7 +480,6 @@ void UNiagaraScript::CheckVersionDataAvailable()
 	Data.Source = Source_DEPRECATED;
 	Data.Keywords = Keywords_DEPRECATED;
 	Data.Category = Category_DEPRECATED;
-	Data.Highlights = Highlights_DEPRECATED;
 	Data.Description = Description_DEPRECATED;
 	Data.bDeprecated = bDeprecated_DEPRECATED;
 	Data.NoteMessage = NoteMessage_DEPRECATED;
@@ -2557,21 +2556,6 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 		}
 
 		OutTags.Add(FAssetRegistryTag(ProvidedDependenciesName, *ProvidedDependenciesTags, FAssetRegistryTag::TT_Hidden));
-	}
-
-	// Highlights
-	TArray<FNiagaraScriptHighlight> Highlights = ScriptData ? ScriptData->Highlights : Highlights_DEPRECATED; 
-	if (Highlights.Num() > 0)
-	{
-		FName HighlightsName = GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, Highlights);
-		FString* HighlightsTags = CustomAssetRegistryTagCache->Find(HighlightsName);
-		if (HighlightsTags == nullptr)
-		{
-			HighlightsTags = &CustomAssetRegistryTagCache->Add(HighlightsName);
-			FNiagaraScriptHighlight::ArrayToJson(Highlights, *HighlightsTags);
-		}
-
-		OutTags.Add(FAssetRegistryTag(HighlightsName, *HighlightsTags, FAssetRegistryTag::TT_Hidden));
 	}
 
 	// Category
