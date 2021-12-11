@@ -188,13 +188,20 @@ bool UCommonUIActionRouterBase::RegisterLinkedPreprocessor(const UWidget& Widget
 void UCommonUIActionRouterBase::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	Collection.InitializeDependency(UCommonInputSubsystem::StaticClass());
+	UCommonInputSubsystem* InputSubsystem = Collection.InitializeDependency<UCommonInputSubsystem>();
 
 	UCommonActivatableWidget::OnRebuilding.AddUObject(this, &UCommonUIActionRouterBase::HandleActivatableWidgetRebuilding);
 	FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UCommonUIActionRouterBase::HandlePostGarbageCollect);
 
-	AnalogCursor = MakeAnalogCursor();
-	PostAnalogCursorCreate();
+	if (ensure(InputSubsystem))
+	{
+		AnalogCursor = MakeAnalogCursor();
+		PostAnalogCursorCreate();
+	}
+	else
+	{
+		UE_LOG(LogUIActionRouter, Warning, TEXT("Input system not initialized before action router!"));
+	}
 
 	FSlateApplication::Get().OnFocusChanging().AddUObject(this, &UCommonUIActionRouterBase::HandleSlateFocusChanging);
 }
@@ -233,6 +240,8 @@ bool UCommonUIActionRouterBase::ShouldCreateSubsystem(UObject* Outer) const
 {
 	TArray<UClass*> ChildClasses;
 	GetDerivedClasses(GetClass(), ChildClasses, false);
+
+	UE_LOG(LogUIActionRouter, Warning, TEXT("Found %i derived classes when attemping to create action router (%s)"), ChildClasses.Num(), *GetClass()->GetName());
 
 	// Only create an instance if there is no override implementation defined elsewhere
 	return ChildClasses.Num() == 0;

@@ -8,6 +8,8 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 
+DEFINE_LOG_CATEGORY(LogSubsystemCollection);
+
 /** FSubsystemModuleWatcher class to hide the implementation of keeping the DynamicSystemModuleMap up to date*/
 class FSubsystemModuleWatcher
 {
@@ -187,13 +189,18 @@ void FSubsystemCollectionBase::Deinitialize()
 
 USubsystem* FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsystem> SubsystemClass)
 {
+	UE_LOG(LogSubsystemCollection, Warning, TEXT("Attempting to initialize subsystem dependency (%s)"), *SubsystemClass->GetName());
+
+	USubsystem* Subsystem = nullptr;
 	if (ensureMsgf(SubsystemClass, TEXT("Attempting to add invalid subsystem as dependancy."))
 		&& ensureMsgf(bPopulating, TEXT("InitializeDependancy() should only be called from System USubsystem::Initialization() implementations."))
 		&& ensureMsgf(SubsystemClass->IsChildOf(BaseType), TEXT("ClassType (%s) must be a subclass of BaseType(%s)."), *SubsystemClass->GetName(), *BaseType->GetName()))
 	{
-		return AddAndInitializeSubsystem(SubsystemClass);
+		Subsystem = AddAndInitializeSubsystem(SubsystemClass);
 	}
-	return nullptr;
+
+	UE_CLOG(!Subsystem, LogSubsystemCollection, Warning, TEXT("Failed to initialize subsystem dependency (%s)"), *SubsystemClass->GetName());
+	return Subsystem;
 }
 
 void FSubsystemCollectionBase::AddReferencedObjects(FReferenceCollector& Collector)
@@ -233,10 +240,13 @@ USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* Subsyste
 				Subsystem->Initialize(*this);
 				return Subsystem;
 			}
+
+			UE_LOG(LogSubsystemCollection, Warning, TEXT("Subsystem DNE, but CDO choose to not create (%s)"), *SubsystemClass->GetName());
 		}
 		return nullptr;
 	}
 
+	UE_LOG(LogSubsystemCollection, Warning, TEXT("Subsystem already exists (%s)"), *SubsystemClass->GetName());
 	return SubsystemMap.FindRef(SubsystemClass);
 }
 
