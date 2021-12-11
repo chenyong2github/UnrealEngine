@@ -503,21 +503,21 @@ public:
 	);
 
 	// Sets a named Boolean
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Boolean Parameter", Category = "Audio|Parameter"))
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Boolean Parameter"), Category = "Audio|Parameter")
 	virtual void SetBoolParameter(FName InName, bool InBool) override
 	{
 		return ISoundParameterControllerInterface::SetBoolParameter(InName, InBool);
 	}
 
 	// Sets a named Int32
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Integer Parameter", Category = "Audio|Parameter"))
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Integer Parameter"), Category = "Audio|Parameter")
 	virtual void SetIntParameter(FName InName, int32 InInt) override
 	{
 		return ISoundParameterControllerInterface::SetIntParameter(InName, InInt);
 	}
 
 	// Sets a named Float
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Float Parameter", Category = "Audio|Parameter"))
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Float Parameter"), Category = "Audio|Parameter")
 	virtual void SetFloatParameter(FName InName, float InFloat) override
 	{
 		return ISoundParameterControllerInterface::SetFloatParameter(InName, InFloat);
