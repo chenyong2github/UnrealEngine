@@ -84,7 +84,12 @@ class FNullInstallBundleManager : public IInstallBundleManager
 		return EInstallBundleResult::OK;
 	}
 
-	virtual TOptional<FInstallBundleCacheStats> GetCacheStats(FInstallBundleSourceOrCache SourceOrCache, bool bDumpToLog = false) override
+	virtual TArray<FInstallBundleCacheStats> GetCacheStats(bool bDumpToLog = false, ELogVerbosity::Type LogVerbosityOverride = ELogVerbosity::NoLogging) override
+	{
+		return TArray<FInstallBundleCacheStats>();
+	}
+
+	virtual TOptional<FInstallBundleCacheStats> GetCacheStats(FInstallBundleSourceOrCache SourceOrCache, bool bDumpToLog = false, ELogVerbosity::Type LogVerbosityOverride = ELogVerbosity::NoLogging) override
 	{
 		return TOptional<FInstallBundleCacheStats>();
 	}
