@@ -1100,6 +1100,11 @@ void UNiagaraStackModuleItem::Refresh()
 	}
 }
 
+TOptional<float> UNiagaraStackModuleItem::GetCustomOverviewIndent()
+{
+	return 8.f;
+}
+
 bool UNiagaraStackModuleItem::GetIsEnabled() const
 {
 	return bIsEnabled;
@@ -1124,16 +1129,6 @@ void UNiagaraStackModuleItem::SetDebugDrawEnabled(bool bInEnabled)
 	FunctionCallNode->DebugState = bInEnabled ? ENiagaraFunctionDebugState::Basic : ENiagaraFunctionDebugState::NoDebug;
 	FunctionCallNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
 	OnRequestFullRefreshDeferred().Broadcast();
-}
-
-bool UNiagaraStackModuleItem::SupportsHighlights() const
-{
-	return FunctionCallNode != nullptr && FunctionCallNode->FunctionScript != nullptr;
-}
-
-const TArray<FNiagaraScriptHighlight>& UNiagaraStackModuleItem::GetHighlights() const
-{
-	return FunctionCallNode->GetScriptData()->Highlights;
 }
 
 int32 UNiagaraStackModuleItem::GetModuleIndex() const
