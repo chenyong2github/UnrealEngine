@@ -302,6 +302,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCopyDestParameters, )
 	RDG_TEXTURE_ACCESS(Texture, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
+bool FGenerateMips::WillFormatSupportCompute(EPixelFormat InPixelFormat)
+{
+	return RHIRequiresComputeGenerateMips() && GDynamicRHI->RHIIsTypedUAVStoreSupported(InPixelFormat);
+}
+
 void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FGenerateMipsParams Params, EGenerateMipsPass Pass)
 {
 	if (Texture->Desc.NumMips > 1)
@@ -325,6 +330,23 @@ void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, F
 				RHICmdList.GenerateMips(Texture->GetRHI());
 			});
 		}
+	}
+}
+
+void FGenerateMips::Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, EGenerateMipsPass Pass)
+{
+	if (Pass == EGenerateMipsPass::AutoDetect)
+	{
+		Pass = WillFormatSupportCompute(Texture->Desc.Format) ? EGenerateMipsPass::Compute : EGenerateMipsPass::Raster;
+	}
+
+	if (Pass == EGenerateMipsPass::Compute)
+	{
+		ExecuteCompute(GraphBuilder, Texture, Sampler);
+	}
+	else
+	{
+		ExecuteRaster(GraphBuilder, Texture, Sampler);
 	}
 }
 

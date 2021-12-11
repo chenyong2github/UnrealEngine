@@ -16,6 +16,7 @@ struct FGenerateMipsParams
 
 enum class EGenerateMipsPass
 {
+	AutoDetect,
 	Compute,
 	Raster
 };
@@ -23,29 +24,21 @@ enum class EGenerateMipsPass
 class RENDERCORE_API FGenerateMips
 {
 public:
+	static bool WillFormatSupportCompute(EPixelFormat InPixelFormat);
+
 	/** (ES3.1+) Generates mips for the requested RHI texture using the feature-level appropriate means (Compute, Raster, or Fixed-Function). */
 	static void Execute(
 		FRDGBuilder& GraphBuilder,
 		FRDGTextureRef Texture,
 		FGenerateMipsParams Params = {},
-		EGenerateMipsPass Pass = EGenerateMipsPass::Compute);
+		EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
 
 	/** (SM5+) Generates mips for the requested RDG texture using the requested compute / raster pass. */
 	static void Execute(
 		FRDGBuilder& GraphBuilder,
 		FRDGTextureRef Texture,
 		FRHISamplerState* Sampler,
-		EGenerateMipsPass Pass = EGenerateMipsPass::Compute)
-	{
-		if (Pass == EGenerateMipsPass::Compute)
-		{
-			ExecuteCompute(GraphBuilder, Texture, Sampler);
-		}
-		else
-		{
-			ExecuteRaster(GraphBuilder, Texture, Sampler);
-		}
-	}
+		EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
 
 	static void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
 	
