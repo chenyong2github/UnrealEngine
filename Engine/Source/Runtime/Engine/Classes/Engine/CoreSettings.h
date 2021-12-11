@@ -142,6 +142,8 @@ extern ENGINE_API int32 GLevelStreamingComponentsRegistrationGranularity;
 extern ENGINE_API int32 GLevelStreamingAddPrimitiveGranularity;
 /** Batching granularity used to unregister actor components during level streaming.  */
 extern ENGINE_API int32 GLevelStreamingComponentsUnregistrationGranularity;
+/** Batching granularity used to initialize actors during level streaming. If this is zero, we process all actors and stages in one pass. */
+extern ENGINE_API int32 GLevelStreamingRouteActorInitializationGranularity;
 /** Maximum allowed time to spend for actor unregistration steps during level streaming (ms per frame). If this is 0.0 then we don't timeslice.*/
 extern ENGINE_API float GLevelStreamingUnregisterComponentsTimeLimit;
 /** Whether to force a GC after levels are streamed out to instantly reclaim the memory at the expensive of a hitch. */

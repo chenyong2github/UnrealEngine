@@ -791,6 +791,16 @@ private:
 	TSoftObjectPtr<UObject> OwnerLevelPartition;
 #endif // #if WITH_EDITORONLY_DATA
 
+	enum class ERouteActorInitializationState : uint8
+	{
+		Preinitialize,
+		Initialize,
+		BeginPlay,
+		Finished
+	};
+	ERouteActorInitializationState RouteActorInitializationState;
+	int32 RouteActorInitializationIndex;
+
 public:
 	// Used internally to determine which actors should go on the world's NetworkActor list
 	ENGINE_API static bool IsNetActor(const AActor* Actor);
@@ -960,11 +970,17 @@ public:
 	ENGINE_API void ReleaseRenderingResources();
 
 	/**
+	 * Old implementation for routing actor initialization in full.
+	 */
+	void RouteActorInitializeOld();
+
+	/**
 	 * Routes pre and post initialize to actors and also sets volumes.
 	 *
+	 * @param NumActorsToProcess	The maximum number of actors to update in this pass, 0 to process all actors.
 	 * @todo seamless worlds: this doesn't correctly handle volumes in the multi- level case
 	 */
-	void RouteActorInitialize();
+	void RouteActorInitialize(int32 NumActorsToProcess);
 
 	/**
 	 * Rebuilds static streaming data for all levels in the specified UWorld.
