@@ -310,7 +310,8 @@ namespace PluginUtils
 
 		if (LoadParams.bUpdateProjectPluginSearchPath)
 		{
-			FPluginUtils::AddToPluginSearchPathIfNeeded(PluginLocation, /*bRefreshPlugins=*/true, /*bUpdateProjectFile=*/true);
+			FPluginUtils::AddToPluginSearchPathIfNeeded(PluginLocation, /*bRefreshPlugins=*/false, /*bUpdateProjectFile=*/true);
+			IPluginManager::Get().RefreshPluginsList();
 		}
 		else
 		{
