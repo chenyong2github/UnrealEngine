@@ -140,7 +140,7 @@ void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AAct
 	AffectedActors.Add(InActor);
 	
 	// grab all attached actors to invalidate everybody 	
-	InActor->GetAttachedActors(AffectedActors, /*bResetArray*/ false );
+	InActor->GetAttachedActors(AffectedActors, /*bResetArray*/ false, /*bRecursivelyIncludeAttachedActors*/ true );
 
 	if (GEditor->IsDeltaModificationEnabled())
 	{

@@ -2203,13 +2203,26 @@ void AActor::ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) co
 	}
 }
 
-void AActor::GetAttachedActors(TArray<class AActor*>& OutActors, bool bResetArray) const
+void AActor::GetAttachedActors(TArray<class AActor*>& OutActors, bool bResetArray, bool bRecursivelyIncludeAttachedActors) const
 {
 	if (bResetArray)
 	{
 		OutActors.Reset();
 	}
-	ForEachAttachedActors([&OutActors](AActor * Actor) { OutActors.AddUnique(Actor); return true; });
+
+	ForEachAttachedActors([bRecursivelyIncludeAttachedActors, &OutActors](AActor* AttachedActor)
+	{
+		int32 OriginalNumActors = OutActors.Num();
+
+		if ((OriginalNumActors <= OutActors.AddUnique(AttachedActor)) && bRecursivelyIncludeAttachedActors)
+		{
+			AttachedActor->GetAttachedActors(OutActors, false, true);
+		}
+		return true;
+	});
+
+
+
 }
 
 bool AActor::ActorHasTag(FName Tag) const
