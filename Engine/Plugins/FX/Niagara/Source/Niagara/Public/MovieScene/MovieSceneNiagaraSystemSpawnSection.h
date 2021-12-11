@@ -53,6 +53,8 @@ public:
 
 	ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
 
+	bool GetAllowScalability()const;
+
 private:
 	/** Specifies what should happen to the niagara system from before the section evaluates up until the first frame of the section. */
 	UPROPERTY(EditAnywhere, Category = "Life Cycle")
@@ -69,4 +71,7 @@ private:
 	/** Specifies how sequencer should update the age of the controlled niagara system. */
 	UPROPERTY(EditAnywhere, Category = "Life Cycle")
 	ENiagaraAgeUpdateMode AgeUpdateMode;
+	
+	UPROPERTY(EditAnywhere, Category = "Life Cycle")
+	bool bAllowScalability;
 };

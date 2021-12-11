@@ -37,7 +37,7 @@ void UMovieSceneNiagaraSystemTrack::PostCompile(FMovieSceneEvaluationTrack& OutT
 		OutTrack.SetTrackImplementation(FMovieSceneNiagaraSystemTrackImplementation(
 			SpawnSection->GetInclusiveStartFrame(), SpawnSection->GetExclusiveEndFrame(),
 			SpawnSection->GetSectionStartBehavior(), SpawnSection->GetSectionEvaluateBehavior(),
-			SpawnSection->GetSectionEndBehavior(), SpawnSection->GetAgeUpdateMode()));
+			SpawnSection->GetSectionEndBehavior(), SpawnSection->GetAgeUpdateMode(), SpawnSection->GetAllowScalability()));
 	}
 }
 

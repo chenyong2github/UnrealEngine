@@ -3343,7 +3343,11 @@ void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, 
 void UNiagaraComponent::SetAllowScalability(bool bAllow)
 {
 	bAllowScalability = bAllow; 
-	if (!bAllow)
+	if (bAllow)
+	{
+		RegisterWithScalabilityManager();
+	}
+	else
 	{
 		UnregisterWithScalabilityManager();
 	}

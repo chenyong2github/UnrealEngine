@@ -30,7 +30,7 @@ public:
 	FMovieSceneNiagaraSystemTrackImplementation(
 		FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame,
 		ENiagaraSystemSpawnSectionStartBehavior InSectionStartBehavior, ENiagaraSystemSpawnSectionEvaluateBehavior InSectionEvaluateBehavior,
-		ENiagaraSystemSpawnSectionEndBehavior InSectionEndBehavior, ENiagaraAgeUpdateMode InAgeUpdateMode);
+		ENiagaraSystemSpawnSectionEndBehavior InSectionEndBehavior, ENiagaraAgeUpdateMode InAgeUpdateMode, bool bInAllowScalability);
 
 	virtual void SetupOverrides() override
 	{
@@ -54,4 +54,7 @@ private:
 	ENiagaraSystemSpawnSectionEndBehavior SpawnSectionEndBehavior;
 	UPROPERTY()
 	ENiagaraAgeUpdateMode AgeUpdateMode;
+	UPROPERTY()
+	bool bAllowScalability;
+
 };
