@@ -4,7 +4,6 @@
 #include "Rendering/DrawElements.h"
 #include "Types/SlateConstants.h"
 #include "Layout/LayoutUtils.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
@@ -125,6 +124,7 @@ float SScrollPanel::ArrangeChildHorizontalAndReturnOffset(const FGeometry& Allot
 
 SScrollBox::SScrollBox()
 {
+	VerticalScrollBarSlot = nullptr;
 	bClippingProxy = true;
 }
 
@@ -174,7 +174,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 		ScrollBar->SetThickness(InArgs._ScrollBarThickness);
 		ScrollBar->SetUserVisibility(InArgs._ScrollBarVisibility);
 		ScrollBar->SetScrollBarAlwaysVisible(InArgs._ScrollBarAlwaysVisible);
-		ScrollBarPadding = InArgs._ScrollBarPadding;
+		ScrollBarSlotPadding = InArgs._ScrollBarPadding;
 
 		bScrollBarIsExternal = false;
 	}
@@ -253,11 +253,13 @@ void SScrollBox::ConstructVerticalLayout()
 		]
 	];
 
+	VerticalScrollBarSlot = nullptr;
 	if (!bScrollBarIsExternal)
 	{
 		PanelAndScrollbar->AddSlot()
-		.Padding(ScrollBarPadding)
+		.Padding(ScrollBarSlotPadding)
 		.AutoWidth()
+		.Expose(VerticalScrollBarSlot)
 		[
 			ScrollBar.ToSharedRef()
 		];
@@ -307,13 +309,16 @@ void SScrollBox::ConstructHorizontalLayout()
 		]
 	];
 
+	HorizontalScrollBarSlot = nullptr;
 	if (!bScrollBarIsExternal)
 	{
 		PanelAndScrollbar->AddSlot()
-			.AutoHeight()
-			[
-				ScrollBar.ToSharedRef()
-			];
+		.Padding(ScrollBarSlotPadding)
+		.AutoHeight()
+		.Expose(HorizontalScrollBarSlot)
+		[
+			ScrollBar.ToSharedRef()
+		];
 	}
 }
 
@@ -533,7 +538,22 @@ void SScrollBox::SetScrollBarThickness(FVector2D InThickness)
 
 void SScrollBox::SetScrollBarPadding(const FMargin& InPadding)
 {
-	ScrollBarPadding = InPadding;
+	ScrollBarSlotPadding = InPadding;
+
+	if (Orientation == Orient_Vertical)
+	{
+		if (VerticalScrollBarSlot)
+		{
+			VerticalScrollBarSlot->SetPadding(ScrollBarSlotPadding);
+		}
+	}
+	else
+	{
+		if (HorizontalScrollBarSlot)
+		{
+			HorizontalScrollBarSlot->SetPadding(ScrollBarSlotPadding);
+		}
+	}
 }
 
 void SScrollBox::SetScrollBarRightClickDragAllowed(bool bIsAllowed)
