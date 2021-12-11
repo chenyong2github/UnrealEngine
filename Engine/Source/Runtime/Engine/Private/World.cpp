@@ -2825,7 +2825,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		}
 
 		// Route various initialization functions and set volumes.
-		if( bExecuteNextStep && !Level->bAlreadyRoutedActorInitialize )
+		if (bExecuteNextStep && !Level->IsFinishedRouteActorInitialization())
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_AddToWorldTime_RouteActorInitialize);
 			SCOPE_TIME_TO_VAR(&RouteActorInitializeTime);
@@ -2834,10 +2834,10 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 			do 
 			{
 				Level->RouteActorInitialize(NumActorsToProcess);
-			} while (!Level->bAlreadyRoutedActorInitialize && !IsTimeLimitExceeded(TEXT("routing Initialize on actors"), StartTime, Level, TimeLimit));
+			} while (!Level->IsFinishedRouteActorInitialization() && !IsTimeLimitExceeded(TEXT("routing Initialize on actors"), StartTime, Level, TimeLimit));
 			bStartup = 0;
 
-			bExecuteNextStep = Level->bAlreadyRoutedActorInitialize && (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("routing Initialize on actors"), StartTime, Level, TimeLimit ));
+			bExecuteNextStep = Level->IsFinishedRouteActorInitialization() && (!bConsiderTimeLimit || !IsTimeLimitExceeded( TEXT("routing Initialize on actors"), StartTime, Level, TimeLimit ));
 		}
 
 		// Sort the actor list; can't do this on save as the relevant properties for sorting might have been changed by code
@@ -2865,9 +2865,9 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		
 		Level->bAlreadyShiftedActors					= false;
 		Level->bAlreadyUpdatedComponents				= false;
-		Level->bAlreadyRoutedActorInitialize			= false;
 		Level->bAlreadySortedActorList					= false;
 		Level->bAlreadyClearedActorsSeamlessTravelFlag	= false;
+		Level->ResetRouteActorInitializationState();
 
 		// Finished making level visible - allow other levels to be added to the world.
 		CurrentLevelPendingVisibility = nullptr;

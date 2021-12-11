@@ -635,8 +635,6 @@ public:
 	uint8										bAlreadyInitializedNetworkActors:1;
 	/** Whether we already cleared AActor::bActorSeamlessTraveled.							*/
 	uint8										bAlreadyClearedActorsSeamlessTravelFlag:1;
-	/** Whether we already routed initialize on actors.										*/
-	uint8										bAlreadyRoutedActorInitialize:1;
 	/** Whether we already sorted the actor list.											*/
 	uint8										bAlreadySortedActorList:1;
 	/** Whether this level is in the process of being associated with its world	(i.e. we are within AddToWorld for this level */
@@ -968,6 +966,16 @@ public:
 
 	/** Releases rendering resources for this level. */
 	ENGINE_API void ReleaseRenderingResources();
+
+	/**
+	 * Returns whether the level has completed routing actor initialization.
+	 */
+	bool IsFinishedRouteActorInitialization() const { return RouteActorInitializationState == ERouteActorInitializationState::Finished; }
+
+	/**
+	 * Method for resetting routing actor initialization for the next time this level is streamed.
+	 */
+	void ResetRouteActorInitializationState();
 
 	/**
 	 * Old implementation for routing actor initialization in full.
