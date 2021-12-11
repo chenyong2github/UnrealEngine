@@ -215,7 +215,7 @@ UNiagaraScript* UNiagaraStackFunctionInput::GetInputFunctionCallInitialScript() 
 	return OwningFunctionCallInitialScript.Get();
 }
 
-UNiagaraStackFunctionInput::EValueMode UNiagaraStackFunctionInput::GetValueMode()
+UNiagaraStackFunctionInput::EValueMode UNiagaraStackFunctionInput::GetValueMode() const
 {
 	return InputValues.Mode;
 }
@@ -379,6 +379,11 @@ TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInput::GetChildInputs()
 	}
 	
 	return ChildInputs;
+}
+
+TOptional<FNiagaraVariableMetaData> UNiagaraStackFunctionInput::GetInputMetaData() const
+{
+	return InputMetaData;
 }
 
 void UNiagaraStackFunctionInput::GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const
@@ -2377,6 +2382,17 @@ bool UNiagaraStackFunctionInput::IsScratchDynamicInput() const
 			GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(InputValues.DynamicNode->FunctionScript).IsValid();
 	}
 	return bIsScratchDynamicInputCache.GetValue();
+}
+
+bool UNiagaraStackFunctionInput::ShouldDisplayInline() const
+{
+	// we don't allow advanced values to be inlined as they can introduce problems with filtering
+	if(InputValues.Mode == EValueMode::Local && InputMetaData.IsSet() && !GetIsAdvanced() && InputMetaData->bDisplayInOverviewStack)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 bool UNiagaraStackFunctionInput::IsSemanticChild() const

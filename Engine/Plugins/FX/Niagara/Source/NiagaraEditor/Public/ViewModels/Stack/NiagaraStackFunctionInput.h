@@ -86,7 +86,7 @@ public:
 	UNiagaraScript* GetInputFunctionCallInitialScript() const;
 
 	/** Gets the current value mode */
-	EValueMode GetValueMode();
+	EValueMode GetValueMode() const;
 
 	/** Gets the type of this input. */
 	const FNiagaraTypeDefinition& GetInputType() const;
@@ -260,8 +260,12 @@ public:
 
 	bool IsScratchDynamicInput() const;
 
+	bool ShouldDisplayInline() const;
+	
 	TArray<UNiagaraStackFunctionInput*> GetChildInputs() const;
 
+	TOptional<FNiagaraVariableMetaData> GetInputMetaData() const;
+	
 	virtual bool IsSemanticChild() const;
 	void SetSemanticChild(bool IsSemanticChild);
 

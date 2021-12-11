@@ -153,12 +153,54 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	FSlateFontInfo SystemOverviewInlineParametersFont = DEFAULT_FONT("Regular", 7);
 	FTextBlockStyle SystemOverviewInlineParametersText = FTextBlockStyle(NormalText)
 		.SetFont(SystemOverviewInlineParametersFont);
+
+	FButtonStyle InlineParameterButtonStyle = FButtonStyle()
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::AccentGray, 4.0f, FStyleColors::Input, 1.f))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::White, 4.0f, FStyleColors::Input, 1.f))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Input, 1.f))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f, FStyleColors::Recessed, 1.f))
+		.SetNormalForeground(FStyleColors::ForegroundHover)
+		.SetHoveredForeground(FStyleColors::ForegroundInverted)
+		.SetPressedForeground(FStyleColors::ForegroundHover)
+		.SetDisabledForeground(FStyleColors::Foreground)
+		.SetNormalPadding(FMargin(2.f, 2.f, 2.f, 2.f))
+		.SetPressedPadding(FMargin(2.f, 1.0f, 2.f, 0.0f));
+
+	// this style is used when the user has specified a custom color for an inline parameter. By default we'd tint it a bit more gray.
+	FButtonStyle InlineParameterButtonStyleNoTint = FButtonStyle()
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::White, 4.0f, FStyleColors::Input, 1.f))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::White, 4.0f, FStyleColors::Input, 1.f))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Input, 1.f))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f, FStyleColors::Recessed, 1.f))
+		.SetNormalForeground(FStyleColors::ForegroundHover)
+		.SetHoveredForeground(FStyleColors::ForegroundInverted)
+		.SetPressedForeground(FStyleColors::ForegroundHover)
+		.SetDisabledForeground(FStyleColors::Foreground)
+		.SetNormalPadding(FMargin(2.f, 2.f, 2.f, 2.f))
+		.SetPressedPadding(FMargin(2.f, 1.0f, 2.f, 0.0f));
+
+	// this style is used when the user has specified an icon to represent a value. In that case, we no longer need a proper border.
+	FButtonStyle InlineParameterButtonStyleTransparent = FButtonStyle()
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Transparent, 4.0f, FStyleColors::Input, 0.f))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Input, 0.f))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Input, 0.f))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f, FStyleColors::Recessed, 0.f))
+		.SetNormalForeground(FStyleColors::ForegroundHover)
+		.SetHoveredForeground(FStyleColors::ForegroundHover)
+		.SetPressedForeground(FStyleColors::ForegroundHover)
+		.SetDisabledForeground(FStyleColors::Foreground)
+		.SetNormalPadding(FMargin(2.f))
+		.SetPressedPadding(FMargin(2.f, 1.0f, 2.f, 0.0f));
 	
 	Style->Set("NiagaraEditor.SystemOverview.ItemText", SystemOverviewItemText);
 	
 	Style->Set("NiagaraEditor.SystemOverview.AlternateItemText", SystemOverviewAlternateItemText);
 
 	Style->Set("NiagaraEditor.SystemOverview.InlineParameterText", SystemOverviewInlineParametersText);
+	Style->Set("NiagaraEditor.SystemOverview.InlineParameterButton", InlineParameterButtonStyle);
+	Style->Set("NiagaraEditor.SystemOverview.InlineParameterButton.Transparent", InlineParameterButtonStyleTransparent);
+	Style->Set("NiagaraEditor.SystemOverview.InlineParameterButton.NoTint", InlineParameterButtonStyleNoTint);
+
 
 	Style->Set("NiagaraEditor.SystemOverview.Item.BackgroundColor", FLinearColor(FColor(62, 62, 62)));
 	Style->Set("NiagaraEditor.SystemOverview.Group.BackgroundColor", FLinearColor::Transparent);

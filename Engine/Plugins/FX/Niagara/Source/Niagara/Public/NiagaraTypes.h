@@ -303,7 +303,6 @@ class NIAGARA_API FNiagaraTypeHelper
 {
 public:
 	static FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
-	static FString ToStringCosmetic(const uint8* ValueData, const UObject* StructOrEnum);
 	static UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
 	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
 };
@@ -625,6 +624,49 @@ struct NIAGARA_API FNiagaraEnumParameterMetaData
 	/** If specified, this icon will be used for the given enum entry. If OverrideName isn't empty, the icon takes priority. */
 	UPROPERTY(EditAnywhere, Category="Enum Override")
 	UTexture2D* IconOverride = nullptr;
+
+	UPROPERTY(EditAnywhere, Category="Enum Override", meta=(InlineEditConditionToggle))
+	bool bUseColorOverride = false;
+	
+	UPROPERTY(EditAnywhere, Category="Enum Override", meta=(EditCondition="bUseColorOverride"))
+	FLinearColor ColorOverride;
+};
+
+UENUM()
+enum class ENiagaraBoolDisplayMode : uint8
+{
+	DisplayAlways,
+	DisplayIfTrue,
+	DisplayIfFalse
+};
+
+USTRUCT()
+struct NIAGARA_API FNiagaraBoolParameterMetaData
+{
+	GENERATED_BODY()
+
+	/** The mode used determines the cases in which a bool parameter is displayed.
+	 *  If set to DisplayAlways, both True and False cases will display. 
+	 *  If set to DisplayIfTrue, it will only display if the bool evaluates to True.
+	 */
+	UPROPERTY(EditAnywhere, Category="Bool Override")
+	ENiagaraBoolDisplayMode DisplayMode = ENiagaraBoolDisplayMode::DisplayAlways;
+	
+	/** If specified, this name will be used for the given bool if it evaluates to True. */
+	UPROPERTY(EditAnywhere, Category="Bool Override")
+	FName OverrideNameTrue;
+
+	/** If specified, this name will be used for the given bool if it evaluates to False. */
+	UPROPERTY(EditAnywhere, Category="Bool Override")
+	FName OverrideNameFalse;
+
+	/** If specified, this icon will be used for the given bool if it evaluates to True. If OverrideName isn't empty, the icon takes priority. */
+	UPROPERTY(EditAnywhere, Category="Bool Override")
+	UTexture2D* IconOverrideTrue = nullptr;
+
+	/** If specified, this icon will be used for the given bool if it evaluates to False. If OverrideName isn't empty, the icon takes priority. */
+	UPROPERTY(EditAnywhere, Category="Bool Override")
+	UTexture2D* IconOverrideFalse = nullptr;
 };
 
 USTRUCT()
@@ -638,6 +680,7 @@ struct NIAGARA_API FNiagaraVariableMetaData
 		, InlineParameterSortPriority(0)
 		, bOverrideColor(false)
 		, InlineParameterColorOverride(FLinearColor(EForceInit::ForceInit))
+		, bEnableBoolOverride(false)
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
 		, bIsStaticSwitch_DEPRECATED(false)
@@ -668,7 +711,13 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	FLinearColor InlineParameterColorOverride;
 
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (EditCondition="bDisplayInOverviewStack", ToolTip = "The index of the entry maps to the index of an enum value. Useful for overriding how an enum parameter is displayed in the overview.", SkipForCompileHash = "true"))
-	TArray<FNiagaraEnumParameterMetaData> InlineParameterEnumOverrides; 
+	TArray<FNiagaraEnumParameterMetaData> InlineParameterEnumOverrides;
+
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (InlineEditConditionToggle, ToolTip = "Useful to override inline bool visualization in the overview.", SkipForCompileHash = "true"))
+	bool bEnableBoolOverride;
+	
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (EditCondition="bEnableBoolOverride", ToolTip = "Useful to override inline bool visualization in the overview.", SkipForCompileHash = "true"))
+	FNiagaraBoolParameterMetaData InlineParameterBoolOverride;
 	
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "Affects the sort order in the editor stacks. Use a smaller number to push it to the top. Defaults to zero.", SkipForCompileHash = "true"))
 	int32 EditorSortPriority;
@@ -1022,16 +1071,6 @@ public:
 			return TEXT("(null)");
 		}
 		return FNiagaraTypeHelper::ToString(ValueData, ClassStructOrEnum);
-	}
-
-	FString ToStringCosmetic(const uint8* ValueData)const
-	{
-		checkf(IsValid(), TEXT("Type definition is not valid."));
-		if (ValueData == nullptr)
-		{
-			return TEXT("(null)");
-		}
-		return FNiagaraTypeHelper::ToStringCosmetic(ValueData, ClassStructOrEnum);
 	}
 
 	static bool TypesAreAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB);

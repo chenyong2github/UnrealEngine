@@ -74,8 +74,7 @@ public:
 
 	void SetInputValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
-	TOptional<struct FNiagaraLocalInputValueData> GetLocalInputData(FNiagaraVariable InputParameter, bool bFiltered = false) const;
-	TOptional<struct FNiagaraDataInterfaceInput> GetDataInterfaceForInput(FNiagaraVariable InputParameter, bool bFiltered = false) const;
+	TArray<class UNiagaraStackFunctionInput*> GetInlineParameterInputs() const;
 
 	virtual bool SupportsCut() const override { return true; }
 	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
