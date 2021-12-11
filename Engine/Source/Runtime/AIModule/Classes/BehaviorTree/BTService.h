@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BehaviorTree/BTAuxiliaryNode.h"
 #include "BTService.generated.h"
 
@@ -68,11 +67,15 @@ protected:
 	uint32 bNotifyOnSearch : 1;
 
 	/** update next tick interval
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced!
+	 * bNotifyTick must be set to true for this function to be called 
+	 * Calling INIT_SERVICE_NODE_NOTIFY_FLAGS in the constructor of the service will set this flag automatically */
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 
 	/** called when search enters underlying branch
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
+	 * bNotifyOnSearch must be set to true for this function to be called  
+	 * Calling INIT_SERVICE_NODE_NOTIFY_FLAGS in the constructor of the service will set this flag automatically */
 	virtual void OnSearchStart(FBehaviorTreeSearchData& SearchData);
 
 #if WITH_EDITOR
@@ -81,4 +84,22 @@ protected:
 
 	/** set next tick time */
 	virtual void ScheduleNextTick(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
+
+	template<typename TickNode, typename OnBecomeRelevant, typename OnCeaseRelevant, typename OnSearchStart>
+	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant, OnSearchStart)
+	{
+		bNotifyTick = !TIsSame<decltype(&UBTService::TickNode), TickNode>::Value;
+		bNotifyBecomeRelevant = !TIsSame<decltype(&UBTService::OnBecomeRelevant), OnBecomeRelevant>::Value;
+		bNotifyCeaseRelevant = !TIsSame<decltype(&UBTService::OnCeaseRelevant), OnCeaseRelevant>::Value;
+		bNotifyOnSearch = !TIsSame<decltype(&UBTService::OnSearchStart), OnSearchStart>::Value;
+	}
 };
+
+#define INIT_SERVICE_NODE_NOTIFY_FLAGS() \
+	do { \
+	using NodeType = TRemovePointer<decltype(this)>::Type; \
+	InitNotifyFlags(&NodeType::TickNode, \
+					&NodeType::OnBecomeRelevant, \
+					&NodeType::OnCeaseRelevant, \
+					&NodeType::OnSearchStart); \
+	} while (false)

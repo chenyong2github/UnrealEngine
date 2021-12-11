@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BehaviorTree/BTAuxiliaryNode.h"
 #include "BTDecorator.generated.h"
 
@@ -101,26 +100,44 @@ protected:
 	void SetIsInversed(bool bShouldBeInversed);
 
 	/** called when underlying node is activated
-	  * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
+	 * bNotifyActivation must be set to true for this function to be called
+	 * Calling INIT_DECORATOR_NODE_NOTIFY_FLAGS in the constructor of the decorator will set this flag automatically */
 	virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData);
 
 	/** called when underlying node has finished
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
+	 * bNotifyDeactivation must be set to true for this function to be called
+	 * Calling INIT_DECORATOR_NODE_NOTIFY_FLAGS in the constructor of the decorator will set this flag automatically */
 	virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult);
 
 	/** called when underlying node was processed (deactivated or failed to activate)
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
+	 * bNotifyProcessed must be set to true for this function to be called 
+	 * Calling INIT_DECORATOR_NODE_NOTIFY_FLAGS in the constructor of the decorator will set this flag automatically */
 	virtual void OnNodeProcessed(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult);
 
 	/** calculates raw, core value of decorator's condition. Should not include calling IsInversed */
 	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
 	/** more "flow aware" version of calling RequestExecution(this) on owning behavior tree component
-	 *  should be used in external events that may change result of CalculateRawConditionValue
-	 */
+	 *  should be used in external events that may change result of CalculateRawConditionValue */
 	void ConditionalFlowAbort(UBehaviorTreeComponent& OwnerComp, EBTDecoratorAbortRequest RequestMode) const;
 
 	friend FBehaviorDecoratorDetails;
+
+	template<typename TickNode,	typename OnBecomeRelevant, typename OnCeaseRelevant,
+		typename OnNodeActivation, typename OnNodeDeactivation, typename OnNodeProcessed>
+	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant,
+					 OnNodeActivation, OnNodeDeactivation, OnNodeProcessed)
+	{
+		bNotifyTick = !TIsSame<decltype(&UBTDecorator::TickNode), TickNode>::Value;
+		bNotifyBecomeRelevant = !TIsSame<decltype(&UBTDecorator::OnBecomeRelevant), OnBecomeRelevant>::Value;
+		bNotifyCeaseRelevant = !TIsSame<decltype(&UBTDecorator::OnCeaseRelevant), OnCeaseRelevant>::Value;
+		bNotifyActivation = !TIsSame<decltype(&UBTDecorator::OnNodeActivation), OnNodeActivation>::Value;
+		bNotifyDeactivation = !TIsSame<decltype(&UBTDecorator::OnNodeDeactivation), OnNodeDeactivation>::Value;
+		bNotifyProcessed = !TIsSame<decltype(&UBTDecorator::OnNodeProcessed), OnNodeProcessed>::Value;
+	}
 
 	//----------------------------------------------------------------------//
 	// DEPRECATED
@@ -129,6 +146,16 @@ protected:
 	void InitializeDecorator(uint8 InChildIndex);
 };
 
+#define INIT_DECORATOR_NODE_NOTIFY_FLAGS() \
+	do { \
+	using NodeType = TRemovePointer<decltype(this)>::Type; \
+	InitNotifyFlags(&NodeType::TickNode, \
+					&NodeType::OnBecomeRelevant, \
+					&NodeType::OnCeaseRelevant, \
+					&NodeType::OnNodeActivation, \
+					&NodeType::OnNodeDeactivation, \
+					&NodeType::OnNodeProcessed); \
+	} while (false)
 
 //////////////////////////////////////////////////////////////////////////
 // Inlines
