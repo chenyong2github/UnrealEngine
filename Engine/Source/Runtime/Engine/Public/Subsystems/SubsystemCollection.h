@@ -9,6 +9,8 @@
 class USubsystem;
 class UDynamicSubsystem;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogSubsystemCollection, Log, All);
+
 class ENGINE_API FSubsystemCollectionBase : public FGCObject
 {
 public:
