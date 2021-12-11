@@ -3256,6 +3256,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 
 		FPerPlatformPropertyCustomNodeBuilderArgs Args;
 		Args.FilterText = LOCTEXT("MinLOD", "Minimum LOD");
+		Args.Name = "MinLod";
 		Args.OnGenerateNameWidget = FOnGetContent::CreateLambda([]()
 			{
 				return SNew(STextBlock)
