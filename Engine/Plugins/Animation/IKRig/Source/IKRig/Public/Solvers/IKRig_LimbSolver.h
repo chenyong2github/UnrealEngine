@@ -15,6 +15,7 @@ class IKRIG_API UIKRig_LimbEffector : public UObject
 	GENERATED_BODY()
 
 public:
+	UIKRig_LimbEffector() { SetFlags(RF_Transactional); }
 
 	UPROPERTY(VisibleAnywhere, Category = "Limb IK Effector")
 	FName GoalName = NAME_None;

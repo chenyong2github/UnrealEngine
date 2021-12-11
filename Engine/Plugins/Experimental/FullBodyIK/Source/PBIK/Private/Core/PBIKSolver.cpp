@@ -169,7 +169,7 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 	// optionally pin root in-place (convenience, does not require an effector)
 	if (RootPin.IsValid())
 	{
-		RootPin.Pin()->bEnabled = Settings.bPinRoot;
+		RootPin.Pin()->bEnabled = Settings.RootBehavior == EPBIKRootBehavior::PinToInput;
 		// pin to animated input root pose
 		RootPin.Pin()->SetGoal(SolverRoot->Position, SolverRoot->Rotation, 1.0f);
 	}
@@ -309,7 +309,7 @@ void FPBIKSolver::ApplyPreferredAngles()
 void FPBIKSolver::UpdateBodies(const FPBIKSolverSettings& Settings)
 {
 	// this creates a better pose from which to start the constraint solving
-	if (Settings.bPrePullRoot && !Settings.bPinRoot)
+	if (Settings.RootBehavior == EPBIKRootBehavior::PrePull)
 	{
 		// pull ALL bodies towards the effectors
 		PullRootTowardsEffectors();

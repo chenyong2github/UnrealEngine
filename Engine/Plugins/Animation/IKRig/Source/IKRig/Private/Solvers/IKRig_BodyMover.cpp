@@ -237,6 +237,7 @@ void UIKRig_BodyMover::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	}
 
 	// rename
+	Effectors[GoalIndex]->Modify();
 	Effectors[GoalIndex]->BoneName = NewBoneName;
 }
 

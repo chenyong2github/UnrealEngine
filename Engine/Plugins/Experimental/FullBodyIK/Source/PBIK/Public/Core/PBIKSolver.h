@@ -91,6 +91,14 @@ struct FEffector
 	
 } // namespace
 
+UENUM()
+enum class EPBIKRootBehavior : uint8
+{
+	PrePull,
+	PinToInput,
+	Free,
+};
+
 USTRUCT()
 struct PBIK_API FPBIKSolverSettings
 {
@@ -112,15 +120,12 @@ struct PBIK_API FPBIKSolverSettings
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	bool bAllowStretch = false;
 
-	/** Lock the position and rotation of the solver root bone in-place (at animated position). Useful for partial-body solves. Default is false. */
+	/** (Default is PrePull) Set the behavior of the solver root.
+	*Pre Pull: translates the root (and all children) by the average motion of the stretched effectors to help achieve faster convergence when reaching far.
+	*Pin to Input: locks the translation and rotation of the root bone to the input pose. Overrides any bone settings applied to the root. Good for partial-body solves.
+	*Free: treats the root bone like any other and allows it to move freely or according to any bone settings applied to it. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
-	bool bPinRoot = false;
-
-	/** (Default is true) If true, solver runs a pre-pass (before the constraint solve) which will translate the whole body by the average motion of the stretched effectors.
-	 *This can decrease the amount of iterations needed to achieve a converged pose when the effectors are pulling the body far.
-	 *This option has no effect if PinRoot is set to True.*/
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta=(EditCondition = "!bPinRoot"))
-	bool bPrePullRoot = true;
+	EPBIKRootBehavior RootBehavior;
 
 	/** When true, the solver is reset each tick to start from the current input pose. If false, incoming animated poses are ignored and the solver starts from the results of the previous solve. Default is true. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)

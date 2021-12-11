@@ -199,6 +199,7 @@ void UIKRig_LimbSolver::RenameGoal(const FName& OldName, const FName& NewName)
 {
 	if (Effector->GoalName == OldName)
 	{
+		Effector->Modify();
 		Effector->GoalName = NewName;
 	}
 }
@@ -207,6 +208,7 @@ void UIKRig_LimbSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneN
 {
 	if (Effector->GoalName == GoalName)
 	{
+		Effector->Modify();
 		Effector->BoneName = NewBoneName;
 	}
 }

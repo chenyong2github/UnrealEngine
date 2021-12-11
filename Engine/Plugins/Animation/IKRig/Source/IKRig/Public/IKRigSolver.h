@@ -19,6 +19,8 @@ class IKRIG_API UIKRigSolver : public UObject
 	
 public:
 
+	UIKRigSolver() { SetFlags(RF_Transactional); }
+
 	//** RUNTIME */
 	/** override to setup internal data based on ref pose */
 	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) PURE_VIRTUAL("Init");

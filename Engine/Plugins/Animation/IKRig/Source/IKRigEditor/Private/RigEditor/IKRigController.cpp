@@ -729,10 +729,10 @@ bool UIKRigController::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 		return false; // goal is already using this bone
 	}
 	
-	FScopedTransaction Transaction(LOCTEXT("RenameGoal_Label", "Rename Goal"));
-	Asset->Modify();
+	FScopedTransaction Transaction(LOCTEXT("SetGoalBone_Label", "Set Goal Bone"));
 
 	// update goal
+	Asset->Goals[GoalIndex]->Modify();
 	Asset->Goals[GoalIndex]->BoneName = NewBoneName;
 	
 	// update in solvers
