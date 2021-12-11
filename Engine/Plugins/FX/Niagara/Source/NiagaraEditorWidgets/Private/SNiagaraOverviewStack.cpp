@@ -43,6 +43,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
@@ -751,7 +752,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.WidthOverride(IconSize.X)
 				.HeightOverride(IconSize.Y);
 		}
-
+		
 		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
 			// Indent content
 			+ SHorizontalBox::Slot()
@@ -764,8 +765,6 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 			// Name
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.MaxWidth(150.f)
 			.Padding(3, 2, 0, 2)
 			[
 				SNew(SNiagaraSystemOverviewItemName, StackItem)
@@ -777,20 +776,16 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
                 SNew(SNiagaraStackRowPerfWidget, Item)
             ];
 
-		// Debug draw 
+		TSharedRef<SHorizontalBox> OptionsBox = SNew(SHorizontalBox);
+		
 		UNiagaraStackModuleItem* StackModuleItem = Cast<UNiagaraStackModuleItem>(StackItem);
-			
+
 		if (StackModuleItem)
 		{
-			ContentBox->AddSlot()
-			.HAlign(HAlign_Fill)
-			[
-				SNew(SNiagaraOverviewInlineParameterBox, *StackModuleItem)
-			];
-			
+			// Scratch icon
 			if(StackModuleItem->IsScratchModule())
 			{
-				ContentBox->AddSlot()
+				OptionsBox->AddSlot()
 					.VAlign(VAlign_Center)
 					.AutoWidth()
 					.Padding(3, 0, 3, 1)
@@ -800,12 +795,12 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 						.Image(FNiagaraEditorStyle::Get().GetBrush("Tab.ScratchPad"))
 					];
 			}
-			
+
+			// Debug draw 
 			if(StackModuleItem->GetModuleNode().ContainsDebugSwitch())
 			{
-				ContentBox->AddSlot()
+				OptionsBox->AddSlot()
 					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Center)
 					.AutoWidth()
 					.Padding(3, 0)
 					[
@@ -816,8 +811,8 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 						.ForegroundColor(FLinearColor::Transparent)
 						.ToolTipText(LOCTEXT("EnableDebugDrawCheckBoxToolTip", "Enable or disable debug drawing for this item."))
 						.OnClicked(this, &SNiagaraOverviewStack::ToggleModuleDebugDraw, StackItem)
-						// @Todo the debug icons aren't centered, so we correct this using padding. We also shrink the button size
-						.ContentPadding(FMargin(-11, 2, -7, 2))
+						.ContentPadding(FMargin(2.f))
+						.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
 						[
 							SNew(SImage)
 							.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
@@ -827,7 +822,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		}
 
 		// Enabled checkbox
-		ContentBox->AddSlot()
+		OptionsBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(0)
@@ -839,6 +834,65 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.OnCheckedChanged_UObject(StackItem, &UNiagaraStackItem::SetIsEnabled)
 			];
 
+		// in case we have at least one inline input, we add a wrap box to make sure we have enough space for both the module name and parameters
+		if(StackModuleItem && StackModuleItem->GetInlineParameterInputs().Num() > 0)
+		{
+			ContentBox = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SWrapBox)
+				// the wrap box will put the inline box into a second row if content box + parameter box would exceed the preferred size
+				.PreferredSize(250.f)
+				+ SWrapBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					// despite that, we also have to cap the content box size, since the wrapbox can't wrap a single widget
+					.MaxDesiredWidth(250.f)
+					[
+						ContentBox
+					]
+				]
+				+ SWrapBox::Slot()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.MaxDesiredWidth(150.f)
+					[
+						SNew(SNiagaraOverviewInlineParameterBox, *StackModuleItem)
+					]
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				OptionsBox
+			];
+		}
+		// if we don't, we don't use the wrap box for perf reasons
+		else
+		{
+			ContentBox = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.MaxDesiredWidth(250.f)
+				[
+					ContentBox
+				]			
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				OptionsBox
+			];
+		}
+		
 		Content = ContentBox;		
 	}
 	else if (Item->IsA<UNiagaraStackItemGroup>())

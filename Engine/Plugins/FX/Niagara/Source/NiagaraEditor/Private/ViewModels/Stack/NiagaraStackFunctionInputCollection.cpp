@@ -155,58 +155,22 @@ void UNiagaraStackFunctionInputCollection::GetFilteredChildInputs(TArray<UNiagar
 	}
 }
 
-TOptional<FNiagaraLocalInputValueData> UNiagaraStackFunctionInputCollection::GetLocalInput(FNiagaraVariable InputParameter, bool bFiltered) const
+TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInputCollection::GetInlineParameterInputs() const
 {
+	TArray<UNiagaraStackFunctionInput*> OutArray;
+	
 	TArray<UNiagaraStackFunctionInput*> FunctionInputs;
-
-	if(bFiltered)
-	{
-		GetFilteredChildInputs(FunctionInputs);
-	}
-	else
-	{
-		GetChildInputs(FunctionInputs);
-	}
+	GetFilteredChildInputs(FunctionInputs);
 
 	for(UNiagaraStackFunctionInput* FunctionInput : FunctionInputs)
 	{
-		if(FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Local && FunctionInput->GetInputParameterHandle().GetParameterHandleString() == InputParameter.GetName())
+		if(FunctionInput->ShouldDisplayInline())
 		{
-			FNiagaraLocalInputValueData InputValueData(FunctionInput->GetLocalValueStruct(), FunctionInput->OnValueChanged());
-			FunctionInput->GetSearchItems(InputValueData.StackSearchItems);
-			return InputValueData;
+			OutArray.Add(FunctionInput);
 		}
 	}
 
-	TOptional<FNiagaraLocalInputValueData> UnsetValueData;
-	return UnsetValueData;
-}
-
-TOptional<FNiagaraDataInterfaceInput> UNiagaraStackFunctionInputCollection::GetDataInterfaceForInput(FNiagaraVariable InputParameter, bool bFiltered) const
-{
-	TArray<UNiagaraStackFunctionInput*> FunctionInputs;
-
-	if(bFiltered)
-	{
-		GetFilteredChildInputs(FunctionInputs);
-	}
-	else
-	{
-		GetChildInputs(FunctionInputs);
-	}
-
-	for(UNiagaraStackFunctionInput* FunctionInput : FunctionInputs)
-	{
-		if(FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Data && FunctionInput->GetInputParameterHandle().GetParameterHandleString() == InputParameter.GetName())
-		{
-			FNiagaraDataInterfaceInput InputValueData(FunctionInput->GetDataValueObject(), FunctionInput->OnValueChanged());
-			FunctionInput->GetSearchItems(InputValueData.StackSearchItems);
-			return TOptional<FNiagaraDataInterfaceInput>(InputValueData);
-		}
-	}
-
-	TOptional<FNiagaraDataInterfaceInput> UnsetValueData;
-	return UnsetValueData;
+	return OutArray;
 }
 
 void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)

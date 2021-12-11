@@ -1275,14 +1275,9 @@ void UNiagaraStackModuleItem::SetInputValuesFromClipboardFunctionInputs(const TA
 	InputCollection->SetValuesFromClipboardFunctionInputs(ClipboardFunctionInputs);
 }
 
-TOptional<FNiagaraLocalInputValueData> UNiagaraStackModuleItem::GetLocalInputData(FNiagaraVariable InputParameter, bool bFiltered) const
+TArray<UNiagaraStackFunctionInput*> UNiagaraStackModuleItem::GetInlineParameterInputs() const
 {
-	return InputCollection->GetLocalInput(InputParameter, bFiltered);
-}
-
-TOptional<FNiagaraDataInterfaceInput> UNiagaraStackModuleItem::GetDataInterfaceForInput(FNiagaraVariable InputParameter, bool bFiltered) const
-{
-	return InputCollection->GetDataInterfaceForInput(InputParameter, bFiltered);	
+	return InputCollection->GetInlineParameterInputs();
 }
 
 bool UNiagaraStackModuleItem::TestCanCutWithMessage(FText& OutMessage) const

@@ -180,7 +180,7 @@ FText FNiagaraEditorVector2TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
-FText FNiagaraEditorVector2TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+FText FNiagaraEditorVector2TypeUtilities::GetStackDisplayText(const FNiagaraVariable& Variable) const
 {
 	FVector2f Value = Variable.GetValue<FVector2f>();
 	return FText::Format(FText::FromString("({0}, {1})"), Value.X, Value.Y);
@@ -262,7 +262,7 @@ FText FNiagaraEditorVector3TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
-FText FNiagaraEditorVector3TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+FText FNiagaraEditorVector3TypeUtilities::GetStackDisplayText(const FNiagaraVariable& Variable) const
 {
 	FVector3f Value = Variable.GetValue<FVector3f>();
 	return FText::Format(FText::FromString("({0}, {1}, {2})"), Value.X, Value.Y, Value.Z);
@@ -344,7 +344,7 @@ FText FNiagaraEditorVector4TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
-FText FNiagaraEditorVector4TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+FText FNiagaraEditorVector4TypeUtilities::GetStackDisplayText(const FNiagaraVariable& Variable) const
 {
 	FVector4f Value = Variable.GetValue<FVector4f>();
 	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);
@@ -455,7 +455,7 @@ FText FNiagaraEditorQuatTypeUtilities::GetSearchTextFromValue(const FNiagaraVari
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
-FText FNiagaraEditorQuatTypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+FText FNiagaraEditorQuatTypeUtilities::GetStackDisplayText(const FNiagaraVariable& Variable) const
 {
 	FQuat4f Value = Variable.GetValue<FQuat4f>();
 	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);

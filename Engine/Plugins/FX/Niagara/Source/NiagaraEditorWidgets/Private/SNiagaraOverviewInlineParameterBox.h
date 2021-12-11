@@ -31,13 +31,15 @@ public:
 
 	virtual ~SNiagaraOverviewInlineParameterBox() override;
 
+	int32 GetNumChildWidgets();
+
 private:
 	/** Selects the module item in the stack and searches for the function input */
-	FReply NavigateToStack(FNiagaraLocalInputValueData LocalInputValueData);
+	FReply NavigateToStack(TWeakObjectPtr<UNiagaraStackFunctionInput> FunctionInput);
 	void ConstructChildren();
 	TArray<TSharedRef<SWidget>> GenerateParameterWidgets();
-	TSharedRef<SWidget> GenerateParameterWidgetFromLocalValue(const UNiagaraScriptVariable* ScriptVariable, FNiagaraLocalInputValueData& LocalInputValueData);
-	TSharedRef<SWidget> GenerateParameterWidgetFromDataInterface(const UNiagaraScriptVariable* ScriptVariable, FNiagaraDataInterfaceInput& DataInterface);
+	TSharedRef<SWidget> GenerateParameterWidgetFromLocalValue(UNiagaraStackFunctionInput* FunctionInput);
+	TSharedRef<SWidget> GenerateParameterWidgetFromDataInterface(UNiagaraStackFunctionInput* FunctionInput);
 
 private:
 	/** The module item whose parameters this box is representing */
@@ -46,7 +48,9 @@ private:
 	TSharedPtr<SScrollBox> Container;
 	
 	/** We keep track of the function inputs we are observing through this parameter box so we can unbind the delegates later */
-	TArray<FNiagaraLocalInputValueData> BoundFunctionInputs;
+	TArray<TWeakObjectPtr<UNiagaraStackFunctionInput>> BoundFunctionInputs;
 
 	TArray<FSlateBrush> ImageBrushes;
+
+	int32 NumParameterWidgets = 0;
 };
