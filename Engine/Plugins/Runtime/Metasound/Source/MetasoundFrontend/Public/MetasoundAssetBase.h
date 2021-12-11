@@ -75,12 +75,13 @@ public:
 	virtual void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata);
 
 	// Returns a default interface required when a given asset is created.
+	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const = 0;
 
 	// Returns the interface entries declared by the given asset's document from the InterfaceRegistry.
 	bool GetDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const;
 
-	// Returns whether an interface with the given version is declared by the given asset's document.
-	bool IsInterfaceDeclared(const FMetasoundFrontendVersion& InVersion) const;
+	// Returns whether an interface with the given name is declared by the given asset's document.
+	bool IsInterfaceDeclared(FName InName) const;
 
 	// Gets the asset class info.
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const = 0;

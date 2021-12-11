@@ -4,6 +4,7 @@
 #include "ActiveSound.h"
 #include "Audio.h"
 #include "Audio/ActorSoundParameterInterface.h"
+#include "Audio/SoundGeneratorParameterInterface.h"
 #include "AudioDevice.h"
 #include "AudioThread.h"
 #include "Components/BillboardComponent.h"
@@ -938,7 +939,7 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 void UAudioComponent::ResetParameters()
 {
 	InstanceParameters.Reset();
-	ISoundParameterControllerInterface::ResetParameters();
+	ISoundGeneratorParameterInterface::ResetParameters();
 }
 
 void UAudioComponent::Stop()

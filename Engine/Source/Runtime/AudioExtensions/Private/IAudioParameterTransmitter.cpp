@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "IAudioParameterTransmitter.h"
-#include "UObject/Object.h"
 
+#include "AudioParameterInterface.h"
 
 namespace Audio
 {

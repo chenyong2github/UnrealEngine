@@ -986,7 +986,7 @@ namespace Metasound
 			 */
 			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) = 0;
 
-			virtual const TSet<FMetasoundFrontendVersion>& GetInterfaceVersions() const = 0;
+			virtual const TArray<FMetasoundFrontendVersion>& GetInterfaceVersions() const = 0;
 			virtual void AddInterfaceVersion(const FMetasoundFrontendVersion& InVersion) = 0;
 			virtual void RemoveInterfaceVersion(const FMetasoundFrontendVersion& InVersion) = 0;
 			virtual void ClearInterfaceVersions() = 0;

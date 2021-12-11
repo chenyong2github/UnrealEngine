@@ -1,54 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "AudioParameter.h"
+
+#include "AudioParameterInterface.h"
+#include "IAudioProxyInitializer.h"
 
 
-namespace Audio
+namespace AudioParameterPrivate
 {
-	namespace ParameterPrivate
+	template <typename T>
+	void SetOrMergeArray(const TArray<T>& InArray, TArray<T>& OutArray, bool bInMerge)
 	{
-		template <typename T>
-		void SetOrMergeArray(const TArray<T>& InArray, TArray<T>& OutArray, bool bInMerge)
+		if (bInMerge)
 		{
-			if (bInMerge)
-			{
-				OutArray.Append(InArray);
-			}
-			else
-			{
-				OutArray = InArray;
-			}
-		}
-	} // ParameterPrivate
-
-	const FString FParameterPath::NamespaceDelimiter = TEXT(AUDIO_PARAMETER_NAMESPACE_PATH_DELIMITER);
-
-	FName FParameterPath::CombineNames(FName InLeft, FName InRight)
-	{
-		if (InLeft.IsNone())
-		{
-			return InRight;
-		}
-
-		const FString FullName = FString::Join(TArray<FString>({ *InLeft.ToString(), *InRight.ToString() }), *NamespaceDelimiter);
-		return FName(FullName);
-	}
-
-	void FParameterPath::SplitName(FName InFullName, FName& OutNamespace, FName& OutParameterName)
-	{
-		FString FullName = InFullName.ToString();
-		const int32 IndexOfDelim = FullName.Find(NamespaceDelimiter, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-		if (IndexOfDelim != INDEX_NONE)
-		{
-			OutNamespace = FName(*FullName.Left(IndexOfDelim));
-			OutParameterName = FName(*FullName.RightChop(IndexOfDelim + 1));
+			OutArray.Append(InArray);
 		}
 		else
 		{
-			OutNamespace = FName();
-			OutParameterName = InFullName;
+			OutArray = InArray;
 		}
 	}
-} // namespace Audio
+}
 
 void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName, bool bInTakeType, bool bInMergeArrayTypes)
 {
@@ -72,7 +42,7 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 
 		case EAudioParameterType::BooleanArray:
 		{
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayBoolParam, ArrayBoolParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayBoolParam, ArrayBoolParam, bInMergeArrayTypes);
 		}
 		break;
 
@@ -84,7 +54,7 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 
 		case EAudioParameterType::FloatArray:
 		{
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayFloatParam, ArrayFloatParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayFloatParam, ArrayFloatParam, bInMergeArrayTypes);
 		}
 		break;
 
@@ -104,7 +74,7 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 
 		case EAudioParameterType::IntegerArray:
 		{
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayIntParam, ArrayIntParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayIntParam, ArrayIntParam, bInMergeArrayTypes);
 		}
 		break;
 
@@ -116,11 +86,11 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 			ObjectParam = InParameter.ObjectParam;
 			StringParam = InParameter.StringParam;
 
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayBoolParam, ArrayBoolParam, bInMergeArrayTypes);
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayFloatParam, ArrayFloatParam, bInMergeArrayTypes);
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayIntParam, ArrayIntParam, bInMergeArrayTypes);
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayObjectParam, ArrayObjectParam, bInMergeArrayTypes);
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayStringParam, ArrayStringParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayBoolParam, ArrayBoolParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayFloatParam, ArrayFloatParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayIntParam, ArrayIntParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayObjectParam, ArrayObjectParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayStringParam, ArrayStringParam, bInMergeArrayTypes);
 
 			if (!bInMergeArrayTypes)
 			{
@@ -154,7 +124,7 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 
 		case EAudioParameterType::ObjectArray:
 		{
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayObjectParam, ArrayObjectParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayObjectParam, ArrayObjectParam, bInMergeArrayTypes);
 
 			if (!bInMergeArrayTypes)
 			{
@@ -179,7 +149,7 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 
 		case EAudioParameterType::StringArray:
 		{
-			Audio::ParameterPrivate::SetOrMergeArray(InParameter.ArrayStringParam, ArrayStringParam, bInMergeArrayTypes);
+			AudioParameterPrivate::SetOrMergeArray(InParameter.ArrayStringParam, ArrayStringParam, bInMergeArrayTypes);
 		}
 		break;
 
@@ -229,4 +199,9 @@ void FAudioParameter::Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioPar
 			}
 		}
 	}
+}
+
+UAudioParameterInterface::UAudioParameterInterface(FObjectInitializer const& InObjectInitializer)
+	: UInterface(InObjectInitializer)
+{
 }

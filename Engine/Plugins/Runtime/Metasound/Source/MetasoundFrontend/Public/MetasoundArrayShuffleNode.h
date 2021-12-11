@@ -13,7 +13,6 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
-#include "MetasoundSourceInterface.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 #include "Misc/ScopeLock.h"
@@ -223,8 +222,6 @@ namespace Metasound
 			, TriggerOnReset(FTriggerWriteRef::CreateNew(InParams.OperatorSettings))
 			, OutValue(TDataWriteReferenceFactory<ElementType>::CreateAny(InParams.OperatorSettings))
 		{
-			using namespace Frontend;
-
 			// Check to see if this is a global shuffler or a local one. 
 			// Global shuffler will use a namespace to opt into it.
 			PrevSeedValue = *SeedValue;
@@ -237,7 +234,7 @@ namespace Metasound
 				if (*bEnableSharedState)
 				{
 					// Get the environment variable for the unique ID of the sound
-					SharedStateUniqueId = InParams.Environment.GetValue<uint32>(SourceInterface::Environment::SoundUniqueID);
+					SharedStateUniqueId = InParams.Environment.GetValue<uint32>(TEXT("SoundUniqueId"));
 					check(SharedStateUniqueId != INDEX_NONE);
 
 					FSharedStateShuffleManager& SM = FSharedStateShuffleManager::Get();

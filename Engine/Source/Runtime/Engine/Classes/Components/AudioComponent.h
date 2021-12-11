@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Audio/SoundParameterControllerInterface.h"
+#include "Audio/SoundGeneratorParameterInterface.h"
+#include "AudioParameterInterface.h"
 #include "Components/SceneComponent.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
@@ -160,7 +161,7 @@ class ENGINE_API UInitialActiveSoundParams : public UObject
  * @see USoundBase
  */
 UCLASS(ClassGroup=(Audio, Common), HideCategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UAudioComponent : public USceneComponent, public ISoundParameterControllerInterface, public FQuartzTickableObject
+class ENGINE_API UAudioComponent : public USceneComponent, public ISoundGeneratorParameterInterface, public FQuartzTickableObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -177,7 +178,7 @@ class ENGINE_API UAudioComponent : public USceneComponent, public ISoundParamete
 
 	/** Array of transient parameters for this AudioComponent instance. Not serialized and can be set by code or BP.
 	  * Changes to this array directly will not be forwarded to the sound if the component is actively playing.
-	  * This should be done via the 'SetParameterX' calls implemented by the ISoundParameterControllerInterface.
+	  * This should be done via the 'SetParameterX' calls implemented by the ISoundGeneratorParameterInterface.
 	  * Instance parameter values superseded the parameters set by the actor interface & the component's default
 	  * parameters.
 	  */
@@ -789,7 +790,7 @@ public:
 
 	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 
-	/** SoundParameterControllerInterface Implementation */
+	/** SoundGeneratorParameterInterface Implementation */
 	FAudioDevice* GetAudioDevice() const override;
 	TArray<FAudioParameter>& GetInstanceParameters() override { return InstanceParameters; }
 	uint64 GetInstanceOwnerID() const override { return AudioComponentID; }

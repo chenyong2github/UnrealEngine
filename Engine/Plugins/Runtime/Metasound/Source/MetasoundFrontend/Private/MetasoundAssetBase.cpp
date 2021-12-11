@@ -77,7 +77,6 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 	if (InRegistrationOptions.bRegisterDependencies)
 	{
 		// Must be called in case register is called prior to asset scan being completed
-		// or in certain cases where asset is being loaded for first time.
 		IMetaSoundAssetManager::GetChecked().AddAssetReferences(*this);
 	}
 
@@ -282,7 +281,7 @@ bool FMetasoundAssetBase::GetDeclaredInterfaces(TArray<const Metasound::Frontend
 	{
 		bool bInterfacesFound = true;
 
-		Algo::Transform(Document->Interfaces, OutInterfaces, [&](const FMetasoundFrontendVersion& Version)
+		Algo::Transform(Document->InterfaceVersions, OutInterfaces, [&](const FMetasoundFrontendVersion& Version)
 		{
 			const FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(Version);
 			const IInterfaceRegistryEntry* RegistryEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey);
@@ -301,9 +300,12 @@ bool FMetasoundAssetBase::GetDeclaredInterfaces(TArray<const Metasound::Frontend
 	return false;
 }
 
-bool FMetasoundAssetBase::IsInterfaceDeclared(const FMetasoundFrontendVersion& InVersion) const
+bool FMetasoundAssetBase::IsInterfaceDeclared(FName InName) const
 {
-	return GetDocumentChecked().Interfaces.Contains(InVersion);
+	return Algo::AnyOf(GetDocumentChecked().InterfaceVersions, [&InName](const FMetasoundFrontendVersion& FrontendVersion)
+	{
+		return FrontendVersion.Name == InName;
+	});
 }
 
 void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocument)
@@ -363,10 +365,18 @@ bool FMetasoundAssetBase::VersionAsset()
 		return false;
 	}
 
-	bool bDidEdit = Doc->VersionInterfaces();
+	// Data migration for 5.0 Early Access data. ArchetypeVersion can be removed post 5.0 release.
+	bool bDidEdit = false;
+	if (Doc->ArchetypeVersion.IsValid())
+	{
+		Doc->InterfaceVersions.Add(Doc->ArchetypeVersion);
+		Doc->ArchetypeVersion = FMetasoundFrontendVersion::GetInvalid();
+		bDidEdit = true;
+	}
+
+	FDocumentHandle DocHandle = GetDocumentHandle();
 
 	// Version Document Model
-	FDocumentHandle DocHandle = GetDocumentHandle();
 	{
 		bDidEdit |= FVersionDocument(AssetName, AssetPath).Transform(DocHandle);
 	}
@@ -374,8 +384,7 @@ bool FMetasoundAssetBase::VersionAsset()
 	// Version Interfaces
 	{
 		bool bInterfaceUpdated = false;
-		const TArray<FMetasoundFrontendVersion> Versions = Doc->Interfaces.Array();
-		for (const FMetasoundFrontendVersion& Version : Versions)
+		for (const FMetasoundFrontendVersion& Version : Doc->InterfaceVersions)
 		{
 			bInterfaceUpdated |= FUpdateRootGraphInterface(Version).Transform(DocHandle);
 		}

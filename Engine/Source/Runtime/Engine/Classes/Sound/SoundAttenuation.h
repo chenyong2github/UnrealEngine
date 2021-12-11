@@ -4,7 +4,7 @@
 
 #include "Engine/Attenuation.h"
 #include "IAudioExtensionPlugin.h"
-#include "IAudioParameterInterfaceRegistry.h"
+#include "IAudioGeneratorInterfaceRegistry.h"
 
 #include "SoundAttenuation.generated.h"
 
@@ -492,28 +492,31 @@ class USoundAttenuation : public UObject
 
 namespace Audio
 {
-	namespace AttenuationInterface
+	struct ENGINE_API FAttenuationInterface : public FGeneratorInterface
 	{
-		ENGINE_API const extern FName Name;
+		static const FName Name;
 
-		namespace Inputs
+		struct FInputs
 		{
-			ENGINE_API const extern FName Distance;
-		} // namespace Inputs
+			static const FName Distance;
+		};
 
-		ENGINE_API Audio::FParameterInterfacePtr GetInterface();
-	} // namespace AttenuationInterface
+		FAttenuationInterface();
+	};
 
-	namespace SpatializationInterface
+	struct ENGINE_API FSpatializationInterface : public FGeneratorInterface
 	{
-		ENGINE_API const extern FName Name;
+		static const FName Name;
 
-		namespace Inputs
+		struct FInputs
 		{
-			ENGINE_API const extern FName Azimuth;
-			ENGINE_API const extern FName Elevation;
-		} // namespace Inputs
+			static const FName Azimuth;
+			static const FName Elevation;
+		};
 
-		ENGINE_API Audio::FParameterInterfacePtr GetInterface();
-	} // namespace SpatializationInterface
+		FSpatializationInterface();
+	};
+
+	ENGINE_API FGeneratorInterfacePtr GetAttenuationInterface();
+	ENGINE_API FGeneratorInterfacePtr GetSpatializationInterface();
 } // namespace Audio

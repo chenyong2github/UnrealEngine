@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioParameterControllerInterface.h"
-#include "Containers/Array.h"
-#include "GameFramework/Actor.h"
+#include "AudioParameterInterface.h"
+#include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
 
