@@ -455,11 +455,11 @@ public:
 	FRHIShaderResourceView* GetSampleRegionsTriangleIndicesSRV() const { return SampleRegionsTriangleIndicesSRV; }
 	FRHIShaderResourceView* GetSampleRegionsVerticesSRV() const { return SampleRegionsVerticesSRV; }
 
-	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
-	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
+	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSRV; }
+	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSRV; }
 	FRHIShaderResourceView* GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
-	FRHIShaderResourceView* GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
-	FRHIShaderResourceView* GetBufferColorSRV() const { return MeshColorBufferSrv; }
+	FRHIShaderResourceView* GetBufferTexCoordSRV() const { return MeshTexCoordBufferSRV; }
+	FRHIShaderResourceView* GetBufferColorSRV() const { return MeshColorBufferSRV; }
 
 	uint32 GetNumTexCoord() const { return NumTexCoord; }
 	uint32 GetNumWeights() const { return NumWeights; }
@@ -503,11 +503,11 @@ protected:
 	int32 FilteredSocketBoneOffset = 0;
 
 	/** Cached SRV to gpu buffers of the mesh we spawn from */
-	FRHIShaderResourceView* MeshVertexBufferSrv;
-	FRHIShaderResourceView* MeshIndexBufferSrv;
-	FRHIShaderResourceView* MeshTangentBufferSRV;
-	FRHIShaderResourceView* MeshTexCoordBufferSrv;
-	FRHIShaderResourceView* MeshColorBufferSrv;
+	FShaderResourceViewRHIRef MeshVertexBufferSRV;
+	FShaderResourceViewRHIRef MeshIndexBufferSRV;
+	FShaderResourceViewRHIRef MeshTangentBufferSRV;
+	FShaderResourceViewRHIRef MeshTexCoordBufferSRV;
+	FShaderResourceViewRHIRef MeshColorBufferSRV;
 
 	uint32 NumTexCoord = 0;
 	uint32 NumWeights = 0;
