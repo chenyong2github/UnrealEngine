@@ -276,6 +276,10 @@ bool FChunkCacheWorker::CheckSignature(const FChunkRequest& ChunkInfo)
 			FPakPlatformFile::BroadcastPakChunkSignatureCheckFailure(Data);
 		}
 	}
+	else
+	{
+		FMemory::Memset(ChunkInfo.Buffer->Data, 0xcd, ChunkInfo.Size);
+	}
 	
 	return bChunkHashesMatch;
 }
