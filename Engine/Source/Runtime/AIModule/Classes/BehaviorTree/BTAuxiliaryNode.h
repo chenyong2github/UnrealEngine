@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BehaviorTree/BTNode.h"
 #include "BTAuxiliaryNode.generated.h"
 
@@ -75,22 +74,28 @@ protected:
 	/** if set, OnTick will be used */
 	uint8 bNotifyTick : 1;
 
-	/** if set, conditional tick will use remaining time form node's memory */
+	/** if set, conditional tick will use remaining time from node's memory */
 	uint8 bTickIntervals : 1;
 
 	/** child index in parent node */
 	uint8 ChildIndex;
 
 	/** called when auxiliary node becomes active
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced!  
+	 * bNotifyBecomeRelevant must be set to true for this function to be called 
+	 * Calling INIT_AUXILIARY_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
 	/** called when auxiliary node becomes inactive
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced!  
+	 * bNotifyCeaseRelevant must be set to true for this function to be called 
+	 * Calling INIT_AUXILIARY_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
 	/** tick function
-	 * this function should be considered as const (don't modify state of object) if node is not instanced! */
+	 * this function should be considered as const (don't modify state of object) if node is not instanced!   
+	 * bNotifyTick must be set to true for this function to be called 
+	 * Calling INIT_AUXILIARY_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds);
 
 	/** sets next tick time */
@@ -98,7 +103,21 @@ protected:
 
 	/** gets remaining time for next tick */
 	float GetNextTickRemainingTime(uint8* NodeMemory) const;
+	
+	template<typename TickNode,	typename OnBecomeRelevant, typename OnCeaseRelevant>
+	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant)
+	{
+		bNotifyTick = !TIsSame<decltype(&UBTAuxiliaryNode::TickNode), TickNode>::Value;
+		bNotifyBecomeRelevant = !TIsSame<decltype(&UBTAuxiliaryNode::OnBecomeRelevant), OnBecomeRelevant>::Value;
+		bNotifyCeaseRelevant = !TIsSame<decltype(&UBTAuxiliaryNode::OnCeaseRelevant), OnCeaseRelevant>::Value;
+	}
 };
+
+#define INIT_AUXILIARY_NODE_NOTIFY_FLAGS() \
+	do { \
+	using NodeType = TRemovePointer<decltype(this)>::Type; \
+	InitNotifyFlags(&NodeType::TickNode, &NodeType::OnBecomeRelevant, &NodeType::OnCeaseRelevant); \
+	} while (false)
 
 FORCEINLINE uint8 UBTAuxiliaryNode::GetChildIndex() const
 {

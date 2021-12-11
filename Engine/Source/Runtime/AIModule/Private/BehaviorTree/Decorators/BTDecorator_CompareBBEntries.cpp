@@ -8,8 +8,7 @@ UBTDecorator_CompareBBEntries::UBTDecorator_CompareBBEntries(const FObjectInitia
 	NodeName = "Compare Blackboard entries";
 
 	Operator = EBlackBoardEntryComparison::Equal;
-	bNotifyBecomeRelevant = true;
-	bNotifyCeaseRelevant = true;
+	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
 }
 
 void UBTDecorator_CompareBBEntries::InitializeFromAsset(UBehaviorTree& Asset)

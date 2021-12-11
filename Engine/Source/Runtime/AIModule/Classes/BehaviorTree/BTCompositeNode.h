@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BehaviorTree/BTNode.h"
 #include "BTCompositeNode.generated.h"
 
@@ -208,22 +207,34 @@ protected:
 	/** execution index of last node in child branches */
 	uint16 LastExecutionIndex;
 
-	/** called just after child execution, allows to modify result */
+	/** called just after child execution, allows to modify result  
+	 * bUseChildExecutionNotify must be set to true for this function to be called 
+	 * Calling INIT_COMPOSITE_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual void NotifyChildExecution(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, int32 ChildIdx, EBTNodeResult::Type& NodeResult) const;
 
-	/** called when start enters this node */
+	/** called when start enters this node  
+	 * bUseNodeActivationNotify must be set to true for this function to be called 
+	 * Calling INIT_COMPOSITE_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual void NotifyNodeActivation(FBehaviorTreeSearchData& SearchData) const;
 
-	/** called when start leaves this node */
+	/** called when start leaves this node 
+	 * bUseNodeDeactivationNotify must be set to true for this function to be called  
+	 * Calling INIT_COMPOSITE_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual void NotifyNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult) const;
 
-	/** check if NotifyDecoratorsOnActivation is allowed, requires bUseDecoratorsActivationCheck flag  */
+	/** check if NotifyDecoratorsOnActivation is allowed, requires bUseDecoratorsActivationCheck flag 
+	 * bUseDecoratorsActivationCheck must be set to true for this function to be called  
+	 * Calling INIT_COMPOSITE_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual bool CanNotifyDecoratorsOnActivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx) const;
 
-	/** check if NotifyDecoratorsOnDeactivation is allowed, requires bUseDecoratorsDeactivationCheck flag  */
+	/** check if NotifyDecoratorsOnDeactivation is allowed, requires bUseDecoratorsDeactivationCheck flag   
+	* bUseDecoratorsDeactivationCheck must be set to true for this function to be called 
+	 * Calling INIT_COMPOSITE_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual bool CanNotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult) const;
 
-	/** check if NotifyDecoratorsOnFailedActivation is allowed, requires bUseDecoratorsActivationCheck flag  */
+	/** check if NotifyDecoratorsOnFailedActivation is allowed, requires bUseDecoratorsActivationCheck flag  
+	 * bUseDecoratorsFailedActivationCheck must be set to true for this function to be called 
+	 * Calling INIT_COMPOSITE_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
 	virtual bool CanNotifyDecoratorsOnFailedActivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult) const;
 
 	/** runs through decorators on given child node and notify them about activation */
@@ -243,8 +254,31 @@ protected:
 
 protected:
 	virtual int32 GetNextChildHandler(struct FBehaviorTreeSearchData& SearchData, int32 PrevChild, EBTNodeResult::Type LastResult) const { return BTSpecialChild::ReturnToParent; }
+
+	template<typename NotifyChildExecution,	typename NotifyNodeActivation, typename NotifyNodeDeactivation,
+			typename CanNotifyDecoratorsOnActivation, typename CanNotifyDecoratorsOnDeactivation, typename CanNotifyDecoratorsOnFailedActivation>
+	void InitNotifyFlags(NotifyChildExecution, NotifyNodeActivation, NotifyNodeDeactivation,
+						 CanNotifyDecoratorsOnActivation, CanNotifyDecoratorsOnDeactivation, CanNotifyDecoratorsOnFailedActivation)
+	{
+		bUseChildExecutionNotify = !TIsSame<decltype(&UBTCompositeNode::NotifyChildExecution), NotifyChildExecution>::Value;
+		bUseNodeActivationNotify = !TIsSame<decltype(&UBTCompositeNode::NotifyNodeActivation), NotifyNodeActivation>::Value;
+		bUseNodeDeactivationNotify = !TIsSame<decltype(&UBTCompositeNode::NotifyNodeDeactivation), NotifyNodeDeactivation>::Value;
+		bUseDecoratorsActivationCheck = !TIsSame<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnActivation), CanNotifyDecoratorsOnActivation>::Value;
+		bUseDecoratorsDeactivationCheck = !TIsSame<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnDeactivation), CanNotifyDecoratorsOnDeactivation>::Value;
+		bUseDecoratorsFailedActivationCheck = !TIsSame<decltype(&UBTCompositeNode::CanNotifyDecoratorsOnFailedActivation), CanNotifyDecoratorsOnFailedActivation>::Value;
+	}
 };
 
+#define INIT_COMPOSITE_NODE_NOTIFY_FLAGS() \
+	do { \
+	using NodeType = TRemovePointer<decltype(this)>::Type; \
+	InitNotifyFlags(&NodeType::NotifyChildExecution,\
+					&NodeType::NotifyNodeActivation,\
+					&NodeType::NotifyNodeDeactivation, \
+					&NodeType::CanNotifyDecoratorsOnActivation,\
+					&NodeType::CanNotifyDecoratorsOnDeactivation,\
+						&NodeType::CanNotifyDecoratorsOnFailedActivation); \
+		} while (false)
 
 //////////////////////////////////////////////////////////////////////////
 // Inlines
@@ -253,8 +287,8 @@ FORCEINLINE UBTNode* UBTCompositeNode::GetChildNode(int32 Index) const
 {
 	return Children.IsValidIndex(Index) ?
 		(Children[Index].ChildComposite ?
-			(UBTNode*)Children[Index].ChildComposite :
-			(UBTNode*)Children[Index].ChildTask) :
+			static_cast<UBTNode*>(Children[Index].ChildComposite) :
+			static_cast<UBTNode*>(Children[Index].ChildTask)) :
 		nullptr;
 }
 

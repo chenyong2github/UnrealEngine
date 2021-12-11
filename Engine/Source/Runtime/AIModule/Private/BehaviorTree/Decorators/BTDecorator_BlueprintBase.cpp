@@ -18,6 +18,7 @@ UBTDecorator_BlueprintBase::UBTDecorator_BlueprintBase(const FObjectInitializer&
 	ReceiveObserverDeactivatedImplementations = FBTNodeBPImplementationHelper::CheckEventImplementationVersion(TEXT("ReceiveObserverDeactivated"), TEXT("ReceiveObserverDeactivatedAI"), *this, *StopAtClass);
 	PerformConditionCheckImplementations = FBTNodeBPImplementationHelper::CheckEventImplementationVersion(TEXT("PerformConditionCheck"), TEXT("PerformConditionCheckAI"), *this, *StopAtClass);
 
+	INIT_DECORATOR_NODE_NOTIFY_FLAGS();
 	bNotifyBecomeRelevant = ReceiveObserverActivatedImplementations != 0;
 	bNotifyCeaseRelevant = ReceiveObserverDeactivatedImplementations != 0;
 	bNotifyTick = ReceiveTickImplementations != 0;
